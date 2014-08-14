@@ -502,7 +502,7 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 		icd->user_width, icd->user_height);
 
 	/* set physical bus parameters */
-	return ici->ops->set_bus_param(icd, pix->pixelformat);//yzm
+	return ici->ops->set_bus_param(icd, pix->pixelformat);/*yzm*/
 }
 
 static int soc_camera_open(struct file *file)
@@ -775,7 +775,29 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	return ret;
 }
+/**************yzm*************/
+/* ddl@rock-chips.com : Add ioctrl - VIDIOC_ENUM_FRAMEINTERVALS for soc-camera */
+static int soc_camera_enum_frameintervals (struct file *file, void  *priv,
+					   struct v4l2_frmivalenum *fival)
+{
+    struct soc_camera_device *icd = file->private_data;
+    struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+    struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+    int ret;
+    
+	WARN_ON(priv != file->private_data);
 
+    ret = v4l2_subdev_call(sd, video, enum_frameintervals, fival);
+    if (ret == -ENOIOCTLCMD) {
+        if (ici->ops->enum_frameinervals)
+           ret = ici->ops->enum_frameinervals(icd, fival); 
+        else 
+           ret = -ENOIOCTLCMD;
+    }
+
+    return ret;
+}
+/************yzm**************end*/
 static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 				       struct v4l2_fmtdesc *f)
 {
@@ -852,8 +874,11 @@ static int soc_camera_streamon(struct file *file, void *priv,
 	else
 		ret = vb2_streamon(&icd->vb2_vidq, i);
 
-	if (!ret)
-		v4l2_subdev_call(sd, video, s_stream, 1);
+	if (!ret){
+			v4l2_subdev_call(sd, video, s_stream, 1);
+	        if (ici->ops->s_stream)
+		        ici->ops->s_stream(icd, 1);				/* ddl@rock-chips.com : Add stream control for host */
+		}
 
 	return ret;
 }
@@ -873,6 +898,10 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	if (icd->streamer != file)
 		return -EBUSY;
 
+    /* ddl@rock-chips.com: v0.1.1 */
+    v4l2_subdev_call(sd, video, s_stream, 0);
+    if (ici->ops->s_stream)
+		ici->ops->s_stream(icd, 0);				/* ddl@rock-chips.com : Add stream control for host */
 	/*
 	 * This calls buf_release from host driver's videobuf_queue_ops for all
 	 * remaining buffers. When the last buffer is freed, stop capture
@@ -886,6 +915,169 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 
 	return 0;
 }
+/*************yzm*************/
+static int soc_camera_queryctrl(struct file *file, void *priv,
+				   struct v4l2_queryctrl *qc)
+{
+	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	int i;
+	//printk( "/___________//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__); 
+
+	WARN_ON(priv != file->private_data);
+
+	//printk("icd->ops->num_controls = %d ~~~~~~~~~~~~\n",icd->ops->num_controls);//yzm
+	//printk("ici->ops->num_controls = %d ~~~~~~~~~~~~\n",ici->ops->num_controls);//yzm
+
+	if (!qc->id)
+	return -EINVAL;
+   
+	/* first device controls */
+	//if device support digital zoom ,first use it to do zoom,zyc
+	for (i = 0; i < icd->ops->num_controls; i++)
+		if (qc->id == icd->ops->controls[i].id) {
+		   memcpy(qc, &(icd->ops->controls[i]),
+		   sizeof(*qc));
+		   return 0;
+		 }
+   
+	   /* then check host controls */
+	for (i = 0; i < ici->ops->num_controls; i++)
+		if (qc->id == ici->ops->controls[i].id) {
+		   memcpy(qc, &(ici->ops->controls[i]),
+		   sizeof(*qc));
+		   return 0;
+		 }
+	//printk( "/___________//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__); 
+	return -EINVAL;
+}
+
+/* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
+static int soc_camera_querymenu(struct file *file, void *priv,
+					   struct v4l2_querymenu *qm)
+{
+	struct soc_camera_device *icd = file->private_data;
+	struct v4l2_queryctrl qctrl;
+	int i,j;
+   
+	qctrl.id = qm->id;
+
+	if (soc_camera_queryctrl(file,priv, &qctrl) == 0) {
+		for (i = 0; i < icd->ops->num_menus; i++) {
+			if (qm->id == icd->ops->menus[i].id) {
+			   for (j=0; j<=(qctrl.maximum - qctrl.minimum); j++) {
+   
+				   if (qm->index == icd->ops->menus[i].index) {
+					   snprintf(qm->name, sizeof(qm->name), icd->ops->menus[i].name);
+					   qm->reserved = 0;
+
+						return 0;
+					} else {
+						   i++;
+						   if ( i >= icd->ops->num_menus)
+							   return -EINVAL;
+				   }
+			   }
+		   }
+	   }
+   }
+   
+   return -EINVAL;
+}
+
+static int soc_camera_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	int ret;
+   
+	WARN_ON(priv != file->private_data);
+   
+	if (ici->ops->get_ctrl) {
+		ret = ici->ops->get_ctrl(icd, ctrl);
+		if (ret != -ENOIOCTLCMD)
+			return ret;
+	}
+   
+	return v4l2_subdev_call(sd, core, g_ctrl, ctrl);
+}
+
+static int soc_camera_s_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	int ret;
+   
+	WARN_ON(priv != file->private_data);
+   
+	if (ici->ops->set_ctrl) {
+		ret = ici->ops->set_ctrl(icd, ctrl);
+		if (ret != -ENOIOCTLCMD)
+		return ret;
+	}
+   
+	return v4l2_subdev_call(sd, core, s_ctrl, ctrl);
+}
+
+   /* ddl@rock-chips.com : Add ioctrl -VIDIOC_XXX_ext_ctrl for soc-camera */
+static int soc_camera_try_ext_ctrl(struct file *file, void *priv,
+							   struct v4l2_ext_controls *ctrl)
+{
+	struct soc_camera_device *icd = file->private_data;
+	const struct v4l2_queryctrl *qctrl;
+	int i;
+  
+	  WARN_ON(priv != file->private_data);
+  
+	if (ctrl->ctrl_class != V4L2_CTRL_CLASS_CAMERA)
+		return -EINVAL;
+  
+	for (i=0; i<ctrl->count; i++) {
+		qctrl = soc_camera_find_qctrl(icd->ops, ctrl->controls[i].id);
+		if (!qctrl)
+			return -EINVAL;
+  
+		if ((ctrl->controls[i].value < qctrl->minimum) ||(ctrl->controls[i].value > qctrl->minimum))
+			return -ERANGE;
+	}
+  
+	return 0;
+}
+
+  /* ddl@rock-chips.com : Add ioctrl -VIDIOC_XXX_ext_ctrl for soc-camera */
+static int soc_camera_g_ext_ctrl(struct file *file, void *priv,
+							  struct v4l2_ext_controls *ctrl)
+{
+	 struct soc_camera_device *icd = file->private_data;
+	 struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+ 
+	 WARN_ON(priv != file->private_data);
+ 
+	 if (ctrl->ctrl_class != V4L2_CTRL_CLASS_CAMERA)
+		 return -EINVAL;
+ 
+	 return v4l2_subdev_call(sd, core, g_ext_ctrls, ctrl);
+}
+
+ /* ddl@rock-chips.com : Add ioctrl -VIDIOC_XXX_ext_ctrl for soc-camera */
+static int soc_camera_s_ext_ctrl(struct file *file, void *priv,
+                             struct v4l2_ext_controls *ctrl)
+{
+    struct soc_camera_device *icd = file->private_data;
+    struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+
+    WARN_ON(priv != file->private_data);
+
+    if (ctrl->ctrl_class != V4L2_CTRL_CLASS_CAMERA)
+        return -EINVAL;
+
+    return v4l2_subdev_call(sd, core, s_ext_ctrls, ctrl);
+}
+ /*************yzm*************end*/
 
 static int soc_camera_cropcap(struct file *file, void *fh,
 			      struct v4l2_cropcap *a)
@@ -1180,7 +1372,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	ret = video_dev_create(icd);
 	if (ret < 0)
 		goto evdc;
-	ssdd->socdev = icd;//yzm
+	ssdd->socdev = icd;/*yzm*/
 	/* Non-i2c cameras, e.g., soc_camera_platform, have no board_info */
 	if (shd->board_info) {
 		ret = soc_camera_init_i2c(icd, sdesc);
@@ -1268,7 +1460,7 @@ eadddev:
 evdc:
 	mutex_lock(&ici->host_lock);
 	ici->ops->remove(icd);
-	soc_camera_power_off(icd->pdev,ssdd);//yzm
+	soc_camera_power_off(icd->pdev,ssdd);/*yzm*/
 	mutex_unlock(&ici->host_lock);
 eadd:
 	v4l2_ctrl_handler_free(&icd->ctrl_handler);
@@ -1493,6 +1685,16 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_prepare_buf	 = soc_camera_prepare_buf,
 	.vidioc_streamon	 = soc_camera_streamon,
 	.vidioc_streamoff	 = soc_camera_streamoff,
+	/**************yzm***************/
+	.vidioc_queryctrl	 = soc_camera_queryctrl,
+	 .vidioc_querymenu	 = soc_camera_querymenu,     /* ddl@rock-chips.com:   Add ioctrl - vidioc_querymenu for soc-camera */
+	.vidioc_g_ctrl		 = soc_camera_g_ctrl,
+	.vidioc_s_ctrl		 = soc_camera_s_ctrl,
+	.vidioc_g_ext_ctrls    = soc_camera_g_ext_ctrl,   /* ddl@rock-chips.com:   Add ioctrl - vidioc_g_ext_ctrls for soc-camera */
+	.vidioc_s_ext_ctrls    = soc_camera_s_ext_ctrl,   /* ddl@rock-chips.com:   Add ioctrl - vidioc_s_ext_ctrls for soc-camera */
+	.vidioc_try_ext_ctrls    = soc_camera_try_ext_ctrl,/* ddl@rock-chips.com:   Add ioctrl - vidioc_try_ext_ctrls for soc-camera */
+    .vidioc_enum_frameintervals = soc_camera_enum_frameintervals,/* ddl@rock-chips.com:   Add ioctrl - VIDIOC_ENUM_FRAMEINTERVALS for soc-camera */
+	/**************yzm***************end*/
 	.vidioc_cropcap		 = soc_camera_cropcap,
 	.vidioc_g_crop		 = soc_camera_g_crop,
 	.vidioc_s_crop		 = soc_camera_s_crop,
@@ -1523,7 +1725,7 @@ static int video_dev_create(struct soc_camera_device *icd)
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN;
-	vdev->ctrl_handler	= &icd->ctrl_handler;
+	vdev->ctrl_handler	= NULL;//&icd->ctrl_handler;   /**************yzm***************/
 	vdev->lock		= &ici->host_lock;
 
 	icd->vdev = vdev;

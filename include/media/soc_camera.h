@@ -40,8 +40,8 @@ struct soc_camera_device {
 	unsigned char devnum;		/* Device number per host */
 	struct soc_camera_sense *sense;	/* See comment in struct definition */
 
-	struct soc_camera_ops *ops;//yzm
-	struct mutex video_lock;//yzm
+	struct soc_camera_ops *ops;/*yzm*/
+	struct mutex video_lock;/*yzm*/
 
 	struct video_device *vdev;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -80,7 +80,7 @@ struct soc_camera_host_ops {
 	/****************yzm**************/
 	int (*suspend)(struct soc_camera_device *, pm_message_t);
 	int (*resume)(struct soc_camera_device *);
-	//int (*enum_frameinervals)(struct soc_camera_device *, struct v4l2_frmivalenum);
+    int (*enum_frameinervals)(struct soc_camera_device *, struct v4l2_frmivalenum *);/* ddl@rock-chips.com :Add ioctrl - VIDIOC_ENUM_FRAMEINTERVALS for soc-camera */
 	int (*get_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	int (*set_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	int (*s_stream)(struct soc_camera_device *, int enable);
@@ -115,7 +115,7 @@ struct soc_camera_host_ops {
 			      struct soc_camera_device *);
 	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
-	int (*set_bus_param)(struct soc_camera_device *, __u32);//yzm
+	int (*set_bus_param)(struct soc_camera_device *, __u32);/*yzm*/
 	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*enum_framesizes)(struct soc_camera_device *, struct v4l2_frmsizeenum *);
@@ -138,7 +138,7 @@ struct soc_camera_subdev_desc {
 	/* sensor driver private platform data */
 	void *drv_priv;
 
-	struct soc_camera_device *socdev;//yzm
+	struct soc_camera_device *socdev;/*yzm*/
 	
 	/* Optional regulators that have to be managed on power on/off events */
 	struct regulator_bulk_data *regulators;
@@ -148,7 +148,7 @@ struct soc_camera_subdev_desc {
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
 
-	int (*powerdown)(struct device *, int);//yzm
+	int (*powerdown)(struct device *, int);/*yzm*/
 	/*
 	 * some platforms may support different data widths than the sensors
 	 * native ones due to different data line routing. Let the board code
@@ -195,7 +195,7 @@ struct soc_camera_link {
 	unsigned long flags;
 
 	void *priv;
-	void *priv_usr;		//yzm@rock-chips.com
+	void *priv_usr;		/*yzm*/
 	/* Optional regulators that have to be managed on power on/off events */
 	struct regulator_bulk_data *regulators;
 	int num_regulators;
@@ -203,7 +203,7 @@ struct soc_camera_link {
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
-	int (*powerdown)(struct device *,int);		//yzm@rock-chips.com
+	int (*powerdown)(struct device *,int);		/*yzm*/
 	/*
 	 * some platforms may support different data widths than the sensors
 	 * native ones due to different data line routing. Let the board code
@@ -319,6 +319,19 @@ struct soc_camera_sense {
 	unsigned long pixel_clock_max;
 	unsigned long pixel_clock;
 };
+/***************yzm****************/
+static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
+	struct soc_camera_ops *ops, int id)
+{
+	int i;
+
+	for (i = 0; i < ops->num_controls; i++)
+		if (ops->controls[i].id == id)
+			return &ops->controls[i];
+
+	return NULL;
+}
+/***************yzm****************rnd*/
 
 #define SOCAM_DATAWIDTH(x)	BIT((x) - 1)
 #define SOCAM_DATAWIDTH_4	SOCAM_DATAWIDTH(4)

@@ -530,10 +530,8 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 	int retval;
 
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
-
 	if (b->memory == V4L2_MEMORY_MMAP)
 		down_read(&current->mm->mmap_sem);
-
 	videobuf_queue_lock(q);
 	retval = -EBUSY;
 	if (q->reading) {
@@ -599,12 +597,12 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 
 	dprintk(1, "qbuf: requesting next field\n");
 	field = videobuf_next_field(q);
+	
 	retval = q->ops->buf_prepare(q, buf, field);
 	if (0 != retval) {
 		dprintk(1, "qbuf: buffer_prepare returned %d\n", retval);
 		goto done;
 	}
-
 	list_add_tail(&buf->stream, &q->stream);
 	if (q->streaming) {
 		spin_lock_irqsave(q->irqlock, flags);
@@ -617,10 +615,8 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 
 done:
 	videobuf_queue_unlock(q);
-
 	if (b->memory == V4L2_MEMORY_MMAP)
 		up_read(&current->mm->mmap_sem);
-
 	return retval;
 }
 EXPORT_SYMBOL_GPL(videobuf_qbuf);
@@ -629,6 +625,7 @@ EXPORT_SYMBOL_GPL(videobuf_qbuf);
 static int stream_next_buffer_check_queue(struct videobuf_queue *q, int noblock)
 {
 	int retval;
+    bool is_ext_locked;
 
 checks:
 	if (!q->streaming) {
@@ -645,16 +642,27 @@ checks:
 		} else {
 			dprintk(2, "next_buffer: waiting on buffer\n");
 
-			/* Drop lock to avoid deadlock with qbuf */
-			videobuf_queue_unlock(q);
+			/* Drop lock to avoid deadlock with qbuf */            
+            videobuf_queue_unlock(q);
+            /*ddl@rock-chips.com */
+            is_ext_locked = q->ext_lock && mutex_is_locked(q->ext_lock);
 
+        	/* Release vdev lock to prevent this wait from blocking outside access to
+        	   the device. */
+        	if (is_ext_locked)
+        		mutex_unlock(q->ext_lock);
+            
+            
 			/* Checking list_empty and streaming is safe without
 			 * locks because we goto checks to validate while
 			 * holding locks before proceeding */
 			retval = wait_event_interruptible(q->wait,
 				!list_empty(&q->stream) || !q->streaming);
-			videobuf_queue_lock(q);
 
+            videobuf_queue_lock(q);
+            /*ddl@rock-chips.com */
+            if (is_ext_locked)
+        		mutex_lock(q->ext_lock);
 			if (retval)
 				goto done;
 

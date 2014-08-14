@@ -4,9 +4,16 @@
 /{
 	cif_sensor: cif_sensor{
 			compatible = "rockchip,sensor";
+			CONFIG_SENSOR_POWER_IOCTL_USR 		= <1>;
+			CONFIG_SENSOR_RESET_IOCTL_USR 		= <0>;
+			CONFIG_SENSOR_POWERDOWN_IOCTL_USR	= <0>;
+			CONFIG_SENSOR_FLASH_IOCTL_USR	  	= <0>;
+			CONFIG_SENSOR_AF_IOCTL_USR	   		= <0>;
+
 		ov2659{
 			is_front = <1>; 
 			rockchip,powerdown = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;
+			#rockchip,power = <>;
 			mir = <0>;
 			flash_attach = <0>;
 			resolution = <ov2659_FULL_RESOLUTION>;

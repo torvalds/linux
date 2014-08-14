@@ -297,8 +297,8 @@
 
 		rk818_ldo4_reg:regulator@7 {
 			regulator-name= "rk818_ldo4";
-			regulator-min-microvolt = <2500000>;
-			regulator-max-microvolt = <2500000>;
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-enabled;

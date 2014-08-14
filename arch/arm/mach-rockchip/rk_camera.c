@@ -1,10 +1,11 @@
 #include "rk_camera.h"
+#include "rk30_camera.h"
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/version.h>
 #include <linux/moduleparam.h>
 #include <linux/of_gpio.h>
-//**********yzm***********//
+/**********yzm***********/
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/kernel.h>
@@ -12,14 +13,14 @@
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 #include <linux/module.h>
-//**********yzm***********//
+/**********yzm***********/
 
-#define PMEM_CAM_NECESSARY	 0x00000000    //yzm
+//#define PMEM_CAM_NECESSARY	 0x00000000    /*yzm*/
 
-static int camio_version = KERNEL_VERSION(0,1,9);//yzm camio_version
+static int camio_version = KERNEL_VERSION(0,1,9);/*yzm camio_version*/ 
 module_param(camio_version, int, S_IRUGO);
 
-static int camera_debug = 0;//yzm camera_debug
+static int camera_debug = 0;/*yzm*/ 
 module_param(camera_debug, int, S_IRUGO|S_IWUSR);    
 
 #undef  CAMMODULE_NAME
@@ -38,8 +39,16 @@ static int rk_sensor_io_deinit(int sensor);
 static int rk_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd, int on);
 static int rk_sensor_power(struct device *dev, int on);
 static int rk_sensor_register(void);
-//static int rk_sensor_reset(struct device *dev);
+/*static int rk_sensor_reset(struct device *dev);*/
+
+static int rk_dts_sensor_probe(struct platform_device *pdev);
+static int rk_dts_sensor_remove(struct platform_device *pdev);
+static int rk_dts_cif_probe(struct platform_device *pdev);
+static int rk_dts_cif_remove(struct platform_device *pdev);
+
 static int rk_sensor_powerdown(struct device *dev, int on);
+
+static struct rkcamera_platform_data *new_camera_head;	
 
 static struct rk29camera_platform_data rk_camera_platform_data = {
     .io_init = rk_sensor_io_init,
@@ -47,6 +56,14 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
     .sensor_ioctrl = rk_sensor_ioctrl,
     .sensor_register = rk_sensor_register,
 
+};
+
+struct rk29camera_platform_ioctl_cb	sensor_ioctl_cb = {
+	.sensor_power_cb = NULL,
+	.sensor_reset_cb = NULL,
+	.sensor_powerdown_cb = NULL,
+	.sensor_flash_cb = NULL,
+	.sensor_af_cb = NULL,
 };
 
 
@@ -61,9 +78,9 @@ static struct resource rk_camera_resource_host_1[2] = {};
 #if RK_SUPPORT_CIF0
  struct platform_device rk_device_camera_host_0 = {
 	.name		  = RK29_CAM_DRV_NAME,
-	.id 	  = RK_CAM_PLATFORM_DEV_ID_0,				// This is used to put cameras on this interface 
+	.id 	  = RK_CAM_PLATFORM_DEV_ID_0,				/* This is used to put cameras on this interface*/ 
 	.num_resources= 2,
-	.resource	  = rk_camera_resource_host_0,//yzm
+	.resource	  = rk_camera_resource_host_0,/*yzm*/
 	.dev			= {
 		.dma_mask = &rockchip_device_camera_dmamask,
 		.coherent_dma_mask = 0xffffffffUL,
@@ -75,9 +92,9 @@ static struct resource rk_camera_resource_host_1[2] = {};
 #if RK_SUPPORT_CIF1
  struct platform_device rk_device_camera_host_1 = {
 	.name		  = RK29_CAM_DRV_NAME,
-	.id 	  = RK_CAM_PLATFORM_DEV_ID_1,				// This is used to put cameras on this interface 
+	.id 	  = RK_CAM_PLATFORM_DEV_ID_1,				/* This is used to put cameras on this interface */
 	.num_resources	  = ARRAY_SIZE(rk_camera_resource_host_1),
-	.resource	  = rk_camera_resource_host_1,//yzm
+	.resource	  = rk_camera_resource_host_1,/*yzm*/
 	.dev			= {
 		.dma_mask = &rockchip_device_camera_dmamask,
 		.coherent_dma_mask = 0xffffffffUL,
@@ -120,7 +137,6 @@ static struct platform_driver rk_sensor_driver =
     .remove		= rk_dts_sensor_remove,
 };
 
-//************yzm***************
 
 static int rk_dts_sensor_remove(struct platform_device *pdev)
 {
@@ -133,11 +149,12 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rkcamera_platform_data *new_camera_list;
 	
+
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	
 	np = dev->of_node;
 	if (!np)
 		return -ENODEV;
-	
 	for_each_child_of_node(np, cp) {
 		u32 flash_attach,mir,i2c_rata,i2c_chl,i2c_add,cif_chl,mclk_rate,is_front;
 		u32 resolution,pwdn_info,powerup_sequence;
@@ -207,9 +224,9 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 
 		strcpy(new_camera->dev.i2c_cam_info.type, cp->name);
 		new_camera->dev.i2c_cam_info.addr = i2c_add>>1;
-		new_camera->dev.desc_info.host_desc.bus_id = RK29_CAM_PLATFORM_DEV_ID+cif_chl;//yzm
-		new_camera->dev.desc_info.host_desc.i2c_adapter_id = i2c_chl;//yzm
-		new_camera->dev.desc_info.host_desc.module_name = cp->name;//const
+		new_camera->dev.desc_info.host_desc.bus_id = RK29_CAM_PLATFORM_DEV_ID+cif_chl;/*yzm*/
+		new_camera->dev.desc_info.host_desc.i2c_adapter_id = i2c_chl;/*yzm*/
+		new_camera->dev.desc_info.host_desc.module_name = cp->name;/*const*/
 		new_camera->dev.device_info.name = "soc-camera-pdrv";
 		if(is_front)
 			sprintf(new_camera->dev_name,"%s_%s",cp->name,"front");
@@ -232,10 +249,6 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		new_camera->mclk_rate = mclk_rate;
 		new_camera->of_node = cp;
 			
-		//	device = container_of(&(new_camera[sensor_num].dev.desc_info),rk_camera_device_register_info_t,desc_info);
-		//	debug_printk( "sensor num %d ,desc_info point %p +++++++\n",sensor_num,&(new_camera.dev.desc_info));
-		//	debug_printk( "sensor num %d ,dev %p +++++++\n",sensor_num,&(new_camera.dev));
-		//	debug_printk( "sensor num %d ,device point %p +++++++\n",sensor_num,device);
 		    debug_printk( "******************* /n power = %x\n", power);
 			debug_printk( "******************* /n powerdown = %x\n", powerdown);
 			debug_printk( "******************* /n i2c_add = %x\n", new_camera->dev.i2c_cam_info.addr << 1);
@@ -253,7 +266,7 @@ static int rk_dts_cif_remove(struct platform_device *pdev)
 	 return 0;
 }
 	
-static int rk_dts_cif_probe(struct platform_device *pdev) //yzm
+static int rk_dts_cif_probe(struct platform_device *pdev) /*yzm*/
 {
 	int irq,err;
 	struct device *dev = &pdev->dev;
@@ -268,7 +281,7 @@ static int rk_dts_cif_probe(struct platform_device *pdev) //yzm
 		return -ENODEV;
 	}
 	rk_camera_resource_host_0[0].flags = IORESOURCE_MEM;
-	//map irqs
+	/*map irqs*/
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (irq < 0) {
 		printk(KERN_EMERG "Get irq resource from %s platform device failed!",pdev->name);
@@ -277,8 +290,6 @@ static int rk_dts_cif_probe(struct platform_device *pdev) //yzm
 	rk_camera_resource_host_0[1].start = irq;
 	rk_camera_resource_host_0[1].end   = irq;
 	rk_camera_resource_host_0[1].flags = IORESOURCE_IRQ;
-	//debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n res = [%x--%x] \n",rk_camera_resource_host_0[0].start , rk_camera_resource_host_0[0].end);
-	//debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n irq_num = %d\n",irq);
 	return 0;
 }
 	
@@ -292,7 +303,8 @@ static int rk_cif_sensor_init(void)
 
 	return 0;
 }
-	
+
+/************yzm**************end*/
 
 static int sensor_power_default_cb (struct rk29camera_gpio_res *res, int on)
 {
@@ -307,12 +319,12 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
     if (camera_power != INVALID_GPIO)  {
 		if (camera_io_init & RK29_CAM_POWERACTIVE_MASK) {
             if (on) {
-            	//gpio_set_value(camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+            	/*gpio_set_value(camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));*/
 				gpio_direction_output(camera_power,1);
 				dprintk("%s PowerPin=%d ..PinLevel = %x",res->dev_name, camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
     			msleep(10);
     		} else {
-    			//gpio_set_value(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+    			/*gpio_set_value(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));*/
 				gpio_direction_output(camera_power,0);
 				dprintk("%s PowerPin=%d ..PinLevel = %x",res->dev_name, camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
     		}
@@ -453,171 +465,6 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE
 	return ret;
 }
 
-/*
-static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
-{
-
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
-
-
-    switch (idx)
-    {
-        #ifdef CONFIG_SENSOR_0
-        case 0:
-        {
-            if ((w==176) && (h==144)) {
-                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_0;
-            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_0
-            } else if ((w==240) && (h==160)) {
-                *val = CONFIG_SENSOR_240X160_FPS_FIXED_0;
-            #endif
-            } else if ((w==320) && (h==240)) {
-                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_0;
-            } else if ((w==352) && (h==288)) {
-                *val = CONFIG_SENSOR_CIF_FPS_FIXED_0;
-            } else if ((w==640) && (h==480)) {
-                *val = CONFIG_SENSOR_VGA_FPS_FIXED_0;
-            } else if ((w==720) && (h==480)) {
-                *val = CONFIG_SENSOR_480P_FPS_FIXED_0;
-            } else if ((w==800) && (h==600)) {
-                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_0;
-            } else if ((w==1280) && (h==720)) {
-                *val = CONFIG_SENSOR_720P_FPS_FIXED_0;
-            }
-            break;
-        }
-        #endif
-        #ifdef CONFIG_SENSOR_1
-        case 1:
-        {
-            if ((w==176) && (h==144)) {
-                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_1;
-            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_1
-            } else if ((w==240) && (h==160)) {
-                *val = CONFIG_SENSOR_240X160_FPS_FIXED_1;
-            #endif
-            } else if ((w==320) && (h==240)) {
-                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_1;
-            } else if ((w==352) && (h==288)) {
-                *val = CONFIG_SENSOR_CIF_FPS_FIXED_1;
-            } else if ((w==640) && (h==480)) {
-                *val = CONFIG_SENSOR_VGA_FPS_FIXED_1;
-            } else if ((w==720) && (h==480)) {
-                *val = CONFIG_SENSOR_480P_FPS_FIXED_1;
-            } else if ((w==800) && (h==600)) {
-                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_1;
-            } else if ((w==1280) && (h==720)) {
-                *val = CONFIG_SENSOR_720P_FPS_FIXED_1;
-            }
-            break;
-        }
-        #endif
-        #ifdef CONFIG_SENSOR_01
-        case 2:
-        {
-            if ((w==176) && (h==144)) {
-                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_01;
-            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_01
-            } else if ((w==240) && (h==160)) {
-                *val = CONFIG_SENSOR_240X160_FPS_FIXED_01;
-            #endif
-            } else if ((w==320) && (h==240)) {
-                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_01;
-            } else if ((w==352) && (h==288)) {
-                *val = CONFIG_SENSOR_CIF_FPS_FIXED_01;
-            } else if ((w==640) && (h==480)) {
-                *val = CONFIG_SENSOR_VGA_FPS_FIXED_01;
-            } else if ((w==720) && (h==480)) {
-                *val = CONFIG_SENSOR_480P_FPS_FIXED_01;
-            } else if ((w==800) && (h==600)) {
-                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_01;
-            } else if ((w==1280) && (h==720)) {
-                *val = CONFIG_SENSOR_720P_FPS_FIXED_01;
-            }
-            break;
-        }
-        #endif
-        #ifdef CONFIG_SENSOR_02
-        case 3:
-        {
-            if ((w==176) && (h==144)) {
-                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_02;
-            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_02
-            } else if ((w==240) && (h==160)) {
-                *val = CONFIG_SENSOR_240X160_FPS_FIXED_02;
-            #endif
-            } else if ((w==320) && (h==240)) {
-                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_02;
-            } else if ((w==352) && (h==288)) {
-                *val = CONFIG_SENSOR_CIF_FPS_FIXED_02;
-            } else if ((w==640) && (h==480)) {
-                *val = CONFIG_SENSOR_VGA_FPS_FIXED_02;
-            } else if ((w==720) && (h==480)) {
-                *val = CONFIG_SENSOR_480P_FPS_FIXED_02;
-            } else if ((w==800) && (h==600)) {
-                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_02;
-            } else if ((w==1280) && (h==720)) {
-                *val = CONFIG_SENSOR_720P_FPS_FIXED_02;
-            }
-            break;
-        }
-        #endif
-        
-        #ifdef CONFIG_SENSOR_11
-        case 4:
-        {
-            if ((w==176) && (h==144)) {
-                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_11;
-            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_11
-            } else if ((w==240) && (h==160)) {
-                *val = CONFIG_SENSOR_240X160_FPS_FIXED_11;
-            #endif
-            } else if ((w==320) && (h==240)) {
-                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_11;
-            } else if ((w==352) && (h==288)) {
-                *val = CONFIG_SENSOR_CIF_FPS_FIXED_11;
-            } else if ((w==640) && (h==480)) {
-                *val = CONFIG_SENSOR_VGA_FPS_FIXED_11;
-            } else if ((w==720) && (h==480)) {
-                *val = CONFIG_SENSOR_480P_FPS_FIXED_11;
-            } else if ((w==800) && (h==600)) {
-                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_11;
-            } else if ((w==1280) && (h==720)) {
-                *val = CONFIG_SENSOR_720P_FPS_FIXED_11;
-            }
-            break;
-        }
-        #endif
-        #ifdef CONFIG_SENSOR_12
-        case 5:
-        {
-            if ((w==176) && (h==144)) {
-                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_12;
-            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_12
-            } else if ((w==240) && (h==160)) {
-                *val = CONFIG_SENSOR_240X160_FPS_FIXED_12;
-            #endif
-            } else if ((w==320) && (h==240)) {
-                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_12;
-            } else if ((w==352) && (h==288)) {
-                *val = CONFIG_SENSOR_CIF_FPS_FIXED_12;
-            } else if ((w==640) && (h==480)) {
-                *val = CONFIG_SENSOR_VGA_FPS_FIXED_12;
-            } else if ((w==720) && (h==480)) {
-                *val = CONFIG_SENSOR_480P_FPS_FIXED_12;
-            } else if ((w==800) && (h==600)) {
-                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_12;
-            } else if ((w==1280) && (h==720)) {
-                *val = CONFIG_SENSOR_720P_FPS_FIXED_12;
-            }
-            break;
-        }
-        #endif
-        default:
-            eprintk(" sensor-%d have not been define in board file!",idx);
-    }
-}
-*/
 static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct device_node *of_node)
 {
     int ret = 0;
@@ -628,8 +475,7 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
     bool io_requested_in_camera;
 	enum of_gpio_flags flags;
 	
-	struct rkcamera_platform_data *new_camera;//yzm
-	//struct device_node *parent_node;
+	struct rkcamera_platform_data *new_camera;/*yzm*/
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
@@ -644,14 +490,12 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
     if (camera_power != INVALID_GPIO) {
 		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$/ camera_power  = %x\n", camera_power );
 
-		camera_power = of_get_named_gpio_flags(of_node,"rockchip,power",0,&flags);//yzm
-		gpio_res->gpio_power = camera_power;//yzm,将io的完整信息传回去。
+		camera_power = of_get_named_gpio_flags(of_node,"rockchip,power",0,&flags);/*yzm*/
+		gpio_res->gpio_power = camera_power;/*yzm information back to the IO*/
 
-		
-		//dev->of_node = parent_node;//将dev->of_node还原
 		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$/ camera_power  = %x\n", camera_power );  
 
-		ret = gpio_request(camera_power, "camera power");    //申请名为"camera power"的io管脚
+		ret = gpio_request(camera_power, "camera power"); 
         if (ret) {
 			
             io_requested_in_camera = false;
@@ -735,8 +579,8 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
 	if (camera_powerdown != INVALID_GPIO) {
 		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$/ camera_powerdown  = %x\n", camera_powerdown );
 
-		camera_powerdown = of_get_named_gpio_flags(of_node,"rockchip,powerdown",0,&flags);//yzm
-		gpio_res->gpio_powerdown = camera_powerdown;//yzm,将io的完整信息传回去。
+		camera_powerdown = of_get_named_gpio_flags(of_node,"rockchip,powerdown",0,&flags);/*yzm*/
+		gpio_res->gpio_powerdown = camera_powerdown;/*yzm information back to the IO*/
 
 		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$/ camera_powerdown  = %x\n", camera_powerdown );  
 		ret = gpio_request(camera_powerdown, "camera powerdown");
@@ -914,7 +758,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE
 	}
 	if (gpio_res->gpio_init & RK29_CAM_AFACTIVE_MASK) {
 	    if (camera_af != INVALID_GPIO)  {
-	       // gpio_direction_input(camera_af);
+	       /* gpio_direction_input(camera_af);*/
 	        gpio_free(camera_af);
 	    }
 	}	
@@ -979,10 +823,9 @@ static int rk_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd, i
     struct rkcamera_platform_data *new_cam_dev = NULL;
 	struct rk29camera_platform_data* plat_data = &rk_camera_platform_data;
     int ret = RK29_CAM_IO_SUCCESS,i = 0;
-    //struct soc_camera_link *dev_icl = NULL;//yzm
-	struct soc_camera_desc *dev_icl = NULL;//yzm
+	struct soc_camera_desc *dev_icl = NULL;/*yzm*/
 	struct rkcamera_platform_data *new_camera;
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
     if (res == NULL) {
 		new_camera = new_camera_head;
@@ -991,8 +834,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE
             if (strcmp(new_camera->dev_name, dev_name(dev)) == 0) {
                 res = (struct rk29camera_gpio_res *)&new_camera->io; 
                 new_cam_dev = &new_camera[i];
-                //dev_icl = &new_camera[i].dev.link_info;
-				 dev_icl = &new_camera->dev.desc_info;//yzm
+				 dev_icl = &new_camera->dev.desc_info;/*yzm*/
                 break;
             }
             new_camera = new_camera->next_camera;;
@@ -1069,8 +911,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE
         case Cam_Mclk:
         {
             if (plat_data->sensor_mclk && dev_icl) {
-                //plat_data->sensor_mclk(dev_icl->bus_id,(on!=0)?1:0,on);
-				plat_data->sensor_mclk(dev_icl->host_desc.bus_id,(on!=0)?1:0,on);//yzm
+				plat_data->sensor_mclk(dev_icl->host_desc.bus_id,(on!=0)?1:0,on);/*yzm*/
             } else { 
                 eprintk( "%s(%d): sensor_mclk(%p) or dev_icl(%p) is NULL",
                     __FUNCTION__,__LINE__,plat_data->sensor_mclk,dev_icl);
@@ -1168,7 +1009,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
     return ret;
 }
 
-static int rk_sensor_power(struct device *dev, int on)   //icd->pdev
+static int rk_sensor_power(struct device *dev, int on)   /*icd->pdev*/
 {
     int powerup_sequence,mclk_rate;
     
@@ -1180,37 +1021,35 @@ static int rk_sensor_power(struct device *dev, int on)   //icd->pdev
 
 debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
-    new_camera = plat_data->register_dev_new;    //new_camera[]
+    new_camera = plat_data->register_dev_new;    /*new_camera[]*/
     
-	while (new_camera != NULL) {//yzm
-    //while (strstr(new_camera->dev_name,"end")==NULL) {
+	while (new_camera != NULL) {
 
-        if (new_camera->io.gpio_powerdown != INVALID_GPIO) {		//true
+        if (new_camera->io.gpio_powerdown != INVALID_GPIO) {		
             gpio_direction_output(new_camera->io.gpio_powerdown,
                 ((new_camera->io.gpio_flag&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS));            
         }
 
-		debug_printk( "new_camera->dev_name= %s \n", new_camera->dev_name);	//yzm
-		debug_printk( "dev_name(dev)= %s \n", dev_name(dev));	 //yzm
+		debug_printk( "new_camera->dev_name= %s \n", new_camera->dev_name);	/*yzm*/
+		debug_printk( "dev_name(dev)= %s \n", dev_name(dev));	 /*yzm*/
 		
-        if (strcmp(new_camera->dev_name,dev_name(dev))) {		//当不是打开的sensor时为TRUE
-			debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i\n", __FILE__, __LINE__);//yzm
+        if (strcmp(new_camera->dev_name,dev_name(dev))) {		
+			debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i\n", __FILE__, __LINE__);
             if (sensor_ioctl_cb.sensor_powerdown_cb && on)
             	{
-            		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i\n", __FILE__, __LINE__);//yzm
+            		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i\n", __FILE__, __LINE__);
                 	sensor_ioctl_cb.sensor_powerdown_cb(&new_camera->io,1);
             	}
         } else {
             new_device = new_camera;
             dev_io = &new_camera->io;
-            debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i\n", __FILE__, __LINE__);//yzm
+            debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i\n", __FILE__, __LINE__);/*yzm*/
             if (!Sensor_Support_DirectResume(new_camera->pwdn_info))
                 real_pwroff = true;			
             else
                 real_pwroff = false;
         }
-        //new_camera++;
-        new_camera = new_camera->next_camera;//yzm
+        new_camera = new_camera->next_camera;
     }
 
     if (new_device != NULL) {
@@ -1225,23 +1064,21 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
     }
         
     if (on) {
-		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i\n", __FILE__, __LINE__);//yzm
+		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i\n", __FILE__, __LINE__);
         rk_sensor_pwrseq(dev, powerup_sequence, on,mclk_rate);  
     } else {
         if (real_pwroff) {
             if (rk_sensor_pwrseq(dev, powerup_sequence, on,mclk_rate)<0)    /* ddl@rock-chips.com: v0.1.5 */
                 goto PowerDown;
             
-            /*ddl@rock-chips.com: all power down switch to Hi-Z after power off*/  //高阻态
+            /*ddl@rock-chips.com: all power down switch to Hi-Z after power off*/
             new_camera = plat_data->register_dev_new;
-			while (new_camera != NULL) {//yzm
-            //while (strstr(new_camera->dev_name,"end")==NULL) {
+			while (new_camera != NULL) {
                 if (new_camera->io.gpio_powerdown != INVALID_GPIO) {
                     gpio_direction_input(new_camera->io.gpio_powerdown);            
                 }
                 new_camera->pwdn_info |= 0x01;
-                //new_camera++;
-                new_camera = new_camera->next_camera;//yzm
+                new_camera = new_camera->next_camera;
             }
         } else {  
 PowerDown:
@@ -1287,7 +1124,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
 
 	new_camera = new_camera_head;
 	
-	while (new_camera != NULL) {//yzm	
+	while (new_camera != NULL) {	
         if (new_camera->dev.i2c_cam_info.addr == INVALID_VALUE) {
             WARN(1, 
                 KERN_ERR "%s(%d): new_camera[%d] i2c addr is invalidate!",
@@ -1295,9 +1132,9 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
             continue;
         }
         sprintf(new_camera->dev_name,"%s_%d",new_camera->dev.device_info.dev.init_name,i+3);
-        new_camera->dev.device_info.dev.init_name =(const char*)&new_camera->dev_name[0];//转换成指针
+        new_camera->dev.device_info.dev.init_name =(const char*)&new_camera->dev_name[0];
         new_camera->io.dev_name =(const char*)&new_camera->dev_name[0];
-        if (new_camera->orientation == INVALID_VALUE) {        //关于前后方向
+        if (new_camera->orientation == INVALID_VALUE) {
             if (strstr(new_camera->dev_name,"back")) {		           
                 new_camera->orientation = 90;
             } else {
@@ -1311,22 +1148,23 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
         if ((new_camera->fov_v <= 0) || (new_camera->fov_v>360))
             new_camera->fov_v = 100;        
 
-		new_camera->dev.desc_info.subdev_desc.power = rk_sensor_power;//yzm
-		new_camera->dev.desc_info.subdev_desc.powerdown = rk_sensor_powerdown;//yzm
-		new_camera->dev.desc_info.host_desc.board_info =&new_camera->dev.i2c_cam_info; //yzm
+		new_camera->dev.desc_info.subdev_desc.power = rk_sensor_power;
+		new_camera->dev.desc_info.subdev_desc.powerdown = rk_sensor_powerdown;
+		new_camera->dev.desc_info.host_desc.board_info =&new_camera->dev.i2c_cam_info; 
 
-        new_camera->dev.device_info.id = i+6;//?? platform_device.id
-		new_camera->dev.device_info.dev.platform_data = &new_camera->dev.desc_info;//yzm
+        new_camera->dev.device_info.id = i+6;
+		new_camera->dev.device_info.dev.platform_data = &new_camera->dev.desc_info;
 		debug_printk("platform_data(desc_info) %p +++++++++++++\n",new_camera->dev.device_info.dev.platform_data);
-		new_camera->dev.desc_info.subdev_desc.drv_priv = &rk_camera_platform_data;//yzm
+		new_camera->dev.desc_info.subdev_desc.drv_priv = &rk_camera_platform_data;
 
         platform_device_register(&(new_camera->dev.device_info));
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);  
-debug_printk("new_camera = %p +++++++++++++\n",new_camera);
-debug_printk("new_camera->next_camera = %p +++++++++++++\n",new_camera->next_camera);
+		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);  
+		debug_printk("new_camera = %p +++++++++++++\n",new_camera);
+		debug_printk("new_camera->next_camera = %p +++++++++++++\n",new_camera->next_camera);
 
         new_camera = new_camera->next_camera;
     }
 	
 		return 0;
 }
+#include "../../../drivers/media/video/rk30_camera.c"

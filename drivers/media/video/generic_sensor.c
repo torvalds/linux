@@ -730,7 +730,7 @@ int generic_sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cm
 {
 	//struct soc_camera_link *icl = to_soc_camera_link(icd);
 	struct soc_camera_desc *desc = to_soc_camera_desc(icd);
-    struct rk29camera_platform_data *pdata = desc->subdev_desc.drv_priv;//yzm
+    struct rk29camera_platform_data *pdata = desc->subdev_desc.drv_priv;/*yzm*/
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     struct generic_sensor *sensor = to_generic_sensor(client);
 	int ret = 0;
@@ -741,8 +741,8 @@ int generic_sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cm
         case Sensor_Power:
         {
 			//if (icl->power) {
-			if(desc->subdev_desc.power) {//yzm
-				ret = desc->subdev_desc.power(icd->pdev, on);//yzm
+			if(desc->subdev_desc.power) {/*yzm*/
+				ret = desc->subdev_desc.power(icd->pdev, on);/*yzm*/
 			} else {
 			    SENSOR_TR("haven't power callback");
                 ret = -EINVAL;
@@ -752,8 +752,8 @@ int generic_sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cm
 		case Sensor_PowerDown:
 		{
 			//if (icl->powerdown) {
-			if(desc->subdev_desc.powerdown) {//yzm
-				ret = desc->subdev_desc.powerdown(icd->pdev, on);//yzm
+			if(desc->subdev_desc.powerdown) {/*yzm*/
+				ret = desc->subdev_desc.powerdown(icd->pdev, on);/*yzm*/
 			} else {
 			    SENSOR_TR("haven't power down callback");
                 ret = -EINVAL;
@@ -800,8 +800,8 @@ int generic_sensor_init(struct v4l2_subdev *sd, u32 val)
 	int array_index = 0;
 	int num = sensor->info_priv.num_series;    
     //struct soc_camera_link *icl = to_soc_camera_link(icd);
-	struct soc_camera_desc *desc = to_soc_camera_desc(icd);//yzm
-    struct rk29camera_platform_data *pdata = desc->subdev_desc.drv_priv;//yzm
+	struct soc_camera_desc *desc = to_soc_camera_desc(icd);/*yzm*/
+    struct rk29camera_platform_data *pdata = desc->subdev_desc.drv_priv;/*yzm*/
     struct rkcamera_platform_data *sensor_device=NULL,*new_camera;
 
     new_camera = pdata->register_dev_new;
@@ -885,14 +885,14 @@ sensor_INIT_ERR:
 unsigned long generic_sensor_query_bus_param(struct soc_camera_device *icd)
 {
 	//struct soc_camera_link *icl = to_soc_camera_link(icd);
-	struct soc_camera_desc *desc = to_soc_camera_desc(icd);//yzm
+	struct soc_camera_desc *desc = to_soc_camera_desc(icd);/*yzm*/
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct generic_sensor *sensor = to_generic_sensor(client);
 	/**************yzm************/
 	struct v4l2_mbus_config cfg;	
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 	cfg.flags = sensor->info_priv.bus_parameter;
-	return soc_camera_apply_board_flags(&(desc->subdev_desc), &cfg);//yzm
+	return soc_camera_apply_board_flags(&(desc->subdev_desc), &cfg);/*yzm*/
 	/**************yzm*************/
 }
 

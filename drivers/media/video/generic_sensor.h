@@ -13,7 +13,7 @@
 #include <media/soc_camera.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include "../../../arch/arm/mach-rockchip/rk30_camera.h"//yzm
+#include "../../../arch/arm/mach-rockchip/rk30_camera.h"/*yzm*/
 #include <linux/kernel.h>
 /* Camera Sensor driver */
 
@@ -297,7 +297,7 @@ extern int generic_sensor_s_ext_control(struct soc_camera_device *icd, struct v4
 extern int generic_sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl);
 extern int generic_sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl);
 extern long generic_sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
-extern int generic_sensor_s_power(struct v4l2_subdev *sd, int on);//yzm
+extern int generic_sensor_s_power(struct v4l2_subdev *sd, int on);/*yzm*/
 extern int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,enum v4l2_mbus_pixelcode *code);
 extern int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf);
 extern int generic_sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *id);

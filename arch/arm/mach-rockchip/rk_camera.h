@@ -67,7 +67,7 @@
 #define RK29_CAM_SENSOR_OV2655 ov2655
 #define RK29_CAM_SENSOR_OV2659 ov2659
 
-#define RK29_CAM_SENSOR_OV2660 ov2660 //yzm
+#define RK29_CAM_SENSOR_OV2660 ov2660 /*yzm*/
 
 #define RK29_CAM_SENSOR_OV7690 ov7690
 #define RK29_CAM_SENSOR_OV3640 ov3640
@@ -115,7 +115,7 @@
 #define RK29_CAM_SENSOR_NAME_OV2655 "ov2655"
 #define RK29_CAM_SENSOR_NAME_OV2659 "ov2659"
 
-#define RK29_CAM_SENSOR_NAME_OV2660 "ov2660"  //yzm
+#define RK29_CAM_SENSOR_NAME_OV2660 "ov2660"  /*yzm*/
 
 
 #define RK29_CAM_SENSOR_NAME_OV7690 "ov7690"
@@ -231,7 +231,7 @@
 #define ov2655_I2C_ADDR             0x60
 #define ov2659_I2C_ADDR             0x60
 
-#define ov2660_I2C_ADDR             0x60   //yzm
+#define ov2660_I2C_ADDR             0x60   /*yzm*/
 
 #define ov7690_I2C_ADDR             0x42
 #define ov3640_I2C_ADDR             0x78
@@ -291,7 +291,7 @@
 #define ov2655_PWRDN_ACTIVE             0x01
 #define ov2659_PWRDN_ACTIVE             0x01
 
-#define ov2660_PWRDN_ACTIVE             0x01  //yzm
+#define ov2660_PWRDN_ACTIVE             0x01  /*yzm*/
 
 #define ov7690_PWRDN_ACTIVE             0x01
 #define ov3640_PWRDN_ACTIVE             0x01
@@ -565,7 +565,7 @@ typedef struct rk_sensor_user_init_data{
 
 typedef struct rk_camera_device_register_info {
     struct i2c_board_info i2c_cam_info;
-	struct soc_camera_desc desc_info;//yzm
+	struct soc_camera_desc desc_info;/*yzm*/
     struct platform_device device_info;
 }rk_camera_device_register_info_t;
 
@@ -601,7 +601,7 @@ struct rkcamera_platform_data {
     int fov_h;           /* fied of view horizontal */
     int fov_v;           /* fied of view vertical */
 	struct device_node *of_node;
-	struct rkcamera_platform_data *next_camera;//yzm
+	struct rkcamera_platform_data *next_camera;/*yzm*/
                       
 };
 
@@ -614,7 +614,7 @@ struct rk29camera_platform_data {
     int (*sensor_mclk)(int cif_idx, int on, int clk_rate);
     
     struct rkcamera_platform_data *register_dev_new;  //sensor
-	struct device *cif_dev;//yzm  host
+	struct device *cif_dev;/*yzm host*/  
 };
 
 struct rk29camera_platform_ioctl_cb {
