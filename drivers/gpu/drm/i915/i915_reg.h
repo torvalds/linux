@@ -1272,6 +1272,10 @@ enum punit_power_well {
 #define   INSTPM_TLB_INVALIDATE	(1<<9)
 #define   INSTPM_SYNC_FLUSH	(1<<5)
 #define ACTHD	        0x020c8
+#define MEM_MODE	0x020cc
+#define   MEM_DISPLAY_B_TRICKLE_FEED_DISABLE (1<<3) /* 830 only */
+#define   MEM_DISPLAY_A_TRICKLE_FEED_DISABLE (1<<2) /* 830/845 only */
+#define   MEM_DISPLAY_TRICKLE_FEED_DISABLE (1<<2) /* 85x only */
 #define FW_BLC		0x020d8
 #define FW_BLC2		0x020dc
 #define FW_BLC_SELF	0x020e0 /* 915+ only */
