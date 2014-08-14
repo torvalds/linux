@@ -12,6 +12,34 @@
 #include <linux/statfs.h>
 #include "aufs.h"
 
+static aufs_bindex_t au_fhsm_bottom(struct super_block *sb)
+{
+	struct au_sbinfo *sbinfo;
+	struct au_fhsm *fhsm;
+
+	SiMustAnyLock(sb);
+
+	sbinfo = au_sbi(sb);
+	fhsm = &sbinfo->si_fhsm;
+	AuDebugOn(!fhsm);
+	return fhsm->fhsm_bottom;
+}
+
+void au_fhsm_set_bottom(struct super_block *sb, aufs_bindex_t bindex)
+{
+	struct au_sbinfo *sbinfo;
+	struct au_fhsm *fhsm;
+
+	SiMustWriteLock(sb);
+
+	sbinfo = au_sbi(sb);
+	fhsm = &sbinfo->si_fhsm;
+	AuDebugOn(!fhsm);
+	fhsm->fhsm_bottom = bindex;
+}
+
+/* ---------------------------------------------------------------------- */
+
 static int au_fhsm_test_jiffy(struct au_sbinfo *sbinfo, struct au_branch *br)
 {
 	struct au_br_fhsm *bf;
@@ -85,8 +113,6 @@ out:
 void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force)
 {
 	int err;
-	unsigned char do_notify;
-	aufs_bindex_t bend, blower;
 	struct au_sbinfo *sbinfo;
 	struct au_fhsm *fhsm;
 	struct au_branch *br;
@@ -97,19 +123,8 @@ void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force)
 
 	sbinfo = au_sbi(sb);
 	fhsm = &sbinfo->si_fhsm;
-	if (!au_ftest_si(sbinfo, FHSM))
-		return;
-
-	do_notify = 0;
-	bend = au_sbend(sb);
-	for (blower = bindex + 1; blower <= bend; blower++) {
-		br = au_sbr(sb, blower);
-		if (au_br_fhsm(br->br_perm)) {
-			do_notify = 1;
-			break;
-		}
-	}
-	if (!do_notify)
+	if (!au_ftest_si(sbinfo, FHSM)
+	    || fhsm->fhsm_bottom == bindex)
 		return;
 
 	br = au_sbr(sb, bindex);
@@ -130,7 +145,7 @@ void au_fhsm_wrote_all(struct super_block *sb, int force)
 	struct au_branch *br;
 
 	/* exclude the bottom */
-	bend = au_sbend(sb);
+	bend = au_fhsm_bottom(sb);
 	for (bindex = 0; bindex < bend; bindex++) {
 		br = au_sbr(sb, bindex);
 		if (au_br_fhsm(br->br_perm))
@@ -184,7 +199,7 @@ static ssize_t au_fhsm_do_read(struct super_block *sb,
 	/* except the bottom branch */
 	err = 0;
 	nstbr = 0;
-	bend = au_sbend(sb);
+	bend = au_fhsm_bottom(sb);
 	for (bindex = 0; !err && bindex < bend; bindex++) {
 		br = au_sbr(sb, bindex);
 		if (!au_br_fhsm(br->br_perm))
@@ -247,7 +262,7 @@ need_data:
 		AuDebugOn(!sb);
 		/* exclude the bottom branch */
 		nfhsm = 0;
-		bend = au_sbend(sb);
+		bend = au_fhsm_bottom(sb);
 		for (bindex = 0; bindex < bend; bindex++) {
 			br = au_sbr(sb, bindex);
 			if (au_br_fhsm(br->br_perm))
@@ -375,6 +390,7 @@ void au_fhsm_init(struct au_sbinfo *sbinfo)
 	atomic_set(&fhsm->fhsm_readable, 0);
 	fhsm->fhsm_expire
 		= msecs_to_jiffies(AUFS_FHSM_CACHE_DEF_SEC * MSEC_PER_SEC);
+	fhsm->fhsm_bottom = -1;
 }
 
 void au_fhsm_set(struct au_sbinfo *sbinfo, unsigned int sec)
