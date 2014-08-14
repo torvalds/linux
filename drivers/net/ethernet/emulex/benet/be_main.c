@@ -4958,6 +4958,7 @@ static void be_shutdown(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
+	be_roce_dev_shutdown(adapter);
 	cancel_delayed_work_sync(&adapter->work);
 	cancel_delayed_work_sync(&adapter->func_recovery_work);
 
