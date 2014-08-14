@@ -2066,17 +2066,25 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 	assert_cursor_disabled(dev_priv, pipe);
 	assert_sprites_disabled(dev_priv, pipe);
 
-	/* Don't disable pipe A or pipe A PLLs if needed */
-	if (pipe == PIPE_A && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
-		return;
-
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
 	if ((val & PIPECONF_ENABLE) == 0)
 		return;
 
-	I915_WRITE(reg, val & ~PIPECONF_ENABLE);
-	intel_wait_for_pipe_off(crtc);
+	/*
+	 * Double wide has implications for planes
+	 * so best keep it disabled when not needed.
+	 */
+	if (crtc->config.double_wide)
+		val &= ~PIPECONF_DOUBLE_WIDE;
+
+	/* Don't disable pipe or pipe PLLs if needed */
+	if (!(pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE))
+		val &= ~PIPECONF_ENABLE;
+
+	I915_WRITE(reg, val);
+	if ((val & PIPECONF_ENABLE) == 0)
+		intel_wait_for_pipe_off(crtc);
 }
 
 /*
