@@ -417,7 +417,7 @@ void tcp_update_metrics(struct sock *sk);
 void tcp_init_metrics(struct sock *sk);
 void tcp_metrics_init(void);
 bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst,
-			bool paws_check);
+			bool paws_check, bool timestamps);
 bool tcp_remember_stamp(struct sock *sk);
 bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw);
 void tcp_fetch_timewait_stamp(struct sock *sk, struct dst_entry *dst);

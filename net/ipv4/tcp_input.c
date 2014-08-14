@@ -5979,12 +5979,14 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		 * timewait bucket, so that all the necessary checks
 		 * are made in the function processing timewait state.
 		 */
-		if (tmp_opt.saw_tstamp && tcp_death_row.sysctl_tw_recycle) {
+		if (tcp_death_row.sysctl_tw_recycle) {
 			bool strict;
 
 			dst = af_ops->route_req(sk, &fl, req, &strict);
+
 			if (dst && strict &&
-			    !tcp_peer_is_proven(req, dst, true)) {
+			    !tcp_peer_is_proven(req, dst, true,
+						tmp_opt.saw_tstamp)) {
 				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_PAWSPASSIVEREJECTED);
 				goto drop_and_release;
 			}
@@ -5993,7 +5995,8 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		else if (!sysctl_tcp_syncookies &&
 			 (sysctl_max_syn_backlog - inet_csk_reqsk_queue_len(sk) <
 			  (sysctl_max_syn_backlog >> 2)) &&
-			 !tcp_peer_is_proven(req, dst, false)) {
+			 !tcp_peer_is_proven(req, dst, false,
+					     tmp_opt.saw_tstamp)) {
 			/* Without syncookies last quarter of
 			 * backlog is filled with destinations,
 			 * proven to be alive.
