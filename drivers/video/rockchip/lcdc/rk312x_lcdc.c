@@ -320,24 +320,34 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 
                         /* rk312x unsupport win1 scale */
-                        if (lcdc_dev->soc_type == VOP_RK3036) 
+                        if (lcdc_dev->soc_type == VOP_RK3036) {
 			        lcdc_writel(lcdc_dev, WIN1_SCL_FACTOR_YRGB,
 				        v_X_SCL_FACTOR(win->scale_yrgb_x) |
 				        v_Y_SCL_FACTOR(win->scale_yrgb_y));
+				lcdc_writel(lcdc_dev, WIN1_ACT_INFO,
+					    v_ACT_WIDTH(win->area[0].xact) |
+					    v_ACT_HEIGHT(win->area[0].yact));
+				lcdc_writel(lcdc_dev, WIN1_DSP_INFO,
+					    v_DSP_WIDTH(win->area[0].xsize) |
+					    v_DSP_HEIGHT(win->area[0].ysize));
+				lcdc_writel(lcdc_dev, WIN1_DSP_ST,
+					    v_DSP_STX(win->area[0].dsp_stx) |
+					    v_DSP_STY(win->area[0].dsp_sty));
+				lcdc_writel(lcdc_dev, WIN1_MST, win->area[0].y_addr);
+			} else {
+				lcdc_writel(lcdc_dev, WIN1_DSP_INFO_RK312X,
+					    v_DSP_WIDTH(win->area[0].xsize) |
+					    v_DSP_HEIGHT(win->area[0].ysize));
+				lcdc_writel(lcdc_dev, WIN1_DSP_ST_RK312X,
+					    v_DSP_STX(win->area[0].dsp_stx) |
+					    v_DSP_STY(win->area[0].dsp_sty));
+
+				lcdc_writel(lcdc_dev, WIN1_MST_RK312X, win->area[0].y_addr);
+			}
 
 			lcdc_msk_reg(lcdc_dev, WIN1_VIR, m_YRGB_VIR,
 				     v_YRGB_VIR(win->area[0].y_vir_stride));
-			lcdc_writel(lcdc_dev, WIN1_ACT_INFO,
-				    v_ACT_WIDTH(win->area[0].xact) |
-				    v_ACT_HEIGHT(win->area[0].yact));
-			lcdc_writel(lcdc_dev, WIN1_DSP_INFO,
-				    v_DSP_WIDTH(win->area[0].xsize) |
-				    v_DSP_HEIGHT(win->area[0].ysize));
-			lcdc_writel(lcdc_dev, WIN1_DSP_ST,
-				    v_DSP_STX(win->area[0].dsp_stx) |
-				    v_DSP_STY(win->area[0].dsp_sty));
 
-			lcdc_writel(lcdc_dev, WIN1_MST, win->area[0].y_addr);
 
 		} else if (win->id == 2) {
 		}
