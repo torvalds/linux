@@ -421,7 +421,7 @@ static unsigned long exynos_dsi_set_pll(struct exynos_dsi *dsi,
 	if (!fout) {
 		dev_err(dsi->dev,
 			"failed to find PLL PMS for requested frequency\n");
-		return -EFAULT;
+		return 0;
 	}
 	dev_dbg(dsi->dev, "PLL freq %lu, (p %d, m %d, s %d)\n", fout, p, m, s);
 
@@ -453,7 +453,7 @@ static unsigned long exynos_dsi_set_pll(struct exynos_dsi *dsi,
 	do {
 		if (timeout-- == 0) {
 			dev_err(dsi->dev, "PLL failed to stabilize\n");
-			return -EFAULT;
+			return 0;
 		}
 		reg = readl(dsi->reg_base + DSIM_STATUS_REG);
 	} while ((reg & DSIM_PLL_STABLE) == 0);
