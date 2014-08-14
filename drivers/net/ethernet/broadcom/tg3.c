@@ -14093,8 +14093,9 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 
 	spin_lock_bh(&tp->lock);
 	if (!tp->hw_stats) {
+		*stats = tp->net_stats_prev;
 		spin_unlock_bh(&tp->lock);
-		return &tp->net_stats_prev;
+		return stats;
 	}
 
 	tg3_get_nstats(tp, stats);

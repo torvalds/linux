@@ -47,7 +47,7 @@ static u8 e1000_calculate_checksum(u8 *buffer, u32 length)
  *  e1000_mng_enable_host_if - Checks host interface is enabled
  *  @hw: pointer to the HW structure
  *
- *  Returns E1000_success upon success, else E1000_ERR_HOST_INTERFACE_COMMAND
+ *  Returns 0 upon success, else -E1000_ERR_HOST_INTERFACE_COMMAND
  *
  *  This function checks whether the HOST IF is enabled for command operation
  *  and also checks whether the previous command is completed.  It busy waits
@@ -78,7 +78,7 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 	}
 
 	if (i == E1000_MNG_DHCP_COMMAND_TIMEOUT) {
-		e_dbg("Previous command timeout failed .\n");
+		e_dbg("Previous command timeout failed.\n");
 		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 

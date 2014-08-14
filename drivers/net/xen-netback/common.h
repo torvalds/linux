@@ -165,6 +165,7 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	u16 dealloc_ring[MAX_PENDING_REQS];
 	struct task_struct *dealloc_task;
 	wait_queue_head_t dealloc_wq;
+	atomic_t inflight_packets;
 
 	/* Use kthread for guest RX */
 	struct task_struct *task;
@@ -328,5 +329,9 @@ extern unsigned int xenvif_max_queues;
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *xen_netback_dbg_root;
 #endif
+
+void xenvif_skb_zerocopy_prepare(struct xenvif_queue *queue,
+				 struct sk_buff *skb);
+void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue);
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

@@ -581,7 +581,11 @@ static struct xgene_enet_desc_ring *xgene_enet_create_desc_ring(
 	struct xgene_enet_desc_ring *ring;
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct device *dev = ndev_to_dev(ndev);
-	u32 size;
+	int size;
+
+	size = xgene_enet_get_ring_size(dev, cfgsize);
+	if (size < 0)
+		return NULL;
 
 	ring = devm_kzalloc(dev, sizeof(struct xgene_enet_desc_ring),
 			    GFP_KERNEL);
@@ -593,7 +597,6 @@ static struct xgene_enet_desc_ring *xgene_enet_create_desc_ring(
 	ring->cfgsize = cfgsize;
 	ring->id = ring_id;
 
-	size = xgene_enet_get_ring_size(dev, cfgsize);
 	ring->desc_addr = dma_zalloc_coherent(dev, size, &ring->dma,
 					      GFP_KERNEL);
 	if (!ring->desc_addr) {
