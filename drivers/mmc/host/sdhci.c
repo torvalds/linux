@@ -1192,8 +1192,14 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 clock_set:
-	if (real_div)
+	if (real_div) {
 		host->mmc->actual_clock = (host->max_clk * clk_mul) / real_div;
+		if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
+			host->timeout_clk = host->mmc->actual_clock / 1000;
+			host->mmc->max_busy_timeout =
+				(1 << 27) / host->timeout_clk;
+		}
+	}
 
 	clk |= (div & SDHCI_DIV_MASK) << SDHCI_DIVIDER_SHIFT;
 	clk |= ((div & SDHCI_DIV_HI_MASK) >> SDHCI_DIV_MASK_LEN)
