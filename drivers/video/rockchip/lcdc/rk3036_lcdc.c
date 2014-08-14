@@ -1471,7 +1471,7 @@ static int rk3036_lcdc_probe(struct platform_device *pdev)
 	}
 
 	if (dev_drv->iommu_enabled)
-		strcpy(dev_drv->mmu_dts_name, "iommu,vop_mmu");
+		strcpy(dev_drv->mmu_dts_name, VOP_IOMMU_COMPATIBLE_NAME);
 
 	ret = rk_fb_register(dev_drv, lcdc_win, lcdc_dev->id);
 	if (ret < 0) {
