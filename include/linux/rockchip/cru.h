@@ -161,7 +161,6 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 #define RK3036_CRU_SOFTRSTS_CON_CNT	(9)
 #define RK3036_CRU_SOFTRSTS_CON(i)	(RK3036_CRU_SOFTRST_CON + ((i) * 4))
 
-#define RK312X_CRU_MODE_CON 0x0040
 #define RK312X_PLL_CONS(id, i)		((id) * 0x10 + ((i) * 4))
 
 #define RK312X_CRU_GLB_SRST_FST_VALUE 0x00100
@@ -176,12 +175,24 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 #define RK312X_CRU_EMMC_CON0	0x01d8
 #define RK312X_CRU_EMMC_CON1	0x01dc
 #define RK312X_CRU_PLL_PRG_EN	0x01f0
-
+#define RK312X_CRU_MODE_CON		0x40
 #define RK312X_CRU_RST_ST 0x00160
 #define RK312X_CRU_PLL_MASK_CON 0x001f0
 
 #define RK312X_CRU_CLKSEL_CON		0x44
 #define RK312X_CRU_CLKGATE_CON		0xd0
+
+#define RK312X_PLL_CONS(id, i)		((id) * 0x10 + ((i) * 4))
+
+/******************PLL MODE BITS*******************/
+#define RK312X_PLLS_MODE_OFFSET(id) ((id) <= 3 ? (id * 4) : 14)
+#define RK312X_PLL_MODE_MSK(id)		(0x1 << RK312X_PLLS_MODE_OFFSET(id))
+#define RK312X_PLL_MODE_SLOW(id)	((0x0 << RK312X_PLLS_MODE_OFFSET(id))\
+| (0x1 << (16 + RK312X_PLLS_MODE_OFFSET(id))))
+#define RK312X_PLL_MODE_NORM(id)	((0x1 << RK312X_PLLS_MODE_OFFSET(id))\
+| (0x1 << (16 + RK312X_PLLS_MODE_OFFSET(id))))
+
+
 #define RK312X_CRU_SOFTRST_CON		0x110
 
 #define RK312X_CRU_CLKSELS_CON_CNT	(35)
@@ -193,4 +204,16 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 #define RK312X_CRU_SOFTRSTS_CON_CNT	(9)
 #define RK312X_CRU_SOFTRSTS_CON(i)	(RK312X_CRU_SOFTRST_CON + ((i) * 4))
 
+/*******************CRU GATING*********************/
+#define RK312X_CRU_CONS_GATEID(i)	(16 * (i))
+#define RK312X_CRU_GATEID_CONS(ID)	(RK312X_CRU_CLKGATE_CON\
+	+ ((ID) / 16) * 4)
+
+enum rk312x_cru_clk_gate {
+	/* SCU CLK GATE 0 CON */
+	RK312X_CLKGATE_UART0_SRC = (RK312X_CRU_CONS_GATEID(1) + 8),
+	RK312X_CLKGATE_PCLK_UART0 = (RK312X_CRU_CONS_GATEID(8) + 0),
+	RK312X_CLKGATE_PCLK_UART1,
+	RK312X_CLKGATE_PCLK_UART2,
+};
 #endif
