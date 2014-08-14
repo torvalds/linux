@@ -63,22 +63,27 @@
 #define GMAC_CLK_RX_DL_CFG(val) ((0x3F80 << 16) | (val<<7))        // 7bit
 #define GMAC_CLK_TX_DL_CFG(val) ((0x007F << 16) | (val))           // 7bit
 
-static void SET_RGMII(int type)
+static void SET_RGMII(int type, int tx_delay, int rx_delay)
 {
     if (type == RK3288_GMAC) {
         grf_writel(GMAC_PHY_INTF_SEL_RGMII, RK3288_GRF_SOC_CON1);
         grf_writel(GMAC_RMII_MODE_CLR, RK3288_GRF_SOC_CON1);
         grf_writel(GMAC_RXCLK_DLY_ENABLE, RK3288_GRF_SOC_CON3);
         grf_writel(GMAC_TXCLK_DLY_ENABLE, RK3288_GRF_SOC_CON3);
-        grf_writel(GMAC_CLK_RX_DL_CFG(0x10), RK3288_GRF_SOC_CON3);
-        grf_writel(GMAC_CLK_TX_DL_CFG(0x30), RK3288_GRF_SOC_CON3);
+        grf_writel(GMAC_CLK_RX_DL_CFG(rx_delay), RK3288_GRF_SOC_CON3);
+        grf_writel(GMAC_CLK_TX_DL_CFG(tx_delay), RK3288_GRF_SOC_CON3);
+        pr_info("tx delay=0x%x\nrx delay=0x%x\n", tx_delay, rx_delay);
+	//grf_writel(0xffffffff,RK3288_GRF_GPIO3D_E);
+	//grf_writel(grf_readl(RK3288_GRF_GPIO4B_E) | 0x3<<2<<16 | 0x3<<2, RK3288_GRF_GPIO4B_E);
+	//grf_writel(0xffffffff,RK3288_GRF_GPIO4A_E);
     } else if (type == RK312X_GMAC) {
         grf_writel(GMAC_PHY_INTF_SEL_RGMII, RK312X_GRF_MAC_CON1);
         grf_writel(GMAC_RMII_MODE_CLR, RK312X_GRF_MAC_CON1);
         grf_writel(GMAC_RXCLK_DLY_ENABLE, RK312X_GRF_MAC_CON0);
         grf_writel(GMAC_TXCLK_DLY_ENABLE, RK312X_GRF_MAC_CON0);
-        grf_writel(GMAC_CLK_RX_DL_CFG(0x10), RK312X_GRF_MAC_CON0);
-        grf_writel(GMAC_CLK_TX_DL_CFG(0x30), RK312X_GRF_MAC_CON0);
+        grf_writel(GMAC_CLK_RX_DL_CFG(rx_delay), RK312X_GRF_MAC_CON0);
+        grf_writel(GMAC_CLK_TX_DL_CFG(tx_delay), RK312X_GRF_MAC_CON0);
+        pr_info("tx delay=0x%x\nrx delay=0x%x\n", tx_delay, rx_delay);
     }
 }
 
@@ -195,13 +200,17 @@ int gmac_clk_init(struct device *device)
 		pr_warn("%s: warning: cannot get clk_mac clock\n", __func__);
 	}
 
-#ifdef CONFIG_GMAC_CLK_IN
-	clk_set_rate(bsp_priv->gmac_clkin, 50000000);
-	clk_set_parent(bsp_priv->clk_mac, bsp_priv->gmac_clkin);
-#else
-	clk_set_rate(bsp_priv->clk_mac_pll, 50000000);
-	clk_set_parent(bsp_priv->clk_mac, bsp_priv->clk_mac_pll);
-#endif
+	if (bsp_priv->clock_input) {
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII) {
+			clk_set_rate(bsp_priv->gmac_clkin, 50000000);
+		}
+		clk_set_parent(bsp_priv->clk_mac, bsp_priv->gmac_clkin);
+	} else {
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII) {
+			clk_set_rate(bsp_priv->clk_mac_pll, 50000000);
+		}
+		clk_set_parent(bsp_priv->clk_mac, bsp_priv->clk_mac_pll);
+	}
 	return 0;
 }
 
@@ -402,22 +411,22 @@ int stmmc_pltfr_init(struct platform_device *pdev) {
 	} else {
 		err = gpio_request(bsp_priv->power_io, "gmac_phy_power");
 		if (err) {
-			//pr_err("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
+			pr_err("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
 		}
 	}
 
 	if (!gpio_is_valid(bsp_priv->reset_io)) {
-		//pr_err("%s: ERROR: Get reset-gpio failed.\n", __func__);
+		pr_err("%s: ERROR: Get reset-gpio failed.\n", __func__);
 	} else {
 		err = gpio_request(bsp_priv->reset_io, "gmac_phy_reset");
 		if (err) {
-			//pr_err("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
+			pr_err("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
 		}
 	}
 //rmii or rgmii
 	if (phy_iface == PHY_INTERFACE_MODE_RGMII) {
 		pr_info("%s: init for RGMII\n", __func__);
-		SET_RGMII(bsp_priv->chip);
+		SET_RGMII(bsp_priv->chip, bsp_priv->tx_delay, bsp_priv->rx_delay);
 	} else if (phy_iface == PHY_INTERFACE_MODE_RMII) {
 		pr_info("%s: init for RMII\n", __func__);
 		SET_RMII(bsp_priv->chip);
@@ -496,12 +505,6 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);
-//don't care about the return value of of_get_phy_mode(np)
-#ifdef CONFIG_GMAC_PHY_RMII
-	plat->interface = PHY_INTERFACE_MODE_RMII;
-#else
-	plat->interface = PHY_INTERFACE_MODE_RGMII;
-#endif
 
 	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(struct stmmac_mdio_bus_data),
@@ -519,6 +522,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		g_bsp_priv.power_ctrl_by_pmu = true;
 		strcpy(g_bsp_priv.pmu_regulator, strings);
 	}
+
 	ret = of_property_read_u32(np, "pmu_enable_level", &value);
 	if (ret) {
 		pr_err("%s: Can not read property: pmu_enable_level.\n", __func__);
@@ -527,6 +531,37 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		pr_info("%s: ethernet phy power controled by pmu(level = %s).\n", __func__, (value == 1)?"HIGH":"LOW");
 		g_bsp_priv.power_ctrl_by_pmu = true;
 		g_bsp_priv.pmu_enable_level = value;
+	}
+
+	ret = of_property_read_string(np, "clock_in_out", &strings);
+	if (ret) {
+		pr_err("%s: Can not read property: clock_in_out.\n", __func__);
+		g_bsp_priv.clock_input = true;
+	} else {
+		pr_info("%s: clock input or output? (%s).\n", __func__, strings);
+		if (!strcmp(strings, "input")) {
+			g_bsp_priv.clock_input = true;
+		} else {
+			g_bsp_priv.clock_input = false;
+		}
+	}
+
+	ret = of_property_read_u32(np, "tx_delay", &value);
+	if (ret) {
+		g_bsp_priv.tx_delay = 0x30;
+		pr_err("%s: Can not read property: tx_delay. set tx_delay to 0x%x\n", __func__, g_bsp_priv.tx_delay);
+	} else {
+		pr_info("%s: TX delay(0x%x).\n", __func__, value);
+		g_bsp_priv.tx_delay = value;
+	}
+
+	ret = of_property_read_u32(np, "rx_delay", &value);
+	if (ret) {
+		g_bsp_priv.rx_delay = 0x10;
+		pr_err("%s: Can not read property: rx_delay. set rx_delay to 0x%x\n", __func__, g_bsp_priv.rx_delay);
+	} else {
+		pr_info("%s: RX delay(0x%x).\n", __func__, value);
+		g_bsp_priv.rx_delay = value;
 	}
 
 	g_bsp_priv.reset_io = 

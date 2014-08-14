@@ -1146,7 +1146,6 @@
 			      "mac_clk_tx", "clk_mac_ref",
 			      "clk_mac_refout", "aclk_mac",
 			      "pclk_mac";
-		//phy-mode = "rmii";
 		phy-mode = "rgmii";
 		pinctrl-names = "default";
 		pinctrl-0 = <&mac_clk &mac_txpins &mac_rxpins &mac_mdpins>;
