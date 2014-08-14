@@ -496,7 +496,7 @@
 	};
 
 	spdif: spdif@10204000 {
-		compatible = "rk312x-spdif";
+		compatible = "rockchip-spdif";
 		reg = <0x10204000 0x1000>;
 		clocks = <&clk_spdif>, <&clk_gates10 9>;
 		clock-names = "spdif_mclk", "spdif_hclk";
