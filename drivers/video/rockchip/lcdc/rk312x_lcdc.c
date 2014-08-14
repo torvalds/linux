@@ -363,6 +363,7 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 		else if (win->id == 2)
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_HWC_EN, v_HWC_EN(0));
 	}
+	rk312x_lcdc_alpha_cfg(lcdc_dev);
 }
 
 static void lcdc_layer_enable(struct lcdc_device *lcdc_dev, unsigned int win_id,
