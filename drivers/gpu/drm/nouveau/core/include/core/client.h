@@ -14,7 +14,7 @@ struct nouveau_client {
 	void *data;
 
 	int (*ntfy)(const void *, u32, const void *, u32);
-	struct nvkm_client_notify *notify[8];
+	struct nvkm_client_notify *notify[16];
 };
 
 static inline struct nouveau_client *
