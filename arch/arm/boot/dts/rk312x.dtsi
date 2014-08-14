@@ -946,17 +946,4 @@
 			};
 		};
 	};
-       rockchip_suspend {
-                rockchip,ctrbits = <
-			(0
-			|RKPM_CTR_PWR_DMNS
-			|RKPM_CTR_GTCLKS
-			|RKPM_CTR_PLLS
-			|RKPM_CTR_ARMOFF_LPMD
-			)
-		>;
-		rockchip,pmic-suspend_gpios = <
-                       GPIO1_A1
-                        >;
-        };
 };

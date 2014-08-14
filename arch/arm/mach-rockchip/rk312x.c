@@ -30,7 +30,7 @@
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/pmu.h>
-/*#include <asm/cpuidle.h>*/
+#include <asm/cpuidle.h>
 #include <asm/cputype.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -39,7 +39,7 @@
 #define CPU 312x
 #include "sram.h"
 #include "pm.h"
-#include "pm-rk312x.c"
+
 #define RK312X_DEVICE(name) \
 	{ \
 		.virtual	= (unsigned long) RK_##name##_VIRT, \
@@ -65,7 +65,6 @@ static struct map_desc rk312x_io_desc[] __initdata = {
 	RK312X_DEVICE(CRU),
 	RK312X_DEVICE(GRF),
 	RK312X_DEVICE(ROM),
-	RK312X_DEVICE(PMU),
 	RK312X_DEVICE(EFUSE),
 	RK312X_DEVICE(TIMER),
 	RK_DEVICE(RK_DEBUG_UART_VIRT, RK312X_UART2_PHYS, RK312X_UART_SIZE),
@@ -77,7 +76,7 @@ static struct map_desc rk312x_io_desc[] __initdata = {
 	RK_DEVICE(RK_GPIO_VIRT(3), RK312X_GPIO3_PHYS, RK312X_GPIO_SIZE),
 	RK_DEVICE(RK_GIC_VIRT, RK312X_GIC_DIST_PHYS, RK312X_GIC_DIST_SIZE),
 	RK_DEVICE(RK_GIC_VIRT + RK312X_GIC_DIST_SIZE, RK312X_GIC_CPU_PHYS, RK312X_GIC_CPU_SIZE),
-	RK_DEVICE(RK312X_IMEM_VIRT, RK312X_IMEM_PHYS, RK312X_IMEM_SIZE),
+	RK_DEVICE(RK312X_IMEM_VIRT, RK312X_IMEM_PHYS, SZ_4K),
 };
 static void usb_uart_init(void)
 {
@@ -130,154 +129,44 @@ static void __init rk3128_dt_map_io(void)
 
 	rk312x_dt_map_io();
 }
-static DEFINE_SPINLOCK(pmu_idle_lock);
-static const u8 pmu_idle_map[] = {
-	[IDLE_REQ_PERI] = 0,
-	[IDLE_REQ_VIDEO] = 1,
-	[IDLE_REQ_VIO] = 2,
-	[IDLE_REQ_GPU] = 3,
-	[IDLE_REQ_CORE] = 4,
-	[IDLE_REQ_SYS] = 5,
-	[IDLE_REQ_MSCH] = 6,
-	[IDLE_REQ_CRYPTO] = 7,
 
-};
-static int rk312x_pmu_set_idle_request(enum pmu_idle_req req, bool idle)
-{
-	u32 val;
-	unsigned long flags;
-	u32 bit = pmu_idle_map[req];
-	u32 idle_mask = BIT(bit) | BIT(bit + 16);
-	u32 idle_target = (idle << bit) | (idle << (bit + 16));
-
-	spin_lock_irqsave(&pmu_idle_lock, flags);
-	val = pmu_readl(RK312X_PMU_IDLE_REQ);
-	if (idle)
-		val |= idle_mask;
-	else
-		val &= ~idle_mask;
-	pmu_writel(val, RK312X_PMU_IDLE_REQ);
-	dsb();
-
-	while (((pmu_readl(RK312X_PMU_IDLE_ST) & idle_mask) != idle_target))
-		;
-	spin_unlock_irqrestore(&pmu_idle_lock, flags);
-	return 0;
-}
-static const u8 pmu_pd_map[] = {
-	[PD_GPU] = 1,
-	[PD_VIDEO] = 2,
-	[PD_VIO] = 3,
-};
-
-static const u8 pmu_st_map[] = {
-	[PD_GPU] = 1,
-	[PD_VIDEO] = 2,
-	[PD_VIO] = 3,
-};
-
-#if 1
-static noinline void rk312x_do_pmu_set_power_domain(enum pmu_power_domain domain
-	, bool on)
-{
-	u8 pd = pmu_pd_map[domain];
-	u32 val = pmu_readl(RK312X_PMU_PWRDN_CON);
-
-	if (on)
-		val &= ~BIT(pd);
-	else
-		val |=  BIT(pd);
-	pmu_writel(val, RK312X_PMU_PWRDN_CON);
-	dsb();
-
-	while ((pmu_readl(RK312X_PMU_PWRDN_ST) & BIT(pmu_st_map[domain])) == on)
-		;
-}
-#endif
-static bool rk312x_pmu_power_domain_is_on(enum pmu_power_domain pd)
-{
-	/*1"b0: power on, 1'b1: power off*/
-	return !(pmu_readl(RK312X_PMU_PWRDN_ST) & BIT(pmu_st_map[pd]));
-}
-static DEFINE_SPINLOCK(pmu_pd_lock);
-
-static int rk312x_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&pmu_pd_lock, flags);
-	if (rk312x_pmu_power_domain_is_on(pd) == on)
-		goto out;
-	if (!on) {
-		if (pd == PD_GPU)
-			rk312x_pmu_set_idle_request(IDLE_REQ_GPU, true);
-		else if (pd == PD_VIO)
-			rk312x_pmu_set_idle_request(IDLE_REQ_VIO, true);
-		else if (pd == PD_VIDEO)
-			rk312x_pmu_set_idle_request(IDLE_REQ_VIDEO, true);
-	}
-
-	rk312x_do_pmu_set_power_domain(pd, on);
-
-	if (on) {
-		if (pd == PD_GPU)
-			rk312x_pmu_set_idle_request(IDLE_REQ_GPU, false);
-		else if (pd == PD_VIO)
-			rk312x_pmu_set_idle_request(IDLE_REQ_VIO, false);
-		else if (pd == PD_VIDEO)
-			rk312x_pmu_set_idle_request(IDLE_REQ_VIDEO, false);
-	}
-out:
-	spin_unlock_irqrestore(&pmu_pd_lock, flags);
-
-	return 0;
-}
 extern void secondary_startup(void);
 static int rk312x_sys_set_power_domain(enum pmu_power_domain pd, bool on)
 {
-	u32 clks_save[RK312X_CRU_CLKGATES_CON_CNT];
-	u32 clks_ungating[RK312X_CRU_CLKGATES_CON_CNT];
-	u32 i, ret = 0;
-
-	for (i = 0; i < RK312X_CRU_CLKGATES_CON_CNT; i++) {
-		clks_save[i] = cru_readl(RK312X_CRU_CLKGATES_CON(i));
-		clks_ungating[i] = 0;
-	}
-	for (i = 0; i < RK312X_CRU_CLKGATES_CON_CNT; i++)
-		cru_writel(0xffff0000, RK312X_CRU_CLKGATES_CON(i));
-	if (0) {
-		if (on) {
+	if (on) {
 #ifdef CONFIG_SMP
-			if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
-				writel_relaxed(0x20000 << (pd - PD_CPU_1),
-					       RK_CRU_VIRT + RK312X_CRU_SOFTRSTS_CON(0));
-				dsb();
-				udelay(10);
-				writel_relaxed(virt_to_phys(secondary_startup),
-					       RK312X_IMEM_VIRT + 8);
-				writel_relaxed(0xDEADBEAF, RK312X_IMEM_VIRT + 4);
-				dsb_sev();
-			}
+		if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
+			writel_relaxed(0x20000 << (pd - PD_CPU_1),
+				       RK_CRU_VIRT + RK312X_CRU_SOFTRSTS_CON(0));
+			dsb();
+			udelay(10);
+			writel_relaxed(virt_to_phys(secondary_startup),
+				       RK312X_IMEM_VIRT + 8);
+			writel_relaxed(0xDEADBEAF, RK312X_IMEM_VIRT + 4);
+			dsb_sev();
+		}
 #endif
 	} else {
 #ifdef CONFIG_SMP
-			if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
-				writel_relaxed(0x20002 << (pd - PD_CPU_1),
-					       RK_CRU_VIRT + RK312X_CRU_SOFTRSTS_CON(0));
-				dsb();
-			}
-#endif
+		if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
+			writel_relaxed(0x20002 << (pd - PD_CPU_1),
+				       RK_CRU_VIRT + RK312X_CRU_SOFTRSTS_CON(0));
+			dsb();
 		}
-	}
-	if ((pd == PD_GPU) || (pd == PD_VIDEO) || (pd == PD_VIO))
-		ret = rk312x_pmu_set_power_domain(pd, on);
-
-	for (i = 0; i < RK312X_CRU_CLKGATES_CON_CNT; i++) {
-		cru_writel(clks_save[i] | 0xffff0000
-			, RK312X_CRU_CLKGATES_CON(i));
+#endif
 	}
 
-	return ret;
+	return 0;
+}
+
+static bool rk312x_pmu_power_domain_is_on(enum pmu_power_domain pd)
+{
+	return 1;
+}
+
+static int rk312x_pmu_set_idle_request(enum pmu_idle_req req, bool idle)
+{
+	return 0;
 }
 
 static void __init rk312x_dt_init_timer(void)
@@ -295,14 +184,9 @@ static void __init rk312x_reserve(void)
 	/* reserve memory for ION */
 	rockchip_ion_reserve();
 }
-#ifdef CONFIG_PM
-static void __init rk321x_init_suspend(void);
-#endif
+
 static void __init rk312x_init_late(void)
 {
-#ifdef CONFIG_PM
-	rk321x_init_suspend();
-#endif
 }
 
 static void rk312x_restart(char mode, const char *cmd)
@@ -371,39 +255,3 @@ static int __init rk312x_pie_init(void)
 	return 0;
 }
 arch_initcall(rk312x_pie_init);
-#ifdef CONFIG_PM
-static u32 rk_pmu_pwrdn_st;
-static inline void rk_pm_soc_pd_suspend(void)
-{
-	pmu_writel(0x00, RK312X_PMU_IDLE_REQ);
-	rk_pmu_pwrdn_st = pmu_readl(RK312X_PMU_PWRDN_ST);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_GPU])))
-		rk312x_sys_set_power_domain(PD_GPU, false);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIO])))
-		rk312x_sys_set_power_domain(PD_VIO, false);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIDEO])))
-		rk312x_sys_set_power_domain(PD_VIDEO, false);
-	pmu_writel(0x00, RK312X_PMU_IDLE_REQ);
-}
-static inline void rk_pm_soc_pd_resume(void)
-{
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIDEO])))
-		rk312x_sys_set_power_domain(PD_VIDEO, true);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIO])))
-		rk312x_sys_set_power_domain(PD_VIO, true);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_GPU])))
-		rk312x_sys_set_power_domain(PD_GPU, true);
-}
-static void __init rk321x_init_suspend(void)
-{
-	pr_info("%s\n", __func__);
-	rockchip_suspend_init();
-	rk312x_suspend_init();
-	rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend, rk_pm_soc_pd_resume);
-}
-#endif

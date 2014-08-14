@@ -67,26 +67,6 @@
 #define RK3288_PMU_SYS_REG2             0x9c
 #define RK3288_PMU_SYS_REG3             0xa0
 
-#define RK312X_PMU_WAKEUP_CFG		0x00
-#define RK312X_PMU_PWRDN_CON			0x04
-#define RK312X_PMU_PWRDN_ST			0x08
-#define RK312X_PMU_IDLE_REQ			0x0C
-#define RK312X_PMU_IDLE_ST				0x10
-#define RK312X_PMU_PWRMODE_CON		0x14
-#define RK312X_PMU_PWR_STATE			0x18
-#define RK312X_PMU_OSC_CNT			0x1C
-#define RK312X_PMU_CORE_PWRDWN_CNT	0x20
-#define RK312X_PMU_CORE_PWRUP_CNT	0x24
-#define RK312X_PMU_SFT_CON			0x28
-#define RK312X_PMU_DDR_SREF_ST		0x2C
-#define RK312X_PMU_INT_CON			0x30
-#define RK312X_PMU_INT_ST				0x34
-#define RK312X_PMU_SYS_REG0			0x38
-#define RK312X_PMU_SYS_REG1			0x3C
-#define RK312X_PMU_SYS_REG2			0x40
-#define RK312X_PMU_SYS_REG3			0x44
-
-
 enum pmu_power_domain {
 	PD_BCPU,
 	PD_BDSP,
@@ -117,9 +97,6 @@ enum pmu_idle_req {
 	IDLE_REQ_PERI,
 	IDLE_REQ_VIDEO,
 	IDLE_REQ_VIO,
-	IDLE_REQ_SYS,
-	IDLE_REQ_MSCH,
-	IDLE_REQ_CRYPTO,
 };
 
 struct rockchip_pmu_operations {
