@@ -130,12 +130,9 @@ struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file)
 {
 	struct mei_cl_cb *cb;
-
-	list_for_each_entry(cb, &dev->amthif_rd_complete_list.list, list) {
-		if (cb->cl && cb->cl == &dev->iamthif_cl &&
-			cb->file_object == file)
+	list_for_each_entry(cb, &dev->amthif_rd_complete_list.list, list)
+		if (cb->file_object == file)
 			return cb;
-	}
 	return NULL;
 }
 
@@ -168,8 +165,8 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	int i;
 
 	/* Only possible if we are in timeout */
-	if (!cl || cl != &dev->iamthif_cl) {
-		dev_dbg(&dev->pdev->dev, "bad file ext.\n");
+	if (!cl) {
+		dev_err(&dev->pdev->dev, "bad file ext.\n");
 		return -ETIME;
 	}
 
@@ -371,8 +368,8 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
  */
 void mei_amthif_run_next_cmd(struct mei_device *dev)
 {
-	struct mei_cl_cb *pos = NULL;
-	struct mei_cl_cb *next = NULL;
+	struct mei_cl_cb *cb;
+	struct mei_cl_cb *next;
 	int status;
 
 	if (!dev)
@@ -388,19 +385,15 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 
 	dev_dbg(&dev->pdev->dev, "complete amthif cmd_list cb.\n");
 
-	list_for_each_entry_safe(pos, next, &dev->amthif_cmd_list.list, list) {
-		list_del(&pos->list);
-
-		if (pos->cl && pos->cl == &dev->iamthif_cl) {
-			status = mei_amthif_send_cmd(dev, pos);
-			if (status) {
-				dev_dbg(&dev->pdev->dev,
-					"amthif write failed status = %d\n",
+	list_for_each_entry_safe(cb, next, &dev->amthif_cmd_list.list, list) {
+		list_del(&cb->list);
+		if (!cb->cl)
+			continue;
+		status = mei_amthif_send_cmd(dev, cb);
+		if (status)
+			dev_warn(&dev->pdev->dev, "amthif write failed status = %d\n",
 						status);
-				return;
-			}
-			break;
-		}
+		break;
 	}
 }
 
@@ -559,7 +552,7 @@ int mei_amthif_irq_read_msg(struct mei_device *dev,
 	dev->iamthif_stall_timer = 0;
 	cb->buf_idx = dev->iamthif_msg_buf_index;
 	cb->read_time = jiffies;
-	if (dev->iamthif_ioctl && cb->cl == &dev->iamthif_cl) {
+	if (dev->iamthif_ioctl) {
 		/* found the iamthif cb */
 		dev_dbg(&dev->pdev->dev, "complete the amthif read cb.\n ");
 		dev_dbg(&dev->pdev->dev, "add the amthif read cb to complete.\n ");
