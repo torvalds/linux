@@ -413,9 +413,7 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 				break;
 		}
 		if (c >= nfchunks) {
-			pr_err("Failed to find chunk for "
-			       "crcrec[%d], addr=0x%06x len=%d , "
-			       "aborting crc.\n",
+			pr_err("Failed to find chunk for crcrec[%d], addr=0x%06x len=%d , aborting crc.\n",
 			       i, s3crc[i].addr, s3crc[i].len);
 			return 1;
 		}
@@ -628,8 +626,8 @@ static int mkpdrlist(struct pda *pda)
 
 	}
 	if (curroff >= (HFA384x_PDA_LEN_MAX / 2)) {
-		pr_err("no end record found or invalid lengths in "
-		       "PDR data, exiting. %x %d\n", curroff, pda->nrec);
+		pr_err("no end record found or invalid lengths in PDR data, exiting. %x %d\n",
+		       curroff, pda->nrec);
 		return 1;
 	}
 	if (le16_to_cpu(pda16[curroff + 1]) == HFA384x_PDR_END_OF_PDA) {
@@ -685,8 +683,8 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 			j = -1;
 		}
 		if (j >= pda->nrec && j != -1) { /*  if no matching PDR, fail */
-			pr_warn("warning: Failed to find PDR for "
-			       "plugrec 0x%04x.\n", s3plug[i].itemcode);
+			pr_warn("warning: Failed to find PDR for plugrec 0x%04x.\n",
+				s3plug[i].itemcode);
 			continue;	/* and move on to the next PDR */
 #if 0
 			/* MSM: They swear that unless it's the MAC address,
@@ -703,8 +701,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 
 		/* Validate plug len against PDR len */
 		if (j != -1 && s3plug[i].len < le16_to_cpu(pda->rec[j]->len)) {
-			pr_err("error: Plug vs. PDR len mismatch for "
-			       "plugrec 0x%04x, abort plugging.\n",
+			pr_err("error: Plug vs. PDR len mismatch for plugrec 0x%04x, abort plugging.\n",
 			       s3plug[i].itemcode);
 			result = 1;
 			continue;
@@ -718,8 +715,8 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 				break;
 		}
 		if (c >= nfchunks) {
-			pr_err("error: Failed to find image chunk for "
-			       "plugrec 0x%04x.\n", s3plug[i].itemcode);
+			pr_err("error: Failed to find image chunk for plugrec 0x%04x.\n",
+			       s3plug[i].itemcode);
 			result = 1;
 			continue;
 		}
@@ -727,8 +724,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		/* Plug data */
 		chunkoff = pstart - cstart;
 		dest = fchunk[c].data + chunkoff;
-		pr_debug("Plugging item 0x%04x @ 0x%06x, len=%d, "
-			 "cnum=%d coff=0x%06x\n",
+		pr_debug("Plugging item 0x%04x @ 0x%06x, len=%d, cnum=%d coff=0x%06x\n",
 			 s3plug[i].itemcode, pstart, s3plug[i].len,
 			 c, chunkoff);
 
@@ -881,8 +877,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 		switch (addr) {
 		case S3ADDR_START:
 			startaddr = *ptr32;
-			pr_debug("  S7 start addr, record=%d "
-				      " addr=0x%08x\n",
+			pr_debug("  S7 start addr, record=%d addr=0x%08x\n",
 				      rcnt,
 				      startaddr);
 			break;
@@ -891,8 +886,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 			s3plug[ns3plug].addr = *(ptr32 + 1);
 			s3plug[ns3plug].len = *(ptr32 + 2);
 
-			pr_debug("  S3 plugrec, record=%d "
-				      "itemcode=0x%08x addr=0x%08x len=%d\n",
+			pr_debug("  S3 plugrec, record=%d itemcode=0x%08x addr=0x%08x len=%d\n",
 				      rcnt,
 				      s3plug[ns3plug].itemcode,
 				      s3plug[ns3plug].addr,
@@ -909,8 +903,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 			s3crc[ns3crc].len = *(ptr32 + 1);
 			s3crc[ns3crc].dowrite = *(ptr32 + 2);
 
-			pr_debug("  S3 crcrec, record=%d "
-				      "addr=0x%08x len=%d write=0x%08x\n",
+			pr_debug("  S3 crcrec, record=%d addr=0x%08x len=%d write=0x%08x\n",
 				      rcnt,
 				      s3crc[ns3crc].addr,
 				      s3crc[ns3crc].len,
@@ -925,8 +918,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 			s3info[ns3info].len = *ptr16;
 			s3info[ns3info].type = *(ptr16 + 1);
 
-			pr_debug("  S3 inforec, record=%d "
-			      "len=0x%04x type=0x%04x\n",
+			pr_debug("  S3 inforec, record=%d len=0x%04x type=0x%04x\n",
 				      rcnt,
 				      s3info[ns3info].len,
 				      s3info[ns3info].type);
@@ -1000,8 +992,7 @@ static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 		kfree(rstmsg);
 		kfree(rwrmsg);
 		netdev_err(wlandev->netdev,
-			   "writeimage: no memory for firmware download, "
-			   "aborting download\n");
+			   "writeimage: no memory for firmware download, aborting download\n");
 		return -ENOMEM;
 	}
 
@@ -1045,15 +1036,15 @@ static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	result = prism2mgmt_ramdl_state(wlandev, rstmsg);
 	if (result) {
 		netdev_err(wlandev->netdev,
-			   "writeimage state enable failed w/ result=%d, "
-			   "aborting download\n", result);
+			   "writeimage state enable failed w/ result=%d, aborting download\n",
+			   result);
 		goto free_result;
 	}
 	resultcode = rstmsg->resultcode.data;
 	if (resultcode != P80211ENUM_resultcode_success) {
 		netdev_err(wlandev->netdev,
-			   "writeimage()->xxxdl_state msg indicates failure, "
-			   "w/ resultcode=%d, aborting download.\n", resultcode);
+			   "writeimage()->xxxdl_state msg indicates failure, w/ resultcode=%d, aborting download.\n",
+			   resultcode);
 		result = 1;
 		goto free_result;
 	}
@@ -1089,14 +1080,13 @@ static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 			/* Check the results */
 			if (result) {
 				netdev_err(wlandev->netdev,
-					   "writeimage chunk write failed w/ "
-					   "result=%d, aborting download\n", result);
+					   "writeimage chunk write failed w/ result=%d, aborting download\n",
+					   result);
 				goto free_result;
 			}
 			resultcode = rstmsg->resultcode.data;
 			if (resultcode != P80211ENUM_resultcode_success) {
-				pr_err("writeimage()->xxxdl_write msg indicates failure, "
-				       "w/ resultcode=%d, aborting download.\n",
+				pr_err("writeimage()->xxxdl_write msg indicates failure, w/ resultcode=%d, aborting download.\n",
 				       resultcode);
 				result = 1;
 				goto free_result;
@@ -1113,15 +1103,15 @@ static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	result = prism2mgmt_ramdl_state(wlandev, rstmsg);
 	if (result) {
 		netdev_err(wlandev->netdev,
-			   "writeimage state disable failed w/ result=%d, "
-			   "aborting download\n", result);
+			   "writeimage state disable failed w/ result=%d, aborting download\n",
+			   result);
 		goto free_result;
 	}
 	resultcode = rstmsg->resultcode.data;
 	if (resultcode != P80211ENUM_resultcode_success) {
 		netdev_err(wlandev->netdev,
-			   "writeimage()->xxxdl_state msg indicates failure, "
-			   "w/ resultcode=%d, aborting download.\n", resultcode);
+			   "writeimage()->xxxdl_state msg indicates failure, w/ resultcode=%d, aborting download.\n",
+			   resultcode);
 		result = 1;
 		goto free_result;
 	}
