@@ -281,7 +281,9 @@ IOMAP
 
 IRQ
   devm_free_irq()
+  devm_request_any_context_irq()
   devm_request_irq()
+  devm_request_threaded_irq()
 
 MDIO
   devm_mdiobus_alloc()
