@@ -278,7 +278,7 @@ restart:
 		pending >>= softirq_bit;
 	}
 
-	rcu_bh_qs(smp_processor_id());
+	rcu_bh_qs();
 	local_irq_disable();
 
 	pending = local_softirq_pending();
