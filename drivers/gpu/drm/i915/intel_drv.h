@@ -831,7 +831,6 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe);
 void intel_wait_for_vblank(struct drm_device *dev, int pipe);
-void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
 int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 struct intel_digital_port *dport);
