@@ -514,7 +514,7 @@ static irqreturn_t rockchip_iommu_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 	
-	if(cpu_is_312x() || cpu_is_3036())
+	if(cpu_is_rk312x() || cpu_is_rk3036())
 		rockchip_vcodec_select(data->dbgname);
 	
 	pdev = to_platform_device(data->iommu);
@@ -687,7 +687,7 @@ void rockchip_iommu_tlb_invalidate(struct device *dev)
 
 	read_lock_irqsave(&data->lock, flags);
 	
-	if(cpu_is_312x() || cpu_is_3036())
+	if(cpu_is_rk312x() || cpu_is_rk3036())
 		rockchip_vcodec_select(data->dbgname);
 	
 	if (is_iommu_active(data)) {
@@ -852,7 +852,7 @@ static void rockchip_iommu_detach_device(struct iommu_domain *domain,
 	if (!found)
 		goto finish;
 	
-	if(cpu_is_312x() || cpu_is_3036())
+	if(cpu_is_rk312x() || cpu_is_rk3036())
 		rockchip_vcodec_select(data->dbgname);
 	
 	if (__rockchip_iommu_disable(data)) {
@@ -879,7 +879,7 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if(cpu_is_312x() || cpu_is_3036())
+	if(cpu_is_rk312x() || cpu_is_rk3036())
 		rockchip_vcodec_select(data->dbgname);
 	
 	ret = __rockchip_iommu_enable(data, __pa(priv->pgtable), domain);
@@ -919,7 +919,7 @@ static void rockchip_iommu_domain_destroy(struct iommu_domain *domain)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	list_for_each_entry(data, &priv->clients, node) {
-		if(cpu_is_312x() || cpu_is_3036())
+		if(cpu_is_rk312x() || cpu_is_rk3036())
 			rockchip_vcodec_select(data->dbgname);
 		while (!rockchip_iommu_disable(data->dev))
 			; /* until System MMU is actually disabled */
@@ -1138,7 +1138,7 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 			goto err_res;
 		}
 		
-		if(cpu_is_312x() || cpu_is_3036())
+		if(cpu_is_rk312x() || cpu_is_rk3036())
 			rockchip_vcodec_select(data->dbgname);
 
 		if (!strstr(data->dbgname, "isp")) {
