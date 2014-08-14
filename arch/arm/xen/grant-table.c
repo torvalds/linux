@@ -49,8 +49,3 @@ int arch_gnttab_init(unsigned long nr_shared)
 {
 	return 0;
 }
-
-int arch_gnttab_init(unsigned long nr_shared, unsigned long nr_status)
-{
-	return 0;
-}
