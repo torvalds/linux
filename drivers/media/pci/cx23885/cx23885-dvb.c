@@ -87,59 +87,95 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 /* ------------------------------------------------------------------ */
 
-static int dvb_buf_setup(struct videobuf_queue *q,
-			 unsigned int *count, unsigned int *size)
+static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+			   unsigned int *num_buffers, unsigned int *num_planes,
+			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct cx23885_tsport *port = q->priv_data;
+	struct cx23885_tsport *port = q->drv_priv;
 
 	port->ts_packet_size  = 188 * 4;
 	port->ts_packet_count = 32;
-
-	*size  = port->ts_packet_size * port->ts_packet_count;
-	*count = 32;
+	*num_planes = 1;
+	sizes[0] = port->ts_packet_size * port->ts_packet_count;
+	*num_buffers = 32;
 	return 0;
 }
 
-static int dvb_buf_prepare(struct videobuf_queue *q,
-			   struct videobuf_buffer *vb, enum v4l2_field field)
+
+static int buffer_prepare(struct vb2_buffer *vb)
 {
-	struct cx23885_tsport *port = q->priv_data;
-	return cx23885_buf_prepare(q, port, (struct cx23885_buffer *)vb, field);
+	struct cx23885_tsport *port = vb->vb2_queue->drv_priv;
+	struct cx23885_buffer *buf =
+		container_of(vb, struct cx23885_buffer, vb);
+
+	return cx23885_buf_prepare(buf, port);
 }
 
-static void dvb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
+static void buffer_finish(struct vb2_buffer *vb)
 {
-	struct cx23885_tsport *port = q->priv_data;
-	cx23885_buf_queue(port, (struct cx23885_buffer *)vb);
+	struct cx23885_tsport *port = vb->vb2_queue->drv_priv;
+	struct cx23885_dev *dev = port->dev;
+	struct cx23885_buffer *buf = container_of(vb,
+		struct cx23885_buffer, vb);
+	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
+
+	cx23885_free_buffer(dev, buf);
+
+	dma_unmap_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 }
 
-static void dvb_buf_release(struct videobuf_queue *q,
-			    struct videobuf_buffer *vb)
+static void buffer_queue(struct vb2_buffer *vb)
 {
-	cx23885_free_buffer(q, (struct cx23885_buffer *)vb);
+	struct cx23885_tsport *port = vb->vb2_queue->drv_priv;
+	struct cx23885_buffer   *buf = container_of(vb,
+		struct cx23885_buffer, vb);
+
+	cx23885_buf_queue(port, buf);
 }
 
 static void cx23885_dvb_gate_ctrl(struct cx23885_tsport  *port, int open)
 {
-	struct videobuf_dvb_frontends *f;
-	struct videobuf_dvb_frontend *fe;
+	struct vb2_dvb_frontends *f;
+	struct vb2_dvb_frontend *fe;
 
 	f = &port->frontends;
 
 	if (f->gate <= 1) /* undefined or fe0 */
-		fe = videobuf_dvb_get_frontend(f, 1);
+		fe = vb2_dvb_get_frontend(f, 1);
 	else
-		fe = videobuf_dvb_get_frontend(f, f->gate);
+		fe = vb2_dvb_get_frontend(f, f->gate);
 
 	if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
 		fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, open);
 }
 
-static struct videobuf_queue_ops dvb_qops = {
-	.buf_setup    = dvb_buf_setup,
-	.buf_prepare  = dvb_buf_prepare,
-	.buf_queue    = dvb_buf_queue,
-	.buf_release  = dvb_buf_release,
+static int cx23885_start_streaming(struct vb2_queue *q, unsigned int count)
+{
+	struct cx23885_tsport *port = q->drv_priv;
+	struct cx23885_dmaqueue *dmaq = &port->mpegq;
+	struct cx23885_buffer *buf = list_entry(dmaq->active.next,
+			struct cx23885_buffer, queue);
+
+	cx23885_start_dma(port, dmaq, buf);
+	return 0;
+}
+
+static void cx23885_stop_streaming(struct vb2_queue *q)
+{
+	struct cx23885_tsport *port = q->drv_priv;
+
+	cx23885_cancel_buffers(port);
+}
+
+static struct vb2_ops dvb_qops = {
+	.queue_setup    = queue_setup,
+	.buf_prepare  = buffer_prepare,
+	.buf_finish = buffer_finish,
+	.buf_queue    = buffer_queue,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
+	.start_streaming = cx23885_start_streaming,
+	.stop_streaming = cx23885_stop_streaming,
 };
 
 static struct s5h1409_config hauppauge_generic_config = {
@@ -859,16 +895,16 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct dib7000p_ops dib7000p_ops;
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_i2c *i2c_bus = NULL, *i2c_bus2 = NULL;
-	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
+	struct vb2_dvb_frontend *fe0, *fe1 = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
 	int ret;
 
 	/* Get the first frontend */
-	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
+	fe0 = vb2_dvb_get_frontend(&port->frontends, 1);
 	if (!fe0)
 		return -EINVAL;
 
-	/* init struct videobuf_dvb */
+	/* init struct vb2_dvb */
 	fe0->dvb.name = dev->name;
 
 	/* multi-frontend gate control is undefined or defaults to fe0 */
@@ -1388,7 +1424,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			fe0->dvb.frontend->ops.tuner_ops.init(fe0->dvb.frontend);
 		}
 		/* MFE frontend 2 */
-		fe1 = videobuf_dvb_get_frontend(&port->frontends, 2);
+		fe1 = vb2_dvb_get_frontend(&port->frontends, 2);
 		if (fe1 == NULL)
 			goto frontend_detach;
 		/* DVB-C init */
@@ -1528,7 +1564,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		fe0->dvb.frontend->ops.analog_ops.standby(fe0->dvb.frontend);
 
 	/* register everything */
-	ret = videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
+	ret = vb2_dvb_register_bus(&port->frontends, THIS_MODULE, port,
 					&dev->pci->dev, adapter_nr, mfe_shared);
 	if (ret)
 		goto frontend_detach;
@@ -1577,14 +1613,14 @@ static int dvb_register(struct cx23885_tsport *port)
 
 frontend_detach:
 	port->gate_ctrl = NULL;
-	videobuf_dvb_dealloc_frontends(&port->frontends);
+	vb2_dvb_dealloc_frontends(&port->frontends);
 	return -EINVAL;
 }
 
 int cx23885_dvb_register(struct cx23885_tsport *port)
 {
 
-	struct videobuf_dvb_frontend *fe0;
+	struct vb2_dvb_frontend *fe0;
 	struct cx23885_dev *dev = port->dev;
 	int err, i;
 
@@ -1601,13 +1637,15 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		port->num_frontends);
 
 	for (i = 1; i <= port->num_frontends; i++) {
-		if (videobuf_dvb_alloc_frontend(
+		struct vb2_queue *q;
+
+		if (vb2_dvb_alloc_frontend(
 			&port->frontends, i) == NULL) {
 			printk(KERN_ERR "%s() failed to alloc\n", __func__);
 			return -ENOMEM;
 		}
 
-		fe0 = videobuf_dvb_get_frontend(&port->frontends, i);
+		fe0 = vb2_dvb_get_frontend(&port->frontends, i);
 		if (!fe0)
 			err = -EINVAL;
 
@@ -1623,10 +1661,21 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		/* dvb stuff */
 		/* We have to init the queue for each frontend on a port. */
 		printk(KERN_INFO "%s: cx23885 based dvb card\n", dev->name);
-		videobuf_queue_sg_init(&fe0->dvb.dvbq, &dvb_qops,
-			    &dev->pci->dev, &port->slock,
-			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_TOP,
-			    sizeof(struct cx23885_buffer), port, NULL);
+		q = &fe0->dvb.dvbq;
+		q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF | VB2_READ;
+		q->gfp_flags = GFP_DMA32;
+		q->min_buffers_needed = 2;
+		q->drv_priv = port;
+		q->buf_struct_size = sizeof(struct cx23885_buffer);
+		q->ops = &dvb_qops;
+		q->mem_ops = &vb2_dma_sg_memops;
+		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		q->lock = &dev->lock;
+
+		err = vb2_queue_init(q);
+		if (err < 0)
+			return err;
 	}
 	err = dvb_register(port);
 	if (err != 0)
@@ -1638,7 +1687,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 
 int cx23885_dvb_unregister(struct cx23885_tsport *port)
 {
-	struct videobuf_dvb_frontend *fe0;
+	struct vb2_dvb_frontend *fe0;
 
 	/* FIXME: in an error condition where the we have
 	 * an expected number of frontends (attach problem)
@@ -1647,9 +1696,9 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 	 * This comment only applies to future boards IF they
 	 * implement MFE support.
 	 */
-	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
+	fe0 = vb2_dvb_get_frontend(&port->frontends, 1);
 	if (fe0 && fe0->dvb.frontend)
-		videobuf_dvb_unregister_bus(&port->frontends);
+		vb2_dvb_unregister_bus(&port->frontends);
 
 	switch (port->dev->board) {
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:

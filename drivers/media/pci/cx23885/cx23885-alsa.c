@@ -389,6 +389,7 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 		return -ENOMEM;
 
 	buf->bpl = chip->period_size;
+	chip->buf = buf;
 
 	ret = cx23885_alsa_dma_init(chip,
 			(PAGE_ALIGN(chip->dma_size) >> PAGE_SHIFT));
@@ -409,8 +410,6 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 	buf->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 	buf->risc.jmp[2] = cpu_to_le32(0); /* bits 63-32 */
 
-	chip->buf = buf;
-
 	substream->runtime->dma_area = chip->buf->vaddr;
 	substream->runtime->dma_bytes = chip->dma_size;
 	substream->runtime->dma_addr = 0;
@@ -419,6 +418,7 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 
 error:
 	kfree(buf);
+	chip->buf = NULL;
 	return ret;
 }
 
