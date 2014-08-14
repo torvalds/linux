@@ -573,6 +573,13 @@ extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(const char *name,
 							struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn);
 
+struct nfs4_file *find_file(struct knfsd_fh *fh);
+void put_nfs4_file(struct nfs4_file *fi);
+static inline void get_nfs4_file(struct nfs4_file *fi)
+{
+	atomic_inc(&fi->fi_ref);
+}
+
 /* grace period management */
 void nfsd4_end_grace(struct nfsd_net *nn);
 
