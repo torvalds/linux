@@ -108,11 +108,11 @@ int ipoib_open(struct net_device *dev)
 
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
-	if (ipoib_pkey_dev_delay_open(dev))
-		return 0;
-
-	if (ipoib_ib_dev_open(dev))
+	if (ipoib_ib_dev_open(dev, 1)) {
+		if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
+			return 0;
 		goto err_disable;
+	}
 
 	if (ipoib_ib_dev_up(dev))
 		goto err_stop;
@@ -1379,7 +1379,6 @@ void ipoib_setup(struct net_device *dev)
 	INIT_LIST_HEAD(&priv->dead_ahs);
 	INIT_LIST_HEAD(&priv->multicast_list);
 
-	INIT_DELAYED_WORK(&priv->pkey_poll_task, ipoib_pkey_poll);
 	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
 	INIT_WORK(&priv->carrier_on_task, ipoib_mcast_carrier_on_task);
 	INIT_WORK(&priv->flush_light,   ipoib_ib_dev_flush_light);

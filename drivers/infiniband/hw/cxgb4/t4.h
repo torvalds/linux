@@ -524,6 +524,10 @@ static inline int t4_wq_db_enabled(struct t4_wq *wq)
 	return !wq->rq.queue[wq->rq.size].status.db_off;
 }
 
+enum t4_cq_flags {
+	CQ_ARMED	= 1,
+};
+
 struct t4_cq {
 	struct t4_cqe *queue;
 	dma_addr_t dma_addr;
@@ -544,12 +548,19 @@ struct t4_cq {
 	u16 cidx_inc;
 	u8 gen;
 	u8 error;
+	unsigned long flags;
 };
+
+static inline int t4_clear_cq_armed(struct t4_cq *cq)
+{
+	return test_and_clear_bit(CQ_ARMED, &cq->flags);
+}
 
 static inline int t4_arm_cq(struct t4_cq *cq, int se)
 {
 	u32 val;
 
+	set_bit(CQ_ARMED, &cq->flags);
 	while (cq->cidx_inc > CIDXINC_MASK) {
 		val = SEINTARM(0) | CIDXINC(CIDXINC_MASK) | TIMERREG(7) |
 		      INGRESSQID(cq->cqid);
