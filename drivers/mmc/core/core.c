@@ -1221,21 +1221,29 @@ int mmc_regulator_get_ocrmask(struct regulator *supply)
 	int			result = 0;
 	int			count;
 	int			i;
+	int			vdd_uV;
+	int			vdd_mV;
 
 	count = regulator_count_voltages(supply);
 	if (count < 0)
 		return count;
 
 	for (i = 0; i < count; i++) {
-		int		vdd_uV;
-		int		vdd_mV;
-
 		vdd_uV = regulator_list_voltage(supply, i);
 		if (vdd_uV <= 0)
 			continue;
 
 		vdd_mV = vdd_uV / 1000;
 		result |= mmc_vddrange_to_ocrmask(vdd_mV, vdd_mV);
+	}
+
+	if (!result) {
+		vdd_uV = regulator_get_voltage(supply);
+		if (vdd_uV <= 0)
+			return vdd_uV;
+
+		vdd_mV = vdd_uV / 1000;
+		result = mmc_vddrange_to_ocrmask(vdd_mV, vdd_mV);
 	}
 
 	return result;
