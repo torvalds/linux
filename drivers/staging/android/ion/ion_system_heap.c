@@ -262,9 +262,9 @@ static int ion_system_map_iommu(struct ion_buffer *buffer,
 
 	data->iova_addr = rockchip_iovmm_map(iommu_dev, table->sgl, 0, iova_length);
 	pr_debug("%s: map %x -> %lx\n", __func__, table->sgl->dma_address, data->iova_addr);
-	if (!data->iova_addr || IS_ERR_VALUE(data->iova_addr)) {
+	if (IS_ERR_OR_NULL(data->iova_addr)) {
 		pr_err("%s: rockchip_iovmm_map() failed: %lx\n", __func__, data->iova_addr);
-		ret = -EINVAL;
+		ret = -ENOMEM;
 		goto out;
 	}
 

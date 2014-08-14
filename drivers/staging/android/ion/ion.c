@@ -817,6 +817,8 @@ int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
 	if (!iommu_map) {
 		pr_debug("%s: create new map for buffer(%p)\n", __func__, buffer);
 		iommu_map = __ion_iommu_map(buffer, iommu_dev, iova);
+		if (!IS_ERR_OR_NULL(iommu_map))
+			ret = -ENOMEM;
 	} else {
 		pr_debug("%s: buffer(%p) already mapped\n", __func__, buffer);
 		if (iommu_map->mapped_size != buffer->size) {
