@@ -4385,7 +4385,7 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 
 #ifdef CONFIG_SCHED_HMP
 	/* always put non-kernel forking tasks on a big domain */
-	if (p->mm && (sd_flag & SD_BALANCE_FORK)) {
+	if (unlikely(sd_flag & SD_BALANCE_FORK) && hmp_task_should_forkboost(p)) {
 		new_cpu = hmp_select_faster_cpu(p, prev_cpu);
 		if (new_cpu != NR_CPUS) {
 			hmp_next_up_delay(&p->se, new_cpu);
@@ -6537,16 +6537,16 @@ static int nohz_test_cpu(int cpu)
  * Decide if the tasks on the busy CPUs in the
  * littlest domain would benefit from an idle balance
  */
-static int hmp_packing_ilb_needed(int cpu)
+static int hmp_packing_ilb_needed(int cpu, int ilb_needed)
 {
 	struct hmp_domain *hmp;
-	/* always allow ilb on non-slowest domain */
+	/* allow previous decision on non-slowest domain */
 	if (!hmp_cpu_is_slowest(cpu))
-		return 1;
+		return ilb_needed;
 
 	/* if disabled, use normal ILB behaviour */
 	if (!hmp_packing_enabled)
-		return 1;
+		return ilb_needed;
 
 	hmp = hmp_cpu_domain(cpu);
 	for_each_cpu_and(cpu, &hmp->cpus, nohz.idle_cpus_mask) {
@@ -6558,19 +6558,34 @@ static int hmp_packing_ilb_needed(int cpu)
 }
 #endif
 
+DEFINE_PER_CPU(cpumask_var_t, ilb_tmpmask);
+
 static inline int find_new_ilb(int call_cpu)
 {
 	int ilb = cpumask_first(nohz.idle_cpus_mask);
 #ifdef CONFIG_SCHED_HMP
-	int ilb_needed = 1;
+	int ilb_needed = 0;
+	int cpu;
+	struct cpumask* tmp = per_cpu(ilb_tmpmask, smp_processor_id());
 
 	/* restrict nohz balancing to occur in the same hmp domain */
 	ilb = cpumask_first_and(nohz.idle_cpus_mask,
 			&((struct hmp_domain *)hmp_cpu_domain(call_cpu))->cpus);
 
+	/* check to see if it's necessary within this domain */
+	cpumask_andnot(tmp,
+			&((struct hmp_domain *)hmp_cpu_domain(call_cpu))->cpus,
+			nohz.idle_cpus_mask);
+	for_each_cpu(cpu, tmp) {
+		if (cpu_rq(cpu)->nr_running > 1) {
+			ilb_needed = 1;
+			break;
+		}
+	}
+
 #ifdef CONFIG_SCHED_HMP_LITTLE_PACKING
 	if (ilb < nr_cpu_ids)
-		ilb_needed = hmp_packing_ilb_needed(ilb);
+		ilb_needed = hmp_packing_ilb_needed(ilb, ilb_needed);
 #endif
 
 	if (ilb_needed && ilb < nr_cpu_ids && idle_cpu(ilb))
