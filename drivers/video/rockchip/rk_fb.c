@@ -706,33 +706,31 @@ bool rk_fb_poll_wait_frame_complete(void)
 }
 
 
-/****
-1,success : pointer to the device inside of platform device 
-2,fail       : NULL
-****/
+/* rk_fb_get_sysmmu_device_by_compatible()
+ * @compt: dts device compatible name
+ * return value: success: pointer to the device inside of platform device
+ *               fail: NULL
+ */
 struct device *rk_fb_get_sysmmu_device_by_compatible(const char *compt)
 {
         struct device_node *dn = NULL;
         struct platform_device *pd = NULL;
         struct device *ret = NULL ;
 
-        dn = of_find_compatible_node(NULL,NULL,compt);
-        if(!dn)
-        {
-                printk("can't find device node %s \r\n",compt);
+        dn = of_find_compatible_node(NULL, NULL, compt);
+        if (!dn) {
+                printk("can't find device node %s \r\n", compt);
                 return NULL;
 	}
 
         pd = of_find_device_by_node(dn);
-        if(!pd)
-        {
-                printk("can't find platform device in device node %s \r\n",compt);
+        if (!pd) {
+                printk("can't find platform device in device node %s \r\n", compt);
                 return  NULL;
         }
         ret = &pd->dev;
 
         return ret;
-
 }
 
 #ifdef CONFIG_IOMMU_API
@@ -743,7 +741,7 @@ void rk_fb_platform_set_sysmmu(struct device *sysmmu, struct device *dev)
 #else
 void rk_fb_platform_set_sysmmu(struct device *sysmmu, struct device *dev)
 {
- 
+
 }
 #endif
 

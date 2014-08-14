@@ -34,8 +34,7 @@
 #include <linux/rockchip/common.h>
 #include <dt-bindings/clock/rk_system_status.h>
 #if defined(CONFIG_ION_ROCKCHIP)
-#include <linux/rockchip/iovmm.h>
-#include <linux/rockchip/sysmmu.h>
+#include <linux/rockchip-iovmm.h>
 #endif
 #include "rk3036_lcdc.h"
 
@@ -645,15 +644,16 @@ static int rk3036_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	if ((open) && (!lcdc_dev->atv_layer_cnt)) {
 		rk3036_lcdc_pre_init(dev_drv);
 		rk3036_lcdc_clk_enable(lcdc_dev);
-		#if defined(CONFIG_ROCKCHIP_IOMMU)
+	#if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (!dev_drv->mmu_dev) {
 				dev_drv->mmu_dev =
-				rockchip_get_sysmmu_device_by_compatible(
+				rk_fb_get_sysmmu_device_by_compatible(
 					dev_drv->mmu_dts_name);
 				if (dev_drv->mmu_dev) {
-					platform_set_sysmmu(dev_drv->mmu_dev,
+					rk_fb_platform_set_sysmmu(dev_drv->mmu_dev,
 							    dev_drv->dev);
+                                        rockchip_iovmm_activate(dev_drv->dev);
 				} else {
 					dev_err(dev_drv->dev,
 						"failed to get iommu device\n"
@@ -661,9 +661,8 @@ static int rk3036_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 					return -1;
 				}
 			}
-			iovmm_activate(dev_drv->dev);
 		}
-		#endif
+	#endif
 		rk3036_lcdc_reg_restore(lcdc_dev);
 		if (dev_drv->iommu_enabled)
 			rk3036_lcdc_mmu_en(dev_drv);
@@ -976,7 +975,7 @@ static int rk3036_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 		lcdc_cfg_done(lcdc_dev);
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
-				iovmm_deactivate(dev_drv->dev);
+				rockchip_iovmm_deactivate(dev_drv->dev);
 		}
 		spin_unlock(&lcdc_dev->reg_lock);
 	} else {
@@ -1013,7 +1012,7 @@ static int rk3036_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		lcdc_cfg_done(lcdc_dev);
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
-				iovmm_activate(dev_drv->dev);
+				rockchip_iovmm_activate(dev_drv->dev);
 		}
 		spin_unlock(&lcdc_dev->reg_lock);
 	}

@@ -1031,18 +1031,17 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		if (dev_drv->iommu_enabled) {
 			if (!dev_drv->mmu_dev) {
 				dev_drv->mmu_dev =
-				    rockchip_get_sysmmu_device_by_compatible
-				    (dev_drv->mmu_dts_name);
-				if (dev_drv->mmu_dev)
-					platform_set_sysmmu(dev_drv->mmu_dev,
-							    dev_drv->dev);
-				else {
+                                        rk_fb_get_sysmmu_device_by_compatible(dev_drv->mmu_dts_name);
+				if (dev_drv->mmu_dev) {
+					rk_fb_platform_set_sysmmu(dev_drv->mmu_dev,
+					                          dev_drv->dev);
+                                        rockchip_iovmm_activate(dev_drv->dev);
+                                } else {
 					dev_err(dev_drv->dev,
 						"failed to get rockchip iommu device\n");
 					return -1;
 				}
 			}
-			iovmm_activate(dev_drv->dev);
 		}
 #endif
 		rk312x_lcdc_reg_restore(lcdc_dev);
@@ -1072,7 +1071,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
-				iovmm_deactivate(dev_drv->dev);
+				rockchip_iovmm_deactivate(dev_drv->dev);
 		}
 #endif
 		rk312x_lcdc_clk_disable(lcdc_dev);
@@ -1341,12 +1340,12 @@ static int rk312x_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
 			     v_LCDC_STANDBY(1));
 		lcdc_cfg_done(lcdc_dev);
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
-				iovmm_deactivate(dev_drv->dev);
+				rockchip_iovmm_deactivate(dev_drv->dev);
 		}
-#endif
+
 		spin_unlock(&lcdc_dev->reg_lock);
 	} else {
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -1382,6 +1381,11 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 			     v_LCDC_STANDBY(0));
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN, v_BLANK_EN(0));
 		lcdc_cfg_done(lcdc_dev);
+
+                if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_activate(dev_drv->dev);
+		}
 
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
