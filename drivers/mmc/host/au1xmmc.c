@@ -1028,9 +1028,12 @@ static int au1xmmc_probe(struct platform_device *pdev)
 	host->clk = clk_get(&pdev->dev, ALCHEMY_PERIPH_CLK);
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "cannot find clock\n");
+		ret = PTR_ERR(host->clk);
 		goto out_irq;
 	}
-	if (clk_prepare_enable(host->clk)) {
+
+	ret = clk_prepare_enable(host->clk);
+	if (ret) {
 		dev_err(&pdev->dev, "cannot enable clock\n");
 		goto out_clk;
 	}
