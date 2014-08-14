@@ -275,6 +275,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
 		ret = res_counter_memparse_write_strategy(buf, &val);
 		if (ret)
 			break;
+		val = ALIGN(val, 1ULL << huge_page_shift(&hstates[idx]));
 		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
 		break;
 	default:
