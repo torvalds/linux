@@ -89,7 +89,8 @@ static int __init uefi_init(void)
 	 */
 	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
 		pr_err("System table signature incorrect\n");
-		return -EINVAL;
+		retval = -EINVAL;
+		goto out;
 	}
 	if ((efi.systab->hdr.revision >> 16) < 2)
 		pr_warn("Warning: EFI system table version %d.%02d, expected 2.00 or greater\n",
@@ -103,6 +104,7 @@ static int __init uefi_init(void)
 		for (i = 0; i < (int) sizeof(vendor) - 1 && *c16; ++i)
 			vendor[i] = c16[i];
 		vendor[i] = '\0';
+		early_memunmap(c16, sizeof(vendor));
 	}
 
 	pr_info("EFI v%u.%.02u by %s\n",
@@ -113,9 +115,8 @@ static int __init uefi_init(void)
 	if (retval == 0)
 		set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
-	early_memunmap(c16, sizeof(vendor));
+out:
 	early_memunmap(efi.systab,  sizeof(efi_system_table_t));
-
 	return retval;
 }
 
