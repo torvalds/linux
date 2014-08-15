@@ -267,90 +267,90 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 /*
  * Example Format w/ field column widths:
  *
- * Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     SMI   %Busy CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
- * 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567 1234567
+ *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     SMI   %Busy CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
+ * 123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678
  */
 
 void print_header(void)
 {
 	if (show_pkg)
-		outp += sprintf(outp, "Package ");
+		outp += sprintf(outp, " Package");
 	if (show_core)
-		outp += sprintf(outp, "    Core ");
+		outp += sprintf(outp, "    Core");
 	if (show_cpu)
-		outp += sprintf(outp, "    CPU ");
+		outp += sprintf(outp, "     CPU");
 	if (has_aperf)
-		outp += sprintf(outp, "Avg_MHz ");
+		outp += sprintf(outp, " Avg_MHz");
 	if (do_nhm_cstates)
-		outp += sprintf(outp, "  %%Busy ");
+		outp += sprintf(outp, "   %%Busy");
 	if (has_aperf)
-		outp += sprintf(outp, "Bzy_MHz ");
-	outp += sprintf(outp, "TSC_MHz ");
+		outp += sprintf(outp, " Bzy_MHz");
+	outp += sprintf(outp, " TSC_MHz");
 	if (do_smi)
-		outp += sprintf(outp, "    SMI ");
+		outp += sprintf(outp, "     SMI");
 	if (extra_delta_offset32)
-		outp += sprintf(outp, " count 0x%03X ", extra_delta_offset32);
+		outp += sprintf(outp, "  count 0x%03X", extra_delta_offset32);
 	if (extra_delta_offset64)
-		outp += sprintf(outp, " COUNT 0x%03X ", extra_delta_offset64);
+		outp += sprintf(outp, "  COUNT 0x%03X", extra_delta_offset64);
 	if (extra_msr_offset32)
-		outp += sprintf(outp, "  MSR 0x%03X ", extra_msr_offset32);
+		outp += sprintf(outp, "   MSR 0x%03X", extra_msr_offset32);
 	if (extra_msr_offset64)
-		outp += sprintf(outp, "          MSR 0x%03X ", extra_msr_offset64);
+		outp += sprintf(outp, "           MSR 0x%03X", extra_msr_offset64);
 	if (do_nhm_cstates)
-		outp += sprintf(outp, " CPU%%c1 ");
+		outp += sprintf(outp, "  CPU%%c1");
 	if (do_nhm_cstates && !do_slm_cstates)
-		outp += sprintf(outp, " CPU%%c3 ");
+		outp += sprintf(outp, "  CPU%%c3");
 	if (do_nhm_cstates)
-		outp += sprintf(outp, " CPU%%c6 ");
+		outp += sprintf(outp, "  CPU%%c6");
 	if (do_snb_cstates)
-		outp += sprintf(outp, " CPU%%c7 ");
+		outp += sprintf(outp, "  CPU%%c7");
 
 	if (do_dts)
-		outp += sprintf(outp, "CoreTmp ");
+		outp += sprintf(outp, " CoreTmp");
 	if (do_ptm)
-		outp += sprintf(outp, " PkgTmp ");
+		outp += sprintf(outp, "  PkgTmp");
 
 	if (do_snb_cstates)
-		outp += sprintf(outp, "Pkg%%pc2 ");
+		outp += sprintf(outp, " Pkg%%pc2");
 	if (do_nhm_cstates && !do_slm_cstates)
-		outp += sprintf(outp, "Pkg%%pc3 ");
+		outp += sprintf(outp, " Pkg%%pc3");
 	if (do_nhm_cstates && !do_slm_cstates)
-		outp += sprintf(outp, "Pkg%%pc6 ");
+		outp += sprintf(outp, " Pkg%%pc6");
 	if (do_snb_cstates)
-		outp += sprintf(outp, "Pkg%%pc7 ");
+		outp += sprintf(outp, " Pkg%%pc7");
 	if (do_c8_c9_c10) {
-		outp += sprintf(outp, "Pkg%%pc8 ");
-		outp += sprintf(outp, "Pkg%%pc9 ");
-		outp += sprintf(outp, "Pk%%pc10 ");
+		outp += sprintf(outp, " Pkg%%pc8");
+		outp += sprintf(outp, " Pkg%%pc9");
+		outp += sprintf(outp, " Pk%%pc10");
 	}
 
 	if (do_rapl && !rapl_joules) {
 		if (do_rapl & RAPL_PKG)
-			outp += sprintf(outp, "PkgWatt ");
+			outp += sprintf(outp, " PkgWatt");
 		if (do_rapl & RAPL_CORES)
-			outp += sprintf(outp, "CorWatt ");
+			outp += sprintf(outp, " CorWatt");
 		if (do_rapl & RAPL_GFX)
-			outp += sprintf(outp, "GFXWatt ");
+			outp += sprintf(outp, " GFXWatt");
 		if (do_rapl & RAPL_DRAM)
-			outp += sprintf(outp, "RAMWatt ");
+			outp += sprintf(outp, " RAMWatt");
 		if (do_rapl & RAPL_PKG_PERF_STATUS)
-			outp += sprintf(outp, "  PKG_%% ");
+			outp += sprintf(outp, "   PKG_%%");
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
-			outp += sprintf(outp, "  RAM_%% ");
+			outp += sprintf(outp, "   RAM_%%");
 	} else {
 		if (do_rapl & RAPL_PKG)
-			outp += sprintf(outp, "  Pkg_J ");
+			outp += sprintf(outp, "   Pkg_J");
 		if (do_rapl & RAPL_CORES)
-			outp += sprintf(outp, "  Cor_J ");
+			outp += sprintf(outp, "   Cor_J");
 		if (do_rapl & RAPL_GFX)
-			outp += sprintf(outp, "  GFX_J ");
+			outp += sprintf(outp, "   GFX_J");
 		if (do_rapl & RAPL_DRAM)
-			outp += sprintf(outp, "  RAM_W ");
+			outp += sprintf(outp, "   RAM_W");
 		if (do_rapl & RAPL_PKG_PERF_STATUS)
-			outp += sprintf(outp, "  PKG_%% ");
+			outp += sprintf(outp, "   PKG_%%");
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
-			outp += sprintf(outp, "  RAM_%% ");
-		outp += sprintf(outp, "  time ");
+			outp += sprintf(outp, "   RAM_%%");
+		outp += sprintf(outp, "   time");
 
 	}
 	outp += sprintf(outp, "\n");
