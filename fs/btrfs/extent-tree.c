@@ -552,7 +552,8 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	caching_ctl->block_group = cache;
 	caching_ctl->progress = cache->key.objectid;
 	atomic_set(&caching_ctl->count, 1);
-	btrfs_init_work(&caching_ctl->work, caching_thread, NULL, NULL);
+	btrfs_init_work(&caching_ctl->work, btrfs_cache_helper,
+			caching_thread, NULL, NULL);
 
 	spin_lock(&cache->lock);
 	/*
@@ -2749,8 +2750,8 @@ int btrfs_async_run_delayed_refs(struct btrfs_root *root,
 		async->sync = 0;
 	init_completion(&async->wait);
 
-	btrfs_init_work(&async->work, delayed_ref_async_start,
-			NULL, NULL);
+	btrfs_init_work(&async->work, btrfs_extent_refs_helper,
+			delayed_ref_async_start, NULL, NULL);
 
 	btrfs_queue_work(root->fs_info->extent_workers, &async->work);
 
