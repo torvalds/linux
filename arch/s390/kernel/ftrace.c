@@ -170,6 +170,29 @@ out:
  * directly after the instructions. To enable the call we calculate
  * the original offset to prepare_ftrace_return and put it back.
  */
+
+#ifdef CONFIG_64BIT
+
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	static unsigned short offset = 0x0002;
+
+	return probe_kernel_write((void *) ftrace_graph_caller + 2,
+				  &offset, sizeof(offset));
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned short offset;
+
+	offset = ((void *) &ftrace_graph_caller_end -
+		  (void *) ftrace_graph_caller) / 2;
+	return probe_kernel_write((void *) ftrace_graph_caller + 2,
+				  &offset, sizeof(offset));
+}
+
+#else /* CONFIG_64BIT */
+
 int ftrace_enable_ftrace_graph_caller(void)
 {
 	unsigned short offset;
@@ -188,5 +211,6 @@ int ftrace_disable_ftrace_graph_caller(void)
 				  &offset, sizeof(offset));
 }
 
+#endif /* CONFIG_64BIT */
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

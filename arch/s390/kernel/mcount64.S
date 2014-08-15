@@ -32,14 +32,17 @@ ENTRY(ftrace_caller)
 	lg	%r14,0(%r14)
 	basr	%r14,%r14
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+# The j instruction gets runtime patched to a nop instruction.
+# See ftrace_enable_ftrace_graph_caller. The patched instruction is:
+#	j	.+4
+ENTRY(ftrace_graph_caller)
+	j	ftrace_graph_caller_end
 	lg	%r2,168(%r15)
 	lg	%r3,272(%r15)
-ENTRY(ftrace_graph_caller)
-# The bras instruction gets runtime patched to call prepare_ftrace_return.
-# See ftrace_enable_ftrace_graph_caller. The patched instruction is:
-#	bras	%r14,prepare_ftrace_return
-	bras	%r14,0f
-0:	stg	%r2,168(%r15)
+	brasl	%r14,prepare_ftrace_return
+	stg	%r2,168(%r15)
+ftrace_graph_caller_end:
+	.globl	ftrace_graph_caller_end
 #endif
 	aghi	%r15,160
 	lmg	%r2,%r5,32(%r15)
