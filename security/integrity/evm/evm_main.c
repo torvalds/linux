@@ -352,7 +352,6 @@ void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
 		return;
 
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
-	return;
 }
 
 /**
@@ -372,7 +371,6 @@ void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 	mutex_lock(&inode->i_mutex);
 	evm_update_evmxattr(dentry, xattr_name, NULL, 0);
 	mutex_unlock(&inode->i_mutex);
-	return;
 }
 
 /**
@@ -414,7 +412,6 @@ void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
 
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
 		evm_update_evmxattr(dentry, NULL, NULL, 0);
-	return;
 }
 
 /*
