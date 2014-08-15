@@ -4225,7 +4225,8 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_proto_connect_cfm(conn, ev->status);
 
-	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, &conn->dst,
+					   conn->dst_type);
 	if (params) {
 		list_del_init(&params->action);
 		if (params->conn) {
