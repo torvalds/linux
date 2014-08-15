@@ -1843,6 +1843,12 @@ S:	Orphan
 F:	Documentation/filesystems/befs.txt
 F:	fs/befs/
 
+BECKHOFF CX5020 ETHERCAT MASTER DRIVER
+M: Dariusz Marcinkiewicz <reksio@newterm.pl>
+L: netdev@vger.kernel.org
+S: Maintained
+F: drivers/net/ethernet/ec_bhf.c
+
 BFS FILE SYSTEM
 M:	"Tigran A. Aivazian" <tigran@aivazian.fsnet.co.uk>
 S:	Maintained
