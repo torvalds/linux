@@ -38,6 +38,8 @@
 #include <ctype.h>
 #include <sched.h>
 #include <cpuid.h>
+#include <linux/capability.h>
+#include <errno.h>
 
 char *proc_stat = "/proc/stat";
 unsigned int interval_sec = 5;	/* set with -i interval_sec */
@@ -251,15 +253,13 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
-		return -1;
+		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
 
 	retval = pread(fd, msr, sizeof *msr, offset);
 	close(fd);
 
-	if (retval != sizeof *msr) {
-		fprintf(stderr, "%s offset 0x%llx read failed\n", pathname, (unsigned long long)offset);
-		return -1;
-	}
+	if (retval != sizeof *msr)
+		err(-1, "%s offset 0x%llx read failed", pathname, (unsigned long long)offset);
 
 	return 0;
 }
@@ -1462,10 +1462,40 @@ void check_dev_msr()
 		    "Try \"# modprobe msr\"");
 }
 
-void check_super_user()
+void check_permissions()
 {
-	if (getuid() != 0)
-		errx(-6, "must be root");
+	struct __user_cap_header_struct cap_header_data;
+	cap_user_header_t cap_header = &cap_header_data;
+	struct __user_cap_data_struct cap_data_data;
+	cap_user_data_t cap_data = &cap_data_data;
+	extern int capget(cap_user_header_t hdrp, cap_user_data_t datap);
+	int do_exit = 0;
+
+	/* check for CAP_SYS_RAWIO */
+	cap_header->pid = getpid();
+	cap_header->version = _LINUX_CAPABILITY_VERSION;
+	if (capget(cap_header, cap_data) < 0)
+		err(-6, "capget(2) failed");
+
+	if ((cap_data->effective & (1 << CAP_SYS_RAWIO)) == 0) {
+		do_exit++;
+		warnx("capget(CAP_SYS_RAWIO) failed,"
+			" try \"# setcap cap_sys_rawio=ep %s\"", progname);
+	}
+
+	/* test file permissions */
+	if (euidaccess("/dev/cpu/0/msr", R_OK)) {
+		do_exit++;
+		warn("/dev/cpu/0/msr open failed, try chown or chmod +r /dev/cpu/*/msr");
+	}
+
+	/* if all else fails, thell them to be root */
+	if (do_exit)
+		if (getuid() != 0)
+			warnx("Or simply run as root");
+
+	if (do_exit)
+		exit(-6);
 }
 
 int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
@@ -2299,10 +2329,9 @@ void setup_all_buffers(void)
 
 void turbostat_init()
 {
-	check_cpuid();
-
 	check_dev_msr();
-	check_super_user();
+	check_permissions();
+	check_cpuid();
 
 	setup_all_buffers();
 
@@ -2441,7 +2470,7 @@ int main(int argc, char **argv)
 	cmdline(argc, argv);
 
 	if (verbose)
-		fprintf(stderr, "turbostat v3.7 Feb 6, 2014"
+		fprintf(stderr, "turbostat v3.8 14-Aug 2014"
 			" - Len Brown <lenb@kernel.org>\n");
 
 	turbostat_init();
