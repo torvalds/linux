@@ -15,6 +15,21 @@ config SND_OMAP_SOC_MCPDM
 config SND_OMAP_SOC_HDMI
 	tristate
 
+config SND_OMAP_SOC_HDMI_AUDIO
+	tristate "HDMI audio support for OMAP4+ based SoCs"
+	depends on SND_OMAP_SOC
+	help
+	  For HDMI audio to work OMAPDSS HDMI support should be
+	  enabled.
+	  The hdmi audio driver implements cpu-dai component using the
+	  callbacks provided by OMAPDSS and registers the component
+	  under DSS HDMI device. Omap-pcm is registered for platform
+	  component also under DSS HDMI device. Dummy codec is used as
+	  as codec component. The hdmi audio driver implements also
+	  the card and registers it under its own platform device.
+	  The device for the dirver is registered by OMAPDSS hdmi
+	  driver.
+
 config SND_OMAP_SOC_N810
 	tristate "SoC Audio support for Nokia N810"
 	depends on SND_OMAP_SOC && MACH_NOKIA_N810 && I2C
