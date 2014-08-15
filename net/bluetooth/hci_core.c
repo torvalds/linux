@@ -3726,6 +3726,18 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 	return 0;
 }
 
+static void hci_conn_params_free(struct hci_conn_params *params)
+{
+	if (params->conn) {
+		hci_conn_drop(params->conn);
+		hci_conn_put(params->conn);
+	}
+
+	list_del(&params->action);
+	list_del(&params->list);
+	kfree(params);
+}
+
 /* This function requires the caller holds hdev->lock */
 void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 {
@@ -3735,14 +3747,7 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 	if (!params)
 		return;
 
-	if (params->conn) {
-		hci_conn_drop(params->conn);
-		hci_conn_put(params->conn);
-	}
-
-	list_del(&params->action);
-	list_del(&params->list);
-	kfree(params);
+	hci_conn_params_free(params);
 
 	hci_update_background_scan(hdev);
 
@@ -3769,15 +3774,8 @@ void hci_conn_params_clear_all(struct hci_dev *hdev)
 {
 	struct hci_conn_params *params, *tmp;
 
-	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
-		if (params->conn) {
-			hci_conn_drop(params->conn);
-			hci_conn_put(params->conn);
-		}
-		list_del(&params->action);
-		list_del(&params->list);
-		kfree(params);
-	}
+	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list)
+		hci_conn_params_free(params);
 
 	hci_update_background_scan(hdev);
 
