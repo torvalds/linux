@@ -1580,7 +1580,7 @@ static int blk_mq_init_hw_queues(struct request_queue *q,
 		hctx->tags = set->tags[i];
 
 		/*
-		 * Allocate space for all possible cpus to avoid allocation in
+		 * Allocate space for all possible cpus to avoid allocation at
 		 * runtime
 		 */
 		hctx->ctxs = kmalloc_node(nr_cpu_ids * sizeof(void *),
@@ -1668,8 +1668,8 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		/*
-		 * If not software queues are mapped to this hardware queue,
-		 * disable it and free the request entries
+		 * If no software queues are mapped to this hardware queue,
+		 * disable it and free the request entries.
 		 */
 		if (!hctx->nr_ctx) {
 			struct blk_mq_tag_set *set = q->tag_set;
