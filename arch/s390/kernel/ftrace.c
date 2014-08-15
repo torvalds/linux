@@ -107,6 +107,13 @@ asm(
 
 #endif /* CONFIG_64BIT */
 
+#ifdef CONFIG_64BIT
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+		       unsigned long addr)
+{
+	return 0;
+}
+#endif
 
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
