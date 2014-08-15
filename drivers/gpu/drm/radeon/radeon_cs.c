@@ -132,7 +132,8 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		 * the buffers used for read only, which doubles the range
 		 * to 0 to 31. 32 is reserved for the kernel driver.
 		 */
-		priority = (r->flags & 0xf) * 2 + !!r->write_domain;
+		priority = (r->flags & RADEON_RELOC_PRIO_MASK) * 2
+			   + !!r->write_domain;
 
 		/* the first reloc of an UVD job is the msg and that must be in
 		   VRAM, also but everything into VRAM on AGP cards to avoid
