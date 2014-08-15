@@ -295,10 +295,8 @@ static int omap_control_phy_probe(struct platform_device *pdev)
 
 	control_phy = devm_kzalloc(&pdev->dev, sizeof(*control_phy),
 		GFP_KERNEL);
-	if (!control_phy) {
-		dev_err(&pdev->dev, "unable to alloc memory for control phy\n");
+	if (!control_phy)
 		return -ENOMEM;
-	}
 
 	control_phy->dev = &pdev->dev;
 	control_phy->type = *(enum omap_control_phy_type *)of_id->data;
