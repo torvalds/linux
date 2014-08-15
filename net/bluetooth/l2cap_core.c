@@ -2358,12 +2358,8 @@ static int l2cap_segment_le_sdu(struct l2cap_chan *chan,
 
 	BT_DBG("chan %p, msg %p, len %zu", chan, msg, len);
 
-	pdu_len = chan->conn->mtu - L2CAP_HDR_SIZE;
-
-	pdu_len = min_t(size_t, pdu_len, chan->remote_mps);
-
 	sdu_len = len;
-	pdu_len -= L2CAP_SDULEN_SIZE;
+	pdu_len = chan->remote_mps - L2CAP_SDULEN_SIZE;
 
 	while (len > 0) {
 		if (len <= pdu_len)
