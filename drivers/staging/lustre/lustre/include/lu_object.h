@@ -404,11 +404,11 @@ struct lu_attr {
 	/** size in bytes */
 	__u64	  la_size;
 	/** modification time in seconds since Epoch */
-	obd_time       la_mtime;
+	s64	  la_mtime;
 	/** access time in seconds since Epoch */
-	obd_time       la_atime;
+	s64	  la_atime;
 	/** change time in seconds since Epoch */
-	obd_time       la_ctime;
+	s64	  la_ctime;
 	/** 512-byte blocks allocated to object */
 	__u64	  la_blocks;
 	/** permission bits and file type */

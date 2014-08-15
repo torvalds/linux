@@ -308,12 +308,12 @@ static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 }
 
 
-void obdo_cpy_md(struct obdo *dst, struct obdo *src, obd_flag valid);
+void obdo_cpy_md(struct obdo *dst, struct obdo *src, u32 valid);
 void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj);
 void obdo_from_iattr(struct obdo *oa, struct iattr *attr,
 		     unsigned int ia_valid);
-void iattr_from_obdo(struct iattr *attr, struct obdo *oa, obd_flag valid);
-void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, obd_flag valid);
+void iattr_from_obdo(struct iattr *attr, struct obdo *oa, u32 valid);
+void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid);
 void obdo_from_md(struct obdo *oa, struct md_op_data *op_data,
 		  unsigned int valid);
 
@@ -510,8 +510,8 @@ static inline int obd_get_info(const struct lu_env *env,
 }
 
 static inline int obd_set_info_async(const struct lu_env *env,
-				     struct obd_export *exp, obd_count keylen,
-				     void *key, obd_count vallen, void *val,
+				     struct obd_export *exp, u32 keylen,
+				     void *key, u32 vallen, void *val,
 				     struct ptlrpc_request_set *set)
 {
 	int rc;
@@ -1123,7 +1123,7 @@ static inline int obd_destroy_export(struct obd_export *exp)
 
 static inline int obd_extent_calc(struct obd_export *exp,
 				  struct lov_stripe_md *md,
-				  int cmd, obd_off *offset)
+				  int cmd, u64 *offset)
 {
 	int rc;
 
@@ -1239,7 +1239,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 }
 
 static inline int obd_sync_rqset(struct obd_export *exp, struct obd_info *oinfo,
-				 obd_size start, obd_size end)
+				 u64 start, u64 end)
 {
 	struct ptlrpc_request_set *set = NULL;
 	int rc;
@@ -1259,7 +1259,7 @@ static inline int obd_sync_rqset(struct obd_export *exp, struct obd_info *oinfo,
 }
 
 static inline int obd_sync(const struct lu_env *env, struct obd_export *exp,
-			   struct obd_info *oinfo, obd_size start, obd_size end,
+			   struct obd_info *oinfo, u64 start, u64 end,
 			   struct ptlrpc_request_set *set)
 {
 	int rc;
@@ -1306,7 +1306,7 @@ static inline int obd_punch(const struct lu_env *env, struct obd_export *exp,
 }
 
 static inline int obd_brw(int cmd, struct obd_export *exp,
-			  struct obd_info *oinfo, obd_count oa_bufs,
+			  struct obd_info *oinfo, u32 oa_bufs,
 			  struct brw_page *pg, struct obd_trans_info *oti)
 {
 	int rc;
@@ -1371,7 +1371,7 @@ static inline int obd_merge_lvb(struct obd_export *exp,
 }
 
 static inline int obd_adjust_kms(struct obd_export *exp,
-				 struct lov_stripe_md *lsm, obd_off size,
+				 struct lov_stripe_md *lsm, u64 size,
 				 int shrink)
 {
 	int rc;
@@ -1962,7 +1962,7 @@ static inline int md_free_lustre_md(struct obd_export *exp,
 
 static inline int md_setxattr(struct obd_export *exp,
 			      const struct lu_fid *fid, struct obd_capa *oc,
-			      obd_valid valid, const char *name,
+			      u64 valid, const char *name,
 			      const char *input, int input_size,
 			      int output_size, int flags, __u32 suppgid,
 			      struct ptlrpc_request **request)
@@ -1976,7 +1976,7 @@ static inline int md_setxattr(struct obd_export *exp,
 
 static inline int md_getxattr(struct obd_export *exp,
 			      const struct lu_fid *fid, struct obd_capa *oc,
-			      obd_valid valid, const char *name,
+			      u64 valid, const char *name,
 			      const char *input, int input_size,
 			      int output_size, int flags,
 			      struct ptlrpc_request **request)

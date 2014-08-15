@@ -58,7 +58,7 @@ static inline __u32 ee_hashfunc(uid_t id)
 	return id & (EE_HASHES - 1);
 }
 
-obd_valid rce_ops2valid(int ops)
+u64 rce_ops2valid(int ops)
 {
 	switch (ops) {
 	case RMT_LSETFACL:

@@ -375,7 +375,7 @@ int lov_prep_enqueue_set(struct obd_export *exp, struct obd_info *oinfo,
 	for (i = 0; i < oinfo->oi_md->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi;
 		struct lov_request *req;
-		obd_off start, end;
+		u64 start, end;
 
 		loi = oinfo->oi_md->lsm_oinfo[i];
 		if (!lov_stripe_intersects(oinfo->oi_md, i,
@@ -481,7 +481,7 @@ int lov_prep_match_set(struct obd_export *exp, struct obd_info *oinfo,
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi;
 		struct lov_request *req;
-		obd_off start, end;
+		u64 start, end;
 
 		loi = lsm->lsm_oinfo[i];
 		if (!lov_stripe_intersects(lsm, i, policy->l_extent.start,
@@ -696,14 +696,14 @@ int lov_fini_brw_set(struct lov_request_set *set)
 }
 
 int lov_prep_brw_set(struct obd_export *exp, struct obd_info *oinfo,
-		     obd_count oa_bufs, struct brw_page *pga,
+		     u32 oa_bufs, struct brw_page *pga,
 		     struct obd_trans_info *oti,
 		     struct lov_request_set **reqset)
 {
 	struct {
-		obd_count       index;
-		obd_count       count;
-		obd_count       off;
+		u32       index;
+		u32       count;
+		u32       off;
 	} *info = NULL;
 	struct lov_request_set *set;
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
@@ -1167,7 +1167,7 @@ int lov_prep_punch_set(struct obd_export *exp, struct obd_info *oinfo,
 	for (i = 0; i < oinfo->oi_md->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi = oinfo->oi_md->lsm_oinfo[i];
 		struct lov_request *req;
-		obd_off rs, re;
+		u64 rs, re;
 
 		if (!lov_stripe_intersects(oinfo->oi_md, i,
 					   oinfo->oi_policy.l_extent.start,
@@ -1246,7 +1246,7 @@ static int cb_sync_update(void *cookie, int rc)
 }
 
 int lov_prep_sync_set(struct obd_export *exp, struct obd_info *oinfo,
-		      obd_off start, obd_off end,
+		      u64 start, u64 end,
 		      struct lov_request_set **reqset)
 {
 	struct lov_request_set *set;
@@ -1264,7 +1264,7 @@ int lov_prep_sync_set(struct obd_export *exp, struct obd_info *oinfo,
 	for (i = 0; i < oinfo->oi_md->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi = oinfo->oi_md->lsm_oinfo[i];
 		struct lov_request *req;
-		obd_off rs, re;
+		u64 rs, re;
 
 		if (!lov_check_and_wait_active(lov, loi->loi_ost_idx)) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", loi->loi_ost_idx);

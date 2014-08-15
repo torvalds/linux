@@ -162,7 +162,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	struct obd_uuid *uuid;
 	struct md_op_data *op_data;
 	struct lustre_md lmd;
-	obd_valid valid;
+	u64 valid;
 	int size, err, checksum;
 
 	obd = class_name2obd(md);

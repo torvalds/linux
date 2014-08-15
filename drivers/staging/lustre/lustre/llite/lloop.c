@@ -192,7 +192,7 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	pgoff_t	       offset;
 	int		   ret;
 	int		   rw;
-	obd_count	     page_count = 0;
+	u32		   page_count = 0;
 	struct bio_vec       bvec;
 	struct bvec_iter   iter;
 	struct bio	   *bio;

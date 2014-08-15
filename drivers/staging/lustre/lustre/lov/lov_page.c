@@ -165,7 +165,7 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	struct lov_io_sub *sub;
 	struct lov_page   *lpg = cl_object_page_slice(obj, page);
 	loff_t	     offset;
-	obd_off	    suboff;
+	u64	    suboff;
 	int		stripe;
 	int		rc;
 

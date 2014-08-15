@@ -1128,7 +1128,7 @@ struct eacl_entry {
 	ext_acl_xattr_header *ee_acl;
 };
 
-obd_valid rce_ops2valid(int ops);
+u64 rce_ops2valid(int ops);
 struct rmtacl_ctl_entry *rct_search(struct rmtacl_ctl_table *rct, pid_t key);
 int rct_add(struct rmtacl_ctl_table *rct, pid_t key, int ops);
 int rct_del(struct rmtacl_ctl_table *rct, pid_t key);
@@ -1144,7 +1144,7 @@ void et_search_free(struct eacl_table *et, pid_t key);
 void et_init(struct eacl_table *et);
 void et_fini(struct eacl_table *et);
 #else
-static inline obd_valid rce_ops2valid(int ops)
+static inline u64 rce_ops2valid(int ops)
 {
 	return 0;
 }

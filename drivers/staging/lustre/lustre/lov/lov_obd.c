@@ -1442,7 +1442,7 @@ static int lov_sync_interpret(struct ptlrpc_request_set *rqset,
 }
 
 static int lov_sync(const struct lu_env *env, struct obd_export *exp,
-		    struct obd_info *oinfo, obd_off start, obd_off end,
+		    struct obd_info *oinfo, u64 start, u64 end,
 		    struct ptlrpc_request_set *rqset)
 {
 	struct lov_request_set *set = NULL;
@@ -1497,7 +1497,7 @@ static int lov_sync(const struct lu_env *env, struct obd_export *exp,
 }
 
 static int lov_brw_check(struct lov_obd *lov, struct obd_info *lov_oinfo,
-			 obd_count oa_bufs, struct brw_page *pga)
+			 u32 oa_bufs, struct brw_page *pga)
 {
 	struct obd_info oinfo = { { { 0 } } };
 	int i, rc = 0;
@@ -1509,7 +1509,7 @@ static int lov_brw_check(struct lov_obd *lov, struct obd_info *lov_oinfo,
 	for (i = 0; i < oa_bufs; i++) {
 		int stripe = lov_stripe_number(lov_oinfo->oi_md, pga[i].off);
 		int ost = lov_oinfo->oi_md->lsm_oinfo[stripe]->loi_ost_idx;
-		obd_off start, end;
+		u64 start, end;
 
 		if (!lov_stripe_intersects(lov_oinfo->oi_md, i, pga[i].off,
 					   pga[i].off + pga[i].count - 1,
@@ -1530,7 +1530,7 @@ static int lov_brw_check(struct lov_obd *lov, struct obd_info *lov_oinfo,
 }
 
 static int lov_brw(int cmd, struct obd_export *exp, struct obd_info *oinfo,
-		   obd_count oa_bufs, struct brw_page *pga,
+		   u32 oa_bufs, struct brw_page *pga,
 		   struct obd_trans_info *oti)
 {
 	struct lov_request_set *set;
@@ -2080,13 +2080,13 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
  * \param fm_end logical end of mapping
  * \param start_stripe starting stripe will be returned in this
  */
-obd_size fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
-				   struct lov_stripe_md *lsm, obd_size fm_start,
-				   obd_size fm_end, int *start_stripe)
+u64 fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
+				   struct lov_stripe_md *lsm, u64 fm_start,
+				   u64 fm_end, int *start_stripe)
 {
-	obd_size local_end = fiemap->fm_extents[0].fe_logical;
-	obd_off lun_start, lun_end;
-	obd_size fm_end_offset;
+	u64 local_end = fiemap->fm_extents[0].fe_logical;
+	u64 lun_start, lun_end;
+	u64 fm_end_offset;
 	int stripe_no = -1, i;
 
 	if (fiemap->fm_extent_count == 0 ||
@@ -2137,12 +2137,12 @@ obd_size fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
  *
  * \retval last_stripe return the last stripe of the mapping
  */
-int fiemap_calc_last_stripe(struct lov_stripe_md *lsm, obd_size fm_start,
-			    obd_size fm_end, int start_stripe,
+int fiemap_calc_last_stripe(struct lov_stripe_md *lsm, u64 fm_start,
+			    u64 fm_end, int start_stripe,
 			    int *stripe_count)
 {
 	int last_stripe;
-	obd_off obd_start, obd_end;
+	u64 obd_start, obd_end;
 	int i, j;
 
 	if (fm_end - fm_start > lsm->lsm_stripe_size * lsm->lsm_stripe_count) {
@@ -2206,8 +2206,8 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	int count_local;
 	unsigned int get_num_extents = 0;
 	int ost_index = 0, actual_start_stripe, start_stripe;
-	obd_size fm_start, fm_end, fm_length, fm_end_offset;
-	obd_size curr_loc;
+	u64 fm_start, fm_end, fm_length, fm_end_offset;
+	u64 curr_loc;
 	int current_extent = 0, rc = 0, i;
 	int ost_eof = 0; /* EOF for object */
 	int ost_done = 0; /* done with required mapping for this OST? */
@@ -2256,9 +2256,9 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	/* Check each stripe */
 	for (cur_stripe = start_stripe, i = 0; i < stripe_count;
 	     i++, cur_stripe = (cur_stripe + 1) % lsm->lsm_stripe_count) {
-		obd_size req_fm_len; /* Stores length of required mapping */
-		obd_size len_mapped_single_call;
-		obd_off lun_start, lun_end, obd_object_end;
+		u64 req_fm_len; /* Stores length of required mapping */
+		u64 len_mapped_single_call;
+		u64 lun_start, lun_end, obd_object_end;
 		unsigned int ext_count;
 
 		cur_stripe_wrap = cur_stripe;
@@ -2467,7 +2467,7 @@ static int lov_get_info(const struct lu_env *env, struct obd_export *exp,
 		GOTO(out, rc = -ENXIO);
 	} else if (KEY_IS(KEY_LAST_ID)) {
 		struct obd_id_info *info = val;
-		__u32 size = sizeof(obd_id);
+		__u32 size = sizeof(u64);
 		struct lov_tgt_desc *tgt;
 
 		LASSERT(*vallen == sizeof(struct obd_id_info));
@@ -2513,12 +2513,12 @@ out:
 }
 
 static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
-			      obd_count keylen, void *key, obd_count vallen,
+			      u32 keylen, void *key, u32 vallen,
 			      void *val, struct ptlrpc_request_set *set)
 {
 	struct obd_device *obddev = class_exp2obd(exp);
 	struct lov_obd *lov = &obddev->u.lov;
-	obd_count count;
+	u32 count;
 	int i, rc = 0, err;
 	struct lov_tgt_desc *tgt;
 	unsigned incr, check_uuid,
@@ -2538,7 +2538,7 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 
 	if (KEY_IS(KEY_NEXT_ID)) {
 		count = vallen / sizeof(struct obd_id_info);
-		vallen = sizeof(obd_id);
+		vallen = sizeof(u64);
 		incr = sizeof(struct obd_id_info);
 		do_inactive = 1;
 		next_id = 1;

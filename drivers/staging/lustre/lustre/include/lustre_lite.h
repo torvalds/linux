@@ -60,7 +60,7 @@
 struct lustre_rw_params {
 	int		lrp_lock_mode;
 	ldlm_policy_data_t lrp_policy;
-	obd_flag	   lrp_brw_flags;
+	u32		lrp_brw_flags;
 	int		lrp_ast_flags;
 };
 

@@ -175,10 +175,10 @@ struct echo_object_conf *cl2echo_conf(const struct cl_object_conf *c)
 static struct echo_object *cl_echo_object_find(struct echo_device *d,
 					       struct lov_stripe_md **lsm);
 static int cl_echo_object_put(struct echo_object *eco);
-static int cl_echo_enqueue   (struct echo_object *eco, obd_off start,
-			      obd_off end, int mode, __u64 *cookie);
-static int cl_echo_cancel    (struct echo_device *d, __u64 cookie);
-static int cl_echo_object_brw(struct echo_object *eco, int rw, obd_off offset,
+static int cl_echo_enqueue(struct echo_object *eco, u64 start,
+			   u64 end, int mode, __u64 *cookie);
+static int cl_echo_cancel(struct echo_device *d, __u64 cookie);
+static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 			      struct page **pages, int npages, int async);
 
 static struct echo_thread_info *echo_env_info(const struct lu_env *env);
@@ -1141,7 +1141,7 @@ static int cl_echo_object_put(struct echo_object *eco)
 }
 
 static int cl_echo_enqueue0(struct lu_env *env, struct echo_object *eco,
-			    obd_off start, obd_off end, int mode,
+			    u64 start, u64 end, int mode,
 			    __u64 *cookie , __u32 enqflags)
 {
 	struct cl_io *io;
@@ -1186,7 +1186,7 @@ static int cl_echo_enqueue0(struct lu_env *env, struct echo_object *eco,
 	return rc;
 }
 
-static int cl_echo_enqueue(struct echo_object *eco, obd_off start, obd_off end,
+static int cl_echo_enqueue(struct echo_object *eco, u64 start, u64 end,
 			   int mode, __u64 *cookie)
 {
 	struct echo_thread_info *info;
@@ -1280,7 +1280,7 @@ static int cl_echo_async_brw(const struct lu_env *env, struct cl_io *io,
 	return result;
 }
 
-static int cl_echo_object_brw(struct echo_object *eco, int rw, obd_off offset,
+static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 			      struct page **pages, int npages, int async)
 {
 	struct lu_env	   *env;
@@ -1374,7 +1374,7 @@ out:
 /** @} echo_exports */
 
 
-static obd_id last_object_id;
+static u64 last_object_id;
 
 static int
 echo_copyout_lsm (struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
@@ -2324,14 +2324,14 @@ static void echo_put_object(struct echo_object *eco)
 }
 
 static void
-echo_get_stripe_off_id (struct lov_stripe_md *lsm, obd_off *offp, obd_id *idp)
+echo_get_stripe_off_id(struct lov_stripe_md *lsm, u64 *offp, u64 *idp)
 {
 	unsigned long stripe_count;
 	unsigned long stripe_size;
 	unsigned long width;
 	unsigned long woffset;
 	int	   stripe_index;
-	obd_off       offset;
+	u64       offset;
 
 	if (lsm->lsm_stripe_count <= 1)
 		return;
@@ -2354,12 +2354,12 @@ echo_get_stripe_off_id (struct lov_stripe_md *lsm, obd_off *offp, obd_id *idp)
 
 static void
 echo_client_page_debug_setup(struct lov_stripe_md *lsm,
-			     struct page *page, int rw, obd_id id,
-			     obd_off offset, obd_off count)
+			     struct page *page, int rw, u64 id,
+			     u64 offset, u64 count)
 {
 	char    *addr;
-	obd_off  stripe_off;
-	obd_id   stripe_id;
+	u64	 stripe_off;
+	u64	 stripe_id;
 	int      delta;
 
 	/* no partial pages on the client */
@@ -2384,11 +2384,11 @@ echo_client_page_debug_setup(struct lov_stripe_md *lsm,
 }
 
 static int echo_client_page_debug_check(struct lov_stripe_md *lsm,
-					struct page *page, obd_id id,
-					obd_off offset, obd_off count)
+					struct page *page, u64 id,
+					u64 offset, u64 count)
 {
-	obd_off stripe_off;
-	obd_id  stripe_id;
+	u64	stripe_off;
+	u64	stripe_id;
 	char   *addr;
 	int     delta;
 	int     rc;
@@ -2418,16 +2418,16 @@ static int echo_client_page_debug_check(struct lov_stripe_md *lsm,
 }
 
 static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
-			    struct echo_object *eco, obd_off offset,
-			    obd_size count, int async,
+			    struct echo_object *eco, u64 offset,
+			    u64 count, int async,
 			    struct obd_trans_info *oti)
 {
 	struct lov_stripe_md   *lsm = eco->eo_lsm;
-	obd_count	       npages;
+	u32	       npages;
 	struct brw_page	*pga;
 	struct brw_page	*pgp;
 	struct page	    **pages;
-	obd_off		 off;
+	u64		 off;
 	int		     i;
 	int		     rc;
 	int		     verify;
@@ -2516,16 +2516,16 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 static int echo_client_prep_commit(const struct lu_env *env,
 				   struct obd_export *exp, int rw,
 				   struct obdo *oa, struct echo_object *eco,
-				   obd_off offset, obd_size count,
-				   obd_size batch, struct obd_trans_info *oti,
+				   u64 offset, u64 count,
+				   u64 batch, struct obd_trans_info *oti,
 				   int async)
 {
 	struct lov_stripe_md *lsm = eco->eo_lsm;
 	struct obd_ioobj ioo;
 	struct niobuf_local *lnb;
 	struct niobuf_remote *rnb;
-	obd_off off;
-	obd_size npages, tot_pages;
+	u64 off;
+	u64 npages, tot_pages;
 	int i, ret = 0, brw_flags = 0;
 
 	if (count <= 0 || (count & (~CFS_PAGE_MASK)) != 0 ||
@@ -2677,12 +2677,12 @@ static int echo_client_brw_ioctl(const struct lu_env *env, int rw,
 
 static int
 echo_client_enqueue(struct obd_export *exp, struct obdo *oa,
-		    int mode, obd_off offset, obd_size nob)
+		    int mode, u64 offset, u64 nob)
 {
 	struct echo_device     *ed = obd2echo_dev(exp->exp_obd);
 	struct lustre_handle   *ulh = &oa->o_handle;
 	struct echo_object     *eco;
-	obd_off		 end;
+	u64		 end;
 	int		     rc;
 
 	if (ed->ed_next == NULL)
@@ -2699,7 +2699,7 @@ echo_client_enqueue(struct obd_export *exp, struct obdo *oa,
 	if (rc != 0)
 		return rc;
 
-	end = (nob == 0) ? ((obd_off) -1) : (offset + nob - 1);
+	end = (nob == 0) ? ((u64) -1) : (offset + nob - 1);
 	rc = cl_echo_enqueue(eco, offset, end, mode, &ulh->cookie);
 	if (rc == 0) {
 		oa->o_valid |= OBD_MD_FLHANDLE;

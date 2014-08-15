@@ -331,7 +331,7 @@ static int mdc_is_subdir(struct obd_export *exp,
 static int mdc_xattr_common(struct obd_export *exp,
 			    const struct req_format *fmt,
 			    const struct lu_fid *fid,
-			    struct obd_capa *oc, int opcode, obd_valid valid,
+			    struct obd_capa *oc, int opcode, u64 valid,
 			    const char *xattr_name, const char *input,
 			    int input_size, int output_size, int flags,
 			    __u32 suppgid, struct ptlrpc_request **request)
@@ -440,7 +440,7 @@ static int mdc_xattr_common(struct obd_export *exp,
 }
 
 int mdc_setxattr(struct obd_export *exp, const struct lu_fid *fid,
-		 struct obd_capa *oc, obd_valid valid, const char *xattr_name,
+		 struct obd_capa *oc, u64 valid, const char *xattr_name,
 		 const char *input, int input_size, int output_size,
 		 int flags, __u32 suppgid, struct ptlrpc_request **request)
 {
@@ -451,7 +451,7 @@ int mdc_setxattr(struct obd_export *exp, const struct lu_fid *fid,
 }
 
 int mdc_getxattr(struct obd_export *exp, const struct lu_fid *fid,
-		 struct obd_capa *oc, obd_valid valid, const char *xattr_name,
+		 struct obd_capa *oc, u64 valid, const char *xattr_name,
 		 const char *input, int input_size, int output_size,
 		 int flags, struct ptlrpc_request **request)
 {
@@ -1926,7 +1926,7 @@ out:
 }
 
 int mdc_get_info_rpc(struct obd_export *exp,
-		     obd_count keylen, void *key,
+		     u32 keylen, void *key,
 		     int vallen, void *val)
 {
 	struct obd_import      *imp = class_exp2cliimp(exp);
@@ -2101,8 +2101,8 @@ static int mdc_kuc_reregister(struct obd_import *imp)
 
 int mdc_set_info_async(const struct lu_env *env,
 		       struct obd_export *exp,
-		       obd_count keylen, void *key,
-		       obd_count vallen, void *val,
+		       u32 keylen, void *key,
+		       u32 vallen, void *val,
 		       struct ptlrpc_request_set *set)
 {
 	struct obd_import	*imp = class_exp2cliimp(exp);
@@ -2573,7 +2573,7 @@ static int mdc_llog_finish(struct obd_device *obd, int count)
 	return 0;
 }
 
-static int mdc_process_config(struct obd_device *obd, obd_count len, void *buf)
+static int mdc_process_config(struct obd_device *obd, u32 len, void *buf)
 {
 	struct lustre_cfg *lcfg = buf;
 	struct lprocfs_static_vars lvars = { NULL };

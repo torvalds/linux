@@ -1100,7 +1100,7 @@ static int mgc_target_register(struct obd_export *exp,
 }
 
 int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
-		       obd_count keylen, void *key, obd_count vallen,
+		       u32 keylen, void *key, u32 vallen,
 		       void *val, struct ptlrpc_request_set *set)
 {
 	int rc = -EINVAL;
@@ -1844,7 +1844,7 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
  * LCFG_LOG_START gets the config log from the MGS, processes it to start
  * any services, and adds it to the list logs to watch (follow).
  */
-static int mgc_process_config(struct obd_device *obd, obd_count len, void *buf)
+static int mgc_process_config(struct obd_device *obd, u32 len, void *buf)
 {
 	struct lustre_cfg *lcfg = buf;
 	struct config_llog_instance *cfg = NULL;

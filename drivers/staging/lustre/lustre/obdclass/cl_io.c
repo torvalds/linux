@@ -1560,7 +1560,7 @@ EXPORT_SYMBOL(cl_req_prep);
  * for the same request.
  */
 void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
-		     struct cl_req_attr *attr, obd_valid flags)
+		     struct cl_req_attr *attr, u64 flags)
 {
 	const struct cl_req_slice *slice;
 	struct cl_page	    *page;

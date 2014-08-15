@@ -54,7 +54,7 @@
 #include "osc_internal.h"
 #include "osc_cl_internal.h"
 
-static void osc_release_ppga(struct brw_page **ppga, obd_count count);
+static void osc_release_ppga(struct brw_page **ppga, u32 count);
 static int brw_interpret(const struct lu_env *env,
 			 struct ptlrpc_request *req, void *data, int rc);
 int osc_cleanup(struct obd_device *obd);
@@ -615,7 +615,7 @@ int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
 }
 
 static int osc_sync(const struct lu_env *env, struct obd_export *exp,
-		    struct obd_info *oinfo, obd_size start, obd_size end,
+		    struct obd_info *oinfo, u64 start, u64 end,
 		    struct ptlrpc_request_set *set)
 {
 	if (!oinfo->oi_oa) {
@@ -799,7 +799,7 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 				long writing_bytes)
 {
-	obd_flag bits = OBD_MD_FLBLOCKS|OBD_MD_FLGRANT;
+	u32 bits = OBD_MD_FLBLOCKS|OBD_MD_FLGRANT;
 
 	LASSERT(!(oa->o_valid & bits));
 
@@ -849,7 +849,7 @@ void osc_update_next_shrink(struct client_obd *cli)
 	       cli->cl_next_shrink_grant);
 }
 
-static void __osc_update_grant(struct client_obd *cli, obd_size grant)
+static void __osc_update_grant(struct client_obd *cli, u64 grant)
 {
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	cli->cl_avail_grant += grant;
@@ -865,7 +865,7 @@ static void osc_update_grant(struct client_obd *cli, struct ost_body *body)
 }
 
 static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
-			      obd_count keylen, void *key, obd_count vallen,
+			      u32 keylen, void *key, u32 vallen,
 			      void *val, struct ptlrpc_request_set *set);
 
 static int osc_shrink_grant_interpret(const struct lu_env *env,
@@ -1067,7 +1067,7 @@ static void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
  * beyond the end of a stripe file; i.e. lustre is reading a sparse file
  * via the LOV, and it _knows_ it's reading inside the file, it's just that
  * this stripe never got written at or beyond this stripe offset yet. */
-static void handle_short_read(int nob_read, obd_count page_count,
+static void handle_short_read(int nob_read, u32 page_count,
 			      struct brw_page **pga)
 {
 	char *ptr;
@@ -1104,7 +1104,7 @@ static void handle_short_read(int nob_read, obd_count page_count,
 
 static int check_write_rcs(struct ptlrpc_request *req,
 			   int requested_nob, int niocount,
-			   obd_count page_count, struct brw_page **pga)
+			   u32 page_count, struct brw_page **pga)
 {
 	int     i;
 	__u32   *remote_rcs;
@@ -1157,7 +1157,7 @@ static inline int can_merge_pages(struct brw_page *p1, struct brw_page *p2)
 	return (p1->off + p1->count == p2->off);
 }
 
-static obd_count osc_checksum_bulk(int nob, obd_count pg_count,
+static u32 osc_checksum_bulk(int nob, u32 pg_count,
 				   struct brw_page **pga, int opc,
 				   cksum_type_t cksum_type)
 {
@@ -1219,7 +1219,7 @@ static obd_count osc_checksum_bulk(int nob, obd_count pg_count,
 }
 
 static int osc_brw_prep_request(int cmd, struct client_obd *cli,struct obdo *oa,
-				struct lov_stripe_md *lsm, obd_count page_count,
+				struct lov_stripe_md *lsm, u32 page_count,
 				struct brw_page **pga,
 				struct ptlrpc_request **reqp,
 				struct obd_capa *ocapa, int reserve,
@@ -1422,7 +1422,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,struct obdo *oa,
 
 static int check_write_checksum(struct obdo *oa, const lnet_process_id_t *peer,
 				__u32 client_cksum, __u32 server_cksum, int nob,
-				obd_count page_count, struct brw_page **pga,
+				u32 page_count, struct brw_page **pga,
 				cksum_type_t client_cksum_type)
 {
 	__u32 new_cksum;
@@ -1618,7 +1618,7 @@ out:
 
 static int osc_brw_internal(int cmd, struct obd_export *exp, struct obdo *oa,
 			    struct lov_stripe_md *lsm,
-			    obd_count page_count, struct brw_page **pga,
+			    u32 page_count, struct brw_page **pga,
 			    struct obd_capa *ocapa)
 {
 	struct ptlrpc_request *req;
@@ -1787,7 +1787,7 @@ static void sort_brw_pages(struct brw_page **array, int num)
 	} while (stride > 1);
 }
 
-static obd_count max_unfragmented_pages(struct brw_page **pg, obd_count pages)
+static u32 max_unfragmented_pages(struct brw_page **pg, u32 pages)
 {
 	int count = 1;
 	int offset;
@@ -1813,7 +1813,7 @@ static obd_count max_unfragmented_pages(struct brw_page **pg, obd_count pages)
 	}
 }
 
-static struct brw_page **osc_build_ppga(struct brw_page *pga, obd_count count)
+static struct brw_page **osc_build_ppga(struct brw_page *pga, u32 count)
 {
 	struct brw_page **ppga;
 	int i;
@@ -1827,14 +1827,14 @@ static struct brw_page **osc_build_ppga(struct brw_page *pga, obd_count count)
 	return ppga;
 }
 
-static void osc_release_ppga(struct brw_page **ppga, obd_count count)
+static void osc_release_ppga(struct brw_page **ppga, u32 count)
 {
 	LASSERT(ppga != NULL);
 	OBD_FREE(ppga, sizeof(*ppga) * count);
 }
 
 static int osc_brw(int cmd, struct obd_export *exp, struct obd_info *oinfo,
-		   obd_count page_count, struct brw_page *pga,
+		   u32 page_count, struct brw_page *pga,
 		   struct obd_trans_info *oti)
 {
 	struct obdo *saved_oa = NULL;
@@ -1867,7 +1867,7 @@ static int osc_brw(int cmd, struct obd_export *exp, struct obd_info *oinfo,
 
 	sort_brw_pages(ppga, page_count);
 	while (page_count) {
-		obd_count pages_per_brw;
+		u32 pages_per_brw;
 
 		if (page_count > cli->cl_max_pages_per_rpc)
 			pages_per_brw = cli->cl_max_pages_per_rpc;
@@ -2029,8 +2029,8 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 								      CRT_READ;
 	struct ldlm_lock		*lock = NULL;
 	struct cl_req_attr		*crattr = NULL;
-	obd_off				starting_offset = OBD_OBJECT_EOF;
-	obd_off				ending_offset = 0;
+	u64				starting_offset = OBD_OBJECT_EOF;
+	u64				ending_offset = 0;
 	int				mpflag = 0;
 	int				mem_tight = 0;
 	int				page_count = 0;
@@ -2965,7 +2965,7 @@ out:
 }
 
 static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
-			obd_count keylen, void *key, __u32 *vallen, void *val,
+			u32 keylen, void *key, __u32 *vallen, void *val,
 			struct lov_stripe_md *lsm)
 {
 	if (!vallen || !val)
@@ -2978,7 +2978,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		return 0;
 	} else if (KEY_IS(KEY_LAST_ID)) {
 		struct ptlrpc_request *req;
-		obd_id		*reply;
+		u64		*reply;
 		char		  *tmp;
 		int		    rc;
 
@@ -3008,7 +3008,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		if (reply == NULL)
 			GOTO(out, rc = -EPROTO);
 
-		*((obd_id *)val) = *reply;
+		*((u64 *)val) = *reply;
 	out:
 		ptlrpc_req_finished(req);
 		return rc;
@@ -3100,7 +3100,7 @@ drop_lock:
 }
 
 static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
-			      obd_count keylen, void *key, obd_count vallen,
+			      u32 keylen, void *key, u32 vallen,
 			      void *val, struct ptlrpc_request_set *set)
 {
 	struct ptlrpc_request *req;
@@ -3562,7 +3562,7 @@ int osc_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg)
 	return(rc);
 }
 
-static int osc_process_config(struct obd_device *obd, obd_count len, void *buf)
+static int osc_process_config(struct obd_device *obd, u32 len, void *buf)
 {
 	return osc_process_config_base(obd, buf);
 }

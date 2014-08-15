@@ -104,7 +104,7 @@ static int echo_destroy_export(struct obd_export *exp)
 
  static __u64 echo_next_id(struct obd_device *obddev)
 {
-	obd_id id;
+	u64 id;
 
 	spin_lock(&obddev->u.echo.eo_lock);
 	id = ++obddev->u.echo.eo_lastino;
@@ -173,7 +173,7 @@ static int echo_getattr(const struct lu_env *env, struct obd_export *exp,
 			struct obd_info *oinfo)
 {
 	struct obd_device *obd = class_exp2obd(exp);
-	obd_id id = ostid_id(&oinfo->oi_oa->o_oi);
+	u64 id = ostid_id(&oinfo->oi_oa->o_oi);
 
 	if (!obd) {
 		CERROR("invalid client cookie %#llx\n",
@@ -224,7 +224,7 @@ static int echo_setattr(const struct lu_env *env, struct obd_export *exp,
 }
 
 static void
-echo_page_debug_setup(struct page *page, int rw, obd_id id,
+echo_page_debug_setup(struct page *page, int rw, u64 id,
 		      __u64 offset, int len)
 {
 	int   page_offset = offset & ~CFS_PAGE_MASK;
@@ -251,7 +251,7 @@ echo_page_debug_setup(struct page *page, int rw, obd_id id,
 }
 
 static int
-echo_page_debug_check(struct page *page, obd_id id,
+echo_page_debug_check(struct page *page, u64 id,
 		      __u64 offset, int len)
 {
 	int   page_offset = offset & ~CFS_PAGE_MASK;
@@ -293,7 +293,7 @@ static int echo_map_nb_to_lb(struct obdo *oa, struct obd_ioobj *obj,
 			   (oa->o_valid & OBD_MD_FLFLAGS) != 0 &&
 			   (oa->o_flags & OBD_FL_DEBUG_CHECK) != 0);
 	struct niobuf_local *res = lb;
-	obd_off offset = nb->offset;
+	u64 offset = nb->offset;
 	int len = nb->len;
 
 	while (len > 0) {
@@ -354,11 +354,12 @@ static int echo_finalize_lb(struct obdo *oa, struct obd_ioobj *obj,
 			    struct niobuf_local *lb, int verify)
 {
 	struct niobuf_local *res = lb;
-	obd_off start  = rb->offset >> PAGE_CACHE_SHIFT;
-	obd_off end    = (rb->offset + rb->len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	int     count  = (int)(end - start);
-	int     rc     = 0;
-	int     i;
+	u64 start = rb->offset >> PAGE_CACHE_SHIFT;
+	u64 end = (rb->offset + rb->len + PAGE_CACHE_SIZE - 1) >>
+		  PAGE_CACHE_SHIFT;
+	int count = (int)(end - start);
+	int rc = 0;
+	int i;
 
 	for (i = 0; i < count; i++, (*pgs) ++, res++) {
 		struct page *page = res->page;

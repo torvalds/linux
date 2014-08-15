@@ -65,8 +65,8 @@ struct l_wait_info;
 int target_pack_pool_reply(struct ptlrpc_request *req);
 int do_set_info_async(struct obd_import *imp,
 		      int opcode, int version,
-		      obd_count keylen, void *key,
-		      obd_count vallen, void *val,
+		      u32 keylen, void *key,
+		      u32 vallen, void *val,
 		      struct ptlrpc_request_set *set);
 
 #define OBD_RECOVERY_MAX_TIME (obd_timeout * 18) /* b13079 */
@@ -133,8 +133,8 @@ struct obd_ioctl_data {
 	struct obdo ioc_obdo1;
 	struct obdo ioc_obdo2;
 
-	obd_size ioc_count;
-	obd_off  ioc_offset;
+	u64	 ioc_count;
+	u64	 ioc_offset;
 	__u32    ioc_dev;
 	__u32    ioc_command;
 

@@ -1248,8 +1248,7 @@ static ssize_t ll_file_splice_read(struct file *in_file, loff_t *ppos,
 	return result;
 }
 
-static int ll_lov_recreate(struct inode *inode, struct ost_id *oi,
-			   obd_count ost_idx)
+static int ll_lov_recreate(struct inode *inode, struct ost_id *oi, u32 ost_idx)
 {
 	struct obd_export *exp = ll_i2dtexp(inode);
 	struct obd_trans_info oti = { 0 };
@@ -1314,7 +1313,7 @@ static int ll_lov_recreate_fid(struct inode *inode, unsigned long arg)
 {
 	struct lu_fid	fid;
 	struct ost_id	oi;
-	obd_count	ost_idx;
+	u32		ost_idx;
 
 	if (!capable(CFS_CAP_SYS_ADMIN))
 		return -EPERM;
@@ -2893,7 +2892,7 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 		ll_lookup_finish_locks(&oit, dentry);
 	} else if (!ll_have_md_lock(dentry->d_inode, &ibits, LCK_MINMODE)) {
 		struct ll_sb_info *sbi = ll_i2sbi(dentry->d_inode);
-		obd_valid valid = OBD_MD_FLGETATTR;
+		u64 valid = OBD_MD_FLGETATTR;
 		struct md_op_data *op_data;
 		int ealen = 0;
 

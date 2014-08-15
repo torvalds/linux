@@ -455,7 +455,7 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 {
 	struct ptlrpc_request *req;
 	struct obd_device     *obddev = class_exp2obd(exp);
-	obd_valid	      valid = OBD_MD_FLGETATTR | OBD_MD_FLEASIZE |
+	u64		       valid = OBD_MD_FLGETATTR | OBD_MD_FLEASIZE |
 				       OBD_MD_FLMODEASIZE | OBD_MD_FLDIREA |
 				       OBD_MD_FLMDSCAPA | OBD_MD_MEA |
 				       (client_is_remote(exp) ?

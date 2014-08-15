@@ -64,10 +64,10 @@ static inline unsigned char cksum_obd2cfs(cksum_type_t cksum_type)
  * because that is supported by all clients since 1.8
  *
  * In case multiple algorithms are supported the best one is used. */
-static inline obd_flag cksum_type_pack(cksum_type_t cksum_type)
+static inline u32 cksum_type_pack(cksum_type_t cksum_type)
 {
 	unsigned int    performance = 0, tmp;
-	obd_flag	flag = OBD_FL_CKSUM_ADLER;
+	u32		flag = OBD_FL_CKSUM_ADLER;
 
 	if (cksum_type & OBD_CKSUM_CRC32) {
 		tmp = cfs_crypto_hash_speed(cksum_obd2cfs(OBD_CKSUM_CRC32));
@@ -98,7 +98,7 @@ static inline obd_flag cksum_type_pack(cksum_type_t cksum_type)
 	return flag;
 }
 
-static inline cksum_type_t cksum_type_unpack(obd_flag o_flags)
+static inline cksum_type_t cksum_type_unpack(u32 o_flags)
 {
 	switch (o_flags & OBD_FL_CKSUM_ALL) {
 	case OBD_FL_CKSUM_CRC32C:

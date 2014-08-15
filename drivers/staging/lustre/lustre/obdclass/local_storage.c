@@ -745,7 +745,7 @@ int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 {
 	struct dt_thread_info	*dti = dt_info(env);
 	struct ls_device	*ls;
-	obd_id			 lastid;
+	u64			 lastid;
 	struct dt_object	*o = NULL;
 	struct thandle		*th;
 	__u32			 first_oid = fid_oid(first_fid);

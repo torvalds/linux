@@ -31,7 +31,7 @@
 #include "../include/obd_ost.h"
 #include "osc_internal.h"
 
-static inline struct osc_quota_info *osc_oqi_alloc(obd_uid id)
+static inline struct osc_quota_info *osc_oqi_alloc(u32 id)
 {
 	struct osc_quota_info *oqi;
 
@@ -71,7 +71,7 @@ int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[])
 						: OBD_FL_NO_GRPQUOTA)
 
 int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
-		    obd_flag valid, obd_flag flags)
+		    u32 valid, u32 flags)
 {
 	int type;
 	int rc = 0;
@@ -145,10 +145,10 @@ static int
 oqi_keycmp(const void *key, struct hlist_node *hnode)
 {
 	struct osc_quota_info *oqi;
-	obd_uid uid;
+	u32 uid;
 
 	LASSERT(key != NULL);
-	uid = *((obd_uid*)key);
+	uid = *((u32 *)key);
 	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
 
 	return uid == oqi->oqi_id;
