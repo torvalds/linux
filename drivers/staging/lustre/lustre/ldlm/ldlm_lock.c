@@ -613,50 +613,12 @@ EXPORT_SYMBOL(__ldlm_handle2lock);
  */
 void ldlm_lock2desc(struct ldlm_lock *lock, struct ldlm_lock_desc *desc)
 {
-	struct obd_export *exp = lock->l_export ?: lock->l_conn_export;
-
-	/* INODEBITS_INTEROP: If the other side does not support
-	 * inodebits, reply with a plain lock descriptor. */
-	if ((lock->l_resource->lr_type == LDLM_IBITS) &&
-	    (exp && !(exp_connect_flags(exp) & OBD_CONNECT_IBITS))) {
-		/* Make sure all the right bits are set in this lock we
-		   are going to pass to client */
-		LASSERTF(lock->l_policy_data.l_inodebits.bits ==
-			 (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_UPDATE |
-			  MDS_INODELOCK_LAYOUT),
-			 "Inappropriate inode lock bits during conversion %llu\n",
-			 lock->l_policy_data.l_inodebits.bits);
-
-		ldlm_res2desc(lock->l_resource, &desc->l_resource);
-		desc->l_resource.lr_type = LDLM_PLAIN;
-
-		/* Convert "new" lock mode to something old client can
-		   understand */
-		if ((lock->l_req_mode == LCK_CR) ||
-		    (lock->l_req_mode == LCK_CW))
-			desc->l_req_mode = LCK_PR;
-		else
-			desc->l_req_mode = lock->l_req_mode;
-		if ((lock->l_granted_mode == LCK_CR) ||
-		    (lock->l_granted_mode == LCK_CW)) {
-			desc->l_granted_mode = LCK_PR;
-		} else {
-			/* We never grant PW/EX locks to clients */
-			LASSERT((lock->l_granted_mode != LCK_PW) &&
-				(lock->l_granted_mode != LCK_EX));
-			desc->l_granted_mode = lock->l_granted_mode;
-		}
-
-		/* We do not copy policy here, because there is no
-		   policy for plain locks */
-	} else {
-		ldlm_res2desc(lock->l_resource, &desc->l_resource);
-		desc->l_req_mode = lock->l_req_mode;
-		desc->l_granted_mode = lock->l_granted_mode;
-		ldlm_convert_policy_to_wire(lock->l_resource->lr_type,
-					    &lock->l_policy_data,
-					    &desc->l_policy_data);
-	}
+	ldlm_res2desc(lock->l_resource, &desc->l_resource);
+	desc->l_req_mode = lock->l_req_mode;
+	desc->l_granted_mode = lock->l_granted_mode;
+	ldlm_convert_policy_to_wire(lock->l_resource->lr_type,
+				    &lock->l_policy_data,
+				    &desc->l_policy_data);
 }
 EXPORT_SYMBOL(ldlm_lock2desc);
 

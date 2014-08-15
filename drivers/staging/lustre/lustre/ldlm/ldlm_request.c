@@ -876,21 +876,8 @@ int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 		/* for the local lock, add the reference */
 		ldlm_lock_addref_internal(lock, einfo->ei_mode);
 		ldlm_lock2handle(lock, lockh);
-		if (policy != NULL) {
-			/* INODEBITS_INTEROP: If the server does not support
-			 * inodebits, we will request a plain lock in the
-			 * descriptor (ldlm_lock2desc() below) but use an
-			 * inodebits lock internally with both bits set.
-			 */
-			if (einfo->ei_type == LDLM_IBITS &&
-			    !(exp_connect_flags(exp) &
-			      OBD_CONNECT_IBITS))
-				lock->l_policy_data.l_inodebits.bits =
-					MDS_INODELOCK_LOOKUP |
-					MDS_INODELOCK_UPDATE;
-			else
+		if (policy != NULL)
 				lock->l_policy_data = *policy;
-		}
 
 		if (einfo->ei_type == LDLM_EXTENT)
 			lock->l_req_extent = policy->l_extent;
