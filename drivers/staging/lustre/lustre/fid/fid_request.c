@@ -187,7 +187,7 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 
 /* Allocate new sequence for client. */
 static int seq_client_alloc_seq(const struct lu_env *env,
-				struct lu_client_seq *seq, seqno_t *seqnr)
+				struct lu_client_seq *seq, u64 *seqnr)
 {
 	int rc;
 
@@ -249,7 +249,7 @@ static void seq_fid_alloc_fini(struct lu_client_seq *seq)
  * Allocate the whole seq to the caller.
  **/
 int seq_client_get_seq(const struct lu_env *env,
-		       struct lu_client_seq *seq, seqno_t *seqnr)
+		       struct lu_client_seq *seq, u64 *seqnr)
 {
 	wait_queue_t link;
 	int rc;
@@ -313,7 +313,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 		seq->lcs_fid.f_oid = seq->lcs_width;
 
 	while (1) {
-		seqno_t seqnr;
+		u64 seqnr;
 
 		if (!fid_is_zero(&seq->lcs_fid) &&
 		    fid_oid(&seq->lcs_fid) < seq->lcs_width) {

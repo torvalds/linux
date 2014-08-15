@@ -165,8 +165,6 @@
 #define LUSTRE_LOG_VERSION  0x00050000
 #define LUSTRE_MGS_VERSION  0x00060000
 
-typedef __u32 mdsno_t;
-typedef __u64 seqno_t;
 typedef __u64 obd_id;
 typedef __u64 obd_seq;
 typedef __s64 obd_time;

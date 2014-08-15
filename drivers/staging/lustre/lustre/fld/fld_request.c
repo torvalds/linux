@@ -110,15 +110,14 @@ static void fld_exit_request(struct client_obd *cli)
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
 }
 
-static int fld_rrb_hash(struct lu_client_fld *fld,
-			seqno_t seq)
+static int fld_rrb_hash(struct lu_client_fld *fld, u64 seq)
 {
 	LASSERT(fld->lcf_count > 0);
 	return do_div(seq, fld->lcf_count);
 }
 
 static struct lu_fld_target *
-fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
+fld_rrb_scan(struct lu_client_fld *fld, u64 seq)
 {
 	struct lu_fld_target *target;
 	int hash;
@@ -173,7 +172,7 @@ struct lu_fld_hash fld_hash[] = {
 };
 
 static struct lu_fld_target *
-fld_client_get_target(struct lu_client_fld *fld, seqno_t seq)
+fld_client_get_target(struct lu_client_fld *fld, u64 seq)
 {
 	struct lu_fld_target *target;
 
@@ -453,7 +452,7 @@ out_req:
 	return rc;
 }
 
-int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
+int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 		      __u32 flags, const struct lu_env *env)
 {
 	struct lu_seq_range res = { 0 };

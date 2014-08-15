@@ -53,7 +53,7 @@
 
 int lmv_fld_lookup(struct lmv_obd *lmv,
 		   const struct lu_fid *fid,
-		   mdsno_t *mds)
+		   u32 *mds)
 {
 	int rc;
 

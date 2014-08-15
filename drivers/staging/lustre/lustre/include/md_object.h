@@ -451,7 +451,7 @@ struct seq_server_site {
 	/**
 	 * mds number of this site.
 	 */
-	mdsno_t	       ss_node_id;
+	u32		      ss_node_id;
 	/**
 	 * Fid location database
 	 */
