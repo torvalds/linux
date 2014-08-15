@@ -1597,21 +1597,21 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 		return bclk_rate;
 
 	aif1 = 0;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		aif1 |= (0x1 << WM8995_AIF1_WL_SHIFT);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		aif1 |= (0x2 << WM8995_AIF1_WL_SHIFT);
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		aif1 |= (0x3 << WM8995_AIF1_WL_SHIFT);
 		break;
 	default:
 		dev_err(dai->dev, "Unsupported word length %u\n",
-			params_format(params));
+			params_width(params));
 		return -EINVAL;
 	}
 

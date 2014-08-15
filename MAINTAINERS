@@ -7479,6 +7479,13 @@ F:	drivers/rtc/
 F:	include/linux/rtc.h
 F:	include/uapi/linux/rtc.h
 
+REALTEK AUDIO CODECS
+M:	Bard Liao <bardliao@realtek.com>
+M:	Oder Chiou <oder_chiou@realtek.com>
+S:	Maintained
+F:	sound/soc/codecs/rt*
+F:	include/sound/rt*.h
+
 REISERFS FILE SYSTEM
 L:	reiserfs-devel@vger.kernel.org
 S:	Supported
