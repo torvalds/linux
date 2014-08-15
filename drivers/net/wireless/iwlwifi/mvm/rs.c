@@ -672,8 +672,10 @@ static int rs_collect_tx_data(struct iwl_lq_sta *lq_sta,
 		return -EINVAL;
 
 	if (tbl->column != RS_COLUMN_INVALID) {
-		lq_sta->tx_stats[tbl->column][scale_index].total += attempts;
-		lq_sta->tx_stats[tbl->column][scale_index].success += successes;
+		struct lq_sta_pers *pers = &lq_sta->pers;
+
+		pers->tx_stats[tbl->column][scale_index].total += attempts;
+		pers->tx_stats[tbl->column][scale_index].success += successes;
 	}
 
 	/* Select window for current tx bit rate */
@@ -3171,7 +3173,7 @@ static ssize_t rs_sta_dbgfs_drv_tx_stats_read(struct file *file,
 				 "%s,", column_name[col]);
 
 		for (rate = 0; rate < IWL_RATE_COUNT; rate++) {
-			stats = &(lq_sta->tx_stats[col][rate]);
+			stats = &(lq_sta->pers.tx_stats[col][rate]);
 			pos += scnprintf(pos, endpos - pos,
 					 "%llu/%llu,",
 					 stats->success,
@@ -3190,7 +3192,7 @@ static ssize_t rs_sta_dbgfs_drv_tx_stats_write(struct file *file,
 					       size_t count, loff_t *ppos)
 {
 	struct iwl_lq_sta *lq_sta = file->private_data;
-	memset(lq_sta->tx_stats, 0, sizeof(lq_sta->tx_stats));
+	memset(lq_sta->pers.tx_stats, 0, sizeof(lq_sta->pers.tx_stats));
 
 	return count;
 }
