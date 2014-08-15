@@ -2116,9 +2116,13 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 			 ATTR_MTIME | ATTR_MTIME_SET |
 			 ATTR_ATIME | ATTR_ATIME_SET;
 
+	mutex_lock(&inode->i_mutex);
+
 	rc = ll_setattr_raw(file->f_dentry, attr, true);
 	if (rc == -ENODATA)
 		rc = 0;
+
+	mutex_unlock(&inode->i_mutex);
 
 out:
 	if (hss != NULL)
