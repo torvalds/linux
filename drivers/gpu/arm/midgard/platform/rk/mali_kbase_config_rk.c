@@ -28,6 +28,7 @@
 #include <platform/rk/mali_kbase_dvfs.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
+#include <linux/reboot.h>
 
 int get_cpu_clock_speed(u32 *cpu_clock);
 
@@ -77,6 +78,19 @@ static int mali_pm_notifier(struct notifier_block *nb,unsigned long event,void* 
 static struct notifier_block mali_pm_nb = {
 	.notifier_call = mali_pm_notifier
 };
+static int mali_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+
+	pr_info("%s enter\n",__func__);
+	if (kbase_platform_dvfs_enable(false, MALI_DVFS_CURRENT_FREQ)!= MALI_TRUE)
+		return -EPERM;
+	pr_info("%s exit\n",__func__);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mali_reboot_notifier = {
+	.notifier_call = mali_reboot_notifier_event,
+};
 
 #ifndef CONFIG_OF
 static kbase_io_resources io_resources = {
@@ -108,16 +122,18 @@ static int mali_pm_notifier(struct notifier_block *nb,unsigned long event,void* 
 	switch (event) {
 		case PM_SUSPEND_PREPARE:
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-			/*if (kbase_platform_dvfs_enable(false, MALI_DVFS_BL_CONFIG_FREQ)!= MALI_TRUE)*/
-			/*printk("%s,PM_SUSPEND_PREPARE\n",__func__);*/
+			/*
+			pr_info("%s,PM_SUSPEND_PREPARE\n",__func__);
+			*/
 			if (kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
 				err = NOTIFY_BAD;
 #endif
 			break;
 		case PM_POST_SUSPEND:
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-			/*if (kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ)!= MALI_TRUE)*/
-			/*printk("%s,PM_POST_SUSPEND\n",__func__);*/
+			/*
+			pr_info("%s,PM_POST_SUSPEND\n",__func__);
+			*/
 			if (kbase_platform_dvfs_enable(true, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
 				err = NOTIFY_BAD;
 #endif
@@ -138,6 +154,8 @@ mali_bool kbase_platform_rk_init(kbase_device *kbdev)
 		if (register_pm_notifier(&mali_pm_nb)) {
 			return MALI_FALSE;
 		}
+		pr_info("%s,register_reboot_notifier\n",__func__);
+		register_reboot_notifier(&mali_reboot_notifier);
  		return MALI_TRUE;
  	}
 	return MALI_FALSE;
@@ -218,6 +236,7 @@ static int pm_callback_runtime_on(kbase_device *kbdev)
 	unsigned long flags;
 	unsigned int clock;
 #endif
+
 	kbase_platform_power_on(kbdev);
 
 	kbase_platform_clock_on(kbdev);
