@@ -485,6 +485,11 @@ static int default_start_script(const char *script __maybe_unused,
 	return 0;
 }
 
+static int default_flush_script(void)
+{
+	return 0;
+}
+
 static int default_stop_script(void)
 {
 	return 0;
@@ -498,6 +503,7 @@ static int default_generate_script(struct pevent *pevent __maybe_unused,
 
 static struct scripting_ops default_scripting_ops = {
 	.start_script		= default_start_script,
+	.flush_script		= default_flush_script,
 	.stop_script		= default_stop_script,
 	.process_event		= process_event,
 	.generate_script	= default_generate_script,
@@ -511,6 +517,11 @@ static void setup_scripting(void)
 	setup_python_scripting();
 
 	scripting_ops = &default_scripting_ops;
+}
+
+static int flush_scripting(void)
+{
+	return scripting_ops->flush_script();
 }
 
 static int cleanup_scripting(void)
@@ -1812,6 +1823,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out_delete;
 
 	err = __cmd_script(&script);
+
+	flush_scripting();
 
 out_delete:
 	perf_session__delete(session);
