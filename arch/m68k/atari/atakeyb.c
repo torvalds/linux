@@ -170,7 +170,6 @@ repeat:
 	if (acia_stat & ACIA_RDRF) {
 		/* received a character */
 		scancode = acia.key_data;	/* get it or reset the ACIA, I'll get it! */
-		tasklet_schedule(&keyboard_tasklet);
 	interpret_scancode:
 		switch (kb_state.state) {
 		case KEYBOARD:
