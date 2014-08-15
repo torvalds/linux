@@ -1545,15 +1545,6 @@ void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 		kmem_cache_free(free_nid_slab, i);
 }
 
-void recover_node_page(struct f2fs_sb_info *sbi, struct page *page,
-		struct f2fs_summary *sum, struct node_info *ni,
-		block_t new_blkaddr)
-{
-	rewrite_node_page(sbi, page, sum, ni->blk_addr, new_blkaddr);
-	set_node_addr(sbi, ni, new_blkaddr, false);
-	clear_node_page_dirty(page);
-}
-
 void recover_inline_xattr(struct inode *inode, struct page *page)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
