@@ -67,6 +67,7 @@ static struct map_desc rk312x_io_desc[] __initdata = {
 	RK312X_DEVICE(ROM),
 	RK312X_DEVICE(EFUSE),
 	RK312X_DEVICE(TIMER),
+	RK312X_DEVICE(CPU_AXI_BUS),
 	RK_DEVICE(RK_DEBUG_UART_VIRT, RK312X_UART2_PHYS, RK312X_UART_SIZE),
 	RK_DEVICE(RK_DDR_VIRT, RK312X_DDR_PCTL_PHYS, RK312X_DDR_PCTL_SIZE),
 	RK_DEVICE(RK_DDR_VIRT + RK312X_DDR_PCTL_SIZE, RK312X_DDR_PHY_PHYS, RK312X_DDR_PHY_SIZE),
@@ -255,3 +256,15 @@ static int __init rk312x_pie_init(void)
 	return 0;
 }
 arch_initcall(rk312x_pie_init);
+#include "ddr_rk3126.c"
+static int __init rk312x_ddr_init(void)
+{
+	if (cpu_is_rk312x()) {
+		ddr_change_freq = _ddr_change_freq;
+		ddr_round_rate = _ddr_round_rate;
+		ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
+		ddr_init(DDR3_DEFAULT, 300);
+		}
+	return 0;
+}
+arch_initcall_sync(rk312x_ddr_init);
