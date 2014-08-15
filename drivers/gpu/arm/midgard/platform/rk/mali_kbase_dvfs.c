@@ -101,7 +101,7 @@ static mali_dvfs_status mali_dvfs_status_current;
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 static void gpufreq_input_event(struct input_handle *handle, unsigned int type,
-		unsigned int code, int value)
+										unsigned int code, int value)
 {
 	mali_dvfs_status *dvfs_status;
 	struct rk_context *platform;
@@ -207,15 +207,13 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	fps = rk_get_real_fps(0);
 
 	dvfs_status->temperature_time++;
-	/*
-	temp_tmp += rockchip_tsadc_get_temp(2);
-	*/
-	if(dvfs_status->temperature_time >= gpu_temp_statis_time)
-	{
+	
+	temp_tmp += rockchip_tsadc_get_temp(1);
+	
+	if(dvfs_status->temperature_time >= gpu_temp_statis_time) {
 		dvfs_status->temperature_time = 0;
 		dvfs_status->temperature = temp_tmp / gpu_temp_statis_time;
 		temp_tmp = 0;
-		/*pr_info("dvfs_status->temperature = %d\n",dvfs_status->temperature);*/
 	}
 
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
@@ -224,33 +222,33 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	*/
 	policy = ROCKCHIP_PM_POLICY_NORMAL;
 	
-	if(ROCKCHIP_PM_POLICY_PERFORMANCE == policy)
-	{
-		dvfs_status->step = MALI_DVFS_STEP - 1;	/*Highest level when performance mode*/
-	}
-	else
-	{
+	if (ROCKCHIP_PM_POLICY_PERFORMANCE == policy) {
+		dvfs_status->step = MALI_DVFS_STEP - 1;
+	} else {
 		fps_limit = (ROCKCHIP_PM_POLICY_NORMAL == policy)?LIMIT_FPS : LIMIT_FPS_POWER_SAVE;
 		/*
 		printk("policy : %d , fps_limit = %d\n",policy,fps_limit);
 		*/
 		
 		/*give priority to temperature unless in performance mode */
-		if(dvfs_status->temperature > gpu_temp_limit)
-		{
+		if (dvfs_status->temperature > gpu_temp_limit) {
 			if(dvfs_status->step > 0)
 				dvfs_status->step--;
 			
 			if(gpu_temp_statis_time > 1)
 				dvfs_status->temperature = 0;
-		}
-		else if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) && (dvfs_status->step < MALI_DVFS_STEP-1) && fps < fps_limit) 
-		{
+			/*
+			pr_info("decrease step for temperature over %d,next clock = %d\n",
+					gpu_temp_limit, mali_dvfs_infotbl[dvfs_status->step].clock);
+			*/
+		} else if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) &&
+				   (dvfs_status->step < MALI_DVFS_STEP-1) && fps < fps_limit) {
 			level_up_time++;
-			if(level_up_time == MALI_DVFS_TIME_INTERVAL)
-			{
+			if (level_up_time == MALI_DVFS_TIME_INTERVAL) {
 				/*
-				printk("up,utilisation=%d,current clock=%d,fps = %d",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock,fps);
+				printk("up,utilisation=%d,current clock=%d,fps = %d,temperature = %d",
+						dvfs_status->utilisation, mali_dvfs_infotbl[dvfs_status->step].clock,
+						fps,dvfs_status->temperature);
 				*/
 				dvfs_status->step++;
 				level_up_time = 0;
@@ -260,15 +258,14 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 				BUG_ON(dvfs_status->step >= MALI_DVFS_STEP);
 			}
 			level_down_time = 0;
-		} 
-		else if((dvfs_status->step > 0) && (dvfs_status->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) 
-		/*else if((dvfs_status->step > 0) && (platform->time_tick == MALI_DVFS_TIME_INTERVAL) && (platform->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) */
-		{
+		} else if ((dvfs_status->step > 0) &&
+					(dvfs_status->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) {
 			level_down_time++;
-			if(level_down_time==MALI_DVFS_TIME_INTERVAL)
-			{
+			if (level_down_time==MALI_DVFS_TIME_INTERVAL) {
 				/*
-				printk("down,utilisation=%d,current clock=%d,fps = %d",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock,fps);
+				printk("down,utilisation=%d,current clock=%d,fps = %d,temperature = %d",
+						dvfs_status->utilisation,
+						mali_dvfs_infotbl[dvfs_status->step].clock,fps,dvfs_status->temperature);
 				*/
 				BUG_ON(dvfs_status->step <= 0);
 				dvfs_status->step--;
@@ -278,24 +275,21 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 				*/
 			}
 			level_up_time = 0;
-		}
-		else
-		{
+		} else {
 			level_down_time = 0;
 			level_up_time = 0;
 			/*
-			printk("keep,utilisation=%d,current clock=%d,fps = %d\n",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock,fps);
-			*/		
+			printk("keep,utilisation=%d,current clock=%d,fps = %d,temperature = %d\n",
+					dvfs_status->utilisation,
+					mali_dvfs_infotbl[dvfs_status->step].clock,fps,dvfs_status->temperature);			
+			*/
 		}
 	}
 #ifdef CONFIG_MALI_MIDGARD_FREQ_LOCK
-	if ((dvfs_status->upper_lock >= 0) && (dvfs_status->step > dvfs_status->upper_lock)) 
-	{
+	if ((dvfs_status->upper_lock >= 0) && (dvfs_status->step > dvfs_status->upper_lock))
 		dvfs_status->step = dvfs_status->upper_lock;
-	}
 
-	if (dvfs_status->under_lock > 0) 
-	{
+	if (dvfs_status->under_lock > 0) {
 		if (dvfs_status->step < dvfs_status->under_lock)
 			dvfs_status->step = dvfs_status->under_lock;
 	}
@@ -308,7 +302,8 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 
 static DECLARE_WORK(mali_dvfs_work, mali_dvfs_event_proc);
 
-int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,u32 util_gl_share_no_use,u32 util_cl_share_no_use[2])
+int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,
+										  u32 util_gl_share_no_use,u32 util_cl_share_no_use[2])
 {
 	unsigned long flags;
 	struct rk_context *platform;
@@ -327,8 +322,10 @@ int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,u32 ut
 		platform->time_tick = 0;
 	}
 
-	if ((platform->time_tick == MALI_DVFS_TIME_INTERVAL) && (platform->time_idle + platform->time_busy > 0))
-		platform->utilisation = (100 * platform->time_busy) / (platform->time_idle + platform->time_busy);
+	if ((platform->time_tick == MALI_DVFS_TIME_INTERVAL) &&
+		(platform->time_idle + platform->time_busy > 0))
+		platform->utilisation = (100 * platform->time_busy) /
+								(platform->time_idle + platform->time_busy);
 
 	mali_dvfs_status_current.utilisation = utilisation;
 	spin_unlock_irqrestore(&mali_dvfs_spinlock, flags);
@@ -416,44 +413,33 @@ static bool calculate_dvfs_max_min_threshold(u32 level)
 {
 	u32 pre_level;
 	u32	tmp ;
-	if(0 == level)
-	{
-		if((MALI_DVFS_STEP-1) == level)
-		{
+	if (0 == level) {
+		if ((MALI_DVFS_STEP-1) == level) {
 			mali_dvfs_infotbl[level].min_threshold = level0_min;
 			mali_dvfs_infotbl[level].max_threshold = levelf_max;
-		}
-		else 
-		{
+		} else {
 			mali_dvfs_infotbl[level].min_threshold = level0_min;
 			mali_dvfs_infotbl[level].max_threshold = level0_max;
 		}
-	}
-	else
-	{
+	} else {
 		pre_level = level - 1;
-		if((MALI_DVFS_STEP-1) == level)
-		{
+		if ((MALI_DVFS_STEP-1) == level) {
 			mali_dvfs_infotbl[level].max_threshold = levelf_max;
+		} else {
+			mali_dvfs_infotbl[level].max_threshold = mali_dvfs_infotbl[pre_level].max_threshold +
+													 div_dvfs;
 		}
-		else
-		{
-			mali_dvfs_infotbl[level].max_threshold = mali_dvfs_infotbl[pre_level].max_threshold + div_dvfs;
-		}
-		mali_dvfs_infotbl[level].min_threshold = (mali_dvfs_infotbl[pre_level].max_threshold * (mali_dvfs_infotbl[pre_level].clock/1000)) 
-												/ (mali_dvfs_infotbl[level].clock/1000); 
+		mali_dvfs_infotbl[level].min_threshold = (mali_dvfs_infotbl[pre_level].max_threshold *
+												  (mali_dvfs_infotbl[pre_level].clock/1000)) /
+												  (mali_dvfs_infotbl[level].clock/1000); 
 		
 		tmp = mali_dvfs_infotbl[level].max_threshold - mali_dvfs_infotbl[level].min_threshold;
 		
 		mali_dvfs_infotbl[level].min_threshold += fix_float(tmp);
 	}
-	#if 1
-	printk("mali_dvfs_infotbl[%d].clock=%d,min_threshold=%d,max_threshold=%d\n",level,
-																				mali_dvfs_infotbl[level].clock,
-																				mali_dvfs_infotbl[level].min_threshold,
-																				mali_dvfs_infotbl[level].max_threshold
-																				);
-	#endif
+	pr_info("mali_dvfs_infotbl[%d].clock=%d,min_threshold=%d,max_threshold=%d\n",
+			level,mali_dvfs_infotbl[level].clock, mali_dvfs_infotbl[level].min_threshold,
+			mali_dvfs_infotbl[level].max_threshold);
 	return MALI_TRUE;
 }
 
@@ -473,17 +459,13 @@ int kbase_platform_dvfs_init(struct kbase_device *kbdev)
 		    
 	mali_freq_table = dvfs_get_freq_volt_table(platform->mali_clk_node);
 	
-	if (mali_freq_table == NULL) 
-	{
+	if (mali_freq_table == NULL) {
 		printk("mali freq table not assigned yet,use default\n");
 		goto not_assigned ;
-	}
-	else 
-	{
+	} else {
 		/*recalculte step*/
 		MALI_DVFS_STEP = 0;
-		for (i = 0; mali_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) 
-		{
+		for (i = 0; mali_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
 			mali_dvfs_infotbl[i].clock = mali_freq_table[i].frequency;
 			MALI_DVFS_STEP++;
 		}
@@ -492,9 +474,7 @@ int kbase_platform_dvfs_init(struct kbase_device *kbdev)
 		printk("MALI_DVFS_STEP=%d,div_dvfs=%d\n",MALI_DVFS_STEP,div_dvfs);
 		
 		for(i=0;i<MALI_DVFS_STEP;i++)
-		{
 			calculate_dvfs_max_min_threshold(i);
-		}
 		p_mali_dvfs_infotbl = mali_dvfs_infotbl;				
 	}
 not_assigned :
@@ -580,7 +560,8 @@ int mali_dvfs_freq_lock(int level)
 	unsigned long flags;
 #ifdef CONFIG_MALI_MIDGARD_FREQ_LOCK
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
-	if (mali_dvfs_status_current.under_lock >= 0 && mali_dvfs_status_current.under_lock > level) {
+	if (mali_dvfs_status_current.under_lock >= 0 &&
+		mali_dvfs_status_current.under_lock > level) {
 		printk(KERN_ERR " Upper lock Error : Attempting to set upper lock to below under lock\n");
 		spin_unlock_irqrestore(&mali_dvfs_spinlock, flags);
 		return -1;
@@ -609,7 +590,8 @@ int mali_dvfs_freq_under_lock(int level)
 	unsigned long flags;
 #ifdef CONFIG_MALI_MIDGARD_FREQ_LOCK
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
-	if (mali_dvfs_status_current.upper_lock >= 0 && mali_dvfs_status_current.upper_lock < level) {
+	if (mali_dvfs_status_current.upper_lock >= 0 &&
+		mali_dvfs_status_current.upper_lock < level) {
 		printk(KERN_ERR "mali Under lock Error : Attempting to set under lock to above upper lock\n");
 		spin_unlock_irqrestore(&mali_dvfs_spinlock, flags);
 		return -1;
@@ -644,8 +626,7 @@ void kbase_platform_dvfs_set_clock(kbase_device *kbdev, int freq)
 	if (NULL == platform)
 		panic("oops");
 
-	if (!platform->mali_clk_node) 
-	{
+	if (!platform->mali_clk_node) {
 		printk("mali_clk_node not init\n");
 		return;
 	}
@@ -671,16 +652,17 @@ void kbase_platform_dvfs_set_level(kbase_device *kbdev, int level)
 	if (level == prev_level)
 		return;
 
-	if (WARN_ON((level >= MALI_DVFS_STEP) || (level < 0)))
-	{
+	if (WARN_ON((level >= MALI_DVFS_STEP) || (level < 0))) {
 		printk("unkown mali dvfs level:level = %d,set clock not done \n",level);
 	 	return  ;
 	}
 	/*panic("invalid level");*/
 #ifdef CONFIG_MALI_MIDGARD_FREQ_LOCK
-	if (mali_dvfs_status_current.upper_lock >= 0 && level > mali_dvfs_status_current.upper_lock)
+	if (mali_dvfs_status_current.upper_lock >= 0 &&
+		level > mali_dvfs_status_current.upper_lock)
 		level = mali_dvfs_status_current.upper_lock;
-	if (mali_dvfs_status_current.under_lock >= 0 && level < mali_dvfs_status_current.under_lock)
+	if (mali_dvfs_status_current.under_lock >= 0 &&
+		level < mali_dvfs_status_current.under_lock)
 		level = mali_dvfs_status_current.under_lock;
 #endif
 #ifdef CONFIG_MALI_MIDGARD_DVFS
@@ -720,7 +702,8 @@ static void update_time_in_state(int level)
 }
 #endif
 
-ssize_t show_time_in_state(struct device *dev, struct device_attribute *attr, char *buf)
+ssize_t show_time_in_state(struct device *dev, struct device_attribute *attr,
+									char *buf)
 {
 	struct kbase_device *kbdev;
 	ssize_t ret = 0;
@@ -735,7 +718,9 @@ ssize_t show_time_in_state(struct device *dev, struct device_attribute *attr, ch
 		return -ENODEV;
 
 	for (i = 0; i < MALI_DVFS_STEP; i++)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d %llu\n", mali_dvfs_infotbl[i].clock, mali_dvfs_infotbl[i].time);
+		ret += snprintf(buf + ret, PAGE_SIZE - ret,
+						"%d %llu\n",
+						mali_dvfs_infotbl[i].clock, mali_dvfs_infotbl[i].time);
 
 	if (ret < PAGE_SIZE - 1)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
@@ -748,7 +733,8 @@ ssize_t show_time_in_state(struct device *dev, struct device_attribute *attr, ch
 	return ret;
 }
 
-ssize_t set_time_in_state(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+ssize_t set_time_in_state(struct device *dev, struct device_attribute *attr,
+								const char *buf, size_t count)
 {
 	int i;
 
