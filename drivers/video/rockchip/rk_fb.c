@@ -615,20 +615,30 @@ int rk_fb_set_prmry_screen_status(int status)
 	return 0;
 }
 
+/*
+ * function: this function will be called by display device,
+ *		set cur_screen size scaler to the other screen size
+ * @screen: the screen info that is the destination
+ * @enable:
+ *	0: no scaler and set the screen info as 'screen' parameter
+ *	1: set scaler and set the src screen scaler to the dst screen
+ */
 static int rk_fb_set_screen_scaler(struct rk_screen *screen, bool enable)
 {
-        struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
+	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
 
-        if(unlikely(!dev_drv) || unlikely(!screen))
-                return -1;
-        if (!enable)
-                return 0;
+	if (unlikely(!dev_drv) || unlikely(!screen))
+		return -1;
 
-        rk_fb_set_prmry_screen_status(SCREEN_PREPARE_DDR_CHANGE);
-        if (dev_drv->ops->set_screen_scaler)
-                dev_drv->ops->set_screen_scaler(dev_drv, screen, enable);
-        rk_fb_set_prmry_screen_status(SCREEN_UNPREPARE_DDR_CHANGE);
-        return 0;
+	rk_fb_set_prmry_screen_status(SCREEN_PREPARE_DDR_CHANGE);
+	if (dev_drv->ops->set_screen_scaler)
+		dev_drv->ops->set_screen_scaler(dev_drv, screen, enable);
+	if (!enable) {
+		memcpy(dev_drv->cur_screen, screen, sizeof(struct rk_screen));
+		dev_drv->ops->load_screen(dev_drv, 1);
+	}
+	rk_fb_set_prmry_screen_status(SCREEN_UNPREPARE_DDR_CHANGE);
+	return 0;
 }
 
 static struct rk_lcdc_driver *rk_get_extend_lcdc_drv(void)
@@ -3211,6 +3221,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	struct fb_info *pmy_info = NULL;
 	struct rk_lcdc_driver *dev_drv = NULL;
 	struct rk_lcdc_driver *pmy_dev_drv = rk_get_prmry_lcdc_drv();
+	struct rk_screen primary_screen;
 	char name[6] = {0};
 	int i, win_id, load_screen = 0;
 
@@ -3233,19 +3244,37 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			return -ENODEV;
 		}
 	}
+	printk("hdmi %s lcdc%d\n", enable ? "connect to" : "remove from",
+               dev_drv->id);
 
 	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
 
+	rk_fb_get_prmry_screen(&primary_screen);
 	if (!enable) {
 		/* if screen type is different, we do not disable lcdc. */
 		if (dev_drv->cur_screen->type != screen->type)
 			return 0;
 
-		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
-			/* disable the layer which attached to this device */
-			if (dev_drv->win[i] && dev_drv->win[i]->state)
-				dev_drv->ops->open(dev_drv, i, 0);
+		/* only double lcdc device or hdmi is used as primary
+		 * need to close win
+		 */
+		if (rk_fb->disp_mode == DUAL ||
+				primary_screen.type == SCREEN_HDMI) {
+			for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+				/* disable the layer which attached to
+				 * this device
+				 */
+				if (dev_drv->win[i] && dev_drv->win[i]->state)
+					dev_drv->ops->open(dev_drv, i, 0);
+			}
+		} else {
+			/* switch lcdc screen to primary screen size
+			 * when hdmi remove if disp mode is ONE DUAL
+			 */
+			rk_fb_set_screen_scaler(&primary_screen, 0);
+			if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
+				dev_drv->trsm_ops->enable();
 		}
 
 		hdmi_switch_complete = 0;
@@ -3305,8 +3334,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	}
 
 	hdmi_switch_complete = 1;
-	if (rk_fb->disp_mode != DUAL) {
-		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+	if (rk_fb->disp_mode != DUAL &&
+			primary_screen.type != SCREEN_HDMI) {
+		rk_fb_set_screen_scaler(&primary_screen, 1);
+		if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 			dev_drv->trsm_ops->enable();
 	}
 	return 0;
@@ -3715,6 +3746,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->cur_screen = screen;
 	/* devie use one lcdc + rk61x scaler for dual display */
 	if (rk_fb->disp_mode == ONE_DUAL) {
+		/*
 		struct rk_screen *screen1 =
 				devm_kzalloc(dev_drv->dev,
 					     sizeof(struct rk_screen),
@@ -3727,6 +3759,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 		screen1->screen_id = 1;
 		screen1->lcdc_id = 1;
 		dev_drv->screen1 = screen1;
+		*/
                 dev_drv->screen0->sscreen_set = rk_fb_set_screen_scaler;
 	}
 	sprintf(dev_drv->name, "lcdc%d", dev_drv->id);

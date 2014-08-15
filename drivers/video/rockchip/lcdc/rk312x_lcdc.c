@@ -581,7 +581,7 @@ static u32 calc_sclk(struct rk_screen *src_screen, struct rk_screen *dst_screen)
         u64 dsp_htotal;
         u32 dsp_in_vtotal;
         u64 dsp_in_htotal;
-        u32 sclk;
+        u64 sclk;
 
         if (!src_screen || !dst_screen)
                 return 0;
@@ -596,7 +596,7 @@ static u32 calc_sclk(struct rk_screen *src_screen, struct rk_screen *dst_screen)
         sclk = dsp_vtotal * dsp_htotal * src_screen->mode.pixclock;
         do_div(sclk, dsp_in_vtotal * dsp_in_htotal);
 
-        return sclk;
+        return (u32)sclk;
 }
 
 static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
@@ -689,9 +689,14 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
         if (unlikely(!lcdc_dev->clk_on))
                 return 0;
 
-	if(!enable) {
+	if (!enable) {
+		spin_lock(&lcdc_dev->reg_lock);
+		lcdc_msk_reg(lcdc_dev, SCALER_CTRL,
+				m_SCALER_EN | m_SCALER_OUT_ZERO | m_SCALER_OUT_EN,
+				v_SCALER_EN(0) | v_SCALER_OUT_ZERO(0) | v_SCALER_OUT_EN(0));
+		spin_unlock(&lcdc_dev->reg_lock);
 		clk_disable_unprepare(lcdc_dev->sclk);
-                dev_info(lcdc_dev->dev, "%s: disable\n", __func__);
+		dev_dbg(lcdc_dev->dev, "%s: disable\n", __func__);
 		return 0;
 	}
 
@@ -700,16 +705,16 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
          * prmry screen is used for scaler dst
          */
 	dst = dst_screen;
-	if (!dst) {
+	src = dev_drv->cur_screen;
+	if (!dst || !src) {
 		dev_err(lcdc_dev->dev, "%s: dst screen is null!\n", __func__);
 		return -EINVAL;
 	}
 
-	src = dst_screen->ext_screen;
-
 	clk_prepare_enable(lcdc_dev->sclk);
 	lcdc_dev->s_pixclock = calc_sclk(src, dst);
 	clk_set_rate(lcdc_dev->sclk, lcdc_dev->s_pixclock);
+        dev_info(lcdc_dev->dev, "%s:sclk=%d\n", __func__, lcdc_dev->s_pixclock);
 
         /* config scale timing */
         calc_dsp_frm_vst_hst(src, dst);
