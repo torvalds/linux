@@ -53,6 +53,12 @@
 
 &key {
 		io-channels = <&adc 2>;
+		power-key {
+			gpios = <&gpio1 GPIO_A4 GPIO_ACTIVE_LOW>;
+			linux,code = <116>;
+			label = "power";
+			gpio-key,wakeup;
+		};
 };
 &sdmmc {
 	cd-gpios = <&gpio2 GPIO_A3 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
