@@ -1009,7 +1009,7 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__entry->normal_work	= &work->normal_work;
 	),
 
-	TP_printk("work=%p (normal_work=%p), wq=%p, func=%p, ordered_func=%p,"
+	TP_printk("work=%p (normal_work=%p), wq=%p, func=%pf, ordered_func=%p,"
 		  " ordered_free=%p",
 		  __entry->work, __entry->normal_work, __entry->wq,
 		   __entry->func, __entry->ordered_func, __entry->ordered_free)
