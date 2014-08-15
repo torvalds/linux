@@ -944,7 +944,12 @@ resend:
 			memset(lockh, 0, sizeof(*lockh));
 		}
 		ptlrpc_req_finished(req);
+
+		it->d.lustre.it_lock_handle = 0;
+		it->d.lustre.it_lock_mode = 0;
+		it->d.lustre.it_data = NULL;
 	}
+
 	return rc;
 }
 
