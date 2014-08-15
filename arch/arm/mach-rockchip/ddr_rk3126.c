@@ -27,7 +27,7 @@
 
 typedef uint32_t uint32;
 
-#define DDR3_DDR2_DLL_DISABLE_FREQ    (100)	/* 颗粒dll disable的频率*/
+#define DDR3_DDR2_DLL_DISABLE_FREQ    (300)	/* 颗粒dll disable的频率*/
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)	/*颗粒odt disable的频率*/
 #define SR_IDLE                       (0x1)	/*unit:32*DDR clk cycle, and 0 for disable auto self-refresh*/
 #define PD_IDLE                       (0x40)	/*unit:DDR clk cycle, and 0 for disable auto power-down*/
@@ -39,7 +39,11 @@ typedef uint32_t uint32;
 #define SRAM_CODE_OFFSET        rockchip_sram_virt
 #define SRAM_SIZE               rockchip_sram_size
 
-/*#define DDR_CHANGE_FREQ_IN_LCDC_VSYNC*/
+#ifdef CONFIG_FB_ROCKCHIP
+#define DDR_CHANGE_FREQ_IN_LCDC_VSYNC
+#endif
+
+/*#define PHY_RX_PHASE_CAL*/
 #define PHY_DE_SKEW_STEP  (20)
 /***********************************
  * DDR3 define
@@ -1021,16 +1025,50 @@ Notes   :
 ----------------------------------------------------------------------*/
 static void __sramfunc ddr_set_dll_bypass(uint32 freq)
 {
+#if defined (PHY_RX_PHASE_CAL)
+	uint32 phase_90, dll_set, de_skew;
+
+	phase_90 = 1000000 / freq / 4;
+	dll_set = (phase_90 - 300 + (0x7*PHY_DE_SKEW_STEP)) / (phase_90 / 4);
+	de_skew = (phase_90 - 300 + (0x7*PHY_DE_SKEW_STEP) - ((phase_90 / 4) * dll_set));
+	if (de_skew > PHY_DE_SKEW_STEP * 15) {
+		if (dll_set == 3) {
+			de_skew = 15;
+		} else {
+			dll_set += 1;
+			de_skew = 0;
+		}
+	} else {
+		de_skew = de_skew / PHY_DE_SKEW_STEP;
+	}
+
+	pPHY_Reg->PHY_REG28 = dll_set;/*rx dll 45°delay*/
+	pPHY_Reg->PHY_REG38 = dll_set;/*rx dll 45°delay*/
+	pPHY_Reg->PHY_REG48 = dll_set;/*rx dll 45°delay*/
+	pPHY_Reg->PHY_REG58 = dll_set;/*rx dll 45°delay*/
+	pPHY_Reg->PHY_REG_skew[(0x324-0x2c0)/4] = 0x7 | (de_skew << 4);
+	pPHY_Reg->PHY_REG_skew[(0x350-0x2c0)/4] = 0x7 | (de_skew << 4);
+	pPHY_Reg->PHY_REG_skew[(0x37c-0x2c0)/4] = 0x7 | (de_skew << 4);
+	pPHY_Reg->PHY_REG_skew[(0x3a8-0x2c0)/4] = 0x7 | (de_skew << 4);
+#else
+	uint32 phase;
+	if (freq < 350) {
+		phase = 3;
+	} else if (freq < 600) {
+		phase = 2;
+	} else
+		phase = 1;
+	pPHY_Reg->PHY_REG28 = phase;	/*rx dll 45°delay*/
+	pPHY_Reg->PHY_REG38 = phase;	/*rx dll 45°delay*/
+	pPHY_Reg->PHY_REG48 = phase;	/*rx dll 45°delay*/
+	pPHY_Reg->PHY_REG58 = phase;	/*rx dll 45°delay*/
+#endif
 	if (freq <= PHY_DLL_DISABLE_FREQ) {
 		pPHY_Reg->PHY_REGDLL |= 0x1F;	/*TX DLL bypass */
 	} else {
 		pPHY_Reg->PHY_REGDLL &= ~0x1F;	/* TX DLL bypass*/
 	}
 
-	pPHY_Reg->PHY_REG28 = 2;	/*rx dll 45°delay*/
-	pPHY_Reg->PHY_REG38 = 2;	/*rx dll 45°delay*/
-	pPHY_Reg->PHY_REG48 = 2;	/*rx dll 45°delay*/
-	pPHY_Reg->PHY_REG58 = 2;	/*rx dll 45°delay*/
 	dsb();
 }
 
@@ -1848,7 +1886,7 @@ static void __sramfunc ddr_update_odt(void)
 		pPHY_Reg->PHY_REG21 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS0 odt*/
 		pPHY_Reg->PHY_REG31 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS1 odt*/
 		pPHY_Reg->PHY_REG41 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS2 odt*/
-		pPHY_Reg->PHY_REG51 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS1 odt*/
+		pPHY_Reg->PHY_REG51 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS3 odt*/
 	} else {
 		pPHY_Reg->PHY_REG21 = PHY_DRV_ODT_SET(PHY_RTT_216ohm);	/*DQS0 odt*/
 		pPHY_Reg->PHY_REG31 = PHY_DRV_ODT_SET(PHY_RTT_216ohm);	/*DQS1 odt*/
@@ -2205,22 +2243,13 @@ static uint32 ddr_change_freq_sram(void *arg)
 	flush_tlb_all();
 
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
-	n = p_ddr_freq_t->screen_ft_us;
-	n = p_ddr_freq_t->t0;
-	dsb();
-
 	if (p_ddr_freq_t->screen_ft_us > 0) {
-
 		p_ddr_freq_t->t1 = cpu_clock(0);
-		p_ddr_freq_t->t2 = (u32) (p_ddr_freq_t->t1 - p_ddr_freq_t->t0);	/*ns*/
+		p_ddr_freq_t->t2 = (uint32)(p_ddr_freq_t->t1 - p_ddr_freq_t->t0);   /*ns*/
 
-		if ((p_ddr_freq_t->t2 > p_ddr_freq_t->screen_ft_us * 1000)
-		    && (p_ddr_freq_t->screen_ft_us != 0xfefefefe)) {
-
-			/*DDR_RESTORE_SP(save_sp);*/
-			local_fiq_enable();
-			local_irq_restore(flags);
-			return 0;
+		if ((p_ddr_freq_t->t2 > p_ddr_freq_t->screen_ft_us*1000) && (p_ddr_freq_t->screen_ft_us != 0xfefefefe)) {
+			ret = 0;
+			goto end;
 		} else {
 			rk_fb_poll_wait_frame_complete();
 		}
@@ -2246,6 +2275,9 @@ static uint32 ddr_change_freq_sram(void *arg)
 					       1) * PAUSE_CPU_STACK_SIZE);
     /** 5. Issues a Mode Exit command   */
 	ddr_dtt_check();
+#if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
+end:
+#endif
 	local_fiq_enable();
 	local_irq_restore(flags);
 /*    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);    */
@@ -2347,7 +2379,6 @@ static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
 	freq.p_ddr_freq_t = &ddr_freq_t;
 	ret = call_with_single_cpu(&ddr_change_freq_sram, (void *)&freq);
 	/*ret = ddr_change_freq_sram((void*)&freq);*/
-
 	return ret;
 }
 
@@ -2402,9 +2433,10 @@ static int _ddr_change_freq(uint32 nMHz)
 
 		ret = __ddr_change_freq(nMHz, ddr_freq_t);
 		if (ret) {
+			reserve_t = 800;
 			return ret;
 		} else {
-			if (reserve_t < 10000)
+			if (reserve_t < 3000)
 				reserve_t += 200;
 		}
 	} while (1);
@@ -2528,18 +2560,19 @@ EXPORT_SYMBOL(ddr_resume);
 *----------------------------------------------------------------------*/
 uint32 ddr_get_cap(void)
 {
-	uint32 cs, bank, row, col, row1;
+	uint32 cs, bank, row, col, row1, bw;
 
 	bank = READ_BK_INFO();
 	row = READ_CS0_ROW_INFO();
 	col = READ_COL_INFO();
 	cs = READ_CS_INFO();
+	bw = READ_BW_INFO();
 	if (cs > 1) {
 		row1 = READ_CS1_ROW_INFO();
-		return ((1 << (row + col + bank + 1)) +
-			(1 << (row1 + col + bank + 1)));
+		return ((1 << (row + col + bank + bw)) +
+			(1 << (row1 + col + bank + bw)));
 	} else {
-		return (1 << (row + col + bank + 1));
+		return (1 << (row + col + bank + bw));
 	}
 }
 
@@ -2564,7 +2597,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32 freq)
 	uint32_t cs, die = 1;
 	/*uint32_t calStatusLeft, calStatusRight*/
 	struct clk *clk;
-	ddr_print("version 1.00 20140813\n");
+	ddr_print("version 1.01 20140815\n");
 	cs = READ_CS_INFO();	/*case 0:1rank ; case 1:2rank*/
 
 	p_ddr_reg = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_reg));
@@ -2604,6 +2637,8 @@ int ddr_init(uint32_t dram_speed_bin, uint32 freq)
 						READ_COL_INFO(),
 						(ddr_get_cap() >> 20));
 #if 0
+	while (stop)
+	;
 	_ddr_change_freq(freq);
 	ddr_print("init success!!! freq=%dMHz\n", freq);
 #endif
