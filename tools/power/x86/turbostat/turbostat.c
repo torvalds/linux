@@ -83,6 +83,9 @@ unsigned int tcc_activation_temp;
 unsigned int tcc_activation_temp_override;
 double rapl_power_units, rapl_energy_units, rapl_time_units;
 double rapl_joule_counter_range;
+unsigned int do_core_perf_limit_reasons;
+unsigned int do_gfx_perf_limit_reasons;
+unsigned int do_ring_perf_limit_reasons;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -1178,6 +1181,7 @@ print_nhm_turbo_ratio_limits:
 	if (ratio)
 		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 1 active cores\n",
 			ratio, bclk, ratio * bclk);
+
 }
 
 void free_all_buffers(void)
@@ -1594,6 +1598,103 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	return 0;
 }
 
+/*
+ * print_perf_limit()
+ */
+int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	unsigned long long msr;
+	int cpu;
+
+	cpu = t->cpu_id;
+
+	/* per-package */
+	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+		return 0;
+
+	if (cpu_migrate(cpu)) {
+		fprintf(stderr, "Could not migrate to CPU %d\n", cpu);
+		return -1;
+	}
+
+	if (do_core_perf_limit_reasons) {
+		get_msr(cpu, MSR_CORE_PERF_LIMIT_REASONS, &msr);
+		fprintf(stderr, "cpu%d: MSR_CORE_PERF_LIMIT_REASONS, 0x%08llx", cpu, msr);
+		fprintf(stderr, " (Active: %s%s%s%s%s%s%s%s%s%s%s%s%s%s)",
+			(msr & 1 << 0) ? "PROCHOT, " : "",
+			(msr & 1 << 1) ? "ThermStatus, " : "",
+			(msr & 1 << 2) ? "bit2, " : "",
+			(msr & 1 << 4) ? "Graphics, " : "",
+			(msr & 1 << 5) ? "Auto-HWP, " : "",
+			(msr & 1 << 6) ? "VR-Therm, " : "",
+			(msr & 1 << 8) ? "Amps, " : "",
+			(msr & 1 << 9) ? "CorePwr, " : "",
+			(msr & 1 << 10) ? "PkgPwrL1, " : "",
+			(msr & 1 << 11) ? "PkgPwrL2, " : "",
+			(msr & 1 << 12) ? "MultiCoreTurbo, " : "",
+			(msr & 1 << 13) ? "Transitions, " : "",
+			(msr & 1 << 14) ? "bit14, " : "",
+			(msr & 1 << 15) ? "bit15, " : "");
+		fprintf(stderr, " (Logged: %s%s%s%s%s%s%s%s%s%s%s%s%s%s)\n",
+			(msr & 1 << 16) ? "PROCHOT, " : "",
+			(msr & 1 << 17) ? "ThermStatus, " : "",
+			(msr & 1 << 18) ? "bit18, " : "",
+			(msr & 1 << 20) ? "Graphics, " : "",
+			(msr & 1 << 21) ? "Auto-HWP, " : "",
+			(msr & 1 << 22) ? "VR-Therm, " : "",
+			(msr & 1 << 24) ? "Amps, " : "",
+			(msr & 1 << 25) ? "CorePwr, " : "",
+			(msr & 1 << 26) ? "PkgPwrL1, " : "",
+			(msr & 1 << 27) ? "PkgPwrL2, " : "",
+			(msr & 1 << 28) ? "MultiCoreTurbo, " : "",
+			(msr & 1 << 29) ? "Transitions, " : "",
+			(msr & 1 << 30) ? "bit30, " : "",
+			(msr & 1 << 31) ? "bit31, " : "");
+
+	}
+	if (do_gfx_perf_limit_reasons) {
+		get_msr(cpu, MSR_GFX_PERF_LIMIT_REASONS, &msr);
+		fprintf(stderr, "cpu%d: MSR_GFX_PERF_LIMIT_REASONS, 0x%08llx", cpu, msr);
+		fprintf(stderr, " (Active: %s%s%s%s%s%s%s%s)",
+			(msr & 1 << 0) ? "PROCHOT, " : "",
+			(msr & 1 << 1) ? "ThermStatus, " : "",
+			(msr & 1 << 4) ? "Graphics, " : "",
+			(msr & 1 << 6) ? "VR-Therm, " : "",
+			(msr & 1 << 8) ? "Amps, " : "",
+			(msr & 1 << 9) ? "GFXPwr, " : "",
+			(msr & 1 << 10) ? "PkgPwrL1, " : "",
+			(msr & 1 << 11) ? "PkgPwrL2, " : "");
+		fprintf(stderr, " (Logged: %s%s%s%s%s%s%s%s)\n",
+			(msr & 1 << 16) ? "PROCHOT, " : "",
+			(msr & 1 << 17) ? "ThermStatus, " : "",
+			(msr & 1 << 20) ? "Graphics, " : "",
+			(msr & 1 << 22) ? "VR-Therm, " : "",
+			(msr & 1 << 24) ? "Amps, " : "",
+			(msr & 1 << 25) ? "GFXPwr, " : "",
+			(msr & 1 << 26) ? "PkgPwrL1, " : "",
+			(msr & 1 << 27) ? "PkgPwrL2, " : "");
+	}
+	if (do_ring_perf_limit_reasons) {
+		get_msr(cpu, MSR_RING_PERF_LIMIT_REASONS, &msr);
+		fprintf(stderr, "cpu%d: MSR_RING_PERF_LIMIT_REASONS, 0x%08llx", cpu, msr);
+		fprintf(stderr, " (Active: %s%s%s%s%s%s)",
+			(msr & 1 << 0) ? "PROCHOT, " : "",
+			(msr & 1 << 1) ? "ThermStatus, " : "",
+			(msr & 1 << 6) ? "VR-Therm, " : "",
+			(msr & 1 << 8) ? "Amps, " : "",
+			(msr & 1 << 10) ? "PkgPwrL1, " : "",
+			(msr & 1 << 11) ? "PkgPwrL2, " : "");
+		fprintf(stderr, " (Logged: %s%s%s%s%s%s)\n",
+			(msr & 1 << 16) ? "PROCHOT, " : "",
+			(msr & 1 << 17) ? "ThermStatus, " : "",
+			(msr & 1 << 22) ? "VR-Therm, " : "",
+			(msr & 1 << 24) ? "Amps, " : "",
+			(msr & 1 << 26) ? "PkgPwrL1, " : "",
+			(msr & 1 << 27) ? "PkgPwrL2, " : "");
+	}
+	return 0;
+}
+
 #define	RAPL_POWER_GRANULARITY	0x7FFF	/* 15 bit power granularity */
 #define	RAPL_TIME_GRANULARITY	0x3F /* 6 bit time granularity */
 
@@ -1681,6 +1782,27 @@ void rapl_probe(unsigned int family, unsigned int model)
 		fprintf(stderr, "RAPL: %.0f sec. Joule Counter Range, at %.0f Watts\n", rapl_joule_counter_range, tdp);
 
 	return;
+}
+
+void perf_limit_reasons_probe(family, model)
+{
+	if (!genuine_intel)
+		return;
+
+	if (family != 6)
+		return;
+
+	switch (model) {
+	case 0x3C:	/* HSW */
+	case 0x45:	/* HSW */
+	case 0x46:	/* HSW */
+		do_gfx_perf_limit_reasons = 1;
+	case 0x3F:	/* HSX */
+		do_core_perf_limit_reasons = 1;
+		do_ring_perf_limit_reasons = 1;
+	default:
+		return;
+	}
 }
 
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -2104,6 +2226,7 @@ void check_cpuid()
 	do_nehalem_turbo_ratio_limit = has_nehalem_turbo_ratio_limit(family, model);
 	do_ivt_turbo_ratio_limit = has_ivt_turbo_ratio_limit(family, model);
 	rapl_probe(family, model);
+	perf_limit_reasons_probe(family, model);
 
 	return;
 }
@@ -2340,6 +2463,9 @@ void turbostat_init()
 
 	if (verbose)
 		for_all_cpus(print_epb, ODD_COUNTERS);
+
+	if (verbose)
+		for_all_cpus(print_perf_limit, ODD_COUNTERS);
 
 	if (verbose)
 		for_all_cpus(print_rapl, ODD_COUNTERS);
