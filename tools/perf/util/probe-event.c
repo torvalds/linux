@@ -258,20 +258,32 @@ static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 #ifdef HAVE_DWARF_SUPPORT
 
 /* Open new debuginfo of given module */
-static struct debuginfo *open_debuginfo(const char *module)
+static struct debuginfo *open_debuginfo(const char *module, bool silent)
 {
 	const char *path = module;
+	struct debuginfo *ret;
 
 	if (!module || !strchr(module, '/')) {
 		path = kernel_get_module_path(module);
 		if (!path) {
-			pr_err("Failed to find path of %s module.\n",
-			       module ?: "kernel");
+			if (!silent)
+				pr_err("Failed to find path of %s module.\n",
+				       module ?: "kernel");
 			return NULL;
 		}
 	}
-	return debuginfo__new(path);
+	ret = debuginfo__new(path);
+	if (!ret && !silent) {
+		pr_warning("The %s file has no debug information.\n", path);
+		if (!module || !strtailcmp(path, ".ko"))
+			pr_warning("Rebuild with CONFIG_DEBUG_INFO=y, ");
+		else
+			pr_warning("Rebuild with -g, ");
+		pr_warning("or install an appropriate debuginfo package.\n");
+	}
+	return ret;
 }
+
 
 static int get_text_start_address(const char *exec, unsigned long *address)
 {
@@ -333,15 +345,13 @@ static int find_perf_probe_point_from_dwarf(struct probe_trace_point *tp,
 	pr_debug("try to find information at %" PRIx64 " in %s\n", addr,
 		 tp->module ? : "kernel");
 
-	dinfo = open_debuginfo(tp->module);
+	dinfo = open_debuginfo(tp->module, verbose == 0);
 	if (dinfo) {
 		ret = debuginfo__find_probe_point(dinfo,
 						 (unsigned long)addr, pp);
 		debuginfo__delete(dinfo);
-	} else {
-		pr_debug("Failed to open debuginfo at 0x%" PRIx64 "\n", addr);
+	} else
 		ret = -ENOENT;
-	}
 
 	if (ret > 0) {
 		pp->retprobe = tp->retprobe;
@@ -457,13 +467,11 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	struct debuginfo *dinfo;
 	int ntevs, ret = 0;
 
-	dinfo = open_debuginfo(target);
+	dinfo = open_debuginfo(target, !need_dwarf);
 
 	if (!dinfo) {
-		if (need_dwarf) {
-			pr_warning("Failed to open debuginfo file.\n");
+		if (need_dwarf)
 			return -ENOENT;
-		}
 		pr_debug("Could not open debuginfo. Try to use symbols.\n");
 		return 0;
 	}
@@ -620,11 +628,9 @@ static int __show_line_range(struct line_range *lr, const char *module)
 	char *tmp;
 
 	/* Search a line range */
-	dinfo = open_debuginfo(module);
-	if (!dinfo) {
-		pr_warning("Failed to open debuginfo file.\n");
+	dinfo = open_debuginfo(module, false);
+	if (!dinfo)
 		return -ENOENT;
-	}
 
 	ret = debuginfo__find_line_range(dinfo, lr);
 	debuginfo__delete(dinfo);
@@ -772,9 +778,8 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 	if (ret < 0)
 		return ret;
 
-	dinfo = open_debuginfo(module);
+	dinfo = open_debuginfo(module, false);
 	if (!dinfo) {
-		pr_warning("Failed to open debuginfo file.\n");
 		ret = -ENOENT;
 		goto out;
 	}
