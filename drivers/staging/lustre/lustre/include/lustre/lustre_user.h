@@ -997,12 +997,25 @@ static inline void *hur_data(struct hsm_user_request *hur)
 	return &(hur->hur_user_item[hur->hur_request.hr_itemcount]);
 }
 
-/** Compute the current length of the provided hsm_user_request. */
-static inline int hur_len(struct hsm_user_request *hur)
+/**
+ * Compute the current length of the provided hsm_user_request.  This returns -1
+ * instead of an errno because ssize_t is defined to be only [ -1, SSIZE_MAX ]
+ *
+ * return -1 on bounds check error.
+ */
+static inline ssize_t hur_len(struct hsm_user_request *hur)
 {
-	return offsetof(struct hsm_user_request,
-			hur_user_item[hur->hur_request.hr_itemcount]) +
-		hur->hur_request.hr_data_len;
+	__u64	size;
+
+	/* can't overflow a __u64 since hr_itemcount is only __u32 */
+	size = offsetof(struct hsm_user_request, hur_user_item[0]) +
+		(__u64)hur->hur_request.hr_itemcount *
+		sizeof(hur->hur_user_item[0]) + hur->hur_request.hr_data_len;
+
+	if (size != (ssize_t)size)
+		return -1;
+
+	return size;
 }
 
 /****** HSM RPCs to copytool *****/
