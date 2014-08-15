@@ -894,6 +894,10 @@ struct vvp_io {
 				 * fault API used bitflags for return code.
 				 */
 				unsigned int    ft_flags;
+				/**
+				 * check that flags are from filemap_fault
+				 */
+				bool		ft_flags_valid;
 			} fault;
 		} fault;
 	} u;
