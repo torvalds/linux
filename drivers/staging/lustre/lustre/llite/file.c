@@ -1719,6 +1719,9 @@ int ll_fid2path(struct inode *inode, void __user *arg)
 	if (get_user(pathlen, &gfin->gf_pathlen))
 		return -EFAULT;
 
+	if (pathlen > PATH_MAX)
+		return -EINVAL;
+
 	outsize = sizeof(*gfout) + pathlen;
 
 	OBD_ALLOC(gfout, outsize);
