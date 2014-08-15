@@ -3163,7 +3163,7 @@ static int stv0367cab_get_frontend(struct dvb_frontend *fe)
 	case FE_CAB_MOD_QAM128:
 		p->modulation = QAM_128;
 		break;
-	case QAM_256:
+	case FE_CAB_MOD_QAM256:
 		p->modulation = QAM_256;
 		break;
 	default:
