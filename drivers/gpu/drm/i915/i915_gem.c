@@ -1085,7 +1085,13 @@ i915_gem_check_wedge(struct i915_gpu_error *error,
 		if (i915_terminally_wedged(error))
 			return -EIO;
 
-		return -EAGAIN;
+		/*
+		 * Check if GPU Reset is in progress - we need intel_ring_begin
+		 * to work properly to reinit the hw state while the gpu is
+		 * still marked as reset-in-progress. Handle this with a flag.
+		 */
+		if (!error->reload_in_reset)
+			return -EAGAIN;
 	}
 
 	return 0;

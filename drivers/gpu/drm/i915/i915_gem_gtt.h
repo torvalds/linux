@@ -264,8 +264,7 @@ struct i915_hw_ppgtt {
 
 	int (*enable)(struct i915_hw_ppgtt *ppgtt);
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
-			 struct intel_engine_cs *ring,
-			 bool synchronous);
+			 struct intel_engine_cs *ring);
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 

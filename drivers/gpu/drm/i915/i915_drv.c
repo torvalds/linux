@@ -844,7 +844,13 @@ int i915_reset(struct drm_device *dev)
 			!dev_priv->ums.mm_suspended) {
 		dev_priv->ums.mm_suspended = 0;
 
+		/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset */
+		dev_priv->gpu_error.reload_in_reset = true;
+
 		ret = i915_gem_init_hw(dev);
+
+		dev_priv->gpu_error.reload_in_reset = false;
+
 		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			DRM_ERROR("Failed hw init on reset %d\n", ret);
