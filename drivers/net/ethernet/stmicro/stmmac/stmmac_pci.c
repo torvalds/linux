@@ -170,7 +170,7 @@ static int stmmac_pci_resume(struct pci_dev *pdev)
 #define STMMAC_VENDOR_ID 0x700
 #define STMMAC_DEVICE_ID 0x1108
 
-static DEFINE_PCI_DEVICE_TABLE(stmmac_id_table) = {
+static const struct pci_device_id stmmac_id_table[] = {
 	{PCI_DEVICE(STMMAC_VENDOR_ID, STMMAC_DEVICE_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_STMICRO, PCI_DEVICE_ID_STMICRO_MAC)},
 	{}

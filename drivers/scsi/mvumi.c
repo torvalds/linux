@@ -48,7 +48,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("jyli@marvell.com");
 MODULE_DESCRIPTION("Marvell UMI Driver");
 
-static DEFINE_PCI_DEVICE_TABLE(mvumi_pci_table) = {
+static const struct pci_device_id mvumi_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, PCI_DEVICE_ID_MARVELL_MV9143) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, PCI_DEVICE_ID_MARVELL_MV9580) },
 	{ 0 }

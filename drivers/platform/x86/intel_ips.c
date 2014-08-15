@@ -1478,7 +1478,7 @@ ips_link_to_i915_driver(void)
 }
 EXPORT_SYMBOL_GPL(ips_link_to_i915_driver);
 
-static DEFINE_PCI_DEVICE_TABLE(ips_id_table) = {
+static const struct pci_device_id ips_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL,
 		     PCI_DEVICE_ID_INTEL_THERMAL_SENSOR), },
 	{ 0, }

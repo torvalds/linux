@@ -4766,7 +4766,7 @@ static const struct block_device_operations skd_blockdev_ops = {
  *****************************************************************************
  */
 
-static DEFINE_PCI_DEVICE_TABLE(skd_pci_tbl) = {
+static const struct pci_device_id skd_pci_tbl[] = {
 	{ PCI_VENDOR_ID_STEC, PCI_DEVICE_ID_S1120,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, },
 	{ 0 }                     /* terminate list */

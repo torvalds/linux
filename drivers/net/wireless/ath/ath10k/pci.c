@@ -63,7 +63,7 @@ MODULE_PARM_DESC(reset_mode, "0: auto, 1: warm only (default: 0)");
 
 #define QCA988X_2_0_DEVICE_ID	(0x003c)
 
-static DEFINE_PCI_DEVICE_TABLE(ath10k_pci_id_table) = {
+static const struct pci_device_id ath10k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, QCA988X_2_0_DEVICE_ID) }, /* PCI-E QCA988X V2 */
 	{0}
 };

@@ -219,7 +219,7 @@ struct intel8x0m {
 	unsigned int pcm_pos_shift;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_intel8x0m_ids) = {
+static const struct pci_device_id snd_intel8x0m_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x2416), DEVICE_INTEL },	/* 82801AA */
 	{ PCI_VDEVICE(INTEL, 0x2426), DEVICE_INTEL },	/* 82901AB */
 	{ PCI_VDEVICE(INTEL, 0x2446), DEVICE_INTEL },	/* 82801BA */
