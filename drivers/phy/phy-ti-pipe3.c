@@ -299,10 +299,9 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	struct clk *clk;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
-	if (!phy) {
-		dev_err(&pdev->dev, "unable to alloc mem for TI PIPE3 PHY\n");
+	if (!phy)
 		return -ENOMEM;
-	}
+
 	phy->dev		= &pdev->dev;
 
 	if (!of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
