@@ -590,8 +590,8 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 		else
 			clkrate = clk_round_rate(ssi_private->baudclk, tmprate);
 
-		do_div(clkrate, factor);
-		afreq = (u32)clkrate / (i + 1);
+		clkrate /= factor;
+		afreq = clkrate / (i + 1);
 
 		if (freq == afreq)
 			sub = 0;
