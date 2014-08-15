@@ -831,6 +831,9 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			if (screen->pixelrepeat) {
 				mask |= m_CORE_CLK_DIV_EN;
 				val |= v_CORE_CLK_DIV_EN(1);
+			} else {
+				mask |= m_CORE_CLK_DIV_EN;
+				val |= v_CORE_CLK_DIV_EN(0);
 			}
 			lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
                         if (lcdc_dev->soc_type == VOP_RK312X) {
