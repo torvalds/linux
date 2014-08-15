@@ -17,8 +17,6 @@
 #include <asm/asm-offsets.h>
 #include "entry.h"
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-
 void ftrace_disable_code(void);
 void ftrace_enable_insn(void);
 
@@ -142,8 +140,6 @@ int __init ftrace_dyn_arch_init(void)
 	return 0;
 }
 
-#endif /* CONFIG_DYNAMIC_FTRACE */
-
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
  * Hook the return address and push it in the stack of return addresses
@@ -169,7 +165,6 @@ out:
 	return parent;
 }
 
-#ifdef CONFIG_DYNAMIC_FTRACE
 /*
  * Patch the kernel code at ftrace_graph_caller location. The instruction
  * there is branch relative and save to prepare_ftrace_return. To disable
@@ -219,5 +214,4 @@ int ftrace_disable_ftrace_graph_caller(void)
 }
 
 #endif /* CONFIG_64BIT */
-#endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

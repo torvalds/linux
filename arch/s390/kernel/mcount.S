@@ -15,11 +15,9 @@ ENTRY(ftrace_stub)
 	br	%r14
 
 ENTRY(_mcount)
-#ifdef CONFIG_DYNAMIC_FTRACE
 	br	%r14
 
 ENTRY(ftrace_caller)
-#endif
 	stm	%r2,%r5,16(%r15)
 	bras	%r1,1f
 0:	.long	ftrace_trace_function
