@@ -273,7 +273,6 @@ static struct platform_driver phy_berlin_sata_driver = {
 	.probe	= phy_berlin_sata_probe,
 	.driver	= {
 		.name		= "phy-berlin-sata",
-		.owner		= THIS_MODULE,
 		.of_match_table	= phy_berlin_sata_of_match,
 	},
 };

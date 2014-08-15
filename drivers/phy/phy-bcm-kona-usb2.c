@@ -143,7 +143,6 @@ static struct platform_driver bcm_kona_usb2_driver = {
 	.probe		= bcm_kona_usb2_probe,
 	.driver		= {
 		.name	= "bcm-kona-usb2",
-		.owner	= THIS_MODULE,
 		.of_match_table = bcm_kona_usb2_dt_ids,
 	},
 };
