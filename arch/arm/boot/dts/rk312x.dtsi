@@ -84,7 +84,6 @@
 			};
 			core {
 				reg = <0x1012a000 0x20>;
-				rockchip,priority = <3 2>;
 			};
 			peri {
 				reg = <0x1012c000 0x20>;
