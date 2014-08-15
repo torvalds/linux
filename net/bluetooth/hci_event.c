@@ -4193,15 +4193,15 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		conn->dst_type = irk->addr_type;
 	}
 
-	if (conn->dst_type == ADDR_LE_DEV_PUBLIC)
-		addr_type = BDADDR_LE_PUBLIC;
-	else
-		addr_type = BDADDR_LE_RANDOM;
-
 	if (ev->status) {
 		hci_le_conn_failed(conn, ev->status);
 		goto unlock;
 	}
+
+	if (conn->dst_type == ADDR_LE_DEV_PUBLIC)
+		addr_type = BDADDR_LE_PUBLIC;
+	else
+		addr_type = BDADDR_LE_RANDOM;
 
 	/* Drop the connection if the device is blocked */
 	if (hci_bdaddr_list_lookup(&hdev->blacklist, &conn->dst, addr_type)) {
