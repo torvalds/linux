@@ -433,18 +433,13 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 
 	if (!perf_top__key_mapped(top, c)) {
 		struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
-		struct termios tc, save;
+		struct termios save;
 
 		perf_top__print_mapped_keys(top);
 		fprintf(stdout, "\nEnter selection, or unmapped key to continue: ");
 		fflush(stdout);
 
-		tcgetattr(0, &save);
-		tc = save;
-		tc.c_lflag &= ~(ICANON | ECHO);
-		tc.c_cc[VMIN] = 0;
-		tc.c_cc[VTIME] = 0;
-		tcsetattr(0, TCSANOW, &tc);
+		set_term_quiet_input(&save);
 
 		poll(&stdin_poll, 1, -1);
 		c = getc(stdin);
