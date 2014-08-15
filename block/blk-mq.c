@@ -1068,13 +1068,17 @@ static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 		blk_account_io_start(rq, 1);
 }
 
+static inline bool hctx_allow_merges(struct blk_mq_hw_ctx *hctx)
+{
+	return (hctx->flags & BLK_MQ_F_SHOULD_MERGE) &&
+		!blk_queue_nomerges(hctx->queue);
+}
+
 static inline bool blk_mq_merge_queue_io(struct blk_mq_hw_ctx *hctx,
 					 struct blk_mq_ctx *ctx,
 					 struct request *rq, struct bio *bio)
 {
-	struct request_queue *q = hctx->queue;
-
-	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE)) {
+	if (!hctx_allow_merges(hctx)) {
 		blk_mq_bio_to_request(rq, bio);
 		spin_lock(&ctx->lock);
 insert_rq:
@@ -1082,6 +1086,8 @@ insert_rq:
 		spin_unlock(&ctx->lock);
 		return false;
 	} else {
+		struct request_queue *q = hctx->queue;
+
 		spin_lock(&ctx->lock);
 		if (!blk_mq_attempt_merge(q, ctx, bio)) {
 			blk_mq_bio_to_request(rq, bio);
