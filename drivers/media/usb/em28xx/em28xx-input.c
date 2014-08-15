@@ -71,8 +71,7 @@ struct em28xx_IR {
 	unsigned int last_readcount;
 	u64 rc_type;
 
-	/* i2c slave address of external device (if used) */
-	u16 i2c_dev_addr;
+	struct i2c_client *i2c_client;
 
 	int  (*get_key_i2c)(struct i2c_client *ir, enum rc_type *protocol, u32 *scancode);
 	int  (*get_key)(struct em28xx_IR *, struct em28xx_ir_poll_result *);
@@ -294,16 +293,11 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 
 static int em28xx_i2c_ir_handle_key(struct em28xx_IR *ir)
 {
-	struct em28xx *dev = ir->dev;
 	static u32 scancode;
 	enum rc_type protocol;
 	int rc;
-	struct i2c_client client;
 
-	client.adapter = &ir->dev->i2c_adap[dev->def_i2c_bus];
-	client.addr = ir->i2c_dev_addr;
-
-	rc = ir->get_key_i2c(&client, &protocol, &scancode);
+	rc = ir->get_key_i2c(ir->i2c_client, &protocol, &scancode);
 	if (rc < 0) {
 		dprintk("ir->get_key_i2c() failed: %d\n", rc);
 		return rc;
@@ -361,7 +355,7 @@ static void em28xx_ir_work(struct work_struct *work)
 {
 	struct em28xx_IR *ir = container_of(work, struct em28xx_IR, work.work);
 
-	if (ir->i2c_dev_addr) /* external i2c device */
+	if (ir->i2c_client) /* external i2c device */
 		em28xx_i2c_ir_handle_key(ir);
 	else /* internal device */
 		em28xx_ir_handle_key(ir);
@@ -756,7 +750,13 @@ static int em28xx_ir_init(struct em28xx *dev)
 			goto error;
 		}
 
-		ir->i2c_dev_addr = i2c_rc_dev_addr;
+		ir->i2c_client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
+		if (!ir->i2c_client)
+			goto error;
+		ir->i2c_client->adapter = &ir->dev->i2c_adap[dev->def_i2c_bus];
+		ir->i2c_client->addr = i2c_rc_dev_addr;
+		ir->i2c_client->flags = 0;
+		/* NOTE: all other fields of i2c_client are unused */
 	} else {	/* internal device */
 		switch (dev->chip_id) {
 		case CHIP_ID_EM2860:
@@ -815,6 +815,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	return 0;
 
 error:
+	kfree(ir->i2c_client);
 	dev->ir = NULL;
 	rc_free_device(rc);
 	kfree(ir);
@@ -840,6 +841,8 @@ static int em28xx_ir_fini(struct em28xx *dev)
 
 	if (ir->rc)
 		rc_unregister_device(ir->rc);
+
+	kfree(ir->i2c_client);
 
 	/* done */
 	kfree(ir);
