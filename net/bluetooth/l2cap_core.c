@@ -546,7 +546,10 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 
 	l2cap_chan_hold(chan);
 
-	hci_conn_hold(conn->hcon);
+	/* Only keep a reference for fixed channels if they requested it */
+	if (chan->chan_type != L2CAP_CHAN_FIXED ||
+	    test_bit(FLAG_HOLD_HCI_CONN, &chan->flags))
+		hci_conn_hold(conn->hcon);
 
 	list_add(&chan->list, &conn->chan_l);
 }
@@ -577,7 +580,12 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 		chan->conn = NULL;
 
-		if (chan->scid != L2CAP_CID_A2MP)
+		/* Reference was only held for non-fixed channels or
+		 * fixed channels that explicitly requested it using the
+		 * FLAG_HOLD_HCI_CONN flag.
+		 */
+		if (chan->chan_type != L2CAP_CHAN_FIXED ||
+		    test_bit(FLAG_HOLD_HCI_CONN, &chan->flags))
 			hci_conn_drop(conn->hcon);
 
 		if (mgr && mgr->bredr_chan == chan)

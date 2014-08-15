@@ -146,6 +146,14 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	case L2CAP_CHAN_RAW:
 		chan->sec_level = BT_SECURITY_SDP;
 		break;
+	case L2CAP_CHAN_FIXED:
+		/* Fixed channels default to the L2CAP core not holding a
+		 * hci_conn reference for them. For fixed channels mapping to
+		 * L2CAP sockets we do want to hold a reference so set the
+		 * appropriate flag to request it.
+		 */
+		set_bit(FLAG_HOLD_HCI_CONN, &chan->flags);
+		break;
 	}
 
 	bacpy(&chan->src, &la.l2_bdaddr);
