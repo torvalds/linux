@@ -13,6 +13,7 @@
 #include <linux/serial.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/idr.h>
 #include "greybus.h"
 
 #define GB_TTY_MAJOR 180	/* FIXME use a real number!!! */
@@ -30,6 +31,89 @@ static const struct greybus_device_id id_table[] = {
 	{ GREYBUS_DEVICE(0x45, 0x45) },	/* make shit up */
 	{ },	/* terminating NULL entry */
 };
+
+static struct tty_driver *gb_tty_driver;
+static DEFINE_IDR(tty_minors);
+static DEFINE_MUTEX(table_lock);
+
+static struct gb_tty *get_gb_by_minor(unsigned minor)
+{
+	struct gb_tty *gb_tty;
+
+	mutex_lock(&table_lock);
+	gb_tty = idr_find(&tty_minors, minor);
+	mutex_unlock(&table_lock);
+	return gb_tty;
+}
+
+static int alloc_minor(struct gb_tty *gb_tty)
+{
+	int minor;
+
+	mutex_lock(&table_lock);
+	minor = idr_alloc(&tty_minors, gb_tty, 0, 0, GFP_KERNEL);
+	if (minor < 0)
+		goto error;
+	gb_tty->minor = minor;
+error:
+	mutex_unlock(&table_lock);
+	return minor;
+}
+
+static void release_minor(struct gb_tty *gb_tty)
+{
+	mutex_lock(&table_lock);
+	idr_remove(&tty_minors, gb_tty->minor);
+	mutex_unlock(&table_lock);
+}
+
+static int gb_tty_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct gb_tty *gb_tty;
+	int retval;
+
+	gb_tty = get_gb_by_minor(tty->index);
+	if (!gb_tty)
+		return -ENODEV;
+
+	retval = tty_standard_install(driver, tty);
+	if (retval)
+		goto error;
+
+	tty->driver_data = gb_tty;
+	return 0;
+error:
+	tty_port_put(&gb_tty->port);
+	return retval;
+}
+
+static int gb_tty_open(struct tty_struct *tty, struct file *file)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+
+	return tty_port_open(&gb_tty->port, tty, file);
+}
+
+static void gb_tty_close(struct tty_struct *tty, struct file *file)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+
+	tty_port_close(&gb_tty->port, tty, file);
+}
+
+static void gb_tty_cleanup(struct tty_struct *tty)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+
+	tty_port_put(&gb_tty->port);
+}
+
+static void gb_tty_hangup(struct tty_struct *tty)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+
+	tty_port_hangup(&gb_tty->port);
+}
 
 
 static const struct tty_operations gb_ops = {
@@ -50,8 +134,6 @@ static const struct tty_operations gb_ops = {
 	.tiocmset =		gb_tty_tiocmset,
 };
 
-static struct tty_driver *gb_tty_driver;
-static struct gb_tty *gb_tty_table[255];
 
 static int tty_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
 {
