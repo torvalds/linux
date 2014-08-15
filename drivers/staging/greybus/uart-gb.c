@@ -1,18 +1,27 @@
 /*
- * I2C bridge driver for the Greybus "generic" I2C module.
+ * UART driver for the Greybus "generic" UART module.
  *
  * Copyright 2014 Google Inc.
  *
  * Released under the GPLv2 only.
+ *
+ * Heavily based on drivers/usb/class/cdc-acm.c and
+ * drivers/usb/serial/usb-serial.c.
  */
 
 #include <linux/kernel.h>
+#include <linux/errno.h>
 #include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/mutex.h>
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/serial.h>
 #include <linux/idr.h>
 #include "greybus.h"
 
@@ -27,9 +36,14 @@ struct gb_tty {
 	unsigned char clocal;
 	unsigned int throttled:1;
 	unsigned int throttle_req:1;
+	bool disconnected;
+	int writesize;		// FIXME - set this somehow.
 	spinlock_t read_lock;
 	spinlock_t write_lock;
-	// FIXME locking!!!
+	struct async_icount iocount;
+	struct async_icount oldcount;
+	wait_queue_head_t wioctl;
+	struct mutex mutex;
 };
 
 static const struct greybus_device_id id_table[] = {
@@ -47,6 +61,16 @@ static struct gb_tty *get_gb_by_minor(unsigned minor)
 
 	mutex_lock(&table_lock);
 	gb_tty = idr_find(&tty_minors, minor);
+	if (gb_tty) {
+		mutex_lock(&gb_tty->mutex);
+		if (gb_tty->disconnected) {
+			mutex_unlock(&gb_tty->mutex);
+			gb_tty = NULL;
+		} else {
+			tty_port_get(&gb_tty->port);
+			mutex_unlock(&gb_tty->mutex);
+		}
+	}
 	mutex_unlock(&table_lock);
 	return gb_tty;
 }
@@ -123,7 +147,7 @@ static void gb_tty_hangup(struct tty_struct *tty)
 static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
 			int count)
 {
-	struct gb_tty *gb_tty = tty->driver_data;
+//	struct gb_tty *gb_tty = tty->driver_data;
 
 	// FIXME - actually implement...
 
@@ -132,7 +156,7 @@ static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
 
 static int gb_tty_write_room(struct tty_struct *tty)
 {
-	struct gb_tty *gb_tty = tty->driver_data;
+//	struct gb_tty *gb_tty = tty->driver_data;
 
 	// FIXME - how much do we want to say we have room for?
 	return 0;
@@ -140,9 +164,40 @@ static int gb_tty_write_room(struct tty_struct *tty)
 
 static int gb_tty_chars_in_buffer(struct tty_struct *tty)
 {
-	struct gb_tty *gb_tty = tty->driver_data;
+//	struct gb_tty *gb_tty = tty->driver_data;
 
 	// FIXME - how many left to send?
+	return 0;
+}
+
+static int gb_tty_break_ctl(struct tty_struct *tty, int state)
+{
+//	struct gb_tty *gb_tty = tty->driver_data;
+
+	// FIXME - send a break, if asked to...
+	return 0;
+}
+
+static void gb_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
+{
+	// FIXME - is this it???
+	tty_termios_copy_hw(&tty->termios, old);
+}
+
+static int gb_tty_tiocmget(struct tty_struct *tty)
+{
+//	struct gb_tty *gb_tty = tty->driver_data;
+
+	// FIXME - get some tiocms!
+	return 0;
+}
+
+static int gb_tty_tiocmset(struct tty_struct *tty, unsigned int set,
+			   unsigned int clear)
+{
+//	struct gb_tty *gb_tty = tty->driver_data;
+
+	// FIXME - set some tiocms!
 	return 0;
 }
 
@@ -169,6 +224,148 @@ static void gb_tty_unthrottle(struct tty_struct *tty)
 	if (was_throttled) {
 		// FIXME - send more data
 	}
+}
+
+static int get_serial_info(struct gb_tty *gb_tty,
+			   struct serial_struct __user *info)
+{
+	struct serial_struct tmp;
+
+	if (!info)
+		return -EINVAL;
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.flags = ASYNC_LOW_LATENCY;
+	tmp.xmit_fifo_size = gb_tty->writesize;
+	tmp.baud_base = 0;	// FIXME
+	tmp.close_delay = gb_tty->port.close_delay / 10;
+	tmp.closing_wait = gb_tty->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+				ASYNC_CLOSING_WAIT_NONE : gb_tty->port.closing_wait / 10;
+
+	if (copy_to_user(info, &tmp, sizeof(tmp)))
+		return -EFAULT;
+	else
+		return 0;
+}
+
+static int set_serial_info(struct gb_tty *gb_tty,
+			   struct serial_struct __user *newinfo)
+{
+	struct serial_struct new_serial;
+	unsigned int closing_wait;
+	unsigned int close_delay;
+	int retval;
+
+	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
+		return -EFAULT;
+
+	close_delay = new_serial.close_delay * 10;
+	closing_wait = new_serial.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+			ASYNC_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
+
+	mutex_lock(&gb_tty->port.mutex);
+	if (!capable(CAP_SYS_ADMIN)) {
+		if ((close_delay != gb_tty->port.close_delay) ||
+		    (closing_wait != gb_tty->port.closing_wait))
+			retval = -EPERM;
+		else
+			retval = -EOPNOTSUPP;
+	} else {
+		gb_tty->port.close_delay = close_delay;
+		gb_tty->port.closing_wait = closing_wait;
+	}
+	mutex_unlock(&gb_tty->port.mutex);
+	return retval;
+}
+
+static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
+{
+	int retval = 0;
+	DECLARE_WAITQUEUE(wait, current);
+	struct async_icount old;
+	struct async_icount new;
+
+	if (arg & (TIOCM_DSR | TIOCM_RI | TIOCM_CD))
+		return -EINVAL;
+
+	do {
+		spin_lock_irq(&gb_tty->read_lock);
+		old = gb_tty->oldcount;
+		new = gb_tty->iocount;
+		gb_tty->oldcount = new;
+		spin_lock_irq(&gb_tty->read_lock);
+
+		if ((arg & TIOCM_DSR) && (old.dsr != new.dsr))
+			break;
+		if ((arg & TIOCM_CD) && (old.dcd != new.dcd))
+			break;
+		if ((arg & TIOCM_RI) && (old.rng != new.rng))
+			break;
+
+		add_wait_queue(&gb_tty->wioctl, &wait);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		remove_wait_queue(&gb_tty->wioctl, &wait);
+		if (gb_tty->disconnected) {
+			if (arg & TIOCM_CD)
+				break;
+			else
+				retval = -ENODEV;
+		} else {
+			if (signal_pending(current))
+				retval = -ERESTARTSYS;
+		}
+	} while (!retval);
+
+	return retval;
+}
+
+static int get_serial_usage(struct gb_tty *gb_tty,
+			    struct serial_icounter_struct __user *count)
+{
+	struct serial_icounter_struct icount;
+	int retval = 0;
+
+	memset(&icount, 0, sizeof(icount));
+	icount.dsr = gb_tty->iocount.dsr;
+	icount.rng = gb_tty->iocount.rng;
+	icount.dcd = gb_tty->iocount.dcd;
+	icount.frame = gb_tty->iocount.frame;
+	icount.overrun = gb_tty->iocount.overrun;
+	icount.parity = gb_tty->iocount.parity;
+	icount.brk = gb_tty->iocount.brk;
+
+	if (copy_to_user(count, &icount, sizeof(icount)) > 0)
+		retval = -EFAULT;
+
+	return retval;
+}
+
+static int gb_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+			unsigned long arg)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+	int retval = -ENOIOCTLCMD;
+
+	switch (cmd) {
+	case TIOCGSERIAL:
+		retval = get_serial_info(gb_tty,
+					 (struct serial_struct __user *)arg);
+		break;
+	case TIOCSSERIAL:
+		retval = set_serial_info(gb_tty,
+					 (struct serial_struct __user *)arg);
+		break;
+	case TIOCMIWAIT:
+		retval = wait_serial_change(gb_tty, arg);
+		break;
+	case TIOCGICOUNT:
+		retval = get_serial_usage(gb_tty,
+					  (struct serial_icounter_struct __user *)arg);
+		break;
+	}
+
+	return retval;
 }
 
 
@@ -212,6 +409,8 @@ static int tty_gb_probe(struct greybus_device *gdev, const struct greybus_device
 	gb_tty->gdev = gdev;
 	spin_lock_init(&gb_tty->write_lock);
 	spin_lock_init(&gb_tty->read_lock);
+	init_waitqueue_head(&gb_tty->wioctl);
+	mutex_init(&gb_tty->mutex);
 
 	/* FIXME - allocate gb buffers */
 
@@ -235,6 +434,16 @@ static void tty_gb_disconnect(struct greybus_device *gdev)
 	struct gb_tty *gb_tty = greybus_get_drvdata(gdev);
 	struct tty_struct *tty;
 
+	if (!gb_tty)
+		return;
+
+	mutex_lock(&gb_tty->mutex);
+	gb_tty->disconnected = true;
+
+	wake_up_all(&gb_tty->wioctl);
+	greybus_set_drvdata(gdev, NULL);
+	mutex_unlock(&gb_tty->mutex);
+
 	tty = tty_port_tty_get(&gb_tty->port);
 	if (tty) {
 		tty_vhangup(tty);
@@ -243,6 +452,8 @@ static void tty_gb_disconnect(struct greybus_device *gdev)
 	/* FIXME - stop all traffic */
 
 	tty_unregister_device(gb_tty_driver, gb_tty->minor);
+
+	/* FIXME - free transmit / recieve buffers */
 
 	tty_port_put(&gb_tty->port);
 }
