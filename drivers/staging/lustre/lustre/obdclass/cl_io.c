@@ -1452,12 +1452,13 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 	if (req != NULL) {
 		int result;
 
+		req->crq_type = crt;
+		INIT_LIST_HEAD(&req->crq_pages);
+		INIT_LIST_HEAD(&req->crq_layers);
+
 		OBD_ALLOC(req->crq_o, nr_objects * sizeof(req->crq_o[0]));
 		if (req->crq_o != NULL) {
 			req->crq_nrobjs = nr_objects;
-			req->crq_type = crt;
-			INIT_LIST_HEAD(&req->crq_pages);
-			INIT_LIST_HEAD(&req->crq_layers);
 			result = cl_req_init(env, req, page);
 		} else
 			result = -ENOMEM;
