@@ -2123,7 +2123,7 @@ static bool imon_find_endpoints(struct imon_context *ictx,
 	for (i = 0; i < num_endpts && !(ir_ep_found && display_ep_found); ++i) {
 		ep = &iface_desc->endpoint[i].desc;
 		ep_dir = ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
-		ep_type = ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+		ep_type = usb_endpoint_type(ep);
 
 		if (!ir_ep_found && ep_dir == USB_DIR_IN &&
 		    ep_type == USB_ENDPOINT_XFER_INT) {
