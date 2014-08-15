@@ -602,9 +602,12 @@ static void cputime_adjust(struct task_cputime *curr,
 	 * If the tick based count grows faster than the scheduler one,
 	 * the result of the scaling may go backward.
 	 * Let's enforce monotonicity.
+	 * Atomic exchange protects against concurrent cputime_adjust().
 	 */
-	prev->stime = max(prev->stime, stime);
-	prev->utime = max(prev->utime, utime);
+	while (stime > (rtime = ACCESS_ONCE(prev->stime)))
+		cmpxchg(&prev->stime, rtime, stime);
+	while (utime > (rtime = ACCESS_ONCE(prev->utime)))
+		cmpxchg(&prev->utime, rtime, utime);
 
 out:
 	*ut = prev->utime;
