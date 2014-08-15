@@ -16,7 +16,8 @@
 #include <linux/idr.h>
 #include "greybus.h"
 
-#define GB_TTY_MAJOR 180	/* FIXME use a real number!!! */
+#define GB_TTY_MAJOR	180	/* FIXME use a real number!!! */
+#define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
 
 struct gb_tty {
 	struct tty_port port;
@@ -24,6 +25,10 @@ struct gb_tty {
 	int cport;
 	unsigned int minor;
 	unsigned char clocal;
+	unsigned int throttled:1;
+	unsigned int throttle_req:1;
+	spinlock_t read_lock;
+	spinlock_t write_lock;
 	// FIXME locking!!!
 };
 
@@ -115,6 +120,57 @@ static void gb_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(&gb_tty->port);
 }
 
+static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
+			int count)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+
+	// FIXME - actually implement...
+
+	return 0;
+}
+
+static int gb_tty_write_room(struct tty_struct *tty)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+
+	// FIXME - how much do we want to say we have room for?
+	return 0;
+}
+
+static int gb_tty_chars_in_buffer(struct tty_struct *tty)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+
+	// FIXME - how many left to send?
+	return 0;
+}
+
+static void gb_tty_throttle(struct tty_struct *tty)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+
+	spin_lock_irq(&gb_tty->read_lock);
+	gb_tty->throttle_req = 1;
+	spin_unlock_irq(&gb_tty->read_lock);
+}
+
+static void gb_tty_unthrottle(struct tty_struct *tty)
+{
+	struct gb_tty *gb_tty = tty->driver_data;
+	unsigned int was_throttled;
+
+	spin_lock_irq(&gb_tty->read_lock);
+	was_throttled = gb_tty->throttled;
+	gb_tty->throttle_req = 0;
+	gb_tty->throttled = 0;
+	spin_unlock_irq(&gb_tty->read_lock);
+
+	if (was_throttled) {
+		// FIXME - send more data
+	}
+}
+
 
 static const struct tty_operations gb_ops = {
 	.install =		gb_tty_install,
@@ -137,14 +193,58 @@ static const struct tty_operations gb_ops = {
 
 static int tty_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
 {
+	struct gb_tty *gb_tty;
+	struct device *tty_dev;
 	int retval;
+	int minor;
 
-	//greybus_set_drvdata(gdev, i2c_gb_data);
+	gb_tty = devm_kzalloc(&gdev->dev, sizeof(*gb_tty), GFP_KERNEL);
+	if (!gb_tty)
+		return -ENOMEM;
+
+	minor = alloc_minor(gb_tty);
+	if (minor == GB_NUM_MINORS) {
+		dev_err(&gdev->dev, "no more free minor numbers\n");
+		return -ENODEV;
+	}
+
+	gb_tty->minor = minor;
+	gb_tty->gdev = gdev;
+	spin_lock_init(&gb_tty->write_lock);
+	spin_lock_init(&gb_tty->read_lock);
+
+	/* FIXME - allocate gb buffers */
+
+	greybus_set_drvdata(gdev, gb_tty);
+
+	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
+					   &gdev->dev);
+	if (IS_ERR(tty_dev)) {
+		retval = PTR_ERR(tty_dev);
+		goto error;
+	}
+
 	return 0;
+error:
+	release_minor(gb_tty);
+	return retval;
 }
 
 static void tty_gb_disconnect(struct greybus_device *gdev)
 {
+	struct gb_tty *gb_tty = greybus_get_drvdata(gdev);
+	struct tty_struct *tty;
+
+	tty = tty_port_tty_get(&gb_tty->port);
+	if (tty) {
+		tty_vhangup(tty);
+		tty_kref_put(tty);
+	}
+	/* FIXME - stop all traffic */
+
+	tty_unregister_device(gb_tty_driver, gb_tty->minor);
+
+	tty_port_put(&gb_tty->port);
 }
 
 static struct greybus_driver tty_gb_driver = {
@@ -158,7 +258,7 @@ static int __init gb_tty_init(void)
 {
 	int retval;
 
-	gb_tty_driver = alloc_tty_driver(255);
+	gb_tty_driver = alloc_tty_driver(GB_NUM_MINORS);
 	if (!gb_tty_driver)
 		return -ENOMEM;
 
