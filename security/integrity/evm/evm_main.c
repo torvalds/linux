@@ -126,14 +126,15 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	rc = vfs_getxattr_alloc(dentry, XATTR_NAME_EVM, (char **)&xattr_data, 0,
 				GFP_NOFS);
 	if (rc <= 0) {
-		if (rc == 0)
-			evm_status = INTEGRITY_FAIL; /* empty */
-		else if (rc == -ENODATA) {
+		evm_status = INTEGRITY_FAIL;
+		if (rc == -ENODATA) {
 			rc = evm_find_protected_xattrs(dentry);
 			if (rc > 0)
 				evm_status = INTEGRITY_NOLABEL;
 			else if (rc == 0)
 				evm_status = INTEGRITY_NOXATTRS; /* new file */
+		} else if (rc == -EOPNOTSUPP) {
+			evm_status = INTEGRITY_UNKNOWN;
 		}
 		goto out;
 	}
