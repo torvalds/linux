@@ -184,7 +184,7 @@ static int rsnd_gen_regmap_init(struct rsnd_priv *priv,
 #define RDMA_CMD_O_N(addr, i)	(addr ##_reg - 0x004f8000 + (0x400 * i))
 #define RDMA_CMD_O_P(addr, i)	(addr ##_reg - 0x001f8000 + (0x400 * i))
 
-void rsnd_gen_dma_addr(struct rsnd_priv *priv,
+static void rsnd_gen2_dma_addr(struct rsnd_priv *priv,
 		       struct rsnd_dma *dma,
 		       struct dma_slave_config *cfg,
 		       int is_play, int slave_id)
@@ -226,17 +226,6 @@ void rsnd_gen_dma_addr(struct rsnd_priv *priv,
 		}
 	};
 
-	cfg->slave_id	= slave_id;
-	cfg->src_addr	= 0;
-	cfg->dst_addr	= 0;
-	cfg->direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
-
-	/*
-	 * gen1 uses default DMA addr
-	 */
-	if (rsnd_is_gen1(priv))
-		return;
-
 	/* it shouldn't happen */
 	if (use_dvc & !use_src) {
 		dev_err(dev, "DVC is selected without SRC\n");
@@ -249,6 +238,26 @@ void rsnd_gen_dma_addr(struct rsnd_priv *priv,
 	dev_dbg(dev, "dma%d addr - src : %x / dst : %x\n",
 		id, cfg->src_addr, cfg->dst_addr);
 }
+
+void rsnd_gen_dma_addr(struct rsnd_priv *priv,
+		       struct rsnd_dma *dma,
+		       struct dma_slave_config *cfg,
+		       int is_play, int slave_id)
+{
+	cfg->slave_id   = slave_id;
+	cfg->src_addr   = 0;
+	cfg->dst_addr   = 0;
+	cfg->direction  = is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+
+	/*
+	 * gen1 uses default DMA addr
+	 */
+	if (rsnd_is_gen1(priv))
+		return;
+
+	rsnd_gen2_dma_addr(priv, dma, cfg, is_play, slave_id);
+}
+
 
 /*
  *		Gen2

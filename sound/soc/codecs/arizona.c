@@ -243,6 +243,31 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(arizona_init_spk);
 
+static const struct snd_soc_dapm_route arizona_mono_routes[] = {
+	{ "OUT1R", NULL, "OUT1L" },
+	{ "OUT2R", NULL, "OUT2L" },
+	{ "OUT3R", NULL, "OUT3L" },
+	{ "OUT4R", NULL, "OUT4L" },
+	{ "OUT5R", NULL, "OUT5L" },
+	{ "OUT6R", NULL, "OUT6L" },
+};
+
+int arizona_init_mono(struct snd_soc_codec *codec)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+	int i;
+
+	for (i = 0; i < ARIZONA_MAX_OUTPUT; ++i) {
+		if (arizona->pdata.out_mono[i])
+			snd_soc_dapm_add_routes(&codec->dapm,
+						&arizona_mono_routes[i], 1);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_init_mono);
+
 int arizona_init_gpio(struct snd_soc_codec *codec)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);

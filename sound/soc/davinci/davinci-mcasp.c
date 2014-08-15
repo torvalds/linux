@@ -720,6 +720,10 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 
 	case SNDRV_PCM_FORMAT_U24_LE:
 	case SNDRV_PCM_FORMAT_S24_LE:
+		dma_params->data_type = 4;
+		word_length = 24;
+		break;
+
 	case SNDRV_PCM_FORMAT_U32_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		dma_params->data_type = 4;
@@ -1223,14 +1227,22 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		goto err;
 
 	switch (mcasp->version) {
+#if IS_BUILTIN(CONFIG_SND_DAVINCI_SOC) || \
+	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
+	 IS_MODULE(CONFIG_SND_DAVINCI_SOC))
 	case MCASP_VERSION_1:
 	case MCASP_VERSION_2:
 	case MCASP_VERSION_3:
 		ret = davinci_soc_platform_register(&pdev->dev);
 		break;
+#endif
+#if IS_BUILTIN(CONFIG_SND_OMAP_SOC) || \
+	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
+	 IS_MODULE(CONFIG_SND_OMAP_SOC))
 	case MCASP_VERSION_4:
 		ret = omap_pcm_platform_register(&pdev->dev);
 		break;
+#endif
 	default:
 		dev_err(&pdev->dev, "Invalid McASP version: %d\n",
 			mcasp->version);

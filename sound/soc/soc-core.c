@@ -270,12 +270,32 @@ static const struct file_operations codec_reg_fops = {
 	.llseek = default_llseek,
 };
 
+static struct dentry *soc_debugfs_create_dir(struct dentry *parent,
+	const char *fmt, ...)
+{
+	struct dentry *de;
+	va_list ap;
+	char *s;
+
+	va_start(ap, fmt);
+	s = kvasprintf(GFP_KERNEL, fmt, ap);
+	va_end(ap);
+
+	if (!s)
+		return NULL;
+
+	de = debugfs_create_dir(s, parent);
+	kfree(s);
+
+	return de;
+}
+
 static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 {
 	struct dentry *debugfs_card_root = codec->card->debugfs_card_root;
 
-	codec->debugfs_codec_root = debugfs_create_dir(codec->name,
-						       debugfs_card_root);
+	codec->debugfs_codec_root = soc_debugfs_create_dir(debugfs_card_root,
+						"codec:%s", codec->name);
 	if (!codec->debugfs_codec_root) {
 		dev_warn(codec->dev,
 			"ASoC: Failed to create codec debugfs directory\n");
@@ -306,8 +326,8 @@ static void soc_init_platform_debugfs(struct snd_soc_platform *platform)
 {
 	struct dentry *debugfs_card_root = platform->card->debugfs_card_root;
 
-	platform->debugfs_platform_root = debugfs_create_dir(platform->name,
-						       debugfs_card_root);
+	platform->debugfs_platform_root = soc_debugfs_create_dir(debugfs_card_root,
+						"platform:%s", platform->name);
 	if (!platform->debugfs_platform_root) {
 		dev_warn(platform->dev,
 			"ASoC: Failed to create platform debugfs directory\n");

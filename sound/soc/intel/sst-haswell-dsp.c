@@ -359,6 +359,17 @@ static u32 hsw_block_get_bit(struct sst_mem_block *block)
 	return bit;
 }
 
+/*dummy read a SRAM block.*/
+static void sst_mem_block_dummy_read(struct sst_mem_block *block)
+{
+	u32 size;
+	u8 tmp_buf[4];
+	struct sst_dsp *sst = block->dsp;
+
+	size = block->size > 4 ? 4 : block->size;
+	memcpy_fromio(tmp_buf, sst->addr.lpe + block->offset, size);
+}
+
 /* enable 32kB memory block - locks held by caller */
 static int hsw_block_enable(struct sst_mem_block *block)
 {
@@ -378,6 +389,8 @@ static int hsw_block_enable(struct sst_mem_block *block)
 	/* wait 18 DSP clock ticks */
 	udelay(10);
 
+	/*add a dummy read before the SRAM block is written, otherwise the writing may miss bytes sometimes.*/
+	sst_mem_block_dummy_read(block);
 	return 0;
 }
 
