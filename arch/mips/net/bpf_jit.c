@@ -1263,7 +1263,7 @@ jmp_cmp:
 			emit_half_load(r_A, r_skb, off, ctx);
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 			/* This needs little endian fixup */
-			if (cpu_has_mips_r2) {
+			if (cpu_has_wsbh) {
 				/* R2 and later have the wsbh instruction */
 				emit_wsbh(r_A, r_A, ctx);
 			} else {

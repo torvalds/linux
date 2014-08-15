@@ -277,9 +277,12 @@ LEAF(csum_partial)
 #endif
 
 	/* odd buffer alignment? */
-#ifdef CONFIG_CPU_MIPSR2
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_LOONGSON3)
+	.set	push
+	.set	arch=mips32r2
 	wsbh	v1, sum
 	movn	sum, v1, t7
+	.set	pop
 #else
 	beqz	t7, 1f			/* odd buffer alignment? */
 	 lui	v1, 0x00ff
@@ -726,9 +729,12 @@ LEAF(csum_partial)
 	addu	sum, v1
 #endif
 
-#ifdef CONFIG_CPU_MIPSR2
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_LOONGSON3)
+	.set	push
+	.set	arch=mips32r2
 	wsbh	v1, sum
 	movn	sum, v1, odd
+	.set	pop
 #else
 	beqz	odd, 1f			/* odd buffer alignment? */
 	 lui	v1, 0x00ff
