@@ -14,6 +14,8 @@ enum {
         TEST_CMD_DEBUG,
         TEST_CMD_SDIO_WR,
         TEST_CMD_SDIO_RD,
+        TEST_CMD_ATE,
+        TEST_CMD_SDIOTEST,
         TEST_CMD_SDIOSPEED,
         __TEST_CMD_MAX,
 };
@@ -41,6 +43,17 @@ enum {
 u32 get_loopback_num(void);
 u32 get_loopback_id(void);
 void inc_loopback_id(void);
-#endif
+
+void esp_test_ate_done_cb(char *ep);
+
+struct sdiotest_param {
+	atomic_t start;
+	u32 mode; //1: read 2: write 3: read&write
+	u32 addr;
+	u32 idle_period; //in msec
+	struct task_struct *thread;
+};
+
+#endif //__TEST_MODE
 
 

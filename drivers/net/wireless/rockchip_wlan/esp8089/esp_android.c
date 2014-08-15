@@ -224,7 +224,7 @@ struct esp_init_table_elem esp_init_table[MAX_ATTR_NUM] = {
 	{"share_xtal", 		55, -1},
 	{"gpio_wake", 		56, -1},
 	{"no_auto_sleep", 	57, -1},
-	{"attr10", 		-1, -1},
+	{"speed_suspend", 	58, -1},
 	{"attr11", 		-1, -1},
 	{"attr12", 		-1, -1},
 	{"attr13", 		-1, -1},
@@ -233,7 +233,7 @@ struct esp_init_table_elem esp_init_table[MAX_ATTR_NUM] = {
 	//attr that is not send to target
 	{"ext_rst",              -1, -1},
 	{"wakeup_gpio",         -1, -1},
-        {"attr18",              -1, -1},
+	{"ate_test",              -1, -1},
         {"attr19",              -1, -1},
         {"attr20",              -1, -1},
         {"attr21",              -1, -1},
@@ -335,12 +335,14 @@ int android_request_init_conf(void)
 			}
 
 			for (i = 0; i < MAX_ATTR_NUM; i++) {
-				if (esp_init_table[i].value > -1)
-					continue;
 				if (strcmp(esp_init_table[i].attr, attr_name) == 0) {
 					esp_dbg(ESP_DBG_TRACE, "%s: attr_name[%s]", __FUNCTION__, attr_name); /* add by th */
 					esp_init_table[i].value = value;
 				}
+
+				if (esp_init_table[i].value < 0)
+					continue;
+
 				if(strcmp(esp_init_table[i].attr, "share_xtal") == 0){
 					sif_record_bt_config(esp_init_table[i].value);
 				}
@@ -352,6 +354,11 @@ int android_request_init_conf(void)
 				if(strcmp(esp_init_table[i].attr, "wakeup_gpio") == 0){
 					sif_record_wakeup_gpio_config(esp_init_table[i].value);
 				}
+
+                if(strcmp(esp_init_table[i].attr, "ate_test") == 0){
+					sif_record_ate_config(esp_init_table[i].value);
+				}
+
 			}
 			str_len = 0;
 			continue;

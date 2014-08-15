@@ -117,7 +117,8 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
 		break;
         }
 	case SIP_EVT_RESETTING:{
-		if (gl_bootup_cplx)	
+        sip->epub->wait_reset = 1;                       
+        if (gl_bootup_cplx)	
 			complete(gl_bootup_cplx);
 		break;
 	}
@@ -264,6 +265,26 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
 #endif
                 break;
         }
+
+	    case SIP_EVT_EP: {
+				 char *ep = (char *)(buf + SIP_CTRL_HDR_LEN);
+				 static int counter = 0;
+				 
+				 esp_dbg(ESP_ATE, "%s EVT_EP \n\n", __func__);
+				 if (counter++ < 2) {
+					 esp_dbg(ESP_ATE, "ATE: %s \n", ep);
+				 }
+
+				 esp_test_ate_done_cb(ep);
+
+				 break;
+			 }
+	case SIP_EVT_INIT_EP: {
+				 char *ep = (char *)(buf + SIP_CTRL_HDR_LEN);
+				 esp_dbg(ESP_ATE, "Phy Init: %s \n", ep);
+				 break;
+			      }
+
 	case SIP_EVT_NOISEFLOOR:{
 				        struct sip_evt_noisefloor *ep = (struct sip_evt_noisefloor *)(buf + SIP_CTRL_HDR_LEN);	                                      
 					atomic_set(&sip->noise_floor, ep->noise_floor);
@@ -374,6 +395,7 @@ int  sip_send_bss_info_update(struct esp_pub *epub, struct esp_vif *evif, u8 *bs
         }
 		bsscmd->bssid_no = evif->index;
 		bsscmd->isassoc= assoc;
+		bsscmd->beacon_int = evif->beacon_interval;
         memcpy(bsscmd->bssid, bssid, ETH_ALEN);
         return sip_cmd_enqueue(epub->sip, skb);
 }
@@ -447,7 +469,7 @@ int sip_send_scan(struct esp_pub *epub)
         int i;
 	u8 append_len, ssid_len;
 
-        ASSERT(scan_req != NULL);
+        ESSERT(scan_req != NULL);
         ssid_len = scan_req->n_ssids == 0 ? 0:
                 (scan_req->n_ssids == 1 ? scan_req->ssids->ssid_len: scan_req->ssids->ssid_len + (scan_req->ssids + 1)->ssid_len);
         append_len = ssid_len + scan_req->n_channels + scan_req->ie_len;
@@ -529,18 +551,6 @@ int sip_send_ps_config(struct esp_pub *epub, struct esp_ps *ps)
 
         pscmd->dtim_period = ps->dtim_period;
         pscmd->max_sleep_period = ps->max_sleep_period;
-#if 0
-        if (atomic_read(&ps->state) == ESP_PM_TURNING_ON) {
-                pscmd->on = 1;
-                SIP_HDR_SET_PM_TURNING_ON(shdr);
-        } else if (atomic_read(&ps->state) == ESP_PM_TURNING_OFF) {
-                pscmd->on = 0;
-                SIP_HDR_SET_PM_TURNING_OFF(shdr);
-        } else {
-                esp_dbg(ESP_DBG_ERROR, "%s PM WRONG STATE %d\n", __func__, atomic_read(&ps->state));
-                ASSERT(0);
-        }
-#endif
 
         return sip_cmd_enqueue(epub->sip, skb);
 }

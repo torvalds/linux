@@ -72,6 +72,10 @@ int esp_pub_init_all(struct esp_pub *epub)
 	atomic_set(&epub->ps.state, ESP_PM_OFF);
 	if(epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT){
 		epub->sip = sip_attach(epub);
+		if (epub->sip == NULL) {
+			printk(KERN_ERR "%s sip alloc failed\n", __func__);
+			return -ENOMEM;
+		}
 
 		esp_dump_var("esp_msg_level", NULL, &esp_msg_level, ESP_U32);
 
@@ -85,11 +89,33 @@ int esp_pub_init_all(struct esp_pub *epub)
 	} else {
 		atomic_set(&epub->sip->state, SIP_PREPARE_BOOT);
 		atomic_set(&epub->sip->tx_credits, 0);
-	}
+    }
+
+#ifdef TEST_MODE
+    if(sif_get_ate_config() != 0 &&  sif_get_ate_config() != 1 && sif_get_ate_config() !=6 )
+    {
+        esp_test_init(epub);
+        return -1;
+    }
+#endif
 
 #ifndef FPGA_DEBUG
         ret = esp_download_fw(epub);
-
+#ifdef ESP_USE_SPI
+	if(sif_get_ate_config() != 1)
+        	epub->enable_int = 1;
+#endif  
+#ifdef TEST_MODE
+        if(sif_get_ate_config() == 6)
+        {
+            sif_enable_irq(epub);
+            mdelay(500);
+            sif_disable_irq(epub);
+            mdelay(1000);
+            esp_test_init(epub);
+            return -1;
+        }
+#endif
         if (ret) {
                 esp_dbg(ESP_DBG_ERROR, "download firmware failed\n");
                 return ret;
@@ -104,16 +130,25 @@ int esp_pub_init_all(struct esp_pub *epub)
 #endif /* FPGA_DEBUG */
 
 	gl_bootup_cplx = &complete;
-
+    epub->wait_reset = 0;
 	sif_enable_irq(epub);
 	
-	if(epub->sdio_state == ESP_SDIO_STATE_SECOND_INIT){
+	if(epub->sdio_state == ESP_SDIO_STATE_SECOND_INIT || sif_get_ate_config() == 1){
 		ret = sip_poll_bootup_event(epub->sip);
 	} else {
 		ret = sip_poll_resetting_event(epub->sip);
+        if (ret == 0) {
+            sif_lock_bus(epub);
+            sif_interrupt_target(epub, 7);
+            sif_unlock_bus(epub);
+        }
+		
 	}
 
 	gl_bootup_cplx = NULL;
+
+	if (sif_get_ate_config() == 1)
+		ret = -EOPNOTSUPP;
 
         return ret;
 }
@@ -213,8 +248,12 @@ char * esp_fw_name = epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT ? ESP_FW_NAME
 
 #include "eagle_fw1.h"
 #include "eagle_fw2.h"
-        fw_buf = epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT ? &eagle_fw1[0] : &eagle_fw2[0];
-
+#include "eagle_fw3.h"
+        if(sif_get_ate_config() == 1){
+            fw_buf =  &eagle_fw3[0];
+        } else {
+            fw_buf = epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT ? &eagle_fw1[0] : &eagle_fw2[0];
+        }
 #endif /* HAS_FW */
 
         fhdr = (struct esp_fw_hdr *)fw_buf;

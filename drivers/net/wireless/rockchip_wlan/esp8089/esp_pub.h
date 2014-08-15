@@ -208,6 +208,8 @@ struct esp_pub {
 	struct esp_node * rxampdu_node[ESP_PUB_MAX_RXAMPDU];
 	u8 rxampdu_tid[ESP_PUB_MAX_RXAMPDU];
 	struct esp_ps ps;
+    int enable_int;
+    int wait_reset;
 };
 
 typedef struct esp_pub esp_pub_t;
@@ -241,5 +243,6 @@ int esp_get_exist_rxampdu(struct esp_pub * epub, const u8 *addr, u8 tid);
 int test_init_netlink(struct esp_sip *sip);
 void test_exit_netlink(void);
 void esp_test_cmd_event(u32 cmd_type, char *reply_info);
+void esp_test_init(struct esp_pub *epub);
 #endif
 #endif /* _ESP_PUB_H_ */

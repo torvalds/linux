@@ -67,15 +67,19 @@ esp_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
 				struct ieee80211_sta *sta = tx_info->control.sta;
 				struct esp_node * node = (struct esp_node *)sta->drv_priv;
+				if(sta->ht_cap.ht_supported)
 #else
 				struct esp_node * node = esp_get_node_by_addr(epub, wh->addr1);
+				if(node->ht_info.ht_supported)
 #endif
-				struct esp_tx_tid *tid = &node->tid[tidno];
-				//record ssn
-				spin_lock_bh(&epub->tx_ampdu_lock);
-				tid->ssn = GET_NEXT_SEQ(le16_to_cpu(wh->seq_ctrl)>>4);
-				ESP_IEEE80211_DBG(ESP_DBG_TRACE, "tidno:%u,ssn:%u\n", tidno, tid->ssn);
-				spin_unlock_bh(&epub->tx_ampdu_lock);
+				{
+					struct esp_tx_tid *tid = &node->tid[tidno];
+					//record ssn
+					spin_lock_bh(&epub->tx_ampdu_lock);
+					tid->ssn = GET_NEXT_SEQ(le16_to_cpu(wh->seq_ctrl)>>4);
+					ESP_IEEE80211_DBG(ESP_DBG_TRACE, "tidno:%u,ssn:%u\n", tidno, tid->ssn);
+					spin_unlock_bh(&epub->tx_ampdu_lock);
+				}
 			} else {
 				ESP_IEEE80211_DBG(ESP_DBG_TRACE, "tx ampdu pkt, sn:%u, %u\n", le16_to_cpu(wh->seq_ctrl)>>4, skb->len);
 			}
@@ -557,10 +561,12 @@ static void esp_op_bss_info_changed(struct ieee80211_hw *hw,
 				((changed & BSS_CHANGED_ASSOC) && (info->assoc)))
 		{
 			ESP_IEEE80211_DBG(ESP_DBG_TRACE, " %s STA change bssid or assoc\n", __func__);
+			evif->beacon_interval = info->aid;
 			memcpy(epub->wl.bssid, (u8*)info->bssid, ETH_ALEN);
 			sip_send_bss_info_update(epub, evif, (u8*)info->bssid, info->assoc);
 		} else if ((changed & BSS_CHANGED_ASSOC) && (!info->assoc)) {
 			ESP_IEEE80211_DBG(ESP_DBG_TRACE, " %s STA change disassoc\n", __func__);
+			evif->beacon_interval = 0;
 			memset(epub->wl.bssid, 0, ETH_ALEN);
 			sip_send_bss_info_update(epub, evif, (u8*)info->bssid, info->assoc);
 		} else {
@@ -815,7 +821,7 @@ void hw_scan_done(struct esp_pub *epub, bool aborted)
 {
         cancel_delayed_work_sync(&epub->scan_timeout_work);
 
-        ASSERT(epub->wl.scan_req != NULL);
+        ESSERT(epub->wl.scan_req != NULL);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
         ieee80211_scan_completed(epub->hw, aborted);
@@ -1415,8 +1421,12 @@ void esp_op_flush(struct ieee80211_hw *hw, bool drop)
 			if(!time_before(jiffies, time)){
 				break;
 			}
-#if  !defined(FPGA_LOOPBACK) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
-            ieee80211_queue_work(epub->hw, &epub->tx_work);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
+            if(sif_get_ate_config() == 0){
+                ieee80211_queue_work(epub->hw, &epub->tx_work);
+            } else {
+                queue_work(epub->esp_wkq, &epub->tx_work);
+            }
 #else
             queue_work(epub->esp_wkq, &epub->tx_work);
 #endif
@@ -1469,11 +1479,17 @@ static int esp_op_ampdu_action(struct ieee80211_hw *hw,
         case IEEE80211_AMPDU_TX_START:
                 if (mod_support_no_txampdu() ||
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
-                	cfg80211_get_chandef_type(&epub->hw->conf.chandef) != NL80211_CHAN_NO_HT
+                	cfg80211_get_chandef_type(&epub->hw->conf.chandef) == NL80211_CHAN_NO_HT
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
                         hw->conf.channel_type == NL80211_CHAN_NO_HT
 #else
                         !(hw->conf.flags&IEEE80211_CONF_SUPPORT_HT_MODE)
+#endif
+			||
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+                        !sta->ht_cap.ht_supported
+#else
+                        !node->ht_info.ht_supported
 #endif
                             )
                         return ret;
@@ -1488,7 +1504,7 @@ static int esp_op_ampdu_action(struct ieee80211_hw *hw,
 #endif
                 spin_lock_bh(&epub->tx_ampdu_lock);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))                
-                ASSERT(tid_info->state == ESP_TID_STATE_TRIGGER);
+                ESSERT(tid_info->state == ESP_TID_STATE_TRIGGER);
                 *ssn = tid_info->ssn;
                 tid_info->state = ESP_TID_STATE_PROGRESS;
 #endif
@@ -1512,7 +1528,7 @@ static int esp_op_ampdu_action(struct ieee80211_hw *hw,
                                 spin_unlock_bh(&epub->tx_ampdu_lock);
 				                return -ENETRESET;
                         } else {
-				                ASSERT(0);
+				                ESSERT(0);
                         }
                 }
 			
@@ -1577,7 +1593,7 @@ static int esp_op_ampdu_action(struct ieee80211_hw *hw,
                                 spin_unlock_bh(&epub->tx_ampdu_lock);
 				                return -ENETRESET;
                         } else {
-				                ASSERT(0);
+				                ESSERT(0);
                         }
                 }
 			
@@ -1589,11 +1605,17 @@ static int esp_op_ampdu_action(struct ieee80211_hw *hw,
         case IEEE80211_AMPDU_RX_START:
                 if(mod_support_no_rxampdu() ||
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
-                	cfg80211_get_chandef_type(&epub->hw->conf.chandef) != NL80211_CHAN_NO_HT
+                	cfg80211_get_chandef_type(&epub->hw->conf.chandef) == NL80211_CHAN_NO_HT
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
                         hw->conf.channel_type == NL80211_CHAN_NO_HT
 #else
                         !(hw->conf.flags&IEEE80211_CONF_SUPPORT_HT_MODE)
+#endif
+			||
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+                        !sta->ht_cap.ht_supported
+#else
+                        !node->ht_info.ht_supported
 #endif
                         )
                         return ret;
@@ -1768,9 +1790,10 @@ struct esp_pub * esp_pub_alloc_mac80211(struct device *dev)
                 ret = -ENOMEM;
                 return ERR_PTR(ret);
         }
-        #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)) 
-	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
-	#endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+        hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+#endif
+
         epub = hw->priv;
         memset(epub, 0, sizeof(*epub));
         epub->hw = hw;

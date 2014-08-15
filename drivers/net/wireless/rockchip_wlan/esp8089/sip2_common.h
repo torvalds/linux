@@ -17,7 +17,7 @@
 typedef enum {
         SIP_CTRL = 0,
         SIP_DATA,
-        SIP_DATA_AMPDU,
+        SIP_DATA_AMPDU
 } SIP_TYPE;
 
 typedef enum {
@@ -54,8 +54,9 @@ enum sip_cmd_id {
         SIP_CMD_SETVIF,
         SIP_CMD_SETSTA,
         SIP_CMD_PS,
-	SIP_CMD_SUSPEND,
-        SIP_CMD_MAX
+        SIP_CMD_ATE,
+        SIP_CMD_SUSPEND,
+        SIP_CMD_MAX,
 };
 
 enum {
@@ -75,10 +76,13 @@ enum {
         SIP_EVT_DEBUG,//12          /* for general testing */
         SIP_EVT_PRINT_TO_HOST, //13
         SIP_EVT_TRC_AMPDU, //14
-	SIP_EVT_ROC,              //15
-	SIP_EVT_RESETTING,
-	SIP_EVT_SLEEP,
-	SIP_EVT_TXIDLE,
+        SIP_EVT_ROC,              //15
+        SIP_EVT_RESETTING,
+        SIP_EVT_ATE,
+        SIP_EVT_EP,
+        SIP_EVT_INIT_EP,
+        SIP_EVT_SLEEP,
+        SIP_EVT_TXIDLE,
         SIP_EVT_NOISEFLOOR,
         SIP_EVT_MAX
 };
@@ -452,6 +456,13 @@ struct sip_evt_debug {
         u32    results[8];
         u16    pad;
 } __packed;
+
+struct sip_cmd_ate {
+        //u8  len;
+	u8  cmdstr[0];
+} __packed;
+
+
 
 #endif  //ifdef TEST_MODE
 

@@ -111,6 +111,20 @@ typedef struct esp_spi_ctrl {
 } esp_spi_ctrl_t;
 #endif
 
+#ifdef ESP_USE_SPI
+struct esp_spi_resp {
+    u32 max_dataW_resp_size;
+    u32 max_dataR_resp_size;
+    u32 max_block_dataW_resp_size;
+    u32 max_block_dataR_resp_size;
+    u32 max_cmd_resp_size;
+    u32 data_resp_size_w;
+    u32 data_resp_size_r;
+    u32 block_w_data_resp_size_final;
+    u32 block_r_data_resp_size_final;
+};
+#endif
+
 #define SIF_TO_DEVICE                    0x1
 #define SIF_FROM_DEVICE                    0x2
 
@@ -124,15 +138,30 @@ typedef struct esp_spi_ctrl {
 #define SIF_INC_ADDR     0x00000200
 
 #ifdef ESP_USE_SDIO
-#define EPUB_CTRL_CHECK(_epub) do{\
-ASSERT((_epub) != NULL);\
-ASSERT((_epub)->sif != NULL);\
+#define EPUB_CTRL_CHECK(_epub, _go_err) do{\
+	if (_epub == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
+	if ((_epub)->sif == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
 }while(0)
 
-#define EPUB_FUNC_CHECK(_epub) do{\
-ASSERT((_epub) != NULL);\
-ASSERT((_epub)->sif != NULL);\
-ASSERT(((struct esp_sdio_ctrl *)(_epub)->sif)->func != NULL);\
+#define EPUB_FUNC_CHECK(_epub, _go_err) do{\
+	if (_epub == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
+	if ((_epub)->sif == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
+	if (((struct esp_sdio_ctrl *)(_epub)->sif)->func == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
 }while(0)
 
 #define EPUB_TO_CTRL(_epub) (((struct esp_sdio_ctrl *)(_epub)->sif))
@@ -142,15 +171,30 @@ ASSERT(((struct esp_sdio_ctrl *)(_epub)->sif)->func != NULL);\
 
 
 #ifdef ESP_USE_SPI
-#define EPUB_CTRL_CHECK(_epub) do{\
-ASSERT((_epub) != NULL);\
-ASSERT((_epub)->sif != NULL);\
+#define EPUB_CTRL_CHECK(_epub, _go_err) do{\
+	if (_epub == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
+	if ((_epub)->sif == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
 }while(0)
 
-#define EPUB_FUNC_CHECK(_epub) do{\
-ASSERT((_epub) != NULL);\
-ASSERT((_epub)->sif != NULL);\
-ASSERT(((struct esp_spi_ctrl *)(_epub)->sif)->spi != NULL);\
+#define EPUB_FUNC_CHECK(_epub, _go_err) do{\
+	if (_epub == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
+	if ((_epub)->sif == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
+	if (((struct esp_spi_ctrl *)(_epub)->sif)->spi == NULL) {\
+		ESSERT(0);\
+		goto _go_err;\
+	}\
 }while(0)
 
 #define EPUB_TO_CTRL(_epub) (((struct esp_spi_ctrl *)(_epub)->sif))
@@ -192,9 +236,9 @@ void sif_platform_check_r1_ready(struct esp_pub *epub);
 #endif 
 
 #ifdef ESP_USE_SPI
-enum if_check_idle {
-	NOT_CHECK_IDLE = 0,
-	CHECK_IDLE,
+enum if_dummymode {
+	NOT_DUMMYMODE = 0,
+	DUMMYMODE,
 };
 
 #ifdef REGISTER_SPI_BOARD_INFO
@@ -202,17 +246,17 @@ void sif_platform_register_board_info(void);
 #endif
 
 void sif_dsr(struct spi_device *spi);
-int sif_spi_read_mix_nosync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int check_idle);
-int sif_spi_epub_read_mix_sync(struct esp_pub *epub, unsigned int addr,unsigned char *buf, int len, int check_idle);
-int sif_spi_epub_read_mix_nosync(struct esp_pub *epub, unsigned int addr,unsigned char *buf, int len, int check_idle);
-int sif_spi_read_sync(struct esp_pub *epub, unsigned char *buf, int len, int check_idle);
-int sif_spi_read_nosync(struct esp_pub *epub, unsigned char *buf, int len, int check_idle, bool noround);
+int sif_spi_read_mix_nosync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode,int reg_window);
+int sif_spi_epub_read_mix_sync(struct esp_pub *epub, unsigned int addr,unsigned char *buf, int len, int dummymode,int reg_window);
+int sif_spi_epub_read_mix_nosync(struct esp_pub *epub, unsigned int addr,unsigned char *buf, int len, int dummymode,int reg_window);
+int sif_spi_read_sync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode,int reg_window);
+int sif_spi_read_nosync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode, bool noround,int reg_window);
 
-int sif_spi_write_mix_nosync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int check_idle);
-int sif_spi_epub_write_mix_sync(struct esp_pub *epub, unsigned int addr,unsigned char *buf, int len, int check_idle);
-int sif_spi_epub_write_mix_nosync(struct esp_pub *epub, unsigned int addr,unsigned char *buf, int len, int check_idle);
-int sif_spi_write_sync(struct esp_pub *epub, unsigned char *buf, int len, int check_idle);
-int sif_spi_write_nosync(struct esp_pub *epub, unsigned char *buf, int len, int check_idle);
+int sif_spi_write_mix_nosync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode,int reg_window);
+int sif_spi_epub_write_mix_sync(struct esp_pub *epub, unsigned int addr,unsigned char *buf, int len, int dummymode,int reg_window);
+int sif_spi_epub_write_mix_nosync(struct esp_pub *epub, unsigned int addr,unsigned char *buf, int len, int dummymode,int reg_window);
+int sif_spi_write_sync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode,int reg_window);
+int sif_spi_write_nosync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode,int reg_window);
 
 int sif_platform_get_irq_no(void);
 int sif_platform_is_irq_occur(void);
@@ -220,6 +264,12 @@ void sif_platform_irq_clear(void);
 void sif_platform_irq_mask(int enable_mask);
 int sif_platform_irq_init(void);
 void sif_platform_irq_deinit(void);
+#endif
+
+#ifdef ESP_USE_SPI
+int sif_spi_write_bytes(struct spi_device *spi, unsigned int addr,unsigned char *dst, int count, int check_idle);
+int sif_spi_read_bytes(struct spi_device *spi, unsigned int addr,unsigned char *dst, int count, int check_idle);
+struct esp_spi_resp *sif_get_spi_resp(void);
 #endif
 
 int esp_common_read(struct esp_pub *epub, u8 *buf, u32 len, int sync, bool noround);
@@ -250,13 +300,15 @@ int sif_get_gpio_intr(struct esp_pub *epub, u16 intr_mask, u16 *value);
 int sif_get_gpio_input(struct esp_pub *epub, u16 *mask, u16 *value);
 #endif
 
-void sif_raw_dummy_read(struct esp_pub *epub);
+void sif_raw_dummy_read(struct esp_pub *epub,int ext_gpio);
 void check_target_id(struct esp_pub *epub);
 
 void sif_record_bt_config(int value);
 int sif_get_bt_config(void);
 void sif_record_rst_config(int value);
 int sif_get_rst_config(void);
+void sif_record_ate_config(int value);
+int sif_get_ate_config(void);
 void sif_record_retry_config(void);
 int sif_get_retry_config(void);
 void sif_record_wakeup_gpio_config(int value);
