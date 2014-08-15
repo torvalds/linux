@@ -436,10 +436,19 @@ EXPORT_SYMBOL(rockchip_wifi_power);
  *
  *************************************************************************/
 #include <linux/mmc/host.h>
-extern int mmc_host_rescan(struct mmc_host *host, int val);
+extern int mmc_host_rescan(struct mmc_host *host, int val, int irq_type);
 int rockchip_wifi_set_carddetect(int val)
 {
-    return mmc_host_rescan(NULL, val);//NULL => SDIO host
+	int chip, irq_type;
+	chip = get_wifi_chip_type();
+
+	/*  irq_type : 0, oob; 1, cap-sdio-irq */
+	if (chip == WIFI_ESP8089)
+		irq_type = 1;
+	else
+		irq_type = 0;
+
+	return mmc_host_rescan(NULL, val, irq_type);//NULL => SDIO host
 }
 EXPORT_SYMBOL(rockchip_wifi_set_carddetect);
 

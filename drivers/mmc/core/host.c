@@ -604,25 +604,34 @@ EXPORT_SYMBOL(mmc_free_host);
  *  OR, rescan host from argument.
  *
  */
-int mmc_host_rescan(struct mmc_host *host, int val)
+int mmc_host_rescan(struct mmc_host *host, int val, int is_cap_sdio_irq)
 {
-    if(NULL != primary_sdio_host){
-        if(!host)
-            host = primary_sdio_host;
-        else 
-            printk("%s: mmc_host_rescan pass in host from argument!\n", mmc_hostname(host));
-    }
-    else{
-        printk("sdio: host isn't  initialization successfully.\n");                    
-        return -ENOMEDIUM;
-    }
+	if (NULL != primary_sdio_host) {
+		if(!host)
+			host = primary_sdio_host;
+		else
+			printk("%s: mmc_host_rescan pass in host from argument!\n", mmc_hostname(host));
+	} else {
+		printk("sdio: host isn't  initialization successfully.\n");
+		return -ENOMEDIUM;
+	}
 
-    printk("%s:mmc host rescan start!\n", mmc_hostname(host));
+	printk("%s:mmc host rescan start!\n", mmc_hostname(host));
 
-    if (!(host->caps & MMC_CAP_NONREMOVABLE) && host->ops->set_sdio_status)
+	/*  0: oob  1:cap-sdio-irq */
+	if (is_cap_sdio_irq == 1) { 
+		host->caps |= MMC_CAP_SDIO_IRQ;
+	} else if (is_cap_sdio_irq == 0) {
+		host->caps &= ~MMC_CAP_SDIO_IRQ;
+	} else {
+		dev_err(&host->class_dev, "sdio: host doesn't identify oob or sdio_irq mode!\n");
+		return -ENOMEDIUM;
+	}
+
+	if (!(host->caps & MMC_CAP_NONREMOVABLE) && host->ops->set_sdio_status)
 		host->ops->set_sdio_status(host, val);
 	
-    return 0;
+	return 0;
 }
 EXPORT_SYMBOL(mmc_host_rescan);
 
