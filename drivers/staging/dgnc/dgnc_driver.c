@@ -96,8 +96,6 @@ int			dgnc_poll_tick = 20;	/* Poll interval - 20 ms */
 /*
  * Static vars.
  */
-static uint		dgnc_Major_Control_Registered = FALSE;
-
 static struct class *dgnc_class;
 
 /*
@@ -197,11 +195,9 @@ static void dgnc_cleanup_module(void)
 
 	dgnc_remove_driver_sysfiles(&dgnc_driver);
 
-	if (dgnc_Major_Control_Registered) {
-		device_destroy(dgnc_class, MKDEV(dgnc_Major, 0));
-		class_destroy(dgnc_class);
-		unregister_chrdev(dgnc_Major, "dgnc");
-	}
+	device_destroy(dgnc_class, MKDEV(dgnc_Major, 0));
+	class_destroy(dgnc_class);
+	unregister_chrdev(dgnc_Major, "dgnc");
 
 	for (i = 0; i < dgnc_NumBoards; ++i) {
 		dgnc_remove_ports_sysfiles(dgnc_Board[i]);
@@ -278,24 +274,20 @@ static int dgnc_start(void)
 	 * Register our base character device into the kernel.
 	 * This allows the download daemon to connect to the downld device
 	 * before any of the boards are init'ed.
+	 *
+	 * Register management/dpa devices
 	 */
-	if (!dgnc_Major_Control_Registered) {
-		/*
-		 * Register management/dpa devices
-		 */
-		rc = register_chrdev(0, "dgnc", &dgnc_BoardFops);
-		if (rc <= 0) {
-			APR(("Can't register dgnc driver device (%d)\n", rc));
-			return -ENXIO;
-		}
-		dgnc_Major = rc;
-
-		dgnc_class = class_create(THIS_MODULE, "dgnc_mgmt");
-		device_create(dgnc_class, NULL,
-			MKDEV(dgnc_Major, 0),
-			NULL, "dgnc_mgmt");
-		dgnc_Major_Control_Registered = TRUE;
+	rc = register_chrdev(0, "dgnc", &dgnc_BoardFops);
+	if (rc <= 0) {
+		APR(("Can't register dgnc driver device (%d)\n", rc));
+		return -ENXIO;
 	}
+	dgnc_Major = rc;
+
+	dgnc_class = class_create(THIS_MODULE, "dgnc_mgmt");
+	device_create(dgnc_class, NULL,
+		MKDEV(dgnc_Major, 0),
+		NULL, "dgnc_mgmt");
 
 	/*
 	 * Init any global tty stuff.
