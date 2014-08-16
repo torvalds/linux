@@ -29,7 +29,7 @@
 struct drm_modeset_lock;
 
 /**
- * drm_modeset_acquire_ctx - locking context (see ww_acquire_ctx)
+ * struct drm_modeset_acquire_ctx - locking context (see ww_acquire_ctx)
  * @ww_ctx: base acquire ctx
  * @contended: used internally for -EDEADLK handling
  * @locked: list of held locks
@@ -61,7 +61,7 @@ struct drm_modeset_acquire_ctx {
 };
 
 /**
- * drm_modeset_lock - used for locking modeset resources.
+ * struct drm_modeset_lock - used for locking modeset resources.
  * @mutex: resource locking
  * @head: used to hold it's place on state->locked list when
  *    part of an atomic update
