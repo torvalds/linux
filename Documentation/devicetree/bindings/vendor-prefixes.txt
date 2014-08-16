@@ -48,6 +48,7 @@ epfl	Ecole Polytechnique Fédérale de Lausanne
 epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
 eukrea  Eukréa Electromatique
+everest	Everest Semiconductor Co. Ltd.
 excito	Excito
 fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
