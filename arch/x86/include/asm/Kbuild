@@ -7,6 +7,5 @@ genhdr-y += unistd_x32.h
 generic-y += clkdev.h
 generic-y += cputime.h
 generic-y += early_ioremap.h
-generic-y += irq_work.h
 generic-y += mcs_spinlock.h
 generic-y += scatterlist.h
