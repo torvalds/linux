@@ -314,9 +314,8 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
 		if (!isspace(str[n-1]))
 			break;
 	matched = n;
-
-	if ((t = sscanf(str, "%i%n", &m, &matched)) >= 1 &&
-	    matched == n) {
+	t = sscanf(str, "%i%n", &m, &matched);
+	if (t >= 1 && matched == n) {
 		/* don't print warning for lctl set_param debug=0 or -1 */
 		if (m != 0 && m != -1)
 			CWARN("You are trying to use a numerical value for the "
