@@ -133,16 +133,8 @@ irqreturn_t xillybus_isr(int irq, void *data)
 	unsigned int msg_channel, msg_bufno, msg_data, msg_dir;
 	struct xilly_channel *channel;
 
-	/*
-	 * The endpoint structure is altered during periods when it's
-	 * guaranteed no interrupt will occur, but in theory, the cache
-	 * lines may not be updated. So a memory barrier is issued.
-	 */
-	smp_rmb();
-
 	buf = ep->msgbuf_addr;
 	buf_size = ep->msg_buf_size/sizeof(u32);
-
 
 	ep->ephw->hw_sync_sgl_for_cpu(ep,
 				      ep->msgbuf_dma_addr,
