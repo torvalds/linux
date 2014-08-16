@@ -343,7 +343,7 @@ void libcfs_debug_dumplog_internal(void *arg)
 		snprintf(debug_file_name, sizeof(debug_file_name) - 1,
 			 "%s.%ld.%ld", libcfs_debug_file_path_arr,
 			 get_seconds(), (long_ptr_t)arg);
-		printk(KERN_ALERT "LustreError: dumping log to %s\n",
+		pr_alert("LustreError: dumping log to %s\n",
 		       debug_file_name);
 		cfs_tracefile_dump_all_pages(debug_file_name);
 		libcfs_run_debug_log_upcall(debug_file_name);
@@ -375,7 +375,7 @@ void libcfs_debug_dumplog(void)
 			     (void *)(long)current_pid(),
 			     "libcfs_debug_dumper");
 	if (IS_ERR(dumper))
-		printk(KERN_ERR "LustreError: cannot start log dump thread:"
+		pr_err("LustreError: cannot start log dump thread:"
 		       " %ld\n", PTR_ERR(dumper));
 	else
 		schedule();
@@ -452,7 +452,7 @@ int libcfs_debug_mark_buffer(const char *text)
 
 void libcfs_debug_set_level(unsigned int debug_level)
 {
-	printk(KERN_WARNING "Lustre: Setting portals debug level to %08x\n",
+	pr_warn("Lustre: Setting portals debug level to %08x\n",
 	       debug_level);
 	libcfs_debug = debug_level;
 }
