@@ -49,6 +49,7 @@ static DEFINE_SPINLOCK(lock);
 
 #define SUPPORT_VCODEC_NUM  1
 static int inited_vcodec_num = 0;
+static int poweron_clock_level = 0;
 static unsigned int debug_trace_num = 16*20;
 static struct platform_device *vdec_device = NULL;
 static struct platform_device *vdec_core_device = NULL;
@@ -152,7 +153,13 @@ void vdec_poweron(vdec_type_t core)
         WRITE_VREG(DOS_SW_RESET0, 0xfffffffc);
         WRITE_VREG(DOS_SW_RESET0, 0);
         // enable vdec1 clock
-        vdec_clock_enable();
+        /*add power on vdec clock level setting,only for m8 chip,
+         m8baby and m8m2 can dynamic adjust vdec clock,power on with default clock level*/
+        if(poweron_clock_level == 1 && IS_MESON_M8_CPU) { 
+            vdec_clock_hi_enable();            
+        } else {
+            vdec_clock_enable();
+        }
         // power up vdec memories
         WRITE_VREG(DOS_MEM_PD_VDEC, 0);
         // remove vdec1 isolation
@@ -595,6 +602,24 @@ static ssize_t clock_level_show(struct class *class, struct class_attribute *att
 
     return (pbuf - buf);
 }
+static ssize_t store_poweron_clock_level(struct class *class, struct class_attribute *attr, const char *buf, size_t size)
+
+{
+    unsigned val;
+    ssize_t ret;
+    int i;
+
+    ret = sscanf(buf, "%d", &val);     
+    if(ret != 1 ) {
+        return -EINVAL;
+    }  
+    poweron_clock_level = val;
+    return size;
+}
+static ssize_t show_poweron_clock_level(struct class *class, struct class_attribute *attr, char *buf)
+{
+    return sprintf(buf, "%d\n", poweron_clock_level);;
+}
 #endif
 
 static struct class_attribute vdec_class_attrs[] = {
@@ -602,6 +627,7 @@ static struct class_attribute vdec_class_attrs[] = {
 	__ATTR_RO(dump_trace),
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
     __ATTR_RO(clock_level),
+    __ATTR(poweron_clock_level, S_IRUGO | S_IWUSR | S_IWGRP, show_poweron_clock_level, store_poweron_clock_level),    
 #endif
     __ATTR_NULL
 };
