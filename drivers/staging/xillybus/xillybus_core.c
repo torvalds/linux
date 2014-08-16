@@ -2061,8 +2061,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	if (rc)
 		goto failed_idt;
 
-	smp_wmb();
-
 	rc = xilly_obtain_idt(endpoint);
 
 	if (rc)
@@ -2085,8 +2083,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 
 	if (rc)
 		goto failed_idt;
-
-	smp_wmb(); /* mutex_lock below should suffice, but won't hurt.*/
 
 	/*
 	 * endpoint is now completely configured. We put it on the list
