@@ -97,7 +97,6 @@ int			dgnc_poll_tick = 20;	/* Poll interval - 20 ms */
  * Static vars.
  */
 static uint		dgnc_Major_Control_Registered = FALSE;
-static uint		dgnc_driver_start = FALSE;
 
 static struct class *dgnc_class;
 
@@ -269,10 +268,6 @@ static int dgnc_start(void)
 {
 	int rc = 0;
 	unsigned long flags;
-
-	if (dgnc_driver_start == TRUE)
-		return rc;
-	dgnc_driver_start = TRUE;
 
 	/* make sure that the globals are init'd before we do anything else */
 	dgnc_init_globals();
