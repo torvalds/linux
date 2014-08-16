@@ -908,8 +908,6 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 					   channel->endpoint->registers +
 					   fpga_buf_ctrl_reg);
 
-				mmiowb(); /* Just to appear safe */
-
 				mutex_unlock(&channel->endpoint->
 					     register_mutex);
 			}
@@ -1118,7 +1116,6 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 			   (2 << 24) |  /* Opcode 2, submit buffer */
 			   (bufidx << 12),
 			   channel->endpoint->registers + fpga_buf_ctrl_reg);
-		mmiowb(); /* Just to appear safe */
 
 		mutex_unlock(&channel->endpoint->register_mutex);
 	} else if (bufidx == 0)
@@ -1369,7 +1366,6 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 					   (bufidx << 12),
 					   channel->endpoint->registers +
 					   fpga_buf_ctrl_reg);
-				mmiowb(); /* Just to appear safe */
 
 				mutex_unlock(&channel->endpoint->
 					     register_mutex);
