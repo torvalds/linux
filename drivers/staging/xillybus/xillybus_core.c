@@ -389,7 +389,6 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 			  ep->registers + fpga_dma_bufaddr_lowaddr_reg);
 		iowrite32(((u32) ((((u64) dma_addr) >> 32) & 0xffffffff)),
 			  ep->registers + fpga_dma_bufaddr_highaddr_reg);
-		mmiowb();
 
 		if (buffers) { /* Not the message buffer */
 			this_buffer->addr = s->salami;
@@ -813,7 +812,6 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 					   | (bufidx << 12),
 					   channel->endpoint->registers +
 					   fpga_buf_ctrl_reg);
-				mmiowb(); /* Just to appear safe */
 			}
 
 			if (rc) {
@@ -900,7 +898,6 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 				iowrite32(offsetlimit,
 					  channel->endpoint->registers +
 					  fpga_buf_offset_reg);
-				mmiowb();
 
 				iowrite32(1 | (channel->chan_num << 1) |
 					   (2 << 24) |  /* 2 = offset limit */
@@ -998,7 +995,6 @@ desperate:
 				   (waiting_bufidx << 12),
 				   channel->endpoint->registers +
 				   fpga_buf_ctrl_reg);
-			mmiowb(); /* Just to appear safe */
 		}
 
 		/*
@@ -1110,7 +1106,6 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 
 		iowrite32(end_offset_plus1 - 1,
 			  channel->endpoint->registers + fpga_buf_offset_reg);
-		mmiowb();
 
 		iowrite32((channel->chan_num << 1) | /* Channel ID */
 			   (2 << 24) |  /* Opcode 2, submit buffer */
@@ -1360,7 +1355,7 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 				iowrite32(end_offset_plus1 - 1,
 					  channel->endpoint->registers +
 					  fpga_buf_offset_reg);
-				mmiowb();
+
 				iowrite32((channel->chan_num << 1) |
 					   (2 << 24) |  /* 2 = submit buffer */
 					   (bufidx << 12),
@@ -1561,7 +1556,6 @@ static int xillybus_open(struct inode *inode, struct file *filp)
 				  ((channel->wr_synchronous & 1) << 23),
 				  channel->endpoint->registers +
 				  fpga_buf_ctrl_reg);
-			mmiowb(); /* Just to appear safe */
 		}
 
 		channel->wr_ref_count++;
@@ -1583,7 +1577,6 @@ static int xillybus_open(struct inode *inode, struct file *filp)
 				  (4 << 24),   /* Opcode 4, open channel */
 				  channel->endpoint->registers +
 				  fpga_buf_ctrl_reg);
-			mmiowb(); /* Just to appear safe */
 		}
 
 		channel->rd_ref_count++;
@@ -1636,7 +1629,6 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 				  (5 << 24),  /* Opcode 5, close channel */
 				  channel->endpoint->registers +
 				  fpga_buf_ctrl_reg);
-			mmiowb(); /* Just to appear safe */
 		}
 		mutex_unlock(&channel->rd_mutex);
 	}
@@ -1657,7 +1649,6 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 				   (5 << 24),  /* Opcode 5, close channel */
 				   channel->endpoint->registers +
 				   fpga_buf_ctrl_reg);
-			mmiowb(); /* Just to appear safe */
 
 			/*
 			 * This is crazily cautious: We make sure that not
@@ -1762,11 +1753,10 @@ static loff_t xillybus_llseek(struct file *filp, loff_t offset, int whence)
 
 	iowrite32(pos >> channel->log2_element_size,
 		  channel->endpoint->registers + fpga_buf_offset_reg);
-	mmiowb();
+
 	iowrite32((channel->chan_num << 1) |
 		  (6 << 24),  /* Opcode 6, set address */
 		  channel->endpoint->registers + fpga_buf_ctrl_reg);
-	mmiowb(); /* Just to appear safe */
 
 	mutex_unlock(&channel->endpoint->register_mutex);
 
@@ -2020,7 +2010,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	 */
 
 	iowrite32(1, endpoint->registers + fpga_endian_reg);
-	mmiowb(); /* Writes below are affected by the one above. */
 
 	/* Bootstrap phase I: Allocate temporary message buffer */
 
@@ -2037,7 +2026,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 
 	/* Clear the message subsystem (and counter in particular) */
 	iowrite32(0x04, endpoint->registers + fpga_msg_ctrl_reg);
-	mmiowb();
 
 	endpoint->idtlen = -1;
 
@@ -2062,7 +2050,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	/* Enable DMA */
 	iowrite32((u32) (0x0002 | (endpoint->dma_using_dac & 0x0001)),
 		   endpoint->registers + fpga_dma_control_reg);
-	mmiowb();
 
 	/* Bootstrap phase II: Allocate buffer for IDT and obtain it */
 	while (endpoint->idtlen >= idtbuffersize) {
