@@ -112,18 +112,22 @@ static void blk_mq_usage_counter_release(struct percpu_ref *ref)
  */
 void blk_mq_freeze_queue(struct request_queue *q)
 {
+	bool freeze;
+
 	spin_lock_irq(q->queue_lock);
-	q->mq_freeze_depth++;
+	freeze = !q->mq_freeze_depth++;
 	spin_unlock_irq(q->queue_lock);
 
-	percpu_ref_kill(&q->mq_usage_counter);
-	blk_mq_run_queues(q, false);
+	if (freeze) {
+		percpu_ref_kill(&q->mq_usage_counter);
+		blk_mq_run_queues(q, false);
+	}
 	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->mq_usage_counter));
 }
 
 static void blk_mq_unfreeze_queue(struct request_queue *q)
 {
-	bool wake = false;
+	bool wake;
 
 	spin_lock_irq(q->queue_lock);
 	wake = !--q->mq_freeze_depth;
