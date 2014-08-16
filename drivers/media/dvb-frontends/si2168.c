@@ -167,10 +167,10 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	u8 bandwidth, delivery_system;
 
 	dev_dbg(&s->client->dev,
-			"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%u\n",
+			"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%u, stream_id=%d\n",
 			c->delivery_system, c->modulation,
 			c->frequency, c->bandwidth_hz, c->symbol_rate,
-			c->inversion);
+			c->inversion, c->stream_id);
 
 	if (!s->active) {
 		ret = -EAGAIN;
@@ -233,6 +233,18 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	ret = si2168_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
+
+	if (c->delivery_system == SYS_DVBT2) {
+		/* select PLP */
+		cmd.args[0] = 0x52;
+		cmd.args[1] = c->stream_id & 0xff;
+		cmd.args[2] = c->stream_id == NO_STREAM_ID_FILTER ? 0 : 1;
+		cmd.wlen = 3;
+		cmd.rlen = 1;
+		ret = si2168_cmd_execute(s, &cmd);
+		if (ret)
+			goto err;
+	}
 
 	memcpy(cmd.args, "\x51\x03", 2);
 	cmd.wlen = 2;
