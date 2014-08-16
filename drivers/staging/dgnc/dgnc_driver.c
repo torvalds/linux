@@ -90,7 +90,6 @@ static const struct file_operations dgnc_BoardFops = {
 uint			dgnc_NumBoards;
 struct dgnc_board		*dgnc_Board[MAXBOARDS];
 DEFINE_SPINLOCK(dgnc_global_lock);
-int			dgnc_driver_state = DRIVER_INITIALIZED;
 ulong			dgnc_poll_counter;
 uint			dgnc_Major;
 int			dgnc_poll_tick = 20;	/* Poll interval - 20 ms */
@@ -173,12 +172,6 @@ char *dgnc_state_text[] = {
 	"Board Found",
 	"Board READY",
 };
-
-char *dgnc_driver_state_text[] = {
-	"Driver Initialized",
-	"Driver Ready."
-};
-
 
 
 /************************************************************************
@@ -330,8 +323,6 @@ static int dgnc_start(void)
 	DGNC_UNLOCK(dgnc_poll_lock, flags);
 
 	add_timer(&dgnc_poll_timer);
-
-	dgnc_driver_state = DRIVER_READY;
 
 	return rc;
 }
@@ -747,14 +738,6 @@ static void dgnc_poll_handler(ulong dummy)
 
 	dgnc_poll_counter++;
 
-	/*
-	 * Do not start the board state machine until
-	 * driver tells us its up and running, and has
-	 * everything it needs.
-	 */
-	if (dgnc_driver_state != DRIVER_READY)
-		goto schedule_poller;
-
 	/* Go thru each board, kicking off a tasklet for each if needed */
 	for (i = 0; i < dgnc_NumBoards; i++) {
 		brd = dgnc_Board[i];
@@ -772,8 +755,6 @@ static void dgnc_poll_handler(ulong dummy)
 
 		DGNC_UNLOCK(brd->bd_lock, lock_flags);
 	}
-
-schedule_poller:
 
 	/*
 	 * Schedule ourself back at the nominal wakeup interval.

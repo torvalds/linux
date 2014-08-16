@@ -484,7 +484,6 @@ struct channel_t {
 /*
  * Our Global Variables.
  */
-extern int		dgnc_driver_state;	/* The state of the driver	*/
 extern uint		dgnc_Major;		/* Our driver/mgmt major	*/
 extern int		dgnc_debug;		/* Debug variable		*/
 extern int		dgnc_rawreadok;		/* Set if user wants rawreads	*/
@@ -495,6 +494,5 @@ extern uint		dgnc_NumBoards;		/* Total number of boards	*/
 extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs	*/
 extern ulong		dgnc_poll_counter;	/* Times the poller has run	*/
 extern char		*dgnc_state_text[];	/* Array of state text		*/
-extern char		*dgnc_driver_state_text[];/* Array of driver state text */
 
 #endif
