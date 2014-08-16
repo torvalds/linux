@@ -1064,17 +1064,6 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 		break;
 	}
 
-#if defined(CONFIG_ROCKCHIP_RGA)
-	Rga_Request.src.yrgb_addr =
-	    src_win->area[0].smem_start + src_win->area[0].y_offset;
-	Rga_Request.src.uv_addr = 0;
-	Rga_Request.src.v_addr = 0;
-
-	Rga_Request.dst.yrgb_addr =
-	    dst_win->area[0].smem_start + dst_win->area[0].y_offset;
-	Rga_Request.dst.uv_addr = 0;
-	Rga_Request.dst.v_addr = 0;
-#elif defined(CONFIG_ROCKCHIP_RGA2)
 /*
 	fd = ion_share_dma_buf_fd(rk_fb->ion_client, src_win->area[0].ion_hdl);
 	Rga_Request.src.yrgb_addr = fd;
@@ -1090,7 +1079,6 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 	Rga_Request.dst.uv_addr =
 	    dst_win->area[0].smem_start + dst_win->area[0].y_offset;
 	Rga_Request.dst.v_addr = 0;
-#endif
 
 	Rga_Request.src.vir_w = src_win->area[0].xvir;
 	Rga_Request.src.vir_h = src_win->area[0].yvir;
