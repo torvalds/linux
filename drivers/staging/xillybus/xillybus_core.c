@@ -634,7 +634,6 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 	channel = endpoint->channels[1]; /* This should be generated ad-hoc */
 
 	channel->wr_sleepy = 1;
-	wmb(); /* Setting wr_sleepy must come before the command */
 
 	iowrite32(1 |
 		   (3 << 24), /* Opcode 3 for channel 0 = Send IDT */
@@ -1968,7 +1967,7 @@ EXPORT_SYMBOL(xillybus_init_endpoint);
 static int xilly_quiesce(struct xilly_endpoint *endpoint)
 {
 	endpoint->idtlen = -1;
-	wmb(); /* Make sure idtlen is set before sending command */
+
 	iowrite32((u32) (endpoint->dma_using_dac & 0x0001),
 		  endpoint->registers + fpga_dma_control_reg);
 
@@ -2028,8 +2027,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	iowrite32(0x04, endpoint->registers + fpga_msg_ctrl_reg);
 
 	endpoint->idtlen = -1;
-
-	smp_wmb();
 
 	/*
 	 * Set DMA 32/64 bit mode, quiesce the device (?!) and get IDT
