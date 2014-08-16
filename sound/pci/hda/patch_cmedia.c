@@ -75,15 +75,62 @@ static int patch_cmi9880(struct hda_codec *codec)
 	return err;
 }
 
+static int patch_cmi8888(struct hda_codec *codec)
+{
+	struct cmi_spec *spec;
+	struct auto_pin_cfg *cfg;
+	int err;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+
+	codec->spec = spec;
+	cfg = &spec->gen.autocfg;
+	snd_hda_gen_spec_init(&spec->gen);
+
+	/* mask NID 0x10 from the playback volume selection;
+	 * it's a headphone boost volume handled manually below
+	 */
+	spec->gen.out_vol_mask = (1ULL << 0x10);
+
+	err = snd_hda_parse_pin_defcfg(codec, cfg, NULL, 0);
+	if (err < 0)
+		goto error;
+	err = snd_hda_gen_parse_auto_config(codec, cfg);
+	if (err < 0)
+		goto error;
+
+	if (get_defcfg_device(snd_hda_codec_get_pincfg(codec, 0x10)) ==
+	    AC_JACK_HP_OUT) {
+		static const struct snd_kcontrol_new amp_kctl =
+			HDA_CODEC_VOLUME("Headphone Amp Playback Volume",
+					 0x10, 0, HDA_OUTPUT);
+		if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &amp_kctl)) {
+			err = -ENOMEM;
+			goto error;
+		}
+	}
+
+	codec->patch_ops = cmi_auto_patch_ops;
+	return 0;
+
+ error:
+	snd_hda_gen_free(codec);
+	return err;
+}
+
 /*
  * patch entries
  */
 static const struct hda_codec_preset snd_hda_preset_cmedia[] = {
+	{ .id = 0x13f68888, .name = "CMI8888", .patch = patch_cmi8888 },
 	{ .id = 0x13f69880, .name = "CMI9880", .patch = patch_cmi9880 },
  	{ .id = 0x434d4980, .name = "CMI9880", .patch = patch_cmi9880 },
 	{} /* terminator */
 };
 
+MODULE_ALIAS("snd-hda-codec-id:13f68888");
 MODULE_ALIAS("snd-hda-codec-id:13f69880");
 MODULE_ALIAS("snd-hda-codec-id:434d4980");
 
