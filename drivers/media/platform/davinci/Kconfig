@@ -31,7 +31,7 @@ config VIDEO_DAVINCI_VPIF_CAPTURE
 config VIDEO_DM6446_CCDC
 	tristate "TI DM6446 CCDC video capture driver"
 	depends on VIDEO_V4L2
-	depends on ARCH_DAVINCI || ARCH_OMAP3 || COMPILE_TEST
+	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF_DMA_CONTIG
 	help
