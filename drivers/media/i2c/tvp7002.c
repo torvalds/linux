@@ -775,25 +775,20 @@ static int tvp7002_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
 static int tvp7002_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct tvp7002 *device = to_tvp7002(sd);
-	int error = 0;
+	int error;
 
 	if (device->streaming == enable)
 		return 0;
 
-	if (enable) {
-		/* Set output state on (low impedance means stream on) */
-		error = tvp7002_write(sd, TVP7002_MISC_CTL_2, 0x00);
-		device->streaming = enable;
-	} else {
-		/* Set output state off (high impedance means stream off) */
-		error = tvp7002_write(sd, TVP7002_MISC_CTL_2, 0x03);
-		if (error)
-			v4l2_dbg(1, debug, sd, "Unable to stop streaming\n");
-
-		device->streaming = enable;
+	/* low impedance: on, high impedance: off */
+	error = tvp7002_write(sd, TVP7002_MISC_CTL_2, enable ? 0x00 : 0x03);
+	if (error) {
+		v4l2_dbg(1, debug, sd, "Fail to set streaming\n");
+		return error;
 	}
 
-	return error;
+	device->streaming = enable;
+	return 0;
 }
 
 /*
