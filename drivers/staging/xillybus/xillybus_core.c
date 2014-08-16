@@ -640,7 +640,6 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 	iowrite32(1 |
 		   (3 << 24), /* Opcode 3 for channel 0 = Send IDT */
 		   endpoint->registers + fpga_buf_ctrl_reg);
-	mmiowb(); /* Just to appear safe */
 
 	wait_event_interruptible_timeout(channel->wr_wait,
 					 (!channel->wr_sleepy),
@@ -1986,7 +1985,6 @@ static int xilly_quiesce(struct xilly_endpoint *endpoint)
 	wmb(); /* Make sure idtlen is set before sending command */
 	iowrite32((u32) (endpoint->dma_using_dac & 0x0001),
 		  endpoint->registers + fpga_dma_control_reg);
-	mmiowb();
 
 	wait_event_interruptible_timeout(endpoint->ep_wait,
 					 (endpoint->idtlen >= 0),
@@ -2055,7 +2053,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	 */
 	iowrite32((u32) (endpoint->dma_using_dac & 0x0001),
 		   endpoint->registers + fpga_dma_control_reg);
-	mmiowb();
 
 	wait_event_interruptible_timeout(endpoint->ep_wait,
 					 (endpoint->idtlen >= 0),
