@@ -302,20 +302,19 @@ static bool drbg_fips_continuous_test(struct drbg_state *drbg,
  * Convert an integer into a byte representation of this integer.
  * The byte representation is big-endian
  *
- * @buf buffer holding the converted integer
  * @val value to be converted
- * @buflen length of buffer
+ * @buf buffer holding the converted integer -- caller must ensure that
+ *      buffer size is at least 32 bit
  */
 #if (defined(CONFIG_CRYPTO_DRBG_HASH) || defined(CONFIG_CRYPTO_DRBG_CTR))
-static inline void drbg_int2byte(unsigned char *buf, uint64_t val,
-				 size_t buflen)
+static inline void drbg_cpu_to_be32(__u32 val, unsigned char *buf)
 {
-	unsigned char *byte;
-	uint64_t i;
+	struct s {
+		__u32 conv;
+	};
+	struct s *conversion = (struct s *) buf;
 
-	byte = buf + (buflen - 1);
-	for (i = 0; i < buflen; i++)
-		*(byte--) = val >> (i * 8) & 0xff;
+	conversion->conv = cpu_to_be32(val);
 }
 
 /*
@@ -483,10 +482,10 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 	/* 10.4.2 step 2 -- calculate the entire length of all input data */
 	list_for_each_entry(seed, seedlist, list)
 		inputlen += seed->len;
-	drbg_int2byte(&L_N[0], inputlen, 4);
+	drbg_cpu_to_be32(inputlen, &L_N[0]);
 
 	/* 10.4.2 step 3 */
-	drbg_int2byte(&L_N[4], bytes_to_return, 4);
+	drbg_cpu_to_be32(bytes_to_return, &L_N[4]);
 
 	/* 10.4.2 step 5: length is L_N, input_string, one byte, padding */
 	padlen = (inputlen + sizeof(L_N) + 1) % (drbg_blocklen(drbg));
@@ -517,7 +516,7 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 		 * holds zeros after allocation -- even the increment of i
 		 * is irrelevant as the increment remains within length of i
 		 */
-		drbg_int2byte(iv, i, 4);
+		drbg_cpu_to_be32(i, iv);
 		/* 10.4.2 step 9.2 -- BCC and concatenation with temp */
 		ret = drbg_ctr_bcc(drbg, temp + templen, K, &bcc_list);
 		if (ret)
@@ -862,7 +861,7 @@ static int drbg_hash_df(struct drbg_state *drbg,
 
 	/* 10.4.1 step 3 */
 	input[0] = 1;
-	drbg_int2byte(&input[1], (outlen * 8), 4);
+	drbg_cpu_to_be32((outlen * 8), &input[1]);
 
 	/* 10.4.1 step 4.1 -- concatenation of data for input into hash */
 	drbg_string_fill(&data, input, 5);
@@ -1023,7 +1022,10 @@ static int drbg_hash_generate(struct drbg_state *drbg,
 {
 	int len = 0;
 	int ret = 0;
-	unsigned char req[8];
+	union {
+		unsigned char req[8];
+		__u64 req_int;
+	} u;
 	unsigned char prefix = DRBG_PREFIX3;
 	struct drbg_string data1, data2;
 	LIST_HEAD(datalist);
@@ -1053,8 +1055,8 @@ static int drbg_hash_generate(struct drbg_state *drbg,
 		     drbg->scratchpad, drbg_blocklen(drbg));
 	drbg_add_buf(drbg->V, drbg_statelen(drbg),
 		     drbg->C, drbg_statelen(drbg));
-	drbg_int2byte(req, drbg->reseed_ctr, sizeof(req));
-	drbg_add_buf(drbg->V, drbg_statelen(drbg), req, 8);
+	u.req_int = cpu_to_be64(drbg->reseed_ctr);
+	drbg_add_buf(drbg->V, drbg_statelen(drbg), u.req, 8);
 
 out:
 	memset(drbg->scratchpad, 0, drbg_blocklen(drbg));
