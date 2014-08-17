@@ -257,9 +257,6 @@ do {									\
 #define __raw_get_cpu_var(var)	(*raw_cpu_ptr(&(var)))
 #define __get_cpu_var(var)	(*this_cpu_ptr(&(var)))
 
-/* keep until we have removed all uses of __this_cpu_ptr */
-#define __this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
-
 /*
  * Must be an lvalue. Since @var must be a simple identifier,
  * we force a syntax error here if it isn't.
