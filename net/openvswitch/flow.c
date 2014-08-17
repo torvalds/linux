@@ -89,7 +89,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 			 * allocated stats as we have already locked them.
 			 */
 			if (likely(flow->stats_last_writer != NUMA_NO_NODE)
-			    && likely(!rcu_dereference(flow->stats[node]))) {
+			    && likely(!rcu_access_pointer(flow->stats[node]))) {
 				/* Try to allocate node-specific stats. */
 				struct flow_stats *new_stats;
 
