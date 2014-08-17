@@ -230,6 +230,20 @@
 				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
+
+			mmc0_pins_a: mmc0@0 {
+				allwinner,pins = "PF0","PF1","PF2","PF3","PF4","PF5";
+				allwinner,function = "mmc0";
+				allwinner,drive = <2>;
+				allwinner,pull = <0>;
+			};
+
+			mmc1_pins_a: mmc1@0 {
+				allwinner,pins = "PG0","PG1","PG2","PG3","PG4","PG5";
+				allwinner,function = "mmc1";
+				allwinner,drive = <2>;
+				allwinner,pull = <0>;
+			};
 		};
 
 		ahb1_rst: reset@01c202c0 {
