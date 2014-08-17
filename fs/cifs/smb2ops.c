@@ -1015,6 +1015,50 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
+			    loff_t offset, loff_t len)
+{
+	struct inode *inode;
+	struct cifsInodeInfo *cifsi;
+	struct cifsFileInfo *cfile = file->private_data;
+	struct file_zero_data_information fsctl_buf;
+	long rc;
+	unsigned int xid;
+	__u8 set_sparse = 1;
+
+	xid = get_xid();
+
+	inode = cfile->dentry->d_inode;
+	cifsi = CIFS_I(inode);
+
+	/* Need to make file sparse, if not already, before freeing range. */
+	/* Consider adding equivalent for compressed since it could also work */
+	if (!smb2_set_sparse(xid, tcon, cfile, inode, set_sparse))
+		return -EOPNOTSUPP;
+
+	cifs_dbg(FYI, "offset %lld len %lld", offset, len);
+
+	fsctl_buf.FileOffset = cpu_to_le64(offset);
+	fsctl_buf.BeyondFinalZero = cpu_to_le64(offset + len);
+
+	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
+			true /* is_fctl */, (char *)&fsctl_buf,
+			sizeof(struct file_zero_data_information), NULL, NULL);
+	free_xid(xid);
+	return rc;
+}
+
+static long smb3_fallocate(struct file *file, struct cifs_tcon *tcon, int mode,
+			   loff_t off, loff_t len)
+{
+	/* KEEP_SIZE already checked for by do_fallocate */
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		return smb3_punch_hole(file, tcon, off, len);
+
+	return -EOPNOTSUPP;
+}
+
 static void
 smb2_downgrade_oplock(struct TCP_Server_Info *server,
 			struct cifsInodeInfo *cinode, bool set_level2)
@@ -1463,6 +1507,7 @@ struct smb_version_operations smb30_operations = {
 	.validate_negotiate = smb3_validate_negotiate,
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
+	.fallocate = smb3_fallocate,
 };
 
 struct smb_version_values smb20_values = {
