@@ -3547,7 +3547,9 @@ struct client_init_rx_data {
 	__le16 rx_cos_mask;
 	__le16 silent_vlan_value;
 	__le16 silent_vlan_mask;
-	__le32 reserved6[2];
+	u8 handle_ptp_pkts_flg;
+	u8 reserved6[3];
+	__le32 reserved7;
 };
 
 /*
@@ -3616,7 +3618,9 @@ struct client_update_ramrod_data {
 	u8 refuse_outband_vlan_change_flg;
 	u8 tx_switching_flg;
 	u8 tx_switching_change_flg;
-	__le32 reserved1;
+	u8 handle_ptp_pkts_flg;
+	u8 handle_ptp_pkts_change_flg;
+	__le16 reserved1;
 	__le32 echo;
 };
 
@@ -3850,8 +3854,10 @@ struct eth_fast_path_rx_cqe {
 #define ETH_FAST_PATH_RX_CQE_IP_BAD_XSUM_FLG_SHIFT 4
 #define ETH_FAST_PATH_RX_CQE_L4_BAD_XSUM_FLG (0x1<<5)
 #define ETH_FAST_PATH_RX_CQE_L4_BAD_XSUM_FLG_SHIFT 5
-#define ETH_FAST_PATH_RX_CQE_RESERVED0 (0x3<<6)
-#define ETH_FAST_PATH_RX_CQE_RESERVED0_SHIFT 6
+#define ETH_FAST_PATH_RX_CQE_PTP_PKT (0x1<<6)
+#define ETH_FAST_PATH_RX_CQE_PTP_PKT_SHIFT 6
+#define ETH_FAST_PATH_RX_CQE_RESERVED0 (0x1<<7)
+#define ETH_FAST_PATH_RX_CQE_RESERVED0_SHIFT 7
 	u8 status_flags;
 #define ETH_FAST_PATH_RX_CQE_RSS_HASH_TYPE (0x7<<0)
 #define ETH_FAST_PATH_RX_CQE_RSS_HASH_TYPE_SHIFT 0
@@ -5658,6 +5664,16 @@ struct protocol_common_spe {
 	union protocol_common_specific_data data;
 };
 
+/* The data for the Set Timesync Ramrod */
+struct set_timesync_ramrod_data {
+	u8 drift_adjust_cmd;
+	u8 offset_cmd;
+	u8 add_sub_drift_adjust_value;
+	u8 drift_adjust_value;
+	u32 drift_adjust_period;
+	struct regpair offset_delta;
+};
+
 /*
  * The send queue element
  */
@@ -5778,6 +5794,29 @@ struct tstorm_queue_zone_data {
  */
 struct tstorm_vf_zone_data {
 	struct regpair reserved;
+};
+
+/* Add or Subtract Value for Set Timesync Ramrod */
+enum ts_add_sub_value {
+	TS_SUB_VALUE,
+	TS_ADD_VALUE,
+	MAX_TS_ADD_SUB_VALUE
+};
+
+/* Drift-Adjust Commands for Set Timesync Ramrod */
+enum ts_drift_adjust_cmd {
+	TS_DRIFT_ADJUST_KEEP,
+	TS_DRIFT_ADJUST_SET,
+	TS_DRIFT_ADJUST_RESET,
+	MAX_TS_DRIFT_ADJUST_CMD
+};
+
+/* Offset Commands for Set Timesync Ramrod */
+enum ts_offset_cmd {
+	TS_OFFSET_KEEP,
+	TS_OFFSET_INC,
+	TS_OFFSET_DEC,
+	MAX_TS_OFFSET_CMD
 };
 
 /* Tunnel Mode */

@@ -1067,6 +1067,11 @@ reuse_rx:
 
 		skb_record_rx_queue(skb, fp->rx_queue);
 
+		/* Check if this packet was timestamped */
+		if (unlikely(le16_to_cpu(cqe->fast_path_cqe.type_error_flags) &
+			     (1 << ETH_FAST_PATH_RX_CQE_PTP_PKT_SHIFT)))
+			bnx2x_set_rx_ts(bp, skb);
+
 		if (le16_to_cpu(cqe_fp->pars_flags.flags) &
 		    PARSING_FLAGS_VLAN)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
@@ -2808,7 +2813,11 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Initialize Rx filter. */
 	bnx2x_set_rx_mode_inner(bp);
 
-	/* Start the Tx */
+	if (bp->flags & PTP_SUPPORTED) {
+		bnx2x_init_ptp(bp);
+		bnx2x_configure_ptp_filters(bp);
+	}
+	/* Start Tx */
 	switch (load_mode) {
 	case LOAD_NORMAL:
 		/* Tx queue should be only re-enabled */
@@ -3832,6 +3841,20 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	first_bd = tx_start_bd;
 
 	tx_start_bd->bd_flags.as_bitfield = ETH_TX_BD_FLAGS_START_BD;
+
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		if (!(bp->flags & TX_TIMESTAMPING_EN)) {
+			BNX2X_ERR("Tx timestamping was not enabled, this packet will not be timestamped\n");
+		} else if (bp->ptp_tx_skb) {
+			BNX2X_ERR("The device supports only a single outstanding packet to timestamp, this packet will not be timestamped\n");
+		} else {
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			/* schedule check for Tx timestamp */
+			bp->ptp_tx_skb = skb_get(skb);
+			bp->ptp_tx_start = jiffies;
+			schedule_work(&bp->ptp_task);
+		}
+	}
 
 	/* header nbd: indirectly zero other flags! */
 	tx_start_bd->general_data = 1 << ETH_TX_START_BD_HDR_NBDS_SHIFT;

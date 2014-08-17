@@ -770,7 +770,9 @@ enum {
 	BNX2X_Q_UPDATE_SILENT_VLAN_REM_CHNG,
 	BNX2X_Q_UPDATE_SILENT_VLAN_REM,
 	BNX2X_Q_UPDATE_TX_SWITCHING_CHNG,
-	BNX2X_Q_UPDATE_TX_SWITCHING
+	BNX2X_Q_UPDATE_TX_SWITCHING,
+	BNX2X_Q_UPDATE_PTP_PKTS_CHNG,
+	BNX2X_Q_UPDATE_PTP_PKTS,
 };
 
 /* Allowed Queue states */
@@ -853,6 +855,10 @@ enum bnx2x_q_type {
 #define BNX2X_MULTI_TX_COS			3 /* Maximum possible */
 
 #define MAC_PAD (ALIGN(ETH_ALEN, sizeof(u32)) - ETH_ALEN)
+/* DMAE channel to be used by FW for timesync workaroun. A driver that sends
+ * timesync-related ramrods must not use this DMAE command ID.
+ */
+#define FW_DMAE_CMD_ID 6
 
 struct bnx2x_queue_init_params {
 	struct {
@@ -1117,6 +1123,7 @@ enum bnx2x_func_cmd {
 	BNX2X_F_CMD_TX_STOP,
 	BNX2X_F_CMD_TX_START,
 	BNX2X_F_CMD_SWITCH_UPDATE,
+	BNX2X_F_CMD_SET_TIMESYNC,
 	BNX2X_F_CMD_MAX,
 };
 
@@ -1191,11 +1198,30 @@ struct bnx2x_func_afex_viflists_params {
 	u8 afex_vif_list_command;
 	u8 func_to_clear;
 };
+
 struct bnx2x_func_tx_start_params {
 	struct priority_cos traffic_type_to_priority_cos[MAX_TRAFFIC_TYPES];
 	u8 dcb_enabled;
 	u8 dcb_version;
 	u8 dont_add_pri_0_en;
+};
+
+struct bnx2x_func_set_timesync_params {
+	/* Reset, set or keep the current drift value */
+	u8 drift_adjust_cmd;
+
+	/* Dec, inc or keep the current offset */
+	u8 offset_cmd;
+
+	/* Drift value direction */
+	u8 add_sub_drift_adjust_value;
+
+	/* Drift, period and offset values to be used according to the commands
+	 * above.
+	 */
+	u8 drift_adjust_value;
+	u32 drift_adjust_period;
+	u64 offset_delta;
 };
 
 struct bnx2x_func_state_params {
@@ -1216,6 +1242,7 @@ struct bnx2x_func_state_params {
 		struct bnx2x_func_afex_update_params afex_update;
 		struct bnx2x_func_afex_viflists_params afex_viflists;
 		struct bnx2x_func_tx_start_params tx_start;
+		struct bnx2x_func_set_timesync_params set_timesync;
 	} params;
 };
 

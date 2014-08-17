@@ -4725,6 +4725,12 @@ static void bnx2x_q_fill_update_data(struct bnx2x *bp,
 	data->tx_switching_change_flg =
 		test_bit(BNX2X_Q_UPDATE_TX_SWITCHING_CHNG,
 			 &params->update_flags);
+
+	/* PTP */
+	data->handle_ptp_pkts_flg =
+		test_bit(BNX2X_Q_UPDATE_PTP_PKTS, &params->update_flags);
+	data->handle_ptp_pkts_change_flg =
+		test_bit(BNX2X_Q_UPDATE_PTP_PKTS_CHNG, &params->update_flags);
 }
 
 static inline int bnx2x_q_send_update(struct bnx2x *bp,
@@ -5379,6 +5385,10 @@ static int bnx2x_func_chk_transition(struct bnx2x *bp,
 			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
 			next_state = BNX2X_F_STATE_STARTED;
 
+		else if ((cmd == BNX2X_F_CMD_SET_TIMESYNC) &&
+			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
+			next_state = BNX2X_F_STATE_STARTED;
+
 		else if (cmd == BNX2X_F_CMD_TX_STOP)
 			next_state = BNX2X_F_STATE_TX_STOPPED;
 
@@ -5386,6 +5396,10 @@ static int bnx2x_func_chk_transition(struct bnx2x *bp,
 	case BNX2X_F_STATE_TX_STOPPED:
 		if ((cmd == BNX2X_F_CMD_SWITCH_UPDATE) &&
 		    (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
+			next_state = BNX2X_F_STATE_TX_STOPPED;
+
+		else if ((cmd == BNX2X_F_CMD_SET_TIMESYNC) &&
+			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
 			next_state = BNX2X_F_STATE_TX_STOPPED;
 
 		else if (cmd == BNX2X_F_CMD_TX_START)
@@ -5843,6 +5857,40 @@ static inline int bnx2x_func_send_tx_start(struct bnx2x *bp,
 			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
 }
 
+static inline
+int bnx2x_func_send_set_timesync(struct bnx2x *bp,
+				 struct bnx2x_func_state_params *params)
+{
+	struct bnx2x_func_sp_obj *o = params->f_obj;
+	struct set_timesync_ramrod_data *rdata =
+		(struct set_timesync_ramrod_data *)o->rdata;
+	dma_addr_t data_mapping = o->rdata_mapping;
+	struct bnx2x_func_set_timesync_params *set_timesync_params =
+		&params->params.set_timesync;
+
+	memset(rdata, 0, sizeof(*rdata));
+
+	/* Fill the ramrod data with provided parameters */
+	rdata->drift_adjust_cmd = set_timesync_params->drift_adjust_cmd;
+	rdata->offset_cmd = set_timesync_params->offset_cmd;
+	rdata->add_sub_drift_adjust_value =
+		set_timesync_params->add_sub_drift_adjust_value;
+	rdata->drift_adjust_value = set_timesync_params->drift_adjust_value;
+	rdata->drift_adjust_period = set_timesync_params->drift_adjust_period;
+	rdata->offset_delta.lo = U64_LO(set_timesync_params->offset_delta);
+	rdata->offset_delta.hi = U64_HI(set_timesync_params->offset_delta);
+
+	DP(BNX2X_MSG_SP, "Set timesync command params: drift_cmd = %d, offset_cmd = %d, add_sub_drift = %d, drift_val = %d, drift_period = %d, offset_lo = %d, offset_hi = %d\n",
+	   rdata->drift_adjust_cmd, rdata->offset_cmd,
+	   rdata->add_sub_drift_adjust_value, rdata->drift_adjust_value,
+	   rdata->drift_adjust_period, rdata->offset_delta.lo,
+	   rdata->offset_delta.hi);
+
+	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_SET_TIMESYNC, 0,
+			     U64_HI(data_mapping),
+			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
+}
+
 static int bnx2x_func_send_cmd(struct bnx2x *bp,
 			       struct bnx2x_func_state_params *params)
 {
@@ -5865,6 +5913,8 @@ static int bnx2x_func_send_cmd(struct bnx2x *bp,
 		return bnx2x_func_send_tx_start(bp, params);
 	case BNX2X_F_CMD_SWITCH_UPDATE:
 		return bnx2x_func_send_switch_update(bp, params);
+	case BNX2X_F_CMD_SET_TIMESYNC:
+		return bnx2x_func_send_set_timesync(bp, params);
 	default:
 		BNX2X_ERR("Unknown command: %d\n", params->cmd);
 		return -EINVAL;
