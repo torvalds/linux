@@ -141,9 +141,7 @@
 
 #define	AVAIL_TD(p, q)	((p)->sOpts.nTxDescs[(q)] - ((p)->iTDUsed[(q)]))
 
-//PLICE_DEBUG ->
 #define	NUM				64
-//PLICE_DEUBG <-
 
 #define PRIVATE_Message                 0
 
@@ -404,11 +402,9 @@ struct vnt_private {
 
 	spinlock_t                  lock;
 
-//PLICE_DEBUG ->
 	pid_t			MLMEThr_pid;
 	struct completion	notify;
 	struct semaphore	mlme_semaphore;
-//PLICE_DEBUG <-
 
 	u32                         rx_bytes;
 

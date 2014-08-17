@@ -312,10 +312,9 @@ device_receive_frame(
 
 	skb = pRDInfo->skb;
 
-//PLICE_DEBUG->
 	pci_unmap_single(pDevice->pcid, pRDInfo->skb_dma,
 			 pDevice->rx_buf_sz, PCI_DMA_FROMDEVICE);
-//PLICE_DEBUG<-
+
 	pwFrameSize = (unsigned short *)(skb->data + 2);
 	FrameSize = cpu_to_le16(pCurrRD->m_rd1RD1.wReqCount) - cpu_to_le16(pCurrRD->m_rd0RD0.wResCount);
 
@@ -344,7 +343,7 @@ device_receive_frame(
 		pr_debug("---------- WRONG Length 2\n");
 		return false;
 	}
-//PLICE_DEBUG->
+
 	// update receive statistic counter
 	STAvUpdateRDStatCounter(&pDevice->scStatistic,
 				*pbyRsr,
@@ -354,7 +353,7 @@ device_receive_frame(
 				FrameSize);
 
 	pMACHeader = (PS802_11Header)((unsigned char *)(skb->data) + 8);
-//PLICE_DEBUG<-
+
 	if (pDevice->bMeasureInProgress) {
 		if ((*pbyRsr & RSR_CRCOK) != 0)
 			pDevice->byBasicMap |= 0x01;
