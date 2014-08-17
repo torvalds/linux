@@ -1125,7 +1125,7 @@ static int bnx2x_ari_enabled(struct pci_dev *dev)
 	return dev->bus->self && dev->bus->self->ari_enabled;
 }
 
-static void
+static int
 bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 {
 	int sb_id;
@@ -1150,6 +1150,7 @@ bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 		   GET_FIELD((val), IGU_REG_MAPPING_MEMORY_VECTOR));
 	}
 	DP(BNX2X_MSG_IOV, "vf_sbs_pool is %d\n", BP_VFDB(bp)->vf_sbs_pool);
+	return BP_VFDB(bp)->vf_sbs_pool;
 }
 
 static void __bnx2x_iov_free_vfdb(struct bnx2x *bp)
@@ -1314,7 +1315,11 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 	}
 
 	/* re-read the IGU CAM for VFs - index and abs_vfid must be set */
-	bnx2x_get_vf_igu_cam_info(bp);
+	if (!bnx2x_get_vf_igu_cam_info(bp)) {
+		BNX2X_ERR("No entries in IGU CAM for vfs\n");
+		err = -EINVAL;
+		goto failed;
+	}
 
 	/* allocate the queue arrays for all VFs */
 	bp->vfdb->vfqs = kzalloc(
