@@ -98,12 +98,16 @@ wr32:
 // $r14 - ns
 // $r0  - zero
 nsec:
+	push $r9
+	push $r8
 	nv_iord($r8, NV_PPWR_TIMER_LOW)
 	nsec_loop:
 		nv_iord($r9, NV_PPWR_TIMER_LOW)
 		sub b32 $r9 $r8
 		cmp b32 $r9 $r14
 		bra l #nsec_loop
+	pop $r8
+	pop $r9
 	ret
 
 // busy-wait for a period of time
@@ -115,6 +119,8 @@ nsec:
 // $r11 - timeout (ns)
 // $r0  - zero
 wait:
+	push $r9
+	push $r8
 	nv_iord($r8, NV_PPWR_TIMER_LOW)
 	wait_loop:
 		nv_rd32($r10, $r14)
@@ -126,6 +132,8 @@ wait:
 		cmp b32 $r9 $r11
 		bra l #wait_loop
 	wait_done:
+	pop $r8
+	pop $r9
 	ret
 
 // $r15 - current (kern)
@@ -460,6 +468,9 @@ send:
 // $r14 - process
 // $r0  - zero
 recv:
+	push $r9
+	push $r8
+
 	ld b32 $r8 D[$r14 + #proc_qget]
 	ld b32 $r9 D[$r14 + #proc_qput]
 	bclr $flags $p1
@@ -492,6 +503,8 @@ recv:
 		bset $flags $p1
 		pop $r15
 	recv_done:
+	pop $r8
+	pop $r9
 	ret
 
 init:
