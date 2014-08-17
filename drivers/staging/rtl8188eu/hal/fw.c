@@ -181,7 +181,7 @@ exit:
 	return err;
 }
 
-int rtl88e_download_fw(struct adapter *adapt)
+int rtl88eu_download_fw(struct adapter *adapt)
 {
 	struct hal_data_8188e *rtlhal = GET_HAL_DATA(adapt);
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapt);

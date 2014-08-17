@@ -743,7 +743,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 		Adapter->bFWReady = false;
 		haldata->fw_ractrl = false;
 	} else {
-		status = rtl88e_download_fw(Adapter);
+		status = rtl88eu_download_fw(Adapter);
 
 		if (status) {
 			DBG_88E("%s: Download Firmware failed!!\n", __func__);
@@ -758,11 +758,11 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	}
 	rtl8188e_InitializeFirmwareVars(Adapter);
 
-	rtl88e_phy_mac_config(Adapter);
+	rtl88eu_phy_mac_config(Adapter);
 
-	rtl88e_phy_bb_config(Adapter);
+	rtl88eu_phy_bb_config(Adapter);
 
-	rtl88e_phy_rf_config(Adapter);
+	rtl88eu_phy_rf_config(Adapter);
 
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_EFUSE_PATCH);
 	status = rtl8188e_iol_efuse_patch(Adapter);

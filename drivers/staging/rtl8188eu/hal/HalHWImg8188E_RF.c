@@ -312,7 +312,7 @@ static bool rtl88e_phy_rf6052_config(struct adapter *adapt)
 	return rf6052_conf_para(adapt);
 }
 
-bool rtl88e_phy_rf_config(struct adapter *adapt)
+bool rtl88eu_phy_rf_config(struct adapter *adapt)
 {
 	return rtl88e_phy_rf6052_config(adapt);
 }

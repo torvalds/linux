@@ -117,7 +117,7 @@ static u32 array_MAC_REG_8188E[] = {
 		0x70B, 0x00000087,
 };
 
-bool rtl88e_phy_mac_config(struct adapter *adapt)
+bool rtl88eu_phy_mac_config(struct adapter *adapt)
 {
 	u32 i;
 	u32 arraylength;

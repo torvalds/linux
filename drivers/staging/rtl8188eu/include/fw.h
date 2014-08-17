@@ -54,6 +54,6 @@ struct rtl92c_firmware_header {
 	u32 rsvd5;
 };
 
-int rtl88e_download_fw(struct adapter *adapt);
+int rtl88eu_download_fw(struct adapter *adapt);
 
 #endif

@@ -687,7 +687,7 @@ static bool config_parafile(struct adapter *adapt)
 	return true;
 }
 
-bool rtl88e_phy_bb_config(struct adapter *adapt)
+bool rtl88eu_phy_bb_config(struct adapter *adapt)
 {
 	int rtstatus = true;
 	struct hal_data_8188e	*hal_data = GET_HAL_DATA(adapt);
