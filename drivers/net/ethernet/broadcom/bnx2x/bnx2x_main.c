@@ -987,6 +987,12 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 		u32 *sb_data_p;
 		struct bnx2x_fp_txdata txdata;
 
+		if (!bp->fp)
+			break;
+
+		if (!fp->rx_cons_sb)
+			continue;
+
 		/* Rx */
 		BNX2X_ERR("fp%d: rx_bd_prod(0x%x)  rx_bd_cons(0x%x)  rx_comp_prod(0x%x)  rx_comp_cons(0x%x)  *rx_cons_sb(0x%x)\n",
 			  i, fp->rx_bd_prod, fp->rx_bd_cons,
@@ -999,7 +1005,14 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 		/* Tx */
 		for_each_cos_in_tx_queue(fp, cos)
 		{
+			if (!fp->txdata_ptr)
+				break;
+
 			txdata = *fp->txdata_ptr[cos];
+
+			if (!txdata.tx_cons_sb)
+				continue;
+
 			BNX2X_ERR("fp%d: tx_pkt_prod(0x%x)  tx_pkt_cons(0x%x)  tx_bd_prod(0x%x)  tx_bd_cons(0x%x)  *tx_cons_sb(0x%x)\n",
 				  i, txdata.tx_pkt_prod,
 				  txdata.tx_pkt_cons, txdata.tx_bd_prod,
@@ -1101,6 +1114,12 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 	for_each_valid_rx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
+		if (!bp->fp)
+			break;
+
+		if (!fp->rx_cons_sb)
+			continue;
+
 		start = RX_BD(le16_to_cpu(*fp->rx_cons_sb) - 10);
 		end = RX_BD(le16_to_cpu(*fp->rx_cons_sb) + 503);
 		for (j = start; j != end; j = RX_BD(j + 1)) {
@@ -1134,8 +1153,18 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 	/* Tx */
 	for_each_valid_tx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		if (!bp->fp)
+			break;
+
 		for_each_cos_in_tx_queue(fp, cos) {
 			struct bnx2x_fp_txdata *txdata = fp->txdata_ptr[cos];
+
+			if (!fp->txdata_ptr)
+				break;
+
+			if (!txdata.tx_cons_sb)
+				continue;
 
 			start = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) - 10);
 			end = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) + 245);
