@@ -1295,7 +1295,8 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 	if (!chan)
 		return NULL;
 
-	chan->conn = conn;
+	chan->conn = hci_conn_get(conn);
+	hci_conn_hold(conn);
 	skb_queue_head_init(&chan->data_q);
 	chan->state = BT_CONNECTED;
 
@@ -1316,6 +1317,7 @@ void hci_chan_del(struct hci_chan *chan)
 	synchronize_rcu();
 
 	hci_conn_drop(conn);
+	hci_conn_put(conn);
 
 	skb_queue_purge(&chan->data_q);
 	kfree(chan);
