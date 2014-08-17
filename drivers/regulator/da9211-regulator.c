@@ -343,6 +343,8 @@ static int da9211_i2c_probe(struct i2c_client *i2c,
 	unsigned int data;
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9211), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
 
 	chip->dev = &i2c->dev;
 	chip->regmap = devm_regmap_init_i2c(i2c, &da9211_regmap_config);
