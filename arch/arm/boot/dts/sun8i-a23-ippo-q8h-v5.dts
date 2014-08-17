@@ -24,6 +24,8 @@
 
 	soc@01c00000 {
 		r_uart: serial@01f02800 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&r_uart_pins_a>;
 			status = "okay";
 		};
 	};
