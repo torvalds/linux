@@ -238,6 +238,9 @@ static int si2157_set_params(struct dvb_frontend *fe)
 		bandwidth = 0x0f;
 
 	switch (c->delivery_system) {
+	case SYS_ATSC:
+			delivery_system = 0x00;
+			break;
 	case SYS_DVBT:
 	case SYS_DVBT2: /* it seems DVB-T and DVB-T2 both are 0x20 here */
 			delivery_system = 0x20;
