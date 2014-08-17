@@ -56,8 +56,7 @@
 #define GPIO31_DIR_OUTPUT			0x40
 
 /* Macrocell register definitions */
-#define AB8500_CTRL3_REG			0x0200
-#define AB8500_GPIO_DIR4_REG			0x1013
+#define AB8500_GPIO_DIR4_REG			0x13 /* Bank AB8500_MISC */
 
 /* Nr of FIR/IIR-coeff banks in ANC-block */
 #define AB8500_NR_OF_ANC_COEFF_BANKS		2
@@ -1968,16 +1967,16 @@ static int ab8500_audio_setup_mics(struct snd_soc_codec *codec,
 	dev_dbg(codec->dev, "%s: Enter.\n", __func__);
 
 	/* Set DMic-clocks to outputs */
-	status = abx500_get_register_interruptible(codec->dev, (u8)AB8500_MISC,
-						(u8)AB8500_GPIO_DIR4_REG,
+	status = abx500_get_register_interruptible(codec->dev, AB8500_MISC,
+						AB8500_GPIO_DIR4_REG,
 						&value8);
 	if (status < 0)
 		return status;
 	value = value8 | GPIO27_DIR_OUTPUT | GPIO29_DIR_OUTPUT |
 		GPIO31_DIR_OUTPUT;
 	status = abx500_set_register_interruptible(codec->dev,
-						(u8)AB8500_MISC,
-						(u8)AB8500_GPIO_DIR4_REG,
+						AB8500_MISC,
+						AB8500_GPIO_DIR4_REG,
 						value);
 	if (status < 0)
 		return status;
