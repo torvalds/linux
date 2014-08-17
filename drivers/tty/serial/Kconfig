@@ -200,6 +200,24 @@ config SERIAL_KS8695_CONSOLE
 	  receives all kernel messages and warnings and which allows
 	  logins in single user mode).
 
+config SERIAL_MESON
+	tristate "Meson serial port support"
+	depends on ARCH_MESON
+	select SERIAL_CORE
+	help
+	  This enables the driver for the on-chip UARTs of the Amlogic
+	  MesonX processors.
+
+config SERIAL_MESON_CONSOLE
+	bool "Support for console on meson"
+	depends on SERIAL_MESON=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a Amlogic MesonX UART as the
+	  system console (the system console is the device which
+	  receives all kernel messages and warnings and which allows
+	  logins in single user mode) as /dev/ttyAMLx.
+
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
