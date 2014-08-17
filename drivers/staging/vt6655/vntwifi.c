@@ -543,10 +543,6 @@ VNTWIFIvGetTxRate(
 	} else { /* Infrastructure: rate decided from AP Node, index = 0 */
 
 		wTxDataRate = (pMgmt->sNodeDBTable[0].wTxDataRate);
-#ifdef	PLICE_DEBUG
-		pr_debug("GetTxRate:AP MAC is %pM,TxRate is %d\n",
-		       pMgmt->sNodeDBTable[0].abyMACAddr, wTxDataRate);
-#endif
 
 		pSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrSuppRates;
 		pExtSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrExtSuppRates;
