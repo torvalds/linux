@@ -31,6 +31,8 @@
 #include <subdev/gpio.h>
 #include <subdev/timer.h>
 
+#include <subdev/bios/fan.h>
+
 static int
 nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 {
@@ -275,8 +277,11 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	/* other random init... */
 	nouveau_therm_fan_set_defaults(therm);
 	nvbios_perf_fan_parse(bios, &priv->fan->perf);
-	if (nvbios_therm_fan_parse(bios, &priv->fan->bios))
-		nv_error(therm, "parsing the thermal table failed\n");
+	if (!nvbios_fan_parse(bios, &priv->fan->bios)) {
+		nv_debug(therm, "parsing the fan table failed\n");
+		if (nvbios_therm_fan_parse(bios, &priv->fan->bios))
+			nv_error(therm, "parsing both fan tables failed\n");
+	}
 	nouveau_therm_fan_safety_checks(therm);
 	return 0;
 }

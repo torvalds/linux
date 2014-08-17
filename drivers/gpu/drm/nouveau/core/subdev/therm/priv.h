@@ -149,6 +149,8 @@ int nv84_therm_fini(struct nouveau_object *object, bool suspend);
 
 int nva3_therm_fan_sense(struct nouveau_therm *);
 
+int nvd0_therm_init(struct nouveau_object *object);
+
 int nouveau_fanpwm_create(struct nouveau_therm *, struct dcb_gpio_func *);
 int nouveau_fantog_create(struct nouveau_therm *, struct dcb_gpio_func *);
 int nouveau_fannil_create(struct nouveau_therm *);
