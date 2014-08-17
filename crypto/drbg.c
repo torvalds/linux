@@ -1142,6 +1142,11 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 		pr_devel("DRBG: using personalization string\n");
 	}
 
+	if (!reseed) {
+		memset(drbg->V, 0, drbg_statelen(drbg));
+		memset(drbg->C, 0, drbg_statelen(drbg));
+	}
+
 	ret = drbg->d_ops->update(drbg, &seedlist, reseed);
 	if (ret)
 		goto out;
@@ -1186,14 +1191,14 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 	if (!drbg)
 		return -EINVAL;
 
-	drbg->V = kzalloc(drbg_statelen(drbg), GFP_KERNEL);
+	drbg->V = kmalloc(drbg_statelen(drbg), GFP_KERNEL);
 	if (!drbg->V)
 		goto err;
-	drbg->C = kzalloc(drbg_statelen(drbg), GFP_KERNEL);
+	drbg->C = kmalloc(drbg_statelen(drbg), GFP_KERNEL);
 	if (!drbg->C)
 		goto err;
 #ifdef CONFIG_CRYPTO_FIPS
-	drbg->prev = kzalloc(drbg_blocklen(drbg), GFP_KERNEL);
+	drbg->prev = kmalloc(drbg_blocklen(drbg), GFP_KERNEL);
 	if (!drbg->prev)
 		goto err;
 	drbg->fips_primed = false;
