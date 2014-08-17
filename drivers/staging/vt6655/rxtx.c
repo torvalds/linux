@@ -68,7 +68,6 @@
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
-#define	PLICE_DEBUG
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -1969,9 +1968,8 @@ vGenerateFIFOHeader(struct vnt_private *pDevice, unsigned char byPktType,
 		}
 	}
 
-#ifdef	PLICE_DEBUG
 	RFbSetPower(pDevice, pDevice->wCurrentRate, pDevice->byCurrentCh);
-#endif
+
 	pTxBufHead->byTxPower = pDevice->byCurPwr;
 
 	*pcbHeaderSize = s_cbFillTxBufHead(pDevice, byPktType, pbyTxBufferAddr, cbPayloadSize,

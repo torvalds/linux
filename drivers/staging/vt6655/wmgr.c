@@ -80,8 +80,6 @@
 #include "rf.h"
 #include "iowpa.h"
 
-#define	PLICE_DEBUG
-
 /*---------------------  Static Definitions -------------------------*/
 
 /*---------------------  Static Classes  ----------------------------*/
@@ -692,9 +690,9 @@ s_vMgrRxAssocRequest(
 		// set max tx rate
 		pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate =
 			pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
-#ifdef	PLICE_DEBUG
+
 		pr_debug("RxAssocRequest:wTxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
-#endif
+
 		// Todo: check sta preamble, if ap can't support, set status code
 		pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
 			WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
@@ -840,9 +838,9 @@ s_vMgrRxReAssocRequest(
 		// set max tx rate
 		pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate =
 			pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
-#ifdef	PLICE_DEBUG
+
 		pr_debug("RxReAssocRequest:TxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
-#endif
+
 		// Todo: check sta preamble, if ap can't support, set status code
 		pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
 			WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
@@ -2097,11 +2095,9 @@ s_vMgrRxBeacon(
 				memcpy(pMgmt->sNodeDBTable[uNodeIndex].abyMACAddr, sFrame.pHdr->sA3.abyAddr2, WLAN_ADDR_LEN);
 				pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble = WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
 				pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate = pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
-#ifdef	PLICE_DEBUG
 				{
 					pr_debug("s_vMgrRxBeacon:TxDataRate is %d,Index is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate, uNodeIndex);
 				}
-#endif
 			}
 
 			// if other stations joined, indicate connection to upper layer..
