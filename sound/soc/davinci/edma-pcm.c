@@ -25,6 +25,8 @@
 #include <sound/dmaengine_pcm.h>
 #include <linux/edma.h>
 
+#include "edma-pcm.h"
+
 static const struct snd_pcm_hardware edma_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
