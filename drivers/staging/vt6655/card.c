@@ -59,8 +59,6 @@
 
 /*---------------------  Static Definitions -------------------------*/
 
-static int msglevel = MSG_LEVEL_INFO;
-
 #define C_SIFS_A        16      // micro sec.
 #define C_SIFS_BG       10
 
@@ -747,14 +745,14 @@ bool CARDbSetBSSID(struct vnt_private *pDevice,
 		MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
 		pDevice->bBSSIDFilter = false;
 		pDevice->byRxMode &= ~RCR_BSSID;
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wcmd: rx_mode = %x\n", pDevice->byRxMode);
+		pr_debug("wcmd: rx_mode = %x\n", pDevice->byRxMode);
 	} else {
 		if (is_zero_ether_addr(pDevice->abyBSSID) == false) {
 			MACvRegBitsOn(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
 			pDevice->bBSSIDFilter = true;
 			pDevice->byRxMode |= RCR_BSSID;
 		}
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wmgr: rx_mode = %x\n", pDevice->byRxMode);
+		pr_debug("wmgr: rx_mode = %x\n", pDevice->byRxMode);
 	}
 	// Adopt BSS state in Adapter Device Object
 	pDevice->eOPMode = eOPMode;
@@ -838,7 +836,7 @@ CARDbPowerDown(
 	}
 
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_GO2DOZE);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
+	pr_debug("Go to Doze ZZZZZZZZZZZZZZZ\n");
 	return true;
 }
 
@@ -975,17 +973,18 @@ CARDbAdd_PMKID_Candidate(
 	struct pmkid_candidate *pCandidateList;
 	unsigned int ii = 0;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bAdd_PMKID_Candidate START: (%d)\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
+	pr_debug("bAdd_PMKID_Candidate START: (%d)\n",
+		 (int)pDevice->gsPMKIDCandidate.NumCandidates);
 
 	if (pDevice->gsPMKIDCandidate.NumCandidates >= MAX_PMKIDLIST) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "vFlush_PMKID_Candidate: 3\n");
+		pr_debug("vFlush_PMKID_Candidate: 3\n");
 		memset(&pDevice->gsPMKIDCandidate, 0, sizeof(SPMKIDCandidateEvent));
 	}
 
 	for (ii = 0; ii < 6; ii++)
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02X ", *(pbyBSSID + ii));
+		pr_debug("%02X ", *(pbyBSSID + ii));
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
+	pr_debug("\n");
 
 	// Update Old Candidate
 	for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
@@ -1009,7 +1008,8 @@ CARDbAdd_PMKID_Candidate(
 
 	memcpy(pCandidateList->BSSID, pbyBSSID, ETH_ALEN);
 	pDevice->gsPMKIDCandidate.NumCandidates++;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "NumCandidates:%d\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
+	pr_debug("NumCandidates:%d\n",
+		 (int)pDevice->gsPMKIDCandidate.NumCandidates);
 	return true;
 }
 
@@ -1559,22 +1559,22 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *pDevice,
 {
 	unsigned int ui = (unsigned int) wRateIdx;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BASIC RATE: %X\n", pDevice->wBasicRate);
+	pr_debug("BASIC RATE: %X\n", pDevice->wBasicRate);
 
 	if (!CARDbIsOFDMinBasicRate((void *)pDevice)) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "CARDwGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
+		pr_debug("CARDwGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
 		if (wRateIdx > RATE_24M)
 			wRateIdx = RATE_24M;
 		return wRateIdx;
 	}
 	while (ui > RATE_11M) {
 		if (pDevice->wBasicRate & ((unsigned short)1 << ui)) {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "CARDwGetOFDMControlRate : %d\n", ui);
+			pr_debug("CARDwGetOFDMControlRate : %d\n", ui);
 			return (unsigned short)ui;
 		}
 		ui--;
 	}
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "CARDwGetOFDMControlRate: 6M\n");
+	pr_debug("CARDwGetOFDMControlRate: 6M\n");
 	return (unsigned short)RATE_24M;
 }
 
@@ -2017,5 +2017,5 @@ void CARDvUpdateNextTBTT(void __iomem *dwIoBase, u64 qwTSF, unsigned short wBeac
 	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, (u32)qwTSF);
 	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT + 4, (u32)(qwTSF >> 32));
 	MACvRegBitsOn(dwIoBase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Card:Update Next TBTT[%8llx]\n", qwTSF);
+	pr_debug("Card:Update Next TBTT[%8llx]\n", qwTSF);
 }

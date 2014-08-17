@@ -42,8 +42,6 @@
 
 /*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -78,8 +76,7 @@ bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 	unsigned char *pbyBSSID;
 
 	if (AVAIL_TD(pDevice, TYPE_AC0DMA) <= 0) {
-		DBG_PRT(MSG_LEVEL_DEBUG,
-			KERN_INFO "Relay can't allocate TD1..\n");
+		pr_debug("Relay can't allocate TD1..\n");
 		return false;
 	}
 
@@ -102,11 +99,10 @@ bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 		if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID,
 		    GROUP_KEY, &pTransmitKey) == false) {
 			pTransmitKey = NULL;
-			DBG_PRT(MSG_LEVEL_DEBUG,
-				KERN_DEBUG "KEY is NULL. [%d]\n",
-				pDevice->pMgmt->eCurrMode);
+			pr_debug("KEY is NULL. [%d]\n",
+				 pDevice->pMgmt->eCurrMode);
 		} else {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG "Get GTK.\n");
+			pr_debug("Get GTK\n");
 		}
 	}
 

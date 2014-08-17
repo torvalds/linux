@@ -30,8 +30,6 @@
 
 #define CARD_MAX_CHANNEL_TBL    56
 
-static int msglevel = MSG_LEVEL_INFO;
-
 /*---------------------  Static Variables  --------------------------*/
 
 static SChannelTblElement sChannelTbl[CARD_MAX_CHANNEL_TBL + 1] =
@@ -480,7 +478,10 @@ void init_channel_table(void *pDeviceHandler)
 		}
 	}
 
-	DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Zone=[%d][%c][%c]!!\n", pDevice->byZoneType, ChannelRuleTab[pDevice->byZoneType].chCountryCode[0], ChannelRuleTab[pDevice->byZoneType].chCountryCode[1]);
+	pr_info("Zone=[%d][%c][%c]!!\n",
+		pDevice->byZoneType,
+		ChannelRuleTab[pDevice->byZoneType].chCountryCode[0],
+		ChannelRuleTab[pDevice->byZoneType].chCountryCode[1]);
 
 	for (ii = 0; ii < CARD_MAX_CHANNEL_TBL; ii++) {
 		if (pDevice->abyRegPwr[ii + 1] == 0)

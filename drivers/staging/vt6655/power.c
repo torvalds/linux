@@ -50,8 +50,6 @@
 
 /*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -113,7 +111,7 @@ PSvEnablePowerSaving(
 		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = true;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
+	pr_debug("PS:Power Saving Mode Enable...\n");
 }
 
 /*+
@@ -210,7 +208,7 @@ PSbConsiderPowerDown(
 
 	// no Tx, no Rx isr, now go to Doze
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_GO2DOZE);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
+	pr_debug("Go to Doze ZZZZZZZZZZZZZZZ\n");
 	return true;
 }
 
@@ -249,7 +247,7 @@ PSvSendPSPOLL(
 	pTxPacket->cbPayloadLen = 0;
 	// send the frame
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
+		pr_debug("Send PS-Poll packet failed..\n");
 }
 
 /*+
@@ -314,7 +312,7 @@ PSbSendNullPacket(
 	pTxPacket->cbPayloadLen = 0;
 	// send the frame
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
+		pr_debug("Send Null Packet failed !\n");
 		return false;
 	}
 

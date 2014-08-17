@@ -148,12 +148,6 @@
 
 /*---------------------  Export Types  ------------------------------*/
 
-#define DBG_PRT(l, p, args...)		\
-do {					\
-	if (l <= msglevel)		\
-		printk(p, ##args);	\
-} while (0)
-
 #define PRINT_K(p, args...)		\
 do {					\
 	if (PRIVATE_Message)		\

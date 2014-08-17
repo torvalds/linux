@@ -63,10 +63,6 @@
 
 /*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
-
-static int msglevel = MSG_LEVEL_INFO;
-/* static int          msglevel                =MSG_LEVEL_DEBUG; */
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -218,9 +214,8 @@ vMgrDecodeBeacon(
 			break;
 
 		default:
-			DBG_PRT(MSG_LEVEL_DEBUG,
-				KERN_INFO "Unrecognized EID=%dd in beacon decode.\n",
-				pItem->byElementID);
+			pr_debug("Unrecognized EID=%dd in beacon decode\n",
+				 pItem->byElementID);
 			break;
 
 		}
@@ -406,9 +401,8 @@ vMgrDecodeAssocRequest(
 			break;
 
 		default:
-			DBG_PRT(MSG_LEVEL_DEBUG,
-				KERN_INFO "Unrecognized EID=%dd in assocreq decode.\n",
-				pItem->byElementID);
+			pr_debug("Unrecognized EID=%dd in assocreq decode\n",
+				 pItem->byElementID);
 			break;
 		}
 		pItem = (PWLAN_IE)(((unsigned char *)pItem) + 2 + pItem->len);
@@ -489,9 +483,7 @@ vMgrDecodeAssocResponse(
 	if ((((unsigned char *)pItem) < (pFrame->pBuf + pFrame->len)) &&
 	    (pItem->byElementID == WLAN_EID_EXTSUPP_RATES)) {
 		pFrame->pExtSuppRates = (PWLAN_IE_SUPP_RATES)pItem;
-		DBG_PRT(MSG_LEVEL_DEBUG,
-			KERN_INFO "pFrame->pExtSuppRates=[%p].\n",
-			pItem);
+		pr_debug("pFrame->pExtSuppRates=[%p]\n", pItem);
 	} else {
 		pFrame->pExtSuppRates = NULL;
 	}
@@ -594,9 +586,8 @@ vMgrDecodeReassocRequest(
 						    (PWLAN_IE_SUPP_RATES)pItem;
 			break;
 		default:
-			DBG_PRT(MSG_LEVEL_DEBUG,
-				KERN_INFO "Unrecognized EID=%dd in reassocreq decode.\n",
-				pItem->byElementID);
+			pr_debug("Unrecognized EID=%dd in reassocreq decode\n",
+				 pItem->byElementID);
 			break;
 		}
 		pItem = (PWLAN_IE)(((unsigned char *)pItem) + 2 + pItem->len);
@@ -666,9 +657,8 @@ vMgrDecodeProbeRequest(
 			break;
 
 		default:
-			DBG_PRT(MSG_LEVEL_DEBUG,
-				KERN_INFO "Bad EID=%dd in probereq\n",
-				pItem->byElementID);
+			pr_debug("Bad EID=%dd in probereq\n",
+				 pItem->byElementID);
 			break;
 		}
 
@@ -819,9 +809,8 @@ vMgrDecodeProbeResponse(
 			break;
 
 		default:
-			DBG_PRT(MSG_LEVEL_DEBUG,
-				KERN_INFO "Bad EID=%dd in proberesp\n",
-				pItem->byElementID);
+			pr_debug("Bad EID=%dd in proberesp\n",
+				 pItem->byElementID);
 			break;
 		}
 
