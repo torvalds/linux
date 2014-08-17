@@ -595,6 +595,7 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 					   conn->dst_type);
 	if (params && params->conn) {
 		hci_conn_drop(params->conn);
+		hci_conn_put(params->conn);
 		params->conn = NULL;
 	}
 

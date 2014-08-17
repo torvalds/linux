@@ -3063,6 +3063,7 @@ static void pairing_complete(struct pending_cmd *cmd, u8 status)
 	conn->disconn_cfm_cb = NULL;
 
 	hci_conn_drop(conn);
+	hci_conn_put(conn);
 
 	mgmt_pending_remove(cmd);
 }
@@ -3212,7 +3213,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	conn->io_capability = cp->io_cap;
-	cmd->user_data = conn;
+	cmd->user_data = hci_conn_get(conn);
 
 	if ((conn->state == BT_CONNECTED || conn->state == BT_CONFIG) &&
 	    hci_conn_security(conn, sec_level, auth_type, true))
@@ -4914,6 +4915,7 @@ static void get_conn_info_complete(struct pending_cmd *cmd, void *data)
 		     match->mgmt_status, &rp, sizeof(rp));
 
 	hci_conn_drop(conn);
+	hci_conn_put(conn);
 
 	mgmt_pending_remove(cmd);
 }
@@ -5070,7 +5072,7 @@ static int get_conn_info(struct sock *sk, struct hci_dev *hdev, void *data,
 		}
 
 		hci_conn_hold(conn);
-		cmd->user_data = conn;
+		cmd->user_data = hci_conn_get(conn);
 
 		conn->conn_info_timestamp = jiffies;
 	} else {
@@ -5134,8 +5136,10 @@ send_rsp:
 	cmd_complete(cmd->sk, cmd->index, cmd->opcode, mgmt_status(status),
 		     &rp, sizeof(rp));
 	mgmt_pending_remove(cmd);
-	if (conn)
+	if (conn) {
 		hci_conn_drop(conn);
+		hci_conn_put(conn);
+	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -5198,7 +5202,7 @@ static int get_clock_info(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	if (conn) {
 		hci_conn_hold(conn);
-		cmd->user_data = conn;
+		cmd->user_data = hci_conn_get(conn);
 
 		hci_cp.handle = cpu_to_le16(conn->handle);
 		hci_cp.which = 0x01; /* Piconet clock */

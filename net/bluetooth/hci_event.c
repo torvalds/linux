@@ -4231,6 +4231,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		list_del_init(&params->action);
 		if (params->conn) {
 			hci_conn_drop(params->conn);
+			hci_conn_put(params->conn);
 			params->conn = NULL;
 		}
 	}
@@ -4322,7 +4323,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		 * the parameters get removed and keep the reference
 		 * count consistent once the connection is established.
 		 */
-		params->conn = conn;
+		params->conn = hci_conn_get(conn);
 		return;
 	}
 
