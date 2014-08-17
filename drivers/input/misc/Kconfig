@@ -676,4 +676,15 @@ config INPUT_SOC_BUTTON_ARRAY
 	  To compile this driver as a module, choose M here: the
 	  module will be called soc_button_array.
 
+config INPUT_DRV260X_HAPTICS
+	tristate "TI DRV260X haptics support"
+	depends on INPUT && I2C && GPIOLIB
+	select INPUT_FF_MEMLESS
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI DRV260X haptics driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called drv260x-haptics.
+
 endif
