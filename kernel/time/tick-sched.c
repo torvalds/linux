@@ -365,6 +365,20 @@ void __init tick_nohz_init(void)
 		return;
 	}
 
+	/*
+	 * Full dynticks uses irq work to drive the tick rescheduling on safe
+	 * locking contexts. But then we need irq work to raise its own
+	 * interrupts to avoid circular dependency on the tick
+	 */
+	if (!arch_irq_work_has_interrupt()) {
+		pr_warning("NO_HZ: Can't run full dynticks because arch doesn't "
+			   "support irq work self-IPIs\n");
+		cpumask_clear(tick_nohz_full_mask);
+		cpumask_copy(housekeeping_mask, cpu_possible_mask);
+		tick_nohz_full_running = false;
+		return;
+	}
+
 	cpu = smp_processor_id();
 
 	if (cpumask_test_cpu(cpu, tick_nohz_full_mask)) {
