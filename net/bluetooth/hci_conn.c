@@ -1316,6 +1316,9 @@ void hci_chan_del(struct hci_chan *chan)
 
 	synchronize_rcu();
 
+	/* Force the connection to be immediately dropped */
+	conn->disc_timeout = 0;
+
 	hci_conn_drop(conn);
 	hci_conn_put(conn);
 
