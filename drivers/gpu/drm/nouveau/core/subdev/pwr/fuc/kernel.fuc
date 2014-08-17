@@ -245,9 +245,12 @@ intr:
 // request the current process be sent a message after a timeout expires
 //
 // $r15 - current
-// $r14 - ticks
+// $r14 - ticks (make sure it is < 2^31 to avoid any possible overflow)
 // $r0  - zero
 timer:
+	push $r9
+	push $r8
+
 	// interrupts off to prevent racing with timer isr
 	bclr $flags ie0
 
@@ -255,13 +258,22 @@ timer:
 	ld b32 $r8 D[$r15 + #proc_time]
 	cmp b32 $r8 0
 	bra g #timer_done
+
+	// halt watchdog timer temporarily
+	clear b32 $r8
+	nv_iowr(NV_PPWR_WATCHDOG_ENABLE, $r8)
+
+	// find out how much time elapsed since the last update
+	// of the watchdog and add this time to the wanted ticks
+	nv_iord($r8, NV_PPWR_WATCHDOG_TIME)
+	ld b32 $r9 D[$r0 + #time_prev]
+	sub b32 $r9 $r8
+	add b32 $r14 $r9
 	st b32 D[$r15 + #proc_time] $r14
 
-	// halt watchdog timer temporarily and check for a pending
-	// interrupt.  if there's one already pending, we can just
-	// bail since the timer isr will queue the next soonest
-	// right after it's done
-	nv_iowr(NV_PPWR_WATCHDOG_ENABLE, $r8)
+	// check for a pending interrupt.  if there's one already
+	// pending, we can just bail since the timer isr will
+	// queue the next soonest right after it's done
 	nv_iord($r8, NV_PPWR_INTR)
 	and $r8 NV_PPWR_INTR_WATCHDOG
 	bra nz #timer_enable
@@ -272,10 +284,10 @@ timer:
 	cmp b32 $r14 $r0
 	bra e #timer_reset
 	cmp b32 $r14 $r8
-	bra l #timer_done
-	timer_reset:
-	nv_iowr(NV_PPWR_WATCHDOG_TIME, $r14)
-	st b32 D[$r0 + #time_prev] $r14
+	bra g #timer_enable
+		timer_reset:
+		nv_iowr(NV_PPWR_WATCHDOG_TIME, $r14)
+		st b32 D[$r0 + #time_prev] $r14
 
 	// re-enable the watchdog timer
 	timer_enable:
@@ -285,6 +297,9 @@ timer:
 	// interrupts back on
 	timer_done:
 	bset $flags ie0
+
+	pop $r8
+	pop $r9
 	ret
 
 // send message to another process
