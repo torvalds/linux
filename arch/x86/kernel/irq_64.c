@@ -52,13 +52,13 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	    regs->sp <= curbase + THREAD_SIZE)
 		return;
 
-	irq_stack_top = (u64)__get_cpu_var(irq_stack_union.irq_stack) +
+	irq_stack_top = (u64)this_cpu_ptr(irq_stack_union.irq_stack) +
 			STACK_TOP_MARGIN;
-	irq_stack_bottom = (u64)__get_cpu_var(irq_stack_ptr);
+	irq_stack_bottom = (u64)__this_cpu_read(irq_stack_ptr);
 	if (regs->sp >= irq_stack_top && regs->sp <= irq_stack_bottom)
 		return;
 
-	oist = &__get_cpu_var(orig_ist);
+	oist = this_cpu_ptr(&orig_ist);
 	estack_top = (u64)oist->ist[0] - EXCEPTION_STKSZ + STACK_TOP_MARGIN;
 	estack_bottom = (u64)oist->ist[N_EXCEPTION_STACKS - 1];
 	if (regs->sp >= estack_top && regs->sp <= estack_bottom)

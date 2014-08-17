@@ -164,7 +164,7 @@ struct uv_hub_info_s {
 };
 
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
-#define uv_hub_info		(&__get_cpu_var(__uv_hub_info))
+#define uv_hub_info		this_cpu_ptr(&__uv_hub_info)
 #define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
 
 /*

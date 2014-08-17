@@ -1601,7 +1601,7 @@ static void reload_tss(void)
 	/*
 	 * VT restores TR but not its size.  Useless.
 	 */
-	struct desc_ptr *gdt = &__get_cpu_var(host_gdt);
+	struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
 	struct desc_struct *descs;
 
 	descs = (void *)gdt->address;
@@ -1647,7 +1647,7 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 
 static unsigned long segment_base(u16 selector)
 {
-	struct desc_ptr *gdt = &__get_cpu_var(host_gdt);
+	struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
 	struct desc_struct *d;
 	unsigned long table_base;
 	unsigned long v;
@@ -1777,7 +1777,7 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 	 */
 	if (!user_has_fpu() && !vmx->vcpu.guest_fpu_loaded)
 		stts();
-	load_gdt(&__get_cpu_var(host_gdt));
+	load_gdt(this_cpu_ptr(&host_gdt));
 }
 
 static void vmx_load_host_state(struct vcpu_vmx *vmx)
@@ -1807,7 +1807,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	if (vmx->loaded_vmcs->cpu != cpu) {
-		struct desc_ptr *gdt = &__get_cpu_var(host_gdt);
+		struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
 		unsigned long sysenter_esp;
 
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
@@ -2744,7 +2744,7 @@ static int hardware_enable(void *garbage)
 		ept_sync_global();
 	}
 
-	native_store_gdt(&__get_cpu_var(host_gdt));
+	native_store_gdt(this_cpu_ptr(&host_gdt));
 
 	return 0;
 }

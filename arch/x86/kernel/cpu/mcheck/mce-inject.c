@@ -83,7 +83,7 @@ static DEFINE_MUTEX(mce_inject_mutex);
 static int mce_raise_notify(unsigned int cmd, struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
-	struct mce *m = &__get_cpu_var(injectm);
+	struct mce *m = this_cpu_ptr(&injectm);
 	if (!cpumask_test_cpu(cpu, mce_inject_cpumask))
 		return NMI_DONE;
 	cpumask_clear_cpu(cpu, mce_inject_cpumask);
@@ -97,7 +97,7 @@ static int mce_raise_notify(unsigned int cmd, struct pt_regs *regs)
 static void mce_irq_ipi(void *info)
 {
 	int cpu = smp_processor_id();
-	struct mce *m = &__get_cpu_var(injectm);
+	struct mce *m = this_cpu_ptr(&injectm);
 
 	if (cpumask_test_cpu(cpu, mce_inject_cpumask) &&
 			m->inject_flags & MCJ_EXCEPTION) {
@@ -109,7 +109,7 @@ static void mce_irq_ipi(void *info)
 /* Inject mce on current CPU */
 static int raise_local(void)
 {
-	struct mce *m = &__get_cpu_var(injectm);
+	struct mce *m = this_cpu_ptr(&injectm);
 	int context = MCJ_CTX(m->inject_flags);
 	int ret = 0;
 	int cpu = m->extcpu;
