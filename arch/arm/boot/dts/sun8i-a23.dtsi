@@ -359,5 +359,18 @@
 			resets = <&apb0_rst 4>;
 			status = "disabled";
 		};
+
+		r_pio: pinctrl@01f02c00 {
+			compatible = "allwinner,sun8i-a23-r-pinctrl";
+			reg = <0x01f02c00 0x400>;
+			interrupts = <0 45 4>;
+			clocks = <&apb0_gates 0>;
+			resets = <&apb0_rst 0>;
+			gpio-controller;
+			interrupt-controller;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#gpio-cells = <3>;
+		};
 	};
 };
