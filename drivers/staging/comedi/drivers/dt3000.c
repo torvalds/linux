@@ -488,7 +488,6 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int chan, range, aref;
 	unsigned int divider;
 	unsigned int tscandiv;
-	unsigned int mode;
 
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		chan = CR_CHAN(cmd->chanlist[i]);
@@ -513,8 +512,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writew((tscandiv & 0xffff), dev->mmio + DPR_Params(4));
 	}
 
-	mode = DT3000_AD_RETRIG_INTERNAL | 0 | 0;
-	writew(mode, dev->mmio + DPR_Params(5));
+	writew(DT3000_AD_RETRIG_INTERNAL, dev->mmio + DPR_Params(5));
 	writew(aref == AREF_DIFF, dev->mmio + DPR_Params(6));
 
 	writew(AI_FIFO_DEPTH / 2, dev->mmio + DPR_Params(7));
