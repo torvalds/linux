@@ -204,6 +204,9 @@ _nouveau_pwr_init(struct nouveau_object *object)
 	nv_mask(ppwr, 0x000200, 0x00002000, 0x00000000);
 	nv_mask(ppwr, 0x000200, 0x00002000, 0x00002000);
 
+	/* At least one GM107 needs this delay after reset */
+	udelay(20);
+
 	/* upload data segment */
 	nv_wr32(ppwr, 0x10a1c0, 0x01000000);
 	for (i = 0; i < impl->data.size / 4; i++)
