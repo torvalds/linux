@@ -117,27 +117,18 @@ static const struct drbg_core drbg_cores[] = {
 	{
 		.flags = DRBG_CTR | DRBG_STRENGTH128,
 		.statelen = 32, /* 256 bits as defined in 10.2.1 */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 16,
 		.cra_name = "ctr_aes128",
 		.backend_cra_name = "ecb(aes)",
 	}, {
 		.flags = DRBG_CTR | DRBG_STRENGTH192,
 		.statelen = 40, /* 320 bits as defined in 10.2.1 */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 16,
 		.cra_name = "ctr_aes192",
 		.backend_cra_name = "ecb(aes)",
 	}, {
 		.flags = DRBG_CTR | DRBG_STRENGTH256,
 		.statelen = 48, /* 384 bits as defined in 10.2.1 */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 16,
 		.cra_name = "ctr_aes256",
 		.backend_cra_name = "ecb(aes)",
@@ -147,36 +138,24 @@ static const struct drbg_core drbg_cores[] = {
 	{
 		.flags = DRBG_HASH | DRBG_STRENGTH128,
 		.statelen = 55, /* 440 bits */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 20,
 		.cra_name = "sha1",
 		.backend_cra_name = "sha1",
 	}, {
 		.flags = DRBG_HASH | DRBG_STRENGTH256,
 		.statelen = 111, /* 888 bits */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 48,
 		.cra_name = "sha384",
 		.backend_cra_name = "sha384",
 	}, {
 		.flags = DRBG_HASH | DRBG_STRENGTH256,
 		.statelen = 111, /* 888 bits */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 64,
 		.cra_name = "sha512",
 		.backend_cra_name = "sha512",
 	}, {
 		.flags = DRBG_HASH | DRBG_STRENGTH256,
 		.statelen = 55, /* 440 bits */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 32,
 		.cra_name = "sha256",
 		.backend_cra_name = "sha256",
@@ -186,36 +165,24 @@ static const struct drbg_core drbg_cores[] = {
 	{
 		.flags = DRBG_HMAC | DRBG_STRENGTH128,
 		.statelen = 20, /* block length of cipher */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 20,
 		.cra_name = "hmac_sha1",
 		.backend_cra_name = "hmac(sha1)",
 	}, {
 		.flags = DRBG_HMAC | DRBG_STRENGTH256,
 		.statelen = 48, /* block length of cipher */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 48,
 		.cra_name = "hmac_sha384",
 		.backend_cra_name = "hmac(sha384)",
 	}, {
 		.flags = DRBG_HMAC | DRBG_STRENGTH256,
 		.statelen = 64, /* block length of cipher */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 64,
 		.cra_name = "hmac_sha512",
 		.backend_cra_name = "hmac(sha512)",
 	}, {
 		.flags = DRBG_HMAC | DRBG_STRENGTH256,
 		.statelen = 32, /* block length of cipher */
-		.max_addtllen = 35,
-		.max_bits = 19,
-		.max_req = 48,
 		.blocklen_bytes = 32,
 		.cra_name = "hmac_sha256",
 		.backend_cra_name = "hmac(sha256)",
