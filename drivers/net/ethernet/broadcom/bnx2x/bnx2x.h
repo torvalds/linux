@@ -1592,12 +1592,11 @@ struct bnx2x {
 #define USING_SINGLE_MSIX_FLAG		(1 << 20)
 #define BC_SUPPORTS_DCBX_MSG_NON_PMF	(1 << 21)
 #define IS_VF_FLAG			(1 << 22)
-#define INTERRUPTS_ENABLED_FLAG		(1 << 23)
-#define BC_SUPPORTS_RMMOD_CMD		(1 << 24)
-#define HAS_PHYS_PORT_ID		(1 << 25)
-#define AER_ENABLED			(1 << 26)
-#define PTP_SUPPORTED			(1 << 27)
-#define TX_TIMESTAMPING_EN		(1 << 28)
+#define BC_SUPPORTS_RMMOD_CMD		(1 << 23)
+#define HAS_PHYS_PORT_ID		(1 << 24)
+#define AER_ENABLED			(1 << 25)
+#define PTP_SUPPORTED			(1 << 26)
+#define TX_TIMESTAMPING_EN		(1 << 27)
 
 #define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
 
@@ -1691,13 +1690,9 @@ struct bnx2x {
 #define BNX2X_STATE_ERROR		0xf000
 
 #define BNX2X_MAX_PRIORITY		8
-#define BNX2X_MAX_ENTRIES_PER_PRI	16
-#define BNX2X_MAX_COS			3
-#define BNX2X_MAX_TX_COS		2
 	int			num_queues;
 	uint			num_ethernet_queues;
 	uint			num_cnic_queues;
-	int			num_napi_queues;
 	int			disable_tpa;
 
 	u32			rx_mode;

@@ -2075,8 +2075,6 @@ int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port)
 	else
 		value = 0;
 
-	DP(NETIF_MSG_LINK, "pin %d  value 0x%x\n", gpio_num, value);
-
 	return value;
 }
 
@@ -4682,7 +4680,7 @@ static bool bnx2x_check_blocks_with_parity2(struct bnx2x *bp, u32 sig,
 	for (i = 0; sig; i++) {
 		cur_bit = (0x1UL << i);
 		if (sig & cur_bit) {
-			res |= true; /* Each bit is real error! */
+			res = true; /* Each bit is real error! */
 			if (print) {
 				switch (cur_bit) {
 				case AEU_INPUTS_ATTN_BITS_CSEMI_PARITY_ERROR:
@@ -4761,21 +4759,21 @@ static bool bnx2x_check_blocks_with_parity3(struct bnx2x *bp, u32 sig,
 					_print_next_block((*par_num)++,
 							  "MCP ROM");
 				*global = true;
-				res |= true;
+				res = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY:
 				if (print)
 					_print_next_block((*par_num)++,
 							  "MCP UMP RX");
 				*global = true;
-				res |= true;
+				res = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY:
 				if (print)
 					_print_next_block((*par_num)++,
 							  "MCP UMP TX");
 				*global = true;
-				res |= true;
+				res = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY:
 				if (print)
@@ -4807,7 +4805,7 @@ static bool bnx2x_check_blocks_with_parity4(struct bnx2x *bp, u32 sig,
 	for (i = 0; sig; i++) {
 		cur_bit = (0x1UL << i);
 		if (sig & cur_bit) {
-			res |= true; /* Each bit is real error! */
+			res = true; /* Each bit is real error! */
 			if (print) {
 				switch (cur_bit) {
 				case AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR:
@@ -6114,7 +6112,7 @@ static int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
 	}
 
 	/* Set ACCEPT_ANY_VLAN as we do not enable filtering by VLAN */
-	if (bp->rx_mode != BNX2X_RX_MODE_NONE) {
+	if (rx_mode != BNX2X_RX_MODE_NONE) {
 		__set_bit(BNX2X_ACCEPT_ANY_VLAN, rx_accept_flags);
 		__set_bit(BNX2X_ACCEPT_ANY_VLAN, tx_accept_flags);
 	}
@@ -9026,7 +9024,7 @@ static int bnx2x_func_wait_started(struct bnx2x *bp)
 		struct bnx2x_func_state_params func_params = {NULL};
 
 		DP(NETIF_MSG_IFDOWN,
-		   "Hmmm... Unexpected function state! Forcing STARTED-->TX_ST0PPED-->STARTED\n");
+		   "Hmmm... Unexpected function state! Forcing STARTED-->TX_STOPPED-->STARTED\n");
 
 		func_params.f_obj = &bp->func_obj;
 		__set_bit(RAMROD_DRV_CLR_ONLY,
