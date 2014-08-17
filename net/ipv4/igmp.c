@@ -2539,7 +2539,7 @@ static int igmp_mc_seq_show(struct seq_file *seq, void *v)
 		querier = "NONE";
 #endif
 
-		if (rcu_dereference(state->in_dev->mc_list) == im) {
+		if (rcu_access_pointer(state->in_dev->mc_list) == im) {
 			seq_printf(seq, "%d\t%-10s: %5d %7s\n",
 				   state->dev->ifindex, state->dev->name, state->in_dev->mc_count, querier);
 		}
