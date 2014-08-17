@@ -1015,6 +1015,56 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
+			    loff_t offset, loff_t len, bool keep_size)
+{
+	struct inode *inode;
+	struct cifsInodeInfo *cifsi;
+	struct cifsFileInfo *cfile = file->private_data;
+	struct file_zero_data_information fsctl_buf;
+	long rc;
+	unsigned int xid;
+
+	xid = get_xid();
+
+	inode = cfile->dentry->d_inode;
+	cifsi = CIFS_I(inode);
+
+	/* if file not oplocked can't be sure whether asking to extend size */
+	if (!CIFS_CACHE_READ(cifsi))
+		if (keep_size == false)
+			return -EOPNOTSUPP;
+
+	/* 
+	 * Must check if file sparse since fallocate -z (zero range) assumes
+	 * non-sparse allocation
+	 */
+	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE))
+		return -EOPNOTSUPP;
+
+	/*
+	 * need to make sure we are not asked to extend the file since the SMB3
+	 * fsctl does not change the file size. In the future we could change
+	 * this to zero the first part of the range then set the file size
+	 * which for a non sparse file would zero the newly extended range
+	 */
+	if (keep_size == false)
+		if (i_size_read(inode) < offset + len)
+			return -EOPNOTSUPP;
+
+	cifs_dbg(FYI, "offset %lld len %lld", offset, len);
+
+	fsctl_buf.FileOffset = cpu_to_le64(offset);
+	fsctl_buf.BeyondFinalZero = cpu_to_le64(offset + len);
+
+	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
+			true /* is_fctl */, (char *)&fsctl_buf,
+			sizeof(struct file_zero_data_information), NULL, NULL);
+	free_xid(xid);
+	return rc;
+}
+
 static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 			    loff_t offset, loff_t len)
 {
@@ -1055,6 +1105,11 @@ static long smb3_fallocate(struct file *file, struct cifs_tcon *tcon, int mode,
 	/* KEEP_SIZE already checked for by do_fallocate */
 	if (mode & FALLOC_FL_PUNCH_HOLE)
 		return smb3_punch_hole(file, tcon, off, len);
+	else if (mode & FALLOC_FL_ZERO_RANGE) {
+		if (mode & FALLOC_FL_KEEP_SIZE)
+			return smb3_zero_range(file, tcon, off, len, true);
+		return smb3_zero_range(file, tcon, off, len, false);
+	}
 
 	return -EOPNOTSUPP;
 }
