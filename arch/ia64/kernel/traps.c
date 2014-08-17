@@ -299,7 +299,7 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 
 	if (!(current->thread.flags & IA64_THREAD_FPEMU_NOPRINT))  {
 		unsigned long count, current_jiffies = jiffies;
-		struct fpu_swa_msg *cp = &__get_cpu_var(cpulast);
+		struct fpu_swa_msg *cp = this_cpu_ptr(&cpulast);
 
 		if (unlikely(current_jiffies > cp->time))
 			cp->count = 0;
