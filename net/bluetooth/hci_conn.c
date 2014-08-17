@@ -1291,6 +1291,11 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 
 	BT_DBG("%s hcon %p", hdev->name, conn);
 
+	if (test_bit(HCI_CONN_DROP, &conn->flags)) {
+		BT_DBG("Refusing to create new hci_chan");
+		return NULL;
+	}
+
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
 		return NULL;
@@ -1318,6 +1323,7 @@ void hci_chan_del(struct hci_chan *chan)
 
 	/* Force the connection to be immediately dropped */
 	conn->disc_timeout = 0;
+	set_bit(HCI_CONN_DROP, &conn->flags);
 
 	hci_conn_drop(conn);
 	hci_conn_put(conn);
