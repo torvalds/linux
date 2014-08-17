@@ -1381,11 +1381,9 @@ static int drbg_generate(struct drbg_state *drbg,
 		shadow->seeded = false;
 
 	/* allocate cipher handle */
-	if (shadow->d_ops->crypto_init) {
-		len = shadow->d_ops->crypto_init(shadow);
-		if (len)
-			goto err;
-	}
+	len = shadow->d_ops->crypto_init(shadow);
+	if (len)
+		goto err;
 
 	if (shadow->pr || !shadow->seeded) {
 		pr_devel("DRBG: reseeding before generation (prediction "
@@ -1467,8 +1465,7 @@ static int drbg_generate(struct drbg_state *drbg,
 #endif
 
 err:
-	if (shadow->d_ops->crypto_fini)
-		shadow->d_ops->crypto_fini(shadow);
+	shadow->d_ops->crypto_fini(shadow);
 	drbg_restore_shadow(drbg, &shadow);
 	return len;
 }
@@ -1562,11 +1559,10 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 		return ret;
 
 	ret = -EFAULT;
-	if (drbg->d_ops->crypto_init && drbg->d_ops->crypto_init(drbg))
+	if (drbg->d_ops->crypto_init(drbg))
 		goto err;
 	ret = drbg_seed(drbg, pers, false);
-	if (drbg->d_ops->crypto_fini)
-		drbg->d_ops->crypto_fini(drbg);
+	drbg->d_ops->crypto_fini(drbg);
 	if (ret)
 		goto err;
 
