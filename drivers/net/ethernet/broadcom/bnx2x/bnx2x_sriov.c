@@ -1352,9 +1352,7 @@ void bnx2x_iov_remove_one(struct bnx2x *bp)
 	if (!IS_SRIOV(bp))
 		return;
 
-	DP(BNX2X_MSG_IOV, "about to call disable sriov\n");
-	pci_disable_sriov(bp->pdev);
-	DP(BNX2X_MSG_IOV, "sriov disabled\n");
+	bnx2x_disable_sriov(bp);
 
 	/* disable access to all VFs */
 	for (vf_idx = 0; vf_idx < bp->vfdb->sriov.total; vf_idx++) {
@@ -2483,7 +2481,7 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 	bp->requested_nr_virtfn = num_vfs_param;
 	if (num_vfs_param == 0) {
 		bnx2x_set_pf_tx_switching(bp, false);
-		pci_disable_sriov(dev);
+		bnx2x_disable_sriov(bp);
 		return 0;
 	} else {
 		return bnx2x_enable_sriov(bp);
@@ -2596,6 +2594,12 @@ void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
 
 void bnx2x_disable_sriov(struct bnx2x *bp)
 {
+	if (pci_vfs_assigned(bp->pdev)) {
+		DP(BNX2X_MSG_IOV,
+		   "Unloading driver while VFs are assigned - VFs will not be deallocated\n");
+		return;
+	}
+
 	pci_disable_sriov(bp->pdev);
 }
 
