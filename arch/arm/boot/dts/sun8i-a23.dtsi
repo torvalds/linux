@@ -378,6 +378,13 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#gpio-cells = <3>;
+
+			r_uart_pins_a: r_uart@0 {
+				allwinner,pins = "PL2", "PL3";
+				allwinner,function = "s_uart";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
 		};
 	};
 };
