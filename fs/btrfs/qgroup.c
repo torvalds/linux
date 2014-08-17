@@ -1973,7 +1973,7 @@ static int qgroup_subtree_accounting(struct btrfs_trans_handle *trans,
 				   elem.seq, &roots);
 	btrfs_put_tree_mod_seq(fs_info, &elem);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	if (roots->nnodes != 1)
 		goto out;
