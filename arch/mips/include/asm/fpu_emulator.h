@@ -33,17 +33,17 @@
 #ifdef CONFIG_DEBUG_FS
 
 struct mips_fpu_emulator_stats {
-	local_t emulated;
-	local_t loads;
-	local_t stores;
-	local_t cp1ops;
-	local_t cp1xops;
-	local_t errors;
-	local_t ieee754_inexact;
-	local_t ieee754_underflow;
-	local_t ieee754_overflow;
-	local_t ieee754_zerodiv;
-	local_t ieee754_invalidop;
+	unsigned long emulated;
+	unsigned long loads;
+	unsigned long stores;
+	unsigned long cp1ops;
+	unsigned long cp1xops;
+	unsigned long errors;
+	unsigned long ieee754_inexact;
+	unsigned long ieee754_underflow;
+	unsigned long ieee754_overflow;
+	unsigned long ieee754_zerodiv;
+	unsigned long ieee754_invalidop;
 };
 
 DECLARE_PER_CPU(struct mips_fpu_emulator_stats, fpuemustats);
@@ -51,7 +51,7 @@ DECLARE_PER_CPU(struct mips_fpu_emulator_stats, fpuemustats);
 #define MIPS_FPU_EMU_INC_STATS(M)					\
 do {									\
 	preempt_disable();						\
-	__local_inc(&__get_cpu_var(fpuemustats).M);			\
+	__this_cpu_inc(fpuemustats.M);					\
 	preempt_enable();						\
 } while (0)
 
