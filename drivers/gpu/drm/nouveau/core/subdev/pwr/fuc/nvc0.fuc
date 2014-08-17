@@ -34,6 +34,7 @@
 .section #nvc0_pwr_data
 #define INCLUDE_PROC
 #include "kernel.fuc"
+#include "arith.fuc"
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"
@@ -44,6 +45,7 @@
 
 #define INCLUDE_DATA
 #include "kernel.fuc"
+#include "arith.fuc"
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"
@@ -56,6 +58,7 @@
 .section #nvc0_pwr_code
 #define INCLUDE_CODE
 #include "kernel.fuc"
+#include "arith.fuc"
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"

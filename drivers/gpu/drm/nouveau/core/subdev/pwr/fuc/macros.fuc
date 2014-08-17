@@ -250,3 +250,13 @@
 */	st b32 D[$r0] reg /*
 */	clear b32 $r0
 #endif
+
+// does a 64+64 -> 64 unsigned addition (C = A + B)
+#define addu64(reg_a_c_hi, reg_a_c_lo, b_hi, b_lo) /*
+*/    add b32 reg_a_c_lo b_lo /*
+*/    adc b32 reg_a_c_hi b_hi
+
+// does a 64+64 -> 64 substraction (C = A - B)
+#define subu64(reg_a_c_hi, reg_a_c_lo, b_hi, b_lo) /*
+*/    sub b32 reg_a_c_lo b_lo /*
+*/    sbb b32 reg_a_c_hi b_hi
