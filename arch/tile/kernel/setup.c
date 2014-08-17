@@ -1218,7 +1218,8 @@ static void __init validate_hv(void)
 	 * various asid variables to their appropriate initial states.
 	 */
 	asid_range = hv_inquire_asid(0);
-	__get_cpu_var(current_asid) = min_asid = asid_range.start;
+	min_asid = asid_range.start;
+	__this_cpu_write(current_asid, min_asid);
 	max_asid = asid_range.start + asid_range.size - 1;
 
 	if (hv_confstr(HV_CONFSTR_CHIP_MODEL, (HV_VirtAddr)chip_model,
