@@ -49,6 +49,7 @@
 #include <linux/sched.h>
 #include <linux/io.h>
 #include <linux/if.h>
+#include <linux/crc32.h>
 //#include <linux/config.h>
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
