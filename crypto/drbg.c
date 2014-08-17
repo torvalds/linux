@@ -728,11 +728,9 @@ static int drbg_hmac_update(struct drbg_state *drbg, struct list_head *seed,
 	LIST_HEAD(seedlist);
 	LIST_HEAD(vdatalist);
 
-	if (!reseed) {
-		/* 10.1.2.3 step 2 */
-		memset(drbg->C, 0, drbg_statelen(drbg));
+	if (!reseed)
+		/* 10.1.2.3 step 2 -- memset(0) of C is implicit with kzalloc */
 		memset(drbg->V, 1, drbg_statelen(drbg));
-	}
 
 	drbg_string_fill(&seed1, drbg->V, drbg_statelen(drbg));
 	list_add_tail(&seed1.list, &seedlist);
