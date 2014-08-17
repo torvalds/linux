@@ -154,7 +154,7 @@ EXPORT_SYMBOL_GPL(vtime_account_system);
 
 void __kprobes vtime_stop_cpu(void)
 {
-	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
+	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long long idle_time;
 	unsigned long psw_mask;
 

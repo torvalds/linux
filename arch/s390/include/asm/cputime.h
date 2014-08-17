@@ -184,7 +184,7 @@ cputime64_t s390_get_idle_time(int cpu);
 
 static inline int s390_nohz_delay(int cpu)
 {
-	return __get_cpu_var(s390_idle).nohz_delay != 0;
+	return __this_cpu_read(s390_idle.nohz_delay) != 0;
 }
 
 #define arch_needs_cpu(cpu) s390_nohz_delay(cpu)
