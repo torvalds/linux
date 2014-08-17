@@ -23,6 +23,7 @@
  */
 
 #define NVKM_PPWR_CHIPSET GF100
+#define HW_TICKS_PER_US 203 // should be 202.5
 
 //#define NVKM_FALCON_PC24
 //#define NVKM_FALCON_UNSHIFTED_IO

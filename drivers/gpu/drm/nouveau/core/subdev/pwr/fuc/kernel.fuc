@@ -242,6 +242,80 @@ intr:
 	bclr $flags $p0
 	iret
 
+// calculate the number of ticks in the specified nanoseconds delay
+//
+// $r15 - current
+// $r14 - ns
+// $r14 - ticks (return)
+// $r0  - zero
+ticks_from_ns:
+	push $r12
+	push $r11
+
+	/* try not losing precision (multiply then divide) */
+	imm32($r13, HW_TICKS_PER_US)
+	call #mulu32_32_64
+
+	/* use an immeditate, it's ok because HW_TICKS_PER_US < 16 bits */
+	div $r12 $r12 1000
+
+	/* check if there wasn't any overflow */
+	cmpu b32 $r11 0
+	bra e #ticks_from_ns_quit
+
+	/* let's divide then multiply, too bad for the precision! */
+	div $r14 $r14 1000
+	imm32($r13, HW_TICKS_PER_US)
+	call #mulu32_32_64
+
+	/* this cannot overflow as long as HW_TICKS_PER_US < 1000 */
+
+ticks_from_ns_quit:
+	mov b32 $r14 $r12
+	pop $r11
+	pop $r12
+	ret
+
+// calculate the number of ticks in the specified microsecond delay
+//
+// $r15 - current
+// $r14 - us
+// $r14 - ticks (return)
+// $r0  - zero
+ticks_from_us:
+	push $r12
+	push $r11
+
+	/* simply multiply $us by HW_TICKS_PER_US */
+	imm32($r13, HW_TICKS_PER_US)
+	call #mulu32_32_64
+	mov b32 $r14 $r12
+
+	/* check if there wasn't any overflow */
+	cmpu b32 $r11 0
+	bra e #ticks_from_us_quit
+
+	/* Overflow! */
+	clear b32 $r14
+
+ticks_from_us_quit:
+	pop $r11
+	pop $r12
+	ret
+
+// calculate the number of ticks in the specified microsecond delay
+//
+// $r15 - current
+// $r14 - ticks
+// $r14 - us (return)
+// $r0  - zero
+ticks_to_us:
+	/* simply divide $ticks by HW_TICKS_PER_US */
+	imm32($r13, HW_TICKS_PER_US)
+	div $r14 $r14 $r13
+
+	ret
+
 // request the current process be sent a message after a timeout expires
 //
 // $r15 - current
