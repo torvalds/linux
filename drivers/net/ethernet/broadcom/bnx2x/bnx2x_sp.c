@@ -4019,6 +4019,7 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 	struct bnx2x_raw_obj *r = &o->raw;
 	struct eth_rss_update_ramrod_data *data =
 		(struct eth_rss_update_ramrod_data *)(r->rdata);
+	u16 caps = 0;
 	u8 rss_mode = 0;
 	int rc;
 
@@ -4042,28 +4043,27 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 
 	/* RSS capabilities */
 	if (test_bit(BNX2X_RSS_IPV4, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV4_TCP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV4_UDP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV6, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV6_TCP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV6_UDP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY;
+
+	if (test_bit(BNX2X_RSS_GRE_INNER_HDRS, &p->rss_flags))
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY;
+
+	data->capabilities = cpu_to_le16(caps);
 
 	/* Hashing mask */
 	data->rss_result_mask = p->rss_result_mask;
@@ -4336,6 +4336,8 @@ static void bnx2x_q_fill_init_general_data(struct bnx2x *bp,
 		test_bit(BNX2X_Q_FLG_FCOE, flags) ?
 		LLFC_TRAFFIC_TYPE_FCOE : LLFC_TRAFFIC_TYPE_NW;
 
+	gen_data->fp_hsi_ver = ETH_FP_HSI_VERSION;
+
 	DP(BNX2X_MSG_SP, "flags: active %d, cos %d, stats en %d\n",
 	   gen_data->activate_flg, gen_data->cos, gen_data->statistics_en_flg);
 }
@@ -4357,12 +4359,13 @@ static void bnx2x_q_fill_init_tx_data(struct bnx2x_queue_sp_obj *o,
 		test_bit(BNX2X_Q_FLG_ANTI_SPOOF, flags);
 	tx_data->force_default_pri_flg =
 		test_bit(BNX2X_Q_FLG_FORCE_DEFAULT_PRI, flags);
-
+	tx_data->refuse_outband_vlan_flg =
+		test_bit(BNX2X_Q_FLG_REFUSE_OUTBAND_VLAN, flags);
 	tx_data->tunnel_lso_inc_ip_id =
 		test_bit(BNX2X_Q_FLG_TUN_INC_INNER_IP_ID, flags);
 	tx_data->tunnel_non_lso_pcsum_location =
-		test_bit(BNX2X_Q_FLG_PCSUM_ON_PKT, flags) ? PCSUM_ON_PKT :
-								  PCSUM_ON_BD;
+		test_bit(BNX2X_Q_FLG_PCSUM_ON_PKT, flags) ? CSUM_ON_PKT :
+							    CSUM_ON_BD;
 
 	tx_data->tx_status_block_id = params->fw_sb_id;
 	tx_data->tx_sb_index_number = params->sb_cq_index;
@@ -5652,8 +5655,11 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	rdata->sd_vlan_tag	= cpu_to_le16(start_params->sd_vlan_tag);
 	rdata->path_id		= BP_PATH(bp);
 	rdata->network_cos_mode	= start_params->network_cos_mode;
-	rdata->gre_tunnel_mode	= start_params->gre_tunnel_mode;
-	rdata->gre_tunnel_rss	= start_params->gre_tunnel_rss;
+	rdata->tunnel_mode	= start_params->tunnel_mode;
+	rdata->gre_tunnel_type	= start_params->gre_tunnel_type;
+	rdata->inner_gre_rss_en = start_params->inner_gre_rss_en;
+	rdata->vxlan_dst_port	= cpu_to_le16(4789);
+	rdata->sd_vlan_eth_type = cpu_to_le16(0x8100);
 
 	/* No need for an explicit memory barrier here as long we would
 	 * need to ensure the ordering of writing to the SPQ element
@@ -5680,8 +5686,28 @@ static inline int bnx2x_func_send_switch_update(struct bnx2x *bp,
 	memset(rdata, 0, sizeof(*rdata));
 
 	/* Fill the ramrod data with provided parameters */
-	rdata->tx_switch_suspend_change_flg = 1;
-	rdata->tx_switch_suspend = switch_update_params->suspend;
+	if (test_bit(BNX2X_F_UPDATE_TX_SWITCH_SUSPEND_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->tx_switch_suspend_change_flg = 1;
+		rdata->tx_switch_suspend =
+			test_bit(BNX2X_F_UPDATE_TX_SWITCH_SUSPEND,
+				 &switch_update_params->changes);
+	}
+
+	if (test_bit(BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->update_tunn_cfg_flg = 1;
+		if (test_bit(BNX2X_F_UPDATE_TUNNEL_CLSS_EN,
+			     &switch_update_params->changes))
+			rdata->tunn_clss_en = 1;
+		if (test_bit(BNX2X_F_UPDATE_TUNNEL_INNER_GRE_RSS_EN,
+			     &switch_update_params->changes))
+			rdata->inner_gre_rss_en = 1;
+		rdata->tunnel_mode = switch_update_params->tunnel_mode;
+		rdata->gre_tunnel_type = switch_update_params->gre_tunnel_type;
+		rdata->vxlan_dst_port = cpu_to_le16(4789);
+	}
+
 	rdata->echo = SWITCH_UPDATE;
 
 	/* No need for an explicit memory barrier here as long as we

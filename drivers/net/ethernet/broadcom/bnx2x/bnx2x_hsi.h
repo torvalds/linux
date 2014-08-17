@@ -2876,8 +2876,8 @@ struct afex_stats {
 };
 
 #define BCM_5710_FW_MAJOR_VERSION			7
-#define BCM_5710_FW_MINOR_VERSION			8
-#define BCM_5710_FW_REVISION_VERSION		19
+#define BCM_5710_FW_MINOR_VERSION			10
+#define BCM_5710_FW_REVISION_VERSION		51
 #define BCM_5710_FW_ENGINEERING_VERSION		0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
@@ -3446,6 +3446,7 @@ enum classify_rule {
 	CLASSIFY_RULE_OPCODE_MAC,
 	CLASSIFY_RULE_OPCODE_VLAN,
 	CLASSIFY_RULE_OPCODE_PAIR,
+	CLASSIFY_RULE_OPCODE_VXLAN,
 	MAX_CLASSIFY_RULE
 };
 
@@ -3475,7 +3476,8 @@ struct client_init_general_data {
 	u8 func_id;
 	u8 cos;
 	u8 traffic_type;
-	u32 reserved0;
+	u8 fp_hsi_ver;
+	u8 reserved0[3];
 };
 
 
@@ -3576,7 +3578,7 @@ struct client_init_tx_data {
 	u8 tunnel_lso_inc_ip_id;
 	u8 refuse_outband_vlan_flg;
 	u8 tunnel_non_lso_pcsum_location;
-	u8 reserved1;
+	u8 tunnel_non_lso_outer_ip_csum_location;
 };
 
 /*
@@ -3634,6 +3636,11 @@ struct double_regpair {
 	u32 regpair1_hi;
 };
 
+/* 2nd parse bd type used in ethernet tx BDs */
+enum eth_2nd_parse_bd_type {
+	ETH_2ND_PARSE_BD_TYPE_LSO_TUNNEL,
+	MAX_ETH_2ND_PARSE_BD_TYPE
+};
 
 /*
  * Ethernet address typesm used in ethernet tx BDs
@@ -3719,12 +3726,25 @@ struct eth_classify_vlan_cmd {
 };
 
 /*
+ * Command for adding/removing a VXLAN classification rule
+ */
+struct eth_classify_vxlan_cmd {
+	struct eth_classify_cmd_header header;
+	__le32 vni;
+	__le16 inner_mac_lsb;
+	__le16 inner_mac_mid;
+	__le16 inner_mac_msb;
+	__le16 reserved1;
+};
+
+/*
  * union for eth classification rule
  */
 union eth_classify_rule_cmd {
 	struct eth_classify_mac_cmd mac;
 	struct eth_classify_vlan_cmd vlan;
 	struct eth_classify_pair_cmd pair;
+	struct eth_classify_vxlan_cmd vxlan;
 };
 
 /*
@@ -3902,6 +3922,13 @@ struct eth_filter_rules_ramrod_data {
 	struct eth_filter_rules_cmd rules[FILTER_RULES_COUNT];
 };
 
+/* Hsi version */
+enum eth_fp_hsi_ver {
+	ETH_FP_HSI_VER_0,
+	ETH_FP_HSI_VER_1,
+	ETH_FP_HSI_VER_2,
+	MAX_ETH_FP_HSI_VER
+};
 
 /*
  * parameters for eth classification configuration ramrod
@@ -3958,20 +3985,28 @@ struct eth_tunnel_data {
 	__le16 dst_mid;
 #endif
 #if defined(__BIG_ENDIAN)
-	__le16 reserved0;
+	__le16 fw_ip_hdr_csum;
 	__le16 dst_hi;
 #elif defined(__LITTLE_ENDIAN)
 	__le16 dst_hi;
-	__le16 reserved0;
+	__le16 fw_ip_hdr_csum;
 #endif
 #if defined(__BIG_ENDIAN)
-	u8 reserved1;
+	u8 flags;
+#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER (0x1<<0)
+#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER_SHIFT 0
+#define ETH_TUNNEL_DATA_RESERVED (0x7F<<1)
+#define ETH_TUNNEL_DATA_RESERVED_SHIFT 1
 	u8 ip_hdr_start_inner_w;
 	__le16 pseudo_csum;
 #elif defined(__LITTLE_ENDIAN)
 	__le16 pseudo_csum;
 	u8 ip_hdr_start_inner_w;
-	u8 reserved1;
+	u8 flags;
+#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER (0x1<<0)
+#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER_SHIFT 0
+#define ETH_TUNNEL_DATA_RESERVED (0x7F<<1)
+#define ETH_TUNNEL_DATA_RESERVED_SHIFT 1
 #endif
 };
 
@@ -4059,31 +4094,41 @@ enum eth_rss_mode {
  */
 struct eth_rss_update_ramrod_data {
 	u8 rss_engine_id;
-	u8 capabilities;
+	u8 rss_mode;
+	__le16 capabilities;
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV4_CAPABILITY (0x1<<0)
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV4_CAPABILITY_SHIFT 0
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY (0x1<<1)
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY_SHIFT 1
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY (0x1<<2)
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY_SHIFT 2
-#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY (0x1<<3)
-#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY_SHIFT 3
-#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY (0x1<<4)
-#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY_SHIFT 4
-#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY (0x1<<5)
-#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY_SHIFT 5
-#define ETH_RSS_UPDATE_RAMROD_DATA_EN_5_TUPLE_CAPABILITY (0x1<<6)
-#define ETH_RSS_UPDATE_RAMROD_DATA_EN_5_TUPLE_CAPABILITY_SHIFT 6
-#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY (0x1<<7)
-#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY_SHIFT 7
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV4_VXLAN_CAPABILITY (0x1<<3)
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV4_VXLAN_CAPABILITY_SHIFT 3
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY (0x1<<4)
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY_SHIFT 4
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY (0x1<<5)
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY_SHIFT 5
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY (0x1<<6)
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY_SHIFT 6
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_VXLAN_CAPABILITY (0x1<<7)
+#define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_VXLAN_CAPABILITY_SHIFT 7
+#define ETH_RSS_UPDATE_RAMROD_DATA_EN_5_TUPLE_CAPABILITY (0x1<<8)
+#define ETH_RSS_UPDATE_RAMROD_DATA_EN_5_TUPLE_CAPABILITY_SHIFT 8
+#define ETH_RSS_UPDATE_RAMROD_DATA_NVGRE_KEY_ENTROPY_CAPABILITY (0x1<<9)
+#define ETH_RSS_UPDATE_RAMROD_DATA_NVGRE_KEY_ENTROPY_CAPABILITY_SHIFT 9
+#define ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY (0x1<<10)
+#define ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY_SHIFT 10
+#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY (0x1<<11)
+#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY_SHIFT 11
+#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED (0xF<<12)
+#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED_SHIFT 12
 	u8 rss_result_mask;
-	u8 rss_mode;
-	__le16 udp_4tuple_dst_port_mask;
-	__le16 udp_4tuple_dst_port_value;
+	u8 reserved3;
+	__le16 reserved4;
 	u8 indirection_table[T_ETH_INDIRECTION_TABLE_SIZE];
 	__le32 rss_key[T_ETH_RSS_KEY];
 	__le32 echo;
-	__le32 reserved3;
+	__le32 reserved5;
 };
 
 
@@ -4255,10 +4300,10 @@ enum eth_tunnel_lso_inc_ip_id {
 /* In case tunnel exist and L4 checksum offload,
  * the pseudo checksum location, on packet or on BD.
  */
-enum eth_tunnel_non_lso_pcsum_location {
-	PCSUM_ON_PKT,
-	PCSUM_ON_BD,
-	MAX_ETH_TUNNEL_NON_LSO_PCSUM_LOCATION
+enum eth_tunnel_non_lso_csum_location {
+	CSUM_ON_PKT,
+	CSUM_ON_BD,
+	MAX_ETH_TUNNEL_NON_LSO_CSUM_LOCATION
 };
 
 /*
@@ -4305,8 +4350,10 @@ struct eth_tx_start_bd {
 	__le16 vlan_or_ethertype;
 	struct eth_tx_bd_flags bd_flags;
 	u8 general_data;
-#define ETH_TX_START_BD_HDR_NBDS (0xF<<0)
+#define ETH_TX_START_BD_HDR_NBDS (0x7<<0)
 #define ETH_TX_START_BD_HDR_NBDS_SHIFT 0
+#define ETH_TX_START_BD_NO_ADDED_TAGS (0x1<<3)
+#define ETH_TX_START_BD_NO_ADDED_TAGS_SHIFT 3
 #define ETH_TX_START_BD_FORCE_VLAN_MODE (0x1<<4)
 #define ETH_TX_START_BD_FORCE_VLAN_MODE_SHIFT 4
 #define ETH_TX_START_BD_PARSE_NBDS (0x3<<5)
@@ -4382,8 +4429,8 @@ struct eth_tx_parse_2nd_bd {
 	__le16 global_data;
 #define ETH_TX_PARSE_2ND_BD_IP_HDR_START_OUTER_W (0xF<<0)
 #define ETH_TX_PARSE_2ND_BD_IP_HDR_START_OUTER_W_SHIFT 0
-#define ETH_TX_PARSE_2ND_BD_IP_HDR_TYPE_OUTER (0x1<<4)
-#define ETH_TX_PARSE_2ND_BD_IP_HDR_TYPE_OUTER_SHIFT 4
+#define ETH_TX_PARSE_2ND_BD_RESERVED0 (0x1<<4)
+#define ETH_TX_PARSE_2ND_BD_RESERVED0_SHIFT 4
 #define ETH_TX_PARSE_2ND_BD_LLC_SNAP_EN (0x1<<5)
 #define ETH_TX_PARSE_2ND_BD_LLC_SNAP_EN_SHIFT 5
 #define ETH_TX_PARSE_2ND_BD_NS_FLG (0x1<<6)
@@ -4392,9 +4439,14 @@ struct eth_tx_parse_2nd_bd {
 #define ETH_TX_PARSE_2ND_BD_TUNNEL_UDP_EXIST_SHIFT 7
 #define ETH_TX_PARSE_2ND_BD_IP_HDR_LEN_OUTER_W (0x1F<<8)
 #define ETH_TX_PARSE_2ND_BD_IP_HDR_LEN_OUTER_W_SHIFT 8
-#define ETH_TX_PARSE_2ND_BD_RESERVED0 (0x7<<13)
-#define ETH_TX_PARSE_2ND_BD_RESERVED0_SHIFT 13
-	__le16 reserved1;
+#define ETH_TX_PARSE_2ND_BD_RESERVED1 (0x7<<13)
+#define ETH_TX_PARSE_2ND_BD_RESERVED1_SHIFT 13
+	u8 bd_type;
+#define ETH_TX_PARSE_2ND_BD_TYPE (0xF<<0)
+#define ETH_TX_PARSE_2ND_BD_TYPE_SHIFT 0
+#define ETH_TX_PARSE_2ND_BD_RESERVED2 (0xF<<4)
+#define ETH_TX_PARSE_2ND_BD_RESERVED2_SHIFT 4
+	u8 reserved3;
 	u8 tcp_flags;
 #define ETH_TX_PARSE_2ND_BD_FIN_FLG (0x1<<0)
 #define ETH_TX_PARSE_2ND_BD_FIN_FLG_SHIFT 0
@@ -4412,7 +4464,7 @@ struct eth_tx_parse_2nd_bd {
 #define ETH_TX_PARSE_2ND_BD_ECE_FLG_SHIFT 6
 #define ETH_TX_PARSE_2ND_BD_CWR_FLG (0x1<<7)
 #define ETH_TX_PARSE_2ND_BD_CWR_FLG_SHIFT 7
-	u8 reserved2;
+	u8 reserved4;
 	u8 tunnel_udp_hdr_start_w;
 	u8 fw_ip_hdr_to_payload_w;
 	__le16 fw_ip_csum_wo_len_flags_frag;
@@ -5200,10 +5252,18 @@ struct function_start_data {
 	u8 path_id;
 	u8 network_cos_mode;
 	u8 dmae_cmd_id;
-	u8 gre_tunnel_mode;
-	u8 gre_tunnel_rss;
-	u8 nvgre_clss_en;
-	__le16 reserved1[2];
+	u8 tunnel_mode;
+	u8 gre_tunnel_type;
+	u8 tunn_clss_en;
+	u8 inner_gre_rss_en;
+	u8 sd_accept_mf_clss_fail;
+	__le16 vxlan_dst_port;
+	__le16 sd_accept_mf_clss_fail_ethtype;
+	__le16 sd_vlan_eth_type;
+	u8 sd_vlan_force_pri_flg;
+	u8 sd_vlan_force_pri_val;
+	u8 sd_accept_mf_clss_fail_match_ethtype;
+	u8 no_added_tags;
 };
 
 struct function_update_data {
@@ -5220,12 +5280,20 @@ struct function_update_data {
 	u8 tx_switch_suspend_change_flg;
 	u8 tx_switch_suspend;
 	u8 echo;
+	u8 update_tunn_cfg_flg;
+	u8 tunnel_mode;
+	u8 gre_tunnel_type;
+	u8 tunn_clss_en;
+	u8 inner_gre_rss_en;
+	__le16 vxlan_dst_port;
+	u8 sd_vlan_force_pri_change_flg;
+	u8 sd_vlan_force_pri_flg;
+	u8 sd_vlan_force_pri_val;
+	u8 sd_vlan_tag_change_flg;
+	u8 sd_vlan_eth_type_change_flg;
 	u8 reserved1;
-	u8 update_gre_cfg_flg;
-	u8 gre_tunnel_mode;
-	u8 gre_tunnel_rss;
-	u8 nvgre_clss_en;
-	u32 reserved3;
+	__le16 sd_vlan_tag;
+	__le16 sd_vlan_eth_type;
 };
 
 /*
@@ -5254,17 +5322,9 @@ struct fw_version {
 #define __FW_VERSION_RESERVED_SHIFT 4
 };
 
-/* GRE RSS Mode */
-enum gre_rss_mode {
-	GRE_OUTER_HEADERS_RSS,
-	GRE_INNER_HEADERS_RSS,
-	NVGRE_KEY_ENTROPY_RSS,
-	MAX_GRE_RSS_MODE
-};
 
 /* GRE Tunnel Mode */
 enum gre_tunnel_type {
-	NO_GRE_TUNNEL,
 	NVGRE_TUNNEL,
 	L2GRE_TUNNEL,
 	IPGRE_TUNNEL,
@@ -5437,6 +5497,7 @@ enum ip_ver {
  * Malicious VF error ID
  */
 enum malicious_vf_error_id {
+	MALICIOUS_VF_NO_ERROR,
 	VF_PF_CHANNEL_NOT_READY,
 	ETH_ILLEGAL_BD_LENGTHS,
 	ETH_PACKET_TOO_SHORT,
@@ -5719,10 +5780,15 @@ struct tstorm_vf_zone_data {
 	struct regpair reserved;
 };
 
+/* Tunnel Mode */
+enum tunnel_mode {
+	TUNN_MODE_NONE,
+	TUNN_MODE_VXLAN,
+	TUNN_MODE_GRE,
+	MAX_TUNNEL_MODE
+};
 
-/*
- * zone A per-queue data
- */
+ /* zone A per-queue data */
 struct ustorm_queue_zone_data {
 	struct ustorm_eth_rx_producers eth_rx_producers;
 	struct regpair reserved[3];

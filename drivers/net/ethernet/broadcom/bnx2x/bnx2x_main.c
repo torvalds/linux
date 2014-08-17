@@ -7647,7 +7647,11 @@ static inline int bnx2x_func_switch_update(struct bnx2x *bp, int suspend)
 	func_params.cmd = BNX2X_F_CMD_SWITCH_UPDATE;
 
 	/* Function parameters */
-	switch_update_params->suspend = suspend;
+	__set_bit(BNX2X_F_UPDATE_TX_SWITCH_SUSPEND_CHNG,
+		  &switch_update_params->changes);
+	if (suspend)
+		__set_bit(BNX2X_F_UPDATE_TX_SWITCH_SUSPEND,
+			  &switch_update_params->changes);
 
 	rc = bnx2x_func_state_change(bp, &func_params);
 

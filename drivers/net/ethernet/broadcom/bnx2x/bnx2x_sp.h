@@ -711,6 +711,7 @@ enum {
 	BNX2X_RSS_IPV6,
 	BNX2X_RSS_IPV6_TCP,
 	BNX2X_RSS_IPV6_UDP,
+	BNX2X_RSS_GRE_INNER_HDRS,
 };
 
 struct bnx2x_config_rss_params {
@@ -831,6 +832,7 @@ enum {
 	BNX2X_Q_FLG_ANTI_SPOOF,
 	BNX2X_Q_FLG_SILENT_VLAN_REM,
 	BNX2X_Q_FLG_FORCE_DEFAULT_PRI,
+	BNX2X_Q_FLG_REFUSE_OUTBAND_VLAN,
 	BNX2X_Q_FLG_PCSUM_ON_PKT,
 	BNX2X_Q_FLG_TUN_INC_INNER_IP_ID
 };
@@ -1085,6 +1087,16 @@ struct bnx2x_queue_sp_obj {
 };
 
 /********************** Function state update *********************************/
+
+/* UPDATE command options */
+enum {
+	BNX2X_F_UPDATE_TX_SWITCH_SUSPEND_CHNG,
+	BNX2X_F_UPDATE_TX_SWITCH_SUSPEND,
+	BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
+	BNX2X_F_UPDATE_TUNNEL_CLSS_EN,
+	BNX2X_F_UPDATE_TUNNEL_INNER_GRE_RSS_EN,
+};
+
 /* Allowed Function states */
 enum bnx2x_func_state {
 	BNX2X_F_STATE_RESET,
@@ -1146,18 +1158,25 @@ struct bnx2x_func_start_params {
 	/* Function cos mode */
 	u8 network_cos_mode;
 
-	/* NVGRE classification enablement */
-	u8 nvgre_clss_en;
+	/* TUNN_MODE_NONE/TUNN_MODE_VXLAN/TUNN_MODE_GRE */
+	u8 tunnel_mode;
 
-	/* NO_GRE_TUNNEL/NVGRE_TUNNEL/L2GRE_TUNNEL/IPGRE_TUNNEL */
-	u8 gre_tunnel_mode;
+	/* tunneling classification enablement */
+	u8 tunn_clss_en;
 
-	/* GRE_OUTER_HEADERS_RSS/GRE_INNER_HEADERS_RSS/NVGRE_KEY_ENTROPY_RSS */
-	u8 gre_tunnel_rss;
+	/* NVGRE_TUNNEL/L2GRE_TUNNEL/IPGRE_TUNNEL */
+	u8 gre_tunnel_type;
+
+	/* Enables Inner GRE RSS on the function, depends on the client RSS
+	 * capailities
+	 */
+	u8 inner_gre_rss_en;
 };
 
 struct bnx2x_func_switch_update_params {
-	u8 suspend;
+	unsigned long changes; /* BNX2X_F_UPDATE_XX bits */
+	u8 tunnel_mode;
+	u8 gre_tunnel_type;
 };
 
 struct bnx2x_func_afex_update_params {
