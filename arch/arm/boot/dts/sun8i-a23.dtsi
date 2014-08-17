@@ -187,6 +187,20 @@
 		#size-cells = <1>;
 		ranges;
 
+		pio: pinctrl@01c20800 {
+			compatible = "allwinner,sun8i-a23-pinctrl";
+			reg = <0x01c20800 0x400>;
+			interrupts = <0 11 4>,
+				     <0 15 4>,
+				     <0 17 4>;
+			clocks = <&apb1_gates 5>;
+			gpio-controller;
+			interrupt-controller;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#gpio-cells = <3>;
+		};
+
 		ahb1_rst: reset@01c202c0 {
 			#reset-cells = <1>;
 			compatible = "allwinner,sun6i-a31-clock-reset";
