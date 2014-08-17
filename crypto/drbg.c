@@ -1263,15 +1263,6 @@ static int drbg_make_shadow(struct drbg_state *drbg, struct drbg_state **shadow)
 	int ret = -ENOMEM;
 	struct drbg_state *tmp = NULL;
 
-	if (!drbg || !drbg->core || !drbg->V || !drbg->C) {
-		pr_devel("DRBG: attempt to generate shadow copy for "
-			 "uninitialized DRBG state rejected\n");
-		return -EINVAL;
-	}
-	/* HMAC does not have a scratchpad */
-	if (!(drbg->core->flags & DRBG_HMAC) && NULL == drbg->scratchpad)
-		return -EINVAL;
-
 	tmp = kzalloc(sizeof(struct drbg_state), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
