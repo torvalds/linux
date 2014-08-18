@@ -50,34 +50,7 @@ DRxPathSel	DM_RxPathSelTable;
 
 
 /*--------------------Define export function prototype-----------------------*/
-extern	void	init_hal_dm(struct net_device *dev);
-extern	void deinit_hal_dm(struct net_device *dev);
-
-extern void hal_dm_watchdog(struct net_device *dev);
-
-
-extern	void	init_rate_adaptive(struct net_device *dev);
-extern	void	dm_txpower_trackingcallback(struct work_struct *work);
-
-extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
-extern	void	dm_restore_dynamic_mechanism_state(struct net_device *dev);
-extern	void	dm_backup_dynamic_mechanism_state(struct net_device *dev);
-extern	void	dm_change_dynamic_initgain_thresh(struct net_device *dev,
-								u32		dm_type,
-								u32		dm_value);
-extern	void	DM_ChangeFsyncSetting(struct net_device *dev,
-												s32		DM_Type,
-												s32		DM_Value);
-extern	void dm_force_tx_fw_info(struct net_device *dev,
-										u32		force_type,
-										u32		force_value);
-extern	void	dm_init_edca_turbo(struct net_device *dev);
-extern	void	dm_rf_operation_test_callback(unsigned long data);
-extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-extern	void dm_fsync_timer_callback(unsigned long data);
 extern	void dm_check_fsync(struct net_device *dev);
-extern	void	dm_shadow_init(struct net_device *dev);
-
 
 /*--------------------Define export function prototype-----------------------*/
 
@@ -155,8 +128,7 @@ static	void	dm_ctstoself(struct net_device *dev);
 //		This function is only invoked at driver intialization once.
 //
 //
-extern	void
-init_hal_dm(struct net_device *dev)
+void init_hal_dm(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -176,7 +148,7 @@ init_hal_dm(struct net_device *dev)
 
 }	// InitHalDm
 
-extern void deinit_hal_dm(struct net_device *dev)
+void deinit_hal_dm(struct net_device *dev)
 {
 
 	dm_deInit_fsync(dev);
@@ -211,9 +183,8 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 	curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 	curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
 
-	if((curTxOkCnt + curRxOkCnt) < 15000000) {
+	if ((curTxOkCnt + curRxOkCnt) < 15000000)
 		return;
-	}
 
 	if(curTxOkCnt > 4*curRxOkCnt) {
 		if (priv->bCurrentRxAggrEnable) {
@@ -242,7 +213,7 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 
 
 
-extern  void    hal_dm_watchdog(struct net_device *dev)
+void hal_dm_watchdog(struct net_device *dev)
 {
 	//struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -275,7 +246,7 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
   *	01/16/2008	MHC		RF_Type is assigned in ReadAdapterInfo(). We must call
   *						the function after making sure RF_Type.
   */
-extern void init_rate_adaptive(struct net_device *dev)
+void init_rate_adaptive(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -875,7 +846,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 	priv->txpower_count = 0;
 }
 
-extern	void	dm_txpower_trackingcallback(struct work_struct *work)
+void dm_txpower_trackingcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,txpower_tracking_wq);
@@ -1606,10 +1577,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 
 
 
-extern void dm_cck_txpower_adjust(
-	struct net_device *dev,
-	bool  binch14
-)
+void dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 {	// dm_CCKTxPowerAdjust
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1642,7 +1610,7 @@ static void dm_txpower_reset_recovery(
 
 }	// dm_TXPowerResetRecovery
 
-extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
+void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32	reg_ratr = priv->rate_adaptive.last_ratr;
@@ -1677,9 +1645,8 @@ extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 			write_nic_byte(dev, UFWP, 1);
 	}
 	//Restore TX Power Tracking Index
-	if(priv->btxpower_trackingInit && priv->btxpower_tracking){
+	if (priv->btxpower_trackingInit && priv->btxpower_tracking)
 		dm_txpower_reset_recovery(dev);
-	}
 
 	//
 	//Restore BB Initial Gain
@@ -1718,7 +1685,7 @@ static void dm_bb_initialgain_restore(struct net_device *dev)
 }	// dm_BBInitialGainRestore
 
 
-extern void dm_backup_dynamic_mechanism_state(struct net_device *dev)
+void dm_backup_dynamic_mechanism_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -1773,9 +1740,9 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
  *	05/29/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
-								u32		dm_type,
-								u32		dm_value)
+
+void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type,
+				       u32 dm_value)
 {
 	if (dm_type == DIG_TYPE_THRESH_HIGH)
 	{
@@ -1842,24 +1809,8 @@ extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 		dm_digtable.rx_gain_range_max = (u8)dm_value;
 	}
 }	/* DM_ChangeDynamicInitGainThresh */
-extern	void
-dm_change_fsync_setting(
-	struct net_device *dev,
-	s32		DM_Type,
-	s32		DM_Value)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (DM_Type == 0)	// monitor 0xc38 register
-	{
-		if(DM_Value > 1)
-			DM_Value = 1;
-		priv->framesyncMonitor = (u8)DM_Value;
-		//DbgPrint("pHalData->framesyncMonitor = %d", pHalData->framesyncMonitor);
-	}
-}
-
-extern void
+void
 dm_change_rxpath_selection_setting(
 	struct net_device *dev,
 	s32		DM_Type,
@@ -2540,7 +2491,7 @@ static	void dm_cs_ratio(
 	}
 }
 
-extern void dm_init_edca_turbo(struct net_device *dev)
+void dm_init_edca_turbo(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -2572,7 +2523,7 @@ static void dm_check_edca_turbo(
 	if(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
 
-//	printk("========>%s():bis_any_nonbepkts is %d\n",__FUNCTION__,priv->bis_any_nonbepkts);
+//	printk("========>%s():bis_any_nonbepkts is %d\n",__func__,priv->bis_any_nonbepkts);
 	// Check the status for current condition.
 	if(!priv->ieee80211->bis_any_nonbepkts)
 	{
@@ -2659,26 +2610,6 @@ dm_CheckEdcaTurbo_EXIT:
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }	// dm_CheckEdcaTurbo
-
-extern void DM_CTSToSelfSetting(struct net_device *dev,u32 DM_Type, u32 DM_Value)
-{
-	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
-
-	if (DM_Type == 0)	// CTS to self disable/enable
-	{
-		if(DM_Value > 1)
-			DM_Value = 1;
-		priv->ieee80211->bCTSToSelfEnable = (bool)DM_Value;
-		//DbgPrint("pMgntInfo->bCTSToSelfEnable = %d\n", pMgntInfo->bCTSToSelfEnable);
-	}
-	else if(DM_Type == 1) //CTS to self Th
-	{
-		if(DM_Value >= 50)
-			DM_Value = 50;
-		priv->ieee80211->CTSToSelfTH = (u8)DM_Value;
-		//DbgPrint("pMgntInfo->CTSToSelfTH = %d\n", pMgntInfo->CTSToSelfTH);
-	}
-}
 
 static void dm_init_ctstoself(struct net_device *dev)
 {
@@ -2779,7 +2710,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
  *	01/30/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work)
+void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,rfpath_check_wq);
@@ -3139,7 +3070,7 @@ static void dm_deInit_fsync(struct net_device *dev)
 	del_timer_sync(&priv->fsync_timer);
 }
 
-extern void dm_fsync_timer_callback(unsigned long data)
+void dm_fsync_timer_callback(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)data);
@@ -3252,7 +3183,7 @@ extern void dm_fsync_timer_callback(unsigned long data)
 
 static void dm_StartHWFsync(struct net_device *dev)
 {
-	RT_TRACE(COMP_HALDM, "%s\n", __FUNCTION__);
+	RT_TRACE(COMP_HALDM, "%s\n", __func__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cf);
 	write_nic_byte(dev, 0xc3b, 0x41);
 }
@@ -3261,7 +3192,7 @@ static void dm_EndSWFsync(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	RT_TRACE(COMP_HALDM, "%s\n", __FUNCTION__);
+	RT_TRACE(COMP_HALDM, "%s\n", __func__);
 	del_timer_sync(&(priv->fsync_timer));
 
 	// Let Register return to default value;
@@ -3285,7 +3216,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 	u32			rateIndex;
 	u32			rateBitmap;
 
-	RT_TRACE(COMP_HALDM,"%s\n", __FUNCTION__);
+	RT_TRACE(COMP_HALDM,"%s\n", __func__);
 	// Initial rate record to zero, start to record.
 	priv->rate_record = 0;
 	// Initialize continue diff count to zero, start to record.
@@ -3320,7 +3251,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 
 static void dm_EndHWFsync(struct net_device *dev)
 {
-	RT_TRACE(COMP_HALDM,"%s\n", __FUNCTION__);
+	RT_TRACE(COMP_HALDM,"%s\n", __func__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	write_nic_byte(dev, 0xc3b, 0x49);
 
@@ -3478,7 +3409,7 @@ void dm_check_fsync(struct net_device *dev)
  *	05/29/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-extern void dm_shadow_init(struct net_device *dev)
+void dm_shadow_init(struct net_device *dev)
 {
 	u8	page;
 	u16	offset;
@@ -3552,7 +3483,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		txlowpower_threshold = TX_POWER_NEAR_FIELD_THRESH_LOW;
 	}
 
-//	printk("=======>%s(): txhipower_threshhold is %d,txlowpower_threshold is %d\n",__FUNCTION__,txhipower_threshhold,txlowpower_threshold);
+//	printk("=======>%s(): txhipower_threshhold is %d,txlowpower_threshold is %d\n",__func__,txhipower_threshhold,txlowpower_threshold);
 	RT_TRACE(COMP_TXAGC,"priv->undecorated_smoothed_pwdb = %ld \n" , priv->undecorated_smoothed_pwdb);
 
 	if(priv->ieee80211->state == IEEE80211_LINKED)

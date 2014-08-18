@@ -207,7 +207,7 @@ static void jsfd_do_request(struct request_queue *q)
 			goto end;
 		}
 
-		jsfd_read(req->buffer, jdp->dbase + offset, len);
+		jsfd_read(bio_data(req->bio), jdp->dbase + offset, len);
 		err = 0;
 	end:
 		if (!__blk_end_request_cur(req, err))

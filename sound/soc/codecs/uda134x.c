@@ -203,8 +203,7 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 	u8 hw_params;
 
@@ -244,14 +243,14 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	case SND_SOC_DAIFMT_I2S:
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			hw_params |= (1<<1);
 			break;
-		case SNDRV_PCM_FORMAT_S18_3LE:
+		case 18:
 			hw_params |= (1<<2);
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			hw_params |= ((1<<2) | (1<<1));
 			break;
 		default:
@@ -480,7 +479,7 @@ static struct snd_soc_dai_driver uda134x_dai = {
 static int uda134x_soc_probe(struct snd_soc_codec *codec)
 {
 	struct uda134x_priv *uda134x;
-	struct uda134x_platform_data *pd = codec->card->dev->platform_data;
+	struct uda134x_platform_data *pd = codec->component.card->dev->platform_data;
 	const struct snd_soc_dapm_widget *widgets;
 	unsigned num_widgets;
 

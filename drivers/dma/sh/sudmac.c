@@ -14,12 +14,13 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
 #include <linux/dmaengine.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/sudmac.h>
 
 struct sudmac_chan {
@@ -178,8 +179,8 @@ static int sudmac_desc_setup(struct shdma_chan *schan,
 	struct sudmac_chan *sc = to_chan(schan);
 	struct sudmac_desc *sd = to_desc(sdesc);
 
-	dev_dbg(sc->shdma_chan.dev, "%s: src=%x, dst=%x, len=%d\n",
-		__func__, src, dst, *len);
+	dev_dbg(sc->shdma_chan.dev, "%s: src=%pad, dst=%pad, len=%zu\n",
+		__func__, &src, &dst, *len);
 
 	if (*len > schan->max_xfer_len)
 		*len = schan->max_xfer_len;

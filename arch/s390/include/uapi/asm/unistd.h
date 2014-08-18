@@ -282,7 +282,8 @@
 #define __NR_finit_module	344
 #define __NR_sched_setattr	345
 #define __NR_sched_getattr	346
-#define NR_syscalls 345
+#define __NR_renameat2		347
+#define NR_syscalls 348
 
 /* 
  * There are some system calls that are not present on 64 bit, some

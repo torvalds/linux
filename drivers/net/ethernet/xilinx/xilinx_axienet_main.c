@@ -756,7 +756,7 @@ static void axienet_recv(struct net_device *ndev)
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			}
 		} else if ((lp->features & XAE_FEATURE_PARTIAL_RX_CSUM) != 0 &&
-			   skb->protocol == __constant_htons(ETH_P_IP) &&
+			   skb->protocol == htons(ETH_P_IP) &&
 			   skb->len > 64) {
 			skb->csum = be32_to_cpu(cur_p->app3 & 0xFFFF);
 			skb->ip_summed = CHECKSUM_COMPLETE;
@@ -1630,8 +1630,7 @@ static int axienet_of_remove(struct platform_device *op)
 	axienet_mdio_teardown(lp);
 	unregister_netdev(ndev);
 
-	if (lp->phy_node)
-		of_node_put(lp->phy_node);
+	of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
 
 	iounmap(lp->regs);
@@ -1646,7 +1645,6 @@ static struct platform_driver axienet_of_driver = {
 	.probe = axienet_of_probe,
 	.remove = axienet_of_remove,
 	.driver = {
-		 .owner = THIS_MODULE,
 		 .name = "xilinx_axienet",
 		 .of_match_table = axienet_of_match,
 	},

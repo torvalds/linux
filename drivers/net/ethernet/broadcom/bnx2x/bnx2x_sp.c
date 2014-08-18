@@ -12,7 +12,7 @@
  * license other than the GPL, without Broadcom's express prior written
  * consent.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Vladislav Zolotarov
  *
  */
@@ -258,16 +258,16 @@ static bool bnx2x_raw_check_pending(struct bnx2x_raw_obj *o)
 
 static void bnx2x_raw_clear_pending(struct bnx2x_raw_obj *o)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(o->state, o->pstate);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 static void bnx2x_raw_set_pending(struct bnx2x_raw_obj *o)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	set_bit(o->state, o->pstate);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 /**
@@ -2131,7 +2131,7 @@ static int bnx2x_set_rx_mode_e1x(struct bnx2x *bp,
 
 	/* The operation is completed */
 	clear_bit(p->state, p->pstate);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	return 0;
 }
@@ -2277,11 +2277,11 @@ static int bnx2x_set_rx_mode_e2(struct bnx2x *bp,
 			 data->header.rule_cnt, p->rx_accept_flags,
 			 p->tx_accept_flags);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside bnx2x_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
 	 */
 
 	/* Send a ramrod */
@@ -2982,11 +2982,11 @@ static int bnx2x_mcast_setup_e2(struct bnx2x *bp,
 		raw->clear_pending(raw);
 		return 0;
 	} else {
-		/* No need for an explicit memory barrier here as long we would
-		 * need to ensure the ordering of writing to the SPQ element
+		/* No need for an explicit memory barrier here as long as we
+		 * ensure the ordering of writing to the SPQ element
 		 * and updating of the SPQ producer which involves a memory
-		 * read and we will have to put a full memory barrier there
-		 * (inside bnx2x_sp_post()).
+		 * read. If the memory read is removed we will have to put a
+		 * full memory barrier there (inside bnx2x_sp_post()).
 		 */
 
 		/* Send a ramrod */
@@ -3466,11 +3466,11 @@ static int bnx2x_mcast_setup_e1(struct bnx2x *bp,
 		raw->clear_pending(raw);
 		return 0;
 	} else {
-		/* No need for an explicit memory barrier here as long we would
-		 * need to ensure the ordering of writing to the SPQ element
+		/* No need for an explicit memory barrier here as long as we
+		 * ensure the ordering of writing to the SPQ element
 		 * and updating of the SPQ producer which involves a memory
-		 * read and we will have to put a full memory barrier there
-		 * (inside bnx2x_sp_post()).
+		 * read. If the memory read is removed we will have to put a
+		 * full memory barrier there (inside bnx2x_sp_post()).
 		 */
 
 		/* Send a ramrod */
@@ -3576,16 +3576,16 @@ error_exit1:
 
 static void bnx2x_mcast_clear_sched(struct bnx2x_mcast_obj *o)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(o->sched_state, o->raw.pstate);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 static void bnx2x_mcast_set_sched(struct bnx2x_mcast_obj *o)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	set_bit(o->sched_state, o->raw.pstate);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 static bool bnx2x_mcast_check_sched(struct bnx2x_mcast_obj *o)
@@ -4091,11 +4091,11 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 		data->capabilities |= ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY;
 	}
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside bnx2x_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
 	 */
 
 	/* Send a ramrod */
@@ -4158,16 +4158,6 @@ void bnx2x_init_rss_config_obj(struct bnx2x *bp,
 	rss_obj->config_rss = bnx2x_setup_rss;
 }
 
-int validate_vlan_mac(struct bnx2x *bp,
-		      struct bnx2x_vlan_mac_obj *vlan_mac)
-{
-	if (!vlan_mac->get_n_elements) {
-		BNX2X_ERR("vlan mac object was not intialized\n");
-		return -EINVAL;
-	}
-	return 0;
-}
-
 /********************** Queue state object ***********************************/
 
 /**
@@ -4210,7 +4200,7 @@ int bnx2x_queue_state_change(struct bnx2x *bp,
 		if (rc) {
 			o->next_state = BNX2X_Q_STATE_MAX;
 			clear_bit(pending_bit, pending);
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 			return rc;
 		}
 
@@ -4298,7 +4288,7 @@ static int bnx2x_queue_comp_cmd(struct bnx2x *bp,
 	wmb();
 
 	clear_bit(cmd, &o->pending);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	return 0;
 }
@@ -4587,13 +4577,12 @@ static inline int bnx2x_q_send_setup_e1x(struct bnx2x *bp,
 	/* Fill the ramrod data */
 	bnx2x_q_fill_setup_data_cmn(bp, params, rdata);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside bnx2x_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
 	 */
-
 	return bnx2x_sp_post(bp, ramrod, o->cids[BNX2X_PRIMARY_CID_INDEX],
 			     U64_HI(data_mapping),
 			     U64_LO(data_mapping), ETH_CONNECTION_TYPE);
@@ -4615,13 +4604,12 @@ static inline int bnx2x_q_send_setup_e2(struct bnx2x *bp,
 	bnx2x_q_fill_setup_data_cmn(bp, params, rdata);
 	bnx2x_q_fill_setup_data_e2(bp, params, rdata);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside bnx2x_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
 	 */
-
 	return bnx2x_sp_post(bp, ramrod, o->cids[BNX2X_PRIMARY_CID_INDEX],
 			     U64_HI(data_mapping),
 			     U64_LO(data_mapping), ETH_CONNECTION_TYPE);
@@ -4659,13 +4647,12 @@ static inline int bnx2x_q_send_setup_tx_only(struct bnx2x *bp,
 			 o->cids[cid_index], rdata->general.client_id,
 			 rdata->general.sp_client_id, rdata->general.cos);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside bnx2x_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
 	 */
-
 	return bnx2x_sp_post(bp, ramrod, o->cids[cid_index],
 			     U64_HI(data_mapping),
 			     U64_LO(data_mapping), ETH_CONNECTION_TYPE);
@@ -4760,13 +4747,12 @@ static inline int bnx2x_q_send_update(struct bnx2x *bp,
 	/* Fill the ramrod data */
 	bnx2x_q_fill_update_data(bp, o, update_params, rdata);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside bnx2x_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
 	 */
-
 	return bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_CLIENT_UPDATE,
 			     o->cids[cid_index], U64_HI(data_mapping),
 			     U64_LO(data_mapping), ETH_CONNECTION_TYPE);
@@ -4813,11 +4799,62 @@ static inline int bnx2x_q_send_activate(struct bnx2x *bp,
 	return bnx2x_q_send_update(bp, params);
 }
 
+static void bnx2x_q_fill_update_tpa_data(struct bnx2x *bp,
+				struct bnx2x_queue_sp_obj *obj,
+				struct bnx2x_queue_update_tpa_params *params,
+				struct tpa_update_ramrod_data *data)
+{
+	data->client_id = obj->cl_id;
+	data->complete_on_both_clients = params->complete_on_both_clients;
+	data->dont_verify_rings_pause_thr_flg =
+		params->dont_verify_thr;
+	data->max_agg_size = cpu_to_le16(params->max_agg_sz);
+	data->max_sges_for_packet = params->max_sges_pkt;
+	data->max_tpa_queues = params->max_tpa_queues;
+	data->sge_buff_size = cpu_to_le16(params->sge_buff_sz);
+	data->sge_page_base_hi = cpu_to_le32(U64_HI(params->sge_map));
+	data->sge_page_base_lo = cpu_to_le32(U64_LO(params->sge_map));
+	data->sge_pause_thr_high = cpu_to_le16(params->sge_pause_thr_high);
+	data->sge_pause_thr_low = cpu_to_le16(params->sge_pause_thr_low);
+	data->tpa_mode = params->tpa_mode;
+	data->update_ipv4 = params->update_ipv4;
+	data->update_ipv6 = params->update_ipv6;
+}
+
 static inline int bnx2x_q_send_update_tpa(struct bnx2x *bp,
 					struct bnx2x_queue_state_params *params)
 {
-	/* TODO: Not implemented yet. */
-	return -1;
+	struct bnx2x_queue_sp_obj *o = params->q_obj;
+	struct tpa_update_ramrod_data *rdata =
+		(struct tpa_update_ramrod_data *)o->rdata;
+	dma_addr_t data_mapping = o->rdata_mapping;
+	struct bnx2x_queue_update_tpa_params *update_tpa_params =
+		&params->params.update_tpa;
+	u16 type;
+
+	/* Clear the ramrod data */
+	memset(rdata, 0, sizeof(*rdata));
+
+	/* Fill the ramrod data */
+	bnx2x_q_fill_update_tpa_data(bp, o, update_tpa_params, rdata);
+
+	/* Add the function id inside the type, so that sp post function
+	 * doesn't automatically add the PF func-id, this is required
+	 * for operations done by PFs on behalf of their VFs
+	 */
+	type = ETH_CONNECTION_TYPE |
+		((o->func_id) << SPE_HDR_FUNCTION_ID_SHIFT);
+
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
+	 */
+	return bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_TPA_UPDATE,
+			     o->cids[BNX2X_PRIMARY_CID_INDEX],
+			     U64_HI(data_mapping),
+			     U64_LO(data_mapping), type);
 }
 
 static inline int bnx2x_q_send_halt(struct bnx2x *bp,
@@ -5242,7 +5279,7 @@ static inline int bnx2x_func_state_change_comp(struct bnx2x *bp,
 	wmb();
 
 	clear_bit(cmd, &o->pending);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	return 0;
 }
@@ -5647,6 +5684,12 @@ static inline int bnx2x_func_send_switch_update(struct bnx2x *bp,
 	rdata->tx_switch_suspend = switch_update_params->suspend;
 	rdata->echo = SWITCH_UPDATE;
 
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
+	 */
 	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_FUNCTION_UPDATE, 0,
 			     U64_HI(data_mapping),
 			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
@@ -5674,11 +5717,11 @@ static inline int bnx2x_func_send_afex_update(struct bnx2x *bp,
 	rdata->allowed_priorities = afex_update_params->allowed_priorities;
 	rdata->echo = AFEX_UPDATE;
 
-	/*  No need for an explicit memory barrier here as long we would
-	 *  need to ensure the ordering of writing to the SPQ element
-	 *  and updating of the SPQ producer which involves a memory
-	 *  read and we will have to put a full memory barrier there
-	 *  (inside bnx2x_sp_post()).
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
 	 */
 	DP(BNX2X_MSG_SP,
 	   "afex: sending func_update vif_id 0x%x dvlan 0x%x prio 0x%x\n",
@@ -5763,6 +5806,12 @@ static inline int bnx2x_func_send_tx_start(struct bnx2x *bp,
 		rdata->traffic_type_to_priority_cos[i] =
 			tx_start_params->traffic_type_to_priority_cos[i];
 
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside bnx2x_sp_post()).
+	 */
 	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_START_TRAFFIC, 0,
 			     U64_HI(data_mapping),
 			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
@@ -5877,7 +5926,7 @@ int bnx2x_func_state_change(struct bnx2x *bp,
 		if (rc) {
 			o->next_state = BNX2X_F_STATE_MAX;
 			clear_bit(cmd, pending);
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 			return rc;
 		}
 

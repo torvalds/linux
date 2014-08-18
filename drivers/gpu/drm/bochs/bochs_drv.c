@@ -95,6 +95,51 @@ static struct drm_driver bochs_driver = {
 };
 
 /* ---------------------------------------------------------------------- */
+/* pm interface                                                           */
+
+#ifdef CONFIG_PM_SLEEP
+static int bochs_pm_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct bochs_device *bochs = drm_dev->dev_private;
+
+	drm_kms_helper_poll_disable(drm_dev);
+
+	if (bochs->fb.initialized) {
+		console_lock();
+		fb_set_suspend(bochs->fb.helper.fbdev, 1);
+		console_unlock();
+	}
+
+	return 0;
+}
+
+static int bochs_pm_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct bochs_device *bochs = drm_dev->dev_private;
+
+	drm_helper_resume_force_mode(drm_dev);
+
+	if (bochs->fb.initialized) {
+		console_lock();
+		fb_set_suspend(bochs->fb.helper.fbdev, 0);
+		console_unlock();
+	}
+
+	drm_kms_helper_poll_enable(drm_dev);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops bochs_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(bochs_pm_suspend,
+				bochs_pm_resume)
+};
+
+/* ---------------------------------------------------------------------- */
 /* pci interface                                                          */
 
 static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
@@ -132,7 +177,7 @@ static void bochs_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(bochs_pci_tbl) = {
+static const struct pci_device_id bochs_pci_tbl[] = {
 	{
 		.vendor      = 0x1234,
 		.device      = 0x1111,
@@ -155,6 +200,7 @@ static struct pci_driver bochs_pci_driver = {
 	.id_table =	bochs_pci_tbl,
 	.probe =	bochs_pci_probe,
 	.remove =	bochs_pci_remove,
+	.driver.pm =    &bochs_pm_ops,
 };
 
 /* ---------------------------------------------------------------------- */

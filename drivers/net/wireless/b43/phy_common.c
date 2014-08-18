@@ -45,11 +45,10 @@ int b43_phy_allocate(struct b43_wldev *dev)
 	phy->ops = NULL;
 
 	switch (phy->type) {
-	case B43_PHYTYPE_A:
-		phy->ops = &b43_phyops_a;
-		break;
 	case B43_PHYTYPE_G:
+#ifdef CONFIG_B43_PHY_G
 		phy->ops = &b43_phyops_g;
+#endif
 		break;
 	case B43_PHYTYPE_N:
 #ifdef CONFIG_B43_PHY_N
@@ -94,17 +93,25 @@ int b43_phy_init(struct b43_wldev *dev)
 	const struct b43_phy_operations *ops = phy->ops;
 	int err;
 
-	phy->channel = ops->get_default_chan(dev);
+	/* During PHY init we need to use some channel. On the first init this
+	 * function is called *before* b43_op_config, so our pointer is NULL.
+	 */
+	if (!phy->chandef) {
+		phy->chandef = &dev->wl->hw->conf.chandef;
+		phy->channel = phy->chandef->chan->hw_value;
+	}
 
-	ops->software_rfkill(dev, false);
+	phy->ops->switch_analog(dev, true);
+	b43_software_rfkill(dev, false);
+
 	err = ops->init(dev);
 	if (err) {
 		b43err(dev->wl, "PHY init failed\n");
 		goto err_block_rf;
 	}
-	/* Make sure to switch hardware and firmware (SHM) to
-	 * the default channel. */
-	err = b43_switch_channel(dev, ops->get_default_chan(dev));
+	phy->do_full_init = false;
+
+	err = b43_switch_channel(dev, phy->channel);
 	if (err) {
 		b43err(dev->wl, "PHY init: Channel switch to default failed\n");
 		goto err_phy_exit;
@@ -113,10 +120,11 @@ int b43_phy_init(struct b43_wldev *dev)
 	return 0;
 
 err_phy_exit:
+	phy->do_full_init = true;
 	if (ops->exit)
 		ops->exit(dev);
 err_block_rf:
-	ops->software_rfkill(dev, true);
+	b43_software_rfkill(dev, true);
 
 	return err;
 }
@@ -125,7 +133,8 @@ void b43_phy_exit(struct b43_wldev *dev)
 {
 	const struct b43_phy_operations *ops = dev->phy.ops;
 
-	ops->software_rfkill(dev, true);
+	b43_software_rfkill(dev, true);
+	dev->phy.do_full_init = true;
 	if (ops->exit)
 		ops->exit(dev);
 }
@@ -133,9 +142,9 @@ void b43_phy_exit(struct b43_wldev *dev)
 bool b43_has_hardware_pctl(struct b43_wldev *dev)
 {
 	if (!dev->phy.hardware_power_control)
-		return 0;
+		return false;
 	if (!dev->phy.ops->supports_hwpctl)
-		return 0;
+		return false;
 	return dev->phy.ops->supports_hwpctl(dev);
 }
 
@@ -312,14 +321,95 @@ void b43_phy_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set)
 	}
 }
 
+void b43_phy_put_into_reset(struct b43_wldev *dev)
+{
+	u32 tmp;
+
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp &= ~B43_BCMA_IOCTL_GMODE;
+		tmp |= B43_BCMA_IOCTL_PHY_RESET;
+		tmp |= BCMA_IOCTL_FGC;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		udelay(1);
+
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp &= ~BCMA_IOCTL_FGC;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		udelay(1);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		tmp &= ~B43_TMSLOW_GMODE;
+		tmp |= B43_TMSLOW_PHYRESET;
+		tmp |= SSB_TMSLOW_FGC;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		usleep_range(1000, 2000);
+
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		tmp &= ~SSB_TMSLOW_FGC;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		usleep_range(1000, 2000);
+
+		break;
+#endif
+	}
+}
+
+void b43_phy_take_out_of_reset(struct b43_wldev *dev)
+{
+	u32 tmp;
+
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		/* Unset reset bit (with forcing clock) */
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp &= ~B43_BCMA_IOCTL_PHY_RESET;
+		tmp &= ~B43_BCMA_IOCTL_PHY_CLKEN;
+		tmp |= BCMA_IOCTL_FGC;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		udelay(1);
+
+		/* Do not force clock anymore */
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp &= ~BCMA_IOCTL_FGC;
+		tmp |= B43_BCMA_IOCTL_PHY_CLKEN;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		udelay(1);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		/* Unset reset bit (with forcing clock) */
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		tmp &= ~B43_TMSLOW_PHYRESET;
+		tmp &= ~B43_TMSLOW_PHYCLKEN;
+		tmp |= SSB_TMSLOW_FGC;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		ssb_read32(dev->dev->sdev, SSB_TMSLOW); /* flush */
+		usleep_range(1000, 2000);
+
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		tmp &= ~SSB_TMSLOW_FGC;
+		tmp |= B43_TMSLOW_PHYCLKEN;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		ssb_read32(dev->dev->sdev, SSB_TMSLOW); /* flush */
+		usleep_range(1000, 2000);
+		break;
+#endif
+	}
+}
+
 int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 {
 	struct b43_phy *phy = &(dev->phy);
 	u16 channelcookie, savedcookie;
 	int err;
-
-	if (new_channel == B43_DEFAULT_CHANNEL)
-		new_channel = phy->ops->get_default_chan(dev);
 
 	/* First we set the channel radio code to prevent the
 	 * firmware from sending ghost packets.
@@ -338,7 +428,6 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 	if (err)
 		goto err_restore_cookie;
 
-	dev->phy.channel = new_channel;
 	/* Wait for the radio to tune to the channel and stabilize. */
 	msleep(8);
 
@@ -457,10 +546,9 @@ void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on)
 }
 
 
-bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type)
+bool b43_is_40mhz(struct b43_wldev *dev)
 {
-	return (channel_type == NL80211_CHAN_HT40MINUS ||
-		channel_type == NL80211_CHAN_HT40PLUS);
+	return dev->phy.chandef->width == NL80211_CHAN_WIDTH_40;
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */

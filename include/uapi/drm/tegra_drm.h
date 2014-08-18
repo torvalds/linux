@@ -1,17 +1,23 @@
 /*
  * Copyright (c) 2012-2013, NVIDIA CORPORATION.  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef _UAPI_TEGRA_DRM_H_
@@ -114,7 +120,6 @@ struct drm_tegra_submit {
 	__u32 num_waitchks;
 	__u32 waitchk_mask;
 	__u32 timeout;
-	__u32 pad;
 	__u64 syncpts;
 	__u64 cmdbufs;
 	__u64 relocs;
@@ -122,6 +127,44 @@ struct drm_tegra_submit {
 	__u32 fence;		/* Return value */
 
 	__u32 reserved[5];	/* future expansion */
+};
+
+#define DRM_TEGRA_GEM_TILING_MODE_PITCH 0
+#define DRM_TEGRA_GEM_TILING_MODE_TILED 1
+#define DRM_TEGRA_GEM_TILING_MODE_BLOCK 2
+
+struct drm_tegra_gem_set_tiling {
+	/* input */
+	__u32 handle;
+	__u32 mode;
+	__u32 value;
+	__u32 pad;
+};
+
+struct drm_tegra_gem_get_tiling {
+	/* input */
+	__u32 handle;
+	/* output */
+	__u32 mode;
+	__u32 value;
+	__u32 pad;
+};
+
+#define DRM_TEGRA_GEM_BOTTOM_UP		(1 << 0)
+#define DRM_TEGRA_GEM_FLAGS		(DRM_TEGRA_GEM_BOTTOM_UP)
+
+struct drm_tegra_gem_set_flags {
+	/* input */
+	__u32 handle;
+	/* output */
+	__u32 flags;
+};
+
+struct drm_tegra_gem_get_flags {
+	/* input */
+	__u32 handle;
+	/* output */
+	__u32 flags;
 };
 
 #define DRM_TEGRA_GEM_CREATE		0x00
@@ -134,6 +177,10 @@ struct drm_tegra_submit {
 #define DRM_TEGRA_GET_SYNCPT		0x07
 #define DRM_TEGRA_SUBMIT		0x08
 #define DRM_TEGRA_GET_SYNCPT_BASE	0x09
+#define DRM_TEGRA_GEM_SET_TILING	0x0a
+#define DRM_TEGRA_GEM_GET_TILING	0x0b
+#define DRM_TEGRA_GEM_SET_FLAGS		0x0c
+#define DRM_TEGRA_GEM_GET_FLAGS		0x0d
 
 #define DRM_IOCTL_TEGRA_GEM_CREATE DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_CREATE, struct drm_tegra_gem_create)
 #define DRM_IOCTL_TEGRA_GEM_MMAP DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_MMAP, struct drm_tegra_gem_mmap)
@@ -145,5 +192,9 @@ struct drm_tegra_submit {
 #define DRM_IOCTL_TEGRA_GET_SYNCPT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GET_SYNCPT, struct drm_tegra_get_syncpt)
 #define DRM_IOCTL_TEGRA_SUBMIT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT, struct drm_tegra_submit)
 #define DRM_IOCTL_TEGRA_GET_SYNCPT_BASE DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GET_SYNCPT_BASE, struct drm_tegra_get_syncpt_base)
+#define DRM_IOCTL_TEGRA_GEM_SET_TILING DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_SET_TILING, struct drm_tegra_gem_set_tiling)
+#define DRM_IOCTL_TEGRA_GEM_GET_TILING DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_GET_TILING, struct drm_tegra_gem_get_tiling)
+#define DRM_IOCTL_TEGRA_GEM_SET_FLAGS DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_SET_FLAGS, struct drm_tegra_gem_set_flags)
+#define DRM_IOCTL_TEGRA_GEM_GET_FLAGS DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_GET_FLAGS, struct drm_tegra_gem_get_flags)
 
 #endif

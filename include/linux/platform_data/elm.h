@@ -21,17 +21,11 @@
 enum bch_ecc {
 	BCH4_ECC = 0,
 	BCH8_ECC,
+	BCH16_ECC,
 };
 
 /* ELM support 8 error syndrome process */
 #define ERROR_VECTOR_MAX		8
-
-#define BCH8_ECC_OOB_BYTES		13
-#define BCH4_ECC_OOB_BYTES		7
-/* RBL requires 14 byte even though BCH8 uses only 13 byte */
-#define BCH8_SIZE			(BCH8_ECC_OOB_BYTES + 1)
-/* Uses 1 extra byte to handle erased pages */
-#define BCH4_SIZE			(BCH4_ECC_OOB_BYTES + 1)
 
 /**
  * struct elm_errorvec - error vector for elm
@@ -45,10 +39,11 @@ struct elm_errorvec {
 	bool error_reported;
 	bool error_uncorrectable;
 	int error_count;
-	int error_loc[ERROR_VECTOR_MAX];
+	int error_loc[16];
 };
 
 void elm_decode_bch_error_page(struct device *dev, u8 *ecc_calc,
 		struct elm_errorvec *err_vec);
-int elm_config(struct device *dev, enum bch_ecc bch_type);
+int elm_config(struct device *dev, enum bch_ecc bch_type,
+	int ecc_steps, int ecc_step_size, int ecc_syndrome_size);
 #endif /* __ELM_H */

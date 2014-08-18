@@ -71,13 +71,6 @@
 			interrupts = <58>;
 		};
 
-		mailbox: mailbox@48094000 {
-			compatible = "ti,omap2-mailbox";
-			ti,hwmods = "mailbox";
-			reg = <0x48094000 0x200>;
-			interrupts = <26>;
-		};
-
 		intc: interrupt-controller@1 {
 			compatible = "ti,omap2-intc";
 			interrupt-controller;
@@ -270,6 +263,37 @@
 			interrupts = <48>;
 			ti,hwmods = "timer12";
 			ti,timer-pwm;
+		};
+
+		dss: dss@48050000 {
+			compatible = "ti,omap2-dss";
+			reg = <0x48050000 0x400>;
+			status = "disabled";
+			ti,hwmods = "dss_core";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			dispc@48050400 {
+				compatible = "ti,omap2-dispc";
+				reg = <0x48050400 0x400>;
+				interrupts = <25>;
+				ti,hwmods = "dss_dispc";
+			};
+
+			rfbi: encoder@48050800 {
+				compatible = "ti,omap2-rfbi";
+				reg = <0x48050800 0x400>;
+				status = "disabled";
+				ti,hwmods = "dss_rfbi";
+			};
+
+			venc: encoder@48050c00 {
+				compatible = "ti,omap2-venc";
+				reg = <0x48050c00 0x400>;
+				status = "disabled";
+				ti,hwmods = "dss_venc";
+			};
 		};
 	};
 };

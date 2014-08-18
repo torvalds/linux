@@ -82,9 +82,18 @@ static int sg_set_timeout(struct request_queue *q, int __user *p)
 	return err;
 }
 
+static int max_sectors_bytes(struct request_queue *q)
+{
+	unsigned int max_sectors = queue_max_sectors(q);
+
+	max_sectors = min_t(unsigned int, max_sectors, INT_MAX >> 9);
+
+	return max_sectors << 9;
+}
+
 static int sg_get_reserved_size(struct request_queue *q, int __user *p)
 {
-	unsigned val = min(q->sg_reserved_size, queue_max_sectors(q) << 9);
+	int val = min_t(int, q->sg_reserved_size, max_sectors_bytes(q));
 
 	return put_user(val, p);
 }
@@ -98,10 +107,8 @@ static int sg_set_reserved_size(struct request_queue *q, int __user *p)
 
 	if (size < 0)
 		return -EINVAL;
-	if (size > (queue_max_sectors(q) << 9))
-		size = queue_max_sectors(q) << 9;
 
-	q->sg_reserved_size = size;
+	q->sg_reserved_size = min(size, max_sectors_bytes(q));
 	return 0;
 }
 
@@ -205,10 +212,6 @@ int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm)
 	if (capable(CAP_SYS_RAWIO))
 		return 0;
 
-	/* if there's no filter set, assume we're filtering everything out */
-	if (!filter)
-		return -EPERM;
-
 	/* Anybody who can open the device can do a read-safe command */
 	if (test_bit(cmd[0], filter->read_ok))
 		return 0;
@@ -233,7 +236,6 @@ static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 	 * fill in request structure
 	 */
 	rq->cmd_len = hdr->cmd_len;
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 
 	rq->timeout = msecs_to_jiffies(hdr->timeout);
 	if (!rq->timeout)
@@ -288,6 +290,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	unsigned long start_time;
 	ssize_t ret = 0;
 	int writing = 0;
+	int at_head = 0;
 	struct request *rq;
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	struct bio *bio;
@@ -311,10 +314,13 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		case SG_DXFER_FROM_DEV:
 			break;
 		}
+	if (hdr->flags & SG_FLAG_Q_AT_HEAD)
+		at_head = 1;
 
 	rq = blk_get_request(q, writing ? WRITE : READ, GFP_KERNEL);
 	if (!rq)
 		return -ENOMEM;
+	blk_rq_set_block_pc(rq);
 
 	if (blk_fill_sghdr_rq(q, rq, hdr, mode)) {
 		blk_put_request(rq);
@@ -366,7 +372,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	 * (if he doesn't check that is his problem).
 	 * N.B. a non-zero SCSI status is _not_ necessarily an error.
 	 */
-	blk_execute_rq(q, bd_disk, rq, 0);
+	blk_execute_rq(q, bd_disk, rq, at_head);
 
 	hdr->duration = jiffies_to_msecs(jiffies - start_time);
 
@@ -495,7 +501,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 	memset(sense, 0, sizeof(sense));
 	rq->sense = sense;
 	rq->sense_len = 0;
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(rq);
 
 	blk_execute_rq(q, disk, rq, 0);
 
@@ -528,7 +534,7 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
 	int err;
 
 	rq = blk_get_request(q, WRITE, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(rq);
 	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	rq->cmd[0] = cmd;
 	rq->cmd[4] = data;

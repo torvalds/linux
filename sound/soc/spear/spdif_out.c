@@ -213,10 +213,7 @@ static int spdif_digital_mute(struct snd_soc_dai *dai, int mute)
 static int spdif_mute_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_card *card = codec->card;
-	struct snd_soc_pcm_runtime *rtd = card->rtd;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
 	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(cpu_dai);
 
 	ucontrol->value.integer.value[0] = host->saved_params.mute;
@@ -226,10 +223,7 @@ static int spdif_mute_get(struct snd_kcontrol *kcontrol,
 static int spdif_mute_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_card *card = codec->card;
-	struct snd_soc_pcm_runtime *rtd = card->rtd;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
 	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (host->saved_params.mute == ucontrol->value.integer.value[0])

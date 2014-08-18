@@ -84,6 +84,7 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_6050,
 	IWL_DEVICE_FAMILY_6150,
 	IWL_DEVICE_FAMILY_7000,
+	IWL_DEVICE_FAMILY_8000,
 };
 
 /*
@@ -145,6 +146,9 @@ static inline u8 num_of_ant(u8 mask)
  * @wd_timeout: TX queues watchdog timeout
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadow register support
+ * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
+ *	is in flight. This is due to a HW bug in 7260, 3160 and 7265.
+ * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -159,6 +163,8 @@ struct iwl_base_params {
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
 	const bool pcie_l1_allowed;
+	const bool apmg_wake_up_wa;
+	const bool scd_chain_ext_wa;
 };
 
 /*
@@ -187,9 +193,23 @@ struct iwl_ht_params {
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS	0x80
 #define EEPROM_REGULATORY_BAND_NO_HT40		0
 
+/* lower blocks contain EEPROM image and calibration data */
+#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
+#define OTP_LOW_IMAGE_SIZE_FAMILY_7000	(16 * 512 * sizeof(u16)) /* 16 KB */
+#define OTP_LOW_IMAGE_SIZE_FAMILY_8000	(32 * 512 * sizeof(u16)) /* 32 KB */
+
 struct iwl_eeprom_params {
 	const u8 regulatory_bands[7];
 	bool enhanced_txpower;
+};
+
+/* Tx-backoff power threshold
+ * @pwr: The power limit in mw
+ * @backoff: The tx-backoff in uSec
+ */
+struct iwl_pwr_tx_backoff {
+	u32 pwr;
+	u32 backoff;
 };
 
 /**
@@ -217,6 +237,10 @@ struct iwl_eeprom_params {
  * @high_temp: Is this NIC is designated to be in high temperature.
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *	mode set
+ * @d0i3: device uses d0i3 instead of d3
+ * @nvm_hw_section_num: the ID of the HW NVM section
+ * @pwr_tx_backoffs: translation table between power limits and backoffs
+ * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -247,6 +271,13 @@ struct iwl_cfg {
 	const bool internal_wimax_coex;
 	const bool host_interrupt_operation_mode;
 	bool high_temp;
+	bool d0i3;
+	u8   nvm_hw_section_num;
+	bool lp_xtal_workaround;
+	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
+	bool no_power_up_nic_in_init;
+	const char *default_nvm_file;
+	unsigned int max_rx_agg_size;
 };
 
 /*
@@ -307,6 +338,8 @@ extern const struct iwl_cfg iwl3160_n_cfg;
 extern const struct iwl_cfg iwl7265_2ac_cfg;
 extern const struct iwl_cfg iwl7265_2n_cfg;
 extern const struct iwl_cfg iwl7265_n_cfg;
+extern const struct iwl_cfg iwl8260_2ac_cfg;
+extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

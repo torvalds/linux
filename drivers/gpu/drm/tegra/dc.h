@@ -67,10 +67,12 @@
 #define WIN_A_ACT_REQ   (1 <<  1)
 #define WIN_B_ACT_REQ   (1 <<  2)
 #define WIN_C_ACT_REQ   (1 <<  3)
+#define CURSOR_ACT_REQ  (1 <<  7)
 #define GENERAL_UPDATE  (1 <<  8)
 #define WIN_A_UPDATE    (1 <<  9)
 #define WIN_B_UPDATE    (1 << 10)
 #define WIN_C_UPDATE    (1 << 11)
+#define CURSOR_UPDATE   (1 << 15)
 #define NC_HOST_TRIG    (1 << 24)
 
 #define DC_CMD_DISPLAY_WINDOW_HEADER		0x042
@@ -116,8 +118,10 @@
 #define DC_DISP_DISP_SIGNAL_OPTIONS1		0x401
 
 #define DC_DISP_DISP_WIN_OPTIONS		0x402
-#define HDMI_ENABLE (1 << 30)
-#define DSI_ENABLE  (1 << 29)
+#define HDMI_ENABLE	(1 << 30)
+#define DSI_ENABLE	(1 << 29)
+#define SOR_ENABLE	(1 << 25)
+#define CURSOR_ENABLE	(1 << 16)
 
 #define DC_DISP_DISP_MEM_HIGH_PRIORITY		0x403
 #define CURSOR_THRESHOLD(x)   (((x) & 0x03) << 24)
@@ -265,6 +269,14 @@
 #define DC_DISP_CURSOR_BACKGROUND		0x43d
 
 #define DC_DISP_CURSOR_START_ADDR		0x43e
+#define CURSOR_CLIP_DISPLAY	(0 << 28)
+#define CURSOR_CLIP_WIN_A	(1 << 28)
+#define CURSOR_CLIP_WIN_B	(2 << 28)
+#define CURSOR_CLIP_WIN_C	(3 << 28)
+#define CURSOR_SIZE_32x32	(0 << 24)
+#define CURSOR_SIZE_64x64	(1 << 24)
+#define CURSOR_SIZE_128x128	(2 << 24)
+#define CURSOR_SIZE_256x256	(3 << 24)
 #define DC_DISP_CURSOR_START_ADDR_NS		0x43f
 
 #define DC_DISP_CURSOR_POSITION			0x440
@@ -301,6 +313,19 @@
 #define  INTERLACE_START  (1 << 1)
 #define  INTERLACE_ENABLE (1 << 0)
 
+#define DC_DISP_CURSOR_START_ADDR_HI		0x4ec
+#define DC_DISP_BLEND_CURSOR_CONTROL		0x4f1
+#define CURSOR_MODE_LEGACY			(0 << 24)
+#define CURSOR_MODE_NORMAL			(1 << 24)
+#define CURSOR_DST_BLEND_ZERO			(0 << 16)
+#define CURSOR_DST_BLEND_K1			(1 << 16)
+#define CURSOR_DST_BLEND_NEG_K1_TIMES_SRC	(2 << 16)
+#define CURSOR_DST_BLEND_MASK			(3 << 16)
+#define CURSOR_SRC_BLEND_K1			(0 << 8)
+#define CURSOR_SRC_BLEND_K1_TIMES_SRC		(1 << 8)
+#define CURSOR_SRC_BLEND_MASK			(3 << 8)
+#define CURSOR_ALPHA				0xff
+
 #define DC_WIN_CSC_YOF				0x611
 #define DC_WIN_CSC_KYRGB			0x612
 #define DC_WIN_CSC_KUR				0x613
@@ -311,7 +336,8 @@
 #define DC_WIN_CSC_KVB				0x618
 
 #define DC_WIN_WIN_OPTIONS			0x700
-#define INVERT_V     (1 <<  2)
+#define H_DIRECTION  (1 <<  0)
+#define V_DIRECTION  (1 <<  2)
 #define COLOR_EXPAND (1 <<  6)
 #define CSC_ENABLE   (1 << 18)
 #define WIN_ENABLE   (1 << 30)
@@ -402,6 +428,11 @@
 #define DC_WINBUF_ADDR_V_OFFSET_NS		0x809
 
 #define DC_WINBUF_UFLOW_STATUS			0x80a
+#define DC_WINBUF_SURFACE_KIND			0x80b
+#define DC_WINBUF_SURFACE_KIND_PITCH	(0 << 0)
+#define DC_WINBUF_SURFACE_KIND_TILED	(1 << 0)
+#define DC_WINBUF_SURFACE_KIND_BLOCK	(2 << 0)
+#define DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(x) (((x) & 0x7) << 4)
 
 #define DC_WINBUF_AD_UFLOW_STATUS		0xbca
 #define DC_WINBUF_BD_UFLOW_STATUS		0xdca

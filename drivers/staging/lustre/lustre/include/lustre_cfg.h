@@ -88,6 +88,8 @@ enum lcfg_command_type {
 	LCFG_SET_LDLM_TIMEOUT   = 0x00ce030, /**< set ldlm_timeout */
 	LCFG_PRE_CLEANUP	= 0x00cf031, /**< call type-specific pre
 					      * cleanup cleanup */
+	LCFG_SET_PARAM		= 0x00ce032, /**< use set_param syntax to set
+					      *a proc parameters */
 };
 
 struct lustre_cfg_bufs {
@@ -220,7 +222,7 @@ static inline int lustre_cfg_len(__u32 bufcount, __u32 *buflens)
 }
 
 
-#include <obd_support.h>
+#include "obd_support.h"
 
 static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 						struct lustre_cfg_bufs *bufs)
@@ -284,7 +286,7 @@ static inline int lustre_cfg_sanity_check(void *buf, int len)
 	return 0;
 }
 
-#include <lustre/lustre_user.h>
+#include "lustre/lustre_user.h"
 
 /** @} cfg */
 

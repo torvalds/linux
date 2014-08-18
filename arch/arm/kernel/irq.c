@@ -37,6 +37,7 @@
 #include <linux/proc_fs.h>
 #include <linux/export.h>
 
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/exception.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -115,10 +116,21 @@ EXPORT_SYMBOL_GPL(set_irq_flags);
 
 void __init init_IRQ(void)
 {
+	int ret;
+
 	if (IS_ENABLED(CONFIG_OF) && !machine_desc->init_irq)
 		irqchip_init();
 	else
 		machine_desc->init_irq();
+
+	if (IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_CACHE_L2X0) &&
+	    (machine_desc->l2c_aux_mask || machine_desc->l2c_aux_val)) {
+		outer_cache.write_sec = machine_desc->l2c_write_sec;
+		ret = l2x0_of_init(machine_desc->l2c_aux_val,
+				   machine_desc->l2c_aux_mask);
+		if (ret)
+			pr_err("L2C: failed to init: %d\n", ret);
+	}
 }
 
 #ifdef CONFIG_MULTI_IRQ_HANDLER

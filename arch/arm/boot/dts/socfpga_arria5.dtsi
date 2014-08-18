@@ -15,7 +15,7 @@
  */
 
 /dts-v1/;
-/include/ "socfpga.dtsi"
+#include "socfpga.dtsi"
 
 / {
 	soc {
@@ -27,32 +27,19 @@
 			};
 		};
 
-		serial0@ffc02000 {
-			clock-frequency = <100000000>;
-		};
+		dwmmc0@ff704000 {
+			num-slots = <1>;
+			supports-highspeed;
+			broken-cd;
 
-		serial1@ffc03000 {
-			clock-frequency = <100000000>;
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
+			};
 		};
 
 		sysmgr@ffd08000 {
 			cpu1-start-addr = <0xffd080c4>;
-		};
-
-		timer0@ffc08000 {
-			clock-frequency = <100000000>;
-		};
-
-		timer1@ffc09000 {
-			clock-frequency = <100000000>;
-		};
-
-		timer2@ffd00000 {
-			clock-frequency = <25000000>;
-		};
-
-		timer3@ffd01000 {
-			clock-frequency = <25000000>;
 		};
 	};
 };

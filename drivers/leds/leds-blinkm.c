@@ -18,7 +18,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
@@ -444,7 +443,7 @@ static void led_work(struct work_struct *work)
 {
 	int ret;
 	struct blinkm_led *led;
-	struct blinkm_data *data ;
+	struct blinkm_data *data;
 	struct blinkm_work *blm_work = work_to_blmwork(work);
 
 	led = blm_work->blinkm_led;

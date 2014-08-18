@@ -23,12 +23,40 @@
 #include "exynos4210-pinctrl.dtsi"
 
 / {
-	compatible = "samsung,exynos4210";
+	compatible = "samsung,exynos4210", "samsung,exynos4";
 
 	aliases {
 		pinctrl0 = &pinctrl_0;
 		pinctrl1 = &pinctrl_1;
 		pinctrl2 = &pinctrl_2;
+	};
+
+	pmu_system_controller: system-controller@10020000 {
+		clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
+				"clkout4", "clkout8", "clkout9";
+		clocks = <&clock CLK_OUT_DMC>, <&clock CLK_OUT_TOP>,
+			<&clock CLK_OUT_LEFTBUS>, <&clock CLK_OUT_RIGHTBUS>,
+			<&clock CLK_OUT_CPU>, <&clock CLK_XXTI>,
+			<&clock CLK_XUSBXTI>;
+		#clock-cells = <1>;
+	};
+
+	sysram@02020000 {
+		compatible = "mmio-sram";
+		reg = <0x02020000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x02020000 0x20000>;
+
+		smp-sysram@0 {
+			compatible = "samsung,exynos4210-sysram";
+			reg = <0x0 0x1000>;
+		};
+
+		smp-sysram@1f000 {
+			compatible = "samsung,exynos4210-sysram-ns";
+			reg = <0x1f000 0x1000>;
+		};
 	};
 
 	pd_lcd1: lcd1-power-domain@10023CA0 {
@@ -53,7 +81,7 @@
 		reg = <0x10050000 0x800>;
 		interrupt-parent = <&mct_map>;
 		interrupts = <0>, <1>, <2>, <3>, <4>, <5>;
-		clocks = <&clock 3>, <&clock 344>;
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
 		clock-names = "fin_pll", "mct";
 
 		mct_map: mct-map {
@@ -73,12 +101,6 @@
 		compatible = "samsung,exynos4210-clock";
 		reg = <0x10030000 0x20000>;
 		#clock-cells = <1>;
-	};
-
-	pmu {
-		compatible = "arm,cortex-a9-pmu";
-		interrupt-parent = <&combiner>;
-		interrupts = <2 2>, <3 2>;
 	};
 
 	pinctrl_0: pinctrl@11400000 {
@@ -109,7 +131,7 @@
 		interrupt-parent = <&combiner>;
 		reg = <0x100C0000 0x100>;
 		interrupts = <2 4>;
-		clocks = <&clock 383>;
+		clocks = <&clock CLK_TMU_APBIF>;
 		clock-names = "tmu_apbif";
 		status = "disabled";
 	};
@@ -118,13 +140,14 @@
 		compatible = "samsung,s5pv210-g2d";
 		reg = <0x12800000 0x1000>;
 		interrupts = <0 89 0>;
-		clocks = <&clock 177>, <&clock 277>;
+		clocks = <&clock CLK_SCLK_FIMG2D>, <&clock CLK_G2D>;
 		clock-names = "sclk_fimg2d", "fimg2d";
 		status = "disabled";
 	};
 
 	camera {
-		clocks = <&clock 132>, <&clock 133>, <&clock 351>, <&clock 352>;
+		clocks = <&clock CLK_SCLK_CAM0>, <&clock CLK_SCLK_CAM1>,
+			 <&clock CLK_PIXELASYNCM0>, <&clock CLK_PIXELASYNCM1>;
 		clock-names = "sclk_cam0", "sclk_cam1", "pxl_async0", "pxl_async1";
 
 		fimc_0: fimc@11800000 {

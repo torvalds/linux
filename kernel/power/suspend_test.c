@@ -136,18 +136,16 @@ static char warn_bad_state[] __initdata =
 
 static int __init setup_test_suspend(char *value)
 {
-	unsigned i;
+	suspend_state_t i;
 
 	/* "=mem" ==> "mem" */
 	value++;
-	for (i = 0; i < PM_SUSPEND_MAX; i++) {
-		if (!pm_states[i])
-			continue;
-		if (strcmp(pm_states[i], value) != 0)
-			continue;
-		test_state = (__force suspend_state_t) i;
-		return 0;
-	}
+	for (i = PM_SUSPEND_MIN; i < PM_SUSPEND_MAX; i++)
+		if (!strcmp(pm_states[i], value)) {
+			test_state = i;
+			return 0;
+		}
+
 	printk(warn_bad_state, value);
 	return 0;
 }
@@ -164,7 +162,7 @@ static int __init test_suspend(void)
 	/* PM is initialized by now; is that state testable? */
 	if (test_state == PM_SUSPEND_ON)
 		goto done;
-	if (!valid_state(test_state)) {
+	if (!pm_states[test_state]) {
 		printk(warn_bad_state, pm_states[test_state]);
 		goto done;
 	}

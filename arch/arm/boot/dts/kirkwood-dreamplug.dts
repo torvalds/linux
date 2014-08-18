@@ -14,10 +14,11 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pmx_led_bluetooth: pmx-led-bluetooth {
 				marvell,pins = "mpp47";
 				marvell,function = "gpio";
@@ -37,13 +38,11 @@
 
 		spi@10600 {
 			status = "okay";
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 
 			m25p40@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mx25l1606e";
+				compatible = "mxicy,mx25l1606e";
 				reg = <0>;
 				spi-max-frequency = <50000000>;
 				mode = <0>;

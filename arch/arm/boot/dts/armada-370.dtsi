@@ -132,6 +132,25 @@
 							"mpp51", "mpp52", "mpp53";
 					marvell,function = "sd0";
 				};
+
+				i2c0_pins: i2c0-pins {
+					marvell,pins = "mpp2", "mpp3";
+					marvell,function = "i2c0";
+				};
+
+				i2s_pins1: i2s-pins1 {
+					marvell,pins = "mpp5", "mpp6", "mpp7",
+						       "mpp8", "mpp9", "mpp10",
+						       "mpp12", "mpp13";
+					marvell,function = "audio";
+				};
+
+				i2s_pins2: i2s-pins2 {
+					marvell,pins = "mpp49", "mpp47", "mpp50",
+						       "mpp59", "mpp57", "mpp61",
+						       "mpp62", "mpp60", "mpp58";
+					marvell,function = "audio";
+				};
 			};
 
 			gpio0: gpio@18100 {
@@ -194,6 +213,25 @@
 			timer@20300 {
 				compatible = "marvell,armada-370-timer";
 				clocks = <&coreclk 2>;
+			};
+
+			watchdog@20300 {
+				compatible = "marvell,armada-370-wdt";
+				clocks = <&coreclk 2>;
+			};
+
+			cpurst@20800 {
+				compatible = "marvell,armada-370-cpu-reset";
+				reg = <0x20800 0x8>;
+			};
+
+			audio_controller: audio-controller@30000 {
+				compatible = "marvell,armada370-audio";
+				reg = <0x30000 0x4000>;
+				interrupts = <93>;
+				clocks = <&gateclk 0>;
+				clock-names = "internal";
+				status = "disabled";
 			};
 
 			usb@50000 {

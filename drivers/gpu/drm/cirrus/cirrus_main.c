@@ -264,17 +264,13 @@ static void cirrus_bo_unref(struct cirrus_bo **bo)
 
 	tbo = &((*bo)->bo);
 	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
-
+	*bo = NULL;
 }
 
 void cirrus_gem_free_object(struct drm_gem_object *obj)
 {
 	struct cirrus_bo *cirrus_bo = gem_to_cirrus_bo(obj);
 
-	if (!cirrus_bo)
-		return;
 	cirrus_bo_unref(&cirrus_bo);
 }
 

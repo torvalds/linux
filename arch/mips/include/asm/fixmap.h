@@ -48,11 +48,7 @@
 enum fixed_addresses {
 #define FIX_N_COLOURS 8
 	FIX_CMAP_BEGIN,
-#ifdef CONFIG_MIPS_MT_SMTC
-	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS * 2),
-#else
 	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * 2),
-#endif
 #ifdef CONFIG_HIGHMEM
 	/* reserved pte's for temporary kernel mappings */
 	FIX_KMAP_BEGIN = FIX_CMAP_END + 1,

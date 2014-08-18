@@ -70,6 +70,7 @@ static u32 errata;
 
 static struct omap_dma_global_context_registers {
 	u32 dma_irqenable_l0;
+	u32 dma_irqenable_l1;
 	u32 dma_ocp_sysconfig;
 	u32 dma_gcr;
 } omap_dma_global_context;
@@ -696,6 +697,8 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	int ch, free_ch = -1;
 	unsigned long flags;
 	struct omap_dma_lch *chan;
+
+	WARN(strcmp(dev_name, "DMA engine"), "Using deprecated platform DMA API - please update to DMA engine");
 
 	spin_lock_irqsave(&dma_chan_lock, flags);
 	for (ch = 0; ch < dma_chan_count; ch++) {
@@ -1973,10 +1976,17 @@ static struct irqaction omap24xx_dma_irq;
 
 /*----------------------------------------------------------------------------*/
 
+/*
+ * Note that we are currently using only IRQENABLE_L0 and L1.
+ * As the DSP may be using IRQENABLE_L2 and L3, let's not
+ * touch those for now.
+ */
 void omap_dma_global_context_save(void)
 {
 	omap_dma_global_context.dma_irqenable_l0 =
 		p->dma_read(IRQENABLE_L0, 0);
+	omap_dma_global_context.dma_irqenable_l1 =
+		p->dma_read(IRQENABLE_L1, 0);
 	omap_dma_global_context.dma_ocp_sysconfig =
 		p->dma_read(OCP_SYSCONFIG, 0);
 	omap_dma_global_context.dma_gcr = p->dma_read(GCR, 0);
@@ -1991,6 +2001,8 @@ void omap_dma_global_context_restore(void)
 		OCP_SYSCONFIG, 0);
 	p->dma_write(omap_dma_global_context.dma_irqenable_l0,
 		IRQENABLE_L0, 0);
+	p->dma_write(omap_dma_global_context.dma_irqenable_l1,
+		IRQENABLE_L1, 0);
 
 	if (IS_DMA_ERRATA(DMA_ROMCODE_BUG))
 		p->dma_write(0x3 , IRQSTATUS_L0, 0);
@@ -1999,6 +2011,12 @@ void omap_dma_global_context_restore(void)
 		if (dma_chan[ch].dev_id != -1)
 			omap_clear_dma(ch);
 }
+
+struct omap_system_dma_plat_info *omap_get_plat_info(void)
+{
+	return p;
+}
+EXPORT_SYMBOL_GPL(omap_get_plat_info);
 
 static int omap_system_dma_probe(struct platform_device *pdev)
 {
@@ -2024,8 +2042,15 @@ static int omap_system_dma_probe(struct platform_device *pdev)
 
 	dma_lch_count		= d->lch_count;
 	dma_chan_count		= dma_lch_count;
-	dma_chan		= d->chan;
 	enable_1510_mode	= d->dev_caps & ENABLE_1510_MODE;
+
+	dma_chan = devm_kcalloc(&pdev->dev, dma_lch_count,
+				sizeof(struct omap_dma_lch), GFP_KERNEL);
+	if (!dma_chan) {
+		dev_err(&pdev->dev, "%s: kzalloc fail\n", __func__);
+		return -ENOMEM;
+	}
+
 
 	if (dma_omap2plus()) {
 		dma_linked_lch = kzalloc(sizeof(struct dma_link_info) *
@@ -2077,7 +2102,7 @@ static int omap_system_dma_probe(struct platform_device *pdev)
 		omap_dma_set_global_params(DMA_DEFAULT_ARB_RATE,
 				DMA_DEFAULT_FIFO_DEPTH, 0);
 
-	if (dma_omap2plus()) {
+	if (dma_omap2plus() && !(d->dev_caps & DMA_ENGINE_HANDLE_IRQ)) {
 		strcpy(irq_name, "0");
 		dma_irq = platform_get_irq_byname(pdev, irq_name);
 		if (dma_irq < 0) {
@@ -2111,7 +2136,6 @@ exit_dma_irq_fail:
 	}
 
 exit_dma_lch_fail:
-	kfree(dma_chan);
 	return ret;
 }
 
@@ -2123,7 +2147,8 @@ static int omap_system_dma_remove(struct platform_device *pdev)
 		char irq_name[4];
 		strcpy(irq_name, "0");
 		dma_irq = platform_get_irq_byname(pdev, irq_name);
-		remove_irq(dma_irq, &omap24xx_dma_irq);
+		if (dma_irq >= 0)
+			remove_irq(dma_irq, &omap24xx_dma_irq);
 	} else {
 		int irq_rel = 0;
 		for ( ; irq_rel < dma_chan_count; irq_rel++) {
@@ -2131,7 +2156,6 @@ static int omap_system_dma_remove(struct platform_device *pdev)
 			free_irq(dma_irq, (void *)(irq_rel + 1));
 		}
 	}
-	kfree(dma_chan);
 	return 0;
 }
 

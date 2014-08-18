@@ -172,7 +172,7 @@
 #define ID_ADT75XX		0x10
 
 /*
- * struct adt7316_chip_info - chip specifc information
+ * struct adt7316_chip_info - chip specific information
  */
 
 struct adt7316_chip_info {
@@ -208,7 +208,7 @@ struct adt7316_chip_info {
 	(ADT7316_TEMP_INT_MASK)
 
 /*
- * struct adt7316_chip_info - chip specifc information
+ * struct adt7316_chip_info - chip specific information
  */
 
 struct adt7316_limit_regs {
@@ -859,11 +859,14 @@ static ssize_t adt7316_show_DAC_update_mode(struct device *dev,
 	else {
 		switch (chip->dac_config & ADT7316_DA_EN_MODE_MASK) {
 		case ADT7316_DA_EN_MODE_SINGLE:
-			return sprintf(buf, "0 - auto at any MSB DAC writing\n");
+			return sprintf(buf,
+				"0 - auto at any MSB DAC writing\n");
 		case ADT7316_DA_EN_MODE_AB_CD:
-			return sprintf(buf, "1 - auto at MSB DAC AB and CD writing\n");
+			return sprintf(buf,
+				"1 - auto at MSB DAC AB and CD writing\n");
 		case ADT7316_DA_EN_MODE_ABCD:
-			return sprintf(buf, "2 - auto at MSB DAC ABCD writing\n");
+			return sprintf(buf,
+				"2 - auto at MSB DAC ABCD writing\n");
 		default: /* ADT7316_DA_EN_MODE_LDAC */
 			return sprintf(buf, "3 - manual\n");
 		}
@@ -1102,7 +1105,8 @@ static ssize_t adt7316_store_DAC_internal_Vref(struct device *dev,
 			ldac_config = chip->ldac_config | ADT7316_DAC_IN_VREF;
 	}
 
-	ret = chip->bus.write(chip->bus.client, ADT7316_LDAC_CONFIG, ldac_config);
+	ret = chip->bus.write(chip->bus.client, ADT7316_LDAC_CONFIG,
+			ldac_config);
 	if (ret)
 		return -EIO;
 
@@ -1224,7 +1228,8 @@ static ssize_t adt7316_show_ex_temp_AIN1(struct device *dev,
 	return adt7316_show_ad(chip, ADT7316_AD_SINGLE_CH_EX, buf);
 }
 
-static IIO_DEVICE_ATTR(ex_temp_AIN1, S_IRUGO, adt7316_show_ex_temp_AIN1, NULL, 0);
+static IIO_DEVICE_ATTR(ex_temp_AIN1, S_IRUGO, adt7316_show_ex_temp_AIN1,
+		NULL, 0);
 static IIO_DEVICE_ATTR(ex_temp, S_IRUGO, adt7316_show_ex_temp_AIN1, NULL, 0);
 
 static ssize_t adt7316_show_AIN2(struct device *dev,
@@ -1319,7 +1324,8 @@ static ssize_t adt7316_store_in_temp_offset(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return adt7316_store_temp_offset(chip, ADT7316_IN_TEMP_OFFSET, buf, len);
+	return adt7316_store_temp_offset(chip, ADT7316_IN_TEMP_OFFSET, buf,
+			len);
 }
 
 static IIO_DEVICE_ATTR(in_temp_offset, S_IRUGO | S_IWUSR,
@@ -1344,7 +1350,8 @@ static ssize_t adt7316_store_ex_temp_offset(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return adt7316_store_temp_offset(chip, ADT7316_EX_TEMP_OFFSET, buf, len);
+	return adt7316_store_temp_offset(chip, ADT7316_EX_TEMP_OFFSET, buf,
+			len);
 }
 
 static IIO_DEVICE_ATTR(ex_temp_offset, S_IRUGO | S_IWUSR,

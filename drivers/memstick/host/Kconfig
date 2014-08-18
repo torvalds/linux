@@ -52,3 +52,13 @@ config MEMSTICK_REALTEK_PCI
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called rtsx_pci_ms.
+
+config MEMSTICK_REALTEK_USB
+	tristate "Realtek USB Memstick Card Interface Driver"
+	depends on MFD_RTSX_USB
+	help
+	  Say Y here to include driver code to support Memstick card interface
+	  of Realtek RTS5129/39 series USB card reader
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called rts5139_ms.

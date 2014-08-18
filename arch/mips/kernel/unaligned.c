@@ -7,6 +7,7 @@
  *
  * Copyright (C) 1996, 1998, 1999, 2002 by Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
+ * Copyright (C) 2014 Imagination Technologies Ltd.
  *
  * This file contains exception handler for address error exception with the
  * special capability to execute faulting instructions in software.  The
@@ -110,8 +111,8 @@ extern void show_registers(struct pt_regs *regs);
 #ifdef __BIG_ENDIAN
 #define     LoadHW(addr, value, res)  \
 		__asm__ __volatile__ (".set\tnoat\n"        \
-			"1:\tlb\t%0, 0(%2)\n"               \
-			"2:\tlbu\t$1, 1(%2)\n\t"            \
+			"1:\t"user_lb("%0", "0(%2)")"\n"    \
+			"2:\t"user_lbu("$1", "1(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"                  \
 			"or\t%0, $1\n\t"                    \
 			"li\t%1, 0\n"                       \
@@ -130,8 +131,8 @@ extern void show_registers(struct pt_regs *regs);
 
 #define     LoadW(addr, value, res)   \
 		__asm__ __volatile__ (                      \
-			"1:\tlwl\t%0, (%2)\n"               \
-			"2:\tlwr\t%0, 3(%2)\n\t"            \
+			"1:\t"user_lwl("%0", "(%2)")"\n"    \
+			"2:\t"user_lwr("%0", "3(%2)")"\n\t" \
 			"li\t%1, 0\n"                       \
 			"3:\n\t"                            \
 			".insn\n\t"                         \
@@ -149,8 +150,8 @@ extern void show_registers(struct pt_regs *regs);
 #define     LoadHWU(addr, value, res) \
 		__asm__ __volatile__ (                      \
 			".set\tnoat\n"                      \
-			"1:\tlbu\t%0, 0(%2)\n"              \
-			"2:\tlbu\t$1, 1(%2)\n\t"            \
+			"1:\t"user_lbu("%0", "0(%2)")"\n"   \
+			"2:\t"user_lbu("$1", "1(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"                  \
 			"or\t%0, $1\n\t"                    \
 			"li\t%1, 0\n"                       \
@@ -170,8 +171,8 @@ extern void show_registers(struct pt_regs *regs);
 
 #define     LoadWU(addr, value, res)  \
 		__asm__ __volatile__ (                      \
-			"1:\tlwl\t%0, (%2)\n"               \
-			"2:\tlwr\t%0, 3(%2)\n\t"            \
+			"1:\t"user_lwl("%0", "(%2)")"\n"    \
+			"2:\t"user_lwr("%0", "3(%2)")"\n\t" \
 			"dsll\t%0, %0, 32\n\t"              \
 			"dsrl\t%0, %0, 32\n\t"              \
 			"li\t%1, 0\n"                       \
@@ -209,9 +210,9 @@ extern void show_registers(struct pt_regs *regs);
 #define     StoreHW(addr, value, res) \
 		__asm__ __volatile__ (                      \
 			".set\tnoat\n"                      \
-			"1:\tsb\t%1, 1(%2)\n\t"             \
+			"1:\t"user_sb("%1", "1(%2)")"\n"    \
 			"srl\t$1, %1, 0x8\n"                \
-			"2:\tsb\t$1, 0(%2)\n\t"             \
+			"2:\t"user_sb("$1", "0(%2)")"\n"    \
 			".set\tat\n\t"                      \
 			"li\t%0, 0\n"                       \
 			"3:\n\t"                            \
@@ -229,8 +230,8 @@ extern void show_registers(struct pt_regs *regs);
 
 #define     StoreW(addr, value, res)  \
 		__asm__ __volatile__ (                      \
-			"1:\tswl\t%1,(%2)\n"                \
-			"2:\tswr\t%1, 3(%2)\n\t"            \
+			"1:\t"user_swl("%1", "(%2)")"\n"    \
+			"2:\t"user_swr("%1", "3(%2)")"\n\t" \
 			"li\t%0, 0\n"                       \
 			"3:\n\t"                            \
 			".insn\n\t"                         \
@@ -267,8 +268,8 @@ extern void show_registers(struct pt_regs *regs);
 #ifdef __LITTLE_ENDIAN
 #define     LoadHW(addr, value, res)  \
 		__asm__ __volatile__ (".set\tnoat\n"        \
-			"1:\tlb\t%0, 1(%2)\n"               \
-			"2:\tlbu\t$1, 0(%2)\n\t"            \
+			"1:\t"user_lb("%0", "1(%2)")"\n"    \
+			"2:\t"user_lbu("$1", "0(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"                  \
 			"or\t%0, $1\n\t"                    \
 			"li\t%1, 0\n"                       \
@@ -287,8 +288,8 @@ extern void show_registers(struct pt_regs *regs);
 
 #define     LoadW(addr, value, res)   \
 		__asm__ __volatile__ (                      \
-			"1:\tlwl\t%0, 3(%2)\n"              \
-			"2:\tlwr\t%0, (%2)\n\t"             \
+			"1:\t"user_lwl("%0", "3(%2)")"\n"   \
+			"2:\t"user_lwr("%0", "(%2)")"\n\t"  \
 			"li\t%1, 0\n"                       \
 			"3:\n\t"                            \
 			".insn\n\t"                         \
@@ -306,8 +307,8 @@ extern void show_registers(struct pt_regs *regs);
 #define     LoadHWU(addr, value, res) \
 		__asm__ __volatile__ (                      \
 			".set\tnoat\n"                      \
-			"1:\tlbu\t%0, 1(%2)\n"              \
-			"2:\tlbu\t$1, 0(%2)\n\t"            \
+			"1:\t"user_lbu("%0", "1(%2)")"\n"   \
+			"2:\t"user_lbu("$1", "0(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"                  \
 			"or\t%0, $1\n\t"                    \
 			"li\t%1, 0\n"                       \
@@ -327,8 +328,8 @@ extern void show_registers(struct pt_regs *regs);
 
 #define     LoadWU(addr, value, res)  \
 		__asm__ __volatile__ (                      \
-			"1:\tlwl\t%0, 3(%2)\n"              \
-			"2:\tlwr\t%0, (%2)\n\t"             \
+			"1:\t"user_lwl("%0", "3(%2)")"\n"   \
+			"2:\t"user_lwr("%0", "(%2)")"\n\t"  \
 			"dsll\t%0, %0, 32\n\t"              \
 			"dsrl\t%0, %0, 32\n\t"              \
 			"li\t%1, 0\n"                       \
@@ -366,9 +367,9 @@ extern void show_registers(struct pt_regs *regs);
 #define     StoreHW(addr, value, res) \
 		__asm__ __volatile__ (                      \
 			".set\tnoat\n"                      \
-			"1:\tsb\t%1, 0(%2)\n\t"             \
+			"1:\t"user_sb("%1", "0(%2)")"\n"    \
 			"srl\t$1,%1, 0x8\n"                 \
-			"2:\tsb\t$1, 1(%2)\n\t"             \
+			"2:\t"user_sb("$1", "1(%2)")"\n"    \
 			".set\tat\n\t"                      \
 			"li\t%0, 0\n"                       \
 			"3:\n\t"                            \
@@ -386,8 +387,8 @@ extern void show_registers(struct pt_regs *regs);
 
 #define     StoreW(addr, value, res)  \
 		__asm__ __volatile__ (                      \
-			"1:\tswl\t%1, 3(%2)\n"              \
-			"2:\tswr\t%1, (%2)\n\t"             \
+			"1:\t"user_swl("%1", "3(%2)")"\n"   \
+			"2:\t"user_swr("%1", "(%2)")"\n\t"  \
 			"li\t%0, 0\n"                       \
 			"3:\n\t"                            \
 			".insn\n\t"                         \
@@ -430,7 +431,9 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	unsigned long origpc;
 	unsigned long orig31;
 	void __user *fault_addr = NULL;
-
+#ifdef	CONFIG_EVA
+	mm_segment_t seg;
+#endif
 	origpc = (unsigned long)pc;
 	orig31 = regs->regs[31];
 
@@ -475,6 +478,88 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * The remaining opcodes are the ones that are really of
 		 * interest.
 		 */
+#ifdef CONFIG_EVA
+	case spec3_op:
+		/*
+		 * we can land here only from kernel accessing user memory,
+		 * so we need to "switch" the address limit to user space, so
+		 * address check can work properly.
+		 */
+		seg = get_fs();
+		set_fs(USER_DS);
+		switch (insn.spec3_format.func) {
+		case lhe_op:
+			if (!access_ok(VERIFY_READ, addr, 2)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			LoadHW(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case lwe_op:
+			if (!access_ok(VERIFY_READ, addr, 4)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+				LoadW(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case lhue_op:
+			if (!access_ok(VERIFY_READ, addr, 2)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			LoadHWU(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case she_op:
+			if (!access_ok(VERIFY_WRITE, addr, 2)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			compute_return_epc(regs);
+			value = regs->regs[insn.spec3_format.rt];
+			StoreHW(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			break;
+		case swe_op:
+			if (!access_ok(VERIFY_WRITE, addr, 4)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			compute_return_epc(regs);
+			value = regs->regs[insn.spec3_format.rt];
+			StoreW(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			break;
+		default:
+			set_fs(seg);
+			goto sigill;
+		}
+		set_fs(seg);
+		break;
+#endif
 	case lh_op:
 		if (!access_ok(VERIFY_READ, addr, 2))
 			goto sigbus;
@@ -605,7 +690,6 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	case sdc1_op:
 		die_if_kernel("Unaligned FP access in kernel code", regs);
 		BUG_ON(!used_math());
-		BUG_ON(!is_fpu_owner());
 
 		lose_fpu(1);	/* Save FPU state for the emulator. */
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,

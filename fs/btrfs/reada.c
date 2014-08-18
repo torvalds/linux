@@ -428,8 +428,13 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 			continue;
 		}
 		if (!dev->bdev) {
-			/* cannot read ahead on missing device */
-			continue;
+			/*
+			 * cannot read ahead on missing device, but for RAID5/6,
+			 * REQ_GET_READ_MIRRORS return 1. So don't skip missing
+			 * device for such case.
+			 */
+			if (nzones > 1)
+				continue;
 		}
 		if (dev_replace_is_ongoing &&
 		    dev == fs_info->dev_replace.tgtdev) {
@@ -793,10 +798,10 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 		/* FIXME we cannot handle this properly right now */
 		BUG();
 	}
-	rmw->work.func = reada_start_machine_worker;
+	btrfs_init_work(&rmw->work, reada_start_machine_worker, NULL, NULL);
 	rmw->fs_info = fs_info;
 
-	btrfs_queue_worker(&fs_info->readahead_workers, &rmw->work);
+	btrfs_queue_work(fs_info->readahead_workers, &rmw->work);
 }
 
 #ifdef DEBUG

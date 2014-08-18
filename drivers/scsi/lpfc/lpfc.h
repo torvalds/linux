@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -73,8 +73,6 @@ struct lpfc_sli2_slim;
  */
 /* 1 Second */
 #define QUEUE_RAMP_DOWN_INTERVAL	(msecs_to_jiffies(1000 * 1))
-/* 5 minutes */
-#define QUEUE_RAMP_UP_INTERVAL		(msecs_to_jiffies(1000 * 300))
 
 /* Number of exchanges reserved for discovery to complete */
 #define LPFC_DISC_IOCB_BUFF_COUNT 20
@@ -642,6 +640,7 @@ struct lpfc_hba {
 #define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
 #define HBA_FCP_IOQ_FLUSH	0x8000 /* FCP I/O queues being flushed */
+#define HBA_FW_DUMP_OP		0x10000 /* Skips fn reset before FW dump */
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
 
@@ -722,6 +721,20 @@ struct lpfc_hba {
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
+	uint32_t cfg_fof;
+	uint32_t cfg_EnableXLane;
+	uint8_t cfg_oas_tgt_wwpn[8];
+	uint8_t cfg_oas_vpt_wwpn[8];
+	uint32_t cfg_oas_lun_state;
+#define OAS_LUN_ENABLE	1
+#define OAS_LUN_DISABLE	0
+	uint32_t cfg_oas_lun_status;
+#define OAS_LUN_STATUS_EXISTS	0x01
+	uint32_t cfg_oas_flags;
+#define OAS_FIND_ANY_VPORT	0x01
+#define OAS_FIND_ANY_TARGET	0x02
+#define OAS_LUN_VALID	0x04
+	uint32_t cfg_XLanePriority;
 	uint32_t cfg_enable_bg;
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
@@ -730,6 +743,7 @@ struct lpfc_hba {
 	uint32_t cfg_request_firmware_upgrade;
 	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
+	uint32_t cfg_rrq_xri_bitmap_sz;
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
 #define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
@@ -835,6 +849,7 @@ struct lpfc_hba {
 	mempool_t *mbox_mem_pool;
 	mempool_t *nlp_mem_pool;
 	mempool_t *rrq_pool;
+	mempool_t *active_rrq_pool;
 
 	struct fc_host_statistics link_stats;
 	enum intr_type_t intr_type;
@@ -869,7 +884,6 @@ struct lpfc_hba {
 	atomic_t num_cmd_success;
 	unsigned long last_rsrc_error_time;
 	unsigned long last_ramp_down_time;
-	unsigned long last_ramp_up_time;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
@@ -971,6 +985,9 @@ struct lpfc_hba {
 	atomic_t sdev_cnt;
 	uint8_t fips_spec_rev;
 	uint8_t fips_level;
+	spinlock_t devicelock;	/* lock for luns list */
+	mempool_t *device_data_mem_pool;
+	struct list_head luns;
 };
 
 static inline struct Scsi_Host *

@@ -52,8 +52,10 @@ unsigned int __read_mostly sysctl_hung_task_panic =
 
 static int __init hung_task_panic_setup(char *str)
 {
-	sysctl_hung_task_panic = simple_strtoul(str, NULL, 0);
+	int rc = kstrtouint(str, 0, &sysctl_hung_task_panic);
 
+	if (rc)
+		return rc;
 	return 1;
 }
 __setup("hung_task_panic=", hung_task_panic_setup);
@@ -246,5 +248,4 @@ static int __init hung_task_init(void)
 
 	return 0;
 }
-
-module_init(hung_task_init);
+subsys_initcall(hung_task_init);

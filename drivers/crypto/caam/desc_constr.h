@@ -155,19 +155,27 @@ static inline void append_cmd_data(u32 *desc, void *data, int len,
 	append_data(desc, data, len);
 }
 
-static inline u32 *append_jump(u32 *desc, u32 options)
-{
-	u32 *cmd = desc_end(desc);
-
-	PRINT_POS;
-	append_cmd(desc, CMD_JUMP | options);
-
-	return cmd;
+#define APPEND_CMD_RET(cmd, op) \
+static inline u32 *append_##cmd(u32 *desc, u32 options) \
+{ \
+	u32 *cmd = desc_end(desc); \
+	PRINT_POS; \
+	append_cmd(desc, CMD_##op | options); \
+	return cmd; \
 }
+APPEND_CMD_RET(jump, JUMP)
+APPEND_CMD_RET(move, MOVE)
 
 static inline void set_jump_tgt_here(u32 *desc, u32 *jump_cmd)
 {
 	*jump_cmd = *jump_cmd | (desc_len(desc) - (jump_cmd - desc));
+}
+
+static inline void set_move_tgt_here(u32 *desc, u32 *move_cmd)
+{
+	*move_cmd &= ~MOVE_OFFSET_MASK;
+	*move_cmd = *move_cmd | ((desc_len(desc) << (MOVE_OFFSET_SHIFT + 2)) &
+				 MOVE_OFFSET_MASK);
 }
 
 #define APPEND_CMD(cmd, op) \
@@ -177,7 +185,6 @@ static inline void append_##cmd(u32 *desc, u32 options) \
 	append_cmd(desc, CMD_##op | options); \
 }
 APPEND_CMD(operation, OPERATION)
-APPEND_CMD(move, MOVE)
 
 #define APPEND_CMD_LEN(cmd, op) \
 static inline void append_##cmd(u32 *desc, unsigned int len, u32 options) \
@@ -328,7 +335,7 @@ append_cmd(desc, CMD_MATH | MATH_FUN_##op | MATH_DEST_##dest | \
 do { \
 	APPEND_MATH(op, desc, dest, src_0, src_1, CAAM_CMD_SZ); \
 	append_cmd(desc, data); \
-} while (0);
+} while (0)
 
 #define append_math_add_imm_u32(desc, dest, src0, src1, data) \
 	APPEND_MATH_IMM_u32(ADD, desc, dest, src0, src1, data)

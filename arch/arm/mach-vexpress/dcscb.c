@@ -51,11 +51,13 @@ static int dcscb_allcpus_mask[2];
 static int dcscb_power_up(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int rst_hold, cpumask = (1 << cpu);
-	unsigned int all_mask = dcscb_allcpus_mask[cluster];
+	unsigned int all_mask;
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (cpu >= 4 || cluster >= 2)
 		return -EINVAL;
+
+	all_mask = dcscb_allcpus_mask[cluster];
 
 	/*
 	 * Since this is called with IRQs enabled, and no arch_spin_lock_irq
@@ -101,10 +103,11 @@ static void dcscb_power_down(void)
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	cpumask = (1 << cpu);
-	all_mask = dcscb_allcpus_mask[cluster];
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	BUG_ON(cpu >= 4 || cluster >= 2);
+
+	all_mask = dcscb_allcpus_mask[cluster];
 
 	__mcpm_cpu_going_down(cpu, cluster);
 
@@ -137,11 +140,16 @@ static void dcscb_power_down(void)
 		v7_exit_coherency_flush(all);
 
 		/*
-		 * This is a harmless no-op.  On platforms with a real
-		 * outer cache this might either be needed or not,
-		 * depending on where the outer cache sits.
+		 * A full outer cache flush could be needed at this point
+		 * on platforms with such a cache, depending on where the
+		 * outer cache sits. In some cases the notion of a "last
+		 * cluster standing" would need to be implemented if the
+		 * outer cache is shared across clusters. In any case, when
+		 * the outer cache needs flushing, there is no concurrent
+		 * access to the cache controller to worry about and no
+		 * special locking besides what is already provided by the
+		 * MCPM state machinery is needed.
 		 */
-		outer_flush_all();
 
 		/*
 		 * Disable cluster-level coherency by masking

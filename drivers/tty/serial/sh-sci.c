@@ -428,7 +428,7 @@ static int sci_probe_regmap(struct plat_sci_port *cfg)
 		cfg->regtype = SCIx_HSCIF_REGTYPE;
 		break;
 	default:
-		printk(KERN_ERR "Can't probe register map for given port\n");
+		pr_err("Can't probe register map for given port\n");
 		return -EINVAL;
 	}
 
@@ -788,7 +788,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
 			copied++;
 
-		dev_notice(port->dev, "overrun error");
+		dev_notice(port->dev, "overrun error\n");
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -830,7 +830,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_PARITY))
 			copied++;
 
-		dev_notice(port->dev, "parity error");
+		dev_notice(port->dev, "parity error\n");
 	}
 
 	if (copied)
@@ -911,7 +911,7 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 		/* Disable future Rx interrupts */
 		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 			disable_irq_nosync(irq);
-			scr |= 0x4000;
+			scr |= SCSCR_RDRQE;
 		} else {
 			scr &= ~SCSCR_RIE;
 		}
@@ -1041,8 +1041,7 @@ static int sci_notifier(struct notifier_block *self,
 
 	sci_port = container_of(self, struct sci_port, freq_transition);
 
-	if ((phase == CPUFREQ_POSTCHANGE) ||
-	    (phase == CPUFREQ_RESUMECHANGE)) {
+	if (phase == CPUFREQ_POSTCHANGE) {
 		struct uart_port *port = &sci_port->port;
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -1200,7 +1199,9 @@ static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		 */
 		reg = sci_getreg(port, SCFCR);
 		if (reg->size)
-			serial_port_out(port, SCFCR, serial_port_in(port, SCFCR) | 1);
+			serial_port_out(port, SCFCR,
+					serial_port_in(port, SCFCR) |
+					SCFCR_LOOP);
 	}
 }
 
@@ -1290,7 +1291,8 @@ static void sci_dma_rx_complete(void *arg)
 	unsigned long flags;
 	int count;
 
-	dev_dbg(port->dev, "%s(%d) active #%d\n", __func__, port->line, s->active_rx);
+	dev_dbg(port->dev, "%s(%d) active #%d\n",
+		__func__, port->line, s->active_rx);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1366,8 +1368,8 @@ static void sci_submit_rx(struct sci_port *s)
 			sci_rx_dma_release(s, true);
 			return;
 		}
-		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n", __func__,
-			s->cookie_rx[i], i);
+		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n",
+			__func__, s->cookie_rx[i], i);
 	}
 
 	s->active_rx = s->cookie_rx[0];
@@ -1426,8 +1428,8 @@ static void work_fn_rx(struct work_struct *work)
 
 	s->active_rx = s->cookie_rx[!new];
 
-	dev_dbg(port->dev, "%s: cookie %d #%d, new active #%d\n", __func__,
-		s->cookie_rx[new], new, s->active_rx);
+	dev_dbg(port->dev, "%s: cookie %d #%d, new active #%d\n",
+		__func__, s->cookie_rx[new], new, s->active_rx);
 }
 
 static void work_fn_tx(struct work_struct *work)
@@ -1480,8 +1482,8 @@ static void work_fn_tx(struct work_struct *work)
 		return;
 	}
 
-	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n", __func__,
-		xmit->buf, xmit->tail, xmit->head, s->cookie_tx);
+	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n",
+		__func__, xmit->buf, xmit->tail, xmit->head, s->cookie_tx);
 
 	dma_async_issue_pending(chan);
 }
@@ -1496,9 +1498,9 @@ static void sci_start_tx(struct uart_port *port)
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 		u16 new, scr = serial_port_in(port, SCSCR);
 		if (s->chan_tx)
-			new = scr | 0x8000;
+			new = scr | SCSCR_TDRQE;
 		else
-			new = scr & ~0x8000;
+			new = scr & ~SCSCR_TDRQE;
 		if (new != scr)
 			serial_port_out(port, SCSCR, new);
 	}
@@ -1525,7 +1527,7 @@ static void sci_stop_tx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x8000;
+		ctrl &= ~SCSCR_TDRQE;
 
 	ctrl &= ~SCSCR_TIE;
 
@@ -1539,7 +1541,7 @@ static void sci_start_rx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR) | port_rx_irq_mask(port);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x4000;
+		ctrl &= ~SCSCR_RDRQE;
 
 	serial_port_out(port, SCSCR, ctrl);
 }
@@ -1551,18 +1553,11 @@ static void sci_stop_rx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x4000;
+		ctrl &= ~SCSCR_RDRQE;
 
 	ctrl &= ~port_rx_irq_mask(port);
 
 	serial_port_out(port, SCSCR, ctrl);
-}
-
-static void sci_enable_ms(struct uart_port *port)
-{
-	/*
-	 * Not supported by hardware, always a nop.
-	 */
 }
 
 static void sci_break_ctl(struct uart_port *port, int break_state)
@@ -1600,8 +1595,8 @@ static bool filter(struct dma_chan *chan, void *slave)
 {
 	struct sh_dmae_slave *param = slave;
 
-	dev_dbg(chan->device->dev, "%s: slave ID %d\n", __func__,
-		param->shdma_slave.slave_id);
+	dev_dbg(chan->device->dev, "%s: slave ID %d\n",
+		__func__, param->shdma_slave.slave_id);
 
 	chan->private = &param->shdma_slave;
 	return true;
@@ -1614,7 +1609,7 @@ static void rx_timer_fn(unsigned long arg)
 	u16 scr = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
-		scr &= ~0x4000;
+		scr &= ~SCSCR_RDRQE;
 		enable_irq(s->irqs[SCIx_RXI_IRQ]);
 	}
 	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
@@ -1630,8 +1625,7 @@ static void sci_request_dma(struct uart_port *port)
 	dma_cap_mask_t mask;
 	int nent;
 
-	dev_dbg(port->dev, "%s: port %d\n", __func__,
-		port->line);
+	dev_dbg(port->dev, "%s: port %d\n", __func__, port->line);
 
 	if (s->cfg->dma_slave_tx <= 0 || s->cfg->dma_slave_rx <= 0)
 		return;
@@ -1659,7 +1653,8 @@ static void sci_request_dma(struct uart_port *port)
 		if (!nent)
 			sci_tx_dma_release(s, false);
 		else
-			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
+			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n",
+				__func__,
 				sg_dma_len(&s->sg_tx), port->state->xmit.buf,
 				&sg_dma_address(&s->sg_tx));
 
@@ -1781,30 +1776,71 @@ static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 	return ((freq + 16 * bps) / (32 * bps) - 1);
 }
 
+/* calculate frame length from SMR */
+static int sci_baud_calc_frame_len(unsigned int smr_val)
+{
+	int len = 10;
+
+	if (smr_val & SCSMR_CHR)
+		len--;
+	if (smr_val & SCSMR_PE)
+		len++;
+	if (smr_val & SCSMR_STOP)
+		len++;
+
+	return len;
+}
+
+
 /* calculate sample rate, BRR, and clock select for HSCIF */
 static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 				int *brr, unsigned int *srr,
-				unsigned int *cks)
+				unsigned int *cks, int frame_len)
 {
-	int sr, c, br, err;
+	int sr, c, br, err, recv_margin;
 	int min_err = 1000; /* 100% */
+	int recv_max_margin = 0;
 
 	/* Find the combination of sample rate and clock select with the
 	   smallest deviation from the desired baud rate. */
 	for (sr = 8; sr <= 32; sr++) {
 		for (c = 0; c <= 3; c++) {
 			/* integerized formulas from HSCIF documentation */
-			br = freq / (sr * (1 << (2 * c + 1)) * bps) - 1;
-			if (br < 0 || br > 255)
+			br = DIV_ROUND_CLOSEST(freq, (sr *
+					      (1 << (2 * c + 1)) * bps)) - 1;
+			br = clamp(br, 0, 255);
+			err = DIV_ROUND_CLOSEST(freq, ((br + 1) * bps * sr *
+					       (1 << (2 * c + 1)) / 1000)) -
+					       1000;
+			if (err < 0)
 				continue;
-			err = freq / ((br + 1) * bps * sr *
-			      (1 << (2 * c + 1)) / 1000) - 1000;
+
+			/* Calc recv margin
+			 * M: Receive margin (%)
+			 * N: Ratio of bit rate to clock (N = sampling rate)
+			 * D: Clock duty (D = 0 to 1.0)
+			 * L: Frame length (L = 9 to 12)
+			 * F: Absolute value of clock frequency deviation
+			 *
+			 *  M = |(0.5 - 1 / 2 * N) - ((L - 0.5) * F) -
+			 *      (|D - 0.5| / N * (1 + F))|
+			 *  NOTE: Usually, treat D for 0.5, F is 0 by this
+			 *        calculation.
+			 */
+			recv_margin = abs((500 -
+					DIV_ROUND_CLOSEST(1000, sr << 1)) / 10);
 			if (min_err > err) {
 				min_err = err;
-				*brr = br;
-				*srr = sr - 1;
-				*cks = c;
-			}
+				recv_max_margin = recv_margin;
+			} else if ((min_err == err) &&
+				   (recv_margin > recv_max_margin))
+				recv_max_margin = recv_margin;
+			else
+				continue;
+
+			*brr = br;
+			*srr = sr - 1;
+			*cks = c;
 		}
 	}
 
@@ -1838,9 +1874,18 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct sci_port *s = to_sci_port(port);
 	struct plat_sci_reg *reg;
-	unsigned int baud, smr_val, max_baud, cks = 0;
+	unsigned int baud, smr_val = 0, max_baud, cks = 0;
 	int t = -1;
 	unsigned int srr = 15;
+
+	if ((termios->c_cflag & CSIZE) == CS7)
+		smr_val |= SCSMR_CHR;
+	if (termios->c_cflag & PARENB)
+		smr_val |= SCSMR_PE;
+	if (termios->c_cflag & PARODD)
+		smr_val |= SCSMR_PE | SCSMR_ODD;
+	if (termios->c_cflag & CSTOPB)
+		smr_val |= SCSMR_STOP;
 
 	/*
 	 * earlyprintk comes here early on with port->uartclk set to zero.
@@ -1855,8 +1900,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
 	if (likely(baud && port->uartclk)) {
 		if (s->cfg->type == PORT_HSCIF) {
+			int frame_len = sci_baud_calc_frame_len(smr_val);
 			sci_baud_calc_hscif(baud, port->uartclk, &t, &srr,
-					    &cks);
+					    &cks, frame_len);
 		} else {
 			t = sci_scbrr_calc(s, baud, port->uartclk);
 			for (cks = 0; t >= 256 && cks <= 3; cks++)
@@ -1868,16 +1914,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_reset(port);
 
-	smr_val = serial_port_in(port, SCSMR) & 3;
-
-	if ((termios->c_cflag & CSIZE) == CS7)
-		smr_val |= 0x40;
-	if (termios->c_cflag & PARENB)
-		smr_val |= 0x20;
-	if (termios->c_cflag & PARODD)
-		smr_val |= 0x30;
-	if (termios->c_cflag & CSTOPB)
-		smr_val |= 0x08;
+	smr_val |= serial_port_in(port, SCSMR) & 3;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
@@ -1885,7 +1922,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		__func__, smr_val, cks, t, s->cfg->scscr);
 
 	if (t >= 0) {
-		serial_port_out(port, SCSMR, (smr_val & ~3) | cks);
+		serial_port_out(port, SCSMR, (smr_val & ~SCSMR_CKS) | cks);
 		serial_port_out(port, SCBRR, t);
 		reg = sci_getreg(port, HSSRR);
 		if (reg->size)
@@ -1933,8 +1970,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (s->chan_rx) {
 		s->rx_timeout = (port->timeout - HZ / 50) * s->buf_len_rx * 3 /
 			port->fifosize / 2;
-		dev_dbg(port->dev,
-			"DMA Rx t-out %ums, tty t-out %u jiffies\n",
+		dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
 			s->rx_timeout * 1000 / HZ, port->timeout);
 		if (s->rx_timeout < msecs_to_jiffies(20))
 			s->rx_timeout = msecs_to_jiffies(20);
@@ -1953,7 +1989,7 @@ static void sci_pm(struct uart_port *port, unsigned int state,
 	struct sci_port *sci_port = to_sci_port(port);
 
 	switch (state) {
-	case 3:
+	case UART_PM_STATE_OFF:
 		sci_port_disable(sci_port);
 		break;
 	default:
@@ -2018,7 +2054,7 @@ static int sci_remap_port(struct uart_port *port)
 		 * need to do any remapping, just cast the cookie
 		 * directly.
 		 */
-		port->membase = (void __iomem *)port->mapbase;
+		port->membase = (void __iomem *)(uintptr_t)port->mapbase;
 	}
 
 	return 0;
@@ -2079,7 +2115,6 @@ static struct uart_ops sci_uart_ops = {
 	.start_tx	= sci_start_tx,
 	.stop_tx	= sci_stop_tx,
 	.stop_rx	= sci_stop_rx,
-	.enable_ms	= sci_enable_ms,
 	.break_ctl	= sci_break_ctl,
 	.startup	= sci_startup,
 	.shutdown	= sci_shutdown,
@@ -2389,8 +2424,7 @@ static inline int sci_probe_earlyprintk(struct platform_device *pdev)
 
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
-static char banner[] __initdata =
-	KERN_INFO "SuperH (H)SCI(F) driver initialized\n";
+static const char banner[] __initconst = "SuperH (H)SCI(F) driver initialized";
 
 static struct uart_driver sci_uart_driver = {
 	.owner		= THIS_MODULE,
@@ -2424,25 +2458,25 @@ struct sci_port_info {
 static const struct of_device_id of_sci_match[] = {
 	{
 		.compatible = "renesas,scif",
-		.data = (void *)&(const struct sci_port_info) {
+		.data = &(const struct sci_port_info) {
 			.type = PORT_SCIF,
 			.regtype = SCIx_SH4_SCIF_REGTYPE,
 		},
 	}, {
 		.compatible = "renesas,scifa",
-		.data = (void *)&(const struct sci_port_info) {
+		.data = &(const struct sci_port_info) {
 			.type = PORT_SCIFA,
 			.regtype = SCIx_SCIFA_REGTYPE,
 		},
 	}, {
 		.compatible = "renesas,scifb",
-		.data = (void *)&(const struct sci_port_info) {
+		.data = &(const struct sci_port_info) {
 			.type = PORT_SCIFB,
 			.regtype = SCIx_SCIFB_REGTYPE,
 		},
 	}, {
 		.compatible = "renesas,hscif",
-		.data = (void *)&(const struct sci_port_info) {
+		.data = &(const struct sci_port_info) {
 			.type = PORT_HSCIF,
 			.regtype = SCIx_HSCIF_REGTYPE,
 		},
@@ -2502,11 +2536,9 @@ static int sci_probe_single(struct platform_device *dev,
 
 	/* Sanity check */
 	if (unlikely(index >= SCI_NPORTS)) {
-		dev_notice(&dev->dev, "Attempting to register port "
-			   "%d when only %d are available.\n",
+		dev_notice(&dev->dev, "Attempting to register port %d when only %d are available\n",
 			   index+1, SCI_NPORTS);
-		dev_notice(&dev->dev, "Consider bumping "
-			   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
+		dev_notice(&dev->dev, "Consider bumping CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
 		return -EINVAL;
 	}
 
@@ -2564,6 +2596,7 @@ static int sci_probe(struct platform_device *dev)
 	ret = cpufreq_register_notifier(&sp->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
 	if (unlikely(ret < 0)) {
+		uart_remove_one_port(&sci_uart_driver, &sp->port);
 		sci_cleanup_single(sp);
 		return ret;
 	}
@@ -2615,7 +2648,7 @@ static int __init sci_init(void)
 {
 	int ret;
 
-	printk(banner);
+	pr_info("%s\n", banner);
 
 	ret = uart_register_driver(&sci_uart_driver);
 	if (likely(ret == 0)) {

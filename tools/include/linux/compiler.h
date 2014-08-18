@@ -35,4 +35,6 @@
 # define unlikely(x)		__builtin_expect(!!(x), 0)
 #endif
 
+#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+
 #endif /* _TOOLS_LINUX_COMPILER_H */

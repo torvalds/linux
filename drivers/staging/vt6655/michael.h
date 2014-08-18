@@ -31,11 +31,9 @@
 #ifndef __MICHAEL_H__
 #define __MICHAEL_H__
 
-/*---------------------  Export Definitions -------------------------*/
+#include <linux/types.h>
 
-/*---------------------  Export Types  ------------------------------*/
-
-void MIC_vInit(unsigned long dwK0, unsigned long dwK1);
+void MIC_vInit(u32 dwK0, u32 dwK1);
 
 void MIC_vUnInit(void);
 
@@ -44,9 +42,7 @@ void MIC_vAppend(unsigned char *src, unsigned int nBytes);
 
 /* Get the MIC result. Destination should accept 8 bytes of result. */
 /* This also resets the message to empty. */
-void MIC_vGetMIC(unsigned long *pdwL, unsigned long *pdwR);
-
-/*---------------------  Export Macros ------------------------------*/
+void MIC_vGetMIC(u32 *pdwL, u32 *pdwR);
 
 /* Rotation functions on 32 bit values */
 #define ROL32(A, n)							\

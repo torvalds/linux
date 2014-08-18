@@ -210,11 +210,6 @@ static bool gpio3;
 module_param(gpio3, bool, 0);
 MODULE_PARM_DESC(gpio3, "If gpio3 is set to 1 AUX3 acts as GPIO3");
 
-/*
- * ad7877_read/write are only used for initial setup and for sysfs controls.
- * The main traffic is done using spi_async() in the interrupt handler.
- */
-
 static int ad7877_read(struct spi_device *spi, u16 reg)
 {
 	struct ser_req *req;

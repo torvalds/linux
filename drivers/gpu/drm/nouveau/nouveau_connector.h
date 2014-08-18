@@ -27,13 +27,11 @@
 #ifndef __NOUVEAU_CONNECTOR_H__
 #define __NOUVEAU_CONNECTOR_H__
 
+#include <nvif/notify.h>
+
 #include <drm/drm_edid.h>
+#include <drm/drm_dp_helper.h>
 #include "nouveau_crtc.h"
-
-#include <core/event.h>
-
-#include <subdev/bios.h>
-#include <subdev/bios/gpio.h>
 
 struct nouveau_i2c_port;
 
@@ -67,9 +65,9 @@ struct nouveau_connector {
 	u8 index;
 	u8 *dcb;
 
-	struct dcb_gpio_func hpd;
-	struct work_struct hpd_work;
-	struct nouveau_eventh *hpd_func;
+	struct nvif_notify hpd;
+
+	struct drm_dp_aux aux;
 
 	int dithering_mode;
 	int dithering_depth;

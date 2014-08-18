@@ -299,7 +299,7 @@ static u32 hist_get_buf_size(struct omap3isp_hist_config *conf)
 
 /*
  * hist_validate_params - Helper function to check user given params.
- * @user_cfg: Pointer to user configuration structure.
+ * @new_conf: Pointer to user configuration structure.
  *
  * Returns 0 on success configuration.
  */
@@ -351,7 +351,7 @@ static int hist_validate_params(struct ispstat *hist, void *new_conf)
 
 	buf_size = hist_get_buf_size(user_cfg);
 	if (buf_size > user_cfg->buf_size)
-		/* User's buf_size request wasn't enoght */
+		/* User's buf_size request wasn't enough */
 		user_cfg->buf_size = buf_size;
 	else if (user_cfg->buf_size > OMAP3ISP_HIST_MAX_BUF_SIZE)
 		user_cfg->buf_size = OMAP3ISP_HIST_MAX_BUF_SIZE;

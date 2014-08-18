@@ -496,6 +496,21 @@ void flush_tlb_range(struct vm_area_struct *vma,
 	on_each_cpu(ipi_flush_tlb_range, &fd, 1);
 }
 
+static void ipi_flush_tlb_kernel_range(void *arg)
+{
+	struct flush_data *fd = arg;
+	local_flush_tlb_kernel_range(fd->addr1, fd->addr2);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	struct flush_data fd = {
+		.addr1 = start,
+		.addr2 = end,
+	};
+	on_each_cpu(ipi_flush_tlb_kernel_range, &fd, 1);
+}
+
 /* Cache flush functions */
 
 static void ipi_flush_cache_all(void *arg)

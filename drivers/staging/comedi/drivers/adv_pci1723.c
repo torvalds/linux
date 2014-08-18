@@ -161,11 +161,10 @@ static int pci1723_ao_write_winsn(struct comedi_device *dev,
 				  struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci1723_private *devpriv = dev->private;
-	int n, chan;
-	chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int n;
 
 	for (n = 0; n < insn->n; n++) {
-
 		devpriv->ao_data[chan] = data[n];
 		outw(data[n], dev->iobase + PCI1723_DA(chan));
 	}
@@ -279,8 +278,6 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	s->state = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
 
 	pci1723_reset(dev);
-
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 0;
 }

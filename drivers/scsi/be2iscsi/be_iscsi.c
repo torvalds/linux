@@ -793,7 +793,7 @@ static int beiscsi_get_port_speed(struct Scsi_Host *shost)
 		ihost->port_speed = ISCSI_PORT_SPEED_10MBPS;
 		break;
 	case BE2ISCSI_LINK_SPEED_100MBPS:
-		ihost->port_speed = BE2ISCSI_LINK_SPEED_100MBPS;
+		ihost->port_speed = ISCSI_PORT_SPEED_100MBPS;
 		break;
 	case BE2ISCSI_LINK_SPEED_1GBPS:
 		ihost->port_speed = ISCSI_PORT_SPEED_1GBPS;
@@ -914,7 +914,7 @@ void beiscsi_conn_get_stats(struct iscsi_cls_conn *cls_conn,
 	stats->r2t_pdus = conn->r2t_pdus_cnt;
 	stats->digest_err = 0;
 	stats->timeout_err = 0;
-	stats->custom_length = 0;
+	stats->custom_length = 1;
 	strcpy(stats->custom[0].desc, "eh_abort_cnt");
 	stats->custom[0].value = conn->eh_abort_cnt;
 }
@@ -1106,7 +1106,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	struct beiscsi_hba *phba = beiscsi_ep->phba;
 	struct tcp_connect_and_offload_out *ptcpcnct_out;
 	struct be_dma_mem nonemb_cmd;
-	unsigned int tag;
+	unsigned int tag, req_memsize;
 	int ret = -ENOMEM;
 
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
@@ -1127,8 +1127,14 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		       (beiscsi_ep->ep_cid)] = ep;
 
 	beiscsi_ep->cid_vld = 0;
+
+	if (is_chip_be2_be3r(phba))
+		req_memsize = sizeof(struct tcp_connect_and_offload_in);
+	else
+		req_memsize = sizeof(struct tcp_connect_and_offload_in_v1);
+
 	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
-				sizeof(struct tcp_connect_and_offload_in),
+				req_memsize,
 				&nonemb_cmd.dma);
 	if (nonemb_cmd.va == NULL) {
 
@@ -1139,7 +1145,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		beiscsi_free_ep(beiscsi_ep);
 		return -ENOMEM;
 	}
-	nonemb_cmd.size = sizeof(struct tcp_connect_and_offload_in);
+	nonemb_cmd.size = req_memsize;
 	memset(nonemb_cmd.va, 0, nonemb_cmd.size);
 	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep, &nonemb_cmd);
 	if (tag <= 0) {
@@ -1153,16 +1159,18 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		return -EAGAIN;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
+	ret = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 			    "BS_%d : mgmt_open_connection Failed");
 
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-			    nonemb_cmd.va, nonemb_cmd.dma);
+		if (ret != -EBUSY)
+			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+					    nonemb_cmd.va, nonemb_cmd.dma);
+
 		beiscsi_free_ep(beiscsi_ep);
-		return -EBUSY;
+		return ret;
 	}
 
 	ptcpcnct_out = (struct tcp_connect_and_offload_out *)nonemb_cmd.va;
@@ -1359,6 +1367,7 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 	beiscsi_mccq_compl(phba, tag, NULL, NULL);
 	beiscsi_close_conn(beiscsi_ep, tcp_upload_flag);
 free_ep:
+	msleep(BEISCSI_LOGOUT_SYNC_DELAY);
 	beiscsi_free_ep(beiscsi_ep);
 	beiscsi_unbind_conn_to_cid(phba, beiscsi_ep->ep_cid);
 	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);

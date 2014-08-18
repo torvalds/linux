@@ -716,6 +716,12 @@ static int atmel_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 			return -EINVAL;
 		}
 		ctx->block_size = CFB32_BLOCK_SIZE;
+	} else if (mode & AES_FLAGS_CFB64) {
+		if (!IS_ALIGNED(req->nbytes, CFB64_BLOCK_SIZE)) {
+			pr_err("request size is not exact amount of CFB64 blocks\n");
+			return -EINVAL;
+		}
+		ctx->block_size = CFB64_BLOCK_SIZE;
 	} else {
 		if (!IS_ALIGNED(req->nbytes, AES_BLOCK_SIZE)) {
 			pr_err("request size is not exact amount of AES blocks\n");
@@ -1069,7 +1075,7 @@ static struct crypto_alg aes_algs[] = {
 	.cra_driver_name	= "atmel-cfb8-aes",
 	.cra_priority		= 100,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= CFB64_BLOCK_SIZE,
+	.cra_blocksize		= CFB8_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct atmel_aes_ctx),
 	.cra_alignmask		= 0x0,
 	.cra_type		= &crypto_ablkcipher_type,

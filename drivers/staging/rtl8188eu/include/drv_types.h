@@ -31,7 +31,6 @@
 
 #include <osdep_service.h>
 #include <wlan_bssdef.h>
-#include <drv_types_linux.h>
 #include <rtw_ht.h>
 #include <rtw_cmd.h>
 #include <rtw_xmit.h>
@@ -41,7 +40,6 @@
 #include <rtw_qos.h>
 #include <rtw_security.h>
 #include <rtw_pwrctrl.h>
-#include <rtw_io.h>
 #include <rtw_eeprom.h>
 #include <sta_info.h>
 #include <rtw_mlme.h>
@@ -50,17 +48,7 @@
 #include <rtw_event.h>
 #include <rtw_led.h>
 #include <rtw_mlme_ext.h>
-#include <rtw_p2p.h>
 #include <rtw_ap.h>
-#include <rtw_mp.h>
-#include <rtw_br_ext.h>
-
-enum _NIC_VERSION {
-	RTL8711_NIC,
-	RTL8712_NIC,
-	RTL8713_NIC,
-	RTL8716_NIC
-};
 
 #define SPEC_DEV_ID_NONE		BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT		BIT(1)
@@ -68,12 +56,6 @@ enum _NIC_VERSION {
 #define SPEC_DEV_ID_RF_CONFIG_1T1R	BIT(3)
 #define SPEC_DEV_ID_RF_CONFIG_2T2R	BIT(4)
 #define SPEC_DEV_ID_ASSIGN_IFNAME	BIT(5)
-
-struct specific_device_id {
-	u32		flags;
-	u16		idVendor;
-	u16		idProduct;
-};
 
 struct registry_priv {
 	u8	chip_version;
@@ -159,9 +141,14 @@ struct registry_priv {
 
 #define MAX_CONTINUAL_URB_ERR		4
 
+struct rt_firmware {
+	u8			*szFwBuffer;
+	u32			ulFwLength;
+};
+
 struct dvobj_priv {
 	struct adapter *if1;
-	struct adapter *if2;
+	struct rt_firmware firmware;
 
 	/* For 92D, DMDP have 2 interface. */
 	u8	InterfaceNumber;
@@ -172,8 +159,6 @@ struct dvobj_priv {
 	int	RtOutPipe[3];
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];/* for out pipe mapping */
 
-	u8	irq_alloc;
-
 /*-------- below is for USB INTERFACE --------*/
 
 	u8	nr_endpoint;
@@ -181,17 +166,12 @@ struct dvobj_priv {
 	u8	RtNumInPipes;
 	u8	RtNumOutPipes;
 	int	ep_num[5]; /* endpoint number */
-	int	RegUsbSS;
-	struct semaphore usb_suspend_sema;
 	struct mutex  usb_vendor_req_mutex;
 
-	u8 *usb_alloc_vendor_req_buf;
 	u8 *usb_vendor_req_buf;
 
 	struct usb_interface *pusbintf;
 	struct usb_device *pusbdev;
-
-	atomic_t continual_urb_error;
 };
 
 static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
@@ -201,37 +181,14 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 	return &dvobj->pusbintf->dev;
 };
 
-enum _IFACE_TYPE {
-	IFACE_PORT0, /* mapping to port0 for C/D series chips */
-	IFACE_PORT1, /* mapping to port1 for C/D series chip */
-	MAX_IFACE_PORT,
-};
-
-enum _ADAPTER_TYPE {
-	PRIMARY_ADAPTER,
-	SECONDARY_ADAPTER,
-	MAX_ADAPTER,
-};
-
-enum driver_state {
-	DRIVER_NORMAL = 0,
-	DRIVER_DISAPPEAR = 1,
-	DRIVER_REPLACE_DONGLE = 2,
-};
-
 struct adapter {
-	int	DriverState;/* for disable driver using module, use dongle toi
-			     * replace module. */
 	int	pid[3];/* process id from UI, 0:wps, 1:hostapd, 2:dhcpcd */
-	int	bDongle;/* build-in module or external dongle */
 	u16	chip_type;
 
 	struct dvobj_priv *dvobj;
 	struct	mlme_priv mlmepriv;
 	struct	mlme_ext_priv mlmeextpriv;
 	struct	cmd_priv	cmdpriv;
-	struct	evt_priv	evtpriv;
-	struct	io_priv	iopriv;
 	struct	xmit_priv	xmitpriv;
 	struct	recv_priv	recvpriv;
 	struct	sta_priv	stapriv;
@@ -240,7 +197,6 @@ struct adapter {
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
-	struct	mp_priv	mppriv;
 
 #ifdef CONFIG_88EU_AP_MODE
 	struct	hostapd_priv	*phostapdpriv;
@@ -249,26 +205,15 @@ struct adapter {
 	struct wifidirect_info	wdinfo;
 
 	void *HalData;
-	u32 hal_data_sz;
 	struct hal_ops	HalFunc;
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
-	s32	bCardDisableWOHSM;
 
-	u32	IsrContent;
-	u32	ImrContent;
-
-	u8	EepromAddressSize;
 	u8	hw_init_completed;
-	u8	bDriverIsGoingToUnload;
-	u8	init_adpt_in_progress;
-	u8	bHaltInProgress;
 
 	void *cmdThread;
 	void *evtThread;
-	void *xmitThread;
-	void *recvThread;
 	void (*intf_start)(struct adapter *adapter);
 	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
@@ -288,32 +233,16 @@ struct adapter {
 
 	int net_closed;
 	u8 bFWReady;
-	u8 bBTFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
 	u8 bRxRSSIDisplay;
 	/* The driver will show up the desired channel number
 	 * when this flag is 1. */
 	u8 bNotifyChannelChange;
-#ifdef CONFIG_88EU_P2P
-	/* The driver will show the current P2P status when the
-	 * upper application reads it. */
-	u8 bShowGetP2PState;
-#endif
-	struct adapter *pbuddy_adapter;
 
-	struct mutex *hw_init_mutex;
+	struct mutex hw_init_mutex;
 
 	spinlock_t br_ext_lock;
-	struct nat25_network_db_entry	*nethash[NAT25_HASH_SIZE];
-	int				pppoe_connection_in_progress;
-	unsigned char			pppoe_addr[MACADDRLEN];
-	unsigned char			scdb_mac[MACADDRLEN];
-	unsigned char			scdb_ip[4];
-	struct nat25_network_db_entry	*scdb_entry;
-	unsigned char			br_mac[MACADDRLEN];
-	unsigned char			br_ip[4];
-	struct br_ext_info		ethBrExtInfo;
 
 	u8	fix_rate;
 

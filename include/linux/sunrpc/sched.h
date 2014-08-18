@@ -142,18 +142,18 @@ struct rpc_task_setup {
 				test_and_set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
 #define rpc_clear_running(t)	\
 	do { \
-		smp_mb__before_clear_bit(); \
+		smp_mb__before_atomic(); \
 		clear_bit(RPC_TASK_RUNNING, &(t)->tk_runstate); \
-		smp_mb__after_clear_bit(); \
+		smp_mb__after_atomic(); \
 	} while (0)
 
 #define RPC_IS_QUEUED(t)	test_bit(RPC_TASK_QUEUED, &(t)->tk_runstate)
 #define rpc_set_queued(t)	set_bit(RPC_TASK_QUEUED, &(t)->tk_runstate)
 #define rpc_clear_queued(t)	\
 	do { \
-		smp_mb__before_clear_bit(); \
+		smp_mb__before_atomic(); \
 		clear_bit(RPC_TASK_QUEUED, &(t)->tk_runstate); \
-		smp_mb__after_clear_bit(); \
+		smp_mb__after_atomic(); \
 	} while (0)
 
 #define RPC_IS_ACTIVATED(t)	test_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate)
@@ -236,7 +236,7 @@ void *		rpc_malloc(struct rpc_task *, size_t);
 void		rpc_free(void *);
 int		rpciod_up(void);
 void		rpciod_down(void);
-int		__rpc_wait_for_completion_task(struct rpc_task *task, int (*)(void *));
+int		__rpc_wait_for_completion_task(struct rpc_task *task, wait_bit_action_f *);
 #ifdef RPC_DEBUG
 struct net;
 void		rpc_show_tasks(struct net *);

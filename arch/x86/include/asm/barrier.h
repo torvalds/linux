@@ -99,7 +99,7 @@
 #if defined(CONFIG_X86_PPRO_FENCE)
 
 /*
- * For either of these options x86 doesn't have a strong TSO memory
+ * For this option x86 doesn't have a strong TSO memory
  * model and we should fall back to full barriers.
  */
 
@@ -136,6 +136,10 @@ do {									\
 })
 
 #endif
+
+/* Atomic operations are already serializing on x86 */
+#define smp_mb__before_atomic()	barrier()
+#define smp_mb__after_atomic()	barrier()
 
 /*
  * Stop RDTSC speculation. This is needed when you need to use RDTSC

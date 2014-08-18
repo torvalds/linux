@@ -10,7 +10,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/hw_random.h>
@@ -44,7 +43,7 @@ static int nmk_rng_probe(struct amba_device *dev, const struct amba_id *id)
 	void __iomem *base;
 	int ret;
 
-	rng_clk = clk_get(&dev->dev, NULL);
+	rng_clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(rng_clk)) {
 		dev_err(&dev->dev, "could not get rng clock\n");
 		ret = PTR_ERR(rng_clk);
@@ -57,33 +56,28 @@ static int nmk_rng_probe(struct amba_device *dev, const struct amba_id *id)
 	if (ret)
 		goto out_clk;
 	ret = -ENOMEM;
-	base = ioremap(dev->res.start, resource_size(&dev->res));
+	base = devm_ioremap(&dev->dev, dev->res.start,
+			    resource_size(&dev->res));
 	if (!base)
 		goto out_release;
 	nmk_rng.priv = (unsigned long)base;
 	ret = hwrng_register(&nmk_rng);
 	if (ret)
-		goto out_unmap;
+		goto out_release;
 	return 0;
 
-out_unmap:
-	iounmap(base);
 out_release:
 	amba_release_regions(dev);
 out_clk:
 	clk_disable(rng_clk);
-	clk_put(rng_clk);
 	return ret;
 }
 
 static int nmk_rng_remove(struct amba_device *dev)
 {
-	void __iomem *base = (void __iomem *)nmk_rng.priv;
 	hwrng_unregister(&nmk_rng);
-	iounmap(base);
 	amba_release_regions(dev);
 	clk_disable(rng_clk);
-	clk_put(rng_clk);
 	return 0;
 }
 

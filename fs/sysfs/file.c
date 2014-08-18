@@ -47,12 +47,13 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	ssize_t count;
 	char *buf;
 
-	/* acquire buffer and ensure that it's >= PAGE_SIZE */
+	/* acquire buffer and ensure that it's >= PAGE_SIZE and clear */
 	count = seq_get_buf(sf, &buf);
 	if (count < PAGE_SIZE) {
 		seq_commit(sf, -1);
 		return 0;
 	}
+	memset(buf, 0, PAGE_SIZE);
 
 	/*
 	 * Invoke show().  Control may reach here via seq file lseek even
@@ -372,6 +373,29 @@ void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_file_ns);
 
+/**
+ * sysfs_remove_file_self - remove an object attribute from its own method
+ * @kobj: object we're acting for
+ * @attr: attribute descriptor
+ *
+ * See kernfs_remove_self() for details.
+ */
+bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr)
+{
+	struct kernfs_node *parent = kobj->sd;
+	struct kernfs_node *kn;
+	bool ret;
+
+	kn = kernfs_find_and_get(parent, attr->name);
+	if (WARN_ON_ONCE(!kn))
+		return false;
+
+	ret = kernfs_remove_self(kn);
+
+	kernfs_put(kn);
+	return ret;
+}
+
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **ptr)
 {
 	int i;
@@ -430,95 +454,3 @@ void sysfs_remove_bin_file(struct kobject *kobj,
 	kernfs_remove_by_name(kobj->sd, attr->attr.name);
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_bin_file);
-
-struct sysfs_schedule_callback_struct {
-	struct list_head	workq_list;
-	struct kobject		*kobj;
-	void			(*func)(void *);
-	void			*data;
-	struct module		*owner;
-	struct work_struct	work;
-};
-
-static struct workqueue_struct *sysfs_workqueue;
-static DEFINE_MUTEX(sysfs_workq_mutex);
-static LIST_HEAD(sysfs_workq);
-static void sysfs_schedule_callback_work(struct work_struct *work)
-{
-	struct sysfs_schedule_callback_struct *ss = container_of(work,
-			struct sysfs_schedule_callback_struct, work);
-
-	(ss->func)(ss->data);
-	kobject_put(ss->kobj);
-	module_put(ss->owner);
-	mutex_lock(&sysfs_workq_mutex);
-	list_del(&ss->workq_list);
-	mutex_unlock(&sysfs_workq_mutex);
-	kfree(ss);
-}
-
-/**
- * sysfs_schedule_callback - helper to schedule a callback for a kobject
- * @kobj: object we're acting for.
- * @func: callback function to invoke later.
- * @data: argument to pass to @func.
- * @owner: module owning the callback code
- *
- * sysfs attribute methods must not unregister themselves or their parent
- * kobject (which would amount to the same thing).  Attempts to do so will
- * deadlock, since unregistration is mutually exclusive with driver
- * callbacks.
- *
- * Instead methods can call this routine, which will attempt to allocate
- * and schedule a workqueue request to call back @func with @data as its
- * argument in the workqueue's process context.  @kobj will be pinned
- * until @func returns.
- *
- * Returns 0 if the request was submitted, -ENOMEM if storage could not
- * be allocated, -ENODEV if a reference to @owner isn't available,
- * -EAGAIN if a callback has already been scheduled for @kobj.
- */
-int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
-		void *data, struct module *owner)
-{
-	struct sysfs_schedule_callback_struct *ss, *tmp;
-
-	if (!try_module_get(owner))
-		return -ENODEV;
-
-	mutex_lock(&sysfs_workq_mutex);
-	list_for_each_entry_safe(ss, tmp, &sysfs_workq, workq_list)
-		if (ss->kobj == kobj) {
-			module_put(owner);
-			mutex_unlock(&sysfs_workq_mutex);
-			return -EAGAIN;
-		}
-	mutex_unlock(&sysfs_workq_mutex);
-
-	if (sysfs_workqueue == NULL) {
-		sysfs_workqueue = create_singlethread_workqueue("sysfsd");
-		if (sysfs_workqueue == NULL) {
-			module_put(owner);
-			return -ENOMEM;
-		}
-	}
-
-	ss = kmalloc(sizeof(*ss), GFP_KERNEL);
-	if (!ss) {
-		module_put(owner);
-		return -ENOMEM;
-	}
-	kobject_get(kobj);
-	ss->kobj = kobj;
-	ss->func = func;
-	ss->data = data;
-	ss->owner = owner;
-	INIT_WORK(&ss->work, sysfs_schedule_callback_work);
-	INIT_LIST_HEAD(&ss->workq_list);
-	mutex_lock(&sysfs_workq_mutex);
-	list_add_tail(&ss->workq_list, &sysfs_workq);
-	mutex_unlock(&sysfs_workq_mutex);
-	queue_work(sysfs_workqueue, &ss->work);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(sysfs_schedule_callback);

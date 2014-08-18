@@ -139,8 +139,6 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, indio_dev);
-
 	return 0;
 }
 

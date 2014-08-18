@@ -13,7 +13,7 @@
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/cputime.h>
+#include <linux/cputime.h>
 
 static spinlock_t cpufreq_stats_lock;
 
@@ -180,39 +180,33 @@ static void cpufreq_stats_free_table(unsigned int cpu)
 	cpufreq_cpu_put(policy);
 }
 
-static int __cpufreq_stats_create_table(struct cpufreq_policy *policy,
-		struct cpufreq_frequency_table *table)
+static int __cpufreq_stats_create_table(struct cpufreq_policy *policy)
 {
-	unsigned int i, j, count = 0, ret = 0;
+	unsigned int i, count = 0, ret = 0;
 	struct cpufreq_stats *stat;
-	struct cpufreq_policy *current_policy;
 	unsigned int alloc_size;
 	unsigned int cpu = policy->cpu;
+	struct cpufreq_frequency_table *pos, *table;
+
+	table = cpufreq_frequency_get_table(cpu);
+	if (unlikely(!table))
+		return 0;
+
 	if (per_cpu(cpufreq_stats_table, cpu))
 		return -EBUSY;
 	stat = kzalloc(sizeof(*stat), GFP_KERNEL);
 	if ((stat) == NULL)
 		return -ENOMEM;
 
-	current_policy = cpufreq_cpu_get(cpu);
-	if (current_policy == NULL) {
-		ret = -EINVAL;
-		goto error_get_fail;
-	}
-
-	ret = sysfs_create_group(&current_policy->kobj, &stats_attr_group);
+	ret = sysfs_create_group(&policy->kobj, &stats_attr_group);
 	if (ret)
 		goto error_out;
 
 	stat->cpu = cpu;
 	per_cpu(cpufreq_stats_table, cpu) = stat;
 
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		unsigned int freq = table[i].frequency;
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
+	cpufreq_for_each_valid_entry(pos, table)
 		count++;
-	}
 
 	alloc_size = count * sizeof(int) + count * sizeof(u64);
 
@@ -223,31 +217,26 @@ static int __cpufreq_stats_create_table(struct cpufreq_policy *policy,
 	stat->time_in_state = kzalloc(alloc_size, GFP_KERNEL);
 	if (!stat->time_in_state) {
 		ret = -ENOMEM;
-		goto error_out;
+		goto error_alloc;
 	}
 	stat->freq_table = (unsigned int *)(stat->time_in_state + count);
 
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	stat->trans_table = stat->freq_table + count;
 #endif
-	j = 0;
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		unsigned int freq = table[i].frequency;
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
-		if (freq_table_get_index(stat, freq) == -1)
-			stat->freq_table[j++] = freq;
-	}
-	stat->state_num = j;
+	i = 0;
+	cpufreq_for_each_valid_entry(pos, table)
+		if (freq_table_get_index(stat, pos->frequency) == -1)
+			stat->freq_table[i++] = pos->frequency;
+	stat->state_num = i;
 	spin_lock(&cpufreq_stats_lock);
 	stat->last_time = get_jiffies_64();
 	stat->last_index = freq_table_get_index(stat, policy->cur);
 	spin_unlock(&cpufreq_stats_lock);
-	cpufreq_cpu_put(current_policy);
 	return 0;
+error_alloc:
+	sysfs_remove_group(&policy->kobj, &stats_attr_group);
 error_out:
-	cpufreq_cpu_put(current_policy);
-error_get_fail:
 	kfree(stat);
 	per_cpu(cpufreq_stats_table, cpu) = NULL;
 	return ret;
@@ -256,7 +245,6 @@ error_get_fail:
 static void cpufreq_stats_create_table(unsigned int cpu)
 {
 	struct cpufreq_policy *policy;
-	struct cpufreq_frequency_table *table;
 
 	/*
 	 * "likely(!policy)" because normally cpufreq_stats will be registered
@@ -266,9 +254,7 @@ static void cpufreq_stats_create_table(unsigned int cpu)
 	if (likely(!policy))
 		return;
 
-	table = cpufreq_frequency_get_table(policy->cpu);
-	if (likely(table))
-		__cpufreq_stats_create_table(policy, table);
+	__cpufreq_stats_create_table(policy);
 
 	cpufreq_cpu_put(policy);
 }
@@ -291,20 +277,14 @@ static int cpufreq_stat_notifier_policy(struct notifier_block *nb,
 {
 	int ret = 0;
 	struct cpufreq_policy *policy = data;
-	struct cpufreq_frequency_table *table;
-	unsigned int cpu = policy->cpu;
 
 	if (val == CPUFREQ_UPDATE_POLICY_CPU) {
 		cpufreq_stats_update_policy_cpu(policy);
 		return 0;
 	}
 
-	table = cpufreq_frequency_get_table(cpu);
-	if (!table)
-		return 0;
-
 	if (val == CPUFREQ_CREATE_POLICY)
-		ret = __cpufreq_stats_create_table(policy, table);
+		ret = __cpufreq_stats_create_table(policy);
 	else if (val == CPUFREQ_REMOVE_POLICY)
 		__cpufreq_stats_free_table(policy);
 

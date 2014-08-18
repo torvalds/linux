@@ -108,8 +108,7 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
 
 	/* We should always be able to add one buffer to an empty queue. */
-	if (virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL) < 0)
-		BUG();
+	virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
 	virtqueue_kick(vq);
 
 	/* When host has read buffer, this completes via balloon_ack */
@@ -258,8 +257,7 @@ static void stats_handle_request(struct virtio_balloon *vb)
 	if (!virtqueue_get_buf(vq, &len))
 		return;
 	sg_init_one(&sg, vb->stats, sizeof(vb->stats));
-	if (virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL) < 0)
-		BUG();
+	virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
 	virtqueue_kick(vq);
 }
 
@@ -310,6 +308,12 @@ static int balloon(void *_vballoon)
 		else if (diff < 0)
 			leak_balloon(vb, -diff);
 		update_balloon_size(vb);
+
+		/*
+		 * For large balloon changes, we could spend a lot of time
+		 * and always have work to do.  Be nice if preempt disabled.
+		 */
+		cond_resched();
 	}
 	return 0;
 }
@@ -338,7 +342,7 @@ static int init_vqs(struct virtio_balloon *vb)
 
 		/*
 		 * Prime this virtqueue with one buffer so the hypervisor can
-		 * use it to signal us later.
+		 * use it to signal us later (it can't be broken yet!).
 		 */
 		sg_init_one(&sg, vb->stats, sizeof vb->stats);
 		if (virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb, GFP_KERNEL)

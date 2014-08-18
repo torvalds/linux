@@ -81,6 +81,15 @@ config X86_PTDUMP
 	  kernel.
 	  If in doubt, say "N"
 
+config EFI_PGT_DUMP
+	bool "Dump the EFI pagetable"
+	depends on EFI && X86_PTDUMP
+	---help---
+	  Enable this if you want to dump the EFI page table before
+	  enabling virtual mode. This can be used to debug miscellaneous
+	  issues with the mapping of the EFI runtime regions into that
+	  table.
+
 config DEBUG_RODATA
 	bool "Write protect kernel read-only data structures"
 	default y

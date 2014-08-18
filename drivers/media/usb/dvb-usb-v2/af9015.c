@@ -1213,7 +1213,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 	if ((state->rc_repeat != buf[6] || buf[0]) &&
 			!memcmp(&buf[12], state->rc_last, 4)) {
 		dev_dbg(&d->udev->dev, "%s: key repeated\n", __func__);
-		rc_keydown(d->rc_dev, state->rc_keycode, 0);
+		rc_repeat(d->rc_dev);
 		state->rc_repeat = buf[6];
 		return ret;
 	}
@@ -1233,18 +1233,22 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 		if (buf[14] == (u8) ~buf[15]) {
 			if (buf[12] == (u8) ~buf[13]) {
 				/* NEC */
-				state->rc_keycode = buf[12] << 8 | buf[14];
+				state->rc_keycode = RC_SCANCODE_NEC(buf[12],
+								    buf[14]);
 			} else {
 				/* NEC extended*/
-				state->rc_keycode = buf[12] << 16 |
-					buf[13] << 8 | buf[14];
+				state->rc_keycode = RC_SCANCODE_NECX(buf[12] << 8 |
+								     buf[13],
+								     buf[14]);
 			}
 		} else {
 			/* 32 bit NEC */
-			state->rc_keycode = buf[12] << 24 | buf[13] << 16 |
-					buf[14] << 8 | buf[15];
+			state->rc_keycode = RC_SCANCODE_NEC32(buf[12] << 24 |
+							      buf[13] << 16 |
+							      buf[14] << 8  |
+							      buf[15]);
 		}
-		rc_keydown(d->rc_dev, state->rc_keycode, 0);
+		rc_keydown(d->rc_dev, RC_TYPE_NEC, state->rc_keycode, 0);
 	} else {
 		dev_dbg(&d->udev->dev, "%s: no key press\n", __func__);
 		/* Invalidate last keypress */

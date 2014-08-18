@@ -98,11 +98,6 @@ dontdiff ファイルには Linux カーネルのビルドプロセスの過程�
 Quilt:
 http://savannah.nongnu.org/projects/quilt
 
-Andrew Morton's patch scripts:
-http://userweb.kernel.org/~akpm/stuff/patch-scripts.tar.gz
-このリンクの先のスクリプトの代わりとして、quilt がパッチマネジメント
-ツールとして推奨されています(上のリンクを見てください)。
-
 2) パッチに対する説明
 
 パッチの中の変更点に対する技術的な詳細について説明してください。
@@ -695,7 +690,7 @@ gcc においては、マクロと同じくらい軽いです。
 ----------------------
 
 Andrew Morton, "The perfect patch" (tpp).
-  <http://userweb.kernel.org/~akpm/stuff/tpp.txt>
+  <http://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
   <http://linux.yyz.us/patch-format.html>
@@ -707,7 +702,7 @@ Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
   <http://www.kroah.com/log/2006/01/11/>
 
 NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
-  <http://marc.theaimsgroup.com/?l=linux-kernel&m=112112749912944&w=2>
+  <https://lkml.org/lkml/2005/7/11/336>
 
 Kernel Documentation/CodingStyle:
   <http://users.sosdg.org/~qiyong/lxr/source/Documentation/CodingStyle>

@@ -67,11 +67,8 @@ Optional properties:
 * card-detect-delay: Delay in milli-seconds before detecting card after card
   insert event. The default value is 0.
 
-* supports-highspeed: Enables support for high speed cards (up to 50MHz)
-
-* caps2-mmc-hs200-1_8v: Supports mmc HS200 SDR 1.8V mode
-
-* caps2-mmc-hs200-1_2v: Supports mmc HS200 SDR 1.2V mode
+* supports-highspeed (DEPRECATED): Enables support for high speed cards (up to 50MHz)
+			   (use "cap-mmc-highspeed" or "cap-sd-highspeed" instead)
 
 * broken-cd: as documented in mmc core bindings.
 
@@ -102,15 +99,11 @@ board specific portions as listed below.
 		clock-frequency = <400000000>;
 		clock-freq-min-max = <400000 200000000>;
 		num-slots = <1>;
-		supports-highspeed;
-		caps2-mmc-hs200-1_8v;
 		broken-cd;
 		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		vmmc-supply = <&buck8>;
-
-		slot@0 {
-			reg = <0>;
-			bus-width = <8>;
-		};
+		bus-width = <8>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
 	};

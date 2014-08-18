@@ -99,8 +99,8 @@ extern struct thread_info *current_set[NR_CPUS];
 	  "o0", "o1", "o2", "o3",                   "o7");	\
 	} while(0)
 
-extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
-		   void *fpqueue, unsigned long *fpqdepth);
-extern void synchronize_user_stack(void);
+void fpsave(unsigned long *fpregs, unsigned long *fsr,
+	    void *fpqueue, unsigned long *fpqdepth);
+void synchronize_user_stack(void);
 
 #endif /* __SPARC_SWITCH_TO_H */

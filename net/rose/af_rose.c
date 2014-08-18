@@ -1041,7 +1041,7 @@ int rose_rx_call_request(struct sk_buff *skb, struct net_device *dev, struct ros
 	rose_start_heartbeat(make);
 
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb->len);
+		sk->sk_data_ready(sk);
 
 	return 1;
 }
@@ -1538,7 +1538,7 @@ static int __init rose_proto_init(void)
 		char name[IFNAMSIZ];
 
 		sprintf(name, "rose%d", i);
-		dev = alloc_netdev(0, name, rose_setup);
+		dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, rose_setup);
 		if (!dev) {
 			printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate memory\n");
 			rc = -ENOMEM;

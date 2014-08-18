@@ -314,15 +314,6 @@ static void tilegx_stop_rx(struct uart_port *port)
 	mutex_unlock(&tile_uart->mutex);
 }
 
-
-/*
- * Enable modem status interrupts.
- */
-static void tilegx_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 /*
  * Control the transmission of a break signal.
  */
@@ -359,8 +350,8 @@ static int tilegx_startup(struct uart_port *port)
 		}
 
 		/* Create our IRQs. */
-		port->irq = create_irq();
-		if (port->irq < 0)
+		port->irq = irq_alloc_hwirq(-1);
+		if (!port->irq)
 			goto err_uart_dest;
 		tile_irq_activate(port->irq, TILE_IRQ_PERCPU);
 
@@ -395,7 +386,7 @@ static int tilegx_startup(struct uart_port *port)
 err_free_irq:
 	free_irq(port->irq, port);
 err_dest_irq:
-	destroy_irq(port->irq);
+	irq_free_hwirq(port->irq);
 err_uart_dest:
 	gxio_uart_destroy(context);
 	ret = -ENXIO;
@@ -435,7 +426,7 @@ static void tilegx_shutdown(struct uart_port *port)
 
 	if (port->irq > 0) {
 		free_irq(port->irq, port);
-		destroy_irq(port->irq);
+		irq_free_hwirq(port->irq);
 		port->irq = 0;
 	}
 
@@ -614,7 +605,6 @@ static const struct uart_ops tilegx_ops = {
 	.stop_tx	= tilegx_stop_tx,
 	.start_tx	= tilegx_start_tx,
 	.stop_rx	= tilegx_stop_rx,
-	.enable_ms	= tilegx_enable_ms,
 	.break_ctl	= tilegx_break_ctl,
 	.startup	= tilegx_startup,
 	.shutdown	= tilegx_shutdown,

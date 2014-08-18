@@ -129,8 +129,9 @@ int
 yylex(void)
 {
   static enum {
-    ST_NOTSTARTED, ST_NORMAL, ST_ATTRIBUTE, ST_ASM, ST_BRACKET, ST_BRACE,
-    ST_EXPRESSION, ST_TABLE_1, ST_TABLE_2, ST_TABLE_3, ST_TABLE_4,
+    ST_NOTSTARTED, ST_NORMAL, ST_ATTRIBUTE, ST_ASM, ST_TYPEOF, ST_TYPEOF_1,
+    ST_BRACKET, ST_BRACE, ST_EXPRESSION,
+    ST_TABLE_1, ST_TABLE_2, ST_TABLE_3, ST_TABLE_4,
     ST_TABLE_5, ST_TABLE_6
   } lexstate = ST_NOTSTARTED;
 
@@ -196,6 +197,10 @@ repeat:
 		    goto repeat;
 		  case ASM_KEYW:
 		    lexstate = ST_ASM;
+		    count = 0;
+		    goto repeat;
+		  case TYPEOF_KEYW:
+		    lexstate = ST_TYPEOF;
 		    count = 0;
 		    goto repeat;
 
@@ -283,6 +288,48 @@ repeat:
 	  goto repeat;
 	}
       break;
+
+    case ST_TYPEOF:
+      switch (token)
+	{
+	case '(':
+	  if ( ++count == 1 )
+	    lexstate = ST_TYPEOF_1;
+	  else
+	    APP;
+	  goto repeat;
+	case ')':
+	  APP;
+	  if (--count == 0)
+	    {
+	      lexstate = ST_NORMAL;
+	      token = TYPEOF_PHRASE;
+	      break;
+	    }
+	  goto repeat;
+	default:
+	  APP;
+	  goto repeat;
+	}
+      break;
+
+    case ST_TYPEOF_1:
+      if (token == IDENT)
+	{
+	  if (is_reserved_word(yytext, yyleng)
+	      || find_symbol(yytext, SYM_TYPEDEF, 1))
+	    {
+	      yyless(0);
+	      unput('(');
+	      lexstate = ST_NORMAL;
+	      token = TYPEOF_KEYW;
+	      break;
+	    }
+	  _APP("(", 1);
+	}
+	APP;
+	lexstate = ST_TYPEOF;
+	goto repeat;
 
     case ST_BRACKET:
       APP;

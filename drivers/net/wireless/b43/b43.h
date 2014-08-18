@@ -915,10 +915,6 @@ struct b43_wl {
 	char rng_name[30 + 1];
 #endif /* CONFIG_B43_HWRNG */
 
-	/* List of all wireless devices on this chip */
-	struct list_head devlist;
-	u8 nr_devs;
-
 	bool radiotap_enabled;
 	bool radio_enabled;
 

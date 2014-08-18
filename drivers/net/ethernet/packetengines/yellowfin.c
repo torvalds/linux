@@ -236,7 +236,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 	{ }
 };
 
-static DEFINE_PCI_DEVICE_TABLE(yellowfin_pci_tbl) = {
+static const struct pci_device_id yellowfin_pci_tbl[] = {
 	{ 0x1000, 0x0702, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0x1000, 0x0701, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
 	{ }
@@ -472,7 +472,7 @@ static int yellowfin_init_one(struct pci_dev *pdev,
 
 	/* The Yellowfin-specific entries in the device structure. */
 	dev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	if (mtu)

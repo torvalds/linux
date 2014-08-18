@@ -213,7 +213,7 @@ static void __init mvme16x_init_IRQ (void)
 #define CySCRH		(0x22)
 #define CyTFTC		(0x80)
 
-static void cons_write(struct console *co, const char *str, unsigned count)
+void mvme16x_cons_write(struct console *co, const char *str, unsigned count)
 {
 	volatile unsigned char *base_addr = (u_char *)CD2401_ADDR;
 	volatile u_char sink;
@@ -268,20 +268,6 @@ static void cons_write(struct console *co, const char *str, unsigned count)
 	base_addr[CyIER] = ier;
 }
 
-static struct console cons_info =
-{
-	.name	= "sercon",
-	.write	= cons_write,
-	.flags	= CON_PRINTBUFFER | CON_BOOT,
-	.index	= -1,
-};
-
-static void __init mvme16x_early_console(void)
-{
-	register_console(&cons_info);
-
-	printk(KERN_INFO "MVME16x: early console registered\n");
-}
 #endif
 
 void __init config_mvme16x(void)
@@ -336,16 +322,6 @@ void __init config_mvme16x(void)
     else
     {
 	mvme16x_config = MVME16x_CONFIG_GOT_LP | MVME16x_CONFIG_GOT_CD2401;
-
-	/* Dont allow any interrupts from the CD2401 until the interrupt */
-	/* handlers are installed					 */
-
-	pcc2chip[PccSCCMICR] = 0x10;
-	pcc2chip[PccSCCTICR] = 0x10;
-	pcc2chip[PccSCCRICR] = 0x10;
-#ifdef CONFIG_EARLY_PRINTK
-	mvme16x_early_console();
-#endif
     }
 }
 

@@ -53,8 +53,8 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp,
 	struct bcm_interface_adapter *psIntfAdapter = arg;
 	int bytes;
 
-	buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);
-	buff_readback = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB , GFP_DMA);
+	buff = kzalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);
+	buff_readback = kzalloc(MAX_TRANSFER_CTRL_BYTE_USB , GFP_DMA);
 	if (!buff || !buff_readback) {
 		kfree(buff);
 		kfree(buff_readback);
@@ -64,8 +64,6 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp,
 
 	is_config_file = (on_chip_loc == CONFIG_BEGIN_ADDR) ? 1 : 0;
 
-	memset(buff_readback, 0, MAX_TRANSFER_CTRL_BYTE_USB);
-	memset(buff, 0, MAX_TRANSFER_CTRL_BYTE_USB);
 	while (1) {
 		oldfs = get_fs();
 		set_fs(get_ds());
@@ -246,6 +244,7 @@ static INT buffDnld(struct bcm_mini_adapter *Adapter,
 {
 	unsigned int len = 0;
 	int retval = STATUS_SUCCESS;
+
 	len = u32FirmwareLength;
 
 	while (u32FirmwareLength) {

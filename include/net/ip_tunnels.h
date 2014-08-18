@@ -40,6 +40,7 @@ struct ip_tunnel_prl_entry {
 
 struct ip_tunnel_dst {
 	struct dst_entry __rcu 		*dst;
+	__be32				 saddr;
 };
 
 struct ip_tunnel {
@@ -153,7 +154,7 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 }
 
 int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
-int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
+int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet);
 

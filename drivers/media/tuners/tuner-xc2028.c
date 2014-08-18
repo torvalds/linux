@@ -1107,6 +1107,10 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 				offset += 200000;
 		}
 #endif
+		break;
+	default:
+		tuner_err("Unsupported tuner type %d.\n", new_type);
+		break;
 	}
 
 	div = (freq - offset + DIV / 2) / DIV;
@@ -1485,7 +1489,6 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 	case 0:
 		/* memory allocation failure */
 		goto fail;
-		break;
 	case 1:
 		/* new tuner instance */
 		priv->ctrl.max_len = 13;

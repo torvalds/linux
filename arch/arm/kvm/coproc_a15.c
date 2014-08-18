@@ -34,7 +34,7 @@
 static const struct coproc_reg a15_regs[] = {
 	/* SCTLR: swapped by interrupt.S. */
 	{ CRn( 1), CRm( 0), Op1( 0), Op2( 0), is32,
-			NULL, reset_val, c1_SCTLR, 0x00C50078 },
+			access_sctlr, reset_val, c1_SCTLR, 0x00C50078 },
 };
 
 static struct kvm_coproc_target_table a15_target_table = {

@@ -20,7 +20,9 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/gfp.h>
+
+#include <linux/slab.h>
+#include <linux/device.h>
 #include <asm/unaligned.h>
 
 #include "xhci.h"
@@ -270,7 +272,6 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	struct xhci_virt_device *virt_dev;
 	struct xhci_command *cmd;
 	unsigned long flags;
-	int timeleft;
 	int ret;
 	int i;
 
@@ -284,34 +285,31 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	for (i = LAST_EP_INDEX; i > 0; i--) {
-		if (virt_dev->eps[i].ring && virt_dev->eps[i].ring->dequeue)
-			xhci_queue_stop_endpoint(xhci, slot_id, i, suspend);
+		if (virt_dev->eps[i].ring && virt_dev->eps[i].ring->dequeue) {
+			struct xhci_command *command;
+			command = xhci_alloc_command(xhci, false, false,
+						     GFP_NOWAIT);
+			if (!command) {
+				spin_unlock_irqrestore(&xhci->lock, flags);
+				xhci_free_command(xhci, cmd);
+				return -ENOMEM;
+
+			}
+			xhci_queue_stop_endpoint(xhci, command, slot_id, i,
+						 suspend);
+		}
 	}
-	cmd->command_trb = xhci_find_next_enqueue(xhci->cmd_ring);
-	list_add_tail(&cmd->cmd_list, &virt_dev->cmd_list);
-	xhci_queue_stop_endpoint(xhci, slot_id, 0, suspend);
+	xhci_queue_stop_endpoint(xhci, cmd, slot_id, 0, suspend);
 	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* Wait for last stop endpoint command to finish */
-	timeleft = wait_for_completion_interruptible_timeout(
-			cmd->completion,
-			XHCI_CMD_DEFAULT_TIMEOUT);
-	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for stop endpoint command\n",
-				timeleft == 0 ? "Timeout" : "Signal");
-		spin_lock_irqsave(&xhci->lock, flags);
-		/* The timeout might have raced with the event ring handler, so
-		 * only delete from the list if the item isn't poisoned.
-		 */
-		if (cmd->cmd_list.next != LIST_POISON1)
-			list_del(&cmd->cmd_list);
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		ret = -ETIME;
-		goto command_cleanup;
-	}
+	wait_for_completion(cmd->completion);
 
-command_cleanup:
+	if (cmd->status == COMP_CMD_ABORT || cmd->status == COMP_CMD_STOP) {
+		xhci_warn(xhci, "Timeout while waiting for stop endpoint command\n");
+		ret = -ETIME;
+	}
 	xhci_free_command(xhci, cmd);
 	return ret;
 }
@@ -732,9 +730,11 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		/* Set the U1 and U2 exit latencies. */
 		memcpy(buf, &usb_bos_descriptor,
 				USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE);
-		temp = readl(&xhci->cap_regs->hcs_params3);
-		buf[12] = HCS_U1_LATENCY(temp);
-		put_unaligned_le16(HCS_U2_LATENCY(temp), &buf[13]);
+		if ((xhci->quirks & XHCI_LPM_SUPPORT)) {
+			temp = readl(&xhci->cap_regs->hcs_params3);
+			buf[12] = HCS_U1_LATENCY(temp);
+			put_unaligned_le16(HCS_U2_LATENCY(temp), &buf[13]);
+		}
 
 		/* Indicate whether the host has LTM support. */
 		temp = readl(&xhci->cap_regs->hcc_params);
@@ -1140,7 +1140,9 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 		 * including the USB 3.0 roothub, but only if CONFIG_PM_RUNTIME
 		 * is enabled, so also enable remote wake here.
 		 */
-		if (hcd->self.root_hub->do_remote_wakeup) {
+		if (hcd->self.root_hub->do_remote_wakeup
+				&& device_may_wakeup(hcd->self.controller)) {
+
 			if (t1 & PORT_CONNECT) {
 				t2 |= PORT_WKOC_E | PORT_WKDISC_E;
 				t2 &= ~PORT_WKCONN_E;

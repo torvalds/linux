@@ -230,10 +230,6 @@ static int sh_wdt_probe(struct platform_device *pdev)
 	if (pdev->id != -1)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(!res))
-		return -EINVAL;
-
 	wdt = devm_kzalloc(&pdev->dev, sizeof(struct sh_wdt), GFP_KERNEL);
 	if (unlikely(!wdt))
 		return -ENOMEM;
@@ -249,6 +245,7 @@ static int sh_wdt_probe(struct platform_device *pdev)
 		wdt->clk = NULL;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->base = devm_ioremap_resource(wdt->dev, res);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
@@ -282,8 +279,6 @@ static int sh_wdt_probe(struct platform_device *pdev)
 	wdt->timer.data		= (unsigned long)wdt;
 	wdt->timer.expires	= next_ping_period(clock_division_ratio);
 
-	platform_set_drvdata(pdev, wdt);
-
 	dev_info(&pdev->dev, "initialized.\n");
 
 	pm_runtime_enable(&pdev->dev);
@@ -293,8 +288,6 @@ static int sh_wdt_probe(struct platform_device *pdev)
 
 static int sh_wdt_remove(struct platform_device *pdev)
 {
-	struct sh_wdt *wdt = platform_get_drvdata(pdev);
-
 	watchdog_unregister_device(&sh_wdt_dev);
 
 	pm_runtime_disable(&pdev->dev);

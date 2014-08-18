@@ -66,7 +66,7 @@ The dma_buf buffer sharing API usage contains the following steps:
 
    Exporting modules which do not wish to provide any specific name may use the
    helper define 'dma_buf_export()', with the same arguments as above, but
-   without the last argument; a __FILE__ pre-processor directive will be
+   without the last argument; a KBUILD_MODNAME pre-processor directive will be
    inserted in place of 'exp_name' instead.
 
 2. Userspace gets a handle to pass around to potential buffer-users
@@ -217,7 +217,7 @@ NOTES:
     and then allow further {map,unmap}_dma_buf operations from any buffer-user
     from the migrated backing-storage.
 
-   If the exporter cannot fulfil the backing-storage constraints of the new
+   If the exporter cannot fulfill the backing-storage constraints of the new
    buffer-user device as requested, dma_buf_attach() would return an error to
    denote non-compatibility of the new buffer-sharing request with the current
    buffer.
@@ -352,7 +352,7 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
 
    No special interfaces, userspace simply calls mmap on the dma-buf fd.
 
-2. Supporting existing mmap interfaces in exporters
+2. Supporting existing mmap interfaces in importers
 
    Similar to the motivation for kernel cpu access it is again important that
    the userspace code of a given importing subsystem can use the same interfaces

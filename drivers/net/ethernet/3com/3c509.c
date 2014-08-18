@@ -534,7 +534,7 @@ static int el3_common_init(struct net_device *dev)
 	/* The EL3-specific entries in the device structure. */
 	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 
 	err = register_netdev(dev);
 	if (err) {
@@ -749,7 +749,7 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	dev_kfree_skb (skb);
+	dev_consume_skb_any (skb);
 
 	/* Clear the Tx status stack. */
 	{

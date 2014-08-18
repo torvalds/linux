@@ -142,8 +142,12 @@ int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
 	struct device_node *node;
 
-	for_each_available_child_of_node(host->dev->of_node, node)
+	for_each_available_child_of_node(host->dev->of_node, node) {
+		/* skip nodes without reg property */
+		if (!of_find_property(node, "reg", NULL))
+			continue;
 		of_mipi_dsi_device_add(host, node);
+	}
 
 	return 0;
 }
@@ -197,16 +201,15 @@ EXPORT_SYMBOL(mipi_dsi_detach);
 /**
  * mipi_dsi_dcs_write - send DCS write command
  * @dsi: DSI device
- * @channel: virtual channel
  * @data: pointer to the command followed by parameters
  * @len: length of @data
  */
-int mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, unsigned int channel,
-		       const void *data, size_t len)
+ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, const void *data,
+			    size_t len)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 	struct mipi_dsi_msg msg = {
-		.channel = channel,
+		.channel = dsi->channel,
 		.tx_buf = data,
 		.tx_len = len
 	};
@@ -235,19 +238,18 @@ EXPORT_SYMBOL(mipi_dsi_dcs_write);
 /**
  * mipi_dsi_dcs_read - send DCS read request command
  * @dsi: DSI device
- * @channel: virtual channel
  * @cmd: DCS read command
  * @data: pointer to read buffer
  * @len: length of @data
  *
  * Function returns number of read bytes or error code.
  */
-ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, unsigned int channel,
-			  u8 cmd, void *data, size_t len)
+ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
+			  size_t len)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 	struct mipi_dsi_msg msg = {
-		.channel = channel,
+		.channel = dsi->channel,
 		.type = MIPI_DSI_DCS_READ,
 		.tx_buf = &cmd,
 		.tx_len = 1,
@@ -278,6 +280,14 @@ static int mipi_dsi_drv_remove(struct device *dev)
 	return drv->remove(dsi);
 }
 
+static void mipi_dsi_drv_shutdown(struct device *dev)
+{
+	struct mipi_dsi_driver *drv = to_mipi_dsi_driver(dev->driver);
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+
+	drv->shutdown(dsi);
+}
+
 /**
  * mipi_dsi_driver_register - register a driver for DSI devices
  * @drv: DSI driver structure
@@ -289,6 +299,8 @@ int mipi_dsi_driver_register(struct mipi_dsi_driver *drv)
 		drv->driver.probe = mipi_dsi_drv_probe;
 	if (drv->remove)
 		drv->driver.remove = mipi_dsi_drv_remove;
+	if (drv->shutdown)
+		drv->driver.shutdown = mipi_dsi_drv_shutdown;
 
 	return driver_register(&drv->driver);
 }

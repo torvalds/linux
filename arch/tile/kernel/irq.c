@@ -21,6 +21,7 @@
 #include <hv/drv_pcie_rc_intf.h>
 #include <arch/spr_def.h>
 #include <asm/traps.h>
+#include <linux/perf_event.h>
 
 /* Bit-flag stored in irq_desc->chip_data to indicate HW-cleared irqs. */
 #define IS_HW_CLEARED 1
@@ -52,13 +53,6 @@ static DEFINE_PER_CPU(unsigned long, irq_disable_mask)
  * enabled IRQs before exiting the outermost interrupt.
  */
 static DEFINE_PER_CPU(int, irq_depth);
-
-/* State for allocating IRQs on Gx. */
-#if CHIP_HAS_IPI()
-static unsigned long available_irqs = ((1UL << NR_IRQS) - 1) &
-				      (~(1UL << IRQ_RESCHEDULE));
-static DEFINE_SPINLOCK(available_irqs_lock);
-#endif
 
 #if CHIP_HAS_IPI()
 /* Use SPRs to manipulate device interrupts. */
@@ -261,37 +255,27 @@ void ack_bad_irq(unsigned int irq)
 }
 
 /*
- * Generic, controller-independent functions:
+ * /proc/interrupts printing:
  */
+int arch_show_interrupts(struct seq_file *p, int prec)
+{
+#ifdef CONFIG_PERF_EVENTS
+	int i;
+
+	seq_printf(p, "%*s: ", prec, "PMI");
+
+	for_each_online_cpu(i)
+		seq_printf(p, "%10llu ", per_cpu(perf_irqs, i));
+	seq_puts(p, "  perf_events\n");
+#endif
+	return 0;
+}
 
 #if CHIP_HAS_IPI()
-int create_irq(void)
+int arch_setup_hwirq(unsigned int irq, int node)
 {
-	unsigned long flags;
-	int result;
-
-	spin_lock_irqsave(&available_irqs_lock, flags);
-	if (available_irqs == 0)
-		result = -ENOMEM;
-	else {
-		result = __ffs(available_irqs);
-		available_irqs &= ~(1UL << result);
-		dynamic_irq_init(result);
-	}
-	spin_unlock_irqrestore(&available_irqs_lock, flags);
-
-	return result;
+	return irq >= NR_IRQS ? -EINVAL : 0;
 }
-EXPORT_SYMBOL(create_irq);
 
-void destroy_irq(unsigned int irq)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&available_irqs_lock, flags);
-	available_irqs |= (1UL << irq);
-	dynamic_irq_cleanup(irq);
-	spin_unlock_irqrestore(&available_irqs_lock, flags);
-}
-EXPORT_SYMBOL(destroy_irq);
+void arch_teardown_hwirq(unsigned int irq) { }
 #endif

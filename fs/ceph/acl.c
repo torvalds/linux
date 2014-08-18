@@ -104,12 +104,6 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
 	struct dentry *dentry;
 
-	if (acl) {
-		ret = posix_acl_valid(acl);
-		if (ret < 0)
-			goto out;
-	}
-
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		name = POSIX_ACL_XATTR_ACCESS;
@@ -178,14 +172,24 @@ out:
 int ceph_init_acl(struct dentry *dentry, struct inode *inode, struct inode *dir)
 {
 	struct posix_acl *default_acl, *acl;
+	umode_t new_mode = inode->i_mode;
 	int error;
 
-	error = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
+	error = posix_acl_create(dir, &new_mode, &default_acl, &acl);
 	if (error)
 		return error;
 
-	if (!default_acl && !acl)
+	if (!default_acl && !acl) {
 		cache_no_acl(inode);
+		if (new_mode != inode->i_mode) {
+			struct iattr newattrs = {
+				.ia_mode = new_mode,
+				.ia_valid = ATTR_MODE,
+			};
+			error = ceph_setattr(dentry, &newattrs);
+		}
+		return error;
+	}
 
 	if (default_acl) {
 		error = ceph_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);

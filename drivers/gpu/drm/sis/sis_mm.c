@@ -359,4 +359,4 @@ const struct drm_ioctl_desc sis_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(SIS_FB_INIT, sis_fb_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 };
 
-int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);
+int sis_max_ioctl = ARRAY_SIZE(sis_ioctls);

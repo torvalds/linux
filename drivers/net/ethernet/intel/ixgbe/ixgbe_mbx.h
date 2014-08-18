@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -53,11 +54,11 @@
  * Message ACK's are the value or'd with 0xF0000000
  */
 #define IXGBE_VT_MSGTYPE_ACK      0x80000000  /* Messages below or'd with
-                                               * this are the ACK */
+					       * this are the ACK */
 #define IXGBE_VT_MSGTYPE_NACK     0x40000000  /* Messages below or'd with
-                                               * this are the NACK */
+					       * this are the NACK */
 #define IXGBE_VT_MSGTYPE_CTS      0x20000000  /* Indicates that VF is still
-                                                 clear to send requests */
+						 clear to send requests */
 #define IXGBE_VT_MSGINFO_SHIFT    16
 /* bits 23:16 are used for exra info for certain messages */
 #define IXGBE_VT_MSGINFO_MASK     (0xFF << IXGBE_VT_MSGINFO_SHIFT)

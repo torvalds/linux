@@ -931,10 +931,17 @@ void snd_pcm_timer_done(struct snd_pcm_substream *substream);
 static inline void snd_pcm_gettime(struct snd_pcm_runtime *runtime,
 				   struct timespec *tv)
 {
-	if (runtime->tstamp_type == SNDRV_PCM_TSTAMP_TYPE_MONOTONIC)
-		do_posix_clock_monotonic_gettime(tv);
-	else
+	switch (runtime->tstamp_type) {
+	case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC:
+		ktime_get_ts(tv);
+		break;
+	case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW:
+		getrawmonotonic(tv);
+		break;
+	default:
 		getnstimeofday(tv);
+		break;
+	}
 }
 
 /*
@@ -1140,5 +1147,13 @@ static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
 {
 	return 1ULL << (__force int) pcm_format;
 }
+
+/* printk helpers */
+#define pcm_err(pcm, fmt, args...) \
+	dev_err((pcm)->card->dev, fmt, ##args)
+#define pcm_warn(pcm, fmt, args...) \
+	dev_warn((pcm)->card->dev, fmt, ##args)
+#define pcm_dbg(pcm, fmt, args...) \
+	dev_dbg((pcm)->card->dev, fmt, ##args)
 
 #endif /* __SOUND_PCM_H */

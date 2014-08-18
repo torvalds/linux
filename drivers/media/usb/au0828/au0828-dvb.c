@@ -114,16 +114,20 @@ static void urb_completion(struct urb *purb)
 	int ptype = usb_pipetype(purb->pipe);
 	unsigned char *ptr;
 
-	dprintk(2, "%s()\n", __func__);
+	dprintk(2, "%s: %d\n", __func__, purb->actual_length);
 
-	if (!dev)
+	if (!dev) {
+		dprintk(2, "%s: no dev!\n", __func__);
 		return;
+	}
 
-	if (dev->urb_streaming == 0)
+	if (dev->urb_streaming == 0) {
+		dprintk(2, "%s: not streaming!\n", __func__);
 		return;
+	}
 
 	if (ptype != PIPE_BULK) {
-		printk(KERN_ERR "%s() Unsupported URB type %d\n",
+		printk(KERN_ERR "%s: Unsupported URB type %d\n",
 		       __func__, ptype);
 		return;
 	}
@@ -252,8 +256,6 @@ static void au0828_stop_transport(struct au0828_dev *dev, int full_stop)
 	au0828_write(dev, 0x60b, 0x00);
 }
 
-
-
 static int au0828_dvb_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
@@ -296,6 +298,8 @@ static int au0828_dvb_stop_feed(struct dvb_demux_feed *feed)
 	dprintk(1, "%s()\n", __func__);
 
 	if (dvb) {
+		cancel_work_sync(&dev->restart_streaming);
+
 		mutex_lock(&dvb->lock);
 		dvb->stop_count++;
 		dprintk(1, "%s(), start_count: %d, stop_count: %d\n", __func__,
@@ -336,6 +340,41 @@ static void au0828_restart_dvb_streaming(struct work_struct *work)
 	start_urb_transfer(dev);
 
 	mutex_unlock(&dvb->lock);
+}
+
+static int au0828_set_frontend(struct dvb_frontend *fe)
+{
+	struct au0828_dev *dev = fe->dvb->priv;
+	struct au0828_dvb *dvb = &dev->dvb;
+	int ret, was_streaming;
+
+	mutex_lock(&dvb->lock);
+	was_streaming = dev->urb_streaming;
+	if (was_streaming) {
+		au0828_stop_transport(dev, 1);
+
+		/*
+		 * We can't hold a mutex here, as the restart_streaming
+		 * kthread may also hold it.
+		 */
+		mutex_unlock(&dvb->lock);
+		cancel_work_sync(&dev->restart_streaming);
+		mutex_lock(&dvb->lock);
+
+		stop_urb_transfer(dev);
+	}
+	mutex_unlock(&dvb->lock);
+
+	ret = dvb->set_frontend(fe);
+
+	if (was_streaming) {
+		mutex_lock(&dvb->lock);
+		au0828_start_transport(dev);
+		start_urb_transfer(dev);
+		mutex_unlock(&dvb->lock);
+	}
+
+	return ret;
 }
 
 static int dvb_register(struct au0828_dev *dev)
@@ -381,6 +420,10 @@ static int dvb_register(struct au0828_dev *dev)
 		       "(errno = %d)\n", DRIVER_NAME, result);
 		goto fail_frontend;
 	}
+
+	/* Hook dvb frontend */
+	dvb->set_frontend = dvb->frontend->ops.set_frontend;
+	dvb->frontend->ops.set_frontend = au0828_set_frontend;
 
 	/* register demux stuff */
 	dvb->demux.dmx.capabilities =
@@ -470,6 +513,8 @@ void au0828_dvb_unregister(struct au0828_dev *dev)
 
 	if (dvb->frontend == NULL)
 		return;
+
+	cancel_work_sync(&dev->restart_streaming);
 
 	dvb_net_release(&dvb->net);
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);

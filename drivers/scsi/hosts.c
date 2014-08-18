@@ -204,18 +204,33 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	struct scsi_host_template *sht = shost->hostt;
 	int error = -EINVAL;
 
-	printk(KERN_INFO "scsi%d : %s\n", shost->host_no,
+	shost_printk(KERN_INFO, shost, "%s\n",
 			sht->info ? sht->info(shost) : sht->name);
 
 	if (!shost->can_queue) {
-		printk(KERN_ERR "%s: can_queue = 0 no longer supported\n",
-				sht->name);
+		shost_printk(KERN_ERR, shost,
+			     "can_queue = 0 no longer supported\n");
 		goto fail;
 	}
 
+	if (shost_use_blk_mq(shost)) {
+		error = scsi_mq_setup_tags(shost);
+		if (error)
+			goto fail;
+	}
+
+	/*
+	 * Note that we allocate the freelist even for the MQ case for now,
+	 * as we need a command set aside for scsi_reset_provider.  Having
+	 * the full host freelist and one command available for that is a
+	 * little heavy-handed, but avoids introducing a special allocator
+	 * just for this.  Eventually the structure of scsi_reset_provider
+	 * will need a major overhaul.
+	 */
 	error = scsi_setup_command_freelist(shost);
 	if (error)
-		goto fail;
+		goto out_destroy_tags;
+
 
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
@@ -226,7 +241,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	error = device_add(&shost->shost_gendev);
 	if (error)
-		goto out;
+		goto out_destroy_freelist;
 
 	pm_runtime_set_active(&shost->shost_gendev);
 	pm_runtime_enable(&shost->shost_gendev);
@@ -279,8 +294,11 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	device_del(&shost->shost_dev);
  out_del_gendev:
 	device_del(&shost->shost_gendev);
- out:
+ out_destroy_freelist:
 	scsi_destroy_command_freelist(shost);
+ out_destroy_tags:
+	if (shost_use_blk_mq(shost))
+		scsi_mq_destroy_tags(shost);
  fail:
 	return error;
 }
@@ -309,8 +327,13 @@ static void scsi_host_dev_release(struct device *dev)
 	}
 
 	scsi_destroy_command_freelist(shost);
-	if (shost->bqt)
-		blk_free_tags(shost->bqt);
+	if (shost_use_blk_mq(shost)) {
+		if (shost->tag_set.tags)
+			scsi_mq_destroy_tags(shost);
+	} else {
+		if (shost->bqt)
+			blk_free_tags(shost->bqt);
+	}
 
 	kfree(shost->shost_data);
 
@@ -398,7 +421,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->ordered_tag = sht->ordered_tag;
 	shost->no_write_same = sht->no_write_same;
 
-	if (shost_eh_deadline == -1)
+	if (shost_eh_deadline == -1 || !sht->eh_host_reset_handler)
 		shost->eh_deadline = -1;
 	else if ((ulong) shost_eh_deadline * HZ > INT_MAX) {
 		shost_printk(KERN_WARNING, shost,
@@ -436,6 +459,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	else
 		shost->dma_boundary = 0xffffffff;
 
+	shost->use_blk_mq = scsi_use_blk_mq && !shost->hostt->disable_blk_mq;
+
 	device_initialize(&shost->shost_gendev);
 	dev_set_name(&shost->shost_gendev, "host%d", shost->host_no);
 	shost->shost_gendev.bus = &scsi_bus_type;
@@ -450,8 +475,9 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->ehandler = kthread_run(scsi_error_handler, shost,
 			"scsi_eh_%d", shost->host_no);
 	if (IS_ERR(shost->ehandler)) {
-		printk(KERN_WARNING "scsi%d: error handler thread failed to spawn, error = %ld\n",
-			shost->host_no, PTR_ERR(shost->ehandler));
+		shost_printk(KERN_WARNING, shost,
+			"error handler thread failed to spawn, error = %ld\n",
+			PTR_ERR(shost->ehandler));
 		goto fail_kfree;
 	}
 
@@ -584,7 +610,7 @@ EXPORT_SYMBOL(scsi_is_host_device);
 int scsi_queue_work(struct Scsi_Host *shost, struct work_struct *work)
 {
 	if (unlikely(!shost->work_q)) {
-		printk(KERN_ERR
+		shost_printk(KERN_ERR, shost,
 			"ERROR: Scsi host '%s' attempted to queue scsi-work, "
 			"when no workqueue created.\n", shost->hostt->name);
 		dump_stack();
@@ -603,7 +629,7 @@ EXPORT_SYMBOL_GPL(scsi_queue_work);
 void scsi_flush_work(struct Scsi_Host *shost)
 {
 	if (!shost->work_q) {
-		printk(KERN_ERR
+		shost_printk(KERN_ERR, shost,
 			"ERROR: Scsi host '%s' attempted to flush scsi-work, "
 			"when no workqueue created.\n", shost->hostt->name);
 		dump_stack();

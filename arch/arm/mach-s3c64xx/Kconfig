@@ -18,9 +18,9 @@ config CPU_S3C6410
 	  Enable S3C6410 CPU support
 
 config S3C64XX_PL080
-	bool "S3C64XX DMA using generic PL08x driver"
+	def_bool DMADEVICES
+	select ARM_AMBA
 	select AMBA_PL08X
-	select SAMSUNG_DMADEV
 
 config S3C64XX_SETUP_SDHCI
 	bool
@@ -86,8 +86,7 @@ config MACH_SMDK6400
        bool "SMDK6400"
 	select CPU_S3C6400
 	select S3C64XX_SETUP_SDHCI
-	select S3C_DEV_HSMMC
-	select S3C_DEV_NAND
+	select S3C_DEV_HSMMC1
 	help
 	  Machine support for the Samsung SMDK6400
 

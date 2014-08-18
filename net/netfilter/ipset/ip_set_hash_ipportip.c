@@ -27,7 +27,8 @@
 #define IPSET_TYPE_REV_MIN	0
 /*				1    SCTP and UDPLITE support added */
 /*				2    Counters support added */
-#define IPSET_TYPE_REV_MAX	3 /* Comments support added */
+/*				3    Comments support added */
+#define IPSET_TYPE_REV_MAX	4 /* Forceadd support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");

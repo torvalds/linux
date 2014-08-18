@@ -49,9 +49,9 @@ static struct tipc_media * const media_info_array[] = {
 	NULL
 };
 
-struct tipc_bearer tipc_bearers[MAX_BEARERS];
+struct tipc_bearer __rcu *bearer_list[MAX_BEARERS + 1];
 
-static void bearer_disable(struct tipc_bearer *b_ptr);
+static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down);
 
 /**
  * tipc_media_find - locates specified media object by name
@@ -177,8 +177,9 @@ struct tipc_bearer *tipc_bearer_find(const char *name)
 	struct tipc_bearer *b_ptr;
 	u32 i;
 
-	for (i = 0, b_ptr = tipc_bearers; i < MAX_BEARERS; i++, b_ptr++) {
-		if (b_ptr->active && (!strcmp(b_ptr->name, name)))
+	for (i = 0; i < MAX_BEARERS; i++) {
+		b_ptr = rtnl_dereference(bearer_list[i]);
+		if (b_ptr && (!strcmp(b_ptr->name, name)))
 			return b_ptr;
 	}
 	return NULL;
@@ -197,33 +198,45 @@ struct sk_buff *tipc_bearer_get_names(void)
 	if (!buf)
 		return NULL;
 
-	read_lock_bh(&tipc_net_lock);
 	for (i = 0; media_info_array[i] != NULL; i++) {
 		for (j = 0; j < MAX_BEARERS; j++) {
-			b = &tipc_bearers[j];
-			if (b->active && (b->media == media_info_array[i])) {
+			b = rtnl_dereference(bearer_list[j]);
+			if (!b)
+				continue;
+			if (b->media == media_info_array[i]) {
 				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME,
 						    b->name,
 						    strlen(b->name) + 1);
 			}
 		}
 	}
-	read_unlock_bh(&tipc_net_lock);
 	return buf;
 }
 
-void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest)
+void tipc_bearer_add_dest(u32 bearer_id, u32 dest)
 {
-	tipc_nmap_add(&b_ptr->nodes, dest);
-	tipc_bcbearer_sort();
-	tipc_disc_add_dest(b_ptr->link_req);
+	struct tipc_bearer *b_ptr;
+
+	rcu_read_lock();
+	b_ptr = rcu_dereference_rtnl(bearer_list[bearer_id]);
+	if (b_ptr) {
+		tipc_bcbearer_sort(&b_ptr->nodes, dest, true);
+		tipc_disc_add_dest(b_ptr->link_req);
+	}
+	rcu_read_unlock();
 }
 
-void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest)
+void tipc_bearer_remove_dest(u32 bearer_id, u32 dest)
 {
-	tipc_nmap_remove(&b_ptr->nodes, dest);
-	tipc_bcbearer_sort();
-	tipc_disc_remove_dest(b_ptr->link_req);
+	struct tipc_bearer *b_ptr;
+
+	rcu_read_lock();
+	b_ptr = rcu_dereference_rtnl(bearer_list[bearer_id]);
+	if (b_ptr) {
+		tipc_bcbearer_sort(&b_ptr->nodes, dest, false);
+		tipc_disc_remove_dest(b_ptr->link_req);
+	}
+	rcu_read_unlock();
 }
 
 /**
@@ -268,13 +281,11 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 		return -EINVAL;
 	}
 
-	write_lock_bh(&tipc_net_lock);
-
 	m_ptr = tipc_media_find(b_names.media_name);
 	if (!m_ptr) {
 		pr_warn("Bearer <%s> rejected, media <%s> not registered\n",
 			name, b_names.media_name);
-		goto exit;
+		return -EINVAL;
 	}
 
 	if (priority == TIPC_MEDIA_LINK_PRI)
@@ -284,21 +295,22 @@ restart:
 	bearer_id = MAX_BEARERS;
 	with_this_prio = 1;
 	for (i = MAX_BEARERS; i-- != 0; ) {
-		if (!tipc_bearers[i].active) {
+		b_ptr = rtnl_dereference(bearer_list[i]);
+		if (!b_ptr) {
 			bearer_id = i;
 			continue;
 		}
-		if (!strcmp(name, tipc_bearers[i].name)) {
+		if (!strcmp(name, b_ptr->name)) {
 			pr_warn("Bearer <%s> rejected, already enabled\n",
 				name);
-			goto exit;
+			return -EINVAL;
 		}
-		if ((tipc_bearers[i].priority == priority) &&
+		if ((b_ptr->priority == priority) &&
 		    (++with_this_prio > 2)) {
 			if (priority-- == 0) {
 				pr_warn("Bearer <%s> rejected, duplicate priority\n",
 					name);
-				goto exit;
+				return -EINVAL;
 			}
 			pr_warn("Bearer <%s> priority adjustment required %u->%u\n",
 				name, priority + 1, priority);
@@ -308,40 +320,42 @@ restart:
 	if (bearer_id >= MAX_BEARERS) {
 		pr_warn("Bearer <%s> rejected, bearer limit reached (%u)\n",
 			name, MAX_BEARERS);
-		goto exit;
+		return -EINVAL;
 	}
 
-	b_ptr = &tipc_bearers[bearer_id];
+	b_ptr = kzalloc(sizeof(*b_ptr), GFP_ATOMIC);
+	if (!b_ptr)
+		return -ENOMEM;
+
 	strcpy(b_ptr->name, name);
 	b_ptr->media = m_ptr;
 	res = m_ptr->enable_media(b_ptr);
 	if (res) {
 		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
 			name, -res);
-		goto exit;
+		return -EINVAL;
 	}
 
 	b_ptr->identity = bearer_id;
 	b_ptr->tolerance = m_ptr->tolerance;
 	b_ptr->window = m_ptr->window;
+	b_ptr->domain = disc_domain;
 	b_ptr->net_plane = bearer_id + 'A';
-	b_ptr->active = 1;
 	b_ptr->priority = priority;
-	INIT_LIST_HEAD(&b_ptr->links);
-	spin_lock_init(&b_ptr->lock);
 
-	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr, disc_domain);
+	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr);
 	if (res) {
-		bearer_disable(b_ptr);
+		bearer_disable(b_ptr, false);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
 			name);
-		goto exit;
+		return -EINVAL;
 	}
+
+	rcu_assign_pointer(bearer_list[bearer_id], b_ptr);
+
 	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 		name,
 		tipc_addr_string_fill(addr_string, disc_domain), priority);
-exit:
-	write_unlock_bh(&tipc_net_lock);
 	return res;
 }
 
@@ -350,49 +364,35 @@ exit:
  */
 static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 {
-	struct tipc_link *l_ptr;
-	struct tipc_link *temp_l_ptr;
-
-	read_lock_bh(&tipc_net_lock);
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
-	spin_lock_bh(&b_ptr->lock);
-	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		struct tipc_node *n_ptr = l_ptr->owner;
-
-		spin_lock_bh(&n_ptr->lock);
-		tipc_link_reset(l_ptr);
-		spin_unlock_bh(&n_ptr->lock);
-	}
-	spin_unlock_bh(&b_ptr->lock);
-	read_unlock_bh(&tipc_net_lock);
+	tipc_link_reset_list(b_ptr->identity);
+	tipc_disc_reset(b_ptr);
 	return 0;
 }
 
 /**
  * bearer_disable
  *
- * Note: This routine assumes caller holds tipc_net_lock.
+ * Note: This routine assumes caller holds RTNL lock.
  */
-static void bearer_disable(struct tipc_bearer *b_ptr)
+static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down)
 {
-	struct tipc_link *l_ptr;
-	struct tipc_link *temp_l_ptr;
-	struct tipc_link_req *temp_req;
+	u32 i;
 
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
-	spin_lock_bh(&b_ptr->lock);
 	b_ptr->media->disable_media(b_ptr);
-	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		tipc_link_delete(l_ptr);
+
+	tipc_link_delete_list(b_ptr->identity, shutting_down);
+	if (b_ptr->link_req)
+		tipc_disc_delete(b_ptr->link_req);
+
+	for (i = 0; i < MAX_BEARERS; i++) {
+		if (b_ptr == rtnl_dereference(bearer_list[i])) {
+			RCU_INIT_POINTER(bearer_list[i], NULL);
+			break;
+		}
 	}
-	temp_req = b_ptr->link_req;
-	b_ptr->link_req = NULL;
-	spin_unlock_bh(&b_ptr->lock);
-
-	if (temp_req)
-		tipc_disc_delete(temp_req);
-
-	memset(b_ptr, 0, sizeof(struct tipc_bearer));
+	kfree_rcu(b_ptr, rcu);
 }
 
 int tipc_disable_bearer(const char *name)
@@ -400,39 +400,15 @@ int tipc_disable_bearer(const char *name)
 	struct tipc_bearer *b_ptr;
 	int res;
 
-	write_lock_bh(&tipc_net_lock);
 	b_ptr = tipc_bearer_find(name);
 	if (b_ptr == NULL) {
 		pr_warn("Attempt to disable unknown bearer <%s>\n", name);
 		res = -EINVAL;
 	} else {
-		bearer_disable(b_ptr);
+		bearer_disable(b_ptr, false);
 		res = 0;
 	}
-	write_unlock_bh(&tipc_net_lock);
 	return res;
-}
-
-
-/* tipc_l2_media_addr_set - initialize Ethernet media address structure
- *
- * Media-dependent "value" field stores MAC address in first 6 bytes
- * and zeroes out the remaining bytes.
- */
-void tipc_l2_media_addr_set(const struct tipc_bearer *b,
-			    struct tipc_media_addr *a, char *mac)
-{
-	int len = b->media->hwaddr_len;
-
-	if (unlikely(sizeof(a->value) < len)) {
-		WARN_ONCE(1, "Media length invalid\n");
-		return;
-	}
-
-	memcpy(a->value, mac, len);
-	memset(a->value + len, 0, sizeof(a->value) - len);
-	a->media_id = b->media->type_id;
-	a->broadcast = !memcmp(mac, b->bcast_addr.value, len);
 }
 
 int tipc_enable_l2_media(struct tipc_bearer *b)
@@ -445,33 +421,37 @@ int tipc_enable_l2_media(struct tipc_bearer *b)
 	if (!dev)
 		return -ENODEV;
 
-	/* Associate TIPC bearer with Ethernet bearer */
-	b->media_ptr = dev;
-	memset(b->bcast_addr.value, 0, sizeof(b->bcast_addr.value));
+	/* Associate TIPC bearer with L2 bearer */
+	rcu_assign_pointer(b->media_ptr, dev);
+	memset(&b->bcast_addr, 0, sizeof(b->bcast_addr));
 	memcpy(b->bcast_addr.value, dev->broadcast, b->media->hwaddr_len);
 	b->bcast_addr.media_id = b->media->type_id;
 	b->bcast_addr.broadcast = 1;
 	b->mtu = dev->mtu;
-	tipc_l2_media_addr_set(b, &b->addr, (char *)dev->dev_addr);
+	b->media->raw2addr(b, &b->addr, (char *)dev->dev_addr);
 	rcu_assign_pointer(dev->tipc_ptr, b);
 	return 0;
 }
 
-/* tipc_disable_l2_media - detach TIPC bearer from an Ethernet interface
+/* tipc_disable_l2_media - detach TIPC bearer from an L2 interface
  *
- * Mark Ethernet bearer as inactive so that incoming buffers are thrown away,
+ * Mark L2 bearer as inactive so that incoming buffers are thrown away,
  * then get worker thread to complete bearer cleanup.  (Can't do cleanup
  * here because cleanup code needs to sleep and caller holds spinlocks.)
  */
 void tipc_disable_l2_media(struct tipc_bearer *b)
 {
-	struct net_device *dev = (struct net_device *)b->media_ptr;
+	struct net_device *dev;
+
+	dev = (struct net_device *)rtnl_dereference(b->media_ptr);
+	RCU_INIT_POINTER(b->media_ptr, NULL);
 	RCU_INIT_POINTER(dev->tipc_ptr, NULL);
+	synchronize_net();
 	dev_put(dev);
 }
 
 /**
- * tipc_l2_send_msg - send a TIPC packet out over an Ethernet interface
+ * tipc_l2_send_msg - send a TIPC packet out over an L2 interface
  * @buf: the packet to be sent
  * @b_ptr: the bearer through which the packet is to be sent
  * @dest: peer destination address
@@ -480,8 +460,12 @@ int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
 		     struct tipc_media_addr *dest)
 {
 	struct sk_buff *clone;
+	struct net_device *dev;
 	int delta;
-	struct net_device *dev = (struct net_device *)b->media_ptr;
+
+	dev = (struct net_device *)rcu_dereference_rtnl(b->media_ptr);
+	if (!dev)
+		return 0;
 
 	clone = skb_clone(buf, GFP_ATOMIC);
 	if (!clone)
@@ -509,10 +493,16 @@ int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
  * The media send routine must not alter the buffer being passed in
  * as it may be needed for later retransmission!
  */
-void tipc_bearer_send(struct tipc_bearer *b, struct sk_buff *buf,
+void tipc_bearer_send(u32 bearer_id, struct sk_buff *buf,
 		      struct tipc_media_addr *dest)
 {
-	b->media->send_msg(buf, b, dest);
+	struct tipc_bearer *b_ptr;
+
+	rcu_read_lock();
+	b_ptr = rcu_dereference_rtnl(bearer_list[bearer_id]);
+	if (likely(b_ptr))
+		b_ptr->media->send_msg(buf, b_ptr, dest);
+	rcu_read_unlock();
 }
 
 /**
@@ -537,7 +527,7 @@ static int tipc_l2_rcv_msg(struct sk_buff *buf, struct net_device *dev,
 	}
 
 	rcu_read_lock();
-	b_ptr = rcu_dereference(dev->tipc_ptr);
+	b_ptr = rcu_dereference_rtnl(dev->tipc_ptr);
 	if (likely(b_ptr)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
 			buf->next = NULL;
@@ -570,12 +560,9 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	rcu_read_lock();
-	b_ptr = rcu_dereference(dev->tipc_ptr);
-	if (!b_ptr) {
-		rcu_read_unlock();
+	b_ptr = rtnl_dereference(dev->tipc_ptr);
+	if (!b_ptr)
 		return NOTIFY_DONE;
-	}
 
 	b_ptr->mtu = dev->mtu;
 
@@ -585,21 +572,23 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 			break;
 	case NETDEV_DOWN:
 	case NETDEV_CHANGEMTU:
+		tipc_reset_bearer(b_ptr);
+		break;
 	case NETDEV_CHANGEADDR:
+		b_ptr->media->raw2addr(b_ptr, &b_ptr->addr,
+				       (char *)dev->dev_addr);
 		tipc_reset_bearer(b_ptr);
 		break;
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGENAME:
-		tipc_disable_bearer(b_ptr->name);
+		bearer_disable(b_ptr, false);
 		break;
 	}
-	rcu_read_unlock();
-
 	return NOTIFY_OK;
 }
 
 static struct packet_type tipc_packet_type __read_mostly = {
-	.type = __constant_htons(ETH_P_TIPC),
+	.type = htons(ETH_P_TIPC),
 	.func = tipc_l2_rcv_msg,
 };
 
@@ -627,10 +616,14 @@ void tipc_bearer_cleanup(void)
 
 void tipc_bearer_stop(void)
 {
+	struct tipc_bearer *b_ptr;
 	u32 i;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (tipc_bearers[i].active)
-			bearer_disable(&tipc_bearers[i]);
+		b_ptr = rtnl_dereference(bearer_list[i]);
+		if (b_ptr) {
+			bearer_disable(b_ptr, true);
+			bearer_list[i] = NULL;
+		}
 	}
 }

@@ -172,7 +172,6 @@ struct sata_device {
         enum   ata_command_set command_set;
         struct smp_resp        rps_resp; /* report_phy_sata_resp */
         u8     port_no;        /* port number, if this is a PM (Port) */
-	int    pm_result;
 
 	struct ata_port *ap;
 	struct ata_host ata_host;

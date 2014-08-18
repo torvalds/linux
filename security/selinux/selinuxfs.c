@@ -54,7 +54,7 @@ unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 static int __init checkreqprot_setup(char *str)
 {
 	unsigned long checkreqprot;
-	if (!strict_strtoul(str, 0, &checkreqprot))
+	if (!kstrtoul(str, 0, &checkreqprot))
 		selinux_checkreqprot = checkreqprot ? 1 : 0;
 	return 1;
 }

@@ -107,8 +107,8 @@ typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
 typedef int (*pevent_plugin_unload_func)(struct pevent *pevent);
 
-struct plugin_option {
-	struct plugin_option		*next;
+struct pevent_plugin_option {
+	struct pevent_plugin_option	*next;
 	void				*handle;
 	char				*file;
 	char				*name;
@@ -135,7 +135,7 @@ struct plugin_option {
  * PEVENT_PLUGIN_OPTIONS:  (optional)
  *   Plugin options that can be set before loading
  *
- *   struct plugin_option PEVENT_PLUGIN_OPTIONS[] = {
+ *   struct pevent_plugin_option PEVENT_PLUGIN_OPTIONS[] = {
  *	{
  *		.name = "option-name",
  *		.plugin_alias = "overide-file-name", (optional)
@@ -208,6 +208,11 @@ struct print_arg_string {
 	int			offset;
 };
 
+struct print_arg_bitmask {
+	char			*bitmask;
+	int			offset;
+};
+
 struct print_arg_field {
 	char			*name;
 	struct format_field	*field;
@@ -274,6 +279,7 @@ enum print_arg_type {
 	PRINT_DYNAMIC_ARRAY,
 	PRINT_OP,
 	PRINT_FUNC,
+	PRINT_BITMASK,
 };
 
 struct print_arg {
@@ -288,6 +294,7 @@ struct print_arg {
 		struct print_arg_hex		hex;
 		struct print_arg_func		func;
 		struct print_arg_string		string;
+		struct print_arg_bitmask	bitmask;
 		struct print_arg_op		op;
 		struct print_arg_dynarray	dynarray;
 	};
@@ -354,6 +361,8 @@ enum pevent_func_arg_type {
 
 enum pevent_flag {
 	PEVENT_NSEC_OUTPUT		= 1,	/* output in NSECS */
+	PEVENT_DISABLE_SYS_PLUGINS	= 1 << 1,
+	PEVENT_DISABLE_PLUGINS		= 1 << 2,
 };
 
 #define PEVENT_ERRORS 							      \
@@ -410,9 +419,19 @@ enum pevent_errno {
 
 struct plugin_list;
 
+#define INVALID_PLUGIN_LIST_OPTION	((char **)((unsigned long)-1))
+
 struct plugin_list *traceevent_load_plugins(struct pevent *pevent);
 void traceevent_unload_plugins(struct plugin_list *plugin_list,
 			       struct pevent *pevent);
+char **traceevent_plugin_list_options(void);
+void traceevent_plugin_free_options_list(char **list);
+int traceevent_plugin_add_options(const char *name,
+				  struct pevent_plugin_option *options);
+void traceevent_plugin_remove_options(struct pevent_plugin_option *options);
+void traceevent_print_plugins(struct trace_seq *s,
+			      const char *prefix, const char *suffix,
+			      const struct plugin_list *list);
 
 struct cmdline;
 struct cmdline_list;
@@ -876,8 +895,8 @@ struct event_filter {
 struct event_filter *pevent_filter_alloc(struct pevent *pevent);
 
 /* for backward compatibility */
-#define FILTER_NONE		PEVENT_ERRNO__FILTER_NOT_FOUND
-#define FILTER_NOEXIST		PEVENT_ERRNO__NO_FILTER
+#define FILTER_NONE		PEVENT_ERRNO__NO_FILTER
+#define FILTER_NOEXIST		PEVENT_ERRNO__FILTER_NOT_FOUND
 #define FILTER_MISS		PEVENT_ERRNO__FILTER_MISS
 #define FILTER_MATCH		PEVENT_ERRNO__FILTER_MATCH
 

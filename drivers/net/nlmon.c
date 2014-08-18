@@ -47,16 +47,7 @@ static int nlmon_change_mtu(struct net_device *dev, int new_mtu)
 
 static int nlmon_dev_init(struct net_device *dev)
 {
-	int i;
-
-	dev->lstats = alloc_percpu(struct pcpu_lstats);
-
-	for_each_possible_cpu(i) {
-		struct pcpu_lstats *nlmstats;
-		nlmstats = per_cpu_ptr(dev->lstats, i);
-		u64_stats_init(&nlmstats->syncp);
-	}
-
+	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
 	return dev->lstats == NULL ? -ENOMEM : 0;
 }
 
@@ -99,10 +90,10 @@ nlmon_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		nl_stats = per_cpu_ptr(dev->lstats, i);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&nl_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&nl_stats->syncp);
 			tbytes = nl_stats->bytes;
 			tpackets = nl_stats->packets;
-		} while (u64_stats_fetch_retry_bh(&nl_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&nl_stats->syncp, start));
 
 		packets += tpackets;
 		bytes += tbytes;
@@ -145,7 +136,8 @@ static void nlmon_setup(struct net_device *dev)
 	dev->ethtool_ops = &nlmon_ethtool_ops;
 	dev->destructor	= free_netdev;
 
-	dev->features = NETIF_F_FRAGLIST | NETIF_F_HIGHDMA;
+	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST |
+			NETIF_F_HIGHDMA | NETIF_F_LLTX;
 	dev->flags = IFF_NOARP;
 
 	/* That's rather a softlimit here, which, of course,

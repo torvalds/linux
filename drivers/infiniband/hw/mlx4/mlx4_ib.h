@@ -156,6 +156,7 @@ enum mlx4_ib_qp_flags {
 	MLX4_IB_QP_LSO = IB_QP_CREATE_IPOIB_UD_LSO,
 	MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
 	MLX4_IB_QP_NETIF = IB_QP_CREATE_NETIF_QP,
+	MLX4_IB_QP_CREATE_USE_GFP_NOIO = IB_QP_CREATE_USE_GFP_NOIO,
 	MLX4_IB_SRIOV_TUNNEL_QP = 1 << 30,
 	MLX4_IB_SRIOV_SQP = 1 << 31,
 };
@@ -241,6 +242,22 @@ struct mlx4_ib_proxy_sqp_hdr {
 	struct mlx4_rcv_tunnel_hdr tun;
 }  __packed;
 
+struct mlx4_roce_smac_vlan_info {
+	u64 smac;
+	int smac_index;
+	int smac_port;
+	u64 candidate_smac;
+	int candidate_smac_index;
+	int candidate_smac_port;
+	u16 vid;
+	int vlan_index;
+	int vlan_port;
+	u16 candidate_vid;
+	int candidate_vlan_index;
+	int candidate_vlan_port;
+	int update_vid;
+};
+
 struct mlx4_ib_qp {
 	struct ib_qp		ibqp;
 	struct mlx4_qp		mqp;
@@ -273,8 +290,9 @@ struct mlx4_ib_qp {
 	struct list_head	gid_list;
 	struct list_head	steering_rules;
 	struct mlx4_ib_buf	*sqp_proxy_rcv;
+	struct mlx4_roce_smac_vlan_info pri;
+	struct mlx4_roce_smac_vlan_info alt;
 	u64			reg_id;
-
 };
 
 struct mlx4_ib_srq {
@@ -505,6 +523,9 @@ struct mlx4_ib_dev {
 	int steer_qpn_count;
 	int steer_qpn_base;
 	int steering_support;
+	struct mlx4_ib_qp      *qp1_proxy[MLX4_MAX_PORTS];
+	/* lock when destroying qp1_proxy and getting netdev events */
+	struct mutex		qp1_proxy_lock[MLX4_MAX_PORTS];
 };
 
 struct ib_event_work {
@@ -720,9 +741,12 @@ void mlx4_ib_tunnels_update_work(struct work_struct *work);
 int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  enum ib_qp_type qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad);
+
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
-			 u32 qkey, struct ib_ah_attr *attr, struct ib_mad *mad);
+			 u32 qkey, struct ib_ah_attr *attr, u8 *s_mac,
+			 struct ib_mad *mad);
+
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
 
 int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
@@ -764,5 +788,9 @@ int mlx4_ib_steer_qp_alloc(struct mlx4_ib_dev *dev, int count, int *qpn);
 void mlx4_ib_steer_qp_free(struct mlx4_ib_dev *dev, u32 qpn, int count);
 int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 			 int is_attach);
+int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
+			  u64 start, u64 length, u64 virt_addr,
+			  int mr_access_flags, struct ib_pd *pd,
+			  struct ib_udata *udata);
 
 #endif /* MLX4_IB_H */

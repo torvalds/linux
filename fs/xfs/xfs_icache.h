@@ -27,6 +27,7 @@ struct xfs_eofblocks {
 	kgid_t		eof_gid;
 	prid_t		eof_prid;
 	__u64		eof_min_file_size;
+	xfs_ino_t	eof_scan_owner;
 };
 
 #define SYNC_WAIT		0x0001	/* wait for i/o to complete */
@@ -57,15 +58,14 @@ void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
 void xfs_inode_set_eofblocks_tag(struct xfs_inode *ip);
 void xfs_inode_clear_eofblocks_tag(struct xfs_inode *ip);
 int xfs_icache_free_eofblocks(struct xfs_mount *, struct xfs_eofblocks *);
+int xfs_inode_free_quota_eofblocks(struct xfs_inode *ip);
 void xfs_eofblocks_worker(struct work_struct *);
 
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
-		int flags, void *args),
+	int (*execute)(struct xfs_inode *ip, int flags, void *args),
 	int flags, void *args);
 int xfs_inode_ag_iterator_tag(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
-		int flags, void *args),
+	int (*execute)(struct xfs_inode *ip, int flags, void *args),
 	int flags, void *args, int tag);
 
 static inline int
@@ -74,31 +74,32 @@ xfs_fs_eofblocks_from_user(
 	struct xfs_eofblocks		*dst)
 {
 	if (src->eof_version != XFS_EOFBLOCKS_VERSION)
-		return EINVAL;
+		return -EINVAL;
 
 	if (src->eof_flags & ~XFS_EOF_FLAGS_VALID)
-		return EINVAL;
+		return -EINVAL;
 
 	if (memchr_inv(&src->pad32, 0, sizeof(src->pad32)) ||
 	    memchr_inv(src->pad64, 0, sizeof(src->pad64)))
-		return EINVAL;
+		return -EINVAL;
 
 	dst->eof_flags = src->eof_flags;
 	dst->eof_prid = src->eof_prid;
 	dst->eof_min_file_size = src->eof_min_file_size;
+	dst->eof_scan_owner = NULLFSINO;
 
 	dst->eof_uid = INVALID_UID;
 	if (src->eof_flags & XFS_EOF_FLAGS_UID) {
 		dst->eof_uid = make_kuid(current_user_ns(), src->eof_uid);
 		if (!uid_valid(dst->eof_uid))
-			return EINVAL;
+			return -EINVAL;
 	}
 
 	dst->eof_gid = INVALID_GID;
 	if (src->eof_flags & XFS_EOF_FLAGS_GID) {
 		dst->eof_gid = make_kgid(current_user_ns(), src->eof_gid);
 		if (!gid_valid(dst->eof_gid))
-			return EINVAL;
+			return -EINVAL;
 	}
 	return 0;
 }

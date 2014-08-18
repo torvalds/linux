@@ -317,9 +317,7 @@ static void qlcnic_write_window_reg(u32 addr, void __iomem *bar0, u32 data)
 int
 qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 {
-	int timeout = 0;
-	int err = 0;
-	u32 done = 0;
+	int timeout = 0, err = 0, done = 0;
 
 	while (!done) {
 		done = QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_LOCK(sem)),
@@ -327,10 +325,20 @@ qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 		if (done == 1)
 			break;
 		if (++timeout >= QLCNIC_PCIE_SEM_TIMEOUT) {
-			dev_err(&adapter->pdev->dev,
-				"Failed to acquire sem=%d lock; holdby=%d\n",
-				sem,
-				id_reg ? QLCRD32(adapter, id_reg, &err) : -1);
+			if (id_reg) {
+				done = QLCRD32(adapter, id_reg, &err);
+				if (done != -1)
+					dev_err(&adapter->pdev->dev,
+						"Failed to acquire sem=%d lock held by=%d\n",
+						sem, done);
+				else
+					dev_err(&adapter->pdev->dev,
+						"Failed to acquire sem=%d lock",
+						sem);
+			} else {
+				dev_err(&adapter->pdev->dev,
+					"Failed to acquire sem=%d lock", sem);
+			}
 			return -EIO;
 		}
 		msleep(1);
@@ -365,12 +373,16 @@ int qlcnic_ind_rd(struct qlcnic_adapter *adapter, u32 addr)
 	return data;
 }
 
-void qlcnic_ind_wr(struct qlcnic_adapter *adapter, u32 addr, u32 data)
+int qlcnic_ind_wr(struct qlcnic_adapter *adapter, u32 addr, u32 data)
 {
+	int ret = 0;
+
 	if (qlcnic_82xx_check(adapter))
 		qlcnic_write_window_reg(addr, adapter->ahw->pci_base0, data);
 	else
-		qlcnic_83xx_wrt_reg_indirect(adapter, addr, data);
+		ret = qlcnic_83xx_wrt_reg_indirect(adapter, addr, data);
+
+	return ret;
 }
 
 static int
@@ -559,28 +571,14 @@ static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 void qlcnic_set_multi(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_mac_vlan_list *cur;
-	struct netdev_hw_addr *ha;
-	size_t temp;
 
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
-	if (qlcnic_sriov_vf_check(adapter)) {
-		if (!netdev_mc_empty(netdev)) {
-			netdev_for_each_mc_addr(ha, netdev) {
-				temp = sizeof(struct qlcnic_mac_vlan_list);
-				cur = kzalloc(temp, GFP_ATOMIC);
-				if (cur == NULL)
-					break;
-				memcpy(cur->mac_addr,
-				       ha->addr, ETH_ALEN);
-				list_add_tail(&cur->list, &adapter->vf_mc_list);
-			}
-		}
-		qlcnic_sriov_vf_schedule_multi(adapter->netdev);
-		return;
-	}
-	__qlcnic_set_multi(netdev, 0);
+
+	if (qlcnic_sriov_vf_check(adapter))
+		qlcnic_sriov_vf_set_multi(netdev);
+	else
+		__qlcnic_set_multi(netdev, 0);
 }
 
 int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
@@ -622,7 +620,7 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 	struct hlist_node *n;
 	struct hlist_head *head;
 	int i;
-	unsigned long time;
+	unsigned long expires;
 	u8 cmd;
 
 	for (i = 0; i < adapter->fhash.fbucket_size; i++) {
@@ -630,8 +628,8 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 		hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
 			cmd =  tmp_fil->vlan_id ? QLCNIC_MAC_VLAN_DEL :
 						  QLCNIC_MAC_DEL;
-			time = tmp_fil->ftime;
-			if (jiffies > (QLCNIC_FILTER_AGE * HZ + time)) {
+			expires = tmp_fil->ftime + QLCNIC_FILTER_AGE * HZ;
+			if (time_before(expires, jiffies)) {
 				qlcnic_sre_macaddr_change(adapter,
 							  tmp_fil->faddr,
 							  tmp_fil->vlan_id,
@@ -649,8 +647,8 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 
 		hlist_for_each_entry_safe(tmp_fil, n, head, fnode)
 		{
-			time = tmp_fil->ftime;
-			if (jiffies > (QLCNIC_FILTER_AGE * HZ + time)) {
+			expires = tmp_fil->ftime + QLCNIC_FILTER_AGE * HZ;
+			if (time_before(expires, jiffies)) {
 				spin_lock_bh(&adapter->rx_mac_learn_lock);
 				adapter->rx_fhash.fnum--;
 				hlist_del(&tmp_fil->fnode);

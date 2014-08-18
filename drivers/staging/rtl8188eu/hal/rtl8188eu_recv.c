@@ -22,30 +22,11 @@
 #include <drv_types.h>
 #include <recv_osdep.h>
 #include <mlme_osdep.h>
-#include <ip.h>
-#include <if_ether.h>
-#include <ethernet.h>
 
-#include <usb_ops.h>
+#include <usb_ops_linux.h>
 #include <wifi.h>
 
 #include <rtl8188e_hal.h>
-
-void rtl8188eu_init_recvbuf(struct adapter *padapter, struct recv_buf *precvbuf)
-{
-	precvbuf->transfer_len = 0;
-
-	precvbuf->len = 0;
-
-	precvbuf->ref_cnt = 0;
-
-	if (precvbuf->pbuf) {
-		precvbuf->pdata = precvbuf->pbuf;
-		precvbuf->phead = precvbuf->pbuf;
-		precvbuf->ptail = precvbuf->pbuf;
-		precvbuf->pend = precvbuf->pdata + MAX_RECVBUF_SZ;
-	}
-}
 
 int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 {
@@ -60,13 +41,13 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 	/* init recv_buf */
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
 
-	precvpriv->pallocated_recv_buf = rtw_zmalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4);
+	precvpriv->pallocated_recv_buf = kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4, GFP_KERNEL);
 	if (precvpriv->pallocated_recv_buf == NULL) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("alloc recv_buf fail!\n"));
 		goto exit;
 	}
-	_rtw_memset(precvpriv->pallocated_recv_buf, 0, NR_RECVBUFF * sizeof(struct recv_buf) + 4);
+	memset(precvpriv->pallocated_recv_buf, 0, NR_RECVBUFF * sizeof(struct recv_buf) + 4);
 
 	precvpriv->precv_buf = (u8 *)N_BYTE_ALIGMENT((size_t)(precvpriv->pallocated_recv_buf), 4);
 
@@ -74,13 +55,9 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		_rtw_init_listhead(&precvbuf->list);
-		spin_lock_init(&precvbuf->recvbuf_lock);
-		precvbuf->alloc_sz = MAX_RECVBUF_SZ;
 		res = rtw_os_recvbuf_resource_alloc(padapter, precvbuf);
 		if (res == _FAIL)
 			break;
-		precvbuf->ref_cnt = 0;
 		precvbuf->adapter = padapter;
 		precvbuf++;
 	}
@@ -120,7 +97,7 @@ void rtl8188eu_free_recv_priv(struct adapter *padapter)
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		rtw_os_recvbuf_resource_free(padapter, precvbuf);
+		usb_free_urb(precvbuf->purb);
 		precvbuf++;
 	}
 

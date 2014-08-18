@@ -32,7 +32,7 @@ TRACE_EVENT(task_newtask,
 
 TRACE_EVENT(task_rename,
 
-	TP_PROTO(struct task_struct *task, char *comm),
+	TP_PROTO(struct task_struct *task, const char *comm),
 
 	TP_ARGS(task, comm),
 

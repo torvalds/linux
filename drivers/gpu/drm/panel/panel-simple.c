@@ -22,9 +22,8 @@
  */
 
 #include <linux/backlight.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -38,17 +37,35 @@ struct panel_desc {
 	const struct drm_display_mode *modes;
 	unsigned int num_modes;
 
+	unsigned int bpc;
+
 	struct {
 		unsigned int width;
 		unsigned int height;
 	} size;
-};
 
-/* TODO: convert to gpiod_*() API once it's been merged */
-#define GPIO_ACTIVE_LOW	(1 << 0)
+	/**
+	 * @prepare: the time (in milliseconds) that it takes for the panel to
+	 *           become ready and start receiving video data
+	 * @enable: the time (in milliseconds) that it takes for the panel to
+	 *          display the first valid frame after starting to receive
+	 *          video data
+	 * @disable: the time (in milliseconds) that it takes for the panel to
+	 *           turn the display off (no content is visible)
+	 * @unprepare: the time (in milliseconds) that it takes for the panel
+	 *             to power itself down completely
+	 */
+	struct {
+		unsigned int prepare;
+		unsigned int enable;
+		unsigned int disable;
+		unsigned int unprepare;
+	} delay;
+};
 
 struct panel_simple {
 	struct drm_panel base;
+	bool prepared;
 	bool enabled;
 
 	const struct panel_desc *desc;
@@ -57,8 +74,7 @@ struct panel_simple {
 	struct regulator *supply;
 	struct i2c_adapter *ddc;
 
-	unsigned long enable_gpio_flags;
-	int enable_gpio;
+	struct gpio_desc *enable_gpio;
 };
 
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
@@ -92,6 +108,7 @@ static int panel_simple_get_fixed_modes(struct panel_simple *panel)
 		num++;
 	}
 
+	connector->display_info.bpc = panel->desc->bpc;
 	connector->display_info.width_mm = panel->desc->size.width;
 	connector->display_info.height_mm = panel->desc->size.height;
 
@@ -110,25 +127,40 @@ static int panel_simple_disable(struct drm_panel *panel)
 		backlight_update_status(p->backlight);
 	}
 
-	if (gpio_is_valid(p->enable_gpio)) {
-		if (p->enable_gpio_flags & GPIO_ACTIVE_LOW)
-			gpio_set_value(p->enable_gpio, 1);
-		else
-			gpio_set_value(p->enable_gpio, 0);
-	}
+	if (p->desc->delay.disable)
+		msleep(p->desc->delay.disable);
 
-	regulator_disable(p->supply);
 	p->enabled = false;
 
 	return 0;
 }
 
-static int panel_simple_enable(struct drm_panel *panel)
+static int panel_simple_unprepare(struct drm_panel *panel)
+{
+	struct panel_simple *p = to_panel_simple(panel);
+
+	if (!p->prepared)
+		return 0;
+
+	if (p->enable_gpio)
+		gpiod_set_value_cansleep(p->enable_gpio, 0);
+
+	regulator_disable(p->supply);
+
+	if (p->desc->delay.unprepare)
+		msleep(p->desc->delay.unprepare);
+
+	p->prepared = false;
+
+	return 0;
+}
+
+static int panel_simple_prepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
 	int err;
 
-	if (p->enabled)
+	if (p->prepared)
 		return 0;
 
 	err = regulator_enable(p->supply);
@@ -137,12 +169,26 @@ static int panel_simple_enable(struct drm_panel *panel)
 		return err;
 	}
 
-	if (gpio_is_valid(p->enable_gpio)) {
-		if (p->enable_gpio_flags & GPIO_ACTIVE_LOW)
-			gpio_set_value(p->enable_gpio, 0);
-		else
-			gpio_set_value(p->enable_gpio, 1);
-	}
+	if (p->enable_gpio)
+		gpiod_set_value_cansleep(p->enable_gpio, 1);
+
+	if (p->desc->delay.prepare)
+		msleep(p->desc->delay.prepare);
+
+	p->prepared = true;
+
+	return 0;
+}
+
+static int panel_simple_enable(struct drm_panel *panel)
+{
+	struct panel_simple *p = to_panel_simple(panel);
+
+	if (p->enabled)
+		return 0;
+
+	if (p->desc->delay.enable)
+		msleep(p->desc->delay.enable);
 
 	if (p->backlight) {
 		p->backlight->props.power = FB_BLANK_UNBLANK;
@@ -177,6 +223,8 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 
 static const struct drm_panel_funcs panel_simple_funcs = {
 	.disable = panel_simple_disable,
+	.unprepare = panel_simple_unprepare,
+	.prepare = panel_simple_prepare,
 	.enable = panel_simple_enable,
 	.get_modes = panel_simple_get_modes,
 };
@@ -185,7 +233,6 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 {
 	struct device_node *backlight, *ddc;
 	struct panel_simple *panel;
-	enum of_gpio_flags flags;
 	int err;
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
@@ -193,35 +240,25 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		return -ENOMEM;
 
 	panel->enabled = false;
+	panel->prepared = false;
 	panel->desc = desc;
 
 	panel->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(panel->supply))
 		return PTR_ERR(panel->supply);
 
-	panel->enable_gpio = of_get_named_gpio_flags(dev->of_node,
-						     "enable-gpios", 0,
-						     &flags);
-	if (gpio_is_valid(panel->enable_gpio)) {
-		unsigned int value;
+	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable");
+	if (IS_ERR(panel->enable_gpio)) {
+		err = PTR_ERR(panel->enable_gpio);
+		dev_err(dev, "failed to request GPIO: %d\n", err);
+		return err;
+	}
 
-		if (flags & OF_GPIO_ACTIVE_LOW)
-			panel->enable_gpio_flags |= GPIO_ACTIVE_LOW;
-
-		err = gpio_request(panel->enable_gpio, "enable");
+	if (panel->enable_gpio) {
+		err = gpiod_direction_output(panel->enable_gpio, 0);
 		if (err < 0) {
-			dev_err(dev, "failed to request GPIO#%u: %d\n",
-				panel->enable_gpio, err);
+			dev_err(dev, "failed to setup GPIO: %d\n", err);
 			return err;
-		}
-
-		value = (panel->enable_gpio_flags & GPIO_ACTIVE_LOW) != 0;
-
-		err = gpio_direction_output(panel->enable_gpio, value);
-		if (err < 0) {
-			dev_err(dev, "failed to setup GPIO%u: %d\n",
-				panel->enable_gpio, err);
-			goto free_gpio;
 		}
 	}
 
@@ -230,10 +267,8 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		panel->backlight = of_find_backlight_by_node(backlight);
 		of_node_put(backlight);
 
-		if (!panel->backlight) {
-			err = -EPROBE_DEFER;
-			goto free_gpio;
-		}
+		if (!panel->backlight)
+			return -EPROBE_DEFER;
 	}
 
 	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
@@ -265,9 +300,6 @@ free_ddc:
 free_backlight:
 	if (panel->backlight)
 		put_device(&panel->backlight->dev);
-free_gpio:
-	if (gpio_is_valid(panel->enable_gpio))
-		gpio_free(panel->enable_gpio);
 
 	return err;
 }
@@ -287,12 +319,14 @@ static int panel_simple_remove(struct device *dev)
 	if (panel->backlight)
 		put_device(&panel->backlight->dev);
 
-	if (gpio_is_valid(panel->enable_gpio))
-		gpio_free(panel->enable_gpio);
-
-	regulator_disable(panel->supply);
-
 	return 0;
+}
+
+static void panel_simple_shutdown(struct device *dev)
+{
+	struct panel_simple *panel = dev_get_drvdata(dev);
+
+	panel_simple_disable(&panel->base);
 }
 
 static const struct drm_display_mode auo_b101aw03_mode = {
@@ -311,9 +345,60 @@ static const struct drm_display_mode auo_b101aw03_mode = {
 static const struct panel_desc auo_b101aw03 = {
 	.modes = &auo_b101aw03_mode,
 	.num_modes = 1,
+	.bpc = 6,
 	.size = {
 		.width = 223,
 		.height = 125,
+	},
+};
+
+static const struct drm_display_mode auo_b133xtn01_mode = {
+	.clock = 69500,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 48,
+	.hsync_end = 1366 + 48 + 32,
+	.htotal = 1366 + 48 + 32 + 20,
+	.vdisplay = 768,
+	.vsync_start = 768 + 3,
+	.vsync_end = 768 + 3 + 6,
+	.vtotal = 768 + 3 + 6 + 13,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_b133xtn01 = {
+	.modes = &auo_b133xtn01_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 293,
+		.height = 165,
+	},
+};
+
+static const struct drm_display_mode auo_b133htn01_mode = {
+	.clock = 150660,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 172,
+	.hsync_end = 1920 + 172 + 80,
+	.htotal = 1920 + 172 + 80 + 60,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 25,
+	.vsync_end = 1080 + 25 + 10,
+	.vtotal = 1080 + 25 + 10 + 10,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_b133htn01 = {
+	.modes = &auo_b133htn01_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 293,
+		.height = 165,
+	},
+	.delay = {
+		.prepare = 105,
+		.enable = 20,
+		.unprepare = 50,
 	},
 };
 
@@ -333,6 +418,7 @@ static const struct drm_display_mode chunghwa_claa101wa01a_mode = {
 static const struct panel_desc chunghwa_claa101wa01a = {
 	.modes = &chunghwa_claa101wa01a_mode,
 	.num_modes = 1,
+	.bpc = 6,
 	.size = {
 		.width = 220,
 		.height = 120,
@@ -355,9 +441,150 @@ static const struct drm_display_mode chunghwa_claa101wb01_mode = {
 static const struct panel_desc chunghwa_claa101wb01 = {
 	.modes = &chunghwa_claa101wb01_mode,
 	.num_modes = 1,
+	.bpc = 6,
 	.size = {
 		.width = 223,
 		.height = 125,
+	},
+};
+
+static const struct drm_display_mode edt_et057090dhu_mode = {
+	.clock = 25175,
+	.hdisplay = 640,
+	.hsync_start = 640 + 16,
+	.hsync_end = 640 + 16 + 30,
+	.htotal = 640 + 16 + 30 + 114,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 3,
+	.vtotal = 480 + 10 + 3 + 32,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc edt_et057090dhu = {
+	.modes = &edt_et057090dhu_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 115,
+		.height = 86,
+	},
+};
+
+static const struct drm_display_mode edt_etm0700g0dh6_mode = {
+	.clock = 33260,
+	.hdisplay = 800,
+	.hsync_start = 800 + 40,
+	.hsync_end = 800 + 40 + 128,
+	.htotal = 800 + 40 + 128 + 88,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 2,
+	.vtotal = 480 + 10 + 2 + 33,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+};
+
+static const struct panel_desc edt_etm0700g0dh6 = {
+	.modes = &edt_etm0700g0dh6_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 152,
+		.height = 91,
+	},
+};
+
+static const struct drm_display_mode foxlink_fl500wvr00_a0t_mode = {
+	.clock = 32260,
+	.hdisplay = 800,
+	.hsync_start = 800 + 168,
+	.hsync_end = 800 + 168 + 64,
+	.htotal = 800 + 168 + 64 + 88,
+	.vdisplay = 480,
+	.vsync_start = 480 + 37,
+	.vsync_end = 480 + 37 + 2,
+	.vtotal = 480 + 37 + 2 + 8,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc foxlink_fl500wvr00_a0t = {
+	.modes = &foxlink_fl500wvr00_a0t_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 108,
+		.height = 65,
+	},
+};
+
+static const struct drm_display_mode innolux_n116bge_mode = {
+	.clock = 71000,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 64,
+	.hsync_end = 1366 + 64 + 6,
+	.htotal = 1366 + 64 + 6 + 64,
+	.vdisplay = 768,
+	.vsync_start = 768 + 8,
+	.vsync_end = 768 + 8 + 4,
+	.vtotal = 768 + 8 + 4 + 8,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+};
+
+static const struct panel_desc innolux_n116bge = {
+	.modes = &innolux_n116bge_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 256,
+		.height = 144,
+	},
+};
+
+static const struct drm_display_mode innolux_n156bge_l21_mode = {
+	.clock = 69300,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 16,
+	.hsync_end = 1366 + 16 + 34,
+	.htotal = 1366 + 16 + 34 + 50,
+	.vdisplay = 768,
+	.vsync_start = 768 + 2,
+	.vsync_end = 768 + 2 + 6,
+	.vtotal = 768 + 2 + 6 + 12,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc innolux_n156bge_l21 = {
+	.modes = &innolux_n156bge_l21_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 344,
+		.height = 193,
+	},
+};
+
+static const struct drm_display_mode lg_lp129qe_mode = {
+	.clock = 285250,
+	.hdisplay = 2560,
+	.hsync_start = 2560 + 48,
+	.hsync_end = 2560 + 48 + 32,
+	.htotal = 2560 + 48 + 32 + 80,
+	.vdisplay = 1700,
+	.vsync_start = 1700 + 3,
+	.vsync_end = 1700 + 3 + 10,
+	.vtotal = 1700 + 3 + 10 + 36,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc lg_lp129qe = {
+	.modes = &lg_lp129qe_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 272,
+		.height = 181,
 	},
 };
 
@@ -377,6 +604,7 @@ static const struct drm_display_mode samsung_ltn101nt05_mode = {
 static const struct panel_desc samsung_ltn101nt05 = {
 	.modes = &samsung_ltn101nt05_mode,
 	.num_modes = 1,
+	.bpc = 6,
 	.size = {
 		.width = 1024,
 		.height = 600,
@@ -388,16 +616,41 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,b101aw03",
 		.data = &auo_b101aw03,
 	}, {
+		.compatible = "auo,b133htn01",
+		.data = &auo_b133htn01,
+	}, {
+		.compatible = "auo,b133xtn01",
+		.data = &auo_b133xtn01,
+	}, {
 		.compatible = "chunghwa,claa101wa01a",
 		.data = &chunghwa_claa101wa01a
 	}, {
 		.compatible = "chunghwa,claa101wb01",
 		.data = &chunghwa_claa101wb01
 	}, {
+		.compatible = "edt,et057090dhu",
+		.data = &edt_et057090dhu,
+	}, {
+		.compatible = "edt,et070080dh6",
+		.data = &edt_etm0700g0dh6,
+	}, {
+		.compatible = "edt,etm0700g0dh6",
+		.data = &edt_etm0700g0dh6,
+	}, {
+		.compatible = "foxlink,fl500wvr00-a0t",
+		.data = &foxlink_fl500wvr00_a0t,
+	}, {
+		.compatible = "innolux,n116bge",
+		.data = &innolux_n116bge,
+	}, {
+		.compatible = "innolux,n156bge-l21",
+		.data = &innolux_n156bge_l21,
+	}, {
+		.compatible = "lg,lp129qe",
+		.data = &lg_lp129qe,
+	}, {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
-	}, {
-		.compatible = "simple-panel",
 	}, {
 		/* sentinel */
 	}
@@ -420,6 +673,11 @@ static int panel_simple_platform_remove(struct platform_device *pdev)
 	return panel_simple_remove(&pdev->dev);
 }
 
+static void panel_simple_platform_shutdown(struct platform_device *pdev)
+{
+	panel_simple_shutdown(&pdev->dev);
+}
+
 static struct platform_driver panel_simple_platform_driver = {
 	.driver = {
 		.name = "panel-simple",
@@ -428,13 +686,69 @@ static struct platform_driver panel_simple_platform_driver = {
 	},
 	.probe = panel_simple_platform_probe,
 	.remove = panel_simple_platform_remove,
+	.shutdown = panel_simple_platform_shutdown,
 };
 
 struct panel_desc_dsi {
 	struct panel_desc desc;
 
+	unsigned long flags;
 	enum mipi_dsi_pixel_format format;
 	unsigned int lanes;
+};
+
+static const struct drm_display_mode lg_ld070wx3_sl01_mode = {
+	.clock = 71000,
+	.hdisplay = 800,
+	.hsync_start = 800 + 32,
+	.hsync_end = 800 + 32 + 1,
+	.htotal = 800 + 32 + 1 + 57,
+	.vdisplay = 1280,
+	.vsync_start = 1280 + 28,
+	.vsync_end = 1280 + 28 + 1,
+	.vtotal = 1280 + 28 + 1 + 14,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi lg_ld070wx3_sl01 = {
+	.desc = {
+		.modes = &lg_ld070wx3_sl01_mode,
+		.num_modes = 1,
+		.size = {
+			.width = 94,
+			.height = 151,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
+static const struct drm_display_mode lg_lh500wx1_sd03_mode = {
+	.clock = 67000,
+	.hdisplay = 720,
+	.hsync_start = 720 + 12,
+	.hsync_end = 720 + 12 + 4,
+	.htotal = 720 + 12 + 4 + 112,
+	.vdisplay = 1280,
+	.vsync_start = 1280 + 8,
+	.vsync_end = 1280 + 8 + 4,
+	.vtotal = 1280 + 8 + 4 + 12,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi lg_lh500wx1_sd03 = {
+	.desc = {
+		.modes = &lg_lh500wx1_sd03_mode,
+		.num_modes = 1,
+		.size = {
+			.width = 62,
+			.height = 110,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
 };
 
 static const struct drm_display_mode panasonic_vvx10f004b00_mode = {
@@ -459,12 +773,20 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 			.height = 136,
 		},
 	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
+		 MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
 };
 
 static const struct of_device_id dsi_of_match[] = {
 	{
+		.compatible = "lg,ld070wx3-sl01",
+		.data = &lg_ld070wx3_sl01
+	}, {
+		.compatible = "lg,lh500wx1-sd03",
+		.data = &lg_lh500wx1_sd03
+	}, {
 		.compatible = "panasonic,vvx10f004b00",
 		.data = &panasonic_vvx10f004b00
 	}, {
@@ -489,6 +811,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	if (err < 0)
 		return err;
 
+	dsi->mode_flags = desc->flags;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
@@ -506,6 +829,11 @@ static int panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
 	return panel_simple_remove(&dsi->dev);
 }
 
+static void panel_simple_dsi_shutdown(struct mipi_dsi_device *dsi)
+{
+	panel_simple_shutdown(&dsi->dev);
+}
+
 static struct mipi_dsi_driver panel_simple_dsi_driver = {
 	.driver = {
 		.name = "panel-simple-dsi",
@@ -514,6 +842,7 @@ static struct mipi_dsi_driver panel_simple_dsi_driver = {
 	},
 	.probe = panel_simple_dsi_probe,
 	.remove = panel_simple_dsi_remove,
+	.shutdown = panel_simple_dsi_shutdown,
 };
 
 static int __init panel_simple_init(void)

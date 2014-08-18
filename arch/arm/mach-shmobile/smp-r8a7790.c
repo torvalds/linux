@@ -17,43 +17,32 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/io.h>
-#include <asm/smp_plat.h>
-#include <mach/common.h>
 
-#define RST		0xe6160000
-#define CA15BAR		0x0020
-#define CA7BAR		0x0030
-#define CA15RESCNT	0x0040
-#define CA7RESCNT	0x0044
-#define MERAM		0xe8080000
+#include <asm/smp_plat.h>
+
+#include "common.h"
+#include "pm-rcar.h"
+#include "r8a7790.h"
+
+static struct rcar_sysc_ch r8a7790_ca15_scu = {
+	.chan_offs = 0x180, /* PWRSR5 .. PWRER5 */
+	.isr_bit = 12, /* CA15-SCU */
+};
+
+static struct rcar_sysc_ch r8a7790_ca7_scu = {
+	.chan_offs = 0x100, /* PWRSR3 .. PWRER3 */
+	.isr_bit = 21, /* CA7-SCU */
+};
 
 static void __init r8a7790_smp_prepare_cpus(unsigned int max_cpus)
 {
-	void __iomem *p;
-	u32 bar;
-
 	/* let APMU code install data related to shmobile_boot_vector */
 	shmobile_smp_apmu_prepare_cpus(max_cpus);
 
-	/* MERAM for jump stub, because BAR requires 256KB aligned address */
-	p = ioremap_nocache(MERAM, shmobile_boot_size);
-	memcpy_toio(p, shmobile_boot_vector, shmobile_boot_size);
-	iounmap(p);
-
-	/* setup reset vectors */
-	p = ioremap_nocache(RST, 0x63);
-	bar = (MERAM >> 8) & 0xfffffc00;
-	writel_relaxed(bar, p + CA15BAR);
-	writel_relaxed(bar, p + CA7BAR);
-	writel_relaxed(bar | 0x10, p + CA15BAR);
-	writel_relaxed(bar | 0x10, p + CA7BAR);
-
-	/* enable clocks to all CPUs */
-	writel_relaxed((readl_relaxed(p + CA15RESCNT) & ~0x0f) | 0xa5a50000,
-		       p + CA15RESCNT);
-	writel_relaxed((readl_relaxed(p + CA7RESCNT) & ~0x0f) | 0x5a5a0000,
-		       p + CA7RESCNT);
-	iounmap(p);
+	/* turn on power to SCU */
+	r8a7790_pm_init();
+	rcar_sysc_power_up(&r8a7790_ca15_scu);
+	rcar_sysc_power_up(&r8a7790_ca7_scu);
 }
 
 struct smp_operations r8a7790_smp_ops __initdata = {

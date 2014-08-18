@@ -17,9 +17,11 @@
 #include <asm/mipsregs.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/fpu_emulator.h>
 #include <asm/hazards.h>
 #include <asm/processor.h>
 #include <asm/current.h>
+#include <asm/msa.h>
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 #include <asm/mips_mt.h>
@@ -28,7 +30,6 @@
 struct sigcontext;
 struct sigcontext32;
 
-extern void fpu_emulator_init_fpu(void);
 extern void _init_fpu(void);
 extern void _save_fp(struct task_struct *);
 extern void _restore_fp(struct task_struct *);
@@ -141,13 +142,21 @@ static inline int own_fpu(int restore)
 static inline void lose_fpu(int save)
 {
 	preempt_disable();
-	if (is_fpu_owner()) {
+	if (is_msa_enabled()) {
+		if (save) {
+			save_msa(current);
+			asm volatile("cfc1 %0, $31"
+				: "=r"(current->thread.fpu.fcr31));
+		}
+		disable_msa();
+		clear_thread_flag(TIF_USEDMSA);
+	} else if (is_fpu_owner()) {
 		if (save)
 			_save_fp(current);
-		KSTK_STATUS(current) &= ~ST0_CU1;
-		clear_thread_flag(TIF_USEDFPU);
 		__disable_fpu();
 	}
+	KSTK_STATUS(current) &= ~ST0_CU1;
+	clear_thread_flag(TIF_USEDFPU);
 	preempt_enable();
 }
 
@@ -155,16 +164,13 @@ static inline int init_fpu(void)
 {
 	int ret = 0;
 
-	preempt_disable();
 	if (cpu_has_fpu) {
 		ret = __own_fpu();
 		if (!ret)
 			_init_fpu();
-	} else {
+	} else
 		fpu_emulator_init_fpu();
-	}
 
-	preempt_enable();
 	return ret;
 }
 
@@ -180,7 +186,7 @@ static inline void restore_fp(struct task_struct *tsk)
 		_restore_fp(tsk);
 }
 
-static inline fpureg_t *get_fpu_regs(struct task_struct *tsk)
+static inline union fpureg *get_fpu_regs(struct task_struct *tsk)
 {
 	if (tsk == current) {
 		preempt_disable();

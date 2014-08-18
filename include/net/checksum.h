@@ -57,16 +57,31 @@ static __inline__ __wsum csum_and_copy_to_user
 }
 #endif
 
+#ifndef HAVE_ARCH_CSUM_ADD
 static inline __wsum csum_add(__wsum csum, __wsum addend)
 {
 	u32 res = (__force u32)csum;
 	res += (__force u32)addend;
 	return (__force __wsum)(res + (res < (__force u32)addend));
 }
+#endif
 
 static inline __wsum csum_sub(__wsum csum, __wsum addend)
 {
 	return csum_add(csum, ~addend);
+}
+
+static inline __sum16 csum16_add(__sum16 csum, __be16 addend)
+{
+	u16 res = (__force u16)csum;
+
+	res += (__force u16)addend;
+	return (__force __sum16)(res + (res < (__force u16)addend));
+}
+
+static inline __sum16 csum16_sub(__sum16 csum, __be16 addend)
+{
+	return csum16_add(csum, ~addend);
 }
 
 static inline __wsum
@@ -112,9 +127,15 @@ static inline void csum_replace4(__sum16 *sum, __be32 from, __be32 to)
 	*sum = csum_fold(csum_partial(diff, sizeof(diff), ~csum_unfold(*sum)));
 }
 
-static inline void csum_replace2(__sum16 *sum, __be16 from, __be16 to)
+/* Implements RFC 1624 (Incremental Internet Checksum)
+ * 3. Discussion states :
+ *     HC' = ~(~HC + ~m + m')
+ *  m : old value of a 16bit field
+ *  m' : new value of a 16bit field
+ */
+static inline void csum_replace2(__sum16 *sum, __be16 old, __be16 new)
 {
-	csum_replace4(sum, (__force __be32)from, (__force __be32)to);
+	*sum = ~csum16_add(csum16_sub(~(*sum), old), new);
 }
 
 struct sk_buff;

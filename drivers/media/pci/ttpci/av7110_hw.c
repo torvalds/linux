@@ -501,7 +501,7 @@ int av7110_fw_cmd(struct av7110 *av7110, int type, int com, int num, ...)
 
 //	dprintk(4, "%p\n", av7110);
 
-	if (2 + num > sizeof(buf)) {
+	if (2 + num > ARRAY_SIZE(buf)) {
 		printk(KERN_WARNING
 		       "%s: %s len=%d is too big!\n",
 		       KBUILD_MODNAME, __func__, num);

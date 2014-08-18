@@ -32,6 +32,8 @@ extern struct nouveau_oclass nva3_ram_oclass;
 extern struct nouveau_oclass nvaa_ram_oclass;
 extern struct nouveau_oclass nvc0_ram_oclass;
 extern struct nouveau_oclass nve0_ram_oclass;
+extern struct nouveau_oclass gk20a_ram_oclass;
+extern struct nouveau_oclass gm107_ram_oclass;
 
 int nouveau_sddr3_calc(struct nouveau_ram *ram);
 int nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts);

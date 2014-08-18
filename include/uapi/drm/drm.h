@@ -619,6 +619,15 @@ struct drm_gem_open {
 #define  DRM_PRIME_CAP_EXPORT		0x2
 #define DRM_CAP_TIMESTAMP_MONOTONIC	0x6
 #define DRM_CAP_ASYNC_PAGE_FLIP		0x7
+/*
+ * The CURSOR_WIDTH and CURSOR_HEIGHT capabilities return a valid widthxheight
+ * combination for the hardware cursor. The intention is that a hardware
+ * agnostic userspace can query a cursor plane size to use.
+ *
+ * Note that the cross-driver contract is to merely return a valid size;
+ * drivers are free to attach another meaning on top, eg. i915 returns the
+ * maximum plane size.
+ */
 #define DRM_CAP_CURSOR_WIDTH		0x8
 #define DRM_CAP_CURSOR_HEIGHT		0x9
 
@@ -636,6 +645,14 @@ struct drm_get_cap {
  * drm_mode_modeinfo.
  */
 #define DRM_CLIENT_CAP_STEREO_3D	1
+
+/**
+ * DRM_CLIENT_CAP_UNIVERSAL_PLANES
+ *
+ * If set to 1, the DRM core will expose all planes (overlay, primary, and
+ * cursor) to userspace.
+ */
+#define DRM_CLIENT_CAP_UNIVERSAL_PLANES  2
 
 /** DRM_IOCTL_SET_CLIENT_CAP ioctl argument type */
 struct drm_set_client_cap {
@@ -763,7 +780,7 @@ struct drm_prime_handle {
 
 /**
  * Device specific ioctls should only be in their respective headers
- * The device specific ioctl range is from 0x40 to 0x99.
+ * The device specific ioctl range is from 0x40 to 0x9f.
  * Generic IOCTLS restart at 0xA0.
  *
  * \sa drmCommandNone(), drmCommandRead(), drmCommandWrite(), and

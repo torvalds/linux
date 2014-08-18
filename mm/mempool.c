@@ -10,6 +10,7 @@
 
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/kmemleak.h>
 #include <linux/export.h>
 #include <linux/mempool.h>
 #include <linux/blkdev.h>
@@ -192,6 +193,7 @@ EXPORT_SYMBOL(mempool_resize);
  * returns NULL. Note that due to preallocation, this function
  * *never* fails when called from process contexts. (it might
  * fail if called from an IRQ context.)
+ * Note: using __GFP_ZERO is not supported.
  */
 void * mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 {
@@ -200,6 +202,7 @@ void * mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 	wait_queue_t wait;
 	gfp_t gfp_temp;
 
+	VM_WARN_ON_ONCE(gfp_mask & __GFP_ZERO);
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
 	gfp_mask |= __GFP_NOMEMALLOC;	/* don't allocate emergency reserves */
@@ -220,6 +223,11 @@ repeat_alloc:
 		spin_unlock_irqrestore(&pool->lock, flags);
 		/* paired with rmb in mempool_free(), read comment there */
 		smp_wmb();
+		/*
+		 * Update the allocation stack trace as this is more useful
+		 * for debugging.
+		 */
+		kmemleak_update_trace(element);
 		return element;
 	}
 
@@ -304,9 +312,9 @@ void mempool_free(void *element, mempool_t *pool)
 	 * ensures that there will be frees which return elements to the
 	 * pool waking up the waiters.
 	 */
-	if (pool->curr_nr < pool->min_nr) {
+	if (unlikely(pool->curr_nr < pool->min_nr)) {
 		spin_lock_irqsave(&pool->lock, flags);
-		if (pool->curr_nr < pool->min_nr) {
+		if (likely(pool->curr_nr < pool->min_nr)) {
 			add_element(pool, element);
 			spin_unlock_irqrestore(&pool->lock, flags);
 			wake_up(&pool->wait);

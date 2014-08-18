@@ -29,10 +29,11 @@
 #include "vnic_stats.h"
 #include "vnic_nic.h"
 #include "vnic_rss.h"
+#include <linux/irq.h>
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.1.1.50"
+#define DRV_VERSION		"2.1.1.67"
 #define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -42,11 +43,40 @@
 #define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
 #define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
 
+#define ENIC_AIC_LARGE_PKT_DIFF	3
+
 struct enic_msix_entry {
 	int requested;
 	char devname[IFNAMSIZ];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
+};
+
+/* Store only the lower range.  Higher range is given by fw. */
+struct enic_intr_mod_range {
+	u32 small_pkt_range_start;
+	u32 large_pkt_range_start;
+};
+
+struct enic_intr_mod_table {
+	u32 rx_rate;
+	u32 range_percent;
+};
+
+#define ENIC_MAX_LINK_SPEEDS		3
+#define ENIC_LINK_SPEED_10G		10000
+#define ENIC_LINK_SPEED_4G		4000
+#define ENIC_LINK_40G_INDEX		2
+#define ENIC_LINK_10G_INDEX		1
+#define ENIC_LINK_4G_INDEX		0
+#define ENIC_RX_COALESCE_RANGE_END	125
+#define ENIC_AIC_TS_BREAK		100
+
+struct enic_rx_coal {
+	u32 small_pkt_range_start;
+	u32 large_pkt_range_start;
+	u32 range_end;
+	u32 use_adaptive_rx_coalesce;
 };
 
 /* priv_flags */
@@ -69,6 +99,41 @@ struct enic_port_profile {
 	u8 mac_addr[ETH_ALEN];
 };
 
+/* enic_rfs_fltr_node - rfs filter node in hash table
+ *	@@keys: IPv4 5 tuple
+ *	@flow_id: flow_id of clsf filter provided by kernel
+ *	@fltr_id: filter id of clsf filter returned by adaptor
+ *	@rq_id: desired rq index
+ *	@node: hlist_node
+ */
+struct enic_rfs_fltr_node {
+	struct flow_keys keys;
+	u32 flow_id;
+	u16 fltr_id;
+	u16 rq_id;
+	struct hlist_node node;
+};
+
+/* enic_rfs_flw_tbl - rfs flow table
+ *	@max: Maximum number of filters vNIC supports
+ *	@free: Number of free filters available
+ *	@toclean: hash table index to clean next
+ *	@ht_head: hash table list head
+ *	@lock: spin lock
+ *	@rfs_may_expire: timer function for enic_rps_may_expire_flow
+ */
+struct enic_rfs_flw_tbl {
+	u16 max;
+	int free;
+
+#define ENIC_RFS_FLW_BITSHIFT	(10)
+#define ENIC_RFS_FLW_MASK	((1 << ENIC_RFS_FLW_BITSHIFT) - 1)
+	u16 toclean:ENIC_RFS_FLW_BITSHIFT;
+	struct hlist_head ht_head[1 << ENIC_RFS_FLW_BITSHIFT];
+	spinlock_t lock;
+	struct timer_list rfs_may_expire;
+};
+
 /* Per-instance private data structure */
 struct enic {
 	struct net_device *netdev;
@@ -84,13 +149,12 @@ struct enic {
 	u32 msg_enable;
 	spinlock_t devcmd_lock;
 	u8 mac_addr[ETH_ALEN];
-	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
-	u8 uc_addr[ENIC_UNICAST_PERFECT_FILTERS][ETH_ALEN];
 	unsigned int flags;
 	unsigned int priv_flags;
 	unsigned int mc_count;
 	unsigned int uc_count;
 	u32 port_mtu;
+	struct enic_rx_coal rx_coalesce_setting;
 	u32 rx_coalesce_usecs;
 	u32 tx_coalesce_usecs;
 #ifdef CONFIG_PCI_IOV
@@ -111,7 +175,7 @@ struct enic {
 	unsigned int rq_count;
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
-	struct napi_struct napi[ENIC_RQ_MAX];
+	struct napi_struct napi[ENIC_RQ_MAX + ENIC_WQ_MAX];
 
 	/* interrupt resource cache line section */
 	____cacheline_aligned struct vnic_intr intr[ENIC_INTR_MAX];
@@ -121,6 +185,7 @@ struct enic {
 	/* completion queue cache line section */
 	____cacheline_aligned struct vnic_cq cq[ENIC_CQ_MAX];
 	unsigned int cq_count;
+	struct enic_rfs_flw_tbl rfs_h;
 };
 
 static inline struct device *enic_get_dev(struct enic *enic)

@@ -123,13 +123,13 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			/* write zonetype */
 			if (sZoneTypeCmd.ZoneType == ZoneType_USA) {
 				/* set to USA */
-				printk("set_ZoneType:USA\n");
+				pr_debug("set_ZoneType:USA\n");
 			} else if (sZoneTypeCmd.ZoneType == ZoneType_Japan) {
 				/* set to Japan */
-				printk("set_ZoneType:Japan\n");
+				pr_debug("set_ZoneType:Japan\n");
 			} else if (sZoneTypeCmd.ZoneType == ZoneType_Europe) {
 				/* set to Europe */
-				printk("set_ZoneType:Europe\n");
+				pr_debug("set_ZoneType:Europe\n");
 			}
 		} else {
 			/* read zonetype */
@@ -142,7 +142,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			} else if (zonetype == 0x02) {	/* Europe */
 				sZoneTypeCmd.ZoneType = ZoneType_Europe;
 			} else {			/* Unknown ZoneType */
-				printk("Error:ZoneType[%x] Unknown ???\n", zonetype);
+				pr_err("Error:ZoneType[%x] Unknown ???\n", zonetype);
 				result = -EFAULT;
 				break;
 			}
@@ -305,7 +305,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			result = -EINVAL;
 			break;
 		}
-		pList = (PSBSSIDList)kmalloc(sizeof(SBSSIDList) + (sList.uItem * sizeof(SBSSIDItem)), (int)GFP_ATOMIC);
+		pList = (PSBSSIDList)kmalloc(sizeof(SBSSIDList) + (sList.uItem * sizeof(SBSSIDItem)),
+					     GFP_ATOMIC);
 		if (pList == NULL) {
 			result = -ENOMEM;
 			break;
@@ -318,7 +319,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 				pList->sBSSIDList[ii].uChannel = pBSS->uChannel;
 				pList->sBSSIDList[ii].wBeaconInterval = pBSS->wBeaconInterval;
 				pList->sBSSIDList[ii].wCapInfo = pBSS->wCapInfo;
-				/* pList->sBSSIDList[ii].uRSSI = pBSS->uRSSI; */
 				RFvRSSITodBm(pDevice, (unsigned char)(pBSS->uRSSI), &ldBm);
 				pList->sBSSIDList[ii].uRSSI = (unsigned int)ldBm;
 				memcpy(pList->sBSSIDList[ii].abyBSSID, pBSS->abyBSSID, WLAN_BSSID_LEN);
@@ -576,7 +576,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			result = -EINVAL;
 			break;
 		}
-		pNodeList = (PSNodeList)kmalloc(sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)), (int)GFP_ATOMIC);
+		pNodeList = (PSNodeList)kmalloc(sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)),
+						GFP_ATOMIC);
 		if (pNodeList == NULL) {
 			result = -ENOMEM;
 			break;

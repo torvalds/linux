@@ -298,7 +298,7 @@ static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
 {
 	int ret = 0;
 
-	ret = request_irq(vpfe_dev->ccdc_irq0, vpfe_isr, IRQF_DISABLED,
+	ret = request_irq(vpfe_dev->ccdc_irq0, vpfe_isr, 0,
 			  "vpfe_capture0", vpfe_dev);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
@@ -306,7 +306,7 @@ static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
 		return ret;
 	}
 
-	ret = request_irq(vpfe_dev->ccdc_irq1, vpfe_vdint1_isr, IRQF_DISABLED,
+	ret = request_irq(vpfe_dev->ccdc_irq1, vpfe_vdint1_isr, 0,
 			  "vpfe_capture1", vpfe_dev);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
@@ -316,7 +316,7 @@ static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
 	}
 
 	ret = request_irq(vpfe_dev->imp_dma_irq, vpfe_imp_dma_isr,
-			  IRQF_DISABLED, "Imp_Sdram_Irq", vpfe_dev);
+			  0, "Imp_Sdram_Irq", vpfe_dev);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
 			 "Error: requesting IMP IRQ interrupt\n");

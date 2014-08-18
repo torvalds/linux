@@ -50,10 +50,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 	if (!in_lock_functions(regs->ARM_pc))
 		return regs->ARM_pc;
 
-	frame.fp = regs->ARM_fp;
-	frame.sp = regs->ARM_sp;
-	frame.lr = regs->ARM_lr;
-	frame.pc = regs->ARM_pc;
+	arm_get_current_stackframe(regs, &frame);
 	do {
 		int ret = unwind_frame(&frame);
 		if (ret < 0)

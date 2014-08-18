@@ -210,7 +210,7 @@ void bf609_cpu_pm_enter(suspend_state_t state)
 
 #ifdef CONFIG_PM_BFIN_WAKE_PB15
 	wakeup |= PB15WE;
-# if CONFIG_PM_BFIN_WAKE_PA15_POL
+# if CONFIG_PM_BFIN_WAKE_PB15_POL
 	wakeup_pol |= PB15WE;
 # endif
 #endif
@@ -291,13 +291,13 @@ static struct bfin_cpu_pm_fns bf609_cpu_pm = {
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static int smc_pm_syscore_suspend(void)
 {
-	bf609_nor_flash_exit();
+	bf609_nor_flash_exit(NULL);
 	return 0;
 }
 
 static void smc_pm_syscore_resume(void)
 {
-	bf609_nor_flash_init();
+	bf609_nor_flash_init(NULL);
 }
 
 static struct syscore_ops smc_pm_syscore_ops = {

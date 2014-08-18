@@ -644,7 +644,7 @@ prism54_translate_bss(struct net_device *ndev, struct iw_request_info *info,
 	wpa_ie_len = prism54_wpa_bss_ie_get(priv, bss->address, wpa_ie);
 	if (wpa_ie_len > 0) {
 		iwe.cmd = IWEVGENIE;
-		iwe.u.data.length = min(wpa_ie_len, (size_t)MAX_WPA_IE_LEN);
+		iwe.u.data.length = min_t(size_t, wpa_ie_len, MAX_WPA_IE_LEN);
 		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
 						  &iwe, wpa_ie);
 	}

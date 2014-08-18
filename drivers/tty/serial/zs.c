@@ -923,7 +923,7 @@ static void zs_set_termios(struct uart_port *uport, struct ktermios *termios,
 	uport->read_status_mask = Rx_OVR;
 	if (termios->c_iflag & INPCK)
 		uport->read_status_mask |= FRM_ERR | PAR_ERR;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		uport->read_status_mask |= Rx_BRK;
 
 	uport->ignore_status_mask = 0;

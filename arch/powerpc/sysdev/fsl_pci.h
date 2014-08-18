@@ -32,6 +32,13 @@ struct platform_device;
 #define PIWAR_WRITE_SNOOP	0x00005000
 #define PIWAR_SZ_MASK          0x0000003f
 
+#define PEX_PMCR_PTOMR		0x1
+#define PEX_PMCR_EXL2S		0x2
+
+#define PME_DISR_EN_PTOD	0x00008000
+#define PME_DISR_EN_ENL23D	0x00002000
+#define PME_DISR_EN_EXL23D	0x00001000
+
 /* PCI/PCI Express outbound window reg */
 struct pci_outbound_window_regs {
 	__be32	potar;	/* 0x.0 - Outbound translation address register */
@@ -111,6 +118,7 @@ struct ccsr_pci {
 
 extern int fsl_add_bridge(struct platform_device *pdev, int is_primary);
 extern void fsl_pcibios_fixup_bus(struct pci_bus *bus);
+extern void fsl_pcibios_fixup_phb(struct pci_controller *phb);
 extern int mpc83xx_add_bridge(struct device_node *dev);
 u64 fsl_pci_immrbar_base(struct pci_controller *hose);
 

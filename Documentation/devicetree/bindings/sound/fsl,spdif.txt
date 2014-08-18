@@ -29,6 +29,10 @@ Required properties:
 			can also be referred to TxClk_Source
 			bit of register SPDIF_STC.
 
+   - big-endian : If this property is absent, the native endian mode will
+   be in use as default, or the big endian mode will be in use for all the
+   device registers.
+
 Example:
 
 spdif: spdif@02004000 {
@@ -50,5 +54,6 @@ spdif: spdif@02004000 {
 		"rxtx5", "rxtx6",
 		"rxtx7";
 
+	big-endian;
 	status = "okay";
 };

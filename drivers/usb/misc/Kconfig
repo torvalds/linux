@@ -128,7 +128,6 @@ config USB_IDMOUSE
 
 config USB_FTDI_ELAN
 	tristate "Elan PCMCIA CardBus Adapter USB Client"
-	default M
 	help
 	  ELAN's Uxxx series of adapters are USB to PCMCIA CardBus adapters.
 	  Currently only the U132 adapter is available.
@@ -249,3 +248,10 @@ config USB_HSIC_USB3503
        select REGMAP_I2C
        help
          This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.
+
+config USB_LINK_LAYER_TEST
+	tristate "USB Link Layer Test driver"
+	help
+	  This driver is for generating specific traffic for Super Speed Link
+	  Layer Test Device. Say Y only when you want to conduct USB Super Speed
+	  Link Layer Test for host controllers.

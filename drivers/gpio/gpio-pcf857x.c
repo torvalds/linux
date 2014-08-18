@@ -262,7 +262,7 @@ static int pcf857x_irq_domain_init(struct pcf857x *gpio,
 	/* enable real irq */
 	status = devm_request_threaded_irq(&client->dev, client->irq,
 				NULL, pcf857x_irq, IRQF_ONESHOT |
-				IRQF_TRIGGER_FALLING,
+				IRQF_TRIGGER_FALLING | IRQF_SHARED,
 				dev_name(&client->dev), gpio);
 
 	if (status)
@@ -319,7 +319,7 @@ static int pcf857x_probe(struct i2c_client *client,
 		status = pcf857x_irq_domain_init(gpio, client);
 		if (status < 0) {
 			dev_err(&client->dev, "irq_domain init failed\n");
-			goto fail;
+			goto fail_irq_domain;
 		}
 	}
 
@@ -414,11 +414,12 @@ static int pcf857x_probe(struct i2c_client *client,
 	return 0;
 
 fail:
-	dev_dbg(&client->dev, "probe error %d for '%s'\n",
-			status, client->name);
-
 	if (client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
+
+fail_irq_domain:
+	dev_dbg(&client->dev, "probe error %d for '%s'\n",
+		status, client->name);
 
 	return status;
 }
@@ -443,9 +444,7 @@ static int pcf857x_remove(struct i2c_client *client)
 	if (client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
 
-	status = gpiochip_remove(&gpio->chip);
-	if (status)
-		dev_err(&client->dev, "%s --> %d\n", "remove", status);
+	gpiochip_remove(&gpio->chip);
 	return status;
 }
 

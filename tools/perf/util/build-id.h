@@ -4,7 +4,7 @@
 #define BUILD_ID_SIZE 20
 
 #include "tool.h"
-#include "types.h"
+#include <linux/types.h>
 
 extern struct perf_tool build_id__mark_dso_hit_ops;
 struct dso;

@@ -57,7 +57,7 @@ static struct kmem_cache *inotify_inode_mark_cachep __read_mostly;
 
 static int zero;
 
-ctl_table inotify_table[] = {
+struct ctl_table inotify_table[] = {
 	{
 		.procname	= "max_user_instances",
 		.data		= &inotify_max_user_instances,
@@ -149,7 +149,7 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 	if (fsnotify_notify_queue_is_empty(group))
 		return NULL;
 
-	event = fsnotify_peek_notify_event(group);
+	event = fsnotify_peek_first_event(group);
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
@@ -159,7 +159,7 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 
 	/* held the notification_mutex the whole time, so this is the
 	 * same event we peeked above */
-	fsnotify_remove_notify_event(group);
+	fsnotify_remove_first_event(group);
 
 	return event;
 }

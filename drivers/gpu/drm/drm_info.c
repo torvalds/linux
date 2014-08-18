@@ -47,18 +47,16 @@ int drm_name_info(struct seq_file *m, void *data)
 	struct drm_minor *minor = node->minor;
 	struct drm_device *dev = minor->dev;
 	struct drm_master *master = minor->master;
-	const char *bus_name;
 	if (!master)
 		return 0;
 
-	bus_name = dev->driver->bus->get_name(dev);
 	if (master->unique) {
 		seq_printf(m, "%s %s %s\n",
-			   bus_name,
+			   dev->driver->name,
 			   dev_name(dev->dev), master->unique);
 	} else {
 		seq_printf(m, "%s %s\n",
-			   bus_name, dev_name(dev->dev));
+			   dev->driver->name, dev_name(dev->dev));
 	}
 	return 0;
 }
@@ -134,7 +132,7 @@ int drm_bufs_info(struct seq_file *m, void *data)
 				   i,
 				   dma->bufs[i].buf_size,
 				   dma->bufs[i].buf_count,
-				   atomic_read(&dma->bufs[i].freelist.count),
+				   0,
 				   dma->bufs[i].seg_count,
 				   seg_pages,
 				   seg_pages * PAGE_SIZE / 1024);

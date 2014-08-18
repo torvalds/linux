@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -216,6 +216,24 @@
 
 #define ACPI_NUM_sx_d_METHODS           4
 #define ACPI_NUM_sx_w_METHODS           5
+
+/******************************************************************************
+ *
+ * Miscellaneous constants
+ *
+ *****************************************************************************/
+
+/* UUID constants */
+
+#define UUID_BUFFER_LENGTH          16	/* Length of UUID in memory */
+#define UUID_STRING_LENGTH          36	/* Total length of a UUID string */
+
+/* Positions for required hyphens (dashes) in UUID strings */
+
+#define UUID_HYPHEN1_OFFSET         8
+#define UUID_HYPHEN2_OFFSET         13
+#define UUID_HYPHEN3_OFFSET         18
+#define UUID_HYPHEN4_OFFSET         23
 
 /******************************************************************************
  *

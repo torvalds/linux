@@ -17,6 +17,10 @@
 #include <asm/cpu-features.h>
 #include <asm/cpu-type.h>
 #include <asm/mipsmtregs.h>
+#include <asm/uaccess.h> /* for segment_eq() */
+
+extern void (*r4k_blast_dcache)(void);
+extern void (*r4k_blast_icache)(void);
 
 /*
  * This macro return a properly sign-extended address suitable as base address
@@ -35,18 +39,17 @@
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noreorder				\n"	\
-	"	.set	mips3\n\t				\n"	\
+	"	.set	arch=r4000				\n"	\
 	"	cache	%0, %1					\n"	\
 	"	.set	pop					\n"	\
 	:								\
 	: "i" (op), "R" (*(unsigned char *)(addr)))
 
 #ifdef CONFIG_MIPS_MT
-/*
- * Temporary hacks for SMTC debug. Optionally force single-threaded
- * execution during I-cache flushes.
- */
 
+/*
+ * Optionally force single-threaded execution during I-cache flushes.
+ */
 #define PROTECT_CACHE_FLUSHES 1
 
 #ifdef PROTECT_CACHE_FLUSHES
@@ -203,8 +206,22 @@ static inline void flush_scache_line(unsigned long addr)
 	__asm__ __volatile__(					\
 	"	.set	push			\n"		\
 	"	.set	noreorder		\n"		\
-	"	.set	mips3			\n"		\
+	"	.set	arch=r4000		\n"		\
 	"1:	cache	%0, (%1)		\n"		\
+	"2:	.set	pop			\n"		\
+	"	.section __ex_table,\"a\"	\n"		\
+	"	"STR(PTR)" 1b, 2b		\n"		\
+	"	.previous"					\
+	:							\
+	: "i" (op), "r" (addr))
+
+#define protected_cachee_op(op,addr)				\
+	__asm__ __volatile__(					\
+	"	.set	push			\n"		\
+	"	.set	noreorder		\n"		\
+	"	.set	mips0			\n"		\
+	"	.set	eva			\n"		\
+	"1:	cachee	%0, (%1)		\n"		\
 	"2:	.set	pop			\n"		\
 	"	.section __ex_table,\"a\"	\n"		\
 	"	"STR(PTR)" 1b, 2b		\n"		\
@@ -223,7 +240,11 @@ static inline void protected_flush_icache_line(unsigned long addr)
 		break;
 
 	default:
+#ifdef CONFIG_EVA
+		protected_cachee_op(Hit_Invalidate_I, addr);
+#else
 		protected_cache_op(Hit_Invalidate_I, addr);
+#endif
 		break;
 	}
 }
@@ -356,6 +377,91 @@ static inline void invalidate_tcache_page(unsigned long addr)
 		: "r" (base),						\
 		  "i" (op));
 
+/*
+ * Perform the cache operation specified by op using a user mode virtual
+ * address while in kernel mode.
+ */
+#define cache16_unroll32_user(base,op)					\
+	__asm__ __volatile__(						\
+	"	.set push					\n"	\
+	"	.set noreorder					\n"	\
+	"	.set mips0					\n"	\
+	"	.set eva					\n"	\
+	"	cachee %1, 0x000(%0); cachee %1, 0x010(%0)	\n"	\
+	"	cachee %1, 0x020(%0); cachee %1, 0x030(%0)	\n"	\
+	"	cachee %1, 0x040(%0); cachee %1, 0x050(%0)	\n"	\
+	"	cachee %1, 0x060(%0); cachee %1, 0x070(%0)	\n"	\
+	"	cachee %1, 0x080(%0); cachee %1, 0x090(%0)	\n"	\
+	"	cachee %1, 0x0a0(%0); cachee %1, 0x0b0(%0)	\n"	\
+	"	cachee %1, 0x0c0(%0); cachee %1, 0x0d0(%0)	\n"	\
+	"	cachee %1, 0x0e0(%0); cachee %1, 0x0f0(%0)	\n"	\
+	"	cachee %1, 0x100(%0); cachee %1, 0x110(%0)	\n"	\
+	"	cachee %1, 0x120(%0); cachee %1, 0x130(%0)	\n"	\
+	"	cachee %1, 0x140(%0); cachee %1, 0x150(%0)	\n"	\
+	"	cachee %1, 0x160(%0); cachee %1, 0x170(%0)	\n"	\
+	"	cachee %1, 0x180(%0); cachee %1, 0x190(%0)	\n"	\
+	"	cachee %1, 0x1a0(%0); cachee %1, 0x1b0(%0)	\n"	\
+	"	cachee %1, 0x1c0(%0); cachee %1, 0x1d0(%0)	\n"	\
+	"	cachee %1, 0x1e0(%0); cachee %1, 0x1f0(%0)	\n"	\
+	"	.set pop					\n"	\
+		:							\
+		: "r" (base),						\
+		  "i" (op));
+
+#define cache32_unroll32_user(base, op)					\
+	__asm__ __volatile__(						\
+	"	.set push					\n"	\
+	"	.set noreorder					\n"	\
+	"	.set mips0					\n"	\
+	"	.set eva					\n"	\
+	"	cachee %1, 0x000(%0); cachee %1, 0x020(%0)	\n"	\
+	"	cachee %1, 0x040(%0); cachee %1, 0x060(%0)	\n"	\
+	"	cachee %1, 0x080(%0); cachee %1, 0x0a0(%0)	\n"	\
+	"	cachee %1, 0x0c0(%0); cachee %1, 0x0e0(%0)	\n"	\
+	"	cachee %1, 0x100(%0); cachee %1, 0x120(%0)	\n"	\
+	"	cachee %1, 0x140(%0); cachee %1, 0x160(%0)	\n"	\
+	"	cachee %1, 0x180(%0); cachee %1, 0x1a0(%0)	\n"	\
+	"	cachee %1, 0x1c0(%0); cachee %1, 0x1e0(%0)	\n"	\
+	"	cachee %1, 0x200(%0); cachee %1, 0x220(%0)	\n"	\
+	"	cachee %1, 0x240(%0); cachee %1, 0x260(%0)	\n"	\
+	"	cachee %1, 0x280(%0); cachee %1, 0x2a0(%0)	\n"	\
+	"	cachee %1, 0x2c0(%0); cachee %1, 0x2e0(%0)	\n"	\
+	"	cachee %1, 0x300(%0); cachee %1, 0x320(%0)	\n"	\
+	"	cachee %1, 0x340(%0); cachee %1, 0x360(%0)	\n"	\
+	"	cachee %1, 0x380(%0); cachee %1, 0x3a0(%0)	\n"	\
+	"	cachee %1, 0x3c0(%0); cachee %1, 0x3e0(%0)	\n"	\
+	"	.set pop					\n"	\
+		:							\
+		: "r" (base),						\
+		  "i" (op));
+
+#define cache64_unroll32_user(base, op)					\
+	__asm__ __volatile__(						\
+	"	.set push					\n"	\
+	"	.set noreorder					\n"	\
+	"	.set mips0					\n"	\
+	"	.set eva					\n"	\
+	"	cachee %1, 0x000(%0); cachee %1, 0x040(%0)	\n"	\
+	"	cachee %1, 0x080(%0); cachee %1, 0x0c0(%0)	\n"	\
+	"	cachee %1, 0x100(%0); cachee %1, 0x140(%0)	\n"	\
+	"	cachee %1, 0x180(%0); cachee %1, 0x1c0(%0)	\n"	\
+	"	cachee %1, 0x200(%0); cachee %1, 0x240(%0)	\n"	\
+	"	cachee %1, 0x280(%0); cachee %1, 0x2c0(%0)	\n"	\
+	"	cachee %1, 0x300(%0); cachee %1, 0x340(%0)	\n"	\
+	"	cachee %1, 0x380(%0); cachee %1, 0x3c0(%0)	\n"	\
+	"	cachee %1, 0x400(%0); cachee %1, 0x440(%0)	\n"	\
+	"	cachee %1, 0x480(%0); cachee %1, 0x4c0(%0)	\n"	\
+	"	cachee %1, 0x500(%0); cachee %1, 0x540(%0)	\n"	\
+	"	cachee %1, 0x580(%0); cachee %1, 0x5c0(%0)	\n"	\
+	"	cachee %1, 0x600(%0); cachee %1, 0x640(%0)	\n"	\
+	"	cachee %1, 0x680(%0); cachee %1, 0x6c0(%0)	\n"	\
+	"	cachee %1, 0x700(%0); cachee %1, 0x740(%0)	\n"	\
+	"	cachee %1, 0x780(%0); cachee %1, 0x7c0(%0)	\n"	\
+	"	.set pop					\n"	\
+		:							\
+		: "r" (base),						\
+		  "i" (op));
+
 /* build blast_xxx, blast_xxx_page, blast_xxx_page_indexed */
 #define __BUILD_BLAST_CACHE(pfx, desc, indexop, hitop, lsize, extra)	\
 static inline void extra##blast_##pfx##cache##lsize(void)		\
@@ -420,6 +526,8 @@ __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 32,
 __BUILD_BLAST_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D, 64, )
 __BUILD_BLAST_CACHE(i, icache, Index_Invalidate_I, Hit_Invalidate_I, 64, )
 __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 64, )
+__BUILD_BLAST_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D, 128, )
+__BUILD_BLAST_CACHE(i, icache, Index_Invalidate_I, Hit_Invalidate_I, 128, )
 __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 128, )
 
 __BUILD_BLAST_CACHE(inv_d, dcache, Index_Writeback_Inv_D, Hit_Invalidate_D, 16, )
@@ -428,6 +536,32 @@ __BUILD_BLAST_CACHE(inv_s, scache, Index_Writeback_Inv_SD, Hit_Invalidate_SD, 16
 __BUILD_BLAST_CACHE(inv_s, scache, Index_Writeback_Inv_SD, Hit_Invalidate_SD, 32, )
 __BUILD_BLAST_CACHE(inv_s, scache, Index_Writeback_Inv_SD, Hit_Invalidate_SD, 64, )
 __BUILD_BLAST_CACHE(inv_s, scache, Index_Writeback_Inv_SD, Hit_Invalidate_SD, 128, )
+
+#define __BUILD_BLAST_USER_CACHE(pfx, desc, indexop, hitop, lsize) \
+static inline void blast_##pfx##cache##lsize##_user_page(unsigned long page) \
+{									\
+	unsigned long start = page;					\
+	unsigned long end = page + PAGE_SIZE;				\
+									\
+	__##pfx##flush_prologue						\
+									\
+	do {								\
+		cache##lsize##_unroll32_user(start, hitop);             \
+		start += lsize * 32;					\
+	} while (start < end);						\
+									\
+	__##pfx##flush_epilogue						\
+}
+
+__BUILD_BLAST_USER_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D,
+			 16)
+__BUILD_BLAST_USER_CACHE(i, icache, Index_Invalidate_I, Hit_Invalidate_I, 16)
+__BUILD_BLAST_USER_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D,
+			 32)
+__BUILD_BLAST_USER_CACHE(i, icache, Index_Invalidate_I, Hit_Invalidate_I, 32)
+__BUILD_BLAST_USER_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D,
+			 64)
+__BUILD_BLAST_USER_CACHE(i, icache, Index_Invalidate_I, Hit_Invalidate_I, 64)
 
 /* build blast_xxx_range, protected_blast_xxx_range */
 #define __BUILD_BLAST_CACHE_RANGE(pfx, desc, hitop, prot, extra)	\
@@ -450,12 +584,51 @@ static inline void prot##extra##blast_##pfx##cache##_range(unsigned long start, 
 	__##pfx##flush_epilogue						\
 }
 
+#ifndef CONFIG_EVA
+
 __BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, protected_, )
-__BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, protected_, )
 __BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I, protected_, )
+
+#else
+
+#define __BUILD_PROT_BLAST_CACHE_RANGE(pfx, desc, hitop)		\
+static inline void protected_blast_##pfx##cache##_range(unsigned long start,\
+							unsigned long end) \
+{									\
+	unsigned long lsize = cpu_##desc##_line_size();			\
+	unsigned long addr = start & ~(lsize - 1);			\
+	unsigned long aend = (end - 1) & ~(lsize - 1);			\
+									\
+	__##pfx##flush_prologue						\
+									\
+	if (segment_eq(get_fs(), USER_DS)) {				\
+		while (1) {						\
+			protected_cachee_op(hitop, addr);		\
+			if (addr == aend)				\
+				break;					\
+			addr += lsize;					\
+		}							\
+	} else {							\
+		while (1) {						\
+			protected_cache_op(hitop, addr);		\
+			if (addr == aend)				\
+				break;					\
+			addr += lsize;					\
+		}                                                       \
+									\
+	}								\
+	__##pfx##flush_epilogue						\
+}
+
+__BUILD_PROT_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D)
+__BUILD_PROT_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I)
+
+#endif
+__BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, protected_, )
 __BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I_Loongson2, \
 	protected_, loongson2_)
 __BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, , )
+__BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I, , )
 __BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, , )
 /* blast_inv_dcache_range */
 __BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, , )

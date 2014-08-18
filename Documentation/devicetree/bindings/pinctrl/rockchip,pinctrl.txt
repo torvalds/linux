@@ -21,13 +21,24 @@ defined as gpio sub-nodes of the pinmux controller.
 Required properties for iomux controller:
   - compatible: one of "rockchip,rk2928-pinctrl", "rockchip,rk3066a-pinctrl"
 		       "rockchip,rk3066b-pinctrl", "rockchip,rk3188-pinctrl"
+		       "rockchip,rk3288-pinctrl"
+  - rockchip,grf: phandle referencing a syscon providing the
+	 "general register files"
+
+Optional properties for iomux controller:
+  - rockchip,pmu: phandle referencing a syscon providing the pmu registers
+	 as some SoCs carry parts of the iomux controller registers there.
+	 Required for at least rk3188 and rk3288.
+
+Deprecated properties for iomux controller:
   - reg: first element is the general register space of the iomux controller
-	 second element is the separate pull register space of the rk3188
+	 It should be large enough to contain also separate pull registers.
+	 second element is the separate pull register space of the rk3188.
+	 Use rockchip,grf and rockchip,pmu described above instead.
 
 Required properties for gpio sub nodes:
-  - compatible: "rockchip,gpio-bank", "rockchip,rk3188-gpio-bank0"
+  - compatible: "rockchip,gpio-bank"
   - reg: register of the gpio bank (different than the iomux registerset)
-         second element: separate pull register for rk3188 bank0
   - interrupts: base interrupt of the gpio bank in the interrupt controller
   - clocks: clock that drives this bank
   - gpio-controller: identifies the node as a gpio controller and pin bank.
@@ -38,6 +49,11 @@ Required properties for gpio sub nodes:
   - #interrupt-cells: the value of this property should be 2 and the interrupt
     cells should use the standard two-cell scheme described in
     bindings/interrupt-controller/interrupts.txt
+
+Deprecated properties for gpio sub nodes:
+  - compatible: "rockchip,rk3188-gpio-bank0"
+  - reg: second element: separate pull register for rk3188 bank0, use
+	 rockchip,pmu described above instead
 
 Required properties for pin configuration node:
   - rockchip,pins: 3 integers array, represents a group of pins mux and config
@@ -54,7 +70,8 @@ Examples:
 
 pinctrl@20008000 {
 	compatible = "rockchip,rk3066a-pinctrl";
-	reg = <0x20008000 0x150>;
+	rockchip,grf = <&grf>;
+
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges;
@@ -103,16 +120,15 @@ Example for rk3188:
 
 	pinctrl@20008000 {
 		compatible = "rockchip,rk3188-pinctrl";
-		reg = <0x20008000 0xa0>,
-		      <0x20008164 0x1a0>;
+		rockchip,grf = <&grf>;
+		rockchip,pmu = <&pmu>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
 		gpio0: gpio0@0x2000a000 {
 			compatible = "rockchip,rk3188-gpio-bank0";
-			reg = <0x2000a000 0x100>,
-			      <0x20004064 0x8>;
+			reg = <0x2000a000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_gates8 9>;
 

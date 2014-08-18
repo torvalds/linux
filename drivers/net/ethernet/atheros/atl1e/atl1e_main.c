@@ -35,7 +35,7 @@ char atl1e_driver_version[] = DRV_VERSION;
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static DEFINE_PCI_DEVICE_TABLE(atl1e_pci_tbl) = {
+static const struct pci_device_id atl1e_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1E)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, 0x1066)},
 	/* required last entry */
@@ -831,16 +831,13 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	/* real ring DMA buffer */
 
 	size = adapter->ring_size;
-	adapter->ring_vir_addr = pci_alloc_consistent(pdev,
-			adapter->ring_size, &adapter->ring_dma);
-
+	adapter->ring_vir_addr = pci_zalloc_consistent(pdev, adapter->ring_size,
+						       &adapter->ring_dma);
 	if (adapter->ring_vir_addr == NULL) {
 		netdev_err(adapter->netdev,
 			   "pci_alloc_consistent failed, size = D%d\n", size);
 		return -ENOMEM;
 	}
-
-	memset(adapter->ring_vir_addr, 0, adapter->ring_size);
 
 	rx_page_desc = rx_ring->rx_page_desc;
 
@@ -1641,17 +1638,17 @@ static u16 atl1e_cal_tdp_req(const struct sk_buff *skb)
 static int atl1e_tso_csum(struct atl1e_adapter *adapter,
 		       struct sk_buff *skb, struct atl1e_tpd_desc *tpd)
 {
+	unsigned short offload_type;
 	u8 hdr_len;
 	u32 real_len;
-	unsigned short offload_type;
-	int err;
 
 	if (skb_is_gso(skb)) {
-		if (skb_header_cloned(skb)) {
-			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-			if (unlikely(err))
-				return -1;
-		}
+		int err;
+
+		err = skb_cow_head(skb, 0);
+		if (err < 0)
+			return err;
+
 		offload_type = skb_shinfo(skb)->gso_type;
 
 		if (offload_type & SKB_GSO_TCPV4) {

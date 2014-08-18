@@ -24,11 +24,13 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
-#include <mach/common.h>
-#include <mach/dma-register.h>
-#include <mach/irqs.h>
-#include <mach/r8a73a4.h>
+
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "dma-register.h"
+#include "irqs.h"
+#include "r8a73a4.h"
 
 static const struct resource pfc_resources[] = {
 	DEFINE_RES_MEM(0xe6050000, 0x9000),
@@ -68,7 +70,7 @@ R8A73A4_SCIFB(4, 0xe6ce0000, gic_spi(150)); /* SCIFB2 */
 R8A73A4_SCIFB(5, 0xe6cf0000, gic_spi(151)); /* SCIFB3 */
 
 #define r8a73a4_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,	       \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
@@ -149,7 +151,7 @@ static const struct resource irqc1_resources[] = {
 };
 
 #define r8a73a4_register_irqc(idx)					\
-	platform_device_register_resndata(&platform_bus, "renesas_irqc", \
+	platform_device_register_resndata(NULL, "renesas_irqc", 	\
 					  idx, irqc##idx##_resources,	\
 					  ARRAY_SIZE(irqc##idx##_resources), \
 					  &irqc##idx##_data,		\
@@ -169,20 +171,17 @@ static const struct resource thermal0_resources[] = {
 					thermal0_resources,		\
 					ARRAY_SIZE(thermal0_resources))
 
-static struct sh_timer_config cmt10_platform_data = {
-	.name = "CMT10",
-	.timer_bit = 0,
-	.clockevent_rating = 80,
+static struct sh_timer_config cmt1_platform_data = {
+	.channels_mask = 0xff,
 };
 
-static struct resource cmt10_resources[] = {
-	DEFINE_RES_MEM(0xe6130010, 0x0c),
-	DEFINE_RES_MEM(0xe6130000, 0x04),
-	DEFINE_RES_IRQ(gic_spi(120)), /* CMT1_0 */
+static struct resource cmt1_resources[] = {
+	DEFINE_RES_MEM(0xe6130000, 0x1004),
+	DEFINE_RES_IRQ(gic_spi(120)),
 };
 
 #define r8a7790_register_cmt(idx)					\
-	platform_device_register_resndata(&platform_bus, "sh_cmt",	\
+	platform_device_register_resndata(NULL, "sh-cmt-48-gen2",	\
 					  idx, cmt##idx##_resources,	\
 					  ARRAY_SIZE(cmt##idx##_resources), \
 					  &cmt##idx##_platform_data,	\
@@ -190,13 +189,7 @@ static struct resource cmt10_resources[] = {
 
 void __init r8a73a4_add_dt_devices(void)
 {
-	r8a73a4_register_scif(0);
-	r8a73a4_register_scif(1);
-	r8a73a4_register_scif(2);
-	r8a73a4_register_scif(3);
-	r8a73a4_register_scif(4);
-	r8a73a4_register_scif(5);
-	r8a7790_register_cmt(10);
+	r8a7790_register_cmt(1);
 }
 
 /* DMA */
@@ -283,13 +276,19 @@ static struct resource dma_resources[] = {
 };
 
 #define r8a73a4_register_dmac()							\
-	platform_device_register_resndata(&platform_bus, "sh-dma-engine", 0,	\
+	platform_device_register_resndata(NULL, "sh-dma-engine", 0,		\
 				dma_resources, ARRAY_SIZE(dma_resources),	\
 				&dma_pdata, sizeof(dma_pdata))
 
 void __init r8a73a4_add_standard_devices(void)
 {
 	r8a73a4_add_dt_devices();
+	r8a73a4_register_scif(0);
+	r8a73a4_register_scif(1);
+	r8a73a4_register_scif(2);
+	r8a73a4_register_scif(3);
+	r8a73a4_register_scif(4);
+	r8a73a4_register_scif(5);
 	r8a73a4_register_irqc(0);
 	r8a73a4_register_irqc(1);
 	r8a73a4_register_thermal();

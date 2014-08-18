@@ -37,7 +37,20 @@ struct fpsimd_state {
 			u32 fpcr;
 		};
 	};
+	/* the id of the last cpu to have restored this state */
+	unsigned int cpu;
 };
+
+/*
+ * Struct for stacking the bottom 'n' FP/SIMD registers.
+ */
+struct fpsimd_partial_state {
+	u32		fpsr;
+	u32		fpcr;
+	u32		num_regs;
+	__uint128_t	vregs[32];
+};
+
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /* Masks for extracting the FPSR and FPCR from the FPSCR */
@@ -57,6 +70,16 @@ extern void fpsimd_load_state(struct fpsimd_state *state);
 
 extern void fpsimd_thread_switch(struct task_struct *next);
 extern void fpsimd_flush_thread(void);
+
+extern void fpsimd_preserve_current_state(void);
+extern void fpsimd_restore_current_state(void);
+extern void fpsimd_update_current_state(struct fpsimd_state *state);
+
+extern void fpsimd_flush_task_state(struct task_struct *target);
+
+extern void fpsimd_save_partial_state(struct fpsimd_partial_state *state,
+				      u32 num_regs);
+extern void fpsimd_load_partial_state(struct fpsimd_partial_state *state);
 
 #endif
 

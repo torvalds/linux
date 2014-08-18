@@ -378,9 +378,12 @@ static int __init cache_init(void)
 	if (!test_facility(34))
 		return 0;
 	cache_build_info();
+
+	cpu_notifier_register_begin();
 	for_each_online_cpu(cpu)
 		cache_add_cpu(cpu);
-	hotcpu_notifier(cache_hotplug, 0);
+	__hotcpu_notifier(cache_hotplug, 0);
+	cpu_notifier_register_done();
 	return 0;
 }
 device_initcall(cache_init);

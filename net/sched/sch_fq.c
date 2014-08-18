@@ -591,10 +591,7 @@ static void *fq_alloc_node(size_t sz, int node)
 
 static void fq_free(void *addr)
 {
-	if (addr && is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
+	kvfree(addr);
 }
 
 static int fq_resize(struct Qdisc *sch, u32 log)
@@ -781,8 +778,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_FQ_BUCKETS_LOG, q->fq_trees_log))
 		goto nla_put_failure;
 
-	nla_nest_end(skb, opts);
-	return skb->len;
+	return nla_nest_end(skb, opts);
 
 nla_put_failure:
 	return -1;

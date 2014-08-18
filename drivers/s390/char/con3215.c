@@ -288,12 +288,16 @@ static void raw3215_timeout(unsigned long __data)
 	unsigned long flags;
 
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
-	if (raw->flags & RAW3215_TIMER_RUNS) {
-		del_timer(&raw->timer);
-		raw->flags &= ~RAW3215_TIMER_RUNS;
-		if (!(raw->port.flags & ASYNC_SUSPENDED)) {
-			raw3215_mk_write_req(raw);
-			raw3215_start_io(raw);
+	raw->flags &= ~RAW3215_TIMER_RUNS;
+	if (!(raw->port.flags & ASYNC_SUSPENDED)) {
+		raw3215_mk_write_req(raw);
+		raw3215_start_io(raw);
+		if ((raw->queued_read || raw->queued_write) &&
+		    !(raw->flags & RAW3215_WORKING) &&
+		    !(raw->flags & RAW3215_TIMER_RUNS)) {
+			raw->timer.expires = RAW3215_TIMEOUT + jiffies;
+			add_timer(&raw->timer);
+			raw->flags |= RAW3215_TIMER_RUNS;
 		}
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
@@ -317,16 +321,14 @@ static inline void raw3215_try_io(struct raw3215_info *raw)
 		    (raw->flags & RAW3215_FLUSHING)) {
 			/* execute write requests bigger than minimum size */
 			raw3215_start_io(raw);
-			if (raw->flags & RAW3215_TIMER_RUNS) {
-				del_timer(&raw->timer);
-				raw->flags &= ~RAW3215_TIMER_RUNS;
-			}
-		} else if (!(raw->flags & RAW3215_TIMER_RUNS)) {
-			/* delay small writes */
-			raw->timer.expires = RAW3215_TIMEOUT + jiffies;
-			add_timer(&raw->timer);
-			raw->flags |= RAW3215_TIMER_RUNS;
 		}
+	}
+	if ((raw->queued_read || raw->queued_write) &&
+	    !(raw->flags & RAW3215_WORKING) &&
+	    !(raw->flags & RAW3215_TIMER_RUNS)) {
+		raw->timer.expires = RAW3215_TIMEOUT + jiffies;
+		add_timer(&raw->timer);
+		raw->flags |= RAW3215_TIMER_RUNS;
 	}
 }
 
@@ -922,7 +924,7 @@ static int __init con3215_init(void)
 		raw3215_freelist = req;
 	}
 
-	cdev = ccw_device_probe_console();
+	cdev = ccw_device_create_console(&raw3215_ccw_driver);
 	if (IS_ERR(cdev))
 		return -ENODEV;
 
@@ -932,6 +934,12 @@ static int __init con3215_init(void)
 	cdev->handler = raw3215_irq;
 
 	raw->flags |= RAW3215_FIXED;
+	if (ccw_device_enable_console(cdev)) {
+		ccw_device_destroy_console(cdev);
+		raw3215_free_info(raw);
+		raw3215[0] = NULL;
+		return -ENODEV;
+	}
 
 	/* Request the console irq */
 	if (raw3215_startup(raw) != 0) {

@@ -12,15 +12,24 @@
 
 #include "skeleton.dtsi"
 #include "imx51-pinfunc.h"
+#include <dt-bindings/clock/imx5-clock.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	aliases {
+		ethernet0 = &fec;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
 		gpio3 = &gpio4;
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc2;
+		mmc2 = &esdhc3;
+		mmc3 = &esdhc4;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
@@ -42,21 +51,25 @@
 
 		ckil {
 			compatible = "fsl,imx-ckil", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
 
 		ckih1 {
 			compatible = "fsl,imx-ckih1", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 
 		ckih2 {
 			compatible = "fsl,imx-ckih2", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 
 		osc {
 			compatible = "fsl,imx-osc", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
 	};
@@ -64,19 +77,38 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		cpu@0 {
+		cpu: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a8";
 			reg = <0>;
-			clock-latency = <61036>; /* two CLK32 periods */
-			clocks = <&clks 24>;
+			clock-latency = <62500>;
+			clocks = <&clks IMX5_CLK_CPU_PODF>;
 			clock-names = "cpu";
 			operating-points = <
-				/* kHz  uV (No regulator support) */
-				160000  0
-				800000  0
+				166000	1000000
+				600000	1050000
+				800000	1100000
 			>;
+			voltage-tolerance = <5>;
 		};
+	};
+
+	usbphy {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
+
+		usbphy0: usbphy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
+			clock-names = "main_clk";
+		};
+	};
+
+	display-subsystem {
+		compatible = "fsl,imx-display-subsystem";
+		ports = <&ipu_di0>, <&ipu_di1>;
 	};
 
 	soc {
@@ -92,13 +124,30 @@
 		};
 
 		ipu: ipu@40000000 {
-			#crtc-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "fsl,imx51-ipu";
 			reg = <0x40000000 0x20000000>;
 			interrupts = <11 10>;
-			clocks = <&clks 59>, <&clks 110>, <&clks 61>;
+			clocks = <&clks IMX5_CLK_IPU_GATE>,
+			         <&clks IMX5_CLK_IPU_DI0_GATE>,
+			         <&clks IMX5_CLK_IPU_DI1_GATE>;
 			clock-names = "bus", "di0", "di1";
 			resets = <&src 2>;
+
+			ipu_di0: port@2 {
+				reg = <2>;
+
+				ipu_di0_disp0: endpoint {
+				};
+			};
+
+			ipu_di1: port@3 {
+				reg = <3>;
+
+				ipu_di1_disp1: endpoint {
+				};
+			};
 		};
 
 		aips@70000000 { /* AIPS1 */
@@ -119,7 +168,9 @@
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70004000 0x4000>;
 					interrupts = <1>;
-					clocks = <&clks 44>, <&clks 0>, <&clks 71>;
+					clocks = <&clks IMX5_CLK_ESDHC1_IPG_GATE>,
+					         <&clks IMX5_CLK_DUMMY>,
+					         <&clks IMX5_CLK_ESDHC1_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					status = "disabled";
 				};
@@ -128,7 +179,9 @@
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70008000 0x4000>;
 					interrupts = <2>;
-					clocks = <&clks 45>, <&clks 0>, <&clks 72>;
+					clocks = <&clks IMX5_CLK_ESDHC2_IPG_GATE>,
+					         <&clks IMX5_CLK_DUMMY>,
+					         <&clks IMX5_CLK_ESDHC2_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -138,7 +191,8 @@
 					compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 					reg = <0x7000c000 0x4000>;
 					interrupts = <33>;
-					clocks = <&clks 32>, <&clks 33>;
+					clocks = <&clks IMX5_CLK_UART3_IPG_GATE>,
+					         <&clks IMX5_CLK_UART3_PER_GATE>;
 					clock-names = "ipg", "per";
 					status = "disabled";
 				};
@@ -149,7 +203,8 @@
 					compatible = "fsl,imx51-ecspi";
 					reg = <0x70010000 0x4000>;
 					interrupts = <36>;
-					clocks = <&clks 51>, <&clks 52>;
+					clocks = <&clks IMX5_CLK_ECSPI1_IPG_GATE>,
+					         <&clks IMX5_CLK_ECSPI1_PER_GATE>;
 					clock-names = "ipg", "per";
 					status = "disabled";
 				};
@@ -158,12 +213,11 @@
 					compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 					reg = <0x70014000 0x4000>;
 					interrupts = <30>;
-					clocks = <&clks 49>;
+					clocks = <&clks IMX5_CLK_SSI2_IPG_GATE>;
 					dmas = <&sdma 24 1 0>,
 					       <&sdma 25 1 0>;
 					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
-					fsl,ssi-dma-events = <25 24 23 22>; /* TX0 RX0 TX1 RX1 */
 					status = "disabled";
 				};
 
@@ -171,7 +225,9 @@
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70020000 0x4000>;
 					interrupts = <3>;
-					clocks = <&clks 46>, <&clks 0>, <&clks 73>;
+					clocks = <&clks IMX5_CLK_ESDHC3_IPG_GATE>,
+					         <&clks IMX5_CLK_DUMMY>,
+					         <&clks IMX5_CLK_ESDHC3_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -181,25 +237,20 @@
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70024000 0x4000>;
 					interrupts = <4>;
-					clocks = <&clks 47>, <&clks 0>, <&clks 74>;
+					clocks = <&clks IMX5_CLK_ESDHC4_IPG_GATE>,
+					         <&clks IMX5_CLK_DUMMY>,
+					         <&clks IMX5_CLK_ESDHC4_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
 				};
 			};
 
-			usbphy0: usbphy@0 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks 75>;
-				clock-names = "main_clk";
-				status = "okay";
-			};
-
 			usbotg: usb@73f80000 {
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80000 0x0200>;
 				interrupts = <18>;
-				clocks = <&clks 108>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 				fsl,usbmisc = <&usbmisc 0>;
 				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
@@ -209,7 +260,7 @@
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80200 0x0200>;
 				interrupts = <14>;
-				clocks = <&clks 108>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 				fsl,usbmisc = <&usbmisc 1>;
 				status = "disabled";
 			};
@@ -218,7 +269,7 @@
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80400 0x0200>;
 				interrupts = <16>;
-				clocks = <&clks 108>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 				fsl,usbmisc = <&usbmisc 2>;
 				status = "disabled";
 			};
@@ -227,7 +278,7 @@
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80600 0x0200>;
 				interrupts = <17>;
-				clocks = <&clks 108>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 				fsl,usbmisc = <&usbmisc 3>;
 				status = "disabled";
 			};
@@ -236,7 +287,7 @@
 				#index-cells = <1>;
 				compatible = "fsl,imx51-usbmisc";
 				reg = <0x73f80800 0x200>;
-				clocks = <&clks 108>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 			};
 
 			gpio1: gpio@73f84000 {
@@ -283,7 +334,7 @@
 				compatible = "fsl,imx51-kpp", "fsl,imx21-kpp";
 				reg = <0x73f94000 0x4000>;
 				interrupts = <60>;
-				clocks = <&clks 0>;
+				clocks = <&clks IMX5_CLK_DUMMY>;
 				status = "disabled";
 			};
 
@@ -291,14 +342,14 @@
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f98000 0x4000>;
 				interrupts = <58>;
-				clocks = <&clks 0>;
+				clocks = <&clks IMX5_CLK_DUMMY>;
 			};
 
 			wdog2: wdog@73f9c000 {
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f9c000 0x4000>;
 				interrupts = <59>;
-				clocks = <&clks 0>;
+				clocks = <&clks IMX5_CLK_DUMMY>;
 				status = "disabled";
 			};
 
@@ -306,7 +357,8 @@
 				compatible = "fsl,imx51-gpt", "fsl,imx31-gpt";
 				reg = <0x73fa0000 0x4000>;
 				interrupts = <39>;
-				clocks = <&clks 36>, <&clks 41>;
+				clocks = <&clks IMX5_CLK_GPT_IPG_GATE>,
+				         <&clks IMX5_CLK_GPT_HF_GATE>;
 				clock-names = "ipg", "per";
 			};
 
@@ -319,7 +371,8 @@
 				#pwm-cells = <2>;
 				compatible = "fsl,imx51-pwm", "fsl,imx27-pwm";
 				reg = <0x73fb4000 0x4000>;
-				clocks = <&clks 37>, <&clks 38>;
+				clocks = <&clks IMX5_CLK_PWM1_IPG_GATE>,
+				         <&clks IMX5_CLK_PWM1_HF_GATE>;
 				clock-names = "ipg", "per";
 				interrupts = <61>;
 			};
@@ -328,7 +381,8 @@
 				#pwm-cells = <2>;
 				compatible = "fsl,imx51-pwm", "fsl,imx27-pwm";
 				reg = <0x73fb8000 0x4000>;
-				clocks = <&clks 39>, <&clks 40>;
+				clocks = <&clks IMX5_CLK_PWM2_IPG_GATE>,
+				         <&clks IMX5_CLK_PWM2_HF_GATE>;
 				clock-names = "ipg", "per";
 				interrupts = <94>;
 			};
@@ -337,7 +391,8 @@
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fbc000 0x4000>;
 				interrupts = <31>;
-				clocks = <&clks 28>, <&clks 29>;
+				clocks = <&clks IMX5_CLK_UART1_IPG_GATE>,
+				         <&clks IMX5_CLK_UART1_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -346,7 +401,8 @@
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fc0000 0x4000>;
 				interrupts = <32>;
-				clocks = <&clks 30>, <&clks 31>;
+				clocks = <&clks IMX5_CLK_UART2_IPG_GATE>,
+				         <&clks IMX5_CLK_UART2_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -376,14 +432,14 @@
 				compatible = "fsl,imx51-iim", "fsl,imx27-iim";
 				reg = <0x83f98000 0x4000>;
 				interrupts = <69>;
-				clocks = <&clks 107>;
+				clocks = <&clks IMX5_CLK_IIM_GATE>;
 			};
 
 			owire: owire@83fa4000 {
 				compatible = "fsl,imx51-owire", "fsl,imx21-owire";
 				reg = <0x83fa4000 0x4000>;
 				interrupts = <88>;
-				clocks = <&clks 159>;
+				clocks = <&clks IMX5_CLK_OWIRE_GATE>;
 				status = "disabled";
 			};
 
@@ -393,7 +449,8 @@
 				compatible = "fsl,imx51-ecspi";
 				reg = <0x83fac000 0x4000>;
 				interrupts = <37>;
-				clocks = <&clks 53>, <&clks 54>;
+				clocks = <&clks IMX5_CLK_ECSPI2_IPG_GATE>,
+				         <&clks IMX5_CLK_ECSPI2_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -402,7 +459,8 @@
 				compatible = "fsl,imx51-sdma", "fsl,imx35-sdma";
 				reg = <0x83fb0000 0x4000>;
 				interrupts = <6>;
-				clocks = <&clks 56>, <&clks 56>;
+				clocks = <&clks IMX5_CLK_SDMA_GATE>,
+				         <&clks IMX5_CLK_SDMA_GATE>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
@@ -414,7 +472,8 @@
 				compatible = "fsl,imx51-cspi", "fsl,imx35-cspi";
 				reg = <0x83fc0000 0x4000>;
 				interrupts = <38>;
-				clocks = <&clks 55>, <&clks 55>;
+				clocks = <&clks IMX5_CLK_CSPI_IPG_GATE>,
+				         <&clks IMX5_CLK_CSPI_IPG_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -425,7 +484,7 @@
 				compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
 				reg = <0x83fc4000 0x4000>;
 				interrupts = <63>;
-				clocks = <&clks 35>;
+				clocks = <&clks IMX5_CLK_I2C2_GATE>;
 				status = "disabled";
 			};
 
@@ -435,7 +494,7 @@
 				compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
 				reg = <0x83fc8000 0x4000>;
 				interrupts = <62>;
-				clocks = <&clks 34>;
+				clocks = <&clks IMX5_CLK_I2C1_GATE>;
 				status = "disabled";
 			};
 
@@ -443,18 +502,19 @@
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fcc000 0x4000>;
 				interrupts = <29>;
-				clocks = <&clks 48>;
+				clocks = <&clks IMX5_CLK_SSI1_IPG_GATE>;
 				dmas = <&sdma 28 0 0>,
 				       <&sdma 29 0 0>;
 				dma-names = "rx", "tx";
 				fsl,fifo-depth = <15>;
-				fsl,ssi-dma-events = <29 28 27 26>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
 			audmux: audmux@83fd0000 {
 				compatible = "fsl,imx51-audmux", "fsl,imx31-audmux";
 				reg = <0x83fd0000 0x4000>;
+				clocks = <&clks IMX5_CLK_DUMMY>;
+				clock-names = "audmux";
 				status = "disabled";
 			};
 
@@ -463,7 +523,7 @@
 				#size-cells = <1>;
 				compatible = "fsl,imx51-weim";
 				reg = <0x83fda000 0x1000>;
-				clocks = <&clks 57>;
+				clocks = <&clks IMX5_CLK_EMI_SLOW_GATE>;
 				ranges = <
 					0 0 0xb0000000 0x08000000
 					1 0 0xb8000000 0x08000000
@@ -476,10 +536,12 @@
 			};
 
 			nfc: nand@83fdb000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
 				compatible = "fsl,imx51-nand";
 				reg = <0x83fdb000 0x1000 0xcfff0000 0x10000>;
 				interrupts = <8>;
-				clocks = <&clks 60>;
+				clocks = <&clks IMX5_CLK_NFC_GATE>;
 				status = "disabled";
 			};
 
@@ -487,7 +549,7 @@
 				compatible = "fsl,imx51-pata", "fsl,imx27-pata";
 				reg = <0x83fe0000 0x4000>;
 				interrupts = <70>;
-				clocks = <&clks 172>;
+				clocks = <&clks IMX5_CLK_PATA_GATE>;
 				status = "disabled";
 			};
 
@@ -495,12 +557,11 @@
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fe8000 0x4000>;
 				interrupts = <96>;
-				clocks = <&clks 50>;
+				clocks = <&clks IMX5_CLK_SSI3_IPG_GATE>;
 				dmas = <&sdma 46 0 0>,
 				       <&sdma 47 0 0>;
 				dma-names = "rx", "tx";
 				fsl,fifo-depth = <15>;
-				fsl,ssi-dma-events = <47 46 37 35>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
@@ -508,336 +569,12 @@
 				compatible = "fsl,imx51-fec", "fsl,imx27-fec";
 				reg = <0x83fec000 0x4000>;
 				interrupts = <87>;
-				clocks = <&clks 42>, <&clks 42>, <&clks 42>;
+				clocks = <&clks IMX5_CLK_FEC_GATE>,
+				         <&clks IMX5_CLK_FEC_GATE>,
+				         <&clks IMX5_CLK_FEC_GATE>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
-		};
-	};
-};
-
-&iomuxc {
-	audmux {
-		pinctrl_audmux_1: audmuxgrp-1 {
-			fsl,pins = <
-				MX51_PAD_AUD3_BB_TXD__AUD3_TXD 0x80000000
-				MX51_PAD_AUD3_BB_RXD__AUD3_RXD 0x80000000
-				MX51_PAD_AUD3_BB_CK__AUD3_TXC  0x80000000
-				MX51_PAD_AUD3_BB_FS__AUD3_TXFS 0x80000000
-			>;
-		};
-	};
-
-	fec {
-		pinctrl_fec_1: fecgrp-1 {
-			fsl,pins = <
-				MX51_PAD_EIM_EB2__FEC_MDIO	   0x80000000
-				MX51_PAD_EIM_EB3__FEC_RDATA1	   0x80000000
-				MX51_PAD_EIM_CS2__FEC_RDATA2	   0x80000000
-				MX51_PAD_EIM_CS3__FEC_RDATA3	   0x80000000
-				MX51_PAD_EIM_CS4__FEC_RX_ER	   0x80000000
-				MX51_PAD_EIM_CS5__FEC_CRS	   0x80000000
-				MX51_PAD_NANDF_RB2__FEC_COL	   0x80000000
-				MX51_PAD_NANDF_RB3__FEC_RX_CLK	   0x80000000
-				MX51_PAD_NANDF_D9__FEC_RDATA0	   0x80000000
-				MX51_PAD_NANDF_D8__FEC_TDATA0	   0x80000000
-				MX51_PAD_NANDF_CS2__FEC_TX_ER	   0x80000000
-				MX51_PAD_NANDF_CS3__FEC_MDC	   0x80000000
-				MX51_PAD_NANDF_CS4__FEC_TDATA1	   0x80000000
-				MX51_PAD_NANDF_CS5__FEC_TDATA2	   0x80000000
-				MX51_PAD_NANDF_CS6__FEC_TDATA3	   0x80000000
-				MX51_PAD_NANDF_CS7__FEC_TX_EN	   0x80000000
-				MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK 0x80000000
-			>;
-		};
-
-		pinctrl_fec_2: fecgrp-2 {
-			fsl,pins = <
-				MX51_PAD_DI_GP3__FEC_TX_ER	  0x80000000
-				MX51_PAD_DI2_PIN4__FEC_CRS	  0x80000000
-				MX51_PAD_DI2_PIN2__FEC_MDC	  0x80000000
-				MX51_PAD_DI2_PIN3__FEC_MDIO	  0x80000000
-				MX51_PAD_DI2_DISP_CLK__FEC_RDATA1 0x80000000
-				MX51_PAD_DI_GP4__FEC_RDATA2	  0x80000000
-				MX51_PAD_DISP2_DAT0__FEC_RDATA3   0x80000000
-				MX51_PAD_DISP2_DAT1__FEC_RX_ER	  0x80000000
-				MX51_PAD_DISP2_DAT6__FEC_TDATA1	  0x80000000
-				MX51_PAD_DISP2_DAT7__FEC_TDATA2	  0x80000000
-				MX51_PAD_DISP2_DAT8__FEC_TDATA3	  0x80000000
-				MX51_PAD_DISP2_DAT9__FEC_TX_EN	  0x80000000
-				MX51_PAD_DISP2_DAT10__FEC_COL	  0x80000000
-				MX51_PAD_DISP2_DAT11__FEC_RX_CLK  0x80000000
-				MX51_PAD_DISP2_DAT12__FEC_RX_DV	  0x80000000
-				MX51_PAD_DISP2_DAT13__FEC_TX_CLK  0x80000000
-				MX51_PAD_DISP2_DAT14__FEC_RDATA0  0x80000000
-				MX51_PAD_DISP2_DAT15__FEC_TDATA0  0x80000000
-			>;
-		};
-	};
-
-	ecspi1 {
-		pinctrl_ecspi1_1: ecspi1grp-1 {
-			fsl,pins = <
-				MX51_PAD_CSPI1_MISO__ECSPI1_MISO 0x185
-				MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI 0x185
-				MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK 0x185
-			>;
-		};
-	};
-
-	ecspi2 {
-		pinctrl_ecspi2_1: ecspi2grp-1 {
-			fsl,pins = <
-				MX51_PAD_NANDF_RB3__ECSPI2_MISO 0x185
-				MX51_PAD_NANDF_D15__ECSPI2_MOSI 0x185
-				MX51_PAD_NANDF_RB2__ECSPI2_SCLK 0x185
-			>;
-		};
-	};
-
-	esdhc1 {
-		pinctrl_esdhc1_1: esdhc1grp-1 {
-			fsl,pins = <
-				MX51_PAD_SD1_CMD__SD1_CMD     0x400020d5
-				MX51_PAD_SD1_CLK__SD1_CLK     0x20d5
-				MX51_PAD_SD1_DATA0__SD1_DATA0 0x20d5
-				MX51_PAD_SD1_DATA1__SD1_DATA1 0x20d5
-				MX51_PAD_SD1_DATA2__SD1_DATA2 0x20d5
-				MX51_PAD_SD1_DATA3__SD1_DATA3 0x20d5
-			>;
-		};
-	};
-
-	esdhc2 {
-		pinctrl_esdhc2_1: esdhc2grp-1 {
-			fsl,pins = <
-				MX51_PAD_SD2_CMD__SD2_CMD     0x400020d5
-				MX51_PAD_SD2_CLK__SD2_CLK     0x20d5
-				MX51_PAD_SD2_DATA0__SD2_DATA0 0x20d5
-				MX51_PAD_SD2_DATA1__SD2_DATA1 0x20d5
-				MX51_PAD_SD2_DATA2__SD2_DATA2 0x20d5
-				MX51_PAD_SD2_DATA3__SD2_DATA3 0x20d5
-			>;
-		};
-	};
-
-	i2c2 {
-		pinctrl_i2c2_1: i2c2grp-1 {
-			fsl,pins = <
-				MX51_PAD_KEY_COL4__I2C2_SCL 0x400001ed
-				MX51_PAD_KEY_COL5__I2C2_SDA 0x400001ed
-			>;
-		};
-
-		pinctrl_i2c2_2: i2c2grp-2 {
-			fsl,pins = <
-				MX51_PAD_EIM_D27__I2C2_SCL 0x400001ed
-				MX51_PAD_EIM_D24__I2C2_SDA 0x400001ed
-			>;
-		};
-
-		pinctrl_i2c2_3: i2c2grp-3 {
-			fsl,pins = <
-				MX51_PAD_GPIO1_2__I2C2_SCL 0x400001ed
-				MX51_PAD_GPIO1_3__I2C2_SDA 0x400001ed
-			>;
-		};
-	};
-
-	ipu_disp1 {
-		pinctrl_ipu_disp1_1: ipudisp1grp-1 {
-			fsl,pins = <
-				MX51_PAD_DISP1_DAT0__DISP1_DAT0	  0x5
-				MX51_PAD_DISP1_DAT1__DISP1_DAT1	  0x5
-				MX51_PAD_DISP1_DAT2__DISP1_DAT2	  0x5
-				MX51_PAD_DISP1_DAT3__DISP1_DAT3	  0x5
-				MX51_PAD_DISP1_DAT4__DISP1_DAT4	  0x5
-				MX51_PAD_DISP1_DAT5__DISP1_DAT5	  0x5
-				MX51_PAD_DISP1_DAT6__DISP1_DAT6	  0x5
-				MX51_PAD_DISP1_DAT7__DISP1_DAT7	  0x5
-				MX51_PAD_DISP1_DAT8__DISP1_DAT8	  0x5
-				MX51_PAD_DISP1_DAT9__DISP1_DAT9	  0x5
-				MX51_PAD_DISP1_DAT10__DISP1_DAT10 0x5
-				MX51_PAD_DISP1_DAT11__DISP1_DAT11 0x5
-				MX51_PAD_DISP1_DAT12__DISP1_DAT12 0x5
-				MX51_PAD_DISP1_DAT13__DISP1_DAT13 0x5
-				MX51_PAD_DISP1_DAT14__DISP1_DAT14 0x5
-				MX51_PAD_DISP1_DAT15__DISP1_DAT15 0x5
-				MX51_PAD_DISP1_DAT16__DISP1_DAT16 0x5
-				MX51_PAD_DISP1_DAT17__DISP1_DAT17 0x5
-				MX51_PAD_DISP1_DAT18__DISP1_DAT18 0x5
-				MX51_PAD_DISP1_DAT19__DISP1_DAT19 0x5
-				MX51_PAD_DISP1_DAT20__DISP1_DAT20 0x5
-				MX51_PAD_DISP1_DAT21__DISP1_DAT21 0x5
-				MX51_PAD_DISP1_DAT22__DISP1_DAT22 0x5
-				MX51_PAD_DISP1_DAT23__DISP1_DAT23 0x5
-				MX51_PAD_DI1_PIN2__DI1_PIN2	  0x5 /* hsync */
-				MX51_PAD_DI1_PIN3__DI1_PIN3	  0x5 /* vsync */
-			>;
-		};
-	};
-
-	ipu_disp2 {
-		pinctrl_ipu_disp2_1: ipudisp2grp-1 {
-			fsl,pins = <
-				MX51_PAD_DISP2_DAT0__DISP2_DAT0	    0x5
-				MX51_PAD_DISP2_DAT1__DISP2_DAT1	    0x5
-				MX51_PAD_DISP2_DAT2__DISP2_DAT2	    0x5
-				MX51_PAD_DISP2_DAT3__DISP2_DAT3	    0x5
-				MX51_PAD_DISP2_DAT4__DISP2_DAT4	    0x5
-				MX51_PAD_DISP2_DAT5__DISP2_DAT5	    0x5
-				MX51_PAD_DISP2_DAT6__DISP2_DAT6	    0x5
-				MX51_PAD_DISP2_DAT7__DISP2_DAT7	    0x5
-				MX51_PAD_DISP2_DAT8__DISP2_DAT8	    0x5
-				MX51_PAD_DISP2_DAT9__DISP2_DAT9	    0x5
-				MX51_PAD_DISP2_DAT10__DISP2_DAT10   0x5
-				MX51_PAD_DISP2_DAT11__DISP2_DAT11   0x5
-				MX51_PAD_DISP2_DAT12__DISP2_DAT12   0x5
-				MX51_PAD_DISP2_DAT13__DISP2_DAT13   0x5
-				MX51_PAD_DISP2_DAT14__DISP2_DAT14   0x5
-				MX51_PAD_DISP2_DAT15__DISP2_DAT15   0x5
-				MX51_PAD_DI2_PIN2__DI2_PIN2	    0x5 /* hsync */
-				MX51_PAD_DI2_PIN3__DI2_PIN3	    0x5 /* vsync */
-				MX51_PAD_DI2_DISP_CLK__DI2_DISP_CLK 0x5 /* CLK */
-				MX51_PAD_DI_GP4__DI2_PIN15	    0x5 /* DE */
-			>;
-		};
-	};
-
-	kpp {
-		pinctrl_kpp_1: kppgrp-1 {
-			fsl,pins = <
-				MX51_PAD_KEY_ROW0__KEY_ROW0 0xe0
-				MX51_PAD_KEY_ROW1__KEY_ROW1 0xe0
-				MX51_PAD_KEY_ROW2__KEY_ROW2 0xe0
-				MX51_PAD_KEY_ROW3__KEY_ROW3 0xe0
-				MX51_PAD_KEY_COL0__KEY_COL0 0xe8
-				MX51_PAD_KEY_COL1__KEY_COL1 0xe8
-				MX51_PAD_KEY_COL2__KEY_COL2 0xe8
-				MX51_PAD_KEY_COL3__KEY_COL3 0xe8
-			>;
-		};
-	};
-
-	pata {
-		pinctrl_pata_1: patagrp-1 {
-			fsl,pins = <
-				MX51_PAD_NANDF_WE_B__PATA_DIOW	   0x2004
-				MX51_PAD_NANDF_RE_B__PATA_DIOR	   0x2004
-				MX51_PAD_NANDF_ALE__PATA_BUFFER_EN 0x2004
-				MX51_PAD_NANDF_CLE__PATA_RESET_B   0x2004
-				MX51_PAD_NANDF_WP_B__PATA_DMACK	   0x2004
-				MX51_PAD_NANDF_RB0__PATA_DMARQ	   0x2004
-				MX51_PAD_NANDF_RB1__PATA_IORDY	   0x2004
-				MX51_PAD_GPIO_NAND__PATA_INTRQ	   0x2004
-				MX51_PAD_NANDF_CS2__PATA_CS_0	   0x2004
-				MX51_PAD_NANDF_CS3__PATA_CS_1	   0x2004
-				MX51_PAD_NANDF_CS4__PATA_DA_0	   0x2004
-				MX51_PAD_NANDF_CS5__PATA_DA_1	   0x2004
-				MX51_PAD_NANDF_CS6__PATA_DA_2	   0x2004
-				MX51_PAD_NANDF_D15__PATA_DATA15	   0x2004
-				MX51_PAD_NANDF_D14__PATA_DATA14	   0x2004
-				MX51_PAD_NANDF_D13__PATA_DATA13	   0x2004
-				MX51_PAD_NANDF_D12__PATA_DATA12	   0x2004
-				MX51_PAD_NANDF_D11__PATA_DATA11	   0x2004
-				MX51_PAD_NANDF_D10__PATA_DATA10	   0x2004
-				MX51_PAD_NANDF_D9__PATA_DATA9	   0x2004
-				MX51_PAD_NANDF_D8__PATA_DATA8	   0x2004
-				MX51_PAD_NANDF_D7__PATA_DATA7	   0x2004
-				MX51_PAD_NANDF_D6__PATA_DATA6	  0x2004
-				MX51_PAD_NANDF_D5__PATA_DATA5	  0x2004
-				MX51_PAD_NANDF_D4__PATA_DATA4	  0x2004
-				MX51_PAD_NANDF_D3__PATA_DATA3	  0x2004
-				MX51_PAD_NANDF_D2__PATA_DATA2	  0x2004
-				MX51_PAD_NANDF_D1__PATA_DATA1	  0x2004
-				MX51_PAD_NANDF_D0__PATA_DATA0	  0x2004
-			>;
-		};
-	};
-
-	uart1 {
-		pinctrl_uart1_1: uart1grp-1 {
-			fsl,pins = <
-				MX51_PAD_UART1_RXD__UART1_RXD 0x1c5
-				MX51_PAD_UART1_TXD__UART1_TXD 0x1c5
-			>;
-		};
-
-		pinctrl_uart1_rtscts_1: uart1rtscts-1 {
-			fsl,pins = <
-				MX51_PAD_UART1_RTS__UART1_RTS 0x1c5
-				MX51_PAD_UART1_CTS__UART1_CTS 0x1c5
-			>;
-		};
-	};
-
-	uart2 {
-		pinctrl_uart2_1: uart2grp-1 {
-			fsl,pins = <
-				MX51_PAD_UART2_RXD__UART2_RXD 0x1c5
-				MX51_PAD_UART2_TXD__UART2_TXD 0x1c5
-			>;
-		};
-	};
-
-	uart3 {
-		pinctrl_uart3_1: uart3grp-1 {
-			fsl,pins = <
-				MX51_PAD_EIM_D25__UART3_RXD 0x1c5
-				MX51_PAD_EIM_D26__UART3_TXD 0x1c5
-			>;
-		};
-
-		pinctrl_uart3_rtscts_1: uart3rtscts-1 {
-			fsl,pins = <
-				MX51_PAD_EIM_D27__UART3_RTS 0x1c5
-				MX51_PAD_EIM_D24__UART3_CTS 0x1c5
-			>;
-		};
-
-		pinctrl_uart3_2: uart3grp-2 {
-			fsl,pins = <
-				MX51_PAD_UART3_RXD__UART3_RXD 0x1c5
-				MX51_PAD_UART3_TXD__UART3_TXD 0x1c5
-			>;
-		};
-	};
-
-	usbh1 {
-		pinctrl_usbh1_1: usbh1grp-1 {
-			fsl,pins = <
-				MX51_PAD_USBH1_DATA0__USBH1_DATA0 0x1e5
-				MX51_PAD_USBH1_DATA1__USBH1_DATA1 0x1e5
-				MX51_PAD_USBH1_DATA2__USBH1_DATA2 0x1e5
-				MX51_PAD_USBH1_DATA3__USBH1_DATA3 0x1e5
-				MX51_PAD_USBH1_DATA4__USBH1_DATA4 0x1e5
-				MX51_PAD_USBH1_DATA5__USBH1_DATA5 0x1e5
-				MX51_PAD_USBH1_DATA6__USBH1_DATA6 0x1e5
-				MX51_PAD_USBH1_DATA7__USBH1_DATA7 0x1e5
-				MX51_PAD_USBH1_CLK__USBH1_CLK	  0x1e5
-				MX51_PAD_USBH1_DIR__USBH1_DIR	  0x1e5
-				MX51_PAD_USBH1_NXT__USBH1_NXT	  0x1e5
-				MX51_PAD_USBH1_STP__USBH1_STP	  0x1e5
-			>;
-		};
-	};
-
-	usbh2 {
-		pinctrl_usbh2_1: usbh2grp-1 {
-			fsl,pins = <
-				MX51_PAD_EIM_D16__USBH2_DATA0 0x1e5
-				MX51_PAD_EIM_D17__USBH2_DATA1 0x1e5
-				MX51_PAD_EIM_D18__USBH2_DATA2 0x1e5
-				MX51_PAD_EIM_D19__USBH2_DATA3 0x1e5
-				MX51_PAD_EIM_D20__USBH2_DATA4 0x1e5
-				MX51_PAD_EIM_D21__USBH2_DATA5 0x1e5
-				MX51_PAD_EIM_D22__USBH2_DATA6 0x1e5
-				MX51_PAD_EIM_D23__USBH2_DATA7 0x1e5
-				MX51_PAD_EIM_A24__USBH2_CLK   0x1e5
-				MX51_PAD_EIM_A25__USBH2_DIR   0x1e5
-				MX51_PAD_EIM_A27__USBH2_NXT   0x1e5
-				MX51_PAD_EIM_A26__USBH2_STP   0x1e5
-			>;
 		};
 	};
 };

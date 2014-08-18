@@ -94,8 +94,10 @@ static ssize_t cuse_read(struct file *file, char __user *buf, size_t count,
 	loff_t pos = 0;
 	struct iovec iov = { .iov_base = buf, .iov_len = count };
 	struct fuse_io_priv io = { .async = 0, .file = file };
+	struct iov_iter ii;
+	iov_iter_init(&ii, READ, &iov, 1, count);
 
-	return fuse_direct_io(&io, &iov, 1, count, &pos, 0);
+	return fuse_direct_io(&io, &ii, &pos, FUSE_DIO_CUSE);
 }
 
 static ssize_t cuse_write(struct file *file, const char __user *buf,
@@ -104,12 +106,15 @@ static ssize_t cuse_write(struct file *file, const char __user *buf,
 	loff_t pos = 0;
 	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
 	struct fuse_io_priv io = { .async = 0, .file = file };
+	struct iov_iter ii;
+	iov_iter_init(&ii, WRITE, &iov, 1, count);
 
 	/*
 	 * No locking or generic_write_checks(), the server is
 	 * responsible for locking and sanity checks.
 	 */
-	return fuse_direct_io(&io, &iov, 1, count, &pos, 1);
+	return fuse_direct_io(&io, &ii, &pos,
+			      FUSE_DIO_WRITE | FUSE_DIO_CUSE);
 }
 
 static int cuse_open(struct inode *inode, struct file *file)
@@ -568,7 +573,7 @@ static ssize_t cuse_class_waiting_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", atomic_read(&cc->fc.num_waiting));
 }
-static DEVICE_ATTR(waiting, S_IFREG | 0400, cuse_class_waiting_show, NULL);
+static DEVICE_ATTR(waiting, 0400, cuse_class_waiting_show, NULL);
 
 static ssize_t cuse_class_abort_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -579,7 +584,7 @@ static ssize_t cuse_class_abort_store(struct device *dev,
 	fuse_abort_conn(&cc->fc);
 	return count;
 }
-static DEVICE_ATTR(abort, S_IFREG | 0200, NULL, cuse_class_abort_store);
+static DEVICE_ATTR(abort, 0200, NULL, cuse_class_abort_store);
 
 static struct attribute *cuse_class_dev_attrs[] = {
 	&dev_attr_waiting.attr,

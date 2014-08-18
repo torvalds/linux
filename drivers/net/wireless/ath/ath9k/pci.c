@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include "ath9k.h"
 
-static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
+static const struct pci_device_id ath_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, 0x0023) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x0024) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x0027) }, /* PCI   */
@@ -686,7 +686,7 @@ static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	struct ath9k_platform_data *pdata = sc->dev->platform_data;
 
-	if (pdata) {
+	if (pdata && !pdata->use_eeprom) {
 		if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
 			ath_err(common,
 				"%s: eeprom read failed, offset %08x is out of range\n",
@@ -843,6 +843,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
+	ath9k_fill_chanctx_ops();
 	hw = ieee80211_alloc_hw(sizeof(struct ath_softc), &ath9k_ops);
 	if (!hw) {
 		dev_err(&pdev->dev, "No memory for ieee80211_hw\n");
@@ -857,9 +858,6 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->dev = &pdev->dev;
 	sc->mem = pcim_iomap_table(pdev)[0];
 	sc->driver_data = id->driver_data;
-
-	/* Will be cleared in ath9k_start() */
-	set_bit(SC_OP_INVALID, &sc->sc_flags);
 
 	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
@@ -917,6 +915,7 @@ static int ath_pci_suspend(struct device *device)
 	 */
 	ath9k_stop_btcoex(sc);
 	ath9k_hw_disable(sc->sc_ah);
+	del_timer_sync(&sc->sleep_timer);
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
 
 	return 0;

@@ -40,8 +40,8 @@ struct ad1836_priv {
  */
 static const char *ad1836_deemp[] = {"None", "44.1kHz", "32kHz", "48kHz"};
 
-static const struct soc_enum ad1836_deemp_enum =
-	SOC_ENUM_SINGLE(AD1836_DAC_CTRL1, 8, 4, ad1836_deemp);
+static SOC_ENUM_SINGLE_DECL(ad1836_deemp_enum,
+			    AD1836_DAC_CTRL1, 8, ad1836_deemp);
 
 #define AD1836_DAC_VOLUME(x) \
 	SOC_DOUBLE_R("DAC" #x " Playback Volume", AD1836_DAC_L_VOL(x), \

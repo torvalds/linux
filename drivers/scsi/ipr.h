@@ -101,12 +101,16 @@
 #define IPR_SUBS_DEV_ID_57D7    0x03FF
 #define IPR_SUBS_DEV_ID_57D8    0x03FE
 #define IPR_SUBS_DEV_ID_57D9    0x046D
+#define IPR_SUBS_DEV_ID_57DA    0x04CA
 #define IPR_SUBS_DEV_ID_57EB    0x0474
 #define IPR_SUBS_DEV_ID_57EC    0x0475
 #define IPR_SUBS_DEV_ID_57ED    0x0499
 #define IPR_SUBS_DEV_ID_57EE    0x049A
 #define IPR_SUBS_DEV_ID_57EF    0x049B
 #define IPR_SUBS_DEV_ID_57F0    0x049C
+#define IPR_SUBS_DEV_ID_2CCA	0x04C7
+#define IPR_SUBS_DEV_ID_2CD2	0x04C8
+#define IPR_SUBS_DEV_ID_2CCD	0x04C9
 #define IPR_NAME				"ipr"
 
 /*
@@ -230,6 +234,7 @@
 #define IPR_WAIT_FOR_RESET_TIMEOUT		(2 * HZ)
 #define IPR_CHECK_FOR_RESET_TIMEOUT		(HZ / 10)
 #define IPR_WAIT_FOR_BIST_TIMEOUT		(2 * HZ)
+#define IPR_PCI_ERROR_RECOVERY_TIMEOUT	(120 * HZ)
 #define IPR_PCI_RESET_TIMEOUT			(HZ / 2)
 #define IPR_SIS32_DUMP_TIMEOUT			(15 * HZ)
 #define IPR_SIS64_DUMP_TIMEOUT			(40 * HZ)
@@ -897,6 +902,18 @@ struct ipr_hostrcb_type_01_error {
 	__be32 ioa_data[236];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_type_21_error {
+	__be32 wwn[4];
+	u8 res_path[8];
+	u8 primary_problem_desc[32];
+	u8 second_problem_desc[32];
+	__be32 sense_data[8];
+	__be32 cdb[4];
+	__be32 residual_trans_length;
+	__be32 length_of_error;
+	__be32 ioa_data[236];
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_type_02_error {
 	struct ipr_vpd ioa_vpd;
 	struct ipr_vpd cfc_vpd;
@@ -1126,6 +1143,7 @@ struct ipr_hostrcb64_error {
 		struct ipr_hostrcb_type_ff_error type_ff_error;
 		struct ipr_hostrcb_type_12_error type_12_error;
 		struct ipr_hostrcb_type_17_error type_17_error;
+		struct ipr_hostrcb_type_21_error type_21_error;
 		struct ipr_hostrcb_type_23_error type_23_error;
 		struct ipr_hostrcb_type_24_error type_24_error;
 		struct ipr_hostrcb_type_30_error type_30_error;
@@ -1169,6 +1187,7 @@ struct ipr_hcam {
 #define IPR_HOST_RCB_OVERLAY_ID_16				0x16
 #define IPR_HOST_RCB_OVERLAY_ID_17				0x17
 #define IPR_HOST_RCB_OVERLAY_ID_20				0x20
+#define IPR_HOST_RCB_OVERLAY_ID_21				0x21
 #define IPR_HOST_RCB_OVERLAY_ID_23				0x23
 #define IPR_HOST_RCB_OVERLAY_ID_24				0x24
 #define IPR_HOST_RCB_OVERLAY_ID_26				0x26
@@ -1252,6 +1271,7 @@ struct ipr_resource_entry {
 	u8 add_to_ml:1;
 	u8 del_from_ml:1;
 	u8 resetting_device:1;
+	u8 reset_occurred:1;
 
 	u32 bus;		/* AKA channel */
 	u32 target;		/* AKA id */
@@ -1441,6 +1461,7 @@ struct ipr_ioa_cfg {
 	u8 dump_timeout:1;
 	u8 cfg_locked:1;
 	u8 clear_isr:1;
+	u8 probe_done:1;
 
 	u8 revid;
 
@@ -1519,6 +1540,7 @@ struct ipr_ioa_cfg {
 
 	wait_queue_head_t reset_wait_q;
 	wait_queue_head_t msi_wait_q;
+	wait_queue_head_t eeh_wait_q;
 
 	struct ipr_dump *dump;
 	enum ipr_sdt_state sdt_state;

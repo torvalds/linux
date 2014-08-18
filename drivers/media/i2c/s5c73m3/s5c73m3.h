@@ -17,6 +17,7 @@
 #ifndef S5C73M3_H_
 #define S5C73M3_H_
 
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/regulator/consumer.h>
 #include <media/v4l2-common.h>
@@ -321,6 +322,7 @@ enum s5c73m3_oif_pads {
 
 
 #define S5C73M3_MAX_SUPPLIES			6
+#define S5C73M3_DEFAULT_MCLK_FREQ		24000000U
 
 struct s5c73m3_ctrls {
 	struct v4l2_ctrl_handler handler;
@@ -390,6 +392,8 @@ struct s5c73m3 {
 
 	struct regulator_bulk_data supplies[S5C73M3_MAX_SUPPLIES];
 	struct s5c73m3_gpio gpio[GPIO_NUM];
+
+	struct clk *clock;
 
 	/* External master clock frequency */
 	u32 mclk_frequency;

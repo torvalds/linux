@@ -1,0 +1,40 @@
+<refentry id="V4L2-SDR-FMT-RU12LE">
+  <refmeta>
+    <refentrytitle>V4L2_SDR_FMT_RU12LE ('RU12')</refentrytitle>
+    &manvol;
+  </refmeta>
+    <refnamediv>
+      <refname>
+        <constant>V4L2_SDR_FMT_RU12LE</constant>
+      </refname>
+      <refpurpose>Real unsigned 12-bit little endian sample</refpurpose>
+    </refnamediv>
+    <refsect1>
+      <title>Description</title>
+      <para>
+This format contains sequence of real number samples. Each sample is
+represented as a 12 bit unsigned little endian number. Sample is stored
+in 16 bit space with unused high bits padded with 0.
+      </para>
+    <example>
+      <title><constant>V4L2_SDR_FMT_RU12LE</constant> 1 sample</title>
+      <formalpara>
+        <title>Byte Order.</title>
+        <para>Each cell is one byte.
+          <informaltable frame="none">
+            <tgroup cols="3" align="center">
+              <colspec align="left" colwidth="2*" />
+              <tbody valign="top">
+                <row>
+                  <entry>start&nbsp;+&nbsp;0:</entry>
+                  <entry>I'<subscript>0[7:0]</subscript></entry>
+                  <entry>I'<subscript>0[11:8]</subscript></entry>
+                </row>
+              </tbody>
+            </tgroup>
+          </informaltable>
+        </para>
+      </formalpara>
+    </example>
+  </refsect1>
+</refentry>

@@ -61,6 +61,7 @@
 MODULE_AUTHOR("Ville Nuorvala");
 MODULE_DESCRIPTION("IPv6 tunneling device");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_RTNL_LINK("ip6tnl");
 MODULE_ALIAS_NETDEV("ip6tnl0");
 
 #ifdef IP6_TNL_DEBUG
@@ -108,12 +109,12 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
 						   per_cpu_ptr(dev->tstats, i);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&tstats->syncp);
+			start = u64_stats_fetch_begin_irq(&tstats->syncp);
 			tmp.rx_packets = tstats->rx_packets;
 			tmp.rx_bytes = tstats->rx_bytes;
 			tmp.tx_packets = tstats->tx_packets;
 			tmp.tx_bytes =  tstats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&tstats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&tstats->syncp, start));
 
 		sum.rx_packets += tmp.rx_packets;
 		sum.rx_bytes   += tmp.rx_bytes;
@@ -314,7 +315,8 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct __ip6_tnl_parm *p)
 	else
 		sprintf(name, "ip6tnl%%d");
 
-	dev = alloc_netdev(sizeof (*t), name, ip6_tnl_dev_setup);
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
+			   ip6_tnl_dev_setup);
 	if (dev == NULL)
 		goto failed;
 
@@ -1045,7 +1047,8 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	ipv6h = ipv6_hdr(skb);
-	ip6_flow_hdr(ipv6h, INET_ECN_encapsulate(0, dsfield), fl6->flowlabel);
+	ip6_flow_hdr(ipv6h, INET_ECN_encapsulate(0, dsfield),
+		     ip6_make_flowlabel(net, skb, fl6->flowlabel, false));
 	ipv6h->hop_limit = t->parms.hop_limit;
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;
@@ -1340,8 +1343,8 @@ ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int err = 0;
 	struct ip6_tnl_parm p;
 	struct __ip6_tnl_parm p1;
-	struct ip6_tnl *t = NULL;
-	struct net *net = dev_net(dev);
+	struct ip6_tnl *t = netdev_priv(dev);
+	struct net *net = t->net;
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
 
 	switch (cmd) {
@@ -1353,11 +1356,11 @@ ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			}
 			ip6_tnl_parm_from_user(&p1, &p);
 			t = ip6_tnl_locate(net, &p1, 0);
+			if (t == NULL)
+				t = netdev_priv(dev);
 		} else {
 			memset(&p, 0, sizeof(p));
 		}
-		if (t == NULL)
-			t = netdev_priv(dev);
 		ip6_tnl_parm_to_user(&p, &t->parms);
 		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof (p))) {
 			err = -EFAULT;
@@ -1502,19 +1505,12 @@ static inline int
 ip6_tnl_dev_init_gen(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	int i;
 
 	t->dev = dev;
 	t->net = dev_net(dev);
-	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct pcpu_sw_netstats *ip6_tnl_stats;
-		ip6_tnl_stats = per_cpu_ptr(dev->tstats, i);
-		u64_stats_init(&ip6_tnl_stats->syncp);
-	}
 	return 0;
 }
 
@@ -1564,7 +1560,7 @@ static int ip6_tnl_validate(struct nlattr *tb[], struct nlattr *data[])
 {
 	u8 proto;
 
-	if (!data)
+	if (!data || !data[IFLA_IPTUN_PROTO])
 		return 0;
 
 	proto = nla_get_u8(data[IFLA_IPTUN_PROTO]);
@@ -1778,7 +1774,7 @@ static int __net_init ip6_tnl_init_net(struct net *net)
 
 	err = -ENOMEM;
 	ip6n->fb_tnl_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6tnl0",
-				      ip6_tnl_dev_setup);
+					NET_NAME_UNKNOWN, ip6_tnl_dev_setup);
 
 	if (!ip6n->fb_tnl_dev)
 		goto err_alloc_dev;

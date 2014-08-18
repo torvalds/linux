@@ -188,8 +188,9 @@ int arizona_irq_init(struct arizona *arizona)
 	int flags = IRQF_ONESHOT;
 	int ret, i;
 	const struct regmap_irq_chip *aod, *irq;
-	bool ctrlif_error = true;
 	struct irq_data *irq_data;
+
+	arizona->ctrlif_error = true;
 
 	switch (arizona->type) {
 #ifdef CONFIG_MFD_WM5102
@@ -197,15 +198,23 @@ int arizona_irq_init(struct arizona *arizona)
 		aod = &wm5102_aod;
 		irq = &wm5102_irq;
 
-		ctrlif_error = false;
+		arizona->ctrlif_error = false;
 		break;
 #endif
 #ifdef CONFIG_MFD_WM5110
 	case WM5110:
 		aod = &wm5110_aod;
-		irq = &wm5110_irq;
 
-		ctrlif_error = false;
+		switch (arizona->rev) {
+		case 0 ... 2:
+			irq = &wm5110_irq;
+			break;
+		default:
+			irq = &wm5110_revd_irq;
+			break;
+		}
+
+		arizona->ctrlif_error = false;
 		break;
 #endif
 #ifdef CONFIG_MFD_WM8997
@@ -213,7 +222,7 @@ int arizona_irq_init(struct arizona *arizona)
 		aod = &wm8997_aod;
 		irq = &wm8997_irq;
 
-		ctrlif_error = false;
+		arizona->ctrlif_error = false;
 		break;
 #endif
 	default:
@@ -285,7 +294,7 @@ int arizona_irq_init(struct arizona *arizona)
 				  IRQF_ONESHOT, -1, irq,
 				  &arizona->irq_chip);
 	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to add AOD IRQs: %d\n", ret);
+		dev_err(arizona->dev, "Failed to add main IRQs: %d\n", ret);
 		goto err_aod;
 	}
 
@@ -300,7 +309,7 @@ int arizona_irq_init(struct arizona *arizona)
 	}
 
 	/* Handle control interface errors in the core */
-	if (ctrlif_error) {
+	if (arizona->ctrlif_error) {
 		i = arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR);
 		ret = request_threaded_irq(i, NULL, arizona_ctrlif_err,
 					   IRQF_ONESHOT,
@@ -345,7 +354,9 @@ int arizona_irq_init(struct arizona *arizona)
 	return 0;
 
 err_main_irq:
-	free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR), arizona);
+	if (arizona->ctrlif_error)
+		free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR),
+			 arizona);
 err_ctrlif:
 	free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_BOOT_DONE), arizona);
 err_boot_done:
@@ -361,7 +372,9 @@ err:
 
 int arizona_irq_exit(struct arizona *arizona)
 {
-	free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR), arizona);
+	if (arizona->ctrlif_error)
+		free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR),
+			 arizona);
 	free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_BOOT_DONE), arizona);
 	regmap_del_irq_chip(irq_create_mapping(arizona->virq, 1),
 			    arizona->irq_chip);

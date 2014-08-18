@@ -85,7 +85,7 @@ struct mibrec {
 	u16 parm1;
 	u16 parm2;
 	u16 parm3;
-	int (*func) (struct mibrec *mib,
+	int (*func)(struct mibrec *mib,
 		     int isget,
 		     wlandevice_t *wlandev,
 		     hfa384x_t *hw,
@@ -672,8 +672,8 @@ static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 
 	if (!isget)
 		if ((*uint32) % 2) {
-			printk(KERN_WARNING "Attempt to set odd number "
-			       "FragmentationThreshold\n");
+			netdev_warn(wlandev->netdev,
+				    "Attempt to set odd number FragmentationThreshold\n");
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_not_supported;
 			return 0;
@@ -722,6 +722,7 @@ static int prism2mib_priv(struct mibrec *mib,
 	switch (mib->did) {
 	case DIDmib_lnx_lnxConfigTable_lnxRSNAIE:{
 			hfa384x_WPAData_t wpa;
+
 			if (isget) {
 				hfa384x_drvr_getconfig(hw,
 						       HFA384x_RID_CNFWPADATA,
@@ -742,7 +743,7 @@ static int prism2mib_priv(struct mibrec *mib,
 			break;
 		}
 	default:
-		printk(KERN_ERR "Unhandled DID 0x%08x\n", mib->did);
+		netdev_err(wlandev->netdev, "Unhandled DID 0x%08x\n", mib->did);
 	}
 
 	return 0;

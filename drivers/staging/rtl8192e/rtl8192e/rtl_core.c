@@ -1915,8 +1915,7 @@ int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	if (queue_index == TXCMD_QUEUE) {
 		rtl8192_tx_cmd(dev, skb);
-		ret = 0;
-		return ret;
+		return 0;
 	} else {
 		tcb_desc->RATRIndex = 7;
 		tcb_desc->bTxDisableRateFallBack = 1;
@@ -2066,20 +2065,16 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 	int i, rx_queue_idx;
 
 	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx++) {
-		priv->rx_ring[rx_queue_idx] = pci_alloc_consistent(priv->pdev,
-					sizeof(*priv->rx_ring[rx_queue_idx]) *
-					priv->rxringcount,
-					&priv->rx_ring_dma[rx_queue_idx]);
-
+		priv->rx_ring[rx_queue_idx] =
+			pci_zalloc_consistent(priv->pdev,
+					      sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
+					      &priv->rx_ring_dma[rx_queue_idx]);
 		if (!priv->rx_ring[rx_queue_idx] ||
 		    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
 			RT_TRACE(COMP_ERR, "Cannot allocate RX ring\n");
 			return -ENOMEM;
 		}
 
-		memset(priv->rx_ring[rx_queue_idx], 0,
-		       sizeof(*priv->rx_ring[rx_queue_idx]) *
-		       priv->rxringcount);
 		priv->rx_idx[rx_queue_idx] = 0;
 
 		for (i = 0; i < priv->rxringcount; i++) {
@@ -2119,14 +2114,13 @@ static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
 	dma_addr_t dma;
 	int i;
 
-	ring = pci_alloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
+	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
 		RT_TRACE(COMP_ERR, "Cannot allocate TX ring (prio = %d)\n",
 			 prio);
 		return -ENOMEM;
 	}
 
-	memset(ring, 0, sizeof(*ring)*entries);
 	priv->tx_ring[prio].desc = ring;
 	priv->tx_ring[prio].dma = dma;
 	priv->tx_ring[prio].idx = 0;
@@ -2926,8 +2920,7 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 
 	dev->netdev_ops = &rtl8192_netdev_ops;
 
-	dev->wireless_handlers = (struct iw_handler_def *)
-				 &r8192_wx_handlers_def;
+	dev->wireless_handlers = &r8192_wx_handlers_def;
 	dev->ethtool_ops = &rtl819x_ethtool_ops;
 
 	dev->type = ARPHRD_ETHER;
@@ -3030,7 +3023,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 		RT_TRACE(COMP_ERR, "ERR!!! %s(): Driver is already down!\n",
 			 __func__);
 		priv->bdisable_nic = false;
-		return RT_STATUS_FAILURE;
+		return false;
 	}
 
 	RT_TRACE(COMP_PS, "===========>%s()\n", __func__);
@@ -3040,7 +3033,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 		RT_TRACE(COMP_ERR, "ERR!!! %s(): initialization is failed!\n",
 			 __func__);
 		priv->bdisable_nic = false;
-		return -1;
+		return false;
 	}
 	RT_TRACE(COMP_INIT, "start adapter finished\n");
 	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);

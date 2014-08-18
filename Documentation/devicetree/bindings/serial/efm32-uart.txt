@@ -1,20 +1,20 @@
 * Energymicro efm32 UART
 
 Required properties:
-- compatible : Should be "efm32,uart"
+- compatible : Should be "energymicro,efm32-uart"
 - reg : Address and length of the register set
 - interrupts : Should contain uart interrupt
 
 Optional properties:
-- location : Decides the location of the USART I/O pins.
+- energymicro,location : Decides the location of the USART I/O pins.
   Allowed range : [0 .. 5]
   Default: 0
 
 Example:
 
 uart@0x4000c400 {
-	compatible = "efm32,uart";
+	compatible = "energymicro,efm32-uart";
 	reg = <0x4000c400 0x400>;
 	interrupts = <15>;
-	location = <0>;
+	energymicro,location = <0>;
 };

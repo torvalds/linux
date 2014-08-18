@@ -213,12 +213,11 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 		entries[i].vector = op->msix_entries[i].vector;
 	}
 
-	result = pci_enable_msix(dev, entries, op->value);
-
+	result = pci_enable_msix_exact(dev, entries, op->value);
 	if (result == 0) {
 		for (i = 0; i < op->value; i++) {
 			op->msix_entries[i].entry = entries[i].entry;
-			if (entries[i].vector)
+			if (entries[i].vector) {
 				op->msix_entries[i].vector =
 					xen_pirq_from_irq(entries[i].vector);
 				if (unlikely(verbose_request))
@@ -226,6 +225,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 						"MSI-X[%d]: %d\n",
 						pci_name(dev), i,
 						op->msix_entries[i].vector);
+			}
 		}
 	} else
 		pr_warn_ratelimited("%s: error enabling MSI-X for guest %u: err %d!\n",
@@ -348,9 +348,9 @@ void xen_pcibk_do_op(struct work_struct *data)
 	notify_remote_via_irq(pdev->evtchn_irq);
 
 	/* Mark that we're done. */
-	smp_mb__before_clear_bit(); /* /after/ clearing PCIF_active */
+	smp_mb__before_atomic(); /* /after/ clearing PCIF_active */
 	clear_bit(_PDEVF_op_active, &pdev->flags);
-	smp_mb__after_clear_bit(); /* /before/ final check for work */
+	smp_mb__after_atomic(); /* /before/ final check for work */
 
 	/* Check to see if the driver domain tried to start another request in
 	 * between clearing _XEN_PCIF_active and clearing _PDEVF_op_active.

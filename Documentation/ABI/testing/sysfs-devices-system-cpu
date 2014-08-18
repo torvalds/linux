@@ -128,7 +128,7 @@ Description:	Discover cpuidle policy and mechanism
 
 What:		/sys/devices/system/cpu/cpu#/cpufreq/*
 Date:		pre-git history
-Contact:	cpufreq@vger.kernel.org
+Contact:	linux-pm@vger.kernel.org
 Description:	Discover and change clock speed of CPUs
 
 		Clock scaling allows you to change the clock speed of the
@@ -146,7 +146,7 @@ Description:	Discover and change clock speed of CPUs
 
 What:		/sys/devices/system/cpu/cpu#/cpufreq/freqdomain_cpus
 Date:		June 2013
-Contact:	cpufreq@vger.kernel.org
+Contact:	linux-pm@vger.kernel.org
 Description:	Discover CPUs in the same CPU frequency coordination domain
 
 		freqdomain_cpus is the list of CPUs (online+offline) that share

@@ -373,6 +373,14 @@ config RTC_DRV_PCF8563
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8563.
 
+config RTC_DRV_PCF85063
+	tristate "nxp PCF85063"
+	help
+	  If you say yes here you get support for the PCF85063 RTC chip
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-pcf85063.
+
 config RTC_DRV_PCF8583
 	tristate "Philips PCF8583"
 	help
@@ -386,12 +394,12 @@ config RTC_DRV_PCF8583
 	  will be called rtc-pcf8583.
 
 config RTC_DRV_M41T80
-	tristate "ST M41T62/65/M41T80/81/82/83/84/85/87"
+	tristate "ST M41T62/65/M41T80/81/82/83/84/85/87 and compatible"
 	help
 	  If you say Y here you will get support for the ST M41T60
 	  and M41T80 RTC chips series. Currently, the following chips are
 	  supported: M41T62, M41T65, M41T80, M41T81, M41T82, M41T83, M41ST84,
-	  M41ST85, and M41ST87.
+	  M41ST85, M41ST87, and MicroCrystal RV4162.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-m41t80.
@@ -530,11 +538,11 @@ config RTC_DRV_RV3029C2
 	  will be called rtc-rv3029c2.
 
 config RTC_DRV_S5M
-	tristate "Samsung S5M series"
+	tristate "Samsung S2M/S5M series"
 	depends on MFD_SEC_CORE
 	help
 	  If you say yes here you will get support for the
-	  RTC of Samsung S5M PMIC series.
+	  RTC of Samsung S2MPS14 and S5M PMIC series.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-s5m.
@@ -572,6 +580,29 @@ config RTC_DRV_DS1305
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1305.
+
+config RTC_DRV_DS1343
+	select REGMAP_SPI
+	tristate "Dallas/Maxim DS1343/DS1344"
+	help
+	  If you say yes here you get support for the
+	  Dallas/Maxim DS1343 and DS1344 real time clock chips.
+	  Support for trickle charger, alarm is provided.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1343.
+
+config RTC_DRV_DS1347
+	tristate "Dallas/Maxim DS1347"
+	help
+	  If you say yes here you get support for the
+	  Dallas/Maxim DS1347 chips.
+
+	  This driver only supports the RTC feature, and not other chip
+	  features such as alarms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1347.
 
 config RTC_DRV_DS1390
 	tristate "Dallas/Maxim DS1390/93/94"
@@ -637,6 +668,14 @@ config RTC_DRV_RX4581
 
 	  This driver can also be built as a module. If so the module
 	  will be called rtc-rx4581.
+
+config RTC_DRV_MCP795
+	tristate "Microchip MCP795"
+	help
+	  If you say yes here you will get support for the Microchip MCP795.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-mcp795.
 
 endif # SPI_MASTER
 
@@ -729,6 +768,15 @@ config RTC_DRV_DS1742
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1742.
 
+config RTC_DRV_DS2404
+	tristate "Maxim/Dallas DS2404"
+	help
+	  If you say yes here you get support for the
+	  Dallas DS2404 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds2404.
+
 config RTC_DRV_DA9052
 	tristate "Dialog DA9052/DA9053 RTC"
 	depends on PMIC_DA9052
@@ -746,9 +794,19 @@ config RTC_DRV_DA9055
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-da9055
 
+config RTC_DRV_DA9063
+	tristate "Dialog Semiconductor DA9063 RTC"
+	depends on MFD_DA9063
+	help
+	  If you say yes here you will get support for the RTC subsystem
+	  of the Dialog Semiconductor DA9063.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "rtc-da9063".
+
 config RTC_DRV_EFI
 	tristate "EFI RTC"
-	depends on IA64
+	depends on EFI
 	help
 	  If you say yes here you will get support for the EFI
 	  Real Time Clock.
@@ -831,15 +889,6 @@ config RTC_DRV_V3020
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-v3020.
-
-config RTC_DRV_DS2404
-	tristate "Dallas DS2404"
-	help
-	  If you say yes here you get support for the
-	  Dallas DS2404 RTC chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-ds2404.
 
 config RTC_DRV_WM831X
 	tristate "Wolfson Microelectronics WM831x RTC"
@@ -1308,12 +1357,22 @@ config RTC_DRV_SIRFSOC
 
 config RTC_DRV_MOXART
 	tristate "MOXA ART RTC"
+	depends on ARCH_MOXART || COMPILE_TEST
 	help
 	   If you say yes here you get support for the MOXA ART
 	   RTC module.
 
 	   This driver can also be built as a module. If so, the module
 	   will be called rtc-moxart
+
+config RTC_DRV_XGENE
+	tristate "APM X-Gene RTC"
+	help
+	  If you say yes here you get support for the APM X-Gene SoC real time
+	  clock.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-xgene".
 
 comment "HID Sensor RTC drivers"
 

@@ -1408,10 +1408,9 @@ static void swap_refcount_rec(void *a, void *b, int size)
 {
 	struct ocfs2_refcount_rec *l = a, *r = b, tmp;
 
-	tmp = *(struct ocfs2_refcount_rec *)l;
-	*(struct ocfs2_refcount_rec *)l =
-			*(struct ocfs2_refcount_rec *)r;
-	*(struct ocfs2_refcount_rec *)r = tmp;
+	tmp = *l;
+	*l = *r;
+	*r = tmp;
 }
 
 /*
@@ -3110,7 +3109,7 @@ static int ocfs2_clear_ext_refcount(handle_t *handle,
 	el = path_leaf_el(path);
 
 	index = ocfs2_search_extent_list(el, cpos);
-	if (index == -1 || index >= le16_to_cpu(el->l_next_free_rec)) {
+	if (index == -1) {
 		ocfs2_error(sb,
 			    "Inode %llu has an extent at cpos %u which can no "
 			    "longer be found.\n",
@@ -4289,9 +4288,16 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 		goto out;
 	}
 
+	error = ocfs2_rw_lock(inode, 1);
+	if (error) {
+		mlog_errno(error);
+		goto out;
+	}
+
 	error = ocfs2_inode_lock(inode, &old_bh, 1);
 	if (error) {
 		mlog_errno(error);
+		ocfs2_rw_unlock(inode, 1);
 		goto out;
 	}
 
@@ -4303,6 +4309,7 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	up_write(&OCFS2_I(inode)->ip_xattr_sem);
 
 	ocfs2_inode_unlock(inode, 1);
+	ocfs2_rw_unlock(inode, 1);
 	brelse(old_bh);
 
 	if (error) {

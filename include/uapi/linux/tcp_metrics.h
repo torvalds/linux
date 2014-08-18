@@ -11,11 +11,14 @@
 #define TCP_METRICS_GENL_VERSION	0x1
 
 enum tcp_metric_index {
-	TCP_METRIC_RTT,
-	TCP_METRIC_RTTVAR,
+	TCP_METRIC_RTT,		/* in ms units */
+	TCP_METRIC_RTTVAR,	/* in ms units */
 	TCP_METRIC_SSTHRESH,
 	TCP_METRIC_CWND,
 	TCP_METRIC_REORDERING,
+
+	TCP_METRIC_RTT_US,	/* in usec units */
+	TCP_METRIC_RTTVAR_US,	/* in usec units */
 
 	/* Always last.  */
 	__TCP_METRIC_MAX,

@@ -43,7 +43,7 @@ static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 		clear_buffer_uptodate(bh);
 	if (orig_bh) {
 		clear_bit_unlock(BH_Shadow, &orig_bh->b_state);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 		wake_up_bit(&orig_bh->b_state, BH_Shadow);
 	}
 	unlock_buffer(bh);
@@ -239,7 +239,7 @@ static int journal_submit_data_buffers(journal_t *journal,
 		spin_lock(&journal->j_list_lock);
 		J_ASSERT(jinode->i_transaction == commit_transaction);
 		clear_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
 	}
 	spin_unlock(&journal->j_list_lock);
@@ -277,7 +277,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 		}
 		spin_lock(&journal->j_list_lock);
 		clear_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
 	}
 
@@ -555,7 +555,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	blk_start_plug(&plug);
 	jbd2_journal_write_revoke_records(journal, commit_transaction,
 					  &log_bufs, WRITE_SYNC);
-	blk_finish_plug(&plug);
 
 	jbd_debug(3, "JBD2: commit phase 2b\n");
 
@@ -582,7 +581,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	err = 0;
 	bufs = 0;
 	descriptor = NULL;
-	blk_start_plug(&plug);
 	while (commit_transaction->t_buffers) {
 
 		/* Find the next buffer to be journaled... */
@@ -1067,6 +1065,25 @@ restart_loop:
 		goto restart_loop;
 	}
 
+	/* Add the transaction to the checkpoint list
+	 * __journal_remove_checkpoint() can not destroy transaction
+	 * under us because it is not marked as T_FINISHED yet */
+	if (journal->j_checkpoint_transactions == NULL) {
+		journal->j_checkpoint_transactions = commit_transaction;
+		commit_transaction->t_cpnext = commit_transaction;
+		commit_transaction->t_cpprev = commit_transaction;
+	} else {
+		commit_transaction->t_cpnext =
+			journal->j_checkpoint_transactions;
+		commit_transaction->t_cpprev =
+			commit_transaction->t_cpnext->t_cpprev;
+		commit_transaction->t_cpnext->t_cpprev =
+			commit_transaction;
+		commit_transaction->t_cpprev->t_cpnext =
+				commit_transaction;
+	}
+	spin_unlock(&journal->j_list_lock);
+
 	/* Done with this transaction! */
 
 	jbd_debug(3, "JBD2: commit phase 7\n");
@@ -1085,24 +1102,7 @@ restart_loop:
 		atomic_read(&commit_transaction->t_handle_count);
 	trace_jbd2_run_stats(journal->j_fs_dev->bd_dev,
 			     commit_transaction->t_tid, &stats.run);
-
-	/*
-	 * Calculate overall stats
-	 */
-	spin_lock(&journal->j_history_lock);
-	journal->j_stats.ts_tid++;
-	if (commit_transaction->t_requested)
-		journal->j_stats.ts_requested++;
-	journal->j_stats.run.rs_wait += stats.run.rs_wait;
-	journal->j_stats.run.rs_request_delay += stats.run.rs_request_delay;
-	journal->j_stats.run.rs_running += stats.run.rs_running;
-	journal->j_stats.run.rs_locked += stats.run.rs_locked;
-	journal->j_stats.run.rs_flushing += stats.run.rs_flushing;
-	journal->j_stats.run.rs_logging += stats.run.rs_logging;
-	journal->j_stats.run.rs_handle_count += stats.run.rs_handle_count;
-	journal->j_stats.run.rs_blocks += stats.run.rs_blocks;
-	journal->j_stats.run.rs_blocks_logged += stats.run.rs_blocks_logged;
-	spin_unlock(&journal->j_history_lock);
+	stats.ts_requested = (commit_transaction->t_requested) ? 1 : 0;
 
 	commit_transaction->t_state = T_COMMIT_CALLBACK;
 	J_ASSERT(commit_transaction == journal->j_committing_transaction);
@@ -1122,24 +1122,6 @@ restart_loop:
 
 	write_unlock(&journal->j_state_lock);
 
-	if (journal->j_checkpoint_transactions == NULL) {
-		journal->j_checkpoint_transactions = commit_transaction;
-		commit_transaction->t_cpnext = commit_transaction;
-		commit_transaction->t_cpprev = commit_transaction;
-	} else {
-		commit_transaction->t_cpnext =
-			journal->j_checkpoint_transactions;
-		commit_transaction->t_cpprev =
-			commit_transaction->t_cpnext->t_cpprev;
-		commit_transaction->t_cpnext->t_cpprev =
-			commit_transaction;
-		commit_transaction->t_cpprev->t_cpnext =
-				commit_transaction;
-	}
-	spin_unlock(&journal->j_list_lock);
-	/* Drop all spin_locks because commit_callback may be block.
-	 * __journal_remove_checkpoint() can not destroy transaction
-	 * under us because it is not marked as T_FINISHED yet */
 	if (journal->j_commit_callback)
 		journal->j_commit_callback(journal, commit_transaction);
 
@@ -1150,7 +1132,7 @@ restart_loop:
 	write_lock(&journal->j_state_lock);
 	spin_lock(&journal->j_list_lock);
 	commit_transaction->t_state = T_FINISHED;
-	/* Recheck checkpoint lists after j_list_lock was dropped */
+	/* Check if the transaction can be dropped now that we are finished */
 	if (commit_transaction->t_checkpoint_list == NULL &&
 	    commit_transaction->t_checkpoint_io_list == NULL) {
 		__jbd2_journal_drop_transaction(journal, commit_transaction);
@@ -1159,4 +1141,21 @@ restart_loop:
 	spin_unlock(&journal->j_list_lock);
 	write_unlock(&journal->j_state_lock);
 	wake_up(&journal->j_wait_done_commit);
+
+	/*
+	 * Calculate overall stats
+	 */
+	spin_lock(&journal->j_history_lock);
+	journal->j_stats.ts_tid++;
+	journal->j_stats.ts_requested += stats.ts_requested;
+	journal->j_stats.run.rs_wait += stats.run.rs_wait;
+	journal->j_stats.run.rs_request_delay += stats.run.rs_request_delay;
+	journal->j_stats.run.rs_running += stats.run.rs_running;
+	journal->j_stats.run.rs_locked += stats.run.rs_locked;
+	journal->j_stats.run.rs_flushing += stats.run.rs_flushing;
+	journal->j_stats.run.rs_logging += stats.run.rs_logging;
+	journal->j_stats.run.rs_handle_count += stats.run.rs_handle_count;
+	journal->j_stats.run.rs_blocks += stats.run.rs_blocks;
+	journal->j_stats.run.rs_blocks_logged += stats.run.rs_blocks_logged;
+	spin_unlock(&journal->j_history_lock);
 }

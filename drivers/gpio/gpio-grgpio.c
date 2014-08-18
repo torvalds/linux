@@ -468,9 +468,7 @@ static int grgpio_remove(struct platform_device *ofdev)
 		}
 	}
 
-	ret = gpiochip_remove(&priv->bgc.gc);
-	if (ret)
-		goto out;
+	gpiochip_remove(&priv->bgc.gc);
 
 	if (priv->domain)
 		irq_domain_remove(priv->domain);
@@ -481,7 +479,7 @@ out:
 	return ret;
 }
 
-static struct of_device_id grgpio_match[] = {
+static const struct of_device_id grgpio_match[] = {
 	{.name = "GAISLER_GPIO"},
 	{.name = "01_01a"},
 	{},

@@ -22,8 +22,9 @@ Appendix B: The kprobes sysctl interface
 
 Kprobes enables you to dynamically break into any kernel routine and
 collect debugging and performance information non-disruptively. You
-can trap at almost any kernel code address, specifying a handler
+can trap at almost any kernel code address(*), specifying a handler
 routine to be invoked when the breakpoint is hit.
+(*: some parts of the kernel code can not be trapped, see 1.5 Blacklist)
 
 There are currently three types of probes: kprobes, jprobes, and
 kretprobes (also called return probes).  A kprobe can be inserted
@@ -272,6 +273,19 @@ using one of the following techniques:
 - Specify an empty function for the kprobe's post_handler or break_handler.
  or
 - Execute 'sysctl -w debug.kprobes_optimization=n'
+
+1.5 Blacklist
+
+Kprobes can probe most of the kernel except itself. This means
+that there are some functions where kprobes cannot probe. Probing
+(trapping) such functions can cause a recursive trap (e.g. double
+fault) or the nested probe handler may never be called.
+Kprobes manages such functions as a blacklist.
+If you want to add a function into the blacklist, you just need
+to (1) include linux/kprobes.h and (2) use NOKPROBE_SYMBOL() macro
+to specify a blacklisted function.
+Kprobes checks the given probe address against the blacklist and
+rejects registering it, if the given address is in the blacklist.
 
 2. Architectures Supported
 

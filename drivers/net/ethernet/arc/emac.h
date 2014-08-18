@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
+#include <linux/clk.h>
 
 /* STATUS and ENABLE Register bit masks */
 #define TXINT_MASK	(1<<0)	/* Transmit interrupt */
@@ -104,12 +105,10 @@ struct buffer_state {
 /**
  * struct arc_emac_priv - Storage of EMAC's private information.
  * @dev:	Pointer to the current device.
- * @ndev:	Pointer to the current network device.
  * @phy_dev:	Pointer to attached PHY device.
  * @bus:	Pointer to the current MII bus.
  * @regs:	Base address of EMAC memory-mapped control registers.
  * @napi:	Structure for NAPI.
- * @stats:	Network device statistics.
  * @rxbd:	Pointer to Rx BD ring.
  * @txbd:	Pointer to Tx BD ring.
  * @rxbd_dma:	DMA handle for Rx BD ring.
@@ -126,14 +125,13 @@ struct buffer_state {
 struct arc_emac_priv {
 	/* Devices */
 	struct device *dev;
-	struct net_device *ndev;
 	struct phy_device *phy_dev;
 	struct mii_bus *bus;
 
 	void __iomem *regs;
+	struct clk *clk;
 
 	struct napi_struct napi;
-	struct net_device_stats stats;
 
 	struct arc_emac_bd *rxbd;
 	struct arc_emac_bd *txbd;

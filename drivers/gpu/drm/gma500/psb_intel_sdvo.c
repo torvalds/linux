@@ -406,18 +406,18 @@ static void psb_intel_sdvo_debug_write(struct psb_intel_sdvo *psb_intel_sdvo, u8
 	DRM_DEBUG_KMS("%s: W: %02X ",
 				SDVO_NAME(psb_intel_sdvo), cmd);
 	for (i = 0; i < args_len; i++)
-		DRM_LOG_KMS("%02X ", ((u8 *)args)[i]);
+		DRM_DEBUG_KMS("%02X ", ((u8 *)args)[i]);
 	for (; i < 8; i++)
-		DRM_LOG_KMS("   ");
+		DRM_DEBUG_KMS("   ");
 	for (i = 0; i < ARRAY_SIZE(sdvo_cmd_names); i++) {
 		if (cmd == sdvo_cmd_names[i].cmd) {
-			DRM_LOG_KMS("(%s)", sdvo_cmd_names[i].name);
+			DRM_DEBUG_KMS("(%s)", sdvo_cmd_names[i].name);
 			break;
 		}
 	}
 	if (i == ARRAY_SIZE(sdvo_cmd_names))
-		DRM_LOG_KMS("(%02X)", cmd);
-	DRM_LOG_KMS("\n");
+		DRM_DEBUG_KMS("(%02X)", cmd);
+	DRM_DEBUG_KMS("\n");
 }
 
 static const char *cmd_status_names[] = {
@@ -512,9 +512,9 @@ static bool psb_intel_sdvo_read_response(struct psb_intel_sdvo *psb_intel_sdvo,
 	}
 
 	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
-		DRM_LOG_KMS("(%s)", cmd_status_names[status]);
+		DRM_DEBUG_KMS("(%s)", cmd_status_names[status]);
 	else
-		DRM_LOG_KMS("(??? %d)", status);
+		DRM_DEBUG_KMS("(??? %d)", status);
 
 	if (status != SDVO_CMD_STATUS_SUCCESS)
 		goto log_fail;
@@ -525,13 +525,13 @@ static bool psb_intel_sdvo_read_response(struct psb_intel_sdvo *psb_intel_sdvo,
 					  SDVO_I2C_RETURN_0 + i,
 					  &((u8 *)response)[i]))
 			goto log_fail;
-		DRM_LOG_KMS(" %02X", ((u8 *)response)[i]);
+		DRM_DEBUG_KMS(" %02X", ((u8 *)response)[i]);
 	}
-	DRM_LOG_KMS("\n");
+	DRM_DEBUG_KMS("\n");
 	return true;
 
 log_fail:
-	DRM_LOG_KMS("... failed\n");
+	DRM_DEBUG_KMS("... failed\n");
 	return false;
 }
 
@@ -1682,7 +1682,7 @@ static void psb_intel_sdvo_destroy(struct drm_connector *connector)
 				     psb_intel_sdvo_connector->tv_format);
 
 	psb_intel_sdvo_destroy_enhance_property(connector);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1844,7 +1844,7 @@ done:
 	if (psb_intel_sdvo->base.base.crtc) {
 		struct drm_crtc *crtc = psb_intel_sdvo->base.base.crtc;
 		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x,
-					 crtc->y, crtc->fb);
+					 crtc->y, crtc->primary->fb);
 	}
 
 	return 0;
@@ -2071,7 +2071,7 @@ psb_intel_sdvo_connector_init(struct psb_intel_sdvo_connector *connector,
 	connector->base.base.display_info.subpixel_order = SubPixelHorizontalRGB;
 
 	gma_connector_attach_encoder(&connector->base, &encoder->base);
-	drm_sysfs_connector_add(&connector->base.base);
+	drm_connector_register(&connector->base.base);
 }
 
 static void

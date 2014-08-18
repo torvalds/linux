@@ -16,12 +16,20 @@
 #include <asm/ftrace.h>
 
 extern void *__bzero(void *__s, size_t __count);
+extern long __strncpy_from_kernel_nocheck_asm(char *__to,
+					      const char *__from, long __len);
+extern long __strncpy_from_kernel_asm(char *__to, const char *__from,
+				      long __len);
 extern long __strncpy_from_user_nocheck_asm(char *__to,
 					    const char *__from, long __len);
 extern long __strncpy_from_user_asm(char *__to, const char *__from,
 				    long __len);
+extern long __strlen_kernel_nocheck_asm(const char *s);
+extern long __strlen_kernel_asm(const char *s);
 extern long __strlen_user_nocheck_asm(const char *s);
 extern long __strlen_user_asm(const char *s);
+extern long __strnlen_kernel_nocheck_asm(const char *s);
+extern long __strnlen_kernel_asm(const char *s);
 extern long __strnlen_user_nocheck_asm(const char *s);
 extern long __strnlen_user_asm(const char *s);
 
@@ -43,17 +51,31 @@ EXPORT_SYMBOL(copy_page);
  */
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(__copy_user_inatomic);
+#ifdef CONFIG_EVA
+EXPORT_SYMBOL(__copy_from_user_eva);
+EXPORT_SYMBOL(__copy_in_user_eva);
+EXPORT_SYMBOL(__copy_to_user_eva);
+EXPORT_SYMBOL(__copy_user_inatomic_eva);
+#endif
 EXPORT_SYMBOL(__bzero);
+EXPORT_SYMBOL(__strncpy_from_kernel_nocheck_asm);
+EXPORT_SYMBOL(__strncpy_from_kernel_asm);
 EXPORT_SYMBOL(__strncpy_from_user_nocheck_asm);
 EXPORT_SYMBOL(__strncpy_from_user_asm);
+EXPORT_SYMBOL(__strlen_kernel_nocheck_asm);
+EXPORT_SYMBOL(__strlen_kernel_asm);
 EXPORT_SYMBOL(__strlen_user_nocheck_asm);
 EXPORT_SYMBOL(__strlen_user_asm);
+EXPORT_SYMBOL(__strnlen_kernel_nocheck_asm);
+EXPORT_SYMBOL(__strnlen_kernel_asm);
 EXPORT_SYMBOL(__strnlen_user_nocheck_asm);
 EXPORT_SYMBOL(__strnlen_user_asm);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_nocheck);
-EXPORT_SYMBOL(__csum_partial_copy_user);
+EXPORT_SYMBOL(__csum_partial_copy_kernel);
+EXPORT_SYMBOL(__csum_partial_copy_to_user);
+EXPORT_SYMBOL(__csum_partial_copy_from_user);
 
 EXPORT_SYMBOL(invalid_pte_table);
 #ifdef CONFIG_FUNCTION_TRACER

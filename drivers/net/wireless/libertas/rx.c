@@ -71,8 +71,10 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-		return process_rxed_802_11_packet(priv, skb);
+	if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR) {
+		ret = process_rxed_802_11_packet(priv, skb);
+		goto done;
+	}
 
 	p_rx_pd = (struct rxpd *) skb->data;
 	p_rx_pkt = (struct rxpackethdr *) ((u8 *)p_rx_pd +
@@ -86,7 +88,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	if (skb->len < (ETH_HLEN + 8 + sizeof(struct rxpd))) {
 		lbs_deb_rx("rx err: frame received with bad length\n");
 		dev->stats.rx_length_errors++;
-		ret = 0;
+		ret = -EINVAL;
 		dev_kfree_skb(skb);
 		goto done;
 	}

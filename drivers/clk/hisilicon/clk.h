@@ -30,6 +30,11 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 
+struct hisi_clock_data {
+	struct clk_onecell_data	clk_data;
+	void __iomem		*base;
+};
+
 struct hisi_fixed_rate_clock {
 	unsigned int		id;
 	char			*name;
@@ -57,6 +62,7 @@ struct hisi_mux_clock {
 	u8			shift;
 	u8			width;
 	u8			mux_flags;
+	u32			*table;
 	const char		*alias;
 };
 
@@ -89,15 +95,17 @@ struct clk *hisi_register_clkgate_sep(struct device *, const char *,
 				void __iomem *, u8,
 				u8, spinlock_t *);
 
-void __init hisi_clk_init(struct device_node *, int);
+struct hisi_clock_data __init *hisi_clk_init(struct device_node *, int);
 void __init hisi_clk_register_fixed_rate(struct hisi_fixed_rate_clock *,
-					int, void __iomem *);
+					int, struct hisi_clock_data *);
 void __init hisi_clk_register_fixed_factor(struct hisi_fixed_factor_clock *,
-					int, void __iomem *);
+					int, struct hisi_clock_data *);
 void __init hisi_clk_register_mux(struct hisi_mux_clock *, int,
-				void __iomem *);
+				struct hisi_clock_data *);
 void __init hisi_clk_register_divider(struct hisi_divider_clock *,
-				int, void __iomem *);
+				int, struct hisi_clock_data *);
+void __init hisi_clk_register_gate(struct hisi_gate_clock *,
+					int, struct hisi_clock_data *);
 void __init hisi_clk_register_gate_sep(struct hisi_gate_clock *,
-					int, void __iomem *);
+					int, struct hisi_clock_data *);
 #endif	/* __HISI_CLK_H */

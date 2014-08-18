@@ -47,7 +47,7 @@ mcasp0: mcasp0@1d00000 {
 	reg = <0x100000 0x3000>;
 	reg-names "mpu";
 	interrupts = <82>, <83>;
-	interrupts-names = "tx", "rx";
+	interrupt-names = "tx", "rx";
 	op-mode = <0>;		/* MCASP_IIS_MODE */
 	tdm-slots = <2>;
 	serial-dir = <

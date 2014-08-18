@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/average.h>
+#include <net/busy_poll.h>
 
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
@@ -521,6 +522,8 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 		skb_shinfo(skb)->gso_segs = 0;
 	}
 
+	skb_mark_napi_id(skb, &rq->napi);
+
 	netif_receive_skb(skb);
 	return;
 
@@ -725,15 +728,12 @@ static void refill_work(struct work_struct *work)
 	}
 }
 
-static int virtnet_poll(struct napi_struct *napi, int budget)
+static int virtnet_receive(struct receive_queue *rq, int budget)
 {
-	struct receive_queue *rq =
-		container_of(napi, struct receive_queue, napi);
 	struct virtnet_info *vi = rq->vq->vdev->priv;
+	unsigned int len, received = 0;
 	void *buf;
-	unsigned int r, len, received = 0;
 
-again:
 	while (received < budget &&
 	       (buf = virtqueue_get_buf(rq->vq, &len)) != NULL) {
 		receive_buf(rq, buf, len);
@@ -744,6 +744,18 @@ again:
 		if (!try_fill_recv(rq, GFP_ATOMIC))
 			schedule_delayed_work(&vi->refill, 0);
 	}
+
+	return received;
+}
+
+static int virtnet_poll(struct napi_struct *napi, int budget)
+{
+	struct receive_queue *rq =
+		container_of(napi, struct receive_queue, napi);
+	unsigned int r, received = 0;
+
+again:
+	received += virtnet_receive(rq, budget - received);
 
 	/* Out of packets? */
 	if (received < budget) {
@@ -759,6 +771,43 @@ again:
 
 	return received;
 }
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+/* must be called with local_bh_disable()d */
+static int virtnet_busy_poll(struct napi_struct *napi)
+{
+	struct receive_queue *rq =
+		container_of(napi, struct receive_queue, napi);
+	struct virtnet_info *vi = rq->vq->vdev->priv;
+	int r, received = 0, budget = 4;
+
+	if (!(vi->status & VIRTIO_NET_S_LINK_UP))
+		return LL_FLUSH_FAILED;
+
+	if (!napi_schedule_prep(napi))
+		return LL_FLUSH_BUSY;
+
+	virtqueue_disable_cb(rq->vq);
+
+again:
+	received += virtnet_receive(rq, budget);
+
+	r = virtqueue_enable_cb_prepare(rq->vq);
+	clear_bit(NAPI_STATE_SCHED, &napi->state);
+	if (unlikely(virtqueue_poll(rq->vq, r)) &&
+	    napi_schedule_prep(napi)) {
+		virtqueue_disable_cb(rq->vq);
+		if (received < budget) {
+			budget -= received;
+			goto again;
+		} else {
+			__napi_schedule(napi);
+		}
+	}
+
+	return received;
+}
+#endif	/* CONFIG_NET_RX_BUSY_POLL */
 
 static int virtnet_open(struct net_device *dev)
 {
@@ -882,7 +931,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev_warn(&dev->dev,
 				 "Unexpected TXQ (%d) queue failure: %d\n", qnum, err);
 		dev->stats.tx_dropped++;
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 	virtqueue_kick(sq->vq);
@@ -938,7 +987,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	sgs[out_num] = &stat;
 
 	BUG_ON(out_num + 1 > ARRAY_SIZE(sgs));
-	BUG_ON(virtqueue_add_sgs(vi->cvq, sgs, out_num, 1, vi, GFP_ATOMIC) < 0);
+	virtqueue_add_sgs(vi->cvq, sgs, out_num, 1, vi, GFP_ATOMIC);
 
 	if (unlikely(!virtqueue_kick(vi->cvq)))
 		return status == VIRTIO_NET_OK;
@@ -1000,16 +1049,16 @@ static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,
 		u64 tpackets, tbytes, rpackets, rbytes;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->tx_syncp);
+			start = u64_stats_fetch_begin_irq(&stats->tx_syncp);
 			tpackets = stats->tx_packets;
 			tbytes   = stats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&stats->tx_syncp, start));
+		} while (u64_stats_fetch_retry_irq(&stats->tx_syncp, start));
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->rx_syncp);
+			start = u64_stats_fetch_begin_irq(&stats->rx_syncp);
 			rpackets = stats->rx_packets;
 			rbytes   = stats->rx_bytes;
-		} while (u64_stats_fetch_retry_bh(&stats->rx_syncp, start));
+		} while (u64_stats_fetch_retry_irq(&stats->rx_syncp, start));
 
 		tot->rx_packets += rpackets;
 		tot->tx_packets += tpackets;
@@ -1285,7 +1334,7 @@ static int virtnet_set_channels(struct net_device *dev,
 	if (channels->rx_count || channels->tx_count || channels->other_count)
 		return -EINVAL;
 
-	if (queue_pairs > vi->max_queue_pairs)
+	if (queue_pairs > vi->max_queue_pairs || queue_pairs == 0)
 		return -EINVAL;
 
 	get_online_cpus();
@@ -1346,6 +1395,9 @@ static const struct net_device_ops virtnet_netdev = {
 	.ndo_vlan_rx_kill_vid = virtnet_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = virtnet_netpoll,
+#endif
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	.ndo_busy_poll		= virtnet_busy_poll,
 #endif
 };
 
@@ -1552,6 +1604,7 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 		vi->rq[i].pages = NULL;
 		netif_napi_add(vi->dev, &vi->rq[i].napi, virtnet_poll,
 			       napi_weight);
+		napi_hash_add(&vi->rq[i].napi);
 
 		sg_init_table(vi->rq[i].sg, ARRAY_SIZE(vi->rq[i].sg));
 		ewma_init(&vi->rq[i].mrg_avg_pkt_len, 1, RECEIVE_AVG_WEIGHT);
@@ -1646,7 +1699,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	dev->netdev_ops = &virtnet_netdev;
 	dev->features = NETIF_F_HIGHDMA;
 
-	SET_ETHTOOL_OPS(dev, &virtnet_ethtool_ops);
+	dev->ethtool_ops = &virtnet_ethtool_ops;
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
 	/* Do we support "hardware" checksums? */
@@ -1723,6 +1776,13 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ))
 		vi->has_cvq = true;
+
+	if (vi->any_header_sg) {
+		if (vi->mergeable_rx_bufs)
+			dev->needed_headroom = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+		else
+			dev->needed_headroom = sizeof(struct virtio_net_hdr);
+	}
 
 	/* Use single tx/rx queue pair as default */
 	vi->curr_queue_pairs = 1;
@@ -1846,11 +1906,13 @@ static int virtnet_freeze(struct virtio_device *vdev)
 	netif_device_detach(vi->dev);
 	cancel_delayed_work_sync(&vi->refill);
 
-	if (netif_running(vi->dev))
+	if (netif_running(vi->dev)) {
 		for (i = 0; i < vi->max_queue_pairs; i++) {
 			napi_disable(&vi->rq[i].napi);
+			napi_hash_del(&vi->rq[i].napi);
 			netif_napi_del(&vi->rq[i].napi);
 		}
+	}
 
 	remove_vq_common(vi);
 

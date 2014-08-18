@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -219,7 +219,10 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 
 	status = walk_state->descending_callback(walk_state, op);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "During name lookup/catalog"));
+		if (status != AE_CTRL_TERMINATE) {
+			ACPI_EXCEPTION((AE_INFO, status,
+					"During name lookup/catalog"));
+		}
 		return_ACPI_STATUS(status);
 	}
 
@@ -230,7 +233,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	status = acpi_ps_next_parse_state(walk_state, *op, status);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_CTRL_PENDING) {
-			return_ACPI_STATUS(AE_CTRL_PARSE_PENDING);
+			status = AE_CTRL_PARSE_PENDING;
 		}
 		return_ACPI_STATUS(status);
 	}

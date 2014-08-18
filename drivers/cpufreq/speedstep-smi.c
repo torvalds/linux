@@ -42,9 +42,9 @@ static enum speedstep_processor speedstep_processor;
  * are in kHz for the time being.
  */
 static struct cpufreq_frequency_table speedstep_freqs[] = {
-	{SPEEDSTEP_HIGH,	0},
-	{SPEEDSTEP_LOW,		0},
-	{0,			CPUFREQ_TABLE_END},
+	{0, SPEEDSTEP_HIGH,	0},
+	{0, SPEEDSTEP_LOW,	0},
+	{0, 0,			CPUFREQ_TABLE_END},
 };
 
 #define GET_SPEEDSTEP_OWNER 0
@@ -280,7 +280,6 @@ static struct cpufreq_driver speedstep_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= speedstep_target,
 	.init		= speedstep_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.get		= speedstep_get,
 	.resume		= speedstep_resume,
 	.attr		= cpufreq_generic_attr,
@@ -325,8 +324,8 @@ static int __init speedstep_init(void)
 		return -ENODEV;
 	}
 
-	pr_debug("signature:0x%.8ulx, command:0x%.8ulx, "
-		"event:0x%.8ulx, perf_level:0x%.8ulx.\n",
+	pr_debug("signature:0x%.8x, command:0x%.8x, "
+		"event:0x%.8x, perf_level:0x%.8x.\n",
 		ist_info.signature, ist_info.command,
 		ist_info.event, ist_info.perf_level);
 

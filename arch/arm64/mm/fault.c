@@ -32,6 +32,7 @@
 
 #include <asm/exception.h>
 #include <asm/debug-monitors.h>
+#include <asm/esr.h>
 #include <asm/system_misc.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -61,6 +62,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 			break;
 
 		pud = pud_offset(pgd, addr);
+		printk(", *pud=%016llx", pud_val(*pud));
 		if (pud_none(*pud) || pud_bad(*pud))
 			break;
 
@@ -123,6 +125,7 @@ static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 	}
 
 	tsk->thread.fault_address = addr;
+	tsk->thread.fault_code = esr;
 	si.si_signo = sig;
 	si.si_errno = 0;
 	si.si_code = code;
@@ -148,8 +151,6 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 #define VM_FAULT_BADMAP		0x010000
 #define VM_FAULT_BADACCESS	0x020000
 
-#define ESR_WRITE		(1 << 6)
-#define ESR_CM			(1 << 8)
 #define ESR_LNX_EXEC		(1 << 24)
 
 static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
@@ -218,7 +219,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 
 	if (esr & ESR_LNX_EXEC) {
 		vm_flags = VM_EXEC;
-	} else if ((esr & ESR_WRITE) && !(esr & ESR_CM)) {
+	} else if ((esr & ESR_EL1_WRITE) && !(esr & ESR_EL1_CM)) {
 		vm_flags = VM_WRITE;
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
@@ -525,7 +526,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	info.si_errno = 0;
 	info.si_code  = inf->code;
 	info.si_addr  = (void __user *)addr;
-	arm64_notify_die("", regs, &info, esr);
+	arm64_notify_die("", regs, &info, 0);
 
 	return 0;
 }

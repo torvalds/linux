@@ -268,10 +268,8 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_NO_PRIO_QUEUEING 0
 #define QETH_PRIO_Q_ING_PREC  1
 #define QETH_PRIO_Q_ING_TOS   2
-#define IP_TOS_LOWDELAY 0x10
-#define IP_TOS_HIGHTHROUGHPUT 0x08
-#define IP_TOS_HIGHRELIABILITY 0x04
-#define IP_TOS_NOTIMPORTANT 0x02
+#define QETH_PRIO_Q_ING_SKB   3
+#define QETH_PRIO_Q_ING_VLAN  4
 
 /* Packing */
 #define QETH_LOW_WATERMARK_PACK  2
@@ -441,10 +439,10 @@ struct qeth_qdio_buffer {
 };
 
 struct qeth_qdio_q {
-	struct qdio_buffer qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
+	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qeth_qdio_buffer bufs[QDIO_MAX_BUFFERS_PER_Q];
 	int next_buf_to_init;
-} __attribute__ ((aligned(256)));
+};
 
 struct qeth_qdio_out_buffer {
 	struct qdio_buffer *buffer;
@@ -467,7 +465,7 @@ enum qeth_out_q_states {
 };
 
 struct qeth_qdio_out_q {
-	struct qdio_buffer qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
+	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qeth_qdio_out_buffer *bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	int queue_no;
@@ -485,7 +483,7 @@ struct qeth_qdio_out_q {
 	atomic_t used_buffers;
 	/* indicates whether PCI flag must be set (or if one is outstanding) */
 	atomic_t set_pci_flags_count;
-} __attribute__ ((aligned(256)));
+};
 
 struct qeth_qdio_info {
 	atomic_t state;
@@ -768,6 +766,11 @@ struct carrier_info {
 	__u32 port_speed;
 };
 
+struct qeth_switch_info {
+	__u32 capabilities;
+	__u32 settings;
+};
+
 #define QETH_NAPI_WEIGHT NAPI_POLL_WEIGHT
 
 struct qeth_card {
@@ -854,8 +857,11 @@ static inline int qeth_get_micros(void)
 
 static inline int qeth_get_ip_version(struct sk_buff *skb)
 {
-	struct ethhdr *ehdr = (struct ethhdr *)skb->data;
-	switch (ehdr->h_proto) {
+	__be16 *p = &((struct ethhdr *)skb->data)->h_proto;
+
+	if (*p == ETH_P_8021Q)
+		p += 2;
+	switch (*p) {
 	case ETH_P_IPV6:
 		return 6;
 	case ETH_P_IP:
@@ -945,6 +951,8 @@ struct qeth_cmd_buffer *qeth_wait_for_buffer(struct qeth_channel *);
 int qeth_mdio_read(struct net_device *, int, int);
 int qeth_snmp_command(struct qeth_card *, char __user *);
 int qeth_query_oat_command(struct qeth_card *, char __user *);
+int qeth_query_switch_attributes(struct qeth_card *card,
+				  struct qeth_switch_info *sw_info);
 int qeth_query_card_info(struct qeth_card *card,
 	struct carrier_info *carrier_info);
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,

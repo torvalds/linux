@@ -1019,8 +1019,8 @@ static int amd7930_sbus_probe(struct platform_device *op)
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev_num], id[dev_num], THIS_MODULE, 0,
-			      &card);
+	err = snd_card_new(&op->dev, index[dev_num], id[dev_num],
+			   THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 

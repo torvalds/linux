@@ -62,10 +62,9 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 	int ret;
 
 	trig_info->id = ida_simple_get(&iio_trigger_ida, 0, 0, GFP_KERNEL);
-	if (trig_info->id < 0) {
-		ret = trig_info->id;
-		goto error_ret;
-	}
+	if (trig_info->id < 0)
+		return trig_info->id;
+
 	/* Set the name used for the sysfs directory etc */
 	dev_set_name(&trig_info->dev, "trigger%ld",
 		     (unsigned long) trig_info->id);
@@ -83,7 +82,6 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 
 error_unregister_id:
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
-error_ret:
 	return ret;
 }
 EXPORT_SYMBOL(iio_trigger_register);
@@ -116,7 +114,7 @@ static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 	return trig;
 }
 
-void iio_trigger_poll(struct iio_trigger *trig, s64 time)
+void iio_trigger_poll(struct iio_trigger *trig)
 {
 	int i;
 
@@ -135,12 +133,12 @@ EXPORT_SYMBOL(iio_trigger_poll);
 
 irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private)
 {
-	iio_trigger_poll(private, iio_get_time_ns());
+	iio_trigger_poll(private);
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL(iio_trigger_generic_data_rdy_poll);
 
-void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time)
+void iio_trigger_poll_chained(struct iio_trigger *trig)
 {
 	int i;
 
@@ -163,7 +161,7 @@ void iio_trigger_notify_done(struct iio_trigger *trig)
 		trig->ops->try_reenable)
 		if (trig->ops->try_reenable(trig))
 			/* Missed an interrupt so launch new poll now */
-			iio_trigger_poll(trig, 0);
+			iio_trigger_poll(trig);
 }
 EXPORT_SYMBOL(iio_trigger_notify_done);
 
@@ -234,13 +232,12 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
 		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
-			goto error_ret;
+			return ret;
 	}
 	iio_trigger_put_irq(trig, pf->irq);
 	free_irq(pf->irq, pf);
 	module_put(pf->indio_dev->info->driver_module);
 
-error_ret:
 	return ret;
 }
 

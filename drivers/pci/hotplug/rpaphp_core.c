@@ -39,6 +39,7 @@
 
 bool rpaphp_debug;
 LIST_HEAD(rpaphp_slot_head);
+EXPORT_SYMBOL_GPL(rpaphp_slot_head);
 
 #define DRIVER_VERSION	"0.1"
 #define DRIVER_AUTHOR	"Linda Xie <lxie@us.ibm.com>"
@@ -88,7 +89,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
  * @hotplug_slot: slot to get status
  * @value: pointer to store status
  */
-static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int retval, level;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
@@ -104,14 +105,14 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
  * @hotplug_slot: slot to get status
  * @value: pointer to store status
  */
-static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 	*value = slot->hotplug_slot->info->attention_status;
 	return 0;
 }
 
-static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 	int rc, state;
@@ -223,16 +224,16 @@ int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 	type_tmp = (char *) &types[1];
 
 	/* Iterate through parent properties, looking for my-drc-index */
-	for (i = 0; i < indexes[0]; i++) {
+	for (i = 0; i < be32_to_cpu(indexes[0]); i++) {
 		if ((unsigned int) indexes[i + 1] == *my_index) {
 			if (drc_name)
 				*drc_name = name_tmp;
 			if (drc_type)
 				*drc_type = type_tmp;
 			if (drc_index)
-				*drc_index = *my_index;
+				*drc_index = be32_to_cpu(*my_index);
 			if (drc_power_domain)
-				*drc_power_domain = domains[i+1];
+				*drc_power_domain = be32_to_cpu(domains[i+1]);
 			return 0;
 		}
 		name_tmp += (strlen(name_tmp) + 1);
@@ -241,6 +242,7 @@ int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(rpaphp_get_drc_props);
 
 static int is_php_type(char *drc_type)
 {
@@ -321,16 +323,19 @@ int rpaphp_add_slot(struct device_node *dn)
 	/* register PCI devices */
 	name = (char *) &names[1];
 	type = (char *) &types[1];
-	for (i = 0; i < indexes[0]; i++) {
+	for (i = 0; i < be32_to_cpu(indexes[0]); i++) {
+		int index;
 
-		slot = alloc_slot_struct(dn, indexes[i + 1], name, power_domains[i + 1]);
+		index = be32_to_cpu(indexes[i + 1]);
+		slot = alloc_slot_struct(dn, index, name,
+					 be32_to_cpu(power_domains[i + 1]));
 		if (!slot)
 			return -ENOMEM;
 
 		slot->type = simple_strtoul(type, NULL, 10);
 
 		dbg("Found drc-index:0x%x drc-name:%s drc-type:%s\n",
-				indexes[i + 1], name, type);
+				index, name, type);
 
 		retval = rpaphp_enable_slot(slot);
 		if (!retval)
@@ -347,6 +352,7 @@ int rpaphp_add_slot(struct device_node *dn)
 	/* XXX FIXME: reports a failure only if last entry in loop failed */
 	return retval;
 }
+EXPORT_SYMBOL_GPL(rpaphp_add_slot);
 
 static void __exit cleanup_slots(void)
 {
@@ -369,11 +375,11 @@ static void __exit cleanup_slots(void)
 
 static int __init rpaphp_init(void)
 {
-	struct device_node *dn = NULL;
+	struct device_node *dn;
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
-	while ((dn = of_find_node_by_name(dn, "pci")))
+	for_each_node_by_name(dn, "pci")
 		rpaphp_add_slot(dn);
 
 	return 0;
@@ -440,7 +446,3 @@ struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
 
 module_init(rpaphp_init);
 module_exit(rpaphp_exit);
-
-EXPORT_SYMBOL_GPL(rpaphp_add_slot);
-EXPORT_SYMBOL_GPL(rpaphp_slot_head);
-EXPORT_SYMBOL_GPL(rpaphp_get_drc_props);

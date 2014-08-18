@@ -22,11 +22,11 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		unsigned long dummy;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	ll	%0, %3			# xchg_u32	\n"
 		"	.set	mips0					\n"
 		"	move	%2, %z4					\n"
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"	sc	%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	.set	mips0					\n"
@@ -38,11 +38,11 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	ll	%0, %3		# xchg_u32	\n"
 			"	.set	mips0				\n"
 			"	move	%2, %z4				\n"
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	sc	%2, %1				\n"
 			"	.set	mips0				\n"
 			: "=&r" (retval), "=m" (*m), "=&r" (dummy)
@@ -74,7 +74,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		unsigned long dummy;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	lld	%0, %3			# xchg_u64	\n"
 		"	move	%2, %z4					\n"
 		"	scd	%2, %1					\n"
@@ -88,7 +88,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	lld	%0, %3		# xchg_u64	\n"
 			"	move	%2, %z4				\n"
 			"	scd	%2, %1				\n"
@@ -145,12 +145,12 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
-		"	.set	mips3				\n"	\
+		"	.set	arch=r4000			\n"	\
 		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
 		"	.set	mips0				\n"	\
 		"	move	$1, %z4				\n"	\
-		"	.set	mips3				\n"	\
+		"	.set	arch=r4000			\n"	\
 		"	" st "	$1, %1				\n"	\
 		"	beqzl	$1, 1b				\n"	\
 		"2:						\n"	\
@@ -162,12 +162,12 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
-		"	.set	mips3				\n"	\
+		"	.set	arch=r4000			\n"	\
 		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
 		"	.set	mips0				\n"	\
 		"	move	$1, %z4				\n"	\
-		"	.set	mips3				\n"	\
+		"	.set	arch=r4000			\n"	\
 		"	" st "	$1, %1				\n"	\
 		"	beqz	$1, 1b				\n"	\
 		"	.set	pop				\n"	\

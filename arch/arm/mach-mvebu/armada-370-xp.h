@@ -20,10 +20,10 @@
 
 #define ARMADA_XP_MAX_CPUS 4
 
-void armada_mpic_send_doorbell(const struct cpumask *mask, unsigned int irq);
-void armada_xp_mpic_smp_cpu_init(void);
 void armada_xp_secondary_startup(void);
 extern struct smp_operations armada_xp_smp_ops;
 #endif
+
+int armada_370_xp_pmsu_idle_enter(unsigned long deepidle);
 
 #endif /* __MACH_ARMADA_370_XP_H */

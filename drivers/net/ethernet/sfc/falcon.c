@@ -142,6 +142,8 @@
 	  hw_name ## _ ## offset }
 #define FALCON_OTHER_STAT(ext_name)					\
 	[FALCON_STAT_ ## ext_name] = { #ext_name, 0, 0 }
+#define GENERIC_SW_STAT(ext_name)				\
+	[GENERIC_STAT_ ## ext_name] = { #ext_name, 0, 0 }
 
 static const struct efx_hw_stat_desc falcon_stat_desc[FALCON_STAT_COUNT] = {
 	FALCON_DMA_STAT(tx_bytes, XgTxOctets),
@@ -191,6 +193,8 @@ static const struct efx_hw_stat_desc falcon_stat_desc[FALCON_STAT_COUNT] = {
 	FALCON_DMA_STAT(rx_length_error, XgRxLengthError),
 	FALCON_DMA_STAT(rx_internal_error, XgRxInternalMACError),
 	FALCON_OTHER_STAT(rx_nodesc_drop_cnt),
+	GENERIC_SW_STAT(rx_nodesc_trunc),
+	GENERIC_SW_STAT(rx_noskb_drops),
 };
 static const unsigned long falcon_stat_mask[] = {
 	[0 ... BITS_TO_LONGS(FALCON_STAT_COUNT) - 1] = ~0UL,
@@ -422,7 +426,6 @@ static inline void falcon_irq_ack_a1(struct efx_nic *efx)
 	efx_readd(efx, &reg, FR_AA_WORK_AROUND_BROKEN_PCI_READS);
 }
 
-
 static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
@@ -467,6 +470,7 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 		efx_schedule_channel_irq(efx_get_channel(efx, 1));
 	return IRQ_HANDLED;
 }
+
 /**************************************************************************
  *
  * RSS
@@ -1358,6 +1362,7 @@ static void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	case 100:   link_speed = 1; break;
 	default:    link_speed = 0; break;
 	}
+
 	/* MAC_LINK_STATUS controls MAC backpressure but doesn't work
 	 * as advertised.  Disable to ensure packets are not
 	 * indefinitely held and TX queue can be flushed at any point
@@ -2182,7 +2187,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 	}
 
 	/* Read the MAC addresses */
-	memcpy(efx->net_dev->perm_addr, nvconfig->mac_address[0], ETH_ALEN);
+	ether_addr_copy(efx->net_dev->perm_addr, nvconfig->mac_address[0]);
 
 	netif_dbg(efx, probe, efx->net_dev, "PHY is %d phy_id %d\n",
 		  efx->phy_type, efx->mdio.prtad);
@@ -2573,6 +2578,7 @@ static size_t falcon_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 				     stats[FALCON_STAT_rx_bytes] -
 				     stats[FALCON_STAT_rx_good_bytes] -
 				     stats[FALCON_STAT_rx_control] * 64);
+		efx_update_sw_stats(efx, stats);
 	}
 
 	if (full_stats)
@@ -2583,7 +2589,9 @@ static size_t falcon_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 		core_stats->tx_packets = stats[FALCON_STAT_tx_packets];
 		core_stats->rx_bytes = stats[FALCON_STAT_rx_bytes];
 		core_stats->tx_bytes = stats[FALCON_STAT_tx_bytes];
-		core_stats->rx_dropped = stats[FALCON_STAT_rx_nodesc_drop_cnt];
+		core_stats->rx_dropped = stats[FALCON_STAT_rx_nodesc_drop_cnt] +
+					 stats[GENERIC_STAT_rx_nodesc_trunc] +
+					 stats[GENERIC_STAT_rx_noskb_drops];
 		core_stats->multicast = stats[FALCON_STAT_rx_multicast];
 		core_stats->rx_length_errors =
 			stats[FALCON_STAT_rx_gtjumbo] +
@@ -2695,6 +2703,8 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
+	.prepare_flr = efx_port_dummy_op_void,
+	.finish_flr = efx_farch_finish_flr,
 	.describe_stats = falcon_describe_nic_stats,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
@@ -2789,6 +2799,8 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
+	.prepare_flr = efx_port_dummy_op_void,
+	.finish_flr = efx_farch_finish_flr,
 	.describe_stats = falcon_describe_nic_stats,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
@@ -2868,4 +2880,3 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.mcdi_max_ver = -1,
 	.max_rx_ip_filters = FR_BZ_RX_FILTER_TBL0_ROWS,
 };
-

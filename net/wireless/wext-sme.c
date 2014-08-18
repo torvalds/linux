@@ -21,7 +21,7 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 	const u8 *prev_bssid = NULL;
 	int err, i;
 
-	ASSERT_RDEV_LOCK(rdev);
+	ASSERT_RTNL();
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (!netif_running(wdev->netdev))
@@ -67,7 +67,7 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 			      struct iw_freq *wextfreq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct ieee80211_channel *chan = NULL;
 	int err, freq;
 
@@ -75,7 +75,7 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
 		return -EINVAL;
 
-	freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
+	freq = cfg80211_wext_freq(wextfreq);
 	if (freq < 0)
 		return freq;
 
@@ -169,7 +169,7 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 			       struct iw_point *data, char *ssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	size_t len = data->length;
 	int err;
 
@@ -260,7 +260,7 @@ int cfg80211_mgd_wext_siwap(struct net_device *dev,
 			    struct sockaddr *ap_addr, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	u8 *bssid = ap_addr->sa_data;
 	int err;
 
@@ -333,7 +333,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 			   struct iw_point *data, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	u8 *ie = extra;
 	int ie_len = data->length, err;
 
@@ -390,7 +390,7 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 	if (!wdev)
 		return -EOPNOTSUPP;
 
-	rdev = wiphy_to_dev(wdev->wiphy);
+	rdev = wiphy_to_rdev(wdev->wiphy);
 
 	if (wdev->iftype != NL80211_IFTYPE_STATION)
 		return -EINVAL;

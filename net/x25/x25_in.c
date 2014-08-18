@@ -79,7 +79,7 @@ static int x25_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 	skb_set_owner_r(skbn, sk);
 	skb_queue_tail(&sk->sk_receive_queue, skbn);
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skbn->len);
+		sk->sk_data_ready(sk);
 
 	return 0;
 }

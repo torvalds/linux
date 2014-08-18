@@ -21,6 +21,16 @@
 		reg = <0x20000000 0x10000000>;
 	};
 
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
 	ahb {
 		apb {
 			mmc0: mmc@f0000000 {
@@ -34,7 +44,7 @@
 			};
 
 			spi0: spi@f0004000 {
-				cs-gpios = <&pioD 13 0>;
+				cs-gpios = <&pioD 13 0>, <0>, <0>, <&pioD 16 0>;
 				status = "okay";
 			};
 
@@ -43,15 +53,64 @@
 			};
 
 			i2c0: i2c@f0014000 {
+				pinctrl-0 = <&pinctrl_i2c0_pu>;
 				status = "okay";
 			};
 
 			i2c1: i2c@f0018000 {
 				status = "okay";
+
+				pmic: act8865@5b {
+					compatible = "active-semi,act8865";
+					reg = <0x5b>;
+					status = "okay";
+
+					regulators {
+						vcc_1v8_reg: DCDC_REG1 {
+							regulator-name = "VCC_1V8";
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+							regulator-always-on;
+						};
+
+						vcc_1v2_reg: DCDC_REG2 {
+							regulator-name = "VCC_1V2";
+							regulator-min-microvolt = <1200000>;
+							regulator-max-microvolt = <1200000>;
+							regulator-always-on;
+						};
+
+						vcc_3v3_reg: DCDC_REG3 {
+							regulator-name = "VCC_3V3";
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+
+						vddfuse_reg: LDO_REG1 {
+							regulator-name = "FUSE_2V5";
+							regulator-min-microvolt = <2500000>;
+							regulator-max-microvolt = <2500000>;
+						};
+
+						vddana_reg: LDO_REG2 {
+							regulator-name = "VDDANA";
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+					};
+				};
 			};
 
 			macb0: ethernet@f0028000 {
 				phy-mode = "rgmii";
+				status = "okay";
+			};
+
+			pwm0: pwm@f002c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pwm0_pwmh0_0 &pinctrl_pwm0_pwmh1_0>;
 				status = "okay";
 			};
 
@@ -79,7 +138,7 @@
 			};
 
 			spi1: spi@f8008000 {
-				cs-gpios = <&pioC 25 0>, <0>, <0>, <&pioD 16 0>;
+				cs-gpios = <&pioC 25 0>;
 				status = "okay";
 			};
 
@@ -102,6 +161,7 @@
 
 			i2c2: i2c@f801c000 {
 				dmas = <0>, <0>;	/* Do not use DMA for i2c2 */
+				pinctrl-0 = <&pinctrl_i2c2_pu>;
 				status = "okay";
 			};
 
@@ -116,6 +176,18 @@
 
 			pinctrl@fffff200 {
 				board {
+					pinctrl_i2c0_pu: i2c0_pu {
+						atmel,pins =
+							<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
+							<AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
+					};
+
+					pinctrl_i2c2_pu: i2c2_pu {
+						atmel,pins =
+							<AT91_PIOA 18 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>,
+							<AT91_PIOA 19 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>;
+					};
+
 					pinctrl_mmc0_cd: mmc0_cd {
 						atmel,pins =
 							<AT91_PIOE 0 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;

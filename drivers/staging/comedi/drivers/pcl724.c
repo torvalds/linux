@@ -15,6 +15,7 @@
  *	    (ADLink) ACL-7124 [acl7124]
  *	    (ADLink) PET-48DIO [pet48dio]
  *	    (WinSystems) PCM-IO48 [pcmio48]
+ *	    (Diamond Systems) ONYX-MM-DIO [onyx-mm-dio]
  * Author: Michal Dobes <dobes@tesnet.cz>
  * Status: untested
  *
@@ -73,6 +74,10 @@ static const struct pcl724_board boardtypes[] = {
 		.name		= "pcmio48",
 		.io_range	= 0x08,
 		.numofports	= 2,	/* 48 DIO channels */
+	}, {
+		.name		= "onyx-mm-dio",
+		.io_range	= 0x10,
+		.numofports	= 2,	/* 48 DIO channels */
 	},
 };
 
@@ -83,14 +88,12 @@ static int pcl724_8255mapped_io(int dir, int port, int data,
 
 	iobase &= 0x0fff;
 
+	outb(port + movport, iobase);
 	if (dir) {
-		outb(port + movport, iobase);
 		outb(data, iobase + 1);
 		return 0;
-	} else {
-		outb(port + movport, iobase);
-		return inb(iobase + 1);
 	}
+	return inb(iobase + 1);
 }
 
 static int pcl724_attach(struct comedi_device *dev,

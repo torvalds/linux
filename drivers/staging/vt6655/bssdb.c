@@ -65,14 +65,14 @@
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
 
-const unsigned short awHWRetry0[5][5] = {
+static const unsigned short awHWRetry0[5][5] = {
 	{RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
 	{RATE_24M, RATE_24M, RATE_18M, RATE_12M, RATE_12M},
 	{RATE_36M, RATE_36M, RATE_24M, RATE_18M, RATE_18M},
 	{RATE_48M, RATE_48M, RATE_36M, RATE_24M, RATE_24M},
 	{RATE_54M, RATE_54M, RATE_48M, RATE_36M, RATE_36M}
 };
-const unsigned short awHWRetry1[5][5] = {
+static const unsigned short awHWRetry1[5][5] = {
 	{RATE_18M, RATE_18M, RATE_12M, RATE_6M, RATE_6M},
 	{RATE_24M, RATE_24M, RATE_18M, RATE_6M, RATE_6M},
 	{RATE_36M, RATE_36M, RATE_24M, RATE_12M, RATE_12M},
@@ -262,8 +262,6 @@ BSSvClearBSSList(
 		memset(&pMgmt->sBSSList[ii], 0, sizeof(KnownBSS));
 	}
 	BSSvClearAnyBSSJoinRecord(pDevice);
-
-	return;
 }
 
 /*+
@@ -424,6 +422,7 @@ BSSbInsertToBSSList(
 
 	if (pRSN != NULL) {
 		unsigned int uLen = pRSN->len + 2;
+
 		if (uLen <= (uIELength - (unsigned int)((unsigned char *)pRSN - pbyIEs))) {
 			pBSSList->wRSNLen = uLen;
 			memcpy(pBSSList->byRSNIE, pRSN, uLen);
@@ -497,9 +496,8 @@ BSSbInsertToBSSList(
 		}
 	}
 
-	if (bParsingQuiet && (pQuiet != NULL)) {
+	if (bParsingQuiet && (pQuiet != NULL))
 		CARDbStartQuiet(pMgmt->pAdapter);
-	}
 
 	pBSSList->uIELength = uIELength;
 	if (pBSSList->uIELength > WLAN_BEACON_FR_MAXLEN)
@@ -601,6 +599,7 @@ BSSbUpdateToBSSList(
 
 	if (pRSNWPA != NULL) {
 		unsigned int uLen = pRSNWPA->len + 2;
+
 		if (uLen <= (uIELength - (unsigned int)((unsigned char *)pRSNWPA - pbyIEs))) {
 			pBSSList->wWPALen = uLen;
 			memcpy(pBSSList->byWPAIE, pRSNWPA, uLen);
@@ -612,6 +611,7 @@ BSSbUpdateToBSSList(
 
 	if (pRSN != NULL) {
 		unsigned int uLen = pRSN->len + 2;
+
 		if (uLen <= (uIELength - (unsigned int)((unsigned char *)pRSN - pbyIEs))) {
 			pBSSList->wRSNLen = uLen;
 			memcpy(pBSSList->byRSNIE, pRSN, uLen);
@@ -662,9 +662,8 @@ BSSbUpdateToBSSList(
 		}
 	}
 
-	if (bParsingQuiet && (pQuiet != NULL)) {
+	if (bParsingQuiet && (pQuiet != NULL))
 		CARDbStartQuiet(pMgmt->pAdapter);
-	}
 
 	pBSSList->uIELength = uIELength;
 	if (pBSSList->uIELength > WLAN_BEACON_FR_MAXLEN)
@@ -902,11 +901,6 @@ BSSvAddMulticastNode(
  *    none.
  *
  -*/
-/* 2008-4-14 <add> by chester for led issue */
-#ifdef FOR_LED_ON_NOTEBOOK
-bool cc = false;
-unsigned int status;
-#endif
 void
 BSSvSecondCallBack(
 	void *hDeviceContext
@@ -927,54 +921,6 @@ BSSvSecondCallBack(
 
 	pDevice->byERPFlag &=
 		~(WLAN_SET_ERP_BARKER_MODE(1) | WLAN_SET_ERP_NONERP_PRESENT(1));
-	/* 2008-4-14 <add> by chester for led issue */
-#ifdef FOR_LED_ON_NOTEBOOK
-	MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
-	if (((!(pDevice->byGPIO & GPIO0_DATA) && (!pDevice->bHWRadioOff)) ||
-	     ((pDevice->byGPIO & GPIO0_DATA) && pDevice->bHWRadioOff)) &&
-	    (!cc)) {
-		cc = true;
-	} else if (cc) {
-		if (pDevice->bHWRadioOff) {
-			if (!(pDevice->byGPIO & GPIO0_DATA)) {
-				if (status == 1)
-					goto start;
-				status = 1;
-				CARDbRadioPowerOff(pDevice);
-				pMgmt->sNodeDBTable[0].bActive = false;
-				pMgmt->eCurrMode = WMAC_MODE_STANDBY;
-				pMgmt->eCurrState = WMAC_STATE_IDLE;
-				pDevice->bLinkPass = false;
-
-			}
-			if (pDevice->byGPIO & GPIO0_DATA) {
-				if (status == 2)
-					goto start;
-				status = 2;
-				CARDbRadioPowerOn(pDevice);
-			}
-		} else {
-			if (pDevice->byGPIO & GPIO0_DATA) {
-				if (status == 3)
-					goto start;
-				status = 3;
-				CARDbRadioPowerOff(pDevice);
-				pMgmt->sNodeDBTable[0].bActive = false;
-				pMgmt->eCurrMode = WMAC_MODE_STANDBY;
-				pMgmt->eCurrState = WMAC_STATE_IDLE;
-				pDevice->bLinkPass = false;
-
-			}
-			if (!(pDevice->byGPIO & GPIO0_DATA)) {
-				if (status == 4)
-					goto start;
-				status = 4;
-				CARDbRadioPowerOn(pDevice);
-			}
-		}
-	}
-start:
-#endif
 
 	if (pDevice->wUseProtectCntDown > 0) {
 		pDevice->wUseProtectCntDown--;
@@ -983,7 +929,7 @@ start:
 		pDevice->byERPFlag &= ~(WLAN_SET_ERP_USE_PROTECTION(1));
 	}
 
-	{
+	if (pDevice->eCommandState == WLAN_ASSOCIATE_WAIT) {
 		pDevice->byReAssocCount++;
 		/* 10 sec timeout */
 		if ((pDevice->byReAssocCount > 10) && (!pDevice->bLinkPass)) {
@@ -992,6 +938,7 @@ start:
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 			{
 				union iwreq_data  wrqu;
+
 				memset(&wrqu, 0, sizeof(wrqu));
 				wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 				PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
@@ -1171,6 +1118,7 @@ start:
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				{
 					union iwreq_data  wrqu;
+
 					memset(&wrqu, 0, sizeof(wrqu));
 					wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 					PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
@@ -1237,7 +1185,6 @@ start:
 
 	pMgmt->sTimerSecondCallback.expires = RUN_AT(HZ);
 	add_timer(&pMgmt->sTimerSecondCallback);
-	return;
 }
 
 /*+
@@ -1272,6 +1219,7 @@ BSSvUpdateNodeTxCounter(
 	unsigned short wFallBackRate = RATE_1M;
 	unsigned char byFallBack;
 	unsigned int ii;
+
 	pTxBufHead = (PSTxBufHead) pbyBuffer;
 	if (pTxBufHead->wFIFOCtl & FIFOCTL_AUTO_FB_0)
 		byFallBack = AUTO_FB_0;
@@ -1387,8 +1335,6 @@ BSSvUpdateNodeTxCounter(
 			}
 		}
 	}
-
-	return;
 }
 
 /*+
@@ -1458,6 +1404,7 @@ void s_vCheckSensitivity(
 			/* Update BB Reg if RSSI is too strong */
 			long    LocalldBmAverage = 0;
 			long    uNumofdBm = 0;
+
 			for (ii = 0; ii < RSSI_STAT_COUNT; ii++) {
 				if (pBSSList->ldBmAverage[ii] != 0) {
 					uNumofdBm++;
@@ -1496,7 +1443,6 @@ BSSvClearAnyBSSJoinRecord(
 
 	for (ii = 0; ii < MAX_BSS_NUM; ii++)
 		pMgmt->sBSSList[ii].bSelected = false;
-	return;
 }
 
 #ifdef Calcu_LinkQual
@@ -1537,7 +1483,6 @@ void s_uCalculateLinkQual(
 	pDevice->scStatistic.TxFailCount = 0;
 	pDevice->scStatistic.TxNoRetryOkCount = 0;
 	pDevice->scStatistic.TxRetryOkCount = 0;
-	return;
 }
 #endif
 
@@ -1555,5 +1500,4 @@ void s_vCheckPreEDThreshold(
 		if (pBSSList != NULL)
 			pDevice->byBBPreEDRSSI = (unsigned char) (~(pBSSList->ldBmAverRange) + 1);
 	}
-	return;
 }

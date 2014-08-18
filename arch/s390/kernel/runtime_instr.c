@@ -138,7 +138,8 @@ static int __init runtime_instr_init(void)
 		return 0;
 
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
-	rc = register_external_interrupt(0x1407, runtime_instr_int_handler);
+	rc = register_external_irq(EXT_IRQ_MEASURE_ALERT,
+				   runtime_instr_int_handler);
 	if (rc)
 		irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 	else

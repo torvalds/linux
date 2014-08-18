@@ -145,34 +145,6 @@ xfs_inode_item_size(
 		xfs_inode_item_attr_fork_size(iip, nvecs, nbytes);
 }
 
-/*
- * If this is a v1 format inode, then we need to log it as such.  This means
- * that we have to copy the link count from the new field to the old.  We
- * don't have to worry about the new fields, because nothing trusts them as
- * long as the old inode version number is there.
- */
-STATIC void
-xfs_inode_item_format_v1_inode(
-	struct xfs_inode	*ip)
-{
-	if (!xfs_sb_version_hasnlink(&ip->i_mount->m_sb)) {
-		/*
-		 * Convert it back.
-		 */
-		ASSERT(ip->i_d.di_nlink <= XFS_MAXLINK_1);
-		ip->i_d.di_onlink = ip->i_d.di_nlink;
-	} else {
-		/*
-		 * The superblock version has already been bumped,
-		 * so just make the conversion to the new inode
-		 * format permanent.
-		 */
-		ip->i_d.di_version = 2;
-		ip->i_d.di_onlink = 0;
-		memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
-	}
-}
-
 STATIC void
 xfs_inode_item_format_data_fork(
 	struct xfs_inode_log_item *iip,
@@ -370,6 +342,8 @@ xfs_inode_item_format(
 	struct xfs_inode_log_format *ilf;
 	struct xfs_log_iovec	*vecp = NULL;
 
+	ASSERT(ip->i_d.di_version > 1);
+
 	ilf = xlog_prepare_iovec(lv, &vecp, XLOG_REG_TYPE_IFORMAT);
 	ilf->ilf_type = XFS_LI_INODE;
 	ilf->ilf_ino = ip->i_ino;
@@ -380,8 +354,6 @@ xfs_inode_item_format(
 	ilf->ilf_size = 2; /* format + core */
 	xlog_finish_iovec(lv, vecp, sizeof(struct xfs_inode_log_format));
 
-	if (ip->i_d.di_version == 1)
-		xfs_inode_item_format_v1_inode(ip);
 	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ICORE,
 			&ip->i_d,
 			xfs_icdinode_size(ip->i_d.di_version));
@@ -816,5 +788,5 @@ xfs_inode_item_format_convert(
 		in_f->ilf_boffset = in_f64->ilf_boffset;
 		return 0;
 	}
-	return EFSCORRUPTED;
+	return -EFSCORRUPTED;
 }

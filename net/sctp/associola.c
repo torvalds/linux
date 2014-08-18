@@ -55,6 +55,7 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal functions. */
+static void sctp_select_active_and_retran_path(struct sctp_association *asoc);
 static void sctp_assoc_bh_rcv(struct work_struct *work);
 static void sctp_assoc_free_asconf_acks(struct sctp_association *asoc);
 static void sctp_assoc_free_asconf_queue(struct sctp_association *asoc);
@@ -330,7 +331,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	/* Only real associations count against the endpoint, so
 	 * don't bother for if this is a temporary association.
 	 */
-	if (!asoc->temp) {
+	if (!list_empty(&asoc->asocs)) {
 		list_del(&asoc->asocs);
 
 		/* Decrement the backlog value for a TCP-style listening
@@ -774,9 +775,6 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 				  sctp_transport_cmd_t command,
 				  sctp_sn_error_t error)
 {
-	struct sctp_transport *t = NULL;
-	struct sctp_transport *first;
-	struct sctp_transport *second;
 	struct sctp_ulpevent *event;
 	struct sockaddr_storage addr;
 	int spc_state = 0;
@@ -829,13 +827,14 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		return;
 	}
 
-	/* Generate and send a SCTP_PEER_ADDR_CHANGE notification to the
-	 * user.
+	/* Generate and send a SCTP_PEER_ADDR_CHANGE notification
+	 * to the user.
 	 */
 	if (ulp_notify) {
 		memset(&addr, 0, sizeof(struct sockaddr_storage));
 		memcpy(&addr, &transport->ipaddr,
 		       transport->af_specific->sockaddr_len);
+
 		event = sctp_ulpevent_make_peer_addr_change(asoc, &addr,
 					0, spc_state, error, GFP_ATOMIC);
 		if (event)
@@ -843,60 +842,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	}
 
 	/* Select new active and retran paths. */
-
-	/* Look for the two most recently used active transports.
-	 *
-	 * This code produces the wrong ordering whenever jiffies
-	 * rolls over, but we still get usable transports, so we don't
-	 * worry about it.
-	 */
-	first = NULL; second = NULL;
-
-	list_for_each_entry(t, &asoc->peer.transport_addr_list,
-			transports) {
-
-		if ((t->state == SCTP_INACTIVE) ||
-		    (t->state == SCTP_UNCONFIRMED) ||
-		    (t->state == SCTP_PF))
-			continue;
-		if (!first || t->last_time_heard > first->last_time_heard) {
-			second = first;
-			first = t;
-		} else if (!second ||
-			   t->last_time_heard > second->last_time_heard)
-			second = t;
-	}
-
-	/* RFC 2960 6.4 Multi-Homed SCTP Endpoints
-	 *
-	 * By default, an endpoint should always transmit to the
-	 * primary path, unless the SCTP user explicitly specifies the
-	 * destination transport address (and possibly source
-	 * transport address) to use.
-	 *
-	 * [If the primary is active but not most recent, bump the most
-	 * recently used transport.]
-	 */
-	if (((asoc->peer.primary_path->state == SCTP_ACTIVE) ||
-	     (asoc->peer.primary_path->state == SCTP_UNKNOWN)) &&
-	    first != asoc->peer.primary_path) {
-		second = first;
-		first = asoc->peer.primary_path;
-	}
-
-	if (!second)
-		second = first;
-	/* If we failed to find a usable transport, just camp on the
-	 * primary, even if it is inactive.
-	 */
-	if (!first) {
-		first = asoc->peer.primary_path;
-		second = asoc->peer.primary_path;
-	}
-
-	/* Set the active and retran transports.  */
-	asoc->peer.active_path = first;
-	asoc->peer.retran_path = second;
+	sctp_select_active_and_retran_path(asoc);
 }
 
 /* Hold a reference to an association. */
@@ -1090,7 +1036,7 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		}
 
 		if (chunk->transport)
-			chunk->transport->last_time_heard = jiffies;
+			chunk->transport->last_time_heard = ktime_get();
 
 		/* Run through the state machine. */
 		error = sctp_do_sm(net, SCTP_EVENT_T_CHUNK, subtype,
@@ -1151,6 +1097,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	asoc->c = new->c;
 	asoc->peer.rwnd = new->peer.rwnd;
 	asoc->peer.sack_needed = new->peer.sack_needed;
+	asoc->peer.auth_capable = new->peer.auth_capable;
 	asoc->peer.i = new->peer.i;
 	sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
 			 asoc->peer.i.initial_tsn, GFP_ATOMIC);
@@ -1278,13 +1225,41 @@ static u8 sctp_trans_score(const struct sctp_transport *trans)
 	return sctp_trans_state_to_prio_map[trans->state];
 }
 
+static struct sctp_transport *sctp_trans_elect_tie(struct sctp_transport *trans1,
+						   struct sctp_transport *trans2)
+{
+	if (trans1->error_count > trans2->error_count) {
+		return trans2;
+	} else if (trans1->error_count == trans2->error_count &&
+		   ktime_after(trans2->last_time_heard,
+			       trans1->last_time_heard)) {
+		return trans2;
+	} else {
+		return trans1;
+	}
+}
+
 static struct sctp_transport *sctp_trans_elect_best(struct sctp_transport *curr,
 						    struct sctp_transport *best)
 {
+	u8 score_curr, score_best;
+
 	if (best == NULL)
 		return curr;
 
-	return sctp_trans_score(curr) > sctp_trans_score(best) ? curr : best;
+	score_curr = sctp_trans_score(curr);
+	score_best = sctp_trans_score(best);
+
+	/* First, try a score-based selection if both transport states
+	 * differ. If we're in a tie, lets try to make a more clever
+	 * decision here based on error counts and last time heard.
+	 */
+	if (score_curr > score_best)
+		return curr;
+	else if (score_curr == score_best)
+		return sctp_trans_elect_tie(curr, best);
+	else
+		return best;
 }
 
 void sctp_assoc_update_retran_path(struct sctp_association *asoc)
@@ -1319,11 +1294,80 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 			break;
 	}
 
-	if (trans_next != NULL)
-		asoc->peer.retran_path = trans_next;
+	asoc->peer.retran_path = trans_next;
 
 	pr_debug("%s: association:%p updated new path to addr:%pISpc\n",
 		 __func__, asoc, &asoc->peer.retran_path->ipaddr.sa);
+}
+
+static void sctp_select_active_and_retran_path(struct sctp_association *asoc)
+{
+	struct sctp_transport *trans, *trans_pri = NULL, *trans_sec = NULL;
+	struct sctp_transport *trans_pf = NULL;
+
+	/* Look for the two most recently used active transports. */
+	list_for_each_entry(trans, &asoc->peer.transport_addr_list,
+			    transports) {
+		/* Skip uninteresting transports. */
+		if (trans->state == SCTP_INACTIVE ||
+		    trans->state == SCTP_UNCONFIRMED)
+			continue;
+		/* Keep track of the best PF transport from our
+		 * list in case we don't find an active one.
+		 */
+		if (trans->state == SCTP_PF) {
+			trans_pf = sctp_trans_elect_best(trans, trans_pf);
+			continue;
+		}
+		/* For active transports, pick the most recent ones. */
+		if (trans_pri == NULL ||
+		    ktime_after(trans->last_time_heard,
+				trans_pri->last_time_heard)) {
+			trans_sec = trans_pri;
+			trans_pri = trans;
+		} else if (trans_sec == NULL ||
+			   ktime_after(trans->last_time_heard,
+				       trans_sec->last_time_heard)) {
+			trans_sec = trans;
+		}
+	}
+
+	/* RFC 2960 6.4 Multi-Homed SCTP Endpoints
+	 *
+	 * By default, an endpoint should always transmit to the primary
+	 * path, unless the SCTP user explicitly specifies the
+	 * destination transport address (and possibly source transport
+	 * address) to use. [If the primary is active but not most recent,
+	 * bump the most recently used transport.]
+	 */
+	if ((asoc->peer.primary_path->state == SCTP_ACTIVE ||
+	     asoc->peer.primary_path->state == SCTP_UNKNOWN) &&
+	     asoc->peer.primary_path != trans_pri) {
+		trans_sec = trans_pri;
+		trans_pri = asoc->peer.primary_path;
+	}
+
+	/* We did not find anything useful for a possible retransmission
+	 * path; either primary path that we found is the the same as
+	 * the current one, or we didn't generally find an active one.
+	 */
+	if (trans_sec == NULL)
+		trans_sec = trans_pri;
+
+	/* If we failed to find a usable transport, just camp on the
+	 * primary or retran, even if they are inactive, if possible
+	 * pick a PF iff it's the better choice.
+	 */
+	if (trans_pri == NULL) {
+		trans_pri = sctp_trans_elect_best(asoc->peer.primary_path,
+						  asoc->peer.retran_path);
+		trans_pri = sctp_trans_elect_best(trans_pri, trans_pf);
+		trans_sec = asoc->peer.primary_path;
+	}
+
+	/* Set the active and retran transports. */
+	asoc->peer.active_path = trans_pri;
+	asoc->peer.retran_path = trans_sec;
 }
 
 struct sctp_transport *
@@ -1396,35 +1440,44 @@ static inline bool sctp_peer_needs_update(struct sctp_association *asoc)
 	return false;
 }
 
-/* Update asoc's rwnd for the approximated state in the buffer,
- * and check whether SACK needs to be sent.
- */
-void sctp_assoc_rwnd_update(struct sctp_association *asoc, bool update_peer)
+/* Increase asoc's rwnd by len and send any window update SACK if needed. */
+void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 {
-	int rx_count;
 	struct sctp_chunk *sack;
 	struct timer_list *timer;
 
-	if (asoc->ep->rcvbuf_policy)
-		rx_count = atomic_read(&asoc->rmem_alloc);
-	else
-		rx_count = atomic_read(&asoc->base.sk->sk_rmem_alloc);
+	if (asoc->rwnd_over) {
+		if (asoc->rwnd_over >= len) {
+			asoc->rwnd_over -= len;
+		} else {
+			asoc->rwnd += (len - asoc->rwnd_over);
+			asoc->rwnd_over = 0;
+		}
+	} else {
+		asoc->rwnd += len;
+	}
 
-	if ((asoc->base.sk->sk_rcvbuf - rx_count) > 0)
-		asoc->rwnd = (asoc->base.sk->sk_rcvbuf - rx_count) >> 1;
-	else
-		asoc->rwnd = 0;
+	/* If we had window pressure, start recovering it
+	 * once our rwnd had reached the accumulated pressure
+	 * threshold.  The idea is to recover slowly, but up
+	 * to the initial advertised window.
+	 */
+	if (asoc->rwnd_press && asoc->rwnd >= asoc->rwnd_press) {
+		int change = min(asoc->pathmtu, asoc->rwnd_press);
+		asoc->rwnd += change;
+		asoc->rwnd_press -= change;
+	}
 
-	pr_debug("%s: asoc:%p rwnd=%u, rx_count=%d, sk_rcvbuf=%d\n",
-		 __func__, asoc, asoc->rwnd, rx_count,
-		 asoc->base.sk->sk_rcvbuf);
+	pr_debug("%s: asoc:%p rwnd increased by %d to (%u, %u) - %u\n",
+		 __func__, asoc, len, asoc->rwnd, asoc->rwnd_over,
+		 asoc->a_rwnd);
 
 	/* Send a window update SACK if the rwnd has increased by at least the
 	 * minimum of the association's PMTU and half of the receive buffer.
 	 * The algorithm used is similar to the one described in
 	 * Section 4.2.3.3 of RFC 1122.
 	 */
-	if (update_peer && sctp_peer_needs_update(asoc)) {
+	if (sctp_peer_needs_update(asoc)) {
 		asoc->a_rwnd = asoc->rwnd;
 
 		pr_debug("%s: sending window update SACK- asoc:%p rwnd:%u "
@@ -1446,6 +1499,45 @@ void sctp_assoc_rwnd_update(struct sctp_association *asoc, bool update_peer)
 	}
 }
 
+/* Decrease asoc's rwnd by len. */
+void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned int len)
+{
+	int rx_count;
+	int over = 0;
+
+	if (unlikely(!asoc->rwnd || asoc->rwnd_over))
+		pr_debug("%s: association:%p has asoc->rwnd:%u, "
+			 "asoc->rwnd_over:%u!\n", __func__, asoc,
+			 asoc->rwnd, asoc->rwnd_over);
+
+	if (asoc->ep->rcvbuf_policy)
+		rx_count = atomic_read(&asoc->rmem_alloc);
+	else
+		rx_count = atomic_read(&asoc->base.sk->sk_rmem_alloc);
+
+	/* If we've reached or overflowed our receive buffer, announce
+	 * a 0 rwnd if rwnd would still be positive.  Store the
+	 * the potential pressure overflow so that the window can be restored
+	 * back to original value.
+	 */
+	if (rx_count >= asoc->base.sk->sk_rcvbuf)
+		over = 1;
+
+	if (asoc->rwnd >= len) {
+		asoc->rwnd -= len;
+		if (over) {
+			asoc->rwnd_press += asoc->rwnd;
+			asoc->rwnd = 0;
+		}
+	} else {
+		asoc->rwnd_over = len - asoc->rwnd;
+		asoc->rwnd = 0;
+	}
+
+	pr_debug("%s: asoc:%p rwnd decreased by %d to (%u, %u, %u)\n",
+		 __func__, asoc, len, asoc->rwnd, asoc->rwnd_over,
+		 asoc->rwnd_press);
+}
 
 /* Build the bind address list for the association based on info from the
  * local endpoint and the remote peer.
@@ -1500,7 +1592,7 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 /* Set an association id for a given association */
 int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
 {
-	bool preload = gfp & __GFP_WAIT;
+	bool preload = !!(gfp & __GFP_WAIT);
 	int ret;
 
 	/* If the id is already assigned, keep it. */

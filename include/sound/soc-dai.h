@@ -142,6 +142,8 @@ struct snd_soc_dai_ops {
 	 * Called by soc_card drivers, normally in their hw_params.
 	 */
 	int (*set_fmt)(struct snd_soc_dai *dai, unsigned int fmt);
+	int (*xlate_tdm_slot_mask)(unsigned int slots,
+		unsigned int *tx_mask, unsigned int *rx_mask);
 	int (*set_tdm_slot)(struct snd_soc_dai *dai,
 		unsigned int tx_mask, unsigned int rx_mask,
 		int slots, int slot_width);
@@ -250,13 +252,11 @@ struct snd_soc_dai {
 	unsigned int symmetric_rates:1;
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_samplebits:1;
-	struct snd_pcm_runtime *runtime;
 	unsigned int active;
 	unsigned char probed:1;
 
 	struct snd_soc_dapm_widget *playback_widget;
 	struct snd_soc_dapm_widget *capture_widget;
-	struct snd_soc_dapm_context dapm;
 
 	/* DAI DMA data */
 	void *playback_dma_data;
@@ -270,11 +270,15 @@ struct snd_soc_dai {
 	/* parent platform/codec */
 	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
+
+	/* CODEC TDM slot masks and params (for fixup) */
+	unsigned int tx_mask;
+	unsigned int rx_mask;
 
 	struct snd_soc_card *card;
 
 	struct list_head list;
-	struct list_head card_list;
 };
 
 static inline void *snd_soc_dai_get_dma_data(const struct snd_soc_dai *dai,

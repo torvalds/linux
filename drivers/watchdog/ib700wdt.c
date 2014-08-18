@@ -277,7 +277,7 @@ static struct miscdevice ibwdt_miscdev = {
  *	Init & exit routines
  */
 
-static int ibwdt_probe(struct platform_device *dev)
+static int __init ibwdt_probe(struct platform_device *dev)
 {
 	int res;
 
@@ -336,7 +336,6 @@ static void ibwdt_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver ibwdt_driver = {
-	.probe		= ibwdt_probe,
 	.remove		= ibwdt_remove,
 	.shutdown	= ibwdt_shutdown,
 	.driver		= {
@@ -351,21 +350,19 @@ static int __init ibwdt_init(void)
 
 	pr_info("WDT driver for IB700 single board computer initialising\n");
 
-	err = platform_driver_register(&ibwdt_driver);
-	if (err)
-		return err;
-
 	ibwdt_platform_device = platform_device_register_simple(DRV_NAME,
 								-1, NULL, 0);
-	if (IS_ERR(ibwdt_platform_device)) {
-		err = PTR_ERR(ibwdt_platform_device);
-		goto unreg_platform_driver;
-	}
+	if (IS_ERR(ibwdt_platform_device))
+		return PTR_ERR(ibwdt_platform_device);
+
+	err = platform_driver_probe(&ibwdt_driver, ibwdt_probe);
+	if (err)
+		goto unreg_platform_device;
 
 	return 0;
 
-unreg_platform_driver:
-	platform_driver_unregister(&ibwdt_driver);
+unreg_platform_device:
+	platform_device_unregister(ibwdt_platform_device);
 	return err;
 }
 

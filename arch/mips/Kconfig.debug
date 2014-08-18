@@ -21,12 +21,16 @@ config EARLY_PRINTK
 	  unless you want to debug such a crash.
 
 config EARLY_PRINTK_8250
-	bool "8250/16550 and compatible serial early printk driver"
-	depends on EARLY_PRINTK
-	default n
+	bool
+	depends on EARLY_PRINTK && USE_GENERIC_EARLY_PRINTK_8250
+	default y
 	help
+	  "8250/16550 and compatible serial early printk driver"
 	  If you say Y here, it will be possible to use a 8250/16550 serial
 	  port as the boot console.
+
+config USE_GENERIC_EARLY_PRINTK_8250
+	bool
 
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
@@ -74,15 +78,6 @@ config CMDLINE_OVERRIDE
 	  Instead, the built-in command line will be used exclusively.
 
 	  Normally, you will choose 'N' here.
-
-config SMTC_IDLE_HOOK_DEBUG
-	bool "Enable additional debug checks before going into CPU idle loop"
-	depends on DEBUG_KERNEL && MIPS_MT_SMTC
-	help
-	  This option enables Enable additional debug checks before going into
-	  CPU idle loop.  For details on these checks, see
-	  arch/mips/kernel/smtc.c.  This debugging option result in significant
-	  overhead so should be disabled in production kernels.
 
 config SB1XXX_CORELIS
 	bool "Corelis Debugger"

@@ -23,28 +23,31 @@ check_preempt_curr_stop(struct rq *rq, struct task_struct *p, int flags)
 	/* we're never preempted */
 }
 
-static struct task_struct *pick_next_task_stop(struct rq *rq)
+static struct task_struct *
+pick_next_task_stop(struct rq *rq, struct task_struct *prev)
 {
 	struct task_struct *stop = rq->stop;
 
-	if (stop && stop->on_rq) {
-		stop->se.exec_start = rq_clock_task(rq);
-		return stop;
-	}
+	if (!stop || !stop->on_rq)
+		return NULL;
 
-	return NULL;
+	put_prev_task(rq, prev);
+
+	stop->se.exec_start = rq_clock_task(rq);
+
+	return stop;
 }
 
 static void
 enqueue_task_stop(struct rq *rq, struct task_struct *p, int flags)
 {
-	inc_nr_running(rq);
+	add_nr_running(rq, 1);
 }
 
 static void
 dequeue_task_stop(struct rq *rq, struct task_struct *p, int flags)
 {
-	dec_nr_running(rq);
+	sub_nr_running(rq, 1);
 }
 
 static void yield_task_stop(struct rq *rq)

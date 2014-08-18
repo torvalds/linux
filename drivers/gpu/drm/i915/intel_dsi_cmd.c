@@ -389,7 +389,7 @@ int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
  *
  * XXX: commands with data in MIPI_DPI_DATA?
  */
-int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd)
+int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
@@ -399,16 +399,10 @@ int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd)
 	u32 mask;
 
 	/* XXX: pipe, hs */
-	if (intel_dsi->hs)
+	if (hs)
 		cmd &= ~DPI_LP_MODE;
 	else
 		cmd |= DPI_LP_MODE;
-
-	/* DPI virtual channel?! */
-
-	mask = DPI_FIFO_EMPTY;
-	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(pipe)) & mask) == mask, 50))
-		DRM_ERROR("Timeout waiting for DPI FIFO empty.\n");
 
 	/* clear bit */
 	I915_WRITE(MIPI_INTR_STAT(pipe), SPL_PKT_SENT_INTERRUPT);
@@ -424,4 +418,20 @@ int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd)
 		DRM_ERROR("Video mode command 0x%08x send failed.\n", cmd);
 
 	return 0;
+}
+
+void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi)
+{
+	struct drm_encoder *encoder = &intel_dsi->base.base;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	u32 mask;
+
+	mask = LP_CTRL_FIFO_EMPTY | HS_CTRL_FIFO_EMPTY |
+					LP_DATA_FIFO_EMPTY | HS_DATA_FIFO_EMPTY;
+
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(pipe)) & mask) == mask, 100))
+		DRM_ERROR("DPI FIFOs are not empty\n");
 }

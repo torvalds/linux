@@ -199,7 +199,7 @@ struct tcf_proto_ops {
 	int			(*change)(struct net *net, struct sk_buff *,
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
-					unsigned long *);
+					unsigned long *, bool);
 	int			(*delete)(struct tcf_proto*, unsigned long);
 	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);
 
@@ -231,7 +231,7 @@ struct qdisc_skb_cb {
 	unsigned int		pkt_len;
 	u16			slave_dev_queue_mapping;
 	u16			_pad;
-	unsigned char		data[20];
+	unsigned char		data[24];
 };
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)

@@ -69,13 +69,12 @@ static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked, s32 rtt_us)
 	tcp_vegas_pkts_acked(sk, pkts_acked, rtt_us);
 }
 
-static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked,
-				u32 in_flight)
+static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct yeah *yeah = inet_csk_ca(sk);
 
-	if (!tcp_is_cwnd_limited(sk, in_flight))
+	if (!tcp_is_cwnd_limited(sk))
 		return;
 
 	if (tp->snd_cwnd <= tp->snd_ssthresh)
@@ -227,11 +226,9 @@ static u32 tcp_yeah_ssthresh(struct sock *sk) {
 }
 
 static struct tcp_congestion_ops tcp_yeah __read_mostly = {
-	.flags		= TCP_CONG_RTT_STAMP,
 	.init		= tcp_yeah_init,
 	.ssthresh	= tcp_yeah_ssthresh,
 	.cong_avoid	= tcp_yeah_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,
 	.get_info	= tcp_vegas_get_info,

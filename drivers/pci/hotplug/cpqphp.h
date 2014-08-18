@@ -255,7 +255,7 @@ struct pci_func {
 	struct pci_resource *io_head;
 	struct pci_resource *bus_head;
 	struct timer_list *p_task_event;
-	struct pci_dev* pci_dev;
+	struct pci_dev *pci_dev;
 };
 
 struct slot {
@@ -278,7 +278,7 @@ struct slot {
 };
 
 struct pci_resource {
-	struct pci_resource * next;
+	struct pci_resource *next;
 	u32 base;
 	u32 length;
 };

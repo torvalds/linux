@@ -23,8 +23,11 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/clock.h>
-#include <mach/common.h>
+#include <linux/sh_timer.h>
+
+#include "clock.h"
+#include "common.h"
+#include "r8a7779.h"
 
 /*
  *		MD1 = 1			MD1 = 0
@@ -47,20 +50,10 @@
 
 #define MD(nr)	BIT(nr)
 
-#define FRQMR		IOMEM(0xffc80014)
 #define MSTPCR0		IOMEM(0xffc80030)
 #define MSTPCR1		IOMEM(0xffc80034)
 #define MSTPCR3		IOMEM(0xffc8003c)
 #define MSTPSR1		IOMEM(0xffc80044)
-#define MSTPSR4		IOMEM(0xffc80048)
-#define MSTPSR6		IOMEM(0xffc8004c)
-#define MSTPCR4		IOMEM(0xffc80050)
-#define MSTPCR5		IOMEM(0xffc80054)
-#define MSTPCR6		IOMEM(0xffc80058)
-#define MSTPCR7		IOMEM(0xffc80040)
-
-#define MODEMR		0xffcc0020
-
 
 /* ioremap() through clock mapping mandatory to avoid
  * collision with ARM coherent DMA virtual memory range.
@@ -127,16 +120,16 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP322] = SH_CLK_MSTP32(&clkp_clk, MSTPCR3, 22, 0), /* SDHI1 */
 	[MSTP321] = SH_CLK_MSTP32(&clkp_clk, MSTPCR3, 21, 0), /* SDHI2 */
 	[MSTP320] = SH_CLK_MSTP32(&clkp_clk, MSTPCR3, 20, 0), /* SDHI3 */
-	[MSTP120] = SH_CLK_MSTP32(&clks_clk, MSTPCR1, 20, 0), /* VIN3 */
-	[MSTP116] = SH_CLK_MSTP32(&clkp_clk, MSTPCR1, 16, 0), /* PCIe */
-	[MSTP115] = SH_CLK_MSTP32(&clkp_clk, MSTPCR1, 15, 0), /* SATA */
-	[MSTP114] = SH_CLK_MSTP32(&clkp_clk, MSTPCR1, 14, 0), /* Ether */
-	[MSTP110] = SH_CLK_MSTP32(&clks_clk, MSTPCR1, 10, 0), /* VIN0 */
-	[MSTP109] = SH_CLK_MSTP32(&clks_clk, MSTPCR1,  9, 0), /* VIN1 */
-	[MSTP108] = SH_CLK_MSTP32(&clks_clk, MSTPCR1,  8, 0), /* VIN2 */
-	[MSTP103] = SH_CLK_MSTP32(&clks_clk, MSTPCR1,  3, 0), /* DU */
-	[MSTP101] = SH_CLK_MSTP32(&clkp_clk, MSTPCR1,  1, 0), /* USB2 */
-	[MSTP100] = SH_CLK_MSTP32(&clkp_clk, MSTPCR1,  0, 0), /* USB0/1 */
+	[MSTP120] = SH_CLK_MSTP32_STS(&clks_clk, MSTPCR1, 20, MSTPSR1, 0), /* VIN3 */
+	[MSTP116] = SH_CLK_MSTP32_STS(&clkp_clk, MSTPCR1, 16, MSTPSR1, 0), /* PCIe */
+	[MSTP115] = SH_CLK_MSTP32_STS(&clkp_clk, MSTPCR1, 15, MSTPSR1, 0), /* SATA */
+	[MSTP114] = SH_CLK_MSTP32_STS(&clkp_clk, MSTPCR1, 14, MSTPSR1, 0), /* Ether */
+	[MSTP110] = SH_CLK_MSTP32_STS(&clks_clk, MSTPCR1, 10, MSTPSR1, 0), /* VIN0 */
+	[MSTP109] = SH_CLK_MSTP32_STS(&clks_clk, MSTPCR1,  9, MSTPSR1, 0), /* VIN1 */
+	[MSTP108] = SH_CLK_MSTP32_STS(&clks_clk, MSTPCR1,  8, MSTPSR1, 0), /* VIN2 */
+	[MSTP103] = SH_CLK_MSTP32_STS(&clks_clk, MSTPCR1,  3, MSTPSR1, 0), /* DU */
+	[MSTP101] = SH_CLK_MSTP32_STS(&clkp_clk, MSTPCR1,  1, MSTPSR1, 0), /* USB2 */
+	[MSTP100] = SH_CLK_MSTP32_STS(&clkp_clk, MSTPCR1,  0, MSTPSR1, 0), /* USB0/1 */
 	[MSTP030] = SH_CLK_MSTP32(&clkp_clk, MSTPCR0, 30, 0), /* I2C0 */
 	[MSTP029] = SH_CLK_MSTP32(&clkp_clk, MSTPCR0, 29, 0), /* I2C1 */
 	[MSTP028] = SH_CLK_MSTP32(&clkp_clk, MSTPCR0, 28, 0), /* I2C2 */
@@ -180,9 +173,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("ohci-platform.1", &mstp_clks[MSTP101]), /* USB OHCI port2 */
 	CLKDEV_DEV_ID("ehci-platform.0", &mstp_clks[MSTP100]), /* USB EHCI port0/1 */
 	CLKDEV_DEV_ID("ohci-platform.0", &mstp_clks[MSTP100]), /* USB OHCI port0/1 */
-	CLKDEV_DEV_ID("sh_tmu.0", &mstp_clks[MSTP016]), /* TMU00 */
-	CLKDEV_DEV_ID("sh_tmu.1", &mstp_clks[MSTP016]), /* TMU01 */
-	CLKDEV_DEV_ID("sh_tmu.2", &mstp_clks[MSTP016]), /* TMU02 */
+	CLKDEV_ICK_ID("fck", "sh-tmu.0", &mstp_clks[MSTP016]), /* TMU0 */
 	CLKDEV_DEV_ID("i2c-rcar.0", &mstp_clks[MSTP030]), /* I2C0 */
 	CLKDEV_DEV_ID("ffc70000.i2c", &mstp_clks[MSTP030]), /* I2C0 */
 	CLKDEV_DEV_ID("i2c-rcar.1", &mstp_clks[MSTP029]), /* I2C1 */
@@ -216,13 +207,8 @@ static struct clk_lookup lookups[] = {
 
 void __init r8a7779_clock_init(void)
 {
-	void __iomem *modemr = ioremap_nocache(MODEMR, PAGE_SIZE);
-	u32 mode;
+	u32 mode = r8a7779_read_mode_pins();
 	int k, ret = 0;
-
-	BUG_ON(!modemr);
-	mode = ioread32(modemr);
-	iounmap(modemr);
 
 	if (mode & MD(1)) {
 		plla_clk.rate = 1500000000;
@@ -276,4 +262,14 @@ void __init r8a7779_clock_init(void)
 		shmobile_clk_init();
 	else
 		panic("failed to setup r8a7779 clocks\n");
+}
+
+/* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
+void __init __weak r8a7779_register_twd(void) { }
+
+void __init r8a7779_earlytimer_init(void)
+{
+	r8a7779_clock_init();
+	r8a7779_register_twd();
+	shmobile_earlytimer_init();
 }

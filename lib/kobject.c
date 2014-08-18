@@ -94,7 +94,7 @@ static int create_dir(struct kobject *kobj)
 		BUG_ON(ops->type >= KOBJ_NS_TYPES);
 		BUG_ON(!kobj_ns_type_registered(ops->type));
 
-		kernfs_enable_ns(kobj->sd);
+		sysfs_enable_ns(kobj->sd);
 	}
 
 	return 0;

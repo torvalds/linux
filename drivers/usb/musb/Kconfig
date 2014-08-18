@@ -43,6 +43,7 @@ config USB_MUSB_HOST
 config USB_MUSB_GADGET
 	bool "Gadget only mode"
 	depends on USB_GADGET=y || USB_GADGET=USB_MUSB_HDRC
+	depends on HAS_DMA
 	help
 	  Select this when you want to use MUSB in gadget mode only,
 	  thereby the host feature will be regressed.
@@ -50,6 +51,7 @@ config USB_MUSB_GADGET
 config USB_MUSB_DUAL_ROLE
 	bool "Dual Role mode"
 	depends on ((USB=y || USB=USB_MUSB_HDRC) && (USB_GADGET=y || USB_GADGET=USB_MUSB_HDRC))
+	depends on HAS_DMA
 	help
 	  This is the default mode of working of MUSB controller where
 	  both host and gadget features are enabled.
@@ -74,7 +76,7 @@ config USB_MUSB_TUSB6010
 
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS && USB
 	select GENERIC_PHY
 
 config USB_MUSB_AM35X
@@ -139,10 +141,11 @@ config USB_TI_CPPI_DMA
 config USB_TI_CPPI41_DMA
 	bool 'TI CPPI 4.1 (AM335x)'
 	depends on ARCH_OMAP
+	select TI_CPPI41
 
 config USB_TUSB_OMAP_DMA
 	bool 'TUSB 6010'
-	depends on USB_MUSB_TUSB6010
+	depends on USB_MUSB_TUSB6010 = USB_MUSB_HDRC # both built-in or both modules
 	depends on ARCH_OMAP
 	help
 	  Enable DMA transfers on TUSB 6010 when OMAP DMA is available.

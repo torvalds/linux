@@ -36,8 +36,8 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include <obd_class.h>
-#include <lustre_log.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_log.h"
 #include "llog_internal.h"
 
 static int str2logid(struct llog_logid *logid, char *str, int len)
@@ -385,7 +385,7 @@ int llog_ioctl(const struct lu_env *env, struct llog_ctxt *ctxt, int cmd,
 			GOTO(out_close, rc = -EINVAL);
 		}
 
-		if (data->ioc_inlbuf2 > 0) {
+		if (data->ioc_inllen2 > 0) {
 			/* remove indicate log from the catalog */
 			rc = str2logid(&plain, data->ioc_inlbuf2,
 				       data->ioc_inllen2);

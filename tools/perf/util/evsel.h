@@ -5,12 +5,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <linux/perf_event.h>
-#include "types.h"
+#include <linux/types.h>
 #include "xyarray.h"
 #include "cgroup.h"
 #include "hist.h"
 #include "symbol.h"
- 
+
 struct perf_counts_values {
 	union {
 		struct {
@@ -83,12 +83,19 @@ struct perf_evsel {
 	int			is_pos;
 	bool 			supported;
 	bool 			needs_swap;
+	bool			no_aux_samples;
+	bool			immediate;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
 	int			sample_read;
 	struct perf_evsel	*leader;
 	char			*group_name;
+};
+
+union u64_swap {
+	u64 val64;
+	u32 val32[2];
 };
 
 #define hists_to_evsel(h) container_of(h, struct perf_evsel, hists)
@@ -313,6 +320,24 @@ static inline bool perf_evsel__is_group_event(struct perf_evsel *evsel)
 		return false;
 
 	return perf_evsel__is_group_leader(evsel) && evsel->nr_members > 1;
+}
+
+/**
+ * perf_evsel__is_function_event - Return whether given evsel is a function
+ * trace event
+ *
+ * @evsel - evsel selector to be tested
+ *
+ * Return %true if event is function trace event
+ */
+static inline bool perf_evsel__is_function_event(struct perf_evsel *evsel)
+{
+#define FUNCTION_EVENT "ftrace:function"
+
+	return evsel->name &&
+	       !strncmp(FUNCTION_EVENT, evsel->name, sizeof(FUNCTION_EVENT));
+
+#undef FUNCTION_EVENT
 }
 
 struct perf_attr_details {

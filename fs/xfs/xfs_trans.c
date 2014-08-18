@@ -190,7 +190,7 @@ xfs_trans_reserve(
 					  -((int64_t)blocks), rsvd);
 		if (error != 0) {
 			current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
-			return (XFS_ERROR(ENOSPC));
+			return -ENOSPC;
 		}
 		tp->t_blk_res += blocks;
 	}
@@ -241,7 +241,7 @@ xfs_trans_reserve(
 		error = xfs_mod_incore_sb(tp->t_mountp, XFS_SBS_FREXTENTS,
 					  -((int64_t)rtextents), rsvd);
 		if (error) {
-			error = XFS_ERROR(ENOSPC);
+			error = -ENOSPC;
 			goto undo_log;
 		}
 		tp->t_rtx_res += rtextents;
@@ -827,7 +827,7 @@ xfs_trans_committed_bulk(
 		xfs_log_item_batch_insert(ailp, &cur, log_items, i, commit_lsn);
 
 	spin_lock(&ailp->xa_lock);
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 }
 
@@ -874,7 +874,7 @@ xfs_trans_commit(
 		goto out_unreserve;
 
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		error = XFS_ERROR(EIO);
+		error = -EIO;
 		goto out_unreserve;
 	}
 
@@ -887,12 +887,7 @@ xfs_trans_commit(
 		xfs_trans_apply_sb_deltas(tp);
 	xfs_trans_apply_dquot_deltas(tp);
 
-	error = xfs_log_commit_cil(mp, tp, &commit_lsn, flags);
-	if (error == ENOMEM) {
-		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
-		error = XFS_ERROR(EIO);
-		goto out_unreserve;
-	}
+	xfs_log_commit_cil(mp, tp, &commit_lsn, flags);
 
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 	xfs_trans_free(tp);
@@ -902,10 +897,7 @@ xfs_trans_commit(
 	 * log out now and wait for it.
 	 */
 	if (sync) {
-		if (!error) {
-			error = _xfs_log_force_lsn(mp, commit_lsn,
-				      XFS_LOG_SYNC, NULL);
-		}
+		error = _xfs_log_force_lsn(mp, commit_lsn, XFS_LOG_SYNC, NULL);
 		XFS_STATS_INC(xs_trans_sync);
 	} else {
 		XFS_STATS_INC(xs_trans_async);
@@ -925,7 +917,7 @@ out_unreserve:
 	if (tp->t_ticket) {
 		commit_lsn = xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
 		if (commit_lsn == -1 && !error)
-			error = XFS_ERROR(EIO);
+			error = -EIO;
 	}
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 	xfs_trans_free_items(tp, NULLCOMMITLSN, error ? XFS_TRANS_ABORT : 0);
@@ -1032,7 +1024,7 @@ xfs_trans_roll(
 	 */
 	error = xfs_trans_commit(trans, 0);
 	if (error)
-		return (error);
+		return error;
 
 	trans = *tpp;
 

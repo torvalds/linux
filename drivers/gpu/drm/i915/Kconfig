@@ -5,6 +5,7 @@ config DRM_I915
 	depends on (AGP || AGP=n)
 	select INTEL_GTT
 	select AGP_INTEL if AGP
+	select INTERVAL_TREE
 	# we need shmfs for the swappable backing store, and in particular
 	# the shmem_readpage() which depends upon tmpfs
 	select SHMEM
@@ -14,7 +15,6 @@ config DRM_I915
 	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
 	select BACKLIGHT_LCD_SUPPORT if ACPI
 	select BACKLIGHT_CLASS_DEVICE if ACPI
-	select VIDEO_OUTPUT_CONTROL if ACPI
 	select INPUT if ACPI
 	select ACPI_VIDEO if ACPI
 	select ACPI_BUTTON if ACPI
@@ -67,17 +67,5 @@ config DRM_I915_PRELIMINARY_HW_SUPPORT
 	  i915 driver to support it by default.  You can enable such support at
 	  runtime with the module option i915.preliminary_hw_support=1; this
 	  option changes the default for that module option.
-
-	  If in doubt, say "N".
-
-config DRM_I915_UMS
-	bool "Enable userspace modesetting on Intel hardware (DEPRECATED)"
-	depends on DRM_I915
-	default n
-	help
-	  Choose this option if you still need userspace modesetting.
-
-	  Userspace modesetting is deprecated for quite some time now, so
-	  enable this only if you have ancient versions of the DDX drivers.
 
 	  If in doubt, say "N".

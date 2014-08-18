@@ -27,7 +27,7 @@
 
 static u8 llcp_magic[3] = {0x46, 0x66, 0x6d};
 
-static struct list_head llcp_devices;
+static LIST_HEAD(llcp_devices);
 
 static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb);
 
@@ -293,9 +293,9 @@ static void nfc_llcp_sdreq_timer(unsigned long data)
 
 struct nfc_llcp_local *nfc_llcp_find_local(struct nfc_dev *dev)
 {
-	struct nfc_llcp_local *local, *n;
+	struct nfc_llcp_local *local;
 
-	list_for_each_entry_safe(local, n, &llcp_devices, list)
+	list_for_each_entry(local, &llcp_devices, list)
 		if (local->dev == dev)
 			return local;
 
@@ -609,14 +609,16 @@ u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *general_bytes_len)
 
 int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 {
-	struct nfc_llcp_local *local = nfc_llcp_find_local(dev);
+	struct nfc_llcp_local *local;
 
+	if (gb_len < 3 || gb_len > NFC_MAX_GT_LEN)
+		return -EINVAL;
+
+	local = nfc_llcp_find_local(dev);
 	if (local == NULL) {
 		pr_err("No LLCP device\n");
 		return -ENODEV;
 	}
-	if (gb_len < 3)
-		return -EINVAL;
 
 	memset(local->remote_gb, 0, NFC_MAX_GT_LEN);
 	memcpy(local->remote_gb, gb, gb_len);
@@ -678,16 +680,17 @@ void nfc_llcp_send_to_raw_sock(struct nfc_llcp_local *local,
 			continue;
 
 		if (skb_copy == NULL) {
-			skb_copy = __pskb_copy(skb, NFC_LLCP_RAW_HEADER_SIZE,
-					       GFP_ATOMIC);
+			skb_copy = __pskb_copy_fclone(skb, NFC_RAW_HEADER_SIZE,
+						      GFP_ATOMIC, true);
 
 			if (skb_copy == NULL)
 				continue;
 
-			data = skb_push(skb_copy, NFC_LLCP_RAW_HEADER_SIZE);
+			data = skb_push(skb_copy, NFC_RAW_HEADER_SIZE);
 
 			data[0] = local->dev ? local->dev->idx : 0xFF;
-			data[1] = direction;
+			data[1] = direction & 0x01;
+			data[1] |= (RAW_PAYLOAD_LLCP << 1);
 		}
 
 		nskb = skb_clone(skb_copy, GFP_ATOMIC);
@@ -745,7 +748,7 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 			__net_timestamp(skb);
 
 			nfc_llcp_send_to_raw_sock(local, skb,
-						  NFC_LLCP_DIRECTION_TX);
+						  NFC_DIRECTION_TX);
 
 			ret = nfc_data_exchange(local->dev, local->target_idx,
 						skb, nfc_llcp_recv, local);
@@ -974,7 +977,7 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 	new_sk->sk_state = LLCP_CONNECTED;
 
 	/* Wake the listening processes */
-	parent->sk_data_ready(parent, 0);
+	parent->sk_data_ready(parent);
 
 	/* Send CC */
 	nfc_llcp_send_cc(new_sock);
@@ -1474,7 +1477,7 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 
 	__net_timestamp(skb);
 
-	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_RX);
+	nfc_llcp_send_to_raw_sock(local, skb, NFC_DIRECTION_RX);
 
 	nfc_llcp_rx_skb(local, skb);
 
@@ -1622,8 +1625,6 @@ void nfc_llcp_unregister_device(struct nfc_dev *dev)
 
 int __init nfc_llcp_init(void)
 {
-	INIT_LIST_HEAD(&llcp_devices);
-
 	return nfc_llcp_sock_init();
 }
 

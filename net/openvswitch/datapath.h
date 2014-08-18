@@ -55,7 +55,7 @@ struct dp_stats_percpu {
 	u64 n_missed;
 	u64 n_lost;
 	u64 n_mask_hit;
-	struct u64_stats_sync sync;
+	struct u64_stats_sync syncp;
 };
 
 /**
@@ -144,7 +144,7 @@ int lockdep_ovsl_is_held(void);
 #define lockdep_ovsl_is_held()	1
 #endif
 
-#define ASSERT_OVSL()		WARN_ON(unlikely(!lockdep_ovsl_is_held()))
+#define ASSERT_OVSL()		WARN_ON(!lockdep_ovsl_is_held())
 #define ovsl_dereference(p)					\
 	rcu_dereference_protected(p, lockdep_ovsl_is_held())
 #define rcu_dereference_ovsl(p)					\
@@ -194,7 +194,9 @@ struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb);
 void ovs_dp_notify_wq(struct work_struct *work);
 
-#define OVS_NLERR(fmt, ...) \
-	pr_info_once("netlink: " fmt, ##__VA_ARGS__)
-
+#define OVS_NLERR(fmt, ...)					\
+do {								\
+	if (net_ratelimit())					\
+		pr_info("netlink: " fmt, ##__VA_ARGS__);	\
+} while (0)
 #endif /* datapath.h */

@@ -7,7 +7,7 @@
  *
  * Written Doug Thompson <norsk5@xmission.com> www.softwarebitmaker.com
  *
- * (c) 2012-2013 - Mauro Carvalho Chehab <mchehab@redhat.com>
+ * (c) 2012-2013 - Mauro Carvalho Chehab
  *	The entire API were re-written, and ported to use struct device
  *
  */
@@ -108,7 +108,9 @@ static const char * const mem_types[] = {
 	[MEM_RDDR2] = "Registered-DDR2",
 	[MEM_XDR] = "XDR",
 	[MEM_DDR3] = "Unbuffered-DDR3",
-	[MEM_RDDR3] = "Registered-DDR3"
+	[MEM_RDDR3] = "Registered-DDR3",
+	[MEM_DDR4] = "Unbuffered-DDR4",
+	[MEM_RDDR4] = "Registered-DDR4"
 };
 
 static const char * const dev_types[] = {

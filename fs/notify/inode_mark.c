@@ -232,7 +232,7 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 
 	BUG_ON(last == NULL);
 	/* mark should be the last entry.  last is the current last entry */
-	hlist_add_after_rcu(&last->i.i_list, &mark->i.i_list);
+	hlist_add_behind_rcu(&mark->i.i_list, &last->i.i_list);
 out:
 	fsnotify_recalc_inode_mask_locked(inode);
 	spin_unlock(&inode->i_lock);

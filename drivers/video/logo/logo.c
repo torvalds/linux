@@ -81,7 +81,7 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		logo = &logo_parisc_clut224;
 #endif
 #ifdef CONFIG_LOGO_SGI_CLUT224
-		/* SGI Linux logo on MIPS/MIPS64 and VISWS */
+		/* SGI Linux logo on MIPS/MIPS64 */
 		logo = &logo_sgi_clut224;
 #endif
 #ifdef CONFIG_LOGO_SUN_CLUT224

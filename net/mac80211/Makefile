@@ -17,6 +17,7 @@ mac80211-y := \
 	aes_ccm.o \
 	aes_cmac.o \
 	cfg.o \
+	ethtool.o \
 	rx.o \
 	spectmgmt.o \
 	tx.o \
@@ -25,7 +26,8 @@ mac80211-y := \
 	wme.o \
 	event.o \
 	chan.o \
-	trace.o mlme.o
+	trace.o mlme.o \
+	tdls.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
 mac80211-$(CONFIG_MAC80211_DEBUGFS) += \
@@ -46,17 +48,12 @@ mac80211-$(CONFIG_PM) += pm.o
 
 CFLAGS_trace.o := -I$(src)
 
-# objects for PID algorithm
-rc80211_pid-y := rc80211_pid_algo.o
-rc80211_pid-$(CONFIG_MAC80211_DEBUGFS) += rc80211_pid_debugfs.o
-
 rc80211_minstrel-y := rc80211_minstrel.o
 rc80211_minstrel-$(CONFIG_MAC80211_DEBUGFS) += rc80211_minstrel_debugfs.o
 
 rc80211_minstrel_ht-y := rc80211_minstrel_ht.o
 rc80211_minstrel_ht-$(CONFIG_MAC80211_DEBUGFS) += rc80211_minstrel_ht_debugfs.o
 
-mac80211-$(CONFIG_MAC80211_RC_PID) += $(rc80211_pid-y)
 mac80211-$(CONFIG_MAC80211_RC_MINSTREL) += $(rc80211_minstrel-y)
 mac80211-$(CONFIG_MAC80211_RC_MINSTREL_HT) += $(rc80211_minstrel_ht-y)
 

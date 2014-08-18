@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <asm/assembler.h>
 #include <asm/memory.h>
 #include <asm/page.h>
 #include "proc-macros.S"
@@ -58,7 +59,7 @@ flush_base:
 ENTRY(v4wb_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
-	mov	pc, lr
+	ret	lr
 ENDPROC(v4wb_flush_icache_all)
 
 /*
@@ -94,7 +95,7 @@ __flush_whole_cache:
 	blo	1b
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain write buffer
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -122,7 +123,7 @@ ENTRY(v4wb_flush_user_cache_range)
 	blo	1b
 	tst	r2, #VM_EXEC
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain write buffer
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -170,7 +171,7 @@ ENTRY(v4wb_coherent_user_range)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 
 /*
@@ -195,7 +196,7 @@ v4wb_dma_inv_range:
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_clean_range(start, end)
@@ -212,7 +213,7 @@ v4wb_dma_clean_range:
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_flush_range(start, end)
@@ -248,7 +249,7 @@ ENDPROC(v4wb_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(v4wb_dma_unmap_area)
-	mov	pc, lr
+	ret	lr
 ENDPROC(v4wb_dma_unmap_area)
 
 	.globl	v4wb_flush_kern_cache_louis

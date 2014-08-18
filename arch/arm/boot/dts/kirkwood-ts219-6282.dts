@@ -16,7 +16,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 
 			pinctrl-0 = <&pmx_ram_size &pmx_board_id>;
 			pinctrl-names = "default";

@@ -25,6 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
@@ -1733,18 +1734,17 @@ static struct cpufreq_frequency_table db8500_cpufreq_table[] = {
 
 static long round_armss_rate(unsigned long rate)
 {
+	struct cpufreq_frequency_table *pos;
 	long freq = 0;
-	int i = 0;
 
 	/* cpufreq table frequencies is in KHz. */
 	rate = rate / 1000;
 
 	/* Find the corresponding arm opp from the cpufreq table. */
-	while (db8500_cpufreq_table[i].frequency != CPUFREQ_TABLE_END) {
-		freq = db8500_cpufreq_table[i].frequency;
+	cpufreq_for_each_entry(pos, db8500_cpufreq_table) {
+		freq = pos->frequency;
 		if (freq == rate)
 			break;
-		i++;
 	}
 
 	/* Return the last valid value, even if a match was not found. */
@@ -1885,23 +1885,21 @@ static void set_clock_rate(u8 clock, unsigned long rate)
 
 static int set_armss_rate(unsigned long rate)
 {
-	int i = 0;
+	struct cpufreq_frequency_table *pos;
 
 	/* cpufreq table frequencies is in KHz. */
 	rate = rate / 1000;
 
 	/* Find the corresponding arm opp from the cpufreq table. */
-	while (db8500_cpufreq_table[i].frequency != CPUFREQ_TABLE_END) {
-		if (db8500_cpufreq_table[i].frequency == rate)
+	cpufreq_for_each_entry(pos, db8500_cpufreq_table)
+		if (pos->frequency == rate)
 			break;
-		i++;
-	}
 
-	if (db8500_cpufreq_table[i].frequency != rate)
+	if (pos->frequency != rate)
 		return -EINVAL;
 
 	/* Set the new arm opp. */
-	return db8500_prcmu_set_arm_opp(db8500_cpufreq_table[i].driver_data);
+	return db8500_prcmu_set_arm_opp(pos->driver_data);
 }
 
 static int set_plldsi_rate(unsigned long rate)
@@ -2302,9 +2300,6 @@ int prcmu_ac_wake_req(void)
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 			msecs_to_jiffies(5000))) {
-#if defined(CONFIG_DBX500_PRCMU_DEBUG)
-		db8500_prcmu_debug_dump(__func__, true, true);
-#endif
 		pr_crit("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
 		ret = -EFAULT;
@@ -2678,16 +2673,12 @@ static struct irq_domain_ops db8500_irq_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static int db8500_irq_init(struct device_node *np, int irq_base)
+static int db8500_irq_init(struct device_node *np)
 {
 	int i;
 
-	/* In the device tree case, just take some IRQs */
-	if (np)
-		irq_base = 0;
-
 	db8500_irq_domain = irq_domain_add_simple(
-		np, NUM_PRCMU_WAKEUPS, irq_base,
+		np, NUM_PRCMU_WAKEUPS, 0,
 		&db8500_irq_ops, NULL);
 
 	if (!db8500_irq_domain) {
@@ -3114,11 +3105,11 @@ static void db8500_prcmu_update_cpufreq(void)
 }
 
 static int db8500_prcmu_register_ab8500(struct device *parent,
-					struct ab8500_platform_data *pdata,
-					int irq)
+					struct ab8500_platform_data *pdata)
 {
-	struct resource ab8500_resource = DEFINE_RES_IRQ(irq);
-	struct mfd_cell ab8500_cell = {
+	struct device_node *np;
+	struct resource ab8500_resource;
+	const struct mfd_cell ab8500_cell = {
 		.name = "ab8500-core",
 		.of_compatible = "stericsson,ab8500",
 		.id = AB8500_VERSION_AB8500,
@@ -3127,6 +3118,20 @@ static int db8500_prcmu_register_ab8500(struct device *parent,
 		.resources = &ab8500_resource,
 		.num_resources = 1,
 	};
+
+	if (!parent->of_node)
+		return -ENODEV;
+
+	/* Look up the device node, sneak the IRQ out of it */
+	for_each_child_of_node(parent->of_node, np) {
+		if (of_device_is_compatible(np, ab8500_cell.of_compatible))
+			break;
+	}
+	if (!np) {
+		dev_info(parent, "could not find AB8500 node in the device tree\n");
+		return -ENODEV;
+	}
+	of_irq_to_resource_table(np, &ab8500_resource, 1);
 
 	return mfd_add_devices(parent, 0, &ab8500_cell, 1, NULL, 0, NULL);
 }
@@ -3180,7 +3185,7 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		goto no_irq_return;
 	}
 
-	db8500_irq_init(np, pdata->irq_base);
+	db8500_irq_init(np);
 
 	prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
@@ -3205,8 +3210,7 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = db8500_prcmu_register_ab8500(&pdev->dev, pdata->ab_platdata,
-					   pdata->ab_irq);
+	err = db8500_prcmu_register_ab8500(&pdev->dev, pdata->ab_platdata);
 	if (err) {
 		mfd_remove_devices(&pdev->dev);
 		pr_err("prcmu: Failed to add ab8500 subdevice\n");

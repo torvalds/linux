@@ -17,6 +17,7 @@
 #include <linux/workqueue.h>
 #include <linux/file.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <linux/net.h>
 #include <linux/if_packet.h>
@@ -373,7 +374,7 @@ static void handle_tx(struct vhost_net *net)
 			      % UIO_MAXIOV == nvq->done_idx))
 			break;
 
-		head = vhost_get_vq_desc(&net->dev, vq, vq->iov,
+		head = vhost_get_vq_desc(vq, vq->iov,
 					 ARRAY_SIZE(vq->iov),
 					 &out, &in,
 					 NULL, NULL);
@@ -505,7 +506,7 @@ static int get_rx_bufs(struct vhost_virtqueue *vq,
 			r = -ENOBUFS;
 			goto err;
 		}
-		r = vhost_get_vq_desc(vq->dev, vq, vq->iov + seg,
+		r = vhost_get_vq_desc(vq, vq->iov + seg,
 				      ARRAY_SIZE(vq->iov) - seg, &out,
 				      &in, log, log_num);
 		if (unlikely(r < 0))
@@ -584,9 +585,9 @@ static void handle_rx(struct vhost_net *net)
 	vhost_hlen = nvq->vhost_hlen;
 	sock_hlen = nvq->sock_hlen;
 
-	vq_log = unlikely(vhost_has_feature(&net->dev, VHOST_F_LOG_ALL)) ?
+	vq_log = unlikely(vhost_has_feature(vq, VHOST_F_LOG_ALL)) ?
 		vq->log : NULL;
-	mergeable = vhost_has_feature(&net->dev, VIRTIO_NET_F_MRG_RXBUF);
+	mergeable = vhost_has_feature(vq, VIRTIO_NET_F_MRG_RXBUF);
 
 	while ((sock_len = peek_head_len(sock->sk))) {
 		sock_len += sock_hlen;
@@ -701,16 +702,20 @@ static void handle_rx_net(struct vhost_work *work)
 
 static int vhost_net_open(struct inode *inode, struct file *f)
 {
-	struct vhost_net *n = kmalloc(sizeof *n, GFP_KERNEL);
+	struct vhost_net *n;
 	struct vhost_dev *dev;
 	struct vhost_virtqueue **vqs;
 	int i;
 
-	if (!n)
-		return -ENOMEM;
+	n = kmalloc(sizeof *n, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+	if (!n) {
+		n = vmalloc(sizeof *n);
+		if (!n)
+			return -ENOMEM;
+	}
 	vqs = kmalloc(VHOST_NET_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
 	if (!vqs) {
-		kfree(n);
+		kvfree(n);
 		return -ENOMEM;
 	}
 
@@ -818,16 +823,16 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	vhost_dev_cleanup(&n->dev, false);
 	vhost_net_vq_reset(n);
 	if (tx_sock)
-		fput(tx_sock->file);
+		sockfd_put(tx_sock);
 	if (rx_sock)
-		fput(rx_sock->file);
+		sockfd_put(rx_sock);
 	/* Make sure no callbacks are outstanding */
 	synchronize_rcu_bh();
 	/* We do an extra flush before freeing memory,
 	 * since jobs can re-queue themselves. */
 	vhost_net_flush(n);
 	kfree(n->dev.vqs);
-	kfree(n);
+	kvfree(n);
 	return 0;
 }
 
@@ -860,7 +865,7 @@ static struct socket *get_raw_socket(int fd)
 	}
 	return sock;
 err:
-	fput(sock->file);
+	sockfd_put(sock);
 	return ERR_PTR(r);
 }
 
@@ -966,7 +971,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 
 	if (oldsock) {
 		vhost_net_flush_vq(n, index);
-		fput(oldsock->file);
+		sockfd_put(oldsock);
 	}
 
 	mutex_unlock(&n->dev.mutex);
@@ -978,7 +983,7 @@ err_used:
 	if (ubufs)
 		vhost_net_ubuf_put_wait_and_free(ubufs);
 err_ubufs:
-	fput(sock->file);
+	sockfd_put(sock);
 err_vq:
 	mutex_unlock(&vq->mutex);
 err:
@@ -1009,9 +1014,9 @@ static long vhost_net_reset_owner(struct vhost_net *n)
 done:
 	mutex_unlock(&n->dev.mutex);
 	if (tx_sock)
-		fput(tx_sock->file);
+		sockfd_put(tx_sock);
 	if (rx_sock)
-		fput(rx_sock->file);
+		sockfd_put(rx_sock);
 	return err;
 }
 
@@ -1038,15 +1043,13 @@ static int vhost_net_set_features(struct vhost_net *n, u64 features)
 		mutex_unlock(&n->dev.mutex);
 		return -EFAULT;
 	}
-	n->dev.acked_features = features;
-	smp_wmb();
 	for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
 		mutex_lock(&n->vqs[i].vq.mutex);
+		n->vqs[i].vq.acked_features = features;
 		n->vqs[i].vhost_hlen = vhost_hlen;
 		n->vqs[i].sock_hlen = sock_hlen;
 		mutex_unlock(&n->vqs[i].vq.mutex);
 	}
-	vhost_net_flush(n);
 	mutex_unlock(&n->dev.mutex);
 	return 0;
 }

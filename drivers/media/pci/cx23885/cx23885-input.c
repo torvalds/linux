@@ -346,7 +346,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	}
 	rc->dev.parent = &dev->pci->dev;
 	rc->driver_type = driver_type;
-	rc->allowed_protos = allowed_protos;
+	rc->allowed_protocols = allowed_protos;
 	rc->priv = kernel_ir;
 	rc->open = cx23885_input_ir_open;
 	rc->close = cx23885_input_ir_close;

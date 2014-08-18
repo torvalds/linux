@@ -277,7 +277,7 @@ mpt2sas_base_stop_watchdog(struct MPT2SAS_ADAPTER *ioc)
 	ioc->fault_reset_work_q = NULL;
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 	if (wq) {
-		if (!cancel_delayed_work(&ioc->fault_reset_work))
+		if (!cancel_delayed_work_sync(&ioc->fault_reset_work))
 			flush_workqueue(wq);
 		destroy_workqueue(wq);
 	}
@@ -1332,53 +1332,35 @@ _base_request_irq(struct MPT2SAS_ADAPTER *ioc, u8 index, u32 vector)
 static void
 _base_assign_reply_queues(struct MPT2SAS_ADAPTER *ioc)
 {
-	struct adapter_reply_queue *reply_q;
-	int cpu_id;
-	int cpu_grouping, loop, grouping, grouping_mod;
+	unsigned int cpu, nr_cpus, nr_msix, index = 0;
 
 	if (!_base_is_controller_msix_enabled(ioc))
 		return;
 
 	memset(ioc->cpu_msix_table, 0, ioc->cpu_msix_table_sz);
-	/* when there are more cpus than available msix vectors,
-	 * then group cpus togeather on same irq
-	 */
-	if (ioc->cpu_count > ioc->msix_vector_count) {
-		grouping = ioc->cpu_count / ioc->msix_vector_count;
-		grouping_mod = ioc->cpu_count % ioc->msix_vector_count;
-		if (grouping < 2 || (grouping == 2 && !grouping_mod))
-			cpu_grouping = 2;
-		else if (grouping < 4 || (grouping == 4 && !grouping_mod))
-			cpu_grouping = 4;
-		else if (grouping < 8 || (grouping == 8 && !grouping_mod))
-			cpu_grouping = 8;
-		else
-			cpu_grouping = 16;
-	} else
-		cpu_grouping = 0;
 
-	loop = 0;
-	reply_q = list_entry(ioc->reply_queue_list.next,
-	     struct adapter_reply_queue, list);
-	for_each_online_cpu(cpu_id) {
-		if (!cpu_grouping) {
-			ioc->cpu_msix_table[cpu_id] = reply_q->msix_index;
-			reply_q = list_entry(reply_q->list.next,
-			    struct adapter_reply_queue, list);
-		} else {
-			if (loop < cpu_grouping) {
-				ioc->cpu_msix_table[cpu_id] =
-					reply_q->msix_index;
-				loop++;
-			} else {
-				reply_q = list_entry(reply_q->list.next,
-				    struct adapter_reply_queue, list);
-				ioc->cpu_msix_table[cpu_id] =
-					reply_q->msix_index;
-				loop = 1;
-			}
+	nr_cpus = num_online_cpus();
+	nr_msix = ioc->reply_queue_count = min(ioc->reply_queue_count,
+					       ioc->facts.MaxMSIxVectors);
+	if (!nr_msix)
+		return;
+
+	cpu = cpumask_first(cpu_online_mask);
+
+	do {
+		unsigned int i, group = nr_cpus / nr_msix;
+
+		if (index < nr_cpus % nr_msix)
+			group++;
+
+		for (i = 0 ; i < group ; i++) {
+			ioc->cpu_msix_table[cpu] = index;
+			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
-	}
+
+		index++;
+
+	} while (cpu < nr_cpus);
 }
 
 /**
@@ -1739,14 +1721,14 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 			list_for_each_entry_safe(chain_req, next,
 			    &ioc->scsi_lookup[i].chain_list, tracker_list) {
 				list_del_init(&chain_req->tracker_list);
-				list_add_tail(&chain_req->tracker_list,
+				list_add(&chain_req->tracker_list,
 				    &ioc->free_chain_list);
 			}
 		}
 		ioc->scsi_lookup[i].cb_idx = 0xFF;
 		ioc->scsi_lookup[i].scmd = NULL;
 		ioc->scsi_lookup[i].direct_io = 0;
-		list_add_tail(&ioc->scsi_lookup[i].tracker_list,
+		list_add(&ioc->scsi_lookup[i].tracker_list,
 		    &ioc->free_list);
 		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
@@ -1764,13 +1746,13 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 		/* hi-priority */
 		i = smid - ioc->hi_priority_smid;
 		ioc->hpr_lookup[i].cb_idx = 0xFF;
-		list_add_tail(&ioc->hpr_lookup[i].tracker_list,
+		list_add(&ioc->hpr_lookup[i].tracker_list,
 		    &ioc->hpr_free_list);
 	} else if (smid <= ioc->hba_queue_depth) {
 		/* internal queue */
 		i = smid - ioc->internal_smid;
 		ioc->internal_lookup[i].cb_idx = 0xFF;
-		list_add_tail(&ioc->internal_lookup[i].tracker_list,
+		list_add(&ioc->internal_lookup[i].tracker_list,
 		    &ioc->internal_free_list);
 	}
 	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
@@ -4295,12 +4277,13 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	if (ioc->is_warpdrive) {
-		ioc->reply_post_host_index[0] =
-		    (resource_size_t *)&ioc->chip->ReplyPostHostIndex;
+		ioc->reply_post_host_index[0] = (resource_size_t __iomem *)
+		    &ioc->chip->ReplyPostHostIndex;
 
 		for (i = 1; i < ioc->cpu_msix_table_sz; i++)
-			ioc->reply_post_host_index[i] = (resource_size_t *)
-			((u8 *)&ioc->chip->Doorbell + (0x4000 + ((i - 1)
+			ioc->reply_post_host_index[i] =
+			(resource_size_t __iomem *)
+			((u8 __iomem *)&ioc->chip->Doorbell + (0x4000 + ((i - 1)
 			* 4)));
 	}
 

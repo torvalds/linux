@@ -143,7 +143,7 @@ void nv40_therm_intr(struct nouveau_subdev *);
 int nv50_fan_pwm_ctrl(struct nouveau_therm *, int, bool);
 int nv50_fan_pwm_get(struct nouveau_therm *, int, u32 *, u32 *);
 int nv50_fan_pwm_set(struct nouveau_therm *, int, u32, u32);
-int nv50_fan_pwm_clock(struct nouveau_therm *);
+int nv50_fan_pwm_clock(struct nouveau_therm *, int);
 int nv84_temp_get(struct nouveau_therm *therm);
 int nv84_therm_fini(struct nouveau_object *object, bool suspend);
 

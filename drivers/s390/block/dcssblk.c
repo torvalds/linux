@@ -304,12 +304,6 @@ dcssblk_load_segment(char *name, struct segment_info **seg_info)
 	return rc;
 }
 
-static void dcssblk_unregister_callback(struct device *dev)
-{
-	device_unregister(dev);
-	put_device(dev);
-}
-
 /*
  * device attribute for switching shared/nonshared (exclusive)
  * operation (show + store)
@@ -397,7 +391,13 @@ removeseg:
 	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
-	rc = device_schedule_callback(dev, dcssblk_unregister_callback);
+	up_write(&dcssblk_devices_sem);
+
+	if (device_remove_file_self(dev, attr)) {
+		device_unregister(dev);
+		put_device(dev);
+	}
+	return rc;
 out:
 	up_write(&dcssblk_devices_sem);
 	return rc;
@@ -593,7 +593,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->start = dcssblk_find_lowest_addr(dev_info);
 	dev_info->end = dcssblk_find_highest_addr(dev_info);
 
-	dev_set_name(&dev_info->dev, dev_info->segment_name);
+	dev_set_name(&dev_info->dev, "%s", dev_info->segment_name);
 	dev_info->dev.release = dcssblk_release_segment;
 	dev_info->dev.groups = dcssblk_dev_attr_groups;
 	INIT_LIST_HEAD(&dev_info->lh);

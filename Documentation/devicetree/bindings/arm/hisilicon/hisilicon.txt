@@ -30,3 +30,28 @@ Example:
 		resume-offset = <0x308>;
 		reboot-offset = <0x4>;
 	};
+
+-----------------------------------------------------------------------
+Hisilicon CPU controller
+
+Required properties:
+- compatible : "hisilicon,cpuctrl"
+- reg : Register address and size
+
+The clock registers and power registers of secondary cores are defined
+in CPU controller, especially in HIX5HD2 SoC.
+
+-----------------------------------------------------------------------
+PCTRL: Peripheral misc control register
+
+Required Properties:
+- compatible: "hisilicon,pctrl"
+- reg: Address and size of pctrl.
+
+Example:
+
+	/* for Hi3620 */
+	pctrl: pctrl@fca09000 {
+		compatible = "hisilicon,pctrl";
+		reg = <0xfca09000 0x1000>;
+	};

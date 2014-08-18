@@ -31,9 +31,12 @@ void xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
 void xen_reserve_top(void);
 extern unsigned long xen_max_p2m_pfn;
 
+void xen_mm_pin_all(void);
+void xen_mm_unpin_all(void);
 void xen_set_pat(u64);
 
 char * __init xen_memory_setup(void);
+char * xen_auto_xlated_memory_setup(void);
 void __init xen_arch_setup(void);
 void xen_enable_sysenter(void);
 void xen_enable_syscall(void);
@@ -98,6 +101,14 @@ static inline void __init xen_init_vga(const struct dom0_vga_console_info *info,
 {
 }
 static inline void __init xen_init_apic(void)
+{
+}
+#endif
+
+#ifdef CONFIG_XEN_EFI
+extern void xen_efi_init(void);
+#else
+static inline void __init xen_efi_init(void)
 {
 }
 #endif

@@ -151,7 +151,7 @@ static ssize_t store_mmustat_enable(struct device *s,
 			size_t count)
 {
 	unsigned long val, err;
-	int ret = sscanf(buf, "%ld", &val);
+	int ret = sscanf(buf, "%lu", &val);
 
 	if (ret != 1)
 		return -EINVAL;
@@ -300,7 +300,7 @@ static int __init topology_init(void)
 
 	check_mmu_stats();
 
-	register_cpu_notifier(&sysfs_cpu_nb);
+	cpu_notifier_register_begin();
 
 	for_each_possible_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
@@ -309,6 +309,10 @@ static int __init topology_init(void)
 		if (cpu_online(cpu))
 			register_cpu_online(cpu);
 	}
+
+	__register_cpu_notifier(&sysfs_cpu_nb);
+
+	cpu_notifier_register_done();
 
 	return 0;
 }

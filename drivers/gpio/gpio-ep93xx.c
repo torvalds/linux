@@ -344,37 +344,24 @@ static int ep93xx_gpio_probe(struct platform_device *pdev)
 {
 	struct ep93xx_gpio *ep93xx_gpio;
 	struct resource *res;
-	void __iomem *mmio;
 	int i;
-	int ret;
+	struct device *dev = &pdev->dev;
 
-	ep93xx_gpio = kzalloc(sizeof(*ep93xx_gpio), GFP_KERNEL);
+	ep93xx_gpio = devm_kzalloc(dev, sizeof(struct ep93xx_gpio), GFP_KERNEL);
 	if (!ep93xx_gpio)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENXIO;
-		goto exit_free;
-	}
-
-	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
-		ret = -EBUSY;
-		goto exit_free;
-	}
-
-	mmio = ioremap(res->start, resource_size(res));
-	if (!mmio) {
-		ret = -ENXIO;
-		goto exit_release;
-	}
-	ep93xx_gpio->mmio_base = mmio;
+	ep93xx_gpio->mmio_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(ep93xx_gpio->mmio_base))
+		return PTR_ERR(ep93xx_gpio->mmio_base);
 
 	for (i = 0; i < ARRAY_SIZE(ep93xx_gpio_banks); i++) {
 		struct bgpio_chip *bgc = &ep93xx_gpio->bgc[i];
 		struct ep93xx_gpio_bank *bank = &ep93xx_gpio_banks[i];
 
-		if (ep93xx_gpio_add_bank(bgc, &pdev->dev, mmio, bank))
+		if (ep93xx_gpio_add_bank(bgc, &pdev->dev,
+					 ep93xx_gpio->mmio_base, bank))
 			dev_warn(&pdev->dev, "Unable to add gpio bank %s\n",
 				bank->label);
 	}
@@ -382,13 +369,6 @@ static int ep93xx_gpio_probe(struct platform_device *pdev)
 	ep93xx_gpio_init_irq();
 
 	return 0;
-
-exit_release:
-	release_mem_region(res->start, resource_size(res));
-exit_free:
-	kfree(ep93xx_gpio);
-	dev_info(&pdev->dev, "%s failed with errno %d\n", __func__, ret);
-	return ret;
 }
 
 static struct platform_driver ep93xx_gpio_driver = {

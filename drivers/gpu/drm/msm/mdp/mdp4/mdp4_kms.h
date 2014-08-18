@@ -42,8 +42,13 @@ struct mdp4_kms {
 	struct clk *clk;
 	struct clk *pclk;
 	struct clk *lut_clk;
+	struct clk *axi_clk;
 
 	struct mdp_irq error_handler;
+
+	/* empty/blank cursor bo to use when cursor is "disabled" */
+	struct drm_gem_object *blank_cursor_bo;
+	uint32_t blank_cursor_iova;
 };
 #define to_mdp4_kms(x) container_of(x, struct mdp4_kms, base)
 

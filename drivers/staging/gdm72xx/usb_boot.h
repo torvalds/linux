@@ -11,12 +11,12 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __USB_BOOT_H__
-#define __USB_BOOT_H__
+#ifndef __GDM72XX_USB_BOOT_H__
+#define __GDM72XX_USB_BOOT_H__
 
 struct usb_device;
 
-extern int usb_boot(struct usb_device *usbdev, u16 pid);
-extern int usb_emergency(struct usb_device *usbdev);
+int usb_boot(struct usb_device *usbdev, u16 pid);
+int usb_emergency(struct usb_device *usbdev);
 
-#endif /* __USB_BOOT_H__ */
+#endif /* __GDM72XX_USB_BOOT_H__ */

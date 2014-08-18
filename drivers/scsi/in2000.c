@@ -2015,7 +2015,7 @@ static int __init in2000_detect(struct scsi_host_template * tpnt)
 		write1_io(0, IO_FIFO_READ);	/* start fifo out in read mode */
 		write1_io(0, IO_INTR_MASK);	/* allow all ints */
 		x = int_tab[(switches & (SW_INT0 | SW_INT1)) >> SW_INT_SHIFT];
-		if (request_irq(x, in2000_intr, IRQF_DISABLED, "in2000", instance)) {
+		if (request_irq(x, in2000_intr, 0, "in2000", instance)) {
 			printk("in2000_detect: Unable to allocate IRQ.\n");
 			detect_count--;
 			continue;
@@ -2251,14 +2251,14 @@ static int in2000_show_info(struct seq_file *m, struct Scsi_Host *instance)
 		seq_printf(m, "\nconnected:     ");
 		if (hd->connected) {
 			cmd = (Scsi_Cmnd *) hd->connected;
-			seq_printf(m, " %d:%d(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
+			seq_printf(m, " %d:%llu(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
 		}
 	}
 	if (hd->proc & PR_INPUTQ) {
 		seq_printf(m, "\ninput_Q:       ");
 		cmd = (Scsi_Cmnd *) hd->input_Q;
 		while (cmd) {
-			seq_printf(m, " %d:%d(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
+			seq_printf(m, " %d:%llu(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
 			cmd = (Scsi_Cmnd *) cmd->host_scribble;
 		}
 	}
@@ -2266,7 +2266,7 @@ static int in2000_show_info(struct seq_file *m, struct Scsi_Host *instance)
 		seq_printf(m, "\ndisconnected_Q:");
 		cmd = (Scsi_Cmnd *) hd->disconnected_Q;
 		while (cmd) {
-			seq_printf(m, " %d:%d(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
+			seq_printf(m, " %d:%llu(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
 			cmd = (Scsi_Cmnd *) cmd->host_scribble;
 		}
 	}

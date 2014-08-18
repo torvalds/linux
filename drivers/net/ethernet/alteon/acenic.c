@@ -131,7 +131,7 @@
 #define PCI_DEVICE_ID_SGI_ACENIC	0x0009
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(acenic_pci_tbl) = {
+static const struct pci_device_id acenic_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ALTEON, PCI_DEVICE_ID_ALTEON_ACENIC_FIBRE,
 	  PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_NETWORK_ETHERNET << 8, 0xffff00, },
 	{ PCI_VENDOR_ID_ALTEON, PCI_DEVICE_ID_ALTEON_ACENIC_COPPER,
@@ -476,7 +476,7 @@ static int acenic_probe_one(struct pci_dev *pdev,
 	dev->watchdog_timeo = 5*HZ;
 
 	dev->netdev_ops = &ace_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ace_ethtool_ops);
+	dev->ethtool_ops = &ace_ethtool_ops;
 
 	/* we only display this string ONCE */
 	if (!boards_found)

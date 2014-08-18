@@ -115,14 +115,13 @@ struct svc_rdma_fastreg_mr {
 	struct list_head frmr_list;
 };
 struct svc_rdma_req_map {
-	struct svc_rdma_fastreg_mr *frmr;
 	unsigned long count;
 	union {
 		struct kvec sge[RPCSVC_MAXPAGES];
 		struct svc_rdma_chunk_sge ch[RPCSVC_MAXPAGES];
+		unsigned long lkey[RPCSVC_MAXPAGES];
 	};
 };
-#define RDMACTXT_F_FAST_UNREG	1
 #define RDMACTXT_F_LAST_CTXT	2
 
 #define	SVCRDMA_DEVCAP_FAST_REG		1	/* fast mr registration */
@@ -175,8 +174,7 @@ struct svcxprt_rdma {
  * page size of 4k, or 32k * 2 ops / 4k = 16 outstanding RDMA_READ.  */
 #define RPCRDMA_ORD             (64/4)
 #define RPCRDMA_SQ_DEPTH_MULT   8
-#define RPCRDMA_MAX_THREADS     16
-#define RPCRDMA_MAX_REQUESTS    16
+#define RPCRDMA_MAX_REQUESTS    32
 #define RPCRDMA_MAX_REQ_SIZE    4096
 
 /* svc_rdma_marshal.c */

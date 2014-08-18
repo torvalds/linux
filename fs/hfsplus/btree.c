@@ -358,7 +358,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 		u32 count;
 		int res;
 
-		res = hfsplus_file_extend(inode);
+		res = hfsplus_file_extend(inode, hfs_bnode_need_zeroout(tree));
 		if (res)
 			return ERR_PTR(res);
 		hip->phys_size = inode->i_size =

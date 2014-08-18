@@ -362,12 +362,6 @@ void cmtp_recv_capimsg(struct cmtp_session *session, struct sk_buff *skb)
 		CAPIMSG_SETCONTROL(skb->data, contr);
 	}
 
-	if (!ctrl) {
-		BT_ERR("Can't find controller %d for message", session->num);
-		kfree_skb(skb);
-		return;
-	}
-
 	capi_ctr_handle_message(ctrl, appl, skb);
 }
 

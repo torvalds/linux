@@ -8,19 +8,15 @@
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #include <linux/dma-buf.h>
 #include <drm/tegra_drm.h>
 
+#include "drm.h"
 #include "gem.h"
 
 static inline struct tegra_bo *host1x_to_tegra_bo(struct host1x_bo *bo)
@@ -131,7 +127,7 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 		goto err_mmap;
 
 	if (flags & DRM_TEGRA_GEM_CREATE_TILED)
-		bo->flags |= TEGRA_BO_TILED;
+		bo->tiling.mode = TEGRA_BO_TILING_MODE_TILED;
 
 	if (flags & DRM_TEGRA_GEM_CREATE_BOTTOM_UP)
 		bo->flags |= TEGRA_BO_BOTTOM_UP;
@@ -174,7 +170,8 @@ err:
 	return ERR_PTR(ret);
 }
 
-struct tegra_bo *tegra_bo_import(struct drm_device *drm, struct dma_buf *buf)
+static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
+					struct dma_buf *buf)
 {
 	struct dma_buf_attachment *attach;
 	struct tegra_bo *bo;
@@ -263,8 +260,10 @@ int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 			 struct drm_mode_create_dumb *args)
 {
 	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_bo *bo;
 
+	min_pitch = round_up(min_pitch, tegra->pitch_align);
 	if (args->pitch < min_pitch)
 		args->pitch = min_pitch;
 
@@ -394,6 +393,18 @@ static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 	return -EINVAL;
 }
 
+static void *tegra_gem_prime_vmap(struct dma_buf *buf)
+{
+	struct drm_gem_object *gem = buf->priv;
+	struct tegra_bo *bo = to_tegra_bo(gem);
+
+	return bo->vaddr;
+}
+
+static void tegra_gem_prime_vunmap(struct dma_buf *buf, void *vaddr)
+{
+}
+
 static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.map_dma_buf = tegra_gem_prime_map_dma_buf,
 	.unmap_dma_buf = tegra_gem_prime_unmap_dma_buf,
@@ -403,6 +414,8 @@ static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.kmap = tegra_gem_prime_kmap,
 	.kunmap = tegra_gem_prime_kunmap,
 	.mmap = tegra_gem_prime_mmap,
+	.vmap = tegra_gem_prime_vmap,
+	.vunmap = tegra_gem_prime_vunmap,
 };
 
 struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
@@ -410,7 +423,7 @@ struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
 				       int flags)
 {
 	return dma_buf_export(gem, &tegra_gem_prime_dmabuf_ops, gem->size,
-			      flags);
+			      flags, NULL);
 }
 
 struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,

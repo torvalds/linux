@@ -360,7 +360,7 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 		return 1;
 
 	/* check if the resource is valid */
-	if (*irq < 0 || *irq > 15)
+	if (*irq > 15)
 		return 0;
 
 	/* check if the resource is reserved */
@@ -385,7 +385,7 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 	 * device is active because it itself may be in use */
 	if (!dev->active) {
 		if (request_irq(*irq, pnp_test_handler,
-				IRQF_DISABLED | IRQF_PROBE_SHARED, "pnp", NULL))
+				IRQF_PROBE_SHARED, "pnp", NULL))
 			return 0;
 		free_irq(*irq, NULL);
 	}
@@ -424,7 +424,7 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 		return 1;
 
 	/* check if the resource is valid */
-	if (*dma < 0 || *dma == 4 || *dma > 7)
+	if (*dma == 4 || *dma > 7)
 		return 0;
 
 	/* check if the resource is reserved */

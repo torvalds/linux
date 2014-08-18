@@ -37,7 +37,7 @@ nv20_devinit_meminit(struct nouveau_devinit *devinit)
 	struct io_mapping *fb;
 
 	/* Map the framebuffer aperture */
-	fb = fbmem_init(nv_device(priv)->pdev);
+	fb = fbmem_init(nv_device(priv));
 	if (!fb) {
 		nv_error(priv, "failed to map fb\n");
 		return;

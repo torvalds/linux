@@ -1894,637 +1894,12 @@ enum tegra_mux {
 	TEGRA_MUX_XIO,
 };
 
-static const char * const ahb_clk_groups[] = {
-	"cdev2",
-};
-
-static const char * const apb_clk_groups[] = {
-	"cdev2",
-};
-
-static const char * const audio_sync_groups[] = {
-	"cdev1",
-};
-
-static const char * const crt_groups[] = {
-	"crtp",
-	"lm1",
-};
-
-static const char * const dap1_groups[] = {
-	"dap1",
-};
-
-static const char * const dap2_groups[] = {
-	"dap2",
-};
-
-static const char * const dap3_groups[] = {
-	"dap3",
-};
-
-static const char * const dap4_groups[] = {
-	"dap4",
-};
-
-static const char * const dap5_groups[] = {
-	"gme",
-};
-
-static const char * const displaya_groups[] = {
-	"lcsn",
-	"ld0",
-	"ld1",
-	"ld10",
-	"ld11",
-	"ld12",
-	"ld13",
-	"ld14",
-	"ld15",
-	"ld16",
-	"ld17",
-	"ld2",
-	"ld3",
-	"ld4",
-	"ld5",
-	"ld6",
-	"ld7",
-	"ld8",
-	"ld9",
-	"ldc",
-	"ldi",
-	"lhp0",
-	"lhp1",
-	"lhp2",
-	"lhs",
-	"lm0",
-	"lm1",
-	"lpp",
-	"lpw0",
-	"lpw1",
-	"lpw2",
-	"lsc0",
-	"lsc1",
-	"lsck",
-	"lsda",
-	"lsdi",
-	"lspi",
-	"lvp0",
-	"lvp1",
-	"lvs",
-};
-
-static const char * const displayb_groups[] = {
-	"lcsn",
-	"ld0",
-	"ld1",
-	"ld10",
-	"ld11",
-	"ld12",
-	"ld13",
-	"ld14",
-	"ld15",
-	"ld16",
-	"ld17",
-	"ld2",
-	"ld3",
-	"ld4",
-	"ld5",
-	"ld6",
-	"ld7",
-	"ld8",
-	"ld9",
-	"ldc",
-	"ldi",
-	"lhp0",
-	"lhp1",
-	"lhp2",
-	"lhs",
-	"lm0",
-	"lm1",
-	"lpp",
-	"lpw0",
-	"lpw1",
-	"lpw2",
-	"lsc0",
-	"lsc1",
-	"lsck",
-	"lsda",
-	"lsdi",
-	"lspi",
-	"lvp0",
-	"lvp1",
-	"lvs",
-};
-
-static const char * const emc_test0_dll_groups[] = {
-	"kbca",
-};
-
-static const char * const emc_test1_dll_groups[] = {
-	"kbcc",
-};
-
-static const char * const gmi_groups[] = {
-	"ata",
-	"atb",
-	"atc",
-	"atd",
-	"ate",
-	"dap1",
-	"dap2",
-	"dap4",
-	"gma",
-	"gmb",
-	"gmc",
-	"gmd",
-	"gme",
-	"gpu",
-	"irrx",
-	"irtx",
-	"pta",
-	"spia",
-	"spib",
-	"spic",
-	"spid",
-	"spie",
-	"uca",
-	"ucb",
-};
-
-static const char * const gmi_int_groups[] = {
-	"gmb",
-};
-
-static const char * const hdmi_groups[] = {
-	"hdint",
-	"lpw0",
-	"lpw2",
-	"lsc1",
-	"lsck",
-	"lsda",
-	"lspi",
-	"pta",
-};
-
-static const char * const i2cp_groups[] = {
-	"i2cp",
-};
-
-static const char * const i2c1_groups[] = {
-	"rm",
-	"spdi",
-	"spdo",
-	"spig",
-	"spih",
-};
-
-static const char * const i2c2_groups[] = {
-	"ddc",
-	"pta",
-};
-
-static const char * const i2c3_groups[] = {
-	"dtf",
-};
-
-static const char * const ide_groups[] = {
-	"ata",
-	"atb",
-	"atc",
-	"atd",
-	"ate",
-	"gmb",
-};
-
-static const char * const irda_groups[] = {
-	"uad",
-};
-
-static const char * const kbc_groups[] = {
-	"kbca",
-	"kbcb",
-	"kbcc",
-	"kbcd",
-	"kbce",
-	"kbcf",
-};
-
-static const char * const mio_groups[] = {
-	"kbcb",
-	"kbcd",
-	"kbcf",
-};
-
-static const char * const mipi_hs_groups[] = {
-	"uaa",
-	"uab",
-};
-
-static const char * const nand_groups[] = {
-	"ata",
-	"atb",
-	"atc",
-	"atd",
-	"ate",
-	"gmb",
-	"gmd",
-	"kbca",
-	"kbcb",
-	"kbcc",
-	"kbcd",
-	"kbce",
-	"kbcf",
-};
-
-static const char * const osc_groups[] = {
-	"cdev1",
-	"cdev2",
-};
-
-static const char * const owr_groups[] = {
-	"kbce",
-	"owc",
-	"uac",
-};
-
-static const char * const pcie_groups[] = {
-	"gpv",
-	"slxa",
-	"slxk",
-};
-
-static const char * const plla_out_groups[] = {
-	"cdev1",
-};
-
-static const char * const pllc_out1_groups[] = {
-	"csus",
-};
-
-static const char * const pllm_out1_groups[] = {
-	"cdev1",
-};
-
-static const char * const pllp_out2_groups[] = {
-	"csus",
-};
-
-static const char * const pllp_out3_groups[] = {
-	"csus",
-};
-
-static const char * const pllp_out4_groups[] = {
-	"cdev2",
-};
-
-static const char * const pwm_groups[] = {
-	"gpu",
-	"sdb",
-	"sdc",
-	"sdd",
-	"ucb",
-};
-
-static const char * const pwr_intr_groups[] = {
-	"pmc",
-};
-
-static const char * const pwr_on_groups[] = {
-	"pmc",
-};
-
-static const char * const rsvd1_groups[] = {
-	"dta",
-	"dtb",
-	"dtc",
-	"dtd",
-	"dte",
-	"gmd",
-	"gme",
-};
-
-static const char * const rsvd2_groups[] = {
-	"crtp",
-	"dap1",
-	"dap3",
-	"dap4",
-	"ddc",
-	"dtb",
-	"dtc",
-	"dte",
-	"dtf",
-	"gpu7",
-	"gpv",
-	"hdint",
-	"i2cp",
-	"owc",
-	"rm",
-	"sdio1",
-	"spdi",
-	"spdo",
-	"uac",
-	"uca",
-	"uda",
-};
-
-static const char * const rsvd3_groups[] = {
-	"crtp",
-	"dap2",
-	"dap3",
-	"ddc",
-	"gpu7",
-	"gpv",
-	"hdint",
-	"i2cp",
-	"ld17",
-	"ldc",
-	"ldi",
-	"lhp0",
-	"lhp1",
-	"lhp2",
-	"lm1",
-	"lpp",
-	"lpw1",
-	"lvp0",
-	"lvp1",
-	"owc",
-	"pmc",
-	"rm",
-	"uac",
-};
-
-static const char * const rsvd4_groups[] = {
-	"ata",
-	"ate",
-	"crtp",
-	"dap3",
-	"dap4",
-	"ddc",
-	"dta",
-	"dtc",
-	"dtd",
-	"dtf",
-	"gpu",
-	"gpu7",
-	"gpv",
-	"hdint",
-	"i2cp",
-	"kbce",
-	"lcsn",
-	"ld0",
-	"ld1",
-	"ld2",
-	"ld3",
-	"ld4",
-	"ld5",
-	"ld6",
-	"ld7",
-	"ld8",
-	"ld9",
-	"ld10",
-	"ld11",
-	"ld12",
-	"ld13",
-	"ld14",
-	"ld15",
-	"ld16",
-	"ld17",
-	"ldc",
-	"ldi",
-	"lhp0",
-	"lhp1",
-	"lhp2",
-	"lhs",
-	"lm0",
-	"lpp",
-	"lpw1",
-	"lsc0",
-	"lsdi",
-	"lvp0",
-	"lvp1",
-	"lvs",
-	"owc",
-	"pmc",
-	"pta",
-	"rm",
-	"spif",
-	"uac",
-	"uca",
-	"ucb",
-};
-
-static const char * const rtck_groups[] = {
-	"gpu7",
-};
-
-static const char * const sdio1_groups[] = {
-	"sdio1",
-};
-
-static const char * const sdio2_groups[] = {
-	"dap1",
-	"dta",
-	"dtd",
-	"kbca",
-	"kbcb",
-	"kbcd",
-	"spdi",
-	"spdo",
-};
-
-static const char * const sdio3_groups[] = {
-	"sdb",
-	"sdc",
-	"sdd",
-	"slxa",
-	"slxc",
-	"slxd",
-	"slxk",
-};
-
-static const char * const sdio4_groups[] = {
-	"atb",
-	"atc",
-	"atd",
-	"gma",
-	"gme",
-};
-
-static const char * const sflash_groups[] = {
-	"gmc",
-	"gmd",
-};
-
-static const char * const spdif_groups[] = {
-	"slxc",
-	"slxd",
-	"spdi",
-	"spdo",
-	"uad",
-};
-
-static const char * const spi1_groups[] = {
-	"dtb",
-	"dte",
-	"spia",
-	"spib",
-	"spic",
-	"spid",
-	"spie",
-	"spif",
-	"uda",
-};
-
-static const char * const spi2_groups[] = {
-	"sdb",
-	"slxa",
-	"slxc",
-	"slxd",
-	"slxk",
-	"spia",
-	"spib",
-	"spic",
-	"spid",
-	"spie",
-	"spif",
-	"spig",
-	"spih",
-	"uab",
-};
-
-static const char * const spi2_alt_groups[] = {
-	"spid",
-	"spie",
-	"spig",
-	"spih",
-};
-
-static const char * const spi3_groups[] = {
-	"gma",
-	"lcsn",
-	"lm0",
-	"lpw0",
-	"lpw2",
-	"lsc1",
-	"lsck",
-	"lsda",
-	"lsdi",
-	"sdc",
-	"sdd",
-	"spia",
-	"spib",
-	"spic",
-	"spif",
-	"spig",
-	"spih",
-	"uaa",
-};
-
-static const char * const spi4_groups[] = {
-	"gmc",
-	"irrx",
-	"irtx",
-	"slxa",
-	"slxc",
-	"slxd",
-	"slxk",
-	"uad",
-};
-
-static const char * const trace_groups[] = {
-	"kbcc",
-	"kbcf",
-};
-
-static const char * const twc_groups[] = {
-	"dap2",
-	"sdc",
-};
-
-static const char * const uarta_groups[] = {
-	"gpu",
-	"irrx",
-	"irtx",
-	"sdb",
-	"sdd",
-	"sdio1",
-	"uaa",
-	"uab",
-	"uad",
-};
-
-static const char * const uartb_groups[] = {
-	"irrx",
-	"irtx",
-};
-
-static const char * const uartc_groups[] = {
-	"uca",
-	"ucb",
-};
-
-static const char * const uartd_groups[] = {
-	"gmc",
-	"uda",
-};
-
-static const char * const uarte_groups[] = {
-	"gma",
-	"sdio1",
-};
-
-static const char * const ulpi_groups[] = {
-	"uaa",
-	"uab",
-	"uda",
-};
-
-static const char * const vi_groups[] = {
-	"dta",
-	"dtb",
-	"dtc",
-	"dtd",
-	"dte",
-	"dtf",
-};
-
-static const char * const vi_sensor_clk_groups[] = {
-	"csus",
-};
-
-static const char * const xio_groups[] = {
-	"ld0",
-	"ld1",
-	"ld10",
-	"ld11",
-	"ld12",
-	"ld13",
-	"ld14",
-	"ld15",
-	"ld16",
-	"ld2",
-	"ld3",
-	"ld4",
-	"ld5",
-	"ld6",
-	"ld7",
-	"ld8",
-	"ld9",
-	"lhs",
-	"lsc0",
-	"lspi",
-	"lvs",
-};
-
 #define FUNCTION(fname)					\
 	{						\
 		.name = #fname,				\
-		.groups = fname##_groups,		\
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
 	}
 
-static const struct tegra_function tegra20_functions[] = {
+static struct tegra_function tegra20_functions[] = {
 	FUNCTION(ahb_clk),
 	FUNCTION(apb_clk),
 	FUNCTION(audio_sync),
@@ -2598,7 +1973,7 @@ static const struct tegra_function tegra20_functions[] = {
 #define PINGROUP_REG_A		0x868
 
 /* Pin group with mux control, and typically tri-state and pull-up/down too */
-#define MUX_PG(pg_name, f0, f1, f2, f3, f_safe,			\
+#define MUX_PG(pg_name, f0, f1, f2, f3,				\
 	       tri_r, tri_b, mux_r, mux_b, pupd_r, pupd_b)	\
 	{							\
 		.name = #pg_name,				\
@@ -2610,7 +1985,6 @@ static const struct tegra_function tegra20_functions[] = {
 			TEGRA_MUX_ ## f2,			\
 			TEGRA_MUX_ ## f3,			\
 		},						\
-		.func_safe = TEGRA_MUX_ ## f_safe,		\
 		.mux_reg = ((mux_r) - PIN_MUX_CTL_REG_A),	\
 		.mux_bank = 1,					\
 		.mux_bit = mux_b,				\
@@ -2620,13 +1994,12 @@ static const struct tegra_function tegra20_functions[] = {
 		.tri_reg = ((tri_r) - TRISTATE_REG_A),		\
 		.tri_bank = 0,					\
 		.tri_bit = tri_b,				\
-		.einput_reg = -1,				\
-		.odrain_reg = -1,				\
-		.lock_reg = -1,					\
-		.ioreset_reg = -1,				\
-		.rcv_sel_reg = -1,				\
+		.einput_bit = -1,				\
+		.odrain_bit = -1,				\
+		.lock_bit = -1,					\
+		.ioreset_bit = -1,				\
+		.rcv_sel_bit = -1,				\
 		.drv_reg = -1,					\
-		.drvtype_reg = -1,				\
 	}
 
 /* Pin groups with only pull up and pull down control */
@@ -2639,14 +2012,7 @@ static const struct tegra_function tegra20_functions[] = {
 		.pupd_reg = ((pupd_r) - PULLUPDOWN_REG_A),	\
 		.pupd_bank = 2,					\
 		.pupd_bit = pupd_b,				\
-		.tri_reg = -1,					\
-		.einput_reg = -1,				\
-		.odrain_reg = -1,				\
-		.lock_reg = -1,					\
-		.ioreset_reg = -1,				\
-		.rcv_sel_reg = -1,				\
 		.drv_reg = -1,					\
-		.drvtype_reg = -1,				\
 	}
 
 /* Pin groups for drive strength registers (configurable version) */
@@ -2660,11 +2026,6 @@ static const struct tegra_function tegra20_functions[] = {
 		.mux_reg = -1,					\
 		.pupd_reg = -1,					\
 		.tri_reg = -1,					\
-		.einput_reg = -1,				\
-		.odrain_reg = -1,				\
-		.lock_reg = -1,					\
-		.ioreset_reg = -1,				\
-		.rcv_sel_reg = -1,				\
 		.drv_reg = ((r) - PINGROUP_REG_A),		\
 		.drv_bank = 3,					\
 		.hsm_bit = hsm_b,				\
@@ -2678,7 +2039,7 @@ static const struct tegra_function tegra20_functions[] = {
 		.slwr_width = slwr_w,				\
 		.slwf_bit = slwf_b,				\
 		.slwf_width = slwf_w,				\
-		.drvtype_reg = -1,				\
+		.drvtype_bit = -1,				\
 	}
 
 /* Pin groups for drive strength registers (simple version) */
@@ -2686,114 +2047,114 @@ static const struct tegra_function tegra20_functions[] = {
 	DRV_PG_EXT(pg_name, r, 2,  3,  4, 12, 20, 28, 2, 30, 2)
 
 static const struct tegra_pingroup tegra20_groups[] = {
-	/*     name,   f0,        f1,        f2,        f3,            f_safe,    tri r/b,  mux r/b,  pupd r/b */
-	MUX_PG(ata,    IDE,       NAND,      GMI,       RSVD4,         IDE,       0x14, 0,  0x80, 24, 0xa0, 0),
-	MUX_PG(atb,    IDE,       NAND,      GMI,       SDIO4,         IDE,       0x14, 1,  0x80, 16, 0xa0, 2),
-	MUX_PG(atc,    IDE,       NAND,      GMI,       SDIO4,         IDE,       0x14, 2,  0x80, 22, 0xa0, 4),
-	MUX_PG(atd,    IDE,       NAND,      GMI,       SDIO4,         IDE,       0x14, 3,  0x80, 20, 0xa0, 6),
-	MUX_PG(ate,    IDE,       NAND,      GMI,       RSVD4,         IDE,       0x18, 25, 0x80, 12, 0xa0, 8),
-	MUX_PG(cdev1,  OSC,       PLLA_OUT,  PLLM_OUT1, AUDIO_SYNC,    OSC,       0x14, 4,  0x88, 2,  0xa8, 0),
-	MUX_PG(cdev2,  OSC,       AHB_CLK,   APB_CLK,   PLLP_OUT4,     OSC,       0x14, 5,  0x88, 4,  0xa8, 2),
-	MUX_PG(crtp,   CRT,       RSVD2,     RSVD3,     RSVD4,         RSVD2,     0x20, 14, 0x98, 20, 0xa4, 24),
-	MUX_PG(csus,   PLLC_OUT1, PLLP_OUT2, PLLP_OUT3, VI_SENSOR_CLK, PLLC_OUT1, 0x14, 6,  0x88, 6,  0xac, 24),
-	MUX_PG(dap1,   DAP1,      RSVD2,     GMI,       SDIO2,         DAP1,      0x14, 7,  0x88, 20, 0xa0, 10),
-	MUX_PG(dap2,   DAP2,      TWC,       RSVD3,     GMI,           DAP2,      0x14, 8,  0x88, 22, 0xa0, 12),
-	MUX_PG(dap3,   DAP3,      RSVD2,     RSVD3,     RSVD4,         DAP3,      0x14, 9,  0x88, 24, 0xa0, 14),
-	MUX_PG(dap4,   DAP4,      RSVD2,     GMI,       RSVD4,         DAP4,      0x14, 10, 0x88, 26, 0xa0, 16),
-	MUX_PG(ddc,    I2C2,      RSVD2,     RSVD3,     RSVD4,         RSVD4,     0x18, 31, 0x88, 0,  0xb0, 28),
-	MUX_PG(dta,    RSVD1,     SDIO2,     VI,        RSVD4,         RSVD4,     0x14, 11, 0x84, 20, 0xa0, 18),
-	MUX_PG(dtb,    RSVD1,     RSVD2,     VI,        SPI1,          RSVD1,     0x14, 12, 0x84, 22, 0xa0, 20),
-	MUX_PG(dtc,    RSVD1,     RSVD2,     VI,        RSVD4,         RSVD1,     0x14, 13, 0x84, 26, 0xa0, 22),
-	MUX_PG(dtd,    RSVD1,     SDIO2,     VI,        RSVD4,         RSVD1,     0x14, 14, 0x84, 28, 0xa0, 24),
-	MUX_PG(dte,    RSVD1,     RSVD2,     VI,        SPI1,          RSVD1,     0x14, 15, 0x84, 30, 0xa0, 26),
-	MUX_PG(dtf,    I2C3,      RSVD2,     VI,        RSVD4,         RSVD4,     0x20, 12, 0x98, 30, 0xa0, 28),
-	MUX_PG(gma,    UARTE,     SPI3,      GMI,       SDIO4,         SPI3,      0x14, 28, 0x84, 0,  0xb0, 20),
-	MUX_PG(gmb,    IDE,       NAND,      GMI,       GMI_INT,       GMI,       0x18, 29, 0x88, 28, 0xb0, 22),
-	MUX_PG(gmc,    UARTD,     SPI4,      GMI,       SFLASH,        SPI4,      0x14, 29, 0x84, 2,  0xb0, 24),
-	MUX_PG(gmd,    RSVD1,     NAND,      GMI,       SFLASH,        GMI,       0x18, 30, 0x88, 30, 0xb0, 26),
-	MUX_PG(gme,    RSVD1,     DAP5,      GMI,       SDIO4,         GMI,       0x18, 0,  0x8c, 0,  0xa8, 24),
-	MUX_PG(gpu,    PWM,       UARTA,     GMI,       RSVD4,         RSVD4,     0x14, 16, 0x8c, 4,  0xa4, 20),
-	MUX_PG(gpu7,   RTCK,      RSVD2,     RSVD3,     RSVD4,         RTCK,      0x20, 11, 0x98, 28, 0xa4, 6),
-	MUX_PG(gpv,    PCIE,      RSVD2,     RSVD3,     RSVD4,         PCIE,      0x14, 17, 0x8c, 2,  0xa0, 30),
-	MUX_PG(hdint,  HDMI,      RSVD2,     RSVD3,     RSVD4,         HDMI,      0x1c, 23, 0x84, 4,  -1,   -1),
-	MUX_PG(i2cp,   I2CP,      RSVD2,     RSVD3,     RSVD4,         RSVD4,     0x14, 18, 0x88, 8,  0xa4, 2),
-	MUX_PG(irrx,   UARTA,     UARTB,     GMI,       SPI4,          UARTB,     0x14, 20, 0x88, 18, 0xa8, 22),
-	MUX_PG(irtx,   UARTA,     UARTB,     GMI,       SPI4,          UARTB,     0x14, 19, 0x88, 16, 0xa8, 20),
-	MUX_PG(kbca,   KBC,       NAND,      SDIO2,     EMC_TEST0_DLL, KBC,       0x14, 22, 0x88, 10, 0xa4, 8),
-	MUX_PG(kbcb,   KBC,       NAND,      SDIO2,     MIO,           KBC,       0x14, 21, 0x88, 12, 0xa4, 10),
-	MUX_PG(kbcc,   KBC,       NAND,      TRACE,     EMC_TEST1_DLL, KBC,       0x18, 26, 0x88, 14, 0xa4, 12),
-	MUX_PG(kbcd,   KBC,       NAND,      SDIO2,     MIO,           KBC,       0x20, 10, 0x98, 26, 0xa4, 14),
-	MUX_PG(kbce,   KBC,       NAND,      OWR,       RSVD4,         KBC,       0x14, 26, 0x80, 28, 0xb0, 2),
-	MUX_PG(kbcf,   KBC,       NAND,      TRACE,     MIO,           KBC,       0x14, 27, 0x80, 26, 0xb0, 0),
-	MUX_PG(lcsn,   DISPLAYA,  DISPLAYB,  SPI3,      RSVD4,         RSVD4,     0x1c, 31, 0x90, 12, -1,   -1),
-	MUX_PG(ld0,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 0,  0x94, 0,  -1,   -1),
-	MUX_PG(ld1,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 1,  0x94, 2,  -1,   -1),
-	MUX_PG(ld2,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 2,  0x94, 4,  -1,   -1),
-	MUX_PG(ld3,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 3,  0x94, 6,  -1,   -1),
-	MUX_PG(ld4,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 4,  0x94, 8,  -1,   -1),
-	MUX_PG(ld5,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 5,  0x94, 10, -1,   -1),
-	MUX_PG(ld6,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 6,  0x94, 12, -1,   -1),
-	MUX_PG(ld7,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 7,  0x94, 14, -1,   -1),
-	MUX_PG(ld8,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 8,  0x94, 16, -1,   -1),
-	MUX_PG(ld9,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 9,  0x94, 18, -1,   -1),
-	MUX_PG(ld10,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 10, 0x94, 20, -1,   -1),
-	MUX_PG(ld11,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 11, 0x94, 22, -1,   -1),
-	MUX_PG(ld12,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 12, 0x94, 24, -1,   -1),
-	MUX_PG(ld13,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 13, 0x94, 26, -1,   -1),
-	MUX_PG(ld14,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 14, 0x94, 28, -1,   -1),
-	MUX_PG(ld15,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 15, 0x94, 30, -1,   -1),
-	MUX_PG(ld16,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 16, 0x98, 0,  -1,   -1),
-	MUX_PG(ld17,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x1c, 17, 0x98, 2,  -1,   -1),
-	MUX_PG(ldc,    DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x1c, 30, 0x90, 14, -1,   -1),
-	MUX_PG(ldi,    DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x20, 6,  0x98, 16, -1,   -1),
-	MUX_PG(lhp0,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x1c, 18, 0x98, 10, -1,   -1),
-	MUX_PG(lhp1,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x1c, 19, 0x98, 4,  -1,   -1),
-	MUX_PG(lhp2,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x1c, 20, 0x98, 6,  -1,   -1),
-	MUX_PG(lhs,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x20, 7,  0x90, 22, -1,   -1),
-	MUX_PG(lm0,    DISPLAYA,  DISPLAYB,  SPI3,      RSVD4,         RSVD4,     0x1c, 24, 0x90, 26, -1,   -1),
-	MUX_PG(lm1,    DISPLAYA,  DISPLAYB,  RSVD3,     CRT,           RSVD3,     0x1c, 25, 0x90, 28, -1,   -1),
-	MUX_PG(lpp,    DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x20, 8,  0x98, 14, -1,   -1),
-	MUX_PG(lpw0,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          DISPLAYA,  0x20, 3,  0x90, 0,  -1,   -1),
-	MUX_PG(lpw1,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x20, 4,  0x90, 2,  -1,   -1),
-	MUX_PG(lpw2,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          DISPLAYA,  0x20, 5,  0x90, 4,  -1,   -1),
-	MUX_PG(lsc0,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 27, 0x90, 18, -1,   -1),
-	MUX_PG(lsc1,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          DISPLAYA,  0x1c, 28, 0x90, 20, -1,   -1),
-	MUX_PG(lsck,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          DISPLAYA,  0x1c, 29, 0x90, 16, -1,   -1),
-	MUX_PG(lsda,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          DISPLAYA,  0x20, 1,  0x90, 8,  -1,   -1),
-	MUX_PG(lsdi,   DISPLAYA,  DISPLAYB,  SPI3,      RSVD4,         DISPLAYA,  0x20, 2,  0x90, 6,  -1,   -1),
-	MUX_PG(lspi,   DISPLAYA,  DISPLAYB,  XIO,       HDMI,          DISPLAYA,  0x20, 0,  0x90, 10, -1,   -1),
-	MUX_PG(lvp0,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x1c, 21, 0x90, 30, -1,   -1),
-	MUX_PG(lvp1,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         RSVD4,     0x1c, 22, 0x98, 8,  -1,   -1),
-	MUX_PG(lvs,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         RSVD4,     0x1c, 26, 0x90, 24, -1,   -1),
-	MUX_PG(owc,    OWR,       RSVD2,     RSVD3,     RSVD4,         OWR,       0x14, 31, 0x84, 8,  0xb0, 30),
-	MUX_PG(pmc,    PWR_ON,    PWR_INTR,  RSVD3,     RSVD4,         PWR_ON,    0x14, 23, 0x98, 18, -1,   -1),
-	MUX_PG(pta,    I2C2,      HDMI,      GMI,       RSVD4,         RSVD4,     0x14, 24, 0x98, 22, 0xa4, 4),
-	MUX_PG(rm,     I2C1,      RSVD2,     RSVD3,     RSVD4,         RSVD4,     0x14, 25, 0x80, 14, 0xa4, 0),
-	MUX_PG(sdb,    UARTA,     PWM,       SDIO3,     SPI2,          PWM,       0x20, 15, 0x8c, 10, -1,   -1),
-	MUX_PG(sdc,    PWM,       TWC,       SDIO3,     SPI3,          TWC,       0x18, 1,  0x8c, 12, 0xac, 28),
-	MUX_PG(sdd,    UARTA,     PWM,       SDIO3,     SPI3,          PWM,       0x18, 2,  0x8c, 14, 0xac, 30),
-	MUX_PG(sdio1,  SDIO1,     RSVD2,     UARTE,     UARTA,         RSVD2,     0x14, 30, 0x80, 30, 0xb0, 18),
-	MUX_PG(slxa,   PCIE,      SPI4,      SDIO3,     SPI2,          PCIE,      0x18, 3,  0x84, 6,  0xa4, 22),
-	MUX_PG(slxc,   SPDIF,     SPI4,      SDIO3,     SPI2,          SPI4,      0x18, 5,  0x84, 10, 0xa4, 26),
-	MUX_PG(slxd,   SPDIF,     SPI4,      SDIO3,     SPI2,          SPI4,      0x18, 6,  0x84, 12, 0xa4, 28),
-	MUX_PG(slxk,   PCIE,      SPI4,      SDIO3,     SPI2,          PCIE,      0x18, 7,  0x84, 14, 0xa4, 30),
-	MUX_PG(spdi,   SPDIF,     RSVD2,     I2C1,      SDIO2,         RSVD2,     0x18, 8,  0x8c, 8,  0xa4, 16),
-	MUX_PG(spdo,   SPDIF,     RSVD2,     I2C1,      SDIO2,         RSVD2,     0x18, 9,  0x8c, 6,  0xa4, 18),
-	MUX_PG(spia,   SPI1,      SPI2,      SPI3,      GMI,           GMI,       0x18, 10, 0x8c, 30, 0xa8, 4),
-	MUX_PG(spib,   SPI1,      SPI2,      SPI3,      GMI,           GMI,       0x18, 11, 0x8c, 28, 0xa8, 6),
-	MUX_PG(spic,   SPI1,      SPI2,      SPI3,      GMI,           GMI,       0x18, 12, 0x8c, 26, 0xa8, 8),
-	MUX_PG(spid,   SPI2,      SPI1,      SPI2_ALT,  GMI,           GMI,       0x18, 13, 0x8c, 24, 0xa8, 10),
-	MUX_PG(spie,   SPI2,      SPI1,      SPI2_ALT,  GMI,           GMI,       0x18, 14, 0x8c, 22, 0xa8, 12),
-	MUX_PG(spif,   SPI3,      SPI1,      SPI2,      RSVD4,         RSVD4,     0x18, 15, 0x8c, 20, 0xa8, 14),
-	MUX_PG(spig,   SPI3,      SPI2,      SPI2_ALT,  I2C1,          SPI2_ALT,  0x18, 16, 0x8c, 18, 0xa8, 16),
-	MUX_PG(spih,   SPI3,      SPI2,      SPI2_ALT,  I2C1,          SPI2_ALT,  0x18, 17, 0x8c, 16, 0xa8, 18),
-	MUX_PG(uaa,    SPI3,      MIPI_HS,   UARTA,     ULPI,          MIPI_HS,   0x18, 18, 0x80, 0,  0xac, 0),
-	MUX_PG(uab,    SPI2,      MIPI_HS,   UARTA,     ULPI,          MIPI_HS,   0x18, 19, 0x80, 2,  0xac, 2),
-	MUX_PG(uac,    OWR,       RSVD2,     RSVD3,     RSVD4,         RSVD4,     0x18, 20, 0x80, 4,  0xac, 4),
-	MUX_PG(uad,    IRDA,      SPDIF,     UARTA,     SPI4,          SPDIF,     0x18, 21, 0x80, 6,  0xac, 6),
-	MUX_PG(uca,    UARTC,     RSVD2,     GMI,       RSVD4,         RSVD4,     0x18, 22, 0x84, 16, 0xac, 8),
-	MUX_PG(ucb,    UARTC,     PWM,       GMI,       RSVD4,         RSVD4,     0x18, 23, 0x84, 18, 0xac, 10),
-	MUX_PG(uda,    SPI1,      RSVD2,     UARTD,     ULPI,          RSVD2,     0x20, 13, 0x80, 8,  0xb0, 16),
+	/*     name,   f0,        f1,        f2,        f3,            tri r/b,  mux r/b,  pupd r/b */
+	MUX_PG(ata,    IDE,       NAND,      GMI,       RSVD4,         0x14, 0,  0x80, 24, 0xa0, 0),
+	MUX_PG(atb,    IDE,       NAND,      GMI,       SDIO4,         0x14, 1,  0x80, 16, 0xa0, 2),
+	MUX_PG(atc,    IDE,       NAND,      GMI,       SDIO4,         0x14, 2,  0x80, 22, 0xa0, 4),
+	MUX_PG(atd,    IDE,       NAND,      GMI,       SDIO4,         0x14, 3,  0x80, 20, 0xa0, 6),
+	MUX_PG(ate,    IDE,       NAND,      GMI,       RSVD4,         0x18, 25, 0x80, 12, 0xa0, 8),
+	MUX_PG(cdev1,  OSC,       PLLA_OUT,  PLLM_OUT1, AUDIO_SYNC,    0x14, 4,  0x88, 2,  0xa8, 0),
+	MUX_PG(cdev2,  OSC,       AHB_CLK,   APB_CLK,   PLLP_OUT4,     0x14, 5,  0x88, 4,  0xa8, 2),
+	MUX_PG(crtp,   CRT,       RSVD2,     RSVD3,     RSVD4,         0x20, 14, 0x98, 20, 0xa4, 24),
+	MUX_PG(csus,   PLLC_OUT1, PLLP_OUT2, PLLP_OUT3, VI_SENSOR_CLK, 0x14, 6,  0x88, 6,  0xac, 24),
+	MUX_PG(dap1,   DAP1,      RSVD2,     GMI,       SDIO2,         0x14, 7,  0x88, 20, 0xa0, 10),
+	MUX_PG(dap2,   DAP2,      TWC,       RSVD3,     GMI,           0x14, 8,  0x88, 22, 0xa0, 12),
+	MUX_PG(dap3,   DAP3,      RSVD2,     RSVD3,     RSVD4,         0x14, 9,  0x88, 24, 0xa0, 14),
+	MUX_PG(dap4,   DAP4,      RSVD2,     GMI,       RSVD4,         0x14, 10, 0x88, 26, 0xa0, 16),
+	MUX_PG(ddc,    I2C2,      RSVD2,     RSVD3,     RSVD4,         0x18, 31, 0x88, 0,  0xb0, 28),
+	MUX_PG(dta,    RSVD1,     SDIO2,     VI,        RSVD4,         0x14, 11, 0x84, 20, 0xa0, 18),
+	MUX_PG(dtb,    RSVD1,     RSVD2,     VI,        SPI1,          0x14, 12, 0x84, 22, 0xa0, 20),
+	MUX_PG(dtc,    RSVD1,     RSVD2,     VI,        RSVD4,         0x14, 13, 0x84, 26, 0xa0, 22),
+	MUX_PG(dtd,    RSVD1,     SDIO2,     VI,        RSVD4,         0x14, 14, 0x84, 28, 0xa0, 24),
+	MUX_PG(dte,    RSVD1,     RSVD2,     VI,        SPI1,          0x14, 15, 0x84, 30, 0xa0, 26),
+	MUX_PG(dtf,    I2C3,      RSVD2,     VI,        RSVD4,         0x20, 12, 0x98, 30, 0xa0, 28),
+	MUX_PG(gma,    UARTE,     SPI3,      GMI,       SDIO4,         0x14, 28, 0x84, 0,  0xb0, 20),
+	MUX_PG(gmb,    IDE,       NAND,      GMI,       GMI_INT,       0x18, 29, 0x88, 28, 0xb0, 22),
+	MUX_PG(gmc,    UARTD,     SPI4,      GMI,       SFLASH,        0x14, 29, 0x84, 2,  0xb0, 24),
+	MUX_PG(gmd,    RSVD1,     NAND,      GMI,       SFLASH,        0x18, 30, 0x88, 30, 0xb0, 26),
+	MUX_PG(gme,    RSVD1,     DAP5,      GMI,       SDIO4,         0x18, 0,  0x8c, 0,  0xa8, 24),
+	MUX_PG(gpu,    PWM,       UARTA,     GMI,       RSVD4,         0x14, 16, 0x8c, 4,  0xa4, 20),
+	MUX_PG(gpu7,   RTCK,      RSVD2,     RSVD3,     RSVD4,         0x20, 11, 0x98, 28, 0xa4, 6),
+	MUX_PG(gpv,    PCIE,      RSVD2,     RSVD3,     RSVD4,         0x14, 17, 0x8c, 2,  0xa0, 30),
+	MUX_PG(hdint,  HDMI,      RSVD2,     RSVD3,     RSVD4,         0x1c, 23, 0x84, 4,  -1,   -1),
+	MUX_PG(i2cp,   I2CP,      RSVD2,     RSVD3,     RSVD4,         0x14, 18, 0x88, 8,  0xa4, 2),
+	MUX_PG(irrx,   UARTA,     UARTB,     GMI,       SPI4,          0x14, 20, 0x88, 18, 0xa8, 22),
+	MUX_PG(irtx,   UARTA,     UARTB,     GMI,       SPI4,          0x14, 19, 0x88, 16, 0xa8, 20),
+	MUX_PG(kbca,   KBC,       NAND,      SDIO2,     EMC_TEST0_DLL, 0x14, 22, 0x88, 10, 0xa4, 8),
+	MUX_PG(kbcb,   KBC,       NAND,      SDIO2,     MIO,           0x14, 21, 0x88, 12, 0xa4, 10),
+	MUX_PG(kbcc,   KBC,       NAND,      TRACE,     EMC_TEST1_DLL, 0x18, 26, 0x88, 14, 0xa4, 12),
+	MUX_PG(kbcd,   KBC,       NAND,      SDIO2,     MIO,           0x20, 10, 0x98, 26, 0xa4, 14),
+	MUX_PG(kbce,   KBC,       NAND,      OWR,       RSVD4,         0x14, 26, 0x80, 28, 0xb0, 2),
+	MUX_PG(kbcf,   KBC,       NAND,      TRACE,     MIO,           0x14, 27, 0x80, 26, 0xb0, 0),
+	MUX_PG(lcsn,   DISPLAYA,  DISPLAYB,  SPI3,      RSVD4,         0x1c, 31, 0x90, 12, -1,   -1),
+	MUX_PG(ld0,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 0,  0x94, 0,  -1,   -1),
+	MUX_PG(ld1,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 1,  0x94, 2,  -1,   -1),
+	MUX_PG(ld2,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 2,  0x94, 4,  -1,   -1),
+	MUX_PG(ld3,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 3,  0x94, 6,  -1,   -1),
+	MUX_PG(ld4,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 4,  0x94, 8,  -1,   -1),
+	MUX_PG(ld5,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 5,  0x94, 10, -1,   -1),
+	MUX_PG(ld6,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 6,  0x94, 12, -1,   -1),
+	MUX_PG(ld7,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 7,  0x94, 14, -1,   -1),
+	MUX_PG(ld8,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 8,  0x94, 16, -1,   -1),
+	MUX_PG(ld9,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 9,  0x94, 18, -1,   -1),
+	MUX_PG(ld10,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 10, 0x94, 20, -1,   -1),
+	MUX_PG(ld11,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 11, 0x94, 22, -1,   -1),
+	MUX_PG(ld12,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 12, 0x94, 24, -1,   -1),
+	MUX_PG(ld13,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 13, 0x94, 26, -1,   -1),
+	MUX_PG(ld14,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 14, 0x94, 28, -1,   -1),
+	MUX_PG(ld15,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 15, 0x94, 30, -1,   -1),
+	MUX_PG(ld16,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 16, 0x98, 0,  -1,   -1),
+	MUX_PG(ld17,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x1c, 17, 0x98, 2,  -1,   -1),
+	MUX_PG(ldc,    DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x1c, 30, 0x90, 14, -1,   -1),
+	MUX_PG(ldi,    DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x20, 6,  0x98, 16, -1,   -1),
+	MUX_PG(lhp0,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x1c, 18, 0x98, 10, -1,   -1),
+	MUX_PG(lhp1,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x1c, 19, 0x98, 4,  -1,   -1),
+	MUX_PG(lhp2,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x1c, 20, 0x98, 6,  -1,   -1),
+	MUX_PG(lhs,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x20, 7,  0x90, 22, -1,   -1),
+	MUX_PG(lm0,    DISPLAYA,  DISPLAYB,  SPI3,      RSVD4,         0x1c, 24, 0x90, 26, -1,   -1),
+	MUX_PG(lm1,    DISPLAYA,  DISPLAYB,  RSVD3,     CRT,           0x1c, 25, 0x90, 28, -1,   -1),
+	MUX_PG(lpp,    DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x20, 8,  0x98, 14, -1,   -1),
+	MUX_PG(lpw0,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          0x20, 3,  0x90, 0,  -1,   -1),
+	MUX_PG(lpw1,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x20, 4,  0x90, 2,  -1,   -1),
+	MUX_PG(lpw2,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          0x20, 5,  0x90, 4,  -1,   -1),
+	MUX_PG(lsc0,   DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 27, 0x90, 18, -1,   -1),
+	MUX_PG(lsc1,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          0x1c, 28, 0x90, 20, -1,   -1),
+	MUX_PG(lsck,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          0x1c, 29, 0x90, 16, -1,   -1),
+	MUX_PG(lsda,   DISPLAYA,  DISPLAYB,  SPI3,      HDMI,          0x20, 1,  0x90, 8,  -1,   -1),
+	MUX_PG(lsdi,   DISPLAYA,  DISPLAYB,  SPI3,      RSVD4,         0x20, 2,  0x90, 6,  -1,   -1),
+	MUX_PG(lspi,   DISPLAYA,  DISPLAYB,  XIO,       HDMI,          0x20, 0,  0x90, 10, -1,   -1),
+	MUX_PG(lvp0,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x1c, 21, 0x90, 30, -1,   -1),
+	MUX_PG(lvp1,   DISPLAYA,  DISPLAYB,  RSVD3,     RSVD4,         0x1c, 22, 0x98, 8,  -1,   -1),
+	MUX_PG(lvs,    DISPLAYA,  DISPLAYB,  XIO,       RSVD4,         0x1c, 26, 0x90, 24, -1,   -1),
+	MUX_PG(owc,    OWR,       RSVD2,     RSVD3,     RSVD4,         0x14, 31, 0x84, 8,  0xb0, 30),
+	MUX_PG(pmc,    PWR_ON,    PWR_INTR,  RSVD3,     RSVD4,         0x14, 23, 0x98, 18, -1,   -1),
+	MUX_PG(pta,    I2C2,      HDMI,      GMI,       RSVD4,         0x14, 24, 0x98, 22, 0xa4, 4),
+	MUX_PG(rm,     I2C1,      RSVD2,     RSVD3,     RSVD4,         0x14, 25, 0x80, 14, 0xa4, 0),
+	MUX_PG(sdb,    UARTA,     PWM,       SDIO3,     SPI2,          0x20, 15, 0x8c, 10, -1,   -1),
+	MUX_PG(sdc,    PWM,       TWC,       SDIO3,     SPI3,          0x18, 1,  0x8c, 12, 0xac, 28),
+	MUX_PG(sdd,    UARTA,     PWM,       SDIO3,     SPI3,          0x18, 2,  0x8c, 14, 0xac, 30),
+	MUX_PG(sdio1,  SDIO1,     RSVD2,     UARTE,     UARTA,         0x14, 30, 0x80, 30, 0xb0, 18),
+	MUX_PG(slxa,   PCIE,      SPI4,      SDIO3,     SPI2,          0x18, 3,  0x84, 6,  0xa4, 22),
+	MUX_PG(slxc,   SPDIF,     SPI4,      SDIO3,     SPI2,          0x18, 5,  0x84, 10, 0xa4, 26),
+	MUX_PG(slxd,   SPDIF,     SPI4,      SDIO3,     SPI2,          0x18, 6,  0x84, 12, 0xa4, 28),
+	MUX_PG(slxk,   PCIE,      SPI4,      SDIO3,     SPI2,          0x18, 7,  0x84, 14, 0xa4, 30),
+	MUX_PG(spdi,   SPDIF,     RSVD2,     I2C1,      SDIO2,         0x18, 8,  0x8c, 8,  0xa4, 16),
+	MUX_PG(spdo,   SPDIF,     RSVD2,     I2C1,      SDIO2,         0x18, 9,  0x8c, 6,  0xa4, 18),
+	MUX_PG(spia,   SPI1,      SPI2,      SPI3,      GMI,           0x18, 10, 0x8c, 30, 0xa8, 4),
+	MUX_PG(spib,   SPI1,      SPI2,      SPI3,      GMI,           0x18, 11, 0x8c, 28, 0xa8, 6),
+	MUX_PG(spic,   SPI1,      SPI2,      SPI3,      GMI,           0x18, 12, 0x8c, 26, 0xa8, 8),
+	MUX_PG(spid,   SPI2,      SPI1,      SPI2_ALT,  GMI,           0x18, 13, 0x8c, 24, 0xa8, 10),
+	MUX_PG(spie,   SPI2,      SPI1,      SPI2_ALT,  GMI,           0x18, 14, 0x8c, 22, 0xa8, 12),
+	MUX_PG(spif,   SPI3,      SPI1,      SPI2,      RSVD4,         0x18, 15, 0x8c, 20, 0xa8, 14),
+	MUX_PG(spig,   SPI3,      SPI2,      SPI2_ALT,  I2C1,          0x18, 16, 0x8c, 18, 0xa8, 16),
+	MUX_PG(spih,   SPI3,      SPI2,      SPI2_ALT,  I2C1,          0x18, 17, 0x8c, 16, 0xa8, 18),
+	MUX_PG(uaa,    SPI3,      MIPI_HS,   UARTA,     ULPI,          0x18, 18, 0x80, 0,  0xac, 0),
+	MUX_PG(uab,    SPI2,      MIPI_HS,   UARTA,     ULPI,          0x18, 19, 0x80, 2,  0xac, 2),
+	MUX_PG(uac,    OWR,       RSVD2,     RSVD3,     RSVD4,         0x18, 20, 0x80, 4,  0xac, 4),
+	MUX_PG(uad,    IRDA,      SPDIF,     UARTA,     SPI4,          0x18, 21, 0x80, 6,  0xac, 6),
+	MUX_PG(uca,    UARTC,     RSVD2,     GMI,       RSVD4,         0x18, 22, 0x84, 16, 0xac, 8),
+	MUX_PG(ucb,    UARTC,     PWM,       GMI,       RSVD4,         0x18, 23, 0x84, 18, 0xac, 10),
+	MUX_PG(uda,    SPI1,      RSVD2,     UARTD,     ULPI,          0x20, 13, 0x80, 8,  0xb0, 16),
 	/*      pg_name, pupd_r/b */
 	PULL_PG(ck32,    0xb0, 14),
 	PULL_PG(ddrc,    0xac, 26),
@@ -2881,18 +2242,7 @@ static struct platform_driver tegra20_pinctrl_driver = {
 	.probe = tegra20_pinctrl_probe,
 	.remove = tegra_pinctrl_remove,
 };
-
-static int __init tegra20_pinctrl_init(void)
-{
-	return platform_driver_register(&tegra20_pinctrl_driver);
-}
-arch_initcall(tegra20_pinctrl_init);
-
-static void __exit tegra20_pinctrl_exit(void)
-{
-	platform_driver_unregister(&tegra20_pinctrl_driver);
-}
-module_exit(tegra20_pinctrl_exit);
+module_platform_driver(tegra20_pinctrl_driver);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("NVIDIA Tegra20 pinctrl driver");

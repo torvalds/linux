@@ -298,7 +298,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 			tw->tw_tclass = np->tclass;
 			tw->tw_flowlabel = np->flow_label >> 12;
-			tw->tw_ipv6only = np->ipv6only;
+			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
 
@@ -362,6 +362,37 @@ void tcp_twsk_destructor(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
+void tcp_openreq_init_rwin(struct request_sock *req,
+			   struct sock *sk, struct dst_entry *dst)
+{
+	struct inet_request_sock *ireq = inet_rsk(req);
+	struct tcp_sock *tp = tcp_sk(sk);
+	__u8 rcv_wscale;
+	int mss = dst_metric_advmss(dst);
+
+	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < mss)
+		mss = tp->rx_opt.user_mss;
+
+	/* Set this up on the first call only */
+	req->window_clamp = tp->window_clamp ? : dst_metric(dst, RTAX_WINDOW);
+
+	/* limit the window selection if the user enforce a smaller rx buffer */
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
+	    (req->window_clamp > tcp_full_space(sk) || req->window_clamp == 0))
+		req->window_clamp = tcp_full_space(sk);
+
+	/* tcp_full_space because it is guaranteed to be the first packet */
+	tcp_select_initial_window(tcp_full_space(sk),
+		mss - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
+		&req->rcv_wnd,
+		&req->window_clamp,
+		ireq->wscale_ok,
+		&rcv_wscale,
+		dst_metric(dst, RTAX_INITRWND));
+	ireq->rcv_wscale = rcv_wscale;
+}
+EXPORT_SYMBOL(tcp_openreq_init_rwin);
+
 static inline void TCP_ECN_openreq_child(struct tcp_sock *tp,
 					 struct request_sock *req)
 {
@@ -398,8 +429,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 
 		tcp_init_wl(newtp, treq->rcv_isn);
 
-		newtp->srtt = 0;
-		newtp->mdev = TCP_TIMEOUT_INIT;
+		newtp->srtt_us = 0;
+		newtp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
 		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
 
 		newtp->packets_out = 0;
@@ -745,7 +776,7 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 					    skb->len);
 		/* Wakeup parent, send SIGIO */
 		if (state == TCP_SYN_RECV && child->sk_state != state)
-			parent->sk_data_ready(parent, 0);
+			parent->sk_data_ready(parent);
 	} else {
 		/* Alas, it is possible again, because we do lookup
 		 * in main socket hash table and lock on listening

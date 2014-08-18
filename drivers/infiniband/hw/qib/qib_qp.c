@@ -985,7 +985,8 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 	struct ib_qp *ret;
 
 	if (init_attr->cap.max_send_sge > ib_qib_max_sges ||
-	    init_attr->cap.max_send_wr > ib_qib_max_qp_wrs) {
+	    init_attr->cap.max_send_wr > ib_qib_max_qp_wrs ||
+	    init_attr->create_flags) {
 		ret = ERR_PTR(-EINVAL);
 		goto bail;
 	}

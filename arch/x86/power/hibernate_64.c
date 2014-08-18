@@ -23,7 +23,7 @@
 extern __visible const void __nosave_begin, __nosave_end;
 
 /* Defined in hibernate_asm_64.S */
-extern asmlinkage int restore_image(void);
+extern asmlinkage __visible int restore_image(void);
 
 /*
  * Address to jump to in the last phase of restore in order to get to the image

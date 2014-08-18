@@ -60,7 +60,7 @@ int udl_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args)
 {
-	args->pitch = args->width * ((args->bpp + 1) / 8);
+	args->pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
 	args->size = args->pitch * args->height;
 	return udl_gem_create(file, dev,
 			      args->size, &args->handle);
@@ -107,14 +107,14 @@ int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 }
 
-static int udl_gem_get_pages(struct udl_gem_object *obj, gfp_t gfpmask)
+static int udl_gem_get_pages(struct udl_gem_object *obj)
 {
 	struct page **pages;
 
 	if (obj->pages)
 		return 0;
 
-	pages = drm_gem_get_pages(&obj->base, gfpmask);
+	pages = drm_gem_get_pages(&obj->base);
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
@@ -147,7 +147,7 @@ int udl_gem_vmap(struct udl_gem_object *obj)
 		return 0;
 	}
 		
-	ret = udl_gem_get_pages(obj, GFP_KERNEL);
+	ret = udl_gem_get_pages(obj);
 	if (ret)
 		return ret;
 
@@ -205,7 +205,7 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 	}
 	gobj = to_udl_bo(obj);
 
-	ret = udl_gem_get_pages(gobj, GFP_KERNEL);
+	ret = udl_gem_get_pages(gobj);
 	if (ret)
 		goto out;
 	ret = drm_gem_create_mmap_offset(obj);

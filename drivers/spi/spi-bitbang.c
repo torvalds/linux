@@ -16,7 +16,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
@@ -467,11 +466,9 @@ EXPORT_SYMBOL_GPL(spi_bitbang_start);
 /**
  * spi_bitbang_stop - stops the task providing spi communication
  */
-int spi_bitbang_stop(struct spi_bitbang *bitbang)
+void spi_bitbang_stop(struct spi_bitbang *bitbang)
 {
 	spi_unregister_master(bitbang->master);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(spi_bitbang_stop);
 

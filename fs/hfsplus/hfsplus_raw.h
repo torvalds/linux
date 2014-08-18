@@ -144,6 +144,7 @@ struct hfsplus_vh {
 #define HFSPLUS_VOL_NODEID_REUSED	(1 << 12)
 #define HFSPLUS_VOL_JOURNALED		(1 << 13)
 #define HFSPLUS_VOL_SOFTLOCK		(1 << 15)
+#define HFSPLUS_VOL_UNUSED_NODE_FIX	(1 << 31)
 
 /* HFS+ BTree node descriptor */
 struct hfs_bnode_desc {

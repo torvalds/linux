@@ -17,12 +17,11 @@
 #include <linux/netfilter_bridge.h>
 #include <linux/netfilter_ipv4.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <net/netfilter/nf_conntrack.h>
 #endif
 #include <net/netfilter/nf_conntrack_zones.h>
 
-/* Returns new sk_buff, or NULL */
 static int nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
 	int err;
@@ -33,8 +32,10 @@ static int nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 	err = ip_defrag(skb, user);
 	local_bh_enable();
 
-	if (!err)
+	if (!err) {
 		ip_send_check(ip_hdr(skb));
+		skb->ignore_df = 1;
+	}
 
 	return err;
 }
@@ -44,7 +45,7 @@ static enum ip_defrag_users nf_ct_defrag_user(unsigned int hooknum,
 {
 	u16 zone = NF_CT_DEFAULT_ZONE;
 
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	if (skb->nfct)
 		zone = nf_ct_zone((struct nf_conn *)skb->nfct);
 #endif
@@ -73,8 +74,8 @@ static unsigned int ipv4_conntrack_defrag(const struct nf_hook_ops *ops,
 	    inet->nodefrag)
 		return NF_ACCEPT;
 
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
-#if !defined(CONFIG_NF_NAT) && !defined(CONFIG_NF_NAT_MODULE)
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+#if !IS_ENABLED(CONFIG_NF_NAT)
 	/* Previously seen (loopback)?  Ignore.  Do this before
 	   fragment check. */
 	if (skb->nfct && !nf_ct_is_template((struct nf_conn *)skb->nfct))

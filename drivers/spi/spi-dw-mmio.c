@@ -16,6 +16,9 @@
 #include <linux/spi/spi.h>
 #include <linux/scatterlist.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/of_platform.h>
 
 #include "spi-dw.h"
 
@@ -32,6 +35,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	struct dw_spi *dws;
 	struct resource *mem;
 	int ret;
+	int num_cs;
 
 	dwsmmio = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_mmio),
 			GFP_KERNEL);
@@ -66,9 +70,37 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dws->bus_num = 0;
-	dws->num_cs = 4;
+	dws->bus_num = pdev->id;
+
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
+
+	num_cs = 4;
+
+	if (pdev->dev.of_node)
+		of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+
+	dws->num_cs = num_cs;
+
+	if (pdev->dev.of_node) {
+		int i;
+
+		for (i = 0; i < dws->num_cs; i++) {
+			int cs_gpio = of_get_named_gpio(pdev->dev.of_node,
+					"cs-gpios", i);
+
+			if (cs_gpio == -EPROBE_DEFER) {
+				ret = cs_gpio;
+				goto out;
+			}
+
+			if (gpio_is_valid(cs_gpio)) {
+				ret = devm_gpio_request(&pdev->dev, cs_gpio,
+						dev_name(&pdev->dev));
+				if (ret)
+					goto out;
+			}
+		}
+	}
 
 	ret = dw_spi_add_host(&pdev->dev, dws);
 	if (ret)
@@ -92,12 +124,19 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id dw_spi_mmio_of_match[] = {
+	{ .compatible = "snps,dw-apb-ssi", },
+	{ /* end of table */}
+};
+MODULE_DEVICE_TABLE(of, dw_spi_mmio_of_match);
+
 static struct platform_driver dw_spi_mmio_driver = {
 	.probe		= dw_spi_mmio_probe,
 	.remove		= dw_spi_mmio_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = dw_spi_mmio_of_match,
 	},
 };
 module_platform_driver(dw_spi_mmio_driver);

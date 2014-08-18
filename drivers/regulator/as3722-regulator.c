@@ -219,7 +219,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 	{
 		.regulator_id = AS3722_REGULATOR_ID_LDO3,
 		.name = "as3722-ldo3",
-		.name = "vin-ldo3-4",
+		.sname = "vin-ldo3-4",
 		.vsel_reg = AS3722_LDO3_VOLTAGE_REG,
 		.vsel_mask = AS3722_LDO3_VSEL_MASK,
 		.enable_reg = AS3722_LDOCONTROL0_REG,
@@ -231,7 +231,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 	{
 		.regulator_id = AS3722_REGULATOR_ID_LDO4,
 		.name = "as3722-ldo4",
-		.name = "vin-ldo3-4",
+		.sname = "vin-ldo3-4",
 		.vsel_reg = AS3722_LDO4_VOLTAGE_REG,
 		.vsel_mask = AS3722_LDO_VSEL_MASK,
 		.enable_reg = AS3722_LDOCONTROL0_REG,
@@ -433,6 +433,7 @@ static struct regulator_ops as3722_ldo3_extcntrl_ops = {
 };
 
 static const struct regulator_linear_range as3722_ldo_ranges[] = {
+	REGULATOR_LINEAR_RANGE(0, 0x00, 0x00, 0),
 	REGULATOR_LINEAR_RANGE(825000, 0x01, 0x24, 25000),
 	REGULATOR_LINEAR_RANGE(1725000, 0x40, 0x7F, 25000),
 };
@@ -609,6 +610,7 @@ static bool as3722_sd0_is_low_voltage(struct as3722_regulators *as3722_regs)
 }
 
 static const struct regulator_linear_range as3722_sd2345_ranges[] = {
+	REGULATOR_LINEAR_RANGE(0, 0x00, 0x00, 0),
 	REGULATOR_LINEAR_RANGE(612500, 0x01, 0x40, 12500),
 	REGULATOR_LINEAR_RANGE(1425000, 0x41, 0x70, 25000),
 	REGULATOR_LINEAR_RANGE(2650000, 0x71, 0x7F, 50000),
@@ -719,6 +721,7 @@ static int as3722_get_regulator_dt_data(struct platform_device *pdev,
 
 	ret = of_regulator_match(&pdev->dev, np, as3722_regulator_matches,
 			ARRAY_SIZE(as3722_regulator_matches));
+	of_node_put(np);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Parsing of regulator node failed: %d\n",
 			ret);

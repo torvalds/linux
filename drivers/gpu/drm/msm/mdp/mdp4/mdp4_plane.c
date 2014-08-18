@@ -222,6 +222,7 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct mdp4_plane *mdp4_plane;
 	int ret;
+	enum drm_plane_type type;
 
 	mdp4_plane = kzalloc(sizeof(*mdp4_plane), GFP_KERNEL);
 	if (!mdp4_plane) {
@@ -237,9 +238,10 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	mdp4_plane->nformats = mdp4_get_formats(pipe_id, mdp4_plane->formats,
 			ARRAY_SIZE(mdp4_plane->formats));
 
-	drm_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,
-			mdp4_plane->formats, mdp4_plane->nformats,
-			private_plane);
+	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
+	drm_universal_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,
+				 mdp4_plane->formats, mdp4_plane->nformats,
+				 type);
 
 	mdp4_plane_install_properties(plane, &plane->base);
 

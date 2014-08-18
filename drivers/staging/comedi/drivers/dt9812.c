@@ -653,6 +653,7 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 
 	for (i = 0; i < host->desc.bNumEndpoints; ++i) {
 		int dir = -1;
+
 		ep = &host->endpoint[i].desc;
 		switch (i) {
 		case 0:

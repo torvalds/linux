@@ -66,6 +66,7 @@ define_machine(qemu_e500) {
 	.init_IRQ		= qemu_e500_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_coreint_irq,
 	.restart		= fsl_rstcr_restart,

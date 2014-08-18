@@ -482,10 +482,8 @@ static int ili922x_probe(struct spi_device *spi)
 	u16 reg = 0;
 
 	ili = devm_kzalloc(&spi->dev, sizeof(*ili), GFP_KERNEL);
-	if (!ili) {
-		dev_err(&spi->dev, "cannot alloc priv data\n");
+	if (!ili)
 		return -ENOMEM;
-	}
 
 	ili->spi = spi;
 	spi_set_drvdata(spi, ili);

@@ -1,7 +1,13 @@
 Binding for TI/National Semiconductor LP55xx Led Drivers
 
 Required properties:
-- compatible: "national,lp5521" or "national,lp5523" or "ti,lp5562" or "ti,lp8501"
+- compatible: one of
+	national,lp5521
+	national,lp5523
+	ti,lp55231
+	ti,lp5562
+	ti,lp8501
+
 - reg: I2C slave address
 - clock-mode: Input clock mode, (0: automode, 1: internal, 2: external)
 

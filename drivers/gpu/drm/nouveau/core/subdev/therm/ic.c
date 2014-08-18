@@ -60,9 +60,9 @@ static struct nouveau_i2c_board_info
 nv_board_infos[] = {
 	{ { I2C_BOARD_INFO("w83l785ts", 0x2d) }, 0 },
 	{ { I2C_BOARD_INFO("w83781d", 0x2d) }, 0  },
-	{ { I2C_BOARD_INFO("adt7473", 0x2e) }, 20  },
-	{ { I2C_BOARD_INFO("adt7473", 0x2d) }, 20  },
-	{ { I2C_BOARD_INFO("adt7473", 0x2c) }, 20  },
+	{ { I2C_BOARD_INFO("adt7473", 0x2e) }, 40  },
+	{ { I2C_BOARD_INFO("adt7473", 0x2d) }, 40  },
+	{ { I2C_BOARD_INFO("adt7473", 0x2c) }, 40  },
 	{ { I2C_BOARD_INFO("f75375", 0x2e) }, 0  },
 	{ { I2C_BOARD_INFO("lm99", 0x4c) }, 0  },
 	{ { I2C_BOARD_INFO("lm90", 0x4c) }, 0  },

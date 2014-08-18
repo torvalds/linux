@@ -23,6 +23,77 @@
  */
 
 #include "nvc0.h"
+#include "ctxnvc0.h"
+
+/*******************************************************************************
+ * PGRAPH register lists
+ ******************************************************************************/
+
+static const struct nvc0_graph_init
+nvd7_graph_init_pe_0[] = {
+	{ 0x41980c,   1, 0x04, 0x00000010 },
+	{ 0x419844,   1, 0x04, 0x00000000 },
+	{ 0x41984c,   1, 0x04, 0x00005bc8 },
+	{ 0x419850,   3, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvd7_graph_init_pes_0[] = {
+	{ 0x41be04,   1, 0x04, 0x00000000 },
+	{ 0x41be08,   1, 0x04, 0x00000004 },
+	{ 0x41be0c,   1, 0x04, 0x00000000 },
+	{ 0x41be10,   1, 0x04, 0x003b8bc7 },
+	{ 0x41be14,   2, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvd7_graph_init_wwdx_0[] = {
+	{ 0x41bfd4,   1, 0x04, 0x00800000 },
+	{ 0x41bfdc,   1, 0x04, 0x00000000 },
+	{ 0x41bff8,   2, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvd7_graph_init_cbm_0[] = {
+	{ 0x41becc,   1, 0x04, 0x00000000 },
+	{ 0x41bee8,   2, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_pack
+nvd7_graph_pack_mmio[] = {
+	{ nvc0_graph_init_main_0 },
+	{ nvc0_graph_init_fe_0 },
+	{ nvc0_graph_init_pri_0 },
+	{ nvc0_graph_init_rstr2d_0 },
+	{ nvd9_graph_init_pd_0 },
+	{ nvd9_graph_init_ds_0 },
+	{ nvc0_graph_init_scc_0 },
+	{ nvd9_graph_init_prop_0 },
+	{ nvc1_graph_init_gpc_unk_0 },
+	{ nvc0_graph_init_setup_0 },
+	{ nvc0_graph_init_crstr_0 },
+	{ nvc1_graph_init_setup_1 },
+	{ nvc0_graph_init_zcull_0 },
+	{ nvd9_graph_init_gpm_0 },
+	{ nvd9_graph_init_gpc_unk_1 },
+	{ nvc0_graph_init_gcc_0 },
+	{ nvc0_graph_init_tpccs_0 },
+	{ nvd9_graph_init_tex_0 },
+	{ nvd7_graph_init_pe_0 },
+	{ nvc0_graph_init_l1c_0 },
+	{ nvc0_graph_init_mpc_0 },
+	{ nvd9_graph_init_sm_0 },
+	{ nvd7_graph_init_pes_0 },
+	{ nvd7_graph_init_wwdx_0 },
+	{ nvd7_graph_init_cbm_0 },
+	{ nvc0_graph_init_be_0 },
+	{ nvd9_graph_init_fe_1 },
+	{}
+};
 
 /*******************************************************************************
  * PGRAPH engine/subdev functions
@@ -48,108 +119,6 @@ nvd7_graph_gpccs_ucode = {
 	.data.size = sizeof(nvd7_grgpc_data),
 };
 
-static struct nvc0_graph_init
-nvd7_graph_init_gpc[] = {
-	{ 0x418408,   1, 0x04, 0x00000000 },
-	{ 0x4184a0,   1, 0x04, 0x00000000 },
-	{ 0x4184a4,   2, 0x04, 0x00000000 },
-	{ 0x418604,   1, 0x04, 0x00000000 },
-	{ 0x418680,   1, 0x04, 0x00000000 },
-	{ 0x418714,   1, 0x04, 0x00000000 },
-	{ 0x418384,   1, 0x04, 0x00000000 },
-	{ 0x418814,   3, 0x04, 0x00000000 },
-	{ 0x418b04,   1, 0x04, 0x00000000 },
-	{ 0x4188c8,   2, 0x04, 0x00000000 },
-	{ 0x4188d0,   1, 0x04, 0x00010000 },
-	{ 0x4188d4,   1, 0x04, 0x00000001 },
-	{ 0x418910,   1, 0x04, 0x00010001 },
-	{ 0x418914,   1, 0x04, 0x00000301 },
-	{ 0x418918,   1, 0x04, 0x00800000 },
-	{ 0x418980,   1, 0x04, 0x77777770 },
-	{ 0x418984,   3, 0x04, 0x77777777 },
-	{ 0x418c04,   1, 0x04, 0x00000000 },
-	{ 0x418c64,   1, 0x04, 0x00000000 },
-	{ 0x418c68,   1, 0x04, 0x00000000 },
-	{ 0x418c88,   1, 0x04, 0x00000000 },
-	{ 0x418cb4,   2, 0x04, 0x00000000 },
-	{ 0x418d00,   1, 0x04, 0x00000000 },
-	{ 0x418d28,   1, 0x04, 0x00000000 },
-	{ 0x418f00,   1, 0x04, 0x00000000 },
-	{ 0x418f08,   1, 0x04, 0x00000000 },
-	{ 0x418f20,   2, 0x04, 0x00000000 },
-	{ 0x418e00,   1, 0x04, 0x00000003 },
-	{ 0x418e08,   1, 0x04, 0x00000000 },
-	{ 0x418e1c,   1, 0x04, 0x00000000 },
-	{ 0x418e20,   1, 0x04, 0x00000000 },
-	{ 0x41900c,   1, 0x04, 0x00000000 },
-	{ 0x419018,   1, 0x04, 0x00000000 },
-	{}
-};
-
-static struct nvc0_graph_init
-nvd7_graph_init_tpc[] = {
-	{ 0x419d08,   2, 0x04, 0x00000000 },
-	{ 0x419d10,   1, 0x04, 0x00000014 },
-	{ 0x419ab0,   1, 0x04, 0x00000000 },
-	{ 0x419ac8,   1, 0x04, 0x00000000 },
-	{ 0x419ab8,   1, 0x04, 0x000000e7 },
-	{ 0x419abc,   2, 0x04, 0x00000000 },
-	{ 0x419ab4,   1, 0x04, 0x00000000 },
-	{ 0x41980c,   1, 0x04, 0x00000010 },
-	{ 0x419844,   1, 0x04, 0x00000000 },
-	{ 0x41984c,   1, 0x04, 0x00005bc8 },
-	{ 0x419850,   2, 0x04, 0x00000000 },
-	{ 0x419c98,   1, 0x04, 0x00000000 },
-	{ 0x419ca8,   1, 0x04, 0x80000000 },
-	{ 0x419cb4,   1, 0x04, 0x00000000 },
-	{ 0x419cb8,   1, 0x04, 0x00008bf4 },
-	{ 0x419cbc,   1, 0x04, 0x28137606 },
-	{ 0x419cc0,   2, 0x04, 0x00000000 },
-	{ 0x419c0c,   1, 0x04, 0x00000000 },
-	{ 0x419e00,   1, 0x04, 0x00000000 },
-	{ 0x419ea0,   1, 0x04, 0x00000000 },
-	{ 0x419ea4,   1, 0x04, 0x00000100 },
-	{ 0x419ea8,   1, 0x04, 0x02001100 },
-	{ 0x419eac,   1, 0x04, 0x11100702 },
-	{ 0x419eb0,   1, 0x04, 0x00000003 },
-	{ 0x419eb4,   4, 0x04, 0x00000000 },
-	{ 0x419ec8,   1, 0x04, 0x0e063818 },
-	{ 0x419ecc,   1, 0x04, 0x0e060e06 },
-	{ 0x419ed0,   1, 0x04, 0x00003818 },
-	{ 0x419ed4,   1, 0x04, 0x011104f1 },
-	{ 0x419edc,   1, 0x04, 0x00000000 },
-	{ 0x419f00,   1, 0x04, 0x00000000 },
-	{ 0x419f2c,   1, 0x04, 0x00000000 },
-	{}
-};
-
-static struct nvc0_graph_init
-nvd7_graph_init_tpc_0[] = {
-	{ 0x40402c,   1, 0x04, 0x00000000 },
-	{ 0x4040f0,   1, 0x04, 0x00000000 },
-	{ 0x404174,   1, 0x04, 0x00000000 },
-	{ 0x503018,   1, 0x04, 0x00000001 },
-	{}
-};
-
-static struct nvc0_graph_init *
-nvd7_graph_init_mmio[] = {
-	nvc0_graph_init_regs,
-	nvc0_graph_init_unk40xx,
-	nvc0_graph_init_unk44xx,
-	nvc0_graph_init_unk78xx,
-	nvc0_graph_init_unk60xx,
-	nvd9_graph_init_unk64xx,
-	nvd9_graph_init_unk58xx,
-	nvc0_graph_init_unk80xx,
-	nvd7_graph_init_gpc,
-	nvd7_graph_init_tpc,
-	nve4_graph_init_unk,
-	nvc0_graph_init_unk88xx,
-	nvd7_graph_init_tpc_0,
-	NULL
-};
-
 struct nouveau_oclass *
 nvd7_graph_oclass = &(struct nvc0_graph_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xd7),
@@ -161,7 +130,8 @@ nvd7_graph_oclass = &(struct nvc0_graph_oclass) {
 	},
 	.cclass = &nvd7_grctx_oclass,
 	.sclass = nvc8_graph_sclass,
-	.mmio = nvd7_graph_init_mmio,
+	.mmio = nvd7_graph_pack_mmio,
 	.fecs.ucode = &nvd7_graph_fecs_ucode,
 	.gpccs.ucode = &nvd7_graph_gpccs_ucode,
+	.ppc_nr = 1,
 }.base;

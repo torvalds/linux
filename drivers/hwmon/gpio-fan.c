@@ -173,7 +173,7 @@ static int get_fan_speed_index(struct gpio_fan_data *fan_data)
 	return -ENODEV;
 }
 
-static int rpm_to_speed_index(struct gpio_fan_data *fan_data, int rpm)
+static int rpm_to_speed_index(struct gpio_fan_data *fan_data, unsigned long rpm)
 {
 	struct gpio_fan_speed *speed = fan_data->speed;
 	int i;
@@ -482,7 +482,7 @@ static int gpio_fan_get_of_pdata(struct device *dev,
 	return 0;
 }
 
-static struct of_device_id of_gpio_fan_match[] = {
+static const struct of_device_id of_gpio_fan_match[] = {
 	{ .compatible = "gpio-fan", },
 	{},
 };
@@ -537,22 +537,14 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	}
 
 	/* Make this driver part of hwmon class. */
-	fan_data->hwmon_dev = hwmon_device_register_with_groups(&pdev->dev,
-						"gpio-fan", fan_data,
-						gpio_fan_groups);
+	fan_data->hwmon_dev =
+		devm_hwmon_device_register_with_groups(&pdev->dev,
+						       "gpio_fan", fan_data,
+						       gpio_fan_groups);
 	if (IS_ERR(fan_data->hwmon_dev))
 		return PTR_ERR(fan_data->hwmon_dev);
 
 	dev_info(&pdev->dev, "GPIO fan initialized\n");
-
-	return 0;
-}
-
-static int gpio_fan_remove(struct platform_device *pdev)
-{
-	struct gpio_fan_data *fan_data = platform_get_drvdata(pdev);
-
-	hwmon_device_unregister(fan_data->hwmon_dev);
 
 	return 0;
 }
@@ -588,7 +580,6 @@ static SIMPLE_DEV_PM_OPS(gpio_fan_pm, gpio_fan_suspend, gpio_fan_resume);
 
 static struct platform_driver gpio_fan_driver = {
 	.probe		= gpio_fan_probe,
-	.remove		= gpio_fan_remove,
 	.driver	= {
 		.name	= "gpio-fan",
 		.pm	= GPIO_FAN_PM,

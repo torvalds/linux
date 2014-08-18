@@ -115,6 +115,12 @@
 #define MEI_DEV_ID_LPT_HR     0x8CBA  /* Lynx Point H Refresh */
 
 #define MEI_DEV_ID_WPT_LP     0x9CBA  /* Wildcat Point LP */
+#define MEI_DEV_ID_WPT_LP_2   0x9CBB  /* Wildcat Point LP 2 */
+
+/* Host Firmware Status Registers in PCI Config Space */
+#define PCI_CFG_HFS_1         0x40
+#define PCI_CFG_HFS_2         0x48
+
 /*
  * MEI HW Section
  */
@@ -128,6 +134,8 @@
 #define ME_CB_RW   8
 /* ME_CSR_HA - ME Control Status Host Access register (read only) */
 #define ME_CSR_HA  0xC
+/* H_HGC_CSR - PGI register */
+#define H_HPG_CSR  0x10
 
 
 /* register bits of H_CSR (Host Control Status register) */
@@ -157,6 +165,8 @@ access to ME_CBD */
 #define ME_CBWP_HRA       0x00FF0000
 /* ME CB Read Pointer HRA - host read only access to ME_CBRP */
 #define ME_CBRP_HRA       0x0000FF00
+/* ME Power Gate Isolation Capability HRA  - host ready only access */
+#define ME_PGIC_HRA       0x00000040
 /* ME Reset HRA - host read only access to ME_RST */
 #define ME_RST_HRA        0x00000010
 /* ME Ready HRA - host read only access to ME_RDY */
@@ -167,5 +177,10 @@ access to ME_CBD */
 #define ME_IS_HRA         0x00000002
 /* ME Interrupt Enable HRA - host read only access to ME_IE */
 #define ME_IE_HRA         0x00000001
+
+
+/* register bits - H_HPG_CSR */
+#define H_HPG_CSR_PGIHEXR       0x00000001
+#define H_HPG_CSR_PGI           0x00000002
 
 #endif /* _MEI_HW_MEI_REGS_H_ */

@@ -195,6 +195,18 @@ static inline int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg) {
 	return twl_i2c_read(mod_no, val, reg, 1);
 }
 
+static inline int twl_i2c_write_u16(u8 mod_no, u16 val, u8 reg) {
+	val = cpu_to_le16(val);
+	return twl_i2c_write(mod_no, (u8*) &val, reg, 2);
+}
+
+static inline int twl_i2c_read_u16(u8 mod_no, u16 *val, u8 reg) {
+	int ret;
+	ret = twl_i2c_read(mod_no, (u8*) val, reg, 2);
+	*val = le16_to_cpu(*val);
+	return ret;
+}
+
 int twl_get_type(void);
 int twl_get_version(void);
 int twl_get_hfclk_rate(void);
@@ -486,7 +498,10 @@ static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 #define RES_GRP_ALL		0x7	/* All resource groups */
 
 #define RES_TYPE2_R0		0x0
+#define RES_TYPE2_R1		0x1
+#define RES_TYPE2_R2		0x2
 
+#define RES_TYPE_R0		0x0
 #define RES_TYPE_ALL		0x7
 
 /* Resource states */
@@ -659,6 +674,7 @@ struct twl4030_power_data {
 	struct twl4030_script **scripts;
 	unsigned num;
 	struct twl4030_resconfig *resource_config;
+	struct twl4030_resconfig *board_config;
 #define TWL4030_RESCONFIG_UNDEF	((u8)-1)
 	bool use_poweroff;	/* Board is wired for TWL poweroff */
 };

@@ -250,11 +250,6 @@ static void ulite_stop_rx(struct uart_port *port)
 		| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 }
 
-static void ulite_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 static void ulite_break_ctl(struct uart_port *port, int ctl)
 {
 	/* N/A */
@@ -395,7 +390,6 @@ static struct uart_ops ulite_ops = {
 	.stop_tx	= ulite_stop_tx,
 	.start_tx	= ulite_start_tx,
 	.stop_rx	= ulite_stop_rx,
-	.enable_ms	= ulite_enable_ms,
 	.break_ctl	= ulite_break_ctl,
 	.startup	= ulite_startup,
 	.shutdown	= ulite_shutdown,
@@ -418,14 +412,23 @@ static struct uart_ops ulite_ops = {
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 static void ulite_console_wait_tx(struct uart_port *port)
 {
-	int i;
 	u8 val;
+	unsigned long timeout;
 
-	/* Spin waiting for TX fifo to have space available */
-	for (i = 0; i < 100000; i++) {
+	/*
+	 * Spin waiting for TX fifo to have space available.
+	 * When using the Microblaze Debug Module this can take up to 1s
+	 */
+	timeout = jiffies + msecs_to_jiffies(1000);
+	while (1) {
 		val = uart_in32(ULITE_STATUS, port);
 		if ((val & ULITE_STATUS_TXFULL) == 0)
 			break;
+		if (time_after(jiffies, timeout)) {
+			dev_warn(port->dev,
+				 "timeout waiting for TX buffer empty\n");
+			break;
+		}
 		cpu_relax();
 	}
 }

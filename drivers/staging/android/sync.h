@@ -14,13 +14,14 @@
 #define _LINUX_SYNC_H
 
 #include <linux/types.h>
-#ifdef __KERNEL__
-
 #include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/fence.h>
+
+#include "uapi/sync.h"
 
 struct sync_timeline;
 struct sync_pt;
@@ -40,8 +41,6 @@ struct sync_fence;
  *			 -1 if a will signal before b
  * @free_pt:		called before sync_pt is freed
  * @release_obj:	called before sync_timeline is freed
- * @print_obj:		deprecated
- * @print_pt:		deprecated
  * @fill_driver_data:	write implementation specific driver data to data.
  *			  should return an error if there is not enough room
  *			  as specified by size.  This information is returned
@@ -53,7 +52,7 @@ struct sync_timeline_ops {
 	const char *driver_name;
 
 	/* required */
-	struct sync_pt *(*dup)(struct sync_pt *pt);
+	struct sync_pt * (*dup)(struct sync_pt *pt);
 
 	/* required */
 	int (*has_signaled)(struct sync_pt *pt);
@@ -66,13 +65,6 @@ struct sync_timeline_ops {
 
 	/* optional */
 	void (*release_obj)(struct sync_timeline *sync_timeline);
-
-	/* deprecated */
-	void (*print_obj)(struct seq_file *s,
-			  struct sync_timeline *sync_timeline);
-
-	/* deprecated */
-	void (*print_pt)(struct seq_file *s, struct sync_pt *sync_pt);
 
 	/* optional */
 	int (*fill_driver_data)(struct sync_pt *syncpt, void *data, int size);
@@ -104,19 +96,21 @@ struct sync_timeline {
 
 	/* protected by child_list_lock */
 	bool			destroyed;
+	int			context, value;
 
 	struct list_head	child_list_head;
 	spinlock_t		child_list_lock;
 
 	struct list_head	active_list_head;
-	spinlock_t		active_list_lock;
 
+#ifdef CONFIG_DEBUG_FS
 	struct list_head	sync_timeline_list;
+#endif
 };
 
 /**
  * struct sync_pt - sync point
- * @parent:		sync_timeline to which this sync_pt belongs
+ * @fence:		base fence class
  * @child_list:		membership in sync_timeline.child_list_head
  * @active_list:	membership in sync_timeline.active_list_head
  * @signaled_list:	membership in temporary signaled_list on stack
@@ -127,19 +121,22 @@ struct sync_timeline {
  *			  signaled or error.
  */
 struct sync_pt {
-	struct sync_timeline		*parent;
+	struct fence base;
+
 	struct list_head	child_list;
-
 	struct list_head	active_list;
-	struct list_head	signaled_list;
+};
 
-	struct sync_fence	*fence;
-	struct list_head	pt_list;
+static inline struct sync_timeline *sync_pt_parent(struct sync_pt *pt)
+{
+	return container_of(pt->base.lock, struct sync_timeline,
+			    child_list_lock);
+}
 
-	/* protected by parent->active_list_lock */
-	int			status;
-
-	ktime_t			timestamp;
+struct sync_fence_cb {
+	struct fence_cb cb;
+	struct fence *sync_pt;
+	struct sync_fence *fence;
 };
 
 /**
@@ -149,9 +146,7 @@ struct sync_pt {
  * @name:		name of sync_fence.  Useful for debugging
  * @pt_list_head:	list of sync_pts in the fence.  immutable once fence
  *			  is created
- * @waiter_list_head:	list of asynchronous waiters on this fence
- * @waiter_list_lock:	lock protecting @waiter_list_head and @status
- * @status:		1: signaled, 0:active, <0: error
+ * @status:		0: signaled, >0:active, <0: error
  *
  * @wq:			wait queue for fence signaling
  * @sync_fence_list:	membership in global fence list
@@ -160,17 +155,15 @@ struct sync_fence {
 	struct file		*file;
 	struct kref		kref;
 	char			name[32];
-
-	/* this list is immutable once the fence is created */
-	struct list_head	pt_list_head;
-
-	struct list_head	waiter_list_head;
-	spinlock_t		waiter_list_lock; /* also protects status */
-	int			status;
+#ifdef CONFIG_DEBUG_FS
+	struct list_head	sync_fence_list;
+#endif
+	int num_fences;
 
 	wait_queue_head_t	wq;
+	atomic_t		status;
 
-	struct list_head	sync_fence_list;
+	struct sync_fence_cb	cbs[];
 };
 
 struct sync_fence_waiter;
@@ -184,14 +177,14 @@ typedef void (*sync_callback_t)(struct sync_fence *fence,
  * @callback_data:	pointer to pass to @callback
  */
 struct sync_fence_waiter {
-	struct list_head	waiter_list;
-
-	sync_callback_t		callback;
+	wait_queue_t work;
+	sync_callback_t callback;
 };
 
 static inline void sync_fence_waiter_init(struct sync_fence_waiter *waiter,
 					  sync_callback_t callback)
 {
+	INIT_LIST_HEAD(&waiter->work.task_list);
 	waiter->callback = callback;
 }
 
@@ -341,86 +334,22 @@ int sync_fence_cancel_async(struct sync_fence *fence,
  */
 int sync_fence_wait(struct sync_fence *fence, long timeout);
 
-#endif /* __KERNEL__ */
+#ifdef CONFIG_DEBUG_FS
 
-/**
- * struct sync_merge_data - data passed to merge ioctl
- * @fd2:	file descriptor of second fence
- * @name:	name of new fence
- * @fence:	returns the fd of the new fence to userspace
- */
-struct sync_merge_data {
-	__s32	fd2; /* fd of second fence */
-	char	name[32]; /* name of new fence */
-	__s32	fence; /* fd on newly created fence */
-};
+extern void sync_timeline_debug_add(struct sync_timeline *obj);
+extern void sync_timeline_debug_remove(struct sync_timeline *obj);
+extern void sync_fence_debug_add(struct sync_fence *fence);
+extern void sync_fence_debug_remove(struct sync_fence *fence);
+extern void sync_dump(void);
 
-/**
- * struct sync_pt_info - detailed sync_pt information
- * @len:		length of sync_pt_info including any driver_data
- * @obj_name:		name of parent sync_timeline
- * @driver_name:	name of driver implementing the parent
- * @status:		status of the sync_pt 0:active 1:signaled <0:error
- * @timestamp_ns:	timestamp of status change in nanoseconds
- * @driver_data:	any driver dependent data
- */
-struct sync_pt_info {
-	__u32	len;
-	char	obj_name[32];
-	char	driver_name[32];
-	__s32	status;
-	__u64	timestamp_ns;
-
-	__u8	driver_data[0];
-};
-
-/**
- * struct sync_fence_info_data - data returned from fence info ioctl
- * @len:	ioctl caller writes the size of the buffer its passing in.
- *		ioctl returns length of sync_fence_data returned to userspace
- *		including pt_info.
- * @name:	name of fence
- * @status:	status of fence. 1: signaled 0:active <0:error
- * @pt_info:	a sync_pt_info struct for every sync_pt in the fence
- */
-struct sync_fence_info_data {
-	__u32	len;
-	char	name[32];
-	__s32	status;
-
-	__u8	pt_info[0];
-};
-
-#define SYNC_IOC_MAGIC		'>'
-
-/**
- * DOC: SYNC_IOC_WAIT - wait for a fence to signal
- *
- * pass timeout in milliseconds.  Waits indefinitely timeout < 0.
- */
-#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __s32)
-
-/**
- * DOC: SYNC_IOC_MERGE - merge two fences
- *
- * Takes a struct sync_merge_data.  Creates a new fence containing copies of
- * the sync_pts in both the calling fd and sync_merge_data.fd2.  Returns the
- * new fence's fd in sync_merge_data.fence
- */
-#define SYNC_IOC_MERGE		_IOWR(SYNC_IOC_MAGIC, 1, struct sync_merge_data)
-
-/**
- * DOC: SYNC_IOC_FENCE_INFO - get detailed information on a fence
- *
- * Takes a struct sync_fence_info_data with extra space allocated for pt_info.
- * Caller should write the size of the buffer into len.  On return, len is
- * updated to reflect the total size of the sync_fence_info_data including
- * pt_info.
- *
- * pt_info is a buffer containing sync_pt_infos for every sync_pt in the fence.
- * To iterate over the sync_pt_infos, use the sync_pt_info.len field.
- */
-#define SYNC_IOC_FENCE_INFO	_IOWR(SYNC_IOC_MAGIC, 2,\
-	struct sync_fence_info_data)
+#else
+# define sync_timeline_debug_add(obj)
+# define sync_timeline_debug_remove(obj)
+# define sync_fence_debug_add(fence)
+# define sync_fence_debug_remove(fence)
+# define sync_dump()
+#endif
+int sync_fence_wake_up_wq(wait_queue_t *curr, unsigned mode,
+				 int wake_flags, void *key);
 
 #endif /* _LINUX_SYNC_H */

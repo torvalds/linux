@@ -135,11 +135,19 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		if (cpu_is_xlp9xx()) {
 			fusebase = nlm_get_fuse_regbase(n);
 			fusemask = nlm_read_reg(fusebase, FUSE_9XX_DEVCFG6);
-			mask = 0xfffff;
+			switch (read_c0_prid() & PRID_IMP_MASK) {
+			case PRID_IMP_NETLOGIC_XLP5XX:
+				mask = 0xff;
+				break;
+			case PRID_IMP_NETLOGIC_XLP9XX:
+			default:
+				mask = 0xfffff;
+				break;
+			}
 		} else {
 			fusemask = nlm_read_sys_reg(nodep->sysbase,
 						SYS_EFUSE_DEVICE_CFG_STATUS0);
-			switch (read_c0_prid() & 0xff00) {
+			switch (read_c0_prid() & PRID_IMP_MASK) {
 			case PRID_IMP_NETLOGIC_XLP3XX:
 				mask = 0xf;
 				break;
@@ -158,10 +166,6 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		 * cores are renumbered to range 0 .. nactive-1
 		 */
 		syscoremask = (1 << hweight32(~fusemask & mask)) - 1;
-
-		/* The boot cpu */
-		if (n == 0)
-			nodep->coremask = 1;
 
 		pr_info("Node %d - SYS/FUSE coremask %x\n", n, syscoremask);
 		for (core = 0; core < nlm_cores_per_node(); core++) {

@@ -16,8 +16,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <sysfs/libsysfs.h>
-
 #include <ctype.h>
 #include <limits.h>
 #include <stdint.h>

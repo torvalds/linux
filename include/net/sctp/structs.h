@@ -207,7 +207,9 @@ struct sctp_sock {
 	struct sctp_paddrparams paddrparam;
 	struct sctp_event_subscribe subscribe;
 	struct sctp_assocparams assocparams;
+
 	int user_frag;
+
 	__u32 autoclose;
 	__u8 nodelay;
 	__u8 disable_fragments;
@@ -215,6 +217,8 @@ struct sctp_sock {
 	__u8 frag_interleave;
 	__u32 adaptation_ind;
 	__u32 pd_point;
+	__u8 recvrcvinfo;
+	__u8 recvnxtinfo;
 
 	atomic_t pd_mode;
 	/* Receive to here while partial delivery is in effect. */
@@ -461,10 +465,6 @@ struct sctp_af {
 					 int saddr);
 	void		(*from_sk)	(union sctp_addr *,
 					 struct sock *sk);
-	void		(*to_sk_saddr)	(union sctp_addr *,
-					 struct sock *sk);
-	void		(*to_sk_daddr)	(union sctp_addr *,
-					 struct sock *sk);
 	void		(*from_addr_param) (union sctp_addr *,
 					    union sctp_addr_param *,
 					    __be16 port, int iif);
@@ -505,7 +505,9 @@ struct sctp_pf {
 	int  (*supported_addrs)(const struct sctp_sock *, __be16 *);
 	struct sock *(*create_accept_sk) (struct sock *sk,
 					  struct sctp_association *asoc);
-	void (*addr_v4map) (struct sctp_sock *, union sctp_addr *);
+	int (*addr_to_user)(struct sctp_sock *sk, union sctp_addr *addr);
+	void (*to_sk_saddr)(union sctp_addr *, struct sock *sk);
+	void (*to_sk_daddr)(union sctp_addr *, struct sock *sk);
 	struct sctp_af *af;
 };
 
@@ -838,10 +840,10 @@ struct sctp_transport {
 	unsigned long sackdelay;
 	__u32 sackfreq;
 
-	/* When was the last time (in jiffies) that we heard from this
-	 * transport?  We use this to pick new active and retran paths.
+	/* When was the last time that we heard from this transport? We use
+	 * this to pick new active and retran paths.
 	 */
-	unsigned long last_time_heard;
+	ktime_t last_time_heard;
 
 	/* Last time(in jiffies) when cwnd is reduced due to the congestion
 	 * indication based on ECNE chunk.
@@ -1241,6 +1243,7 @@ struct sctp_endpoint {
 	/* SCTP-AUTH: endpoint shared keys */
 	struct list_head endpoint_shared_keys;
 	__u16 active_key_id;
+	__u8  auth_enable;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1269,7 +1272,8 @@ struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *,
 int sctp_has_association(struct net *net, const union sctp_addr *laddr,
 			 const union sctp_addr *paddr);
 
-int sctp_verify_init(struct net *net, const struct sctp_association *asoc,
+int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
+		     const struct sctp_association *asoc,
 		     sctp_cid_t, sctp_init_chunk_t *peer_init,
 		     struct sctp_chunk *chunk, struct sctp_chunk **err_chunk);
 int sctp_process_init(struct sctp_association *, struct sctp_chunk *chunk,
@@ -1653,6 +1657,17 @@ struct sctp_association {
 	/* This is the last advertised value of rwnd over a SACK chunk. */
 	__u32 a_rwnd;
 
+	/* Number of bytes by which the rwnd has slopped.  The rwnd is allowed
+	 * to slop over a maximum of the association's frag_point.
+	 */
+	__u32 rwnd_over;
+
+	/* Keeps treack of rwnd pressure.  This happens when we have
+	 * a window, but not recevie buffer (i.e small packets).  This one
+	 * is releases slowly (1 PMTU at a time ).
+	 */
+	__u32 rwnd_press;
+
 	/* This is the sndbuf size in use for the association.
 	 * This corresponds to the sndbuf size for the association,
 	 * as specified in the sk->sndbuf.
@@ -1881,7 +1896,8 @@ void sctp_assoc_update(struct sctp_association *old,
 __u32 sctp_association_get_next_tsn(struct sctp_association *);
 
 void sctp_assoc_sync_pmtu(struct sock *, struct sctp_association *);
-void sctp_assoc_rwnd_update(struct sctp_association *, bool);
+void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned int);
+void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned int);
 void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
 void sctp_assoc_del_nonprimary_peers(struct sctp_association *,
@@ -1905,7 +1921,8 @@ struct sctp_chunk *sctp_get_ecne_prepend(struct sctp_association *asoc);
 /* A convenience structure to parse out SCTP specific CMSGs. */
 typedef struct sctp_cmsgs {
 	struct sctp_initmsg *init;
-	struct sctp_sndrcvinfo *info;
+	struct sctp_sndrcvinfo *srinfo;
+	struct sctp_sndinfo *sinfo;
 } sctp_cmsgs_t;
 
 /* Structure for tracking memory objects */

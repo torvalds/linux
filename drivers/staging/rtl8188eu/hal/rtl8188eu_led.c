@@ -22,6 +22,7 @@
 #include <drv_types.h>
 #include <rtl8188e_hal.h>
 #include <rtl8188e_led.h>
+#include <usb_ops_linux.h>
 
 /*  LED object. */
 
@@ -34,17 +35,8 @@ void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return;
-	LedCfg = rtw_read8(padapter, REG_LEDCFG2);
-	switch (pLed->LedPin) {
-	case LED_PIN_LED0:
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0)|BIT5|BIT6); /*  SW control led0 on. */
-		break;
-	case LED_PIN_LED1:
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0x0f)|BIT5); /*  SW control led1 on. */
-		break;
-	default:
-		break;
-	}
+	LedCfg = usb_read8(padapter, REG_LEDCFG2);
+	usb_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0)|BIT5|BIT6); /*  SW control led0 on. */
 	pLed->bLedOn = true;
 }
 
@@ -58,27 +50,17 @@ void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		goto exit;
 
-	LedCfg = rtw_read8(padapter, REG_LEDCFG2);/* 0x4E */
+	LedCfg = usb_read8(padapter, REG_LEDCFG2);/* 0x4E */
 
-	switch (pLed->LedPin) {
-	case LED_PIN_LED0:
-		if (pHalData->bLedOpenDrain) {
+	if (pHalData->bLedOpenDrain) {
 			/*  Open-drain arrangement for controlling the LED) */
-			LedCfg &= 0x90; /*  Set to software control. */
-			rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3));
-			LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
-			LedCfg &= 0xFE;
-			rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
-		} else {
-			rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3|BIT5|BIT6));
-		}
-		break;
-	case LED_PIN_LED1:
-		LedCfg &= 0x0f; /*  Set to software control. */
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3));
-		break;
-	default:
-		break;
+		LedCfg &= 0x90; /*  Set to software control. */
+		usb_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3));
+		LedCfg = usb_read8(padapter, REG_MAC_PINMUX_CFG);
+		LedCfg &= 0xFE;
+		usb_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
+	} else {
+		usb_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3|BIT5|BIT6));
 	}
 exit:
 	pLed->bLedOn = false;
@@ -92,12 +74,13 @@ exit:
 void rtl8188eu_InitSwLeds(struct adapter *padapter)
 {
 	struct led_priv *pledpriv = &(padapter->ledpriv);
+	struct hal_data_8188e   *haldata = GET_HAL_DATA(padapter);
 
+	pledpriv->bRegUseLed = true;
 	pledpriv->LedControlHandler = LedControl8188eu;
+	haldata->bLedOpenDrain = true;
 
-	InitLed871x(padapter, &(pledpriv->SwLed0), LED_PIN_LED0);
-
-	InitLed871x(padapter, &(pledpriv->SwLed1), LED_PIN_LED1);
+	InitLed871x(padapter, &(pledpriv->SwLed0));
 }
 
 /*	Description: */
@@ -107,5 +90,4 @@ void rtl8188eu_DeInitSwLeds(struct adapter *padapter)
 	struct led_priv	*ledpriv = &(padapter->ledpriv);
 
 	DeInitLed871x(&(ledpriv->SwLed0));
-	DeInitLed871x(&(ledpriv->SwLed1));
 }

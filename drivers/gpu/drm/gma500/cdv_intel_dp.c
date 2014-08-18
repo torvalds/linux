@@ -1693,7 +1693,7 @@ done:
 		struct drm_crtc *crtc = encoder->base.crtc;
 		drm_crtc_helper_set_mode(crtc, &crtc->mode,
 					 crtc->x, crtc->y,
-					 crtc->fb);
+					 crtc->primary->fb);
 	}
 
 	return 0;
@@ -1713,7 +1713,7 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 		}
 	}
 	i2c_del_adapter(&intel_dp->adapter);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1847,7 +1847,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	/* Set up the DDC bus. */
 	switch (output_reg) {

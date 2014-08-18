@@ -425,7 +425,7 @@ static int ads7845_read12_ser(struct device *dev, unsigned command)
 name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct ads7846 *ts = dev_get_drvdata(dev); \
-	ssize_t v = ads7846_read12_ser(dev, \
+	ssize_t v = ads7846_read12_ser(&ts->spi->dev, \
 			READ_12BIT_SER(var)); \
 	if (v < 0) \
 		return v; \
@@ -706,7 +706,7 @@ static void ads7846_read_state(struct ads7846 *ts)
 		m = &ts->msg[msg_idx];
 		error = spi_sync(ts->spi, m);
 		if (error) {
-			dev_err(&ts->spi->dev, "spi_async --> %d\n", error);
+			dev_err(&ts->spi->dev, "spi_sync --> %d\n", error);
 			packet->tc.ignore = true;
 			return;
 		}
@@ -1302,8 +1302,10 @@ static int ads7846_probe(struct spi_device *spi)
 	pdata = dev_get_platdata(&spi->dev);
 	if (!pdata) {
 		pdata = ads7846_probe_dt(&spi->dev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
+		if (IS_ERR(pdata)) {
+			err = PTR_ERR(pdata);
+			goto err_free_mem;
+		}
 	}
 
 	ts->model = pdata->model ? : 7846;

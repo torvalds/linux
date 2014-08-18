@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: debugfs
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -85,8 +85,8 @@ static struct mwifiex_debug_data items[] = {
 	 item_addr(hs_activated), 1},
 	{"num_tx_timeout", item_size(num_tx_timeout),
 	 item_addr(num_tx_timeout), 1},
-	{"num_cmd_timeout", item_size(num_cmd_timeout),
-	 item_addr(num_cmd_timeout), 1},
+	{"is_cmd_timedout", item_size(is_cmd_timedout),
+	 item_addr(is_cmd_timedout), 1},
 	{"timeout_cmd_id", item_size(timeout_cmd_id),
 	 item_addr(timeout_cmd_id), 1},
 	{"timeout_cmd_act", item_size(timeout_cmd_act),
@@ -254,6 +254,29 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 free_and_exit:
 	free_page(page);
 	return ret;
+}
+
+/*
+ * Proc firmware dump read handler.
+ *
+ * This function is called when the 'fw_dump' file is opened for
+ * reading.
+ * This function dumps firmware memory in different files
+ * (ex. DTCM, ITCM, SQRAM etc.) based on the the segments for
+ * debugging.
+ */
+static ssize_t
+mwifiex_fw_dump_read(struct file *file, char __user *ubuf,
+		     size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv = file->private_data;
+
+	if (!priv->adapter->if_ops.fw_dump)
+		return -EIO;
+
+	priv->adapter->if_ops.fw_dump(priv->adapter);
+
+	return 0;
 }
 
 /*
@@ -493,7 +516,7 @@ mwifiex_regrdwr_write(struct file *file,
 {
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
-	size_t buf_size = min(count, (size_t) (PAGE_SIZE - 1));
+	size_t buf_size = min_t(size_t, count, PAGE_SIZE - 1);
 	int ret;
 	u32 reg_type = 0, reg_offset = 0, reg_value = UINT_MAX;
 
@@ -594,7 +617,7 @@ mwifiex_rdeeprom_write(struct file *file,
 {
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
-	size_t buf_size = min(count, (size_t) (PAGE_SIZE - 1));
+	size_t buf_size = min_t(size_t, count, PAGE_SIZE - 1);
 	int ret = 0;
 	int offset = -1, bytes = -1;
 
@@ -669,6 +692,97 @@ done:
 	return ret;
 }
 
+/* Proc hscfg file write handler
+ * This function can be used to configure the host sleep parameters.
+ */
+static ssize_t
+mwifiex_hscfg_write(struct file *file, const char __user *ubuf,
+		    size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv = (void *)file->private_data;
+	unsigned long addr = get_zeroed_page(GFP_KERNEL);
+	char *buf = (char *)addr;
+	size_t buf_size = min_t(size_t, count, PAGE_SIZE - 1);
+	int ret, arg_num;
+	struct mwifiex_ds_hs_cfg hscfg;
+	int conditions = HS_CFG_COND_DEF;
+	u32 gpio = HS_CFG_GPIO_DEF, gap = HS_CFG_GAP_DEF;
+
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, ubuf, buf_size)) {
+		ret = -EFAULT;
+		goto done;
+	}
+
+	arg_num = sscanf(buf, "%d %x %x", &conditions, &gpio, &gap);
+
+	memset(&hscfg, 0, sizeof(struct mwifiex_ds_hs_cfg));
+
+	if (arg_num > 3) {
+		dev_err(priv->adapter->dev, "Too many arguments\n");
+		ret = -EINVAL;
+		goto done;
+	}
+
+	if (arg_num >= 1 && arg_num < 3)
+		mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_GET,
+				      MWIFIEX_SYNC_CMD, &hscfg);
+
+	if (arg_num) {
+		if (conditions == HS_CFG_CANCEL) {
+			mwifiex_cancel_hs(priv, MWIFIEX_ASYNC_CMD);
+			ret = count;
+			goto done;
+		}
+		hscfg.conditions = conditions;
+	}
+	if (arg_num >= 2)
+		hscfg.gpio = gpio;
+	if (arg_num == 3)
+		hscfg.gap = gap;
+
+	hscfg.is_invoke_hostcmd = false;
+	mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,
+			      MWIFIEX_SYNC_CMD, &hscfg);
+
+	mwifiex_enable_hs(priv->adapter);
+	priv->adapter->hs_enabling = false;
+	ret = count;
+done:
+	free_page(addr);
+	return ret;
+}
+
+/* Proc hscfg file read handler
+ * This function can be used to read host sleep configuration
+ * parameters from driver.
+ */
+static ssize_t
+mwifiex_hscfg_read(struct file *file, char __user *ubuf,
+		   size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv = (void *)file->private_data;
+	unsigned long addr = get_zeroed_page(GFP_KERNEL);
+	char *buf = (char *)addr;
+	int pos, ret;
+	struct mwifiex_ds_hs_cfg hscfg;
+
+	if (!buf)
+		return -ENOMEM;
+
+	mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_GET,
+			      MWIFIEX_SYNC_CMD, &hscfg);
+
+	pos = snprintf(buf, PAGE_SIZE, "%u 0x%x 0x%x\n", hscfg.conditions,
+		       hscfg.gpio, hscfg.gap);
+
+	ret = simple_read_from_buffer(ubuf, count, ppos, buf, pos);
+
+	free_page(addr);
+	return ret;
+}
 
 #define MWIFIEX_DFS_ADD_FILE(name) do {                                 \
 	if (!debugfs_create_file(#name, 0644, priv->dfs_dev_dir,        \
@@ -699,8 +813,10 @@ static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 MWIFIEX_DFS_FILE_READ_OPS(info);
 MWIFIEX_DFS_FILE_READ_OPS(debug);
 MWIFIEX_DFS_FILE_READ_OPS(getlog);
+MWIFIEX_DFS_FILE_READ_OPS(fw_dump);
 MWIFIEX_DFS_FILE_OPS(regrdwr);
 MWIFIEX_DFS_FILE_OPS(rdeeprom);
+MWIFIEX_DFS_FILE_OPS(hscfg);
 
 /*
  * This function creates the debug FS directory structure and the files.
@@ -722,6 +838,8 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(getlog);
 	MWIFIEX_DFS_ADD_FILE(regrdwr);
 	MWIFIEX_DFS_ADD_FILE(rdeeprom);
+	MWIFIEX_DFS_ADD_FILE(fw_dump);
+	MWIFIEX_DFS_ADD_FILE(hscfg);
 }
 
 /*

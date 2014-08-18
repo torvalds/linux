@@ -106,7 +106,8 @@ static const char * card_names[] = {
 	"SiS 900 PCI Fast Ethernet",
 	"SiS 7016 PCI Fast Ethernet"
 };
-static DEFINE_PCI_DEVICE_TABLE(sis900_pci_tbl) = {
+
+static const struct pci_device_id sis900_pci_tbl[] = {
 	{PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_900,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, SIS_900},
 	{PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_7016,
@@ -1614,7 +1615,7 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 		skb->data, skb->len, PCI_DMA_TODEVICE);
 	if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
 		sis_priv->tx_ring[entry].bufptr))) {
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			sis_priv->tx_skbuff[entry] = NULL;
 			net_dev->stats.tx_dropped++;
 			spin_unlock_irqrestore(&sis_priv->lock, flags);
@@ -2258,7 +2259,6 @@ static int sis900_set_config(struct net_device *dev, struct ifmap *map)
 		case IF_PORT_100BASEFX: /* 100BaseFx */
                 	/* These Modes are not supported (are they?)*/
 			return -EOPNOTSUPP;
-			break;
 
 		default:
 			return -EINVAL;

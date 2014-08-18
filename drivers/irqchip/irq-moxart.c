@@ -44,7 +44,7 @@ struct moxart_irq_data {
 
 static struct moxart_irq_data intc;
 
-static asmlinkage void __exception_irq_entry handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry handle_irq(struct pt_regs *regs)
 {
 	u32 irqstat;
 	int hwirq;

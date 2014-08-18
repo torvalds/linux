@@ -26,17 +26,21 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/ehv_pic.h>
+#include <asm/qe_ic.h>
 
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 #include "smp.h"
+#include "mpc85xx.h"
 
 void __init corenet_gen_pic_init(void)
 {
 	struct mpic *mpic;
 	unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU |
 		MPIC_NO_RESET;
+
+	struct device_node *np;
 
 	if (ppc_md.get_irq == mpic_get_coreint_irq)
 		flags |= MPIC_ENABLE_COREINT;
@@ -45,6 +49,13 @@ void __init corenet_gen_pic_init(void)
 	BUG_ON(mpic == NULL);
 
 	mpic_init(mpic);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
+	if (np) {
+		qe_ic_init(np, 0, qe_ic_cascade_low_mpic,
+				qe_ic_cascade_high_mpic);
+		of_node_put(np);
+	}
 }
 
 /*
@@ -56,7 +67,9 @@ void __init corenet_gen_setup_arch(void)
 
 	swiotlb_detect_4g();
 
-	pr_info("%s board from Freescale Semiconductor\n", ppc_md.name);
+	pr_info("%s board\n", ppc_md.name);
+
+	mpc85xx_qe_init();
 }
 
 static const struct of_device_id of_device_ids[] = {
@@ -81,6 +94,9 @@ static const struct of_device_id of_device_ids[] = {
 	{
 		.compatible	= "fsl,qoriq-pcie-v3.0",
 	},
+	{
+		.compatible	= "fsl,qe",
+	},
 	/* The following two are for the Freescale hypervisor */
 	{
 		.name		= "hypervisor",
@@ -99,26 +115,21 @@ int __init corenet_gen_publish_devices(void)
 static const char * const boards[] __initconst = {
 	"fsl,P2041RDB",
 	"fsl,P3041DS",
+	"fsl,OCA4080",
 	"fsl,P4080DS",
 	"fsl,P5020DS",
 	"fsl,P5040DS",
+	"fsl,T2080QDS",
+	"fsl,T2080RDB",
+	"fsl,T2081QDS",
 	"fsl,T4240QDS",
+	"fsl,T4240RDB",
 	"fsl,B4860QDS",
 	"fsl,B4420QDS",
 	"fsl,B4220QDS",
-	NULL
-};
-
-static const char * const hv_boards[] __initconst = {
-	"fsl,P2041RDB-hv",
-	"fsl,P3041DS-hv",
-	"fsl,P4080DS-hv",
-	"fsl,P5020DS-hv",
-	"fsl,P5040DS-hv",
-	"fsl,T4240QDS-hv",
-	"fsl,B4860QDS-hv",
-	"fsl,B4420QDS-hv",
-	"fsl,B4220QDS-hv",
+	"fsl,T1040QDS",
+	"fsl,T1042QDS",
+	"keymile,kmcoge4",
 	NULL
 };
 
@@ -128,6 +139,8 @@ static const char * const hv_boards[] __initconst = {
 static int __init corenet_generic_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
+	char hv_compat[24];
+	int i;
 #ifdef CONFIG_SMP
 	extern struct smp_ops_t smp_85xx_ops;
 #endif
@@ -136,21 +149,26 @@ static int __init corenet_generic_probe(void)
 		return 1;
 
 	/* Check if we're running under the Freescale hypervisor */
-	if (of_flat_dt_match(root, hv_boards)) {
-		ppc_md.init_IRQ = ehv_pic_init;
-		ppc_md.get_irq = ehv_pic_get_irq;
-		ppc_md.restart = fsl_hv_restart;
-		ppc_md.power_off = fsl_hv_halt;
-		ppc_md.halt = fsl_hv_halt;
+	for (i = 0; boards[i]; i++) {
+		snprintf(hv_compat, sizeof(hv_compat), "%s-hv", boards[i]);
+		if (of_flat_dt_is_compatible(root, hv_compat)) {
+			ppc_md.init_IRQ = ehv_pic_init;
+
+			ppc_md.get_irq = ehv_pic_get_irq;
+			ppc_md.restart = fsl_hv_restart;
+			ppc_md.power_off = fsl_hv_halt;
+			ppc_md.halt = fsl_hv_halt;
 #ifdef CONFIG_SMP
-		/*
-		 * Disable the timebase sync operations because we can't write
-		 * to the timebase registers under the hypervisor.
-		  */
-		smp_85xx_ops.give_timebase = NULL;
-		smp_85xx_ops.take_timebase = NULL;
+			/*
+			 * Disable the timebase sync operations because we
+			 * can't write to the timebase registers under the
+			 * hypervisor.
+			 */
+			smp_85xx_ops.give_timebase = NULL;
+			smp_85xx_ops.take_timebase = NULL;
 #endif
-		return 1;
+			return 1;
+		}
 	}
 
 	return 0;
@@ -163,6 +181,7 @@ define_machine(corenet_generic) {
 	.init_IRQ		= corenet_gen_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_coreint_irq,
 	.restart		= fsl_rstcr_restart,

@@ -1,0 +1,23 @@
+* EFM32 timer hardware
+
+The efm32 Giant Gecko SoCs come with four 16 bit timers. Two counters can be
+connected to form a 32 bit counter. Each timer has three Compare/Capture
+channels and can be used as PWM or Quadrature Decoder. Available clock sources
+are the cpu's HFPERCLK (with a 10-bit prescaler) or an external pin.
+
+Required properties:
+- compatible : Should be "energymicro,efm32-timer"
+- reg : Address and length of the register set
+- clocks : Should contain a reference to the HFPERCLK
+
+Optional properties:
+- interrupts : Reference to the timer interrupt
+
+Example:
+
+timer@40010c00 {
+	compatible = "energymicro,efm32-timer";
+	reg = <0x40010c00 0x400>;
+	interrupts = <14>;
+	clocks = <&cmu clk_HFPERCLKTIMER3>;
+};

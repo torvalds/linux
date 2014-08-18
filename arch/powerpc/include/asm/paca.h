@@ -78,10 +78,6 @@ struct paca_struct {
 	u64 kernel_toc;			/* Kernel TOC address */
 	u64 kernelbase;			/* Base address of kernel */
 	u64 kernel_msr;			/* MSR while running in kernel */
-#ifdef CONFIG_PPC_STD_MMU_64
-	u64 stab_real;			/* Absolute address of segment table */
-	u64 stab_addr;			/* Virtual address of segment table */
-#endif /* CONFIG_PPC_STD_MMU_64 */
 	void *emergency_sp;		/* pointer to emergency stack */
 	u64 data_offset;		/* per cpu data offset */
 	s16 hw_cpu_id;			/* Physical processor number */
@@ -92,7 +88,10 @@ struct paca_struct {
 	struct slb_shadow *slb_shadow_ptr;
 	struct dtl_entry *dispatch_log;
 	struct dtl_entry *dispatch_log_end;
+#endif /* CONFIG_PPC_STD_MMU_64 */
+	u64 dscr_default;		/* per-CPU default DSCR */
 
+#ifdef CONFIG_PPC_STD_MMU_64
 	/*
 	 * Now, starting in cacheline 2, the exception save areas
 	 */
@@ -116,8 +115,11 @@ struct paca_struct {
 	/* Shared by all threads of a core -- points to tcd of first thread */
 	struct tlb_core_data *tcd_ptr;
 
-	/* We can have up to 3 levels of reentrancy in the TLB miss handler */
-	u64 extlb[3][EX_TLB_SIZE / sizeof(u64)];
+	/*
+	 * We can have up to 3 levels of reentrancy in the TLB miss handler,
+	 * in each of four exception levels (normal, crit, mcheck, debug).
+	 */
+	u64 extlb[12][EX_TLB_SIZE / sizeof(u64)];
 	u64 exmc[8];		/* used for machine checks */
 	u64 excrit[8];		/* used for crit interrupts */
 	u64 exdbg[8];		/* used for debug interrupts */
@@ -146,7 +148,7 @@ struct paca_struct {
 	u8 io_sync;			/* writel() needs spin_unlock sync */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
 	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
-	u64 sprg3;			/* Saved user-visible sprg */
+	u64 sprg_vdso;			/* Saved user-visible sprg */
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	u64 tm_scratch;                 /* TM scratch area for reclaim */
 #endif
@@ -165,6 +167,7 @@ struct paca_struct {
 	 * and already using emergency stack.
 	 */
 	u16 in_mce;
+	u8 hmi_event_available;		 /* HMI event is available */
 #endif
 
 	/* Stuff for accurate time accounting */

@@ -421,7 +421,7 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				  clips[i].x2 - clips[i].x1,
 				  clips[i].y2 - clips[i].y1);
 		if (ret)
-			goto unlock;
+			break;
 	}
 
 	if (ufb->obj->base.import_attach) {
@@ -550,7 +550,7 @@ out:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs udl_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs udl_fb_helper_funcs = {
 	.fb_probe = udlfb_create,
 };
 
@@ -583,7 +583,8 @@ int udl_fbdev_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	udl->fbdev = ufbdev;
-	ufbdev->helper.funcs = &udl_fb_helper_funcs;
+
+	drm_fb_helper_prepare(dev, &ufbdev->helper, &udl_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, &ufbdev->helper,
 				 1, 1);

@@ -245,6 +245,9 @@ static int st_gyro_read_raw(struct iio_dev *indio_dev,
 		*val = 0;
 		*val2 = gdata->current_fullscale->gain;
 		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = gdata->odr;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -262,6 +265,13 @@ static int st_gyro_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		err = st_sensors_set_fullscale_by_gain(indio_dev, val2);
 		break;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (val2)
+			return -EINVAL;
+		mutex_lock(&indio_dev->mlock);
+		err = st_sensors_set_odr(indio_dev, val);
+		mutex_unlock(&indio_dev->mlock);
+		return err;
 	default:
 		err = -EINVAL;
 	}
@@ -269,14 +279,12 @@ static int st_gyro_write_raw(struct iio_dev *indio_dev,
 	return err;
 }
 
-static ST_SENSOR_DEV_ATTR_SAMP_FREQ();
 static ST_SENSORS_DEV_ATTR_SAMP_FREQ_AVAIL();
 static ST_SENSORS_DEV_ATTR_SCALE_AVAIL(in_anglvel_scale_available);
 
 static struct attribute *st_gyro_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_anglvel_scale_available.dev_attr.attr,
-	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	NULL,
 };
 
@@ -311,6 +319,8 @@ int st_gyro_common_probe(struct iio_dev *indio_dev,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &gyro_info;
 
+	st_sensors_power_enable(indio_dev);
+
 	err = st_sensors_check_device_support(indio_dev,
 				ARRAY_SIZE(st_gyro_sensors), st_gyro_sensors);
 	if (err < 0)
@@ -344,6 +354,9 @@ int st_gyro_common_probe(struct iio_dev *indio_dev,
 	if (err)
 		goto st_gyro_device_register_error;
 
+	dev_info(&indio_dev->dev, "registered gyroscope %s\n",
+		 indio_dev->name);
+
 	return 0;
 
 st_gyro_device_register_error:
@@ -359,6 +372,8 @@ EXPORT_SYMBOL(st_gyro_common_probe);
 void st_gyro_common_remove(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
+
+	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (gdata->get_irq_data_ready(indio_dev) > 0)

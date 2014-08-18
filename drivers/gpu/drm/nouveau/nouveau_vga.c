@@ -12,14 +12,16 @@
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)
 {
-	struct nouveau_device *device = nouveau_dev(priv);
+	struct nvif_device *device = &nouveau_drm(priv)->device;
 
-	if (device->card_type == NV_40 && device->chipset >= 0x4c)
-		nv_wr32(device, 0x088060, state);
-	else if (device->chipset >= 0x40)
-		nv_wr32(device, 0x088054, state);
+	if (device->info.family == NV_DEVICE_INFO_V0_CURIE &&
+	    device->info.chipset >= 0x4c)
+		nvif_wr32(device, 0x088060, state);
 	else
-		nv_wr32(device, 0x001854, state);
+	if (device->info.chipset >= 0x40)
+		nvif_wr32(device, 0x088054, state);
+	else
+		nvif_wr32(device, 0x001854, state);
 
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
@@ -64,12 +66,13 @@ static bool
 nouveau_switcheroo_can_switch(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	bool can_switch;
 
-	spin_lock(&dev->count_lock);
-	can_switch = (dev->open_count == 0);
-	spin_unlock(&dev->count_lock);
-	return can_switch;
+	/*
+	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
+	 * locking inversion with the driver load path. And the access here is
+	 * completely racy anyway. So don't bother with locking for now.
+	 */
+	return dev->open_count == 0;
 }
 
 static const struct vga_switcheroo_client_ops
@@ -84,6 +87,11 @@ nouveau_vga_init(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 	bool runtime = false;
+
+	/* only relevant for PCI devices */
+	if (!dev->pdev)
+		return;
+
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
 
 	if (nouveau_runtime_pm == 1)

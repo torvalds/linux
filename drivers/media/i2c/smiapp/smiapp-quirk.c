@@ -28,7 +28,7 @@
 
 static int smiapp_write_8(struct smiapp_sensor *sensor, u16 reg, u8 val)
 {
-	return smiapp_write(sensor, (SMIA_REG_8BIT << 16) | reg, val);
+	return smiapp_write(sensor, SMIAPP_REG_MK_U8(reg), val);
 }
 
 static int smiapp_write_8s(struct smiapp_sensor *sensor,
@@ -59,52 +59,6 @@ void smiapp_replace_limit(struct smiapp_sensor *sensor,
 		smiapp_reg_limits[limit].addr,
 		smiapp_reg_limits[limit].what, val, val);
 	sensor->limits[limit] = val;
-}
-
-bool smiapp_quirk_reg(struct smiapp_sensor *sensor,
-		      u32 reg, u32 *val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	const struct smia_reg *sreg;
-
-	if (!sensor->minfo.quirk)
-		return false;
-
-	sreg = sensor->minfo.quirk->regs;
-
-	if (!sreg)
-		return false;
-
-	while (sreg->type) {
-		u16 type = reg >> 16;
-		u16 reg16 = reg;
-
-		if (sreg->type != type || sreg->reg != reg16) {
-			sreg++;
-			continue;
-		}
-
-		switch ((u8)type) {
-		case SMIA_REG_8BIT:
-			dev_dbg(&client->dev, "quirk: 0x%8.8x: 0x%2.2x\n",
-				reg, sreg->val);
-			break;
-		case SMIA_REG_16BIT:
-			dev_dbg(&client->dev, "quirk: 0x%8.8x: 0x%4.4x\n",
-				reg, sreg->val);
-			break;
-		case SMIA_REG_32BIT:
-			dev_dbg(&client->dev, "quirk: 0x%8.8x: 0x%8.8x\n",
-				reg, sreg->val);
-			break;
-		}
-
-		*val = sreg->val;
-
-		return true;
-	}
-
-	return false;
 }
 
 static int jt8ew9_limits(struct smiapp_sensor *sensor)
@@ -266,12 +220,17 @@ static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
 	return smiapp_write_8(sensor, 0x3328, 0x80);
 }
 
+static unsigned long jt8ev1_pll_flags(struct smiapp_sensor *sensor)
+{
+	return SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE;
+}
+
 const struct smiapp_quirk smiapp_jt8ev1_quirk = {
 	.limits = jt8ev1_limits,
 	.post_poweron = jt8ev1_post_poweron,
 	.pre_streamon = jt8ev1_pre_streamon,
 	.post_streamoff = jt8ev1_post_streamoff,
-	.flags = SMIAPP_QUIRK_FLAG_OP_PIX_CLOCK_PER_LANE,
+	.pll_flags = jt8ev1_pll_flags,
 };
 
 static int tcm8500md_limits(struct smiapp_sensor *sensor)

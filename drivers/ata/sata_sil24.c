@@ -353,8 +353,10 @@ static void sil24_error_handler(struct ata_port *ap);
 static void sil24_post_internal_cmd(struct ata_queued_cmd *qc);
 static int sil24_port_start(struct ata_port *ap);
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sil24_pci_device_resume(struct pci_dev *pdev);
+#endif
+#ifdef CONFIG_PM
 static int sil24_port_resume(struct ata_port *ap);
 #endif
 
@@ -375,7 +377,7 @@ static struct pci_driver sil24_pci_driver = {
 	.id_table		= sil24_pci_tbl,
 	.probe			= sil24_init_one,
 	.remove			= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= ata_pci_device_suspend,
 	.resume			= sil24_pci_device_resume,
 #endif
@@ -1152,8 +1154,8 @@ static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 	status = readl(host_base + HOST_IRQ_STAT);
 
 	if (status == 0xffffffff) {
-		printk(KERN_ERR DRV_NAME ": IRQ status == 0xffffffff, "
-		       "PCI fault or device removal?\n");
+		dev_err(host->dev, "IRQ status == 0xffffffff, "
+			"PCI fault or device removal?\n");
 		goto out;
 	}
 
@@ -1350,7 +1352,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				 &sil24_sht);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sil24_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);
@@ -1370,7 +1372,9 @@ static int sil24_pci_device_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
+#ifdef CONFIG_PM
 static int sil24_port_resume(struct ata_port *ap)
 {
 	sil24_config_pmp(ap, ap->nr_pmp_links);

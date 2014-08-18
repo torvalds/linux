@@ -265,6 +265,7 @@
 #define PG_XIE		(_ULCAST_(1) <<	 30)
 #define PG_ELPA		(_ULCAST_(1) <<	 29)
 #define PG_ESP		(_ULCAST_(1) <<	 28)
+#define PG_IEC		(_ULCAST_(1) <<  27)
 
 /*
  * R4x00 interrupt enable / cause bits
@@ -568,11 +569,23 @@
 #define MIPS_CONF1_PC		(_ULCAST_(1) <<	 4)
 #define MIPS_CONF1_MD		(_ULCAST_(1) <<	 5)
 #define MIPS_CONF1_C2		(_ULCAST_(1) <<	 6)
+#define MIPS_CONF1_DA_SHF	7
+#define MIPS_CONF1_DA_SZ	3
 #define MIPS_CONF1_DA		(_ULCAST_(7) <<	 7)
+#define MIPS_CONF1_DL_SHF	10
+#define MIPS_CONF1_DL_SZ	3
 #define MIPS_CONF1_DL		(_ULCAST_(7) << 10)
+#define MIPS_CONF1_DS_SHF	13
+#define MIPS_CONF1_DS_SZ	3
 #define MIPS_CONF1_DS		(_ULCAST_(7) << 13)
+#define MIPS_CONF1_IA_SHF	16
+#define MIPS_CONF1_IA_SZ	3
 #define MIPS_CONF1_IA		(_ULCAST_(7) << 16)
+#define MIPS_CONF1_IL_SHF	19
+#define MIPS_CONF1_IL_SZ	3
 #define MIPS_CONF1_IL		(_ULCAST_(7) << 19)
+#define MIPS_CONF1_IS_SHF	22
+#define MIPS_CONF1_IS_SZ	3
 #define MIPS_CONF1_IS		(_ULCAST_(7) << 22)
 #define MIPS_CONF1_TLBS_SHIFT   (25)
 #define MIPS_CONF1_TLBS_SIZE    (6)
@@ -618,7 +631,6 @@
 #define MIPS_CONF4_MMUSIZEEXT_SHIFT	(0)
 #define MIPS_CONF4_MMUSIZEEXT	(_ULCAST_(255) << 0)
 #define MIPS_CONF4_FTLBSETS_SHIFT	(0)
-#define MIPS_CONF4_FTLBSETS_SHIFT	(0)
 #define MIPS_CONF4_FTLBSETS	(_ULCAST_(15) << MIPS_CONF4_FTLBSETS_SHIFT)
 #define MIPS_CONF4_FTLBWAYS_SHIFT	(4)
 #define MIPS_CONF4_FTLBWAYS	(_ULCAST_(15) << MIPS_CONF4_FTLBWAYS_SHIFT)
@@ -640,6 +652,7 @@
 
 #define MIPS_CONF5_NF		(_ULCAST_(1) << 0)
 #define MIPS_CONF5_UFR		(_ULCAST_(1) << 2)
+#define MIPS_CONF5_MRP		(_ULCAST_(1) << 3)
 #define MIPS_CONF5_MSAEN	(_ULCAST_(1) << 27)
 #define MIPS_CONF5_EVA		(_ULCAST_(1) << 28)
 #define MIPS_CONF5_CV		(_ULCAST_(1) << 29)
@@ -653,8 +666,21 @@
 
 #define MIPS_CONF7_RPS		(_ULCAST_(1) << 2)
 
+#define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
+#define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
+
+/* MAAR bit definitions */
+#define MIPS_MAAR_ADDR		((BIT_ULL(BITS_PER_LONG - 12) - 1) << 12)
+#define MIPS_MAAR_ADDR_SHIFT	12
+#define MIPS_MAAR_S		(_ULCAST_(1) << 1)
+#define MIPS_MAAR_V		(_ULCAST_(1) << 0)
+
 /*  EntryHI bit definition */
 #define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
+
+/* CMGCRBase bit definitions */
+#define MIPS_CMGCRB_BASE	11
+#define MIPS_CMGCRF_BASE	(~_ULCAST_((1 << MIPS_CMGCRB_BASE) - 1))
 
 /*
  * Bits in the MIPS32/64 coprocessor 1 (FPU) revision register.
@@ -687,14 +713,52 @@
 #define MIPS_SEGCFG_MK		_ULCAST_(1)
 #define MIPS_SEGCFG_UK		_ULCAST_(0)
 
+#define MIPS_PWFIELD_GDI_SHIFT	24
+#define MIPS_PWFIELD_GDI_MASK	0x3f000000
+#define MIPS_PWFIELD_UDI_SHIFT	18
+#define MIPS_PWFIELD_UDI_MASK	0x00fc0000
+#define MIPS_PWFIELD_MDI_SHIFT	12
+#define MIPS_PWFIELD_MDI_MASK	0x0003f000
+#define MIPS_PWFIELD_PTI_SHIFT	6
+#define MIPS_PWFIELD_PTI_MASK	0x00000fc0
+#define MIPS_PWFIELD_PTEI_SHIFT	0
+#define MIPS_PWFIELD_PTEI_MASK	0x0000003f
+
+#define MIPS_PWSIZE_GDW_SHIFT	24
+#define MIPS_PWSIZE_GDW_MASK	0x3f000000
+#define MIPS_PWSIZE_UDW_SHIFT	18
+#define MIPS_PWSIZE_UDW_MASK	0x00fc0000
+#define MIPS_PWSIZE_MDW_SHIFT	12
+#define MIPS_PWSIZE_MDW_MASK	0x0003f000
+#define MIPS_PWSIZE_PTW_SHIFT	6
+#define MIPS_PWSIZE_PTW_MASK	0x00000fc0
+#define MIPS_PWSIZE_PTEW_SHIFT	0
+#define MIPS_PWSIZE_PTEW_MASK	0x0000003f
+
+#define MIPS_PWCTL_PWEN_SHIFT	31
+#define MIPS_PWCTL_PWEN_MASK	0x80000000
+#define MIPS_PWCTL_DPH_SHIFT	7
+#define MIPS_PWCTL_DPH_MASK	0x00000080
+#define MIPS_PWCTL_HUGEPG_SHIFT	6
+#define MIPS_PWCTL_HUGEPG_MASK	0x00000060
+#define MIPS_PWCTL_PSN_SHIFT	0
+#define MIPS_PWCTL_PSN_MASK	0x0000003f
+
 #ifndef __ASSEMBLY__
 
 /*
- * Macros for handling the ISA mode bit for microMIPS.
+ * Macros for handling the ISA mode bit for MIPS16 and microMIPS.
  */
+#if defined(CONFIG_SYS_SUPPORTS_MIPS16) || \
+    defined(CONFIG_SYS_SUPPORTS_MICROMIPS)
 #define get_isa16_mode(x)		((x) & 0x1)
 #define msk_isa16_mode(x)		((x) & ~0x1)
 #define set_isa16_mode(x)		do { (x) |= 0x1; } while(0)
+#else
+#define get_isa16_mode(x)		0
+#define msk_isa16_mode(x)		(x)
+#define set_isa16_mode(x)		do { } while(0)
+#endif
 
 /*
  * microMIPS instructions can be 16-bit or 32-bit in length. This
@@ -988,19 +1052,8 @@ do {									\
 #define write_c0_compare3(val)	__write_32bit_c0_register($11, 7, val)
 
 #define read_c0_status()	__read_32bit_c0_register($12, 0)
-#ifdef CONFIG_MIPS_MT_SMTC
-#define write_c0_status(val)						\
-do {									\
-	__write_32bit_c0_register($12, 0, val);				\
-	__ehb();							\
-} while (0)
-#else
-/*
- * Legacy non-SMTC code, which may be hazardous
- * but which might not support EHB
- */
+
 #define write_c0_status(val)	__write_32bit_c0_register($12, 0, val)
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 #define read_c0_cause()		__read_32bit_c0_register($13, 0)
 #define write_c0_cause(val)	__write_32bit_c0_register($13, 0, val)
@@ -1009,6 +1062,8 @@ do {									\
 #define write_c0_epc(val)	__write_ulong_c0_register($14, 0, val)
 
 #define read_c0_prid()		__read_32bit_c0_register($15, 0)
+
+#define read_c0_cmgcrbase()	__read_ulong_c0_register($15, 3)
 
 #define read_c0_config()	__read_32bit_c0_register($16, 0)
 #define read_c0_config1()	__read_32bit_c0_register($16, 1)
@@ -1026,6 +1081,11 @@ do {									\
 #define write_c0_config5(val)	__write_32bit_c0_register($16, 5, val)
 #define write_c0_config6(val)	__write_32bit_c0_register($16, 6, val)
 #define write_c0_config7(val)	__write_32bit_c0_register($16, 7, val)
+
+#define read_c0_maar()		__read_ulong_c0_register($17, 1)
+#define write_c0_maar(val)	__write_ulong_c0_register($17, 1, val)
+#define read_c0_maari()		__read_32bit_c0_register($17, 2)
+#define write_c0_maari(val)	__write_32bit_c0_register($17, 2, val)
 
 /*
  * The WatchLo register.  There may be up to 8 of them.
@@ -1183,6 +1243,19 @@ do {									\
 
 #define read_c0_segctl2()	__read_32bit_c0_register($5, 4)
 #define write_c0_segctl2(val)	__write_32bit_c0_register($5, 4, val)
+
+/* Hardware Page Table Walker */
+#define read_c0_pwbase()	__read_ulong_c0_register($5, 5)
+#define write_c0_pwbase(val)	__write_ulong_c0_register($5, 5, val)
+
+#define read_c0_pwfield()	__read_ulong_c0_register($5, 6)
+#define write_c0_pwfield(val)	__write_ulong_c0_register($5, 6, val)
+
+#define read_c0_pwsize()	__read_ulong_c0_register($5, 7)
+#define write_c0_pwsize(val)	__write_ulong_c0_register($5, 7, val)
+
+#define read_c0_pwctl()		__read_32bit_c0_register($6, 6)
+#define write_c0_pwctl(val)	__write_32bit_c0_register($6, 6, val)
 
 /* Cavium OCTEON (cnMIPS) */
 #define read_c0_cvmcount()	__read_ulong_c0_register($9, 6)
@@ -1722,11 +1795,6 @@ static inline void tlb_write_random(void)
 /*
  * Manipulate bits in a c0 register.
  */
-#ifndef CONFIG_MIPS_MT_SMTC
-/*
- * SMTC Linux requires shutting-down microthread scheduling
- * during CP0 register read-modify-write sequences.
- */
 #define __BUILD_SET_C0(name)					\
 static inline unsigned int					\
 set_c0_##name(unsigned int set)					\
@@ -1765,124 +1833,10 @@ change_c0_##name(unsigned int change, unsigned int val)		\
 	return res;						\
 }
 
-#else /* SMTC versions that manage MT scheduling */
-
-#include <linux/irqflags.h>
-
-/*
- * This is a duplicate of dmt() in mipsmtregs.h to avoid problems with
- * header file recursion.
- */
-static inline unsigned int __dmt(void)
-{
-	int res;
-
-	__asm__ __volatile__(
-	"	.set	push						\n"
-	"	.set	mips32r2					\n"
-	"	.set	noat						\n"
-	"	.word	0x41610BC1			# dmt $1	\n"
-	"	ehb							\n"
-	"	move	%0, $1						\n"
-	"	.set	pop						\n"
-	: "=r" (res));
-
-	instruction_hazard();
-
-	return res;
-}
-
-#define __VPECONTROL_TE_SHIFT	15
-#define __VPECONTROL_TE		(1UL << __VPECONTROL_TE_SHIFT)
-
-#define __EMT_ENABLE		__VPECONTROL_TE
-
-static inline void __emt(unsigned int previous)
-{
-	if ((previous & __EMT_ENABLE))
-		__asm__ __volatile__(
-		"	.set	mips32r2				\n"
-		"	.word	0x41600be1		# emt		\n"
-		"	ehb						\n"
-		"	.set	mips0					\n");
-}
-
-static inline void __ehb(void)
-{
-	__asm__ __volatile__(
-	"	.set	mips32r2					\n"
-	"	ehb							\n"		"	.set	mips0						\n");
-}
-
-/*
- * Note that local_irq_save/restore affect TC-specific IXMT state,
- * not Status.IE as in non-SMTC kernel.
- */
-
-#define __BUILD_SET_C0(name)					\
-static inline unsigned int					\
-set_c0_##name(unsigned int set)					\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res | set;					\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}								\
-								\
-static inline unsigned int					\
-clear_c0_##name(unsigned int clear)				\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res & ~clear;					\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}								\
-								\
-static inline unsigned int					\
-change_c0_##name(unsigned int change, unsigned int newbits)	\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-								\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res & ~change;					\
-	new |= (newbits & change);				\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}
-#endif
-
 __BUILD_SET_C0(status)
 __BUILD_SET_C0(cause)
 __BUILD_SET_C0(config)
+__BUILD_SET_C0(config5)
 __BUILD_SET_C0(intcontrol)
 __BUILD_SET_C0(intctl)
 __BUILD_SET_C0(srsmap)
@@ -1893,6 +1847,15 @@ __BUILD_SET_C0(brcm_cmt_intr)
 __BUILD_SET_C0(brcm_cmt_ctrl)
 __BUILD_SET_C0(brcm_config)
 __BUILD_SET_C0(brcm_mode)
+
+/*
+ * Return low 10 bits of ebase.
+ * Note that under KVM (MIPSVZ) this returns vcpu id.
+ */
+static inline unsigned int get_ebase_cpunum(void)
+{
+	return read_c0_ebase() & 0x3ff;
+}
 
 #endif /* !__ASSEMBLY__ */
 

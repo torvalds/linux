@@ -142,7 +142,6 @@ static int pm8xxx_vib_play_effect(struct input_dev *dev, void *data,
 }
 
 static int pm8xxx_vib_probe(struct platform_device *pdev)
-
 {
 	struct pm8xxx_vib *vib;
 	struct input_dev *input_dev;
@@ -214,12 +213,20 @@ static int pm8xxx_vib_suspend(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pm8xxx_vib_pm_ops, pm8xxx_vib_suspend, NULL);
 
+static const struct of_device_id pm8xxx_vib_id_table[] = {
+	{ .compatible = "qcom,pm8058-vib" },
+	{ .compatible = "qcom,pm8921-vib" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, pm8xxx_vib_id_table);
+
 static struct platform_driver pm8xxx_vib_driver = {
 	.probe		= pm8xxx_vib_probe,
 	.driver		= {
 		.name	= "pm8xxx-vib",
 		.owner	= THIS_MODULE,
 		.pm	= &pm8xxx_vib_pm_ops,
+		.of_match_table = pm8xxx_vib_id_table,
 	},
 };
 module_platform_driver(pm8xxx_vib_driver);

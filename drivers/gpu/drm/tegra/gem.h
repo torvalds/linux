@@ -3,17 +3,9 @@
  *
  * Copyright (c) 2012-2013, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #ifndef __HOST1X_GEM_H
@@ -24,8 +16,18 @@
 #include <drm/drm.h>
 #include <drm/drmP.h>
 
-#define TEGRA_BO_TILED     (1 << 0)
-#define TEGRA_BO_BOTTOM_UP (1 << 1)
+#define TEGRA_BO_BOTTOM_UP (1 << 0)
+
+enum tegra_bo_tiling_mode {
+	TEGRA_BO_TILING_MODE_PITCH,
+	TEGRA_BO_TILING_MODE_TILED,
+	TEGRA_BO_TILING_MODE_BLOCK,
+};
+
+struct tegra_bo_tiling {
+	enum tegra_bo_tiling_mode mode;
+	unsigned long value;
+};
 
 struct tegra_bo {
 	struct drm_gem_object gem;
@@ -34,6 +36,8 @@ struct tegra_bo {
 	struct sg_table *sgt;
 	dma_addr_t paddr;
 	void *vaddr;
+
+	struct tegra_bo_tiling tiling;
 };
 
 static inline struct tegra_bo *to_tegra_bo(struct drm_gem_object *gem)

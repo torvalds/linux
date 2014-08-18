@@ -236,7 +236,7 @@ struct svc_rqst {
 	struct svc_cred		rq_cred;	/* auth info */
 	void *			rq_xprt_ctxt;	/* transport specific context ptr */
 	struct svc_deferred_req*rq_deferred;	/* deferred request we are replaying */
-	int			rq_usedeferral;	/* use deferral */
+	bool			rq_usedeferral;	/* use deferral */
 
 	size_t			rq_xprt_hlen;	/* xprt header len */
 	struct xdr_buf		rq_arg;
@@ -244,6 +244,7 @@ struct svc_rqst {
 	struct page *		rq_pages[RPCSVC_MAXPAGES];
 	struct page *		*rq_respages;	/* points into rq_pages */
 	struct page *		*rq_next_page; /* next reply page to use */
+	struct page *		*rq_page_end;  /* one past the last page */
 
 	struct kvec		rq_vec[RPCSVC_MAXPAGES]; /* generally useful.. */
 
@@ -254,11 +255,15 @@ struct svc_rqst {
 	u32			rq_prot;	/* IP protocol */
 	unsigned short
 				rq_secure  : 1;	/* secure port */
+	unsigned short		rq_local   : 1;	/* local request */
 
 	void *			rq_argp;	/* decoded arguments */
 	void *			rq_resp;	/* xdr'd results */
 	void *			rq_auth_data;	/* flavor-specific data */
-
+	int			rq_auth_slack;	/* extra space xdr code
+						 * should leave in head
+						 * for krb5i, krb5p.
+						 */
 	int			rq_reserved;	/* space on socket outq
 						 * reserved for this request
 						 */
@@ -272,7 +277,7 @@ struct svc_rqst {
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */
 	int			rq_cachetype;
 	struct svc_cacherep *	rq_cacherep;	/* cache info */
-	int			rq_splice_ok;   /* turned off in gss privacy
+	bool			rq_splice_ok;   /* turned off in gss privacy
 						 * to prevent encrypting page
 						 * cache pages */
 	wait_queue_head_t	rq_wait;	/* synchronization */
@@ -454,11 +459,7 @@ char *		   svc_print_addr(struct svc_rqst *, char *, size_t);
  */
 static inline void svc_reserve_auth(struct svc_rqst *rqstp, int space)
 {
-	int added_space = 0;
-
-	if (rqstp->rq_authop->flavour)
-		added_space = RPC_MAX_AUTH_SIZE;
-	svc_reserve(rqstp, space + added_space);
+	svc_reserve(rqstp, space + rqstp->rq_auth_slack);
 }
 
 #endif /* SUNRPC_SVC_H */

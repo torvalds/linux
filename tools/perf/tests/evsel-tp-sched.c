@@ -1,6 +1,7 @@
 #include <traceevent/event-parse.h>
 #include "evsel.h"
 #include "tests.h"
+#include "debug.h"
 
 static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 				  int size, bool should_be_signed)
@@ -72,9 +73,6 @@ int test__perf_evsel__tp_sched_test(void)
 		ret = -1;
 
 	if (perf_evsel__test_field(evsel, "prio", 4, true))
-		ret = -1;
-
-	if (perf_evsel__test_field(evsel, "success", 4, true))
 		ret = -1;
 
 	if (perf_evsel__test_field(evsel, "target_cpu", 4, true))

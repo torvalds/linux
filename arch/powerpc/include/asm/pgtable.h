@@ -44,6 +44,12 @@ static inline int pte_present(pte_t pte)
 	return pte_val(pte) & (_PAGE_PRESENT | _PAGE_NUMA);
 }
 
+#define pte_present_nonuma pte_present_nonuma
+static inline int pte_present_nonuma(pte_t pte)
+{
+	return pte_val(pte) & (_PAGE_PRESENT);
+}
+
 #define pte_numa pte_numa
 static inline int pte_numa(pte_t pte)
 {

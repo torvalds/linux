@@ -58,7 +58,8 @@
 #define TA_DEMO_MODE_DISCOVERY		1
 #define TA_DEFAULT_ERL			0
 #define TA_CACHE_CORE_NPS		0
-
+/* T10 protection information disabled by default */
+#define TA_DEFAULT_T10_PI		0
 
 #define ISCSI_IOV_DATA_BUFFER		5
 
@@ -556,7 +557,7 @@ struct iscsi_conn {
 	struct completion	rx_half_close_comp;
 	/* socket used by this connection */
 	struct socket		*sock;
-	void			(*orig_data_ready)(struct sock *, int);
+	void			(*orig_data_ready)(struct sock *);
 	void			(*orig_state_change)(struct sock *);
 #define LOGIN_FLAGS_READ_ACTIVE		1
 #define LOGIN_FLAGS_CLOSED		2
@@ -765,6 +766,7 @@ struct iscsi_tpg_attrib {
 	u32			prod_mode_write_protect;
 	u32			demo_mode_discovery;
 	u32			default_erl;
+	u8			t10_pi;
 	struct iscsi_portal_group *tpg;
 };
 
@@ -773,6 +775,7 @@ struct iscsi_np {
 	int			np_ip_proto;
 	int			np_sock_type;
 	enum np_thread_state_table np_thread_state;
+	bool                    enabled;
 	enum iscsi_timer_flags_table np_login_timer_flags;
 	u32			np_exports;
 	enum np_flags_table	np_flags;
@@ -787,6 +790,7 @@ struct iscsi_np {
 	void			*np_context;
 	struct iscsit_transport *np_transport;
 	struct list_head	np_list;
+	struct iscsi_tpg_np	*tpg_np;
 } ____cacheline_aligned;
 
 struct iscsi_tpg_np {

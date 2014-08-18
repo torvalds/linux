@@ -77,6 +77,9 @@ tegra_connector_detect(struct drm_connector *connector, bool force)
 	struct tegra_output *output = connector_to_output(connector);
 	enum drm_connector_status status = connector_status_unknown;
 
+	if (output->ops->detect)
+		return output->ops->detect(output);
+
 	if (gpio_is_valid(output->hpd_gpio)) {
 		if (gpio_get_value(output->hpd_gpio) == 0)
 			status = connector_status_disconnected;
@@ -102,7 +105,7 @@ static void drm_connector_clear(struct drm_connector *connector)
 
 static void tegra_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	drm_connector_clear(connector);
 }
@@ -137,7 +140,9 @@ static void tegra_encoder_dpms(struct drm_encoder *encoder, int mode)
 	if (mode != DRM_MODE_DPMS_ON) {
 		drm_panel_disable(panel);
 		tegra_output_disable(output);
+		drm_panel_unprepare(panel);
 	} else {
+		drm_panel_prepare(panel);
 		tegra_output_enable(output);
 		drm_panel_enable(panel);
 	}
@@ -292,6 +297,11 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 		encoder = DRM_MODE_ENCODER_DSI;
 		break;
 
+	case TEGRA_OUTPUT_EDP:
+		connector = DRM_MODE_CONNECTOR_eDP;
+		encoder = DRM_MODE_ENCODER_TMDS;
+		break;
+
 	default:
 		connector = DRM_MODE_CONNECTOR_Unknown;
 		encoder = DRM_MODE_ENCODER_NONE;
@@ -310,7 +320,7 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	drm_encoder_helper_add(&output->encoder, &encoder_helper_funcs);
 
 	drm_mode_connector_attach_encoder(&output->connector, &output->encoder);
-	drm_sysfs_connector_add(&output->connector);
+	drm_connector_register(&output->connector);
 
 	output->encoder.possible_crtcs = 0x3;
 

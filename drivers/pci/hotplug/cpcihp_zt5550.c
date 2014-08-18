@@ -295,7 +295,7 @@ static struct pci_driver zt5550_hc_driver = {
 
 static int __init zt5550_init(void)
 {
-	struct resource* r;
+	struct resource *r;
 	int rc;
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION);

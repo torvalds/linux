@@ -102,8 +102,6 @@ struct oid_obj_priv {
 
 #if defined(_RTW_MP_IOCTL_C_)
 static int oid_null_function(struct oid_par_priv *poid_par_priv) {
-	_func_enter_;
-	_func_exit_;
 	return NDIS_STATUS_SUCCESS;
 }
 #endif

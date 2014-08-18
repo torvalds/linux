@@ -136,6 +136,7 @@ of the following host1x client modules:
   - compatible: "nvidia,tegra<chip>-hdmi"
   - reg: Physical base address and length of the controller's registers.
   - interrupts: The interrupt outputs from the controller.
+  - hdmi-supply: supply for the +5V HDMI connector pin
   - vdd-supply: regulator for supply voltage
   - pll-supply: regulator for PLL
   - clocks: Must contain an entry for each entry in clock-names.
@@ -180,6 +181,7 @@ of the following host1x client modules:
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - dsi
+  - avdd-dsi-supply: phandle of a supply that powers the DSI controller
   - nvidia,mipi-calibrate: Should contain a phandle and a specifier specifying
     which pads are used by this DSI output and need to be calibrated. See also
     ../mipi/nvidia,tegra114-mipi.txt.
@@ -189,6 +191,48 @@ of the following host1x client modules:
   - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
   - nvidia,edid: supplies a binary EDID blob
   - nvidia,panel: phandle of a display panel
+
+- sor: serial output resource
+
+  Required properties:
+  - compatible: "nvidia,tegra124-sor"
+  - reg: Physical base address and length of the controller's registers.
+  - interrupts: The interrupt outputs from the controller.
+  - clocks: Must contain an entry for each entry in clock-names.
+    See ../clocks/clock-bindings.txt for details.
+  - clock-names: Must include the following entries:
+    - sor: clock input for the SOR hardware
+    - parent: input for the pixel clock
+    - dp: reference clock for the SOR clock
+    - safe: safe reference for the SOR clock during power up
+  - resets: Must contain an entry for each entry in reset-names.
+    See ../reset/reset.txt for details.
+  - reset-names: Must include the following entries:
+    - sor
+
+  Optional properties:
+  - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
+  - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
+  - nvidia,edid: supplies a binary EDID blob
+  - nvidia,panel: phandle of a display panel
+
+  Optional properties when driving an eDP output:
+  - nvidia,dpaux: phandle to a DispayPort AUX interface
+
+- dpaux: DisplayPort AUX interface
+  - compatible: "nvidia,tegra124-dpaux"
+  - reg: Physical base address and length of the controller's registers.
+  - interrupts: The interrupt outputs from the controller.
+  - clocks: Must contain an entry for each entry in clock-names.
+    See ../clocks/clock-bindings.txt for details.
+  - clock-names: Must include the following entries:
+    - dpaux: clock input for the DPAUX hardware
+    - parent: reference clock
+  - resets: Must contain an entry for each entry in reset-names.
+    See ../reset/reset.txt for details.
+  - reset-names: Must include the following entries:
+    - dpaux
+  - vdd-supply: phandle of a supply that powers the DisplayPort link
 
 Example:
 

@@ -24,7 +24,9 @@ EXPORT_SYMBOL(bcm63xx_regs_base);
 const int *bcm63xx_irqs;
 EXPORT_SYMBOL(bcm63xx_irqs);
 
-static u16 bcm63xx_cpu_id;
+u16 bcm63xx_cpu_id __read_mostly;
+EXPORT_SYMBOL(bcm63xx_cpu_id);
+
 static u8 bcm63xx_cpu_rev;
 static unsigned int bcm63xx_cpu_freq;
 static unsigned int bcm63xx_memory_size;
@@ -96,13 +98,6 @@ static const int bcm6368_irqs[] = {
 	__GEN_CPU_IRQ_TABLE(6368)
 
 };
-
-u16 __bcm63xx_get_cpu_id(void)
-{
-	return bcm63xx_cpu_id;
-}
-
-EXPORT_SYMBOL(__bcm63xx_get_cpu_id);
 
 u8 bcm63xx_get_cpu_rev(void)
 {
@@ -299,14 +294,13 @@ static unsigned int detect_memory_size(void)
 void __init bcm63xx_cpu_init(void)
 {
 	unsigned int tmp;
-	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int cpu = smp_processor_id();
 	u32 chipid_reg;
 
 	/* soc registers location depends on cpu type */
 	chipid_reg = 0;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_BMIPS3300:
 		if ((read_c0_prid() & PRID_IMP_MASK) != PRID_IMP_BMIPS3300_ALT)
 			__cpu_name[cpu] = "Broadcom BCM6338";

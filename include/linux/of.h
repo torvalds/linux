@@ -18,7 +18,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/errno.h>
-#include <linux/kref.h>
+#include <linux/kobject.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spinlock.h>
 #include <linux/topology.h>
@@ -37,6 +37,7 @@ struct property {
 	struct property *next;
 	unsigned long _flags;
 	unsigned int unique_id;
+	struct bin_attribute attr;
 };
 
 #if defined(CONFIG_SPARC)
@@ -56,8 +57,7 @@ struct device_node {
 	struct	device_node *sibling;
 	struct	device_node *next;	/* next device of same type */
 	struct	device_node *allnext;	/* next in list of all nodes */
-	struct	proc_dir_entry *pde;	/* this node's proc directory */
-	struct	kref kref;
+	struct	kobject kobj;
 	unsigned long _flags;
 	void	*data;
 #if defined(CONFIG_SPARC)
@@ -67,12 +67,31 @@ struct device_node {
 #endif
 };
 
-#define MAX_PHANDLE_ARGS 8
+#define MAX_PHANDLE_ARGS 16
 struct of_phandle_args {
 	struct device_node *np;
 	int args_count;
 	uint32_t args[MAX_PHANDLE_ARGS];
 };
+
+/* initialize a node */
+extern struct kobj_type of_node_ktype;
+static inline void of_node_init(struct device_node *node)
+{
+	kobject_init(&node->kobj, &of_node_ktype);
+}
+
+/* true when node is initialized */
+static inline int of_node_is_initialized(struct device_node *node)
+{
+	return node && node->kobj.state_initialized;
+}
+
+/* true when node is attached (i.e. present on sysfs) */
+static inline int of_node_is_attached(struct device_node *node)
+{
+	return node && node->kobj.state_in_sysfs;
+}
 
 #ifdef CONFIG_OF_DYNAMIC
 extern struct device_node *of_node_get(struct device_node *node);
@@ -92,6 +111,7 @@ static inline void of_node_put(struct device_node *node) { }
 extern struct device_node *of_allnodes;
 extern struct device_node *of_chosen;
 extern struct device_node *of_aliases;
+extern struct device_node *of_stdout;
 extern raw_spinlock_t devtree_lock;
 
 static inline bool of_have_populated_dt(void)
@@ -109,9 +129,35 @@ static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
 	return test_bit(flag, &n->_flags);
 }
 
+static inline int of_node_test_and_set_flag(struct device_node *n,
+					    unsigned long flag)
+{
+	return test_and_set_bit(flag, &n->_flags);
+}
+
 static inline void of_node_set_flag(struct device_node *n, unsigned long flag)
 {
 	set_bit(flag, &n->_flags);
+}
+
+static inline void of_node_clear_flag(struct device_node *n, unsigned long flag)
+{
+	clear_bit(flag, &n->_flags);
+}
+
+static inline int of_property_check_flag(struct property *p, unsigned long flag)
+{
+	return test_bit(flag, &p->_flags);
+}
+
+static inline void of_property_set_flag(struct property *p, unsigned long flag)
+{
+	set_bit(flag, &p->_flags);
+}
+
+static inline void of_property_clear_flag(struct property *p, unsigned long flag)
+{
+	clear_bit(flag, &p->_flags);
 }
 
 extern struct device_node *of_find_all_nodes(struct device_node *prev);
@@ -156,6 +202,8 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 /* flag descriptions */
 #define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
 #define OF_DETACHED	2 /* node has been detached from the device tree */
+#define OF_POPULATED	3 /* device already created for the node */
+#define OF_POPULATED_BUS	4 /* of_platform_populate recursed to children of this node */
 
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
@@ -167,6 +215,8 @@ static inline const char *of_node_full_name(const struct device_node *np)
 	return np ? np->full_name : "<no-node>";
 }
 
+#define for_each_of_allnodes(dn) \
+	for (dn = of_allnodes; dn; dn = dn->allnext)
 extern struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name);
 extern struct device_node *of_find_node_by_type(struct device_node *from,
@@ -198,6 +248,8 @@ extern struct device_node *of_find_node_with_property(
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
+extern int of_property_count_elems_of_size(const struct device_node *np,
+				const char *propname, int elem_size);
 extern int of_property_read_u32_index(const struct device_node *np,
 				       const char *propname,
 				       u32 index, u32 *out_value);
@@ -270,6 +322,7 @@ extern int of_update_property(struct device_node *np, struct property *newprop);
 struct of_prop_reconfig {
 	struct device_node	*dn;
 	struct property		*prop;
+	struct property		*old_prop;
 };
 
 extern int of_reconfig_notifier_register(struct notifier_block *);
@@ -300,11 +353,11 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
  */
 const char *of_prop_next_string(struct property *prop, const char *cur);
 
-int of_device_is_stdout_path(struct device_node *dn);
+bool of_console_check(struct device_node *dn, char *name, int index);
 
 #else /* CONFIG_OF */
 
-static inline const char* of_node_full_name(struct device_node *np)
+static inline const char* of_node_full_name(const struct device_node *np)
 {
 	return "<no-node>";
 }
@@ -325,6 +378,11 @@ static inline struct device_node *of_find_matching_node_and_match(
 	struct device_node *from,
 	const struct of_device_id *matches,
 	const struct of_device_id **match)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_find_node_by_path(const char *path)
 {
 	return NULL;
 }
@@ -388,6 +446,12 @@ static inline struct device_node *of_find_compatible_node(
 						const char *compat)
 {
 	return NULL;
+}
+
+static inline int of_property_count_elems_of_size(const struct device_node *np,
+			const char *propname, int elem_size)
+{
+	return -ENOSYS;
 }
 
 static inline int of_property_read_u32_index(const struct device_node *np,
@@ -501,9 +565,9 @@ static inline int of_machine_is_compatible(const char *compat)
 	return 0;
 }
 
-static inline int of_device_is_stdout_path(struct device_node *dn)
+static inline bool of_console_check(const struct device_node *dn, const char *name, int index)
 {
-	return 0;
+	return false;
 }
 
 static inline const __be32 *of_prop_next_u32(struct property *prop,
@@ -533,6 +597,74 @@ static inline struct device_node *of_find_matching_node(
 	const struct of_device_id *matches)
 {
 	return of_find_matching_node_and_match(from, matches, NULL);
+}
+
+/**
+ * of_property_count_u8_elems - Count the number of u8 elements in a property
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a property in a device node and count the number of u8 elements
+ * in it. Returns number of elements on sucess, -EINVAL if the property does
+ * not exist or its length does not match a multiple of u8 and -ENODATA if the
+ * property does not have a value.
+ */
+static inline int of_property_count_u8_elems(const struct device_node *np,
+				const char *propname)
+{
+	return of_property_count_elems_of_size(np, propname, sizeof(u8));
+}
+
+/**
+ * of_property_count_u16_elems - Count the number of u16 elements in a property
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a property in a device node and count the number of u16 elements
+ * in it. Returns number of elements on sucess, -EINVAL if the property does
+ * not exist or its length does not match a multiple of u16 and -ENODATA if the
+ * property does not have a value.
+ */
+static inline int of_property_count_u16_elems(const struct device_node *np,
+				const char *propname)
+{
+	return of_property_count_elems_of_size(np, propname, sizeof(u16));
+}
+
+/**
+ * of_property_count_u32_elems - Count the number of u32 elements in a property
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a property in a device node and count the number of u32 elements
+ * in it. Returns number of elements on sucess, -EINVAL if the property does
+ * not exist or its length does not match a multiple of u32 and -ENODATA if the
+ * property does not have a value.
+ */
+static inline int of_property_count_u32_elems(const struct device_node *np,
+				const char *propname)
+{
+	return of_property_count_elems_of_size(np, propname, sizeof(u32));
+}
+
+/**
+ * of_property_count_u64_elems - Count the number of u64 elements in a property
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a property in a device node and count the number of u64 elements
+ * in it. Returns number of elements on sucess, -EINVAL if the property does
+ * not exist or its length does not match a multiple of u64 and -ENODATA if the
+ * property does not have a value.
+ */
+static inline int of_property_count_u64_elems(const struct device_node *np,
+				const char *propname)
+{
+	return of_property_count_elems_of_size(np, propname, sizeof(u64));
 }
 
 /**
@@ -633,14 +765,102 @@ static inline int of_get_available_child_count(const struct device_node *np)
 	return num;
 }
 
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_PROC_DEVICETREE)
-extern void proc_device_tree_add_node(struct device_node *, struct proc_dir_entry *);
-extern void proc_device_tree_add_prop(struct proc_dir_entry *pde, struct property *prop);
-extern void proc_device_tree_remove_prop(struct proc_dir_entry *pde,
-					 struct property *prop);
-extern void proc_device_tree_update_prop(struct proc_dir_entry *pde,
-					 struct property *newprop,
-					 struct property *oldprop);
+#ifdef CONFIG_OF
+#define _OF_DECLARE(table, name, compat, fn, fn_type)			\
+	static const struct of_device_id __of_table_##name		\
+		__used __section(__##table##_of_table)			\
+		 = { .compatible = compat,				\
+		     .data = (fn == (fn_type)NULL) ? fn : fn  }
+#else
+#define _OF_DECLARE(table, name, compat, fn, fn_type)					\
+	static const struct of_device_id __of_table_##name		\
+		__attribute__((unused))					\
+		 = { .compatible = compat,				\
+		     .data = (fn == (fn_type)NULL) ? fn : fn }
+#endif
+
+typedef int (*of_init_fn_2)(struct device_node *, struct device_node *);
+typedef void (*of_init_fn_1)(struct device_node *);
+
+#define OF_DECLARE_1(table, name, compat, fn) \
+		_OF_DECLARE(table, name, compat, fn, of_init_fn_1)
+#define OF_DECLARE_2(table, name, compat, fn) \
+		_OF_DECLARE(table, name, compat, fn, of_init_fn_2)
+
+/**
+ * struct of_changeset_entry	- Holds a changeset entry
+ *
+ * @node:	list_head for the log list
+ * @action:	notifier action
+ * @np:		pointer to the device node affected
+ * @prop:	pointer to the property affected
+ * @old_prop:	hold a pointer to the original property
+ *
+ * Every modification of the device tree during a changeset
+ * is held in a list of of_changeset_entry structures.
+ * That way we can recover from a partial application, or we can
+ * revert the changeset
+ */
+struct of_changeset_entry {
+	struct list_head node;
+	unsigned long action;
+	struct device_node *np;
+	struct property *prop;
+	struct property *old_prop;
+};
+
+/**
+ * struct of_changeset - changeset tracker structure
+ *
+ * @entries:	list_head for the changeset entries
+ *
+ * changesets are a convenient way to apply bulk changes to the
+ * live tree. In case of an error, changes are rolled-back.
+ * changesets live on after initial application, and if not
+ * destroyed after use, they can be reverted in one single call.
+ */
+struct of_changeset {
+	struct list_head entries;
+};
+
+#ifdef CONFIG_OF_DYNAMIC
+extern void of_changeset_init(struct of_changeset *ocs);
+extern void of_changeset_destroy(struct of_changeset *ocs);
+extern int of_changeset_apply(struct of_changeset *ocs);
+extern int of_changeset_revert(struct of_changeset *ocs);
+extern int of_changeset_action(struct of_changeset *ocs,
+		unsigned long action, struct device_node *np,
+		struct property *prop);
+
+static inline int of_changeset_attach_node(struct of_changeset *ocs,
+		struct device_node *np)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_ATTACH_NODE, np, NULL);
+}
+
+static inline int of_changeset_detach_node(struct of_changeset *ocs,
+		struct device_node *np)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_DETACH_NODE, np, NULL);
+}
+
+static inline int of_changeset_add_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_ADD_PROPERTY, np, prop);
+}
+
+static inline int of_changeset_remove_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_REMOVE_PROPERTY, np, prop);
+}
+
+static inline int of_changeset_update_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_UPDATE_PROPERTY, np, prop);
+}
 #endif
 
 #endif /* _LINUX_OF_H */

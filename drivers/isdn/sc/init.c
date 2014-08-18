@@ -390,8 +390,8 @@ static void __exit sc_exit(void)
 		/*
 		 * kill the timers
 		 */
-		del_timer(&(sc_adapter[i]->reset_timer));
-		del_timer(&(sc_adapter[i]->stat_timer));
+		del_timer_sync(&(sc_adapter[i]->reset_timer));
+		del_timer_sync(&(sc_adapter[i]->stat_timer));
 
 		/*
 		 * Tell I4L we're toast

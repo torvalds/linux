@@ -702,6 +702,15 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@inode points to the inode to use as a reference.
  *	The current task must be the one that nominated @inode.
  *	Return 0 if successful.
+ * @kernel_fw_from_file:
+ *	Load firmware from userspace (not called for built-in firmware).
+ *	@file contains the file structure pointing to the file containing
+ *	the firmware to load. This argument will be NULL if the firmware
+ *	was loaded via the uevent-triggered blob-based interface exposed
+ *	by CONFIG_FW_LOADER_USER_HELPER.
+ *	@buf pointer to buffer containing firmware contents.
+ *	@size length of the firmware contents.
+ *	Return 0 if permission is granted.
  * @kernel_module_request:
  *	Ability to trigger the kernel to automatically upcall to userspace for
  *	userspace to load a kernel module with the given name.
@@ -1565,6 +1574,7 @@ struct security_operations {
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
+	int (*kernel_fw_from_file)(struct file *file, char *buf, size_t size);
 	int (*kernel_module_request)(char *kmod_name);
 	int (*kernel_module_from_file)(struct file *file);
 	int (*task_fix_setuid) (struct cred *new, const struct cred *old,
@@ -1708,7 +1718,7 @@ struct security_operations {
 	void (*key_free) (struct key *key);
 	int (*key_permission) (key_ref_t key_ref,
 			       const struct cred *cred,
-			       key_perm_t perm);
+			       unsigned perm);
 	int (*key_getsecurity)(struct key *key, char **_buffer);
 #endif	/* CONFIG_KEYS */
 
@@ -1793,7 +1803,8 @@ int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 int security_inode_rmdir(struct inode *dir, struct dentry *dentry);
 int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
 int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
-			  struct inode *new_dir, struct dentry *new_dentry);
+			  struct inode *new_dir, struct dentry *new_dentry,
+			  unsigned int flags);
 int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
@@ -1836,6 +1847,7 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
 void security_transfer_creds(struct cred *new, const struct cred *old);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
+int security_kernel_fw_from_file(struct file *file, char *buf, size_t size);
 int security_kernel_module_request(char *kmod_name);
 int security_kernel_module_from_file(struct file *file);
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
@@ -2161,7 +2173,8 @@ static inline int security_inode_mknod(struct inode *dir,
 static inline int security_inode_rename(struct inode *old_dir,
 					 struct dentry *old_dentry,
 					 struct inode *new_dir,
-					 struct dentry *new_dentry)
+					 struct dentry *new_dentry,
+					 unsigned int flags)
 {
 	return 0;
 }
@@ -2357,6 +2370,12 @@ static inline int security_kernel_act_as(struct cred *cred, u32 secid)
 
 static inline int security_kernel_create_files_as(struct cred *cred,
 						  struct inode *inode)
+{
+	return 0;
+}
+
+static inline int security_kernel_fw_from_file(struct file *file,
+					       char *buf, size_t size)
 {
 	return 0;
 }
@@ -2955,7 +2974,8 @@ int security_path_symlink(struct path *dir, struct dentry *dentry,
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 		       struct dentry *new_dentry);
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
-			 struct path *new_dir, struct dentry *new_dentry);
+			 struct path *new_dir, struct dentry *new_dentry,
+			 unsigned int flags);
 int security_path_chmod(struct path *path, umode_t mode);
 int security_path_chown(struct path *path, kuid_t uid, kgid_t gid);
 int security_path_chroot(struct path *path);
@@ -3003,7 +3023,8 @@ static inline int security_path_link(struct dentry *old_dentry,
 static inline int security_path_rename(struct path *old_dir,
 				       struct dentry *old_dentry,
 				       struct path *new_dir,
-				       struct dentry *new_dentry)
+				       struct dentry *new_dentry,
+				       unsigned int flags)
 {
 	return 0;
 }
@@ -3030,7 +3051,7 @@ static inline int security_path_chroot(struct path *path)
 int security_key_alloc(struct key *key, const struct cred *cred, unsigned long flags);
 void security_key_free(struct key *key);
 int security_key_permission(key_ref_t key_ref,
-			    const struct cred *cred, key_perm_t perm);
+			    const struct cred *cred, unsigned perm);
 int security_key_getsecurity(struct key *key, char **_buffer);
 
 #else
@@ -3048,7 +3069,7 @@ static inline void security_key_free(struct key *key)
 
 static inline int security_key_permission(key_ref_t key_ref,
 					  const struct cred *cred,
-					  key_perm_t perm)
+					  unsigned perm)
 {
 	return 0;
 }

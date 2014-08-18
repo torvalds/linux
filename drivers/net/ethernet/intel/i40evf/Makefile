@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
-# Copyright(c) 2013 Intel Corporation.
+# Copyright(c) 2013 - 2014 Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,
@@ -11,6 +11,9 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # The full GNU General Public License is included in this distribution in
 # the file called "COPYING".

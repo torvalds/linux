@@ -196,6 +196,20 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 		}
 	}
 
+	if (!found) {
+		while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
+			dhandle = ACPI_HANDLE(&pdev->dev);
+			if (!dhandle)
+				continue;
+
+			status = acpi_get_handle(dhandle, "ATRM", &atrm_handle);
+			if (!ACPI_FAILURE(status)) {
+				found = true;
+				break;
+			}
+		}
+	}
+
 	if (!found)
 		return false;
 
@@ -612,7 +626,7 @@ static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 	    vhdr->DeviceID != rdev->pdev->device) {
 		DRM_INFO("ACPI VFCT table is not for this card\n");
 		goto out_unmap;
-	};
+	}
 
 	if (vfct->VBIOSImageOffset + sizeof(VFCT_IMAGE_HEADER) + vhdr->ImageLength > tbl_size) {
 		DRM_ERROR("ACPI VFCT image truncated\n");

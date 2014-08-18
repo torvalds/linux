@@ -138,9 +138,9 @@ static void __init sirfsoc_smp_prepare_cpus(unsigned int max_cpus)
 }
 
 struct smp_operations sirfsoc_smp_ops __initdata = {
-        .smp_prepare_cpus       = sirfsoc_smp_prepare_cpus,
-        .smp_secondary_init     = sirfsoc_secondary_init,
-        .smp_boot_secondary     = sirfsoc_boot_secondary,
+	.smp_prepare_cpus       = sirfsoc_smp_prepare_cpus,
+	.smp_secondary_init     = sirfsoc_secondary_init,
+	.smp_boot_secondary     = sirfsoc_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die                = sirfsoc_cpu_die,
 #endif

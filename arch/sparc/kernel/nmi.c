@@ -68,27 +68,16 @@ EXPORT_SYMBOL(touch_nmi_watchdog);
 
 static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 {
+	int this_cpu = smp_processor_id();
+
 	if (notify_die(DIE_NMIWATCHDOG, str, regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
 		return;
 
-	console_verbose();
-	bust_spinlocks(1);
-
-	printk(KERN_EMERG "%s", str);
-	printk(" on CPU%d, ip %08lx, registers:\n",
-	       smp_processor_id(), regs->tpc);
-	show_regs(regs);
-	dump_stack();
-
-	bust_spinlocks(0);
-
 	if (do_panic || panic_on_oops)
-		panic("Non maskable interrupt");
-
-	nmi_exit();
-	local_irq_enable();
-	do_exit(SIGBUS);
+		panic("Watchdog detected hard LOCKUP on cpu %d", this_cpu);
+	else
+		WARN(1, "Watchdog detected hard LOCKUP on cpu %d", this_cpu);
 }
 
 notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
@@ -141,7 +130,6 @@ static inline unsigned int get_nmi_count(int cpu)
 
 static __init void nmi_cpu_busy(void *data)
 {
-	local_irq_enable_in_hardirq();
 	while (endflag == 0)
 		mb();
 }

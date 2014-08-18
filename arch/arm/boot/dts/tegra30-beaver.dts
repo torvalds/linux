@@ -17,9 +17,15 @@
 
 	pcie-controller@00003000 {
 		status = "okay";
-		pex-clk-supply = <&sys_3v3_pexs_reg>;
-		vdd-supply = <&ldo1_reg>;
-		avdd-supply = <&ldo2_reg>;
+
+		avdd-pexa-supply = <&ldo1_reg>;
+		vdd-pexa-supply = <&ldo1_reg>;
+		avdd-pexb-supply = <&ldo1_reg>;
+		vdd-pexb-supply = <&ldo1_reg>;
+		avdd-pex-pll-supply = <&ldo1_reg>;
+		avdd-plle-supply = <&ldo1_reg>;
+		vddio-pex-ctl-supply = <&sys_3v3_reg>;
+		hvdd-pex-supply = <&sys_3v3_pexs_reg>;
 
 		pci@1,0 {
 			status = "okay";
@@ -40,6 +46,7 @@
 		hdmi@54280000 {
 			status = "okay";
 
+			hdmi-supply = <&vdd_5v0_hdmi>;
 			vdd-supply = <&sys_3v3_reg>;
 			pll-supply = <&vio_reg>;
 
@@ -476,6 +483,17 @@
 			regulator-boot-on;
 			enable-active-high;
 			gpio = <&gpio TEGRA_GPIO(L, 7) GPIO_ACTIVE_HIGH>;
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_5v0_hdmi: regulator@8 {
+			compatible = "regulator-fixed";
+			reg = <8>;
+			regulator-name = "+VDD_5V_HDMI";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
 			vin-supply = <&sys_3v3_reg>;
 		};
 	};

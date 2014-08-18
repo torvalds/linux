@@ -50,14 +50,12 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LDLM
-# include <linux/libcfs/libcfs.h>
-
-#include <lustre_dlm.h>
-#include <obd_support.h>
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
-
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../include/lustre_dlm.h"
+#include "../include/obd_support.h"
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
 #include "ldlm_internal.h"
 
 
@@ -92,7 +90,7 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 		if (lck->l_policy_data.l_extent.end + 1 > kms)
 			kms = lck->l_policy_data.l_extent.end + 1;
 	}
-	LASSERTF(kms <= old_kms, "kms "LPU64" old_kms "LPU64"\n", kms, old_kms);
+	LASSERTF(kms <= old_kms, "kms %llu old_kms %llu\n", kms, old_kms);
 
 	return kms;
 }
@@ -104,7 +102,7 @@ struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 	struct ldlm_interval *node;
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
-	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, GFP_NOFS);
 	if (node == NULL)
 		return NULL;
 

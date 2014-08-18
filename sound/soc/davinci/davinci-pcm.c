@@ -852,15 +852,9 @@ static struct snd_soc_platform_driver davinci_soc_platform = {
 
 int davinci_soc_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(dev, &davinci_soc_platform);
+	return devm_snd_soc_register_platform(dev, &davinci_soc_platform);
 }
 EXPORT_SYMBOL_GPL(davinci_soc_platform_register);
-
-void davinci_soc_platform_unregister(struct device *dev)
-{
-	snd_soc_unregister_platform(dev);
-}
-EXPORT_SYMBOL_GPL(davinci_soc_platform_unregister);
 
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_DESCRIPTION("TI DAVINCI PCM DMA module");

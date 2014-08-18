@@ -640,16 +640,16 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 
 	reg = snd_soc_read(codec, WM8900_REG_AUDIO1) & ~0x60;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		reg |= 0x20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		reg |= 0x40;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		reg |= 0x60;
 		break;
 	default:
@@ -1178,13 +1178,7 @@ static int wm8900_resume(struct snd_soc_codec *codec)
 
 static int wm8900_probe(struct snd_soc_codec *codec)
 {
-	int ret = 0, reg;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
+	int reg;
 
 	reg = snd_soc_read(codec, WM8900_REG_ID);
 	if (reg != 0x8900) {

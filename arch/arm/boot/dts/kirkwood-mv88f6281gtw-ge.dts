@@ -28,10 +28,21 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
+	mbus {
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+        };
+
 	ocp@f1000000 {
-		pinctrl@10000 {
+		pin-controller@10000 {
 			pmx_usb_led: pmx-usb-led {
 				marvell,pins = "mpp12";
 				marvell,function = "gpo";
@@ -49,14 +60,12 @@
 		};
 
 		spi@10600 {
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 			status = "okay";
 
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mx25l12805d";
+				compatible = "mxicy,mx25l12805d";
 				reg = <0>;
 				spi-max-frequency = <50000000>;
 				mode = <0>;
@@ -64,22 +73,11 @@
 		};
 
 		serial@12000 {
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
-			clock-frequency = <200000000>;
-			status = "ok";
+			status = "okay";
 		};
 
 		ehci@50000 {
 			status = "okay";
-		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
 		};
 	};
 
@@ -121,5 +119,67 @@
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	dsa@0 {
+		compatible = "marvell,dsa";
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		dsa,ethernet = <&eth0>;
+		dsa,mii-bus = <&ethphy0>;
+
+		switch@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0 0>;	/* MDIO address 0, switch 0 in tree */
+
+			port@0 {
+				reg = <0>;
+				label = "lan1";
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan2";
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan3";
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan4";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "wan";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+			};
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@ff {
+		reg = <0xff>; 	/* No phy attached */
+		speed = <1000>;
+		duplex = <1>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

@@ -5,10 +5,10 @@ ath9k-y +=	beacon.o \
 		recv.o \
 		xmit.o \
 		link.o \
-		antenna.o
+		antenna.o \
+		channel.o
 
 ath9k-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += mci.o
-ath9k-$(CONFIG_ATH9K_LEGACY_RATE_CONTROL) += rc.o
 ath9k-$(CONFIG_ATH9K_PCI) += pci.o
 ath9k-$(CONFIG_ATH9K_AHB) += ahb.o
 ath9k-$(CONFIG_ATH9K_DFS_DEBUGFS) += dfs_debug.o
@@ -52,7 +52,10 @@ ath9k_hw-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += btcoex.o \
 obj-$(CONFIG_ATH9K_HW) += ath9k_hw.o
 
 obj-$(CONFIG_ATH9K_COMMON) += ath9k_common.o
-ath9k_common-y:=	common.o
+ath9k_common-y:=	common.o \
+			common-init.o \
+			common-beacon.o \
+			common-debug.o
 
 ath9k_htc-y +=	htc_hst.o \
 		hif_usb.o \

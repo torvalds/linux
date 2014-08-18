@@ -27,8 +27,7 @@
 #define RX_RING_MIN	64
 #define TX_RING_MAX	1024
 #define RX_RING_MAX	1024
-#define ETHERSMALL		60
-#define PKT_BUF_SZ		1538
+#define PKT_BUF_SZ	1538
 #define SH_ETH_TSU_TIMEOUT_MS	500
 #define SH_ETH_TSU_CAM_ENTRIES	32
 
@@ -320,7 +319,6 @@ enum TD_STS_BIT {
 enum RMCR_BIT {
 	RMCR_RNC = 0x00000001,
 };
-#define DEFAULT_RMCR_VALUE	0x00000000
 
 /* ECMR */
 enum FELIC_MODE_BIT {
@@ -467,7 +465,6 @@ struct sh_eth_cpu_data {
 	unsigned long fdr_value;
 	unsigned long fcftr_value;
 	unsigned long rpadir_value;
-	unsigned long rmcr_value;
 
 	/* interrupt checking mask */
 	unsigned long tx_check;

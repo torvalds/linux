@@ -426,16 +426,16 @@ static int wm8770_hw_params(struct snd_pcm_substream *substream,
 	wm8770 = snd_soc_codec_get_drvdata(codec);
 
 	iface = 0;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= 0x10;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= 0x20;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface |= 0x30;
 		break;
 	}
@@ -579,12 +579,6 @@ static int wm8770_probe(struct snd_soc_codec *codec)
 
 	wm8770 = snd_soc_codec_get_drvdata(codec);
 	wm8770->codec = codec;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8770->supplies),
 				    wm8770->supplies);

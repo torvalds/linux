@@ -13,9 +13,9 @@
  *
  * The bitop functions are defined to work on unsigned longs, so for an
  * s390x system the bits end up numbered:
- *   |63..............0|127............64|191...........128|255...........196|
+ *   |63..............0|127............64|191...........128|255...........192|
  * and on s390:
- *   |31.....0|63....31|95....64|127...96|159..128|191..160|223..192|255..224|
+ *   |31.....0|63....32|95....64|127...96|159..128|191..160|223..192|255..224|
  *
  * There are a few little-endian macros used mostly for filesystem
  * bitmaps, these work on similar bit arrays layouts, but
@@ -30,7 +30,7 @@
  * on an s390x system the bits are numbered:
  *   |0..............63|64............127|128...........191|192...........255|
  * and on s390:
- *   |0.....31|31....63|64....95|96...127|128..159|160..191|192..223|224..255|
+ *   |0.....31|32....63|64....95|96...127|128..159|160..191|192..223|224..255|
  *
  * The main difference is that bit 0-63 (64b) or 0-31 (32b) in the bit
  * number field needs to be reversed compared to the LSB0 encoded bit
@@ -47,14 +47,18 @@
 
 #include <linux/typecheck.h>
 #include <linux/compiler.h>
+#include <asm/barrier.h>
+
+#define __BITOPS_NO_BARRIER	"\n"
 
 #ifndef CONFIG_64BIT
 
 #define __BITOPS_OR		"or"
 #define __BITOPS_AND		"nr"
 #define __BITOPS_XOR		"xr"
+#define __BITOPS_BARRIER	"\n"
 
-#define __BITOPS_LOOP(__addr, __val, __op_string)		\
+#define __BITOPS_LOOP(__addr, __val, __op_string, __barrier)	\
 ({								\
 	unsigned long __old, __new;				\
 								\
@@ -67,7 +71,7 @@
 		"	jl	0b"				\
 		: "=&d" (__old), "=&d" (__new), "+Q" (*(__addr))\
 		: "d" (__val)					\
-		: "cc");					\
+		: "cc", "memory");				\
 	__old;							\
 })
 
@@ -78,17 +82,20 @@
 #define __BITOPS_OR		"laog"
 #define __BITOPS_AND		"lang"
 #define __BITOPS_XOR		"laxg"
+#define __BITOPS_BARRIER	"bcr	14,0\n"
 
-#define __BITOPS_LOOP(__addr, __val, __op_string)		\
+#define __BITOPS_LOOP(__addr, __val, __op_string, __barrier)	\
 ({								\
 	unsigned long __old;					\
 								\
 	typecheck(unsigned long *, (__addr));			\
 	asm volatile(						\
+		__barrier					\
 		__op_string "	%0,%2,%1\n"			\
+		__barrier					\
 		: "=d" (__old),	"+Q" (*(__addr))		\
 		: "d" (__val)					\
-		: "cc");					\
+		: "cc", "memory");				\
 	__old;							\
 })
 
@@ -97,8 +104,9 @@
 #define __BITOPS_OR		"ogr"
 #define __BITOPS_AND		"ngr"
 #define __BITOPS_XOR		"xgr"
+#define __BITOPS_BARRIER	"\n"
 
-#define __BITOPS_LOOP(__addr, __val, __op_string)		\
+#define __BITOPS_LOOP(__addr, __val, __op_string, __barrier)	\
 ({								\
 	unsigned long __old, __new;				\
 								\
@@ -111,7 +119,7 @@
 		"	jl	0b"				\
 		: "=&d" (__old), "=&d" (__new), "+Q" (*(__addr))\
 		: "d" (__val)					\
-		: "cc");					\
+		: "cc", "memory");				\
 	__old;							\
 })
 
@@ -149,12 +157,12 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *ptr)
 			"oi	%0,%b1\n"
 			: "+Q" (*caddr)
 			: "i" (1 << (nr & 7))
-			: "cc");
+			: "cc", "memory");
 		return;
 	}
 #endif
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
-	__BITOPS_LOOP(addr, mask, __BITOPS_OR);
+	__BITOPS_LOOP(addr, mask, __BITOPS_OR, __BITOPS_NO_BARRIER);
 }
 
 static inline void clear_bit(unsigned long nr, volatile unsigned long *ptr)
@@ -170,12 +178,12 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *ptr)
 			"ni	%0,%b1\n"
 			: "+Q" (*caddr)
 			: "i" (~(1 << (nr & 7)))
-			: "cc");
+			: "cc", "memory");
 		return;
 	}
 #endif
 	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
-	__BITOPS_LOOP(addr, mask, __BITOPS_AND);
+	__BITOPS_LOOP(addr, mask, __BITOPS_AND, __BITOPS_NO_BARRIER);
 }
 
 static inline void change_bit(unsigned long nr, volatile unsigned long *ptr)
@@ -191,12 +199,12 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *ptr)
 			"xi	%0,%b1\n"
 			: "+Q" (*caddr)
 			: "i" (1 << (nr & 7))
-			: "cc");
+			: "cc", "memory");
 		return;
 	}
 #endif
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
-	__BITOPS_LOOP(addr, mask, __BITOPS_XOR);
+	__BITOPS_LOOP(addr, mask, __BITOPS_XOR, __BITOPS_NO_BARRIER);
 }
 
 static inline int
@@ -206,8 +214,7 @@ test_and_set_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long old, mask;
 
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
-	old = __BITOPS_LOOP(addr, mask, __BITOPS_OR);
-	barrier();
+	old = __BITOPS_LOOP(addr, mask, __BITOPS_OR, __BITOPS_BARRIER);
 	return (old & mask) != 0;
 }
 
@@ -218,8 +225,7 @@ test_and_clear_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long old, mask;
 
 	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
-	old = __BITOPS_LOOP(addr, mask, __BITOPS_AND);
-	barrier();
+	old = __BITOPS_LOOP(addr, mask, __BITOPS_AND, __BITOPS_BARRIER);
 	return (old & ~mask) != 0;
 }
 
@@ -230,8 +236,7 @@ test_and_change_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long old, mask;
 
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
-	old = __BITOPS_LOOP(addr, mask, __BITOPS_XOR);
-	barrier();
+	old = __BITOPS_LOOP(addr, mask, __BITOPS_XOR, __BITOPS_BARRIER);
 	return (old & mask) != 0;
 }
 
@@ -304,7 +309,7 @@ static inline int test_bit(unsigned long nr, const volatile unsigned long *ptr)
  * On an s390x system the bits are numbered:
  *   |0..............63|64............127|128...........191|192...........255|
  * and on s390:
- *   |0.....31|31....63|64....95|96...127|128..159|160..191|192..223|224..255|
+ *   |0.....31|32....63|64....95|96...127|128..159|160..191|192..223|224..255|
  */
 unsigned long find_first_bit_inv(const unsigned long *addr, unsigned long size);
 unsigned long find_next_bit_inv(const unsigned long *addr, unsigned long size,

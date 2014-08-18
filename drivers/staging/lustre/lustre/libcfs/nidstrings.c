@@ -40,8 +40,8 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lnet.h"
 
 /* CAVEAT VENDITOR! Keep the canonical string representation of nets/nids
  * consistent in all conversion functions.  Some code fragments are copied
@@ -65,23 +65,19 @@ void libcfs_init_nidstrings(void)
 	spin_lock_init(&libcfs_nidstring_lock);
 }
 
-# define NIDSTR_LOCK(f)   spin_lock_irqsave(&libcfs_nidstring_lock, f)
-# define NIDSTR_UNLOCK(f) spin_unlock_irqrestore(&libcfs_nidstring_lock, f)
-
 static char *
 libcfs_next_nidstring(void)
 {
 	char	  *str;
 	unsigned long  flags;
 
-	NIDSTR_LOCK(flags);
+	spin_lock_irqsave(&libcfs_nidstring_lock, flags);
 
 	str = libcfs_nidstrings[libcfs_nidstring_idx++];
-	if (libcfs_nidstring_idx ==
-	    sizeof(libcfs_nidstrings)/sizeof(libcfs_nidstrings[0]))
+	if (libcfs_nidstring_idx == ARRAY_SIZE(libcfs_nidstrings))
 		libcfs_nidstring_idx = 0;
 
-	NIDSTR_UNLOCK(flags);
+	spin_unlock_irqrestore(&libcfs_nidstring_lock, flags);
 	return str;
 }
 
@@ -201,7 +197,7 @@ static struct netstrfns  libcfs_netstrfns[] = {
 	{/* .nf_type      */  -1},
 };
 
-const int libcfs_nnetstrfns = sizeof(libcfs_netstrfns)/sizeof(libcfs_netstrfns[0]);
+const int libcfs_nnetstrfns = ARRAY_SIZE(libcfs_netstrfns);
 
 int
 libcfs_lo_str2addr(const char *str, int nob, __u32 *addr)
@@ -230,11 +226,11 @@ libcfs_ip_addr2str(__u32 addr, char *str)
 int
 libcfs_ip_str2addr(const char *str, int nob, __u32 *addr)
 {
-	int   a;
-	int   b;
-	int   c;
-	int   d;
-	int   n = nob;			  /* XscanfX */
+	unsigned int	a;
+	unsigned int	b;
+	unsigned int	c;
+	unsigned int	d;
+	int		n = nob; /* XscanfX */
 
 	/* numeric IP? */
 	if (sscanf(str, "%u.%u.%u.%u%n", &a, &b, &c, &d, &n) >= 4 &&
@@ -422,7 +418,7 @@ libcfs_str2net_internal(const char *str, __u32 *net)
 {
 	struct netstrfns *uninitialized_var(nf);
 	int	       nob;
-	int	       netnum;
+	unsigned int   netnum;
 	int	       i;
 
 	for (i = 0; i < libcfs_nnetstrfns; i++) {

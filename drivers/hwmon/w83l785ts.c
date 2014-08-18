@@ -188,11 +188,7 @@ static int w83l785ts_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
-
-	/* Default values in case the first read fails (unlikely). */
-	data->temp[1] = data->temp[0] = 0;
 
 	/*
 	 * Initialize the W83L785TS chip

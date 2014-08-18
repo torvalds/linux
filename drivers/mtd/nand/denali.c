@@ -473,7 +473,7 @@ static void detect_partition_feature(struct denali_nand_info *denali)
 static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 {
 	uint16_t status = PASS;
-	uint32_t id_bytes[5], addr;
+	uint32_t id_bytes[8], addr;
 	uint8_t i, maf_id, device_id;
 
 	dev_dbg(denali->dev,
@@ -488,7 +488,7 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 	addr = (uint32_t)MODE_11 | BANK(denali->flash_bank);
 	index_addr(denali, (uint32_t)addr | 0, 0x90);
 	index_addr(denali, (uint32_t)addr | 1, 0);
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 8; i++)
 		index_addr_read_data(denali, addr | 2, &id_bytes[i]);
 	maf_id = id_bytes[0];
 	device_id = id_bytes[1];
@@ -1233,7 +1233,7 @@ static int denali_waitfunc(struct mtd_info *mtd, struct nand_chip *chip)
 	return status;
 }
 
-static void denali_erase(struct mtd_info *mtd, int page)
+static int denali_erase(struct mtd_info *mtd, int page)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
 
@@ -1250,8 +1250,7 @@ static void denali_erase(struct mtd_info *mtd, int page)
 	irq_status = wait_for_irq(denali, INTR_STATUS__ERASE_COMP |
 					INTR_STATUS__ERASE_FAIL);
 
-	denali->status = (irq_status & INTR_STATUS__ERASE_FAIL) ?
-						NAND_STATUS_FAIL : PASS;
+	return (irq_status & INTR_STATUS__ERASE_FAIL) ? NAND_STATUS_FAIL : PASS;
 }
 
 static void denali_cmdfunc(struct mtd_info *mtd, unsigned int cmd, int col,
@@ -1277,7 +1276,7 @@ static void denali_cmdfunc(struct mtd_info *mtd, unsigned int cmd, int col,
 		addr = (uint32_t)MODE_11 | BANK(denali->flash_bank);
 		index_addr(denali, (uint32_t)addr | 0, 0x90);
 		index_addr(denali, (uint32_t)addr | 1, 0);
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < 8; i++) {
 			index_addr_read_data(denali,
 						(uint32_t)addr | 2,
 						&id);
@@ -1584,7 +1583,7 @@ int denali_init(struct denali_nand_info *denali)
 	denali->nand.ecc.write_page_raw = denali_write_page_raw;
 	denali->nand.ecc.read_oob = denali_read_oob;
 	denali->nand.ecc.write_oob = denali_write_oob;
-	denali->nand.erase_cmd = denali_erase;
+	denali->nand.erase = denali_erase;
 
 	if (nand_scan_tail(&denali->mtd)) {
 		ret = -ENXIO;

@@ -145,6 +145,55 @@
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
 
+/**
+ * sk_ns_capable - General socket capability test
+ * @sk: Socket to use a capability on or through
+ * @user_ns: The user namespace of the capability to use
+ * @cap: The capability to use
+ *
+ * Test to see if the opener of the socket had when the socket was
+ * created and the current process has the capability @cap in the user
+ * namespace @user_ns.
+ */
+bool sk_ns_capable(const struct sock *sk,
+		   struct user_namespace *user_ns, int cap)
+{
+	return file_ns_capable(sk->sk_socket->file, user_ns, cap) &&
+		ns_capable(user_ns, cap);
+}
+EXPORT_SYMBOL(sk_ns_capable);
+
+/**
+ * sk_capable - Socket global capability test
+ * @sk: Socket to use a capability on or through
+ * @cap: The global capbility to use
+ *
+ * Test to see if the opener of the socket had when the socket was
+ * created and the current process has the capability @cap in all user
+ * namespaces.
+ */
+bool sk_capable(const struct sock *sk, int cap)
+{
+	return sk_ns_capable(sk, &init_user_ns, cap);
+}
+EXPORT_SYMBOL(sk_capable);
+
+/**
+ * sk_net_capable - Network namespace socket capability test
+ * @sk: Socket to use a capability on or through
+ * @cap: The capability to use
+ *
+ * Test to see if the opener of the socket had when the socke was created
+ * and the current process has the capability @cap over the network namespace
+ * the socket is a member of.
+ */
+bool sk_net_capable(const struct sock *sk, int cap)
+{
+	return sk_ns_capable(sk, sock_net(sk)->user_ns, cap);
+}
+EXPORT_SYMBOL(sk_net_capable);
+
+
 #ifdef CONFIG_MEMCG_KMEM
 int mem_cgroup_sockets_init(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
@@ -428,7 +477,7 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb_len);
+		sk->sk_data_ready(sk);
 	return 0;
 }
 EXPORT_SYMBOL(sock_queue_rcv_skb);
@@ -442,7 +491,7 @@ int sk_receive_skb(struct sock *sk, struct sk_buff *skb, const int nested)
 
 	skb->dev = NULL;
 
-	if (sk_rcvqueues_full(sk, skb, sk->sk_rcvbuf)) {
+	if (sk_rcvqueues_full(sk, sk->sk_rcvbuf)) {
 		atomic_inc(&sk->sk_drops);
 		goto discard_and_relse;
 	}
@@ -735,7 +784,7 @@ set_rcvbuf:
 		break;
 
 	case SO_NO_CHECK:
-		sk->sk_no_check = valbool;
+		sk->sk_no_check_tx = valbool;
 		break;
 
 	case SO_PRIORITY:
@@ -799,24 +848,25 @@ set_rcvbuf:
 			ret = -EINVAL;
 			break;
 		}
-		sock_valbool_flag(sk, SOCK_TIMESTAMPING_TX_HARDWARE,
-				  val & SOF_TIMESTAMPING_TX_HARDWARE);
-		sock_valbool_flag(sk, SOCK_TIMESTAMPING_TX_SOFTWARE,
-				  val & SOF_TIMESTAMPING_TX_SOFTWARE);
-		sock_valbool_flag(sk, SOCK_TIMESTAMPING_RX_HARDWARE,
-				  val & SOF_TIMESTAMPING_RX_HARDWARE);
+		if (val & SOF_TIMESTAMPING_OPT_ID &&
+		    !(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)) {
+			if (sk->sk_protocol == IPPROTO_TCP) {
+				if (sk->sk_state != TCP_ESTABLISHED) {
+					ret = -EINVAL;
+					break;
+				}
+				sk->sk_tskey = tcp_sk(sk)->snd_una;
+			} else {
+				sk->sk_tskey = 0;
+			}
+		}
+		sk->sk_tsflags = val;
 		if (val & SOF_TIMESTAMPING_RX_SOFTWARE)
 			sock_enable_timestamp(sk,
 					      SOCK_TIMESTAMPING_RX_SOFTWARE);
 		else
 			sock_disable_timestamp(sk,
 					       (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE));
-		sock_valbool_flag(sk, SOCK_TIMESTAMPING_SOFTWARE,
-				  val & SOF_TIMESTAMPING_SOFTWARE);
-		sock_valbool_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE,
-				  val & SOF_TIMESTAMPING_SYS_HARDWARE);
-		sock_valbool_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE,
-				  val & SOF_TIMESTAMPING_RAW_HARDWARE);
 		break;
 
 	case SO_RCVLOWAT:
@@ -1015,7 +1065,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_NO_CHECK:
-		v.val = sk->sk_no_check;
+		v.val = sk->sk_no_check_tx;
 		break;
 
 	case SO_PRIORITY:
@@ -1042,21 +1092,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_TIMESTAMPING:
-		v.val = 0;
-		if (sock_flag(sk, SOCK_TIMESTAMPING_TX_HARDWARE))
-			v.val |= SOF_TIMESTAMPING_TX_HARDWARE;
-		if (sock_flag(sk, SOCK_TIMESTAMPING_TX_SOFTWARE))
-			v.val |= SOF_TIMESTAMPING_TX_SOFTWARE;
-		if (sock_flag(sk, SOCK_TIMESTAMPING_RX_HARDWARE))
-			v.val |= SOF_TIMESTAMPING_RX_HARDWARE;
-		if (sock_flag(sk, SOCK_TIMESTAMPING_RX_SOFTWARE))
-			v.val |= SOF_TIMESTAMPING_RX_SOFTWARE;
-		if (sock_flag(sk, SOCK_TIMESTAMPING_SOFTWARE))
-			v.val |= SOF_TIMESTAMPING_SOFTWARE;
-		if (sock_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE))
-			v.val |= SOF_TIMESTAMPING_SYS_HARDWARE;
-		if (sock_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE))
-			v.val |= SOF_TIMESTAMPING_RAW_HARDWARE;
+		v.val = sk->sk_tsflags;
 		break;
 
 	case SO_RCVTIMEO:
@@ -1429,6 +1465,7 @@ static void sk_update_clone(const struct sock *sk, struct sock *newsk)
 struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 {
 	struct sock *newsk;
+	bool is_charged = true;
 
 	newsk = sk_prot_alloc(sk->sk_prot, priority, sk->sk_family);
 	if (newsk != NULL) {
@@ -1473,9 +1510,13 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 		filter = rcu_dereference_protected(newsk->sk_filter, 1);
 		if (filter != NULL)
-			sk_filter_charge(newsk, filter);
+			/* though it's an empty new sock, the charging may fail
+			 * if sysctl_optmem_max was changed between creation of
+			 * original socket and cloning
+			 */
+			is_charged = sk_filter_charge(newsk, filter);
 
-		if (unlikely(xfrm_sk_clone_policy(newsk))) {
+		if (unlikely(!is_charged || xfrm_sk_clone_policy(newsk))) {
 			/* It is still raw copy of parent, so invalidate
 			 * destructor and make plain sk_free() */
 			newsk->sk_destruct = NULL;
@@ -2196,7 +2237,7 @@ static void sock_def_error_report(struct sock *sk)
 	rcu_read_unlock();
 }
 
-static void sock_def_readable(struct sock *sk, int len)
+static void sock_def_readable(struct sock *sk)
 {
 	struct socket_wq *wq;
 

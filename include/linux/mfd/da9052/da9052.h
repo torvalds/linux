@@ -83,6 +83,7 @@ enum da9052_chip_id {
 	DA9053_AA,
 	DA9053_BA,
 	DA9053_BB,
+	DA9053_BC,
 };
 
 struct da9052_pdata;

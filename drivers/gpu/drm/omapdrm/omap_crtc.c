@@ -33,6 +33,7 @@ struct omap_crtc {
 	int pipe;
 	enum omap_channel channel;
 	struct omap_overlay_manager_info info;
+	struct drm_encoder *current_encoder;
 
 	/*
 	 * Temporary: eventually this will go away, but it is needed
@@ -120,13 +121,25 @@ static void omap_crtc_start_update(struct omap_overlay_manager *mgr)
 {
 }
 
+static void set_enabled(struct drm_crtc *crtc, bool enable);
+
 static int omap_crtc_enable(struct omap_overlay_manager *mgr)
 {
+	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
+
+	dispc_mgr_setup(omap_crtc->channel, &omap_crtc->info);
+	dispc_mgr_set_timings(omap_crtc->channel,
+			&omap_crtc->timings);
+	set_enabled(&omap_crtc->base, true);
+
 	return 0;
 }
 
 static void omap_crtc_disable(struct omap_overlay_manager *mgr)
 {
+	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
+
+	set_enabled(&omap_crtc->base, false);
 }
 
 static void omap_crtc_set_timings(struct omap_overlay_manager *mgr,
@@ -184,7 +197,6 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 	WARN_ON(omap_crtc->apply_irq.registered);
 	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 
-	omap_crtc->plane->funcs->destroy(omap_crtc->plane);
 	drm_crtc_cleanup(crtc);
 
 	kfree(omap_crtc);
@@ -245,7 +257,7 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
 	omap_crtc->full_update = true;
 
-	return omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
+	return omap_plane_mode_set(omap_crtc->plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
@@ -273,7 +285,7 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_plane *plane = omap_crtc->plane;
 	struct drm_display_mode *mode = &crtc->mode;
 
-	return omap_plane_mode_set(plane, crtc, crtc->fb,
+	return omap_plane_mode_set(plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
@@ -307,15 +319,15 @@ static void page_flip_worker(struct work_struct *work)
 	struct drm_display_mode *mode = &crtc->mode;
 	struct drm_gem_object *bo;
 
-	mutex_lock(&crtc->mutex);
-	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
+	drm_modeset_lock(&crtc->mutex, NULL);
+	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			crtc->x << 16, crtc->y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
 			vblank_cb, crtc);
-	mutex_unlock(&crtc->mutex);
+	drm_modeset_unlock(&crtc->mutex);
 
-	bo = omap_framebuffer_bo(crtc->fb, 0);
+	bo = omap_framebuffer_bo(crtc->primary->fb, 0);
 	drm_gem_object_unreference_unlocked(bo);
 }
 
@@ -336,18 +348,25 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_plane *primary = crtc->primary;
 	struct drm_gem_object *bo;
+	unsigned long flags;
 
-	DBG("%d -> %d (event=%p)", crtc->fb ? crtc->fb->base.id : -1,
+	DBG("%d -> %d (event=%p)", primary->fb ? primary->fb->base.id : -1,
 			fb->base.id, event);
 
+	spin_lock_irqsave(&dev->event_lock, flags);
+
 	if (omap_crtc->old_fb) {
+		spin_unlock_irqrestore(&dev->event_lock, flags);
 		dev_err(dev->dev, "already a pending flip\n");
 		return -EINVAL;
 	}
 
 	omap_crtc->event = event;
-	crtc->fb = fb;
+	omap_crtc->old_fb = primary->fb = fb;
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/*
 	 * Hold a reference temporarily until the crtc is updated
@@ -446,7 +465,7 @@ static void apply_worker(struct work_struct *work)
 	 * the callbacks and list modification all serialized
 	 * with respect to modesetting ioctls from userspace.
 	 */
-	mutex_lock(&crtc->mutex);
+	drm_modeset_lock(&crtc->mutex, NULL);
 	dispc_runtime_get();
 
 	/*
@@ -491,7 +510,7 @@ static void apply_worker(struct work_struct *work)
 
 out:
 	dispc_runtime_put();
-	mutex_unlock(&crtc->mutex);
+	drm_modeset_unlock(&crtc->mutex);
 }
 
 int omap_crtc_apply(struct drm_crtc *crtc,
@@ -499,7 +518,7 @@ int omap_crtc_apply(struct drm_crtc *crtc,
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
-	WARN_ON(!mutex_is_locked(&crtc->mutex));
+	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
 	/* no need to queue it again if it is already queued: */
 	if (apply->queued)
@@ -527,38 +546,46 @@ static void set_enabled(struct drm_crtc *crtc, bool enable)
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	enum omap_channel channel = omap_crtc->channel;
-	struct omap_irq_wait *wait = NULL;
+	struct omap_irq_wait *wait;
+	u32 framedone_irq, vsync_irq;
+	int ret;
 
 	if (dispc_mgr_is_enabled(channel) == enable)
 		return;
 
-	/* ignore sync-lost irqs during enable/disable */
+	/*
+	 * Digit output produces some sync lost interrupts during the first
+	 * frame when enabling, so we need to ignore those.
+	 */
 	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 
-	if (dispc_mgr_get_framedone_irq(channel)) {
-		if (!enable) {
-			wait = omap_irq_wait_init(dev,
-					dispc_mgr_get_framedone_irq(channel), 1);
-		}
+	framedone_irq = dispc_mgr_get_framedone_irq(channel);
+	vsync_irq = dispc_mgr_get_vsync_irq(channel);
+
+	if (enable) {
+		wait = omap_irq_wait_init(dev, vsync_irq, 1);
 	} else {
 		/*
-		 * When we disable digit output, we need to wait until fields
-		 * are done.  Otherwise the DSS is still working, and turning
-		 * off the clocks prevents DSS from going to OFF mode. And when
-		 * enabling, we need to wait for the extra sync losts
+		 * When we disable the digit output, we need to wait for
+		 * FRAMEDONE to know that DISPC has finished with the output.
+		 *
+		 * OMAP2/3 does not have FRAMEDONE irq for digit output, and in
+		 * that case we need to use vsync interrupt, and wait for both
+		 * even and odd frames.
 		 */
-		wait = omap_irq_wait_init(dev,
-				dispc_mgr_get_vsync_irq(channel), 2);
+
+		if (framedone_irq)
+			wait = omap_irq_wait_init(dev, framedone_irq, 1);
+		else
+			wait = omap_irq_wait_init(dev, vsync_irq, 2);
 	}
 
 	dispc_mgr_enable(channel, enable);
 
-	if (wait) {
-		int ret = omap_irq_wait(dev, wait, msecs_to_jiffies(100));
-		if (ret) {
-			dev_err(dev->dev, "%s: timeout waiting for %s\n",
-					omap_crtc->name, enable ? "enable" : "disable");
-		}
+	ret = omap_irq_wait(dev, wait, msecs_to_jiffies(100));
+	if (ret) {
+		dev_err(dev->dev, "%s: timeout waiting for %s\n",
+				omap_crtc->name, enable ? "enable" : "disable");
 	}
 
 	omap_irq_register(crtc->dev, &omap_crtc->error_irq);
@@ -585,8 +612,12 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 		}
 	}
 
+	if (omap_crtc->current_encoder && encoder != omap_crtc->current_encoder)
+		omap_encoder_set_enabled(omap_crtc->current_encoder, false);
+
+	omap_crtc->current_encoder = encoder;
+
 	if (!omap_crtc->enabled) {
-		set_enabled(&omap_crtc->base, false);
 		if (encoder)
 			omap_encoder_set_enabled(encoder, false);
 	} else {
@@ -595,13 +626,7 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 			omap_encoder_update(encoder, omap_crtc->mgr,
 					&omap_crtc->timings);
 			omap_encoder_set_enabled(encoder, true);
-			omap_crtc->full_update = false;
 		}
-
-		dispc_mgr_setup(omap_crtc->channel, &omap_crtc->info);
-		dispc_mgr_set_timings(omap_crtc->channel,
-				&omap_crtc->timings);
-		set_enabled(&omap_crtc->base, true);
 	}
 
 	omap_crtc->full_update = false;
@@ -612,10 +637,30 @@ static void omap_crtc_post_apply(struct omap_drm_apply *apply)
 	/* nothing needed for post-apply */
 }
 
+void omap_crtc_flush(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	int loops = 0;
+
+	while (!list_empty(&omap_crtc->pending_applies) ||
+		!list_empty(&omap_crtc->queued_applies) ||
+		omap_crtc->event || omap_crtc->old_fb) {
+
+		if (++loops > 10) {
+			dev_err(crtc->dev->dev,
+				"omap_crtc_flush() timeout\n");
+			break;
+		}
+
+		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
+	}
+}
+
 static const char *channel_names[] = {
 		[OMAP_DSS_CHANNEL_LCD] = "lcd",
 		[OMAP_DSS_CHANNEL_DIGIT] = "tv",
 		[OMAP_DSS_CHANNEL_LCD2] = "lcd2",
+		[OMAP_DSS_CHANNEL_LCD3] = "lcd3",
 };
 
 void omap_crtc_pre_init(void)

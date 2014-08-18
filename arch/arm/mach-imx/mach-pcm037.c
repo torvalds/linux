@@ -45,6 +45,7 @@
 
 #include "common.h"
 #include "devices-imx31.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx3.h"
 #include "pcm037.h"
@@ -703,7 +704,6 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
 	.init_time	= pcm037_timer_init,
 	.init_machine = pcm037_init,
 	.init_late = pcm037_init_late,

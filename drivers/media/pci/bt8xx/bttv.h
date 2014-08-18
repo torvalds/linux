@@ -188,6 +188,8 @@
 #define BTTV_BOARD_ADLINK_MPG24            0xa2
 #define BTTV_BOARD_BT848_CAP_14            0xa3
 #define BTTV_BOARD_CYBERVISION_CV06        0xa4
+#define BTTV_BOARD_KWORLD_VSTREAM_XPERT    0xa5
+#define BTTV_BOARD_PCI_8604PW              0xa6
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10

@@ -105,6 +105,20 @@ int fimc_is_hw_get_params(struct fimc_is *is, unsigned int num_args)
 	return 0;
 }
 
+void fimc_is_hw_set_isp_buf_mask(struct fimc_is *is, unsigned int mask)
+{
+	if (hweight32(mask) == 1) {
+		dev_err(&is->pdev->dev, "%s(): not enough buffers (mask %#x)\n",
+							__func__, mask);
+		return;
+	}
+
+	if (mcuctl_read(is, MCUCTL_REG_ISSR(23)) != 0)
+		dev_dbg(&is->pdev->dev, "non-zero DMA buffer mask\n");
+
+	mcuctl_write(mask, is, MCUCTL_REG_ISSR(23));
+}
+
 void fimc_is_hw_set_sensor_num(struct fimc_is *is)
 {
 	pr_debug("setting sensor index to: %d\n", is->sensor_index);
@@ -112,7 +126,7 @@ void fimc_is_hw_set_sensor_num(struct fimc_is *is)
 	mcuctl_write(IH_REPLY_DONE, is, MCUCTL_REG_ISSR(0));
 	mcuctl_write(is->sensor_index, is, MCUCTL_REG_ISSR(1));
 	mcuctl_write(IHC_GET_SENSOR_NUM, is, MCUCTL_REG_ISSR(2));
-	mcuctl_write(FIMC_IS_SENSOR_NUM, is, MCUCTL_REG_ISSR(3));
+	mcuctl_write(FIMC_IS_SENSORS_NUM, is, MCUCTL_REG_ISSR(3));
 }
 
 void fimc_is_hw_close_sensor(struct fimc_is *is, unsigned int index)

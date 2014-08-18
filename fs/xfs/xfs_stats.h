@@ -183,7 +183,23 @@ struct xfsstats {
 	__uint32_t		xs_ibt_2_alloc;
 	__uint32_t		xs_ibt_2_free;
 	__uint32_t		xs_ibt_2_moves;
-#define XFSSTAT_END_XQMSTAT		(XFSSTAT_END_IBT_V2+6)
+#define XFSSTAT_END_FIBT_V2		(XFSSTAT_END_IBT_V2+15)
+	__uint32_t		xs_fibt_2_lookup;
+	__uint32_t		xs_fibt_2_compare;
+	__uint32_t		xs_fibt_2_insrec;
+	__uint32_t		xs_fibt_2_delrec;
+	__uint32_t		xs_fibt_2_newroot;
+	__uint32_t		xs_fibt_2_killroot;
+	__uint32_t		xs_fibt_2_increment;
+	__uint32_t		xs_fibt_2_decrement;
+	__uint32_t		xs_fibt_2_lshift;
+	__uint32_t		xs_fibt_2_rshift;
+	__uint32_t		xs_fibt_2_split;
+	__uint32_t		xs_fibt_2_join;
+	__uint32_t		xs_fibt_2_alloc;
+	__uint32_t		xs_fibt_2_free;
+	__uint32_t		xs_fibt_2_moves;
+#define XFSSTAT_END_XQMSTAT		(XFSSTAT_END_FIBT_V2+6)
 	__uint32_t		xs_qm_dqreclaims;
 	__uint32_t		xs_qm_dqreclaim_misses;
 	__uint32_t		xs_qm_dquot_dups;

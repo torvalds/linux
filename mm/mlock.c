@@ -79,6 +79,7 @@ void clear_page_mlock(struct page *page)
  */
 void mlock_vma_page(struct page *page)
 {
+	/* Serialize with page migration */
 	BUG_ON(!PageLocked(page));
 
 	if (!TestSetPageMlocked(page)) {
@@ -174,6 +175,7 @@ unsigned int munlock_vma_page(struct page *page)
 	unsigned int nr_pages;
 	struct zone *zone = page_zone(page);
 
+	/* For try_to_munlock() and to serialize with page migration */
 	BUG_ON(!PageLocked(page));
 
 	/*
@@ -208,12 +210,19 @@ out:
  * @vma:   target vma
  * @start: start address
  * @end:   end address
+ * @nonblocking:
  *
  * This takes care of making the pages present too.
  *
  * return 0 on success, negative error code on error.
  *
- * vma->vm_mm->mmap_sem must be held for at least read.
+ * vma->vm_mm->mmap_sem must be held.
+ *
+ * If @nonblocking is NULL, it may be held for read or write and will
+ * be unperturbed.
+ *
+ * If @nonblocking is non-NULL, it must held for read only and may be
+ * released.  If it's released, *@nonblocking will be set to 0.
  */
 long __mlock_vma_pages_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end, int *nonblocking)

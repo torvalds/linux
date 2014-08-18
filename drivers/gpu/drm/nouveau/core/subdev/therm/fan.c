@@ -54,8 +54,10 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 
 	/* check that we're not already at the target duty cycle */
 	duty = fan->get(therm);
-	if (duty == target)
-		goto done;
+	if (duty == target) {
+		spin_unlock_irqrestore(&fan->lock, flags);
+		return 0;
+	}
 
 	/* smooth out the fanspeed increase/decrease */
 	if (!immediate && duty >= 0) {
@@ -73,8 +75,15 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 
 	nv_debug(therm, "FAN update: %d\n", duty);
 	ret = fan->set(therm, duty);
-	if (ret)
-		goto done;
+	if (ret) {
+		spin_unlock_irqrestore(&fan->lock, flags);
+		return ret;
+	}
+
+	/* fan speed updated, drop the fan lock before grabbing the
+	 * alarm-scheduling lock and risking a deadlock
+	 */
+	spin_unlock_irqrestore(&fan->lock, flags);
 
 	/* schedule next fan update, if not at target speed already */
 	if (list_empty(&fan->alarm.head) && target != duty) {
@@ -92,8 +101,6 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 		ptimer->alarm(ptimer, delay * 1000 * 1000, &fan->alarm);
 	}
 
-done:
-	spin_unlock_irqrestore(&fan->lock, flags);
 	return ret;
 }
 
@@ -185,11 +192,8 @@ nouveau_therm_fan_set_defaults(struct nouveau_therm *therm)
 	priv->fan->bios.max_duty = 100;
 	priv->fan->bios.bump_period = 500;
 	priv->fan->bios.slow_down_period = 2000;
-/*XXX: talk to mupuf */
-#if 0
 	priv->fan->bios.linear_min_temp = 40;
 	priv->fan->bios.linear_max_temp = 85;
-#endif
 }
 
 static void
@@ -235,7 +239,8 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	/* attempt to locate a drivable fan, and determine control method */
 	ret = gpio->find(gpio, 0, DCB_GPIO_FAN, 0xff, &func);
 	if (ret == 0) {
-		if (func.log[0] & DCB_GPIO_LOG_DIR_IN) {
+		/* FIXME: is this really the place to perform such checks ? */
+		if (func.line != 16 && func.log[0] & DCB_GPIO_LOG_DIR_IN) {
 			nv_debug(therm, "GPIO_FAN is in input mode\n");
 			ret = -EINVAL;
 		} else {

@@ -91,7 +91,7 @@ nv50_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	} while (perfE.memory < freq);
 
 	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(bios);
+	strap = nvbios_ramcfg_index(nv_subdev(pfb));
 	if (strap >= cnt) {
 		nv_error(pfb, "invalid ramcfg strap\n");
 		return -EINVAL;
@@ -211,7 +211,7 @@ nv50_ram_prog(struct nouveau_fb *pfb)
 	struct nv50_ram *ram = (void *)pfb->ram;
 	struct nv50_ramseq *hwsq = &ram->hwsq;
 
-	ram_exec(hwsq, nouveau_boolopt(device->cfgopt, "NvMemExec", false));
+	ram_exec(hwsq, nouveau_boolopt(device->cfgopt, "NvMemExec", true));
 	return 0;
 }
 

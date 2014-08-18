@@ -1,4 +1,4 @@
-#include <sys/types.h>
+#include <linux/types.h>
 #include <stddef.h>
 
 #include "tests.h"
@@ -7,6 +7,7 @@
 #include "evlist.h"
 #include "header.h"
 #include "util.h"
+#include "debug.h"
 
 static int process_event(struct perf_evlist **pevlist, union perf_event *event)
 {

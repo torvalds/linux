@@ -51,7 +51,7 @@ static void sigd_put_skb(struct sk_buff *skb)
 #endif
 	atm_force_charge(sigd, skb->truesize);
 	skb_queue_tail(&sk_atm(sigd)->sk_receive_queue, skb);
-	sk_atm(sigd)->sk_data_ready(sk_atm(sigd), skb->len);
+	sk_atm(sigd)->sk_data_ready(sk_atm(sigd));
 }
 
 static void modify_qos(struct atm_vcc *vcc, struct atmsvc_msg *msg)

@@ -349,7 +349,6 @@ struct vfio_device *vfio_group_create_device(struct vfio_group *group,
 					     void *device_data)
 {
 	struct vfio_device *device;
-	int ret;
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (!device)
@@ -360,12 +359,7 @@ struct vfio_device *vfio_group_create_device(struct vfio_group *group,
 	device->group = group;
 	device->ops = ops;
 	device->device_data = device_data;
-
-	ret = dev_set_drvdata(dev, device);
-	if (ret) {
-		kfree(device);
-		return ERR_PTR(ret);
-	}
+	dev_set_drvdata(dev, device);
 
 	/* No need to get group_lock, caller has group reference */
 	vfio_group_get(group);
@@ -1412,6 +1406,12 @@ int vfio_external_user_iommu_id(struct vfio_group *group)
 	return iommu_group_id(group->iommu_group);
 }
 EXPORT_SYMBOL_GPL(vfio_external_user_iommu_id);
+
+long vfio_external_check_extension(struct vfio_group *group, unsigned long arg)
+{
+	return vfio_ioctl_check_extension(group->container, arg);
+}
+EXPORT_SYMBOL_GPL(vfio_external_check_extension);
 
 /**
  * Module/class support

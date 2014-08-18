@@ -98,7 +98,7 @@ static int zlib_compress_pages(struct list_head *ws,
 
 	if (Z_OK != zlib_deflateInit(&workspace->def_strm, 3)) {
 		printk(KERN_WARNING "BTRFS: deflateInit failed\n");
-		ret = -1;
+		ret = -EIO;
 		goto out;
 	}
 
@@ -110,7 +110,7 @@ static int zlib_compress_pages(struct list_head *ws,
 
 	out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
 	if (out_page == NULL) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto out;
 	}
 	cpage_out = kmap(out_page);
@@ -128,7 +128,7 @@ static int zlib_compress_pages(struct list_head *ws,
 			printk(KERN_DEBUG "BTRFS: deflate in loop returned %d\n",
 			       ret);
 			zlib_deflateEnd(&workspace->def_strm);
-			ret = -1;
+			ret = -EIO;
 			goto out;
 		}
 
@@ -136,7 +136,7 @@ static int zlib_compress_pages(struct list_head *ws,
 		if (workspace->def_strm.total_in > 8192 &&
 		    workspace->def_strm.total_in <
 		    workspace->def_strm.total_out) {
-			ret = -1;
+			ret = -E2BIG;
 			goto out;
 		}
 		/* we need another page for writing out.  Test this
@@ -147,12 +147,12 @@ static int zlib_compress_pages(struct list_head *ws,
 			kunmap(out_page);
 			if (nr_pages == nr_dest_pages) {
 				out_page = NULL;
-				ret = -1;
+				ret = -E2BIG;
 				goto out;
 			}
 			out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
 			if (out_page == NULL) {
-				ret = -1;
+				ret = -ENOMEM;
 				goto out;
 			}
 			cpage_out = kmap(out_page);
@@ -188,12 +188,12 @@ static int zlib_compress_pages(struct list_head *ws,
 	zlib_deflateEnd(&workspace->def_strm);
 
 	if (ret != Z_STREAM_END) {
-		ret = -1;
+		ret = -EIO;
 		goto out;
 	}
 
 	if (workspace->def_strm.total_out >= workspace->def_strm.total_in) {
-		ret = -1;
+		ret = -E2BIG;
 		goto out;
 	}
 
@@ -253,7 +253,7 @@ static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
 
 	if (Z_OK != zlib_inflateInit2(&workspace->inf_strm, wbits)) {
 		printk(KERN_WARNING "BTRFS: inflateInit failed\n");
-		return -1;
+		return -EIO;
 	}
 	while (workspace->inf_strm.total_in < srclen) {
 		ret = zlib_inflate(&workspace->inf_strm, Z_NO_FLUSH);
@@ -295,7 +295,7 @@ static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
 		}
 	}
 	if (ret != Z_STREAM_END)
-		ret = -1;
+		ret = -EIO;
 	else
 		ret = 0;
 done:
@@ -337,7 +337,7 @@ static int zlib_decompress(struct list_head *ws, unsigned char *data_in,
 
 	if (Z_OK != zlib_inflateInit2(&workspace->inf_strm, wbits)) {
 		printk(KERN_WARNING "BTRFS: inflateInit failed\n");
-		return -1;
+		return -EIO;
 	}
 
 	while (bytes_left > 0) {
@@ -354,7 +354,7 @@ static int zlib_decompress(struct list_head *ws, unsigned char *data_in,
 		total_out = workspace->inf_strm.total_out;
 
 		if (total_out == buf_start) {
-			ret = -1;
+			ret = -EIO;
 			break;
 		}
 
@@ -382,7 +382,7 @@ next:
 	}
 
 	if (ret != Z_STREAM_END && bytes_left != 0)
-		ret = -1;
+		ret = -EIO;
 	else
 		ret = 0;
 

@@ -41,7 +41,8 @@
 
 #define MAX_CDB_SIZE	16
 #define GENERAL_UPIU_REQUEST_SIZE 32
-#define QUERY_DESC_MAX_SIZE       256
+#define QUERY_DESC_MAX_SIZE       255
+#define QUERY_DESC_MIN_SIZE       2
 #define QUERY_OSF_SIZE            (GENERAL_UPIU_REQUEST_SIZE - \
 					(sizeof(struct utp_upiu_header)))
 
@@ -115,6 +116,41 @@ enum attr_idn {
 	QUERY_ATTR_IDN_BKOPS_STATUS	= 0x05,
 	QUERY_ATTR_IDN_EE_CONTROL	= 0x0D,
 	QUERY_ATTR_IDN_EE_STATUS	= 0x0E,
+};
+
+/* Descriptor idn for Query requests */
+enum desc_idn {
+	QUERY_DESC_IDN_DEVICE		= 0x0,
+	QUERY_DESC_IDN_CONFIGURAION	= 0x1,
+	QUERY_DESC_IDN_UNIT		= 0x2,
+	QUERY_DESC_IDN_RFU_0		= 0x3,
+	QUERY_DESC_IDN_INTERCONNECT	= 0x4,
+	QUERY_DESC_IDN_STRING		= 0x5,
+	QUERY_DESC_IDN_RFU_1		= 0x6,
+	QUERY_DESC_IDN_GEOMETRY		= 0x7,
+	QUERY_DESC_IDN_POWER		= 0x8,
+	QUERY_DESC_IDN_RFU_2		= 0x9,
+};
+
+#define UNIT_DESC_MAX_SIZE       0x22
+/* Unit descriptor parameters offsets in bytes*/
+enum unit_desc_param {
+	UNIT_DESC_PARAM_LEN			= 0x0,
+	UNIT_DESC_PARAM_TYPE			= 0x1,
+	UNIT_DESC_PARAM_UNIT_INDEX		= 0x2,
+	UNIT_DESC_PARAM_LU_ENABLE		= 0x3,
+	UNIT_DESC_PARAM_BOOT_LUN_ID		= 0x4,
+	UNIT_DESC_PARAM_LU_WR_PROTECT		= 0x5,
+	UNIT_DESC_PARAM_LU_Q_DEPTH		= 0x6,
+	UNIT_DESC_PARAM_MEM_TYPE		= 0x8,
+	UNIT_DESC_PARAM_DATA_RELIABILITY	= 0x9,
+	UNIT_DESC_PARAM_LOGICAL_BLK_SIZE	= 0xA,
+	UNIT_DESC_PARAM_LOGICAL_BLK_COUNT	= 0xB,
+	UNIT_DESC_PARAM_ERASE_BLK_SIZE		= 0x13,
+	UNIT_DESC_PARAM_PROVISIONING_TYPE	= 0x17,
+	UNIT_DESC_PARAM_PHY_MEM_RSRC_CNT	= 0x18,
+	UNIT_DESC_PARAM_CTX_CAPABILITIES	= 0x20,
+	UNIT_DESC_PARAM_LARGE_UNIT_SIZE_M1	= 0x22,
 };
 
 /* Exception event mask values */
@@ -196,9 +232,9 @@ enum {
  * @dword_2: UPIU header DW-2
  */
 struct utp_upiu_header {
-	u32 dword_0;
-	u32 dword_1;
-	u32 dword_2;
+	__be32 dword_0;
+	__be32 dword_1;
+	__be32 dword_2;
 };
 
 /**
@@ -207,7 +243,7 @@ struct utp_upiu_header {
  * @cdb: Command Descriptor Block CDB DW-4 to DW-7
  */
 struct utp_upiu_cmd {
-	u32 exp_data_transfer_len;
+	__be32 exp_data_transfer_len;
 	u8 cdb[MAX_CDB_SIZE];
 };
 
@@ -228,10 +264,10 @@ struct utp_upiu_query {
 	u8 idn;
 	u8 index;
 	u8 selector;
-	u16 reserved_osf;
-	u16 length;
-	u32 value;
-	u32 reserved[2];
+	__be16 reserved_osf;
+	__be16 length;
+	__be32 value;
+	__be32 reserved[2];
 };
 
 /**
@@ -256,9 +292,9 @@ struct utp_upiu_req {
  * @sense_data: Sense data field DW-8 to DW-12
  */
 struct utp_cmd_rsp {
-	u32 residual_transfer_count;
-	u32 reserved[4];
-	u16 sense_data_len;
+	__be32 residual_transfer_count;
+	__be32 reserved[4];
+	__be16 sense_data_len;
 	u8 sense_data[18];
 };
 
@@ -286,10 +322,10 @@ struct utp_upiu_rsp {
  */
 struct utp_upiu_task_req {
 	struct utp_upiu_header header;
-	u32 input_param1;
-	u32 input_param2;
-	u32 input_param3;
-	u32 reserved[2];
+	__be32 input_param1;
+	__be32 input_param2;
+	__be32 input_param3;
+	__be32 reserved[2];
 };
 
 /**
@@ -301,9 +337,9 @@ struct utp_upiu_task_req {
  */
 struct utp_upiu_task_rsp {
 	struct utp_upiu_header header;
-	u32 output_param1;
-	u32 output_param2;
-	u32 reserved[3];
+	__be32 output_param1;
+	__be32 output_param2;
+	__be32 reserved[3];
 };
 
 /**

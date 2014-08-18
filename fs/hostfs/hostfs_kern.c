@@ -230,7 +230,7 @@ static struct inode *hostfs_alloc_inode(struct super_block *sb)
 
 static void hostfs_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	if (HOSTFS_I(inode)->fd != -1) {
 		close_file(&HOSTFS_I(inode)->fd);
@@ -378,11 +378,11 @@ static int hostfs_fsync(struct file *file, loff_t start, loff_t end,
 
 static const struct file_operations hostfs_file_fops = {
 	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.splice_read	= generic_file_splice_read,
-	.aio_read	= generic_file_aio_read,
-	.aio_write	= generic_file_aio_write,
-	.write		= do_sync_write,
+	.read_iter	= generic_file_read_iter,
+	.write_iter	= generic_file_write_iter,
+	.write		= new_sync_write,
 	.mmap		= generic_file_mmap,
 	.open		= hostfs_file_open,
 	.release	= hostfs_file_release,
@@ -741,21 +741,31 @@ static int hostfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, 
 	return err;
 }
 
-static int hostfs_rename(struct inode *from_ino, struct dentry *from,
-			 struct inode *to_ino, struct dentry *to)
+static int hostfs_rename2(struct inode *old_dir, struct dentry *old_dentry,
+			  struct inode *new_dir, struct dentry *new_dentry,
+			  unsigned int flags)
 {
-	char *from_name, *to_name;
+	char *old_name, *new_name;
 	int err;
 
-	if ((from_name = dentry_name(from)) == NULL)
+	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+		return -EINVAL;
+
+	old_name = dentry_name(old_dentry);
+	if (old_name == NULL)
 		return -ENOMEM;
-	if ((to_name = dentry_name(to)) == NULL) {
-		__putname(from_name);
+	new_name = dentry_name(new_dentry);
+	if (new_name == NULL) {
+		__putname(old_name);
 		return -ENOMEM;
 	}
-	err = rename_file(from_name, to_name);
-	__putname(from_name);
-	__putname(to_name);
+	if (!flags)
+		err = rename_file(old_name, new_name);
+	else
+		err = rename2_file(old_name, new_name, flags);
+
+	__putname(old_name);
+	__putname(new_name);
 	return err;
 }
 
@@ -867,7 +877,7 @@ static const struct inode_operations hostfs_dir_iops = {
 	.mkdir		= hostfs_mkdir,
 	.rmdir		= hostfs_rmdir,
 	.mknod		= hostfs_mknod,
-	.rename		= hostfs_rename,
+	.rename2	= hostfs_rename2,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 };

@@ -71,21 +71,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int zylonite_wm9713_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
 	if (clk_pout)
 		snd_soc_dai_set_pll(rtd->codec_dai, 0, 0,
 				    clk_get_rate(pout), 0);
-
-	snd_soc_dapm_new_controls(dapm, zylonite_dapm_widgets,
-				  ARRAY_SIZE(zylonite_dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	/* Static setup for now */
-	snd_soc_dapm_enable_pin(dapm, "Headphone");
-	snd_soc_dapm_enable_pin(dapm, "Headset Earpiece");
 
 	return 0;
 }
@@ -256,6 +244,11 @@ static struct snd_soc_card zylonite = {
 	.resume_pre = &zylonite_resume_pre,
 	.dai_link = zylonite_dai,
 	.num_links = ARRAY_SIZE(zylonite_dai),
+
+	.dapm_widgets = zylonite_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(zylonite_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct platform_device *zylonite_snd_ac97_device;

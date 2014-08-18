@@ -90,7 +90,7 @@ int __init parse_balloon3_features(char *arg)
 	if (!arg)
 		return 0;
 
-	return strict_strtoul(arg, 0, &balloon3_features_present);
+	return kstrtoul(arg, 0, &balloon3_features_present);
 }
 early_param("balloon3_features", parse_balloon3_features);
 
@@ -331,7 +331,6 @@ static struct pxa2xx_udc_mach_info balloon3_udc_info __initdata = {
 static void __init balloon3_udc_init(void)
 {
 	pxa_set_udc_info(&balloon3_udc_info);
-	platform_device_register(&balloon3_gpio_vbus);
 }
 #else
 static inline void balloon3_udc_init(void) {}

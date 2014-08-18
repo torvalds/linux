@@ -7,7 +7,7 @@
  *	http://linux.terratec.de/files/TERRATEC_H7/20110323_TERRATEC_H7_Linux.tar.gz
  * The original driver's license is GPL, as declared with MODULE_LICENSE()
  *
- * Copyright (c) 2010-2012 Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010-2012 Mauro Carvalho Chehab
  *	Driver modified by in order to work with upstream drxk driver, and
  *	tons of bugs got fixed, and converted to use dvb-usb-v2.
  *
@@ -207,24 +207,27 @@ static int az6007_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 static int az6007_rc_query(struct dvb_usb_device *d)
 {
 	struct az6007_device_state *st = d_to_priv(d);
-	unsigned code = 0;
+	unsigned code;
 
 	az6007_read(d, AZ6007_READ_IR, 0, 0, st->data, 10);
 
 	if (st->data[1] == 0x44)
 		return 0;
 
-	if ((st->data[1] ^ st->data[2]) == 0xff)
-		code = st->data[1];
-	else
-		code = st->data[1] << 8 | st->data[2];
+	if ((st->data[3] ^ st->data[4]) == 0xff) {
+		if ((st->data[1] ^ st->data[2]) == 0xff)
+			code = RC_SCANCODE_NEC(st->data[1], st->data[3]);
+		else
+			code = RC_SCANCODE_NECX(st->data[1] << 8 | st->data[2],
+						st->data[3]);
+	} else {
+		code = RC_SCANCODE_NEC32(st->data[1] << 24 |
+					 st->data[2] << 16 |
+					 st->data[3] << 8  |
+					 st->data[4]);
+	}
 
-	if ((st->data[3] ^ st->data[4]) == 0xff)
-		code = code << 8 | st->data[3];
-	else
-		code = code << 16 | st->data[3] << 8 | st->data[4];
-
-	rc_keydown(d->rc_dev, code, st->data[5]);
+	rc_keydown(d->rc_dev, RC_TYPE_NEC, code, st->data[5]);
 
 	return 0;
 }
@@ -975,7 +978,7 @@ static struct usb_driver az6007_usb_driver = {
 module_usb_driver(az6007_usb_driver);
 
 MODULE_AUTHOR("Henry Wang <Henry.wang@AzureWave.com>");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_DESCRIPTION("Driver for AzureWave 6007 DVB-C/T USB2.0 and clones");
 MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

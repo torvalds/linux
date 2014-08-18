@@ -27,20 +27,8 @@
  * Functions:
  *
  *   vt6656_probe - module initial (insmod) driver entry
- *   device_remove1 - module remove entry
- *   device_open - allocate dma/descripter resource & initial mac/bbp function
- *   device_xmit - asynchronous data tx function
- *   device_set_multi - set mac filter
- *   device_ioctl - ioctl entry
- *   device_close - shutdown mac/bbp & free dma/descriptor resource
- *   device_alloc_frag_buf - rx fragement pre-allocated function
- *   device_free_tx_bufs - free tx buffer function
- *   device_dma0_tx_80211- tx 802.11 frame via dma0
- *   device_dma0_xmit- tx PS buffered frame via dma0
- *   device_init_registers- initial MAC & BBP & RF internal registers.
- *   device_init_rings- initial tx/rx ring buffer
- *   device_init_defrag_cb- initial & allocate de-fragement buffer.
- *   device_tx_srv- tx interrupt service function
+ *   vnt_free_tx_bufs - free tx buffer function
+ *   vnt_init_registers- initial MAC & BBP & RF internal registers.
  *
  * Revision History:
  */
@@ -51,29 +39,15 @@
 #include "card.h"
 #include "baseband.h"
 #include "mac.h"
-#include "tether.h"
-#include "wmgr.h"
-#include "wctl.h"
 #include "power.h"
 #include "wcmd.h"
-#include "iocmd.h"
-#include "tcrc.h"
 #include "rxtx.h"
-#include "bssdb.h"
-#include "hostap.h"
-#include "wpactl.h"
-#include "iwctl.h"
 #include "dpc.h"
-#include "datarate.h"
 #include "rf.h"
 #include "firmware.h"
-#include "control.h"
+#include "usbpipe.h"
 #include "channel.h"
 #include "int.h"
-#include "iowpa.h"
-
-/* static int msglevel = MSG_LEVEL_DEBUG; */
-static int          msglevel                =MSG_LEVEL_INFO;
 
 /*
  * define module options
@@ -86,77 +60,20 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
 
-#define DEVICE_PARAM(N,D) \
-        static int N[MAX_UINTS]=OPTION_DEFAULT;\
-        module_param_array(N, int, NULL, 0);\
-        MODULE_PARM_DESC(N, D);
+#define RX_DESC_DEF0 64
+static int vnt_rx_buffers = RX_DESC_DEF0;
+module_param_named(rx_buffers, vnt_rx_buffers, int, 0644);
+MODULE_PARM_DESC(rx_buffers, "Number of receive usb rx buffers");
 
-#define RX_DESC_DEF0     64
-DEVICE_PARAM(RxDescriptors0,"Number of receive usb desc buffer");
-
-#define TX_DESC_DEF0     64
-DEVICE_PARAM(TxDescriptors0,"Number of transmit usb desc buffer");
-
-#define CHANNEL_DEF     6
-DEVICE_PARAM(Channel, "Channel number");
-
-/* PreambleType[] is the preamble length used for transmit.
-   0: indicate allows long preamble type
-   1: indicate allows short preamble type
-*/
-
-#define PREAMBLE_TYPE_DEF     1
-
-DEVICE_PARAM(PreambleType, "Preamble Type");
+#define TX_DESC_DEF0 64
+static int vnt_tx_buffers = TX_DESC_DEF0;
+module_param_named(tx_buffers, vnt_tx_buffers, int, 0644);
+MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
 
 #define RTS_THRESH_DEF     2347
-DEVICE_PARAM(RTSThreshold, "RTS threshold");
-
 #define FRAG_THRESH_DEF     2346
-DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
-
-#define DATA_RATE_DEF     13
-/* datarate[] index
-   0: indicate 1 Mbps   0x02
-   1: indicate 2 Mbps   0x04
-   2: indicate 5.5 Mbps 0x0B
-   3: indicate 11 Mbps  0x16
-   4: indicate 6 Mbps   0x0c
-   5: indicate 9 Mbps   0x12
-   6: indicate 12 Mbps  0x18
-   7: indicate 18 Mbps  0x24
-   8: indicate 24 Mbps  0x30
-   9: indicate 36 Mbps  0x48
-  10: indicate 48 Mbps  0x60
-  11: indicate 54 Mbps  0x6c
-  12: indicate 72 Mbps  0x90
-  13: indicate auto rate
-*/
-
-DEVICE_PARAM(ConnectionRate, "Connection data rate");
-
-#define OP_MODE_DEF     0
-DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
-
-/* OpMode[] is used for transmit.
-   0: indicate infrastruct mode used
-   1: indicate adhoc mode used
-   2: indicate AP mode used
-*/
-
-/* PSMode[]
-   0: indicate disable power saving mode
-   1: indicate enable power saving mode
-*/
-
-#define PS_MODE_DEF     0
-DEVICE_PARAM(PSMode, "Power saving mode");
-
 #define SHORT_RETRY_DEF     8
-DEVICE_PARAM(ShortRetryLimit, "Short frame retry limits");
-
 #define LONG_RETRY_DEF     4
-DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 
 /* BasebandType[] baseband type selected
    0: indicate 802.11a type
@@ -165,16 +82,6 @@ DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 */
 
 #define BBP_TYPE_DEF     2
-DEVICE_PARAM(BasebandType, "baseband type");
-
-/* 80211hEnable[]
-   0: indicate disable 802.11h
-   1: indicate enable 802.11h
-*/
-
-#define X80211h_MODE_DEF     0
-
-DEVICE_PARAM(b80211hEnable, "802.11h mode");
 
 /*
  * Static vars definitions
@@ -185,1288 +92,958 @@ static struct usb_device_id vt6656_table[] = {
 	{}
 };
 
-/* frequency list (map channels to frequencies) */
-/*
-static const long frequency_list[] = {
-    2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484,
-    4915, 4920, 4925, 4935, 4940, 4945, 4960, 4980,
-    5035, 5040, 5045, 5055, 5060, 5080, 5170, 5180, 5190, 5200, 5210, 5220, 5230, 5240,
-    5260, 5280, 5300, 5320, 5500, 5520, 5540, 5560, 5580, 5600, 5620, 5640, 5660, 5680,
-    5700, 5745, 5765, 5785, 5805, 5825
-	};
-
-static const struct iw_handler_def	iwctl_handler_def;
-*/
-
-static int vt6656_probe(struct usb_interface *intf,
-			const struct usb_device_id *id);
-static void vt6656_disconnect(struct usb_interface *intf);
-
-#ifdef CONFIG_PM	/* Minimal support for suspend and resume */
-static int vt6656_suspend(struct usb_interface *intf, pm_message_t message);
-static int vt6656_resume(struct usb_interface *intf);
-#endif /* CONFIG_PM */
-
-static struct net_device_stats *device_get_stats(struct net_device *dev);
-static int  device_open(struct net_device *dev);
-static int  device_xmit(struct sk_buff *skb, struct net_device *dev);
-static void device_set_multi(struct net_device *dev);
-static int  device_close(struct net_device *dev);
-static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-
-static int device_init_registers(struct vnt_private *pDevice);
-static bool device_init_defrag_cb(struct vnt_private *pDevice);
-static void device_init_diversity_timer(struct vnt_private *pDevice);
-static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
-
-static int  ethtool_ioctl(struct net_device *dev, struct ifreq *);
-static void device_free_tx_bufs(struct vnt_private *pDevice);
-static void device_free_rx_bufs(struct vnt_private *pDevice);
-static void device_free_int_bufs(struct vnt_private *pDevice);
-static void device_free_frag_bufs(struct vnt_private *pDevice);
-static bool device_alloc_bufs(struct vnt_private *pDevice);
-
-static int Read_config_file(struct vnt_private *pDevice);
-static unsigned char *Config_FileOperation(struct vnt_private *pDevice);
-static int Config_FileGetParameter(unsigned char *string,
-				   unsigned char *dest,
-				   unsigned char *source);
-
-static void usb_device_reset(struct vnt_private *pDevice);
-
-static void
-device_set_options(struct vnt_private *pDevice) {
-
-    u8    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    u8    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
-    u8 abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
-
-    memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
-    memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
-    memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
-
-    pDevice->cbTD = TX_DESC_DEF0;
-    pDevice->cbRD = RX_DESC_DEF0;
-    pDevice->uChannel = CHANNEL_DEF;
-    pDevice->wRTSThreshold = RTS_THRESH_DEF;
-    pDevice->wFragmentationThreshold = FRAG_THRESH_DEF;
-    pDevice->byShortRetryLimit = SHORT_RETRY_DEF;
-    pDevice->byLongRetryLimit = LONG_RETRY_DEF;
-    pDevice->wMaxTransmitMSDULifetime = DEFAULT_MSDU_LIFETIME;
-    pDevice->byShortPreamble = PREAMBLE_TYPE_DEF;
-    pDevice->ePSMode = PS_MODE_DEF;
-    pDevice->b11hEnable = X80211h_MODE_DEF;
-    pDevice->eOPMode = OP_MODE_DEF;
-    pDevice->uConnectionRate = DATA_RATE_DEF;
-    if (pDevice->uConnectionRate < RATE_AUTO) pDevice->bFixRate = true;
-    pDevice->byBBType = BBP_TYPE_DEF;
-    pDevice->byPacketType = pDevice->byBBType;
-    pDevice->byAutoFBCtrl = AUTO_FB_0;
-    pDevice->bUpdateBBVGA = true;
-    pDevice->byFOETuning = 0;
-    pDevice->byAutoPwrTunning = 0;
-    pDevice->byPreambleType = 0;
-    pDevice->bExistSWNetAddr = false;
-    /* pDevice->bDiversityRegCtlON = true; */
-    pDevice->bDiversityRegCtlON = false;
-}
-
-static void device_init_diversity_timer(struct vnt_private *pDevice)
+static void vnt_set_options(struct vnt_private *priv)
 {
-    init_timer(&pDevice->TimerSQ3Tmax1);
-    pDevice->TimerSQ3Tmax1.data = (unsigned long)pDevice;
-    pDevice->TimerSQ3Tmax1.function = (TimerFunction)TimerSQ3CallBack;
-    pDevice->TimerSQ3Tmax1.expires = RUN_AT(HZ);
+	/* Set number of TX buffers */
+	if (vnt_tx_buffers < CB_MIN_TX_DESC || vnt_tx_buffers > CB_MAX_TX_DESC)
+		priv->num_tx_context = TX_DESC_DEF0;
+	else
+		priv->num_tx_context = vnt_tx_buffers;
 
-    init_timer(&pDevice->TimerSQ3Tmax2);
-    pDevice->TimerSQ3Tmax2.data = (unsigned long)pDevice;
-    pDevice->TimerSQ3Tmax2.function = (TimerFunction)TimerSQ3CallBack;
-    pDevice->TimerSQ3Tmax2.expires = RUN_AT(HZ);
+	/* Set number of RX buffers */
+	if (vnt_rx_buffers < CB_MIN_RX_DESC || vnt_rx_buffers > CB_MAX_RX_DESC)
+		priv->num_rcb = RX_DESC_DEF0;
+	else
+		priv->num_rcb = vnt_rx_buffers;
 
-    init_timer(&pDevice->TimerSQ3Tmax3);
-    pDevice->TimerSQ3Tmax3.data = (unsigned long)pDevice;
-    pDevice->TimerSQ3Tmax3.function = (TimerFunction)TimerSQ3Tmax3CallBack;
-    pDevice->TimerSQ3Tmax3.expires = RUN_AT(HZ);
-
-    return;
+	priv->short_retry_limit = SHORT_RETRY_DEF;
+	priv->long_retry_limit = LONG_RETRY_DEF;
+	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
+	priv->bb_type = BBP_TYPE_DEF;
+	priv->packet_type = priv->bb_type;
+	priv->auto_fb_ctrl = AUTO_FB_0;
+	priv->preamble_type = 0;
+	priv->exist_sw_net_addr = false;
 }
 
 /*
  * initialization of MAC & BBP registers
  */
-static int device_init_registers(struct vnt_private *pDevice)
+static int vnt_init_registers(struct vnt_private *priv)
 {
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	struct vnt_cmd_card_init *init_cmd = &pDevice->init_command;
-	struct vnt_rsp_card_init *init_rsp = &pDevice->init_response;
-	u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 abySNAP_RFC1042[ETH_ALEN] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
-	u8 abySNAP_Bridgetunnel[ETH_ALEN]
-		= {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
-	u8 byAntenna;
+	struct vnt_cmd_card_init *init_cmd = &priv->init_command;
+	struct vnt_rsp_card_init *init_rsp = &priv->init_response;
+	u8 antenna;
 	int ii;
-	int ntStatus = STATUS_SUCCESS;
-	u8 byTmp;
-	u8 byCalibTXIQ = 0, byCalibTXDC = 0, byCalibRXIQ = 0;
+	int status = STATUS_SUCCESS;
+	u8 tmp;
+	u8 calib_tx_iq = 0, calib_tx_dc = 0, calib_rx_iq = 0;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n",
-				DEVICE_INIT_COLD, pDevice->byPacketType);
+	dev_dbg(&priv->usb->dev, "---->INIbInitAdapter. [%d][%d]\n",
+				DEVICE_INIT_COLD, priv->packet_type);
 
-	spin_lock_irq(&pDevice->lock);
-
-	memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
-	memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
-	memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
-
-	if (!FIRMWAREbCheckVersion(pDevice)) {
-		if (FIRMWAREbDownload(pDevice) == true) {
-			if (FIRMWAREbBrach2Sram(pDevice) == false) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-					" FIRMWAREbBrach2Sram fail\n");
-				spin_unlock_irq(&pDevice->lock);
+	if (!vnt_check_firmware_version(priv)) {
+		if (vnt_download_firmware(priv) == true) {
+			if (vnt_firmware_branch_to_sram(priv) == false) {
+				dev_dbg(&priv->usb->dev,
+					" vnt_firmware_branch_to_sram fail\n");
 				return false;
 			}
 		} else {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				" FIRMWAREbDownload fail\n");
-			spin_unlock_irq(&pDevice->lock);
+			dev_dbg(&priv->usb->dev, "FIRMWAREbDownload fail\n");
 			return false;
 		}
 	}
 
-	if (!BBbVT3184Init(pDevice)) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" BBbVT3184Init fail\n");
-		spin_unlock_irq(&pDevice->lock);
+	if (!vnt_vt3184_init(priv)) {
+		dev_dbg(&priv->usb->dev, "vnt_vt3184_init fail\n");
 		return false;
 	}
 
 	init_cmd->init_class = DEVICE_INIT_COLD;
-	init_cmd->exist_sw_net_addr = (u8) pDevice->bExistSWNetAddr;
+	init_cmd->exist_sw_net_addr = priv->exist_sw_net_addr;
 	for (ii = 0; ii < 6; ii++)
-		init_cmd->sw_net_addr[ii] = pDevice->abyCurrentNetAddr[ii];
-	init_cmd->short_retry_limit = pDevice->byShortRetryLimit;
-	init_cmd->long_retry_limit = pDevice->byLongRetryLimit;
+		init_cmd->sw_net_addr[ii] = priv->current_net_addr[ii];
+	init_cmd->short_retry_limit = priv->short_retry_limit;
+	init_cmd->long_retry_limit = priv->long_retry_limit;
 
 	/* issue card_init command to device */
-	ntStatus = CONTROLnsRequestOut(pDevice,
+	status = vnt_control_out(priv,
 		MESSAGE_TYPE_CARDINIT, 0, 0,
 		sizeof(struct vnt_cmd_card_init), (u8 *)init_cmd);
-	if (ntStatus != STATUS_SUCCESS) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail\n");
-		spin_unlock_irq(&pDevice->lock);
+	if (status != STATUS_SUCCESS) {
+		dev_dbg(&priv->usb->dev, "Issue Card init fail\n");
 		return false;
 	}
 
-	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_INIT_RSP, 0, 0,
+	status = vnt_control_in(priv, MESSAGE_TYPE_INIT_RSP, 0, 0,
 		sizeof(struct vnt_rsp_card_init), (u8 *)init_rsp);
-	if (ntStatus != STATUS_SUCCESS) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+	if (status != STATUS_SUCCESS) {
+		dev_dbg(&priv->usb->dev,
 			"Cardinit request in status fail!\n");
-		spin_unlock_irq(&pDevice->lock);
 		return false;
 	}
 
 	/* local ID for AES functions */
-	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
+	status = vnt_control_in(priv, MESSAGE_TYPE_READ,
 		MAC_REG_LOCALID, MESSAGE_REQUEST_MACREG, 1,
-			&pDevice->byLocalID);
-	if (ntStatus != STATUS_SUCCESS) {
-		spin_unlock_irq(&pDevice->lock);
+			&priv->local_id);
+	if (status != STATUS_SUCCESS)
 		return false;
-	}
 
 	/* do MACbSoftwareReset in MACvInitialize */
 
-	/* force CCK */
-	pDevice->bCCK = true;
-	pDevice->bProtectMode = false;
-	/* only used in 11g type, sync with ERP IE */
-	pDevice->bNonERPPresent = false;
-	pDevice->bBarkerPreambleMd = false;
-	if (pDevice->bFixRate) {
-		pDevice->wCurrentRate = (u16)pDevice->uConnectionRate;
-	} else {
-		if (pDevice->byBBType == BB_TYPE_11B)
-			pDevice->wCurrentRate = RATE_11M;
-		else
-			pDevice->wCurrentRate = RATE_54M;
-	}
+	priv->top_ofdm_basic_rate = RATE_24M;
+	priv->top_cck_basic_rate = RATE_1M;
 
-	CHvInitChannelTable(pDevice);
-
-	pDevice->byTopOFDMBasicRate = RATE_24M;
-	pDevice->byTopCCKBasicRate = RATE_1M;
-	pDevice->byRevId = 0;
 	/* target to IF pin while programming to RF chip */
-	pDevice->byCurPwr = 0xFF;
+	priv->power = 0xFF;
 
-	pDevice->byCCKPwr = pDevice->abyEEPROM[EEP_OFS_PWR_CCK];
-	pDevice->byOFDMPwrG = pDevice->abyEEPROM[EEP_OFS_PWR_OFDMG];
+	priv->cck_pwr = priv->eeprom[EEP_OFS_PWR_CCK];
+	priv->ofdm_pwr_g = priv->eeprom[EEP_OFS_PWR_OFDMG];
 	/* load power table */
 	for (ii = 0; ii < 14; ii++) {
-		pDevice->abyCCKPwrTbl[ii] =
-			pDevice->abyEEPROM[ii + EEP_OFS_CCK_PWR_TBL];
+		priv->cck_pwr_tbl[ii] =
+			priv->eeprom[ii + EEP_OFS_CCK_PWR_TBL];
+		if (priv->cck_pwr_tbl[ii] == 0)
+			priv->cck_pwr_tbl[ii] = priv->cck_pwr;
 
-		if (pDevice->abyCCKPwrTbl[ii] == 0)
-			pDevice->abyCCKPwrTbl[ii] = pDevice->byCCKPwr;
-			pDevice->abyOFDMPwrTbl[ii] =
-				pDevice->abyEEPROM[ii + EEP_OFS_OFDM_PWR_TBL];
-		if (pDevice->abyOFDMPwrTbl[ii] == 0)
-			pDevice->abyOFDMPwrTbl[ii] = pDevice->byOFDMPwrG;
+		priv->ofdm_pwr_tbl[ii] =
+				priv->eeprom[ii + EEP_OFS_OFDM_PWR_TBL];
+		if (priv->ofdm_pwr_tbl[ii] == 0)
+			priv->ofdm_pwr_tbl[ii] = priv->ofdm_pwr_g;
 	}
 
 	/*
 	 * original zonetype is USA, but custom zonetype is Europe,
 	 * then need to recover 12, 13, 14 channels with 11 channel
 	 */
-	if (((pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Japan) ||
-		(pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Europe)) &&
-		(pDevice->byOriginalZonetype == ZoneType_USA)) {
-		for (ii = 11; ii < 14; ii++) {
-			pDevice->abyCCKPwrTbl[ii] = pDevice->abyCCKPwrTbl[10];
-			pDevice->abyOFDMPwrTbl[ii] = pDevice->abyOFDMPwrTbl[10];
-		}
+	for (ii = 11; ii < 14; ii++) {
+		priv->cck_pwr_tbl[ii] = priv->cck_pwr_tbl[10];
+		priv->ofdm_pwr_tbl[ii] = priv->ofdm_pwr_tbl[10];
 	}
 
-	pDevice->byOFDMPwrA = 0x34; /* same as RFbMA2829SelectChannel */
+	priv->ofdm_pwr_a = 0x34; /* same as RFbMA2829SelectChannel */
 
 	/* load OFDM A power table */
 	for (ii = 0; ii < CB_MAX_CHANNEL_5G; ii++) {
-		pDevice->abyOFDMAPwrTbl[ii] =
-			pDevice->abyEEPROM[ii + EEP_OFS_OFDMA_PWR_TBL];
+		priv->ofdm_a_pwr_tbl[ii] =
+			priv->eeprom[ii + EEP_OFS_OFDMA_PWR_TBL];
 
-		if (pDevice->abyOFDMAPwrTbl[ii] == 0)
-			pDevice->abyOFDMAPwrTbl[ii] = pDevice->byOFDMPwrA;
+		if (priv->ofdm_a_pwr_tbl[ii] == 0)
+			priv->ofdm_a_pwr_tbl[ii] = priv->ofdm_pwr_a;
 	}
 
-	byAntenna = pDevice->abyEEPROM[EEP_OFS_ANTENNA];
+	antenna = priv->eeprom[EEP_OFS_ANTENNA];
 
-	if (byAntenna & EEP_ANTINV)
-		pDevice->bTxRxAntInv = true;
+	if (antenna & EEP_ANTINV)
+		priv->tx_rx_ant_inv = true;
 	else
-		pDevice->bTxRxAntInv = false;
+		priv->tx_rx_ant_inv = false;
 
-	byAntenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
+	antenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
-	if (byAntenna == 0) /* if not set default is both */
-		byAntenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
+	if (antenna == 0) /* if not set default is both */
+		antenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
-	if (byAntenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
-		pDevice->byAntennaCount = 2;
-		pDevice->byTxAntennaMode = ANT_B;
-		pDevice->dwTxAntennaSel = 1;
-		pDevice->dwRxAntennaSel = 1;
+	if (antenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
+		priv->tx_antenna_mode = ANT_B;
+		priv->rx_antenna_sel = 1;
 
-		if (pDevice->bTxRxAntInv == true)
-			pDevice->byRxAntennaMode = ANT_A;
+		if (priv->tx_rx_ant_inv == true)
+			priv->rx_antenna_mode = ANT_A;
 		else
-			pDevice->byRxAntennaMode = ANT_B;
-
-		if (pDevice->bDiversityRegCtlON)
-			pDevice->bDiversityEnable = true;
-		else
-			pDevice->bDiversityEnable = false;
+			priv->rx_antenna_mode = ANT_B;
 	} else  {
-		pDevice->bDiversityEnable = false;
-		pDevice->byAntennaCount = 1;
-		pDevice->dwTxAntennaSel = 0;
-		pDevice->dwRxAntennaSel = 0;
+		priv->rx_antenna_sel = 0;
 
-		if (byAntenna & EEP_ANTENNA_AUX) {
-			pDevice->byTxAntennaMode = ANT_A;
+		if (antenna & EEP_ANTENNA_AUX) {
+			priv->tx_antenna_mode = ANT_A;
 
-			if (pDevice->bTxRxAntInv == true)
-				pDevice->byRxAntennaMode = ANT_B;
+			if (priv->tx_rx_ant_inv == true)
+				priv->rx_antenna_mode = ANT_B;
 			else
-				pDevice->byRxAntennaMode = ANT_A;
+				priv->rx_antenna_mode = ANT_A;
 		} else {
-			pDevice->byTxAntennaMode = ANT_B;
+			priv->tx_antenna_mode = ANT_B;
 
-		if (pDevice->bTxRxAntInv == true)
-			pDevice->byRxAntennaMode = ANT_A;
+		if (priv->tx_rx_ant_inv == true)
+			priv->rx_antenna_mode = ANT_A;
 		else
-			pDevice->byRxAntennaMode = ANT_B;
+			priv->rx_antenna_mode = ANT_B;
 		}
 	}
 
-	pDevice->ulDiversityNValue = 100 * 255;
-	pDevice->ulDiversityMValue = 100 * 16;
-	pDevice->byTMax = 1;
-	pDevice->byTMax2 = 4;
-	pDevice->ulSQ3TH = 0;
-	pDevice->byTMax3 = 64;
+	/* Set initial antenna mode */
+	vnt_set_antenna_mode(priv, priv->rx_antenna_mode);
 
 	/* get Auto Fall Back type */
-	pDevice->byAutoFBCtrl = AUTO_FB_0;
-
-	/* set SCAN Time */
-	pDevice->uScanTime = WLAN_SCAN_MINITIME;
+	priv->auto_fb_ctrl = AUTO_FB_0;
 
 	/* default Auto Mode */
-	/* pDevice->NetworkType = Ndis802_11Automode; */
-	pDevice->eConfigPHYMode = PHY_TYPE_AUTO;
-	pDevice->byBBType = BB_TYPE_11G;
-
-	/* initialize BBP registers */
-	pDevice->ulTxPower = 25;
-
-	/* get channel range */
-	pDevice->byMinChannel = 1;
-	pDevice->byMaxChannel = CB_MAX_CHANNEL;
+	priv->bb_type = BB_TYPE_11G;
 
 	/* get RFType */
-	pDevice->byRFType = init_rsp->rf_type;
-
-	if ((pDevice->byRFType & RF_EMU) != 0) {
-		/* force change RevID for VT3253 emu */
-		pDevice->byRevId = 0x80;
-	}
+	priv->rf_type = init_rsp->rf_type;
 
 	/* load vt3266 calibration parameters in EEPROM */
-	if (pDevice->byRFType == RF_VT3226D0) {
-		if ((pDevice->abyEEPROM[EEP_OFS_MAJOR_VER] == 0x1) &&
-			(pDevice->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
+	if (priv->rf_type == RF_VT3226D0) {
+		if ((priv->eeprom[EEP_OFS_MAJOR_VER] == 0x1) &&
+		    (priv->eeprom[EEP_OFS_MINOR_VER] >= 0x4)) {
 
-			byCalibTXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_IQ];
-			byCalibTXDC = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_DC];
-			byCalibRXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_RX_IQ];
-			if (byCalibTXIQ || byCalibTXDC || byCalibRXIQ) {
-			/* CR255, enable TX/RX IQ and DC compensation mode */
-				ControlvWriteByte(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xff,
-					0x03);
-			/* CR251, TX I/Q Imbalance Calibration */
-				ControlvWriteByte(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xfb,
-					byCalibTXIQ);
-			/* CR252, TX DC-Offset Calibration */
-				ControlvWriteByte(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xfC,
-					byCalibTXDC);
-			/* CR253, RX I/Q Imbalance Calibration */
-				ControlvWriteByte(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xfd,
-					byCalibRXIQ);
+			calib_tx_iq = priv->eeprom[EEP_OFS_CALIB_TX_IQ];
+			calib_tx_dc = priv->eeprom[EEP_OFS_CALIB_TX_DC];
+			calib_rx_iq = priv->eeprom[EEP_OFS_CALIB_RX_IQ];
+			if (calib_tx_iq || calib_tx_dc || calib_rx_iq) {
+				/* CR255, enable TX/RX IQ and
+				   DC compensation mode */
+				vnt_control_out_u8(priv,
+						   MESSAGE_REQUEST_BBREG,
+						   0xff,
+						   0x03);
+				/* CR251, TX I/Q Imbalance Calibration */
+				vnt_control_out_u8(priv,
+						   MESSAGE_REQUEST_BBREG,
+						   0xfb,
+						   calib_tx_iq);
+				/* CR252, TX DC-Offset Calibration */
+				vnt_control_out_u8(priv,
+						   MESSAGE_REQUEST_BBREG,
+						   0xfC,
+						   calib_tx_dc);
+				/* CR253, RX I/Q Imbalance Calibration */
+				vnt_control_out_u8(priv,
+						   MESSAGE_REQUEST_BBREG,
+						   0xfd,
+						   calib_rx_iq);
 			} else {
-			/* CR255, turn off BB Calibration compensation */
-				ControlvWriteByte(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xff,
-					0x0);
+				/* CR255, turn off
+				   BB Calibration compensation */
+				vnt_control_out_u8(priv,
+						   MESSAGE_REQUEST_BBREG,
+						   0xff,
+						   0x0);
 			}
 		}
 	}
 
-	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
-	pMgmt->uCurrChannel = pDevice->uChannel;
-	pMgmt->uIBSSChannel = pDevice->uChannel;
-	CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
-
 	/* get permanent network address */
-	memcpy(pDevice->abyPermanentNetAddr, init_rsp->net_addr, 6);
-	memcpy(pDevice->abyCurrentNetAddr,
-				pDevice->abyPermanentNetAddr, ETH_ALEN);
+	memcpy(priv->permanent_net_addr, init_rsp->net_addr, 6);
+	memcpy(priv->current_net_addr, priv->permanent_net_addr, ETH_ALEN);
 
 	/* if exist SW network address, use it */
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Network address = %pM\n",
-		pDevice->abyCurrentNetAddr);
+	dev_dbg(&priv->usb->dev, "Network address = %pM\n",
+		priv->current_net_addr);
 
 	/*
 	* set BB and packet type at the same time
 	* set Short Slot Time, xIFS, and RSPINF
 	*/
-	if (pDevice->byBBType == BB_TYPE_11A) {
-		CARDbAddBasicRate(pDevice, RATE_6M);
-		pDevice->bShortSlotTime = true;
-	} else {
-		CARDbAddBasicRate(pDevice, RATE_1M);
-		pDevice->bShortSlotTime = false;
-	}
+	if (priv->bb_type == BB_TYPE_11A)
+		priv->short_slot_time = true;
+	else
+		priv->short_slot_time = false;
 
-	BBvSetShortSlotTime(pDevice);
-	CARDvSetBSSMode(pDevice);
+	vnt_set_short_slot_time(priv);
 
-	if (pDevice->bUpdateBBVGA) {
-		pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
-		pDevice->byBBVGANew = pDevice->byBBVGACurrent;
+	priv->radio_ctl = priv->eeprom[EEP_OFS_RADIOCTL];
 
-		BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
-	}
+	if ((priv->radio_ctl & EEP_RADIOCTL_ENABLE) != 0) {
+		status = vnt_control_in(priv, MESSAGE_TYPE_READ,
+			MAC_REG_GPIOCTL1, MESSAGE_REQUEST_MACREG, 1, &tmp);
 
-	pDevice->byRadioCtl = pDevice->abyEEPROM[EEP_OFS_RADIOCTL];
-	pDevice->bHWRadioOff = false;
-
-	if ((pDevice->byRadioCtl & EEP_RADIOCTL_ENABLE) != 0) {
-		ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
-			MAC_REG_GPIOCTL1, MESSAGE_REQUEST_MACREG, 1, &byTmp);
-
-		if (ntStatus != STATUS_SUCCESS) {
-			spin_unlock_irq(&pDevice->lock);
+		if (status != STATUS_SUCCESS)
 			return false;
-		}
 
-		if ((byTmp & GPIO3_DATA) == 0) {
-			pDevice->bHWRadioOff = true;
-			MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
-		} else {
-			MACvRegBitsOff(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
-			pDevice->bHWRadioOff = false;
-		}
-
+		if ((tmp & GPIO3_DATA) == 0)
+			vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL1,
+								GPIO3_INTMD);
+		else
+			vnt_mac_reg_bits_off(priv, MAC_REG_GPIOCTL1,
+								GPIO3_INTMD);
 	}
 
-	ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG,
-				MAC_REG_PAPEDELAY, LEDSTS_TMLEN, 0x38);
+	vnt_mac_set_led(priv, LEDSTS_TMLEN, 0x38);
 
-	ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG,
-				MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_SLOW);
+	vnt_mac_set_led(priv, LEDSTS_STS, LEDSTS_SLOW);
 
-	MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL0, 0x01);
+	vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL0, 0x01);
 
-	if ((pDevice->bHWRadioOff == true) ||
-				(pDevice->bRadioControlOff == true)) {
-		CARDbRadioPowerOff(pDevice);
-	} else {
-		CARDbRadioPowerOn(pDevice);
-	}
+	vnt_radio_power_on(priv);
 
-
-	spin_unlock_irq(&pDevice->lock);
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----INIbInitAdapter Exit\n");
+	dev_dbg(&priv->usb->dev, "<----INIbInitAdapter Exit\n");
 
 	return true;
 }
 
-#ifdef CONFIG_PM	/* Minimal support for suspend and resume */
-
-static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
+static void vnt_free_tx_bufs(struct vnt_private *priv)
 {
-	struct vnt_private *device = usb_get_intfdata(intf);
+	struct vnt_usb_send_context *tx_context;
+	int ii;
 
-	if (!device || !device->dev)
-		return -ENODEV;
+	for (ii = 0; ii < priv->num_tx_context; ii++) {
+		tx_context = priv->tx_context[ii];
+		/* deallocate URBs */
+		if (tx_context->urb) {
+			usb_kill_urb(tx_context->urb);
+			usb_free_urb(tx_context->urb);
+		}
 
-	if (device->flags & DEVICE_FLAGS_OPENED)
-		device_close(device->dev);
+		kfree(tx_context);
+	}
+}
+
+static void vnt_free_rx_bufs(struct vnt_private *priv)
+{
+	struct vnt_rcb *rcb;
+	int ii;
+
+	for (ii = 0; ii < priv->num_rcb; ii++) {
+		rcb = priv->rcb[ii];
+		if (!rcb)
+			continue;
+
+		/* deallocate URBs */
+		if (rcb->urb) {
+			usb_kill_urb(rcb->urb);
+			usb_free_urb(rcb->urb);
+		}
+
+		/* deallocate skb */
+		if (rcb->skb)
+			dev_kfree_skb(rcb->skb);
+
+		kfree(rcb);
+	}
+}
+
+static void usb_device_reset(struct vnt_private *priv)
+{
+	int status;
+
+	status = usb_reset_device(priv->usb);
+	if (status)
+		dev_warn(&priv->usb->dev,
+			 "usb_device_reset fail status=%d\n", status);
+}
+
+static void vnt_free_int_bufs(struct vnt_private *priv)
+{
+	kfree(priv->int_buf.data_buf);
+}
+
+static bool vnt_alloc_bufs(struct vnt_private *priv)
+{
+	struct vnt_usb_send_context *tx_context;
+	struct vnt_rcb *rcb;
+	int ii;
+
+	for (ii = 0; ii < priv->num_tx_context; ii++) {
+		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
+								GFP_KERNEL);
+		if (tx_context == NULL) {
+			dev_err(&priv->usb->dev,
+					"allocate tx usb context failed\n");
+			goto free_tx;
+		}
+
+		priv->tx_context[ii] = tx_context;
+		tx_context->priv = priv;
+		tx_context->pkt_no = ii;
+
+		/* allocate URBs */
+		tx_context->urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!tx_context->urb) {
+			dev_err(&priv->usb->dev, "alloc tx urb failed\n");
+			goto free_tx;
+		}
+
+		tx_context->in_use = false;
+	}
+
+	for (ii = 0; ii < priv->num_rcb; ii++) {
+		priv->rcb[ii] = kzalloc(sizeof(struct vnt_rcb), GFP_KERNEL);
+		if (!priv->rcb[ii]) {
+			dev_err(&priv->usb->dev,
+					"failed to allocate rcb no %d\n", ii);
+			goto free_rx_tx;
+		}
+
+		rcb = priv->rcb[ii];
+
+		rcb->priv = priv;
+
+		/* allocate URBs */
+		rcb->urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (rcb->urb == NULL) {
+			dev_err(&priv->usb->dev, "Failed to alloc rx urb\n");
+			goto free_rx_tx;
+		}
+
+		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
+		if (rcb->skb == NULL) {
+			dev_err(&priv->usb->dev, "Failed to alloc rx skb\n");
+			goto free_rx_tx;
+		}
+
+		rcb->in_use = false;
+
+		/* submit rx urb */
+		if (vnt_submit_rx_urb(priv, rcb))
+			goto free_rx_tx;
+	}
+
+	priv->interrupt_urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (priv->interrupt_urb == NULL) {
+		dev_err(&priv->usb->dev, "Failed to alloc int urb\n");
+		goto free_rx_tx;
+	}
+
+	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
+	if (priv->int_buf.data_buf == NULL) {
+		dev_err(&priv->usb->dev, "Failed to alloc int buf\n");
+		usb_free_urb(priv->interrupt_urb);
+		goto free_rx_tx;
+	}
+
+	return true;
+
+free_rx_tx:
+	vnt_free_rx_bufs(priv);
+
+free_tx:
+	vnt_free_tx_bufs(priv);
+
+	return false;
+}
+
+static void vnt_tx_80211(struct ieee80211_hw *hw,
+	struct ieee80211_tx_control *control, struct sk_buff *skb)
+{
+	struct vnt_private *priv = hw->priv;
+
+	ieee80211_stop_queues(hw);
+
+	if (vnt_tx_packet(priv, skb)) {
+		ieee80211_free_txskb(hw, skb);
+
+		ieee80211_wake_queues(hw);
+	}
+}
+
+static int vnt_start(struct ieee80211_hw *hw)
+{
+	struct vnt_private *priv = hw->priv;
+
+	priv->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
+
+	if (vnt_alloc_bufs(priv) == false) {
+		dev_dbg(&priv->usb->dev, "vnt_alloc_bufs fail...\n");
+		return -ENOMEM;
+	}
+
+	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
+
+	if (vnt_init_registers(priv) == false) {
+		dev_dbg(&priv->usb->dev, " init register fail\n");
+		goto free_all;
+	}
+
+	priv->int_interval = 1;  /* bInterval is set to 1 */
+
+	vnt_int_start_interrupt(priv);
+
+	ieee80211_wake_queues(hw);
+
+	return 0;
+
+free_all:
+	vnt_free_rx_bufs(priv);
+	vnt_free_tx_bufs(priv);
+	vnt_free_int_bufs(priv);
+
+	usb_kill_urb(priv->interrupt_urb);
+	usb_free_urb(priv->interrupt_urb);
+
+	return -ENOMEM;
+}
+
+static void vnt_stop(struct ieee80211_hw *hw)
+{
+	struct vnt_private *priv = hw->priv;
+	int i;
+
+	if (!priv)
+		return;
+
+	for (i = 0; i < MAX_KEY_TABLE; i++)
+		vnt_mac_disable_keyentry(priv, i);
+
+	/* clear all keys */
+	priv->key_entry_inuse = 0;
+
+	if (!test_bit(DEVICE_FLAGS_UNPLUG, &priv->flags))
+		vnt_mac_shutdown(priv);
+
+	ieee80211_stop_queues(hw);
+
+	set_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
+
+	cancel_delayed_work_sync(&priv->run_command_work);
+
+	priv->cmd_running = false;
+
+	vnt_free_tx_bufs(priv);
+	vnt_free_rx_bufs(priv);
+	vnt_free_int_bufs(priv);
+
+	usb_kill_urb(priv->interrupt_urb);
+	usb_free_urb(priv->interrupt_urb);
+}
+
+static int vnt_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct vnt_private *priv = hw->priv;
+
+	priv->vif = vif;
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		vnt_mac_reg_bits_off(priv, MAC_REG_RCR, RCR_UNICAST);
+
+		vnt_mac_reg_bits_on(priv, MAC_REG_HOSTCR, HOSTCR_ADHOC);
+
+		break;
+	case NL80211_IFTYPE_AP:
+		vnt_mac_reg_bits_off(priv, MAC_REG_RCR, RCR_UNICAST);
+
+		vnt_mac_reg_bits_on(priv, MAC_REG_HOSTCR, HOSTCR_AP);
+
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	priv->op_mode = vif->type;
+
+	vnt_set_bss_mode(priv);
+
+	/* LED blink on TX */
+	vnt_mac_set_led(priv, LEDSTS_STS, LEDSTS_INTER);
 
 	return 0;
 }
 
-static int vt6656_resume(struct usb_interface *intf)
+static void vnt_remove_interface(struct ieee80211_hw *hw,
+		struct ieee80211_vif *vif)
 {
-	struct vnt_private *device = usb_get_intfdata(intf);
+	struct vnt_private *priv = hw->priv;
 
-	if (!device || !device->dev)
-		return -ENODEV;
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		vnt_mac_reg_bits_off(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
+		vnt_mac_reg_bits_off(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTREN);
+		vnt_mac_reg_bits_off(priv, MAC_REG_HOSTCR, HOSTCR_ADHOC);
+		break;
+	case NL80211_IFTYPE_AP:
+		vnt_mac_reg_bits_off(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
+		vnt_mac_reg_bits_off(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTREN);
+		vnt_mac_reg_bits_off(priv, MAC_REG_HOSTCR, HOSTCR_AP);
+		break;
+	default:
+		break;
+	}
 
-	if (!(device->flags & DEVICE_FLAGS_OPENED))
-		device_open(device->dev);
+	vnt_radio_power_off(priv);
+
+	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
+
+	/* LED slow blink */
+	vnt_mac_set_led(priv, LEDSTS_STS, LEDSTS_SLOW);
+}
+
+static int vnt_config(struct ieee80211_hw *hw, u32 changed)
+{
+	struct vnt_private *priv = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+	u8 bb_type;
+
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		if (conf->flags & IEEE80211_CONF_PS)
+			vnt_enable_power_saving(priv, conf->listen_interval);
+		else
+			vnt_disable_power_saving(priv);
+	}
+
+	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) ||
+			(conf->flags & IEEE80211_CONF_OFFCHANNEL)) {
+		vnt_set_channel(priv, conf->chandef.chan->hw_value);
+
+		if (conf->chandef.chan->band == IEEE80211_BAND_5GHZ)
+			bb_type = BB_TYPE_11A;
+		else
+			bb_type = BB_TYPE_11G;
+
+		if (priv->bb_type != bb_type) {
+			priv->bb_type = bb_type;
+
+			vnt_set_bss_mode(priv);
+		}
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		if (priv->bb_type == BB_TYPE_11B)
+			priv->current_rate = RATE_1M;
+		else
+			priv->current_rate = RATE_54M;
+
+		vnt_rf_setpower(priv, priv->current_rate,
+				conf->chandef.chan->hw_value);
+	}
 
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+static void vnt_bss_info_changed(struct ieee80211_hw *hw,
+		struct ieee80211_vif *vif, struct ieee80211_bss_conf *conf,
+		u32 changed)
+{
+	struct vnt_private *priv = hw->priv;
 
-static const struct net_device_ops device_netdev_ops = {
-    .ndo_open               = device_open,
-    .ndo_stop               = device_close,
-    .ndo_do_ioctl           = device_ioctl,
-    .ndo_get_stats          = device_get_stats,
-    .ndo_start_xmit         = device_xmit,
-    .ndo_set_rx_mode	    = device_set_multi,
+	priv->current_aid = conf->aid;
+
+	if (changed & BSS_CHANGED_BSSID)
+		vnt_mac_set_bssid_addr(priv, (u8 *)conf->bssid);
+
+
+	if (changed & BSS_CHANGED_BASIC_RATES) {
+		priv->basic_rates = conf->basic_rates;
+
+		vnt_update_top_rates(priv);
+
+		dev_dbg(&priv->usb->dev, "basic rates %x\n", conf->basic_rates);
+	}
+
+	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
+		if (conf->use_short_preamble) {
+			vnt_mac_enable_barker_preamble_mode(priv);
+			priv->preamble_type = true;
+		} else {
+			vnt_mac_disable_barker_preamble_mode(priv);
+			priv->preamble_type = false;
+		}
+	}
+
+	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
+		if (conf->use_cts_prot)
+			vnt_mac_enable_protect_mode(priv);
+		else
+			vnt_mac_disable_protect_mode(priv);
+	}
+
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		if (conf->use_short_slot)
+			priv->short_slot_time = true;
+		else
+			priv->short_slot_time = false;
+
+		vnt_set_short_slot_time(priv);
+		vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
+		vnt_update_pre_ed_threshold(priv, false);
+	}
+
+	if (changed & BSS_CHANGED_TXPOWER)
+		vnt_rf_setpower(priv, priv->current_rate,
+					conf->chandef.chan->hw_value);
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		dev_dbg(&priv->usb->dev,
+				"Beacon enable %d\n", conf->enable_beacon);
+
+		if (conf->enable_beacon) {
+			vnt_beacon_enable(priv, vif, conf);
+
+			vnt_mac_reg_bits_on(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
+		} else {
+			vnt_mac_reg_bits_off(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
+		}
+	}
+}
+
+static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
+	struct netdev_hw_addr_list *mc_list)
+{
+	struct vnt_private *priv = hw->priv;
+	struct netdev_hw_addr *ha;
+	u64 mc_filter = 0;
+	u32 bit_nr = 0;
+
+	netdev_hw_addr_list_for_each(ha, mc_list) {
+		bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+
+		mc_filter |= 1ULL << (bit_nr & 0x3f);
+	}
+
+	priv->mc_list_count = mc_list->count;
+
+	return mc_filter;
+}
+
+static void vnt_configure(struct ieee80211_hw *hw,
+	unsigned int changed_flags, unsigned int *total_flags, u64 multicast)
+{
+	struct vnt_private *priv = hw->priv;
+	u8 rx_mode = 0;
+	int rc;
+
+	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_PROMISC_IN_BSS |
+		FIF_BCN_PRBRESP_PROMISC;
+
+	rc = vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_RCR,
+		MESSAGE_REQUEST_MACREG, sizeof(u8), &rx_mode);
+
+	if (!rc)
+		rx_mode = RCR_MULTICAST | RCR_BROADCAST;
+
+	dev_dbg(&priv->usb->dev, "rx mode in = %x\n", rx_mode);
+
+	if (changed_flags & FIF_PROMISC_IN_BSS) {
+		/* unconditionally log net taps */
+		if (*total_flags & FIF_PROMISC_IN_BSS)
+			rx_mode |= RCR_UNICAST;
+		else
+			rx_mode &= ~RCR_UNICAST;
+	}
+
+	if (changed_flags & FIF_ALLMULTI) {
+		if (*total_flags & FIF_ALLMULTI) {
+			if (priv->mc_list_count > 2)
+				vnt_mac_set_filter(priv, ~0);
+			else
+				vnt_mac_set_filter(priv, multicast);
+
+			rx_mode |= RCR_MULTICAST | RCR_BROADCAST;
+		} else {
+			rx_mode &= ~(RCR_MULTICAST | RCR_BROADCAST);
+		}
+
+	}
+
+	if (changed_flags & (FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC)) {
+		if (*total_flags & (FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC))
+			rx_mode &= ~RCR_BSSID;
+		else
+			rx_mode |= RCR_BSSID;
+	}
+
+	vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG, MAC_REG_RCR, rx_mode);
+
+	dev_dbg(&priv->usb->dev, "rx mode out= %x\n", rx_mode);
+}
+
+static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+	struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		struct ieee80211_key_conf *key)
+{
+	struct vnt_private *priv = hw->priv;
+
+	switch (cmd) {
+	case SET_KEY:
+		if (vnt_set_keys(hw, sta, vif, key))
+			return -EOPNOTSUPP;
+		break;
+	case DISABLE_KEY:
+		if (test_bit(key->hw_key_idx, &priv->key_entry_inuse))
+			clear_bit(key->hw_key_idx, &priv->key_entry_inuse);
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static void vnt_sw_scan_start(struct ieee80211_hw *hw)
+{
+	struct vnt_private *priv = hw->priv;
+
+	vnt_set_bss_mode(priv);
+	/* Set max sensitivity*/
+	vnt_update_pre_ed_threshold(priv, true);
+}
+
+static void vnt_sw_scan_complete(struct ieee80211_hw *hw)
+{
+	struct vnt_private *priv = hw->priv;
+
+	/* Return sensitivity to channel level*/
+	vnt_update_pre_ed_threshold(priv, false);
+}
+
+static int vnt_get_stats(struct ieee80211_hw *hw,
+				struct ieee80211_low_level_stats *stats)
+{
+	struct vnt_private *priv = hw->priv;
+
+	memcpy(stats, &priv->low_stats, sizeof(*stats));
+
+	return 0;
+}
+
+static u64 vnt_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct vnt_private *priv = hw->priv;
+
+	return priv->current_tsf;
+}
+
+static void vnt_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			u64 tsf)
+{
+	struct vnt_private *priv = hw->priv;
+
+	vnt_update_next_tbtt(priv, tsf, vif->bss_conf.beacon_int);
+}
+
+static void vnt_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct vnt_private *priv = hw->priv;
+
+	vnt_mac_reg_bits_off(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTREN);
+
+	vnt_clear_current_tsf(priv);
+}
+
+static const struct ieee80211_ops vnt_mac_ops = {
+	.tx			= vnt_tx_80211,
+	.start			= vnt_start,
+	.stop			= vnt_stop,
+	.add_interface		= vnt_add_interface,
+	.remove_interface	= vnt_remove_interface,
+	.config			= vnt_config,
+	.bss_info_changed	= vnt_bss_info_changed,
+	.prepare_multicast	= vnt_prepare_multicast,
+	.configure_filter	= vnt_configure,
+	.set_key		= vnt_set_key,
+	.sw_scan_start		= vnt_sw_scan_start,
+	.sw_scan_complete	= vnt_sw_scan_complete,
+	.get_stats		= vnt_get_stats,
+	.get_tsf		= vnt_get_tsf,
+	.set_tsf		= vnt_set_tsf,
+	.reset_tsf		= vnt_reset_tsf,
 };
+
+int vnt_init(struct vnt_private *priv)
+{
+
+	if (!(vnt_init_registers(priv)))
+		return -EAGAIN;
+
+	SET_IEEE80211_PERM_ADDR(priv->hw, priv->permanent_net_addr);
+
+	vnt_init_bands(priv);
+
+	if (ieee80211_register_hw(priv->hw))
+		return -ENODEV;
+
+	priv->mac_hw = true;
+
+	vnt_radio_power_off(priv);
+
+	return 0;
+}
 
 static int
 vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
-	u8 fake_mac[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
-	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_device *udev;
+	struct vnt_private *priv;
+	struct ieee80211_hw *hw;
+	struct wiphy *wiphy;
 	int rc = 0;
-	struct net_device *netdev = NULL;
-	struct vnt_private *pDevice;
 
-	printk(KERN_NOTICE "%s Ver. %s\n", DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
-	printk(KERN_NOTICE "Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
+	udev = usb_get_dev(interface_to_usbdev(intf));
 
-	udev = usb_get_dev(udev);
-	netdev = alloc_etherdev(sizeof(struct vnt_private));
-	if (!netdev) {
-		printk(KERN_ERR DEVICE_NAME ": allocate net device failed\n");
-		rc = -ENOMEM;
+	dev_notice(&udev->dev, "%s Ver. %s\n",
+					DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
+	dev_notice(&udev->dev,
+		"Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
+
+	hw = ieee80211_alloc_hw(sizeof(struct vnt_private), &vnt_mac_ops);
+	if (!hw) {
+		dev_err(&udev->dev, "could not register ieee80211_hw\n");
 		goto err_nomem;
 	}
 
-	pDevice = netdev_priv(netdev);
-	memset(pDevice, 0, sizeof(struct vnt_private));
+	priv = hw->priv;
+	priv->hw = hw;
+	priv->usb = udev;
 
-	pDevice->dev = netdev;
-	pDevice->usb = udev;
+	vnt_set_options(priv);
 
-	device_set_options(pDevice);
-	spin_lock_init(&pDevice->lock);
-	INIT_DELAYED_WORK(&pDevice->run_command_work, vRunCommand);
-	INIT_DELAYED_WORK(&pDevice->second_callback_work, BSSvSecondCallBack);
-	INIT_WORK(&pDevice->read_work_item, RXvWorkItem);
-	INIT_WORK(&pDevice->rx_mng_work_item, RXvMngWorkItem);
+	spin_lock_init(&priv->lock);
+	mutex_init(&priv->usb_lock);
 
-	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!pDevice->pControlURB) {
-		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc control urb\n");
-		goto err_netdev;
-	}
+	INIT_DELAYED_WORK(&priv->run_command_work, vnt_run_command);
 
-	pDevice->tx_80211 = device_dma0_tx_80211;
-	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
+	usb_set_intfdata(intf, priv);
 
-	netdev->netdev_ops = &device_netdev_ops;
-	netdev->wireless_handlers =
-		(struct iw_handler_def *) &iwctl_handler_def;
+	wiphy = priv->hw->wiphy;
 
-	usb_set_intfdata(intf, pDevice);
-	SET_NETDEV_DEV(netdev, &intf->dev);
-	memcpy(pDevice->dev->dev_addr, fake_mac, ETH_ALEN);
+	wiphy->frag_threshold = FRAG_THRESH_DEF;
+	wiphy->rts_threshold = RTS_THRESH_DEF;
+	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
 
-	usb_device_reset(pDevice);
+	priv->hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+		IEEE80211_HW_SIGNAL_DBM |
+		IEEE80211_HW_TIMING_BEACON_ONLY;
 
-	rc = register_netdev(netdev);
-	if (rc) {
-		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
-		goto err_netdev;
-	}
+	priv->hw->rate_control_algorithm = "pid";
+	priv->hw->max_signal = 100;
+
+	SET_IEEE80211_DEV(priv->hw, &intf->dev);
+
+	usb_device_reset(priv);
+
+	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
+	vnt_reset_command_timer(priv);
+
+	vnt_schedule_command(priv, WLAN_CMD_INIT_MAC80211);
 
 	return 0;
 
-err_netdev:
-	free_netdev(netdev);
 err_nomem:
 	usb_put_dev(udev);
 
 	return rc;
 }
 
-static void device_free_tx_bufs(struct vnt_private *pDevice)
-{
-	struct vnt_usb_send_context *pTxContext;
-    int ii;
-
-    for (ii = 0; ii < pDevice->cbTD; ii++) {
-
-        pTxContext = pDevice->apTD[ii];
-	/* deallocate URBs */
-        if (pTxContext->pUrb) {
-            usb_kill_urb(pTxContext->pUrb);
-            usb_free_urb(pTxContext->pUrb);
-        }
-        kfree(pTxContext);
-    }
-    return;
-}
-
-static void device_free_rx_bufs(struct vnt_private *pDevice)
-{
-	struct vnt_rcb *pRCB;
-	int ii;
-
-    for (ii = 0; ii < pDevice->cbRD; ii++) {
-
-        pRCB = pDevice->apRCB[ii];
-	/* deallocate URBs */
-        if (pRCB->pUrb) {
-            usb_kill_urb(pRCB->pUrb);
-            usb_free_urb(pRCB->pUrb);
-        }
-	/* deallocate skb */
-        if (pRCB->skb)
-            dev_kfree_skb(pRCB->skb);
-    }
-    kfree(pDevice->pRCBMem);
-
-    return;
-}
-
-static void usb_device_reset(struct vnt_private *pDevice)
-{
- int status;
- status = usb_reset_device(pDevice->usb);
-	if (status)
-            printk("usb_device_reset fail status=%d\n",status);
-	return ;
-}
-
-static void device_free_int_bufs(struct vnt_private *pDevice)
-{
-    kfree(pDevice->intBuf.pDataBuf);
-    return;
-}
-
-static bool device_alloc_bufs(struct vnt_private *pDevice)
-{
-	struct vnt_usb_send_context *pTxContext;
-	struct vnt_rcb *pRCB;
-	int ii;
-
-    for (ii = 0; ii < pDevice->cbTD; ii++) {
-
-	pTxContext = kmalloc(sizeof(struct vnt_usb_send_context), GFP_KERNEL);
-        if (pTxContext == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : allocate tx usb context failed\n", pDevice->dev->name);
-            goto free_tx;
-        }
-        pDevice->apTD[ii] = pTxContext;
-	pTxContext->pDevice = (void *) pDevice;
-	/* allocate URBs */
-        pTxContext->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
-        if (pTxContext->pUrb == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "alloc tx urb failed\n");
-            goto free_tx;
-        }
-        pTxContext->bBoolInUse = false;
-    }
-
-    /* allocate RCB mem */
-	pDevice->pRCBMem = kzalloc((sizeof(struct vnt_rcb) * pDevice->cbRD),
-								GFP_KERNEL);
-    if (pDevice->pRCBMem == NULL) {
-        DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : alloc rx usb context failed\n", pDevice->dev->name);
-        goto free_tx;
-    }
-
-    pDevice->FirstRecvFreeList = NULL;
-    pDevice->LastRecvFreeList = NULL;
-    pDevice->FirstRecvMngList = NULL;
-    pDevice->LastRecvMngList = NULL;
-    pDevice->NumRecvFreeList = 0;
-
-	pRCB = (struct vnt_rcb *)pDevice->pRCBMem;
-
-    for (ii = 0; ii < pDevice->cbRD; ii++) {
-
-        pDevice->apRCB[ii] = pRCB;
-	pRCB->pDevice = (void *) pDevice;
-	/* allocate URBs */
-        pRCB->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
-
-        if (pRCB->pUrb == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to alloc rx urb\n");
-            goto free_rx_tx;
-        }
-        pRCB->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-        if (pRCB->skb == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to alloc rx skb\n");
-            goto free_rx_tx;
-        }
-        pRCB->skb->dev = pDevice->dev;
-        pRCB->bBoolInUse = false;
-        EnqueueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList, pRCB);
-        pDevice->NumRecvFreeList++;
-        pRCB++;
-    }
-
-	pDevice->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
-	if (pDevice->pInterruptURB == NULL) {
-	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int urb\n");
-	    goto free_rx_tx;
-	}
-
-    pDevice->intBuf.pDataBuf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
-	if (pDevice->intBuf.pDataBuf == NULL) {
-	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int buf\n");
-	    usb_free_urb(pDevice->pInterruptURB);
-	    goto free_rx_tx;
-	}
-
-    return true;
-
-free_rx_tx:
-    device_free_rx_bufs(pDevice);
-
-free_tx:
-    device_free_tx_bufs(pDevice);
-
-	return false;
-}
-
-static bool device_init_defrag_cb(struct vnt_private *pDevice)
-{
-	int i;
-	PSDeFragControlBlock pDeF;
-
-    /* Init the fragment ctl entries */
-    for (i = 0; i < CB_MAX_RX_FRAG; i++) {
-        pDeF = &(pDevice->sRxDFCB[i]);
-        if (!device_alloc_frag_buf(pDevice, pDeF)) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s: can not alloc frag bufs\n",
-                pDevice->dev->name);
-            goto free_frag;
-        }
-    }
-    pDevice->cbDFCB = CB_MAX_RX_FRAG;
-    pDevice->cbFreeDFCB = pDevice->cbDFCB;
-    return true;
-
-free_frag:
-    device_free_frag_bufs(pDevice);
-    return false;
-}
-
-static void device_free_frag_bufs(struct vnt_private *pDevice)
-{
-	PSDeFragControlBlock pDeF;
-	int i;
-
-    for (i = 0; i < CB_MAX_RX_FRAG; i++) {
-
-        pDeF = &(pDevice->sRxDFCB[i]);
-
-        if (pDeF->skb)
-            dev_kfree_skb(pDeF->skb);
-    }
-}
-
-int device_alloc_frag_buf(struct vnt_private *pDevice,
-		PSDeFragControlBlock pDeF)
-{
-
-    pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-    if (pDeF->skb == NULL)
-        return false;
-    pDeF->skb->dev = pDevice->dev;
-
-    return true;
-}
-
-static int  device_open(struct net_device *dev)
-{
-	struct vnt_private *pDevice = netdev_priv(dev);
-
-     pDevice->fWPA_Authened = false;
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_open...\n");
-
-    pDevice->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
-
-    if (device_alloc_bufs(pDevice) == false) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_alloc_bufs fail... \n");
-        return -ENOMEM;
-    }
-
-    if (device_init_defrag_cb(pDevice)== false) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Initial defragment cb fail \n");
-        goto free_rx_tx;
-    }
-
-    MP_CLEAR_FLAG(pDevice, fMP_DISCONNECTED);
-    MP_CLEAR_FLAG(pDevice, fMP_CONTROL_READS);
-    MP_CLEAR_FLAG(pDevice, fMP_CONTROL_WRITES);
-    MP_SET_FLAG(pDevice, fMP_POST_READS);
-    MP_SET_FLAG(pDevice, fMP_POST_WRITES);
-
-    /* read config file */
-    Read_config_file(pDevice);
-
-	if (device_init_registers(pDevice) == false) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " init register fail\n");
-		goto free_all;
-	}
-
-    device_set_multi(pDevice->dev);
-
-    /* init for key management */
-    KeyvInitTable(pDevice,&pDevice->sKey);
-	memcpy(pDevice->vnt_mgmt.abyMACAddr,
-		pDevice->abyCurrentNetAddr, ETH_ALEN);
-    memcpy(pDevice->dev->dev_addr, pDevice->abyCurrentNetAddr, ETH_ALEN);
-    pDevice->bStopTx0Pkt = false;
-    pDevice->bStopDataPkt = false;
-    pDevice->bRoaming = false;
-    pDevice->bIsRoaming = false;
-    pDevice->bEnableRoaming = false;
-    if (pDevice->bDiversityRegCtlON) {
-        device_init_diversity_timer(pDevice);
-    }
-
-    vMgrObjectInit(pDevice);
-
-    tasklet_init(&pDevice->EventWorkItem, (void *)INTvWorkItem, (unsigned long)pDevice);
-
-	schedule_delayed_work(&pDevice->second_callback_work, HZ);
-
-	pDevice->int_interval = 100;  /* max 100 microframes */
-    pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-
-    pDevice->bIsRxWorkItemQueued = true;
-    pDevice->fKillEventPollingThread = false;
-    pDevice->bEventAvailable = false;
-
-   pDevice->bWPADEVUp = false;
-     pDevice->bwextstep0 = false;
-     pDevice->bwextstep1 = false;
-     pDevice->bwextstep2 = false;
-     pDevice->bwextstep3 = false;
-     pDevice->bWPASuppWextEnabled = false;
-    pDevice->byReAssocCount = 0;
-
-	schedule_work(&pDevice->read_work_item);
-    INTvWorkItem(pDevice);
-
-    /* if WEP key already set by iwconfig but device not yet open */
-    if ((pDevice->bEncryptionEnable == true) && (pDevice->bTransmitKey == true)) {
-         spin_lock_irq(&pDevice->lock);
-         KeybSetDefaultKey( pDevice,
-                            &(pDevice->sKey),
-                            pDevice->byKeyIndex | (1 << 31),
-                            pDevice->uKeyLength,
-                            NULL,
-                            pDevice->abyKey,
-                            KEY_CTL_WEP
-                          );
-         spin_unlock_irq(&pDevice->lock);
-         pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
-    }
-
-	if (pDevice->vnt_mgmt.eConfigMode == WMAC_CONFIG_AP)
-		bScheduleCommand((void *) pDevice, WLAN_CMD_RUN_AP, NULL);
-	else
-		bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-
-    netif_stop_queue(pDevice->dev);
-    pDevice->flags |= DEVICE_FLAGS_OPENED;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open success..\n");
-	return 0;
-
-free_all:
-    device_free_frag_bufs(pDevice);
-free_rx_tx:
-    device_free_rx_bufs(pDevice);
-    device_free_tx_bufs(pDevice);
-    device_free_int_bufs(pDevice);
-	usb_kill_urb(pDevice->pInterruptURB);
-    usb_free_urb(pDevice->pInterruptURB);
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open fail.. \n");
-    return -ENOMEM;
-}
-
-static int device_close(struct net_device *dev)
-{
-	struct vnt_private *pDevice = netdev_priv(dev);
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	int uu;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close1\n");
-    if (pDevice == NULL)
-        return -ENODEV;
-
-    if (pDevice->bLinkPass) {
-	bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
-        mdelay(30);
-    }
-
-        memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
-        pMgmt->bShareKeyAlgorithm = false;
-        pDevice->bEncryptionEnable = false;
-        pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-	spin_lock_irq(&pDevice->lock);
-	for (uu = 0; uu < MAX_KEY_TABLE; uu++)
-                MACvDisableKeyEntry(pDevice,uu);
-	spin_unlock_irq(&pDevice->lock);
-
-    if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == false) {
-        MACbShutdown(pDevice);
-    }
-    netif_stop_queue(pDevice->dev);
-    MP_SET_FLAG(pDevice, fMP_DISCONNECTED);
-    MP_CLEAR_FLAG(pDevice, fMP_POST_WRITES);
-    MP_CLEAR_FLAG(pDevice, fMP_POST_READS);
-    pDevice->fKillEventPollingThread = true;
-
-	cancel_delayed_work_sync(&pDevice->run_command_work);
-	cancel_delayed_work_sync(&pDevice->second_callback_work);
-
-    if (pDevice->bDiversityRegCtlON) {
-        del_timer(&pDevice->TimerSQ3Tmax1);
-        del_timer(&pDevice->TimerSQ3Tmax2);
-        del_timer(&pDevice->TimerSQ3Tmax3);
-    }
-
-	cancel_work_sync(&pDevice->rx_mng_work_item);
-	cancel_work_sync(&pDevice->read_work_item);
-
-    tasklet_kill(&pDevice->EventWorkItem);
-
-   pDevice->bRoaming = false;
-   pDevice->bIsRoaming = false;
-   pDevice->bEnableRoaming = false;
-    pDevice->bCmdRunning = false;
-    pDevice->bLinkPass = false;
-    memset(pMgmt->abyCurrBSSID, 0, 6);
-    pMgmt->eCurrState = WMAC_STATE_IDLE;
-
-	pDevice->flags &= ~DEVICE_FLAGS_OPENED;
-
-    device_free_tx_bufs(pDevice);
-    device_free_rx_bufs(pDevice);
-    device_free_int_bufs(pDevice);
-    device_free_frag_bufs(pDevice);
-
-	usb_kill_urb(pDevice->pInterruptURB);
-    usb_free_urb(pDevice->pInterruptURB);
-
-    BSSvClearNodeDBTable(pDevice, 0);
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close2 \n");
-
-    return 0;
-}
-
 static void vt6656_disconnect(struct usb_interface *intf)
 {
-	struct vnt_private *device = usb_get_intfdata(intf);
+	struct vnt_private *priv = usb_get_intfdata(intf);
 
-	if (!device)
+	if (!priv)
 		return;
+
+	if (priv->mac_hw)
+		ieee80211_unregister_hw(priv->hw);
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
 
-	device->flags |= DEVICE_FLAGS_UNPLUG;
+	set_bit(DEVICE_FLAGS_UNPLUG, &priv->flags);
 
-	if (device->dev) {
-		unregister_netdev(device->dev);
-
-		usb_kill_urb(device->pControlURB);
-		usb_free_urb(device->pControlURB);
-
-		free_netdev(device->dev);
-	}
+	ieee80211_free_hw(priv->hw);
 }
 
-static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
+#ifdef CONFIG_PM
+
+static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	struct vnt_private *pDevice = netdev_priv(dev);
-
-	spin_lock_irq(&pDevice->lock);
-
-	if (unlikely(pDevice->bStopTx0Pkt))
-		dev_kfree_skb_irq(skb);
-	else
-		vDMA0_tx_80211(pDevice, skb);
-
-	spin_unlock_irq(&pDevice->lock);
-
-	return NETDEV_TX_OK;
+	return 0;
 }
 
-static int device_xmit(struct sk_buff *skb, struct net_device *dev)
+static int vt6656_resume(struct usb_interface *intf)
 {
-	struct vnt_private *pDevice = netdev_priv(dev);
-	struct net_device_stats *stats = &pDevice->stats;
-
-	spin_lock_irq(&pDevice->lock);
-
-	netif_stop_queue(dev);
-
-	if (!pDevice->bLinkPass) {
-		dev_kfree_skb_irq(skb);
-		goto out;
-	}
-
-	if (pDevice->bStopDataPkt) {
-		dev_kfree_skb_irq(skb);
-		stats->tx_dropped++;
-		goto out;
-	}
-
-	if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb)) {
-		if (netif_queue_stopped(dev))
-			netif_wake_queue(dev);
-	}
-
-out:
-	spin_unlock_irq(&pDevice->lock);
-
-	return NETDEV_TX_OK;
+	return 0;
 }
 
-/* find out the start position of str2 from str1 */
-static unsigned char *kstrstr(const unsigned char *str1,
-			      const unsigned char *str2) {
-  int str1_len = strlen(str1);
-  int str2_len = strlen(str2);
-
-  while (str1_len >= str2_len) {
-       str1_len--;
-      if(memcmp(str1,str2,str2_len)==0)
-	return (unsigned char *) str1;
-        str1++;
-  }
-  return NULL;
-}
-
-static int Config_FileGetParameter(unsigned char *string,
-				   unsigned char *dest,
-				   unsigned char *source)
-{
-  unsigned char buf1[100];
-  unsigned char buf2[100];
-  unsigned char *start_p = NULL, *end_p = NULL, *tmp_p = NULL;
-  int ii;
-
-    memset(buf1,0,100);
-    strcat(buf1, string);
-    strcat(buf1, "=");
-    source+=strlen(buf1);
-
-    /* find target string start point */
-    start_p = kstrstr(source,buf1);
-    if (start_p == NULL)
-	return false;
-
-    /* check if current config line is marked by "#" */
-    for (ii = 1; ; ii++) {
-	if (memcmp(start_p - ii, "\n", 1) == 0)
-		break;
-	if (memcmp(start_p - ii, "#", 1) == 0)
-		return false;
-    }
-
-    /* find target string end point */
-     end_p = kstrstr(start_p,"\n");
-     if (end_p == NULL) {       /* can't find "\n", but don't care */
-	     end_p = start_p + strlen(start_p);   /* no include "\n" */
-     }
-
-   memset(buf2,0,100);
-   memcpy(buf2, start_p, end_p-start_p); /* get the target line */
-   buf2[end_p-start_p]='\0';
-
-   /* find value */
-   start_p = kstrstr(buf2,"=");
-   if (start_p == NULL)
-      return false;
-   memset(buf1,0,100);
-   strcpy(buf1,start_p+1);
-
-   /* except space */
-  tmp_p = buf1;
-  while(*tmp_p != 0x00) {
-  	if(*tmp_p==' ')
-	    tmp_p++;
-         else
-	  break;
-  }
-
-   memcpy(dest,tmp_p,strlen(tmp_p));
- return true;
-}
-
-/* if read fails, return NULL, or return data pointer */
-static unsigned char *Config_FileOperation(struct vnt_private *pDevice)
-{
-	unsigned char *buffer = kmalloc(1024, GFP_KERNEL);
-	struct file   *file;
-
-	if (!buffer) {
-		printk("allocate mem for file fail?\n");
-		return NULL;
-	}
-
-	file = filp_open(CONFIG_PATH, O_RDONLY, 0);
-	if (IS_ERR(file)) {
-		kfree(buffer);
-		printk("Config_FileOperation file Not exist\n");
-		return NULL;
-	}
-
-	if (kernel_read(file, 0, buffer, 1024) < 0) {
-		printk("read file error?\n");
-		kfree(buffer);
-		buffer = NULL;
-	}
-
-	fput(file);
-	return buffer;
-}
-
-/* return --->-1:fail; >=0:successful */
-static int Read_config_file(struct vnt_private *pDevice)
-{
-	int result = 0;
-	unsigned char tmpbuffer[100];
-	unsigned char *buffer = NULL;
-
-	/* init config setting */
- pDevice->config_file.ZoneType = -1;
- pDevice->config_file.eAuthenMode = -1;
- pDevice->config_file.eEncryptionStatus = -1;
-
-  buffer = Config_FileOperation(pDevice);
-  if (buffer == NULL) {
-     result =-1;
-     return result;
-  }
-
-/* get zonetype */
-{
-    memset(tmpbuffer,0,sizeof(tmpbuffer));
-    if(Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer) ==true) {
-    if(memcmp(tmpbuffer,"USA",3)==0) {
-      pDevice->config_file.ZoneType=ZoneType_USA;
-    }
-    else if(memcmp(tmpbuffer,"JAPAN",5)==0) {
-      pDevice->config_file.ZoneType=ZoneType_Japan;
-    }
-    else if(memcmp(tmpbuffer,"EUROPE",6)==0) {
-     pDevice->config_file.ZoneType=ZoneType_Europe;
-    }
-    else {
-      printk("Unknown Zonetype[%s]?\n",tmpbuffer);
-   }
- }
-}
-
-/* get other parameter */
-  {
-	memset(tmpbuffer,0,sizeof(tmpbuffer));
-       if(Config_FileGetParameter("AUTHENMODE",tmpbuffer,buffer)==true) {
-	 pDevice->config_file.eAuthenMode = (int) simple_strtol(tmpbuffer, NULL, 10);
-       }
-
-	memset(tmpbuffer,0,sizeof(tmpbuffer));
-       if(Config_FileGetParameter("ENCRYPTIONMODE",tmpbuffer,buffer)==true) {
-	 pDevice->config_file.eEncryptionStatus= (int) simple_strtol(tmpbuffer, NULL, 10);
-       }
-  }
-
-  kfree(buffer);
-  return result;
-}
-
-static void device_set_multi(struct net_device *dev)
-{
-	struct vnt_private *pDevice = netdev_priv(dev);
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	struct netdev_hw_addr *ha;
-	u32 mc_filter[2];
-	int ii;
-	u8 pbyData[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 byTmpMode = 0;
-	int rc;
-
-	spin_lock_irq(&pDevice->lock);
-    rc = CONTROLnsRequestIn(pDevice,
-                            MESSAGE_TYPE_READ,
-                            MAC_REG_RCR,
-                            MESSAGE_REQUEST_MACREG,
-                            1,
-                            &byTmpMode
-                            );
-    if (rc == 0) pDevice->byRxMode = byTmpMode;
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->byRxMode in= %x\n", pDevice->byRxMode);
-
-    if (dev->flags & IFF_PROMISC) { /* set promiscuous mode */
-        DBG_PRT(MSG_LEVEL_ERR,KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
-	/* unconditionally log net taps */
-        pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST|RCR_UNICAST);
-    }
-    else if ((netdev_mc_count(dev) > pDevice->multicast_limit) ||
-	     (dev->flags & IFF_ALLMULTI)) {
-        CONTROLnsRequestOut(pDevice,
-                            MESSAGE_TYPE_WRITE,
-                            MAC_REG_MAR0,
-                            MESSAGE_REQUEST_MACREG,
-                            8,
-                            pbyData
-                            );
-        pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
-    }
-    else {
-        memset(mc_filter, 0, sizeof(mc_filter));
-	netdev_for_each_mc_addr(ha, dev) {
-            int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
-            mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
-        }
-        for (ii = 0; ii < 4; ii++) {
-             MACvWriteMultiAddr(pDevice, ii, *((u8 *)&mc_filter[0] + ii));
-             MACvWriteMultiAddr(pDevice, ii+ 4, *((u8 *)&mc_filter[1] + ii));
-        }
-        pDevice->byRxMode &= ~(RCR_UNICAST);
-        pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
-    }
-
-    if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
-	/*
-	 * If AP mode, don't enable RCR_UNICAST since HW only compares
-	 * addr1 with local MAC
-	 */
-        pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
-        pDevice->byRxMode &= ~(RCR_UNICAST);
-    }
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_RCR, pDevice->byRxMode);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->byRxMode out= %x\n", pDevice->byRxMode);
-	spin_unlock_irq(&pDevice->lock);
-
-}
-
-static struct net_device_stats *device_get_stats(struct net_device *dev)
-{
-	struct vnt_private *pDevice = netdev_priv(dev);
-
-	return &pDevice->stats;
-}
-
-static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	struct vnt_private *pDevice = netdev_priv(dev);
-	struct iwreq *wrq = (struct iwreq *) rq;
-	int rc = 0;
-
-	switch (cmd) {
-
-	case IOCTL_CMD_HOSTAPD:
-
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
-			rc = -EFAULT;
-
-		rc = vt6656_hostap_ioctl(pDevice, &wrq->u.data);
-		break;
-
-	case SIOCETHTOOL:
-		return ethtool_ioctl(dev, rq);
-
-	}
-
-	return rc;
-}
-
-static int ethtool_ioctl(struct net_device *dev, struct ifreq *rq)
-{
-	u32 ethcmd;
-
-	if (copy_from_user(&ethcmd, rq->ifr_data, sizeof(ethcmd)))
-		return -EFAULT;
-
-        switch (ethcmd) {
-	case ETHTOOL_GDRVINFO: {
-		struct ethtool_drvinfo info = {ETHTOOL_GDRVINFO};
-		strncpy(info.driver, DEVICE_NAME, sizeof(info.driver)-1);
-		strncpy(info.version, DEVICE_VERSION, sizeof(info.version)-1);
-		if (copy_to_user(rq->ifr_data, &info, sizeof(info)))
-			return -EFAULT;
-		return 0;
-	}
-
-        }
-
-	return -EOPNOTSUPP;
-}
+#endif /* CONFIG_PM */
 
 MODULE_DEVICE_TABLE(usb, vt6656_table);
 

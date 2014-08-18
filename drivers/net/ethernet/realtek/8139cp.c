@@ -382,13 +382,6 @@ static int cp_get_eeprom(struct net_device *dev,
 static int cp_set_eeprom(struct net_device *dev,
 			 struct ethtool_eeprom *eeprom, u8 *data);
 
-static DEFINE_PCI_DEVICE_TABLE(cp_pci_tbl) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	PCI_DEVICE_ID_REALTEK_8139), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTTECH,	PCI_DEVICE_ID_TTTECH_MC322), },
-	{ },
-};
-MODULE_DEVICE_TABLE(pci, cp_pci_tbl);
-
 static struct {
 	const char str[ETH_GSTRING_LEN];
 } ethtool_stats_keys[] = {
@@ -476,7 +469,7 @@ rx_status_loop:
 	rx = 0;
 	cpw16(IntrStatus, cp_rx_intr_mask);
 
-	while (1) {
+	while (rx < budget) {
 		u32 status, len;
 		dma_addr_t mapping, new_mapping;
 		struct sk_buff *skb, *new_skb;
@@ -554,9 +547,6 @@ rx_next:
 		else
 			desc->opts1 = cpu_to_le32(DescOwn | cp->rx_buf_sz);
 		rx_tail = NEXT_RX(rx_tail);
-
-		if (rx >= budget)
-			break;
 	}
 
 	cp->rx_tail = rx_tail;
@@ -899,7 +889,7 @@ out_unlock:
 
 	return NETDEV_TX_OK;
 out_dma_error:
-	kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	cp->dev->stats.tx_dropped++;
 	goto out_unlock;
 }
@@ -1890,11 +1880,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	resource_size_t pciaddr;
 	unsigned int addr_len, i, pci_using_dac;
 
-#ifndef MODULE
-	static int version_printed;
-	if (version_printed++ == 0)
-		pr_info("%s", version);
-#endif
+	pr_info_once("%s", version);
 
 	if (pdev->vendor == PCI_VENDOR_ID_REALTEK &&
 	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pdev->revision < 0x20) {
@@ -2113,6 +2099,13 @@ static int cp_resume (struct pci_dev *pdev)
 }
 #endif /* CONFIG_PM */
 
+static const struct pci_device_id cp_pci_tbl[] = {
+        { PCI_DEVICE(PCI_VENDOR_ID_REALTEK,     PCI_DEVICE_ID_REALTEK_8139), },
+        { PCI_DEVICE(PCI_VENDOR_ID_TTTECH,      PCI_DEVICE_ID_TTTECH_MC322), },
+        { },
+};
+MODULE_DEVICE_TABLE(pci, cp_pci_tbl);
+
 static struct pci_driver cp_driver = {
 	.name         = DRV_NAME,
 	.id_table     = cp_pci_tbl,
@@ -2124,18 +2117,4 @@ static struct pci_driver cp_driver = {
 #endif
 };
 
-static int __init cp_init (void)
-{
-#ifdef MODULE
-	pr_info("%s", version);
-#endif
-	return pci_register_driver(&cp_driver);
-}
-
-static void __exit cp_exit (void)
-{
-	pci_unregister_driver (&cp_driver);
-}
-
-module_init(cp_init);
-module_exit(cp_exit);
+module_pci_driver(cp_driver);

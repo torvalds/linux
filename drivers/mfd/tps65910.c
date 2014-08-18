@@ -255,8 +255,10 @@ static int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 	ret = regmap_add_irq_chip(tps65910->regmap, tps65910->chip_irq,
 		IRQF_ONESHOT, pdata->irq_base,
 		tps6591x_irqs_chip, &tps65910->irq_data);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_warn(tps65910->dev, "Failed to add irq_chip %d\n", ret);
+		tps65910->chip_irq = 0;
+	}
 	return ret;
 }
 
@@ -377,7 +379,7 @@ err_sleep_init:
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id tps65910_of_match[] = {
+static const struct of_device_id tps65910_of_match[] = {
 	{ .compatible = "ti,tps65910", .data = (void *)TPS65910},
 	{ .compatible = "ti,tps65911", .data = (void *)TPS65911},
 	{ },
@@ -385,7 +387,7 @@ static struct of_device_id tps65910_of_match[] = {
 MODULE_DEVICE_TABLE(of, tps65910_of_match);
 
 static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
-						int *chip_id)
+						unsigned long *chip_id)
 {
 	struct device_node *np = client->dev.of_node;
 	struct tps65910_board *board_info;
@@ -399,7 +401,7 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 		return NULL;
 	}
 
-	*chip_id  = (int)match->data;
+	*chip_id  = (unsigned long)match->data;
 
 	board_info = devm_kzalloc(&client->dev, sizeof(*board_info),
 			GFP_KERNEL);
@@ -429,7 +431,7 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 #else
 static inline
 struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
-					 int *chip_id)
+					 unsigned long *chip_id)
 {
 	return NULL;
 }
@@ -451,14 +453,14 @@ static void tps65910_power_off(void)
 }
 
 static int tps65910_i2c_probe(struct i2c_client *i2c,
-					const struct i2c_device_id *id)
+			      const struct i2c_device_id *id)
 {
 	struct tps65910 *tps65910;
 	struct tps65910_board *pmic_plat_data;
 	struct tps65910_board *of_pmic_plat_data = NULL;
 	struct tps65910_platform_data *init_data;
+	unsigned long chip_id = id->driver_data;
 	int ret = 0;
-	int chip_id = id->driver_data;
 
 	pmic_plat_data = dev_get_platdata(&i2c->dev);
 
@@ -509,6 +511,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 			      regmap_irq_get_domain(tps65910->irq_data));
 	if (ret < 0) {
 		dev_err(&i2c->dev, "mfd_add_devices failed: %d\n", ret);
+		tps65910_irq_exit(tps65910);
 		return ret;
 	}
 

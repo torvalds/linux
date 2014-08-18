@@ -65,18 +65,16 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
 static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
-	struct bond_opt_value *optval;
+	const struct bond_opt_value *optval;
 	struct slave *curr;
 	int i;
 
-	read_lock(&bond->curr_slave_lock);
-	curr = bond->curr_active_slave;
-	read_unlock(&bond->curr_slave_lock);
+	curr = rcu_dereference(bond->curr_active_slave);
 
 	seq_printf(seq, "Bonding Mode: %s",
-		   bond_mode_name(bond->params.mode));
+		   bond_mode_name(BOND_MODE(bond)));
 
-	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP &&
+	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP &&
 	    bond->params.fail_over_mac) {
 		optval = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC,
 					  bond->params.fail_over_mac);
@@ -85,15 +83,15 @@ static void bond_info_show_master(struct seq_file *seq)
 
 	seq_printf(seq, "\n");
 
-	if (bond->params.mode == BOND_MODE_XOR ||
-		bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_XOR ||
+		BOND_MODE(bond) == BOND_MODE_8023AD) {
 		optval = bond_opt_get_val(BOND_OPT_XMIT_HASH,
 					  bond->params.xmit_policy);
 		seq_printf(seq, "Transmit Hash Policy: %s (%d)\n",
 			   optval->string, bond->params.xmit_policy);
 	}
 
-	if (USES_PRIMARY(bond->params.mode)) {
+	if (bond_uses_primary(bond)) {
 		seq_printf(seq, "Primary Slave: %s",
 			   (bond->primary_slave) ?
 			   bond->primary_slave->dev->name : "None");
@@ -136,7 +134,7 @@ static void bond_info_show_master(struct seq_file *seq)
 		seq_printf(seq, "\n");
 	}
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 
 		seq_puts(seq, "\n802.3ad info\n");
@@ -190,9 +188,9 @@ static void bond_info_show_slave(struct seq_file *seq,
 
 	seq_printf(seq, "Permanent HW addr: %pM\n", slave->perm_hwaddr);
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		const struct aggregator *agg
-			= SLAVE_AD_INFO(slave).port.aggregator;
+			= SLAVE_AD_INFO(slave)->port.aggregator;
 
 		if (agg)
 			seq_printf(seq, "Aggregator ID: %d\n",
@@ -254,8 +252,8 @@ void bond_create_proc_entry(struct bonding *bond)
 						    S_IRUGO, bn->proc_dir,
 						    &bond_info_fops, bond);
 		if (bond->proc_entry == NULL)
-			pr_warning("Warning: Cannot create /proc/net/%s/%s\n",
-				   DRV_NAME, bond_dev->name);
+			netdev_warn(bond_dev, "Cannot create /proc/net/%s/%s\n",
+				    DRV_NAME, bond_dev->name);
 		else
 			memcpy(bond->proc_file_name, bond_dev->name, IFNAMSIZ);
 	}
@@ -281,8 +279,8 @@ void __net_init bond_create_proc_dir(struct bond_net *bn)
 	if (!bn->proc_dir) {
 		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
 		if (!bn->proc_dir)
-			pr_warning("Warning: cannot create /proc/net/%s\n",
-				   DRV_NAME);
+			pr_warn("Warning: Cannot create /proc/net/%s\n",
+				DRV_NAME);
 	}
 }
 

@@ -35,6 +35,7 @@
 #include "def.h"
 #include "phy.h"
 #include "dm.h"
+#include "../rtl8723com/dm_common.h"
 #include "fw.h"
 #include "hal_btc.h"
 
@@ -483,16 +484,6 @@ static void rtl8723ae_dm_dig(struct ieee80211_hw *hw)
 	rtl8723ae_dm_ctrl_initgain_by_twoport(hw);
 }
 
-static void rtl8723ae_dm_init_dynamic_txpower(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtlpriv->dm.dynamic_txpower_enable = false;
-
-	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
-	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
-}
-
 static void rtl8723ae_dm_dynamic_txpower(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -585,19 +576,6 @@ void rtl8723ae_dm_write_dig(struct ieee80211_hw *hw)
 	}
 }
 
-static void rtl8723ae_dm_pwdmonitor(struct ieee80211_hw *hw)
-{
-}
-
-void rtl8723ae_dm_init_edca_turbo(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
-	rtlpriv->dm.is_cur_rdlstate = false;
-}
-
 static void rtl8723ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -669,9 +647,8 @@ static void rtl8723ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	} else {
 		if (rtlpriv->dm.current_turbo_edca) {
 			u8 tmp = AC0_BE;
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-						      HW_VAR_AC_PARAM,
-						      (u8 *) (&tmp));
+			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_AC_PARAM,
+						      &tmp);
 			rtlpriv->dm.current_turbo_edca = false;
 		}
 	}
@@ -776,17 +753,6 @@ static void rtl8723ae_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 			p_ra->pre_ratr_state = p_ra->ratr_state;
 		}
 	}
-}
-
-static void rtl8723ae_dm_init_dynamic_bpowersaving(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtlpriv->dm_pstable.pre_ccastate = CCA_MAX;
-	rtlpriv->dm_pstable.cur_ccasate = CCA_MAX;
-	rtlpriv->dm_pstable.pre_rfstate = RF_MAX;
-	rtlpriv->dm_pstable.cur_rfstate = RF_MAX;
-	rtlpriv->dm_pstable.rssi_val_min = 0;
 }
 
 void rtl8723ae_dm_rf_saving(struct ieee80211_hw *hw, u8 force_in_normal)
@@ -905,11 +871,11 @@ void rtl8723ae_dm_init(struct ieee80211_hw *hw)
 
 	rtlpriv->dm.dm_type = DM_TYPE_BYDRIVER;
 	rtl8723ae_dm_diginit(hw);
-	rtl8723ae_dm_init_dynamic_txpower(hw);
-	rtl8723ae_dm_init_edca_turbo(hw);
+	rtl8723_dm_init_dynamic_txpower(hw);
+	rtl8723_dm_init_edca_turbo(hw);
 	rtl8723ae_dm_init_rate_adaptive_mask(hw);
 	rtl8723ae_dm_initialize_txpower_tracking(hw);
-	rtl8723ae_dm_init_dynamic_bpowersaving(hw);
+	rtl8723_dm_init_dynamic_bb_powersaving(hw);
 }
 
 void rtl8723ae_dm_watchdog(struct ieee80211_hw *hw)
@@ -930,7 +896,6 @@ void rtl8723ae_dm_watchdog(struct ieee80211_hw *hw)
 	if ((ppsc->rfpwr_state == ERFON) &&
 	    ((!fw_current_inpsmode) && fw_ps_awake) &&
 	    (!ppsc->rfchange_inprogress)) {
-		rtl8723ae_dm_pwdmonitor(hw);
 		rtl8723ae_dm_dig(hw);
 		rtl8723ae_dm_false_alarm_counter_statistics(hw);
 		rtl8723ae_dm_dynamic_bpowersaving(hw);

@@ -36,22 +36,11 @@
 #include "t4_msg.h"
 #include "t4fw_ri_api.h"
 
-#define T4_MAX_NUM_QP 65536
-#define T4_MAX_NUM_CQ 65536
 #define T4_MAX_NUM_PD 65536
-#define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
-#define T4_MAX_EQ_SIZE (65520 - T4_EQ_STATUS_ENTRIES)
-#define T4_MAX_IQ_SIZE (65520 - 1)
-#define T4_MAX_RQ_SIZE (8192 - T4_EQ_STATUS_ENTRIES)
-#define T4_MAX_SQ_SIZE (T4_MAX_EQ_SIZE - 1)
-#define T4_MAX_QP_DEPTH (T4_MAX_RQ_SIZE - 1)
-#define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
-#define T4_MAX_NUM_STAG (1<<15)
 #define T4_MAX_MR_SIZE (~0ULL)
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
-#define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
 #define A_PCIE_MA_SYNC 0x30b4
 
 struct t4_status_page {
@@ -84,7 +73,14 @@ struct t4_status_page {
 			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
 #define T4_MAX_FR_IMMD ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_fr_nsmr_wr) - \
 			sizeof(struct fw_ri_immd)) & ~31UL)
-#define T4_MAX_FR_DEPTH (1024 / sizeof(u64))
+#define T4_MAX_FR_IMMD_DEPTH (T4_MAX_FR_IMMD / sizeof(u64))
+#define T4_MAX_FR_DSGL 1024
+#define T4_MAX_FR_DSGL_DEPTH (T4_MAX_FR_DSGL / sizeof(u64))
+
+static inline int t4_max_fr_depth(int use_dsgl)
+{
+	return use_dsgl ? T4_MAX_FR_DSGL_DEPTH : T4_MAX_FR_IMMD_DEPTH;
+}
 
 #define T4_RQ_NUM_SLOTS 2
 #define T4_RQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_RQ_NUM_SLOTS)
@@ -237,8 +233,8 @@ struct t4_cqe {
 #define CQE_WRID_SQ_IDX(x)	((x)->u.scqe.cidx)
 
 /* generic accessor macros */
-#define CQE_WRID_HI(x)		((x)->u.gen.wrid_hi)
-#define CQE_WRID_LOW(x)		((x)->u.gen.wrid_low)
+#define CQE_WRID_HI(x)		(be32_to_cpu((x)->u.gen.wrid_hi))
+#define CQE_WRID_LOW(x)		(be32_to_cpu((x)->u.gen.wrid_low))
 
 /* macros for flit 3 of the cqe */
 #define S_CQE_GENBIT	63
@@ -270,6 +266,8 @@ struct t4_swsqe {
 	int			signaled;
 	u16			idx;
 	int                     flushed;
+	struct timespec         host_ts;
+	u64                     sge_ts;
 };
 
 static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
@@ -292,7 +290,7 @@ struct t4_sq {
 	unsigned long phys_addr;
 	struct t4_swsqe *sw_sq;
 	struct t4_swsqe *oldest_read;
-	u64 udb;
+	u64 __iomem *udb;
 	size_t memsize;
 	u32 qid;
 	u16 in_use;
@@ -300,12 +298,15 @@ struct t4_sq {
 	u16 cidx;
 	u16 pidx;
 	u16 wq_pidx;
+	u16 wq_pidx_inc;
 	u16 flags;
 	short flush_cidx;
 };
 
 struct t4_swrqe {
 	u64 wr_id;
+	struct timespec host_ts;
+	u64 sge_ts;
 };
 
 struct t4_rq {
@@ -313,7 +314,7 @@ struct t4_rq {
 	dma_addr_t dma_addr;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_swrqe *sw_rq;
-	u64 udb;
+	u64 __iomem *udb;
 	size_t memsize;
 	u32 qid;
 	u32 msn;
@@ -324,6 +325,7 @@ struct t4_rq {
 	u16 cidx;
 	u16 pidx;
 	u16 wq_pidx;
+	u16 wq_pidx_inc;
 };
 
 struct t4_wq {
@@ -433,15 +435,67 @@ static inline u16 t4_sq_wq_size(struct t4_wq *wq)
 		return wq->sq.size * T4_SQ_NUM_SLOTS;
 }
 
-static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc)
+/* This function copies 64 byte coalesced work request to memory
+ * mapped BAR2 space. For coalesced WRs, the SGE fetches data
+ * from the FIFO instead of from Host.
+ */
+static inline void pio_copy(u64 __iomem *dst, u64 *src)
 {
+	int count = 8;
+
+	while (count) {
+		writeq(*src, dst);
+		src++;
+		dst++;
+		count--;
+	}
+}
+
+static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5,
+				 union t4_wr *wqe)
+{
+
+	/* Flush host queue memory writes. */
 	wmb();
+	if (t5) {
+		if (inc == 1 && wqe) {
+			PDBG("%s: WC wq->sq.pidx = %d\n",
+			     __func__, wq->sq.pidx);
+			pio_copy(wq->sq.udb + 7, (void *)wqe);
+		} else {
+			PDBG("%s: DB wq->sq.pidx = %d\n",
+			     __func__, wq->sq.pidx);
+			writel(PIDX_T5(inc), wq->sq.udb);
+		}
+
+		/* Flush user doorbell area writes. */
+		wmb();
+		return;
+	}
 	writel(QID(wq->sq.qid) | PIDX(inc), wq->db);
 }
 
-static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc)
+static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5,
+				 union t4_recv_wr *wqe)
 {
+
+	/* Flush host queue memory writes. */
 	wmb();
+	if (t5) {
+		if (inc == 1 && wqe) {
+			PDBG("%s: WC wq->rq.pidx = %d\n",
+			     __func__, wq->rq.pidx);
+			pio_copy(wq->rq.udb + 7, (void *)wqe);
+		} else {
+			PDBG("%s: DB wq->rq.pidx = %d\n",
+			     __func__, wq->rq.pidx);
+			writel(PIDX_T5(inc), wq->rq.udb);
+		}
+
+		/* Flush user doorbell area writes. */
+		wmb();
+		return;
+	}
 	writel(QID(wq->rq.qid) | PIDX(inc), wq->db);
 }
 
@@ -470,6 +524,10 @@ static inline int t4_wq_db_enabled(struct t4_wq *wq)
 	return !wq->rq.queue[wq->rq.size].status.db_off;
 }
 
+enum t4_cq_flags {
+	CQ_ARMED	= 1,
+};
+
 struct t4_cq {
 	struct t4_cqe *queue;
 	dma_addr_t dma_addr;
@@ -481,6 +539,7 @@ struct t4_cq {
 	size_t memsize;
 	__be64 bits_type_ts;
 	u32 cqid;
+	int vector;
 	u16 size; /* including status page */
 	u16 cidx;
 	u16 sw_pidx;
@@ -489,12 +548,19 @@ struct t4_cq {
 	u16 cidx_inc;
 	u8 gen;
 	u8 error;
+	unsigned long flags;
 };
+
+static inline int t4_clear_cq_armed(struct t4_cq *cq)
+{
+	return test_and_clear_bit(CQ_ARMED, &cq->flags);
+}
 
 static inline int t4_arm_cq(struct t4_cq *cq, int se)
 {
 	u32 val;
 
+	set_bit(CQ_ARMED, &cq->flags);
 	while (cq->cidx_inc > CIDXINC_MASK) {
 		val = SEINTARM(0) | CIDXINC(CIDXINC_MASK) | TIMERREG(7) |
 		      INGRESSQID(cq->cqid);
@@ -566,6 +632,9 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 		printk(KERN_ERR MOD "cq overflow cqid %u\n", cq->cqid);
 		BUG_ON(1);
 	} else if (t4_valid_cqe(cq, &cq->queue[cq->cidx])) {
+
+		/* Ensure CQE is flushed to memory */
+		rmb();
 		*cqe = &cq->queue[cq->cidx];
 		ret = 0;
 	} else
@@ -609,3 +678,7 @@ static inline void t4_set_cq_in_error(struct t4_cq *cq)
 	((struct t4_status_page *)&cq->queue[cq->size])->qp_err = 1;
 }
 #endif
+
+struct t4_dev_status_page {
+	u8 db_off;
+};

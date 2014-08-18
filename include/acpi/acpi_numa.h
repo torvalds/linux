@@ -13,7 +13,6 @@
 
 extern int pxm_to_node(int);
 extern int node_to_pxm(int);
-extern void __acpi_map_pxm_to_node(int, int);
 extern int acpi_map_pxm_to_node(int);
 extern unsigned char acpi_srat_revision;
 

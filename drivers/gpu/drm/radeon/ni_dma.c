@@ -248,8 +248,6 @@ int cayman_dma_resume(struct radeon_device *rdev)
 		ring->wptr = 0;
 		WREG32(DMA_RB_WPTR + reg_offset, ring->wptr << 2);
 
-		ring->rptr = RREG32(DMA_RB_RPTR + reg_offset) >> 2;
-
 		WREG32(DMA_RB_CNTL + reg_offset, rb_cntl | DMA_RB_ENABLE);
 
 		ring->ready = true;
@@ -302,16 +300,50 @@ bool cayman_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 		mask = RADEON_RESET_DMA1;
 
 	if (!(reset_mask & mask)) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force ring activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
 /**
- * cayman_dma_vm_set_page - update the page tables using the DMA
+ * cayman_dma_vm_copy_pages - update PTEs by copying them from the GART
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
+ * @pe: addr of the page entry
+ * @src: src addr where to copy from
+ * @count: number of page entries to update
+ *
+ * Update PTEs by copying them from the GART using the DMA (cayman/TN).
+ */
+void cayman_dma_vm_copy_pages(struct radeon_device *rdev,
+			      struct radeon_ib *ib,
+			      uint64_t pe, uint64_t src,
+			      unsigned count)
+{
+	unsigned ndw;
+
+	while (count) {
+		ndw = count * 2;
+		if (ndw > 0xFFFFE)
+			ndw = 0xFFFFE;
+
+		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_COPY,
+						      0, 0, ndw);
+		ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+		ib->ptr[ib->length_dw++] = lower_32_bits(src);
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+		ib->ptr[ib->length_dw++] = upper_32_bits(src) & 0xff;
+
+		pe += ndw * 4;
+		src += ndw * 4;
+		count -= ndw / 2;
+	}
+}
+
+/**
+ * cayman_dma_vm_write_pages - update PTEs by writing them manually
  *
  * @rdev: radeon_device pointer
  * @ib: indirect buffer to fill with commands
@@ -319,71 +351,103 @@ bool cayman_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
  * @addr: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
- * @flags: hw access flags 
+ * @flags: hw access flags
  *
- * Update the page tables using the DMA (cayman/TN).
+ * Update PTEs by writing them manually using the DMA (cayman/TN).
  */
-void cayman_dma_vm_set_page(struct radeon_device *rdev,
-			    struct radeon_ib *ib,
-			    uint64_t pe,
-			    uint64_t addr, unsigned count,
-			    uint32_t incr, uint32_t flags)
+void cayman_dma_vm_write_pages(struct radeon_device *rdev,
+			       struct radeon_ib *ib,
+			       uint64_t pe,
+			       uint64_t addr, unsigned count,
+			       uint32_t incr, uint32_t flags)
 {
 	uint64_t value;
 	unsigned ndw;
 
-	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
+	while (count) {
+		ndw = count * 2;
+		if (ndw > 0xFFFFE)
+			ndw = 0xFFFFE;
 
-	if ((flags & R600_PTE_SYSTEM) || (count == 1)) {
-		while (count) {
-			ndw = count * 2;
-			if (ndw > 0xFFFFE)
-				ndw = 0xFFFFE;
-
-			/* for non-physically contiguous pages (system) */
-			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, ndw);
-			ib->ptr[ib->length_dw++] = pe;
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-				if (flags & R600_PTE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & R600_PTE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
-				}
-				addr += incr;
-				value |= flags;
-				ib->ptr[ib->length_dw++] = value;
-				ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			}
-		}
-	} else {
-		while (count) {
-			ndw = count * 2;
-			if (ndw > 0xFFFFE)
-				ndw = 0xFFFFE;
-
-			if (flags & R600_PTE_VALID)
+		/* for non-physically contiguous pages (system) */
+		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE,
+						      0, 0, ndw);
+		ib->ptr[ib->length_dw++] = pe;
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+		for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+			if (flags & R600_PTE_SYSTEM) {
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
+			} else if (flags & R600_PTE_VALID) {
 				value = addr;
-			else
+			} else {
 				value = 0;
-			/* for physically contiguous pages (vram) */
-			ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
-			ib->ptr[ib->length_dw++] = pe; /* dst addr */
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			ib->ptr[ib->length_dw++] = flags; /* mask */
-			ib->ptr[ib->length_dw++] = 0;
-			ib->ptr[ib->length_dw++] = value; /* value */
+			}
+			addr += incr;
+			value |= flags;
+			ib->ptr[ib->length_dw++] = value;
 			ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			ib->ptr[ib->length_dw++] = incr; /* increment size */
-			ib->ptr[ib->length_dw++] = 0;
-			pe += ndw * 4;
-			addr += (ndw / 2) * incr;
-			count -= ndw / 2;
 		}
 	}
+}
+
+/**
+ * cayman_dma_vm_set_pages - update the page tables using the DMA
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
+ * @pe: addr of the page entry
+ * @addr: dst addr to write into pe
+ * @count: number of page entries to update
+ * @incr: increase next addr by incr bytes
+ * @flags: hw access flags
+ *
+ * Update the page tables using the DMA (cayman/TN).
+ */
+void cayman_dma_vm_set_pages(struct radeon_device *rdev,
+			     struct radeon_ib *ib,
+			     uint64_t pe,
+			     uint64_t addr, unsigned count,
+			     uint32_t incr, uint32_t flags)
+{
+	uint64_t value;
+	unsigned ndw;
+
+	while (count) {
+		ndw = count * 2;
+		if (ndw > 0xFFFFE)
+			ndw = 0xFFFFE;
+
+		if (flags & R600_PTE_VALID)
+			value = addr;
+		else
+			value = 0;
+
+		/* for physically contiguous pages (vram) */
+		ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
+		ib->ptr[ib->length_dw++] = pe; /* dst addr */
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+		ib->ptr[ib->length_dw++] = flags; /* mask */
+		ib->ptr[ib->length_dw++] = 0;
+		ib->ptr[ib->length_dw++] = value; /* value */
+		ib->ptr[ib->length_dw++] = upper_32_bits(value);
+		ib->ptr[ib->length_dw++] = incr; /* increment size */
+		ib->ptr[ib->length_dw++] = 0;
+
+		pe += ndw * 4;
+		addr += (ndw / 2) * incr;
+		count -= ndw / 2;
+	}
+}
+
+/**
+ * cayman_dma_vm_pad_ib - pad the IB to the required number of dw
+ *
+ * @ib: indirect buffer to fill with padding
+ *
+ */
+void cayman_dma_vm_pad_ib(struct radeon_ib *ib)
+{
 	while (ib->length_dw & 0x7)
 		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0);
 }

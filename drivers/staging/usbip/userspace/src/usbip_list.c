@@ -17,7 +17,7 @@
  */
 
 #include <sys/types.h>
-#include <sysfs/libsysfs.h>
+#include <libudev.h>
 
 #include <errno.h>
 #include <stdbool.h>
@@ -54,7 +54,7 @@ static int get_exported_devices(char *host, int sockfd)
 	struct usbip_usb_device udev;
 	struct usbip_usb_interface uintf;
 	unsigned int i;
-	int j, rc;
+	int rc, j;
 
 	rc = usbip_net_send_op_common(sockfd, OP_REQ_DEVLIST, 0);
 	if (rc < 0) {
@@ -107,19 +107,20 @@ static int get_exported_devices(char *host, int sockfd)
 		for (j = 0; j < udev.bNumInterfaces; j++) {
 			rc = usbip_net_recv(sockfd, &uintf, sizeof(uintf));
 			if (rc < 0) {
-				dbg("usbip_net_recv failed: usbip_usb_intf[%d]",
-				    j);
+				err("usbip_net_recv failed: usbip_usb_intf[%d]",
+						j);
 
 				return -1;
 			}
 			usbip_net_pack_usb_interface(0, &uintf);
 
 			usbip_names_get_class(class_name, sizeof(class_name),
-					      uintf.bInterfaceClass,
-					      uintf.bInterfaceSubClass,
-					      uintf.bInterfaceProtocol);
+					uintf.bInterfaceClass,
+					uintf.bInterfaceSubClass,
+					uintf.bInterfaceProtocol);
 			printf("%11s: %2d - %s\n", "", j, class_name);
 		}
+
 		printf("\n");
 	}
 
@@ -150,8 +151,8 @@ static int list_exported_devices(char *host)
 	return 0;
 }
 
-static void print_device(char *busid, char *vendor, char *product,
-			 bool parsable)
+static void print_device(const char *busid, const char *vendor,
+			 const char *product, bool parsable)
 {
 	if (parsable)
 		printf("busid=%s#usbid=%.4s:%.4s#", busid, vendor, product);
@@ -165,106 +166,73 @@ static void print_product_name(char *product_name, bool parsable)
 		printf("   %s\n", product_name);
 }
 
-static void print_interface(char *busid, char *driver, bool parsable)
-{
-	if (parsable)
-		printf("%s=%s#", busid, driver);
-	else
-		printf("%9s%s -> %s\n", "", busid, driver);
-}
-
-static int is_device(void *x)
-{
-	struct sysfs_attribute *devpath;
-	struct sysfs_device *dev = x;
-	int ret = 0;
-
-	devpath = sysfs_get_device_attr(dev, "devpath");
-	if (devpath && *devpath->value != '0')
-		ret = 1;
-
-	return ret;
-}
-
-static int devcmp(void *a, void *b)
-{
-	return strcmp(a, b);
-}
-
 static int list_devices(bool parsable)
 {
-	char bus_type[] = "usb";
-	char busid[SYSFS_BUS_ID_SIZE];
+	struct udev *udev;
+	struct udev_enumerate *enumerate;
+	struct udev_list_entry *devices, *dev_list_entry;
+	struct udev_device *dev;
+	const char *path;
+	const char *idVendor;
+	const char *idProduct;
+	const char *bConfValue;
+	const char *bNumIntfs;
+	const char *busid;
 	char product_name[128];
-	struct sysfs_bus *ubus;
-	struct sysfs_device *dev;
-	struct sysfs_device *intf;
-	struct sysfs_attribute *idVendor;
-	struct sysfs_attribute *idProduct;
-	struct sysfs_attribute *bConfValue;
-	struct sysfs_attribute *bNumIntfs;
-	struct dlist *devlist;
-	int i;
 	int ret = -1;
 
-	ubus = sysfs_open_bus(bus_type);
-	if (!ubus) {
-		err("could not open %s bus: %s", bus_type, strerror(errno));
-		return -1;
-	}
+	/* Create libudev context. */
+	udev = udev_new();
 
-	devlist = sysfs_get_bus_devices(ubus);
-	if (!devlist) {
-		err("could not get %s bus devices: %s", bus_type,
-		    strerror(errno));
-		goto err_out;
-	}
+	/* Create libudev device enumeration. */
+	enumerate = udev_enumerate_new(udev);
 
-	/* remove interfaces and root hubs from device list */
-	dlist_filter_sort(devlist, is_device, devcmp);
+	/* Take only USB devices that are not hubs and do not have
+	 * the bInterfaceNumber attribute, i.e. are not interfaces.
+	 */
+	udev_enumerate_add_match_subsystem(enumerate, "usb");
+	udev_enumerate_add_nomatch_sysattr(enumerate, "bDeviceClass", "09");
+	udev_enumerate_add_nomatch_sysattr(enumerate, "bInterfaceNumber", NULL);
+	udev_enumerate_scan_devices(enumerate);
 
-	if (!parsable) {
-		printf("Local USB devices\n");
-		printf("=================\n");
-	}
-	dlist_for_each_data(devlist, dev, struct sysfs_device) {
-		idVendor   = sysfs_get_device_attr(dev, "idVendor");
-		idProduct  = sysfs_get_device_attr(dev, "idProduct");
-		bConfValue = sysfs_get_device_attr(dev, "bConfigurationValue");
-		bNumIntfs  = sysfs_get_device_attr(dev, "bNumInterfaces");
+	devices = udev_enumerate_get_list_entry(enumerate);
+
+	/* Show information about each device. */
+	udev_list_entry_foreach(dev_list_entry, devices) {
+		path = udev_list_entry_get_name(dev_list_entry);
+		dev = udev_device_new_from_syspath(udev, path);
+
+		/* Get device information. */
+		idVendor = udev_device_get_sysattr_value(dev, "idVendor");
+		idProduct = udev_device_get_sysattr_value(dev, "idProduct");
+		bConfValue = udev_device_get_sysattr_value(dev, "bConfigurationValue");
+		bNumIntfs = udev_device_get_sysattr_value(dev, "bNumInterfaces");
+		busid = udev_device_get_sysname(dev);
 		if (!idVendor || !idProduct || !bConfValue || !bNumIntfs) {
 			err("problem getting device attributes: %s",
 			    strerror(errno));
 			goto err_out;
 		}
 
-		/* get product name */
+		/* Get product name. */
 		usbip_names_get_product(product_name, sizeof(product_name),
-					strtol(idVendor->value, NULL, 16),
-					strtol(idProduct->value, NULL, 16));
-		print_device(dev->bus_id, idVendor->value, idProduct->value,
-			     parsable);
+					strtol(idVendor, NULL, 16),
+					strtol(idProduct, NULL, 16));
+
+		/* Print information. */
+		print_device(busid, idVendor, idProduct, parsable);
 		print_product_name(product_name, parsable);
 
-		for (i = 0; i < atoi(bNumIntfs->value); i++) {
-			snprintf(busid, sizeof(busid), "%s:%.1s.%d",
-				 dev->bus_id, bConfValue->value, i);
-			intf = sysfs_open_device(bus_type, busid);
-			if (!intf) {
-				err("could not open device interface: %s",
-				    strerror(errno));
-				goto err_out;
-			}
-			print_interface(busid, intf->driver_name, parsable);
-			sysfs_close_device(intf);
-		}
 		printf("\n");
+
+		udev_device_unref(dev);
 	}
 
 	ret = 0;
 
 err_out:
-	sysfs_close_bus(ubus);
+	udev_enumerate_unref(enumerate);
+	udev_unref(udev);
 
 	return ret;
 }

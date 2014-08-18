@@ -700,7 +700,7 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb,
 	struct mr6_table *mrt;
 	struct flowi6 fl6 = {
 		.flowi6_oif	= dev->ifindex,
-		.flowi6_iif	= skb->skb_iif,
+		.flowi6_iif	= skb->skb_iif ? : LOOPBACK_IFINDEX,
 		.flowi6_mark	= skb->mark,
 	};
 	int err;
@@ -744,7 +744,7 @@ static struct net_device *ip6mr_reg_vif(struct net *net, struct mr6_table *mrt)
 	else
 		sprintf(name, "pim6reg%u", mrt->id);
 
-	dev = alloc_netdev(0, name, reg_vif_setup);
+	dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, reg_vif_setup);
 	if (dev == NULL)
 		return NULL;
 
@@ -1633,7 +1633,7 @@ struct sock *mroute6_socket(struct net *net, struct sk_buff *skb)
 {
 	struct mr6_table *mrt;
 	struct flowi6 fl6 = {
-		.flowi6_iif	= skb->skb_iif,
+		.flowi6_iif	= skb->skb_iif ? : LOOPBACK_IFINDEX,
 		.flowi6_oif	= skb->dev->ifindex,
 		.flowi6_mark	= skb->mark,
 	};

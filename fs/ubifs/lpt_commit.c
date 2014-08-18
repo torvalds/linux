@@ -304,7 +304,6 @@ static int layout_cnodes(struct ubifs_info *c)
 			ubifs_assert(lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
 		}
-		done_ltab = 1;
 		c->ltab_lnum = lnum;
 		c->ltab_offs = offs;
 		offs += c->ltab_sz;
@@ -460,9 +459,9 @@ static int write_cnodes(struct ubifs_info *c)
 		 * important.
 		 */
 		clear_bit(DIRTY_CNODE, &cnode->flags);
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(COW_CNODE, &cnode->flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 		offs += len;
 		dbg_chk_lpt_sz(c, 1, len);
 		cnode = cnode->cnext;
@@ -514,7 +513,6 @@ static int write_cnodes(struct ubifs_info *c)
 			if (err)
 				return err;
 		}
-		done_ltab = 1;
 		ubifs_pack_ltab(c, buf + offs, c->ltab_cmt);
 		offs += c->ltab_sz;
 		dbg_chk_lpt_sz(c, 1, c->ltab_sz);
@@ -1941,6 +1939,11 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 				pr_err("LEB %d:%d, nnode, ",
 				       lnum, offs);
 			err = ubifs_unpack_nnode(c, p, &nnode);
+			if (err) {
+				pr_err("failed to unpack_node, error %d\n",
+				       err);
+				break;
+			}
 			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
 				pr_cont("%d:%d", nnode.nbranch[i].lnum,
 				       nnode.nbranch[i].offs);

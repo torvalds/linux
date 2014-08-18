@@ -54,7 +54,7 @@ struct nfs4_minor_version_ops {
 			const nfs4_stateid *);
 	int	(*find_root_sec)(struct nfs_server *, struct nfs_fh *,
 			struct nfs_fsinfo *);
-	int	(*free_lock_state)(struct nfs_server *,
+	void	(*free_lock_state)(struct nfs_server *,
 			struct nfs4_lock_state *);
 	const struct rpc_call_ops *call_sync_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
@@ -129,27 +129,17 @@ enum {
  * LOCK: one nfs4_state (LOCK) to hold the lock stateid nfs4_state(OPEN)
  */
 
-struct nfs4_lock_owner {
-	unsigned int lo_type;
-#define NFS4_ANY_LOCK_TYPE	(0U)
-#define NFS4_FLOCK_LOCK_TYPE	(1U << 0)
-#define NFS4_POSIX_LOCK_TYPE	(1U << 1)
-	union {
-		fl_owner_t posix_owner;
-		pid_t flock_owner;
-	} lo_u;
-};
-
 struct nfs4_lock_state {
-	struct list_head	ls_locks;	/* Other lock stateids */
-	struct nfs4_state *	ls_state;	/* Pointer to open state */
+	struct list_head		ls_locks;   /* Other lock stateids */
+	struct nfs4_state *		ls_state;   /* Pointer to open state */
 #define NFS_LOCK_INITIALIZED 0
 #define NFS_LOCK_LOST        1
-	unsigned long		ls_flags;
+	unsigned long			ls_flags;
 	struct nfs_seqid_counter	ls_seqid;
-	nfs4_stateid		ls_stateid;
-	atomic_t		ls_count;
-	struct nfs4_lock_owner	ls_owner;
+	nfs4_stateid			ls_stateid;
+	atomic_t			ls_count;
+	fl_owner_t			ls_owner;
+	struct work_struct		ls_release;
 };
 
 /* bits for nfs4_state->flags */
@@ -230,7 +220,7 @@ int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
 extern struct file_system_type nfs4_fs_type;
 
 /* nfs4namespace.c */
-struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *, struct inode *, struct qstr *);
+struct rpc_clnt *nfs4_negotiate_security(struct rpc_clnt *, struct inode *, struct qstr *);
 struct vfsmount *nfs4_submount(struct nfs_server *, struct dentry *,
 			       struct nfs_fh *, struct nfs_fattr *);
 int nfs4_replace_transport(struct nfs_server *server,
@@ -337,11 +327,11 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
  */
 static inline void
 nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_write_data *wdata)
+			 struct rpc_message *msg, struct nfs_pgio_header *hdr)
 {
 	if (_nfs4_state_protect(clp, NFS_SP4_MACH_CRED_WRITE, clntp, msg) &&
 	    !test_bit(NFS_SP4_MACH_CRED_COMMIT, &clp->cl_sp4_flags))
-		wdata->args.stable = NFS_FILE_SYNC;
+		hdr->args.stable = NFS_FILE_SYNC;
 }
 #else /* CONFIG_NFS_v4_1 */
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
@@ -369,7 +359,7 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_flags,
 
 static inline void
 nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_write_data *wdata)
+			 struct rpc_message *msg, struct nfs_pgio_header *hdr)
 {
 }
 #endif /* CONFIG_NFS_V4_1 */
@@ -427,6 +417,7 @@ extern void nfs4_close_sync(struct nfs4_state *, fmode_t);
 extern void nfs4_state_set_mode_locked(struct nfs4_state *, fmode_t);
 extern void nfs_inode_find_state_and_recover(struct inode *inode,
 		const nfs4_stateid *stateid);
+extern int nfs4_state_mark_reclaim_nograce(struct nfs_client *, struct nfs4_state *);
 extern void nfs4_schedule_lease_recovery(struct nfs_client *);
 extern int nfs4_wait_clnt_recover(struct nfs_client *clp);
 extern int nfs4_client_recover_expired_lease(struct nfs_client *clp);
@@ -498,6 +489,16 @@ static inline void nfs4_stateid_copy(nfs4_stateid *dst, const nfs4_stateid *src)
 static inline bool nfs4_stateid_match(const nfs4_stateid *dst, const nfs4_stateid *src)
 {
 	return memcmp(dst, src, sizeof(*dst)) == 0;
+}
+
+static inline bool nfs4_stateid_match_other(const nfs4_stateid *dst, const nfs4_stateid *src)
+{
+	return memcmp(dst->other, src->other, NFS4_STATEID_OTHER_SIZE) == 0;
+}
+
+static inline bool nfs4_stateid_is_newer(const nfs4_stateid *s1, const nfs4_stateid *s2)
+{
+	return (s32)(be32_to_cpu(s1->seqid) - be32_to_cpu(s2->seqid)) > 0;
 }
 
 static inline bool nfs4_valid_open_stateid(const struct nfs4_state *state)

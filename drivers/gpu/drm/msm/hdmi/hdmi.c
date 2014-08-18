@@ -17,8 +17,6 @@
 
 #include "hdmi.h"
 
-static struct platform_device *hdmi_pdev;
-
 void hdmi_set_mode(struct hdmi *hdmi, bool power_on)
 {
 	uint32_t ctrl = 0;
@@ -67,7 +65,7 @@ void hdmi_destroy(struct kref *kref)
 	if (hdmi->i2c)
 		hdmi_i2c_destroy(hdmi->i2c);
 
-	put_device(&hdmi->pdev->dev);
+	platform_set_drvdata(hdmi->pdev, NULL);
 }
 
 /* initialize connector */
@@ -75,7 +73,7 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 {
 	struct hdmi *hdmi = NULL;
 	struct msm_drm_private *priv = dev->dev_private;
-	struct platform_device *pdev = hdmi_pdev;
+	struct platform_device *pdev = priv->hdmi_pdev;
 	struct hdmi_platform_config *config;
 	int i, ret;
 
@@ -95,12 +93,12 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 
 	kref_init(&hdmi->refcount);
 
-	get_device(&pdev->dev);
-
 	hdmi->dev = dev;
 	hdmi->pdev = pdev;
 	hdmi->config = config;
 	hdmi->encoder = encoder;
+
+	hdmi_audio_infoframe_init(&hdmi->audio.infoframe);
 
 	/* not sure about which phy maps to which msm.. probably I miss some */
 	if (config->phy_init)
@@ -125,7 +123,8 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		struct regulator *reg;
 
-		reg = devm_regulator_get(&pdev->dev, config->hpd_reg_names[i]);
+		reg = devm_regulator_get_exclusive(&pdev->dev,
+				config->hpd_reg_names[i]);
 		if (IS_ERR(reg)) {
 			ret = PTR_ERR(reg);
 			dev_err(dev->dev, "failed to get hpd regulator: %s (%d)\n",
@@ -140,7 +139,8 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 	for (i = 0; i < config->pwr_reg_cnt; i++) {
 		struct regulator *reg;
 
-		reg = devm_regulator_get(&pdev->dev, config->pwr_reg_names[i]);
+		reg = devm_regulator_get_exclusive(&pdev->dev,
+				config->pwr_reg_names[i]);
 		if (IS_ERR(reg)) {
 			ret = PTR_ERR(reg);
 			dev_err(dev->dev, "failed to get pwr regulator: %s (%d)\n",
@@ -228,6 +228,8 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 	priv->bridges[priv->num_bridges++]       = hdmi->bridge;
 	priv->connectors[priv->num_connectors++] = hdmi->connector;
 
+	platform_set_drvdata(pdev, hdmi);
+
 	return hdmi;
 
 fail:
@@ -249,45 +251,73 @@ fail:
 
 #include <linux/of_gpio.h>
 
-static int hdmi_dev_probe(struct platform_device *pdev)
+static void set_hdmi_pdev(struct drm_device *dev,
+		struct platform_device *pdev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	priv->hdmi_pdev = pdev;
+}
+
+static int hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct hdmi_platform_config config = {};
 #ifdef CONFIG_OF
-	struct device_node *of_node = pdev->dev.of_node;
+	struct device_node *of_node = dev->of_node;
 
 	int get_gpio(const char *name)
 	{
 		int gpio = of_get_named_gpio(of_node, name, 0);
 		if (gpio < 0) {
-			dev_err(&pdev->dev, "failed to get gpio: %s (%d)\n",
-					name, gpio);
-			gpio = -1;
+			char name2[32];
+			snprintf(name2, sizeof(name2), "%s-gpio", name);
+			gpio = of_get_named_gpio(of_node, name2, 0);
+			if (gpio < 0) {
+				dev_err(dev, "failed to get gpio: %s (%d)\n",
+						name, gpio);
+				gpio = -1;
+			}
 		}
 		return gpio;
 	}
 
-	/* TODO actually use DT.. */
-	static const char *hpd_reg_names[] = {"hpd-gdsc", "hpd-5v"};
-	static const char *pwr_reg_names[] = {"core-vdda", "core-vcc"};
-	static const char *hpd_clk_names[] = {"iface_clk", "core_clk", "mdp_core_clk"};
-	static const char *pwr_clk_names[] = {"extp_clk", "alt_iface_clk"};
+	if (of_device_is_compatible(of_node, "qcom,hdmi-tx-8074")) {
+		static const char *hpd_reg_names[] = {"hpd-gdsc", "hpd-5v"};
+		static const char *pwr_reg_names[] = {"core-vdda", "core-vcc"};
+		static const char *hpd_clk_names[] = {"iface_clk", "core_clk", "mdp_core_clk"};
+		static unsigned long hpd_clk_freq[] = {0, 19200000, 0};
+		static const char *pwr_clk_names[] = {"extp_clk", "alt_iface_clk"};
+		config.phy_init      = hdmi_phy_8x74_init;
+		config.hpd_reg_names = hpd_reg_names;
+		config.hpd_reg_cnt   = ARRAY_SIZE(hpd_reg_names);
+		config.pwr_reg_names = pwr_reg_names;
+		config.pwr_reg_cnt   = ARRAY_SIZE(pwr_reg_names);
+		config.hpd_clk_names = hpd_clk_names;
+		config.hpd_freq      = hpd_clk_freq;
+		config.hpd_clk_cnt   = ARRAY_SIZE(hpd_clk_names);
+		config.pwr_clk_names = pwr_clk_names;
+		config.pwr_clk_cnt   = ARRAY_SIZE(pwr_clk_names);
+		config.shared_irq    = true;
+	} else if (of_device_is_compatible(of_node, "qcom,hdmi-tx-8960")) {
+		static const char *hpd_clk_names[] = {"core_clk", "master_iface_clk", "slave_iface_clk"};
+		static const char *hpd_reg_names[] = {"core-vdda", "hdmi-mux"};
+		config.phy_init      = hdmi_phy_8960_init;
+		config.hpd_reg_names = hpd_reg_names;
+		config.hpd_reg_cnt   = ARRAY_SIZE(hpd_reg_names);
+		config.hpd_clk_names = hpd_clk_names;
+		config.hpd_clk_cnt   = ARRAY_SIZE(hpd_clk_names);
+	} else if (of_device_is_compatible(of_node, "qcom,hdmi-tx-8660")) {
+		config.phy_init      = hdmi_phy_8x60_init;
+	} else {
+		dev_err(dev, "unknown phy: %s\n", of_node->name);
+	}
 
-	config.phy_init      = hdmi_phy_8x74_init;
 	config.mmio_name     = "core_physical";
-	config.hpd_reg_names = hpd_reg_names;
-	config.hpd_reg_cnt   = ARRAY_SIZE(hpd_reg_names);
-	config.pwr_reg_names = pwr_reg_names;
-	config.pwr_reg_cnt   = ARRAY_SIZE(pwr_reg_names);
-	config.hpd_clk_names = hpd_clk_names;
-	config.hpd_clk_cnt   = ARRAY_SIZE(hpd_clk_names);
-	config.pwr_clk_names = pwr_clk_names;
-	config.pwr_clk_cnt   = ARRAY_SIZE(pwr_clk_names);
 	config.ddc_clk_gpio  = get_gpio("qcom,hdmi-tx-ddc-clk");
 	config.ddc_data_gpio = get_gpio("qcom,hdmi-tx-ddc-data");
 	config.hpd_gpio      = get_gpio("qcom,hdmi-tx-hpd");
 	config.mux_en_gpio   = get_gpio("qcom,hdmi-tx-mux-en");
 	config.mux_sel_gpio  = get_gpio("qcom,hdmi-tx-mux-sel");
-	config.shared_irq    = true;
+	config.mux_lpm_gpio  = get_gpio("qcom,hdmi-tx-mux-lpm");
 
 #else
 	static const char *hpd_clk_names[] = {
@@ -305,7 +335,7 @@ static int hdmi_dev_probe(struct platform_device *pdev)
 		config.ddc_data_gpio = 71;
 		config.hpd_gpio      = 72;
 		config.mux_en_gpio   = -1;
-		config.mux_sel_gpio  = 13 + NR_GPIO_IRQS;
+		config.mux_sel_gpio  = -1;
 	} else if (cpu_is_msm8960() || cpu_is_msm8960ab()) {
 		static const char *hpd_reg_names[] = {"8921_hdmi_mvs"};
 		config.phy_init      = hdmi_phy_8960_init;
@@ -336,22 +366,39 @@ static int hdmi_dev_probe(struct platform_device *pdev)
 		config.mux_sel_gpio  = -1;
 	}
 #endif
-	pdev->dev.platform_data = &config;
-	hdmi_pdev = pdev;
+	dev->platform_data = &config;
+	set_hdmi_pdev(dev_get_drvdata(master), to_platform_device(dev));
 	return 0;
+}
+
+static void hdmi_unbind(struct device *dev, struct device *master,
+		void *data)
+{
+	set_hdmi_pdev(dev_get_drvdata(master), NULL);
+}
+
+static const struct component_ops hdmi_ops = {
+		.bind   = hdmi_bind,
+		.unbind = hdmi_unbind,
+};
+
+static int hdmi_dev_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &hdmi_ops);
 }
 
 static int hdmi_dev_remove(struct platform_device *pdev)
 {
-	hdmi_pdev = NULL;
+	component_del(&pdev->dev, &hdmi_ops);
 	return 0;
 }
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,hdmi-tx" },
+	{ .compatible = "qcom,hdmi-tx-8074" },
+	{ .compatible = "qcom,hdmi-tx-8960" },
+	{ .compatible = "qcom,hdmi-tx-8660" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, dt_match);
 
 static struct platform_driver hdmi_driver = {
 	.probe = hdmi_dev_probe,

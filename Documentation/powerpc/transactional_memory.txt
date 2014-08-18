@@ -160,7 +160,7 @@ To avoid this, when taking a signal in an active transaction, we need to use
 the stack pointer from the checkpointed state, rather than the speculated
 state.  This ensures that the signal context (written tm suspended) will be
 written below the stack required for the rollback.  The transaction is aborted
-becuase of the treclaim, so any memory written between the tbegin and the
+because of the treclaim, so any memory written between the tbegin and the
 signal will be rolled back anyway.
 
 For signals taken in non-TM or suspended mode, we use the

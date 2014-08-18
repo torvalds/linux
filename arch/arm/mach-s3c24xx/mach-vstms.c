@@ -16,12 +16,14 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
+#include <linux/memblock.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -32,7 +34,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 
@@ -41,7 +42,6 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/samsung-time.h>
@@ -129,22 +129,24 @@ static struct platform_device *vstms_devices[] __initdata = {
 	&s3c2412_device_dma,
 };
 
-static void __init vstms_fixup(struct tag *tags, char **cmdline,
-			       struct meminfo *mi)
+static void __init vstms_fixup(struct tag *tags, char **cmdline)
 {
 	if (tags != phys_to_virt(S3C2410_SDRAM_PA + 0x100)) {
-		mi->nr_banks=1;
-		mi->bank[0].start = 0x30000000;
-		mi->bank[0].size = SZ_64M;
+		memblock_add(0x30000000, SZ_64M);
 	}
 }
 
 static void __init vstms_map_io(void)
 {
 	s3c24xx_init_io(vstms_iodesc, ARRAY_SIZE(vstms_iodesc));
-	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(vstms_uartcfgs, ARRAY_SIZE(vstms_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init vstms_init_time(void)
+{
+	s3c2412_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init vstms_init(void)
@@ -162,6 +164,6 @@ MACHINE_START(VSTMS, "VSTMS")
 	.init_irq	= s3c2412_init_irq,
 	.init_machine	= vstms_init,
 	.map_io		= vstms_map_io,
-	.init_time	= samsung_timer_init,
+	.init_time	= vstms_init_time,
 	.restart	= s3c2412_restart,
 MACHINE_END

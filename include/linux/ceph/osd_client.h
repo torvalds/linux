@@ -43,7 +43,7 @@ struct ceph_osd {
 };
 
 
-#define CEPH_OSD_MAX_OP	2
+#define CEPH_OSD_MAX_OP	3
 
 enum ceph_osd_data_type {
 	CEPH_OSD_DATA_TYPE_NONE = 0,
@@ -76,6 +76,7 @@ struct ceph_osd_data {
 
 struct ceph_osd_req_op {
 	u16 op;           /* CEPH_OSD_OP_* */
+	u32 flags;        /* CEPH_OSD_OP_FLAG_* */
 	u32 payload_len;
 	union {
 		struct ceph_osd_data raw_data_in;
@@ -102,6 +103,10 @@ struct ceph_osd_req_op {
 			u32 timeout;
 			__u8 flag;
 		} watch;
+		struct {
+			u64 expected_object_size;
+			u64 expected_write_size;
+		} alloc_hint;
 	};
 };
 
@@ -112,7 +117,7 @@ struct ceph_osd_request {
 	struct list_head r_req_lru_item;
 	struct list_head r_osd_item;
 	struct list_head r_linger_item;
-	struct list_head r_linger_osd;
+	struct list_head r_linger_osd_item;
 	struct ceph_osd *r_osd;
 	struct ceph_pg   r_pgid;
 	int              r_pg_osds[CEPH_PG_MAX_SIZE];
@@ -293,6 +298,10 @@ extern void osd_req_op_cls_init(struct ceph_osd_request *osd_req,
 extern void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
 					u64 cookie, u64 version, int flag);
+extern void osd_req_op_alloc_hint_init(struct ceph_osd_request *osd_req,
+				       unsigned int which,
+				       u64 expected_object_size,
+				       u64 expected_write_size);
 
 extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 					       struct ceph_snap_context *snapc,
@@ -316,22 +325,14 @@ extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 
 extern void ceph_osdc_set_request_linger(struct ceph_osd_client *osdc,
 					 struct ceph_osd_request *req);
-extern void ceph_osdc_unregister_linger_request(struct ceph_osd_client *osdc,
-						struct ceph_osd_request *req);
 
-static inline void ceph_osdc_get_request(struct ceph_osd_request *req)
-{
-	kref_get(&req->r_kref);
-}
-extern void ceph_osdc_release_request(struct kref *kref);
-static inline void ceph_osdc_put_request(struct ceph_osd_request *req)
-{
-	kref_put(&req->r_kref, ceph_osdc_release_request);
-}
+extern void ceph_osdc_get_request(struct ceph_osd_request *req);
+extern void ceph_osdc_put_request(struct ceph_osd_request *req);
 
 extern int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 				   struct ceph_osd_request *req,
 				   bool nofail);
+extern void ceph_osdc_cancel_request(struct ceph_osd_request *req);
 extern int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 				  struct ceph_osd_request *req);
 extern void ceph_osdc_sync(struct ceph_osd_client *osdc);

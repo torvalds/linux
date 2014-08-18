@@ -173,6 +173,7 @@ int raw3270_start_locked(struct raw3270_view *, struct raw3270_request *);
 int raw3270_start_irq(struct raw3270_view *, struct raw3270_request *);
 int raw3270_reset(struct raw3270_view *);
 struct raw3270_view *raw3270_view(struct raw3270_view *);
+int raw3270_view_active(struct raw3270_view *);
 
 /* Reference count inliner for view structures. */
 static inline void
@@ -190,7 +191,7 @@ raw3270_put_view(struct raw3270_view *view)
 		wake_up(&raw3270_wait_queue);
 }
 
-struct raw3270 *raw3270_setup_console(struct ccw_device *cdev);
+struct raw3270 *raw3270_setup_console(void);
 void raw3270_wait_cons_dev(struct raw3270 *);
 
 /* Notifier for device addition/removal */

@@ -21,23 +21,26 @@
 #define LPC_ICH_H
 
 /* Watchdog resources */
-#define ICH_RES_IO_TCO	0
-#define ICH_RES_IO_SMI	1
-#define ICH_RES_MEM_OFF	2
-#define ICH_RES_MEM_GCS	0
+#define ICH_RES_IO_TCO		0
+#define ICH_RES_IO_SMI		1
+#define ICH_RES_MEM_OFF		2
+#define ICH_RES_MEM_GCS_PMC	0
 
 /* GPIO resources */
 #define ICH_RES_GPIO	0
 #define ICH_RES_GPE0	1
 
 /* GPIO compatibility */
-#define ICH_I3100_GPIO		0x401
-#define ICH_V5_GPIO		0x501
-#define ICH_V6_GPIO		0x601
-#define ICH_V7_GPIO		0x701
-#define ICH_V9_GPIO		0x801
-#define ICH_V10CORP_GPIO	0xa01
-#define ICH_V10CONS_GPIO	0xa11
+enum {
+	ICH_I3100_GPIO,
+	ICH_V5_GPIO,
+	ICH_V6_GPIO,
+	ICH_V7_GPIO,
+	ICH_V9_GPIO,
+	ICH_V10CORP_GPIO,
+	ICH_V10CONS_GPIO,
+	AVOTON_GPIO,
+};
 
 struct lpc_ich_info {
 	char name[32];

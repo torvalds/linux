@@ -66,12 +66,16 @@ uint8_t ast_get_index_reg_mask(struct ast_private *ast,
 static int ast_detect_chip(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
+	uint32_t data, jreg;
 
 	if (dev->pdev->device == PCI_CHIP_AST1180) {
 		ast->chip = AST1100;
 		DRM_INFO("AST 1180 detected\n");
 	} else {
-		if (dev->pdev->revision >= 0x20) {
+		if (dev->pdev->revision >= 0x30) {
+			ast->chip = AST2400;
+			DRM_INFO("AST 2400 detected\n");
+		} else if (dev->pdev->revision >= 0x20) {
 			ast->chip = AST2300;
 			DRM_INFO("AST 2300 detected\n");
 		} else if (dev->pdev->revision >= 0x10) {
@@ -104,6 +108,59 @@ static int ast_detect_chip(struct drm_device *dev)
 			DRM_INFO("AST 2000 detected\n");
 		}
 	}
+
+	switch (ast->chip) {
+	case AST1180:
+		ast->support_wide_screen = true;
+		break;
+	case AST2000:
+		ast->support_wide_screen = false;
+		break;
+	default:
+		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+		if (!(jreg & 0x80))
+			ast->support_wide_screen = true;
+		else if (jreg & 0x01)
+			ast->support_wide_screen = true;
+		else {
+			ast->support_wide_screen = false;
+			ast_write32(ast, 0xf004, 0x1e6e0000);
+			ast_write32(ast, 0xf000, 0x1);
+			data = ast_read32(ast, 0x1207c);
+			data &= 0x300;
+			if (ast->chip == AST2300 && data == 0x0) /* ast1300 */
+				ast->support_wide_screen = true;
+			if (ast->chip == AST2400 && data == 0x100) /* ast1400 */
+				ast->support_wide_screen = true;
+		}
+		break;
+	}
+
+	ast->tx_chip_type = AST_TX_NONE;
+	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
+	if (jreg & 0x80)
+		ast->tx_chip_type = AST_TX_SIL164;
+	if ((ast->chip == AST2300) || (ast->chip == AST2400)) {
+		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+		switch (jreg) {
+		case 0x04:
+			ast->tx_chip_type = AST_TX_SIL164;
+			break;
+		case 0x08:
+			ast->dp501_fw_addr = kzalloc(32*1024, GFP_KERNEL);
+			if (ast->dp501_fw_addr) {
+				/* backup firmware */
+				if (ast_backup_fw(dev, ast->dp501_fw_addr, 32*1024)) {
+					kfree(ast->dp501_fw_addr);
+					ast->dp501_fw_addr = NULL;
+				}
+			}
+			/* fallthrough */
+		case 0x0c:
+			ast->tx_chip_type = AST_TX_DP501;
+		}
+	}
+
 	return 0;
 }
 
@@ -129,7 +186,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	else
 		ast->dram_bus_width = 32;
 
-	if (ast->chip == AST2300) {
+	if (ast->chip == AST2300 || ast->chip == AST2400) {
 		switch (data & 0x03) {
 		case 0:
 			ast->dram_type = AST_DRAM_512Mx16;
@@ -257,17 +314,32 @@ static u32 ast_get_vram_info(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 	u8 jreg;
-
+	u32 vram_size;
 	ast_open_key(ast);
 
+	vram_size = AST_VIDMEM_DEFAULT_SIZE;
 	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xaa, 0xff);
 	switch (jreg & 3) {
-	case 0: return AST_VIDMEM_SIZE_8M;
-	case 1: return AST_VIDMEM_SIZE_16M;
-	case 2: return AST_VIDMEM_SIZE_32M;
-	case 3: return AST_VIDMEM_SIZE_64M;
+	case 0: vram_size = AST_VIDMEM_SIZE_8M; break;
+	case 1: vram_size = AST_VIDMEM_SIZE_16M; break;
+	case 2: vram_size = AST_VIDMEM_SIZE_32M; break;
+	case 3: vram_size = AST_VIDMEM_SIZE_64M; break;
 	}
-	return AST_VIDMEM_DEFAULT_SIZE;
+
+	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x99, 0xff);
+	switch (jreg & 0x03) {
+	case 1:
+		vram_size -= 0x100000;
+		break;
+	case 2:
+		vram_size -= 0x200000;
+		break;
+	case 3:
+		vram_size -= 0x400000;
+		break;
+	}
+
+	return vram_size;
 }
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags)
@@ -316,6 +388,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ast->chip == AST2100 ||
 	    ast->chip == AST2200 ||
 	    ast->chip == AST2300 ||
+	    ast->chip == AST2400 ||
 	    ast->chip == AST1180) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
@@ -343,6 +416,7 @@ int ast_driver_unload(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 
+	kfree(ast->dp501_fw_addr);
 	ast_mode_fini(dev);
 	ast_fbdev_fini(dev);
 	drm_mode_config_cleanup(dev);
@@ -411,16 +485,13 @@ static void ast_bo_unref(struct ast_bo **bo)
 
 	tbo = &((*bo)->bo);
 	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
-
+	*bo = NULL;
 }
+
 void ast_gem_free_object(struct drm_gem_object *obj)
 {
 	struct ast_bo *ast_bo = gem_to_ast_bo(obj);
 
-	if (!ast_bo)
-		return;
 	ast_bo_unref(&ast_bo);
 }
 

@@ -94,10 +94,8 @@ static int platform_lcd_probe(struct platform_device *pdev)
 
 	plcd = devm_kzalloc(&pdev->dev, sizeof(struct platform_lcd),
 			    GFP_KERNEL);
-	if (!plcd) {
-		dev_err(dev, "no memory for state\n");
+	if (!plcd)
 		return -ENOMEM;
-	}
 
 	plcd->us = dev;
 	plcd->pdata = pdata;

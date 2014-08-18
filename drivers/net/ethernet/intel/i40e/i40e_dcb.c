@@ -332,6 +332,7 @@ i40e_status i40e_lldp_to_dcb_config(u8 *lldpmib,
 	u16 type;
 	u16 length;
 	u16 typelength;
+	u16 offset = 0;
 
 	if (!lldpmib || !dcbcfg)
 		return I40E_ERR_PARAM;
@@ -339,15 +340,17 @@ i40e_status i40e_lldp_to_dcb_config(u8 *lldpmib,
 	/* set to the start of LLDPDU */
 	lldpmib += ETH_HLEN;
 	tlv = (struct i40e_lldp_org_tlv *)lldpmib;
-	while (tlv) {
+	while (1) {
 		typelength = ntohs(tlv->typelength);
 		type = (u16)((typelength & I40E_LLDP_TLV_TYPE_MASK) >>
 			     I40E_LLDP_TLV_TYPE_SHIFT);
 		length = (u16)((typelength & I40E_LLDP_TLV_LEN_MASK) >>
 			       I40E_LLDP_TLV_LEN_SHIFT);
+		offset += sizeof(typelength) + length;
 
-		if (type == I40E_TLV_TYPE_END)
-			break;/* END TLV break out */
+		/* END TLV or beyond LLDPDU size */
+		if ((type == I40E_TLV_TYPE_END) || (offset > I40E_LLDPDU_SIZE))
+			break;
 
 		switch (type) {
 		case I40E_TLV_TYPE_ORG:

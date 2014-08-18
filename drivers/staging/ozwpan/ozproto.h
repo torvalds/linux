@@ -59,8 +59,6 @@ void oz_binding_remove(const char *net_dev);
 void oz_timer_add(struct oz_pd *pd, int type, unsigned long due_time);
 void oz_timer_delete(struct oz_pd *pd, int type);
 void oz_pd_request_heartbeat(struct oz_pd *pd);
-void oz_polling_lock_bh(void);
-void oz_polling_unlock_bh(void);
 void oz_pd_heartbeat_handler(unsigned long data);
 void oz_pd_timeout_handler(unsigned long data);
 enum hrtimer_restart oz_pd_heartbeat_event(struct hrtimer *timer);

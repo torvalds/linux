@@ -65,8 +65,8 @@ int nv04_dac_output_offset(struct drm_encoder *encoder)
 
 static int sample_load_twice(struct drm_device *dev, bool sense[2])
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_timer *ptimer = nouveau_timer(device);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nouveau_timer *ptimer = nvkm_timer(device);
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -95,15 +95,15 @@ static int sample_load_twice(struct drm_device *dev, bool sense[2])
 
 		udelay(100);
 		/* when level triggers, sense is _LO_ */
-		sense_a = nv_rd08(device, NV_PRMCIO_INP0) & 0x10;
+		sense_a = nvif_rd08(device, NV_PRMCIO_INP0) & 0x10;
 
 		/* take another reading until it agrees with sense_a... */
 		do {
 			udelay(100);
-			sense_b = nv_rd08(device, NV_PRMCIO_INP0) & 0x10;
+			sense_b = nvif_rd08(device, NV_PRMCIO_INP0) & 0x10;
 			if (sense_a != sense_b) {
 				sense_b_prime =
-					nv_rd08(device, NV_PRMCIO_INP0) & 0x10;
+					nvif_rd08(device, NV_PRMCIO_INP0) & 0x10;
 				if (sense_b == sense_b_prime) {
 					/* ... unless two consecutive subsequent
 					 * samples agree; sense_a is replaced */
@@ -128,7 +128,7 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 						 struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t saved_seq1, saved_pi, saved_rpc1, saved_cr_mode;
 	uint8_t saved_palette0[3], saved_palette_mask;
@@ -164,11 +164,11 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 	saved_rpc1 = NVReadVgaCrtc(dev, 0, NV_CIO_CRE_RPC1_INDEX);
 	NVWriteVgaCrtc(dev, 0, NV_CIO_CRE_RPC1_INDEX, saved_rpc1 & ~0xc0);
 
-	nv_wr08(device, NV_PRMDIO_READ_MODE_ADDRESS, 0x0);
+	nvif_wr08(device, NV_PRMDIO_READ_MODE_ADDRESS, 0x0);
 	for (i = 0; i < 3; i++)
-		saved_palette0[i] = nv_rd08(device, NV_PRMDIO_PALETTE_DATA);
-	saved_palette_mask = nv_rd08(device, NV_PRMDIO_PIXEL_MASK);
-	nv_wr08(device, NV_PRMDIO_PIXEL_MASK, 0);
+		saved_palette0[i] = nvif_rd08(device, NV_PRMDIO_PALETTE_DATA);
+	saved_palette_mask = nvif_rd08(device, NV_PRMDIO_PIXEL_MASK);
+	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK, 0);
 
 	saved_rgen_ctrl = NVReadRAMDAC(dev, 0, NV_PRAMDAC_GENERAL_CONTROL);
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_GENERAL_CONTROL,
@@ -181,11 +181,11 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 	do {
 		bool sense_pair[2];
 
-		nv_wr08(device, NV_PRMDIO_WRITE_MODE_ADDRESS, 0);
-		nv_wr08(device, NV_PRMDIO_PALETTE_DATA, 0);
-		nv_wr08(device, NV_PRMDIO_PALETTE_DATA, 0);
+		nvif_wr08(device, NV_PRMDIO_WRITE_MODE_ADDRESS, 0);
+		nvif_wr08(device, NV_PRMDIO_PALETTE_DATA, 0);
+		nvif_wr08(device, NV_PRMDIO_PALETTE_DATA, 0);
 		/* testing blue won't find monochrome monitors.  I don't care */
-		nv_wr08(device, NV_PRMDIO_PALETTE_DATA, blue);
+		nvif_wr08(device, NV_PRMDIO_PALETTE_DATA, blue);
 
 		i = 0;
 		/* take sample pairs until both samples in the pair agree */
@@ -208,11 +208,11 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 	} while (++blue < 0x18 && sense);
 
 out:
-	nv_wr08(device, NV_PRMDIO_PIXEL_MASK, saved_palette_mask);
+	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK, saved_palette_mask);
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_GENERAL_CONTROL, saved_rgen_ctrl);
-	nv_wr08(device, NV_PRMDIO_WRITE_MODE_ADDRESS, 0);
+	nvif_wr08(device, NV_PRMDIO_WRITE_MODE_ADDRESS, 0);
 	for (i = 0; i < 3; i++)
-		nv_wr08(device, NV_PRMDIO_PALETTE_DATA, saved_palette0[i]);
+		nvif_wr08(device, NV_PRMDIO_PALETTE_DATA, saved_palette0[i]);
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL, saved_rtest_ctrl);
 	NVWriteVgaCrtc(dev, 0, NV_CIO_CRE_PIXEL_INDEX, saved_pi);
 	NVWriteVgaCrtc(dev, 0, NV_CIO_CRE_RPC1_INDEX, saved_rpc1);
@@ -231,8 +231,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_gpio *gpio = nouveau_gpio(device);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nouveau_gpio *gpio = nvkm_gpio(device);
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
@@ -256,12 +256,12 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset,
 		      saved_rtest_ctrl & ~NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF);
 
-	saved_powerctrl_2 = nv_rd32(device, NV_PBUS_POWERCTRL_2);
+	saved_powerctrl_2 = nvif_rd32(device, NV_PBUS_POWERCTRL_2);
 
-	nv_wr32(device, NV_PBUS_POWERCTRL_2, saved_powerctrl_2 & 0xd7ffffff);
+	nvif_wr32(device, NV_PBUS_POWERCTRL_2, saved_powerctrl_2 & 0xd7ffffff);
 	if (regoffset == 0x68) {
-		saved_powerctrl_4 = nv_rd32(device, NV_PBUS_POWERCTRL_4);
-		nv_wr32(device, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
+		saved_powerctrl_4 = nvif_rd32(device, NV_PBUS_POWERCTRL_4);
+		nvif_wr32(device, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
 	}
 
 	if (gpio) {
@@ -283,7 +283,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
 	routput = (saved_routput & 0xfffffece) | head << 8;
 
-	if (nv_device(drm->device)->card_type >= NV_40) {
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CURIE) {
 		if (dcb->type == DCB_OUTPUT_TV)
 			routput |= 0x1a << 16;
 		else
@@ -316,8 +316,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset, saved_routput);
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
 	if (regoffset == 0x68)
-		nv_wr32(device, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
-	nv_wr32(device, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
+		nvif_wr32(device, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
+	nvif_wr32(device, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
 	if (gpio) {
 		gpio->set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, saved_gpio1);
@@ -398,7 +398,7 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* This could use refinement for flatpanels, but it should work this way */
-	if (nv_device(drm->device)->chipset < 0x44)
+	if (drm->device.info.chipset < 0x44)
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0xf0000000);
 	else
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);
@@ -414,7 +414,7 @@ static void nv04_dac_commit(struct drm_encoder *encoder)
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
 	NV_DEBUG(drm, "Output %s is running on CRTC %d using output %c\n",
-		 drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
+		 nouveau_encoder_connector_get(nv_encoder)->base.name,
 		 nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
 }
 

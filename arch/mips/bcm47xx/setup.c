@@ -59,12 +59,12 @@ static void bcm47xx_machine_restart(char *command)
 	switch (bcm47xx_bus_type) {
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
-		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 1);
+		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 3);
 		break;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
 	case BCM47XX_BUS_TYPE_BCMA:
-		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 1);
+		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 3);
 		break;
 #endif
 	}
@@ -212,12 +212,15 @@ void __init plat_mem_setup(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
-	if (c->cputype == CPU_74K) {
+	if ((c->cputype == CPU_74K) || (c->cputype == CPU_1074K)) {
 		printk(KERN_INFO "bcm47xx: using bcma bus\n");
 #ifdef CONFIG_BCM47XX_BCMA
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
 		bcm47xx_register_bcma();
 		bcm47xx_set_system_type(bcm47xx_bus.bcma.bus.chipinfo.id);
+#ifdef CONFIG_HIGHMEM
+		bcm47xx_prom_highmem_init();
+#endif
 #endif
 	} else {
 		printk(KERN_INFO "bcm47xx: using ssb bus\n");
@@ -282,6 +285,7 @@ static int __init bcm47xx_register_bus_complete(void)
 	}
 	bcm47xx_buttons_register();
 	bcm47xx_leds_register();
+	bcm47xx_workarounds();
 
 	fixed_phy_add(PHY_POLL, 0, &bcm47xx_fixed_phy_status);
 	return 0;

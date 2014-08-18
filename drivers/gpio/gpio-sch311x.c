@@ -291,14 +291,12 @@ static int sch311x_gpio_remove(struct platform_device *pdev)
 {
 	struct sch311x_pdev_data *pdata = pdev->dev.platform_data;
 	struct sch311x_gpio_priv *priv = platform_get_drvdata(pdev);
-	int err, i;
+	int i;
 
 	release_region(pdata->runtime_reg + GP1, 6);
 
 	for (i = 0; i < ARRAY_SIZE(priv->blocks); i++) {
-		err = gpiochip_remove(&priv->blocks[i].chip);
-		if (err)
-			return err;
+		gpiochip_remove(&priv->blocks[i].chip);
 		dev_info(&pdev->dev,
 			 "SMSC SCH311x GPIO block %d unregistered.\n", i);
 	}
@@ -327,14 +325,22 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 	if (err)
 		return err;
 
-	/* Check device ID. We currently know about:
-	 * SCH3112 (0x7c), SCH3114 (0x7d), and SCH3116 (0x7f). */
+	/* Check device ID. */
 	reg = sch311x_sio_inb(sio_config_port, 0x20);
-	if (!(reg == 0x7c || reg == 0x7d || reg == 0x7f)) {
+	switch (reg) {
+	case 0x7c: /* SCH3112 */
+		dev_id = 2;
+		break;
+	case 0x7d: /* SCH3114 */
+		dev_id = 4;
+		break;
+	case 0x7f: /* SCH3116 */
+		dev_id = 6;
+		break;
+	default:
 		err = -ENODEV;
 		goto exit;
 	}
-	dev_id = reg == 0x7c ? 2 : reg == 0x7d ? 4 : 6;
 
 	/* Select logical device A (runtime registers) */
 	sch311x_sio_outb(sio_config_port, 0x07, 0x0a);

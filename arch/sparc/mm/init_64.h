@@ -21,7 +21,7 @@ extern unsigned int sparc64_highest_unlocked_tlb_ent;
 extern unsigned long sparc64_kern_pri_context;
 extern unsigned long sparc64_kern_pri_nuc_bits;
 extern unsigned long sparc64_kern_sec_context;
-extern void mmu_info(struct seq_file *m);
+void mmu_info(struct seq_file *m);
 
 struct linux_prom_translation {
 	unsigned long virt;
@@ -36,7 +36,7 @@ extern unsigned int prom_trans_ents;
 /* Exported for SMP bootup purposes. */
 extern unsigned long kern_locked_tte_data;
 
-extern void prom_world(int enter);
+void prom_world(int enter);
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 #define VMEMMAP_CHUNK_SHIFT	22

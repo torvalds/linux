@@ -69,10 +69,11 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 	 *
 	 * However, allow remap of rootfs: TBD
 	 */
+
 	if (mem_init_done &&
 		p >= memory_start && p < virt_to_phys(high_memory) &&
-		!(p >= virt_to_phys((unsigned long)&__bss_stop) &&
-		p < virt_to_phys((unsigned long)__bss_stop))) {
+		!(p >= __virt_to_phys((phys_addr_t)__bss_stop) &&
+		p < __virt_to_phys((phys_addr_t)__bss_stop))) {
 		pr_warn("__ioremap(): phys addr "PTE_FMT" is RAM lr %pf\n",
 			(unsigned long)p, __builtin_return_address(0));
 		return NULL;

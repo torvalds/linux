@@ -23,8 +23,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include "regs-mfc.h"
-#include "regs-mfc-v6.h"
-#include "regs-mfc-v7.h"
+#include "regs-mfc-v8.h"
 
 /* Definitions related to MFC memory */
 
@@ -38,6 +37,8 @@
 #define MFC_BANK1_ALIGN_ORDER	13
 #define MFC_BANK2_ALIGN_ORDER	13
 #define MFC_BASE_ALIGN_ORDER	17
+
+#define MFC_FW_MAX_VERSIONS	2
 
 #include <media/videobuf2-dma-contig.h>
 
@@ -164,6 +165,11 @@ enum s5p_mfc_decode_arg {
 	MFC_DEC_RES_CHANGE,
 };
 
+enum s5p_mfc_fw_ver {
+	MFC_FW_V1,
+	MFC_FW_V2,
+};
+
 #define MFC_BUF_FLAG_USED	(1 << 0)
 #define MFC_BUF_FLAG_EOS	(1 << 1)
 
@@ -223,9 +229,10 @@ struct s5p_mfc_buf_align {
 struct s5p_mfc_variant {
 	unsigned int version;
 	unsigned int port_num;
+	u32 version_bit;
 	struct s5p_mfc_buf_size *buf_size;
 	struct s5p_mfc_buf_align *buf_align;
-	char	*fw_name;
+	char	*fw_name[MFC_FW_MAX_VERSIONS];
 };
 
 /**
@@ -287,6 +294,7 @@ struct s5p_mfc_priv_buf {
  * @warn_start:		hardware error code from which warnings start
  * @mfc_ops:		ops structure holding HW operation function pointers
  * @mfc_cmds:		cmd structure holding HW commands function pointers
+ * @fw_ver:		loaded firmware sub-version
  *
  */
 struct s5p_mfc_dev {
@@ -330,6 +338,8 @@ struct s5p_mfc_dev {
 	int warn_start;
 	struct s5p_mfc_hw_ops *mfc_ops;
 	struct s5p_mfc_hw_cmds *mfc_cmds;
+	const struct s5p_mfc_regs *mfc_regs;
+	enum s5p_mfc_fw_ver fw_ver;
 };
 
 /**
@@ -426,6 +436,8 @@ struct s5p_mfc_vp8_enc_params {
 struct s5p_mfc_enc_params {
 	u16 width;
 	u16 height;
+	u32 mv_h_range;
+	u32 mv_v_range;
 
 	u16 gop_size;
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
@@ -661,6 +673,7 @@ struct s5p_mfc_fmt {
 	u32 codec_mode;
 	enum s5p_mfc_fmt_type type;
 	u32 num_planes;
+	u32 versions;
 };
 
 /**
@@ -698,6 +711,13 @@ void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
 				(dev->variant->port_num ? 1 : 0) : 0) : 0)
 #define IS_TWOPORT(dev)		(dev->variant->port_num == 2 ? 1 : 0)
 #define IS_MFCV6_PLUS(dev)	(dev->variant->version >= 0x60 ? 1 : 0)
-#define IS_MFCV7(dev)		(dev->variant->version >= 0x70 ? 1 : 0)
+#define IS_MFCV7_PLUS(dev)	(dev->variant->version >= 0x70 ? 1 : 0)
+#define IS_MFCV8(dev)		(dev->variant->version >= 0x80 ? 1 : 0)
+
+#define MFC_V5_BIT	BIT(0)
+#define MFC_V6_BIT	BIT(1)
+#define MFC_V7_BIT	BIT(2)
+#define MFC_V8_BIT	BIT(3)
+
 
 #endif /* S5P_MFC_COMMON_H_ */

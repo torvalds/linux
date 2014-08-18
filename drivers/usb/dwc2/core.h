@@ -37,6 +37,10 @@
 #ifndef __DWC2_CORE_H__
 #define __DWC2_CORE_H__
 
+#include <linux/phy/phy.h>
+#include <linux/regulator/consumer.h>
+#include <linux/usb/gadget.h>
+#include <linux/usb/otg.h>
 #include <linux/usb/phy.h>
 #include "hw.h"
 
@@ -53,6 +57,184 @@ static inline void do_write(u32 value, void *addr)
 
 /* Maximum number of Endpoints/HostChannels */
 #define MAX_EPS_CHANNELS	16
+
+/* s3c-hsotg declarations */
+static const char * const s3c_hsotg_supply_names[] = {
+	"vusb_d",               /* digital USB supply, 1.2V */
+	"vusb_a",               /* analog USB supply, 1.1V */
+};
+
+/*
+ * EP0_MPS_LIMIT
+ *
+ * Unfortunately there seems to be a limit of the amount of data that can
+ * be transferred by IN transactions on EP0. This is either 127 bytes or 3
+ * packets (which practically means 1 packet and 63 bytes of data) when the
+ * MPS is set to 64.
+ *
+ * This means if we are wanting to move >127 bytes of data, we need to
+ * split the transactions up, but just doing one packet at a time does
+ * not work (this may be an implicit DATA0 PID on first packet of the
+ * transaction) and doing 2 packets is outside the controller's limits.
+ *
+ * If we try to lower the MPS size for EP0, then no transfers work properly
+ * for EP0, and the system will fail basic enumeration. As no cause for this
+ * has currently been found, we cannot support any large IN transfers for
+ * EP0.
+ */
+#define EP0_MPS_LIMIT   64
+
+struct s3c_hsotg;
+struct s3c_hsotg_req;
+
+/**
+ * struct s3c_hsotg_ep - driver endpoint definition.
+ * @ep: The gadget layer representation of the endpoint.
+ * @name: The driver generated name for the endpoint.
+ * @queue: Queue of requests for this endpoint.
+ * @parent: Reference back to the parent device structure.
+ * @req: The current request that the endpoint is processing. This is
+ *       used to indicate an request has been loaded onto the endpoint
+ *       and has yet to be completed (maybe due to data move, or simply
+ *       awaiting an ack from the core all the data has been completed).
+ * @debugfs: File entry for debugfs file for this endpoint.
+ * @lock: State lock to protect contents of endpoint.
+ * @dir_in: Set to true if this endpoint is of the IN direction, which
+ *          means that it is sending data to the Host.
+ * @index: The index for the endpoint registers.
+ * @mc: Multi Count - number of transactions per microframe
+ * @interval - Interval for periodic endpoints
+ * @name: The name array passed to the USB core.
+ * @halted: Set if the endpoint has been halted.
+ * @periodic: Set if this is a periodic ep, such as Interrupt
+ * @isochronous: Set if this is a isochronous ep
+ * @sent_zlp: Set if we've sent a zero-length packet.
+ * @total_data: The total number of data bytes done.
+ * @fifo_size: The size of the FIFO (for periodic IN endpoints)
+ * @fifo_load: The amount of data loaded into the FIFO (periodic IN)
+ * @last_load: The offset of data for the last start of request.
+ * @size_loaded: The last loaded size for DxEPTSIZE for periodic IN
+ *
+ * This is the driver's state for each registered enpoint, allowing it
+ * to keep track of transactions that need doing. Each endpoint has a
+ * lock to protect the state, to try and avoid using an overall lock
+ * for the host controller as much as possible.
+ *
+ * For periodic IN endpoints, we have fifo_size and fifo_load to try
+ * and keep track of the amount of data in the periodic FIFO for each
+ * of these as we don't have a status register that tells us how much
+ * is in each of them. (note, this may actually be useless information
+ * as in shared-fifo mode periodic in acts like a single-frame packet
+ * buffer than a fifo)
+ */
+struct s3c_hsotg_ep {
+	struct usb_ep           ep;
+	struct list_head        queue;
+	struct s3c_hsotg        *parent;
+	struct s3c_hsotg_req    *req;
+	struct dentry           *debugfs;
+
+	unsigned long           total_data;
+	unsigned int            size_loaded;
+	unsigned int            last_load;
+	unsigned int            fifo_load;
+	unsigned short          fifo_size;
+
+	unsigned char           dir_in;
+	unsigned char           index;
+	unsigned char           mc;
+	unsigned char           interval;
+
+	unsigned int            halted:1;
+	unsigned int            periodic:1;
+	unsigned int            isochronous:1;
+	unsigned int            sent_zlp:1;
+
+	char                    name[10];
+};
+
+/**
+ * struct s3c_hsotg - driver state.
+ * @dev: The parent device supplied to the probe function
+ * @driver: USB gadget driver
+ * @phy: The otg phy transceiver structure for phy control.
+ * @uphy: The otg phy transceiver structure for old USB phy control.
+ * @plat: The platform specific configuration data. This can be removed once
+ * all SoCs support usb transceiver.
+ * @regs: The memory area mapped for accessing registers.
+ * @irq: The IRQ number we are using
+ * @supplies: Definition of USB power supplies
+ * @phyif: PHY interface width
+ * @dedicated_fifos: Set if the hardware has dedicated IN-EP fifos.
+ * @num_of_eps: Number of available EPs (excluding EP0)
+ * @debug_root: root directrory for debugfs.
+ * @debug_file: main status file for debugfs.
+ * @debug_fifo: FIFO status file for debugfs.
+ * @ep0_reply: Request used for ep0 reply.
+ * @ep0_buff: Buffer for EP0 reply data, if needed.
+ * @ctrl_buff: Buffer for EP0 control requests.
+ * @ctrl_req: Request for EP0 control packets.
+ * @setup: NAK management for EP0 SETUP
+ * @last_rst: Time of last reset
+ * @eps: The endpoints being supplied to the gadget framework
+ */
+struct s3c_hsotg {
+	struct device            *dev;
+	struct usb_gadget_driver *driver;
+	struct phy               *phy;
+	struct usb_phy           *uphy;
+	struct s3c_hsotg_plat    *plat;
+
+	spinlock_t              lock;
+
+	void __iomem            *regs;
+	int                     irq;
+	struct clk              *clk;
+
+	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
+
+	u32                     phyif;
+	unsigned int            dedicated_fifos:1;
+	unsigned char           num_of_eps;
+
+	struct dentry           *debug_root;
+	struct dentry           *debug_file;
+	struct dentry           *debug_fifo;
+
+	struct usb_request      *ep0_reply;
+	struct usb_request      *ctrl_req;
+	u8                      ep0_buff[8];
+	u8                      ctrl_buff[8];
+
+	struct usb_gadget       gadget;
+	unsigned int            setup;
+	unsigned long           last_rst;
+	struct s3c_hsotg_ep     *eps;
+};
+
+/**
+ * struct s3c_hsotg_req - data transfer request
+ * @req: The USB gadget request
+ * @queue: The list of requests for the endpoint this is queued for.
+ * @in_progress: Has already had size/packets written to core
+ * @mapped: DMA buffer for this request has been mapped via dma_map_single().
+ */
+struct s3c_hsotg_req {
+	struct usb_request      req;
+	struct list_head        queue;
+	unsigned char           in_progress;
+	unsigned char           mapped;
+};
+
+#define call_gadget(_hs, _entry) \
+do { \
+	if ((_hs)->gadget.speed != USB_SPEED_UNKNOWN && \
+		(_hs)->driver && (_hs)->driver->_entry) { \
+		spin_unlock(&_hs->lock); \
+		(_hs)->driver->_entry(&(_hs)->gadget); \
+		spin_lock(&_hs->lock); \
+	} \
+} while (0)
 
 struct dwc2_hsotg;
 struct dwc2_host_chan;

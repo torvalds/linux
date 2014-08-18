@@ -22,41 +22,20 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/pwr.h>
-
+#include "priv.h"
 #include "fuc/nvd0.fuc.h"
 
-struct nvd0_pwr_priv {
-	struct nouveau_pwr base;
-};
-
-static int
-nvd0_pwr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
-{
-	struct nvd0_pwr_priv *priv;
-	int ret;
-
-	ret = nouveau_pwr_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.code.data = nvd0_pwr_code;
-	priv->base.code.size = sizeof(nvd0_pwr_code);
-	priv->base.data.data = nvd0_pwr_data;
-	priv->base.data.size = sizeof(nvd0_pwr_data);
-	return 0;
-}
-
-struct nouveau_oclass
-nvd0_pwr_oclass = {
-	.handle = NV_SUBDEV(PWR, 0xd0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvd0_pwr_ctor,
+struct nouveau_oclass *
+nvd0_pwr_oclass = &(struct nvkm_pwr_impl) {
+	.base.handle = NV_SUBDEV(PWR, 0xd0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nouveau_pwr_ctor,
 		.dtor = _nouveau_pwr_dtor,
 		.init = _nouveau_pwr_init,
 		.fini = _nouveau_pwr_fini,
 	},
-};
+	.code.data = nvd0_pwr_code,
+	.code.size = sizeof(nvd0_pwr_code),
+	.data.data = nvd0_pwr_data,
+	.data.size = sizeof(nvd0_pwr_data),
+}.base;

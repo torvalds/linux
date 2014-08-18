@@ -11,12 +11,17 @@
 #include <linux/acpi.h>
 
 #ifdef CONFIG_ACPI
-extern acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev,
-						 struct pci_bus *pci_bus);
-extern acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev);
+extern acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev);
+static inline acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev)
+{
+	return acpi_remove_pm_notifier(dev);
+}
 extern acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
 					     struct pci_dev *pci_dev);
-extern acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev);
+static inline acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
+{
+	return acpi_remove_pm_notifier(dev);
+}
 extern phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle);
 
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
@@ -59,12 +64,12 @@ static inline void acpi_pci_slot_remove(struct pci_bus *bus) { }
 void acpiphp_init(void);
 void acpiphp_enumerate_slots(struct pci_bus *bus);
 void acpiphp_remove_slots(struct pci_bus *bus);
-void acpiphp_check_host_bridge(acpi_handle handle);
+void acpiphp_check_host_bridge(struct acpi_device *adev);
 #else
 static inline void acpiphp_init(void) { }
 static inline void acpiphp_enumerate_slots(struct pci_bus *bus) { }
 static inline void acpiphp_remove_slots(struct pci_bus *bus) { }
-static inline void acpiphp_check_host_bridge(acpi_handle handle) { }
+static inline void acpiphp_check_host_bridge(struct acpi_device *adev) { }
 #endif
 
 #else	/* CONFIG_ACPI */

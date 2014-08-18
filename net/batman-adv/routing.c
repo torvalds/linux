@@ -222,8 +222,8 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 
 		icmph = (struct batadv_icmp_header *)skb->data;
 
-		memcpy(icmph->dst, icmph->orig, ETH_ALEN);
-		memcpy(icmph->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
+		ether_addr_copy(icmph->dst, icmph->orig);
+		ether_addr_copy(icmph->orig, primary_if->net_dev->dev_addr);
 		icmph->msg_type = BATADV_ECHO_REPLY;
 		icmph->ttl = BATADV_TTL;
 
@@ -276,9 +276,8 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 
 	icmp_packet = (struct batadv_icmp_packet *)skb->data;
 
-	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
-	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr,
-	       ETH_ALEN);
+	ether_addr_copy(icmp_packet->dst, icmp_packet->orig);
+	ether_addr_copy(icmp_packet->orig, primary_if->net_dev->dev_addr);
 	icmp_packet->msg_type = BATADV_TTL_EXCEEDED;
 	icmp_packet->ttl = BATADV_TTL;
 
@@ -341,8 +340,8 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 		if (icmp_packet_rr->rr_cur >= BATADV_RR_LEN)
 			goto out;
 
-		memcpy(&(icmp_packet_rr->rr[icmp_packet_rr->rr_cur]),
-		       ethhdr->h_dest, ETH_ALEN);
+		ether_addr_copy(icmp_packet_rr->rr[icmp_packet_rr->rr_cur],
+				ethhdr->h_dest);
 		icmp_packet_rr->rr_cur++;
 	}
 
@@ -664,7 +663,7 @@ batadv_reroute_unicast_packet(struct batadv_priv *bat_priv,
 	}
 
 	/* update the packet header */
-	memcpy(unicast_packet->dest, orig_addr, ETH_ALEN);
+	ether_addr_copy(unicast_packet->dest, orig_addr);
 	unicast_packet->ttvn = orig_ttvn;
 
 	ret = true;
@@ -707,11 +706,11 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	if (batadv_tt_local_client_is_roaming(bat_priv, ethhdr->h_dest, vid)) {
 		if (batadv_reroute_unicast_packet(bat_priv, unicast_packet,
 						  ethhdr->h_dest, vid))
-			net_ratelimited_function(batadv_dbg, BATADV_DBG_TT,
-						 bat_priv,
-						 "Rerouting unicast packet to %pM (dst=%pM): Local Roaming\n",
-						 unicast_packet->dest,
-						 ethhdr->h_dest);
+			batadv_dbg_ratelimited(BATADV_DBG_TT,
+					       bat_priv,
+					       "Rerouting unicast packet to %pM (dst=%pM): Local Roaming\n",
+					       unicast_packet->dest,
+					       ethhdr->h_dest);
 		/* at this point the mesh destination should have been
 		 * substituted with the originator address found in the global
 		 * table. If not, let the packet go untouched anyway because
@@ -753,10 +752,10 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	 */
 	if (batadv_reroute_unicast_packet(bat_priv, unicast_packet,
 					  ethhdr->h_dest, vid)) {
-		net_ratelimited_function(batadv_dbg, BATADV_DBG_TT, bat_priv,
-					 "Rerouting unicast packet to %pM (dst=%pM): TTVN mismatch old_ttvn=%u new_ttvn=%u\n",
-					 unicast_packet->dest, ethhdr->h_dest,
-					 old_ttvn, curr_ttvn);
+		batadv_dbg_ratelimited(BATADV_DBG_TT, bat_priv,
+				       "Rerouting unicast packet to %pM (dst=%pM): TTVN mismatch old_ttvn=%u new_ttvn=%u\n",
+				       unicast_packet->dest, ethhdr->h_dest,
+				       old_ttvn, curr_ttvn);
 		return 1;
 	}
 
@@ -774,7 +773,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	if (!primary_if)
 		return 0;
 
-	memcpy(unicast_packet->dest, primary_if->net_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(unicast_packet->dest, primary_if->net_dev->dev_addr);
 
 	batadv_hardif_free_ref(primary_if);
 

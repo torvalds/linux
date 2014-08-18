@@ -1137,7 +1137,7 @@ static const struct pci_error_handlers rsxx_err_handler = {
 	.slot_reset     = rsxx_slot_reset,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(rsxx_pci_ids) = {
+static const struct pci_device_id rsxx_pci_ids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_FS70_FLASH)},
 	{PCI_DEVICE(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_FS80_FLASH)},
 	{0,},

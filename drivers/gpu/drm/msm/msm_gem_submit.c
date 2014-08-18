@@ -23,7 +23,6 @@
  * Cmdstream submission:
  */
 
-#define BO_INVALID_FLAGS ~(MSM_SUBMIT_BO_READ | MSM_SUBMIT_BO_WRITE)
 /* make sure these don't conflict w/ MSM_SUBMIT_BO_x */
 #define BO_VALID    0x8000
 #define BO_LOCKED   0x4000
@@ -77,7 +76,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 			goto out_unlock;
 		}
 
-		if (submit_bo.flags & BO_INVALID_FLAGS) {
+		if (submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) {
 			DRM_ERROR("invalid flags: %x\n", submit_bo.flags);
 			ret = -EINVAL;
 			goto out_unlock;
@@ -369,6 +368,18 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			goto out;
 		}
 
+		/* validate input from userspace: */
+		switch (submit_cmd.type) {
+		case MSM_SUBMIT_CMD_BUF:
+		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
+		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
+			break;
+		default:
+			DRM_ERROR("invalid type: %08x\n", submit_cmd.type);
+			ret = -EINVAL;
+			goto out;
+		}
+
 		ret = submit_bo(submit, submit_cmd.submit_idx,
 				&msm_obj, &iova, NULL);
 		if (ret)
@@ -391,6 +402,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		submit->cmd[i].type = submit_cmd.type;
 		submit->cmd[i].size = submit_cmd.size / 4;
 		submit->cmd[i].iova = iova + submit_cmd.submit_offset;
+		submit->cmd[i].idx  = submit_cmd.submit_idx;
 
 		if (submit->valid)
 			continue;

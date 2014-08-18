@@ -135,14 +135,14 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 		return NULL;
 
 	if (client->num_ports >= SNDRV_SEQ_MAX_PORTS - 1) {
-		snd_printk(KERN_WARNING "too many ports for client %d\n", client->number);
+		pr_warn("ALSA: seq: too many ports for client %d\n", client->number);
 		return NULL;
 	}
 
 	/* create a new port */
 	new_port = kzalloc(sizeof(*new_port), GFP_KERNEL);
 	if (! new_port) {
-		snd_printd("malloc failed for registering client port\n");
+		pr_debug("ALSA: seq: malloc failed for registering client port\n");
 		return NULL;	/* failure, out of memory */
 	}
 	/* init port data */

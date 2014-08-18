@@ -134,10 +134,8 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 
 	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm8994_ldo), GFP_KERNEL);
-	if (ldo == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!ldo)
 		return -ENOMEM;
-	}
 
 	ldo->wm8994 = wm8994;
 	ldo->supply = wm8994_ldo_consumer[id];

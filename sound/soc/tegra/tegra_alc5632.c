@@ -41,8 +41,7 @@ static int tegra_alc5632_asoc_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_card *card = rtd->card;
 	struct tegra_alc5632 *alc5632 = snd_soc_card_get_drvdata(card);
 	int srate, mclk;
 	int err;
@@ -105,7 +104,7 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(codec->card);
+	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(rtd->card);
 
 	snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
 			 &tegra_alc5632_hs_jack);
@@ -125,6 +124,18 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static int tegra_alc5632_card_remove(struct snd_soc_card *card)
+{
+	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(card);
+
+	if (gpio_is_valid(machine->gpio_hp_det)) {
+		snd_soc_jack_free_gpios(&tegra_alc5632_hs_jack, 1,
+					&tegra_alc5632_hp_jack_gpio);
+	}
+
+	return 0;
+}
+
 static struct snd_soc_dai_link tegra_alc5632_dai = {
 	.name = "ALC5632",
 	.stream_name = "ALC5632 PCM",
@@ -139,6 +150,7 @@ static struct snd_soc_dai_link tegra_alc5632_dai = {
 static struct snd_soc_card snd_soc_tegra_alc5632 = {
 	.name = "tegra-alc5632",
 	.owner = THIS_MODULE,
+	.remove = tegra_alc5632_card_remove,
 	.dai_link = &tegra_alc5632_dai,
 	.num_links = 1,
 	.controls = tegra_alc5632_controls,
@@ -222,9 +234,6 @@ static int tegra_alc5632_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(card);
-
-	snd_soc_jack_free_gpios(&tegra_alc5632_hs_jack, 1,
-				&tegra_alc5632_hp_jack_gpio);
 
 	snd_soc_unregister_card(card);
 

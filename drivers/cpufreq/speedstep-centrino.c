@@ -28,7 +28,7 @@
 #include <asm/cpu_device_id.h>
 
 #define PFX		"speedstep-centrino: "
-#define MAINTAINER	"cpufreq@vger.kernel.org"
+#define MAINTAINER	"linux-pm@vger.kernel.org"
 
 #define INTEL_MSR_RANGE	(0xffff)
 
@@ -405,8 +405,6 @@ static int centrino_cpu_exit(struct cpufreq_policy *policy)
 
 	if (!per_cpu(centrino_model, cpu))
 		return -ENODEV;
-
-	cpufreq_frequency_table_put_attr(cpu);
 
 	per_cpu(centrino_model, cpu) = NULL;
 

@@ -36,7 +36,7 @@ Required port properties:
       "marvell,kirkwood-eth-port".
  - reg: port number relative to ethernet controller, shall be 0, 1, or 2.
  - interrupts: port interrupt.
- - local-mac-address: 6 bytes MAC address.
+ - local-mac-address: See ethernet.txt file in the same directory.
 
 Optional port properties:
  - marvell,tx-queue-size: size of the transmit ring buffer.
@@ -48,7 +48,7 @@ Optional port properties:
 
 and
 
- - phy-handle: phandle reference to ethernet PHY.
+ - phy-handle: See ethernet.txt file in the same directory.
 
 or
 

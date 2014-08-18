@@ -44,16 +44,6 @@
 
 #include "mlx4_en.h"
 
-enum {
-	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
-	MAX_BF = 256,
-};
-
-static int inline_thold __read_mostly = MAX_INLINE;
-
-module_param_named(inline_thold, inline_thold, int, 0444);
-MODULE_PARM_DESC(inline_thold, "threshold for using inline data");
-
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring, int qpn, u32 size,
 			   u16 stride, int node, int queue_index)
@@ -75,8 +65,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->size = size;
 	ring->size_mask = size - 1;
 	ring->stride = stride;
-
-	inline_thold = min(inline_thold, MAX_INLINE);
+	ring->inline_thold = priv->prof->inline_thold;
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = vmalloc_node(tmp, node);
@@ -119,12 +108,12 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	ring->buf = ring->wqres.buf.direct.buf;
 
-	en_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d "
-	       "buf_size:%d dma:%llx\n", ring, ring->buf, ring->size,
-	       ring->buf_size, (unsigned long long) ring->wqres.buf.direct.map);
+	en_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d buf_size:%d dma:%llx\n",
+	       ring, ring->buf, ring->size, ring->buf_size,
+	       (unsigned long long) ring->wqres.buf.direct.map);
 
 	ring->qpn = qpn;
-	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp);
+	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating qp %d\n", ring->qpn);
 		goto err_map;
@@ -133,12 +122,17 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	err = mlx4_bf_alloc(mdev->dev, &ring->bf, node);
 	if (err) {
-		en_dbg(DRV, priv, "working without blueflame (%d)", err);
+		en_dbg(DRV, priv, "working without blueflame (%d)\n", err);
 		ring->bf.uar = &mdev->priv_uar;
 		ring->bf.uar->map = mdev->uar_map;
 		ring->bf_enabled = false;
-	} else
-		ring->bf_enabled = true;
+		ring->bf_alloced = false;
+		priv->pflags &= ~MLX4_EN_PRIV_FLAGS_BLUEFLAME;
+	} else {
+		ring->bf_alloced = true;
+		ring->bf_enabled = !!(priv->pflags &
+				      MLX4_EN_PRIV_FLAGS_BLUEFLAME);
+	}
 
 	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
 	ring->queue_index = queue_index;
@@ -172,7 +166,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_tx_ring *ring = *pring;
 	en_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
 
-	if (ring->bf_enabled)
+	if (ring->bf_alloced)
 		mlx4_bf_free(mdev->dev, &ring->bf);
 	mlx4_qp_remove(mdev->dev, &ring->qp);
 	mlx4_qp_free(mdev->dev, &ring->qp);
@@ -206,7 +200,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 
 	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
 				ring->cqn, user_prio, &ring->context);
-	if (ring->bf_enabled)
+	if (ring->bf_alloced)
 		ring->context.usr_page = cpu_to_be32(ring->bf.uar->index);
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,
@@ -325,7 +319,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			}
 		}
 	}
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return tx_info->nr_txbb;
 }
 
@@ -362,9 +356,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	return cnt;
 }
 
-static int mlx4_en_process_tx_cq(struct net_device *dev,
-				 struct mlx4_en_cq *cq,
-				 int budget)
+static bool mlx4_en_process_tx_cq(struct net_device *dev,
+				 struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
@@ -383,9 +376,10 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 	int factor = priv->cqe_factor;
 	u64 timestamp = 0;
 	int done = 0;
+	int budget = priv->tx_work_limit;
 
 	if (!priv->port_up)
-		return 0;
+		return true;
 
 	index = cons_index & size_mask;
 	cqe = &buf[(index << factor) + factor];
@@ -456,9 +450,9 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 	 */
 	if (netif_tx_queue_stopped(ring->tx_queue) && txbbs_skipped > 0) {
 		netif_tx_wake_queue(ring->tx_queue);
-		priv->port_stats.wake_queue++;
+		ring->wake_queue++;
 	}
-	return done;
+	return done < budget;
 }
 
 void mlx4_en_tx_irq(struct mlx4_cq *mcq)
@@ -478,18 +472,16 @@ int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget)
 	struct mlx4_en_cq *cq = container_of(napi, struct mlx4_en_cq, napi);
 	struct net_device *dev = cq->dev;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int done;
+	int clean_complete;
 
-	done = mlx4_en_process_tx_cq(dev, cq, budget);
+	clean_complete = mlx4_en_process_tx_cq(dev, cq);
+	if (!clean_complete)
+		return budget;
 
-	/* If we used up all the quota - we're probably not done yet... */
-	if (done < budget) {
-		/* Done for now */
-		napi_complete(napi);
-		mlx4_en_arm_cq(priv, cq);
-		return done;
-	}
-	return budget;
+	napi_complete(napi);
+	mlx4_en_arm_cq(priv, cq);
+
+	return 0;
 }
 
 static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
@@ -520,7 +512,7 @@ static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 	return ring->buf + index * TXBB_SIZE;
 }
 
-static int is_inline(struct sk_buff *skb, void **pfrag)
+static int is_inline(int inline_thold, struct sk_buff *skb, void **pfrag)
 {
 	void *ptr;
 
@@ -580,7 +572,7 @@ static int get_real_size(struct sk_buff *skb, struct net_device *dev,
 		}
 	} else {
 		*lso_header_size = 0;
-		if (!is_inline(skb, NULL))
+		if (!is_inline(priv->prof->inline_thold, skb, NULL))
 			real_size = CTRL_SIZE + (skb_shinfo(skb)->nr_frags + 1) * DS_SIZE;
 		else
 			real_size = inline_size(skb);
@@ -596,7 +588,13 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 	int spc = MLX4_INLINE_ALIGN - CTRL_SIZE - sizeof *inl;
 
 	if (skb->len <= spc) {
-		inl->byte_count = cpu_to_be32(1 << 31 | skb->len);
+		if (likely(skb->len >= MIN_PKT_LEN)) {
+			inl->byte_count = cpu_to_be32(1 << 31 | skb->len);
+		} else {
+			inl->byte_count = cpu_to_be32(1 << 31 | MIN_PKT_LEN);
+			memset(((void *)(inl + 1)) + skb->len, 0,
+			       MIN_PKT_LEN - skb->len);
+		}
 		skb_copy_from_linear_data(skb, inl + 1, skb_headlen(skb));
 		if (skb_shinfo(skb)->nr_frags)
 			memcpy(((void *)(inl + 1)) + skb_headlen(skb), fragptr,
@@ -696,7 +694,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 		/* every full Tx ring stops queue */
 		netif_tx_stop_queue(ring->tx_queue);
-		priv->port_stats.queue_stopped++;
+		ring->queue_stopped++;
 
 		/* If queue was emptied after the if, and before the
 		 * stop_queue - need to wake the queue, or else it will remain
@@ -709,7 +707,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(((int)(ring->prod - ring->cons)) <=
 			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 			netif_tx_wake_queue(ring->tx_queue);
-			priv->port_stats.wake_queue++;
+			ring->wake_queue++;
 		} else {
 			return NETDEV_TX_BUSY;
 		}
@@ -747,11 +745,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info->data_offset = (void *)data - (void *)tx_desc;
 
 	tx_info->linear = (lso_header_size < skb_headlen(skb) &&
-			   !is_inline(skb, NULL)) ? 1 : 0;
+			   !is_inline(ring->inline_thold, skb, NULL)) ? 1 : 0;
 
 	data += skb_shinfo(skb)->nr_frags + tx_info->linear - 1;
 
-	if (is_inline(skb, &fragptr)) {
+	if (is_inline(ring->inline_thold, skb, &fragptr)) {
 		tx_info->inl = 1;
 	} else {
 		/* Map fragments */
@@ -881,7 +879,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 
 	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !vlan_tx_tag_present(skb)) {
-		*(__be32 *) (&tx_desc->ctrl.vlan_tag) |= cpu_to_be32(ring->doorbell_qpn);
+		tx_desc->ctrl.bf_qpn |= cpu_to_be32(ring->doorbell_qpn);
+
 		op_own |= htonl((bf_index & 0xffff) << 8);
 		/* Ensure new descirptor hits memory
 		* before setting ownership of this descriptor to HW */

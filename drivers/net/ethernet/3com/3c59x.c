@@ -375,7 +375,7 @@ static struct vortex_chip_info {
 };
 
 
-static DEFINE_PCI_DEVICE_TABLE(vortex_pci_tbl) = {
+static const struct pci_device_id vortex_pci_tbl[] = {
 	{ 0x10B7, 0x5900, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C590 },
 	{ 0x10B7, 0x5920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C592 },
 	{ 0x10B7, 0x5970, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C597 },
@@ -2086,7 +2086,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* ... and the packet rounded to a doubleword. */
 		skb_tx_timestamp(skb);
 		iowrite32_rep(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
-		dev_kfree_skb (skb);
+		dev_consume_skb_any (skb);
 		if (ioread16(ioaddr + TxFree) > 1536) {
 			netif_start_queue (dev);	/* AKPM: redundant? */
 		} else {

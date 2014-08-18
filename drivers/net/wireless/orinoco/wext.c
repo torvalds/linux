@@ -52,9 +52,9 @@ static int orinoco_set_key(struct orinoco_private *priv, int index,
 	priv->keys[index].seq_len = seq_len;
 
 	if (key_len)
-		memcpy(priv->keys[index].key, key, key_len);
+		memcpy((void *)priv->keys[index].key, key, key_len);
 	if (seq_len)
-		memcpy(priv->keys[index].seq, seq, seq_len);
+		memcpy((void *)priv->keys[index].seq, seq, seq_len);
 
 	switch (alg) {
 	case ORINOCO_ALG_TKIP:
@@ -444,7 +444,7 @@ static int orinoco_ioctl_setfreq(struct net_device *dev,
 		for (i = 0; i < (6 - frq->e); i++)
 			denom *= 10;
 
-		chan = ieee80211_freq_to_dsss_chan(frq->m / denom);
+		chan = ieee80211_frequency_to_channel(frq->m / denom);
 	}
 
 	if ((chan < 1) || (chan > NUM_CHANNELS) ||

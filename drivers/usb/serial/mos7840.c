@@ -522,11 +522,11 @@ static void mos7840_set_led_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
-		dev_dbg(&urb->dev->dev, "%s - urb shutting down with status: %d",
+		dev_dbg(&urb->dev->dev, "%s - urb shutting down: %d\n",
 			__func__, urb->status);
 		break;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status received: %d",
+		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n",
 			__func__, urb->status);
 	}
 }
@@ -1181,10 +1181,7 @@ static void mos7840_close(struct usb_serial_port *port)
 	/* Freeing Write URBs */
 	for (j = 0; j < NUM_URBS; ++j) {
 		if (mos7840_port->write_urb_pool[j]) {
-			if (mos7840_port->write_urb_pool[j]->transfer_buffer)
-				kfree(mos7840_port->write_urb_pool[j]->
-				      transfer_buffer);
-
+			kfree(mos7840_port->write_urb_pool[j]->transfer_buffer);
 			usb_free_urb(mos7840_port->write_urb_pool[j]);
 		}
 	}

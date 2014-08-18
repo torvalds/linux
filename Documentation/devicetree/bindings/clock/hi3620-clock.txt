@@ -7,6 +7,7 @@ Required Properties:
 
 - compatible: should be one of the following.
   - "hisilicon,hi3620-clock" - controller compatible with Hi3620 SoC.
+  - "hisilicon,hi3620-mmc-clock" - controller specific for Hi3620 mmc.
 
 - reg: physical base address of the controller and length of memory mapped
   region.

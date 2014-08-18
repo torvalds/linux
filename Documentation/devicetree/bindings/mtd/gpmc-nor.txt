@@ -30,7 +30,7 @@ Optional properties:
 - gpmc,XXX		Additional GPMC timings and settings parameters. See
 			Documentation/devicetree/bindings/bus/ti-gpmc.txt
 
-Optional properties for partiton table parsing:
+Optional properties for partition table parsing:
 - #address-cells: should be set to 1
 - #size-cells: should be set to 1
 

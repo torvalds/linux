@@ -35,13 +35,32 @@ static atomic_t monitor_promisc = ATOMIC_INIT(0);
 
 /* ----- HCI socket interface ----- */
 
+/* Socket info */
+#define hci_pi(sk) ((struct hci_pinfo *) sk)
+
+struct hci_pinfo {
+	struct bt_sock    bt;
+	struct hci_dev    *hdev;
+	struct hci_filter filter;
+	__u32             cmsg_mask;
+	unsigned short    channel;
+};
+
 static inline int hci_test_bit(int nr, void *addr)
 {
 	return *((__u32 *) addr + (nr >> 5)) & ((__u32) 1 << (nr & 31));
 }
 
 /* Security filter */
-static struct hci_sec_filter hci_sec_filter = {
+#define HCI_SFLT_MAX_OGF  5
+
+struct hci_sec_filter {
+	__u32 type_mask;
+	__u32 event_mask[2];
+	__u32 ocf_mask[HCI_SFLT_MAX_OGF + 1][4];
+};
+
+static const struct hci_sec_filter hci_sec_filter = {
 	/* Packet types */
 	0x10,
 	/* Events */
@@ -143,7 +162,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 
 		if (!skb_copy) {
 			/* Create a private copy with headroom */
-			skb_copy = __pskb_copy(skb, 1, GFP_ATOMIC);
+			skb_copy = __pskb_copy_fclone(skb, 1, GFP_ATOMIC, true);
 			if (!skb_copy)
 				continue;
 
@@ -211,22 +230,22 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
-		opcode = __constant_cpu_to_le16(HCI_MON_COMMAND_PKT);
+		opcode = cpu_to_le16(HCI_MON_COMMAND_PKT);
 		break;
 	case HCI_EVENT_PKT:
-		opcode = __constant_cpu_to_le16(HCI_MON_EVENT_PKT);
+		opcode = cpu_to_le16(HCI_MON_EVENT_PKT);
 		break;
 	case HCI_ACLDATA_PKT:
 		if (bt_cb(skb)->incoming)
-			opcode = __constant_cpu_to_le16(HCI_MON_ACL_RX_PKT);
+			opcode = cpu_to_le16(HCI_MON_ACL_RX_PKT);
 		else
-			opcode = __constant_cpu_to_le16(HCI_MON_ACL_TX_PKT);
+			opcode = cpu_to_le16(HCI_MON_ACL_TX_PKT);
 		break;
 	case HCI_SCODATA_PKT:
 		if (bt_cb(skb)->incoming)
-			opcode = __constant_cpu_to_le16(HCI_MON_SCO_RX_PKT);
+			opcode = cpu_to_le16(HCI_MON_SCO_RX_PKT);
 		else
-			opcode = __constant_cpu_to_le16(HCI_MON_SCO_TX_PKT);
+			opcode = cpu_to_le16(HCI_MON_SCO_TX_PKT);
 		break;
 	default:
 		return;
@@ -247,8 +266,8 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 			struct hci_mon_hdr *hdr;
 
 			/* Create a private copy with headroom */
-			skb_copy = __pskb_copy(skb, HCI_MON_HDR_SIZE,
-					       GFP_ATOMIC);
+			skb_copy = __pskb_copy_fclone(skb, HCI_MON_HDR_SIZE,
+						      GFP_ATOMIC, true);
 			if (!skb_copy)
 				continue;
 
@@ -319,7 +338,7 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 		bacpy(&ni->bdaddr, &hdev->bdaddr);
 		memcpy(ni->name, hdev->name, 8);
 
-		opcode = __constant_cpu_to_le16(HCI_MON_NEW_INDEX);
+		opcode = cpu_to_le16(HCI_MON_NEW_INDEX);
 		break;
 
 	case HCI_DEV_UNREG:
@@ -327,7 +346,7 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 		if (!skb)
 			return NULL;
 
-		opcode = __constant_cpu_to_le16(HCI_MON_DEL_INDEX);
+		opcode = cpu_to_le16(HCI_MON_DEL_INDEX);
 		break;
 
 	default:
@@ -481,7 +500,7 @@ static int hci_sock_blacklist_add(struct hci_dev *hdev, void __user *arg)
 
 	hci_dev_lock(hdev);
 
-	err = hci_blacklist_add(hdev, &bdaddr, BDADDR_BREDR);
+	err = hci_bdaddr_list_add(&hdev->blacklist, &bdaddr, BDADDR_BREDR);
 
 	hci_dev_unlock(hdev);
 
@@ -498,7 +517,7 @@ static int hci_sock_blacklist_del(struct hci_dev *hdev, void __user *arg)
 
 	hci_dev_lock(hdev);
 
-	err = hci_blacklist_del(hdev, &bdaddr, BDADDR_BREDR);
+	err = hci_bdaddr_list_del(&hdev->blacklist, &bdaddr, BDADDR_BREDR);
 
 	hci_dev_unlock(hdev);
 
@@ -517,6 +536,9 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags))
 		return -EBUSY;
 
+	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
+		return -EOPNOTSUPP;
+
 	if (hdev->dev_type != HCI_BREDR)
 		return -EOPNOTSUPP;
 
@@ -524,16 +546,7 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	case HCISETRAW:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-
-		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
-			return -EPERM;
-
-		if (arg)
-			set_bit(HCI_RAW, &hdev->flags);
-		else
-			clear_bit(HCI_RAW, &hdev->flags);
-
-		return 0;
+		return -EOPNOTSUPP;
 
 	case HCIGETCONNINFO:
 		return hci_get_conn_info(hdev, (void __user *) arg);
@@ -699,7 +712,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 
 		if (test_bit(HCI_UP, &hdev->flags) ||
 		    test_bit(HCI_INIT, &hdev->flags) ||
-		    test_bit(HCI_SETUP, &hdev->dev_flags)) {
+		    test_bit(HCI_SETUP, &hdev->dev_flags) ||
+		    test_bit(HCI_CONFIG, &hdev->dev_flags)) {
 			err = -EBUSY;
 			hci_dev_put(hdev);
 			goto done;
@@ -716,6 +730,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		err = hci_dev_open(hdev->id);
 		if (err) {
 			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
+			mgmt_index_added(hdev);
 			hci_dev_put(hdev);
 			goto done;
 		}
@@ -968,7 +983,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			goto drop;
 		}
 
-		if (test_bit(HCI_RAW, &hdev->flags) || (ogf == 0x3f)) {
+		if (ogf == 0x3f) {
 			skb_queue_tail(&hdev->raw_q, skb);
 			queue_work(hdev->workqueue, &hdev->tx_work);
 		} else {

@@ -241,7 +241,7 @@ static inline int qeth_l2_get_cast_type(struct qeth_card *card,
 }
 
 static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
-			struct sk_buff *skb, int ipv, int cast_type)
+			struct sk_buff *skb, int cast_type)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb_mac_header(skb);
 
@@ -725,14 +725,19 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int elements = 0;
 	struct qeth_card *card = dev->ml_priv;
 	struct sk_buff *new_skb = skb;
-	int ipv = qeth_get_ip_version(skb);
 	int cast_type = qeth_l2_get_cast_type(card, skb);
-	struct qeth_qdio_out_q *queue = card->qdio.out_qs
-		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
+	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
 	int data_offset = -1;
 	int elements_needed = 0;
 	int hd_len = 0;
+
+	if (card->qdio.do_prio_queueing || (cast_type &&
+					card->info.is_multicast_different))
+		queue = card->qdio.out_qs[qeth_get_priority_queue(card, skb,
+					qeth_get_ip_version(skb), cast_type)];
+	else
+		queue = card->qdio.out_qs[card->qdio.default_out_queue];
 
 	if ((card->state != CARD_STATE_UP) || !card->lan_online) {
 		card->stats.tx_carrier_errors++;
@@ -762,7 +767,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				goto tx_drop;
 			elements_needed++;
 			skb_reset_mac_header(new_skb);
-			qeth_l2_fill_header(card, hdr, new_skb, ipv, cast_type);
+			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
 			hdr->hdr.l2.pkt_length = new_skb->len;
 			memcpy(((char *)hdr) + sizeof(struct qeth_hdr),
 				skb_mac_header(new_skb), ETH_HLEN);
@@ -775,7 +780,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			hdr = (struct qeth_hdr *)skb_push(new_skb,
 						sizeof(struct qeth_hdr));
 			skb_set_mac_header(new_skb, sizeof(struct qeth_hdr));
-			qeth_l2_fill_header(card, hdr, new_skb, ipv, cast_type);
+			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
 		}
 	}
 
@@ -947,10 +952,12 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_IQD:
-		card->dev = alloc_netdev(0, "hsi%d", ether_setup);
+		card->dev = alloc_netdev(0, "hsi%d", NET_NAME_UNKNOWN,
+					 ether_setup);
 		break;
 	case QETH_CARD_TYPE_OSN:
-		card->dev = alloc_netdev(0, "osn%d", ether_setup);
+		card->dev = alloc_netdev(0, "osn%d", NET_NAME_UNKNOWN,
+					 ether_setup);
 		card->dev->flags |= IFF_NOARP;
 		break;
 	default:
@@ -964,10 +971,9 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->mtu = card->info.initial_mtu;
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
-	if (card->info.type != QETH_CARD_TYPE_OSN)
-		SET_ETHTOOL_OPS(card->dev, &qeth_l2_ethtool_ops);
-	else
-		SET_ETHTOOL_OPS(card->dev, &qeth_l2_osn_ops);
+	card->dev->ethtool_ops =
+		(card->info.type != QETH_CARD_TYPE_OSN) ?
+		&qeth_l2_ethtool_ops : &qeth_l2_osn_ops;
 	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);

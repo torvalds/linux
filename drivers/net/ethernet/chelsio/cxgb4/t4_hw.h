@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -68,6 +68,7 @@ enum {
 	SGE_MAX_WR_LEN = 512,     /* max WR size in bytes */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
+	SGE_MAX_IQ_SIZE = 65520,
 
 	SGE_TIMER_RSTRT_CNTR = 6, /* restart RX packet threshold counter */
 	SGE_TIMER_UPD_CIDX = 7,   /* update cidx only */

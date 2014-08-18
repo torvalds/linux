@@ -3,12 +3,17 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
+#include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
+#include <linux/irqdomain.h>
 
 struct device;
 struct gpio_desc;
 struct of_phandle_args;
 struct device_node;
 struct seq_file;
+
+#ifdef CONFIG_GPIOLIB
 
 /**
  * struct gpio_chip - abstract a GPIO controller
@@ -46,7 +51,10 @@ struct seq_file;
  *      format specifier for an unsigned int.  It is substituted by the actual
  *      number of the gpio.
  * @can_sleep: flag must be set iff get()/set() methods sleep, as they
- *	must while accessing GPIO expander chips over I2C or SPI
+ *	must while accessing GPIO expander chips over I2C or SPI. This
+ *	implies that if the chip supports IRQs, these IRQs need to be threaded
+ *	as the chip access may sleep when e.g. reading out the IRQ status
+ *	registers.
  * @exported: flags if the gpiochip is exported for use from sysfs. Private.
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
@@ -95,6 +103,18 @@ struct gpio_chip {
 	bool			can_sleep;
 	bool			exported;
 
+#ifdef CONFIG_GPIOLIB_IRQCHIP
+	/*
+	 * With CONFIG_GPIO_IRQCHIP we get an irqchip inside the gpiolib
+	 * to handle IRQs for most practical cases.
+	 */
+	struct irq_chip		*irqchip;
+	struct irq_domain	*irqdomain;
+	unsigned int		irq_base;
+	irq_flow_handler_t	irq_handler;
+	unsigned int		irq_default_type;
+#endif
+
 #if defined(CONFIG_OF_GPIO)
 	/*
 	 * If CONFIG_OF is enabled, then all GPIO controllers described in the
@@ -121,66 +141,43 @@ extern const char *gpiochip_is_requested(struct gpio_chip *chip,
 
 /* add/remove chips */
 extern int gpiochip_add(struct gpio_chip *chip);
-extern int __must_check gpiochip_remove(struct gpio_chip *chip);
+extern int gpiochip_remove(struct gpio_chip *chip);
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
 
 /* lock/unlock as IRQ */
-int gpiod_lock_as_irq(struct gpio_desc *desc);
-void gpiod_unlock_as_irq(struct gpio_desc *desc);
+int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
+void gpio_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
 
-enum gpio_lookup_flags {
-	GPIO_ACTIVE_HIGH = (0 << 0),
-	GPIO_ACTIVE_LOW = (1 << 0),
-	GPIO_OPEN_DRAIN = (1 << 1),
-	GPIO_OPEN_SOURCE = (1 << 2),
-};
+struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
-/**
- * struct gpiod_lookup - lookup table
- * @chip_label: name of the chip the GPIO belongs to
- * @chip_hwnum: hardware number (i.e. relative to the chip) of the GPIO
- * @con_id: name of the GPIO from the device's point of view
- * @idx: index of the GPIO in case several GPIOs share the same name
- * @flags: mask of GPIO_* values
- *
- * gpiod_lookup is a lookup table for associating GPIOs to specific devices and
- * functions using platform data.
- */
-struct gpiod_lookup {
-	const char *chip_label;
-	u16 chip_hwnum;
-	const char *con_id;
-	unsigned int idx;
-	enum gpio_lookup_flags flags;
-};
+#ifdef CONFIG_GPIOLIB_IRQCHIP
 
-struct gpiod_lookup_table {
-	struct list_head list;
-	const char *dev_id;
-	struct gpiod_lookup table[];
-};
+void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
+		struct irq_chip *irqchip,
+		int parent_irq,
+		irq_flow_handler_t parent_handler);
 
-/*
- * Simple definition of a single GPIO under a con_id
- */
-#define GPIO_LOOKUP(_chip_label, _chip_hwnum, _con_id, _flags) \
-	GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _con_id, 0, _flags)
+int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+		struct irq_chip *irqchip,
+		unsigned int first_irq,
+		irq_flow_handler_t handler,
+		unsigned int type);
 
-/*
- * Use this macro if you need to have several GPIOs under the same con_id.
- * Each GPIO needs to use a different index and can be accessed using
- * gpiod_get_index()
- */
-#define GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _con_id, _idx, _flags)  \
-{                                                                         \
-	.chip_label = _chip_label,                                        \
-	.chip_hwnum = _chip_hwnum,                                        \
-	.con_id = _con_id,                                                \
-	.idx = _idx,                                                      \
-	.flags = _flags,                                                  \
+#endif /* CONFIG_GPIO_IRQCHIP */
+
+int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label);
+void gpiochip_free_own_desc(struct gpio_desc *desc);
+
+#else /* CONFIG_GPIOLIB */
+
+static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(1);
+	return ERR_PTR(-ENODEV);
 }
 
-void gpiod_add_lookup_table(struct gpiod_lookup_table *table);
+#endif /* CONFIG_GPIOLIB */
 
 #endif

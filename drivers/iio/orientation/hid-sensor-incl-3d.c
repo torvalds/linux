@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -42,6 +43,10 @@ struct incl_3d_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info incl[INCLI_3D_CHANNEL_MAX];
 	u32 incl_val[INCLI_3D_CHANNEL_MAX];
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 static const u32 incl_3d_addresses[INCLI_3D_CHANNEL_MAX] = {
@@ -106,11 +111,20 @@ static int incl_3d_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
+	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		poll_value = hid_sensor_read_poll_value(
+					&incl_state->common_attributes);
+		if (poll_value < 0)
+			return -EINVAL;
+
+		hid_sensor_power_state(&incl_state->common_attributes, true);
+		msleep_interruptible(poll_value * 2);
+
 		report_id =
 			incl_state->incl[chan->scan_index].report_id;
 		address = incl_3d_addresses[chan->scan_index];
@@ -120,17 +134,20 @@ static int incl_3d_read_raw(struct iio_dev *indio_dev,
 				HID_USAGE_SENSOR_INCLINOMETER_3D, address,
 				report_id);
 		else {
+			hid_sensor_power_state(&incl_state->common_attributes,
+						false);
 			return -EINVAL;
 		}
+		hid_sensor_power_state(&incl_state->common_attributes, false);
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = incl_state->incl[CHANNEL_SCAN_INDEX_X].units;
-		ret_type = IIO_VAL_INT;
+		*val = incl_state->scale_pre_decml;
+		*val2 = incl_state->scale_post_decml;
+		ret_type = incl_state->scale_precision;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = hid_sensor_convert_exponent(
-			incl_state->incl[CHANNEL_SCAN_INDEX_X].unit_expo);
+		*val = incl_state->value_offset;
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -196,9 +213,8 @@ static int incl_3d_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct incl_3d_state *incl_state = iio_priv(indio_dev);
 
-	dev_dbg(&indio_dev->dev, "incl_3d_proc_event [%d]\n",
-				incl_state->common_attributes.data_ready);
-	if (incl_state->common_attributes.data_ready)
+	dev_dbg(&indio_dev->dev, "incl_3d_proc_event\n");
+	if (atomic_read(&incl_state->common_attributes.data_ready))
 		hid_sensor_push_data(indio_dev,
 				(u8 *)incl_state->incl_val,
 				sizeof(incl_state->incl_val));
@@ -279,6 +295,11 @@ static int incl_3d_parse_report(struct platform_device *pdev,
 			st->incl[1].index, st->incl[1].report_id,
 			st->incl[2].index, st->incl[2].report_id);
 
+	st->scale_precision = hid_sensor_format_scale(
+				HID_USAGE_SENSOR_INCLINOMETER_3D,
+				&st->incl[CHANNEL_SCAN_INDEX_X],
+				&st->scale_pre_decml, &st->scale_post_decml);
+
 	/* Set Sensitivity field ids, when there is no individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
 		sensor_hub_input_get_attribute_info(hsdev,
@@ -349,7 +370,7 @@ static int hid_incl_3d_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
 		goto error_free_dev_mem;
 	}
-	incl_state->common_attributes.data_ready = false;
+	atomic_set(&incl_state->common_attributes.data_ready, 0);
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 					&incl_state->common_attributes);
 	if (ret) {

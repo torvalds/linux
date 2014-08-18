@@ -27,9 +27,9 @@
  * Author: Johann Lombardi <johann.lombardi@intel.com>
  */
 
-#include <lustre/lustre_idl.h>
-#include <obd.h>
-#include <md_object.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../include/obd.h"
+#include "../include/md_object.h"
 
 /**
  * Initialize new \a lma. Only fid is stored.
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(lustre_lma_init);
  */
 void lustre_lma_swab(struct lustre_mdt_attrs *lma)
 {
-	/* Use LUSTRE_MSG_MAGIC to detect local endianess. */
+	/* Use LUSTRE_MSG_MAGIC to detect local endianness. */
 	if (LUSTRE_MSG_MAGIC != cpu_to_le32(LUSTRE_MSG_MAGIC)) {
 		__swab32s(&lma->lma_compat);
 		__swab32s(&lma->lma_incompat);
@@ -77,7 +77,7 @@ EXPORT_SYMBOL(lustre_lma_swab);
  */
 void lustre_som_swab(struct som_attrs *attrs)
 {
-	/* Use LUSTRE_MSG_MAGIC to detect local endianess. */
+	/* Use LUSTRE_MSG_MAGIC to detect local endianness. */
 	if (LUSTRE_MSG_MAGIC != cpu_to_le32(LUSTRE_MSG_MAGIC)) {
 		__swab32s(&attrs->som_compat);
 		__swab32s(&attrs->som_incompat);
@@ -135,7 +135,7 @@ EXPORT_SYMBOL(lustre_buf2som);
  */
 void lustre_hsm_swab(struct hsm_attrs *attrs)
 {
-	/* Use LUSTRE_MSG_MAGIC to detect local endianess. */
+	/* Use LUSTRE_MSG_MAGIC to detect local endianness. */
 	if (LUSTRE_MSG_MAGIC != cpu_to_le32(LUSTRE_MSG_MAGIC)) {
 		__swab32s(&attrs->hsm_compat);
 		__swab32s(&attrs->hsm_flags);

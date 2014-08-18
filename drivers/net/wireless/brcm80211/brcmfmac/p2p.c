@@ -708,7 +708,7 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 		active = P2PAPI_SCAN_SOCIAL_DWELL_TIME_MS;
 	else if (num_chans == AF_PEER_SEARCH_CNT)
 		active = P2PAPI_SCAN_AF_SEARCH_DWELL_TIME_MS;
-	else if (wl_get_vif_state_all(p2p->cfg, BRCMF_VIF_STATUS_CONNECTED))
+	else if (brcmf_get_vif_state_any(p2p->cfg, BRCMF_VIF_STATUS_CONNECTED))
 		active = -1;
 	else
 		active = P2PAPI_SCAN_DWELL_TIME_MS;
@@ -797,7 +797,8 @@ static s32 brcmf_p2p_run_escan(struct brcmf_cfg80211_info *cfg,
 			/* SOCIAL CHANNELS 1, 6, 11 */
 			search_state = WL_P2P_DISC_ST_SEARCH;
 			brcmf_dbg(INFO, "P2P SEARCH PHASE START\n");
-		} else if (dev != NULL && vif->mode == WL_MODE_AP) {
+		} else if (dev != NULL &&
+			   vif->wdev.iftype == NL80211_IFTYPE_P2P_GO) {
 			/* If you are already a GO, then do SEARCH only */
 			brcmf_dbg(INFO, "Already a GO. Do SEARCH Only\n");
 			search_state = WL_P2P_DISC_ST_SEARCH;
@@ -2256,7 +2257,6 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 	struct brcmf_cfg80211_vif *vif;
 	enum brcmf_fil_p2p_if_types iftype;
-	enum wl_mode mode;
 	int err;
 
 	if (brcmf_cfg80211_vif_event_armed(cfg))
@@ -2267,11 +2267,9 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 	switch (type) {
 	case NL80211_IFTYPE_P2P_CLIENT:
 		iftype = BRCMF_FIL_P2P_IF_CLIENT;
-		mode = WL_MODE_BSS;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
 		iftype = BRCMF_FIL_P2P_IF_GO;
-		mode = WL_MODE_AP;
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		return brcmf_p2p_create_p2pdev(&cfg->p2p, wiphy,
@@ -2366,7 +2364,6 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 		return 0;
 	default:
 		return -ENOTSUPP;
-		break;
 	}
 
 	clear_bit(BRCMF_P2P_STATUS_GO_NEG_PHASE, &p2p->status);

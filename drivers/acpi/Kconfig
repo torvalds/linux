@@ -31,30 +31,44 @@ menuconfig ACPI
 	  ACPI CA, see:
 	  <http://acpica.org/>
 
-	  ACPI is an open industry specification co-developed by
-	  Hewlett-Packard, Intel, Microsoft, Phoenix, and Toshiba.
+	  ACPI is an open industry specification originally co-developed by
+	  Hewlett-Packard, Intel, Microsoft, Phoenix, and Toshiba. Currently,
+	  it is developed by the ACPI Specification Working Group (ASWG) under
+	  the UEFI Forum and any UEFI member can join the ASWG and contribute
+	  to the ACPI specification.
 	  The specification is available at:
 	  <http://www.acpi.info>
+	  <http://www.uefi.org/acpi/specs>
 
 if ACPI
+
+config ACPI_LEGACY_TABLES_LOOKUP
+	bool
+
+config ARCH_MIGHT_HAVE_ACPI_PDC
+	bool
 
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
 	default y
 
-config ACPI_PROCFS
-	bool "Deprecated /proc/acpi files"
+config ACPI_PROCFS_POWER
+	bool "Deprecated power /proc/acpi directories"
 	depends on PROC_FS
 	help
 	  For backwards compatibility, this option allows
-	  deprecated /proc/acpi/ files to exist, even when
-	  they have been replaced by functions in /sys.
+          deprecated power /proc/acpi/ directories to exist, even when
+          they have been replaced by functions in /sys.
+          The deprecated directories (and their replacements) include:
+	  /proc/acpi/battery/* (/sys/class/power_supply/*)
+	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
+	  This option has no effect on /proc/acpi/ directories
+	  and functions, which do not yet exist in /sys
+	  This option, together with the proc directories, will be
+	  deleted in the future.
 
-	  This option has no effect on /proc/acpi/ files
-	  and functions which do not yet exist in /sys.
-
-	  Say N to delete /proc/acpi/ files that have moved to /sys/
+	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
 
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
@@ -115,7 +129,7 @@ config ACPI_BUTTON
 
 config ACPI_VIDEO
 	tristate "Video"
-	depends on X86 && BACKLIGHT_CLASS_DEVICE && VIDEO_OUTPUT_CONTROL
+	depends on X86 && BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	select THERMAL
 	help
@@ -343,12 +357,26 @@ config ACPI_BGRT
 	  data from the firmware boot splash. It will appear under
 	  /sys/firmware/acpi/bgrt/ .
 
+config ACPI_REDUCED_HARDWARE_ONLY
+	bool "Hardware-reduced ACPI support only" if EXPERT
+	def_bool n
+	depends on ACPI
+	help
+	This config item changes the way the ACPI code is built.  When this
+	option is selected, the kernel will use a specialized version of
+	ACPICA that ONLY supports the ACPI "reduced hardware" mode.  The
+	resulting kernel will be smaller but it will also be restricted to
+	running in ACPI reduced hardware mode ONLY.
+
+	If you are unsure what to do, do not enable this option.
+
 source "drivers/acpi/apei/Kconfig"
 
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"
 	depends on X86_MCE && X86_LOCAL_APIC
 	select UEFI_CPER
+	select RAS
 	default n
 	help
 	  Certain usages such as Predictive Failure Analysis (PFA) require
@@ -363,6 +391,7 @@ config ACPI_EXTLOG
 
 	  Enhanced MCA Logging allows firmware to provide additional error
 	  information to system software, synchronous with MCE or CMCI. This
-	  driver adds support for that functionality.
+	  driver adds support for that functionality with corresponding
+	  tracepoint which carries that information to userspace.
 
 endif	# ACPI

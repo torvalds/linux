@@ -723,13 +723,10 @@ static int gelic_wl_get_scan(struct net_device *netdev,
 		/* If a scan in progress, caller should call me again */
 		ret = -EAGAIN;
 		goto out;
-		break;
-
 	case GELIC_WL_SCAN_STAT_INIT:
 		/* last scan request failed or never issued */
 		ret = -ENODEV;
 		goto out;
-		break;
 	case GELIC_WL_SCAN_STAT_GOT_LIST:
 		/* ok, use current list */
 		break;
@@ -1831,25 +1828,18 @@ static const char *wpasecstr(enum gelic_eurus_wpa_security sec)
 	switch (sec) {
 	case GELIC_EURUS_WPA_SEC_NONE:
 		return "NONE";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA_TKIP_TKIP:
 		return "WPA_TKIP_TKIP";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA_TKIP_AES:
 		return "WPA_TKIP_AES";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA_AES_AES:
 		return "WPA_AES_AES";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA2_TKIP_TKIP:
 		return "WPA2_TKIP_TKIP";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA2_TKIP_AES:
 		return "WPA2_TKIP_AES";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA2_AES_AES:
 		return "WPA2_AES_AES";
-		break;
 	}
 	return "";
 };

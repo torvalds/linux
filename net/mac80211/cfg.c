@@ -109,6 +109,15 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 static int ieee80211_start_p2p_device(struct wiphy *wiphy,
 				      struct wireless_dev *wdev)
 {
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	int ret;
+
+	mutex_lock(&sdata->local->chanctx_mtx);
+	ret = ieee80211_check_combinations(sdata, NULL, 0, 0);
+	mutex_unlock(&sdata->local->chanctx_mtx);
+	if (ret < 0)
+		return ret;
+
 	return ieee80211_do_open(wdev, true);
 }
 
@@ -451,324 +460,16 @@ void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
 		rinfo->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
 	if (sta->last_rx_rate_flag & RX_FLAG_SHORT_GI)
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
-	if (sta->last_rx_rate_flag & RX_FLAG_80MHZ)
+	if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_80MHZ)
 		rinfo->flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
-	if (sta->last_rx_rate_flag & RX_FLAG_80P80MHZ)
+	if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_80P80MHZ)
 		rinfo->flags |= RATE_INFO_FLAGS_80P80_MHZ_WIDTH;
-	if (sta->last_rx_rate_flag & RX_FLAG_160MHZ)
+	if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_160MHZ)
 		rinfo->flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
 }
 
-static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
-{
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct ieee80211_local *local = sdata->local;
-	struct timespec uptime;
-	u64 packets = 0;
-	int i, ac;
-
-	sinfo->generation = sdata->local->sta_generation;
-
-	sinfo->filled = STATION_INFO_INACTIVE_TIME |
-			STATION_INFO_RX_BYTES64 |
-			STATION_INFO_TX_BYTES64 |
-			STATION_INFO_RX_PACKETS |
-			STATION_INFO_TX_PACKETS |
-			STATION_INFO_TX_RETRIES |
-			STATION_INFO_TX_FAILED |
-			STATION_INFO_TX_BITRATE |
-			STATION_INFO_RX_BITRATE |
-			STATION_INFO_RX_DROP_MISC |
-			STATION_INFO_BSS_PARAM |
-			STATION_INFO_CONNECTED_TIME |
-			STATION_INFO_STA_FLAGS |
-			STATION_INFO_BEACON_LOSS_COUNT;
-
-	do_posix_clock_monotonic_gettime(&uptime);
-	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
-
-	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
-	sinfo->tx_bytes = 0;
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		sinfo->tx_bytes += sta->tx_bytes[ac];
-		packets += sta->tx_packets[ac];
-	}
-	sinfo->tx_packets = packets;
-	sinfo->rx_bytes = sta->rx_bytes;
-	sinfo->rx_packets = sta->rx_packets;
-	sinfo->tx_retries = sta->tx_retry_count;
-	sinfo->tx_failed = sta->tx_retry_failed;
-	sinfo->rx_dropped_misc = sta->rx_dropped;
-	sinfo->beacon_loss_count = sta->beacon_loss_count;
-
-	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
-	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
-		sinfo->filled |= STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
-		if (!local->ops->get_rssi ||
-		    drv_get_rssi(local, sdata, &sta->sta, &sinfo->signal))
-			sinfo->signal = (s8)sta->last_signal;
-		sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
-	}
-	if (sta->chains) {
-		sinfo->filled |= STATION_INFO_CHAIN_SIGNAL |
-				 STATION_INFO_CHAIN_SIGNAL_AVG;
-
-		sinfo->chains = sta->chains;
-		for (i = 0; i < ARRAY_SIZE(sinfo->chain_signal); i++) {
-			sinfo->chain_signal[i] = sta->chain_signal_last[i];
-			sinfo->chain_signal_avg[i] =
-				(s8) -ewma_read(&sta->chain_signal_avg[i]);
-		}
-	}
-
-	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
-	sta_set_rate_info_rx(sta, &sinfo->rxrate);
-
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-#ifdef CONFIG_MAC80211_MESH
-		sinfo->filled |= STATION_INFO_LLID |
-				 STATION_INFO_PLID |
-				 STATION_INFO_PLINK_STATE |
-				 STATION_INFO_LOCAL_PM |
-				 STATION_INFO_PEER_PM |
-				 STATION_INFO_NONPEER_PM;
-
-		sinfo->llid = sta->llid;
-		sinfo->plid = sta->plid;
-		sinfo->plink_state = sta->plink_state;
-		if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
-			sinfo->filled |= STATION_INFO_T_OFFSET;
-			sinfo->t_offset = sta->t_offset;
-		}
-		sinfo->local_pm = sta->local_pm;
-		sinfo->peer_pm = sta->peer_pm;
-		sinfo->nonpeer_pm = sta->nonpeer_pm;
-#endif
-	}
-
-	sinfo->bss_param.flags = 0;
-	if (sdata->vif.bss_conf.use_cts_prot)
-		sinfo->bss_param.flags |= BSS_PARAM_FLAGS_CTS_PROT;
-	if (sdata->vif.bss_conf.use_short_preamble)
-		sinfo->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_PREAMBLE;
-	if (sdata->vif.bss_conf.use_short_slot)
-		sinfo->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
-	sinfo->bss_param.dtim_period = sdata->local->hw.conf.ps_dtim_period;
-	sinfo->bss_param.beacon_interval = sdata->vif.bss_conf.beacon_int;
-
-	sinfo->sta_flags.set = 0;
-	sinfo->sta_flags.mask = BIT(NL80211_STA_FLAG_AUTHORIZED) |
-				BIT(NL80211_STA_FLAG_SHORT_PREAMBLE) |
-				BIT(NL80211_STA_FLAG_WME) |
-				BIT(NL80211_STA_FLAG_MFP) |
-				BIT(NL80211_STA_FLAG_AUTHENTICATED) |
-				BIT(NL80211_STA_FLAG_ASSOCIATED) |
-				BIT(NL80211_STA_FLAG_TDLS_PEER);
-	if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
-		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHORIZED);
-	if (test_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE))
-		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
-	if (test_sta_flag(sta, WLAN_STA_WME))
-		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_WME);
-	if (test_sta_flag(sta, WLAN_STA_MFP))
-		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_MFP);
-	if (test_sta_flag(sta, WLAN_STA_AUTH))
-		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
-	if (test_sta_flag(sta, WLAN_STA_ASSOC))
-		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_ASSOCIATED);
-	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER))
-		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_TDLS_PEER);
-}
-
-static const char ieee80211_gstrings_sta_stats[][ETH_GSTRING_LEN] = {
-	"rx_packets", "rx_bytes", "wep_weak_iv_count",
-	"rx_duplicates", "rx_fragments", "rx_dropped",
-	"tx_packets", "tx_bytes", "tx_fragments",
-	"tx_filtered", "tx_retry_failed", "tx_retries",
-	"beacon_loss", "sta_state", "txrate", "rxrate", "signal",
-	"channel", "noise", "ch_time", "ch_time_busy",
-	"ch_time_ext_busy", "ch_time_rx", "ch_time_tx"
-};
-#define STA_STATS_LEN	ARRAY_SIZE(ieee80211_gstrings_sta_stats)
-
-static int ieee80211_get_et_sset_count(struct wiphy *wiphy,
-				       struct net_device *dev,
-				       int sset)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	int rv = 0;
-
-	if (sset == ETH_SS_STATS)
-		rv += STA_STATS_LEN;
-
-	rv += drv_get_et_sset_count(sdata, sset);
-
-	if (rv == 0)
-		return -EOPNOTSUPP;
-	return rv;
-}
-
-static void ieee80211_get_et_stats(struct wiphy *wiphy,
-				   struct net_device *dev,
-				   struct ethtool_stats *stats,
-				   u64 *data)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_channel *channel;
-	struct sta_info *sta;
-	struct ieee80211_local *local = sdata->local;
-	struct station_info sinfo;
-	struct survey_info survey;
-	int i, q;
-#define STA_STATS_SURVEY_LEN 7
-
-	memset(data, 0, sizeof(u64) * STA_STATS_LEN);
-
-#define ADD_STA_STATS(sta)				\
-	do {						\
-		data[i++] += sta->rx_packets;		\
-		data[i++] += sta->rx_bytes;		\
-		data[i++] += sta->wep_weak_iv_count;	\
-		data[i++] += sta->num_duplicates;	\
-		data[i++] += sta->rx_fragments;		\
-		data[i++] += sta->rx_dropped;		\
-							\
-		data[i++] += sinfo.tx_packets;		\
-		data[i++] += sinfo.tx_bytes;		\
-		data[i++] += sta->tx_fragments;		\
-		data[i++] += sta->tx_filtered_count;	\
-		data[i++] += sta->tx_retry_failed;	\
-		data[i++] += sta->tx_retry_count;	\
-		data[i++] += sta->beacon_loss_count;	\
-	} while (0)
-
-	/* For Managed stations, find the single station based on BSSID
-	 * and use that.  For interface types, iterate through all available
-	 * stations and add stats for any station that is assigned to this
-	 * network device.
-	 */
-
-	mutex_lock(&local->sta_mtx);
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		sta = sta_info_get_bss(sdata, sdata->u.mgd.bssid);
-
-		if (!(sta && !WARN_ON(sta->sdata->dev != dev)))
-			goto do_survey;
-
-		sinfo.filled = 0;
-		sta_set_sinfo(sta, &sinfo);
-
-		i = 0;
-		ADD_STA_STATS(sta);
-
-		data[i++] = sta->sta_state;
-
-
-		if (sinfo.filled & STATION_INFO_TX_BITRATE)
-			data[i] = 100000 *
-				cfg80211_calculate_bitrate(&sinfo.txrate);
-		i++;
-		if (sinfo.filled & STATION_INFO_RX_BITRATE)
-			data[i] = 100000 *
-				cfg80211_calculate_bitrate(&sinfo.rxrate);
-		i++;
-
-		if (sinfo.filled & STATION_INFO_SIGNAL_AVG)
-			data[i] = (u8)sinfo.signal_avg;
-		i++;
-	} else {
-		list_for_each_entry(sta, &local->sta_list, list) {
-			/* Make sure this station belongs to the proper dev */
-			if (sta->sdata->dev != dev)
-				continue;
-
-			sinfo.filled = 0;
-			sta_set_sinfo(sta, &sinfo);
-			i = 0;
-			ADD_STA_STATS(sta);
-		}
-	}
-
-do_survey:
-	i = STA_STATS_LEN - STA_STATS_SURVEY_LEN;
-	/* Get survey stats for current channel */
-	survey.filled = 0;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
-	if (chanctx_conf)
-		channel = chanctx_conf->def.chan;
-	else
-		channel = NULL;
-	rcu_read_unlock();
-
-	if (channel) {
-		q = 0;
-		do {
-			survey.filled = 0;
-			if (drv_get_survey(local, q, &survey) != 0) {
-				survey.filled = 0;
-				break;
-			}
-			q++;
-		} while (channel != survey.channel);
-	}
-
-	if (survey.filled)
-		data[i++] = survey.channel->center_freq;
-	else
-		data[i++] = 0;
-	if (survey.filled & SURVEY_INFO_NOISE_DBM)
-		data[i++] = (u8)survey.noise;
-	else
-		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME)
-		data[i++] = survey.channel_time;
-	else
-		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_BUSY)
-		data[i++] = survey.channel_time_busy;
-	else
-		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_EXT_BUSY)
-		data[i++] = survey.channel_time_ext_busy;
-	else
-		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_RX)
-		data[i++] = survey.channel_time_rx;
-	else
-		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_TX)
-		data[i++] = survey.channel_time_tx;
-	else
-		data[i++] = -1LL;
-
-	mutex_unlock(&local->sta_mtx);
-
-	if (WARN_ON(i != STA_STATS_LEN))
-		return;
-
-	drv_get_et_stats(sdata, stats, &(data[STA_STATS_LEN]));
-}
-
-static void ieee80211_get_et_strings(struct wiphy *wiphy,
-				     struct net_device *dev,
-				     u32 sset, u8 *data)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	int sz_sta_stats = 0;
-
-	if (sset == ETH_SS_STATS) {
-		sz_sta_stats = sizeof(ieee80211_gstrings_sta_stats);
-		memcpy(data, ieee80211_gstrings_sta_stats, sz_sta_stats);
-	}
-	drv_get_et_strings(sdata, sset, &(data[sz_sta_stats]));
-}
-
 static int ieee80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
-				 int idx, u8 *mac, struct station_info *sinfo)
+				  int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
@@ -798,7 +499,7 @@ static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
-				 u8 *mac, struct station_info *sinfo)
+				 const u8 *mac, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
@@ -853,7 +554,8 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 }
 
 static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
-				    const u8 *resp, size_t resp_len)
+				    const u8 *resp, size_t resp_len,
+				    const struct ieee80211_csa_settings *csa)
 {
 	struct probe_resp *new, *old;
 
@@ -869,6 +571,11 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	new->len = resp_len;
 	memcpy(new->data, resp, resp_len);
 
+	if (csa)
+		memcpy(new->csa_counter_offsets, csa->counter_offsets_presp,
+		       csa->n_counter_offsets_presp *
+		       sizeof(new->csa_counter_offsets[0]));
+
 	rcu_assign_pointer(sdata->u.ap.probe_resp, new);
 	if (old)
 		kfree_rcu(old, rcu_head);
@@ -877,7 +584,8 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 }
 
 static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
-				   struct cfg80211_beacon_data *params)
+				   struct cfg80211_beacon_data *params,
+				   const struct ieee80211_csa_settings *csa)
 {
 	struct beacon_data *new, *old;
 	int new_head_len, new_tail_len;
@@ -921,6 +629,13 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	new->head_len = new_head_len;
 	new->tail_len = new_tail_len;
 
+	if (csa) {
+		new->csa_current_counter = csa->count;
+		memcpy(new->csa_counter_offsets, csa->counter_offsets_beacon,
+		       csa->n_counter_offsets_beacon *
+		       sizeof(new->csa_counter_offsets[0]));
+	}
+
 	/* copy in head */
 	if (params->head)
 		memcpy(new->head, params->head, new_head_len);
@@ -935,7 +650,7 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 			memcpy(new->tail, old->tail, new_tail_len);
 
 	err = ieee80211_set_probe_resp(sdata, params->probe_resp,
-				       params->probe_resp_len);
+				       params->probe_resp_len, csa);
 	if (err < 0)
 		return err;
 	if (err == 0)
@@ -970,15 +685,15 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	/* TODO: make hostapd tell us what it wants */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 	sdata->needed_rx_chains = sdata->local->rx_chains;
-	sdata->radar_required = params->radar_required;
 
 	mutex_lock(&local->mtx);
 	err = ieee80211_vif_use_channel(sdata, &params->chandef,
 					IEEE80211_CHANCTX_SHARED);
+	if (!err)
+		ieee80211_vif_copy_chanctx_to_vlans(sdata, false);
 	mutex_unlock(&local->mtx);
 	if (err)
 		return err;
-	ieee80211_vif_copy_chanctx_to_vlans(sdata, false);
 
 	/*
 	 * Apply control port protocol, this allows us to
@@ -1020,7 +735,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
 					IEEE80211_P2P_OPPPS_ENABLE_BIT;
 
-	err = ieee80211_assign_beacon(sdata, &params->beacon);
+	err = ieee80211_assign_beacon(sdata, &params->beacon, NULL);
 	if (err < 0) {
 		ieee80211_vif_release_channel(sdata);
 		return err;
@@ -1056,6 +771,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	int err;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	sdata_assert_lock(sdata);
 
 	/* don't allow changing the beacon while CSA is in place - offset
 	 * of channel switch counter may change
@@ -1067,7 +783,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (!old)
 		return -ENOENT;
 
-	err = ieee80211_assign_beacon(sdata, params);
+	err = ieee80211_assign_beacon(sdata, params, NULL);
 	if (err < 0)
 		return err;
 	ieee80211_bss_info_change_notify(sdata, err);
@@ -1083,13 +799,24 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	struct probe_resp *old_probe_resp;
 	struct cfg80211_chan_def chandef;
 
+	sdata_assert_lock(sdata);
+
 	old_beacon = sdata_dereference(sdata->u.ap.beacon, sdata);
 	if (!old_beacon)
 		return -ENOENT;
 	old_probe_resp = sdata_dereference(sdata->u.ap.probe_resp, sdata);
 
 	/* abort any running channel switch */
+	mutex_lock(&local->mtx);
 	sdata->vif.csa_active = false;
+	if (sdata->csa_block_tx) {
+		ieee80211_wake_vif_queues(local, sdata,
+					  IEEE80211_QUEUE_STOP_REASON_CSA);
+		sdata->csa_block_tx = false;
+	}
+
+	mutex_unlock(&local->mtx);
+
 	kfree(sdata->u.ap.next_beacon);
 	sdata->u.ap.next_beacon = NULL;
 
@@ -1128,8 +855,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps.bc_buf);
 	skb_queue_purge(&sdata->u.ap.ps.bc_buf);
 
-	ieee80211_vif_copy_chanctx_to_vlans(sdata, true);
 	mutex_lock(&local->mtx);
+	ieee80211_vif_copy_chanctx_to_vlans(sdata, true);
 	ieee80211_vif_release_channel(sdata);
 	mutex_unlock(&local->mtx);
 
@@ -1270,9 +997,12 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		}
 	}
 
-	ret = sta_apply_auth_flags(local, sta, mask, set);
-	if (ret)
-		return ret;
+	/* auth flags will be set later for TDLS stations */
+	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+		ret = sta_apply_auth_flags(local, sta, mask, set);
+		if (ret)
+			return ret;
+	}
 
 	if (mask & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE)) {
 		if (set & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE))
@@ -1343,6 +1073,15 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 						    params->vht_capa, sta);
 
+	if (params->opmode_notif_used) {
+		/* returned value is only needed for rc update, but the
+		 * rc isn't initialized here yet, so ignore it
+		 */
+		__ieee80211_vht_handle_opmode(sdata, sta,
+					      params->opmode_notif,
+					      band, false);
+	}
+
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
 		u32 changed = 0;
@@ -1400,11 +1139,19 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 #endif
 	}
 
+	/* set the STA state after all sta info from usermode has been set */
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+		ret = sta_apply_auth_flags(local, sta, mask, set);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
 static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
-				 u8 *mac, struct station_parameters *params)
+				 const u8 *mac,
+				 struct station_parameters *params)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct sta_info *sta;
@@ -1438,6 +1185,8 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))) {
 		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 		sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
+	} else {
+		sta->sta.tdls = true;
 	}
 
 	err = sta_apply_parameters(local, sta, params);
@@ -1471,7 +1220,7 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
-				 u8 *mac)
+				 const u8 *mac)
 {
 	struct ieee80211_sub_if_data *sdata;
 
@@ -1485,7 +1234,7 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_change_station(struct wiphy *wiphy,
-				    struct net_device *dev, u8 *mac,
+				    struct net_device *dev, const u8 *mac,
 				    struct station_parameters *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -1554,7 +1303,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
 		    sta->sdata->u.vlan.sta) {
-			rcu_assign_pointer(sta->sdata->u.vlan.sta, NULL);
+			RCU_INIT_POINTER(sta->sdata->u.vlan.sta, NULL);
 			prev_4addr = true;
 		}
 
@@ -1610,7 +1359,7 @@ out_err:
 
 #ifdef CONFIG_MAC80211_MESH
 static int ieee80211_add_mpath(struct wiphy *wiphy, struct net_device *dev,
-				 u8 *dst, u8 *next_hop)
+			       const u8 *dst, const u8 *next_hop)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct mesh_path *mpath;
@@ -1638,7 +1387,7 @@ static int ieee80211_add_mpath(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_del_mpath(struct wiphy *wiphy, struct net_device *dev,
-			       u8 *dst)
+			       const u8 *dst)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -1649,9 +1398,8 @@ static int ieee80211_del_mpath(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_change_mpath(struct wiphy *wiphy,
-				    struct net_device *dev,
-				    u8 *dst, u8 *next_hop)
+static int ieee80211_change_mpath(struct wiphy *wiphy, struct net_device *dev,
+				  const u8 *dst, const u8 *next_hop)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct mesh_path *mpath;
@@ -1743,8 +1491,8 @@ static int ieee80211_get_mpath(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_dump_mpath(struct wiphy *wiphy, struct net_device *dev,
-				 int idx, u8 *dst, u8 *next_hop,
-				 struct mpath_info *pinfo)
+				int idx, u8 *dst, u8 *next_hop,
+				struct mpath_info *pinfo)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct mesh_path *mpath;
@@ -2630,6 +2378,18 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	if (!roc)
 		return -ENOMEM;
 
+	/*
+	 * If the duration is zero, then the driver
+	 * wouldn't actually do anything. Set it to
+	 * 10 for now.
+	 *
+	 * TODO: cancel the off-channel operation
+	 *       when we get the SKB's TX status and
+	 *       the wait time was zero before.
+	 */
+	if (!duration)
+		duration = 10;
+
 	roc->chan = channel;
 	roc->duration = duration;
 	roc->req_duration = duration;
@@ -2670,18 +2430,6 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	}
 
 	/* otherwise actually kick it off here (for error handling) */
-
-	/*
-	 * If the duration is zero, then the driver
-	 * wouldn't actually do anything. Set it to
-	 * 10 for now.
-	 *
-	 * TODO: cancel the off-channel operation
-	 *       when we get the SKB's TX status and
-	 *       the wait time was zero before.
-	 */
-	if (!duration)
-		duration = 10;
 
 	ret = drv_remain_on_channel(local, sdata, channel, duration, type);
 	if (ret) {
@@ -2902,11 +2650,11 @@ static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 
 static int ieee80211_start_radar_detection(struct wiphy *wiphy,
 					   struct net_device *dev,
-					   struct cfg80211_chan_def *chandef)
+					   struct cfg80211_chan_def *chandef,
+					   u32 cac_time_ms)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	unsigned long timeout;
 	int err;
 
 	mutex_lock(&local->mtx);
@@ -2918,16 +2666,15 @@ static int ieee80211_start_radar_detection(struct wiphy *wiphy,
 	/* whatever, but channel contexts should not complain about that one */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 	sdata->needed_rx_chains = local->rx_chains;
-	sdata->radar_required = true;
 
 	err = ieee80211_vif_use_channel(sdata, chandef,
 					IEEE80211_CHANCTX_SHARED);
 	if (err)
 		goto out_unlock;
 
-	timeout = msecs_to_jiffies(IEEE80211_DFS_MIN_CAC_TIME_MS);
 	ieee80211_queue_delayed_work(&sdata->local->hw,
-				     &sdata->dfs_cac_timer_work, timeout);
+				     &sdata->dfs_cac_timer_work,
+				     msecs_to_jiffies(cac_time_ms));
 
  out_unlock:
 	mutex_unlock(&local->mtx);
@@ -2990,15 +2737,128 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 	return new_beacon;
 }
 
+void ieee80211_csa_finish(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	ieee80211_queue_work(&sdata->local->hw,
+			     &sdata->csa_finalize_work);
+}
+EXPORT_SYMBOL(ieee80211_csa_finish);
+
+static int ieee80211_set_after_csa_beacon(struct ieee80211_sub_if_data *sdata,
+					  u32 *changed)
+{
+	int err;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon,
+					      NULL);
+		kfree(sdata->u.ap.next_beacon);
+		sdata->u.ap.next_beacon = NULL;
+
+		if (err < 0)
+			return err;
+		*changed |= err;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		err = ieee80211_ibss_finish_csa(sdata);
+		if (err < 0)
+			return err;
+		*changed |= err;
+		break;
+#ifdef CONFIG_MAC80211_MESH
+	case NL80211_IFTYPE_MESH_POINT:
+		err = ieee80211_mesh_finish_csa(sdata);
+		if (err < 0)
+			return err;
+		*changed |= err;
+		break;
+#endif
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	u32 changed = 0;
+	int err;
+
+	sdata_assert_lock(sdata);
+	lockdep_assert_held(&local->mtx);
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	/*
+	 * using reservation isn't immediate as it may be deferred until later
+	 * with multi-vif. once reservation is complete it will re-schedule the
+	 * work with no reserved_chanctx so verify chandef to check if it
+	 * completed successfully
+	 */
+
+	if (sdata->reserved_chanctx) {
+		/*
+		 * with multi-vif csa driver may call ieee80211_csa_finish()
+		 * many times while waiting for other interfaces to use their
+		 * reservations
+		 */
+		if (sdata->reserved_ready)
+			return 0;
+
+		err = ieee80211_vif_use_reserved_context(sdata);
+		if (err)
+			return err;
+
+		return 0;
+	}
+
+	if (!cfg80211_chandef_identical(&sdata->vif.bss_conf.chandef,
+					&sdata->csa_chandef))
+		return -EINVAL;
+
+	sdata->vif.csa_active = false;
+
+	err = ieee80211_set_after_csa_beacon(sdata, &changed);
+	if (err)
+		return err;
+
+	ieee80211_bss_info_change_notify(sdata, changed);
+	cfg80211_ch_switch_notify(sdata->dev, &sdata->csa_chandef);
+
+	if (sdata->csa_block_tx) {
+		ieee80211_wake_vif_queues(local, sdata,
+					  IEEE80211_QUEUE_STOP_REASON_CSA);
+		sdata->csa_block_tx = false;
+	}
+
+	return 0;
+}
+
+static void ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
+{
+	if (__ieee80211_csa_finalize(sdata)) {
+		sdata_info(sdata, "failed to finalize CSA, disconnecting\n");
+		cfg80211_stop_iface(sdata->local->hw.wiphy, &sdata->wdev,
+				    GFP_KERNEL);
+	}
+}
+
 void ieee80211_csa_finalize_work(struct work_struct *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
 			     csa_finalize_work);
 	struct ieee80211_local *local = sdata->local;
-	int err, changed = 0;
 
 	sdata_lock(sdata);
+	mutex_lock(&local->mtx);
+	mutex_lock(&local->chanctx_mtx);
+
 	/* AP might have been stopped while waiting for the lock. */
 	if (!sdata->vif.csa_active)
 		goto unlock;
@@ -3006,120 +2866,66 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 	if (!ieee80211_sdata_running(sdata))
 		goto unlock;
 
-	sdata->radar_required = sdata->csa_radar_required;
-	mutex_lock(&local->mtx);
-	err = ieee80211_vif_change_channel(sdata, &changed);
-	mutex_unlock(&local->mtx);
-	if (WARN_ON(err < 0))
-		goto unlock;
-
-	if (!local->use_chanctx) {
-		local->_oper_chandef = sdata->csa_chandef;
-		ieee80211_hw_config(local, 0);
-	}
-
-	ieee80211_bss_info_change_notify(sdata, changed);
-
-	sdata->vif.csa_active = false;
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP:
-		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
-		if (err < 0)
-			goto unlock;
-
-		changed |= err;
-		kfree(sdata->u.ap.next_beacon);
-		sdata->u.ap.next_beacon = NULL;
-
-		ieee80211_bss_info_change_notify(sdata, err);
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		ieee80211_ibss_finish_csa(sdata);
-		break;
-#ifdef CONFIG_MAC80211_MESH
-	case NL80211_IFTYPE_MESH_POINT:
-		err = ieee80211_mesh_finish_csa(sdata);
-		if (err < 0)
-			goto unlock;
-		break;
-#endif
-	default:
-		WARN_ON(1);
-		goto unlock;
-	}
-
-	ieee80211_wake_queues_by_reason(&sdata->local->hw,
-					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
-
-	cfg80211_ch_switch_notify(sdata->dev, &sdata->csa_chandef);
+	ieee80211_csa_finalize(sdata);
 
 unlock:
+	mutex_unlock(&local->chanctx_mtx);
+	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
 }
 
-int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
-			     struct cfg80211_csa_settings *params)
+static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
+				    struct cfg80211_csa_settings *params,
+				    u32 *changed)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_chanctx *chanctx;
-	struct ieee80211_if_mesh __maybe_unused *ifmsh;
-	int err, num_chanctx;
-
-	lockdep_assert_held(&sdata->wdev.mtx);
-
-	if (!list_empty(&local->roc_list) || local->scanning)
-		return -EBUSY;
-
-	if (sdata->wdev.cac_started)
-		return -EBUSY;
-
-	if (cfg80211_chandef_identical(&params->chandef,
-				       &sdata->vif.bss_conf.chandef))
-		return -EINVAL;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
-	if (!chanctx_conf) {
-		rcu_read_unlock();
-		return -EBUSY;
-	}
-
-	/* don't handle for multi-VIF cases */
-	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
-	if (chanctx->refcount > 1) {
-		rcu_read_unlock();
-		return -EBUSY;
-	}
-	num_chanctx = 0;
-	list_for_each_entry_rcu(chanctx, &local->chanctx_list, list)
-		num_chanctx++;
-	rcu_read_unlock();
-
-	if (num_chanctx > 1)
-		return -EBUSY;
-
-	/* don't allow another channel switch if one is already active. */
-	if (sdata->vif.csa_active)
-		return -EBUSY;
+	struct ieee80211_csa_settings csa = {};
+	int err;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
-		sdata->csa_counter_offset_beacon =
-			params->counter_offset_beacon;
-		sdata->csa_counter_offset_presp = params->counter_offset_presp;
 		sdata->u.ap.next_beacon =
 			cfg80211_beacon_dup(&params->beacon_after);
 		if (!sdata->u.ap.next_beacon)
 			return -ENOMEM;
 
-		err = ieee80211_assign_beacon(sdata, &params->beacon_csa);
+		/*
+		 * With a count of 0, we don't have to wait for any
+		 * TBTT before switching, so complete the CSA
+		 * immediately.  In theory, with a count == 1 we
+		 * should delay the switch until just before the next
+		 * TBTT, but that would complicate things so we switch
+		 * immediately too.  If we would delay the switch
+		 * until the next TBTT, we would have to set the probe
+		 * response here.
+		 *
+		 * TODO: A channel switch with count <= 1 without
+		 * sending a CSA action frame is kind of useless,
+		 * because the clients won't know we're changing
+		 * channels.  The action frame must be implemented
+		 * either here or in the userspace.
+		 */
+		if (params->count <= 1)
+			break;
+
+		if ((params->n_counter_offsets_beacon >
+		     IEEE80211_MAX_CSA_COUNTERS_NUM) ||
+		    (params->n_counter_offsets_presp >
+		     IEEE80211_MAX_CSA_COUNTERS_NUM))
+			return -EINVAL;
+
+		csa.counter_offsets_beacon = params->counter_offsets_beacon;
+		csa.counter_offsets_presp = params->counter_offsets_presp;
+		csa.n_counter_offsets_beacon = params->n_counter_offsets_beacon;
+		csa.n_counter_offsets_presp = params->n_counter_offsets_presp;
+		csa.count = params->count;
+
+		err = ieee80211_assign_beacon(sdata, &params->beacon_csa, &csa);
 		if (err < 0) {
 			kfree(sdata->u.ap.next_beacon);
 			return err;
 		}
+		*changed |= err;
+
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (!sdata->vif.bss_conf.ibss_joined)
@@ -3147,16 +2953,20 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		    params->chandef.chan->band)
 			return -EINVAL;
 
-		err = ieee80211_ibss_csa_beacon(sdata, params);
-		if (err < 0)
-			return err;
+		/* see comments in the NL80211_IFTYPE_AP block */
+		if (params->count > 1) {
+			err = ieee80211_ibss_csa_beacon(sdata, params);
+			if (err < 0)
+				return err;
+			*changed |= err;
+		}
+
+		ieee80211_send_action_csa(sdata, params);
+
 		break;
 #ifdef CONFIG_MAC80211_MESH
-	case NL80211_IFTYPE_MESH_POINT:
-		ifmsh = &sdata->u.mesh;
-
-		if (!ifmsh->mesh_id)
-			return -EINVAL;
+	case NL80211_IFTYPE_MESH_POINT: {
+		struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
 		if (params->chandef.width != sdata->vif.bss_conf.chandef.width)
 			return -EINVAL;
@@ -3166,37 +2976,130 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		    params->chandef.chan->band)
 			return -EINVAL;
 
-		ifmsh->chsw_init = true;
-		if (!ifmsh->pre_value)
-			ifmsh->pre_value = 1;
-		else
-			ifmsh->pre_value++;
-
-		err = ieee80211_mesh_csa_beacon(sdata, params, true);
-		if (err < 0) {
-			ifmsh->chsw_init = false;
-			return err;
+		if (ifmsh->csa_role == IEEE80211_MESH_CSA_ROLE_NONE) {
+			ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_INIT;
+			if (!ifmsh->pre_value)
+				ifmsh->pre_value = 1;
+			else
+				ifmsh->pre_value++;
 		}
+
+		/* see comments in the NL80211_IFTYPE_AP block */
+		if (params->count > 1) {
+			err = ieee80211_mesh_csa_beacon(sdata, params);
+			if (err < 0) {
+				ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
+				return err;
+			}
+			*changed |= err;
+		}
+
+		if (ifmsh->csa_role == IEEE80211_MESH_CSA_ROLE_INIT)
+			ieee80211_send_action_csa(sdata, params);
+
 		break;
+		}
 #endif
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	sdata->csa_radar_required = params->radar_required;
+	return 0;
+}
 
-	if (params->block_tx)
-		ieee80211_stop_queues_by_reason(&local->hw,
-				IEEE80211_MAX_QUEUE_MAP,
-				IEEE80211_QUEUE_STOP_REASON_CSA);
+static int
+__ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+			   struct cfg80211_csa_settings *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *chanctx;
+	int err, changed = 0;
+
+	sdata_assert_lock(sdata);
+	lockdep_assert_held(&local->mtx);
+
+	if (!list_empty(&local->roc_list) || local->scanning)
+		return -EBUSY;
+
+	if (sdata->wdev.cac_started)
+		return -EBUSY;
+
+	if (cfg80211_chandef_identical(&params->chandef,
+				       &sdata->vif.bss_conf.chandef))
+		return -EINVAL;
+
+	/* don't allow another channel switch if one is already active. */
+	if (sdata->vif.csa_active)
+		return -EBUSY;
+
+	mutex_lock(&local->chanctx_mtx);
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
+	if (!chanctx) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	err = ieee80211_vif_reserve_chanctx(sdata, &params->chandef,
+					    chanctx->mode,
+					    params->radar_required);
+	if (err)
+		goto out;
+
+	/* if reservation is invalid then this will fail */
+	err = ieee80211_check_combinations(sdata, NULL, chanctx->mode, 0);
+	if (err) {
+		ieee80211_vif_unreserve_chanctx(sdata);
+		goto out;
+	}
+
+	err = ieee80211_set_csa_beacon(sdata, params, &changed);
+	if (err) {
+		ieee80211_vif_unreserve_chanctx(sdata);
+		goto out;
+	}
 
 	sdata->csa_chandef = params->chandef;
+	sdata->csa_block_tx = params->block_tx;
 	sdata->vif.csa_active = true;
 
-	ieee80211_bss_info_change_notify(sdata, err);
-	drv_channel_switch_beacon(sdata, &params->chandef);
+	if (sdata->csa_block_tx)
+		ieee80211_stop_vif_queues(local, sdata,
+					  IEEE80211_QUEUE_STOP_REASON_CSA);
 
-	return 0;
+	if (changed) {
+		ieee80211_bss_info_change_notify(sdata, changed);
+		drv_channel_switch_beacon(sdata, &params->chandef);
+	} else {
+		/* if the beacon didn't change, we can finalize immediately */
+		ieee80211_csa_finalize(sdata);
+	}
+
+out:
+	mutex_unlock(&local->chanctx_mtx);
+	return err;
+}
+
+int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+			     struct cfg80211_csa_settings *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	int err;
+
+	mutex_lock(&local->mtx);
+	err = __ieee80211_channel_switch(wiphy, dev, params);
+	mutex_unlock(&local->mtx);
+
+	return err;
 }
 
 static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
@@ -3211,6 +3114,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	bool need_offchan = false;
 	u32 flags;
 	int ret;
+	u8 *data;
 
 	if (params->dont_wait_for_ack)
 		flags = IEEE80211_TX_CTL_NO_ACK;
@@ -3304,7 +3208,33 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	memcpy(skb_put(skb, params->len), params->buf, params->len);
+	data = skb_put(skb, params->len);
+	memcpy(data, params->buf, params->len);
+
+	/* Update CSA counters */
+	if (sdata->vif.csa_active &&
+	    (sdata->vif.type == NL80211_IFTYPE_AP ||
+	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
+	    params->n_csa_offsets) {
+		int i;
+		struct beacon_data *beacon = NULL;
+
+		rcu_read_lock();
+
+		if (sdata->vif.type == NL80211_IFTYPE_AP)
+			beacon = rcu_dereference(sdata->u.ap.beacon);
+		else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+			beacon = rcu_dereference(sdata->u.ibss.presp);
+		else if (ieee80211_vif_is_mesh(&sdata->vif))
+			beacon = rcu_dereference(sdata->u.mesh.beacon);
+
+		if (beacon)
+			for (i = 0; i < params->n_csa_offsets; i++)
+				data[params->csa_offsets[i]] =
+					beacon->csa_current_counter;
+
+		rcu_read_unlock();
+	}
 
 	IEEE80211_SKB_CB(skb)->flags = flags;
 
@@ -3383,21 +3313,6 @@ static int ieee80211_get_antenna(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant)
 	return drv_get_antenna(local, tx_ant, rx_ant);
 }
 
-static int ieee80211_set_ringparam(struct wiphy *wiphy, u32 tx, u32 rx)
-{
-	struct ieee80211_local *local = wiphy_priv(wiphy);
-
-	return drv_set_ringparam(local, tx, rx);
-}
-
-static void ieee80211_get_ringparam(struct wiphy *wiphy,
-				    u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max)
-{
-	struct ieee80211_local *local = wiphy_priv(wiphy);
-
-	drv_get_ringparam(local, tx, tx_max, rx, rx_max);
-}
-
 static int ieee80211_set_rekey_data(struct wiphy *wiphy,
 				    struct net_device *dev,
 				    struct cfg80211_gtk_rekey_data *data)
@@ -3409,320 +3324,6 @@ static int ieee80211_set_rekey_data(struct wiphy *wiphy,
 		return -EOPNOTSUPP;
 
 	drv_set_rekey_data(local, sdata, data);
-
-	return 0;
-}
-
-static void ieee80211_tdls_add_ext_capab(struct sk_buff *skb)
-{
-	u8 *pos = (void *)skb_put(skb, 7);
-
-	*pos++ = WLAN_EID_EXT_CAPABILITY;
-	*pos++ = 5; /* len */
-	*pos++ = 0x0;
-	*pos++ = 0x0;
-	*pos++ = 0x0;
-	*pos++ = 0x0;
-	*pos++ = WLAN_EXT_CAPA5_TDLS_ENABLED;
-}
-
-static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_local *local = sdata->local;
-	u16 capab;
-
-	capab = 0;
-	if (ieee80211_get_sdata_band(sdata) != IEEE80211_BAND_2GHZ)
-		return capab;
-
-	if (!(local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE))
-		capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
-	if (!(local->hw.flags & IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE))
-		capab |= WLAN_CAPABILITY_SHORT_PREAMBLE;
-
-	return capab;
-}
-
-static void ieee80211_tdls_add_link_ie(struct sk_buff *skb, u8 *src_addr,
-				       u8 *peer, u8 *bssid)
-{
-	struct ieee80211_tdls_lnkie *lnkid;
-
-	lnkid = (void *)skb_put(skb, sizeof(struct ieee80211_tdls_lnkie));
-
-	lnkid->ie_type = WLAN_EID_LINK_ID;
-	lnkid->ie_len = sizeof(struct ieee80211_tdls_lnkie) - 2;
-
-	memcpy(lnkid->bssid, bssid, ETH_ALEN);
-	memcpy(lnkid->init_sta, src_addr, ETH_ALEN);
-	memcpy(lnkid->resp_sta, peer, ETH_ALEN);
-}
-
-static int
-ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
-			       u8 *peer, u8 action_code, u8 dialog_token,
-			       u16 status_code, struct sk_buff *skb)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
-	struct ieee80211_tdls_data *tf;
-
-	tf = (void *)skb_put(skb, offsetof(struct ieee80211_tdls_data, u));
-
-	memcpy(tf->da, peer, ETH_ALEN);
-	memcpy(tf->sa, sdata->vif.addr, ETH_ALEN);
-	tf->ether_type = cpu_to_be16(ETH_P_TDLS);
-	tf->payload_type = WLAN_TDLS_SNAP_RFTYPE;
-
-	switch (action_code) {
-	case WLAN_TDLS_SETUP_REQUEST:
-		tf->category = WLAN_CATEGORY_TDLS;
-		tf->action_code = WLAN_TDLS_SETUP_REQUEST;
-
-		skb_put(skb, sizeof(tf->u.setup_req));
-		tf->u.setup_req.dialog_token = dialog_token;
-		tf->u.setup_req.capability =
-			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
-
-		ieee80211_add_srates_ie(sdata, skb, false, band);
-		ieee80211_add_ext_srates_ie(sdata, skb, false, band);
-		ieee80211_tdls_add_ext_capab(skb);
-		break;
-	case WLAN_TDLS_SETUP_RESPONSE:
-		tf->category = WLAN_CATEGORY_TDLS;
-		tf->action_code = WLAN_TDLS_SETUP_RESPONSE;
-
-		skb_put(skb, sizeof(tf->u.setup_resp));
-		tf->u.setup_resp.status_code = cpu_to_le16(status_code);
-		tf->u.setup_resp.dialog_token = dialog_token;
-		tf->u.setup_resp.capability =
-			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
-
-		ieee80211_add_srates_ie(sdata, skb, false, band);
-		ieee80211_add_ext_srates_ie(sdata, skb, false, band);
-		ieee80211_tdls_add_ext_capab(skb);
-		break;
-	case WLAN_TDLS_SETUP_CONFIRM:
-		tf->category = WLAN_CATEGORY_TDLS;
-		tf->action_code = WLAN_TDLS_SETUP_CONFIRM;
-
-		skb_put(skb, sizeof(tf->u.setup_cfm));
-		tf->u.setup_cfm.status_code = cpu_to_le16(status_code);
-		tf->u.setup_cfm.dialog_token = dialog_token;
-		break;
-	case WLAN_TDLS_TEARDOWN:
-		tf->category = WLAN_CATEGORY_TDLS;
-		tf->action_code = WLAN_TDLS_TEARDOWN;
-
-		skb_put(skb, sizeof(tf->u.teardown));
-		tf->u.teardown.reason_code = cpu_to_le16(status_code);
-		break;
-	case WLAN_TDLS_DISCOVERY_REQUEST:
-		tf->category = WLAN_CATEGORY_TDLS;
-		tf->action_code = WLAN_TDLS_DISCOVERY_REQUEST;
-
-		skb_put(skb, sizeof(tf->u.discover_req));
-		tf->u.discover_req.dialog_token = dialog_token;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int
-ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
-			   u8 *peer, u8 action_code, u8 dialog_token,
-			   u16 status_code, struct sk_buff *skb)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
-	struct ieee80211_mgmt *mgmt;
-
-	mgmt = (void *)skb_put(skb, 24);
-	memset(mgmt, 0, 24);
-	memcpy(mgmt->da, peer, ETH_ALEN);
-	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
-	memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
-
-	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					  IEEE80211_STYPE_ACTION);
-
-	switch (action_code) {
-	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		skb_put(skb, 1 + sizeof(mgmt->u.action.u.tdls_discover_resp));
-		mgmt->u.action.category = WLAN_CATEGORY_PUBLIC;
-		mgmt->u.action.u.tdls_discover_resp.action_code =
-			WLAN_PUB_ACTION_TDLS_DISCOVER_RES;
-		mgmt->u.action.u.tdls_discover_resp.dialog_token =
-			dialog_token;
-		mgmt->u.action.u.tdls_discover_resp.capability =
-			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
-
-		ieee80211_add_srates_ie(sdata, skb, false, band);
-		ieee80211_add_ext_srates_ie(sdata, skb, false, band);
-		ieee80211_tdls_add_ext_capab(skb);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-			       u8 *peer, u8 action_code, u8 dialog_token,
-			       u16 status_code, const u8 *extra_ies,
-			       size_t extra_ies_len)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb = NULL;
-	bool send_direct;
-	int ret;
-
-	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
-		return -ENOTSUPP;
-
-	/* make sure we are in managed mode, and associated */
-	if (sdata->vif.type != NL80211_IFTYPE_STATION ||
-	    !sdata->u.mgd.associated)
-		return -EINVAL;
-
-	tdls_dbg(sdata, "TDLS mgmt action %d peer %pM\n",
-		 action_code, peer);
-
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
-			    max(sizeof(struct ieee80211_mgmt),
-				sizeof(struct ieee80211_tdls_data)) +
-			    50 + /* supported rates */
-			    7 + /* ext capab */
-			    extra_ies_len +
-			    sizeof(struct ieee80211_tdls_lnkie));
-	if (!skb)
-		return -ENOMEM;
-
-	skb_reserve(skb, local->hw.extra_tx_headroom);
-
-	switch (action_code) {
-	case WLAN_TDLS_SETUP_REQUEST:
-	case WLAN_TDLS_SETUP_RESPONSE:
-	case WLAN_TDLS_SETUP_CONFIRM:
-	case WLAN_TDLS_TEARDOWN:
-	case WLAN_TDLS_DISCOVERY_REQUEST:
-		ret = ieee80211_prep_tdls_encap_data(wiphy, dev, peer,
-						     action_code, dialog_token,
-						     status_code, skb);
-		send_direct = false;
-		break;
-	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		ret = ieee80211_prep_tdls_direct(wiphy, dev, peer, action_code,
-						 dialog_token, status_code,
-						 skb);
-		send_direct = true;
-		break;
-	default:
-		ret = -ENOTSUPP;
-		break;
-	}
-
-	if (ret < 0)
-		goto fail;
-
-	if (extra_ies_len)
-		memcpy(skb_put(skb, extra_ies_len), extra_ies, extra_ies_len);
-
-	/* the TDLS link IE is always added last */
-	switch (action_code) {
-	case WLAN_TDLS_SETUP_REQUEST:
-	case WLAN_TDLS_SETUP_CONFIRM:
-	case WLAN_TDLS_TEARDOWN:
-	case WLAN_TDLS_DISCOVERY_REQUEST:
-		/* we are the initiator */
-		ieee80211_tdls_add_link_ie(skb, sdata->vif.addr, peer,
-					   sdata->u.mgd.bssid);
-		break;
-	case WLAN_TDLS_SETUP_RESPONSE:
-	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		/* we are the responder */
-		ieee80211_tdls_add_link_ie(skb, peer, sdata->vif.addr,
-					   sdata->u.mgd.bssid);
-		break;
-	default:
-		ret = -ENOTSUPP;
-		goto fail;
-	}
-
-	if (send_direct) {
-		ieee80211_tx_skb(sdata, skb);
-		return 0;
-	}
-
-	/*
-	 * According to 802.11z: Setup req/resp are sent in AC_BK, otherwise
-	 * we should default to AC_VI.
-	 */
-	switch (action_code) {
-	case WLAN_TDLS_SETUP_REQUEST:
-	case WLAN_TDLS_SETUP_RESPONSE:
-		skb_set_queue_mapping(skb, IEEE80211_AC_BK);
-		skb->priority = 2;
-		break;
-	default:
-		skb_set_queue_mapping(skb, IEEE80211_AC_VI);
-		skb->priority = 5;
-		break;
-	}
-
-	/* disable bottom halves when entering the Tx path */
-	local_bh_disable();
-	ret = ieee80211_subif_start_xmit(skb, dev);
-	local_bh_enable();
-
-	return ret;
-
-fail:
-	dev_kfree_skb(skb);
-	return ret;
-}
-
-static int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
-			       u8 *peer, enum nl80211_tdls_operation oper)
-{
-	struct sta_info *sta;
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
-		return -ENOTSUPP;
-
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return -EINVAL;
-
-	tdls_dbg(sdata, "TDLS oper %d peer %pM\n", oper, peer);
-
-	switch (oper) {
-	case NL80211_TDLS_ENABLE_LINK:
-		rcu_read_lock();
-		sta = sta_info_get(sdata, peer);
-		if (!sta) {
-			rcu_read_unlock();
-			return -ENOLINK;
-		}
-
-		set_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
-		rcu_read_unlock();
-		break;
-	case NL80211_TDLS_DISABLE_LINK:
-		return sta_info_destroy_addr(sdata, peer);
-	case NL80211_TDLS_TEARDOWN:
-	case NL80211_TDLS_SETUP:
-	case NL80211_TDLS_DISCOVERY_REQ:
-		/* We don't support in-driver setup/teardown/discovery */
-		return -ENOTSUPP;
-	default:
-		return -ENOTSUPP;
-	}
 
 	return 0;
 }
@@ -3865,7 +3466,22 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
 	return 0;
 }
 
-struct cfg80211_ops mac80211_config_ops = {
+static int ieee80211_set_ap_chanwidth(struct wiphy *wiphy,
+				      struct net_device *dev,
+				      struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	int ret;
+	u32 changed = 0;
+
+	ret = ieee80211_vif_change_bandwidth(sdata, chandef, &changed);
+	if (ret == 0)
+		ieee80211_bss_info_change_notify(sdata, changed);
+
+	return ret;
+}
+
+const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
 	.change_virtual_intf = ieee80211_change_iface,
@@ -3928,8 +3544,6 @@ struct cfg80211_ops mac80211_config_ops = {
 	.mgmt_frame_register = ieee80211_mgmt_frame_register,
 	.set_antenna = ieee80211_set_antenna,
 	.get_antenna = ieee80211_get_antenna,
-	.set_ringparam = ieee80211_set_ringparam,
-	.get_ringparam = ieee80211_get_ringparam,
 	.set_rekey_data = ieee80211_set_rekey_data,
 	.tdls_oper = ieee80211_tdls_oper,
 	.tdls_mgmt = ieee80211_tdls_mgmt,
@@ -3938,11 +3552,9 @@ struct cfg80211_ops mac80211_config_ops = {
 #ifdef CONFIG_PM
 	.set_wakeup = ieee80211_set_wakeup,
 #endif
-	.get_et_sset_count = ieee80211_get_et_sset_count,
-	.get_et_stats = ieee80211_get_et_stats,
-	.get_et_strings = ieee80211_get_et_strings,
 	.get_channel = ieee80211_cfg_get_channel,
 	.start_radar_detection = ieee80211_start_radar_detection,
 	.channel_switch = ieee80211_channel_switch,
 	.set_qos_map = ieee80211_set_qos_map,
+	.set_ap_chanwidth = ieee80211_set_ap_chanwidth,
 };

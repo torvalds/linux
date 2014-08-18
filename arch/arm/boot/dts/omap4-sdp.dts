@@ -19,6 +19,12 @@
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 
+	aliases {
+		display0 = &lcd0;
+		display1 = &lcd1;
+		display2 = &hdmi0;
+	};
+
 	vdd_eth: fixedregulator-vdd-eth {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_ETH";
@@ -153,16 +159,53 @@
 		startup-delay-us = <70000>;
 		enable-active-high;
 	};
+
+	tpd12s015: encoder@0 {
+		compatible = "ti,tpd12s015";
+
+		gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>,	/* 60, CT CP HPD */
+			<&gpio2 9 GPIO_ACTIVE_HIGH>,	/* 41, LS OE */
+			<&gpio2 31 GPIO_ACTIVE_HIGH>;	/* 63, HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint@0 {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint@0 {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+
+	hdmi0: connector@0 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "c";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
 };
 
 &omap4_pmx_core {
 	pinctrl-names = "default";
 	pinctrl-0 = <
-			&twl6040_pins
-			&mcpdm_pins
-			&dmic_pins
-			&mcbsp1_pins
-			&mcbsp2_pins
 			&dss_hdmi_pins
 			&tpd12s015_pins
 	>;
@@ -326,6 +369,10 @@
 	twl6040: twl@4b {
 		compatible = "ti,twl6040";
 		reg = <0x4b>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&twl6040_pins>;
+
 		/* SPI = 0, IRQ# = 119, 4 = active high level-sensitive */
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_2N cascaded to gic */
 		interrupt-parent = <&gic>;
@@ -523,22 +570,48 @@
 };
 
 &uart2 {
+	interrupts-extended = <&gic GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART2_RX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
 };
 
 &uart3 {
+	interrupts-extended = <&gic GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART3_RX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
 };
 
 &uart4 {
+	interrupts-extended = <&gic GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART4_RX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart4_pins>;
 };
 
-&mcbsp3 {
-	status = "disabled";
+&mcbsp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp1_pins>;
+	status = "okay";
+};
+
+&mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
+	status = "okay";
+};
+
+&dmic {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dmic_pins>;
+	status = "okay";
+};
+
+&mcpdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
 };
 
 &twl_usb_comparator {
@@ -549,4 +622,69 @@
 	interface-type = <1>;
 	mode = <3>;
 	power = <50>;
+};
+
+&dss {
+	status = "ok";
+};
+
+&dsi1 {
+	status = "ok";
+	vdd-supply = <&vcxio>;
+
+	port {
+		dsi1_out_ep: endpoint {
+			remote-endpoint = <&lcd0_in>;
+			lanes = <0 1 2 3 4 5>;
+		};
+	};
+
+	lcd0: display {
+		compatible = "tpo,taal", "panel-dsi-cm";
+		label = "lcd0";
+
+		reset-gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>;	/* 102 */
+
+		port {
+			lcd0_in: endpoint {
+				remote-endpoint = <&dsi1_out_ep>;
+			};
+		};
+	};
+};
+
+&dsi2 {
+	status = "ok";
+	vdd-supply = <&vcxio>;
+
+	port {
+		dsi2_out_ep: endpoint {
+			remote-endpoint = <&lcd1_in>;
+			lanes = <0 1 2 3 4 5>;
+		};
+	};
+
+	lcd1: display {
+		compatible = "tpo,taal", "panel-dsi-cm";
+		label = "lcd1";
+
+		reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;	/* 104 */
+
+		port {
+			lcd1_in: endpoint {
+				remote-endpoint = <&dsi2_out_ep>;
+			};
+		};
+	};
+};
+
+&hdmi {
+	status = "ok";
+	vdda-supply = <&vdac>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
 };

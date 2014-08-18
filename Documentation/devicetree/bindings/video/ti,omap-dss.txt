@@ -1,0 +1,211 @@
+Texas Instruments OMAP Display Subsystem
+========================================
+
+Generic Description
+-------------------
+
+This document is a generic description of the OMAP Display Subsystem bindings.
+Binding details for each OMAP SoC version are described in respective binding
+documentation.
+
+The OMAP Display Subsystem (DSS) hardware consists of DSS Core, DISPC module and
+a number of encoder modules. All DSS versions contain DSS Core and DISPC, but
+the encoder modules vary.
+
+The DSS Core is the parent of the other DSS modules, and manages clock routing,
+integration to the SoC, etc.
+
+DISPC is the display controller, which reads pixels from the memory and outputs
+a RGB pixel stream to encoders.
+
+The encoder modules encode the received RGB pixel stream to a video output like
+HDMI, MIPI DPI, etc.
+
+Video Ports
+-----------
+
+The DSS Core and the encoders have video port outputs. The structure of the
+video ports is described in Documentation/devicetree/bindings/video/video-
+ports.txt, and the properties for the ports and endpoints for each encoder are
+described in the SoC's DSS binding documentation.
+
+The video ports are used to describe the connections to external hardware, like
+panels or external encoders.
+
+Aliases
+-------
+
+The board dts file may define aliases for displays to assign "displayX" style
+name for each display. If no aliases are defined, a semi-random number is used
+for the display.
+
+Example
+-------
+
+A shortened example of the DSS description for OMAP4, with non-relevant parts
+removed, defined in omap4.dtsi:
+
+dss: dss@58000000 {
+	compatible = "ti,omap4-dss";
+	reg = <0x58000000 0x80>;
+	status = "disabled";
+	ti,hwmods = "dss_core";
+	clocks = <&dss_dss_clk>;
+	clock-names = "fck";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	dispc@58001000 {
+		compatible = "ti,omap4-dispc";
+		reg = <0x58001000 0x1000>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+		ti,hwmods = "dss_dispc";
+		clocks = <&dss_dss_clk>;
+		clock-names = "fck";
+	};
+
+	hdmi: encoder@58006000 {
+		compatible = "ti,omap4-hdmi";
+		reg = <0x58006000 0x200>,
+		      <0x58006200 0x100>,
+		      <0x58006300 0x100>,
+		      <0x58006400 0x1000>;
+		reg-names = "wp", "pll", "phy", "core";
+		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+		ti,hwmods = "dss_hdmi";
+		clocks = <&dss_48mhz_clk>, <&dss_sys_clk>;
+		clock-names = "fck", "sys_clk";
+	};
+};
+
+A shortened example of the board description for OMAP4 Panda board, defined in
+omap4-panda.dts.
+
+The Panda board has a DVI and a HDMI connector, and the board contains a TFP410
+chip (MIPI DPI to DVI encoder) and a TPD12S015 chip (HDMI ESD protection & level
+shifter). The video pipelines for the connectors are formed as follows:
+
+DSS Core --(MIPI DPI)--> TFP410 --(DVI)--> DVI Connector
+OMAP HDMI --(HDMI)--> TPD12S015 --(HDMI)--> HDMI Connector
+
+/ {
+	aliases {
+		display0 = &dvi0;
+		display1 = &hdmi0;
+	};
+
+	tfp410: encoder@0 {
+		compatible = "ti,tfp410";
+		gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;	/* 0, power-down */
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tfp410_pins>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tfp410_in: endpoint@0 {
+					remote-endpoint = <&dpi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tfp410_out: endpoint@0 {
+					remote-endpoint = <&dvi_connector_in>;
+				};
+			};
+		};
+	};
+
+	dvi0: connector@0 {
+		compatible = "dvi-connector";
+		label = "dvi";
+
+		i2c-bus = <&i2c3>;
+
+		port {
+			dvi_connector_in: endpoint {
+				remote-endpoint = <&tfp410_out>;
+			};
+		};
+	};
+
+	tpd12s015: encoder@1 {
+		compatible = "ti,tpd12s015";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tpd12s015_pins>;
+
+		gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>,	/* 60, CT CP HPD */
+			<&gpio2 9 GPIO_ACTIVE_HIGH>,	/* 41, LS OE */
+			<&gpio2 31 GPIO_ACTIVE_HIGH>;	/* 63, HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint@0 {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint@0 {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+
+	hdmi0: connector@1 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
+};
+
+&dss {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_dpi_pins>;
+
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+	};
+};
+
+&hdmi {
+	status = "ok";
+	vdda-supply = <&vdac>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_hdmi_pins>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
+};

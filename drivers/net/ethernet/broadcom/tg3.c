@@ -4,7 +4,7 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001, 2002, 2003 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2005-2013 Broadcom Corporation.
+ * Copyright (C) 2005-2014 Broadcom Corporation.
  *
  * Firmware is:
  *	Derived from proprietary unpublished source code,
@@ -94,10 +94,10 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 
 #define DRV_MODULE_NAME		"tg3"
 #define TG3_MAJ_NUM			3
-#define TG3_MIN_NUM			136
+#define TG3_MIN_NUM			137
 #define DRV_MODULE_VERSION	\
 	__stringify(TG3_MAJ_NUM) "." __stringify(TG3_MIN_NUM)
-#define DRV_MODULE_RELDATE	"Jan 03, 2014"
+#define DRV_MODULE_RELDATE	"May 11, 2014"
 
 #define RESET_KIND_SHUTDOWN	0
 #define RESET_KIND_INIT		1
@@ -237,7 +237,7 @@ MODULE_PARM_DESC(tg3_debug, "Tigon3 bitmapped debugging message enable value");
 #define TG3_DRV_DATA_FLAG_10_100_ONLY	0x0001
 #define TG3_DRV_DATA_FLAG_5705_10_100	0x0002
 
-static DEFINE_PCI_DEVICE_TABLE(tg3_pci_tbl) = {
+static const struct pci_device_id tg3_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5700)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5701)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5702)},
@@ -1401,11 +1401,6 @@ static int tg3_mdio_write(struct mii_bus *bp, int mii_id, int reg, u16 val)
 	return ret;
 }
 
-static int tg3_mdio_reset(struct mii_bus *bp)
-{
-	return 0;
-}
-
 static void tg3_mdio_config_5785(struct tg3 *tp)
 {
 	u32 val;
@@ -1542,7 +1537,6 @@ static int tg3_mdio_init(struct tg3 *tp)
 	tp->mdio_bus->parent   = &tp->pdev->dev;
 	tp->mdio_bus->read     = &tg3_mdio_read;
 	tp->mdio_bus->write    = &tg3_mdio_write;
-	tp->mdio_bus->reset    = &tg3_mdio_reset;
 	tp->mdio_bus->phy_mask = ~(1 << tp->phy_addr);
 	tp->mdio_bus->irq      = &tp->mdio_irq[0];
 
@@ -3230,7 +3224,7 @@ static int tg3_nvram_read_using_eeprom(struct tg3 *tp,
 	return 0;
 }
 
-#define NVRAM_CMD_TIMEOUT 10000
+#define NVRAM_CMD_TIMEOUT 5000
 
 static int tg3_nvram_exec_cmd(struct tg3 *tp, u32 nvram_cmd)
 {
@@ -3238,7 +3232,7 @@ static int tg3_nvram_exec_cmd(struct tg3 *tp, u32 nvram_cmd)
 
 	tw32(NVRAM_CMD, nvram_cmd);
 	for (i = 0; i < NVRAM_CMD_TIMEOUT; i++) {
-		udelay(10);
+		usleep_range(10, 40);
 		if (tr32(NVRAM_CMD) & NVRAM_CMD_DONE) {
 			udelay(10);
 			break;
@@ -6322,6 +6316,7 @@ static const struct ptp_clock_info tg3_ptp_caps = {
 	.n_alarm	= 0,
 	.n_ext_ts	= 0,
 	.n_per_out	= 1,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= tg3_ptp_adjfreq,
 	.adjtime	= tg3_ptp_adjtime,
@@ -6593,7 +6588,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		pkts_compl++;
 		bytes_compl += skb->len;
 
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 
 		if (unlikely(tx_bug)) {
 			tg3_tx_recover(tp);
@@ -6924,7 +6919,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 
 		if (len > (tp->dev->mtu + ETH_HLEN) &&
 		    skb->protocol != htons(ETH_P_8021Q)) {
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			goto drop_it_no_recycle;
 		}
 
@@ -7807,7 +7802,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 					  PCI_DMA_TODEVICE);
 		/* Make sure the mapping succeeded */
 		if (pci_dma_mapping_error(tp->pdev, new_addr)) {
-			dev_kfree_skb(new_skb);
+			dev_kfree_skb_any(new_skb);
 			ret = -1;
 		} else {
 			u32 save_entry = *entry;
@@ -7822,30 +7817,31 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 					    new_skb->len, base_flags,
 					    mss, vlan)) {
 				tg3_tx_skb_unmap(tnapi, save_entry, -1);
-				dev_kfree_skb(new_skb);
+				dev_kfree_skb_any(new_skb);
 				ret = -1;
 			}
 		}
 	}
 
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	*pskb = new_skb;
 	return ret;
 }
 
 static netdev_tx_t tg3_start_xmit(struct sk_buff *, struct net_device *);
 
-/* Use GSO to workaround a rare TSO bug that may be triggered when the
- * TSO header is greater than 80 bytes.
+/* Use GSO to workaround all TSO packets that meet HW bug conditions
+ * indicated in tg3_tx_frag_set()
  */
-static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
+static int tg3_tso_bug(struct tg3 *tp, struct tg3_napi *tnapi,
+		       struct netdev_queue *txq, struct sk_buff *skb)
 {
 	struct sk_buff *segs, *nskb;
 	u32 frag_cnt_est = skb_shinfo(skb)->gso_segs * 3;
 
 	/* Estimate the number of fragments in the worst case */
-	if (unlikely(tg3_tx_avail(&tp->napi[0]) <= frag_cnt_est)) {
-		netif_stop_queue(tp->dev);
+	if (unlikely(tg3_tx_avail(tnapi) <= frag_cnt_est)) {
+		netif_tx_stop_queue(txq);
 
 		/* netif_tx_stop_queue() must be done before checking
 		 * checking tx index in tg3_tx_avail() below, because in
@@ -7853,14 +7849,15 @@ static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
 		 * netif_tx_queue_stopped().
 		 */
 		smp_mb();
-		if (tg3_tx_avail(&tp->napi[0]) <= frag_cnt_est)
+		if (tg3_tx_avail(tnapi) <= frag_cnt_est)
 			return NETDEV_TX_BUSY;
 
-		netif_wake_queue(tp->dev);
+		netif_tx_wake_queue(txq);
 	}
 
-	segs = skb_gso_segment(skb, tp->dev->features & ~NETIF_F_TSO);
-	if (IS_ERR(segs))
+	segs = skb_gso_segment(skb, tp->dev->features &
+				    ~(NETIF_F_TSO | NETIF_F_TSO6));
+	if (IS_ERR(segs) || !segs)
 		goto tg3_tso_bug_end;
 
 	do {
@@ -7871,14 +7868,12 @@ static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
 	} while (segs);
 
 tg3_tso_bug_end:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
 
-/* hard_start_xmit for devices that have the 4G bug and/or 40-bit bug and
- * support TG3_FLAG_HW_TSO_1 or firmware TSO only.
- */
+/* hard_start_xmit for all devices */
 static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -7889,6 +7884,10 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tg3_napi *tnapi;
 	struct netdev_queue *txq;
 	unsigned int last;
+	struct iphdr *iph = NULL;
+	struct tcphdr *tcph = NULL;
+	__sum16 tcp_csum = 0, ip_csum = 0;
+	__be16 ip_tot_len = 0;
 
 	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 	tnapi = &tp->napi[skb_get_queue_mapping(skb)];
@@ -7920,11 +7919,9 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
-		struct iphdr *iph;
 		u32 tcp_opt_len, hdr_len;
 
-		if (skb_header_cloned(skb) &&
-		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+		if (skb_cow_head(skb, 0))
 			goto drop;
 
 		iph = ip_hdr(skb);
@@ -7933,27 +7930,31 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb) - ETH_HLEN;
 
 		if (!skb_is_gso_v6(skb)) {
+			if (unlikely((ETH_HLEN + hdr_len) > 80) &&
+			    tg3_flag(tp, TSO_BUG))
+				return tg3_tso_bug(tp, tnapi, txq, skb);
+
+			ip_csum = iph->check;
+			ip_tot_len = iph->tot_len;
 			iph->check = 0;
 			iph->tot_len = htons(mss + hdr_len);
 		}
 
-		if (unlikely((ETH_HLEN + hdr_len) > 80) &&
-		    tg3_flag(tp, TSO_BUG))
-			return tg3_tso_bug(tp, skb);
-
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
+
+		tcph = tcp_hdr(skb);
+		tcp_csum = tcph->check;
 
 		if (tg3_flag(tp, HW_TSO_1) ||
 		    tg3_flag(tp, HW_TSO_2) ||
 		    tg3_flag(tp, HW_TSO_3)) {
-			tcp_hdr(skb)->check = 0;
+			tcph->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;
-		} else
-			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
-								 iph->daddr, 0,
-								 IPPROTO_TCP,
-								 0);
+		} else {
+			tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
+							 0, IPPROTO_TCP, 0);
+		}
 
 		if (tg3_flag(tp, HW_TSO_3)) {
 			mss |= (hdr_len & 0xc) << 12;
@@ -8053,6 +8054,18 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (would_hit_hwbug) {
 		tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, i);
 
+		if (mss) {
+			/* If it's a TSO packet, do GSO instead of
+			 * allocating and copying to a large linear SKB
+			 */
+			if (ip_tot_len) {
+				iph->check = ip_csum;
+				iph->tot_len = ip_tot_len;
+			}
+			tcph->check = tcp_csum;
+			return tg3_tso_bug(tp, tnapi, txq, skb);
+		}
+
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
 		 */
@@ -8093,7 +8106,7 @@ dma_error:
 	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, --i);
 	tnapi->tx_buffers[tnapi->tx_prod].skb = NULL;
 drop:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 drop_nofree:
 	tp->tx_dropped++;
 	return NETDEV_TX_OK;
@@ -11361,12 +11374,10 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		msix_ent[i].vector = 0;
 	}
 
-	rc = pci_enable_msix(tp->pdev, msix_ent, tp->irq_cnt);
+	rc = pci_enable_msix_range(tp->pdev, msix_ent, 1, tp->irq_cnt);
 	if (rc < 0) {
 		return false;
-	} else if (rc != 0) {
-		if (pci_enable_msix(tp->pdev, msix_ent, rc))
-			return false;
+	} else if (rc < tp->irq_cnt) {
 		netdev_notice(tp->dev, "Requested %d MSI-X vectors, received %d\n",
 			      tp->irq_cnt, rc);
 		tp->irq_cnt = rc;
@@ -11884,9 +11895,9 @@ static int tg3_get_eeprom_len(struct net_device *dev)
 static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
 {
 	struct tg3 *tp = netdev_priv(dev);
-	int ret;
+	int ret, cpmu_restore = 0;
 	u8  *pd;
-	u32 i, offset, len, b_offset, b_count;
+	u32 i, offset, len, b_offset, b_count, cpmu_val = 0;
 	__be32 val;
 
 	if (tg3_flag(tp, NO_NVRAM))
@@ -11898,6 +11909,19 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 	eeprom->magic = TG3_EEPROM_MAGIC;
 
+	/* Override clock, link aware and link idle modes */
+	if (tg3_flag(tp, CPMU_PRESENT)) {
+		cpmu_val = tr32(TG3_CPMU_CTRL);
+		if (cpmu_val & (CPMU_CTRL_LINK_AWARE_MODE |
+				CPMU_CTRL_LINK_IDLE_MODE)) {
+			tw32(TG3_CPMU_CTRL, cpmu_val &
+					    ~(CPMU_CTRL_LINK_AWARE_MODE |
+					     CPMU_CTRL_LINK_IDLE_MODE));
+			cpmu_restore = 1;
+		}
+	}
+	tg3_override_clk(tp);
+
 	if (offset & 3) {
 		/* adjustments to start on required 4 byte boundary */
 		b_offset = offset & 3;
@@ -11908,7 +11932,7 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		}
 		ret = tg3_nvram_read_be32(tp, offset-b_offset, &val);
 		if (ret)
-			return ret;
+			goto eeprom_done;
 		memcpy(data, ((char *)&val) + b_offset, b_count);
 		len -= b_count;
 		offset += b_count;
@@ -11920,10 +11944,20 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	for (i = 0; i < (len - (len & 3)); i += 4) {
 		ret = tg3_nvram_read_be32(tp, offset + i, &val);
 		if (ret) {
+			if (i)
+				i -= 4;
 			eeprom->len += i;
-			return ret;
+			goto eeprom_done;
 		}
 		memcpy(pd + i, &val, 4);
+		if (need_resched()) {
+			if (signal_pending(current)) {
+				eeprom->len += i;
+				ret = -EINTR;
+				goto eeprom_done;
+			}
+			cond_resched();
+		}
 	}
 	eeprom->len += i;
 
@@ -11934,11 +11968,19 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		b_offset = offset + len - b_count;
 		ret = tg3_nvram_read_be32(tp, b_offset, &val);
 		if (ret)
-			return ret;
+			goto eeprom_done;
 		memcpy(pd, &val, b_count);
 		eeprom->len += b_count;
 	}
-	return 0;
+	ret = 0;
+
+eeprom_done:
+	/* Restore clock, link aware and link idle modes */
+	tg3_restore_clk(tp);
+	if (cpmu_restore)
+		tw32(TG3_CPMU_CTRL, cpmu_val);
+
+	return ret;
 }
 
 static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
@@ -12294,7 +12336,9 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 	if (tg3_flag(tp, MAX_RXPEND_64) &&
 	    tp->rx_pending > 63)
 		tp->rx_pending = 63;
-	tp->rx_jumbo_pending = ering->rx_jumbo_pending;
+
+	if (tg3_flag(tp, JUMBO_RING_ENABLE))
+		tp->rx_jumbo_pending = ering->rx_jumbo_pending;
 
 	for (i = 0; i < tp->irq_max; i++)
 		tp->napi[i].tx_pending = ering->tx_pending;
@@ -12490,7 +12534,7 @@ static u32 tg3_get_rxfh_indir_size(struct net_device *dev)
 	return size;
 }
 
-static int tg3_get_rxfh_indir(struct net_device *dev, u32 *indir)
+static int tg3_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	int i;
@@ -12501,7 +12545,7 @@ static int tg3_get_rxfh_indir(struct net_device *dev, u32 *indir)
 	return 0;
 }
 
-static int tg3_set_rxfh_indir(struct net_device *dev, const u32 *indir)
+static int tg3_set_rxfh(struct net_device *dev, const u32 *indir, const u8 *key)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	size_t i;
@@ -14033,8 +14077,8 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_sset_count		= tg3_get_sset_count,
 	.get_rxnfc		= tg3_get_rxnfc,
 	.get_rxfh_indir_size    = tg3_get_rxfh_indir_size,
-	.get_rxfh_indir		= tg3_get_rxfh_indir,
-	.set_rxfh_indir		= tg3_set_rxfh_indir,
+	.get_rxfh		= tg3_get_rxfh,
+	.set_rxfh		= tg3_set_rxfh,
 	.get_channels		= tg3_get_channels,
 	.set_channels		= tg3_set_channels,
 	.get_ts_info		= tg3_get_ts_info,
@@ -14049,8 +14093,9 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 
 	spin_lock_bh(&tp->lock);
 	if (!tp->hw_stats) {
+		*stats = tp->net_stats_prev;
 		spin_unlock_bh(&tp->lock);
-		return &tp->net_stats_prev;
+		return stats;
 	}
 
 	tg3_get_nstats(tp, stats);
@@ -15882,7 +15927,7 @@ static inline u32 tg3_rx_ret_ring_size(struct tg3 *tp)
 		return TG3_RX_RET_MAX_SIZE_5705;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(tg3_write_reorder_chipsets) = {
+static const struct pci_device_id tg3_write_reorder_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_FE_GATE_700C) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8385_0) },
@@ -17141,7 +17186,7 @@ static int tg3_do_test_dma(struct tg3 *tp, u32 *buf, dma_addr_t buf_dma,
 
 #define TEST_BUFFER_SIZE	0x2000
 
-static DEFINE_PCI_DEVICE_TABLE(tg3_dma_wait_state_chipsets) = {
+static const struct pci_device_id tg3_dma_wait_state_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_PCI15) },
 	{ },
 };

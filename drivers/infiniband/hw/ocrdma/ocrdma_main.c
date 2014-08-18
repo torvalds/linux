@@ -39,10 +39,11 @@
 #include "ocrdma_ah.h"
 #include "be_roce.h"
 #include "ocrdma_hw.h"
+#include "ocrdma_stats.h"
 #include "ocrdma_abi.h"
 
-MODULE_VERSION(OCRDMA_ROCE_DEV_VERSION);
-MODULE_DESCRIPTION("Emulex RoCE HCA Driver");
+MODULE_VERSION(OCRDMA_ROCE_DRV_VERSION);
+MODULE_DESCRIPTION(OCRDMA_ROCE_DRV_DESC " " OCRDMA_ROCE_DRV_VERSION);
 MODULE_AUTHOR("Emulex Corporation");
 MODULE_LICENSE("GPL");
 
@@ -286,7 +287,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 
 	dev->ibdev.process_mad = ocrdma_process_mad;
 
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
+	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
 		dev->ibdev.uverbs_cmd_mask |=
 		     OCRDMA_UVERBS(CREATE_SRQ) |
 		     OCRDMA_UVERBS(MODIFY_SRQ) |
@@ -323,6 +324,11 @@ static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 		if (!dev->qp_tbl)
 			goto alloc_err;
 	}
+
+	dev->stag_arr = kzalloc(sizeof(u64) * OCRDMA_MAX_STAG, GFP_KERNEL);
+	if (dev->stag_arr == NULL)
+		goto alloc_err;
+
 	spin_lock_init(&dev->av_tbl.lock);
 	spin_lock_init(&dev->flush_q_lock);
 	return 0;
@@ -333,14 +339,110 @@ alloc_err:
 
 static void ocrdma_free_resources(struct ocrdma_dev *dev)
 {
+	kfree(dev->stag_arr);
 	kfree(dev->qp_tbl);
 	kfree(dev->cq_tbl);
 	kfree(dev->sgid_tbl);
 }
 
+/* OCRDMA sysfs interface */
+static ssize_t show_rev(struct device *device, struct device_attribute *attr,
+			char *buf)
+{
+	struct ocrdma_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
+}
+
+static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
+			char *buf)
+{
+	struct ocrdma_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->attr.fw_ver[0]);
+}
+
+static ssize_t show_hca_type(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct ocrdma_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
+}
+
+static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
+static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+static DEVICE_ATTR(hca_type, S_IRUGO, show_hca_type, NULL);
+
+static struct device_attribute *ocrdma_attributes[] = {
+	&dev_attr_hw_rev,
+	&dev_attr_fw_ver,
+	&dev_attr_hca_type
+};
+
+static void ocrdma_remove_sysfiles(struct ocrdma_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ocrdma_attributes); i++)
+		device_remove_file(&dev->ibdev.dev, ocrdma_attributes[i]);
+}
+
+static void ocrdma_init_ipv4_gids(struct ocrdma_dev *dev,
+				  struct net_device *net)
+{
+	struct in_device *in_dev;
+	union ib_gid gid;
+	in_dev = in_dev_get(net);
+	if (in_dev) {
+		for_ifa(in_dev) {
+			ipv6_addr_set_v4mapped(ifa->ifa_address,
+					       (struct in6_addr *)&gid);
+			ocrdma_add_sgid(dev, &gid);
+		}
+		endfor_ifa(in_dev);
+		in_dev_put(in_dev);
+	}
+}
+
+static void ocrdma_init_ipv6_gids(struct ocrdma_dev *dev,
+				  struct net_device *net)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	struct inet6_dev *in6_dev;
+	union ib_gid  *pgid;
+	struct inet6_ifaddr *ifp;
+	in6_dev = in6_dev_get(net);
+	if (in6_dev) {
+		read_lock_bh(&in6_dev->lock);
+		list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
+			pgid = (union ib_gid *)&ifp->addr;
+			ocrdma_add_sgid(dev, pgid);
+		}
+		read_unlock_bh(&in6_dev->lock);
+		in6_dev_put(in6_dev);
+	}
+#endif
+}
+
+static void ocrdma_init_gid_table(struct ocrdma_dev *dev)
+{
+	struct  net_device *net_dev;
+
+	for_each_netdev(&init_net, net_dev) {
+		struct net_device *real_dev = rdma_vlan_dev_real_dev(net_dev) ?
+				rdma_vlan_dev_real_dev(net_dev) : net_dev;
+
+		if (real_dev == dev->nic_info.netdev) {
+			ocrdma_init_ipv4_gids(dev, net_dev);
+			ocrdma_init_ipv6_gids(dev, net_dev);
+		}
+	}
+}
+
 static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 {
-	int status = 0;
+	int status = 0, i;
 	struct ocrdma_dev *dev;
 
 	dev = (struct ocrdma_dev *)ib_alloc_device(sizeof(struct ocrdma_dev));
@@ -365,15 +467,31 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	if (status)
 		goto alloc_err;
 
+	ocrdma_init_service_level(dev);
+	ocrdma_init_gid_table(dev);
 	status = ocrdma_register_device(dev);
 	if (status)
 		goto alloc_err;
 
+	for (i = 0; i < ARRAY_SIZE(ocrdma_attributes); i++)
+		if (device_create_file(&dev->ibdev.dev, ocrdma_attributes[i]))
+			goto sysfs_err;
 	spin_lock(&ocrdma_devlist_lock);
 	list_add_tail_rcu(&dev->entry, &ocrdma_dev_list);
 	spin_unlock(&ocrdma_devlist_lock);
+	/* Init stats */
+	ocrdma_add_port_stats(dev);
+
+	pr_info("%s %s: %s \"%s\" port %d\n",
+		dev_name(&dev->nic_info.pdev->dev), hca_name(dev),
+		port_speed_string(dev), dev->model_number,
+		dev->hba_port_num);
+	pr_info("%s ocrdma%d driver loaded successfully\n",
+		dev_name(&dev->nic_info.pdev->dev), dev->id);
 	return dev;
 
+sysfs_err:
+	ocrdma_remove_sysfiles(dev);
 alloc_err:
 	ocrdma_free_resources(dev);
 	ocrdma_cleanup_hw(dev);
@@ -400,6 +518,9 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	/* first unregister with stack to stop all the active traffic
 	 * of the registered clients.
 	 */
+	ocrdma_rem_port_stats(dev);
+	ocrdma_remove_sysfiles(dev);
+
 	ib_unregister_device(&dev->ibdev);
 
 	spin_lock(&ocrdma_devlist_lock);
@@ -437,7 +558,7 @@ static int ocrdma_close(struct ocrdma_dev *dev)
 		cur_qp = dev->qp_tbl;
 		for (i = 0; i < OCRDMA_MAX_QP; i++) {
 			qp = cur_qp[i];
-			if (qp) {
+			if (qp && qp->ibqp.qp_type != IB_QPT_GSI) {
 				/* change the QP state to ERROR */
 				_ocrdma_modify_qp(&qp->ibqp, &attrs, attr_mask);
 
@@ -457,6 +578,12 @@ static int ocrdma_close(struct ocrdma_dev *dev)
 	return 0;
 }
 
+static void ocrdma_shutdown(struct ocrdma_dev *dev)
+{
+	ocrdma_close(dev);
+	ocrdma_remove(dev);
+}
+
 /* event handling via NIC driver ensures that all the NIC specific
  * initialization done before RoCE driver notifies
  * event to stack.
@@ -470,6 +597,9 @@ static void ocrdma_event_handler(struct ocrdma_dev *dev, u32 event)
 	case BE_DEV_DOWN:
 		ocrdma_close(dev);
 		break;
+	case BE_DEV_SHUTDOWN:
+		ocrdma_shutdown(dev);
+		break;
 	}
 }
 
@@ -478,6 +608,7 @@ static struct ocrdma_driver ocrdma_drv = {
 	.add			= ocrdma_add,
 	.remove			= ocrdma_remove,
 	.state_change_handler	= ocrdma_event_handler,
+	.be_abi_version		= OCRDMA_BE_ROCE_ABI_VERSION,
 };
 
 static void ocrdma_unregister_inet6addr_notifier(void)
@@ -487,9 +618,16 @@ static void ocrdma_unregister_inet6addr_notifier(void)
 #endif
 }
 
+static void ocrdma_unregister_inetaddr_notifier(void)
+{
+	unregister_inetaddr_notifier(&ocrdma_inetaddr_notifier);
+}
+
 static int __init ocrdma_init_module(void)
 {
 	int status;
+
+	ocrdma_init_debugfs();
 
 	status = register_inetaddr_notifier(&ocrdma_inetaddr_notifier);
 	if (status)
@@ -498,13 +636,19 @@ static int __init ocrdma_init_module(void)
 #if IS_ENABLED(CONFIG_IPV6)
 	status = register_inet6addr_notifier(&ocrdma_inet6addr_notifier);
 	if (status)
-		return status;
+		goto err_notifier6;
 #endif
 
 	status = be_roce_register_driver(&ocrdma_drv);
 	if (status)
-		ocrdma_unregister_inet6addr_notifier();
+		goto err_be_reg;
 
+	return 0;
+
+err_be_reg:
+	ocrdma_unregister_inet6addr_notifier();
+err_notifier6:
+	ocrdma_unregister_inetaddr_notifier();
 	return status;
 }
 
@@ -512,6 +656,8 @@ static void __exit ocrdma_exit_module(void)
 {
 	be_roce_unregister_driver(&ocrdma_drv);
 	ocrdma_unregister_inet6addr_notifier();
+	ocrdma_unregister_inetaddr_notifier();
+	ocrdma_rem_debugfs();
 }
 
 module_init(ocrdma_init_module);

@@ -322,18 +322,23 @@ static void card_reset_dsp(struct ft1000_usb *ft1000dev, bool value)
 *               ptempbuffer - command buffer
 *               size - command buffer size
 */
-void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
+int card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 		       int size)
 {
+	int ret;
 	unsigned short temp;
 	unsigned char *commandbuf;
 
 	DEBUG("card_send_command: enter card_send_command... size=%d\n", size);
 
 	commandbuf = kmalloc(size + 2, GFP_KERNEL);
+	if (!commandbuf)
+		return -ENOMEM;
 	memcpy((void *)commandbuf + 2, (void *)ptempbuffer, size);
 
-	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	ret = ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	if (ret)
+		return ret;
 
 	if (temp & 0x0100)
 		usleep_range(900, 1100);
@@ -345,19 +350,23 @@ void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 	if (size % 4)
 		size += 4 - (size % 4);
 
-	ft1000_write_dpram32(ft1000dev, 0, commandbuf, size);
+	ret = ft1000_write_dpram32(ft1000dev, 0, commandbuf, size);
+	if (ret)
+		return ret;
 	usleep_range(900, 1100);
-	ft1000_write_register(ft1000dev, FT1000_DB_DPRAM_TX,
+	ret = ft1000_write_register(ft1000dev, FT1000_DB_DPRAM_TX,
 			      FT1000_REG_DOORBELL);
+	if (ret)
+		return ret;
 	usleep_range(900, 1100);
 
-	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	ret = ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
 
 #if 0
 	if ((temp & 0x0100) == 0)
 		DEBUG("card_send_command: Message sent\n");
 #endif
-
+	return ret;
 }
 
 /* load or reload the DSP */
@@ -1145,7 +1154,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 
 	char *cmdbuffer = kmalloc(1600, GFP_KERNEL);
 	if (!cmdbuffer)
-		return -1;
+		return -ENOMEM;
 
 	status = ft1000_read_dpram32(dev, 0x200, cmdbuffer, size);
 
@@ -1375,8 +1384,10 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			*pmsg++ = convert.wrd;
 			*pmsg++ = htons(info->DrvErrNum);
 
-			card_send_command(dev, (unsigned char *)&tempbuffer[0],
+			status = card_send_command(dev, (unsigned char *)&tempbuffer[0],
 					(u16)(0x0012 + PSEUDOSZ));
+			if (status)
+				goto out;
 			info->DrvErrNum = 0;
 		}
 		dev->DrvMsgPend = 0;

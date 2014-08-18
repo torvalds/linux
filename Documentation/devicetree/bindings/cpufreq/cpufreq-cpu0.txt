@@ -8,10 +8,12 @@ Both required and optional properties listed below must be defined
 under node /cpus/cpu@0.
 
 Required properties:
-- operating-points: Refer to Documentation/devicetree/bindings/power/opp.txt
-  for details
+- None
 
 Optional properties:
+- operating-points: Refer to Documentation/devicetree/bindings/power/opp.txt for
+  details. OPPs *must* be supplied either via DT, i.e. this property, or
+  populated at runtime.
 - clock-latency: Specify the possible maximum transition latency for clock,
   in unit of nanoseconds.
 - voltage-tolerance: Specify the CPU voltage tolerance in percentage.

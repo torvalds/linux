@@ -46,8 +46,6 @@ struct max1586_data {
 
 	unsigned int v3_curr_sel;
 	unsigned int v6_curr_sel;
-
-	struct regulator_dev *rdev[0];
 };
 
 /*
@@ -162,14 +160,12 @@ static struct regulator_desc max1586_reg[] = {
 static int max1586_pmic_probe(struct i2c_client *client,
 					const struct i2c_device_id *i2c_id)
 {
-	struct regulator_dev **rdev;
 	struct max1586_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct regulator_config config = { };
 	struct max1586_data *max1586;
 	int i, id;
 
-	max1586 = devm_kzalloc(&client->dev, sizeof(struct max1586_data) +
-			sizeof(struct regulator_dev *) * (MAX1586_V6 + 1),
+	max1586 = devm_kzalloc(&client->dev, sizeof(struct max1586_data),
 			GFP_KERNEL);
 	if (!max1586)
 		return -ENOMEM;
@@ -186,8 +182,9 @@ static int max1586_pmic_probe(struct i2c_client *client,
 	max1586->v3_curr_sel = 24; /* 1.3V */
 	max1586->v6_curr_sel = 0;
 
-	rdev = max1586->rdev;
 	for (i = 0; i < pdata->num_subdevs && i <= MAX1586_V6; i++) {
+		struct regulator_dev *rdev;
+
 		id = pdata->subdevs[i].id;
 		if (!pdata->subdevs[i].platform_data)
 			continue;
@@ -207,12 +204,12 @@ static int max1586_pmic_probe(struct i2c_client *client,
 		config.init_data = pdata->subdevs[i].platform_data;
 		config.driver_data = max1586;
 
-		rdev[i] = devm_regulator_register(&client->dev,
+		rdev = devm_regulator_register(&client->dev,
 						  &max1586_reg[id], &config);
-		if (IS_ERR(rdev[i])) {
+		if (IS_ERR(rdev)) {
 			dev_err(&client->dev, "failed to register %s\n",
 				max1586_reg[id].name);
-			return PTR_ERR(rdev[i]);
+			return PTR_ERR(rdev);
 		}
 	}
 

@@ -396,7 +396,7 @@ static int snd_sh_dac_probe(struct platform_device *devptr)
 	struct snd_card *card;
 	int err;
 
-	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0) {
 			snd_printk(KERN_ERR "cannot allocate the card\n");
 			return err;

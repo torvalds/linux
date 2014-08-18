@@ -27,6 +27,7 @@
 #include <net/netlink.h>
 #include <linux/nl802154.h>
 #include <net/mac802154.h>
+#include <net/ieee802154_netdev.h>
 #include <net/route.h>
 #include <net/wpan-phy.h>
 
@@ -35,8 +36,27 @@
 int mac802154_slave_open(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct mac802154_sub_if_data *subif;
 	struct mac802154_priv *ipriv = priv->hw;
 	int res = 0;
+
+	ASSERT_RTNL();
+
+	if (priv->type == IEEE802154_DEV_WPAN) {
+		mutex_lock(&priv->hw->slaves_mtx);
+		list_for_each_entry(subif, &priv->hw->slaves, list) {
+			if (subif != priv && subif->type == priv->type &&
+			    subif->running) {
+				mutex_unlock(&priv->hw->slaves_mtx);
+				return -EBUSY;
+			}
+		}
+		mutex_unlock(&priv->hw->slaves_mtx);
+	}
+
+	mutex_lock(&priv->hw->slaves_mtx);
+	priv->running = true;
+	mutex_unlock(&priv->hw->slaves_mtx);
 
 	if (ipriv->open_count++ == 0) {
 		res = ipriv->ops->start(&ipriv->hw);
@@ -46,7 +66,9 @@ int mac802154_slave_open(struct net_device *dev)
 	}
 
 	if (ipriv->ops->ieee_addr) {
-		res = ipriv->ops->ieee_addr(&ipriv->hw, dev->dev_addr);
+		__le64 addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+
+		res = ipriv->ops->ieee_addr(&ipriv->hw, addr);
 		WARN_ON(res);
 		if (res)
 			goto err;
@@ -66,7 +88,13 @@ int mac802154_slave_close(struct net_device *dev)
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	struct mac802154_priv *ipriv = priv->hw;
 
+	ASSERT_RTNL();
+
 	netif_stop_queue(dev);
+
+	mutex_lock(&priv->hw->slaves_mtx);
+	priv->running = false;
+	mutex_unlock(&priv->hw->slaves_mtx);
 
 	if (!--ipriv->open_count)
 		ipriv->ops->stop(&ipriv->hw);
@@ -115,6 +143,7 @@ static void
 mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev)
 {
 	struct mac802154_sub_if_data *sdata;
+
 	ASSERT_RTNL();
 
 	sdata = netdev_priv(dev);
@@ -138,11 +167,13 @@ mac802154_add_iface(struct wpan_phy *phy, const char *name, int type)
 	switch (type) {
 	case IEEE802154_DEV_MONITOR:
 		dev = alloc_netdev(sizeof(struct mac802154_sub_if_data),
-				   name, mac802154_monitor_setup);
+				   name, NET_NAME_UNKNOWN,
+				   mac802154_monitor_setup);
 		break;
 	case IEEE802154_DEV_WPAN:
 		dev = alloc_netdev(sizeof(struct mac802154_sub_if_data),
-				   name, mac802154_wpan_setup);
+				   name, NET_NAME_UNKNOWN,
+				   mac802154_wpan_setup);
 		break;
 	default:
 		dev = NULL;
@@ -163,6 +194,49 @@ err_free:
 	free_netdev(dev);
 err:
 	return ERR_PTR(err);
+}
+
+static int mac802154_set_txpower(struct wpan_phy *phy, int db)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_txpower(&priv->hw, db);
+}
+
+static int mac802154_set_lbt(struct wpan_phy *phy, bool on)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_lbt(&priv->hw, on);
+}
+
+static int mac802154_set_cca_mode(struct wpan_phy *phy, u8 mode)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_cca_mode(&priv->hw, mode);
+}
+
+static int mac802154_set_cca_ed_level(struct wpan_phy *phy, s32 level)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_cca_ed_level(&priv->hw, level);
+}
+
+static int mac802154_set_csma_params(struct wpan_phy *phy, u8 min_be,
+				     u8 max_be, u8 retries)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_csma_params(&priv->hw, min_be, max_be, retries);
+}
+
+static int mac802154_set_frame_retries(struct wpan_phy *phy, s8 retries)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_frame_retries(&priv->hw, retries);
 }
 
 struct ieee802154_dev *
@@ -205,7 +279,8 @@ ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 	}
 
 	priv = wpan_phy_priv(phy);
-	priv->hw.phy = priv->phy = phy;
+	priv->phy = phy;
+	priv->hw.phy = priv->phy;
 	priv->hw.priv = (char *)priv + ALIGN(sizeof(*priv), NETDEV_ALIGN);
 	priv->ops = ops;
 
@@ -231,12 +306,56 @@ EXPORT_SYMBOL(ieee802154_free_device);
 int ieee802154_register_device(struct ieee802154_dev *dev)
 {
 	struct mac802154_priv *priv = mac802154_to_priv(dev);
-	int rc = -ENOMEM;
+	int rc = -ENOSYS;
+
+	if (dev->flags & IEEE802154_HW_TXPOWER) {
+		if (!priv->ops->set_txpower)
+			goto out;
+
+		priv->phy->set_txpower = mac802154_set_txpower;
+	}
+
+	if (dev->flags & IEEE802154_HW_LBT) {
+		if (!priv->ops->set_lbt)
+			goto out;
+
+		priv->phy->set_lbt = mac802154_set_lbt;
+	}
+
+	if (dev->flags & IEEE802154_HW_CCA_MODE) {
+		if (!priv->ops->set_cca_mode)
+			goto out;
+
+		priv->phy->set_cca_mode = mac802154_set_cca_mode;
+	}
+
+	if (dev->flags & IEEE802154_HW_CCA_ED_LEVEL) {
+		if (!priv->ops->set_cca_ed_level)
+			goto out;
+
+		priv->phy->set_cca_ed_level = mac802154_set_cca_ed_level;
+	}
+
+	if (dev->flags & IEEE802154_HW_CSMA_PARAMS) {
+		if (!priv->ops->set_csma_params)
+			goto out;
+
+		priv->phy->set_csma_params = mac802154_set_csma_params;
+	}
+
+	if (dev->flags & IEEE802154_HW_FRAME_RETRIES) {
+		if (!priv->ops->set_frame_retries)
+			goto out;
+
+		priv->phy->set_frame_retries = mac802154_set_frame_retries;
+	}
 
 	priv->dev_workqueue =
 		create_singlethread_workqueue(wpan_phy_name(priv->phy));
-	if (!priv->dev_workqueue)
+	if (!priv->dev_workqueue) {
+		rc = -ENOMEM;
 		goto out;
+	}
 
 	wpan_phy_set_dev(priv->phy, priv->hw.parent);
 

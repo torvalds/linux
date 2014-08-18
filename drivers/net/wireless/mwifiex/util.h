@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: utility functions
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -20,18 +20,57 @@
 #ifndef _MWIFIEX_UTIL_H_
 #define _MWIFIEX_UTIL_H_
 
+struct mwifiex_dma_mapping {
+	dma_addr_t addr;
+	size_t len;
+};
+
+struct mwifiex_cb {
+	struct mwifiex_dma_mapping dma_mapping;
+	union {
+		struct mwifiex_rxinfo rx_info;
+		struct mwifiex_txinfo tx_info;
+	};
+};
+
 static inline struct mwifiex_rxinfo *MWIFIEX_SKB_RXCB(struct sk_buff *skb)
 {
-	return (struct mwifiex_rxinfo *)(skb->cb + sizeof(dma_addr_t));
+	struct mwifiex_cb *cb = (struct mwifiex_cb *)skb->cb;
+
+	BUILD_BUG_ON(sizeof(struct mwifiex_cb) > sizeof(skb->cb));
+	return &cb->rx_info;
 }
 
 static inline struct mwifiex_txinfo *MWIFIEX_SKB_TXCB(struct sk_buff *skb)
 {
-	return (struct mwifiex_txinfo *)(skb->cb + sizeof(dma_addr_t));
+	struct mwifiex_cb *cb = (struct mwifiex_cb *)skb->cb;
+
+	return &cb->tx_info;
 }
 
-static inline void MWIFIEX_SKB_PACB(struct sk_buff *skb, dma_addr_t *buf_pa)
+static inline void mwifiex_store_mapping(struct sk_buff *skb,
+					 struct mwifiex_dma_mapping *mapping)
 {
-	memcpy(buf_pa, skb->cb, sizeof(dma_addr_t));
+	struct mwifiex_cb *cb = (struct mwifiex_cb *)skb->cb;
+
+	memcpy(&cb->dma_mapping, mapping, sizeof(*mapping));
 }
+
+static inline void mwifiex_get_mapping(struct sk_buff *skb,
+				       struct mwifiex_dma_mapping *mapping)
+{
+	struct mwifiex_cb *cb = (struct mwifiex_cb *)skb->cb;
+
+	memcpy(mapping, &cb->dma_mapping, sizeof(*mapping));
+}
+
+static inline dma_addr_t MWIFIEX_SKB_DMA_ADDR(struct sk_buff *skb)
+{
+	struct mwifiex_dma_mapping mapping;
+
+	mwifiex_get_mapping(skb, &mapping);
+
+	return mapping.addr;
+}
+
 #endif /* !_MWIFIEX_UTIL_H_ */

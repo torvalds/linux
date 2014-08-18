@@ -27,6 +27,7 @@
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
 #include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
 #include <mach/mux.h>
 #include <linux/platform_data/spi-davinci.h>
 
@@ -432,6 +433,9 @@ static void __init mityomapl138_setup_nand(void)
 {
 	platform_add_devices(mityomapl138_devices,
 				 ARRAY_SIZE(mityomapl138_devices));
+
+	if (davinci_aemif_setup(&mityomapl138_nandflash_device))
+		pr_warn("%s: Cannot configure AEMIF.\n", __func__);
 }
 
 static const short mityomap_mii_pins[] = {

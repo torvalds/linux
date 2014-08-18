@@ -7,6 +7,7 @@
 
 #include "data.h"
 #include "util.h"
+#include "debug.h"
 
 static bool check_pipe(struct perf_data_file *file)
 {
@@ -65,7 +66,7 @@ static int open_file_read(struct perf_data_file *file)
 		goto out_close;
 
 	if (!file->force && st.st_uid && (st.st_uid != geteuid())) {
-		pr_err("file %s not owned by current user or root\n",
+		pr_err("File %s not owned by current user or root (use -f to override)\n",
 		       file->path);
 		goto out_close;
 	}
@@ -86,10 +87,17 @@ static int open_file_read(struct perf_data_file *file)
 
 static int open_file_write(struct perf_data_file *file)
 {
+	int fd;
+
 	if (check_backup(file))
 		return -1;
 
-	return open(file->path, O_CREAT|O_RDWR|O_TRUNC, S_IRUSR|S_IWUSR);
+	fd = open(file->path, O_CREAT|O_RDWR|O_TRUNC, S_IRUSR|S_IWUSR);
+
+	if (fd < 0)
+		pr_err("failed to open %s : %s\n", file->path, strerror(errno));
+
+	return fd;
 }
 
 static int open_file(struct perf_data_file *file)

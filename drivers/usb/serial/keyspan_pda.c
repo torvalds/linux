@@ -189,7 +189,7 @@ exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		dev_err(&port->dev,
-			"%s - usb_submit_urb failed with result %d",
+			"%s - usb_submit_urb failed with result %d\n",
 			__func__, retval);
 }
 

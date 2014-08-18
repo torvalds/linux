@@ -142,6 +142,7 @@ static void start_syslog(void)
 static void prepare_logging(void)
 {
 	int i;
+	struct stat logstat;
 
 	if (!logging)
 		return;
@@ -151,6 +152,29 @@ static void prepare_logging(void)
 		syslog(LOG_ERR, "failed to open log file %s\n", TMON_LOG_FILE);
 		return;
 	}
+
+	if (lstat(TMON_LOG_FILE, &logstat) < 0) {
+		syslog(LOG_ERR, "Unable to stat log file %s\n", TMON_LOG_FILE);
+		fclose(tmon_log);
+		tmon_log = NULL;
+		return;
+	}
+
+	/* The log file must be a regular file owned by us */
+	if (S_ISLNK(logstat.st_mode)) {
+		syslog(LOG_ERR, "Log file is a symlink.  Will not log\n");
+		fclose(tmon_log);
+		tmon_log = NULL;
+		return;
+	}
+
+	if (logstat.st_uid != getuid()) {
+		syslog(LOG_ERR, "We don't own the log file.  Not logging\n");
+		fclose(tmon_log);
+		tmon_log = NULL;
+		return;
+	}
+
 
 	fprintf(tmon_log, "#----------- THERMAL SYSTEM CONFIG -------------\n");
 	for (i = 0; i < ptdata.nr_tz_sensor; i++) {
@@ -331,7 +355,7 @@ static void start_daemon_mode()
 	disable_tui();
 
 	/* change the file mode mask */
-	umask(0);
+	umask(S_IWGRP | S_IWOTH);
 
 	/* new SID for the daemon process */
 	sid = setsid();

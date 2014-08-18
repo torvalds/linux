@@ -75,7 +75,7 @@ void vmw_display_unit_cleanup(struct vmw_display_unit *du)
 		vmw_surface_unreference(&du->cursor_surface);
 	if (du->cursor_dmabuf)
 		vmw_dmabuf_unreference(&du->cursor_dmabuf);
-	drm_sysfs_connector_remove(&du->connector);
+	drm_connector_unregister(&du->connector);
 	drm_crtc_cleanup(&du->crtc);
 	drm_encoder_cleanup(&du->encoder);
 	drm_connector_cleanup(&du->connector);
@@ -136,7 +136,7 @@ int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
 	kmap_offset = 0;
 	kmap_num = (width*height*4 + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	ret = ttm_bo_reserve(&dmabuf->base, true, false, false, 0);
+	ret = ttm_bo_reserve(&dmabuf->base, true, false, false, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("reserve failed\n");
 		return -EINVAL;
@@ -187,7 +187,7 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	 * can do this since the caller in the drm core doesn't check anything
 	 * which is protected by any looks.
 	 */
-	mutex_unlock(&crtc->mutex);
+	drm_modeset_unlock(&crtc->mutex);
 	drm_modeset_lock_all(dev_priv->dev);
 
 	/* A lot of the code assumes this */
@@ -252,7 +252,7 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	ret = 0;
 out:
 	drm_modeset_unlock_all(dev_priv->dev);
-	mutex_lock(&crtc->mutex);
+	drm_modeset_lock(&crtc->mutex, NULL);
 
 	return ret;
 }
@@ -273,7 +273,7 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	 * can do this since the caller in the drm core doesn't check anything
 	 * which is protected by any looks.
 	 */
-	mutex_unlock(&crtc->mutex);
+	drm_modeset_unlock(&crtc->mutex);
 	drm_modeset_lock_all(dev_priv->dev);
 
 	vmw_cursor_update_position(dev_priv, shown,
@@ -281,7 +281,7 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 				   du->cursor_y + du->hotspot_y);
 
 	drm_modeset_unlock_all(dev_priv->dev);
-	mutex_lock(&crtc->mutex);
+	drm_modeset_lock(&crtc->mutex, NULL);
 
 	return 0;
 }
@@ -343,7 +343,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	kmap_offset = cmd->dma.guest.ptr.offset >> PAGE_SHIFT;
 	kmap_num = (64*64*4) >> PAGE_SHIFT;
 
-	ret = ttm_bo_reserve(bo, true, false, false, 0);
+	ret = ttm_bo_reserve(bo, true, false, false, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("reserve failed\n");
 		return;
@@ -468,7 +468,7 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
 			    head) {
-		if (crtc->fb != &framebuffer->base)
+		if (crtc->primary->fb != &framebuffer->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -596,7 +596,6 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 				  unsigned num_clips)
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct vmw_framebuffer_surface *vfbs =
 		vmw_framebuffer_to_vfbs(framebuffer);
 	struct drm_clip_rect norect;
@@ -611,7 +610,7 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 
 	drm_modeset_lock_all(dev_priv->dev);
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0)) {
 		drm_modeset_unlock_all(dev_priv->dev);
 		return ret;
@@ -632,7 +631,7 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 				   flags, color,
 				   clips, num_clips, inc, NULL);
 
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 
 	drm_modeset_unlock_all(dev_priv->dev);
 
@@ -883,7 +882,7 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &framebuffer->base)
+		if (crtc->primary->fb != &framebuffer->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -954,7 +953,6 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 				 unsigned num_clips)
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct vmw_framebuffer_dmabuf *vfbd =
 		vmw_framebuffer_to_vfbd(framebuffer);
 	struct drm_clip_rect norect;
@@ -962,7 +960,7 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 
 	drm_modeset_lock_all(dev_priv->dev);
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0)) {
 		drm_modeset_unlock_all(dev_priv->dev);
 		return ret;
@@ -989,7 +987,7 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 					  clips, num_clips, increment, NULL);
 	}
 
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 
 	drm_modeset_unlock_all(dev_priv->dev);
 
@@ -1245,7 +1243,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &vfb->base)
+		if (crtc->primary->fb != &vfb->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -1382,7 +1380,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &vfb->base)
+		if (crtc->primary->fb != &vfb->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -1503,7 +1501,6 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_vmw_cursor_bypass_arg *arg = data;
 	struct vmw_display_unit *du;
-	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	int ret = 0;
 
@@ -1521,13 +1518,12 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	obj = drm_mode_object_find(dev, arg->crtc_id, DRM_MODE_OBJECT_CRTC);
-	if (!obj) {
+	crtc = drm_crtc_find(dev, arg->crtc_id);
+	if (!crtc) {
 		ret = -ENOENT;
 		goto out;
 	}
 
-	crtc = obj_to_crtc(obj);
 	du = vmw_crtc_to_du(crtc);
 
 	du->hotspot_x = arg->xhot;
@@ -1725,7 +1721,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 		     uint32_t page_flip_flags)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct drm_framebuffer *old_fb = crtc->fb;
+	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
 	struct drm_file *file_priv ;
 	struct vmw_fence_obj *fence = NULL;
@@ -1743,7 +1739,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 	if (!vmw_kms_screen_object_flippable(dev_priv, crtc))
 		return -EINVAL;
 
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 
 	/* do a full screen dirty update */
 	clips.x1 = clips.y1 = 0;
@@ -1783,7 +1779,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 	return ret;
 
 out_no_fence:
-	crtc->fb = old_fb;
+	crtc->primary->fb = old_fb;
 	return ret;
 }
 
@@ -2003,7 +1999,7 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 	if (du->pref_mode)
 		list_move(&du->pref_mode->head, &connector->probed_modes);
 
-	drm_mode_connector_list_update(connector);
+	drm_mode_connector_list_update(connector, true);
 
 	return 1;
 }
@@ -2022,7 +2018,6 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct drm_vmw_update_layout_arg *arg =
 		(struct drm_vmw_update_layout_arg *)data;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	void __user *user_rects;
 	struct drm_vmw_rect *rects;
 	unsigned rects_size;
@@ -2030,7 +2025,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	int i;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -2072,6 +2067,6 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 out_free:
 	kfree(rects);
 out_unlock:
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }

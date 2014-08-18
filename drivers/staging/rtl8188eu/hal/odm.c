@@ -183,7 +183,6 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 	odm_RateAdaptiveMaskInit(pDM_Odm);
 
 	odm_PrimaryCCA_Init(pDM_Odm);    /*  Gary */
-	odm_DynamicBBPowerSavingInit(pDM_Odm);
 	odm_DynamicTxPowerInit(pDM_Odm);
 	odm_TXPowerTrackingInit(pDM_Odm);
 	ODM_EdcaTurboInit(pDM_Odm);
@@ -215,8 +214,6 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 
 	odm_RefreshRateAdaptiveMask(pDM_Odm);
 
-	odm_DynamicBBPowerSaving(pDM_Odm);
-	odm_DynamicPrimaryCCA(pDM_Odm);
 	if ((pDM_Odm->AntDivType ==  CG_TRX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
@@ -224,7 +221,6 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 
 	ODM_TXPowerTrackingCheck(pDM_Odm);
 	odm_EdcaTurboCheck(pDM_Odm);
-	odm_DynamicTxPower(pDM_Odm);
 }
 
 /*  Init /.. Fixed HW value. Only init time. */
@@ -514,64 +510,10 @@ void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	struct adapter *adapter = pDM_Odm->Adapter;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
-		     ("ODM_REG(IGI_A,pDM_Odm)=0x%x, ODM_BIT(IGI,pDM_Odm)=0x%x\n",
-		     ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm)));
-
 	if (pDM_DigTable->CurIGValue != CurrentIGI) {
-		PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("CurrentIGI(0x%02x).\n", CurrentIGI));
-		/* pDM_DigTable->PreIGValue = pDM_DigTable->CurIGValue; */
+		PHY_SetBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N, CurrentIGI);
 		pDM_DigTable->CurIGValue = CurrentIGI;
 	}
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("ODM_Write_DIG():CurrentIGI=0x%x\n", CurrentIGI));
-
-/*  Add by Neil Chen to enable edcca to MP Platform */
-}
-
-/* Need LPS mode for CE platform --2012--08--24--- */
-/* 8723AS/8189ES */
-void odm_DIGbyRSSI_LPS(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *pAdapter = pDM_Odm->Adapter;
-	struct false_alarm_stats *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
-
-	u8 RSSI_Lower = DM_DIG_MIN_NIC;   /* 0x1E or 0x1C */
-	u8 bFwCurrentInPSMode = false;
-	u8 CurrentIGI = pDM_Odm->RSSI_Min;
-
-	CurrentIGI = CurrentIGI + RSSI_OFFSET_DIG;
-	bFwCurrentInPSMode = pAdapter->pwrctrlpriv.bFwCurrentInPSMode;
-
-	/*  Using FW PS mode to make IGI */
-	if (bFwCurrentInPSMode) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("---Neil---odm_DIG is in LPS mode\n"));
-		/* Adjust by  FA in LPS MODE */
-		if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2_LPS)
-			CurrentIGI = CurrentIGI+2;
-		else if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH1_LPS)
-			CurrentIGI = CurrentIGI+1;
-		else if (pFalseAlmCnt->Cnt_all < DM_DIG_FA_TH0_LPS)
-			CurrentIGI = CurrentIGI-1;
-	} else {
-		CurrentIGI = RSSI_Lower;
-	}
-
-	/* Lower bound checking */
-
-	/* RSSI Lower bound check */
-	if ((pDM_Odm->RSSI_Min-10) > DM_DIG_MIN_NIC)
-		RSSI_Lower = (pDM_Odm->RSSI_Min-10);
-	else
-		RSSI_Lower = DM_DIG_MIN_NIC;
-
-	/* Upper and Lower Bound checking */
-	 if (CurrentIGI > DM_DIG_MAX_NIC)
-		CurrentIGI = DM_DIG_MAX_NIC;
-	 else if (CurrentIGI < RSSI_Lower)
-		CurrentIGI = RSSI_Lower;
-
-	ODM_Write_DIG(pDM_Odm, CurrentIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
 }
 
 void odm_DIGInit(struct odm_dm_struct *pDM_Odm)
@@ -579,7 +521,7 @@ void odm_DIGInit(struct odm_dm_struct *pDM_Odm)
 	struct adapter *adapter = pDM_Odm->Adapter;
 	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
-	pDM_DigTable->CurIGValue = (u8) PHY_QueryBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm));
+	pDM_DigTable->CurIGValue = (u8) PHY_QueryBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N);
 	pDM_DigTable->RssiLowThresh	= DM_DIG_THRESH_LOW;
 	pDM_DigTable->RssiHighThresh	= DM_DIG_THRESH_HIGH;
 	pDM_DigTable->FALowThresh	= DM_false_ALARM_THRESH_LOW;
@@ -887,64 +829,12 @@ void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
 void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres)
 {
 	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct adapter *adapt = pDM_Odm->Adapter;
 
 	if (pDM_DigTable->CurCCK_CCAThres != CurCCK_CCAThres)		/* modify by Guo.Mingzhi 2012-01-03 */
-		ODM_Write1Byte(pDM_Odm, ODM_REG(CCK_CCA, pDM_Odm), CurCCK_CCAThres);
+		usb_write8(adapt, ODM_REG_CCK_CCA_11N, CurCCK_CCAThres);
 	pDM_DigTable->PreCCK_CCAThres = pDM_DigTable->CurCCK_CCAThres;
 	pDM_DigTable->CurCCK_CCAThres = CurCCK_CCAThres;
-}
-
-/* 3============================================================ */
-/* 3 BB Power Save */
-/* 3============================================================ */
-void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
-
-	pDM_PSTable->PreCCAState = CCA_MAX;
-	pDM_PSTable->CurCCAState = CCA_MAX;
-	pDM_PSTable->PreRFState = RF_MAX;
-	pDM_PSTable->CurRFState = RF_MAX;
-	pDM_PSTable->Rssi_val_min = 0;
-	pDM_PSTable->initialize = 0;
-}
-
-void odm_DynamicBBPowerSaving(struct odm_dm_struct *pDM_Odm)
-{
-}
-
-void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *adapter = pDM_Odm->Adapter;
-	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
-
-	if (pDM_Odm->RSSI_Min != 0xFF) {
-		if (pDM_PSTable->PreCCAState == CCA_2R) {
-			if (pDM_Odm->RSSI_Min >= 35)
-				pDM_PSTable->CurCCAState = CCA_1R;
-			else
-				pDM_PSTable->CurCCAState = CCA_2R;
-		} else {
-			if (pDM_Odm->RSSI_Min <= 30)
-				pDM_PSTable->CurCCAState = CCA_2R;
-			else
-				pDM_PSTable->CurCCAState = CCA_1R;
-		}
-	} else {
-		pDM_PSTable->CurCCAState = CCA_MAX;
-	}
-
-	if (pDM_PSTable->PreCCAState != pDM_PSTable->CurCCAState) {
-		if (pDM_PSTable->CurCCAState == CCA_1R) {
-			if (pDM_Odm->RFType == ODM_2T2R)
-				PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x13);
-			else
-				PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x23);
-		} else {
-			PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x33);
-		}
-		pDM_PSTable->PreCCAState = pDM_PSTable->CurCCAState;
-	}
 }
 
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
@@ -1132,10 +1022,6 @@ void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
 	odm_RefreshRateAdaptiveMaskCE(pDM_Odm);
 }
 
-void odm_RefreshRateAdaptiveMaskMP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm)
 {
 	u8 i;
@@ -1162,10 +1048,6 @@ void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm)
 			}
 		}
 	}
-}
-
-void odm_RefreshRateAdaptiveMaskAPADSL(struct odm_dm_struct *pDM_Odm)
-{
 }
 
 /*  Return Value: bool */
@@ -1227,28 +1109,6 @@ void odm_DynamicTxPowerInit(struct odm_dm_struct *pDM_Odm)
 	pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
 }
 
-void odm_DynamicTxPower(struct odm_dm_struct *pDM_Odm)
-{
-	/*  For AP/ADSL use struct rtl8192cd_priv * */
-	/*  For CE/NIC use struct adapter * */
-
-	if (!(pDM_Odm->SupportAbility & ODM_BB_DYNAMIC_TXPWR))
-		return;
-
-	/*  2012/01/12 MH According to Luke's suggestion, only high power will support the feature. */
-	if (!pDM_Odm->ExtPA)
-		return;
-
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	odm_DynamicTxPowerNIC(pDM_Odm);
-}
-
-void odm_DynamicTxPowerNIC(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 /* 3============================================================ */
 /* 3 RSSI Monitor */
 /* 3============================================================ */
@@ -1301,8 +1161,8 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 		psta = pDM_Odm->pODM_StaInfo[i];
 		if (IS_STA_VALID(psta) &&
 		    (psta->state & WIFI_ASOC_STATE) &&
-		    !_rtw_memcmp(psta->hwaddr, bcast_addr, ETH_ALEN) &&
-		    !_rtw_memcmp(psta->hwaddr, myid(&Adapter->eeprompriv), ETH_ALEN)) {
+		    memcmp(psta->hwaddr, bcast_addr, ETH_ALEN) &&
+		    memcmp(psta->hwaddr, myid(&Adapter->eeprompriv), ETH_ALEN)) {
 			if (psta->rssi_stat.UndecoratedSmoothedPWDB < tmpEntryMinPWDB)
 				tmpEntryMinPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
 
@@ -1385,22 +1245,6 @@ void odm_TXPowerTrackingCheckCE(struct odm_dm_struct *pDM_Odm)
 	}
 }
 
-/* antenna mapping info */
-/*  1: right-side antenna */
-/*  2/0: left-side antenna */
-/* PDM_SWAT_Table->CCK_Ant1_Cnt /OFDM_Ant1_Cnt:  for right-side antenna:   Ant:1    RxDefaultAnt1 */
-/* PDM_SWAT_Table->CCK_Ant2_Cnt /OFDM_Ant2_Cnt:  for left-side antenna:     Ant:0    RxDefaultAnt2 */
-/*  We select left antenna as default antenna in initial process, modify it as needed */
-/*  */
-
-/* 3============================================================ */
-/* 3 SW Antenna Diversity */
-/* 3============================================================ */
-
-void odm_SwAntDivChkAntSwitchCallback(void *FunctionContext)
-{
-}
-
 /* 3============================================================ */
 /* 3 SW Antenna Diversity */
 /* 3============================================================ */
@@ -1433,10 +1277,10 @@ void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm)
 	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial VO PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_VO_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial VI PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_VI_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial BE PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_BE_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial BK PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_BK_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial VO PARAM: 0x%x\n", usb_read32(Adapter, ODM_EDCA_VO_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial VI PARAM: 0x%x\n", usb_read32(Adapter, ODM_EDCA_VI_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial BE PARAM: 0x%x\n", usb_read32(Adapter, ODM_EDCA_BE_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial BK PARAM: 0x%x\n", usb_read32(Adapter, ODM_EDCA_BK_PARAM)));
 }	/*  ODM_InitEdcaTurbo */
 
 void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
@@ -1505,7 +1349,7 @@ void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm)
 			else
 				edca_param = EDCAParam[HT_IOT_PEER_UNKNOWN][trafficIndex];
 
-			rtw_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
+			usb_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
 
 			pDM_Odm->DM_EDCA_Table.prv_traffic_idx = trafficIndex;
 		}
@@ -1515,7 +1359,7 @@ void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm)
 		/*  Turn Off EDCA turbo here. */
 		/*  Restore original EDCA according to the declaration of AP. */
 		 if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
-			rtw_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
+			usb_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
 			pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 		}
 	}
@@ -1525,29 +1369,4 @@ dm_CheckEdcaTurbo_EXIT:
 	precvpriv->bIsAnyNonBEPkts = false;
 	pxmitpriv->last_tx_bytes = pxmitpriv->tx_bytes;
 	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
-}
-
-u32 ConvertTo_dB(u32 Value)
-{
-	u8 i;
-	u8 j;
-	u32 dB;
-
-	Value = Value & 0xFFFF;
-	for (i = 0; i < 8; i++) {
-		if (Value <= dB_Invert_Table[i][11])
-			break;
-	}
-
-	if (i >= 8)
-		return 96;	/*  maximum 96 dB */
-
-	for (j = 0; j < 12; j++) {
-		if (Value <= dB_Invert_Table[i][j])
-			break;
-	}
-
-	dB = i*12 + j + 1;
-
-	return dB;
 }

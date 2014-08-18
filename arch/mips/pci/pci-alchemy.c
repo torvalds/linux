@@ -7,6 +7,7 @@
  * Support for all devices (greater than 16) added by David Gathright.
  */
 
+#include <linux/clk.h>
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/pci.h>
@@ -16,6 +17,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/vmalloc.h>
 
+#include <asm/dma-coherence.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/tlbmisc.h>
 
@@ -363,6 +365,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 	void __iomem *virt_io;
 	unsigned long val;
 	struct resource *r;
+	struct clk *c;
 	int ret;
 
 	/* need at least PCI IRQ mapping table */
@@ -392,11 +395,24 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 		goto out1;
 	}
 
+	c = clk_get(&pdev->dev, "pci_clko");
+	if (IS_ERR(c)) {
+		dev_err(&pdev->dev, "unable to find PCI clock\n");
+		ret = PTR_ERR(c);
+		goto out2;
+	}
+
+	ret = clk_prepare_enable(c);
+	if (ret) {
+		dev_err(&pdev->dev, "cannot enable PCI clock\n");
+		goto out6;
+	}
+
 	ctx->regs = ioremap_nocache(r->start, resource_size(r));
 	if (!ctx->regs) {
 		dev_err(&pdev->dev, "cannot map pci regs\n");
 		ret = -ENODEV;
-		goto out2;
+		goto out5;
 	}
 
 	/* map parts of the PCI IO area */
@@ -411,17 +427,15 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 	}
 	ctx->alchemy_pci_ctrl.io_map_base = (unsigned long)virt_io;
 
-#ifdef CONFIG_DMA_NONCOHERENT
 	/* Au1500 revisions older than AD have borked coherent PCI */
 	if ((alchemy_get_cputype() == ALCHEMY_CPU_AU1500) &&
-	    (read_c0_prid() < 0x01030202)) {
+	    (read_c0_prid() < 0x01030202) && !coherentio) {
 		val = __raw_readl(ctx->regs + PCI_REG_CONFIG);
 		val |= PCI_CONFIG_NC;
 		__raw_writel(val, ctx->regs + PCI_REG_CONFIG);
 		wmb();
 		dev_info(&pdev->dev, "non-coherent PCI on Au1500 AA/AB/AC\n");
 	}
-#endif
 
 	if (pd->board_map_irq)
 		ctx->board_map_irq = pd->board_map_irq;
@@ -466,12 +480,19 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 	register_syscore_ops(&alchemy_pci_pmops);
 	register_pci_controller(&ctx->alchemy_pci_ctrl);
 
+	dev_info(&pdev->dev, "PCI controller at %ld MHz\n",
+		 clk_get_rate(c) / 1000000);
+
 	return 0;
 
 out4:
 	iounmap(virt_io);
 out3:
 	iounmap(ctx->regs);
+out5:
+	clk_disable_unprepare(c);
+out6:
+	clk_put(c);
 out2:
 	release_mem_region(r->start, resource_size(r));
 out1:

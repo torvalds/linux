@@ -58,7 +58,8 @@ static int get_firmware(const struct firmware **fw_entry,
 	snprintf(name, sizeof(name), "ea/%s", card_fw[fw_index].data);
 	err = request_firmware(fw_entry, name, pci_device(chip));
 	if (err < 0)
-		snd_printk(KERN_ERR "get_firmware(): Firmware not available (%d)\n", err);
+		dev_err(chip->card->dev,
+			"get_firmware(): Firmware not available (%d)\n", err);
 #ifdef CONFIG_PM_SLEEP
 	else
 		chip->fw_cache[fw_index] = *fw_entry;
@@ -563,7 +564,7 @@ static int init_engine(struct snd_pcm_substream *substream,
 	err = snd_pcm_lib_malloc_pages(substream,
 				       params_buffer_bytes(hw_params));
 	if (err < 0) {
-		snd_printk(KERN_ERR "malloc_pages err=%d\n", err);
+		dev_err(chip->card->dev, "malloc_pages err=%d\n", err);
 		spin_lock_irq(&chip->lock);
 		free_pipes(chip, pipe);
 		spin_unlock_irq(&chip->lock);
@@ -1753,9 +1754,6 @@ static struct snd_kcontrol_new snd_echo_vumeters_switch = {
 static int snd_echo_vumeters_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
-	struct echoaudio *chip;
-
-	chip = snd_kcontrol_chip(kcontrol);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 96;
 	uinfo->value.integer.min = ECHOGAIN_MINOUT;
@@ -1797,9 +1795,6 @@ static struct snd_kcontrol_new snd_echo_vumeters = {
 static int snd_echo_channels_info_info(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	struct echoaudio *chip;
-
-	chip = snd_kcontrol_chip(kcontrol);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 6;
 	uinfo->value.integer.min = 0;
@@ -1989,8 +1984,8 @@ static int snd_echo_create(struct snd_card *card,
 
 	if ((chip->iores = request_mem_region(chip->dsp_registers_phys, sz,
 					      ECHOCARD_NAME)) == NULL) {
+		dev_err(chip->card->dev, "cannot get memory region\n");
 		snd_echo_free(chip);
-		snd_printk(KERN_ERR "cannot get memory region\n");
 		return -EBUSY;
 	}
 	chip->dsp_registers = (volatile u32 __iomem *)
@@ -1998,8 +1993,8 @@ static int snd_echo_create(struct snd_card *card,
 
 	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
+		dev_err(chip->card->dev, "cannot grab irq\n");
 		snd_echo_free(chip);
-		snd_printk(KERN_ERR "cannot grab irq\n");
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
@@ -2011,8 +2006,8 @@ static int snd_echo_create(struct snd_card *card,
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(chip->pci),
 				sizeof(struct comm_page),
 				&chip->commpage_dma_buf) < 0) {
+		dev_err(chip->card->dev, "cannot allocate the comm page\n");
 		snd_echo_free(chip);
-		snd_printk(KERN_ERR "cannot allocate the comm page\n");
 		return -ENOMEM;
 	}
 	chip->comm_page_phys = chip->commpage_dma_buf.addr;
@@ -2058,11 +2053,10 @@ static int snd_echo_probe(struct pci_dev *pci,
 
 	DE_INIT(("Echoaudio driver starting...\n"));
 	i = 0;
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
-
-	snd_card_set_dev(card, &pci->dev);
 
 	chip = NULL;	/* Tells snd_echo_create to allocate chip */
 	if ((err = snd_echo_create(card, pci, &chip)) < 0) {
@@ -2082,7 +2076,7 @@ static int snd_echo_probe(struct pci_dev *pci,
 		chip->dsp_registers_phys, chip->irq);
 
 	if ((err = snd_echo_new_pcm(chip)) < 0) {
-		snd_printk(KERN_ERR "new pcm error %d\n", err);
+		dev_err(chip->card->dev, "new pcm error %d\n", err);
 		snd_card_free(card);
 		return err;
 	}
@@ -2090,7 +2084,7 @@ static int snd_echo_probe(struct pci_dev *pci,
 #ifdef ECHOCARD_HAS_MIDI
 	if (chip->has_midi) {	/* Some Mia's do not have midi */
 		if ((err = snd_echo_midi_create(card, chip)) < 0) {
-			snd_printk(KERN_ERR "new midi error %d\n", err);
+			dev_err(chip->card->dev, "new midi error %d\n", err);
 			snd_card_free(card);
 			return err;
 		}
@@ -2189,14 +2183,14 @@ static int snd_echo_probe(struct pci_dev *pci,
 	err = snd_card_register(card);
 	if (err < 0)
 		goto ctl_error;
-	snd_printk(KERN_INFO "Card registered: %s\n", card->longname);
+	dev_info(card->dev, "Card registered: %s\n", card->longname);
 
 	pci_set_drvdata(pci, chip);
 	dev++;
 	return 0;
 
 ctl_error:
-	snd_printk(KERN_ERR "new control error %d\n", err);
+	dev_err(card->dev, "new control error %d\n", err);
 	snd_card_free(card);
 	return err;
 }
@@ -2291,8 +2285,8 @@ static int snd_echo_resume(struct device *dev)
 
 	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
+		dev_err(chip->card->dev, "cannot grab irq\n");
 		snd_echo_free(chip);
-		snd_printk(KERN_ERR "cannot grab irq\n");
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;

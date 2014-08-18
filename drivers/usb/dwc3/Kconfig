@@ -44,7 +44,8 @@ comment "Platform Glue Driver Support"
 
 config USB_DWC3_OMAP
 	tristate "Texas Instruments OMAP5 and similar Platforms"
-	depends on EXTCON
+	depends on EXTCON && (ARCH_OMAP2PLUS || COMPILE_TEST)
+	depends on OF
 	default USB_DWC3
 	help
 	  Some platforms from Texas Instruments like OMAP5, DRA7xxx and
@@ -54,6 +55,7 @@ config USB_DWC3_OMAP
 
 config USB_DWC3_EXYNOS
 	tristate "Samsung Exynos Platform"
+	depends on ARCH_EXYNOS || COMPILE_TEST
 	default USB_DWC3
 	help
 	  Recent Exynos5 SoCs ship with one DesignWare Core USB3 IP inside,
@@ -72,6 +74,7 @@ config USB_DWC3_PCI
 
 config USB_DWC3_KEYSTONE
 	tristate "Texas Instruments Keystone2 Platforms"
+	depends on ARCH_KEYSTONE || COMPILE_TEST
 	default USB_DWC3
 	help
 	  Support of USB2/3 functionality in TI Keystone2 platforms.
@@ -89,5 +92,12 @@ config USB_DWC3_VERBOSE
 	depends on USB_DWC3_DEBUG
 	help
 	  Say Y here to enable verbose debugging messages on DWC3 Driver.
+
+config DWC3_HOST_USB3_LPM_ENABLE
+	bool "Enable USB3 LPM Capability"
+	depends on USB_DWC3_HOST=y || USB_DWC3_DUAL_ROLE=y
+	default n
+	help
+	  Select this when you want to enable USB3 LPM with dwc3 xhci host.
 
 endif

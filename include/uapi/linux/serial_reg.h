@@ -32,7 +32,7 @@
 
 #define UART_IIR	2	/* In:  Interrupt ID Register */
 #define UART_IIR_NO_INT		0x01 /* No interrupts pending */
-#define UART_IIR_ID		0x06 /* Mask for the interrupt ID */
+#define UART_IIR_ID		0x0e /* Mask for the interrupt ID */
 #define UART_IIR_MSI		0x00 /* Modem status interrupt */
 #define UART_IIR_THRI		0x02 /* Transmitter holding register empty */
 #define UART_IIR_RDI		0x04 /* Receiver data interrupt */
@@ -87,6 +87,11 @@
 #define UART_FCR6_T_TRIGGER_24  0x20 /* Mask for transmit trigger set at 24 */
 #define UART_FCR6_T_TRIGGER_30	0x30 /* Mask for transmit trigger set at 30 */
 #define UART_FCR7_64BYTE	0x20 /* Go into 64 byte mode (TI16C750) */
+
+#define UART_FCR_R_TRIG_SHIFT		6
+#define UART_FCR_R_TRIG_BITS(x)		\
+	(((x) & UART_FCR_TRIGGER_MASK) >> UART_FCR_R_TRIG_SHIFT)
+#define UART_FCR_R_TRIG_MAX_STATE	4
 
 #define UART_LCR	3	/* Out: Line Control Register */
 /*

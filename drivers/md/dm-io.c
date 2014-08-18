@@ -10,6 +10,7 @@
 #include <linux/device-mapper.h>
 
 #include <linux/bio.h>
+#include <linux/completion.h>
 #include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -32,7 +33,6 @@ struct dm_io_client {
 struct io {
 	unsigned long error_bits;
 	atomic_t count;
-	struct task_struct *sleeper;
 	struct dm_io_client *client;
 	io_notify_fn callback;
 	void *context;
@@ -111,28 +111,27 @@ static void retrieve_io_and_region_from_bio(struct bio *bio, struct io **io,
  * We need an io object to keep track of the number of bios that
  * have been dispatched for a particular io.
  *---------------------------------------------------------------*/
+static void complete_io(struct io *io)
+{
+	unsigned long error_bits = io->error_bits;
+	io_notify_fn fn = io->callback;
+	void *context = io->context;
+
+	if (io->vma_invalidate_size)
+		invalidate_kernel_vmap_range(io->vma_invalidate_address,
+					     io->vma_invalidate_size);
+
+	mempool_free(io, io->client->pool);
+	fn(error_bits, context);
+}
+
 static void dec_count(struct io *io, unsigned int region, int error)
 {
 	if (error)
 		set_bit(region, &io->error_bits);
 
-	if (atomic_dec_and_test(&io->count)) {
-		if (io->vma_invalidate_size)
-			invalidate_kernel_vmap_range(io->vma_invalidate_address,
-						     io->vma_invalidate_size);
-
-		if (io->sleeper)
-			wake_up_process(io->sleeper);
-
-		else {
-			unsigned long r = io->error_bits;
-			io_notify_fn fn = io->callback;
-			void *context = io->context;
-
-			mempool_free(io, io->client->pool);
-			fn(r, context);
-		}
-	}
+	if (atomic_dec_and_test(&io->count))
+		complete_io(io);
 }
 
 static void endio(struct bio *bio, int error)
@@ -375,48 +374,51 @@ static void dispatch_io(int rw, unsigned int num_regions,
 	dec_count(io, 0, 0);
 }
 
+struct sync_io {
+	unsigned long error_bits;
+	struct completion wait;
+};
+
+static void sync_io_complete(unsigned long error, void *context)
+{
+	struct sync_io *sio = context;
+
+	sio->error_bits = error;
+	complete(&sio->wait);
+}
+
 static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 		   struct dm_io_region *where, int rw, struct dpages *dp,
 		   unsigned long *error_bits)
 {
-	/*
-	 * gcc <= 4.3 can't do the alignment for stack variables, so we must
-	 * align it on our own.
-	 * volatile prevents the optimizer from removing or reusing
-	 * "io_" field from the stack frame (allowed in ANSI C).
-	 */
-	volatile char io_[sizeof(struct io) + __alignof__(struct io) - 1];
-	struct io *io = (struct io *)PTR_ALIGN(&io_, __alignof__(struct io));
+	struct io *io;
+	struct sync_io sio;
 
 	if (num_regions > 1 && (rw & RW_MASK) != WRITE) {
 		WARN_ON(1);
 		return -EIO;
 	}
 
+	init_completion(&sio.wait);
+
+	io = mempool_alloc(client->pool, GFP_NOIO);
 	io->error_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
-	io->sleeper = current;
 	io->client = client;
+	io->callback = sync_io_complete;
+	io->context = &sio;
 
 	io->vma_invalidate_address = dp->vma_invalidate_address;
 	io->vma_invalidate_size = dp->vma_invalidate_size;
 
 	dispatch_io(rw, num_regions, where, dp, io, 1);
 
-	while (1) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-
-		if (!atomic_read(&io->count))
-			break;
-
-		io_schedule();
-	}
-	set_current_state(TASK_RUNNING);
+	wait_for_completion_io(&sio.wait);
 
 	if (error_bits)
-		*error_bits = io->error_bits;
+		*error_bits = sio.error_bits;
 
-	return io->error_bits ? -EIO : 0;
+	return sio.error_bits ? -EIO : 0;
 }
 
 static int async_io(struct dm_io_client *client, unsigned int num_regions,
@@ -434,7 +436,6 @@ static int async_io(struct dm_io_client *client, unsigned int num_regions,
 	io = mempool_alloc(client->pool, GFP_NOIO);
 	io->error_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
-	io->sleeper = NULL;
 	io->client = client;
 	io->callback = fn;
 	io->context = context;
@@ -487,9 +488,9 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
  * New collapsed (a)synchronous interface.
  *
  * If the IO is asynchronous (i.e. it has notify.fn), you must either unplug
- * the queue with blk_unplug() some time later or set REQ_SYNC in
-io_req->bi_rw. If you fail to do one of these, the IO will be submitted to
- * the disk after q->unplug_delay, which defaults to 3ms in blk-settings.c.
+ * the queue with blk_unplug() some time later or set REQ_SYNC in io_req->bi_rw.
+ * If you fail to do one of these, the IO will be submitted to the disk after
+ * q->unplug_delay, which defaults to 3ms in blk-settings.c.
  */
 int dm_io(struct dm_io_request *io_req, unsigned num_regions,
 	  struct dm_io_region *where, unsigned long *sync_error_bits)

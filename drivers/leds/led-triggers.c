@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
@@ -220,9 +219,12 @@ void led_trigger_unregister(struct led_trigger *trig)
 {
 	struct led_classdev *led_cdev;
 
+	if (list_empty_careful(&trig->next_trig))
+		return;
+
 	/* Remove from the list of led triggers */
 	down_write(&triggers_list_lock);
-	list_del(&trig->next_trig);
+	list_del_init(&trig->next_trig);
 	up_write(&triggers_list_lock);
 
 	/* Remove anyone actively using this trigger */

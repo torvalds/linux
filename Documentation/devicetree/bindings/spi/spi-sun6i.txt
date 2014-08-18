@@ -1,0 +1,24 @@
+Allwinner A31 SPI controller
+
+Required properties:
+- compatible: Should be "allwinner,sun6i-a31-spi".
+- reg: Should contain register location and length.
+- interrupts: Should contain interrupt.
+- clocks: phandle to the clocks feeding the SPI controller. Two are
+          needed:
+  - "ahb": the gated AHB parent clock
+  - "mod": the parent module clock
+- clock-names: Must contain the clock names described just above
+- resets: phandle to the reset controller asserting this device in
+          reset
+
+Example:
+
+spi1: spi@01c69000 {
+	compatible = "allwinner,sun6i-a31-spi";
+	reg = <0x01c69000 0x1000>;
+	interrupts = <0 66 4>;
+	clocks = <&ahb1_gates 21>, <&spi1_clk>;
+	clock-names = "ahb", "mod";
+	resets = <&ahb1_rst 21>;
+};

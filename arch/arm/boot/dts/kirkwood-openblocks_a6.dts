@@ -14,19 +14,16 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {
 		serial@12000 {
-			status = "ok";
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
+			status = "okay";
 		};
 
 		serial@12100 {
-			status = "ok";
-			pinctrl-0 = <&pmx_uart1>;
-			pinctrl-names = "default";
+			status = "okay";
 		};
 
 		sata@80000 {
@@ -36,16 +33,14 @@
 
 		i2c@11100 {
 			status = "okay";
-			pinctrl-0 = <&pmx_twsi1>;
-			pinctrl-names = "default";
 
 			s35390a: s35390a@30 {
-				compatible = "s35390a";
+				compatible = "sii,s35390a";
 				reg = <0x30>;
 			};
 		};
 
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pinctrl-0 = <&pmx_dip_switches &pmx_gpio_header>;
 			pinctrl-names = "default";
 
@@ -133,8 +128,6 @@
 &nand {
 	chip-delay = <25>;
 	status = "okay";
-	pinctrl-0 = <&pmx_nand>;
-	pinctrl-names = "default";
 
 	partition@0 {
 		label = "uboot";

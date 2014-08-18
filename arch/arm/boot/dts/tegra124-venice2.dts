@@ -8,15 +8,41 @@
 	compatible = "nvidia,venice2", "nvidia,tegra124";
 
 	aliases {
-		rtc0 = "/i2c@7000d000/as3722@40";
-		rtc1 = "/rtc@7000e000";
+		rtc0 = "/i2c@0,7000d000/pmic@40";
+		rtc1 = "/rtc@0,7000e000";
 	};
 
 	memory {
-		reg = <0x80000000 0x80000000>;
+		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	pinmux: pinmux@70000868 {
+	host1x@0,50000000 {
+		hdmi@0,54280000 {
+			status = "okay";
+
+			vdd-supply = <&vdd_3v3_hdmi>;
+			pll-supply = <&vdd_hdmi_pll>;
+			hdmi-supply = <&vdd_5v0_hdmi>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio =
+				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
+		};
+
+		sor@0,54540000 {
+			status = "okay";
+
+			nvidia,dpaux = <&dpaux>;
+			nvidia,panel = <&panel>;
+		};
+
+		dpaux: dpaux@0,545c0000 {
+			vdd-supply = <&vdd_3v3_panel>;
+			status = "okay";
+		};
+	};
+
+	pinmux: pinmux@0,70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
 
@@ -138,14 +164,9 @@
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			sdmmc1_clk_pz0 {
-				nvidia,pins = "sdmmc1_clk_pz0",
-					      "sdmmc1_cmd_pz1",
-					      "sdmmc1_dat0_py7",
-					      "sdmmc1_dat1_py6",
-					      "sdmmc1_dat2_py5",
-					      "sdmmc1_dat3_py4";
+				nvidia,pins = "sdmmc1_clk_pz0";
 				nvidia,function = "sdmmc1";
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
@@ -402,19 +423,11 @@
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			usb_vbus_en0_pn4 {
-				nvidia,pins = "usb_vbus_en0_pn4";
+				nvidia,pins = "usb_vbus_en0_pn4",
+					      "usb_vbus_en1_pn5";
 				nvidia,function = "usb";
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_UP>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-				nvidia,lock = <TEGRA_PIN_DISABLE>;
-				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
-			};
-			usb_vbus_en1_pn5 {
-				nvidia,pins = "usb_vbus_en1_pn5";
-				nvidia,function = "usb";
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,lock = <TEGRA_PIN_DISABLE>;
 				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
@@ -423,7 +436,6 @@
 				nvidia,pins = "drive_sdio1";
 				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
 				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
 				nvidia,pull-down-strength = <32>;
 				nvidia,pull-up-strength = <42>;
 				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
@@ -433,7 +445,6 @@
 				nvidia,pins = "drive_sdio3";
 				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
 				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
 				nvidia,pull-down-strength = <20>;
 				nvidia,pull-up-strength = <36>;
 				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
@@ -572,15 +583,15 @@
 		};
 	};
 
-	serial@70006000 {
+	serial@0,70006000 {
 		status = "okay";
 	};
 
-	pwm: pwm@7000a000 {
+	pwm: pwm@0,7000a000 {
 		status = "okay";
 	};
 
-	i2c@7000c000 {
+	i2c@0,7000c000 {
 		status = "okay";
 		clock-frequency = <100000>;
 
@@ -592,29 +603,31 @@
 		};
 	};
 
-	i2c@7000c400 {
+	i2c@0,7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
-	i2c@7000c500 {
+	i2c@0,7000c500 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
-	i2c@7000c700 {
+	hdmi_ddc: i2c@0,7000c700 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
-	i2c@7000d000 {
+	i2c@0,7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
 
-		as3722: as3722@40 {
+		pmic: pmic@40 {
 			compatible = "ams,as3722";
 			reg = <0x40>;
 			interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
+
+			ams,system-power-controller;
 
 			#interrupt-cells = <2>;
 			interrupt-controller;
@@ -650,41 +663,41 @@
 			};
 
 			regulators {
-				vsup-sd2-supply = <&vdd_ac_bat_reg>;
-				vsup-sd3-supply = <&vdd_ac_bat_reg>;
-				vsup-sd4-supply = <&vdd_ac_bat_reg>;
-				vsup-sd5-supply = <&vdd_ac_bat_reg>;
-				vin-ldo0-supply = <&as3722_sd2>;
-				vin-ldo1-6-supply = <&vdd_ac_bat_reg>;
-				vin-ldo2-5-7-supply = <&as3722_sd5>;
-				vin-ldo3-4-supply = <&vdd_ac_bat_reg>;
-				vin-ldo9-10-supply = <&vdd_ac_bat_reg>;
-				vin-ldo11-supply = <&vdd_ac_bat_reg>;
+				vsup-sd2-supply = <&vdd_5v0_sys>;
+				vsup-sd3-supply = <&vdd_5v0_sys>;
+				vsup-sd4-supply = <&vdd_5v0_sys>;
+				vsup-sd5-supply = <&vdd_5v0_sys>;
+				vin-ldo0-supply = <&vdd_1v35_lp0>;
+				vin-ldo1-6-supply = <&vdd_3v3_run>;
+				vin-ldo2-5-7-supply = <&vddio_1v8>;
+				vin-ldo3-4-supply = <&vdd_3v3_sys>;
+				vin-ldo9-10-supply = <&vdd_5v0_sys>;
+				vin-ldo11-supply = <&vdd_3v3_run>;
 
 				sd0 {
-					regulator-name = "vdd-cpu";
+					regulator-name = "+VDD_CPU_AP";
 					regulator-min-microvolt = <700000>;
 					regulator-max-microvolt = <1400000>;
 					regulator-min-microamp = <3500000>;
 					regulator-max-microamp = <3500000>;
 					regulator-always-on;
 					regulator-boot-on;
-					ams,external-control = <2>;
+					ams,ext-control = <2>;
 				};
 
 				sd1 {
-					regulator-name = "vdd-core";
+					regulator-name = "+VDD_CORE";
 					regulator-min-microvolt = <700000>;
 					regulator-max-microvolt = <1350000>;
 					regulator-min-microamp = <2500000>;
 					regulator-max-microamp = <2500000>;
 					regulator-always-on;
 					regulator-boot-on;
-					ams,external-control = <1>;
+					ams,ext-control = <1>;
 				};
 
-				as3722_sd2: sd2 {
-					regulator-name = "vddio-ddr";
+				vdd_1v35_lp0: sd2 {
+					regulator-name = "+1.35V_LP0(sd2)";
 					regulator-min-microvolt = <1350000>;
 					regulator-max-microvolt = <1350000>;
 					regulator-always-on;
@@ -692,23 +705,21 @@
 				};
 
 				sd3 {
-					regulator-name = "vddio-ddr-2phase";
+					regulator-name = "+1.35V_LP0(sd3)";
 					regulator-min-microvolt = <1350000>;
 					regulator-max-microvolt = <1350000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
 
-				sd4 {
-					regulator-name = "avdd-pex-sata";
+				vdd_1v05_run: sd4 {
+					regulator-name = "+1.05V_RUN";
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
-					regulator-boot-on;
-					regulator-always-on;
 				};
 
-				as3722_sd5: sd5 {
-					regulator-name = "vddio-sys";
+				vddio_1v8: sd5 {
+					regulator-name = "+1.8V_VDDIO";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-boot-on;
@@ -716,7 +727,7 @@
 				};
 
 				sd6 {
-					regulator-name = "vdd-gpu";
+					regulator-name = "+VDD_GPU_AP";
 					regulator-min-microvolt = <650000>;
 					regulator-max-microvolt = <1200000>;
 					regulator-min-microamp = <3500000>;
@@ -726,22 +737,22 @@
 				};
 
 				ldo0 {
-					regulator-name = "avdd_pll";
+					regulator-name = "+1.05V_RUN_AVDD";
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
 					regulator-boot-on;
 					regulator-always-on;
-					ams,external-control = <1>;
+					ams,ext-control = <1>;
 				};
 
 				ldo1 {
-					regulator-name = "run-cam-1.8";
+					regulator-name = "+1.8V_RUN_CAM";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
 				ldo2 {
-					regulator-name = "gen-avdd,vddio-hsic";
+					regulator-name = "+1.2V_GEN_AVDD";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 					regulator-boot-on;
@@ -749,7 +760,7 @@
 				};
 
 				ldo3 {
-					regulator-name = "vdd-rtc";
+					regulator-name = "+1.00V_LP0_VDD_RTC";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
 					regulator-boot-on;
@@ -757,48 +768,44 @@
 					ams,enable-tracking;
 				};
 
-				ldo4 {
-					regulator-name = "vdd-cam";
+				vdd_run_cam: ldo4 {
+					regulator-name = "+3.3V_RUN_CAM";
 					regulator-min-microvolt = <2800000>;
 					regulator-max-microvolt = <2800000>;
-					regulator-boot-on;
-					regulator-always-on;
 				};
 
 				ldo5 {
-					regulator-name = "vdd-cam-front";
+					regulator-name = "+1.2V_RUN_CAM_FRONT";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 				};
 
-				ldo6 {
-					regulator-name = "vddio-sdmmc3";
+				vddio_sdmmc3: ldo6 {
+					regulator-name = "+VDDIO_SDMMC3";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <3300000>;
-					regulator-boot-on;
-					regulator-always-on;
 				};
 
 				ldo7 {
-					regulator-name = "vdd-cam-rear";
+					regulator-name = "+1.05V_RUN_CAM_REAR";
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
 				};
 
 				ldo9 {
-					regulator-name = "vdd-touch";
+					regulator-name = "+2.8V_RUN_TOUCH";
 					regulator-min-microvolt = <2800000>;
 					regulator-max-microvolt = <2800000>;
 				};
 
 				ldo10 {
-					regulator-name = "vdd-cam-af";
+					regulator-name = "+2.8V_RUN_CAM_AF";
 					regulator-min-microvolt = <2800000>;
 					regulator-max-microvolt = <2800000>;
 				};
 
 				ldo11 {
-					regulator-name = "vpp-fuse";
+					regulator-name = "+1.8V_RUN_VPP_FUSE";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
@@ -806,10 +813,10 @@
 		};
 	};
 
-	spi@7000d400 {
+	spi@0,7000d400 {
 		status = "okay";
 
-		cros-ec@0 {
+		cros_ec: cros-ec@0 {
 			compatible = "google,cros-ec-spi";
 			spi-max-frequency = <4000000>;
 			interrupt-parent = <&gpio>;
@@ -818,101 +825,45 @@
 
 			google,cros-ec-spi-msg-delay = <2000>;
 
-			cros-ec-keyb {
-				compatible = "google,cros-ec-keyb";
-				keypad,num-rows = <8>;
-				keypad,num-columns = <13>;
-				google,needs-ghost-filter;
+			i2c-tunnel {
+				compatible = "google,cros-ec-i2c-tunnel";
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				linux,keymap = <
-					MATRIX_KEY(0x00, 0x01, KEY_LEFTMETA)
-					MATRIX_KEY(0x00, 0x02, KEY_F1)
-					MATRIX_KEY(0x00, 0x03, KEY_B)
-					MATRIX_KEY(0x00, 0x04, KEY_F10)
-					MATRIX_KEY(0x00, 0x06, KEY_N)
-					MATRIX_KEY(0x00, 0x08, KEY_EQUAL)
-					MATRIX_KEY(0x00, 0x0a, KEY_RIGHTALT)
+				google,remote-bus = <0>;
 
-					MATRIX_KEY(0x01, 0x01, KEY_ESC)
-					MATRIX_KEY(0x01, 0x02, KEY_F4)
-					MATRIX_KEY(0x01, 0x03, KEY_G)
-					MATRIX_KEY(0x01, 0x04, KEY_F7)
-					MATRIX_KEY(0x01, 0x06, KEY_H)
-					MATRIX_KEY(0x01, 0x08, KEY_APOSTROPHE)
-					MATRIX_KEY(0x01, 0x09, KEY_F9)
-					MATRIX_KEY(0x01, 0x0b, KEY_BACKSPACE)
+				charger: bq24735@9 {
+					compatible = "ti,bq24735";
+					reg = <0x9>;
+					interrupt-parent = <&gpio>;
+					interrupts = <TEGRA_GPIO(J, 0)
+							GPIO_ACTIVE_HIGH>;
+					ti,ac-detect-gpios = <&gpio
+							TEGRA_GPIO(J, 0)
+							GPIO_ACTIVE_HIGH>;
+				};
 
-					MATRIX_KEY(0x02, 0x00, KEY_LEFTCTRL)
-					MATRIX_KEY(0x02, 0x01, KEY_TAB)
-					MATRIX_KEY(0x02, 0x02, KEY_F3)
-					MATRIX_KEY(0x02, 0x03, KEY_T)
-					MATRIX_KEY(0x02, 0x04, KEY_F6)
-					MATRIX_KEY(0x02, 0x05, KEY_RIGHTBRACE)
-					MATRIX_KEY(0x02, 0x06, KEY_Y)
-					MATRIX_KEY(0x02, 0x07, KEY_102ND)
-					MATRIX_KEY(0x02, 0x08, KEY_LEFTBRACE)
-					MATRIX_KEY(0x02, 0x09, KEY_F8)
-
-					MATRIX_KEY(0x03, 0x01, KEY_GRAVE)
-					MATRIX_KEY(0x03, 0x02, KEY_F2)
-					MATRIX_KEY(0x03, 0x03, KEY_5)
-					MATRIX_KEY(0x03, 0x04, KEY_F5)
-					MATRIX_KEY(0x03, 0x06, KEY_6)
-					MATRIX_KEY(0x03, 0x08, KEY_MINUS)
-					MATRIX_KEY(0x03, 0x0b, KEY_BACKSLASH)
-
-					MATRIX_KEY(0x04, 0x00, KEY_RIGHTCTRL)
-					MATRIX_KEY(0x04, 0x01, KEY_A)
-					MATRIX_KEY(0x04, 0x02, KEY_D)
-					MATRIX_KEY(0x04, 0x03, KEY_F)
-					MATRIX_KEY(0x04, 0x04, KEY_S)
-					MATRIX_KEY(0x04, 0x05, KEY_K)
-					MATRIX_KEY(0x04, 0x06, KEY_J)
-					MATRIX_KEY(0x04, 0x08, KEY_SEMICOLON)
-					MATRIX_KEY(0x04, 0x09, KEY_L)
-					MATRIX_KEY(0x04, 0x0a, KEY_BACKSLASH)
-					MATRIX_KEY(0x04, 0x0b, KEY_ENTER)
-
-					MATRIX_KEY(0x05, 0x01, KEY_Z)
-					MATRIX_KEY(0x05, 0x02, KEY_C)
-					MATRIX_KEY(0x05, 0x03, KEY_V)
-					MATRIX_KEY(0x05, 0x04, KEY_X)
-					MATRIX_KEY(0x05, 0x05, KEY_COMMA)
-					MATRIX_KEY(0x05, 0x06, KEY_M)
-					MATRIX_KEY(0x05, 0x07, KEY_LEFTSHIFT)
-					MATRIX_KEY(0x05, 0x08, KEY_SLASH)
-					MATRIX_KEY(0x05, 0x09, KEY_DOT)
-					MATRIX_KEY(0x05, 0x0b, KEY_SPACE)
-
-					MATRIX_KEY(0x06, 0x01, KEY_1)
-					MATRIX_KEY(0x06, 0x02, KEY_3)
-					MATRIX_KEY(0x06, 0x03, KEY_4)
-					MATRIX_KEY(0x06, 0x04, KEY_2)
-					MATRIX_KEY(0x06, 0x05, KEY_8)
-					MATRIX_KEY(0x06, 0x06, KEY_7)
-					MATRIX_KEY(0x06, 0x08, KEY_0)
-					MATRIX_KEY(0x06, 0x09, KEY_9)
-					MATRIX_KEY(0x06, 0x0a, KEY_LEFTALT)
-					MATRIX_KEY(0x06, 0x0b, KEY_DOWN)
-					MATRIX_KEY(0x06, 0x0c, KEY_RIGHT)
-
-					MATRIX_KEY(0x07, 0x01, KEY_Q)
-					MATRIX_KEY(0x07, 0x02, KEY_E)
-					MATRIX_KEY(0x07, 0x03, KEY_R)
-					MATRIX_KEY(0x07, 0x04, KEY_W)
-					MATRIX_KEY(0x07, 0x05, KEY_I)
-					MATRIX_KEY(0x07, 0x06, KEY_U)
-					MATRIX_KEY(0x07, 0x07, KEY_RIGHTSHIFT)
-					MATRIX_KEY(0x07, 0x08, KEY_P)
-					MATRIX_KEY(0x07, 0x09, KEY_O)
-					MATRIX_KEY(0x07, 0x0b, KEY_UP)
-					MATRIX_KEY(0x07, 0x0c, KEY_LEFT)
-				>;
+				battery: sbs-battery@b {
+					compatible = "sbs,sbs-battery";
+					reg = <0xb>;
+					sbs,i2c-retry-count = <2>;
+					sbs,poll-retry-count = <1>;
+				};
 			};
 		};
 	};
 
-	pmc@7000e400 {
+	spi@0,7000da00 {
+		status = "okay";
+		spi-max-frequency = <25000000>;
+		spi-flash@0 {
+			compatible = "winbond,w25q32dw";
+			reg = <0>;
+			spi-max-frequency = <20000000>;
+		};
+	};
+
+	pmc@0,7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <500>;
@@ -923,22 +874,66 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
-	sdhci@700b0400 {
-		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
-		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
+	hda@0,70030000 {
 		status = "okay";
-		bus-width = <4>;
 	};
 
-	sdhci@700b0600 {
+	sdhci@0,700b0400 {
+		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
+		wp-gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
+		status = "okay";
+		bus-width = <4>;
+		vqmmc-supply = <&vddio_sdmmc3>;
+	};
+
+	sdhci@0,700b0600 {
 		status = "okay";
 		bus-width = <8>;
 	};
 
-	ahub@70300000 {
-		i2s@70301100 {
+	ahub@0,70300000 {
+		i2s@0,70301100 {
 			status = "okay";
 		};
+	};
+
+	usb@0,7d000000 {
+		status = "okay";
+	};
+
+	usb-phy@0,7d000000 {
+		status = "okay";
+		vbus-supply = <&vdd_usb1_vbus>;
+	};
+
+	usb@0,7d004000 {
+		status = "okay";
+	};
+
+	usb-phy@0,7d004000 {
+		status = "okay";
+		vbus-supply = <&vdd_run_cam>;
+	};
+
+	usb@0,7d008000 {
+		status = "okay";
+	};
+
+	usb-phy@0,7d008000 {
+		status = "okay";
+		vbus-supply = <&vdd_usb3_vbus>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+
+		enable-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
+		power-supply = <&vdd_led>;
+		pwms = <&pwm 1 1000000>;
+
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
 	};
 
 	clocks {
@@ -948,7 +943,7 @@
 
 		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
-			reg=<0>;
+			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
@@ -966,104 +961,163 @@
 		};
 	};
 
+	panel: panel {
+		compatible = "lg,lp129qe", "simple-panel";
+
+		backlight = <&backlight>;
+		ddc-i2c-bus = <&dpaux>;
+	};
+
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		vdd_ac_bat_reg: regulator@0 {
+		vdd_mux: regulator@0 {
 			compatible = "regulator-fixed";
 			reg = <0>;
-			regulator-name = "vdd_ac_bat";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+			regulator-name = "+VDD_MUX";
+			regulator-min-microvolt = <12000000>;
+			regulator-max-microvolt = <12000000>;
 			regulator-always-on;
+			regulator-boot-on;
 		};
 
-		vdd_3v3_reg: regulator@1 {
+		vdd_5v0_sys: regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
-			regulator-name = "vdd_3v3";
+			regulator-name = "+5V_SYS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			vin-supply = <&vdd_mux>;
+		};
+
+		vdd_3v3_sys: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "+3.3V_SYS";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
-			enable-active-high;
-			gpio = <&as3722 1 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&vdd_mux>;
 		};
 
-		vdd_3v3_modem_reg: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "vdd-modem-3v3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			enable-active-high;
-			gpio = <&as3722 2 GPIO_ACTIVE_HIGH>;
-		};
-
-		vdd_hdmi_5v0_reg: regulator@3 {
+		vdd_3v3_run: regulator@3 {
 			compatible = "regulator-fixed";
 			reg = <3>;
-			regulator-name = "vdd-hdmi-5v0";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+			regulator-name = "+3.3V_RUN";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_HIGH>;
+			vin-supply = <&vdd_3v3_sys>;
 		};
 
-		vdd_bl_reg: regulator@4 {
+		vdd_3v3_hdmi: regulator@4 {
 			compatible = "regulator-fixed";
 			reg = <4>;
-			regulator-name = "vdd-bl";
+			regulator-name = "+3.3V_AVDD_HDMI_AP_GATED";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio TEGRA_GPIO(P, 2) GPIO_ACTIVE_LOW>;
+			vin-supply = <&vdd_3v3_run>;
 		};
 
-		vdd_ts_sw_5v0: regulator@5 {
+		vdd_led: regulator@5 {
 			compatible = "regulator-fixed";
 			reg = <5>;
-			regulator-name = "vdd_ts_sw";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+			regulator-name = "+VDD_LED";
+			gpio = <&gpio TEGRA_GPIO(P, 2) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
-			regulator-boot-on;
-			gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_LOW>;
+			vin-supply = <&vdd_mux>;
 		};
 
-		usb1_vbus_reg: regulator@6 {
+		vdd_5v0_ts: regulator@6 {
 			compatible = "regulator-fixed";
 			reg = <6>;
-			regulator-name = "usb1_vbus";
+			regulator-name = "+5V_VDD_TS_SW";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			regulator-boot-on;
+			gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
-			gpio-open-drain;
+			vin-supply = <&vdd_5v0_sys>;
 		};
 
-		usb3_vbus_reg: regulator@7 {
+		vdd_usb1_vbus: regulator@7 {
 			compatible = "regulator-fixed";
 			reg = <7>;
-			regulator-name = "usb3_vbus";
+			regulator-name = "+5V_USB_HS";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			regulator-boot-on;
+			gpio = <&gpio TEGRA_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(N, 5) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
+			vin-supply = <&vdd_5v0_sys>;
 		};
 
-		panel_3v3_reg: regulator@8 {
+		vdd_usb3_vbus: regulator@8 {
 			compatible = "regulator-fixed";
 			reg = <8>;
-			regulator-name = "panel_3v3";
+			regulator-name = "+5V_USB_SS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(N, 5) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			gpio-open-drain;
+			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		vdd_3v3_panel: regulator@9 {
+			compatible = "regulator-fixed";
+			reg = <9>;
+			regulator-name = "+3.3V_PANEL";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
+			gpio = <&pmic 4 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
-			gpio = <&as3722 4 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&vdd_3v3_run>;
+		};
+
+		vdd_3v3_lp0: regulator@10 {
+			compatible = "regulator-fixed";
+			reg = <10>;
+			regulator-name = "+3.3V_LP0";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			/*
+			 * TODO: find a way to wire this up with the USB EHCI
+			 * controllers so that it can be enabled on demand.
+			 */
+			regulator-always-on;
+			gpio = <&pmic 2 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_3v3_sys>;
+		};
+
+		vdd_hdmi_pll: regulator@11 {
+			compatible = "regulator-fixed";
+			reg = <11>;
+			regulator-name = "+1.05V_RUN_AVDD_HDMI_PLL";
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+			gpio = <&gpio TEGRA_GPIO(H, 7) GPIO_ACTIVE_LOW>;
+			vin-supply = <&vdd_1v05_run>;
+		};
+
+		vdd_5v0_hdmi: regulator@12 {
+			compatible = "regulator-fixed";
+			reg = <12>;
+			regulator-name = "+5V_HDMI_CON";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_5v0_sys>;
 		};
 	};
 
@@ -1089,3 +1143,5 @@
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };
+
+#include "cros-ec-keyboard.dtsi"

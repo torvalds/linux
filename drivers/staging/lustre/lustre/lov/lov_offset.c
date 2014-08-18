@@ -36,10 +36,9 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_class.h>
-#include <obd_lov.h>
+#include "../include/obd_class.h"
 
 #include "lov_internal.h"
 
@@ -224,7 +223,7 @@ int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 	start_side = lov_stripe_offset(lsm, start, stripeno, obd_start);
 	end_side = lov_stripe_offset(lsm, end, stripeno, obd_end);
 
-	CDEBUG(D_INODE, "["LPU64"->"LPU64"] -> [(%d) "LPU64"->"LPU64" (%d)]\n",
+	CDEBUG(D_INODE, "[%llu->%llu] -> [(%d) %llu->%llu (%d)]\n",
 	       start, end, start_side, *obd_start, *obd_end, end_side);
 
 	/* this stripe doesn't intersect the file extent when neither

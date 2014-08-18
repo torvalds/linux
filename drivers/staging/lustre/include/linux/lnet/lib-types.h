@@ -42,11 +42,11 @@
 #ifndef __LNET_LIB_TYPES_H__
 #define __LNET_LIB_TYPES_H__
 
-#include <linux/lnet/linux/lib-types.h>
+#include "linux/lib-types.h"
 
-#include <linux/libcfs/libcfs.h>
+#include "../libcfs/libcfs.h"
 #include <linux/list.h>
-#include <linux/lnet/types.h>
+#include "types.h"
 
 #define WIRE_ATTR       __attribute__((packed))
 
@@ -156,7 +156,6 @@ typedef struct {
  * "stub" reply using their current protocol */
 #define LNET_PROTO_MAGIC		    0x45726963 /* ! */
 
-
 #define LNET_PROTO_TCP_VERSION_MAJOR	1
 #define LNET_PROTO_TCP_VERSION_MINOR	0
 
@@ -204,7 +203,7 @@ typedef struct lnet_msg {
 	unsigned int	  msg_receiving:1;    /* being received */
 	unsigned int	  msg_txcredit:1;     /* taken an NI send credit */
 	unsigned int	  msg_peertxcredit:1; /* taken a peer send credit */
-	unsigned int	  msg_rtrcredit:1;    /* taken a globel router credit */
+	unsigned int	  msg_rtrcredit:1;    /* taken a global router credit */
 	unsigned int	  msg_peerrtrcredit:1; /* taken a peer router credit */
 	unsigned int	  msg_onactivelist:1; /* on the activelist */
 
@@ -224,7 +223,6 @@ typedef struct lnet_msg {
 	lnet_event_t	  msg_ev;
 	lnet_hdr_t	    msg_hdr;
 } lnet_msg_t;
-
 
 typedef struct lnet_libhandle {
 	struct list_head	    lh_hash_chain;
@@ -280,18 +278,17 @@ typedef struct lnet_libmd {
 
 #define LNET_MD_FLAG_ZOMBIE	   (1 << 0)
 #define LNET_MD_FLAG_AUTO_UNLINK      (1 << 1)
+#define LNET_MD_FLAG_ABORTED	 (1 << 2)
 
 #ifdef LNET_USE_LIB_FREELIST
-typedef struct
-{
+typedef struct {
 	void		  *fl_objs;	  /* single contiguous array of objects */
 	int		    fl_nobjs;	 /* the number of them */
 	int		    fl_objsize;       /* the size (including overhead) of each of them */
 	struct list_head	     fl_list;	  /* where they are enqueued */
 } lnet_freelist_t;
 
-typedef struct
-{
+typedef struct {
 	struct list_head	     fo_list;	     /* enqueue on fl_list */
 	void		  *fo_contents;	 /* aligned contents */
 } lnet_freeobj_t;
@@ -312,8 +309,7 @@ typedef struct {
 
 struct lnet_ni;				  /* forward ref */
 
-typedef struct lnet_lnd
-{
+typedef struct lnet_lnd {
 	/* fields managed by portals */
 	struct list_head	    lnd_list;	     /* stash in the LND table */
 	int		   lnd_refcount;	 /* # active instances */
@@ -321,8 +317,8 @@ typedef struct lnet_lnd
 	/* fields initialised by the LND */
 	unsigned int	  lnd_type;
 
-	int  (*lnd_startup) (struct lnet_ni *ni);
-	void (*lnd_shutdown) (struct lnet_ni *ni);
+	int  (*lnd_startup)(struct lnet_ni *ni);
+	void (*lnd_shutdown)(struct lnet_ni *ni);
 	int  (*lnd_ctl)(struct lnet_ni *ni, unsigned int cmd, void *arg);
 
 	/* In data movement APIs below, payload buffers are described as a set
@@ -345,7 +341,7 @@ typedef struct lnet_lnd
 
 	/* Start receiving 'mlen' bytes of payload data, skipping the following
 	 * 'rlen' - 'mlen' bytes. 'private' is the 'private' passed to
-	 * lnet_parse().  Return non-zero for immedaite failure, otherwise
+	 * lnet_parse().  Return non-zero for immediate failure, otherwise
 	 * complete later with lnet_finalize().  This also gives back a receive
 	 * credit if the LND does flow control. */
 	int (*lnd_recv)(struct lnet_ni *ni, void *private, lnet_msg_t *msg,
@@ -366,10 +362,10 @@ typedef struct lnet_lnd
 	void (*lnd_notify)(struct lnet_ni *ni, lnet_nid_t peer, int alive);
 
 	/* query of peer aliveness */
-	void (*lnd_query)(struct lnet_ni *ni, lnet_nid_t peer, cfs_time_t *when);
+	void (*lnd_query)(struct lnet_ni *ni, lnet_nid_t peer, unsigned long *when);
 
 	/* accept a new connection */
-	int (*lnd_accept)(struct lnet_ni *ni, socket_t *sock);
+	int (*lnd_accept)(struct lnet_ni *ni, struct socket *sock);
 
 } lnd_t;
 
@@ -461,11 +457,11 @@ typedef struct lnet_peer {
 	unsigned int      lp_ping_notsent;      /* SEND event outstanding from ping */
 	int	       lp_alive_count;       /* # times router went dead<->alive */
 	long	      lp_txqnob;	    /* bytes queued for sending */
-	cfs_time_t	lp_timestamp;	 /* time of last aliveness news */
-	cfs_time_t	lp_ping_timestamp;    /* time of last ping attempt */
-	cfs_time_t	lp_ping_deadline;     /* != 0 if ping reply expected */
-	cfs_time_t	lp_last_alive;	/* when I was last alive */
-	cfs_time_t	lp_last_query;	/* when lp_ni was queried last time */
+	unsigned long	lp_timestamp;	 /* time of last aliveness news */
+	unsigned long	lp_ping_timestamp;    /* time of last ping attempt */
+	unsigned long	lp_ping_deadline;     /* != 0 if ping reply expected */
+	unsigned long	lp_last_alive;	/* when I was last alive */
+	unsigned long	lp_last_query;	/* when lp_ni was queried last time */
 	lnet_ni_t	*lp_ni;		/* interface peer is on */
 	lnet_nid_t	lp_nid;	       /* peer's NID */
 	int	       lp_refcount;	  /* # refs */
@@ -597,7 +593,7 @@ struct lnet_match_table {
 	unsigned int		mt_cpt;
 	unsigned int		mt_portal;      /* portal index */
 	/* match table is set as "enabled" if there's non-exhausted MD
-	 * attached on mt_mhash, it's only valide for wildcard portal */
+	 * attached on mt_mhash, it's only valid for wildcard portal */
 	unsigned int		mt_enabled;
 	/* bitmap to flag whether MEs on mt_hash are exhausted or not */
 	__u64			mt_exhausted[LNET_MT_EXHAUSTED_BMAP];
@@ -668,8 +664,7 @@ struct lnet_msg_container {
 #define LNET_RC_STATE_RUNNING		1	/* started up OK */
 #define LNET_RC_STATE_STOPPING		2	/* telling thread to stop */
 
-typedef struct
-{
+typedef struct {
 	/* CPU partition table of LNet */
 	struct cfs_cpt_table		*ln_cpt_table;
 	/* number of CPTs in ln_cpt_table */

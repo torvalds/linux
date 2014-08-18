@@ -64,7 +64,7 @@ static bool debug;
 
 static int atir_minor;
 static phys_addr_t pci_addr_phys;
-static unsigned char *pci_addr_lin;
+static unsigned char __iomem *pci_addr_lin;
 
 static struct lirc_driver atir_driver;
 
@@ -382,7 +382,7 @@ static unsigned char do_get_bits(void)
 
 static unsigned int read_index(unsigned char index)
 {
-	unsigned char *addr;
+	unsigned char __iomem *addr;
 	unsigned int value;
 	/*  addr = pci_addr_lin + DATA_PCI_OFF + ((index & 0xFF) << 2); */
 	addr = pci_addr_lin + ((index & 0xFF) << 2);
@@ -392,7 +392,7 @@ static unsigned int read_index(unsigned char index)
 
 static void write_index(unsigned char index, unsigned int reg_val)
 {
-	unsigned char *addr;
+	unsigned char __iomem *addr;
 	addr = pci_addr_lin + ((index & 0xFF) << 2);
 	writel(reg_val, addr);
 }

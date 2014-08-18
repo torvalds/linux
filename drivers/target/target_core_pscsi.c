@@ -312,7 +312,7 @@ static int pscsi_add_device_to_list(struct se_device *dev,
 	if (!sd->queue_depth) {
 		sd->queue_depth = PSCSI_DEFAULT_QUEUEDEPTH;
 
-		pr_err("Set broken SCSI Device %d:%d:%d"
+		pr_err("Set broken SCSI Device %d:%d:%llu"
 			" queue_depth to %d\n", sd->channel, sd->id,
 				sd->lun, sd->queue_depth);
 	}
@@ -375,7 +375,7 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 	int ret;
 
 	if (scsi_device_get(sd)) {
-		pr_err("scsi_device_get() failed for %d:%d:%d:%d\n",
+		pr_err("scsi_device_get() failed for %d:%d:%d:%llu\n",
 			sh->host_no, sd->channel, sd->id, sd->lun);
 		spin_unlock_irq(sh->host_lock);
 		return -EIO;
@@ -401,7 +401,7 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 		return ret;
 	}
 
-	pr_debug("CORE_PSCSI[%d] - Added TYPE_DISK for %d:%d:%d:%d\n",
+	pr_debug("CORE_PSCSI[%d] - Added TYPE_DISK for %d:%d:%d:%llu\n",
 		phv->phv_host_id, sh->host_no, sd->channel, sd->id, sd->lun);
 	return 0;
 }
@@ -417,7 +417,7 @@ static int pscsi_create_type_rom(struct se_device *dev, struct scsi_device *sd)
 	int ret;
 
 	if (scsi_device_get(sd)) {
-		pr_err("scsi_device_get() failed for %d:%d:%d:%d\n",
+		pr_err("scsi_device_get() failed for %d:%d:%d:%llu\n",
 			sh->host_no, sd->channel, sd->id, sd->lun);
 		spin_unlock_irq(sh->host_lock);
 		return -EIO;
@@ -429,7 +429,7 @@ static int pscsi_create_type_rom(struct se_device *dev, struct scsi_device *sd)
 		scsi_device_put(sd);
 		return ret;
 	}
-	pr_debug("CORE_PSCSI[%d] - Added Type: %s for %d:%d:%d:%d\n",
+	pr_debug("CORE_PSCSI[%d] - Added Type: %s for %d:%d:%d:%llu\n",
 		phv->phv_host_id, scsi_device_type(sd->type), sh->host_no,
 		sd->channel, sd->id, sd->lun);
 
@@ -452,7 +452,7 @@ static int pscsi_create_type_other(struct se_device *dev,
 	if (ret)
 		return ret;
 
-	pr_debug("CORE_PSCSI[%d] - Added Type: %s for %d:%d:%d:%d\n",
+	pr_debug("CORE_PSCSI[%d] - Added Type: %s for %d:%d:%d:%llu\n",
 		phv->phv_host_id, scsi_device_type(sd->type), sh->host_no,
 		sd->channel, sd->id, sd->lun);
 	return 0;
@@ -1055,6 +1055,8 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			goto fail;
 		}
+
+		blk_rq_set_block_pc(req);
 	} else {
 		BUG_ON(!cmd->data_length);
 
@@ -1071,7 +1073,6 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		}
 	}
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
 	req->end_io = pscsi_req_done;
 	req->end_io_data = cmd;
 	req->cmd_len = scsi_command_size(pt->pscsi_cdb);

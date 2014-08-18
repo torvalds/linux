@@ -99,13 +99,6 @@ enum int_class {
 
 void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type);
 
-extern void kvmppc_mmu_destroy_44x(struct kvm_vcpu *vcpu);
-extern int kvmppc_core_emulate_op_44x(struct kvm_run *run, struct kvm_vcpu *vcpu,
-				      unsigned int inst, int *advance);
-extern int kvmppc_core_emulate_mtspr_44x(struct kvm_vcpu *vcpu, int sprn,
-					 ulong spr_val);
-extern int kvmppc_core_emulate_mfspr_44x(struct kvm_vcpu *vcpu, int sprn,
-					 ulong *spr_val);
 extern void kvmppc_mmu_destroy_e500(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_emulate_op_e500(struct kvm_run *run,
 				       struct kvm_vcpu *vcpu,

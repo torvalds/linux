@@ -14,12 +14,12 @@
  */
 int verbose;
 
-int eprintf(int level, const char *fmt, ...)
+int eprintf(int level, int var, const char *fmt, ...)
 {
 	va_list args;
 	int ret = 0;
 
-	if (verbose >= level) {
+	if (var >= level) {
 		va_start(args, fmt);
 		ret = vfprintf(stderr, fmt, args);
 		va_end(args);

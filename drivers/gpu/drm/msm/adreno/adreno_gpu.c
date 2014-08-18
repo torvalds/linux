@@ -73,6 +73,12 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 	case MSM_PARAM_GMEM_SIZE:
 		*value = adreno_gpu->gmem;
 		return 0;
+	case MSM_PARAM_CHIP_ID:
+		*value = adreno_gpu->rev.patchid |
+				(adreno_gpu->rev.minor << 8) |
+				(adreno_gpu->rev.major << 16) |
+				(adreno_gpu->rev.core << 24);
+		return 0;
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);
 		return -EINVAL;
@@ -85,8 +91,16 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 int adreno_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int ret;
 
 	DBG("%s", gpu->name);
+
+	ret = msm_gem_get_iova(gpu->rb->bo, gpu->id, &gpu->rb_iova);
+	if (ret) {
+		gpu->rb_iova = 0;
+		dev_err(gpu->dev->dev, "could not map ringbuffer: %d\n", ret);
+		return ret;
+	}
 
 	/* Setup REG_CP_RB_CNTL: */
 	gpu_write(gpu, REG_AXXX_CP_RB_CNTL,
@@ -225,19 +239,11 @@ void adreno_flush(struct msm_gpu *gpu)
 void adreno_idle(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	uint32_t rptr, wptr = get_wptr(gpu->rb);
-	unsigned long t;
+	uint32_t wptr = get_wptr(gpu->rb);
 
-	t = jiffies + ADRENO_IDLE_TIMEOUT;
-
-	/* then wait for CP to drain ringbuffer: */
-	do {
-		rptr = adreno_gpu->memptrs->rptr;
-		if (rptr == wptr)
-			return;
-	} while(time_before(jiffies, t));
-
-	DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
+	/* wait for CP to drain ringbuffer: */
+	if (spin_until(adreno_gpu->memptrs->rptr == wptr))
+		DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
 
 	/* TODO maybe we need to reset GPU here to recover from hang? */
 }
@@ -260,22 +266,37 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 }
 #endif
 
-void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords)
+/* would be nice to not have to duplicate the _show() stuff with printk(): */
+void adreno_dump(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	uint32_t freedwords;
-	unsigned long t = jiffies + ADRENO_IDLE_TIMEOUT;
-	do {
-		uint32_t size = gpu->rb->size / 4;
-		uint32_t wptr = get_wptr(gpu->rb);
-		uint32_t rptr = adreno_gpu->memptrs->rptr;
-		freedwords = (rptr + (size - 1) - wptr) % size;
 
-		if (time_after(jiffies, t)) {
-			DRM_ERROR("%s: timeout waiting for ringbuffer space\n", gpu->name);
-			break;
-		}
-	} while(freedwords < ndwords);
+	printk("revision: %d (%d.%d.%d.%d)\n",
+			adreno_gpu->info->revn, adreno_gpu->rev.core,
+			adreno_gpu->rev.major, adreno_gpu->rev.minor,
+			adreno_gpu->rev.patchid);
+
+	printk("fence:    %d/%d\n", adreno_gpu->memptrs->fence,
+			gpu->submitted_fence);
+	printk("rptr:     %d\n", adreno_gpu->memptrs->rptr);
+	printk("wptr:     %d\n", adreno_gpu->memptrs->wptr);
+	printk("rb wptr:  %d\n", get_wptr(gpu->rb));
+
+}
+
+static uint32_t ring_freewords(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	uint32_t size = gpu->rb->size / 4;
+	uint32_t wptr = get_wptr(gpu->rb);
+	uint32_t rptr = adreno_gpu->memptrs->rptr;
+	return (rptr + (size - 1) - wptr) % size;
+}
+
+void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords)
+{
+	if (spin_until(ring_freewords(gpu) >= ndwords))
+		DRM_ERROR("%s: timeout waiting for ringbuffer space\n", gpu->name);
 }
 
 static const char *iommu_ports[] = {
@@ -349,8 +370,10 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 			return ret;
 	}
 
+	mutex_lock(&drm->struct_mutex);
 	gpu->memptrs_bo = msm_gem_new(drm, sizeof(*gpu->memptrs),
 			MSM_BO_UNCACHED);
+	mutex_unlock(&drm->struct_mutex);
 	if (IS_ERR(gpu->memptrs_bo)) {
 		ret = PTR_ERR(gpu->memptrs_bo);
 		gpu->memptrs_bo = NULL;
@@ -358,13 +381,13 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	gpu->memptrs = msm_gem_vaddr_locked(gpu->memptrs_bo);
+	gpu->memptrs = msm_gem_vaddr(gpu->memptrs_bo);
 	if (!gpu->memptrs) {
 		dev_err(drm->dev, "could not vmap memptrs\n");
 		return -ENOMEM;
 	}
 
-	ret = msm_gem_get_iova_locked(gpu->memptrs_bo, gpu->base.id,
+	ret = msm_gem_get_iova(gpu->memptrs_bo, gpu->base.id,
 			&gpu->memptrs_iova);
 	if (ret) {
 		dev_err(drm->dev, "could not map memptrs: %d\n", ret);

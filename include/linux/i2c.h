@@ -487,6 +487,7 @@ void i2c_unlock_adapter(struct i2c_adapter *);
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
 #define I2C_CLASS_SPD		(1<<7)	/* Memory modules */
+#define I2C_CLASS_DEPRECATED	(1<<8)	/* Warn users that adapter will stop using classes */
 
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU
@@ -575,5 +576,17 @@ static inline struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node
 	return NULL;
 }
 #endif /* CONFIG_OF */
+
+#ifdef CONFIG_I2C_ACPI
+int acpi_i2c_install_space_handler(struct i2c_adapter *adapter);
+void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter);
+void acpi_i2c_register_devices(struct i2c_adapter *adap);
+#else
+static inline void acpi_i2c_register_devices(struct i2c_adapter *adap) { }
+static inline void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter)
+{ }
+static inline int acpi_i2c_install_space_handler(struct i2c_adapter *adapter)
+{ return 0; }
+#endif
 
 #endif /* _LINUX_I2C_H */

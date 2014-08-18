@@ -74,6 +74,7 @@ struct secondary_data {
 };
 extern struct secondary_data secondary_data;
 extern volatile int pen_release;
+extern void secondary_startup(void);
 
 extern int __cpu_disable(void);
 
@@ -114,6 +115,15 @@ struct smp_operations {
 #endif
 };
 
+struct of_cpu_method {
+	const char *method;
+	struct smp_operations *ops;
+};
+
+#define CPU_METHOD_OF_DECLARE(name, _method, _ops)			\
+	static const struct of_cpu_method __cpu_method_of_table_##name	\
+		__used __section(__cpu_method_of_table)			\
+		= { .method = _method, .ops = _ops }
 /*
  * set platform specific SMP operations
  */

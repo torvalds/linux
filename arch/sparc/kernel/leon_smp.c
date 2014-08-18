@@ -130,7 +130,7 @@ void leon_configure_cache_smp(void)
 	local_ops->tlb_all();
 }
 
-void leon_smp_setbroadcast(unsigned int mask)
+static void leon_smp_setbroadcast(unsigned int mask)
 {
 	int broadcast =
 	    ((LEON3_BYPASS_LOAD_PA(&(leon3_irqctrl_regs->mpstatus)) >>
@@ -146,13 +146,6 @@ void leon_smp_setbroadcast(unsigned int mask)
 		}
 	}
 	LEON_BYPASS_STORE_PA(&(leon3_irqctrl_regs->mpbroadcast), mask);
-}
-
-unsigned int leon_smp_getbroadcast(void)
-{
-	unsigned int mask;
-	mask = LEON_BYPASS_LOAD_PA(&(leon3_irqctrl_regs->mpbroadcast));
-	return mask;
 }
 
 int leon_smp_nrcpus(void)
@@ -264,10 +257,6 @@ void __init leon_smp_done(void)
 	/* Ok, they are spinning and ready to go. */
 	smp_processors_ready = 1;
 
-}
-
-void leon_irq_rotate(int cpu)
-{
 }
 
 struct leon_ipi_work {

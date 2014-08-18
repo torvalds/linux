@@ -185,6 +185,10 @@ struct in6_flowlabel_req {
  * also see comments on IP_PMTUDISC_INTERFACE
  */
 #define IPV6_PMTUDISC_INTERFACE		4
+/* weaker version of IPV6_PMTUDISC_INTERFACE, which allows packets to
+ * get fragmented if they exceed the interface mtu
+ */
+#define IPV6_PMTUDISC_OMIT		5
 
 /* Flowlabel */
 #define IPV6_FLOWLABEL_MGR	32
@@ -257,6 +261,7 @@ struct in6_flowlabel_req {
  * IP6T_SO_ORIGINAL_DST		80
  */
 
+#define IPV6_AUTOFLOWLABEL	70
 /* RFC5014: Source address selection */
 #define IPV6_ADDR_PREFERENCES	72
 

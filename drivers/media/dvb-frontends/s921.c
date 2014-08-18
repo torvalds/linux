@@ -2,7 +2,7 @@
  *   Sharp VA3A5JZ921 One Seg Broadcast Module driver
  *   This device is labeled as just S. 921 at the top of the frontend can
  *
- *   Copyright (C) 2009-2010 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *   Copyright (C) 2009-2010 Mauro Carvalho Chehab
  *   Copyright (C) 2009-2010 Douglas Landgraf <dougsland@redhat.com>
  *
  *   Developed for Leadership SBTVD 1seg device sold in Brazil
@@ -539,6 +539,6 @@ static struct dvb_frontend_ops s921_ops = {
 };
 
 MODULE_DESCRIPTION("DVB Frontend module for Sharp S921 hardware");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_AUTHOR("Douglas Landgraf <dougsland@redhat.com>");
 MODULE_LICENSE("GPL");

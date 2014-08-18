@@ -1261,19 +1261,11 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	else
 		return -EFAULT;
 
-	karg = kmalloc(data_size, GFP_KERNEL);
-	if (karg == NULL) {
-		printk(KERN_ERR MYNAM "%s::mpt_ioctl_iocinfo() @%d - no memory available!\n",
-				__FILE__, __LINE__);
-		return -ENOMEM;
-	}
-
-	if (copy_from_user(karg, uarg, data_size)) {
-		printk(KERN_ERR MYNAM "%s@%d::mptctl_getiocinfo - "
-			"Unable to read in mpt_ioctl_iocinfo struct @ %p\n",
-				__FILE__, __LINE__, uarg);
-		kfree(karg);
-		return -EFAULT;
+	karg = memdup_user(uarg, data_size);
+	if (IS_ERR(karg)) {
+		printk(KERN_ERR MYNAM "%s@%d::mpt_ioctl_iocinfo() - memdup_user returned error [%ld]\n",
+				__FILE__, __LINE__, PTR_ERR(karg));
+		return PTR_ERR(karg);
 	}
 
 	if (((iocnum = mpt_verify_adapter(karg->hdr.iocnum, &ioc)) < 0) ||
@@ -2432,9 +2424,9 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 	int			rc, cim_rev;
 	ToolboxIstwiReadWriteRequest_t	*IstwiRWRequest;
 	MPT_FRAME_HDR		*mf = NULL;
-	MPIHeader_t		*mpi_hdr;
 	unsigned long		timeleft;
 	int			retval;
+	u32			msgcontext;
 
 	/* Reset long to int. Should affect IA64 and SPARC only
 	 */
@@ -2581,11 +2573,11 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 	}
 
 	IstwiRWRequest = (ToolboxIstwiReadWriteRequest_t *)mf;
-	mpi_hdr = (MPIHeader_t *) mf;
+	msgcontext = IstwiRWRequest->MsgContext;
 	memset(IstwiRWRequest,0,sizeof(ToolboxIstwiReadWriteRequest_t));
+	IstwiRWRequest->MsgContext = msgcontext;
 	IstwiRWRequest->Function = MPI_FUNCTION_TOOLBOX;
 	IstwiRWRequest->Tool = MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL;
-	IstwiRWRequest->MsgContext = mpi_hdr->MsgContext;
 	IstwiRWRequest->Flags = MPI_TB_ISTWI_FLAGS_READ;
 	IstwiRWRequest->NumAddressBytes = 0x01;
 	IstwiRWRequest->DataLength = cpu_to_le16(0x04);

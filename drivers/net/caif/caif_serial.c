@@ -204,7 +204,6 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 
 	skb->protocol = htons(ETH_P_CAIF);
 	skb_reset_mac_header(skb);
-	skb->dev = ser->dev;
 	debugfs_rx(ser, data, count);
 	/* Push received packet up the stack. */
 	ret = netif_rx_ni(skb);
@@ -350,7 +349,8 @@ static int ldisc_open(struct tty_struct *tty)
 	result = snprintf(name, sizeof(name), "cf%s", tty->name);
 	if (result >= IFNAMSIZ)
 		return -EINVAL;
-	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
+	dev = alloc_netdev(sizeof(*ser), name, NET_NAME_UNKNOWN,
+			   caifdev_setup);
 	if (!dev)
 		return -ENOMEM;
 

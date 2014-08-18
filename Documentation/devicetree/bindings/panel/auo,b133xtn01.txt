@@ -1,0 +1,7 @@
+AU Optronics Corporation 13.3" WXGA (1366x768) TFT LCD panel
+
+Required properties:
+- compatible: should be "auo,b133xtn01"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

@@ -132,6 +132,7 @@ static int bcma_register_cores(struct bcma_bus *bus)
 		case BCMA_CORE_CHIPCOMMON:
 		case BCMA_CORE_PCI:
 		case BCMA_CORE_PCIE:
+		case BCMA_CORE_PCIE2:
 		case BCMA_CORE_MIPS_74K:
 		case BCMA_CORE_4706_MAC_GBIT_COMMON:
 			continue;
@@ -279,6 +280,13 @@ int bcma_bus_register(struct bcma_bus *bus)
 	if (core) {
 		bus->drv_pci[1].core = core;
 		bcma_core_pci_init(&bus->drv_pci[1]);
+	}
+
+	/* Init PCIe Gen 2 core */
+	core = bcma_find_core_unit(bus, BCMA_CORE_PCIE2, 0);
+	if (core) {
+		bus->drv_pcie2.core = core;
+		bcma_core_pcie2_init(&bus->drv_pcie2);
 	}
 
 	/* Init GBIT MAC COMMON core */

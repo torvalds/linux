@@ -142,7 +142,6 @@ struct uart_txx9_port {
 #define TXX9_SIFCR_RDIL_12	0x00000180
 #define TXX9_SIFCR_RDIL_MAX	0x00000180
 #define TXX9_SIFCR_TDIL_MASK	0x00000018
-#define TXX9_SIFCR_TDIL_MASK	0x00000018
 #define TXX9_SIFCR_TDIL_1	0x00000000
 #define TXX9_SIFCR_TDIL_4	0x00000001
 #define TXX9_SIFCR_TDIL_8	0x00000010
@@ -242,11 +241,6 @@ static void serial_txx9_stop_rx(struct uart_port *port)
 {
 	struct uart_txx9_port *up = to_uart_txx9_port(port);
 	up->port.read_status_mask &= ~TXX9_SIDISR_RDIS;
-}
-
-static void serial_txx9_enable_ms(struct uart_port *port)
-{
-	/* TXX9-SIO can not control DTR... */
 }
 
 static void serial_txx9_initialize(struct uart_port *port)
@@ -535,13 +529,8 @@ static void serial_txx9_put_poll_char(struct uart_port *port, unsigned char c)
 	wait_for_xmitr(up);
 	/*
 	 *	Send the character out.
-	 *	If a LF, also do CR...
 	 */
 	sio_out(up, TXX9_SITFIFO, c);
-	if (c == 10) {
-		wait_for_xmitr(up);
-		sio_out(up, TXX9_SITFIFO, 13);
-	}
 
 	/*
 	 *	Finally, wait for transmitter to become empty
@@ -702,7 +691,7 @@ serial_txx9_set_termios(struct uart_port *port, struct ktermios *termios,
 		TXX9_SIDISR_TDIS | TXX9_SIDISR_RDIS;
 	if (termios->c_iflag & INPCK)
 		up->port.read_status_mask |= TXX9_SIDISR_UFER | TXX9_SIDISR_UPER;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		up->port.read_status_mask |= TXX9_SIDISR_UBRK;
 
 	/*
@@ -863,7 +852,6 @@ static struct uart_ops serial_txx9_pops = {
 	.stop_tx	= serial_txx9_stop_tx,
 	.start_tx	= serial_txx9_start_tx,
 	.stop_rx	= serial_txx9_stop_rx,
-	.enable_ms	= serial_txx9_enable_ms,
 	.break_ctl	= serial_txx9_break_ctl,
 	.startup	= serial_txx9_startup,
 	.shutdown	= serial_txx9_shutdown,

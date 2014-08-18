@@ -40,17 +40,17 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/crypto.h>
 #include <linux/key.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_dlm.h>
-#include <lustre_sec.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_sec.h"
 
 #include "ptlrpc_internal.h"
 
@@ -305,8 +305,8 @@ EXPORT_SYMBOL(sptlrpc_cli_ctx_put);
  */
 void sptlrpc_cli_ctx_expire(struct ptlrpc_cli_ctx *ctx)
 {
-	LASSERT(ctx->cc_ops->die);
-	ctx->cc_ops->die(ctx, 0);
+	LASSERT(ctx->cc_ops->force_die);
+	ctx->cc_ops->force_die(ctx, 0);
 }
 EXPORT_SYMBOL(sptlrpc_cli_ctx_expire);
 
@@ -344,7 +344,7 @@ static int import_sec_check_expire(struct obd_import *imp)
 
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_sec_expire &&
-	    imp->imp_sec_expire < cfs_time_current_sec()) {
+	    imp->imp_sec_expire < get_seconds()) {
 		adapt = 1;
 		imp->imp_sec_expire = 0;
 	}
@@ -354,7 +354,7 @@ static int import_sec_check_expire(struct obd_import *imp)
 		return 0;
 
 	CDEBUG(D_SEC, "found delayed sec adapt expired, do it now\n");
-	return sptlrpc_import_sec_adapt(imp, NULL, 0);
+	return sptlrpc_import_sec_adapt(imp, NULL, NULL);
 }
 
 static int import_sec_validate_get(struct obd_import *imp,
@@ -543,8 +543,8 @@ int sptlrpc_req_replace_dead_ctx(struct ptlrpc_request *req)
 		       "ctx (%p, fl %lx) doesn't switch, relax a little bit\n",
 		       newctx, newctx->cc_flags);
 
-		schedule_timeout_and_set_state(TASK_INTERRUPTIBLE,
-						   HZ);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(HZ);
 	} else {
 		/*
 		 * it's possible newctx == oldctx if we're switching
@@ -591,7 +591,7 @@ int ctx_refresh_timeout(void *data)
 	 * later than the context refresh expire time.
 	 */
 	if (rc == 0)
-		req->rq_cli_ctx->cc_ops->die(req->rq_cli_ctx, 0);
+		req->rq_cli_ctx->cc_ops->force_die(req->rq_cli_ctx, 0);
 	return rc;
 }
 
@@ -779,7 +779,7 @@ again:
 	 *   e.g. ptlrpc_abort_inflight();
 	 */
 	if (!cli_ctx_is_refreshed(ctx)) {
-		/* timed out or interruptted */
+		/* timed out or interrupted */
 		req_off_ctx_list(req, ctx);
 
 		LASSERT(rc != 0);
@@ -805,7 +805,7 @@ void sptlrpc_req_set_flavor(struct ptlrpc_request *req, int opcode)
 	LASSERT(req->rq_cli_ctx->cc_sec);
 	LASSERT(req->rq_bulk_read == 0 || req->rq_bulk_write == 0);
 
-	/* special security flags accoding to opcode */
+	/* special security flags according to opcode */
 	switch (opcode) {
 	case OST_READ:
 	case MDS_READPAGE:
@@ -904,7 +904,7 @@ int sptlrpc_import_check_ctx(struct obd_import *imp)
 		return -EACCES;
 	}
 
-	OBD_ALLOC_PTR(req);
+	req = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (!req)
 		return -ENOMEM;
 
@@ -920,7 +920,7 @@ int sptlrpc_import_check_ctx(struct obd_import *imp)
 	rc = sptlrpc_req_refresh_ctx(req, 0);
 	LASSERT(list_empty(&req->rq_ctx_chain));
 	sptlrpc_cli_ctx_put(req->rq_cli_ctx, 1);
-	OBD_FREE_PTR(req);
+	ptlrpc_request_cache_free(req);
 
 	return rc;
 }
@@ -992,7 +992,7 @@ static int do_cli_unwrap_reply(struct ptlrpc_request *req)
 	case 0:
 		break;
 	default:
-		CERROR("failed unpack reply: x"LPU64"\n", req->rq_xid);
+		CERROR("failed unpack reply: x%llu\n", req->rq_xid);
 		return -EPROTO;
 	}
 
@@ -1088,7 +1088,7 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	int		     early_bufsz, early_size;
 	int		     rc;
 
-	OBD_ALLOC_PTR(early_req);
+	early_req = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (early_req == NULL)
 		return -ENOMEM;
 
@@ -1160,7 +1160,7 @@ err_ctx:
 err_buf:
 	OBD_FREE_LARGE(early_buf, early_bufsz);
 err_req:
-	OBD_FREE_PTR(early_req);
+	ptlrpc_request_cache_free(early_req);
 	return rc;
 }
 
@@ -1177,7 +1177,7 @@ void sptlrpc_cli_finish_early_reply(struct ptlrpc_request *early_req)
 
 	sptlrpc_cli_ctx_put(early_req->rq_cli_ctx, 1);
 	OBD_FREE_LARGE(early_req->rq_repbuf, early_req->rq_repbuf_len);
-	OBD_FREE_PTR(early_req);
+	ptlrpc_request_cache_free(early_req);
 }
 
 /**************************************************
@@ -1218,7 +1218,7 @@ static void sec_cop_destroy_sec(struct ptlrpc_sec *sec)
 	LASSERT_ATOMIC_ZERO(&sec->ps_nctx);
 	LASSERT(policy->sp_cops->destroy_sec);
 
-	CDEBUG(D_SEC, "%s@%p: being destroied\n", sec->ps_policy->sp_name, sec);
+	CDEBUG(D_SEC, "%s@%p: being destroyed\n", sec->ps_policy->sp_name, sec);
 
 	policy->sp_cops->destroy_sec(sec);
 	sptlrpc_policy_put(policy);
@@ -1264,7 +1264,7 @@ void sptlrpc_sec_put(struct ptlrpc_sec *sec)
 EXPORT_SYMBOL(sptlrpc_sec_put);
 
 /*
- * policy module is responsible for taking refrence of import
+ * policy module is responsible for taking reference of import
  */
 static
 struct ptlrpc_sec * sptlrpc_sec_create(struct obd_import *imp,
@@ -1419,7 +1419,7 @@ int sptlrpc_import_sec_adapt(struct obd_import *imp,
 
 		sp = imp->imp_obd->u.cli.cl_sp_me;
 	} else {
-		/* reverse import, determine flavor from incoming reqeust */
+		/* reverse import, determine flavor from incoming request */
 		sf = *flvr;
 
 		if (sf.sf_rpc != SPTLRPC_FLVR_NULL)
@@ -1774,7 +1774,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 		exp->exp_flvr_old[1] = exp->exp_flvr_old[0];
 		exp->exp_flvr_expire[1] = exp->exp_flvr_expire[0];
 		exp->exp_flvr_old[0] = exp->exp_flvr;
-		exp->exp_flvr_expire[0] = cfs_time_current_sec() +
+		exp->exp_flvr_expire[0] = get_seconds() +
 					  EXP_FLVR_UPDATE_EXPIRE;
 		exp->exp_flvr = flavor;
 
@@ -1848,7 +1848,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	}
 
 	if (exp->exp_flvr_expire[0]) {
-		if (exp->exp_flvr_expire[0] >= cfs_time_current_sec()) {
+		if (exp->exp_flvr_expire[0] >= get_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[0], req)) {
 				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the "
 				       "middle one ("CFS_DURATION_T")\n", exp,
@@ -1856,7 +1856,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 				       exp->exp_flvr_old[0].sf_rpc,
 				       exp->exp_flvr_old[1].sf_rpc,
 				       exp->exp_flvr_expire[0] -
-						cfs_time_current_sec());
+						get_seconds());
 				spin_unlock(&exp->exp_lock);
 				return 0;
 			}
@@ -1873,7 +1873,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	/* now it doesn't match the current flavor, the only chance we can
 	 * accept it is match the old flavors which is not expired. */
 	if (exp->exp_flvr_changed == 0 && exp->exp_flvr_expire[1]) {
-		if (exp->exp_flvr_expire[1] >= cfs_time_current_sec()) {
+		if (exp->exp_flvr_expire[1] >= get_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[1], req)) {
 				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the "
 				       "oldest one ("CFS_DURATION_T")\n", exp,
@@ -1881,7 +1881,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 				       exp->exp_flvr_old[0].sf_rpc,
 				       exp->exp_flvr_old[1].sf_rpc,
 				       exp->exp_flvr_expire[1] -
-						cfs_time_current_sec());
+						get_seconds());
 				spin_unlock(&exp->exp_lock);
 				return 0;
 			}
@@ -1911,11 +1911,11 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	      exp->exp_flvr_old[0].sf_rpc,
 	      exp->exp_flvr_expire[0] ?
 	      (unsigned long) (exp->exp_flvr_expire[0] -
-			       cfs_time_current_sec()) : 0,
+			       get_seconds()) : 0,
 	      exp->exp_flvr_old[1].sf_rpc,
 	      exp->exp_flvr_expire[1] ?
 	      (unsigned long) (exp->exp_flvr_expire[1] -
-			       cfs_time_current_sec()) : 0);
+			       get_seconds()) : 0);
 	return -EACCES;
 }
 EXPORT_SYMBOL(sptlrpc_target_export_check);
@@ -2033,7 +2033,7 @@ int sptlrpc_svc_unwrap_request(struct ptlrpc_request *req)
 	case 0:
 		break;
 	default:
-		CERROR("error unpacking request from %s x"LPU64"\n",
+		CERROR("error unpacking request from %s x%llu\n",
 		       libcfs_id2str(req->rq_peer), req->rq_xid);
 		return SECSVC_DROP;
 	}
@@ -2057,7 +2057,7 @@ int sptlrpc_svc_unwrap_request(struct ptlrpc_request *req)
 
 	/*
 	 * if it's not null flavor (which means embedded packing msg),
-	 * reset the swab mask for the comming inner msg unpacking.
+	 * reset the swab mask for the coming inner msg unpacking.
 	 */
 	if (SPTLRPC_FLVR_POLICY(req->rq_flvr.sf_rpc) != SPTLRPC_POLICY_NULL)
 		req->rq_req_swab_mask = 0;
@@ -2086,8 +2086,18 @@ int sptlrpc_svc_alloc_rs(struct ptlrpc_request *req, int msglen)
 
 	rc = policy->sp_sops->alloc_rs(req, msglen);
 	if (unlikely(rc == -ENOMEM)) {
+		struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
+		if (svcpt->scp_service->srv_max_reply_size <
+		   msglen + sizeof(struct ptlrpc_reply_state)) {
+			/* Just return failure if the size is too big */
+			CERROR("size of message is too big (%zd), %d allowed",
+				msglen + sizeof(struct ptlrpc_reply_state),
+				svcpt->scp_service->srv_max_reply_size);
+			return -ENOMEM;
+		}
+
 		/* failed alloc, try emergency pool */
-		rs = lustre_get_emerg_rs(req->rq_rqbd->rqbd_svcpt);
+		rs = lustre_get_emerg_rs(svcpt);
 		if (rs == NULL)
 			return -ENOMEM;
 
@@ -2108,7 +2118,7 @@ int sptlrpc_svc_alloc_rs(struct ptlrpc_request *req, int msglen)
 /**
  * Used by ptlrpc server, to perform transformation upon reply message.
  *
- * \post req->rq_reply_off is set to approriate server-controlled reply offset.
+ * \post req->rq_reply_off is set to appropriate server-controlled reply offset.
  * \post req->rq_repmsg and req->rq_reply_state->rs_msg becomes inaccessible.
  */
 int sptlrpc_svc_wrap_reply(struct ptlrpc_request *req)

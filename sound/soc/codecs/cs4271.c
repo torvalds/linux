@@ -159,7 +159,6 @@ static bool cs4271_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 struct cs4271_private {
-	/* SND_SOC_I2C or SND_SOC_SPI */
 	unsigned int			mclk;
 	bool				master;
 	bool				deemph;
@@ -285,7 +284,7 @@ static int cs4271_set_deemph(struct snd_soc_codec *codec)
 static int cs4271_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = cs4271->deemph;
@@ -295,7 +294,7 @@ static int cs4271_get_deemph(struct snd_kcontrol *kcontrol,
 static int cs4271_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 
 	cs4271->deemph = ucontrol->value.enumerated.item[0];
@@ -540,14 +539,10 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 	struct cs4271_platform_data *cs4271plat = codec->dev->platform_data;
 	int ret;
-	int gpio_nreset = -EINVAL;
 	bool amutec_eq_bmutec = false;
 
 #ifdef CONFIG_OF
 	if (of_match_device(cs4271_dt_ids, codec->dev)) {
-		gpio_nreset = of_get_named_gpio(codec->dev->of_node,
-						"reset-gpio", 0);
-
 		if (of_get_property(codec->dev->of_node,
 				     "cirrus,amutec-eq-bmutec", NULL))
 			amutec_eq_bmutec = true;
@@ -559,26 +554,18 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 #endif
 
 	if (cs4271plat) {
-		if (gpio_is_valid(cs4271plat->gpio_nreset))
-			gpio_nreset = cs4271plat->gpio_nreset;
-
 		amutec_eq_bmutec = cs4271plat->amutec_eq_bmutec;
 		cs4271->enable_soft_reset = cs4271plat->enable_soft_reset;
 	}
 
-	if (gpio_nreset >= 0)
-		if (devm_gpio_request(codec->dev, gpio_nreset, "CS4271 Reset"))
-			gpio_nreset = -EINVAL;
-	if (gpio_nreset >= 0) {
+	if (gpio_is_valid(cs4271->gpio_nreset)) {
 		/* Reset codec */
-		gpio_direction_output(gpio_nreset, 0);
+		gpio_direction_output(cs4271->gpio_nreset, 0);
 		udelay(1);
-		gpio_set_value(gpio_nreset, 1);
+		gpio_set_value(cs4271->gpio_nreset, 1);
 		/* Give the codec time to wake up */
 		udelay(1);
 	}
-
-	cs4271->gpio_nreset = gpio_nreset;
 
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 				 CS4271_MODE2_PDN | CS4271_MODE2_CPEN,
@@ -625,6 +612,36 @@ static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs4271_dapm_routes),
 };
 
+static int cs4271_common_probe(struct device *dev,
+			       struct cs4271_private **c)
+{
+	struct cs4271_platform_data *cs4271plat = dev->platform_data;
+	struct cs4271_private *cs4271;
+
+	cs4271 = devm_kzalloc(dev, sizeof(*cs4271), GFP_KERNEL);
+	if (!cs4271)
+		return -ENOMEM;
+
+	if (of_match_device(cs4271_dt_ids, dev))
+		cs4271->gpio_nreset =
+			of_get_named_gpio(dev->of_node, "reset-gpio", 0);
+
+	if (cs4271plat)
+		cs4271->gpio_nreset = cs4271plat->gpio_nreset;
+
+	if (gpio_is_valid(cs4271->gpio_nreset)) {
+		int ret;
+
+		ret = devm_gpio_request(dev, cs4271->gpio_nreset,
+					"CS4271 Reset");
+		if (ret < 0)
+			return ret;
+	}
+
+	*c = cs4271;
+	return 0;
+}
+
 #if defined(CONFIG_SPI_MASTER)
 
 static const struct regmap_config cs4271_spi_regmap = {
@@ -644,10 +661,11 @@ static const struct regmap_config cs4271_spi_regmap = {
 static int cs4271_spi_probe(struct spi_device *spi)
 {
 	struct cs4271_private *cs4271;
+	int ret;
 
-	cs4271 = devm_kzalloc(&spi->dev, sizeof(*cs4271), GFP_KERNEL);
-	if (!cs4271)
-		return -ENOMEM;
+	ret = cs4271_common_probe(&spi->dev, &cs4271);
+	if (ret < 0)
+		return ret;
 
 	spi_set_drvdata(spi, cs4271);
 	cs4271->regmap = devm_regmap_init_spi(spi, &cs4271_spi_regmap);
@@ -698,10 +716,11 @@ static int cs4271_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	struct cs4271_private *cs4271;
+	int ret;
 
-	cs4271 = devm_kzalloc(&client->dev, sizeof(*cs4271), GFP_KERNEL);
-	if (!cs4271)
-		return -ENOMEM;
+	ret = cs4271_common_probe(&client->dev, &cs4271);
+	if (ret < 0)
+		return ret;
 
 	i2c_set_clientdata(client, cs4271);
 	cs4271->regmap = devm_regmap_init_i2c(client, &cs4271_i2c_regmap);

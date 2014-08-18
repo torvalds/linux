@@ -157,7 +157,7 @@ bool rtl8821ae_dm_bt_is_same_coexist_state(struct ieee80211_hw *hw)
 		&&(rtlpcipriv->btcoexist.previous_state_h
 		== rtlpcipriv->btcoexist.current_state_h)) {
 		RT_TRACE(COMP_BT_COEXIST, DBG_DMESG,
-				("[DM][BT], Coexist state do not chang!!\n"));
+				("[DM][BT], Coexist state do not change!!\n"));
 		return true;
 	} else {
 		RT_TRACE(COMP_BT_COEXIST, DBG_DMESG,
@@ -902,7 +902,7 @@ void rtl8821ae_dm_bt_set_bt_dm(struct ieee80211_hw *hw, struct btdm_8821ae *p_bt
 
 	/*
 	 * Note:
-	 * We should add delay for making sure sw DacSwing can be set sucessfully.
+	 * We should add delay for making sure sw DacSwing can be set successfully.
 	 * because of that rtl8821ae_dm_bt_set_fw_2_ant_hid() and rtl8821ae_dm_bt_set_fw_tdma_ctrl()
 	 * will overwrite the reg 0x880.
 	*/
@@ -1706,20 +1706,6 @@ void rtl8821ae_dm_bt_inq_page_monitor(struct ieee80211_hw *hw)
 			rtlpcipriv->btcoexist.current_state &=~ BT_COEX_STATE_BT_INQ_PAGE;
 		}
 	}
-
-#if 0
-	if (hal_coex_8821ae.b_c2h_bt_inquiry_page) {
-		hal_coex_8821ae.b_c2h_bt_inquiry_page++;
-		// bt inquiry or page is started.
-	} if(hal_coex_8821ae.b_c2h_bt_inquiry_page) {
-		rtlpcipriv->btcoexist.current_state |= BT_COEX_STATE_BT_INQ_PAGE;
-		if(hal_coex_8821ae.bt_inquiry_page_cnt >= 4)
-			hal_coex_8821ae.bt_inquiry_page_cnt = 0;
-		hal_coex_8821ae.bt_inquiry_page_cnt++;
-	} else {
-		rtlpcipriv->btcoexist.current_state &=~ BT_COEX_STATE_BT_INQ_PAGE;
-	}
-#endif
 }
 
 void rtl8821ae_dm_bt_reset_action_profile_state(struct ieee80211_hw *hw)
@@ -2025,7 +2011,7 @@ void rtl_8821ae_c2h_command_handle(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, 0x1AF, 0x00);
 		return;
 	}
-	ptmp_buf = (u8 *) kmalloc(c2h_event.cmd_len, GFP_KERNEL);
+	ptmp_buf = kmalloc(c2h_event.cmd_len, GFP_KERNEL);
 	if(ptmp_buf == NULL) {
 		RT_TRACE(COMP_FW, DBG_TRACE, ("malloc cmd buf failed\n"));
 		return;
@@ -2059,8 +2045,7 @@ void rtl_8821ae_c2h_command_handle(struct ieee80211_hw *hw)
 		break;
 	}
 
-	if(ptmp_buf)
-		kfree(ptmp_buf);
+	kfree(ptmp_buf);
 
 	rtl_write_byte(rtlpriv, 0x01AF, C2H_EVT_HOST_CLOSE);
 }

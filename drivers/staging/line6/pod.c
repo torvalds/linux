@@ -197,6 +197,7 @@ static ssize_t serial_number_show(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+
 	return sprintf(buf, "%d\n", pod->serial_number);
 }
 
@@ -208,6 +209,7 @@ static ssize_t firmware_version_show(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+
 	return sprintf(buf, "%d.%02d\n", pod->firmware_version / 100,
 		       pod->firmware_version % 100);
 }
@@ -220,6 +222,7 @@ static ssize_t device_id_show(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+
 	return sprintf(buf, "%d\n", pod->device_id);
 }
 
@@ -243,6 +246,7 @@ static void pod_startup2(unsigned long data)
 {
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)data;
 	struct usb_line6 *line6 = &pod->line6;
+
 	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_VERSIONREQ);
 
 	/* request firmware version: */
@@ -294,6 +298,7 @@ static int snd_pod_control_monitor_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6pcm->line6;
+
 	ucontrol->value.integer.value[0] = pod->monitor_level;
 	return 0;
 }

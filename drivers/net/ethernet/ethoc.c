@@ -660,11 +660,6 @@ static int ethoc_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	return -EBUSY;
 }
 
-static int ethoc_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void ethoc_mdio_poll(struct net_device *dev)
 {
 }
@@ -772,11 +767,6 @@ static int ethoc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 
 	return phy_mii_ioctl(phy, ifr, cmd);
-}
-
-static int ethoc_config(struct net_device *dev, struct ifmap *map)
-{
-	return -ENOSYS;
 }
 
 static void ethoc_do_set_mac_address(struct net_device *dev)
@@ -1000,7 +990,6 @@ static const struct net_device_ops ethoc_netdev_ops = {
 	.ndo_open = ethoc_open,
 	.ndo_stop = ethoc_stop,
 	.ndo_do_ioctl = ethoc_ioctl,
-	.ndo_set_config = ethoc_config,
 	.ndo_set_mac_address = ethoc_set_mac_address,
 	.ndo_set_rx_mode = ethoc_set_multicast_list,
 	.ndo_change_mtu = ethoc_change_mtu,
@@ -1210,7 +1199,6 @@ static int ethoc_probe(struct platform_device *pdev)
 			priv->mdio->name, pdev->id);
 	priv->mdio->read = ethoc_mdio_read;
 	priv->mdio->write = ethoc_mdio_write;
-	priv->mdio->reset = ethoc_mdio_reset;
 	priv->mdio->priv = priv;
 
 	priv->mdio->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);

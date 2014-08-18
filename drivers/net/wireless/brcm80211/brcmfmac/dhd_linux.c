@@ -30,7 +30,9 @@
 #include "wl_cfg80211.h"
 #include "fwil.h"
 #include "fwsignal.h"
+#include "feature.h"
 #include "proto.h"
+#include "pcie.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -190,7 +192,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	int ret;
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct ethhdr *eh;
+	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 
 	brcmf_dbg(DATA, "Enter, idx=%d\n", ifp->bssidx);
 
@@ -235,6 +237,9 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		dev_kfree_skb(skb);
 		goto done;
 	}
+
+	if (eh->h_proto == htons(ETH_P_PAE))
+		atomic_inc(&ifp->pend_8021x_cnt);
 
 	ret = brcmf_fws_process_skb(ifp, skb);
 
@@ -284,7 +289,7 @@ void brcmf_txflowblock(struct device *dev, bool state)
 	brcmf_fws_bus_blocked(drvr, state);
 }
 
-static void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
+void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	skb->dev = ifp->ndev;
 	skb->protocol = eth_type_trans(skb, skb->dev);
@@ -538,31 +543,26 @@ void brcmf_rx_frame(struct device *dev, struct sk_buff *skb)
 		brcmf_netif_rx(ifp, skb);
 }
 
-void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp, u8 ifidx,
 		      bool success)
 {
 	struct brcmf_if *ifp;
 	struct ethhdr *eh;
-	u8 ifidx;
 	u16 type;
-	int res;
-
-	res = brcmf_proto_hdrpull(drvr, false, &ifidx, txp);
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp)
 		goto done;
 
-	if (res == 0) {
-		eh = (struct ethhdr *)(txp->data);
-		type = ntohs(eh->h_proto);
+	eh = (struct ethhdr *)(txp->data);
+	type = ntohs(eh->h_proto);
 
-		if (type == ETH_P_PAE) {
-			atomic_dec(&ifp->pend_8021x_cnt);
-			if (waitqueue_active(&ifp->pend_8021x_wait))
-				wake_up(&ifp->pend_8021x_wait);
-		}
+	if (type == ETH_P_PAE) {
+		atomic_dec(&ifp->pend_8021x_cnt);
+		if (waitqueue_active(&ifp->pend_8021x_wait))
+			wake_up(&ifp->pend_8021x_wait);
 	}
+
 	if (!success)
 		ifp->stats.tx_errors++;
 done:
@@ -573,13 +573,17 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	u8 ifidx;
 
 	/* await txstatus signal for firmware if active */
 	if (brcmf_fws_fc_active(drvr->fws)) {
 		if (!success)
 			brcmf_fws_bustxfail(drvr->fws, txp);
 	} else {
-		brcmf_txfinalize(drvr, txp, success);
+		if (brcmf_proto_hdrpull(drvr, false, &ifidx, txp))
+			brcmu_pkt_buf_free_skb(txp);
+		else
+			brcmf_txfinalize(drvr, txp, ifidx, success);
 	}
 }
 
@@ -806,7 +810,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	} else {
 		brcmf_dbg(INFO, "allocate netdev interface\n");
 		/* Allocate netdev, including space for private structure */
-		ndev = alloc_netdev(sizeof(*ifp), name, ether_setup);
+		ndev = alloc_netdev(sizeof(*ifp), name, NET_NAME_UNKNOWN,
+				    ether_setup);
 		if (!ndev)
 			return ERR_PTR(-ENOMEM);
 
@@ -914,13 +919,6 @@ int brcmf_bus_start(struct device *dev)
 
 	brcmf_dbg(TRACE, "\n");
 
-	/* Bring up the bus */
-	ret = brcmf_bus_init(bus_if);
-	if (ret != 0) {
-		brcmf_err("brcmf_sdbrcm_bus_init failed %d\n", ret);
-		return ret;
-	}
-
 	/* add primary networking interface */
 	ifp = brcmf_add_if(drvr, 0, 0, "wlan%d", NULL);
 	if (IS_ERR(ifp))
@@ -940,6 +938,8 @@ int brcmf_bus_start(struct device *dev)
 	ret = brcmf_c_preinit_dcmds(ifp);
 	if (ret < 0)
 		goto fail;
+
+	brcmf_feat_attach(drvr);
 
 	ret = brcmf_fws_init(drvr);
 	if (ret < 0)
@@ -1040,11 +1040,11 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_cfg80211_detach(drvr->config);
 
+	brcmf_fws_deinit(drvr);
+
 	brcmf_bus_detach(drvr);
 
 	brcmf_proto_detach(drvr);
-
-	brcmf_fws_deinit(drvr);
 
 	brcmf_debugfs_detach(drvr);
 	bus_if->drvr = NULL;
@@ -1078,16 +1078,6 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	return !err;
 }
 
-/*
- * return chip id and rev of the device encoded in u32.
- */
-u32 brcmf_get_chip_info(struct brcmf_if *ifp)
-{
-	struct brcmf_bus *bus = ifp->drvr->bus_if;
-
-	return bus->chip << 4 | bus->chiprev;
-}
-
 static void brcmf_driver_register(struct work_struct *work)
 {
 #ifdef CONFIG_BRCMFMAC_SDIO
@@ -1095,6 +1085,9 @@ static void brcmf_driver_register(struct work_struct *work)
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_register();
+#endif
+#ifdef CONFIG_BRCMFMAC_PCIE
+	brcmf_pcie_register();
 #endif
 }
 static DECLARE_WORK(brcmf_driver_work, brcmf_driver_register);
@@ -1120,6 +1113,9 @@ static void __exit brcmfmac_module_exit(void)
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_exit();
+#endif
+#ifdef CONFIG_BRCMFMAC_PCIE
+	brcmf_pcie_exit();
 #endif
 	brcmf_debugfs_exit();
 }

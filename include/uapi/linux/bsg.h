@@ -10,12 +10,13 @@
 #define BSG_SUB_PROTOCOL_SCSI_TRANSPORT	2
 
 /*
- * For flags member below
- * sg.h sg_io_hdr also has bits defined for it's flags member. However
- * none of these bits are implemented/used by bsg. The bits below are
- * allocated to not conflict with sg.h ones anyway.
+ * For flag constants below:
+ * sg.h sg_io_hdr also has bits defined for it's flags member. These
+ * two flag values (0x10 and 0x20) have the same meaning in sg.h . For
+ * bsg the BSG_FLAG_Q_AT_HEAD flag is ignored since it is the deafult.
  */
-#define BSG_FLAG_Q_AT_TAIL 0x10 /* default, == 0 at this bit, is Q_AT_HEAD */
+#define BSG_FLAG_Q_AT_TAIL 0x10 /* default is Q_AT_HEAD */
+#define BSG_FLAG_Q_AT_HEAD 0x20
 
 struct sg_io_v4 {
 	__s32 guard;		/* [i] 'Q' to differentiate from v3 */

@@ -340,13 +340,13 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	struct dsa_slave_priv *p;
 	int ret;
 
-	slave_dev = alloc_netdev(sizeof(struct dsa_slave_priv),
-				 name, ether_setup);
+	slave_dev = alloc_netdev(sizeof(struct dsa_slave_priv), name,
+				 NET_NAME_UNKNOWN, ether_setup);
 	if (slave_dev == NULL)
 		return slave_dev;
 
 	slave_dev->features = master->vlan_features;
-	SET_ETHTOOL_OPS(slave_dev, &dsa_slave_ethtool_ops);
+	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->tx_queue_len = 0;
 

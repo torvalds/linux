@@ -65,6 +65,7 @@ struct bt_security {
 #define BT_SECURITY_LOW		1
 #define BT_SECURITY_MEDIUM	2
 #define BT_SECURITY_HIGH	3
+#define BT_SECURITY_FIPS	4
 
 #define BT_DEFER_SETUP	7
 
@@ -259,15 +260,15 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 
 /* Skb helpers */
 struct l2cap_ctrl {
-	unsigned int	sframe:1,
-			poll:1,
-			final:1,
-			fcs:1,
-			sar:2,
-			super:2;
-	__u16		reqseq;
-	__u16		txseq;
-	__u8		retries;
+	__u8	sframe:1,
+		poll:1,
+		final:1,
+		fcs:1,
+		sar:2,
+		super:2;
+	__u16	reqseq;
+	__u16	txseq;
+	__u8	retries;
 };
 
 struct hci_dev;

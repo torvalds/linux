@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: station event handling
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -53,6 +53,10 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	priv->media_connected = false;
 
 	priv->scan_block = false;
+
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
+	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		mwifiex_disable_all_tdls_links(priv);
 
 	/* Free Tx and Rx packets, report disconnect to upper layer */
 	mwifiex_clean_txrx(priv);
@@ -112,7 +116,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	adapter->tx_lock_flag = false;
 	adapter->pps_uapsd_mode = false;
 
-	if (adapter->num_cmd_timeout && adapter->curr_cmd)
+	if (adapter->is_cmd_timedout && adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
 	dev_dbg(adapter->dev,
@@ -128,6 +132,46 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
+}
+
+static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
+				    struct sk_buff *event_skb)
+{
+	int ret = 0;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_tdls_generic_event *tdls_evt =
+			(void *)event_skb->data + sizeof(adapter->event_cause);
+
+	/* reserved 2 bytes are not mandatory in tdls event */
+	if (event_skb->len < (sizeof(struct mwifiex_tdls_generic_event) -
+			      sizeof(u16) - sizeof(adapter->event_cause))) {
+		dev_err(adapter->dev, "Invalid event length!\n");
+		return -1;
+	}
+
+	sta_ptr = mwifiex_get_sta_entry(priv, tdls_evt->peer_mac);
+	if (!sta_ptr) {
+		dev_err(adapter->dev, "cannot get sta entry!\n");
+		return -1;
+	}
+
+	switch (le16_to_cpu(tdls_evt->type)) {
+	case TDLS_EVENT_LINK_TEAR_DOWN:
+		cfg80211_tdls_oper_request(priv->netdev,
+					   tdls_evt->peer_mac,
+					   NL80211_TDLS_TEARDOWN,
+					   le16_to_cpu(tdls_evt->u.reason_code),
+					   GFP_KERNEL);
+		ret = mwifiex_tdls_oper(priv, tdls_evt->peer_mac,
+					MWIFIEX_TDLS_DISABLE_LINK);
+		queue_work(adapter->workqueue, &adapter->main_work);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 /*
@@ -289,9 +333,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_HS_ACT_REQ:
 		dev_dbg(adapter->dev, "event: HS_ACT_REQ\n");
-		ret = mwifiex_send_cmd_async(priv,
-					     HostCmd_CMD_802_11_HS_CFG_ENH,
-					     0, 0, NULL);
+		ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_HS_CFG_ENH,
+				       0, 0, NULL, false);
 		break;
 
 	case EVENT_MIC_ERR_UNICAST:
@@ -322,27 +365,34 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_BG_SCAN_REPORT:
 		dev_dbg(adapter->dev, "event: BGS_REPORT\n");
-		ret = mwifiex_send_cmd_async(priv,
-					     HostCmd_CMD_802_11_BG_SCAN_QUERY,
-					     HostCmd_ACT_GEN_GET, 0, NULL);
+		ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_BG_SCAN_QUERY,
+				       HostCmd_ACT_GEN_GET, 0, NULL, false);
 		break;
 
 	case EVENT_PORT_RELEASE:
 		dev_dbg(adapter->dev, "event: PORT RELEASE\n");
 		break;
 
+	case EVENT_EXT_SCAN_REPORT:
+		dev_dbg(adapter->dev, "event: EXT_SCAN Report\n");
+		if (adapter->ext_scan)
+			ret = mwifiex_handle_event_ext_scan_report(priv,
+						adapter->event_skb->data);
+
+		break;
+
 	case EVENT_WMM_STATUS_CHANGE:
 		dev_dbg(adapter->dev, "event: WMM status changed\n");
-		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_WMM_GET_STATUS,
-					     0, 0, NULL);
+		ret = mwifiex_send_cmd(priv, HostCmd_CMD_WMM_GET_STATUS,
+				       0, 0, NULL, false);
 		break;
 
 	case EVENT_RSSI_LOW:
 		cfg80211_cqm_rssi_notify(priv->netdev,
 					 NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
 					 GFP_KERNEL);
-		mwifiex_send_cmd_async(priv, HostCmd_CMD_RSSI_INFO,
-				       HostCmd_ACT_GEN_GET, 0, NULL);
+		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
+				 HostCmd_ACT_GEN_GET, 0, NULL, false);
 		priv->subsc_evt_rssi_state = RSSI_LOW_RECVD;
 		dev_dbg(adapter->dev, "event: Beacon RSSI_LOW\n");
 		break;
@@ -356,8 +406,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		cfg80211_cqm_rssi_notify(priv->netdev,
 					 NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
 					 GFP_KERNEL);
-		mwifiex_send_cmd_async(priv, HostCmd_CMD_RSSI_INFO,
-				       HostCmd_ACT_GEN_GET, 0, NULL);
+		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
+				 HostCmd_ACT_GEN_GET, 0, NULL, false);
 		priv->subsc_evt_rssi_state = RSSI_HIGH_RECVD;
 		dev_dbg(adapter->dev, "event: Beacon RSSI_HIGH\n");
 		break;
@@ -384,15 +434,15 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 	case EVENT_IBSS_COALESCED:
 		dev_dbg(adapter->dev, "event: IBSS_COALESCED\n");
-		ret = mwifiex_send_cmd_async(priv,
+		ret = mwifiex_send_cmd(priv,
 				HostCmd_CMD_802_11_IBSS_COALESCING_STATUS,
-				HostCmd_ACT_GEN_GET, 0, NULL);
+				HostCmd_ACT_GEN_GET, 0, NULL, false);
 		break;
 	case EVENT_ADDBA:
 		dev_dbg(adapter->dev, "event: ADDBA Request\n");
-		mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_ADDBA_RSP,
-				       HostCmd_ACT_GEN_SET, 0,
-				       adapter->event_body);
+		mwifiex_send_cmd(priv, HostCmd_CMD_11N_ADDBA_RSP,
+				 HostCmd_ACT_GEN_SET, 0,
+				 adapter->event_body, false);
 		break;
 	case EVENT_DELBA:
 		dev_dbg(adapter->dev, "event: DELBA Request\n");
@@ -443,10 +493,14 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		priv->csa_expire_time =
 				jiffies + msecs_to_jiffies(DFS_CHAN_MOVE_TIME);
 		priv->csa_chan = priv->curr_bss_params.bss_descriptor.channel;
-		ret = mwifiex_send_cmd_async(priv,
-			HostCmd_CMD_802_11_DEAUTHENTICATE,
+		ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_DEAUTHENTICATE,
 			HostCmd_ACT_GEN_SET, 0,
-			priv->curr_bss_params.bss_descriptor.mac_address);
+			priv->curr_bss_params.bss_descriptor.mac_address,
+			false);
+		break;
+
+	case EVENT_TDLS_GENERIC_EVENT:
+		ret = mwifiex_parse_tdls_event(priv, adapter->event_skb);
 		break;
 
 	default:

@@ -1855,8 +1855,9 @@ static int handle_goto(struct vc_data *vc, u_char type, u_char ch, u_short key)
 {
 	static u_char goto_buf[8];
 	static int num;
-	int maxlen, go_pos;
+	int maxlen;
 	char *cp;
+
 	if (type == KT_SPKUP && ch == SPEAKUP_GOTO)
 		goto do_goto;
 	if (type == KT_LATIN && ch == '\n')
@@ -1891,25 +1892,24 @@ oops:
 		spk_special_handler = NULL;
 		return 1;
 	}
-	go_pos = kstrtol(goto_buf, 10, (long *)&cp);
-	goto_pos = (u_long) go_pos;
+
+	goto_pos = simple_strtoul(goto_buf, &cp, 10);
+
 	if (*cp == 'x') {
 		if (*goto_buf < '0')
 			goto_pos += spk_x;
-		else
+		else if (goto_pos > 0)
 			goto_pos--;
-		if (goto_pos < 0)
-			goto_pos = 0;
+
 		if (goto_pos >= vc->vc_cols)
 			goto_pos = vc->vc_cols - 1;
 		goto_x = 1;
 	} else {
 		if (*goto_buf < '0')
 			goto_pos += spk_y;
-		else
+		else if (goto_pos > 0)
 			goto_pos--;
-		if (goto_pos < 0)
-			goto_pos = 0;
+
 		if (goto_pos >= vc->vc_rows)
 			goto_pos = vc->vc_rows - 1;
 		goto_x = 0;
@@ -2067,7 +2067,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 			if (up_flag)
 				goto out;
 			if (last_keycode == keycode &&
-			    last_spk_jiffy + MAX_DELAY > jiffies) {
+			    time_after(last_spk_jiffy + MAX_DELAY, jiffies)) {
 				spk_close_press = 1;
 				offset = spk_shift_table[shift_info + 32];
 				/* double press? */
@@ -2218,6 +2218,7 @@ static void __exit speakup_exit(void)
 	unregister_keyboard_notifier(&keyboard_notifier_block);
 	unregister_vt_notifier(&vt_notifier_block);
 	speakup_unregister_devsynth();
+	speakup_cancel_paste();
 	del_timer(&cursor_timer);
 	kthread_stop(speakup_task);
 	speakup_task = NULL;

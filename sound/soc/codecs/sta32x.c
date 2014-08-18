@@ -243,7 +243,7 @@ static int sta32x_coefficient_info(struct snd_kcontrol *kcontrol,
 static int sta32x_coefficient_get(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	int numcoef = kcontrol->private_value >> 16;
 	int index = kcontrol->private_value & 0xffff;
 	unsigned int cfud;
@@ -272,7 +272,7 @@ static int sta32x_coefficient_get(struct snd_kcontrol *kcontrol,
 static int sta32x_coefficient_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
 	int numcoef = kcontrol->private_value >> 16;
 	int index = kcontrol->private_value & 0xffff;
@@ -678,15 +678,11 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 
 	confb = snd_soc_read(codec, STA32X_CONFB);
 	confb &= ~(STA32X_CONFB_SAI_MASK | STA32X_CONFB_SAIFB);
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S24_BE:
-	case SNDRV_PCM_FORMAT_S24_3LE:
-	case SNDRV_PCM_FORMAT_S24_3BE:
+	switch (params_width(params)) {
+	case 24:
 		pr_debug("24bit\n");
 		/* fall through */
-	case SNDRV_PCM_FORMAT_S32_LE:
-	case SNDRV_PCM_FORMAT_S32_BE:
+	case 32:
 		pr_debug("24bit or 32bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
@@ -701,8 +697,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-	case SNDRV_PCM_FORMAT_S20_3BE:
+	case 20:
 		pr_debug("20bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
@@ -717,8 +712,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
-	case SNDRV_PCM_FORMAT_S18_3BE:
+	case 18:
 		pr_debug("18bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
@@ -733,8 +727,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
-	case SNDRV_PCM_FORMAT_S16_BE:
+	case 16:
 		pr_debug("16bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
@@ -872,16 +865,6 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* Tell ASoC what kind of I/O to use to read the registers.  ASoC will
-	 * then do the I2C transactions itself.
-	 */
-	codec->control_data = sta32x->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to set cache I/O (ret=%i)\n", ret);
-		goto err;
-	}
-
 	/* Chip documentation explicitly requires that the reset values
 	 * of reserved register bits are left untouched.
 	 * Write the register default value to cache for reserved registers,
@@ -946,10 +929,6 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
 	return 0;
-
-err:
-	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
-	return ret;
 }
 
 static int sta32x_remove(struct snd_soc_codec *codec)

@@ -349,23 +349,6 @@ static void cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
 			   grh, &av->ah_attr);
 }
 
-int ib_update_cm_av(struct ib_cm_id *id, const u8 *smac, const u8 *alt_smac)
-{
-	struct cm_id_private *cm_id_priv;
-
-	cm_id_priv = container_of(id, struct cm_id_private, id);
-
-	if (smac != NULL)
-		memcpy(cm_id_priv->av.smac, smac, sizeof(cm_id_priv->av.smac));
-
-	if (alt_smac != NULL)
-		memcpy(cm_id_priv->alt_av.smac, alt_smac,
-		       sizeof(cm_id_priv->alt_av.smac));
-
-	return 0;
-}
-EXPORT_SYMBOL(ib_update_cm_av);
-
 static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 {
 	struct cm_device *cm_dev;
@@ -3770,7 +3753,7 @@ static void cm_add_one(struct ib_device *ib_device)
 	struct cm_port *port;
 	struct ib_mad_reg_req reg_req = {
 		.mgmt_class = IB_MGMT_CLASS_CM,
-		.mgmt_class_version = IB_CM_CLASS_VERSION
+		.mgmt_class_version = IB_CM_CLASS_VERSION,
 	};
 	struct ib_port_modify port_modify = {
 		.set_port_cap_mask = IB_PORT_CM_SUP
@@ -3818,7 +3801,8 @@ static void cm_add_one(struct ib_device *ib_device)
 							0,
 							cm_send_handler,
 							cm_recv_handler,
-							port);
+							port,
+							0);
 		if (IS_ERR(port->mad_agent))
 			goto error2;
 

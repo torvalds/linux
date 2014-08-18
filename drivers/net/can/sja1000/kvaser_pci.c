@@ -107,7 +107,7 @@ struct kvaser_pci {
 #define KVASER_PCI_VENDOR_ID2     0x1a07    /* the PCI device and vendor IDs */
 #define KVASER_PCI_DEVICE_ID2     0x0008
 
-static DEFINE_PCI_DEVICE_TABLE(kvaser_pci_tbl) = {
+static const struct pci_device_id kvaser_pci_tbl[] = {
 	{KVASER_PCI_VENDOR_ID1, KVASER_PCI_DEVICE_ID1, PCI_ANY_ID, PCI_ANY_ID,},
 	{KVASER_PCI_VENDOR_ID2, KVASER_PCI_DEVICE_ID2, PCI_ANY_ID, PCI_ANY_ID,},
 	{ 0,}
@@ -270,6 +270,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 		 priv->reg_base, board->conf_addr, dev->irq);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
+	dev->dev_id = channel;
 
 	/* Register SJA1000 device */
 	err = register_sja1000dev(dev);

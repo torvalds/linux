@@ -43,6 +43,7 @@
 #include <linux/wait.h> 		/* wait_queue_head_t, etc */
 #include <linux/spinlock.h> 		/* spinlock_t, etc */
 #include <linux/atomic.h>			/* atomic_t, etc */
+#include <linux/workqueue.h>		/* struct work_struct */
 
 #include <rdma/rdma_cm.h>		/* RDMA connection api */
 #include <rdma/ib_verbs.h>		/* RDMA verbs api */
@@ -58,6 +59,7 @@
  * Interface Adapter -- one per transport instance
  */
 struct rpcrdma_ia {
+	rwlock_t		ri_qplock;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
 	struct ib_mr		*ri_bind_mem;
@@ -66,18 +68,21 @@ struct rpcrdma_ia {
 	struct completion	ri_done;
 	int			ri_async_rc;
 	enum rpcrdma_memreg	ri_memreg_strategy;
+	unsigned int		ri_max_frmr_depth;
 };
 
 /*
  * RDMA Endpoint -- one per transport instance
  */
 
+#define RPCRDMA_WC_BUDGET	(128)
+#define RPCRDMA_POLLSIZE	(16)
+
 struct rpcrdma_ep {
 	atomic_t		rep_cqcount;
 	int			rep_cqinit;
 	int			rep_connected;
 	struct rpcrdma_ia	*rep_ia;
-	struct ib_cq		*rep_cq;
 	struct ib_qp_init_attr	rep_attr;
 	wait_queue_head_t 	rep_connect_wait;
 	struct ib_sge		rep_pad;	/* holds zeroed pad */
@@ -86,10 +91,21 @@ struct rpcrdma_ep {
 	struct rpc_xprt		*rep_xprt;	/* for rep_func */
 	struct rdma_conn_param	rep_remote_cma;
 	struct sockaddr_storage	rep_remote_addr;
+	struct delayed_work	rep_connect_worker;
+	struct ib_wc		rep_send_wcs[RPCRDMA_POLLSIZE];
+	struct ib_wc		rep_recv_wcs[RPCRDMA_POLLSIZE];
 };
 
 #define INIT_CQCOUNT(ep) atomic_set(&(ep)->rep_cqcount, (ep)->rep_cqinit)
 #define DECR_CQCOUNT(ep) atomic_sub_return(1, &(ep)->rep_cqcount)
+
+enum rpcrdma_chunktype {
+	rpcrdma_noch = 0,
+	rpcrdma_readch,
+	rpcrdma_areadch,
+	rpcrdma_writech,
+	rpcrdma_replych
+};
 
 /*
  * struct rpcrdma_rep -- this structure encapsulates state required to recv
@@ -124,10 +140,43 @@ struct rpcrdma_rep {
 	struct rpc_xprt	*rr_xprt;	/* needed for request/reply matching */
 	void (*rr_func)(struct rpcrdma_rep *);/* called by tasklet in softint */
 	struct list_head rr_list;	/* tasklet list */
-	wait_queue_head_t rr_unbind;	/* optional unbind wait */
 	struct ib_sge	rr_iov;		/* for posting */
 	struct ib_mr	*rr_handle;	/* handle for mem in rr_iov */
 	char	rr_base[MAX_RPCRDMAHDR]; /* minimal inline receive buffer */
+};
+
+/*
+ * struct rpcrdma_mw - external memory region metadata
+ *
+ * An external memory region is any buffer or page that is registered
+ * on the fly (ie, not pre-registered).
+ *
+ * Each rpcrdma_buffer has a list of free MWs anchored in rb_mws. During
+ * call_allocate, rpcrdma_buffer_get() assigns one to each segment in
+ * an rpcrdma_req. Then rpcrdma_register_external() grabs these to keep
+ * track of registration metadata while each RPC is pending.
+ * rpcrdma_deregister_external() uses this metadata to unmap and
+ * release these resources when an RPC is complete.
+ */
+enum rpcrdma_frmr_state {
+	FRMR_IS_INVALID,	/* ready to be used */
+	FRMR_IS_VALID,		/* in use */
+	FRMR_IS_STALE,		/* failed completion */
+};
+
+struct rpcrdma_frmr {
+	struct ib_fast_reg_page_list	*fr_pgl;
+	struct ib_mr			*fr_mr;
+	enum rpcrdma_frmr_state		fr_state;
+};
+
+struct rpcrdma_mw {
+	union {
+		struct ib_fmr		*fmr;
+		struct rpcrdma_frmr	frmr;
+	} r;
+	struct list_head	mw_list;
+	struct list_head	mw_all;
 };
 
 /*
@@ -157,18 +206,7 @@ struct rpcrdma_rep {
 struct rpcrdma_mr_seg {		/* chunk descriptors */
 	union {				/* chunk memory handles */
 		struct ib_mr	*rl_mr;		/* if registered directly */
-		struct rpcrdma_mw {		/* if registered from region */
-			union {
-				struct ib_mw	*mw;
-				struct ib_fmr	*fmr;
-				struct {
-					struct ib_fast_reg_page_list *fr_pgl;
-					struct ib_mr *fr_mr;
-					enum { FRMR_IS_INVALID, FRMR_IS_VALID  } state;
-				} frmr;
-			} r;
-			struct list_head mw_list;
-		} *rl_mw;
+		struct rpcrdma_mw *rl_mw;	/* if registered from region */
 	} mr_chunk;
 	u64		mr_base;	/* registration result */
 	u32		mr_rkey;	/* registration result */
@@ -186,6 +224,7 @@ struct rpcrdma_req {
 	unsigned int	rl_niovs;	/* 0, 2 or 4 */
 	unsigned int	rl_nchunks;	/* non-zero if chunks */
 	unsigned int	rl_connect_cookie;	/* retry detection */
+	enum rpcrdma_chunktype	rl_rtype, rl_wtype;
 	struct rpcrdma_buffer *rl_buffer; /* home base for this structure */
 	struct rpcrdma_rep	*rl_reply;/* holder for reply buffer */
 	struct rpcrdma_mr_seg rl_segments[RPCRDMA_MAX_SEGS];/* chunk segments */
@@ -207,9 +246,9 @@ struct rpcrdma_req {
 struct rpcrdma_buffer {
 	spinlock_t	rb_lock;	/* protects indexes */
 	atomic_t	rb_credits;	/* most recent server credits */
-	unsigned long	rb_cwndscale;	/* cached framework rpc_cwndscale */
 	int		rb_max_requests;/* client max requests */
 	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
+	struct list_head rb_all;
 	int		rb_send_index;
 	struct rpcrdma_req	**rb_send_bufs;
 	int		rb_recv_index;
@@ -300,9 +339,9 @@ void rpcrdma_ia_close(struct rpcrdma_ia *);
  */
 int rpcrdma_ep_create(struct rpcrdma_ep *, struct rpcrdma_ia *,
 				struct rpcrdma_create_data_internal *);
-int rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
+void rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
 int rpcrdma_ep_connect(struct rpcrdma_ep *, struct rpcrdma_ia *);
-int rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
+void rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 
 int rpcrdma_ep_post(struct rpcrdma_ia *, struct rpcrdma_ep *,
 				struct rpcrdma_req *);
@@ -330,18 +369,21 @@ int rpcrdma_deregister_internal(struct rpcrdma_ia *,
 int rpcrdma_register_external(struct rpcrdma_mr_seg *,
 				int, int, struct rpcrdma_xprt *);
 int rpcrdma_deregister_external(struct rpcrdma_mr_seg *,
-				struct rpcrdma_xprt *, void *);
+				struct rpcrdma_xprt *);
 
 /*
  * RPC/RDMA connection management calls - xprtrdma/rpc_rdma.c
  */
+void rpcrdma_connect_worker(struct work_struct *);
 void rpcrdma_conn_func(struct rpcrdma_ep *);
 void rpcrdma_reply_handler(struct rpcrdma_rep *);
 
 /*
  * RPC/RDMA protocol calls - xprtrdma/rpc_rdma.c
  */
+ssize_t rpcrdma_marshal_chunks(struct rpc_rqst *, ssize_t);
 int rpcrdma_marshal_req(struct rpc_rqst *);
+size_t rpcrdma_max_payload(struct rpcrdma_xprt *);
 
 /* Temporary NFS request map cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_map_cachep;

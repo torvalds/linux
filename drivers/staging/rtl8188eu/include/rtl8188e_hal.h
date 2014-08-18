@@ -31,9 +31,8 @@
 #include "rtl8188e_xmit.h"
 #include "rtl8188e_cmd.h"
 #include "Hal8188EPwrSeq.h"
-#include "rtl8188e_sreset.h"
 #include "rtw_efuse.h"
-
+#include "rtw_sreset.h"
 #include "odm_precomp.h"
 
 /*  Fw Array */
@@ -75,17 +74,6 @@
 	(le16_to_cpu(_pFwHdr->Signature)&0xFFF0) == 0x88C0 ||	\
 	(le16_to_cpu(_pFwHdr->Signature)&0xFFF0) == 0x2300 ||	\
 	(le16_to_cpu(_pFwHdr->Signature)&0xFFF0) == 0x88E0)
-
-enum firmware_source {
-	FW_SOURCE_IMG_FILE = 0,
-	FW_SOURCE_HEADER_FILE = 1,		/* from header file */
-};
-
-struct rt_firmware {
-	enum firmware_source	eFWSource;
-	u8			*szFwBuffer;
-	u32			ulFwLength;
-};
 
 /*  This structure must be careful with byte-ordering */
 
@@ -252,7 +240,6 @@ enum rt_regulator_mode {
 
 struct hal_data_8188e {
 	struct HAL_VERSION	VersionID;
-	enum rt_multi_func MultiFunc; /*  For multi-function consideration. */
 	enum rt_regulator_mode RegulatorMode; /*  switching regulator or LDO */
 	u16	CustomerID;
 
@@ -398,10 +385,6 @@ struct hal_data_8188e {
 
 	u16	EfuseUsedBytes;
 
-#ifdef CONFIG_88EU_P2P
-	struct P2P_PS_Offload_t	p2p_ps_offload;
-#endif
-
 	/*  Auto FSM to Turn On, include clock, isolation, power control
 	 *  for MAC only */
 	u8	bMacPwrCtrlOn;
@@ -467,21 +450,18 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo,
 void Hal_ReadPowerSavingMode88E(struct adapter *pAdapter, u8 *hwinfo,
 				bool AutoLoadFail);
 
-bool HalDetectPwrDownMode88E(struct adapter *Adapter);
-
-void Hal_InitChannelPlan(struct adapter *padapter);
 void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 
 /*  register */
 void SetBcnCtrlReg(struct adapter *padapter, u8 SetBits, u8 ClearBits);
 
-void rtl8188e_clone_haldata(struct adapter *dst, struct adapter *src);
 void rtl8188e_start_thread(struct adapter *padapter);
 void rtl8188e_stop_thread(struct adapter *padapter);
 
 void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter  *Adapter, int len);
+s32 iol_execute(struct adapter *padapter, u8 control);
+void iol_mode_enable(struct adapter *padapter, u8 enable);
 s32 rtl8188e_iol_efuse_patch(struct adapter *padapter);
 void rtw_cancel_all_timer(struct adapter *padapter);
-void _ps_open_RF(struct adapter *adapt);
 
 #endif /* __RTL8188E_HAL_H__ */

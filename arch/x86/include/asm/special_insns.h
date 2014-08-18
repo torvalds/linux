@@ -191,6 +191,14 @@ static inline void clflush(volatile void *__p)
 	asm volatile("clflush %0" : "+m" (*(volatile char __force *)__p));
 }
 
+static inline void clflushopt(volatile void *__p)
+{
+	alternative_io(".byte " __stringify(NOP_DS_PREFIX) "; clflush %P0",
+		       ".byte 0x66; clflush %P0",
+		       X86_FEATURE_CLFLUSHOPT,
+		       "+m" (*(volatile char __force *)__p));
+}
+
 #define nop() asm volatile ("nop")
 
 

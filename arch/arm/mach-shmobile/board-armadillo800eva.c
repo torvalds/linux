@@ -31,7 +31,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/regulator/driver.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/platform_data/pwm-renesas-tpu.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/gpio-regulator.h>
@@ -45,9 +45,7 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/i2c-gpio.h>
 #include <linux/reboot.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/r8a7740.h>
+
 #include <media/mt9t112.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/soc_camera.h>
@@ -62,6 +60,10 @@
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
 
+#include "common.h"
+#include "irqs.h"
+#include "pm-rmobile.h"
+#include "r8a7740.h"
 #include "sh-gpio.h"
 
 /*
@@ -383,6 +385,8 @@ static struct platform_device sh_eth_device = {
 	.id = -1,
 	.dev = {
 		.platform_data = &sh_eth_platdata,
+		.dma_mask = &sh_eth_device.dev.coherent_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.resource = sh_eth_resources,
 	.num_resources = ARRAY_SIZE(sh_eth_resources),
@@ -397,24 +401,16 @@ static struct resource pwm_resources[] = {
 	},
 };
 
-static struct tpu_pwm_platform_data pwm_device_data = {
-	.channels[2] = {
-		.polarity = PWM_POLARITY_INVERSED,
-	}
-};
-
 static struct platform_device pwm_device = {
 	.name = "renesas-tpu-pwm",
 	.id = -1,
-	.dev = {
-		.platform_data = &pwm_device_data,
-	},
 	.num_resources = ARRAY_SIZE(pwm_resources),
 	.resource = pwm_resources,
 };
 
 static struct pwm_lookup pwm_lookup[] = {
-	PWM_LOOKUP("renesas-tpu-pwm", 2, "pwm-backlight.0", NULL),
+	PWM_LOOKUP("renesas-tpu-pwm", 2, "pwm-backlight.0", NULL,
+		   33333, PWM_POLARITY_INVERSED),
 };
 
 /* LCDC and backlight */
@@ -581,6 +577,40 @@ static struct platform_device hdmi_lcdc_device = {
 	.dev	= {
 		.platform_data	= &hdmi_lcdc_info,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
+/* LEDS */
+static struct gpio_led gpio_leds[] = {
+	{
+		.name		= "LED3",
+		.gpio		= 102,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "LED4",
+		.gpio		= 111,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "LED5",
+		.gpio		= 110,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "LED6",
+		.gpio		= 177,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+};
+
+static struct gpio_led_platform_data leds_gpio_info = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device leds_gpio_device = {
+	.name   = "leds-gpio",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = &leds_gpio_info,
 	},
 };
 
@@ -988,14 +1018,13 @@ static struct asoc_simple_card_info fsi_wm8978_info = {
 	.card		= "FSI2A-WM8978",
 	.codec		= "wm8978.0-001a",
 	.platform	= "sh_fsi2",
-	.daifmt		= SND_SOC_DAIFMT_I2S,
+	.daifmt		= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM,
 	.cpu_dai = {
+		.fmt	= SND_SOC_DAIFMT_IB_NF,
 		.name	= "fsia-dai",
-		.fmt	= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_IB_NF,
 	},
 	.codec_dai = {
 		.name	= "wm8978-hifi",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_NB_NF,
 		.sysclk	= 12288000,
 	},
 };
@@ -1005,6 +1034,8 @@ static struct platform_device fsi_wm8978_device = {
 	.id	= 0,
 	.dev	= {
 		.platform_data	= &fsi_wm8978_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_wm8978_device.dev.coherent_dma_mask,
 	},
 };
 
@@ -1016,7 +1047,7 @@ static struct asoc_simple_card_info fsi2_hdmi_info = {
 	.platform	= "sh_fsi2",
 	.cpu_dai = {
 		.name	= "fsib-dai",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
 	},
 	.codec_dai = {
 		.name = "sh_mobile_hdmi-hifi",
@@ -1028,6 +1059,8 @@ static struct platform_device fsi_hdmi_device = {
 	.id	= 1,
 	.dev	= {
 		.platform_data	= &fsi2_hdmi_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_hdmi_device.dev.coherent_dma_mask,
 	},
 };
 
@@ -1076,6 +1109,7 @@ static struct platform_device *eva_devices[] __initdata = {
 	&lcdc0_device,
 	&pwm_device,
 	&pwm_backlight_device,
+	&leds_gpio_device,
 	&gpio_keys_device,
 	&sh_eth_device,
 	&vcc_sdhi0,
@@ -1270,8 +1304,8 @@ static void __init eva_init(void)
 
 
 #ifdef CONFIG_CACHE_L2X0
-	/* Early BRESP enable, Shared attribute override enable, 32K*8way */
-	l2x0_init(IOMEM(0xf0002000), 0x40440000, 0x82000fff);
+	/* Shared attribute override enable, 32K*8way */
+	l2x0_init(IOMEM(0xf0002000), 0x00400000, 0xc20f0fff);
 #endif
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
@@ -1299,11 +1333,6 @@ static void __init eva_earlytimer_init(void)
 	eva_clock_init();
 }
 
-static void __init eva_add_early_devices(void)
-{
-	r8a7740_add_early_devices();
-}
-
 #define RESCNT2 IOMEM(0xe6188020)
 static void eva_restart(enum reboot_mode mode, const char *cmd)
 {
@@ -1318,7 +1347,7 @@ static const char *eva_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(ARMADILLO800EVA_DT, "armadillo800eva")
 	.map_io		= r8a7740_map_io,
-	.init_early	= eva_add_early_devices,
+	.init_early	= r8a7740_add_early_devices,
 	.init_irq	= r8a7740_init_irq_of,
 	.init_machine	= eva_init,
 	.init_late	= shmobile_init_late,

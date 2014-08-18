@@ -91,6 +91,14 @@ extern void omap3_sync32k_timer_init(void);
 extern void omap3_secure_sync32k_timer_init(void);
 extern void omap3_gptimer_timer_init(void);
 extern void omap4_local_timer_init(void);
+#ifdef CONFIG_CACHE_L2X0
+int omap_l2_cache_init(void);
+#else
+static inline int omap_l2_cache_init(void)
+{
+	return 0;
+}
+#endif
 extern void omap5_realtime_timer_init(void);
 
 void omap2420_init_early(void);
@@ -154,7 +162,8 @@ static inline void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
 }
 #endif
 
-#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
+	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM43XX)
 void omap44xx_restart(enum reboot_mode mode, const char *cmd);
 #else
 static inline void omap44xx_restart(enum reboot_mode mode, const char *cmd)
@@ -240,7 +249,6 @@ static inline void __iomem *omap4_get_scu_base(void)
 }
 #endif
 
-extern void __init gic_init_irq(void);
 extern void gic_dist_disable(void);
 extern void gic_dist_enable(void);
 extern bool gic_dist_disabled(void);
@@ -314,6 +322,9 @@ extern int omap_dss_reset(struct omap_hwmod *);
 
 /* SoC specific clock initializer */
 int omap_clk_init(void);
+
+int __init omapdss_init_of(void);
+void __init omapdss_early_init_of(void);
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

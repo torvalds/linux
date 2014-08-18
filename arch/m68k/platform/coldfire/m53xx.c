@@ -166,15 +166,13 @@ static void __init m53xx_clk_init(void)
 
 /***************************************************************************/
 
-#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
-
 static void __init m53xx_qspi_init(void)
 {
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	/* setup QSPS pins for QSPI with gpio CS control */
 	writew(0x01f0, MCFGPIO_PAR_QSPI);
-}
-
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
+}
 
 /***************************************************************************/
 
@@ -219,9 +217,7 @@ void __init config_BSP(char *commandp, int size)
 	m53xx_clk_init();
 	m53xx_uarts_init();
 	m53xx_fec_init();
-#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	m53xx_qspi_init();
-#endif
 
 #ifdef CONFIG_BDM_DISABLE
 	/*

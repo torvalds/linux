@@ -271,6 +271,13 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		ret = fe->ops.tuner_ops.get_frequency(fe, &tuner_frequency);
 		if (ret)
 			goto err;
+	} else {
+		/*
+		 * Use nominal target frequency as tuner driver does not provide
+		 * actual frequency used. Carrier offset calculation is not
+		 * valid.
+		 */
+		tuner_frequency = c->frequency;
 	}
 
 	/* reset */
@@ -428,16 +435,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		goto err;
 
 	switch (target_mclk) {
-	case 72000:
-		u8tmp1 = 0x00; /* 0b00 */
-		u8tmp2 = 0x03; /* 0b11 */
-		break;
 	case 96000:
 		u8tmp1 = 0x02; /* 0b10 */
-		u8tmp2 = 0x01; /* 0b01 */
-		break;
-	case 115200:
-		u8tmp1 = 0x01; /* 0b01 */
 		u8tmp2 = 0x01; /* 0b01 */
 		break;
 	case 144000:
@@ -448,10 +447,6 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		u8tmp1 = 0x03; /* 0b11 */
 		u8tmp2 = 0x00; /* 0b00 */
 		break;
-	default:
-		dev_dbg(&priv->i2c->dev, "%s: invalid target_mclk\n", __func__);
-		ret = -EINVAL;
-		goto err;
 	}
 
 	ret = m88ds3103_wr_reg_mask(priv, 0x22, u8tmp1 << 6, 0xc0);
@@ -711,9 +706,6 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 		case 1:
 			c->inversion = INVERSION_ON;
 			break;
-		default:
-			dev_dbg(&priv->i2c->dev, "%s: invalid inversion\n",
-					__func__);
 		}
 
 		switch ((buf[1] >> 5) & 0x07) {
@@ -793,9 +785,6 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 		case 1:
 			c->pilot = PILOT_ON;
 			break;
-		default:
-			dev_dbg(&priv->i2c->dev, "%s: invalid pilot\n",
-					__func__);
 		}
 
 		switch ((buf[0] >> 6) & 0x07) {
@@ -823,9 +812,6 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 		case 1:
 			c->inversion = INVERSION_ON;
 			break;
-		default:
-			dev_dbg(&priv->i2c->dev, "%s: invalid inversion\n",
-					__func__);
 		}
 
 		switch ((buf[2] >> 0) & 0x03) {
@@ -893,7 +879,7 @@ static int m88ds3103_read_snr(struct dvb_frontend *fe, u16 *snr)
 		/* SNR(X) dB = 10 * ln(X) / ln(10) dB */
 		tmp = DIV_ROUND_CLOSEST(tmp, 8 * M88DS3103_SNR_ITERATIONS);
 		if (tmp)
-			*snr = 100ul * intlog2(tmp) / intlog2(10);
+			*snr = div_u64((u64) 100 * intlog2(tmp), intlog2(10));
 		else
 			*snr = 0;
 		break;
@@ -922,7 +908,7 @@ static int m88ds3103_read_snr(struct dvb_frontend *fe, u16 *snr)
 		/* SNR(X) dB = 10 * log10(X) dB */
 		if (signal > noise) {
 			tmp = signal / noise;
-			*snr = 100ul * intlog10(tmp) / (1 << 24);
+			*snr = div_u64((u64) 100 * intlog10(tmp), (1 << 24));
 		} else {
 			*snr = 0;
 		}
@@ -940,6 +926,86 @@ err:
 	return ret;
 }
 
+static int m88ds3103_read_ber(struct dvb_frontend *fe, u32 *ber)
+{
+	struct m88ds3103_priv *priv = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int ret;
+	unsigned int utmp;
+	u8 buf[3], u8tmp;
+	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+
+	switch (c->delivery_system) {
+	case SYS_DVBS:
+		ret = m88ds3103_wr_reg(priv, 0xf9, 0x04);
+		if (ret)
+			goto err;
+
+		ret = m88ds3103_rd_reg(priv, 0xf8, &u8tmp);
+		if (ret)
+			goto err;
+
+		if (!(u8tmp & 0x10)) {
+			u8tmp |= 0x10;
+
+			ret = m88ds3103_rd_regs(priv, 0xf6, buf, 2);
+			if (ret)
+				goto err;
+
+			priv->ber = (buf[1] << 8) | (buf[0] << 0);
+
+			/* restart counters */
+			ret = m88ds3103_wr_reg(priv, 0xf8, u8tmp);
+			if (ret)
+				goto err;
+		}
+		break;
+	case SYS_DVBS2:
+		ret = m88ds3103_rd_regs(priv, 0xd5, buf, 3);
+		if (ret)
+			goto err;
+
+		utmp = (buf[2] << 16) | (buf[1] << 8) | (buf[0] << 0);
+
+		if (utmp > 3000) {
+			ret = m88ds3103_rd_regs(priv, 0xf7, buf, 2);
+			if (ret)
+				goto err;
+
+			priv->ber = (buf[1] << 8) | (buf[0] << 0);
+
+			/* restart counters */
+			ret = m88ds3103_wr_reg(priv, 0xd1, 0x01);
+			if (ret)
+				goto err;
+
+			ret = m88ds3103_wr_reg(priv, 0xf9, 0x01);
+			if (ret)
+				goto err;
+
+			ret = m88ds3103_wr_reg(priv, 0xf9, 0x00);
+			if (ret)
+				goto err;
+
+			ret = m88ds3103_wr_reg(priv, 0xd1, 0x00);
+			if (ret)
+				goto err;
+		}
+		break;
+	default:
+		dev_dbg(&priv->i2c->dev, "%s: invalid delivery_system\n",
+				__func__);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	*ber = priv->ber;
+
+	return 0;
+err:
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	return ret;
+}
 
 static int m88ds3103_set_tone(struct dvb_frontend *fe,
 	fe_sec_tone_mode_t fe_sec_tone_mode)
@@ -958,7 +1024,7 @@ static int m88ds3103_set_tone(struct dvb_frontend *fe,
 	switch (fe_sec_tone_mode) {
 	case SEC_TONE_ON:
 		tone = 0;
-		reg_a1_mask = 0x87;
+		reg_a1_mask = 0x47;
 		break;
 	case SEC_TONE_OFF:
 		tone = 1;
@@ -1298,6 +1364,7 @@ static struct dvb_frontend_ops m88ds3103_ops = {
 
 	.read_status = m88ds3103_read_status,
 	.read_snr = m88ds3103_read_snr,
+	.read_ber = m88ds3103_read_ber,
 
 	.diseqc_send_master_cmd = m88ds3103_diseqc_send_master_cmd,
 	.diseqc_send_burst = m88ds3103_diseqc_send_burst,

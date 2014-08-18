@@ -509,10 +509,10 @@ intvec_\vecname:
 	.ifc \c_routine, do_trap
 	mfspr   r2, GPV_REASON
 	.else
-	.ifc \c_routine, op_handle_perf_interrupt
+	.ifc \c_routine, handle_perf_interrupt
 	mfspr   r2, PERF_COUNT_STS
 	.else
-	.ifc \c_routine, op_handle_aux_perf_interrupt
+	.ifc \c_routine, handle_perf_interrupt
 	mfspr   r2, AUX_PERF_COUNT_STS
 	.endif
 	.endif
@@ -971,6 +971,15 @@ STD_ENTRY(interrupt_return)
 	beqzt   r30, .Lrestore_regs
 3:
 
+#if INT_PERF_COUNT + 1 != INT_AUX_PERF_COUNT
+# error Bad interrupt assumption
+#endif
+	{
+	 movei  r0, 3   /* two adjacent bits for the PERF_COUNT mask */
+	 beqz   r31, .Lrestore_regs
+	}
+	shli    r0, r0, INT_PERF_COUNT
+	mtspr   SPR_INTERRUPT_MASK_RESET_K, r0
 
 	/*
 	 * We now commit to returning from this interrupt, since we will be
@@ -1187,7 +1196,7 @@ handle_nmi:
 	FEEDBACK_REENTER(handle_nmi)
 	{
 	 movei  r30, 1
-	 move   r31, r0
+	 cmpeq  r31, r0, zero
 	}
 	j       interrupt_return
 	STD_ENDPROC(handle_nmi)
@@ -1491,8 +1500,9 @@ STD_ENTRY(fill_ra_stack)
 	.global intrpt_start
 intrpt_start:
 
-#define op_handle_perf_interrupt bad_intr
-#define op_handle_aux_perf_interrupt bad_intr
+#ifndef CONFIG_USE_PMC
+#define handle_perf_interrupt bad_intr
+#endif
 
 #ifndef CONFIG_HARDWALL
 #define do_hardwall_trap bad_intr
@@ -1540,9 +1550,9 @@ intrpt_start:
 #endif
 	int_hand     INT_IPI_0, IPI_0, bad_intr
 	int_hand     INT_PERF_COUNT, PERF_COUNT, \
-		     op_handle_perf_interrupt, handle_nmi
+		     handle_perf_interrupt, handle_nmi
 	int_hand     INT_AUX_PERF_COUNT, AUX_PERF_COUNT, \
-		     op_handle_perf_interrupt, handle_nmi
+		     handle_perf_interrupt, handle_nmi
 	int_hand     INT_INTCTRL_3, INTCTRL_3, bad_intr
 #if CONFIG_KERNEL_PL == 2
 	dc_dispatch  INT_INTCTRL_2, INTCTRL_2

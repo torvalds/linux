@@ -1,0 +1,366 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "imx53.dtsi"
+
+/ {
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	memory {
+		reg = <0x70000000 0x20000000>,
+		      <0xb0000000 0x20000000>;
+	};
+
+	display0: display@di0 {
+		compatible = "fsl,imx-parallel-display";
+		interface-pix-fmt = "rgb565";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu_disp0>;
+		status = "disabled";
+		display-timings {
+			claawvga {
+				native-mode;
+				clock-frequency = <27000000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <40>;
+				hfront-porch = <60>;
+				vback-porch = <10>;
+				vfront-porch = <10>;
+				hsync-len = <20>;
+				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			display0_in: endpoint {
+				remote-endpoint = <&ipu_di0_disp0>;
+			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power Button";
+			gpios = <&gpio1 8 0>;
+			linux,code = <116>; /* KEY_POWER */
+		};
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&gpio2 14 0>;
+			linux,code = <115>; /* KEY_VOLUMEUP */
+			gpio-key,wakeup;
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&gpio2 15 0>;
+			linux,code = <114>; /* KEY_VOLUMEDOWN */
+			gpio-key,wakeup;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pin_gpio7_7>;
+
+		user {
+			label = "Heartbeat";
+			gpios = <&gpio7 7 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_3p2v: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "3P2V";
+			regulator-min-microvolt = <3200000>;
+			regulator-max-microvolt = <3200000>;
+			regulator-always-on;
+		};
+
+		reg_usb_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "usb_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio7 8 0>;
+			enable-active-high;
+		};
+	};
+
+	sound {
+		compatible = "fsl,imx53-qsb-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx53-qsb-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <5>;
+	};
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	status = "okay";
+};
+
+&ipu_di0_disp0 {
+	remote-endpoint = <&display0_in>;
+};
+
+&ssi2 {
+	status = "okay";
+};
+
+&esdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc3>;
+	cd-gpios = <&gpio3 11 0>;
+	wp-gpios = <&gpio3 12 0>;
+	bus-width = <8>;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	imx53-qsb {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK 0x80000000
+				MX53_PAD_GPIO_8__GPIO1_8          0x80000000
+				MX53_PAD_PATA_DATA14__GPIO2_14    0x80000000
+				MX53_PAD_PATA_DATA15__GPIO2_15    0x80000000
+				MX53_PAD_EIM_DA11__GPIO3_11       0x80000000
+				MX53_PAD_EIM_DA12__GPIO3_12       0x80000000
+				MX53_PAD_PATA_DA_0__GPIO7_6       0x80000000
+				MX53_PAD_PATA_DA_2__GPIO7_8	  0x80000000
+				MX53_PAD_GPIO_16__GPIO7_11        0x80000000
+			>;
+		};
+
+		led_pin_gpio7_7: led_gpio7_7@0 {
+			fsl,pins = <
+				MX53_PAD_PATA_DA_1__GPIO7_7 0x80000000
+			>;
+		};
+
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC	0x80000000
+				MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD	0x80000000
+				MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS	0x80000000
+				MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD	0x80000000
+			>;
+		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX53_PAD_SD1_DATA0__ESDHC1_DAT0		0x1d5
+				MX53_PAD_SD1_DATA1__ESDHC1_DAT1		0x1d5
+				MX53_PAD_SD1_DATA2__ESDHC1_DAT2		0x1d5
+				MX53_PAD_SD1_DATA3__ESDHC1_DAT3		0x1d5
+				MX53_PAD_SD1_CMD__ESDHC1_CMD		0x1d5
+				MX53_PAD_SD1_CLK__ESDHC1_CLK		0x1d5
+			>;
+		};
+
+		pinctrl_esdhc3: esdhc3grp {
+			fsl,pins = <
+				MX53_PAD_PATA_DATA8__ESDHC3_DAT0	0x1d5
+				MX53_PAD_PATA_DATA9__ESDHC3_DAT1	0x1d5
+				MX53_PAD_PATA_DATA10__ESDHC3_DAT2	0x1d5
+				MX53_PAD_PATA_DATA11__ESDHC3_DAT3	0x1d5
+				MX53_PAD_PATA_DATA0__ESDHC3_DAT4	0x1d5
+				MX53_PAD_PATA_DATA1__ESDHC3_DAT5	0x1d5
+				MX53_PAD_PATA_DATA2__ESDHC3_DAT6	0x1d5
+				MX53_PAD_PATA_DATA3__ESDHC3_DAT7	0x1d5
+				MX53_PAD_PATA_RESET_B__ESDHC3_CMD	0x1d5
+				MX53_PAD_PATA_IORDY__ESDHC3_CLK		0x1d5
+			>;
+		};
+
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX53_PAD_FEC_MDC__FEC_MDC		0x80000000
+				MX53_PAD_FEC_MDIO__FEC_MDIO		0x80000000
+				MX53_PAD_FEC_REF_CLK__FEC_TX_CLK	0x80000000
+				MX53_PAD_FEC_RX_ER__FEC_RX_ER		0x80000000
+				MX53_PAD_FEC_CRS_DV__FEC_RX_DV		0x80000000
+				MX53_PAD_FEC_RXD1__FEC_RDATA_1		0x80000000
+				MX53_PAD_FEC_RXD0__FEC_RDATA_0		0x80000000
+				MX53_PAD_FEC_TX_EN__FEC_TX_EN		0x80000000
+				MX53_PAD_FEC_TXD1__FEC_TDATA_1		0x80000000
+				MX53_PAD_FEC_TXD0__FEC_TDATA_0		0x80000000
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT8__I2C1_SDA		0xc0000000
+				MX53_PAD_CSI0_DAT9__I2C1_SCL		0xc0000000
+			>;
+		};
+
+		pinctrl_i2c2: i2c2grp {
+			fsl,pins = <
+				MX53_PAD_KEY_ROW3__I2C2_SDA		0xc0000000
+				MX53_PAD_KEY_COL3__I2C2_SCL		0xc0000000
+			>;
+		};
+
+		pinctrl_ipu_disp0: ipudisp0grp {
+			fsl,pins = <
+				MX53_PAD_DI0_DISP_CLK__IPU_DI0_DISP_CLK	0x5
+				MX53_PAD_DI0_PIN15__IPU_DI0_PIN15	0x5
+				MX53_PAD_DI0_PIN2__IPU_DI0_PIN2		0x5
+				MX53_PAD_DI0_PIN3__IPU_DI0_PIN3		0x5
+				MX53_PAD_DISP0_DAT0__IPU_DISP0_DAT_0	0x5
+				MX53_PAD_DISP0_DAT1__IPU_DISP0_DAT_1	0x5
+				MX53_PAD_DISP0_DAT2__IPU_DISP0_DAT_2	0x5
+				MX53_PAD_DISP0_DAT3__IPU_DISP0_DAT_3	0x5
+				MX53_PAD_DISP0_DAT4__IPU_DISP0_DAT_4	0x5
+				MX53_PAD_DISP0_DAT5__IPU_DISP0_DAT_5	0x5
+				MX53_PAD_DISP0_DAT6__IPU_DISP0_DAT_6	0x5
+				MX53_PAD_DISP0_DAT7__IPU_DISP0_DAT_7	0x5
+				MX53_PAD_DISP0_DAT8__IPU_DISP0_DAT_8	0x5
+				MX53_PAD_DISP0_DAT9__IPU_DISP0_DAT_9	0x5
+				MX53_PAD_DISP0_DAT10__IPU_DISP0_DAT_10	0x5
+				MX53_PAD_DISP0_DAT11__IPU_DISP0_DAT_11	0x5
+				MX53_PAD_DISP0_DAT12__IPU_DISP0_DAT_12	0x5
+				MX53_PAD_DISP0_DAT13__IPU_DISP0_DAT_13	0x5
+				MX53_PAD_DISP0_DAT14__IPU_DISP0_DAT_14	0x5
+				MX53_PAD_DISP0_DAT15__IPU_DISP0_DAT_15	0x5
+				MX53_PAD_DISP0_DAT16__IPU_DISP0_DAT_16	0x5
+				MX53_PAD_DISP0_DAT17__IPU_DISP0_DAT_17	0x5
+				MX53_PAD_DISP0_DAT18__IPU_DISP0_DAT_18	0x5
+				MX53_PAD_DISP0_DAT19__IPU_DISP0_DAT_19	0x5
+				MX53_PAD_DISP0_DAT20__IPU_DISP0_DAT_20	0x5
+				MX53_PAD_DISP0_DAT21__IPU_DISP0_DAT_21	0x5
+				MX53_PAD_DISP0_DAT22__IPU_DISP0_DAT_22	0x5
+				MX53_PAD_DISP0_DAT23__IPU_DISP0_DAT_23	0x5
+			>;
+		};
+
+		pinctrl_vga_sync: vgasync-grp {
+			fsl,pins = <
+				/* VGA_HSYNC, VSYNC with max drive strength */
+				MX53_PAD_EIM_OE__IPU_DI1_PIN7 0xe6
+				MX53_PAD_EIM_RW__IPU_DI1_PIN8 0xe6
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT10__UART1_TXD_MUX	0x1e4
+				MX53_PAD_CSI0_DAT11__UART1_RXD_MUX	0x1e4
+			>;
+		};
+	};
+};
+
+&tve {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_vga_sync>;
+	fsl,tve-mode = "vga";
+	fsl,hsync-pin = <4>;
+	fsl,vsync-pin = <6>;
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+
+	sgtl5000: codec@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		VDDA-supply = <&reg_3p2v>;
+		VDDIO-supply = <&reg_3p2v>;
+		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	accelerometer: mma8450@1c {
+		compatible = "fsl,mma8450";
+		reg = <0x1c>;
+	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux>;
+	status = "okay";
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio7 6 0>;
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&vpu {
+	status = "okay";
+};
+
+&usbh1 {
+	vbus-supply = <&reg_usb_vbus>;
+	phy_type = "utmi";
+	status = "okay";
+};
+
+&usbotg {
+	dr_mode = "peripheral";
+	status = "okay";
+};

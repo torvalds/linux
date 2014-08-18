@@ -163,14 +163,13 @@ static inline u32 tcp_vegas_ssthresh(struct tcp_sock *tp)
 	return  min(tp->snd_ssthresh, tp->snd_cwnd-1);
 }
 
-static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked,
-				 u32 in_flight)
+static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct vegas *vegas = inet_csk_ca(sk);
 
 	if (!vegas->doing_vegas_now) {
-		tcp_reno_cong_avoid(sk, ack, acked, in_flight);
+		tcp_reno_cong_avoid(sk, ack, acked);
 		return;
 	}
 
@@ -195,7 +194,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked,
 			/* We don't have enough RTT samples to do the Vegas
 			 * calculation, so we'll behave like Reno.
 			 */
-			tcp_reno_cong_avoid(sk, ack, acked, in_flight);
+			tcp_reno_cong_avoid(sk, ack, acked);
 		} else {
 			u32 rtt, diff;
 			u64 target_cwnd;
@@ -219,7 +218,8 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked,
 			 * This is:
 			 *     (actual rate in segments) * baseRTT
 			 */
-			target_cwnd = tp->snd_cwnd * vegas->baseRTT / rtt;
+			target_cwnd = (u64)tp->snd_cwnd * vegas->baseRTT;
+			do_div(target_cwnd, rtt);
 
 			/* Calculate the difference between the window we had,
 			 * and the window we would like to have. This quantity
@@ -306,11 +306,9 @@ void tcp_vegas_get_info(struct sock *sk, u32 ext, struct sk_buff *skb)
 EXPORT_SYMBOL_GPL(tcp_vegas_get_info);
 
 static struct tcp_congestion_ops tcp_vegas __read_mostly = {
-	.flags		= TCP_CONG_RTT_STAMP,
 	.init		= tcp_vegas_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_vegas_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 	.pkts_acked	= tcp_vegas_pkts_acked,
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,

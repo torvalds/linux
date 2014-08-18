@@ -147,7 +147,6 @@ enum dm_dig_connect_e {
 void rtl8723ae_dm_init(struct ieee80211_hw *hw);
 void rtl8723ae_dm_watchdog(struct ieee80211_hw *hw);
 void rtl8723ae_dm_write_dig(struct ieee80211_hw *hw);
-void rtl8723ae_dm_init_edca_turbo(struct ieee80211_hw *hw);
 void rtl8723ae_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
 void rtl8723ae_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal);
 void rtl8723ae_dm_bt_coexist(struct ieee80211_hw *hw);

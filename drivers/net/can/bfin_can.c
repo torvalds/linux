@@ -528,6 +528,7 @@ static const struct net_device_ops bfin_can_netdev_ops = {
 	.ndo_open               = bfin_can_open,
 	.ndo_stop               = bfin_can_close,
 	.ndo_start_xmit         = bfin_can_start_xmit,
+	.ndo_change_mtu         = can_change_mtu,
 };
 
 static int bfin_can_probe(struct platform_device *pdev)

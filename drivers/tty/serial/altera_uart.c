@@ -163,10 +163,6 @@ static void altera_uart_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void altera_uart_enable_ms(struct uart_port *port)
-{
-}
-
 static void altera_uart_set_termios(struct uart_port *port,
 				    struct ktermios *termios,
 				    struct ktermios *old)
@@ -185,6 +181,12 @@ static void altera_uart_set_termios(struct uart_port *port,
 	uart_update_timeout(port, termios->c_cflag, baud);
 	altera_uart_writel(port, baudclk, ALTERA_UART_DIVISOR_REG);
 	spin_unlock_irqrestore(&port->lock, flags);
+
+	/*
+	 * FIXME: port->read_status_mask and port->ignore_status_mask
+	 * need to be initialized based on termios settings for
+	 * INPCK, IGNBRK, IGNPAR, PARMRK, BRKINT
+	 */
 }
 
 static void altera_uart_rx_chars(struct altera_uart *pp)
@@ -409,7 +411,6 @@ static struct uart_ops altera_uart_ops = {
 	.start_tx	= altera_uart_start_tx,
 	.stop_tx	= altera_uart_stop_tx,
 	.stop_rx	= altera_uart_stop_rx,
-	.enable_ms	= altera_uart_enable_ms,
 	.break_ctl	= altera_uart_break_ctl,
 	.startup	= altera_uart_startup,
 	.shutdown	= altera_uart_shutdown,
@@ -429,7 +430,7 @@ static struct altera_uart altera_uart_ports[CONFIG_SERIAL_ALTERA_UART_MAXPORTS];
 
 #if defined(CONFIG_SERIAL_ALTERA_UART_CONSOLE)
 
-static void altera_uart_console_putc(struct uart_port *port, const char c)
+static void altera_uart_console_putc(struct uart_port *port, int c)
 {
 	while (!(altera_uart_readl(port, ALTERA_UART_STATUS_REG) &
 		 ALTERA_UART_STATUS_TRDY_MSK))
@@ -443,11 +444,7 @@ static void altera_uart_console_write(struct console *co, const char *s,
 {
 	struct uart_port *port = &(altera_uart_ports + co->index)->port;
 
-	for (; count; count--, s++) {
-		altera_uart_console_putc(port, *s);
-		if (*s == '\n')
-			altera_uart_console_putc(port, '\r');
-	}
+	uart_console_write(port, s, count, altera_uart_console_putc);
 }
 
 static int __init altera_uart_console_setup(struct console *co, char *options)

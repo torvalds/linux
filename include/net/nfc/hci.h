@@ -27,6 +27,7 @@ struct nfc_hci_dev;
 struct nfc_hci_ops {
 	int (*open) (struct nfc_hci_dev *hdev);
 	void (*close) (struct nfc_hci_dev *hdev);
+	int (*load_session) (struct nfc_hci_dev *hdev);
 	int (*hci_ready) (struct nfc_hci_dev *hdev);
 	/*
 	 * xmit must always send the complete buffer before
@@ -36,6 +37,7 @@ struct nfc_hci_ops {
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*start_poll) (struct nfc_hci_dev *hdev,
 			   u32 im_protocols, u32 tm_protocols);
+	void (*stop_poll) (struct nfc_hci_dev *hdev);
 	int (*dep_link_up)(struct nfc_hci_dev *hdev, struct nfc_target *target,
 			   u8 comm_mode, u8 *gb, size_t gb_len);
 	int (*dep_link_down)(struct nfc_hci_dev *hdev);

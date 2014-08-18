@@ -19,39 +19,18 @@
 
 DEFINE_SPINLOCK(sysfs_symlink_target_lock);
 
-/**
- *	sysfs_pathname - return full path to sysfs dirent
- *	@kn: kernfs_node whose path we want
- *	@path: caller allocated buffer of size PATH_MAX
- *
- *	Gives the name "/" to the sysfs_root entry; any path returned
- *	is relative to wherever sysfs is mounted.
- */
-static char *sysfs_pathname(struct kernfs_node *kn, char *path)
-{
-	if (kn->parent) {
-		sysfs_pathname(kn->parent, path);
-		strlcat(path, "/", PATH_MAX);
-	}
-	strlcat(path, kn->name, PATH_MAX);
-	return path;
-}
-
 void sysfs_warn_dup(struct kernfs_node *parent, const char *name)
 {
-	char *path;
+	char *buf, *path = NULL;
 
-	path = kzalloc(PATH_MAX, GFP_KERNEL);
-	if (path) {
-		sysfs_pathname(parent, path);
-		strlcat(path, "/", PATH_MAX);
-		strlcat(path, name, PATH_MAX);
-	}
+	buf = kzalloc(PATH_MAX, GFP_KERNEL);
+	if (buf)
+		path = kernfs_path(parent, buf, PATH_MAX);
 
-	WARN(1, KERN_WARNING "sysfs: cannot create duplicate filename '%s'\n",
-	     path ? path : name);
+	WARN(1, KERN_WARNING "sysfs: cannot create duplicate filename '%s/%s'\n",
+	     path, name);
 
-	kfree(path);
+	kfree(buf);
 }
 
 /**
@@ -122,9 +101,13 @@ void sysfs_remove_dir(struct kobject *kobj)
 int sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
 			const void *new_ns)
 {
-	struct kernfs_node *parent = kobj->sd->parent;
+	struct kernfs_node *parent;
+	int ret;
 
-	return kernfs_rename_ns(kobj->sd, parent, new_name, new_ns);
+	parent = kernfs_get_parent(kobj->sd);
+	ret = kernfs_rename_ns(kobj->sd, parent, new_name, new_ns);
+	kernfs_put(parent);
+	return ret;
 }
 
 int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
@@ -133,7 +116,6 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 	struct kernfs_node *kn = kobj->sd;
 	struct kernfs_node *new_parent;
 
-	BUG_ON(!kn->parent);
 	new_parent = new_parent_kobj && new_parent_kobj->sd ?
 		new_parent_kobj->sd : sysfs_root_kn;
 

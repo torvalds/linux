@@ -49,7 +49,7 @@ static void radeon_sa_bo_try_free(struct radeon_sa_manager *sa_manager);
 
 int radeon_sa_bo_manager_init(struct radeon_device *rdev,
 			      struct radeon_sa_manager *sa_manager,
-			      unsigned size, u32 align, u32 domain)
+			      unsigned size, u32 align, u32 domain, u32 flags)
 {
 	int i, r;
 
@@ -65,7 +65,7 @@ int radeon_sa_bo_manager_init(struct radeon_device *rdev,
 	}
 
 	r = radeon_bo_create(rdev, size, align, true,
-			     domain, NULL, &sa_manager->bo);
+			     domain, flags, NULL, &sa_manager->bo);
 	if (r) {
 		dev_err(rdev->dev, "(%d) failed to allocate bo for manager\n", r);
 		return r;
@@ -312,7 +312,7 @@ static bool radeon_sa_bo_next_hole(struct radeon_sa_manager *sa_manager,
 int radeon_sa_bo_new(struct radeon_device *rdev,
 		     struct radeon_sa_manager *sa_manager,
 		     struct radeon_sa_bo **sa_bo,
-		     unsigned size, unsigned align, bool block)
+		     unsigned size, unsigned align)
 {
 	struct radeon_fence *fences[RADEON_NUM_RINGS];
 	unsigned tries[RADEON_NUM_RINGS];
@@ -353,14 +353,11 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 		r = radeon_fence_wait_any(rdev, fences, false);
 		spin_lock(&sa_manager->wq.lock);
 		/* if we have nothing to wait for block */
-		if (r == -ENOENT && block) {
+		if (r == -ENOENT) {
 			r = wait_event_interruptible_locked(
 				sa_manager->wq, 
 				radeon_sa_event(sa_manager, size, align)
 			);
-
-		} else if (r == -ENOENT) {
-			r = -ENOMEM;
 		}
 
 	} while (!r);

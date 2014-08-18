@@ -30,7 +30,6 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/watchdog.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
@@ -526,7 +525,11 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	clk_prepare_enable(wdt->clock);
+	ret = clk_prepare_enable(wdt->clock);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable clock\n");
+		return ret;
+	}
 
 	ret = s3c2410wdt_cpufreq_register(wdt);
 	if (ret < 0) {
@@ -608,7 +611,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
  err_clk:
 	clk_disable_unprepare(wdt->clock);
-	wdt->clock = NULL;
 
  err:
 	return ret;
@@ -628,7 +630,6 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 	s3c2410wdt_cpufreq_deregister(wdt);
 
 	clk_disable_unprepare(wdt->clock);
-	wdt->clock = NULL;
 
 	return 0;
 }

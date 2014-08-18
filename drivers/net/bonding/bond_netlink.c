@@ -9,8 +9,6 @@
  * (at your option) any later version.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
@@ -56,10 +54,10 @@ static int bond_fill_slave_info(struct sk_buff *skb,
 	if (nla_put_u16(skb, IFLA_BOND_SLAVE_QUEUE_ID, slave->queue_id))
 		goto nla_put_failure;
 
-	if (slave->bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(slave->bond) == BOND_MODE_8023AD) {
 		const struct aggregator *agg;
 
-		agg = SLAVE_AD_INFO(slave).port.aggregator;
+		agg = SLAVE_AD_INFO(slave)->port.aggregator;
 		if (agg)
 			if (nla_put_u16(skb, IFLA_BOND_SLAVE_AD_AGGREGATOR_ID,
 					agg->aggregator_identifier))
@@ -181,8 +179,7 @@ static int bond_changelink(struct net_device *bond_dev,
 		int arp_interval = nla_get_u32(data[IFLA_BOND_ARP_INTERVAL]);
 
 		if (arp_interval && miimon) {
-			pr_err("%s: ARP monitoring cannot be used with MII monitoring.\n",
-			       bond->dev->name);
+			netdev_err(bond->dev, "ARP monitoring cannot be used with MII monitoring\n");
 			return -EINVAL;
 		}
 
@@ -199,7 +196,7 @@ static int bond_changelink(struct net_device *bond_dev,
 		nla_for_each_nested(attr, data[IFLA_BOND_ARP_IP_TARGET], rem) {
 			__be32 target = nla_get_be32(attr);
 
-			bond_opt_initval(&newval, target);
+			bond_opt_initval(&newval, (__force u64)target);
 			err = __bond_opt_set(bond, BOND_OPT_ARP_TARGETS,
 					     &newval);
 			if (err)
@@ -207,8 +204,7 @@ static int bond_changelink(struct net_device *bond_dev,
 			i++;
 		}
 		if (i == 0 && bond->params.arp_interval)
-			pr_warn("%s: removing last arp target with arp_interval on\n",
-				bond->dev->name);
+			netdev_warn(bond->dev, "Removing last arp target with arp_interval on\n");
 		if (err)
 			return err;
 	}
@@ -216,8 +212,7 @@ static int bond_changelink(struct net_device *bond_dev,
 		int arp_validate = nla_get_u32(data[IFLA_BOND_ARP_VALIDATE]);
 
 		if (arp_validate && miimon) {
-			pr_err("%s: ARP validating cannot be used with MII monitoring.\n",
-			       bond->dev->name);
+			netdev_err(bond->dev, "ARP validating cannot be used with MII monitoring\n");
 			return -EINVAL;
 		}
 
@@ -398,20 +393,31 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		0;
 }
 
+static int bond_option_active_slave_get_ifindex(struct bonding *bond)
+{
+	const struct net_device *slave;
+	int ifindex;
+
+	rcu_read_lock();
+	slave = bond_option_active_slave_get_rcu(bond);
+	ifindex = slave ? slave->ifindex : 0;
+	rcu_read_unlock();
+	return ifindex;
+}
+
 static int bond_fill_info(struct sk_buff *skb,
 			  const struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct net_device *slave_dev = bond_option_active_slave_get(bond);
-	struct nlattr *targets;
 	unsigned int packets_per_slave;
-	int i, targets_added;
+	int ifindex, i, targets_added;
+	struct nlattr *targets;
 
-	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode))
+	if (nla_put_u8(skb, IFLA_BOND_MODE, BOND_MODE(bond)))
 		goto nla_put_failure;
 
-	if (slave_dev &&
-	    nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, slave_dev->ifindex))
+	ifindex = bond_option_active_slave_get_ifindex(bond);
+	if (ifindex && nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, ifindex))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_MIIMON, bond->params.miimon))
@@ -505,7 +511,7 @@ static int bond_fill_info(struct sk_buff *skb,
 		       bond->params.ad_select))
 		goto nla_put_failure;
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info info;
 
 		if (!bond_3ad_get_active_agg_info(bond, &info)) {

@@ -55,7 +55,7 @@ static int caching_kthread(void *data)
 	key.type = BTRFS_INODE_ITEM_KEY;
 again:
 	/* need to make sure the commit_root doesn't disappear */
-	mutex_lock(&root->fs_commit_mutex);
+	down_read(&fs_info->commit_root_sem);
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
@@ -88,7 +88,7 @@ again:
 				btrfs_item_key_to_cpu(leaf, &key, 0);
 				btrfs_release_path(path);
 				root->cache_progress = last;
-				mutex_unlock(&root->fs_commit_mutex);
+				up_read(&fs_info->commit_root_sem);
 				schedule_timeout(1);
 				goto again;
 			} else
@@ -127,7 +127,7 @@ next:
 	btrfs_unpin_free_ino(root);
 out:
 	wake_up(&root->cache_wait);
-	mutex_unlock(&root->fs_commit_mutex);
+	up_read(&fs_info->commit_root_sem);
 
 	btrfs_free_path(path);
 
@@ -174,9 +174,13 @@ static void start_caching(struct btrfs_root *root)
 				       BTRFS_LAST_FREE_OBJECTID - objectid + 1);
 	}
 
-	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu\n",
+	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu",
 			  root->root_key.objectid);
-	BUG_ON(IS_ERR(tsk)); /* -ENOMEM */
+	if (IS_ERR(tsk)) {
+		btrfs_warn(root->fs_info, "failed to start inode caching task");
+		btrfs_clear_and_info(root, CHANGE_INODE_CACHE,
+				"disabling inode map caching");
+	}
 }
 
 int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
@@ -205,42 +209,28 @@ again:
 
 void btrfs_return_ino(struct btrfs_root *root, u64 objectid)
 {
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	struct btrfs_free_space_ctl *pinned = root->free_ino_pinned;
 
 	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
 		return;
-
 again:
 	if (root->cached == BTRFS_CACHE_FINISHED) {
-		__btrfs_add_free_space(ctl, objectid, 1);
+		__btrfs_add_free_space(pinned, objectid, 1);
 	} else {
-		/*
-		 * If we are in the process of caching free ino chunks,
-		 * to avoid adding the same inode number to the free_ino
-		 * tree twice due to cross transaction, we'll leave it
-		 * in the pinned tree until a transaction is committed
-		 * or the caching work is done.
-		 */
-
-		mutex_lock(&root->fs_commit_mutex);
+		down_write(&root->fs_info->commit_root_sem);
 		spin_lock(&root->cache_lock);
 		if (root->cached == BTRFS_CACHE_FINISHED) {
 			spin_unlock(&root->cache_lock);
-			mutex_unlock(&root->fs_commit_mutex);
+			up_write(&root->fs_info->commit_root_sem);
 			goto again;
 		}
 		spin_unlock(&root->cache_lock);
 
 		start_caching(root);
 
-		if (objectid <= root->cache_progress ||
-		    objectid >= root->highest_objectid)
-			__btrfs_add_free_space(ctl, objectid, 1);
-		else
-			__btrfs_add_free_space(pinned, objectid, 1);
+		__btrfs_add_free_space(pinned, objectid, 1);
 
-		mutex_unlock(&root->fs_commit_mutex);
+		up_write(&root->fs_info->commit_root_sem);
 	}
 }
 
@@ -250,7 +240,7 @@ again:
  * and others will just be dropped, because the commit root we were
  * searching has changed.
  *
- * Must be called with root->fs_commit_mutex held
+ * Must be called with root->fs_info->commit_root_sem held
  */
 void btrfs_unpin_free_ino(struct btrfs_root *root)
 {

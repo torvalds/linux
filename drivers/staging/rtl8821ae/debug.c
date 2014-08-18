@@ -2,20 +2,20 @@
  *
  * Copyright(c) 2009-2010  Realtek Corporation.
  *
- * Tmis program is free software; you can redistribute it and/or modify it
+ * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * Tmis program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * tmis program; if not, write to the Free Software Foundation, Inc.,
+ * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- * Tme full GNU General Public License is included in this distribution in the
+ * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
@@ -30,12 +30,7 @@
 #include "wifi.h"
 #include "cam.h"
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 #define GET_INODE_DATA(__node)		PDE_DATA(__node)
-#else
-#define GET_INODE_DATA(__node)		PDE(__node)->data
-#endif
-
 
 void rtl_dbgp_flag_init(struct ieee80211_hw *hw)
 {

@@ -228,6 +228,8 @@ struct smb_version_operations {
 	/* verify the message */
 	int (*check_message)(char *, unsigned int);
 	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
+	void (*downgrade_oplock)(struct TCP_Server_Info *,
+					struct cifsInodeInfo *, bool);
 	/* process transaction2 response */
 	bool (*check_trans2)(struct mid_q_entry *, struct TCP_Server_Info *,
 			     char *, int);
@@ -402,6 +404,11 @@ struct smb_version_operations {
 			const struct cifs_fid *, u32 *);
 	int (*set_acl)(struct cifs_ntsd *, __u32, struct inode *, const char *,
 			int);
+	/* writepages retry size */
+	unsigned int (*wp_retry_size)(struct inode *);
+	/* get mtu credits */
+	int (*wait_mtu_credits)(struct TCP_Server_Info *, unsigned int,
+				unsigned int *, unsigned int *);
 };
 
 struct smb_version_values {
@@ -557,6 +564,7 @@ struct TCP_Server_Info {
 	int echo_credits;  /* echo reserved slots */
 	int oplock_credits;  /* oplock break reserved slots */
 	bool echoes:1; /* enable echoes */
+	__u8 client_guid[SMB2_CLIENT_GUID_SIZE]; /* Client GUID */
 #endif
 	u16 dialect; /* dialect index that server chose */
 	bool oplocks:1; /* enable oplocks */
@@ -634,6 +642,16 @@ add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	    const int optype)
 {
 	server->ops->add_credits(server, add, optype);
+}
+
+static inline void
+add_credits_and_wake_if(struct TCP_Server_Info *server, const unsigned int add,
+			const int optype)
+{
+	if (add) {
+		server->ops->add_credits(server, add, optype);
+		wake_up(&server->request_q);
+	}
 }
 
 static inline void
@@ -1041,6 +1059,7 @@ struct cifs_readdata {
 	struct address_space		*mapping;
 	__u64				offset;
 	unsigned int			bytes;
+	unsigned int			got_bytes;
 	pid_t				pid;
 	int				result;
 	struct work_struct		work;
@@ -1050,6 +1069,7 @@ struct cifs_readdata {
 	struct kvec			iov;
 	unsigned int			pagesz;
 	unsigned int			tailsz;
+	unsigned int			credits;
 	unsigned int			nr_pages;
 	struct page			*pages[];
 };
@@ -1070,6 +1090,7 @@ struct cifs_writedata {
 	int				result;
 	unsigned int			pagesz;
 	unsigned int			tailsz;
+	unsigned int			credits;
 	unsigned int			nr_pages;
 	struct page			*pages[];
 };
@@ -1111,8 +1132,15 @@ struct cifsInodeInfo {
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
 	unsigned int oplock;		/* oplock/lease level we have */
 	unsigned int epoch;		/* used to track lease state changes */
-	bool delete_pending;		/* DELETE_ON_CLOSE is set */
-	bool invalid_mapping;		/* pagecache is invalid */
+#define CIFS_INODE_PENDING_OPLOCK_BREAK   (0) /* oplock break in progress */
+#define CIFS_INODE_PENDING_WRITERS	  (1) /* Writes in progress */
+#define CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2 (2) /* Downgrade oplock to L2 */
+#define CIFS_INO_DELETE_PENDING		  (3) /* delete pending on server */
+#define CIFS_INO_INVALID_MAPPING	  (4) /* pagecache is invalid */
+#define CIFS_INO_LOCK			  (5) /* lock bit for synchronization */
+	unsigned long flags;
+	spinlock_t writers_lock;
+	unsigned int writers;		/* Number of writers on this inode */
 	unsigned long time;		/* jiffies of last update of inode */
 	u64  server_eof;		/* current file size on server -- protected by i_lock */
 	u64  uniqueid;			/* server inode number */
@@ -1388,6 +1416,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
 #define   CIFS_NEG_OP      0x0200    /* negotiate request */
 #define   CIFS_OP_MASK     0x0380    /* mask request type */
+#define   CIFS_HAS_CREDITS 0x0400    /* already has credits */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001

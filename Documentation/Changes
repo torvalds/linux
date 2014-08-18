@@ -73,6 +73,11 @@ Perl
 You will need perl 5 and the following modules: Getopt::Long, Getopt::Std,
 File::Basename, and File::Find to build the kernel.
 
+BC
+--
+
+You will need bc to build kernels 3.10 and higher
+
 
 System utilities
 ================
@@ -275,12 +280,9 @@ that is possible.
 mcelog
 ------
 
-In Linux 2.6.31+ the i386 kernel needs to run the mcelog utility
-as a regular cronjob similar to the x86-64 kernel to process and log
-machine check events when CONFIG_X86_NEW_MCE is enabled. Machine check
-events are errors reported by the CPU. Processing them is strongly encouraged.
-All x86-64 kernels since 2.6.4 require the mcelog utility to
-process machine checks.
+On x86 kernels the mcelog utility is needed to process and log machine check
+events when CONFIG_X86_MCE is enabled. Machine check events are errors reported
+by the CPU. Processing them is strongly encouraged.
 
 Getting updated software
 ========================

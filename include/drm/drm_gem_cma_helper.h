@@ -1,6 +1,8 @@
 #ifndef __DRM_GEM_CMA_HELPER_H__
 #define __DRM_GEM_CMA_HELPER_H__
 
+#include <drm/drmP.h>
+
 struct drm_gem_cma_object {
 	struct drm_gem_object base;
 	dma_addr_t paddr;

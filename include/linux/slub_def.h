@@ -87,6 +87,9 @@ struct kmem_cache {
 #ifdef CONFIG_MEMCG_KMEM
 	struct memcg_cache_params *memcg_params;
 	int max_attr_size; /* for propagation, maximum size of a stored attr */
+#ifdef CONFIG_SYSFS
+	struct kset *memcg_kset;
+#endif
 #endif
 
 #ifdef CONFIG_NUMA
@@ -97,5 +100,14 @@ struct kmem_cache {
 #endif
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
+
+#ifdef CONFIG_SYSFS
+#define SLAB_SUPPORTS_SYSFS
+void sysfs_slab_remove(struct kmem_cache *);
+#else
+static inline void sysfs_slab_remove(struct kmem_cache *s)
+{
+}
+#endif
 
 #endif /* _LINUX_SLUB_DEF_H */

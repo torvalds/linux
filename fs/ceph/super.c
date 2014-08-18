@@ -755,7 +755,7 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 				goto out;
 			}
 		} else {
-			root = d_obtain_alias(inode);
+			root = d_obtain_root(inode);
 		}
 		ceph_init_dentry(root);
 		dout("open_root_inode success, root dentry is %p\n", root);
@@ -1026,6 +1026,7 @@ static int __init init_ceph(void)
 	if (ret)
 		goto out;
 
+	ceph_flock_init();
 	ceph_xattr_init();
 	ret = register_filesystem(&ceph_fs_type);
 	if (ret)

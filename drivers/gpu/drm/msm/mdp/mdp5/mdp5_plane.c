@@ -85,8 +85,11 @@ static int mdp5_plane_disable(struct drm_plane *plane)
 static void mdp5_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+	struct msm_drm_private *priv = plane->dev->dev_private;
 
-	mdp5_plane_disable(plane);
+	if (priv->kms)
+		mdp5_plane_disable(plane);
+
 	drm_plane_cleanup(plane);
 
 	kfree(mdp5_plane);
@@ -358,6 +361,7 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct mdp5_plane *mdp5_plane;
 	int ret;
+	enum drm_plane_type type;
 
 	mdp5_plane = kzalloc(sizeof(*mdp5_plane), GFP_KERNEL);
 	if (!mdp5_plane) {
@@ -373,9 +377,10 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	mdp5_plane->nformats = mdp5_get_formats(pipe, mdp5_plane->formats,
 			ARRAY_SIZE(mdp5_plane->formats));
 
-	drm_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
-			mdp5_plane->formats, mdp5_plane->nformats,
-			private_plane);
+	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
+	drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
+				 mdp5_plane->formats, mdp5_plane->nformats,
+				 type);
 
 	mdp5_plane_install_properties(plane, &plane->base);
 

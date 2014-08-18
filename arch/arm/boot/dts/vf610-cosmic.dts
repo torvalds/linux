@@ -36,12 +36,37 @@
 &fec1 {
 	phy-mode = "rmii";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_fec1_1>;
+	pinctrl-0 = <&pinctrl_fec1>;
 	status = "okay";
+};
+
+&iomuxc {
+	vf610-cosmic {
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				VF610_PAD_PTC9__ENET_RMII1_MDC		0x30d2
+				VF610_PAD_PTC10__ENET_RMII1_MDIO	0x30d3
+				VF610_PAD_PTC11__ENET_RMII1_CRS		0x30d1
+				VF610_PAD_PTC12__ENET_RMII_RXD1		0x30d1
+				VF610_PAD_PTC13__ENET_RMII1_RXD0	0x30d1
+				VF610_PAD_PTC14__ENET_RMII1_RXER	0x30d1
+				VF610_PAD_PTC15__ENET_RMII1_TXD1	0x30d2
+				VF610_PAD_PTC16__ENET_RMII1_TXD0	0x30d2
+				VF610_PAD_PTC17__ENET_RMII1_TXEN	0x30d2
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				VF610_PAD_PTB4__UART1_TX		0x21a2
+				VF610_PAD_PTB5__UART1_RX		0x21a1
+			>;
+		};
+	};
 };
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1_1>;
+	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };

@@ -63,7 +63,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Neterion's X3100 Series 10GbE PCIe I/O"
 	"Virtualized Server Adapter");
 
-static DEFINE_PCI_DEVICE_TABLE(vxge_id_table) = {
+static const struct pci_device_id vxge_id_table[] = {
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_TITAN_WIN, PCI_ANY_ID,
 	PCI_ANY_ID},
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_TITAN_UNI, PCI_ANY_ID,
@@ -368,6 +368,9 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 	vxge_debug_entryexit(VXGE_TRACE, "%s: %s:%d",
 		ring->ndev->name, __func__, __LINE__);
 
+	if (ring->budget <= 0)
+		goto out;
+
 	do {
 		prefetch((char *)dtr + L1_CACHE_BYTES);
 		rx_priv = vxge_hw_ring_rxd_private_get(dtr);
@@ -500,7 +503,6 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 
 			skb_hwts = skb_hwtstamps(skb);
 			skb_hwts->hwtstamp = ns_to_ktime(ns);
-			skb_hwts->syststamp.tv64 = 0;
 		}
 
 		/* rth_hash_type and rth_it_hit are non-zero regardless of
@@ -525,6 +527,7 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 	if (first_dtr)
 		vxge_hw_ring_rxd_post_post_wmb(ringh, first_dtr);
 
+out:
 	vxge_debug_entryexit(VXGE_TRACE,
 				"%s:%d  Exiting...",
 				__func__, __LINE__);
@@ -820,7 +823,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb->len <= 0)) {
 		vxge_debug_tx(VXGE_ERR,
 			"%s: Buffer has no data..", dev->name);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -829,7 +832,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!is_vxge_card_up(vdev))) {
 		vxge_debug_tx(VXGE_ERR,
 			"%s: vdev not initialized", dev->name);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -839,7 +842,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 			vxge_debug_tx(VXGE_ERR,
 				"%s: Failed to store the mac address",
 				dev->name);
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
 	}
@@ -986,7 +989,7 @@ _exit1:
 	vxge_hw_fifo_txdl_free(fifo_hw, dtr);
 _exit0:
 	netif_tx_stop_queue(fifo->txq);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -2118,7 +2121,7 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 static void adaptive_coalesce_tx_interrupts(struct vxge_fifo *fifo)
 {
 	fifo->interrupt_count++;
-	if (jiffies > fifo->jiffies + HZ / 100) {
+	if (time_before(fifo->jiffies + HZ / 100, jiffies)) {
 		struct __vxge_hw_fifo *hw_fifo = fifo->handle;
 
 		fifo->jiffies = jiffies;
@@ -2146,7 +2149,7 @@ static void adaptive_coalesce_tx_interrupts(struct vxge_fifo *fifo)
 static void adaptive_coalesce_rx_interrupts(struct vxge_ring *ring)
 {
 	ring->interrupt_count++;
-	if (jiffies > ring->jiffies + HZ / 100) {
+	if (time_before(ring->jiffies + HZ / 100, jiffies)) {
 		struct __vxge_hw_ring *hw_ring = ring->handle;
 
 		ring->jiffies = jiffies;
@@ -2349,12 +2352,18 @@ start:
 	vdev->vxge_entries[j].entry = VXGE_ALARM_MSIX_ID;
 	vdev->vxge_entries[j].in_use = 0;
 
-	ret = pci_enable_msix(vdev->pdev, vdev->entries, vdev->intr_cnt);
-	if (ret > 0) {
+	ret = pci_enable_msix_range(vdev->pdev,
+				    vdev->entries, 3, vdev->intr_cnt);
+	if (ret < 0) {
+		ret = -ENODEV;
+		goto enable_msix_failed;
+	} else if (ret < vdev->intr_cnt) {
+		pci_disable_msix(vdev->pdev);
+
 		vxge_debug_init(VXGE_ERR,
 			"%s: MSI-X enable failed for %d vectors, ret: %d",
 			VXGE_DRIVER_NAME, vdev->intr_cnt, ret);
-		if ((max_config_vpath != VXGE_USE_DEFAULT) || (ret < 3)) {
+		if (max_config_vpath != VXGE_USE_DEFAULT) {
 			ret = -ENODEV;
 			goto enable_msix_failed;
 		}
@@ -2368,9 +2377,6 @@ start:
 		vxge_close_vpaths(vdev, temp);
 		vdev->no_of_vpath = temp;
 		goto start;
-	} else if (ret < 0) {
-		ret = -ENODEV;
-		goto enable_msix_failed;
 	}
 	return 0;
 
@@ -3131,12 +3137,12 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		u64 packets, bytes, multicast;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&rxstats->syncp);
+			start = u64_stats_fetch_begin_irq(&rxstats->syncp);
 
 			packets   = rxstats->rx_frms;
 			multicast = rxstats->rx_mcast;
 			bytes     = rxstats->rx_bytes;
-		} while (u64_stats_fetch_retry_bh(&rxstats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&rxstats->syncp, start));
 
 		net_stats->rx_packets += packets;
 		net_stats->rx_bytes += bytes;
@@ -3146,11 +3152,11 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		net_stats->rx_dropped += rxstats->rx_dropped;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&txstats->syncp);
+			start = u64_stats_fetch_begin_irq(&txstats->syncp);
 
 			packets = txstats->tx_frms;
 			bytes   = txstats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&txstats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&txstats->syncp, start));
 
 		net_stats->tx_packets += packets;
 		net_stats->tx_bytes += bytes;

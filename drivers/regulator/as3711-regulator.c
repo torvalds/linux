@@ -191,7 +191,7 @@ static int as3711_regulator_parse_dt(struct device *dev,
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(dev);
 	struct device_node *regulators =
-		of_find_node_by_name(dev->parent->of_node, "regulators");
+		of_get_child_by_name(dev->parent->of_node, "regulators");
 	struct of_regulator_match *match;
 	int ret, i;
 
@@ -221,7 +221,6 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct as3711 *as3711 = dev_get_drvdata(pdev->dev.parent);
-	struct regulator_init_data *reg_data;
 	struct regulator_config config = {.dev = &pdev->dev,};
 	struct as3711_regulator *reg = NULL;
 	struct as3711_regulator *regs;
@@ -246,22 +245,14 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 
 	regs = devm_kzalloc(&pdev->dev, AS3711_REGULATOR_NUM *
 			sizeof(struct as3711_regulator), GFP_KERNEL);
-	if (!regs) {
-		dev_err(&pdev->dev, "Memory allocation failed exiting..\n");
+	if (!regs)
 		return -ENOMEM;
-	}
 
 	for (id = 0, ri = as3711_reg_info; id < AS3711_REGULATOR_NUM; ++id, ri++) {
-		reg_data = pdata->init_data[id];
-
-		/* No need to register if there is no regulator data */
-		if (!reg_data)
-			continue;
-
 		reg = &regs[id];
 		reg->reg_info = ri;
 
-		config.init_data = reg_data;
+		config.init_data = pdata->init_data[id];
 		config.driver_data = reg;
 		config.regmap = as3711->regmap;
 		config.of_node = of_node[id];

@@ -20,3 +20,14 @@ PROPERTIES
 	a property named fsl,eref-[CAT], where [CAT] is the abbreviated category
 	name with all uppercase letters converted to lowercase, indicates that
 	the category is supported by the implementation.
+
+    - fsl,portid-mapping
+	Usage: optional
+	Value type: <u32>
+	Definition: The Coherency Subdomain ID Port Mapping Registers and
+	Snoop ID Port Mapping registers, which are part of the CoreNet
+	Coherency fabric (CCF), provide a CoreNet Coherency Subdomain
+	ID/CoreNet Snoop ID to cpu mapping functions.  Certain bits from
+	these registers should be set if the coresponding CPU should be
+	snooped.  This property defines a bitmask which selects the bit
+	that should be set if this cpu should be snooped.

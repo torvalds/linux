@@ -8,11 +8,18 @@ config VFIO_IOMMU_SPAPR_TCE
 	depends on VFIO && SPAPR_TCE_IOMMU
 	default n
 
+config VFIO_SPAPR_EEH
+	tristate
+	depends on EEH && VFIO_IOMMU_SPAPR_TCE
+	default n
+
 menuconfig VFIO
 	tristate "VFIO Non-Privileged userspace driver framework"
 	depends on IOMMU_API
 	select VFIO_IOMMU_TYPE1 if X86
 	select VFIO_IOMMU_SPAPR_TCE if (PPC_POWERNV || PPC_PSERIES)
+	select VFIO_SPAPR_EEH if (PPC_POWERNV || PPC_PSERIES)
+	select ANON_INODES
 	help
 	  VFIO provides a framework for secure userspace device drivers.
 	  See Documentation/vfio.txt for more details.

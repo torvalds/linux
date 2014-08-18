@@ -22,11 +22,11 @@ bool vlan_do_receive(struct sk_buff **skbp)
 		return false;
 
 	skb->dev = vlan_dev;
-	if (skb->pkt_type == PACKET_OTHERHOST) {
+	if (unlikely(skb->pkt_type == PACKET_OTHERHOST)) {
 		/* Our lower layer thinks this is not local, let's make sure.
 		 * This allows the VLAN to have a different MAC than the
 		 * underlying device, and still route correctly. */
-		if (ether_addr_equal(eth_hdr(skb)->h_dest, vlan_dev->dev_addr))
+		if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest, vlan_dev->dev_addr))
 			skb->pkt_type = PACKET_HOST;
 	}
 
@@ -63,7 +63,7 @@ bool vlan_do_receive(struct sk_buff **skbp)
 }
 
 /* Must be invoked with rcu_read_lock. */
-struct net_device *__vlan_find_dev_deep(struct net_device *dev,
+struct net_device *__vlan_find_dev_deep_rcu(struct net_device *dev,
 					__be16 vlan_proto, u16 vlan_id)
 {
 	struct vlan_info *vlan_info = rcu_dereference(dev->vlan_info);
@@ -81,13 +81,13 @@ struct net_device *__vlan_find_dev_deep(struct net_device *dev,
 
 		upper_dev = netdev_master_upper_dev_get_rcu(dev);
 		if (upper_dev)
-			return __vlan_find_dev_deep(upper_dev,
+			return __vlan_find_dev_deep_rcu(upper_dev,
 						    vlan_proto, vlan_id);
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL(__vlan_find_dev_deep);
+EXPORT_SYMBOL(__vlan_find_dev_deep_rcu);
 
 struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 {
@@ -106,55 +106,11 @@ u16 vlan_dev_vlan_id(const struct net_device *dev)
 }
 EXPORT_SYMBOL(vlan_dev_vlan_id);
 
-static struct sk_buff *vlan_reorder_header(struct sk_buff *skb)
+__be16 vlan_dev_vlan_proto(const struct net_device *dev)
 {
-	if (skb_cow(skb, skb_headroom(skb)) < 0)
-		return NULL;
-	memmove(skb->data - ETH_HLEN, skb->data - VLAN_ETH_HLEN, 2 * ETH_ALEN);
-	skb->mac_header += VLAN_HLEN;
-	return skb;
+	return vlan_dev_priv(dev)->vlan_proto;
 }
-
-struct sk_buff *vlan_untag(struct sk_buff *skb)
-{
-	struct vlan_hdr *vhdr;
-	u16 vlan_tci;
-
-	if (unlikely(vlan_tx_tag_present(skb))) {
-		/* vlan_tci is already set-up so leave this for another time */
-		return skb;
-	}
-
-	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (unlikely(!skb))
-		goto err_free;
-
-	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN)))
-		goto err_free;
-
-	vhdr = (struct vlan_hdr *) skb->data;
-	vlan_tci = ntohs(vhdr->h_vlan_TCI);
-	__vlan_hwaccel_put_tag(skb, skb->protocol, vlan_tci);
-
-	skb_pull_rcsum(skb, VLAN_HLEN);
-	vlan_set_encap_proto(skb, vhdr);
-
-	skb = vlan_reorder_header(skb);
-	if (unlikely(!skb))
-		goto err_free;
-
-	skb_reset_network_header(skb);
-	skb_reset_transport_header(skb);
-	skb_reset_mac_len(skb);
-
-	return skb;
-
-err_free:
-	kfree_skb(skb);
-	return NULL;
-}
-EXPORT_SYMBOL(vlan_untag);
-
+EXPORT_SYMBOL(vlan_dev_vlan_proto);
 
 /*
  * vlan info and vid list

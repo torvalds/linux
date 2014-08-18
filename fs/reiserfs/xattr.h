@@ -61,7 +61,8 @@ static inline loff_t reiserfs_xattr_nblocks(struct inode *inode, loff_t size)
 	return ret;
 }
 
-/* We may have to create up to 3 objects: xattr root, xattr dir, xattr file.
+/*
+ * We may have to create up to 3 objects: xattr root, xattr dir, xattr file.
  * Let's try to be smart about it.
  * xattr root: We cache it. If it's not cached, we may need to create it.
  * xattr dir: If anything has been loaded for this inode, we can set a flag

@@ -299,6 +299,9 @@ static int st_magn_read_raw(struct iio_dev *indio_dev,
 		else
 			*val2 = mdata->current_fullscale->gain;
 		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = mdata->odr;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -316,6 +319,13 @@ static int st_magn_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		err = st_sensors_set_fullscale_by_gain(indio_dev, val2);
 		break;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (val2)
+			return -EINVAL;
+		mutex_lock(&indio_dev->mlock);
+		err = st_sensors_set_odr(indio_dev, val);
+		mutex_unlock(&indio_dev->mlock);
+		return err;
 	default:
 		err = -EINVAL;
 	}
@@ -323,14 +333,12 @@ static int st_magn_write_raw(struct iio_dev *indio_dev,
 	return err;
 }
 
-static ST_SENSOR_DEV_ATTR_SAMP_FREQ();
 static ST_SENSORS_DEV_ATTR_SAMP_FREQ_AVAIL();
 static ST_SENSORS_DEV_ATTR_SCALE_AVAIL(in_magn_scale_available);
 
 static struct attribute *st_magn_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_magn_scale_available.dev_attr.attr,
-	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	NULL,
 };
 
@@ -354,6 +362,8 @@ int st_magn_common_probe(struct iio_dev *indio_dev,
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &magn_info;
+
+	st_sensors_power_enable(indio_dev);
 
 	err = st_sensors_check_device_support(indio_dev,
 				ARRAY_SIZE(st_magn_sensors), st_magn_sensors);
@@ -387,6 +397,9 @@ int st_magn_common_probe(struct iio_dev *indio_dev,
 	if (err)
 		goto st_magn_device_register_error;
 
+	dev_info(&indio_dev->dev, "registered magnetometer %s\n",
+		 indio_dev->name);
+
 	return 0;
 
 st_magn_device_register_error:
@@ -402,6 +415,8 @@ EXPORT_SYMBOL(st_magn_common_probe);
 void st_magn_common_remove(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
+
+	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (mdata->get_irq_data_ready(indio_dev) > 0)

@@ -465,14 +465,8 @@ static void via_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 
 static void via_free(struct hda_codec *codec)
 {
-	struct via_spec *spec = codec->spec;
-
-	if (!spec)
-		return;
-
 	vt1708_stop_hp_work(codec);
-	snd_hda_gen_spec_free(&spec->gen);
-	kfree(spec);
+	snd_hda_gen_free(codec);
 }
 
 #ifdef CONFIG_PM

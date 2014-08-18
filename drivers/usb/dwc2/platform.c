@@ -134,6 +134,12 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		/* Default all params to autodetect */
 		dwc2_set_all_params(&defparams, -1);
 		params = &defparams;
+
+		/*
+		 * Disable descriptor dma mode by default as the HW can support
+		 * it, but does not support it for SPLIT transactions.
+		 */
+		defparams.dma_desc_enable = 0;
 	}
 
 	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);

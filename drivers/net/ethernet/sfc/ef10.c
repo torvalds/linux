@@ -162,8 +162,8 @@ static int efx_ef10_get_mac_address(struct efx_nic *efx, u8 *mac_address)
 	if (outlen < MC_CMD_GET_MAC_ADDRESSES_OUT_LEN)
 		return -EIO;
 
-	memcpy(mac_address,
-	       MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE), ETH_ALEN);
+	ether_addr_copy(mac_address,
+			MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE));
 	return 0;
 }
 
@@ -172,8 +172,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	struct efx_ef10_nic_data *nic_data;
 	int i, rc;
 
-	/* We can have one VI for each 8K region.  However we need
-	 * multiple TX queues per channel.
+	/* We can have one VI for each 8K region.  However, until we
+	 * use TX option descriptors we need two TX queues per channel.
 	 */
 	efx->max_channels =
 		min_t(unsigned int,
@@ -565,10 +565,17 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	 * several of each (in fact that's the only option if host
 	 * page size is >4K).  So we may allocate some extra VIs just
 	 * for writing PIO buffers through.
+	 *
+	 * The UC mapping contains (min_vis - 1) complete VIs and the
+	 * first half of the next VI.  Then the WC mapping begins with
+	 * the second half of this last VI.
 	 */
 	uc_mem_map_size = PAGE_ALIGN((min_vis - 1) * EFX_VI_PAGE_SIZE +
 				     ER_DZ_TX_PIOBUF);
 	if (nic_data->n_piobufs) {
+		/* pio_write_vi_base rounds down to give the number of complete
+		 * VIs inside the UC mapping.
+		 */
 		pio_write_vi_base = uc_mem_map_size / EFX_VI_PAGE_SIZE;
 		wc_mem_map_size = (PAGE_ALIGN((pio_write_vi_base +
 					       nic_data->n_piobufs) *
@@ -731,8 +738,11 @@ static int efx_ef10_reset(struct efx_nic *efx, enum reset_type reset_type)
 	/* If it was a port reset, trigger reallocation of MC resources.
 	 * Note that on an MC reset nothing needs to be done now because we'll
 	 * detect the MC reset later and handle it then.
+	 * For an FLR, we never get an MC reset event, but the MC has reset all
+	 * resources assigned to us, so we have to trigger reallocation now.
 	 */
-	if (reset_type == RESET_TYPE_ALL && !rc)
+	if ((reset_type == RESET_TYPE_ALL ||
+	     reset_type == RESET_TYPE_MCDI_TIMEOUT) && !rc)
 		efx_ef10_reset_mc_allocations(efx);
 	return rc;
 }
@@ -745,6 +755,8 @@ static int efx_ef10_reset(struct efx_nic *efx, enum reset_type reset_type)
 	{ NULL, 64, 8 * MC_CMD_MAC_ ## mcdi_name }
 #define EF10_OTHER_STAT(ext_name)				\
 	[EF10_STAT_ ## ext_name] = { #ext_name, 0, 0 }
+#define GENERIC_SW_STAT(ext_name)				\
+	[GENERIC_STAT_ ## ext_name] = { #ext_name, 0, 0 }
 
 static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(tx_bytes, TX_BYTES),
@@ -788,6 +800,8 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(rx_align_error, RX_ALIGN_ERROR_PKTS),
 	EF10_DMA_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS),
 	EF10_DMA_STAT(rx_nodesc_drops, RX_NODESC_DROPS),
+	GENERIC_SW_STAT(rx_nodesc_trunc),
+	GENERIC_SW_STAT(rx_noskb_drops),
 	EF10_DMA_STAT(rx_pm_trunc_bb_overflow, PM_TRUNC_BB_OVERFLOW),
 	EF10_DMA_STAT(rx_pm_discard_bb_overflow, PM_DISCARD_BB_OVERFLOW),
 	EF10_DMA_STAT(rx_pm_trunc_vfifo_full, PM_TRUNC_VFIFO_FULL),
@@ -831,7 +845,9 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 			       (1ULL << EF10_STAT_rx_gtjumbo) |		\
 			       (1ULL << EF10_STAT_rx_bad_gtjumbo) |	\
 			       (1ULL << EF10_STAT_rx_overflow) |	\
-			       (1ULL << EF10_STAT_rx_nodesc_drops))
+			       (1ULL << EF10_STAT_rx_nodesc_drops) |	\
+			       (1ULL << GENERIC_STAT_rx_nodesc_trunc) |	\
+			       (1ULL << GENERIC_STAT_rx_noskb_drops))
 
 /* These statistics are only provided by the 10G MAC.  For a 10G/40G
  * switchable port we do not expose these because they might not
@@ -941,7 +957,7 @@ static int efx_ef10_try_update_nic_stats(struct efx_nic *efx)
 		stats[EF10_STAT_rx_bytes_minus_good_bytes];
 	efx_update_diff_stat(&stats[EF10_STAT_rx_bad_bytes],
 			     stats[EF10_STAT_rx_bytes_minus_good_bytes]);
-
+	efx_update_sw_stats(efx, stats);
 	return 0;
 }
 
@@ -980,7 +996,9 @@ static size_t efx_ef10_update_stats(struct efx_nic *efx, u64 *full_stats,
 		core_stats->tx_packets = stats[EF10_STAT_tx_packets];
 		core_stats->rx_bytes = stats[EF10_STAT_rx_bytes];
 		core_stats->tx_bytes = stats[EF10_STAT_tx_bytes];
-		core_stats->rx_dropped = stats[EF10_STAT_rx_nodesc_drops];
+		core_stats->rx_dropped = stats[EF10_STAT_rx_nodesc_drops] +
+					 stats[GENERIC_STAT_rx_nodesc_trunc] +
+					 stats[GENERIC_STAT_rx_noskb_drops];
 		core_stats->multicast = stats[EF10_STAT_rx_multicast];
 		core_stats->rx_length_errors =
 			stats[EF10_STAT_rx_gtjumbo] +
@@ -1955,6 +1973,9 @@ static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 	int tx_descs = 0;
 	int spent = 0;
 
+	if (quota <= 0)
+		return spent;
+
 	read_ptr = channel->eventq_read_ptr;
 
 	for (;;) {
@@ -2129,6 +2150,11 @@ static int efx_ef10_fini_dmaq(struct efx_nic *efx)
 	}
 
 	return 0;
+}
+
+static void efx_ef10_prepare_flr(struct efx_nic *efx)
+{
+	atomic_set(&efx->active_queues, 0);
 }
 
 static bool efx_ef10_filter_equal(const struct efx_filter_spec *left,
@@ -3145,12 +3171,10 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		table->dev_uc_count = -1;
 	} else {
 		table->dev_uc_count = 1 + netdev_uc_count(net_dev);
-		memcpy(table->dev_uc_list[0].addr, net_dev->dev_addr,
-		       ETH_ALEN);
+		ether_addr_copy(table->dev_uc_list[0].addr, net_dev->dev_addr);
 		i = 1;
 		netdev_for_each_uc_addr(uc, net_dev) {
-			memcpy(table->dev_uc_list[i].addr,
-			       uc->addr, ETH_ALEN);
+			ether_addr_copy(table->dev_uc_list[i].addr, uc->addr);
 			i++;
 		}
 	}
@@ -3162,8 +3186,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		eth_broadcast_addr(table->dev_mc_list[0].addr);
 		i = 1;
 		netdev_for_each_mc_addr(mc, net_dev) {
-			memcpy(table->dev_mc_list[i].addr,
-			       mc->addr, ETH_ALEN);
+			ether_addr_copy(table->dev_mc_list[i].addr, mc->addr);
 			i++;
 		}
 	}
@@ -3596,6 +3619,8 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
 	.fini_dmaq = efx_ef10_fini_dmaq,
+	.prepare_flr = efx_ef10_prepare_flr,
+	.finish_flr = efx_port_dummy_op_void,
 	.describe_stats = efx_ef10_describe_stats,
 	.update_stats = efx_ef10_update_stats,
 	.start_stats = efx_mcdi_mac_start_stats,

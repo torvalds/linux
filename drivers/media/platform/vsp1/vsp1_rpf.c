@@ -1,7 +1,7 @@
 /*
  * vsp1_rpf.c  --  R-Car VSP1 Read Pixel Formatter
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -39,6 +39,36 @@ static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf, u32 reg, u32 data)
 }
 
 /* -----------------------------------------------------------------------------
+ * Controls
+ */
+
+static int rpf_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vsp1_rwpf *rpf =
+		container_of(ctrl->handler, struct vsp1_rwpf, ctrls);
+	struct vsp1_pipeline *pipe;
+
+	if (!vsp1_entity_is_streaming(&rpf->entity))
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_ALPHA_COMPONENT:
+		vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
+			       ctrl->val << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
+
+		pipe = to_vsp1_pipeline(&rpf->entity.subdev.entity);
+		vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, ctrl->val);
+		break;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops rpf_ctrl_ops = {
+	.s_ctrl = rpf_s_ctrl,
+};
+
+/* -----------------------------------------------------------------------------
  * V4L2 Subdevice Core Operations
  */
 
@@ -50,6 +80,11 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	const struct v4l2_rect *crop = &rpf->crop;
 	u32 pstride;
 	u32 infmt;
+	int ret;
+
+	ret = vsp1_entity_set_streaming(&rpf->entity, enable);
+	if (ret < 0)
+		return ret;
 
 	if (!enable)
 		return 0;
@@ -96,15 +131,18 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	vsp1_rpf_write(rpf, VI6_RPF_INFMT, infmt);
 	vsp1_rpf_write(rpf, VI6_RPF_DSWAP, fmtinfo->swap);
 
-	/* Output location. Composing isn't supported yet. */
-	vsp1_rpf_write(rpf, VI6_RPF_LOC, 0);
+	/* Output location */
+	vsp1_rpf_write(rpf, VI6_RPF_LOC,
+		       (rpf->location.left << VI6_RPF_LOC_HCOORD_SHIFT) |
+		       (rpf->location.top << VI6_RPF_LOC_VCOORD_SHIFT));
 
-	/* Disable alpha, mask and color key. Set the alpha channel to a fixed
-	 * value of 255.
+	/* Use the alpha channel (extended to 8 bits) when available or an
+	 * alpha value set through the V4L2_CID_ALPHA_COMPONENT control
+	 * otherwise. Disable color keying.
 	 */
-	vsp1_rpf_write(rpf, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_ASEL_FIXED);
-	vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
-		       255 << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
+	vsp1_rpf_write(rpf, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
+		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
+				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
 	vsp1_rpf_write(rpf, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, VI6_RPF_CKEY_CTRL, 0);
 
@@ -176,7 +214,6 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	rpf->entity.type = VSP1_ENTITY_RPF;
 	rpf->entity.index = index;
-	rpf->entity.id = VI6_DPR_NODE_RPF(index);
 
 	ret = vsp1_entity_init(vsp1, &rpf->entity, 2);
 	if (ret < 0)
@@ -195,6 +232,20 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	vsp1_entity_init_formats(subdev, NULL);
 
+	/* Initialize the control handler. */
+	v4l2_ctrl_handler_init(&rpf->ctrls, 1);
+	v4l2_ctrl_new_std(&rpf->ctrls, &rpf_ctrl_ops, V4L2_CID_ALPHA_COMPONENT,
+			  0, 255, 1, 255);
+
+	rpf->entity.subdev.ctrl_handler = &rpf->ctrls;
+
+	if (rpf->ctrls.error) {
+		dev_err(vsp1->dev, "rpf%u: failed to initialize controls\n",
+			index);
+		ret = rpf->ctrls.error;
+		goto error;
+	}
+
 	/* Initialize the video device. */
 	video = &rpf->video;
 
@@ -204,7 +255,9 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	ret = vsp1_video_init(video, &rpf->entity);
 	if (ret < 0)
-		goto error_video;
+		goto error;
+
+	rpf->entity.video = video;
 
 	/* Connect the video device to the RPF. */
 	ret = media_entity_create_link(&rpf->video.video.entity, 0,
@@ -213,13 +266,11 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 				       MEDIA_LNK_FL_ENABLED |
 				       MEDIA_LNK_FL_IMMUTABLE);
 	if (ret < 0)
-		goto error_link;
+		goto error;
 
 	return rpf;
 
-error_link:
-	vsp1_video_cleanup(video);
-error_video:
-	media_entity_cleanup(&rpf->entity.subdev.entity);
+error:
+	vsp1_entity_destroy(&rpf->entity);
 	return ERR_PTR(ret);
 }

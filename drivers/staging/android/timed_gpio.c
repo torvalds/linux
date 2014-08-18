@@ -45,15 +45,17 @@ static enum hrtimer_restart gpio_timer_func(struct hrtimer *timer)
 
 static int gpio_get_time(struct timed_output_dev *dev)
 {
-	struct timed_gpio_data	*data =
-		container_of(dev, struct timed_gpio_data, dev);
+	struct timed_gpio_data *data;
+	struct timeval t;
 
-	if (hrtimer_active(&data->timer)) {
-		ktime_t r = hrtimer_get_remaining(&data->timer);
-		struct timeval t = ktime_to_timeval(r);
-		return t.tv_sec * 1000 + t.tv_usec / 1000;
-	} else
+	data = container_of(dev, struct timed_gpio_data, dev);
+
+	if (!hrtimer_active(&data->timer))
 		return 0;
+
+	t = ktime_to_timeval(hrtimer_get_remaining(&data->timer));
+
+	return t.tv_sec * 1000 + t.tv_usec / 1000;
 }
 
 static void gpio_enable(struct timed_output_dev *dev, int value)
@@ -90,7 +92,8 @@ static int timed_gpio_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EBUSY;
 
-	gpio_data = kzalloc(sizeof(struct timed_gpio_data) * pdata->num_gpios,
+	gpio_data = devm_kzalloc(&pdev->dev,
+			sizeof(struct timed_gpio_data) * pdata->num_gpios,
 			GFP_KERNEL);
 	if (!gpio_data)
 		return -ENOMEM;
@@ -131,7 +134,6 @@ err_out:
 		timed_output_dev_unregister(&gpio_data[i].dev);
 		gpio_free(gpio_data[i].gpio);
 	}
-	kfree(gpio_data);
 
 	return ret;
 }
@@ -146,8 +148,6 @@ static int timed_gpio_remove(struct platform_device *pdev)
 		timed_output_dev_unregister(&gpio_data[i].dev);
 		gpio_free(gpio_data[i].gpio);
 	}
-
-	kfree(gpio_data);
 
 	return 0;
 }

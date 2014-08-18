@@ -22,6 +22,8 @@ unsigned long *page_table_alloc(struct mm_struct *, unsigned long);
 void page_table_free(struct mm_struct *, unsigned long *);
 void page_table_free_rcu(struct mmu_gather *, unsigned long *);
 
+void page_table_reset_pgste(struct mm_struct *, unsigned long, unsigned long,
+			    bool init_skey);
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned long key, bool nq);
 
@@ -91,11 +93,22 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 {
 	unsigned long *table = crst_table_alloc(mm);
-	if (table)
-		crst_table_init(table, _SEGMENT_ENTRY_EMPTY);
+
+	if (!table)
+		return NULL;
+	crst_table_init(table, _SEGMENT_ENTRY_EMPTY);
+	if (!pgtable_pmd_page_ctor(virt_to_page(table))) {
+		crst_table_free(mm, table);
+		return NULL;
+	}
 	return (pmd_t *) table;
 }
-#define pmd_free(mm, pmd) crst_table_free(mm, (unsigned long *) pmd)
+
+static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+{
+	pgtable_pmd_page_dtor(virt_to_page(pmd));
+	crst_table_free(mm, (unsigned long *) pmd);
+}
 
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 {

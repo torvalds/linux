@@ -29,7 +29,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -371,7 +370,7 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 {
 	struct mxs_spi *spi = spi_master_get_devdata(master);
 	struct mxs_ssp *ssp = &spi->ssp;
-	struct spi_transfer *t, *tmp_t;
+	struct spi_transfer *t;
 	unsigned int flag;
 	int status = 0;
 
@@ -381,7 +380,7 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 	writel(mxs_spi_cs_to_reg(m->spi->chip_select),
 	       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 
-	list_for_each_entry_safe(t, tmp_t, &m->transfers, transfer_list) {
+	list_for_each_entry(t, &m->transfers, transfer_list) {
 
 		status = mxs_spi_setup_transfer(m->spi, t);
 		if (status)
@@ -473,7 +472,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
 	if (irq_err < 0)
-		return -EINVAL;
+		return irq_err;
 
 	base = devm_ioremap_resource(&pdev->dev, iores);
 	if (IS_ERR(base))

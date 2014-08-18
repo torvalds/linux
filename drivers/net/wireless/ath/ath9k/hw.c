@@ -23,11 +23,9 @@
 
 #include "hw.h"
 #include "hw-ops.h"
-#include "rc.h"
 #include "ar9003_mac.h"
 #include "ar9003_mci.h"
 #include "ar9003_phy.h"
-#include "debug.h"
 #include "ath9k.h"
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
@@ -247,6 +245,8 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 		return;
 	case AR9300_DEVID_AR953X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9531;
+		if (ah->get_mac_revision)
+			ah->hw_version.macRev = ah->get_mac_revision();
 		return;
 	}
 
@@ -791,7 +791,8 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 				refdiv = 5;
 			} else {
 				pll2_divint = 0x11;
-				pll2_divfrac = 0x26666;
+				pll2_divfrac =
+					AR_SREV_9531(ah) ? 0x26665 : 0x26666;
 				refdiv = 1;
 			}
 		}
@@ -883,7 +884,7 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		AR_IMR_RXORN |
 		AR_IMR_BCNMISC;
 
-	if (AR_SREV_9340(ah) || AR_SREV_9550(ah))
+	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah))
 		sync_default &= ~AR_INTR_SYNC_HOST1_FATAL;
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
@@ -1730,11 +1731,27 @@ fail:
 	return -EINVAL;
 }
 
+u32 ath9k_hw_get_tsf_offset(struct timespec *last, struct timespec *cur)
+{
+	struct timespec ts;
+	s64 usec;
+
+	if (!cur) {
+		getrawmonotonic(&ts);
+		cur = &ts;
+	}
+
+	usec = cur->tv_sec * 1000000ULL + cur->tv_nsec / 1000;
+	usec -= last->tv_sec * 1000000ULL + last->tv_nsec / 1000;
+
+	return (u32) usec;
+}
+EXPORT_SYMBOL(ath9k_hw_get_tsf_offset);
+
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   struct ath9k_hw_cal_data *caldata, bool fastcc)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct timespec ts;
 	u32 saveLedState;
 	u32 saveDefAntenna;
 	u32 macStaId1;
@@ -1784,8 +1801,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	/* Save TSF before chip reset, a cold reset clears it */
 	tsf = ath9k_hw_gettsf64(ah);
-	getrawmonotonic(&ts);
-	usec = ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000;
+	usec = ktime_to_us(ktime_get_raw());
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
 		(AR_CFG_LED_ASSOC_CTL | AR_CFG_LED_MODE_SEL |
@@ -1818,8 +1834,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	/* Restore TSF */
-	getrawmonotonic(&ts);
-	usec = ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000 - usec;
+	usec = ktime_to_us(ktime_get_raw()) - usec;
 	ath9k_hw_settsf64(ah, tsf + usec);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
@@ -3048,6 +3063,7 @@ static struct {
 	{ AR_SREV_VERSION_9462,         "9462" },
 	{ AR_SREV_VERSION_9550,         "9550" },
 	{ AR_SREV_VERSION_9565,         "9565" },
+	{ AR_SREV_VERSION_9531,         "9531" },
 };
 
 /* For devices with external radios */

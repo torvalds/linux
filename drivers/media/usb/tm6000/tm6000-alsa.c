@@ -1,7 +1,7 @@
 /*
  *
  *  Support for audio capture for tm5600/6000/6010
- *    (c) 2007-2008 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *    (c) 2007-2008 Mauro Carvalho Chehab
  *
  *  Based on cx88-alsa.c
  *
@@ -56,7 +56,7 @@ MODULE_PARM_DESC(index, "Index value for tm6000x capture interface(s).");
  ****************************************************************************/
 
 MODULE_DESCRIPTION("ALSA driver module for tm5600/tm6000/tm6010 based TV cards");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Trident,tm5600},"
 			"{{Trident,tm6000},"
@@ -431,7 +431,8 @@ static int tm6000_audio_init(struct tm6000_core *dev)
 	if (!enable[devnr])
 		return -ENOENT;
 
-	rc = snd_card_create(index[devnr], "tm6000", THIS_MODULE, 0, &card);
+	rc = snd_card_new(&dev->udev->dev, index[devnr], "tm6000",
+			  THIS_MODULE, 0, &card);
 	if (rc < 0) {
 		snd_printk(KERN_ERR "cannot create card instance %d\n", devnr);
 		return rc;
@@ -445,7 +446,6 @@ static int tm6000_audio_init(struct tm6000_core *dev)
 		le16_to_cpu(dev->udev->descriptor.idVendor),
 		le16_to_cpu(dev->udev->descriptor.idProduct));
 	snd_component_add(card, component);
-	snd_card_set_dev(card, &dev->udev->dev);
 
 	chip = kzalloc(sizeof(struct snd_tm6000_card), GFP_KERNEL);
 	if (!chip) {

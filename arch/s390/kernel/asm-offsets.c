@@ -50,6 +50,7 @@ int main(void)
 	DEFINE(__PT_INT_CODE, offsetof(struct pt_regs, int_code));
 	DEFINE(__PT_INT_PARM, offsetof(struct pt_regs, int_parm));
 	DEFINE(__PT_INT_PARM_LONG, offsetof(struct pt_regs, int_parm_long));
+	DEFINE(__PT_FLAGS, offsetof(struct pt_regs, flags));
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	DEFINE(__SF_BACKCHAIN, offsetof(struct stack_frame, back_chain));
@@ -89,16 +90,22 @@ int main(void)
 	DEFINE(__LC_PGM_ILC, offsetof(struct _lowcore, pgm_ilc));
 	DEFINE(__LC_PGM_INT_CODE, offsetof(struct _lowcore, pgm_code));
 	DEFINE(__LC_TRANS_EXC_CODE, offsetof(struct _lowcore, trans_exc_code));
-	DEFINE(__LC_PER_CAUSE, offsetof(struct _lowcore, per_perc_atmid));
+	DEFINE(__LC_MON_CLASS_NR, offsetof(struct _lowcore, mon_class_num));
+	DEFINE(__LC_PER_CODE, offsetof(struct _lowcore, per_code));
+	DEFINE(__LC_PER_ATMID, offsetof(struct _lowcore, per_atmid));
 	DEFINE(__LC_PER_ADDRESS, offsetof(struct _lowcore, per_address));
-	DEFINE(__LC_PER_PAID, offsetof(struct _lowcore, per_access_id));
-	DEFINE(__LC_AR_MODE_ID, offsetof(struct _lowcore, ar_access_id));
+	DEFINE(__LC_EXC_ACCESS_ID, offsetof(struct _lowcore, exc_access_id));
+	DEFINE(__LC_PER_ACCESS_ID, offsetof(struct _lowcore, per_access_id));
+	DEFINE(__LC_OP_ACCESS_ID, offsetof(struct _lowcore, op_access_id));
+	DEFINE(__LC_AR_MODE_ID, offsetof(struct _lowcore, ar_mode_id));
+	DEFINE(__LC_MON_CODE, offsetof(struct _lowcore, monitor_code));
 	DEFINE(__LC_SUBCHANNEL_ID, offsetof(struct _lowcore, subchannel_id));
 	DEFINE(__LC_SUBCHANNEL_NR, offsetof(struct _lowcore, subchannel_nr));
 	DEFINE(__LC_IO_INT_PARM, offsetof(struct _lowcore, io_int_parm));
 	DEFINE(__LC_IO_INT_WORD, offsetof(struct _lowcore, io_int_word));
 	DEFINE(__LC_STFL_FAC_LIST, offsetof(struct _lowcore, stfl_fac_list));
 	DEFINE(__LC_MCCK_CODE, offsetof(struct _lowcore, mcck_interruption_code));
+	DEFINE(__LC_MCCK_EXT_DAM_CODE, offsetof(struct _lowcore, external_damage_code));
 	DEFINE(__LC_RST_OLD_PSW, offsetof(struct _lowcore, restart_old_psw));
 	DEFINE(__LC_EXT_OLD_PSW, offsetof(struct _lowcore, external_old_psw));
 	DEFINE(__LC_SVC_OLD_PSW, offsetof(struct _lowcore, svc_old_psw));
@@ -115,6 +122,7 @@ int main(void)
 	DEFINE(__LC_SAVE_AREA_SYNC, offsetof(struct _lowcore, save_area_sync));
 	DEFINE(__LC_SAVE_AREA_ASYNC, offsetof(struct _lowcore, save_area_async));
 	DEFINE(__LC_SAVE_AREA_RESTART, offsetof(struct _lowcore, save_area_restart));
+	DEFINE(__LC_CPU_FLAGS, offsetof(struct _lowcore, cpu_flags));
 	DEFINE(__LC_RETURN_PSW, offsetof(struct _lowcore, return_psw));
 	DEFINE(__LC_RETURN_MCCK_PSW, offsetof(struct _lowcore, return_mcck_psw));
 	DEFINE(__LC_SYNC_ENTER_TIMER, offsetof(struct _lowcore, sync_enter_timer));
@@ -136,12 +144,12 @@ int main(void)
 	DEFINE(__LC_RESTART_FN, offsetof(struct _lowcore, restart_fn));
 	DEFINE(__LC_RESTART_DATA, offsetof(struct _lowcore, restart_data));
 	DEFINE(__LC_RESTART_SOURCE, offsetof(struct _lowcore, restart_source));
+	DEFINE(__LC_KERNEL_ASCE, offsetof(struct _lowcore, kernel_asce));
 	DEFINE(__LC_USER_ASCE, offsetof(struct _lowcore, user_asce));
 	DEFINE(__LC_INT_CLOCK, offsetof(struct _lowcore, int_clock));
 	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
 	DEFINE(__LC_FTRACE_FUNC, offsetof(struct _lowcore, ftrace_func));
-	DEFINE(__LC_IRB, offsetof(struct _lowcore, irb));
 	DEFINE(__LC_DUMP_REIPL, offsetof(struct _lowcore, ipib));
 	BLANK();
 	DEFINE(__LC_CPU_TIMER_SAVE_AREA, offsetof(struct _lowcore, cpu_timer_save_area));
@@ -155,6 +163,8 @@ int main(void)
 #ifdef CONFIG_32BIT
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, extended_save_area_addr));
 #else /* CONFIG_32BIT */
+	DEFINE(__LC_DATA_EXC_CODE, offsetof(struct _lowcore, data_exc_code));
+	DEFINE(__LC_MCCK_FAIL_STOR_ADDR, offsetof(struct _lowcore, failing_storage_address));
 	DEFINE(__LC_EXT_PARAMS2, offsetof(struct _lowcore, ext_params2));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_PASTE, offsetof(struct _lowcore, paste));

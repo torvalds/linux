@@ -513,12 +513,18 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 static int dev_unload(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
+	int i;
 
 	DBG("unload: dev=%p", dev);
 
 	drm_kms_helper_poll_fini(dev);
 
 	omap_fbdev_free(dev);
+
+	/* flush crtcs so the fbs get released */
+	for (i = 0; i < priv->num_crtcs; i++)
+		omap_crtc_flush(priv->crtcs[i]);
+
 	omap_modeset_free(dev);
 	omap_gem_deinit(dev);
 
@@ -582,9 +588,7 @@ static void dev_lastclose(struct drm_device *dev)
 		}
 	}
 
-	drm_modeset_lock_all(dev);
-	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
-	drm_modeset_unlock_all(dev);
+	ret = drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
 	if (ret)
 		DBG("failed to restore crtc mode");
 }
@@ -696,10 +700,11 @@ static int pdev_remove(struct platform_device *device)
 {
 	DBG("");
 
+	drm_put_dev(platform_get_drvdata(device));
+
 	omap_disconnect_dssdevs();
 	omap_crtc_pre_uninit();
 
-	drm_put_dev(platform_get_drvdata(device));
 	return 0;
 }
 
@@ -726,18 +731,33 @@ static struct platform_driver pdev = {
 
 static int __init omap_drm_init(void)
 {
+	int r;
+
 	DBG("init");
-	if (platform_driver_register(&omap_dmm_driver)) {
-		/* we can continue on without DMM.. so not fatal */
-		dev_err(NULL, "DMM registration failed\n");
+
+	r = platform_driver_register(&omap_dmm_driver);
+	if (r) {
+		pr_err("DMM driver registration failed\n");
+		return r;
 	}
-	return platform_driver_register(&pdev);
+
+	r = platform_driver_register(&pdev);
+	if (r) {
+		pr_err("omapdrm driver registration failed\n");
+		platform_driver_unregister(&omap_dmm_driver);
+		return r;
+	}
+
+	return 0;
 }
 
 static void __exit omap_drm_fini(void)
 {
 	DBG("fini");
+
 	platform_driver_unregister(&pdev);
+
+	platform_driver_unregister(&omap_dmm_driver);
 }
 
 /* need late_initcall() so we load after dss_driver's are loaded */

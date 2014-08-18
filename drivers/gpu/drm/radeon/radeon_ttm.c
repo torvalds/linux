@@ -406,8 +406,14 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 	if (r) {
 memcpy:
 		r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+		if (r) {
+			return r;
+		}
 	}
-	return r;
+
+	/* update statistics */
+	atomic64_add((u64)bo->num_pages << PAGE_SHIFT, &rdev->num_bytes_moved);
+	return 0;
 }
 
 static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
@@ -515,6 +521,8 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 				   struct ttm_mem_reg *bo_mem)
 {
 	struct radeon_ttm_tt *gtt = (void*)ttm;
+	uint32_t flags = RADEON_GART_PAGE_VALID | RADEON_GART_PAGE_READ |
+		RADEON_GART_PAGE_WRITE;
 	int r;
 
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
@@ -522,8 +530,10 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
-	r = radeon_gart_bind(gtt->rdev, gtt->offset,
-			     ttm->num_pages, ttm->pages, gtt->ttm.dma_address);
+	if (ttm->caching_state == tt_cached)
+		flags |= RADEON_GART_PAGE_SNOOP;
+	r = radeon_gart_bind(gtt->rdev, gtt->offset, ttm->num_pages,
+			     ttm->pages, gtt->ttm.dma_address, flags);
 	if (r) {
 		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
 			  ttm->num_pages, (unsigned)gtt->offset);
@@ -701,7 +711,9 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&rdev->mman.bdev,
 			       rdev->mman.bo_global_ref.ref.object,
-			       &radeon_bo_driver, DRM_FILE_PAGE_OFFSET,
+			       &radeon_bo_driver,
+			       rdev->ddev->anon_inode->i_mapping,
+			       DRM_FILE_PAGE_OFFSET,
 			       rdev->need_dma32);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
@@ -718,7 +730,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 
 	r = radeon_bo_create(rdev, 256 * 1024, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM,
+			     RADEON_GEM_DOMAIN_VRAM, 0,
 			     NULL, &rdev->stollen_vga_memory);
 	if (r) {
 		return r;
@@ -742,7 +754,6 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	}
 	DRM_INFO("radeon: %uM of GTT memory ready.\n",
 		 (unsigned)(rdev->mc.gtt_size / (1024 * 1024)));
-	rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
 
 	r = radeon_ttm_debugfs_init(rdev);
 	if (r) {

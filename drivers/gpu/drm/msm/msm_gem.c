@@ -73,7 +73,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		int npages = obj->size >> PAGE_SHIFT;
 
 		if (iommu_present(&platform_bus_type))
-			p = drm_gem_get_pages(obj, 0);
+			p = drm_gem_get_pages(obj);
 		else
 			p = get_pages_vram(obj, npages);
 
@@ -118,8 +118,10 @@ static void put_pages(struct drm_gem_object *obj)
 
 		if (iommu_present(&platform_bus_type))
 			drm_gem_put_pages(obj, msm_obj->pages, true, false);
-		else
+		else {
 			drm_mm_remove_node(msm_obj->vram_node);
+			drm_free_large(msm_obj->pages);
+		}
 
 		msm_obj->pages = NULL;
 	}
@@ -280,14 +282,19 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 
 	if (!msm_obj->domain[id].iova) {
 		struct msm_drm_private *priv = obj->dev->dev_private;
-		struct msm_mmu *mmu = priv->mmus[id];
 		struct page **pages = get_pages(obj);
 
 		if (IS_ERR(pages))
 			return PTR_ERR(pages);
 
 		if (iommu_present(&platform_bus_type)) {
-			uint32_t offset = (uint32_t)mmap_offset(obj);
+			struct msm_mmu *mmu = priv->mmus[id];
+			uint32_t offset;
+
+			if (WARN_ON(!mmu))
+				return -EINVAL;
+
+			offset = (uint32_t)mmap_offset(obj);
 			ret = mmu->funcs->map(mmu, offset, msm_obj->sgt,
 					obj->size, IOMMU_READ | IOMMU_WRITE);
 			msm_obj->domain[id].iova = offset;

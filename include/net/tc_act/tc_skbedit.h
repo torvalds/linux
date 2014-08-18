@@ -29,7 +29,7 @@ struct tcf_skbedit {
 	u16			queue_mapping;
 	/* XXX: 16-bit pad here? */
 };
-#define to_skbedit(pc) \
-	container_of(pc, struct tcf_skbedit, common)
+#define to_skbedit(a) \
+	container_of(a->priv, struct tcf_skbedit, common)
 
 #endif /* __NET_TC_SKBEDIT_H */

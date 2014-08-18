@@ -46,6 +46,7 @@
 #include <linux/platform_device.h>
 #include <linux/thermal.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <acpi/video.h>
 
 #include "asus-wmi.h"
@@ -266,7 +267,7 @@ static int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_status status;
 	union acpi_object *obj;
-	u32 tmp;
+	u32 tmp = 0;
 
 	status = wmi_evaluate_method(ASUS_WMI_MGMT_GUID, 1, method_id,
 				     &input, &output);
@@ -277,8 +278,6 @@ static int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
 	obj = (union acpi_object *)output.pointer;
 	if (obj && obj->type == ACPI_TYPE_INTEGER)
 		tmp = (u32) obj->integer.value;
-	else
-		tmp = 0;
 
 	if (retval)
 		*retval = tmp;
@@ -556,7 +555,7 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 			goto error;
 	}
 
-	if (wlan_led_presence(asus) && (asus->driver->quirks->wapf == 4)) {
+	if (wlan_led_presence(asus) && (asus->driver->quirks->wapf > 0)) {
 		INIT_WORK(&asus->wlan_led_work, wlan_led_update);
 
 		asus->wlan_led.name = "asus::wlan";
@@ -642,8 +641,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 			dev = pci_scan_single_device(bus, 0);
 			if (dev) {
 				pci_bus_assign_resources(bus);
-				if (pci_bus_add_device(dev))
-					pr_err("Unable to hotplug wifi\n");
+				pci_bus_add_device(dev);
 			}
 		} else {
 			dev = pci_get_slot(bus, 0);
@@ -887,7 +885,7 @@ static int asus_new_rfkill(struct asus_wmi *asus,
 		return -EINVAL;
 
 	if ((dev_id == ASUS_WMI_DEVID_WLAN) &&
-			(asus->driver->quirks->wapf == 4))
+			(asus->driver->quirks->wapf > 0))
 		rfkill_set_led_trigger_name(*rfkill, "asus-wlan");
 
 	rfkill_init_sw_state(*rfkill, !result);
@@ -1273,10 +1271,7 @@ static int asus_wmi_backlight_init(struct asus_wmi *asus)
 	int power;
 
 	max = read_brightness_max(asus);
-
-	if (max == -ENODEV)
-		max = 0;
-	else if (max < 0)
+	if (max < 0)
 		return max;
 
 	power = read_backlight_power(asus);
@@ -1737,6 +1732,7 @@ static int asus_wmi_add(struct platform_device *pdev)
 	struct platform_driver *pdrv = to_platform_driver(pdev->dev.driver);
 	struct asus_wmi_driver *wdrv = to_asus_wmi_driver(pdrv);
 	struct asus_wmi *asus;
+	const char *chassis_type;
 	acpi_status status;
 	int err;
 	u32 result;
@@ -1773,6 +1769,11 @@ static int asus_wmi_add(struct platform_device *pdev)
 	if (err)
 		goto fail_rfkill;
 
+	/* Some Asus desktop boards export an acpi-video backlight interface,
+	   stop this from showing up */
+	chassis_type = dmi_get_system_info(DMI_CHASSIS_TYPE);
+	if (chassis_type && !strcmp(chassis_type, "3"))
+		acpi_video_dmi_promote_vendor();
 	if (asus->driver->quirks->wmi_backlight_power)
 		acpi_video_dmi_promote_vendor();
 	if (!acpi_video_backlight_support()) {

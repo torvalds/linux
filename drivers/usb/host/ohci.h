@@ -47,6 +47,7 @@ struct ed {
 	struct ed		*ed_next;	/* on schedule or rm_list */
 	struct ed		*ed_prev;	/* for non-interrupt EDs */
 	struct list_head	td_list;	/* "shadow list" of our TDs */
+	struct list_head	in_use_list;
 
 	/* create --> IDLE --> OPER --> ... --> IDLE --> destroy
 	 * usually:  OPER --> UNLINK --> (IDLE | OPER) --> ...
@@ -66,6 +67,13 @@ struct ed {
 
 	/* HC may see EDs on rm_list until next frame (frame_no == tick) */
 	u16			tick;
+
+	/* Detect TDs not added to the done queue */
+	unsigned		takeback_wdh_cnt;
+	struct td		*pending_td;
+#define	OKAY_TO_TAKEBACK(ohci, ed)			\
+		((int) (ohci->wdh_cnt - ed->takeback_wdh_cnt) >= 0)
+
 } __attribute__ ((aligned(16)));
 
 #define ED_MASK	((u32)~0x0f)		/* strip hw status in low addr bits */
@@ -380,7 +388,9 @@ struct ohci_hcd {
 	struct dma_pool		*td_cache;
 	struct dma_pool		*ed_cache;
 	struct td		*td_hash [TD_HASH_SIZE];
+	struct td		*dl_start, *dl_end;	/* the done list */
 	struct list_head	pending;
+	struct list_head	eds_in_use;	/* all EDs with at least 1 TD */
 
 	/*
 	 * driver state
@@ -392,6 +402,8 @@ struct ohci_hcd {
 	unsigned long		next_statechange;	/* suspend/resume */
 	u32			fminterval;		/* saved register */
 	unsigned		autostop:1;	/* rh auto stopping/stopped */
+	unsigned		working:1;
+	unsigned		restart_work:1;
 
 	unsigned long		flags;		/* for HC bugs */
 #define	OHCI_QUIRK_AMD756	0x01			/* erratum #4 */
@@ -405,15 +417,16 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_HUB_POWER	0x100			/* distrust firmware power/oc setup */
 #define	OHCI_QUIRK_AMD_PLL	0x200			/* AMD PLL quirk*/
 #define	OHCI_QUIRK_AMD_PREFETCH	0x400			/* pre-fetch for ISO transfer */
+#define	OHCI_QUIRK_GLOBAL_SUSPEND	0x800		/* must suspend ports */
+
 	// there are also chip quirks/bugs in init logic
 
-	struct work_struct	nec_work;	/* Worker for NEC quirk */
+	unsigned		prev_frame_no;
+	unsigned		wdh_cnt, prev_wdh_cnt;
+	u32			prev_donehead;
+	struct timer_list	io_watchdog;
 
-	/* Needed for ZF Micro quirk */
-	struct timer_list	unlink_watchdog;
-	unsigned		eds_scheduled;
-	struct ed		*ed_to_check;
-	unsigned		zf_delay;
+	struct work_struct	nec_work;	/* Worker for NEC quirk */
 
 	struct dentry		*debug_dir;
 	struct dentry		*debug_async;
@@ -727,3 +740,6 @@ extern int	ohci_setup(struct usb_hcd *hcd);
 extern int	ohci_suspend(struct usb_hcd *hcd, bool do_wakeup);
 extern int	ohci_resume(struct usb_hcd *hcd, bool hibernated);
 #endif
+extern int	ohci_hub_control(struct usb_hcd	*hcd, u16 typeReq, u16 wValue,
+				 u16 wIndex, char *buf, u16 wLength);
+extern int	ohci_hub_status_data(struct usb_hcd *hcd, char *buf);

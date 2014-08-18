@@ -202,9 +202,7 @@ config PPC_EARLY_DEBUG_BEAT
 
 config PPC_EARLY_DEBUG_44x
 	bool "Early serial debugging for IBM/AMCC 44x CPUs"
-	# PPC_EARLY_DEBUG on 440 leaves AS=1 mappings above the TLB high water
-	# mark, which doesn't work with current 440 KVM.
-	depends on 44x && !KVM
+	depends on 44x
 	help
 	  Select this to enable early debugging for IBM 44x chips via the
 	  inbuilt serial port.  If you enable this, ensure you set
@@ -234,11 +232,6 @@ config PPC_EARLY_DEBUG_USBGECKO
 	help
 	  Select this to enable early debugging for Nintendo GameCube/Wii
 	  consoles via an external USB Gecko adapter.
-
-config PPC_EARLY_DEBUG_WSP
-	bool "Early debugging via WSP's internal UART"
-	depends on PPC_WSP
-	select PPC_UDBG_16550
 
 config PPC_EARLY_DEBUG_PS3GELIC
 	bool "Early debugging through the PS3 Ethernet port"
@@ -308,7 +301,6 @@ config PPC_EARLY_DEBUG_OPAL_VTERMNO
 	  This correspond to which /dev/hvcN you want to use for early
 	  debug.
 
-	  On OPAL v1 (takeover) this should always be 0
 	  On OPAL v2, this will be 0 for network console and 1 or 2 for
 	  the machine built-in serial ports.
 

@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/mfd/core.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 #include "stmpe.h"
 
 static int __stmpe_enable(struct stmpe *stmpe, unsigned int blocks)
@@ -605,9 +606,18 @@ static int stmpe1601_enable(struct stmpe *stmpe, unsigned int blocks,
 
 	if (blocks & STMPE_BLOCK_GPIO)
 		mask |= STMPE1601_SYS_CTRL_ENABLE_GPIO;
+	else
+		mask &= ~STMPE1601_SYS_CTRL_ENABLE_GPIO;
 
 	if (blocks & STMPE_BLOCK_KEYPAD)
 		mask |= STMPE1601_SYS_CTRL_ENABLE_KPC;
+	else
+		mask &= ~STMPE1601_SYS_CTRL_ENABLE_KPC;
+
+	if (blocks & STMPE_BLOCK_PWM)
+		mask |= STMPE1601_SYS_CTRL_ENABLE_SPWM;
+	else
+		mask &= ~STMPE1601_SYS_CTRL_ENABLE_SPWM;
 
 	return __stmpe_set_bits(stmpe, STMPE1601_REG_SYS_CTRL, mask,
 				enable ? mask : 0);
@@ -706,7 +716,7 @@ static int stmpe1801_reset(struct stmpe *stmpe)
 		if (!(ret & STMPE1801_MSK_SYS_CTRL_RESET))
 			return 0;
 		usleep_range(100, 200);
-	};
+	}
 	return -EIO;
 }
 
@@ -986,9 +996,6 @@ static int stmpe_irq_init(struct stmpe *stmpe, struct device_node *np)
 	int base = 0;
 	int num_irqs = stmpe->variant->num_irqs;
 
-	if (!np)
-		base = stmpe->irq_base;
-
 	stmpe->domain = irq_domain_add_simple(np, num_irqs, base,
 					      &stmpe_irq_ops, stmpe);
 	if (!stmpe->domain) {
@@ -1067,7 +1074,7 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 static int stmpe_add_device(struct stmpe *stmpe, const struct mfd_cell *cell)
 {
 	return mfd_add_devices(stmpe->dev, stmpe->pdata->id, cell, 1,
-			       NULL, stmpe->irq_base, stmpe->domain);
+			       NULL, 0, stmpe->domain);
 }
 
 static int stmpe_devices_init(struct stmpe *stmpe)
@@ -1140,7 +1147,7 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 }
 
 /* Called from client specific probe routines */
-int stmpe_probe(struct stmpe_client_info *ci, int partnum)
+int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 {
 	struct stmpe_platform_data *pdata = dev_get_platdata(ci->dev);
 	struct device_node *np = ci->dev->of_node;
@@ -1171,12 +1178,23 @@ int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 	stmpe->dev = ci->dev;
 	stmpe->client = ci->client;
 	stmpe->pdata = pdata;
-	stmpe->irq_base = pdata->irq_base;
 	stmpe->ci = ci;
 	stmpe->partnum = partnum;
 	stmpe->variant = stmpe_variant_info[partnum];
 	stmpe->regs = stmpe->variant->regs;
 	stmpe->num_gpios = stmpe->variant->num_gpios;
+	stmpe->vcc = devm_regulator_get_optional(ci->dev, "vcc");
+	if (!IS_ERR(stmpe->vcc)) {
+		ret = regulator_enable(stmpe->vcc);
+		if (ret)
+			dev_warn(ci->dev, "failed to enable VCC supply\n");
+	}
+	stmpe->vio = devm_regulator_get_optional(ci->dev, "vio");
+	if (!IS_ERR(stmpe->vio)) {
+		ret = regulator_enable(stmpe->vio);
+		if (ret)
+			dev_warn(ci->dev, "failed to enable VIO supply\n");
+	}
 	dev_set_drvdata(stmpe->dev, stmpe);
 
 	if (ci->init)
@@ -1243,6 +1261,11 @@ int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 
 int stmpe_remove(struct stmpe *stmpe)
 {
+	if (!IS_ERR(stmpe->vio))
+		regulator_disable(stmpe->vio);
+	if (!IS_ERR(stmpe->vcc))
+		regulator_disable(stmpe->vcc);
+
 	mfd_remove_devices(stmpe->dev);
 
 	return 0;

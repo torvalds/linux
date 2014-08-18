@@ -25,11 +25,7 @@
 #ifndef MSP_USB_H_
 #define MSP_USB_H_
 
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-#define NUM_USB_DEVS   2
-#else
 #define NUM_USB_DEVS   1
-#endif
 
 /* Register spaces for USB host 0 */
 #define MSP_USB0_MAB_START	(MSP_USB0_BASE + 0x0)

@@ -73,6 +73,7 @@
 #define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD	(is_uv1_hub() ?			\
 		UV1_INTD_SOFT_ACK_TIMEOUT_PERIOD :			\
 		UV2_INTD_SOFT_ACK_TIMEOUT_PERIOD)
+/* assuming UV3 is the same */
 
 #define BAU_MISC_CONTROL_MULT_MASK	3
 
@@ -93,6 +94,8 @@
 #define SOFTACK_MSHIFT UVH_LB_BAU_MISC_CONTROL_ENABLE_INTD_SOFT_ACK_MODE_SHFT
 #define SOFTACK_PSHIFT UVH_LB_BAU_MISC_CONTROL_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHFT
 #define SOFTACK_TIMEOUT_PERIOD UV_INTD_SOFT_ACK_TIMEOUT_PERIOD
+#define PREFETCH_HINT_SHFT UV3H_LB_BAU_MISC_CONTROL_ENABLE_INTD_PREFETCH_HINT_SHFT
+#define SB_STATUS_SHFT UV3H_LB_BAU_MISC_CONTROL_ENABLE_EXTENDED_SB_STATUS_SHFT
 #define write_gmmr	uv_write_global_mmr64
 #define write_lmmr	uv_write_local_mmr
 #define read_lmmr	uv_read_local_mmr
@@ -322,8 +325,9 @@ struct uv1_bau_msg_header {
 /*
  * UV2 Message header:  16 bytes (128 bits) (bytes 0x30-0x3f of descriptor)
  * see figure 9-2 of harp_sys.pdf
+ * assuming UV3 is the same
  */
-struct uv2_bau_msg_header {
+struct uv2_3_bau_msg_header {
 	unsigned int	base_dest_nasid:15;	/* nasid of the first bit */
 	/* bits 14:0 */				/* in uvhub map */
 	unsigned int	dest_subnodeid:5;	/* must be 0x10, for the LB */
@@ -395,7 +399,7 @@ struct bau_desc {
 	 */
 	union bau_msg_header {
 		struct uv1_bau_msg_header	uv1_hdr;
-		struct uv2_bau_msg_header	uv2_hdr;
+		struct uv2_3_bau_msg_header	uv2_3_hdr;
 	} header;
 
 	struct bau_msg_payload			payload;
@@ -631,11 +635,6 @@ struct bau_control {
 	struct hub_and_pnode	*thp;
 };
 
-static inline unsigned long read_mmr_uv2_status(void)
-{
-	return read_lmmr(UV2H_LB_BAU_SB_ACTIVATION_STATUS_2);
-}
-
 static inline void write_mmr_data_broadcast(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_BAU_DATA_BROADCAST, mmr_image);
@@ -760,7 +759,11 @@ static inline int atomic_read_short(const struct atomic_short *v)
  */
 static inline int atom_asr(short i, struct atomic_short *v)
 {
-	return i + xadd(&v->counter, i);
+	short __i = i;
+	asm volatile(LOCK_PREFIX "xaddw %0, %1"
+			: "+r" (i), "+m" (v->counter)
+			: : "memory");
+	return i + __i;
 }
 
 /*

@@ -103,15 +103,16 @@ static int __init dummy_probe(struct pcie_device *dev)
 }
 
 static struct pcie_port_service_driver __initdata dummy_driver = {
-        .name           = "pciehp_dummy",
+	.name		= "pciehp_dummy",
 	.port_type	= PCIE_ANY_PORT,
 	.service	= PCIE_PORT_SERVICE_HP,
-        .probe          = dummy_probe,
+	.probe		= dummy_probe,
 };
 
 static int __init select_detection_mode(void)
 {
 	struct dummy_slot *slot, *tmp;
+
 	if (pcie_port_service_register(&dummy_driver))
 		return PCIEHP_DETECT_ACPI;
 	pcie_port_service_unregister(&dummy_driver);

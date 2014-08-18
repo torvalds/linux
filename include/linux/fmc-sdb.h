@@ -14,6 +14,8 @@ union sdb_record {
 	struct sdb_bridge bridge;
 	struct sdb_integration integr;
 	struct sdb_empty empty;
+	struct sdb_synthesis synthesis;
+	struct sdb_repo_url repo_url;
 };
 
 struct fmc_device;

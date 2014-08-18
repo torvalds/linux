@@ -47,10 +47,11 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
-#include <linux/sh_intc.h>
+#include <linux/sh_clk.h>
 #include <linux/tca6416_keypad.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/dma-mapping.h>
+
 #include <video/sh_mobile_hdmi.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
@@ -58,15 +59,14 @@
 #include <media/soc_camera_platform.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
-
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/sh7372.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include "common.h"
+#include "irqs.h"
+#include "pm-rmobile.h"
 #include "sh-gpio.h"
+#include "sh7372.h"
 
 /*
  * Address	Interface		BusWidth	note
@@ -509,9 +509,9 @@ static struct asoc_simple_card_info fsi2_hdmi_info = {
 	.card		= "FSI2B-HDMI",
 	.codec		= "sh-mobile-hdmi",
 	.platform	= "sh_fsi2",
+	.daifmt		= SND_SOC_DAIFMT_CBS_CFS,
 	.cpu_dai = {
 		.name	= "fsib-dai",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF,
 	},
 	.codec_dai = {
 		.name	= "sh_mobile_hdmi-hifi",
@@ -523,6 +523,8 @@ static struct platform_device fsi_hdmi_device = {
 	.id	= 1,
 	.dev	= {
 		.platform_data	= &fsi2_hdmi_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_hdmi_device.dev.coherent_dma_mask,
 	},
 };
 
@@ -905,14 +907,12 @@ static struct asoc_simple_card_info fsi2_ak4643_info = {
 	.card		= "FSI2A-AK4643",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
-	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_CBM_CFM,
 	.cpu_dai = {
 		.name	= "fsia-dai",
-		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
 	},
 	.codec_dai = {
 		.name	= "ak4642-hifi",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
 		.sysclk	= 11289600,
 	},
 };
@@ -921,6 +921,8 @@ static struct platform_device fsi_ak4643_device = {
 	.name	= "asoc-simple-card",
 	.dev	= {
 		.platform_data	= &fsi2_ak4643_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_ak4643_device.dev.coherent_dma_mask,
 	},
 };
 

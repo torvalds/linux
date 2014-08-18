@@ -54,6 +54,9 @@
 #include <linux/ptp_clock_kernel.h>
 #include "i40e_type.h"
 #include "i40e_prototype.h"
+#ifdef I40E_FCOE
+#include "i40e_fcoe.h"
+#endif
 #include "i40e_virtchnl.h"
 #include "i40e_virtchnl_pf.h"
 #include "i40e_txrx.h"
@@ -72,34 +75,36 @@
 #define I40E_MIN_NUM_DESCRIPTORS      64
 #define I40E_MIN_MSIX                 2
 #define I40E_DEFAULT_NUM_VMDQ_VSI     8 /* max 256 VSIs */
+#define I40E_MIN_VSI_ALLOC            51 /* LAN, ATR, FCOE, 32 VF, 16 VMDQ */
 #define I40E_DEFAULT_QUEUES_PER_VMDQ  2 /* max 16 qps */
 #define I40E_DEFAULT_QUEUES_PER_VF    4
 #define I40E_DEFAULT_QUEUES_PER_TC    1 /* should be a power of 2 */
 #define I40E_MAX_QUEUES_PER_TC        64 /* should be a power of 2 */
 #define I40E_FDIR_RING                0
 #define I40E_FDIR_RING_COUNT          32
+#ifdef I40E_FCOE
+#define I40E_DEFAULT_FCOE             8 /* default number of QPs for FCoE */
+#define I40E_MINIMUM_FCOE             1 /* minimum number of QPs for FCoE */
+#endif /* I40E_FCOE */
 #define I40E_MAX_AQ_BUF_SIZE          4096
 #define I40E_AQ_LEN                   32
 #define I40E_AQ_WORK_LIMIT            16
 #define I40E_MAX_USER_PRIORITY        8
 #define I40E_DEFAULT_MSG_ENABLE       4
+#define I40E_QUEUE_WAIT_RETRY_LIMIT   10
 
 #define I40E_NVM_VERSION_LO_SHIFT  0
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
-#define I40E_NVM_VERSION_HI_SHIFT  8
-#define I40E_NVM_VERSION_HI_MASK   (0xff << I40E_NVM_VERSION_HI_SHIFT)
+#define I40E_NVM_VERSION_HI_SHIFT  12
+#define I40E_NVM_VERSION_HI_MASK   (0xf << I40E_NVM_VERSION_HI_SHIFT)
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
-#define I40E_CURRENT_NVM_VERSION_LO 0x30
+#define I40E_CURRENT_NVM_VERSION_LO 0x40
 
 /* magic for getting defines into strings */
 #define STRINGIFY(foo)  #foo
 #define XSTRINGIFY(bar) STRINGIFY(bar)
-
-#ifndef ARCH_HAS_PREFETCH
-#define prefetch(X)
-#endif
 
 #define I40E_RX_DESC(R, i)			\
 	((ring_is_16byte_desc_enabled(R))	\
@@ -136,6 +141,9 @@ enum i40e_state_t {
 	__I40E_EMP_RESET_REQUESTED,
 	__I40E_FILTER_OVERFLOW_PROMISC,
 	__I40E_SUSPENDED,
+	__I40E_PTP_TX_IN_PROGRESS,
+	__I40E_BAD_EEPROM,
+	__I40E_DOWN_REQUESTED,
 };
 
 enum i40e_interrupt_policy {
@@ -152,8 +160,33 @@ struct i40e_lump_tracking {
 };
 
 #define I40E_DEFAULT_ATR_SAMPLE_RATE	20
-#define I40E_FDIR_MAX_RAW_PACKET_LOOKUP 512
-struct i40e_fdir_data {
+#define I40E_FDIR_MAX_RAW_PACKET_SIZE	512
+#define I40E_FDIR_BUFFER_FULL_MARGIN	10
+#define I40E_FDIR_BUFFER_HEAD_ROOM	32
+
+enum i40e_fd_stat_idx {
+	I40E_FD_STAT_ATR,
+	I40E_FD_STAT_SB,
+	I40E_FD_STAT_PF_COUNT
+};
+#define I40E_FD_STAT_PF_IDX(pf_id) ((pf_id) * I40E_FD_STAT_PF_COUNT)
+#define I40E_FD_ATR_STAT_IDX(pf_id) \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_ATR)
+#define I40E_FD_SB_STAT_IDX(pf_id)  \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_SB)
+
+struct i40e_fdir_filter {
+	struct hlist_node fdir_node;
+	/* filter ipnut set */
+	u8 flow_type;
+	u8 ip4_proto;
+	/* TX packet view of src and dst */
+	__be32 dst_ip[4];
+	__be32 src_ip[4];
+	__be16 src_port;
+	__be16 dst_port;
+	__be32 sctp_v_tag;
+	/* filter control */
 	u16 q_index;
 	u8  flex_off;
 	u8  pctype;
@@ -162,7 +195,6 @@ struct i40e_fdir_data {
 	u8  fd_status;
 	u16 cnt_index;
 	u32 fd_id;
-	u8  *raw_packet;
 };
 
 #define I40E_ETH_P_LLDP			0x88cc
@@ -192,23 +224,32 @@ struct i40e_pf {
 	unsigned long state;
 	unsigned long link_check_timeout;
 	struct msix_entry *msix_entries;
-	u16 num_msix_entries;
 	bool fc_autoneg_status;
 
 	u16 eeprom_version;
-	u16 num_vmdq_vsis;         /* num vmdq pools this pf has set up */
+	u16 num_vmdq_vsis;         /* num vmdq vsis this pf has set up */
 	u16 num_vmdq_qps;          /* num queue pairs per vmdq pool */
 	u16 num_vmdq_msix;         /* num queue vectors per vmdq pool */
 	u16 num_req_vfs;           /* num vfs requested for this vf */
 	u16 num_vf_qps;            /* num queue pairs per vf */
+#ifdef I40E_FCOE
+	u16 num_fcoe_qps;          /* num fcoe queues this pf has set up */
+	u16 num_fcoe_msix;         /* num queue vectors per fcoe pool */
+#endif /* I40E_FCOE */
 	u16 num_lan_qps;           /* num lan queues this pf has set up */
 	u16 num_lan_msix;          /* num queue vectors for the base pf vsi */
 	int queues_left;           /* queues left unclaimed */
 	u16 rss_size;              /* num queues in the RSS array */
 	u16 rss_size_max;          /* HW defined max RSS queues */
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
+	u16 num_alloc_vsi;         /* num VSIs this driver supports */
 	u8 atr_sample_rate;
 	bool wol_en;
+
+	struct hlist_head fdir_filter_list;
+	u16 fdir_pf_active_filters;
+	u16 fd_sb_cnt_idx;
+	u16 fd_atr_cnt_idx;
 
 #ifdef CONFIG_I40E_VXLAN
 	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
@@ -235,6 +276,9 @@ struct i40e_pf {
 #define I40E_FLAG_VMDQ_ENABLED                 (u64)(1 << 7)
 #define I40E_FLAG_FDIR_REQUIRES_REINIT         (u64)(1 << 8)
 #define I40E_FLAG_NEED_LINK_UPDATE             (u64)(1 << 9)
+#ifdef I40E_FCOE
+#define I40E_FLAG_FCOE_ENABLED                 (u64)(1 << 11)
+#endif /* I40E_FCOE */
 #define I40E_FLAG_IN_NETPOLL                   (u64)(1 << 12)
 #define I40E_FLAG_16BYTE_RX_DESC_ENABLED       (u64)(1 << 13)
 #define I40E_FLAG_CLEAN_ADMINQ                 (u64)(1 << 14)
@@ -250,7 +294,16 @@ struct i40e_pf {
 #ifdef CONFIG_I40E_VXLAN
 #define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
 #endif
+#define I40E_FLAG_PORT_ID_VALID                (u64)(1 << 28)
+#define I40E_FLAG_DCB_CAPABLE                  (u64)(1 << 29)
 
+	/* tracks features that get auto disabled by errors */
+	u64 auto_disable_flags;
+
+#ifdef I40E_FCOE
+	struct i40e_fcoe fcoe;
+
+#endif /* I40E_FCOE */
 	bool stat_offsets_loaded;
 	struct i40e_hw_port_stats stats;
 	struct i40e_hw_port_stats stats_offsets;
@@ -281,7 +334,6 @@ struct i40e_pf {
 	u16 pf_seid;
 	u16 main_vsi_seid;
 	u16 mac_seid;
-	struct i40e_aqc_get_switch_config_data *sw_config;
 	struct kobject *switch_kobj;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *i40e_dbg_pf;
@@ -310,9 +362,7 @@ struct i40e_pf {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	struct sk_buff *ptp_tx_skb;
-	struct work_struct ptp_tx_work;
 	struct hwtstamp_config tstamp_config;
-	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
 	spinlock_t tmreg_lock; /* Used to protect the device time registers. */
 	u64 ptp_base_adj;
@@ -320,6 +370,7 @@ struct i40e_pf {
 	u32 rx_hwtstamp_cleared;
 	bool ptp_tx;
 	bool ptp_rx;
+	u16 rss_table_size;
 };
 
 struct i40e_mac_filter {
@@ -331,6 +382,7 @@ struct i40e_mac_filter {
 	bool is_vf;		/* filter belongs to a VF */
 	bool is_netdev;		/* filter belongs to a netdev */
 	bool changed;		/* filter needs to be sync'd to the HW */
+	bool is_laa;		/* filter is a Locally Administered Address */
 };
 
 struct i40e_veb {
@@ -374,6 +426,11 @@ struct i40e_vsi {
 	struct rtnl_link_stats64 net_stats_offsets;
 	struct i40e_eth_stats eth_stats;
 	struct i40e_eth_stats eth_stats_offsets;
+#ifdef I40E_FCOE
+	struct i40e_fcoe_stats fcoe_stats;
+	struct i40e_fcoe_stats fcoe_stats_offsets;
+	bool fcoe_stat_offsets_loaded;
+#endif
 	u32 tx_restart;
 	u32 tx_busy;
 	u32 rx_buf_failed;
@@ -401,6 +458,7 @@ struct i40e_vsi {
 	struct i40e_q_vector **q_vectors;
 	int num_q_vectors;
 	int base_vector;
+	bool irqs_ready;
 
 	u16 seid;            /* HW index of this VSI (absolute index) */
 	u16 id;              /* VSI number */
@@ -477,10 +535,10 @@ static inline char *i40e_fw_version_str(struct i40e_hw *hw)
 		 "f%d.%d a%d.%d n%02x.%02x e%08x",
 		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver,
 		 hw->aq.api_maj_ver, hw->aq.api_min_ver,
-		 (hw->nvm.version & I40E_NVM_VERSION_HI_MASK)
-						>> I40E_NVM_VERSION_HI_SHIFT,
-		 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK)
-						>> I40E_NVM_VERSION_LO_SHIFT,
+		 (hw->nvm.version & I40E_NVM_VERSION_HI_MASK) >>
+			I40E_NVM_VERSION_HI_SHIFT,
+		 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK) >>
+			I40E_NVM_VERSION_LO_SHIFT,
 		 hw->nvm.eetrack);
 
 	return buf;
@@ -521,6 +579,15 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
 		(qw >> I40E_RX_PROG_STATUS_DESC_LENGTH_SHIFT);
 }
 
+/**
+ * i40e_get_fd_cnt_all - get the total FD filter space available
+ * @pf: pointer to the pf struct
+ **/
+static inline int i40e_get_fd_cnt_all(struct i40e_pf *pf)
+{
+	return pf->hw.fdir_shared_filter_count + pf->fdir_pf_filter_count;
+}
+
 /* needed by i40e_ethtool.c */
 int i40e_up(struct i40e_vsi *vsi);
 void i40e_down(struct i40e_vsi *vsi);
@@ -534,9 +601,14 @@ struct rtnl_link_stats64 *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi);
 int i40e_fetch_switch_configuration(struct i40e_pf *pf,
 				    bool printconfig);
 
-int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
+int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
 			     struct i40e_pf *pf, bool add);
-
+int i40e_add_del_fdir(struct i40e_vsi *vsi,
+		      struct i40e_fdir_filter *input, bool add);
+void i40e_fdir_check_and_reenable(struct i40e_pf *pf);
+int i40e_get_current_fd_count(struct i40e_pf *pf);
+int i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf);
+bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features);
 void i40e_set_ethtool_ops(struct net_device *netdev);
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 					u8 *macaddr, s16 vlan,
@@ -549,6 +621,11 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 int i40e_vsi_release(struct i40e_vsi *vsi);
 struct i40e_vsi *i40e_vsi_lookup(struct i40e_pf *pf, enum i40e_vsi_type type,
 				 struct i40e_vsi *start_vsi);
+#ifdef I40E_FCOE
+void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
+			      struct i40e_vsi_context *ctxt,
+			      u8 enabled_tc, bool is_add);
+#endif
 int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool enable);
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count);
 struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
@@ -572,9 +649,25 @@ static inline void i40e_dbg_init(void) {}
 static inline void i40e_dbg_exit(void) {}
 #endif /* CONFIG_DEBUG_FS*/
 void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector);
+void i40e_irq_dynamic_disable(struct i40e_vsi *vsi, int vector);
 void i40e_irq_dynamic_disable_icr0(struct i40e_pf *pf);
 void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf);
+#ifdef I40E_FCOE
+struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
+					     struct net_device *netdev,
+					     struct rtnl_link_stats64 *storage);
+int i40e_set_mac(struct net_device *netdev, void *p);
+void i40e_set_rx_mode(struct net_device *netdev);
+#endif
 int i40e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
+#ifdef I40E_FCOE
+void i40e_tx_timeout(struct net_device *netdev);
+int i40e_vlan_rx_add_vid(struct net_device *netdev,
+			 __always_unused __be16 proto, u16 vid);
+int i40e_vlan_rx_kill_vid(struct net_device *netdev,
+			  __always_unused __be16 proto, u16 vid);
+#endif
+int i40e_vsi_open(struct i40e_vsi *vsi);
 void i40e_vlan_stripping_disable(struct i40e_vsi *vsi);
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid);
 int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid);
@@ -583,6 +676,26 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi);
 struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, u8 *macaddr,
 				      bool is_vf, bool is_netdev);
+#ifdef I40E_FCOE
+int i40e_open(struct net_device *netdev);
+int i40e_close(struct net_device *netdev);
+int i40e_setup_tc(struct net_device *netdev, u8 tc);
+void i40e_netpoll(struct net_device *netdev);
+int i40e_fcoe_enable(struct net_device *netdev);
+int i40e_fcoe_disable(struct net_device *netdev);
+int i40e_fcoe_vsi_init(struct i40e_vsi *vsi, struct i40e_vsi_context *ctxt);
+u8 i40e_get_fcoe_tc_map(struct i40e_pf *pf);
+void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi);
+void i40e_fcoe_vsi_setup(struct i40e_pf *pf);
+int i40e_init_pf_fcoe(struct i40e_pf *pf);
+int i40e_fcoe_setup_ddp_resources(struct i40e_vsi *vsi);
+void i40e_fcoe_free_ddp_resources(struct i40e_vsi *vsi);
+int i40e_fcoe_handle_offload(struct i40e_ring *rx_ring,
+			     union i40e_rx_desc *rx_desc,
+			     struct sk_buff *skb);
+void i40e_fcoe_handle_status(struct i40e_ring *rx_ring,
+			     union i40e_rx_desc *rx_desc, u8 prog_id);
+#endif /* I40E_FCOE */
 void i40e_vlan_stripping_enable(struct i40e_vsi *vsi);
 #ifdef CONFIG_I40E_DCB
 void i40e_dcbnl_flush_apps(struct i40e_pf *pf,

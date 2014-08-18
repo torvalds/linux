@@ -364,7 +364,7 @@ static int mei_nfc_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
 	if (!wait_event_interruptible_timeout(ndev->send_wq,
 				ndev->recv_req_id == ndev->req_id, HZ)) {
 		dev_err(&dev->pdev->dev, "NFC MEI command timeout\n");
-		err = -ETIMEDOUT;
+		err = -ETIME;
 	} else {
 		ndev->req_id++;
 	}
@@ -502,7 +502,7 @@ int mei_nfc_host_init(struct mei_device *dev)
 	i = mei_me_cl_by_uuid(dev, &mei_nfc_info_guid);
 	if (i < 0) {
 		dev_info(&dev->pdev->dev, "nfc: failed to find the client\n");
-		ret = -ENOENT;
+		ret = -ENOTTY;
 		goto err;
 	}
 
@@ -520,7 +520,7 @@ int mei_nfc_host_init(struct mei_device *dev)
 	i = mei_me_cl_by_uuid(dev, &mei_nfc_guid);
 	if (i < 0) {
 		dev_info(&dev->pdev->dev, "nfc: failed to find the client\n");
-		ret = -ENOENT;
+		ret = -ENOTTY;
 		goto err;
 	}
 
@@ -552,13 +552,7 @@ err:
 void mei_nfc_host_exit(struct mei_device *dev)
 {
 	struct mei_nfc_dev *ndev = &nfc_dev;
-
 	cancel_work_sync(&ndev->init_work);
-
-	mutex_lock(&dev->device_lock);
-	if (ndev->cl && ndev->cl->device)
-		mei_cl_remove_device(ndev->cl->device);
-
-	mei_nfc_free(ndev);
-	mutex_unlock(&dev->device_lock);
 }
+
+

@@ -3,4 +3,43 @@
 / {
 	model = "Qualcomm APQ8074 Dragonboard";
 	compatible = "qcom,apq8074-dragonboard", "qcom,apq8074";
+
+	soc {
+		serial@f991e000 {
+			status = "ok";
+		};
+
+		sdhci@f9824900 {
+			bus-width = <8>;
+			non-removable;
+			status = "ok";
+		};
+
+		sdhci@f98a4900 {
+			cd-gpios = <&msmgpio 62 0x1>;
+			bus-width = <4>;
+		};
+
+
+		pinctrl@fd510000 {
+			spi8_default: spi8_default {
+				mosi {
+					pins = "gpio45";
+					function = "blsp_spi8";
+				};
+				miso {
+					pins = "gpio46";
+					function = "blsp_spi8";
+				};
+				cs {
+					pins = "gpio47";
+					function = "blsp_spi8";
+				};
+				clk {
+					pins = "gpio48";
+					function = "blsp_spi8";
+				};
+			};
+		};
+	};
 };

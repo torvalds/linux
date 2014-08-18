@@ -295,7 +295,7 @@ static struct generic_bl_info p720t_lcd_backlight_pdata = {
 };
 
 static void __init
-fixup_p720t(struct tag *tag, char **cmdline, struct meminfo *mi)
+fixup_p720t(struct tag *tag, char **cmdline)
 {
 	/*
 	 * Our bootloader doesn't setup any tags (yet).
@@ -348,14 +348,14 @@ static void __init p720t_init_late(void)
 {
 	WARN_ON(gpio_request_array(p720t_gpios, ARRAY_SIZE(p720t_gpios)));
 
-	platform_device_register_data(&platform_bus, "platform-lcd", 0,
+	platform_device_register_data(NULL, "platform-lcd", 0,
 				      &p720t_lcd_power_pdata,
 				      sizeof(p720t_lcd_power_pdata));
-	platform_device_register_data(&platform_bus, "generic-bl", 0,
+	platform_device_register_data(NULL, "generic-bl", 0,
 				      &p720t_lcd_backlight_pdata,
 				      sizeof(p720t_lcd_backlight_pdata));
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
-	platform_device_register_data(&platform_bus, "leds-gpio", 0,
+	platform_device_register_data(NULL, "leds-gpio", 0,
 				      &p720t_gpio_led_pdata,
 				      sizeof(p720t_gpio_led_pdata));
 }
@@ -363,14 +363,11 @@ static void __init p720t_init_late(void)
 MACHINE_START(P720T, "ARM-Prospector720T")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
-	.nr_irqs	= CLPS711X_NR_IRQS,
 	.fixup		= fixup_p720t,
 	.map_io		= clps711x_map_io,
-	.init_early	= clps711x_init_early,
 	.init_irq	= clps711x_init_irq,
 	.init_time	= clps711x_timer_init,
 	.init_machine	= p720t_init,
 	.init_late	= p720t_init_late,
-	.handle_irq	= clps711x_handle_irq,
 	.restart	= clps711x_restart,
 MACHINE_END

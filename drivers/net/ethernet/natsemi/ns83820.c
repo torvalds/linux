@@ -2030,7 +2030,7 @@ static int ns83820_init_one(struct pci_dev *pci_dev,
 		pci_dev->subsystem_vendor, pci_dev->subsystem_device);
 
 	ndev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ops);
+	ndev->ethtool_ops = &ops;
 	ndev->watchdog_timeo = 5 * HZ;
 	pci_set_drvdata(pci_dev, ndev);
 
@@ -2260,7 +2260,7 @@ static void ns83820_remove_one(struct pci_dev *pci_dev)
 	free_netdev(ndev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ns83820_pci_tbl) = {
+static const struct pci_device_id ns83820_pci_tbl[] = {
 	{ 0x100b, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, .driver_data = 0, },
 	{ 0, },
 };

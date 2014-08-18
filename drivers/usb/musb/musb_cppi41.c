@@ -73,15 +73,18 @@ static void save_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
 
 static void update_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
 {
+	struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
+	struct musb *musb = hw_ep->musb;
 	u16 csr;
 	u8 toggle;
 
 	if (cppi41_channel->is_tx)
 		return;
-	if (!is_host_active(cppi41_channel->controller->musb))
+	if (!is_host_active(musb))
 		return;
 
-	csr = musb_readw(cppi41_channel->hw_ep->regs, MUSB_RXCSR);
+	musb_ep_select(musb->mregs, hw_ep->epnum);
+	csr = musb_readw(hw_ep->regs, MUSB_RXCSR);
 	toggle = csr & MUSB_RXCSR_H_DATATOGGLE ? 1 : 0;
 
 	/*
@@ -106,6 +109,7 @@ static bool musb_is_tx_fifo_empty(struct musb_hw_ep *hw_ep)
 	void __iomem	*epio = musb->endpoints[epnum].regs;
 	u16		csr;
 
+	musb_ep_select(musb->mregs, hw_ep->epnum);
 	csr = musb_readw(epio, MUSB_TXCSR);
 	if (csr & MUSB_TXCSR_TXPKTRDY)
 		return false;
@@ -119,12 +123,14 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 	struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
 	struct musb *musb = hw_ep->musb;
 
-	if (!cppi41_channel->prog_len) {
+	if (!cppi41_channel->prog_len ||
+	    (cppi41_channel->channel.status == MUSB_DMA_STATUS_FREE)) {
 
 		/* done, complete */
 		cppi41_channel->channel.actual_len =
 			cppi41_channel->transferred;
 		cppi41_channel->channel.status = MUSB_DMA_STATUS_FREE;
+		cppi41_channel->channel.rx_packet_done = true;
 		musb_dma_completion(musb, hw_ep->epnum, cppi41_channel->is_tx);
 	} else {
 		/* next iteration, reload */
@@ -158,6 +164,7 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 		dma_async_issue_pending(dc);
 
 		if (!cppi41_channel->is_tx) {
+			musb_ep_select(musb->mregs, hw_ep->epnum);
 			csr = musb_readw(epio, MUSB_RXCSR);
 			csr |= MUSB_RXCSR_H_REQPKT;
 			musb_writew(epio, MUSB_RXCSR, csr);
@@ -193,7 +200,7 @@ static enum hrtimer_restart cppi41_recheck_tx_req(struct hrtimer *timer)
 	if (!list_empty(&controller->early_tx_list)) {
 		ret = HRTIMER_RESTART;
 		hrtimer_forward_now(&controller->early_tx,
-				ktime_set(0, 150 * NSEC_PER_USEC));
+				ktime_set(0, 50 * NSEC_PER_USEC));
 	}
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -266,9 +273,11 @@ static void cppi41_dma_callback(void *private_data)
 		}
 		list_add_tail(&cppi41_channel->tx_check,
 				&controller->early_tx_list);
-		if (!hrtimer_active(&controller->early_tx)) {
+		if (!hrtimer_is_queued(&controller->early_tx)) {
+			unsigned long usecs = cppi41_channel->total_len / 10;
+
 			hrtimer_start_range_ns(&controller->early_tx,
-				ktime_set(0, 140 * NSEC_PER_USEC),
+				ktime_set(0, usecs * NSEC_PER_USEC),
 				40 * NSEC_PER_USEC,
 				HRTIMER_MODE_REL);
 		}
@@ -398,6 +407,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 	dma_desc->callback = cppi41_dma_callback;
 	dma_desc->callback_param = channel;
 	cppi41_channel->cookie = dma_desc->tx_submit(dma_desc);
+	cppi41_channel->channel.rx_packet_done = false;
 
 	save_rx_toggle(cppi41_channel);
 	dma_async_issue_pending(dc);
@@ -448,12 +458,25 @@ static int cppi41_dma_channel_program(struct dma_channel *channel,
 				dma_addr_t dma_addr, u32 len)
 {
 	int ret;
+	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
+	int hb_mult = 0;
 
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
+	if (is_host_active(cppi41_channel->controller->musb)) {
+		if (cppi41_channel->is_tx)
+			hb_mult = cppi41_channel->hw_ep->out_qh->hb_mult;
+		else
+			hb_mult = cppi41_channel->hw_ep->in_qh->hb_mult;
+	}
+
 	channel->status = MUSB_DMA_STATUS_BUSY;
 	channel->actual_len = 0;
+
+	if (hb_mult)
+		packet_sz = hb_mult * (packet_sz & 0x7FF);
+
 	ret = cppi41_configure_channel(channel, packet_sz, mode, dma_addr, len);
 	if (!ret)
 		channel->status = MUSB_DMA_STATUS_FREE;

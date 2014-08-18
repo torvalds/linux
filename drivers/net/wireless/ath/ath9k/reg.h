@@ -505,9 +505,6 @@
 #define AR_D_QCUMASK         0x000003FF
 #define AR_D_QCUMASK_RESV0   0xFFFFFC00
 
-#define AR_D_TXBLK_CMD  0x1038
-#define AR_D_TXBLK_DATA(i) (AR_D_TXBLK_CMD+(i))
-
 #define AR_D0_LCL_IFS     0x1040
 #define AR_D1_LCL_IFS     0x1044
 #define AR_D2_LCL_IFS     0x1048
@@ -816,6 +813,7 @@
 #define AR_SREV_VERSION_9531            0x500
 #define AR_SREV_REVISION_9531_10        0
 #define AR_SREV_REVISION_9531_11        1
+#define AR_SREV_REVISION_9531_20        2
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -961,6 +959,9 @@
 #define AR_SREV_9531_11(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9531) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9531_11))
+#define AR_SREV_9531_20(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9531) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9531_20))
 
 /* NOTE: When adding chips newer than Peacock, add chip check here */
 #define AR_SREV_9580_10_OR_LATER(_ah) \

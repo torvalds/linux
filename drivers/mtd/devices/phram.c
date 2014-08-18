@@ -181,11 +181,9 @@ static int parse_name(char **pname, const char *token)
 	if (len > 64)
 		return -ENOSPC;
 
-	name = kmalloc(len, GFP_KERNEL);
+	name = kstrdup(token, GFP_KERNEL);
 	if (!name)
 		return -ENOMEM;
-
-	strcpy(name, token);
 
 	*pname = name;
 	return 0;
@@ -195,6 +193,7 @@ static int parse_name(char **pname, const char *token)
 static inline void kill_final_newline(char *str)
 {
 	char *newline = strrchr(str, '\n');
+
 	if (newline && !newline[1])
 		*newline = 0;
 }
@@ -205,6 +204,8 @@ static inline void kill_final_newline(char *str)
 	return 1;		\
 } while (0)
 
+#ifndef MODULE
+static int phram_init_called;
 /*
  * This shall contain the module parameter if any. It is of the form:
  * - phram=<device>,<address>,<size> for module case
@@ -213,9 +214,10 @@ static inline void kill_final_newline(char *str)
  * size.
  * Example: phram.phram=rootfs,0xa0000000,512Mi
  */
-static __initdata char phram_paramline[64 + 20 + 20];
+static char phram_paramline[64 + 20 + 20];
+#endif
 
-static int __init phram_setup(const char *val)
+static int phram_setup(const char *val)
 {
 	char buf[64 + 20 + 20], *str = buf;
 	char *token[3];
@@ -230,7 +232,7 @@ static int __init phram_setup(const char *val)
 	strcpy(str, val);
 	kill_final_newline(str);
 
-	for (i=0; i<3; i++)
+	for (i = 0; i < 3; i++)
 		token[i] = strsep(&str, ",");
 
 	if (str)
@@ -264,17 +266,36 @@ static int __init phram_setup(const char *val)
 	return ret;
 }
 
-static int __init phram_param_call(const char *val, struct kernel_param *kp)
+static int phram_param_call(const char *val, struct kernel_param *kp)
 {
+#ifdef MODULE
+	return phram_setup(val);
+#else
 	/*
-	 * This function is always called before 'init_phram()', whether
-	 * built-in or module.
+	 * If more parameters are later passed in via
+	 * /sys/module/phram/parameters/phram
+	 * and init_phram() has already been called,
+	 * we can parse the argument now.
 	 */
+
+	if (phram_init_called)
+		return phram_setup(val);
+
+	/*
+	 * During early boot stage, we only save the parameters
+	 * here. We must parse them later: if the param passed
+	 * from kernel boot command line, phram_param_call() is
+	 * called so early that it is not possible to resolve
+	 * the device (even kmalloc() fails). Defer that work to
+	 * phram_setup().
+	 */
+
 	if (strlen(val) >= sizeof(phram_paramline))
 		return -ENOSPC;
 	strcpy(phram_paramline, val);
 
 	return 0;
+#endif
 }
 
 module_param_call(phram, phram_param_call, NULL, NULL, 000);
@@ -283,10 +304,15 @@ MODULE_PARM_DESC(phram, "Memory region to map. \"phram=<name>,<start>,<length>\"
 
 static int __init init_phram(void)
 {
-	if (phram_paramline[0])
-		return phram_setup(phram_paramline);
+	int ret = 0;
 
-	return 0;
+#ifndef MODULE
+	if (phram_paramline[0])
+		ret = phram_setup(phram_paramline);
+	phram_init_called = 1;
+#endif
+
+	return ret;
 }
 
 static void __exit cleanup_phram(void)

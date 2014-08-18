@@ -147,18 +147,19 @@ MODULE_ALIAS("platform:smc91x");
  */
 #define MII_DELAY		1
 
-#if SMC_DEBUG > 0
-#define DBG(n, dev, args...)				\
-	do {						\
-		if (SMC_DEBUG >= (n))			\
-			netdev_dbg(dev, args);		\
+#define DBG(n, dev, fmt, ...)					\
+	do {							\
+		if (SMC_DEBUG >= (n))				\
+			netdev_dbg(dev, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
-#define PRINTK(dev, args...)   netdev_info(dev, args)
-#else
-#define DBG(n, dev, args...)   do { } while (0)
-#define PRINTK(dev, args...)   netdev_dbg(dev, args)
-#endif
+#define PRINTK(dev, fmt, ...)					\
+	do {							\
+		if (SMC_DEBUG > 0)				\
+			netdev_info(dev, fmt, ##__VA_ARGS__);	\
+		else						\
+			netdev_dbg(dev, fmt, ##__VA_ARGS__);	\
+	} while (0)
 
 #if SMC_DEBUG > 3
 static void PRINT_PKT(u_char *buf, int length)
@@ -191,7 +192,7 @@ static void PRINT_PKT(u_char *buf, int length)
 	pr_cont("\n");
 }
 #else
-#define PRINT_PKT(x...)  do { } while (0)
+static inline void PRINT_PKT(u_char *buf, int length) { }
 #endif
 
 
@@ -621,7 +622,7 @@ static void smc_hardware_send_pkt(unsigned long data)
 done:	if (!THROTTLE_TX_PKTS)
 		netif_wake_queue(dev);
 
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 }
 
 /*
@@ -657,7 +658,7 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netdev_warn(dev, "Far too big packet error.\n");
 		dev->stats.tx_errors++;
 		dev->stats.tx_dropped++;
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -1781,7 +1782,7 @@ static int smc_findirq(struct smc_local *lp)
 	int timeout = 20;
 	unsigned long cookie;
 
-	DBG(2, dev, "%s: %s\n", CARDNAME, __func__);
+	DBG(2, lp->dev, "%s: %s\n", CARDNAME, __func__);
 
 	cookie = probe_irq_on();
 

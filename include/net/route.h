@@ -191,7 +191,6 @@ unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 void ip_rt_multicast_event(struct in_device *);
 int ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
-int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb);
 
 struct in_ifaddr;
 void fib_add_ifaddr(struct in_ifaddr *);

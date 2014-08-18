@@ -1,0 +1,28 @@
+CS42448/CS42888 audio CODEC
+
+Required properties:
+
+  - compatible : must contain one of "cirrus,cs42448" and "cirrus,cs42888"
+
+  - reg : the I2C address of the device for I2C
+
+  - clocks : a list of phandles + clock-specifiers, one for each entry in
+    clock-names
+
+  - clock-names : must contain "mclk"
+
+  - VA-supply, VD-supply, VLS-supply, VLC-supply: power supplies for the device,
+    as covered in Documentation/devicetree/bindings/regulator/regulator.txt
+
+Example:
+
+codec: cs42888@48 {
+	compatible = "cirrus,cs42888";
+	reg = <0x48>;
+	clocks = <&codec_mclk 0>;
+	clock-names = "mclk";
+	VA-supply = <&reg_audio>;
+	VD-supply = <&reg_audio>;
+	VLS-supply = <&reg_audio>;
+	VLC-supply = <&reg_audio>;
+};

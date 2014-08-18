@@ -27,9 +27,9 @@
  * Author: Di Wang <di.wang@intel.com>
  */
 
-#include <lustre/lustre_idl.h>
-#include <obd.h>
-#include <lustre_linkea.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../include/obd.h"
+#include "../include/lustre_linkea.h"
 
 int linkea_data_new(struct linkea_data *ldata, struct lu_buf *buf)
 {

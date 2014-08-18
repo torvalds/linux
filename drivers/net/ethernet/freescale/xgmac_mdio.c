@@ -46,7 +46,7 @@ struct tgec_mdio_controller {
 #define MDIO_DATA_BSY		(1 << 31)
 
 /*
- * Wait untill the MDIO bus is free
+ * Wait until the MDIO bus is free
  */
 static int xgmac_wait_until_free(struct device *dev,
 				 struct tgec_mdio_controller __iomem *regs)
@@ -162,7 +162,9 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 
 	/* Return all Fs if nothing was there */
 	if (in_be32(&regs->mdio_stat) & MDIO_STAT_RD_ER) {
-		dev_err(&bus->dev, "MDIO read error\n");
+		dev_err(&bus->dev,
+			"Error while reading PHY%d reg at %d.%hhu\n",
+			phy_id, dev_addr, regnum);
 		return 0xffff;
 	}
 

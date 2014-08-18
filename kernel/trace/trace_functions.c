@@ -13,33 +13,106 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 
 #include "trace.h"
 
-/* function tracing enabled */
-static int			ftrace_function_enabled;
+static void tracing_start_function_trace(struct trace_array *tr);
+static void tracing_stop_function_trace(struct trace_array *tr);
+static void
+function_trace_call(unsigned long ip, unsigned long parent_ip,
+		    struct ftrace_ops *op, struct pt_regs *pt_regs);
+static void
+function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
+			  struct ftrace_ops *op, struct pt_regs *pt_regs);
+static struct tracer_flags func_flags;
 
-static struct trace_array	*func_trace;
+/* Our option */
+enum {
+	TRACE_FUNC_OPT_STACK	= 0x1,
+};
 
-static void tracing_start_function_trace(void);
-static void tracing_stop_function_trace(void);
+static int allocate_ftrace_ops(struct trace_array *tr)
+{
+	struct ftrace_ops *ops;
+
+	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	if (!ops)
+		return -ENOMEM;
+
+	/* Currently only the non stack verision is supported */
+	ops->func = function_trace_call;
+	ops->flags = FTRACE_OPS_FL_RECURSION_SAFE;
+
+	tr->ops = ops;
+	ops->private = tr;
+	return 0;
+}
+
+
+int ftrace_create_function_files(struct trace_array *tr,
+				 struct dentry *parent)
+{
+	int ret;
+
+	/*
+	 * The top level array uses the "global_ops", and the files are
+	 * created on boot up.
+	 */
+	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
+		return 0;
+
+	ret = allocate_ftrace_ops(tr);
+	if (ret)
+		return ret;
+
+	ftrace_create_filter_files(tr->ops, parent);
+
+	return 0;
+}
+
+void ftrace_destroy_function_files(struct trace_array *tr)
+{
+	ftrace_destroy_filter_files(tr->ops);
+	kfree(tr->ops);
+	tr->ops = NULL;
+}
 
 static int function_trace_init(struct trace_array *tr)
 {
-	func_trace = tr;
+	ftrace_func_t func;
+
+	/*
+	 * Instance trace_arrays get their ops allocated
+	 * at instance creation. Unless it failed
+	 * the allocation.
+	 */
+	if (!tr->ops)
+		return -ENOMEM;
+
+	/* Currently only the global instance can do stack tracing */
+	if (tr->flags & TRACE_ARRAY_FL_GLOBAL &&
+	    func_flags.val & TRACE_FUNC_OPT_STACK)
+		func = function_stack_trace_call;
+	else
+		func = function_trace_call;
+
+	ftrace_init_array_ops(tr, func);
+
 	tr->trace_buffer.cpu = get_cpu();
 	put_cpu();
 
 	tracing_start_cmdline_record();
-	tracing_start_function_trace();
+	tracing_start_function_trace(tr);
 	return 0;
 }
 
 static void function_trace_reset(struct trace_array *tr)
 {
-	tracing_stop_function_trace();
+	tracing_stop_function_trace(tr);
 	tracing_stop_cmdline_record();
+	ftrace_reset_array_ops(tr);
 }
 
 static void function_trace_start(struct trace_array *tr)
@@ -47,25 +120,18 @@ static void function_trace_start(struct trace_array *tr)
 	tracing_reset_online_cpus(&tr->trace_buffer);
 }
 
-/* Our option */
-enum {
-	TRACE_FUNC_OPT_STACK	= 0x1,
-};
-
-static struct tracer_flags func_flags;
-
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip,
 		    struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
-	struct trace_array *tr = func_trace;
+	struct trace_array *tr = op->private;
 	struct trace_array_cpu *data;
 	unsigned long flags;
 	int bit;
 	int cpu;
 	int pc;
 
-	if (unlikely(!ftrace_function_enabled))
+	if (unlikely(!tr->function_enabled))
 		return;
 
 	pc = preempt_count();
@@ -91,14 +157,14 @@ static void
 function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 			  struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
-	struct trace_array *tr = func_trace;
+	struct trace_array *tr = op->private;
 	struct trace_array_cpu *data;
 	unsigned long flags;
 	long disabled;
 	int cpu;
 	int pc;
 
-	if (unlikely(!ftrace_function_enabled))
+	if (unlikely(!tr->function_enabled))
 		return;
 
 	/*
@@ -128,19 +194,6 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	local_irq_restore(flags);
 }
 
-
-static struct ftrace_ops trace_ops __read_mostly =
-{
-	.func = function_trace_call,
-	.flags = FTRACE_OPS_FL_GLOBAL | FTRACE_OPS_FL_RECURSION_SAFE,
-};
-
-static struct ftrace_ops trace_stack_ops __read_mostly =
-{
-	.func = function_stack_trace_call,
-	.flags = FTRACE_OPS_FL_GLOBAL | FTRACE_OPS_FL_RECURSION_SAFE,
-};
-
 static struct tracer_opt func_opts[] = {
 #ifdef CONFIG_STACKTRACE
 	{ TRACER_OPT(func_stack_trace, TRACE_FUNC_OPT_STACK) },
@@ -153,29 +206,21 @@ static struct tracer_flags func_flags = {
 	.opts = func_opts
 };
 
-static void tracing_start_function_trace(void)
+static void tracing_start_function_trace(struct trace_array *tr)
 {
-	ftrace_function_enabled = 0;
-
-	if (func_flags.val & TRACE_FUNC_OPT_STACK)
-		register_ftrace_function(&trace_stack_ops);
-	else
-		register_ftrace_function(&trace_ops);
-
-	ftrace_function_enabled = 1;
+	tr->function_enabled = 0;
+	register_ftrace_function(tr->ops);
+	tr->function_enabled = 1;
 }
 
-static void tracing_stop_function_trace(void)
+static void tracing_stop_function_trace(struct trace_array *tr)
 {
-	ftrace_function_enabled = 0;
-
-	if (func_flags.val & TRACE_FUNC_OPT_STACK)
-		unregister_ftrace_function(&trace_stack_ops);
-	else
-		unregister_ftrace_function(&trace_ops);
+	tr->function_enabled = 0;
+	unregister_ftrace_function(tr->ops);
 }
 
-static int func_set_flag(u32 old_flags, u32 bit, int set)
+static int
+func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	switch (bit) {
 	case TRACE_FUNC_OPT_STACK:
@@ -183,12 +228,14 @@ static int func_set_flag(u32 old_flags, u32 bit, int set)
 		if (!!set == !!(func_flags.val & TRACE_FUNC_OPT_STACK))
 			break;
 
+		unregister_ftrace_function(tr->ops);
+
 		if (set) {
-			unregister_ftrace_function(&trace_ops);
-			register_ftrace_function(&trace_stack_ops);
+			tr->ops->func = function_stack_trace_call;
+			register_ftrace_function(tr->ops);
 		} else {
-			unregister_ftrace_function(&trace_stack_ops);
-			register_ftrace_function(&trace_ops);
+			tr->ops->func = function_trace_call;
+			register_ftrace_function(tr->ops);
 		}
 
 		break;
@@ -205,9 +252,9 @@ static struct tracer function_trace __tracer_data =
 	.init		= function_trace_init,
 	.reset		= function_trace_reset,
 	.start		= function_trace_start,
-	.wait_pipe	= poll_wait_pipe,
 	.flags		= &func_flags,
 	.set_flag	= func_set_flag,
+	.allow_instances = true,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest	= trace_selftest_startup_function,
 #endif

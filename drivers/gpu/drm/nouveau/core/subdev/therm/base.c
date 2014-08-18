@@ -110,16 +110,18 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 		poll = false;
 		break;
 	case NOUVEAU_THERM_CTRL_AUTO:
-		if (priv->fan->bios.nr_fan_trip) {
+		switch(priv->fan->bios.fan_mode) {
+		case NVBIOS_THERM_FAN_TRIP:
 			duty = nouveau_therm_update_trip(therm);
-		} else
-		if (priv->fan->bios.linear_min_temp ||
-		    priv->fan->bios.linear_max_temp) {
+			break;
+		case NVBIOS_THERM_FAN_LINEAR:
 			duty = nouveau_therm_update_linear(therm);
-		} else {
+			break;
+		case NVBIOS_THERM_FAN_OTHER:
 			if (priv->cstate)
 				duty = priv->cstate;
 			poll = false;
+			break;
 		}
 		immd = false;
 		break;
@@ -179,7 +181,7 @@ nouveau_therm_fan_mode(struct nouveau_therm *therm, int mode)
 
 	/* do not allow automatic fan management if the thermal sensor is
 	 * not available */
-	if (priv->mode == NOUVEAU_THERM_CTRL_AUTO && therm->temp_get(therm) < 0)
+	if (mode == NOUVEAU_THERM_CTRL_AUTO && therm->temp_get(therm) < 0)
 		return -EINVAL;
 
 	if (priv->mode == mode)

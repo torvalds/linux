@@ -24,7 +24,7 @@
 
 static LIST_HEAD(pernet_list);
 static struct list_head *first_device = &pernet_list;
-static DEFINE_MUTEX(net_mutex);
+DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
@@ -273,7 +273,7 @@ static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
 	struct net *net, *tmp;
-	LIST_HEAD(net_kill_list);
+	struct list_head net_kill_list;
 	LIST_HEAD(net_exit_list);
 
 	/* Atomically snapshot the list of namespaces to cleanup */
@@ -373,9 +373,11 @@ struct net *get_net_ns_by_pid(pid_t pid)
 	tsk = find_task_by_vpid(pid);
 	if (tsk) {
 		struct nsproxy *nsproxy;
-		nsproxy = task_nsproxy(tsk);
+		task_lock(tsk);
+		nsproxy = tsk->nsproxy;
 		if (nsproxy)
 			net = get_net(nsproxy->net_ns);
+		task_unlock(tsk);
 	}
 	rcu_read_unlock();
 	return net;
@@ -632,11 +634,11 @@ static void *netns_get(struct task_struct *task)
 	struct net *net = NULL;
 	struct nsproxy *nsproxy;
 
-	rcu_read_lock();
-	nsproxy = task_nsproxy(task);
+	task_lock(task);
+	nsproxy = task->nsproxy;
 	if (nsproxy)
 		net = get_net(nsproxy->net_ns);
-	rcu_read_unlock();
+	task_unlock(task);
 
 	return net;
 }

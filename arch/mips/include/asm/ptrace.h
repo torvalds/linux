@@ -23,7 +23,7 @@
 struct pt_regs {
 #ifdef CONFIG_32BIT
 	/* Pad bytes for argument save space on the stack. */
-	unsigned long pad0[6];
+	unsigned long pad0[8];
 #endif
 
 	/* Saved main processor registers. */
@@ -39,9 +39,6 @@ struct pt_regs {
 	unsigned long cp0_badvaddr;
 	unsigned long cp0_cause;
 	unsigned long cp0_epc;
-#ifdef CONFIG_MIPS_MT_SMTC
-	unsigned long cp0_tcstatus;
-#endif /* CONFIG_MIPS_MT_SMTC */
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	unsigned long long mpl[3];	  /* MTM{0,1,2} */
 	unsigned long long mtp[3];	  /* MTP{0,1,2} */
@@ -50,8 +47,10 @@ struct pt_regs {
 
 struct task_struct;
 
-extern int ptrace_getregs(struct task_struct *child, __s64 __user *data);
-extern int ptrace_setregs(struct task_struct *child, __s64 __user *data);
+extern int ptrace_getregs(struct task_struct *child,
+	struct user_pt_regs __user *data);
+extern int ptrace_setregs(struct task_struct *child,
+	struct user_pt_regs __user *data);
 
 extern int ptrace_getfpregs(struct task_struct *child, __u32 __user *data);
 extern int ptrace_setfpregs(struct task_struct *child, __u32 __user *data);
@@ -82,7 +81,7 @@ static inline long regs_return_value(struct pt_regs *regs)
 #define instruction_pointer(regs) ((regs)->cp0_epc)
 #define profile_pc(regs) instruction_pointer(regs)
 
-extern asmlinkage void syscall_trace_enter(struct pt_regs *regs);
+extern asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall);
 extern asmlinkage void syscall_trace_leave(struct pt_regs *regs);
 
 extern void die(const char *, struct pt_regs *) __noreturn;

@@ -28,6 +28,21 @@
 #include "async_pf.h"
 #include <trace/events/kvm.h>
 
+static inline void kvm_async_page_present_sync(struct kvm_vcpu *vcpu,
+					       struct kvm_async_pf *work)
+{
+#ifdef CONFIG_KVM_ASYNC_PF_SYNC
+	kvm_arch_async_page_present(vcpu, work);
+#endif
+}
+static inline void kvm_async_page_present_async(struct kvm_vcpu *vcpu,
+						struct kvm_async_pf *work)
+{
+#ifndef CONFIG_KVM_ASYNC_PF_SYNC
+	kvm_arch_async_page_present(vcpu, work);
+#endif
+}
+
 static struct kmem_cache *async_pf_cache;
 
 int kvm_async_pf_init(void)
@@ -65,11 +80,10 @@ static void async_pf_execute(struct work_struct *work)
 
 	might_sleep();
 
-	use_mm(mm);
 	down_read(&mm->mmap_sem);
-	get_user_pages(current, mm, addr, 1, 1, 0, NULL, NULL);
+	get_user_pages(NULL, mm, addr, 1, 1, 0, NULL, NULL);
 	up_read(&mm->mmap_sem);
-	unuse_mm(mm);
+	kvm_async_page_present_sync(vcpu, apf);
 
 	spin_lock(&vcpu->async_pf.lock);
 	list_add_tail(&apf->link, &vcpu->async_pf.done);
@@ -85,7 +99,7 @@ static void async_pf_execute(struct work_struct *work)
 	if (waitqueue_active(&vcpu->wq))
 		wake_up_interruptible(&vcpu->wq);
 
-	mmdrop(mm);
+	mmput(mm);
 	kvm_put_kvm(vcpu->kvm);
 }
 
@@ -97,11 +111,16 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 			list_entry(vcpu->async_pf.queue.next,
 				   typeof(*work), queue);
 		list_del(&work->queue);
+
+#ifdef CONFIG_KVM_ASYNC_PF_SYNC
+		flush_work(&work->work);
+#else
 		if (cancel_work_sync(&work->work)) {
-			mmdrop(work->mm);
+			mmput(work->mm);
 			kvm_put_kvm(vcpu->kvm); /* == work->vcpu->kvm */
 			kmem_cache_free(async_pf_cache, work);
 		}
+#endif
 	}
 
 	spin_lock(&vcpu->async_pf.lock);
@@ -130,7 +149,7 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 		spin_unlock(&vcpu->async_pf.lock);
 
 		kvm_arch_async_page_ready(vcpu, work);
-		kvm_arch_async_page_present(vcpu, work);
+		kvm_async_page_present_async(vcpu, work);
 
 		list_del(&work->queue);
 		vcpu->async_pf.queued--;
@@ -138,7 +157,7 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 	}
 }
 
-int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
+int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
 		       struct kvm_arch_async_pf *arch)
 {
 	struct kvm_async_pf *work;
@@ -159,10 +178,10 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
 	work->wakeup_all = false;
 	work->vcpu = vcpu;
 	work->gva = gva;
-	work->addr = gfn_to_hva(vcpu->kvm, gfn);
+	work->addr = hva;
 	work->arch = *arch;
 	work->mm = current->mm;
-	atomic_inc(&work->mm->mm_count);
+	atomic_inc(&work->mm->mm_users);
 	kvm_get_kvm(work->vcpu->kvm);
 
 	/* this can't really happen otherwise gfn_to_pfn_async
@@ -180,7 +199,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
 	return 1;
 retry_sync:
 	kvm_put_kvm(work->vcpu->kvm);
-	mmdrop(work->mm);
+	mmput(work->mm);
 	kmem_cache_free(async_pf_cache, work);
 	return 0;
 }

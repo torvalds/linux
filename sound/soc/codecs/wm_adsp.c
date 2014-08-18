@@ -242,7 +242,7 @@ struct wm_coeff_ctl {
 static int wm_adsp_fw_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct wm_adsp *adsp = snd_soc_codec_get_drvdata(codec);
 
@@ -254,7 +254,7 @@ static int wm_adsp_fw_get(struct snd_kcontrol *kcontrol,
 static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct wm_adsp *adsp = snd_soc_codec_get_drvdata(codec);
 
@@ -684,24 +684,38 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		}
 
 		if (reg) {
-			buf = wm_adsp_buf_alloc(region->data,
-						le32_to_cpu(region->len),
-						&buf_list);
-			if (!buf) {
-				adsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
-				goto out_fw;
-			}
+			size_t to_write = PAGE_SIZE;
+			size_t remain = le32_to_cpu(region->len);
+			const u8 *data = region->data;
 
-			ret = regmap_raw_write_async(regmap, reg, buf->buf,
-						     le32_to_cpu(region->len));
-			if (ret != 0) {
-				adsp_err(dsp,
-					"%s.%d: Failed to write %d bytes at %d in %s: %d\n",
-					file, regions,
-					le32_to_cpu(region->len), offset,
-					region_name, ret);
-				goto out_fw;
+			while (remain > 0) {
+				if (remain < PAGE_SIZE)
+					to_write = remain;
+
+				buf = wm_adsp_buf_alloc(data,
+							to_write,
+							&buf_list);
+				if (!buf) {
+					adsp_err(dsp, "Out of memory\n");
+					ret = -ENOMEM;
+					goto out_fw;
+				}
+
+				ret = regmap_raw_write_async(regmap, reg,
+							     buf->buf,
+							     to_write);
+				if (ret != 0) {
+					adsp_err(dsp,
+						"%s.%d: Failed to write %zd bytes at %d in %s: %d\n",
+						file, regions,
+						to_write, offset,
+						region_name, ret);
+					goto out_fw;
+				}
+
+				data += to_write;
+				reg += to_write / 2;
+				remain -= to_write;
 			}
 		}
 
@@ -1368,7 +1382,7 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 	int ret;
 	int val;
 
-	dsp->card = codec->card;
+	dsp->card = codec->component.card;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1529,16 +1543,16 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 		ret = regmap_read(dsp->regmap,
 				  dsp->base + ADSP2_CLOCKING, &val);
 		if (ret != 0) {
-			dev_err(dsp->dev, "Failed to read clocking: %d\n", ret);
+			adsp_err(dsp, "Failed to read clocking: %d\n", ret);
 			return;
 		}
 
 		if ((val & ADSP2_CLK_SEL_MASK) >= 3) {
 			ret = regulator_enable(dsp->dvfs);
 			if (ret != 0) {
-				dev_err(dsp->dev,
-					"Failed to enable supply: %d\n",
-					ret);
+				adsp_err(dsp,
+					 "Failed to enable supply: %d\n",
+					 ret);
 				return;
 			}
 
@@ -1546,9 +1560,9 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 						    1800000,
 						    1800000);
 			if (ret != 0) {
-				dev_err(dsp->dev,
-					"Failed to raise supply: %d\n",
-					ret);
+				adsp_err(dsp,
+					 "Failed to raise supply: %d\n",
+					 ret);
 				return;
 			}
 		}
@@ -1603,7 +1617,7 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
 	struct wm_adsp *dsp = &dsps[w->shift];
 
-	dsp->card = codec->card;
+	dsp->card = codec->component.card;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -1611,7 +1625,7 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 		break;
 	default:
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -1658,15 +1672,15 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 			ret = regulator_set_voltage(dsp->dvfs, 1200000,
 						    1800000);
 			if (ret != 0)
-				dev_warn(dsp->dev,
-					 "Failed to lower supply: %d\n",
-					 ret);
+				adsp_warn(dsp,
+					  "Failed to lower supply: %d\n",
+					  ret);
 
 			ret = regulator_disable(dsp->dvfs);
 			if (ret != 0)
-				dev_err(dsp->dev,
-					"Failed to enable supply: %d\n",
-					ret);
+				adsp_err(dsp,
+					 "Failed to enable supply: %d\n",
+					 ret);
 		}
 
 		list_for_each_entry(ctl, &dsp->ctl_list, list)
@@ -1679,6 +1693,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 			list_del(&alg_region->list);
 			kfree(alg_region);
 		}
+
+		adsp_dbg(dsp, "Shutdown complete\n");
 		break;
 
 	default:
@@ -1716,28 +1732,25 @@ int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs)
 		adsp->dvfs = devm_regulator_get(adsp->dev, "DCVDD");
 		if (IS_ERR(adsp->dvfs)) {
 			ret = PTR_ERR(adsp->dvfs);
-			dev_err(adsp->dev, "Failed to get DCVDD: %d\n", ret);
+			adsp_err(adsp, "Failed to get DCVDD: %d\n", ret);
 			return ret;
 		}
 
 		ret = regulator_enable(adsp->dvfs);
 		if (ret != 0) {
-			dev_err(adsp->dev, "Failed to enable DCVDD: %d\n",
-				ret);
+			adsp_err(adsp, "Failed to enable DCVDD: %d\n", ret);
 			return ret;
 		}
 
 		ret = regulator_set_voltage(adsp->dvfs, 1200000, 1800000);
 		if (ret != 0) {
-			dev_err(adsp->dev, "Failed to initialise DVFS: %d\n",
-				ret);
+			adsp_err(adsp, "Failed to initialise DVFS: %d\n", ret);
 			return ret;
 		}
 
 		ret = regulator_disable(adsp->dvfs);
 		if (ret != 0) {
-			dev_err(adsp->dev, "Failed to disable DCVDD: %d\n",
-				ret);
+			adsp_err(adsp, "Failed to disable DCVDD: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1745,3 +1758,5 @@ int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
+
+MODULE_LICENSE("GPL v2");

@@ -14,6 +14,9 @@
  * File: ima_init.c
  *             initialization and cleanup functions
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -42,10 +45,10 @@ int ima_used_chip;
  */
 static void __init ima_add_boot_aggregate(void)
 {
+	static const char op[] = "add_boot_aggregate";
+	const char *audit_cause = "ENOMEM";
 	struct ima_template_entry *entry;
 	struct integrity_iint_cache tmp_iint, *iint = &tmp_iint;
-	const char *op = "add_boot_aggregate";
-	const char *audit_cause = "ENOMEM";
 	int result = -ENOMEM;
 	int violation = 0;
 	struct {
@@ -93,7 +96,7 @@ int __init ima_init(void)
 		ima_used_chip = 1;
 
 	if (!ima_used_chip)
-		pr_info("IMA: No TPM chip found, activating TPM-bypass!\n");
+		pr_info("No TPM chip found, activating TPM-bypass!\n");
 
 	rc = ima_init_crypto();
 	if (rc)

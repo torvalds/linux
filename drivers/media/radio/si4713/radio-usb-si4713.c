@@ -223,7 +223,7 @@ struct si4713_start_seq_table {
  * (0x03): Get serial number of the board (Response : CB000-00-00)
  * (0x06, 0x03, 0x03, 0x08, 0x01, 0x0f) : Get Component revision
  */
-static struct si4713_start_seq_table start_seq[] = {
+static const struct si4713_start_seq_table start_seq[] = {
 
 	{ 1, { 0x03 } },
 	{ 2, { 0x32, 0x7f } },
@@ -261,7 +261,7 @@ static int si4713_start_seq(struct si4713_usb_device *radio)
 
 	for (i = 0; i < ARRAY_SIZE(start_seq); i++) {
 		int len = start_seq[i].len;
-		u8 *payload = start_seq[i].payload;
+		const u8 *payload = start_seq[i].payload;
 
 		memcpy(radio->buffer + 1, payload, len);
 		memset(radio->buffer + len + 1, 0, BUFFER_LENGTH - 1 - len);
@@ -492,7 +492,6 @@ static int usb_si4713_probe(struct usb_interface *intf,
 	radio->vdev.vfl_dir = VFL_DIR_TX;
 
 	video_set_drvdata(&radio->vdev, radio);
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
 
 	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO, -1);
 	if (retval < 0) {

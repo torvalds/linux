@@ -42,7 +42,7 @@ static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
 	if (NAPI_GRO_CB(skb)->flush)
 		goto skip_csum;
 
-	wsum = skb->csum;
+	wsum = NAPI_GRO_CB(skb)->csum;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_NONE:
@@ -73,7 +73,7 @@ static int tcp6_gro_complete(struct sk_buff *skb, int thoff)
 
 	th->check = ~tcp_v6_check(skb->len - thoff, &iph->saddr,
 				  &iph->daddr, 0);
-	skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
+	skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV6;
 
 	return tcp_gro_complete(skb);
 }

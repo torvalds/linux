@@ -37,15 +37,15 @@
 #define __CLASS_OBD_H
 
 
-#include <obd_support.h>
-#include <lustre_import.h>
-#include <lustre_net.h>
-#include <obd.h>
-#include <lustre_lib.h>
-#include <lustre/lustre_idl.h>
-#include <lprocfs_status.h>
+#include "obd_support.h"
+#include "lustre_import.h"
+#include "lustre_net.h"
+#include "obd.h"
+#include "lustre_lib.h"
+#include "lustre/lustre_idl.h"
+#include "lprocfs_status.h"
 
-#include <linux/obd_class.h>
+#include "linux/obd_class.h"
 
 #define OBD_STATFS_NODELAY      0x0001  /* requests should be send without delay
 					 * and resends for avoid deadlocks */
@@ -141,7 +141,7 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg);
 int class_add_uuid(const char *uuid, __u64 nid);
 
 /*obdecho*/
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 extern void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars)
@@ -175,8 +175,12 @@ enum {
 	CONFIG_T_CONFIG  = 0,
 	CONFIG_T_SPTLRPC = 1,
 	CONFIG_T_RECOVER = 2,
-	CONFIG_T_MAX     = 3
+	CONFIG_T_PARAMS  = 3,
+	CONFIG_T_MAX     = 4
 };
+
+#define PARAMS_FILENAME	"params"
+#define LCTL_UPCALL	"lctl"
 
 /* list of active configuration logs  */
 struct config_llog_data {
@@ -185,7 +189,8 @@ struct config_llog_data {
 	struct list_head		  cld_list_chain;
 	atomic_t		cld_refcount;
 	struct config_llog_data    *cld_sptlrpc;/* depended sptlrpc log */
-	struct config_llog_data    *cld_recover;    /* imperative recover log */
+	struct config_llog_data	   *cld_params;	/* common parameters log */
+	struct config_llog_data    *cld_recover;/* imperative recover log */
 	struct obd_export	  *cld_mgcexp;
 	struct mutex		    cld_lock;
 	int			 cld_type;
@@ -342,7 +347,7 @@ do {							    \
 } while (0)
 
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 #define OBD_COUNTER_OFFSET(op)				  \
 	((offsetof(struct obd_ops, o_ ## op) -		  \
 	  offsetof(struct obd_ops, o_iocontrol))		\
@@ -704,15 +709,6 @@ static inline int obd_size_diskmd(struct obd_export *exp,
 				  struct lov_stripe_md *mem_src)
 {
 	return obd_packmd(exp, NULL, mem_src);
-}
-
-/* helper functions */
-static inline int obd_alloc_diskmd(struct obd_export *exp,
-				   struct lov_mds_md **disk_tgt)
-{
-	LASSERT(disk_tgt);
-	LASSERT(*disk_tgt == NULL);
-	return obd_packmd(exp, disk_tgt, NULL);
 }
 
 static inline int obd_free_diskmd(struct obd_export *exp,
@@ -1164,13 +1160,12 @@ static inline int obd_statfs_async(struct obd_export *exp,
 	OBD_CHECK_DT_OP(obd, statfs, -EOPNOTSUPP);
 	OBD_COUNTER_INCREMENT(obd, statfs);
 
-	CDEBUG(D_SUPER, "%s: osfs %p age "LPU64", max_age "LPU64"\n",
+	CDEBUG(D_SUPER, "%s: osfs %p age %llu, max_age %llu\n",
 	       obd->obd_name, &obd->obd_osfs, obd->obd_osfs_age, max_age);
 	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs_async)(exp, oinfo, max_age, rqset);
 	} else {
-		CDEBUG(D_SUPER,"%s: use %p cache blocks "LPU64"/"LPU64
-		       " objects "LPU64"/"LPU64"\n",
+		CDEBUG(D_SUPER,"%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
 		       obd->obd_name, &obd->obd_osfs,
 		       obd->obd_osfs.os_bavail, obd->obd_osfs.os_blocks,
 		       obd->obd_osfs.os_ffree, obd->obd_osfs.os_files);
@@ -1221,7 +1216,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 	OBD_CHECK_DT_OP(obd, statfs, -EOPNOTSUPP);
 	OBD_COUNTER_INCREMENT(obd, statfs);
 
-	CDEBUG(D_SUPER, "osfs "LPU64", max_age "LPU64"\n",
+	CDEBUG(D_SUPER, "osfs %llu, max_age %llu\n",
 	       obd->obd_osfs_age, max_age);
 	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs)(env, exp, osfs, max_age, flags);
@@ -1232,8 +1227,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 			spin_unlock(&obd->obd_osfs_lock);
 		}
 	} else {
-		CDEBUG(D_SUPER, "%s: use %p cache blocks "LPU64"/"LPU64
-		       " objects "LPU64"/"LPU64"\n",
+		CDEBUG(D_SUPER, "%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
 		       obd->obd_name, &obd->obd_osfs,
 		       obd->obd_osfs.os_bavail, obd->obd_osfs.os_blocks,
 		       obd->obd_osfs.os_ffree, obd->obd_osfs.os_files);
@@ -1626,7 +1620,7 @@ static inline int obd_health_check(const struct lu_env *env,
 {
 	/* returns: 0 on healthy
 	 *	 >0 on unhealthy + reason code/flag
-	 *	    however the only suppored reason == 1 right now
+	 *	    however the only supported reason == 1 right now
 	 *	    We'll need to define some better reasons
 	 *	    or flags in the future.
 	 *	 <0 on error
@@ -1822,7 +1816,7 @@ static inline int md_enqueue(struct obd_export *exp,
 			     struct lustre_handle *lockh,
 			     void *lmm, int lmmsize,
 			     struct ptlrpc_request **req,
-			     int extra_lock_flags)
+			     __u64 extra_lock_flags)
 {
 	int rc;
 
@@ -1996,11 +1990,11 @@ static inline int md_getxattr(struct obd_export *exp,
 
 static inline int md_set_open_replay_data(struct obd_export *exp,
 					  struct obd_client_handle *och,
-					  struct ptlrpc_request *open_req)
+					  struct lookup_intent *it)
 {
 	EXP_CHECK_MD_OP(exp, set_open_replay_data);
 	EXP_MD_COUNTER_INCREMENT(exp, set_open_replay_data);
-	return MDP(exp->exp_obd, set_open_replay_data)(exp, och, open_req);
+	return MDP(exp->exp_obd, set_open_replay_data)(exp, och, it);
 }
 
 static inline int md_clear_open_replay_data(struct obd_export *exp,
@@ -2050,12 +2044,13 @@ static inline ldlm_mode_t md_lock_match(struct obd_export *exp, __u64 flags,
 }
 
 static inline int md_init_ea_size(struct obd_export *exp, int easize,
-				  int def_asize, int cookiesize)
+				  int def_asize, int cookiesize,
+				  int def_cookiesize)
 {
 	EXP_CHECK_MD_OP(exp, init_ea_size);
 	EXP_MD_COUNTER_INCREMENT(exp, init_ea_size);
 	return MDP(exp->exp_obd, init_ea_size)(exp, easize, def_asize,
-					       cookiesize);
+					       cookiesize, def_cookiesize);
 }
 
 static inline int md_get_remote_perm(struct obd_export *exp,
@@ -2128,7 +2123,7 @@ extern struct kmem_cache *obdo_cachep;
 
 #define OBDO_ALLOC(ptr)						       \
 do {									  \
-	OBD_SLAB_ALLOC_PTR_GFP((ptr), obdo_cachep, __GFP_IO);	     \
+	OBD_SLAB_ALLOC_PTR_GFP((ptr), obdo_cachep, GFP_NOFS);             \
 } while(0)
 
 #define OBDO_FREE(ptr)							\
@@ -2184,6 +2179,9 @@ void class_exit_uuidlist(void);
 /* mea.c */
 int mea_name2idx(struct lmv_stripe_md *mea, const char *name, int namelen);
 int raw_name2idx(int hashtype, int count, const char *name, int namelen);
+
+/* class_obd.c */
+extern char obd_jobid_node[];
 
 /* prng.c */
 #define ll_generate_random_uuid(uuid_out) cfs_get_random_bytes(uuid_out, sizeof(class_uuid_t))

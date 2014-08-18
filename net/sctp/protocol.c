@@ -491,8 +491,13 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 			continue;
 		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
-			fl4->saddr = laddr->a.v4.sin_addr.s_addr;
 			fl4->fl4_sport = laddr->a.v4.sin_port;
+			flowi4_update_output(fl4,
+					     asoc->base.sk->sk_bound_dev_if,
+					     RT_CONN_FLAGS(asoc->base.sk),
+					     daddr->v4.sin_addr.s_addr,
+					     laddr->a.v4.sin_addr.s_addr);
+
 			rt = ip_route_output_key(sock_net(sk), fl4);
 			if (!IS_ERR(rt)) {
 				dst = &rt->dst;
@@ -571,10 +576,10 @@ out:
 	return newsk;
 }
 
-/* Map address, empty for v4 family */
-static void sctp_v4_addr_v4map(struct sctp_sock *sp, union sctp_addr *addr)
+static int sctp_v4_addr_to_user(struct sctp_sock *sp, union sctp_addr *addr)
 {
-	/* Empty */
+	/* No address mapping for V4 sockets */
+	return sizeof(struct sockaddr_in);
 }
 
 /* Dump the v4 addr to the seq file. */
@@ -957,7 +962,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 
 	SCTP_INC_STATS(sock_net(&inet->sk), SCTP_MIB_OUTSCTPPACKS);
 
-	return ip_queue_xmit(skb, &transport->fl);
+	return ip_queue_xmit(&inet->sk, skb, &transport->fl);
 }
 
 static struct sctp_af sctp_af_inet;
@@ -971,7 +976,9 @@ static struct sctp_pf sctp_pf_inet = {
 	.send_verify   = sctp_inet_send_verify,
 	.supported_addrs = sctp_inet_supported_addrs,
 	.create_accept_sk = sctp_v4_create_accept_sk,
-	.addr_v4map	= sctp_v4_addr_v4map,
+	.addr_to_user  = sctp_v4_addr_to_user,
+	.to_sk_saddr   = sctp_v4_to_sk_saddr,
+	.to_sk_daddr   = sctp_v4_to_sk_daddr,
 	.af            = &sctp_af_inet
 };
 
@@ -1012,7 +1019,6 @@ static struct inet_protosw sctp_seqpacket_protosw = {
 	.protocol   = IPPROTO_SCTP,
 	.prot       = &sctp_prot,
 	.ops        = &inet_seqpacket_ops,
-	.no_check   = 0,
 	.flags      = SCTP_PROTOSW_FLAG
 };
 static struct inet_protosw sctp_stream_protosw = {
@@ -1020,7 +1026,6 @@ static struct inet_protosw sctp_stream_protosw = {
 	.protocol   = IPPROTO_SCTP,
 	.prot       = &sctp_prot,
 	.ops        = &inet_seqpacket_ops,
-	.no_check   = 0,
 	.flags      = SCTP_PROTOSW_FLAG
 };
 
@@ -1044,8 +1049,6 @@ static struct sctp_af sctp_af_inet = {
 	.copy_addrlist	   = sctp_v4_copy_addrlist,
 	.from_skb	   = sctp_v4_from_skb,
 	.from_sk	   = sctp_v4_from_sk,
-	.to_sk_saddr	   = sctp_v4_to_sk_saddr,
-	.to_sk_daddr	   = sctp_v4_to_sk_daddr,
 	.from_addr_param   = sctp_v4_from_addr_param,
 	.to_addr_param	   = sctp_v4_to_addr_param,
 	.cmp_addr	   = sctp_v4_cmp_addr,
@@ -1100,14 +1103,15 @@ int sctp_register_pf(struct sctp_pf *pf, sa_family_t family)
 
 static inline int init_sctp_mibs(struct net *net)
 {
-	return snmp_mib_init((void __percpu **)net->sctp.sctp_statistics,
-			     sizeof(struct sctp_mib),
-			     __alignof__(struct sctp_mib));
+	net->sctp.sctp_statistics = alloc_percpu(struct sctp_mib);
+	if (!net->sctp.sctp_statistics)
+		return -ENOMEM;
+	return 0;
 }
 
 static inline void cleanup_sctp_mibs(struct net *net)
 {
-	snmp_mib_free((void __percpu **)net->sctp.sctp_statistics);
+	free_percpu(net->sctp.sctp_statistics);
 }
 
 static void sctp_v4_pf_init(void)

@@ -24,7 +24,8 @@
 
 #define MAX_ID_LEN 4
 static char force_device_id[MAX_ID_LEN + 1] = "";
-module_param_string(force_device_id, force_device_id, sizeof(force_device_id), 0);
+module_param_string(force_device_id, force_device_id,
+		    sizeof(force_device_id), 0);
 MODULE_PARM_DESC(force_device_id, "Override detected product");
 
 /*
@@ -36,7 +37,7 @@ static void kempld_get_hardware_mutex(struct kempld_device_data *pld)
 {
 	/* The mutex bit will read 1 until access has been granted */
 	while (ioread8(pld->io_index) & KEMPLD_MUTEX_KEY)
-		msleep(1);
+		usleep_range(1000, 3000);
 }
 
 static void kempld_release_hardware_mutex(struct kempld_device_data *pld)
@@ -86,7 +87,7 @@ enum kempld_cells {
 	KEMPLD_UART,
 };
 
-static struct mfd_cell kempld_devs[] = {
+static const struct mfd_cell kempld_devs[] = {
 	[KEMPLD_I2C] = {
 		.name = "kempld-i2c",
 	},
@@ -288,9 +289,38 @@ EXPORT_SYMBOL_GPL(kempld_release_mutex);
  */
 static int kempld_get_info(struct kempld_device_data *pld)
 {
+	int ret;
 	struct kempld_platform_data *pdata = dev_get_platdata(pld->dev);
+	char major, minor;
 
-	return pdata->get_info(pld);
+	ret = pdata->get_info(pld);
+	if (ret)
+		return ret;
+
+	/* The Kontron PLD firmware version string has the following format:
+	 * Pwxy.zzzz
+	 *   P:    Fixed
+	 *   w:    PLD number    - 1 hex digit
+	 *   x:    Major version - 1 alphanumerical digit (0-9A-V)
+	 *   y:    Minor version - 1 alphanumerical digit (0-9A-V)
+	 *   zzzz: Build number  - 4 zero padded hex digits */
+
+	if (pld->info.major < 10)
+		major = pld->info.major + '0';
+	else
+		major = (pld->info.major - 10) + 'A';
+	if (pld->info.minor < 10)
+		minor = pld->info.minor + '0';
+	else
+		minor = (pld->info.minor - 10) + 'A';
+
+	ret = scnprintf(pld->info.version, sizeof(pld->info.version),
+			"P%X%c%c.%04X", pld->info.number, major, minor,
+			pld->info.buildnr);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 /*
@@ -307,30 +337,9 @@ static int kempld_register_cells(struct kempld_device_data *pld)
 	return pdata->register_cells(pld);
 }
 
-static int kempld_detect_device(struct kempld_device_data *pld)
+static const char *kempld_get_type_string(struct kempld_device_data *pld)
 {
-	char *version_type;
-	u8 index_reg;
-	int ret;
-
-	mutex_lock(&pld->lock);
-
-	/* Check for empty IO space */
-	index_reg = ioread8(pld->io_index);
-	if (index_reg == 0xff && ioread8(pld->io_data) == 0xff) {
-		mutex_unlock(&pld->lock);
-		return -ENODEV;
-	}
-
-	/* Release hardware mutex if aquired */
-	if (!(index_reg & KEMPLD_MUTEX_KEY))
-		iowrite8(KEMPLD_MUTEX_KEY, pld->io_index);
-
-	mutex_unlock(&pld->lock);
-
-	ret = kempld_get_info(pld);
-	if (ret)
-		return ret;
+	const char *version_type;
 
 	switch (pld->info.type) {
 	case 0:
@@ -344,15 +353,93 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 		break;
 	default:
 		version_type = "unspecified";
+		break;
 	}
 
-	dev_info(pld->dev, "Found Kontron PLD %d\n", pld->info.number);
-	dev_info(pld->dev, "%s version %d.%d build %d, specification %d.%d\n",
-		 version_type, pld->info.major, pld->info.minor,
-		 pld->info.buildnr, pld->info.spec_major,
-		 pld->info.spec_minor);
+	return version_type;
+}
 
-	return kempld_register_cells(pld);
+static ssize_t kempld_version_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct kempld_device_data *pld = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", pld->info.version);
+}
+
+static ssize_t kempld_specification_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct kempld_device_data *pld = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d.%d\n", pld->info.spec_major,
+		       pld->info.spec_minor);
+}
+
+static ssize_t kempld_type_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct kempld_device_data *pld = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", kempld_get_type_string(pld));
+}
+
+static DEVICE_ATTR(pld_version, S_IRUGO, kempld_version_show, NULL);
+static DEVICE_ATTR(pld_specification, S_IRUGO, kempld_specification_show,
+		   NULL);
+static DEVICE_ATTR(pld_type, S_IRUGO, kempld_type_show, NULL);
+
+static struct attribute *pld_attributes[] = {
+	&dev_attr_pld_version.attr,
+	&dev_attr_pld_specification.attr,
+	&dev_attr_pld_type.attr,
+	NULL
+};
+
+static const struct attribute_group pld_attr_group = {
+	.attrs = pld_attributes,
+};
+
+static int kempld_detect_device(struct kempld_device_data *pld)
+{
+	u8 index_reg;
+	int ret;
+
+	mutex_lock(&pld->lock);
+
+	/* Check for empty IO space */
+	index_reg = ioread8(pld->io_index);
+	if (index_reg == 0xff && ioread8(pld->io_data) == 0xff) {
+		mutex_unlock(&pld->lock);
+		return -ENODEV;
+	}
+
+	/* Release hardware mutex if acquired */
+	if (!(index_reg & KEMPLD_MUTEX_KEY)) {
+		iowrite8(KEMPLD_MUTEX_KEY, pld->io_index);
+		/* PXT and COMe-cPC2 boards may require a second release */
+		iowrite8(KEMPLD_MUTEX_KEY, pld->io_index);
+	}
+
+	mutex_unlock(&pld->lock);
+
+	ret = kempld_get_info(pld);
+	if (ret)
+		return ret;
+
+	dev_info(pld->dev, "Found Kontron PLD - %s (%s), spec %d.%d\n",
+		 pld->info.version, kempld_get_type_string(pld),
+		 pld->info.spec_major, pld->info.spec_minor);
+
+	ret = sysfs_create_group(&pld->dev->kobj, &pld_attr_group);
+	if (ret)
+		return ret;
+
+	ret = kempld_register_cells(pld);
+	if (ret)
+		sysfs_remove_group(&pld->dev->kobj, &pld_attr_group);
+
+	return ret;
 }
 
 static int kempld_probe(struct platform_device *pdev)
@@ -396,6 +483,8 @@ static int kempld_remove(struct platform_device *pdev)
 	struct kempld_device_data *pld = platform_get_drvdata(pdev);
 	struct kempld_platform_data *pdata = dev_get_platdata(pld->dev);
 
+	sysfs_remove_group(&pld->dev->kobj, &pld_attr_group);
+
 	mfd_remove_devices(&pdev->dev);
 	pdata->release_hardware_mutex(pld);
 
@@ -411,7 +500,7 @@ static struct platform_driver kempld_driver = {
 	.remove		= kempld_remove,
 };
 
-static struct dmi_system_id __initdata kempld_dmi_table[] = {
+static struct dmi_system_id kempld_dmi_table[] __initdata = {
 	{
 		.ident = "BHL6",
 		.matches = {
@@ -434,6 +523,14 @@ static struct dmi_system_id __initdata kempld_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bIP6"),
+		},
+		.driver_data = (void *)&kempld_platform_data_generic,
+		.callback = kempld_create_platform_device,
+	}, {
+		.ident = "CHL6",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "COMe-cHL6"),
 		},
 		.driver_data = (void *)&kempld_platform_data_generic,
 		.callback = kempld_create_platform_device,
@@ -510,6 +607,14 @@ static struct dmi_system_id __initdata kempld_dmi_table[] = {
 		.driver_data = (void *)&kempld_platform_data_generic,
 		.callback = kempld_create_platform_device,
 	}, {
+		.ident = "CVV6",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "COMe-cBT"),
+		},
+		.driver_data = (void *)&kempld_platform_data_generic,
+		.callback = kempld_create_platform_device,
+	}, {
 		.ident = "FRI2",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
@@ -529,6 +634,14 @@ static struct dmi_system_id __initdata kempld_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "ETX-OH"),
+		},
+		.driver_data = (void *)&kempld_platform_data_generic,
+		.callback = kempld_create_platform_device,
+	}, {
+		.ident = "MVV1",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "COMe-mBT"),
 		},
 		.driver_data = (void *)&kempld_platform_data_generic,
 		.callback = kempld_create_platform_device,
@@ -624,7 +737,8 @@ static int __init kempld_init(void)
 	int ret;
 
 	if (force_device_id[0]) {
-		for (id = kempld_dmi_table; id->matches[0].slot != DMI_NONE; id++)
+		for (id = kempld_dmi_table;
+		     id->matches[0].slot != DMI_NONE; id++)
 			if (strstr(id->ident, force_device_id))
 				if (id->callback && id->callback(id))
 					break;

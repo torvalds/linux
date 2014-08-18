@@ -30,7 +30,7 @@
 #ifndef __RTL8821AE_PHY_H__
 #define __RTL8821AE_PHY_H__
 
-/*It must always set to 4, otherwise read efuse table secquence will be wrong.*/
+/*It must always set to 4, otherwise read efuse table sequence will be wrong.*/
 #define MAX_TX_COUNT	4
 #define	TX_1S			0
 #define	TX_2S			1

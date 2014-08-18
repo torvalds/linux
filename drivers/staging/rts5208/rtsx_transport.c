@@ -29,7 +29,6 @@
 #include "rtsx_transport.h"
 #include "rtsx_chip.h"
 #include "rtsx_card.h"
-#include "debug.h"
 
 /***********************************************************************
  * Scatter-gather transfer buffer access routines
@@ -170,14 +169,14 @@ void rtsx_invoke_transport(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	 * short-circuit all other processing
 	 */
 	if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
-		RTSX_DEBUGP("-- command was aborted\n");
+		dev_dbg(rtsx_dev(chip), "-- command was aborted\n");
 		srb->result = DID_ABORT << 16;
 		goto Handle_Errors;
 	}
 
 	/* if there is a transport error, reset and don't auto-sense */
 	if (result == TRANSPORT_ERROR) {
-		RTSX_DEBUGP("-- transport indicates error, resetting\n");
+		dev_dbg(rtsx_dev(chip), "-- transport indicates error, resetting\n");
 		srb->result = DID_ERROR << 16;
 		goto Handle_Errors;
 	}
@@ -274,7 +273,8 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 	timeleft = wait_for_completion_interruptible_timeout(
 		&trans_done, timeout * HZ / 1000);
 	if (timeleft <= 0) {
-		RTSX_DEBUGP("chip->int_reg = 0x%x\n", chip->int_reg);
+		dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
+			chip->int_reg);
 		err = -ETIMEDOUT;
 		TRACE_GOTO(chip, finish_send_cmd);
 	}
@@ -386,9 +386,10 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 		addr = sg_dma_address(sg_ptr);
 		len = sg_dma_len(sg_ptr);
 
-		RTSX_DEBUGP("DMA addr: 0x%x, Len: 0x%x\n",
-			     (unsigned int)addr, len);
-		RTSX_DEBUGP("*index = %d, *offset = %d\n", *index, *offset);
+		dev_dbg(rtsx_dev(chip), "DMA addr: 0x%x, Len: 0x%x\n",
+			(unsigned int)addr, len);
+		dev_dbg(rtsx_dev(chip), "*index = %d, *offset = %d\n",
+			*index, *offset);
 
 		addr += *offset;
 
@@ -415,7 +416,7 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 		sg_ptr = sg_next(sg_ptr);
 	}
 
-	RTSX_DEBUGP("SG table count = %d\n", chip->sgi);
+	dev_dbg(rtsx_dev(chip), "SG table count = %d\n", chip->sgi);
 
 	val |= (u32)(dir & 0x01) << 29;
 	val |= ADMA_MODE;
@@ -432,8 +433,10 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 	timeleft = wait_for_completion_interruptible_timeout(
 		&trans_done, timeout * HZ / 1000);
 	if (timeleft <= 0) {
-		RTSX_DEBUGP("Timeout (%s %d)\n", __func__, __LINE__);
-		RTSX_DEBUGP("chip->int_reg = 0x%x\n", chip->int_reg);
+		dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
+			__func__, __LINE__);
+		dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
+			chip->int_reg);
 		err = -ETIMEDOUT;
 		goto out;
 	}
@@ -454,8 +457,10 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 		timeleft = wait_for_completion_interruptible_timeout(
 			&trans_done, timeout * HZ / 1000);
 		if (timeleft <= 0) {
-			RTSX_DEBUGP("Timeout (%s %d)\n", __func__, __LINE__);
-			RTSX_DEBUGP("chip->int_reg = 0x%x\n", chip->int_reg);
+			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
+				__func__, __LINE__);
+			dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
+				chip->int_reg);
 			err = -ETIMEDOUT;
 			goto out;
 		}
@@ -542,8 +547,8 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 			unsigned int len = sg_dma_len(sg_ptr);
 			u8 option;
 
-			RTSX_DEBUGP("DMA addr: 0x%x, Len: 0x%x\n",
-				     (unsigned int)addr, len);
+			dev_dbg(rtsx_dev(chip), "DMA addr: 0x%x, Len: 0x%x\n",
+				(unsigned int)addr, len);
 
 			if (j == (sg_cnt - 1))
 				option = SG_VALID | SG_END | SG_TRANS_DATA;
@@ -555,7 +560,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 			sg_ptr = sg_next(sg_ptr);
 		}
 
-		RTSX_DEBUGP("SG table count = %d\n", chip->sgi);
+		dev_dbg(rtsx_dev(chip), "SG table count = %d\n", chip->sgi);
 
 		val |= (u32)(dir & 0x01) << 29;
 		val |= ADMA_MODE;
@@ -572,8 +577,10 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 		timeleft = wait_for_completion_interruptible_timeout(
 			&trans_done, timeout * HZ / 1000);
 		if (timeleft <= 0) {
-			RTSX_DEBUGP("Timeout (%s %d)\n", __func__, __LINE__);
-			RTSX_DEBUGP("chip->int_reg = 0x%x\n", chip->int_reg);
+			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
+				__func__, __LINE__);
+			dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
+				chip->int_reg);
 			err = -ETIMEDOUT;
 			goto out;
 		}
@@ -597,8 +604,10 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 		timeleft = wait_for_completion_interruptible_timeout(
 			&trans_done, timeout * HZ / 1000);
 		if (timeleft <= 0) {
-			RTSX_DEBUGP("Timeout (%s %d)\n", __func__, __LINE__);
-			RTSX_DEBUGP("chip->int_reg = 0x%x\n", chip->int_reg);
+			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
+				__func__, __LINE__);
+			dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
+				chip->int_reg);
 			err = -ETIMEDOUT;
 			goto out;
 		}
@@ -625,8 +634,8 @@ out:
 	return err;
 }
 
-static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf, size_t len,
-		enum dma_data_direction dma_dir, int timeout)
+static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
+		size_t len, enum dma_data_direction dma_dir, int timeout)
 {
 	struct rtsx_dev *rtsx = chip->rtsx;
 	struct completion trans_done;
@@ -681,8 +690,10 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf, size_t 
 	timeleft = wait_for_completion_interruptible_timeout(
 		&trans_done, timeout * HZ / 1000);
 	if (timeleft <= 0) {
-		RTSX_DEBUGP("Timeout (%s %d)\n", __func__, __LINE__);
-		RTSX_DEBUGP("chip->int_reg = 0x%x\n", chip->int_reg);
+		dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
+			__func__, __LINE__);
+		dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
+			chip->int_reg);
 		err = -ETIMEDOUT;
 		goto out;
 	}
@@ -742,7 +753,7 @@ int rtsx_transfer_data(struct rtsx_chip *chip, u8 card, void *buf, size_t len,
 {
 	int err = 0;
 
-	RTSX_DEBUGP("use_sg = %d\n", use_sg);
+	dev_dbg(rtsx_dev(chip), "use_sg = %d\n", use_sg);
 
 	/* don't transfer data during abort processing */
 	if (rtsx_chk_stat(chip, RTSX_STAT_ABORT))

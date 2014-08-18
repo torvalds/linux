@@ -9,7 +9,7 @@ struct iu {
 	__u8 iu_id;
 	__u8 rsvd1;
 	__be16 tag;
-};
+} __attribute__((__packed__));
 
 enum {
 	IU_ID_COMMAND		= 0x01,
@@ -52,7 +52,7 @@ struct command_iu {
 	__u8 rsvd7;
 	struct scsi_lun lun;
 	__u8 cdb[16];	/* XXX: Overflow-checking tools may misunderstand */
-};
+} __attribute__((__packed__));
 
 struct task_mgmt_iu {
 	__u8 iu_id;
@@ -62,7 +62,7 @@ struct task_mgmt_iu {
 	__u8 rsvd2;
 	__be16 task_tag;
 	struct scsi_lun lun;
-};
+} __attribute__((__packed__));
 
 /*
  * Also used for the Read Ready and Write Ready IUs since they have the
@@ -77,15 +77,15 @@ struct sense_iu {
 	__u8 rsvd7[7];
 	__be16 len;
 	__u8 sense[SCSI_SENSE_BUFFERSIZE];
-};
+} __attribute__((__packed__));
 
-struct response_ui {
+struct response_iu {
 	__u8 iu_id;
 	__u8 rsvd1;
 	__be16 tag;
-	__be16 add_response_info;
+	__u8 add_response_info[3];
 	__u8 response_code;
-};
+} __attribute__((__packed__));
 
 struct usb_pipe_usage_descriptor {
 	__u8  bLength;

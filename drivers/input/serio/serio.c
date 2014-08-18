@@ -451,6 +451,13 @@ static ssize_t serio_set_bind_mode(struct device *dev, struct device_attribute *
 	return retval;
 }
 
+static ssize_t firmware_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct serio *serio = to_serio_port(dev);
+
+	return sprintf(buf, "%s\n", serio->firmware_id);
+}
+
 static DEVICE_ATTR_RO(type);
 static DEVICE_ATTR_RO(proto);
 static DEVICE_ATTR_RO(id);
@@ -473,12 +480,14 @@ static DEVICE_ATTR_RO(modalias);
 static DEVICE_ATTR_WO(drvctl);
 static DEVICE_ATTR(description, S_IRUGO, serio_show_description, NULL);
 static DEVICE_ATTR(bind_mode, S_IWUSR | S_IRUGO, serio_show_bind_mode, serio_set_bind_mode);
+static DEVICE_ATTR_RO(firmware_id);
 
 static struct attribute *serio_device_attrs[] = {
 	&dev_attr_modalias.attr,
 	&dev_attr_description.attr,
 	&dev_attr_drvctl.attr,
 	&dev_attr_bind_mode.attr,
+	&dev_attr_firmware_id.attr,
 	NULL
 };
 
@@ -921,8 +930,13 @@ static int serio_uevent(struct device *dev, struct kobj_uevent_env *env)
 	SERIO_ADD_UEVENT_VAR("SERIO_PROTO=%02x", serio->id.proto);
 	SERIO_ADD_UEVENT_VAR("SERIO_ID=%02x", serio->id.id);
 	SERIO_ADD_UEVENT_VAR("SERIO_EXTRA=%02x", serio->id.extra);
+
 	SERIO_ADD_UEVENT_VAR("MODALIAS=serio:ty%02Xpr%02Xid%02Xex%02X",
 				serio->id.type, serio->id.proto, serio->id.id, serio->id.extra);
+
+	if (serio->firmware_id[0])
+		SERIO_ADD_UEVENT_VAR("SERIO_FIRMWARE_ID=%s",
+				     serio->firmware_id);
 
 	return 0;
 }

@@ -457,7 +457,7 @@ static int nmclan_probe(struct pcmcia_device *link)
     lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 
     dev->netdev_ops = &mace_netdev_ops;
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+    dev->ethtool_ops = &netdev_ethtool_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
 
     return nmclan_config(link);

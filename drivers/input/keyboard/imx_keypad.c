@@ -415,7 +415,7 @@ open_err:
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id imx_keypad_of_match[] = {
+static const struct of_device_id imx_keypad_of_match[] = {
 	{ .compatible = "fsl,imx21-kpp", },
 	{ /* sentinel */ }
 };
@@ -439,7 +439,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no irq defined in platform data\n");
-		return -EINVAL;
+		return irq;
 	}
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
@@ -449,7 +449,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	}
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(struct imx_keypad),
-			     GFP_KERNEL);
+			      GFP_KERNEL);
 	if (!keypad) {
 		dev_err(&pdev->dev, "not enough memory for driver data\n");
 		return -ENOMEM;
@@ -531,8 +531,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int imx_kbd_suspend(struct device *dev)
+static int __maybe_unused imx_kbd_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
@@ -552,7 +551,7 @@ static int imx_kbd_suspend(struct device *dev)
 	return 0;
 }
 
-static int imx_kbd_resume(struct device *dev)
+static int __maybe_unused imx_kbd_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
@@ -575,7 +574,6 @@ err_clk:
 
 	return ret;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(imx_kbd_pm_ops, imx_kbd_suspend, imx_kbd_resume);
 

@@ -128,7 +128,7 @@ void memcpy_absolute(void *dest, void *src, size_t count)
 /*
  * Copy memory from kernel (real) to user (virtual)
  */
-int copy_to_user_real(void __user *dest, void *src, size_t count)
+int copy_to_user_real(void __user *dest, void *src, unsigned long count)
 {
 	int offs = 0, size, rc;
 	char *buf;
@@ -142,32 +142,6 @@ int copy_to_user_real(void __user *dest, void *src, size_t count)
 		if (memcpy_real(buf, src + offs, size))
 			goto out;
 		if (copy_to_user(dest + offs, buf, size))
-			goto out;
-		offs += size;
-	}
-	rc = 0;
-out:
-	free_page((unsigned long) buf);
-	return rc;
-}
-
-/*
- * Copy memory from user (virtual) to kernel (real)
- */
-int copy_from_user_real(void *dest, void __user *src, size_t count)
-{
-	int offs = 0, size, rc;
-	char *buf;
-
-	buf = (char *) __get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	rc = -EFAULT;
-	while (offs < count) {
-		size = min(PAGE_SIZE, count - offs);
-		if (copy_from_user(buf, src + offs, size))
-			goto out;
-		if (memcpy_real(dest + offs, buf, size))
 			goto out;
 		offs += size;
 	}

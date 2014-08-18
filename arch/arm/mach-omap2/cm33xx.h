@@ -17,11 +17,8 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CM_33XX_H
 #define __ARCH_ARM_MACH_OMAP2_CM_33XX_H
 
-#include "common.h"
-
 #include "cm.h"
 #include "cm-regbits-33xx.h"
-#include "iomap.h"
 
 /* CM base address */
 #define AM33XX_CM_BASE		0x44e00000
@@ -383,7 +380,7 @@ void am33xx_cm_clkdm_disable_hwsup(u16 inst, u16 cdoffs);
 void am33xx_cm_clkdm_force_sleep(u16 inst, u16 cdoffs);
 void am33xx_cm_clkdm_force_wakeup(u16 inst, u16 cdoffs);
 
-#ifdef CONFIG_SOC_AM33XX
+#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_AM43XX)
 extern int am33xx_cm_wait_module_idle(u16 inst, s16 cdoffs,
 					u16 clkctrl_offs);
 extern void am33xx_cm_module_enable(u8 mode, u16 inst, s16 cdoffs,

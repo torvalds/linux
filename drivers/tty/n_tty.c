@@ -1214,15 +1214,16 @@ static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	if (I_IGNPAR(tty))
-		return;
-	if (I_PARMRK(tty)) {
-		put_tty_queue('\377', ldata);
-		put_tty_queue('\0', ldata);
-		put_tty_queue(c, ldata);
-	} else	if (I_INPCK(tty))
-		put_tty_queue('\0', ldata);
-	else
+	if (I_INPCK(tty)) {
+		if (I_IGNPAR(tty))
+			return;
+		if (I_PARMRK(tty)) {
+			put_tty_queue('\377', ldata);
+			put_tty_queue('\0', ldata);
+			put_tty_queue(c, ldata);
+		} else
+			put_tty_queue('\0', ldata);
+	} else
 		put_tty_queue(c, ldata);
 	if (waitqueue_active(&tty->read_wait))
 		wake_up_interruptible(&tty->read_wait);
@@ -1900,13 +1901,10 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
 	struct n_tty_data *ldata = tty->disc_data;
 	int amt = poll && !TIME_CHAR(tty) && MIN_CHAR(tty) ? MIN_CHAR(tty) : 1;
 
-	if (ldata->icanon && !L_EXTPROC(tty)) {
-		if (ldata->canon_head != ldata->read_tail)
-			return 1;
-	} else if (read_cnt(ldata) >= amt)
-		return 1;
-
-	return 0;
+	if (ldata->icanon && !L_EXTPROC(tty))
+		return ldata->canon_head != ldata->read_tail;
+	else
+		return read_cnt(ldata) >= amt;
 }
 
 /**
@@ -2044,7 +2042,7 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 
 	if (found)
 		clear_bit(eol, ldata->read_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	ldata->read_tail += c;
 
 	if (found) {
@@ -2356,8 +2354,12 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 			if (tty->ops->flush_chars)
 				tty->ops->flush_chars(tty);
 		} else {
+			struct n_tty_data *ldata = tty->disc_data;
+
 			while (nr > 0) {
+				mutex_lock(&ldata->output_lock);
 				c = tty->ops->write(tty, b, nr);
+				mutex_unlock(&ldata->output_lock);
 				if (c < 0) {
 					retval = c;
 					goto break_out;

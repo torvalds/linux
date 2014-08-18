@@ -54,7 +54,7 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 	if (err >= 0)
 		err = 0;
 	else
-		brcmf_err("Failed err=%d\n", err);
+		brcmf_dbg(FIL, "Failed err=%d\n", err);
 
 	return err;
 }
@@ -124,7 +124,8 @@ brcmf_fil_cmd_int_get(struct brcmf_if *ifp, u32 cmd, u32 *data)
 }
 
 static u32
-brcmf_create_iovar(char *name, char *data, u32 datalen, char *buf, u32 buflen)
+brcmf_create_iovar(char *name, const char *data, u32 datalen,
+		   char *buf, u32 buflen)
 {
 	u32 len;
 
@@ -144,7 +145,7 @@ brcmf_create_iovar(char *name, char *data, u32 datalen, char *buf, u32 buflen)
 
 
 s32
-brcmf_fil_iovar_data_set(struct brcmf_if *ifp, char *name, void *data,
+brcmf_fil_iovar_data_set(struct brcmf_if *ifp, char *name, const void *data,
 			 u32 len)
 {
 	struct brcmf_pub *drvr = ifp->drvr;

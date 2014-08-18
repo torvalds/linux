@@ -15,8 +15,8 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/clock/rk3066a-cru.h>
 #include "rk3xxx.dtsi"
-#include "rk3066a-clocks.dtsi"
 
 / {
 	compatible = "rockchip,rk3066a";
@@ -24,6 +24,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "rockchip,rk3066-smp";
 
 		cpu@0 {
 			device_type = "cpu";
@@ -39,234 +40,392 @@
 		};
 	};
 
-	soc {
-		timer@20038000 {
-			compatible = "snps,dw-apb-timer-osc";
-			reg = <0x20038000 0x100>;
-			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_gates1 0>, <&clk_gates7 7>;
-			clock-names = "timer", "pclk";
+	sram: sram@10080000 {
+		compatible = "mmio-sram";
+		reg = <0x10080000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x10080000 0x10000>;
+
+		smp-sram@0 {
+			compatible = "rockchip,rk3066-smp-sram";
+			reg = <0x0 0x50>;
+		};
+	};
+
+	cru: clock-controller@20000000 {
+		compatible = "rockchip,rk3066a-cru";
+		reg = <0x20000000 0x1000>;
+		rockchip,grf = <&grf>;
+
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};
+
+	timer@2000e000 {
+		compatible = "snps,dw-apb-timer-osc";
+		reg = <0x2000e000 0x100>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_TIMER2>, <&cru PCLK_TIMER2>;
+		clock-names = "timer", "pclk";
+	};
+
+	timer@20038000 {
+		compatible = "snps,dw-apb-timer-osc";
+		reg = <0x20038000 0x100>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_TIMER0>, <&cru PCLK_TIMER0>;
+		clock-names = "timer", "pclk";
+	};
+
+	timer@2003a000 {
+		compatible = "snps,dw-apb-timer-osc";
+		reg = <0x2003a000 0x100>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_TIMER1>, <&cru PCLK_TIMER1>;
+		clock-names = "timer", "pclk";
+	};
+
+	pinctrl: pinctrl {
+		compatible = "rockchip,rk3066a-pinctrl";
+		rockchip,grf = <&grf>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio0: gpio0@20034000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20034000 0x100>;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
-		timer@2003a000 {
-			compatible = "snps,dw-apb-timer-osc";
-			reg = <0x2003a000 0x100>;
-			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_gates1 1>, <&clk_gates7 8>;
-			clock-names = "timer", "pclk";
+		gpio1: gpio1@2003c000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x2003c000 0x100>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO1>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
-		timer@2000e000 {
-			compatible = "snps,dw-apb-timer-osc";
-			reg = <0x2000e000 0x100>;
-			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_gates1 2>, <&clk_gates7 9>;
-			clock-names = "timer", "pclk";
+		gpio2: gpio2@2003e000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x2003e000 0x100>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO2>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
-		pinctrl@20008000 {
-			compatible = "rockchip,rk3066a-pinctrl";
-			reg = <0x20008000 0x150>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
+		gpio3: gpio3@20080000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20080000 0x100>;
+			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO3>;
 
-			gpio0: gpio0@20034000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x20034000 0x100>;
-				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 9>;
+			gpio-controller;
+			#gpio-cells = <2>;
 
-				gpio-controller;
-				#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 
-				interrupt-controller;
-				#interrupt-cells = <2>;
+		gpio4: gpio4@20084000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20084000 0x100>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO4>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio6: gpio6@2000a000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x2000a000 0x100>;
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO6>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pcfg_pull_default: pcfg_pull_default {
+			bias-pull-pin-default;
+		};
+
+		pcfg_pull_none: pcfg_pull_none {
+			bias-disable;
+		};
+
+		i2c0 {
+			i2c0_xfer: i2c0-xfer {
+				rockchip,pins = <RK_GPIO2 28 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO2 29 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2c1 {
+			i2c1_xfer: i2c1-xfer {
+				rockchip,pins = <RK_GPIO2 30 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO2 31 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2c2 {
+			i2c2_xfer: i2c2-xfer {
+				rockchip,pins = <RK_GPIO3 0 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO3 1 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2c3 {
+			i2c3_xfer: i2c3-xfer {
+				rockchip,pins = <RK_GPIO3 2 RK_FUNC_2 &pcfg_pull_none>,
+						<RK_GPIO3 3 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		i2c4 {
+			i2c4_xfer: i2c4-xfer {
+				rockchip,pins = <RK_GPIO3 4 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO3 5 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		pwm0 {
+			pwm0_out: pwm0-out {
+				rockchip,pins = <RK_GPIO0 3 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		pwm1 {
+			pwm1_out: pwm1-out {
+				rockchip,pins = <RK_GPIO0 4 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		pwm2 {
+			pwm2_out: pwm2-out {
+				rockchip,pins = <RK_GPIO0 30 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		pwm3 {
+			pwm3_out: pwm3-out {
+				rockchip,pins = <RK_GPIO0 31 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		uart0 {
+			uart0_xfer: uart0-xfer {
+				rockchip,pins = <RK_GPIO1 0 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO1 1 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			gpio1: gpio1@2003c000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x2003c000 0x100>;
-				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 10>;
-
-				gpio-controller;
-				#gpio-cells = <2>;
-
-				interrupt-controller;
-				#interrupt-cells = <2>;
+			uart0_cts: uart0-cts {
+				rockchip,pins = <RK_GPIO1 2 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			gpio2: gpio2@2003e000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x2003e000 0x100>;
-				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 11>;
+			uart0_rts: uart0-rts {
+				rockchip,pins = <RK_GPIO1 3 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
 
-				gpio-controller;
-				#gpio-cells = <2>;
-
-				interrupt-controller;
-				#interrupt-cells = <2>;
+		uart1 {
+			uart1_xfer: uart1-xfer {
+				rockchip,pins = <RK_GPIO1 4 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO1 5 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			gpio3: gpio3@20080000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x20080000 0x100>;
-				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 12>;
-
-				gpio-controller;
-				#gpio-cells = <2>;
-
-				interrupt-controller;
-				#interrupt-cells = <2>;
+			uart1_cts: uart1-cts {
+				rockchip,pins = <RK_GPIO1 6 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			gpio4: gpio4@20084000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x20084000 0x100>;
-				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 13>;
+			uart1_rts: uart1-rts {
+				rockchip,pins = <RK_GPIO1 7 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
 
-				gpio-controller;
-				#gpio-cells = <2>;
+		uart2 {
+			uart2_xfer: uart2-xfer {
+				rockchip,pins = <RK_GPIO1 8 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO1 9 RK_FUNC_1 &pcfg_pull_default>;
+			};
+			/* no rts / cts for uart2 */
+		};
 
-				interrupt-controller;
-				#interrupt-cells = <2>;
+		uart3 {
+			uart3_xfer: uart3-xfer {
+				rockchip,pins = <RK_GPIO3 27 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO3 28 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			gpio6: gpio6@2000a000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x2000a000 0x100>;
-				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 15>;
-
-				gpio-controller;
-				#gpio-cells = <2>;
-
-				interrupt-controller;
-				#interrupt-cells = <2>;
+			uart3_cts: uart3-cts {
+				rockchip,pins = <RK_GPIO3 29 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			pcfg_pull_default: pcfg_pull_default {
-				bias-pull-pin-default;
+			uart3_rts: uart3-rts {
+				rockchip,pins = <RK_GPIO3 30 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
+
+		sd0 {
+			sd0_clk: sd0-clk {
+				rockchip,pins = <RK_GPIO3 8 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			pcfg_pull_none: pcfg_pull_none {
-				bias-disable;
+			sd0_cmd: sd0-cmd {
+				rockchip,pins = <RK_GPIO3 9 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			uart0 {
-				uart0_xfer: uart0-xfer {
-					rockchip,pins = <RK_GPIO1 0 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO1 1 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				uart0_cts: uart0-cts {
-					rockchip,pins = <RK_GPIO1 2 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				uart0_rts: uart0-rts {
-					rockchip,pins = <RK_GPIO1 3 RK_FUNC_1 &pcfg_pull_default>;
-				};
+			sd0_cd: sd0-cd {
+				rockchip,pins = <RK_GPIO3 14 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			uart1 {
-				uart1_xfer: uart1-xfer {
-					rockchip,pins = <RK_GPIO1 4 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO1 5 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				uart1_cts: uart1-cts {
-					rockchip,pins = <RK_GPIO1 6 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				uart1_rts: uart1-rts {
-					rockchip,pins = <RK_GPIO1 7 RK_FUNC_1 &pcfg_pull_default>;
-				};
+			sd0_wp: sd0-wp {
+				rockchip,pins = <RK_GPIO3 15 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			uart2 {
-				uart2_xfer: uart2-xfer {
-					rockchip,pins = <RK_GPIO1 8 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO1 9 RK_FUNC_1 &pcfg_pull_default>;
-				};
-				/* no rts / cts for uart2 */
+			sd0_bus1: sd0-bus-width1 {
+				rockchip,pins = <RK_GPIO3 10 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			uart3 {
-				uart3_xfer: uart3-xfer {
-					rockchip,pins = <RK_GPIO3 27 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO3 28 RK_FUNC_1 &pcfg_pull_default>;
-				};
+			sd0_bus4: sd0-bus-width4 {
+				rockchip,pins = <RK_GPIO3 10 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO3 11 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO3 12 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO3 13 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
 
-				uart3_cts: uart3-cts {
-					rockchip,pins = <RK_GPIO3 29 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				uart3_rts: uart3-rts {
-					rockchip,pins = <RK_GPIO3 30 RK_FUNC_1 &pcfg_pull_default>;
-				};
+		sd1 {
+			sd1_clk: sd1-clk {
+				rockchip,pins = <RK_GPIO3 21 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			sd0 {
-				sd0_clk: sd0-clk {
-					rockchip,pins = <RK_GPIO3 8 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				sd0_cmd: sd0-cmd {
-					rockchip,pins = <RK_GPIO3 9 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				sd0_cd: sd0-cd {
-					rockchip,pins = <RK_GPIO3 14 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				sd0_wp: sd0-wp {
-					rockchip,pins = <RK_GPIO3 15 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				sd0_bus1: sd0-bus-width1 {
-					rockchip,pins = <RK_GPIO3 10 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				sd0_bus4: sd0-bus-width4 {
-					rockchip,pins = <RK_GPIO3 10 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO3 11 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO3 12 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO3 13 RK_FUNC_1 &pcfg_pull_default>;
-				};
+			sd1_cmd: sd1-cmd {
+				rockchip,pins = <RK_GPIO3 16 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			sd1 {
-				sd1_clk: sd1-clk {
-					rockchip,pins = <RK_GPIO3 21 RK_FUNC_1 &pcfg_pull_default>;
-				};
+			sd1_cd: sd1-cd {
+				rockchip,pins = <RK_GPIO3 22 RK_FUNC_1 &pcfg_pull_default>;
+			};
 
-				sd1_cmd: sd1-cmd {
-					rockchip,pins = <RK_GPIO3 16 RK_FUNC_1 &pcfg_pull_default>;
-				};
+			sd1_wp: sd1-wp {
+				rockchip,pins = <RK_GPIO3 23 RK_FUNC_1 &pcfg_pull_default>;
+			};
 
-				sd1_cd: sd1-cd {
-					rockchip,pins = <RK_GPIO3 22 RK_FUNC_1 &pcfg_pull_default>;
-				};
+			sd1_bus1: sd1-bus-width1 {
+				rockchip,pins = <RK_GPIO3 17 RK_FUNC_1 &pcfg_pull_default>;
+			};
 
-				sd1_wp: sd1-wp {
-					rockchip,pins = <RK_GPIO3 23 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				sd1_bus1: sd1-bus-width1 {
-					rockchip,pins = <RK_GPIO3 17 RK_FUNC_1 &pcfg_pull_default>;
-				};
-
-				sd1_bus4: sd1-bus-width4 {
-					rockchip,pins = <RK_GPIO3 17 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO3 18 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO3 19 RK_FUNC_1 &pcfg_pull_default>,
-							<RK_GPIO3 20 RK_FUNC_1 &pcfg_pull_default>;
-				};
+			sd1_bus4: sd1-bus-width4 {
+				rockchip,pins = <RK_GPIO3 17 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO3 18 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO3 19 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO3 20 RK_FUNC_1 &pcfg_pull_default>;
 			};
 		};
 	};
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_xfer>;
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_xfer>;
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_xfer>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_xfer>;
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_xfer>;
+};
+
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus4>;
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_bus4>;
+};
+
+&pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_out>;
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm1_out>;
+};
+
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm2_out>;
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm3_out>;
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer>;
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_xfer>;
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_xfer>;
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_xfer>;
+};
+
+&wdt {
+	compatible = "rockchip,rk3066-wdt", "snps,dw-wdt";
 };

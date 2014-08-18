@@ -66,7 +66,7 @@
 
 #include "tehuti.h"
 
-static DEFINE_PCI_DEVICE_TABLE(bdx_pci_tbl) = {
+static const struct pci_device_id bdx_pci_tbl[] = {
 	{ PCI_VDEVICE(TEHUTI, 0x3009), },
 	{ PCI_VDEVICE(TEHUTI, 0x3010), },
 	{ PCI_VDEVICE(TEHUTI, 0x3014), },
@@ -2413,7 +2413,7 @@ static void bdx_set_ethtool_ops(struct net_device *netdev)
 		.get_ethtool_stats = bdx_get_ethtool_stats,
 	};
 
-	SET_ETHTOOL_OPS(netdev, &bdx_ethtool_ops);
+	netdev->ethtool_ops = &bdx_ethtool_ops;
 }
 
 /**

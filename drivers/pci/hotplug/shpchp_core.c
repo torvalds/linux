@@ -143,8 +143,7 @@ static int init_slots(struct controller *ctrl)
 		snprintf(name, SLOT_NAME_SIZE, "%d", slot->number);
 		hotplug_slot->ops = &shpchp_hotplug_slot_ops;
 
-		ctrl_dbg(ctrl, "Registering domain:bus:dev=%04x:%02x:%02x "
-			 "hp_slot=%x sun=%x slot_device_offset=%x\n",
+		ctrl_dbg(ctrl, "Registering domain:bus:dev=%04x:%02x:%02x hp_slot=%x sun=%x slot_device_offset=%x\n",
 			 pci_domain_nr(ctrl->pci_dev->subordinate),
 			 slot->bus, slot->device, slot->hp_slot, slot->number,
 			 ctrl->slot_device_offset);

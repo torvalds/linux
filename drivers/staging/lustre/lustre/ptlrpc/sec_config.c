@@ -36,20 +36,20 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/crypto.h>
 #include <linux/key.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_log.h>
-#include <lustre_disk.h>
-#include <lustre_dlm.h>
-#include <lustre_param.h>
-#include <lustre_sec.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_sec.h"
 
 #include "ptlrpc_internal.h"
 
@@ -255,7 +255,7 @@ void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
 EXPORT_SYMBOL(sptlrpc_rule_set_free);
 
 /*
- * return 0 if the rule set could accomodate one more rule.
+ * return 0 if the rule set could accommodate one more rule.
  */
 int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 {
@@ -745,11 +745,13 @@ void sptlrpc_conf_log_update_begin(const char *logname)
 	mutex_lock(&sptlrpc_conf_lock);
 
 	conf = sptlrpc_conf_get(fsname, 0);
-	if (conf && conf->sc_local) {
-		LASSERT(conf->sc_updated == 0);
-		sptlrpc_conf_free_rsets(conf);
+	if (conf) {
+		if(conf->sc_local) {
+			LASSERT(conf->sc_updated == 0);
+			sptlrpc_conf_free_rsets(conf);
+		}
+		conf->sc_modified = 0;
 	}
-	conf->sc_modified = 0;
 
 	mutex_unlock(&sptlrpc_conf_lock);
 }
@@ -916,7 +918,7 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd)
 	if (imp) {
 		spin_lock(&imp->imp_lock);
 		if (imp->imp_sec)
-			imp->imp_sec_expire = cfs_time_current_sec() +
+			imp->imp_sec_expire = get_seconds() +
 				SEC_ADAPT_DELAY;
 		spin_unlock(&imp->imp_lock);
 	}
