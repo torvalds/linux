@@ -1640,6 +1640,9 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 
 	l2cap_unregister_all_users(conn);
 
+	/* Force the connection to be immediately dropped */
+	hcon->disc_timeout = 0;
+
 	mutex_lock(&conn->chan_lock);
 
 	/* Kill channels */
