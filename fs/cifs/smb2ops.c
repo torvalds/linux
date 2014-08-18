@@ -1222,6 +1222,12 @@ smb2_wp_retry_size(struct inode *inode)
 		     SMB2_MAX_BUFFER_SIZE);
 }
 
+static bool
+smb2_dir_needs_close(struct cifsFileInfo *cfile)
+{
+	return !cfile->invalidHandle;
+}
+
 struct smb_version_operations smb20_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -1297,6 +1303,7 @@ struct smb_version_operations smb20_operations = {
 	.parse_lease_buf = smb2_parse_lease_buf,
 	.clone_range = smb2_clone_range,
 	.wp_retry_size = smb2_wp_retry_size,
+	.dir_needs_close = smb2_dir_needs_close,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -1374,6 +1381,7 @@ struct smb_version_operations smb21_operations = {
 	.parse_lease_buf = smb2_parse_lease_buf,
 	.clone_range = smb2_clone_range,
 	.wp_retry_size = smb2_wp_retry_size,
+	.dir_needs_close = smb2_dir_needs_close,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -1454,6 +1462,7 @@ struct smb_version_operations smb30_operations = {
 	.clone_range = smb2_clone_range,
 	.validate_negotiate = smb3_validate_negotiate,
 	.wp_retry_size = smb2_wp_retry_size,
+	.dir_needs_close = smb2_dir_needs_close,
 };
 
 struct smb_version_values smb20_values = {
