@@ -30,12 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/clkdev.h>
 
-enum {
-	MAX77686_CLK_AP = 0,
-	MAX77686_CLK_CP,
-	MAX77686_CLK_PMIC,
-	MAX77686_CLKS_NUM,
-};
+#include <dt-bindings/clock/maxim,max77686.h>
 
 struct max77686_clk {
 	struct max77686_dev *iodev;
