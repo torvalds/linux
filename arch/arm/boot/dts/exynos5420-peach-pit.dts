@@ -357,12 +357,12 @@
 				vsys2-supply = <&vbat>;
 				vsys3-supply = <&vbat>;
 				infet1-supply = <&vbat>;
-				infet2-supply = <&vbat>;
-				infet3-supply = <&vbat>;
-				infet4-supply = <&vbat>;
-				infet5-supply = <&vbat>;
-				infet6-supply = <&vbat>;
-				infet7-supply = <&vbat>;
+				infet2-supply = <&tps65090_dcdc1>;
+				infet3-supply = <&tps65090_dcdc2>;
+				infet4-supply = <&tps65090_dcdc2>;
+				infet5-supply = <&tps65090_dcdc2>;
+				infet6-supply = <&tps65090_dcdc2>;
+				infet7-supply = <&tps65090_dcdc1>;
 				vsys-l1-supply = <&vbat>;
 				vsys-l2-supply = <&vbat>;
 
