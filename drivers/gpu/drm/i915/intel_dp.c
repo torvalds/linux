@@ -3553,6 +3553,9 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	if (WARN_ON(!intel_encoder->base.crtc))
 		return;
 
+	if (!to_intel_crtc(intel_encoder->base.crtc)->active)
+		return;
+
 	/* Try to read receiver status if the link appears to be up */
 	if (!intel_dp_get_link_status(intel_dp, link_status)) {
 		return;
