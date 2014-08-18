@@ -2731,6 +2731,15 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 
 	mutex_lock(&dev_priv->dpio_lock);
 
+	/* allow hardware to manage TX FIFO reset source */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW11(ch));
+	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW11(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
+	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
+
 	/* Deassert soft data lane reset*/
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
 	val |= CHV_PCS_REQ_SOFTRESET_EN;

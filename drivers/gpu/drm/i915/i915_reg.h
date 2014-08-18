@@ -796,6 +796,8 @@ enum punit_power_well {
 #define _VLV_PCS_DW0_CH1		0x8400
 #define   DPIO_PCS_TX_LANE2_RESET	(1<<16)
 #define   DPIO_PCS_TX_LANE1_RESET	(1<<7)
+#define   DPIO_LEFT_TXFIFO_RST_MASTER2	(1<<4)
+#define   DPIO_RIGHT_TXFIFO_RST_MASTER2	(1<<3)
 #define VLV_PCS_DW0(ch) _PORT(ch, _VLV_PCS_DW0_CH0, _VLV_PCS_DW0_CH1)
 
 #define _VLV_PCS01_DW0_CH0		0x200
@@ -872,7 +874,17 @@ enum punit_power_well {
 
 #define _VLV_PCS_DW11_CH0		0x822c
 #define _VLV_PCS_DW11_CH1		0x842c
+#define   DPIO_LANEDESKEW_STRAP_OVRD	(1<<3)
+#define   DPIO_LEFT_TXFIFO_RST_MASTER	(1<<1)
+#define   DPIO_RIGHT_TXFIFO_RST_MASTER	(1<<0)
 #define VLV_PCS_DW11(ch) _PORT(ch, _VLV_PCS_DW11_CH0, _VLV_PCS_DW11_CH1)
+
+#define _VLV_PCS01_DW11_CH0		0x022c
+#define _VLV_PCS23_DW11_CH0		0x042c
+#define _VLV_PCS01_DW11_CH1		0x262c
+#define _VLV_PCS23_DW11_CH1		0x282c
+#define VLV_PCS01_DW11(ch) _PORT(ch, _VLV_PCS01_DW0_CH0, _VLV_PCS01_DW0_CH1)
+#define VLV_PCS23_DW11(ch) _PORT(ch, _VLV_PCS23_DW0_CH0, _VLV_PCS23_DW0_CH1)
 
 #define _VLV_PCS_DW12_CH0		0x8230
 #define _VLV_PCS_DW12_CH1		0x8430
