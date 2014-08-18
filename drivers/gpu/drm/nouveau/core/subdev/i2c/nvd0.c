@@ -48,7 +48,7 @@ nvd0_i2c_func = {
 	.sense_sda = nvd0_i2c_sense_sda,
 };
 
-static int
+int
 nvd0_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		   struct nouveau_oclass *oclass, void *data, u32 index,
 		   struct nouveau_object **pobject)

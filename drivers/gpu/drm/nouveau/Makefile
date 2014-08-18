@@ -166,6 +166,7 @@ nouveau-y += core/subdev/i2c/nv94.o
 nouveau-y += core/subdev/i2c/nvd0.o
 nouveau-y += core/subdev/i2c/gf117.o
 nouveau-y += core/subdev/i2c/nve0.o
+nouveau-y += core/subdev/i2c/gm204.o
 nouveau-y += core/subdev/ibus/nvc0.o
 nouveau-y += core/subdev/ibus/nve0.o
 nouveau-y += core/subdev/ibus/gk20a.o
