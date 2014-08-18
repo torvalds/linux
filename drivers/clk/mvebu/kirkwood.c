@@ -216,7 +216,6 @@ static const struct clk_gating_soc_desc kirkwood_gating_desc[] __initconst = {
 	{ "runit", NULL, 7, 0 },
 	{ "xor0", NULL, 8, 0 },
 	{ "audio", NULL, 9, 0 },
-	{ "powersave", "cpuclk", 11, 0 },
 	{ "sata0", NULL, 14, 0 },
 	{ "sata1", NULL, 15, 0 },
 	{ "xor1", NULL, 16, 0 },
@@ -245,6 +244,16 @@ struct clk_muxing_ctrl {
 	spinlock_t *lock;
 	struct clk **muxes;
 	int num_muxes;
+};
+
+static const char *powersave_parents[] = {
+	"cpuclk",
+	"ddrclk",
+};
+
+static const struct clk_muxing_soc_desc kirkwood_mux_desc[] __initconst = {
+	{ "powersave", powersave_parents, ARRAY_SIZE(powersave_parents),
+		11, 1, 0 },
 };
 
 #define to_clk_mux(_hw) container_of(_hw, struct clk_mux, hw)
@@ -323,8 +332,10 @@ static void __init kirkwood_clk_init(struct device_node *np)
 	else
 		mvebu_coreclk_setup(np, &kirkwood_coreclks);
 
-	if (cgnp)
+	if (cgnp) {
 		mvebu_clk_gating_setup(cgnp, kirkwood_gating_desc);
+		kirkwood_clk_muxing_setup(cgnp, kirkwood_mux_desc);
+	}
 }
 CLK_OF_DECLARE(kirkwood_clk, "marvell,kirkwood-core-clock",
 	       kirkwood_clk_init);
