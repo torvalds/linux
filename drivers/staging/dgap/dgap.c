@@ -837,12 +837,10 @@ static int dgap_request_irq(struct board_t *brd)
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
 		return -ENODEV;
 
-	brd->use_interrupts = dgap_config_get_useintr(brd);
-
 	/*
 	 * Set up our interrupt handler if we are set to do interrupts.
 	 */
-	if (brd->use_interrupts && brd->irq) {
+	if (dgap_config_get_useintr(brd) && brd->irq) {
 
 		rc = request_irq(brd->irq, dgap_intr, IRQF_SHARED, "DGAP", brd);
 

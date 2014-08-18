@@ -558,7 +558,6 @@ struct board_t {
 
 	u16		nasync;		/* Number of ports on card */
 
-	u32		use_interrupts;	/* Should we be interrupt driven? */
 	ulong		irq;		/* Interrupt request number */
 	ulong		intr_count;	/* Count of interrupts */
 	u32		intr_used;	/* Non-zero if using interrupts */
