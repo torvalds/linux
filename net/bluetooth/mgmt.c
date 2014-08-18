@@ -2788,7 +2788,6 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_disconnect *cp = data;
 	struct mgmt_rp_disconnect rp;
-	struct hci_cp_disconnect dc;
 	struct pending_cmd *cmd;
 	struct hci_conn *conn;
 	int err;
@@ -2836,10 +2835,7 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	dc.handle = cpu_to_le16(conn->handle);
-	dc.reason = HCI_ERROR_REMOTE_USER_TERM;
-
-	err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
+	err = hci_disconnect(conn, HCI_ERROR_REMOTE_USER_TERM);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
