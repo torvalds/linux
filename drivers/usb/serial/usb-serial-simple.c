@@ -36,6 +36,11 @@ static struct usb_serial_driver vendor##_device = {		\
 
 #define DEVICE(vendor, IDS)	DEVICE_N(vendor, IDS, 1)
 
+/* Medtronic CareLink USB driver */
+#define CARELINK_IDS()			\
+	{ USB_DEVICE(0x0a21, 0x8001) }	/* MMT-7305WW */
+DEVICE(carelink, CARELINK_IDS);
+
 /* ZIO Motherboard USB driver */
 #define ZIO_IDS()			\
 	{ USB_DEVICE(0x1CBE, 0x0103) }
@@ -88,6 +93,7 @@ DEVICE(siemens_mpi, SIEMENS_IDS);
 
 /* All of the above structures mushed into two lists */
 static struct usb_serial_driver * const serial_drivers[] = {
+	&carelink_device,
 	&zio_device,
 	&funsoft_device,
 	&flashloader_device,
@@ -101,6 +107,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 static const struct usb_device_id id_table[] = {
+	CARELINK_IDS(),
 	ZIO_IDS(),
 	FUNSOFT_IDS(),
 	FLASHLOADER_IDS(),
