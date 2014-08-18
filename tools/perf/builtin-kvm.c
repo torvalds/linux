@@ -919,15 +919,8 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 
-	/* copy pollfds -- need to add timerfd and stdin */
+	/* use pollfds -- need to add timerfd and stdin */
 	nr_fds = kvm->evlist->nr_fds;
-	pollfds = zalloc(sizeof(struct pollfd) * (nr_fds + 2));
-	if (!pollfds) {
-		err = -ENOMEM;
-		goto out;
-	}
-	memcpy(pollfds, kvm->evlist->pollfd,
-		sizeof(struct pollfd) * kvm->evlist->nr_fds);
 
 	/* add timer fd */
 	if (perf_kvm__timerfd_create(kvm) < 0) {
@@ -935,16 +928,20 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 		goto out;
 	}
 
-	pollfds[nr_fds].fd = kvm->timerfd;
-	pollfds[nr_fds].events = POLLIN;
+	if (perf_evlist__add_pollfd(kvm->evlist, kvm->timerfd))
+		goto out;
+
 	nr_fds++;
 
-	pollfds[nr_fds].fd = fileno(stdin);
-	pollfds[nr_fds].events = POLLIN;
+	if (perf_evlist__add_pollfd(kvm->evlist, fileno(stdin)))
+		goto out;
+
 	nr_stdin = nr_fds;
 	nr_fds++;
 	if (fd_set_nonblock(fileno(stdin)) != 0)
 		goto out;
+
+	pollfds	 = kvm->evlist->pollfd;
 
 	/* everything is good - enable the events and process */
 	perf_evlist__enable(kvm->evlist);
@@ -979,7 +976,6 @@ out:
 		close(kvm->timerfd);
 
 	tcsetattr(0, TCSAFLUSH, &save);
-	free(pollfds);
 	return err;
 }
 
