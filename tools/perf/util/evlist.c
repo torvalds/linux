@@ -475,6 +475,11 @@ int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mas
 	return nr_fds;
 }
 
+int perf_evlist__poll(struct perf_evlist *evlist, int timeout)
+{
+	return poll(evlist->pollfd, evlist->nr_fds, timeout);
+}
+
 static void perf_evlist__id_hash(struct perf_evlist *evlist,
 				 struct perf_evsel *evsel,
 				 int cpu, int thread, u64 id)

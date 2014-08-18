@@ -964,7 +964,7 @@ static int __cmd_top(struct perf_top *top)
                 perf_evlist__enable(top->evlist);
 
 	/* Wait for a minimal set of events before starting the snapshot */
-	poll(top->evlist->pollfd, top->evlist->nr_fds, 100);
+	perf_evlist__poll(top->evlist, 100);
 
 	perf_top__mmap_read(top);
 
@@ -991,7 +991,7 @@ static int __cmd_top(struct perf_top *top)
 		perf_top__mmap_read(top);
 
 		if (hits == top->samples)
-			ret = poll(top->evlist->pollfd, top->evlist->nr_fds, 100);
+			ret = perf_evlist__poll(top->evlist, 100);
 	}
 
 	ret = 0;

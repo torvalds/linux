@@ -105,7 +105,7 @@ retry:
 	}
 
 	if (!exited || !nr_exit) {
-		poll(evlist->pollfd, evlist->nr_fds, -1);
+		perf_evlist__poll(evlist, -1);
 		goto retry;
 	}
 
