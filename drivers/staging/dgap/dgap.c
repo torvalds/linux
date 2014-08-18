@@ -846,14 +846,9 @@ static int dgap_request_irq(struct board_t *brd)
 
 		rc = request_irq(brd->irq, dgap_intr, IRQF_SHARED, "DGAP", brd);
 
-		if (rc)
-			brd->intr_used = 0;
-		else
+		if (!rc)
 			brd->intr_used = 1;
-	} else {
-		brd->intr_used = 0;
 	}
-
 	return 0;
 }
 
