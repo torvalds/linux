@@ -2017,7 +2017,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 		return ftrace_make_call(rec, ftrace_addr);
 
 	case FTRACE_UPDATE_MAKE_NOP:
-		return ftrace_make_nop(NULL, rec, ftrace_addr);
+		return ftrace_make_nop(NULL, rec, ftrace_old_addr);
 
 	case FTRACE_UPDATE_MODIFY_CALL:
 		return ftrace_modify_call(rec, ftrace_old_addr, ftrace_addr);
