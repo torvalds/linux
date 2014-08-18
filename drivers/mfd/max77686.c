@@ -52,7 +52,7 @@ static const struct mfd_cell max77802_devs[] = {
 static bool max77802_pmic_is_accessible_reg(struct device *dev,
 					    unsigned int reg)
 {
-	return (reg >= MAX77802_REG_DEVICE_ID && reg < MAX77802_REG_PMIC_END);
+	return reg < MAX77802_REG_PMIC_END;
 }
 
 static bool max77802_rtc_is_accessible_reg(struct device *dev,
