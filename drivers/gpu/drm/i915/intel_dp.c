@@ -2374,10 +2374,10 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 		return;
 
 	intel_edp_panel_vdd_on(intel_dp);
-	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
-	intel_dp_start_link_train(intel_dp);
 	intel_edp_panel_on(intel_dp);
 	intel_edp_panel_vdd_off(intel_dp, true);
+	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	intel_dp_start_link_train(intel_dp);
 	intel_dp_complete_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 }
