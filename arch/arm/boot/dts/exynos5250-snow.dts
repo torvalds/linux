@@ -10,7 +10,6 @@
 
 /dts-v1/;
 #include "exynos5250.dtsi"
-#include "exynos5250-cros-common.dtsi"
 
 / {
 	model = "Google Snow";
@@ -18,6 +17,13 @@
 
 	aliases {
 		i2c104 = &i2c_104;
+	};
+
+	memory {
+		reg = <0x40000000 0x80000000>;
+	};
+
+	chosen {
 	};
 
 	rtc@101E0000 {
@@ -92,6 +98,13 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpx1 3 1>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
 
 		lid-switch {
 			label = "Lid";
@@ -226,24 +239,6 @@
 		};
 	};
 
-	mmc@12200000 {
-		status = "okay";
-	};
-
-	mmc@12220000 {
-		status = "okay";
-	};
-
-	/*
-	 * On Snow we've got SIP WiFi and so can keep drive strengths low to
-	 * reduce EMI.
-	 */
-	mmc@12230000 {
-		status = "okay";
-		pinctrl-names = "default";
-		pinctrl-0 = <&sd3_clk &sd3_cmd &sd3_bus4>;
-	};
-
 	i2c@12CD0000 {
 		max98095: codec@11 {
 			compatible = "maxim,max98095";
@@ -292,6 +287,11 @@
 	};
 
 	hdmi {
+		hpd-gpio = <&gpx3 7 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_hpd_irq>;
+		phy = <&hdmiphy>;
+		ddc = <&i2c_2>;
 		hdmi-en-supply = <&tps65090_fet7>;
 		vdd-supply = <&ldo8_reg>;
 		vdd_osc-supply = <&ldo10_reg>;
@@ -343,6 +343,10 @@
 };
 
 &i2c_0 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <378000>;
+
 	max77686@09 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx3>;
@@ -489,12 +493,128 @@
 };
 
 &i2c_1 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <378000>;
+
 	trackpad {
 		reg = <0x67>;
 		compatible = "cypress,cyapa";
 		interrupts = <2 0>;
 		interrupt-parent = <&gpx1>;
 		wakeup-source;
+	};
+};
+
+/*
+ * Disabled pullups since external part has its own pullups and
+ * double-pulling gets us out of spec in some cases.
+ */
+&i2c2_bus {
+	samsung,pin-pud = <0>;
+};
+
+&i2c_2 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <66000>;
+
+	hdmiddc@50 {
+		compatible = "samsung,exynos4210-hdmiddc";
+		reg = <0x50>;
+	};
+};
+
+&i2c_3 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <66000>;
+};
+
+&i2c_4 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <66000>;
+};
+
+&i2c_5 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <66000>;
+};
+
+&i2c_7 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <66000>;
+};
+
+&i2c_8 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <378000>;
+
+	hdmiphy: hdmiphy@38 {
+		compatible = "samsung,exynos4212-hdmiphy";
+		reg = <0x38>;
+	};
+};
+
+&mmc_0 {
+	status = "okay";
+	num-slots = <1>;
+	supports-highspeed;
+	broken-cd;
+	card-detect-delay = <200>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <2 3>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus4 &sd0_bus8>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <8>;
+	};
+};
+
+&mmc_2 {
+	status = "okay";
+	num-slots = <1>;
+	supports-highspeed;
+	card-detect-delay = <200>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <2 3>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+		wp-gpios = <&gpc2 1 0>;
+	};
+};
+
+/*
+ * On Snow we've got SIP WiFi and so can keep drive strengths low to
+ * reduce EMI.
+ */
+&mmc_3 {
+	status = "okay";
+	num-slots = <1>;
+	supports-highspeed;
+	broken-cd;
+	card-detect-delay = <200>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <2 3>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd3_clk &sd3_cmd &sd3_bus4>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
 	};
 };
 
@@ -505,6 +625,12 @@
 		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
 	};
+};
+
+&spi_1 {
+	status = "okay";
+	samsung,spi-src-clk = <0>;
+	num-cs = <1>;
 };
 
 #include "cros-ec-keyboard.dtsi"
