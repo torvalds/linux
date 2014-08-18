@@ -50,6 +50,7 @@ int test__hists_output(void);
 int test__hists_cumulate(void);
 int test__switch_tracking(void);
 int test__perf_evlist__filter_pollfd(void);
+int test__perf_evlist__add_pollfd(void);
 
 #if defined(__x86_64__) || defined(__i386__) || defined(__arm__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT

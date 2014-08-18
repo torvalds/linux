@@ -162,6 +162,10 @@ static struct test {
 		.func = test__perf_evlist__filter_pollfd,
 	},
 	{
+		.desc = "Add fd to pollfd array, making it autogrow",
+		.func = test__perf_evlist__add_pollfd,
+	},
+	{
 		.func = NULL,
 	},
 };
