@@ -31,7 +31,7 @@ static int cgroup_mt_check(const struct xt_mtchk_param *par)
 	if (info->invert & ~1)
 		return -EINVAL;
 
-	return info->id ? 0 : -EINVAL;
+	return 0;
 }
 
 static bool
