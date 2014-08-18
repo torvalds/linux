@@ -1491,9 +1491,6 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 			goto exception;
 		break;
 	case VCPU_SREG_CS:
-		if (in_task_switch && rpl != dpl)
-			goto exception;
-
 		if (!(seg_desc.type & 8))
 			goto exception;
 
