@@ -148,6 +148,10 @@
 
 		max77686: pmic@09 {
 			compatible = "maxim,max77686";
+			interrupt-parent = <&gpx3>;
+			interrupts = <2 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77686_irq>;
 			reg = <0x09>;
 			#clock-cells = <1>;
 
@@ -367,5 +371,12 @@
 	gpio_power_key: power_key {
 		samsung,pins = "gpx1-3";
 		samsung,pin-pud = <0>;
+	};
+
+	max77686_irq: max77686-irq {
+		samsung,pins = "gpx3-2";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
 	};
 };
