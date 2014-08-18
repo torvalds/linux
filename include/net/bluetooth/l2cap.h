@@ -625,9 +625,6 @@ struct l2cap_conn {
 
 	struct delayed_work	info_timer;
 
-	int			disconn_err;
-	struct work_struct	disconn_work;
-
 	struct sk_buff		*rx_skb;
 	__u32			rx_len;
 	__u8			tx_ident;
@@ -947,7 +944,6 @@ void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 		       u8 status);
 void __l2cap_physical_cfm(struct l2cap_chan *chan, int result);
 
-void l2cap_conn_shutdown(struct l2cap_conn *conn, int err);
 struct l2cap_conn *l2cap_conn_get(struct l2cap_conn *conn);
 void l2cap_conn_put(struct l2cap_conn *conn);
 
