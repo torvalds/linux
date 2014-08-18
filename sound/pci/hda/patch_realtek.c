@@ -3355,15 +3355,8 @@ static void alc269_quanta_automute(struct hda_codec *codec)
 {
 	snd_hda_gen_update_outputs(codec);
 
-	snd_hda_codec_write(codec, 0x20, 0,
-			AC_VERB_SET_COEF_INDEX, 0x0c);
-	snd_hda_codec_write(codec, 0x20, 0,
-			AC_VERB_SET_PROC_COEF, 0x680);
-
-	snd_hda_codec_write(codec, 0x20, 0,
-			AC_VERB_SET_COEF_INDEX, 0x0c);
-	snd_hda_codec_write(codec, 0x20, 0,
-			AC_VERB_SET_PROC_COEF, 0x480);
+	alc_write_coef_idx(codec, 0x0c, 0x680);
+	alc_write_coef_idx(codec, 0x0c, 0x480);
 }
 
 static void alc269_fixup_quanta_mute(struct hda_codec *codec,
