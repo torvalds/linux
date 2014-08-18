@@ -681,6 +681,13 @@ static int rndis_reset_response(struct rndis_params *params,
 	rndis_reset_cmplt_type *resp;
 	rndis_resp_t *r;
 
+	u32 length;
+	u8 *xbuf;
+
+	/* drain the response queue */
+	while ((xbuf = rndis_get_next_response(configNr, &length)))
+		rndis_free_response(configNr, xbuf);
+
 	r = rndis_add_response(params, sizeof(rndis_reset_cmplt_type));
 	if (!r)
 		return -ENOMEM;
