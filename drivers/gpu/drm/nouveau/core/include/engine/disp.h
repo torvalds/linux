@@ -31,5 +31,6 @@ extern struct nouveau_oclass *nvd0_disp_oclass;
 extern struct nouveau_oclass *nve0_disp_oclass;
 extern struct nouveau_oclass *nvf0_disp_oclass;
 extern struct nouveau_oclass *gm107_disp_oclass;
+extern struct nouveau_oclass *gm204_disp_oclass;
 
 #endif

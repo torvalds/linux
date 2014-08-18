@@ -242,6 +242,9 @@ int nv94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
 extern struct nouveau_oclass *nv94_disp_outp_sclass[];
 
 extern struct nvkm_output_dp_impl nvd0_sor_dp_impl;
+int nvd0_sor_dp_lnk_ctl(struct nvkm_output_dp *, int, int, bool);
 extern struct nouveau_oclass *nvd0_disp_outp_sclass[];
+
+extern struct nvkm_output_dp_impl gm204_sor_dp_impl;
 
 #endif
