@@ -61,6 +61,7 @@ config USB_SERIAL_SIMPLE
 		- Fundamental Software dongle.
 		- HP4x calculators
 		- a number of Motorola phones
+		- Novatel Wireless GPS receivers
 		- Siemens USB/MPI adapter.
 		- ViVOtech ViVOpay USB device.
 		- Infineon Modem Flashloader USB interface
