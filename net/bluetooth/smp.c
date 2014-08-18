@@ -1430,7 +1430,6 @@ static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 		return -EILSEQ;
 
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags)) {
-		err = -EOPNOTSUPP;
 		reason = SMP_PAIRING_NOTSUPP;
 		goto done;
 	}
@@ -1447,7 +1446,6 @@ static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 	if (code != SMP_CMD_PAIRING_REQ && code != SMP_CMD_SECURITY_REQ &&
 	    !test_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags)) {
 		BT_ERR("Unexpected SMP command 0x%02x. Disconnecting.", code);
-		reason = SMP_CMD_NOTSUPP;
 		err = -EOPNOTSUPP;
 		goto done;
 	}
@@ -1459,7 +1457,6 @@ static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	case SMP_CMD_PAIRING_FAIL:
 		smp_failure(conn, 0);
-		reason = 0;
 		err = -EPERM;
 		break;
 
@@ -1501,17 +1498,17 @@ static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	default:
 		BT_DBG("Unknown command code 0x%2.2x", code);
-
 		reason = SMP_CMD_NOTSUPP;
-		err = -EOPNOTSUPP;
 		goto done;
 	}
 
 done:
-	if (reason)
-		smp_failure(conn, reason);
-	if (!err)
+	if (!err) {
+		if (reason)
+			smp_failure(conn, reason);
 		kfree_skb(skb);
+	}
+
 	return err;
 }
 
