@@ -457,6 +457,24 @@ static struct irq_chip zynq_gpio_edge_irqchip = {
 	.irq_set_wake	= zynq_gpio_set_wake,
 };
 
+static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
+				      unsigned int bank_num,
+				      unsigned long pending)
+{
+	struct irq_domain *irqdomain = gpio->chip.irqdomain;
+	int offset;
+
+	if (!pending)
+		return;
+
+	for_each_set_bit(offset, &pending, 32) {
+		unsigned int gpio_irq;
+
+		gpio_irq = irq_find_mapping(irqdomain, offset);
+		generic_handle_irq(gpio_irq);
+	}
+}
+
 /**
  * zynq_gpio_irqhandler - IRQ handler for the gpio banks of a gpio device
  * @irq:	irq number of the gpio bank where interrupt has occurred
@@ -482,18 +500,7 @@ static void zynq_gpio_irqhandler(unsigned int irq, struct irq_desc *desc)
 					ZYNQ_GPIO_INTSTS_OFFSET(bank_num));
 		int_enb = readl_relaxed(gpio->base_addr +
 					ZYNQ_GPIO_INTMASK_OFFSET(bank_num));
-		int_sts &= ~int_enb;
-		if (int_sts) {
-			int offset;
-			unsigned long pending = int_sts;
-
-			for_each_set_bit(offset, &pending, 32) {
-				unsigned int gpio_irq =
-					irq_find_mapping(gpio->chip.irqdomain,
-							offset);
-				generic_handle_irq(gpio_irq);
-			}
-		}
+		zynq_gpio_handle_bank_irq(gpio, bank_num, int_sts & ~int_enb);
 	}
 
 	chained_irq_exit(irqchip, desc);
