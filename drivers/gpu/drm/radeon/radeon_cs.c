@@ -451,7 +451,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		radeon_vce_note_usage(rdev);
 
 	radeon_cs_sync_rings(parser);
-	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
+	r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
 	}
@@ -542,9 +542,9 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
-		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib);
+		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib, true);
 	} else {
-		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
+		r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	}
 
 out:

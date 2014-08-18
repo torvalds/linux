@@ -422,7 +422,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 	radeon_asic_vm_pad_ib(rdev, &ib);
 	WARN_ON(ib.length_dw > 64);
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r)
                 goto error;
 
@@ -699,7 +699,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 		radeon_semaphore_sync_to(ib.semaphore, pd->tbo.sync_obj);
 		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
 		WARN_ON(ib.length_dw > ndw);
-		r = radeon_ib_schedule(rdev, &ib, NULL);
+		r = radeon_ib_schedule(rdev, &ib, NULL, false);
 		if (r) {
 			radeon_ib_free(rdev, &ib);
 			return r;
@@ -963,7 +963,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	WARN_ON(ib.length_dw > ndw);
 
 	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
 		return r;

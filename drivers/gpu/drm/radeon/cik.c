@@ -3801,7 +3801,7 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
 	radeon_ring_write(ring, ((scratch - PACKET3_SET_UCONFIG_REG_START) >> 2));
 	radeon_ring_write(ring, 0xDEADBEEF);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
@@ -4004,7 +4004,7 @@ int cik_copy_cpdma(struct radeon_device *rdev,
 		return r;
 	}
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 	radeon_semaphore_free(rdev, &sem, *fence);
 
 	return r;
@@ -4103,7 +4103,7 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START) >> 2);
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);
@@ -4324,7 +4324,7 @@ static int cik_cp_gfx_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	radeon_ring_write(ring, 0x00000010); /* VGT_OUT_DEALLOC_CNTL */
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	return 0;
 }

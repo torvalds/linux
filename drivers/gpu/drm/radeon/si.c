@@ -3541,7 +3541,7 @@ static int si_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, PACKET3_BASE_INDEX(CE_PARTITION_BASE));
 	radeon_ring_write(ring, 0xc000);
 	radeon_ring_write(ring, 0xe000);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	si_cp_enable(rdev, true);
 
@@ -3570,7 +3570,7 @@ static int si_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	radeon_ring_write(ring, 0x00000010); /* VGT_OUT_DEALLOC_CNTL */
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = RADEON_RING_TYPE_GFX_INDEX; i <= CAYMAN_RING_TYPE_CP2_INDEX; ++i) {
 		ring = &rdev->ring[i];
@@ -3580,7 +3580,7 @@ static int si_cp_start(struct radeon_device *rdev)
 		radeon_ring_write(ring, PACKET3_COMPUTE(PACKET3_CLEAR_STATE, 0));
 		radeon_ring_write(ring, 0);
 
-		radeon_ring_unlock_commit(rdev, ring);
+		radeon_ring_unlock_commit(rdev, ring, false);
 	}
 
 	return 0;
