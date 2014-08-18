@@ -98,20 +98,20 @@ struct au0828_board au0828_boards[] = {
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL] = {
 		.name	= "Hauppauge HVR950Q rev xxF8",
-		.tuner_type = UNSET,
-		.tuner_addr = ADDR_UNSET,
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 	[AU0828_BOARD_DVICO_FUSIONHDTV7] = {
 		.name	= "DViCO FusionHDTV USB",
-		.tuner_type = UNSET,
-		.tuner_addr = ADDR_UNSET,
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
 		.name = "Hauppauge Woodbury",
-		.tuner_type = UNSET,
-		.tuner_addr = ADDR_UNSET,
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 };
