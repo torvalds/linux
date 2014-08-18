@@ -286,7 +286,7 @@ static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
 	struct async_icount old;
 	struct async_icount new;
 
-	if (arg & (TIOCM_DSR | TIOCM_RI | TIOCM_CD))
+	if (!(arg & (TIOCM_DSR | TIOCM_RI | TIOCM_CD)))
 		return -EINVAL;
 
 	do {
@@ -294,7 +294,7 @@ static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
 		old = gb_tty->oldcount;
 		new = gb_tty->iocount;
 		gb_tty->oldcount = new;
-		spin_lock_irq(&gb_tty->read_lock);
+		spin_unlock_irq(&gb_tty->read_lock);
 
 		if ((arg & TIOCM_DSR) && (old.dsr != new.dsr))
 			break;
@@ -310,11 +310,9 @@ static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
 		if (gb_tty->disconnected) {
 			if (arg & TIOCM_CD)
 				break;
-			else
-				retval = -ENODEV;
-		} else {
-			if (signal_pending(current))
-				retval = -ERESTARTSYS;
+			retval = -ENODEV;
+		} else if (signal_pending(current)) {
+			retval = -ERESTARTSYS;
 		}
 	} while (!retval);
 
@@ -429,6 +427,7 @@ static int tty_gb_probe(struct greybus_device *gdev, const struct greybus_device
 
 	return 0;
 error:
+	greybus_set_drvdata(gdev, NULL);
 	release_minor(gb_tty);
 	return retval;
 }
