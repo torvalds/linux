@@ -3490,6 +3490,11 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	u16 screen_x, screen_y;
 	u16 xpos, ypos;
 	char name[6];
+	struct rk_screen primary_screen;
+	rk_fb_get_prmry_screen(&primary_screen);
+	if (primary_screen.type == SCREEN_HDMI) {
+		return 0;
+	}
 
 	sprintf(name, "lcdc%d", lcdc_id);
 
