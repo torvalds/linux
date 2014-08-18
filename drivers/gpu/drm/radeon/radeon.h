@@ -105,6 +105,7 @@ extern int radeon_vm_size;
 extern int radeon_vm_block_size;
 extern int radeon_deep_color;
 extern int radeon_use_pflipirq;
+extern int radeon_bapm;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting

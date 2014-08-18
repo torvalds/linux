@@ -238,7 +238,9 @@ void radeon_vm_flush(struct radeon_device *rdev,
 	uint64_t pd_addr = radeon_bo_gpu_offset(vm->page_directory);
 
 	/* if we can't remember our last VM flush then flush now! */
-	if (!vm->last_flush || pd_addr != vm->pd_gpu_addr) {
+	/* XXX figure out why we have to flush all the time before CIK */
+	if (rdev->family < CHIP_BONAIRE ||
+	    !vm->last_flush || pd_addr != vm->pd_gpu_addr) {
 		trace_radeon_vm_flush(pd_addr, ring, vm->id);
 		vm->pd_gpu_addr = pd_addr;
 		radeon_ring_vm_flush(rdev, ring, vm);
@@ -483,6 +485,10 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			/* add a clone of the bo_va to clear the old address */
 			struct radeon_bo_va *tmp;
 			tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
+			if (!tmp) {
+				mutex_unlock(&vm->mutex);
+				return -ENOMEM;
+			}
 			tmp->it.start = bo_va->it.start;
 			tmp->it.last = bo_va->it.last;
 			tmp->vm = vm;

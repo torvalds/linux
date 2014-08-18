@@ -5028,7 +5028,7 @@ void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 
 	/* flush hdp cache */
 	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(1) |
 				 WRITE_DATA_DST_SEL(0)));
 	radeon_ring_write(ring, HDP_MEM_COHERENCY_FLUSH_CNTL >> 2);
 	radeon_ring_write(ring, 0);
@@ -5036,7 +5036,7 @@ void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 
 	/* bits 0-15 are the VM contexts0-15 */
 	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(1) |
 				 WRITE_DATA_DST_SEL(0)));
 	radeon_ring_write(ring, VM_INVALIDATE_REQUEST >> 2);
 	radeon_ring_write(ring, 0);
