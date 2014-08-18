@@ -3430,7 +3430,7 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] < 0x12)
 		return false;
 
-	_edp_panel_vdd_on(intel_dp);
+	intel_edp_panel_vdd_on(intel_dp);
 	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_MSTM_CAP, buf, 1)) {
 		if (buf[0] & DP_MST_CAP) {
 			DRM_DEBUG_KMS("Sink is MST capable\n");
