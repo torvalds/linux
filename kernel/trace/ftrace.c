@@ -1292,9 +1292,9 @@ alloc_and_copy_ftrace_hash(int size_bits, struct ftrace_hash *hash)
 }
 
 static void
-ftrace_hash_rec_disable(struct ftrace_ops *ops, int filter_hash);
+ftrace_hash_rec_disable_modify(struct ftrace_ops *ops, int filter_hash);
 static void
-ftrace_hash_rec_enable(struct ftrace_ops *ops, int filter_hash);
+ftrace_hash_rec_enable_modify(struct ftrace_ops *ops, int filter_hash);
 
 static int
 ftrace_hash_move(struct ftrace_ops *ops, int enable,
@@ -1346,13 +1346,13 @@ update:
 	 * Remove the current set, update the hash and add
 	 * them back.
 	 */
-	ftrace_hash_rec_disable(ops, enable);
+	ftrace_hash_rec_disable_modify(ops, enable);
 
 	old_hash = *dst;
 	rcu_assign_pointer(*dst, new_hash);
 	free_ftrace_hash_rcu(old_hash);
 
-	ftrace_hash_rec_enable(ops, enable);
+	ftrace_hash_rec_enable_modify(ops, enable);
 
 	return 0;
 }
@@ -1684,6 +1684,41 @@ static void ftrace_hash_rec_enable(struct ftrace_ops *ops,
 				   int filter_hash)
 {
 	__ftrace_hash_rec_update(ops, filter_hash, 1);
+}
+
+static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops,
+					  int filter_hash, int inc)
+{
+	struct ftrace_ops *op;
+
+	__ftrace_hash_rec_update(ops, filter_hash, inc);
+
+	if (ops->func_hash != &global_ops.local_hash)
+		return;
+
+	/*
+	 * If the ops shares the global_ops hash, then we need to update
+	 * all ops that are enabled and use this hash.
+	 */
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
+		/* Already done */
+		if (op == ops)
+			continue;
+		if (op->func_hash == &global_ops.local_hash)
+			__ftrace_hash_rec_update(op, filter_hash, inc);
+	} while_for_each_ftrace_op(op);
+}
+
+static void ftrace_hash_rec_disable_modify(struct ftrace_ops *ops,
+					   int filter_hash)
+{
+	ftrace_hash_rec_update_modify(ops, filter_hash, 0);
+}
+
+static void ftrace_hash_rec_enable_modify(struct ftrace_ops *ops,
+					  int filter_hash)
+{
+	ftrace_hash_rec_update_modify(ops, filter_hash, 1);
 }
 
 static void print_ip_ins(const char *fmt, unsigned char *p)
