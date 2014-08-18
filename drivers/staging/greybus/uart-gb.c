@@ -80,19 +80,20 @@ static int alloc_minor(struct gb_tty *gb_tty)
 	int minor;
 
 	mutex_lock(&table_lock);
-	minor = idr_alloc(&tty_minors, gb_tty, 0, 0, GFP_KERNEL);
-	if (minor < 0)
-		goto error;
-	gb_tty->minor = minor;
-error:
+	minor = idr_alloc(&tty_minors, gb_tty, 0, GB_NUM_MINORS, GFP_KERNEL);
 	mutex_unlock(&table_lock);
+	if (minor >= 0)
+		gb_tty->minor = minor;
 	return minor;
 }
 
 static void release_minor(struct gb_tty *gb_tty)
 {
+	int minor = gb_tty->minor;
+
+	gb_tty->minor = 0;	/* Maybe should use an invalid value instead */
 	mutex_lock(&table_lock);
-	idr_remove(&tty_minors, gb_tty->minor);
+	idr_remove(&tty_minors, minor);
 	mutex_unlock(&table_lock);
 }
 
@@ -400,9 +401,12 @@ static int tty_gb_probe(struct greybus_device *gdev, const struct greybus_device
 		return -ENOMEM;
 
 	minor = alloc_minor(gb_tty);
-	if (minor == GB_NUM_MINORS) {
-		dev_err(&gdev->dev, "no more free minor numbers\n");
-		return -ENODEV;
+	if (minor < 0) {
+		if (minor == -ENOSPC) {
+			dev_err(&gdev->dev, "no more free minor numbers\n");
+			return -ENODEV;
+		}
+		return minor;
 	}
 
 	gb_tty->minor = minor;
