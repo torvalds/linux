@@ -1458,7 +1458,7 @@ struct drm_i915_private {
 		} hpd_mark;
 	} hpd_stats[HPD_NUM_PINS];
 	u32 hpd_event_bits;
-	struct timer_list hotplug_reenable_timer;
+	struct delayed_work hotplug_reenable_work;
 
 	struct i915_fbc fbc;
 	struct i915_drrs drrs;
