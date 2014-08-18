@@ -30,6 +30,7 @@
 #include "pm.h"
 
 #define RK3288_GRF_SOC_CON0 0x244
+#define RK3288_GRF_SOC_CON2 0x24C
 #define RK3288_TIMER6_7_PHYS 0xff810000
 
 static void __init rockchip_timer_init(void)
@@ -60,10 +61,14 @@ static void __init rockchip_timer_init(void)
 		 * with the mmc controllers making them unreliable
 		 */
 		grf = syscon_regmap_lookup_by_compatible("rockchip,rk3288-grf");
-		if (!IS_ERR(grf))
+		if (!IS_ERR(grf)) {
 			regmap_write(grf, RK3288_GRF_SOC_CON0, 0x10000000);
-		else
+
+			/* Set pwm_sel to RK design PWM; affects all PWMs */
+			regmap_write(grf, RK3288_GRF_SOC_CON2, 0x00010001);
+		} else {
 			pr_err("rockchip: could not get grf syscon\n");
+                }
 	}
 
 	of_clk_init(NULL);
