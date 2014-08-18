@@ -138,6 +138,13 @@ static inline void zynq_gpio_get_bank_pin(unsigned int pin_num,
 	}
 }
 
+static const unsigned int zynq_gpio_bank_offset[] = {
+	ZYNQ_GPIO_BANK0_PIN_MIN,
+	ZYNQ_GPIO_BANK1_PIN_MIN,
+	ZYNQ_GPIO_BANK2_PIN_MIN,
+	ZYNQ_GPIO_BANK3_PIN_MIN,
+};
+
 /**
  * zynq_gpio_get_value - Get the state of the specified pin of GPIO device
  * @chip:	gpio_chip instance to be worked on
@@ -461,6 +468,7 @@ static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
 				      unsigned int bank_num,
 				      unsigned long pending)
 {
+	unsigned int bank_offset = zynq_gpio_bank_offset[bank_num];
 	struct irq_domain *irqdomain = gpio->chip.irqdomain;
 	int offset;
 
@@ -470,7 +478,7 @@ static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
 	for_each_set_bit(offset, &pending, 32) {
 		unsigned int gpio_irq;
 
-		gpio_irq = irq_find_mapping(irqdomain, offset);
+		gpio_irq = irq_find_mapping(irqdomain, offset + bank_offset);
 		generic_handle_irq(gpio_irq);
 	}
 }
