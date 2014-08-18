@@ -229,27 +229,30 @@ uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx, void *skb_in,
 		offset += size;
 		count++;
 	}
-	if (numfrags) {
-		if ((count + numfrags) > frags_max) {
-			LOGERR("**** FAILED %s frags array too small: max:%d count+nr_frags:%d\n",
-			     calling_ctx, frags_max, count + numfrags);
+	if (!numfrags)
+		goto dolist;
+
+	if ((count + numfrags) > frags_max) {
+		LOGERR("**** FAILED %s frags array too small: max:%d count+nr_frags:%d\n",
+		     calling_ctx, frags_max, count + numfrags);
+		return -1;	/* failure */
+	}
+
+	for (ii = 0; ii < numfrags; ii++) {
+		count = add_physinfo_entries(page_to_pfn(
+				skb_frag_page(&skb_shinfo(skb)->frags[ii])),
+					skb_shinfo(skb)->frags[ii].
+					page_offset,
+					skb_shinfo(skb)->frags[ii].
+					size, count, frags_max,
+					frags);
+		if (count == 0) {
+			LOGERR("**** FAILED to add physinfo entries\n");
 			return -1;	/* failure */
 		}
-
-		for (ii = 0; ii < numfrags; ii++) {
-			count = add_physinfo_entries(page_to_pfn(skb_frag_page(&skb_shinfo(skb)->frags[ii])),	/* pfn */
-						     skb_shinfo(skb)->frags[ii].
-						     page_offset,
-						     skb_shinfo(skb)->frags[ii].
-						     size, count, frags_max,
-						     frags);
-			if (count == 0) {
-				LOGERR("**** FAILED to add physinfo entries\n");
-				return -1;	/* failure */
-			}
-		}
 	}
-	if (skb_shinfo(skb)->frag_list) {
+
+dolist: if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *skbinlist;
 		int c;
 
@@ -257,11 +260,10 @@ uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx, void *skb_in,
 		     skbinlist = skbinlist->next) {
 
 			c = uisutil_copy_fragsinfo_from_skb("recursive",
-							    skbinlist,
-							    skbinlist->len -
-							    skbinlist->data_len,
-							    frags_max - count,
-							    &frags[count]);
+				skbinlist,
+				skbinlist->len - skbinlist->data_len,
+				frags_max - count,
+				&frags[count]);
 			if (c == -1) {
 				LOGERR("**** FAILED recursive call failed\n");
 				return -1;
