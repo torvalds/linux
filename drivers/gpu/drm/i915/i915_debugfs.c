@@ -662,7 +662,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(VLV_IIR_RW));
 		seq_printf(m, "Display IMR:\t%08x\n",
 			   I915_READ(VLV_IMR));
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			seq_printf(m, "Pipe %c stat:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(PIPESTAT(pipe)));
@@ -702,7 +702,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 				   i, I915_READ(GEN8_GT_IER(i)));
 		}
 
-		for_each_pipe(pipe) {
+		for_each_pipe(dev_priv, pipe) {
 			if (!intel_display_power_enabled(dev_priv,
 						POWER_DOMAIN_PIPE(pipe))) {
 				seq_printf(m, "Pipe %c power disabled\n",
@@ -749,7 +749,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(VLV_IIR_RW));
 		seq_printf(m, "Display IMR:\t%08x\n",
 			   I915_READ(VLV_IMR));
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			seq_printf(m, "Pipe %c stat:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(PIPESTAT(pipe)));
@@ -785,7 +785,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(IIR));
 		seq_printf(m, "Interrupt mask:      %08x\n",
 			   I915_READ(IMR));
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			seq_printf(m, "Pipe %c stat:         %08x\n",
 				   pipe_name(pipe),
 				   I915_READ(PIPESTAT(pipe)));
@@ -4188,7 +4188,7 @@ void intel_display_crc_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 
 		pipe_crc->opened = false;

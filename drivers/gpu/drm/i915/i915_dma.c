@@ -1528,10 +1528,10 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	info = (struct intel_device_info *)&dev_priv->info;
 
 	if (IS_VALLEYVIEW(dev))
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
 	else
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 1;
 
 	if (i915.disable_display) {

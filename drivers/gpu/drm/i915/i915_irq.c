@@ -238,7 +238,7 @@ static bool ivb_can_enable_err_int(struct drm_device *dev)
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
 		if (crtc->cpu_fifo_underrun_disabled)
@@ -296,7 +296,7 @@ static bool cpt_can_enable_serr_int(struct drm_device *dev)
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
 		if (crtc->pch_fifo_underrun_disabled)
@@ -2020,7 +2020,7 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 	int pipe;
 
 	spin_lock(&dev_priv->irq_lock);
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		int reg;
 		u32 mask, iir_bit = 0;
 
@@ -2065,7 +2065,7 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 	}
 	spin_unlock(&dev_priv->irq_lock);
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
 			intel_pipe_handle_vblank(dev, pipe);
 
@@ -2234,7 +2234,7 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 		DRM_ERROR("PCH poison interrupt\n");
 
 	if (pch_iir & SDE_FDI_MASK)
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			DRM_DEBUG_DRIVER("  pipe %c FDI IIR: 0x%08x\n",
 					 pipe_name(pipe),
 					 I915_READ(FDI_RX_IIR(pipe)));
@@ -2265,7 +2265,7 @@ static void ivb_err_int_handler(struct drm_device *dev)
 	if (err_int & ERR_INT_POISON)
 		DRM_ERROR("Poison interrupt\n");
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		if (err_int & ERR_INT_FIFO_UNDERRUN(pipe)) {
 			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe,
 								  false))
@@ -2342,7 +2342,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 		DRM_DEBUG_DRIVER("Audio CP change interrupt\n");
 
 	if (pch_iir & SDE_FDI_MASK_CPT)
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			DRM_DEBUG_DRIVER("  pipe %c FDI IIR: 0x%08x\n",
 					 pipe_name(pipe),
 					 I915_READ(FDI_RX_IIR(pipe)));
@@ -2365,7 +2365,7 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	if (de_iir & DE_POISON)
 		DRM_ERROR("Poison interrupt\n");
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		if (de_iir & DE_PIPE_VBLANK(pipe))
 			intel_pipe_handle_vblank(dev, pipe);
 
@@ -2415,7 +2415,7 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	if (de_iir & DE_GSE_IVB)
 		intel_opregion_asle_intr(dev);
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		if (de_iir & (DE_PIPE_VBLANK_IVB(pipe)))
 			intel_pipe_handle_vblank(dev, pipe);
 
@@ -2562,7 +2562,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 			DRM_ERROR("The master control interrupt lied (DE PORT)!\n");
 	}
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		uint32_t pipe_iir;
 
 		if (!(master_ctl & GEN8_DE_PIPE_IRQ(pipe)))
@@ -2781,7 +2781,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 
 	if (eir & I915_ERROR_MEMORY_REFRESH) {
 		pr_err("memory refresh error:\n");
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			pr_err("pipe %c stat: 0x%08x\n",
 			       pipe_name(pipe), I915_READ(PIPESTAT(pipe)));
 		/* pipestat has already been acked */
@@ -3459,7 +3459,7 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IMR, 0xffffffff);
@@ -3485,7 +3485,7 @@ static void gen8_irq_reset(struct drm_device *dev)
 
 	gen8_gt_irq_reset(dev_priv);
 
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_enabled(dev_priv,
 						POWER_DOMAIN_PIPE(pipe)))
 			GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
@@ -3528,7 +3528,7 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
 	I915_WRITE(VLV_IMR, 0xffffffff);
@@ -3825,7 +3825,6 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	uint32_t de_pipe_masked = GEN8_PIPE_PRIMARY_FLIP_DONE |
 		GEN8_PIPE_CDCLK_CRC_DONE |
 		GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
@@ -3836,7 +3835,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	dev_priv->de_irq_mask[PIPE_B] = ~de_pipe_masked;
 	dev_priv->de_irq_mask[PIPE_C] = ~de_pipe_masked;
 
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_enabled(dev_priv,
 				POWER_DOMAIN_PIPE(pipe)))
 			GEN8_IRQ_INIT_NDX(DE_PIPE, pipe,
@@ -3881,12 +3880,12 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 	 */
 	dev_priv->irq_mask = ~enable_mask;
 
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		i915_enable_pipestat(dev_priv, pipe, pipestat_enable);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
@@ -3923,7 +3922,7 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 
 	I915_WRITE(VLV_MASTER_IER, 0);
 
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
 	I915_WRITE(HWSTAM, 0xffffffff);
@@ -3985,7 +3984,7 @@ do {							\
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
 	I915_WRITE(VLV_IMR, 0xffffffff);
@@ -4009,7 +4008,7 @@ static void i8xx_irq_preinstall(struct drm_device * dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0);
 	I915_WRITE16(IMR, 0xffff);
 	I915_WRITE16(IER, 0x0);
@@ -4109,7 +4108,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 					  "Command parser error, iir 0x%08x",
 					  iir);
 
-		for_each_pipe(pipe) {
+		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);
 			pipe_stats[pipe] = I915_READ(reg);
 
@@ -4129,7 +4128,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[RCS]);
 
-		for_each_pipe(pipe) {
+		for_each_pipe(dev_priv, pipe) {
 			int plane = pipe;
 			if (HAS_FBC(dev))
 				plane = !plane;
@@ -4157,7 +4156,7 @@ static void i8xx_irq_uninstall(struct drm_device * dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		/* Clear enable bits; then clear status bits */
 		I915_WRITE(PIPESTAT(pipe), 0);
 		I915_WRITE(PIPESTAT(pipe), I915_READ(PIPESTAT(pipe)));
@@ -4178,7 +4177,7 @@ static void i915_irq_preinstall(struct drm_device * dev)
 	}
 
 	I915_WRITE16(HWSTAM, 0xeffe);
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0);
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
@@ -4293,7 +4292,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 					  "Command parser error, iir 0x%08x",
 					  iir);
 
-		for_each_pipe(pipe) {
+		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);
 			pipe_stats[pipe] = I915_READ(reg);
 
@@ -4319,7 +4318,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[RCS]);
 
-		for_each_pipe(pipe) {
+		for_each_pipe(dev_priv, pipe) {
 			int plane = pipe;
 			if (HAS_FBC(dev))
 				plane = !plane;
@@ -4377,7 +4376,7 @@ static void i915_irq_uninstall(struct drm_device * dev)
 	}
 
 	I915_WRITE16(HWSTAM, 0xffff);
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		/* Clear enable bits; then clear status bits */
 		I915_WRITE(PIPESTAT(pipe), 0);
 		I915_WRITE(PIPESTAT(pipe), I915_READ(PIPESTAT(pipe)));
@@ -4397,7 +4396,7 @@ static void i965_irq_preinstall(struct drm_device * dev)
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	I915_WRITE(HWSTAM, 0xeffe);
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0);
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
@@ -4522,7 +4521,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 					  "Command parser error, iir 0x%08x",
 					  iir);
 
-		for_each_pipe(pipe) {
+		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);
 			pipe_stats[pipe] = I915_READ(reg);
 
@@ -4553,7 +4552,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		if (iir & I915_BSD_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[VCS]);
 
-		for_each_pipe(pipe) {
+		for_each_pipe(dev_priv, pipe) {
 			if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS &&
 			    i915_handle_vblank(dev, pipe, pipe, iir))
 				flip_mask &= ~DISPLAY_PLANE_FLIP_PENDING(pipe);
@@ -4610,12 +4609,12 @@ static void i965_irq_uninstall(struct drm_device * dev)
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	I915_WRITE(HWSTAM, 0xffffffff);
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0);
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
 
-	for_each_pipe(pipe)
+	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe),
 			   I915_READ(PIPESTAT(pipe)) & 0x8000ffff);
 	I915_WRITE(IIR, I915_READ(IIR));

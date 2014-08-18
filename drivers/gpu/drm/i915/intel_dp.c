@@ -1598,7 +1598,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 			return true;
 		}
 
-		for_each_pipe(i) {
+		for_each_pipe(dev_priv, i) {
 			trans_dp = I915_READ(TRANS_DP_CTL(i));
 			if ((trans_dp & TRANS_DP_PORT_SEL_MASK) == trans_sel) {
 				*pipe = i;

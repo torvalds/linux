@@ -1230,7 +1230,7 @@ static int vlv_setup_backlight(struct intel_connector *connector)
 	enum pipe pipe;
 	u32 ctl, ctl2, val;
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		u32 cur_val = I915_READ(VLV_BLC_PWM_CTL(pipe));
 
 		/* Skip if the modulation freq is already set */
