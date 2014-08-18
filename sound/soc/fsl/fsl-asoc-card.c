@@ -469,7 +469,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		ret = fsl_asoc_card_audmux_init(np, priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to init audmux\n");
-			goto fail;
+			goto asrc_fail;
 		}
 	} else if (strstr(cpu_np->name, "esai")) {
 		priv->cpu_priv.sysclk_id[1] = ESAI_HCKT_EXTAL;
@@ -518,14 +518,14 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "failed to get output rate\n");
 			ret = -EINVAL;
-			goto fail;
+			goto asrc_fail;
 		}
 
 		ret = of_property_read_u32(asrc_np, "fsl,asrc-width", &width);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to get output rate\n");
 			ret = -EINVAL;
-			goto fail;
+			goto asrc_fail;
 		}
 
 		if (width == 24)
@@ -542,9 +542,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 
+asrc_fail:
+	of_node_put(asrc_np);
 fail:
 	of_node_put(codec_np);
-	of_node_put(asrc_np);
 	of_node_put(cpu_np);
 
 	return ret;
