@@ -27,6 +27,8 @@
 		gpio2 = &gpio3;
 		gpio3 = &gpio4;
 		gpio4 = &gpio5;
+		usbphy0 = &usbphy0;
+		usbphy1 = &usbphy1;
 	};
 
 	cpus {
@@ -297,9 +299,25 @@
 				gpio-ranges = <&iomuxc 0 128 7>;
 			};
 
-			anatop@40050000 {
-				compatible = "fsl,vf610-anatop";
-				reg = <0x40050000 0x1000>;
+			anatop: anatop@40050000 {
+				compatible = "fsl,vf610-anatop", "syscon";
+				reg = <0x40050000 0x400>;
+			};
+
+			usbphy0: usbphy@40050800 {
+				compatible = "fsl,vf610-usbphy";
+				reg = <0x40050800 0x400>;
+				interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_USBPHY0>;
+				fsl,anatop = <&anatop>;
+			};
+
+			usbphy1: usbphy@40050c00 {
+				compatible = "fsl,vf610-usbphy";
+				reg = <0x40050c00 0x400>;
+				interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_USBPHY1>;
+				fsl,anatop = <&anatop>;
 			};
 
 			i2c0: i2c@40066000 {
@@ -321,6 +339,18 @@
 				reg = <0x4006b000 0x1000>;
 				#clock-cells = <1>;
 			};
+
+			usbdev0: usb@40034000 {
+				compatible = "fsl,vf610-usb", "fsl,imx27-usb";
+				reg = <0x40034000 0x800>;
+				interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_USBC0>;
+				fsl,usbphy = <&usbphy0>;
+				dr_mode = "peripheral";
+				status = "disabled";
+			};
+
+
 		};
 
 		aips1: aips-bus@40080000 {
@@ -380,6 +410,16 @@
 					<&clks VF610_CLK_PLATFORM_BUS>,
 					<&clks VF610_CLK_ESDHC1>;
 				clock-names = "ipg", "ahb", "per";
+				status = "disabled";
+			};
+
+			usbh1: usb@400b4000 {
+				compatible = "fsl,vf610-usb", "fsl,imx27-usb";
+				reg = <0x400b4000 0x800>;
+				interrupts = <0 76 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_USBC1>;
+				fsl,usbphy = <&usbphy1>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
