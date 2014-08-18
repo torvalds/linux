@@ -294,7 +294,8 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 				struct queue *q)
 {
 	int retval;
-	struct mqd_manager *mqd, *mqd_sdma;
+	struct mqd_manager *mqd;
+
 	BUG_ON(!dqm || !q || !q->mqd || !qpd);
 
 	retval = 0;
@@ -302,32 +303,31 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("kfd: In Func %s\n", __func__);
 
 	mutex_lock(&dqm->lock);
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
-	if (mqd == NULL) {
-		retval = -ENOMEM;
-		goto out;
-	}
 
-	mqd_sdma = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
-	if (mqd_sdma == NULL) {
-		mutex_unlock(&dqm->lock);
-		return -ENOMEM;
+	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE) {
+		mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
+		if (mqd == NULL) {
+			retval = -ENOMEM;
+			goto out;
+		}
+		deallocate_hqd(dqm, q);
+	} else if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
+		mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
+		if (mqd == NULL) {
+			retval = -ENOMEM;
+			goto out;
+		}
+		dqm->sdma_queue_count--;
+		deallocate_sdma_queue(dqm, q->sdma_id);
 	}
 
 	retval = mqd->destroy_mqd(mqd, q->mqd,
-				KFD_PREEMPT_TYPE_WAVEFRONT,
+				KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
 				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS,
 				q->pipe, q->queue);
 
 	if (retval != 0)
 		goto out;
-
-	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE)
-		deallocate_hqd(dqm, q);
-	else if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
-		dqm->sdma_queue_count--;
-		deallocate_sdma_queue(dqm, q->sdma_id);
-	}
 
 	mqd->uninit_mqd(mqd, q->mqd, q->mqd_mem_obj);
 
