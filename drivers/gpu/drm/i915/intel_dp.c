@@ -2363,6 +2363,104 @@ static void chv_post_disable_dp(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
+static void
+_intel_dp_set_link_train(struct intel_dp *intel_dp,
+			 uint32_t *DP,
+			 uint8_t dp_train_pat)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum port port = intel_dig_port->port;
+
+	if (HAS_DDI(dev)) {
+		uint32_t temp = I915_READ(DP_TP_CTL(port));
+
+		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
+			temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
+		else
+			temp &= ~DP_TP_CTL_SCRAMBLE_DISABLE;
+
+		temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
+		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		case DP_TRAINING_PATTERN_DISABLE:
+			temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
+
+			break;
+		case DP_TRAINING_PATTERN_1:
+			temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
+			break;
+		case DP_TRAINING_PATTERN_2:
+			temp |= DP_TP_CTL_LINK_TRAIN_PAT2;
+			break;
+		case DP_TRAINING_PATTERN_3:
+			temp |= DP_TP_CTL_LINK_TRAIN_PAT3;
+			break;
+		}
+		I915_WRITE(DP_TP_CTL(port), temp);
+
+	} else if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || port != PORT_A)) {
+		*DP &= ~DP_LINK_TRAIN_MASK_CPT;
+
+		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		case DP_TRAINING_PATTERN_DISABLE:
+			*DP |= DP_LINK_TRAIN_OFF_CPT;
+			break;
+		case DP_TRAINING_PATTERN_1:
+			*DP |= DP_LINK_TRAIN_PAT_1_CPT;
+			break;
+		case DP_TRAINING_PATTERN_2:
+			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
+			break;
+		case DP_TRAINING_PATTERN_3:
+			DRM_ERROR("DP training pattern 3 not supported\n");
+			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
+			break;
+		}
+
+	} else {
+		if (IS_CHERRYVIEW(dev))
+			*DP &= ~DP_LINK_TRAIN_MASK_CHV;
+		else
+			*DP &= ~DP_LINK_TRAIN_MASK;
+
+		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		case DP_TRAINING_PATTERN_DISABLE:
+			*DP |= DP_LINK_TRAIN_OFF;
+			break;
+		case DP_TRAINING_PATTERN_1:
+			*DP |= DP_LINK_TRAIN_PAT_1;
+			break;
+		case DP_TRAINING_PATTERN_2:
+			*DP |= DP_LINK_TRAIN_PAT_2;
+			break;
+		case DP_TRAINING_PATTERN_3:
+			if (IS_CHERRYVIEW(dev)) {
+				*DP |= DP_LINK_TRAIN_PAT_3_CHV;
+			} else {
+				DRM_ERROR("DP training pattern 3 not supported\n");
+				*DP |= DP_LINK_TRAIN_PAT_2;
+			}
+			break;
+		}
+	}
+}
+
+static void intel_dp_enable_port(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_dp->DP |= DP_PORT_EN;
+
+	/* enable with pattern 1 (as per spec) */
+	_intel_dp_set_link_train(intel_dp, &intel_dp->DP,
+				 DP_TRAINING_PATTERN_1);
+
+	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
+	POSTING_READ(intel_dp->output_reg);
+}
+
 static void intel_enable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -2373,6 +2471,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	if (WARN_ON(dp_reg & DP_PORT_EN))
 		return;
 
+	intel_dp_enable_port(intel_dp);
 	intel_edp_panel_vdd_on(intel_dp);
 	intel_edp_panel_on(intel_dp);
 	intel_edp_panel_vdd_off(intel_dp, true);
@@ -3252,81 +3351,10 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum port port = intel_dig_port->port;
 	uint8_t buf[sizeof(intel_dp->train_set) + 1];
 	int ret, len;
 
-	if (HAS_DDI(dev)) {
-		uint32_t temp = I915_READ(DP_TP_CTL(port));
-
-		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
-			temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
-		else
-			temp &= ~DP_TP_CTL_SCRAMBLE_DISABLE;
-
-		temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
-		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
-		case DP_TRAINING_PATTERN_DISABLE:
-			temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
-
-			break;
-		case DP_TRAINING_PATTERN_1:
-			temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
-			break;
-		case DP_TRAINING_PATTERN_2:
-			temp |= DP_TP_CTL_LINK_TRAIN_PAT2;
-			break;
-		case DP_TRAINING_PATTERN_3:
-			temp |= DP_TP_CTL_LINK_TRAIN_PAT3;
-			break;
-		}
-		I915_WRITE(DP_TP_CTL(port), temp);
-
-	} else if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || port != PORT_A)) {
-		*DP &= ~DP_LINK_TRAIN_MASK_CPT;
-
-		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
-		case DP_TRAINING_PATTERN_DISABLE:
-			*DP |= DP_LINK_TRAIN_OFF_CPT;
-			break;
-		case DP_TRAINING_PATTERN_1:
-			*DP |= DP_LINK_TRAIN_PAT_1_CPT;
-			break;
-		case DP_TRAINING_PATTERN_2:
-			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
-			break;
-		case DP_TRAINING_PATTERN_3:
-			DRM_ERROR("DP training pattern 3 not supported\n");
-			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
-			break;
-		}
-
-	} else {
-		if (IS_CHERRYVIEW(dev))
-			*DP &= ~DP_LINK_TRAIN_MASK_CHV;
-		else
-			*DP &= ~DP_LINK_TRAIN_MASK;
-
-		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
-		case DP_TRAINING_PATTERN_DISABLE:
-			*DP |= DP_LINK_TRAIN_OFF;
-			break;
-		case DP_TRAINING_PATTERN_1:
-			*DP |= DP_LINK_TRAIN_PAT_1;
-			break;
-		case DP_TRAINING_PATTERN_2:
-			*DP |= DP_LINK_TRAIN_PAT_2;
-			break;
-		case DP_TRAINING_PATTERN_3:
-			if (IS_CHERRYVIEW(dev)) {
-				*DP |= DP_LINK_TRAIN_PAT_3_CHV;
-			} else {
-				DRM_ERROR("DP training pattern 3 not supported\n");
-				*DP |= DP_LINK_TRAIN_PAT_2;
-			}
-			break;
-		}
-	}
+	_intel_dp_set_link_train(intel_dp, DP, dp_train_pat);
 
 	I915_WRITE(intel_dp->output_reg, *DP);
 	POSTING_READ(intel_dp->output_reg);
