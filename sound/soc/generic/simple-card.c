@@ -111,7 +111,7 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 static int
 asoc_simple_card_sub_parse_of(struct device_node *np,
 			      struct asoc_simple_dai *dai,
-			      const struct device_node **p_node,
+			      struct device_node **p_node,
 			      const char **name)
 {
 	struct device_node *node;
