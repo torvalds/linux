@@ -174,7 +174,7 @@ enum _VOP_SOC_TYPE {
         #define v_FS_MASK_EN(x)                 BITS_MASK(x, 1, 3)
         #define v_HDMI_HSYNC_POL(x)             BITS_MASK(x, 1, 4)
         #define v_HDMI_VSYNC_POL(x)             BITS_MASK(x, 1, 5)
-        #define v_HDMI_DEN_POL(x)               BITS_MASK(x. 1, 6)
+        #define v_HDMI_DEN_POL(x)               BITS_MASK(x, 1, 6)
 
 #define INT_STATUS		(0x10)
         #define m_HS_INT_STA		BITS(1, 0)

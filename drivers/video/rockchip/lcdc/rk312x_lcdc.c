@@ -44,6 +44,11 @@ module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
 	if (unlikely(dbg_thresd >= level))	\
 		printk(KERN_INFO x); } while (0)
 
+#define grf_writel(offset, v)	do { \
+			writel_relaxed(v, RK_GRF_VIRT + offset); \
+			dsb(); \
+			} while (0)
+
 static struct rk_lcdc_win lcdc_win[] = {
 	[0] = {
 	       .name = "win0",
@@ -841,7 +846,19 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
                                 lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
                                              m_SW_UV_OFFSET_EN,
                                              v_SW_UV_OFFSET_EN(0));
-                        }
+				mask = m_HDMI_HSYNC_POL | m_HDMI_VSYNC_POL |
+				       m_HDMI_DEN_POL;
+				val = v_HDMI_HSYNC_POL(screen->pin_hsync) |
+				      v_HDMI_HSYNC_POL(screen->pin_vsync) |
+				      v_HDMI_DEN_POL(screen->pin_den);
+				lcdc_msk_reg(lcdc_dev, INT_SCALER, mask, val);
+                        } else {
+				mask = (1 << 4) | (1 << 5) | (1 << 6);
+				val = (screen->pin_hsync << 4) |
+					(screen->pin_vsync << 5) |
+					(screen->pin_den << 6);
+				grf_writel(RK3036_GRF_SOC_CON2, (mask << 16) | val);
+			}
 			break;
 		case SCREEN_TVOUT:
 			mask = m_TVE_DAC_DCLK_EN;
