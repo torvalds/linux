@@ -39,7 +39,7 @@ dcb_i2c_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 			i2c = nv_ro16(bios, dcb + 4);
 	}
 
-	if (i2c && *ver >= 0x41) {
+	if (i2c && *ver >= 0x42) {
 		nv_warn(bios, "ccb %02x not supported\n", *ver);
 		return 0x0000;
 	}
@@ -75,6 +75,12 @@ dcb_i2c_parse(struct nouveau_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 	u8  ver, len;
 	u16 ent = dcb_i2c_entry(bios, idx, &ver, &len);
 	if (ent) {
+		if (ver >= 0x41) {
+			if (!(nv_ro32(bios, ent) & 0x80000000))
+				info->type = DCB_I2C_UNUSED;
+			else
+				info->type = DCB_I2C_PMGR;
+		} else
 		if (ver >= 0x30) {
 			info->type = nv_ro08(bios, ent + 0x03);
 		} else {
@@ -104,7 +110,16 @@ dcb_i2c_parse(struct nouveau_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 		case DCB_I2C_NVIO_AUX:
 			info->auxch = nv_ro08(bios, ent + 0) & 0x0f;
 			if (nv_ro08(bios, ent + 1) & 0x01)
-				info->share = info->auxch;
+					info->share = info->auxch;
+			return 0;
+		case DCB_I2C_PMGR:
+			info->drive = (nv_ro16(bios, ent + 0) & 0x01f) >> 0;
+			if (info->drive == 0x1f)
+				info->drive = DCB_I2C_UNUSED;
+			info->auxch = (nv_ro16(bios, ent + 0) & 0x3e0) >> 5;
+			if (info->auxch == 0x1f)
+				info->auxch = DCB_I2C_UNUSED;
+			info->share = info->auxch;
 			return 0;
 		case DCB_I2C_UNUSED:
 			return 0;
