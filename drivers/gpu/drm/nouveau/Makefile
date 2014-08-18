@@ -158,6 +158,7 @@ nouveau-y += core/subdev/i2c/bit.o
 nouveau-y += core/subdev/i2c/pad.o
 nouveau-y += core/subdev/i2c/padnv04.o
 nouveau-y += core/subdev/i2c/padnv94.o
+nouveau-y += core/subdev/i2c/padgm204.o
 nouveau-y += core/subdev/i2c/nv04.o
 nouveau-y += core/subdev/i2c/nv4e.o
 nouveau-y += core/subdev/i2c/nv50.o

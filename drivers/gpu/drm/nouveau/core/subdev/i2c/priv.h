@@ -5,6 +5,7 @@
 
 extern struct nouveau_oclass nv04_i2c_pad_oclass;
 extern struct nouveau_oclass nv94_i2c_pad_oclass;
+extern struct nouveau_oclass gm204_i2c_pad_oclass;
 
 #define nouveau_i2c_port_create(p,e,o,i,a,f,d)                                 \
 	nouveau_i2c_port_create_((p), (e), (o), (i), (a), (f),                 \
