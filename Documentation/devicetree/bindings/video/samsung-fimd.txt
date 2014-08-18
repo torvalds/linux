@@ -9,6 +9,7 @@ Required properties:
 		"samsung,s3c2443-fimd"; /* for S3C24XX SoCs */
 		"samsung,s3c6400-fimd"; /* for S3C64XX SoCs */
 		"samsung,s5pv210-fimd"; /* for S5PV210 SoC */
+		"samsung,exynos3250-fimd"; /* for Exynos3250/3472 SoCs */
 		"samsung,exynos4210-fimd"; /* for Exynos4 SoCs */
 		"samsung,exynos5250-fimd"; /* for Exynos5 SoCs */
 
