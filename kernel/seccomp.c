@@ -245,7 +245,7 @@ static inline void seccomp_assign_mode(struct task_struct *task,
 	 * Make sure TIF_SECCOMP cannot be set before the mode (and
 	 * filter) is set.
 	 */
-	smp_mb__before_atomic();
+	smp_mb();
 	set_tsk_thread_flag(task, TIF_SECCOMP);
 }
 
@@ -335,8 +335,8 @@ static inline void seccomp_sync_threads(void)
 		 * allows a put before the assignment.)
 		 */
 		put_seccomp_filter(thread);
-		smp_store_release(&thread->seccomp.filter,
-				  caller->seccomp.filter);
+		smp_mb();
+		ACCESS_ONCE(thread->seccomp.filter) = caller->seccomp.filter;
 		/*
 		 * Opt the other thread into seccomp if needed.
 		 * As threads are considered to be trust-realm
