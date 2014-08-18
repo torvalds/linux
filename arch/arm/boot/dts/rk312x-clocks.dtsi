@@ -1552,7 +1552,7 @@
 
 						"clk_crypto",		"clk_i2s_2ch_out",
 						"clk_i2s_2ch",		"clk_testout";
-					rockchip,suspend-clkgating-setting=<0x0 0x0>;
+					rockchip,suspend-clkgating-setting=<0x11ff 0x0>;
 
 					#clock-cells = <1>;
 				};
@@ -1586,7 +1586,7 @@
 						"clk_uart2_div",	"uart2_frac",
 						"clk_tsp",	"reserved";
 
-					 rockchip,suspend-clkgating-setting=<0x0 0x0>;
+					 rockchip,suspend-clkgating-setting=<0x000f 0x0>;
 					#clock-cells = <1>;
 				};
 
@@ -1617,7 +1617,7 @@
 
 						"spdif_frac",		"clk_sdio",
 						"clk_emmc",		"clk_mipi_24m";
-					    rockchip,suspend-clkgating-setting=<0x0 0x0>;
+					    rockchip,suspend-clkgating-setting=<0x000f 0x0>;
 
 					#clock-cells = <1>;
 				};
@@ -1650,7 +1650,7 @@
 
 						"hclk_vdpu",		"clk_gpu",
 						"g_hclk_gps",		"clk_sfc";
-                                       rockchip,suspend-clkgating-setting=<0x0000 0x0000>;
+                                       rockchip,suspend-clkgating-setting=<0x0060 0x0000>;
 
 					#clock-cells = <1>;
 				};
@@ -1685,7 +1685,7 @@
 						"g_aclk_intmem",		"reserved",
 						"reserved",		"reserved";
 
-					rockchip,suspend-clkgating-setting = <0x0000 0x0000>;
+					rockchip,suspend-clkgating-setting = <0xff8f 0x0000>;
 					#clock-cells = <1>;
 				};
 
@@ -1718,7 +1718,7 @@
 						"reserved",		"g_hclk_otg0",
 						"g_pclk_acodec",		"reserved";
 
-					rockchip,suspend-clkgating-setting = <0x0000 0x0000>;
+					rockchip,suspend-clkgating-setting = <0x00f0 0x0000>;
 
 					#clock-cells = <1>;
 				};
@@ -1786,7 +1786,7 @@
 						"g_pclk_spi0",		"reserved",
 						"g_pclk_saradc",		"g_pclk_wdt";
 
-					rockchip,suspend-clkgating-setting = <0x0000 0x0000>;
+					rockchip,suspend-clkgating-setting = <0x8080 0x0000>;
 
 					#clock-cells = <1>;
 				};
@@ -1820,7 +1820,7 @@
 						"g_pclk_gpio3",		"reserved",
 						"reserved",		"reserved";
 
-                                        rockchip,suspend-clkgating-setting=<0x0000 0x0000>;
+                                        rockchip,suspend-clkgating-setting=<0xff0f 0x0000>;
 					#clock-cells = <1>;
 				};
 
@@ -1853,7 +1853,7 @@
 						"g_pclk_sim_card",		"g_hclk_usb_peri",
 						"g_hclk_pe_arbi",		"g_aclk_peri_niu";
 
-					rockchip,suspend-clkgating-setting=<0x0 0x0>;
+					rockchip,suspend-clkgating-setting=<0xf00f 0x0>;
 
 					#clock-cells = <1>;
 				};
@@ -1887,7 +1887,7 @@
 						"g_hclk_tsp",		"g_clkin0_tsp",
 						"g_hclk_usbhost",		"clk_nandc";
 
-					rockchip,suspend-clkgating-setting = <0x0 0x0>;	/* pwm logic vol */
+					rockchip,suspend-clkgating-setting = <0x0000 0x0>;	/* pwm logic vol */
 
 					#clock-cells = <1>;
 				};

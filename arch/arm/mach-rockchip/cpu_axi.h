@@ -99,4 +99,30 @@
 #define RK3288_CPU_AXI_HEVC_R_QOS_VIRT          (RK3288_SERVICE_HEVC_VIRT + 0x0)
 #define RK3288_CPU_AXI_HEVC_W_QOS_VIRT          (RK3288_SERVICE_HEVC_VIRT + 0x100)
 
+#define RK312X_CPU_AXI_QOS_NUM_REGS 4
+#define RK312X_CPU_AXI_SAVE_QOS(array, base) do { \
+	array[0] = readl_relaxed(base + CPU_AXI_QOS_PRIORITY); \
+	array[1] = readl_relaxed(base + CPU_AXI_QOS_MODE); \
+	array[2] = readl_relaxed(base + CPU_AXI_QOS_BANDWIDTH); \
+	array[3] = readl_relaxed(base + CPU_AXI_QOS_SATURATION); \
+} while (0)
+#define RK312X_CPU_AXI_RESTORE_QOS(array, base) do { \
+	writel_relaxed(array[0], base + CPU_AXI_QOS_PRIORITY); \
+	writel_relaxed(array[1], base + CPU_AXI_QOS_MODE); \
+	writel_relaxed(array[2], base + CPU_AXI_QOS_BANDWIDTH); \
+	writel_relaxed(array[3], base + CPU_AXI_QOS_SATURATION); \
+} while (0)
+#define RK312X_SERVICE_VIO_VIRT                 (RK_CPU_AXI_BUS_VIRT + 0x7000)
+
+#define RK312X_CPU_AXI_VIO_RGA_QOS_VIRT        (RK312X_SERVICE_VIO_VIRT)
+#define RK312X_CPU_AXI_VIO_EBC_QOS_VIRT        (RK312X_SERVICE_VIO_VIRT + 0x80)
+#define RK312X_CPU_AXI_VIO_IEP_QOS_VIRT      (RK312X_SERVICE_VIO_VIRT + 0x100)
+#define RK312X_CPU_AXI_VIO_LCDC0_QOS_VIRT     (RK312X_SERVICE_VIO_VIRT + 0x180)
+#define RK312X_CPU_AXI_VIO_VIP0_QOS_VIRT     (RK312X_SERVICE_VIO_VIRT + 0x200)
+
+#define RK312X_SERVICE_GPU_VIRT                 (RK_CPU_AXI_BUS_VIRT + 0x5000)
+#define RK312X_CPU_AXI_GPU_QOS_VIRT        (RK312X_SERVICE_GPU_VIRT)
+
+#define RK312X_SERVICE_VIDEO_VIRT                 (RK_CPU_AXI_BUS_VIRT + 0x6000)
+#define RK312X_CPU_AXI_VIDEO_QOS_VIRT        (RK312X_SERVICE_VIDEO_VIRT)
 #endif
