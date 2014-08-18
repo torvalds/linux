@@ -175,5 +175,7 @@
 #define RK312X_GPIO_SIZE                RK3036_GPIO_SIZE
 #define RK312X_EFUSE_PHYS               RK3036_EFUSE_PHYS
 #define RK312X_EFUSE_SIZE               RK3036_EFUSE_SIZE
+#define RK312X_PMU_PHYS			0x100a0000
+#define RK312X_PMU_SIZE			SZ_64K
 
 #endif
