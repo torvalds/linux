@@ -36,7 +36,7 @@
 #include "nouveau_abi16.h"
 
 MODULE_PARM_DESC(vram_pushbuf, "Create DMA push buffers in VRAM");
-static int nouveau_vram_pushbuf;
+int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 
 int
