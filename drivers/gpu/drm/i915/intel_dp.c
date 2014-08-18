@@ -3152,11 +3152,25 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	/* Clear calc init */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
 	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
+	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
 
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
 	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
+	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW9(ch));
+	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
+	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW9(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW9(ch));
+	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
+	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW9(ch), val);
 
 	/* Program swing deemph */
 	for (i = 0; i < 4; i++) {
