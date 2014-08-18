@@ -458,6 +458,7 @@ mi_set_context(struct intel_engine_cs *ring,
 	       struct intel_context *new_context,
 	       u32 hw_flags)
 {
+	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	int ret;
 
 	/* w/a: If Flush TLB Invalidation Mode is enabled, driver must do a TLB
@@ -470,6 +471,10 @@ mi_set_context(struct intel_engine_cs *ring,
 		if (ret)
 			return ret;
 	}
+
+	/* These flags are for resource streamer on HSW+ */
+	if (!IS_HASWELL(ring->dev) && INTEL_INFO(ring->dev)->gen < 8)
+		flags |= (MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN);
 
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
@@ -484,10 +489,7 @@ mi_set_context(struct intel_engine_cs *ring,
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
 	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(new_context->legacy_hw_ctx.rcs_state) |
-			MI_MM_SPACE_GTT |
-			MI_SAVE_EXT_STATE_EN |
-			MI_RESTORE_EXT_STATE_EN |
-			hw_flags);
+			flags);
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
