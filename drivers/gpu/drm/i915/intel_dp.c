@@ -4003,6 +4003,16 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_dig_port);
 }
 
+static void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
+
+	if (!is_edp(intel_dp))
+		return;
+
+	edp_panel_vdd_off_sync(intel_dp);
+}
+
 static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	intel_edp_panel_vdd_sanitize(to_intel_encoder(encoder));
@@ -4731,6 +4741,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->disable = intel_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
+	intel_encoder->suspend = intel_dp_encoder_suspend;
 	if (IS_CHERRYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = chv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = chv_pre_enable_dp;

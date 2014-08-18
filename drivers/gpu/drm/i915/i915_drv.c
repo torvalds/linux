@@ -509,6 +509,21 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 	cancel_delayed_work_sync(&dev_priv->hotplug_reenable_work);
 }
 
+static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct drm_encoder *encoder;
+
+	drm_modeset_lock_all(dev);
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
+
+		if (intel_encoder->suspend)
+			intel_encoder->suspend(intel_encoder);
+	}
+	drm_modeset_unlock_all(dev);
+}
+
 static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -554,6 +569,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 		intel_runtime_pm_disable_interrupts(dev);
 		intel_hpd_cancel_work(dev_priv);
+
+		intel_suspend_encoders(dev_priv);
 
 		intel_suspend_gt_powersave(dev);
 

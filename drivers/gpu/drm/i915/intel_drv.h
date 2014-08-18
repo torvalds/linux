@@ -153,6 +153,12 @@ struct intel_encoder {
 	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_config *pipe_config);
+	/*
+	 * Called during system suspend after all pending requests for the
+	 * encoder are flushed (for example for DP AUX transactions) and
+	 * device interrupts are disabled.
+	 */
+	void (*suspend)(struct intel_encoder *);
 	int crtc_mask;
 	enum hpd_pin hpd_pin;
 };
