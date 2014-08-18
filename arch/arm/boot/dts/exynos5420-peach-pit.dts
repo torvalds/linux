@@ -187,7 +187,7 @@
 	num-slots = <1>;
 	broken-cd;
 	caps2-mmc-hs200-1_8v;
-	supports-highspeed;
+	cap-mmc-highspeed;
 	non-removable;
 	card-detect-delay = <200>;
 	clock-frequency = <400000000>;
@@ -196,17 +196,13 @@
 	samsung,dw-mshc-ddr-timing = <0 2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_bus8>;
-
-	slot@0 {
-		reg = <0>;
-		bus-width = <8>;
-	};
+	bus-width = <8>;
 };
 
 &mmc_2 {
 	status = "okay";
 	num-slots = <1>;
-	supports-highspeed;
+	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	clock-frequency = <400000000>;
 	samsung,dw-mshc-ciu-div = <3>;
@@ -214,11 +210,7 @@
 	samsung,dw-mshc-ddr-timing = <1 2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
-
-	slot@0 {
-		reg = <0>;
-		bus-width = <4>;
-	};
+	bus-width = <4>;
 };
 
 
