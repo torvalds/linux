@@ -179,6 +179,32 @@ static unsigned int alc_get_coef0(struct hda_codec *codec)
 	return spec->coef0;
 }
 
+/* coef writes/updates batch */
+struct coef_fw {
+	unsigned char nid;
+	unsigned char idx;
+	unsigned short mask;
+	unsigned short val;
+};
+
+#define UPDATE_COEFEX(_nid, _idx, _mask, _val) \
+	{ .nid = (_nid), .idx = (_idx), .mask = (_mask), .val = (_val) }
+#define WRITE_COEFEX(_nid, _idx, _val) UPDATE_COEFEX(_nid, _idx, -1, _val)
+#define WRITE_COEF(_idx, _val) WRITE_COEFEX(0x20, _idx, _val)
+#define UPDATE_COEF(_idx, _mask, _val) UPDATE_COEFEX(0x20, _idx, _mask, _val)
+
+static void alc_process_coef_fw(struct hda_codec *codec,
+				const struct coef_fw *fw)
+{
+	for (; fw->nid; fw++) {
+		if (fw->mask == (unsigned short)-1)
+			alc_write_coefex_idx(codec, fw->nid, fw->idx, fw->val);
+		else
+			alc_update_coefex_idx(codec, fw->nid, fw->idx,
+					      fw->mask, fw->val);
+	}
+}
+
 /*
  * Append the given mixer and verb elements for the later use
  * The mixer array is referred in build_controls(), and init_verbs are
@@ -2787,66 +2813,42 @@ static void alc269_shutup(struct hda_codec *codec)
 	snd_hda_shutup_pins(codec);
 }
 
+static struct coef_fw alc282_coefs[] = {
+	WRITE_COEF(0x03, 0x0002), /* Power Down Control */
+	WRITE_COEF(0x05, 0x0700), /* FIFO and filter clock */
+	WRITE_COEF(0x07, 0x0200), /* DMIC control */
+	UPDATE_COEF(0x06, 0x00f0, 0), /* Analog clock */
+	UPDATE_COEF(0x08, 0xfffc, 0x0c2c), /* JD */
+	WRITE_COEF(0x0a, 0xcccc), /* JD offset1 */
+	WRITE_COEF(0x0b, 0xcccc), /* JD offset2 */
+	WRITE_COEF(0x0e, 0x6e00), /* LDO1/2/3, DAC/ADC */
+	UPDATE_COEF(0x0f, 0xf800, 0x1000), /* JD */
+	UPDATE_COEF(0x10, 0xfc00, 0x0c00), /* Capless */
+	WRITE_COEF(0x6f, 0x0), /* Class D test 4 */
+	UPDATE_COEF(0x0c, 0xfe00, 0), /* IO power down directly */
+	WRITE_COEF(0x34, 0xa0c0), /* ANC */
+	UPDATE_COEF(0x16, 0x0008, 0), /* AGC MUX */
+	UPDATE_COEF(0x1d, 0x00e0, 0), /* DAC simple content protection */
+	UPDATE_COEF(0x1f, 0x00e0, 0), /* ADC simple content protection */
+	WRITE_COEF(0x21, 0x8804), /* DAC ADC Zero Detection */
+	WRITE_COEF(0x63, 0x2902), /* PLL */
+	WRITE_COEF(0x68, 0xa080), /* capless control 2 */
+	WRITE_COEF(0x69, 0x3400), /* capless control 3 */
+	WRITE_COEF(0x6a, 0x2f3e), /* capless control 4 */
+	WRITE_COEF(0x6b, 0x0), /* capless control 5 */
+	UPDATE_COEF(0x6d, 0x0fff, 0x0900), /* class D test 2 */
+	WRITE_COEF(0x6e, 0x110a), /* class D test 3 */
+	UPDATE_COEF(0x70, 0x00f8, 0x00d8), /* class D test 5 */
+	WRITE_COEF(0x71, 0x0014), /* class D test 6 */
+	WRITE_COEF(0x72, 0xc2ba), /* classD OCP */
+	UPDATE_COEF(0x77, 0x0f80, 0), /* classD pure DC test */
+	WRITE_COEF(0x6c, 0xfc06), /* Class D amp control */
+	{}
+};
+
 static void alc282_restore_default_value(struct hda_codec *codec)
 {
-	/* Power Down Control */
-	alc_write_coef_idx(codec, 0x03, 0x0002);
-	/* FIFO and filter clock */
-	alc_write_coef_idx(codec, 0x05, 0x0700);
-	/* DMIC control */
-	alc_write_coef_idx(codec, 0x07, 0x0200);
-	/* Analog clock */
-	alc_update_coef_idx(codec, 0x06, 0x00f0, 0);
-	/* JD */
-	alc_update_coef_idx(codec, 0x08, 0xfffc, 0x0c2c);
-	/* JD offset1 */
-	alc_write_coef_idx(codec, 0x0a, 0xcccc);
-	/* JD offset2 */
-	alc_write_coef_idx(codec, 0x0b, 0xcccc);
-	/* LDO1/2/3, DAC/ADC */
-	alc_write_coef_idx(codec, 0x0e, 0x6e00);
-	/* JD */
-	alc_update_coef_idx(codec, 0x0f, 0xf800, 0x1000);
-	/* Capless */
-	alc_update_coef_idx(codec, 0x10, 0xfc00, 0x0c00);
-	/* Class D test 4 */
-	alc_write_coef_idx(codec, 0x6f, 0x0);
-	/* IO power down directly */
-	alc_update_coef_idx(codec, 0x0c, 0xfe00, 0);
-	/* ANC */
-	alc_write_coef_idx(codec, 0x34, 0xa0c0);
-	/* AGC MUX */
-	alc_update_coef_idx(codec, 0x16, 0x0008, 0);
-	/* DAC simple content protection */
-	alc_update_coef_idx(codec, 0x1d, 0x00e0, 0);
-	/* ADC simple content protection */
-	alc_update_coef_idx(codec, 0x1f, 0x00e0, 0);
-	/* DAC ADC Zero Detection */
-	alc_write_coef_idx(codec, 0x21, 0x8804);
-	/* PLL */
-	alc_write_coef_idx(codec, 0x63, 0x2902);
-	/* capless control 2 */
-	alc_write_coef_idx(codec, 0x68, 0xa080);
-	/* capless control 3 */
-	alc_write_coef_idx(codec, 0x69, 0x3400);
-	/* capless control 4 */
-	alc_write_coef_idx(codec, 0x6a, 0x2f3e);
-	/* capless control 5 */
-	alc_write_coef_idx(codec, 0x6b, 0x0);
-	/* class D test 2 */
-	alc_update_coef_idx(codec, 0x6d, 0x0fff, 0x0900);
-	/* class D test 3 */
-	alc_write_coef_idx(codec, 0x6e, 0x110a);
-	/* class D test 5 */
-	alc_update_coef_idx(codec, 0x70, 0x00f8, 0x00d8);
-	/* class D test 6 */
-	alc_write_coef_idx(codec, 0x71, 0x0014);
-	/* classD OCP */
-	alc_write_coef_idx(codec, 0x72, 0xc2ba);
-	/* classD pure DC test */
-	alc_update_coef_idx(codec, 0x77, 0x0f80, 0);
-	/* Class D amp control */
-	alc_write_coef_idx(codec, 0x6c, 0xfc06);
+	alc_process_coef_fw(codec, alc282_coefs);
 }
 
 static void alc282_init(struct hda_codec *codec)
@@ -2922,72 +2924,45 @@ static void alc282_shutup(struct hda_codec *codec)
 	alc_write_coef_idx(codec, 0x78, coef78);
 }
 
+static struct coef_fw alc283_coefs[] = {
+	WRITE_COEF(0x03, 0x0002), /* Power Down Control */
+	WRITE_COEF(0x05, 0x0700), /* FIFO and filter clock */
+	WRITE_COEF(0x07, 0x0200), /* DMIC control */
+	UPDATE_COEF(0x06, 0x00f0, 0), /* Analog clock */
+	UPDATE_COEF(0x08, 0xfffc, 0x0c2c), /* JD */
+	WRITE_COEF(0x0a, 0xcccc), /* JD offset1 */
+	WRITE_COEF(0x0b, 0xcccc), /* JD offset2 */
+	WRITE_COEF(0x0e, 0x6fc0), /* LDO1/2/3, DAC/ADC */
+	UPDATE_COEF(0x0f, 0xf800, 0x1000), /* JD */
+	UPDATE_COEF(0x10, 0xfc00, 0x0c00), /* Capless */
+	WRITE_COEF(0x3a, 0x0), /* Class D test 4 */
+	UPDATE_COEF(0x0c, 0xfe00, 0x0), /* IO power down directly */
+	WRITE_COEF(0x22, 0xa0c0), /* ANC */
+	UPDATE_COEFEX(0x53, 0x01, 0x000f, 0x0008), /* AGC MUX */
+	UPDATE_COEF(0x1d, 0x00e0, 0), /* DAC simple content protection */
+	UPDATE_COEF(0x1f, 0x00e0, 0), /* ADC simple content protection */
+	WRITE_COEF(0x21, 0x8804), /* DAC ADC Zero Detection */
+	WRITE_COEF(0x2e, 0x2902), /* PLL */
+	WRITE_COEF(0x33, 0xa080), /* capless control 2 */
+	WRITE_COEF(0x34, 0x3400), /* capless control 3 */
+	WRITE_COEF(0x35, 0x2f3e), /* capless control 4 */
+	WRITE_COEF(0x36, 0x0), /* capless control 5 */
+	UPDATE_COEF(0x38, 0x0fff, 0x0900), /* class D test 2 */
+	WRITE_COEF(0x39, 0x110a), /* class D test 3 */
+	UPDATE_COEF(0x3b, 0x00f8, 0x00d8), /* class D test 5 */
+	WRITE_COEF(0x3c, 0x0014), /* class D test 6 */
+	WRITE_COEF(0x3d, 0xc2ba), /* classD OCP */
+	UPDATE_COEF(0x42, 0x0f80, 0x0), /* classD pure DC test */
+	WRITE_COEF(0x49, 0x0), /* test mode */
+	UPDATE_COEF(0x40, 0xf800, 0x9800), /* Class D DC enable */
+	UPDATE_COEF(0x42, 0xf000, 0x2000), /* DC offset */
+	WRITE_COEF(0x37, 0xfc06), /* Class D amp control */
+	{}
+};
+
 static void alc283_restore_default_value(struct hda_codec *codec)
 {
-	/* Power Down Control */
-	alc_write_coef_idx(codec, 0x03, 0x0002);
-	/* FIFO and filter clock */
-	alc_write_coef_idx(codec, 0x05, 0x0700);
-	/* DMIC control */
-	alc_write_coef_idx(codec, 0x07, 0x0200);
-	/* Analog clock */
-	alc_update_coef_idx(codec, 0x06, 0x00f0, 0);
-	/* JD */
-	alc_update_coef_idx(codec, 0x08, 0xfffc, 0x0c2c);
-	/* JD offset1 */
-	alc_write_coef_idx(codec, 0x0a, 0xcccc);
-	/* JD offset2 */
-	alc_write_coef_idx(codec, 0x0b, 0xcccc);
-	/* LDO1/2/3, DAC/ADC */
-	alc_write_coef_idx(codec, 0x0e, 0x6fc0);
-	/* JD */
-	alc_update_coef_idx(codec, 0x0f, 0xf800, 0x1000);
-	/* Capless */
-	alc_update_coef_idx(codec, 0x10, 0xfc00, 0x0c00);
-	/* Class D test 4 */
-	alc_write_coef_idx(codec, 0x3a, 0x0);
-	/* IO power down directly */
-	alc_update_coef_idx(codec, 0x0c, 0xfe00, 0x0);
-	/* ANC */
-	alc_write_coef_idx(codec, 0x22, 0xa0c0);
-	/* AGC MUX */
-	alc_update_coefex_idx(codec, 0x53, 0x01, 0x000f, 0x0008);
-	/* DAC simple content protection */
-	alc_update_coef_idx(codec, 0x1d, 0x00e0, 0x0);
-	/* ADC simple content protection */
-	alc_update_coef_idx(codec, 0x1f, 0x00e0, 0x0);
-	/* DAC ADC Zero Detection */
-	alc_write_coef_idx(codec, 0x21, 0x8804);
-	/* PLL */
-	alc_write_coef_idx(codec, 0x2e, 0x2902);
-	/* capless control 2 */
-	alc_write_coef_idx(codec, 0x33, 0xa080);
-	/* capless control 3 */
-	alc_write_coef_idx(codec, 0x34, 0x3400);
-	/* capless control 4 */
-	alc_write_coef_idx(codec, 0x35, 0x2f3e);
-	/* capless control 5 */
-	alc_write_coef_idx(codec, 0x36, 0x0);
-	/* class D test 2 */
-	alc_update_coef_idx(codec, 0x38, 0x0fff, 0x0900);
-	/* class D test 3 */
-	alc_write_coef_idx(codec, 0x39, 0x110a);
-	/* class D test 5 */
-	alc_update_coef_idx(codec, 0x3b, 0x00f8, 0x00d8);
-	/* class D test 6 */
-	alc_write_coef_idx(codec, 0x3c, 0x0014);
-	/* classD OCP */
-	alc_write_coef_idx(codec, 0x3d, 0xc2ba);
-	/* classD pure DC test */
-	alc_update_coef_idx(codec, 0x42, 0x0f80, 0x0);
-	/* test mode */
-	alc_write_coef_idx(codec, 0x49, 0x0);
-	/* Class D DC enable */
-	alc_update_coef_idx(codec, 0x40, 0xf800, 0x9800);
-	/* DC offset */
-	alc_update_coef_idx(codec, 0x42, 0xf000, 0x2000);
-	/* Class D amp control */
-	alc_write_coef_idx(codec, 0x37, 0xfc06);
+	alc_process_coef_fw(codec, alc283_coefs);
 }
 
 static void alc283_init(struct hda_codec *codec)
@@ -3530,52 +3505,62 @@ static void alc269_fixup_hp_line1_mic1_led(struct hda_codec *codec,
 
 static void alc_headset_mode_unplugged(struct hda_codec *codec)
 {
+	static struct coef_fw coef0255[] = {
+		WRITE_COEF(0x1b, 0x0c0b), /* LDO and MISC control */
+		WRITE_COEF(0x45, 0xd089), /* UAJ function set to menual mode */
+		UPDATE_COEFEX(0x57, 0x05, 1<<14, 0), /* Direct Drive HP Amp control(Set to verb control)*/
+		WRITE_COEF(0x06, 0x6104), /* Set MIC2 Vref gate with HP */
+		WRITE_COEFEX(0x57, 0x03, 0x8aa6), /* Direct Drive HP Amp control */
+		{}
+	};
+	static struct coef_fw coef0233[] = {
+		WRITE_COEF(0x1b, 0x0c0b),
+		WRITE_COEF(0x45, 0xc429),
+		UPDATE_COEF(0x35, 0x4000, 0),
+		WRITE_COEF(0x06, 0x2104),
+		WRITE_COEF(0x1a, 0x0001),
+		WRITE_COEF(0x26, 0x0004),
+		WRITE_COEF(0x32, 0x42a3),
+		{}
+	};
+	static struct coef_fw coef0292[] = {
+		WRITE_COEF(0x76, 0x000e),
+		WRITE_COEF(0x6c, 0x2400),
+		WRITE_COEF(0x18, 0x7308),
+		WRITE_COEF(0x6b, 0xc429),
+		{}
+	};
+	static struct coef_fw coef0293[] = {
+		UPDATE_COEF(0x10, 7<<8, 6<<8), /* SET Line1 JD to 0 */
+		UPDATE_COEFEX(0x57, 0x05, 1<<15|1<<13, 0x0), /* SET charge pump by verb */
+		UPDATE_COEFEX(0x57, 0x03, 1<<10, 1<<10), /* SET EN_OSW to 1 */
+		UPDATE_COEF(0x1a, 1<<3, 1<<3), /* Combo JD gating with LINE1-VREFO */
+		WRITE_COEF(0x45, 0xc429), /* Set to TRS type */
+		UPDATE_COEF(0x4a, 0x000f, 0x000e), /* Combo Jack auto detect */
+		{}
+	};
+	static struct coef_fw coef0668[] = {
+		WRITE_COEF(0x15, 0x0d40),
+		WRITE_COEF(0xb7, 0x802b),
+		{}
+	};
+
 	switch (codec->vendor_id) {
 	case 0x10ec0255:
-		/* LDO and MISC control */
-		alc_write_coef_idx(codec, 0x1b, 0x0c0b);
-		/* UAJ function set to menual mode */
-		alc_write_coef_idx(codec, 0x45, 0xd089);
-		/* Direct Drive HP Amp control(Set to verb control)*/
-		alc_update_coefex_idx(codec, 0x57, 0x05, 1<<14, 0);
-		/* Set MIC2 Vref gate with HP */
-		alc_write_coef_idx(codec, 0x06, 0x6104);
-		/* Direct Drive HP Amp control */
-		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8aa6);
+		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
-		alc_write_coef_idx(codec, 0x1b, 0x0c0b);
-		alc_write_coef_idx(codec, 0x45, 0xc429);
-		alc_update_coef_idx(codec, 0x35, 0x4000, 0);
-		alc_write_coef_idx(codec, 0x06, 0x2104);
-		alc_write_coef_idx(codec, 0x1a, 0x0001);
-		alc_write_coef_idx(codec, 0x26, 0x0004);
-		alc_write_coef_idx(codec, 0x32, 0x42a3);
+		alc_process_coef_fw(codec, coef0233);
 		break;
 	case 0x10ec0292:
-		alc_write_coef_idx(codec, 0x76, 0x000e);
-		alc_write_coef_idx(codec, 0x6c, 0x2400);
-		alc_write_coef_idx(codec, 0x18, 0x7308);
-		alc_write_coef_idx(codec, 0x6b, 0xc429);
+		alc_process_coef_fw(codec, coef0292);
 		break;
 	case 0x10ec0293:
-		/* SET Line1 JD to 0 */
-		alc_update_coef_idx(codec, 0x10, 7<<8, 6<<8);
-		/* SET charge pump by verb */
-		alc_update_coefex_idx(codec, 0x57, 0x05, 1<<15|1<<13, 0x0);
-		/* SET EN_OSW to 1 */
-		alc_update_coefex_idx(codec, 0x57, 0x03, 1<<10, 1<<10);
-		/* Combo JD gating with LINE1-VREFO */
-		alc_update_coef_idx(codec, 0x1a, 1<<3, 1<<3);
-		/* Set to TRS type */
-		alc_write_coef_idx(codec, 0x45, 0xc429);
-		/* Combo Jack auto detect */
-		alc_update_coef_idx(codec, 0x4a, 0x000f, 0x000e);
+		alc_process_coef_fw(codec, coef0293);
 		break;
 	case 0x10ec0668:
-		alc_write_coef_idx(codec, 0x15, 0x0d40);
-		alc_write_coef_idx(codec, 0xb7, 0x802b);
+		alc_process_coef_fw(codec, coef0668);
 		break;
 	}
 	codec_dbg(codec, "Headset jack set to unplugged mode.\n");
@@ -3585,48 +3570,65 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 				    hda_nid_t mic_pin)
 {
+	static struct coef_fw coef0255[] = {
+		WRITE_COEFEX(0x57, 0x03, 0x8aa6),
+		WRITE_COEF(0x06, 0x6100), /* Set MIC2 Vref gate to normal */
+		{}
+	};
+	static struct coef_fw coef0233[] = {
+		UPDATE_COEF(0x35, 0, 1<<14),
+		WRITE_COEF(0x06, 0x2100),
+		WRITE_COEF(0x1a, 0x0021),
+		WRITE_COEF(0x26, 0x008c),
+		{}
+	};
+	static struct coef_fw coef0292[] = {
+		WRITE_COEF(0x19, 0xa208),
+		WRITE_COEF(0x2e, 0xacf0),
+		{}
+	};
+	static struct coef_fw coef0293[] = {
+		UPDATE_COEFEX(0x57, 0x05, 0, 1<<15|1<<13), /* SET charge pump by verb */
+		UPDATE_COEFEX(0x57, 0x03, 1<<10, 0), /* SET EN_OSW to 0 */
+		UPDATE_COEF(0x1a, 1<<3, 0), /* Combo JD gating without LINE1-VREFO */
+		{}
+	};
+	static struct coef_fw coef0688[] = {
+		WRITE_COEF(0xb7, 0x802b),
+		WRITE_COEF(0xb5, 0x1040),
+		UPDATE_COEF(0xc3, 0, 1<<12),
+		{}
+	};
+
 	switch (codec->vendor_id) {
 	case 0x10ec0255:
 		alc_write_coef_idx(codec, 0x45, 0xc489);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
-		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8aa6);
-		/* Set MIC2 Vref gate to normal */
-		alc_write_coef_idx(codec, 0x06, 0x6100);
+		alc_process_coef_fw(codec, coef0255);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xc429);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
-		alc_update_coef_idx(codec, 0x35, 0, 1<<14);
-		alc_write_coef_idx(codec, 0x06, 0x2100);
-		alc_write_coef_idx(codec, 0x1a, 0x0021);
-		alc_write_coef_idx(codec, 0x26, 0x008c);
+		alc_process_coef_fw(codec, coef0233);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
 		break;
 	case 0x10ec0292:
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
-		alc_write_coef_idx(codec, 0x19, 0xa208);
-		alc_write_coef_idx(codec, 0x2e, 0xacf0);
+		alc_process_coef_fw(codec, coef0292);
 		break;
 	case 0x10ec0293:
 		/* Set to TRS mode */
 		alc_write_coef_idx(codec, 0x45, 0xc429);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
-		/* SET charge pump by verb */
-		alc_update_coefex_idx(codec, 0x57, 0x05, 0, 1<<15|1<<13);
-		/* SET EN_OSW to 0 */
-		alc_update_coefex_idx(codec, 0x57, 0x03, 1<<10, 0);
-		/* Combo JD gating without LINE1-VREFO */
-		alc_update_coef_idx(codec, 0x1a, 1<<3, 0);
+		alc_process_coef_fw(codec, coef0293);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
 		break;
 	case 0x10ec0668:
 		alc_write_coef_idx(codec, 0x11, 0x0001);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
-		alc_write_coef_idx(codec, 0xb7, 0x802b);
-		alc_write_coef_idx(codec, 0xb5, 0x1040);
-		alc_update_coef_idx(codec, 0xc3, 0, 1<<12);
+		alc_process_coef_fw(codec, coef0688);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
 		break;
 	}
@@ -3635,36 +3637,54 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 
 static void alc_headset_mode_default(struct hda_codec *codec)
 {
+	static struct coef_fw coef0255[] = {
+		WRITE_COEF(0x45, 0xc089),
+		WRITE_COEF(0x45, 0xc489),
+		WRITE_COEFEX(0x57, 0x03, 0x8ea6),
+		WRITE_COEF(0x49, 0x0049),
+		{}
+	};
+	static struct coef_fw coef0233[] = {
+		WRITE_COEF(0x06, 0x2100),
+		WRITE_COEF(0x32, 0x4ea3),
+		{}
+	};
+	static struct coef_fw coef0292[] = {
+		WRITE_COEF(0x76, 0x000e),
+		WRITE_COEF(0x6c, 0x2400),
+		WRITE_COEF(0x6b, 0xc429),
+		WRITE_COEF(0x18, 0x7308),
+		{}
+	};
+	static struct coef_fw coef0293[] = {
+		UPDATE_COEF(0x4a, 0x000f, 0x000e), /* Combo Jack auto detect */
+		WRITE_COEF(0x45, 0xC429), /* Set to TRS type */
+		UPDATE_COEF(0x1a, 1<<3, 0), /* Combo JD gating without LINE1-VREFO */
+		{}
+	};
+	static struct coef_fw coef0688[] = {
+		WRITE_COEF(0x11, 0x0041),
+		WRITE_COEF(0x15, 0x0d40),
+		WRITE_COEF(0xb7, 0x802b),
+		{}
+	};
+
 	switch (codec->vendor_id) {
 	case 0x10ec0255:
-		alc_write_coef_idx(codec, 0x45, 0xc089);
-		alc_write_coef_idx(codec, 0x45, 0xc489);
-		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
-		alc_write_coef_idx(codec, 0x49, 0x0049);
+		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
-		alc_write_coef_idx(codec, 0x06, 0x2100);
-		alc_write_coef_idx(codec, 0x32, 0x4ea3);
+		alc_process_coef_fw(codec, coef0233);
 		break;
 	case 0x10ec0292:
-		alc_write_coef_idx(codec, 0x76, 0x000e);
-		alc_write_coef_idx(codec, 0x6c, 0x2400);
-		alc_write_coef_idx(codec, 0x6b, 0xc429);
-		alc_write_coef_idx(codec, 0x18, 0x7308);
+		alc_process_coef_fw(codec, coef0292);
 		break;
 	case 0x10ec0293:
-		/* Combo Jack auto detect */
-		alc_update_coef_idx(codec, 0x4a, 0x000f, 0x000e);
-		/* Set to TRS type */
-		alc_write_coef_idx(codec, 0x45, 0xC429);
-		/* Combo JD gating without LINE1-VREFO */
-		alc_update_coef_idx(codec, 0x1a, 1<<3, 0);
+		alc_process_coef_fw(codec, coef0293);
 		break;
 	case 0x10ec0668:
-		alc_write_coef_idx(codec, 0x11, 0x0041);
-		alc_write_coef_idx(codec, 0x15, 0x0d40);
-		alc_write_coef_idx(codec, 0xb7, 0x802b);
+		alc_process_coef_fw(codec, coef0688);
 		break;
 	}
 	codec_dbg(codec, "Headset jack set to headphone (default) mode.\n");
@@ -3673,34 +3693,52 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 /* Iphone type */
 static void alc_headset_mode_ctia(struct hda_codec *codec)
 {
+	static struct coef_fw coef0255[] = {
+		WRITE_COEF(0x45, 0xd489), /* Set to CTIA type */
+		WRITE_COEF(0x1b, 0x0c2b),
+		WRITE_COEFEX(0x57, 0x03, 0x8ea6),
+		{}
+	};
+	static struct coef_fw coef0233[] = {
+		WRITE_COEF(0x45, 0xd429),
+		WRITE_COEF(0x1b, 0x0c2b),
+		WRITE_COEF(0x32, 0x4ea3),
+		{}
+	};
+	static struct coef_fw coef0292[] = {
+		WRITE_COEF(0x6b, 0xd429),
+		WRITE_COEF(0x76, 0x0008),
+		WRITE_COEF(0x18, 0x7388),
+		{}
+	};
+	static struct coef_fw coef0293[] = {
+		WRITE_COEF(0x45, 0xd429), /* Set to ctia type */
+		UPDATE_COEF(0x10, 7<<8, 7<<8), /* SET Line1 JD to 1 */
+		{}
+	};
+	static struct coef_fw coef0688[] = {
+		WRITE_COEF(0x11, 0x0001),
+		WRITE_COEF(0x15, 0x0d60),
+		WRITE_COEF(0xc3, 0x0000),
+		{}
+	};
+
 	switch (codec->vendor_id) {
 	case 0x10ec0255:
-		/* Set to CTIA type */
-		alc_write_coef_idx(codec, 0x45, 0xd489);
-		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
-		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
+		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
-		alc_write_coef_idx(codec, 0x45, 0xd429);
-		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
-		alc_write_coef_idx(codec, 0x32, 0x4ea3);
+		alc_process_coef_fw(codec, coef0233);
 		break;
 	case 0x10ec0292:
-		alc_write_coef_idx(codec, 0x6b, 0xd429);
-		alc_write_coef_idx(codec, 0x76, 0x0008);
-		alc_write_coef_idx(codec, 0x18, 0x7388);
+		alc_process_coef_fw(codec, coef0292);
 		break;
 	case 0x10ec0293:
-		/* Set to ctia type */
-		alc_write_coef_idx(codec, 0x45, 0xd429);
-		/* SET Line1 JD to 1 */
-		alc_update_coef_idx(codec, 0x10, 7<<8, 7<<8);
+		alc_process_coef_fw(codec, coef0293);
 		break;
 	case 0x10ec0668:
-		alc_write_coef_idx(codec, 0x11, 0x0001);
-		alc_write_coef_idx(codec, 0x15, 0x0d60);
-		alc_write_coef_idx(codec, 0xc3, 0x0000);
+		alc_process_coef_fw(codec, coef0688);
 		break;
 	}
 	codec_dbg(codec, "Headset jack set to iPhone-style headset mode.\n");
@@ -3709,34 +3747,52 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 /* Nokia type */
 static void alc_headset_mode_omtp(struct hda_codec *codec)
 {
+	static struct coef_fw coef0255[] = {
+		WRITE_COEF(0x45, 0xe489), /* Set to OMTP Type */
+		WRITE_COEF(0x1b, 0x0c2b),
+		WRITE_COEFEX(0x57, 0x03, 0x8ea6),
+		{}
+	};
+	static struct coef_fw coef0233[] = {
+		WRITE_COEF(0x45, 0xe429),
+		WRITE_COEF(0x1b, 0x0c2b),
+		WRITE_COEF(0x32, 0x4ea3),
+		{}
+	};
+	static struct coef_fw coef0292[] = {
+		WRITE_COEF(0x6b, 0xe429),
+		WRITE_COEF(0x76, 0x0008),
+		WRITE_COEF(0x18, 0x7388),
+		{}
+	};
+	static struct coef_fw coef0293[] = {
+		WRITE_COEF(0x45, 0xe429), /* Set to omtp type */
+		UPDATE_COEF(0x10, 7<<8, 7<<8), /* SET Line1 JD to 1 */
+		{}
+	};
+	static struct coef_fw coef0688[] = {
+		WRITE_COEF(0x11, 0x0001),
+		WRITE_COEF(0x15, 0x0d50),
+		WRITE_COEF(0xc3, 0x0000),
+		{}
+	};
+
 	switch (codec->vendor_id) {
 	case 0x10ec0255:
-		/* Set to OMTP Type */
-		alc_write_coef_idx(codec, 0x45, 0xe489);
-		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
-		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
+		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
-		alc_write_coef_idx(codec, 0x45, 0xe429);
-		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
-		alc_write_coef_idx(codec, 0x32, 0x4ea3);
+		alc_process_coef_fw(codec, coef0233);
 		break;
 	case 0x10ec0292:
-		alc_write_coef_idx(codec, 0x6b, 0xe429);
-		alc_write_coef_idx(codec, 0x76, 0x0008);
-		alc_write_coef_idx(codec, 0x18, 0x7388);
+		alc_process_coef_fw(codec, coef0292);
 		break;
 	case 0x10ec0293:
-		/* Set to omtp type */
-		alc_write_coef_idx(codec, 0x45, 0xe429);
-		/* SET Line1 JD to 1 */
-		alc_update_coef_idx(codec, 0x10, 7<<8, 7<<8);
+		alc_process_coef_fw(codec, coef0293);
 		break;
 	case 0x10ec0668:
-		alc_write_coef_idx(codec, 0x11, 0x0001);
-		alc_write_coef_idx(codec, 0x15, 0x0d50);
-		alc_write_coef_idx(codec, 0xc3, 0x0000);
+		alc_process_coef_fw(codec, coef0688);
 		break;
 	}
 	codec_dbg(codec, "Headset jack set to Nokia-style headset mode.\n");
@@ -3747,13 +3803,28 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 	int val;
 	bool is_ctia = false;
 	struct alc_spec *spec = codec->spec;
+	static struct coef_fw coef0255[] = {
+		WRITE_COEF(0x45, 0xd089), /* combo jack auto switch control(Check type)*/
+		WRITE_COEF(0x49, 0x0149), /* combo jack auto switch control(Vref
+ conteol) */
+		{}
+	};
+	static struct coef_fw coef0293[] = {
+		UPDATE_COEF(0x4a, 0x000f, 0x0008), /* Combo Jack auto detect */
+		WRITE_COEF(0x45, 0xD429), /* Set to ctia type */
+		{}
+	};
+	static struct coef_fw coef0688[] = {
+		WRITE_COEF(0x11, 0x0001),
+		WRITE_COEF(0xb7, 0x802b),
+		WRITE_COEF(0x15, 0x0d60),
+		WRITE_COEF(0xc3, 0x0c00),
+		{}
+	};
 
 	switch (codec->vendor_id) {
 	case 0x10ec0255:
-		/* combo jack auto switch control(Check type)*/
-		alc_write_coef_idx(codec, 0x45, 0xd089);
-		/* combo jack auto switch control(Vref conteol) */
-		alc_write_coef_idx(codec, 0x49, 0x0149);
+		alc_process_coef_fw(codec, coef0255);
 		msleep(300);
 		val = alc_read_coef_idx(codec, 0x46);
 		is_ctia = (val & 0x0070) == 0x0070;
@@ -3772,19 +3843,13 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		is_ctia = (val & 0x001c) == 0x001c;
 		break;
 	case 0x10ec0293:
-		/* Combo Jack auto detect */
-		alc_update_coef_idx(codec, 0x4a, 0x000f, 0x0008);
-		/* Set to ctia type */
-		alc_write_coef_idx(codec, 0x45, 0xD429);
+		alc_process_coef_fw(codec, coef0293);
 		msleep(300);
 		val = alc_read_coef_idx(codec, 0x46);
 		is_ctia = (val & 0x0070) == 0x0070;
 		break;
 	case 0x10ec0668:
-		alc_write_coef_idx(codec, 0x11, 0x0001);
-		alc_write_coef_idx(codec, 0xb7, 0x802b);
-		alc_write_coef_idx(codec, 0x15, 0x0d60);
-		alc_write_coef_idx(codec, 0xc3, 0x0c00);
+		alc_process_coef_fw(codec, coef0688);
 		msleep(300);
 		val = alc_read_coef_idx(codec, 0xbe);
 		is_ctia = (val & 0x1c02) == 0x1c02;
@@ -3920,11 +3985,15 @@ static void alc_fixup_headset_mode_no_hp_mic(struct hda_codec *codec,
 static void alc255_set_default_jack_type(struct hda_codec *codec)
 {
 	/* Set to iphone type */
-	alc_write_coef_idx(codec, 0x1b, 0x880b);
-	alc_write_coef_idx(codec, 0x45, 0xd089);
-	alc_write_coef_idx(codec, 0x1b, 0x080b);
-	alc_write_coef_idx(codec, 0x46, 0x0004);
-	alc_write_coef_idx(codec, 0x1b, 0x0c0b);
+	static struct coef_fw fw[] = {
+		WRITE_COEF(0x1b, 0x880b),
+		WRITE_COEF(0x45, 0xd089),
+		WRITE_COEF(0x1b, 0x080b),
+		WRITE_COEF(0x46, 0x0004),
+		WRITE_COEF(0x1b, 0x0c0b),
+		{}
+	};
+	alc_process_coef_fw(codec, fw);
 	msleep(30);
 }
 
