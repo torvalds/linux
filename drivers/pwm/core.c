@@ -236,7 +236,7 @@ int pwmchip_add(struct pwm_chip *chip)
 	int ret;
 
 	if (!chip || !chip->dev || !chip->ops || !chip->ops->config ||
-	    !chip->ops->enable || !chip->ops->disable)
+	    !chip->ops->enable || !chip->ops->disable || !chip->npwm)
 		return -EINVAL;
 
 	mutex_lock(&pwm_lock);
