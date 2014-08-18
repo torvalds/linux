@@ -551,9 +551,15 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_QGROUP_INFO_KEY;
 	key.offset = qgroupid;
 
+	/*
+	 * Avoid a transaction abort by catching -EEXIST here. In that
+	 * case, we proceed by re-initializing the existing structure
+	 * on disk.
+	 */
+
 	ret = btrfs_insert_empty_item(trans, quota_root, path, &key,
 				      sizeof(*qgroup_info));
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto out;
 
 	leaf = path->nodes[0];
@@ -572,7 +578,7 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_QGROUP_LIMIT_KEY;
 	ret = btrfs_insert_empty_item(trans, quota_root, path, &key,
 				      sizeof(*qgroup_limit));
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto out;
 
 	leaf = path->nodes[0];
