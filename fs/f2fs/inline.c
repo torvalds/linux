@@ -68,7 +68,7 @@ out:
 
 static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 {
-	int err;
+	int err = 0;
 	struct page *ipage;
 	struct dnode_of_data dn;
 	void *src_addr, *dst_addr;
@@ -85,6 +85,10 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 		err = PTR_ERR(ipage);
 		goto out;
 	}
+
+	/* someone else converted inline_data already */
+	if (!f2fs_has_inline_data(inode))
+		goto out;
 
 	/*
 	 * i_addr[0] is not used for inline data,
