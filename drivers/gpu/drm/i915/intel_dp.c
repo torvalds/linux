@@ -1221,11 +1221,14 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 
 void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
-	if (is_edp(intel_dp)) {
-		bool vdd = edp_panel_vdd_on(intel_dp);
+	bool vdd;
 
-		WARN(!vdd, "eDP VDD already requested on\n");
-	}
+	if (!is_edp(intel_dp))
+		return;
+
+	vdd = edp_panel_vdd_on(intel_dp);
+
+	WARN(!vdd, "eDP VDD already requested on\n");
 }
 
 static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
