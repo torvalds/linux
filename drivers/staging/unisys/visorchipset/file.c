@@ -194,6 +194,7 @@ visorchipset_ioctl(struct inode *inode, struct file *file,
 	int rc = SUCCESS;
 	s64 adjustment;
 	s64 vrtc_offset;
+
 	DBGINF("entered visorchipset_ioctl, cmd=%d", cmd);
 	switch (cmd) {
 	case VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET:
