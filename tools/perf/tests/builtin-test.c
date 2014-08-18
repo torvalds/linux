@@ -185,9 +185,11 @@ static bool perf_test__matches(int curr, int argc, const char *argv[])
 static int run_test(struct test *test)
 {
 	int status, err = -1, child = fork();
+	char sbuf[STRERR_BUFSIZE];
 
 	if (child < 0) {
-		pr_err("failed to fork test: %s\n", strerror(errno));
+		pr_err("failed to fork test: %s\n",
+			strerror_r(errno, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 

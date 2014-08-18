@@ -162,13 +162,15 @@ static void close_first_dso(void);
 static int do_open(char *name)
 {
 	int fd;
+	char sbuf[STRERR_BUFSIZE];
 
 	do {
 		fd = open(name, O_RDONLY);
 		if (fd >= 0)
 			return fd;
 
-		pr_debug("dso open failed, mmap: %s\n", strerror(errno));
+		pr_debug("dso open failed, mmap: %s\n",
+			 strerror_r(errno, sbuf, sizeof(sbuf)));
 		if (!dso__data_open_cnt || errno != EMFILE)
 			break;
 
@@ -530,10 +532,12 @@ static ssize_t cached_read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 static int data_file_size(struct dso *dso)
 {
 	struct stat st;
+	char sbuf[STRERR_BUFSIZE];
 
 	if (!dso->data.file_size) {
 		if (fstat(dso->data.fd, &st)) {
-			pr_err("dso mmap failed, fstat: %s\n", strerror(errno));
+			pr_err("dso mmap failed, fstat: %s\n",
+				strerror_r(errno, sbuf, sizeof(sbuf)));
 			return -1;
 		}
 		dso->data.file_size = st.st_size;

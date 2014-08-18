@@ -456,6 +456,7 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 	size_t size = 0, alloc_size = 0;
 	void *bf = NULL, *nbf;
 	int fd, n, err = 0;
+	char sbuf[STRERR_BUFSIZE];
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
@@ -476,8 +477,8 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 		n = read(fd, bf + size, alloc_size - size);
 		if (n < 0) {
 			if (size) {
-				pr_warning("read failed %d: %s\n",
-					   errno, strerror(errno));
+				pr_warning("read failed %d: %s\n", errno,
+					 strerror_r(errno, sbuf, sizeof(sbuf)));
 				err = 0;
 			} else
 				err = -errno;

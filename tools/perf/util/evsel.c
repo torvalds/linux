@@ -2027,6 +2027,8 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			      int err, char *msg, size_t size)
 {
+	char sbuf[STRERR_BUFSIZE];
+
 	switch (err) {
 	case EPERM:
 	case EACCES:
@@ -2072,8 +2074,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	}
 
 	return scnprintf(msg, size,
-	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).  \n"
+	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).\n"
 	"/bin/dmesg may provide additional information.\n"
 	"No CONFIG_PERF_EVENTS=y kernel support configured?\n",
-			 err, strerror(err), perf_evsel__name(evsel));
+			 err, strerror_r(err, sbuf, sizeof(sbuf)),
+			 perf_evsel__name(evsel));
 }

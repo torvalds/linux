@@ -291,6 +291,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		   *missing_filename = NULL,
 		   *update_name_list_str = NULL,
 		   *kcore_filename;
+	char sbuf[STRERR_BUFSIZE];
 
 	struct perf_data_file file = {
 		.mode  = PERF_DATA_MODE_READ,
@@ -347,7 +348,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't add %s: %s\n",
-						   pos->s, strerror(errno));
+						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -365,7 +366,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't remove %s: %s\n",
-						   pos->s, strerror(errno));
+						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -386,7 +387,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't update %s: %s\n",
-						   pos->s, strerror(errno));
+						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);

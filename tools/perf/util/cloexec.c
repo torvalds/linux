@@ -3,6 +3,7 @@
 #include "../perf.h"
 #include "cloexec.h"
 #include "asm/bug.h"
+#include "debug.h"
 
 static unsigned long flag = PERF_FLAG_FD_CLOEXEC;
 
@@ -18,6 +19,7 @@ static int perf_flag_probe(void)
 	int err;
 	int cpu;
 	pid_t pid = -1;
+	char sbuf[STRERR_BUFSIZE];
 
 	cpu = sched_getcpu();
 	if (cpu < 0)
@@ -42,7 +44,7 @@ static int perf_flag_probe(void)
 
 	WARN_ONCE(err != EINVAL && err != EBUSY,
 		  "perf_event_open(..., PERF_FLAG_FD_CLOEXEC) failed with unexpected error %d (%s)\n",
-		  err, strerror(err));
+		  err, strerror_r(err, sbuf, sizeof(sbuf)));
 
 	/* not supported, confirm error related to PERF_FLAG_FD_CLOEXEC */
 	fd = sys_perf_event_open(&attr, pid, cpu, -1, 0);
@@ -50,7 +52,7 @@ static int perf_flag_probe(void)
 
 	if (WARN_ONCE(fd < 0 && err != EBUSY,
 		      "perf_event_open(..., 0) failed unexpectedly with error %d (%s)\n",
-		      err, strerror(err)))
+		      err, strerror_r(err, sbuf, sizeof(sbuf))))
 		return -1;
 
 	close(fd);
