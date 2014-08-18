@@ -6159,25 +6159,22 @@ static void hpsa_interrupt_mode(struct ctlr_info *h)
 		h->msix_vector = MAX_REPLY_QUEUES;
 		if (h->msix_vector > num_online_cpus())
 			h->msix_vector = num_online_cpus();
-		err = pci_enable_msix(h->pdev, hpsa_msix_entries,
-				      h->msix_vector);
-		if (err > 0) {
+		err = pci_enable_msix_range(h->pdev, hpsa_msix_entries,
+					    1, h->msix_vector);
+		if (err < 0) {
+			dev_warn(&h->pdev->dev, "MSI-X init failed %d\n", err);
+			h->msix_vector = 0;
+			goto single_msi_mode;
+		} else if (err < h->msix_vector) {
 			dev_warn(&h->pdev->dev, "only %d MSI-X vectors "
 			       "available\n", err);
-			h->msix_vector = err;
-			err = pci_enable_msix(h->pdev, hpsa_msix_entries,
-					      h->msix_vector);
 		}
-		if (!err) {
-			for (i = 0; i < h->msix_vector; i++)
-				h->intr[i] = hpsa_msix_entries[i].vector;
-			return;
-		} else {
-			dev_warn(&h->pdev->dev, "MSI-X init failed %d\n",
-			       err);
-			h->msix_vector = 0;
-		}
+		h->msix_vector = err;
+		for (i = 0; i < h->msix_vector; i++)
+			h->intr[i] = hpsa_msix_entries[i].vector;
+		return;
 	}
+single_msi_mode:
 	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSI)) {
 		dev_info(&h->pdev->dev, "MSI\n");
 		if (!pci_enable_msi(h->pdev))
