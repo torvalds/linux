@@ -182,7 +182,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
-	default !PPC_PSERIES || PCI
+	default PCI
 
 config PPC_OF
 	def_bool y
