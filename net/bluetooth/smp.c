@@ -829,7 +829,7 @@ static void smp_timeout(struct work_struct *work)
 
 	BT_DBG("conn %p", conn);
 
-	l2cap_conn_shutdown(conn, ETIMEDOUT);
+	hci_disconnect(conn->hcon, HCI_ERROR_REMOTE_USER_TERM);
 }
 
 static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
@@ -1569,7 +1569,7 @@ static int smp_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 		if (smp)
 			cancel_delayed_work_sync(&smp->security_timer);
 
-		l2cap_conn_shutdown(chan->conn, -err);
+		hci_disconnect(chan->conn->hcon, HCI_ERROR_AUTH_FAILURE);
 	}
 
 	return err;
