@@ -375,9 +375,31 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	return intel_dp->pps_pipe;
 }
 
+typedef bool (*vlv_pipe_check)(struct drm_i915_private *dev_priv,
+			       enum pipe pipe);
+
+static bool vlv_pipe_has_pp_on(struct drm_i915_private *dev_priv,
+			       enum pipe pipe)
+{
+	return I915_READ(VLV_PIPE_PP_STATUS(pipe)) & PP_ON;
+}
+
+static bool vlv_pipe_has_vdd_on(struct drm_i915_private *dev_priv,
+				enum pipe pipe)
+{
+	return I915_READ(VLV_PIPE_PP_CONTROL(pipe)) & EDP_FORCE_VDD;
+}
+
+static bool vlv_pipe_any(struct drm_i915_private *dev_priv,
+			 enum pipe pipe)
+{
+	return true;
+}
+
 static enum pipe
-vlv_initial_power_sequencer_pipe(struct drm_i915_private *dev_priv,
-				 enum port port)
+vlv_initial_pps_pipe(struct drm_i915_private *dev_priv,
+		     enum port port,
+		     vlv_pipe_check pipe_check)
 {
 	enum pipe pipe;
 
@@ -386,6 +408,9 @@ vlv_initial_power_sequencer_pipe(struct drm_i915_private *dev_priv,
 			PANEL_PORT_SELECT_MASK;
 
 		if (port_sel != PANEL_PORT_SELECT_VLV(port))
+			continue;
+
+		if (!pipe_check(dev_priv, pipe))
 			continue;
 
 		return pipe;
@@ -406,7 +431,17 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
 	/* try to find a pipe with this port selected */
-	intel_dp->pps_pipe = vlv_initial_power_sequencer_pipe(dev_priv, port);
+	/* first pick one where the panel is on */
+	intel_dp->pps_pipe = vlv_initial_pps_pipe(dev_priv, port,
+						  vlv_pipe_has_pp_on);
+	/* didn't find one? pick one where vdd is on */
+	if (intel_dp->pps_pipe == INVALID_PIPE)
+		intel_dp->pps_pipe = vlv_initial_pps_pipe(dev_priv, port,
+							  vlv_pipe_has_vdd_on);
+	/* didn't find one? pick one with just the correct port */
+	if (intel_dp->pps_pipe == INVALID_PIPE)
+		intel_dp->pps_pipe = vlv_initial_pps_pipe(dev_priv, port,
+							  vlv_pipe_any);
 
 	/* didn't find one? just let vlv_power_sequencer_pipe() pick one when needed */
 	if (intel_dp->pps_pipe == INVALID_PIPE) {
