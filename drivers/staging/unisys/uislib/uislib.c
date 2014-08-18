@@ -276,53 +276,19 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 {
 	int i;
 	struct bus_info *bus, *prev = NULL;
+	struct guest_msgs cmd;
 	u32 busNo;
 
 	busNo = msg->cmd.destroyBus.busNo;
 
-	/* find and delete the bus */
 	read_lock(&BusListLock);
-	for (bus = BusListHead; bus; prev = bus, bus = bus->next) {
-		if (bus->busNo == busNo) {
-			/* found the bus - ensure that all device
-			 * slots are NULL
-			 */
-			for (i = 0; i < bus->deviceCount; i++) {
-				if (bus->device[i] != NULL) {
-					LOGERR("CONTROLVM_BUS_DESTROY Failed: device %i attached to bus %d.",
-					     i, busNo);
-					read_unlock(&BusListLock);
-					return CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED;
-				}
-			}
-			read_unlock(&BusListLock);
-			/* the msg is bound for virtpci; send
-			 * guest_msgs struct to callback
-			 */
-			if (!msg->hdr.Flags.server) {
-				struct guest_msgs cmd;
 
-				cmd.msgtype = GUEST_DEL_VBUS;
-				cmd.del_vbus.busNo = busNo;
-				if (!VirtControlChanFunc) {
-					LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci callback not registered.");
-					return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
-				}
-				if (!VirtControlChanFunc(&cmd)) {
-					LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci GUEST_DEL_VBUS returned error.");
-					return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
-				}
-			}
-			/* remove the bus from the list */
-			write_lock(&BusListLock);
-			if (prev)	/* not at head */
-				prev->next = bus->next;
-			else
-				BusListHead = bus->next;
-			BusListCount--;
-			write_unlock(&BusListLock);
+	bus = BusListHead;
+	while (bus) {
+		if (bus->busNo == busNo)
 			break;
-		}
+		prev = bus;
+		bus = bus->next;
 	}
 
 	if (!bus) {
@@ -331,6 +297,44 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 		read_unlock(&BusListLock);
 		return CONTROLVM_RESP_ERROR_ALREADY_DONE;
 	}
+
+	/* verify that this bus has no devices. */
+	for (i = 0; i < bus->deviceCount; i++) {
+		if (bus->device[i] != NULL) {
+			LOGERR("CONTROLVM_BUS_DESTROY Failed: device %i attached to bus %d.",
+			     i, busNo);
+			read_unlock(&BusListLock);
+			return CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED;
+		}
+	}
+	read_unlock(&BusListLock);
+
+	if (msg->hdr.Flags.server)
+		goto remove;
+
+	/* client messages require us to call the virtpci callback associated
+	   with this bus. */
+	cmd.msgtype = GUEST_DEL_VBUS;
+	cmd.del_vbus.busNo = busNo;
+	if (!VirtControlChanFunc) {
+		LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci callback not registered.");
+		return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
+	}
+	if (!VirtControlChanFunc(&cmd)) {
+		LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci GUEST_DEL_VBUS returned error.");
+		return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
+	}
+
+	/* finally, remove the bus from the list */
+remove:
+	write_lock(&BusListLock);
+	if (prev)	/* not at head */
+		prev->next = bus->next;
+	else
+		BusListHead = bus->next;
+	BusListCount--;
+	write_unlock(&BusListLock);
+
 	if (bus->pBusChannel) {
 		uislib_iounmap(bus->pBusChannel);
 		bus->pBusChannel = NULL;
