@@ -128,6 +128,19 @@ int hci_disconnect(struct hci_conn *conn, __u8 reason)
 
 	BT_DBG("hcon %p", conn);
 
+	/* When we are master of an established connection and it enters
+	 * the disconnect timeout, then go ahead and try to read the
+	 * current clock offset.  Processing of the result is done
+	 * within the event handling and hci_clock_offset_evt function.
+	 */
+	if (conn->type == ACL_LINK && conn->role == HCI_ROLE_MASTER) {
+		struct hci_dev *hdev = conn->hdev;
+		struct hci_cp_read_clock_offset cp;
+
+		cp.handle = cpu_to_le16(conn->handle);
+		hci_send_cmd(hdev, HCI_OP_READ_CLOCK_OFFSET, sizeof(cp), &cp);
+	}
+
 	conn->state = BT_DISCONN;
 
 	cp.handle = cpu_to_le16(conn->handle);
@@ -325,25 +338,6 @@ static void hci_conn_timeout(struct work_struct *work)
 			hci_amp_disconn(conn);
 		} else {
 			__u8 reason = hci_proto_disconn_ind(conn);
-
-			/* When we are master of an established connection
-			 * and it enters the disconnect timeout, then go
-			 * ahead and try to read the current clock offset.
-			 *
-			 * Processing of the result is done within the
-			 * event handling and hci_clock_offset_evt function.
-			 */
-			if (conn->type == ACL_LINK &&
-			    conn->role == HCI_ROLE_MASTER) {
-				struct hci_dev *hdev = conn->hdev;
-				struct hci_cp_read_clock_offset cp;
-
-				cp.handle = cpu_to_le16(conn->handle);
-
-				hci_send_cmd(hdev, HCI_OP_READ_CLOCK_OFFSET,
-					     sizeof(cp), &cp);
-			}
-
 			hci_disconnect(conn, reason);
 		}
 		break;
