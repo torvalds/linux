@@ -20,7 +20,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#define DEVICE(vendor, IDS)					\
+#define DEVICE_N(vendor, IDS, nport)				\
 static const struct usb_device_id vendor##_id_table[] = {	\
 	IDS(),							\
 	{ },							\
@@ -31,9 +31,10 @@ static struct usb_serial_driver vendor##_device = {		\
 		.name =		#vendor,			\
 	},							\
 	.id_table =		vendor##_id_table,		\
-	.num_ports =		1,				\
+	.num_ports =		nport,				\
 };
 
+#define DEVICE(vendor, IDS)	DEVICE_N(vendor, IDS, 1)
 
 /* ZIO Motherboard USB driver */
 #define ZIO_IDS()			\
