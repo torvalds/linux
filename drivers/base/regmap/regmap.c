@@ -499,7 +499,6 @@ static int of_regmap_get_endian(struct device *dev,
 	 * From the DT node the endianness value maybe:
 	 *   REGMAP_ENDIAN_BIG,
 	 *   REGMAP_ENDIAN_LITTLE,
-	 *   REGMAP_ENDIAN_NATIVE,
 	 */
 	switch (type) {
 	case REGMAP_ENDIAN_VAL:
@@ -507,23 +506,16 @@ static int of_regmap_get_endian(struct device *dev,
 			*endian = REGMAP_ENDIAN_BIG;
 		else if (of_property_read_bool(np, "little-endian"))
 			*endian = REGMAP_ENDIAN_LITTLE;
-		else
-			*endian = REGMAP_ENDIAN_NATIVE;
+
+		if (*endian != REGMAP_ENDIAN_DEFAULT)
+			return 0;
+
 		break;
 	case REGMAP_ENDIAN_REG:
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	/*
-	 * If the endianness parsed from DT node is REGMAP_ENDIAN_NATIVE, that
-	 * maybe means the DT does not care the endianness or it should use
-	 * the regmap bus's default endianness, then we should try to check
-	 * whether the regmap bus has specified the default endianness.
-	 */
-	if (*endian != REGMAP_ENDIAN_NATIVE)
-		return 0;
 
 	/*
 	 * Finally, try to parse the endianness from regmap bus config
