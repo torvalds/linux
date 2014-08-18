@@ -258,31 +258,18 @@ static void htcpld_chip_set_ni(struct work_struct *work)
 static int htcpld_chip_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct htcpld_chip *chip_data;
-	int val = 0;
-	int is_input = 0;
+	u8 cache;
 
-	/* Try out first */
-	chip_data = container_of(chip, struct htcpld_chip, chip_out);
-	if (!chip_data) {
-		/* Try in */
-		is_input = 1;
+	if (!strncmp(chip->label, "htcpld-out", 10)) {
+		chip_data = container_of(chip, struct htcpld_chip, chip_out);
+		cache = chip_data->cache_out;
+	} else if (!strncmp(chip->label, "htcpld-in", 9)) {
 		chip_data = container_of(chip, struct htcpld_chip, chip_in);
-		if (!chip_data)
-			return -EINVAL;
-	}
+		cache = chip_data->cache_in;
+	} else
+		return -EINVAL;
 
-	/* Determine if this is an input or output GPIO */
-	if (!is_input)
-		/* Use the output cache */
-		val = (chip_data->cache_out >> offset) & 1;
-	else
-		/* Use the input cache */
-		val = (chip_data->cache_in >> offset) & 1;
-
-	if (val)
-		return 1;
-	else
-		return 0;
+	return (cache >> offset) & 1;
 }
 
 static int htcpld_direction_output(struct gpio_chip *chip,
