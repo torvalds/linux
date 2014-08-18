@@ -1232,38 +1232,38 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *intel_dig_port =
+		dp_to_dig_port(intel_dp);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	enum intel_display_power_domain power_domain;
 	u32 pp;
 	u32 pp_stat_reg, pp_ctrl_reg;
 
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	if (!intel_dp->want_panel_vdd && edp_have_panel_vdd(intel_dp)) {
-		struct intel_digital_port *intel_dig_port =
-						dp_to_dig_port(intel_dp);
-		struct intel_encoder *intel_encoder = &intel_dig_port->base;
-		enum intel_display_power_domain power_domain;
+	if (intel_dp->want_panel_vdd || !edp_have_panel_vdd(intel_dp))
+		return;
 
-		DRM_DEBUG_KMS("Turning eDP VDD off\n");
+	DRM_DEBUG_KMS("Turning eDP VDD off\n");
 
-		pp = ironlake_get_pp_control(intel_dp);
-		pp &= ~EDP_FORCE_VDD;
+	pp = ironlake_get_pp_control(intel_dp);
+	pp &= ~EDP_FORCE_VDD;
 
-		pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
-		pp_stat_reg = _pp_stat_reg(intel_dp);
+	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
+	pp_stat_reg = _pp_stat_reg(intel_dp);
 
-		I915_WRITE(pp_ctrl_reg, pp);
-		POSTING_READ(pp_ctrl_reg);
+	I915_WRITE(pp_ctrl_reg, pp);
+	POSTING_READ(pp_ctrl_reg);
 
-		/* Make sure sequencer is idle before allowing subsequent activity */
-		DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
-		I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
+	/* Make sure sequencer is idle before allowing subsequent activity */
+	DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
+	I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 
-		if ((pp & POWER_TARGET_ON) == 0)
-			intel_dp->last_power_cycle = jiffies;
+	if ((pp & POWER_TARGET_ON) == 0)
+		intel_dp->last_power_cycle = jiffies;
 
-		power_domain = intel_display_port_power_domain(intel_encoder);
-		intel_display_power_put(dev_priv, power_domain);
-	}
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_put(dev_priv, power_domain);
 }
 
 static void edp_panel_vdd_work(struct work_struct *__work)
