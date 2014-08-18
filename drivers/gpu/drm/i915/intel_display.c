@@ -13103,8 +13103,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	 * experience fancy races otherwise.
 	 */
 	drm_irq_uninstall(dev);
-	cancel_work_sync(&dev_priv->hotplug_work);
-	cancel_delayed_work_sync(&dev_priv->hotplug_reenable_work);
+	intel_hpd_cancel_work(dev_priv);
 	dev_priv->pm._irqs_disabled = true;
 
 	/*

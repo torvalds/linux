@@ -494,6 +494,21 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	return true;
 }
 
+void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+
+	dev_priv->long_hpd_port_mask = 0;
+	dev_priv->short_hpd_port_mask = 0;
+	dev_priv->hpd_event_bits = 0;
+
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	cancel_work_sync(&dev_priv->dig_port_work);
+	cancel_work_sync(&dev_priv->hotplug_work);
+	cancel_delayed_work_sync(&dev_priv->hotplug_reenable_work);
+}
+
 static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -538,6 +553,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 		flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 		intel_runtime_pm_disable_interrupts(dev);
+		intel_hpd_cancel_work(dev_priv);
 
 		intel_suspend_gt_powersave(dev);
 
