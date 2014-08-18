@@ -122,7 +122,7 @@ static void hci_reject_sco(struct hci_conn *conn)
 	hci_send_cmd(conn->hdev, HCI_OP_REJECT_SYNC_CONN_REQ, sizeof(cp), &cp);
 }
 
-void hci_disconnect(struct hci_conn *conn, __u8 reason)
+int hci_disconnect(struct hci_conn *conn, __u8 reason)
 {
 	struct hci_cp_disconnect cp;
 
@@ -132,7 +132,7 @@ void hci_disconnect(struct hci_conn *conn, __u8 reason)
 
 	cp.handle = cpu_to_le16(conn->handle);
 	cp.reason = reason;
-	hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
+	return hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
 }
 
 static void hci_amp_disconn(struct hci_conn *conn)
