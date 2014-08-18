@@ -1241,7 +1241,9 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	if (intel_dp->want_panel_vdd || !edp_have_panel_vdd(intel_dp))
+	WARN_ON(intel_dp->want_panel_vdd);
+
+	if (!edp_have_panel_vdd(intel_dp))
 		return;
 
 	DRM_DEBUG_KMS("Turning eDP VDD off\n");
@@ -1273,7 +1275,8 @@ static void edp_panel_vdd_work(struct work_struct *__work)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	edp_panel_vdd_off_sync(intel_dp);
+	if (!intel_dp->want_panel_vdd)
+		edp_panel_vdd_off_sync(intel_dp);
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
 
