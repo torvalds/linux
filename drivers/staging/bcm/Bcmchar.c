@@ -1750,13 +1750,13 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 		return -EFAULT;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-		"\nsFlash2xRead.Section :%x", sFlash2xWrite.Section);
+		"\nsFlash2xWrite.Section :%x", sFlash2xWrite.Section);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-		"\nsFlash2xRead.offset :%d", sFlash2xWrite.offset);
+		"\nsFlash2xWrite.offset :%d", sFlash2xWrite.offset);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-		"\nsFlash2xRead.numOfBytes :%x", sFlash2xWrite.numOfBytes);
+		"\nsFlash2xWrite.numOfBytes :%x", sFlash2xWrite.numOfBytes);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-		"\nsFlash2xRead.bVerify :%x\n", sFlash2xWrite.bVerify);
+		"\nsFlash2xWrite.bVerify :%x\n", sFlash2xWrite.bVerify);
 
 	if ((sFlash2xWrite.Section != VSA0) && (sFlash2xWrite.Section != VSA1)
 		&& (sFlash2xWrite.Section != VSA2)) {
