@@ -559,6 +559,7 @@ typedef volatile struct DDRPHY_REG_Tag {
 #define pDDR_Reg               ((pDDR_REG_T)RK_DDR_VIRT)
 #define pPHY_Reg               ((pDDRPHY_REG_T)(RK_DDR_VIRT+RK3036_DDR_PCTL_SIZE))
 #define SysSrv_DdrTiming       (RK_CPU_AXI_BUS_VIRT+0xc)
+#define PMU_PWEDN_ST		(RK_PMU_VIRT + 0x8)
 #define READ_CS_INFO()   ((((pGRF_Reg->GRF_OS_REG[1])>>11)&0x1)+1)
 #define READ_COL_INFO()  (9+(((pGRF_Reg->GRF_OS_REG[1])>>9)&0x3))
 #define READ_BK_INFO()   (3-(((pGRF_Reg->GRF_OS_REG[1])>>8)&0x1))
@@ -1961,7 +1962,10 @@ static void __sramfunc idle_port(void)
 {
 	int i;
 	uint32 clk_gate[11];
-
+	uint32 pd_status;
+	uint32 idle_req, idle_stus;
+	/*bit0:core bit1:gpu bit2:video bit3:vio 1:power off*/
+	pd_status = *(volatile uint32 *)PMU_PWEDN_ST;
 	/*save clock gate status*/
 	for (i = 0; i < 11; i++) {
 		clk_gate[i] = pCRU_Reg->CRU_CLKGATE_CON[i];
@@ -1971,23 +1975,24 @@ static void __sramfunc idle_port(void)
 		pCRU_Reg->CRU_CLKGATE_CON[i] = 0xffff0000;
 	}
 
-	pGRF_Reg->GRF_SOC_CON[2] = (1 << (16 + peri_pwr_idlereq)) + (1 << peri_pwr_idlereq);	/*peri   bit 12*/
-	dsb();
-	while ((pGRF_Reg->GRF_SOC_STATUS0 & peri_pwr_idle) == 0)   /*bit 23*/
-	;
-	pGRF_Reg->GRF_SOC_CON[2] = (1 << (16 + vio_pwr_idlereq)) + (1 << vio_pwr_idlereq);	/*vio*/
-	dsb();
-	while ((pGRF_Reg->GRF_SOC_STATUS0 & vio_pwr_idle) == 0)
-	;
+	idle_req = (1 << peri_pwr_idlereq); /*peri*/
+	idle_stus = peri_pwr_idle;
+	if ((pd_status & (0x1<<3)) == 0) {/*pwr_vio*/
+		idle_req |= (1 << vio_pwr_idlereq);
+		idle_stus |= vio_pwr_idle;
+	}
+	if ((pd_status & (0x1<<2)) == 0) {/*pwr_vpu*/
+		idle_req |= (1 << vpu_pwr_idlereq);
+		idle_stus |= vpu_pwr_idle;
+	}
+	if ((pd_status & (0x1<<1)) == 0) {/*pwr_gpu*/
+		idle_req |= (1 << gpu_pwr_idlereq);
+		idle_stus |= gpu_pwr_idle;
+	}
 
-	pGRF_Reg->GRF_SOC_CON[2] = (1 << (16 + vpu_pwr_idlereq)) + (1 << vpu_pwr_idlereq);	/*vpu*/
+	pGRF_Reg->GRF_SOC_CON[2] = (idle_req << 16) | idle_req;
 	dsb();
-	while ((pGRF_Reg->GRF_SOC_STATUS0 & vpu_pwr_idle) == 0)
-	;
-
-	pGRF_Reg->GRF_SOC_CON[2] = (1 << (16 + gpu_pwr_idlereq)) + (1 << gpu_pwr_idlereq);	/*gpu*/
-	dsb();
-	while ((pGRF_Reg->GRF_SOC_STATUS0 & gpu_pwr_idle) == 0)
+	while ((pGRF_Reg->GRF_SOC_STATUS0 & idle_stus) != idle_stus)
 	;
 
 	/*resume clock gate status*/
@@ -1999,6 +2004,10 @@ static void __sramfunc deidle_port(void)
 {
 	int i;
 	uint32 clk_gate[11];
+	uint32 pd_status;
+	uint32 idle_req, idle_stus;
+	/*bit0:core bit1:gpu bit2:video bit3:vio 1:power off*/
+	pd_status = *(volatile uint32 *)PMU_PWEDN_ST;
 
 	/*save clock gate status*/
 	for (i = 0; i < 11; i++) {
@@ -2009,24 +2018,24 @@ static void __sramfunc deidle_port(void)
 		pCRU_Reg->CRU_CLKGATE_CON[i] = 0xffff0000;
 	}
 
-	pGRF_Reg->GRF_SOC_CON[2] = (1 << (16 + peri_pwr_idlereq)) + (0 << peri_pwr_idlereq);	/*peri   bit 12*/
-	dsb();
-	while ((pGRF_Reg->GRF_SOC_STATUS0 & peri_pwr_idle) != 0)
-	;
+	idle_req = (1 << peri_pwr_idlereq); /*peri*/
+	idle_stus = peri_pwr_idle;
+	if ((pd_status & (0x1<<3)) == 0) {/*pwr_vio*/
+		idle_req |= (1 << vio_pwr_idlereq);
+		idle_stus |= vio_pwr_idle;
+	}
+	if ((pd_status & (0x1<<2)) == 0) {/*pwr_vpu*/
+		idle_req |= (1 << vpu_pwr_idlereq);
+		idle_stus |= vpu_pwr_idle;
+	}
+	if ((pd_status & (0x1<<1)) == 0) {/*pwr_gpu*/
+		idle_req |= (1 << gpu_pwr_idlereq);
+		idle_stus |= gpu_pwr_idle;
+	}
 
-	pGRF_Reg->GRF_SOC_CON[2] = (1 << (16 + vio_pwr_idlereq)) + (0 << vio_pwr_idlereq);	/*vio*/
+	pGRF_Reg->GRF_SOC_CON[2] = (idle_req << 16) | 0 ;
 	dsb();
-	while ((pGRF_Reg->GRF_SOC_STATUS0 & vio_pwr_idle) != 0)
-	;
-
-	pGRF_Reg->GRF_SOC_CON[2] = (1 << (16 + vpu_pwr_idlereq)) + (0 << vpu_pwr_idlereq);	/*vpu*/
-	dsb();
-	while ((pGRF_Reg->GRF_SOC_STATUS0 & vpu_pwr_idle) != 0)
-	;
-
-	pGRF_Reg->GRF_SOC_CON[2] = (1 << (16 + gpu_pwr_idlereq)) + (0 << gpu_pwr_idlereq);	/*gpu*/
-	dsb();
-	while ((pGRF_Reg->GRF_SOC_STATUS0 & gpu_pwr_idle) != 0)
+	while ((pGRF_Reg->GRF_SOC_STATUS0 & idle_stus) != 0)
 	;
 
 	/*resume clock gate status*/
