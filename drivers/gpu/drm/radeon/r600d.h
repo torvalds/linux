@@ -1597,6 +1597,7 @@
 		 */
 #              define PACKET3_CP_DMA_CMD_SAIC      (1 << 28)
 #              define PACKET3_CP_DMA_CMD_DAIC      (1 << 29)
+#define	PACKET3_PFP_SYNC_ME				0x42 /* r7xx+ only */
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
 #              define PACKET3_FULL_CACHE_ENA       (1 << 20) /* r7xx+ only */

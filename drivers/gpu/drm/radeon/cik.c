@@ -3920,6 +3920,17 @@ void cik_fence_compute_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, 0);
 }
 
+/**
+ * cik_semaphore_ring_emit - emit a semaphore on the CP ring
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon ring buffer object
+ * @semaphore: radeon semaphore object
+ * @emit_wait: Is this a sempahore wait?
+ *
+ * Emits a semaphore signal/wait packet to the CP ring and prevents the PFP
+ * from running ahead of semaphore waits.
+ */
 bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 			     struct radeon_ring *ring,
 			     struct radeon_semaphore *semaphore,
@@ -3931,6 +3942,12 @@ bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
 	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
+
+	if (emit_wait && ring->idx == RADEON_RING_TYPE_GFX_INDEX) {
+		/* Prevent the PFP from running ahead of the semaphore wait */
+		radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
+		radeon_ring_write(ring, 0x0);
+	}
 
 	return true;
 }
