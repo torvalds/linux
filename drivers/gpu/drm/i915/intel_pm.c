@@ -3477,6 +3477,10 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 			 dev_priv->rps.cur_freq,
 			 vlv_gpu_freq(dev_priv, val), val);
 
+	if (WARN_ONCE(IS_CHERRYVIEW(dev) && (val & 1),
+		      "Odd GPU freq value\n"))
+		val &= ~1;
+
 	if (val != dev_priv->rps.cur_freq)
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
 
@@ -4363,6 +4367,12 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
 			 vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq),
 			 dev_priv->rps.min_freq);
+
+	WARN_ONCE((dev_priv->rps.max_freq |
+		   dev_priv->rps.efficient_freq |
+		   dev_priv->rps.rp1_freq |
+		   dev_priv->rps.min_freq) & 1,
+		  "Odd GPU freq values\n");
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
@@ -7566,6 +7576,7 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 		return -1;
 	}
 
+	/* CHV needs even values */
 	opcode = (DIV_ROUND_CLOSEST((val * 2 * mul), dev_priv->rps.cz_freq) * 2);
 
 	return opcode;
