@@ -377,11 +377,25 @@ static const struct sirfsoc_padmux cko1_padmux = {
 
 static const unsigned cko1_pins[] = { 42 };
 
-static const struct sirfsoc_muxmask i2s_muxmask[] = {
+static const struct sirfsoc_muxmask i2s_mclk_muxmask[] = {
 	{
 		.group = 1,
 		.mask = BIT(10),
-	}, {
+	},
+};
+
+static const struct sirfsoc_padmux i2s_mclk_padmux = {
+	.muxmask_counts = ARRAY_SIZE(i2s_mclk_muxmask),
+	.muxmask = i2s_mclk_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
+	.funcmask = BIT(3),
+	.funcval = BIT(3),
+};
+
+static const unsigned i2s_mclk_pins[] = { 42 };
+
+static const struct sirfsoc_muxmask i2s_muxmask[] = {
+	{
 		.group = 3,
 		.mask = BIT(2) | BIT(3) | BIT(4) | BIT(5),
 	},
@@ -391,17 +405,12 @@ static const struct sirfsoc_padmux i2s_padmux = {
 	.muxmask_counts = ARRAY_SIZE(i2s_muxmask),
 	.muxmask = i2s_muxmask,
 	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
-	.funcmask = BIT(3),
-	.funcval = BIT(3),
 };
 
-static const unsigned i2s_pins[] = { 42, 98, 99, 100, 101 };
+static const unsigned i2s_pins[] = { 98, 99, 100, 101 };
 
 static const struct sirfsoc_muxmask i2s_no_din_muxmask[] = {
 	{
-		.group = 1,
-		.mask = BIT(10),
-	}, {
 		.group = 3,
 		.mask = BIT(2) | BIT(3) | BIT(4),
 	},
@@ -411,17 +420,12 @@ static const struct sirfsoc_padmux i2s_no_din_padmux = {
 	.muxmask_counts = ARRAY_SIZE(i2s_no_din_muxmask),
 	.muxmask = i2s_no_din_muxmask,
 	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
-	.funcmask = BIT(3),
-	.funcval = BIT(3),
 };
 
-static const unsigned i2s_no_din_pins[] = { 42, 98, 99, 100 };
+static const unsigned i2s_no_din_pins[] = { 98, 99, 100 };
 
 static const struct sirfsoc_muxmask i2s_6chn_muxmask[] = {
 	{
-		.group = 1,
-		.mask = BIT(10) | BIT(20) | BIT(23),
-	}, {
 		.group = 3,
 		.mask = BIT(2) | BIT(3) | BIT(4) | BIT(5),
 	},
@@ -431,11 +435,11 @@ static const struct sirfsoc_padmux i2s_6chn_padmux = {
 	.muxmask_counts = ARRAY_SIZE(i2s_6chn_muxmask),
 	.muxmask = i2s_6chn_muxmask,
 	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
-	.funcmask = BIT(1) | BIT(3) | BIT(9),
-	.funcval = BIT(1) | BIT(3) | BIT(9),
+	.funcmask = BIT(1) | BIT(9),
+	.funcval = BIT(1) | BIT(9),
 };
 
-static const unsigned i2s_6chn_pins[] = { 42, 52, 55, 98, 99, 100, 101 };
+static const unsigned i2s_6chn_pins[] = { 52, 55, 98, 99, 100, 101 };
 
 static const struct sirfsoc_muxmask ac97_muxmask[] = {
 	{
@@ -977,6 +981,7 @@ static const struct sirfsoc_pin_group sirfsoc_pin_groups[] = {
 	SIRFSOC_PIN_GROUP("usb1_dp_dngrp", usb1_dp_dn_pins),
 	SIRFSOC_PIN_GROUP("uart1_route_io_usb1grp", uart1_route_io_usb1_pins),
 	SIRFSOC_PIN_GROUP("pulse_countgrp", pulse_count_pins),
+	SIRFSOC_PIN_GROUP("i2smclkgrp", i2s_mclk_pins),
 	SIRFSOC_PIN_GROUP("i2sgrp", i2s_pins),
 	SIRFSOC_PIN_GROUP("i2s_no_dingrp", i2s_no_din_pins),
 	SIRFSOC_PIN_GROUP("i2s_6chngrp", i2s_6chn_pins),
@@ -1029,6 +1034,7 @@ static const char * const usb1_dp_dngrp[] = { "usb1_dp_dngrp" };
 static const char * const
 	uart1_route_io_usb1grp[] = { "uart1_route_io_usb1grp" };
 static const char * const pulse_countgrp[] = { "pulse_countgrp" };
+static const char * const i2smclkgrp[] = { "i2smclkgrp" };
 static const char * const i2sgrp[] = { "i2sgrp" };
 static const char * const i2s_no_dingrp[] = { "i2s_no_dingrp" };
 static const char * const i2s_6chngrp[] = { "i2s_6chngrp" };
@@ -1089,6 +1095,7 @@ static const struct sirfsoc_pmx_func sirfsoc_pmx_functions[] = {
 	SIRFSOC_PMX_FUNCTION("uart1_route_io_usb1",
 		uart1_route_io_usb1grp, uart1_route_io_usb1_padmux),
 	SIRFSOC_PMX_FUNCTION("pulse_count", pulse_countgrp, pulse_count_padmux),
+	SIRFSOC_PMX_FUNCTION("i2s_mclk", i2smclkgrp, i2s_mclk_padmux),
 	SIRFSOC_PMX_FUNCTION("i2s", i2sgrp, i2s_padmux),
 	SIRFSOC_PMX_FUNCTION("i2s_no_din", i2s_no_dingrp, i2s_no_din_padmux),
 	SIRFSOC_PMX_FUNCTION("i2s_6chn", i2s_6chngrp, i2s_6chn_padmux),
