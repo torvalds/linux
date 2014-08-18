@@ -309,7 +309,7 @@ static int dt2801_wait_for_ready(struct comedi_device *dev)
 	return -ETIME;
 }
 
-static int dt2801_writecmd(struct comedi_device *dev, int command)
+static void dt2801_writecmd(struct comedi_device *dev, int command)
 {
 	int stat;
 
@@ -323,8 +323,6 @@ static int dt2801_writecmd(struct comedi_device *dev, int command)
 	if (!(stat & DT_S_READY))
 		dev_dbg(dev->class_dev, "!ready in %s, ignoring\n", __func__);
 	outb_p(command, dev->iobase + DT2801_CMD);
-
-	return 0;
 }
 
 static int dt2801_reset(struct comedi_device *dev)
@@ -380,7 +378,7 @@ static int probe_number_of_ai_chans(struct comedi_device *dev)
 	int data;
 
 	for (n_chans = 0; n_chans < 16; n_chans++) {
-		stat = dt2801_writecmd(dev, DT_C_READ_ADIM);
+		dt2801_writecmd(dev, DT_C_READ_ADIM);
 		dt2801_writedata(dev, 0);
 		dt2801_writedata(dev, n_chans);
 		stat = dt2801_readdata2(dev, &data);
@@ -451,7 +449,7 @@ static int dt2801_ai_insn_read(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		stat = dt2801_writecmd(dev, DT_C_READ_ADIM);
+		dt2801_writecmd(dev, DT_C_READ_ADIM);
 		dt2801_writedata(dev, CR_RANGE(insn->chanspec));
 		dt2801_writedata(dev, CR_CHAN(insn->chanspec));
 		stat = dt2801_readdata2(dev, &d);
