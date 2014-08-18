@@ -2293,7 +2293,6 @@ void intel_edp_psr_init(struct drm_device *dev)
 static void intel_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct drm_device *dev = encoder->base.dev;
 
 	/* Make sure the panel is off before trying to change the mode. But also
@@ -2303,21 +2302,19 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	intel_edp_panel_off(intel_dp);
 
-	/* cpu edp my only be disable _after_ the cpu pipe/plane is disabled. */
-	if (!(port == PORT_A || IS_VALLEYVIEW(dev)))
+	/* disable the port before the pipe on g4x */
+	if (INTEL_INFO(dev)->gen < 5)
 		intel_dp_link_down(intel_dp);
 }
 
-static void g4x_post_disable_dp(struct intel_encoder *encoder)
+static void ilk_post_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (port != PORT_A)
-		return;
-
 	intel_dp_link_down(intel_dp);
-	ironlake_edp_pll_off(intel_dp);
+	if (port == PORT_A)
+		ironlake_edp_pll_off(intel_dp);
 }
 
 static void vlv_post_disable_dp(struct intel_encoder *encoder)
@@ -5164,7 +5161,8 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	} else {
 		intel_encoder->pre_enable = g4x_pre_enable_dp;
 		intel_encoder->enable = g4x_enable_dp;
-		intel_encoder->post_disable = g4x_post_disable_dp;
+		if (INTEL_INFO(dev)->gen >= 5)
+			intel_encoder->post_disable = ilk_post_disable_dp;
 	}
 
 	intel_dig_port->port = port;
