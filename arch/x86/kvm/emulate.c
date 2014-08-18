@@ -1468,7 +1468,7 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		return ret;
 
 	err_code = selector & 0xfffc;
-	err_vec = GP_VECTOR;
+	err_vec = in_task_switch ? TS_VECTOR : GP_VECTOR;
 
 	/* can't load system descriptor into segment selector */
 	if (seg <= VCPU_SREG_GS && !seg_desc.s)
