@@ -1626,7 +1626,6 @@ uislib_mod_exit(void)
 	debugfs_remove(dir_debugfs);
 
 	DBGINF("goodbye.\n");
-	return;
 }
 
 module_init(uislib_mod_init);
