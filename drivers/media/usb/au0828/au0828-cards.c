@@ -47,6 +47,7 @@ struct au0828_board au0828_boards[] = {
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
 		.has_ir_i2c = 1,
+		.has_analog = 1,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 		.input = {
 			{
@@ -73,6 +74,7 @@ struct au0828_board au0828_boards[] = {
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
 		.has_ir_i2c = 1,
+		.has_analog = 1,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 		.input = {
 			{
@@ -226,7 +228,7 @@ void au0828_card_analog_fe_setup(struct au0828_dev *dev)
 	}
 
 	/* Setup tuners */
-	if (dev->board.tuner_type != TUNER_ABSENT) {
+	if (dev->board.tuner_type != TUNER_ABSENT && dev->board.has_analog) {
 		/* Load the tuner module, which does the attach */
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"tuner", dev->board.tuner_addr, NULL);
