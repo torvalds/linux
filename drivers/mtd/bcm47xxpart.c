@@ -199,6 +199,17 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			continue;
 		}
 
+		/*
+		 * New (ARM?) devices may have NVRAM in some middle block. Last
+		 * block will be checked later, so skip it.
+		 */
+		if (offset != master->size - blocksize &&
+		    buf[0x000 / 4] == NVRAM_HEADER) {
+			bcm47xxpart_add_part(&parts[curr_part++], "nvram",
+					     offset, 0);
+			continue;
+		}
+
 		/* Read middle of the block */
 		if (mtd_read(master, offset + 0x8000, 0x4,
 			     &bytes_read, (uint8_t *)buf) < 0) {
