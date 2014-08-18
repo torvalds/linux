@@ -329,5 +329,6 @@
 #define __NR_sched_getattr		1337
 #define __NR_renameat2			1338
 #define __NR_getrandom			1339
+#define __NR_memfd_create		1339
 
 #endif /* _UAPI_ASM_IA64_UNISTD_H */
