@@ -3533,7 +3533,13 @@ static void valleyview_disable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	/* we're doing forcewake before Disabling RC6,
+	 * This what the BIOS expects when going into suspend */
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+
 	I915_WRITE(GEN6_RC_CONTROL, 0);
+
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 
 	gen6_disable_rps_interrupts(dev);
 }
