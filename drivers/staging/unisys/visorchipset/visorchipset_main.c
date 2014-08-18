@@ -58,8 +58,7 @@ NONULLSTR(char *s)
 {
 	if (s)
 		return s;
-	else
-		return "";
+	return "";
 }
 
 static int serverregistered;
@@ -379,8 +378,7 @@ static ssize_t toolaction_store(struct device *dev,
 
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 static ssize_t boottotool_show(struct device *dev,
@@ -416,8 +414,7 @@ static ssize_t boottotool_store(struct device *dev,
 
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
@@ -446,8 +443,7 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 			&error, sizeof(u32));
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
@@ -476,8 +472,7 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 			&textId, sizeof(u32));
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 
@@ -509,8 +504,7 @@ static ssize_t remaining_steps_store(struct device *dev,
 			&remainingSteps, sizeof(u16));
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 #if 0
@@ -1544,8 +1538,8 @@ read_controlvm_event(CONTROLVM_MESSAGE *msg)
 		if (msg->hdr.Flags.testMessage == 1) {
 			LOGERR("ignoring bad CONTROLVM_QUEUE_EVENT msg with controlvm_msg_id=0x%x because Flags.testMessage is nonsensical (=1)", msg->hdr.Id);
 			return FALSE;
-		} else
-			return TRUE;
+		}
+		return TRUE;
 	}
 	return FALSE;
 }
@@ -2305,8 +2299,8 @@ static ssize_t chipsetready_store(struct device *dev,
 	} else if (strcmp(msgtype, "MODULES_LOADED") == 0) {
 		chipset_events[1] = 1;
 		return count;
-	} else
-		return -EINVAL;
+	}
+	return -EINVAL;
 }
 
 /* The parahotplug/devicedisabled interface gets called by our support script
