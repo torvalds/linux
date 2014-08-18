@@ -1399,7 +1399,6 @@ static void s626_check_dio_interrupts(struct comedi_device *dev)
 	uint8_t group;
 
 	for (group = 0; group < S626_DIO_BANKS; group++) {
-		irqbit = 0;
 		/* read interrupt type */
 		irqbit = s626_debi_read(dev, S626_LP_RDCAPFLG(group));
 
