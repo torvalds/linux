@@ -10,8 +10,6 @@ struct nv50_i2c_priv {
 struct nv50_i2c_port {
 	struct nouveau_i2c_port base;
 	u32 addr;
-	u32 ctrl;
-	u32 data;
 	u32 state;
 };
 
