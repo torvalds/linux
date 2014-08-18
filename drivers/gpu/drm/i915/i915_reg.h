@@ -5353,8 +5353,7 @@ enum punit_power_well {
 #define PIPEA_PP_STATUS         (VLV_DISPLAY_BASE + 0x61200)
 #define PIPEA_PP_CONTROL        (VLV_DISPLAY_BASE + 0x61204)
 #define PIPEA_PP_ON_DELAYS      (VLV_DISPLAY_BASE + 0x61208)
-#define  PANEL_PORT_SELECT_DPB_VLV	(1 << 30)
-#define  PANEL_PORT_SELECT_DPC_VLV	(2 << 30)
+#define  PANEL_PORT_SELECT_VLV(port)	((port) << 30)
 #define PIPEA_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6120c)
 #define PIPEA_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61210)
 

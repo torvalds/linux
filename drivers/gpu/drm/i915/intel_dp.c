@@ -308,9 +308,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	for (pipe = PIPE_A; pipe <= PIPE_B; pipe++) {
 		u32 port_sel = I915_READ(VLV_PIPE_PP_ON_DELAYS(pipe)) &
 			PANEL_PORT_SELECT_MASK;
-		if (port_sel == PANEL_PORT_SELECT_DPB_VLV && port == PORT_B)
-			return pipe;
-		if (port_sel == PANEL_PORT_SELECT_DPC_VLV && port == PORT_C)
+		if (port_sel == PANEL_PORT_SELECT_VLV(port))
 			return pipe;
 	}
 
@@ -4327,6 +4325,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	u32 pp_on, pp_off, pp_div, port_sel = 0;
 	int div = HAS_PCH_SPLIT(dev) ? intel_pch_rawclk(dev) : intel_hrawclk(dev);
 	int pp_on_reg, pp_off_reg, pp_div_reg;
+	enum port port = dp_to_dig_port(intel_dp)->port;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		pp_on_reg = PCH_PP_ON_DELAYS;
@@ -4361,12 +4360,9 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	/* Haswell doesn't have any port selection bits for the panel
 	 * power sequencer any more. */
 	if (IS_VALLEYVIEW(dev)) {
-		if (dp_to_dig_port(intel_dp)->port == PORT_B)
-			port_sel = PANEL_PORT_SELECT_DPB_VLV;
-		else
-			port_sel = PANEL_PORT_SELECT_DPC_VLV;
+		port_sel = PANEL_PORT_SELECT_VLV(port);
 	} else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
-		if (dp_to_dig_port(intel_dp)->port == PORT_A)
+		if (port == PORT_A)
 			port_sel = PANEL_PORT_SELECT_DPA;
 		else
 			port_sel = PANEL_PORT_SELECT_DPD;
