@@ -134,6 +134,7 @@ init_vbus_channel(u64 channelAddr, u32 channelBytes)
 {
 	void __iomem *rc = NULL;
 	void __iomem *pChan = uislib_ioremap_cache(channelAddr, channelBytes);
+
 	if (!pChan) {
 		LOGERR("CONTROLVM_BUS_CREATE error: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
 		     (unsigned long long) channelAddr,
@@ -230,6 +231,7 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 	/* the msg is bound for virtpci; send guest_msgs struct to callback */
 	if (!msg->hdr.Flags.server) {
 		struct guest_msgs cmd;
+
 		cmd.msgtype = GUEST_ADD_VBUS;
 		cmd.add_vbus.busNo = busNo;
 		cmd.add_vbus.chanptr = bus->pBusChannel;
@@ -299,6 +301,7 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 			 */
 			if (!msg->hdr.Flags.server) {
 				struct guest_msgs cmd;
+
 				cmd.msgtype = GUEST_DEL_VBUS;
 				cmd.del_vbus.busNo = busNo;
 				if (!VirtControlChanFunc) {
@@ -434,6 +437,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 			 */
 			if (!msg->hdr.Flags.server) {
 				struct guest_msgs cmd;
+
 				if (!uuid_le_cmp(dev->channelTypeGuid,
 				     UltraVhbaChannelProtocolGuid)) {
 					wait_for_valid_guid(&((CHANNEL_HEADER
@@ -1165,6 +1169,7 @@ uislib_cache_alloc(struct kmem_cache *cur_pool, char *fn, int ln)
 	* invoke oom killer), which will probably cripple the system.
 	*/
 	void *p = kmem_cache_alloc(cur_pool, GFP_ATOMIC | __GFP_NORETRY);
+
 	if (p == NULL) {
 		LOGERR("uislib_malloc failed to alloc uiscmdrsp @%s:%d",
 		       fn, ln);
@@ -1340,6 +1345,7 @@ Process_Incoming(void *v)
 	unsigned long long cur_cycles, old_cycles, idle_cycles, delta_cycles;
 	struct list_head *new_tail = NULL;
 	int i;
+
 	UIS_DAEMONIZE("dev_incoming");
 	for (i = 0; i < 16; i++) {
 		old_cycles = get_cycles();
@@ -1366,6 +1372,7 @@ Process_Incoming(void *v)
 		new_tail = NULL;
 		list_for_each_safe(lelt, tmp, &List_Polling_Device_Channels) {
 			int rc = 0;
+
 			dev = list_entry(lelt, struct device_info,
 					 list_polling_device_channels);
 			down(&dev->interrupt_callback_lock);
@@ -1464,6 +1471,7 @@ uislib_enable_channel_interrupts(u32 busNo, u32 devNo,
 				 void *interrupt_context)
 {
 	struct device_info *dev;
+
 	dev = find_dev(busNo, devNo);
 	if (!dev) {
 		LOGERR("%s busNo=%d, devNo=%d", __func__, (int) (busNo),
@@ -1488,6 +1496,7 @@ void
 uislib_disable_channel_interrupts(u32 busNo, u32 devNo)
 {
 	struct device_info *dev;
+
 	dev = find_dev(busNo, devNo);
 	if (!dev) {
 		LOGERR("%s busNo=%d, devNo=%d", __func__, (int) (busNo),
