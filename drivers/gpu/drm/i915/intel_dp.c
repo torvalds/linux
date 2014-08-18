@@ -533,6 +533,12 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	bool has_aux_irq = HAS_AUX_IRQ(dev);
 	bool vdd;
 
+	/*
+	 * We will be called with VDD already enabled for dpcd/edid/oui reads.
+	 * In such cases we want to leave VDD enabled and it's up to upper layers
+	 * to turn it off. But for eg. i2c-dev access we need to turn it on/off
+	 * ourselves.
+	 */
 	vdd = edp_panel_vdd_on(intel_dp);
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
