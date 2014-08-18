@@ -915,7 +915,6 @@
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <0 7 4>;
 			clocks = <&apb1_gates 0>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -926,7 +925,6 @@
 			reg = <0x01c2b000 0x400>;
 			interrupts = <0 8 4>;
 			clocks = <&apb1_gates 1>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -937,7 +935,6 @@
 			reg = <0x01c2b400 0x400>;
 			interrupts = <0 9 4>;
 			clocks = <&apb1_gates 2>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -948,7 +945,6 @@
 			reg = <0x01c2b800 0x400>;
 			interrupts = <0 88 4>;
 			clocks = <&apb1_gates 3>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -959,7 +955,6 @@
 			reg = <0x01c2c000 0x400>;
 			interrupts = <0 89 4>;
 			clocks = <&apb1_gates 15>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;

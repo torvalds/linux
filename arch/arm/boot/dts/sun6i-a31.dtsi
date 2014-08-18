@@ -657,7 +657,6 @@
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <0 6 4>;
 			clocks = <&apb2_gates 0>;
-			clock-frequency = <100000>;
 			resets = <&apb2_rst 0>;
 			status = "disabled";
 		};
@@ -667,7 +666,6 @@
 			reg = <0x01c2b000 0x400>;
 			interrupts = <0 7 4>;
 			clocks = <&apb2_gates 1>;
-			clock-frequency = <100000>;
 			resets = <&apb2_rst 1>;
 			status = "disabled";
 		};
@@ -677,7 +675,6 @@
 			reg = <0x01c2b400 0x400>;
 			interrupts = <0 8 4>;
 			clocks = <&apb2_gates 2>;
-			clock-frequency = <100000>;
 			resets = <&apb2_rst 2>;
 			status = "disabled";
 		};
@@ -687,7 +684,6 @@
 			reg = <0x01c2b800 0x400>;
 			interrupts = <0 9 4>;
 			clocks = <&apb2_gates 3>;
-			clock-frequency = <100000>;
 			resets = <&apb2_rst 3>;
 			status = "disabled";
 		};

@@ -765,7 +765,6 @@
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <7>;
 			clocks = <&apb1_gates 0>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -776,7 +775,6 @@
 			reg = <0x01c2b000 0x400>;
 			interrupts = <8>;
 			clocks = <&apb1_gates 1>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -787,7 +785,6 @@
 			reg = <0x01c2b400 0x400>;
 			interrupts = <9>;
 			clocks = <&apb1_gates 2>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
