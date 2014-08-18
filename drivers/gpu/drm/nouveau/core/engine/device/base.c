@@ -373,7 +373,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 			case 0x0e0:
 			case 0x0f0:
 			case 0x100: device->card_type = NV_E0; break;
-			case 0x110: device->card_type = GM100; break;
+			case 0x110:
+			case 0x120: device->card_type = GM100; break;
 			default:
 				break;
 			}
