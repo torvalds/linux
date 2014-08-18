@@ -246,7 +246,7 @@ struct regulator_desc {
 	int id;
 	bool continuous_voltage_range;
 	unsigned n_voltages;
-	const struct regulator_ops *ops;
+	struct regulator_ops *ops;
 	int irq;
 	enum regulator_type type;
 	struct module *owner;
