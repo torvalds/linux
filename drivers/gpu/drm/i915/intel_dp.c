@@ -4037,14 +4037,20 @@ bool
 intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
+	enum intel_display_power_domain power_domain;
+	bool ret = true;
+
 	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
 		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
 
 	DRM_DEBUG_KMS("got hpd irq on port %d - %s\n", intel_dig_port->port,
 		      long_hpd ? "long" : "short");
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	if (long_hpd) {
 		if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
@@ -4061,8 +4067,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 	} else {
 		if (intel_dp->is_mst) {
-			ret = intel_dp_check_mst_status(intel_dp);
-			if (ret == -EINVAL)
+			if (intel_dp_check_mst_status(intel_dp) == -EINVAL)
 				goto mst_fail;
 		}
 
@@ -4076,7 +4081,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 		}
 	}
-	return false;
+	ret = false;
+	goto put_power;
 mst_fail:
 	/* if we were in MST mode, and device is not there get out of MST mode */
 	if (intel_dp->is_mst) {
@@ -4084,7 +4090,10 @@ mst_fail:
 		intel_dp->is_mst = false;
 		drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
 	}
-	return true;
+put_power:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 /* Return which DP Port should be selected for Transcoder DP control */
