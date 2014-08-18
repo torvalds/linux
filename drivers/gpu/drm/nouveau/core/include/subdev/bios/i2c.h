@@ -16,6 +16,7 @@ struct dcb_i2c_entry {
 	u8 drive;
 	u8 sense;
 	u8 share;
+	u8 auxch;
 };
 
 u16 dcb_i2c_table(struct nouveau_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);

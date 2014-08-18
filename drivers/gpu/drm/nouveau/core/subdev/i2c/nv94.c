@@ -238,8 +238,8 @@ nv94_aux_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	port->base.aux = info->drive;
-	port->addr = info->drive;
+	port->base.aux = info->auxch;
+	port->addr = info->auxch;
 	return 0;
 }
 
