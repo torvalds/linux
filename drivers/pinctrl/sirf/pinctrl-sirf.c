@@ -58,17 +58,18 @@ static const char *sirfsoc_get_group_name(struct pinctrl_dev *pctldev,
 	return sirfsoc_pin_groups[selector].name;
 }
 
-static int sirfsoc_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-			       const unsigned **pins,
-			       unsigned *num_pins)
+static int sirfsoc_get_group_pins(struct pinctrl_dev *pctldev,
+				unsigned selector,
+				const unsigned **pins,
+				unsigned *num_pins)
 {
 	*pins = sirfsoc_pin_groups[selector].pins;
 	*num_pins = sirfsoc_pin_groups[selector].num_pins;
 	return 0;
 }
 
-static void sirfsoc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
-		   unsigned offset)
+static void sirfsoc_pin_dbg_show(struct pinctrl_dev *pctldev,
+				struct seq_file *s, unsigned offset)
 {
 	seq_printf(s, " " DRIVER_NAME);
 }
@@ -138,22 +139,25 @@ static struct pinctrl_ops sirfsoc_pctrl_ops = {
 static struct sirfsoc_pmx_func *sirfsoc_pmx_functions;
 static int sirfsoc_pmxfunc_cnt;
 
-static void sirfsoc_pinmux_endisable(struct sirfsoc_pmx *spmx, unsigned selector,
-	bool enable)
+static void sirfsoc_pinmux_endisable(struct sirfsoc_pmx *spmx,
+					unsigned selector, bool enable)
 {
 	int i;
-	const struct sirfsoc_padmux *mux = sirfsoc_pmx_functions[selector].padmux;
+	const struct sirfsoc_padmux *mux =
+		sirfsoc_pmx_functions[selector].padmux;
 	const struct sirfsoc_muxmask *mask = mux->muxmask;
 
 	for (i = 0; i < mux->muxmask_counts; i++) {
 		u32 muxval;
 		if (!spmx->is_marco) {
-			muxval = readl(spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(mask[i].group));
+			muxval = readl(spmx->gpio_virtbase +
+				SIRFSOC_GPIO_PAD_EN(mask[i].group));
 			if (enable)
 				muxval = muxval & ~mask[i].mask;
 			else
 				muxval = muxval | mask[i].mask;
-			writel(muxval, spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(mask[i].group));
+			writel(muxval, spmx->gpio_virtbase +
+				SIRFSOC_GPIO_PAD_EN(mask[i].group));
 		} else {
 			if (enable)
 				writel(mask[i].mask, spmx->gpio_virtbase +
@@ -197,9 +201,10 @@ static const char *sirfsoc_pinmux_get_func_name(struct pinctrl_dev *pctldev,
 	return sirfsoc_pmx_functions[selector].name;
 }
 
-static int sirfsoc_pinmux_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
-			       const char * const **groups,
-			       unsigned * const num_groups)
+static int sirfsoc_pinmux_get_groups(struct pinctrl_dev *pctldev,
+				unsigned selector,
+				const char * const **groups,
+				unsigned * const num_groups)
 {
 	*groups = sirfsoc_pmx_functions[selector].groups;
 	*num_groups = sirfsoc_pmx_functions[selector].num_groups;
@@ -218,9 +223,11 @@ static int sirfsoc_pinmux_request_gpio(struct pinctrl_dev *pmxdev,
 	spmx = pinctrl_dev_get_drvdata(pmxdev);
 
 	if (!spmx->is_marco) {
-		muxval = readl(spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(group));
+		muxval = readl(spmx->gpio_virtbase +
+			SIRFSOC_GPIO_PAD_EN(group));
 		muxval = muxval | (1 << (offset - range->pin_base));
-		writel(muxval, spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(group));
+		writel(muxval, spmx->gpio_virtbase +
+			SIRFSOC_GPIO_PAD_EN(group));
 	} else {
 		writel(1 << (offset - range->pin_base), spmx->gpio_virtbase +
 			SIRFSOC_GPIO_PAD_EN(group));
@@ -518,24 +525,29 @@ static int sirfsoc_gpio_irq_type(struct irq_data *d, unsigned type)
 	case IRQ_TYPE_NONE:
 		break;
 	case IRQ_TYPE_EDGE_RISING:
-		val |= SIRFSOC_GPIO_CTL_INTR_HIGH_MASK | SIRFSOC_GPIO_CTL_INTR_TYPE_MASK;
+		val |= SIRFSOC_GPIO_CTL_INTR_HIGH_MASK |
+			SIRFSOC_GPIO_CTL_INTR_TYPE_MASK;
 		val &= ~SIRFSOC_GPIO_CTL_INTR_LOW_MASK;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		val &= ~SIRFSOC_GPIO_CTL_INTR_HIGH_MASK;
-		val |= SIRFSOC_GPIO_CTL_INTR_LOW_MASK | SIRFSOC_GPIO_CTL_INTR_TYPE_MASK;
+		val |= SIRFSOC_GPIO_CTL_INTR_LOW_MASK |
+			SIRFSOC_GPIO_CTL_INTR_TYPE_MASK;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		val |= SIRFSOC_GPIO_CTL_INTR_HIGH_MASK | SIRFSOC_GPIO_CTL_INTR_LOW_MASK |
-			 SIRFSOC_GPIO_CTL_INTR_TYPE_MASK;
+		val |= SIRFSOC_GPIO_CTL_INTR_HIGH_MASK |
+			SIRFSOC_GPIO_CTL_INTR_LOW_MASK |
+			SIRFSOC_GPIO_CTL_INTR_TYPE_MASK;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		val &= ~(SIRFSOC_GPIO_CTL_INTR_HIGH_MASK | SIRFSOC_GPIO_CTL_INTR_TYPE_MASK);
+		val &= ~(SIRFSOC_GPIO_CTL_INTR_HIGH_MASK |
+			SIRFSOC_GPIO_CTL_INTR_TYPE_MASK);
 		val |= SIRFSOC_GPIO_CTL_INTR_LOW_MASK;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		val |= SIRFSOC_GPIO_CTL_INTR_HIGH_MASK;
-		val &= ~(SIRFSOC_GPIO_CTL_INTR_LOW_MASK | SIRFSOC_GPIO_CTL_INTR_TYPE_MASK);
+		val &= ~(SIRFSOC_GPIO_CTL_INTR_LOW_MASK |
+			SIRFSOC_GPIO_CTL_INTR_TYPE_MASK);
 		break;
 	}
 
@@ -694,7 +706,8 @@ static inline void sirfsoc_gpio_set_output(struct sirfsoc_gpio_chip *sgpio,
 	spin_unlock_irqrestore(&bank->lock, flags);
 }
 
-static int sirfsoc_gpio_direction_output(struct gpio_chip *chip, unsigned gpio, int value)
+static int sirfsoc_gpio_direction_output(struct gpio_chip *chip,
+	unsigned gpio, int value)
 {
 	struct sirfsoc_gpio_chip *sgpio = to_sirfsoc_gpio(chip);
 	struct sirfsoc_gpio_bank *bank = sirfsoc_gpio_to_bank(sgpio, gpio);
