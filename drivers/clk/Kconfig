@@ -42,6 +42,13 @@ config COMMON_CLK_MAX77686
 	---help---
 	  This driver supports Maxim 77686 crystal oscillator clock. 
 
+config COMMON_CLK_MAX77802
+	tristate "Clock driver for Maxim 77802 PMIC"
+	depends on MFD_MAX77686
+	select COMMON_CLK_MAX_GEN
+	---help---
+	  This driver supports Maxim 77802 crystal oscillator clock.
+
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
