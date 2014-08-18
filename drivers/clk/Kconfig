@@ -32,6 +32,9 @@ config COMMON_CLK_WM831X
 
 source "drivers/clk/versatile/Kconfig"
 
+config COMMON_CLK_MAX_GEN
+        bool
+
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77686 MFD"
 	depends on MFD_MAX77686
