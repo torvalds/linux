@@ -143,29 +143,50 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.shost_attrs		= arcmsr_host_attrs,
 	.no_write_same		= 1,
 };
+
 static struct pci_device_id arcmsr_device_id_table[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1110)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1120)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1130)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1160)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1170)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1200)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1201)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1202)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1210)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1220)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1230)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1260)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1270)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1280)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1380)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1381)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1680)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1681)},
-	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1880)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1110),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1120),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1130),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1160),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1170),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1200),
+		.driver_data = ACB_ADAPTER_TYPE_B},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1201),
+		.driver_data = ACB_ADAPTER_TYPE_B},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1202),
+		.driver_data = ACB_ADAPTER_TYPE_B},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1210),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1220),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1230),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1260),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1270),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1280),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1380),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1381),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1680),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1681),
+		.driver_data = ACB_ADAPTER_TYPE_A},
+	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1880),
+		.driver_data = ACB_ADAPTER_TYPE_C},
 	{0, 0}, /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(pci, arcmsr_device_id_table);
+
 static struct pci_driver arcmsr_pci_driver = {
 	.name			= "arcmsr",
 	.id_table			= arcmsr_device_id_table,
@@ -293,26 +314,6 @@ static int arcmsr_bios_param(struct scsi_device *sdev,
 	geom[1] = sectors;
 	geom[2] = cylinders;
 	return 0;
-}
-
-static void arcmsr_define_adapter_type(struct AdapterControlBlock *acb)
-{
-	struct pci_dev *pdev = acb->pdev;
-	u16 dev_id;
-	pci_read_config_word(pdev, PCI_DEVICE_ID, &dev_id);
-	acb->dev_id = dev_id;
-	switch (dev_id) {
-	case 0x1880: {
-		acb->adapter_type = ACB_ADAPTER_TYPE_C;
-		}
-		break;
-	case 0x1201: {
-		acb->adapter_type = ACB_ADAPTER_TYPE_B;
-		}
-		break;
-
-	default: acb->adapter_type = ACB_ADAPTER_TYPE_A;
-	}
 }
 
 static uint8_t arcmsr_hba_wait_msgint_ready(struct AdapterControlBlock *acb)
@@ -710,7 +711,7 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			ACB_F_MESSAGE_WQBUFFER_READED);
 	acb->acb_flags &= ~ACB_F_SCSISTOPADAPTER;
 	INIT_LIST_HEAD(&acb->ccb_free_list);
-	arcmsr_define_adapter_type(acb);
+	acb->adapter_type = id->driver_data;
 	error = arcmsr_remap_pciregion(acb);
 	if(!error){
 		goto pci_release_regs;
