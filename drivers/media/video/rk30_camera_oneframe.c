@@ -240,7 +240,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define mask_grf_reg(addr, msk, val)	
 #endif
 
-#define CAM_WORKQUEUE_IS_EN()  (false)/*(true)*/
+#define CAM_WORKQUEUE_IS_EN()   (true)
 #define CAM_IPPWORK_IS_EN()     (false)/*((pcdev->zoominfo.a.c.width != pcdev->icd->user_width) || (pcdev->zoominfo.a.c.height != pcdev->icd->user_height))*/
 
 #define IS_CIF0()		(true)/*(pcdev->hostid == RK_CAM_PLATFORM_DEV_ID_0)*/
@@ -280,8 +280,8 @@ module_param(version, int, S_IRUGO);
 #define RK_CAM_H_MIN        32
 #define RK_CAM_W_MAX        3856                /* ddl@rock-chips.com : 10M Pixel */
 #define RK_CAM_H_MAX        2764
-#define RK_CAM_FRAME_INVAL_INIT      3
-#define RK_CAM_FRAME_INVAL_DC        3          /* ddl@rock-chips.com :  */
+#define RK_CAM_FRAME_INVAL_INIT      0
+#define RK_CAM_FRAME_INVAL_DC        0          /* ddl@rock-chips.com :  */
 #define RK30_CAM_FRAME_MEASURE       5
 
 
@@ -481,7 +481,7 @@ static void rk_camera_cif_reset(struct rk_camera_dev *pcdev, int only_rst)
 {
     int ctrl_reg,inten_reg,crop_reg,set_size_reg,for_reg,vir_line_width_reg,scl_reg,y_reg,uv_reg;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     if (only_rst == true) {
         rk3128_cru_set_soft_reset(0, true);
@@ -536,7 +536,7 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	int bytes_per_line_host;
 	fmt.packing = SOC_MBUS_PACKING_1_5X8;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
 		bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
@@ -559,7 +559,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE
 	pcdev->vipmem_bsize = PAGE_ALIGN(bytes_per_line_host * pcdev->host_height);
 
 	if (CAM_WORKQUEUE_IS_EN()) {
-	
+		
         if (CAM_IPPWORK_IS_EN())  {
             BUG_ON(pcdev->vipmem_size<pcdev->vipmem_bsize);
     		if (*count > pcdev->vipmem_size/pcdev->vipmem_bsize) {    /* Buffers must be limited, when this resolution is genered by IPP */
@@ -615,7 +615,7 @@ static void rk_videobuf_free(struct videobuf_queue *vq, struct rk_camera_buffer 
 {
     struct soc_camera_device *icd = vq->priv_data;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
     dev_dbg(icd->control, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,/*yzm*/
@@ -645,7 +645,7 @@ static int rk_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buffer
     int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
 						icd->current_fmt->host_fmt);
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 	
 	if ((bytes_per_line < 0) || (vb->boff == 0))
 		return -EINVAL;
@@ -697,11 +697,11 @@ static inline void rk_videobuf_capture(struct videobuf_buffer *vb,struct rk_came
 	unsigned int y_addr,uv_addr;
 	struct rk_camera_dev *pcdev = rk_pcdev;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
     if (vb) {
-		if (CAM_WORKQUEUE_IS_EN()) {
+		if (CAM_WORKQUEUE_IS_EN() & CAM_IPPWORK_IS_EN()) {
 			y_addr = pcdev->vipmem_phybase + vb->i*pcdev->vipmem_bsize;
 			uv_addr = y_addr + pcdev->zoominfo.vir_width*pcdev->zoominfo.vir_height;
 			if (y_addr > (pcdev->vipmem_phybase + pcdev->vipmem_size - pcdev->vipmem_bsize)) {
@@ -735,7 +735,7 @@ static void rk_videobuf_queue(struct videobuf_queue *vq,
 #endif
 
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     /*dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__, 
             vb, vb->baddr, vb->bsize); */ /*yzm*/
@@ -777,7 +777,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
     if (!pcdev->active) {
         pcdev->active = vb;
         rk_videobuf_capture(vb,pcdev);
-        if (atomic_read(&pcdev->stop_cif) == false) {           /*ddl@rock-chips.com v0.3.0x13*/
+        if (atomic_read(&pcdev->stop_cif) == false) {           //ddl@rock-chips.com v0.3.0x13
             write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL) | ENABLE_CAPTURE));
         }       
     }
@@ -787,7 +787,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
 static int rk_pixfmt2rgafmt(unsigned int pixfmt, int *ippfmt)
 {
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 	switch (pixfmt)
 	{
@@ -880,7 +880,7 @@ static void rk_camera_capture_process(struct work_struct *work)
     unsigned long flags = 0;    
     int err = 0;    
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
     if (atomic_read(&pcdev->stop_cif)==true) {
@@ -924,11 +924,11 @@ static void rk_camera_cifrest_delay(struct work_struct *work)
     struct rk_camera_dev *pcdev = camera_work->pcdev; 
     unsigned long flags = 0;   
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
     
-    mdelay(1);
-    rk_camera_cif_reset(pcdev,false);
+    mdelay(100);
+    /*rk_camera_cif_reset(pcdev,false);//yzm*/
 
     spin_lock_irqsave(&pcdev->camera_work_lock, flags);    
     list_add_tail(&camera_work->queue, &pcdev->camera_work_queue);    
@@ -947,9 +947,9 @@ static inline irqreturn_t rk_camera_cifirq(int irq, void *data)
 {
     struct rk_camera_dev *pcdev = data;
     struct rk_camera_work *wk;
-    unsigned int reg_cifctrl,reg_lastpix,reg_lastline;
+    unsigned int reg_cifctrl, reg_lastpix, reg_lastline, reg_intstat;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
     write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0x0200);  /* clear vip interrupte single  */
@@ -957,6 +957,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
     reg_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
     reg_lastpix = read_cif_reg(pcdev->base,CIF_CIF_LAST_PIX);
     reg_lastline = read_cif_reg(pcdev->base,CIF_CIF_LAST_LINE);
+    reg_intstat = read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);/*yzm for rk312x first time capture bus_err*/
 	
     pcdev->irqinfo.cifirq_idx++;    
     if ((reg_lastline != pcdev->host_height) /*|| (reg_lastpix != pcdev->host_width)*/) {
@@ -971,8 +972,14 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, (reg_cifctrl & ~ENABLE_CAPTURE));
     } 
 
+	if(reg_intstat & (0x1 << 6)) {
+        write_cif_reg(pcdev->base,CIF_CIF_INTSTAT, reg_intstat | (0x1 << 6));
+		goto BUS_ERR; //yzm for rk312x first time capture bus_err
+	}
+
     if (pcdev->irqinfo.cifirq_abnormal_idx>0) {
         if ((pcdev->irqinfo.cifirq_idx - pcdev->irqinfo.cifirq_abnormal_idx) == 1 ) {
+			BUS_ERR:
             if (!list_empty(&pcdev->camera_work_queue)) {
                 RKCAMERA_DG2("Receive cif irq-%ld and queue work to cif reset\n",pcdev->irqinfo.cifirq_idx);
                 wk = list_entry(pcdev->camera_work_queue.next, struct rk_camera_work, queue);
@@ -995,7 +1002,7 @@ static inline irqreturn_t rk_camera_dmairq(int irq, void *data)
 	struct timeval tv;
     unsigned long reg_cifctrl;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
     reg_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
@@ -1118,7 +1125,7 @@ static void rk_videobuf_release(struct videobuf_queue *vq,
 
 #ifdef DEBUG
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
     dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
@@ -1173,7 +1180,7 @@ static void rk_camera_init_videobuf(struct videobuf_queue *q,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);/*yzm*/
     struct rk_camera_dev *pcdev = ici->priv;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
     /* We must pass NULL as dev pointer, then all pci_* dma operations
@@ -1193,7 +1200,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
     struct rk_cif_clk *clk;
     struct clk *cif_clk_out_div;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
     cif = cif_idx - RK29_CAM_PLATFORM_DEV_ID;
@@ -1212,7 +1219,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
     }
    
     spin_lock(&clk->lock);
-    if (on && !clk->on) {        
+    if (on && !clk->on) {  
         clk_prepare_enable(clk->pd_cif);    /*yzm*/
         clk_prepare_enable(clk->aclk_cif);
     	clk_prepare_enable(clk->hclk_cif);
@@ -1256,10 +1263,10 @@ static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_dev
     * ddl@rock-chips.com : Cif clk control in rk_sensor_power which in rk_camera.c
     */
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
-    //write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01);    //capture complete interrupt enable
+	//write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01);    //capture complete interrupt enable
     return 0;
 }
 
@@ -1268,7 +1275,7 @@ static void rk_camera_deactivate(struct rk_camera_dev *pcdev)
     /*
     * ddl@rock-chips.com : Cif clk control in rk_sensor_power which in rk_camera.c
     */
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     
     return;
@@ -1288,7 +1295,7 @@ static int rk_camera_add_device(struct soc_camera_device *icd)
     struct v4l2_mbus_framefmt mf;
     const struct soc_camera_format_xlate *xlate = NULL;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     
     mutex_lock(&camera_lock);
@@ -1384,7 +1391,7 @@ static void rk_camera_remove_device(struct soc_camera_device *icd)
     unsigned int i;
 #endif 
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
 	mutex_lock(&camera_lock);
@@ -1454,7 +1461,7 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	/*struct rk_camera_dev *pcdev = ici->priv;*/
 
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
 	fmt = soc_mbus_get_fmtdesc(icd->current_fmt->code);
@@ -1479,7 +1486,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE
     	default:
     		return -EINVAL;
 	}
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 	if (icd->ops->query_bus_param)
     	camera_flags = icd->ops->query_bus_param(icd);
 	else
@@ -1539,7 +1546,7 @@ static int rk_camera_try_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 /*    unsigned long bus_flags, camera_flags;*/
 /*    int ret;*/
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 /**********yzm***********
 
     bus_flags = RK_CAM_BUS_PARAM;
@@ -1612,7 +1619,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
 	const struct soc_mbus_pixelfmt *fmt;
 	fmt = soc_mbus_get_fmtdesc(icd_code);
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
 	if((host_pixfmt == V4L2_PIX_FMT_RGB565) || (host_pixfmt == V4L2_PIX_FMT_RGB24)){
@@ -1709,7 +1716,7 @@ static int rk_camera_get_formats(struct soc_camera_device *icd, unsigned int idx
 	enum v4l2_mbus_pixelcode code;
 	const struct soc_mbus_pixelfmt *fmt;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
 	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);  /*call generic_sensor_enum_fmt()*/
@@ -1801,7 +1808,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE
 static void rk_camera_put_formats(struct soc_camera_device *icd)
 {
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 	return;
 }
@@ -1810,7 +1817,7 @@ static int rk_camera_cropcap(struct soc_camera_device *icd, struct v4l2_cropcap 
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
     int ret=0;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
     ret = v4l2_subdev_call(sd, video, cropcap, cropcap);
     if (ret != 0)
@@ -1825,7 +1832,7 @@ static int rk_camera_get_crop(struct soc_camera_device *icd,struct v4l2_crop *cr
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);/*yzm*/
     struct rk_camera_dev *pcdev = ici->priv;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
     spin_lock(&pcdev->cropinfo.lock);
@@ -1840,7 +1847,7 @@ static int rk_camera_set_crop(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);/*yzm*/
     struct rk_camera_dev *pcdev = ici->priv;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
     spin_lock(&pcdev->cropinfo.lock);
@@ -1852,7 +1859,7 @@ static bool rk_camera_fmt_capturechk(struct v4l2_format *f)
 {
     bool ret = false;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
     if (f->fmt.pix.priv == 0xfefe5a5a) {
@@ -1892,7 +1899,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     int stream_on = 0;
     int ratio, bounds_aspect;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 	
 	usr_w = pix->width;
@@ -2134,7 +2141,7 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 	usr_w = pix->width;
 	usr_h = pix->height;
     
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);  
     if (!xlate) {
@@ -2240,7 +2247,7 @@ static int rk_camera_reqbufs(struct soc_camera_device *icd,
 {
     int i;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
     /* This is for locking debugging only. I removed spinlocks and now I
@@ -2262,7 +2269,7 @@ static unsigned int rk_camera_poll(struct file *file, poll_table *pt)
     struct soc_camera_device *icd = file->private_data;
     struct rk_camera_buffer *buf;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
     buf = list_entry(icd->vb_vidq.stream.next, struct rk_camera_buffer,
@@ -2290,7 +2297,7 @@ static int rk_camera_querycap(struct soc_camera_host *ici,
     char fov[9];
     int i;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
     strlcpy(cap->card, dev_name(pcdev->icd->pdev), 18);       
@@ -2330,7 +2337,7 @@ static int rk_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
 	struct v4l2_subdev *sd;
     int ret = 0;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
 	mutex_lock(&camera_lock);
@@ -2366,7 +2373,7 @@ static int rk_camera_resume(struct soc_camera_device *icd)
 	struct v4l2_subdev *sd;
     int ret = 0;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
 	mutex_lock(&camera_lock);
@@ -2413,7 +2420,7 @@ static void rk_camera_reinit_work(struct work_struct *work)
 	unsigned long flags = 0;
     int ctrl;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 	return;
 	
     if(pcdev->icd == NULL)
@@ -2506,7 +2513,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
 	/*struct soc_camera_link *tmp_soc_cam_link;*/ /*yzm*/
 	/*tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);*/ /*yzm*/
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 	RKCAMERA_DG1("rk_camera_fps_func fps:0x%x\n",pcdev->fps);
 	if ((pcdev->fps < 1) || (pcdev->last_fps == pcdev->fps)) {
@@ -2596,7 +2603,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 	int ret;
 	unsigned long flags;
 
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);	
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);	
 
 	WARN_ON(pcdev->icd != icd);
 
@@ -2659,7 +2666,7 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
     struct v4l2_mbus_framefmt mf;
     __u32 pixfmt;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);	
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);	
     
     index = fival->index & 0x00ffffff;
     if ((fival->index & 0xff000000) == 0xff000000) {   /* ddl@rock-chips.com: detect framerate */ 
@@ -2785,7 +2792,7 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);/*yzm*/
 	struct rk_camera_dev *pcdev = ici->priv;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
 #if CIF_DO_CROP    
@@ -2857,12 +2864,12 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE
 static inline struct v4l2_queryctrl const *rk_camera_soc_camera_find_qctrl(
 	struct soc_camera_host_ops *ops, int id)
 {
-/************yzm************
+
 	int i;
 	for (i = 0; i < ops->num_controls; i++)
 		if (ops->controls[i].id == id)
 			return &ops->controls[i];
-**************yzm*********/
+
 	return NULL;
 }
 
@@ -2876,7 +2883,7 @@ static int rk_camera_set_ctrl(struct soc_camera_device *icd,
 
     int ret = 0;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 	qctrl = rk_camera_soc_camera_find_qctrl(ici->ops, sctrl->id);
 	if (!qctrl) {
@@ -2943,7 +2950,7 @@ static int rk_camera_cif_iomux(struct device *dev)
     int retval = 0;
     char state_str[20] = {0};
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
     strcpy(state_str,"cif_pin_jpe");
 
 	/*__raw_writel(((1<<1)|(1<<(1+16))),RK_GRF_VIRT+0x0380);*/
@@ -2985,7 +2992,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     int err = 0;
     struct rk_cif_clk *clk=NULL;
 	struct device *dev_cif = ((struct rk29camera_platform_data*)pdev->dev.platform_data)->cif_dev;/*yzm*/
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 	RKCAMERA_TR("%s version: v%d.%d.%d  Zoom by %s",RK29_CAM_DRV_NAME,(RK_CAM_VERSION_CODE&0xff0000)>>16,
         (RK_CAM_VERSION_CODE&0xff00)>>8,RK_CAM_VERSION_CODE&0xff,CAMERA_SCALE_CROP_MACHINE);    
@@ -3250,7 +3257,7 @@ static struct platform_driver rk_camera_driver =
 static int rk_camera_init_async(void *unused)
 {
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     platform_driver_register(&rk_camera_driver);	
     return 0;
@@ -3259,7 +3266,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
 static int __init rk_camera_init(void)
 {
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     kthread_run(rk_camera_init_async, NULL, "rk_camera_init");
 	
@@ -3268,7 +3275,7 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
 
 static void __exit rk_camera_exit(void)
 {
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
     platform_driver_unregister(&rk_camera_driver);
 }

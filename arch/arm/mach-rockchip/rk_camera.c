@@ -157,10 +157,12 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		return -ENODEV;
 	for_each_child_of_node(np, cp) {
 		u32 flash_attach,mir,i2c_rata,i2c_chl,i2c_add,cif_chl,mclk_rate,is_front;
-		u32 resolution,pwdn_info,powerup_sequence;
+		u32 resolution,pwdn_info,powerup_sequence,orientation;
 		
 		u32	powerdown = INVALID_GPIO,power = INVALID_GPIO,reset = INVALID_GPIO;
 		u32 af = INVALID_GPIO,flash = INVALID_GPIO;
+
+		int pwr_active = INVALID_VALUE, rst_active = INVALID_VALUE, pwdn_active = INVALID_VALUE;
 		struct rkcamera_platform_data *new_camera; 
 		new_camera = kzalloc(sizeof(struct rkcamera_platform_data),GFP_KERNEL);
 		if(!sensor_num)
@@ -174,34 +176,43 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		new_camera_list = new_camera;
 	
 		if (of_property_read_u32(cp, "flash_attach", &flash_attach)) {
-				printk("%s flash_attach %d \n", cp->name, flash_attach);
+			dprintk("%s:Get %s rockchip,flash_attach failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "mir", &mir)) {
-				printk("%s mir %d \n", cp->name, mir);
+			dprintk("%s:Get %s rockchip,mir failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "i2c_rata", &i2c_rata)) {
-				printk("%s i2c_rata %d \n", cp->name, i2c_rata);
+			dprintk("%s:Get %s rockchip,i2c_rata failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "i2c_chl", &i2c_chl)) {
-				printk("%s i2c_chl %d \n", cp->name, i2c_chl);
+			dprintk("%s:Get %s rockchip,i2c_chl failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "cif_chl", &cif_chl)) {
-				printk("%s cif_chl %d \n", cp->name, cif_chl);
+			dprintk("%s:Get %s rockchip,cif_chl failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "mclk_rate", &mclk_rate)) {
-				printk("%s mclk_rate %d \n", cp->name, mclk_rate);
+			dprintk("%s:Get %s rockchip,mclk_rate failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "is_front", &is_front)) {
-				printk("%s is_front %d \n", cp->name, is_front);
+			dprintk("%s:Get %s rockchip,is_front failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "rockchip,powerdown", &powerdown)) {
 				printk("%s:Get %s rockchip,powerdown failed!\n",__func__, cp->name);				
 		}
+		if (of_property_read_u32(cp, "pwdn_active", &pwdn_active)) {
+				dprintk("%s:Get %s pwdn_active failed!\n",__func__, cp->name);				
+		}
 		if (of_property_read_u32(cp, "rockchip,power", &power)) {
 				printk("%s:Get %s rockchip,power failed!\n",__func__, cp->name);				
 		}
+		if (of_property_read_u32(cp, "pwr_active", &pwr_active)) {
+				dprintk("%s:Get %s pwr_active failed!\n",__func__, cp->name);				
+		}
 		if (of_property_read_u32(cp, "rockchip,reset", &reset)) {
 				printk("%s:Get %s rockchip,reset failed!\n",__func__, cp->name);				
+		}
+		if (of_property_read_u32(cp, "rst_active", &rst_active)) {
+				dprintk("%s:Get %s rst_active failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "rockchip,af", &af)) {
 				printk("%s:Get %s rockchip,af failed!\n",__func__, cp->name);				
@@ -210,18 +221,21 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 				printk("%s:Get %s rockchip,flash failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "i2c_add", &i2c_add)) {
-				printk("%s i2c_add %d \n", cp->name, i2c_add);
+			printk("%s:Get %s rockchip,i2c_add failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "resolution", &resolution)) {
-				printk("%s resolution %d \n", cp->name, resolution);
+			printk("%s:Get %s rockchip,resolution failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "pwdn_info", &pwdn_info)) {
-				printk("%s pwdn_info %d \n", cp->name, pwdn_info);
+			printk("%s:Get %s rockchip,pwdn_info failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "powerup_sequence", &powerup_sequence)) {
-				printk("%s powerup_sequence %d \n", cp->name, powerup_sequence);
+			printk("%s:Get %s rockchip,powerup_sequence failed!\n",__func__, cp->name);				
 		}
-
+		if (of_property_read_u32(cp, "orientation", &orientation)) {
+			printk("%s:Get %s rockchip,orientation failed!\n",__func__, cp->name);				
+		}
+		
 		strcpy(new_camera->dev.i2c_cam_info.type, cp->name);
 		new_camera->dev.i2c_cam_info.addr = i2c_add>>1;
 		new_camera->dev.desc_info.host_desc.bus_id = RK29_CAM_PLATFORM_DEV_ID+cif_chl;/*yzm*/
@@ -238,8 +252,8 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		new_camera->io.gpio_power = power;
 		new_camera->io.gpio_af = af;
 		new_camera->io.gpio_flash = flash;
-		new_camera->io.gpio_flag = ((INVALID_GPIO&0x01)<<RK29_CAM_POWERACTIVE_BITPOS)|((INVALID_GPIO&0x01)<<RK29_CAM_RESETACTIVE_BITPOS)|((pwdn_info&0x01)<<RK29_CAM_POWERDNACTIVE_BITPOS);
-		new_camera->orientation = INVALID_GPIO;
+		new_camera->io.gpio_flag = ((pwr_active&0x01)<<RK29_CAM_POWERACTIVE_BITPOS)|((rst_active&0x01)<<RK29_CAM_RESETACTIVE_BITPOS)|((pwdn_active&0x01)<<RK29_CAM_POWERDNACTIVE_BITPOS);
+		new_camera->orientation = orientation;
 		new_camera->resolution = resolution;
 		new_camera->mirror = mir;
 		new_camera->i2c_rate = i2c_rata;
@@ -346,7 +360,7 @@ static int sensor_reset_default_cb (struct rk29camera_gpio_res *res, int on)
     int camera_io_init = res->gpio_init;  
     int ret = 0;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     
     if (camera_reset != INVALID_GPIO) {
@@ -376,7 +390,7 @@ static int sensor_powerdown_default_cb (struct rk29camera_gpio_res *res, int on)
     int camera_io_init = res->gpio_init;  
     int ret = 0;    
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 
     if (camera_powerdown != INVALID_GPIO) {
@@ -406,7 +420,7 @@ static int sensor_flash_default_cb (struct rk29camera_gpio_res *res, int on)
     int camera_io_init = res->gpio_init;  
     int ret = 0;    
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 
     if (camera_flash != INVALID_GPIO) {
@@ -455,7 +469,7 @@ static int sensor_afpower_default_cb (struct rk29camera_gpio_res *res, int on)
 	int ret = 0;   
 	int camera_af = res->gpio_af;
 	
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 	
 	if (camera_af != INVALID_GPIO) {
@@ -720,7 +734,7 @@ static int _rk_sensor_io_deinit_(struct rk29camera_gpio_res *gpio_res)
     unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
 	unsigned int camera_powerdown = INVALID_GPIO, camera_flash = INVALID_GPIO,camera_af = INVALID_GPIO;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
     
     camera_reset = gpio_res->gpio_reset;
@@ -772,7 +786,7 @@ static int rk_sensor_io_init(void)
 	static bool is_init = false;
 	
 	struct rkcamera_platform_data *new_camera;
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     if(is_init) {		
 		return 0;
@@ -806,7 +820,7 @@ static int rk_sensor_io_deinit(int sensor)
 {
 	struct rkcamera_platform_data *new_camera;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 	new_camera = new_camera_head;
 	while(new_camera != NULL)
@@ -934,7 +948,7 @@ static int rk_sensor_pwrseq(struct device *dev,int powerup_sequence, int on, int
     int ret =0;
     int i,powerup_type;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     
     for (i=0; i<8; i++) {
@@ -1019,7 +1033,7 @@ static int rk_sensor_power(struct device *dev, int on)   /*icd->pdev*/
     bool real_pwroff = true;
     int ret = 0;
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     new_camera = plat_data->register_dev_new;    /*new_camera[]*/
     
@@ -1109,7 +1123,7 @@ static int rk_sensor_reset(struct device *dev)
 static int rk_sensor_powerdown(struct device *dev, int on)
 {
 
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
 	return rk_sensor_ioctrl(dev,Cam_PowerDown,on);
 }
@@ -1120,7 +1134,7 @@ int rk_sensor_register(void)
 	struct rkcamera_platform_data *new_camera;	
 	
     i = 0;
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 	new_camera = new_camera_head;
 	
@@ -1154,14 +1168,10 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
 
         new_camera->dev.device_info.id = i+6;
 		new_camera->dev.device_info.dev.platform_data = &new_camera->dev.desc_info;
-		debug_printk("platform_data(desc_info) %p +++++++++++++\n",new_camera->dev.device_info.dev.platform_data);
 		new_camera->dev.desc_info.subdev_desc.drv_priv = &rk_camera_platform_data;
 
         platform_device_register(&(new_camera->dev.device_info));
-		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);  
-		debug_printk("new_camera = %p +++++++++++++\n",new_camera);
-		debug_printk("new_camera->next_camera = %p +++++++++++++\n",new_camera->next_camera);
-
+		i++;
         new_camera = new_camera->next_camera;
     }
 	

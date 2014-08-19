@@ -13,13 +13,38 @@
 		ov2659{
 			is_front = <1>; 
 			rockchip,powerdown = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;
+			#pwdn_active = <>;
 			#rockchip,power = <>;
+			#pwr_active = <>;
+			#rockchip,reset = <>;
+			#rst_active = <>;
 			mir = <0>;
 			flash_attach = <0>;
 			resolution = <ov2659_FULL_RESOLUTION>;
 			pwdn_info = <ov2659_PWRDN_ACTIVE>;
 			powerup_sequence = <ov2659_PWRSEQ>;		
+			orientation = <0>;
 			i2c_add = <ov2659_I2C_ADDR>;
+			i2c_rata = <100000>;
+			i2c_chl = <0>;
+			cif_chl = <0>;
+			mclk_rate = <24>;
+		};
+		gc0329{
+			is_front = <1>; 
+			rockchip,powerdown = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;
+			#pwdn_active = <>;
+			#rockchip,power = <>;
+			#pwr_active = <>;
+			#rockchip,reset = <>;
+			#rst_active = <>;
+			mir = <0>;
+			flash_attach = <0>;
+			resolution = <gc0329_FULL_RESOLUTION>;
+			pwdn_info = <gc0329_PWRDN_ACTIVE>;
+			powerup_sequence = <gc0329_PWRSEQ>;	
+			orientation = <90>;
+			i2c_add = <gc0329_I2C_ADDR>;
 			i2c_rata = <100000>;
 			i2c_chl = <0>;
 			cif_chl = <0>;

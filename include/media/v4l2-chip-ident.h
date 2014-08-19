@@ -77,10 +77,28 @@ enum {
 	V4L2_IDENT_OV2640 = 259,
 	V4L2_IDENT_OV9740 = 260,
 	V4L2_IDENT_OV5642 = 261,
-	V4L2_IDENT_OV2659 = 258,//YZM
+/***********yzm**********/	
+	V4L2_IDENT_OV2655 = 262,                            /* ddl@rock-chips.com : ov2655 support */
+	V4L2_IDENT_OV2659 = 263,
+	V4L2_IDENT_OV3640 = 264,
+	V4L2_IDENT_OV5640 = 265,
+	V4L2_IDENT_OV7675 = 266,
+	V4L2_IDENT_OV7690 = 267,
+	V4L2_IDENT_OV3660 = 268,
+/***********yzm********end*/
 	/* module saa7146: reserved range 300-309 */
 	V4L2_IDENT_SAA7146 = 300,
+/***********yzm*************/
+	/* Samsung sensors: reserved range 310-319 */
+	V4L2_IDENT_S5K66A = 310,							/* ddl@rock-chips.com : s5k66a support */
+	V4L2_IDENT_S5K5CA = 311,							/* ddl@rock-chips.com : s5k5ca support */
 
+	V4L2_IDENT_MTK9335ISP = 320,							/* ddl@rock-chips.com : MTK9335ISP support */
+	V4L2_IDENT_ICATCH7002_MI1040 = 321,
+	V4L2_IDENT_ICATCH7002_OV5693 =322,
+	V4L2_IDENT_ICATCH7002_OV8825 = 323, //zyt
+	V4L2_IDENT_ICATCH7002_OV2720 = 324, //zyt
+/************yzm************end*/
 	/* Conexant MPEG encoder/decoders: reserved range 400-420 */
 	V4L2_IDENT_CX23418_843 = 403, /* Integrated A/V Decoder on the '418 */
 	V4L2_IDENT_CX23415 = 415,
@@ -238,6 +256,8 @@ enum {
 	/* module sn9c20x: just ident 10000 */
 	V4L2_IDENT_SN9C20X = 10000,
 
+	/* Siliconfile sensors: reserved range 10100 - 10199 */
+	V4L2_IDENT_NOON010PC30	= 10100,/*yzm*/
 	/* module cx231xx and cx25840 */
 	V4L2_IDENT_CX2310X_AV = 23099, /* Integrated A/V decoder; not in '100 */
 	V4L2_IDENT_CX23100    = 23100,
@@ -315,6 +335,7 @@ enum {
 	V4L2_IDENT_MT9M001C12STM	= 45005,
 	V4L2_IDENT_MT9M111		= 45007,
 	V4L2_IDENT_MT9M112		= 45008,
+	V4L2_IDENT_MT9D112		= 45009,		/* ddl@rock-chips.com : MT9D112 support */
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
 	V4L2_IDENT_MT9T031		= 45020,
@@ -322,6 +343,9 @@ enum {
 	V4L2_IDENT_MT9T112		= 45022,
 	V4L2_IDENT_MT9V111		= 45031,
 	V4L2_IDENT_MT9V112		= 45032,
+
+	V4L2_IDENT_MT9P111		= 45033,     /* ddl@rock-chips.com : MT9P111 support */
+	V4L2_IDENT_MT9D113      = 45034,     /* ddl@rock-chips.com : MT9D113 support */
 
 	/* HV7131R CMOS sensor: just ident 46000 */
 	V4L2_IDENT_HV7131R		= 46000,
@@ -345,6 +369,39 @@ enum {
 
 	/* module upd64083: just ident 64083 */
 	V4L2_IDENT_UPD64083 = 64083,
+
+/*************yzm************/
+    V4L2_IDENT_NT99250 = 64100,    /* ddl@rock-chips.com : nt99250 support */
+    V4L2_IDENT_SID130B = 64101,      /* ddl@rock-chips.com : sid130B support */
+
+    V4L2_IDENT_GT2005 = 64110,       /* ddl@rock-chips.com : GT2005 support */
+    V4L2_IDENT_GC0307 = 64111,      /* ddl@rock-chips.com : GC0308 support */
+    V4L2_IDENT_GC0308 = 64112,      /* ddl@rock-chips.com : GC0308 support */
+    V4L2_IDENT_GC0309 = 64113,      /* ddl@rock-chips.com : GC0309 support */
+    V4L2_IDENT_GC2015 = 64114,      /* ddl@rock-chips.com : gc2015 support */
+    V4L2_IDENT_GC0329 = 64115,      /* ddl@rock-chips.com : GC0329 support */
+    V4L2_IDENT_GC2035= 64116,      /* ddl@rock-chips.com : GC0329 support */
+    V4L2_IDENT_GC0328 = 64117,
+    
+    V4L2_IDENT_SP0838 = 64120,      /* ddl@rock-chips.com : SP0838 support */
+    V4L2_IDENT_SP2518 = 64121,      /* ddl@rock-chips.com : SP2518 support */	      
+    V4L2_IDENT_SP0718 = 64122,      /* ddl@rock-chips.com : SP0718 support */
+
+    V4L2_IDENT_HI253 = 64130,      /* ddl@rock-chips.com : hi253 support */
+    V4L2_IDENT_HI704 = 64131,      /* ddl@rock-chips.com : hi704 support */    
+    
+    V4L2_IDENT_SIV120B = 64140,      /* ddl@rock-chips.com : siv120b support */
+    V4L2_IDENT_SIV121D= 64141,      /* ddl@rock-chips.com : sid130B support */
+
+
+    V4L2_IDENT_HM2057 = 64150,
+    V4L2_IDENT_HM5065 = 64151,
+
+	V4L2_IDENT_NT99160 = 64161,    /* oyyf@rock-chips.com : nt99160 support */
+	V4L2_IDENT_NT99340 = 64162,    /* oyyf@rock-chips.com : nt99340 support */
+	V4L2_IDENT_NT99252 = 64163,    /* oyyf@rock-chips.com : nt99252 support */
+	V4L2_IDENT_NT99240 = 64164,    /* oyyf@rock-chips.com : nt99252 support */
+/***********yzm***********end*/
 
 	/* Don't just add new IDs at the end: KEEP THIS LIST ORDERED BY ID! */
 };

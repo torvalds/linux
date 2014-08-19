@@ -20,9 +20,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_NAME RK29_CAM_SENSOR_GC0328
 #define SENSOR_V4L2_IDENT V4L2_IDENT_GC0328
 #define SENSOR_ID 0x9d
-#define SENSOR_BUS_PARAM					 (SOCAM_MASTER |\
-											 SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH| SOCAM_VSYNC_ACTIVE_LOW|\
-											 SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
+#define SENSOR_BUS_PARAM                     (V4L2_MBUS_MASTER |\
+														 V4L2_MBUS_PCLK_SAMPLE_RISING|V4L2_MBUS_HSYNC_ACTIVE_HIGH| V4L2_MBUS_VSYNC_ACTIVE_LOW|\
+														 V4L2_MBUS_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 #define SENSOR_PREVIEW_W					 640
 #define SENSOR_PREVIEW_H					 480
 #define SENSOR_PREVIEW_FPS					 15000	   // 15fps 
@@ -771,7 +771,7 @@ static struct sensor_v4l2ctrl_usr_s sensor_controls[] =
 static struct rk_sensor_datafmt sensor_colour_fmts[] = {
 	{V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG} 
 };
-static struct soc_camera_ops sensor_ops;
+/*static struct soc_camera_ops sensor_ops;*/
 
 
 /*
