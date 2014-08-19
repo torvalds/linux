@@ -8,8 +8,6 @@
 #include <linux/threads.h>
 #include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
 
-extern unsigned long va_to_phys(unsigned long address);
-extern pte_t *va_to_pte(unsigned long address);
 extern unsigned long ioremap_bot;
 
 #ifdef CONFIG_44x

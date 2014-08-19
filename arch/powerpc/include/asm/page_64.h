@@ -104,7 +104,6 @@ extern unsigned long slice_get_unmapped_area(unsigned long addr,
 extern unsigned int get_slice_psize(struct mm_struct *mm,
 				    unsigned long addr);
 
-extern void slice_init_context(struct mm_struct *mm, unsigned int psize);
 extern void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
 extern void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 				  unsigned long len, unsigned int psize);
