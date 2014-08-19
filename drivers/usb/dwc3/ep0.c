@@ -31,6 +31,7 @@
 #include <linux/usb/composite.h>
 
 #include "core.h"
+#include "debug.h"
 #include "gadget.h"
 #include "io.h"
 

@@ -30,6 +30,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
+#include "debug.h"
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
@@ -270,94 +271,6 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 	spin_unlock(&dwc->lock);
 	req->request.complete(&dep->endpoint, &req->request);
 	spin_lock(&dwc->lock);
-}
-
-static const char *dwc3_gadget_ep_cmd_string(u8 cmd)
-{
-	switch (cmd) {
-	case DWC3_DEPCMD_DEPSTARTCFG:
-		return "Start New Configuration";
-	case DWC3_DEPCMD_ENDTRANSFER:
-		return "End Transfer";
-	case DWC3_DEPCMD_UPDATETRANSFER:
-		return "Update Transfer";
-	case DWC3_DEPCMD_STARTTRANSFER:
-		return "Start Transfer";
-	case DWC3_DEPCMD_CLEARSTALL:
-		return "Clear Stall";
-	case DWC3_DEPCMD_SETSTALL:
-		return "Set Stall";
-	case DWC3_DEPCMD_GETEPSTATE:
-		return "Get Endpoint State";
-	case DWC3_DEPCMD_SETTRANSFRESOURCE:
-		return "Set Endpoint Transfer Resource";
-	case DWC3_DEPCMD_SETEPCONFIG:
-		return "Set Endpoint Configuration";
-	default:
-		return "UNKNOWN command";
-	}
-}
-
-static const char *dwc3_gadget_generic_cmd_string(u8 cmd)
-{
-	switch (cmd) {
-	case DWC3_DGCMD_SET_LMP:
-		return "Set LMP";
-	case DWC3_DGCMD_SET_PERIODIC_PAR:
-		return "Set Periodic Parameters";
-	case DWC3_DGCMD_XMIT_FUNCTION:
-		return "Transmit Function Wake Device Notification";
-	case DWC3_DGCMD_SET_SCRATCHPAD_ADDR_LO:
-		return "Set Scratchpad Buffer Array Address Lo";
-	case DWC3_DGCMD_SET_SCRATCHPAD_ADDR_HI:
-		return "Set Scratchpad Buffer Array Address Hi";
-	case DWC3_DGCMD_SELECTED_FIFO_FLUSH:
-		return "Selected FIFO Flush";
-	case DWC3_DGCMD_ALL_FIFO_FLUSH:
-		return "All FIFO Flush";
-	case DWC3_DGCMD_SET_ENDPOINT_NRDY:
-		return "Set Endpoint NRDY";
-	case DWC3_DGCMD_RUN_SOC_BUS_LOOPBACK:
-		return "Run SoC Bus Loopback Test";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static const char *dwc3_gadget_link_string(enum dwc3_link_state link_state)
-{
-	switch (link_state) {
-	case DWC3_LINK_STATE_U0:
-		return "U0";
-	case DWC3_LINK_STATE_U1:
-		return "U1";
-	case DWC3_LINK_STATE_U2:
-		return "U2";
-	case DWC3_LINK_STATE_U3:
-		return "U3";
-	case DWC3_LINK_STATE_SS_DIS:
-		return "SS.Disabled";
-	case DWC3_LINK_STATE_RX_DET:
-		return "RX.Detect";
-	case DWC3_LINK_STATE_SS_INACT:
-		return "SS.Inactive";
-	case DWC3_LINK_STATE_POLL:
-		return "Polling";
-	case DWC3_LINK_STATE_RECOV:
-		return "Recovery";
-	case DWC3_LINK_STATE_HRESET:
-		return "Hot Reset";
-	case DWC3_LINK_STATE_CMPLY:
-		return "Compliance";
-	case DWC3_LINK_STATE_LPBK:
-		return "Loopback";
-	case DWC3_LINK_STATE_RESET:
-		return "Reset";
-	case DWC3_LINK_STATE_RESUME:
-		return "Resume";
-	default:
-		return "UNKNOWN link state\n";
-	}
 }
 
 int dwc3_send_gadget_generic_command(struct dwc3 *dwc, int cmd, u32 param)
