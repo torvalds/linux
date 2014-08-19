@@ -4032,8 +4032,23 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	return 0;
 }
 
+static void snd_soc_component_init_regmap(struct snd_soc_component *component)
+{
+	if (!component->regmap)
+		component->regmap = dev_get_regmap(component->dev, NULL);
+	if (component->regmap) {
+		int val_bytes = regmap_get_val_bytes(component->regmap);
+		/* Errors are legitimate for non-integer byte multiples */
+		if (val_bytes > 0)
+			component->val_bytes = val_bytes;
+	}
+}
+
 static void snd_soc_component_add_unlocked(struct snd_soc_component *component)
 {
+	if (!component->write && !component->read)
+		snd_soc_component_init_regmap(component);
+
 	list_add(&component->list, &component_list);
 }
 
@@ -4371,7 +4386,6 @@ int snd_soc_register_codec(struct device *dev,
 {
 	struct snd_soc_codec *codec;
 	struct snd_soc_dai *dai;
-	struct regmap *regmap;
 	int ret, i;
 
 	dev_dbg(dev, "codec register %s\n", dev_name(dev));
@@ -4425,23 +4439,8 @@ int snd_soc_register_codec(struct device *dev,
 	codec->component.debugfs_prefix = "codec";
 #endif
 
-	if (!codec->component.write) {
-		if (codec_drv->get_regmap)
-			regmap = codec_drv->get_regmap(dev);
-		else
-			regmap = dev_get_regmap(dev, NULL);
-
-		if (regmap) {
-			ret = snd_soc_component_init_io(&codec->component,
-				regmap);
-			if (ret) {
-				dev_err(codec->dev,
-						"Failed to set cache I/O:%d\n",
-						ret);
-				goto err_cleanup;
-			}
-		}
-	}
+	if (codec_drv->get_regmap)
+		codec->component.regmap = codec_drv->get_regmap(dev);
 
 	for (i = 0; i < num_dai; i++) {
 		fixup_codec_formats(&dai_drv[i].playback);
