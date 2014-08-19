@@ -364,11 +364,13 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 
 	/* Configure wait counters */
 	if (b47n->cc->status & BCMA_CC_CHIPST_4706_PKG_OPTION) {
-		freq = 100000000;
+		/* 400 MHz */
+		freq = 400000000 / 4;
 	} else {
 		freq = bcma_chipco_pll_read(b47n->cc, 4);
-		freq = (freq * 0xFFF) >> 3;
-		freq = (freq * 25000000) >> 3;
+		freq = (freq & 0xFFF) >> 3;
+		/* Fixed reference clock 25 MHz and m = 2 */
+		freq = (freq * 25000000 / 2) / 4;
 	}
 	clock = freq / 1000000;
 	w0 = bcm47xxnflash_ops_bcm4706_ns_to_cycle(15, clock);
