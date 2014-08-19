@@ -628,8 +628,8 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
  * Retrieve error log, which contains log from device driver
  * and firmware.
  */
-int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
-		     char *drv_log, unsigned long len)
+static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
+			    char *drv_log, unsigned long len)
 {
 	pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
 

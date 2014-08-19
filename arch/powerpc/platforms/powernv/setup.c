@@ -307,7 +307,7 @@ static int __init pnv_probe(void)
  * Returns the cpu frequency for 'cpu' in Hz. This is used by
  * /proc/cpuinfo
  */
-unsigned long pnv_get_proc_freq(unsigned int cpu)
+static unsigned long pnv_get_proc_freq(unsigned int cpu)
 {
 	unsigned long ret_freq;
 

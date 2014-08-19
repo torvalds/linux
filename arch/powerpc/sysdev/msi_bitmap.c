@@ -143,7 +143,7 @@ void msi_bitmap_free(struct msi_bitmap *bmp)
 #define check(x)	\
 	if (!(x)) printk("msi_bitmap: test failed at line %d\n", __LINE__);
 
-void __init test_basics(void)
+static void __init test_basics(void)
 {
 	struct msi_bitmap bmp;
 	int i, size = 512;
@@ -188,7 +188,7 @@ void __init test_basics(void)
 	kfree(bmp.bitmap);
 }
 
-void __init test_of_node(void)
+static void __init test_of_node(void)
 {
 	u32 prop_data[] = { 10, 10, 25, 3, 40, 1, 100, 100, 200, 20 };
 	const char *expected_str = "0-9,20-24,28-39,41-99,220-255";
@@ -236,7 +236,7 @@ void __init test_of_node(void)
 	kfree(bmp.bitmap);
 }
 
-int __init msi_bitmap_selftest(void)
+static int __init msi_bitmap_selftest(void)
 {
 	printk(KERN_DEBUG "Running MSI bitmap self-tests ...\n");
 

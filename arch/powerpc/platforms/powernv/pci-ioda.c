@@ -385,7 +385,7 @@ static void pnv_ioda_freeze_pe(struct pnv_phb *phb, int pe_no)
 	}
 }
 
-int pnv_ioda_unfreeze_pe(struct pnv_phb *phb, int pe_no, int opt)
+static int pnv_ioda_unfreeze_pe(struct pnv_phb *phb, int pe_no, int opt)
 {
 	struct pnv_ioda_pe *pe, *slave;
 	s64 rc;
@@ -1631,8 +1631,8 @@ static void pnv_pci_ioda_shutdown(struct pnv_phb *phb)
 		       OPAL_ASSERT_RESET);
 }
 
-void __init pnv_pci_init_ioda_phb(struct device_node *np,
-				  u64 hub_id, int ioda_type)
+static void __init pnv_pci_init_ioda_phb(struct device_node *np,
+					 u64 hub_id, int ioda_type)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;

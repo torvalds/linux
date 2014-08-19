@@ -54,7 +54,7 @@ static void pnv_smp_setup_cpu(int cpu)
 #endif
 }
 
-int pnv_smp_kick_cpu(int nr)
+static int pnv_smp_kick_cpu(int nr)
 {
 	unsigned int pcpu = get_hard_smp_processor_id(nr);
 	unsigned long start_here =
