@@ -166,5 +166,21 @@
 				#clock-cells = <1>;
 			};
 		};
+
+		gmac0: ethernet@1840000 {
+			compatible = "hisilicon,hix5hd2-gmac";
+			reg = <0x1840000 0x1000>,<0x184300c 0x4>;
+			interrupts = <0 71 4>;
+			clocks = <&clock HIX5HD2_MAC0_CLK>;
+			status = "disabled";
+		};
+
+		gmac1: ethernet@1841000 {
+			compatible = "hisilicon,hix5hd2-gmac";
+			reg = <0x1841000 0x1000>,<0x1843010 0x4>;
+			interrupts = <0 72 4>;
+			clocks = <&clock HIX5HD2_MAC1_CLK>;
+			status = "disabled";
+		};
 	};
 };
