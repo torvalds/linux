@@ -45,11 +45,12 @@
 #include <linux/interrupt.h>
 struct device_attribute;
 /*The limit of outstanding scsi command that firmware can handle*/
-#define ARCMSR_MAX_OUTSTANDING_CMD						256
 #ifdef CONFIG_XEN
 	#define ARCMSR_MAX_FREECCB_NUM	160
+#define ARCMSR_MAX_OUTSTANDING_CMD	155
 #else
 	#define ARCMSR_MAX_FREECCB_NUM	320
+#define ARCMSR_MAX_OUTSTANDING_CMD	255
 #endif
 #define ARCMSR_DRIVER_VERSION		"v1.30.00.04-20140428"
 #define ARCMSR_SCSI_INITIATOR_ID						255
@@ -598,6 +599,7 @@ struct AdapterControlBlock
 				#define	FW_DEADLOCK	0x0010
 	atomic_t 			rq_map_token;
 	atomic_t			ante_token_value;
+	uint32_t	maxOutstanding;
 	int		msix_vector_count;
 };/* HW_DEVICE_EXTENSION */
 /*
