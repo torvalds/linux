@@ -13011,7 +13011,16 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (intel_crt_present(dev))
 		intel_crt_init(dev);
 
-	if (HAS_DDI(dev)) {
+	if (IS_BROXTON(dev)) {
+		/*
+		 * FIXME: Broxton doesn't support port detection via the
+		 * DDI_BUF_CTL_A or SFUSE_STRAP registers, find another way to
+		 * detect the ports.
+		 */
+		intel_ddi_init(dev, PORT_A);
+		intel_ddi_init(dev, PORT_B);
+		intel_ddi_init(dev, PORT_C);
+	} else if (HAS_DDI(dev)) {
 		int found;
 
 		/*
