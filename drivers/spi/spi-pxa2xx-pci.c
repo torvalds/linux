@@ -16,6 +16,9 @@
 enum {
 	PORT_CE4100,
 	PORT_BYT,
+	PORT_BSW0,
+	PORT_BSW1,
+	PORT_BSW2,
 };
 
 struct pxa_spi_info {
@@ -31,6 +34,13 @@ struct pxa_spi_info {
 
 static struct dw_dma_slave byt_tx_param = { .dst_id = 0 };
 static struct dw_dma_slave byt_rx_param = { .src_id = 1 };
+
+static struct dw_dma_slave bsw0_tx_param = { .dst_id = 0 };
+static struct dw_dma_slave bsw0_rx_param = { .src_id = 1 };
+static struct dw_dma_slave bsw1_tx_param = { .dst_id = 6 };
+static struct dw_dma_slave bsw1_rx_param = { .src_id = 7 };
+static struct dw_dma_slave bsw2_tx_param = { .dst_id = 8 };
+static struct dw_dma_slave bsw2_rx_param = { .src_id = 9 };
 
 static bool lpss_dma_filter(struct dma_chan *chan, void *param)
 {
@@ -57,6 +67,30 @@ static struct pxa_spi_info spi_info_configs[] = {
 		.max_clk_rate = 50000000,
 		.tx_param = &byt_tx_param,
 		.rx_param = &byt_rx_param,
+	},
+	[PORT_BSW0] = {
+		.type = LPSS_SSP,
+		.port_id = 0,
+		.num_chipselect = 1,
+		.max_clk_rate = 50000000,
+		.tx_param = &bsw0_tx_param,
+		.rx_param = &bsw0_rx_param,
+	},
+	[PORT_BSW1] = {
+		.type = LPSS_SSP,
+		.port_id = 1,
+		.num_chipselect = 1,
+		.max_clk_rate = 50000000,
+		.tx_param = &bsw1_tx_param,
+		.rx_param = &bsw1_rx_param,
+	},
+	[PORT_BSW2] = {
+		.type = LPSS_SSP,
+		.port_id = 2,
+		.num_chipselect = 1,
+		.max_clk_rate = 50000000,
+		.tx_param = &bsw2_tx_param,
+		.rx_param = &bsw2_rx_param,
 	},
 };
 
@@ -159,6 +193,9 @@ static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 static const struct pci_device_id pxa2xx_spi_pci_devices[] = {
 	{ PCI_VDEVICE(INTEL, 0x2e6a), PORT_CE4100 },
 	{ PCI_VDEVICE(INTEL, 0x0f0e), PORT_BYT },
+	{ PCI_VDEVICE(INTEL, 0x228e), PORT_BSW0 },
+	{ PCI_VDEVICE(INTEL, 0x2290), PORT_BSW1 },
+	{ PCI_VDEVICE(INTEL, 0x22ac), PORT_BSW2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, pxa2xx_spi_pci_devices);
