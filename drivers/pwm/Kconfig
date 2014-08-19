@@ -150,13 +150,30 @@ config PWM_LPC32XX
 
 config PWM_LPSS
 	tristate "Intel LPSS PWM support"
-	depends on ACPI
 	help
 	  Generic PWM framework driver for Intel Low Power Subsystem PWM
 	  controller.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpss.
+
+config PWM_LPSS_PCI
+	tristate "Intel LPSS PWM PCI driver"
+	depends on PWM_LPSS && PCI
+	help
+	  The PCI driver for Intel Low Power Subsystem PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpss-pci.
+
+config PWM_LPSS_PLATFORM
+	tristate "Intel LPSS PWM platform driver"
+	depends on PWM_LPSS && ACPI
+	help
+	  The platform driver for Intel Low Power Subsystem PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpss-platform.
 
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
