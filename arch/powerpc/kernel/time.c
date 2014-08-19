@@ -1024,6 +1024,7 @@ void to_tm(int tim, struct rtc_time * tm)
 	 */
 	GregorianDay(tm);
 }
+EXPORT_SYMBOL(to_tm);
 
 /*
  * Divide a 128-bit dividend by a 32-bit divisor, leaving a 128 bit

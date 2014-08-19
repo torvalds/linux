@@ -94,6 +94,9 @@ struct screen_info screen_info = {
 	.orig_video_isVGA = 1,
 	.orig_video_points = 16
 };
+#if defined(CONFIG_FB_VGA16_MODULE)
+EXPORT_SYMBOL(screen_info);
+#endif
 
 /* Variables required to store legacy IO irq routing */
 int of_i8042_kbd_irq;

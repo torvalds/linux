@@ -5,7 +5,6 @@
 #include <linux/elfcore.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
-#include <linux/screen_info.h>
 #include <linux/vt_kern.h>
 #include <linux/nvram.h>
 #include <linux/irq.h>
@@ -96,8 +95,6 @@ EXPORT_SYMBOL(isa_mem_base);
 EXPORT_SYMBOL(pci_dram_offset);
 #endif /* CONFIG_PCI */
 
-EXPORT_SYMBOL(start_thread);
-
 #ifdef CONFIG_PPC_FPU
 EXPORT_SYMBOL(giveup_fpu);
 EXPORT_SYMBOL(load_fp_state);
@@ -109,7 +106,6 @@ EXPORT_SYMBOL(load_vr_state);
 EXPORT_SYMBOL(store_vr_state);
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_VSX
-EXPORT_SYMBOL(giveup_vsx);
 EXPORT_SYMBOL_GPL(__giveup_vsx);
 #endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
@@ -127,8 +123,6 @@ EXPORT_SYMBOL(flush_icache_range);
 EXPORT_SYMBOL(smp_hw_index);
 #endif
 #endif
-
-EXPORT_SYMBOL(to_tm);
 
 #ifdef CONFIG_PPC32
 long long __ashrdi3(long long, int);
@@ -149,10 +143,6 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memchr);
-
-#if defined(CONFIG_FB_VGA16_MODULE)
-EXPORT_SYMBOL(screen_info);
-#endif
 
 #ifdef CONFIG_PPC32
 EXPORT_SYMBOL(timer_interrupt);
@@ -187,10 +177,6 @@ EXPORT_SYMBOL(__arch_hweight8);
 EXPORT_SYMBOL(__arch_hweight16);
 EXPORT_SYMBOL(__arch_hweight32);
 EXPORT_SYMBOL(__arch_hweight64);
-#endif
-
-#ifdef CONFIG_PPC_BOOK3S_64
-EXPORT_SYMBOL_GPL(mmu_psize_defs);
 #endif
 
 #ifdef CONFIG_EPAPR_PARAVIRT

@@ -92,6 +92,7 @@ extern unsigned long dart_tablebase;
 
 static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+EXPORT_SYMBOL_GPL(mmu_psize_defs);
 
 struct hash_pte *htab_address;
 unsigned long htab_size_bytes;
