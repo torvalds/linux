@@ -92,7 +92,13 @@ static const struct file_operations rk3036_hdmi_reg_fops = {
 
 static int rk3036_hdmi_clk_enable(struct rk_hdmi_device *hdmi_dev)
 {
+	struct hdmi *hdmi_drv;
+	hdmi_drv = &hdmi_dev->driver;
+
 	if (!hdmi_dev->clk_on) {
+		if(hdmi_drv->data->soc_type == HDMI_SOC_RK312X) {
+			clk_prepare_enable(hdmi_dev->pd);
+		}
 		clk_prepare_enable(hdmi_dev->hclk);
 		spin_lock(&hdmi_dev->reg_lock);
 		hdmi_dev->clk_on = 1;
@@ -104,10 +110,16 @@ static int rk3036_hdmi_clk_enable(struct rk_hdmi_device *hdmi_dev)
 
 static int rk3036_hdmi_clk_disable(struct rk_hdmi_device *hdmi_dev)
 {
+	struct hdmi *hdmi_drv;
+	hdmi_drv = &hdmi_dev->driver;
+
 	if (!hdmi_dev->clk_on) {
 		spin_lock(&hdmi_dev->reg_lock);
 		hdmi_dev->clk_on = 0;
 		spin_unlock(&hdmi_dev->reg_lock);
+		if(hdmi_drv->data->soc_type == HDMI_SOC_RK312X) {
+			clk_disable_unprepare(hdmi_dev->pd);
+		}
 		clk_disable_unprepare(hdmi_dev->hclk);
 	}
 
@@ -175,6 +187,7 @@ static void rk3036_hdmi_early_suspend(void)
 		wait_for_completion_interruptible_timeout(&hdmi_drv->complete,
 							  msecs_to_jiffies(5000));
 		flush_delayed_work(&hdmi_drv->delay_work);
+		rk3036_hdmi_clk_disable(hdmi_dev);
 	}
 }
 
@@ -187,6 +200,7 @@ static void rk3036_hdmi_early_resume(void)
 	mutex_lock(&hdmi_drv->enable_mutex);
 	if (hdmi_drv->suspend) {
 		hdmi_drv->suspend = 0;
+		rk3036_hdmi_clk_enable(hdmi_dev);
 		rk3036_hdmi_initial(hdmi_drv);
 		if (hdmi_drv->enable && hdmi_drv->irq) {
 			enable_irq(hdmi_drv->irq);
@@ -351,6 +365,14 @@ static int rk3036_hdmi_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&hdmi_dev->rk3036_delay_work, rk3036_delay_work_func);
 
 	/* enable clk */
+	if(hdmi_drv->data->soc_type == HDMI_SOC_RK312X) {
+		hdmi_dev->pd = devm_clk_get(hdmi_drv->dev, "pd_hdmi");
+		if (IS_ERR(hdmi_dev->pd)) {
+			dev_err(hdmi_drv->dev, "Unable to get hdmi pd\n");
+			ret = -ENXIO;
+			goto err1;
+		}
+	}
 	hdmi_dev->hclk = devm_clk_get(hdmi_drv->dev, "pclk_hdmi");
 	if (IS_ERR(hdmi_dev->hclk)) {
 		dev_err(hdmi_drv->dev, "Unable to get hdmi hclk\n");

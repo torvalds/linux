@@ -716,8 +716,8 @@
 		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&hdmi_cec &hdmi_sda &hdmi_scl &hdmi_hpd>;
 		pinctrl-1 = <&hdmi_gpio>;
-		clocks = <&clk_gates3 8>;
-		clock-names = "pclk_hdmi";
+		clocks = <&clk_gates3 8>, <&pd_hdmi>;
+		clock-names = "pclk_hdmi", "pd_hdmi";
 		status = "disabled";
 	};
 
