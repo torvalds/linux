@@ -85,12 +85,6 @@ struct bma180_part_info {
 #define BMA180_DEF_BW		20
 #define BMA180_DEF_SCALE	2452
 
-/* Available values for sysfs */
-#define BMA180_FLP_FREQ_AVAILABLE \
-	"10 20 40 75 150 300"
-#define BMA180_SCALE_AVAILABLE \
-	"0.001275 0.001863 0.002452 0.003727 0.004903 0.009709 0.019417"
-
 struct bma180_data {
 	struct i2c_client *client;
 	struct iio_trigger *trig;
@@ -349,13 +343,51 @@ err:
 	dev_err(&data->client->dev, "failed to disable the chip\n");
 }
 
-static IIO_CONST_ATTR(in_accel_filter_low_pass_3db_frequency_available,
-		BMA180_FLP_FREQ_AVAILABLE);
-static IIO_CONST_ATTR(in_accel_scale_available, BMA180_SCALE_AVAILABLE);
+static ssize_t bma180_show_avail(char *buf, const int *vals, unsigned n,
+				 bool micros)
+{
+	size_t len = 0;
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if (!vals[i])
+			continue;
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+			micros ? "0.%06d " : "%d ", vals[i]);
+	}
+	buf[len - 1] = '\n';
+
+	return len;
+}
+
+static ssize_t bma180_show_filter_freq_avail(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct bma180_data *data = iio_priv(dev_to_iio_dev(dev));
+
+	return bma180_show_avail(buf, data->part_info->bw_table,
+		data->part_info->num_bw, false);
+}
+
+static ssize_t bma180_show_scale_avail(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct bma180_data *data = iio_priv(dev_to_iio_dev(dev));
+
+	return bma180_show_avail(buf, data->part_info->scale_table,
+		data->part_info->num_scales, true);
+}
+
+static IIO_DEVICE_ATTR(in_accel_filter_low_pass_3db_frequency_available,
+	S_IRUGO, bma180_show_filter_freq_avail, NULL, 0);
+
+static IIO_DEVICE_ATTR(in_accel_scale_available,
+	S_IRUGO, bma180_show_scale_avail, NULL, 0);
 
 static struct attribute *bma180_attributes[] = {
-	&iio_const_attr_in_accel_filter_low_pass_3db_frequency_available.dev_attr.attr,
-	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_accel_filter_low_pass_3db_frequency_available.
+		dev_attr.attr,
+	&iio_dev_attr_in_accel_scale_available.dev_attr.attr,
 	NULL,
 };
 
