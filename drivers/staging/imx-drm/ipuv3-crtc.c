@@ -201,7 +201,8 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	return ipu_plane_mode_set(ipu_crtc->plane[0], crtc, mode, crtc->primary->fb,
+	return ipu_plane_mode_set(ipu_crtc->plane[0], crtc, mode,
+				  crtc->primary->fb,
 				  0, 0, mode->hdisplay, mode->vdisplay,
 				  x, y, mode->hdisplay, mode->vdisplay);
 }
@@ -226,9 +227,11 @@ static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
 
 	if (ipu_crtc->newfb) {
+		struct ipu_plane *plane = ipu_crtc->plane[0];
+
 		ipu_crtc->newfb = NULL;
-		ipu_plane_set_base(ipu_crtc->plane[0], ipu_crtc->base.primary->fb,
-				ipu_crtc->plane[0]->x, ipu_crtc->plane[0]->y);
+		ipu_plane_set_base(plane, ipu_crtc->base.primary->fb,
+				   plane->x, plane->y);
 		ipu_crtc_handle_pageflip(ipu_crtc);
 	}
 
