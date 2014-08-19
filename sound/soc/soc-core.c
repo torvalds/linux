@@ -1004,6 +1004,9 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 
 static void soc_remove_component(struct snd_soc_component *component)
 {
+	if (!component->probed)
+		return;
+
 	/* This is a HACK and will be removed soon */
 	if (component->codec)
 		list_del(&component->codec->card_list);
@@ -1079,22 +1082,19 @@ static void soc_remove_link_components(struct snd_soc_card *card, int num,
 	int i;
 
 	/* remove the platform */
-	if (platform && platform->component.probed &&
-	    platform->component.driver->remove_order == order)
+	if (platform && platform->component.driver->remove_order == order)
 		soc_remove_component(&platform->component);
 
 	/* remove the CODEC-side CODEC */
 	for (i = 0; i < rtd->num_codecs; i++) {
 		component = rtd->codec_dais[i]->component;
-		if (component->probed &&
-		    component->driver->remove_order == order)
+		if (component->driver->remove_order == order)
 			soc_remove_component(component);
 	}
 
 	/* remove any CPU-side CODEC */
 	if (cpu_dai) {
-		if (cpu_dai->component->probed &&
-		    cpu_dai->component->driver->remove_order == order)
+		if (cpu_dai->component->driver->remove_order == order)
 			soc_remove_component(cpu_dai->component);
 	}
 }
@@ -1144,6 +1144,9 @@ static int soc_probe_component(struct snd_soc_card *card,
 	struct snd_soc_component *dai_component, *component2;
 	struct snd_soc_dai *dai;
 	int ret;
+
+	if (component->probed)
+		return 0;
 
 	component->card = card;
 	dapm->card = card;
@@ -1306,8 +1309,7 @@ static int soc_probe_link_components(struct snd_soc_card *card, int num,
 
 	/* probe the CPU-side component, if it is a CODEC */
 	component = rtd->cpu_dai->component;
-	if (!component->probed &&
-	    component->driver->probe_order == order) {
+	if (component->driver->probe_order == order) {
 		ret = soc_probe_component(card, component);
 		if (ret < 0)
 			return ret;
@@ -1316,8 +1318,7 @@ static int soc_probe_link_components(struct snd_soc_card *card, int num,
 	/* probe the CODEC-side components */
 	for (i = 0; i < rtd->num_codecs; i++) {
 		component = rtd->codec_dais[i]->component;
-		if (!component->probed &&
-		    component->driver->probe_order == order) {
+		if (component->driver->probe_order == order) {
 			ret = soc_probe_component(card, component);
 			if (ret < 0)
 				return ret;
@@ -1325,8 +1326,7 @@ static int soc_probe_link_components(struct snd_soc_card *card, int num,
 	}
 
 	/* probe the platform */
-	if (!platform->component.probed &&
-	    platform->component.driver->probe_order == order) {
+	if (platform->component.driver->probe_order == order) {
 		ret = soc_probe_component(card, &platform->component);
 		if (ret < 0)
 			return ret;
@@ -1620,11 +1620,6 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	int ret;
-
-	if (rtd->component->probed) {
-		dev_err(rtd->dev, "ASoC: codec already probed\n");
-		return -EBUSY;
-	}
 
 	ret = soc_probe_component(card, rtd->component);
 	if (ret < 0)
