@@ -1058,7 +1058,7 @@ static void soc_remove_link_components(struct snd_soc_card *card, int num,
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_platform *platform = rtd->platform;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	int i;
 
 	/* remove the platform */
@@ -1068,18 +1068,17 @@ static void soc_remove_link_components(struct snd_soc_card *card, int num,
 
 	/* remove the CODEC-side CODEC */
 	for (i = 0; i < rtd->num_codecs; i++) {
-		codec = rtd->codec_dais[i]->codec;
-		if (codec && codec->component.probed &&
-		    codec->component.driver->remove_order == order)
-			soc_remove_component(&codec->component);
+		component = rtd->codec_dais[i]->component;
+		if (component->probed &&
+		    component->driver->remove_order == order)
+			soc_remove_component(component);
 	}
 
 	/* remove any CPU-side CODEC */
 	if (cpu_dai) {
-		codec = cpu_dai->codec;
-		if (codec && codec->component.probed &&
-		    codec->component.driver->remove_order == order)
-			soc_remove_component(&codec->component);
+		if (cpu_dai->component->probed &&
+		    cpu_dai->component->driver->remove_order == order)
+			soc_remove_component(cpu_dai->component);
 	}
 }
 
@@ -1289,19 +1288,17 @@ static int soc_probe_link_components(struct snd_soc_card *card, int num,
 	int i, ret;
 
 	/* probe the CPU-side component, if it is a CODEC */
-	if (rtd->cpu_dai->codec) {
-		component = &rtd->cpu_dai->codec->component;
-		if (!component->probed &&
-		    component->driver->probe_order == order) {
-			ret = soc_probe_component(card, component);
-			if (ret < 0)
-				return ret;
-		}
+	component = rtd->cpu_dai->component;
+	if (!component->probed &&
+	    component->driver->probe_order == order) {
+		ret = soc_probe_component(card, component);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* probe the CODEC-side components */
 	for (i = 0; i < rtd->num_codecs; i++) {
-		component = &rtd->codec_dais[i]->codec->component;
+		component = rtd->codec_dais[i]->component;
 		if (!component->probed &&
 		    component->driver->probe_order == order) {
 			ret = soc_probe_component(card, component);
@@ -4042,6 +4039,8 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 
 	component->dev = dev;
 	component->driver = driver;
+	component->probe = component->driver->probe;
+	component->remove = component->driver->remove;
 
 	if (!component->dapm_ptr)
 		component->dapm_ptr = &component->dapm;
@@ -4054,6 +4053,13 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 		dapm->seq_notifier = snd_soc_component_seq_notifier;
 	if (driver->stream_event)
 		dapm->stream_event = snd_soc_component_stream_event;
+
+	component->controls = driver->controls;
+	component->num_controls = driver->num_controls;
+	component->dapm_widgets = driver->dapm_widgets;
+	component->num_dapm_widgets = driver->num_dapm_widgets;
+	component->dapm_routes = driver->dapm_routes;
+	component->num_dapm_routes = driver->num_dapm_routes;
 
 	INIT_LIST_HEAD(&component->dai_list);
 	mutex_init(&component->io_mutex);
