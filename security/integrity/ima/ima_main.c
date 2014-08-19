@@ -156,8 +156,8 @@ void ima_file_free(struct file *file)
 	ima_check_last_writer(iint, inode, file);
 }
 
-static int process_measurement(struct file *file, const char *filename,
-			       int mask, int function, int opened)
+static int process_measurement(struct file *file, int mask, int function,
+			       int opened)
 {
 	struct inode *inode = file_inode(file);
 	struct integrity_iint_cache *iint;
@@ -218,7 +218,7 @@ static int process_measurement(struct file *file, const char *filename,
 		goto out_digsig;
 	}
 
-	pathname = filename ?: ima_d_path(&file->f_path, &pathbuf);
+	pathname = ima_d_path(&file->f_path, &pathbuf);
 
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname,
@@ -254,7 +254,7 @@ out:
 int ima_file_mmap(struct file *file, unsigned long prot)
 {
 	if (file && (prot & PROT_EXEC))
-		return process_measurement(file, NULL, MAY_EXEC, MMAP_CHECK, 0);
+		return process_measurement(file, MAY_EXEC, MMAP_CHECK, 0);
 	return 0;
 }
 
@@ -273,10 +273,7 @@ int ima_file_mmap(struct file *file, unsigned long prot)
  */
 int ima_bprm_check(struct linux_binprm *bprm)
 {
-	return process_measurement(bprm->file,
-				   (strcmp(bprm->filename, bprm->interp) == 0) ?
-				   bprm->filename : bprm->interp,
-				   MAY_EXEC, BPRM_CHECK, 0);
+	return process_measurement(bprm->file, MAY_EXEC, BPRM_CHECK, 0);
 }
 
 /**
@@ -292,7 +289,7 @@ int ima_bprm_check(struct linux_binprm *bprm)
 int ima_file_check(struct file *file, int mask, int opened)
 {
 	ima_rdwr_violation_check(file);
-	return process_measurement(file, NULL,
+	return process_measurement(file,
 				   mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
 				   FILE_CHECK, opened);
 }
@@ -317,7 +314,7 @@ int ima_module_check(struct file *file)
 #endif
 		return 0;	/* We rely on module signature checking */
 	}
-	return process_measurement(file, NULL, MAY_EXEC, MODULE_CHECK, 0);
+	return process_measurement(file, MAY_EXEC, MODULE_CHECK, 0);
 }
 
 int ima_fw_from_file(struct file *file, char *buf, size_t size)
@@ -328,7 +325,7 @@ int ima_fw_from_file(struct file *file, char *buf, size_t size)
 			return -EACCES;	/* INTEGRITY_UNKNOWN */
 		return 0;
 	}
-	return process_measurement(file, NULL, MAY_EXEC, FIRMWARE_CHECK, 0);
+	return process_measurement(file, MAY_EXEC, FIRMWARE_CHECK, 0);
 }
 
 static int __init init_ima(void)
