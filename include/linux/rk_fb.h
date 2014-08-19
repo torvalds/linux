@@ -382,6 +382,7 @@ struct rk_lcdc_win {
 	u32 g_alpha_val;
 	u32 color_key_val;
 	u8 csc_mode;
+	u8 interlace_read;
 
 	struct rk_lcdc_win_area area[RK_WIN_MAX_AREA];
 	struct rk_lcdc_post_cfg post_cfg;
