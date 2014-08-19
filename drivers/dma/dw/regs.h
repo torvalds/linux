@@ -11,7 +11,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
 
 #define DW_DMA_MAX_NR_CHANNELS	8
 #define DW_DMA_MAX_NR_REQUESTS	16
@@ -161,7 +161,7 @@ struct dw_dma_regs {
 #define DWC_CTLH_DONE		0x00001000
 #define DWC_CTLH_BLOCK_TS_MASK	0x00000fff
 
-/* Bitfields in CFG_LO. Platform-configurable bits are in <linux/dw_dmac.h> */
+/* Bitfields in CFG_LO. Platform-configurable bits are in <linux/platform_data/dma-dw.h> */
 #define DWC_CFGL_CH_PRIOR_MASK	(0x7 << 5)	/* priority mask */
 #define DWC_CFGL_CH_PRIOR(x)	((x) << 5)	/* priority */
 #define DWC_CFGL_CH_SUSP	(1 << 8)	/* pause xfer */
@@ -172,7 +172,7 @@ struct dw_dma_regs {
 #define DWC_CFGL_RELOAD_SAR	(1 << 30)
 #define DWC_CFGL_RELOAD_DAR	(1 << 31)
 
-/* Bitfields in CFG_HI. Platform-configurable bits are in <linux/dw_dmac.h> */
+/* Bitfields in CFG_HI. Platform-configurable bits are in <linux/platform_data/dma-dw.h> */
 #define DWC_CFGH_DS_UPD_EN	(1 << 5)
 #define DWC_CFGH_SS_UPD_EN	(1 << 6)
 

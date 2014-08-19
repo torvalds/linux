@@ -7,7 +7,7 @@
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>

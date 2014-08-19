@@ -12,7 +12,7 @@
 #define _DW_DMAC_INTERNAL_H
 
 #include <linux/device.h>
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
 
 #include "regs.h"
 

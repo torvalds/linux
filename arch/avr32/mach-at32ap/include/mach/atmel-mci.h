@@ -1,7 +1,7 @@
 #ifndef __MACH_ATMEL_MCI_H
 #define __MACH_ATMEL_MCI_H
 
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
 
 /**
  * struct mci_dma_data - DMA data for MCI interface

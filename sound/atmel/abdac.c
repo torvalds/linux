@@ -9,7 +9,7 @@
  */
 #include <linux/clk.h>
 #include <linux/bitmap.h>
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
