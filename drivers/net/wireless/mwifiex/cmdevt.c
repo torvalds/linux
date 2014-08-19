@@ -1567,7 +1567,8 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 			}
 			parsed_len += le16_to_cpu(tlv->len) +
 				      sizeof(struct mwifiex_ie_types_header);
-			left_len -= parsed_len;
+			left_len -= le16_to_cpu(tlv->len) +
+				      sizeof(struct mwifiex_ie_types_header);
 		}
 	}
 
