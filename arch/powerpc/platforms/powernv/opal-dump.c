@@ -427,6 +427,10 @@ void __init opal_platform_dump_init(void)
 {
 	int rc;
 
+	/* ELOG not supported by firmware */
+	if (!opal_check_token(OPAL_DUMP_READ))
+		return;
+
 	dump_kset = kset_create_and_add("dump", NULL, opal_kobj);
 	if (!dump_kset) {
 		pr_warn("%s: Failed to create dump kset\n", __func__);
