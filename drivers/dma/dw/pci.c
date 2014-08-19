@@ -108,6 +108,10 @@ static const struct pci_device_id dw_pci_id_table[] = {
 	{ PCI_VDEVICE(INTEL, 0x0f06), (kernel_ulong_t)&dw_pci_pdata },
 	{ PCI_VDEVICE(INTEL, 0x0f40), (kernel_ulong_t)&dw_pci_pdata },
 
+	/* Braswell */
+	{ PCI_VDEVICE(INTEL, 0x2286), (kernel_ulong_t)&dw_pci_pdata },
+	{ PCI_VDEVICE(INTEL, 0x22c0), (kernel_ulong_t)&dw_pci_pdata },
+
 	/* Haswell */
 	{ PCI_VDEVICE(INTEL, 0x9c60), (kernel_ulong_t)&dw_pci_pdata },
 	{ }
