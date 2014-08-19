@@ -155,8 +155,8 @@ static void dwc_initialize(struct dw_dma_chan *dwc)
 		 */
 		BUG_ON(!dws->dma_dev || dws->dma_dev != dw->dma.dev);
 
-		cfghi = dws->cfg_hi;
-		cfglo |= dws->cfg_lo & ~DWC_CFGL_CH_PRIOR_MASK;
+		cfghi |= DWC_CFGH_DST_PER(dws->dst_id);
+		cfghi |= DWC_CFGH_SRC_PER(dws->src_id);
 	} else {
 		if (dwc->direction == DMA_MEM_TO_DEV)
 			cfghi = DWC_CFGH_DST_PER(dwc->request_line);

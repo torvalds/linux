@@ -17,17 +17,15 @@
  * struct dw_dma_slave - Controller-specific information about a slave
  *
  * @dma_dev: required DMA master device. Depricated.
- * @bus_id: name of this device channel, not just a device name since
- *          devices may have more than one channel e.g. "foo_tx"
- * @cfg_hi: Platform-specific initializer for the CFG_HI register
- * @cfg_lo: Platform-specific initializer for the CFG_LO register
+ * @src_id:	src request line
+ * @dst_id:	dst request line
  * @src_master: src master for transfers on allocated channel.
  * @dst_master: dest master for transfers on allocated channel.
  */
 struct dw_dma_slave {
 	struct device		*dma_dev;
-	u32			cfg_hi;
-	u32			cfg_lo;
+	u8			src_id;
+	u8			dst_id;
 	u8			src_master;
 	u8			dst_master;
 };
