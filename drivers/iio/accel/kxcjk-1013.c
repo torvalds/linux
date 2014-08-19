@@ -1326,12 +1326,14 @@ static const struct dev_pm_ops kxcjk1013_pm_ops = {
 
 static const struct acpi_device_id kx_acpi_match[] = {
 	{"KXCJ1013", 0},
+	{"KXCJ1008", 0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, kx_acpi_match);
 
 static const struct i2c_device_id kxcjk1013_id[] = {
 	{"kxcjk1013", 0},
+	{"kxcj91008", 0},
 	{}
 };
 
