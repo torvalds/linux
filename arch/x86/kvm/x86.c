@@ -1747,7 +1747,13 @@ static bool mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	}
 
 	/* variable MTRRs */
-	return valid_mtrr_type(data & 0xff);
+	WARN_ON(!(msr >= 0x200 && msr < 0x200 + 2 * KVM_NR_VAR_MTRR));
+
+	if ((msr & 1) == 0)
+		/* MTRR base */
+		return valid_mtrr_type(data & 0xff);
+	/* MTRR mask */
+	return true;
 }
 
 static int set_msr_mtrr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
