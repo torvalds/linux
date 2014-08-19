@@ -128,13 +128,6 @@ EXPORT_SYMBOL(smp_hw_index);
 #endif
 #endif
 
-#ifdef CONFIG_ADB
-EXPORT_SYMBOL(adb_request);
-EXPORT_SYMBOL(adb_register);
-EXPORT_SYMBOL(adb_unregister);
-EXPORT_SYMBOL(adb_poll);
-EXPORT_SYMBOL(adb_try_handler_change);
-#endif /* CONFIG_ADB */
 #ifdef CONFIG_ADB_CUDA
 EXPORT_SYMBOL(cuda_request);
 EXPORT_SYMBOL(cuda_poll);
