@@ -94,7 +94,7 @@ head-y				:= arch/m68k/kernel/head.o
 head-$(CONFIG_SUN3)		:= arch/m68k/kernel/sun3-head.o
 head-$(CONFIG_M68360)		:= arch/m68k/platform/68360/head.o
 head-$(CONFIG_M68000)		:= arch/m68k/platform/68000/head.o
-head-$(CONFIG_COLDFIRE)		:= arch/m68k/platform/coldfire/head.o
+head-$(CONFIG_COLDFIRE)		:= arch/m68k/coldfire/head.o
 
 core-y				+= arch/m68k/kernel/	arch/m68k/mm/
 libs-y				+= arch/m68k/lib/
@@ -116,7 +116,7 @@ core-$(CONFIG_M68060)		+= arch/m68k/ifpsp060/
 core-$(CONFIG_M68KFPU_EMU)	+= arch/m68k/math-emu/
 core-$(CONFIG_M68360)		+= arch/m68k/platform/68360/
 core-$(CONFIG_M68000)		+= arch/m68k/platform/68000/
-core-$(CONFIG_COLDFIRE)		+= arch/m68k/platform/coldfire/
+core-$(CONFIG_COLDFIRE)		+= arch/m68k/coldfire/
 
 
 all:	zImage
