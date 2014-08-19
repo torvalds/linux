@@ -2141,8 +2141,10 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	/* Keep GGTT vmas first to make debug easier */
 	if (i915_is_ggtt(vm))
 		list_add(&vma->vma_link, &obj->vma_list);
-	else
+	else {
 		list_add_tail(&vma->vma_link, &obj->vma_list);
+		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
+	}
 
 	return vma;
 }
@@ -2156,9 +2158,6 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 	vma = i915_gem_obj_to_vma(obj, vm);
 	if (!vma)
 		vma = __i915_gem_vma_create(obj, vm);
-
-	if (!i915_is_ggtt(vm))
-		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 
 	return vma;
 }
