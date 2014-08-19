@@ -16,6 +16,7 @@
 #include <linux/videodev2.h>
 #include <linux/bitmap.h>
 #include <linux/fb.h>
+#include <media/v4l2-mediabus.h>
 
 struct ipu_soc;
 
@@ -59,6 +60,15 @@ struct ipu_di_signal_cfg {
 
 	u8 hsync_pin;
 	u8 vsync_pin;
+};
+
+/*
+ * Enumeration of CSI destinations
+ */
+enum ipu_csi_dest {
+	IPU_CSI_DEST_IDMAC, /* to memory via SMFC */
+	IPU_CSI_DEST_IC,	/* to Image Converter */
+	IPU_CSI_DEST_VDIC,  /* to VDIC */
 };
 
 enum ipu_color_space {
@@ -211,8 +221,26 @@ int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,
 /*
  * IPU CMOS Sensor Interface (csi) functions
  */
-int ipu_csi_enable(struct ipu_soc *ipu, int csi);
-int ipu_csi_disable(struct ipu_soc *ipu, int csi);
+struct ipu_csi;
+int ipu_csi_init_interface(struct ipu_csi *csi,
+			   struct v4l2_mbus_config *mbus_cfg,
+			   struct v4l2_mbus_framefmt *mbus_fmt);
+bool ipu_csi_is_interlaced(struct ipu_csi *csi);
+void ipu_csi_get_window(struct ipu_csi *csi, struct v4l2_rect *w);
+void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w);
+void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
+				u32 r_value, u32 g_value, u32 b_value,
+				u32 pix_clk);
+int ipu_csi_set_mipi_datatype(struct ipu_csi *csi, u32 vc,
+			      struct v4l2_mbus_framefmt *mbus_fmt);
+int ipu_csi_set_skip_smfc(struct ipu_csi *csi, u32 skip,
+			  u32 max_ratio, u32 id);
+int ipu_csi_set_dest(struct ipu_csi *csi, enum ipu_csi_dest csi_dest);
+int ipu_csi_enable(struct ipu_csi *csi);
+int ipu_csi_disable(struct ipu_csi *csi);
+struct ipu_csi *ipu_csi_get(struct ipu_soc *ipu, int id);
+void ipu_csi_put(struct ipu_csi *csi);
+void ipu_csi_dump(struct ipu_csi *csi);
 
 /*
  * IPU Sensor Multiple FIFO Controller (SMFC) functions
