@@ -157,35 +157,7 @@ qconf-cxxobjs	:= qconf.o
 qconf-objs	:= zconf.tab.o
 gconf-objs	:= gconf.o zconf.tab.o
 
-hostprogs-y := conf
-
-ifeq ($(MAKECMDGOALS),nconfig)
-	hostprogs-y += nconf
-endif
-
-ifeq ($(MAKECMDGOALS),menuconfig)
-	hostprogs-y += mconf
-endif
-
-ifeq ($(MAKECMDGOALS),update-po-config)
-	hostprogs-y += kxgettext
-endif
-
-ifeq ($(MAKECMDGOALS),xconfig)
-	qconf-target := 1
-endif
-ifeq ($(MAKECMDGOALS),gconfig)
-	gconf-target := 1
-endif
-
-
-ifeq ($(qconf-target),1)
-	hostprogs-y += qconf
-endif
-
-ifeq ($(gconf-target),1)
-	hostprogs-y += gconf
-endif
+hostprogs-y := conf nconf mconf kxgettext qconf gconf
 
 clean-files	:= qconf.moc .tmp_qtcheck .tmp_gtkcheck
 clean-files	+= zconf.tab.c zconf.lex.c zconf.hash.c gconf.glade.h
@@ -224,7 +196,7 @@ HOSTLOADLIBES_nconf	= $(shell \
 				|| echo "-lmenu -lpanel -lncurses"  )
 $(obj)/qconf.o: $(obj)/.tmp_qtcheck
 
-ifeq ($(qconf-target),1)
+ifeq ($(MAKECMDGOALS),xconfig)
 $(obj)/.tmp_qtcheck: $(src)/Makefile
 -include $(obj)/.tmp_qtcheck
 
@@ -281,7 +253,7 @@ endif
 
 $(obj)/gconf.o: $(obj)/.tmp_gtkcheck
 
-ifeq ($(gconf-target),1)
+ifeq ($(MAKECMDGOALS),gconfig)
 -include $(obj)/.tmp_gtkcheck
 
 # GTK needs some extra effort, too...
