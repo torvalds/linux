@@ -376,6 +376,13 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 	/* Audio-related clocks configuration */
 	clk_set_parent(clks[IMX6SL_CLK_SPDIF0_SEL], clks[IMX6SL_CLK_PLL3_PFD3]);
 
+	/* set PLL5 video as lcdif pix parent clock */
+	clk_set_parent(clks[IMX6SL_CLK_LCDIF_PIX_SEL],
+			clks[IMX6SL_CLK_PLL5_VIDEO_DIV]);
+
+	clk_set_parent(clks[IMX6SL_CLK_LCDIF_AXI_SEL],
+		       clks[IMX6SL_CLK_PLL2_PFD2]);
+
 	/* Set initial power mode */
 	imx6q_set_lpm(WAIT_CLOCKED);
 }
