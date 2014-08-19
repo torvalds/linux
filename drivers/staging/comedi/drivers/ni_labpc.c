@@ -397,8 +397,9 @@ static void labpc_set_ai_convert_period(struct comedi_cmd *cmd,
 		cmd->scan_begin_arg = ns;
 		if (cmd->convert_arg > cmd->scan_begin_arg)
 			cmd->convert_arg = cmd->scan_begin_arg;
-	} else
+	} else {
 		cmd->convert_arg = ns;
+	}
 }
 
 static unsigned int labpc_ai_scan_period(const struct comedi_cmd *cmd,
@@ -1409,8 +1410,9 @@ int labpc_common_attach(struct comedi_device *dev,
 
 		for (i = 0; i < s->n_chan; i++)
 			write_caldac(dev, i, s->maxdata / 2);
-	} else
+	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
+	}
 
 	/* EEPROM */
 	s = &dev->subdevices[4];
@@ -1424,8 +1426,9 @@ int labpc_common_attach(struct comedi_device *dev,
 
 		for (i = 0; i < s->n_chan; i++)
 			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
-	} else
+	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
+	}
 
 	return 0;
 }
