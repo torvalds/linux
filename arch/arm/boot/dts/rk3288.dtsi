@@ -88,6 +88,26 @@
 		status = "disabled";
 	};
 
+	sdio0: dwmmc@ff0d0000 {
+		compatible = "rockchip,rk3288-dw-mshc";
+		clocks = <&cru HCLK_SDIO0>, <&cru SCLK_SDIO0>;
+		clock-names = "biu", "ciu";
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0xff0d0000 0x4000>;
+		status = "disabled";
+	};
+
+	sdio1: dwmmc@ff0e0000 {
+		compatible = "rockchip,rk3288-dw-mshc";
+		clocks = <&cru HCLK_SDIO1>, <&cru SCLK_SDIO1>;
+		clock-names = "biu", "ciu";
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0xff0e0000 0x4000>;
+		status = "disabled";
+	};
+
 	emmc: dwmmc@ff0f0000 {
 		compatible = "rockchip,rk3288-dw-mshc";
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
@@ -559,6 +579,88 @@
 						<6 17 RK_FUNC_1 &pcfg_pull_up>,
 						<6 18 RK_FUNC_1 &pcfg_pull_up>,
 						<6 19 RK_FUNC_1 &pcfg_pull_up>;
+			};
+		};
+
+		sdio0 {
+			sdio0_bus1: sdio0-bus1 {
+				rockchip,pins = <4 20 RK_FUNC_1 &pcfg_pull_up>;
+			};
+
+			sdio0_bus4: sdio0-bus4 {
+				rockchip,pins = <4 20 RK_FUNC_1 &pcfg_pull_up>,
+						<4 21 RK_FUNC_1 &pcfg_pull_up>,
+						<4 22 RK_FUNC_1 &pcfg_pull_up>,
+						<4 23 RK_FUNC_1 &pcfg_pull_up>;
+			};
+
+			sdio0_cmd: sdio0-cmd {
+				rockchip,pins = <4 24 RK_FUNC_1 &pcfg_pull_up>;
+			};
+
+			sdio0_clk: sdio0-clk {
+				rockchip,pins = <4 25 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			sdio0_cd: sdio0-cd {
+				rockchip,pins = <4 26 RK_FUNC_1 &pcfg_pull_up>;
+			};
+
+			sdio0_wp: sdio0-wp {
+				rockchip,pins = <4 27 RK_FUNC_1 &pcfg_pull_up>;
+			};
+
+			sdio0_pwr: sdio0-pwr {
+				rockchip,pins = <4 28 RK_FUNC_1 &pcfg_pull_up>;
+			};
+
+			sdio0_bkpwr: sdio0-bkpwr {
+				rockchip,pins = <4 29 RK_FUNC_1 &pcfg_pull_up>;
+			};
+
+			sdio0_int: sdio0-int {
+				rockchip,pins = <4 30 RK_FUNC_1 &pcfg_pull_up>;
+			};
+		};
+
+		sdio1 {
+			sdio1_bus1: sdio1-bus1 {
+				rockchip,pins = <3 24 4 &pcfg_pull_up>;
+			};
+
+			sdio1_bus4: sdio1-bus4 {
+				rockchip,pins = <3 24 4 &pcfg_pull_up>,
+						<3 25 4 &pcfg_pull_up>,
+						<3 26 4 &pcfg_pull_up>,
+						<3 27 4 &pcfg_pull_up>;
+			};
+
+			sdio1_cd: sdio1-cd {
+				rockchip,pins = <3 28 4 &pcfg_pull_up>;
+			};
+
+			sdio1_wp: sdio1-wp {
+				rockchip,pins = <3 29 4 &pcfg_pull_up>;
+			};
+
+			sdio1_bkpwr: sdio1-bkpwr {
+				rockchip,pins = <3 30 4 &pcfg_pull_up>;
+			};
+
+			sdio1_int: sdio1-int {
+				rockchip,pins = <3 31 4 &pcfg_pull_up>;
+			};
+
+			sdio1_cmd: sdio1-cmd {
+				rockchip,pins = <4 6 4 &pcfg_pull_up>;
+			};
+
+			sdio1_clk: sdio1-clk {
+				rockchip,pins = <4 7 4 &pcfg_pull_none>;
+			};
+
+			sdio1_pwr: sdio1-pwr {
+				rockchip,pins = <4 9 4 &pcfg_pull_up>;
 			};
 		};
 
