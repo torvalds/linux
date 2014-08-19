@@ -603,6 +603,56 @@ static void arcmsr_message_isr_bh_fn(struct work_struct *work)
 	}
 }
 
+static int
+arcmsr_request_irq(struct pci_dev *pdev, struct AdapterControlBlock *acb)
+{
+	int	i, j, r;
+	struct msix_entry entries[ARCMST_NUM_MSIX_VECTORS];
+
+	for (i = 0; i < ARCMST_NUM_MSIX_VECTORS; i++)
+		entries[i].entry = i;
+	r = pci_enable_msix_range(pdev, entries, 1, ARCMST_NUM_MSIX_VECTORS);
+	if (r < 0)
+		goto msi_int;
+	acb->msix_vector_count = r;
+	for (i = 0; i < r; i++) {
+		if (request_irq(entries[i].vector,
+			arcmsr_do_interrupt, 0, "arcmsr", acb)) {
+			pr_warn("arcmsr%d: request_irq =%d failed!\n",
+				acb->host->host_no, entries[i].vector);
+			for (j = 0 ; j < i ; j++)
+				free_irq(entries[j].vector, acb);
+			pci_disable_msix(pdev);
+			goto msi_int;
+		}
+		acb->entries[i] = entries[i];
+	}
+	acb->acb_flags |= ACB_F_MSIX_ENABLED;
+	pr_info("arcmsr%d: msi-x enabled\n", acb->host->host_no);
+	return SUCCESS;
+msi_int:
+	if (pci_enable_msi_exact(pdev, 1) < 0)
+		goto legacy_int;
+	if (request_irq(pdev->irq, arcmsr_do_interrupt,
+		IRQF_SHARED, "arcmsr", acb)) {
+		pr_warn("arcmsr%d: request_irq =%d failed!\n",
+			acb->host->host_no, pdev->irq);
+		pci_disable_msi(pdev);
+		goto legacy_int;
+	}
+	acb->acb_flags |= ACB_F_MSI_ENABLED;
+	pr_info("arcmsr%d: msi enabled\n", acb->host->host_no);
+	return SUCCESS;
+legacy_int:
+	if (request_irq(pdev->irq, arcmsr_do_interrupt,
+		IRQF_SHARED, "arcmsr", acb)) {
+		pr_warn("arcmsr%d: request_irq = %d failed!\n",
+			acb->host->host_no, pdev->irq);
+		return FAILED;
+	}
+	return SUCCESS;
+}
+
 static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct Scsi_Host *host;
@@ -667,16 +717,13 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if(error){
 		goto free_hbb_mu;
 	}
-	arcmsr_iop_init(acb);
 	error = scsi_add_host(host, &pdev->dev);
 	if(error){
 		goto RAID_controller_stop;
 	}
-	error = request_irq(pdev->irq, arcmsr_do_interrupt, IRQF_SHARED, "arcmsr", acb);
-	if(error){
+	if (arcmsr_request_irq(pdev, acb) == FAILED)
 		goto scsi_host_remove;
-	}
-	host->irq = pdev->irq;
+	arcmsr_iop_init(acb);
     	scsi_scan_host(host);
 	INIT_WORK(&acb->arcmsr_do_message_isr_bh, arcmsr_message_isr_bh_fn);
 	atomic_set(&acb->rq_map_token, 16);
@@ -708,6 +755,22 @@ scsi_host_release:
 pci_disable_dev:
 	pci_disable_device(pdev);
 	return -ENODEV;
+}
+
+static void arcmsr_free_irq(struct pci_dev *pdev,
+		struct AdapterControlBlock *acb)
+{
+	int i;
+
+	if (acb->acb_flags & ACB_F_MSI_ENABLED) {
+		free_irq(pdev->irq, acb);
+		pci_disable_msi(pdev);
+	} else if (acb->acb_flags & ACB_F_MSIX_ENABLED) {
+		for (i = 0; i < acb->msix_vector_count; i++)
+			free_irq(acb->entries[i].vector, acb);
+		pci_disable_msix(pdev);
+	} else
+		free_irq(pdev->irq, acb);
 }
 
 static uint8_t arcmsr_abort_hba_allcmd(struct AdapterControlBlock *acb)
@@ -992,6 +1055,7 @@ static void arcmsr_done4abort_postqueue(struct AdapterControlBlock *acb)
 	}
 	}
 }
+
 static void arcmsr_remove(struct pci_dev *pdev)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
@@ -1029,7 +1093,7 @@ static void arcmsr_remove(struct pci_dev *pdev)
 			}
 		}
 	}
-	free_irq(pdev->irq, acb);
+	arcmsr_free_irq(pdev, acb);
 	arcmsr_free_ccb_pool(acb);
 	arcmsr_free_hbb_mu(acb);
 	arcmsr_unmap_pciregion(acb);
@@ -1045,6 +1109,7 @@ static void arcmsr_shutdown(struct pci_dev *pdev)
 		(struct AdapterControlBlock *)host->hostdata;
 	del_timer_sync(&acb->eternal_timer);
 	arcmsr_disable_outbound_ints(acb);
+	arcmsr_free_irq(pdev, acb);
 	flush_work(&acb->arcmsr_do_message_isr_bh);
 	arcmsr_stop_adapter_bgrb(acb);
 	arcmsr_flush_adapter_cache(acb);
@@ -2516,8 +2581,6 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 	case ACB_ADAPTER_TYPE_A: {
 		if (cdb_phyaddr_hi32 != 0) {
 			struct MessageUnit_A __iomem *reg = acb->pmuA;
-			uint32_t intmask_org;
-			intmask_org = arcmsr_disable_outbound_ints(acb);
 			writel(ARCMSR_SIGNATURE_SET_CONFIG, \
 						&reg->message_rwbuffer[0]);
 			writel(cdb_phyaddr_hi32, &reg->message_rwbuffer[1]);
@@ -2529,7 +2592,6 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 				acb->host->host_no);
 				return 1;
 			}
-			arcmsr_enable_outbound_ints(acb, intmask_org);
 		}
 		}
 		break;
@@ -2539,8 +2601,6 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 		uint32_t __iomem *rwbuffer;
 
 		struct MessageUnit_B *reg = acb->pmuB;
-		uint32_t intmask_org;
-		intmask_org = arcmsr_disable_outbound_ints(acb);
 		reg->postq_index = 0;
 		reg->doneq_index = 0;
 		writel(ARCMSR_MESSAGE_SET_POST_WINDOW, reg->drv2iop_doorbell);
@@ -2569,7 +2629,6 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 			return 1;
 		}
 		arcmsr_hbb_enable_driver_mode(acb);
-		arcmsr_enable_outbound_ints(acb, intmask_org);
 		}
 		break;
 	case ACB_ADAPTER_TYPE_C: {
