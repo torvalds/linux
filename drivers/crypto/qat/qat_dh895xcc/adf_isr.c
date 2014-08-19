@@ -70,9 +70,9 @@ static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 	for (i = 0; i < msix_num_entries; i++)
 		pci_dev_info->msix_entries.entries[i].entry = i;
 
-	if (pci_enable_msix(pci_dev_info->pci_dev,
-			    pci_dev_info->msix_entries.entries,
-			    msix_num_entries)) {
+	if (pci_enable_msix_exact(pci_dev_info->pci_dev,
+				  pci_dev_info->msix_entries.entries,
+				  msix_num_entries)) {
 		pr_err("QAT: Failed to enable MSIX IRQ\n");
 		return -EFAULT;
 	}
