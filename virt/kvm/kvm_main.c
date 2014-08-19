@@ -129,7 +129,8 @@ int vcpu_load(struct kvm_vcpu *vcpu)
 		struct pid *oldpid = vcpu->pid;
 		struct pid *newpid = get_task_pid(current, PIDTYPE_PID);
 		rcu_assign_pointer(vcpu->pid, newpid);
-		synchronize_rcu();
+		if (oldpid)
+			synchronize_rcu();
 		put_pid(oldpid);
 	}
 	cpu = get_cpu();
