@@ -50,6 +50,7 @@ obj-$(CONFIG_COMEDI_NI_AT_A2150)	+= ni_at_a2150.o
 obj-$(CONFIG_COMEDI_NI_AT_AO)		+= ni_at_ao.o
 obj-$(CONFIG_COMEDI_NI_ATMIO)		+= ni_atmio.o
 obj-$(CONFIG_COMEDI_NI_ATMIO16D)	+= ni_atmio16d.o
+obj-$(CONFIG_COMEDI_NI_LABPC_ISA)	+= ni_labpc.o
 obj-$(CONFIG_COMEDI_PCMAD)		+= pcmad.o
 obj-$(CONFIG_COMEDI_PCMDA12)		+= pcmda12.o
 obj-$(CONFIG_COMEDI_PCMMIO)		+= pcmmio.o
@@ -135,7 +136,7 @@ obj-$(CONFIG_COMEDI_VMK80XX)		+= vmk80xx.o
 obj-$(CONFIG_COMEDI_MITE)		+= mite.o
 obj-$(CONFIG_COMEDI_NI_TIO)		+= ni_tio.o
 obj-$(CONFIG_COMEDI_NI_TIOCMD)		+= ni_tiocmd.o
-obj-$(CONFIG_COMEDI_NI_LABPC)		+= ni_labpc.o
+obj-$(CONFIG_COMEDI_NI_LABPC)		+= ni_labpc_common.o
 obj-$(CONFIG_COMEDI_NI_LABPC_ISADMA)	+= ni_labpc_isadma.o
 
 obj-$(CONFIG_COMEDI_8255)		+= 8255.o
