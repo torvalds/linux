@@ -1021,28 +1021,27 @@ static void soc_remove_component(struct snd_soc_component *component)
 	module_put(component->dev->driver->owner);
 }
 
-static void soc_remove_codec_dai(struct snd_soc_dai *codec_dai, int order)
+static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 {
 	int err;
 
-	if (codec_dai && codec_dai->probed &&
-			codec_dai->driver->remove_order == order) {
-		if (codec_dai->driver->remove) {
-			err = codec_dai->driver->remove(codec_dai);
+	if (dai && dai->probed &&
+			dai->driver->remove_order == order) {
+		if (dai->driver->remove) {
+			err = dai->driver->remove(dai);
 			if (err < 0)
-				dev_err(codec_dai->dev,
+				dev_err(dai->dev,
 					"ASoC: failed to remove %s: %d\n",
-					codec_dai->name, err);
+					dai->name, err);
 		}
-		codec_dai->probed = 0;
+		dai->probed = 0;
 	}
 }
 
 static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 {
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int i, err;
+	int i;
 
 	/* unregister the rtd device */
 	if (rtd->dev_registered) {
@@ -1054,20 +1053,9 @@ static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 
 	/* remove the CODEC DAI */
 	for (i = 0; i < rtd->num_codecs; i++)
-		soc_remove_codec_dai(rtd->codec_dais[i], order);
+		soc_remove_dai(rtd->codec_dais[i], order);
 
-	/* remove the cpu_dai */
-	if (cpu_dai && cpu_dai->probed &&
-			cpu_dai->driver->remove_order == order) {
-		if (cpu_dai->driver->remove) {
-			err = cpu_dai->driver->remove(cpu_dai);
-			if (err < 0)
-				dev_err(cpu_dai->dev,
-					"ASoC: failed to remove %s: %d\n",
-					cpu_dai->name, err);
-		}
-		cpu_dai->probed = 0;
-	}
+	soc_remove_dai(rtd->cpu_dai, order);
 }
 
 static void soc_remove_link_components(struct snd_soc_card *card, int num,
