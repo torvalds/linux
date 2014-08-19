@@ -135,6 +135,7 @@ struct opal_sg_list {
 #define OPAL_FLASH_MANAGE			77
 #define OPAL_FLASH_UPDATE			78
 #define OPAL_RESYNC_TIMEBASE			79
+#define OPAL_CHECK_TOKEN			80
 #define OPAL_DUMP_INIT				81
 #define OPAL_DUMP_INFO				82
 #define OPAL_DUMP_READ				83
@@ -887,6 +888,7 @@ int64_t opal_pci_next_error(uint64_t phb_id, __be64 *first_frozen_pe,
 			    __be16 *pci_error_type, __be16 *severity);
 int64_t opal_pci_poll(uint64_t phb_id);
 int64_t opal_return_cpu(void);
+int64_t opal_check_token(uint64_t token);
 int64_t opal_reinit_cpus(uint64_t flags);
 
 int64_t opal_xscom_read(uint32_t gcid, uint64_t pcb_addr, __be64 *val);
