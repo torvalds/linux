@@ -638,6 +638,15 @@ config MMC_DW_PCI
 
 	  If unsure, say N.
 
+config MMC_DW_ROCKCHIP
+	tristate "Rockchip specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW && ARCH_ROCKCHIP
+	select MMC_DW_PLTFM
+	help
+	  This selects support for Rockchip SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on RK3066, RK3188 and RK3288 SoC's.
+
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
 	depends on MMC_BLOCK && HAS_DMA
