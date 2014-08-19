@@ -747,14 +747,13 @@ static bool transparent_hugepage_adjust(pfn_t *pfnp, phys_addr_t *ipap)
 }
 
 static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
-			  struct kvm_memory_slot *memslot,
+			  struct kvm_memory_slot *memslot, unsigned long hva,
 			  unsigned long fault_status)
 {
 	int ret;
 	bool write_fault, writable, hugetlb = false, force_pte = false;
 	unsigned long mmu_seq;
 	gfn_t gfn = fault_ipa >> PAGE_SHIFT;
-	unsigned long hva = gfn_to_hva(vcpu->kvm, gfn);
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
 	struct vm_area_struct *vma;
@@ -863,7 +862,8 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	unsigned long fault_status;
 	phys_addr_t fault_ipa;
 	struct kvm_memory_slot *memslot;
-	bool is_iabt;
+	unsigned long hva;
+	bool is_iabt, write_fault, writable;
 	gfn_t gfn;
 	int ret, idx;
 
@@ -884,18 +884,14 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	gfn = fault_ipa >> PAGE_SHIFT;
-	if (!kvm_is_visible_gfn(vcpu->kvm, gfn)) {
+	memslot = gfn_to_memslot(vcpu->kvm, gfn);
+	hva = gfn_to_hva_memslot_prot(memslot, gfn, &writable);
+	write_fault = kvm_is_write_fault(kvm_vcpu_get_hsr(vcpu));
+	if (kvm_is_error_hva(hva) || (write_fault && !writable)) {
 		if (is_iabt) {
 			/* Prefetch Abort on I/O address */
 			kvm_inject_pabt(vcpu, kvm_vcpu_get_hfar(vcpu));
 			ret = 1;
-			goto out_unlock;
-		}
-
-		if (fault_status != FSC_FAULT) {
-			kvm_err("Unsupported fault status on io memory: %#lx\n",
-				fault_status);
-			ret = -EFAULT;
 			goto out_unlock;
 		}
 
@@ -910,9 +906,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		goto out_unlock;
 	}
 
-	memslot = gfn_to_memslot(vcpu->kvm, gfn);
-
-	ret = user_mem_abort(vcpu, fault_ipa, memslot, fault_status);
+	ret = user_mem_abort(vcpu, fault_ipa, memslot, hva, fault_status);
 	if (ret == 0)
 		ret = 1;
 out_unlock:
