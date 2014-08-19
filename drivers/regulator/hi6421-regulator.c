@@ -435,8 +435,8 @@ static unsigned int hi6421_regulator_ldo_get_mode(struct regulator_dev *rdev)
 	regmap_read(rdev->regmap, rdev->desc->enable_reg, &reg_val);
 	if (reg_val & info->mode_mask)
 		return REGULATOR_MODE_IDLE;
-	else
-		return REGULATOR_MODE_NORMAL;
+
+	return REGULATOR_MODE_NORMAL;
 }
 
 static unsigned int hi6421_regulator_buck_get_mode(struct regulator_dev *rdev)
@@ -447,8 +447,8 @@ static unsigned int hi6421_regulator_buck_get_mode(struct regulator_dev *rdev)
 	regmap_read(rdev->regmap, rdev->desc->enable_reg, &reg_val);
 	if (reg_val & info->mode_mask)
 		return REGULATOR_MODE_STANDBY;
-	else
-		return REGULATOR_MODE_NORMAL;
+
+	return REGULATOR_MODE_NORMAL;
 }
 
 static int hi6421_regulator_ldo_set_mode(struct regulator_dev *rdev,
@@ -506,8 +506,8 @@ unsigned int hi6421_regulator_ldo_get_optimum_mode(struct regulator_dev *rdev,
 
 	if (load_uA > info->eco_microamp)
 		return REGULATOR_MODE_NORMAL;
-	else
-		return REGULATOR_MODE_IDLE;
+
+	return REGULATOR_MODE_IDLE;
 }
 
 static const struct regulator_ops hi6421_ldo_ops = {
