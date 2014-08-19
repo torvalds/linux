@@ -221,9 +221,10 @@ struct dw_dma_chan {
 	bool			nollp;
 
 	/* custom slave configuration */
-	unsigned int		request_line;
-	unsigned char		src_master;
-	unsigned char		dst_master;
+	u8			src_id;
+	u8			dst_id;
+	u8			src_master;
+	u8			dst_master;
 
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;

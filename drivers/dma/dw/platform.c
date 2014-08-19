@@ -41,7 +41,8 @@ static bool dw_dma_of_filter(struct dma_chan *chan, void *param)
 	if (chan->device != &fargs->dw->dma)
 		return false;
 
-	dwc->request_line = fargs->req;
+	dwc->src_id = fargs->req;
+	dwc->dst_id = fargs->req;
 	dwc->src_master	= fargs->src;
 	dwc->dst_master	= fargs->dst;
 
@@ -86,7 +87,8 @@ static bool dw_dma_acpi_filter(struct dma_chan *chan, void *param)
 	    chan->chan_id != dma_spec->chan_id)
 		return false;
 
-	dwc->request_line = dma_spec->slave_id;
+	dwc->src_id = dma_spec->slave_id;
+	dwc->dst_id = dma_spec->slave_id;
 	dwc->src_master = dwc_get_sms(NULL);
 	dwc->dst_master = dwc_get_dms(NULL);
 
