@@ -1477,8 +1477,10 @@ static int smack_file_open(struct file *file, const struct cred *cred)
 	struct smk_audit_info ad;
 	int rc;
 
-	if (smack_privileged(CAP_MAC_OVERRIDE))
+	if (smack_privileged(CAP_MAC_OVERRIDE)) {
+		file->f_security = isp->smk_inode;
 		return 0;
+	}
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
