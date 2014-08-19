@@ -2307,8 +2307,8 @@ int regulator_get_hardware_vsel_register(struct regulator *regulator,
 					 unsigned *vsel_reg,
 					 unsigned *vsel_mask)
 {
-	struct regulator_dev	*rdev = regulator->rdev;
-	struct regulator_ops	*ops = rdev->desc->ops;
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
 
 	if (ops->set_voltage_sel != regulator_set_voltage_sel_regmap)
 		return -EOPNOTSUPP;
@@ -2334,8 +2334,8 @@ EXPORT_SYMBOL_GPL(regulator_get_hardware_vsel_register);
 int regulator_list_hardware_vsel(struct regulator *regulator,
 				 unsigned selector)
 {
-	struct regulator_dev	*rdev = regulator->rdev;
-	struct regulator_ops	*ops = rdev->desc->ops;
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
 
 	if (selector >= rdev->desc->n_voltages)
 		return -EINVAL;
