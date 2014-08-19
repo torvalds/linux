@@ -365,6 +365,9 @@ struct mmc_host {
 
 	unsigned int		slotno;	/* used for sdio acpi binding */
 
+	int			dsr_req;	/* DSR value is valid */
+	u32			dsr;	/* optional driver stage (DSR) value */
+
 	unsigned long		private[0] ____cacheline_aligned;
 };
 
