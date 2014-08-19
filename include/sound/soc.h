@@ -697,6 +697,10 @@ struct snd_soc_component_driver {
 	void (*seq_notifier)(struct snd_soc_component *, enum snd_soc_dapm_type,
 		int subseq);
 	int (*stream_event)(struct snd_soc_component *, int event);
+
+	/* probe ordering - for components with runtime dependencies */
+	int probe_order;
+	int remove_order;
 };
 
 struct snd_soc_component {
@@ -710,6 +714,7 @@ struct snd_soc_component {
 
 	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
 	unsigned int registered_as_component:1;
+	unsigned int probed:1;
 
 	struct list_head list;
 
@@ -742,6 +747,18 @@ struct snd_soc_component {
 	struct snd_soc_dapm_context dapm;
 	struct snd_soc_dapm_context *dapm_ptr;
 
+	const struct snd_kcontrol_new *controls;
+	unsigned int num_controls;
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	unsigned int num_dapm_widgets;
+	const struct snd_soc_dapm_route *dapm_routes;
+	unsigned int num_dapm_routes;
+	bool steal_sibling_dai_widgets;
+	struct snd_soc_codec *codec;
+
+	int (*probe)(struct snd_soc_component *);
+	void (*remove)(struct snd_soc_component *);
+
 #ifdef CONFIG_DEBUG_FS
 	void (*init_debugfs)(struct snd_soc_component *component);
 	const char *debugfs_prefix;
@@ -761,7 +778,6 @@ struct snd_soc_codec {
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
 	unsigned int suspended:1; /* Codec is in suspend PM state */
-	unsigned int probed:1; /* Codec has been probed */
 	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
 	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int cache_init:1; /* codec cache has been initialized */
@@ -827,10 +843,6 @@ struct snd_soc_codec_driver {
 			     enum snd_soc_dapm_type, int);
 
 	bool ignore_pmdown_time;  /* Doesn't benefit from pmdown delay */
-
-	/* probe ordering - for components with runtime dependencies */
-	int probe_order;
-	int remove_order;
 };
 
 /* SoC platform interface */
@@ -867,10 +879,6 @@ struct snd_soc_platform_driver {
 	/* platform stream compress ops */
 	const struct snd_compr_ops *compr_ops;
 
-	/* probe ordering - for components with runtime dependencies */
-	int probe_order;
-	int remove_order;
-
 	/* platform IO - used for platform DAPM */
 	unsigned int (*read)(struct snd_soc_platform *, unsigned int);
 	int (*write)(struct snd_soc_platform *, unsigned int, unsigned int);
@@ -888,7 +896,6 @@ struct snd_soc_platform {
 	const struct snd_soc_platform_driver *driver;
 
 	unsigned int suspended:1; /* platform is suspended */
-	unsigned int probed:1;
 
 	struct list_head list;
 

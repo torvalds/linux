@@ -985,44 +985,20 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	return 0;
 }
 
-static int soc_remove_platform(struct snd_soc_platform *platform)
+static void soc_remove_component(struct snd_soc_component *component)
 {
-	int ret;
+	/* This is a HACK and will be removed soon */
+	if (component->codec)
+		list_del(&component->codec->card_list);
 
-	if (platform->driver->remove) {
-		ret = platform->driver->remove(platform);
-		if (ret < 0)
-			dev_err(platform->dev, "ASoC: failed to remove %d\n",
-				ret);
-	}
+	if (component->remove)
+		component->remove(component);
 
-	/* Make sure all DAPM widgets are freed */
-	snd_soc_dapm_free(&platform->component.dapm);
+	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
 
-	soc_cleanup_component_debugfs(&platform->component);
-	platform->probed = 0;
-	module_put(platform->dev->driver->owner);
-
-	return 0;
-}
-
-static void soc_remove_codec(struct snd_soc_codec *codec)
-{
-	int err;
-
-	if (codec->driver->remove) {
-		err = codec->driver->remove(codec);
-		if (err < 0)
-			dev_err(codec->dev, "ASoC: failed to remove %d\n", err);
-	}
-
-	/* Make sure all DAPM widgets are freed */
-	snd_soc_dapm_free(&codec->dapm);
-
-	soc_cleanup_component_debugfs(&codec->component);
-	codec->probed = 0;
-	list_del(&codec->card_list);
-	module_put(codec->dev->driver->owner);
+	soc_cleanup_component_debugfs(component);
+	component->probed = 0;
+	module_put(component->dev->driver->owner);
 }
 
 static void soc_remove_codec_dai(struct snd_soc_dai *codec_dai, int order)
@@ -1086,25 +1062,24 @@ static void soc_remove_link_components(struct snd_soc_card *card, int num,
 	int i;
 
 	/* remove the platform */
-	if (platform && platform->probed &&
-	    platform->driver->remove_order == order) {
-		soc_remove_platform(platform);
-	}
+	if (platform && platform->component.probed &&
+	    platform->component.driver->remove_order == order)
+		soc_remove_component(&platform->component);
 
 	/* remove the CODEC-side CODEC */
 	for (i = 0; i < rtd->num_codecs; i++) {
 		codec = rtd->codec_dais[i]->codec;
-		if (codec && codec->probed &&
-		    codec->driver->remove_order == order)
-			soc_remove_codec(codec);
+		if (codec && codec->component.probed &&
+		    codec->component.driver->remove_order == order)
+			soc_remove_component(&codec->component);
 	}
 
 	/* remove any CPU-side CODEC */
 	if (cpu_dai) {
 		codec = cpu_dai->codec;
-		if (codec && codec->probed &&
-		    codec->driver->remove_order == order)
-			soc_remove_codec(codec);
+		if (codec && codec->component.probed &&
+		    codec->component.driver->remove_order == order)
+			soc_remove_component(&codec->component);
 	}
 }
 
@@ -1146,137 +1121,108 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 	}
 }
 
-static int soc_probe_codec(struct snd_soc_card *card,
-			   struct snd_soc_codec *codec)
+static int soc_probe_component(struct snd_soc_card *card,
+	struct snd_soc_component *component)
 {
-	int ret = 0;
-	const struct snd_soc_codec_driver *driver = codec->driver;
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_component *dai_component, *component2;
 	struct snd_soc_dai *dai;
+	int ret;
 
-	codec->component.card = card;
-	codec->dapm.card = card;
-	soc_set_name_prefix(card, &codec->component);
+	component->card = card;
+	dapm->card = card;
+	soc_set_name_prefix(card, component);
 
-	if (!try_module_get(codec->dev->driver->owner))
+	if (!try_module_get(component->dev->driver->owner))
 		return -ENODEV;
 
-	soc_init_component_debugfs(&codec->component);
+	soc_init_component_debugfs(component);
 
-	if (driver->dapm_widgets) {
-		ret = snd_soc_dapm_new_controls(&codec->dapm,
-						driver->dapm_widgets,
-					 	driver->num_dapm_widgets);
+	if (component->dapm_widgets) {
+		ret = snd_soc_dapm_new_controls(dapm, component->dapm_widgets,
+			component->num_dapm_widgets);
 
 		if (ret != 0) {
-			dev_err(codec->dev,
+			dev_err(component->dev,
 				"Failed to create new controls %d\n", ret);
 			goto err_probe;
 		}
 	}
 
-	/* Create DAPM widgets for each DAI stream */
-	list_for_each_entry(dai, &codec->component.dai_list, list) {
-		ret = snd_soc_dapm_new_dai_widgets(&codec->dapm, dai);
+	/*
+	 * This is rather ugly, but certain platforms expect that the DAPM
+	 * widgets for the DAIs for components with the same parent device are
+	 * created in the platforms DAPM context. Until that is fixed we need to
+	 * keep this.
+	 */
+	if (component->steal_sibling_dai_widgets) {
+		dai_component = NULL;
+		list_for_each_entry(component2, &component_list, list) {
+			if (component == component2)
+				continue;
 
-		if (ret != 0) {
-			dev_err(codec->dev,
-				"Failed to create DAI widgets %d\n", ret);
-			goto err_probe;
+			if (component2->dev == component->dev &&
+			    !list_empty(&component2->dai_list)) {
+				dai_component = component2;
+				break;
+			}
+		}
+	} else {
+		dai_component = component;
+		list_for_each_entry(component2, &component_list, list) {
+			if (component2->dev == component->dev &&
+			    component2->steal_sibling_dai_widgets) {
+				dai_component = NULL;
+				break;
+			}
 		}
 	}
 
-	codec->dapm.idle_bias_off = driver->idle_bias_off;
+	if (dai_component) {
+		list_for_each_entry(dai, &dai_component->dai_list, list) {
+			snd_soc_dapm_new_dai_widgets(dapm, dai);
+			if (ret != 0) {
+				dev_err(component->dev,
+					"Failed to create DAI widgets %d\n",
+					ret);
+				goto err_probe;
+			}
+		}
+	}
 
-	if (driver->probe) {
-		ret = driver->probe(codec);
+	if (component->probe) {
+		ret = component->probe(component);
 		if (ret < 0) {
-			dev_err(codec->dev,
-				"ASoC: failed to probe CODEC %d\n", ret);
+			dev_err(component->dev,
+				"ASoC: failed to probe component %d\n", ret);
 			goto err_probe;
 		}
-		WARN(codec->dapm.idle_bias_off &&
-			codec->dapm.bias_level != SND_SOC_BIAS_OFF,
+
+		WARN(dapm->idle_bias_off &&
+			dapm->bias_level != SND_SOC_BIAS_OFF,
 			"codec %s can not start from non-off bias with idle_bias_off==1\n",
-			codec->component.name);
+			component->name);
 	}
 
-	if (driver->controls)
-		snd_soc_add_codec_controls(codec, driver->controls,
-				     driver->num_controls);
-	if (driver->dapm_routes)
-		snd_soc_dapm_add_routes(&codec->dapm, driver->dapm_routes,
-					driver->num_dapm_routes);
+	if (component->controls)
+		snd_soc_add_component_controls(component, component->controls,
+				     component->num_controls);
+	if (component->dapm_routes)
+		snd_soc_dapm_add_routes(dapm, component->dapm_routes,
+					component->num_dapm_routes);
 
-	/* mark codec as probed and add to card codec list */
-	codec->probed = 1;
-	list_add(&codec->card_list, &card->codec_dev_list);
-	list_add(&codec->dapm.list, &card->dapm_list);
+	component->probed = 1;
+	list_add(&dapm->list, &card->dapm_list);
+
+	/* This is a HACK and will be removed soon */
+	if (component->codec)
+		list_add(&component->codec->card_list, &card->codec_dev_list);
 
 	return 0;
 
 err_probe:
-	soc_cleanup_component_debugfs(&codec->component);
-	module_put(codec->dev->driver->owner);
-
-	return ret;
-}
-
-static int soc_probe_platform(struct snd_soc_card *card,
-			   struct snd_soc_platform *platform)
-{
-	int ret = 0;
-	const struct snd_soc_platform_driver *driver = platform->driver;
-	struct snd_soc_component *component;
-	struct snd_soc_dai *dai;
-
-	platform->component.card = card;
-	platform->component.dapm.card = card;
-
-	if (!try_module_get(platform->dev->driver->owner))
-		return -ENODEV;
-
-	soc_init_component_debugfs(&platform->component);
-
-	if (driver->dapm_widgets)
-		snd_soc_dapm_new_controls(&platform->component.dapm,
-			driver->dapm_widgets, driver->num_dapm_widgets);
-
-	/* Create DAPM widgets for each DAI stream */
-	list_for_each_entry(component, &component_list, list) {
-		if (component->dev != platform->dev)
-			continue;
-		list_for_each_entry(dai, &component->dai_list, list)
-			snd_soc_dapm_new_dai_widgets(&platform->component.dapm,
-				dai);
-	}
-
-	platform->component.dapm.idle_bias_off = 1;
-
-	if (driver->probe) {
-		ret = driver->probe(platform);
-		if (ret < 0) {
-			dev_err(platform->dev,
-				"ASoC: failed to probe platform %d\n", ret);
-			goto err_probe;
-		}
-	}
-
-	if (driver->controls)
-		snd_soc_add_platform_controls(platform, driver->controls,
-				     driver->num_controls);
-	if (driver->dapm_routes)
-		snd_soc_dapm_add_routes(&platform->component.dapm,
-			driver->dapm_routes, driver->num_dapm_routes);
-
-	/* mark platform as probed and add to card platform list */
-	platform->probed = 1;
-	list_add(&platform->component.dapm.list, &card->dapm_list);
-
-	return 0;
-
-err_probe:
-	soc_cleanup_component_debugfs(&platform->component);
-	module_put(platform->dev->driver->owner);
+	soc_cleanup_component_debugfs(component);
+	module_put(component->dev->driver->owner);
 
 	return ret;
 }
@@ -1334,33 +1280,36 @@ static int soc_probe_link_components(struct snd_soc_card *card, int num,
 				     int order)
 {
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_platform *platform = rtd->platform;
+	struct snd_soc_component *component;
 	int i, ret;
 
 	/* probe the CPU-side component, if it is a CODEC */
-	if (cpu_dai->codec &&
-	    !cpu_dai->codec->probed &&
-	    cpu_dai->codec->driver->probe_order == order) {
-		ret = soc_probe_codec(card, cpu_dai->codec);
-		if (ret < 0)
-			return ret;
+	if (rtd->cpu_dai->codec) {
+		component = &rtd->cpu_dai->codec->component;
+		if (!component->probed &&
+		    component->driver->probe_order == order) {
+			ret = soc_probe_component(card, component);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	/* probe the CODEC-side components */
 	for (i = 0; i < rtd->num_codecs; i++) {
-		if (!rtd->codec_dais[i]->codec->probed &&
-		    rtd->codec_dais[i]->codec->driver->probe_order == order) {
-			ret = soc_probe_codec(card, rtd->codec_dais[i]->codec);
+		component = &rtd->codec_dais[i]->codec->component;
+		if (!component->probed &&
+		    component->driver->probe_order == order) {
+			ret = soc_probe_component(card, component);
 			if (ret < 0)
 				return ret;
 		}
 	}
 
 	/* probe the platform */
-	if (!platform->probed &&
-	    platform->driver->probe_order == order) {
-		ret = soc_probe_platform(card, platform);
+	if (!platform->component.probed &&
+	    platform->component.driver->probe_order == order) {
+		ret = soc_probe_component(card, &platform->component);
 		if (ret < 0)
 			return ret;
 	}
@@ -1647,12 +1596,12 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	int ret;
 
-	if (rtd->codec->probed) {
+	if (rtd->codec->component.probed) {
 		dev_err(rtd->codec->dev, "ASoC: codec already probed\n");
 		return -EBUSY;
 	}
 
-	ret = soc_probe_codec(card, rtd->codec);
+	ret = soc_probe_component(card, &rtd->codec->component);
 	if (ret < 0)
 		return ret;
 
@@ -1681,8 +1630,8 @@ static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
 		rtd->dev_registered = 0;
 	}
 
-	if (codec && codec->probed)
-		soc_remove_codec(codec);
+	if (codec && codec->component.probed)
+		soc_remove_component(&codec->component);
 }
 
 static int snd_soc_init_codec_cache(struct snd_soc_codec *codec)
@@ -4198,6 +4147,20 @@ found:
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
 
+static int snd_soc_platform_drv_probe(struct snd_soc_component *component)
+{
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
+
+	return platform->driver->probe(platform);
+}
+
+static void snd_soc_platform_drv_remove(struct snd_soc_component *component)
+{
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
+
+	platform->driver->remove(platform);
+}
+
 static int snd_soc_platform_drv_write(struct snd_soc_component *component,
 	unsigned int reg, unsigned int val)
 {
@@ -4234,6 +4197,24 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 
 	platform->dev = dev;
 	platform->driver = platform_drv;
+	if (platform_drv->controls) {
+		platform->component.controls = platform_drv->controls;
+		platform->component.num_controls = platform_drv->num_controls;
+	}
+	if (platform_drv->dapm_widgets) {
+		platform->component.dapm_widgets = platform_drv->dapm_widgets;
+		platform->component.num_dapm_widgets = platform_drv->num_dapm_widgets;
+		platform->component.steal_sibling_dai_widgets = true;
+	}
+	if (platform_drv->dapm_routes) {
+		platform->component.dapm_routes = platform_drv->dapm_routes;
+		platform->component.num_dapm_routes = platform_drv->num_dapm_routes;
+	}
+
+	if (platform_drv->probe)
+		platform->component.probe = snd_soc_platform_drv_probe;
+	if (platform_drv->remove)
+		platform->component.remove = snd_soc_platform_drv_remove;
 	if (platform_drv->write)
 		platform->component.write = snd_soc_platform_drv_write;
 	if (platform_drv->read)
@@ -4363,6 +4344,20 @@ static void fixup_codec_formats(struct snd_soc_pcm_stream *stream)
 			stream->formats |= codec_format_map[i];
 }
 
+static int snd_soc_codec_drv_probe(struct snd_soc_component *component)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return codec->driver->probe(codec);
+}
+
+static void snd_soc_codec_drv_remove(struct snd_soc_component *component)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	codec->driver->remove(codec);
+}
+
 static int snd_soc_codec_drv_write(struct snd_soc_component *component,
 	unsigned int reg, unsigned int val)
 {
@@ -4411,12 +4406,30 @@ int snd_soc_register_codec(struct device *dev,
 		return -ENOMEM;
 
 	codec->component.dapm_ptr = &codec->dapm;
+	codec->component.codec = codec;
 
 	ret = snd_soc_component_initialize(&codec->component,
 			&codec_drv->component_driver, dev);
 	if (ret)
 		goto err_free;
 
+	if (codec_drv->controls) {
+		codec->component.controls = codec_drv->controls;
+		codec->component.num_controls = codec_drv->num_controls;
+	}
+	if (codec_drv->dapm_widgets) {
+		codec->component.dapm_widgets = codec_drv->dapm_widgets;
+		codec->component.num_dapm_widgets = codec_drv->num_dapm_widgets;
+	}
+	if (codec_drv->dapm_routes) {
+		codec->component.dapm_routes = codec_drv->dapm_routes;
+		codec->component.num_dapm_routes = codec_drv->num_dapm_routes;
+	}
+
+	if (codec_drv->probe)
+		codec->component.probe = snd_soc_codec_drv_probe;
+	if (codec_drv->remove)
+		codec->component.remove = snd_soc_codec_drv_remove;
 	if (codec_drv->write)
 		codec->component.write = snd_soc_codec_drv_write;
 	if (codec_drv->read)
