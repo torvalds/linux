@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
+#include <linux/seq_file.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/prom.h>
 #include <asm/hw_irq.h>
@@ -67,11 +68,24 @@ static void fsl_msi_end_irq(struct irq_data *d)
 {
 }
 
+static void fsl_msi_print_chip(struct irq_data *irqd, struct seq_file *p)
+{
+	struct fsl_msi *msi_data = irqd->domain->host_data;
+	irq_hw_number_t hwirq = irqd_to_hwirq(irqd);
+	int cascade_virq, srs;
+
+	srs = (hwirq >> msi_data->srs_shift) & MSI_SRS_MASK;
+	cascade_virq = msi_data->cascade_array[srs]->virq;
+
+	seq_printf(p, " fsl-msi-%d", cascade_virq);
+}
+
+
 static struct irq_chip fsl_msi_chip = {
 	.irq_mask	= mask_msi_irq,
 	.irq_unmask	= unmask_msi_irq,
 	.irq_ack	= fsl_msi_end_irq,
-	.name		= "FSL-MSI",
+	.irq_print_chip = fsl_msi_print_chip,
 };
 
 static int fsl_msi_host_map(struct irq_domain *h, unsigned int virq,
