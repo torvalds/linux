@@ -919,6 +919,26 @@ err_desc_get:
 	return NULL;
 }
 
+bool dw_dma_filter(struct dma_chan *chan, void *param)
+{
+	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
+	struct dw_dma_slave *dws = param;
+
+	if (!dws || dws->dma_dev != chan->device->dev)
+		return false;
+
+	/* We have to copy data since dws can be temporary storage */
+
+	dwc->src_id = dws->src_id;
+	dwc->dst_id = dws->dst_id;
+
+	dwc->src_master = dws->src_master;
+	dwc->dst_master = dws->dst_master;
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(dw_dma_filter);
+
 /*
  * Fix sconfig's burst size according to dw_dmac. We need to convert them as:
  * 1 -> 0, 4 -> 1, 8 -> 2, 16 -> 3.

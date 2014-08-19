@@ -43,28 +43,6 @@ int dw_dma_resume(struct dw_dma_chip *chip);
 
 #endif /* CONFIG_PM_SLEEP */
 
-/**
- * dwc_get_dms - get destination master
- * @slave:	pointer to the custom slave configuration
- *
- * Returns destination master in the custom slave configuration if defined, or
- * default value otherwise.
- */
-static inline unsigned int dwc_get_dms(struct dw_dma_slave *slave)
-{
-	return slave ? slave->dst_master : 0;
-}
-
-/**
- * dwc_get_sms - get source master
- * @slave:	pointer to the custom slave configuration
- *
- * Returns source master in the custom slave configuration if defined, or
- * default value otherwise.
- */
-static inline unsigned int dwc_get_sms(struct dw_dma_slave *slave)
-{
-	return slave ? slave->src_master : 1;
-}
+extern bool dw_dma_filter(struct dma_chan *chan, void *param);
 
 #endif /* _DW_DMAC_INTERNAL_H */
