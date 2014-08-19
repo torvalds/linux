@@ -1390,11 +1390,10 @@ int labpc_common_attach(struct comedi_device *dev,
 
 	/* 8255 dio */
 	s = &dev->subdevices[2];
-	if (dev->mmio) {
+	if (dev->mmio)
 		ret = subdev_8255_mm_init(dev, s, NULL, DIO_BASE_REG);
-	} else {
+	else
 		ret = subdev_8255_init(dev, s, NULL, DIO_BASE_REG);
-	}
 	if (ret)
 		return ret;
 
