@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -37,54 +37,14 @@ void _mali_osk_profiling_term(void)
 	/* Nothing to do */
 }
 
-_mali_osk_errcode_t _mali_osk_profiling_start(u32 * limit)
-{
-	/* Nothing to do */
-	return _MALI_OSK_ERR_OK;
-}
-
-_mali_osk_errcode_t _mali_osk_profiling_stop(u32 *count)
-{
-	/* Nothing to do */
-	return _MALI_OSK_ERR_OK;
-}
-
-u32 _mali_osk_profiling_get_count(void)
-{
-	return 0;
-}
-
-_mali_osk_errcode_t _mali_osk_profiling_get_event(u32 index, u64* timestamp, u32* event_id, u32 data[5])
-{
-	/* Nothing to do */
-	return _MALI_OSK_ERR_OK;
-}
-
-_mali_osk_errcode_t _mali_osk_profiling_clear(void)
-{
-	/* Nothing to do */
-	return _MALI_OSK_ERR_OK;
-}
-
-mali_bool _mali_osk_profiling_is_recording(void)
-{
-	return MALI_FALSE;
-}
-
-mali_bool _mali_osk_profiling_have_recording(void)
-{
-	return MALI_FALSE;
-}
-
 void _mali_osk_profiling_report_sw_counters(u32 *counters)
 {
 	trace_mali_sw_counters(_mali_osk_get_pid(), _mali_osk_get_tid(), NULL, counters);
 }
 
-
-_mali_osk_errcode_t _mali_ukk_profiling_start(_mali_uk_profiling_start_s *args)
+void _mali_osk_profiling_memory_usage_get(u32 *memory_usage)
 {
-	return _mali_osk_profiling_start(&args->limit);
+	*memory_usage = _mali_ukk_report_memory_usage();
 }
 
 _mali_osk_errcode_t _mali_ukk_profiling_add_event(_mali_uk_profiling_add_event_s *args)
@@ -95,24 +55,18 @@ _mali_osk_errcode_t _mali_ukk_profiling_add_event(_mali_uk_profiling_add_event_s
 	return _MALI_OSK_ERR_OK;
 }
 
-_mali_osk_errcode_t _mali_ukk_profiling_stop(_mali_uk_profiling_stop_s *args)
-{
-	return _mali_osk_profiling_stop(&args->count);
-}
-
-_mali_osk_errcode_t _mali_ukk_profiling_get_event(_mali_uk_profiling_get_event_s *args)
-{
-	return _mali_osk_profiling_get_event(args->index, &args->timestamp, &args->event_id, args->data);
-}
-
-_mali_osk_errcode_t _mali_ukk_profiling_clear(_mali_uk_profiling_clear_s *args)
-{
-	return _mali_osk_profiling_clear();
-}
-
 _mali_osk_errcode_t _mali_ukk_sw_counters_report(_mali_uk_sw_counters_report_s *args)
 {
-	_mali_osk_profiling_report_sw_counters(args->counters);
+	u32 *counters = (u32 *)(uintptr_t)args->counters;
+
+	_mali_osk_profiling_report_sw_counters(counters);
+
+	return _MALI_OSK_ERR_OK;
+}
+
+_mali_osk_errcode_t _mali_ukk_profiling_memory_usage_get(_mali_uk_profiling_memory_usage_get_s *args)
+{
+	_mali_osk_profiling_memory_usage_get(&args->memory_usage);
 	return _MALI_OSK_ERR_OK;
 }
 
@@ -197,7 +151,7 @@ int _mali_profiling_set_event(u32 counter_id, s32 event_id)
 		}
 	} else if (COUNTER_L2_0_C0 <= counter_id && COUNTER_L2_2_C1 >= counter_id) {
 		u32 core_id = (counter_id - COUNTER_L2_0_C0) >> 1;
-		struct mali_l2_cache_core* l2_cache_core = mali_l2_cache_core_get_glob_l2_core(core_id);
+		struct mali_l2_cache_core *l2_cache_core = mali_l2_cache_core_get_glob_l2_core(core_id);
 
 		if (NULL != l2_cache_core) {
 			u32 counter_src = (counter_id - COUNTER_L2_0_C0) & 1;
@@ -242,10 +196,10 @@ u32 _mali_profiling_get_l2_counters(_mali_profiling_l2_counter_values *values)
 		if (MALI_TRUE == mali_l2_cache_lock_power_state(l2_cache)) {
 			/* It is now safe to access the L2 cache core in order to retrieve the counters */
 			mali_l2_cache_core_get_counter_values(l2_cache,
-			                                      &values->cores[i].source0,
-			                                      &values->cores[i].value0,
-			                                      &values->cores[i].source1,
-			                                      &values->cores[i].value1);
+							      &values->cores[i].source0,
+							      &values->cores[i].value0,
+							      &values->cores[i].source1,
+							      &values->cores[i].value1);
 		} else {
 			/* The core was not available, set the right bit in the mask. */
 			ret |= (1 << i);
@@ -261,7 +215,7 @@ u32 _mali_profiling_get_l2_counters(_mali_profiling_l2_counter_values *values)
  */
 void _mali_profiling_control(u32 action, u32 value)
 {
-	switch(action) {
+	switch (action) {
 	case FBDUMP_CONTROL_ENABLE:
 		mali_set_user_setting(_MALI_UK_USER_SETTING_COLORBUFFER_CAPTURE_ENABLED, (value == 0 ? MALI_FALSE : MALI_TRUE));
 		break;
@@ -275,7 +229,7 @@ void _mali_profiling_control(u32 action, u32 value)
 		mali_set_user_setting(_MALI_UK_USER_SETTING_BUFFER_CAPTURE_RESIZE_FACTOR, value);
 		break;
 	default:
-		break;	/* Ignore unimplemented actions */
+		break;  /* Ignore unimplemented actions */
 	}
 }
 
@@ -300,6 +254,7 @@ void _mali_profiling_get_mali_version(struct _mali_profiling_mali_version *value
 	values->num_of_fp_cores = mali_pp_scheduler_get_num_cores_total();
 	values->num_of_vp_cores = 1;
 }
+
 
 EXPORT_SYMBOL(_mali_profiling_set_event);
 EXPORT_SYMBOL(_mali_profiling_get_l2_counters);

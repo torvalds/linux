@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2010-2013 ARM Limited
+ * (C) COPYRIGHT 2010-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -32,14 +32,14 @@ typedef enum mali_profiling_state {
 
 static _mali_osk_mutex_t *lock = NULL;
 static mali_profiling_state prof_state = MALI_PROFILING_STATE_UNINITIALIZED;
-static mali_profiling_entry* profile_entries = NULL;
+static mali_profiling_entry *profile_entries = NULL;
 static _mali_osk_atomic_t profile_insert_index;
 static u32 profile_mask = 0;
 
 static inline void add_event(u32 event_id, u32 data0, u32 data1, u32 data2, u32 data3, u32 data4);
 
 void probe_mali_timeline_event(void *data, TP_PROTO(unsigned int event_id, unsigned int d0, unsigned int d1, unsigned
-                               int d2, unsigned int d3, unsigned int d4))
+			       int d2, unsigned int d3, unsigned int d4))
 {
 	add_event(event_id, d0, d1, d2, d3, d4);
 }
@@ -89,7 +89,7 @@ void _mali_internal_profiling_term(void)
 	}
 }
 
-_mali_osk_errcode_t _mali_internal_profiling_start(u32 * limit)
+_mali_osk_errcode_t _mali_internal_profiling_start(u32 *limit)
 {
 	_mali_osk_errcode_t ret;
 	mali_profiling_entry *new_profile_entries;
@@ -160,12 +160,12 @@ static inline void add_event(u32 event_id, u32 data0, u32 data1, u32 data2, u32 
 	/* If event is "leave API function", add current memory usage to the event
 	 * as data point 4.  This is used in timeline profiling to indicate how
 	 * much memory was used when leaving a function. */
-	if (event_id == (MALI_PROFILING_EVENT_TYPE_SINGLE|MALI_PROFILING_EVENT_CHANNEL_SOFTWARE|MALI_PROFILING_EVENT_REASON_SINGLE_SW_LEAVE_API_FUNC)) {
+	if (event_id == (MALI_PROFILING_EVENT_TYPE_SINGLE | MALI_PROFILING_EVENT_CHANNEL_SOFTWARE | MALI_PROFILING_EVENT_REASON_SINGLE_SW_LEAVE_API_FUNC)) {
 		profile_entries[cur_index].data[4] = _mali_ukk_report_memory_usage();
 	}
 }
 
-_mali_osk_errcode_t _mali_internal_profiling_stop(u32 * count)
+_mali_osk_errcode_t _mali_internal_profiling_stop(u32 *count)
 {
 	_mali_osk_mutex_wait(lock);
 
@@ -203,7 +203,7 @@ u32 _mali_internal_profiling_get_count(void)
 	return retval;
 }
 
-_mali_osk_errcode_t _mali_internal_profiling_get_event(u32 index, u64* timestamp, u32* event_id, u32 data[5])
+_mali_osk_errcode_t _mali_internal_profiling_get_event(u32 index, u64 *timestamp, u32 *event_id, u32 data[5])
 {
 	u32 raw_index = _mali_osk_atomic_read(&profile_insert_index);
 
@@ -220,7 +220,7 @@ _mali_osk_errcode_t _mali_internal_profiling_get_event(u32 index, u64* timestamp
 			return _MALI_OSK_ERR_INVALID_ARGS; /* invalid to call this function in this state */
 		}
 
-		if(index >= raw_index) {
+		if (index >= raw_index) {
 			_mali_osk_mutex_signal(lock);
 			return _MALI_OSK_ERR_FAULT;
 		}

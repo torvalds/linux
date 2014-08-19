@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -37,13 +37,13 @@ static void mali_scheduler_wq_schedule_gp(void *arg)
 
 _mali_osk_errcode_t mali_scheduler_initialize(void)
 {
-	if ( _MALI_OSK_ERR_OK != _mali_osk_atomic_init(&mali_job_id_autonumber, 0)) {
-		MALI_DEBUG_PRINT(1,  ("Initialization of atomic job id counter failed.\n"));
+	if (_MALI_OSK_ERR_OK != _mali_osk_atomic_init(&mali_job_id_autonumber, 0)) {
+		MALI_DEBUG_PRINT(1, ("Initialization of atomic job id counter failed.\n"));
 		return _MALI_OSK_ERR_FAULT;
 	}
 
-	if ( _MALI_OSK_ERR_OK != _mali_osk_atomic_init(&mali_job_cache_order_autonumber, 0)) {
-		MALI_DEBUG_PRINT(1,  ("Initialization of atomic job cache order counter failed.\n"));
+	if (_MALI_OSK_ERR_OK != _mali_osk_atomic_init(&mali_job_cache_order_autonumber, 0)) {
+		MALI_DEBUG_PRINT(1, ("Initialization of atomic job cache order counter failed.\n"));
 		_mali_osk_atomic_term(&mali_job_id_autonumber);
 		return _MALI_OSK_ERR_FAULT;
 	}

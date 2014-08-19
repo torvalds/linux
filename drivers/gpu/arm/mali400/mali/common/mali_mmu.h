@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2007-2013 ARM Limited
+ * (C) COPYRIGHT 2007-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -79,9 +79,9 @@ mali_bool mali_mmu_zap_tlb(struct mali_mmu_core *mmu);
 void mali_mmu_zap_tlb_without_stall(struct mali_mmu_core *mmu);
 void mali_mmu_invalidate_page(struct mali_mmu_core *mmu, u32 mali_address);
 
-void mali_mmu_activate_page_directory(struct mali_mmu_core* mmu, struct mali_page_directory *pagedir);
-void mali_mmu_activate_empty_page_directory(struct mali_mmu_core* mmu);
-void mali_mmu_activate_fault_flush_page_directory(struct mali_mmu_core* mmu);
+void mali_mmu_activate_page_directory(struct mali_mmu_core *mmu, struct mali_page_directory *pagedir);
+void mali_mmu_activate_empty_page_directory(struct mali_mmu_core *mmu);
+void mali_mmu_activate_fault_flush_page_directory(struct mali_mmu_core *mmu);
 
 void mali_mmu_page_fault_done(struct mali_mmu_core *mmu);
 

@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2013 ARM Limited
+ * (C) COPYRIGHT 2011-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -28,7 +28,7 @@ int vsync_event_report_wrapper(struct mali_session_data *session_data, _mali_uk_
 		return -EFAULT;
 	}
 
-	kargs.ctx = session_data;
+	kargs.ctx = (uintptr_t)session_data;
 	err = _mali_ukk_vsync_event_report(&kargs);
 	if (_MALI_OSK_ERR_OK != err) {
 		return map_errcode(err);

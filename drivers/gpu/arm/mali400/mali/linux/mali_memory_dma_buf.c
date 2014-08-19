@@ -1,15 +1,15 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
  * by a licensing agreement from ARM Limited.
  */
 
-#include <linux/fs.h>	   /* file system operations */
-#include <asm/uaccess.h>	/* user space access */
+#include <linux/fs.h>      /* file system operations */
+#include <asm/uaccess.h>        /* user space access */
 #include <linux/dma-buf.h>
 #include <linux/scatterlist.h>
 #include <linux/rbtree.h>
@@ -184,7 +184,7 @@ int mali_dma_buf_map_job(struct mali_pp_job *job)
 		MALI_DEBUG_ASSERT(0 < cookie);
 
 		err = mali_descriptor_mapping_get(job->session->descriptor_mapping,
-		                                  cookie, (void**)&descriptor);
+						  cookie, (void **)&descriptor);
 
 		if (_MALI_OSK_ERR_OK != err) {
 			MALI_DEBUG_PRINT_ERROR(("Mali DMA-buf: Failed to get descriptor for cookie %d\n", cookie));
@@ -207,7 +207,7 @@ int mali_dma_buf_map_job(struct mali_pp_job *job)
 		err = mali_dma_buf_map(mem, mem->session, descriptor->mali_mapping.addr, descriptor->flags);
 		if (0 != err) {
 			MALI_DEBUG_PRINT_ERROR(("Mali DMA-buf: Failed to map dma-buf for cookie %d at mali address %x\b",
-			                        cookie, descriptor->mali_mapping.addr));
+						cookie, descriptor->mali_mapping.addr));
 			ret = -EFAULT;
 			MALI_DEBUG_ASSERT(NULL == job->dma_bufs[i]);
 			continue;
@@ -374,15 +374,15 @@ int mali_release_dma_buf(struct mali_session_data *session, _mali_uk_release_dma
 	mali_mem_allocation *descriptor;
 
 	/* get call arguments from user space. copy_from_user returns how many bytes which where NOT copied */
-	if ( 0 != copy_from_user(&args, (void __user *)user_arg, sizeof(_mali_uk_release_dma_buf_s)) ) {
+	if (0 != copy_from_user(&args, (void __user *)user_arg, sizeof(_mali_uk_release_dma_buf_s))) {
 		return -EFAULT;
 	}
 
-	MALI_DEBUG_PRINT(3, ("Mali DMA-buf: release descriptor cookie %d\n", args.cookie));
+	MALI_DEBUG_PRINT(3, ("Mali DMA-buf: release descriptor cookie %ld\n", args.cookie));
 
 	_mali_osk_mutex_wait(session->memory_lock);
 
-	descriptor = mali_descriptor_mapping_free(session->descriptor_mapping, args.cookie);
+	descriptor = mali_descriptor_mapping_free(session->descriptor_mapping, (u32)args.cookie);
 
 	if (NULL != descriptor) {
 		MALI_DEBUG_PRINT(3, ("Mali DMA-buf: Releasing dma-buf at mali address %x\n", descriptor->mali_mapping.addr));
@@ -393,7 +393,7 @@ int mali_release_dma_buf(struct mali_session_data *session, _mali_uk_release_dma
 
 		mali_mem_descriptor_destroy(descriptor);
 	} else {
-		MALI_DEBUG_PRINT_ERROR(("Invalid memory descriptor %d used to release dma-buf\n", args.cookie));
+		MALI_DEBUG_PRINT_ERROR(("Invalid memory descriptor %ld used to release dma-buf\n", args.cookie));
 		ret = -EINVAL;
 	}
 
@@ -410,7 +410,7 @@ int mali_dma_buf_get_size(struct mali_session_data *session, _mali_uk_dma_buf_ge
 	struct dma_buf *buf;
 
 	/* get call arguments from user space. copy_from_user returns how many bytes which where NOT copied */
-	if ( 0 != copy_from_user(&args, (void __user *)user_arg, sizeof(_mali_uk_dma_buf_get_size_s)) ) {
+	if (0 != copy_from_user(&args, (void __user *)user_arg, sizeof(_mali_uk_dma_buf_get_size_s))) {
 		return -EFAULT;
 	}
 

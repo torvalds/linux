@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013 ARM Limited
+ * (C) COPYRIGHT 2013-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -368,8 +368,8 @@ void mali_timeline_system_stop_timer(struct mali_timeline_system *system);
  * @return Point on timeline identifying this tracker, or MALI_TIMELINE_NO_POINT if not on timeline.
  */
 mali_timeline_point mali_timeline_system_add_tracker(struct mali_timeline_system *system,
-        struct mali_timeline_tracker *tracker,
-        enum mali_timeline_id timeline_id);
+		struct mali_timeline_tracker *tracker,
+		enum mali_timeline_id timeline_id);
 
 /**
  * Get latest point on timeline.
@@ -379,7 +379,7 @@ mali_timeline_point mali_timeline_system_add_tracker(struct mali_timeline_system
  * @return Latest point on timeline, or MALI_TIMELINE_NO_POINT if the timeline is empty.
  */
 mali_timeline_point mali_timeline_system_get_latest_point(struct mali_timeline_system *system,
-        enum mali_timeline_id timeline_id);
+		enum mali_timeline_id timeline_id);
 
 /**
  * Initialize tracker.
@@ -392,9 +392,9 @@ mali_timeline_point mali_timeline_system_get_latest_point(struct mali_timeline_s
  * @param job Pointer to job struct this tracker is associated with.
  */
 void mali_timeline_tracker_init(struct mali_timeline_tracker *tracker,
-                                mali_timeline_tracker_type type,
-                                struct mali_timeline_fence *fence,
-                                void *job);
+				mali_timeline_tracker_type type,
+				struct mali_timeline_fence *fence,
+				void *job);
 
 /**
  * Grab trigger ref count on tracker.
@@ -447,7 +447,9 @@ mali_scheduler_mask mali_timeline_tracker_release(struct mali_timeline_tracker *
  */
 void mali_timeline_fence_copy_uk_fence(struct mali_timeline_fence *fence, _mali_uk_fence_t *uk_fence);
 
+#if defined(DEBUG)
 #define MALI_TIMELINE_DEBUG_FUNCTIONS
+#endif /* DEBUG */
 #if defined(MALI_TIMELINE_DEBUG_FUNCTIONS)
 
 /**
@@ -473,21 +475,21 @@ mali_timeline_tracker_state mali_timeline_debug_get_tracker_state(struct mali_ti
  *
  * @param tracker Tracker to print.
  */
-void mali_timeline_debug_print_tracker(struct mali_timeline_tracker *tracker);
+void mali_timeline_debug_print_tracker(struct mali_timeline_tracker *tracker, _mali_osk_print_ctx *print_ctx);
 
 /**
  * Print debug information about timeline.
  *
  * @param timeline Timeline to print.
  */
-void mali_timeline_debug_print_timeline(struct mali_timeline *timeline);
+void mali_timeline_debug_print_timeline(struct mali_timeline *timeline, _mali_osk_print_ctx *print_ctx);
 
 /**
  * Print debug information about timeline system.
  *
  * @param system Timeline system to print.
  */
-void mali_timeline_debug_print_system(struct mali_timeline_system *system);
+void mali_timeline_debug_print_system(struct mali_timeline_system *system, _mali_osk_print_ctx *print_ctx);
 
 #endif /* defined(MALI_TIMELINE_DEBUG_FUNCTIONS) */
 

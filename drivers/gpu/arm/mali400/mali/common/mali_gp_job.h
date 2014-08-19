@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2013 ARM Limited
+ * (C) COPYRIGHT 2011-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -58,7 +58,7 @@ MALI_STATIC_INLINE u32 mali_gp_job_get_cache_order(struct mali_gp_job *job)
 	return (NULL == job) ? 0 : job->cache_order;
 }
 
-MALI_STATIC_INLINE u32 mali_gp_job_get_user_id(struct mali_gp_job *job)
+MALI_STATIC_INLINE u64 mali_gp_job_get_user_id(struct mali_gp_job *job)
 {
 	return job->uargs.user_job_ptr;
 }
@@ -83,7 +83,7 @@ MALI_STATIC_INLINE u32 mali_gp_job_get_tid(struct mali_gp_job *job)
 	return job->tid;
 }
 
-MALI_STATIC_INLINE u32* mali_gp_job_get_frame_registers(struct mali_gp_job *job)
+MALI_STATIC_INLINE u32 *mali_gp_job_get_frame_registers(struct mali_gp_job *job)
 {
 	return job->uargs.frame_registers;
 }

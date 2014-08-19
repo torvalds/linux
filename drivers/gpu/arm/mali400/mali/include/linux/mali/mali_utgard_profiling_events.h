@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2010-2013 ARM Limited
+ * (C) COPYRIGHT 2010-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -78,7 +78,7 @@ typedef enum {
 	MALI_PROFILING_EVENT_REASON_SINGLE_SW_EGL_CREATE_FENCE_SYNC = 60,
 	MALI_PROFILING_EVENT_REASON_SINGLE_SW_EGL_CREATE_NATIVE_FENCE_SYNC = 61,
 	MALI_PROFILING_EVENT_REASON_SINGLE_SW_EGL_FENCE_FLUSH       = 62,
-	MALI_PROFILING_EVENT_REASON_SINGLE_SW_EGL_FLUSH_SERVER_WAITS= 63,
+	MALI_PROFILING_EVENT_REASON_SINGLE_SW_EGL_FLUSH_SERVER_WAITS = 63,
 } cinstr_profiling_event_reason_single_sw_t;
 
 /**

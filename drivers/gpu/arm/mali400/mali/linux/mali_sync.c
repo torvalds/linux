@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -85,7 +85,7 @@ static int timeline_compare(struct sync_pt *pta, struct sync_pt *ptb)
 	MALI_DEBUG_ASSERT_POINTER(mptb->flag);
 
 	a = mpta->flag->point;
-	b = mpta->flag->point;
+	b = mptb->flag->point;
 
 	if (a == b) return 0;
 
@@ -115,9 +115,15 @@ static void timeline_print_pt(struct seq_file *s, struct sync_pt *sync_pt)
 	MALI_DEBUG_ASSERT_POINTER(sync_pt);
 
 	mpt = to_mali_sync_pt(sync_pt);
-	MALI_DEBUG_ASSERT_POINTER(mpt->flag);
 
-	seq_printf(s, "%u", mpt->flag->point);
+	/* It is possible this sync point is just under construct,
+	 * make sure the flag is valid before accessing it
+	*/
+	if (mpt->flag) {
+		seq_printf(s, "%u", mpt->flag->point);
+	} else {
+		seq_printf(s, "uninitialized");
+	}
 }
 
 static struct sync_timeline_ops mali_timeline_ops = {

@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013 ARM Limited
+ * (C) COPYRIGHT 2013-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -26,14 +26,24 @@
 #define MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_PAGES (MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB * 256)
 #define MALI_OS_MEMORY_POOL_TRIM_JIFFIES (10 * CONFIG_HZ) /* Default to 10s */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+/* Write combine dma_attrs */
+static DEFINE_DMA_ATTRS(dma_attrs_wc);
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
 static int mali_mem_os_shrink(int nr_to_scan, gfp_t gfp_mask);
 #else
 static int mali_mem_os_shrink(struct shrinker *shrinker, int nr_to_scan, gfp_t gfp_mask);
 #endif
 #else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
 static int mali_mem_os_shrink(struct shrinker *shrinker, struct shrink_control *sc);
+#else
+static unsigned long mali_mem_os_shrink(struct shrinker *shrinker, struct shrink_control *sc);
+static unsigned long mali_mem_os_shrink_count(struct shrinker *shrinker, struct shrink_control *sc);
+#endif
 #endif
 static void mali_mem_os_trim_pool(struct work_struct *work);
 
@@ -56,11 +66,16 @@ static struct mali_mem_os_allocator {
 	.allocated_pages = ATOMIC_INIT(0),
 	.allocation_limit = 0,
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
 	.shrinker.shrink = mali_mem_os_shrink,
+#else
+	.shrinker.count_objects = mali_mem_os_shrink_count,
+	.shrinker.scan_objects = mali_mem_os_shrink,
+#endif
 	.shrinker.seeks = DEFAULT_SEEKS,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)
 	.timed_shrinker = __DELAYED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool, TIMER_DEFERRABLE),
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
 	.timed_shrinker = __DEFERRED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool),
 #else
 	.timed_shrinker = __DELAYED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool),
@@ -130,8 +145,16 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 	/* Allocate new pages, if needed. */
 	for (i = 0; i < remaining; i++) {
 		dma_addr_t dma_addr;
+		gfp_t flags = __GFP_ZERO | __GFP_REPEAT | __GFP_NOWARN | __GFP_COLD;
+		int err;
 
-		new_page = alloc_page(GFP_HIGHUSER | __GFP_ZERO | __GFP_REPEAT | __GFP_NOWARN | __GFP_COLD);
+#if defined(CONFIG_ARM) && !defined(CONFIG_ARM_LPAE)
+		flags |= GFP_HIGHUSER;
+#else
+		flags |= GFP_DMA32;
+#endif
+
+		new_page = alloc_page(flags);
 
 		if (unlikely(NULL == new_page)) {
 			/* Calculate the number of pages actually allocated, and free them. */
@@ -143,7 +166,18 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 
 		/* Ensure page is flushed from CPU caches. */
 		dma_addr = dma_map_page(&mali_platform_device->dev, new_page,
-		                        0, _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+					0, _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+
+		err = dma_mapping_error(&mali_platform_device->dev, dma_addr);
+		if (unlikely(err)) {
+			MALI_DEBUG_PRINT_ERROR(("OS Mem: Failed to DMA map page %p: %u",
+						new_page, err));
+			__free_page(new_page);
+			descriptor->os_mem.count = (page_count - remaining) + i;
+			atomic_add(descriptor->os_mem.count, &mali_mem_os_allocator.allocated_pages);
+			mali_mem_os_free(descriptor);
+			return -EFAULT;
+		}
 
 		/* Store page phys addr */
 		SetPagePrivate(new_page);
@@ -178,8 +212,16 @@ static int mali_mem_os_mali_map(mali_mem_allocation *descriptor, struct mali_ses
 	}
 
 	list_for_each_entry(page, &descriptor->os_mem.pages, lru) {
-		u32 phys = page_private(page);
-		mali_mmu_pagedir_update(pagedir, virt, phys, MALI_MMU_PAGE_SIZE, prop);
+		dma_addr_t phys = page_private(page);
+
+#if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT)
+		/* Verify that the "physical" address is 32-bit and
+		 * usable for Mali, when on a system with bus addresses
+		 * wider than 32-bit. */
+		MALI_DEBUG_ASSERT(0 == (phys >> 32));
+#endif
+
+		mali_mmu_pagedir_update(pagedir, virt, (mali_dma_addr)phys, MALI_MMU_PAGE_SIZE, prop);
 		virt += MALI_MMU_PAGE_SIZE;
 	}
 
@@ -220,9 +262,9 @@ mali_mem_allocation *mali_mem_os_alloc(u32 mali_addr, u32 size, struct vm_area_s
 
 	if (atomic_read(&mali_mem_os_allocator.allocated_pages) * _MALI_OSK_MALI_PAGE_SIZE + size > mali_mem_os_allocator.allocation_limit) {
 		MALI_DEBUG_PRINT(2, ("Mali Mem: Unable to allocate %u bytes. Currently allocated: %lu, max limit %lu\n",
-		                     size,
-		                     atomic_read(&mali_mem_os_allocator.allocated_pages) * _MALI_OSK_MALI_PAGE_SIZE,
-		                     mali_mem_os_allocator.allocation_limit));
+				     size,
+				     atomic_read(&mali_mem_os_allocator.allocated_pages) * _MALI_OSK_MALI_PAGE_SIZE,
+				     mali_mem_os_allocator.allocation_limit));
 		return NULL;
 	}
 
@@ -231,7 +273,7 @@ mali_mem_allocation *mali_mem_os_alloc(u32 mali_addr, u32 size, struct vm_area_s
 
 	descriptor->mali_mapping.addr = mali_addr;
 	descriptor->size = size;
-	descriptor->cpu_mapping.addr = (void __user*)vma->vm_start;
+	descriptor->cpu_mapping.addr = (void __user *)vma->vm_start;
 	descriptor->cpu_mapping.ref = 1;
 
 	if (VM_SHARED == (VM_SHARED & vma->vm_flags)) {
@@ -284,19 +326,20 @@ void mali_mem_os_release(mali_mem_allocation *descriptor)
 #define MALI_MEM_OS_PAGE_TABLE_PAGE_POOL_SIZE 128
 static struct {
 	struct {
-		u32 phys;
+		mali_dma_addr phys;
 		mali_io_address mapping;
 	} page[MALI_MEM_OS_PAGE_TABLE_PAGE_POOL_SIZE];
-	u32 count;
+	size_t count;
 	spinlock_t lock;
 } mali_mem_page_table_page_pool = {
 	.count = 0,
 	.lock = __SPIN_LOCK_UNLOCKED(pool_lock),
 };
 
-_mali_osk_errcode_t mali_mem_os_get_table_page(u32 *phys, mali_io_address *mapping)
+_mali_osk_errcode_t mali_mem_os_get_table_page(mali_dma_addr *phys, mali_io_address *mapping)
 {
 	_mali_osk_errcode_t ret = _MALI_OSK_ERR_NOMEM;
+	dma_addr_t tmp_phys;
 
 	spin_lock(&mali_mem_page_table_page_pool.lock);
 	if (0 < mali_mem_page_table_page_pool.count) {
@@ -309,16 +352,32 @@ _mali_osk_errcode_t mali_mem_os_get_table_page(u32 *phys, mali_io_address *mappi
 	spin_unlock(&mali_mem_page_table_page_pool.lock);
 
 	if (_MALI_OSK_ERR_OK != ret) {
-		*mapping = dma_alloc_writecombine(&mali_platform_device->dev, _MALI_OSK_MALI_PAGE_SIZE, phys, GFP_KERNEL);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+		*mapping = dma_alloc_attrs(&mali_platform_device->dev,
+					   _MALI_OSK_MALI_PAGE_SIZE, &tmp_phys,
+					   GFP_KERNEL, &dma_attrs_wc);
+#else
+		*mapping = dma_alloc_writecombine(&mali_platform_device->dev,
+						  _MALI_OSK_MALI_PAGE_SIZE, &tmp_phys, GFP_KERNEL);
+#endif
 		if (NULL != *mapping) {
 			ret = _MALI_OSK_ERR_OK;
+
+#if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT)
+			/* Verify that the "physical" address is 32-bit and
+			 * usable for Mali, when on a system with bus addresses
+			 * wider than 32-bit. */
+			MALI_DEBUG_ASSERT(0 == (tmp_phys >> 32));
+#endif
+
+			*phys = (mali_dma_addr)tmp_phys;
 		}
 	}
 
 	return ret;
 }
 
-void mali_mem_os_release_table_page(u32 phys, void *virt)
+void mali_mem_os_release_table_page(mali_dma_addr phys, void *virt)
 {
 	spin_lock(&mali_mem_page_table_page_pool.lock);
 	if (MALI_MEM_OS_PAGE_TABLE_PAGE_POOL_SIZE > mali_mem_page_table_page_pool.count) {
@@ -332,7 +391,14 @@ void mali_mem_os_release_table_page(u32 phys, void *virt)
 	} else {
 		spin_unlock(&mali_mem_page_table_page_pool.lock);
 
-		dma_free_writecombine(&mali_platform_device->dev, _MALI_OSK_MALI_PAGE_SIZE, virt, phys);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+		dma_free_attrs(&mali_platform_device->dev,
+			       _MALI_OSK_MALI_PAGE_SIZE, virt, phys,
+			       &dma_attrs_wc);
+#else
+		dma_free_writecombine(&mali_platform_device->dev,
+				      _MALI_OSK_MALI_PAGE_SIZE, virt, phys);
+#endif
 	}
 }
 
@@ -341,7 +407,7 @@ static void mali_mem_os_free_page(struct page *page)
 	BUG_ON(page_count(page) != 1);
 
 	dma_unmap_page(&mali_platform_device->dev, page_private(page),
-	               _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+		       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
 
 	ClearPagePrivate(page);
 
@@ -357,7 +423,7 @@ static void mali_mem_os_free_page(struct page *page)
  */
 static void mali_mem_os_page_table_pool_free(size_t nr_to_free)
 {
-	u32 phys_arr[MALI_MEM_OS_CHUNK_TO_FREE];
+	mali_dma_addr phys_arr[MALI_MEM_OS_CHUNK_TO_FREE];
 	void *virt_arr[MALI_MEM_OS_CHUNK_TO_FREE];
 	u32 i;
 
@@ -377,7 +443,14 @@ static void mali_mem_os_page_table_pool_free(size_t nr_to_free)
 
 	/* After releasing the spinlock: free the pages we removed from the pool. */
 	for (i = 0; i < nr_to_free; i++) {
-		dma_free_writecombine(&mali_platform_device->dev, _MALI_OSK_MALI_PAGE_SIZE, virt_arr[i], phys_arr[i]);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+		dma_free_attrs(&mali_platform_device->dev, _MALI_OSK_MALI_PAGE_SIZE,
+			       virt_arr[i], (dma_addr_t)phys_arr[i], &dma_attrs_wc);
+#else
+		dma_free_writecombine(&mali_platform_device->dev,
+				      _MALI_OSK_MALI_PAGE_SIZE,
+				      virt_arr[i], (dma_addr_t)phys_arr[i]);
+#endif
 	}
 }
 
@@ -402,37 +475,47 @@ static void mali_mem_os_trim_page_table_page_pool(void)
 	mali_mem_os_page_table_pool_free(nr_to_free);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
+static unsigned long mali_mem_os_shrink_count(struct shrinker *shrinker, struct shrink_control *sc)
+{
+	return mali_mem_os_allocator.pool_count + mali_mem_page_table_page_pool.count;
+}
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
 static int mali_mem_os_shrink(int nr_to_scan, gfp_t gfp_mask)
 #else
 static int mali_mem_os_shrink(struct shrinker *shrinker, int nr_to_scan, gfp_t gfp_mask)
-#endif
+#endif /* Linux < 2.6.35 */
 #else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
 static int mali_mem_os_shrink(struct shrinker *shrinker, struct shrink_control *sc)
-#endif
+#else
+static unsigned long mali_mem_os_shrink(struct shrinker *shrinker, struct shrink_control *sc)
+#endif /* Linux < 3.12.0 */
+#endif /* Linux < 3.0.0 */
 {
 	struct page *page, *tmp;
 	unsigned long flags;
 	struct list_head *le, pages;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
 	int nr = nr_to_scan;
 #else
 	int nr = sc->nr_to_scan;
 #endif
 
 	if (0 == nr) {
-		return mali_mem_os_allocator.pool_count + mali_mem_page_table_page_pool.count;
-	}
-
-	if (0 == mali_mem_os_allocator.pool_count) {
-		/* No pages availble */
-		return 0;
+		return mali_mem_os_shrink_count(shrinker, sc);
 	}
 
 	if (0 == spin_trylock_irqsave(&mali_mem_os_allocator.pool_lock, flags)) {
 		/* Not able to lock. */
 		return -1;
+	}
+
+	if (0 == mali_mem_os_allocator.pool_count) {
+		/* No pages availble */
+		spin_unlock_irqrestore(&mali_mem_os_allocator.pool_lock, flags);
+		return 0;
 	}
 
 	/* Release from general page pool */
@@ -476,8 +559,10 @@ static void mali_mem_os_trim_pool(struct work_struct *data)
 	spin_lock(&mali_mem_os_allocator.pool_lock);
 	if (MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_PAGES < mali_mem_os_allocator.pool_count) {
 		size_t count = mali_mem_os_allocator.pool_count - MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_PAGES;
+		const size_t min_to_free = min(64, MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_PAGES);
+
 		/* Free half the pages on the pool above the static limit. Or 64 pages, 256KB. */
-		nr_to_free = max(count / 2, (size_t)64);
+		nr_to_free = max(count / 2, min_to_free);
 
 		mali_mem_os_allocator.pool_count -= nr_to_free;
 		list_for_each(le, &mali_mem_os_allocator.pool_pages) {
@@ -507,6 +592,10 @@ _mali_osk_errcode_t mali_mem_os_init(void)
 	if (NULL == mali_mem_os_allocator.wq) {
 		return _MALI_OSK_ERR_NOMEM;
 	}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &dma_attrs_wc);
+#endif
 
 	register_shrinker(&mali_mem_os_allocator.shrinker);
 

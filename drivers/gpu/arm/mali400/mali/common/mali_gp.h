@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2013 ARM Limited
+ * (C) COPYRIGHT 2011-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -30,7 +30,7 @@ struct mali_gp_core {
 _mali_osk_errcode_t mali_gp_initialize(void);
 void mali_gp_terminate(void);
 
-struct mali_gp_core *mali_gp_create(const _mali_osk_resource_t * resource, struct mali_group *group);
+struct mali_gp_core *mali_gp_create(const _mali_osk_resource_t *resource, struct mali_group *group);
 void mali_gp_delete(struct mali_gp_core *core);
 
 void mali_gp_stop_bus(struct mali_gp_core *core);
@@ -82,7 +82,7 @@ MALI_STATIC_INLINE void mali_gp_enable_interrupts(struct mali_gp_core *core, u32
 {
 	/* Enable all interrupts, except those specified in irq_exceptions */
 	mali_hw_core_register_write(&core->hw_core, MALIGP2_REG_ADDR_MGMT_INT_MASK,
-	                            MALIGP2_REG_VAL_IRQ_MASK_USED & ~irq_exceptions);
+				    MALIGP2_REG_VAL_IRQ_MASK_USED & ~irq_exceptions);
 }
 
 MALI_STATIC_INLINE u32 mali_gp_read_plbu_alloc_start_addr(struct mali_gp_core *core)

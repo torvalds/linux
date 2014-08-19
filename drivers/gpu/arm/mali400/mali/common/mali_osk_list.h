@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -68,7 +68,7 @@ MALI_STATIC_INLINE void __mali_osk_list_del(_mali_osk_list_t *prev, _mali_osk_li
  *
  * @param list the list element to initialize
  */
-MALI_STATIC_INLINE void _mali_osk_list_init( _mali_osk_list_t *list )
+MALI_STATIC_INLINE void _mali_osk_list_init(_mali_osk_list_t *list)
 {
 	list->next = list;
 	list->prev = list;
@@ -87,7 +87,7 @@ MALI_STATIC_INLINE void _mali_osk_list_init( _mali_osk_list_t *list )
  * @param list the list in which to insert. The new element will be the next
  * entry in this list
  */
-MALI_STATIC_INLINE void _mali_osk_list_add( _mali_osk_list_t *new_entry, _mali_osk_list_t *list )
+MALI_STATIC_INLINE void _mali_osk_list_add(_mali_osk_list_t *new_entry, _mali_osk_list_t *list)
 {
 	__mali_osk_list_add(new_entry, list, list->next);
 }
@@ -104,7 +104,7 @@ MALI_STATIC_INLINE void _mali_osk_list_add( _mali_osk_list_t *new_entry, _mali_o
  * @param list the list in which to insert. The new element will be the previous
  * entry in this list
  */
-MALI_STATIC_INLINE void _mali_osk_list_addtail( _mali_osk_list_t *new_entry, _mali_osk_list_t *list )
+MALI_STATIC_INLINE void _mali_osk_list_addtail(_mali_osk_list_t *new_entry, _mali_osk_list_t *list)
 {
 	__mali_osk_list_add(new_entry, list->prev, list);
 }
@@ -117,7 +117,7 @@ MALI_STATIC_INLINE void _mali_osk_list_addtail( _mali_osk_list_t *new_entry, _ma
  *
  * @param list the list element to remove.
  */
-MALI_STATIC_INLINE void _mali_osk_list_del( _mali_osk_list_t *list )
+MALI_STATIC_INLINE void _mali_osk_list_del(_mali_osk_list_t *list)
 {
 	__mali_osk_list_del(list->prev, list->next);
 }
@@ -129,7 +129,7 @@ MALI_STATIC_INLINE void _mali_osk_list_del( _mali_osk_list_t *list )
  *
  * @param list the list element to remove and initialize.
  */
-MALI_STATIC_INLINE void _mali_osk_list_delinit( _mali_osk_list_t *list )
+MALI_STATIC_INLINE void _mali_osk_list_delinit(_mali_osk_list_t *list)
 {
 	__mali_osk_list_del(list->prev, list->next);
 	_mali_osk_list_init(list);
@@ -142,7 +142,7 @@ MALI_STATIC_INLINE void _mali_osk_list_delinit( _mali_osk_list_t *list )
  * @param list the list to check.
  * @return non-zero if the list is empty, and zero otherwise.
  */
-MALI_STATIC_INLINE mali_bool _mali_osk_list_empty( _mali_osk_list_t *list )
+MALI_STATIC_INLINE mali_bool _mali_osk_list_empty(_mali_osk_list_t *list)
 {
 	return list->next == list;
 }
@@ -158,7 +158,7 @@ MALI_STATIC_INLINE mali_bool _mali_osk_list_empty( _mali_osk_list_t *list )
  * @param list the new list into which the element will be inserted, as the next
  * element in the list.
  */
-MALI_STATIC_INLINE void _mali_osk_list_move( _mali_osk_list_t *move_entry, _mali_osk_list_t *list )
+MALI_STATIC_INLINE void _mali_osk_list_move(_mali_osk_list_t *move_entry, _mali_osk_list_t *list)
 {
 	__mali_osk_list_del(move_entry->prev, move_entry->next);
 	_mali_osk_list_add(move_entry, list);
@@ -173,7 +173,7 @@ MALI_STATIC_INLINE void _mali_osk_list_move( _mali_osk_list_t *move_entry, _mali
  * @param old_list The existing list head
  * @param new_list The new list head (must be an empty list)
  */
-MALI_STATIC_INLINE void _mali_osk_list_move_list( _mali_osk_list_t *old_list, _mali_osk_list_t *new_list )
+MALI_STATIC_INLINE void _mali_osk_list_move_list(_mali_osk_list_t *old_list, _mali_osk_list_t *new_list)
 {
 	MALI_DEBUG_ASSERT(_mali_osk_list_empty(new_list));
 	if (!_mali_osk_list_empty(old_list)) {

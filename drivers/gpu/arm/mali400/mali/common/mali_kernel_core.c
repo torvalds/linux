@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2007-2013 ARM Limited
+ * (C) COPYRIGHT 2007-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -41,8 +41,6 @@
 #if defined(CONFIG_MALI400_INTERNAL_PROFILING)
 #include "mali_profiling_internal.h"
 #endif
-//extern unsigned long totalram_pages;
-#include <linux/mm.h>
 
 
 /* Mali GPU memory. Real values come from module parameter or from device specific data */
@@ -337,9 +335,9 @@ static _mali_osk_errcode_t mali_parse_config_l2_cache(void)
 }
 
 static struct mali_group *mali_create_group(struct mali_l2_cache_core *cache,
-        _mali_osk_resource_t *resource_mmu,
-        _mali_osk_resource_t *resource_gp,
-        _mali_osk_resource_t *resource_pp)
+		_mali_osk_resource_t *resource_mmu,
+		_mali_osk_resource_t *resource_gp,
+		_mali_osk_resource_t *resource_pp)
 {
 	struct mali_mmu_core *mmu;
 	struct mali_group *group;
@@ -394,9 +392,9 @@ static struct mali_group *mali_create_group(struct mali_l2_cache_core *cache,
 }
 
 static _mali_osk_errcode_t mali_create_virtual_group(_mali_osk_resource_t *resource_mmu_pp_bcast,
-        _mali_osk_resource_t *resource_pp_bcast,
-        _mali_osk_resource_t *resource_dlbu,
-        _mali_osk_resource_t *resource_bcast)
+		_mali_osk_resource_t *resource_pp_bcast,
+		_mali_osk_resource_t *resource_dlbu,
+		_mali_osk_resource_t *resource_bcast)
 {
 	struct mali_mmu_core *mmu_pp_bcast_core;
 	struct mali_pp_core *pp_bcast_core;
@@ -422,6 +420,33 @@ static _mali_osk_errcode_t mali_create_virtual_group(_mali_osk_resource_t *resou
 	}
 
 	/* Create the group object */
+#if defined(DEBUG)
+	/* Get a physical PP group to temporarily add to broadcast unit.  IRQ
+	 * verification needs a physical group in the broadcast unit to test
+	 * the broadcast unit interrupt line. */
+	{
+		struct mali_group *phys_group = NULL;
+		int i;
+		for (i = 0; i < mali_group_get_glob_num_groups(); i++) {
+			phys_group = mali_group_get_glob_group(i);
+			if (NULL != mali_group_get_pp_core(phys_group)) break;
+		}
+		MALI_DEBUG_ASSERT(NULL != mali_group_get_pp_core(phys_group));
+
+		/* Add the group temporarily to the broadcast, and update the
+		 * broadcast HW. Since the HW is not updated when removing the
+		 * group the IRQ check will work when the virtual PP is created
+		 * later.
+		 *
+		 * When the virtual group gets populated, the actually used
+		 * groups will be added to the broadcast unit and the HW will
+		 * be updated.
+		 */
+		mali_bcast_add_group(bcast_core, phys_group);
+		mali_bcast_reset(bcast_core);
+		mali_bcast_remove_group(bcast_core, phys_group);
+	}
+#endif /* DEBUG */
 	group = mali_group_create(NULL, dlbu_core, bcast_core);
 	if (NULL == group) {
 		MALI_PRINT_ERROR(("Failed to create group object for MMU PP broadcast core %s\n", resource_mmu_pp_bcast->description));
@@ -482,7 +507,7 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 
 	if (MALI_MAX_JOB_RUNTIME_DEFAULT == mali_max_job_runtime) {
 		/* Group settings are not overridden by module parameters, so use device settings */
-		struct _mali_osk_device_data data = { 0, };
+		_mali_osk_device_data data = { 0, };
 
 		if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
 			/* Use device specific settings (if defined) */
@@ -595,7 +620,7 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 		}
 	}
 
-	if(mali_is_mali450()) {
+	if (mali_is_mali450()) {
 		_mali_osk_errcode_t err = mali_create_virtual_group(&resource_pp_mmu_bcast, &resource_pp_bcast, &resource_dlbu, &resource_bcast);
 		if (_MALI_OSK_ERR_OK != err) {
 			return err;
@@ -655,9 +680,9 @@ static void mali_use_default_pm_domain_config(void)
 		++pp_count_gr1;
 
 		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_PP0_DOMAIN_INDEX, 0x01<<2);
+			mali_pmu_set_domain_mask(MALI_PP0_DOMAIN_INDEX, 0x01 << 2);
 		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_PP0_DOMAIN_INDEX, 0x01<<1);
+			mali_pmu_set_domain_mask(MALI_PP0_DOMAIN_INDEX, 0x01 << 1);
 		}
 	}
 
@@ -665,9 +690,9 @@ static void mali_use_default_pm_domain_config(void)
 		++pp_count_gr1;
 
 		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_PP1_DOMAIN_INDEX, 0x01<<3);
+			mali_pmu_set_domain_mask(MALI_PP1_DOMAIN_INDEX, 0x01 << 3);
 		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_PP1_DOMAIN_INDEX, 0x01<<2);
+			mali_pmu_set_domain_mask(MALI_PP1_DOMAIN_INDEX, 0x01 << 2);
 		}
 	}
 
@@ -675,9 +700,9 @@ static void mali_use_default_pm_domain_config(void)
 		++pp_count_gr1;
 
 		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_PP2_DOMAIN_INDEX, 0x01<<4);
+			mali_pmu_set_domain_mask(MALI_PP2_DOMAIN_INDEX, 0x01 << 4);
 		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_PP2_DOMAIN_INDEX, 0x01<<2);
+			mali_pmu_set_domain_mask(MALI_PP2_DOMAIN_INDEX, 0x01 << 2);
 		}
 	}
 
@@ -685,9 +710,9 @@ static void mali_use_default_pm_domain_config(void)
 		++pp_count_gr1;
 
 		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_PP3_DOMAIN_INDEX, 0x01<<5);
+			mali_pmu_set_domain_mask(MALI_PP3_DOMAIN_INDEX, 0x01 << 5);
 		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_PP3_DOMAIN_INDEX, 0x01<<2);
+			mali_pmu_set_domain_mask(MALI_PP3_DOMAIN_INDEX, 0x01 << 2);
 		}
 	}
 
@@ -695,25 +720,25 @@ static void mali_use_default_pm_domain_config(void)
 	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x28000, NULL)) {
 		++pp_count_gr2;
 
-		mali_pmu_set_domain_mask(MALI_PP4_DOMAIN_INDEX, 0x01<<3);
+		mali_pmu_set_domain_mask(MALI_PP4_DOMAIN_INDEX, 0x01 << 3);
 	}
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2A000, NULL)) {
 		++pp_count_gr2;
 
-		mali_pmu_set_domain_mask(MALI_PP5_DOMAIN_INDEX, 0x01<<3);
+		mali_pmu_set_domain_mask(MALI_PP5_DOMAIN_INDEX, 0x01 << 3);
 	}
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2C000, NULL)) {
 		++pp_count_gr2;
 
-		mali_pmu_set_domain_mask(MALI_PP6_DOMAIN_INDEX, 0x01<<3);
+		mali_pmu_set_domain_mask(MALI_PP6_DOMAIN_INDEX, 0x01 << 3);
 	}
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2E000, NULL)) {
 		++pp_count_gr2;
 
-		mali_pmu_set_domain_mask(MALI_PP7_DOMAIN_INDEX, 0x01<<3);
+		mali_pmu_set_domain_mask(MALI_PP7_DOMAIN_INDEX, 0x01 << 3);
 	}
 
 	/* L2gp/L2PP0/L2PP4 */
@@ -721,22 +746,22 @@ static void mali_use_default_pm_domain_config(void)
 		++l2_count;
 
 		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_L20_DOMAIN_INDEX, 0x01<<1);
+			mali_pmu_set_domain_mask(MALI_L20_DOMAIN_INDEX, 0x01 << 1);
 		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_L20_DOMAIN_INDEX, 0x01<<0);
+			mali_pmu_set_domain_mask(MALI_L20_DOMAIN_INDEX, 0x01 << 0);
 		}
 	}
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x1000, NULL)) {
 		++l2_count;
 
-		mali_pmu_set_domain_mask(MALI_L21_DOMAIN_INDEX, 0x01<<1);
+		mali_pmu_set_domain_mask(MALI_L21_DOMAIN_INDEX, 0x01 << 1);
 	}
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x11000, NULL)) {
 		++l2_count;
 
-		mali_pmu_set_domain_mask(MALI_L22_DOMAIN_INDEX, 0x01<<3);
+		mali_pmu_set_domain_mask(MALI_L22_DOMAIN_INDEX, 0x01 << 3);
 	}
 
 	MALI_DEBUG_PRINT(2, ("Using default PMU domain config: (%d) gr1_pp_cores, (%d) gr2_pp_cores, (%d) l2_count. \n", pp_count_gr1, pp_count_gr2, l2_count));
@@ -744,7 +769,7 @@ static void mali_use_default_pm_domain_config(void)
 
 static void mali_set_pmu_global_domain_config(void)
 {
-	struct _mali_osk_device_data data = { 0, };
+	_mali_osk_device_data data = { 0, };
 	int i = 0;
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
@@ -783,7 +808,7 @@ static _mali_osk_errcode_t mali_parse_config_pmu(void)
 	/* It's ok if the PMU doesn't exist */
 	return _MALI_OSK_ERR_OK;
 }
-/*extern u32 ddr_get_cap(void);*/
+
 static _mali_osk_errcode_t mali_parse_config_dma(void)
 {
 	_mali_osk_resource_t resource_dma;
@@ -804,17 +829,13 @@ static _mali_osk_errcode_t mali_parse_config_memory(void)
 
 	if (0 == mali_dedicated_mem_start && 0 == mali_dedicated_mem_size && 0 == mali_shared_mem_size) {
 		/* Memory settings are not overridden by module parameters, so use device settings */
-		struct _mali_osk_device_data data = { 0, };
+		_mali_osk_device_data data = { 0, };
 
 		if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
 			/* Use device specific settings (if defined) */
 			mali_dedicated_mem_start = data.dedicated_mem_start;
 			mali_dedicated_mem_size = data.dedicated_mem_size;
-/*
 			mali_shared_mem_size = data.shared_mem_size;
-*/
-			mali_shared_mem_size = totalram_pages * 4 * 1024;
-			/*ddr_get_cap();*/
 		}
 
 		if (0 == mali_dedicated_mem_start && 0 == mali_dedicated_mem_size && 0 == mali_shared_mem_size) {
@@ -823,10 +844,10 @@ static _mali_osk_errcode_t mali_parse_config_memory(void)
 		}
 
 		MALI_DEBUG_PRINT(2, ("Using device defined memory settings (dedicated: 0x%08X@0x%08X, shared: 0x%08X)\n",
-		                     mali_dedicated_mem_size, mali_dedicated_mem_start, mali_shared_mem_size));
+				     mali_dedicated_mem_size, mali_dedicated_mem_start, mali_shared_mem_size));
 	} else {
 		MALI_DEBUG_PRINT(2, ("Using module defined memory settings (dedicated: 0x%08X@0x%08X, shared: 0x%08X)\n",
-		                     mali_dedicated_mem_size, mali_dedicated_mem_start, mali_shared_mem_size));
+				     mali_dedicated_mem_size, mali_dedicated_mem_start, mali_shared_mem_size));
 	}
 
 	if (0 < mali_dedicated_mem_size && 0 != mali_dedicated_mem_start) {
@@ -851,7 +872,7 @@ static _mali_osk_errcode_t mali_parse_config_memory(void)
 
 	if (0 == mali_fb_start && 0 == mali_fb_size) {
 		/* Frame buffer settings are not overridden by module parameters, so use device settings */
-		struct _mali_osk_device_data data = { 0, };
+		_mali_osk_device_data data = { 0, };
 
 		if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
 			/* Use device specific settings (if defined) */
@@ -860,10 +881,10 @@ static _mali_osk_errcode_t mali_parse_config_memory(void)
 		}
 
 		MALI_DEBUG_PRINT(2, ("Using device defined frame buffer settings (0x%08X@0x%08X)\n",
-		                     mali_fb_size, mali_fb_start));
+				     mali_fb_size, mali_fb_start));
 	} else {
 		MALI_DEBUG_PRINT(2, ("Using module defined frame buffer settings (0x%08X@0x%08X)\n",
-		                     mali_fb_size, mali_fb_start));
+				     mali_fb_size, mali_fb_start));
 	}
 
 	if (0 != mali_fb_size) {
@@ -888,6 +909,29 @@ static void mali_detect_gpu_class(void)
 	if (number_of_l2_caches > 1) {
 		mali_gpu_class_is_mali450 = MALI_TRUE;
 	}
+}
+
+static _mali_osk_errcode_t mali_init_hw_reset(void)
+{
+#if defined(CONFIG_MALI450)
+	_mali_osk_resource_t resource_bcast;
+
+	/* Ensure broadcast unit is in a good state before we start creating
+	 * groups and cores.
+	 */
+	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x13000, &resource_bcast)) {
+		struct mali_bcast_unit *bcast_core;
+
+		bcast_core = mali_bcast_unit_create(&resource_bcast);
+		if (NULL == bcast_core) {
+			MALI_PRINT_ERROR(("Failed to create Broadcast unit object!\n"));
+			return _MALI_OSK_ERR_FAULT;
+		}
+		mali_bcast_unit_delete(bcast_core);
+	}
+#endif /* CONFIG_MALI450 */
+
+	return _MALI_OSK_ERR_OK;
 }
 
 _mali_osk_errcode_t mali_initialize_subsystems(void)
@@ -954,6 +998,10 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 		err = mali_pmu_reset(pmu);
 		if (_MALI_OSK_ERR_OK != err) goto pmu_reset_failed;
 	}
+
+	/* Ensure HW is in a good state before starting to access cores. */
+	err = mali_init_hw_reset();
+	if (_MALI_OSK_ERR_OK != err) goto init_hw_reset_failed;
 
 	/* Detect which Mali GPU we are dealing with */
 	err = mali_parse_product_info();
@@ -1027,6 +1075,8 @@ mmu_init_failed:
 pm_domain_failed:
 	/* Nothing to roll back */
 product_info_parsing_failed:
+	/* Nothing to roll back */
+init_hw_reset_failed:
 	/* Nothing to roll back */
 pmu_reset_failed:
 	/* Allowing the system to be turned off */
@@ -1114,13 +1164,13 @@ u32 mali_kernel_core_get_gpu_minor_version(void)
 	return global_gpu_minor_version;
 }
 
-_mali_osk_errcode_t _mali_ukk_get_api_version( _mali_uk_get_api_version_s *args )
+_mali_osk_errcode_t _mali_ukk_get_api_version(_mali_uk_get_api_version_s *args)
 {
 	MALI_DEBUG_ASSERT_POINTER(args);
-	MALI_CHECK_NON_NULL(args->ctx, _MALI_OSK_ERR_INVALID_ARGS);
+	MALI_DEBUG_ASSERT(NULL != (void *)(uintptr_t)args->ctx);
 
 	/* check compatability */
-	if ( args->version == _MALI_UK_API_VERSION ) {
+	if (args->version == _MALI_UK_API_VERSION) {
 		args->compatible = 1;
 	} else {
 		args->compatible = 0;
@@ -1132,17 +1182,37 @@ _mali_osk_errcode_t _mali_ukk_get_api_version( _mali_uk_get_api_version_s *args 
 	MALI_SUCCESS;
 }
 
-_mali_osk_errcode_t _mali_ukk_wait_for_notification( _mali_uk_wait_for_notification_s *args )
+_mali_osk_errcode_t _mali_ukk_get_api_version_v2(_mali_uk_get_api_version_v2_s *args)
+{
+	MALI_DEBUG_ASSERT_POINTER(args);
+	MALI_DEBUG_ASSERT(NULL != (void *)(uintptr_t)args->ctx);
+
+	/* check compatability */
+	if (args->version == _MALI_UK_API_VERSION) {
+		args->compatible = 1;
+	} else {
+		args->compatible = 0;
+	}
+
+	args->version = _MALI_UK_API_VERSION; /* report our version */
+
+	/* success regardless of being compatible or not */
+	MALI_SUCCESS;
+}
+
+_mali_osk_errcode_t _mali_ukk_wait_for_notification(_mali_uk_wait_for_notification_s *args)
 {
 	_mali_osk_errcode_t err;
-	_mali_osk_notification_t * notification;
+	_mali_osk_notification_t *notification;
 	_mali_osk_notification_queue_t *queue;
+	struct mali_session_data *session;
 
 	/* check input */
 	MALI_DEBUG_ASSERT_POINTER(args);
-	MALI_CHECK_NON_NULL(args->ctx, _MALI_OSK_ERR_INVALID_ARGS);
+	MALI_DEBUG_ASSERT(NULL != (void *)(uintptr_t)args->ctx);
 
-	queue = ((struct mali_session_data *)args->ctx)->ioctl_queue;
+	session = (struct mali_session_data *)(uintptr_t)args->ctx;
+	queue = session->ioctl_queue;
 
 	/* if the queue does not exist we're currently shutting down */
 	if (NULL == queue) {
@@ -1162,21 +1232,23 @@ _mali_osk_errcode_t _mali_ukk_wait_for_notification( _mali_uk_wait_for_notificat
 	_mali_osk_memcpy(&args->data, notification->result_buffer, notification->result_buffer_size);
 
 	/* finished with the notification */
-	_mali_osk_notification_delete( notification );
+	_mali_osk_notification_delete(notification);
 
 	MALI_SUCCESS; /* all ok */
 }
 
-_mali_osk_errcode_t _mali_ukk_post_notification( _mali_uk_post_notification_s *args )
+_mali_osk_errcode_t _mali_ukk_post_notification(_mali_uk_post_notification_s *args)
 {
-	_mali_osk_notification_t * notification;
+	_mali_osk_notification_t *notification;
 	_mali_osk_notification_queue_t *queue;
+	struct mali_session_data *session;
 
 	/* check input */
 	MALI_DEBUG_ASSERT_POINTER(args);
-	MALI_CHECK_NON_NULL(args->ctx, _MALI_OSK_ERR_INVALID_ARGS);
+	MALI_DEBUG_ASSERT(NULL != (void *)(uintptr_t)args->ctx);
 
-	queue = ((struct mali_session_data *)args->ctx)->ioctl_queue;
+	session = (struct mali_session_data *)(uintptr_t)args->ctx;
+	queue = session->ioctl_queue;
 
 	/* if the queue does not exist we're currently shutting down */
 	if (NULL == queue) {
@@ -1186,7 +1258,7 @@ _mali_osk_errcode_t _mali_ukk_post_notification( _mali_uk_post_notification_s *a
 
 	notification = _mali_osk_notification_create(args->type, 0);
 	if (NULL == notification) {
-		MALI_PRINT_ERROR( ("Failed to create notification object\n"));
+		MALI_PRINT_ERROR(("Failed to create notification object\n"));
 		return _MALI_OSK_ERR_NOMEM;
 	}
 
@@ -1195,14 +1267,14 @@ _mali_osk_errcode_t _mali_ukk_post_notification( _mali_uk_post_notification_s *a
 	MALI_SUCCESS; /* all ok */
 }
 
-_mali_osk_errcode_t _mali_ukk_request_high_priority( _mali_uk_request_high_priority_s *args )
+_mali_osk_errcode_t _mali_ukk_request_high_priority(_mali_uk_request_high_priority_s *args)
 {
 	struct mali_session_data *session;
 
 	MALI_DEBUG_ASSERT_POINTER(args);
-	MALI_CHECK_NON_NULL(args->ctx, _MALI_OSK_ERR_INVALID_ARGS);
+	MALI_DEBUG_ASSERT(NULL != (void *)(uintptr_t)args->ctx);
 
-	session = (struct mali_session_data *) args->ctx;
+	session = (struct mali_session_data *)(uintptr_t)args->ctx;
 
 	if (!session->use_high_priority_job_queue) {
 		session->use_high_priority_job_queue = MALI_TRUE;
@@ -1246,7 +1318,7 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 
 	if (0 != mali_dlbu_phys_addr) {
 		mali_mmu_pagedir_update(session->page_directory, MALI_DLBU_VIRT_ADDR, mali_dlbu_phys_addr,
-		                        _MALI_OSK_MALI_PAGE_SIZE, MALI_MMU_FLAGS_DEFAULT);
+					_MALI_OSK_MALI_PAGE_SIZE, MALI_MMU_FLAGS_DEFAULT);
 	}
 
 	if (_MALI_OSK_ERR_OK != mali_memory_session_begin(session)) {
@@ -1278,7 +1350,7 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 	}
 
 #if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-	if ( _MALI_OSK_ERR_OK != _mali_osk_atomic_init(&session->number_of_window_jobs, 0)) {
+	if (_MALI_OSK_ERR_OK != _mali_osk_atomic_init(&session->number_of_window_jobs, 0)) {
 		MALI_DEBUG_PRINT_ERROR(("Initialization of atomic number_of_window_jobs failed.\n"));
 		mali_timeline_system_destroy(session->timeline_system);
 		mali_soft_job_system_destroy(session->soft_job_system);
@@ -1300,7 +1372,7 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 		_MALI_OSK_INIT_LIST_HEAD(&session->pp_job_fb_lookup_list[i]);
 	}
 
-	*context = (void*)session;
+	*context = (void *)session;
 
 	/* Add session to the list of all sessions. */
 	mali_session_add(session);
@@ -1364,7 +1436,7 @@ _mali_osk_errcode_t _mali_ukk_close(void **context)
 	mali_soft_job_system_destroy(session->soft_job_system);
 	session->soft_job_system = NULL;
 
-	MALI_DEBUG_CODE( {
+	MALI_DEBUG_CODE({
 		/* Check that the pp_job_fb_lookup_list array is empty. */
 		u32 i;
 		for (i = 0; i < MALI_PP_JOB_FB_LOOKUP_LIST_SIZE; ++i)
@@ -1393,7 +1465,7 @@ _mali_osk_errcode_t _mali_ukk_close(void **context)
 }
 
 #if MALI_STATE_TRACKING
-u32 _mali_kernel_core_dump_state(char* buf, u32 size)
+u32 _mali_kernel_core_dump_state(char *buf, u32 size)
 {
 	int n = 0; /* Number of bytes written to buf */
 

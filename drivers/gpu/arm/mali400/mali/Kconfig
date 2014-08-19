@@ -79,3 +79,12 @@ config MALI_PMU_PARALLEL_POWER_UP
 	  powering up domains one by one, with a slight delay in between. Powering on all power
 	  domains at the same time may cause peak currents higher than what some systems can handle.
 	  These systems must not enable this option.
+
+config MALI_QUIET
+	bool "Make Mali driver very quiet"
+	depends on MALI400 && !MALI400_DEBUG
+	default n
+	---help---
+	  This forces the Mali driver to never print any messages.
+
+	  If unsure, say N.

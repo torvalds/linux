@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -38,7 +38,7 @@ MALI_STATIC_INLINE u32 get_phys(block_allocator *info, block_info *block)
 	return info->base + ((block - info->all_blocks) * MALI_BLOCK_SIZE);
 }
 
-mali_mem_allocator *mali_mem_block_allocator_create(u32 base_address, u32 cpu_usage_adjust, u32 size)
+static mali_mem_allocator *mali_mem_block_allocator_create(u32 base_address, u32 cpu_usage_adjust, u32 size)
 {
 	block_allocator *info;
 	u32 usable_size;
@@ -68,7 +68,7 @@ mali_mem_allocator *mali_mem_block_allocator_create(u32 base_address, u32 cpu_us
 			info->base = base_address;
 			info->cpu_usage_adjust = cpu_usage_adjust;
 
-			for ( i = 0; i < num_blocks; i++) {
+			for (i = 0; i < num_blocks; i++) {
 				info->all_blocks[i].next = info->first_free;
 				info->first_free = &info->all_blocks[i];
 			}
@@ -83,7 +83,7 @@ mali_mem_allocator *mali_mem_block_allocator_create(u32 base_address, u32 cpu_us
 
 void mali_mem_block_allocator_destroy(mali_mem_allocator *allocator)
 {
-	block_allocator *info = (block_allocator*)allocator;
+	block_allocator *info = (block_allocator *)allocator;
 
 	info = mali_mem_block_gobal_allocator;
 	if (NULL == info) return;
@@ -155,7 +155,7 @@ mali_mem_allocation *mali_mem_block_alloc(u32 mali_addr, u32 size, struct vm_are
 
 	descriptor->mali_mapping.addr = mali_addr;
 	descriptor->size = size;
-	descriptor->cpu_mapping.addr = (void __user*)vma->vm_start;
+	descriptor->cpu_mapping.addr = (void __user *)vma->vm_start;
 	descriptor->cpu_mapping.ref = 1;
 
 	if (VM_SHARED == (VM_SHARED & vma->vm_flags)) {
@@ -313,7 +313,7 @@ _mali_osk_errcode_t mali_memory_core_resource_dedicated_memory(u32 start, u32 si
 		MALI_ERROR(_MALI_OSK_ERR_FAULT);
 	}
 
-	mali_mem_block_gobal_allocator = (block_allocator*)allocator;
+	mali_mem_block_gobal_allocator = (block_allocator *)allocator;
 
 	return _MALI_OSK_ERR_OK;
 }

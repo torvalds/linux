@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2013 ARM Limited
+ * (C) COPYRIGHT 2011-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -89,7 +89,7 @@ MALI_STATIC_INLINE u32 mali_pp_job_get_cache_order(struct mali_pp_job *job)
 	return (NULL == job) ? 0 : job->cache_order;
 }
 
-MALI_STATIC_INLINE u32 mali_pp_job_get_user_id(struct mali_pp_job *job)
+MALI_STATIC_INLINE u64 mali_pp_job_get_user_id(struct mali_pp_job *job)
 {
 	return job->uargs.user_job_ptr;
 }
@@ -114,17 +114,26 @@ MALI_STATIC_INLINE u32 mali_pp_job_get_tid(struct mali_pp_job *job)
 	return job->tid;
 }
 
-MALI_STATIC_INLINE u32* mali_pp_job_get_frame_registers(struct mali_pp_job *job)
+MALI_STATIC_INLINE u32 *mali_pp_job_get_frame_registers(struct mali_pp_job *job)
 {
 	return job->uargs.frame_registers;
 }
 
-MALI_STATIC_INLINE u32* mali_pp_job_get_dlbu_registers(struct mali_pp_job *job)
+MALI_STATIC_INLINE u32 *mali_pp_job_get_dlbu_registers(struct mali_pp_job *job)
 {
 	return job->uargs.dlbu_registers;
 }
 
-MALI_STATIC_INLINE mali_bool mali_pp_job_is_virtual(struct mali_pp_job *job)
+MALI_STATIC_INLINE mali_bool mali_pp_job_is_virtual_group_job(struct mali_pp_job *job)
+{
+	if (mali_is_mali450()) {
+		return 1 != job->uargs.num_cores;
+	}
+
+	return MALI_FALSE;
+}
+
+MALI_STATIC_INLINE mali_bool mali_pp_job_is_with_dlbu(struct mali_pp_job *job)
 {
 #if defined(CONFIG_MALI450)
 	return 0 == job->uargs.num_cores;
@@ -135,7 +144,7 @@ MALI_STATIC_INLINE mali_bool mali_pp_job_is_virtual(struct mali_pp_job *job)
 
 MALI_STATIC_INLINE u32 mali_pp_job_get_addr_frame(struct mali_pp_job *job, u32 sub_job)
 {
-	if (mali_pp_job_is_virtual(job)) {
+	if (mali_pp_job_is_with_dlbu(job)) {
 		return MALI_DLBU_VIRT_ADDR;
 	} else if (0 == sub_job) {
 		return job->uargs.frame_registers[MALI200_REG_ADDR_FRAME / sizeof(u32)];
@@ -157,17 +166,17 @@ MALI_STATIC_INLINE u32 mali_pp_job_get_addr_stack(struct mali_pp_job *job, u32 s
 	return 0;
 }
 
-MALI_STATIC_INLINE u32* mali_pp_job_get_wb0_registers(struct mali_pp_job *job)
+MALI_STATIC_INLINE u32 *mali_pp_job_get_wb0_registers(struct mali_pp_job *job)
 {
 	return job->uargs.wb0_registers;
 }
 
-MALI_STATIC_INLINE u32* mali_pp_job_get_wb1_registers(struct mali_pp_job *job)
+MALI_STATIC_INLINE u32 *mali_pp_job_get_wb1_registers(struct mali_pp_job *job)
 {
 	return job->uargs.wb1_registers;
 }
 
-MALI_STATIC_INLINE u32* mali_pp_job_get_wb2_registers(struct mali_pp_job *job)
+MALI_STATIC_INLINE u32 *mali_pp_job_get_wb2_registers(struct mali_pp_job *job)
 {
 	return job->uargs.wb2_registers;
 }
@@ -191,9 +200,9 @@ MALI_STATIC_INLINE mali_bool mali_pp_job_all_writeback_unit_disabled(struct mali
 {
 	MALI_DEBUG_ASSERT_POINTER(job);
 
-	if ( job->uargs.wb0_registers[MALI200_REG_ADDR_WB_SOURCE_SELECT] ||
-	     job->uargs.wb1_registers[MALI200_REG_ADDR_WB_SOURCE_SELECT] ||
-	     job->uargs.wb2_registers[MALI200_REG_ADDR_WB_SOURCE_SELECT]
+	if (job->uargs.wb0_registers[MALI200_REG_ADDR_WB_SOURCE_SELECT] ||
+	    job->uargs.wb1_registers[MALI200_REG_ADDR_WB_SOURCE_SELECT] ||
+	    job->uargs.wb2_registers[MALI200_REG_ADDR_WB_SOURCE_SELECT]
 	   ) {
 		/* At least one output unit active */
 		return MALI_FALSE;
@@ -276,14 +285,14 @@ MALI_STATIC_INLINE void mali_pp_job_mark_sub_job_started(struct mali_pp_job *job
 MALI_STATIC_INLINE void mali_pp_job_mark_sub_job_completed(struct mali_pp_job *job, mali_bool success)
 {
 	job->sub_jobs_completed++;
-	if ( MALI_FALSE == success ) {
+	if (MALI_FALSE == success) {
 		job->sub_job_errors++;
 	}
 }
 
 MALI_STATIC_INLINE mali_bool mali_pp_job_was_success(struct mali_pp_job *job)
 {
-	if ( 0 == job->sub_job_errors ) {
+	if (0 == job->sub_job_errors) {
 		return MALI_TRUE;
 	}
 	return MALI_FALSE;
@@ -322,7 +331,7 @@ MALI_STATIC_INLINE void mali_pp_job_set_perf_counter_value1(struct mali_pp_job *
 
 MALI_STATIC_INLINE _mali_osk_errcode_t mali_pp_job_check(struct mali_pp_job *job)
 {
-	if (mali_pp_job_is_virtual(job) && job->sub_jobs_num != 1) {
+	if (mali_pp_job_is_with_dlbu(job) && job->sub_jobs_num != 1) {
 		return _MALI_OSK_ERR_FAULT;
 	}
 	return _MALI_OSK_ERR_OK;
@@ -364,7 +373,7 @@ MALI_STATIC_INLINE mali_bool mali_pp_job_should_start_after(struct mali_pp_job *
 MALI_STATIC_INLINE mali_bool mali_pp_job_is_large_and_unstarted(struct mali_pp_job *job)
 {
 	MALI_DEBUG_ASSERT_POINTER(job);
-	MALI_DEBUG_ASSERT(!mali_pp_job_is_virtual(job));
+	MALI_DEBUG_ASSERT(!mali_pp_job_is_virtual_group_job(job));
 
 	return (0 == job->sub_jobs_started && 2 < job->sub_jobs_num);
 }

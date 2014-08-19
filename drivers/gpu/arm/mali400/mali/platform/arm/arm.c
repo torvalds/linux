@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2009-2010, 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2009-2010, 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -41,9 +41,19 @@ void mali_gpu_utilization_callback(struct mali_gpu_utilization_data *data);
 
 #if defined(CONFIG_ARCH_VEXPRESS)
 
+#if defined(CONFIG_ARM64)
+static struct resource mali_gpu_resources_m450_mp4[] = {
+	MALI_GPU_RESOURCES_MALI450_MP4_PMU(0x2F040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
+};
+#else
 static struct resource mali_gpu_resources_m450_mp8[] = {
 	MALI_GPU_RESOURCES_MALI450_MP8_PMU(0xFC040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
 };
+
+static struct resource mali_gpu_resources_m450_mp4[] = {
+	MALI_GPU_RESOURCES_MALI450_MP4_PMU(0xFC040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
+};
+#endif /* CONFIG_ARM64 */
 
 #elif defined(CONFIG_ARCH_REALVIEW)
 
@@ -63,12 +73,16 @@ static struct resource mali_gpu_resources_m400_mp2[] = {
 
 static struct mali_gpu_device_data mali_gpu_data = {
 #if defined(CONFIG_ARCH_VEXPRESS)
-	.shared_mem_size =256 * 1024 * 1024, /* 256MB */
+	.shared_mem_size = 256 * 1024 * 1024, /* 256MB */
 #elif defined(CONFIG_ARCH_REALVIEW)
 	.dedicated_mem_start = 0x80000000, /* Physical start address (use 0xD0000000 for old indirect setup) */
 	.dedicated_mem_size = 0x10000000, /* 256MB */
 #endif
+#if defined(CONFIG_ARM64)
+	.fb_start = 0x5f000000,
+#else
 	.fb_start = 0xe0000000,
+#endif
 	.fb_size = 0x01000000,
 	.max_job_runtime = 60000, /* 60 seconds */
 	.utilization_interval = 1000, /* 1000ms */
@@ -81,9 +95,13 @@ static struct platform_device mali_gpu_device = {
 	.name = MALI_GPU_NAME_UTGARD,
 	.id = 0,
 	.dev.release = mali_platform_device_release,
+	.dev.dma_mask = &mali_gpu_device.dev.coherent_dma_mask,
 	.dev.coherent_dma_mask = DMA_BIT_MASK(32),
 
 	.dev.platform_data = &mali_gpu_data,
+#if defined(CONFIG_ARM64)
+	.dev.archdata.dma_ops = &noncoherent_swiotlb_dma_ops,
+#endif
 };
 
 int mali_platform_device_register(void)
@@ -99,12 +117,26 @@ int mali_platform_device_register(void)
 	/* Detect present Mali GPU and connect the correct resources to the device */
 #if defined(CONFIG_ARCH_VEXPRESS)
 
-	if (mali_read_phys(0xFC020000) == 0x00010100) {
+#if defined(CONFIG_ARM64)
+	if (mali_read_phys(0x2F000000) == 0x40104450) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP4 device\n"));
+		num_pp_cores = 4;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp4);
+		mali_gpu_device.resource = mali_gpu_resources_m450_mp4;
+	}
+#else
+	if (mali_read_phys(0xFC000000) == 0x00000450) {
 		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP8 device\n"));
 		num_pp_cores = 8;
 		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp8);
 		mali_gpu_device.resource = mali_gpu_resources_m450_mp8;
+	} else if (mali_read_phys(0xFC000000) == 0x40400450) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP4 device\n"));
+		num_pp_cores = 4;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp4);
+		mali_gpu_device.resource = mali_gpu_resources_m450_mp4;
 	}
+#endif /* CONFIG_ARM64 */
 
 #elif defined(CONFIG_ARCH_REALVIEW)
 
@@ -139,7 +171,7 @@ int mali_platform_device_register(void)
 	err = platform_device_register(&mali_gpu_device);
 	if (0 == err) {
 #ifdef CONFIG_PM_RUNTIME
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 		pm_runtime_set_autosuspend_delay(&(mali_gpu_device.dev), 1000);
 		pm_runtime_use_autosuspend(&(mali_gpu_device.dev));
 #endif
@@ -181,7 +213,7 @@ static u32 mali_read_phys(u32 phys_addr)
 	u32 ret = 0xDEADBEEF;
 	void *mem_mapped = ioremap_nocache(phys_addr_page, map_size);
 	if (NULL != mem_mapped) {
-		ret = (u32)ioread32(((u8*)mem_mapped) + phys_offset);
+		ret = (u32)ioread32(((u8 *)mem_mapped) + phys_offset);
 		iounmap(mem_mapped);
 	}
 
@@ -196,7 +228,7 @@ static void mali_write_phys(u32 phys_addr, u32 value)
 	u32 map_size       = phys_offset + sizeof(u32);
 	void *mem_mapped = ioremap_nocache(phys_addr_page, map_size);
 	if (NULL != mem_mapped) {
-		iowrite32(value, ((u8*)mem_mapped) + phys_offset);
+		iowrite32(value, ((u8 *)mem_mapped) + phys_offset);
 		iounmap(mem_mapped);
 	}
 }

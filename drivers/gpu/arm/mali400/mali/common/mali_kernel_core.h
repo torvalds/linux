@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2007-2013 ARM Limited
+ * (C) COPYRIGHT 2007-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -33,7 +33,7 @@ u32 mali_kernel_core_get_gpu_major_version(void);
 
 u32 mali_kernel_core_get_gpu_minor_version(void);
 
-u32 _mali_kernel_core_dump_state(char* buf, u32 size);
+u32 _mali_kernel_core_dump_state(char *buf, u32 size);
 
 MALI_STATIC_INLINE mali_bool mali_is_mali450(void)
 {

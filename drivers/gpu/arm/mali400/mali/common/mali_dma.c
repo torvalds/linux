@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -44,7 +44,7 @@ static struct mali_dma_core *mali_global_dma_core = NULL;
 
 struct mali_dma_core *mali_dma_create(_mali_osk_resource_t *resource)
 {
-	struct mali_dma_core* dma;
+	struct mali_dma_core *dma;
 	_mali_osk_errcode_t err;
 
 	MALI_DEBUG_ASSERT(NULL == mali_global_dma_core);
@@ -95,6 +95,7 @@ static void mali_dma_bus_error(struct mali_dma_core *dma)
 	u32 addr = mali_hw_core_register_read(&dma->hw_core, MALI450_DMA_REG_SOURCE_ADDRESS);
 
 	MALI_PRINT_ERROR(("Mali DMA: Bus error when reading command list from 0x%lx\n", addr));
+	MALI_IGNORE(addr);
 
 	/* Clear the bus error */
 	mali_hw_core_register_write(&dma->hw_core, MALI450_DMA_REG_SOURCE_SIZE, 0);
@@ -121,7 +122,7 @@ static mali_bool mali_dma_is_busy(struct mali_dma_core *dma)
 	return dma_busy_flag;
 }
 
-static void mali_dma_start_transfer(struct mali_dma_core* dma, mali_dma_cmd_buf *buf)
+static void mali_dma_start_transfer(struct mali_dma_core *dma, mali_dma_cmd_buf *buf)
 {
 	u32 memsize = buf->size * 4;
 	u32 addr = buf->phys_addr;
@@ -143,7 +144,7 @@ _mali_osk_errcode_t mali_dma_get_cmd_buf(mali_dma_cmd_buf *buf)
 {
 	MALI_DEBUG_ASSERT_POINTER(buf);
 
-	buf->virt_addr = (u32*)mali_dma_pool_alloc(mali_global_dma_core->pool, &buf->phys_addr);
+	buf->virt_addr = (u32 *)mali_dma_pool_alloc(mali_global_dma_core->pool, &buf->phys_addr);
 	if (NULL == buf->virt_addr) {
 		return _MALI_OSK_ERR_NOMEM;
 	}
@@ -166,7 +167,7 @@ void mali_dma_put_cmd_buf(mali_dma_cmd_buf *buf)
 	buf->virt_addr = NULL;
 }
 
-_mali_osk_errcode_t mali_dma_start(struct mali_dma_core* dma, mali_dma_cmd_buf *buf)
+_mali_osk_errcode_t mali_dma_start(struct mali_dma_core *dma, mali_dma_cmd_buf *buf)
 {
 	_mali_osk_errcode_t err = _MALI_OSK_ERR_OK;
 
@@ -188,9 +189,9 @@ void mali_dma_debug(struct mali_dma_core *dma)
 {
 	MALI_DEBUG_ASSERT_POINTER(dma);
 	MALI_DEBUG_PRINT(1, ("DMA unit registers:\n\t%08x, %08x\n",
-	                     mali_hw_core_register_read(&dma->hw_core, MALI450_DMA_REG_SOURCE_ADDRESS),
-	                     mali_hw_core_register_read(&dma->hw_core, MALI450_DMA_REG_SOURCE_SIZE)
-	                    ));
+			     mali_hw_core_register_read(&dma->hw_core, MALI450_DMA_REG_SOURCE_ADDRESS),
+			     mali_hw_core_register_read(&dma->hw_core, MALI450_DMA_REG_SOURCE_SIZE)
+			    ));
 
 }
 

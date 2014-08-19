@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -20,8 +20,8 @@
  */
 #define MALI_DLBU_SIZE 0x400
 
-u32 mali_dlbu_phys_addr = 0;
-static mali_io_address mali_dlbu_cpu_addr = 0;
+mali_dma_addr mali_dlbu_phys_addr = 0;
+static mali_io_address mali_dlbu_cpu_addr = NULL;
 
 /**
  * DLBU register numbers
@@ -30,36 +30,36 @@ static mali_io_address mali_dlbu_cpu_addr = 0;
  */
 typedef enum mali_dlbu_register {
 	MALI_DLBU_REGISTER_MASTER_TLLIST_PHYS_ADDR = 0x0000, /**< Master tile list physical base address;
-	                                                     31:12 Physical address to the page used for the DLBU
-	                                                     0 DLBU enable - set this bit to 1 enables the AXI bus
-	                                                     between PPs and L2s, setting to 0 disables the router and
-	                                                     no further transactions are sent to DLBU */
+                                                             31:12 Physical address to the page used for the DLBU
+                                                             0 DLBU enable - set this bit to 1 enables the AXI bus
+                                                             between PPs and L2s, setting to 0 disables the router and
+                                                             no further transactions are sent to DLBU */
 	MALI_DLBU_REGISTER_MASTER_TLLIST_VADDR     = 0x0004, /**< Master tile list virtual base address;
-	                                                     31:12 Virtual address to the page used for the DLBU */
-	MALI_DLBU_REGISTER_TLLIST_VBASEADDR        = 0x0008, /**< Tile list virtual base address;
-	                                                     31:12 Virtual address to the tile list. This address is used when
-	                                                     calculating the call address sent to PP.*/
-	MALI_DLBU_REGISTER_FB_DIM                  = 0x000C, /**< Framebuffer dimension;
-	                                                     23:16 Number of tiles in Y direction-1
-	                                                     7:0 Number of tiles in X direction-1 */
-	MALI_DLBU_REGISTER_TLLIST_CONF             = 0x0010, /**< Tile list configuration;
-	                                                     29:28 select the size of each allocated block: 0=128 bytes, 1=256, 2=512, 3=1024
-	                                                     21:16 2^n number of tiles to be binned to one tile list in Y direction
-	                                                     5:0 2^n number of tiles to be binned to one tile list in X direction */
-	MALI_DLBU_REGISTER_START_TILE_POS          = 0x0014, /**< Start tile positions;
-	                                                     31:24 start position in Y direction for group 1
-	                                                     23:16 start position in X direction for group 1
-	                                                     15:8 start position in Y direction for group 0
-	                                                     7:0 start position in X direction for group 0 */
-	MALI_DLBU_REGISTER_PP_ENABLE_MASK          = 0x0018, /**< PP enable mask;
-	                                                     7 enable PP7 for load balancing
-	                                                     6 enable PP6 for load balancing
-	                                                     5 enable PP5 for load balancing
-	                                                     4 enable PP4 for load balancing
-	                                                     3 enable PP3 for load balancing
-	                                                     2 enable PP2 for load balancing
-	                                                     1 enable PP1 for load balancing
-	                                                     0 enable PP0 for load balancing */
+                                                             31:12 Virtual address to the page used for the DLBU */
+	MALI_DLBU_REGISTER_TLLIST_VBASEADDR     = 0x0008, /**< Tile list virtual base address;
+                                                             31:12 Virtual address to the tile list. This address is used when
+                                                             calculating the call address sent to PP.*/
+	MALI_DLBU_REGISTER_FB_DIM                 = 0x000C, /**< Framebuffer dimension;
+                                                             23:16 Number of tiles in Y direction-1
+                                                             7:0 Number of tiles in X direction-1 */
+	MALI_DLBU_REGISTER_TLLIST_CONF       = 0x0010, /**< Tile list configuration;
+                                                             29:28 select the size of each allocated block: 0=128 bytes, 1=256, 2=512, 3=1024
+                                                             21:16 2^n number of tiles to be binned to one tile list in Y direction
+                                                             5:0 2^n number of tiles to be binned to one tile list in X direction */
+	MALI_DLBU_REGISTER_START_TILE_POS         = 0x0014, /**< Start tile positions;
+                                                             31:24 start position in Y direction for group 1
+                                                             23:16 start position in X direction for group 1
+                                                             15:8 start position in Y direction for group 0
+                                                             7:0 start position in X direction for group 0 */
+	MALI_DLBU_REGISTER_PP_ENABLE_MASK         = 0x0018, /**< PP enable mask;
+                                                             7 enable PP7 for load balancing
+                                                             6 enable PP6 for load balancing
+                                                             5 enable PP5 for load balancing
+                                                             4 enable PP4 for load balancing
+                                                             3 enable PP3 for load balancing
+                                                             2 enable PP2 for load balancing
+                                                             1 enable PP1 for load balancing
+                                                             0 enable PP0 for load balancing */
 } mali_dlbu_register;
 
 typedef enum {
@@ -76,7 +76,7 @@ typedef enum {
 struct mali_dlbu_core {
 	struct mali_hw_core     hw_core;           /**< Common for all HW cores */
 	u32                     pp_cores_mask;     /**< This is a mask for the PP cores whose operation will be controlled by LBU
-	                                              see MALI_DLBU_REGISTER_PP_ENABLE_MASK register */
+                                                      see MALI_DLBU_REGISTER_PP_ENABLE_MASK register */
 };
 
 _mali_osk_errcode_t mali_dlbu_initialize(void)
@@ -98,7 +98,7 @@ void mali_dlbu_terminate(void)
 	mali_mmu_release_table_page(mali_dlbu_phys_addr, mali_dlbu_cpu_addr);
 }
 
-struct mali_dlbu_core *mali_dlbu_create(const _mali_osk_resource_t * resource)
+struct mali_dlbu_core *mali_dlbu_create(const _mali_osk_resource_t *resource)
 {
 	struct mali_dlbu_core *core = NULL;
 
@@ -168,8 +168,8 @@ void mali_dlbu_add_group(struct mali_dlbu_core *dlbu, struct mali_group *group)
 	struct mali_pp_core *pp_core;
 	u32 bcast_id;
 
-	MALI_DEBUG_ASSERT_POINTER( dlbu );
-	MALI_DEBUG_ASSERT_POINTER( group );
+	MALI_DEBUG_ASSERT_POINTER(dlbu);
+	MALI_DEBUG_ASSERT_POINTER(group);
 
 	pp_core = mali_group_get_pp_core(group);
 	bcast_id = mali_pp_core_get_bcast_id(pp_core);
@@ -184,8 +184,8 @@ void mali_dlbu_remove_group(struct mali_dlbu_core *dlbu, struct mali_group *grou
 	struct mali_pp_core *pp_core;
 	u32 bcast_id;
 
-	MALI_DEBUG_ASSERT_POINTER( dlbu );
-	MALI_DEBUG_ASSERT_POINTER( group );
+	MALI_DEBUG_ASSERT_POINTER(dlbu);
+	MALI_DEBUG_ASSERT_POINTER(group);
 
 	pp_core = mali_group_get_pp_core(group);
 	bcast_id = mali_pp_core_get_bcast_id(pp_core);

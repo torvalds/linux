@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -24,10 +24,10 @@ struct mali_soft_system;
 #define MALI_PP_JOB_FB_LOOKUP_LIST_MASK (MALI_PP_JOB_FB_LOOKUP_LIST_SIZE - 1)
 
 struct mali_session_data {
-	_mali_osk_notification_queue_t * ioctl_queue;
+	_mali_osk_notification_queue_t *ioctl_queue;
 
 	_mali_osk_mutex_t *memory_lock; /**< Lock protecting the vm manipulation */
-	mali_descriptor_mapping * descriptor_mapping; /**< Mapping between userspace descriptors and our pointers */
+	mali_descriptor_mapping *descriptor_mapping;  /**< Mapping between userspace descriptors and our pointers */
 	_mali_osk_list_t memory_head; /**< Track all the memory allocated in this session, for freeing on abnormal termination */
 
 	struct mali_page_directory *page_directory; /**< MMU page directory for this session */

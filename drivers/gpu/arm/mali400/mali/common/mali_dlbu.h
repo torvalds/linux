@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -17,15 +17,14 @@
 
 struct mali_pp_job;
 struct mali_group;
-
-extern u32 mali_dlbu_phys_addr;
-
 struct mali_dlbu_core;
+
+extern mali_dma_addr mali_dlbu_phys_addr;
 
 _mali_osk_errcode_t mali_dlbu_initialize(void);
 void mali_dlbu_terminate(void);
 
-struct mali_dlbu_core *mali_dlbu_create(const _mali_osk_resource_t * resource);
+struct mali_dlbu_core *mali_dlbu_create(const _mali_osk_resource_t *resource);
 void mali_dlbu_delete(struct mali_dlbu_core *dlbu);
 
 _mali_osk_errcode_t mali_dlbu_reset(struct mali_dlbu_core *dlbu);

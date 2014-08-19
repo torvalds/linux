@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -55,7 +55,7 @@ void mali_l2_cache_terminate(void);
  * L2 pause is just a status that the L2 can't be accessed temporarily.
 */
 void mali_l2_cache_pause_all(mali_bool pause);
-struct mali_l2_cache_core *mali_l2_cache_create(_mali_osk_resource_t * resource);
+struct mali_l2_cache_core *mali_l2_cache_create(_mali_osk_resource_t *resource);
 void mali_l2_cache_delete(struct mali_l2_cache_core *cache);
 
 MALI_STATIC_INLINE void mali_l2_cache_set_pm_domain(struct mali_l2_cache_core *cache, struct mali_pm_domain *domain)

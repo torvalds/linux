@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2010-2013 ARM Limited
+ * (C) COPYRIGHT 2010-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -81,7 +81,7 @@ static u32 calculate_window_render_fps(u64 time_period)
 }
 #endif  /* defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY) */
 
-static void calculate_gpu_utilization(void* arg)
+static void calculate_gpu_utilization(void *arg)
 {
 	u64 time_now;
 	u64 time_period;
@@ -223,7 +223,8 @@ static void calculate_gpu_utilization(void* arg)
 _mali_osk_errcode_t mali_utilization_init(void)
 {
 #if USING_GPU_UTILIZATION
-	struct _mali_osk_device_data data;
+	_mali_osk_device_data data;
+
 	if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
 		/* Use device specific settings (if defined) */
 		if (0 != data.utilization_interval) {

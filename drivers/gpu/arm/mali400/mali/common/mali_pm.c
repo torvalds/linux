@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2013 ARM Limited
+ * (C) COPYRIGHT 2011-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -82,7 +82,7 @@ void mali_pm_os_resume(void)
 
 void mali_pm_runtime_suspend(void)
 {
-	MALI_DEBUG_PRINT(2, ("Mali PM: Runtime suspend\n"));
+	MALI_DEBUG_PRINT(3, ("Mali PM: Runtime suspend\n"));
 	mali_group_power_off(MALI_TRUE);
 	mali_power_on = MALI_FALSE;
 }
@@ -92,7 +92,7 @@ void mali_pm_runtime_resume(void)
 	struct mali_pmu_core *pmu = mali_pmu_get_global_pmu_core();
 	mali_bool do_reset = MALI_FALSE;
 
-	MALI_DEBUG_PRINT(2, ("Mali PM: Runtime resume\n"));
+	MALI_DEBUG_PRINT(3, ("Mali PM: Runtime resume\n"));
 
 	if (MALI_TRUE != mali_power_on) {
 		do_reset = MALI_TRUE;

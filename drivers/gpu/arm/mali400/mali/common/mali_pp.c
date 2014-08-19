@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2013 ARM Limited
+ * (C) COPYRIGHT 2011-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -25,7 +25,7 @@
 /* Number of frame registers on Mali-300 and later */
 #define MALI_PP_MALI400_NUM_FRAME_REGISTERS ((0x058/4)+1)
 
-static struct mali_pp_core* mali_global_pp_cores[MALI_MAX_NUMBER_OF_PP_CORES] = { NULL };
+static struct mali_pp_core *mali_global_pp_cores[MALI_MAX_NUMBER_OF_PP_CORES] = { NULL };
 static u32 mali_global_num_pp_cores = 0;
 
 /* Interrupt handlers */
@@ -34,7 +34,7 @@ static _mali_osk_errcode_t mali_pp_irq_probe_ack(void *data);
 
 struct mali_pp_core *mali_pp_create(const _mali_osk_resource_t *resource, struct mali_group *group, mali_bool is_virtual, u32 bcast_id)
 {
-	struct mali_pp_core* core = NULL;
+	struct mali_pp_core *core = NULL;
 
 	MALI_DEBUG_PRINT(2, ("Mali PP: Creating Mali PP core: %s\n", resource->description));
 	MALI_DEBUG_PRINT(2, ("Mali PP: Base address of PP core: 0x%x\n", resource->base));
@@ -65,12 +65,12 @@ struct mali_pp_core *mali_pp_create(const _mali_osk_resource_t *resource, struct
 					MALI_DEBUG_ASSERT(!is_virtual || -1 != resource->irq);
 
 					core->irq = _mali_osk_irq_init(resource->irq,
-					                               mali_group_upper_half_pp,
-					                               group,
-					                               mali_pp_irq_probe_trigger,
-					                               mali_pp_irq_probe_ack,
-					                               core,
-					                               resource->description);
+								       mali_group_upper_half_pp,
+								       group,
+								       mali_pp_irq_probe_trigger,
+								       mali_pp_irq_probe_ack,
+								       core,
+								       resource->description);
 					if (NULL != core->irq) {
 						mali_global_pp_cores[mali_global_num_pp_cores] = core;
 						mali_global_num_pp_cores++;
@@ -264,7 +264,7 @@ _mali_osk_errcode_t mali_pp_reset_wait(struct mali_pp_core *core)
 
 	if (i == MALI_REG_POLL_COUNT_FAST) {
 		MALI_PRINT_ERROR(("Mali PP: Failed to reset core %s, rawstat: 0x%08x\n",
-		                  core->hw_core.description, rawstat));
+				  core->hw_core.description, rawstat));
 		return _MALI_OSK_ERR_FAULT;
 	}
 
@@ -282,7 +282,7 @@ _mali_osk_errcode_t mali_pp_reset(struct mali_pp_core *core)
 }
 
 void mali_pp_job_dma_cmd_prepare(struct mali_pp_core *core, struct mali_pp_job *job, u32 sub_job,
-                                 mali_bool restart_virtual, mali_dma_cmd_buf *buf)
+				 mali_dma_cmd_buf *buf)
 {
 	u32 relative_address;
 	u32 start_index;
@@ -296,36 +296,22 @@ void mali_pp_job_dma_cmd_prepare(struct mali_pp_core *core, struct mali_pp_job *
 
 	MALI_DEBUG_ASSERT_POINTER(core);
 
-	/* Write frame registers */
-
-	/*
-	 * There are two frame registers which are different for each sub job:
-	 * 1. The Renderer List Address Register (MALI200_REG_ADDR_FRAME)
-	 * 2. The FS Stack Address Register (MALI200_REG_ADDR_STACK)
-	 */
-	mali_dma_write_conditional(buf, &core->hw_core, MALI200_REG_ADDR_FRAME, mali_pp_job_get_addr_frame(job, sub_job), mali_frame_registers_reset_values[MALI200_REG_ADDR_FRAME / sizeof(u32)]);
-
-	/* For virtual jobs, the stack address shouldn't be broadcast but written individually */
-	if (!mali_pp_job_is_virtual(job) || restart_virtual) {
-		mali_dma_write_conditional(buf, &core->hw_core, MALI200_REG_ADDR_STACK, mali_pp_job_get_addr_stack(job, sub_job), mali_frame_registers_reset_values[MALI200_REG_ADDR_STACK / sizeof(u32)]);
-	}
-
 	/* Write registers between MALI200_REG_ADDR_FRAME and MALI200_REG_ADDR_STACK */
 	relative_address = MALI200_REG_ADDR_RSW;
 	start_index = MALI200_REG_ADDR_RSW / sizeof(u32);
 	nr_of_regs = (MALI200_REG_ADDR_STACK - MALI200_REG_ADDR_RSW) / sizeof(u32);
 
 	mali_dma_write_array_conditional(buf, &core->hw_core,
-	                                 relative_address, &frame_registers[start_index],
-	                                 nr_of_regs, &mali_frame_registers_reset_values[start_index]);
+					 relative_address, &frame_registers[start_index],
+					 nr_of_regs, &mali_frame_registers_reset_values[start_index]);
 
 	/* MALI200_REG_ADDR_STACK_SIZE */
 	relative_address = MALI200_REG_ADDR_STACK_SIZE;
 	start_index = MALI200_REG_ADDR_STACK_SIZE / sizeof(u32);
 
 	mali_dma_write_conditional(buf, &core->hw_core,
-	                           relative_address, frame_registers[start_index],
-	                           mali_frame_registers_reset_values[start_index]);
+				   relative_address, frame_registers[start_index],
+				   mali_frame_registers_reset_values[start_index]);
 
 	/* Skip 2 reserved registers */
 
@@ -335,8 +321,8 @@ void mali_pp_job_dma_cmd_prepare(struct mali_pp_core *core, struct mali_pp_job *
 	nr_of_regs = MALI_PP_MALI400_NUM_FRAME_REGISTERS - MALI200_REG_ADDR_ORIGIN_OFFSET_X / sizeof(u32);
 
 	mali_dma_write_array_conditional(buf, &core->hw_core,
-	                                 relative_address, &frame_registers[start_index],
-	                                 nr_of_regs, &mali_frame_registers_reset_values[start_index]);
+					 relative_address, &frame_registers[start_index],
+					 nr_of_regs, &mali_frame_registers_reset_values[start_index]);
 
 	/* Write WBx registers */
 	if (wb0_registers[0]) { /* M200_WB0_REG_SOURCE_SELECT register */
@@ -360,11 +346,19 @@ void mali_pp_job_dma_cmd_prepare(struct mali_pp_core *core, struct mali_pp_job *
 		mali_dma_write_conditional(buf, &core->hw_core, MALI200_REG_ADDR_MGMT_PERF_CNT_1_ENABLE, MALI200_REG_VAL_PERF_CNT_ENABLE, mali_perf_cnt_enable_reset_value);
 	}
 
-	/* This is the command that starts the core. */
+	/* This is the command that starts the core.
+	 *
+	 * Don't actually run the job if PROFILING_SKIP_PP_JOBS are set, just
+	 * force core to assert the completion interrupt.
+	 */
+#if !defined(PROFILING_SKIP_PP_JOBS)
 	mali_dma_write(buf, &core->hw_core, MALI200_REG_ADDR_MGMT_CTRL_MGMT, MALI200_REG_VAL_CTRL_MGMT_START_RENDERING);
+#else
+	mali_dma_write(buf, &core->hw_core, MALI200_REG_ADDR_MGMT_INT_RAWSTAT, MALI200_REG_VAL_IRQ_END_OF_FRAME);
+#endif
 }
 
-void mali_pp_job_start(struct mali_pp_core *core, struct mali_pp_job *job, u32 sub_job, mali_bool restart_virtual)
+void mali_pp_job_start(struct mali_pp_core *core, struct mali_pp_job *job, u32 sub_job)
 {
 	u32 relative_address;
 	u32 start_index;
@@ -378,36 +372,22 @@ void mali_pp_job_start(struct mali_pp_core *core, struct mali_pp_job *job, u32 s
 
 	MALI_DEBUG_ASSERT_POINTER(core);
 
-	/* Write frame registers */
-
-	/*
-	 * There are two frame registers which are different for each sub job:
-	 * 1. The Renderer List Address Register (MALI200_REG_ADDR_FRAME)
-	 * 2. The FS Stack Address Register (MALI200_REG_ADDR_STACK)
-	 */
-	mali_hw_core_register_write_relaxed_conditional(&core->hw_core, MALI200_REG_ADDR_FRAME, mali_pp_job_get_addr_frame(job, sub_job), mali_frame_registers_reset_values[MALI200_REG_ADDR_FRAME / sizeof(u32)]);
-
-	/* For virtual jobs, the stack address shouldn't be broadcast but written individually */
-	if (!mali_pp_job_is_virtual(job) || restart_virtual) {
-		mali_hw_core_register_write_relaxed_conditional(&core->hw_core, MALI200_REG_ADDR_STACK, mali_pp_job_get_addr_stack(job, sub_job), mali_frame_registers_reset_values[MALI200_REG_ADDR_STACK / sizeof(u32)]);
-	}
-
 	/* Write registers between MALI200_REG_ADDR_FRAME and MALI200_REG_ADDR_STACK */
 	relative_address = MALI200_REG_ADDR_RSW;
 	start_index = MALI200_REG_ADDR_RSW / sizeof(u32);
 	nr_of_regs = (MALI200_REG_ADDR_STACK - MALI200_REG_ADDR_RSW) / sizeof(u32);
 
 	mali_hw_core_register_write_array_relaxed_conditional(&core->hw_core,
-	        relative_address, &frame_registers[start_index],
-	        nr_of_regs, &mali_frame_registers_reset_values[start_index]);
+			relative_address, &frame_registers[start_index],
+			nr_of_regs, &mali_frame_registers_reset_values[start_index]);
 
 	/* MALI200_REG_ADDR_STACK_SIZE */
 	relative_address = MALI200_REG_ADDR_STACK_SIZE;
 	start_index = MALI200_REG_ADDR_STACK_SIZE / sizeof(u32);
 
 	mali_hw_core_register_write_relaxed_conditional(&core->hw_core,
-	        relative_address, frame_registers[start_index],
-	        mali_frame_registers_reset_values[start_index]);
+			relative_address, frame_registers[start_index],
+			mali_frame_registers_reset_values[start_index]);
 
 	/* Skip 2 reserved registers */
 
@@ -417,8 +397,8 @@ void mali_pp_job_start(struct mali_pp_core *core, struct mali_pp_job *job, u32 s
 	nr_of_regs = MALI_PP_MALI400_NUM_FRAME_REGISTERS - MALI200_REG_ADDR_ORIGIN_OFFSET_X / sizeof(u32);
 
 	mali_hw_core_register_write_array_relaxed_conditional(&core->hw_core,
-	        relative_address, &frame_registers[start_index],
-	        nr_of_regs, &mali_frame_registers_reset_values[start_index]);
+			relative_address, &frame_registers[start_index],
+			nr_of_regs, &mali_frame_registers_reset_values[start_index]);
 
 	/* Write WBx registers */
 	if (wb0_registers[0]) { /* M200_WB0_REG_SOURCE_SELECT register */
@@ -443,7 +423,7 @@ void mali_pp_job_start(struct mali_pp_core *core, struct mali_pp_job *job, u32 s
 	}
 
 #ifdef CONFIG_MALI400_HEATMAPS_ENABLED
-	if(job->uargs.perf_counter_flag & _MALI_PERFORMANCE_COUNTER_FLAG_HEATMAP_ENABLE) {
+	if (job->uargs.perf_counter_flag & _MALI_PERFORMANCE_COUNTER_FLAG_HEATMAP_ENABLE) {
 		mali_hw_core_register_write_relaxed(&core->hw_core, MALI200_REG_ADDR_MGMT_PERFMON_CONTR, ((job->uargs.tilesx & 0x3FF) << 16) | 1);
 		mali_hw_core_register_write_relaxed(&core->hw_core,  MALI200_REG_ADDR_MGMT_PERFMON_BASE, job->uargs.heatmap_mem & 0xFFFFFFF8);
 	}
@@ -454,8 +434,16 @@ void mali_pp_job_start(struct mali_pp_core *core, struct mali_pp_job *job, u32 s
 	/* Adding barrier to make sure all rester writes are finished */
 	_mali_osk_write_mem_barrier();
 
-	/* This is the command that starts the core. */
+	/* This is the command that starts the core.
+	 *
+	 * Don't actually run the job if PROFILING_SKIP_PP_JOBS are set, just
+	 * force core to assert the completion interrupt.
+	 */
+#if !defined(PROFILING_SKIP_PP_JOBS)
 	mali_hw_core_register_write_relaxed(&core->hw_core, MALI200_REG_ADDR_MGMT_CTRL_MGMT, MALI200_REG_VAL_CTRL_MGMT_START_RENDERING);
+#else
+	mali_hw_core_register_write_relaxed(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_RAWSTAT, MALI200_REG_VAL_IRQ_END_OF_FRAME);
+#endif
 
 	/* Adding barrier to make sure previous rester writes is finished */
 	_mali_osk_write_mem_barrier();
@@ -467,7 +455,7 @@ u32 mali_pp_core_get_version(struct mali_pp_core *core)
 	return mali_hw_core_register_read(&core->hw_core, MALI200_REG_ADDR_MGMT_VERSION);
 }
 
-struct mali_pp_core* mali_pp_get_global_pp_core(u32 index)
+struct mali_pp_core *mali_pp_get_global_pp_core(u32 index)
 {
 	if (mali_global_num_pp_cores > index) {
 		return mali_global_pp_cores[index];
@@ -528,7 +516,7 @@ static void mali_pp_print_registers(struct mali_pp_core *core)
 #if 0
 void mali_pp_print_state(struct mali_pp_core *core)
 {
-	MALI_DEBUG_PRINT(2, ("Mali PP: State: 0x%08x\n", mali_hw_core_register_read(&core->hw_core, MALI200_REG_ADDR_MGMT_STATUS) ));
+	MALI_DEBUG_PRINT(2, ("Mali PP: State: 0x%08x\n", mali_hw_core_register_read(&core->hw_core, MALI200_REG_ADDR_MGMT_STATUS)));
 }
 #endif
 

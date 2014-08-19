@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013 ARM Limited
+ * (C) COPYRIGHT 2013-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -33,7 +33,7 @@ MALI_STATIC_INLINE void mali_pm_domain_state_set(struct mali_pm_domain *domain, 
 
 struct mali_pm_domain *mali_pm_domain_create(u32 pmu_mask)
 {
-	struct mali_pm_domain* domain = NULL;
+	struct mali_pm_domain *domain = NULL;
 	u32 domain_id = 0;
 
 	domain = mali_pm_domain_get_from_mask(pmu_mask);
@@ -133,7 +133,7 @@ struct mali_pm_domain *mali_pm_domain_get_from_mask(u32 mask)
 
 	if (0 == mask) return NULL;
 
-	id = _mali_osk_fls(mask)-1;
+	id = _mali_osk_fls(mask) - 1;
 
 	MALI_DEBUG_ASSERT(MALI_MAX_NUMBER_OF_DOMAINS > id);
 	/* Verify that pmu_mask only one bit is set */
@@ -169,7 +169,7 @@ void mali_pm_domain_ref_get(struct mali_pm_domain *domain)
 
 			if (_MALI_OSK_ERR_OK != err && _MALI_OSK_ERR_BUSY != err) {
 				MALI_PRINT_ERROR(("PM Domain: Failed to power up PM domain 0x%08x\n",
-				                  domain->pmu_mask));
+						  domain->pmu_mask));
 			}
 		}
 		mali_pm_domain_state_set(domain, MALI_PM_DOMAIN_ON);
@@ -202,7 +202,7 @@ void mali_pm_domain_ref_put(struct mali_pm_domain *domain)
 
 			if (_MALI_OSK_ERR_OK != err && _MALI_OSK_ERR_BUSY != err) {
 				MALI_PRINT_ERROR(("PM Domain: Failed to power down PM domain 0x%08x\n",
-				                  domain->pmu_mask));
+						  domain->pmu_mask));
 			}
 		}
 	}
@@ -224,7 +224,7 @@ mali_bool mali_pm_domain_lock_state(struct mali_pm_domain *domain)
 		mali_pm_domain_unlock(domain);
 	}
 
-	if(!_mali_osk_pm_dev_ref_add_no_power_on()) {
+	if (!_mali_osk_pm_dev_ref_add_no_power_on()) {
 		is_powered = MALI_FALSE;
 	}
 

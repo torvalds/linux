@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -56,6 +56,10 @@ void mali_bcast_unit_delete(struct mali_bcast_unit *bcast_unit)
 	_mali_osk_free(bcast_unit);
 }
 
+/* Call this function to add the @group's id into bcast mask
+ * Note: redundant calling this function with same @group
+ * doesn't make any difference as calling it once
+ */
 void mali_bcast_add_group(struct mali_bcast_unit *bcast_unit, struct mali_group *group)
 {
 	u32 bcast_id;
@@ -75,6 +79,10 @@ void mali_bcast_add_group(struct mali_bcast_unit *bcast_unit, struct mali_group 
 	bcast_unit->current_mask = broadcast_mask;
 }
 
+/* Call this function to remove @group's id from bcast mask
+ * Note: redundant calling this function with same @group
+ * doesn't make any difference as calling it once
+ */
 void mali_bcast_remove_group(struct mali_bcast_unit *bcast_unit, struct mali_group *group)
 {
 	u32 bcast_id;
@@ -99,13 +107,13 @@ void mali_bcast_reset(struct mali_bcast_unit *bcast_unit)
 
 	/* set broadcast mask */
 	mali_hw_core_register_write(&bcast_unit->hw_core,
-	                            bcast_unit_addr_broadcast_mask,
-	                            bcast_unit->current_mask);
+				    bcast_unit_addr_broadcast_mask,
+				    bcast_unit->current_mask);
 
 	/* set IRQ override mask */
 	mali_hw_core_register_write(&bcast_unit->hw_core,
-	                            bcast_unit_addr_irq_override_mask,
-	                            bcast_unit->current_mask & 0xFF);
+				    bcast_unit_addr_irq_override_mask,
+				    bcast_unit->current_mask & 0xFF);
 }
 
 void mali_bcast_disable(struct mali_bcast_unit *bcast_unit)
@@ -114,11 +122,11 @@ void mali_bcast_disable(struct mali_bcast_unit *bcast_unit)
 
 	/* set broadcast mask */
 	mali_hw_core_register_write(&bcast_unit->hw_core,
-	                            bcast_unit_addr_broadcast_mask,
-	                            0x0);
+				    bcast_unit_addr_broadcast_mask,
+				    0x0);
 
 	/* set IRQ override mask */
 	mali_hw_core_register_write(&bcast_unit->hw_core,
-	                            bcast_unit_addr_irq_override_mask,
-	                            0x0);
+				    bcast_unit_addr_irq_override_mask,
+				    0x0);
 }

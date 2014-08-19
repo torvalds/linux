@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013 ARM Limited
+ * (C) COPYRIGHT 2013-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -36,9 +36,9 @@ mali_mem_allocation *mali_mem_os_alloc(u32 mali_addr, u32 size, struct vm_area_s
  */
 void mali_mem_os_release(mali_mem_allocation *descriptor);
 
-_mali_osk_errcode_t mali_mem_os_get_table_page(u32 *phys, mali_io_address *mapping);
+_mali_osk_errcode_t mali_mem_os_get_table_page(mali_dma_addr *phys, mali_io_address *mapping);
 
-void mali_mem_os_release_table_page(u32 phys, void *virt);
+void mali_mem_os_release_table_page(mali_dma_addr phys, void *virt);
 
 _mali_osk_errcode_t mali_mem_os_init(void);
 void mali_mem_os_term(void);

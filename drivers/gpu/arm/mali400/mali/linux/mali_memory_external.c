@@ -1,14 +1,16 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013 ARM Limited
+ * (C) COPYRIGHT 2013-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
  * by a licensing agreement from ARM Limited.
  */
 
+#include "mali_kernel_common.h"
 #include "mali_osk.h"
+#include "mali_ukk.h"
 #include "mali_memory.h"
 #include "mali_kernel_descriptor_mapping.h"
 #include "mali_mem_validation.h"
@@ -24,14 +26,13 @@ void mali_mem_external_release(mali_mem_allocation *descriptor)
 _mali_osk_errcode_t _mali_ukk_map_external_mem(_mali_uk_map_external_mem_s *args)
 {
 	struct mali_session_data *session;
-	mali_mem_allocation * descriptor;
+	mali_mem_allocation *descriptor;
 	int md;
 	_mali_osk_errcode_t err;
 
 	MALI_DEBUG_ASSERT_POINTER(args);
-	MALI_CHECK_NON_NULL(args->ctx, _MALI_OSK_ERR_INVALID_ARGS);
 
-	session = (struct mali_session_data *)args->ctx;
+	session = (struct mali_session_data *)(uintptr_t)args->ctx;
 	MALI_CHECK_NON_NULL(session, _MALI_OSK_ERR_INVALID_ARGS);
 
 	/* check arguments */
@@ -41,12 +42,10 @@ _mali_osk_errcode_t _mali_ukk_map_external_mem(_mali_uk_map_external_mem_s *args
 	/* size must be a multiple of the system page size */
 	if (args->size % _MALI_OSK_MALI_PAGE_SIZE) MALI_ERROR(_MALI_OSK_ERR_INVALID_ARGS);
 
-	MALI_DEBUG_PRINT(3,
-	                 ("Requested to map physical memory 0x%x-0x%x into virtual memory 0x%x\n",
-	                  (void*)args->phys_addr,
-	                  (void*)(args->phys_addr + args->size -1),
-	                  (void*)args->mali_address)
-	                );
+	MALI_DEBUG_PRINT(2,
+			 ("Requested to map physical memory 0x%x-0x%x into virtual memory 0x%x\n",
+			  args->phys_addr, (args->phys_addr + args->size - 1),
+			  args->mali_address));
 
 	/* Validate the mali physical range */
 	if (_MALI_OSK_ERR_OK != mali_mem_validation_check(args->phys_addr, args->size)) {
@@ -97,19 +96,18 @@ _mali_osk_errcode_t _mali_ukk_map_external_mem(_mali_uk_map_external_mem_s *args
 	MALI_SUCCESS;
 }
 
-_mali_osk_errcode_t _mali_ukk_unmap_external_mem( _mali_uk_unmap_external_mem_s *args )
+_mali_osk_errcode_t _mali_ukk_unmap_external_mem(_mali_uk_unmap_external_mem_s *args)
 {
-	mali_mem_allocation * descriptor;
-	void* old_value;
+	mali_mem_allocation *descriptor;
+	void *old_value;
 	struct mali_session_data *session;
 
 	MALI_DEBUG_ASSERT_POINTER(args);
-	MALI_CHECK_NON_NULL(args->ctx, _MALI_OSK_ERR_INVALID_ARGS);
 
-	session = (struct mali_session_data *)args->ctx;
+	session = (struct mali_session_data *)(uintptr_t)args->ctx;
 	MALI_CHECK_NON_NULL(session, _MALI_OSK_ERR_INVALID_ARGS);
 
-	if (_MALI_OSK_ERR_OK != mali_descriptor_mapping_get(session->descriptor_mapping, args->cookie, (void**)&descriptor)) {
+	if (_MALI_OSK_ERR_OK != mali_descriptor_mapping_get(session->descriptor_mapping, args->cookie, (void **)&descriptor)) {
 		MALI_DEBUG_PRINT(1, ("Invalid memory descriptor %d used to unmap external memory\n", args->cookie));
 		MALI_ERROR(_MALI_OSK_ERR_FAULT);
 	}

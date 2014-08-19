@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -13,7 +13,7 @@
  * Implementation of the OS abstraction layer for the kernel device driver
  */
 
-#include <linux/slab.h>	/* For memory allocation */
+#include <linux/slab.h> /* For memory allocation */
 #include <linux/workqueue.h>
 #include <linux/version.h>
 #include <linux/sched.h>
@@ -37,8 +37,8 @@ typedef struct _mali_osk_wq_delayed_work_s {
 } mali_osk_wq_delayed_work_object_t;
 
 #if MALI_LICENSE_IS_GPL
-struct workqueue_struct *mali_wq_normal = NULL;
-struct workqueue_struct *mali_wq_high = NULL;
+static struct workqueue_struct *mali_wq_normal = NULL;
+static struct workqueue_struct *mali_wq_high = NULL;
 #endif
 
 static void _mali_osk_wq_work_func(struct work_struct *work);
@@ -49,9 +49,9 @@ _mali_osk_errcode_t _mali_osk_wq_init(void)
 	MALI_DEBUG_ASSERT(NULL == mali_wq_normal);
 	MALI_DEBUG_ASSERT(NULL == mali_wq_high);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	mali_wq_normal = alloc_workqueue("mali", WQ_UNBOUND, 0);
-	mali_wq_high = alloc_workqueue("mali_high_pri", WQ_HIGHPRI, 0);
+	mali_wq_high = alloc_workqueue("mali_high_pri", WQ_HIGHPRI | WQ_UNBOUND, 0);
 #else
 	mali_wq_normal = create_workqueue("mali");
 	mali_wq_high = create_workqueue("mali_high_pri");
@@ -101,7 +101,7 @@ void _mali_osk_wq_term(void)
 #endif
 }
 
-_mali_osk_wq_work_t *_mali_osk_wq_create_work( _mali_osk_wq_work_handler_t handler, void *data )
+_mali_osk_wq_work_t *_mali_osk_wq_create_work(_mali_osk_wq_work_handler_t handler, void *data)
 {
 	mali_osk_wq_work_object_t *work = kmalloc(sizeof(mali_osk_wq_work_object_t), GFP_KERNEL);
 
@@ -111,12 +111,12 @@ _mali_osk_wq_work_t *_mali_osk_wq_create_work( _mali_osk_wq_work_handler_t handl
 	work->data = data;
 	work->high_pri = MALI_FALSE;
 
-	INIT_WORK( &work->work_handle, _mali_osk_wq_work_func);
+	INIT_WORK(&work->work_handle, _mali_osk_wq_work_func);
 
 	return work;
 }
 
-_mali_osk_wq_work_t *_mali_osk_wq_create_work_high_pri( _mali_osk_wq_work_handler_t handler, void *data )
+_mali_osk_wq_work_t *_mali_osk_wq_create_work_high_pri(_mali_osk_wq_work_handler_t handler, void *data)
 {
 	mali_osk_wq_work_object_t *work = kmalloc(sizeof(mali_osk_wq_work_object_t), GFP_KERNEL);
 
@@ -126,25 +126,25 @@ _mali_osk_wq_work_t *_mali_osk_wq_create_work_high_pri( _mali_osk_wq_work_handle
 	work->data = data;
 	work->high_pri = MALI_TRUE;
 
-	INIT_WORK( &work->work_handle, _mali_osk_wq_work_func );
+	INIT_WORK(&work->work_handle, _mali_osk_wq_work_func);
 
 	return work;
 }
 
-void _mali_osk_wq_delete_work( _mali_osk_wq_work_t *work )
+void _mali_osk_wq_delete_work(_mali_osk_wq_work_t *work)
 {
 	mali_osk_wq_work_object_t *work_object = (mali_osk_wq_work_object_t *)work;
 	_mali_osk_wq_flush();
 	kfree(work_object);
 }
 
-void _mali_osk_wq_delete_work_nonflush( _mali_osk_wq_work_t *work )
+void _mali_osk_wq_delete_work_nonflush(_mali_osk_wq_work_t *work)
 {
 	mali_osk_wq_work_object_t *work_object = (mali_osk_wq_work_object_t *)work;
 	kfree(work_object);
 }
 
-void _mali_osk_wq_schedule_work( _mali_osk_wq_work_t *work )
+void _mali_osk_wq_schedule_work(_mali_osk_wq_work_t *work)
 {
 	mali_osk_wq_work_object_t *work_object = (mali_osk_wq_work_object_t *)work;
 #if MALI_LICENSE_IS_GPL
@@ -154,7 +154,7 @@ void _mali_osk_wq_schedule_work( _mali_osk_wq_work_t *work )
 #endif
 }
 
-void _mali_osk_wq_schedule_work_high_pri( _mali_osk_wq_work_t *work )
+void _mali_osk_wq_schedule_work_high_pri(_mali_osk_wq_work_t *work)
 {
 	mali_osk_wq_work_object_t *work_object = (mali_osk_wq_work_object_t *)work;
 #if MALI_LICENSE_IS_GPL
@@ -164,21 +164,30 @@ void _mali_osk_wq_schedule_work_high_pri( _mali_osk_wq_work_t *work )
 #endif
 }
 
-static void _mali_osk_wq_work_func( struct work_struct *work )
+static void _mali_osk_wq_work_func(struct work_struct *work)
 {
 	mali_osk_wq_work_object_t *work_object;
 
 	work_object = _MALI_OSK_CONTAINER_OF(work, mali_osk_wq_work_object_t, work_handle);
 
-	/* We want higher priority than the Dynamic Priority, setting it to the lowest of the RT priorities */
+#if MALI_LICENSE_IS_GPL
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
+	/* We want highest Dynamic priority of the thread so that the Jobs depending
+	** on this thread could be scheduled in time. Without this, this thread might
+	** sometimes need to wait for some threads in user mode to finish its round-robin
+	** time, causing *bubble* in the Mali pipeline. Thanks to the new implementation
+	** of high-priority workqueue in new kernel, this only happens in older kernel.
+	*/
 	if (MALI_TRUE == work_object->high_pri) {
 		set_user_nice(current, -19);
 	}
+#endif
+#endif /* MALI_LICENSE_IS_GPL */
 
 	work_object->handler(work_object->data);
 }
 
-static void _mali_osk_wq_delayed_work_func( struct work_struct *work )
+static void _mali_osk_wq_delayed_work_func(struct work_struct *work)
 {
 	mali_osk_wq_delayed_work_object_t *work_object;
 
@@ -186,7 +195,7 @@ static void _mali_osk_wq_delayed_work_func( struct work_struct *work )
 	work_object->handler(work_object->data);
 }
 
-mali_osk_wq_delayed_work_object_t *_mali_osk_wq_delayed_create_work( _mali_osk_wq_work_handler_t handler, void *data)
+mali_osk_wq_delayed_work_object_t *_mali_osk_wq_delayed_create_work(_mali_osk_wq_work_handler_t handler, void *data)
 {
 	mali_osk_wq_delayed_work_object_t *work = kmalloc(sizeof(mali_osk_wq_delayed_work_object_t), GFP_KERNEL);
 
@@ -200,25 +209,25 @@ mali_osk_wq_delayed_work_object_t *_mali_osk_wq_delayed_create_work( _mali_osk_w
 	return work;
 }
 
-void _mali_osk_wq_delayed_delete_work_nonflush( _mali_osk_wq_delayed_work_t *work )
+void _mali_osk_wq_delayed_delete_work_nonflush(_mali_osk_wq_delayed_work_t *work)
 {
 	mali_osk_wq_delayed_work_object_t *work_object = (mali_osk_wq_delayed_work_object_t *)work;
 	kfree(work_object);
 }
 
-void _mali_osk_wq_delayed_cancel_work_async( _mali_osk_wq_delayed_work_t *work )
+void _mali_osk_wq_delayed_cancel_work_async(_mali_osk_wq_delayed_work_t *work)
 {
 	mali_osk_wq_delayed_work_object_t *work_object = (mali_osk_wq_delayed_work_object_t *)work;
 	cancel_delayed_work(&work_object->work);
 }
 
-void _mali_osk_wq_delayed_cancel_work_sync( _mali_osk_wq_delayed_work_t *work )
+void _mali_osk_wq_delayed_cancel_work_sync(_mali_osk_wq_delayed_work_t *work)
 {
 	mali_osk_wq_delayed_work_object_t *work_object = (mali_osk_wq_delayed_work_object_t *)work;
 	cancel_delayed_work_sync(&work_object->work);
 }
 
-void _mali_osk_wq_delayed_schedule_work( _mali_osk_wq_delayed_work_t *work, u32 delay )
+void _mali_osk_wq_delayed_schedule_work(_mali_osk_wq_delayed_work_t *work, u32 delay)
 {
 	mali_osk_wq_delayed_work_object_t *work_object = (mali_osk_wq_delayed_work_object_t *)work;
 

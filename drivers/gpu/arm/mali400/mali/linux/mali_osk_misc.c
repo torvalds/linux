@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -16,18 +16,21 @@
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/module.h>
 #include "mali_osk.h"
 
-void _mali_osk_dbgmsg( const char *fmt, ... )
+#if !defined(CONFIG_MALI_QUIET)
+void _mali_osk_dbgmsg(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
 	vprintk(fmt, args);
 	va_end(args);
 }
+#endif /* !defined(CONFIG_MALI_QUIET) */
 
-u32 _mali_osk_snprintf( char *buf, u32 size, const char *fmt, ... )
+u32 _mali_osk_snprintf(char *buf, u32 size, const char *fmt, ...)
 {
 	int res;
 	va_list args;
@@ -37,6 +40,17 @@ u32 _mali_osk_snprintf( char *buf, u32 size, const char *fmt, ... )
 
 	va_end(args);
 	return res;
+}
+
+void _mali_osk_ctxprintf(_mali_osk_print_ctx *print_ctx, const char *fmt, ...)
+{
+	va_list args;
+	char buf[512];
+
+	va_start(args, fmt);
+	vscnprintf(buf,512,fmt,args);
+	seq_printf(print_ctx,buf);
+	va_end(args);
 }
 
 void _mali_osk_abort(void)

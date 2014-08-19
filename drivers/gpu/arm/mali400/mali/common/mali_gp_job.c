@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2013 ARM Limited
+ * (C) COPYRIGHT 2011-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -14,7 +14,7 @@
 #include "mali_uk_types.h"
 
 static u32 gp_counter_src0 = MALI_HW_CORE_NO_COUNTER;      /**< Performance counter 0, MALI_HW_CORE_NO_COUNTER for disabled */
-static u32 gp_counter_src1 = MALI_HW_CORE_NO_COUNTER;		/**< Performance counter 1, MALI_HW_CORE_NO_COUNTER for disabled */
+static u32 gp_counter_src1 = MALI_HW_CORE_NO_COUNTER;           /**< Performance counter 1, MALI_HW_CORE_NO_COUNTER for disabled */
 
 struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_uk_gp_start_job_s *uargs, u32 id, struct mali_timeline_tracker *pp_tracker)
 {

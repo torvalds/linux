@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -19,7 +19,7 @@
 
 typedef struct mali_dma_cmd_buf {
 	u32 *virt_addr;           /**< CPU address of command buffer */
-	u32 phys_addr;            /**< Physical address of command buffer */
+	mali_dma_addr phys_addr;  /**< Physical address of command buffer */
 	u32 size;                 /**< Number of prepared words in command buffer */
 } mali_dma_cmd_buf;
 
@@ -57,7 +57,7 @@ struct mali_dma_core *mali_dma_get_global_dma_core(void);
  * @return _MALI_OSK_ERR_OK if the buffer was started successfully,
  *         _MALI_OSK_ERR_BUSY if the DMA unit is busy.
  */
-_mali_osk_errcode_t mali_dma_start(struct mali_dma_core* dma, mali_dma_cmd_buf *buf);
+_mali_osk_errcode_t mali_dma_start(struct mali_dma_core *dma, mali_dma_cmd_buf *buf);
 
 /**
  * @brief Create a DMA command
@@ -88,9 +88,9 @@ MALI_STATIC_INLINE u32 mali_dma_command_write(struct mali_hw_core *core, u32 reg
  * @param count Number of 4 byte words to write
  */
 MALI_STATIC_INLINE void mali_dma_write_array(mali_dma_cmd_buf *buf, struct mali_hw_core *core,
-        u32 reg, u32 *data, u32 count)
+		u32 reg, u32 *data, u32 count)
 {
-	MALI_DEBUG_ASSERT((buf->size + 1 + count ) < MALI_DMA_CMD_BUF_SIZE / 4);
+	MALI_DEBUG_ASSERT((buf->size + 1 + count) < MALI_DMA_CMD_BUF_SIZE / 4);
 
 	buf->virt_addr[buf->size++] = mali_dma_command_write(core, reg, count);
 
@@ -110,7 +110,7 @@ MALI_STATIC_INLINE void mali_dma_write_array(mali_dma_cmd_buf *buf, struct mali_
  * @param ref Pointer to referance data that can be skipped if equal
  */
 MALI_STATIC_INLINE void mali_dma_write_array_conditional(mali_dma_cmd_buf *buf, struct mali_hw_core *core,
-        u32 reg, u32 *data, u32 count, const u32 *ref)
+		u32 reg, u32 *data, u32 count, const u32 *ref)
 {
 	/* Do conditional array writes are not yet implemented, fallback to a
 	 * normal array write. */
@@ -129,7 +129,7 @@ MALI_STATIC_INLINE void mali_dma_write_array_conditional(mali_dma_cmd_buf *buf, 
  * @param ref Pointer to referance data that can be skipped if equal
  */
 MALI_STATIC_INLINE void mali_dma_write_conditional(mali_dma_cmd_buf *buf, struct mali_hw_core *core,
-        u32 reg, u32 data, const u32 ref)
+		u32 reg, u32 data, const u32 ref)
 {
 	/* Skip write if reference value is equal to data. */
 	if (data == ref) return;
@@ -150,7 +150,7 @@ MALI_STATIC_INLINE void mali_dma_write_conditional(mali_dma_cmd_buf *buf, struct
  * @param data Pointer to data to write
  */
 MALI_STATIC_INLINE void mali_dma_write(mali_dma_cmd_buf *buf, struct mali_hw_core *core,
-                                       u32 reg, u32 data)
+				       u32 reg, u32 data)
 {
 	buf->virt_addr[buf->size++] = mali_dma_command_write(core, reg, 1);
 

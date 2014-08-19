@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2007-2013 ARM Limited
+ * (C) COPYRIGHT 2007-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -45,15 +45,15 @@ MALI_STATIC_INLINE _mali_osk_errcode_t mali_mmu_raw_reset(struct mali_mmu_core *
 
 /* page fault queue flush helper pages
  * note that the mapping pointers are currently unused outside of the initialization functions */
-static u32 mali_page_fault_flush_page_directory = MALI_INVALID_PAGE;
+static mali_dma_addr mali_page_fault_flush_page_directory = MALI_INVALID_PAGE;
 static mali_io_address mali_page_fault_flush_page_directory_mapping = NULL;
-static u32 mali_page_fault_flush_page_table = MALI_INVALID_PAGE;
+static mali_dma_addr mali_page_fault_flush_page_table = MALI_INVALID_PAGE;
 static mali_io_address mali_page_fault_flush_page_table_mapping = NULL;
-static u32 mali_page_fault_flush_data_page = MALI_INVALID_PAGE;
+static mali_dma_addr mali_page_fault_flush_data_page = MALI_INVALID_PAGE;
 static mali_io_address mali_page_fault_flush_data_page_mapping = NULL;
 
 /* an empty page directory (no address valid) which is active on any MMU not currently marked as in use */
-static u32 mali_empty_page_directory_phys   = MALI_INVALID_PAGE;
+static mali_dma_addr mali_empty_page_directory_phys   = MALI_INVALID_PAGE;
 static mali_io_address mali_empty_page_directory_virt = NULL;
 
 
@@ -61,18 +61,18 @@ _mali_osk_errcode_t mali_mmu_initialize(void)
 {
 	/* allocate the helper pages */
 	mali_empty_page_directory_phys = mali_allocate_empty_page(&mali_empty_page_directory_virt);
-	if(0 == mali_empty_page_directory_phys) {
+	if (0 == mali_empty_page_directory_phys) {
 		MALI_DEBUG_PRINT_ERROR(("Mali MMU: Could not allocate empty page directory.\n"));
 		mali_empty_page_directory_phys = MALI_INVALID_PAGE;
 		return _MALI_OSK_ERR_NOMEM;
 	}
 
 	if (_MALI_OSK_ERR_OK != mali_create_fault_flush_pages(&mali_page_fault_flush_page_directory,
-	        &mali_page_fault_flush_page_directory_mapping,
-	        &mali_page_fault_flush_page_table,
-	        &mali_page_fault_flush_page_table_mapping,
-	        &mali_page_fault_flush_data_page,
-	        &mali_page_fault_flush_data_page_mapping)) {
+			&mali_page_fault_flush_page_directory_mapping,
+			&mali_page_fault_flush_page_table,
+			&mali_page_fault_flush_page_table_mapping,
+			&mali_page_fault_flush_data_page,
+			&mali_page_fault_flush_data_page_mapping)) {
 		MALI_DEBUG_PRINT_ERROR(("Mali MMU: Could not allocate fault flush pages\n"));
 		mali_free_empty_page(mali_empty_page_directory_phys, mali_empty_page_directory_virt);
 		mali_empty_page_directory_phys = MALI_INVALID_PAGE;
@@ -93,20 +93,23 @@ void mali_mmu_terminate(void)
 	mali_empty_page_directory_virt = NULL;
 
 	/* Free the page fault flush pages */
-	mali_destroy_fault_flush_pages(&mali_page_fault_flush_page_directory, &mali_page_fault_flush_page_directory_mapping,
-	                               &mali_page_fault_flush_page_table, &mali_page_fault_flush_page_table_mapping,
-	                               &mali_page_fault_flush_data_page, &mali_page_fault_flush_data_page_mapping);
+	mali_destroy_fault_flush_pages(&mali_page_fault_flush_page_directory,
+				       &mali_page_fault_flush_page_directory_mapping,
+				       &mali_page_fault_flush_page_table,
+				       &mali_page_fault_flush_page_table_mapping,
+				       &mali_page_fault_flush_data_page,
+				       &mali_page_fault_flush_data_page_mapping);
 }
 
 struct mali_mmu_core *mali_mmu_create(_mali_osk_resource_t *resource, struct mali_group *group, mali_bool is_virtual)
 {
-	struct mali_mmu_core* mmu = NULL;
+	struct mali_mmu_core *mmu = NULL;
 
 	MALI_DEBUG_ASSERT_POINTER(resource);
 
 	MALI_DEBUG_PRINT(2, ("Mali MMU: Creating Mali MMU: %s\n", resource->description));
 
-	mmu = _mali_osk_calloc(1,sizeof(struct mali_mmu_core));
+	mmu = _mali_osk_calloc(1, sizeof(struct mali_mmu_core));
 	if (NULL != mmu) {
 		if (_MALI_OSK_ERR_OK == mali_hw_core_create(&mmu->hw_core, resource, MALI_MMU_REGISTERS_SIZE)) {
 			if (_MALI_OSK_ERR_OK == mali_group_add_mmu_core(group, mmu)) {
@@ -118,12 +121,12 @@ struct mali_mmu_core *mali_mmu_create(_mali_osk_resource_t *resource, struct mal
 				if (_MALI_OSK_ERR_OK == mali_mmu_reset(mmu)) {
 					/* Setup IRQ handlers (which will do IRQ probing if needed) */
 					mmu->irq = _mali_osk_irq_init(resource->irq,
-					                              mali_group_upper_half_mmu,
-					                              group,
-					                              mali_mmu_probe_trigger,
-					                              mali_mmu_probe_ack,
-					                              mmu,
-					                              resource->description);
+								      mali_group_upper_half_mmu,
+								      group,
+								      mali_mmu_probe_trigger,
+								      mali_mmu_probe_ack,
+								      mmu,
+								      resource->description);
 					if (NULL != mmu->irq) {
 						return mmu;
 					} else {
@@ -181,13 +184,13 @@ static mali_bool mali_mmu_enable_stall(struct mali_mmu_core *mmu)
 	int i;
 	u32 mmu_status = mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_STATUS);
 
-	if ( 0 == (mmu_status & MALI_MMU_STATUS_BIT_PAGING_ENABLED) ) {
+	if (0 == (mmu_status & MALI_MMU_STATUS_BIT_PAGING_ENABLED)) {
 		MALI_DEBUG_PRINT(4, ("MMU stall is implicit when Paging is not enabled.\n"));
 		return MALI_TRUE;
 	}
 
-	if ( mmu_status & MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE ) {
-		MALI_DEBUG_PRINT(3, ("Aborting MMU stall request since it is in pagefault state.\n"));
+	if (mmu_status & MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE) {
+		MALI_DEBUG_PRINT(2, ("Aborting MMU stall request since it is in pagefault state.\n"));
 		return MALI_FALSE;
 	}
 
@@ -201,7 +204,7 @@ static mali_bool mali_mmu_enable_stall(struct mali_mmu_core *mmu)
 		if ((mmu_status & MALI_MMU_STATUS_BIT_STALL_ACTIVE) && (0 == (mmu_status & MALI_MMU_STATUS_BIT_STALL_NOT_ACTIVE))) {
 			break;
 		}
-		if (0 == (mmu_status & ( MALI_MMU_STATUS_BIT_PAGING_ENABLED ))) {
+		if (0 == (mmu_status & (MALI_MMU_STATUS_BIT_PAGING_ENABLED))) {
 			break;
 		}
 	}
@@ -210,7 +213,7 @@ static mali_bool mali_mmu_enable_stall(struct mali_mmu_core *mmu)
 		return MALI_FALSE;
 	}
 
-	if ( mmu_status & MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE ) {
+	if (mmu_status & MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE) {
 		MALI_DEBUG_PRINT(2, ("Aborting MMU stall request since it has a pagefault.\n"));
 		return MALI_FALSE;
 	}
@@ -227,7 +230,7 @@ static void mali_mmu_disable_stall(struct mali_mmu_core *mmu)
 	int i;
 	u32 mmu_status = mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_STATUS);
 
-	if ( 0 == (mmu_status & MALI_MMU_STATUS_BIT_PAGING_ENABLED )) {
+	if (0 == (mmu_status & MALI_MMU_STATUS_BIT_PAGING_ENABLED)) {
 		MALI_DEBUG_PRINT(3, ("MMU disable skipped since it was not enabled.\n"));
 		return;
 	}
@@ -240,17 +243,17 @@ static void mali_mmu_disable_stall(struct mali_mmu_core *mmu)
 
 	for (i = 0; i < MALI_REG_POLL_COUNT_FAST; ++i) {
 		u32 status = mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_STATUS);
-		if ( 0 == (status & MALI_MMU_STATUS_BIT_STALL_ACTIVE) ) {
+		if (0 == (status & MALI_MMU_STATUS_BIT_STALL_ACTIVE)) {
 			break;
 		}
-		if ( status &  MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE ) {
+		if (status &  MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE) {
 			break;
 		}
-		if ( 0 == (mmu_status & MALI_MMU_STATUS_BIT_PAGING_ENABLED )) {
+		if (0 == (mmu_status & MALI_MMU_STATUS_BIT_PAGING_ENABLED)) {
 			break;
 		}
 	}
-	if (MALI_REG_POLL_COUNT_FAST == i) MALI_DEBUG_PRINT(1,("Disable stall request failed, MMU status is 0x%08X\n", mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_STATUS)));
+	if (MALI_REG_POLL_COUNT_FAST == i) MALI_DEBUG_PRINT(1, ("Disable stall request failed, MMU status is 0x%08X\n", mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_STATUS)));
 }
 
 void mali_mmu_page_fault_done(struct mali_mmu_core *mmu)
@@ -291,7 +294,7 @@ _mali_osk_errcode_t mali_mmu_reset(struct mali_mmu_core *mmu)
 		err = _MALI_OSK_ERR_BUSY;
 	}
 
-	MALI_DEBUG_PRINT(3, ("Mali MMU: mali_kernel_mmu_reset: %s\n", mmu->hw_core.description));
+	MALI_DEBUG_PRINT(2, ("Mali MMU: mali_kernel_mmu_reset: %s\n", mmu->hw_core.description));
 
 	if (_MALI_OSK_ERR_OK == mali_mmu_raw_reset(mmu)) {
 		mali_hw_core_register_write(&mmu->hw_core, MALI_MMU_REGISTER_INT_MASK, MALI_MMU_INTERRUPT_PAGE_FAULT | MALI_MMU_INTERRUPT_READ_BUS_ERROR);
@@ -334,8 +337,8 @@ void mali_mmu_invalidate_page(struct mali_mmu_core *mmu, u32 mali_address)
 static void mali_mmu_activate_address_space(struct mali_mmu_core *mmu, u32 page_directory)
 {
 	/* The MMU must be in stalled or page fault mode, for this writing to work */
-	MALI_DEBUG_ASSERT( 0 != ( mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_STATUS)
-	                          & (MALI_MMU_STATUS_BIT_STALL_ACTIVE|MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE) ) );
+	MALI_DEBUG_ASSERT(0 != (mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_STATUS)
+				& (MALI_MMU_STATUS_BIT_STALL_ACTIVE | MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE)));
 	mali_hw_core_register_write(&mmu->hw_core, MALI_MMU_REGISTER_DTE_ADDR, page_directory);
 	mali_hw_core_register_write(&mmu->hw_core, MALI_MMU_REGISTER_COMMAND, MALI_MMU_COMMAND_ZAP_CACHE);
 
@@ -355,7 +358,7 @@ void mali_mmu_activate_page_directory(struct mali_mmu_core *mmu, struct mali_pag
 	mali_mmu_disable_stall(mmu);
 }
 
-void mali_mmu_activate_empty_page_directory(struct mali_mmu_core* mmu)
+void mali_mmu_activate_empty_page_directory(struct mali_mmu_core *mmu)
 {
 	mali_bool stall_success;
 
@@ -372,23 +375,23 @@ void mali_mmu_activate_empty_page_directory(struct mali_mmu_core* mmu)
 	mali_mmu_disable_stall(mmu);
 }
 
-void mali_mmu_activate_fault_flush_page_directory(struct mali_mmu_core* mmu)
+void mali_mmu_activate_fault_flush_page_directory(struct mali_mmu_core *mmu)
 {
 	mali_bool stall_success;
 	MALI_DEBUG_ASSERT_POINTER(mmu);
 
-	MALI_DEBUG_PRINT(3, ("Activating the page fault flush page directory on MMU %s\n", mmu->hw_core.description));
+	MALI_DEBUG_PRINT(2, ("Activating the page fault flush page directory on MMU %s\n", mmu->hw_core.description));
 	stall_success = mali_mmu_enable_stall(mmu);
 	/* This function is expect to fail the stalling, since it might be in PageFault mode when it is called */
 	mali_mmu_activate_address_space(mmu, mali_page_fault_flush_page_directory);
-	if ( MALI_TRUE==stall_success ) mali_mmu_disable_stall(mmu);
+	if (MALI_TRUE == stall_success) mali_mmu_disable_stall(mmu);
 }
 
 /* Is called when we want the mmu to give an interrupt */
 static void mali_mmu_probe_trigger(void *data)
 {
 	struct mali_mmu_core *mmu = (struct mali_mmu_core *)data;
-	mali_hw_core_register_write(&mmu->hw_core, MALI_MMU_REGISTER_INT_RAWSTAT, MALI_MMU_INTERRUPT_PAGE_FAULT|MALI_MMU_INTERRUPT_READ_BUS_ERROR);
+	mali_hw_core_register_write(&mmu->hw_core, MALI_MMU_REGISTER_INT_RAWSTAT, MALI_MMU_INTERRUPT_PAGE_FAULT | MALI_MMU_INTERRUPT_READ_BUS_ERROR);
 }
 
 /* Is called when the irq probe wants the mmu to acknowledge an interrupt from the hw */
@@ -414,8 +417,8 @@ static _mali_osk_errcode_t mali_mmu_probe_ack(void *data)
 		MALI_DEBUG_PRINT(1, ("Probe: Bus read error detect: FAILED\n"));
 	}
 
-	if ( (int_stat & (MALI_MMU_INTERRUPT_PAGE_FAULT|MALI_MMU_INTERRUPT_READ_BUS_ERROR)) ==
-	     (MALI_MMU_INTERRUPT_PAGE_FAULT|MALI_MMU_INTERRUPT_READ_BUS_ERROR)) {
+	if ((int_stat & (MALI_MMU_INTERRUPT_PAGE_FAULT | MALI_MMU_INTERRUPT_READ_BUS_ERROR)) ==
+	    (MALI_MMU_INTERRUPT_PAGE_FAULT | MALI_MMU_INTERRUPT_READ_BUS_ERROR)) {
 		return _MALI_OSK_ERR_OK;
 	}
 

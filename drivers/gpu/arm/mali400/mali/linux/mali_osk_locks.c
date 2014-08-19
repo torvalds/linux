@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -23,7 +23,7 @@
 static DEFINE_SPINLOCK(lock_tracking_lock);
 static mali_bool add_lock_to_log_and_check(struct _mali_osk_lock_debug_s *lock, uint32_t tid);
 static void remove_lock_from_log(struct _mali_osk_lock_debug_s *lock, uint32_t tid);
-static const char * const lock_order_to_string(_mali_osk_lock_order_t order);
+static const char *const lock_order_to_string(_mali_osk_lock_order_t order);
 #endif /* LOCK_ORDER_CHECKING */
 
 void _mali_osk_locks_debug_init(struct _mali_osk_lock_debug_s *checker, _mali_osk_lock_flags_t flags, _mali_osk_lock_order_t order)
@@ -137,8 +137,8 @@ static mali_bool add_lock_to_log_and_check(struct _mali_osk_lock_debug_s *lock, 
 		/* Traverse the locks taken and find the lock of the highest order.
 		 * Since several threads may hold locks, each lock's owner must be
 		 * checked so that locks not owned by this thread can be ignored. */
-		for(;;) {
-			MALI_DEBUG_ASSERT_POINTER( l );
+		for (;;) {
+			MALI_DEBUG_ASSERT_POINTER(l);
 			if (tid == l->owner && l->order >= highest_order_for_tid) {
 				highest_order_for_tid = l->order;
 				highest_order_lock = l;
@@ -166,7 +166,7 @@ static mali_bool add_lock_to_log_and_check(struct _mali_osk_lock_debug_s *lock, 
 		dump_lock_tracking_list();
 	}
 
-	if (len+1 != tracking_list_length()) {
+	if (len + 1 != tracking_list_length()) {
 		printk(KERN_ERR "************ lock: %p\n", lock);
 		printk(KERN_ERR "************ before: %d *** after: %d ****\n", len, tracking_list_length());
 		dump_lock_tracking_list();
@@ -215,7 +215,7 @@ static void remove_lock_from_log(struct _mali_osk_lock_debug_s *lock, uint32_t t
 
 	lock->next = NULL;
 
-	if (len-1 != tracking_list_length()) {
+	if (len - 1 != tracking_list_length()) {
 		printk(KERN_ERR "************ lock: %p\n", lock);
 		printk(KERN_ERR "************ before: %d *** after: %d ****\n", len, tracking_list_length());
 		dump_lock_tracking_list();
@@ -225,7 +225,7 @@ static void remove_lock_from_log(struct _mali_osk_lock_debug_s *lock, uint32_t t
 	spin_unlock_irqrestore(&lock_tracking_lock, local_lock_flag);
 }
 
-static const char * const lock_order_to_string(_mali_osk_lock_order_t order)
+static const char *const lock_order_to_string(_mali_osk_lock_order_t order)
 {
 	switch (order) {
 	case _MALI_OSK_LOCK_ORDER_SESSIONS:

@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -109,7 +109,7 @@ typedef struct _mali_osk_wq_delayed_work_s _mali_osk_wq_delayed_work_t;
  *
  * @param arg resource-specific data
  */
-typedef void (*_mali_osk_wq_work_handler_t)( void * arg );
+typedef void (*_mali_osk_wq_work_handler_t)(void *arg);
 
 /* @} */ /* end group _mali_osk_wq */
 
@@ -123,14 +123,14 @@ typedef struct _mali_osk_irq_t_struct _mali_osk_irq_t;
  *
  * This function is implemented by the common layer to allow probing of a resource's IRQ.
  * @param arg resource-specific data */
-typedef void  (*_mali_osk_irq_trigger_t)( void * arg );
+typedef void (*_mali_osk_irq_trigger_t)(void *arg);
 
 /** @brief Optional function to acknowledge an irq from a resource
  *
  * This function is implemented by the common layer to allow probing of a resource's IRQ.
  * @param arg resource-specific data
  * @return _MALI_OSK_ERR_OK if the IRQ was successful, or a suitable _mali_osk_errcode_t on failure. */
-typedef _mali_osk_errcode_t (*_mali_osk_irq_ack_t)( void * arg );
+typedef _mali_osk_errcode_t (*_mali_osk_irq_ack_t)(void *arg);
 
 /** @brief IRQ 'upper-half' handler callback.
  *
@@ -154,7 +154,7 @@ typedef _mali_osk_errcode_t (*_mali_osk_irq_ack_t)( void * arg );
  * @return _MALI_OSK_ERR_OK if the IRQ was correctly handled, or a suitable
  * _mali_osk_errcode_t otherwise.
  */
-typedef _mali_osk_errcode_t  (*_mali_osk_irq_uhandler_t)( void * arg );
+typedef _mali_osk_errcode_t (*_mali_osk_irq_uhandler_t)(void *arg);
 
 
 /** @} */ /* end group _mali_osk_irq */
@@ -290,7 +290,7 @@ typedef struct _mali_osk_mutex_rw_s _mali_osk_mutex_rw_t;
  * Access to this range must be made through the _mali_osk_mem_ioread32() and
  * _mali_osk_mem_iowrite32() functions.
  */
-typedef struct _mali_io_address * mali_io_address;
+typedef struct _mali_io_address *mali_io_address;
 
 /** @defgroup _MALI_OSK_CPU_PAGE CPU Physical page size macros.
  *
@@ -371,7 +371,7 @@ typedef struct _mali_osk_notification_queue_t_struct _mali_osk_notification_queu
 typedef struct _mali_osk_notification_t_struct {
 	u32 notification_type;   /**< The notification type */
 	u32 result_buffer_size; /**< Size of the result buffer to copy to user space */
-	void * result_buffer;   /**< Buffer containing any type specific data */
+	void *result_buffer;    /**< Buffer containing any type specific data */
 } _mali_osk_notification_t;
 
 /** @} */ /* end group _mali_osk_notification */
@@ -396,7 +396,7 @@ typedef struct _mali_osk_notification_t_struct {
  * by any callers of _mali_osk_timer_del(). Otherwise, a deadlock may occur.
  *
  * @param arg Function-specific data */
-typedef void (*_mali_osk_timer_callback_t)(void * arg);
+typedef void (*_mali_osk_timer_callback_t)(void *arg);
 
 /** @brief Private type for Timer Callback Objects */
 typedef struct _mali_osk_timer_t_struct _mali_osk_timer_t;
@@ -432,7 +432,7 @@ typedef struct _mali_osk_list_s {
  * Platform independent representation of a Mali HW resource
  */
 typedef struct _mali_osk_resource {
-	const char * description;       /**< short description of the resource */
+	const char *description;        /**< short description of the resource */
 	u32 base;                       /**< Physical base address of the resource, as seen by Mali resources. */
 	u32 irq;                        /**< IRQ number delivered to the CPU, or -1 to tell the driver to probe for it (if possible) */
 } _mali_osk_resource_t;
@@ -447,6 +447,10 @@ typedef struct _mali_osk_wait_queue_t_struct _mali_osk_wait_queue_t;
 /** @} */ /* end group osuapi */
 
 /** @} */ /* end group uddapi */
+
+/** @brief Mali print ctx type which uses seq_file
+  */
+typedef struct seq_file _mali_osk_print_ctx;
 
 #ifdef __cplusplus
 }

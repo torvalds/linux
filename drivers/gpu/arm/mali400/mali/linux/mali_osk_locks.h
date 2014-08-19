@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -81,7 +81,7 @@ extern "C" {
 	void _mali_osk_locks_debug_add(struct _mali_osk_lock_debug_s *checker);
 	void _mali_osk_locks_debug_remove(struct _mali_osk_lock_debug_s *checker);
 
-	/** @brief This function can return a given lock's owner when DEBUG	is enabled. */
+	/** @brief This function can return a given lock's owner when DEBUG     is enabled. */
 	static inline u32 _mali_osk_lock_get_owner(struct _mali_osk_lock_debug_s *lock)
 	{
 		return lock->owner;

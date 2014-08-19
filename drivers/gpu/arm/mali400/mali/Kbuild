@@ -11,14 +11,10 @@
 # This file is called by the Linux build system.
 
 # set up defaults if not defined by the user
-USING_UMP ?= 1
-USING_OS_MEMORY ?= 1
-USING_MALI_PMU ?= 0
 TIMESTAMP ?= default
 OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB ?= 16
 USING_GPU_UTILIZATION ?= 1
 PROFILING_SKIP_PP_JOBS ?= 0
-PROFILING_SKIP_PP_AND_GP_JOBS ?= 0
 TARGET_PLATFORM ?= rk30
 MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP ?= 0
 MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED ?= 0
@@ -47,7 +43,7 @@ else
     ccflags-y += -I$(src)/linux/license/gpl
 endif
 
-ccflags-y += -I$(srctree)/drivers/staging/android
+
 
 ifneq ($(MALI_PLATFORM),)
 EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
@@ -137,6 +133,7 @@ ccflags-$(CONFIG_MALI400_INTERNAL_PROFILING) += -I$(src)/timestamp-$(TIMESTAMP)
 
 mali-$(CONFIG_DMA_SHARED_BUFFER) += linux/mali_memory_dma_buf.o
 mali-$(CONFIG_SYNC) += linux/mali_sync.o
+ccflags-$(CONFIG_SYNC) += -Idrivers/staging/android
 
 mali-$(CONFIG_MALI400_UMP) += linux/mali_memory_ump.o
 
@@ -148,9 +145,6 @@ obj-$(CONFIG_MALI400) := mali.o
 ccflags-y += $(EXTRA_DEFINES)
 
 # Set up our defines, which will be passed to gcc
-ccflags-y += -DPROFILING_SKIP_PP_JOBS=$(PROFILING_SKIP_PP_JOBS)
-ccflags-y += -DPROFILING_SKIP_PP_AND_GP_JOBS=$(PROFILING_SKIP_PP_AND_GP_JOBS)
-
 ccflags-y += -DMALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP=$(MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP)
 ccflags-y += -DMALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED=$(MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED)
 ccflags-y += -DMALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS=$(MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS)

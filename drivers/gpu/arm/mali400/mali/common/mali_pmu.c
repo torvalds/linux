@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2009-2013 ARM Limited
+ * (C) COPYRIGHT 2009-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -20,7 +20,7 @@
 #include "mali_pm.h"
 #include "mali_osk_mali.h"
 
-u16 mali_pmu_global_domain_config[MALI_MAX_NUMBER_OF_DOMAINS]= {0};
+u16 mali_pmu_global_domain_config[MALI_MAX_NUMBER_OF_DOMAINS] = {0};
 
 static u32 mali_pmu_detect_mask(void);
 
@@ -53,7 +53,7 @@ typedef enum {
 
 struct mali_pmu_core *mali_pmu_create(_mali_osk_resource_t *resource)
 {
-	struct mali_pmu_core* pmu;
+	struct mali_pmu_core *pmu;
 
 	MALI_DEBUG_ASSERT(NULL == mali_global_pmu_core);
 	MALI_DEBUG_PRINT(2, ("Mali PMU: Creating Mali PMU core\n"));
@@ -67,7 +67,7 @@ struct mali_pmu_core *mali_pmu_create(_mali_osk_resource_t *resource)
 
 			if (_MALI_OSK_ERR_OK == mali_hw_core_create(&pmu->hw_core, resource, PMU_REGISTER_ADDRESS_SPACE_SIZE)) {
 				_mali_osk_errcode_t err;
-				struct _mali_osk_device_data data = { 0, };
+				_mali_osk_device_data data = { 0, };
 
 				err = _mali_osk_device_data_get(&data);
 				if (_MALI_OSK_ERR_OK == err) {
@@ -139,7 +139,7 @@ static _mali_osk_errcode_t mali_pmu_power_up_internal(struct mali_pmu_core *pmu,
 
 	MALI_DEBUG_ASSERT_POINTER(pmu);
 	MALI_DEBUG_ASSERT(0 == (mali_hw_core_register_read(&pmu->hw_core, PMU_REG_ADDR_MGMT_INT_RAWSTAT)
-	                        & PMU_REG_VAL_IRQ));
+				& PMU_REG_VAL_IRQ));
 
 	stat = mali_hw_core_register_read(&pmu->hw_core, PMU_REG_ADDR_MGMT_STATUS);
 	stat &= pmu->registered_cores_mask;
@@ -184,7 +184,7 @@ static _mali_osk_errcode_t mali_pmu_power_down_internal(struct mali_pmu_core *pm
 
 	MALI_DEBUG_ASSERT_POINTER(pmu);
 	MALI_DEBUG_ASSERT(0 == (mali_hw_core_register_read(&pmu->hw_core, PMU_REG_ADDR_MGMT_INT_RAWSTAT)
-	                        & PMU_REG_VAL_IRQ));
+				& PMU_REG_VAL_IRQ));
 
 	stat = mali_hw_core_register_read(&pmu->hw_core, PMU_REG_ADDR_MGMT_STATUS);
 	stat &= pmu->registered_cores_mask;
@@ -230,7 +230,7 @@ _mali_osk_errcode_t mali_pmu_reset(struct mali_pmu_core *pmu)
 	stat = mali_hw_core_register_read(&pmu->hw_core, PMU_REG_ADDR_MGMT_STATUS);
 
 	cores_off_mask = pmu->registered_cores_mask & ~(stat | pmu->active_cores_mask);
-	cores_on_mask  = pmu->registered_cores_mask &  (stat & pmu->active_cores_mask);
+	cores_on_mask  = pmu->registered_cores_mask & (stat & pmu->active_cores_mask);
 
 	if (0 != cores_off_mask) {
 		err = mali_pmu_power_down_internal(pmu, cores_off_mask);
@@ -261,7 +261,7 @@ _mali_osk_errcode_t mali_pmu_power_down(struct mali_pmu_core *pmu, u32 mask)
 	_mali_osk_errcode_t err;
 
 	MALI_DEBUG_ASSERT_POINTER(pmu);
-	MALI_DEBUG_ASSERT(pmu->registered_cores_mask != 0 );
+	MALI_DEBUG_ASSERT(pmu->registered_cores_mask != 0);
 
 	/* Make sure we have a valid power domain mask */
 	if (mask > pmu->registered_cores_mask) {
@@ -298,7 +298,7 @@ _mali_osk_errcode_t mali_pmu_power_up(struct mali_pmu_core *pmu, u32 mask)
 	_mali_osk_errcode_t err;
 
 	MALI_DEBUG_ASSERT_POINTER(pmu);
-	MALI_DEBUG_ASSERT(pmu->registered_cores_mask != 0 );
+	MALI_DEBUG_ASSERT(pmu->registered_cores_mask != 0);
 
 	/* Make sure we have a valid power domain mask */
 	if (mask & ~pmu->registered_cores_mask) {

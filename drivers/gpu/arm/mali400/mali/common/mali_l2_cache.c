@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -134,11 +134,11 @@ struct mali_l2_cache_core *mali_l2_cache_create(_mali_osk_resource_t *resource)
 		if (_MALI_OSK_ERR_OK == mali_hw_core_create(&cache->hw_core, resource, MALI400_L2_CACHE_REGISTERS_SIZE)) {
 			MALI_DEBUG_CODE(u32 cache_size = mali_hw_core_register_read(&cache->hw_core, MALI400_L2_CACHE_REGISTER_SIZE));
 			MALI_DEBUG_PRINT(2, ("Mali L2 cache: Created %s: % 3uK, %u-way, % 2ubyte cache line, % 3ubit external bus\n",
-			                     resource->description,
-			                     1 << (((cache_size >> 16) & 0xff) - 10),
-			                     1 << ((cache_size >> 8) & 0xff),
-			                     1 << (cache_size & 0xff),
-			                     1 << ((cache_size >> 24) & 0xff)));
+					     resource->description,
+					     1 << (((cache_size >> 16) & 0xff) - 10),
+					     1 << ((cache_size >> 8) & 0xff),
+					     1 << (cache_size & 0xff),
+					     1 << ((cache_size >> 24) & 0xff)));
 
 #ifdef MALI_UPPER_HALF_SCHEDULING
 			cache->command_lock = _mali_osk_spinlock_irq_init(_MALI_OSK_LOCKFLAG_ORDERED, _MALI_OSK_LOCK_ORDER_L2_COMMAND);
@@ -331,7 +331,10 @@ static void mali_l2_cache_reset_counters_all(void)
 
 	for (i = 0; i < num_cores; i++) {
 		cache = mali_l2_cache_core_get_glob_l2_core(i);
-		if (MALI_TRUE == mali_l2_cache_lock_power_state(cache)) {
+		if (!cache)
+			continue;
+
+		if (mali_l2_cache_lock_power_state(cache)) {
 			mali_l2_cache_counter_lock(cache);
 
 			if (MALI_L2_PAUSE == cache->mali_l2_status) {
@@ -347,7 +350,7 @@ static void mali_l2_cache_reset_counters_all(void)
 				value = cache->counter_src0;
 			}
 			mali_hw_core_register_write(&cache->hw_core,
-			                            MALI400_L2_CACHE_REGISTER_PERFCNT_SRC0, value);
+						    MALI400_L2_CACHE_REGISTER_PERFCNT_SRC0, value);
 
 			if (MALI_HW_CORE_NO_COUNTER == cache->counter_src1) {
 				value = 0;
@@ -355,7 +358,7 @@ static void mali_l2_cache_reset_counters_all(void)
 				value = cache->counter_src1;
 			}
 			mali_hw_core_register_write(&cache->hw_core,
-			                            MALI400_L2_CACHE_REGISTER_PERFCNT_SRC1, value);
+						    MALI400_L2_CACHE_REGISTER_PERFCNT_SRC1, value);
 
 			mali_l2_cache_counter_unlock(cache);
 		}
@@ -512,9 +515,9 @@ static _mali_osk_errcode_t mali_l2_cache_send_command(struct mali_l2_cache_core 
 
 	if (MALI_L2_PAUSE == cache->mali_l2_status) {
 		mali_l2_cache_command_unlock(cache);
-		MALI_DEBUG_PRINT(1, ( "Mali L2 cache: aborting wait for L2 come back\n"));
+		MALI_DEBUG_PRINT(1, ("Mali L2 cache: aborting wait for L2 come back\n"));
 
-		MALI_ERROR( _MALI_OSK_ERR_BUSY );
+		MALI_ERROR(_MALI_OSK_ERR_BUSY);
 	}
 
 	/* First, wait for L2 cache command handler to go idle */
@@ -527,8 +530,8 @@ static _mali_osk_errcode_t mali_l2_cache_send_command(struct mali_l2_cache_core 
 
 	if (i == loop_count) {
 		mali_l2_cache_command_unlock(cache);
-		MALI_DEBUG_PRINT(1, ( "Mali L2 cache: aborting wait for command interface to go idle\n"));
-		MALI_ERROR( _MALI_OSK_ERR_FAULT );
+		MALI_DEBUG_PRINT(1, ("Mali L2 cache: aborting wait for command interface to go idle\n"));
+		MALI_ERROR(_MALI_OSK_ERR_FAULT);
 	}
 
 	/* then issue the command */
@@ -542,7 +545,7 @@ static _mali_osk_errcode_t mali_l2_cache_send_command(struct mali_l2_cache_core 
 void mali_l2_cache_pause_all(mali_bool pause)
 {
 	int i;
-	struct mali_l2_cache_core * cache;
+	struct mali_l2_cache_core *cache;
 	u32 num_cores = mali_l2_cache_core_get_glob_num_l2_cores();
 	mali_l2_power_status status = MALI_L2_NORMAL;
 
@@ -574,7 +577,7 @@ void mali_l2_cache_pause_all(mali_bool pause)
 	 * loss of cache operation during the pause period to make sure the SW
 	 * status is consistent with L2 cache status.
 	 */
-	if(!pause) {
+	if (!pause) {
 		mali_l2_cache_invalidate_all();
 		mali_l2_cache_reset_counters_all();
 	}

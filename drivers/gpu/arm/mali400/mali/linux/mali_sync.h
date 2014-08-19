@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -20,7 +20,13 @@
 #if defined(CONFIG_SYNC)
 
 #include <linux/seq_file.h>
-#include "sync.h"
+#include <linux/version.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+#include <linux/sync.h>
+#else
+#include <sync.h>
+#endif
+
 
 #include "mali_osk.h"
 

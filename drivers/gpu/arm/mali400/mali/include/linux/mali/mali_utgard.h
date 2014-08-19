@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -95,7 +95,7 @@
 #define MALI_GPU_RESOURCES_MALI450_MP2_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP2(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
- 
+	 
 #define MALI_GPU_RESOURCES_MALI450_MP3(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
 	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
@@ -111,7 +111,7 @@
 #define MALI_GPU_RESOURCES_MALI450_MP3_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP3(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
- 
+	 
 #define MALI_GPU_RESOURCES_MALI450_MP4(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
 	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
@@ -129,7 +129,7 @@
 #define MALI_GPU_RESOURCES_MALI450_MP4_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP4(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
- 
+	 
 #define MALI_GPU_RESOURCES_MALI450_MP6(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
 	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
@@ -150,7 +150,7 @@
 #define MALI_GPU_RESOURCES_MALI450_MP6_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP6(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
- 
+	 
 #define MALI_GPU_RESOURCES_MALI450_MP8(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp6_irq, pp6_mmu_irq, pp7_irq, pp7_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
 	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
@@ -173,161 +173,161 @@
 #define MALI_GPU_RESOURCES_MALI450_MP8_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp6_irq, pp6_mmu_irq, pp7_irq, pp7_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP8(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp6_irq, pp6_mmu_irq, pp7_irq, pp7_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
- 
+	 
 #define MALI_GPU_RESOURCE_L2(addr) \
 	{ \
 		.name = "Mali_L2", \
-		.flags = IORESOURCE_MEM, \
-		.start = addr, \
-		.end   = addr + 0x200, \
+			.flags = IORESOURCE_MEM, \
+				 .start = addr, \
+					  .end   = addr + 0x200, \
 	},
 
 #define MALI_GPU_RESOURCE_GP(gp_addr, gp_irq) \
 	{ \
 		.name = "Mali_GP", \
-		.flags = IORESOURCE_MEM, \
-		.start = gp_addr, \
-		.end =   gp_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = gp_addr, \
+					  .end =   gp_addr + 0x100, \
 	}, \
 	{ \
 		.name = "Mali_GP_IRQ", \
-		.flags = IORESOURCE_IRQ, \
-		.start = gp_irq, \
-		.end   = gp_irq, \
+			.flags = IORESOURCE_IRQ, \
+				 .start = gp_irq, \
+					  .end   = gp_irq, \
 	}, \
- 
+	 
 #define MALI_GPU_RESOURCE_GP_WITH_MMU(gp_addr, gp_irq, gp_mmu_addr, gp_mmu_irq) \
 	{ \
 		.name = "Mali_GP", \
-		.flags = IORESOURCE_MEM, \
-		.start = gp_addr, \
-		.end =   gp_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = gp_addr, \
+					  .end =   gp_addr + 0x100, \
 	}, \
 	{ \
 		.name = "Mali_GP_IRQ", \
-		.flags = IORESOURCE_IRQ, \
-		.start = gp_irq, \
-		.end   = gp_irq, \
+			.flags = IORESOURCE_IRQ, \
+				 .start = gp_irq, \
+					  .end   = gp_irq, \
 	}, \
 	{ \
 		.name = "Mali_GP_MMU", \
-		.flags = IORESOURCE_MEM, \
-		.start = gp_mmu_addr, \
-		.end =   gp_mmu_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = gp_mmu_addr, \
+					  .end =   gp_mmu_addr + 0x100, \
 	}, \
 	{ \
 		.name = "Mali_GP_MMU_IRQ", \
-		.flags = IORESOURCE_IRQ, \
-		.start = gp_mmu_irq, \
-		.end =   gp_mmu_irq, \
+			.flags = IORESOURCE_IRQ, \
+				 .start = gp_mmu_irq, \
+					  .end =   gp_mmu_irq, \
 	},
 
 #define MALI_GPU_RESOURCE_PP(pp_addr, pp_irq) \
 	{ \
 		.name = "Mali_PP", \
-		.flags = IORESOURCE_MEM, \
-		.start = pp_addr, \
-		.end =   pp_addr + 0x1100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = pp_addr, \
+					  .end =   pp_addr + 0x1100, \
 	}, \
 	{ \
 		.name = "Mali_PP_IRQ", \
-		.flags = IORESOURCE_IRQ, \
-		.start = pp_irq, \
-		.end =   pp_irq, \
+			.flags = IORESOURCE_IRQ, \
+				 .start = pp_irq, \
+					  .end =   pp_irq, \
 	}, \
- 
+	 
 #define MALI_GPU_RESOURCE_PP_WITH_MMU(id, pp_addr, pp_irq, pp_mmu_addr, pp_mmu_irq) \
 	{ \
 		.name = "Mali_PP" #id, \
-		.flags = IORESOURCE_MEM, \
-		.start = pp_addr, \
-		.end =   pp_addr + 0x1100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = pp_addr, \
+					  .end =   pp_addr + 0x1100, \
 	}, \
 	{ \
 		.name = "Mali_PP" #id "_IRQ", \
-		.flags = IORESOURCE_IRQ, \
-		.start = pp_irq, \
-		.end =   pp_irq, \
+			.flags = IORESOURCE_IRQ, \
+				 .start = pp_irq, \
+					  .end =   pp_irq, \
 	}, \
 	{ \
 		.name = "Mali_PP" #id "_MMU", \
-		.flags = IORESOURCE_MEM, \
-		.start = pp_mmu_addr, \
-		.end =   pp_mmu_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = pp_mmu_addr, \
+					  .end =   pp_mmu_addr + 0x100, \
 	}, \
 	{ \
 		.name = "Mali_PP" #id "_MMU_IRQ", \
-		.flags = IORESOURCE_IRQ, \
-		.start = pp_mmu_irq, \
-		.end =   pp_mmu_irq, \
+			.flags = IORESOURCE_IRQ, \
+				 .start = pp_mmu_irq, \
+					  .end =   pp_mmu_irq, \
 	},
 
 #define MALI_GPU_RESOURCE_MMU(mmu_addr, mmu_irq) \
 	{ \
 		.name = "Mali_MMU", \
-		.flags = IORESOURCE_MEM, \
-		.start = mmu_addr, \
-		.end =   mmu_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = mmu_addr, \
+					  .end =   mmu_addr + 0x100, \
 	}, \
 	{ \
 		.name = "Mali_MMU_IRQ", \
-		.flags = IORESOURCE_IRQ, \
-		.start = mmu_irq, \
-		.end =   mmu_irq, \
+			.flags = IORESOURCE_IRQ, \
+				 .start = mmu_irq, \
+					  .end =   mmu_irq, \
 	},
 
 #define MALI_GPU_RESOURCE_PMU(pmu_addr) \
 	{ \
 		.name = "Mali_PMU", \
-		.flags = IORESOURCE_MEM, \
-		.start = pmu_addr, \
-		.end =   pmu_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = pmu_addr, \
+					  .end =   pmu_addr + 0x100, \
 	},
 
 #define MALI_GPU_RESOURCE_DMA(dma_addr) \
 	{ \
 		.name = "Mali_DMA", \
-		.flags = IORESOURCE_MEM, \
-		.start = dma_addr, \
-		.end = dma_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = dma_addr, \
+					  .end = dma_addr + 0x100, \
 	},
 
 #define MALI_GPU_RESOURCE_DLBU(dlbu_addr) \
 	{ \
 		.name = "Mali_DLBU", \
-		.flags = IORESOURCE_MEM, \
-		.start = dlbu_addr, \
-		.end = dlbu_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = dlbu_addr, \
+					  .end = dlbu_addr + 0x100, \
 	},
 
 #define MALI_GPU_RESOURCE_BCAST(bcast_addr) \
 	{ \
 		.name = "Mali_Broadcast", \
-		.flags = IORESOURCE_MEM, \
-		.start = bcast_addr, \
-		.end = bcast_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = bcast_addr, \
+					  .end = bcast_addr + 0x100, \
 	},
 
 #define MALI_GPU_RESOURCE_PP_BCAST(pp_addr, pp_irq) \
 	{ \
 		.name = "Mali_PP_Broadcast", \
-		.flags = IORESOURCE_MEM, \
-		.start = pp_addr, \
-		.end =   pp_addr + 0x1100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = pp_addr, \
+					  .end =   pp_addr + 0x1100, \
 	}, \
 	{ \
 		.name = "Mali_PP_Broadcast_IRQ", \
-		.flags = IORESOURCE_IRQ, \
-		.start = pp_irq, \
-		.end =   pp_irq, \
+			.flags = IORESOURCE_IRQ, \
+				 .start = pp_irq, \
+					  .end =   pp_irq, \
 	}, \
- 
+	 
 #define MALI_GPU_RESOURCE_PP_MMU_BCAST(pp_mmu_bcast_addr) \
 	{ \
 		.name = "Mali_PP_MMU_Broadcast", \
-		.flags = IORESOURCE_MEM, \
-		.start = pp_mmu_bcast_addr, \
-		.end = pp_mmu_bcast_addr + 0x100, \
+			.flags = IORESOURCE_MEM, \
+				 .start = pp_mmu_bcast_addr, \
+					  .end = pp_mmu_bcast_addr + 0x100, \
 	},
 
 struct mali_gpu_utilization_data {

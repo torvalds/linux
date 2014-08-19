@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013 ARM Limited
+ * (C) COPYRIGHT 2013-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -59,9 +59,9 @@ static void mali_mem_release(mali_mem_allocation *descriptor)
 	}
 }
 
-static void mali_mem_vma_open(struct vm_area_struct * vma)
+static void mali_mem_vma_open(struct vm_area_struct *vma)
 {
-	mali_mem_allocation *descriptor = (mali_mem_allocation*)vma->vm_private_data;
+	mali_mem_allocation *descriptor = (mali_mem_allocation *)vma->vm_private_data;
 	MALI_DEBUG_PRINT(4, ("Open called on vma %p\n", vma));
 
 	descriptor->cpu_mapping.ref++;
@@ -77,7 +77,7 @@ static void mali_mem_vma_close(struct vm_area_struct *vma)
 
 	MALI_DEBUG_PRINT(3, ("Close called on vma %p\n", vma));
 
-	descriptor = (mali_mem_allocation*)vma->vm_private_data;
+	descriptor = (mali_mem_allocation *)vma->vm_private_data;
 	BUG_ON(!descriptor);
 
 	MALI_DEBUG_ASSERT(MALI_MEM_ALLOCATION_VALID_MAGIC == descriptor->magic);
@@ -104,7 +104,7 @@ static void mali_mem_vma_close(struct vm_area_struct *vma)
 
 static int mali_kernel_memory_cpu_page_fault_handler(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	void __user * address;
+	void __user *address;
 	mali_mem_allocation *descriptor;
 
 	address = vmf->virtual_address;
@@ -118,7 +118,7 @@ static int mali_kernel_memory_cpu_page_fault_handler(struct vm_area_struct *vma,
 	*/
 
 	MALI_DEBUG_PRINT(1, ("Page-fault in Mali memory region caused by the CPU.\n"));
-	MALI_DEBUG_PRINT(1, ("Tried to access %p (process local virtual address) which is not currently mapped to any Mali memory.\n", (void*)address));
+	MALI_DEBUG_PRINT(1, ("Tried to access %p (process local virtual address) which is not currently mapped to any Mali memory.\n", (void *)address));
 
 	MALI_IGNORE(address);
 	MALI_IGNORE(descriptor);
@@ -126,7 +126,7 @@ static int mali_kernel_memory_cpu_page_fault_handler(struct vm_area_struct *vma,
 	return VM_FAULT_SIGBUS;
 }
 
-struct vm_operations_struct mali_kernel_vm_ops = {
+static struct vm_operations_struct mali_kernel_vm_ops = {
 	.open = mali_mem_vma_open,
 	.close = mali_mem_vma_close,
 	.fault = mali_kernel_memory_cpu_page_fault_handler
@@ -147,8 +147,8 @@ int mali_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	MALI_DEBUG_PRINT(4, ("MMap() handler: start=0x%08X, phys=0x%08X, size=0x%08X vma->flags 0x%08x\n",
-	                     (unsigned int)vma->vm_start, (unsigned int)(vma->vm_pgoff << PAGE_SHIFT),
-	                     (unsigned int)(vma->vm_end - vma->vm_start), vma->vm_flags));
+			     (unsigned int)vma->vm_start, (unsigned int)(vma->vm_pgoff << PAGE_SHIFT),
+			     (unsigned int)(vma->vm_end - vma->vm_start), vma->vm_flags));
 
 	/* Set some bits which indicate that, the memory is IO memory, meaning
 	 * that no paging is to be performed and the memory should not be
@@ -159,7 +159,7 @@ int mali_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO;
 	vma->vm_flags |= VM_DONTCOPY;
 	vma->vm_flags |= VM_PFNMAP;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 	vma->vm_flags |= VM_RESERVED;
 #else
 	vma->vm_flags |= VM_DONTDUMP;
@@ -180,7 +180,7 @@ int mali_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	MALI_DEBUG_ASSERT(MALI_MEM_ALLOCATION_VALID_MAGIC == descriptor->magic);
 
-	vma->vm_private_data = (void*)descriptor;
+	vma->vm_private_data = (void *)descriptor;
 
 	/* Put on descriptor map */
 	if (_MALI_OSK_ERR_OK != mali_descriptor_mapping_allocate_mapping(session->descriptor_mapping, descriptor, &descriptor->id)) {
@@ -199,9 +199,9 @@ mali_mem_allocation *mali_mem_descriptor_create(struct mali_session_data *sessio
 {
 	mali_mem_allocation *descriptor;
 
-	descriptor = (mali_mem_allocation*)kzalloc(sizeof(mali_mem_allocation), GFP_KERNEL);
+	descriptor = (mali_mem_allocation *)kzalloc(sizeof(mali_mem_allocation), GFP_KERNEL);
 	if (NULL == descriptor) {
-		MALI_DEBUG_PRINT(3,("mali_ukk_mem_mmap: descriptor was NULL\n"));
+		MALI_DEBUG_PRINT(3, ("mali_ukk_mem_mmap: descriptor was NULL\n"));
 		return NULL;
 	}
 
@@ -271,7 +271,7 @@ u32 _mali_ukk_report_memory_usage(void)
 #define MALI_MEM_DESCRIPTORS_INIT 64
 #define MALI_MEM_DESCRIPTORS_MAX 65536
 
-_mali_osk_errcode_t mali_memory_session_begin(struct mali_session_data * session_data)
+_mali_osk_errcode_t mali_memory_session_begin(struct mali_session_data *session_data)
 {
 	MALI_DEBUG_PRINT(5, ("Memory session begin\n"));
 
@@ -283,7 +283,7 @@ _mali_osk_errcode_t mali_memory_session_begin(struct mali_session_data * session
 	}
 
 	session_data->memory_lock = _mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED,
-	                            _MALI_OSK_LOCK_ORDER_MEM_SESSION);
+				    _MALI_OSK_LOCK_ORDER_MEM_SESSION);
 
 	if (NULL == session_data->memory_lock) {
 		mali_descriptor_mapping_destroy(session_data->descriptor_mapping);
@@ -299,11 +299,11 @@ _mali_osk_errcode_t mali_memory_session_begin(struct mali_session_data * session
  *
  * session->memory_lock must be held when calling this function.
  */
-static void descriptor_table_cleanup_callback(int descriptor_id, void* map_target)
+static void descriptor_table_cleanup_callback(int descriptor_id, void *map_target)
 {
 	mali_mem_allocation *descriptor;
 
-	descriptor = (mali_mem_allocation*)map_target;
+	descriptor = (mali_mem_allocation *)map_target;
 
 	MALI_DEBUG_ASSERT_LOCK_HELD(descriptor->session->memory_lock);
 

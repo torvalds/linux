@@ -1,7 +1,7 @@
 /*
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
+ * (C) COPYRIGHT 2008-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -13,7 +13,7 @@
  * Implementation of the OS abstraction layer for the kernel device driver
  */
 
-#include <linux/slab.h>	/* For memory allocation */
+#include <linux/slab.h> /* For memory allocation */
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -28,10 +28,9 @@ typedef struct _mali_osk_irq_t_struct {
 } mali_osk_irq_object_t;
 
 typedef irqreturn_t (*irq_handler_func_t)(int, void *, struct pt_regs *);
-static irqreturn_t irq_handler_upper_half (int port_name, void* dev_id ); /* , struct pt_regs *regs*/
+static irqreturn_t irq_handler_upper_half(int port_name, void *dev_id);   /* , struct pt_regs *regs*/
 
 #if defined(DEBUG)
-#if 0
 
 struct test_interrupt_data {
 	_mali_osk_irq_ack_t ack_func;
@@ -55,10 +54,10 @@ static irqreturn_t test_interrupt_upper_half(int port_name, void *dev_id)
 }
 
 static _mali_osk_errcode_t test_interrupt(u32 irqnum,
-        _mali_osk_irq_trigger_t trigger_func,
-        _mali_osk_irq_ack_t ack_func,
-        void *probe_data,
-        const char *description)
+		_mali_osk_irq_trigger_t trigger_func,
+		_mali_osk_irq_ack_t ack_func,
+		void *probe_data,
+		const char *description)
 {
 	unsigned long irq_flags = 0;
 	struct test_interrupt_data data = {
@@ -91,11 +90,10 @@ static _mali_osk_errcode_t test_interrupt(u32 irqnum,
 		return _MALI_OSK_ERR_FAULT;
 	}
 }
-#endif
 
 #endif /* defined(DEBUG) */
 
-_mali_osk_irq_t *_mali_osk_irq_init( u32 irqnum, _mali_osk_irq_uhandler_t uhandler, void *int_data, _mali_osk_irq_trigger_t trigger_func, _mali_osk_irq_ack_t ack_func, void *probe_data, const char *description )
+_mali_osk_irq_t *_mali_osk_irq_init(u32 irqnum, _mali_osk_irq_uhandler_t uhandler, void *int_data, _mali_osk_irq_trigger_t trigger_func, _mali_osk_irq_ack_t ack_func, void *probe_data, const char *description)
 {
 	mali_osk_irq_object_t *irq_object;
 	unsigned long irq_flags = 0;
@@ -111,7 +109,7 @@ _mali_osk_irq_t *_mali_osk_irq_init( u32 irqnum, _mali_osk_irq_uhandler_t uhandl
 
 	if (-1 == irqnum) {
 		/* Probe for IRQ */
-		if ( (NULL != trigger_func) && (NULL != ack_func) ) {
+		if ((NULL != trigger_func) && (NULL != ack_func)) {
 			unsigned long probe_count = 3;
 			_mali_osk_errcode_t err;
 			int irq;
@@ -153,14 +151,12 @@ _mali_osk_irq_t *_mali_osk_irq_init( u32 irqnum, _mali_osk_irq_uhandler_t uhandl
 	}
 
 #if defined(DEBUG)
-#if 0
 	/* Verify that the configured interrupt settings are working */
 	if (_MALI_OSK_ERR_OK != test_interrupt(irqnum, trigger_func, ack_func, probe_data, description)) {
 		MALI_DEBUG_PRINT(2, ("Test of IRQ handler for core '%s' failed\n", description));
 		kfree(irq_object);
 		return NULL;
 	}
-#endif
 #endif
 
 	if (0 != request_irq(irqnum, irq_handler_upper_half, irq_flags, description, irq_object)) {
@@ -172,7 +168,7 @@ _mali_osk_irq_t *_mali_osk_irq_init( u32 irqnum, _mali_osk_irq_uhandler_t uhandl
 	return irq_object;
 }
 
-void _mali_osk_irq_term( _mali_osk_irq_t *irq )
+void _mali_osk_irq_term(_mali_osk_irq_t *irq)
 {
 	mali_osk_irq_object_t *irq_object = (mali_osk_irq_object_t *)irq;
 	free_irq(irq_object->irqnum, irq_object);
@@ -191,7 +187,7 @@ void _mali_osk_irq_term( _mali_osk_irq_t *irq )
  * Then we schedule the mali_core_irq_handler_bottom_half to run as high priority
  * work queue job.
  */
-static irqreturn_t irq_handler_upper_half (int port_name, void* dev_id ) /* , struct pt_regs *regs*/
+static irqreturn_t irq_handler_upper_half(int port_name, void *dev_id)   /* , struct pt_regs *regs*/
 {
 	irqreturn_t ret = IRQ_NONE;
 	mali_osk_irq_object_t *irq_object = (mali_osk_irq_object_t *)dev_id;

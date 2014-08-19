@@ -1,7 +1,7 @@
 /**
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2013 ARM Limited
+ * (C) COPYRIGHT 2011-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
@@ -49,6 +49,7 @@
 #include "mali_gp_job.h"
 #include "mali_pp_job.h"
 #include "mali_pp_scheduler.h"
+#include "mali_session.h"
 
 #define PRIVATE_DATA_COUNTER_MAKE_GP(src) (src)
 #define PRIVATE_DATA_COUNTER_MAKE_PP(src) ((1 << 24) | src)
@@ -70,7 +71,7 @@ typedef enum {
 	_MALI_MAX_EVENTS
 } _mali_device_debug_power_events;
 
-static const char* const mali_power_events[_MALI_MAX_EVENTS] = {
+static const char *const mali_power_events[_MALI_MAX_EVENTS] = {
 	[_MALI_DEVICE_SUSPEND] = "suspend",
 	[_MALI_DEVICE_RESUME] = "resume",
 	[_MALI_DEVICE_DVFS_PAUSE] = "dvfs_pause",
@@ -94,7 +95,7 @@ static ssize_t group_enabled_read(struct file *filp, char __user *buf, size_t co
 	group = (struct mali_group *)filp->private_data;
 	MALI_DEBUG_ASSERT_POINTER(group);
 
-	r = sprintf(buffer, "%u\n", mali_group_is_enabled(group) ? 1 : 0);
+	r = snprintf(buffer, 64, "%u\n", mali_group_is_enabled(group) ? 1 : 0);
 
 	return simple_read_from_buffer(buf, count, offp, buffer, r);
 }
@@ -155,7 +156,7 @@ static ssize_t hw_core_base_addr_read(struct file *filp, char __user *buf, size_
 	hw_core = (struct mali_hw_core *)filp->private_data;
 	MALI_DEBUG_ASSERT_POINTER(hw_core);
 
-	r = sprintf(buffer, "0x%08X\n", hw_core->phys_addr);
+	r = snprintf(buffer, 64, "0x%08X\n", hw_core->phys_addr);
 
 	return simple_read_from_buffer(buf, count, offp, buffer, r);
 }
@@ -168,10 +169,10 @@ static const struct file_operations hw_core_base_addr_fops = {
 
 static ssize_t profiling_counter_src_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 {
-	u32 is_pp = PRIVATE_DATA_COUNTER_IS_PP((u32)filp->private_data);
-	u32 src_id = PRIVATE_DATA_COUNTER_GET_SRC((u32)filp->private_data);
-	mali_bool is_sub_job = PRIVATE_DATA_COUNTER_IS_SUB_JOB((u32)filp->private_data);
-	u32 sub_job = PRIVATE_DATA_COUNTER_GET_SUB_JOB((u32)filp->private_data);
+	u32 is_pp = PRIVATE_DATA_COUNTER_IS_PP((uintptr_t)filp->private_data);
+	u32 src_id = PRIVATE_DATA_COUNTER_GET_SRC((uintptr_t)filp->private_data);
+	mali_bool is_sub_job = PRIVATE_DATA_COUNTER_IS_SUB_JOB((uintptr_t)filp->private_data);
+	u32 sub_job = PRIVATE_DATA_COUNTER_GET_SUB_JOB((uintptr_t)filp->private_data);
 	char buf[64];
 	int r;
 	u32 val;
@@ -203,9 +204,9 @@ static ssize_t profiling_counter_src_read(struct file *filp, char __user *ubuf, 
 	}
 
 	if (MALI_HW_CORE_NO_COUNTER == val) {
-		r = sprintf(buf, "-1\n");
+		r = snprintf(buf, 64, "-1\n");
 	} else {
-		r = sprintf(buf, "%u\n", val);
+		r = snprintf(buf, 64, "%u\n", val);
 	}
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
@@ -213,10 +214,10 @@ static ssize_t profiling_counter_src_read(struct file *filp, char __user *ubuf, 
 
 static ssize_t profiling_counter_src_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *ppos)
 {
-	u32 is_pp = PRIVATE_DATA_COUNTER_IS_PP((u32)filp->private_data);
-	u32 src_id = PRIVATE_DATA_COUNTER_GET_SRC((u32)filp->private_data);
-	mali_bool is_sub_job = PRIVATE_DATA_COUNTER_IS_SUB_JOB((u32)filp->private_data);
-	u32 sub_job = PRIVATE_DATA_COUNTER_GET_SUB_JOB((u32)filp->private_data);
+	u32 is_pp = PRIVATE_DATA_COUNTER_IS_PP((uintptr_t)filp->private_data);
+	u32 src_id = PRIVATE_DATA_COUNTER_GET_SRC((uintptr_t)filp->private_data);
+	mali_bool is_sub_job = PRIVATE_DATA_COUNTER_IS_SUB_JOB((uintptr_t)filp->private_data);
+	u32 sub_job = PRIVATE_DATA_COUNTER_GET_SUB_JOB((uintptr_t)filp->private_data);
 	char buf[64];
 	long val;
 	int ret;
@@ -292,9 +293,9 @@ static ssize_t l2_l2x_counter_srcx_read(struct file *filp, char __user *ubuf, si
 	}
 
 	if (MALI_HW_CORE_NO_COUNTER == val) {
-		r = sprintf(buf, "-1\n");
+		r = snprintf(buf, 64, "-1\n");
 	} else {
-		r = sprintf(buf, "%u\n", val);
+		r = snprintf(buf, 64, "%u\n", val);
 	}
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
@@ -484,14 +485,14 @@ static const struct file_operations power_always_on_fops = {
 static ssize_t power_power_events_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *ppos)
 {
 
-	if (!strncmp(ubuf,mali_power_events[_MALI_DEVICE_SUSPEND],strlen(mali_power_events[_MALI_DEVICE_SUSPEND]))) {
+	if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_SUSPEND], strlen(mali_power_events[_MALI_DEVICE_SUSPEND]))) {
 		mali_pm_os_suspend();
 
-	} else if (!strncmp(ubuf,mali_power_events[_MALI_DEVICE_RESUME],strlen(mali_power_events[_MALI_DEVICE_RESUME]))) {
+	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_RESUME], strlen(mali_power_events[_MALI_DEVICE_RESUME]))) {
 		mali_pm_os_resume();
-	} else if (!strncmp(ubuf,mali_power_events[_MALI_DEVICE_DVFS_PAUSE],strlen(mali_power_events[_MALI_DEVICE_DVFS_PAUSE]))) {
+	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_DVFS_PAUSE], strlen(mali_power_events[_MALI_DEVICE_DVFS_PAUSE]))) {
 		mali_dev_pause();
-	} else if (!strncmp(ubuf,mali_power_events[_MALI_DEVICE_DVFS_RESUME],strlen(mali_power_events[_MALI_DEVICE_DVFS_RESUME]))) {
+	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_DVFS_RESUME], strlen(mali_power_events[_MALI_DEVICE_DVFS_RESUME]))) {
 		mali_dev_resume();
 	}
 	*ppos += cnt;
@@ -519,13 +520,13 @@ static int mali_seq_internal_state_show(struct seq_file *seq_file, void *v)
 
 	size = seq_get_buf(seq_file, &buf);
 
-	if(!size) {
+	if (!size) {
 		return -ENOMEM;
 	}
 
 	/* Create the internal state dump. */
-	len  = snprintf(buf+len, size-len, "Mali device driver %s\n", SVN_REV_STRING);
-	len += snprintf(buf+len, size-len, "License: %s\n\n", MALI_KERNEL_LINUX_LICENSE);
+	len  = snprintf(buf + len, size - len, "Mali device driver %s\n", SVN_REV_STRING);
+	len += snprintf(buf + len, size - len, "License: %s\n\n", MALI_KERNEL_LINUX_LICENSE);
 
 	len += _mali_kernel_core_dump_state(buf + len, size - len);
 
@@ -554,7 +555,7 @@ static ssize_t profiling_record_read(struct file *filp, char __user *ubuf, size_
 	char buf[64];
 	int r;
 
-	r = sprintf(buf, "%u\n", _mali_internal_profiling_is_recording() ? 1 : 0);
+	r = snprintf(buf, 64, "%u\n", _mali_internal_profiling_is_recording() ? 1 : 0);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
@@ -673,7 +674,7 @@ static int profiling_events_show(struct seq_file *seq_file, void *v)
 	u32 event_id;
 	u32 data[5];
 
-	index = (u32)*spos;
+	index = (u32) * spos;
 
 	/* Retrieve all events */
 	if (_MALI_OSK_ERR_OK == _mali_internal_profiling_get_event(index, &timestamp, &event_id, data)) {
@@ -695,7 +696,7 @@ static int profiling_events_show_human_readable(struct seq_file *seq_file, void 
 	u32 event_id;
 	u32 data[5];
 
-	index = (u32)*spos;
+	index = (u32) * spos;
 
 	/* Retrieve all events */
 	if (_MALI_OSK_ERR_OK == _mali_internal_profiling_get_event(index, &timestamp, &event_id, data)) {
@@ -707,7 +708,7 @@ static int profiling_events_show_human_readable(struct seq_file *seq_file, void 
 
 		seq_printf(seq_file, "[%06u] ", index);
 
-		switch(event_id & 0x0F000000) {
+		switch (event_id & 0x0F000000) {
 		case MALI_PROFILING_EVENT_TYPE_SINGLE:
 			seq_printf(seq_file, "SINGLE | ");
 			break;
@@ -728,7 +729,7 @@ static int profiling_events_show_human_readable(struct seq_file *seq_file, void 
 			break;
 		}
 
-		switch(event_id & 0x00FF0000) {
+		switch (event_id & 0x00FF0000) {
 		case MALI_PROFILING_EVENT_CHANNEL_SOFTWARE:
 			seq_printf(seq_file, "SW | ");
 			break;
@@ -769,7 +770,7 @@ static int profiling_events_show_human_readable(struct seq_file *seq_file, void 
 
 		if (MALI_EVENT_ID_IS_HW(event_id)) {
 			if (((event_id & 0x0F000000) == MALI_PROFILING_EVENT_TYPE_START) || ((event_id & 0x0F000000) == MALI_PROFILING_EVENT_TYPE_STOP)) {
-				switch(event_id & 0x0000FFFF) {
+				switch (event_id & 0x0000FFFF) {
 				case MALI_PROFILING_EVENT_REASON_START_STOP_HW_PHYSICAL:
 					seq_printf(seq_file, "PHYSICAL | ");
 					break;
@@ -856,7 +857,7 @@ static ssize_t utilization_gp_pp_read(struct file *filp, char __user *ubuf, size
 {
 	char buf[64];
 	size_t r;
-	u32 uval= _mali_ukk_utilization_gp_pp();
+	u32 uval = _mali_ukk_utilization_gp_pp();
 
 	r = snprintf(buf, 64, "%u\n", uval);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
@@ -866,7 +867,7 @@ static ssize_t utilization_gp_read(struct file *filp, char __user *ubuf, size_t 
 {
 	char buf[64];
 	size_t r;
-	u32 uval= _mali_ukk_utilization_gp();
+	u32 uval = _mali_ukk_utilization_gp();
 
 	r = snprintf(buf, 64, "%u\n", uval);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
@@ -876,7 +877,7 @@ static ssize_t utilization_pp_read(struct file *filp, char __user *ubuf, size_t 
 {
 	char buf[64];
 	size_t r;
-	u32 uval= _mali_ukk_utilization_pp();
+	u32 uval = _mali_ukk_utilization_pp();
 
 	r = snprintf(buf, 64, "%u\n", uval);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
@@ -950,9 +951,11 @@ static int mali_sysfs_user_settings_register(void)
 	struct dentry *mali_user_settings_dir = debugfs_create_dir("userspace_settings", mali_debugfs_dir);
 
 	if (mali_user_settings_dir != NULL) {
-		int i;
+		long i;
 		for (i = 0; i < _MALI_UK_USER_SETTING_MAX; i++) {
-			debugfs_create_file(_mali_uk_user_setting_descriptions[i], 0600, mali_user_settings_dir, (void*)i, &user_settings_fops);
+			debugfs_create_file(_mali_uk_user_setting_descriptions[i],
+					    0600, mali_user_settings_dir, (void *)i,
+					    &user_settings_fops);
 		}
 	}
 
@@ -1071,7 +1074,7 @@ static ssize_t pp_num_cores_enabled_read(struct file *filp, char __user *buf, si
 	int r;
 	char buffer[64];
 
-	r = sprintf(buffer, "%u\n", mali_pp_scheduler_get_num_cores_enabled());
+	r = snprintf(buffer, 64, "%u\n", mali_pp_scheduler_get_num_cores_enabled());
 
 	return simple_read_from_buffer(buf, count, offp, buffer, r);
 }
@@ -1088,7 +1091,7 @@ static ssize_t pp_num_cores_total_read(struct file *filp, char __user *buf, size
 	int r;
 	char buffer[64];
 
-	r = sprintf(buffer, "%u\n", mali_pp_scheduler_get_num_cores_total());
+	r = snprintf(buffer, 64, "%u\n", mali_pp_scheduler_get_num_cores_total());
 
 	return simple_read_from_buffer(buf, count, offp, buffer, r);
 }
@@ -1152,16 +1155,16 @@ static ssize_t version_read(struct file *filp, char __user *buf, size_t count, l
 
 	switch (mali_kernel_core_get_product_id()) {
 	case _MALI_PRODUCT_ID_MALI200:
-		r = sprintf(buffer, "Mali-200\n");
+		r = snprintf(buffer, 64, "Mali-200\n");
 		break;
 	case _MALI_PRODUCT_ID_MALI300:
-		r = sprintf(buffer, "Mali-300\n");
+		r = snprintf(buffer, 64, "Mali-300\n");
 		break;
 	case _MALI_PRODUCT_ID_MALI400:
-		r = sprintf(buffer, "Mali-400 MP\n");
+		r = snprintf(buffer, 64, "Mali-400 MP\n");
 		break;
 	case _MALI_PRODUCT_ID_MALI450:
-		r = sprintf(buffer, "Mali-450 MP\n");
+		r = snprintf(buffer, 64, "Mali-450 MP\n");
 		break;
 	case _MALI_PRODUCT_ID_UNKNOWN:
 		return -EINVAL;
@@ -1176,14 +1179,47 @@ static const struct file_operations version_fops = {
 	.read = version_read,
 };
 
+#if defined(DEBUG)
+static int timeline_debugfs_show(struct seq_file *s, void *private_data)
+{
+	struct mali_session_data *session, *tmp;
+	u32 session_seq = 1;
+
+	seq_printf(s, "timeline system info: \n=================\n\n");
+
+    	mali_session_lock();
+	MALI_SESSION_FOREACH(session, tmp, link){
+		seq_printf(s, "session %d <%p> start:\n", session_seq,session);
+		mali_timeline_debug_print_system(session->timeline_system,s);
+		seq_printf(s, "session %d end\n\n\n", session_seq++);
+	}
+	mali_session_unlock();
+
+	return 0;
+}
+
+static int timeline_debugfs_open( struct inode *inode, struct file *file)
+{
+	return single_open(file, timeline_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations timeline_dump_fops = {
+	.owner = THIS_MODULE,
+	.open = timeline_debugfs_open,
+	.read  = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release
+};
+#endif
+
 int mali_sysfs_register(const char *mali_dev_name)
 {
 	mali_debugfs_dir = debugfs_create_dir(mali_dev_name, NULL);
-	if(ERR_PTR(-ENODEV) == mali_debugfs_dir) {
+	if (ERR_PTR(-ENODEV) == mali_debugfs_dir) {
 		/* Debugfs not supported. */
 		mali_debugfs_dir = NULL;
 	} else {
-		if(NULL != mali_debugfs_dir) {
+		if (NULL != mali_debugfs_dir) {
 			/* Debugfs directory created successfully; create files now */
 			struct dentry *mali_pmu_dir;
 			struct dentry *mali_power_dir;
@@ -1209,7 +1245,7 @@ int mali_sysfs_register(const char *mali_dev_name)
 			mali_gp_dir = debugfs_create_dir("gp", mali_debugfs_dir);
 			if (mali_gp_dir != NULL) {
 				u32 num_groups;
-				int i;
+				long i;
 
 				num_groups = mali_group_get_glob_num_groups();
 				for (i = 0; i < num_groups; i++) {
@@ -1232,7 +1268,7 @@ int mali_sysfs_register(const char *mali_dev_name)
 			mali_pp_dir = debugfs_create_dir("pp", mali_debugfs_dir);
 			if (mali_pp_dir != NULL) {
 				u32 num_groups;
-				int i;
+				long i;
 
 				debugfs_create_file("num_cores_total", 0400, mali_pp_dir, NULL, &pp_num_cores_total_fops);
 				debugfs_create_file("num_cores_enabled", 0600, mali_pp_dir, NULL, &pp_num_cores_enabled_fops);
@@ -1298,7 +1334,7 @@ int mali_sysfs_register(const char *mali_dev_name)
 			mali_profiling_dir = debugfs_create_dir("profiling", mali_debugfs_dir);
 			if (mali_profiling_dir != NULL) {
 				u32 max_sub_jobs;
-				int i;
+				long i;
 				struct dentry *mali_profiling_gp_dir;
 				struct dentry *mali_profiling_pp_dir;
 #if defined(CONFIG_MALI400_INTERNAL_PROFILING)
@@ -1309,8 +1345,8 @@ int mali_sysfs_register(const char *mali_dev_name)
 				 */
 				mali_profiling_gp_dir = debugfs_create_dir("gp", mali_profiling_dir);
 				if (mali_profiling_gp_dir != NULL) {
-					debugfs_create_file("counter_src0", 0600, mali_profiling_gp_dir, (void*)PRIVATE_DATA_COUNTER_MAKE_GP(0), &profiling_counter_src_fops);
-					debugfs_create_file("counter_src1", 0600, mali_profiling_gp_dir, (void*)PRIVATE_DATA_COUNTER_MAKE_GP(1), &profiling_counter_src_fops);
+					debugfs_create_file("counter_src0", 0600, mali_profiling_gp_dir, (void *)PRIVATE_DATA_COUNTER_MAKE_GP(0), &profiling_counter_src_fops);
+					debugfs_create_file("counter_src1", 0600, mali_profiling_gp_dir, (void *)PRIVATE_DATA_COUNTER_MAKE_GP(1), &profiling_counter_src_fops);
 				}
 
 				/*
@@ -1320,8 +1356,8 @@ int mali_sysfs_register(const char *mali_dev_name)
 				 */
 				mali_profiling_pp_dir = debugfs_create_dir("pp", mali_profiling_dir);
 				if (mali_profiling_pp_dir != NULL) {
-					debugfs_create_file("counter_src0", 0600, mali_profiling_pp_dir, (void*)PRIVATE_DATA_COUNTER_MAKE_PP(0), &profiling_counter_src_fops);
-					debugfs_create_file("counter_src1", 0600, mali_profiling_pp_dir, (void*)PRIVATE_DATA_COUNTER_MAKE_PP(1), &profiling_counter_src_fops);
+					debugfs_create_file("counter_src0", 0600, mali_profiling_pp_dir, (void *)PRIVATE_DATA_COUNTER_MAKE_PP(0), &profiling_counter_src_fops);
+					debugfs_create_file("counter_src1", 0600, mali_profiling_pp_dir, (void *)PRIVATE_DATA_COUNTER_MAKE_PP(1), &profiling_counter_src_fops);
 				}
 
 				max_sub_jobs = mali_pp_scheduler_get_num_cores_total();
@@ -1331,8 +1367,14 @@ int mali_sysfs_register(const char *mali_dev_name)
 					_mali_osk_snprintf(buf, sizeof(buf), "%u", i);
 					mali_profiling_pp_x_dir = debugfs_create_dir(buf, mali_profiling_pp_dir);
 					if (NULL != mali_profiling_pp_x_dir) {
-						debugfs_create_file("counter_src0", 0600, mali_profiling_pp_x_dir, (void*)PRIVATE_DATA_COUNTER_MAKE_PP_SUB_JOB(0, i), &profiling_counter_src_fops);
-						debugfs_create_file("counter_src1", 0600, mali_profiling_pp_x_dir, (void*)PRIVATE_DATA_COUNTER_MAKE_PP_SUB_JOB(1, i), &profiling_counter_src_fops);
+						debugfs_create_file("counter_src0",
+								    0600, mali_profiling_pp_x_dir,
+								    (void *)PRIVATE_DATA_COUNTER_MAKE_PP_SUB_JOB(0, i),
+								    &profiling_counter_src_fops);
+						debugfs_create_file("counter_src1",
+								    0600, mali_profiling_pp_x_dir,
+								    (void *)PRIVATE_DATA_COUNTER_MAKE_PP_SUB_JOB(1, i),
+								    &profiling_counter_src_fops);
 					}
 				}
 
@@ -1341,7 +1383,7 @@ int mali_sysfs_register(const char *mali_dev_name)
 				if (mali_profiling_proc_dir != NULL) {
 					struct dentry *mali_profiling_proc_default_dir = debugfs_create_dir("default", mali_profiling_proc_dir);
 					if (mali_profiling_proc_default_dir != NULL) {
-						debugfs_create_file("enable", 0600, mali_profiling_proc_default_dir, (void*)_MALI_UK_USER_SETTING_SW_EVENTS_ENABLE, &user_settings_fops);
+						debugfs_create_file("enable", 0600, mali_profiling_proc_default_dir, (void *)_MALI_UK_USER_SETTING_SW_EVENTS_ENABLE, &user_settings_fops);
 					}
 				}
 				debugfs_create_file("record", 0600, mali_profiling_dir, NULL, &profiling_record_fops);
@@ -1354,6 +1396,9 @@ int mali_sysfs_register(const char *mali_dev_name)
 			debugfs_create_file("state_dump", 0400, mali_debugfs_dir, NULL, &mali_seq_internal_state_fops);
 #endif
 
+#if defined(DEBUG)
+			debugfs_create_file("timeline_dump", 0400, mali_debugfs_dir, NULL, &timeline_dump_fops);
+#endif
 			if (mali_sysfs_user_settings_register()) {
 				/* Failed to create the debugfs entries for the user settings DB. */
 				MALI_DEBUG_PRINT(2, ("Failed to create user setting debugfs files. Ignoring...\n"));
@@ -1367,7 +1412,7 @@ int mali_sysfs_register(const char *mali_dev_name)
 
 int mali_sysfs_unregister(void)
 {
-	if(NULL != mali_debugfs_dir) {
+	if (NULL != mali_debugfs_dir) {
 		debugfs_remove_recursive(mali_debugfs_dir);
 	}
 	return 0;

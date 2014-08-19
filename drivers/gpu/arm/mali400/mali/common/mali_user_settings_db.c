@@ -1,15 +1,16 @@
 /**
  * This confidential and proprietary software may be used only as
  * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2013 ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
  * ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorised
  * copies and copies may only be made to the extent permitted
  * by a licensing agreement from ARM Limited.
  */
 
-#include "mali_osk.h"
 #include "mali_kernel_common.h"
+#include "mali_osk.h"
+#include "mali_ukk.h"
 #include "mali_uk_types.h"
 #include "mali_user_settings_db.h"
 #include "mali_session.h"
@@ -48,7 +49,7 @@ static void mali_user_settings_notify(_mali_uk_user_setting_t setting, u32 value
 
 		for (i = 0; i < num_sessions_alloc; i++) {
 			notobjs[i] = _mali_osk_notification_create(_MALI_NOTIFICATION_SETTINGS_CHANGED,
-			             sizeof(_mali_uk_settings_changed_s));
+					sizeof(_mali_uk_settings_changed_s));
 			if (NULL != notobjs[i]) {
 				_mali_uk_settings_changed_s *data;
 				data = notobjs[i]->result_buffer;
