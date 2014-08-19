@@ -145,14 +145,8 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	if (!handler)
 		return AE_BAD_PARAMETER;
 
-	desc = gpiochip_get_desc(chip, pin);
+	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event");
 	if (IS_ERR(desc)) {
-		dev_err(chip->dev, "Failed to get GPIO descriptor\n");
-		return AE_ERROR;
-	}
-
-	ret = gpiochip_request_own_desc(desc, "ACPI:Event");
-	if (ret) {
 		dev_err(chip->dev, "Failed to request GPIO\n");
 		return AE_ERROR;
 	}
@@ -420,17 +414,9 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 			}
 		}
 		if (!found) {
-			int ret;
-
-			desc = gpiochip_get_desc(chip, pin);
+			desc = gpiochip_request_own_desc(chip, pin,
+							 "ACPI:OpRegion");
 			if (IS_ERR(desc)) {
-				status = AE_ERROR;
-				mutex_unlock(&achip->conn_lock);
-				goto out;
-			}
-
-			ret = gpiochip_request_own_desc(desc, "ACPI:OpRegion");
-			if (ret) {
 				status = AE_ERROR;
 				mutex_unlock(&achip->conn_lock);
 				goto out;

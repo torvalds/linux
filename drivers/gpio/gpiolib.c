@@ -895,12 +895,22 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
  * allows the GPIO chip module to be unloaded as needed (we assume that the
  * GPIO chip driver handles freeing the GPIOs it has requested).
  */
-int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label)
+struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
+					    const char *label)
 {
-	if (!desc || !desc->chip)
-		return -EINVAL;
+	struct gpio_desc *desc = gpiochip_get_desc(chip, hwnum);
+	int err;
 
-	return __gpiod_request(desc, label);
+	if (IS_ERR(desc)) {
+		chip_err(chip, "failed to get GPIO descriptor\n");
+		return desc;
+	}
+
+	err = __gpiod_request(desc, label);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	return desc;
 }
 EXPORT_SYMBOL_GPL(gpiochip_request_own_desc);
 

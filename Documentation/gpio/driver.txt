@@ -178,7 +178,8 @@ does not help since it pins the module to the kernel forever (it calls
 try_module_get()). A GPIO driver can use the following functions instead
 to request and free descriptors without being pinned to the kernel forever.
 
-	int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label)
+	struct gpio_desc *gpiochip_request_own_desc(struct gpio_desc *desc,
+						    const char *label)
 
 	void gpiochip_free_own_desc(struct gpio_desc *desc)
 
