@@ -2107,8 +2107,8 @@ void usb_disconnect(struct usb_device **pdev)
 {
 	struct usb_port *port_dev = NULL;
 	struct usb_device *udev = *pdev;
-	struct usb_hub *hub;
-	int port1;
+	struct usb_hub *hub = NULL;
+	int port1 = 1;
 
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
