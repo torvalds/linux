@@ -952,10 +952,12 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_IQD:
-		card->dev = alloc_netdev(0, "hsi%d", ether_setup);
+		card->dev = alloc_netdev(0, "hsi%d", NET_NAME_UNKNOWN,
+					 ether_setup);
 		break;
 	case QETH_CARD_TYPE_OSN:
-		card->dev = alloc_netdev(0, "osn%d", ether_setup);
+		card->dev = alloc_netdev(0, "osn%d", NET_NAME_UNKNOWN,
+					 ether_setup);
 		card->dev->flags |= IFF_NOARP;
 		break;
 	default:

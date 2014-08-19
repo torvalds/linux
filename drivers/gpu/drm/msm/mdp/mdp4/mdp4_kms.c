@@ -147,7 +147,7 @@ static void mdp4_destroy(struct msm_kms *kms)
 	if (mdp4_kms->blank_cursor_iova)
 		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
 	if (mdp4_kms->blank_cursor_bo)
-		drm_gem_object_unreference(mdp4_kms->blank_cursor_bo);
+		drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
 	kfree(mdp4_kms);
 }
 
@@ -176,6 +176,8 @@ int mdp4_disable(struct mdp4_kms *mdp4_kms)
 	if (mdp4_kms->pclk)
 		clk_disable_unprepare(mdp4_kms->pclk);
 	clk_disable_unprepare(mdp4_kms->lut_clk);
+	if (mdp4_kms->axi_clk)
+		clk_disable_unprepare(mdp4_kms->axi_clk);
 
 	return 0;
 }
@@ -188,6 +190,8 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	if (mdp4_kms->pclk)
 		clk_prepare_enable(mdp4_kms->pclk);
 	clk_prepare_enable(mdp4_kms->lut_clk);
+	if (mdp4_kms->axi_clk)
+		clk_prepare_enable(mdp4_kms->axi_clk);
 
 	return 0;
 }
@@ -294,15 +298,17 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->dsi_pll_vdda = devm_regulator_get(&pdev->dev, "dsi_pll_vdda");
+	mdp4_kms->dsi_pll_vdda =
+			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vdda");
 	if (IS_ERR(mdp4_kms->dsi_pll_vdda))
 		mdp4_kms->dsi_pll_vdda = NULL;
 
-	mdp4_kms->dsi_pll_vddio = devm_regulator_get(&pdev->dev, "dsi_pll_vddio");
+	mdp4_kms->dsi_pll_vddio =
+			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vddio");
 	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
 		mdp4_kms->dsi_pll_vddio = NULL;
 
-	mdp4_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
+	mdp4_kms->vdd = devm_regulator_get_exclusive(&pdev->dev, "vdd");
 	if (IS_ERR(mdp4_kms->vdd))
 		mdp4_kms->vdd = NULL;
 
@@ -333,6 +339,13 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
+	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "mdp_axi_clk");
+	if (IS_ERR(mdp4_kms->axi_clk)) {
+		dev_err(dev->dev, "failed to get axi_clk\n");
+		ret = PTR_ERR(mdp4_kms->axi_clk);
+		goto fail;
+	}
+
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
 	clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
 
@@ -348,7 +361,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->iommu) {
-		mmu = msm_iommu_new(dev, config->iommu);
+		mmu = msm_iommu_new(&pdev->dev, config->iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
 			goto fail;
@@ -406,6 +419,8 @@ static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 	static struct mdp4_platform_config config = {};
 #ifdef CONFIG_OF
 	/* TODO */
+	config.max_clk = 266667000;
+	config.iommu = iommu_domain_alloc(&platform_bus_type);
 #else
 	if (cpu_is_apq8064())
 		config.max_clk = 266667000;

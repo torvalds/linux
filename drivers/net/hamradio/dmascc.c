@@ -466,7 +466,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 	if (!info)
 		goto out;
 
-	info->dev[0] = alloc_netdev(0, "", dev_setup);
+	info->dev[0] = alloc_netdev(0, "", NET_NAME_UNKNOWN, dev_setup);
 	if (!info->dev[0]) {
 		printk(KERN_ERR "dmascc: "
 		       "could not allocate memory for %s at %#3x\n",
@@ -474,7 +474,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 		goto out1;
 	}
 
-	info->dev[1] = alloc_netdev(0, "", dev_setup);
+	info->dev[1] = alloc_netdev(0, "", NET_NAME_UNKNOWN, dev_setup);
 	if (!info->dev[1]) {
 		printk(KERN_ERR "dmascc: "
 		       "could not allocate memory for %s at %#3x\n",

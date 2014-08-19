@@ -161,6 +161,20 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	asm volatile (ALTERNATIVE(oldinstr, newinstr, feature)		\
 		: : "i" (0), ## input)
 
+/*
+ * This is similar to alternative_input. But it has two features and
+ * respective instructions.
+ *
+ * If CPU has feature2, newinstr2 is used.
+ * Otherwise, if CPU has feature1, newinstr1 is used.
+ * Otherwise, oldinstr is used.
+ */
+#define alternative_input_2(oldinstr, newinstr1, feature1, newinstr2,	     \
+			   feature2, input...)				     \
+	asm volatile(ALTERNATIVE_2(oldinstr, newinstr1, feature1,	     \
+		newinstr2, feature2)					     \
+		: : "i" (0), ## input)
+
 /* Like alternative_input, but with a single output argument */
 #define alternative_io(oldinstr, newinstr, feature, output, input...)	\
 	asm volatile (ALTERNATIVE(oldinstr, newinstr, feature)		\

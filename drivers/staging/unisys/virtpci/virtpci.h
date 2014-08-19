@@ -58,8 +58,8 @@ struct virtpci_dev {
 						 * this device */
 	unsigned short vendor;	/* vendor id for device */
 	unsigned short device;	/* device id for device */
-	U32 busNo;		/* number of bus on which device exists */
-	U32 deviceNo;		/* device's number on the bus */
+	u32 busNo;		/* number of bus on which device exists */
+	u32 deviceNo;		/* device's number on the bus */
 	struct InterruptInfo intr;	/* interrupt info */
 	struct device generic_dev;	/* generic device */
 	union {
@@ -77,8 +77,6 @@ struct virtpci_driver {
 	const char *name;	/* the name of the driver in sysfs */
 	const char *version;
 	const char *vertag;
-	const char *build_date;
-	const char *build_time;
 	const struct pci_device_id *id_table;	/* must be non-NULL for probe
 						 * to be called */
 	int (*probe)(struct virtpci_dev *dev,

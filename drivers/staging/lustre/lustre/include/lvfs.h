@@ -41,10 +41,10 @@
 
 #define LL_FID_NAMELEN (16 + 1 + 8 + 1)
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lvfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "linux/lvfs.h"
 
-#include <linux/libcfs/lucache.h>
+#include "../../include/linux/libcfs/lucache.h"
 
 
 /* lvfs_common.c */

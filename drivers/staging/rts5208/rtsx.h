@@ -46,7 +46,6 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 
-#include "debug.h"
 #include "trace.h"
 #include "general.h"
 

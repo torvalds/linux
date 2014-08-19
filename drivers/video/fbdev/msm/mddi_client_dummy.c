@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -51,8 +52,7 @@ static int mddi_dummy_probe(struct platform_device *pdev)
 {
 	struct msm_mddi_client_data *client_data = pdev->dev.platform_data;
 	struct panel_info *panel =
-		kzalloc(sizeof(struct panel_info), GFP_KERNEL);
-	int ret;
+		devm_kzalloc(&pdev->dev, sizeof(struct panel_info), GFP_KERNEL);
 	if (!panel)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, panel);
@@ -67,24 +67,11 @@ static int mddi_dummy_probe(struct platform_device *pdev)
 				      client_data->fb_resource, 1);
 	panel->panel_data.fb_data = client_data->private_client_data;
 	panel->pdev.dev.platform_data = &panel->panel_data;
-	ret = platform_device_register(&panel->pdev);
-	if (ret) {
-		kfree(panel);
-		return ret;
-	}
-	return 0;
-}
-
-static int mddi_dummy_remove(struct platform_device *pdev)
-{
-	struct panel_info *panel = platform_get_drvdata(pdev);
-	kfree(panel);
-	return 0;
+	return platform_device_register(&panel->pdev);
 }
 
 static struct platform_driver mddi_client_dummy = {
 	.probe = mddi_dummy_probe,
-	.remove = mddi_dummy_remove,
 	.driver = { .name = "mddi_c_dummy" },
 };
 

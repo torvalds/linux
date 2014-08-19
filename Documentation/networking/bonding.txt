@@ -542,10 +542,10 @@ mode
 
 		XOR policy: Transmit based on the selected transmit
 		hash policy.  The default policy is a simple [(source
-		MAC address XOR'd with destination MAC address) modulo
-		slave count].  Alternate transmit policies may be
-		selected via the xmit_hash_policy option, described
-		below.
+		MAC address XOR'd with destination MAC address XOR
+		packet type ID) modulo slave count].  Alternate transmit
+		policies may be	selected via the xmit_hash_policy option,
+		described below.
 
 		This mode provides load balancing and fault tolerance.
 
@@ -801,10 +801,11 @@ xmit_hash_policy
 
 	layer2
 
-		Uses XOR of hardware MAC addresses to generate the
-		hash.  The formula is
+		Uses XOR of hardware MAC addresses and packet type ID
+		field to generate the hash. The formula is
 
-		(source MAC XOR destination MAC) modulo slave count
+		hash = source MAC XOR destination MAC XOR packet type ID
+		slave number = hash modulo slave count
 
 		This algorithm will place all traffic to a particular
 		network peer on the same slave.
@@ -819,7 +820,7 @@ xmit_hash_policy
 		Uses XOR of hardware MAC addresses and IP addresses to
 		generate the hash.  The formula is
 
-		hash = source MAC XOR destination MAC
+		hash = source MAC XOR destination MAC XOR packet type ID
 		hash = hash XOR source IP XOR destination IP
 		hash = hash XOR (hash RSHIFT 16)
 		hash = hash XOR (hash RSHIFT 8)
@@ -2301,13 +2302,13 @@ broadcast: Like active-backup, there is not much advantage to this
 	bandwidth.  
 
 	Additionally, the linux bonding 802.3ad implementation
-	distributes traffic by peer (using an XOR of MAC addresses),
-	so in a "gatewayed" configuration, all outgoing traffic will
-	generally use the same device.  Incoming traffic may also end
-	up on a single device, but that is dependent upon the
-	balancing policy of the peer's 8023.ad implementation.  In a
-	"local" configuration, traffic will be distributed across the
-	devices in the bond.
+	distributes traffic by peer (using an XOR of MAC addresses
+	and packet type ID), so in a "gatewayed" configuration, all
+	outgoing traffic will generally use the same device.  Incoming
+	traffic may also end up on a single device, but that is
+	dependent upon the balancing policy of the peer's 8023.ad
+	implementation.  In a "local" configuration, traffic will be
+	distributed across the devices in the bond.
 
 	Finally, the 802.3ad mode mandates the use of the MII monitor,
 	therefore, the ARP monitor is not available in this mode.

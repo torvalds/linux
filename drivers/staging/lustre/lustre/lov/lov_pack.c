@@ -42,11 +42,11 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include <lustre_net.h>
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre/lustre_user.h>
+#include "../include/lustre_net.h"
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre/lustre_user.h"
 
 #include "lov_internal.h"
 
@@ -555,7 +555,7 @@ int lov_setea(struct obd_export *exp, struct lov_stripe_md **lsmp,
 			return rc;
 		if (ostid_id(&lmm_objects[i].l_ost_oi) > last_id) {
 			CERROR("Setting EA for object > than last id on"
-			       " ost idx %d "DOSTID" > "LPD64" \n",
+			       " ost idx %d "DOSTID" > %lld \n",
 			       lmm_objects[i].l_ost_idx,
 			       POSTID(&lmm_objects[i].l_ost_oi), last_id);
 			return -EINVAL;

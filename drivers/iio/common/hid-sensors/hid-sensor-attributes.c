@@ -26,12 +26,12 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-struct {
+static struct {
 	u32 usage_id;
 	int unit; /* 0 for default others from HID sensor spec */
 	int scale_val0; /* scale, whole number */
 	int scale_val1; /* scale, fraction in micros */
-} static unit_conversion[] = {
+} unit_conversion[] = {
 	{HID_USAGE_SENSOR_ACCEL_3D, 0, 9, 806650},
 	{HID_USAGE_SENSOR_ACCEL_3D,
 		HID_USAGE_SENSOR_UNITS_METERS_PER_SEC_SQRD, 1, 0},
@@ -343,6 +343,7 @@ int hid_sensor_format_scale(u32 usage_id,
 }
 EXPORT_SYMBOL(hid_sensor_format_scale);
 
+static
 int hid_sensor_get_reporting_interval(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
 					struct hid_sensor_common *st)

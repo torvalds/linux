@@ -125,7 +125,7 @@ static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr,
 	soc_dev_attr->revision = ux500_get_revision();
 }
 
-struct device_attribute ux500_soc_attr =
+static const struct device_attribute ux500_soc_attr =
 	__ATTR(process,  S_IRUGO, ux500_get_process,  NULL);
 
 struct device * __init ux500_soc_device_init(const char *soc_id)

@@ -101,18 +101,16 @@ ipfrag_high_thresh - INTEGER
 	Maximum memory used to reassemble IP fragments. When
 	ipfrag_high_thresh bytes of memory is allocated for this purpose,
 	the fragment handler will toss packets until ipfrag_low_thresh
-	is reached.
+	is reached. This also serves as a maximum limit to namespaces
+	different from the initial one.
 
 ipfrag_low_thresh - INTEGER
-	See ipfrag_high_thresh
+	Maximum memory used to reassemble IP fragments before the kernel
+	begins to remove incomplete fragment queues to free up resources.
+	The kernel still accepts new fragments for defragmentation.
 
 ipfrag_time - INTEGER
 	Time in seconds to keep an IP fragment in memory.
-
-ipfrag_secret_interval - INTEGER
-	Regeneration interval (in seconds) of the hash secret (or lifetime
-	for the hash secret) for IP fragments.
-	Default: 600
 
 ipfrag_max_dist - INTEGER
 	ipfrag_max_dist is a non-negative integer value which defines the
@@ -1132,6 +1130,15 @@ flowlabel_consistency - BOOLEAN
 	FALSE: disabled
 	Default: TRUE
 
+auto_flowlabels - BOOLEAN
+	Automatically generate flow labels based based on a flow hash
+	of the packet. This allows intermediate devices, such as routers,
+	to idenfify packet flows for mechanisms like Equal Cost Multipath
+	Routing (see RFC 6438).
+	TRUE: enabled
+	FALSE: disabled
+	Default: false
+
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6
 	echo reply
@@ -1152,11 +1159,6 @@ ip6frag_low_thresh - INTEGER
 
 ip6frag_time - INTEGER
 	Time in seconds to keep an IPv6 fragment in memory.
-
-ip6frag_secret_interval - INTEGER
-	Regeneration interval (in seconds) of the hash secret (or lifetime
-	for the hash secret) for IPv6 fragments.
-	Default: 600
 
 conf/default/*:
 	Change the interface-specific default settings.
@@ -1209,6 +1211,18 @@ accept_ra_defrtr - BOOLEAN
 
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.
+
+accept_ra_from_local - BOOLEAN
+	Accept RA with source-address that is found on local machine
+        if the RA is otherwise proper and able to be accepted.
+        Default is to NOT accept these as it may be an un-intended
+        network loop.
+
+	Functional default:
+           enabled if accept_ra_from_local is enabled
+               on a specific interface.
+	   disabled if accept_ra_from_local is disabled
+               on a specific interface.
 
 accept_ra_pinfo - BOOLEAN
 	Learn Prefix Information in Router Advertisement.

@@ -317,7 +317,7 @@ static void csi2_ctx_enable(struct iss_csi2_device *csi2, u8 ctxnum, u8 enable)
 static void csi2_ctx_config(struct iss_csi2_device *csi2,
 			    struct iss_csi2_ctx_cfg *ctx)
 {
-	u32 reg;
+	u32 reg = 0;
 
 	/* Set up CSI2_CTx_CTRL1 */
 	if (ctx->eof_enabled)

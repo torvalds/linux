@@ -340,12 +340,18 @@ function dump(first, pastlast)
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
 		print "rm -f " builddir ".ready"
-		print "echo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date`";
-		print "echo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date` >> " rd "/log";
+		print "if test -z \"$TORTURE_BUILDONLY\""
+		print "then"
+		print "\techo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date`";
+		print "\techo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date` >> " rd "/log";
+		print "fi"
 	}
 	print "wait"
-	print "echo ---- All kernel runs complete. `date`";
-	print "echo ---- All kernel runs complete. `date` >> " rd "/log";
+	print "if test -z \"$TORTURE_BUILDONLY\""
+	print "then"
+	print "\techo ---- All kernel runs complete. `date`";
+	print "\techo ---- All kernel runs complete. `date` >> " rd "/log";
+	print "fi"
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
 		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results:";
@@ -385,10 +391,7 @@ echo
 echo
 echo " --- `date` Test summary:"
 echo Results directory: $resdir/$ds
-if test -z "$TORTURE_BUILDONLY"
-then
-	kvm-recheck.sh $resdir/$ds
-fi
+kvm-recheck.sh $resdir/$ds
 ___EOF___
 
 if test "$dryrun" = script
@@ -403,7 +406,7 @@ then
 		sed -e 's/:.*$//' -e 's/^echo //'
 	exit 0
 else
-	# Not a dryru, so run the script.
+	# Not a dryrun, so run the script.
 	sh $T/script
 fi
 

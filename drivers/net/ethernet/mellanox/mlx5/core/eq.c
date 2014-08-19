@@ -252,7 +252,9 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			case MLX5_PORT_CHANGE_SUBTYPE_GUID:
 			case MLX5_PORT_CHANGE_SUBTYPE_CLIENT_REREG:
 			case MLX5_PORT_CHANGE_SUBTYPE_INITIALIZED:
-				dev->event(dev, port_subtype_event(eqe->sub_type), &port);
+				if (dev->event)
+					dev->event(dev, port_subtype_event(eqe->sub_type),
+						   (unsigned long)port);
 				break;
 			default:
 				mlx5_core_warn(dev, "Port event with unrecognized subtype: port %d, sub_type %d\n",

@@ -471,7 +471,6 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	const struct pinmux_ops *ops = pctldev->desc->pmxops;
 	int ret = 0;
 	const unsigned *pins = NULL;
 	unsigned num_pins = 0;
@@ -518,9 +517,6 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 				 pins[i], desc->name, gname);
 		}
 	}
-
-	if (ops->disable)
-		ops->disable(pctldev, setting->data.mux.func, setting->data.mux.group);
 }
 
 #ifdef CONFIG_DEBUG_FS

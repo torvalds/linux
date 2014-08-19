@@ -144,16 +144,6 @@ config TCIC
 	  "Bridge" is the name used for the hardware inside your computer that
 	  PCMCIA cards are plugged into. If unsure, say N.
 
-config PCMCIA_M8XX
-	tristate "MPC8xx PCMCIA support"
-	depends on PCCARD && PPC && 8xx
-	select PCCARD_IODYN if PCMCIA != n
-	help
-	  Say Y here to include support for PowerPC 8xx series PCMCIA
-	  controller.
-
-	  This driver is also available as a module called m8xx_pcmcia.
-
 config PCMCIA_ALCHEMY_DEVBOARD
 	tristate "Alchemy Db/Pb1xxx PCMCIA socket services"
 	depends on MIPS_ALCHEMY && PCMCIA
@@ -202,6 +192,7 @@ config PCMCIA_SA1111
 	depends on ARM && SA1111 && PCMCIA
 	select PCMCIA_SOC_COMMON
 	select PCMCIA_SA11XX_BASE if ARCH_SA1100
+	select PCMCIA_PXA2XX if ARCH_LUBBOCK && SA1111
 	help
 	  Say Y  here to include support for SA1111-based PCMCIA or CF
 	  sockets, found on the Jornada 720, Graphicsmaster and other
@@ -217,7 +208,6 @@ config PCMCIA_PXA2XX
 		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES || MACH_STARGATE2 \
 		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
 		    || MACH_COLIBRI320 || MACH_H4700)
-	select PCMCIA_SA1111 if ARCH_LUBBOCK && SA1111
 	select PCMCIA_SOC_COMMON
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller

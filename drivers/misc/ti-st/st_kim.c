@@ -244,7 +244,8 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	if (version & 0x8000)
 		maj_ver |= 0x0008;
 
-	sprintf(bts_scr_name, "TIInit_%d.%d.%d.bts", chip, maj_ver, min_ver);
+	sprintf(bts_scr_name, "ti-connectivity/TIInit_%d.%d.%d.bts",
+		chip, maj_ver, min_ver);
 
 	/* to be accessed later via sysfs entry */
 	kim_gdata->version.full = version;
@@ -287,7 +288,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 	long len = 0;
 	unsigned char *ptr = NULL;
 	unsigned char *action_ptr = NULL;
-	unsigned char bts_scr_name[30] = { 0 };	/* 30 char long bts scr name? */
+	unsigned char bts_scr_name[40] = { 0 };	/* 40 char long bts scr name? */
 	int wr_room_space;
 	int cmd_size;
 	unsigned long timeout;
@@ -778,7 +779,7 @@ static int kim_probe(struct platform_device *pdev)
 	pr_info("sysfs entries created\n");
 
 	kim_debugfs_dir = debugfs_create_dir("ti-st", NULL);
-	if (IS_ERR(kim_debugfs_dir)) {
+	if (!kim_debugfs_dir) {
 		pr_err(" debugfs entries creation failed ");
 		err = -EIO;
 		goto err_debugfs_dir;
@@ -788,7 +789,6 @@ static int kim_probe(struct platform_device *pdev)
 				kim_gdata, &version_debugfs_fops);
 	debugfs_create_file("protocols", S_IRUGO, kim_debugfs_dir,
 				kim_gdata, &list_debugfs_fops);
-	pr_info(" debugfs entries created ");
 	return 0;
 
 err_debugfs_dir:

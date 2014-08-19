@@ -3,6 +3,7 @@
 ** Required properties:
 
 - compatible : One of the following:
+	       "samsung,exynos3250-tmu"
 	       "samsung,exynos4412-tmu"
 	       "samsung,exynos4210-tmu"
 	       "samsung,exynos5250-tmu"

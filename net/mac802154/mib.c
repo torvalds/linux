@@ -175,9 +175,9 @@ static void phy_chan_notify(struct work_struct *work)
 
 	mutex_lock(&priv->hw->phy->pib_lock);
 	res = hw->ops->set_channel(&hw->hw, priv->page, priv->chan);
-	if (res)
+	if (res) {
 		pr_debug("set_channel failed\n");
-	else {
+	} else {
 		priv->hw->phy->current_channel = priv->chan;
 		priv->hw->phy->current_page = priv->page;
 	}
@@ -210,8 +210,9 @@ void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 		INIT_WORK(&work->work, phy_chan_notify);
 		work->dev = dev;
 		queue_work(priv->hw->dev_workqueue, &work->work);
-	} else
+	} else {
 		mutex_unlock(&priv->hw->phy->pib_lock);
+	}
 }
 
 

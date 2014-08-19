@@ -92,7 +92,6 @@
 
 /* netdevice method functions */
 static int p80211knetdev_init(netdevice_t *netdev);
-static struct net_device_stats *p80211knetdev_get_stats(netdevice_t *netdev);
 static int p80211knetdev_open(netdevice_t *netdev);
 static int p80211knetdev_stop(netdevice_t *netdev);
 static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
@@ -131,30 +130,6 @@ static int p80211knetdev_init(netdevice_t *netdev)
 	/* already been done by the MSD and the create_kdev */
 	/* function.  All we do here is return success */
 	return 0;
-}
-
-/*----------------------------------------------------------------
-* p80211knetdev_get_stats
-*
-* Statistics retrieval for linux netdevices.  Here we're reporting
-* the Linux i/f level statistics.  Hence, for the primary numbers,
-* we don't want to report the numbers from the MIB.  Eventually,
-* it might be useful to collect some of the error counters though.
-*
-* Arguments:
-*	netdev		Linux netdevice
-*
-* Returns:
-*	the address of the statistics structure
-----------------------------------------------------------------*/
-static struct net_device_stats *p80211knetdev_get_stats(netdevice_t *netdev)
-{
-	wlandevice_t *wlandev = netdev->ml_priv;
-
-	/* TODO: review the MIB stats for items that correspond to
-	   linux stats */
-
-	return &(wlandev->linux_stats);
 }
 
 /*----------------------------------------------------------------
@@ -273,8 +248,8 @@ static int p80211_convert_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
 
 	if (skb_p80211_to_ether(wlandev, wlandev->ethconv, skb) == 0) {
 		skb->dev->last_rx = jiffies;
-		wlandev->linux_stats.rx_packets++;
-		wlandev->linux_stats.rx_bytes += skb->len;
+		wlandev->netdev->stats.rx_packets++;
+		wlandev->netdev->stats.rx_bytes += skb->len;
 		netif_rx_ni(skb);
 		return 0;
 	}
@@ -310,8 +285,8 @@ static void p80211netdev_rx_bh(unsigned long arg)
 				skb->protocol = htons(ETH_P_80211_RAW);
 				dev->last_rx = jiffies;
 
-				wlandev->linux_stats.rx_packets++;
-				wlandev->linux_stats.rx_bytes += skb->len;
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes += skb->len;
 				netif_rx_ni(skb);
 				continue;
 			} else {
@@ -386,7 +361,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 		if (skb->protocol != ETH_P_80211_RAW) {
 			netif_start_queue(wlandev->netdev);
 			netdev_notice(netdev, "Tx attempt prior to association, frame dropped.\n");
-			wlandev->linux_stats.tx_dropped++;
+			netdev->stats.tx_dropped++;
 			result = 0;
 			goto failed;
 		}
@@ -420,9 +395,9 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 
 	netdev->trans_start = jiffies;
 
-	wlandev->linux_stats.tx_packets++;
+	netdev->stats.tx_packets++;
 	/* count only the packet payload */
-	wlandev->linux_stats.tx_bytes += skb->len;
+	netdev->stats.tx_bytes += skb->len;
 
 	txresult = wlandev->txframe(wlandev, skb, &p80211_hdr, &p80211_wep);
 
@@ -710,7 +685,6 @@ static const struct net_device_ops p80211_netdev_ops = {
 	.ndo_init = p80211knetdev_init,
 	.ndo_open = p80211knetdev_open,
 	.ndo_stop = p80211knetdev_stop,
-	.ndo_get_stats = p80211knetdev_get_stats,
 	.ndo_start_xmit = p80211knetdev_hard_start_xmit,
 	.ndo_set_rx_mode = p80211knetdev_set_multicast_list,
 	.ndo_do_ioctl = p80211knetdev_do_ioctl,
@@ -769,7 +743,7 @@ int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
 
 	/* Allocate and initialize the struct device */
 	netdev = alloc_netdev(sizeof(struct wireless_dev), "wlan%d",
-				ether_setup);
+			      NET_NAME_UNKNOWN, ether_setup);
 	if (netdev == NULL) {
 		dev_err(physdev, "Failed to alloc netdev.\n");
 		wlan_free_wiphy(wiphy);

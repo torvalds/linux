@@ -3,6 +3,7 @@
 #include <libunwind.h>
 #include "perf_regs.h"
 #include "../../util/unwind.h"
+#include "../../util/debug.h"
 
 #ifdef HAVE_ARCH_X86_64_SUPPORT
 int libunwind__arch_reg_id(int regnum)

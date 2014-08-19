@@ -10,6 +10,11 @@ config ARM_GIC
 config GIC_NON_BANKED
 	bool
 
+config ARM_GIC_V3
+	bool
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+
 config ARM_NVIC
 	bool
 	select IRQ_DOMAIN
@@ -23,12 +28,25 @@ config ARM_VIC
 config ARM_VIC_NR
 	int
 	default 4 if ARCH_S5PV210
-	default 3 if ARCH_S5PC100
 	default 2
 	depends on ARM_VIC
 	help
 	  The maximum number of VICs available in the system, for
 	  power management.
+
+config ATMEL_AIC_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
+config ATMEL_AIC5_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 
 config BRCMSTB_L2_IRQ
 	bool
@@ -52,6 +70,10 @@ config CLPS711X_IRQCHIP
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	default y
+
+config OR1K_PIC
+	bool
+	select IRQ_DOMAIN
 
 config ORION_IRQCHIP
 	bool

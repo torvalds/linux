@@ -228,7 +228,8 @@ static void hippi_setup(struct net_device *dev)
 
 struct net_device *alloc_hippi_dev(int sizeof_priv)
 {
-	return alloc_netdev(sizeof_priv, "hip%d", hippi_setup);
+	return alloc_netdev(sizeof_priv, "hip%d", NET_NAME_UNKNOWN,
+			    hippi_setup);
 }
 
 EXPORT_SYMBOL(alloc_hippi_dev);

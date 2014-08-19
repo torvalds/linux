@@ -470,7 +470,6 @@ static int af9013_statistics_snr_result(struct dvb_frontend *fe)
 		break;
 	default:
 		goto err;
-		break;
 	}
 
 	for (i = 0; i < len; i++) {

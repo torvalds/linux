@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
- * Author: Andrzej Haja <a.hajda@samsung.com>
+ * Author: Andrzej Hajda <a.hajda@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

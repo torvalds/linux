@@ -158,6 +158,9 @@ static void __reset_intercept_indicators(struct kvm_vcpu *vcpu)
 					       LCTL_CR10 | LCTL_CR11);
 		vcpu->arch.sie_block->ictl |= (ICTL_STCTL | ICTL_PINT);
 	}
+
+	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP)
+		atomic_set_mask(CPUSTAT_STOP_INT, &vcpu->arch.sie_block->cpuflags);
 }
 
 static void __set_cpuflag(struct kvm_vcpu *vcpu, u32 flag)
@@ -544,13 +547,13 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	int rc = 0;
 
 	if (atomic_read(&li->active)) {
-		spin_lock_bh(&li->lock);
+		spin_lock(&li->lock);
 		list_for_each_entry(inti, &li->list, list)
 			if (__interrupt_is_deliverable(vcpu, inti)) {
 				rc = 1;
 				break;
 			}
-		spin_unlock_bh(&li->lock);
+		spin_unlock(&li->lock);
 	}
 
 	if ((!rc) && atomic_read(&fi->active)) {
@@ -585,88 +588,56 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 {
 	u64 now, sltime;
-	DECLARE_WAITQUEUE(wait, current);
 
 	vcpu->stat.exit_wait_state++;
-	if (kvm_cpu_has_interrupt(vcpu))
-		return 0;
 
-	__set_cpu_idle(vcpu);
-	spin_lock_bh(&vcpu->arch.local_int.lock);
-	vcpu->arch.local_int.timer_due = 0;
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
+	/* fast path */
+	if (kvm_cpu_has_pending_timer(vcpu) || kvm_arch_vcpu_runnable(vcpu))
+		return 0;
 
 	if (psw_interrupts_disabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "disabled wait");
-		__unset_cpu_idle(vcpu);
 		return -EOPNOTSUPP; /* disabled wait */
 	}
 
+	__set_cpu_idle(vcpu);
 	if (!ckc_interrupts_enabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "enabled wait w/o timer");
 		goto no_timer;
 	}
 
 	now = get_tod_clock_fast() + vcpu->arch.sie_block->epoch;
-	if (vcpu->arch.sie_block->ckc < now) {
-		__unset_cpu_idle(vcpu);
-		return 0;
-	}
-
 	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
-
 	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
 	VCPU_EVENT(vcpu, 5, "enabled wait via clock comparator: %llx ns", sltime);
 no_timer:
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-	spin_lock(&vcpu->arch.local_int.float_int->lock);
-	spin_lock_bh(&vcpu->arch.local_int.lock);
-	add_wait_queue(&vcpu->wq, &wait);
-	while (list_empty(&vcpu->arch.local_int.list) &&
-		list_empty(&vcpu->arch.local_int.float_int->list) &&
-		(!vcpu->arch.local_int.timer_due) &&
-		!signal_pending(current) &&
-		!kvm_s390_si_ext_call_pending(vcpu)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		spin_unlock_bh(&vcpu->arch.local_int.lock);
-		spin_unlock(&vcpu->arch.local_int.float_int->lock);
-		schedule();
-		spin_lock(&vcpu->arch.local_int.float_int->lock);
-		spin_lock_bh(&vcpu->arch.local_int.lock);
-	}
+	kvm_vcpu_block(vcpu);
 	__unset_cpu_idle(vcpu);
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&vcpu->wq, &wait);
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
-	spin_unlock(&vcpu->arch.local_int.float_int->lock);
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
 	return 0;
 }
 
-void kvm_s390_tasklet(unsigned long parm)
+void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) parm;
-
-	spin_lock(&vcpu->arch.local_int.lock);
-	vcpu->arch.local_int.timer_due = 1;
-	if (waitqueue_active(&vcpu->wq))
+	if (waitqueue_active(&vcpu->wq)) {
+		/*
+		 * The vcpu gave up the cpu voluntarily, mark it as a good
+		 * yield-candidate.
+		 */
+		vcpu->preempted = true;
 		wake_up_interruptible(&vcpu->wq);
-	spin_unlock(&vcpu->arch.local_int.lock);
+	}
 }
 
-/*
- * low level hrtimer wake routine. Because this runs in hardirq context
- * we schedule a tasklet to do the real work.
- */
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
-	vcpu->preempted = true;
-	tasklet_schedule(&vcpu->arch.tasklet);
+	kvm_s390_vcpu_wakeup(vcpu);
 
 	return HRTIMER_NORESTART;
 }
@@ -676,13 +647,13 @@ void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_interrupt_info  *n, *inti = NULL;
 
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	list_for_each_entry_safe(inti, n, &li->list, list) {
 		list_del(&inti->list);
 		kfree(inti);
 	}
 	atomic_set(&li->active, 0);
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 
 	/* clear pending external calls set by sigp interpretation facility */
 	atomic_clear_mask(CPUSTAT_ECALL_PEND, &vcpu->arch.sie_block->cpuflags);
@@ -701,7 +672,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 	if (atomic_read(&li->active)) {
 		do {
 			deliver = 0;
-			spin_lock_bh(&li->lock);
+			spin_lock(&li->lock);
 			list_for_each_entry_safe(inti, n, &li->list, list) {
 				if (__interrupt_is_deliverable(vcpu, inti)) {
 					list_del(&inti->list);
@@ -712,7 +683,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			}
 			if (list_empty(&li->list))
 				atomic_set(&li->active, 0);
-			spin_unlock_bh(&li->lock);
+			spin_unlock(&li->lock);
 			if (deliver) {
 				__do_deliver_interrupt(vcpu, inti);
 				kfree(inti);
@@ -758,7 +729,7 @@ void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu)
 	if (atomic_read(&li->active)) {
 		do {
 			deliver = 0;
-			spin_lock_bh(&li->lock);
+			spin_lock(&li->lock);
 			list_for_each_entry_safe(inti, n, &li->list, list) {
 				if ((inti->type == KVM_S390_MCHK) &&
 				    __interrupt_is_deliverable(vcpu, inti)) {
@@ -770,7 +741,7 @@ void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu)
 			}
 			if (list_empty(&li->list))
 				atomic_set(&li->active, 0);
-			spin_unlock_bh(&li->lock);
+			spin_unlock(&li->lock);
 			if (deliver) {
 				__do_deliver_interrupt(vcpu, inti);
 				kfree(inti);
@@ -817,11 +788,11 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 
 	VCPU_EVENT(vcpu, 3, "inject: program check %d (from kernel)", code);
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, inti->type, code, 0, 1);
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	list_add(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	BUG_ON(waitqueue_active(li->wq));
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 	return 0;
 }
 
@@ -842,11 +813,11 @@ int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
 
 	inti->type = KVM_S390_PROGRAM_INT;
 	memcpy(&inti->pgm, pgm_info, sizeof(inti->pgm));
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	list_add(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	BUG_ON(waitqueue_active(li->wq));
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 	return 0;
 }
 
@@ -934,12 +905,10 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	}
 	dst_vcpu = kvm_get_vcpu(kvm, sigcpu);
 	li = &dst_vcpu->arch.local_int;
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(li->wq))
-		wake_up_interruptible(li->wq);
-	kvm_get_vcpu(kvm, sigcpu)->preempted = true;
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
+	kvm_s390_vcpu_wakeup(kvm_get_vcpu(kvm, sigcpu));
 unlock_fi:
 	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
@@ -1081,7 +1050,7 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 
 	mutex_lock(&vcpu->kvm->lock);
 	li = &vcpu->arch.local_int;
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	if (inti->type == KVM_S390_PROGRAM_INT)
 		list_add(&inti->list, &li->list);
 	else
@@ -1090,11 +1059,9 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 	if (inti->type == KVM_S390_SIGP_STOP)
 		li->action_bits |= ACTION_STOP_ON_STOP;
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(&vcpu->wq))
-		wake_up_interruptible(&vcpu->wq);
-	vcpu->preempted = true;
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 	mutex_unlock(&vcpu->kvm->lock);
+	kvm_s390_vcpu_wakeup(vcpu);
 	return 0;
 }
 
@@ -1589,8 +1556,7 @@ static int set_adapter_int(struct kvm_kernel_irq_routing_entry *e,
 	return ret;
 }
 
-int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
-			  struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
 	int ret;

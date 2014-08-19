@@ -5,6 +5,7 @@
 #include <api/fs/fs.h>
 #include <api/fs/debugfs.h>
 #include "tests.h"
+#include "debug.h"
 #include <linux/hw_breakpoint.h>
 
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \

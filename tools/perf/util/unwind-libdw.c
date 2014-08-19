@@ -3,6 +3,7 @@
 #include <elfutils/libdwfl.h>
 #include <inttypes.h>
 #include <errno.h>
+#include "debug.h"
 #include "unwind.h"
 #include "unwind-libdw.h"
 #include "machine.h"

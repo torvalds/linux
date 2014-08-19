@@ -207,7 +207,9 @@ struct sctp_sock {
 	struct sctp_paddrparams paddrparam;
 	struct sctp_event_subscribe subscribe;
 	struct sctp_assocparams assocparams;
+
 	int user_frag;
+
 	__u32 autoclose;
 	__u8 nodelay;
 	__u8 disable_fragments;
@@ -215,6 +217,8 @@ struct sctp_sock {
 	__u8 frag_interleave;
 	__u32 adaptation_ind;
 	__u32 pd_point;
+	__u8 recvrcvinfo;
+	__u8 recvnxtinfo;
 
 	atomic_t pd_mode;
 	/* Receive to here while partial delivery is in effect. */
@@ -461,10 +465,6 @@ struct sctp_af {
 					 int saddr);
 	void		(*from_sk)	(union sctp_addr *,
 					 struct sock *sk);
-	void		(*to_sk_saddr)	(union sctp_addr *,
-					 struct sock *sk);
-	void		(*to_sk_daddr)	(union sctp_addr *,
-					 struct sock *sk);
 	void		(*from_addr_param) (union sctp_addr *,
 					    union sctp_addr_param *,
 					    __be16 port, int iif);
@@ -505,7 +505,9 @@ struct sctp_pf {
 	int  (*supported_addrs)(const struct sctp_sock *, __be16 *);
 	struct sock *(*create_accept_sk) (struct sock *sk,
 					  struct sctp_association *asoc);
-	void (*addr_v4map) (struct sctp_sock *, union sctp_addr *);
+	int (*addr_to_user)(struct sctp_sock *sk, union sctp_addr *addr);
+	void (*to_sk_saddr)(union sctp_addr *, struct sock *sk);
+	void (*to_sk_daddr)(union sctp_addr *, struct sock *sk);
 	struct sctp_af *af;
 };
 
@@ -1919,7 +1921,8 @@ struct sctp_chunk *sctp_get_ecne_prepend(struct sctp_association *asoc);
 /* A convenience structure to parse out SCTP specific CMSGs. */
 typedef struct sctp_cmsgs {
 	struct sctp_initmsg *init;
-	struct sctp_sndrcvinfo *info;
+	struct sctp_sndrcvinfo *srinfo;
+	struct sctp_sndinfo *sinfo;
 } sctp_cmsgs_t;
 
 /* Structure for tracking memory objects */

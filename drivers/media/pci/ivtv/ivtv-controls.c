@@ -135,8 +135,8 @@ static int ivtv_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	/* V4L2_CID_MPEG_VIDEO_DEC_PTS and V4L2_CID_MPEG_VIDEO_DEC_FRAME
 	   control cluster */
 	case V4L2_CID_MPEG_VIDEO_DEC_PTS:
-		return ivtv_g_pts_frame(itv, &itv->ctrl_pts->val64,
-					     &itv->ctrl_frame->val64);
+		return ivtv_g_pts_frame(itv, itv->ctrl_pts->p_new.p_s64,
+					     itv->ctrl_frame->p_new.p_s64);
 	}
 	return 0;
 }

@@ -277,6 +277,8 @@ n:
 	.globl n;	\
 n:
 
+#define _GLOBAL_TOC(name) _GLOBAL(name)
+
 #define _KPROBE(n)	\
 	.section ".kprobes.text","a";	\
 	.globl	n;	\

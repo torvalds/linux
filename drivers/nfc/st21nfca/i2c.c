@@ -93,7 +93,7 @@ struct st21nfca_i2c_phy {
 	int hard_fault;
 	struct mutex phy_lock;
 };
-static u8 len_seq[] = { 13, 24, 15, 29 };
+static u8 len_seq[] = { 16, 24, 12, 29 };
 static u16 wait_tab[] = { 2, 3, 5, 15, 20, 40};
 
 #define I2C_DUMP_SKB(info, skb)					\
@@ -397,12 +397,11 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 		 * The first read sequence does not start with SOF.
 		 * Data is corrupeted so we drop it.
 		 */
-		if (!phy->current_read_len && buf[0] != ST21NFCA_SOF_EOF) {
+		if (!phy->current_read_len && !IS_START_OF_FRAME(buf)) {
 			skb_trim(skb, 0);
 			phy->current_read_len = 0;
 			return -EIO;
-		} else if (phy->current_read_len &&
-			IS_START_OF_FRAME(buf)) {
+		} else if (phy->current_read_len && IS_START_OF_FRAME(buf)) {
 			/*
 			 * Previous frame transmission was interrupted and
 			 * the frame got repeated.
@@ -487,6 +486,8 @@ static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 		 */
 		nfc_hci_recv_frame(phy->hdev, phy->pending_skb);
 		phy->crc_trials = 0;
+	} else {
+		kfree_skb(phy->pending_skb);
 	}
 
 	phy->pending_skb = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE * 2, GFP_KERNEL);

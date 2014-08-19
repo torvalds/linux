@@ -83,16 +83,26 @@ EXPORT_SYMBOL(ssc_free);
 
 static struct atmel_ssc_platform_data at91rm9200_config = {
 	.use_dma = 0,
+	.has_fslen_ext = 0,
+};
+
+static struct atmel_ssc_platform_data at91sam9rl_config = {
+	.use_dma = 0,
+	.has_fslen_ext = 1,
 };
 
 static struct atmel_ssc_platform_data at91sam9g45_config = {
 	.use_dma = 1,
+	.has_fslen_ext = 1,
 };
 
 static const struct platform_device_id atmel_ssc_devtypes[] = {
 	{
 		.name = "at91rm9200_ssc",
 		.driver_data = (unsigned long) &at91rm9200_config,
+	}, {
+		.name = "at91sam9rl_ssc",
+		.driver_data = (unsigned long) &at91sam9rl_config,
 	}, {
 		.name = "at91sam9g45_ssc",
 		.driver_data = (unsigned long) &at91sam9g45_config,
@@ -106,6 +116,9 @@ static const struct of_device_id atmel_ssc_dt_ids[] = {
 	{
 		.compatible = "atmel,at91rm9200-ssc",
 		.data = &at91rm9200_config,
+	}, {
+		.compatible = "atmel,at91sam9rl-ssc",
+		.data = &at91sam9rl_config,
 	}, {
 		.compatible = "atmel,at91sam9g45-ssc",
 		.data = &at91sam9g45_config,

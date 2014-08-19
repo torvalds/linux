@@ -15,6 +15,9 @@ Required properties:
   "st,stih416-quadfs432",	"st,quadfs"
   "st,stih416-quadfs660-E",	"st,quadfs"
   "st,stih416-quadfs660-F",	"st,quadfs"
+  "st,stih407-quadfs660-C",	"st,quadfs"
+  "st,stih407-quadfs660-D",	"st,quadfs"
+
 
 - #clock-cells : from common clock binding; shall be set to 1.
 
@@ -32,14 +35,14 @@ Required properties:
 
 Example:
 
-	CLOCKGEN_E: CLOCKGEN_E {
+	clockgen_e: clockgen-e@fd3208bc {
                 #clock-cells = <1>;
                 compatible = "st,stih416-quadfs660-E", "st,quadfs";
                 reg = <0xfd3208bc 0xB0>;
 
-                clocks = <&CLK_SYSIN>;
-                clock-output-names = "CLK_M_PIX_MDTP_0",
-                                        "CLK_M_PIX_MDTP_1",
-                                        "CLK_M_PIX_MDTP_2",
-                                        "CLK_M_MPELPC";
+                clocks = <&clk_sysin>;
+                clock-output-names = "clk-m-pix-mdtp-0",
+				     "clk-m-pix-mdtp-1",
+				     "clk-m-pix-mdtp-2",
+				     "clk-m-mpelpc";
         };

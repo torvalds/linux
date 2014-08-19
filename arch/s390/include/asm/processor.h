@@ -217,7 +217,7 @@ static inline void cpu_relax(void)
 	barrier();
 }
 
-#define arch_mutex_cpu_relax()  barrier()
+#define cpu_relax_lowlatency()  barrier()
 
 static inline void psw_set_key(unsigned int key)
 {

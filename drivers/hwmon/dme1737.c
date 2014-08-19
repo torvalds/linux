@@ -247,8 +247,8 @@ struct dme1737_data {
 	u8  pwm_acz[3];
 	u8  pwm_freq[6];
 	u8  pwm_rr[2];
-	u8  zone_low[3];
-	u8  zone_abs[3];
+	s8  zone_low[3];
+	s8  zone_abs[3];
 	u8  zone_hyst[2];
 	u32 alarms;
 };
@@ -277,7 +277,7 @@ static inline int IN_FROM_REG(int reg, int nominal, int res)
 	return (reg * nominal + (3 << (res - 3))) / (3 << (res - 2));
 }
 
-static inline int IN_TO_REG(int val, int nominal)
+static inline int IN_TO_REG(long val, int nominal)
 {
 	return clamp_val((val * 192 + nominal / 2) / nominal, 0, 255);
 }
@@ -293,7 +293,7 @@ static inline int TEMP_FROM_REG(int reg, int res)
 	return (reg * 1000) >> (res - 8);
 }
 
-static inline int TEMP_TO_REG(int val)
+static inline int TEMP_TO_REG(long val)
 {
 	return clamp_val((val < 0 ? val - 500 : val + 500) / 1000, -128, 127);
 }
@@ -308,7 +308,7 @@ static inline int TEMP_RANGE_FROM_REG(int reg)
 	return TEMP_RANGE[(reg >> 4) & 0x0f];
 }
 
-static int TEMP_RANGE_TO_REG(int val, int reg)
+static int TEMP_RANGE_TO_REG(long val, int reg)
 {
 	int i;
 
@@ -331,7 +331,7 @@ static inline int TEMP_HYST_FROM_REG(int reg, int ix)
 	return (((ix == 1) ? reg : reg >> 4) & 0x0f) * 1000;
 }
 
-static inline int TEMP_HYST_TO_REG(int val, int ix, int reg)
+static inline int TEMP_HYST_TO_REG(long val, int ix, int reg)
 {
 	int hyst = clamp_val((val + 500) / 1000, 0, 15);
 
@@ -347,7 +347,7 @@ static inline int FAN_FROM_REG(int reg, int tpc)
 		return (reg == 0 || reg == 0xffff) ? 0 : 90000 * 60 / reg;
 }
 
-static inline int FAN_TO_REG(int val, int tpc)
+static inline int FAN_TO_REG(long val, int tpc)
 {
 	if (tpc) {
 		return clamp_val(val / tpc, 0, 0xffff);
@@ -379,7 +379,7 @@ static inline int FAN_TYPE_FROM_REG(int reg)
 	return (edge > 0) ? 1 << (edge - 1) : 0;
 }
 
-static inline int FAN_TYPE_TO_REG(int val, int reg)
+static inline int FAN_TYPE_TO_REG(long val, int reg)
 {
 	int edge = (val == 4) ? 3 : val;
 
@@ -402,7 +402,7 @@ static int FAN_MAX_FROM_REG(int reg)
 	return 1000 + i * 500;
 }
 
-static int FAN_MAX_TO_REG(int val)
+static int FAN_MAX_TO_REG(long val)
 {
 	int i;
 
@@ -460,7 +460,7 @@ static inline int PWM_ACZ_FROM_REG(int reg)
 	return acz[(reg >> 5) & 0x07];
 }
 
-static inline int PWM_ACZ_TO_REG(int val, int reg)
+static inline int PWM_ACZ_TO_REG(long val, int reg)
 {
 	int acz = (val == 4) ? 2 : val - 1;
 
@@ -476,7 +476,7 @@ static inline int PWM_FREQ_FROM_REG(int reg)
 	return PWM_FREQ[reg & 0x0f];
 }
 
-static int PWM_FREQ_TO_REG(int val, int reg)
+static int PWM_FREQ_TO_REG(long val, int reg)
 {
 	int i;
 
@@ -510,7 +510,7 @@ static inline int PWM_RR_FROM_REG(int reg, int ix)
 	return (rr & 0x08) ? PWM_RR[rr & 0x07] : 0;
 }
 
-static int PWM_RR_TO_REG(int val, int ix, int reg)
+static int PWM_RR_TO_REG(long val, int ix, int reg)
 {
 	int i;
 
@@ -528,7 +528,7 @@ static inline int PWM_RR_EN_FROM_REG(int reg, int ix)
 	return PWM_RR_FROM_REG(reg, ix) ? 1 : 0;
 }
 
-static inline int PWM_RR_EN_TO_REG(int val, int ix, int reg)
+static inline int PWM_RR_EN_TO_REG(long val, int ix, int reg)
 {
 	int en = (ix == 1) ? 0x80 : 0x08;
 
@@ -1481,12 +1481,15 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
 	struct dme1737_data *data = dev_get_drvdata(dev);
-	long val;
+	unsigned long val;
 	int err;
 
-	err = kstrtol(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
+
+	if (val > 255)
+		return -EINVAL;
 
 	data->vrm = val;
 	return count;

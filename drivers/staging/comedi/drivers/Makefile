@@ -13,6 +13,7 @@ obj-$(CONFIG_COMEDI_SKEL)		+= skel.o
 
 # Comedi ISA drivers
 obj-$(CONFIG_COMEDI_AMPLC_DIO200_ISA)	+= amplc_dio200.o
+obj-$(CONFIG_COMEDI_AMPLC_PC236_ISA)	+= amplc_pc236.o
 obj-$(CONFIG_COMEDI_AMPLC_PC263_ISA)	+= amplc_pc263.o
 obj-$(CONFIG_COMEDI_PCL711)		+= pcl711.o
 obj-$(CONFIG_COMEDI_PCL724)		+= pcl724.o
@@ -80,7 +81,7 @@ obj-$(CONFIG_COMEDI_ADV_PCI1723)	+= adv_pci1723.o
 obj-$(CONFIG_COMEDI_ADV_PCI1724)	+= adv_pci1724.o
 obj-$(CONFIG_COMEDI_ADV_PCI_DIO)	+= adv_pci_dio.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200_PCI)	+= amplc_dio200_pci.o
-obj-$(CONFIG_COMEDI_AMPLC_PC236)	+= amplc_pc236.o
+obj-$(CONFIG_COMEDI_AMPLC_PC236_PCI)	+= amplc_pci236.o
 obj-$(CONFIG_COMEDI_AMPLC_PC263_PCI)	+= amplc_pci263.o
 obj-$(CONFIG_COMEDI_AMPLC_PCI224)	+= amplc_pci224.o
 obj-$(CONFIG_COMEDI_AMPLC_PCI230)	+= amplc_pci230.o
@@ -138,5 +139,6 @@ obj-$(CONFIG_COMEDI_NI_LABPC_ISADMA)	+= ni_labpc_isadma.o
 
 obj-$(CONFIG_COMEDI_8255)		+= 8255.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200)	+= amplc_dio200_common.o
+obj-$(CONFIG_COMEDI_AMPLC_PC236)	+= amplc_pc236_common.o
 obj-$(CONFIG_COMEDI_DAS08)		+= das08.o
 obj-$(CONFIG_COMEDI_FC)			+= comedi_fc.o

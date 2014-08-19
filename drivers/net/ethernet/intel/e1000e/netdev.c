@@ -6033,6 +6033,28 @@ release:
 	return retval;
 }
 
+static void e1000e_flush_lpic(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ret_val;
+
+	pm_runtime_get_sync(netdev->dev.parent);
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto fl_out;
+
+	pr_info("EEE TX LPI TIMER: %08X\n",
+		er32(LPIC) >> E1000_LPIC_LPIET_SHIFT);
+
+	hw->phy.ops.release(hw);
+
+fl_out:
+	pm_runtime_put_sync(netdev->dev.parent);
+}
+
 static int e1000e_pm_freeze(struct device *dev)
 {
 	struct net_device *netdev = pci_get_drvdata(to_pci_dev(dev));
@@ -6333,6 +6355,8 @@ static int e1000e_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 
+	e1000e_flush_lpic(pdev);
+
 	e1000e_pm_freeze(dev);
 
 	return __e1000_shutdown(pdev, false);
@@ -6357,9 +6381,14 @@ static int e1000e_pm_runtime_idle(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	u16 eee_lp;
 
-	if (!e1000e_has_link(adapter))
+	eee_lp = adapter->hw.dev_spec.ich8lan.eee_lp_ability;
+
+	if (!e1000e_has_link(adapter)) {
+		adapter->hw.dev_spec.ich8lan.eee_lp_ability = eee_lp;
 		pm_schedule_suspend(dev, 5 * MSEC_PER_SEC);
+	}
 
 	return -EBUSY;
 }
@@ -6411,6 +6440,8 @@ static int e1000e_pm_runtime_suspend(struct device *dev)
 
 static void e1000_shutdown(struct pci_dev *pdev)
 {
+	e1000e_flush_lpic(pdev);
+
 	e1000e_pm_freeze(&pdev->dev);
 
 	__e1000_shutdown(pdev, false);
@@ -6708,6 +6739,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int bars, i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
+	s32 rval = 0;
 
 	if (ei->flags2 & FLAG2_DISABLE_ASPM_L0S)
 		aspm_disable_flag = PCIE_LINK_STATE_L0S;
@@ -6940,15 +6972,19 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else if (adapter->flags & FLAG_APME_IN_CTRL3) {
 		if (adapter->flags & FLAG_APME_CHECK_PORT_B &&
 		    (adapter->hw.bus.func == 1))
-			e1000_read_nvm(&adapter->hw, NVM_INIT_CONTROL3_PORT_B,
-				       1, &eeprom_data);
+			rval = e1000_read_nvm(&adapter->hw,
+					      NVM_INIT_CONTROL3_PORT_B,
+					      1, &eeprom_data);
 		else
-			e1000_read_nvm(&adapter->hw, NVM_INIT_CONTROL3_PORT_A,
-				       1, &eeprom_data);
+			rval = e1000_read_nvm(&adapter->hw,
+					      NVM_INIT_CONTROL3_PORT_A,
+					      1, &eeprom_data);
 	}
 
 	/* fetch WoL from EEPROM */
-	if (eeprom_data & eeprom_apme_mask)
+	if (rval)
+		e_dbg("NVM read error getting WoL initial values: %d\n", rval);
+	else if (eeprom_data & eeprom_apme_mask)
 		adapter->eeprom_wol |= E1000_WUFC_MAG;
 
 	/* now that we have the eeprom settings, apply the special cases
@@ -6967,7 +7003,12 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		device_wakeup_enable(&pdev->dev);
 
 	/* save off EEPROM version number */
-	e1000_read_nvm(&adapter->hw, 5, 1, &adapter->eeprom_vers);
+	rval = e1000_read_nvm(&adapter->hw, 5, 1, &adapter->eeprom_vers);
+
+	if (rval) {
+		e_dbg("NVM read error getting EEPROM version: %d\n", rval);
+		adapter->eeprom_vers = 0;
+	}
 
 	/* reset the hardware with the new settings */
 	e1000e_reset(adapter);

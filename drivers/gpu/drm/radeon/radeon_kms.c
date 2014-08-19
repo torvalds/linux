@@ -254,7 +254,18 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 		break;
 	case RADEON_INFO_ACCEL_WORKING2:
-		*value = rdev->accel_working;
+		if (rdev->family == CHIP_HAWAII) {
+			if (rdev->accel_working) {
+				if (rdev->new_fw)
+					*value = 3;
+				else
+					*value = 2;
+			} else {
+				*value = 0;
+			}
+		} else {
+			*value = rdev->accel_working;
+		}
 		break;
 	case RADEON_INFO_TILING_CONFIG:
 		if (rdev->family >= CHIP_BONAIRE)
@@ -579,7 +590,7 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	/* new gpu have virtual address space support */
 	if (rdev->family >= CHIP_CAYMAN) {
 		struct radeon_fpriv *fpriv;
-		struct radeon_bo_va *bo_va;
+		struct radeon_vm *vm;
 		int r;
 
 		fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
@@ -587,7 +598,8 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 			return -ENOMEM;
 		}
 
-		r = radeon_vm_init(rdev, &fpriv->vm);
+		vm = &fpriv->vm;
+		r = radeon_vm_init(rdev, vm);
 		if (r) {
 			kfree(fpriv);
 			return r;
@@ -596,22 +608,23 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		if (rdev->accel_working) {
 			r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
 			if (r) {
-				radeon_vm_fini(rdev, &fpriv->vm);
+				radeon_vm_fini(rdev, vm);
 				kfree(fpriv);
 				return r;
 			}
 
 			/* map the ib pool buffer read only into
 			 * virtual address space */
-			bo_va = radeon_vm_bo_add(rdev, &fpriv->vm,
-						 rdev->ring_tmp_bo.bo);
-			r = radeon_vm_bo_set_addr(rdev, bo_va, RADEON_VA_IB_OFFSET,
+			vm->ib_bo_va = radeon_vm_bo_add(rdev, vm,
+							rdev->ring_tmp_bo.bo);
+			r = radeon_vm_bo_set_addr(rdev, vm->ib_bo_va,
+						  RADEON_VA_IB_OFFSET,
 						  RADEON_VM_PAGE_READABLE |
 						  RADEON_VM_PAGE_SNOOPED);
 
 			radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
 			if (r) {
-				radeon_vm_fini(rdev, &fpriv->vm);
+				radeon_vm_fini(rdev, vm);
 				kfree(fpriv);
 				return r;
 			}
@@ -640,21 +653,19 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 	/* new gpu have virtual address space support */
 	if (rdev->family >= CHIP_CAYMAN && file_priv->driver_priv) {
 		struct radeon_fpriv *fpriv = file_priv->driver_priv;
-		struct radeon_bo_va *bo_va;
+		struct radeon_vm *vm = &fpriv->vm;
 		int r;
 
 		if (rdev->accel_working) {
 			r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
 			if (!r) {
-				bo_va = radeon_vm_bo_find(&fpriv->vm,
-							  rdev->ring_tmp_bo.bo);
-				if (bo_va)
-					radeon_vm_bo_rmv(rdev, bo_va);
+				if (vm->ib_bo_va)
+					radeon_vm_bo_rmv(rdev, vm->ib_bo_va);
 				radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
 			}
 		}
 
-		radeon_vm_fini(rdev, &fpriv->vm);
+		radeon_vm_fini(rdev, vm);
 		kfree(fpriv);
 		file_priv->driver_priv = NULL;
 	}

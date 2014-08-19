@@ -404,6 +404,11 @@ struct smb_version_operations {
 			const struct cifs_fid *, u32 *);
 	int (*set_acl)(struct cifs_ntsd *, __u32, struct inode *, const char *,
 			int);
+	/* writepages retry size */
+	unsigned int (*wp_retry_size)(struct inode *);
+	/* get mtu credits */
+	int (*wait_mtu_credits)(struct TCP_Server_Info *, unsigned int,
+				unsigned int *, unsigned int *);
 };
 
 struct smb_version_values {
@@ -637,6 +642,16 @@ add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	    const int optype)
 {
 	server->ops->add_credits(server, add, optype);
+}
+
+static inline void
+add_credits_and_wake_if(struct TCP_Server_Info *server, const unsigned int add,
+			const int optype)
+{
+	if (add) {
+		server->ops->add_credits(server, add, optype);
+		wake_up(&server->request_q);
+	}
 }
 
 static inline void
@@ -1044,6 +1059,7 @@ struct cifs_readdata {
 	struct address_space		*mapping;
 	__u64				offset;
 	unsigned int			bytes;
+	unsigned int			got_bytes;
 	pid_t				pid;
 	int				result;
 	struct work_struct		work;
@@ -1053,6 +1069,7 @@ struct cifs_readdata {
 	struct kvec			iov;
 	unsigned int			pagesz;
 	unsigned int			tailsz;
+	unsigned int			credits;
 	unsigned int			nr_pages;
 	struct page			*pages[];
 };
@@ -1073,6 +1090,7 @@ struct cifs_writedata {
 	int				result;
 	unsigned int			pagesz;
 	unsigned int			tailsz;
+	unsigned int			credits;
 	unsigned int			nr_pages;
 	struct page			*pages[];
 };
@@ -1398,6 +1416,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
 #define   CIFS_NEG_OP      0x0200    /* negotiate request */
 #define   CIFS_OP_MASK     0x0380    /* mask request type */
+#define   CIFS_HAS_CREDITS 0x0400    /* already has credits */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001

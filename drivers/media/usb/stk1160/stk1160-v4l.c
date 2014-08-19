@@ -671,7 +671,6 @@ int stk1160_video_register(struct stk1160 *dev)
 
 	/* This will be used to set video_device parent */
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 
 	/* NTSC is default */
 	dev->norm = V4L2_STD_NTSC_M;

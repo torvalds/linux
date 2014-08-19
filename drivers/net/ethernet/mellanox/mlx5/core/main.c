@@ -58,7 +58,100 @@ int mlx5_core_debug_mask;
 module_param_named(debug_mask, mlx5_core_debug_mask, int, 0644);
 MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
 
+#define MLX5_DEFAULT_PROF	2
+static int prof_sel = MLX5_DEFAULT_PROF;
+module_param_named(prof_sel, prof_sel, int, 0444);
+MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
+
 struct workqueue_struct *mlx5_core_wq;
+static LIST_HEAD(intf_list);
+static LIST_HEAD(dev_list);
+static DEFINE_MUTEX(intf_mutex);
+
+struct mlx5_device_context {
+	struct list_head	list;
+	struct mlx5_interface  *intf;
+	void		       *context;
+};
+
+static struct mlx5_profile profile[] = {
+	[0] = {
+		.mask           = 0,
+	},
+	[1] = {
+		.mask		= MLX5_PROF_MASK_QP_SIZE,
+		.log_max_qp	= 12,
+	},
+	[2] = {
+		.mask		= MLX5_PROF_MASK_QP_SIZE |
+				  MLX5_PROF_MASK_MR_CACHE,
+		.log_max_qp	= 17,
+		.mr_cache[0]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[1]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[2]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[3]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[4]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[5]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[6]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[7]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[8]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[9]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[10]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[11]	= {
+			.size	= 500,
+			.limit	= 250
+		},
+		.mr_cache[12]	= {
+			.size	= 64,
+			.limit	= 32
+		},
+		.mr_cache[13]	= {
+			.size	= 32,
+			.limit	= 16
+		},
+		.mr_cache[14]	= {
+			.size	= 16,
+			.limit	= 8
+		},
+		.mr_cache[15]	= {
+			.size	= 8,
+			.limit	= 4
+		},
+	},
+};
 
 static int set_dma_caps(struct pci_dev *pdev)
 {
@@ -218,7 +311,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 
 	copy_rw_fields(&set_ctx->hca_cap, &query_out->hca_cap);
 
-	if (dev->profile->mask & MLX5_PROF_MASK_QP_SIZE)
+	if (dev->profile && dev->profile->mask & MLX5_PROF_MASK_QP_SIZE)
 		set_ctx->hca_cap.log_max_qp = dev->profile->log_max_qp;
 
 	flags = be64_to_cpu(query_out->hca_cap.flags);
@@ -299,7 +392,7 @@ static int mlx5_core_disable_hca(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
+static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	int err;
@@ -489,7 +582,7 @@ err_dbg:
 }
 EXPORT_SYMBOL(mlx5_dev_init);
 
-void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
+static void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
@@ -516,7 +609,190 @@ void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 	pci_disable_device(dev->pdev);
 	debugfs_remove(priv->dbg_root);
 }
-EXPORT_SYMBOL(mlx5_dev_cleanup);
+
+static void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
+{
+	struct mlx5_device_context *dev_ctx;
+	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	dev_ctx = kmalloc(sizeof(*dev_ctx), GFP_KERNEL);
+	if (!dev_ctx) {
+		pr_warn("mlx5_add_device: alloc context failed\n");
+		return;
+	}
+
+	dev_ctx->intf    = intf;
+	dev_ctx->context = intf->add(dev);
+
+	if (dev_ctx->context) {
+		spin_lock_irq(&priv->ctx_lock);
+		list_add_tail(&dev_ctx->list, &priv->ctx_list);
+		spin_unlock_irq(&priv->ctx_lock);
+	} else {
+		kfree(dev_ctx);
+	}
+}
+
+static void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
+{
+	struct mlx5_device_context *dev_ctx;
+	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
+		if (dev_ctx->intf == intf) {
+			spin_lock_irq(&priv->ctx_lock);
+			list_del(&dev_ctx->list);
+			spin_unlock_irq(&priv->ctx_lock);
+
+			intf->remove(dev, dev_ctx->context);
+			kfree(dev_ctx);
+			return;
+		}
+}
+static int mlx5_register_device(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	struct mlx5_interface *intf;
+
+	mutex_lock(&intf_mutex);
+	list_add_tail(&priv->dev_list, &dev_list);
+	list_for_each_entry(intf, &intf_list, list)
+		mlx5_add_device(intf, priv);
+	mutex_unlock(&intf_mutex);
+
+	return 0;
+}
+static void mlx5_unregister_device(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	struct mlx5_interface *intf;
+
+	mutex_lock(&intf_mutex);
+	list_for_each_entry(intf, &intf_list, list)
+		mlx5_remove_device(intf, priv);
+	list_del(&priv->dev_list);
+	mutex_unlock(&intf_mutex);
+}
+
+int mlx5_register_interface(struct mlx5_interface *intf)
+{
+	struct mlx5_priv *priv;
+
+	if (!intf->add || !intf->remove)
+		return -EINVAL;
+
+	mutex_lock(&intf_mutex);
+	list_add_tail(&intf->list, &intf_list);
+	list_for_each_entry(priv, &dev_list, dev_list)
+		mlx5_add_device(intf, priv);
+	mutex_unlock(&intf_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(mlx5_register_interface);
+
+void mlx5_unregister_interface(struct mlx5_interface *intf)
+{
+	struct mlx5_priv *priv;
+
+	mutex_lock(&intf_mutex);
+	list_for_each_entry(priv, &dev_list, dev_list)
+	       mlx5_remove_device(intf, priv);
+	list_del(&intf->list);
+	mutex_unlock(&intf_mutex);
+}
+EXPORT_SYMBOL(mlx5_unregister_interface);
+
+static void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
+			    unsigned long param)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	struct mlx5_device_context *dev_ctx;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->ctx_lock, flags);
+
+	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
+		if (dev_ctx->intf->event)
+			dev_ctx->intf->event(dev, dev_ctx->context, event, param);
+
+	spin_unlock_irqrestore(&priv->ctx_lock, flags);
+}
+
+struct mlx5_core_event_handler {
+	void (*event)(struct mlx5_core_dev *dev,
+		      enum mlx5_dev_event event,
+		      void *data);
+};
+
+static int init_one(struct pci_dev *pdev,
+		    const struct pci_device_id *id)
+{
+	struct mlx5_core_dev *dev;
+	struct mlx5_priv *priv;
+	int err;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		dev_err(&pdev->dev, "kzalloc failed\n");
+		return -ENOMEM;
+	}
+	priv = &dev->priv;
+
+	pci_set_drvdata(pdev, dev);
+
+	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profile)) {
+		pr_warn("selected profile out of range, selecting default (%d)\n",
+			MLX5_DEFAULT_PROF);
+		prof_sel = MLX5_DEFAULT_PROF;
+	}
+	dev->profile = &profile[prof_sel];
+	dev->event = mlx5_core_event;
+
+	err = mlx5_dev_init(dev, pdev);
+	if (err) {
+		dev_err(&pdev->dev, "mlx5_dev_init failed %d\n", err);
+		goto out;
+	}
+
+	INIT_LIST_HEAD(&priv->ctx_list);
+	spin_lock_init(&priv->ctx_lock);
+	err = mlx5_register_device(dev);
+	if (err) {
+		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
+		goto out_init;
+	}
+
+	return 0;
+
+out_init:
+	mlx5_dev_cleanup(dev);
+out:
+	kfree(dev);
+	return err;
+}
+static void remove_one(struct pci_dev *pdev)
+{
+	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
+
+	mlx5_unregister_device(dev);
+	mlx5_dev_cleanup(dev);
+	kfree(dev);
+}
+
+static const struct pci_device_id mlx5_core_pci_table[] = {
+	{ PCI_VDEVICE(MELLANOX, 4113) }, /* MT4113 Connect-IB */
+	{ 0, }
+};
+
+MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
+
+static struct pci_driver mlx5_core_driver = {
+	.name           = DRIVER_NAME,
+	.id_table       = mlx5_core_pci_table,
+	.probe          = init_one,
+	.remove         = remove_one
+};
 
 static int __init init(void)
 {
@@ -530,8 +806,15 @@ static int __init init(void)
 	}
 	mlx5_health_init();
 
+	err = pci_register_driver(&mlx5_core_driver);
+	if (err)
+		goto err_health;
+
 	return 0;
 
+err_health:
+	mlx5_health_cleanup();
+	destroy_workqueue(mlx5_core_wq);
 err_debug:
 	mlx5_unregister_debugfs();
 	return err;
@@ -539,6 +822,7 @@ err_debug:
 
 static void __exit cleanup(void)
 {
+	pci_unregister_driver(&mlx5_core_driver);
 	mlx5_health_cleanup();
 	destroy_workqueue(mlx5_core_wq);
 	mlx5_unregister_debugfs();

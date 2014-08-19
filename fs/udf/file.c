@@ -27,7 +27,7 @@
 
 #include "udfdecl.h"
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/string.h> /* memset */
 #include <linux/capability.h>
@@ -100,24 +100,6 @@ static int udf_adinicb_write_begin(struct file *file,
 	return 0;
 }
 
-static int udf_adinicb_write_end(struct file *file,
-			struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
-{
-	struct inode *inode = mapping->host;
-	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
-	char *kaddr;
-	struct udf_inode_info *iinfo = UDF_I(inode);
-
-	kaddr = kmap_atomic(page);
-	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr + offset,
-		kaddr + offset, copied);
-	kunmap_atomic(kaddr);
-
-	return simple_write_end(file, mapping, pos, len, copied, page, fsdata);
-}
-
 static ssize_t udf_adinicb_direct_IO(int rw, struct kiocb *iocb,
 				     struct iov_iter *iter,
 				     loff_t offset)
@@ -130,7 +112,7 @@ const struct address_space_operations udf_adinicb_aops = {
 	.readpage	= udf_adinicb_readpage,
 	.writepage	= udf_adinicb_writepage,
 	.write_begin	= udf_adinicb_write_begin,
-	.write_end	= udf_adinicb_write_end,
+	.write_end	= simple_write_end,
 	.direct_IO	= udf_adinicb_direct_IO,
 };
 

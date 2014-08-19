@@ -1,5 +1,5 @@
 /*
- * Silicon Labs Si2157 silicon tuner driver
+ * Silicon Labs Si2157/2158 silicon tuner driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
  *
@@ -16,53 +16,57 @@
 
 #include "si2157_priv.h"
 
+static const struct dvb_tuner_ops si2157_ops;
+
 /* execute firmware command */
 static int si2157_cmd_execute(struct si2157 *s, struct si2157_cmd *cmd)
 {
 	int ret;
-	u8 buf[1];
 	unsigned long timeout;
 
 	mutex_lock(&s->i2c_mutex);
 
-	if (cmd->len) {
+	if (cmd->wlen) {
 		/* write cmd and args for firmware */
-		ret = i2c_master_send(s->client, cmd->args, cmd->len);
+		ret = i2c_master_send(s->client, cmd->args, cmd->wlen);
 		if (ret < 0) {
 			goto err_mutex_unlock;
-		} else if (ret != cmd->len) {
+		} else if (ret != cmd->wlen) {
 			ret = -EREMOTEIO;
 			goto err_mutex_unlock;
 		}
 	}
 
-	/* wait cmd execution terminate */
-	#define TIMEOUT 80
-	timeout = jiffies + msecs_to_jiffies(TIMEOUT);
-	while (!time_after(jiffies, timeout)) {
-		ret = i2c_master_recv(s->client, buf, 1);
-		if (ret < 0) {
-			goto err_mutex_unlock;
-		} else if (ret != 1) {
-			ret = -EREMOTEIO;
-			goto err_mutex_unlock;
+	if (cmd->rlen) {
+		/* wait cmd execution terminate */
+		#define TIMEOUT 80
+		timeout = jiffies + msecs_to_jiffies(TIMEOUT);
+		while (!time_after(jiffies, timeout)) {
+			ret = i2c_master_recv(s->client, cmd->args, cmd->rlen);
+			if (ret < 0) {
+				goto err_mutex_unlock;
+			} else if (ret != cmd->rlen) {
+				ret = -EREMOTEIO;
+				goto err_mutex_unlock;
+			}
+
+			/* firmware ready? */
+			if ((cmd->args[0] >> 7) & 0x01)
+				break;
 		}
 
-		/* firmware ready? */
-		if ((buf[0] >> 7) & 0x01)
-			break;
+		dev_dbg(&s->client->dev, "%s: cmd execution took %d ms\n",
+				__func__,
+				jiffies_to_msecs(jiffies) -
+				(jiffies_to_msecs(timeout) - TIMEOUT));
+
+		if (!((cmd->args[0] >> 7) & 0x01)) {
+			ret = -ETIMEDOUT;
+			goto err_mutex_unlock;
+		}
 	}
 
-	dev_dbg(&s->client->dev, "%s: cmd execution took %d ms\n", __func__,
-			jiffies_to_msecs(jiffies) -
-			(jiffies_to_msecs(timeout) - TIMEOUT));
-
-	if (!(buf[0] >> 7) & 0x01) {
-		ret = -ETIMEDOUT;
-		goto err_mutex_unlock;
-	} else {
-		ret = 0;
-	}
+	ret = 0;
 
 err_mutex_unlock:
 	mutex_unlock(&s->i2c_mutex);
@@ -78,23 +82,133 @@ err:
 static int si2157_init(struct dvb_frontend *fe)
 {
 	struct si2157 *s = fe->tuner_priv;
+	int ret, len, remaining;
+	struct si2157_cmd cmd;
+	const struct firmware *fw = NULL;
+	u8 *fw_file;
+	unsigned int chip_id;
 
 	dev_dbg(&s->client->dev, "%s:\n", __func__);
+
+	/* configure? */
+	memcpy(cmd.args, "\xc0\x00\x0c\x00\x00\x01\x01\x01\x01\x01\x01\x02\x00\x00\x01", 15);
+	cmd.wlen = 15;
+	cmd.rlen = 1;
+	ret = si2157_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
+
+	/* query chip revision */
+	memcpy(cmd.args, "\x02", 1);
+	cmd.wlen = 1;
+	cmd.rlen = 13;
+	ret = si2157_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
+
+	chip_id = cmd.args[1] << 24 | cmd.args[2] << 16 | cmd.args[3] << 8 |
+			cmd.args[4] << 0;
+
+	#define SI2158_A20 ('A' << 24 | 58 << 16 | '2' << 8 | '0' << 0)
+	#define SI2157_A30 ('A' << 24 | 57 << 16 | '3' << 8 | '0' << 0)
+
+	switch (chip_id) {
+	case SI2158_A20:
+		fw_file = SI2158_A20_FIRMWARE;
+		break;
+	case SI2157_A30:
+		goto skip_fw_download;
+		break;
+	default:
+		dev_err(&s->client->dev,
+				"%s: unkown chip version Si21%d-%c%c%c\n",
+				KBUILD_MODNAME, cmd.args[2], cmd.args[1],
+				cmd.args[3], cmd.args[4]);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* cold state - try to download firmware */
+	dev_info(&s->client->dev, "%s: found a '%s' in cold state\n",
+			KBUILD_MODNAME, si2157_ops.info.name);
+
+	/* request the firmware, this will block and timeout */
+	ret = request_firmware(&fw, fw_file, &s->client->dev);
+	if (ret) {
+		dev_err(&s->client->dev, "%s: firmware file '%s' not found\n",
+				KBUILD_MODNAME, fw_file);
+		goto err;
+	}
+
+	/* firmware should be n chunks of 17 bytes */
+	if (fw->size % 17 != 0) {
+		dev_err(&s->client->dev, "%s: firmware file '%s' is invalid\n",
+				KBUILD_MODNAME, fw_file);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	dev_info(&s->client->dev, "%s: downloading firmware from file '%s'\n",
+			KBUILD_MODNAME, fw_file);
+
+	for (remaining = fw->size; remaining > 0; remaining -= 17) {
+		len = fw->data[fw->size - remaining];
+		memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
+		cmd.wlen = len;
+		cmd.rlen = 1;
+		ret = si2157_cmd_execute(s, &cmd);
+		if (ret) {
+			dev_err(&s->client->dev,
+					"%s: firmware download failed=%d\n",
+					KBUILD_MODNAME, ret);
+			goto err;
+		}
+	}
+
+	release_firmware(fw);
+	fw = NULL;
+
+skip_fw_download:
+	/* reboot the tuner with new firmware? */
+	memcpy(cmd.args, "\x01\x01", 2);
+	cmd.wlen = 2;
+	cmd.rlen = 1;
+	ret = si2157_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
 
 	s->active = true;
 
 	return 0;
+err:
+	if (fw)
+		release_firmware(fw);
+
+	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 static int si2157_sleep(struct dvb_frontend *fe)
 {
 	struct si2157 *s = fe->tuner_priv;
+	int ret;
+	struct si2157_cmd cmd;
 
 	dev_dbg(&s->client->dev, "%s:\n", __func__);
 
 	s->active = false;
 
+	memcpy(cmd.args, "\x13", 1);
+	cmd.wlen = 1;
+	cmd.rlen = 0;
+	ret = si2157_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
+
 	return 0;
+err:
+	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 static int si2157_set_params(struct dvb_frontend *fe)
@@ -103,6 +217,7 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	struct si2157_cmd cmd;
+	u8 bandwidth, delivery_system;
 
 	dev_dbg(&s->client->dev,
 			"%s: delivery_system=%d frequency=%u bandwidth_hz=%u\n",
@@ -114,50 +229,46 @@ static int si2157_set_params(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	/* configure? */
-	cmd.args[0] = 0xc0;
-	cmd.args[1] = 0x00;
-	cmd.args[2] = 0x0c;
-	cmd.args[3] = 0x00;
-	cmd.args[4] = 0x00;
-	cmd.args[5] = 0x01;
-	cmd.args[6] = 0x01;
-	cmd.args[7] = 0x01;
-	cmd.args[8] = 0x01;
-	cmd.args[9] = 0x01;
-	cmd.args[10] = 0x01;
-	cmd.args[11] = 0x02;
-	cmd.args[12] = 0x00;
-	cmd.args[13] = 0x00;
-	cmd.args[14] = 0x01;
-	cmd.len = 15;
-	ret = si2157_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
+	if (c->bandwidth_hz <= 6000000)
+		bandwidth = 0x06;
+	else if (c->bandwidth_hz <= 7000000)
+		bandwidth = 0x07;
+	else if (c->bandwidth_hz <= 8000000)
+		bandwidth = 0x08;
+	else
+		bandwidth = 0x0f;
 
-	cmd.args[0] = 0x02;
-	cmd.len = 1;
-	ret = si2157_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
+	switch (c->delivery_system) {
+	case SYS_DVBT:
+	case SYS_DVBT2: /* it seems DVB-T and DVB-T2 both are 0x20 here */
+			delivery_system = 0x20;
+			break;
+	case SYS_DVBC_ANNEX_A:
+			delivery_system = 0x30;
+			break;
+	default:
+			ret = -EINVAL;
+			goto err;
+	}
 
-	cmd.args[0] = 0x01;
-	cmd.args[1] = 0x01;
-	cmd.len = 2;
+	memcpy(cmd.args, "\x14\x00\x03\x07\x00\x00", 6);
+	cmd.args[4] = delivery_system | bandwidth;
+	if (s->inversion)
+		cmd.args[5] = 0x01;
+	cmd.wlen = 6;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
 
 	/* set frequency */
-	cmd.args[0] = 0x41;
-	cmd.args[1] = 0x00;
-	cmd.args[2] = 0x00;
-	cmd.args[3] = 0x00;
+	memcpy(cmd.args, "\x41\x00\x00\x00\x00\x00\x00\x00", 8);
 	cmd.args[4] = (c->frequency >>  0) & 0xff;
 	cmd.args[5] = (c->frequency >>  8) & 0xff;
 	cmd.args[6] = (c->frequency >> 16) & 0xff;
 	cmd.args[7] = (c->frequency >> 24) & 0xff;
-	cmd.len = 8;
+	cmd.wlen = 8;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
@@ -168,9 +279,15 @@ err:
 	return ret;
 }
 
-static const struct dvb_tuner_ops si2157_tuner_ops = {
+static int si2157_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	*frequency = 5000000; /* default value of property 0x0706 */
+	return 0;
+}
+
+static const struct dvb_tuner_ops si2157_ops = {
 	.info = {
-		.name           = "Silicon Labs Si2157",
+		.name           = "Silicon Labs Si2157/Si2158",
 		.frequency_min  = 110000000,
 		.frequency_max  = 862000000,
 	},
@@ -178,6 +295,7 @@ static const struct dvb_tuner_ops si2157_tuner_ops = {
 	.init = si2157_init,
 	.sleep = si2157_sleep,
 	.set_params = si2157_set_params,
+	.get_if_frequency = si2157_get_if_frequency,
 };
 
 static int si2157_probe(struct i2c_client *client,
@@ -198,22 +316,24 @@ static int si2157_probe(struct i2c_client *client,
 
 	s->client = client;
 	s->fe = cfg->fe;
+	s->inversion = cfg->inversion;
 	mutex_init(&s->i2c_mutex);
 
 	/* check if the tuner is there */
-	cmd.len = 0;
+	cmd.wlen = 0;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
 
 	fe->tuner_priv = s;
-	memcpy(&fe->ops.tuner_ops, &si2157_tuner_ops,
+	memcpy(&fe->ops.tuner_ops, &si2157_ops,
 			sizeof(struct dvb_tuner_ops));
 
 	i2c_set_clientdata(client, s);
 
 	dev_info(&s->client->dev,
-			"%s: Silicon Labs Si2157 successfully attached\n",
+			"%s: Silicon Labs Si2157/Si2158 successfully attached\n",
 			KBUILD_MODNAME);
 	return 0;
 err:
@@ -255,6 +375,7 @@ static struct i2c_driver si2157_driver = {
 
 module_i2c_driver(si2157_driver);
 
-MODULE_DESCRIPTION("Silicon Labs Si2157 silicon tuner driver");
+MODULE_DESCRIPTION("Silicon Labs Si2157/Si2158 silicon tuner driver");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(SI2158_A20_FIRMWARE);

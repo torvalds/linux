@@ -80,6 +80,9 @@ enum cpsw_ale_port_state {
 #define ALE_MCAST_FWD_LEARN		2
 #define ALE_MCAST_FWD_2			3
 
+#define ALE_ENTRY_BITS		68
+#define ALE_ENTRY_WORDS	DIV_ROUND_UP(ALE_ENTRY_BITS, 32)
+
 struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params);
 int cpsw_ale_destroy(struct cpsw_ale *ale);
 
@@ -104,5 +107,6 @@ int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port);
 int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control);
 int cpsw_ale_control_set(struct cpsw_ale *ale, int port,
 			 int control, int value);
+void cpsw_ale_dump(struct cpsw_ale *ale, u32 *data);
 
 #endif

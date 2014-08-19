@@ -17,9 +17,10 @@
  *
  */
 
+#include <linux/gpio/machine.h>
 #include <linux/platform_device.h>
-#include <linux/gpio/driver.h>
 #include <linux/rfkill-gpio.h>
+
 #include "board.h"
 
 static struct rfkill_gpio_platform_data wifi_rfkill_platform_data = {

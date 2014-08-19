@@ -414,13 +414,24 @@ static int __init arm64_enter_virtual_mode(void)
 	for_each_efi_memory_desc(&memmap, md) {
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
-		if (remap_region(md, &virt_md))
-			++count;
+		if (!remap_region(md, &virt_md))
+			goto err_unmap;
+		++count;
 	}
 
 	efi.systab = (__force void *)efi_lookup_mapped_addr(efi_system_table);
-	if (efi.systab)
-		set_bit(EFI_SYSTEM_TABLES, &efi.flags);
+	if (!efi.systab) {
+		/*
+		 * If we have no virtual mapping for the System Table at this
+		 * point, the memory map doesn't cover the physical offset where
+		 * it resides. This means the System Table will be inaccessible
+		 * to Runtime Services themselves once the virtual mapping is
+		 * installed.
+		 */
+		pr_err("Failed to remap EFI System Table -- buggy firmware?\n");
+		goto err_unmap;
+	}
+	set_bit(EFI_SYSTEM_TABLES, &efi.flags);
 
 	local_irq_save(flags);
 	cpu_switch_mm(idmap_pg_dir, &init_mm);
@@ -449,21 +460,18 @@ static int __init arm64_enter_virtual_mode(void)
 
 	/* Set up runtime services function pointers */
 	runtime = efi.systab->runtime;
-	efi.get_time = runtime->get_time;
-	efi.set_time = runtime->set_time;
-	efi.get_wakeup_time = runtime->get_wakeup_time;
-	efi.set_wakeup_time = runtime->set_wakeup_time;
-	efi.get_variable = runtime->get_variable;
-	efi.get_next_variable = runtime->get_next_variable;
-	efi.set_variable = runtime->set_variable;
-	efi.query_variable_info = runtime->query_variable_info;
-	efi.update_capsule = runtime->update_capsule;
-	efi.query_capsule_caps = runtime->query_capsule_caps;
-	efi.get_next_high_mono_count = runtime->get_next_high_mono_count;
-	efi.reset_system = runtime->reset_system;
-
+	efi_native_runtime_setup();
 	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 
 	return 0;
+
+err_unmap:
+	/* unmap all mappings that succeeded: there are 'count' of those */
+	for (virt_md = virtmap; count--; virt_md += memmap.desc_size) {
+		md = virt_md;
+		iounmap((__force void __iomem *)md->virt_addr);
+	}
+	kfree(virtmap);
+	return -1;
 }
 early_initcall(arm64_enter_virtual_mode);

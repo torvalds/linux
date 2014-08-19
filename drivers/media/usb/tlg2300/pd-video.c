@@ -1321,7 +1321,6 @@ static void init_video_context(struct running_context *context)
 				.bytesperline	= 720 * 2,
 				.sizeimage	= 720 * 576 * 2,
 				.colorspace	= V4L2_COLORSPACE_SMPTE170M,
-				.priv		= 0
 			};
 }
 

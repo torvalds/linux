@@ -355,17 +355,18 @@ static void __init init_tags( void )
 
 static int is_lun_busy(struct scsi_cmnd *cmd, int should_be_tagged)
 {
+    u8 lun = cmd->device->lun;
     SETUP_HOSTDATA(cmd->device->host);
 
-    if (hostdata->busy[cmd->device->id] & (1 << cmd->device->lun))
+    if (hostdata->busy[cmd->device->id] & (1 << lun))
 	return( 1 );
     if (!should_be_tagged ||
 	!setup_use_tagged_queuing || !cmd->device->tagged_supported)
 	return( 0 );
-    if (TagAlloc[cmd->device->id][cmd->device->lun].nr_allocated >=
-	TagAlloc[cmd->device->id][cmd->device->lun].queue_size ) {
+    if (TagAlloc[cmd->device->id][lun].nr_allocated >=
+	TagAlloc[cmd->device->id][lun].queue_size ) {
 	dprintk(NDEBUG_TAGS,  "scsi%d: target %d lun %d: no free tags\n",
-		    H_NO(cmd), cmd->device->id, cmd->device->lun );
+		    H_NO(cmd), cmd->device->id, lun );
 	return( 1 );
     }
     return( 0 );
@@ -379,6 +380,7 @@ static int is_lun_busy(struct scsi_cmnd *cmd, int should_be_tagged)
 
 static void cmd_get_tag(struct scsi_cmnd *cmd, int should_be_tagged)
 {
+    u8 lun = cmd->device->lun;
     SETUP_HOSTDATA(cmd->device->host);
 
     /* If we or the target don't support tagged queuing, allocate the LUN for
@@ -387,19 +389,19 @@ static void cmd_get_tag(struct scsi_cmnd *cmd, int should_be_tagged)
     if (!should_be_tagged ||
 	!setup_use_tagged_queuing || !cmd->device->tagged_supported) {
 	cmd->tag = TAG_NONE;
-	hostdata->busy[cmd->device->id] |= (1 << cmd->device->lun);
+	hostdata->busy[cmd->device->id] |= (1 << lun);
 	dprintk(NDEBUG_TAGS,  "scsi%d: target %d lun %d now allocated by untagged "
-		    "command\n", H_NO(cmd), cmd->device->id, cmd->device->lun );
+		    "command\n", H_NO(cmd), cmd->device->id, lun );
     }
     else {
-	TAG_ALLOC *ta = &TagAlloc[cmd->device->id][cmd->device->lun];
+	TAG_ALLOC *ta = &TagAlloc[cmd->device->id][lun];
 
 	cmd->tag = find_first_zero_bit( &ta->allocated, MAX_TAGS );
 	set_bit( cmd->tag, &ta->allocated );
 	ta->nr_allocated++;
 	dprintk(NDEBUG_TAGS,  "scsi%d: using tag %d for target %d lun %d "
 		    "(now %d tags in use)\n",
-		    H_NO(cmd), cmd->tag, cmd->device->id, cmd->device->lun,
+		    H_NO(cmd), cmd->tag, cmd->device->id, lun,
 		    ta->nr_allocated );
     }
 }
@@ -411,23 +413,24 @@ static void cmd_get_tag(struct scsi_cmnd *cmd, int should_be_tagged)
 
 static void cmd_free_tag(struct scsi_cmnd *cmd)
 {
+    u8 lun = cmd->device->lun;
     SETUP_HOSTDATA(cmd->device->host);
 
     if (cmd->tag == TAG_NONE) {
-	hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
+	hostdata->busy[cmd->device->id] &= ~(1 << lun);
 	dprintk(NDEBUG_TAGS,  "scsi%d: target %d lun %d untagged cmd finished\n",
-		    H_NO(cmd), cmd->device->id, cmd->device->lun );
+		    H_NO(cmd), cmd->device->id, lun );
     }
     else if (cmd->tag >= MAX_TAGS) {
 	printk(KERN_NOTICE "scsi%d: trying to free bad tag %d!\n",
 		H_NO(cmd), cmd->tag );
     }
     else {
-	TAG_ALLOC *ta = &TagAlloc[cmd->device->id][cmd->device->lun];
+	TAG_ALLOC *ta = &TagAlloc[cmd->device->id][lun];
 	clear_bit( cmd->tag, &ta->allocated );
 	ta->nr_allocated--;
 	dprintk(NDEBUG_TAGS,  "scsi%d: freed tag %d for target %d lun %d\n",
-		    H_NO(cmd), cmd->tag, cmd->device->id, cmd->device->lun );
+		    H_NO(cmd), cmd->tag, cmd->device->id, lun );
     }
 }
 
@@ -659,7 +662,7 @@ static void lprint_Scsi_Cmnd(Scsi_Cmnd *cmd)
 {
 	int i, s;
 	unsigned char *command;
-	printk("scsi%d: destination target %d, lun %d\n",
+	printk("scsi%d: destination target %d, lun %llu\n",
 		H_NO(cmd), cmd->device->id, cmd->device->lun);
 	printk(KERN_CONT "        command = ");
 	command = cmd->cmnd;
@@ -705,7 +708,7 @@ static void show_Scsi_Cmnd(Scsi_Cmnd *cmd, struct seq_file *m)
 {
 	int i, s;
 	unsigned char *command;
-	seq_printf(m, "scsi%d: destination target %d, lun %d\n",
+	seq_printf(m, "scsi%d: destination target %d, lun %llu\n",
 		H_NO(cmd), cmd->device->id, cmd->device->lun);
 	seq_printf(m, "        command = ");
 	command = cmd->cmnd;
@@ -1007,7 +1010,7 @@ static void NCR5380_main (struct work_struct *bl)
 		 prev = NULL; tmp; prev = tmp, tmp = NEXT(tmp) ) {
 
 		if (prev != tmp)
-			dprintk(NDEBUG_LISTS, "MAIN tmp=%p   target=%d   busy=%d lun=%d\n", tmp, tmp->device->id, hostdata->busy[tmp->device->id], tmp->device->lun);
+			dprintk(NDEBUG_LISTS, "MAIN tmp=%p   target=%d   busy=%d lun=%llu\n", tmp, tmp->device->id, hostdata->busy[tmp->device->id], tmp->device->lun);
 		/*  When we find one, remove it from the issue queue. */
 		/* ++guenther: possible race with Falcon locking */
 		if (
@@ -1038,7 +1041,7 @@ static void NCR5380_main (struct work_struct *bl)
 		     *   issue queue so we can keep trying.	
 		     */
 		    dprintk(NDEBUG_MAIN, "scsi%d: main(): command for target %d "
-				"lun %d removed from issue_queue\n",
+				"lun %llu removed from issue_queue\n",
 				HOSTNO, tmp->device->id, tmp->device->lun);
 		    /* 
 		     * REQUEST SENSE commands are issued without tagged
@@ -2020,7 +2023,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 			 * accesses to this device will use the
 			 * polled-IO. */ 
 			printk(KERN_NOTICE "scsi%d: switching target %d "
-			       "lun %d to slow handshake\n", HOSTNO,
+			       "lun %llu to slow handshake\n", HOSTNO,
 			       cmd->device->id, cmd->device->lun);
 			cmd->device->borken = 1;
 			NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | 
@@ -2078,7 +2081,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		    /* Accept message by clearing ACK */
 		    NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		    
-		    dprintk(NDEBUG_LINKED, "scsi%d: target %d lun %d linked command "
+		    dprintk(NDEBUG_LINKED, "scsi%d: target %d lun %llu linked command "
 			       "complete.\n", HOSTNO, cmd->device->id, cmd->device->lun);
 
 		    /* Enable reselect interrupts */
@@ -2090,7 +2093,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		     */
 
 		    if (!cmd->next_link) {
-			 printk(KERN_NOTICE "scsi%d: target %d lun %d "
+			 printk(KERN_NOTICE "scsi%d: target %d lun %llu "
 				"linked command complete, no next_link\n",
 				HOSTNO, cmd->device->id, cmd->device->lun);
 			    sink = 1;
@@ -2103,7 +2106,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		     * and don't free it! */
 		    cmd->next_link->tag = cmd->tag;
 		    cmd->result = cmd->SCp.Status | (cmd->SCp.Message << 8); 
-		    dprintk(NDEBUG_LINKED, "scsi%d: target %d lun %d linked request "
+		    dprintk(NDEBUG_LINKED, "scsi%d: target %d lun %llu linked request "
 			       "done, calling scsi_done().\n",
 			       HOSTNO, cmd->device->id, cmd->device->lun);
 #ifdef NCR5380_STATS
@@ -2118,7 +2121,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		    /* Accept message by clearing ACK */
 		    NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		    hostdata->connected = NULL;
-		    dprintk(NDEBUG_QUEUES, "scsi%d: command for target %d, lun %d "
+		    dprintk(NDEBUG_QUEUES, "scsi%d: command for target %d, lun %llu "
 			      "completed\n", HOSTNO, cmd->device->id, cmd->device->lun);
 #ifdef SUPPORT_TAGS
 		    cmd_free_tag( cmd );
@@ -2132,7 +2135,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 			/* ++Andreas: the mid level code knows about
 			   QUEUE_FULL now. */
 			TAG_ALLOC *ta = &TagAlloc[cmd->device->id][cmd->device->lun];
-			dprintk(NDEBUG_TAGS, "scsi%d: target %d lun %d returned "
+			dprintk(NDEBUG_TAGS, "scsi%d: target %d lun %llu returned "
 				   "QUEUE_FULL after %d commands\n",
 				   HOSTNO, cmd->device->id, cmd->device->lun,
 				   ta->nr_allocated);
@@ -2228,7 +2231,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 			cmd->device->tagged_supported = 0;
 			hostdata->busy[cmd->device->id] |= (1 << cmd->device->lun);
 			cmd->tag = TAG_NONE;
-			dprintk(NDEBUG_TAGS, "scsi%d: target %d lun %d rejected "
+			dprintk(NDEBUG_TAGS, "scsi%d: target %d lun %llu rejected "
 				   "QUEUE_TAG message; tagged queuing "
 				   "disabled\n",
 				   HOSTNO, cmd->device->id, cmd->device->lun);
@@ -2245,7 +2248,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		    hostdata->connected = NULL;
 		    hostdata->disconnected_queue = cmd;
 		    local_irq_restore(flags);
-		    dprintk(NDEBUG_QUEUES, "scsi%d: command for target %d lun %d was "
+		    dprintk(NDEBUG_QUEUES, "scsi%d: command for target %d lun %llu was "
 			      "moved from connected to the "
 			      "disconnected_queue\n", HOSTNO, 
 			      cmd->device->id, cmd->device->lun);
@@ -2349,12 +2352,12 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 			printk("\n");
 		    } else if (tmp != EXTENDED_MESSAGE)
 			printk(KERN_DEBUG "scsi%d: rejecting unknown "
-			       "message %02x from target %d, lun %d\n",
+			       "message %02x from target %d, lun %llu\n",
 			       HOSTNO, tmp, cmd->device->id, cmd->device->lun);
 		    else
 			printk(KERN_DEBUG "scsi%d: rejecting unknown "
 			       "extended message "
-			       "code %02x, length %d from target %d, lun %d\n",
+			       "code %02x, length %d from target %d, lun %llu\n",
 			       HOSTNO, extended_msg[1], extended_msg[0],
 			       cmd->device->id, cmd->device->lun);
    
@@ -2576,7 +2579,7 @@ static void NCR5380_reselect (struct Scsi_Host *instance)
 #endif
     
     hostdata->connected = tmp;
-    dprintk(NDEBUG_RESELECTION, "scsi%d: nexus established, target = %d, lun = %d, tag = %d\n",
+    dprintk(NDEBUG_RESELECTION, "scsi%d: nexus established, target = %d, lun = %llu, tag = %d\n",
 	       HOSTNO, tmp->device->id, tmp->device->lun, tmp->tag);
 }
 

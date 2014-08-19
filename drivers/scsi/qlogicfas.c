@@ -171,8 +171,6 @@ static int qlogicfas_release(struct Scsi_Host *shost)
 		qlogicfas408_disable_ints(priv);	
 		free_irq(shost->irq, shost);
 	}
-	if (shost->dma_channel != 0xff)
-		free_dma(shost->dma_channel);
 	if (shost->io_port && shost->n_io_port)
 		release_region(shost->io_port, shost->n_io_port);
 	scsi_host_put(shost);

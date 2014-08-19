@@ -42,22 +42,22 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LOV
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_support.h>
-#include <lustre_lib.h>
-#include <lustre_net.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_dlm.h>
-#include <lustre_mds.h>
-#include <obd_class.h>
-#include <obd_ost.h>
-#include <lprocfs_status.h>
-#include <lustre_param.h>
-#include <cl_object.h>
-#include <lclient.h> /* for cl_client_lru */
-#include <lustre/ll_fiemap.h>
-#include <lustre_fid.h>
+#include "../include/obd_support.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_mds.h"
+#include "../include/obd_class.h"
+#include "../include/obd_ost.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_param.h"
+#include "../include/cl_object.h"
+#include "../include/lclient.h"		/* for cl_client_lru */
+#include "../include/lustre/ll_fiemap.h"
+#include "../include/lustre_fid.h"
 
 #include "lov_internal.h"
 
@@ -382,7 +382,7 @@ static int lov_set_osc_active(struct obd_device *obd, struct obd_uuid *uuid,
 		if (!tgt->ltd_exp)
 			continue;
 
-		CDEBUG(D_INFO, "lov idx %d is %s conn "LPX64"\n",
+		CDEBUG(D_INFO, "lov idx %d is %s conn %#llx\n",
 		       index, obd_uuid2str(&tgt->ltd_uuid),
 		       tgt->ltd_exp->exp_handle.h_cookie);
 		if (obd_uuid_equals(uuid, &tgt->ltd_uuid))
@@ -727,8 +727,7 @@ void lov_fix_desc_stripe_size(__u64 *val)
 		*val = LOV_DESC_STRIPE_SIZE_DEFAULT;
 	} else if (*val & (LOV_MIN_STRIPE_SIZE - 1)) {
 		*val &= ~(LOV_MIN_STRIPE_SIZE - 1);
-		LCONSOLE_WARN("Changing default stripe size to "LPU64" (a "
-			      "multiple of %u)\n",
+		LCONSOLE_WARN("Changing default stripe size to %llu (a multiple of %u)\n",
 			      *val, LOV_MIN_STRIPE_SIZE);
 	}
 }
@@ -821,7 +820,7 @@ int lov_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	lprocfs_lov_init_vars(&lvars);
 	lprocfs_obd_setup(obd, lvars.obd_vars);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	{
 		int rc1;
 
@@ -900,7 +899,7 @@ static int lov_cleanup(struct obd_device *obd)
 				       " deathrow=%d, lovrc=%d\n",
 				       i, lov->lov_death_row,
 				       atomic_read(&lov->lov_refcount));
-			lov_del_target(obd, i, 0, 0);
+			lov_del_target(obd, i, NULL, 0);
 		}
 		obd_putref(obd);
 		OBD_FREE(lov->lov_tgts, sizeof(*lov->lov_tgts) *
@@ -944,7 +943,7 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 		GOTO(out, rc);
 	}
 	case LCFG_PARAM: {
-		struct lprocfs_static_vars lvars = { 0 };
+		struct lprocfs_static_vars lvars = { NULL };
 		struct lov_desc *desc = &(obd->u.lov.desc);
 
 		if (!desc)
@@ -1463,7 +1462,7 @@ static int lov_sync(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		return rc;
 
-	CDEBUG(D_INFO, "fsync objid "DOSTID" ["LPX64", "LPX64"]\n",
+	CDEBUG(D_INFO, "fsync objid "DOSTID" [%#llx, %#llx]\n",
 	       POSTID(&set->set_oi->oi_oa->o_oi), start, end);
 
 	list_for_each(pos, &set->set_list) {
@@ -2636,9 +2635,8 @@ static int lov_extent_calc(struct obd_export *exp, struct lov_stripe_md *lsm,
 	lov_do_div64(start, ssize);
 	start = start * ssize;
 
-	CDEBUG(D_DLMTRACE, "offset "LPU64", stripe %u, start "LPU64
-			   ", end "LPU64"\n", *offset, ssize, start,
-			   start + ssize - 1);
+	CDEBUG(D_DLMTRACE, "offset %llu, stripe %u, start %llu, end %llu\n",
+	       *offset, ssize, start, start + ssize - 1);
 	if (cmd == OBD_CALC_STRIPE_END) {
 		*offset = start + ssize - 1;
 	} else if (cmd == OBD_CALC_STRIPE_START) {
@@ -2818,7 +2816,7 @@ struct kmem_cache *lov_oinfo_slab;
 
 int __init lov_init(void)
 {
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	/* print an address of _any_ initialized kernel symbol from this

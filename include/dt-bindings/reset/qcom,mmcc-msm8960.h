@@ -89,5 +89,13 @@
 #define CSI2_RESET					72
 #define CSI_RDI1_RESET					73
 #define CSI_RDI2_RESET					74
+#define GFX3D_AXI_RESET					75
+#define VCAP_AXI_RESET					76
+#define SMMU_VCAP_AHB_RESET				77
+#define VCAP_AHB_RESET					78
+#define CSI_RDI_RESET					79
+#define CSI_PIX_RESET					80
+#define VCAP_NPL_RESET					81
+#define VCAP_RESET					82
 
 #endif

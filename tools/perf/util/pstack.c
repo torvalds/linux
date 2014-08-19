@@ -6,6 +6,7 @@
 
 #include "util.h"
 #include "pstack.h"
+#include "debug.h"
 #include <linux/kernel.h>
 #include <stdlib.h>
 

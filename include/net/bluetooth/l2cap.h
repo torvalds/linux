@@ -134,10 +134,12 @@ struct l2cap_conninfo {
 #define L2CAP_FCS_CRC16		0x01
 
 /* L2CAP fixed channels */
-#define L2CAP_FC_L2CAP		0x02
+#define L2CAP_FC_SIG_BREDR	0x02
 #define L2CAP_FC_CONNLESS	0x04
 #define L2CAP_FC_A2MP		0x08
-#define L2CAP_FC_6LOWPAN        0x3e /* reserved and temporary value */
+#define L2CAP_FC_ATT		0x10
+#define L2CAP_FC_SIG_LE		0x20
+#define L2CAP_FC_SMP_LE		0x40
 
 /* L2CAP Control Field bit masks */
 #define L2CAP_CTRL_SAR			0xC000
@@ -579,7 +581,7 @@ struct l2cap_chan {
 	struct list_head	global_l;
 
 	void			*data;
-	struct l2cap_ops	*ops;
+	const struct l2cap_ops	*ops;
 	struct mutex		lock;
 };
 
@@ -600,7 +602,12 @@ struct l2cap_ops {
 	void			(*set_shutdown) (struct l2cap_chan *chan);
 	long			(*get_sndtimeo) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
+					       unsigned long hdr_len,
 					       unsigned long len, int nb);
+	int			(*memcpy_fromiovec) (struct l2cap_chan *chan,
+						     unsigned char *kdata,
+						     struct iovec *iov,
+						     int len);
 };
 
 struct l2cap_conn {
@@ -618,11 +625,10 @@ struct l2cap_conn {
 
 	struct delayed_work	info_timer;
 
-	spinlock_t		lock;
-
 	struct sk_buff		*rx_skb;
 	__u32			rx_len;
 	__u8			tx_ident;
+	struct mutex		ident_lock;
 
 	struct sk_buff_head	pending_rx;
 	struct work_struct	pending_rx_work;
@@ -856,6 +862,31 @@ static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
 	return 0;
 }
 
+static inline int l2cap_chan_no_memcpy_fromiovec(struct l2cap_chan *chan,
+						 unsigned char *kdata,
+						 struct iovec *iov,
+						 int len)
+{
+	/* Following is safe since for compiler definitions of kvec and
+	 * iovec are identical, yielding the same in-core layout and alignment
+	 */
+	struct kvec *vec = (struct kvec *)iov;
+
+	while (len > 0) {
+		if (vec->iov_len) {
+			int copy = min_t(unsigned int, len, vec->iov_len);
+			memcpy(kdata, vec->iov_base, copy);
+			len -= copy;
+			kdata += copy;
+			vec->iov_base += copy;
+			vec->iov_len -= copy;
+		}
+		vec++;
+	}
+
+	return 0;
+}
+
 extern bool disable_ertm;
 
 int l2cap_init_sockets(void);
@@ -872,10 +903,9 @@ struct l2cap_chan *l2cap_chan_create(void);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
 int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		       bdaddr_t *dst, u8 dst_type);
-int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
-								u32 priority);
+int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
 void l2cap_chan_busy(struct l2cap_chan *chan, int busy);
-int l2cap_chan_check_security(struct l2cap_chan *chan);
+int l2cap_chan_check_security(struct l2cap_chan *chan, bool initiator);
 void l2cap_chan_set_defaults(struct l2cap_chan *chan);
 int l2cap_ertm_init(struct l2cap_chan *chan);
 void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);

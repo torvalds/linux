@@ -70,8 +70,15 @@ static int fanotify_get_response(struct fsnotify_group *group,
 	wait_event(group->fanotify_data.access_waitq, event->response ||
 				atomic_read(&group->fanotify_data.bypass_perm));
 
-	if (!event->response) /* bypass_perm set */
+	if (!event->response) {	/* bypass_perm set */
+		/*
+		 * Event was canceled because group is being destroyed. Remove
+		 * it from group's event list because we are responsible for
+		 * freeing the permission event.
+		 */
+		fsnotify_remove_event(group, &event->fae.fse);
 		return 0;
+	}
 
 	/* userspace responded, convert to something usable */
 	switch (event->response) {
@@ -210,7 +217,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 		return -ENOMEM;
 
 	fsn_event = &event->fse;
-	ret = fsnotify_add_notify_event(group, fsn_event, fanotify_merge);
+	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
 	if (ret) {
 		/* Permission events shouldn't be merged */
 		BUG_ON(ret == 1 && mask & FAN_ALL_PERM_EVENTS);

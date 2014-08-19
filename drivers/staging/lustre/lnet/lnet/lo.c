@@ -33,7 +33,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 int
 lolnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)

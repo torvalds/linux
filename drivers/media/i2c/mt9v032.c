@@ -1,5 +1,5 @@
 /*
- * Driver for MT9V032 CMOS Image Sensor from Micron
+ * Driver for MT9V022, MT9V024, MT9V032, and MT9V034 CMOS Image Sensors
  *
  * Copyright (C) 2010, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *
@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/mutex.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-mediabus.h>
@@ -87,6 +88,7 @@
 #define		MT9V032_READ_MODE_COLUMN_FLIP		(1 << 5)
 #define		MT9V032_READ_MODE_DARK_COLUMNS		(1 << 6)
 #define		MT9V032_READ_MODE_DARK_ROWS		(1 << 7)
+#define		MT9V032_READ_MODE_RESERVED		0x0300
 #define MT9V032_PIXEL_OPERATION_MODE			0x0f
 #define		MT9V034_PIXEL_OPERATION_MODE_HDR	(1 << 0)
 #define		MT9V034_PIXEL_OPERATION_MODE_COLOR	(1 << 1)
@@ -133,8 +135,12 @@
 #define MT9V032_THERMAL_INFO				0xc1
 
 enum mt9v032_model {
-	MT9V032_MODEL_V032_COLOR,
-	MT9V032_MODEL_V032_MONO,
+	MT9V032_MODEL_V022_COLOR,	/* MT9V022IX7ATC */
+	MT9V032_MODEL_V022_MONO,	/* MT9V022IX7ATM */
+	MT9V032_MODEL_V024_COLOR,	/* MT9V024IA7XTC */
+	MT9V032_MODEL_V024_MONO,	/* MT9V024IA7XTM */
+	MT9V032_MODEL_V032_COLOR,	/* MT9V032C12STM */
+	MT9V032_MODEL_V032_MONO,	/* MT9V032C12STC */
 	MT9V032_MODEL_V034_COLOR,
 	MT9V032_MODEL_V034_MONO,
 };
@@ -160,14 +166,14 @@ struct mt9v032_model_info {
 };
 
 static const struct mt9v032_model_version mt9v032_versions[] = {
-	{ MT9V032_CHIP_ID_REV1, "MT9V032 rev1/2" },
-	{ MT9V032_CHIP_ID_REV3, "MT9V032 rev3" },
-	{ MT9V034_CHIP_ID_REV1, "MT9V034 rev1" },
+	{ MT9V032_CHIP_ID_REV1, "MT9V022/MT9V032 rev1/2" },
+	{ MT9V032_CHIP_ID_REV3, "MT9V022/MT9V032 rev3" },
+	{ MT9V034_CHIP_ID_REV1, "MT9V024/MT9V034 rev1" },
 };
 
 static const struct mt9v032_model_data mt9v032_model_data[] = {
 	{
-		/* MT9V032 revisions 1/2/3 */
+		/* MT9V022, MT9V032 revisions 1/2/3 */
 		.min_row_time = 660,
 		.min_hblank = MT9V032_HORIZONTAL_BLANKING_MIN,
 		.min_vblank = MT9V032_VERTICAL_BLANKING_MIN,
@@ -176,7 +182,7 @@ static const struct mt9v032_model_data mt9v032_model_data[] = {
 		.max_shutter = MT9V032_TOTAL_SHUTTER_WIDTH_MAX,
 		.pclk_reg = MT9V032_PIXEL_CLOCK,
 	}, {
-		/* MT9V034 */
+		/* MT9V024, MT9V034 */
 		.min_row_time = 690,
 		.min_hblank = MT9V034_HORIZONTAL_BLANKING_MIN,
 		.min_vblank = MT9V034_VERTICAL_BLANKING_MIN,
@@ -188,6 +194,22 @@ static const struct mt9v032_model_data mt9v032_model_data[] = {
 };
 
 static const struct mt9v032_model_info mt9v032_models[] = {
+	[MT9V032_MODEL_V022_COLOR] = {
+		.data = &mt9v032_model_data[0],
+		.color = true,
+	},
+	[MT9V032_MODEL_V022_MONO] = {
+		.data = &mt9v032_model_data[0],
+		.color = false,
+	},
+	[MT9V032_MODEL_V024_COLOR] = {
+		.data = &mt9v032_model_data[1],
+		.color = true,
+	},
+	[MT9V032_MODEL_V024_MONO] = {
+		.data = &mt9v032_model_data[1],
+		.color = false,
+	},
 	[MT9V032_MODEL_V032_COLOR] = {
 		.data = &mt9v032_model_data[0],
 		.color = true,
@@ -224,6 +246,7 @@ struct mt9v032 {
 	struct mutex power_lock;
 	int power_count;
 
+	struct regmap *regmap;
 	struct clk *clk;
 
 	struct mt9v032_platform_data *pdata;
@@ -231,7 +254,6 @@ struct mt9v032 {
 	const struct mt9v032_model_version *version;
 
 	u32 sysclk;
-	u16 chip_control;
 	u16 aec_agc;
 	u16 hblank;
 	struct {
@@ -245,40 +267,10 @@ static struct mt9v032 *to_mt9v032(struct v4l2_subdev *sd)
 	return container_of(sd, struct mt9v032, subdev);
 }
 
-static int mt9v032_read(struct i2c_client *client, const u8 reg)
-{
-	s32 data = i2c_smbus_read_word_swapped(client, reg);
-	dev_dbg(&client->dev, "%s: read 0x%04x from 0x%02x\n", __func__,
-		data, reg);
-	return data;
-}
-
-static int mt9v032_write(struct i2c_client *client, const u8 reg,
-			 const u16 data)
-{
-	dev_dbg(&client->dev, "%s: writing 0x%04x to 0x%02x\n", __func__,
-		data, reg);
-	return i2c_smbus_write_word_swapped(client, reg, data);
-}
-
-static int mt9v032_set_chip_control(struct mt9v032 *mt9v032, u16 clear, u16 set)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
-	u16 value = (mt9v032->chip_control & ~clear) | set;
-	int ret;
-
-	ret = mt9v032_write(client, MT9V032_CHIP_CONTROL, value);
-	if (ret < 0)
-		return ret;
-
-	mt9v032->chip_control = value;
-	return 0;
-}
-
 static int
 mt9v032_update_aec_agc(struct mt9v032 *mt9v032, u16 which, int enable)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
+	struct regmap *map = mt9v032->regmap;
 	u16 value = mt9v032->aec_agc;
 	int ret;
 
@@ -287,7 +279,7 @@ mt9v032_update_aec_agc(struct mt9v032 *mt9v032, u16 which, int enable)
 	else
 		value &= ~which;
 
-	ret = mt9v032_write(client, MT9V032_AEC_AGC_ENABLE, value);
+	ret = regmap_write(map, MT9V032_AEC_AGC_ENABLE, value);
 	if (ret < 0)
 		return ret;
 
@@ -298,23 +290,23 @@ mt9v032_update_aec_agc(struct mt9v032 *mt9v032, u16 which, int enable)
 static int
 mt9v032_update_hblank(struct mt9v032 *mt9v032)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
 	struct v4l2_rect *crop = &mt9v032->crop;
 	unsigned int min_hblank = mt9v032->model->data->min_hblank;
 	unsigned int hblank;
 
 	if (mt9v032->version->version == MT9V034_CHIP_ID_REV1)
 		min_hblank += (mt9v032->hratio - 1) * 10;
-	min_hblank = max_t(unsigned int, (int)mt9v032->model->data->min_row_time - crop->width,
-			   (int)min_hblank);
+	min_hblank = max_t(int, mt9v032->model->data->min_row_time - crop->width,
+			   min_hblank);
 	hblank = max_t(unsigned int, mt9v032->hblank, min_hblank);
 
-	return mt9v032_write(client, MT9V032_HORIZONTAL_BLANKING, hblank);
+	return regmap_write(mt9v032->regmap, MT9V032_HORIZONTAL_BLANKING,
+			    hblank);
 }
 
 static int mt9v032_power_on(struct mt9v032 *mt9v032)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
+	struct regmap *map = mt9v032->regmap;
 	int ret;
 
 	ret = clk_set_rate(mt9v032->clk, mt9v032->sysclk);
@@ -328,15 +320,15 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 	udelay(1);
 
 	/* Reset the chip and stop data read out */
-	ret = mt9v032_write(client, MT9V032_RESET, 1);
+	ret = regmap_write(map, MT9V032_RESET, 1);
 	if (ret < 0)
 		return ret;
 
-	ret = mt9v032_write(client, MT9V032_RESET, 0);
+	ret = regmap_write(map, MT9V032_RESET, 0);
 	if (ret < 0)
 		return ret;
 
-	return mt9v032_write(client, MT9V032_CHIP_CONTROL, 0);
+	return regmap_write(map, MT9V032_CHIP_CONTROL, 0);
 }
 
 static void mt9v032_power_off(struct mt9v032 *mt9v032)
@@ -346,7 +338,7 @@ static void mt9v032_power_off(struct mt9v032 *mt9v032)
 
 static int __mt9v032_set_power(struct mt9v032 *mt9v032, bool on)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
+	struct regmap *map = mt9v032->regmap;
 	int ret;
 
 	if (!on) {
@@ -360,14 +352,14 @@ static int __mt9v032_set_power(struct mt9v032 *mt9v032, bool on)
 
 	/* Configure the pixel clock polarity */
 	if (mt9v032->pdata && mt9v032->pdata->clk_pol) {
-		ret = mt9v032_write(client, mt9v032->model->data->pclk_reg,
+		ret = regmap_write(map, mt9v032->model->data->pclk_reg,
 				MT9V032_PIXEL_CLOCK_INV_PXL_CLK);
 		if (ret < 0)
 			return ret;
 	}
 
 	/* Disable the noise correction algorithm and restore the controls. */
-	ret = mt9v032_write(client, MT9V032_ROW_NOISE_CORR_CONTROL, 0);
+	ret = regmap_write(map, MT9V032_ROW_NOISE_CORR_CONTROL, 0);
 	if (ret < 0)
 		return ret;
 
@@ -411,38 +403,39 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 	const u16 mode = MT9V032_CHIP_CONTROL_MASTER_MODE
 		       | MT9V032_CHIP_CONTROL_DOUT_ENABLE
 		       | MT9V032_CHIP_CONTROL_SEQUENTIAL;
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
 	struct v4l2_rect *crop = &mt9v032->crop;
+	struct regmap *map = mt9v032->regmap;
 	unsigned int hbin;
 	unsigned int vbin;
 	int ret;
 
 	if (!enable)
-		return mt9v032_set_chip_control(mt9v032, mode, 0);
+		return regmap_update_bits(map, MT9V032_CHIP_CONTROL, mode, 0);
 
 	/* Configure the window size and row/column bin */
 	hbin = fls(mt9v032->hratio) - 1;
 	vbin = fls(mt9v032->vratio) - 1;
-	ret = mt9v032_write(client, MT9V032_READ_MODE,
-			    hbin << MT9V032_READ_MODE_COLUMN_BIN_SHIFT |
-			    vbin << MT9V032_READ_MODE_ROW_BIN_SHIFT);
+	ret = regmap_update_bits(map, MT9V032_READ_MODE,
+				 ~MT9V032_READ_MODE_RESERVED,
+				 hbin << MT9V032_READ_MODE_COLUMN_BIN_SHIFT |
+				 vbin << MT9V032_READ_MODE_ROW_BIN_SHIFT);
 	if (ret < 0)
 		return ret;
 
-	ret = mt9v032_write(client, MT9V032_COLUMN_START, crop->left);
+	ret = regmap_write(map, MT9V032_COLUMN_START, crop->left);
 	if (ret < 0)
 		return ret;
 
-	ret = mt9v032_write(client, MT9V032_ROW_START, crop->top);
+	ret = regmap_write(map, MT9V032_ROW_START, crop->top);
 	if (ret < 0)
 		return ret;
 
-	ret = mt9v032_write(client, MT9V032_WINDOW_WIDTH, crop->width);
+	ret = regmap_write(map, MT9V032_WINDOW_WIDTH, crop->width);
 	if (ret < 0)
 		return ret;
 
-	ret = mt9v032_write(client, MT9V032_WINDOW_HEIGHT, crop->height);
+	ret = regmap_write(map, MT9V032_WINDOW_HEIGHT, crop->height);
 	if (ret < 0)
 		return ret;
 
@@ -451,7 +444,7 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 		return ret;
 
 	/* Switch to master "normal" mode */
-	return mt9v032_set_chip_control(mt9v032, 0, mode);
+	return regmap_update_bits(map, MT9V032_CHIP_CONTROL, mode, mode);
 }
 
 static int mt9v032_enum_mbus_code(struct v4l2_subdev *subdev,
@@ -633,7 +626,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct mt9v032 *mt9v032 =
 			container_of(ctrl->handler, struct mt9v032, ctrls);
-	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
+	struct regmap *map = mt9v032->regmap;
 	u32 freq;
 	u16 data;
 
@@ -643,23 +636,23 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 					      ctrl->val);
 
 	case V4L2_CID_GAIN:
-		return mt9v032_write(client, MT9V032_ANALOG_GAIN, ctrl->val);
+		return regmap_write(map, MT9V032_ANALOG_GAIN, ctrl->val);
 
 	case V4L2_CID_EXPOSURE_AUTO:
 		return mt9v032_update_aec_agc(mt9v032, MT9V032_AEC_ENABLE,
 					      !ctrl->val);
 
 	case V4L2_CID_EXPOSURE:
-		return mt9v032_write(client, MT9V032_TOTAL_SHUTTER_WIDTH,
-				     ctrl->val);
+		return regmap_write(map, MT9V032_TOTAL_SHUTTER_WIDTH,
+				    ctrl->val);
 
 	case V4L2_CID_HBLANK:
 		mt9v032->hblank = ctrl->val;
 		return mt9v032_update_hblank(mt9v032);
 
 	case V4L2_CID_VBLANK:
-		return mt9v032_write(client, MT9V032_VERTICAL_BLANKING,
-				     ctrl->val);
+		return regmap_write(map, MT9V032_VERTICAL_BLANKING,
+				    ctrl->val);
 
 	case V4L2_CID_PIXEL_RATE:
 	case V4L2_CID_LINK_FREQ:
@@ -667,7 +660,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 			break;
 
 		freq = mt9v032->pdata->link_freqs[mt9v032->link_freq->val];
-		mt9v032->pixel_rate->val64 = freq;
+		*mt9v032->pixel_rate->p_new.p_s64 = freq;
 		mt9v032->sysclk = freq;
 		break;
 
@@ -696,7 +689,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 			     | MT9V032_TEST_PATTERN_FLIP;
 			break;
 		}
-		return mt9v032_write(client, MT9V032_TEST_PATTERN, data);
+		return regmap_write(map, MT9V032_TEST_PATTERN, data);
 	}
 
 	return 0;
@@ -764,7 +757,7 @@ static int mt9v032_registered(struct v4l2_subdev *subdev)
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
 	unsigned int i;
-	s32 version;
+	u32 version;
 	int ret;
 
 	dev_info(&client->dev, "Probing MT9V032 at address 0x%02x\n",
@@ -777,10 +770,10 @@ static int mt9v032_registered(struct v4l2_subdev *subdev)
 	}
 
 	/* Read and check the sensor version */
-	version = mt9v032_read(client, MT9V032_CHIP_VERSION);
-	if (version < 0) {
+	ret = regmap_read(mt9v032->regmap, MT9V032_CHIP_VERSION, &version);
+	if (ret < 0) {
 		dev_err(&client->dev, "Failed reading chip version\n");
-		return version;
+		return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mt9v032_versions); ++i) {
@@ -867,6 +860,13 @@ static const struct v4l2_subdev_internal_ops mt9v032_subdev_internal_ops = {
 	.close = mt9v032_close,
 };
 
+static const struct regmap_config mt9v032_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 16,
+	.max_register = 0xff,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 /* -----------------------------------------------------------------------------
  * Driver initialization and probing
  */
@@ -889,6 +889,10 @@ static int mt9v032_probe(struct i2c_client *client,
 	mt9v032 = devm_kzalloc(&client->dev, sizeof(*mt9v032), GFP_KERNEL);
 	if (!mt9v032)
 		return -ENOMEM;
+
+	mt9v032->regmap = devm_regmap_init_i2c(client, &mt9v032_regmap_config);
+	if (IS_ERR(mt9v032->regmap))
+		return PTR_ERR(mt9v032->regmap);
 
 	mt9v032->clk = devm_clk_get(&client->dev, NULL);
 	if (IS_ERR(mt9v032->clk))
@@ -931,7 +935,7 @@ static int mt9v032_probe(struct i2c_client *client,
 
 	mt9v032->pixel_rate =
 		v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
-				  V4L2_CID_PIXEL_RATE, 0, 0, 1, 0);
+				  V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
 
 	if (pdata && pdata->link_freqs) {
 		unsigned int def = 0;
@@ -984,10 +988,19 @@ static int mt9v032_probe(struct i2c_client *client,
 
 	mt9v032->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_init(&mt9v032->subdev.entity, 1, &mt9v032->pad, 0);
-
 	if (ret < 0)
-		v4l2_ctrl_handler_free(&mt9v032->ctrls);
+		goto err;
 
+	mt9v032->subdev.dev = &client->dev;
+	ret = v4l2_async_register_subdev(&mt9v032->subdev);
+	if (ret < 0)
+		goto err;
+
+	return 0;
+
+err:
+	media_entity_cleanup(&mt9v032->subdev.entity);
+	v4l2_ctrl_handler_free(&mt9v032->ctrls);
 	return ret;
 }
 
@@ -996,6 +1009,7 @@ static int mt9v032_remove(struct i2c_client *client)
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
 
+	v4l2_async_unregister_subdev(subdev);
 	v4l2_ctrl_handler_free(&mt9v032->ctrls);
 	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
@@ -1004,6 +1018,10 @@ static int mt9v032_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mt9v032_id[] = {
+	{ "mt9v022", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_COLOR] },
+	{ "mt9v022m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_MONO] },
+	{ "mt9v024", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_COLOR] },
+	{ "mt9v024m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_MONO] },
 	{ "mt9v032", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_COLOR] },
 	{ "mt9v032m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_MONO] },
 	{ "mt9v034", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_COLOR] },

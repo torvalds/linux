@@ -2159,7 +2159,7 @@ int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
 	return 0;
 
 rw_error:
-	return -EIO;
+	return rc;
 
 }
 
@@ -2252,7 +2252,7 @@ static int hi_cfg_command(const struct drx_demod_instance *demod)
 	return 0;
 
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -2363,7 +2363,7 @@ hi_command(struct i2c_device_addr *dev_addr, const struct drxj_hi_cmd *cmd, u16 
 	/* if ( powerdown_cmd == true ) */
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -2434,7 +2434,7 @@ static int init_hi(const struct drx_demod_instance *demod)
 	return 0;
 
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -2650,7 +2650,7 @@ static int get_device_capabilities(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -3338,7 +3338,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3421,7 +3421,7 @@ static int set_mpegtei_handling(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3464,7 +3464,7 @@ static int bit_reverse_mpeg_output(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3508,7 +3508,7 @@ static int set_mpeg_start_width(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3652,7 +3652,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -3854,7 +3854,7 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -3969,7 +3969,7 @@ static int smart_ant_init(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd)
@@ -4109,7 +4109,7 @@ static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd
 	return 0;
 
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -4178,7 +4178,7 @@ int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, u32 a
 	return 0;
 
 rw_error:
-	return -EIO;
+	return rc;
 
 }
 
@@ -4290,7 +4290,7 @@ static int adc_sync_measurement(struct drx_demod_instance *demod, u16 *count)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -4349,7 +4349,7 @@ static int adc_synchronization(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -4734,7 +4734,7 @@ static int init_agc(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -4831,7 +4831,7 @@ set_frequency(struct drx_demod_instance *demod,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -4879,7 +4879,7 @@ static int get_acc_pkt_err(struct drx_demod_instance *demod, u16 *packet_err)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 #endif
 
@@ -5097,7 +5097,7 @@ set_agc_rf(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -5326,7 +5326,7 @@ set_agc_if(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -5362,7 +5362,7 @@ static int set_iqm_af(struct drx_demod_instance *demod, bool active)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -5470,7 +5470,7 @@ static int power_down_vsb(struct drx_demod_instance *demod, bool primary)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -5686,7 +5686,7 @@ static int set_vsb_leak_n_gain(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -6192,7 +6192,7 @@ static int set_vsb(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -6231,7 +6231,7 @@ static int get_vsb_post_rs_pck_err(struct i2c_device_addr *dev_addr,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -6276,7 +6276,7 @@ static int get_vs_bpost_viterbi_ber(struct i2c_device_addr *dev_addr,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -6321,7 +6321,7 @@ static int get_vsbmer(struct i2c_device_addr *dev_addr, u16 *mer)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 
@@ -6434,7 +6434,7 @@ static int power_down_qam(struct drx_demod_instance *demod, bool primary)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -6646,7 +6646,7 @@ set_qam_measurement(struct drx_demod_instance *demod,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -6881,7 +6881,7 @@ static int set_qam16(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -7116,7 +7116,7 @@ static int set_qam32(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -7351,7 +7351,7 @@ static int set_qam64(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -7586,7 +7586,7 @@ static int set_qam128(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -7821,7 +7821,7 @@ static int set_qam256(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -8650,7 +8650,7 @@ set_qam(struct drx_demod_instance *demod,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -8831,7 +8831,7 @@ static int qam_flip_spec(struct drx_demod_instance *demod, struct drx_channel *c
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 
 }
 
@@ -8984,7 +8984,7 @@ qam64auto(struct drx_demod_instance *demod,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -9068,7 +9068,7 @@ qam256auto(struct drx_demod_instance *demod,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -9273,7 +9273,7 @@ rw_error:
 	/* restore starting value */
 	if (auto_flag)
 		channel->constellation = DRX_CONSTELLATION_AUTO;
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -9344,7 +9344,7 @@ get_qamrs_err_count(struct i2c_device_addr *dev_addr,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -9425,8 +9425,8 @@ static int get_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 		*sig_strength = 0;
 
 	return 0;
-	rw_error:
-	return -EIO;
+rw_error:
+	return rc;
 }
 
 /**
@@ -9643,7 +9643,7 @@ rw_error:
 	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
-	return -EIO;
+	return rc;
 }
 
 #endif /* #ifndef DRXJ_VSB_ONLY */
@@ -9810,7 +9810,7 @@ power_down_atv(struct drx_demod_instance *demod, enum drx_standard standard, boo
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -9840,7 +9840,7 @@ static int power_down_aud(struct drx_demod_instance *demod)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -9874,7 +9874,7 @@ static int set_orx_nsu_aox(struct drx_demod_instance *demod, bool active)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /**
@@ -10398,7 +10398,7 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -10638,7 +10638,7 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*=============================================================================
@@ -10756,7 +10756,7 @@ ctrl_sig_quality(struct drx_demod_instance *demod,
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -10844,7 +10844,7 @@ ctrl_lock_status(struct drx_demod_instance *demod, enum drx_lock_status *lock_st
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -10941,7 +10941,7 @@ ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 rw_error:
 	/* Don't know what the standard is now ... try again */
 	ext_attr->standard = DRX_STANDARD_UNKNOWN;
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -11222,7 +11222,7 @@ ctrl_set_cfg_pre_saw(struct drx_demod_instance *demod, struct drxj_cfg_pre_saw *
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -11303,7 +11303,7 @@ ctrl_set_cfg_afe_gain(struct drx_demod_instance *demod, struct drxj_cfg_afe_gain
 
 	return 0;
 rw_error:
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -11315,6 +11315,7 @@ rw_error:
 static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 		       struct drxu_code_info *mc_info,
 		       enum drxu_code_action action);
+static int drxj_set_lna_state(struct drx_demod_instance *demod, bool state);
 
 /**
 * \fn drxj_open()
@@ -11527,10 +11528,11 @@ static int drxj_open(struct drx_demod_instance *demod)
 	ext_attr->aud_data = drxj_default_aud_data_g;
 
 	demod->my_common_attr->is_opened = true;
+	drxj_set_lna_state(demod, false);
 	return 0;
 rw_error:
 	common_attr->is_opened = false;
-	return -EIO;
+	return rc;
 }
 
 /*============================================================================*/
@@ -11578,7 +11580,7 @@ static int drxj_close(struct drx_demod_instance *demod)
 rw_error:
 	DRX_ATTR_ISOPENED(demod) = false;
 
-	return -EIO;
+	return rc;
 }
 
 /*
@@ -11890,6 +11892,33 @@ release:
 	return rc;
 }
 
+/* caller is expeced to check if lna is supported before enabling */
+static int drxj_set_lna_state(struct drx_demod_instance *demod, bool state)
+{
+	struct drxuio_cfg uio_cfg;
+	struct drxuio_data uio_data;
+	int result;
+
+	uio_cfg.uio = DRX_UIO1;
+	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
+	/* Configure user-I/O #3: enable read/write */
+	result = ctrl_set_uio_cfg(demod, &uio_cfg);
+	if (result) {
+		pr_err("Failed to setup LNA GPIO!\n");
+		return result;
+	}
+
+	uio_data.uio = DRX_UIO1;
+	uio_data.value = state;
+	result = ctrl_uio_write(demod, &uio_data);
+	if (result != 0) {
+		pr_err("Failed to %sable LNA!\n",
+		       state ? "en" : "dis");
+		return result;
+	}
+	return 0;
+}
+
 /*
  * The Linux DVB Driver for Micronas DRX39xx family (drx3933j)
  *
@@ -12040,7 +12069,6 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	enum drx_standard standard = DRX_STANDARD_8VSB;
 	struct drx_channel channel;
 	int result;
-	struct drxuio_data uio_data;
 	static const struct drx_channel def_channel = {
 		/* frequency      */ 0,
 		/* bandwidth      */ DRX_BANDWIDTH_6MHZ,
@@ -12125,13 +12153,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 	/* Just for giggles, let's shut off the LNA again.... */
-	uio_data.uio = DRX_UIO1;
-	uio_data.value = false;
-	result = ctrl_uio_write(demod, &uio_data);
-	if (result != 0) {
-		pr_err("Failed to disable LNA!\n");
-		return 0;
-	}
+	drxj_set_lna_state(demod, false);
 
 	/* After set_frontend, except for strength, stats aren't available */
 	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
@@ -12180,21 +12202,28 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 static int drx39xxj_init(struct dvb_frontend *fe)
 {
-	/* Bring the demod out of sleep */
-	drx39xxj_set_powerstate(fe, 1);
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	struct drx_demod_instance *demod = state->demod;
+	int rc = 0;
 
-	return 0;
+	if (fe->exit == DVB_FE_DEVICE_RESUME) {
+		/* so drxj_open() does what it needs to do */
+		demod->my_common_attr->is_opened = false;
+		rc = drxj_open(demod);
+		if (rc != 0)
+			pr_err("drx39xxj_init(): DRX open failed rc=%d!\n", rc);
+	} else
+		drx39xxj_set_powerstate(fe, 1);
+
+	return rc;
 }
 
 static int drx39xxj_set_lna(struct dvb_frontend *fe)
 {
-	int result;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	struct drx_demod_instance *demod = state->demod;
 	struct drxj_data *ext_attr = demod->my_ext_attr;
-	struct drxuio_cfg uio_cfg;
-	struct drxuio_data uio_data;
 
 	if (c->lna) {
 		if (!ext_attr->has_lna) {
@@ -12204,26 +12233,7 @@ static int drx39xxj_set_lna(struct dvb_frontend *fe)
 		}
 	}
 
-	/* Turn off the LNA */
-	uio_cfg.uio = DRX_UIO1;
-	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
-	/* Configure user-I/O #3: enable read/write */
-	result = ctrl_set_uio_cfg(demod, &uio_cfg);
-	if (result) {
-		pr_err("Failed to setup LNA GPIO!\n");
-		return result;
-	}
-
-	uio_data.uio = DRX_UIO1;
-	uio_data.value = c->lna;
-	result = ctrl_uio_write(demod, &uio_data);
-	if (result != 0) {
-		pr_err("Failed to %sable LNA!\n",
-		       c->lna ? "en" : "dis");
-		return result;
-	}
-
-	return 0;
+	return drxj_set_lna_state(demod, c->lna);
 }
 
 static int drx39xxj_get_tune_settings(struct dvb_frontend *fe,
@@ -12238,7 +12248,9 @@ static void drx39xxj_release(struct dvb_frontend *fe)
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	struct drx_demod_instance *demod = state->demod;
 
-	drxj_close(demod);
+	/* if device is removed don't access it */
+	if (fe->exit != DVB_FE_DEVICE_REMOVED)
+		drxj_close(demod);
 
 	kfree(demod->my_ext_attr);
 	kfree(demod->my_common_attr);
@@ -12259,8 +12271,6 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	struct drxj_data *demod_ext_attr = NULL;
 	struct drx_demod_instance *demod = NULL;
 	struct dtv_frontend_properties *p;
-	struct drxuio_cfg uio_cfg;
-	struct drxuio_data uio_data;
 	int result;
 
 	/* allocate memory for the internal state */
@@ -12272,22 +12282,20 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	if (demod == NULL)
 		goto error;
 
-	demod_addr = kmalloc(sizeof(struct i2c_device_addr), GFP_KERNEL);
+	demod_addr = kmemdup(&drxj_default_addr_g,
+			     sizeof(struct i2c_device_addr), GFP_KERNEL);
 	if (demod_addr == NULL)
 		goto error;
-	memcpy(demod_addr, &drxj_default_addr_g,
-	       sizeof(struct i2c_device_addr));
 
-	demod_comm_attr = kmalloc(sizeof(struct drx_common_attr), GFP_KERNEL);
+	demod_comm_attr = kmemdup(&drxj_default_comm_attr_g,
+				  sizeof(struct drx_common_attr), GFP_KERNEL);
 	if (demod_comm_attr == NULL)
 		goto error;
-	memcpy(demod_comm_attr, &drxj_default_comm_attr_g,
-	       sizeof(struct drx_common_attr));
 
-	demod_ext_attr = kmalloc(sizeof(struct drxj_data), GFP_KERNEL);
+	demod_ext_attr = kmemdup(&drxj_data_g, sizeof(struct drxj_data),
+				 GFP_KERNEL);
 	if (demod_ext_attr == NULL)
 		goto error;
-	memcpy(demod_ext_attr, &drxj_data_g, sizeof(struct drxj_data));
 
 	/* setup the state */
 	state->i2c = i2c;
@@ -12310,24 +12318,6 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	result = drxj_open(demod);
 	if (result != 0) {
 		pr_err("DRX open failed!  Aborting\n");
-		goto error;
-	}
-
-	/* Turn off the LNA */
-	uio_cfg.uio = DRX_UIO1;
-	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
-	/* Configure user-I/O #3: enable read/write */
-	result = ctrl_set_uio_cfg(demod, &uio_cfg);
-	if (result) {
-		pr_err("Failed to setup LNA GPIO!\n");
-		goto error;
-	}
-
-	uio_data.uio = DRX_UIO1;
-	uio_data.value = false;
-	result = ctrl_uio_write(demod, &uio_data);
-	if (result != 0) {
-		pr_err("Failed to disable LNA!\n");
 		goto error;
 	}
 

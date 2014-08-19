@@ -240,16 +240,10 @@ struct htt_oob_sync_req {
 	__le16 rsvd0;
 } __packed;
 
-#define HTT_AGGR_CONF_MAX_NUM_AMSDU_SUBFRAMES_MASK 0x1F
-#define HTT_AGGR_CONF_MAX_NUM_AMSDU_SUBFRAMES_LSB  0
-
 struct htt_aggr_conf {
 	u8 max_num_ampdu_subframes;
-	union {
-		/* dont use bitfields; undefined behaviour */
-		u8 flags; /* see %HTT_AGGR_CONF_MAX_NUM_AMSDU_SUBFRAMES_ */
-		u8 max_num_amsdu_subframes:5;
-	} __packed;
+	/* amsdu_subframes is limited by 0x1F mask */
+	u8 max_num_amsdu_subframes;
 } __packed;
 
 #define HTT_MGMT_FRM_HDR_DOWNLOAD_LEN 32
@@ -1343,6 +1337,9 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
 int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
 int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt);
+int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
+				u8 max_subfrms_ampdu,
+				u8 max_subfrms_amsdu);
 
 void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt);
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt);

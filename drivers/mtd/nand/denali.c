@@ -74,6 +74,7 @@ MODULE_PARM_DESC(onfi_timing_mode, "Overrides default ONFI setting."
 #define SPARE_ACCESS		0x41
 #define MAIN_ACCESS		0x42
 #define MAIN_SPARE_ACCESS	0x43
+#define PIPELINE_ACCESS		0x2000
 
 #define DENALI_READ	0
 #define DENALI_WRITE	0x100
@@ -765,7 +766,7 @@ static int denali_send_pipeline_cmd(struct denali_nand_info *denali,
 			iowrite32(cmd, denali->flash_mem);
 		} else {
 			index_addr(denali, (uint32_t)cmd,
-					0x2000 | op | page_count);
+					PIPELINE_ACCESS | op | page_count);
 
 			/* wait for command to be accepted
 			 * can always use status0 bit as the
@@ -1061,9 +1062,7 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *chip,
 		dev_err(denali->dev,
 				"timeout on write_page (type = %d)\n",
 				raw_xfer);
-		denali->status =
-			(irq_status & INTR_STATUS__PROGRAM_FAIL) ?
-			NAND_STATUS_FAIL : PASS;
+		denali->status = NAND_STATUS_FAIL;
 	}
 
 	denali_enable_dma(denali, false);

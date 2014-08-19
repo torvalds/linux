@@ -456,6 +456,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 
 	/* Promise */
 	{ PCI_VDEVICE(PROMISE, 0x3f20), board_ahci },	/* PDC42819 */
+	{ PCI_VDEVICE(PROMISE, 0x3781), board_ahci },   /* FastTrak TX8660 ahci-mode */
 
 	/* Asmedia */
 	{ PCI_VDEVICE(ASMEDIA, 0x0601), board_ahci },	/* ASM1060 */
@@ -525,8 +526,7 @@ static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 			  "Disabling your PATA port. Use the boot option 'ahci.marvell_enable=0' to avoid this.\n");
 	}
 
-	ahci_save_initial_config(&pdev->dev, hpriv, force_port_map,
-				 mask_port_map);
+	ahci_save_initial_config(&pdev->dev, hpriv);
 }
 
 static int ahci_pci_reset_controller(struct ata_host *host)

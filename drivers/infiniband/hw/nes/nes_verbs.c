@@ -1616,8 +1616,8 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 				entries, nescq->cq_mem_size, nescq->hw_cq.cq_number);
 
 		/* allocate the physical buffer space */
-		mem = pci_alloc_consistent(nesdev->pcidev, nescq->cq_mem_size,
-				&nescq->hw_cq.cq_pbase);
+		mem = pci_zalloc_consistent(nesdev->pcidev, nescq->cq_mem_size,
+					    &nescq->hw_cq.cq_pbase);
 		if (!mem) {
 			printk(KERN_ERR PFX "Unable to allocate pci memory for cq\n");
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
@@ -1625,7 +1625,6 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 			return ERR_PTR(-ENOMEM);
 		}
 
-		memset(mem, 0, nescq->cq_mem_size);
 		nescq->hw_cq.cq_vbase = mem;
 		nescq->hw_cq.cq_head = 0;
 		nes_debug(NES_DBG_CQ, "CQ%u virtual address @ %p, phys = 0x%08X\n",

@@ -982,6 +982,15 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	chip->select_chip(mtd, chipnr);
 
+	/*
+	 * Reset the chip.
+	 * If we want to check the WP through READ STATUS and check the bit 7
+	 * we must reset the chip
+	 * some operation can also clear the bit 7 of status register
+	 * eg. erase/program a locked block
+	 */
+	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
 		pr_debug("%s: device is write protected!\n",
@@ -1031,6 +1040,15 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	chipnr = ofs >> chip->chip_shift;
 
 	chip->select_chip(mtd, chipnr);
+
+	/*
+	 * Reset the chip.
+	 * If we want to check the WP through READ STATUS and check the bit 7
+	 * we must reset the chip
+	 * some operation can also clear the bit 7 of status register
+	 * eg. erase/program a locked block
+	 */
+	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
@@ -2391,8 +2409,8 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	blockmask = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
 
 	/* Invalidate the page cache, when we write to the cached page */
-	if (to <= (chip->pagebuf << chip->page_shift) &&
-	    (chip->pagebuf << chip->page_shift) < (to + ops->len))
+	if (to <= ((loff_t)chip->pagebuf << chip->page_shift) &&
+	    ((loff_t)chip->pagebuf << chip->page_shift) < (to + ops->len))
 		chip->pagebuf = -1;
 
 	/* Don't allow multipage oob writes with offset */

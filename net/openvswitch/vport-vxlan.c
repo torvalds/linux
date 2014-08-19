@@ -143,8 +143,6 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	struct rtable *rt;
 	struct flowi4 fl;
 	__be16 src_port;
-	int port_min;
-	int port_max;
 	__be16 df;
 	int err;
 
@@ -172,8 +170,7 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 
 	skb->ignore_df = 1;
 
-	inet_get_local_port_range(net, &port_min, &port_max);
-	src_port = vxlan_src_port(port_min, port_max, skb);
+	src_port = udp_flow_src_port(net, skb, 0, 0, true);
 
 	err = vxlan_xmit_skb(vxlan_port->vs, rt, skb,
 			     fl.saddr, OVS_CB(skb)->tun_key->ipv4_dst,

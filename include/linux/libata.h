@@ -593,6 +593,7 @@ struct ata_host {
 	struct device 		*dev;
 	void __iomem * const	*iomap;
 	unsigned int		n_ports;
+	unsigned int		n_tags;			/* nr of NCQ tags */
 	void			*private_data;
 	struct ata_port_operations *ops;
 	unsigned long		flags;

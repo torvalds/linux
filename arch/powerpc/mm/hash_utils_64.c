@@ -243,7 +243,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-static int htab_remove_mapping(unsigned long vstart, unsigned long vend,
+int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 		      int psize, int ssize)
 {
 	unsigned long vaddr;
@@ -821,21 +821,14 @@ static void __init htab_initialize(void)
 
 void __init early_init_mmu(void)
 {
-	/* Setup initial STAB address in the PACA */
-	get_paca()->stab_real = __pa((u64)&initial_stab);
-	get_paca()->stab_addr = (u64)&initial_stab;
-
 	/* Initialize the MMU Hash table and create the linear mapping
-	 * of memory. Has to be done before stab/slb initialization as
-	 * this is currently where the page size encoding is obtained
+	 * of memory. Has to be done before SLB initialization as this is
+	 * currently where the page size encoding is obtained.
 	 */
 	htab_initialize();
 
-	/* Initialize stab / SLB management */
-	if (mmu_has_feature(MMU_FTR_SLB))
-		slb_initialize();
-	else
-		stab_initialize(get_paca()->stab_real);
+	/* Initialize SLB management */
+	slb_initialize();
 }
 
 #ifdef CONFIG_SMP
@@ -845,13 +838,8 @@ void early_init_mmu_secondary(void)
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		mtspr(SPRN_SDR1, _SDR1);
 
-	/* Initialize STAB/SLB. We use a virtual address as it works
-	 * in real mode on pSeries.
-	 */
-	if (mmu_has_feature(MMU_FTR_SLB))
-		slb_initialize();
-	else
-		stab_initialize(get_paca()->stab_addr);
+	/* Initialize SLB */
+	slb_initialize();
 }
 #endif /* CONFIG_SMP */
 

@@ -58,17 +58,16 @@
 
     <para>The ioctls are used to query and configure selection rectangles.</para>
 
-<para> To query the cropping (composing) rectangle set &v4l2-selection;
+<para>To query the cropping (composing) rectangle set &v4l2-selection;
 <structfield> type </structfield> field to the respective buffer type.
-Do not use multiplanar buffers.  Use <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE
-</constant> instead of <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
-</constant>.  Use <constant> V4L2_BUF_TYPE_VIDEO_OUTPUT </constant> instead of
-<constant> V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE </constant>.  The next step is
+Do not use multiplanar buffers.  Use <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>
+instead of <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>.  Use
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> instead of
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant>.  The next step is
 setting the value of &v4l2-selection; <structfield>target</structfield> field
-to <constant> V4L2_SEL_TGT_CROP </constant> (<constant>
-V4L2_SEL_TGT_COMPOSE </constant>).  Please refer to table <xref
-linkend="v4l2-selections-common" /> or <xref linkend="selection-api" /> for additional
-targets.  The <structfield>flags</structfield> and <structfield>reserved
+to <constant>V4L2_SEL_TGT_CROP</constant> (<constant>V4L2_SEL_TGT_COMPOSE</constant>).
+Please refer to table <xref linkend="v4l2-selections-common" /> or <xref linkend="selection-api" />
+for additional targets.  The <structfield>flags</structfield> and <structfield>reserved
 </structfield> fields of &v4l2-selection; are ignored and they must be filled
 with zeros.  The driver fills the rest of the structure or
 returns &EINVAL; if incorrect buffer type or target was used. If cropping
@@ -77,19 +76,18 @@ always equal to the bounds rectangle.  Finally, the &v4l2-rect;
 <structfield>r</structfield> rectangle is filled with the current cropping
 (composing) coordinates. The coordinates are expressed in driver-dependent
 units. The only exception are rectangles for images in raw formats, whose
-coordinates are always expressed in pixels.  </para>
+coordinates are always expressed in pixels.</para>
 
-<para> To change the cropping (composing) rectangle set the &v4l2-selection;
+<para>To change the cropping (composing) rectangle set the &v4l2-selection;
 <structfield>type</structfield> field to the respective buffer type.  Do not
-use multiplanar buffers.  Use <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE
-</constant> instead of <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
-</constant>.  Use <constant> V4L2_BUF_TYPE_VIDEO_OUTPUT </constant> instead of
-<constant> V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE </constant>.  The next step is
+use multiplanar buffers.  Use <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>
+instead of <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>.  Use
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> instead of
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant>.  The next step is
 setting the value of &v4l2-selection; <structfield>target</structfield> to
-<constant>V4L2_SEL_TGT_CROP</constant> (<constant>
-V4L2_SEL_TGT_COMPOSE </constant>). Please refer to table <xref
-linkend="v4l2-selections-common" /> or <xref linkend="selection-api" /> for additional
-targets.  The &v4l2-rect; <structfield>r</structfield> rectangle need to be
+<constant>V4L2_SEL_TGT_CROP</constant> (<constant>V4L2_SEL_TGT_COMPOSE</constant>).
+Please refer to table <xref linkend="v4l2-selections-common" /> or <xref linkend="selection-api" />
+for additional targets.  The &v4l2-rect; <structfield>r</structfield> rectangle need to be
 set to the desired active area. Field &v4l2-selection; <structfield> reserved
 </structfield> is ignored and must be filled with zeros.  The driver may adjust
 coordinates of the requested rectangle. An application may
@@ -149,8 +147,8 @@ On success the &v4l2-rect; <structfield>r</structfield> field contains
 the adjusted rectangle. When the parameters are unsuitable the application may
 modify the cropping (composing) or image parameters and repeat the cycle until
 satisfactory parameters have been negotiated. If constraints flags have to be
-violated at then ERANGE is returned. The error indicates that <emphasis> there
-exist no rectangle </emphasis> that satisfies the constraints.</para>
+violated at then ERANGE is returned. The error indicates that <emphasis>there
+exist no rectangle</emphasis> that satisfies the constraints.</para>
 
   <para>Selection targets and flags are documented in <xref
   linkend="v4l2-selections-common"/>.</para>

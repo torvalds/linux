@@ -48,6 +48,7 @@
 #define HCI_UART_RESET_ON_INIT	1
 #define HCI_UART_CREATE_AMP	2
 #define HCI_UART_INIT_PENDING	3
+#define HCI_UART_EXT_CONFIG	4
 
 struct hci_uart;
 

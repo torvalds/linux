@@ -88,8 +88,7 @@ static int ahci_mvebu_probe(struct platform_device *pdev)
 	ahci_mvebu_mbus_config(hpriv, dram);
 	ahci_mvebu_regret_option(hpriv);
 
-	rc = ahci_platform_init_host(pdev, hpriv, &ahci_mvebu_port_info,
-				     0, 0, 0);
+	rc = ahci_platform_init_host(pdev, hpriv, &ahci_mvebu_port_info);
 	if (rc)
 		goto disable_resources;
 

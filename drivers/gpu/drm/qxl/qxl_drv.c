@@ -38,7 +38,7 @@
 #include "qxl_object.h"
 
 extern int qxl_max_ioctls;
-static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
+static const struct pci_device_id pciidlist[] = {
 	{ 0x1b36, 0x100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8,
 	  0xffff00, 0 },
 	{ 0x1b36, 0x100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_OTHER << 8,

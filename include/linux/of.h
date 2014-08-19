@@ -74,8 +74,6 @@ struct of_phandle_args {
 	uint32_t args[MAX_PHANDLE_ARGS];
 };
 
-extern int of_node_add(struct device_node *node);
-
 /* initialize a node */
 extern struct kobj_type of_node_ktype;
 static inline void of_node_init(struct device_node *node)
@@ -113,6 +111,7 @@ static inline void of_node_put(struct device_node *node) { }
 extern struct device_node *of_allnodes;
 extern struct device_node *of_chosen;
 extern struct device_node *of_aliases;
+extern struct device_node *of_stdout;
 extern raw_spinlock_t devtree_lock;
 
 static inline bool of_have_populated_dt(void)
@@ -204,6 +203,7 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 #define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
 #define OF_DETACHED	2 /* node has been detached from the device tree */
 #define OF_POPULATED	3 /* device already created for the node */
+#define OF_POPULATED_BUS	4 /* of_platform_populate recursed to children of this node */
 
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
@@ -322,6 +322,7 @@ extern int of_update_property(struct device_node *np, struct property *newprop);
 struct of_prop_reconfig {
 	struct device_node	*dn;
 	struct property		*prop;
+	struct property		*old_prop;
 };
 
 extern int of_reconfig_notifier_register(struct notifier_block *);
@@ -352,7 +353,7 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
  */
 const char *of_prop_next_string(struct property *prop, const char *cur);
 
-int of_device_is_stdout_path(struct device_node *dn);
+bool of_console_check(struct device_node *dn, char *name, int index);
 
 #else /* CONFIG_OF */
 
@@ -564,9 +565,9 @@ static inline int of_machine_is_compatible(const char *compat)
 	return 0;
 }
 
-static inline int of_device_is_stdout_path(struct device_node *dn)
+static inline bool of_console_check(const struct device_node *dn, const char *name, int index)
 {
-	return 0;
+	return false;
 }
 
 static inline const __be32 *of_prop_next_u32(struct property *prop,
@@ -785,5 +786,81 @@ typedef void (*of_init_fn_1)(struct device_node *);
 		_OF_DECLARE(table, name, compat, fn, of_init_fn_1)
 #define OF_DECLARE_2(table, name, compat, fn) \
 		_OF_DECLARE(table, name, compat, fn, of_init_fn_2)
+
+/**
+ * struct of_changeset_entry	- Holds a changeset entry
+ *
+ * @node:	list_head for the log list
+ * @action:	notifier action
+ * @np:		pointer to the device node affected
+ * @prop:	pointer to the property affected
+ * @old_prop:	hold a pointer to the original property
+ *
+ * Every modification of the device tree during a changeset
+ * is held in a list of of_changeset_entry structures.
+ * That way we can recover from a partial application, or we can
+ * revert the changeset
+ */
+struct of_changeset_entry {
+	struct list_head node;
+	unsigned long action;
+	struct device_node *np;
+	struct property *prop;
+	struct property *old_prop;
+};
+
+/**
+ * struct of_changeset - changeset tracker structure
+ *
+ * @entries:	list_head for the changeset entries
+ *
+ * changesets are a convenient way to apply bulk changes to the
+ * live tree. In case of an error, changes are rolled-back.
+ * changesets live on after initial application, and if not
+ * destroyed after use, they can be reverted in one single call.
+ */
+struct of_changeset {
+	struct list_head entries;
+};
+
+#ifdef CONFIG_OF_DYNAMIC
+extern void of_changeset_init(struct of_changeset *ocs);
+extern void of_changeset_destroy(struct of_changeset *ocs);
+extern int of_changeset_apply(struct of_changeset *ocs);
+extern int of_changeset_revert(struct of_changeset *ocs);
+extern int of_changeset_action(struct of_changeset *ocs,
+		unsigned long action, struct device_node *np,
+		struct property *prop);
+
+static inline int of_changeset_attach_node(struct of_changeset *ocs,
+		struct device_node *np)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_ATTACH_NODE, np, NULL);
+}
+
+static inline int of_changeset_detach_node(struct of_changeset *ocs,
+		struct device_node *np)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_DETACH_NODE, np, NULL);
+}
+
+static inline int of_changeset_add_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_ADD_PROPERTY, np, prop);
+}
+
+static inline int of_changeset_remove_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_REMOVE_PROPERTY, np, prop);
+}
+
+static inline int of_changeset_update_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_UPDATE_PROPERTY, np, prop);
+}
+#endif
 
 #endif /* _LINUX_OF_H */

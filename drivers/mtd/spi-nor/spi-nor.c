@@ -611,6 +611,7 @@ const struct spi_device_id spi_nor_ids[] = {
 	{ "m25px32-s0", INFO(0x207316,  0, 64 * 1024, 64, SECT_4K) },
 	{ "m25px32-s1", INFO(0x206316,  0, 64 * 1024, 64, SECT_4K) },
 	{ "m25px64",    INFO(0x207117,  0, 64 * 1024, 128, 0) },
+	{ "m25px80",    INFO(0x207114,  0, 64 * 1024, 16, 0) },
 
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
 	{ "w25x10", INFO(0xef3011, 0, 64 * 1024,  2,  SECT_4K) },
@@ -623,7 +624,6 @@ const struct spi_device_id spi_nor_ids[] = {
 	{ "w25q32dw", INFO(0xef6016, 0, 64 * 1024,  64, SECT_4K) },
 	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "w25q64", INFO(0xef4017, 0, 64 * 1024, 128, SECT_4K) },
-	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256, SECT_4K) },
 	{ "w25q80", INFO(0xef5014, 0, 64 * 1024,  16, SECT_4K) },
 	{ "w25q80bl", INFO(0xef4014, 0, 64 * 1024,  16, SECT_4K) },
 	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256, SECT_4K) },
@@ -669,11 +669,6 @@ static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 	}
 	dev_err(nor->dev, "unrecognized JEDEC id %06x\n", jedec);
 	return ERR_PTR(-ENODEV);
-}
-
-static const struct spi_device_id *jedec_probe(struct spi_nor *nor)
-{
-	return nor->read_id(nor);
 }
 
 static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
@@ -958,7 +953,7 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 	if (info->jedec_id) {
 		const struct spi_device_id *jid;
 
-		jid = jedec_probe(nor);
+		jid = nor->read_id(nor);
 		if (IS_ERR(jid)) {
 			return PTR_ERR(jid);
 		} else if (jid != id) {

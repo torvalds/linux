@@ -16,6 +16,9 @@
 
 	aliases {
 		pinctrl0 = &pinctrl_0;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
 	};
 
 	intc:interrupt-controller@4a000000 {
@@ -46,21 +49,21 @@
 		#pwm-cells = <4>;
 	};
 
-	serial@50000000 {
+	uart0: serial@50000000 {
 		compatible = "samsung,s3c2410-uart";
 		reg = <0x50000000 0x4000>;
 		interrupts = <1 28 0 4>, <1 28 1 4>;
 		status = "disabled";
 	};
 
-	serial@50004000 {
+	uart1: serial@50004000 {
 		compatible = "samsung,s3c2410-uart";
 		reg = <0x50004000 0x4000>;
 		interrupts = <1 23 3 4>, <1 23 4 4>;
 		status = "disabled";
 	};
 
-	serial@50008000 {
+	uart2: serial@50008000 {
 		compatible = "samsung,s3c2410-uart";
 		reg = <0x50008000 0x4000>;
 		interrupts = <1 15 6 4>, <1 15 7 4>;

@@ -70,12 +70,16 @@ void __rw_yield(arch_rwlock_t *rw)
 
 void arch_spin_unlock_wait(arch_spinlock_t *lock)
 {
+	smp_mb();
+
 	while (lock->slock) {
 		HMT_low();
 		if (SHARED_PROCESSOR)
 			__spin_yield(lock);
 	}
 	HMT_medium();
+
+	smp_mb();
 }
 
 EXPORT_SYMBOL(arch_spin_unlock_wait);

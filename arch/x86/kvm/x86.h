@@ -47,6 +47,16 @@ static inline int is_long_mode(struct kvm_vcpu *vcpu)
 #endif
 }
 
+static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
+{
+	int cs_db, cs_l;
+
+	if (!is_long_mode(vcpu))
+		return false;
+	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
+	return cs_l;
+}
+
 static inline bool mmu_is_nested(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.walk_mmu == &vcpu->arch.nested_mmu;
@@ -106,6 +116,23 @@ static inline bool vcpu_match_mmio_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 		return true;
 
 	return false;
+}
+
+static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu,
+					       enum kvm_reg reg)
+{
+	unsigned long val = kvm_register_read(vcpu, reg);
+
+	return is_64_bit_mode(vcpu) ? val : (u32)val;
+}
+
+static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
+				       enum kvm_reg reg,
+				       unsigned long val)
+{
+	if (!is_64_bit_mode(vcpu))
+		val = (u32)val;
+	return kvm_register_write(vcpu, reg, val);
 }
 
 void kvm_before_handle_nmi(struct kvm_vcpu *vcpu);

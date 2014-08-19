@@ -5,8 +5,7 @@
 #include "event-parse.h"
 
 static unsigned long long
-process___le16_to_cpup(struct trace_seq *s,
-		       unsigned long long *args)
+process___le16_to_cpup(struct trace_seq *s, unsigned long long *args)
 {
 	uint16_t *val = (uint16_t *) (unsigned long) args[0];
 	return val ? (long long) le16toh(*val) : 0;

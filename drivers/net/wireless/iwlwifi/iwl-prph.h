@@ -359,4 +359,10 @@ enum secure_load_status_reg {
 #define RXF_LD_FENCE_OFFSET_ADDR	(0xa00c10)
 #define RXF_FIFO_RD_FENCE_ADDR		(0xa00c0c)
 
+/* FW monitor */
+#define MON_BUFF_BASE_ADDR		(0xa03c3c)
+#define MON_BUFF_END_ADDR		(0xa03c40)
+#define MON_BUFF_WRPTR			(0xa03c44)
+#define MON_BUFF_CYCLE_CNT		(0xa03c48)
+
 #endif				/* __iwl_prph_h__ */

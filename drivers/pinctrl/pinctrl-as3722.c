@@ -565,7 +565,6 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 {
 	struct as3722_pctrl_info *as_pci;
 	int ret;
-	int tret;
 
 	as_pci = devm_kzalloc(&pdev->dev, sizeof(*as_pci), GFP_KERNEL);
 	if (!as_pci)
@@ -611,10 +610,7 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 
 fail_range_add:
-	tret = gpiochip_remove(&as_pci->gpio_chip);
-	if (tret < 0)
-		dev_warn(&pdev->dev, "Couldn't remove gpio chip, %d\n", tret);
-
+	gpiochip_remove(&as_pci->gpio_chip);
 fail_chip_add:
 	pinctrl_unregister(as_pci->pctl);
 	return ret;
@@ -623,11 +619,8 @@ fail_chip_add:
 static int as3722_pinctrl_remove(struct platform_device *pdev)
 {
 	struct as3722_pctrl_info *as_pci = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&as_pci->gpio_chip);
-	if (ret < 0)
-		return ret;
+	gpiochip_remove(&as_pci->gpio_chip);
 	pinctrl_unregister(as_pci->pctl);
 	return 0;
 }

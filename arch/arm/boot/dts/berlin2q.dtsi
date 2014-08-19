@@ -18,6 +18,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "marvell,berlin-smp";
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
@@ -90,6 +91,8 @@
 			compatible = "arm,pl310-cache";
 			reg = <0xac0000 0x1000>;
 			cache-level = <2>;
+			arm,data-latency = <2 2 2>;
+			arm,tag-latency = <2 2 2>;
 		};
 
 		scu: snoop-control-unit@ad0000 {
@@ -109,6 +112,11 @@
 			reg = <0xad1000 0x1000>, <0xad0100 0x100>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
+		};
+
+		cpu-ctrl@dd0000 {
+			compatible = "marvell,berlin-cpu-ctrl";
+			reg = <0xdd0000 0x10000>;
 		};
 
 		apb@e80000 {
@@ -189,6 +197,32 @@
 					#interrupt-cells = <2>;
 					interrupts = <3>;
 				};
+			};
+
+			i2c0: i2c@1400 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x1400 0x100>;
+				interrupt-parent = <&aic>;
+				interrupts = <4>;
+				clocks = <&chip CLKID_CFG>;
+				pinctrl-0 = <&twsi0_pmux>;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			i2c1: i2c@1800 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x1800 0x100>;
+				interrupt-parent = <&aic>;
+				interrupts = <5>;
+				clocks = <&chip CLKID_CFG>;
+				pinctrl-0 = <&twsi1_pmux>;
+				pinctrl-names = "default";
+				status = "disabled";
 			};
 
 			timer0: timer@2c00 {
@@ -301,6 +335,16 @@
 			reg = <0xea0000 0x400>, <0xdd0170 0x10>;
 			clocks = <&refclk>;
 			clock-names = "refclk";
+
+			twsi0_pmux: twsi0-pmux {
+				groups = "G6";
+				function = "twsi0";
+			};
+
+			twsi1_pmux: twsi1-pmux {
+				groups = "G7";
+				function = "twsi1";
+			};
 		};
 
 		apb@fc0000 {
@@ -310,6 +354,32 @@
 
 			ranges = <0 0xfc0000 0x10000>;
 			interrupt-parent = <&sic>;
+
+			i2c2: i2c@7000 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x7000 0x100>;
+				interrupt-parent = <&sic>;
+				interrupts = <6>;
+				clocks = <&refclk>;
+				pinctrl-0 = <&twsi2_pmux>;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			i2c3: i2c@8000 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x8000 0x100>;
+				interrupt-parent = <&sic>;
+				interrupts = <7>;
+				clocks = <&refclk>;
+				pinctrl-0 = <&twsi3_pmux>;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
 
 			uart0: uart@9000 {
 				compatible = "snps,dw-apb-uart";
@@ -347,6 +417,16 @@
 				uart1_pmux: uart1-pmux {
 					groups = "GSM14";
 					function = "uart1";
+				};
+
+				twsi2_pmux: twsi2-pmux {
+					groups = "GSM13";
+					function = "twsi2";
+				};
+
+				twsi3_pmux: twsi3-pmux {
+					groups = "GSM14";
+					function = "twsi3";
 				};
 			};
 

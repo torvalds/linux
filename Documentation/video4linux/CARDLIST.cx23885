@@ -41,3 +41,5 @@
  40 -> TurboSight TBS 6981                                 [6981:8888]
  41 -> TurboSight TBS 6980                                 [6980:8888]
  42 -> Leadtek Winfast PxPVR2200                           [107d:6f21]
+ 43 -> Hauppauge ImpactVCB-e                               [0070:7133]
+ 44 -> DViCO FusionHDTV DVB-T Dual Express2                [18ac:db98]

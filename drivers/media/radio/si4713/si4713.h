@@ -211,6 +211,15 @@ struct si4713_device {
 		struct v4l2_ctrl *rds_pi;
 		struct v4l2_ctrl *rds_deviation;
 		struct v4l2_ctrl *rds_pty;
+		struct v4l2_ctrl *rds_compressed;
+		struct v4l2_ctrl *rds_art_head;
+		struct v4l2_ctrl *rds_stereo;
+		struct v4l2_ctrl *rds_ta;
+		struct v4l2_ctrl *rds_tp;
+		struct v4l2_ctrl *rds_ms;
+		struct v4l2_ctrl *rds_dyn_pty;
+		struct v4l2_ctrl *rds_alt_freqs_enable;
+		struct v4l2_ctrl *rds_alt_freqs;
 		struct v4l2_ctrl *compression_enabled;
 		struct v4l2_ctrl *compression_threshold;
 		struct v4l2_ctrl *compression_gain;

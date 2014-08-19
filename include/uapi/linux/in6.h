@@ -261,6 +261,7 @@ struct in6_flowlabel_req {
  * IP6T_SO_ORIGINAL_DST		80
  */
 
+#define IPV6_AUTOFLOWLABEL	70
 /* RFC5014: Source address selection */
 #define IPV6_ADDR_PREFERENCES	72
 

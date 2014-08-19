@@ -18,7 +18,6 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/spmi.h>
-#include <linux/module.h>
 #include <linux/pm_runtime.h>
 
 #include <dt-bindings/spmi/spmi.h>

@@ -1230,19 +1230,19 @@ static void probe_pcache(void)
 	case CPU_R14000:
 		break;
 
+	case CPU_74K:
+	case CPU_1074K:
+		alias_74k_erratum(c);
+		/* Fall through. */
 	case CPU_M14KC:
 	case CPU_M14KEC:
 	case CPU_24K:
 	case CPU_34K:
-	case CPU_74K:
 	case CPU_1004K:
-	case CPU_1074K:
 	case CPU_INTERAPTIV:
 	case CPU_P5600:
 	case CPU_PROAPTIV:
 	case CPU_M5150:
-		if ((c->cputype == CPU_74K) || (c->cputype == CPU_1074K))
-			alias_74k_erratum(c);
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
 		    (c->icache.waysize > PAGE_SIZE))
 			c->icache.flags |= MIPS_CACHE_ALIASES;

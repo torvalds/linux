@@ -2,13 +2,19 @@
  * ImgTec IR Decoder setup for NEC protocol.
  *
  * Copyright 2010-2014 Imagination Technologies Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
  */
 
 #include "img-ir-hw.h"
 #include <linux/bitrev.h>
 
 /* Convert NEC data to a scancode */
-static int img_ir_nec_scancode(int len, u64 raw, int *scancode, u64 protocols)
+static int img_ir_nec_scancode(int len, u64 raw, enum rc_type *protocol,
+			       u32 *scancode, u64 enabled_protocols)
 {
 	unsigned int addr, addr_inv, data, data_inv;
 	/* a repeat code has no data */
@@ -40,6 +46,7 @@ static int img_ir_nec_scancode(int len, u64 raw, int *scancode, u64 protocols)
 		*scancode = addr << 8 |
 			    data;
 	}
+	*protocol = RC_TYPE_NEC;
 	return IMG_IR_SCANCODE;
 }
 

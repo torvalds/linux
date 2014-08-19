@@ -82,7 +82,7 @@ ENTRY(stext)
 	adr	lr, BSYM(1f)			@ return (PIC) address
  ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
  THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
+ THUMB(	ret	r12				)
  1:	b	__after_proc_init
 ENDPROC(stext)
 
@@ -119,7 +119,7 @@ ENTRY(secondary_startup)
 	mov	r13, r12			@ __secondary_switched address
  ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
  THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
+ THUMB(	ret	r12				)
 ENDPROC(secondary_startup)
 
 ENTRY(__secondary_switched)
@@ -164,7 +164,7 @@ __after_proc_init:
 #endif
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
 #endif /* CONFIG_CPU_CP15 */
-	mov	pc, r13
+	ret	r13
 ENDPROC(__after_proc_init)
 	.ltorg
 
@@ -254,7 +254,7 @@ ENTRY(__setup_mpu)
 	orr	r0, r0, #CR_M			@ Set SCTRL.M (MPU on)
 	mcr	p15, 0, r0, c1, c0, 0		@ Enable MPU
 	isb
-	mov pc,lr
+	ret	lr
 ENDPROC(__setup_mpu)
 #endif
 #include "head-common.S"

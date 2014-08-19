@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <asm/io.h>
-#include <mach/pm-rcar.h>
+#include "pm-rcar.h"
 
 /* SYSC */
 #define SYSCSR 0x00

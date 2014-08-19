@@ -329,7 +329,7 @@ bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
 		if (need_resched())
 			break;
 
-		arch_mutex_cpu_relax();
+		cpu_relax_lowlatency();
 	}
 	rcu_read_unlock();
 
@@ -381,7 +381,7 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		 * memory barriers as we'll eventually observe the right
 		 * values at the cost of a few extra spins.
 		 */
-		arch_mutex_cpu_relax();
+		cpu_relax_lowlatency();
 	}
 	osq_unlock(&sem->osq);
 done:

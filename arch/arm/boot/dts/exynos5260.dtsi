@@ -21,6 +21,10 @@
 		pinctrl0 = &pinctrl_0;
 		pinctrl1 = &pinctrl_1;
 		pinctrl2 = &pinctrl_2;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
 	};
 
 	cpus {
@@ -225,6 +229,11 @@
 			compatible = "samsung,exynos5260-pinctrl";
 			reg = <0x128B0000 0x1000>;
 			interrupts = <0 243 0>;
+		};
+
+		pmu_system_controller: system-controller@10D50000 {
+			compatible = "samsung,exynos5260-pmu", "syscon";
+			reg = <0x10D50000 0x10000>;
 		};
 
 		uart0: serial@12C00000 {

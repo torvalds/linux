@@ -44,18 +44,18 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 # include <linux/module.h>
 
 /* hash_long() */
-#include <linux/libcfs/libcfs_hash.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_disk.h>
-#include <lustre_fid.h>
-#include <lu_object.h>
-#include <lu_ref.h>
+#include "../../include/linux/libcfs/libcfs_hash.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_fid.h"
+#include "../include/lu_object.h"
+#include "../include/lu_ref.h"
 #include <linux/list.h>
 
 static void lu_object_free(const struct lu_env *env, struct lu_object *o);
@@ -1994,7 +1994,7 @@ void lu_global_fini(void)
 
 static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
 {
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	struct lprocfs_counter ret;
 
 	lprocfs_stats_collect(stats, idx, &ret);

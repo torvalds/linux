@@ -16,10 +16,19 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/delay.h>
+#include <linux/mvebu-pmsu.h>
+#include <asm/smp_plat.h>
 
-#define SYS_CTRL_CLK_DIVIDER_CTRL_OFFSET    0x0
-#define SYS_CTRL_CLK_DIVIDER_VALUE_OFFSET   0xC
-#define SYS_CTRL_CLK_DIVIDER_MASK	    0x3F
+#define SYS_CTRL_CLK_DIVIDER_CTRL_OFFSET               0x0
+#define   SYS_CTRL_CLK_DIVIDER_CTRL_RESET_ALL          0xff
+#define   SYS_CTRL_CLK_DIVIDER_CTRL_RESET_SHIFT        8
+#define SYS_CTRL_CLK_DIVIDER_CTRL2_OFFSET              0x8
+#define   SYS_CTRL_CLK_DIVIDER_CTRL2_NBCLK_RATIO_SHIFT 16
+#define SYS_CTRL_CLK_DIVIDER_VALUE_OFFSET              0xC
+#define SYS_CTRL_CLK_DIVIDER_MASK                      0x3F
+
+#define PMU_DFS_RATIO_SHIFT 16
+#define PMU_DFS_RATIO_MASK  0x3F
 
 #define MAX_CPU	    4
 struct cpu_clk {
@@ -28,6 +37,7 @@ struct cpu_clk {
 	const char *clk_name;
 	const char *parent_name;
 	void __iomem *reg_base;
+	void __iomem *pmu_dfs;
 };
 
 static struct clk **clks;
@@ -62,8 +72,9 @@ static long clk_cpu_round_rate(struct clk_hw *hwclk, unsigned long rate,
 	return *parent_rate / div;
 }
 
-static int clk_cpu_set_rate(struct clk_hw *hwclk, unsigned long rate,
-			    unsigned long parent_rate)
+static int clk_cpu_off_set_rate(struct clk_hw *hwclk, unsigned long rate,
+				unsigned long parent_rate)
+
 {
 	struct cpu_clk *cpuclk = to_cpu_clk(hwclk);
 	u32 reg, div;
@@ -95,6 +106,58 @@ static int clk_cpu_set_rate(struct clk_hw *hwclk, unsigned long rate,
 	return 0;
 }
 
+static int clk_cpu_on_set_rate(struct clk_hw *hwclk, unsigned long rate,
+			       unsigned long parent_rate)
+{
+	u32 reg;
+	unsigned long fabric_div, target_div, cur_rate;
+	struct cpu_clk *cpuclk = to_cpu_clk(hwclk);
+
+	/*
+	 * PMU DFS registers are not mapped, Device Tree does not
+	 * describes them. We cannot change the frequency dynamically.
+	 */
+	if (!cpuclk->pmu_dfs)
+		return -ENODEV;
+
+	cur_rate = __clk_get_rate(hwclk->clk);
+
+	reg = readl(cpuclk->reg_base + SYS_CTRL_CLK_DIVIDER_CTRL2_OFFSET);
+	fabric_div = (reg >> SYS_CTRL_CLK_DIVIDER_CTRL2_NBCLK_RATIO_SHIFT) &
+		SYS_CTRL_CLK_DIVIDER_MASK;
+
+	/* Frequency is going up */
+	if (rate == 2 * cur_rate)
+		target_div = fabric_div / 2;
+	/* Frequency is going down */
+	else
+		target_div = fabric_div;
+
+	if (target_div == 0)
+		target_div = 1;
+
+	reg = readl(cpuclk->pmu_dfs);
+	reg &= ~(PMU_DFS_RATIO_MASK << PMU_DFS_RATIO_SHIFT);
+	reg |= (target_div << PMU_DFS_RATIO_SHIFT);
+	writel(reg, cpuclk->pmu_dfs);
+
+	reg = readl(cpuclk->reg_base + SYS_CTRL_CLK_DIVIDER_CTRL_OFFSET);
+	reg |= (SYS_CTRL_CLK_DIVIDER_CTRL_RESET_ALL <<
+		SYS_CTRL_CLK_DIVIDER_CTRL_RESET_SHIFT);
+	writel(reg, cpuclk->reg_base + SYS_CTRL_CLK_DIVIDER_CTRL_OFFSET);
+
+	return mvebu_pmsu_dfs_request(cpuclk->cpu);
+}
+
+static int clk_cpu_set_rate(struct clk_hw *hwclk, unsigned long rate,
+			    unsigned long parent_rate)
+{
+	if (__clk_is_enabled(hwclk->clk))
+		return clk_cpu_on_set_rate(hwclk, rate, parent_rate);
+	else
+		return clk_cpu_off_set_rate(hwclk, rate, parent_rate);
+}
+
 static const struct clk_ops cpu_ops = {
 	.recalc_rate = clk_cpu_recalc_rate,
 	.round_rate = clk_cpu_round_rate,
@@ -105,6 +168,7 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 {
 	struct cpu_clk *cpuclk;
 	void __iomem *clock_complex_base = of_iomap(node, 0);
+	void __iomem *pmu_dfs_base = of_iomap(node, 1);
 	int ncpus = 0;
 	struct device_node *dn;
 
@@ -113,6 +177,10 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 			__func__);
 		return;
 	}
+
+	if (pmu_dfs_base == NULL)
+		pr_warn("%s: pmu-dfs base register not set, dynamic frequency scaling not available\n",
+			__func__);
 
 	for_each_node_by_type(dn, "cpu")
 		ncpus++;
@@ -146,6 +214,8 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 		cpuclk[cpu].clk_name = clk_name;
 		cpuclk[cpu].cpu = cpu;
 		cpuclk[cpu].reg_base = clock_complex_base;
+		if (pmu_dfs_base)
+			cpuclk[cpu].pmu_dfs = pmu_dfs_base + 4 * cpu;
 		cpuclk[cpu].hw.init = &init;
 
 		init.name = cpuclk[cpu].clk_name;

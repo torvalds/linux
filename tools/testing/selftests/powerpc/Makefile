@@ -17,10 +17,10 @@ TARGETS = pmu copyloops mm tm
 
 endif
 
-all:
-	@for TARGET in $(TARGETS); do \
-		$(MAKE) -C $$TARGET all; \
-	done;
+all: $(TARGETS)
+
+$(TARGETS):
+	$(MAKE) -k -C $@ all
 
 run_tests: all
 	@for TARGET in $(TARGETS); do \
@@ -36,4 +36,4 @@ clean:
 tags:
 	find . -name '*.c' -o -name '*.h' | xargs ctags
 
-.PHONY: all run_tests clean tags
+.PHONY: all run_tests clean tags $(TARGETS)

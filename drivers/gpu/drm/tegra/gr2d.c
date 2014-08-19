@@ -121,6 +121,7 @@ static const struct of_device_id gr2d_match[] = {
 	{ .compatible = "nvidia,tegra20-gr2d" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, gr2d_match);
 
 static const u32 gr2d_addr_regs[] = {
 	GR2D_UA_BASE_ADDR,

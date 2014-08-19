@@ -1148,7 +1148,6 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 
 	host->ecc = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(host->ecc)) {
-		dev_err(host->dev, "ioremap failed\n");
 		err_no = PTR_ERR(host->ecc);
 		goto err;
 	}
@@ -1156,8 +1155,6 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 	regs_pmerr = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	host->pmerrloc_base = devm_ioremap_resource(&pdev->dev, regs_pmerr);
 	if (IS_ERR(host->pmerrloc_base)) {
-		dev_err(host->dev,
-			"Can not get I/O resource for PMECC ERRLOC controller!\n");
 		err_no = PTR_ERR(host->pmerrloc_base);
 		goto err;
 	}
@@ -1165,7 +1162,6 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 	regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	host->pmecc_rom_base = devm_ioremap_resource(&pdev->dev, regs_rom);
 	if (IS_ERR(host->pmecc_rom_base)) {
-		dev_err(host->dev, "Can not get I/O resource for ROM!\n");
 		err_no = PTR_ERR(host->pmecc_rom_base);
 		goto err;
 	}
@@ -1174,7 +1170,17 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 
 	/* set ECC page size and oob layout */
 	switch (mtd->writesize) {
+	case 512:
+	case 1024:
 	case 2048:
+	case 4096:
+	case 8192:
+		if (sector_size > mtd->writesize) {
+			dev_err(host->dev, "pmecc sector size is bigger than the page size!\n");
+			err_no = -EINVAL;
+			goto err;
+		}
+
 		host->pmecc_degree = (sector_size == 512) ?
 			PMECC_GF_DIMENSION_13 : PMECC_GF_DIMENSION_14;
 		host->pmecc_cw_len = (1 << host->pmecc_degree) - 1;
@@ -1201,13 +1207,9 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 
 		nand_chip->ecc.layout = &atmel_pmecc_oobinfo;
 		break;
-	case 512:
-	case 1024:
-	case 4096:
-		/* TODO */
+	default:
 		dev_warn(host->dev,
 			"Unsupported page size for PMECC, use Software ECC\n");
-	default:
 		/* page size not handled by HW ECC */
 		/* switching back to soft ECC */
 		nand_chip->ecc.mode = NAND_ECC_SOFT;
@@ -1530,10 +1532,8 @@ static int atmel_hw_nand_init_params(struct platform_device *pdev,
 	}
 
 	host->ecc = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(host->ecc)) {
-		dev_err(host->dev, "ioremap failed\n");
+	if (IS_ERR(host->ecc))
 		return PTR_ERR(host->ecc);
-	}
 
 	/* ECC is calculated for the whole page (1 step) */
 	nand_chip->ecc.size = mtd->writesize;
@@ -1907,15 +1907,7 @@ static int nfc_sram_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (offset || (data_len < mtd->writesize))
 		return -EINVAL;
 
-	cfg = nfc_readl(host->nfc->hsmc_regs, CFG);
 	len = mtd->writesize;
-
-	if (unlikely(raw)) {
-		len += mtd->oobsize;
-		nfc_writel(host->nfc->hsmc_regs, CFG, cfg | NFC_CFG_WSPARE);
-	} else
-		nfc_writel(host->nfc->hsmc_regs, CFG, cfg & ~NFC_CFG_WSPARE);
-
 	/* Copy page data to sram that will write to nand via NFC */
 	if (use_dma) {
 		if (atmel_nand_dma_op(mtd, (void *)buf, len, 0) != 0)
@@ -1923,6 +1915,15 @@ static int nfc_sram_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			memcpy32_toio(sram, buf, len);
 	} else {
 		memcpy32_toio(sram, buf, len);
+	}
+
+	cfg = nfc_readl(host->nfc->hsmc_regs, CFG);
+	if (unlikely(raw) && oob_required) {
+		memcpy32_toio(sram + len, chip->oob_poi, mtd->oobsize);
+		len += mtd->oobsize;
+		nfc_writel(host->nfc->hsmc_regs, CFG, cfg | NFC_CFG_WSPARE);
+	} else {
+		nfc_writel(host->nfc->hsmc_regs, CFG, cfg & ~NFC_CFG_WSPARE);
 	}
 
 	if (chip->ecc.mode == NAND_ECC_HW && host->has_pmecc)
@@ -2040,7 +2041,6 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->io_base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(host->io_base)) {
-		dev_err(&pdev->dev, "atmel_nand: ioremap resource failed\n");
 		res = PTR_ERR(host->io_base);
 		goto err_nand_ioremap;
 	}
@@ -2099,7 +2099,7 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	nand_chip->ecc.mode = host->board.ecc_mode;
-	nand_chip->chip_delay = 20;		/* 20us command delay time */
+	nand_chip->chip_delay = 40;		/* 40us command delay time */
 
 	if (host->board.bus_width_16)	/* 16-bit bus width */
 		nand_chip->options |= NAND_BUSWIDTH_16;

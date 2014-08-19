@@ -576,7 +576,7 @@ Some devices are known to have faulty MSI implementations.  Usually this
 is handled in the individual device driver, but occasionally it's necessary
 to handle this with a quirk.  Some drivers have an option to disable use
 of MSI.  While this is a convenient workaround for the driver author,
-it is not good practise, and should not be emulated.
+it is not good practice, and should not be emulated.
 
 5.4. Finding why MSIs are disabled on a device
 

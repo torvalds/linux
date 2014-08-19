@@ -185,12 +185,6 @@ typedef enum __device_msg_level {
 	MSG_LEVEL_DEBUG = 4           //Only for debug purpose.
 } DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
 
-typedef enum __device_init_type {
-	DEVICE_INIT_COLD = 0,         // cold init
-	DEVICE_INIT_RESET,          // reset init or Dx to D0 power remain init
-	DEVICE_INIT_DXPL            // Dx to D0 power lost init
-} DEVICE_INIT_TYPE, *PDEVICE_INIT_TYPE;
-
 //++ NDIS related
 
 #define MAX_BSSIDINFO_4_PMKID   16
@@ -201,8 +195,7 @@ typedef enum __device_init_type {
 // PMKID Structures
 typedef unsigned char NDIS_802_11_PMKID_VALUE[16];
 
-typedef enum _NDIS_802_11_WEP_STATUS
-{
+typedef enum _NDIS_802_11_WEP_STATUS {
 	Ndis802_11WEPEnabled,
 	Ndis802_11Encryption1Enabled = Ndis802_11WEPEnabled,
 	Ndis802_11WEPDisabled,
@@ -218,8 +211,7 @@ typedef enum _NDIS_802_11_WEP_STATUS
 } NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
 	NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
 
-typedef enum _NDIS_802_11_STATUS_TYPE
-{
+typedef enum _NDIS_802_11_STATUS_TYPE {
 	Ndis802_11StatusType_Authentication,
 	Ndis802_11StatusType_MediaStreamMode,
 	Ndis802_11StatusType_PMKID_CandidateList,
@@ -227,13 +219,12 @@ typedef enum _NDIS_802_11_STATUS_TYPE
 } NDIS_802_11_STATUS_TYPE, *PNDIS_802_11_STATUS_TYPE;
 
 //Added new types for PMKID Candidate lists.
-typedef struct _PMKID_CANDIDATE {
+struct pmkid_candidate {
 	NDIS_802_11_MAC_ADDRESS BSSID;
 	unsigned long Flags;
-} PMKID_CANDIDATE, *PPMKID_CANDIDATE;
+};
 
-typedef struct _BSSID_INFO
-{
+typedef struct _BSSID_INFO {
 	NDIS_802_11_MAC_ADDRESS BSSID;
 	NDIS_802_11_PMKID_VALUE PMKID;
 } BSSID_INFO, *PBSSID_INFO;
@@ -248,7 +239,7 @@ typedef struct tagSPMKIDCandidateEvent {
 	NDIS_802_11_STATUS_TYPE     StatusType;
 	unsigned long Version;       // Version of the structure
 	unsigned long NumCandidates; // No. of pmkid candidates
-	PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
+	struct pmkid_candidate CandidateList[MAX_PMKIDLIST];
 } SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
 
 //--
@@ -293,8 +284,7 @@ typedef struct tagSCache {
 
 #define CB_MAX_RX_FRAG                 64
 // DeFragment Control Block, used for collecting fragments prior to reassembly
-typedef struct tagSDeFragControlBlock
-{
+typedef struct tagSDeFragControlBlock {
 	unsigned short wSequence;
 	unsigned short wFragNum;
 	unsigned char abyAddr2[ETH_ALEN];
@@ -331,17 +321,6 @@ typedef struct tagSDeFragControlBlock
 #define     DEVICE_FORCED_BY_EEPROM      0x00000040UL
 //for device_set_media_duplex
 #define     DEVICE_LINK_CHANGE           0x00000001UL
-
-//PLICE_DEBUG->
-
-typedef	struct _RxManagementQueue
-{
-	int	packet_num;
-	int	head, tail;
-	PSRxMgmtPacket	Q[NUM];
-} RxManagementQueue, *PSRxManagementQueue;
-
-//PLICE_DEBUG<-
 
 typedef struct __device_opt {
 	int         nRxDescs0;    //Number of RX descriptors0
@@ -391,7 +370,7 @@ typedef struct __device_info {
 
 	CHIP_TYPE                   chip_id;
 
-	unsigned long               PortOffset;
+	void __iomem                *PortOffset;
 	unsigned long dwIsr;
 	u32                         memaddr;
 	u32                         ioaddr;
@@ -429,10 +408,7 @@ typedef struct __device_info {
 	unsigned char byRxMode;
 
 	spinlock_t                  lock;
-//PLICE_DEBUG->
-	struct	tasklet_struct	RxMngWorkItem;
-	RxManagementQueue	rxManeQueue;
-//PLICE_DEBUG<-
+
 //PLICE_DEBUG ->
 	pid_t			MLMEThr_pid;
 	struct completion	notify;
@@ -770,41 +746,7 @@ typedef struct __device_info {
 	bool bCommit;
 } DEVICE_INFO, *PSDevice;
 
-//PLICE_DEBUG->
-
-inline  static	void   EnQueue(PSDevice pDevice, PSRxMgmtPacket  pRxMgmtPacket)
-{
-	if ((pDevice->rxManeQueue.tail+1) % NUM == pDevice->rxManeQueue.head) {
-		return;
-	} else {
-		pDevice->rxManeQueue.tail = (pDevice->rxManeQueue.tail + 1) % NUM;
-		pDevice->rxManeQueue.Q[pDevice->rxManeQueue.tail] = pRxMgmtPacket;
-		pDevice->rxManeQueue.packet_num++;
-	}
-}
-
-inline  static  PSRxMgmtPacket DeQueue(PSDevice pDevice)
-{
-	PSRxMgmtPacket  pRxMgmtPacket;
-	if (pDevice->rxManeQueue.tail == pDevice->rxManeQueue.head) {
-		printk("Queue is Empty\n");
-		return NULL;
-	} else {
-		int	x;
-		//x=pDevice->rxManeQueue.head = (pDevice->rxManeQueue.head+1)%NUM;
-		pDevice->rxManeQueue.head = (pDevice->rxManeQueue.head+1)%NUM;
-		x = pDevice->rxManeQueue.head;
-		pRxMgmtPacket = pDevice->rxManeQueue.Q[x];
-		pDevice->rxManeQueue.packet_num--;
-		return pRxMgmtPacket;
-	}
-}
-
-void	InitRxManagementQueue(PSDevice   pDevice);
-
-//PLICE_DEBUG<-
-
-inline static bool device_get_ip(PSDevice pInfo) {
+static inline bool device_get_ip(PSDevice pInfo) {
 	struct in_device *in_dev = (struct in_device *)pInfo->dev->ip_ptr;
 	struct in_ifaddr *ifa;
 

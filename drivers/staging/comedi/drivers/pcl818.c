@@ -551,7 +551,7 @@ static void pcl818_handle_eoc(struct comedi_device *dev,
 	unsigned int val;
 
 	if (pcl818_ai_eoc(dev, s, NULL, 0)) {
-		comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
+		dev_err(dev->class_dev, "A/D mode1/3 IRQ without DRDY!\n");
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		return;
 	}
@@ -608,13 +608,14 @@ static void pcl818_handle_fifo(struct comedi_device *dev,
 	status = inb(dev->iobase + PCL818_FI_STATUS);
 
 	if (status & 4) {
-		comedi_error(dev, "A/D mode1/3 FIFO overflow!");
+		dev_err(dev->class_dev, "A/D mode1/3 FIFO overflow!\n");
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		return;
 	}
 
 	if (status & 1) {
-		comedi_error(dev, "A/D mode1/3 FIFO interrupt without data!");
+		dev_err(dev->class_dev,
+			"A/D mode1/3 FIFO interrupt without data!\n");
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		return;
 	}
@@ -682,7 +683,7 @@ static int check_channel_list(struct comedi_device *dev,
 
 	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan < 1) {
-		comedi_error(dev, "range/channel list is empty!");
+		dev_err(dev->class_dev, "range/channel list is empty!\n");
 		return 0;
 	}
 

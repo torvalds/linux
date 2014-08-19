@@ -56,7 +56,7 @@ acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length);
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_get_serial_access_bytes
+ * FUNCTION:    acpi_ex_get_serial_access_length
  *
  * PARAMETERS:  accessor_type   - The type of the protocol indicated by region
  *                                field access attributes
@@ -103,7 +103,7 @@ acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length)
 	case AML_FIELD_ATTRIB_BLOCK_CALL:
 	default:
 
-		length = ACPI_GSBUS_BUFFER_SIZE;
+		length = ACPI_GSBUS_BUFFER_SIZE - 2;
 		break;
 	}
 
@@ -186,12 +186,11 @@ acpi_ex_read_data_from_field(struct acpi_walk_state * walk_state,
 								  access_length);
 
 			/*
-			 * Add additional 2 bytes for modeled generic_serial_bus data buffer:
-			 * typedef struct {
-			 *     BYTEStatus; // Byte 0 of the data buffer
-			 *     BYTELength; // Byte 1 of the data buffer
-			 *     BYTE[x-1]Data; // Bytes 2-x of the arbitrary length data buffer,
-			 * }
+			 * Add additional 2 bytes for the generic_serial_bus data buffer:
+			 *
+			 *     Status;      (Byte 0 of the data buffer)
+			 *     Length;      (Byte 1 of the data buffer)
+			 *     Data[x-1];   (Bytes 2-x of the arbitrary length data buffer)
 			 */
 			length += 2;
 			function = ACPI_READ | (accessor_type << 16);
@@ -368,12 +367,11 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 								  access_length);
 
 			/*
-			 * Add additional 2 bytes for modeled generic_serial_bus data buffer:
-			 * typedef struct {
-			 *     BYTEStatus; // Byte 0 of the data buffer
-			 *     BYTELength; // Byte 1 of the data buffer
-			 *     BYTE[x-1]Data; // Bytes 2-x of the arbitrary length data buffer,
-			 * }
+			 * Add additional 2 bytes for the generic_serial_bus data buffer:
+			 *
+			 *     Status;      (Byte 0 of the data buffer)
+			 *     Length;      (Byte 1 of the data buffer)
+			 *     Data[x-1];   (Bytes 2-x of the arbitrary length data buffer)
 			 */
 			length += 2;
 			function = ACPI_WRITE | (accessor_type << 16);

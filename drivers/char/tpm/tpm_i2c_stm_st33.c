@@ -714,6 +714,7 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	tpm_get_timeouts(chip);
+	tpm_do_selftest(chip);
 
 	dev_info(chip->dev, "TPM I2C Initialized\n");
 	return 0;

@@ -1109,8 +1109,6 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 		.ioctl_ops = &mxr_ioctl_ops,
 	};
 	strlcpy(layer->vfd.name, name, sizeof(layer->vfd.name));
-	/* let framework control PRIORITY */
-	set_bit(V4L2_FL_USE_FH_PRIO, &layer->vfd.flags);
 
 	video_set_drvdata(&layer->vfd, layer);
 	layer->vfd.lock = &layer->mutex;
