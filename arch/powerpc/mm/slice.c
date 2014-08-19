@@ -30,9 +30,11 @@
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
+#include <linux/hugetlb.h>
 #include <asm/mman.h>
 #include <asm/mmu.h>
 #include <asm/spu.h>
+#include <asm/hugetlb.h>
 
 /* some sanity checks */
 #if (PGTABLE_RANGE >> 43) > SLICE_MASK_SIZE

@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include "offline_states.h"
+#include "pseries.h"
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
