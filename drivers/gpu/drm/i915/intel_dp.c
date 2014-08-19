@@ -111,7 +111,7 @@ static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 }
 
 static void intel_dp_link_down(struct intel_dp *intel_dp);
-static bool _edp_panel_vdd_on(struct intel_dp *intel_dp);
+static bool edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
 
 int
@@ -533,7 +533,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	bool has_aux_irq = HAS_AUX_IRQ(dev);
 	bool vdd;
 
-	vdd = _edp_panel_vdd_on(intel_dp);
+	vdd = edp_panel_vdd_on(intel_dp);
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
 	 * lowest possible wakeup latency and so prevent the cpu from going into
@@ -1165,7 +1165,7 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 	return control;
 }
 
-static bool _edp_panel_vdd_on(struct intel_dp *intel_dp)
+static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -1216,7 +1216,7 @@ static bool _edp_panel_vdd_on(struct intel_dp *intel_dp)
 void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	if (is_edp(intel_dp)) {
-		bool vdd = _edp_panel_vdd_on(intel_dp);
+		bool vdd = edp_panel_vdd_on(intel_dp);
 
 		WARN(!vdd, "eDP VDD already requested on\n");
 	}
@@ -1297,6 +1297,11 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 		edp_panel_vdd_off_sync(intel_dp);
 	else
 		edp_panel_vdd_schedule_off(intel_dp);
+}
+
+static void intel_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
+{
+	edp_panel_vdd_off(intel_dp, sync);
 }
 
 void intel_edp_panel_on(struct intel_dp *intel_dp)
@@ -2136,7 +2141,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
 	intel_edp_panel_on(intel_dp);
-	edp_panel_vdd_off(intel_dp, true);
+	intel_edp_panel_vdd_off(intel_dp, true);
 	intel_dp_complete_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 }
@@ -3416,7 +3421,7 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 
-	edp_panel_vdd_off(intel_dp, false);
+	intel_edp_panel_vdd_off(intel_dp, false);
 }
 
 static bool
@@ -3440,7 +3445,7 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 			intel_dp->is_mst = false;
 		}
 	}
-	edp_panel_vdd_off(intel_dp, false);
+	intel_edp_panel_vdd_off(intel_dp, false);
 
 	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
 	return intel_dp->is_mst;
@@ -4560,7 +4565,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	/* Cache DPCD and EDID for edp. */
 	intel_edp_panel_vdd_on(intel_dp);
 	has_dpcd = intel_dp_get_dpcd(intel_dp);
-	edp_panel_vdd_off(intel_dp, false);
+	intel_edp_panel_vdd_off(intel_dp, false);
 
 	if (has_dpcd) {
 		if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
