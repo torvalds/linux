@@ -50,6 +50,7 @@ struct fsl_msi_feature {
 struct fsl_msi_cascade_data {
 	struct fsl_msi *msi_data;
 	int index;
+	int virq;
 };
 
 static inline u32 fsl_msi_read(u32 __iomem *base, unsigned int reg)
@@ -327,15 +328,18 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 {
 	struct fsl_msi *msi = platform_get_drvdata(ofdev);
 	int virq, i;
-	struct fsl_msi_cascade_data *cascade_data;
 
 	if (msi->list.prev != NULL)
 		list_del(&msi->list);
 	for (i = 0; i < NR_MSI_REG_MAX; i++) {
-		virq = msi->msi_virqs[i];
-		if (virq != NO_IRQ) {
-			cascade_data = irq_get_handler_data(virq);
-			kfree(cascade_data);
+		if (msi->cascade_array[i]) {
+			virq = msi->cascade_array[i]->virq;
+
+			BUG_ON(virq == NO_IRQ);
+			BUG_ON(msi->cascade_array[i] !=
+				irq_get_handler_data(virq));
+
+			kfree(msi->cascade_array[i]);
 			irq_dispose_mapping(virq);
 		}
 	}
@@ -369,9 +373,10 @@ static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
 		return -ENOMEM;
 	}
 	irq_set_lockdep_class(virt_msir, &fsl_msi_irq_class);
-	msi->msi_virqs[irq_index] = virt_msir;
 	cascade_data->index = offset;
 	cascade_data->msi_data = msi;
+	cascade_data->virq = virt_msir;
+	msi->cascade_array[irq_index] = cascade_data;
 	irq_set_handler_data(virt_msir, cascade_data);
 	irq_set_chained_handler(virt_msir, fsl_msi_cascade);
 
