@@ -637,7 +637,7 @@ static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 					   struct host_cmd_ds_command *resp)
 {
-	if (priv->adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+	if (priv->adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 		return mwifiex_ret_802_11_key_material_v2(priv, resp);
 	else
 		return mwifiex_ret_802_11_key_material_v1(priv, resp);

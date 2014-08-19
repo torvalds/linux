@@ -877,7 +877,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			return -1;
 		}
 
-		if (adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2) {
+		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2) {
 			memcpy(encrypt_key->key_material,
 			       wep_key->key_material, wep_key->key_length);
 			encrypt_key->key_len = wep_key->key_length;
@@ -903,7 +903,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			memset(&priv->wep_key[index], 0,
 			       sizeof(struct mwifiex_wep_key));
 
-		if (adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 			enc_key = encrypt_key;
 		else
 			enc_key = NULL;
