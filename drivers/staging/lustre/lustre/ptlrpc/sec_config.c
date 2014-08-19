@@ -815,7 +815,7 @@ void sptlrpc_conf_log_stop(const char *logname)
 }
 EXPORT_SYMBOL(sptlrpc_conf_log_stop);
 
-static void inline flavor_set_flags(struct sptlrpc_flavor *sf,
+static inline void flavor_set_flags(struct sptlrpc_flavor *sf,
 				    enum lustre_sec_part from,
 				    enum lustre_sec_part to,
 				    unsigned int fl_udesc)
