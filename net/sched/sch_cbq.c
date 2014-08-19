@@ -159,7 +159,6 @@ struct cbq_sched_data {
 	struct cbq_class	*tx_borrowed;
 	int			tx_len;
 	psched_time_t		now;		/* Cached timestamp */
-	psched_time_t		now_rt;		/* Cached real time */
 	unsigned int		pmask;
 
 	struct hrtimer		delay_timer;
@@ -353,12 +352,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 	int toplevel = q->toplevel;
 
 	if (toplevel > cl->level && !(qdisc_is_throttled(cl->q))) {
-		psched_time_t now;
-		psched_tdiff_t incr;
-
-		now = psched_get_time();
-		incr = now - q->now_rt;
-		now = q->now + incr;
+		psched_time_t now = psched_get_time();
 
 		do {
 			if (cl->undertime < now) {
@@ -700,8 +694,13 @@ cbq_update(struct cbq_sched_data *q)
 	struct cbq_class *this = q->tx_class;
 	struct cbq_class *cl = this;
 	int len = q->tx_len;
+	psched_time_t now;
 
 	q->tx_class = NULL;
+	/* Time integrator. We calculate EOS time
+	 * by adding expected packet transmission time.
+	 */
+	now = q->now + L2T(&q->link, len);
 
 	for ( ; cl; cl = cl->share) {
 		long avgidle = cl->avgidle;
@@ -717,7 +716,7 @@ cbq_update(struct cbq_sched_data *q)
 		 *	idle = (now - last) - last_pktlen/rate
 		 */
 
-		idle = q->now - cl->last;
+		idle = now - cl->last;
 		if ((unsigned long)idle > 128*1024*1024) {
 			avgidle = cl->maxidle;
 		} else {
@@ -761,7 +760,7 @@ cbq_update(struct cbq_sched_data *q)
 			idle -= L2T(&q->link, len);
 			idle += L2T(cl, len);
 
-			cl->undertime = q->now + idle;
+			cl->undertime = now + idle;
 		} else {
 			/* Underlimit */
 
@@ -771,7 +770,8 @@ cbq_update(struct cbq_sched_data *q)
 			else
 				cl->avgidle = avgidle;
 		}
-		cl->last = q->now;
+		if ((s64)(now - cl->last) > 0)
+			cl->last = now;
 	}
 
 	cbq_update_toplevel(q, this, q->tx_borrowed);
@@ -943,31 +943,13 @@ cbq_dequeue(struct Qdisc *sch)
 	struct sk_buff *skb;
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	psched_time_t now;
-	psched_tdiff_t incr;
 
 	now = psched_get_time();
-	incr = now - q->now_rt;
 
-	if (q->tx_class) {
-		psched_tdiff_t incr2;
-		/* Time integrator. We calculate EOS time
-		 * by adding expected packet transmission time.
-		 * If real time is greater, we warp artificial clock,
-		 * so that:
-		 *
-		 * cbq_time = max(real_time, work);
-		 */
-		incr2 = L2T(&q->link, q->tx_len);
-		q->now += incr2;
+	if (q->tx_class)
 		cbq_update(q);
-		if ((incr -= incr2) < 0)
-			incr = 0;
-		q->now += incr;
-	} else {
-		if (now > q->now)
-			q->now = now;
-	}
-	q->now_rt = now;
+
+	q->now = now;
 
 	for (;;) {
 		q->wd_expires = 0;
@@ -1223,7 +1205,6 @@ cbq_reset(struct Qdisc *sch)
 	hrtimer_cancel(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
-	q->now_rt = q->now;
 
 	for (prio = 0; prio <= TC_CBQ_MAXPRIO; prio++)
 		q->active[prio] = NULL;
@@ -1407,7 +1388,6 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->delay_timer.function = cbq_undelay;
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
-	q->now_rt = q->now;
 
 	cbq_link_class(&q->link);
 
