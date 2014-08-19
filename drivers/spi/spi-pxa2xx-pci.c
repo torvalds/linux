@@ -123,7 +123,6 @@ static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 
 	platform_device_unregister(pdev);
 	clk_unregister(spi_pdata->ssp.clk);
-	pci_set_drvdata(dev, NULL);
 }
 
 static const struct pci_device_id pxa2xx_spi_pci_devices[] = {
