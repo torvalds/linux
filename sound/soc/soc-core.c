@@ -1067,8 +1067,6 @@ static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 					cpu_dai->name, err);
 		}
 		cpu_dai->probed = 0;
-		if (!cpu_dai->codec)
-			module_put(cpu_dai->dev->driver->owner);
 	}
 }
 
@@ -1422,18 +1420,12 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	/* probe the cpu_dai */
 	if (!cpu_dai->probed &&
 			cpu_dai->driver->probe_order == order) {
-		if (!cpu_dai->codec) {
-			if (!try_module_get(cpu_dai->dev->driver->owner))
-				return -ENODEV;
-		}
-
 		if (cpu_dai->driver->probe) {
 			ret = cpu_dai->driver->probe(cpu_dai);
 			if (ret < 0) {
 				dev_err(cpu_dai->dev,
 					"ASoC: failed to probe CPU DAI %s: %d\n",
 					cpu_dai->name, ret);
-				module_put(cpu_dai->dev->driver->owner);
 				return ret;
 			}
 		}
