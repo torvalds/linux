@@ -56,7 +56,7 @@
 /* We have to write this value in reset register to do soft reset */
 #define BMA180_RESET_VAL	0xb6
 
-#define BMA_180_ID_REG_VAL	0x03
+#define BMA180_ID_REG_VAL	0x03
 
 /* Chip power modes */
 #define BMA180_LOW_NOISE	0x00
@@ -258,7 +258,7 @@ static int bma180_chip_init(struct bma180_data *data)
 
 	if (ret < 0)
 		goto err;
-	if (ret != BMA_180_ID_REG_VAL) {
+	if (ret != BMA180_ID_REG_VAL) {
 		ret = -ENODEV;
 		goto err;
 	}
