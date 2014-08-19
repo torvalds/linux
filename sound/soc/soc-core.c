@@ -552,10 +552,8 @@ int snd_soc_suspend(struct device *dev)
 	struct snd_soc_codec *codec;
 	int i, j;
 
-	/* If the initialization of this soc device failed, there is no codec
-	 * associated with it. Just bail out in this case.
-	 */
-	if (list_empty(&card->codec_dev_list))
+	/* If the card is not initialized yet there is nothing to do */
+	if (!card->instantiated)
 		return 0;
 
 	/* Due to the resume being scheduled into a workqueue we could
@@ -808,10 +806,8 @@ int snd_soc_resume(struct device *dev)
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	int i, ac97_control = 0;
 
-	/* If the initialization of this soc device failed, there is no codec
-	 * associated with it. Just bail out in this case.
-	 */
-	if (list_empty(&card->codec_dev_list))
+	/* If the card is not initialized yet there is nothing to do */
+	if (!card->instantiated)
 		return 0;
 
 	/* activate pins from sleep state */
