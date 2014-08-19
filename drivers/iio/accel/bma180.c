@@ -476,7 +476,7 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 	{ },
 };
 
-#define BMA180_ACC_CHANNEL(_axis) {					\
+#define BMA180_ACC_CHANNEL(_axis, _bits) {				\
 	.type = IIO_ACCEL,						\
 	.modified = 1,							\
 	.channel2 = IIO_MOD_##_axis,					\
@@ -486,9 +486,9 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 	.scan_index = AXIS_##_axis,					\
 	.scan_type = {							\
 		.sign = 's',						\
-		.realbits = 14,						\
+		.realbits = _bits,					\
 		.storagebits = 16,					\
-		.shift = 2,						\
+		.shift = 16 - _bits,					\
 	},								\
 	.ext_info = bma180_ext_info,					\
 }
@@ -506,9 +506,9 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 }
 
 static const struct iio_chan_spec bma180_channels[] = {
-	BMA180_ACC_CHANNEL(X),
-	BMA180_ACC_CHANNEL(Y),
-	BMA180_ACC_CHANNEL(Z),
+	BMA180_ACC_CHANNEL(X, 14),
+	BMA180_ACC_CHANNEL(Y, 14),
+	BMA180_ACC_CHANNEL(Z, 14),
 	BMA180_TEMP_CHANNEL,
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
