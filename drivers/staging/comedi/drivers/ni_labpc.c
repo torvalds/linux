@@ -929,9 +929,9 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		devpriv->stat2 = devpriv->read_byte(dev, STAT2_REG);
 
 	if ((devpriv->stat1 & (STAT1_GATA0 | STAT1_CNTINT | STAT1_OVERFLOW |
-			       STAT1_OVERRUN | STAT1_DAVAIL)) == 0
-	    && (devpriv->stat2 & STAT2_OUTA1) == 0
-	    && (devpriv->stat2 & STAT2_FIFONHF)) {
+			       STAT1_OVERRUN | STAT1_DAVAIL)) == 0 &&
+	    (devpriv->stat2 & STAT2_OUTA1) == 0 &&
+	    (devpriv->stat2 & STAT2_FIFONHF)) {
 		return IRQ_NONE;
 	}
 
