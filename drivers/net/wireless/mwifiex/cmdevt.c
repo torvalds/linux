@@ -1508,7 +1508,6 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 	}
 
 	adapter->fw_release_number = le32_to_cpu(hw_spec->fw_release_number);
-	adapter->fw_api_ver = (adapter->fw_release_number >> 16) & 0xff;
 	adapter->number_of_antenna = le16_to_cpu(hw_spec->number_of_antenna);
 
 	if (le32_to_cpu(hw_spec->dot_11ac_dev_cap)) {
@@ -1551,6 +1550,13 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 						"key_api v%d.%d\n",
 						adapter->key_api_major_ver,
 						adapter->key_api_minor_ver);
+					break;
+				case FW_API_VER_ID:
+					adapter->fw_api_ver =
+							api_rev->major_ver;
+					dev_dbg(adapter->dev,
+						"Firmware api version %d\n",
+						adapter->fw_api_ver);
 					break;
 				default:
 					dev_warn(adapter->dev,
