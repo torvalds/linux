@@ -518,6 +518,8 @@ struct AdapterControlBlock
 	uint32_t			reg_mu_acc_handle0;
 	spinlock_t                      			eh_lock;
 	spinlock_t                      			ccblist_lock;
+	spinlock_t			rqbuffer_lock;
+	spinlock_t			wqbuffer_lock;
 	union {
 		struct MessageUnit_A __iomem *pmuA;
 		struct MessageUnit_B 	*pmuB;
@@ -693,8 +695,10 @@ struct SENSE_DATA
 #define     ARCMSR_MU_OUTBOUND_MESSAGE0_INTMASKENABLE               0x01
 #define     ARCMSR_MU_OUTBOUND_ALL_INTMASKENABLE                    0x1F
 
-extern void arcmsr_post_ioctldata2iop(struct AdapterControlBlock *);
-extern void arcmsr_iop_message_read(struct AdapterControlBlock *);
+extern void arcmsr_write_ioctldata2iop(struct AdapterControlBlock *);
+extern uint32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *,
+	struct QBUFFER __iomem *);
+extern void arcmsr_clear_iop2drv_rqueue_buffer(struct AdapterControlBlock *);
 extern struct QBUFFER __iomem *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *);
 extern struct device_attribute *arcmsr_host_attrs[];
 extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *);
