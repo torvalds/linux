@@ -329,12 +329,6 @@
 			>;
 		};
 
-		pinctrl_led: ledgrp {
-			fsl,pins = <
-				MX6SL_PAD_HSIC_STROBE__GPIO3_IO20 0x17059
-			>;
-		};
-
 		pinctrl_kpp: kppgrp {
 			fsl,pins = <
 				MX6SL_PAD_KEY_ROW0__KEY_ROW0    0x1b010
@@ -343,6 +337,12 @@
 				MX6SL_PAD_KEY_COL0__KEY_COL0    0x110b0
 				MX6SL_PAD_KEY_COL1__KEY_COL1    0x110b0
 				MX6SL_PAD_KEY_COL2__KEY_COL2    0x110b0
+			>;
+		};
+
+		pinctrl_led: ledgrp {
+			fsl,pins = <
+				MX6SL_PAD_HSIC_STROBE__GPIO3_IO20 0x17059
 			>;
 		};
 
