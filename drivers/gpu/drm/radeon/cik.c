@@ -3672,6 +3672,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		     rdev->config.cik.max_sh_per_se,
 		     rdev->config.cik.max_backends_per_se);
 
+	rdev->config.cik.active_cus = 0;
 	for (i = 0; i < rdev->config.cik.max_shader_engines; i++) {
 		for (j = 0; j < rdev->config.cik.max_sh_per_se; j++) {
 			rdev->config.cik.active_cus +=

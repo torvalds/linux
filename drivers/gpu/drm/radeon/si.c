@@ -3255,6 +3255,7 @@ static void si_gpu_init(struct radeon_device *rdev)
 		     rdev->config.si.max_sh_per_se,
 		     rdev->config.si.max_cu_per_sh);
 
+	rdev->config.si.active_cus = 0;
 	for (i = 0; i < rdev->config.si.max_shader_engines; i++) {
 		for (j = 0; j < rdev->config.si.max_sh_per_se; j++) {
 			rdev->config.si.active_cus +=
