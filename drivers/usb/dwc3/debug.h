@@ -180,6 +180,40 @@ static inline const char *dwc3_ep_event_string(u8 event)
 	return "UNKNOWN";
 }
 
+/**
+ * dwc3_gadget_event_type_string - return event name
+ * @event: the event code
+ */
+static inline const char *dwc3_gadget_event_type_string(u8 event)
+{
+	switch (event) {
+	case DWC3_DEVICE_EVENT_DISCONNECT:
+		return "Disconnect";
+	case DWC3_DEVICE_EVENT_RESET:
+		return "Reset";
+	case DWC3_DEVICE_EVENT_CONNECT_DONE:
+		return "Connect Done";
+	case DWC3_DEVICE_EVENT_LINK_STATUS_CHANGE:
+		return "Link Status Change";
+	case DWC3_DEVICE_EVENT_WAKEUP:
+		return "Wake-Up";
+	case DWC3_DEVICE_EVENT_HIBER_REQ:
+		return "Hibernation";
+	case DWC3_DEVICE_EVENT_EOPF:
+		return "End of Periodic Frame";
+	case DWC3_DEVICE_EVENT_SOF:
+		return "Start of Frame";
+	case DWC3_DEVICE_EVENT_ERRATIC_ERROR:
+		return "Erratic Error";
+	case DWC3_DEVICE_EVENT_CMD_CMPL:
+		return "Command Complete";
+	case DWC3_DEVICE_EVENT_OVERFLOW:
+		return "Overflow";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 #ifdef CONFIG_DEBUG_FS
 extern int dwc3_debugfs_init(struct dwc3 *);
 extern void dwc3_debugfs_exit(struct dwc3 *);
