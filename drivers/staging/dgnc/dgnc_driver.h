@@ -49,8 +49,6 @@
  * three lines, and the driver printk's will all automagically change.
  *
  * APR((fmt, args, ...));	Always prints message
- * DPR((fmt, args, ...));	Only prints if DGNC_TRACER is defined at
- *				  compile time and dgnc_debug!=0
  */
 #define	PROCSTR		"dgnc"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
@@ -93,25 +91,6 @@
 
 #define PRINTF_TO_KMEM(args)
 # define TRC(ARGS)
-# define DPR_INIT(ARGS)
-# define DPR_BASIC(ARGS)
-# define DPR_CORE(ARGS)
-# define DPR_OPEN(ARGS)
-# define DPR_CLOSE(ARGS)
-# define DPR_READ(ARGS)
-# define DPR_WRITE(ARGS)
-# define DPR_IOCTL(ARGS)
-# define DPR_PROC(ARGS)
-# define DPR_PARAM(ARGS)
-# define DPR_PSCAN(ARGS)
-# define DPR_EVENT(ARGS)
-# define DPR_DRAIN(ARGS)
-# define DPR_CARR(ARGS)
-# define DPR_MGMT(ARGS)
-# define DPR_INTR(ARGS)
-# define DPR_MSIGS(ARGS)
-
-# define DPR(args)
 
 /* Number of boards we support at once. */
 #define	MAXBOARDS	20

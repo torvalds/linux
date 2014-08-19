@@ -65,8 +65,6 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 	unsigned long lock_flags;
 	unsigned int minor = iminor(inode);
 
-	DPR_MGMT(("dgnc_mgmt_open start.\n"));
-
 	DGNC_LOCK(dgnc_global_lock, lock_flags);
 
 	/* mgmt device */
@@ -84,8 +82,6 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 
 	DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 
-	DPR_MGMT(("dgnc_mgmt_open finish.\n"));
-
 	return 0;
 }
 
@@ -100,8 +96,6 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 	unsigned long lock_flags;
 	unsigned int minor = iminor(inode);
 
-	DPR_MGMT(("dgnc_mgmt_close start.\n"));
-
 	DGNC_LOCK(dgnc_global_lock, lock_flags);
 
 	/* mgmt device */
@@ -110,8 +104,6 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 			dgnc_mgmt_in_use[minor] = 0;
 	}
 	DGNC_UNLOCK(dgnc_global_lock, lock_flags);
-
-	DPR_MGMT(("dgnc_mgmt_close finish.\n"));
 
 	return 0;
 }
@@ -127,8 +119,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long lock_flags;
 	void __user *uarg = (void __user *) arg;
-
-	DPR_MGMT(("dgnc_mgmt_ioctl start.\n"));
 
 	switch (cmd) {
 
@@ -148,9 +138,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 
-		DPR_MGMT(("DIGI_GETDD returning numboards: %d version: %s\n",
-			ddi.dinfo_nboards, ddi.dinfo_version));
-
 		if (copy_to_user(uarg, &ddi, sizeof(ddi)))
 			return -EFAULT;
 
@@ -165,8 +152,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (copy_from_user(&brd, uarg, sizeof(int)))
 			return -EFAULT;
-
-		DPR_MGMT(("DIGI_GETBD asking about board: %d\n", brd));
 
 		if ((brd < 0) || (brd > dgnc_NumBoards) ||
 		    (dgnc_NumBoards == 0))
@@ -190,9 +175,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		DGNC_UNLOCK(dgnc_Board[brd]->bd_lock, lock_flags);
 
-		DPR_MGMT(("DIGI_GETBD returning type: %x state: %x ports: %x size: %x\n",
-			di.info_bdtype, di.info_bdstate, di.info_nports, di.info_physsize));
-
 		if (copy_to_user(uarg, &di, sizeof(di)))
 			return -EFAULT;
 
@@ -209,9 +191,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (copy_from_user(&ni, uarg, sizeof(ni)))
 			return -EFAULT;
-
-		DPR_MGMT(("DIGI_GETBD asking about board: %d channel: %d\n",
-			ni.board, ni.channel));
 
 		board = ni.board;
 		channel = ni.channel;
@@ -297,8 +276,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 
 	}
-
-	DPR_MGMT(("dgnc_mgmt_ioctl finish.\n"));
 
 	return 0;
 }

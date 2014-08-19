@@ -250,7 +250,6 @@ static int __init dgnc_init_module(void)
 		dgnc_create_driver_sysfiles(&dgnc_driver);
 	}
 
-	DPR_INIT(("Finished init_module. Returning %d\n", rc));
 	return rc;
 }
 
@@ -325,10 +324,8 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -EIO;
 	} else {
 		rc = dgnc_found_board(pdev, ent->driver_data);
-		if (rc == 0) {
+		if (rc == 0)
 			dgnc_NumBoards++;
-			DPR_INIT(("Incrementing numboards to %d\n", dgnc_NumBoards));
-		}
 	}
 	return rc;
 }
@@ -467,8 +464,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 		brd->dpatype = T_CLASSIC | T_PCIBUS;
 
-		DPR_INIT(("dgnc_found_board - Classic.\n"));
-
 		/*
 		 * For PCI ClassicBoards
 		 * PCI Local Address (i.e. "resource" number) space
@@ -543,8 +538,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		else
 			brd->dpatype = T_NEO | T_PCIBUS;
 
-		DPR_INIT(("dgnc_found_board - NEO.\n"));
-
 		/* get the PCI Base Address Registers */
 		brd->membase     = pci_resource_start(pdev, 0);
 		brd->membase_end = pci_resource_end(pdev, 0);
@@ -618,7 +611,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	/* init our poll helper tasklet */
 	tasklet_init(&brd->helper_tasklet, brd->bd_ops->tasklet, (unsigned long) brd);
 
-	DPR_INIT(("dgnc_scan(%d) - printing out the msgbuf\n", i));
 	DGNC_LOCK(dgnc_global_lock, flags);
 	brd->msgbuf = NULL;
 	printk("%s", brd->msgbuf_head);
@@ -649,12 +641,8 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd)
 {
 	int rc = 0;
 
-	DPR_INIT(("dgnc_finalize_board_init() - start\n"));
-
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return -ENODEV;
-
-	DPR_INIT(("dgnc_finalize_board_init() - start #2\n"));
 
 	if (brd->irq) {
 		rc = request_irq(brd->irq, brd->bd_ops->intr,
@@ -666,9 +654,6 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd)
 			brd->state = BOARD_FAILED;
 			brd->dpastatus = BD_NOFEP;
 			rc = -ENODEV;
-		} else {
-			DPR_INIT(("Requested and received usage of IRQ %d\n",
-				  brd->irq));
 		}
 	}
 	return rc;
@@ -684,8 +669,6 @@ static void dgnc_do_remap(struct dgnc_board *brd)
 		return;
 
 	brd->re_map_membase = ioremap(brd->membase, 0x1000);
-
-	DPR_INIT(("remapped mem: 0x%p\n", brd->re_map_membase));
 }
 
 

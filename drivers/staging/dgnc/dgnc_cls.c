@@ -99,7 +99,6 @@ static inline void cls_set_cts_flow_control(struct channel_t *ch)
 	uchar ier = readb(&ch->ch_cls_uart->ier);
 	uchar isr_fcr = 0;
 
-	DPR_PARAM(("Setting CTSFLOW\n"));
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -144,7 +143,6 @@ static inline void cls_set_ixon_flow_control(struct channel_t *ch)
 	uchar ier = readb(&ch->ch_cls_uart->ier);
 	uchar isr_fcr = 0;
 
-	DPR_PARAM(("Setting IXON FLOW\n"));
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -193,7 +191,6 @@ static inline void cls_set_no_output_flow_control(struct channel_t *ch)
 	uchar ier = readb(&ch->ch_cls_uart->ier);
 	uchar isr_fcr = 0;
 
-	DPR_PARAM(("Unsetting Output FLOW\n"));
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -240,7 +237,6 @@ static inline void cls_set_rts_flow_control(struct channel_t *ch)
 	uchar ier = readb(&ch->ch_cls_uart->ier);
 	uchar isr_fcr = 0;
 
-	DPR_PARAM(("Setting RTSFLOW\n"));
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -283,7 +279,6 @@ static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
 	uchar ier = readb(&ch->ch_cls_uart->ier);
 	uchar isr_fcr = 0;
 
-	DPR_PARAM(("Setting IXOFF FLOW\n"));
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -328,7 +323,6 @@ static inline void cls_set_no_input_flow_control(struct channel_t *ch)
 	uchar ier = readb(&ch->ch_cls_uart->ier);
 	uchar isr_fcr = 0;
 
-	DPR_PARAM(("Unsetting Input FLOW\n"));
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -394,8 +388,6 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
 			ch->ch_stop_sending_break = 0;
-			DPR_IOCTL(("Finishing UART_LCR_SBC! finished: %lx\n",
-								jiffies));
 		}
 	}
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
@@ -430,9 +422,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		if (isr & UART_IIR_NO_INT)
 			break;
 
-		DPR_INTR(("%s:%d port: %x isr: %x\n", __FILE__, __LINE__,
-								 port, isr));
-
 		/* Receive Interrupt pending */
 		if (isr & (UART_IIR_RDI | UART_IIR_RDI_TIMEOUT)) {
 			/* Read data from uart -> queue */
@@ -464,7 +453,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		}
 
 		/* Parse any modem signal changes */
-		DPR_INTR(("MOD_STAT: sending to parse_modem_sigs\n"));
 		cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 	}
 }
@@ -500,10 +488,6 @@ static void cls_param(struct tty_struct *tty)
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
-
-	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
-		ch->ch_tun.un_dev, ch->ch_c_cflag, ch->ch_c_oflag,
-							 ch->ch_c_iflag));
 
 	/*
 	 * If baud rate is zero, flush queues, and set mval to drop DTR.
@@ -588,8 +572,6 @@ static void cls_param(struct tty_struct *tty)
 								(jindex < 16)) {
 			baud = bauds[iindex][jindex];
 		} else {
-			DPR_IOCTL(("baud indices were out of range (%d)(%d)",
-				iindex, jindex));
 			baud = 0;
 		}
 
@@ -840,13 +822,9 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 
 	/* If 0, no interrupts pending */
 	if (!poll_reg) {
-		DPR_INTR((
-			 "Kernel interrupted to me, but no pending interrupts...\n"));
 		DGNC_UNLOCK(brd->bd_intr_lock, lock_flags);
 		return IRQ_NONE;
 	}
-
-	DPR_INTR(("%s:%d poll_reg: %x\n", __FILE__, __LINE__, poll_reg));
 
 	/* Parse each port to find out what caused the interrupt */
 	for (i = 0; i < brd->nasync; i++)
@@ -859,7 +837,6 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 
 	DGNC_UNLOCK(brd->bd_intr_lock, lock_flags);
 
-	DPR_INTR(("dgnc_intr finish.\n"));
 	return IRQ_HANDLED;
 }
 
@@ -938,9 +915,6 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * I hope thats okay with everyone? Yes? Good.
 		 */
 		while (qleft < 1) {
-			DPR_READ(("Queue full, dropping DATA:%x LSR:%x\n",
-				ch->ch_rqueue[tail], ch->ch_equeue[tail]));
-
 			ch->ch_r_tail = tail = (tail + 1) & RQUEUEMASK;
 			ch->ch_err_overrun++;
 			qleft++;
@@ -953,9 +927,6 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 						 ch->ch_rqueue + head, 1);
 
 		qleft--;
-
-		DPR_READ(("DATA/LSR pair: %x %x\n", ch->ch_rqueue[head],
-							 ch->ch_equeue[head]));
 
 		if (ch->ch_equeue[head] & UART_LSR_PE)
 			ch->ch_err_parity++;
@@ -1012,8 +983,6 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 					 ((un->un_flags & UN_EMPTY) == 0));
 
 	/* If ret is non-zero, user ctrl-c'ed us */
-	if (rc)
-		DPR_IOCTL(("%d Drain - User ctrl c'ed\n", __LINE__));
 
 	return rc;
 }
@@ -1126,7 +1095,6 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 		writeb(ch->ch_wqueue[ch->ch_w_tail], &ch->ch_cls_uart->txrx);
 		dgnc_sniff_nowait_nolock(ch, "UART WRITE",
 					    ch->ch_wqueue + ch->ch_w_tail, 1);
-		DPR_WRITE(("Tx data: %x\n", ch->ch_wqueue[ch->ch_w_tail]));
 		ch->ch_w_tail++;
 		ch->ch_w_tail &= WQUEUEMASK;
 		ch->ch_txcount++;
@@ -1148,9 +1116,6 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
-
-	DPR_MSIGS(("cls_parse_modem: port: %d signals: %d\n",
-					 ch->ch_portnum, msignals));
 
 	/*
 	 * Do altpin switching. Altpin switches DCD and DSR.
@@ -1206,17 +1171,6 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 	else
 		ch->ch_mistat &= ~UART_MSR_CTS;
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
-
-
-	DPR_MSIGS((
-		"Port: %d DTR: %d RTS: %d CTS: %d DSR: %d " "RI: %d CD: %d\n",
-		ch->ch_portnum,
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MCR_DTR),
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MCR_RTS),
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_CTS),
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_DSR),
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_RI),
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_DCD)));
 }
 
 
@@ -1363,8 +1317,6 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
 			ch->ch_stop_sending_break = 0;
-			DPR_IOCTL(("Finishing UART_LCR_SBC! finished: %lx\n",
-								     jiffies));
 		}
 		return;
 	}
@@ -1382,9 +1334,6 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 
 		writeb((temp | UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 		ch->ch_flags |= (CH_BREAK_SENDING);
-		DPR_IOCTL((
-			"Port %d. Starting UART_LCR_SBC! start: %lx should end: %lx\n",
-			ch->ch_portnum, jiffies, ch->ch_stop_sending_break));
 	}
 }
 
