@@ -153,15 +153,14 @@
 };
 
 &emmc {
-	clock-frequency = <100000000>;
-	clock-freq-min-max = <400000 100000000>;
+	clock-frequency = <37500000>;
+	clock-freq-min-max = <400000 37500000>;
 
         supports-highspeed;
 	supports-emmc;
         bootpart-no-access;
 
 	supports-DDR_MODE;
-	//caps2-mmc-hs200;
 
         ignore-pm-notify;
 	keep-power-in-suspend;
@@ -171,8 +170,8 @@
 };
 
 &sdmmc {
-		clock-frequency = <50000000>;
-		clock-freq-min-max = <400000 50000000>;
+		clock-frequency = <37500000>;
+		clock-freq-min-max = <400000 37500000>;
 		supports-highspeed;
 		supports-sd;
 		broken-cd;
@@ -186,13 +185,13 @@
 };
 
 &sdio {
-		clock-frequency = <50000000>;
-		clock-freq-min-max = <200000 50000000>;
+		clock-frequency = <37500000>;
+		clock-freq-min-max = <200000 37500000>;
 		supports-highspeed;
 		supports-sdio;
 		ignore-pm-notify;
 		keep-power-in-suspend;
-		//cap-sdio-irq;
+		cap-sdio-irq;
 		status = "okay";
 };
 
