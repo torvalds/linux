@@ -1360,6 +1360,8 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 				| DWC_CFGH_DST_PER(1));
 	slave->sdata.cfg_lo &= ~(DWC_CFGL_HS_DST_POL
 				| DWC_CFGL_HS_SRC_POL);
+	slave->sdata.src_master = 1;
+	slave->sdata.dst_master = 0;
 
 	data->dma_slave = slave;
 
