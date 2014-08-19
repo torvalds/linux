@@ -266,6 +266,7 @@ nv50_core_create(struct nvif_object *disp, u64 syncbuf, struct nv50_mast *core)
 		.pushbuf = 0xb0007d00,
 	};
 	static const u32 oclass[] = {
+		GM204_DISP_CORE_CHANNEL_DMA,
 		GM107_DISP_CORE_CHANNEL_DMA,
 		GK110_DISP_CORE_CHANNEL_DMA,
 		GK104_DISP_CORE_CHANNEL_DMA,
