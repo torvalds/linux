@@ -21,12 +21,14 @@
  * @dev:		struct device of the DMA controller
  * @irq:		irq line
  * @regs:		memory mapped I/O space
+ * @clk:		hclk clock
  * @dw:			struct dw_dma that is filed by dw_dma_probe()
  */
 struct dw_dma_chip {
 	struct device	*dev;
 	int		irq;
 	void __iomem	*regs;
+	struct clk	*clk;
 	struct dw_dma	*dw;
 };
 
