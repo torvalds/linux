@@ -2194,7 +2194,7 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
 
-	wmi_10x_svc_map(ev->wmi_service_bitmap, svc_bmap);
+	wmi_main_svc_map(ev->wmi_service_bitmap, svc_bmap);
 	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
 	ath10k_dbg_dump(ATH10K_DBG_WMI, NULL, "ath10k: wmi svc: ",
 			ev->wmi_service_bitmap, sizeof(ev->wmi_service_bitmap));
@@ -2264,7 +2264,7 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
 
-	wmi_main_svc_map(ev->wmi_service_bitmap, svc_bmap);
+	wmi_10x_svc_map(ev->wmi_service_bitmap, svc_bmap);
 	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
 	ath10k_dbg_dump(ATH10K_DBG_WMI, NULL, "ath10k: wmi svc: ",
 			ev->wmi_service_bitmap, sizeof(ev->wmi_service_bitmap));
