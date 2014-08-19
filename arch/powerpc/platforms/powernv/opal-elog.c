@@ -295,6 +295,10 @@ int __init opal_elog_init(void)
 {
 	int rc = 0;
 
+	/* ELOG not supported by firmware */
+	if (!opal_check_token(OPAL_ELOG_READ))
+		return -1;
+
 	elog_kset = kset_create_and_add("elog", NULL, opal_kobj);
 	if (!elog_kset) {
 		pr_warn("%s: failed to create elog kset\n", __func__);
