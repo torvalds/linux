@@ -338,8 +338,11 @@ static void rk312x_restart(char mode, const char *cmd)
 
 	rockchip_restart_get_boot_mode(cmd, &boot_flag, &boot_mode);
 
-	writel_relaxed(boot_flag, RK_GRF_VIRT + RK312X_GRF_OS_REG4);
-	writel_relaxed(boot_mode, RK_GRF_VIRT + RK312X_GRF_OS_REG5);
+	/* for loader */
+	writel_relaxed(boot_flag, RK_PMU_VIRT + RK312x_PMU_SYS_REG0);
+	/* for linux */
+	writel_relaxed(boot_mode, RK_PMU_VIRT + RK312x_PMU_SYS_REG1);
+
 	dsb();
 
 	/* pll enter slow mode */
