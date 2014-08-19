@@ -403,7 +403,7 @@ static void labpc_set_ai_convert_period(struct comedi_cmd *cmd,
 }
 
 static unsigned int labpc_ai_scan_period(const struct comedi_cmd *cmd,
-					enum scan_mode mode)
+					 enum scan_mode mode)
 {
 	if (cmd->scan_begin_src != TRIG_TIMER)
 		return 0;
@@ -1149,7 +1149,7 @@ static unsigned int labpc_eeprom_read_status(struct comedi_device *dev)
 }
 
 static int labpc_eeprom_write(struct comedi_device *dev,
-				unsigned int address, unsigned int value)
+			      unsigned int address, unsigned int value)
 {
 	struct labpc_private *devpriv = dev->private;
 	const int write_enable_instruction = 0x6;
