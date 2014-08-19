@@ -1352,6 +1352,9 @@ ce4100_serial_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_INTEL_BYT_UART1	0x0f0a
 #define PCI_DEVICE_ID_INTEL_BYT_UART2	0x0f0c
 
+#define PCI_DEVICE_ID_INTEL_BSW_UART1	0x228a
+#define PCI_DEVICE_ID_INTEL_BSW_UART2	0x228c
+
 #define BYT_PRV_CLK			0x800
 #define BYT_PRV_CLK_EN			(1 << 0)
 #define BYT_PRV_CLK_M_VAL_SHIFT		1
@@ -1465,10 +1468,12 @@ byt_serial_setup(struct serial_private *priv,
 
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_BYT_UART1:
+	case PCI_DEVICE_ID_INTEL_BSW_UART1:
 		rx_param->src_id = 3;
 		tx_param->dst_id = 2;
 		break;
 	case PCI_DEVICE_ID_INTEL_BYT_UART2:
+	case PCI_DEVICE_ID_INTEL_BSW_UART2:
 		rx_param->src_id = 5;
 		tx_param->dst_id = 4;
 		break;
@@ -1923,6 +1928,20 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
 		.device		= PCI_DEVICE_ID_INTEL_BYT_UART2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= byt_serial_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BSW_UART1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= byt_serial_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BSW_UART2,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= byt_serial_setup,
@@ -5216,6 +5235,14 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
 		pbn_byt },
 	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BYT_UART2,
+		PCI_ANY_ID,  PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
+		pbn_byt },
+	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW_UART1,
+		PCI_ANY_ID,  PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
+		pbn_byt },
+	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW_UART2,
 		PCI_ANY_ID,  PCI_ANY_ID,
 		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
 		pbn_byt },
