@@ -181,18 +181,10 @@
 				#clock-cells = <0>;
 			};
 
-			pd_vop0: pd_vop0 {
+			pd_vop: pd_vop {
 				compatible = "rockchip,rk-pd-clock";
 				clocks = <&pd_vio>;
-				clock-output-names = "pd_vop0";
-				rockchip,pd-id = <CLK_PD_VIRT>;
-				#clock-cells = <0>;
-			};
-
-			pd_vop1: pd_vop1 {
-				compatible = "rockchip,rk-pd-clock";
-				clocks = <&pd_vio>;
-				clock-output-names = "pd_vop1";
+				clock-output-names = "pd_vop";
 				rockchip,pd-id = <CLK_PD_VIRT>;
 				#clock-cells = <0>;
 			};
