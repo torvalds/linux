@@ -1632,7 +1632,7 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 
 	/* do machine specific initialization */
 	if (aux_dev->init) {
-		ret = aux_dev->init(snd_soc_component_get_dapm(rtd->component));
+		ret = aux_dev->init(rtd->component);
 		if (ret < 0) {
 			dev_err(card->dev, "ASoC: failed to init %s: %d\n",
 				aux_dev->name, ret);

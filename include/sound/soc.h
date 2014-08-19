@@ -1022,7 +1022,7 @@ struct snd_soc_aux_dev {
 	const struct device_node *codec_of_node;
 
 	/* codec/machine specific init - e.g. add machine controls */
-	int (*init)(struct snd_soc_dapm_context *dapm);
+	int (*init)(struct snd_soc_component *component);
 };
 
 /* SoC card */
