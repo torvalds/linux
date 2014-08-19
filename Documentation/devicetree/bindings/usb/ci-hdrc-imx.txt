@@ -19,6 +19,7 @@ Optional properties:
 - disable-over-current: disable over current detect
 - external-vbus-divider: enables off-chip resistor divider for Vbus
 - maximum-speed: limit the maximum connection speed to "full-speed".
+- tpl-support: TPL (Targeted Peripheral List) feature for targeted hosts
 
 Examples:
 usb@02184000 { /* USB OTG */
@@ -30,4 +31,5 @@ usb@02184000 { /* USB OTG */
 	disable-over-current;
 	external-vbus-divider;
 	maximum-speed = "full-speed";
+	tpl-support;
 };
