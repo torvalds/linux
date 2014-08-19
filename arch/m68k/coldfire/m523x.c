@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/523x/config.c
+ *	m523x.c  -- platform support for ColdFire 523x based boards
  *
  *	Sub-architcture dependent initialization code for the Freescale
  *	523x CPUs.

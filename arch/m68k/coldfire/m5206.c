@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/5206/config.c
+ *	m5206.c  -- platform support for ColdFire 5206 based boards
  *
  *	Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
  * 	Copyright (C) 2000-2001, Lineo Inc. (www.lineo.com) 

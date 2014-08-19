@@ -1,10 +1,10 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/527x/config.c
+ *	m527x.c  -- platform support for ColdFire 527x based boards
  *
  *	Sub-architcture dependent initialization code for the Freescale
- *	5270/5271 CPUs.
+ *	5270/5271 and 5274/5275 CPUs.
  *
  *	Copyright (C) 1999-2004, Greg Ungerer (gerg@snapgear.com)
  *	Copyright (C) 2001-2004, SnapGear Inc. (www.snapgear.com)

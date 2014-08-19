@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	525x.c
+ *	525x.c  -- platform support for ColdFire 525x based boards
  *
  *	Copyright (C) 2012, Steven King <sfking@fdwdc.com>
  */

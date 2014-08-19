@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/5307/config.c
+ *	m5307.c  -- platform support for ColdFire 5307 based boards
  *
  *	Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
  *	Copyright (C) 2000, Lineo (www.lineo.com)

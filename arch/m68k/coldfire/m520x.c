@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *  linux/arch/m68knommu/platform/520x/config.c
+ *  m520x.c  -- platform support for ColdFire 520x based boards
  *
  *  Copyright (C) 2005,      Freescale (www.freescale.com)
  *  Copyright (C) 2005,      Intec Automation (mike@steroidmicros.com)

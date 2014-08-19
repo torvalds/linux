@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/54xx/config.c
+ *	m54xx.c  -- platform support for ColdFire 54xx based boards
  *
  *	Copyright (C) 2010, Philippe De Muyter <phdm@macqel.be>
  */

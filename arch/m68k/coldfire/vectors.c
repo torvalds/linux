@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/coldfire/vectors.c
+ *	vectors.c  -- high level trap setup for ColdFire
  *
  *	Copyright (C) 1999-2007, Greg Ungerer <gerg@snapgear.com>
  */
