@@ -16,8 +16,6 @@ struct device;
  */
 struct gpio_desc;
 
-#ifdef CONFIG_GPIOLIB
-
 #define GPIOD_FLAGS_BIT_DIR_SET		BIT(0)
 #define GPIOD_FLAGS_BIT_DIR_OUT		BIT(1)
 #define GPIOD_FLAGS_BIT_DIR_VAL		BIT(2)
@@ -33,6 +31,8 @@ enum gpiod_flags {
 	GPIOD_OUT_HIGH	= GPIOD_FLAGS_BIT_DIR_SET | GPIOD_FLAGS_BIT_DIR_OUT |
 			  GPIOD_FLAGS_BIT_DIR_VAL,
 };
+
+#ifdef CONFIG_GPIOLIB
 
 /* Acquire and dispose GPIOs */
 struct gpio_desc *__must_check __gpiod_get(struct device *dev,
