@@ -30,6 +30,8 @@ enum {
 	BMA180,
 };
 
+struct bma180_data;
+
 struct bma180_part_info {
 	const struct iio_chan_spec *channels;
 	unsigned num_channels;
@@ -37,6 +39,8 @@ struct bma180_part_info {
 	unsigned num_scales;
 	const int *bw_table;
 	unsigned num_bw;
+	int (*chip_config)(struct bma180_data *data);
+	void (*chip_disable)(struct bma180_data *data);
 };
 
 /* Register set */
@@ -279,21 +283,28 @@ static int bma180_chip_init(struct bma180_data *data)
 	int ret = i2c_smbus_read_byte_data(data->client, BMA180_CHIP_ID);
 
 	if (ret < 0)
-		goto err;
-	if (ret != BMA180_ID_REG_VAL) {
-		ret = -ENODEV;
-		goto err;
-	}
+		return ret;
+	if (ret != BMA180_ID_REG_VAL)
+		return -ENODEV;
 
 	ret = bma180_soft_reset(data);
 	if (ret)
-		goto err;
+		return ret;
 	/*
 	 * No serial transaction should occur within minimum 10 us
 	 * after soft_reset command
 	 */
 	msleep(20);
 
+	return 0;
+}
+
+static int bma180_chip_config(struct bma180_data *data)
+{
+	int ret = bma180_chip_init(data);
+
+	if (ret)
+		goto err;
 	ret = bma180_set_bits(data, BMA180_CTRL_REG0, BMA180_DIS_WAKE_UP, 1);
 	if (ret)
 		goto err;
@@ -319,7 +330,7 @@ static int bma180_chip_init(struct bma180_data *data)
 	return 0;
 
 err:
-	dev_err(&data->client->dev, "failed to init the chip\n");
+	dev_err(&data->client->dev, "failed to config the chip\n");
 	return ret;
 }
 
@@ -507,6 +518,8 @@ static const struct bma180_part_info bma180_part_info[] = {
 		bma180_channels, ARRAY_SIZE(bma180_channels),
 		bma180_scale_table, ARRAY_SIZE(bma180_scale_table),
 		bma180_bw_table, ARRAY_SIZE(bma180_bw_table),
+		bma180_chip_config,
+		bma180_chip_disable,
 	},
 };
 
@@ -578,7 +591,7 @@ static int bma180_probe(struct i2c_client *client,
 	data->client = client;
 	data->part_info = &bma180_part_info[id->driver_data];
 
-	ret = bma180_chip_init(data);
+	ret = data->part_info->chip_config(data);
 	if (ret < 0)
 		goto err_chip_disable;
 
@@ -640,7 +653,7 @@ err_trigger_unregister:
 err_trigger_free:
 	iio_trigger_free(data->trig);
 err_chip_disable:
-	bma180_chip_disable(data);
+	data->part_info->chip_disable(data);
 
 	return ret;
 }
@@ -658,7 +671,7 @@ static int bma180_remove(struct i2c_client *client)
 	}
 
 	mutex_lock(&data->mutex);
-	bma180_chip_disable(data);
+	data->part_info->chip_disable(data);
 	mutex_unlock(&data->mutex);
 
 	return 0;
