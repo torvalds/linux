@@ -204,13 +204,10 @@ static struct pci_driver arcmsr_pci_driver = {
 static void arcmsr_free_mu(struct AdapterControlBlock *acb)
 {
 	switch (acb->adapter_type) {
-	case ACB_ADAPTER_TYPE_A:
-	case ACB_ADAPTER_TYPE_C:
-		break;
 	case ACB_ADAPTER_TYPE_B:{
-		dma_free_coherent(&acb->pdev->dev,
-			sizeof(struct MessageUnit_B),
-			acb->pmuB, acb->dma_coherent_handle2);
+		dma_free_coherent(&acb->pdev->dev, acb->roundup_ccbsize,
+			acb->dma_coherent2, acb->dma_coherent_handle2);
+		break;
 	}
 	}
 }
@@ -2236,12 +2233,18 @@ static bool arcmsr_hbaB_get_config(struct AdapterControlBlock *acb)
 	char __iomem *iop_device_map;
 	/*firm_version,21,84-99*/
 	int count;
-	dma_coherent = dma_alloc_coherent(&pdev->dev, sizeof(struct MessageUnit_B), &dma_coherent_handle, GFP_KERNEL);
+
+	acb->roundup_ccbsize = roundup(sizeof(struct MessageUnit_B), 32);
+	dma_coherent = dma_alloc_coherent(&pdev->dev, acb->roundup_ccbsize,
+			&dma_coherent_handle, GFP_KERNEL);
 	if (!dma_coherent){
-		printk(KERN_NOTICE "arcmsr%d: dma_alloc_coherent got error for hbb mu\n", acb->host->host_no);
+		printk(KERN_NOTICE
+			"arcmsr%d: dma_alloc_coherent got error for hbb mu\n",
+			acb->host->host_no);
 		return false;
 	}
 	acb->dma_coherent_handle2 = dma_coherent_handle;
+	acb->dma_coherent2 = dma_coherent;
 	reg = (struct MessageUnit_B *)dma_coherent;
 	acb->pmuB = reg;
 	reg->drv2iop_doorbell= (uint32_t __iomem *)((unsigned long)acb->mem_base0 + ARCMSR_DRV2IOP_DOORBELL);
@@ -2589,6 +2592,7 @@ static int arcmsr_polling_ccbdone(struct AdapterControlBlock *acb,
 static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 {
 	uint32_t cdb_phyaddr, cdb_phyaddr_hi32;
+	dma_addr_t dma_coherent_handle;
 
 	/*
 	********************************************************************
@@ -2596,8 +2600,16 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 	** if freeccb.HighPart is not zero
 	********************************************************************
 	*/
-	cdb_phyaddr = lower_32_bits(acb->dma_coherent_handle);
-	cdb_phyaddr_hi32 = upper_32_bits(acb->dma_coherent_handle);
+	switch (acb->adapter_type) {
+	case ACB_ADAPTER_TYPE_B:
+		dma_coherent_handle = acb->dma_coherent_handle2;
+		break;
+	default:
+		dma_coherent_handle = acb->dma_coherent_handle;
+		break;
+	}
+	cdb_phyaddr = lower_32_bits(dma_coherent_handle);
+	cdb_phyaddr_hi32 = upper_32_bits(dma_coherent_handle);
 	acb->cdb_phyaddr_hi32 = cdb_phyaddr_hi32;
 	/*
 	***********************************************************************
@@ -2625,7 +2637,6 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 		break;
 
 	case ACB_ADAPTER_TYPE_B: {
-		unsigned long post_queue_phyaddr;
 		uint32_t __iomem *rwbuffer;
 
 		struct MessageUnit_B *reg = acb->pmuB;
@@ -2637,16 +2648,15 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 				acb->host->host_no);
 			return 1;
 		}
-		post_queue_phyaddr = acb->dma_coherent_handle2;
 		rwbuffer = reg->message_rwbuffer;
 		/* driver "set config" signature */
 		writel(ARCMSR_SIGNATURE_SET_CONFIG, rwbuffer++);
 		/* normal should be zero */
 		writel(cdb_phyaddr_hi32, rwbuffer++);
 		/* postQ size (256 + 8)*4	 */
-		writel(post_queue_phyaddr, rwbuffer++);
+		writel(cdb_phyaddr, rwbuffer++);
 		/* doneQ size (256 + 8)*4	 */
-		writel(post_queue_phyaddr + 1056, rwbuffer++);
+		writel(cdb_phyaddr + 1056, rwbuffer++);
 		/* ccb maxQ size must be --> [(256 + 8)*4]*/
 		writel(1056, rwbuffer);
 

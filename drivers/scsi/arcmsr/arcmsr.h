@@ -507,6 +507,7 @@ struct AdapterControlBlock
 	#define ACB_ADAPTER_TYPE_B            0x00000002	/* hbb M IOP */
 	#define ACB_ADAPTER_TYPE_C            0x00000004	/* hbc P IOP */
 	#define ACB_ADAPTER_TYPE_D            0x00000008	/* hbd A IOP */
+	u32				roundup_ccbsize;
 	struct pci_dev *		pdev;
 	struct Scsi_Host *		host;
 	unsigned long			vir2phy_offset;
@@ -563,6 +564,7 @@ struct AdapterControlBlock
 	dma_addr_t			dma_coherent_handle;
 	/* dma_coherent_handle used for memory free */
 	dma_addr_t				dma_coherent_handle2;
+	void				*dma_coherent2;
 	unsigned int				uncache_size;
 	uint8_t				rqbuffer[ARCMSR_MAX_QBUFFER];
 	/* data collection buffer for read from 80331 */
