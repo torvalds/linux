@@ -60,6 +60,7 @@ static int host_start(struct ci_hdrc *ci)
 
 	hcd->power_budget = ci->platdata->power_budget;
 	hcd->phy = ci->transceiver;
+	hcd->tpl_support = ci->platdata->tpl_support;
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;

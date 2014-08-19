@@ -473,6 +473,10 @@ static int ci_get_platdata(struct device *dev,
 				PTR_ERR(platdata->reg_vbus));
 			return PTR_ERR(platdata->reg_vbus);
 		}
+		/* Get TPL support */
+		if (!platdata->tpl_support)
+			platdata->tpl_support =
+				of_usb_host_tpl_support(dev->of_node);
 	}
 
 	if (of_usb_get_maximum_speed(dev->of_node) == USB_SPEED_FULL)
