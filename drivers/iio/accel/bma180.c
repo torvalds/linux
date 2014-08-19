@@ -82,7 +82,7 @@ struct bma180_data {
 	int scale;
 	int bw;
 	bool pmode;
-	char *buff;
+	u8 buff[16]; /* 3x 16-bit + 8-bit + padding + timestamp */
 };
 
 enum bma180_chan {
@@ -408,26 +408,10 @@ static int bma180_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static int bma180_update_scan_mode(struct iio_dev *indio_dev,
-		const unsigned long *scan_mask)
-{
-	struct bma180_data *data = iio_priv(indio_dev);
-
-	if (data->buff)
-		devm_kfree(&indio_dev->dev, data->buff);
-	data->buff = devm_kzalloc(&indio_dev->dev,
-			indio_dev->scan_bytes, GFP_KERNEL);
-	if (!data->buff)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static const struct iio_info bma180_info = {
 	.attrs			= &bma180_attrs_group,
 	.read_raw		= bma180_read_raw,
 	.write_raw		= bma180_write_raw,
-	.update_scan_mode	= bma180_update_scan_mode,
 	.driver_module		= THIS_MODULE,
 };
 
