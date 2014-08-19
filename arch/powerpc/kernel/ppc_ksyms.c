@@ -45,26 +45,10 @@
 #include <asm/epapr_hcalls.h>
 
 #ifdef CONFIG_PPC32
-extern void transfer_to_handler(void);
-extern void do_IRQ(struct pt_regs *regs);
-extern void machine_check_exception(struct pt_regs *regs);
-extern void alignment_exception(struct pt_regs *regs);
-extern void program_check_exception(struct pt_regs *regs);
-extern void single_step_exception(struct pt_regs *regs);
-extern int sys_sigreturn(struct pt_regs *regs);
-
 EXPORT_SYMBOL(clear_pages);
 EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
 EXPORT_SYMBOL(DMA_MODE_READ);
 EXPORT_SYMBOL(DMA_MODE_WRITE);
-
-EXPORT_SYMBOL(transfer_to_handler);
-EXPORT_SYMBOL(do_IRQ);
-EXPORT_SYMBOL(machine_check_exception);
-EXPORT_SYMBOL(alignment_exception);
-EXPORT_SYMBOL(program_check_exception);
-EXPORT_SYMBOL(single_step_exception);
-EXPORT_SYMBOL(sys_sigreturn);
 #endif
 
 #ifdef CONFIG_FUNCTION_TRACER
