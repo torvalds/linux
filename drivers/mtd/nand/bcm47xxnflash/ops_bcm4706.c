@@ -167,6 +167,26 @@ static void bcm47xxnflash_ops_bcm4706_write(struct mtd_info *mtd,
  * NAND chip ops
  **************************************************/
 
+static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct mtd_info *mtd, int cmd,
+					       unsigned int ctrl)
+{
+	struct nand_chip *nand_chip = (struct nand_chip *)mtd->priv;
+	struct bcm47xxnflash *b47n = (struct bcm47xxnflash *)nand_chip->priv;
+	u32 code = 0;
+
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	if (cmd & NAND_CTRL_CLE)
+		code = cmd | NCTL_CMD0;
+
+	/* nCS is not needed for reset command */
+	if (cmd != NAND_CMD_RESET)
+		code |= NCTL_CSA;
+
+	bcm47xxnflash_ops_bcm4706_ctl_cmd(b47n->cc, code);
+}
+
 /* Default nand_select_chip calls cmd_ctrl, which is not used in BCM4706 */
 static void bcm47xxnflash_ops_bcm4706_select_chip(struct mtd_info *mtd,
 						  int chip)
@@ -360,6 +380,7 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	u32 val;
 
 	b47n->nand_chip.select_chip = bcm47xxnflash_ops_bcm4706_select_chip;
+	nand_chip->cmd_ctrl = bcm47xxnflash_ops_bcm4706_cmd_ctrl;
 	nand_chip->dev_ready = bcm47xxnflash_ops_bcm4706_dev_ready;
 	b47n->nand_chip.cmdfunc = bcm47xxnflash_ops_bcm4706_cmdfunc;
 	b47n->nand_chip.read_byte = bcm47xxnflash_ops_bcm4706_read_byte;
