@@ -720,9 +720,9 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	enum scan_mode mode = labpc_ai_scan_mode(cmd);
-	unsigned int chanspec = (mode == MODE_MULT_CHAN_UP)
-				? cmd->chanlist[cmd->chanlist_len - 1]
-				: cmd->chanlist[0];
+	unsigned int chanspec = (mode == MODE_MULT_CHAN_UP) ?
+				cmd->chanlist[cmd->chanlist_len - 1] :
+				cmd->chanlist[0];
 	unsigned int chan = CR_CHAN(chanspec);
 	unsigned int range = CR_RANGE(chanspec);
 	unsigned int aref = CR_AREF(chanspec);
@@ -1353,8 +1353,8 @@ int labpc_common_attach(struct comedi_device *dev,
 	s->n_chan	= 8;
 	s->len_chanlist	= 8;
 	s->maxdata	= 0x0fff;
-	s->range_table	= board->is_labpc1200
-				? &range_labpc_1200_ai : &range_labpc_plus_ai;
+	s->range_table	= board->is_labpc1200 ?
+			  &range_labpc_1200_ai : &range_labpc_plus_ai;
 	s->insn_read	= labpc_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
