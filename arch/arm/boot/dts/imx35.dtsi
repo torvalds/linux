@@ -114,6 +114,7 @@
 			};
 
 			ssi1: ssi@43fa0000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx35-ssi", "fsl,imx21-ssi";
 				reg = <0x43fa0000 0x4000>;
 				interrupts = <11>;
