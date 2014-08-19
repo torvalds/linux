@@ -877,35 +877,23 @@ static struct snd_soc_component *soc_find_component(
 	return NULL;
 }
 
-static struct snd_soc_codec *soc_find_codec(
-					const struct device_node *codec_of_node,
-					const char *codec_name)
+static struct snd_soc_dai *snd_soc_find_dai(
+	const struct snd_soc_dai_link_component *dlc)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
+	struct snd_soc_dai *dai;
 
-	list_for_each_entry(codec, &codec_list, list) {
-		if (codec_of_node) {
-			if (codec->dev->of_node != codec_of_node)
+	/* Find CPU DAI from registered DAIs*/
+	list_for_each_entry(component, &component_list, list) {
+		if (dlc->of_node && component->dev->of_node != dlc->of_node)
+			continue;
+		if (dlc->name && strcmp(dev_name(component->dev), dlc->name))
+			continue;
+		list_for_each_entry(dai, &component->dai_list, list) {
+			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name))
 				continue;
-		} else {
-			if (strcmp(codec->component.name, codec_name))
-				continue;
-		}
 
-		return codec;
-	}
-
-	return NULL;
-}
-
-static struct snd_soc_dai *soc_find_codec_dai(struct snd_soc_codec *codec,
-					      const char *codec_dai_name)
-{
-	struct snd_soc_dai *codec_dai;
-
-	list_for_each_entry(codec_dai, &codec->component.dai_list, list) {
-		if (!strcmp(codec_dai->name, codec_dai_name)) {
-			return codec_dai;
+			return dai;
 		}
 	}
 
@@ -916,33 +904,19 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[num];
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
-	struct snd_soc_component *component;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+	struct snd_soc_dai_link_component cpu_dai_component;
 	struct snd_soc_dai **codec_dais = rtd->codec_dais;
 	struct snd_soc_platform *platform;
-	struct snd_soc_dai *cpu_dai;
 	const char *platform_name;
 	int i;
 
 	dev_dbg(card->dev, "ASoC: binding %s at idx %d\n", dai_link->name, num);
 
-	/* Find CPU DAI from registered DAIs*/
-	list_for_each_entry(component, &component_list, list) {
-		if (dai_link->cpu_of_node &&
-			component->dev->of_node != dai_link->cpu_of_node)
-			continue;
-		if (dai_link->cpu_name &&
-			strcmp(dev_name(component->dev), dai_link->cpu_name))
-			continue;
-		list_for_each_entry(cpu_dai, &component->dai_list, list) {
-			if (dai_link->cpu_dai_name &&
-				strcmp(cpu_dai->name, dai_link->cpu_dai_name))
-				continue;
-
-			rtd->cpu_dai = cpu_dai;
-		}
-	}
-
+	cpu_dai_component.name = dai_link->cpu_name;
+	cpu_dai_component.of_node = dai_link->cpu_of_node;
+	cpu_dai_component.dai_name = dai_link->cpu_dai_name;
+	rtd->cpu_dai = snd_soc_find_dai(&cpu_dai_component);
 	if (!rtd->cpu_dai) {
 		dev_err(card->dev, "ASoC: CPU DAI %s not registered\n",
 			dai_link->cpu_dai_name);
@@ -953,15 +927,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 
 	/* Find CODEC from registered CODECs */
 	for (i = 0; i < rtd->num_codecs; i++) {
-		struct snd_soc_codec *codec;
-		codec = soc_find_codec(codecs[i].of_node, codecs[i].name);
-		if (!codec) {
-			dev_err(card->dev, "ASoC: CODEC %s not registered\n",
-				codecs[i].name);
-			return -EPROBE_DEFER;
-		}
-
-		codec_dais[i] = soc_find_codec_dai(codec, codecs[i].dai_name);
+		codec_dais[i] = snd_soc_find_dai(&codecs[i]);
 		if (!codec_dais[i]) {
 			dev_err(card->dev, "ASoC: CODEC DAI %s not registered\n",
 				codecs[i].dai_name);
