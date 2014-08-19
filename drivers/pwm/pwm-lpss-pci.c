@@ -23,7 +23,7 @@ static int pwm_lpss_probe_pci(struct pci_dev *pdev,
 	struct pwm_lpss_chip *lpwm;
 	int err;
 
-	err = pci_enable_device(pdev);
+	err = pcim_enable_device(pdev);
 	if (err < 0)
 		return err;
 
@@ -41,7 +41,6 @@ static void pwm_lpss_remove_pci(struct pci_dev *pdev)
 	struct pwm_lpss_chip *lpwm = pci_get_drvdata(pdev);
 
 	pwm_lpss_remove(lpwm);
-	pci_disable_device(pdev);
 }
 
 static const struct pci_device_id pwm_lpss_pci_ids[] = {
