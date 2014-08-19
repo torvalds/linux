@@ -860,6 +860,23 @@ EXPORT_SYMBOL_GPL(snd_soc_resume);
 static const struct snd_soc_dai_ops null_dai_ops = {
 };
 
+static struct snd_soc_component *soc_find_component(
+	const struct device_node *of_node, const char *name)
+{
+	struct snd_soc_component *component;
+
+	list_for_each_entry(component, &component_list, list) {
+		if (of_node) {
+			if (component->dev->of_node == of_node)
+				return component;
+		} else if (strcmp(component->name, name) == 0) {
+			return component;
+		}
+	}
+
+	return NULL;
+}
+
 static struct snd_soc_codec *soc_find_codec(
 					const struct device_node *codec_of_node,
 					const char *codec_name)
@@ -1577,16 +1594,23 @@ static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
-	const char *codecname = aux_dev->codec_name;
+	const char *name = aux_dev->codec_name;
 
-	rtd->codec = soc_find_codec(aux_dev->codec_of_node, codecname);
-	if (!rtd->codec) {
+	rtd->component = soc_find_component(aux_dev->codec_of_node, name);
+	if (!rtd->component) {
 		if (aux_dev->codec_of_node)
-			codecname = of_node_full_name(aux_dev->codec_of_node);
+			name = of_node_full_name(aux_dev->codec_of_node);
 
-		dev_err(card->dev, "ASoC: %s not registered\n", codecname);
+		dev_err(card->dev, "ASoC: %s not registered\n", name);
 		return -EPROBE_DEFER;
 	}
+
+	/*
+	 * Some places still reference rtd->codec, so we have to keep that
+	 * initialized if the component is a CODEC. Once all those references
+	 * have been removed, this code can be removed as well.
+	 */
+	 rtd->codec = rtd->component->codec;
 
 	return 0;
 }
@@ -1597,18 +1621,18 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	int ret;
 
-	if (rtd->codec->component.probed) {
-		dev_err(rtd->codec->dev, "ASoC: codec already probed\n");
+	if (rtd->component->probed) {
+		dev_err(rtd->dev, "ASoC: codec already probed\n");
 		return -EBUSY;
 	}
 
-	ret = soc_probe_component(card, &rtd->codec->component);
+	ret = soc_probe_component(card, rtd->component);
 	if (ret < 0)
 		return ret;
 
 	/* do machine specific initialization */
 	if (aux_dev->init) {
-		ret = aux_dev->init(&rtd->codec->dapm);
+		ret = aux_dev->init(snd_soc_component_get_dapm(rtd->component));
 		if (ret < 0) {
 			dev_err(card->dev, "ASoC: failed to init %s: %d\n",
 				aux_dev->name, ret);
@@ -1622,7 +1646,7 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->component;
 
 	/* unregister the rtd device */
 	if (rtd->dev_registered) {
@@ -1631,8 +1655,8 @@ static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
 		rtd->dev_registered = 0;
 	}
 
-	if (codec && codec->component.probed)
-		soc_remove_component(&codec->component);
+	if (component && component->probed)
+		soc_remove_component(component);
 }
 
 static int snd_soc_init_codec_cache(struct snd_soc_codec *codec)
