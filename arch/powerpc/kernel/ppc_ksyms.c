@@ -128,10 +128,6 @@ EXPORT_SYMBOL(smp_hw_index);
 #endif
 #endif
 
-#ifdef CONFIG_ADB_CUDA
-EXPORT_SYMBOL(cuda_request);
-EXPORT_SYMBOL(cuda_poll);
-#endif /* CONFIG_ADB_CUDA */
 EXPORT_SYMBOL(to_tm);
 
 #ifdef CONFIG_PPC32
