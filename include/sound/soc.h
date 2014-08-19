@@ -728,9 +728,24 @@ struct snd_soc_component {
 
 	struct mutex io_mutex;
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_root;
+#endif
+
+	/*
+	* DO NOT use any of the fields below in drivers, they are temporary and
+	* are going to be removed again soon. If you use them in driver code the
+	* driver will be marked as BROKEN when these fields are removed.
+	*/
+
 	/* Don't use these, use snd_soc_component_get_dapm() */
 	struct snd_soc_dapm_context dapm;
 	struct snd_soc_dapm_context *dapm_ptr;
+
+#ifdef CONFIG_DEBUG_FS
+	void (*init_debugfs)(struct snd_soc_component *component);
+	const char *debugfs_prefix;
+#endif
 };
 
 /* SoC Audio Codec device */
@@ -766,7 +781,6 @@ struct snd_soc_codec {
 	struct snd_soc_dapm_context dapm;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_codec_root;
 	struct dentry *debugfs_reg;
 #endif
 };
@@ -879,10 +893,6 @@ struct snd_soc_platform {
 	struct list_head list;
 
 	struct snd_soc_component component;
-
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_platform_root;
-#endif
 };
 
 struct snd_soc_dai_link {
