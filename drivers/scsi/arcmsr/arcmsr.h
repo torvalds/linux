@@ -359,7 +359,7 @@ struct ARCMSR_CDB
 #define ARCMSR_CDB_FLAG_ORDEREDQ           0x10
 
 	uint8_t							msgPages;
-	uint32_t						Context;
+	uint32_t						msgContext;
 	uint32_t						DataLength;
 	uint8_t							Cdb[16];
 	uint8_t							DeviceStatus;
@@ -562,7 +562,7 @@ struct AdapterControlBlock
 	/* dma_coherent used for memory free */
 	dma_addr_t			dma_coherent_handle;
 	/* dma_coherent_handle used for memory free */
-	dma_addr_t				dma_coherent_handle_hbb_mu;
+	dma_addr_t				dma_coherent_handle2;
 	unsigned int				uncache_size;
 	uint8_t				rqbuffer[ARCMSR_MAX_QBUFFER];
 	/* data collection buffer for read from 80331 */
@@ -613,7 +613,7 @@ struct CommandControlBlock{
 	struct list_head		list;				/*x32: 8byte, x64: 16byte*/
 	struct scsi_cmnd		*pcmd;				/*8 bytes pointer of linux scsi command */
 	struct AdapterControlBlock	*acb;				/*x32: 4byte, x64: 8byte*/
-	uint32_t			cdb_phyaddr_pattern;		/*x32: 4byte, x64: 4byte*/
+	uint32_t			cdb_phyaddr;			/*x32: 4byte, x64: 4byte*/
 	uint32_t			arc_cdb_size;			/*x32:4byte,x64:4byte*/
 	uint16_t			ccb_flags;			/*x32: 2byte, x64: 2byte*/
 	#define			CCB_FLAG_READ			0x0000
