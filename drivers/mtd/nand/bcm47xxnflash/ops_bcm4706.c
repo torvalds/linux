@@ -174,6 +174,14 @@ static void bcm47xxnflash_ops_bcm4706_select_chip(struct mtd_info *mtd,
 	return;
 }
 
+static int bcm47xxnflash_ops_bcm4706_dev_ready(struct mtd_info *mtd)
+{
+	struct nand_chip *nand_chip = (struct nand_chip *)mtd->priv;
+	struct bcm47xxnflash *b47n = (struct bcm47xxnflash *)nand_chip->priv;
+
+	return !!(bcma_cc_read32(b47n->cc, BCMA_CC_NFLASH_CTL) & NCTL_READY);
+}
+
 /*
  * Default nand_command and nand_command_lp don't match BCM4706 hardware layout.
  * For example, reading chip id is performed in a non-standard way.
@@ -341,6 +349,7 @@ static void bcm47xxnflash_ops_bcm4706_write_buf(struct mtd_info *mtd,
 
 int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 {
+	struct nand_chip *nand_chip = (struct nand_chip *)&b47n->nand_chip;
 	int err;
 	u32 freq;
 	u16 clock;
@@ -351,10 +360,13 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	u32 val;
 
 	b47n->nand_chip.select_chip = bcm47xxnflash_ops_bcm4706_select_chip;
+	nand_chip->dev_ready = bcm47xxnflash_ops_bcm4706_dev_ready;
 	b47n->nand_chip.cmdfunc = bcm47xxnflash_ops_bcm4706_cmdfunc;
 	b47n->nand_chip.read_byte = bcm47xxnflash_ops_bcm4706_read_byte;
 	b47n->nand_chip.read_buf = bcm47xxnflash_ops_bcm4706_read_buf;
 	b47n->nand_chip.write_buf = bcm47xxnflash_ops_bcm4706_write_buf;
+
+	nand_chip->chip_delay = 50;
 	b47n->nand_chip.bbt_options = NAND_BBT_USE_FLASH;
 	b47n->nand_chip.ecc.mode = NAND_ECC_NONE; /* TODO: implement ECC */
 
