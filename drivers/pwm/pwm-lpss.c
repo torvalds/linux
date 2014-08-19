@@ -48,6 +48,11 @@ static const struct pwm_lpss_boardinfo byt_info = {
 	25000000
 };
 
+/* Braswell */
+static const struct pwm_lpss_boardinfo bsw_info = {
+	19200000
+};
+
 static inline struct pwm_lpss_chip *to_lpwm(struct pwm_chip *chip)
 {
 	return container_of(chip, struct pwm_lpss_chip, chip);
@@ -189,6 +194,8 @@ static void pwm_lpss_remove_pci(struct pci_dev *pdev)
 static struct pci_device_id pwm_lpss_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x0f08), (unsigned long)&byt_info},
 	{ PCI_VDEVICE(INTEL, 0x0f09), (unsigned long)&byt_info},
+	{ PCI_VDEVICE(INTEL, 0x2288), (unsigned long)&bsw_info},
+	{ PCI_VDEVICE(INTEL, 0x2289), (unsigned long)&bsw_info},
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, pwm_lpss_pci_ids);
@@ -231,6 +238,7 @@ static int pwm_lpss_remove_platform(struct platform_device *pdev)
 
 static const struct acpi_device_id pwm_lpss_acpi_match[] = {
 	{ "80860F09", (unsigned long)&byt_info },
+	{ "80862288", (unsigned long)&bsw_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pwm_lpss_acpi_match);
