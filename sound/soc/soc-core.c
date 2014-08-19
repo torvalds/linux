@@ -4151,24 +4151,6 @@ static void snd_soc_platform_drv_remove(struct snd_soc_component *component)
 	platform->driver->remove(platform);
 }
 
-static int snd_soc_platform_drv_write(struct snd_soc_component *component,
-	unsigned int reg, unsigned int val)
-{
-	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
-
-	return platform->driver->write(platform, reg, val);
-}
-
-static int snd_soc_platform_drv_read(struct snd_soc_component *component,
-	unsigned int reg, unsigned int *val)
-{
-	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
-
-	*val = platform->driver->read(platform, reg);
-
-	return 0;
-}
-
 /**
  * snd_soc_add_platform - Add a platform to the ASoC core
  * @dev: The parent device for the platform
@@ -4205,10 +4187,6 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 		platform->component.probe = snd_soc_platform_drv_probe;
 	if (platform_drv->remove)
 		platform->component.remove = snd_soc_platform_drv_remove;
-	if (platform_drv->write)
-		platform->component.write = snd_soc_platform_drv_write;
-	if (platform_drv->read)
-		platform->component.read = snd_soc_platform_drv_read;
 
 #ifdef CONFIG_DEBUG_FS
 	platform->component.debugfs_prefix = "platform";
