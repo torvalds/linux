@@ -3483,7 +3483,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	u32 mc_shared_chmap, mc_arb_ramcfg;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
-	int i, j, k;
+	int i, j;
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
@@ -3674,10 +3674,8 @@ static void cik_gpu_init(struct radeon_device *rdev)
 
 	for (i = 0; i < rdev->config.cik.max_shader_engines; i++) {
 		for (j = 0; j < rdev->config.cik.max_sh_per_se; j++) {
-			for (k = 0; k < rdev->config.cik.max_cu_per_sh; k++) {
-				rdev->config.cik.active_cus +=
-					hweight32(cik_get_cu_active_bitmap(rdev, i, j));
-			}
+			rdev->config.cik.active_cus +=
+				hweight32(cik_get_cu_active_bitmap(rdev, i, j));
 		}
 	}
 
