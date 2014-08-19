@@ -14,8 +14,9 @@
 #include <linux/types.h>
 #include <linux/i2c-gpio.h>
 #include <linux/interrupt.h>
-#include <linux/backlight.h>
 #include <linux/platform_device.h>
+#include <linux/pwm.h>
+#include <linux/pwm_backlight.h>
 #include <linux/memblock.h>
 
 #include <linux/mtd/physmap.h>
@@ -108,23 +109,23 @@ static struct plat_lcd_data edb7211_lcd_power_pdata = {
 	.set_power	= edb7211_lcd_power_set,
 };
 
-static void edb7211_lcd_backlight_set_intensity(int intensity)
-{
-	gpio_set_value(EDB7211_LCDBL, !!intensity);
-	clps_writel((clps_readl(PMPCON) & 0xf0ff) | (intensity << 8), PMPCON);
-}
-
-static struct generic_bl_info edb7211_lcd_backlight_pdata = {
-	.name			= "lcd-backlight.0",
-	.default_intensity	= 0x01,
-	.max_intensity		= 0x0f,
-	.set_bl_intensity	= edb7211_lcd_backlight_set_intensity,
+static struct pwm_lookup edb7211_pwm_lookup[] = {
+	PWM_LOOKUP("clps711x-pwm", 0, "pwm-backlight.0", NULL,
+		   0, PWM_POLARITY_NORMAL),
 };
+
+static struct platform_pwm_backlight_data pwm_bl_pdata = {
+	.dft_brightness	= 0x01,
+	.max_brightness	= 0x0f,
+	.enable_gpio	= EDB7211_LCDBL,
+};
+
+static struct resource clps711x_pwm_res =
+	DEFINE_RES_MEM(CLPS711X_PHYS_BASE + PMPCON, SZ_4);
 
 static struct gpio edb7211_gpios[] __initconst = {
 	{ EDB7211_LCD_DC_DC_EN,	GPIOF_OUT_INIT_LOW,	"LCD DC-DC" },
 	{ EDB7211_LCDEN,	GPIOF_OUT_INIT_LOW,	"LCD POWER" },
-	{ EDB7211_LCDBL,	GPIOF_OUT_INIT_LOW,	"LCD BACKLIGHT" },
 };
 
 /* Reserve screen memory region at the start of main system memory. */
@@ -153,12 +154,18 @@ static void __init edb7211_init_late(void)
 	gpio_request_array(edb7211_gpios, ARRAY_SIZE(edb7211_gpios));
 
 	platform_device_register(&edb7211_flash_pdev);
+
 	platform_device_register_data(NULL, "platform-lcd", 0,
 				      &edb7211_lcd_power_pdata,
 				      sizeof(edb7211_lcd_power_pdata));
-	platform_device_register_data(NULL, "generic-bl", 0,
-				      &edb7211_lcd_backlight_pdata,
-				      sizeof(edb7211_lcd_backlight_pdata));
+
+	platform_device_register_simple("clps711x-pwm", PLATFORM_DEVID_NONE,
+					&clps711x_pwm_res, 1);
+	pwm_add_table(edb7211_pwm_lookup, ARRAY_SIZE(edb7211_pwm_lookup));
+
+	platform_device_register_data(&platform_bus, "pwm-backlight", 0,
+				      &pwm_bl_pdata, sizeof(pwm_bl_pdata));
+
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, edb7211_cs8900_resource,
 					ARRAY_SIZE(edb7211_cs8900_resource));
