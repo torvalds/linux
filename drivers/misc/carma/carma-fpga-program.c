@@ -749,13 +749,8 @@ static ssize_t fpga_read(struct file *filp, char __user *buf, size_t count,
 			 loff_t *f_pos)
 {
 	struct fpga_dev *priv = filp->private_data;
-
-	count = min_t(size_t, priv->bytes - *f_pos, count);
-	if (copy_to_user(buf, priv->vb.vaddr + *f_pos, count))
-		return -EFAULT;
-
-	*f_pos += count;
-	return count;
+	return simple_read_from_buffer(buf, count, ppos,
+				       priv->vb.vaddr, priv->bytes);
 }
 
 static loff_t fpga_llseek(struct file *filp, loff_t offset, int origin)
