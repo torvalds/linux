@@ -3903,7 +3903,7 @@ static void et131x_isr_handler(struct work_struct *work)
 	if (status & ET_INTR_RXDMA_XFR_DONE)
 		et131x_handle_recv_interrupt(adapter);
 
-	status &= ~(ET_INTR_TXDMA_ERR | ET_INTR_RXDMA_XFR_DONE);
+	status &= ~(ET_INTR_TXDMA_ISR | ET_INTR_RXDMA_XFR_DONE);
 
 	if (!status)
 		goto out;
