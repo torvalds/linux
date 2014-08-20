@@ -327,7 +327,6 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 	 * We don't want to restart any stream rings if there's a set dequeue
 	 * pointer command pending because the device can choose to start any
 	 * stream once the endpoint is on the HW schedule.
-	 * FIXME - check all the stream rings for pending cancellations.
 	 */
 	if ((ep_state & EP_HALT_PENDING) || (ep_state & SET_DEQ_PENDING) ||
 	    (ep_state & EP_HALTED))
