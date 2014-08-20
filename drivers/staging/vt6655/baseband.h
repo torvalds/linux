@@ -76,17 +76,6 @@ BBuGetFrameTime(
 	unsigned short wRate
 );
 
-void
-BBvCalculateParameter(
-	struct vnt_private *pDevice,
-	unsigned int cbFrameLength,
-	unsigned short wRate,
-	unsigned char byPacketType,
-	unsigned short *pwPhyLen,
-	unsigned char *pbyPhySrv,
-	unsigned char *pbyPhySgn
-);
-
 void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
 		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
 

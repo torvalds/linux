@@ -393,12 +393,6 @@ union vnt_phy_field_swap {
 typedef struct tagSRTS_g {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned char bySignalField_a;
-	unsigned char byServiceField_a;
-	unsigned short wTransmitLength_a;
 	unsigned short wDuration_ba;
 	unsigned short wDuration_aa;
 	unsigned short wDuration_bb;
@@ -411,12 +405,6 @@ typedef const SRTS_g *PCSRTS_g;
 typedef struct tagSRTS_g_FB {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned char bySignalField_a;
-	unsigned char byServiceField_a;
-	unsigned short wTransmitLength_a;
 	unsigned short wDuration_ba;
 	unsigned short wDuration_aa;
 	unsigned short wDuration_bb;
@@ -432,9 +420,6 @@ typedef const SRTS_g_FB *PCSRTS_g_FB;
 
 typedef struct tagSRTS_ab {
 	struct vnt_phy_field ab;
-	unsigned char bySignalField;
-	unsigned char byServiceField;
-	unsigned short wTransmitLength;
 	unsigned short wDuration;
 	unsigned short wReserved;
 	SRTSData    Data;
@@ -444,9 +429,6 @@ typedef const SRTS_ab *PCSRTS_ab;
 
 typedef struct tagSRTS_a_FB {
 	struct vnt_phy_field a;
-	unsigned char bySignalField;
-	unsigned char byServiceField;
-	unsigned short wTransmitLength;
 	unsigned short wDuration;
 	unsigned short wReserved;
 	unsigned short wRTSDuration_f0;
@@ -469,9 +451,6 @@ SCTSData, *PSCTSData;
 
 typedef struct tagSCTS {
 	struct vnt_phy_field b;
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
 	unsigned short wDuration_ba;
 	unsigned short wReserved;
 	SCTSData    Data;
@@ -481,9 +460,6 @@ typedef const SCTS *PCSCTS;
 
 typedef struct tagSCTS_FB {
 	struct vnt_phy_field b;
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
 	unsigned short wDuration_ba;
 	unsigned short wReserved;
 	unsigned short wCTSDuration_ba_f0;
@@ -520,12 +496,6 @@ typedef const STxShortBufHead *PCSTxShortBufHead;
 typedef struct tagSTxDataHead_g {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned char bySignalField_a;
-	unsigned char byServiceField_a;
-	unsigned short wTransmitLength_a;
 	unsigned short wDuration_b;
 	unsigned short wDuration_a;
 	unsigned short wTimeStampOff_b;
@@ -537,12 +507,6 @@ typedef const STxDataHead_g *PCSTxDataHead_g;
 typedef struct tagSTxDataHead_g_FB {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned char bySignalField_a;
-	unsigned char byServiceField_a;
-	unsigned short wTransmitLength_a;
 	unsigned short wDuration_b;
 	unsigned short wDuration_a;
 	unsigned short wDuration_a_f0;
@@ -555,9 +519,6 @@ typedef const STxDataHead_g_FB *PCSTxDataHead_g_FB;
 
 typedef struct tagSTxDataHead_ab {
 	struct vnt_phy_field ab;
-	unsigned char bySignalField;
-	unsigned char byServiceField;
-	unsigned short wTransmitLength;
 	unsigned short wDuration;
 	unsigned short wTimeStampOff;
 } __attribute__ ((__packed__))
@@ -566,9 +527,6 @@ typedef const STxDataHead_ab *PCSTxDataHead_ab;
 
 typedef struct tagSTxDataHead_a_FB {
 	struct vnt_phy_field a;
-	unsigned char bySignalField;
-	unsigned char byServiceField;
-	unsigned short wTransmitLength;
 	unsigned short wDuration;
 	unsigned short wTimeStampOff;
 	unsigned short wDuration_f0;
