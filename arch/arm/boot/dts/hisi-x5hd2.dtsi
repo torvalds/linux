@@ -167,6 +167,25 @@
 			};
 		};
 
+		/* unremovable emmc as mmcblk0 */
+		mmc: mmc@1830000 {
+			compatible = "snps,dw-mshc";
+			reg = <0x1830000 0x1000>;
+			interrupts = <0 35 4>;
+			clocks = <&clock HIX5HD2_MMC_CIU_RST>,
+				 <&clock HIX5HD2_MMC_BIU_CLK>;
+			clock-names = "ciu", "biu";
+		};
+
+		sd: mmc@1820000 {
+			compatible = "snps,dw-mshc";
+			reg = <0x1820000 0x1000>;
+			interrupts = <0 34 4>;
+			clocks = <&clock HIX5HD2_SD_CIU_RST>,
+				 <&clock HIX5HD2_SD_BIU_CLK>;
+			clock-names = "ciu","biu";
+		};
+
 		gmac0: ethernet@1840000 {
 			compatible = "hisilicon,hix5hd2-gmac";
 			reg = <0x1840000 0x1000>,<0x184300c 0x4>;
