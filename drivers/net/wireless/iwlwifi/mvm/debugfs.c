@@ -288,6 +288,9 @@ static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
 {
 	int temperature;
 
+	if (!mvm->ucode_loaded && !mvm->temperature_test)
+		return -EIO;
+
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
 	/* not a legal temperature */
