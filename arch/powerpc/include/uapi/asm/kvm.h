@@ -476,6 +476,11 @@ struct kvm_get_htab_header {
 
 /* FP and vector status/control registers */
 #define KVM_REG_PPC_FPSCR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x80)
+/*
+ * VSCR register is documented as a 32-bit register in the ISA, but it can
+ * only be accesses via a vector register. Expose VSCR as a 32-bit register
+ * even though the kernel represents it as a 128-bit vector.
+ */
 #define KVM_REG_PPC_VSCR	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x81)
 
 /* Virtual processor areas */
