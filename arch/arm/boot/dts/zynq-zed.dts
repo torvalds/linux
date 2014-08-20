@@ -32,7 +32,7 @@
 
 &gem0 {
 	status = "okay";
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 };
 
 &sdhci0 {
