@@ -168,6 +168,12 @@ struct img_ir_decoder {
 		      struct img_ir_filter *out, u64 protocols);
 };
 
+extern struct img_ir_decoder img_ir_nec;
+extern struct img_ir_decoder img_ir_jvc;
+extern struct img_ir_decoder img_ir_sony;
+extern struct img_ir_decoder img_ir_sharp;
+extern struct img_ir_decoder img_ir_sanyo;
+
 /**
  * struct img_ir_reg_timings - Reg values for decoder timings at clock rate.
  * @ctrl:	Processed control register value.
