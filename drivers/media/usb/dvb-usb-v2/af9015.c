@@ -419,7 +419,7 @@ static int af9015_eeprom_hash(struct dvb_usb_device *d)
 	/* calculate checksum */
 	for (i = 0; i < AF9015_EEPROM_SIZE / sizeof(u32); i++) {
 		state->eeprom_sum *= GOLDEN_RATIO_PRIME_32;
-		state->eeprom_sum += le32_to_cpu(((u32 *)buf)[i]);
+		state->eeprom_sum += le32_to_cpu(((__le32 *)buf)[i]);
 	}
 
 	for (i = 0; i < AF9015_EEPROM_SIZE; i += 16)
