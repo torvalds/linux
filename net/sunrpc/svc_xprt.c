@@ -771,10 +771,6 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 			"svc_recv: service %p, transport not NULL!\n",
 			 rqstp);
 
-	/* Make sure the task pointer is set! */
-	if (WARN_ON_ONCE(!rqstp->rq_task))
-		rqstp->rq_task = current_task;
-
 	err = svc_alloc_arg(rqstp);
 	if (err)
 		return err;
