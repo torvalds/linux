@@ -201,5 +201,19 @@
 			clocks = <&clock HIX5HD2_MAC1_CLK>;
 			status = "disabled";
 		};
+
+		usb0: ehci@1890000 {
+			compatible = "generic-ehci";
+			reg = <0x1890000 0x1000>;
+			interrupts = <0 66 4>;
+			clocks = <&clock HIX5HD2_USB_CLK>;
+		};
+
+		usb1: ohci@1880000 {
+			compatible = "generic-ohci";
+			reg = <0x1880000 0x1000>;
+			interrupts = <0 67 4>;
+			clocks = <&clock HIX5HD2_USB_CLK>;
+		};
 	};
 };
