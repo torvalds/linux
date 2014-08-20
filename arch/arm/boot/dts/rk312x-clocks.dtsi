@@ -119,10 +119,10 @@
 				#clock-cells = <0>;
 			};
 
-			clk_pvtm_func: clk_pvtm_func {
+			g_clk_pvtm_func: g_clk_pvtm_func {
 				compatible = "rockchip,rk-fixed-factor-clock";
 				clocks = <&xin24m>;
-				clock-output-names = "clk_pvtm_func";
+				clock-output-names = "g_clk_pvtm_func";
 				clock-div = <1>;
 				clock-mult = <1>;
 				#clock-cells = <0>;
@@ -425,7 +425,7 @@
 					clk_pvtm_div: clk_pvtm_div {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <0 7>;
-						clocks = <&clk_pvtm_func>;
+						clocks = <&g_clk_pvtm_func>;
 						clock-output-names = "clk_pvtm";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
@@ -1867,8 +1867,8 @@
 						<&hclk_peri_pre>,		<&clk_nandc>;
 
 					clock-output-names =
-						"clk_pvtm_core",		"clk_pvtm_gpu",
-						"clk_pvtm_func",		"clk_timer0",
+						"g_clk_pvtm_core",		"g_clk_pvtm_gpu",
+						"g_clk_pvtm_func",		"clk_timer0",
 
 						"clk_timer1",		"clk_timer2",
 						"clk_timer3",		"clk_timer4",
