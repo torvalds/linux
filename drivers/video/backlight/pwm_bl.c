@@ -173,6 +173,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		data->max_brightness--;
 	}
 
+	data->enable_gpio = -EINVAL;
 	return 0;
 }
 
