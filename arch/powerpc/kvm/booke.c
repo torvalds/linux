@@ -124,6 +124,40 @@ static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
 }
 #endif
 
+/*
+ * Load up guest vcpu FP state if it's needed.
+ * It also set the MSR_FP in thread so that host know
+ * we're holding FPU, and then host can help to save
+ * guest vcpu FP state if other threads require to use FPU.
+ * This simulates an FP unavailable fault.
+ *
+ * It requires to be called with preemption disabled.
+ */
+static inline void kvmppc_load_guest_fp(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_PPC_FPU
+	if (!(current->thread.regs->msr & MSR_FP)) {
+		enable_kernel_fp();
+		load_fp_state(&vcpu->arch.fp);
+		current->thread.fp_save_area = &vcpu->arch.fp;
+		current->thread.regs->msr |= MSR_FP;
+	}
+#endif
+}
+
+/*
+ * Save guest vcpu FP state into thread.
+ * It requires to be called with preemption disabled.
+ */
+static inline void kvmppc_save_guest_fp(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_PPC_FPU
+	if (current->thread.regs->msr & MSR_FP)
+		giveup_fpu(current);
+	current->thread.fp_save_area = NULL;
+#endif
+}
+
 static void kvmppc_vcpu_sync_fpu(struct kvm_vcpu *vcpu)
 {
 #if defined(CONFIG_PPC_FPU) && !defined(CONFIG_KVM_BOOKE_HV)
@@ -658,12 +692,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	/*
 	 * Since we can't trap on MSR_FP in GS-mode, we consider the guest
-	 * as always using the FPU.  Kernel usage of FP (via
-	 * enable_kernel_fp()) in this thread must not occur while
-	 * vcpu->fpu_active is set.
+	 * as always using the FPU.
 	 */
-	vcpu->fpu_active = 1;
-
 	kvmppc_load_guest_fp(vcpu);
 #endif
 
@@ -687,8 +717,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 #ifdef CONFIG_PPC_FPU
 	kvmppc_save_guest_fp(vcpu);
-
-	vcpu->fpu_active = 0;
 #endif
 
 out:
@@ -1194,6 +1222,7 @@ out:
 		else {
 			/* interrupts now hard-disabled */
 			kvmppc_fix_ee_before_entry();
+			kvmppc_load_guest_fp(vcpu);
 		}
 	}
 

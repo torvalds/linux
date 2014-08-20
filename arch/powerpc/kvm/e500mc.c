@@ -145,8 +145,6 @@ static void kvmppc_core_vcpu_load_e500mc(struct kvm_vcpu *vcpu, int cpu)
 		kvmppc_e500_tlbil_all(vcpu_e500);
 		__get_cpu_var(last_vcpu_of_lpid)[vcpu->kvm->arch.lpid] = vcpu;
 	}
-
-	kvmppc_load_guest_fp(vcpu);
 }
 
 static void kvmppc_core_vcpu_put_e500mc(struct kvm_vcpu *vcpu)

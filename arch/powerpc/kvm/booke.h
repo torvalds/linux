@@ -116,40 +116,6 @@ extern int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn,
 extern int kvmppc_core_emulate_mfspr_e500(struct kvm_vcpu *vcpu, int sprn,
 					  ulong *spr_val);
 
-/*
- * Load up guest vcpu FP state if it's needed.
- * It also set the MSR_FP in thread so that host know
- * we're holding FPU, and then host can help to save
- * guest vcpu FP state if other threads require to use FPU.
- * This simulates an FP unavailable fault.
- *
- * It requires to be called with preemption disabled.
- */
-static inline void kvmppc_load_guest_fp(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_PPC_FPU
-	if (vcpu->fpu_active && !(current->thread.regs->msr & MSR_FP)) {
-		enable_kernel_fp();
-		load_fp_state(&vcpu->arch.fp);
-		current->thread.fp_save_area = &vcpu->arch.fp;
-		current->thread.regs->msr |= MSR_FP;
-	}
-#endif
-}
-
-/*
- * Save guest vcpu FP state into thread.
- * It requires to be called with preemption disabled.
- */
-static inline void kvmppc_save_guest_fp(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_PPC_FPU
-	if (vcpu->fpu_active && (current->thread.regs->msr & MSR_FP))
-		giveup_fpu(current);
-	current->thread.fp_save_area = NULL;
-#endif
-}
-
 static inline void kvmppc_clear_dbsr(void)
 {
 	mtspr(SPRN_DBSR, mfspr(SPRN_DBSR));
