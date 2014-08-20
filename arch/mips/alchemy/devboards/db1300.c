@@ -762,9 +762,10 @@ int __init db1300_dev_setup(void)
 	__raw_writel(PSC_SEL_CLK_SERCLK,
 	    (void __iomem *)KSEG1ADDR(AU1300_PSC2_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();
-	/* I2C uses internal 48MHz EXTCLK1 */
+	/* I2C driver wants 50MHz, get as close as possible */
 	c = clk_get(NULL, "psc3_intclk");
 	if (!IS_ERR(c)) {
+		clk_set_rate(c, 50000000);
 		clk_prepare_enable(c);
 		clk_put(c);
 	}
