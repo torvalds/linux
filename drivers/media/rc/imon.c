@@ -1438,7 +1438,7 @@ static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 				}
 				buf[2] = dir & 0xFF;
 				buf[3] = (dir >> 8) & 0xFF;
-				scancode = be32_to_cpu(*((u32 *)buf));
+				scancode = be32_to_cpu(*((__be32 *)buf));
 			}
 		} else {
 			/*
@@ -1502,7 +1502,7 @@ static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 			}
 			buf[2] = dir & 0xFF;
 			buf[3] = (dir >> 8) & 0xFF;
-			scancode = be32_to_cpu(*((u32 *)buf));
+			scancode = be32_to_cpu(*((__be32 *)buf));
 		} else {
 			/*
 			 * Hack alert: instead of using keycodes, we have
@@ -1607,12 +1607,12 @@ static void imon_incoming_packet(struct imon_context *ictx,
 
 	/* Figure out what key was pressed */
 	if (len == 8 && buf[7] == 0xee) {
-		scancode = be64_to_cpu(*((u64 *)buf));
+		scancode = be64_to_cpu(*((__be64 *)buf));
 		ktype = IMON_KEY_PANEL;
 		kc = imon_panel_key_lookup(ictx, scancode);
 		ictx->release_code = false;
 	} else {
-		scancode = be32_to_cpu(*((u32 *)buf));
+		scancode = be32_to_cpu(*((__be32 *)buf));
 		if (ictx->rc_type == RC_BIT_RC6_MCE) {
 			ktype = IMON_KEY_IMON;
 			if (buf[0] == 0x80)
