@@ -680,6 +680,7 @@ struct Scsi_Host {
 	unsigned no_write_same:1;
 
 	unsigned use_blk_mq:1;
+	unsigned use_cmd_list:1;
 
 	/*
 	 * Optional work queue to be utilized by the transport
