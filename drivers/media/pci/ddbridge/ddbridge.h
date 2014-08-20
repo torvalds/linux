@@ -156,7 +156,7 @@ struct ddb_port {
 
 struct ddb {
 	struct pci_dev        *pdev;
-	unsigned char         *regs;
+	unsigned char __iomem *regs;
 	struct ddb_port        port[DDB_MAX_PORT];
 	struct ddb_i2c         i2c[DDB_MAX_I2C];
 	struct ddb_input       input[DDB_MAX_INPUT];
@@ -173,12 +173,10 @@ struct ddb {
 /****************************************************************************/
 
 #define ddbwritel(_val, _adr)        writel((_val), \
-				     (char *) (dev->regs+(_adr)))
-#define ddbreadl(_adr)               readl((char *) (dev->regs+(_adr)))
-#define ddbcpyto(_adr, _src, _count) memcpy_toio((char *)	\
-				     (dev->regs+(_adr)), (_src), (_count))
-#define ddbcpyfrom(_dst, _adr, _count) memcpy_fromio((_dst), (char *) \
-				       (dev->regs+(_adr)), (_count))
+				     dev->regs+(_adr))
+#define ddbreadl(_adr)               readl(dev->regs+(_adr))
+#define ddbcpyto(_adr, _src, _count) memcpy_toio(dev->regs+(_adr), (_src), (_count))
+#define ddbcpyfrom(_dst, _adr, _count) memcpy_fromio((_dst), dev->regs+(_adr), (_count))
 
 /****************************************************************************/
 
