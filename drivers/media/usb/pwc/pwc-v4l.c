@@ -52,7 +52,7 @@ enum { custom_autocontour, custom_contour, custom_noise_reduction,
 	custom_awb_speed, custom_awb_delay,
 	custom_save_user, custom_restore_user, custom_restore_factory };
 
-const char * const pwc_auto_whitebal_qmenu[] = {
+static const char * const pwc_auto_whitebal_qmenu[] = {
 	"Indoor (Incandescant Lighting) Mode",
 	"Outdoor (Sunlight) Mode",
 	"Indoor (Fluorescent Lighting) Mode",
