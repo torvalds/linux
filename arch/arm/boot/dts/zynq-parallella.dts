@@ -38,8 +38,6 @@
 	status = "okay";
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethernet_phy>;
-	#address-cells = <1>;
-	#size-cells = <0>;
 
 	ethernet_phy: ethernet-phy@0 {
 		/* Marvell 88E1318 */
