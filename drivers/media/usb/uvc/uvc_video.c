@@ -1463,7 +1463,7 @@ static unsigned int uvc_endpoint_max_bpi(struct usb_device *dev,
 
 	switch (dev->speed) {
 	case USB_SPEED_SUPER:
-		return ep->ss_ep_comp.wBytesPerInterval;
+		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
 	case USB_SPEED_HIGH:
 		psize = usb_endpoint_maxp(&ep->desc);
 		return (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
