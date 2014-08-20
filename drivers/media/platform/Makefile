@@ -49,6 +49,6 @@ obj-$(CONFIG_VIDEO_RENESAS_VSP1)	+= vsp1/
 
 obj-y	+= davinci/
 
-obj-$(CONFIG_ARCH_OMAP)	+= omap/
+obj-y	+= omap/
 
 ccflags-y += -I$(srctree)/drivers/media/i2c
