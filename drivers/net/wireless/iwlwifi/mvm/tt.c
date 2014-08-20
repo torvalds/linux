@@ -314,6 +314,9 @@ static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 {
 	u32 duration = mvm->thermal_throttle.params->ct_kill_duration;
 
+	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
+		return;
+
 	IWL_ERR(mvm, "Enter CT Kill\n");
 	iwl_mvm_set_hw_ctkill_state(mvm, true);
 	schedule_delayed_work(&mvm->thermal_throttle.ct_kill_exit,
@@ -322,6 +325,9 @@ static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 
 static void iwl_mvm_exit_ctkill(struct iwl_mvm *mvm)
 {
+	if (!test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
+		return;
+
 	IWL_ERR(mvm, "Exit CT Kill\n");
 	iwl_mvm_set_hw_ctkill_state(mvm, false);
 }
@@ -441,6 +447,12 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 
 	if (params->support_ct_kill && temperature >= params->ct_kill_entry) {
 		iwl_mvm_enter_ctkill(mvm);
+		return;
+	}
+
+	if (params->support_ct_kill &&
+	    temperature <= tt->params->ct_kill_exit) {
+		iwl_mvm_exit_ctkill(mvm);
 		return;
 	}
 

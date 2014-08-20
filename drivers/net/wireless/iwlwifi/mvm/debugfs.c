@@ -296,7 +296,15 @@ static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
 
 	mutex_lock(&mvm->mutex);
 	if (temperature == IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE) {
+		if (!mvm->temperature_test)
+			goto out;
+
 		mvm->temperature_test = false;
+		/* Since we can't read the temp while awake, just set
+		 * it to zero until we get the next RX stats from the
+		 * firmware.
+		 */
+		mvm->temperature = 0;
 	} else {
 		mvm->temperature_test = true;
 		mvm->temperature = temperature;
@@ -306,6 +314,8 @@ static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
 		       mvm->temperature);
 	/* handle the temperature change */
 	iwl_mvm_tt_handler(mvm);
+
+out:
 	mutex_unlock(&mvm->mutex);
 
 	return count;
