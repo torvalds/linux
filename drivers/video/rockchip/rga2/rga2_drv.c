@@ -456,7 +456,7 @@ static void rga2_copy_reg(struct rga2_reg *reg, uint32_t offset)
 
 static struct rga2_reg * rga2_reg_init(rga2_session *session, struct rga2_req *req)
 {
-    uint32_t ret;
+    int32_t ret;
 	struct rga2_reg *reg = kzalloc(sizeof(struct rga2_reg), GFP_KERNEL);
 	if (NULL == reg) {
 		pr_err("kmalloc fail in rga_reg_init\n");
