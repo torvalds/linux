@@ -41,7 +41,7 @@
 #include <sound/tlv.h>
 #include "rk312x_codec.h"
 
-static int debug = 7;
+static int debug = 0;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dbg_codec(level, fmt, arg...)		\
