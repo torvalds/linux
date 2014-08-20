@@ -298,6 +298,7 @@ MEM
   devm_kmalloc()
   devm_kmalloc_array()
   devm_kmemdup()
+  devm_kstrdup()
   devm_kzalloc()
 
 PCI
