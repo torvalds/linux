@@ -2108,7 +2108,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	struct list_head *devices;
 	struct super_block *sb = root->fs_info->sb;
 	struct rcu_string *name;
-	u64 total_bytes;
+	u64 tmp;
 	int seeding_dev = 0;
 	int ret = 0;
 
@@ -2211,13 +2211,13 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	if (!blk_queue_nonrot(bdev_get_queue(bdev)))
 		root->fs_info->fs_devices->rotating = 1;
 
-	total_bytes = btrfs_super_total_bytes(root->fs_info->super_copy);
+	tmp = btrfs_super_total_bytes(root->fs_info->super_copy);
 	btrfs_set_super_total_bytes(root->fs_info->super_copy,
-				    total_bytes + device->total_bytes);
+				    tmp + device->total_bytes);
 
-	total_bytes = btrfs_super_num_devices(root->fs_info->super_copy);
+	tmp = btrfs_super_num_devices(root->fs_info->super_copy);
 	btrfs_set_super_num_devices(root->fs_info->super_copy,
-				    total_bytes + 1);
+				    tmp + 1);
 
 	/* add sysfs device entry */
 	btrfs_kobj_add_device(root->fs_info, device);
