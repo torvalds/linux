@@ -282,7 +282,7 @@ int rockchip_wifi_ref_voltage(int on)
             return -1;
         } else {
             if (on == level) {
-            	if(cpu_is_rk3036())
+            	if(cpu_is_rk3036() || cpu_is_rk312x())
             	{
 					/*regulator_set_voltage(ldo, voltage, voltage);
 					LOG("%s: %s enabled, level = %d\n", __func__, ldostr, voltage);
@@ -634,7 +634,7 @@ static int wlan_platdata_parse_dt(struct device *dev,
     strcpy(wifi_chip_type_string, strings);
     printk("%s: wifi_chip_type = %s\n", __func__, wifi_chip_type_string);
 
-	if(cpu_is_rk3036()){
+	if(cpu_is_rk3036() || cpu_is_rk312x()){
 		/* ret = of_property_read_u32(node, "sdio_vref", &value);
 		if (ret < 0) {
 			LOG("%s: Can't get sdio vref.", __func__);
