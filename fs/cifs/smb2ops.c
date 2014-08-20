@@ -1035,7 +1035,7 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 		if (keep_size == false)
 			return -EOPNOTSUPP;
 
-	/* 
+	/*
 	 * Must check if file sparse since fallocate -z (zero range) assumes
 	 * non-sparse allocation
 	 */
