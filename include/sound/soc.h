@@ -1298,26 +1298,37 @@ static inline void *snd_soc_card_get_drvdata(struct snd_soc_card *card)
 	return card->drvdata;
 }
 
+static inline void snd_soc_component_set_drvdata(struct snd_soc_component *c,
+		void *data)
+{
+	dev_set_drvdata(c->dev, data);
+}
+
+static inline void *snd_soc_component_get_drvdata(struct snd_soc_component *c)
+{
+	return dev_get_drvdata(c->dev);
+}
+
 static inline void snd_soc_codec_set_drvdata(struct snd_soc_codec *codec,
 		void *data)
 {
-	dev_set_drvdata(codec->dev, data);
+	snd_soc_component_set_drvdata(&codec->component, data);
 }
 
 static inline void *snd_soc_codec_get_drvdata(struct snd_soc_codec *codec)
 {
-	return dev_get_drvdata(codec->dev);
+	return snd_soc_component_get_drvdata(&codec->component);
 }
 
 static inline void snd_soc_platform_set_drvdata(struct snd_soc_platform *platform,
 		void *data)
 {
-	dev_set_drvdata(platform->dev, data);
+	snd_soc_component_set_drvdata(&platform->component, data);
 }
 
 static inline void *snd_soc_platform_get_drvdata(struct snd_soc_platform *platform)
 {
-	return dev_get_drvdata(platform->dev);
+	return snd_soc_component_get_drvdata(&platform->component);
 }
 
 static inline void snd_soc_pcm_set_drvdata(struct snd_soc_pcm_runtime *rtd,
