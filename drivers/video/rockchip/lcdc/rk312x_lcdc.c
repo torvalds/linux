@@ -851,7 +851,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				mask = m_HDMI_HSYNC_POL | m_HDMI_VSYNC_POL |
 				       m_HDMI_DEN_POL;
 				val = v_HDMI_HSYNC_POL(screen->pin_hsync) |
-				      v_HDMI_HSYNC_POL(screen->pin_vsync) |
+				      v_HDMI_VSYNC_POL(screen->pin_vsync) |
 				      v_HDMI_DEN_POL(screen->pin_den);
 				lcdc_msk_reg(lcdc_dev, INT_SCALER, mask, val);
                         } else {
