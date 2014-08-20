@@ -17,6 +17,7 @@
 
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_net.h>
 #include <linux/phy.h>
 #include <linux/regmap.h>
@@ -30,6 +31,12 @@
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_WIDTH 2
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_MASK 0x00000003
 
+#define EMAC_SPLITTER_CTRL_REG			0x0
+#define EMAC_SPLITTER_CTRL_SPEED_MASK		0x3
+#define EMAC_SPLITTER_CTRL_SPEED_10		0x2
+#define EMAC_SPLITTER_CTRL_SPEED_100		0x3
+#define EMAC_SPLITTER_CTRL_SPEED_1000		0x0
+
 struct socfpga_dwmac {
 	int	interface;
 	u32	reg_offset;
@@ -37,7 +44,37 @@ struct socfpga_dwmac {
 	struct	device *dev;
 	struct regmap *sys_mgr_base_addr;
 	struct reset_control *stmmac_rst;
+	void __iomem *splitter_base;
 };
+
+static void socfpga_dwmac_fix_mac_speed(void *priv, unsigned int speed)
+{
+	struct socfpga_dwmac *dwmac = (struct socfpga_dwmac *)priv;
+	void __iomem *splitter_base = dwmac->splitter_base;
+	u32 val;
+
+	if (!splitter_base)
+		return;
+
+	val = readl(splitter_base + EMAC_SPLITTER_CTRL_REG);
+	val &= ~EMAC_SPLITTER_CTRL_SPEED_MASK;
+
+	switch (speed) {
+	case 1000:
+		val |= EMAC_SPLITTER_CTRL_SPEED_1000;
+		break;
+	case 100:
+		val |= EMAC_SPLITTER_CTRL_SPEED_100;
+		break;
+	case 10:
+		val |= EMAC_SPLITTER_CTRL_SPEED_10;
+		break;
+	default:
+		return;
+	}
+
+	writel(val, splitter_base + EMAC_SPLITTER_CTRL_REG);
+}
 
 static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *dev)
 {
@@ -45,6 +82,8 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 	struct regmap *sys_mgr_base_addr;
 	u32 reg_offset, reg_shift;
 	int ret;
+	struct device_node *np_splitter;
+	struct resource res_splitter;
 
 	dwmac->stmmac_rst = devm_reset_control_get(dev,
 						  STMMAC_RESOURCE_NAME);
@@ -73,6 +112,21 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 		return -EINVAL;
 	}
 
+	np_splitter = of_parse_phandle(np, "altr,emac-splitter", 0);
+	if (np_splitter) {
+		if (of_address_to_resource(np_splitter, 0, &res_splitter)) {
+			dev_info(dev, "Missing emac splitter address\n");
+			return -EINVAL;
+		}
+
+		dwmac->splitter_base = (void *)devm_ioremap_resource(dev,
+			&res_splitter);
+		if (!dwmac->splitter_base) {
+			dev_info(dev, "Failed to mapping emac splitter\n");
+			return -EINVAL;
+		}
+	}
+
 	dwmac->reg_offset = reg_offset;
 	dwmac->reg_shift = reg_shift;
 	dwmac->sys_mgr_base_addr = sys_mgr_base_addr;
@@ -91,6 +145,7 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 
 	switch (phymode) {
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
 		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII;
 		break;
 	case PHY_INTERFACE_MODE_MII:
@@ -101,6 +156,13 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 		dev_err(dwmac->dev, "bad phy mode %d\n", phymode);
 		return -EINVAL;
 	}
+
+	/* Overwrite val to GMII if splitter core is enabled. The phymode here
+	 * is the actual phy mode on phy hardware, but phy interface from
+	 * EMAC core is GMII.
+	 */
+	if (dwmac->splitter_base)
+		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
 
 	regmap_read(sys_mgr_base_addr, reg_offset, &ctrl);
 	ctrl &= ~(SYSMGR_EMACGRP_CTRL_PHYSEL_MASK << reg_shift);
@@ -196,4 +258,5 @@ const struct stmmac_of_data socfpga_gmac_data = {
 	.setup = socfpga_dwmac_probe,
 	.init = socfpga_dwmac_init,
 	.exit = socfpga_dwmac_exit,
+	.fix_mac_speed = socfpga_dwmac_fix_mac_speed,
 };
