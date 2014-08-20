@@ -777,12 +777,6 @@ static void gen8_ppgtt_enable(struct drm_device *dev)
 	struct intel_engine_cs *ring;
 	int j;
 
-	/* In the case of execlists, PPGTT is enabled by the context descriptor
-	 * and the PDPs are contained within the context itself.  We don't
-	 * need to do anything here. */
-	if (i915.enable_execlists)
-		return;
-
 	for_each_ring(ring, dev_priv, j) {
 		I915_WRITE(RING_MODE_GEN7(ring),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
@@ -1125,6 +1119,12 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	struct intel_engine_cs *ring;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 	int i, ret = 0;
+
+	/* In the case of execlists, PPGTT is enabled by the context descriptor
+	 * and the PDPs are contained within the context itself.  We don't
+	 * need to do anything here. */
+	if (i915.enable_execlists)
+		return 0;
 
 	if (!USES_PPGTT(dev))
 		return 0;
