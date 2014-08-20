@@ -643,8 +643,8 @@ static int bcm3510_download_firmware(struct dvb_frontend* fe)
 
 	b = fw->data;
 	for (i = 0; i < fw->size;) {
-		addr = le16_to_cpu( *( (u16 *)&b[i] ) );
-		len  = le16_to_cpu( *( (u16 *)&b[i+2] ) );
+		addr = le16_to_cpu(*((__le16 *)&b[i]));
+		len  = le16_to_cpu(*((__le16 *)&b[i+2]));
 		deb_info("firmware chunk, addr: 0x%04x, len: 0x%04x, total length: 0x%04zx\n",addr,len,fw->size);
 		if ((ret = bcm3510_write_ram(st,addr,&b[i+4],len)) < 0) {
 			err("firmware download failed: %d\n",ret);
