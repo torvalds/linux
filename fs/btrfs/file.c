@@ -1840,7 +1840,15 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 {
 	if (filp->private_data)
 		btrfs_ioctl_trans_end(filp);
-	filemap_flush(inode->i_mapping);
+	/*
+	 * ordered_data_close is set by settattr when we are about to truncate
+	 * a file from a non-zero size to a zero size.  This tries to
+	 * flush down new bytes that may have been written if the
+	 * application were using truncate to replace a file in place.
+	 */
+	if (test_and_clear_bit(BTRFS_INODE_ORDERED_DATA_CLOSE,
+			       &BTRFS_I(inode)->runtime_flags))
+			filemap_flush(inode->i_mapping);
 	return 0;
 }
 
