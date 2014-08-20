@@ -984,7 +984,7 @@ void __init sh7372_add_early_devices(void)
 
 void __init sh7372_add_early_devices_dt(void)
 {
-	shmobile_setup_delay(800, 1, 3); /* Cortex-A8 @ 800MHz */
+	shmobile_init_delay();
 
 	sh7372_add_early_devices();
 }
