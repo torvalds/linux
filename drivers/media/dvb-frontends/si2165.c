@@ -312,7 +312,7 @@ static u32 si2165_get_fe_clk(struct si2165_state *state)
 	return state->adc_clk;
 }
 
-static bool si2165_wait_init_done(struct si2165_state *state)
+static int si2165_wait_init_done(struct si2165_state *state)
 {
 	int ret = -EINVAL;
 	u8 val = 0;
