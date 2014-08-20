@@ -844,6 +844,40 @@ init_io_or(struct nvbios_init *init)
 }
 
 /**
+ * INIT_ANDN_REG - opcode 0x47
+ *
+ */
+static void
+init_andn_reg(struct nvbios_init *init)
+{
+	struct nouveau_bios *bios = init->bios;
+	u32  reg = nv_ro32(bios, init->offset + 1);
+	u32 mask = nv_ro32(bios, init->offset + 5);
+
+	trace("ANDN_REG\tR[0x%06x] &= ~0x%08x\n", reg, mask);
+	init->offset += 9;
+
+	init_mask(init, reg, mask, 0);
+}
+
+/**
+ * INIT_OR_REG - opcode 0x48
+ *
+ */
+static void
+init_or_reg(struct nvbios_init *init)
+{
+	struct nouveau_bios *bios = init->bios;
+	u32  reg = nv_ro32(bios, init->offset + 1);
+	u32 mask = nv_ro32(bios, init->offset + 5);
+
+	trace("OR_REG\tR[0x%06x] |= 0x%08x\n", reg, mask);
+	init->offset += 9;
+
+	init_mask(init, reg, 0, mask);
+}
+
+/**
  * INIT_INDEX_ADDRESS_LATCHED - opcode 0x49
  *
  */
@@ -2074,6 +2108,8 @@ static struct nvbios_init_opcode {
 	[0x3a] = { init_dp_condition },
 	[0x3b] = { init_io_mask_or },
 	[0x3c] = { init_io_or },
+	[0x47] = { init_andn_reg },
+	[0x48] = { init_or_reg },
 	[0x49] = { init_idx_addr_latched },
 	[0x4a] = { init_io_restrict_pll2 },
 	[0x4b] = { init_pll2 },
