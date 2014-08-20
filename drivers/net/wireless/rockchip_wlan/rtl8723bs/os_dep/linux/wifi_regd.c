@@ -474,6 +474,8 @@ static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
 #endif
 }
 
+typedef void (*reg_notifier_func) (struct wiphy *, struct regulatory_request *);
+
 static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 				struct wiphy *wiphy,
 				int (*reg_notifier) (struct wiphy * wiphy,
@@ -482,7 +484,7 @@ static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 {
 	const struct ieee80211_regdomain *regd;
 
-	wiphy->reg_notifier = reg_notifier;
+	wiphy->reg_notifier = (reg_notifier_func) reg_notifier;
 
 	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 	wiphy->flags &= ~WIPHY_FLAG_STRICT_REGULATORY;

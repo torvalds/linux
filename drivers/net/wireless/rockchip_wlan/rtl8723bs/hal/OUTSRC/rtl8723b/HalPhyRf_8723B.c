@@ -1909,11 +1909,6 @@ phy_IQCalibrate_8723B(
 
 	u4Byte Path_SEL_BB;
 //	  u4Byte Path_SEL_BB, Path_SEL_RF;
-if( pAdapter->registrypriv.mp_mode == 1 && pAdapter->mppriv.mode == 3 )
-{
-		DBG_871X("%s() :return !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",__func__);
-		return;
-}
 
 #if (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
 	u4Byte	retryCount = 2;
@@ -1924,6 +1919,12 @@ if( pAdapter->registrypriv.mp_mode == 1 && pAdapter->mppriv.mode == 3 )
 	const u4Byte	retryCount = 2;
 #endif
 #endif
+
+if( pAdapter->registrypriv.mp_mode == 1 && pAdapter->mppriv.mode == 3 )
+{
+		DBG_871X("%s() :return !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",__func__);
+		return;
+}
 
 	// Note: IQ calibration must be performed after loading 
 	//		PHY_REG.txt , and radio_a, radio_b.txt	

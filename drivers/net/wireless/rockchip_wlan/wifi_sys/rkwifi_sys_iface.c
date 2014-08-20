@@ -204,7 +204,7 @@ static int wifi_init_exit_module(int enable)
 #endif
 
 #if !defined(CONFIG_RKWIFI) && !defined(CONFIG_RTL8188EU) && !defined(CONFIG_ESP8089)
-    if (type > 0) {
+    if (type >= 0) {
         if (enable > 0)
             ret = rockchip_wifi_init_module();
         else
