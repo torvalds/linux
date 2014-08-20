@@ -20,6 +20,7 @@ config SOC_CAMERA_PLATFORM
 config VIDEO_MX3
 	tristate "i.MX3x Camera Sensor Interface driver"
 	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
+	depends on MX3_IPU || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This is a v4l2 driver for the i.MX3x Camera Sensor Interface
@@ -58,7 +59,8 @@ config VIDEO_SH_MOBILE_CEU
 
 config VIDEO_OMAP1
 	tristate "OMAP1 Camera Interface driver"
-	depends on VIDEO_DEV && ARCH_OMAP1 && SOC_CAMERA
+	depends on VIDEO_DEV && SOC_CAMERA
+	depends on ARCH_OMAP1 || COMPILE_TEST
 	select VIDEOBUF_DMA_CONTIG
 	select VIDEOBUF_DMA_SG
 	---help---
@@ -66,14 +68,16 @@ config VIDEO_OMAP1
 
 config VIDEO_MX2
 	tristate "i.MX27 Camera Sensor Interface driver"
-	depends on VIDEO_DEV && SOC_CAMERA && SOC_IMX27
+	depends on VIDEO_DEV && SOC_CAMERA
+	depends on SOC_IMX27 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This is a v4l2 driver for the i.MX27 Camera Sensor Interface
 
 config VIDEO_ATMEL_ISI
 	tristate "ATMEL Image Sensor Interface (ISI) support"
-	depends on VIDEO_DEV && SOC_CAMERA && ARCH_AT91
+	depends on VIDEO_DEV && SOC_CAMERA
+	depends on ARCH_AT91 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This module makes the ATMEL Image Sensor Interface available
