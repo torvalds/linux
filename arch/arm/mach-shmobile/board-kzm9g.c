@@ -50,6 +50,7 @@
 #include <video/sh_mobile_lcdc.h>
 
 #include "common.h"
+#include "intc.h"
 #include "irqs.h"
 #include "sh73a0.h"
 

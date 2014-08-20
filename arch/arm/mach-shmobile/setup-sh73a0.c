@@ -40,6 +40,7 @@
 
 #include "common.h"
 #include "dma-register.h"
+#include "intc.h"
 #include "irqs.h"
 #include "sh73a0.h"
 
