@@ -1862,6 +1862,19 @@ static struct platform_device i2c_bfin_twi1_device = {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_GPIO_MCP23S08)
+#include <linux/spi/mcp23s08.h>
+static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch0 = {
+	.base = 120,
+};
+static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch1 = {
+	.base = 130,
+};
+static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch2 = {
+	.base = 140,
+};
+#endif
+
 static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 #if IS_ENABLED(CONFIG_INPUT_ADXL34X_I2C)
 	{
@@ -1879,6 +1892,20 @@ static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 #if IS_ENABLED(CONFIG_SND_SOC_SSM2602)
 	{
 		I2C_BOARD_INFO("ssm2602", 0x1b),
+	},
+#endif
+#if IS_ENABLED(CONFIG_GPIO_MCP23S08)
+	{
+		I2C_BOARD_INFO("mcp23017", 0x21),
+		.platform_data = (void *)&bfin_mcp23s08_soft_switch0
+	},
+	{
+		I2C_BOARD_INFO("mcp23017", 0x22),
+		.platform_data = (void *)&bfin_mcp23s08_soft_switch1
+	},
+	{
+		I2C_BOARD_INFO("mcp23017", 0x23),
+		.platform_data = (void *)&bfin_mcp23s08_soft_switch2
 	},
 #endif
 };
