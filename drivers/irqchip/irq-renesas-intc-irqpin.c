@@ -454,10 +454,8 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	irq_chip->name = name;
 	irq_chip->irq_mask = disable_fn;
 	irq_chip->irq_unmask = enable_fn;
-	irq_chip->irq_enable = enable_fn;
-	irq_chip->irq_disable = disable_fn;
 	irq_chip->irq_set_type = intc_irqpin_irq_set_type;
-	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE;
+	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
 
 	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
 					      p->number_of_irqs,
