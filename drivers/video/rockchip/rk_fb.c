@@ -3216,6 +3216,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (unlikely(!rk_fb) || unlikely(!pmy_dev_drv) || unlikely(!screen))
 		return -ENODEV;
 
+	rk_fb_get_prmry_screen(&primary_screen);
 	sprintf(name, "lcdc%d", lcdc_id);
 	if (rk_fb->disp_mode != DUAL) {
 		dev_drv = rk_fb->lcdc_dev_drv[0];
@@ -3225,6 +3226,12 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		}
 		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
 			dev_drv->trsm_ops->disable();
+		/*
+		 * switch lcdc screen to primary screen size that may
+		 * used for MID, when hdmi remove if disp mode is ONE DUAL
+		 */
+		if (primary_screen.type != SCREEN_HDMI)
+			rk_fb_set_screen_scaler(&primary_screen, 0);
 	} else {
 		dev_drv = rk_get_lcdc_drv(name);
 		if (dev_drv == NULL) {
@@ -3238,7 +3245,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
 
-	rk_fb_get_prmry_screen(&primary_screen);
 	if (!enable) {
 		/* if screen type is different, we do not disable lcdc. */
 		if (dev_drv->cur_screen->type != screen->type)
@@ -3257,10 +3263,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					dev_drv->ops->open(dev_drv, i, 0);
 			}
 		} else {
-			/* switch lcdc screen to primary screen size
-			 * when hdmi remove if disp mode is ONE DUAL
-			 */
-			rk_fb_set_screen_scaler(&primary_screen, 0);
 			if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 				dev_drv->trsm_ops->enable();
 		}
