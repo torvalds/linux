@@ -965,8 +965,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 		xhci_warn(xhci, "WARN Set TR deq ptr command for freed stream ID %u\n",
 				stream_id);
 		/* XXX: Harmless??? */
-		dev->eps[ep_index].ep_state &= ~SET_DEQ_PENDING;
-		return;
+		goto cleanup;
 	}
 
 	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
@@ -1031,6 +1030,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 		}
 	}
 
+cleanup:
 	dev->eps[ep_index].ep_state &= ~SET_DEQ_PENDING;
 	dev->eps[ep_index].queued_deq_seg = NULL;
 	dev->eps[ep_index].queued_deq_ptr = NULL;
