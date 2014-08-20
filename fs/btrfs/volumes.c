@@ -1819,7 +1819,13 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 
 	WARN_ON(!mutex_is_locked(&fs_info->fs_devices->device_list_mutex));
 
-	fs_devices = fs_info->fs_devices;
+	/*
+	 * in case of fs with no seed, srcdev->fs_devices will point
+	 * to fs_devices of fs_info. However when the dev being replaced is
+	 * a seed dev it will point to the seed's local fs_devices. In short
+	 * srcdev will have its correct fs_devices in both the cases.
+	 */
+	fs_devices = srcdev->fs_devices;
 
 	list_del_rcu(&srcdev->dev_list);
 	list_del_rcu(&srcdev->dev_alloc_list);
