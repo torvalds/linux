@@ -28,7 +28,7 @@
 #include "mb86a16.h"
 #include "mb86a16_priv.h"
 
-unsigned int verbose = 5;
+static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
 
 #define ABS(x)		((x) < 0 ? (-x) : (x))
