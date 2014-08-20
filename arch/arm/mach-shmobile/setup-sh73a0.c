@@ -746,7 +746,7 @@ void __init sh73a0_add_standard_devices(void)
 
 void __init sh73a0_init_delay(void)
 {
-	shmobile_setup_delay(1196, 44, 46); /* Cortex-A9 @ 1196MHz */
+	shmobile_init_delay();
 }
 
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
