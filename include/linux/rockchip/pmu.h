@@ -1,9 +1,6 @@
 #ifndef __MACH_ROCKCHIP_PMU_H
 #define __MACH_ROCKCHIP_PMU_H
 
-#define RK312x_PMU_SYS_REG0             0x38
-#define RK312x_PMU_SYS_REG1             0x3c
-
 #define RK3188_PMU_WAKEUP_CFG0          0x00
 #define RK3188_PMU_WAKEUP_CFG1          0x04
 #define RK3188_PMU_PWRDN_CON            0x08
