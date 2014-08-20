@@ -289,6 +289,12 @@ void i915_gem_context_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
+	/* In execlists mode we will unreference the context when the execlist
+	 * queue is cleared and the requests destroyed.
+	 */
+	if (i915.enable_execlists)
+		return;
+
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
 		struct intel_context *lctx = ring->last_context;
@@ -396,6 +402,9 @@ int i915_gem_context_enable(struct drm_i915_private *dev_priv)
 	int ret, i;
 
 	BUG_ON(!dev_priv->ring[RCS].default_context);
+
+	if (i915.enable_execlists)
+		return 0;
 
 	for_each_ring(ring, dev_priv, i) {
 		ret = i915_switch_context(ring, ring->default_context);
@@ -639,14 +648,19 @@ unpin_out:
  *
  * The context life cycle is simple. The context refcount is incremented and
  * decremented by 1 and create and destroy. If the context is in use by the GPU,
- * it will have a refoucnt > 1. This allows us to destroy the context abstract
+ * it will have a refcount > 1. This allows us to destroy the context abstract
  * object while letting the normal object tracking destroy the backing BO.
+ *
+ * This function should not be used in execlists mode.  Instead the context is
+ * switched by writing to the ELSP and requests keep a reference to their
+ * context.
  */
 int i915_switch_context(struct intel_engine_cs *ring,
 			struct intel_context *to)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
+	WARN_ON(i915.enable_execlists);
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
 	if (to->legacy_hw_ctx.rcs_state == NULL) { /* We have the fake context */
