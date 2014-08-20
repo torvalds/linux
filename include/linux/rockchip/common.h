@@ -15,6 +15,24 @@ extern bool rockchip_jtag_enabled;
 extern unsigned long rockchip_boot_fn;
 extern struct smp_operations rockchip_smp_ops;
 
+struct ddr_bw_info {
+	u32 ddr_wr;
+	u32 ddr_rd;
+	u32 ddr_act;
+	u32 ddr_time;
+	u32 ddr_total;
+	u32 ddr_percent;
+
+	u32 cpum;
+	u32 gpu;
+	u32 peri;
+	u32 video;
+	u32 vio0;
+	u32 vio1;
+	u32 vio2;
+};
+extern void (*ddr_bandwidth_get)(struct ddr_bw_info *ddr_bw_ch0,
+				 struct ddr_bw_info *ddr_bw_ch1);
 extern int (*ddr_change_freq)(uint32_t nMHz);
 extern long (*ddr_round_rate)(uint32_t nMHz);
 extern void (*ddr_set_auto_self_refresh)(bool en);

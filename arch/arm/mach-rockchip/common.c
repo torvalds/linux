@@ -267,6 +267,8 @@ void rockchip_restart_get_boot_mode(const char *cmd, u32 *flag, u32 *mode)
 }
 
 struct rockchip_pmu_operations rockchip_pmu_ops;
+void (*ddr_bandwidth_get)(struct ddr_bw_info *ddr_bw_ch0,
+			  struct ddr_bw_info *ddr_bw_ch1);
 int (*ddr_change_freq)(uint32_t nMHz) = NULL;
 long (*ddr_round_rate)(uint32_t nMHz) = NULL;
 void (*ddr_set_auto_self_refresh)(bool en) = NULL;

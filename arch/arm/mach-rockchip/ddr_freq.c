@@ -58,6 +58,7 @@ static int cur_freq_index;
 static int auto_freq_table_size;
 static unsigned long vop_bandwidth_update_jiffies = 0, vop_bandwidth = 0;
 static int vop_bandwidth_update_flag = 0;
+static struct ddr_bw_info ddr_bw_ch0 = {0}, ddr_bw_ch1 = {0};
 
 enum {
 	DEBUG_DDR = 1U << 0,
@@ -69,21 +70,6 @@ static int debug_mask = DEBUG_DDR;
 
 module_param(debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define dprintk(mask, fmt, ...) do { if (mask & debug_mask) pr_debug(fmt, ##__VA_ARGS__); } while (0)
-
-enum ddr_bandwidth_id{
-    ddrbw_wr_num=0,
-    ddrbw_rd_num,
-    ddrbw_act_num,
-    ddrbw_time_num,
-    ddrbw_eff,
-    ddrbw_id_end
-};
-
-#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
-#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
-
-#define noc_readl(offset)       readl_relaxed(RK3288_SERVICE_BUS_VIRT + offset)
-#define noc_writel(v, offset)   do { writel_relaxed(v, RK3288_SERVICE_BUS_VIRT + offset); dsb(); } while (0)
 
 #define MHZ	(1000*1000)
 #define KHZ	1000
@@ -97,24 +83,6 @@ struct video_info {
 
 	struct list_head node;
 };
-
-struct ddr_bw_info{
-    u32 ddr_wr;
-    u32 ddr_rd;
-    u32 ddr_act;
-    u32 ddr_time;
-    u32 ddr_total;
-    u32 ddr_percent;
-
-    u32 cpum;
-    u32 gpu;
-    u32 peri;
-    u32 video;
-    u32 vio0;
-    u32 vio1;
-    u32 vio2;
-};
-static struct ddr_bw_info ddr_bw_ch0={0}, ddr_bw_ch1={0};
 
 struct ddr {
 	struct dvfs_node *clk_dvfs_node;
@@ -242,87 +210,6 @@ unsigned long req_freq_by_vop(unsigned long bandwidth)
 	}
 
 	return 0;
-}
-
-void ddr_monitor_start(void)
-{
-    int i;
-
-    for(i=1;i<8;i++)
-    {
-        noc_writel(0x8, (0x400*i+0x8));
-        noc_writel(0x1, (0x400*i+0xc));
-        noc_writel(0x6, (0x400*i+0x138));
-        noc_writel(0x10, (0x400*i+0x14c));
-        noc_writel(0x8, (0x400*i+0x160));
-        noc_writel(0x10, (0x400*i+0x174));
-    }
-    grf_writel((((readl_relaxed(RK_PMU_VIRT + 0x9c)>>13)&7)==3)?0xc000c000:0xe000e000,RK3288_GRF_SOC_CON4); // ddr
-    for(i=1;i<8;i++)
-    {
-        noc_writel(0x1, (0x400*i+0x28));
-    }
-}
-
-void ddr_monitor_stop(void)
-{
-    grf_writel(0xc0000000,RK3288_GRF_SOC_CON4);  //ddr
-}
-
-void ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0, struct ddr_bw_info *ddr_bw_ch1)
-{
-	u32 ddr_bw_val[2][ddrbw_id_end], ddr_freq;
-	u64 temp64;
-	int i, j;
-
-	ddr_monitor_stop();
-	for(j = 0; j < 2; j++) {
-		for(i = 0; i < ddrbw_eff; i++ ){
-	        	ddr_bw_val[j][i] = grf_readl(RK3288_GRF_SOC_STATUS11+i*4+j*16);
-		}
-	}
-	if (!ddr_bw_val[0][ddrbw_time_num])
-		goto end;
-
-	if (ddr_bw_ch0) {
-		ddr_freq = readl_relaxed(RK_DDR_VIRT + 0xc0);
-
-		temp64 = ((u64)ddr_bw_val[0][0]+ddr_bw_val[0][1])*4*100;
-		do_div(temp64, ddr_bw_val[0][ddrbw_time_num]);
-		ddr_bw_val[0][ddrbw_eff] = temp64;
-
-		ddr_bw_ch0->ddr_percent = temp64;
-		ddr_bw_ch0->ddr_time = ddr_bw_val[0][ddrbw_time_num]/(ddr_freq*1000);
-		ddr_bw_ch0->ddr_wr = (ddr_bw_val[0][ddrbw_wr_num]*8*4)*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-		ddr_bw_ch0->ddr_rd = (ddr_bw_val[0][ddrbw_rd_num]*8*4)*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-		ddr_bw_ch0->ddr_act = ddr_bw_val[0][ddrbw_act_num];
-		ddr_bw_ch0->ddr_total = ddr_freq*2*4;
-
-		ddr_bw_ch0->cpum = (noc_readl(0x400+0x178)<<16)
-		          + (noc_readl(0x400+0x164));
-		ddr_bw_ch0->gpu = (noc_readl(0x800+0x178)<<16)
-		          + (noc_readl(0x800+0x164));
-		ddr_bw_ch0->peri = (noc_readl(0xc00+0x178)<<16)
-		          + (noc_readl(0xc00+0x164));
-		ddr_bw_ch0->video = (noc_readl(0x1000+0x178)<<16)
-		          + (noc_readl(0x1000+0x164));
-		ddr_bw_ch0->vio0 = (noc_readl(0x1400+0x178)<<16)
-		          + (noc_readl(0x1400+0x164));
-		ddr_bw_ch0->vio1 = (noc_readl(0x1800+0x178)<<16)
-		          + (noc_readl(0x1800+0x164));
-		ddr_bw_ch0->vio2 = (noc_readl(0x1c00+0x178)<<16)
-		          + (noc_readl(0x1c00+0x164));
-
-		ddr_bw_ch0->cpum = ddr_bw_ch0->cpum*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-		ddr_bw_ch0->gpu = ddr_bw_ch0->gpu*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-		ddr_bw_ch0->peri = ddr_bw_ch0->peri*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-		ddr_bw_ch0->video = ddr_bw_ch0->video*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-		ddr_bw_ch0->vio0 = ddr_bw_ch0->vio0*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-		ddr_bw_ch0->vio1 = ddr_bw_ch0->vio1*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-		ddr_bw_ch0->vio2 = ddr_bw_ch0->vio2*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
-	}
-end:
-	ddr_monitor_start();
 }
 
 static void ddr_auto_freq(void)
