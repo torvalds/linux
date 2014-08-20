@@ -508,8 +508,8 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = buf->f_blocks - valid_user_blocks(sbi) - ovp_count;
 	buf->f_bavail = user_block_count - valid_user_blocks(sbi);
 
-	buf->f_files = sbi->total_node_count;
-	buf->f_ffree = sbi->total_node_count - valid_inode_count(sbi);
+	buf->f_files = sbi->total_node_count - F2FS_RESERVED_NODE_NUM;
+	buf->f_ffree = buf->f_files - valid_inode_count(sbi);
 
 	buf->f_namelen = F2FS_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;
