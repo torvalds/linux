@@ -307,7 +307,9 @@ enum dma_slave_buswidth {
  * struct dma_slave_config - dma slave channel runtime config
  * @direction: whether the data shall go in or out on this slave
  * channel, right now. DMA_MEM_TO_DEV and DMA_DEV_TO_MEM are
- * legal values.
+ * legal values. DEPRECATED, drivers should use the direction argument
+ * to the device_prep_slave_sg and device_prep_dma_cyclic functions or
+ * the dir field in the dma_interleaved_template structure.
  * @src_addr: this is the physical address where DMA slave data
  * should be read (RX), if the source is memory this argument is
  * ignored.
