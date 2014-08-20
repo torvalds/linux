@@ -1873,6 +1873,16 @@ static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch1 = {
 static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch2 = {
 	.base = 140,
 };
+# if IS_ENABLED(CONFIG_VIDEO_ADV7842)
+static const struct mcp23s08_platform_data bfin_adv7842_soft_switch = {
+	.base = 150,
+};
+# endif
+# if IS_ENABLED(CONFIG_VIDEO_ADV7511) || IS_ENABLED(CONFIG_VIDEO_ADV7343)
+static const struct mcp23s08_platform_data bfin_adv7511_soft_switch = {
+	.base = 160,
+};
+# endif
 #endif
 
 static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
@@ -1907,6 +1917,18 @@ static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 		I2C_BOARD_INFO("mcp23017", 0x23),
 		.platform_data = (void *)&bfin_mcp23s08_soft_switch2
 	},
+# if IS_ENABLED(CONFIG_VIDEO_ADV7842)
+	{
+		I2C_BOARD_INFO("mcp23017", 0x26),
+		.platform_data = (void *)&bfin_adv7842_soft_switch
+	},
+# endif
+# if IS_ENABLED(CONFIG_VIDEO_ADV7511) || IS_ENABLED(CONFIG_VIDEO_ADV7343)
+	{
+		I2C_BOARD_INFO("mcp23017", 0x25),
+		.platform_data = (void *)&bfin_adv7511_soft_switch
+	},
+# endif
 #endif
 };
 
