@@ -1839,7 +1839,6 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		unsigned int stream_id, struct xhci_td *cur_td,
 		struct xhci_dequeue_state *state);
 void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
-		struct xhci_command *cmd,
 		unsigned int slot_id, unsigned int ep_index,
 		unsigned int stream_id,
 		struct xhci_dequeue_state *deq_state);

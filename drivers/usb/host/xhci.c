@@ -2887,14 +2887,9 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	 * issue a configure endpoint command later.
 	 */
 	if (!(xhci->quirks & XHCI_RESET_EP_QUIRK)) {
-		struct xhci_command *command;
-		/* Can't sleep if we're called from cleanup_halted_endpoint() */
-		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
-		if (!command)
-			return;
 		xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
 				"Queueing new dequeue state");
-		xhci_queue_new_dequeue_state(xhci, command, udev->slot_id,
+		xhci_queue_new_dequeue_state(xhci, udev->slot_id,
 				ep_index, ep->stopped_stream, &deq_state);
 	} else {
 		/* Better hope no one uses the input context between now and the

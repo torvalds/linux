@@ -572,14 +572,12 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	}
 }
 
-static int queue_set_tr_deq(struct xhci_hcd *xhci,
-		struct xhci_command *cmd, int slot_id,
+static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index, unsigned int stream_id,
 		struct xhci_segment *deq_seg,
 		union xhci_trb *deq_ptr, u32 cycle_state);
 
 void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
-		struct xhci_command *cmd,
 		unsigned int slot_id, unsigned int ep_index,
 		unsigned int stream_id,
 		struct xhci_dequeue_state *deq_state)
@@ -594,7 +592,7 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 			deq_state->new_deq_ptr,
 			(unsigned long long)xhci_trb_virt_to_dma(deq_state->new_deq_seg, deq_state->new_deq_ptr),
 			deq_state->new_cycle_state);
-	queue_set_tr_deq(xhci, cmd, slot_id, ep_index, stream_id,
+	queue_set_tr_deq(xhci, slot_id, ep_index, stream_id,
 			deq_state->new_deq_seg,
 			deq_state->new_deq_ptr,
 			(u32) deq_state->new_cycle_state);
@@ -743,12 +741,8 @@ remove_finished_td:
 
 	/* If necessary, queue a Set Transfer Ring Dequeue Pointer command */
 	if (deq_state.new_deq_ptr && deq_state.new_deq_seg) {
-		struct xhci_command *command;
-		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
-		xhci_queue_new_dequeue_state(xhci, command,
-				slot_id, ep_index,
-				ep->stopped_td->urb->stream_id,
-				&deq_state);
+		xhci_queue_new_dequeue_state(xhci, slot_id, ep_index,
+				ep->stopped_td->urb->stream_id, &deq_state);
 		xhci_ring_cmd_db(xhci);
 	} else {
 		/* Otherwise ring the doorbell(s) to restart queued transfers */
@@ -3929,8 +3923,7 @@ int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, struct xhci_command *cmd,
 /* Set Transfer Ring Dequeue Pointer command.
  * This should not be used for endpoints that have streams enabled.
  */
-static int queue_set_tr_deq(struct xhci_hcd *xhci, struct xhci_command *cmd,
-			int slot_id,
+static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 			unsigned int ep_index, unsigned int stream_id,
 			struct xhci_segment *deq_seg,
 			union xhci_trb *deq_ptr, u32 cycle_state)
@@ -3942,6 +3935,8 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, struct xhci_command *cmd,
 	u32 trb_sct = 0;
 	u32 type = TRB_TYPE(TRB_SET_DEQ);
 	struct xhci_virt_ep *ep;
+	struct xhci_command *cmd;
+	int ret;
 
 	addr = xhci_trb_virt_to_dma(deq_seg, deq_ptr);
 	if (addr == 0) {
@@ -3956,14 +3951,28 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, struct xhci_command *cmd,
 		xhci_warn(xhci, "A Set TR Deq Ptr command is pending.\n");
 		return 0;
 	}
+
+	/* This function gets called from contexts where it cannot sleep */
+	cmd = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
+	if (!cmd) {
+		xhci_warn(xhci, "WARN Cannot submit Set TR Deq Ptr: ENOMEM\n");
+		return 0;
+	}
+
 	ep->queued_deq_seg = deq_seg;
 	ep->queued_deq_ptr = deq_ptr;
 	if (stream_id)
 		trb_sct = SCT_FOR_TRB(SCT_PRI_TR);
-	return queue_command(xhci, cmd,
+	ret = queue_command(xhci, cmd,
 			lower_32_bits(addr) | trb_sct | cycle_state,
 			upper_32_bits(addr), trb_stream_id,
 			trb_slot_id | trb_ep_index | type, false);
+	if (ret < 0) {
+		xhci_free_command(xhci, cmd);
+		return ret;
+	}
+
+	return 0;
 }
 
 int xhci_queue_reset_ep(struct xhci_hcd *xhci, struct xhci_command *cmd,
