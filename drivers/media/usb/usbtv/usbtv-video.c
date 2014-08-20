@@ -253,7 +253,7 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
  * 720 pixel lines, as the chunk is 240 words long, which is 480 pixels.
  * Therefore, we break down the chunk into two halves before copyting,
  * so that we can interleave a line if needed. */
-static void usbtv_chunk_to_vbuf(u32 *frame, u32 *src, int chunk_no, int odd)
+static void usbtv_chunk_to_vbuf(u32 *frame, __be32 *src, int chunk_no, int odd)
 {
 	int half;
 
@@ -271,7 +271,7 @@ static void usbtv_chunk_to_vbuf(u32 *frame, u32 *src, int chunk_no, int odd)
 /* Called for each 256-byte image chunk.
  * First word identifies the chunk, followed by 240 words of image
  * data and padding. */
-static void usbtv_image_chunk(struct usbtv *usbtv, u32 *chunk)
+static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 {
 	int frame_id, odd, chunk_no;
 	u32 *frame;
@@ -362,7 +362,7 @@ static void usbtv_iso_cb(struct urb *ip)
 
 		for (offset = 0; USBTV_CHUNK_SIZE * offset < size; offset++)
 			usbtv_image_chunk(usbtv,
-				(u32 *)&data[USBTV_CHUNK_SIZE * offset]);
+				(__be32 *)&data[USBTV_CHUNK_SIZE * offset]);
 	}
 
 resubmit:
