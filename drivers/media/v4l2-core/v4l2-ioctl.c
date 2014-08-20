@@ -1153,9 +1153,9 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 	switch (p->type) {
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY: {
-		struct v4l2_clip *clips = p->fmt.win.clips;
+		struct v4l2_clip __user *clips = p->fmt.win.clips;
 		u32 clipcount = p->fmt.win.clipcount;
-		void *bitmap = p->fmt.win.bitmap;
+		void __user *bitmap = p->fmt.win.bitmap;
 
 		memset(&p->fmt, 0, sizeof(p->fmt));
 		p->fmt.win.clips = clips;
