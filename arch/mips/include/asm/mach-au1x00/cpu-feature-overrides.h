@@ -8,6 +8,12 @@
 #define __ASM_MACH_AU1X00_CPU_FEATURE_OVERRIDES_H
 
 #define cpu_has_tlb			1
+#define cpu_has_tlbinv			0
+#define cpu_has_segments		0
+#define cpu_has_eva			0
+#define cpu_has_htw			0
+#define cpu_has_rixiex			0
+#define cpu_has_maar			0
 #define cpu_has_4kex			1
 #define cpu_has_3k_cache		0
 #define cpu_has_4k_cache		1
@@ -28,6 +34,8 @@
 #define cpu_has_mdmx			0
 #define cpu_has_mips3d			0
 #define cpu_has_smartmips		0
+#define cpu_has_rixi			0
+#define cpu_has_mmips			0
 #define cpu_has_vtag_icache		0
 #define cpu_has_dc_aliases		0
 #define cpu_has_ic_fills_f_dc		1
@@ -49,5 +57,9 @@
 
 #define cpu_dcache_line_size()		32
 #define cpu_icache_line_size()		32
+
+#define cpu_has_perf_cntr_intr_bit	0
+#define cpu_has_vz			0
+#define cpu_has_msa			0
 
 #endif /* __ASM_MACH_AU1X00_CPU_FEATURE_OVERRIDES_H */
