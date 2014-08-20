@@ -4447,8 +4447,6 @@ static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 
 	et131x_disable_txrx(netdev);
-	et131x_handle_send_interrupt(adapter);
-	et131x_handle_recv_interrupt(adapter);
 
 	/* Set the new MTU */
 	netdev->mtu = new_mtu;
