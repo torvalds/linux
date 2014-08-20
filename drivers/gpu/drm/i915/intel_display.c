@@ -3363,18 +3363,16 @@ void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (crtc->primary->fb == NULL)
-		return;
-
 	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
-
 	WARN_ON(wait_event_timeout(dev_priv->pending_flip_queue,
 				   !intel_crtc_has_pending_flip(crtc),
 				   60*HZ) == 0);
 
-	mutex_lock(&dev->struct_mutex);
-	intel_finish_fb(crtc->primary->fb);
-	mutex_unlock(&dev->struct_mutex);
+	if (crtc->primary->fb) {
+		mutex_lock(&dev->struct_mutex);
+		intel_finish_fb(crtc->primary->fb);
+		mutex_unlock(&dev->struct_mutex);
+	}
 }
 
 /* Program iCLKIP clock to the desired frequency */
