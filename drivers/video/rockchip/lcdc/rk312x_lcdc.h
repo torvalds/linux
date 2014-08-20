@@ -683,6 +683,7 @@ struct lcdc_device {
 	struct clk		*dclk;	/* lcdc dclk */
 	struct clk		*aclk;	/* lcdc share memory frequency */
         struct clk              *sclk;  /* scaler clk */
+	struct clk		*pll_sclk;
 	u32 pixclock;
         u32 s_pixclock;
 

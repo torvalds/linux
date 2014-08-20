@@ -529,6 +529,7 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	lcdc_dev->dclk = devm_clk_get(lcdc_dev->dev, "dclk_lcdc");
 	lcdc_dev->sclk = devm_clk_get(lcdc_dev->dev, "sclk_lcdc");
 	lcdc_dev->pd   = devm_clk_get(lcdc_dev->dev, "pd_lcdc");
+	lcdc_dev->pll_sclk = devm_clk_get(lcdc_dev->dev, "sclk_pll");
 
 	if ( /*IS_ERR(lcdc_dev->pd) || */ (IS_ERR(lcdc_dev->aclk)) ||
 	    (IS_ERR(lcdc_dev->dclk)) || (IS_ERR(lcdc_dev->hclk))) {
@@ -582,13 +583,13 @@ static void rk312x_lcdc_deinit(struct lcdc_device *lcdc_dev)
 
 }
 
-static u32 calc_sclk(struct rk_screen *src_screen, struct rk_screen *dst_screen)
+static u32 calc_sclk_freq(struct rk_screen *src_screen, struct rk_screen *dst_screen)
 {
         u32 dsp_vtotal;
         u64 dsp_htotal;
         u32 dsp_in_vtotal;
         u64 dsp_in_htotal;
-        u64 sclk;
+        u64 sclk_freq;
 
         if (!src_screen || !dst_screen)
                 return 0;
@@ -600,25 +601,51 @@ static u32 calc_sclk(struct rk_screen *src_screen, struct rk_screen *dst_screen)
         dsp_in_htotal = src_screen->mode.left_margin +
                         src_screen->mode.hsync_len +
                         src_screen->mode.xres + src_screen->mode.right_margin;
-        sclk = dsp_vtotal * dsp_htotal * src_screen->mode.pixclock;
-        do_div(sclk, dsp_in_vtotal * dsp_in_htotal);
+        sclk_freq = dsp_vtotal * dsp_htotal * src_screen->mode.pixclock;
+        do_div(sclk_freq, dsp_in_vtotal * dsp_in_htotal);
 
-        return (u32)sclk;
+        return (u32)sclk_freq;
+}
+
+#define SCLK_PLL_LIMIT	594000000
+static u32 calc_sclk_pll_freq(u32 sclk_freq)
+{
+#define ACCURACY_LEV	100
+	u32 pll_freq = 0;
+	u32 decimal_num = 0;
+	u16 max_multi_num = 0, multi_num = 0, remainder_num = 0;
+	u32 less_delta = 0, greater_delta = 0;
+
+	if (sclk_freq == 0)
+		return 0;
+
+	max_multi_num = SCLK_PLL_LIMIT / sclk_freq;
+	decimal_num = (sclk_freq / (1000000 / ACCURACY_LEV)) % ACCURACY_LEV;
+	multi_num = ACCURACY_LEV / decimal_num;
+
+	if (multi_num > max_multi_num) {
+		multi_num = max_multi_num;
+	} else if (decimal_num != 0) {
+		remainder_num = ACCURACY_LEV % decimal_num;
+		if (remainder_num != 0) {
+			less_delta = ACCURACY_LEV - (decimal_num * multi_num);
+			greater_delta = decimal_num * (multi_num + 1) - ACCURACY_LEV;
+			multi_num = (less_delta < greater_delta) ? multi_num : (multi_num + 1);
+		}
+	}
+
+	pll_freq = sclk_freq * multi_num;
+	return pll_freq;
 }
 
 static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
 {
         u32 BP_in, BP_out;
         u32 v_scale_ratio;
-#if defined(FLOAT_CALC) /* use float */
-        double T_frm_st;
-        double T_BP_in, T_BP_out, T_Delta, Tin;
-#else
         long long  T_frm_st;
         u64 T_BP_in, T_BP_out, T_Delta, Tin;
         u64 rate = (1 << 16);
         u64 temp;
-#endif
         u32 dsp_htotal, src_htotal, src_vtotal;
 
         if (unlikely(!src) || unlikely(!dst))
@@ -635,16 +662,6 @@ static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
 
         v_scale_ratio = dst->mode.yres / src->mode.yres;
 
-#if defined(FLOAT_CALC)
-        T_BP_in = 1.0 * BP_in / src->mode.pixclock;
-        T_BP_out = 1.0 * BP_out / dst->mode.pixclock;
-        if (v_scale_ratio < 2)
-                T_Delta = 4.0 * src_htotal / src->mode.pixclock;
-        else
-                T_Delta = 12.0 * src_htotal / src->mode.pixclock;
-
-        Tin = 1.0 * src_vtotal * src_htotal / src->mode.pixclock;
-#else
         T_BP_in = rate * BP_in;
         do_div(T_BP_in, src->mode.pixclock);
         T_BP_out = rate * BP_out;
@@ -657,20 +674,15 @@ static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
         do_div(T_Delta, src->mode.pixclock);
         Tin = rate * src_vtotal * src_htotal;
         do_div(Tin, src->mode.pixclock);
-#endif
 
         T_frm_st = (T_BP_in + T_Delta - T_BP_out);
         if (T_frm_st < 0)
                 T_frm_st  += Tin;
 
-#if defined(FLOAT_CALC)
-        dst->scl_vst = (u16)(T_frm_st * src->mode.pixclock / src_htotal);
-        dst->scl_hst = (u32)(T_frm_st * src->mode.pixclock) % src_htotal;
-#else
-        temp = T_frm_st * src->mode.pixclock;
+	temp = T_frm_st * src->mode.pixclock;
         dst->scl_hst = do_div(temp, src_htotal * rate);
         dst->scl_vst = temp;
-#endif
+	dst->scl_hst = (T_frm_st * src->mode.pixclock / rate - dst->scl_vst * src_htotal);
 
         return 0;
 }
@@ -688,6 +700,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 	u16 bor_left = 0;
 	u16 bor_up = 0;
 	u16 bor_down = 0;
+	u32 pll_freq = 0;
 	struct rk_screen *src;
 	struct rk_screen *dst;
         struct lcdc_device *lcdc_dev = container_of(dev_drv,
@@ -719,7 +732,9 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 	}
 
 	clk_prepare_enable(lcdc_dev->sclk);
-	lcdc_dev->s_pixclock = calc_sclk(src, dst);
+	lcdc_dev->s_pixclock = calc_sclk_freq(src, dst);
+	pll_freq = calc_sclk_pll_freq(lcdc_dev->s_pixclock);
+	clk_set_rate(lcdc_dev->pll_sclk, pll_freq);
 	clk_set_rate(lcdc_dev->sclk, lcdc_dev->s_pixclock);
         dev_info(lcdc_dev->dev, "%s:sclk=%d\n", __func__, lcdc_dev->s_pixclock);
 
@@ -764,7 +779,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 
         lcdc_writel(lcdc_dev, SCALER_FRAME_ST,
                     v_SCALER_FRAME_HST(dst_frame_hst) |
-                    v_SCALER_FRAME_VST(dst_frame_hst));
+                    v_SCALER_FRAME_VST(dst_frame_vst));
 	lcdc_writel(lcdc_dev, SCALER_DSP_HOR_TIMING,
                     v_SCALER_HS_END(dsp_hs_end) |
                     v_SCALER_HTOTAL(dsp_htotal));
