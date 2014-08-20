@@ -125,6 +125,10 @@ typedef struct tagGPIO_IOMUX {
 *GRF_DDRC_STAT 可查询pctl是否接受请求 进入low power
 ********************************/
 /*REG FILE registers*/
+/*GRF_SOC_CON0*/
+#define DDR_MONITOR_EN  ((1<<(16+6))+(1<<6))
+#define DDR_MONITOR_DISB  ((1<<(16+6))+(0<<6))
+
 /*GRF_SOC_STATUS0*/
 #define sys_pwr_idle     (1<<27)
 #define gpu_pwr_idle     (1<<26)
@@ -2591,6 +2595,53 @@ static long _ddr_round_rate(uint32 nMHz)
 {
 	return p_ddr_set_pll(nMHz, 0);
 }
+
+enum ddr_bandwidth_id{
+	ddrbw_wr_num=0,
+	ddrbw_rd_num,
+	ddrbw_act_num,
+	ddrbw_time_num,
+	ddrbw_id_end
+};
+
+static void ddr_dfi_monitor_strat(void)
+{
+	pGRF_Reg->GRF_SOC_CON[0] = DDR_MONITOR_EN;
+}
+static void ddr_dfi_monitor_stop(void)
+{
+	pGRF_Reg->GRF_SOC_CON[0] = DDR_MONITOR_DISB;
+}
+
+void _ddr_bandwidth_get(struct ddr_bw_info * ddr_bw_ch0, struct ddr_bw_info * ddr_bw_ch1)
+{
+	uint32 ddr_bw_val[ddrbw_id_end], ddr_freq;
+	u64 temp64;
+	uint32 i;
+	uint32 ddr_bw;
+
+	ddr_bw = READ_BW_INFO();
+	ddr_dfi_monitor_stop();
+	for (i=0; i<ddrbw_id_end; i++) {
+		ddr_bw_val[i] = *(uint32 *)(&(pGRF_Reg->GRF_DFI_WRNUM) + i);
+	}
+	if (!ddr_bw_val[ddrbw_time_num])
+		goto end;
+
+	ddr_freq = pDDR_Reg->TOGCNT1U;
+	temp64 = ((u64)ddr_bw_val[ddrbw_wr_num] + (u64)ddr_bw_val[ddrbw_rd_num])*4*100;
+	do_div(temp64, ddr_bw_val[ddrbw_time_num]);
+
+	ddr_bw_ch0->ddr_percent = (uint32)temp64;
+	ddr_bw_ch0->ddr_time = ddr_bw_val[ddrbw_time_num]/(ddr_freq*1000); /*ms*/
+	ddr_bw_ch0->ddr_wr = (ddr_bw_val[ddrbw_wr_num]*8*ddr_bw*2)*ddr_freq/ddr_bw_val[ddrbw_time_num];/*Byte/us,MB/s*/
+	ddr_bw_ch0->ddr_rd = (ddr_bw_val[ddrbw_rd_num]*8*ddr_bw*2)*ddr_freq/ddr_bw_val[ddrbw_time_num];
+	ddr_bw_ch0->ddr_act = ddr_bw_val[ddrbw_act_num];
+	ddr_bw_ch0->ddr_total = ddr_freq*2*ddr_bw*2;
+end:
+	ddr_dfi_monitor_strat();
+}
+EXPORT_SYMBOL(_ddr_bandwidth_get);
 
 /*----------------------------------------------------------------------
 *Name    : int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
