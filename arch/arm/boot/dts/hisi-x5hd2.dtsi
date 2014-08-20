@@ -215,5 +215,25 @@
 			interrupts = <0 67 4>;
 			clocks = <&clock HIX5HD2_USB_CLK>;
 		};
+
+		peripheral_ctrl: syscon@a20000 {
+			compatible = "syscon";
+			reg = <0xa20000 0x1000>;
+		};
+
+		sata_phy: phy@1900000 {
+			compatible = "hisilicon,hix5hd2-sata-phy";
+			reg = <0x1900000 0x10000>;
+			#phy-cells = <0>;
+			hisilicon,peripheral-syscon = <&peripheral_ctrl>;
+			hisilicon,power-reg = <0x8 10>;
+		};
+
+		ahci: sata@1900000 {
+			compatible = "hisilicon,hisi-ahci";
+			reg = <0x1900000 0x10000>;
+			interrupts = <0 70 4>;
+			clocks = <&clock HIX5HD2_SATA_CLK>;
+		};
 	};
 };

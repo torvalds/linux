@@ -79,3 +79,8 @@
 		reg = <1>;
 	};
 };
+
+&ahci {
+	phys = <&sata_phy>;
+	phy-names = "sata-phy";
+};
