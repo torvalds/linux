@@ -289,10 +289,6 @@ lists when they are assembled; they can be downloaded from:
 
 	http://www.kernel.org/pub/linux/kernel/next/
 
-Some information about linux-next has been gathered at:
-
-	http://linux.f-seidel.de/linux-next/pmwiki/
-
 Linux-next has become an integral part of the kernel development process;
 all patches merged during a given merge window should really have found
 their way into linux-next some time before the merge window opens.
