@@ -990,7 +990,8 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 	/* 400kHz ~ 50MHz */
 	mmc->f_min		=   400000;
 	mmc->f_max		= 50000000;
-	mmc->caps	       |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED;
+	mmc->caps	       |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
+				  MMC_CAP_ERASE;
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
