@@ -115,6 +115,25 @@ static int get_parent_ino(struct inode *inode, nid_t *pino)
 	return 1;
 }
 
+static inline bool need_do_checkpoint(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	bool need_cp = false;
+
+	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
+		need_cp = true;
+	else if (file_wrong_pino(inode))
+		need_cp = true;
+	else if (!space_for_roll_forward(sbi))
+		need_cp = true;
+	else if (!is_checkpointed_node(sbi, F2FS_I(inode)->i_pino))
+		need_cp = true;
+	else if (F2FS_I(inode)->xattr_ver == cur_cp_version(F2FS_CKPT(sbi)))
+		need_cp = true;
+
+	return need_cp;
+}
+
 int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
@@ -159,23 +178,12 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	/* guarantee free sections for fsync */
 	f2fs_balance_fs(sbi);
 
-	down_read(&fi->i_sem);
-
 	/*
 	 * Both of fdatasync() and fsync() are able to be recovered from
 	 * sudden-power-off.
 	 */
-	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
-		need_cp = true;
-	else if (file_wrong_pino(inode))
-		need_cp = true;
-	else if (!space_for_roll_forward(sbi))
-		need_cp = true;
-	else if (!is_checkpointed_node(sbi, F2FS_I(inode)->i_pino))
-		need_cp = true;
-	else if (F2FS_I(inode)->xattr_ver == cur_cp_version(F2FS_CKPT(sbi)))
-		need_cp = true;
-
+	down_read(&fi->i_sem);
+	need_cp = need_do_checkpoint(inode);
 	up_read(&fi->i_sem);
 
 	if (need_cp) {
