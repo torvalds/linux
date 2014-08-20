@@ -43,7 +43,8 @@ struct rksdmmc_gpio_wifi_moudle {
 enum {
     WIFI_RKWIFI,
     WIFI_RTL8188EU,
-    WIFI_ESP8089
+    WIFI_ESP8089,
+    WIFI_RTL8723BS
 };
 
 int rfkill_get_wifi_power_state(int *power, int *vref_ctrl_enable);

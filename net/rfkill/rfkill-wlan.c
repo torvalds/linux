@@ -101,6 +101,8 @@ int get_wifi_chip_type(void)
         type = WIFI_RTL8188EU;
     } else if (strcmp(wifi_chip_type_string, "esp8089") == 0) {
         type = WIFI_ESP8089;
+    } else if (strcmp(wifi_chip_type_string, "rtl8723bs") == 0) {
+        type = WIFI_RTL8723BS; 
     } else {
         type = WIFI_RKWIFI;
     }
@@ -443,10 +445,10 @@ int rockchip_wifi_set_carddetect(int val)
 	chip = get_wifi_chip_type();
 
 	/*  irq_type : 0, oob; 1, cap-sdio-irq */
-	if (chip == WIFI_ESP8089)
-		irq_type = 1;
-	else
+	if (chip == WIFI_RKWIFI)
 		irq_type = 0;
+	else
+		irq_type = 1;
 
 	return mmc_host_rescan(NULL, val, irq_type);//NULL => SDIO host
 }
