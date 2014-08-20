@@ -1394,7 +1394,7 @@ out:
 	return status;
 }
 
-const struct file_operations msm_otg_mode_fops = {
+static const struct file_operations msm_otg_mode_fops = {
 	.open = msm_otg_mode_open,
 	.read = seq_read,
 	.write = msm_otg_mode_write,
