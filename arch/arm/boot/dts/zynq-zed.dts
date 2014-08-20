@@ -32,6 +32,11 @@
 &gem0 {
 	status = "okay";
 	phy-mode = "rgmii-id";
+	phy-handle = <&ethernet_phy>;
+
+	ethernet_phy: ethernet-phy@0 {
+		reg = <0>;
+	};
 };
 
 &sdhci0 {
