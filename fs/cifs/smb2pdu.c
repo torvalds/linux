@@ -530,7 +530,7 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	struct smb2_sess_setup_rsp *rsp = NULL;
 	struct kvec iov[2];
 	int rc = 0;
-	int resp_buftype;
+	int resp_buftype = CIFS_NO_BUFFER;
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
 	struct TCP_Server_Info *server = ses->server;
 	u16 blob_length = 0;
