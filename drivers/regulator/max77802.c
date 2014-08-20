@@ -65,8 +65,6 @@ static unsigned int ramp_table_77802_4bit[] = {
 };
 
 struct max77802_regulator_prv {
-	int num_regulators;
-	struct regulator_dev *rdev[MAX77802_REG_MAX];
 	unsigned int opmode[MAX77802_REG_MAX];
 };
 
