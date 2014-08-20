@@ -225,57 +225,51 @@ void
 s_vSetRSPINF(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 	     void *pvSupportRateIEs, void *pvExtSupportRateIEs)
 {
-	unsigned char byServ = 0, bySignal = 0; // For CCK
-	unsigned short wLen = 0;
+	union vnt_phy_field_swap phy;
 	unsigned char byTxRate = 0, byRsvTime = 0;    // For OFDM
 
 	//Set to Page1
 	MACvSelectPage1(pDevice->PortOffset);
 
-	//RSPINF_b_1
-	BBvCalculateParameter(pDevice,
-			      14,
-			      VNTWIFIbyGetACKTxRate(RATE_1M, pvSupportRateIEs, pvExtSupportRateIEs),
-			      PK_TYPE_11B,
-			      &wLen,
-			      &byServ,
-			      &bySignal
-);
+	/* RSPINF_b_1 */
+	vnt_get_phy_field(pDevice,
+			  14,
+			  VNTWIFIbyGetACKTxRate(RATE_1M, pvSupportRateIEs, pvExtSupportRateIEs),
+			  PK_TYPE_11B,
+			  &phy.field_read);
 
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_1, MAKEDWORD(wLen, MAKEWORD(bySignal, byServ)));
-	///RSPINF_b_2
-	BBvCalculateParameter(pDevice,
-			      14,
-			      VNTWIFIbyGetACKTxRate(RATE_2M, pvSupportRateIEs, pvExtSupportRateIEs),
-			      PK_TYPE_11B,
-			      &wLen,
-			      &byServ,
-			      &bySignal
-);
+	 /* swap over to get correct write order */
+	swap(phy.swap[0], phy.swap[1]);
 
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_2, MAKEDWORD(wLen, MAKEWORD(bySignal, byServ)));
-	//RSPINF_b_5
-	BBvCalculateParameter(pDevice,
-			      14,
-			      VNTWIFIbyGetACKTxRate(RATE_5M, pvSupportRateIEs, pvExtSupportRateIEs),
-			      PK_TYPE_11B,
-			      &wLen,
-			      &byServ,
-			      &bySignal
-);
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_1, phy.field_write);
 
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_5, MAKEDWORD(wLen, MAKEWORD(bySignal, byServ)));
-	//RSPINF_b_11
-	BBvCalculateParameter(pDevice,
-			      14,
-			      VNTWIFIbyGetACKTxRate(RATE_11M, pvSupportRateIEs, pvExtSupportRateIEs),
-			      PK_TYPE_11B,
-			      &wLen,
-			      &byServ,
-			      &bySignal
-);
+	/* RSPINF_b_2 */
+	vnt_get_phy_field(pDevice, 14,
+			  VNTWIFIbyGetACKTxRate(RATE_2M, pvSupportRateIEs, pvExtSupportRateIEs),
+			  PK_TYPE_11B, &phy.field_read);
 
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_11, MAKEDWORD(wLen, MAKEWORD(bySignal, byServ)));
+	swap(phy.swap[0], phy.swap[1]);
+
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_2, phy.field_write);
+
+	/* RSPINF_b_5 */
+	vnt_get_phy_field(pDevice, 14,
+			  VNTWIFIbyGetACKTxRate(RATE_5M, pvSupportRateIEs, pvExtSupportRateIEs),
+			  PK_TYPE_11B, &phy.field_read);
+
+	swap(phy.swap[0], phy.swap[1]);
+
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_5, phy.field_write);
+
+	/* RSPINF_b_11 */
+	vnt_get_phy_field(pDevice, 14,
+			  VNTWIFIbyGetACKTxRate(RATE_11M, pvSupportRateIEs, pvExtSupportRateIEs),
+			  PK_TYPE_11B, &phy.field_read);
+
+	swap(phy.swap[0], phy.swap[1]);
+
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_11, phy.field_write);
+
 	//RSPINF_a_6
 	s_vCalculateOFDMRParameter(RATE_6M,
 				   ePHYType,
@@ -1592,57 +1586,49 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *pDevice,
  */
 void CARDvSetRSPINF(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType)
 {
-	unsigned char byServ = 0x00, bySignal = 0x00; //For CCK
-	unsigned short wLen = 0x0000;
+	union vnt_phy_field_swap phy;
 	unsigned char byTxRate, byRsvTime;             //For OFDM
 
 	//Set to Page1
 	MACvSelectPage1(pDevice->PortOffset);
 
-	//RSPINF_b_1
-	BBvCalculateParameter(pDevice,
-			      14,
-			      CARDwGetCCKControlRate((void *)pDevice, RATE_1M),
-			      PK_TYPE_11B,
-			      &wLen,
-			      &byServ,
-			      &bySignal
-);
+	/* RSPINF_b_1 */
+	vnt_get_phy_field(pDevice, 14,
+			  CARDwGetCCKControlRate(pDevice, RATE_1M),
+			  PK_TYPE_11B, &phy.field_read);
 
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_1, MAKEDWORD(wLen, MAKEWORD(bySignal, byServ)));
-	///RSPINF_b_2
-	BBvCalculateParameter(pDevice,
-			      14,
-			      CARDwGetCCKControlRate((void *)pDevice, RATE_2M),
-			      PK_TYPE_11B,
-			      &wLen,
-			      &byServ,
-			      &bySignal
-);
+	 /* swap over to get correct write order */
+	swap(phy.swap[0], phy.swap[1]);
 
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_2, MAKEDWORD(wLen, MAKEWORD(bySignal, byServ)));
-	//RSPINF_b_5
-	BBvCalculateParameter(pDevice,
-			      14,
-			      CARDwGetCCKControlRate((void *)pDevice, RATE_5M),
-			      PK_TYPE_11B,
-			      &wLen,
-			      &byServ,
-			      &bySignal
-);
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_1, phy.field_write);
 
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_5, MAKEDWORD(wLen, MAKEWORD(bySignal, byServ)));
-	//RSPINF_b_11
-	BBvCalculateParameter(pDevice,
-			      14,
-			      CARDwGetCCKControlRate((void *)pDevice, RATE_11M),
-			      PK_TYPE_11B,
-			      &wLen,
-			      &byServ,
-			      &bySignal
-);
+	/* RSPINF_b_2 */
+	vnt_get_phy_field(pDevice, 14,
+			  CARDwGetCCKControlRate(pDevice, RATE_2M),
+			  PK_TYPE_11B, &phy.field_read);
 
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_11, MAKEDWORD(wLen, MAKEWORD(bySignal, byServ)));
+	swap(phy.swap[0], phy.swap[1]);
+
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_2, phy.field_write);
+
+	/* RSPINF_b_5 */
+	vnt_get_phy_field(pDevice, 14,
+			  CARDwGetCCKControlRate(pDevice, RATE_5M),
+			  PK_TYPE_11B, &phy.field_read);
+
+	swap(phy.swap[0], phy.swap[1]);
+
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_5, phy.field_write);
+
+	/* RSPINF_b_11 */
+	vnt_get_phy_field(pDevice, 14,
+			  CARDwGetCCKControlRate(pDevice, RATE_11M),
+			  PK_TYPE_11B, &phy.field_read);
+
+	swap(phy.swap[0], phy.swap[1]);
+
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_11, phy.field_write);
+
 	//RSPINF_a_6
 	s_vCalculateOFDMRParameter(RATE_6M,
 				   ePHYType,

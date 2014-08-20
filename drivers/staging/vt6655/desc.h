@@ -384,6 +384,12 @@ struct vnt_phy_field {
 	__le16 len;
 } __packed;
 
+union vnt_phy_field_swap {
+	struct vnt_phy_field field_read;
+	u16 swap[2];
+	u32 field_write;
+};
+
 typedef struct tagSRTS_g {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
