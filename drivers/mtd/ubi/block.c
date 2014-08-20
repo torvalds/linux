@@ -504,11 +504,6 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 	struct ubiblock *dev;
 	u64 disk_capacity = ((u64)vi->size * vi->usable_leb_size) >> 9;
 
-	if ((sector_t)disk_capacity != disk_capacity) {
-		ubi_warn("%s: the volume is too big, cannot resize (%d LEBs)",
-			 dev->gd->disk_name, vi->size);
-		return -EFBIG;
-	}
 	/*
 	 * Need to lock the device list until we stop using the device,
 	 * otherwise the device struct might get released in
@@ -519,6 +514,12 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 	if (!dev) {
 		mutex_unlock(&devices_mutex);
 		return -ENODEV;
+	}
+	if ((sector_t)disk_capacity != disk_capacity) {
+		mutex_unlock(&devices_mutex);
+		ubi_warn("%s: the volume is too big (%d LEBs), cannot resize",
+			 dev->gd->disk_name, vi->size);
+		return -EFBIG;
 	}
 
 	mutex_lock(&dev->dev_mutex);
