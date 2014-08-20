@@ -488,14 +488,13 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 {
 	struct rb_node *node;
 	int first_row = row, width, offset = level * LEVEL_OFFSET_STEP;
-	u64 new_total, remaining;
+	u64 new_total;
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL)
 		new_total = chain_node->children_hit;
 	else
 		new_total = total;
 
-	remaining = new_total;
 	node = rb_first(&chain_node->rb_root);
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
@@ -505,8 +504,6 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 		char folded_sign = ' ';
 		int first = true;
 		int extra_offset = 0;
-
-		remaining -= cumul;
 
 		list_for_each_entry(chain, &child->val, list) {
 			char bf[1024], *alloc_str;
@@ -1084,7 +1081,7 @@ static int hist_browser__fprintf_callchain_node_rb_tree(struct hist_browser *bro
 {
 	struct rb_node *node;
 	int offset = level * LEVEL_OFFSET_STEP;
-	u64 new_total, remaining;
+	u64 new_total;
 	int printed = 0;
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL)
@@ -1092,7 +1089,6 @@ static int hist_browser__fprintf_callchain_node_rb_tree(struct hist_browser *bro
 	else
 		new_total = total;
 
-	remaining = new_total;
 	node = rb_first(&chain_node->rb_root);
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
@@ -1102,8 +1098,6 @@ static int hist_browser__fprintf_callchain_node_rb_tree(struct hist_browser *bro
 		char folded_sign = ' ';
 		int first = true;
 		int extra_offset = 0;
-
-		remaining -= cumul;
 
 		list_for_each_entry(chain, &child->val, list) {
 			char bf[1024], *alloc_str;
