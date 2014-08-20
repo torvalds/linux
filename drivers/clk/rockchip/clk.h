@@ -367,6 +367,7 @@ void rockchip_clk_register_armclk(unsigned int lookup_id, const char *name,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates);
 void rockchip_clk_protect_critical(const char *clocks[], int nclocks);
+void rockchip_register_restart_notifier(unsigned int reg);
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
 
