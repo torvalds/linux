@@ -1901,7 +1901,7 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 static void s3c_hsotg_irq_enumdone(struct s3c_hsotg *hsotg)
 {
 	u32 dsts = readl(hsotg->regs + DSTS);
-	int ep0_mps = 0, ep_mps = 1023;
+	int ep0_mps = 0, ep_mps = 8;
 
 	/*
 	 * This should signal the finish of the enumeration phase
