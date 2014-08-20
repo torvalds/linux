@@ -1837,7 +1837,6 @@ BBvCalculateParameter(
 	unsigned int cbTmp;
 	bool bExtBit;
 	unsigned char byPreambleType = pDevice->byPreambleType;
-	bool bCCK = pDevice->bCCK;
 
 	cbBitCount = cbFrameLength * 8;
 	bExtBit = false;
@@ -1857,8 +1856,6 @@ BBvCalculateParameter(
 		break;
 
 	case RATE_5M:
-		if (!bCCK)
-			cbBitCount++;
 		cbUsCount = (cbBitCount * 10) / 55;
 		cbTmp = (cbUsCount * 55) / 10;
 		if (cbTmp != cbBitCount)
@@ -1870,9 +1867,6 @@ BBvCalculateParameter(
 		break;
 
 	case RATE_11M:
-
-		if (!bCCK)
-			cbBitCount++;
 		cbUsCount = cbBitCount / 11;
 		cbTmp = cbUsCount * 11;
 		if (cbTmp != cbBitCount) {

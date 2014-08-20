@@ -469,8 +469,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	/* Do MACbSoftwareReset in MACvInitialize */
 	MACbSoftwareReset(pDevice->PortOffset);
 
-	/* force CCK */
-	pDevice->bCCK = true;
 	pDevice->bAES = false;
 
 	/* Only used in 11g type, sync with ERP IE */

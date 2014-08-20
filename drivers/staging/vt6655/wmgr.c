@@ -2663,7 +2663,6 @@ s_vMgrSynchBSS(
 	}
 
 	// Init the BSS informations
-	pDevice->bCCK = true;
 	pDevice->bProtectMode = false;
 	MACvDisableProtectMD(pDevice->PortOffset);
 	pDevice->bBarkerPreambleMd = false;

@@ -488,7 +488,6 @@ struct vnt_private {
 
 	unsigned long dwMaxReceiveLifetime;       // dot11MaxReceiveLifetime
 
-	bool bCCK;
 	bool bEncryptionEnable;
 	bool bLongHeader;
 	bool bShortSlotTime;
