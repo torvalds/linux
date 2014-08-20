@@ -1087,7 +1087,6 @@ static int soc_probe_component(struct snd_soc_card *card,
 	struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
-	struct snd_soc_component *dai_component, *component2;
 	struct snd_soc_dai *dai;
 	int ret;
 
@@ -1114,44 +1113,12 @@ static int soc_probe_component(struct snd_soc_card *card,
 		}
 	}
 
-	/*
-	 * This is rather ugly, but certain platforms expect that the DAPM
-	 * widgets for the DAIs for components with the same parent device are
-	 * created in the platforms DAPM context. Until that is fixed we need to
-	 * keep this.
-	 */
-	if (component->steal_sibling_dai_widgets) {
-		dai_component = NULL;
-		list_for_each_entry(component2, &component_list, list) {
-			if (component == component2)
-				continue;
-
-			if (component2->dev == component->dev &&
-			    !list_empty(&component2->dai_list)) {
-				dai_component = component2;
-				break;
-			}
-		}
-	} else {
-		dai_component = component;
-		list_for_each_entry(component2, &component_list, list) {
-			if (component2->dev == component->dev &&
-			    component2->steal_sibling_dai_widgets) {
-				dai_component = NULL;
-				break;
-			}
-		}
-	}
-
-	if (dai_component) {
-		list_for_each_entry(dai, &dai_component->dai_list, list) {
-			snd_soc_dapm_new_dai_widgets(dapm, dai);
-			if (ret != 0) {
-				dev_err(component->dev,
-					"Failed to create DAI widgets %d\n",
-					ret);
-				goto err_probe;
-			}
+	list_for_each_entry(dai, &component->dai_list, list) {
+		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to create DAI widgets %d\n", ret);
+			goto err_probe;
 		}
 	}
 
@@ -4164,19 +4131,6 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 
 	platform->dev = dev;
 	platform->driver = platform_drv;
-	if (platform_drv->controls) {
-		platform->component.controls = platform_drv->controls;
-		platform->component.num_controls = platform_drv->num_controls;
-	}
-	if (platform_drv->dapm_widgets) {
-		platform->component.dapm_widgets = platform_drv->dapm_widgets;
-		platform->component.num_dapm_widgets = platform_drv->num_dapm_widgets;
-		platform->component.steal_sibling_dai_widgets = true;
-	}
-	if (platform_drv->dapm_routes) {
-		platform->component.dapm_routes = platform_drv->dapm_routes;
-		platform->component.num_dapm_routes = platform_drv->num_dapm_routes;
-	}
 
 	if (platform_drv->probe)
 		platform->component.probe = snd_soc_platform_drv_probe;
