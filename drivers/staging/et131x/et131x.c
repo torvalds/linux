@@ -1138,6 +1138,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	u32 sa_lo;
 	u32 sa_hi = 0;
 	u32 pf_ctrl = 0;
+	u32 *wolw;
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
 	writel(0x8, &rxmac->ctrl);
@@ -1151,30 +1152,8 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	 * its default Values of 0x00000000 because there are not WOL masks
 	 * as of this time.
 	 */
-	writel(0, &rxmac->mask0_word0);
-	writel(0, &rxmac->mask0_word1);
-	writel(0, &rxmac->mask0_word2);
-	writel(0, &rxmac->mask0_word3);
-
-	writel(0, &rxmac->mask1_word0);
-	writel(0, &rxmac->mask1_word1);
-	writel(0, &rxmac->mask1_word2);
-	writel(0, &rxmac->mask1_word3);
-
-	writel(0, &rxmac->mask2_word0);
-	writel(0, &rxmac->mask2_word1);
-	writel(0, &rxmac->mask2_word2);
-	writel(0, &rxmac->mask2_word3);
-
-	writel(0, &rxmac->mask3_word0);
-	writel(0, &rxmac->mask3_word1);
-	writel(0, &rxmac->mask3_word2);
-	writel(0, &rxmac->mask3_word3);
-
-	writel(0, &rxmac->mask4_word0);
-	writel(0, &rxmac->mask4_word1);
-	writel(0, &rxmac->mask4_word2);
-	writel(0, &rxmac->mask4_word3);
+	for (wolw = &rxmac->mask0_word0; wolw <= &rxmac->mask4_word3; wolw++)
+		writel(0, wolw);
 
 	/* Lets setup the WOL Source Address */
 	sa_lo = (adapter->addr[2] << ET_RX_WOL_LO_SA3_SHIFT) |
