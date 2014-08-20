@@ -293,12 +293,14 @@ MDIO
 MEM
   devm_free_pages()
   devm_get_free_pages()
+  devm_kasprintf()
   devm_kcalloc()
   devm_kfree()
   devm_kmalloc()
   devm_kmalloc_array()
   devm_kmemdup()
   devm_kstrdup()
+  devm_kvasprintf()
   devm_kzalloc()
 
 PCI
