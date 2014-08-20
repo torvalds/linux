@@ -34,7 +34,7 @@
 #include "mantis_dvb.h"
 #include "hopper_vp3028.h"
 
-struct zl10353_config hopper_vp3028_config = {
+static struct zl10353_config hopper_vp3028_config = {
 	.demod_address	= 0x0f,
 };
 
