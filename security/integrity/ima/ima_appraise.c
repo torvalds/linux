@@ -192,8 +192,6 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 	enum integrity_status status = INTEGRITY_UNKNOWN;
 	int rc = xattr_len, hash_start = 0;
 
-	if (!ima_appraise)
-		return 0;
 	if (!inode->i_op->getxattr)
 		return INTEGRITY_UNKNOWN;
 
