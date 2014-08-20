@@ -534,6 +534,8 @@ static struct rga_reg * rga_reg_init_2(rga_session *session, struct rga_req *req
         INIT_LIST_HEAD(&reg1->session_link);
     	INIT_LIST_HEAD(&reg1->status_link);
 
+        req0->mmu_info.mmu_flag &= (~(1 << 10));
+
         if(req0->mmu_info.mmu_en)
         {
             ret = rga_set_mmu_info(reg0, req0);
@@ -544,6 +546,8 @@ static struct rga_reg * rga_reg_init_2(rga_session *session, struct rga_req *req
         }
 
         RGA_gen_reg_info(req0, (uint8_t *)reg0->cmd_reg);
+
+        req1->mmu_info.mmu_flag &= (~(1 << 8));
 
         if(req1->mmu_info.mmu_en)
         {
