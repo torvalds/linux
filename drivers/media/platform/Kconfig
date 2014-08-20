@@ -185,7 +185,8 @@ config VIDEO_SAMSUNG_S5P_MFC
 
 config VIDEO_MX2_EMMAPRP
 	tristate "MX2 eMMa-PrP support"
-	depends on VIDEO_DEV && VIDEO_V4L2 && SOC_IMX27
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on SOC_IMX27 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	help
