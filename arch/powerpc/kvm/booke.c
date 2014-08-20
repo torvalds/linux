@@ -168,6 +168,40 @@ static void kvmppc_vcpu_sync_fpu(struct kvm_vcpu *vcpu)
 #endif
 }
 
+/*
+ * Simulate AltiVec unavailable fault to load guest state
+ * from thread to AltiVec unit.
+ * It requires to be called with preemption disabled.
+ */
+static inline void kvmppc_load_guest_altivec(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_ALTIVEC
+	if (cpu_has_feature(CPU_FTR_ALTIVEC)) {
+		if (!(current->thread.regs->msr & MSR_VEC)) {
+			enable_kernel_altivec();
+			load_vr_state(&vcpu->arch.vr);
+			current->thread.vr_save_area = &vcpu->arch.vr;
+			current->thread.regs->msr |= MSR_VEC;
+		}
+	}
+#endif
+}
+
+/*
+ * Save guest vcpu AltiVec state into thread.
+ * It requires to be called with preemption disabled.
+ */
+static inline void kvmppc_save_guest_altivec(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_ALTIVEC
+	if (cpu_has_feature(CPU_FTR_ALTIVEC)) {
+		if (current->thread.regs->msr & MSR_VEC)
+			giveup_altivec(current);
+		current->thread.vr_save_area = NULL;
+	}
+#endif
+}
+
 static void kvmppc_vcpu_sync_debug(struct kvm_vcpu *vcpu)
 {
 	/* Synchronize guest's desire to get debug interrupts into shadow MSR */
@@ -375,9 +409,15 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	case BOOKE_IRQPRIO_ITLB_MISS:
 	case BOOKE_IRQPRIO_SYSCALL:
 	case BOOKE_IRQPRIO_FP_UNAVAIL:
+#ifdef CONFIG_SPE_POSSIBLE
 	case BOOKE_IRQPRIO_SPE_UNAVAIL:
 	case BOOKE_IRQPRIO_SPE_FP_DATA:
 	case BOOKE_IRQPRIO_SPE_FP_ROUND:
+#endif
+#ifdef CONFIG_ALTIVEC
+	case BOOKE_IRQPRIO_ALTIVEC_UNAVAIL:
+	case BOOKE_IRQPRIO_ALTIVEC_ASSIST:
+#endif
 	case BOOKE_IRQPRIO_AP_UNAVAIL:
 		allowed = 1;
 		msr_mask = MSR_CE | MSR_ME | MSR_DE;
@@ -697,6 +737,17 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	kvmppc_load_guest_fp(vcpu);
 #endif
 
+#ifdef CONFIG_ALTIVEC
+	/* Save userspace AltiVec state in stack */
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+		enable_kernel_altivec();
+	/*
+	 * Since we can't trap on MSR_VEC in GS-mode, we consider the guest
+	 * as always using the AltiVec.
+	 */
+	kvmppc_load_guest_altivec(vcpu);
+#endif
+
 	/* Switch to guest debug context */
 	debug = vcpu->arch.dbg_reg;
 	switch_booke_debug_regs(&debug);
@@ -717,6 +768,10 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 #ifdef CONFIG_PPC_FPU
 	kvmppc_save_guest_fp(vcpu);
+#endif
+
+#ifdef CONFIG_ALTIVEC
+	kvmppc_save_guest_altivec(vcpu);
 #endif
 
 out:
@@ -1025,7 +1080,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_FP_ROUND);
 		r = RESUME_GUEST;
 		break;
-#else
+#elif defined(CONFIG_SPE_POSSIBLE)
 	case BOOKE_INTERRUPT_SPE_UNAVAIL:
 		/*
 		 * Guest wants SPE, but host kernel doesn't support it.  Send
@@ -1045,6 +1100,22 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		       __func__, exit_nr, vcpu->arch.pc);
 		run->hw.hardware_exit_reason = exit_nr;
 		r = RESUME_HOST;
+		break;
+#endif /* CONFIG_SPE_POSSIBLE */
+
+/*
+ * On cores with Vector category, KVM is loaded only if CONFIG_ALTIVEC,
+ * see kvmppc_core_check_processor_compat().
+ */
+#ifdef CONFIG_ALTIVEC
+	case BOOKE_INTERRUPT_ALTIVEC_UNAVAIL:
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ALTIVEC_UNAVAIL);
+		r = RESUME_GUEST;
+		break;
+
+	case BOOKE_INTERRUPT_ALTIVEC_ASSIST:
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ALTIVEC_ASSIST);
+		r = RESUME_GUEST;
 		break;
 #endif
 
@@ -1223,6 +1294,7 @@ out:
 			/* interrupts now hard-disabled */
 			kvmppc_fix_ee_before_entry();
 			kvmppc_load_guest_fp(vcpu);
+			kvmppc_load_guest_altivec(vcpu);
 		}
 	}
 
