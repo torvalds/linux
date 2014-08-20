@@ -57,15 +57,13 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk	if (debug) printk
 
-#define ngwriteb(dat, adr)         writeb((dat), (char *)(dev->iomem + (adr)))
-#define ngwritel(dat, adr)         writel((dat), (char *)(dev->iomem + (adr)))
-#define ngwriteb(dat, adr)         writeb((dat), (char *)(dev->iomem + (adr)))
+#define ngwriteb(dat, adr)         writeb((dat), dev->iomem + (adr))
+#define ngwritel(dat, adr)         writel((dat), dev->iomem + (adr))
+#define ngwriteb(dat, adr)         writeb((dat), dev->iomem + (adr))
 #define ngreadl(adr)               readl(dev->iomem + (adr))
 #define ngreadb(adr)               readb(dev->iomem + (adr))
-#define ngcpyto(adr, src, count)   memcpy_toio((char *) \
-				   (dev->iomem + (adr)), (src), (count))
-#define ngcpyfrom(dst, adr, count) memcpy_fromio((dst), (char *) \
-				   (dev->iomem + (adr)), (count))
+#define ngcpyto(adr, src, count)   memcpy_toio(dev->iomem + (adr), (src), (count))
+#define ngcpyfrom(dst, adr, count) memcpy_fromio((dst), dev->iomem + (adr), (count))
 
 /****************************************************************************/
 /* nGene interrupt handler **************************************************/
@@ -1592,7 +1590,7 @@ static void cxd_detach(struct ngene *dev)
 
 	dvb_ca_en50221_release(ci->en);
 	kfree(ci->en);
-	ci->en = 0;
+	ci->en = NULL;
 }
 
 /***********************************/

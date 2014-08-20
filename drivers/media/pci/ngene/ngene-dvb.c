@@ -47,7 +47,7 @@
 /* COMMAND API interface ****************************************************/
 /****************************************************************************/
 
-static ssize_t ts_write(struct file *file, const char *buf,
+static ssize_t ts_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -64,7 +64,7 @@ static ssize_t ts_write(struct file *file, const char *buf,
 	return count;
 }
 
-static ssize_t ts_read(struct file *file, char *buf,
+static ssize_t ts_read(struct file *file, char __user *buf,
 		       size_t count, loff_t *ppos)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -97,7 +97,6 @@ static const struct file_operations ci_fops = {
 };
 
 struct dvb_device ngene_dvbdev_ci = {
-	.priv    = 0,
 	.readers = -1,
 	.writers = -1,
 	.users   = -1,
