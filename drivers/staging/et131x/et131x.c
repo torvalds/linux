@@ -179,7 +179,7 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define NIC_DEFAULT_NUM_RFD	1024
 #define NUM_FBRS		2
 
-#define NUM_PACKETS_HANDLED	256
+#define MAX_PACKETS_HANDLED	256
 
 #define ALCATEL_MULTICAST_PKT	0x01000000
 #define ALCATEL_BROADCAST_PKT	0x02000000
@@ -2570,7 +2570,7 @@ static void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 	struct rx_ring *rx_ring = &adapter->rx_ring;
 
 	/* Process up to available RFD's */
-	while (count < NUM_PACKETS_HANDLED) {
+	while (count < MAX_PACKETS_HANDLED) {
 		if (list_empty(&rx_ring->recv_list)) {
 			WARN_ON(rx_ring->num_ready_recv != 0);
 			done = false;
@@ -2602,7 +2602,7 @@ static void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 		count++;
 	}
 
-	if (count == NUM_PACKETS_HANDLED || !done) {
+	if (count == MAX_PACKETS_HANDLED || !done) {
 		rx_ring->unfinished_receives = true;
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &adapter->regs->global.watchdog_timer);
