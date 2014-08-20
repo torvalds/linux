@@ -1549,8 +1549,7 @@ load:
 	ctxt->ops->set_segment(ctxt, selector, &seg_desc, base3, seg);
 	return X86EMUL_CONTINUE;
 exception:
-	emulate_exception(ctxt, err_vec, err_code, true);
-	return X86EMUL_PROPAGATE_FAULT;
+	return emulate_exception(ctxt, err_vec, err_code, true);
 }
 
 static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
@@ -2723,8 +2722,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	if (!next_tss_desc.p ||
 	    ((desc_limit < 0x67 && (next_tss_desc.type & 8)) ||
 	     desc_limit < 0x2b)) {
-		emulate_ts(ctxt, tss_selector & 0xfffc);
-		return X86EMUL_PROPAGATE_FAULT;
+		return emulate_ts(ctxt, tss_selector & 0xfffc);
 	}
 
 	if (reason == TASK_SWITCH_IRET || reason == TASK_SWITCH_JMP) {
@@ -3016,7 +3014,7 @@ static int em_movbe(struct x86_emulate_ctxt *ctxt)
 		ctxt->dst.val = swab64(ctxt->src.val);
 		break;
 	default:
-		return X86EMUL_PROPAGATE_FAULT;
+		BUG();
 	}
 	return X86EMUL_CONTINUE;
 }
