@@ -1564,150 +1564,125 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return vcpu->kvm->arch.kvm_ops->set_sregs(vcpu, sregs);
 }
 
-int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
+			union kvmppc_one_reg *val)
 {
 	int r = 0;
-	union kvmppc_one_reg val;
-	int size;
 
-	size = one_reg_size(reg->id);
-	if (size > sizeof(val))
-		return -EINVAL;
-
-	switch (reg->id) {
+	switch (id) {
 	case KVM_REG_PPC_IAC1:
-		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac1);
+		*val = get_reg_val(id, vcpu->arch.dbg_reg.iac1);
 		break;
 	case KVM_REG_PPC_IAC2:
-		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac2);
+		*val = get_reg_val(id, vcpu->arch.dbg_reg.iac2);
 		break;
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
 	case KVM_REG_PPC_IAC3:
-		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac3);
+		*val = get_reg_val(id, vcpu->arch.dbg_reg.iac3);
 		break;
 	case KVM_REG_PPC_IAC4:
-		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac4);
+		*val = get_reg_val(id, vcpu->arch.dbg_reg.iac4);
 		break;
 #endif
 	case KVM_REG_PPC_DAC1:
-		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.dac1);
+		*val = get_reg_val(id, vcpu->arch.dbg_reg.dac1);
 		break;
 	case KVM_REG_PPC_DAC2:
-		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.dac2);
-		break;
-	case KVM_REG_PPC_DBSR:
-		val = get_reg_val(reg->id, vcpu->arch.dbsr);
+		*val = get_reg_val(id, vcpu->arch.dbg_reg.dac2);
 		break;
 	case KVM_REG_PPC_EPR: {
 		u32 epr = kvmppc_get_epr(vcpu);
-		val = get_reg_val(reg->id, epr);
+		*val = get_reg_val(id, epr);
 		break;
 	}
 #if defined(CONFIG_64BIT)
 	case KVM_REG_PPC_EPCR:
-		val = get_reg_val(reg->id, vcpu->arch.epcr);
+		*val = get_reg_val(id, vcpu->arch.epcr);
 		break;
 #endif
 	case KVM_REG_PPC_TCR:
-		val = get_reg_val(reg->id, vcpu->arch.tcr);
+		*val = get_reg_val(id, vcpu->arch.tcr);
 		break;
 	case KVM_REG_PPC_TSR:
-		val = get_reg_val(reg->id, vcpu->arch.tsr);
+		*val = get_reg_val(id, vcpu->arch.tsr);
 		break;
 	case KVM_REG_PPC_DEBUG_INST:
-		val = get_reg_val(reg->id, KVMPPC_INST_EHPRIV_DEBUG);
+		*val = get_reg_val(id, KVMPPC_INST_EHPRIV_DEBUG);
 		break;
 	case KVM_REG_PPC_VRSAVE:
-		val = get_reg_val(reg->id, vcpu->arch.vrsave);
+		*val = get_reg_val(id, vcpu->arch.vrsave);
 		break;
 	default:
-		r = vcpu->kvm->arch.kvm_ops->get_one_reg(vcpu, reg->id, &val);
+		r = vcpu->kvm->arch.kvm_ops->get_one_reg(vcpu, id, val);
 		break;
 	}
-
-	if (r)
-		return r;
-
-	if (copy_to_user((char __user *)(unsigned long)reg->addr, &val, size))
-		r = -EFAULT;
 
 	return r;
 }
 
-int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
+			union kvmppc_one_reg *val)
 {
 	int r = 0;
-	union kvmppc_one_reg val;
-	int size;
 
-	size = one_reg_size(reg->id);
-	if (size > sizeof(val))
-		return -EINVAL;
-
-	if (copy_from_user(&val, (char __user *)(unsigned long)reg->addr, size))
-		return -EFAULT;
-
-	switch (reg->id) {
+	switch (id) {
 	case KVM_REG_PPC_IAC1:
-		vcpu->arch.dbg_reg.iac1 = set_reg_val(reg->id, val);
+		vcpu->arch.dbg_reg.iac1 = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_IAC2:
-		vcpu->arch.dbg_reg.iac2 = set_reg_val(reg->id, val);
+		vcpu->arch.dbg_reg.iac2 = set_reg_val(id, *val);
 		break;
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
 	case KVM_REG_PPC_IAC3:
-		vcpu->arch.dbg_reg.iac3 = set_reg_val(reg->id, val);
+		vcpu->arch.dbg_reg.iac3 = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_IAC4:
-		vcpu->arch.dbg_reg.iac4 = set_reg_val(reg->id, val);
+		vcpu->arch.dbg_reg.iac4 = set_reg_val(id, *val);
 		break;
 #endif
 	case KVM_REG_PPC_DAC1:
-		vcpu->arch.dbg_reg.dac1 = set_reg_val(reg->id, val);
+		vcpu->arch.dbg_reg.dac1 = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_DAC2:
-		vcpu->arch.dbg_reg.dac2 = set_reg_val(reg->id, val);
-		break;
-	case KVM_REG_PPC_DBSR:
-		vcpu->arch.dbsr = set_reg_val(reg->id, val);
+		vcpu->arch.dbg_reg.dac2 = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_EPR: {
-		u32 new_epr = set_reg_val(reg->id, val);
+		u32 new_epr = set_reg_val(id, *val);
 		kvmppc_set_epr(vcpu, new_epr);
 		break;
 	}
 #if defined(CONFIG_64BIT)
 	case KVM_REG_PPC_EPCR: {
-		u32 new_epcr = set_reg_val(reg->id, val);
+		u32 new_epcr = set_reg_val(id, *val);
 		kvmppc_set_epcr(vcpu, new_epcr);
 		break;
 	}
 #endif
 	case KVM_REG_PPC_OR_TSR: {
-		u32 tsr_bits = set_reg_val(reg->id, val);
+		u32 tsr_bits = set_reg_val(id, *val);
 		kvmppc_set_tsr_bits(vcpu, tsr_bits);
 		break;
 	}
 	case KVM_REG_PPC_CLEAR_TSR: {
-		u32 tsr_bits = set_reg_val(reg->id, val);
+		u32 tsr_bits = set_reg_val(id, *val);
 		kvmppc_clr_tsr_bits(vcpu, tsr_bits);
 		break;
 	}
 	case KVM_REG_PPC_TSR: {
-		u32 tsr = set_reg_val(reg->id, val);
+		u32 tsr = set_reg_val(id, *val);
 		kvmppc_set_tsr(vcpu, tsr);
 		break;
 	}
 	case KVM_REG_PPC_TCR: {
-		u32 tcr = set_reg_val(reg->id, val);
+		u32 tcr = set_reg_val(id, *val);
 		kvmppc_set_tcr(vcpu, tcr);
 		break;
 	}
 	case KVM_REG_PPC_VRSAVE:
-		vcpu->arch.vrsave = set_reg_val(reg->id, val);
+		vcpu->arch.vrsave = set_reg_val(id, *val);
 		break;
 	default:
-		r = vcpu->kvm->arch.kvm_ops->set_one_reg(vcpu, reg->id, &val);
+		r = vcpu->kvm->arch.kvm_ops->set_one_reg(vcpu, id, val);
 		break;
 	}
 

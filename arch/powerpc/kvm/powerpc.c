@@ -907,6 +907,61 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(kvmppc_handle_store);
 
+int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r = 0;
+	union kvmppc_one_reg val;
+	int size;
+
+	size = one_reg_size(reg->id);
+	if (size > sizeof(val))
+		return -EINVAL;
+
+	r = kvmppc_get_one_reg(vcpu, reg->id, &val);
+	if (r == -EINVAL) {
+		r = 0;
+		switch (reg->id) {
+		default:
+			r = -EINVAL;
+			break;
+		}
+	}
+
+	if (r)
+		return r;
+
+	if (copy_to_user((char __user *)(unsigned long)reg->addr, &val, size))
+		r = -EFAULT;
+
+	return r;
+}
+
+int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r;
+	union kvmppc_one_reg val;
+	int size;
+
+	size = one_reg_size(reg->id);
+	if (size > sizeof(val))
+		return -EINVAL;
+
+	if (copy_from_user(&val, (char __user *)(unsigned long)reg->addr, size))
+		return -EFAULT;
+
+	r = kvmppc_set_one_reg(vcpu, reg->id, &val);
+	if (r == -EINVAL) {
+		r = 0;
+		switch (reg->id) {
+		default:
+			r = -EINVAL;
+			break;
+		}
+	}
+
+	return r;
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	int r;
