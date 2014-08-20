@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/log2.h>
+#include <linux/sizes.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
