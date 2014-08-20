@@ -236,7 +236,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 			      v_WIN0_FORMAT(win->fmt_cfg) |
 			      v_WIN0_RB_SWAP(win->swap_rb);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
-
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_WIN0_INTERLACE_EN,
+				     v_WIN0_INTERLACE_EN(win->interlace_read));
 			lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_YRGB,
 				    v_X_SCL_FACTOR(win->scale_yrgb_x) |
 				    v_Y_SCL_FACTOR(win->scale_yrgb_y));
@@ -267,7 +268,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 			      v_WIN1_FORMAT(win->fmt_cfg) |
 			      v_WIN1_RB_SWAP(win->swap_rb);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
-
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_WIN1_INTERLACE_EN,
+				     v_WIN1_INTERLACE_EN(win->interlace_read));
 			lcdc_writel(lcdc_dev, WIN1_SCL_FACTOR_YRGB,
 				    v_X_SCL_FACTOR(win->scale_yrgb_x) |
 				    v_Y_SCL_FACTOR(win->scale_yrgb_y));
@@ -747,6 +749,12 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	}
 	win->scale_yrgb_x = calscale(win->area[0].xact, win->post_cfg.xsize);
 	win->scale_yrgb_y = calscale(win->area[0].yact, win->post_cfg.ysize);
+	win->interlace_read = 0;
+	if((screen->mode.xres == 720) &&
+	  ((screen->mode.yres == 576) || (screen->mode.yres == 480))) {
+		if(win->scale_yrgb_y > 2*0x1000)
+			win->interlace_read = 1;
+	}
 	switch (win->format) {
 	case ARGB888:
 		win->fmt_cfg = VOP_FORMAT_ARGB888;
