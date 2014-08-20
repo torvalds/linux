@@ -750,7 +750,7 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	win->scale_yrgb_x = calscale(win->area[0].xact, win->post_cfg.xsize);
 	win->scale_yrgb_y = calscale(win->area[0].yact, win->post_cfg.ysize);
 	win->interlace_read = 0;
-	if((screen->mode.xres == 720) &&
+	if( (screen->mode.vmode == 1) && (screen->mode.xres == 720) &&
 	  ((screen->mode.yres == 576) || (screen->mode.yres == 480))) {
 		if(win->scale_yrgb_y > 2*0x1000)
 			win->interlace_read = 1;

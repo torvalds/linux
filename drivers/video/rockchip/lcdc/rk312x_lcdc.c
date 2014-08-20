@@ -1147,7 +1147,7 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	win->scale_yrgb_y = CalScale(win->area[0].yact, win->area[0].ysize);
 
 	win->interlace_read = 0;
-	if((screen->mode.xres == 720) &&
+	if((screen->mode.vmode == 1) && (screen->mode.xres == 720) &&
 	  ((screen->mode.yres == 576) || (screen->mode.yres == 480))) {
 		if (lcdc_dev->soc_type == VOP_RK3036) {
 			if (win->scale_yrgb_y > 2*0x1000)
