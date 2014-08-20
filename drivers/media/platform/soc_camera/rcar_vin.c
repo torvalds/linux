@@ -981,7 +981,7 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 
 		if (shift == 3) {
 			dev_err(dev,
-				"Failed to configure the client below %ux%x\n",
+				"Failed to configure the client below %ux%u\n",
 				mf.width, mf.height);
 			return -EIO;
 		}
