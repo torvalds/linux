@@ -47,7 +47,7 @@
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
 #include <linux/delay.h>	/* For udelay */
-#include <asm/uaccess.h>	/* For copy_from_user/copy_to_user */
+#include <linux/uaccess.h>	/* For copy_from_user/copy_to_user */
 #include <linux/pci.h>
 
 #include "dgnc_driver.h"
