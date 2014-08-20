@@ -794,6 +794,7 @@ static void wifi_del_dev(void);
 int rtw_android_wifictrl_func_add(void)
 {
 	int ret = 0;
+#if 0
 	sema_init(&wifi_control_sem, 0);
 
 	ret = wifi_add_dev();
@@ -808,17 +809,19 @@ int rtw_android_wifictrl_func_add(void)
 		ret = -EINVAL;
 		DBG_871X("%s: platform_driver_register timeout\n", __FUNCTION__);
 	}
-
+#endif
 	return ret;
 }
 
 void rtw_android_wifictrl_func_del(void)
 {
+#if 0
 	if (g_wifidev_registered)
 	{
 		wifi_del_dev();
 		g_wifidev_registered = 0;
 	}
+#endif
 }
 
 void *wl_android_prealloc(int section, unsigned long size)

@@ -1326,7 +1326,7 @@ u8 convert_ip_addr(u8 hch, u8 mch, u8 lch)
 }
 
 extern char* rtw_initmac;
-extern int rk29sdk_wifi_mac_addr(unsigned char *buf);
+extern int rockchip_wifi_mac_addr(unsigned char *buf);
 
 void rtw_macaddr_cfg(u8 *mac_addr)
 {
@@ -1349,7 +1349,7 @@ void rtw_macaddr_cfg(u8 *mac_addr)
     {
         printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", mac_addr[0], mac_addr[1],
             mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-        if (!rk29sdk_wifi_mac_addr(macbuf)) {
+        if (!rockchip_wifi_mac_addr(macbuf)) {
             int jj,kk;
             printk("=========> get mac address from flash %s\n", macbuf);
             for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )

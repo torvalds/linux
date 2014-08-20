@@ -1419,11 +1419,10 @@ static void rtw_drv_halt(void)
 
 #include "wifi_version.h"
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-static int __init rockchip_wifi_init_module(void)
-#else
+extern int rockchip_wifi_power(int on);
+extern int rockchip_wifi_set_carddetect(int val);
+
 int rockchip_wifi_init_module(void)
-#endif
 {
     printk("\n");
     printk("=======================================================\n");
@@ -1431,14 +1430,12 @@ int rockchip_wifi_init_module(void)
     printk("=======================================================\n");
     printk("Realtek 8723BS SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
 
+    rockchip_wifi_power(1);
+    rockchip_wifi_set_carddetect(1);    
     return rtw_drv_entry();
 }
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-static void __exit rockchip_wifi_exit_module(void)
-#else
 void rockchip_wifi_exit_module(void)
-#endif
 {
     printk("\n");
     printk("=======================================================\n");
@@ -1447,15 +1444,13 @@ void rockchip_wifi_exit_module(void)
     printk("Realtek 8723BS SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
 
     rtw_drv_halt();
+
+    rockchip_wifi_set_carddetect(0);
+    rockchip_wifi_power(0);
 }
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-late_initcall(rockchip_wifi_init_module);
-module_exit(rockchip_wifi_exit_module);
-#else
 EXPORT_SYMBOL(rockchip_wifi_init_module);
 EXPORT_SYMBOL(rockchip_wifi_exit_module);
-#endif
 //module_init(rtw_drv_entry);
 //module_exit(rtw_drv_halt);
 
