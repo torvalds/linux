@@ -350,9 +350,9 @@ static bool restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 			drm_plane_force_disable(plane);
 
 		if (dev->mode_config.rotation_property) {
-			drm_object_property_set_value(&plane->base,
-					dev->mode_config.rotation_property,
-					BIT(DRM_ROTATE_0));
+			drm_mode_plane_set_obj_prop(plane,
+						    dev->mode_config.rotation_property,
+						    BIT(DRM_ROTATE_0));
 		}
 	}
 

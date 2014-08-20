@@ -4156,12 +4156,25 @@ static int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 	return ret;
 }
 
-static int drm_mode_plane_set_obj_prop(struct drm_mode_object *obj,
-				      struct drm_property *property,
-				      uint64_t value)
+/**
+ * drm_mode_plane_set_obj_prop - set the value of a property
+ * @plane: drm plane object to set property value for
+ * @property: property to set
+ * @value: value the property should be set to
+ *
+ * This functions sets a given property on a given plane object. This function
+ * calls the driver's ->set_property callback and changes the software state of
+ * the property if the callback succeeds.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
+				struct drm_property *property,
+				uint64_t value)
 {
 	int ret = -EINVAL;
-	struct drm_plane *plane = obj_to_plane(obj);
+	struct drm_mode_object *obj = &plane->base;
 
 	if (plane->funcs->set_property)
 		ret = plane->funcs->set_property(plane, property, value);
@@ -4170,6 +4183,7 @@ static int drm_mode_plane_set_obj_prop(struct drm_mode_object *obj,
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_mode_plane_set_obj_prop);
 
 /**
  * drm_mode_getproperty_ioctl - get the current value of a object's property
@@ -4308,7 +4322,8 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		ret = drm_mode_crtc_set_obj_prop(arg_obj, property, arg->value);
 		break;
 	case DRM_MODE_OBJECT_PLANE:
-		ret = drm_mode_plane_set_obj_prop(arg_obj, property, arg->value);
+		ret = drm_mode_plane_set_obj_prop(obj_to_plane(arg_obj),
+						  property, arg->value);
 		break;
 	}
 

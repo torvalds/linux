@@ -1121,6 +1121,9 @@ extern int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 					     struct drm_file *file_priv);
 extern int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 					   struct drm_file *file_priv);
+extern int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
+				       struct drm_property *property,
+				       uint64_t value);
 
 extern void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 				 int *bpp);
