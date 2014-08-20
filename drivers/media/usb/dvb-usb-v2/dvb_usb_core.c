@@ -21,7 +21,7 @@
 
 #include "dvb_usb_common.h"
 
-int dvb_usbv2_disable_rc_polling;
+static int dvb_usbv2_disable_rc_polling;
 module_param_named(disable_rc_polling, dvb_usbv2_disable_rc_polling, int, 0644);
 MODULE_PARM_DESC(disable_rc_polling,
 		"disable remote control polling (default: 0)");
