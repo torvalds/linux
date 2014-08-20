@@ -373,7 +373,6 @@ static struct platform_driver hid_prox_platform_driver = {
 	.id_table = hid_prox_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_prox_probe,
 	.remove		= hid_prox_remove,

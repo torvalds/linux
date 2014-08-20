@@ -883,7 +883,6 @@ static struct platform_driver twl4030_madc_driver = {
 	.remove = twl4030_madc_remove,
 	.driver = {
 		   .name = "twl4030_madc",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(twl_madc_of_match),
 	},
 };

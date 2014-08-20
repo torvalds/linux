@@ -416,7 +416,6 @@ static struct platform_driver hid_gyro_3d_platform_driver = {
 	.id_table = hid_gyro_3d_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_gyro_3d_probe,
 	.remove		= hid_gyro_3d_remove,
