@@ -1403,8 +1403,7 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 	rsp = (struct smb2_close_rsp *)iov[0].iov_base;
 
 	if (rc != 0) {
-		if (tcon)
-			cifs_stats_fail_inc(tcon, SMB2_CLOSE_HE);
+		cifs_stats_fail_inc(tcon, SMB2_CLOSE_HE);
 		goto close_exit;
 	}
 
