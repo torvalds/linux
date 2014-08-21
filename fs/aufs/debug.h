@@ -111,6 +111,7 @@ struct au_sbinfo;
 struct au_finfo;
 struct dentry;
 #ifdef CONFIG_AUFS_DEBUG
+extern struct mutex au_dbg_mtx;
 extern char *au_plevel;
 struct au_nhash;
 void au_dpri_whlist(struct au_nhash *whlist);
@@ -139,38 +140,52 @@ void au_dbg_verify_kthread(void);
 int __init au_debug_init(void);
 void au_debug_sbinfo_init(struct au_sbinfo *sbinfo);
 #define AuDbgWhlist(w) do { \
+	mutex_lock(&au_dbg_mtx); \
 	AuDbg(#w "\n"); \
 	au_dpri_whlist(w); \
+	mutex_unlock(&au_dbg_mtx); \
 } while (0)
 
 #define AuDbgVdir(v) do { \
+	mutex_lock(&au_dbg_mtx); \
 	AuDbg(#v "\n"); \
 	au_dpri_vdir(v); \
+	mutex_unlock(&au_dbg_mtx); \
 } while (0)
 
 #define AuDbgInode(i) do { \
+	mutex_lock(&au_dbg_mtx); \
 	AuDbg(#i "\n"); \
 	au_dpri_inode(i); \
+	mutex_unlock(&au_dbg_mtx); \
 } while (0)
 
 #define AuDbgDAlias(i) do { \
+	mutex_lock(&au_dbg_mtx); \
 	AuDbg(#i "\n"); \
 	au_dpri_dalias(i); \
+	mutex_unlock(&au_dbg_mtx); \
 } while (0)
 
 #define AuDbgDentry(d) do { \
+	mutex_lock(&au_dbg_mtx); \
 	AuDbg(#d "\n"); \
 	au_dpri_dentry(d); \
+	mutex_unlock(&au_dbg_mtx); \
 } while (0)
 
 #define AuDbgFile(f) do { \
+	mutex_lock(&au_dbg_mtx); \
 	AuDbg(#f "\n"); \
 	au_dpri_file(f); \
+	mutex_unlock(&au_dbg_mtx); \
 } while (0)
 
 #define AuDbgSb(sb) do { \
+	mutex_lock(&au_dbg_mtx); \
 	AuDbg(#sb "\n"); \
 	au_dpri_sb(sb); \
+	mutex_unlock(&au_dbg_mtx); \
 } while (0)
 
 #define AuDbgSleep(sec) do { \
