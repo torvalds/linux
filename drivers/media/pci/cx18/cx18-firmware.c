@@ -164,7 +164,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 
 	apu_version = (vers[0] << 24) | (vers[4] << 16) | vers[32];
 	while (offset + sizeof(seghdr) < fw->size) {
-		const u32 *shptr = src + offset / 4;
+		const __le32 *shptr = (__force __le32 *)src + offset / 4;
 
 		seghdr.sync1 = le32_to_cpu(shptr[0]);
 		seghdr.sync2 = le32_to_cpu(shptr[1]);
