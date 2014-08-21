@@ -272,7 +272,7 @@ bl_read_pagelist(struct nfs_pgio_header *hdr)
 	isect = (sector_t) (f_offset >> SECTOR_SHIFT);
 	/* Code assumes extents are page-aligned */
 	for (i = pg_index; i < hdr->page_array.npages; i++) {
-		if (!extent_length) {
+		if (extent_length <= 0) {
 			/* We've used up the previous extent */
 			bl_put_extent(be);
 			bl_put_extent(cow_read);
@@ -303,6 +303,7 @@ bl_read_pagelist(struct nfs_pgio_header *hdr)
 			f_offset += pg_len;
 			bytes_left -= pg_len;
 			isect += (pg_offset >> SECTOR_SHIFT);
+			extent_length -= (pg_offset >> SECTOR_SHIFT);
 		} else {
 			pg_offset = 0;
 			pg_len = PAGE_CACHE_SIZE;
@@ -333,7 +334,7 @@ bl_read_pagelist(struct nfs_pgio_header *hdr)
 			}
 		}
 		isect += (pg_len >> SECTOR_SHIFT);
-		extent_length -= PAGE_CACHE_SECTORS;
+		extent_length -= (pg_len >> SECTOR_SHIFT);
 	}
 	if ((isect << SECTOR_SHIFT) >= header->inode->i_size) {
 		hdr->res.eof = 1;
@@ -797,7 +798,7 @@ next_page:
 	/* Middle pages */
 	pg_index = header->args.pgbase >> PAGE_CACHE_SHIFT;
 	for (i = pg_index; i < header->page_array.npages; i++) {
-		if (!extent_length) {
+		if (extent_length <= 0) {
 			/* We've used up the previous extent */
 			bl_put_extent(be);
 			bl_put_extent(cow_read);
