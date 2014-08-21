@@ -5607,6 +5607,8 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	/* Wa4x4STCOptimizationDisable:bdw */
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(GEN8_4x4_STC_OPTIMIZATION_DISABLE));
+
+	lpt_init_clock_gating(dev);
 }
 
 static void haswell_init_clock_gating(struct drm_device *dev)
