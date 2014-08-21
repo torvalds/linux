@@ -557,7 +557,7 @@ static int logi_dj_ll_raw_request(struct hid_device *hid,
 	if (!out_buf)
 		return -ENOMEM;
 
-	if (count < DJREPORT_SHORT_LENGTH - 2)
+	if (count > DJREPORT_SHORT_LENGTH - 2)
 		count = DJREPORT_SHORT_LENGTH - 2;
 
 	out_buf[0] = REPORT_ID_DJ_SHORT;
