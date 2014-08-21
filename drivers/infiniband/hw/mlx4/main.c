@@ -360,7 +360,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	props->state		= IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 	props->active_mtu	= IB_MTU_256;
-	spin_lock(&iboe->lock);
+	spin_lock_bh(&iboe->lock);
 	ndev = iboe->netdevs[port - 1];
 	if (!ndev)
 		goto out_unlock;
@@ -372,7 +372,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 out_unlock:
-	spin_unlock(&iboe->lock);
+	spin_unlock_bh(&iboe->lock);
 out:
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
 	return err;
@@ -814,11 +814,11 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 	if (!mqp->port)
 		return 0;
 
-	spin_lock(&mdev->iboe.lock);
+	spin_lock_bh(&mdev->iboe.lock);
 	ndev = mdev->iboe.netdevs[mqp->port - 1];
 	if (ndev)
 		dev_hold(ndev);
-	spin_unlock(&mdev->iboe.lock);
+	spin_unlock_bh(&mdev->iboe.lock);
 
 	if (ndev) {
 		ret = 1;
@@ -1265,11 +1265,11 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	mutex_lock(&mqp->mutex);
 	ge = find_gid_entry(mqp, gid->raw);
 	if (ge) {
-		spin_lock(&mdev->iboe.lock);
+		spin_lock_bh(&mdev->iboe.lock);
 		ndev = ge->added ? mdev->iboe.netdevs[ge->port - 1] : NULL;
 		if (ndev)
 			dev_hold(ndev);
-		spin_unlock(&mdev->iboe.lock);
+		spin_unlock_bh(&mdev->iboe.lock);
 		if (ndev)
 			dev_put(ndev);
 		list_del(&ge->list);
@@ -1554,7 +1554,7 @@ static int mlx4_ib_addr_event(int event, struct net_device *event_netdev,
 		return 0;
 
 	iboe = &ibdev->iboe;
-	spin_lock(&iboe->lock);
+	spin_lock_bh(&iboe->lock);
 
 	for (port = 1; port <= ibdev->dev->caps.num_ports; ++port)
 		if ((netif_is_bond_master(real_dev) &&
@@ -1564,7 +1564,7 @@ static int mlx4_ib_addr_event(int event, struct net_device *event_netdev,
 			update_gid_table(ibdev, port, gid,
 					 event == NETDEV_DOWN, 0);
 
-	spin_unlock(&iboe->lock);
+	spin_unlock_bh(&iboe->lock);
 	return 0;
 
 }
@@ -1742,7 +1742,7 @@ static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 	}
 
 	read_lock(&dev_base_lock);
-	spin_lock(&iboe->lock);
+	spin_lock_bh(&iboe->lock);
 
 	for_each_netdev(&init_net, dev) {
 		u8 port = mlx4_ib_get_dev_port(dev, ibdev);
@@ -1753,7 +1753,7 @@ static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 		}
 	}
 
-	spin_unlock(&iboe->lock);
+	spin_unlock_bh(&iboe->lock);
 	read_unlock(&dev_base_lock);
 out:
 	return err;
@@ -1770,7 +1770,7 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
 
 	iboe = &ibdev->iboe;
 
-	spin_lock(&iboe->lock);
+	spin_lock_bh(&iboe->lock);
 	mlx4_foreach_ib_transport_port(port, ibdev->dev) {
 		enum ib_port_state	port_state = IB_PORT_NOP;
 		struct net_device *old_master = iboe->masters[port - 1];
@@ -1842,7 +1842,7 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
 		}
 	}
 
-	spin_unlock(&iboe->lock);
+	spin_unlock_bh(&iboe->lock);
 
 	if (update_qps_port > 0)
 		mlx4_ib_update_qps(ibdev, dev, update_qps_port);
