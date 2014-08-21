@@ -1210,7 +1210,7 @@ static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 
 	val = I915_READ(pp_reg);
 	if (!(val & PANEL_POWER_ON) ||
-	    ((val & PANEL_UNLOCK_REGS) == PANEL_UNLOCK_REGS))
+	    ((val & PANEL_UNLOCK_MASK) == PANEL_UNLOCK_REGS))
 		locked = false;
 
 	if (I915_READ(lvds_reg) & LVDS_PIPEB_SELECT)
