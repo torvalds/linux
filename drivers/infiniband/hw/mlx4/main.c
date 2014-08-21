@@ -1802,14 +1802,23 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
 			port_state = (netif_running(curr_netdev) && netif_carrier_ok(curr_netdev)) ?
 						IB_PORT_ACTIVE : IB_PORT_DOWN;
 			mlx4_ib_set_default_gid(ibdev, curr_netdev, port);
-			/* if using bonding/team and a slave port is down, we
-			 * don't the bond IP based gids in the table since
-			 * flows that select port by gid may get the down port.
-			 */
-			if (curr_master && (port_state == IB_PORT_DOWN)) {
-				reset_gid_table(ibdev, port);
-				mlx4_ib_set_default_gid(ibdev,
-							curr_netdev, port);
+			if (curr_master) {
+				/* if using bonding/team and a slave port is down, we
+				 * don't want the bond IP based gids in the table since
+				 * flows that select port by gid may get the down port.
+				*/
+				if (port_state == IB_PORT_DOWN) {
+					reset_gid_table(ibdev, port);
+					mlx4_ib_set_default_gid(ibdev,
+								curr_netdev,
+								port);
+				} else {
+					/* gids from the upper dev (bond/team)
+					 * should appear in port's gid table
+					*/
+					mlx4_ib_get_dev_addr(curr_master,
+							     ibdev, port);
+				}
 			}
 			/* if bonding is used it is possible that we add it to
 			 * masters only after IP address is assigned to the
