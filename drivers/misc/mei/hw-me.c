@@ -574,11 +574,7 @@ static bool mei_me_pg_is_enabled(struct mei_device *dev)
 	if ((reg & ME_PGIC_HRA) == 0)
 		goto notsupported;
 
-	if (dev->version.major_version < HBM_MAJOR_VERSION_PGI)
-		goto notsupported;
-
-	if (dev->version.major_version == HBM_MAJOR_VERSION_PGI &&
-	    dev->version.minor_version < HBM_MINOR_VERSION_PGI)
+	if (!dev->hbm_f_pg_supported)
 		goto notsupported;
 
 	return true;

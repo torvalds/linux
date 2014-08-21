@@ -372,7 +372,8 @@ static int mei_hbm_prop_req(struct mei_device *dev)
  * @dev: the device structure
  * @pg_cmd: the pg command code
  *
- * This function returns -EIO on write failure
+ * returns -EIO on write failure
+ *         -EOPNOTSUPP if the operation is not supported by the protocol
  */
 int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd)
 {
@@ -380,6 +381,9 @@ int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd)
 	struct hbm_power_gate *req;
 	const size_t len = sizeof(struct hbm_power_gate);
 	int ret;
+
+	if (!dev->hbm_f_pg_supported)
+		return -EOPNOTSUPP;
 
 	mei_hbm_hdr(mei_hdr, len);
 
@@ -660,6 +664,23 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 	return 0;
 }
 
+/**
+ * mei_hbm_config_features: check what hbm features and commands
+ *        are supported by the fw
+ *
+ * @dev: the device structure
+ */
+static void mei_hbm_config_features(struct mei_device *dev)
+{
+	/* Power Gating Isolation Support */
+	dev->hbm_f_pg_supported = 0;
+	if (dev->version.major_version > HBM_MAJOR_VERSION_PGI)
+		dev->hbm_f_pg_supported = 1;
+
+	if (dev->version.major_version == HBM_MAJOR_VERSION_PGI &&
+	    dev->version.minor_version >= HBM_MINOR_VERSION_PGI)
+		dev->hbm_f_pg_supported = 1;
+}
 
 /**
  * mei_hbm_version_is_supported - checks whether the driver can
@@ -742,6 +763,8 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			}
 			break;
 		}
+
+		mei_hbm_config_features(dev);
 
 		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
 		    dev->hbm_state != MEI_HBM_STARTING) {
