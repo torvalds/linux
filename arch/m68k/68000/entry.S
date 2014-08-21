@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m68knommu/platform/68328/entry.S
+ *  entry.S -- non-mmu 68000 interrupt and exception entry points
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *

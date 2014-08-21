@@ -1,6 +1,5 @@
-/* arch/m68knommu/platform/68360/head-rom.S
- *
- * Startup code for Motorola 68360
+/*
+ * head-rom.S - startup code for Motorola 68360
  *
  * Copyright (C) SED Systems, a Division of Calian Ltd.
  * Based on: arch/m68knommu/platform/68328/pilot/crt0_rom.S

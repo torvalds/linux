@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m68knommu/platform/68360/config.c
+ *  config.c - non-mmu 68360 platform initialization code
  *
  *  Copyright (c) 2000 Michael Leslie <mleslie@lineo.com>
  *  Copyright (C) 1993 Hamish Macdonald

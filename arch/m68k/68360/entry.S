@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m68knommu/platform/68360/entry.S
+ *  entry.S - non-mmu 68360 interrupt and exceptions entry points
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2001 SED Systems, a Division of Calian Ltd.
