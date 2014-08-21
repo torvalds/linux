@@ -26,13 +26,15 @@
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
-
+#include <linux/device.h>
 #include "rockchip-iommu.h"
 
 /* We does not consider super section mapping (16MB) */
 #define SPAGE_ORDER 12
 #define SPAGE_SIZE (1 << SPAGE_ORDER)
 #define SPAGE_MASK (~(SPAGE_SIZE - 1))
+
+void __iomem *vop_mmu_base;
 
 enum iommu_entry_flags {
 	IOMMU_FLAGS_PRESENT = 0x01,
@@ -72,7 +74,8 @@ enum iommu_entry_flags {
 #define IOMMU_REG_POLL_COUNT_FAST 1000
 
 /*rk3036:vpu and hevc share ahb interface*/
-#define BIT_VCODEC_SEL (1<<3)
+#define BIT_VCODEC_SEL_3036 (1<<3)
+#define BIT_VCODEC_SEL_312x (1<<15)
 
 
 /**
@@ -174,17 +177,26 @@ static struct kmem_cache *lv2table_kmem_cache;
 
 static void rockchip_vcodec_select(const char *string)
 {
-	if(strstr(string,"hevc"))
-	{
-		writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) |
-			      (BIT_VCODEC_SEL) | (BIT_VCODEC_SEL << 16),
+	if (strstr(string,"hevc")) {
+		if (cpu_is_rk3036()) {
+			writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) |
+			      (BIT_VCODEC_SEL_3036) | (BIT_VCODEC_SEL_3036 << 16),
 			      RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
-	}
-	else if(strstr(string,"vpu"))
-	{
-		writel_relaxed((readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) &
-			       (~BIT_VCODEC_SEL)) | (BIT_VCODEC_SEL << 16),
+		} else {
+			writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK312X_GRF_SOC_CON1) |
+			      (BIT_VCODEC_SEL_312x) | (BIT_VCODEC_SEL_312x << 16),
+			      RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
+		}
+	} else if (strstr(string,"vpu")) {
+		if (cpu_is_rk3036()) {
+			writel_relaxed((readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) &
+			       (~BIT_VCODEC_SEL_3036)) | (BIT_VCODEC_SEL_3036 << 16),
 			       RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
+		} else {
+			writel_relaxed((readl_relaxed(RK_GRF_VIRT + RK312X_GRF_SOC_CON1) &
+			       (~BIT_VCODEC_SEL_312x)) | (BIT_VCODEC_SEL_312x << 16),
+			       RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
+		}
 	}
 }
 static unsigned long *section_entry(unsigned long *pgtable, unsigned long iova)
@@ -233,20 +245,34 @@ static bool is_iommu_active(struct iommu_drvdata *data)
 static void iommu_disable_stall(void __iomem *base)
 {
 	int i;
-	u32 mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
+	u32 mmu_status;
 
+	if (base != vop_mmu_base) {
+		mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
+	} else {
+		goto skip_vop_mmu_disable;
+	}
 	if (0 == (mmu_status & IOMMU_STATUS_BIT_PAGING_ENABLED))
 		return;
 	if (mmu_status & IOMMU_STATUS_BIT_PAGE_FAULT_ACTIVE) {
-		pr_err("Aborting MMU disable stall request since it is in pagefault state.\n");
+		pr_info("Aborting MMU disable stall request since it is in pagefault state.\n");
 		return;
 	}
+	skip_vop_mmu_disable:
 	__raw_writel(IOMMU_COMMAND_DISABLE_STALL,
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		u32 status = __raw_readl(base + IOMMU_REGISTER_STATUS);
-
+		u32 status;
+		
+		if (base != vop_mmu_base) {
+			status = __raw_readl(base + IOMMU_REGISTER_STATUS);
+		} else {
+			int j;
+			while (j < 5)
+				j++;
+			return;	
+		}
 		if (0 == (status & IOMMU_STATUS_BIT_STALL_ACTIVE))
 			break;
 		if (status & IOMMU_STATUS_BIT_PAGE_FAULT_ACTIVE)
@@ -254,28 +280,42 @@ static void iommu_disable_stall(void __iomem *base)
 		if (0 == (mmu_status & IOMMU_STATUS_BIT_PAGING_ENABLED))
 			break;
 	}
-	if (IOMMU_REG_POLL_COUNT_FAST == i)
-		pr_err("Disable stall request failed, MMU status is 0x%08X\n",
-		       __raw_readl(base + IOMMU_REGISTER_STATUS));
+	if (IOMMU_REG_POLL_COUNT_FAST == i) {
+		pr_info("Disable stall request failed, MMU status is 0x%08X\n",
+		      __raw_readl(base + IOMMU_REGISTER_STATUS));
+	}
 }
 
 static bool iommu_enable_stall(void __iomem *base)
 {
 	int i;
 
-	u32 mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
-
+	u32 mmu_status;
+	
+	if (base != vop_mmu_base) {
+		mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
+	} else {
+		goto skip_vop_mmu_enable;
+	}
 	if (0 == (mmu_status & IOMMU_STATUS_BIT_PAGING_ENABLED))
 		return true;
 	if (mmu_status & IOMMU_STATUS_BIT_PAGE_FAULT_ACTIVE) {
-		pr_err("Aborting MMU stall request since it is in pagefault state.\n");
+		pr_info("Aborting MMU stall request since it is in pagefault state.\n");
 		return false;
 	}
+	skip_vop_mmu_enable:
 	__raw_writel(IOMMU_COMMAND_ENABLE_STALL,
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
+		if (base != vop_mmu_base) {
+			mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
+		} else {
+			int j;
+			while (j < 5)
+				j++;
+			return true;
+		}
 		if (mmu_status & IOMMU_STATUS_BIT_PAGE_FAULT_ACTIVE)
 			break;
 		if ((mmu_status & IOMMU_STATUS_BIT_STALL_ACTIVE) &&
@@ -285,12 +325,12 @@ static bool iommu_enable_stall(void __iomem *base)
 			break;
 	}
 	if (IOMMU_REG_POLL_COUNT_FAST == i) {
-		pr_err("Enable stall request failed, MMU status is 0x%08X\n",
+		pr_info("Enable stall request failed, MMU status is 0x%08X\n",
 		       __raw_readl(base + IOMMU_REGISTER_STATUS));
 		return false;
 	}
 	if (mmu_status & IOMMU_STATUS_BIT_PAGE_FAULT_ACTIVE) {
-		pr_err("Aborting MMU stall request since it has a pagefault.\n");
+		pr_info("Aborting MMU stall request since it has a pagefault.\n");
 		return false;
 	}
 	return true;
@@ -304,12 +344,19 @@ static bool iommu_enable_paging(void __iomem *base)
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		if (__raw_readl(base + IOMMU_REGISTER_STATUS) &
+		if (base != vop_mmu_base) {
+			if (__raw_readl(base + IOMMU_REGISTER_STATUS) &
 				IOMMU_STATUS_BIT_PAGING_ENABLED)
 			break;
+		} else {
+			int j;
+			while (j < 5)
+				j++;
+			return true;
+		}
 	}
 	if (IOMMU_REG_POLL_COUNT_FAST == i) {
-		pr_err("Enable paging request failed, MMU status is 0x%08X\n",
+		pr_info("Enable paging request failed, MMU status is 0x%08X\n",
 		       __raw_readl(base + IOMMU_REGISTER_STATUS));
 		return false;
 	}
@@ -320,16 +367,24 @@ static bool iommu_disable_paging(void __iomem *base)
 {
 	int i;
 
+	return true;
 	__raw_writel(IOMMU_COMMAND_DISABLE_PAGING,
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		if (!(__raw_readl(base + IOMMU_REGISTER_STATUS) &
+		if (base != vop_mmu_base) {
+			if (!(__raw_readl(base + IOMMU_REGISTER_STATUS) &
 				  IOMMU_STATUS_BIT_PAGING_ENABLED))
-			break;
+				break;
+		} else {
+			int j;
+			while (j < 5)
+				j++;
+			return true;
+		}
 	}
 	if (IOMMU_REG_POLL_COUNT_FAST == i) {
-		pr_err("Disable paging request failed, MMU status is 0x%08X\n",
+		pr_info("Disable paging request failed, MMU status is 0x%08X\n",
 		       __raw_readl(base + IOMMU_REGISTER_STATUS));
 		return false;
 	}
@@ -355,26 +410,37 @@ static bool iommu_zap_tlb(void __iomem *base)
 	iommu_disable_stall(base);
 	return true;
 }
-
+extern bool __clk_is_enabled(struct clk *clk);
 static inline bool iommu_raw_reset(void __iomem *base)
 {
 	int i;
+	unsigned int ret;
 
 	__raw_writel(0xCAFEBABE, base + IOMMU_REGISTER_DTE_ADDR);
 
-	if (!(0xCAFEB000 == __raw_readl(base + IOMMU_REGISTER_DTE_ADDR))) {
-		pr_err("error when %s.\n", __func__);
-		return false;
+	if (base != vop_mmu_base) {
+		ret = __raw_readl(base + IOMMU_REGISTER_DTE_ADDR);
+		if (!(0xCAFEB000 == ret)) {
+			pr_info("error when %s.\n", __func__);
+			return false;
+		}
 	}
 	__raw_writel(IOMMU_COMMAND_HARD_RESET,
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		if (__raw_readl(base + IOMMU_REGISTER_DTE_ADDR) == 0)
-			break;
+		if (base != vop_mmu_base) {
+			if (__raw_readl(base + IOMMU_REGISTER_DTE_ADDR) == 0)
+				break;
+		} else {
+			int j;
+			while (j < 5)
+				j++;
+			return true;
+		}
 	}
 	if (IOMMU_REG_POLL_COUNT_FAST == i) {
-		pr_err("%s,Reset request failed, MMU status is 0x%08X\n",
+		pr_info("%s,Reset request failed, MMU status is 0x%08X\n",
 		       __func__, __raw_readl(base + IOMMU_REGISTER_DTE_ADDR));
 		return false;
 	}
@@ -392,7 +458,7 @@ static bool iommu_reset(void __iomem *base, const char *dbgname)
 
 	err = iommu_enable_stall(base);
 	if (!err) {
-		pr_err("%s:stall failed: %s\n", __func__, dbgname);
+		pr_info("%s:stall failed: %s\n", __func__, dbgname);
 		return err;
 	}
 	err = iommu_raw_reset(base);
@@ -402,7 +468,7 @@ static bool iommu_reset(void __iomem *base, const char *dbgname)
 			     base+IOMMU_REGISTER_INT_MASK);
 	iommu_disable_stall(base);
 	if (!err)
-		pr_err("%s: failed: %s\n", __func__, dbgname);
+		pr_info("%s: failed: %s\n", __func__, dbgname);
 	return err;
 }
 
@@ -431,24 +497,24 @@ static int default_fault_handler(struct device *dev,
 	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
 
 	if (!data) {
-		pr_err("%s,iommu device not assigned yet\n", __func__);
+		dev_err(dev->archdata.iommu,"%s,iommu device not assigned yet\n", __func__);
 		return 0;
 	}
 	if ((itype >= IOMMU_FAULTS_NUM) || (itype < IOMMU_PAGEFAULT))
 		itype = IOMMU_FAULT_UNKNOWN;
 
 	if (itype == IOMMU_BUSERROR)
-		pr_err("%s occured at 0x%lx(Page table base: 0x%lx)\n",
+		dev_err(dev->archdata.iommu,"%s occured at 0x%lx(Page table base: 0x%lx)\n",
 		       iommu_fault_name[itype], fault_addr, pgtable_base);
 
 	if (itype == IOMMU_PAGEFAULT)
-		pr_err("IOMMU:Page fault detected at 0x%lx from bus id %d of type %s on %s\n",
+		dev_err(dev->archdata.iommu,"IOMMU:Page fault detected at 0x%lx from bus id %d of type %s on %s\n",
 		       fault_addr,
 		       (status >> 6) & 0x1F,
 		       (status & 32) ? "write" : "read",
 		       data->dbgname);
 
-	pr_err("Generating Kernel OOPS... because it is unrecoverable.\n");
+	dev_err(dev->archdata.iommu,"Generating Kernel OOPS... because it is unrecoverable.\n");
 
 	BUG();
 
@@ -482,15 +548,15 @@ static void dump_pagetbl(u32 fault_address, u32 addr_dte)
 	lv2_entry_va = (u32 *)(__va(lv2_base)) + lv2_offset;
 	lv2_entry_value = (u32 *)(*lv2_entry_va);
 
-	pr_info("fault address = 0x%08x,dte addr pa = 0x%08x,va = 0x%08x\n",
+	dev_info(NULL,"fault address = 0x%08x,dte addr pa = 0x%08x,va = 0x%08x\n",
 		fault_address, addr_dte, (u32)__va(addr_dte));
-	pr_info("lv1_offset = 0x%x,lv1_entry_pa = 0x%08x,lv1_entry_va = 0x%08x\n",
+	dev_info(NULL,"lv1_offset = 0x%x,lv1_entry_pa = 0x%08x,lv1_entry_va = 0x%08x\n",
 		lv1_offset, (u32)lv1_entry_pa, (u32)lv1_entry_va);
-	pr_info("lv1_entry_value(*lv1_entry_va) = 0x%08x,lv2_base = 0x%08x\n",
+	dev_info(NULL,"lv1_entry_value(*lv1_entry_va) = 0x%08x,lv2_base = 0x%08x\n",
 		(u32)lv1_entry_value, (u32)lv2_base);
-	pr_info("lv2_offset = 0x%x,lv2_entry_pa = 0x%08x,lv2_entry_va = 0x%08x\n",
+	dev_info(NULL,"lv2_offset = 0x%x,lv2_entry_pa = 0x%08x,lv2_entry_va = 0x%08x\n",
 		lv2_offset, (u32)lv2_entry_pa, (u32)lv2_entry_va);
-	pr_info("lv2_entry value(*lv2_entry_va) = 0x%08x\n",
+	dev_info(NULL,"lv2_entry value(*lv2_entry_va) = 0x%08x\n",
 		(u32)lv2_entry_value);
 }
 
@@ -521,8 +587,15 @@ static irqreturn_t rockchip_iommu_irq(int irq, void *dev_id)
 
 	for (i = 0; i < data->num_res_irq; i++) {
 		irqres = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (irqres && ((int)irqres->start == irq))
+		if (irqres && ((int)irqres->start == irq)) {
+			if (data->res_bases[i] == vop_mmu_base)
+			{
+				//pr_info("not a vop mmu irq\n");
+				read_unlock(&data->lock);
+				return IRQ_HANDLED;
+			}
 			break;
+		}
 	}
 
 	if (i == data->num_res_irq) {
@@ -576,7 +649,7 @@ static irqreturn_t rockchip_iommu_irq(int irq, void *dev_id)
 				     IOMMU_REGISTER_INT_MASK);
 		}
 	} else {
-		pr_err("(%s) %s is not handled.\n",
+		dev_err(data->iommu,"(%s) %s is not handled.\n",
 		       data->dbgname, iommu_fault_name[itype]);
 	}
 
@@ -607,9 +680,9 @@ finish:
 	write_unlock_irqrestore(&data->lock, flags);
 
 	if (disabled)
-		pr_info("(%s) Disabled\n", data->dbgname);
+		dev_info(data->iommu,"(%s) Disabled\n", data->dbgname);
 	else
-		pr_info("(%s) %d times left to be disabled\n",
+		dev_info(data->iommu,"(%s) %d times left to be disabled\n",
 			data->dbgname, data->activations);
 
 	return disabled;
@@ -638,7 +711,7 @@ static int __rockchip_iommu_enable(struct iommu_drvdata *data,
 			ret = 1;
 		}
 
-		pr_info("(%s) Already enabled\n", data->dbgname);
+		dev_info(data->iommu,"(%s) Already enabled\n", data->dbgname);
 		goto finish;
 	}
 
@@ -663,7 +736,7 @@ static int __rockchip_iommu_enable(struct iommu_drvdata *data,
 
 	data->domain = domain;
 
-	pr_info("(%s) Enabled\n", data->dbgname);
+	dev_info(data->iommu,"(%s) Enabled\n", data->dbgname);
 finish:
 	write_unlock_irqrestore(&data->lock, flags);
 
@@ -695,11 +768,11 @@ void rockchip_iommu_tlb_invalidate(struct device *dev)
 
 		for (i = 0; i < data->num_res_mem; i++) {
 			if (!iommu_zap_tlb(data->res_bases[i]))
-				pr_err("%s,invalidating TLB failed\n",
+				dev_err(dev->archdata.iommu,"%s,invalidating TLB failed\n",
 				       data->dbgname);
 		}
 	} else {
-		pr_info("(%s) Disabled. Skipping invalidating TLB.\n",
+		dev_dbg(dev->archdata.iommu,"(%s) Disabled. Skipping invalidating TLB.\n",
 			data->dbgname);
 	}
 
@@ -791,9 +864,10 @@ static size_t rockchip_iommu_unmap(struct iommu_domain *domain,
 	goto done;
 
 done:
-	/*pr_info("%s:unmap iova 0x%lx/0x%x bytes\n",
+	#if 0
+	pr_info("%s:unmap iova 0x%lx/0x%x bytes\n",
 		  __func__, iova,size);
-	*/
+	#endif
 	spin_unlock_irqrestore(&priv->pgtablelock, flags);
 
 	return size;
@@ -823,7 +897,7 @@ static int rockchip_iommu_map(struct iommu_domain *domain, unsigned long iova,
 				  &priv->lv2entcnt[lv1ent_offset(iova)]);
 
 	if (ret) {
-		pr_err("%s: Failed to map iova 0x%lx/0x%x bytes\n", __func__,
+		pr_info("%s: Failed to map iova 0x%lx/0x%x bytes\n", __func__,
 		       iova, size);
 	}
 	spin_unlock_irqrestore(&priv->pgtablelock, flags);
@@ -856,13 +930,13 @@ static void rockchip_iommu_detach_device(struct iommu_domain *domain,
 		rockchip_vcodec_select(data->dbgname);
 	
 	if (__rockchip_iommu_disable(data)) {
-		pr_info("%s: Detached IOMMU with pgtable %#lx\n",
+		dev_info(dev->archdata.iommu,"%s: Detached IOMMU with pgtable %#lx\n",
 			__func__, __pa(priv->pgtable));
 		list_del(&data->node);
 		INIT_LIST_HEAD(&data->node);
 
 	} else
-		pr_info("%s: Detaching IOMMU with pgtable %#lx delayed",
+		dev_info(dev->archdata.iommu,"%s: Detaching IOMMU with pgtable %#lx delayed",
 			__func__, __pa(priv->pgtable));
 
 finish:
@@ -894,13 +968,13 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (ret < 0) {
-		pr_err("%s: Failed to attach IOMMU with pgtable %#lx\n",
+		dev_err(dev->archdata.iommu,"%s: Failed to attach IOMMU with pgtable %#lx\n",
 		       __func__, __pa(priv->pgtable));
 	} else if (ret > 0) {
-		pr_info("%s: IOMMU with pgtable 0x%lx already attached\n",
+		dev_dbg(dev->archdata.iommu,"%s: IOMMU with pgtable 0x%lx already attached\n",
 			__func__, __pa(priv->pgtable));
 	} else {
-		pr_info("%s: Attached new IOMMU with pgtable 0x%lx\n",
+		dev_dbg(dev->archdata.iommu,"%s: Attached new IOMMU with pgtable 0x%lx\n",
 			__func__, __pa(priv->pgtable));
 	}
 
@@ -999,31 +1073,35 @@ static int rockchip_iommu_prepare(void)
 						LV2TABLE_SIZE,
 						0, NULL);
 	if (!lv2table_kmem_cache) {
-		pr_err("%s: failed to create kmem cache\n", __func__);
+		pr_info("%s: failed to create kmem cache\n", __func__);
 		return -ENOMEM;
 	}
 	ret = bus_set_iommu(&platform_bus_type, &rk_iommu_ops);
 	if (!ret)
 		registed = 1;
 	else
-		pr_err("%s:failed to set iommu to bus\r\n", __func__);
+		pr_info("%s:failed to set iommu to bus\r\n", __func__);
 	return ret;
 }
 
 static int  rockchip_get_iommu_resource_num(struct platform_device *pdev,
 					     unsigned int type)
 {
-	struct resource *info = NULL;
-	int num_resources = 0;
-
-	/*get resouce info*/
-again:
-	info = platform_get_resource(pdev, type, num_resources);
-	while (info) {
-		num_resources++;
-		goto again;
+	int num = 0;
+	int i;
+#if 0
+	pr_info("dev num_resources %d type = 0x%08x\n",pdev->num_resources, type);
+#endif
+	for (i = 0; i < pdev->num_resources; i++) {
+		struct resource *r = &pdev->resource[i];
+#if 0
+dev_info(&pdev->dev, "r[%d] start %08x end %08x flags %08lx name (%s) resource_type %08lx\n", i, r->start, r->end, r->flags, r->name, resource_type(r));
+#endif
+		if (type == resource_type(r))
+			num++;
 	}
-	return num_resources;
+
+	return num;
 }
 
 static struct kobject *dump_mmu_object;
@@ -1039,11 +1117,15 @@ static int dump_mmu_pagetbl(struct device *dev, struct device_attribute *attr,
 
 	ret = kstrtouint(buf, 0, &mmu_base);
 	if (ret)
-		pr_info("%s is not in hexdecimal form.\n", buf);
+		dev_dbg(dev,"%s is not in hexdecimal form.\n", buf);
 	base = ioremap(mmu_base, 0x100);
-	iommu_dte = __raw_readl(base + IOMMU_REGISTER_DTE_ADDR);
-	fault_address = __raw_readl(base + IOMMU_REGISTER_PAGE_FAULT_ADDR);
-	dump_pagetbl(fault_address, iommu_dte);
+	if (base != vop_mmu_base) {
+		iommu_dte = __raw_readl(base + IOMMU_REGISTER_DTE_ADDR);
+		fault_address = __raw_readl(base + IOMMU_REGISTER_PAGE_FAULT_ADDR);
+		dump_pagetbl(fault_address, iommu_dte);
+	} else {
+		dev_dbg(dev,"vop mmu not support\n");
+	}
 	return count;
 }
 
@@ -1065,12 +1147,19 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 	int i, ret;
 	struct device *dev;
 	struct iommu_drvdata *data;
-
+	
 	dev = &pdev->dev;
+	
+#if 0
+struct resource *res = pdev->resource;
 
+for (i = 0; i < pdev->num_resources; i++, res++) {
+	pr_info("r[%d] start %08x end %08x flags %08lx name (%s) resource_type %08lx\n", i, res->start, res->end, res->flags, res->name,   resource_type(res));
+}
+#endif
 	ret = rockchip_iommu_prepare();
 	if (ret) {
-		pr_err("%s,failed\r\n", __func__);
+		dev_err(dev,"%s,failed\r\n", __func__);
 		goto err_alloc;
 	}
 
@@ -1093,29 +1182,32 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 		of_property_read_string(pdev->dev.of_node,
 					"dbgname", &(data->dbgname));
 	} else {
-		pr_info("dbgname not assigned in device tree or device node not exist\r\n");
+		dev_dbg(dev,
+				"dbgname not assigned in device tree or device node not exist\r\n");
 	}
 
-	pr_info("(%s) Enter\n", data->dbgname);
+	dev_info(dev,"(%s) Enter\n", data->dbgname);
+	
 
 	data->num_res_mem = rockchip_get_iommu_resource_num(pdev,
 				IORESOURCE_MEM);
 	if (0 == data->num_res_mem) {
-		pr_err("can't find iommu memory resource \r\n");
+		dev_err(dev,"can't find iommu memory resource \r\n");
 		goto err_init;
 	}
-	pr_info("data->num_res_mem=%d\n", data->num_res_mem);
+	dev_dbg(dev,"data->num_res_mem=%d\n", data->num_res_mem);
 	data->num_res_irq = rockchip_get_iommu_resource_num(pdev,
 				IORESOURCE_IRQ);
 	if (0 == data->num_res_irq) {
-		pr_err("can't find iommu irq resource \r\n");
+		dev_err(dev,"can't find iommu irq resource \r\n");
 		goto err_init;
 	}
+	dev_dbg(dev,"data->num_res_irq=%d\n", data->num_res_irq);
 
-	data->res_bases = kmalloc_array(data->num_res_mem,
+	data->res_bases = devm_kmalloc_array(dev, data->num_res_mem,
 				sizeof(*data->res_bases), GFP_KERNEL);
 	if (data->res_bases == NULL) {
-		dev_dbg(dev, "Not enough memory\n");
+		dev_err(dev, "Not enough memory\n");
 		ret = -ENOMEM;
 		goto err_init;
 	}
@@ -1125,22 +1217,26 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {
-			pr_err("Unable to find IOMEM region\n");
+			dev_err(dev,"Unable to find IOMEM region\n");
 			ret = -ENOENT;
 			goto err_res;
 		}
 		data->res_bases[i] = ioremap(res->start, resource_size(res));
-		pr_info("res->start = 0x%08x  ioremap to  data->res_bases[%d] = 0x%08x\n",
+		dev_dbg(dev,"res->start = 0x%08x  ioremap to  data->res_bases[%d] = 0x%08x\n",
 			res->start, i, (unsigned int)data->res_bases[i]);
 		if (!data->res_bases[i]) {
 			pr_err("Unable to map IOMEM @ PA:%#x\n", res->start);
 			ret = -ENOENT;
 			goto err_res;
 		}
-		
-		if(cpu_is_rk312x() || cpu_is_rk3036())
-			rockchip_vcodec_select(data->dbgname);
 
+		if (cpu_is_rk312x() || cpu_is_rk3036()) {
+			rockchip_vcodec_select(data->dbgname);
+			if (strstr(data->dbgname, "vop")) {
+				vop_mmu_base = data->res_bases[0];
+				dev_dbg(dev,"vop_mmu_base = 0x%08x\n",(unsigned int)vop_mmu_base);
+			}
+		}
 		if (!strstr(data->dbgname, "isp")) {
 			if (!iommu_reset(data->res_bases[i], data->dbgname)) {
 				ret = -ENOENT;
@@ -1152,13 +1248,13 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 	for (i = 0; i < data->num_res_irq; i++) {
 		ret = platform_get_irq(pdev, i);
 		if (ret <= 0) {
-			pr_err("Unable to find IRQ resource\n");
+			dev_err(dev,"Unable to find IRQ resource\n");
 			goto err_irq;
 		}
-		ret = request_irq(ret, rockchip_iommu_irq,
+		ret = devm_request_irq(dev, ret, rockchip_iommu_irq,
 				  IRQF_SHARED, dev_name(dev), data);
 		if (ret) {
-			pr_err("Unabled to register interrupt handler\n");
+			dev_err(dev,"Unabled to register interrupt handler\n");
 			goto err_irq;
 		}
 	}
@@ -1172,22 +1268,14 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 
 	set_fault_handler(data, &default_fault_handler);
 
-	pr_info("(%s) Initialized\n", data->dbgname);
+	dev_info(dev,"(%s) Initialized\n", data->dbgname);
 	return 0;
 
 err_irq:
-	while (i-- > 0) {
-		int irq;
-
-		irq = platform_get_irq(pdev, i);
-		free_irq(irq, data);
-	}
 err_res:
 	while (data->num_res_mem-- > 0)
 		iounmap(data->res_bases[data->num_res_mem]);
-	kfree(data->res_bases);
 err_init:
-	kfree(data);
 err_alloc:
 	dev_err(dev, "Failed to initialize\n");
 	return ret;
