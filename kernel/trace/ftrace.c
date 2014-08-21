@@ -1507,25 +1507,38 @@ static bool test_rec_ops_needs_regs(struct dyn_ftrace *rec)
 static void ftrace_remove_tramp(struct ftrace_ops *ops,
 				struct dyn_ftrace *rec)
 {
-	struct ftrace_func_entry *entry;
-
-	entry = ftrace_lookup_ip(ops->tramp_hash, rec->ip);
-	if (!entry)
+	/* If TRAMP is not set, no ops should have a trampoline for this */
+	if (!(rec->flags & FTRACE_FL_TRAMP))
 		return;
 
+	rec->flags &= ~FTRACE_FL_TRAMP;
+
+	if ((!ftrace_hash_empty(ops->func_hash->filter_hash) &&
+	     !ftrace_lookup_ip(ops->func_hash->filter_hash, rec->ip)) ||
+	    ftrace_lookup_ip(ops->func_hash->notrace_hash, rec->ip))
+		return;
 	/*
 	 * The tramp_hash entry will be removed at time
 	 * of update.
 	 */
 	ops->nr_trampolines--;
-	rec->flags &= ~FTRACE_FL_TRAMP;
 }
 
-static void ftrace_clear_tramps(struct dyn_ftrace *rec)
+static void ftrace_clear_tramps(struct dyn_ftrace *rec, struct ftrace_ops *ops)
 {
 	struct ftrace_ops *op;
 
+	/* If TRAMP is not set, no ops should have a trampoline for this */
+	if (!(rec->flags & FTRACE_FL_TRAMP))
+		return;
+
 	do_for_each_ftrace_op(op, ftrace_ops_list) {
+		/*
+		 * This function is called to clear other tramps
+		 * not the one that is being updated.
+		 */
+		if (op == ops)
+			continue;
 		if (op->nr_trampolines)
 			ftrace_remove_tramp(op, rec);
 	} while_for_each_ftrace_op(op);
@@ -1626,13 +1639,10 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 				/*
 				 * If we are adding another function callback
 				 * to this function, and the previous had a
-				 * trampoline used, then we need to go back to
-				 * the default trampoline.
+				 * custom trampoline in use, then we need to go
+				 * back to the default trampoline.
 				 */
-				rec->flags &= ~FTRACE_FL_TRAMP;
-
-				/* remove trampolines from any ops for this rec */
-				ftrace_clear_tramps(rec);
+				ftrace_clear_tramps(rec, ops);
 			}
 
 			/*
@@ -1935,8 +1945,8 @@ unsigned long ftrace_get_addr_new(struct dyn_ftrace *rec)
 	if (rec->flags & FTRACE_FL_TRAMP) {
 		ops = ftrace_find_tramp_ops_new(rec);
 		if (FTRACE_WARN_ON(!ops || !ops->trampoline)) {
-			pr_warning("Bad trampoline accounting at: %p (%pS)\n",
-				    (void *)rec->ip, (void *)rec->ip);
+			pr_warn("Bad trampoline accounting at: %p (%pS) (%lx)\n",
+				(void *)rec->ip, (void *)rec->ip, rec->flags);
 			/* Ftrace is shutting down, return anything */
 			return (unsigned long)FTRACE_ADDR;
 		}
@@ -2266,7 +2276,10 @@ static int ftrace_save_ops_tramp_hash(struct ftrace_ops *ops)
 	} while_for_each_ftrace_rec();
 
 	/* The number of recs in the hash must match nr_trampolines */
-	FTRACE_WARN_ON(ops->tramp_hash->count != ops->nr_trampolines);
+	if (FTRACE_WARN_ON(ops->tramp_hash->count != ops->nr_trampolines))
+		pr_warn("count=%ld trampolines=%d\n",
+			ops->tramp_hash->count,
+			ops->nr_trampolines);
 
 	return 0;
 }
