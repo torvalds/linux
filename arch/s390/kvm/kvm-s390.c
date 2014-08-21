@@ -325,6 +325,10 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 	/* Nothing todo */
 }
 
+void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
+{
+}
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	save_fp_regs(&vcpu->arch.host_fpregs);
