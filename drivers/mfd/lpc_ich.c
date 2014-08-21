@@ -216,6 +216,7 @@ enum lpc_chipsets {
 	LPC_BAYTRAIL,   /* Bay Trail SoC */
 	LPC_COLETO,	/* Coleto Creek */
 	LPC_WPT_LP,	/* Wildcat Point-LP */
+	LPC_BRASWELL,	/* Braswell SoC */
 };
 
 static struct lpc_ich_info lpc_chipset_info[] = {
@@ -519,6 +520,10 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 		.name = "Wildcat Point_LP",
 		.iTCO_version = 2,
 	},
+	[LPC_BRASWELL] = {
+		.name = "Braswell SoC",
+		.iTCO_version = 3,
+	},
 };
 
 /*
@@ -745,6 +750,7 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x9cc6), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc7), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc9), LPC_WPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x229c), LPC_BRASWELL},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, lpc_ich_ids);
