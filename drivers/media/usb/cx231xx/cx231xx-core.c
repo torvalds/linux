@@ -1491,7 +1491,7 @@ int cx231xx_mode_register(struct cx231xx *dev, u16 address, u32 mode)
 	if (status < 0)
 		return status;
 
-	tmp = le32_to_cpu(*((u32 *) value));
+	tmp = le32_to_cpu(*((__le32 *) value));
 	tmp |= mode;
 
 	value[0] = (u8) tmp;

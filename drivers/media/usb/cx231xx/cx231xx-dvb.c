@@ -740,7 +740,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dev->dvb->frontend->ops.i2c_gate_ctrl = 0;
+		dev->dvb->frontend->ops.i2c_gate_ctrl = NULL;
 
 		/* define general-purpose callback pointer */
 		dvb->frontend->callback = cx231xx_tuner_callback;
@@ -773,7 +773,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dev->dvb->frontend->ops.i2c_gate_ctrl = 0;
+		dev->dvb->frontend->ops.i2c_gate_ctrl = NULL;
 
 		/* define general-purpose callback pointer */
 		dvb->frontend->callback = cx231xx_tuner_callback;
