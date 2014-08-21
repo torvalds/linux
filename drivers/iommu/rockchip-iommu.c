@@ -34,7 +34,7 @@
 #define SPAGE_SIZE (1 << SPAGE_ORDER)
 #define SPAGE_MASK (~(SPAGE_SIZE - 1))
 
-void __iomem *vop_mmu_base;
+static void __iomem *rk312x_vop_mmu_base;
 
 enum iommu_entry_flags {
 	IOMMU_FLAGS_PRESENT = 0x01,
@@ -247,7 +247,7 @@ static void iommu_disable_stall(void __iomem *base)
 	int i;
 	u32 mmu_status;
 
-	if (base != vop_mmu_base) {
+	if (base != rk312x_vop_mmu_base) {
 		mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
 	} else {
 		goto skip_vop_mmu_disable;
@@ -265,7 +265,7 @@ static void iommu_disable_stall(void __iomem *base)
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
 		u32 status;
 		
-		if (base != vop_mmu_base) {
+		if (base != rk312x_vop_mmu_base) {
 			status = __raw_readl(base + IOMMU_REGISTER_STATUS);
 		} else {
 			int j;
@@ -292,7 +292,7 @@ static bool iommu_enable_stall(void __iomem *base)
 
 	u32 mmu_status;
 	
-	if (base != vop_mmu_base) {
+	if (base != rk312x_vop_mmu_base) {
 		mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
 	} else {
 		goto skip_vop_mmu_enable;
@@ -308,7 +308,7 @@ static bool iommu_enable_stall(void __iomem *base)
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		if (base != vop_mmu_base) {
+		if (base != rk312x_vop_mmu_base) {
 			mmu_status = __raw_readl(base + IOMMU_REGISTER_STATUS);
 		} else {
 			int j;
@@ -344,7 +344,7 @@ static bool iommu_enable_paging(void __iomem *base)
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		if (base != vop_mmu_base) {
+		if (base != rk312x_vop_mmu_base) {
 			if (__raw_readl(base + IOMMU_REGISTER_STATUS) &
 				IOMMU_STATUS_BIT_PAGING_ENABLED)
 			break;
@@ -367,12 +367,11 @@ static bool iommu_disable_paging(void __iomem *base)
 {
 	int i;
 
-	return true;
 	__raw_writel(IOMMU_COMMAND_DISABLE_PAGING,
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		if (base != vop_mmu_base) {
+		if (base != rk312x_vop_mmu_base) {
 			if (!(__raw_readl(base + IOMMU_REGISTER_STATUS) &
 				  IOMMU_STATUS_BIT_PAGING_ENABLED))
 				break;
@@ -418,7 +417,7 @@ static inline bool iommu_raw_reset(void __iomem *base)
 
 	__raw_writel(0xCAFEBABE, base + IOMMU_REGISTER_DTE_ADDR);
 
-	if (base != vop_mmu_base) {
+	if (base != rk312x_vop_mmu_base) {
 		ret = __raw_readl(base + IOMMU_REGISTER_DTE_ADDR);
 		if (!(0xCAFEB000 == ret)) {
 			pr_info("error when %s.\n", __func__);
@@ -429,7 +428,7 @@ static inline bool iommu_raw_reset(void __iomem *base)
 		     base + IOMMU_REGISTER_COMMAND);
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
-		if (base != vop_mmu_base) {
+		if (base != rk312x_vop_mmu_base) {
 			if (__raw_readl(base + IOMMU_REGISTER_DTE_ADDR) == 0)
 				break;
 		} else {
@@ -588,9 +587,7 @@ static irqreturn_t rockchip_iommu_irq(int irq, void *dev_id)
 	for (i = 0; i < data->num_res_irq; i++) {
 		irqres = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		if (irqres && ((int)irqres->start == irq)) {
-			if (data->res_bases[i] == vop_mmu_base)
-			{
-				//pr_info("not a vop mmu irq\n");
+			if (data->res_bases[i] == rk312x_vop_mmu_base) {
 				read_unlock(&data->lock);
 				return IRQ_HANDLED;
 			}
@@ -1119,7 +1116,7 @@ static int dump_mmu_pagetbl(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		dev_dbg(dev,"%s is not in hexdecimal form.\n", buf);
 	base = ioremap(mmu_base, 0x100);
-	if (base != vop_mmu_base) {
+	if (base != rk312x_vop_mmu_base) {
 		iommu_dte = __raw_readl(base + IOMMU_REGISTER_DTE_ADDR);
 		fault_address = __raw_readl(base + IOMMU_REGISTER_PAGE_FAULT_ADDR);
 		dump_pagetbl(fault_address, iommu_dte);
@@ -1232,9 +1229,9 @@ for (i = 0; i < pdev->num_resources; i++, res++) {
 
 		if (cpu_is_rk312x() || cpu_is_rk3036()) {
 			rockchip_vcodec_select(data->dbgname);
-			if (strstr(data->dbgname, "vop")) {
-				vop_mmu_base = data->res_bases[0];
-				dev_dbg(dev,"vop_mmu_base = 0x%08x\n",(unsigned int)vop_mmu_base);
+			if (strstr(data->dbgname, "vop") && cpu_is_rk312x()) {
+				rk312x_vop_mmu_base = data->res_bases[0];
+				dev_dbg(dev,"rk312x_vop_mmu_base = 0x%08x\n",(unsigned int)rk312x_vop_mmu_base);
 			}
 		}
 		if (!strstr(data->dbgname, "isp")) {
@@ -1274,7 +1271,7 @@ for (i = 0; i < pdev->num_resources; i++, res++) {
 err_irq:
 err_res:
 	while (data->num_res_mem-- > 0)
-		iounmap(data->res_bases[data->num_res_mem]);
+		devm_iounmap(dev,data->res_bases[data->num_res_mem]);
 err_init:
 err_alloc:
 	dev_err(dev, "Failed to initialize\n");
