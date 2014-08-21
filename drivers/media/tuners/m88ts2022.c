@@ -18,10 +18,9 @@
 
 #include "m88ts2022_priv.h"
 
-static int m88ts2022_cmd(struct dvb_frontend *fe,
-		int op, int sleep, u8 reg, u8 mask, u8 val, u8 *reg_val)
+static int m88ts2022_cmd(struct m88ts2022_dev *dev, int op, int sleep, u8 reg,
+		u8 mask, u8 val, u8 *reg_val)
 {
-	struct m88ts2022_dev *dev = fe->tuner_priv;
 	int ret, i;
 	unsigned int utmp;
 	struct m88ts2022_reg_val reg_vals[] = {
@@ -124,7 +123,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 			dev->frequency_khz, dev->frequency_khz - c->frequency,
 			f_vco_khz, pll_n, div_ref, div_out);
 
-	ret = m88ts2022_cmd(fe, 0x10, 5, 0x15, 0x40, 0x00, NULL);
+	ret = m88ts2022_cmd(dev, 0x10, 5, 0x15, 0x40, 0x00, NULL);
 	if (ret)
 		goto err;
 
@@ -142,7 +141,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 		if (ret)
 			goto err;
 
-		ret = m88ts2022_cmd(fe, 0x10, 5, 0x15, 0x40, 0x00, NULL);
+		ret = m88ts2022_cmd(dev, 0x10, 5, 0x15, 0x40, 0x00, NULL);
 		if (ret)
 			goto err;
 	}
@@ -158,7 +157,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	ret = m88ts2022_cmd(fe, 0x08, 5, 0x3c, 0xff, 0x00, NULL);
+	ret = m88ts2022_cmd(dev, 0x08, 5, 0x3c, 0xff, 0x00, NULL);
 	if (ret)
 		goto err;
 
@@ -185,7 +184,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	ret = m88ts2022_cmd(fe, 0x04, 2, 0x26, 0xff, 0x00, &u8tmp);
+	ret = m88ts2022_cmd(dev, 0x04, 2, 0x26, 0xff, 0x00, &u8tmp);
 	if (ret)
 		goto err;
 
@@ -195,7 +194,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	ret = m88ts2022_cmd(fe, 0x04, 2, 0x26, 0xff, 0x00, &u8tmp);
+	ret = m88ts2022_cmd(dev, 0x04, 2, 0x26, 0xff, 0x00, &u8tmp);
 	if (ret)
 		goto err;
 
@@ -227,7 +226,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	ret = m88ts2022_cmd(fe, 0x04, 2, 0x26, 0xff, 0x00, &u8tmp);
+	ret = m88ts2022_cmd(dev, 0x04, 2, 0x26, 0xff, 0x00, &u8tmp);
 	if (ret)
 		goto err;
 
@@ -237,7 +236,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	ret = m88ts2022_cmd(fe, 0x04, 2, 0x26, 0xff, 0x00, &u8tmp);
+	ret = m88ts2022_cmd(dev, 0x04, 2, 0x26, 0xff, 0x00, &u8tmp);
 	if (ret)
 		goto err;
 
@@ -257,7 +256,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	ret = m88ts2022_cmd(fe, 0x01, 20, 0x21, 0xff, 0x00, NULL);
+	ret = m88ts2022_cmd(dev, 0x01, 20, 0x21, 0xff, 0x00, NULL);
 	if (ret)
 		goto err;
 err:
