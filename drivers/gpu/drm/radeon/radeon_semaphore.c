@@ -179,7 +179,7 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 			continue;
 		}
 
-		radeon_ring_commit(rdev, &rdev->ring[i]);
+		radeon_ring_commit(rdev, &rdev->ring[i], false);
 		radeon_fence_note_sync(fence, ring);
 
 		semaphore->gpu_addr += 8;

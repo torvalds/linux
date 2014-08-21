@@ -3057,7 +3057,7 @@ static void si_gpu_init(struct radeon_device *rdev)
 	u32 sx_debug_1;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
-	int i, j, k;
+	int i, j;
 
 	switch (rdev->family) {
 	case CHIP_TAHITI:
@@ -3255,12 +3255,11 @@ static void si_gpu_init(struct radeon_device *rdev)
 		     rdev->config.si.max_sh_per_se,
 		     rdev->config.si.max_cu_per_sh);
 
+	rdev->config.si.active_cus = 0;
 	for (i = 0; i < rdev->config.si.max_shader_engines; i++) {
 		for (j = 0; j < rdev->config.si.max_sh_per_se; j++) {
-			for (k = 0; k < rdev->config.si.max_cu_per_sh; k++) {
-				rdev->config.si.active_cus +=
-					hweight32(si_get_cu_active_bitmap(rdev, i, j));
-			}
+			rdev->config.si.active_cus +=
+				hweight32(si_get_cu_active_bitmap(rdev, i, j));
 		}
 	}
 
@@ -3541,7 +3540,7 @@ static int si_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, PACKET3_BASE_INDEX(CE_PARTITION_BASE));
 	radeon_ring_write(ring, 0xc000);
 	radeon_ring_write(ring, 0xe000);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	si_cp_enable(rdev, true);
 
@@ -3570,7 +3569,7 @@ static int si_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	radeon_ring_write(ring, 0x00000010); /* VGT_OUT_DEALLOC_CNTL */
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = RADEON_RING_TYPE_GFX_INDEX; i <= CAYMAN_RING_TYPE_CP2_INDEX; ++i) {
 		ring = &rdev->ring[i];
@@ -3580,7 +3579,7 @@ static int si_cp_start(struct radeon_device *rdev)
 		radeon_ring_write(ring, PACKET3_COMPUTE(PACKET3_CLEAR_STATE, 0));
 		radeon_ring_write(ring, 0);
 
-		radeon_ring_unlock_commit(rdev, ring);
+		radeon_ring_unlock_commit(rdev, ring, false);
 	}
 
 	return 0;

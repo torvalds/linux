@@ -238,9 +238,7 @@ void radeon_vm_flush(struct radeon_device *rdev,
 	uint64_t pd_addr = radeon_bo_gpu_offset(vm->page_directory);
 
 	/* if we can't remember our last VM flush then flush now! */
-	/* XXX figure out why we have to flush all the time before CIK */
-	if (rdev->family < CHIP_BONAIRE ||
-	    !vm->last_flush || pd_addr != vm->pd_gpu_addr) {
+	if (!vm->last_flush || pd_addr != vm->pd_gpu_addr) {
 		trace_radeon_vm_flush(pd_addr, ring, vm->id);
 		vm->pd_gpu_addr = pd_addr;
 		radeon_ring_vm_flush(rdev, ring, vm);
@@ -422,7 +420,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 	radeon_asic_vm_pad_ib(rdev, &ib);
 	WARN_ON(ib.length_dw > 64);
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r)
                 goto error;
 
@@ -699,7 +697,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 		radeon_semaphore_sync_to(ib.semaphore, pd->tbo.sync_obj);
 		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
 		WARN_ON(ib.length_dw > ndw);
-		r = radeon_ib_schedule(rdev, &ib, NULL);
+		r = radeon_ib_schedule(rdev, &ib, NULL, false);
 		if (r) {
 			radeon_ib_free(rdev, &ib);
 			return r;
@@ -963,7 +961,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	WARN_ON(ib.length_dw > ndw);
 
 	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
 		return r;
