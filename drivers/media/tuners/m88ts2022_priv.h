@@ -19,7 +19,7 @@
 
 #include "m88ts2022.h"
 
-struct m88ts2022_priv {
+struct m88ts2022_dev {
 	struct m88ts2022_config cfg;
 	struct i2c_client *client;
 	struct dvb_frontend *fe;
