@@ -97,23 +97,50 @@ enum mei_stop_reason_types {
 	SYSTEM_S5_ENTRY = 0x08
 };
 
+
+/**
+ * mei_hbm_status  - mei host bus messages return values
+ *
+ * @MEI_HBMS_SUCCESS           - status success
+ * @MEI_HBMS_CLIENT_NOT_FOUND  - client not found
+ * @MEI_HBMS_ALREADY_EXISTS    - connection already established
+ * @MEI_HBMS_REJECTED          - connection is rejected
+ * @MEI_HBMS_INVALID_PARAMETER - invalid parameter
+ * @MEI_HBMS_NOT_ALLOWED       - operation not allowed
+ * @MEI_HBMS_ALREADY_STARTED   - system is already started
+ * @MEI_HBMS_NOT_STARTED       - system not started
+ */
+enum mei_hbm_status {
+	MEI_HBMS_SUCCESS           = 0,
+	MEI_HBMS_CLIENT_NOT_FOUND  = 1,
+	MEI_HBMS_ALREADY_EXISTS    = 2,
+	MEI_HBMS_REJECTED          = 3,
+	MEI_HBMS_INVALID_PARAMETER = 4,
+	MEI_HBMS_NOT_ALLOWED       = 5,
+	MEI_HBMS_ALREADY_STARTED   = 6,
+	MEI_HBMS_NOT_STARTED       = 7,
+
+	MEI_HBMS_MAX
+};
+
+
 /*
  * Client Connect Status
  * used by hbm_client_connect_response.status
  */
 enum mei_cl_connect_status {
-	MEI_CL_CONN_SUCCESS          = 0x00,
-	MEI_CL_CONN_NOT_FOUND        = 0x01,
-	MEI_CL_CONN_ALREADY_STARTED  = 0x02,
-	MEI_CL_CONN_OUT_OF_RESOURCES = 0x03,
-	MEI_CL_CONN_MESSAGE_SMALL    = 0x04
+	MEI_CL_CONN_SUCCESS          = MEI_HBMS_SUCCESS,
+	MEI_CL_CONN_NOT_FOUND        = MEI_HBMS_CLIENT_NOT_FOUND,
+	MEI_CL_CONN_ALREADY_STARTED  = MEI_HBMS_ALREADY_EXISTS,
+	MEI_CL_CONN_OUT_OF_RESOURCES = MEI_HBMS_REJECTED,
+	MEI_CL_CONN_MESSAGE_SMALL    = MEI_HBMS_INVALID_PARAMETER,
 };
 
 /*
  * Client Disconnect Status
  */
 enum  mei_cl_disconnect_status {
-	MEI_CL_DISCONN_SUCCESS = 0x00
+	MEI_CL_DISCONN_SUCCESS = MEI_HBMS_SUCCESS
 };
 
 /*

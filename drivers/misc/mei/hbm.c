@@ -25,6 +25,23 @@
 #include "hbm.h"
 #include "client.h"
 
+static const char *mei_hbm_status_str(enum mei_hbm_status status)
+{
+#define MEI_HBM_STATUS(status) case MEI_HBMS_##status: return #status
+	switch (status) {
+	MEI_HBM_STATUS(SUCCESS);
+	MEI_HBM_STATUS(CLIENT_NOT_FOUND);
+	MEI_HBM_STATUS(ALREADY_EXISTS);
+	MEI_HBM_STATUS(REJECTED);
+	MEI_HBM_STATUS(INVALID_PARAMETER);
+	MEI_HBM_STATUS(NOT_ALLOWED);
+	MEI_HBM_STATUS(ALREADY_STARTED);
+	MEI_HBM_STATUS(NOT_STARTED);
+	default: return "unknown";
+	}
+#undef MEI_HBM_STATUS
+};
+
 static const char *mei_cl_conn_status_str(enum mei_cl_connect_status status)
 {
 #define MEI_CL_CS(status) case MEI_CL_CONN_##status: return #status
@@ -770,8 +787,9 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		props_res = (struct hbm_props_response *)mei_msg;
 
 		if (props_res->status) {
-			dev_err(&dev->pdev->dev, "hbm: properties response: wrong status = %d\n",
-				props_res->status);
+			dev_err(&dev->pdev->dev, "hbm: properties response: wrong status = %d %s\n",
+				props_res->status,
+				mei_hbm_status_str(props_res->status));
 			return -EPROTO;
 		}
 
