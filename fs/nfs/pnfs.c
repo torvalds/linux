@@ -738,7 +738,8 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 		status = -EAGAIN;
 	} else if (!nfs4_valid_open_stateid(open_state)) {
 		status = -EBADF;
-	} else if (list_empty(&lo->plh_segs)) {
+	} else if (list_empty(&lo->plh_segs) ||
+		   test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags)) {
 		int seq;
 
 		do {
@@ -860,6 +861,8 @@ _pnfs_return_layout(struct inode *ino)
 		dprintk("NFS: %s no layout segments to return\n", __func__);
 		goto out;
 	}
+
+	set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
 	lo->plh_block_lgets++;
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
@@ -1379,6 +1382,8 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		nfs4_stateid_copy(&lo->plh_stateid, &res->stateid);
 		lo->plh_barrier = be32_to_cpu(res->stateid.seqid);
 	}
+
+	clear_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
 
 	pnfs_get_lseg(lseg);
 	pnfs_layout_insert_lseg(lo, lseg);
