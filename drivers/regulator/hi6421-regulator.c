@@ -17,19 +17,13 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/io.h>
-#include <linux/jiffies.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/mfd/hi6421-pmic.h>
-#include <linux/delay.h>
-#include <linux/time.h>
 
 /*
  * struct hi6421_regulator_pdata - Hi6421 regulator data of platform device
@@ -41,20 +35,14 @@ struct hi6421_regulator_pdata {
 
 /*
  * struct hi6421_regulator_info - hi6421 regulator information
- * @dev: device pointer
  * @desc: regulator description
- * @regulator: regulator device
  * @mode_mask: ECO mode bitmask of LDOs; for BUCKs, this masks sleep
  * @eco_microamp: eco mode load upper limit (in mA), valid for LDOs only
- * @valid_modes_mask: valid operating modes
  */
 struct hi6421_regulator_info {
-	struct device		*dev;
 	struct regulator_desc	desc;
-	struct regulator_dev	*regulator;
 	u8		mode_mask;
 	u32		eco_microamp;
-	unsigned int	valid_modes_mask;
 };
 
 /* HI6421 regulators */
@@ -198,8 +186,6 @@ static const struct regulator_ops hi6421_buck345_ops;
 		},							\
 		.mode_mask		= ecomask,			\
 		.eco_microamp		= ecoamp,			\
-		.valid_modes_mask	= (REGULATOR_MODE_NORMAL	\
-					   | REGULATOR_MODE_IDLE),	\
 	}
 
 /* HI6421 LDO1~3 are linear voltage regulators at fixed uV_step
@@ -237,8 +223,6 @@ static const struct regulator_ops hi6421_buck345_ops;
 		},							\
 		.mode_mask		= ecomask,			\
 		.eco_microamp		= ecoamp,			\
-		.valid_modes_mask	= (REGULATOR_MODE_NORMAL	\
-					   | REGULATOR_MODE_IDLE),	\
 	}
 
 /* HI6421 LDOAUDIO is a linear voltage regulator with two 4-step ranges
@@ -276,8 +260,6 @@ static const struct regulator_ops hi6421_buck345_ops;
 		},							\
 		.mode_mask		= ecomask,			\
 		.eco_microamp		= ecoamp,			\
-		.valid_modes_mask	= (REGULATOR_MODE_NORMAL	\
-					   | REGULATOR_MODE_IDLE),	\
 	}
 
 /* HI6421 BUCK0/1/2 are linear voltage regulators at fixed uV_step
@@ -311,8 +293,6 @@ static const struct regulator_ops hi6421_buck345_ops;
 			.off_on_delay	= odelay,			\
 		},							\
 		.mode_mask		= sleepmask,			\
-		.valid_modes_mask	= (REGULATOR_MODE_NORMAL	\
-					   | REGULATOR_MODE_STANDBY),	\
 	}
 
 /* HI6421 BUCK3/4/5 share similar configurations as LDOs, with exception
@@ -346,8 +326,6 @@ static const struct regulator_ops hi6421_buck345_ops;
 			.off_on_delay	= odelay,			\
 		},							\
 		.mode_mask		= sleepmask,			\
-		.valid_modes_mask	= (REGULATOR_MODE_NORMAL	\
-					   | REGULATOR_MODE_STANDBY),	\
 	}
 
 /* HI6421 regulator information */
@@ -580,10 +558,10 @@ static int hi6421_regulator_register(struct platform_device *pdev,
 {
 	struct hi6421_regulator_info *info = NULL;
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 
 	/* assign per-regulator data */
 	info = &hi6421_regulator_info[id];
-	info->dev = &pdev->dev;
 
 	config.dev = &pdev->dev;
 	config.init_data = init_data;
@@ -592,12 +570,11 @@ static int hi6421_regulator_register(struct platform_device *pdev,
 	config.of_node = np;
 
 	/* register regulator with framework */
-	info->regulator = devm_regulator_register(&pdev->dev, &info->desc,
-						&config);
-	if (IS_ERR(info->regulator)) {
+	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
+	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
-		return PTR_ERR(info->regulator);
+		return PTR_ERR(rdev);
 	}
 
 	return 0;
