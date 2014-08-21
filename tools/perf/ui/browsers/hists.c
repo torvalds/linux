@@ -502,23 +502,16 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 
 #define LEVEL_OFFSET_STEP 3
 
-static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browser,
-						     struct callchain_node *chain_node,
-						     u64 total, int level,
-						     unsigned short row,
-						     off_t *row_offset,
-						     bool *is_current_entry)
+static int hist_browser__show_callchain(struct hist_browser *browser,
+					struct rb_root *root, int level,
+					unsigned short row, off_t *row_offset,
+					u64 total, bool *is_current_entry)
 {
 	struct rb_node *node;
 	int first_row = row, offset = level * LEVEL_OFFSET_STEP;
 	u64 new_total;
 
-	if (callchain_param.mode == CHAIN_GRAPH_REL)
-		new_total = chain_node->children_hit;
-	else
-		new_total = total;
-
-	node = rb_first(&chain_node->rb_root);
+	node = rb_first(root);
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
 		struct rb_node *next = rb_next(node);
@@ -535,7 +528,7 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 
 			if (first)
 				first = false;
-			else
+			else if (level > 1)
 				extra_offset = LEVEL_OFFSET_STEP;
 
 			folded_sign = callchain_list__folded(chain);
@@ -547,8 +540,9 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 			alloc_str = NULL;
 			str = callchain_list__sym_name(chain, bf, sizeof(bf),
 						       browser->show_dso);
-			if (was_first) {
-				double percent = cumul * 100.0 / new_total;
+
+			if (was_first && level > 1) {
+				double percent = cumul * 100.0 / total;
 
 				if (asprintf(&alloc_str, "%2.2f%% %s", percent, str) < 0)
 					str = "Not enough memory!";
@@ -571,78 +565,23 @@ do_next:
 
 		if (folded_sign == '-') {
 			const int new_level = level + (extra_offset ? 2 : 1);
-			row += hist_browser__show_callchain_node_rb_tree(browser, child, new_total,
-									 new_level, row, row_offset,
-									 is_current_entry);
+
+			if (callchain_param.mode == CHAIN_GRAPH_REL)
+				new_total = child->children_hit;
+			else
+				new_total = total;
+
+			row += hist_browser__show_callchain(browser, &child->rb_root,
+							    new_level,
+							    row, row_offset,
+							    new_total,
+							    is_current_entry);
 		}
 		if (row == browser->b.rows)
-			goto out;
+			break;
 		node = next;
 	}
 out:
-	return row - first_row;
-}
-
-static int hist_browser__show_callchain_node(struct hist_browser *browser,
-					     struct callchain_node *node,
-					     int level, unsigned short row,
-					     off_t *row_offset,
-					     bool *is_current_entry)
-{
-	struct callchain_list *chain;
-	int first_row = row;
-	int offset = level * LEVEL_OFFSET_STEP;
-	char folded_sign = ' ';
-
-	list_for_each_entry(chain, &node->val, list) {
-		char bf[1024], *s;
-
-		folded_sign = callchain_list__folded(chain);
-
-		if (*row_offset != 0) {
-			--*row_offset;
-			continue;
-		}
-
-		s = callchain_list__sym_name(chain, bf, sizeof(bf),
-					     browser->show_dso);
-		hist_browser__show_callchain_entry(browser, chain, row,
-						   offset, folded_sign, s,
-						   is_current_entry);
-
-		if (++row == browser->b.rows)
-			goto out;
-	}
-
-	if (folded_sign == '-')
-		row += hist_browser__show_callchain_node_rb_tree(browser, node,
-								 browser->hists->stats.total_period,
-								 level + 1, row,
-								 row_offset,
-								 is_current_entry);
-out:
-	return row - first_row;
-}
-
-static int hist_browser__show_callchain(struct hist_browser *browser,
-					struct rb_root *chain,
-					int level, unsigned short row,
-					off_t *row_offset,
-					bool *is_current_entry)
-{
-	struct rb_node *nd;
-	int first_row = row;
-
-	for (nd = rb_first(chain); nd; nd = rb_next(nd)) {
-		struct callchain_node *node = rb_entry(nd, struct callchain_node, rb_node);
-
-		row += hist_browser__show_callchain_node(browser, node, level,
-							 row, row_offset,
-							 is_current_entry);
-		if (row == browser->b.rows)
-			break;
-	}
-
 	return row - first_row;
 }
 
@@ -817,9 +756,16 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		--row_offset;
 
 	if (folded_sign == '-' && row != browser->b.rows) {
-		printed += hist_browser__show_callchain(browser, &entry->sorted_chain,
+		u64 total = hists__total_period(entry->hists);
+
+		if (symbol_conf.cumulate_callchain)
+			total = entry->stat_acc->period;
+
+		printed += hist_browser__show_callchain(browser,
+							&entry->sorted_chain,
 							1, row, &row_offset,
-							&current_entry);
+							total, &current_entry);
+
 		if (current_entry)
 			browser->he_selection = entry;
 	}
