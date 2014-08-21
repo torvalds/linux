@@ -786,14 +786,21 @@ static int test_dir_busy(struct file *file, aufs_bindex_t br_id,
 			 struct file **to_free, int *idx)
 {
 	int err;
-	unsigned char matched, unmatched;
+	unsigned char matched, root;
 	aufs_bindex_t bindex, bend;
 	struct au_fidir *fidir;
 	struct au_hfile *hfile;
 
 	err = 0;
+	root = IS_ROOT(file->f_dentry);
+	if (root) {
+		get_file(file);
+		to_free[*idx] = file;
+		(*idx)++;
+		goto out;
+	}
+
 	matched = 0;
-	unmatched = 0;
 	fidir = au_fi(file)->fi_hdir;
 	AuDebugOn(!fidir);
 	bend = au_fbend_dir(file);
@@ -802,21 +809,12 @@ static int test_dir_busy(struct file *file, aufs_bindex_t br_id,
 		if (!hfile->hf_file)
 			continue;
 
-		if (hfile->hf_br->br_id == br_id)
+		if (hfile->hf_br->br_id == br_id) {
 			matched = 1;
-		else
-			unmatched = 1;
-		if (matched && unmatched)
 			break;
+		}
 	}
-	if (!matched)
-		goto out; /* success */
-
-	if (unmatched) {
-		get_file(file);
-		to_free[*idx] = file;
-		(*idx)++;
-	} else
+	if (matched)
 		err = -EBUSY;
 
 out:
