@@ -176,7 +176,7 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 
 	for (i = 0; i < num; i++) {
 
-		if (d->udev->descriptor.idVendor == USB_VID_MEDION)
+		if (le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_MEDION)
 			switch (msg[i].addr) {
 			case 0x63:
 				cxusb_gpio_tuner(d, 0);
