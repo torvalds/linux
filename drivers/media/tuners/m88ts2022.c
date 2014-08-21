@@ -314,7 +314,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	div_min = gdiv28 * 78 / 100;
 	div_max = clamp_val(div_max, 0U, 63U);
 
-	f_3db_hz = c->symbol_rate * 135UL / 200UL;
+	f_3db_hz = mult_frac(c->symbol_rate, 135, 200);
 	f_3db_hz +=  2000000U + (frequency_offset_khz * 1000U);
 	f_3db_hz = clamp(f_3db_hz, 7000000U, 40000000U);
 
