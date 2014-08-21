@@ -250,13 +250,15 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	if (err)
 		return err;
 
-	/* While the SR-IOV capability structure reports total VFs to be
-	 * 64 we limit the actual number that can be allocated to 63 so
-	 * that some transmit/receive resources can be reserved to the
-	 * PF.  The PCI bus driver already checks for other values out of
-	 * range.
+	/* While the SR-IOV capability structure reports total VFs to be 64,
+	 * we have to limit the actual number allocated based on two factors.
+	 * First, we reserve some transmit/receive resources for the PF.
+	 * Second, VMDQ also uses the same pools that SR-IOV does. We need to
+	 * account for this, so that we don't accidentally allocate more VFs
+	 * than we have available pools. The PCI bus driver already checks for
+	 * other values out of range.
 	 */
-	if (num_vfs > IXGBE_MAX_VFS_DRV_LIMIT)
+	if ((num_vfs + adapter->num_rx_pools) > IXGBE_MAX_VF_FUNCTIONS)
 		return -EPERM;
 
 	adapter->num_vfs = num_vfs;
