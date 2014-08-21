@@ -157,20 +157,41 @@ int mei_hbm_cl_write(struct mei_device *dev,
 }
 
 /**
- * mei_hbm_cl_addr_equal - tells if they have the same address
+ * mei_hbm_cl_addr_equal - check if the client's and
+ *	the message address match
  *
- * @cl: - client
- * @buf: buffer with cl header
+ * @cl: client
+ * @cmd: hbm client message
  *
  * returns true if addresses are the same
  */
 static inline
-bool mei_hbm_cl_addr_equal(struct mei_cl *cl, void *buf)
+bool mei_hbm_cl_addr_equal(struct mei_cl *cl, struct mei_hbm_cl_cmd *cmd)
 {
-	struct mei_hbm_cl_cmd *cmd = buf;
 	return cl->host_client_id == cmd->host_addr &&
 		cl->me_client_id == cmd->me_addr;
 }
+
+/**
+ * mei_hbm_cl_find_by_cmd - find recipient client
+ *
+ * @dev: the device structure
+ * @buf: a buffer with hbm cl command
+ *
+ * returns the recipient client or NULL if not found
+ */
+static inline
+struct mei_cl *mei_hbm_cl_find_by_cmd(struct mei_device *dev, void *buf)
+{
+	struct mei_hbm_cl_cmd *cmd = (struct mei_hbm_cl_cmd *)buf;
+	struct mei_cl *cl;
+
+	list_for_each_entry(cl, &dev->file_list, link)
+		if (mei_hbm_cl_addr_equal(cl, cmd))
+			return cl;
+	return NULL;
+}
+
 
 /**
  * mei_hbm_start_wait - wait for start response message.
@@ -449,7 +470,7 @@ static int mei_hbm_add_single_flow_creds(struct mei_device *dev,
  * @flow_control: flow control response bus message
  */
 static void mei_hbm_cl_flow_control_res(struct mei_device *dev,
-		struct hbm_flow_control *flow_control)
+					struct hbm_flow_control *flow_control)
 {
 	struct mei_cl *cl;
 
@@ -459,15 +480,11 @@ static void mei_hbm_cl_flow_control_res(struct mei_device *dev,
 		return;
 	}
 
-	/* normal connection */
-	list_for_each_entry(cl, &dev->file_list, link) {
-		if (mei_hbm_cl_addr_equal(cl, flow_control)) {
-			cl->mei_flow_ctrl_creds++;
-			dev_dbg(&dev->pdev->dev, "flow ctrl msg for host %d ME %d creds %d.\n",
-				flow_control->host_addr, flow_control->me_addr,
+	cl = mei_hbm_cl_find_by_cmd(dev, flow_control);
+	if (cl) {
+		cl->mei_flow_ctrl_creds++;
+		cl_dbg(dev, cl, "flow control creds = %d.\n",
 				cl->mei_flow_ctrl_creds);
-			break;
-		}
 	}
 }
 
@@ -627,23 +644,18 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 	struct mei_cl *cl;
 	struct mei_cl_cb *cb;
 
-	list_for_each_entry(cl, &dev->file_list, link) {
-		if (mei_hbm_cl_addr_equal(cl, disconnect_req)) {
-			dev_dbg(&dev->pdev->dev, "disconnect request host client %d ME client %d.\n",
-					disconnect_req->host_addr,
-					disconnect_req->me_addr);
-			cl->state = MEI_FILE_DISCONNECTED;
-			cl->timer_count = 0;
+	cl = mei_hbm_cl_find_by_cmd(dev, disconnect_req);
+	if (cl) {
+		cl_dbg(dev, cl, "disconnect request received\n");
+		cl->state = MEI_FILE_DISCONNECTED;
+		cl->timer_count = 0;
 
-			cb = mei_io_cb_init(cl, NULL);
-			if (!cb)
-				return -ENOMEM;
-			cb->fop_type = MEI_FOP_DISCONNECT_RSP;
-			cl_dbg(dev, cl, "add disconnect response as first\n");
-			list_add(&cb->list, &dev->ctrl_wr_list.list);
-
-			break;
-		}
+		cb = mei_io_cb_init(cl, NULL);
+		if (!cb)
+			return -ENOMEM;
+		cb->fop_type = MEI_FOP_DISCONNECT_RSP;
+		cl_dbg(dev, cl, "add disconnect response as first\n");
+		list_add(&cb->list, &dev->ctrl_wr_list.list);
 	}
 	return 0;
 }
