@@ -1183,7 +1183,7 @@ static int menelaus_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct menelaus_chip	*menelaus;
-	int			rev = 0, val;
+	int			rev = 0;
 	int			err = 0;
 	struct menelaus_platform_data *menelaus_pdata =
 					dev_get_platdata(&client->dev);
@@ -1236,10 +1236,10 @@ static int menelaus_probe(struct i2c_client *client,
 
 	pr_info("Menelaus rev %d.%d\n", rev >> 4, rev & 0x0f);
 
-	val = menelaus_read_reg(MENELAUS_VCORE_CTRL1);
-	if (val < 0)
+	err = menelaus_read_reg(MENELAUS_VCORE_CTRL1);
+	if (err < 0)
 		goto fail;
-	if (val & (1 << 7))
+	if (err & BIT(7))
 		menelaus->vcore_hw_mode = 1;
 	else
 		menelaus->vcore_hw_mode = 0;
