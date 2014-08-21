@@ -484,6 +484,10 @@ struct vcpu_vmx {
 
 	/* Support for a guest hypervisor (nested VMX) */
 	struct nested_vmx nested;
+
+	/* Dynamic PLE window. */
+	int ple_window;
+	bool ple_window_dirty;
 };
 
 enum segment_cache_field {
@@ -4402,7 +4406,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 	if (ple_gap) {
 		vmcs_write32(PLE_GAP, ple_gap);
-		vmcs_write32(PLE_WINDOW, ple_window);
+		vmx->ple_window = ple_window;
+		vmx->ple_window_dirty = true;
 	}
 
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, 0);
@@ -7388,6 +7393,11 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	   start emulation until we arrive back to a valid state */
 	if (vmx->emulation_required)
 		return;
+
+	if (vmx->ple_window_dirty) {
+		vmx->ple_window_dirty = false;
+		vmcs_write32(PLE_WINDOW, vmx->ple_window);
+	}
 
 	if (vmx->nested.sync_shadow_vmcs) {
 		copy_vmcs12_to_shadow(vmx);
