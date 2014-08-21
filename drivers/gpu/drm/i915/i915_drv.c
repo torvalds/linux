@@ -1462,13 +1462,29 @@ static int intel_runtime_suspend(struct device *device)
 	dev_priv->pm.suspended = true;
 
 	/*
-	 * current versions of firmware which depend on this opregion
-	 * notification have repurposed the D1 definition to mean
-	 * "runtime suspended" vs. what you would normally expect (D3)
-	 * to distinguish it from notifications that might be sent
-	 * via the suspend path.
+	 * FIXME: We really should find a document that references the arguments
+	 * used below!
 	 */
-	intel_opregion_notify_adapter(dev, PCI_D1);
+	if (IS_HASWELL(dev)) {
+		/*
+		 * current versions of firmware which depend on this opregion
+		 * notification have repurposed the D1 definition to mean
+		 * "runtime suspended" vs. what you would normally expect (D3)
+		 * to distinguish it from notifications that might be sent via
+		 * the suspend path.
+		 */
+		intel_opregion_notify_adapter(dev, PCI_D1);
+	} else {
+		/*
+		 * On Broadwell, if we use PCI_D1 the PCH DDI ports will stop
+		 * being detected, and the call we do at intel_runtime_resume()
+		 * won't be able to restore them. Since PCI_D3hot matches the
+		 * actual specification and appears to be working, use it. Let's
+		 * assume the other non-Haswell platforms will stay the same as
+		 * Broadwell.
+		 */
+		intel_opregion_notify_adapter(dev, PCI_D3hot);
+	}
 
 	DRM_DEBUG_KMS("Device suspended\n");
 	return 0;
