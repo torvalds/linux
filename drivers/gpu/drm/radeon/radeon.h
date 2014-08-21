@@ -1642,7 +1642,8 @@ int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 			      uint32_t handle, struct radeon_fence **fence);
 int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 			       uint32_t handle, struct radeon_fence **fence);
-void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo);
+void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo,
+				       uint32_t allowed_domains);
 void radeon_uvd_free_handles(struct radeon_device *rdev,
 			     struct drm_file *filp);
 int radeon_uvd_cs_parse(struct radeon_cs_parser *parser);

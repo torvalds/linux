@@ -254,7 +254,8 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 	return 0;
 }
 
-void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo)
+void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo,
+				       uint32_t allowed_domains)
 {
 	int i;
 
@@ -262,6 +263,21 @@ void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo)
 		rbo->placements[i].fpfn = 0 >> PAGE_SHIFT;
 		rbo->placements[i].lpfn = (256 * 1024 * 1024) >> PAGE_SHIFT;
 	}
+
+	/* If it must be in VRAM it must be in the first segment as well */
+	if (allowed_domains == RADEON_GEM_DOMAIN_VRAM)
+		return;
+
+	/* abort if we already have more than one placement */
+	if (rbo->placement.num_placement > 1)
+		return;
+
+	/* add another 256MB segment */
+	rbo->placements[1] = rbo->placements[0];
+	rbo->placements[1].fpfn += (256 * 1024 * 1024) >> PAGE_SHIFT;
+	rbo->placements[1].lpfn += (256 * 1024 * 1024) >> PAGE_SHIFT;
+	rbo->placement.num_placement++;
+	rbo->placement.num_busy_placement++;
 }
 
 void radeon_uvd_free_handles(struct radeon_device *rdev, struct drm_file *filp)
@@ -652,7 +668,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 		return r;
 
 	radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_VRAM);
-	radeon_uvd_force_into_uvd_segment(bo);
+	radeon_uvd_force_into_uvd_segment(bo, RADEON_GEM_DOMAIN_VRAM);
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
 	if (r) 
