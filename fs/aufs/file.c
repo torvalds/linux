@@ -595,8 +595,7 @@ static void au_do_refresh_dir(struct file *file)
 			if (p->hf_file) {
 				if (file_inode(p->hf_file))
 					break;
-				else
-					au_hfput(p, file);
+				au_hfput(p, file);
 			}
 	} else {
 		bend = au_br_index(sb, brid);
@@ -613,8 +612,7 @@ static void au_do_refresh_dir(struct file *file)
 		if (p->hf_file) {
 			if (file_inode(p->hf_file))
 				break;
-			else
-				au_hfput(p, file);
+			au_hfput(p, file);
 		}
 	AuDebugOn(fidir->fd_bbot < finfo->fi_btop);
 }
