@@ -130,9 +130,9 @@ static void ccdc_enable_vport(int flag)
  * This function will configure the window size
  * to be capture in CCDC reg
  */
-void ccdc_setwin(struct v4l2_rect *image_win,
-		enum ccdc_frmfmt frm_fmt,
-		int ppc)
+static void ccdc_setwin(struct v4l2_rect *image_win,
+			enum ccdc_frmfmt frm_fmt,
+			int ppc)
 {
 	int horz_start, horz_nr_pixels;
 	int vert_start, vert_nr_lines;
@@ -370,7 +370,7 @@ static int ccdc_set_params(void __user *params)
  * ccdc_config_ycbcr()
  * This function will configure CCDC for YCbCr video capture
  */
-void ccdc_config_ycbcr(void)
+static void ccdc_config_ycbcr(void)
 {
 	struct ccdc_params_ycbcr *params = &ccdc_cfg.ycbcr;
 	u32 syn_mode;
@@ -523,7 +523,7 @@ static void ccdc_config_fpc(struct ccdc_fault_pixel *fpc)
  * ccdc_config_raw()
  * This function will configure CCDC for Raw capture mode
  */
-void ccdc_config_raw(void)
+static void ccdc_config_raw(void)
 {
 	struct ccdc_params_raw *params = &ccdc_cfg.bayer;
 	struct ccdc_config_params_raw *config_params =
