@@ -171,7 +171,7 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		break;
 
 	case -ESHUTDOWN:	/* disconnect from host. */
-		printk(KERN_INFO "VS request cancelled.\n");
+		printk(KERN_DEBUG "VS request cancelled.\n");
 		uvc_queue_cancel(queue, 1);
 		goto requeue;
 
