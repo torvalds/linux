@@ -18,10 +18,12 @@
 #define M88TS2022_PRIV_H
 
 #include "m88ts2022.h"
+#include <linux/regmap.h>
 
 struct m88ts2022_dev {
 	struct m88ts2022_config cfg;
 	struct i2c_client *client;
+	struct regmap *regmap;
 	struct dvb_frontend *fe;
 	u32 frequency_khz;
 };
