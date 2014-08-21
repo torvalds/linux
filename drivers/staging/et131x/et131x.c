@@ -573,7 +573,6 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	int index = 0;
 	int retries;
 	int err = 0;
-	int i2c_wack = 0;
 	int writeok = 0;
 	u32 status;
 	u32 val = 0;
@@ -598,8 +597,6 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER,
 			LBCIF_CONTROL_LBCIF_ENABLE | LBCIF_CONTROL_I2C_WRITE))
 		return -EIO;
-
-	i2c_wack = 1;
 
 	/* Prepare EEPROM address for Step 3 */
 
@@ -656,7 +653,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	 */
 	udelay(10);
 
-	while (i2c_wack) {
+	while (1) {
 		if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER,
 			LBCIF_CONTROL_LBCIF_ENABLE))
 			writeok = 0;
