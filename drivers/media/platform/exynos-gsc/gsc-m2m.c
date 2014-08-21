@@ -362,7 +362,6 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 {
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 	struct gsc_dev *gsc = ctx->gsc_dev;
-	struct gsc_frame *frame;
 	u32 max_cnt;
 
 	max_cnt = (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
@@ -375,8 +374,6 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 		else
 			gsc_ctx_state_lock_clear(GSC_DST_FMT, ctx);
 	}
-
-	frame = ctx_get_frame(ctx, reqbufs->type);
 
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
