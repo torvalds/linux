@@ -305,8 +305,17 @@ prog_pll(struct nva3_clock_priv *priv, int clk, u32 pll, int idx)
 	const u32 src1 = 0x004160 + (clk * 4);
 	const u32 ctrl = pll + 0;
 	const u32 coef = pll + 4;
+	u32 bypass;
 
 	if (info->pll) {
+		/* Always start from a non-PLL clock */
+		bypass = nv_rd32(priv, ctrl)  & 0x00000008;
+		if (!bypass) {
+			nv_mask(priv, src1, 0x00000101, 0x00000101);
+			nv_mask(priv, ctrl, 0x00000008, 0x00000008);
+			udelay(20);
+		}
+
 		nv_mask(priv, src0, 0x003f3141, 0x00000101 | info->clk);
 		nv_wr32(priv, coef, info->pll);
 		nv_mask(priv, ctrl, 0x00000015, 0x00000015);
