@@ -614,7 +614,7 @@ static int dm1105_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 
 static void dm1105_set_dma_addr(struct dm1105_dev *dev)
 {
-	dm_writel(DM1105_STADR, cpu_to_le32(dev->dma_addr));
+	dm_writel(DM1105_STADR, (__force u32)cpu_to_le32(dev->dma_addr));
 }
 
 static int dm1105_dma_map(struct dm1105_dev *dev)
