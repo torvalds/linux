@@ -125,9 +125,9 @@ static int send_to_rfr_fifo(struct xlr_net_priv *priv, void *addr)
 	msg.msg3 = 0;
 	stnid = priv->nd->rfr_station;
 	do {
-		mflags = nlm_cop2_enable();
+		mflags = nlm_cop2_enable_irqsave();
 		ret = nlm_fmn_send(1, 0, stnid, &msg);
-		nlm_cop2_restore(mflags);
+		nlm_cop2_disable_irqrestore(mflags);
 		if (ret == 0)
 			return 0;
 	} while (++num_try < 10000);
@@ -298,9 +298,9 @@ static netdev_tx_t xlr_net_start_xmit(struct sk_buff *skb,
 	u32 flags;
 
 	xlr_make_tx_desc(&msg, virt_to_phys(skb->data), skb);
-	flags = nlm_cop2_enable();
+	flags = nlm_cop2_enable_irqsave();
 	ret = nlm_fmn_send(2, 0, priv->nd->tx_stnid, &msg);
-	nlm_cop2_restore(flags);
+	nlm_cop2_disable_irqrestore(flags);
 	if (ret)
 		dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
