@@ -1730,24 +1730,33 @@ static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 	struct	net_device *dev;
 	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
 	int i;
+	int err = 0;
 
-	for (i = 1; i <= ibdev->num_ports; ++i)
-		if (reset_gid_table(ibdev, i))
-			return -1;
+	for (i = 1; i <= ibdev->num_ports; ++i) {
+		if (rdma_port_get_link_layer(&ibdev->ib_dev, i) ==
+		    IB_LINK_LAYER_ETHERNET) {
+			err = reset_gid_table(ibdev, i);
+			if (err)
+				goto out;
+		}
+	}
 
 	read_lock(&dev_base_lock);
 	spin_lock(&iboe->lock);
 
 	for_each_netdev(&init_net, dev) {
 		u8 port = mlx4_ib_get_dev_port(dev, ibdev);
-		if (port)
+		/* port will be non-zero only for ETH ports */
+		if (port) {
+			mlx4_ib_set_default_gid(ibdev, dev, port);
 			mlx4_ib_get_dev_addr(dev, ibdev, port);
+		}
 	}
 
 	spin_unlock(&iboe->lock);
 	read_unlock(&dev_base_lock);
-
-	return 0;
+out:
+	return err;
 }
 
 static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
@@ -2202,12 +2211,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			}
 		}
 #endif
-		for (i = 1 ; i <= ibdev->num_ports ; ++i)
-			reset_gid_table(ibdev, i);
-		rtnl_lock();
-		mlx4_ib_scan_netdevs(ibdev, NULL, 0);
-		rtnl_unlock();
-		mlx4_ib_init_gid_table(ibdev);
+		if (mlx4_ib_init_gid_table(ibdev))
+			goto err_notif;
 	}
 
 	for (j = 0; j < ARRAY_SIZE(mlx4_class_attributes); ++j) {
