@@ -1086,6 +1086,11 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 			return;
 	}
 
+	/* At this point, we do not have MSI-X capabilities. We need to
+	 * reconfigure or disable various features which require MSI-X
+	 * capability.
+	 */
+
 	/* disable DCB if number of TCs exceeds 1 */
 	if (netdev_get_num_tc(adapter->netdev) > 1) {
 		e_err(probe, "num TCs exceeds number of queues - disabling DCB\n");
@@ -1107,6 +1112,9 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	/* disable RSS */
 	adapter->ring_feature[RING_F_RSS].limit = 1;
 
+	/* recalculate number of queues now that many features have been
+	 * changed or disabled.
+	 */
 	ixgbe_set_num_queues(adapter);
 	adapter->num_q_vectors = 1;
 
