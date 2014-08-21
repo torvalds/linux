@@ -31,6 +31,9 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#define PORTS_PER_CONTROLLER		4
+
 struct xlr_net_data {
 	int cpu_mask;
 	u32 __iomem *mii_addr;
@@ -39,8 +42,8 @@ struct xlr_net_data {
 	u32 __iomem *gpio_addr;
 	int phy_interface;
 	int rfr_station;
-	int tx_stnid;
+	int tx_stnid[PORTS_PER_CONTROLLER];
 	int *bucket_size;
-	int phy_addr;
+	int phy_addr[PORTS_PER_CONTROLLER];
 	struct xlr_fmn_info *gmac_fmn_info;
 };
