@@ -1034,7 +1034,6 @@ static struct adv7842_platform_data adv7842_data = {
 	.i2c_infoframe = 0x48,
 	.i2c_cec = 0x49,
 	.i2c_avlink = 0x4a,
-	.i2c_ex = 0x26,
 };
 
 static struct bfin_capture_config bfin_capture_data = {
@@ -1104,7 +1103,6 @@ static struct disp_route adv7511_routes[] = {
 
 static struct adv7511_platform_data adv7511_data = {
 	.edid_addr = 0x7e,
-	.i2c_ex = 0x25,
 };
 
 static struct bfin_display_config bfin_display_data = {
