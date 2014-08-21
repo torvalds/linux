@@ -1115,6 +1115,12 @@ bl_set_layoutdriver(struct nfs_server *server, const struct nfs_fh *fh)
 		dprintk("%s Server did not return blksize\n", __func__);
 		return -EINVAL;
 	}
+	if (server->pnfs_blksize > PAGE_SIZE) {
+		printk(KERN_ERR "%s: pNFS blksize %d not supported.\n",
+			__func__, server->pnfs_blksize);
+		return -EINVAL;
+	}
+
 	b_mt_id = kzalloc(sizeof(struct block_mount_id), GFP_NOFS);
 	if (!b_mt_id) {
 		status = -ENOMEM;
