@@ -360,7 +360,6 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	struct vpif_device *dev = &vpif_obj;
 	struct channel_obj *ch;
 	struct common_obj *common;
-	enum v4l2_field field;
 	int fid = -1, i;
 	int channel_id = 0;
 
@@ -369,7 +368,6 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	ch = dev->dev[channel_id];
-	field = ch->common[VPIF_VIDEO_INDEX].fmt.fmt.pix.field;
 	for (i = 0; i < VPIF_NUMOBJECTS; i++) {
 		common = &ch->common[i];
 		/* If streaming is started in this channel */
@@ -502,7 +500,7 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 	struct vpif_params *vpifparams = &ch->vpifparams;
 	enum v4l2_field field = common->fmt.fmt.pix.field;
 	struct video_obj *vid_ch = &ch->video;
-	unsigned int hpitch, vpitch, sizeimage;
+	unsigned int hpitch, sizeimage;
 
 	if (V4L2_FIELD_ANY == common->fmt.fmt.pix.field) {
 		if (ch->vpifparams.std_info.frm_fmt)
@@ -516,7 +514,6 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 	sizeimage = common->fmt.fmt.pix.sizeimage;
 
 	hpitch = common->fmt.fmt.pix.bytesperline;
-	vpitch = sizeimage / (hpitch * 2);
 	if ((V4L2_FIELD_NONE == vid_ch->buf_field) ||
 	    (V4L2_FIELD_INTERLACED == vid_ch->buf_field)) {
 		common->ytop_off = 0;
@@ -813,17 +810,14 @@ static int vpif_set_output(struct vpif_display_config *vpif_cfg,
 {
 	struct vpif_display_chan_config *chan_cfg =
 		&vpif_cfg->chan_config[ch->channel_id];
-	struct vpif_subdev_info *subdev_info = NULL;
 	struct v4l2_subdev *sd = NULL;
 	u32 input = 0, output = 0;
 	int sd_index;
 	int ret;
 
 	sd_index = vpif_output_to_subdev(vpif_cfg, chan_cfg, index);
-	if (sd_index >= 0) {
+	if (sd_index >= 0)
 		sd = vpif_obj.sd[sd_index];
-		subdev_info = &vpif_cfg->subdevinfo[sd_index];
-	}
 
 	if (sd) {
 		input = chan_cfg->outputs[index].input_route;
