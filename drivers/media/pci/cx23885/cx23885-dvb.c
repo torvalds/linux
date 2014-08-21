@@ -1487,7 +1487,7 @@ static int dvb_register(struct cx23885_tsport *port)
 					&hauppauge_hvr4400_si2165_config,
 					&i2c_bus->i2c_adap);
 			if (fe0->dvb.frontend != NULL) {
-				fe0->dvb.frontend->ops.i2c_gate_ctrl = 0;
+				fe0->dvb.frontend->ops.i2c_gate_ctrl = NULL;
 				if (!dvb_attach(tda18271_attach,
 						fe0->dvb.frontend,
 						0x60, &i2c_bus2->i2c_adap,
