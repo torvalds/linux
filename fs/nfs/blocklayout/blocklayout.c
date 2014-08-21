@@ -255,6 +255,7 @@ bl_read_pagelist(struct nfs_pgio_header *hdr)
 	struct page **pages = hdr->args.pages;
 	int pg_index = hdr->args.pgbase >> PAGE_CACHE_SHIFT;
 	const bool is_dio = (header->dreq != NULL);
+	struct blk_plug plug;
 
 	dprintk("%s enter nr_pages %u offset %lld count %u\n", __func__,
 		hdr->page_array.npages, f_offset,
@@ -265,6 +266,8 @@ bl_read_pagelist(struct nfs_pgio_header *hdr)
 		goto use_mds;
 	par->pnfs_callback = bl_end_par_io_read;
 	/* At this point, we can no longer jump to use_mds */
+
+	blk_start_plug(&plug);
 
 	isect = (sector_t) (f_offset >> SECTOR_SHIFT);
 	/* Code assumes extents are page-aligned */
@@ -342,6 +345,7 @@ out:
 	bl_put_extent(be);
 	bl_put_extent(cow_read);
 	bl_submit_bio(READ, bio);
+	blk_finish_plug(&plug);
 	put_parallel(par);
 	return PNFS_ATTEMPTED;
 
@@ -688,8 +692,11 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	u64 temp;
 	int npg_per_block =
 	    NFS_SERVER(header->inode)->pnfs_blksize >> PAGE_CACHE_SHIFT;
+	struct blk_plug plug;
 
 	dprintk("%s enter, %Zu@%lld\n", __func__, count, offset);
+
+	blk_start_plug(&plug);
 
 	if (header->dreq != NULL &&
 	    (!IS_ALIGNED(offset, NFS_SERVER(header->inode)->pnfs_blksize) ||
@@ -894,9 +901,11 @@ out:
 	bl_put_extent(be);
 	bl_put_extent(cow_read);
 	bl_submit_bio(WRITE, bio);
+	blk_finish_plug(&plug);
 	put_parallel(par);
 	return PNFS_ATTEMPTED;
 out_mds:
+	blk_finish_plug(&plug);
 	bl_put_extent(be);
 	bl_put_extent(cow_read);
 	kfree(par);
