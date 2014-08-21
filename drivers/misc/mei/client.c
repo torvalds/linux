@@ -516,7 +516,8 @@ int mei_cl_disconnect(struct mei_cl *cl)
 		goto free;
 	}
 
-	cb->fop_type = MEI_FOP_CLOSE;
+	cb->fop_type = MEI_FOP_DISCONNECT;
+
 	if (mei_hbuf_acquire(dev)) {
 		if (mei_hbm_cl_disconnect_req(dev, cl)) {
 			rets = -ENODEV;

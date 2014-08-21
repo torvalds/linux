@@ -195,7 +195,7 @@ static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 
 /**
- * mei_cl_irq_close - processes close related operation from
+ * mei_cl_irq_disconnect - processes close related operation from
  *	interrupt thread context - send disconnect request
  *
  * @cl: client
@@ -204,7 +204,7 @@ static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
  *
  * returns 0, OK; otherwise, error.
  */
-static int mei_cl_irq_close(struct mei_cl *cl, struct mei_cl_cb *cb,
+static int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 			    struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
@@ -495,9 +495,9 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 			return -ENODEV;
 		}
 		switch (cb->fop_type) {
-		case MEI_FOP_CLOSE:
+		case MEI_FOP_DISCONNECT:
 			/* send disconnect message */
-			ret = mei_cl_irq_close(cl, cb, cmpl_list);
+			ret = mei_cl_irq_disconnect(cl, cb, cmpl_list);
 			if (ret)
 				return ret;
 
