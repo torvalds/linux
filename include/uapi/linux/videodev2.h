@@ -1285,11 +1285,11 @@ struct v4l2_ext_control {
 	union {
 		__s32 value;
 		__s64 value64;
-		char *string;
-		__u8 *p_u8;
-		__u16 *p_u16;
-		__u32 *p_u32;
-		void *ptr;
+		char __user *string;
+		__u8 __user *p_u8;
+		__u16 __user *p_u16;
+		__u32 __user *p_u32;
+		void __user *ptr;
 	};
 } __attribute__ ((packed));
 
