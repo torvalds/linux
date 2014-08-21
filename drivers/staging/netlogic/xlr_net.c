@@ -775,7 +775,7 @@ static void xlr_sgmii_init(struct xlr_net_priv *priv)
 	xlr_nae_wreg(priv->gpio_addr, 0x21, 0x7104);
 
 	/* enable autoneg - more magic */
-	phy = priv->port_id % 4 + 27;
+	phy = priv->phy_addr % 4 + 27;
 	xlr_phy_write(priv->pcs_addr, phy, 0, 0x1000);
 	xlr_phy_write(priv->pcs_addr, phy, 0, 0x0200);
 }
