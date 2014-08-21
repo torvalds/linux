@@ -756,6 +756,7 @@ static int hci_h4p_reset(struct hci_h4p_info *info)
 static int hci_h4p_hci_flush(struct hci_dev *hdev)
 {
 	struct hci_h4p_info *info = hci_get_drvdata(hdev);
+
 	skb_queue_purge(&info->txq);
 
 	return 0;

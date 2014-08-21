@@ -68,7 +68,7 @@ MODULE_DEVICE_TABLE(of, stmpe_of_match);
 static int
 stmpe_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
-	int partnum;
+	enum stmpe_partnum partnum;
 	const struct of_device_id *of_id;
 
 	i2c_ci.data = (void *)id;
@@ -85,7 +85,7 @@ stmpe_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		dev_info(&i2c->dev, "matching on node name, compatible is preferred\n");
 		partnum = id->driver_data;
 	} else
-		partnum = (int)of_id->data;
+		partnum = (enum stmpe_partnum)of_id->data;
 
 	return stmpe_probe(&i2c_ci, partnum);
 }

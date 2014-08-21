@@ -148,8 +148,8 @@ static void nfs_direct_set_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->data->ds_clp,
-				      hdr->data->ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
+				      hdr->ds_idx);
 	WARN_ON_ONCE(verfp->committed >= 0);
 	memcpy(verfp, &hdr->verf, sizeof(struct nfs_writeverf));
 	WARN_ON_ONCE(verfp->committed < 0);
@@ -169,8 +169,8 @@ static int nfs_direct_set_or_cmp_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->data->ds_clp,
-					 hdr->data->ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
+					 hdr->ds_idx);
 	if (verfp->committed < 0) {
 		nfs_direct_set_hdr_verf(dreq, hdr);
 		return 0;
@@ -715,7 +715,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 {
 	struct nfs_direct_req *dreq = hdr->dreq;
 	struct nfs_commit_info cinfo;
-	int bit = -1;
+	bool request_commit = false;
 	struct nfs_page *req = nfs_list_entry(hdr->pages.next);
 
 	if (test_bit(NFS_IOHDR_REDO, &hdr->flags))
@@ -729,27 +729,20 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		dreq->flags = 0;
 		dreq->error = hdr->error;
 	}
-	if (dreq->error != 0)
-		bit = NFS_IOHDR_ERROR;
-	else {
+	if (dreq->error == 0) {
 		dreq->count += hdr->good_bytes;
-		if (test_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags)) {
-			dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
-			bit = NFS_IOHDR_NEED_RESCHED;
-		} else if (test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags)) {
+		if (nfs_write_need_commit(hdr)) {
 			if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES)
-				bit = NFS_IOHDR_NEED_RESCHED;
+				request_commit = true;
 			else if (dreq->flags == 0) {
 				nfs_direct_set_hdr_verf(dreq, hdr);
-				bit = NFS_IOHDR_NEED_COMMIT;
+				request_commit = true;
 				dreq->flags = NFS_ODIRECT_DO_COMMIT;
 			} else if (dreq->flags == NFS_ODIRECT_DO_COMMIT) {
-				if (nfs_direct_set_or_cmp_hdr_verf(dreq, hdr)) {
+				request_commit = true;
+				if (nfs_direct_set_or_cmp_hdr_verf(dreq, hdr))
 					dreq->flags =
 						NFS_ODIRECT_RESCHED_WRITES;
-					bit = NFS_IOHDR_NEED_RESCHED;
-				} else
-					bit = NFS_IOHDR_NEED_COMMIT;
 			}
 		}
 	}
@@ -759,9 +752,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 
 		req = nfs_list_entry(hdr->pages.next);
 		nfs_list_remove_request(req);
-		switch (bit) {
-		case NFS_IOHDR_NEED_RESCHED:
-		case NFS_IOHDR_NEED_COMMIT:
+		if (request_commit) {
 			kref_get(&req->wb_kref);
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
 		}

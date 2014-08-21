@@ -425,8 +425,6 @@ static int falcon_sflash_probe(struct platform_device *pdev)
 	master->unprepare_transfer_hardware = falcon_sflash_unprepare_xfer;
 	master->dev.of_node = pdev->dev.of_node;
 
-	platform_set_drvdata(pdev, priv);
-
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret)
 		spi_master_put(master);

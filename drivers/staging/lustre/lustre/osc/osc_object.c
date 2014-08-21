@@ -128,8 +128,7 @@ static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 int osc_lvb_print(const struct lu_env *env, void *cookie,
 		  lu_printer_t p, const struct ost_lvb *lvb)
 {
-	return (*p)(env, cookie, "size: "LPU64" mtime: "LPU64" atime: "LPU64" "
-		    "ctime: "LPU64" blocks: "LPU64,
+	return (*p)(env, cookie, "size: %llu mtime: %llu atime: %llu ctime: %llu blocks: %llu",
 		    lvb->lvb_size, lvb->lvb_mtime, lvb->lvb_atime,
 		    lvb->lvb_ctime, lvb->lvb_blocks);
 }
@@ -142,8 +141,7 @@ static int osc_object_print(const struct lu_env *env, void *cookie,
 	struct osc_async_rc *ar    = &oinfo->loi_ar;
 
 	(*p)(env, cookie, "id: "DOSTID" "
-	     "idx: %d gen: %d kms_valid: %u kms "LPU64" "
-	     "rc: %d force_sync: %d min_xid: "LPU64" ",
+	     "idx: %d gen: %d kms_valid: %u kms %llu rc: %d force_sync: %d min_xid: %llu ",
 	     POSTID(&oinfo->loi_oi), oinfo->loi_ost_idx,
 	     oinfo->loi_ost_gen, oinfo->loi_kms_valid, oinfo->loi_kms,
 	     ar->ar_rc, ar->ar_force_sync, ar->ar_min_xid);
@@ -179,7 +177,7 @@ int osc_attr_set(const struct lu_env *env, struct cl_object *obj,
 	if (valid & CAT_BLOCKS)
 		lvb->lvb_blocks = attr->cat_blocks;
 	if (valid & CAT_KMS) {
-		CDEBUG(D_CACHE, "set kms from "LPU64"to "LPU64"\n",
+		CDEBUG(D_CACHE, "set kms from %llu to %llu\n",
 		       oinfo->loi_kms, (__u64)attr->cat_kms);
 		loi_kms_set(oinfo, attr->cat_kms);
 	}
@@ -213,8 +211,8 @@ int osc_object_is_contended(struct osc_object *obj)
 {
 	struct osc_device *dev  = lu2osc_dev(obj->oo_cl.co_lu.lo_dev);
 	int osc_contention_time = dev->od_contention_time;
-	cfs_time_t cur_time     = cfs_time_current();
-	cfs_time_t retry_time;
+	unsigned long cur_time     = cfs_time_current();
+	unsigned long retry_time;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_OBJECT_CONTENTION))
 		return 1;

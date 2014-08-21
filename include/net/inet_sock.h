@@ -88,8 +88,10 @@ struct inet_request_sock {
 				acked	   : 1,
 				no_srccheck: 1;
 	kmemcheck_bitfield_end(flags);
-	struct ip_options_rcu	*opt;
-	struct sk_buff		*pktopts;
+	union {
+		struct ip_options_rcu	*opt;
+		struct sk_buff		*pktopts;
+	};
 	u32                     ir_mark;
 };
 

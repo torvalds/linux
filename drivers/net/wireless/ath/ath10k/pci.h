@@ -38,7 +38,8 @@
 #define DIAG_TRANSFER_LIMIT 2048
 
 struct bmi_xfer {
-	struct completion done;
+	bool tx_done;
+	bool rx_done;
 	bool wait_for_resp;
 	u32 resp_len;
 };

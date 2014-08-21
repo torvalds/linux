@@ -1330,6 +1330,13 @@ DEFINE_EVENT(local_sdata_evt, drv_mgd_prepare_tx,
 	TP_ARGS(local, sdata)
 );
 
+DEFINE_EVENT(local_sdata_evt, drv_mgd_protect_tdls_discover,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+
+	TP_ARGS(local, sdata)
+);
+
 DECLARE_EVENT_CLASS(local_chanctx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_chanctx *ctx),

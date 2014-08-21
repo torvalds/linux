@@ -2338,7 +2338,6 @@ static const char *ctx_state_names[] = {
 static unsigned long long spufs_acct_time(struct spu_context *ctx,
 		enum spu_utilization_state state)
 {
-	struct timespec ts;
 	unsigned long long time = ctx->stats.times[state];
 
 	/*
@@ -2351,8 +2350,7 @@ static unsigned long long spufs_acct_time(struct spu_context *ctx,
 	 * of the spu context.
 	 */
 	if (ctx->spu && ctx->stats.util_state == state) {
-		ktime_get_ts(&ts);
-		time += timespec_to_ns(&ts) - ctx->stats.tstamp;
+		time += ktime_get_ns() - ctx->stats.tstamp;
 	}
 
 	return time / NSEC_PER_MSEC;

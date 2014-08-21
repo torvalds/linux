@@ -71,19 +71,19 @@ uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
 }
 EXPORT_SYMBOL_GPL(uisqueue_InterlockedAnd);
 
-static U8
+static u8
 do_locked_client_insert(struct uisqueue_info *queueinfo,
 			unsigned int whichqueue,
 			void *pSignal,
 			spinlock_t *lock,
 			unsigned char issueInterruptIfEmpty,
-			U64 interruptHandle, U8 *channelId)
+			u64 interruptHandle, u8 *channelId)
 {
 	unsigned long flags;
 	unsigned char queueWasEmpty;
 	unsigned int locked = 0;
 	unsigned int acquired = 0;
-	U8 rc = 0;
+	u8 rc = 0;
 
 	spin_lock_irqsave(lock, flags);
 	locked = 1;
@@ -124,8 +124,8 @@ uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 				     unsigned int whichqueue,
 				     void *insertlock,
 				     unsigned char issueInterruptIfEmpty,
-				     U64 interruptHandle,
-				     char oktowait, U8 *channelId)
+				     u64 interruptHandle,
+				     char oktowait, u8 *channelId)
 {
 	while (!do_locked_client_insert(queueinfo, whichqueue, cmdrsp,
 					(spinlock_t *) insertlock,

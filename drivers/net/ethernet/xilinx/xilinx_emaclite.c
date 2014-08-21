@@ -695,7 +695,7 @@ static irqreturn_t xemaclite_interrupt(int irq, void *dev_id)
 
 static int xemaclite_mdio_wait(struct net_local *lp)
 {
-	long end = jiffies + 2;
+	unsigned long end = jiffies + 2;
 
 	/* wait for the MDIO interface to not be busy or timeout
 	   after some time.
@@ -1245,7 +1245,6 @@ MODULE_DEVICE_TABLE(of, xemaclite_of_match);
 static struct platform_driver xemaclite_of_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = xemaclite_of_match,
 	},
 	.probe		= xemaclite_of_probe,

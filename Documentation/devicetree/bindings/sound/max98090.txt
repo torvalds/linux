@@ -4,7 +4,7 @@ This device supports I2C only.
 
 Required properties:
 
-- compatible : "maxim,max98090".
+- compatible : "maxim,max98090" or "maxim,max98091".
 
 - reg : The I2C address of the device.
 

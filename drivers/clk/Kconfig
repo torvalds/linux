@@ -102,6 +102,13 @@ config COMMON_CLK_KEYSTONE
           Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
 
+config COMMON_CLK_PALMAS
+	tristate "Clock driver for TI Palmas devices"
+	depends on MFD_PALMAS
+	---help---
+	  This driver supports TI Palmas devices 32KHz output KG and KG_AUDIO
+	  using common clock framework.
+
 source "drivers/clk/qcom/Kconfig"
 
 endmenu

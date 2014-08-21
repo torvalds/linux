@@ -6,7 +6,6 @@ menuconfig BT
 	tristate "Bluetooth subsystem support"
 	depends on NET && !S390
 	depends on RFKILL || !RFKILL
-	select 6LOWPAN_IPHC if BT_6LOWPAN
 	select CRC16
 	select CRYPTO
 	select CRYPTO_BLKCIPHER
@@ -41,10 +40,10 @@ menuconfig BT
 	  more information, see <http://www.bluez.org/>.
 
 config BT_6LOWPAN
-	bool "Bluetooth 6LoWPAN support"
-	depends on BT && IPV6
+	tristate "Bluetooth 6LoWPAN support"
+	depends on BT && 6LOWPAN
 	help
-	  IPv6 compression over Bluetooth.
+	  IPv6 compression over Bluetooth Low Energy.
 
 source "net/bluetooth/rfcomm/Kconfig"
 

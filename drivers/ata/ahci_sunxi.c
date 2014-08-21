@@ -167,7 +167,6 @@ static int ahci_sunxi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
-	unsigned long hflags;
 	int rc;
 
 	hpriv = ahci_platform_get_resources(pdev);
@@ -184,11 +183,10 @@ static int ahci_sunxi_probe(struct platform_device *pdev)
 	if (rc)
 		goto disable_resources;
 
-	hflags = AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_NO_MSI |
-		 AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
+	hpriv->flags = AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_NO_MSI |
+		       AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
 
-	rc = ahci_platform_init_host(pdev, hpriv, &ahci_sunxi_port_info,
-				     hflags, 0, 0);
+	rc = ahci_platform_init_host(pdev, hpriv, &ahci_sunxi_port_info);
 	if (rc)
 		goto disable_resources;
 

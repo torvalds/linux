@@ -425,7 +425,6 @@ static int rtw_init_default_value(struct rtw_adapter *padapter)
 	/* misc. */
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
-	padapter->bNotifyChannelChange = 0;
 	return ret;
 }
 
@@ -558,8 +557,6 @@ void rtw_cancel_all_timer23a(struct rtw_adapter *padapter)
 		 ("%s:cancel set_scan_deny_timer!\n", __func__));
 
 	del_timer_sync(&padapter->recvpriv.signal_stat_timer);
-	/* cancel dm timer */
-	rtl8723a_deinit_dm_priv(padapter);
 }
 
 int rtw_free_drv_sw23a(struct rtw_adapter *padapter)
@@ -584,11 +581,6 @@ int rtw_free_drv_sw23a(struct rtw_adapter *padapter)
 	kfree(padapter->HalData);
 	padapter->HalData = NULL;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("<== rtw_free_drv_sw23a\n"));
-
-	/*  clear pbuddy_adapter to avoid access wrong pointer. */
-	if (padapter->pbuddy_adapter != NULL)
-		padapter->pbuddy_adapter->pbuddy_adapter = NULL;
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_free_drv_sw23a\n"));
 	return _SUCCESS;
 }
@@ -668,17 +660,13 @@ int netdev_open23a(struct net_device *pnetdev)
 	mutex_lock(&adapter_to_dvobj(padapter)->hw_init_mutex);
 
 	pwrctrlpriv = &padapter->pwrctrlpriv;
-	if (pwrctrlpriv->ps_flag) {
-		padapter->net_closed = false;
-		goto netdev_open23a_normal_process;
-	}
 
 	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
 		padapter->bSurpriseRemoved = false;
 		padapter->bCardDisableWOHSM = false;
 
-		status = rtw_hal_init23a(padapter);
+		status = rtl8723au_hal_init(padapter);
 		if (status == _FAIL) {
 			RT_TRACE(_module_os_intfs_c_, _drv_err_,
 				 ("rtl871x_hal_init(): Can't init h/w!\n"));
@@ -716,7 +704,6 @@ int netdev_open23a(struct net_device *pnetdev)
 	else
 		netif_tx_wake_all_queues(pnetdev);
 
-netdev_open23a_normal_process:
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-871x_drv - dev_open\n"));
 	DBG_8723A("-871x_drv - drv_open, bup =%d\n", padapter->bup);
 exit:
@@ -748,7 +735,7 @@ static int ips_netdrv_open(struct rtw_adapter *padapter)
 	padapter->bSurpriseRemoved = false;
 	padapter->bCardDisableWOHSM = false;
 
-	status = rtw_hal_init23a(padapter);
+	status = rtl8723au_hal_init(padapter);
 	if (status == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
 			 ("ips_netdrv_open(): Can't init h/w!\n"));
@@ -813,7 +800,7 @@ void rtw_ips_dev_unload23a(struct rtw_adapter *padapter)
 
 	/* s5. */
 	if (!padapter->bSurpriseRemoved)
-		rtw_hal_deinit23a(padapter);
+		rtl8723au_hal_deinit(padapter);
 }
 
 int pm_netdev_open23a(struct net_device *pnetdev, u8 bnormal)

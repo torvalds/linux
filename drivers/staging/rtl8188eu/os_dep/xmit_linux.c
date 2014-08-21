@@ -26,7 +26,6 @@
 #include <mlme_osdep.h>
 #include <xmit_osdep.h>
 #include <osdep_intf.h>
-#include <usb_osintf.h>
 
 uint rtw_remainder_len(struct pkt_file *pfile)
 {
@@ -80,7 +79,7 @@ int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitb
 {
 	int i;
 
-	pxmitbuf->pallocated_buf = rtw_zmalloc(alloc_sz);
+	pxmitbuf->pallocated_buf = kzalloc(alloc_sz, GFP_KERNEL);
 	if (pxmitbuf->pallocated_buf == NULL)
 		return _FAIL;
 
@@ -184,7 +183,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 	plist = phead->next;
 
 	/* free sta asoc_queue */
-	while (!rtw_end_of_queue_search(phead, plist)) {
+	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, asoc_list);
 
 		plist = plist->next;

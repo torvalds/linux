@@ -1299,12 +1299,12 @@ static int max98088_dai2_hw_params(struct snd_pcm_substream *substream,
 
        rate = params_rate(params);
 
-       switch (params_format(params)) {
-       case SNDRV_PCM_FORMAT_S16_LE:
+       switch (params_width(params)) {
+       case 16:
                snd_soc_update_bits(codec, M98088_REG_1C_DAI2_FORMAT,
                        M98088_DAI_WS, 0);
                break;
-       case SNDRV_PCM_FORMAT_S24_LE:
+       case 24:
                snd_soc_update_bits(codec, M98088_REG_1C_DAI2_FORMAT,
                        M98088_DAI_WS, M98088_DAI_WS);
                break;

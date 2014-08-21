@@ -213,6 +213,17 @@ static inline unsigned long vcpu_data_guest_to_host(struct kvm_vcpu *vcpu,
 		default:
 			return be64_to_cpu(data);
 		}
+	} else {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return le16_to_cpu(data & 0xffff);
+		case 4:
+			return le32_to_cpu(data & 0xffffffff);
+		default:
+			return le64_to_cpu(data);
+		}
 	}
 
 	return data;		/* Leave LE untouched */
@@ -232,6 +243,17 @@ static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,
 			return cpu_to_be32(data & 0xffffffff);
 		default:
 			return cpu_to_be64(data);
+		}
+	} else {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return cpu_to_le16(data & 0xffff);
+		case 4:
+			return cpu_to_le32(data & 0xffffffff);
+		default:
+			return cpu_to_le64(data);
 		}
 	}
 

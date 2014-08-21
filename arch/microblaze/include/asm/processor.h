@@ -22,6 +22,7 @@
 extern const struct seq_operations cpuinfo_op;
 
 # define cpu_relax()		barrier()
+# define cpu_relax_lowlatency()	cpu_relax()
 
 #define task_pt_regs(tsk) \
 		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)

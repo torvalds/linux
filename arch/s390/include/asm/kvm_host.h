@@ -305,7 +305,6 @@ struct kvm_s390_local_interrupt {
 	struct list_head list;
 	atomic_t active;
 	struct kvm_s390_float_interrupt *float_int;
-	int timer_due; /* event indicator for waitqueue below */
 	wait_queue_head_t *wq;
 	atomic_t *cpuflags;
 	unsigned int action_bits;
@@ -367,7 +366,6 @@ struct kvm_vcpu_arch {
 	s390_fp_regs      guest_fpregs;
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
-	struct tasklet_struct tasklet;
 	struct kvm_s390_pgm_info pgm;
 	union  {
 		struct cpuid	cpu_id;
@@ -418,6 +416,7 @@ struct kvm_arch{
 	int css_support;
 	int use_irqchip;
 	int use_cmma;
+	int user_cpu_state_ctrl;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
 	spinlock_t start_stop_lock;

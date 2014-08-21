@@ -281,7 +281,7 @@ ar9002_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 
 	ACCESS_ONCE(ads->ds_ctl0) = (i->pkt_len & AR_FrameLen)
 		| (i->flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
-		| SM(i->txpower, AR_XmitPower)
+		| SM(i->txpower, AR_XmitPower0)
 		| (i->flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
 		| (i->flags & ATH9K_TXDESC_INTREQ ? AR_TxIntrReq : 0)
 		| (i->keyix != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
@@ -306,6 +306,10 @@ ar9002_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 		| set11nRateFlags(i->rates, 2)
 		| set11nRateFlags(i->rates, 3)
 		| SM(i->rtscts_rate, AR_RTSCTSRate);
+
+	ACCESS_ONCE(ads->ds_ctl9) = SM(i->txpower, AR_XmitPower1);
+	ACCESS_ONCE(ads->ds_ctl10) = SM(i->txpower, AR_XmitPower2);
+	ACCESS_ONCE(ads->ds_ctl11) = SM(i->txpower, AR_XmitPower3);
 }
 
 static int ar9002_hw_proc_txdesc(struct ath_hw *ah, void *ds,

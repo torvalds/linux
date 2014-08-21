@@ -2335,7 +2335,7 @@ static int arcmsr_polling_hba_ccbdone(struct AdapterControlBlock *acb,
 					" poll command abort successfully \n"
 					, acb->host->host_no
 					, ccb->pcmd->device->id
-					, ccb->pcmd->device->lun
+					, (u32)ccb->pcmd->device->lun
 					, ccb);
 				ccb->pcmd->result = DID_ABORT << 16;
 				arcmsr_ccb_complete(ccb);
@@ -2399,7 +2399,7 @@ static int arcmsr_polling_hbb_ccbdone(struct AdapterControlBlock *acb,
 					" poll command abort successfully \n"
 					,acb->host->host_no
 					,ccb->pcmd->device->id
-					,ccb->pcmd->device->lun
+					,(u32)ccb->pcmd->device->lun
 					,ccb);
 				ccb->pcmd->result = DID_ABORT << 16;
 				arcmsr_ccb_complete(ccb);
@@ -2456,7 +2456,7 @@ polling_hbc_ccb_retry:
 					" poll command abort successfully \n"
 					, acb->host->host_no
 					, pCCB->pcmd->device->id
-					, pCCB->pcmd->device->lun
+					, (u32)pCCB->pcmd->device->lun
 					, pCCB);
 					pCCB->pcmd->result = DID_ABORT << 16;
 					arcmsr_ccb_complete(pCCB);
@@ -3058,7 +3058,7 @@ static int arcmsr_abort(struct scsi_cmnd *cmd)
 	int rtn = FAILED;
 	printk(KERN_NOTICE
 		"arcmsr%d: abort device command of scsi id = %d lun = %d \n",
-		acb->host->host_no, cmd->device->id, cmd->device->lun);
+		acb->host->host_no, cmd->device->id, (u32)cmd->device->lun);
 	acb->acb_flags |= ACB_F_ABORT;
 	acb->num_aborts++;
 	/*

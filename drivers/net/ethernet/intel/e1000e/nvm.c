@@ -327,8 +327,10 @@ s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 		ew32(EERD, eerd);
 		ret_val = e1000e_poll_eerd_eewr_done(hw, E1000_NVM_POLL_READ);
-		if (ret_val)
+		if (ret_val) {
+			e_dbg("NVM read error: %d\n", ret_val);
 			break;
+		}
 
 		data[i] = (er32(EERD) >> E1000_NVM_RW_REG_DATA);
 	}

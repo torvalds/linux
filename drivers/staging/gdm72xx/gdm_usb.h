@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __GDM_USB_H__
-#define __GDM_USB_H__
+#ifndef __GDM72XX_GDM_USB_H__
+#define __GDM72XX_GDM_USB_H__
 
 #include <linux/types.h>
 #include <linux/usb.h>
@@ -75,4 +75,4 @@ struct usbwm_dev {
 	int			padding;
 };
 
-#endif /* __GDM_USB_H__ */
+#endif /* __GDM72XX_GDM_USB_H__ */

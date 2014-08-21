@@ -15,7 +15,6 @@ config MIPS
 	select HAVE_BPF_JIT if !CPU_MICROMIPS
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select HAVE_FUNCTION_TRACER
-	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_C_RECORDMCOUNT
@@ -72,6 +71,7 @@ config MIPS_ALCHEMY
 	select SYS_SUPPORTS_APM_EMULATION
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_SUPPORTS_ZBOOT
+	select COMMON_CLK
 
 config AR7
 	bool "Texas Instruments AR7"
@@ -130,6 +130,8 @@ config BCM47XX
 	select SYS_SUPPORTS_MIPS16
 	select SYS_HAS_EARLY_PRINTK
 	select USE_GENERIC_EARLY_PRINTK_8250
+	select GPIOLIB
+	select LEDS_GPIO_REGISTER
 	help
 	 Support for BCM47XX based boards
 
@@ -138,6 +140,7 @@ config BCM63XX
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
+	select SYNC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -2057,6 +2060,7 @@ config MIPS_CPS
 	  support is unavailable.
 
 config MIPS_CPS_PM
+	select MIPS_CPC
 	bool
 
 config MIPS_GIC_IPI
@@ -2110,9 +2114,9 @@ config CPU_MICROMIPS
 	  microMIPS ISA
 
 config CPU_HAS_MSA
-	bool "Support for the MIPS SIMD Architecture"
+	bool "Support for the MIPS SIMD Architecture (EXPERIMENTAL)"
 	depends on CPU_SUPPORTS_MSA
-	default y
+	depends on 64BIT || MIPS_O32_FP64_SUPPORT
 	help
 	  MIPS SIMD Architecture (MSA) introduces 128 bit wide vector registers
 	  and a set of SIMD instructions to operate on them. When this option
@@ -2392,6 +2396,8 @@ source "kernel/Kconfig.preempt"
 
 config KEXEC
 	bool "Kexec system call"
+	select CRYPTO
+	select CRYPTO_SHA256
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot

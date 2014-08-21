@@ -554,6 +554,17 @@ config SENSORS_IBMPEX
 	  This driver can also be built as a module.  If so, the module
 	  will be called ibmpex.
 
+config SENSORS_IBMPOWERNV
+	tristate "IBM POWERNV platform sensors"
+	depends on PPC_POWERNV
+	default y
+	help
+	  If you say yes here you get support for the temperature/fan/power
+	  sensors on your PowerNV platform.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ibmpowernv.
+
 config SENSORS_IIO_HWMON
 	tristate "Hwmon driver that uses channels specified via iio maps"
 	depends on IIO
@@ -607,6 +618,18 @@ config SENSORS_JC42
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called jc42.
+
+config SENSORS_POWR1220
+	tristate "Lattice POWR1220 Power Monitoring"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get access to the hardware monitoring
+	  functions of the Lattice POWR1220 isp Power Supply Monitoring,
+	  Sequencing and Margining Controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called powr1220.
 
 config SENSORS_LINEAGE
 	tristate "Lineage Compact Power Line Power Entry Module"
@@ -882,8 +905,8 @@ config SENSORS_LM75
 		- NXP's LM75A
 		- ST Microelectronics STDS75
 		- TelCom (now Microchip) TCN75
-		- Texas Instruments TMP100, TMP101, TMP105, TMP75, TMP175,
-		  TMP275
+		- Texas Instruments TMP100, TMP101, TMP105, TMP112, TMP75,
+		  TMP175, TMP275
 
 	  This driver supports driver model based binding through board
 	  specific I2C device tables.
@@ -1061,7 +1084,7 @@ config SENSORS_NTC_THERMISTOR
 
 	  Currently, this driver supports
 	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, and NCP15WL333
-	  from Murata.
+	  from Murata and B57330V2103 from EPCOS.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ntc-thermistor.
@@ -1082,8 +1105,8 @@ config SENSORS_NCT6775
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware monitoring
-	  functionality of the Nuvoton NCT6775F, NCT6776F, NCT6779D
-	  and compatible Super-I/O chips. This driver replaces the
+	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
+	  NCT6791D and compatible Super-I/O chips. This driver replaces the
 	  w83627ehf driver for NCT6775F and NCT6776F.
 
 	  This driver can also be built as a module.  If so, the module
@@ -1104,6 +1127,17 @@ config SENSORS_PCF8591
 	  hardware.  If unsure, say N.
 
 source drivers/hwmon/pmbus/Kconfig
+
+config SENSORS_PWM_FAN
+	tristate "PWM fan"
+	depends on (PWM && OF) || COMPILE_TEST
+	help
+	  If you say yes here you get support for fans connected to PWM lines.
+	  The driver uses the generic PWM interface, thus it will work on a
+	  variety of SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pwm-fan.
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
@@ -1393,6 +1427,17 @@ config SENSORS_TMP102
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp102.
 
+config SENSORS_TMP103
+	tristate "Texas Instruments TMP103"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP103
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tmp103.
+
 config SENSORS_TMP401
 	tristate "Texas Instruments TMP401 and compatibles"
 	depends on I2C
@@ -1408,7 +1453,7 @@ config SENSORS_TMP421
 	depends on I2C
 	help
 	  If you say yes here you get support for Texas Instruments TMP421,
-	  TMP422 and TMP423 temperature sensor chips.
+	  TMP422, TMP423, TMP441, and TMP442 temperature sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp421.

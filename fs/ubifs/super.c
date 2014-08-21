@@ -75,7 +75,7 @@ static int validate_inode(struct ubifs_info *c, const struct inode *inode)
 		return 1;
 	}
 
-	if (ui->compr_type < 0 || ui->compr_type >= UBIFS_COMPR_TYPES_CNT) {
+	if (ui->compr_type >= UBIFS_COMPR_TYPES_CNT) {
 		ubifs_err("unknown compression type %d", ui->compr_type);
 		return 2;
 	}
@@ -424,19 +424,19 @@ static int ubifs_show_options(struct seq_file *s, struct dentry *root)
 	struct ubifs_info *c = root->d_sb->s_fs_info;
 
 	if (c->mount_opts.unmount_mode == 2)
-		seq_printf(s, ",fast_unmount");
+		seq_puts(s, ",fast_unmount");
 	else if (c->mount_opts.unmount_mode == 1)
-		seq_printf(s, ",norm_unmount");
+		seq_puts(s, ",norm_unmount");
 
 	if (c->mount_opts.bulk_read == 2)
-		seq_printf(s, ",bulk_read");
+		seq_puts(s, ",bulk_read");
 	else if (c->mount_opts.bulk_read == 1)
-		seq_printf(s, ",no_bulk_read");
+		seq_puts(s, ",no_bulk_read");
 
 	if (c->mount_opts.chk_data_crc == 2)
-		seq_printf(s, ",chk_data_crc");
+		seq_puts(s, ",chk_data_crc");
 	else if (c->mount_opts.chk_data_crc == 1)
-		seq_printf(s, ",no_chk_data_crc");
+		seq_puts(s, ",no_chk_data_crc");
 
 	if (c->mount_opts.override_compr) {
 		seq_printf(s, ",compr=%s",
@@ -796,8 +796,8 @@ static int alloc_wbufs(struct ubifs_info *c)
 {
 	int i, err;
 
-	c->jheads = kzalloc(c->jhead_cnt * sizeof(struct ubifs_jhead),
-			   GFP_KERNEL);
+	c->jheads = kcalloc(c->jhead_cnt, sizeof(struct ubifs_jhead),
+			    GFP_KERNEL);
 	if (!c->jheads)
 		return -ENOMEM;
 
@@ -1963,7 +1963,6 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 		mutex_init(&c->lp_mutex);
 		mutex_init(&c->tnc_mutex);
 		mutex_init(&c->log_mutex);
-		mutex_init(&c->mst_mutex);
 		mutex_init(&c->umount_mutex);
 		mutex_init(&c->bu_mutex);
 		mutex_init(&c->write_reserve_mutex);

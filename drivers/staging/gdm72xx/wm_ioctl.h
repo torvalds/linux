@@ -11,8 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#if !defined(WM_IOCTL_H_20080714)
-#define WM_IOCTL_H_20080714
+#ifndef __GDM72XX_WM_IOCTL_H__
+#define __GDM72XX_WM_IOCTL_H__
+
 #if !defined(__KERNEL__)
 #include <net/if.h>
 #endif
@@ -92,4 +93,4 @@ struct wm_req_s {
 #define ifr_name ifr_ifrn.ifrn_name
 #endif
 
-#endif
+#endif /* __GDM72XX_WM_IOCTL_H__ */

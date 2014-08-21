@@ -5961,7 +5961,7 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 	int err = 0;
 
 	if (mddev->pers) {
-		if (!mddev->pers->quiesce)
+		if (!mddev->pers->quiesce || !mddev->thread)
 			return -EBUSY;
 		if (mddev->recovery || mddev->sync_thread)
 			return -EBUSY;
@@ -6263,7 +6263,7 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 		rv = update_raid_disks(mddev, info->raid_disks);
 
 	if ((state ^ info->state) & (1<<MD_SB_BITMAP_PRESENT)) {
-		if (mddev->pers->quiesce == NULL)
+		if (mddev->pers->quiesce == NULL || mddev->thread == NULL)
 			return -EINVAL;
 		if (mddev->recovery || mddev->sync_thread)
 			return -EBUSY;
@@ -7376,7 +7376,7 @@ void md_do_sync(struct md_thread *thread)
 	struct mddev *mddev2;
 	unsigned int currspeed = 0,
 		 window;
-	sector_t max_sectors,j, io_sectors;
+	sector_t max_sectors,j, io_sectors, recovery_done;
 	unsigned long mark[SYNC_MARKS];
 	unsigned long update_time;
 	sector_t mark_cnt[SYNC_MARKS];
@@ -7652,7 +7652,8 @@ void md_do_sync(struct md_thread *thread)
 		 */
 		cond_resched();
 
-		currspeed = ((unsigned long)(io_sectors-mddev->resync_mark_cnt))/2
+		recovery_done = io_sectors - atomic_read(&mddev->recovery_active);
+		currspeed = ((unsigned long)(recovery_done - mddev->resync_mark_cnt))/2
 			/((jiffies-mddev->resync_mark)/HZ +1) +1;
 
 		if (currspeed > speed_min(mddev)) {
@@ -8592,7 +8593,7 @@ static int __init md_init(void)
 		goto err_mdp;
 	mdp_major = ret;
 
-	blk_register_region(MKDEV(MD_MAJOR, 0), 1UL<<MINORBITS, THIS_MODULE,
+	blk_register_region(MKDEV(MD_MAJOR, 0), 512, THIS_MODULE,
 			    md_probe, NULL, NULL);
 	blk_register_region(MKDEV(mdp_major, 0), 1UL<<MINORBITS, THIS_MODULE,
 			    md_probe, NULL, NULL);
@@ -8687,7 +8688,7 @@ static __exit void md_exit(void)
 	struct list_head *tmp;
 	int delay = 1;
 
-	blk_unregister_region(MKDEV(MD_MAJOR,0), 1U << MINORBITS);
+	blk_unregister_region(MKDEV(MD_MAJOR,0), 512);
 	blk_unregister_region(MKDEV(mdp_major,0), 1U << MINORBITS);
 
 	unregister_blkdev(MD_MAJOR,"md");

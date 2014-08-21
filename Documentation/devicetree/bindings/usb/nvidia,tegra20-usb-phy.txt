@@ -20,6 +20,12 @@ Required properties :
      Present if phy_type == utmi.
    - ulpi-link: The clock Tegra provides to the ULPI PHY (cdev2).
      Present if phy_type == ulpi, and ULPI link mode is in use.
+ - resets : Must contain an entry for each entry in reset-names.
+   See ../reset/reset.txt for details.
+ - reset-names : Must include the following entries:
+   - usb: The PHY's own reset signal.
+   - utmi-pads: The reset of the PHY containing the chip-wide UTMI pad control
+     registers. Required even if phy_type == ulpi.
 
 Required properties for phy_type == ulpi:
   - nvidia,phy-reset-gpio : The GPIO used to reset the PHY.
@@ -56,6 +62,8 @@ Optional properties:
       host means this is a host controller
       peripheral means it is device controller
       otg means it can operate as either ("on the go")
+  - nvidia,has-utmi-pad-registers : boolean indicates whether this controller
+    contains the UTMI pad control registers common to all USB controllers.
 
 VBUS control (required for dr_mode == otg, optional for dr_mode == host):
   - vbus-supply: regulator for VBUS

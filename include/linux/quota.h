@@ -390,7 +390,6 @@ struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
 	struct mutex dqio_mutex;		/* lock device while I/O in progress */
 	struct mutex dqonoff_mutex;		/* Serialize quotaon & quotaoff */
-	struct rw_semaphore dqptr_sem;		/* serialize ops using quota_info struct, pointers from inode to dquots */
 	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
 	const struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */

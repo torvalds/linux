@@ -29,13 +29,24 @@ gpiod_get() functions. Like many other kernel subsystems, gpiod_get() takes the
 device that will use the GPIO and the function the requested GPIO is supposed to
 fulfill:
 
-	struct gpio_desc *gpiod_get(struct device *dev, const char *con_id)
+	struct gpio_desc *gpiod_get(struct device *dev, const char *con_id,
+				    enum gpiod_flags flags)
 
 If a function is implemented by using several GPIOs together (e.g. a simple LED
 device that displays digits), an additional index argument can be specified:
 
 	struct gpio_desc *gpiod_get_index(struct device *dev,
-					  const char *con_id, unsigned int idx)
+					  const char *con_id, unsigned int idx,
+					  enum gpiod_flags flags)
+
+The flags parameter is used to optionally specify a direction and initial value
+for the GPIO. Values can be:
+
+* GPIOD_ASIS or 0 to not initialize the GPIO at all. The direction must be set
+  later with one of the dedicated functions.
+* GPIOD_IN to initialize the GPIO as input.
+* GPIOD_OUT_LOW to initialize the GPIO as output with a value of 0.
+* GPIOD_OUT_HIGH to initialize the GPIO as output with a value of 1.
 
 Both functions return either a valid GPIO descriptor, or an error code checkable
 with IS_ERR() (they will never return a NULL pointer). -ENOENT will be returned
@@ -46,11 +57,13 @@ errors and an absence of GPIO for optional GPIO parameters.
 
 Device-managed variants of these functions are also defined:
 
-	struct gpio_desc *devm_gpiod_get(struct device *dev, const char *con_id)
+	struct gpio_desc *devm_gpiod_get(struct device *dev, const char *con_id,
+					 enum gpiod_flags flags)
 
 	struct gpio_desc *devm_gpiod_get_index(struct device *dev,
 					       const char *con_id,
-					       unsigned int idx)
+					       unsigned int idx,
+					       enum gpiod_flags flags)
 
 A GPIO descriptor can be disposed of using the gpiod_put() function:
 
@@ -67,8 +80,9 @@ Using GPIOs
 
 Setting Direction
 -----------------
-The first thing a driver must do with a GPIO is setting its direction. This is
-done by invoking one of the gpiod_direction_*() functions:
+The first thing a driver must do with a GPIO is setting its direction. If no
+direction-setting flags have been given to gpiod_get*(), this is done by
+invoking one of the gpiod_direction_*() functions:
 
 	int gpiod_direction_input(struct gpio_desc *desc)
 	int gpiod_direction_output(struct gpio_desc *desc, int value)

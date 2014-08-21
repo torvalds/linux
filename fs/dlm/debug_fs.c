@@ -718,16 +718,11 @@ static const struct file_operations waiters_fops = {
 
 void dlm_delete_debug_file(struct dlm_ls *ls)
 {
-	if (ls->ls_debug_rsb_dentry)
-		debugfs_remove(ls->ls_debug_rsb_dentry);
-	if (ls->ls_debug_waiters_dentry)
-		debugfs_remove(ls->ls_debug_waiters_dentry);
-	if (ls->ls_debug_locks_dentry)
-		debugfs_remove(ls->ls_debug_locks_dentry);
-	if (ls->ls_debug_all_dentry)
-		debugfs_remove(ls->ls_debug_all_dentry);
-	if (ls->ls_debug_toss_dentry)
-		debugfs_remove(ls->ls_debug_toss_dentry);
+	debugfs_remove(ls->ls_debug_rsb_dentry);
+	debugfs_remove(ls->ls_debug_waiters_dentry);
+	debugfs_remove(ls->ls_debug_locks_dentry);
+	debugfs_remove(ls->ls_debug_all_dentry);
+	debugfs_remove(ls->ls_debug_toss_dentry);
 }
 
 int dlm_create_debug_file(struct dlm_ls *ls)

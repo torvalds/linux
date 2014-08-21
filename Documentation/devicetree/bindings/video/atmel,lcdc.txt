@@ -46,6 +46,7 @@ Required properties (as per of_videomode_helper):
 
 Optional properties (as per of_videomode_helper):
  - atmel,lcdcon-backlight: enable backlight
+ - atmel,lcdcon-backlight-inverted: invert backlight PWM polarity
  - atmel,lcd-wiring-mode: lcd wiring mode "RGB" or "BRG"
  - atmel,power-control-gpio: gpio to power on or off the LCD (as many as needed)
 

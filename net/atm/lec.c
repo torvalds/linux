@@ -833,7 +833,6 @@ static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 			  loff_t *l)
 {
 	struct hlist_node *e = state->node;
-	struct lec_arp_table *tmp;
 
 	if (!e)
 		e = tbl->first;
@@ -842,9 +841,7 @@ static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 		--*l;
 	}
 
-	tmp = container_of(e, struct lec_arp_table, next);
-
-	hlist_for_each_entry_from(tmp, next) {
+	for (; e; e = e->next) {
 		if (--*l < 0)
 			break;
 	}

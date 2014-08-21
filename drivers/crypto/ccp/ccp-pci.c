@@ -12,8 +12,10 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
+#include <linux/dma-mapping.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
@@ -24,6 +26,8 @@
 #include "ccp-dev.h"
 
 #define IO_BAR				2
+#define IO_OFFSET			0x20000
+
 #define MSIX_VECTORS			2
 
 struct ccp_msix {
@@ -89,7 +93,8 @@ static int ccp_get_msi_irq(struct ccp_device *ccp)
 	if (ret)
 		return ret;
 
-	ret = request_irq(pdev->irq, ccp_irq_handler, 0, "ccp", dev);
+	ccp->irq = pdev->irq;
+	ret = request_irq(ccp->irq, ccp_irq_handler, 0, "ccp", dev);
 	if (ret) {
 		dev_notice(dev, "unable to allocate MSI IRQ (%d)\n", ret);
 		goto e_msi;
@@ -136,7 +141,7 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 				 dev);
 		pci_disable_msix(pdev);
 	} else {
-		free_irq(pdev->irq, dev);
+		free_irq(ccp->irq, dev);
 		pci_disable_msi(pdev);
 	}
 }
@@ -147,20 +152,11 @@ static int ccp_find_mmio_area(struct ccp_device *ccp)
 	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
 	resource_size_t io_len;
 	unsigned long io_flags;
-	int bar;
 
 	io_flags = pci_resource_flags(pdev, IO_BAR);
 	io_len = pci_resource_len(pdev, IO_BAR);
 	if ((io_flags & IORESOURCE_MEM) && (io_len >= (IO_OFFSET + 0x800)))
 		return IO_BAR;
-
-	for (bar = 0; bar < PCI_STD_RESOURCE_END; bar++) {
-		io_flags = pci_resource_flags(pdev, bar);
-		io_len = pci_resource_len(pdev, bar);
-		if ((io_flags & IORESOURCE_MEM) &&
-		    (io_len >= (IO_OFFSET + 0x800)))
-			return bar;
-	}
 
 	return -EIO;
 }
@@ -214,20 +210,13 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	ccp->io_regs = ccp->io_map + IO_OFFSET;
 
-	ret = dma_set_mask(dev, DMA_BIT_MASK(48));
-	if (ret == 0) {
-		ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(48));
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
+	if (ret) {
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret) {
-			dev_err(dev,
-				"pci_set_consistent_dma_mask failed (%d)\n",
+			dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n",
 				ret);
-			goto e_bar0;
-		}
-	} else {
-		ret = dma_set_mask(dev, DMA_BIT_MASK(32));
-		if (ret) {
-			dev_err(dev, "pci_set_dma_mask failed (%d)\n", ret);
-			goto e_bar0;
+			goto e_iomap;
 		}
 	}
 
@@ -235,13 +224,13 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = ccp_init(ccp);
 	if (ret)
-		goto e_bar0;
+		goto e_iomap;
 
 	dev_notice(dev, "enabled\n");
 
 	return 0;
 
-e_bar0:
+e_iomap:
 	pci_iounmap(pdev, ccp->io_map);
 
 e_device:
@@ -331,7 +320,7 @@ static int ccp_pci_resume(struct pci_dev *pdev)
 }
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(ccp_pci_table) = {
+static const struct pci_device_id ccp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), },
 	/* Last entry must be zero */
 	{ 0, }

@@ -61,9 +61,6 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 					unsigned char *da, unsigned short reason);
 #endif /* CONFIG_8723AU_AP_MODE */
 
-void rtw_cfg80211_rx_action(struct rtw_adapter *adapter, u8 *frame,
-			    uint frame_len, const char*msg);
-
 bool rtw_cfg80211_pwr_mgmt(struct rtw_adapter *adapter);
 
 #endif /* __IOCTL_CFG80211_H__ */

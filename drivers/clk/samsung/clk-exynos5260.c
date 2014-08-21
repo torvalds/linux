@@ -206,6 +206,8 @@ void __init exynos5260_cmu_register_one(struct device_node *np,
 	if (cmu->clk_regs)
 		exynos5260_clk_sleep_init(reg_base, cmu->clk_regs,
 			cmu->nr_clk_regs);
+
+	samsung_clk_of_add_provider(np, ctx);
 }
 
 

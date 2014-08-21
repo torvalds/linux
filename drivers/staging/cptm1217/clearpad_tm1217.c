@@ -147,12 +147,11 @@ static int cp_tm1217_read(struct cp_tm1217_device *ts,
 	msleep(WAIT_FOR_RESPONSE);
 	for (i = 0; i < MAX_RETRIES; i++) {
 		retval = i2c_master_recv(ts->client, &req[1], size);
-		if (retval == size) {
+		if (retval == size)
 			break;
-		} else {
-			msleep(INCREMENTAL_DELAY);
-			dev_dbg(ts->dev, "cp_tm1217: Retry count is %d\n", i);
-		}
+
+		msleep(INCREMENTAL_DELAY);
+		dev_dbg(ts->dev, "cp_tm1217: Retry count is %d\n", i);
 	}
 	if (retval != size)
 		dev_err(ts->dev, "cp_tm1217: Read from device failed\n");
@@ -288,10 +287,10 @@ static irqreturn_t cp_tm1217_sample_thread(int irq, void *handle)
 	if (ts->thread_running == 1) {
 		mutex_unlock(&ts->thread_mutex);
 		return IRQ_HANDLED;
-	} else {
-		ts->thread_running = 1;
-		mutex_unlock(&ts->thread_mutex);
 	}
+
+	ts->thread_running = 1;
+	mutex_unlock(&ts->thread_mutex);
 
 	/* Mask the interrupts */
 	retval = cp_tm1217_mask_interrupt(ts);

@@ -515,7 +515,7 @@ static int giu_probe(struct platform_device *pdev)
 	struct resource *res;
 	unsigned int trigger, i, pin;
 	struct irq_chip *chip;
-	int irq, retval;
+	int irq, ret;
 
 	switch (pdev->id) {
 	case GPIO_50PINS_PULLUPDOWN:
@@ -544,7 +544,11 @@ static int giu_probe(struct platform_device *pdev)
 
 	vr41xx_gpio_chip.dev = &pdev->dev;
 
-	retval = gpiochip_add(&vr41xx_gpio_chip);
+	ret = gpiochip_add(&vr41xx_gpio_chip);
+	if (!ret) {
+		iounmap(giu_base);
+		return -ENODEV;
+	}
 
 	giu_write(GIUINTENL, 0);
 	giu_write(GIUINTENH, 0);

@@ -557,7 +557,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 		try_to_freeze();
 
 		if (server_unresponsive(server)) {
-			total_read = -EAGAIN;
+			total_read = -ECONNABORTED;
 			break;
 		}
 
@@ -571,7 +571,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
 			cifs_reconnect(server);
-			total_read = -EAGAIN;
+			total_read = -ECONNABORTED;
 			break;
 		} else if (length == -ERESTARTSYS ||
 			   length == -EAGAIN ||
@@ -588,7 +588,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 			cifs_dbg(FYI, "Received no data or error: expecting %d\n"
 				 "got %d", to_read, length);
 			cifs_reconnect(server);
-			total_read = -EAGAIN;
+			total_read = -ECONNABORTED;
 			break;
 		}
 	}
@@ -786,7 +786,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		cifs_dbg(VFS, "SMB response too long (%u bytes)\n", pdu_length);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
-		return -EAGAIN;
+		return -ECONNABORTED;
 	}
 
 	/* switch to large buffer if too big for a small one */
@@ -3934,13 +3934,6 @@ cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb)
 	return tlink_tcon(cifs_sb_master_tlink(cifs_sb));
 }
 
-static int
-cifs_sb_tcon_pending_wait(void *unused)
-{
-	schedule();
-	return signal_pending(current) ? -ERESTARTSYS : 0;
-}
-
 /* find and return a tlink with given uid */
 static struct tcon_link *
 tlink_rb_search(struct rb_root *root, kuid_t uid)
@@ -4039,11 +4032,10 @@ cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 	} else {
 wait_for_construction:
 		ret = wait_on_bit(&tlink->tl_flags, TCON_LINK_PENDING,
-				  cifs_sb_tcon_pending_wait,
 				  TASK_INTERRUPTIBLE);
 		if (ret) {
 			cifs_put_tlink(tlink);
-			return ERR_PTR(ret);
+			return ERR_PTR(-ERESTARTSYS);
 		}
 
 		/* if it's good, return it */

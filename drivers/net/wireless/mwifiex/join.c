@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: association and ad-hoc start/join
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -949,7 +949,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 				chan_tlv->chan_scan_param[0].radio_type |=
 					(IEEE80211_HT_PARAM_CHA_SEC_ABOVE << 4);
 			else if (adapter->sec_chan_offset ==
-					    IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
+					    IEEE80211_HT_PARAM_CHA_SEC_BELOW)
 				chan_tlv->chan_scan_param[0].radio_type |=
 					(IEEE80211_HT_PARAM_CHA_SEC_BELOW << 4);
 		}
@@ -1288,8 +1288,6 @@ done:
 int mwifiex_associate(struct mwifiex_private *priv,
 		      struct mwifiex_bssdescriptor *bss_desc)
 {
-	u8 current_bssid[ETH_ALEN];
-
 	/* Return error if the adapter is not STA role or table entry
 	 * is not marked as infra.
 	 */
@@ -1303,10 +1301,6 @@ int mwifiex_associate(struct mwifiex_private *priv,
 		mwifiex_set_11ac_ba_params(priv);
 	else
 		mwifiex_set_ba_params(priv);
-
-	memcpy(&current_bssid,
-	       &priv->curr_bss_params.bss_descriptor.mac_address,
-	       sizeof(current_bssid));
 
 	/* Clear any past association response stored for application
 	   retrieval */

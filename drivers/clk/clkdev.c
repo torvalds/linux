@@ -101,8 +101,9 @@ struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
 		if (!IS_ERR(clk))
 			break;
 		else if (name && index >= 0) {
-			pr_err("ERROR: could not get clock %s:%s(%i)\n",
-				np->full_name, name ? name : "", index);
+			if (PTR_ERR(clk) != -EPROBE_DEFER)
+				pr_err("ERROR: could not get clock %s:%s(%i)\n",
+					np->full_name, name ? name : "", index);
 			return clk;
 		}
 

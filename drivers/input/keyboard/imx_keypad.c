@@ -531,8 +531,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int imx_kbd_suspend(struct device *dev)
+static int __maybe_unused imx_kbd_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
@@ -552,7 +551,7 @@ static int imx_kbd_suspend(struct device *dev)
 	return 0;
 }
 
-static int imx_kbd_resume(struct device *dev)
+static int __maybe_unused imx_kbd_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
@@ -575,7 +574,6 @@ err_clk:
 
 	return ret;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(imx_kbd_pm_ops, imx_kbd_suspend, imx_kbd_resume);
 

@@ -37,7 +37,8 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (platform->driver->compr_ops && platform->driver->compr_ops->open) {
 		ret = platform->driver->compr_ops->open(cstream);
 		if (ret < 0) {
-			pr_err("compress asoc: can't open platform %s\n", platform->name);
+			pr_err("compress asoc: can't open platform %s\n",
+				platform->component.name);
 			goto out;
 		}
 	}
@@ -84,7 +85,8 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (platform->driver->compr_ops && platform->driver->compr_ops->open) {
 		ret = platform->driver->compr_ops->open(cstream);
 		if (ret < 0) {
-			pr_err("compress asoc: can't open platform %s\n", platform->name);
+			pr_err("compress asoc: can't open platform %s\n",
+				platform->component.name);
 			goto out;
 		}
 	}
@@ -627,6 +629,11 @@ int soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	char new_name[64];
 	int ret = 0, direction = 0;
 
+	if (rtd->num_codecs > 1) {
+		dev_err(rtd->card->dev, "Multicodec not supported for compressed stream\n");
+		return -EINVAL;
+	}
+
 	/* check client and interface hw capabilities */
 	snprintf(new_name, sizeof(new_name), "%s %s-%d",
 			rtd->dai_link->stream_name, codec_dai->name, num);
@@ -680,7 +687,7 @@ int soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	ret = snd_compress_new(rtd->card->snd_card, num, direction, compr);
 	if (ret < 0) {
 		pr_err("compress asoc: can't create compress for codec %s\n",
-			codec->name);
+			codec->component.name);
 		goto compr_err;
 	}
 

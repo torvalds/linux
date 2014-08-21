@@ -1290,17 +1290,25 @@ static u64 *qlcnic_fill_stats(u64 *data, void *stats, int type)
 
 void qlcnic_update_stats(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_tx_queue_stats tx_stats;
 	struct qlcnic_host_tx_ring *tx_ring;
 	int ring;
 
+	memset(&tx_stats, 0, sizeof(tx_stats));
 	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		tx_ring = &adapter->tx_ring[ring];
-		adapter->stats.xmit_on += tx_ring->tx_stats.xmit_on;
-		adapter->stats.xmit_off += tx_ring->tx_stats.xmit_off;
-		adapter->stats.xmitcalled += tx_ring->tx_stats.xmit_called;
-		adapter->stats.xmitfinished += tx_ring->tx_stats.xmit_finished;
-		adapter->stats.txbytes += tx_ring->tx_stats.tx_bytes;
+		tx_stats.xmit_on += tx_ring->tx_stats.xmit_on;
+		tx_stats.xmit_off += tx_ring->tx_stats.xmit_off;
+		tx_stats.xmit_called += tx_ring->tx_stats.xmit_called;
+		tx_stats.xmit_finished += tx_ring->tx_stats.xmit_finished;
+		tx_stats.tx_bytes += tx_ring->tx_stats.tx_bytes;
 	}
+
+	adapter->stats.xmit_on = tx_stats.xmit_on;
+	adapter->stats.xmit_off = tx_stats.xmit_off;
+	adapter->stats.xmitcalled = tx_stats.xmit_called;
+	adapter->stats.xmitfinished = tx_stats.xmit_finished;
+	adapter->stats.txbytes = tx_stats.tx_bytes;
 }
 
 static u64 *qlcnic_fill_tx_queue_stats(u64 *data, void *stats)

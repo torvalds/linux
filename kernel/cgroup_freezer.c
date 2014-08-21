@@ -480,5 +480,5 @@ struct cgroup_subsys freezer_cgrp_subsys = {
 	.css_free	= freezer_css_free,
 	.attach		= freezer_attach,
 	.fork		= freezer_fork,
-	.base_cftypes	= files,
+	.legacy_cftypes	= files,
 };

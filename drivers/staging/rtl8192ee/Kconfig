@@ -7,7 +7,6 @@ config R8192EE
 	select EEPROM_93CX6
 	select CRYPTO
 	select FW_LOADER
-	default N
 	---help---
 	This is the driver for Realtek RTL8192EE 802.11 PCIe
 	wireless network adapters.

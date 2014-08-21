@@ -198,7 +198,6 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 		netdev_err(wlandev->netdev,
 			   "Error: Converting eth to wlan in unknown mode.\n");
 		return 1;
-		break;
 	}
 
 	p80211_wep->data = NULL;

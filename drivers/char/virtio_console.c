@@ -2262,8 +2262,7 @@ static int __init init(void)
 unregister:
 	unregister_virtio_driver(&virtio_console);
 free:
-	if (pdrvdata.debugfs_dir)
-		debugfs_remove_recursive(pdrvdata.debugfs_dir);
+	debugfs_remove_recursive(pdrvdata.debugfs_dir);
 	class_destroy(pdrvdata.class);
 	return err;
 }
@@ -2276,8 +2275,7 @@ static void __exit fini(void)
 	unregister_virtio_driver(&virtio_rproc_serial);
 
 	class_destroy(pdrvdata.class);
-	if (pdrvdata.debugfs_dir)
-		debugfs_remove_recursive(pdrvdata.debugfs_dir);
+	debugfs_remove_recursive(pdrvdata.debugfs_dir);
 }
 module_init(init);
 module_exit(fini);

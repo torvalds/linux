@@ -43,7 +43,7 @@ int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
 	INIT_LIST_HEAD(&jack->jack_zones);
 	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
 
-	return snd_jack_new(codec->card->snd_card, id, type, &jack->jack);
+	return snd_jack_new(codec->component.card->snd_card, id, type, &jack->jack);
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_new);
 
@@ -260,7 +260,7 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 static irqreturn_t gpio_handler(int irq, void *data)
 {
 	struct snd_soc_jack_gpio *gpio = data;
-	struct device *dev = gpio->jack->codec->card->dev;
+	struct device *dev = gpio->jack->codec->component.card->dev;
 
 	trace_snd_soc_jack_irq(gpio->name);
 

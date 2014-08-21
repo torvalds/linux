@@ -54,7 +54,7 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 	if (err >= 0)
 		err = 0;
 	else
-		brcmf_err("Failed err=%d\n", err);
+		brcmf_dbg(FIL, "Failed err=%d\n", err);
 
 	return err;
 }

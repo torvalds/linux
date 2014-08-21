@@ -433,7 +433,6 @@ static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 	default:
 		mutex_unlock(&image[minor].mutex);
 		return -EINVAL;
-		break;
 	}
 
 	if ((absolute < 0) || (absolute >= image_size)) {
@@ -511,7 +510,6 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 			}
 
 			return retval;
-			break;
 
 		case VME_SET_MASTER:
 
@@ -552,7 +550,6 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 			}
 
 			return retval;
-			break;
 
 		case VME_SET_SLAVE:
 
@@ -806,7 +803,6 @@ static int vme_user_probe(struct vme_dev *vdev)
 		default:
 			err = -EINVAL;
 			goto err_sysfs;
-			break;
 		}
 
 		num = (type[i] == SLAVE_MINOR) ? i - (MASTER_MAX + 1) : i;

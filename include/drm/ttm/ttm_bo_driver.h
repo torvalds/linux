@@ -133,6 +133,7 @@ struct ttm_tt {
  * struct ttm_dma_tt
  *
  * @ttm: Base ttm_tt struct.
+ * @cpu_address: The CPU address of the pages
  * @dma_address: The DMA (bus) addresses of the pages
  * @pages_list: used by some page allocation backend
  *
@@ -142,6 +143,7 @@ struct ttm_tt {
  */
 struct ttm_dma_tt {
 	struct ttm_tt ttm;
+	void **cpu_address;
 	dma_addr_t *dma_address;
 	struct list_head pages_list;
 };
@@ -182,6 +184,7 @@ struct ttm_mem_type_manager_func {
 	 * @man: Pointer to a memory type manager.
 	 * @bo: Pointer to the buffer object we're allocating space for.
 	 * @placement: Placement details.
+	 * @flags: Additional placement flags.
 	 * @mem: Pointer to a struct ttm_mem_reg to be filled in.
 	 *
 	 * This function should allocate space in the memory type managed
@@ -206,6 +209,7 @@ struct ttm_mem_type_manager_func {
 	int  (*get_node)(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 struct ttm_placement *placement,
+			 uint32_t flags,
 			 struct ttm_mem_reg *mem);
 
 	/**
@@ -651,18 +655,6 @@ extern void ttm_tt_unbind(struct ttm_tt *ttm);
  * Swap in a previously swap out ttm_tt.
  */
 extern int ttm_tt_swapin(struct ttm_tt *ttm);
-
-/**
- * ttm_tt_cache_flush:
- *
- * @pages: An array of pointers to struct page:s to flush.
- * @num_pages: Number of pages to flush.
- *
- * Flush the data of the indicated pages from the cpu caches.
- * This is used when changing caching attributes of the pages from
- * cache-coherent.
- */
-extern void ttm_tt_cache_flush(struct page *pages[], unsigned long num_pages);
 
 /**
  * ttm_tt_set_placement_caching:

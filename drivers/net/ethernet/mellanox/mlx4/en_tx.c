@@ -126,8 +126,13 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 		ring->bf.uar = &mdev->priv_uar;
 		ring->bf.uar->map = mdev->uar_map;
 		ring->bf_enabled = false;
-	} else
-		ring->bf_enabled = true;
+		ring->bf_alloced = false;
+		priv->pflags &= ~MLX4_EN_PRIV_FLAGS_BLUEFLAME;
+	} else {
+		ring->bf_alloced = true;
+		ring->bf_enabled = !!(priv->pflags &
+				      MLX4_EN_PRIV_FLAGS_BLUEFLAME);
+	}
 
 	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
 	ring->queue_index = queue_index;
@@ -161,7 +166,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_tx_ring *ring = *pring;
 	en_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
 
-	if (ring->bf_enabled)
+	if (ring->bf_alloced)
 		mlx4_bf_free(mdev->dev, &ring->bf);
 	mlx4_qp_remove(mdev->dev, &ring->qp);
 	mlx4_qp_free(mdev->dev, &ring->qp);
@@ -195,7 +200,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 
 	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
 				ring->cqn, user_prio, &ring->context);
-	if (ring->bf_enabled)
+	if (ring->bf_alloced)
 		ring->context.usr_page = cpu_to_be32(ring->bf.uar->index);
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,

@@ -26,7 +26,7 @@
 #include <subdev/bios/pll.h>
 #include <subdev/bios/rammap.h>
 #include <subdev/bios/timing.h>
-#include <subdev/ltcg.h>
+#include <subdev/ltc.h>
 
 #include <subdev/clock.h>
 #include <subdev/clock/pll.h>
@@ -425,7 +425,7 @@ extern const u8 nvc0_pte_storage_type_map[256];
 void
 nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 {
-	struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb);
+	struct nouveau_ltc *ltc = nouveau_ltc(pfb);
 	struct nouveau_mem *mem = *pmem;
 
 	*pmem = NULL;
@@ -434,7 +434,7 @@ nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 
 	mutex_lock(&pfb->base.mutex);
 	if (mem->tag)
-		ltcg->tags_free(ltcg, &mem->tag);
+		ltc->tags_free(ltc, &mem->tag);
 	__nv50_ram_put(pfb, mem);
 	mutex_unlock(&pfb->base.mutex);
 
@@ -468,12 +468,12 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 	mutex_lock(&pfb->base.mutex);
 	if (comp) {
-		struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb);
+		struct nouveau_ltc *ltc = nouveau_ltc(pfb);
 
 		/* compression only works with lpages */
 		if (align == (1 << (17 - 12))) {
 			int n = size >> 5;
-			ltcg->tags_alloc(ltcg, n, &mem->tag);
+			ltc->tags_alloc(ltc, n, &mem->tag);
 		}
 
 		if (unlikely(!mem->tag))
@@ -554,13 +554,13 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	} else {
 		/* otherwise, address lowest common amount from 0GiB */
 		ret = nouveau_mm_init(&pfb->vram, rsvd_head,
-				      (bsize << 8) * parts, 1);
+				      (bsize << 8) * parts - rsvd_head, 1);
 		if (ret)
 			return ret;
 
 		/* and the rest starting from (8GiB + common_size) */
 		offset = (0x0200000000ULL >> 12) + (bsize << 8);
-		length = (ram->size >> 12) - (bsize << 8) - rsvd_tail;
+		length = (ram->size >> 12) - ((bsize * parts) << 8) - rsvd_tail;
 
 		ret = nouveau_mm_init(&pfb->vram, offset, length, 0);
 		if (ret)

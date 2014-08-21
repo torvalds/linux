@@ -43,17 +43,17 @@
 
 #define DEBUG_SUBSYSTEM S_FLD
 
-# include <linux/libcfs/libcfs.h>
-# include <linux/module.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/module.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <dt_object.h>
-#include <md_object.h>
-#include <obd_support.h>
-#include <lustre_req_layout.h>
-#include <lustre_fld.h>
-#include <lustre_fid.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/dt_object.h"
+#include "../include/md_object.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_fld.h"
+#include "../include/lustre_fid.h"
 #include "fld_internal.h"
 
 static int
@@ -91,10 +91,11 @@ static ssize_t
 fld_proc_hash_seq_write(struct file *file, const char *buffer,
 			size_t count, loff_t *off)
 {
-	struct lu_client_fld *fld = ((struct seq_file *)file->private_data)->private;
+	struct lu_client_fld *fld;
 	struct lu_fld_hash *hash = NULL;
 	int i;
 
+	fld = ((struct seq_file *)file->private_data)->private;
 	LASSERT(fld != NULL);
 
 	for (i = 0; fld_hash[i].fh_name != NULL; i++) {

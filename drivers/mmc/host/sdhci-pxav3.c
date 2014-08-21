@@ -288,15 +288,13 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	int ret;
 	struct clk *clk;
 
-	pxa = kzalloc(sizeof(struct sdhci_pxa), GFP_KERNEL);
+	pxa = devm_kzalloc(&pdev->dev, sizeof(struct sdhci_pxa), GFP_KERNEL);
 	if (!pxa)
 		return -ENOMEM;
 
 	host = sdhci_pltfm_init(pdev, &sdhci_pxav3_pdata, 0);
-	if (IS_ERR(host)) {
-		kfree(pxa);
+	if (IS_ERR(host))
 		return PTR_ERR(host);
-	}
 
 	if (of_device_is_compatible(np, "marvell,armada-380-sdhci")) {
 		ret = mv_conf_mbus_windows(pdev, mv_mbus_dram_info());
@@ -308,7 +306,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	pltfm_host->priv = pxa;
 
-	clk = clk_get(dev, NULL);
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(dev, "failed to get io clock\n");
 		ret = PTR_ERR(clk);
@@ -389,11 +387,9 @@ err_add_host:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(clk);
-	clk_put(clk);
 err_clk_get:
 err_mbus_win:
 	sdhci_pltfm_free(pdev);
-	kfree(pxa);
 	return ret;
 }
 
@@ -401,17 +397,14 @@ static int sdhci_pxav3_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_pxa *pxa = pltfm_host->priv;
 
 	pm_runtime_get_sync(&pdev->dev);
 	sdhci_remove_host(host, 1);
 	pm_runtime_disable(&pdev->dev);
 
 	clk_disable_unprepare(pltfm_host->clk);
-	clk_put(pltfm_host->clk);
 
 	sdhci_pltfm_free(pdev);
-	kfree(pxa);
 
 	return 0;
 }

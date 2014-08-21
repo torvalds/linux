@@ -253,9 +253,6 @@ config APM_EMULATION
 	  anything, try disabling/enabling this option (or disabling/enabling
 	  APM in your BIOS).
 
-config ARCH_HAS_OPP
-	bool
-
 config PM_OPP
 	bool
 	---help---

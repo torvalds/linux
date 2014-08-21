@@ -21,6 +21,7 @@ config X86_64
 ### Arch settings
 config X86
 	def_bool y
+	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
@@ -54,7 +55,6 @@ config X86
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_GRAPH_FP_TEST
-	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_SYSCALL_TRACEPOINTS
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_KVM
@@ -96,6 +96,7 @@ config X86
 	select IRQ_FORCED_THREADING
 	select HAVE_BPF_JIT if X86_64
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select ARCH_HAS_SG_CHAIN
 	select CLKEVT_I8253
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_IOMAP
@@ -109,9 +110,9 @@ config X86
 	select CLOCKSOURCE_WATCHDOG
 	select GENERIC_CLOCKEVENTS
 	select ARCH_CLOCKSOURCE_DATA
+	select CLOCKSOURCE_VALIDATE_LAST_CYCLE
 	select GENERIC_CLOCKEVENTS_BROADCAST if X86_64 || (X86_32 && X86_LOCAL_APIC)
 	select GENERIC_TIME_VSYSCALL
-	select KTIME_SCALAR if X86_32
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HAVE_CONTEXT_TRACKING if X86_64
@@ -132,6 +133,9 @@ config X86
 	select GENERIC_CPU_AUTOPROBE
 	select HAVE_ARCH_AUDITSYSCALL
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select HAVE_ACPI_APEI if ACPI
+	select HAVE_ACPI_APEI_NMI if ACPI
+	select ACPI_LEGACY_TABLES_LOOKUP if ACPI
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -430,6 +434,7 @@ config X86_INTEL_CE
 	bool "CE4100 TV platform"
 	depends on PCI
 	depends on PCI_GODIRECT
+	depends on X86_IO_APIC
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
 	select X86_REBOOTFIXUPS
@@ -836,6 +841,7 @@ config X86_IO_APIC
 	def_bool y
 	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_IOAPIC || PCI_MSI
 	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
+	select IRQ_DOMAIN
 
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 	bool "Reroute for broken boot IRQs"
@@ -1523,6 +1529,7 @@ config EFI
 	bool "EFI runtime service support"
 	depends on ACPI
 	select UCS2_STRING
+	select EFI_RUNTIME_WRAPPERS
 	---help---
 	  This enables the kernel to use EFI runtime services that are
 	  available (such as the EFI variable services).
@@ -1536,7 +1543,8 @@ config EFI
 
 config EFI_STUB
        bool "EFI stub support"
-       depends on EFI
+       depends on EFI && !X86_USE_3DNOW
+       select RELOCATABLE
        ---help---
           This kernel feature allows a bzImage to be loaded directly
 	  by EFI firmware without the use of a bootloader.
@@ -1577,6 +1585,9 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call"
+	select BUILD_BIN2C
+	select CRYPTO
+	select CRYPTO_SHA256
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -1590,6 +1601,28 @@ config KEXEC
 	  initially work for you.  As of this writing the exact hardware
 	  interface is strongly in flux, so no good recommendation can be
 	  made.
+
+config KEXEC_VERIFY_SIG
+	bool "Verify kernel signature during kexec_file_load() syscall"
+	depends on KEXEC
+	---help---
+	  This option makes kernel signature verification mandatory for
+	  kexec_file_load() syscall. If kernel is signature can not be
+	  verified, kexec_file_load() will fail.
+
+	  This option enforces signature verification at generic level.
+	  One needs to enable signature verification for type of kernel
+	  image being loaded to make sure it works. For example, enable
+	  bzImage signature verification option to be able to load and
+	  verify signatures of bzImage. Otherwise kernel loading will fail.
+
+config KEXEC_BZIMAGE_VERIFY_SIG
+	bool "Enable bzImage signature verification support"
+	depends on KEXEC_VERIFY_SIG
+	depends on SIGNED_PE_FILE_VERIFICATION
+	select SYSTEM_TRUSTED_KEYRING
+	---help---
+	  Enable bzImage signature verification support.
 
 config CRASH_DUMP
 	bool "kernel crash dumps"
@@ -2403,6 +2436,10 @@ config IOSF_MBI
 	tristate
 	default m
 	depends on PCI
+
+config PMC_ATOM
+	def_bool y
+        depends on PCI
 
 source "net/Kconfig"
 

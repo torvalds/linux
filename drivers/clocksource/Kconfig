@@ -1,3 +1,5 @@
+menu "Clock Source drivers"
+
 config CLKSRC_OF
 	bool
 
@@ -125,6 +127,7 @@ config CLKSRC_METAG_GENERIC
 
 config CLKSRC_EXYNOS_MCT
 	def_bool y if ARCH_EXYNOS
+	depends on !ARM64
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
@@ -148,6 +151,11 @@ config VF_PIT_TIMER
 
 config SYS_SUPPORTS_SH_CMT
         bool
+
+config MTK_TIMER
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+	bool
 
 config SYS_SUPPORTS_SH_MTU2
         bool
@@ -173,7 +181,7 @@ config SH_TIMER_MTU2
 	default SYS_SUPPORTS_SH_MTU2
 	help
 	  This enables build of a clockevent driver for the Multi-Function
-	  Timer Pulse Unit 2 (TMU2) hardware available on SoCs from Renesas.
+	  Timer Pulse Unit 2 (MTU2) hardware available on SoCs from Renesas.
 	  This hardware comes with 16 bit-timer registers.
 
 config SH_TIMER_TMU
@@ -187,7 +195,7 @@ config SH_TIMER_TMU
 
 config EM_TIMER_STI
 	bool "Renesas STI timer driver" if COMPILE_TEST
-	depends on GENERIC_CLOCKEVENTS
+	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	default SYS_SUPPORTS_EM_STI
 	help
 	  This enables build of a clocksource and clockevent driver for
@@ -207,3 +215,5 @@ config CLKSRC_VERSATILE
 	  counter available in the "System Registers" block of
 	  ARM Versatile, RealView and Versatile Express reference
 	  platforms.
+
+endmenu

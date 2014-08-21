@@ -5,7 +5,8 @@ ath9k-y +=	beacon.o \
 		recv.o \
 		xmit.o \
 		link.o \
-		antenna.o
+		antenna.o \
+		channel.o
 
 ath9k-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += mci.o
 ath9k-$(CONFIG_ATH9K_PCI) += pci.o

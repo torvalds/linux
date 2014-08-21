@@ -59,7 +59,7 @@ static const struct clk_ops st_pll800c65_ops;
 static const struct clk_ops stm_pll3200c32_ops;
 static const struct clk_ops st_pll1200c32_ops;
 
-static struct clkgen_pll_data st_pll1600c65_ax = {
+static const struct clkgen_pll_data st_pll1600c65_ax = {
 	.pdn_status	= CLKGEN_FIELD(0x0, 0x1,			19),
 	.locked_status	= CLKGEN_FIELD(0x0, 0x1,			31),
 	.mdiv		= CLKGEN_FIELD(0x0, C65_MDIV_PLL1600_MASK,	0),
@@ -67,7 +67,7 @@ static struct clkgen_pll_data st_pll1600c65_ax = {
 	.ops		= &st_pll1600c65_ops
 };
 
-static struct clkgen_pll_data st_pll800c65_ax = {
+static const struct clkgen_pll_data st_pll800c65_ax = {
 	.pdn_status	= CLKGEN_FIELD(0x0,	0x1,			19),
 	.locked_status	= CLKGEN_FIELD(0x0,	0x1,			31),
 	.mdiv		= CLKGEN_FIELD(0x0,	C65_MDIV_PLL800_MASK,	0),
@@ -76,7 +76,7 @@ static struct clkgen_pll_data st_pll800c65_ax = {
 	.ops		= &st_pll800c65_ops
 };
 
-static struct clkgen_pll_data st_pll3200c32_a1x_0 = {
+static const struct clkgen_pll_data st_pll3200c32_a1x_0 = {
 	.pdn_status	= CLKGEN_FIELD(0x0,	0x1,			31),
 	.locked_status	= CLKGEN_FIELD(0x4,	0x1,			31),
 	.ndiv		= CLKGEN_FIELD(0x0,	C32_NDIV_MASK,		0x0),
@@ -93,7 +93,7 @@ static struct clkgen_pll_data st_pll3200c32_a1x_0 = {
 	.ops		= &stm_pll3200c32_ops,
 };
 
-static struct clkgen_pll_data st_pll3200c32_a1x_1 = {
+static const struct clkgen_pll_data st_pll3200c32_a1x_1 = {
 	.pdn_status	= CLKGEN_FIELD(0xC,	0x1,			31),
 	.locked_status	= CLKGEN_FIELD(0x10,	0x1,			31),
 	.ndiv		= CLKGEN_FIELD(0xC,	C32_NDIV_MASK,		0x0),
@@ -111,7 +111,7 @@ static struct clkgen_pll_data st_pll3200c32_a1x_1 = {
 };
 
 /* 415 specific */
-static struct clkgen_pll_data st_pll3200c32_a9_415 = {
+static const struct clkgen_pll_data st_pll3200c32_a9_415 = {
 	.pdn_status	= CLKGEN_FIELD(0x0,	0x1,			0),
 	.locked_status	= CLKGEN_FIELD(0x6C,	0x1,			0),
 	.ndiv		= CLKGEN_FIELD(0x0,	C32_NDIV_MASK,		9),
@@ -122,7 +122,7 @@ static struct clkgen_pll_data st_pll3200c32_a9_415 = {
 	.ops		= &stm_pll3200c32_ops,
 };
 
-static struct clkgen_pll_data st_pll3200c32_ddr_415 = {
+static const struct clkgen_pll_data st_pll3200c32_ddr_415 = {
 	.pdn_status	= CLKGEN_FIELD(0x0,	0x1,			0),
 	.locked_status	= CLKGEN_FIELD(0x100,	0x1,			0),
 	.ndiv		= CLKGEN_FIELD(0x8,	C32_NDIV_MASK,		0),
@@ -135,7 +135,7 @@ static struct clkgen_pll_data st_pll3200c32_ddr_415 = {
 	.ops		= &stm_pll3200c32_ops,
 };
 
-static struct clkgen_pll_data st_pll1200c32_gpu_415 = {
+static const struct clkgen_pll_data st_pll1200c32_gpu_415 = {
 	.pdn_status	= CLKGEN_FIELD(0x144,	0x1,			3),
 	.locked_status	= CLKGEN_FIELD(0x168,	0x1,			0),
 	.ldf		= CLKGEN_FIELD(0x0,	C32_LDF_MASK,		3),
@@ -146,7 +146,7 @@ static struct clkgen_pll_data st_pll1200c32_gpu_415 = {
 };
 
 /* 416 specific */
-static struct clkgen_pll_data st_pll3200c32_a9_416 = {
+static const struct clkgen_pll_data st_pll3200c32_a9_416 = {
 	.pdn_status	= CLKGEN_FIELD(0x0,	0x1,			0),
 	.locked_status	= CLKGEN_FIELD(0x6C,	0x1,			0),
 	.ndiv		= CLKGEN_FIELD(0x8,	C32_NDIV_MASK,		0),
@@ -157,7 +157,7 @@ static struct clkgen_pll_data st_pll3200c32_a9_416 = {
 	.ops		= &stm_pll3200c32_ops,
 };
 
-static struct clkgen_pll_data st_pll3200c32_ddr_416 = {
+static const struct clkgen_pll_data st_pll3200c32_ddr_416 = {
 	.pdn_status	= CLKGEN_FIELD(0x0,	0x1,			0),
 	.locked_status	= CLKGEN_FIELD(0x10C,	0x1,			0),
 	.ndiv		= CLKGEN_FIELD(0x8,	C32_NDIV_MASK,		0),
@@ -170,7 +170,7 @@ static struct clkgen_pll_data st_pll3200c32_ddr_416 = {
 	.ops		= &stm_pll3200c32_ops,
 };
 
-static struct clkgen_pll_data st_pll1200c32_gpu_416 = {
+static const struct clkgen_pll_data st_pll1200c32_gpu_416 = {
 	.pdn_status	= CLKGEN_FIELD(0x8E4,	0x1,			3),
 	.locked_status	= CLKGEN_FIELD(0x90C,	0x1,			0),
 	.ldf		= CLKGEN_FIELD(0x0,	C32_LDF_MASK,		3),
@@ -178,6 +178,54 @@ static struct clkgen_pll_data st_pll1200c32_gpu_416 = {
 	.num_odfs = 0,
 	.odf		= { CLKGEN_FIELD(0x0,	C32_ODF_MASK,		10) },
 	.ops		= &st_pll1200c32_ops,
+};
+
+static const struct clkgen_pll_data st_pll3200c32_407_a0 = {
+	/* 407 A0 */
+	.pdn_status	= CLKGEN_FIELD(0x2a0,	0x1,			8),
+	.locked_status	= CLKGEN_FIELD(0x2a0,	0x1,			24),
+	.ndiv		= CLKGEN_FIELD(0x2a4,	C32_NDIV_MASK,		16),
+	.idf		= CLKGEN_FIELD(0x2a4,	C32_IDF_MASK,		0x0),
+	.num_odfs = 1,
+	.odf		= { CLKGEN_FIELD(0x2b4, C32_ODF_MASK,		0) },
+	.odf_gate	= { CLKGEN_FIELD(0x2b4,	0x1,			6) },
+	.ops		= &stm_pll3200c32_ops,
+};
+
+static const struct clkgen_pll_data st_pll3200c32_407_c0_0 = {
+	/* 407 C0 PLL0 */
+	.pdn_status	= CLKGEN_FIELD(0x2a0,	0x1,			8),
+	.locked_status	= CLKGEN_FIELD(0x2a0,	0x1,			24),
+	.ndiv		= CLKGEN_FIELD(0x2a4,	C32_NDIV_MASK,		16),
+	.idf		= CLKGEN_FIELD(0x2a4,	C32_IDF_MASK,		0x0),
+	.num_odfs = 1,
+	.odf		= { CLKGEN_FIELD(0x2b4, C32_ODF_MASK,		0) },
+	.odf_gate	= { CLKGEN_FIELD(0x2b4, 0x1,			6) },
+	.ops		= &stm_pll3200c32_ops,
+};
+
+static const struct clkgen_pll_data st_pll3200c32_407_c0_1 = {
+	/* 407 C0 PLL1 */
+	.pdn_status	= CLKGEN_FIELD(0x2c8,	0x1,			8),
+	.locked_status	= CLKGEN_FIELD(0x2c8,	0x1,			24),
+	.ndiv		= CLKGEN_FIELD(0x2cc,	C32_NDIV_MASK,		16),
+	.idf		= CLKGEN_FIELD(0x2cc,	C32_IDF_MASK,		0x0),
+	.num_odfs = 1,
+	.odf		= { CLKGEN_FIELD(0x2dc, C32_ODF_MASK,		0) },
+	.odf_gate	= { CLKGEN_FIELD(0x2dc, 0x1,			6) },
+	.ops		= &stm_pll3200c32_ops,
+};
+
+static const struct clkgen_pll_data st_pll3200c32_407_a9 = {
+	/* 407 A9 */
+	.pdn_status	= CLKGEN_FIELD(0x1a8,	0x1,			0),
+	.locked_status	= CLKGEN_FIELD(0x87c,	0x1,			0),
+	.ndiv		= CLKGEN_FIELD(0x1b0,	C32_NDIV_MASK,		0),
+	.idf		= CLKGEN_FIELD(0x1a8,	C32_IDF_MASK,		25),
+	.num_odfs = 1,
+	.odf		= { CLKGEN_FIELD(0x1b0, C32_ODF_MASK,		8) },
+	.odf_gate	= { CLKGEN_FIELD(0x1ac, 0x1,			28) },
+	.ops		= &stm_pll3200c32_ops,
 };
 
 /**
@@ -450,9 +498,8 @@ static void __init clkgena_c65_pll_setup(struct device_node *np)
 	 * PLL0 HS (high speed) output
 	 */
 	clk_data->clks[0] = clkgen_pll_register(parent_name,
-						&st_pll1600c65_ax,
-						reg + CLKGENAx_PLL0_OFFSET,
-						clk_name);
+			(struct clkgen_pll_data *) &st_pll1600c65_ax,
+			reg + CLKGENAx_PLL0_OFFSET, clk_name);
 
 	if (IS_ERR(clk_data->clks[0]))
 		goto err;
@@ -480,9 +527,8 @@ static void __init clkgena_c65_pll_setup(struct device_node *np)
 	 * PLL1 output
 	 */
 	clk_data->clks[2] = clkgen_pll_register(parent_name,
-						&st_pll800c65_ax,
-						reg + CLKGENAx_PLL1_OFFSET,
-						clk_name);
+			(struct clkgen_pll_data *) &st_pll800c65_ax,
+			reg + CLKGENAx_PLL1_OFFSET, clk_name);
 
 	if (IS_ERR(clk_data->clks[2]))
 		goto err;
@@ -571,6 +617,22 @@ static struct of_device_id c32_pll_of_match[] = {
 	{
 		.compatible = "st,stih416-plls-c32-ddr",
 		.data = &st_pll3200c32_ddr_416,
+	},
+	{
+		.compatible = "st,stih407-plls-c32-a0",
+		.data = &st_pll3200c32_407_a0,
+	},
+	{
+		.compatible = "st,stih407-plls-c32-c0_0",
+		.data = &st_pll3200c32_407_c0_0,
+	},
+	{
+		.compatible = "st,stih407-plls-c32-c0_1",
+		.data = &st_pll3200c32_407_c0_1,
+	},
+	{
+		.compatible = "st,stih407-plls-c32-a9",
+		.data = &st_pll3200c32_407_a9,
 	},
 	{}
 };

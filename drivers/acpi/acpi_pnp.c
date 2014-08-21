@@ -12,6 +12,7 @@
 
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/ctype.h>
 
 static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	/* soc_button_array */
@@ -320,11 +321,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{""},
 };
 
-static bool is_hex_digit(char c)
-{
-	return (c >= 0 && c <= '9') || (c >= 'A' && c <= 'F');
-}
-
 static bool matching_id(char *idstr, char *list_id)
 {
 	int i;
@@ -335,7 +331,7 @@ static bool matching_id(char *idstr, char *list_id)
 	for (i = 3; i < 7; i++) {
 		char c = toupper(idstr[i]);
 
-		if (!is_hex_digit(c)
+		if (!isxdigit(c)
 		    || (list_id[i] != 'X' && c != toupper(list_id[i])))
 			return false;
 	}

@@ -107,6 +107,7 @@ struct rtl8180_priv {
 	struct ieee80211_vif *vif;
 
 	/* rtl8180 driver specific */
+	bool map_pio;
 	spinlock_t lock;
 	void *rx_ring;
 	u8 rx_ring_sz;

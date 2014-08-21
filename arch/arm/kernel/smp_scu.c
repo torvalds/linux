@@ -17,6 +17,8 @@
 #include <asm/cputype.h>
 
 #define SCU_CTRL		0x00
+#define SCU_ENABLE		(1 << 0)
+#define SCU_STANDBY_ENABLE	(1 << 5)
 #define SCU_CONFIG		0x04
 #define SCU_CPU_STATUS		0x08
 #define SCU_INVALIDATE		0x0c
@@ -50,10 +52,16 @@ void scu_enable(void __iomem *scu_base)
 
 	scu_ctrl = readl_relaxed(scu_base + SCU_CTRL);
 	/* already enabled? */
-	if (scu_ctrl & 1)
+	if (scu_ctrl & SCU_ENABLE)
 		return;
 
-	scu_ctrl |= 1;
+	scu_ctrl |= SCU_ENABLE;
+
+	/* Cortex-A9 earlier than r2p0 has no standby bit in SCU */
+	if ((read_cpuid_id() & 0xff0ffff0) == 0x410fc090 &&
+	    (read_cpuid_id() & 0x00f0000f) >= 0x00200000)
+		scu_ctrl |= SCU_STANDBY_ENABLE;
+
 	writel_relaxed(scu_ctrl, scu_base + SCU_CTRL);
 
 	/*

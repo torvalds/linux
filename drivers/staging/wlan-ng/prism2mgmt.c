@@ -156,7 +156,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 					  HFA384x_ROAMMODE_HOSTSCAN_HOSTROAM);
 	if (result) {
 		netdev_err(wlandev->netdev,
-			   "setconfig(ROAMINGMODE) failed. result=%d\n", result);
+			   "setconfig(ROAMINGMODE) failed. result=%d\n",
+			   result);
 		msg->resultcode.data =
 		    P80211ENUM_resultcode_implementation_failure;
 		goto exit;
@@ -177,8 +178,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 					     word);
 		if (result) {
 			netdev_warn(wlandev->netdev,
-				    "Passive scan not supported with "
-				    "current firmware.  (<1.5.1)\n");
+				    "Passive scan not supported with current firmware.  (<1.5.1)\n");
 		}
 	}
 
@@ -190,6 +190,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 	word = 0;
 	for (i = 0; i < msg->channellist.data.len; i++) {
 		u8 channel = msg->channellist.data.data[i];
+
 		if (channel > 14)
 			continue;
 		/* channel 1 is BIT 0 ... channel 14 is BIT 13 */
@@ -273,7 +274,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 		result = hfa384x_drvr_enable(hw, 0);
 		if (result) {
 			netdev_err(wlandev->netdev,
-				   "drvr_enable(0) failed. result=%d\n", result);
+				   "drvr_enable(0) failed. result=%d\n",
+				   result);
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_implementation_failure;
 			goto exit;
@@ -293,7 +295,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 					sizeof(hfa384x_HostScanRequest_data_t));
 	if (result) {
 		netdev_err(wlandev->netdev,
-			   "setconfig(SCANREQUEST) failed. result=%d\n", result);
+			   "setconfig(SCANREQUEST) failed. result=%d\n",
+			   result);
 		msg->resultcode.data =
 		    P80211ENUM_resultcode_implementation_failure;
 		goto exit;
@@ -315,7 +318,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 		result = hfa384x_drvr_disable(hw, 0);
 		if (result) {
 			netdev_err(wlandev->netdev,
-				   "drvr_disable(0) failed. result=%d\n", result);
+				   "drvr_disable(0) failed. result=%d\n",
+				   result);
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_implementation_failure;
 			goto exit;
@@ -377,8 +381,7 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 
 	if (!hw->scanresults) {
 		netdev_err(wlandev->netdev,
-			   "dot11req_scan_results can only be used after "
-			   "a successful dot11req_scan.\n");
+			   "dot11req_scan_results can only be used after a successful dot11req_scan.\n");
 		result = 2;
 		req->resultcode.data = P80211ENUM_resultcode_invalid_parameters;
 		goto exit;
@@ -654,7 +657,8 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 
 	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL, word);
 	if (result) {
-		netdev_err(wlandev->netdev, "Failed to set txrates=%d.\n", word);
+		netdev_err(wlandev->netdev, "Failed to set txrates=%d.\n",
+			   word);
 		goto failed;
 	}
 
@@ -728,8 +732,8 @@ int prism2mgmt_readpda(wlandevice_t *wlandev, void *msgp)
 					      HFA384x_PDA_LEN_MAX);
 		if (result) {
 			netdev_err(wlandev->netdev,
-				   "hfa384x_drvr_readpda() failed, "
-				   "result=%d\n", result);
+				   "hfa384x_drvr_readpda() failed, result=%d\n",
+				   result);
 
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_implementation_failure;
@@ -777,8 +781,7 @@ int prism2mgmt_ramdl_state(wlandevice_t *wlandev, void *msgp)
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
 		netdev_err(wlandev->netdev,
-			   "ramdl_state(): may only be called "
-			   "in the fwload state.\n");
+			   "ramdl_state(): may only be called in the fwload state.\n");
 		msg->resultcode.data =
 		    P80211ENUM_resultcode_implementation_failure;
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
@@ -836,8 +839,7 @@ int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp)
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
 		netdev_err(wlandev->netdev,
-			   "ramdl_write(): may only be called "
-			   "in the fwload state.\n");
+			   "ramdl_write(): may only be called in the fwload state.\n");
 		msg->resultcode.data =
 		    P80211ENUM_resultcode_implementation_failure;
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
@@ -896,8 +898,7 @@ int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp)
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
 		netdev_err(wlandev->netdev,
-			   "flashdl_state(): may only be called "
-			   "in the fwload state.\n");
+			   "flashdl_state(): may only be called in the fwload state.\n");
 		msg->resultcode.data =
 		    P80211ENUM_resultcode_implementation_failure;
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
@@ -931,8 +932,8 @@ int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp)
 		result = prism2sta_ifstate(wlandev, P80211ENUM_ifstate_fwload);
 		if (result != P80211ENUM_resultcode_success) {
 			netdev_err(wlandev->netdev,
-				   "prism2sta_ifstate(fwload) failed,"
-				   "P80211ENUM_resultcode=%d\n", result);
+				   "prism2sta_ifstate(fwload) failed, P80211ENUM_resultcode=%d\n",
+				   result);
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_implementation_failure;
 			result = -1;
@@ -970,8 +971,7 @@ int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp)
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
 		netdev_err(wlandev->netdev,
-			   "flashdl_write(): may only be called "
-			   "in the fwload state.\n");
+			   "flashdl_write(): may only be called in the fwload state.\n");
 		msg->resultcode.data =
 		    P80211ENUM_resultcode_implementation_failure;
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;

@@ -35,8 +35,11 @@
 				396000	1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
-			clocks = <&clks 104>, <&clks 6>, <&clks 16>,
-				 <&clks 17>, <&clks 170>;
+			clocks = <&clks IMX6QDL_CLK_ARM>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
+				 <&clks IMX6QDL_CLK_STEP>,
+				 <&clks IMX6QDL_CLK_PLL1_SW>,
+				 <&clks IMX6QDL_CLK_PLL1_SYS>;
 			clock-names = "arm", "pll2_pfd2_396m", "step",
 				      "pll1_sw", "pll1_sys";
 			arm-supply = <&reg_arm>;
@@ -56,7 +59,7 @@
 		ocram: sram@00900000 {
 			compatible = "mmio-sram";
 			reg = <0x00900000 0x20000>;
-			clocks = <&clks 142>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 
 		aips1: aips-bus@02000000 {
@@ -87,7 +90,7 @@
 				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
 				reg = <0x021f8000 0x4000>;
 				interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks 116>;
+				clocks = <&clks IMX6DL_CLK_I2C4>;
 				status = "disabled";
 			};
 		};
@@ -104,9 +107,9 @@
 };
 
 &ldb {
-	clocks = <&clks 33>, <&clks 34>,
-		 <&clks 39>, <&clks 40>,
-		 <&clks 135>, <&clks 136>;
+	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>;
 	clock-names = "di0_pll", "di1_pll",
 		      "di0_sel", "di1_sel",
 		      "di0", "di1";

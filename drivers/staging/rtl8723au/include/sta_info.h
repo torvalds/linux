@@ -362,7 +362,7 @@ static inline u32 wifi_mac_hash(const u8 *mac)
 int _rtw_init_sta_priv23a(struct sta_priv *pstapriv);
 int _rtw_free_sta_priv23a(struct sta_priv *pstapriv);
 
-struct sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, gfp_t gfp);
+struct sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr, gfp_t gfp);
 int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta);
 void rtw_free_all_stainfo23a(struct rtw_adapter *padapter);
 struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr);

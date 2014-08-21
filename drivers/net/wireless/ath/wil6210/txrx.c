@@ -525,6 +525,17 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		ndev->stats.rx_bytes += len;
 		stats->rx_bytes += len;
 	}
+	{
+		static const char * const gro_res_str[] = {
+			[GRO_MERGED]		= "GRO_MERGED",
+			[GRO_MERGED_FREE]	= "GRO_MERGED_FREE",
+			[GRO_HELD]		= "GRO_HELD",
+			[GRO_NORMAL]		= "GRO_NORMAL",
+			[GRO_DROP]		= "GRO_DROP",
+		};
+		wil_dbg_txrx(wil, "Rx complete %d bytes => %s,\n",
+			     len, gro_res_str[rc]);
+	}
 }
 
 /**
@@ -760,7 +771,7 @@ static struct vring *wil_tx_bcast(struct wil6210_priv *wil,
 		goto found;
 	}
 
-	wil_err(wil, "Tx while no vrings active?\n");
+	wil_dbg_txrx(wil, "Tx while no vrings active?\n");
 
 	return NULL;
 
@@ -881,6 +892,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	uint f = 0;
 	int vring_index = vring - wil->vring_tx;
+	struct vring_tx_data *txdata = &wil->vring_tx_data[vring_index];
 	uint i = swhead;
 	dma_addr_t pa;
 
@@ -953,6 +965,9 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
+	if (wil_vring_is_empty(vring)) /* performance monitoring */
+		txdata->idle += get_cycles() - txdata->last_idle;
+
 	/* advance swhead */
 	wil_vring_advance_head(vring, nr_frags + 1);
 	wil_dbg_txrx(wil, "Tx swhead %d -> %d\n", swhead, vring->swhead);
@@ -1016,15 +1031,17 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		vring = wil_tx_bcast(wil, skb);
 	}
 	if (!vring) {
-		wil_err(wil, "No Tx VRING found for %pM\n", eth->h_dest);
+		wil_dbg_txrx(wil, "No Tx VRING found for %pM\n", eth->h_dest);
 		goto drop;
 	}
 	/* set up vring entry */
 	rc = wil_tx_vring(wil, vring, skb);
 
 	/* do we still have enough room in the vring? */
-	if (wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring))
+	if (wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring)) {
 		netif_tx_stop_all_queues(wil_to_ndev(wil));
+		wil_dbg_txrx(wil, "netif_tx_stop : ring full\n");
+	}
 
 	switch (rc) {
 	case 0:
@@ -1091,8 +1108,10 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		while (vring->swtail != new_swtail) {
 			struct vring_tx_desc dd, *d = &dd;
 			u16 dmalen;
-			struct wil_ctx *ctx = &vring->ctx[vring->swtail];
-			struct sk_buff *skb = ctx->skb;
+			struct sk_buff *skb;
+
+			ctx = &vring->ctx[vring->swtail];
+			skb = ctx->skb;
 			_d = &vring->va[vring->swtail].tx;
 
 			*d = *_d;
@@ -1132,8 +1151,16 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 			done++;
 		}
 	}
-	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring))
+
+	if (wil_vring_is_empty(vring)) { /* performance monitoring */
+		wil_dbg_txrx(wil, "Ring[%2d] empty\n", ringid);
+		txdata->last_idle = get_cycles();
+	}
+
+	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring)) {
+		wil_dbg_txrx(wil, "netif_tx_wake : ring not full\n");
 		netif_tx_wake_all_queues(wil_to_ndev(wil));
+	}
 
 	return done;
 }

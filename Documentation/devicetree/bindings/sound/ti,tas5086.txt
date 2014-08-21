@@ -31,6 +31,9 @@ Optional properties:
 
 			Most systems should not set any of these properties.
 
+ - avdd-supply:         Power supply for AVDD, providing 3.3V
+ - dvdd-supply:         Power supply for DVDD, providing 3.3V
+
 Examples:
 
 	i2c_bus {
@@ -39,5 +42,7 @@ Examples:
 			reg = <0x1b>;
 			reset-gpio = <&gpio 23 0>;
 			ti,charge-period = <156000>;
+			avdd-supply = <&vdd_3v3_reg>;
+			dvdd-supply = <&vdd_3v3_reg>;
 		};
 	};

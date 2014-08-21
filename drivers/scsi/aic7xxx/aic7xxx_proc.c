@@ -175,7 +175,7 @@ ahc_dump_device_state(struct seq_file *m, struct scsi_device *sdev)
 
 	seq_printf(m, "\tChannel %c Target %d Lun %d Settings\n",
 		  sdev->sdev_target->channel + 'A',
-		  sdev->sdev_target->id, sdev->lun);
+		   sdev->sdev_target->id, (u8)sdev->lun);
 
 	seq_printf(m, "\t\tCommands Queued %ld\n", dev->commands_issued);
 	seq_printf(m, "\t\tCommands Active %d\n", dev->active);

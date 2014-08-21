@@ -36,6 +36,7 @@ extern struct smb_hdr *cifs_buf_get(void);
 extern void cifs_buf_release(void *);
 extern struct smb_hdr *cifs_small_buf_get(void);
 extern void cifs_small_buf_release(void *);
+extern void free_rsp_buf(int, void *);
 extern void cifs_rqst_page_to_kvec(struct smb_rqst *rqst, unsigned int idx,
 					struct kvec *iov);
 extern int smb_send(struct TCP_Server_Info *, struct smb_hdr *,
@@ -89,6 +90,9 @@ extern struct mid_q_entry *cifs_setup_async_request(struct TCP_Server_Info *,
 						struct smb_rqst *);
 extern int cifs_check_receive(struct mid_q_entry *mid,
 			struct TCP_Server_Info *server, bool log_error);
+extern int cifs_wait_mtu_credits(struct TCP_Server_Info *server,
+				 unsigned int size, unsigned int *num,
+				 unsigned int *credits);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,
 			struct kvec *, int /* nvec to send */,
 			int * /* type of buf returned */ , const int flags);

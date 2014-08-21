@@ -17,6 +17,7 @@ struct platform_device;
 struct regmap_config;
 struct clk_regmap;
 struct qcom_reset_map;
+struct regmap;
 
 struct qcom_cc_desc {
 	const struct regmap_config *config;
@@ -26,6 +27,11 @@ struct qcom_cc_desc {
 	size_t num_resets;
 };
 
+extern struct regmap *qcom_cc_map(struct platform_device *pdev,
+				  const struct qcom_cc_desc *desc);
+extern int qcom_cc_really_probe(struct platform_device *pdev,
+				const struct qcom_cc_desc *desc,
+				struct regmap *regmap);
 extern int qcom_cc_probe(struct platform_device *pdev,
 			 const struct qcom_cc_desc *desc);
 

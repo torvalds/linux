@@ -294,10 +294,16 @@ static void efm32_spi_probe_dt(struct platform_device *pdev,
 	u32 location;
 	int ret;
 
-	ret = of_property_read_u32(np, "efm32,location", &location);
+	ret = of_property_read_u32(np, "energymicro,location", &location);
+
+	if (ret)
+		/* fall back to wrongly namespaced property */
+		ret = of_property_read_u32(np, "efm32,location", &location);
+
 	if (ret)
 		/* fall back to old and (wrongly) generic property "location" */
 		ret = of_property_read_u32(np, "location", &location);
+
 	if (!ret) {
 		dev_dbg(&pdev->dev, "using location %u\n", location);
 	} else {

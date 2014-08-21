@@ -249,7 +249,7 @@ static struct {
 #define PCI_DEVICE_ID_NX2_57811_VF	CHIP_NUM_57811_VF
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(bnx2x_pci_tbl) = {
+static const struct pci_device_id bnx2x_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57710), BCM57710 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711), BCM57711 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711E), BCM57711E },
@@ -2698,6 +2698,14 @@ void bnx2x__link_status_update(struct bnx2x *bp)
 		bp->link_vars.duplex = DUPLEX_FULL;
 		bp->link_vars.flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 		__bnx2x_link_report(bp);
+
+		bnx2x_sample_bulletin(bp);
+
+		/* if bulletin board did not have an update for link status
+		 * __bnx2x_link_report will report current status
+		 * but it will NOT duplicate report in case of already reported
+		 * during sampling bulletin board.
+		 */
 		bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	}
 }
@@ -12424,6 +12432,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_busy_poll		= bnx2x_low_latency_recv,
 #endif
 	.ndo_get_phys_port_id	= bnx2x_get_phys_port_id,
+	.ndo_set_vf_link_state	= bnx2x_set_vf_link_state,
 };
 
 static int bnx2x_set_coherency_mask(struct bnx2x *bp)

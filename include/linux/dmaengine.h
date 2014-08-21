@@ -37,7 +37,6 @@
  */
 typedef s32 dma_cookie_t;
 #define DMA_MIN_COOKIE	1
-#define DMA_MAX_COOKIE	INT_MAX
 
 static inline int dma_submit_error(dma_cookie_t cookie)
 {
@@ -299,6 +298,7 @@ enum dma_slave_buswidth {
 	DMA_SLAVE_BUSWIDTH_UNDEFINED = 0,
 	DMA_SLAVE_BUSWIDTH_1_BYTE = 1,
 	DMA_SLAVE_BUSWIDTH_2_BYTES = 2,
+	DMA_SLAVE_BUSWIDTH_3_BYTES = 3,
 	DMA_SLAVE_BUSWIDTH_4_BYTES = 4,
 	DMA_SLAVE_BUSWIDTH_8_BYTES = 8,
 };
@@ -670,7 +670,7 @@ struct dma_device {
 	struct dma_async_tx_descriptor *(*device_prep_dma_cyclic)(
 		struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
-		unsigned long flags, void *context);
+		unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_interleaved_dma)(
 		struct dma_chan *chan, struct dma_interleaved_template *xt,
 		unsigned long flags);
@@ -745,7 +745,7 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_cyclic(
 		unsigned long flags)
 {
 	return chan->device->device_prep_dma_cyclic(chan, buf_addr, buf_len,
-						period_len, dir, flags, NULL);
+						period_len, dir, flags);
 }
 
 static inline struct dma_async_tx_descriptor *dmaengine_prep_interleaved_dma(

@@ -12,6 +12,7 @@
 
 #include "event.h"
 #include "utils.h"
+#include "lib.h"
 
 extern void thirty_two_instruction_loop(u64 loops);
 
@@ -90,7 +91,7 @@ static u64 determine_overhead(struct event *events)
 	return overhead;
 }
 
-static int count_instructions(void)
+static int test_body(void)
 {
 	struct event events[2];
 	u64 overhead;
@@ -111,22 +112,33 @@ static int count_instructions(void)
 	overhead = determine_overhead(events);
 	printf("Overhead of null loop: %llu instructions\n", overhead);
 
-	/* Run for 1M instructions */
-	FAIL_IF(do_count_loop(events, 0x100000, overhead, true));
+	/* Run for 1Mi instructions */
+	FAIL_IF(do_count_loop(events, 1000000, overhead, true));
 
-	/* Run for 10M instructions */
-	FAIL_IF(do_count_loop(events, 0xa00000, overhead, true));
+	/* Run for 10Mi instructions */
+	FAIL_IF(do_count_loop(events, 10000000, overhead, true));
 
-	/* Run for 100M instructions */
-	FAIL_IF(do_count_loop(events, 0x6400000, overhead, true));
+	/* Run for 100Mi instructions */
+	FAIL_IF(do_count_loop(events, 100000000, overhead, true));
 
-	/* Run for 1G instructions */
-	FAIL_IF(do_count_loop(events, 0x40000000, overhead, true));
+	/* Run for 1Bi instructions */
+	FAIL_IF(do_count_loop(events, 1000000000, overhead, true));
+
+	/* Run for 16Bi instructions */
+	FAIL_IF(do_count_loop(events, 16000000000, overhead, true));
+
+	/* Run for 64Bi instructions */
+	FAIL_IF(do_count_loop(events, 64000000000, overhead, true));
 
 	event_close(&events[0]);
 	event_close(&events[1]);
 
 	return 0;
+}
+
+static int count_instructions(void)
+{
+	return eat_cpu(test_body);
 }
 
 int main(void)

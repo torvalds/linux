@@ -30,15 +30,8 @@ static u_int32_t futex1 = 0;
  */
 static unsigned int nwakes = 1;
 
-/*
- * There can be significant variance from run to run,
- * the more repeats, the more exact the overall avg and
- * the better idea of the futex latency.
- */
-static unsigned int repeat = 10;
-
 pthread_t *worker;
-static bool done = 0, silent = 0;
+static bool done = false, silent = false;
 static pthread_mutex_t thread_lock;
 static pthread_cond_t thread_parent, thread_worker;
 static struct stats waketime_stats, wakeup_stats;
@@ -47,7 +40,6 @@ static unsigned int ncpus, threads_starting, nthreads = 0;
 static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('w', "nwakes",  &nwakes,   "Specify amount of threads to wake at once"),
-	OPT_UINTEGER('r', "repeat",  &repeat,   "Specify amount of times to repeat the run"),
 	OPT_BOOLEAN( 's', "silent",  &silent,   "Silent mode: do not display data/details"),
 	OPT_END()
 };
@@ -149,7 +141,7 @@ int bench_futex_wake(int argc, const char **argv,
 	pthread_cond_init(&thread_parent, NULL);
 	pthread_cond_init(&thread_worker, NULL);
 
-	for (j = 0; j < repeat && !done; j++) {
+	for (j = 0; j < bench_repeat && !done; j++) {
 		unsigned int nwoken = 0;
 		struct timeval start, end, runtime;
 

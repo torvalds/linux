@@ -49,7 +49,7 @@ xfs_xattr_get(struct dentry *dentry, const char *name,
 		value = NULL;
 	}
 
-	error = -xfs_attr_get(ip, (unsigned char *)name, value, &asize, xflags);
+	error = xfs_attr_get(ip, (unsigned char *)name, value, &asize, xflags);
 	if (error)
 		return error;
 	return asize;
@@ -71,8 +71,8 @@ xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		xflags |= ATTR_REPLACE;
 
 	if (!value)
-		return -xfs_attr_remove(ip, (unsigned char *)name, xflags);
-	return -xfs_attr_set(ip, (unsigned char *)name,
+		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
+	return xfs_attr_set(ip, (unsigned char *)name,
 				(void *)value, size, xflags);
 }
 

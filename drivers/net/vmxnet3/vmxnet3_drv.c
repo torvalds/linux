@@ -36,7 +36,7 @@ char vmxnet3_driver_name[] = "vmxnet3";
  * PCI Device ID Table
  * Last entry must be all 0s
  */
-static DEFINE_PCI_DEVICE_TABLE(vmxnet3_pciid_table) = {
+static const struct pci_device_id vmxnet3_pciid_table[] = {
 	{PCI_VDEVICE(VMWARE, PCI_DEVICE_ID_VMWARE_VMXNET3)},
 	{0}
 };
@@ -766,7 +766,7 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 			gdesc->dword[3] = 0;
 
 			netdev_dbg(adapter->netdev,
-				"txd[%u]: 0x%llu %u %u\n",
+				"txd[%u]: 0x%llx %u %u\n",
 				tq->tx_ring.next2fill, le64_to_cpu(gdesc->txd.addr),
 				le32_to_cpu(gdesc->dword[2]), gdesc->dword[3]);
 			vmxnet3_cmd_ring_adv_next2fill(&tq->tx_ring);

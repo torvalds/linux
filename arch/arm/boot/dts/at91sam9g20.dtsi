@@ -25,6 +25,30 @@
 			adc0: adc@fffe0000 {
 				atmel,adc-startup-time = <40>;
 			};
+
+			pmc: pmc@fffffc00 {
+				plla: pllack {
+					atmel,clk-input-range = <2000000 32000000>;
+					atmel,pll-clk-output-ranges = <745000000 800000000 0 0>,
+								<695000000 750000000 1 0>,
+								<645000000 700000000 2 0>,
+								<595000000 650000000 3 0>,
+								<545000000 600000000 0 1>,
+								<495000000 550000000 1 1>,
+								<445000000 500000000 2 1>,
+								<400000000 450000000 3 1>;
+				};
+
+				pllb: pllbck {
+					atmel,clk-input-range = <2000000 32000000>;
+					atmel,pll-clk-output-ranges = <30000000 100000000 0 0>;
+				};
+
+				mck: masterck {
+					atmel,clk-output-range = <0 133000000>;
+					atmel,clk-divisors = <1 2 4 6>;
+				};
+			};
 		};
 	};
 };

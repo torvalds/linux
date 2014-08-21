@@ -39,10 +39,9 @@ Commands are not supported.
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include "../comedidev.h"
-
-#include "mite.h"
 
 #define AO_VALUE_OFFSET			0x00
 #define	AO_CHAN_OFFSET			0x0c
@@ -82,8 +81,6 @@ static const struct ni_670x_board ni_670x_boards[] = {
 };
 
 struct ni_670x_private {
-
-	struct mite_struct *mite;
 	int boardtype;
 	int dio;
 	unsigned int ao_readback[32];
@@ -111,9 +108,9 @@ static int ni_670x_ao_winsn(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		/* First write in channel register which channel to use */
 		writel(((chan & 15) << 1) | ((chan & 16) >> 4),
-		       devpriv->mite->daq_io_addr + AO_CHAN_OFFSET);
+		       dev->mmio + AO_CHAN_OFFSET);
 		/* write channel value */
-		writel(data[i], devpriv->mite->daq_io_addr + AO_VALUE_OFFSET);
+		writel(data[i], dev->mmio + AO_VALUE_OFFSET);
 		devpriv->ao_readback[chan] = data[i];
 	}
 
@@ -139,14 +136,10 @@ static int ni_670x_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct ni_670x_private *devpriv = dev->private;
-	void __iomem *io_addr = devpriv->mite->daq_io_addr +
-					DIO_PORT0_DATA_OFFSET;
-
 	if (comedi_dio_update_state(s, data))
-		writel(s->state, io_addr);
+		writel(s->state, dev->mmio + DIO_PORT0_DATA_OFFSET);
 
-	data[1] = readl(io_addr);
+	data[1] = readl(dev->mmio + DIO_PORT0_DATA_OFFSET);
 
 	return insn->n;
 }
@@ -156,16 +149,38 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct ni_670x_private *devpriv = dev->private;
 	int ret;
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)
 		return ret;
 
-	writel(s->io_bits, devpriv->mite->daq_io_addr + DIO_PORT0_DIR_OFFSET);
+	writel(s->io_bits, dev->mmio + DIO_PORT0_DIR_OFFSET);
 
 	return insn->n;
+}
+
+/* ripped from mite.h and mite_setup2() to avoid mite dependancy */
+#define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
+#define WENAB		(1 << 7) /* window enable */
+
+static int ni_670x_mite_init(struct pci_dev *pcidev)
+{
+	void __iomem *mite_base;
+	u32 main_phys_addr;
+
+	/* ioremap the MITE registers (BAR 0) temporarily */
+	mite_base = pci_ioremap_bar(pcidev, 0);
+	if (!mite_base)
+		return -ENOMEM;
+
+	/* set data window to main registers (BAR 1) */
+	main_phys_addr = pci_resource_start(pcidev, 1);
+	writel(main_phys_addr | WENAB, mite_base + MITE_IODWBSR);
+
+	/* finished with MITE registers */
+	iounmap(mite_base);
+	return 0;
 }
 
 static int ni_670x_auto_attach(struct comedi_device *dev,
@@ -193,15 +208,13 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	devpriv->mite = mite_alloc(pcidev);
-	if (!devpriv->mite)
-		return -ENOMEM;
-
-	ret = mite_setup(devpriv->mite);
-	if (ret < 0) {
-		dev_warn(dev->class_dev, "error setting up mite\n");
+	ret = ni_670x_mite_init(pcidev);
+	if (ret)
 		return ret;
-	}
+
+	dev->mmio = pci_ioremap_bar(pcidev, 1);
+	if (!dev->mmio)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -242,16 +255,15 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 	s->insn_config = ni_670x_dio_insn_config;
 
 	/* Config of misc registers */
-	writel(0x10, devpriv->mite->daq_io_addr + MISC_CONTROL_OFFSET);
+	writel(0x10, dev->mmio + MISC_CONTROL_OFFSET);
 	/* Config of ao registers */
-	writel(0x00, devpriv->mite->daq_io_addr + AO_CONTROL_OFFSET);
+	writel(0x00, dev->mmio + AO_CONTROL_OFFSET);
 
 	return 0;
 }
 
 static void ni_670x_detach(struct comedi_device *dev)
 {
-	struct ni_670x_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 
 	if (dev->n_subdevices) {
@@ -259,10 +271,8 @@ static void ni_670x_detach(struct comedi_device *dev)
 		if (s)
 			kfree(s->range_table_list);
 	}
-	if (devpriv && devpriv->mite) {
-		mite_unsetup(devpriv->mite);
-		mite_free(devpriv->mite);
-	}
+	if (dev->mmio)
+		iounmap(dev->mmio);
 	comedi_pci_disable(dev);
 }
 

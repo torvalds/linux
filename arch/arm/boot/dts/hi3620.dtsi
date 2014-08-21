@@ -33,6 +33,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "hisilicon,hi3620-smp";
 
 		cpu@0 {
 			device_type = "cpu";
@@ -73,7 +74,7 @@
 
 		L2: l2-cache {
 			compatible = "arm,pl310-cache";
-			reg = <0xfc10000 0x100000>;
+			reg = <0x100000 0x100000>;
 			interrupts = <0 15 4>;
 			cache-unified;
 			cache-level = <2>;

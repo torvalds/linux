@@ -1,0 +1,170 @@
+/*
+ * Copyright (c) 2013-2014 Linaro Ltd.
+ * Copyright (c) 2013-2014 Hisilicon Limited.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ */
+
+#include "skeleton.dtsi"
+#include <dt-bindings/clock/hix5hd2-clock.h>
+
+/ {
+	aliases {
+		serial0 = &uart0;
+	};
+
+	gic: interrupt-controller@f8a01000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		/* gic dist base, gic cpu base */
+		reg = <0xf8a01000 0x1000>, <0xf8a00100 0x100>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&gic>;
+		ranges = <0 0xf8000000 0x8000000>;
+
+		amba {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "arm,amba-bus";
+			ranges;
+
+			timer0: timer@00002000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0x00002000 0x1000>;
+				/* timer00 & timer01 */
+				interrupts = <0 24 4>;
+				clocks = <&clock HIX5HD2_FIXED_24M>;
+				status = "disabled";
+			};
+
+			timer1: timer@00a29000 {
+				/*
+				 * Only used in NORMAL state, not available ins
+				 * SLOW or DOZE state.
+				 * The rate is fixed in 24MHz.
+				 */
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0x00a29000 0x1000>;
+				/* timer10 & timer11 */
+				interrupts = <0 25 4>;
+				clocks = <&clock HIX5HD2_FIXED_24M>;
+				status = "disabled";
+			};
+
+			timer2: timer@00a2a000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0x00a2a000 0x1000>;
+				/* timer20 & timer21 */
+				interrupts = <0 26 4>;
+				clocks = <&clock HIX5HD2_FIXED_24M>;
+				status = "disabled";
+			};
+
+			timer3: timer@00a2b000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0x00a2b000 0x1000>;
+				/* timer30 & timer31 */
+				interrupts = <0 27 4>;
+				clocks = <&clock HIX5HD2_FIXED_24M>;
+				status = "disabled";
+			};
+
+			timer4: timer@00a81000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0x00a81000 0x1000>;
+				/* timer30 & timer31 */
+				interrupts = <0 28 4>;
+				clocks = <&clock HIX5HD2_FIXED_24M>;
+				status = "disabled";
+			};
+
+			uart0: uart@00b00000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x00b00000 0x1000>;
+				interrupts = <0 49 4>;
+				clocks = <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			uart1: uart@00006000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x00006000 0x1000>;
+				interrupts = <0 50 4>;
+				clocks = <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			uart2: uart@00b02000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x00b02000 0x1000>;
+				interrupts = <0 51 4>;
+				clocks = <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			uart3: uart@00b03000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x00b03000 0x1000>;
+				interrupts = <0 52 4>;
+				clocks = <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			uart4: uart@00b04000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xb04000 0x1000>;
+				interrupts = <0 53 4>;
+				clocks = <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+		};
+
+		local_timer@00a00600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x00a00600 0x20>;
+			interrupts = <1 13 0xf01>;
+		};
+
+		l2: l2-cache {
+			compatible = "arm,pl310-cache";
+			reg = <0x00a10000 0x100000>;
+			interrupts = <0 15 4>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		sysctrl: system-controller@00000000 {
+			compatible = "hisilicon,sysctrl";
+			reg = <0x00000000 0x1000>;
+			reboot-offset = <0x4>;
+		};
+
+		cpuctrl@00a22000 {
+			compatible = "hisilicon,cpuctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x00a22000 0x2000>;
+			ranges = <0 0x00a22000 0x2000>;
+
+			clock: clock@0 {
+				compatible = "hisilicon,hix5hd2-clock";
+				reg = <0 0x2000>;
+				#clock-cells = <1>;
+			};
+		};
+	};
+};

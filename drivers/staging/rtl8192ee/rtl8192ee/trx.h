@@ -872,6 +872,6 @@ void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			     bool b_firstseg, bool b_lastseg,
 			     struct sk_buff *skb);
 u32 rtl92ee_rx_command_packet(struct ieee80211_hw *hw,
-			      struct rtl_stats status,
+			      const struct rtl_stats *status,
 			      struct sk_buff *skb);
 #endif

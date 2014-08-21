@@ -40,8 +40,8 @@
  * Author: Andreas Dilger <adilger@clusterfs.com>
  */
 #include <linux/module.h>
-#include <lustre_lib.h>
-#include <lprocfs_status.h>
+#include "../include/lustre_lib.h"
+#include "../include/lprocfs_status.h"
 
 void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 {

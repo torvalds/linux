@@ -130,7 +130,7 @@ xfs_buf_get_maps(
 	bp->b_maps = kmem_zalloc(map_count * sizeof(struct xfs_buf_map),
 				KM_NOFS);
 	if (!bp->b_maps)
-		return ENOMEM;
+		return -ENOMEM;
 	return 0;
 }
 
@@ -344,7 +344,7 @@ retry:
 		if (unlikely(page == NULL)) {
 			if (flags & XBF_READ_AHEAD) {
 				bp->b_page_count = i;
-				error = ENOMEM;
+				error = -ENOMEM;
 				goto out_free_pages;
 			}
 
@@ -465,7 +465,7 @@ _xfs_buf_find(
 	eofs = XFS_FSB_TO_BB(btp->bt_mount, btp->bt_mount->m_sb.sb_dblocks);
 	if (blkno >= eofs) {
 		/*
-		 * XXX (dgc): we should really be returning EFSCORRUPTED here,
+		 * XXX (dgc): we should really be returning -EFSCORRUPTED here,
 		 * but none of the higher level infrastructure supports
 		 * returning a specific error on buffer lookup failures.
 		 */
@@ -1052,8 +1052,8 @@ xfs_buf_ioerror(
 	xfs_buf_t		*bp,
 	int			error)
 {
-	ASSERT(error >= 0 && error <= 0xffff);
-	bp->b_error = (unsigned short)error;
+	ASSERT(error <= 0 && error >= -1000);
+	bp->b_error = error;
 	trace_xfs_buf_ioerror(bp, error, _RET_IP_);
 }
 
@@ -1064,7 +1064,7 @@ xfs_buf_ioerror_alert(
 {
 	xfs_alert(bp->b_target->bt_mount,
 "metadata I/O error: block 0x%llx (\"%s\") error %d numblks %d",
-		(__uint64_t)XFS_BUF_ADDR(bp), func, bp->b_error, bp->b_length);
+		(__uint64_t)XFS_BUF_ADDR(bp), func, -bp->b_error, bp->b_length);
 }
 
 /*
@@ -1083,7 +1083,7 @@ xfs_bioerror(
 	/*
 	 * No need to wait until the buffer is unpinned, we aren't flushing it.
 	 */
-	xfs_buf_ioerror(bp, EIO);
+	xfs_buf_ioerror(bp, -EIO);
 
 	/*
 	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
@@ -1094,7 +1094,7 @@ xfs_bioerror(
 
 	xfs_buf_ioend(bp, 0);
 
-	return EIO;
+	return -EIO;
 }
 
 /*
@@ -1127,13 +1127,13 @@ xfs_bioerror_relse(
 		 * There's no reason to mark error for
 		 * ASYNC buffers.
 		 */
-		xfs_buf_ioerror(bp, EIO);
+		xfs_buf_ioerror(bp, -EIO);
 		complete(&bp->b_iowait);
 	} else {
 		xfs_buf_relse(bp);
 	}
 
-	return EIO;
+	return -EIO;
 }
 
 STATIC int
@@ -1199,7 +1199,7 @@ xfs_buf_bio_end_io(
 	 * buffers that require multiple bios to complete.
 	 */
 	if (!bp->b_error)
-		xfs_buf_ioerror(bp, -error);
+		xfs_buf_ioerror(bp, error);
 
 	if (!bp->b_error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
 		invalidate_kernel_vmap_range(bp->b_addr, xfs_buf_vmap_len(bp));
@@ -1286,7 +1286,7 @@ next_chunk:
 		 * because the caller (xfs_buf_iorequest) holds a count itself.
 		 */
 		atomic_dec(&bp->b_io_remaining);
-		xfs_buf_ioerror(bp, EIO);
+		xfs_buf_ioerror(bp, -EIO);
 		bio_put(bio);
 	}
 
@@ -1329,6 +1329,20 @@ _xfs_buf_ioapply(
 				xfs_force_shutdown(bp->b_target->bt_mount,
 						   SHUTDOWN_CORRUPT_INCORE);
 				return;
+			}
+		} else if (bp->b_bn != XFS_BUF_DADDR_NULL) {
+			struct xfs_mount *mp = bp->b_target->bt_mount;
+
+			/*
+			 * non-crc filesystems don't attach verifiers during
+			 * log recovery, so don't warn for such filesystems.
+			 */
+			if (xfs_sb_version_hascrc(&mp->m_sb)) {
+				xfs_warn(mp,
+					"%s: no ops on block 0x%llx/0x%x",
+					__func__, bp->b_bn, bp->b_length);
+				xfs_hex_dump(bp->b_addr, 64);
+				dump_stack();
 			}
 		}
 	} else if (bp->b_flags & XBF_READ_AHEAD) {
@@ -1628,7 +1642,7 @@ xfs_setsize_buftarg(
 		xfs_warn(btp->bt_mount,
 			"Cannot set_blocksize to %u on device %s",
 			sectorsize, name);
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	/* Set up device logical sector size mask */

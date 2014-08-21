@@ -46,6 +46,9 @@ config NF_CONNTRACK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_LOG_COMMON
+	tristate
+
 if NF_CONNTRACK
 
 config NF_CONNTRACK_MARK
@@ -744,6 +747,7 @@ config NETFILTER_XT_TARGET_LED
 
 config NETFILTER_XT_TARGET_LOG
 	tristate "LOG target support"
+	depends on NF_LOG_IPV4 && NF_LOG_IPV6
 	default m if NETFILTER_ADVANCED=n
 	help
 	  This option adds a `LOG' target, which allows you to create rules in

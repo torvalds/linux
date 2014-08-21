@@ -122,6 +122,10 @@
 			status = "okay";
 		};
 
+		miphy@eb800000 {
+			status = "okay";
+		};
+
 		dma@ea800000 {
 			status = "okay";
 		};
