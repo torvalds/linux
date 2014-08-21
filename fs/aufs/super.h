@@ -464,8 +464,7 @@ static inline int si_pid_test(struct super_block *sb)
 	bit = si_pid_bit();
 	if (bit < PID_MAX_DEFAULT)
 		return test_bit(bit, au_sbi(sb)->au_si_pid.bitmap);
-	else
-		return si_pid_test_slow(sb);
+	return si_pid_test_slow(sb);
 }
 
 static inline void si_pid_set(struct super_block *sb)
