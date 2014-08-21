@@ -317,13 +317,6 @@ static int rk3036_codec_power_on(int wait_ms)
 	if (!rk3036_priv || !rk3036_priv->codec)
 		return -EINVAL;
 
-	snd_soc_write(codec, RK3036_CODEC_REG24, RK3036_CR24_DAC_SOURCE_STOP
-											|RK3036_CR24_DAC_PRECHARGE
-											|RK3036_CR24_DACL_REFV_STOP
-											|RK3036_CR24_DACR_REFV_STOP
-											|RK3036_CR24_VOUTL_ZEROD_STOP
-											|RK3036_CR24_VOUTR_ZEROD_STOP);
-	
 	/* set a big current for capacitor charge. */
 	snd_soc_write(codec, RK3036_CODEC_REG28, RK3036_CR28_YES_027I
 											|RK3036_CR28_YES_050I
@@ -331,18 +324,25 @@ static int rk3036_codec_power_on(int wait_ms)
 											|RK3036_CR28_YES_130I
 											|RK3036_CR28_YES_260I
 											|RK3036_CR28_YES_400I);
+	mdelay(10);
+	snd_soc_write(codec,RK3036_CODEC_REG27,((RK3036_CR27_DACL_WORK
+											|RK3036_CR27_DACR_WORK
+											|RK3036_CR27_HPOUTL_G_MUTE
+											|RK3036_CR27_HPOUTR_G_MUTE
+											|RK3036_CR27_HPOUTL_POP_WORK
+											|RK3036_CR27_HPOUTR_POP_WORK) & 0x00));
+	mdelay(10);
+	snd_soc_write(codec, RK3036_CODEC_REG24, RK3036_CR24_DAC_SOURCE_STOP
+                                                                                        |RK3036_CR24_DAC_PRECHARGE
+                                                                                        |RK3036_CR24_DACL_REFV_STOP
+                                                                                        |RK3036_CR24_DACR_REFV_STOP
+                                                                                        |RK3036_CR24_VOUTL_ZEROD_STOP
+                                                                                        |RK3036_CR24_VOUTR_ZEROD_STOP);
 
 	/* wait for capacitor charge finish. */
 	mdelay(wait_ms);
 
-	/* set a small current for power waste. */
-	snd_soc_write(codec, RK3036_CODEC_REG28, RK3036_CR28_NON_027I
-											|RK3036_CR28_NON_050I
-											|RK3036_CR28_YES_100I
-											|RK3036_CR28_NON_130I
-											|RK3036_CR28_NON_260I
-											|RK3036_CR28_NON_400I);
-	
+
 	return 0;
 }
 
@@ -364,7 +364,7 @@ static struct rk3036_reg_val_typ codec_open_list_p[] = {
 				|RK3036_CR22_DACR_CLK_STOP
 				|RK3036_CR22_DACL_STOP
 				|RK3036_CR22_DACR_STOP},
-	/* power on dac path reference voltage. */	
+	/* power on dac path reference voltage. */
 
 	/*S3*/{RK3036_CODEC_REG27,
 				RK3036_CR27_DACL_INIT
@@ -520,7 +520,7 @@ static struct rk3036_reg_val_typ codec_close_list_p[] = {
 				|RK3036_CR22_DACR_CLK_STOP
 				|RK3036_CR22_DACL_STOP
 				|RK3036_CR22_DACR_STOP},
-	
+
 	/*S8*/{RK3036_CODEC_REG24,
 				RK3036_CR24_DAC_SOURCE_STOP
 				|RK3036_CR24_DAC_PRECHARGE
@@ -571,7 +571,7 @@ static int rk3036_codec_power_off(int wait_ms)
 
 	if (!rk3036_priv || !rk3036_priv->codec)
 		return -EINVAL;
-	
+
 	/* set a big current for capacitor discharge. */
 	snd_soc_write(codec, RK3036_CODEC_REG28, RK3036_CR28_YES_027I
 											|RK3036_CR28_YES_050I
@@ -587,10 +587,10 @@ static int rk3036_codec_power_off(int wait_ms)
 											|RK3036_CR24_DACR_REFV_STOP
 											|RK3036_CR24_VOUTL_ZEROD_STOP
 											|RK3036_CR24_VOUTR_ZEROD_STOP);
-	
+
 	/* wait for capacitor discharge finish. */
 	mdelay(wait_ms);
-	
+
 	return 0;
 }
 
@@ -703,9 +703,6 @@ static void spk_ctrl_fun(int status)
 static void codec_delayedwork_fun(struct work_struct *work)
 {
 	dbg_codec(2, "codec_delayedwork_fun\n");
-	
-	/* codec power on. */
-	rk3036_codec_power_on(200);
 
 	/* codec start up. */
 	rk3036_codec_open_p();
@@ -729,7 +726,7 @@ static void rk3036_cmd_fun(struct work_struct *work)
 {
 	unsigned int cmd;
 	unsigned int next_delay;
-	
+
 	if (rk3036_priv == NULL)
 		return;
 
@@ -799,7 +796,7 @@ static void rk3036_cmd_fun(struct work_struct *work)
 			printk("rk3036_codec_open_p\n");
 			rk3036_codec_open_p();
 			break;
-			
+
 		case 43:
 			delay_time_try -= 10;
 			printk("reset+rk3036_codec_power_on delay_time_try=%d\n", delay_time_try);
@@ -811,7 +808,7 @@ static void rk3036_cmd_fun(struct work_struct *work)
 			printk("rk3036_codec_open_p\n");
 			rk3036_codec_open_p();
 			break;
-			
+
 		case 37:
 			printk("rk3036_codec_close_p\n");
 			rk3036_codec_close_p();
@@ -886,14 +883,11 @@ static int rk3036_probe(struct snd_soc_codec *codec)
 	/* codec power on. */
 	rk3036_codec_power_on(200);
 
-	/* codec start up. */
-	rk3036_codec_open_p();
-
-	schedule_delayed_work(&rk3036_codec->codec_delayed_work, 
-		msecs_to_jiffies(15000));/* codec_delayedwork_fun */
+	schedule_delayed_work(&rk3036_codec->codec_delayed_work,
+		msecs_to_jiffies(6000));/* codec_delayedwork_fun */
 	codec->dapm.bias_level = SND_SOC_BIAS_PREPARE;
 
-	schedule_delayed_work(&rk3036_codec->spk_ctrl_delayed_work, 
+	schedule_delayed_work(&rk3036_codec->spk_ctrl_delayed_work,
 		msecs_to_jiffies(5000));/* spk_ctrl_delayedwork_fun */
 
 #if CODECDEBUG
@@ -1009,14 +1003,14 @@ static int rk3036_codec_suspend_noirq(struct device *dev)
 
 	/* power off the codec */
 	rk3036_codec_power_off(10);
-	
+
 	return 0;
 }
 
 static int rk3036_codec_resume_noirq(struct device *dev)
 {
 	struct snd_soc_codec *codec = rk3036_priv->codec;
-	
+
 	/* codec reset. */
 	rk3036_reset(codec);
 
