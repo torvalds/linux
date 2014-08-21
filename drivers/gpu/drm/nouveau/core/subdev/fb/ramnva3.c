@@ -123,7 +123,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		timing.data = 0;
 	}
 
-	ret = nva3_clock_info(nouveau_clock(pfb), 0x12, 0x4000, freq, &mclk);
+	ret = nva3_pll_info(nouveau_clock(pfb), 0x12, 0x4000, freq, &mclk);
 	if (ret < 0) {
 		nv_error(pfb, "failed mclk calculation\n");
 		return ret;

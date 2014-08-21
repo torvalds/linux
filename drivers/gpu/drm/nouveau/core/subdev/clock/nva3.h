@@ -8,7 +8,7 @@ struct nva3_clock_info {
 	u32 pll;
 };
 
-int nva3_clock_info(struct nouveau_clock *, int, u32, u32,
+int nva3_pll_info(struct nouveau_clock *, int, u32, u32,
 		    struct nva3_clock_info *);
 
 #endif
