@@ -150,7 +150,7 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	remove_wait_queue(&nn->bl_wq, &wq);
 
 	if (reply->status != BL_DEVICE_REQUEST_PROC) {
-		dprintk("%s failed to open device: %d\n",
+		printk(KERN_WARNING "%s failed to decode device: %d\n",
 			__func__, reply->status);
 		rv = ERR_PTR(-EINVAL);
 		goto out;
@@ -159,7 +159,8 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	bd = blkdev_get_by_dev(MKDEV(reply->major, reply->minor),
 			       FMODE_READ, NULL);
 	if (IS_ERR(bd)) {
-		dprintk("%s failed to open device : %ld\n", __func__,
+		printk(KERN_WARNING "%s failed to open device %d:%d (%ld)\n",
+			__func__, reply->major, reply->minor,
 			PTR_ERR(bd));
 		rv = ERR_CAST(bd);
 		goto out;
