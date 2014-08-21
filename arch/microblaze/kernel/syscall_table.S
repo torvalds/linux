@@ -386,3 +386,4 @@ ENTRY(sys_call_table)
 	.long sys_renameat2
 	.long sys_seccomp
 	.long sys_getrandom		/* 385 */
+	.long sys_memfd_create
