@@ -781,8 +781,8 @@
 	  hevc_mmu {
 		dbgname = "hevc";
 		compatible = "rockchip,hevc_mmu";
-		reg = <0x10104440 0x100>,
-		      <0x10104480 0x100>;
+		reg = <0x10104440 0x40>,
+		      <0x10104480 0x40>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "hevc_mmu";
 	  };
@@ -790,7 +790,7 @@
 	  vpu_mmu {
 		dbgname = "vpu";
 		compatible = "rockchip,vpu_mmu";
-		reg = <0x10104800 0x100>;
+		reg = <0x10106800 0x100>;
 		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
 	  };
