@@ -433,9 +433,6 @@ static int mei_ioctl_connect_client(struct file *file,
 	int rets;
 
 	cl = file->private_data;
-	if (WARN_ON(!cl || !cl->dev))
-		return -ENODEV;
-
 	dev = cl->dev;
 
 	if (dev->dev_state != MEI_DEV_ENABLED) {
@@ -506,7 +503,6 @@ end:
 	return rets;
 }
 
-
 /**
  * mei_ioctl - the IOCTL function
  *
@@ -520,7 +516,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 {
 	struct mei_device *dev;
 	struct mei_cl *cl = file->private_data;
-	struct mei_connect_client_data *connect_data = NULL;
+	struct mei_connect_client_data connect_data;
 	int rets;
 
 
@@ -540,26 +536,19 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	switch (cmd) {
 	case IOCTL_MEI_CONNECT_CLIENT:
 		dev_dbg(&dev->pdev->dev, ": IOCTL_MEI_CONNECT_CLIENT.\n");
-		connect_data = kzalloc(sizeof(struct mei_connect_client_data),
-							GFP_KERNEL);
-		if (!connect_data) {
-			rets = -ENOMEM;
-			goto out;
-		}
-
-		if (copy_from_user(connect_data, (char __user *)data,
+		if (copy_from_user(&connect_data, (char __user *)data,
 				sizeof(struct mei_connect_client_data))) {
 			dev_dbg(&dev->pdev->dev, "failed to copy data from userland\n");
 			rets = -EFAULT;
 			goto out;
 		}
 
-		rets = mei_ioctl_connect_client(file, connect_data);
+		rets = mei_ioctl_connect_client(file, &connect_data);
 		if (rets)
 			goto out;
 
 		/* if all is ok, copying the data back to user. */
-		if (copy_to_user((char __user *)data, connect_data,
+		if (copy_to_user((char __user *)data, &connect_data,
 				sizeof(struct mei_connect_client_data))) {
 			dev_dbg(&dev->pdev->dev, "failed to copy data to userland\n");
 			rets = -EFAULT;
@@ -567,13 +556,13 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 		}
 
 		break;
+
 	default:
 		dev_err(&dev->pdev->dev, ": unsupported ioctl %d.\n", cmd);
 		rets = -ENOIOCTLCMD;
 	}
 
 out:
-	kfree(connect_data);
 	mutex_unlock(&dev->device_lock);
 	return rets;
 }
