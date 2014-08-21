@@ -278,7 +278,7 @@ init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 	return -ENODEV;
 }
 
-static int
+static u8
 init_rdauxr(struct nvbios_init *init, u32 addr)
 {
 	struct nouveau_i2c_port *port = init_i2c(init, -2);
@@ -286,20 +286,24 @@ init_rdauxr(struct nvbios_init *init, u32 addr)
 
 	if (port && init_exec(init)) {
 		int ret = nv_rdaux(port, addr, &data, 1);
-		if (ret)
-			return ret;
-		return data;
+		if (ret == 0)
+			return data;
+		trace("auxch read failed with %d\n", ret);
 	}
 
-	return -ENODEV;
+	return 0x00;
 }
 
 static int
 init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 {
 	struct nouveau_i2c_port *port = init_i2c(init, -2);
-	if (port && init_exec(init))
-		return nv_wraux(port, addr, &data, 1);
+	if (port && init_exec(init)) {
+		int ret = nv_wraux(port, addr, &data, 1);
+		if (ret)
+			trace("auxch write failed with %d\n", ret);
+		return ret;
+	}
 	return -ENODEV;
 }
 
