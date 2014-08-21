@@ -47,7 +47,6 @@ struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
 	return NULL;
 }
 
-
 /**
  * mei_me_cl_by_id return index to me_clients for client_id
  *
@@ -68,6 +67,27 @@ struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 		if (me_cl->client_id == client_id)
 			return me_cl;
 	return NULL;
+}
+
+/**
+ * mei_me_cl_remove - remove me client matching uuid and client_id
+ *
+ * @dev: the device structure
+ * @uuid: me client uuid
+ * @client_id: me client address
+ */
+void mei_me_cl_remove(struct mei_device *dev, const uuid_le *uuid, u8 client_id)
+{
+	struct mei_me_client *me_cl, *next;
+
+	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list) {
+		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0 &&
+		    me_cl->client_id == client_id) {
+			list_del(&me_cl->list);
+			kfree(me_cl);
+			break;
+		}
+	}
 }
 
 

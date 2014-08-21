@@ -71,21 +71,30 @@ void mei_hbm_idle(struct mei_device *dev)
 }
 
 /**
+ * mei_me_cl_remove_all - remove all me clients
+ *
+ * @dev: the device structure
+ */
+static void mei_me_cl_remove_all(struct mei_device *dev)
+{
+	struct mei_me_client *me_cl, *next;
+	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list) {
+			list_del(&me_cl->list);
+			kfree(me_cl);
+	}
+}
+
+/**
  * mei_hbm_reset - reset hbm counters and book keeping data structurs
  *
  * @dev: the device structure
  */
 void mei_hbm_reset(struct mei_device *dev)
 {
-	struct mei_me_client *me_cl, *next;
-
 	dev->me_client_presentation_num = 0;
 	dev->me_client_index = 0;
 
-	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list) {
-		list_del(&me_cl->list);
-		kfree(me_cl);
-	}
+	mei_me_cl_remove_all(dev);
 
 	mei_hbm_idle(dev);
 }
