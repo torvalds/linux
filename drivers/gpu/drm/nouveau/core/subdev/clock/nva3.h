@@ -6,6 +6,10 @@
 struct nva3_clock_info {
 	u32 clk;
 	u32 pll;
+	enum {
+		NVA3_HOST_277,
+		NVA3_HOST_CLK,
+	} host_out;
 };
 
 int nva3_pll_info(struct nouveau_clock *, int, u32, u32,
