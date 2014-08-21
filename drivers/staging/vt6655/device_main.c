@@ -245,9 +245,6 @@ DEVICE_PARAM(bDiversityANTEnable, "ANT diversity mode");
 //
 // Static vars definitions
 //
-
-static int          device_nics             = 0;
-
 static CHIP_INFO chip_info_table[] = {
 	{ VT3253,       "VIA Networking Solomon-A/B/G Wireless LAN Adapter ",
 	  256, 1,     DEVICE_FLAGS_IP_ALIGN|DEVICE_FLAGS_TX_ALIGN },
@@ -336,7 +333,7 @@ static void vt6655_remove(struct pci_dev *pcid)
 }
 
 static void device_get_options(struct vnt_private *pDevice,
-			       int index, char *devname)
+			       char *devname)
 {
 	POPTIONS pOpts = &(pDevice->sOpts);
 
@@ -825,11 +822,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	struct vnt_private *pDevice;
 	int         rc;
 
-	if (device_nics++ >= MAX_UINTS) {
-		pr_notice(DEVICE_NAME ": already found %d NICs\n", device_nics);
-		return -ENODEV;
-	}
-
 	dev = alloc_etherdev(sizeof(*pDevice));
 
 	pDevice = netdev_priv(dev);
@@ -934,7 +926,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	MACvInitialize(pDevice->PortOffset);
 	MACvReadEtherAddress(pDevice->PortOffset, dev->dev_addr);
 
-	device_get_options(pDevice, device_nics-1, dev->name);
+	device_get_options(pDevice, dev->name);
 	device_set_options(pDevice);
 	//Mask out the options cannot be set to the chip
 	pDevice->sOpts.flags &= pChip_info->flags;
