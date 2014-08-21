@@ -360,7 +360,7 @@ void mei_device_init(struct mei_device *dev, const struct mei_cfg *cfg)
 	mutex_init(&dev->device_lock);
 	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_pg);
-	init_waitqueue_head(&dev->wait_recvd_msg);
+	init_waitqueue_head(&dev->wait_hbm_start);
 	init_waitqueue_head(&dev->wait_stop_wd);
 	dev->dev_state = MEI_DEV_INITIALIZING;
 	dev->reset_count = 0;

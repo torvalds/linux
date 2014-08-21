@@ -172,21 +172,27 @@ bool mei_hbm_cl_addr_equal(struct mei_cl *cl, void *buf)
 		cl->me_client_id == cmd->me_addr;
 }
 
-
+/**
+ * mei_hbm_start_wait - wait for start response message.
+ *
+ * @dev: the device structure
+ *
+ * returns 0 on success and < 0 on failure
+ */
 int mei_hbm_start_wait(struct mei_device *dev)
 {
 	int ret;
-	if (dev->hbm_state > MEI_HBM_START)
+
+	if (dev->hbm_state > MEI_HBM_STARTING)
 		return 0;
 
 	mutex_unlock(&dev->device_lock);
-	ret = wait_event_interruptible_timeout(dev->wait_recvd_msg,
-			dev->hbm_state == MEI_HBM_IDLE ||
-			dev->hbm_state >= MEI_HBM_STARTED,
+	ret = wait_event_timeout(dev->wait_hbm_start,
+			dev->hbm_state != MEI_HBM_STARTING,
 			mei_secs_to_jiffies(MEI_HBM_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
-	if (ret <= 0 && (dev->hbm_state <= MEI_HBM_START)) {
+	if (ret == 0 && (dev->hbm_state <= MEI_HBM_STARTING)) {
 		dev->hbm_state = MEI_HBM_IDLE;
 		dev_err(&dev->pdev->dev, "waiting for mei start failed\n");
 		return -ETIME;
@@ -227,7 +233,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 		return ret;
 	}
 
-	dev->hbm_state = MEI_HBM_START;
+	dev->hbm_state = MEI_HBM_STARTING;
 	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
 	return 0;
 }
@@ -726,7 +732,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		}
 
 		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
-		    dev->hbm_state != MEI_HBM_START) {
+		    dev->hbm_state != MEI_HBM_STARTING) {
 			dev_err(&dev->pdev->dev, "hbm: start: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
@@ -739,7 +745,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return -EIO;
 		}
 
-		wake_up_interruptible(&dev->wait_recvd_msg);
+		wake_up(&dev->wait_hbm_start);
 		break;
 
 	case CLIENT_CONNECT_RES_CMD:
@@ -866,7 +872,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dev_dbg(&dev->pdev->dev, "hbm: stop request: message received\n");
 		dev->hbm_state = MEI_HBM_STOPPED;
 		if (mei_hbm_stop_req(dev)) {
-			dev_err(&dev->pdev->dev, "hbm: start: failed to send stop request\n");
+			dev_err(&dev->pdev->dev, "hbm: stop request: failed to send stop request\n");
 			return -EIO;
 		}
 		break;
