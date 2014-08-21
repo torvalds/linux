@@ -128,8 +128,8 @@ struct pnfs_layoutdriver_type {
 				     const struct nfs4_layoutreturn_args *args);
 
 	void (*cleanup_layoutcommit) (struct nfs4_layoutcommit_data *data);
-
-	void (*encode_layoutcommit) (struct pnfs_layout_hdr *layoutid,
+	int (*prepare_layoutcommit) (struct nfs4_layoutcommit_args *args);
+	void (*encode_layoutcommit) (struct pnfs_layout_hdr *lo,
 				     struct xdr_stream *xdr,
 				     const struct nfs4_layoutcommit_args *args);
 };

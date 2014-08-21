@@ -1854,6 +1854,7 @@ void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data)
 int
 pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 {
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
 	struct nfs4_layoutcommit_data *data;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t end_pos;
@@ -1903,6 +1904,20 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	data->res.fattr = &data->fattr;
 	data->args.lastbytewritten = end_pos - 1;
 	data->res.server = NFS_SERVER(inode);
+
+	if (ld->prepare_layoutcommit) {
+		status = ld->prepare_layoutcommit(&data->args);
+		if (status) {
+			spin_lock(&inode->i_lock);
+			if (end_pos < nfsi->layout->plh_lwb)
+				nfsi->layout->plh_lwb = end_pos;
+			spin_unlock(&inode->i_lock);
+			put_rpccred(data->cred);
+			set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags);
+			goto clear_layoutcommitting;
+		}
+	}
+
 
 	status = nfs4_proc_layoutcommit(data, sync);
 out:

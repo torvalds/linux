@@ -279,6 +279,9 @@ struct nfs4_layoutcommit_args {
 	__u64 lastbytewritten;
 	struct inode *inode;
 	const u32 *bitmask;
+	size_t layoutupdate_len;
+	struct page *layoutupdate_page;
+	struct page **layoutupdate_pages;
 };
 
 struct nfs4_layoutcommit_res {
