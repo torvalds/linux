@@ -1949,6 +1949,7 @@ void audit_log_end(struct audit_buffer *ab)
 	} else {
 		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 
+		nlh->nlmsg_len = ab->skb->len;
 		kauditd_send_multicast_skb(ab->skb);
 
 		/*
@@ -1960,7 +1961,7 @@ void audit_log_end(struct audit_buffer *ab)
 		 * protocol between the kaudit kernel subsystem and the auditd
 		 * userspace code.
 		 */
-		nlh->nlmsg_len = ab->skb->len - NLMSG_HDRLEN;
+		nlh->nlmsg_len -= NLMSG_HDRLEN;
 
 		if (audit_pid) {
 			skb_queue_tail(&audit_skb_queue, ab->skb);
