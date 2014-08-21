@@ -99,17 +99,24 @@ struct sst_compress_cb {
 
 struct compress_sst_ops {
 	const char *name;
-	int (*open) (struct snd_sst_params *str_params,
-			struct sst_compress_cb *cb);
-	int (*control) (unsigned int cmd, unsigned int str_id);
-	int (*tstamp) (unsigned int str_id, struct snd_compr_tstamp *tstamp);
-	int (*ack) (unsigned int str_id, unsigned long bytes);
-	int (*close) (unsigned int str_id);
-	int (*get_caps) (struct snd_compr_caps *caps);
-	int (*get_codec_caps) (struct snd_compr_codec_caps *codec);
-	int (*set_metadata) (unsigned int str_id,
-			struct snd_compr_metadata *mdata);
+	int (*open)(struct device *dev,
+		struct snd_sst_params *str_params, struct sst_compress_cb *cb);
+	int (*stream_start)(struct device *dev, unsigned int str_id);
+	int (*stream_drop)(struct device *dev, unsigned int str_id);
+	int (*stream_drain)(struct device *dev, unsigned int str_id);
+	int (*stream_partial_drain)(struct device *dev,	unsigned int str_id);
+	int (*stream_pause)(struct device *dev, unsigned int str_id);
+	int (*stream_pause_release)(struct device *dev,	unsigned int str_id);
 
+	int (*tstamp)(struct device *dev, unsigned int str_id,
+			struct snd_compr_tstamp *tstamp);
+	int (*ack)(struct device *dev, unsigned int str_id,
+			unsigned long bytes);
+	int (*close)(struct device *dev, unsigned int str_id);
+	int (*get_caps)(struct snd_compr_caps *caps);
+	int (*get_codec_caps)(struct snd_compr_codec_caps *codec);
+	int (*set_metadata)(struct device *dev,	unsigned int str_id,
+			struct snd_compr_metadata *mdata);
 };
 
 struct sst_ops {
