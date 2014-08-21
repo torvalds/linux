@@ -311,7 +311,11 @@ prog_pll(struct nva3_clock_priv *priv, int clk, u32 pll, int idx)
 		nv_wr32(priv, coef, info->pll);
 		nv_mask(priv, ctrl, 0x00000015, 0x00000015);
 		nv_mask(priv, ctrl, 0x00000010, 0x00000000);
-		nv_wait(priv, ctrl, 0x00020000, 0x00020000);
+		if (!nv_wait(priv, ctrl, 0x00020000, 0x00020000)) {
+			nv_mask(priv, ctrl, 0x00000010, 0x00000010);
+			nv_mask(priv, src0, 0x00000101, 0x00000000);
+			return;
+		}
 		nv_mask(priv, ctrl, 0x00000010, 0x00000010);
 		nv_mask(priv, ctrl, 0x00000008, 0x00000000);
 		disable_clk_src(priv, src1);
