@@ -425,7 +425,10 @@ static int au_cpup_or_link(struct dentry *src_dentry, struct dentry *dentry,
 			      dget(au_h_dptr(src_dentry, a->bsrc)));
 		dget(a->h_path.dentry);
 		au_set_h_dptr(dentry, a->bdst, NULL);
+		AuDbg("temporary d_inode...\n");
+		spin_lock(&dentry->d_lock);
 		dentry->d_inode = src_dentry->d_inode; /* tmp */
+		spin_unlock(&dentry->d_lock);
 		h_file = au_h_open_pre(dentry, a->bsrc, /*force_wr*/0);
 		if (IS_ERR(h_file))
 			err = PTR_ERR(h_file);
@@ -447,7 +450,10 @@ static int au_cpup_or_link(struct dentry *src_dentry, struct dentry *dentry,
 				au_set_h_dptr(dentry, a->bdst,
 					      a->h_path.dentry);
 		}
+		spin_lock(&dentry->d_lock);
 		dentry->d_inode = NULL; /* restore */
+		spin_unlock(&dentry->d_lock);
+		AuDbg("temporary d_inode...done\n");
 		au_set_h_dptr(dentry, a->bsrc, NULL);
 		au_set_dbend(dentry, bend);
 	} else {
