@@ -288,7 +288,7 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 
 
 	prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
-	prop_req->address = next_client_index;
+	prop_req->me_addr = next_client_index;
 
 	ret = mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 	if (ret) {
@@ -783,9 +783,9 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return -EPROTO;
 		}
 
-		if (me_client->client_id != props_res->address) {
+		if (me_client->client_id != props_res->me_addr) {
 			dev_err(&dev->pdev->dev, "hbm: properties response: address mismatch %d ?= %d\n",
-				me_client->client_id, props_res->address);
+				me_client->client_id, props_res->me_addr);
 			return -EPROTO;
 		}
 

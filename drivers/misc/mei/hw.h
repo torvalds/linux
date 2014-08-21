@@ -206,14 +206,13 @@ struct mei_client_properties {
 
 struct hbm_props_request {
 	u8 hbm_cmd;
-	u8 address;
+	u8 me_addr;
 	u8 reserved[2];
 } __packed;
 
-
 struct hbm_props_response {
 	u8 hbm_cmd;
-	u8 address;
+	u8 me_addr;
 	u8 status;
 	u8 reserved[1];
 	struct mei_client_properties client_properties;
