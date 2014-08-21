@@ -176,6 +176,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	unsigned int f_ref_khz, f_vco_khz, div_ref, div_out, pll_n, gdiv28;
 	u8 buf[3], u8tmp, cap_code, lpf_gm, lpf_mxdiv, div_max, div_min;
 	u16 u16tmp;
+
 	dev_dbg(&priv->client->dev,
 			"%s: frequency=%d symbol_rate=%d rolloff=%d\n",
 			__func__, c->frequency, c->symbol_rate, c->rolloff);
@@ -393,6 +394,7 @@ static int m88ts2022_init(struct dvb_frontend *fe)
 		{0x24, 0x02},
 		{0x12, 0xa0},
 	};
+
 	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	ret = m88ts2022_wr_reg(priv, 0x00, 0x01);
@@ -448,6 +450,7 @@ static int m88ts2022_sleep(struct dvb_frontend *fe)
 {
 	struct m88ts2022_priv *priv = fe->tuner_priv;
 	int ret;
+
 	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	ret = m88ts2022_wr_reg(priv, 0x00, 0x00);
@@ -462,6 +465,7 @@ err:
 static int m88ts2022_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct m88ts2022_priv *priv = fe->tuner_priv;
+
 	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	*frequency = priv->frequency_khz;
@@ -471,6 +475,7 @@ static int m88ts2022_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static int m88ts2022_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct m88ts2022_priv *priv = fe->tuner_priv;
+
 	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	*frequency = 0; /* Zero-IF */
@@ -642,6 +647,7 @@ static int m88ts2022_remove(struct i2c_client *client)
 {
 	struct m88ts2022_priv *priv = i2c_get_clientdata(client);
 	struct dvb_frontend *fe = priv->cfg.fe;
+
 	dev_dbg(&client->dev, "%s:\n", __func__);
 
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
