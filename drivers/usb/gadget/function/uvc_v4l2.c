@@ -178,7 +178,7 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		strlcpy(cap->card, cdev->gadget->name, sizeof(cap->card));
 		strlcpy(cap->bus_info, dev_name(&cdev->gadget->dev),
 			sizeof cap->bus_info);
-		cap->version = DRIVER_VERSION_NUMBER;
+		cap->version = LINUX_VERSION_CODE;
 		cap->capabilities = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
 		break;
 	}
