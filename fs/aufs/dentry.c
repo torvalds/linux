@@ -992,10 +992,6 @@ static int aufs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (unlikely(!au_di(dentry)))
 		goto out;
 
-	inode = dentry->d_inode;
-	if (inode && is_bad_inode(inode))
-		goto out;
-
 	valid = 1;
 	sb = dentry->d_sb;
 	/*
@@ -1008,6 +1004,12 @@ static int aufs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		valid = err;
 		AuTraceErr(err);
 		goto out;
+	}
+	inode = dentry->d_inode;
+	if (unlikely(inode && is_bad_inode(inode))) {
+		err = -EINVAL;
+		AuTraceErr(err);
+		goto out_dgrade;
 	}
 	if (unlikely(au_dbrange_test(dentry))) {
 		err = -EINVAL;
