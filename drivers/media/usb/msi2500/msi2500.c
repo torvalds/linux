@@ -501,14 +501,12 @@ static void msi2500_isoc_cleanup(struct msi2500_state *s)
 /* Both v4l2_lock and vb_queue_lock should be locked when calling this */
 static int msi2500_isoc_init(struct msi2500_state *s)
 {
-	struct usb_device *udev;
 	struct urb *urb;
 	int i, j, ret;
 
 	dev_dbg(&s->udev->dev, "%s:\n", __func__);
 
 	s->isoc_errors = 0;
-	udev = s->udev;
 
 	ret = usb_set_interface(s->udev, 0, 1);
 	if (ret)
@@ -527,10 +525,11 @@ static int msi2500_isoc_init(struct msi2500_state *s)
 		dev_dbg(&s->udev->dev, "Allocated URB at 0x%p\n", urb);
 
 		urb->interval = 1;
-		urb->dev = udev;
-		urb->pipe = usb_rcvisocpipe(udev, 0x81);
+		urb->dev = s->udev;
+		urb->pipe = usb_rcvisocpipe(s->udev, 0x81);
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
-		urb->transfer_buffer = usb_alloc_coherent(udev, ISO_BUFFER_SIZE,
+		urb->transfer_buffer = usb_alloc_coherent(s->udev,
+				ISO_BUFFER_SIZE,
 				GFP_KERNEL, &urb->transfer_dma);
 		if (urb->transfer_buffer == NULL) {
 			dev_err(&s->udev->dev,
