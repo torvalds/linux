@@ -247,7 +247,6 @@ DEVICE_PARAM(bDiversityANTEnable, "ANT diversity mode");
 //
 
 static int          device_nics             = 0;
-static struct net_device *root_device_dev = NULL;
 
 static CHIP_INFO chip_info_table[] = {
 	{ VT3253,       "VIA Networking Solomon-A/B/G Wireless LAN Adapter ",
@@ -851,8 +850,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 	vt6655_init_info(pcid, &pDevice, pChip_info);
 	pDevice->dev = dev;
-	pDevice->next_module = root_device_dev;
-	root_device_dev = dev;
 
 	if (pci_enable_device(pcid)) {
 		device_free_info(pDevice);

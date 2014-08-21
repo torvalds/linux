@@ -339,7 +339,6 @@ struct vnt_private {
 
 // netdev
 	struct net_device *dev;
-	struct net_device *next_module;
 	struct net_device_stats     stats;
 
 //dma addr, rx/tx pool
