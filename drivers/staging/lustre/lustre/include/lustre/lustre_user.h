@@ -1111,7 +1111,7 @@ static inline int cfs_size_round (int val)
 #endif
 
 /* Return pointer to first hai in action list */
-static inline struct hsm_action_item * hai_zero(struct hsm_action_list *hal)
+static inline struct hsm_action_item *hai_zero(struct hsm_action_list *hal)
 {
 	return (struct hsm_action_item *)(hal->hal_fsname +
 					  cfs_size_round(strlen(hal-> \
@@ -1119,7 +1119,7 @@ static inline struct hsm_action_item * hai_zero(struct hsm_action_list *hal)
 							 + 1));
 }
 /* Return pointer to next hai */
-static inline struct hsm_action_item * hai_next(struct hsm_action_item *hai)
+static inline struct hsm_action_item *hai_next(struct hsm_action_item *hai)
 {
 	return (struct hsm_action_item *)((char *)hai +
 					  cfs_size_round(hai->hai_len));

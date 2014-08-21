@@ -88,12 +88,12 @@ struct obd_device *class_name2obd(const char *name);
 int class_uuid2dev(struct obd_uuid *uuid);
 struct obd_device *class_uuid2obd(struct obd_uuid *uuid);
 void class_obd_list(void);
-struct obd_device * class_find_client_obd(struct obd_uuid *tgt_uuid,
-					  const char * typ_name,
+struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
+					  const char *typ_name,
 					  struct obd_uuid *grp_uuid);
-struct obd_device * class_devices_in_group(struct obd_uuid *grp_uuid,
+struct obd_device *class_devices_in_group(struct obd_uuid *grp_uuid,
 					   int *next);
-struct obd_device * class_num2obd(int num);
+struct obd_device *class_num2obd(int num);
 int get_devices_count(void);
 
 int class_notify_sptlrpc_conf(const char *fsname, int namelen);
@@ -110,7 +110,7 @@ void obd_zombie_impexp_cull(void);
 void obd_zombie_barrier(void);
 void obd_exports_barrier(struct obd_device *obd);
 int kuc_len(int payload_len);
-struct kuc_hdr * kuc_ptr(void *p);
+struct kuc_hdr *kuc_ptr(void *p);
 int kuc_ispayload(void *p);
 void *kuc_alloc(int payload_len, int transport, int type);
 void kuc_free(void *p, int payload_len);
@@ -207,7 +207,7 @@ struct lustre_profile {
 	char	    *lp_md;
 };
 
-struct lustre_profile *class_get_profile(const char * prof);
+struct lustre_profile *class_get_profile(const char *prof);
 void class_del_profile(const char *prof);
 void class_del_profiles(void);
 

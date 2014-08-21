@@ -1139,7 +1139,7 @@ struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock)
 	/* NOTE: we depend on atomic igrab() -bzzz */
 	lock_res_and_lock(lock);
 	if (lock->l_resource->lr_lvb_inode) {
-		struct ll_inode_info * lli;
+		struct ll_inode_info *lli;
 		lli = ll_i2info(lock->l_resource->lr_lvb_inode);
 		if (lli->lli_inode_magic == LLI_INODE_MAGIC) {
 			inode = igrab(lock->l_resource->lr_lvb_inode);
@@ -2216,7 +2216,7 @@ int ll_process_config(struct lustre_cfg *lcfg)
 }
 
 /* this function prepares md_op_data hint for passing ot down to MD stack. */
-struct md_op_data * ll_prep_md_op_data(struct md_op_data *op_data,
+struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 				       struct inode *i1, struct inode *i2,
 				       const char *name, int namelen,
 				       int mode, __u32 opc, void *data)

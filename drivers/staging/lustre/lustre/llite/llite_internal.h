@@ -995,7 +995,7 @@ int ll_close_thread_start(struct ll_close_queue **lcq_ret);
 /* llite/llite_mmap.c */
 
 int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last);
-int ll_file_mmap(struct file * file, struct vm_area_struct * vma);
+int ll_file_mmap(struct file *file, struct vm_area_struct *vma);
 void policy_from_vma(ldlm_policy_data_t *policy,
 		struct vm_area_struct *vma, unsigned long addr, size_t count);
 struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,

@@ -885,7 +885,7 @@ enum sptlrpc_bulk_hash_alg {
 	BULK_HASH_ALG_MAX
 };
 
-const char * sptlrpc_get_hash_name(__u8 hash_alg);
+const char *sptlrpc_get_hash_name(__u8 hash_alg);
 __u8 sptlrpc_get_hash_alg(const char *algname);
 
 enum {
@@ -1060,7 +1060,7 @@ void sptlrpc_gc_del_sec(struct ptlrpc_sec *sec);
 void sptlrpc_gc_add_ctx(struct ptlrpc_cli_ctx *ctx);
 
 /* misc */
-const char * sec2target_str(struct ptlrpc_sec *sec);
+const char *sec2target_str(struct ptlrpc_sec *sec);
 /*
  * lprocfs
  */

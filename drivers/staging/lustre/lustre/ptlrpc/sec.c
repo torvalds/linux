@@ -110,7 +110,7 @@ int sptlrpc_unregister_policy(struct ptlrpc_sec_policy *policy)
 EXPORT_SYMBOL(sptlrpc_unregister_policy);
 
 static
-struct ptlrpc_sec_policy * sptlrpc_wireflavor2policy(__u32 flavor)
+struct ptlrpc_sec_policy *sptlrpc_wireflavor2policy(__u32 flavor)
 {
 	static DEFINE_MUTEX(load_mutex);
 	static atomic_t       loaded = ATOMIC_INIT(0);
@@ -1267,7 +1267,7 @@ EXPORT_SYMBOL(sptlrpc_sec_put);
  * policy module is responsible for taking reference of import
  */
 static
-struct ptlrpc_sec * sptlrpc_sec_create(struct obd_import *imp,
+struct ptlrpc_sec *sptlrpc_sec_create(struct obd_import *imp,
 				       struct ptlrpc_svc_ctx *svc_ctx,
 				       struct sptlrpc_flavor *sf,
 				       enum lustre_sec_part sp)
@@ -2366,7 +2366,7 @@ EXPORT_SYMBOL(sptlrpc_unpack_user_desc);
  * misc helpers			 *
  ****************************************/
 
-const char * sec2target_str(struct ptlrpc_sec *sec)
+const char *sec2target_str(struct ptlrpc_sec *sec)
 {
 	if (!sec || !sec->ps_import || !sec->ps_import->imp_obd)
 		return "*";
