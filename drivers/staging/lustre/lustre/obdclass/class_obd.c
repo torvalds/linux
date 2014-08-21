@@ -381,7 +381,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		GOTO(out, err = -EINVAL);
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case OBD_IOC_NO_TRANSNO: {
 		if (!obd->obd_attached) {
 			CERROR("Device %d not attached\n", obd->obd_minor);

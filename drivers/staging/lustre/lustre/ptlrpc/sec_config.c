@@ -746,7 +746,7 @@ void sptlrpc_conf_log_update_begin(const char *logname)
 
 	conf = sptlrpc_conf_get(fsname, 0);
 	if (conf) {
-		if(conf->sc_local) {
+		if (conf->sc_local) {
 			LASSERT(conf->sc_updated == 0);
 			sptlrpc_conf_free_rsets(conf);
 		}

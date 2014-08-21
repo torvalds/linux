@@ -1025,7 +1025,7 @@ kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
 	struct libcfs_ioctl_data *data = arg;
 	int		       rc = -EINVAL;
 
-	switch(cmd) {
+	switch (cmd) {
 	case IOC_LIBCFS_GET_PEER: {
 		lnet_nid_t   nid = 0;
 		int	  count = 0;

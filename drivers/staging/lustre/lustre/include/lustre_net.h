@@ -1966,7 +1966,7 @@ do {									  \
 	    ((libcfs_debug & (mask)) != 0 &&				  \
 	     (libcfs_subsystem_debug & DEBUG_SUBSYSTEM) != 0))		\
 		_debug_req((req), msgdata, fmt, ##a);			 \
-} while(0)
+} while (0)
 
 /**
  * This is the debug print function you need to use to print request structure

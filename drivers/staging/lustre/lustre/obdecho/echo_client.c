@@ -903,7 +903,7 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 	ed->ed_next = next;
 	return &cd->cd_lu_dev;
 out:
-	switch(cleanup) {
+	switch (cleanup) {
 	case 4: {
 		int rc2;
 		rc2 = echo_client_cleanup(obd);
@@ -2548,7 +2548,7 @@ static int echo_client_prep_commit(const struct lu_env *env,
 
 	off = offset;
 
-	for(; tot_pages; tot_pages -= npages) {
+	for (; tot_pages; tot_pages -= npages) {
 		int lpages;
 
 		if (tot_pages < npages)

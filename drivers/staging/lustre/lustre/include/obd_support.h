@@ -668,7 +668,7 @@ do {									      \
 	} else {							      \
 		OBD_ALLOC_POST(ptr, size, "vmalloced");		       \
 	}								     \
-} while(0)
+} while (0)
 
 # define OBD_VMALLOC(ptr, size)						      \
 	 __OBD_VMALLOC_VEROBSE(ptr, NULL, 0, size)
@@ -730,7 +730,7 @@ do {									  \
 	OBD_FREE_PRE(ptr, size, "kfreed");				    \
 	kfree(ptr);							\
 	POISON_PTR(ptr);						      \
-} while(0)
+} while (0)
 
 
 #define OBD_FREE_RCU(ptr, size, handle)					      \
@@ -742,7 +742,7 @@ do {									      \
 	__h->h_size = (size);						      \
 	call_rcu(&__h->h_rcu, class_handle_free_cb);			      \
 	POISON_PTR(ptr);						      \
-} while(0)
+} while (0)
 
 
 #define OBD_VFREE(ptr, size)				\
@@ -776,7 +776,7 @@ do {									      \
 		    OBD_SLAB_FREE_RTN0(ptr, slab)))) {			\
 		OBD_ALLOC_POST(ptr, size, "slab-alloced");		    \
 	}								     \
-} while(0)
+} while (0)
 
 #define OBD_SLAB_ALLOC_GFP(ptr, slab, size, flags)			      \
 	__OBD_SLAB_ALLOC_VERBOSE(ptr, slab, NULL, 0, size, flags)
@@ -790,7 +790,7 @@ do {									  \
 	OBD_FREE_PRE(ptr, size, "slab-freed");				\
 	kmem_cache_free(slab, ptr);					\
 	POISON_PTR(ptr);						      \
-} while(0)
+} while (0)
 
 #define OBD_SLAB_ALLOC(ptr, slab, size)					      \
 	OBD_SLAB_ALLOC_GFP(ptr, slab, size, GFP_NOFS)

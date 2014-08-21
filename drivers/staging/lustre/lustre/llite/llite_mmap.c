@@ -71,7 +71,7 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 	/* mmap_sem must have been held by caller. */
 	LASSERT(!down_write_trylock(&mm->mmap_sem));
 
-	for(vma = find_vma(mm, addr);
+	for (vma = find_vma(mm, addr);
 	    vma != NULL && vma->vm_start < (addr + count); vma = vma->vm_next) {
 		if (vma->vm_ops && vma->vm_ops == &ll_file_vm_ops &&
 		    vma->vm_flags & VM_SHARED) {
@@ -261,7 +261,7 @@ out:
 
 static inline int to_fault_error(int result)
 {
-	switch(result) {
+	switch (result) {
 	case 0:
 		result = VM_FAULT_LOCKED;
 		break;
@@ -399,7 +399,7 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		}
 	} while (retry);
 
-	switch(result) {
+	switch (result) {
 	case 0:
 		LASSERT(PageLocked(vmf->page));
 		result = VM_FAULT_LOCKED;

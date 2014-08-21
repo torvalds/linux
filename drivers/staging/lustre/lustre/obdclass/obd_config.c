@@ -1087,7 +1087,7 @@ int class_process_config(struct lustre_cfg *lcfg)
 	CDEBUG(D_IOCTL, "processing cmd: %x\n", lcfg->lcfg_command);
 
 	/* Commands that don't need a device */
-	switch(lcfg->lcfg_command) {
+	switch (lcfg->lcfg_command) {
 	case LCFG_ATTACH: {
 		err = class_attach(lcfg);
 		GOTO(out, err);
@@ -1203,7 +1203,7 @@ int class_process_config(struct lustre_cfg *lcfg)
 		GOTO(out, err = -EINVAL);
 	}
 
-	switch(lcfg->lcfg_command) {
+	switch (lcfg->lcfg_command) {
 	case LCFG_SETUP: {
 		err = class_setup(obd, lcfg);
 		GOTO(out, err);

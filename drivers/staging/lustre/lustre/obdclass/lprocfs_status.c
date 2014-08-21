@@ -751,7 +751,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		      ret.lc_sum, header->lc_units);
 
 	k = 0;
-	for(j = 0; j < IMP_AT_MAX_PORTALS; j++) {
+	for (j = 0; j < IMP_AT_MAX_PORTALS; j++) {
 		if (imp->imp_at.iat_portal[j] == 0)
 			break;
 		k = max_t(unsigned int, k,
@@ -883,7 +883,7 @@ int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 		       "network", cur, worst, worstt, DHMS_VARS(&ts));
 	lprocfs_at_hist_helper(m, &imp->imp_at.iat_net_latency);
 
-	for(i = 0; i < IMP_AT_MAX_PORTALS; i++) {
+	for (i = 0; i < IMP_AT_MAX_PORTALS; i++) {
 		if (imp->imp_at.iat_portal[i] == 0)
 			break;
 		cur = at_get(&imp->imp_at.iat_service_estimate[i]);
@@ -1741,7 +1741,7 @@ int lprocfs_exp_cleanup(struct obd_export *exp)
 {
 	struct nid_stat *stat = exp->exp_nid_stats;
 
-	if(!stat || !exp->exp_obd)
+	if (!stat || !exp->exp_obd)
 		return 0;
 
 	nidstat_putref(exp->exp_nid_stats);
@@ -1828,7 +1828,7 @@ int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
 	}
 
 	units = 1;
-	switch(*end) {
+	switch (*end) {
 	case 'p': case 'P':
 		units <<= 10;
 	case 't': case 'T':

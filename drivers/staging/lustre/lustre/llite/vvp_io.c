@@ -238,7 +238,7 @@ static int vvp_mmap_locks(const struct lu_env *env,
 		addr &= CFS_PAGE_MASK;
 
 		down_read(&mm->mmap_sem);
-		while((vma = our_vma(mm, addr, count)) != NULL) {
+		while ((vma = our_vma(mm, addr, count)) != NULL) {
 			struct inode *inode = vma->vm_file->f_dentry->d_inode;
 			int flags = CEF_MUST;
 

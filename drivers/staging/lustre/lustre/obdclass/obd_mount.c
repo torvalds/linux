@@ -817,7 +817,7 @@ int lustre_check_exclusion(struct super_block *sb, char *svname)
 	CDEBUG(D_MOUNT, "Check exclusion %s (%d) in %d of %s\n", svname,
 	       index, lmd->lmd_exclude_count, lmd->lmd_dev);
 
-	for(i = 0; i < lmd->lmd_exclude_count; i++) {
+	for (i = 0; i < lmd->lmd_exclude_count; i++) {
 		if (index == lmd->lmd_exclude[i]) {
 			CWARN("Excluding %s (on exclusion list)\n", svname);
 			return 1;

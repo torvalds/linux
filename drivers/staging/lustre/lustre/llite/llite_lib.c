@@ -1885,7 +1885,7 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 	struct ptlrpc_request *req = NULL;
 	int rc, flags = 0;
 
-	switch(cmd) {
+	switch (cmd) {
 	case FSFILT_IOC_GETFLAGS: {
 		struct mdt_body *body;
 		struct md_op_data *op_data;

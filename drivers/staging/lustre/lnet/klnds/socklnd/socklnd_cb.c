@@ -232,7 +232,7 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 				rc = -EAGAIN;
 
 			/* Check if EAGAIN is due to memory pressure */
-			if(rc == -EAGAIN && ksocknal_lib_memory_pressure(conn))
+			if (rc == -EAGAIN && ksocknal_lib_memory_pressure(conn))
 				rc = -ENOMEM;
 
 			break;

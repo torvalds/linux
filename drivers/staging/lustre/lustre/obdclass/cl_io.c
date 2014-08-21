@@ -126,7 +126,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 		info->clt_current_io = NULL;
 
 	/* sanity check for layout change */
-	switch(io->ci_type) {
+	switch (io->ci_type) {
 	case CIT_READ:
 	case CIT_WRITE:
 		break;

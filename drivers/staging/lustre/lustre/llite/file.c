@@ -2149,7 +2149,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (_IOC_TYPE(cmd) == 'T' || _IOC_TYPE(cmd) == 't') /* tty ioctls */
 		return -ENOTTY;
 
-	switch(cmd) {
+	switch (cmd) {
 	case LL_IOC_GETFLAGS:
 		/* Get the current value of the file flags */
 		return put_user(fd->fd_flags, (int *)arg);

@@ -87,7 +87,7 @@ struct lvfs_run_ctxt {
 #ifdef OBD_CTXT_DEBUG
 #define OBD_SET_CTXT_MAGIC(ctxt) (ctxt)->magic = OBD_RUN_CTXT_MAGIC
 #else
-#define OBD_SET_CTXT_MAGIC(ctxt) do {} while(0)
+#define OBD_SET_CTXT_MAGIC(ctxt) do {} while (0)
 #endif
 
 

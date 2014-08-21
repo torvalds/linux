@@ -673,7 +673,7 @@ extern int lprocfs_seq_release(struct inode *, struct file *);
 	     up_read(&(obd)->u.cli.cl_sem); \
 	     return -ENODEV;		    \
 	}				       \
-} while(0)
+} while (0)
 #define LPROCFS_CLIMP_EXIT(obd)		 \
 	up_read(&(obd)->u.cli.cl_sem);
 

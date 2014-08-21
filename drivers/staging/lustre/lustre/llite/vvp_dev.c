@@ -394,7 +394,7 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 		seq_printf(seq, "%s"#flag, has_flags ? "|" : "");       \
 		has_flags = 1;					  \
 	}							       \
-} while(0)
+} while (0)
 
 static void vvp_pgcache_page_show(const struct lu_env *env,
 				  struct seq_file *seq, struct cl_page *page)

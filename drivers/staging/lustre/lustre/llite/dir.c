@@ -1244,7 +1244,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -ENOTTY;
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_IOCTL, 1);
-	switch(cmd) {
+	switch (cmd) {
 	case FSFILT_IOC_GETFLAGS:
 	case FSFILT_IOC_SETFLAGS:
 		return ll_iocontrol(inode, file, cmd, arg);

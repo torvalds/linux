@@ -1113,12 +1113,12 @@ static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 	write_cum = 0;
 	start = 0;
 
-	for(i = 0; i < LL_HIST_MAX; i++) {
+	for (i = 0; i < LL_HIST_MAX; i++) {
 		read_tot += pp_info->pp_r_hist.oh_buckets[i];
 		write_tot += pp_info->pp_w_hist.oh_buckets[i];
 	}
 
-	for(i = 0; i < LL_HIST_MAX; i++) {
+	for (i = 0; i < LL_HIST_MAX; i++) {
 		r = pp_info->pp_r_hist.oh_buckets[i];
 		w = pp_info->pp_w_hist.oh_buckets[i];
 		read_cum += r;
@@ -1305,15 +1305,15 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 	int *process_count = &sbi->ll_offset_process_count;
 	struct ll_rw_extents_info *io_extents = &sbi->ll_rw_extents_info;
 
-	if(!sbi->ll_rw_stats_on)
+	if (!sbi->ll_rw_stats_on)
 		return;
 	process = sbi->ll_rw_process_info;
 	offset = sbi->ll_rw_offset_info;
 
 	spin_lock(&sbi->ll_pp_extent_lock);
 	/* Extent statistics */
-	for(i = 0; i < LL_PROCESS_HIST_MAX; i++) {
-		if(io_extents->pp_extents[i].pid == pid) {
+	for (i = 0; i < LL_PROCESS_HIST_MAX; i++) {
+		if (io_extents->pp_extents[i].pid == pid) {
 			cur = i;
 			break;
 		}
@@ -1376,9 +1376,9 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 				process[i].rw_offset = pos -
 					process[i].rw_last_file_pos;
 			}
-			if(process[i].rw_smallest_extent > count)
+			if (process[i].rw_smallest_extent > count)
 				process[i].rw_smallest_extent = count;
-			if(process[i].rw_largest_extent < count)
+			if (process[i].rw_largest_extent < count)
 				process[i].rw_largest_extent = count;
 			process[i].rw_last_file_pos = pos + count;
 			spin_unlock(&sbi->ll_process_lock);
@@ -1421,7 +1421,7 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 		   "R/W", "PID", "RANGE START", "RANGE END",
 		   "SMALLEST EXTENT", "LARGEST EXTENT", "OFFSET");
 	/* We stored the discontiguous offsets here; print them first */
-	for(i = 0; i < LL_OFFSET_HIST_MAX; i++) {
+	for (i = 0; i < LL_OFFSET_HIST_MAX; i++) {
 		if (offset[i].rw_pid != 0)
 			seq_printf(seq,
 				   "%3c %10d %14Lu %14Lu %17lu %17lu %14Lu",
@@ -1434,7 +1434,7 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 				   offset[i].rw_offset);
 	}
 	/* Then print the current offsets for each process */
-	for(i = 0; i < LL_PROCESS_HIST_MAX; i++) {
+	for (i = 0; i < LL_PROCESS_HIST_MAX; i++) {
 		if (process[i].rw_pid != 0)
 			seq_printf(seq,
 				   "%3c %10d %14Lu %14Lu %17lu %17lu %14Lu",

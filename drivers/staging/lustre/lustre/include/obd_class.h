@@ -219,8 +219,8 @@ extern void (*class_export_dump_hook)(struct obd_export *);
 
 #else
 
-#define __class_export_add_lock_ref(exp, lock)	     do {} while(0)
-#define __class_export_del_lock_ref(exp, lock)	     do {} while(0)
+#define __class_export_add_lock_ref(exp, lock)	     do {} while (0)
+#define __class_export_del_lock_ref(exp, lock)	     do {} while (0)
 
 #endif
 
@@ -2124,12 +2124,12 @@ extern struct kmem_cache *obdo_cachep;
 #define OBDO_ALLOC(ptr)						       \
 do {									  \
 	OBD_SLAB_ALLOC_PTR_GFP((ptr), obdo_cachep, GFP_NOFS);             \
-} while(0)
+} while (0)
 
 #define OBDO_FREE(ptr)							\
 do {									  \
 	OBD_SLAB_FREE_PTR((ptr), obdo_cachep);				\
-} while(0)
+} while (0)
 
 
 static inline void obdo2fid(struct obdo *oa, struct lu_fid *fid)

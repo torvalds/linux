@@ -1286,7 +1286,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 		goto out;
 	}
 
-	switch(sv->sv_id) {
+	switch (sv->sv_id) {
 	default:
 		LBUG ();
 	case SRPC_SERVICE_TEST:
