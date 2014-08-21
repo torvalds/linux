@@ -1217,8 +1217,6 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
 {
 	int ret;
-	struct intel_context *dctx = ring->default_context;
-	struct drm_i915_gem_object *dctx_obj;
 
 	/* Intentionally left blank. */
 	ring->buffer = NULL;
@@ -1232,18 +1230,6 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 	spin_lock_init(&ring->execlist_lock);
 	ring->next_context_status_buffer = 0;
 
-	ret = intel_lr_context_deferred_create(dctx, ring);
-	if (ret)
-		return ret;
-
-	/* The status page is offset 0 from the context object in LRCs. */
-	dctx_obj = dctx->engine[ring->id].state;
-	ring->status_page.gfx_addr = i915_gem_obj_ggtt_offset(dctx_obj);
-	ring->status_page.page_addr = kmap(sg_page(dctx_obj->pages->sgl));
-	if (ring->status_page.page_addr == NULL)
-		return -ENOMEM;
-	ring->status_page.obj = dctx_obj;
-
 	ret = i915_cmd_parser_init_ring(ring);
 	if (ret)
 		return ret;
@@ -1254,7 +1240,9 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 			return ret;
 	}
 
-	return 0;
+	ret = intel_lr_context_deferred_create(ring->default_context, ring);
+
+	return ret;
 }
 
 static int logical_render_ring_init(struct drm_device *dev)
@@ -1445,6 +1433,38 @@ cleanup_bsd_ring:
 cleanup_render_ring:
 	intel_logical_ring_cleanup(&dev_priv->ring[RCS]);
 
+	return ret;
+}
+
+int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
+				       struct intel_context *ctx)
+{
+	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
+	struct render_state so;
+	struct drm_i915_file_private *file_priv = ctx->file_priv;
+	struct drm_file *file = file_priv ? file_priv->file : NULL;
+	int ret;
+
+	ret = i915_gem_render_state_prepare(ring, &so);
+	if (ret)
+		return ret;
+
+	if (so.rodata == NULL)
+		return 0;
+
+	ret = ring->emit_bb_start(ringbuf,
+			so.ggtt_offset,
+			I915_DISPATCH_SECURE);
+	if (ret)
+		goto out;
+
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
+
+	ret = __i915_add_request(ring, file, so.obj, NULL);
+	/* intel_logical_ring_add_request moves object to inactive if it
+	 * fails */
+out:
+	i915_gem_render_state_fini(&so);
 	return ret;
 }
 
@@ -1691,6 +1711,29 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 
 	ctx->engine[ring->id].ringbuf = ringbuf;
 	ctx->engine[ring->id].state = ctx_obj;
+
+	if (ctx == ring->default_context) {
+		/* The status page is offset 0 from the default context object
+		 * in LRC mode. */
+		ring->status_page.gfx_addr = i915_gem_obj_ggtt_offset(ctx_obj);
+		ring->status_page.page_addr =
+				kmap(sg_page(ctx_obj->pages->sgl));
+		if (ring->status_page.page_addr == NULL)
+			return -ENOMEM;
+		ring->status_page.obj = ctx_obj;
+	}
+
+	if (ring->id == RCS && !ctx->rcs_initialized) {
+		ret = intel_lr_context_render_state_init(ring, ctx);
+		if (ret) {
+			DRM_ERROR("Init render state failed: %d\n", ret);
+			ctx->engine[ring->id].ringbuf = NULL;
+			ctx->engine[ring->id].state = NULL;
+			intel_destroy_ringbuffer_obj(ringbuf);
+			goto error;
+		}
+		ctx->rcs_initialized = true;
+	}
 
 	return 0;
 

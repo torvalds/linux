@@ -37,6 +37,7 @@
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
 #include "i915_gem_gtt.h"
+#include "i915_gem_render_state.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -634,6 +635,7 @@ struct intel_context {
 	} legacy_hw_ctx;
 
 	/* Execlists */
+	bool rcs_initialized;
 	struct {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
@@ -2630,8 +2632,6 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file);
 
-/* i915_gem_render_state.c */
-int i915_gem_render_state_init(struct intel_engine_cs *ring);
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  struct i915_address_space *vm,
