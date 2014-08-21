@@ -260,6 +260,8 @@
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xf8003000 0x1000>;
 			interrupt-parent = <&intc>;
+			interrupt-names = "abort", "dma0", "dma1", "dma2", "dma3",
+				"dma4", "dma5", "dma6", "dma7";
 			interrupts = <0 13 4>,
 			             <0 14 4>, <0 15 4>,
 			             <0 16 4>, <0 17 4>,
