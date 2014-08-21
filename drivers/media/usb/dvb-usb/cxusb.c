@@ -673,6 +673,39 @@ static struct rc_map_table rc_map_d680_dmb_table[] = {
 	{ 0x0025, KEY_POWER },
 };
 
+static int cxusb_tt_ct2_4400_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
+{
+	u8 wbuf[2];
+	u8 rbuf[6];
+	int ret;
+	struct i2c_msg msg[] = {
+		{
+			.addr = 0x51,
+			.flags = 0,
+			.buf = wbuf,
+			.len = 2,
+		}, {
+			.addr = 0x51,
+			.flags = I2C_M_RD,
+			.buf = rbuf,
+			.len = 6,
+		}
+	};
+
+	wbuf[0] = 0x1e;
+	wbuf[1] = 0x00;
+	ret = cxusb_i2c_xfer(&d->i2c_adap, msg, 2);
+
+	if (ret == 2) {
+		memcpy(mac, rbuf, 6);
+		return 0;
+	} else {
+		if (ret < 0)
+			return ret;
+		return -EIO;
+	}
+}
+
 static int cxusb_tt_ct2_4650_ci_ctrl(void *priv, u8 read, int addr,
 					u8 data, int *mem)
 {
@@ -2316,6 +2349,8 @@ static struct dvb_usb_device_properties cxusb_tt_ct2_4400_properties = {
 	.size_of_priv     = sizeof(struct cxusb_state),
 
 	.num_adapters = 1,
+	.read_mac_address = cxusb_tt_ct2_4400_read_mac_address,
+
 	.adapter = {
 		{
 		.num_frontends = 1,
