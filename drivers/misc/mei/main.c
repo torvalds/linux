@@ -523,8 +523,6 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	struct mei_connect_client_data *connect_data = NULL;
 	int rets;
 
-	if (cmd != IOCTL_MEI_CONNECT_CLIENT)
-		return -EINVAL;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -539,34 +537,39 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 		goto out;
 	}
 
-	dev_dbg(&dev->pdev->dev, ": IOCTL_MEI_CONNECT_CLIENT.\n");
-
-	connect_data = kzalloc(sizeof(struct mei_connect_client_data),
+	switch (cmd) {
+	case IOCTL_MEI_CONNECT_CLIENT:
+		dev_dbg(&dev->pdev->dev, ": IOCTL_MEI_CONNECT_CLIENT.\n");
+		connect_data = kzalloc(sizeof(struct mei_connect_client_data),
 							GFP_KERNEL);
-	if (!connect_data) {
-		rets = -ENOMEM;
-		goto out;
-	}
-	dev_dbg(&dev->pdev->dev, "copy connect data from user\n");
-	if (copy_from_user(connect_data, (char __user *)data,
+		if (!connect_data) {
+			rets = -ENOMEM;
+			goto out;
+		}
+
+		if (copy_from_user(connect_data, (char __user *)data,
 				sizeof(struct mei_connect_client_data))) {
-		dev_dbg(&dev->pdev->dev, "failed to copy data from userland\n");
-		rets = -EFAULT;
-		goto out;
-	}
+			dev_dbg(&dev->pdev->dev, "failed to copy data from userland\n");
+			rets = -EFAULT;
+			goto out;
+		}
 
-	rets = mei_ioctl_connect_client(file, connect_data);
+		rets = mei_ioctl_connect_client(file, connect_data);
+		if (rets)
+			goto out;
 
-	/* if all is ok, copying the data back to user. */
-	if (rets)
-		goto out;
-
-	dev_dbg(&dev->pdev->dev, "copy connect data to user\n");
-	if (copy_to_user((char __user *)data, connect_data,
+		/* if all is ok, copying the data back to user. */
+		if (copy_to_user((char __user *)data, connect_data,
 				sizeof(struct mei_connect_client_data))) {
-		dev_dbg(&dev->pdev->dev, "failed to copy data to userland\n");
-		rets = -EFAULT;
-		goto out;
+			dev_dbg(&dev->pdev->dev, "failed to copy data to userland\n");
+			rets = -EFAULT;
+			goto out;
+		}
+
+		break;
+	default:
+		dev_err(&dev->pdev->dev, ": unsupported ioctl %d.\n", cmd);
+		rets = -ENOIOCTLCMD;
 	}
 
 out:
