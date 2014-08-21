@@ -1198,8 +1198,8 @@
 	hevc_mmu {
 		dbgname = "hevc";
 		compatible = "rockchip,hevc_mmu";
-		reg = <0xff9c0440 0x100>,
-		      <0xff9c0480 0x100>;
+		reg = <0xff9c0440 0x40>,
+		      <0xff9c0480 0x40>;
 		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "hevc_mmu";
 	};
