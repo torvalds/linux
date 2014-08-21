@@ -1088,7 +1088,7 @@ static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
 	unsigned int mask = 0;
 
 	if (!dmxdevfilter)
-		return -EINVAL;
+		return POLLERR;
 
 	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
 
