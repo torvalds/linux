@@ -16,7 +16,7 @@
 
 / {
 	model = "Zynq Zed Development Board";
-	compatible = "xlnx,zynq-7000";
+	compatible = "xlnx,zynq-zed", "xlnx,zynq-7000";
 
 	memory {
 		device_type = "memory";
