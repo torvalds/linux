@@ -227,9 +227,14 @@ enum fb_win_map_order {
 
 enum
 {
-    SCALE_NONE = 0x0,
-    SCALE_UP   = 0x1,
-    SCALE_DOWN = 0x2
+	SCALE_NONE = 0x0,
+	SCALE_UP   = 0x1,
+	SCALE_DOWN = 0x2
+};
+
+enum dsp_out_domain {
+	OUTPUT_RGB_DOMAIN = 0x0,
+	OUTPUT_YUV_DOMAIN,
 };
 
 typedef enum {
@@ -547,6 +552,9 @@ struct rk_lcdc_driver {
 	struct rk_screen *cur_screen;	//screen0 is primary screen ,like lcd panel,screen1 is  extend screen,like hdmi
 	u32 pixclock;
 	u16 rotate_mode;
+	u16 cabc_mode;
+	u16 overlay_mode;
+	u16 output_domain;
 
 	char fb0_win_id;
 	char fb1_win_id;
@@ -571,7 +579,6 @@ struct rk_lcdc_driver {
 	struct sw_sync_timeline *timeline;
 	int			timeline_max;
 	int			suspend_flag;
-	int			cabc_mode;
 	struct list_head	update_regs_list;
 	struct mutex		update_regs_list_lock;
 	struct kthread_worker	update_regs_worker;

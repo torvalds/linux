@@ -415,7 +415,7 @@ enum _VOP_SOC_TYPE {
 	#define v_BCSH_EN(x)		BITS_MASK(x, 1, 0)
         #define v_BCSH_R2Y_CSC_MODE(x)  BITS_MASK(x, 1, 1)       /* rk312x */
 	#define v_BCSH_OUT_MODE(x)	BITS_MASK(x, 3, 2)
-	#define v_BCSH_CSC_MODE(x)	BITS_MASK(x, 3, 4)
+	#define v_BCSH_Y2R_CSC_MODE(x)	BITS_MASK(x, 3, 4)
         #define v_BCSH_Y2R_EN(x)        BITS_MASK(x, 1, 6)       /* rk312x */
         #define v_BCSH_R2Y_EN(x)        BITS_MASK(x, 1, 7)       /* rk312x */
 
@@ -688,7 +688,6 @@ struct lcdc_device {
         u32 s_pixclock;
 
 	u32 standby;			/* 1:standby,0:work */
-	u16 overlay_mode;
 };
 
 static inline void lcdc_writel(struct lcdc_device *lcdc_dev, u32 offset, u32 v)

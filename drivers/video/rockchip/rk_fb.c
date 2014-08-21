@@ -3247,8 +3247,12 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		 * switch lcdc screen to primary screen size that may
 		 * used for MID, when hdmi remove if disp mode is ONE DUAL
 		 */
-		if (primary_screen.type != SCREEN_HDMI)
+		if (primary_screen.type != SCREEN_HDMI) {
+			dev_drv->output_domain = OUTPUT_RGB_DOMAIN;
 			rk_fb_set_screen_scaler(&primary_screen, 0);
+		} else {
+			dev_drv->output_domain = OUTPUT_YUV_DOMAIN;
+		}
 	} else {
 		dev_drv = rk_get_lcdc_drv(name);
 		if (dev_drv == NULL) {
