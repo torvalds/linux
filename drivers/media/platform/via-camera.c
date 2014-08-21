@@ -82,7 +82,7 @@ struct via_camera {
 	 * live in frame buffer memory, so we don't call them "DMA".
 	 */
 	unsigned int cb_offsets[3];	/* offsets into fb mem */
-	u8 *cb_addrs[3];		/* Kernel-space addresses */
+	u8 __iomem *cb_addrs[3];		/* Kernel-space addresses */
 	int n_cap_bufs;			/* How many are we using? */
 	int next_buf;
 	struct videobuf_queue vb_queue;
