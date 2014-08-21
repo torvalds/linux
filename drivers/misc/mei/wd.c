@@ -76,6 +76,7 @@ int mei_wd_host_init(struct mei_device *dev)
 	}
 
 	cl->me_client_id = me_cl->client_id;
+	cl->cl_uuid = me_cl->props.protocol_name;
 
 	ret = mei_cl_link(cl, MEI_WD_HOST_CLIENT_ID);
 

@@ -147,7 +147,7 @@ static struct mei_cl *mei_bus_find_mei_cl_by_uuid(struct mei_device *dev,
 	struct mei_cl *cl;
 
 	list_for_each_entry(cl, &dev->device_list, device_link) {
-		if (!uuid_le_cmp(uuid, cl->device_uuid))
+		if (!uuid_le_cmp(uuid, cl->cl_uuid))
 			return cl;
 	}
 
@@ -242,7 +242,7 @@ static int ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 		return -ENODEV;
 
 	/* Check if we have an ME client device */
-	me_cl = mei_me_cl_by_id(dev, cl->me_client_id);
+	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
 	if (!me_cl)
 		return -ENOTTY;
 

@@ -83,6 +83,7 @@ int mei_amthif_host_init(struct mei_device *dev)
 	}
 
 	cl->me_client_id = me_cl->client_id;
+	cl->cl_uuid = me_cl->props.protocol_name;
 
 	/* Assign iamthif_mtu to the value received from ME  */
 

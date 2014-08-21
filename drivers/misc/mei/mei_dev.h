@@ -212,6 +212,7 @@ struct mei_cl {
 	wait_queue_head_t wait;
 	int status;
 	/* ID of client connected */
+	uuid_le cl_uuid;
 	u8 host_client_id;
 	u8 me_client_id;
 	u8 mei_flow_ctrl_creds;
@@ -223,7 +224,6 @@ struct mei_cl {
 	/* MEI CL bus data */
 	struct mei_cl_device *device;
 	struct list_head device_link;
-	uuid_le device_uuid;
 };
 
 /** struct mei_hw_ops

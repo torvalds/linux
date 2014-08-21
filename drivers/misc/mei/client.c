@@ -69,6 +69,18 @@ struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 	return NULL;
 }
 
+struct mei_me_client *mei_me_cl_by_uuid_id(struct mei_device *dev,
+					   const uuid_le *uuid, u8 client_id)
+{
+	struct mei_me_client *me_cl;
+
+	list_for_each_entry(me_cl, &dev->me_clients, list)
+		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0 &&
+		    me_cl->client_id == client_id)
+			return me_cl;
+	return NULL;
+}
+
 /**
  * mei_me_cl_remove - remove me client matching uuid and client_id
  *
@@ -753,7 +765,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 		cl_dbg(dev, cl, "read is pending.\n");
 		return -EBUSY;
 	}
-	me_cl = mei_me_cl_by_id(dev, cl->me_client_id);
+	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
 	if (!me_cl) {
 		cl_err(dev, cl, "no such me client %d\n", cl->me_client_id);
 		return  -ENOTTY;

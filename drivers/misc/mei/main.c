@@ -321,7 +321,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	me_cl = mei_me_cl_by_id(dev, cl->me_client_id);
+	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
 	if (!me_cl) {
 		rets = -ENOTTY;
 		goto out;
@@ -459,6 +459,7 @@ static int mei_ioctl_connect_client(struct file *file,
 	}
 
 	cl->me_client_id = me_cl->client_id;
+	cl->cl_uuid = me_cl->props.protocol_name;
 
 	dev_dbg(&dev->pdev->dev, "Connect to FW Client ID = %d\n",
 			cl->me_client_id);
