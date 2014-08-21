@@ -247,7 +247,6 @@ DEVICE_PARAM(bDiversityANTEnable, "ANT diversity mode");
 //
 
 static int          device_nics             = 0;
-static struct vnt_private *pDevice_Infos = NULL;
 static struct net_device *root_device_dev = NULL;
 
 static CHIP_INFO chip_info_table[] = {
@@ -979,18 +978,7 @@ static void vt6655_init_info(struct pci_dev *pcid,
 			     struct vnt_private **ppDevice,
 			     PCHIP_INFO pChip_info)
 {
-	struct vnt_private *p;
-
 	memset(*ppDevice, 0, sizeof(**ppDevice));
-
-	if (pDevice_Infos == NULL) {
-		pDevice_Infos = *ppDevice;
-	} else {
-		for (p = pDevice_Infos; p->next != NULL; p = p->next)
-			do {} while (0);
-		p->next = *ppDevice;
-		(*ppDevice)->prev = p;
-	}
 
 	(*ppDevice)->pcid = pcid;
 	(*ppDevice)->chip_id = pChip_info->chip_id;
@@ -1030,8 +1018,10 @@ static bool device_get_pci_info(struct vnt_private *pDevice,
 
 static void device_free_info(struct vnt_private *pDevice)
 {
-	struct vnt_private *ptr;
 	struct net_device *dev = pDevice->dev;
+
+	if (!pDevice)
+		return;
 
 	ASSERT(pDevice);
 //2008-0714-01<Add>by chester
@@ -1042,21 +1032,6 @@ static void device_free_info(struct vnt_private *pDevice)
 	if (wpa_set_wpadev(pDevice, 0) != 0)
 		pr_err("unregister wpadev fail?\n");
 
-	if (pDevice_Infos == NULL)
-		return;
-
-	for (ptr = pDevice_Infos; ptr && (ptr != pDevice); ptr = ptr->next)
-		do {} while (0);
-
-	if (ptr == pDevice) {
-		if (ptr == pDevice_Infos)
-			pDevice_Infos = ptr->next;
-		else
-			ptr->prev->next = ptr->next;
-	} else {
-		pr_err("info struct not found\n");
-		return;
-	}
 #ifdef HOSTAP
 	if (dev)
 		vt6655_hostap_set_hostapd(pDevice, 0, 0);

@@ -331,9 +331,6 @@ typedef struct __device_opt {
 } OPTIONS, *POPTIONS;
 
 struct vnt_private {
-	struct vnt_private *next;
-	struct vnt_private *prev;
-
 	struct pci_dev *pcid;
 
 #ifdef CONFIG_PM
