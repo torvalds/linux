@@ -1358,6 +1358,9 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out;
 	}
 
+	init_lseg(lo, lseg);
+	lseg->pls_range = res->range;
+
 	spin_lock(&ino->i_lock);
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
 		dprintk("%s forget reply due to recall\n", __func__);
@@ -1375,8 +1378,6 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	/* Done processing layoutget. Set the layout stateid */
 	pnfs_set_layout_stateid(lo, &res->stateid, false);
 
-	init_lseg(lo, lseg);
-	lseg->pls_range = res->range;
 	pnfs_get_lseg(lseg);
 	pnfs_layout_insert_lseg(lo, lseg);
 
