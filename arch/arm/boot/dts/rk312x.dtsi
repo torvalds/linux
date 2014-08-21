@@ -700,7 +700,7 @@
 	lcdc: lcdc@1010e000 {
 		compatible = "rockchip,rk312x-lcdc";
 		rockchip,prop = <PRMRY>;
-		reg = <0x1010e000 0x2000>;
+		reg = <0x1010e000 0x0300>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates6 0>, <&dclk_lcdc0>, <&clk_gates6 1>, <&sclk_lcdc0>, <&pd_vop>, <&clk_cpll>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "sclk_lcdc", "pd_lcdc", "sclk_pll";

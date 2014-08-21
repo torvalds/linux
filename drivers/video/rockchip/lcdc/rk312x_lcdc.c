@@ -2077,7 +2077,7 @@ static int rk312x_lcdc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(dev, lcdc_dev->irq, rk312x_lcdc_isr,
-			       IRQF_DISABLED, dev_name(dev), lcdc_dev);
+			       IRQF_DISABLED | IRQF_SHARED, dev_name(dev), lcdc_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot requeset irq %d - err %d\n",
 			lcdc_dev->irq, ret);
