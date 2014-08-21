@@ -38,12 +38,11 @@
 struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
 					const uuid_le *uuid)
 {
-	int i;
+	struct mei_me_client *me_cl;
 
-	for (i = 0; i < dev->me_clients_num; ++i)
-		if (uuid_le_cmp(*uuid,
-				dev->me_clients[i].props.protocol_name) == 0)
-			return &dev->me_clients[i];
+	list_for_each_entry(me_cl, &dev->me_clients, list)
+		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0)
+			return me_cl;
 
 	return NULL;
 }
@@ -62,12 +61,12 @@ struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
 
 struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 {
-	int i;
 
-	for (i = 0; i < dev->me_clients_num; i++)
-		if (dev->me_clients[i].client_id == client_id)
-			return &dev->me_clients[i];
+	struct mei_me_client *me_cl;
 
+	list_for_each_entry(me_cl, &dev->me_clients, list)
+		if (me_cl->client_id == client_id)
+			return me_cl;
 	return NULL;
 }
 
@@ -396,19 +395,19 @@ void mei_host_client_init(struct work_struct *work)
 {
 	struct mei_device *dev = container_of(work,
 					      struct mei_device, init_work);
-	struct mei_client_properties *client_props;
-	int i;
+	struct mei_me_client *me_cl;
+	struct mei_client_properties *props;
 
 	mutex_lock(&dev->device_lock);
 
-	for (i = 0; i < dev->me_clients_num; i++) {
-		client_props = &dev->me_clients[i].props;
+	list_for_each_entry(me_cl, &dev->me_clients, list) {
+		props = &me_cl->props;
 
-		if (!uuid_le_cmp(client_props->protocol_name, mei_amthif_guid))
+		if (!uuid_le_cmp(props->protocol_name, mei_amthif_guid))
 			mei_amthif_host_init(dev);
-		else if (!uuid_le_cmp(client_props->protocol_name, mei_wd_guid))
+		else if (!uuid_le_cmp(props->protocol_name, mei_wd_guid))
 			mei_wd_host_init(dev);
-		else if (!uuid_le_cmp(client_props->protocol_name, mei_nfc_guid))
+		else if (!uuid_le_cmp(props->protocol_name, mei_nfc_guid))
 			mei_nfc_host_init(dev);
 
 	}
@@ -652,9 +651,6 @@ int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 		return -EINVAL;
 
 	dev = cl->dev;
-
-	if (!dev->me_clients_num)
-		return 0;
 
 	if (cl->mei_flow_ctrl_creds > 0)
 		return 1;

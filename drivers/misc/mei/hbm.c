@@ -77,48 +77,17 @@ void mei_hbm_idle(struct mei_device *dev)
  */
 void mei_hbm_reset(struct mei_device *dev)
 {
-	dev->me_clients_num = 0;
+	struct mei_me_client *me_cl, *next;
+
 	dev->me_client_presentation_num = 0;
 	dev->me_client_index = 0;
 
-	kfree(dev->me_clients);
-	dev->me_clients = NULL;
+	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list) {
+		list_del(&me_cl->list);
+		kfree(me_cl);
+	}
 
 	mei_hbm_idle(dev);
-}
-
-/**
- * mei_hbm_me_cl_allocate - allocates storage for me clients
- *
- * @dev: the device structure
- *
- * returns 0 on success -ENOMEM on allocation failure
- */
-static int mei_hbm_me_cl_allocate(struct mei_device *dev)
-{
-	struct mei_me_client *clients;
-	int b;
-
-	mei_hbm_reset(dev);
-
-	/* count how many ME clients we have */
-	for_each_set_bit(b, dev->me_clients_map, MEI_CLIENTS_MAX)
-		dev->me_clients_num++;
-
-	if (dev->me_clients_num == 0)
-		return 0;
-
-	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%ld.\n",
-		dev->me_clients_num * sizeof(struct mei_me_client));
-	/* allocate storage for ME clients representation */
-	clients = kcalloc(dev->me_clients_num,
-			sizeof(struct mei_me_client), GFP_KERNEL);
-	if (!clients) {
-		dev_err(&dev->pdev->dev, "memory allocation for ME clients failed.\n");
-		return -ENOMEM;
-	}
-	dev->me_clients = clients;
-	return 0;
 }
 
 /**
@@ -213,6 +182,8 @@ int mei_hbm_start_req(struct mei_device *dev)
 	const size_t len = sizeof(struct hbm_host_version_request);
 	int ret;
 
+	mei_hbm_reset(dev);
+
 	mei_hbm_hdr(mei_hdr, len);
 
 	/* host start message */
@@ -267,6 +238,32 @@ static int mei_hbm_enum_clients_req(struct mei_device *dev)
 	return 0;
 }
 
+/*
+ * mei_hbm_me_cl_add - add new me client to the list
+ *
+ * @dev: the device structure
+ * @res: hbm property response
+ *
+ * returns 0 on success and -ENOMEM on allocation failure
+ */
+
+static int mei_hbm_me_cl_add(struct mei_device *dev,
+			     struct hbm_props_response *res)
+{
+	struct mei_me_client *me_cl;
+
+	me_cl = kzalloc(sizeof(struct mei_me_client), GFP_KERNEL);
+	if (!me_cl)
+		return -ENOMEM;
+
+	me_cl->props = res->client_properties;
+	me_cl->client_id = res->me_addr;
+	me_cl->mei_flow_ctrl_creds = 0;
+
+	list_add(&me_cl->list, &dev->me_clients);
+	return 0;
+}
+
 /**
  * mei_hbm_prop_req - request property for a single client
  *
@@ -282,10 +279,7 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 	struct hbm_props_request *prop_req;
 	const size_t len = sizeof(struct hbm_props_request);
 	unsigned long next_client_index;
-	unsigned long client_num;
 	int ret;
-
-	client_num = dev->me_client_presentation_num;
 
 	next_client_index = find_next_bit(dev->me_clients_map, MEI_CLIENTS_MAX,
 					  dev->me_client_index);
@@ -298,14 +292,10 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 		return 0;
 	}
 
-	dev->me_clients[client_num].client_id = next_client_index;
-	dev->me_clients[client_num].mei_flow_ctrl_creds = 0;
-
 	mei_hbm_hdr(mei_hdr, len);
 	prop_req = (struct hbm_props_request *)dev->wr_msg.data;
 
 	memset(prop_req, 0, sizeof(struct hbm_props_request));
-
 
 	prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
 	prop_req->me_addr = next_client_index;
@@ -441,11 +431,10 @@ static void mei_hbm_cl_flow_control_res(struct mei_device *dev,
 	list_for_each_entry(cl, &dev->file_list, link) {
 		if (mei_hbm_cl_addr_equal(cl, flow_control)) {
 			cl->mei_flow_ctrl_creds++;
-			dev_dbg(&dev->pdev->dev, "flow ctrl msg for host %d ME %d.\n",
-				flow_control->host_addr, flow_control->me_addr);
-			dev_dbg(&dev->pdev->dev, "flow control credentials = %d.\n",
-				    cl->mei_flow_ctrl_creds);
-				break;
+			dev_dbg(&dev->pdev->dev, "flow ctrl msg for host %d ME %d creds %d.\n",
+				flow_control->host_addr, flow_control->me_addr,
+				cl->mei_flow_ctrl_creds);
+			break;
 		}
 	}
 }
@@ -641,7 +630,6 @@ bool mei_hbm_version_is_supported(struct mei_device *dev)
 int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 {
 	struct mei_bus_message *mei_msg;
-	struct mei_me_client *me_client;
 	struct hbm_host_version_response *version_res;
 	struct hbm_client_connect_response *connect_res;
 	struct hbm_client_connect_response *disconnect_res;
@@ -763,26 +751,6 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		dev->init_clients_timer = 0;
 
-		if (dev->me_clients == NULL) {
-			dev_err(&dev->pdev->dev, "hbm: properties response: mei_clients not allocated\n");
-			return -EPROTO;
-		}
-
-		props_res = (struct hbm_props_response *)mei_msg;
-		me_client = &dev->me_clients[dev->me_client_presentation_num];
-
-		if (props_res->status) {
-			dev_err(&dev->pdev->dev, "hbm: properties response: wrong status = %d\n",
-				props_res->status);
-			return -EPROTO;
-		}
-
-		if (me_client->client_id != props_res->me_addr) {
-			dev_err(&dev->pdev->dev, "hbm: properties response: address mismatch %d ?= %d\n",
-				me_client->client_id, props_res->me_addr);
-			return -EPROTO;
-		}
-
 		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
 		    dev->hbm_state != MEI_HBM_CLIENT_PROPERTIES) {
 			dev_err(&dev->pdev->dev, "hbm: properties response: state mismatch, [%d, %d]\n",
@@ -790,7 +758,16 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return -EPROTO;
 		}
 
-		me_client->props = props_res->client_properties;
+		props_res = (struct hbm_props_response *)mei_msg;
+
+		if (props_res->status) {
+			dev_err(&dev->pdev->dev, "hbm: properties response: wrong status = %d\n",
+				props_res->status);
+			return -EPROTO;
+		}
+
+		mei_hbm_me_cl_add(dev, props_res);
+
 		dev->me_client_index++;
 		dev->me_client_presentation_num++;
 
@@ -809,18 +786,13 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		BUILD_BUG_ON(sizeof(dev->me_clients_map)
 				< sizeof(enum_res->valid_addresses));
 		memcpy(dev->me_clients_map, enum_res->valid_addresses,
-			sizeof(enum_res->valid_addresses));
+				sizeof(enum_res->valid_addresses));
 
 		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
 		    dev->hbm_state != MEI_HBM_ENUM_CLIENTS) {
 			dev_err(&dev->pdev->dev, "hbm: enumeration response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
-		}
-
-		if (mei_hbm_me_cl_allocate(dev)) {
-			dev_err(&dev->pdev->dev, "hbm: enumeration response: cannot allocate clients array\n");
-			return -ENOMEM;
 		}
 
 		dev->hbm_state = MEI_HBM_CLIENT_PROPERTIES;

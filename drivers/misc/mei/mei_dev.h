@@ -175,6 +175,7 @@ struct mei_fw_status {
  * @mei_flow_ctrl_creds - flow control credits
  */
 struct mei_me_client {
+	struct list_head list;
 	struct mei_client_properties props;
 	u8 client_id;
 	u8 mei_flow_ctrl_creds;
@@ -478,10 +479,9 @@ struct mei_device {
 
 	struct hbm_version version;
 
-	struct mei_me_client *me_clients; /* Note: memory has to be allocated */
+	struct list_head me_clients;
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
-	unsigned long me_clients_num;
 	unsigned long me_client_presentation_num;
 	unsigned long me_client_index;
 

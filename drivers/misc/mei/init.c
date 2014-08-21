@@ -356,6 +356,7 @@ void mei_device_init(struct mei_device *dev, const struct mei_cfg *cfg)
 	/* setup our list array */
 	INIT_LIST_HEAD(&dev->file_list);
 	INIT_LIST_HEAD(&dev->device_list);
+	INIT_LIST_HEAD(&dev->me_clients);
 	mutex_init(&dev->device_lock);
 	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_pg);
