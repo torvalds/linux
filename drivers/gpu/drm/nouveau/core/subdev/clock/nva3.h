@@ -10,6 +10,7 @@ struct nva3_clock_info {
 		NVA3_HOST_277,
 		NVA3_HOST_CLK,
 	} host_out;
+	u32 fb_delay;
 };
 
 int nva3_pll_info(struct nouveau_clock *, int, u32, u32,
