@@ -5738,6 +5738,8 @@ static void grow_ple_window(struct kvm_vcpu *vcpu)
 
 	if (vmx->ple_window != old)
 		vmx->ple_window_dirty = true;
+
+	trace_kvm_ple_window_grow(vcpu->vcpu_id, vmx->ple_window, old);
 }
 
 static void shrink_ple_window(struct kvm_vcpu *vcpu)
@@ -5750,6 +5752,8 @@ static void shrink_ple_window(struct kvm_vcpu *vcpu)
 
 	if (vmx->ple_window != old)
 		vmx->ple_window_dirty = true;
+
+	trace_kvm_ple_window_shrink(vcpu->vcpu_id, vmx->ple_window, old);
 }
 
 /*
