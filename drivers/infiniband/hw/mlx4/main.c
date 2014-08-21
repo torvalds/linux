@@ -1390,6 +1390,9 @@ static void update_gids_task(struct work_struct *work)
 	int err;
 	struct mlx4_dev	*dev = gw->dev->dev;
 
+	if (!gw->dev->ib_active)
+		return;
+
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
 		pr_warn("update gid table failed %ld\n", PTR_ERR(mailbox));
@@ -1419,6 +1422,9 @@ static void reset_gids_task(struct work_struct *work)
 	union ib_gid *gids;
 	int err;
 	struct mlx4_dev	*dev = gw->dev->dev;
+
+	if (!gw->dev->ib_active)
+		return;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
@@ -2368,6 +2374,9 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 {
 	struct mlx4_ib_dev *ibdev = ibdev_ptr;
 	int p;
+
+	ibdev->ib_active = false;
+	flush_workqueue(wq);
 
 	mlx4_ib_close_sriov(ibdev);
 	mlx4_ib_mad_cleanup(ibdev);
