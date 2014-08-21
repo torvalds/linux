@@ -279,7 +279,7 @@ int em28xx_read_ac97(struct em28xx *dev, u8 reg)
 {
 	int ret;
 	u8 addr = (reg & 0x7f) | 0x80;
-	u16 val;
+	__le16 val;
 
 	ret = em28xx_is_ac97_ready(dev);
 	if (ret < 0)

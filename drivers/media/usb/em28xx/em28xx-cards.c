@@ -2246,7 +2246,7 @@ struct em28xx_board em28xx_boards[] = {
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
-const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
+static const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id em28xx_id_table[] = {
