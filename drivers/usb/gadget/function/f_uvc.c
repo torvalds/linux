@@ -720,10 +720,9 @@ error:
 	if (uvc->video.ep)
 		uvc->video.ep->driver_data = NULL;
 
-	if (uvc->control_req) {
+	if (uvc->control_req)
 		usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
-		kfree(uvc->control_buf);
-	}
+	kfree(uvc->control_buf);
 
 	usb_free_all_descriptors(f);
 	return ret;
