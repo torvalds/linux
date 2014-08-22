@@ -1660,7 +1660,7 @@ static int rk312x_fb_win_remap(struct rk_lcdc_driver *dev_drv,
 {
 	mutex_lock(&dev_drv->fb_win_id_mutex);
 	if (order == FB_DEFAULT_ORDER)
-		order = FB0_WIN0_FB1_WIN1_FB2_WIN2;    /*  FB0_WIN1_FB1_WIN0_FB2_WIN2; /*for box */
+		order = FB0_WIN0_FB1_WIN1_FB2_WIN2;    /*  FB0_WIN1_FB1_WIN0_FB2_WIN2; for box */
 	dev_drv->fb2_win_id = order / 100;
 	dev_drv->fb1_win_id = (order / 10) % 10;
 	dev_drv->fb0_win_id = order % 10;

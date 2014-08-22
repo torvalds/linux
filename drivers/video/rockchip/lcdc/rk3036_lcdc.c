@@ -236,8 +236,6 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 			      v_WIN0_FORMAT(win->fmt_cfg) |
 			      v_WIN0_RB_SWAP(win->swap_rb);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_WIN0_INTERLACE_EN,
-				     v_WIN0_INTERLACE_EN(win->interlace_read));
 			lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_YRGB,
 				    v_X_SCL_FACTOR(win->scale_yrgb_x) |
 				    v_Y_SCL_FACTOR(win->scale_yrgb_y));
@@ -268,8 +266,6 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 			      v_WIN1_FORMAT(win->fmt_cfg) |
 			      v_WIN1_RB_SWAP(win->swap_rb);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_WIN1_INTERLACE_EN,
-				     v_WIN1_INTERLACE_EN(win->interlace_read));
 			lcdc_writel(lcdc_dev, WIN1_SCL_FACTOR_YRGB,
 				    v_X_SCL_FACTOR(win->scale_yrgb_x) |
 				    v_Y_SCL_FACTOR(win->scale_yrgb_y));
@@ -585,12 +581,16 @@ static int rk3036_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				     m_INTERLACE_DSP_POL |
 				     m_WIN1_DIFF_DCLK_EN |
 				     m_WIN0_YRGB_DEFLICK_EN |
-				     m_WIN0_CBR_DEFLICK_EN,
+				     m_WIN0_CBR_DEFLICK_EN |
+				     m_WIN0_INTERLACE_EN |
+				     m_WIN1_INTERLACE_EN,
 				     v_INTERLACE_DSP_EN(1) |
 				     v_INTERLACE_DSP_POL(0) |
 				     v_WIN1_DIFF_DCLK_EN(1) |
 				     v_WIN0_YRGB_DEFLICK_EN(1) |
-				     v_WIN0_CBR_DEFLICK_EN(1));
+				     v_WIN0_CBR_DEFLICK_EN(1) |
+				     v_WIN0_INTERLACE_EN(1) |
+				     v_WIN1_INTERLACE_EN(1));
 		} else {
 			val = v_VSYNC(screen->mode.vsync_len) |
 			      v_VERPRD(screen->mode.vsync_len + upper_margin +
@@ -607,11 +607,15 @@ static int rk3036_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				     m_INTERLACE_DSP_EN |
 				     m_WIN1_DIFF_DCLK_EN |
 				     m_WIN0_YRGB_DEFLICK_EN |
-				     m_WIN0_CBR_DEFLICK_EN,
+				     m_WIN0_CBR_DEFLICK_EN |
+				     m_WIN0_INTERLACE_EN |
+				     m_WIN1_INTERLACE_EN,
 				     v_INTERLACE_DSP_EN(0) |
 				     v_WIN1_DIFF_DCLK_EN(0) |
 				     v_WIN0_YRGB_DEFLICK_EN(0) |
-				     v_WIN0_CBR_DEFLICK_EN(0));
+				     v_WIN0_CBR_DEFLICK_EN(0) |
+				     v_WIN0_INTERLACE_EN(1) |
+				     v_WIN1_INTERLACE_EN(1));
 		}
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
@@ -749,12 +753,7 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	}
 	win->scale_yrgb_x = calscale(win->area[0].xact, win->post_cfg.xsize);
 	win->scale_yrgb_y = calscale(win->area[0].yact, win->post_cfg.ysize);
-	win->interlace_read = 0;
-	if( (screen->mode.vmode == 1) && (screen->mode.xres == 720) &&
-	  ((screen->mode.yres == 576) || (screen->mode.yres == 480))) {
-		if(win->scale_yrgb_y > 2*0x1000)
-			win->interlace_read = 1;
-	}
+
 	switch (win->format) {
 	case ARGB888:
 		win->fmt_cfg = VOP_FORMAT_ARGB888;
