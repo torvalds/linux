@@ -24,8 +24,8 @@
 #define RK29_CAM_DRV_NAME "rk312x-camera"
 #define RK_SUPPORT_CIF0   1
 #define RK_SUPPORT_CIF1   0
-#define RK3288_CIF_NAME "rk312x_cif"
-#define RK3288_SENSOR_NAME "rk312x_sensor"
+#define RK_CIF_NAME "rk_cif"
+#define RK_SENSOR_NAME "rk_sensor"
 
 #include "rk_camera.h"
 #include <dt-bindings/pinctrl/rockchip-rk3288.h>

@@ -344,7 +344,6 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 #define SOCAM_DATAWIDTH_18	SOCAM_DATAWIDTH(18)
 #define SOCAM_DATAWIDTH_24	SOCAM_DATAWIDTH(24)
 /**************yzm***********/
-#define SOCAM_PCLK_SAMPLE_FALLING     (1<<13)
 #define SOCAM_MCLK_24MHZ        (1<<29)
 #define SOCAM_MCLK_48MHZ        (1<<31)
 //*************yzm***********end

@@ -613,8 +613,9 @@ struct rk29camera_platform_data {
     int (*sensor_register)(void);
     int (*sensor_mclk)(int cif_idx, int on, int clk_rate);
     
-    struct rkcamera_platform_data *register_dev_new;  //sensor
+    struct rkcamera_platform_data *register_dev_new;  //sensor   
 	struct device *cif_dev;/*yzm host*/  
+	const char *rockchip_name;
 };
 
 struct rk29camera_platform_ioctl_cb {

@@ -1,9 +1,3 @@
- /************yzm************
-#if (defined(CONFIG_ARCH_RK2928) ||\
-     defined(CONFIG_ARCH_RK30)   ||\
-     defined(CONFIG_ARCH_RK3188) ||\
-     defined(CONFIG_ARCH_RK3026))
-*/     
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -57,25 +51,23 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
  
-static int debug = 0;
+static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define CAMMODULE_NAME     "rk_cam_cif"   
 
 #define wprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
-	    printk(KERN_WARNING "%s(%d): " fmt,CAMMODULE_NAME,__LINE__,## arg); } while (0)
+	    printk(KERN_ERR "%s(%d): " fmt,CAMMODULE_NAME,__LINE__,## arg); } while (0)
 
 #define dprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
-	    printk(KERN_DEBUG "%s(%d): " fmt,CAMMODULE_NAME,__LINE__,## arg); } while (0)	    
+	    printk(KERN_ERR"%s(%d): " fmt,CAMMODULE_NAME,__LINE__,## arg); } while (0)	    
 
 #define RKCAMERA_TR(format, ...)  printk(KERN_ERR "%s(%d):" format,CAMMODULE_NAME,__LINE__,## __VA_ARGS__)
 #define RKCAMERA_DG1(format, ...) wprintk(1, format, ## __VA_ARGS__)
 #define RKCAMERA_DG2(format, ...) dprintk(2, format, ## __VA_ARGS__)
 #define debug_printk(format, ...) dprintk(3, format, ## __VA_ARGS__)
-
-#define RK30_CRU_BASE 0x00 /*yzm*/
 
 /* CIF Reg Offset*/
 #define  CIF_CIF_CTRL                       0x00
@@ -178,9 +170,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define read_cif_reg(base,addr) __raw_readl(addr+(base))
 #define mask_cif_reg(addr, msk, val)    write_cif_reg(addr, (val)|((~(msk))&read_cif_reg(addr)))
 
-/*********yzm***********/
-/*#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)*/
-/*CRU,PIXCLOCK*/
+/*
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
+//CRU,PIXCLOCK
 #define CRU_PCLK_REG30                     0xbc
 #define ENANABLE_INVERT_PCLK_CIF0          ((0x1<<24)|(0x1<<8))
 #define DISABLE_INVERT_PCLK_CIF0           ((0x1<<24)|(0x0<<8))
@@ -196,37 +188,38 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define write_cru_reg(addr, val)            __raw_writel(val, addr+RK30_CRU_BASE)
 #define read_cru_reg(addr)                  __raw_readl(addr+RK30_CRU_BASE)
 #define mask_cru_reg(addr, msk, val)        write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
-/*#endif    yzm*/  
-
-#if defined(CONFIG_ARCH_RK3026)
-/*CRU,PIXCLOCK*/
-#define CRU_PCLK_REG30                     0xbc
-#define ENANABLE_INVERT_PCLK_CIF0          ((0x1<<23)|(0x1<<7))
-#define DISABLE_INVERT_PCLK_CIF0           ((0x1<<23)|(0x0<<7))
-#define ENANABLE_INVERT_PCLK_CIF1          ENANABLE_INVERT_PCLK_CIF0
-#define DISABLE_INVERT_PCLK_CIF1           DISABLE_INVERT_PCLK_CIF0
-
-#define write_cru_reg(addr, val)            __raw_writel(val, addr+RK30_CRU_BASE)
-#define read_cru_reg(addr)                  __raw_readl(addr+RK30_CRU_BASE)
-#define mask_cru_reg(addr, msk, val)        write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
 #endif
+*/
+/*********yzm**********/
 
+static u32 CRU_PCLK_REG30;
+static u32 ENANABLE_INVERT_PCLK_CIF0;
+static u32 DISABLE_INVERT_PCLK_CIF0;
+static u32 ENANABLE_INVERT_PCLK_CIF1;
+static u32 DISABLE_INVERT_PCLK_CIF1;
+	
+#define write_cru_reg(addr, val)            __raw_writel(val, addr+RK_CRU_VIRT)
+#define read_cru_reg(addr)                  __raw_readl(addr+RK_CRU_VIRT)
+#define mask_cru_reg(addr, msk, val)        write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
+/*********yzm*********end*/
+/*
 #if defined(CONFIG_ARCH_RK2928)
 #define write_cru_reg(addr, val)  
 #define read_cru_reg(addr)                 0 
 #define mask_cru_reg(addr, msk, val)	
 #endif
+*/
 
-
+/*
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-/*GRF_IO_CON3                        0x100*/
+//GRF_IO_CON3                        0x100
 #define CIF_DRIVER_STRENGTH_2MA            (0x00 << 12)
 #define CIF_DRIVER_STRENGTH_4MA            (0x01 << 12)
 #define CIF_DRIVER_STRENGTH_8MA            (0x02 << 12)
 #define CIF_DRIVER_STRENGTH_12MA           (0x03 << 12)
 #define CIF_DRIVER_STRENGTH_MASK           (0x03 << 28)
 
-/*GRF_IO_CON4                        0x104*/
+//GRF_IO_CON4                        0x104
 #define CIF_CLKOUT_AMP_3V3                 (0x00 << 10)
 #define CIF_CLKOUT_AMP_1V8                 (0x01 << 10)
 #define CIF_CLKOUT_AMP_MASK                (0x01 << 26)
@@ -239,7 +232,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define read_grf_reg(addr)                 0
 #define mask_grf_reg(addr, msk, val)	
 #endif
-
+*/
 #define CAM_WORKQUEUE_IS_EN()   (true)
 #define CAM_IPPWORK_IS_EN()     (false)/*((pcdev->zoominfo.a.c.width != pcdev->icd->user_width) || (pcdev->zoominfo.a.c.height != pcdev->icd->user_height))*/
 
@@ -258,8 +251,12 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CIF_DO_CROP 1
 #endif
 
-
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x15)
+/*
+*v0.1.0 : this driver is 3.10 kernel driver;
+		copy and updata from v0.3.0x19;
+		support rk312x;
+*/
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x0)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -467,11 +464,21 @@ static const char *rk_cam_driver_description = "RK_Camera";
 
 static int rk_camera_s_stream(struct soc_camera_device *icd, int enable);
 static void rk_camera_capture_process(struct work_struct *work);
-/*static int rk_camera_scale_crop_arm(struct work_struct *work);*/
 
-static inline void rk3128_cru_set_soft_reset(u32 idx, bool on)
+static void rk_camera_diffchips(const char *rockchip_name)
 {
-	void __iomem *reg = RK_CRU_VIRT + RK312X_CRU_SOFTRSTS_CON(6);
+	if(strstr(rockchip_name,"3128")||strstr(rockchip_name,"3126"))
+	{	
+		CRU_PCLK_REG30 = 0xbc;
+		ENANABLE_INVERT_PCLK_CIF0 = ((0x1<<23)|(0x1<<7));
+		DISABLE_INVERT_PCLK_CIF0  = ((0x1<<23)|(0x0<<7));
+		ENANABLE_INVERT_PCLK_CIF1 = ENANABLE_INVERT_PCLK_CIF0;
+		DISABLE_INVERT_PCLK_CIF1  = DISABLE_INVERT_PCLK_CIF0;
+	}
+}
+static inline void rk_cru_set_soft_reset(u32 idx, bool on , u32 RK_CRU_SOFTRST_CON)
+{
+	void __iomem *reg = RK_CRU_VIRT + RK_CRU_SOFTRST_CON;
 	u32 val = on ? 0x10001U << 14 : 0x10000U << 14;
 	writel_relaxed(val, reg);
 	dsb();
@@ -480,13 +487,16 @@ static inline void rk3128_cru_set_soft_reset(u32 idx, bool on)
 static void rk_camera_cif_reset(struct rk_camera_dev *pcdev, int only_rst)
 {
     int ctrl_reg,inten_reg,crop_reg,set_size_reg,for_reg,vir_line_width_reg,scl_reg,y_reg,uv_reg;
-
-debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-
-    if (only_rst == true) {
-        rk3128_cru_set_soft_reset(0, true);
+	u32 RK_CRU_SOFTRST_CON = 0;
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	printk("&&&&&&&&&&&&&&&&&&&%s&&&&&&&&&&&&&&&\n",pcdev->pdata->rockchip_name);
+	if(strstr(pcdev->pdata->rockchip_name,"3128")||strstr(pcdev->pdata->rockchip_name,"3126"))
+		RK_CRU_SOFTRST_CON = RK312X_CRU_SOFTRSTS_CON(6);
+	
+	if (only_rst == true) {
+        rk_cru_set_soft_reset(0, true ,RK_CRU_SOFTRST_CON);
         udelay(5);
-        rk3128_cru_set_soft_reset(0, false);
+        rk_cru_set_soft_reset(0, false ,RK_CRU_SOFTRST_CON);
     } else {
         ctrl_reg = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
         if (ctrl_reg & ENABLE_CAPTURE) {
@@ -501,9 +511,9 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
     	y_reg = read_cif_reg(pcdev->base, CIF_CIF_FRM0_ADDR_Y);
     	uv_reg = read_cif_reg(pcdev->base, CIF_CIF_FRM0_ADDR_UV);
     	
-    	rk3128_cru_set_soft_reset(0, true);
+    	rk_cru_set_soft_reset(0, true ,RK_CRU_SOFTRST_CON);
     	udelay(5);
-    	rk3128_cru_set_soft_reset(0, false); 
+    	rk_cru_set_soft_reset(0, false ,RK_CRU_SOFTRST_CON); 
 
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, ctrl_reg&~ENABLE_CAPTURE);
 	    write_cif_reg(pcdev->base,CIF_CIF_INTEN, inten_reg);
@@ -927,8 +937,8 @@ static void rk_camera_cifrest_delay(struct work_struct *work)
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
     
-    mdelay(100);
-    /*rk_camera_cif_reset(pcdev,false);//yzm*/
+    mdelay(1);
+    rk_camera_cif_reset(pcdev,false);
 
     spin_lock_irqsave(&pcdev->camera_work_lock, flags);    
     list_add_tail(&camera_work->queue, &pcdev->camera_work_queue);    
@@ -947,7 +957,7 @@ static inline irqreturn_t rk_camera_cifirq(int irq, void *data)
 {
     struct rk_camera_dev *pcdev = data;
     struct rk_camera_work *wk;
-    unsigned int reg_cifctrl, reg_lastpix, reg_lastline, reg_intstat;
+    unsigned int reg_cifctrl, reg_lastpix, reg_lastline;
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
@@ -957,7 +967,6 @@ static inline irqreturn_t rk_camera_cifirq(int irq, void *data)
     reg_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
     reg_lastpix = read_cif_reg(pcdev->base,CIF_CIF_LAST_PIX);
     reg_lastline = read_cif_reg(pcdev->base,CIF_CIF_LAST_LINE);
-    reg_intstat = read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);/*yzm for rk312x first time capture bus_err*/
 	
     pcdev->irqinfo.cifirq_idx++;    
     if ((reg_lastline != pcdev->host_height) /*|| (reg_lastpix != pcdev->host_width)*/) {
@@ -972,14 +981,8 @@ static inline irqreturn_t rk_camera_cifirq(int irq, void *data)
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, (reg_cifctrl & ~ENABLE_CAPTURE));
     } 
 
-	if(reg_intstat & (0x1 << 6)) {
-        write_cif_reg(pcdev->base,CIF_CIF_INTSTAT, reg_intstat | (0x1 << 6));
-		goto BUS_ERR; //yzm for rk312x first time capture bus_err
-	}
-
     if (pcdev->irqinfo.cifirq_abnormal_idx>0) {
         if ((pcdev->irqinfo.cifirq_idx - pcdev->irqinfo.cifirq_abnormal_idx) == 1 ) {
-			BUS_ERR:
             if (!list_empty(&pcdev->camera_work_queue)) {
                 RKCAMERA_DG2("Receive cif irq-%ld and queue work to cif reset\n",pcdev->irqinfo.cifirq_idx);
                 wk = list_entry(pcdev->camera_work_queue.next, struct rk_camera_work, queue);
@@ -1454,12 +1457,11 @@ static void rk_camera_remove_device(struct soc_camera_device *icd)
 static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 {
     unsigned long bus_flags, camera_flags, common_flags = 0;
-    /*unsigned int cif_for = 0;*/
+    unsigned int cif_for = 0;
 	const struct soc_mbus_pixelfmt *fmt;
 	int ret = 0;
-	/*struct soc_camera_host *ici = to_soc_camera_host(icd->parent);*/ /*yzm*/
-	/*struct rk_camera_dev *pcdev = ici->priv;*/
-
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent); /*yzm*/
+	struct rk_camera_dev *pcdev = ici->priv;
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 
@@ -1500,13 +1502,16 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
     }
 */
 /***************yzm************end*/
+
+	
+	common_flags = camera_flags;
     ret = icd->ops->set_bus_param(icd, common_flags);
     if (ret < 0)
         goto RK_CAMERA_SET_BUS_PARAM_END;
-/*
+
     cif_for = read_cif_reg(pcdev->base,CIF_CIF_FOR);
     
-    if (common_flags & SOCAM_PCLK_SAMPLE_FALLING) {
+    if (common_flags & V4L2_MBUS_PCLK_SAMPLE_FALLING) {
        	if(IS_CIF0()) {
     		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF0);
         } else {
@@ -1519,6 +1524,7 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFEFFF) | DISABLE_INVERT_PCLK_CIF1);
         }
     }
+    
     if (common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW) {
         cif_for |= HSY_LOW_ACTIVE;
     } else {
@@ -1534,7 +1540,7 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
     //vip_ctrl_val |= ENABLE_CAPTURE;
     write_cif_reg(pcdev->base,CIF_CIF_FOR, cif_for);
     RKCAMERA_DG1("CIF_CIF_FOR: 0x%x \n",cif_for);
-*/
+
 RK_CAMERA_SET_BUS_PARAM_END:
 	if (ret)
     	RKCAMERA_TR("rk_camera_set_bus_param ret = %d \n", ret);
@@ -1692,8 +1698,8 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
 		||(read_cif_reg(pcdev->base,CIF_CIF_CTRL) & MODE_LINELOOP)) {
 	    BUG();	
     } else{ /* this is one frame mode*/
-	    cif_crop = (rect->left+ (rect->top<<16));
-	    cif_fs	= ((rect->width ) + (rect->height<<16));
+	    cif_crop = (rect->left + (rect->top <<16));
+	    cif_fs	= (rect->width + (rect->height <<16));
 	}
 
 	write_cif_reg(pcdev->base,CIF_CIF_CROP, cif_crop);
@@ -2206,7 +2212,7 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 			pix->width = usr_w;
 			pix->height = usr_h;
 		} else {
-			RKCAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",mf.width,mf.height,usr_w,usr_h);
+			/*RKCAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",mf.width,mf.height,usr_w,usr_h);*/ /*yzm*/
             pix->width = mf.width;
             pix->height = mf.height;            
 		}
@@ -2421,7 +2427,7 @@ static void rk_camera_reinit_work(struct work_struct *work)
     int ctrl;
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
-	return;
+	//return;
 	
     if(pcdev->icd == NULL)
         return;
@@ -2992,6 +2998,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     int err = 0;
     struct rk_cif_clk *clk=NULL;
 	struct device *dev_cif = ((struct rk29camera_platform_data*)pdev->dev.platform_data)->cif_dev;/*yzm*/
+
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 	RKCAMERA_TR("%s version: v%d.%d.%d  Zoom by %s",RK29_CAM_DRV_NAME,(RK_CAM_VERSION_CODE&0xff0000)>>16,
@@ -3008,6 +3015,8 @@ static int rk_camera_probe(struct platform_device *pdev)
     }
 
 /***********yzm**********/
+	rk_camera_diffchips(((struct rk29camera_platform_data*)pdev->dev.platform_data)->rockchip_name);
+
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
     irq = platform_get_irq(pdev, 0);
 
@@ -3258,7 +3267,6 @@ static int rk_camera_init_async(void *unused)
 {
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-
     platform_driver_register(&rk_camera_driver);	
     return 0;
 }
@@ -3286,4 +3294,3 @@ module_exit(rk_camera_exit);
 MODULE_DESCRIPTION("RKSoc Camera Host driver");
 MODULE_AUTHOR("ddl <ddl@rock-chips>");
 MODULE_LICENSE("GPL");
-//#endif/*yzm*/

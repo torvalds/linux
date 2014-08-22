@@ -43,7 +43,7 @@
 			resolution = <gc0329_FULL_RESOLUTION>;
 			pwdn_info = <gc0329_PWRDN_ACTIVE>;
 			powerup_sequence = <gc0329_PWRSEQ>;	
-			orientation = <90>;
+			orientation = <0>;
 			i2c_add = <gc0329_I2C_ADDR>;
 			i2c_rata = <100000>;
 			i2c_chl = <0>;

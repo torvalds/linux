@@ -114,7 +114,7 @@ MODULE_DEVICE_TABLE(of,of_match_cif);
 static struct platform_driver rk_cif_driver =
 {
     .driver 	= {
-        .name	= RK3288_CIF_NAME,              
+        .name	= RK_CIF_NAME,              
 		.owner = THIS_MODULE,
         .of_match_table = of_match_ptr(of_match_cif),
     },
@@ -129,7 +129,7 @@ MODULE_DEVICE_TABLE(of,of_match_sensor);
 static struct platform_driver rk_sensor_driver =
 {
     .driver 	= {
-        .name	= RK3288_SENSOR_NAME,              
+        .name	= RK_SENSOR_NAME,              
 		.owner  = THIS_MODULE,
         .of_match_table = of_match_ptr(of_match_sensor),
     },
@@ -156,13 +156,15 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 	for_each_child_of_node(np, cp) {
-		u32 flash_attach,mir,i2c_rata,i2c_chl,i2c_add,cif_chl,mclk_rate,is_front;
-		u32 resolution,pwdn_info,powerup_sequence,orientation;
+		u32 flash_attach = 0,mir = 0,i2c_rata = 0,i2c_chl = 0,i2c_add = 0;
+		u32 cif_chl = 0, mclk_rate = 0, is_front = 0;
+		u32 resolution = 0, pwdn_info = 0, powerup_sequence = 0;
 		
 		u32	powerdown = INVALID_GPIO,power = INVALID_GPIO,reset = INVALID_GPIO;
 		u32 af = INVALID_GPIO,flash = INVALID_GPIO;
 
 		int pwr_active = INVALID_VALUE, rst_active = INVALID_VALUE, pwdn_active = INVALID_VALUE;
+		int orientation = 0;
 		struct rkcamera_platform_data *new_camera; 
 		new_camera = kzalloc(sizeof(struct rkcamera_platform_data),GFP_KERNEL);
 		if(!sensor_num)
@@ -284,7 +286,7 @@ static int rk_dts_cif_probe(struct platform_device *pdev) /*yzm*/
 {
 	int irq,err;
 	struct device *dev = &pdev->dev;
-		
+	const char *compatible = NULL;
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 	
 	rk_camera_platform_data.cif_dev = &pdev->dev;
@@ -301,6 +303,15 @@ static int rk_dts_cif_probe(struct platform_device *pdev) /*yzm*/
 		printk(KERN_EMERG "Get irq resource from %s platform device failed!",pdev->name);
 		return -ENODEV;;
 	}
+	err = of_property_read_string(dev->of_node->parent,"compatible",&compatible);	
+	rk_camera_platform_data.rockchip_name = compatible;
+
+	if (err < 0){
+		printk(KERN_EMERG "Get rockchip compatible failed!!!!!!");
+		return -ENODEV;
+	}
+	
+	//printk(KERN_ERR "***************%s*************\n", rk_camera_platform_data.rockchip_name);
 	rk_camera_resource_host_0[1].start = irq;
 	rk_camera_resource_host_0[1].end   = irq;
 	rk_camera_resource_host_0[1].flags = IORESOURCE_IRQ;
