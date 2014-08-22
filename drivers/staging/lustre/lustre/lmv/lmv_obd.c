@@ -2486,8 +2486,7 @@ int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 
 	if (mea->mea_magic == MEA_MAGIC_LAST_CHAR ||
 	    mea->mea_magic == MEA_MAGIC_ALL_CHARS ||
-	    mea->mea_magic == MEA_MAGIC_HASH_SEGMENT)
-	{
+	    mea->mea_magic == MEA_MAGIC_HASH_SEGMENT) {
 		magic = le32_to_cpu(mea->mea_magic);
 	} else {
 		/*

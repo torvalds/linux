@@ -1592,8 +1592,7 @@ sfw_post_rpc (srpc_client_rpc_t *rpc)
 	return;
 }
 
-static srpc_service_t sfw_services[] =
-{
+static srpc_service_t sfw_services[] = {
 	{
 		/* sv_id */    SRPC_SERVICE_DEBUG,
 		/* sv_name */  "debug",

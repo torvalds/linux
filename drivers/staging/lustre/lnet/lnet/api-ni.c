@@ -384,8 +384,7 @@ lnet_freelist_init (lnet_freelist_t *fl, int n, int size)
 	fl->fl_nobjs = n;
 	fl->fl_objsize = size;
 
-	do
-	{
+	do {
 		memset (space, 0, size);
 		list_add ((struct list_head *)space, &fl->fl_list);
 		space += size;

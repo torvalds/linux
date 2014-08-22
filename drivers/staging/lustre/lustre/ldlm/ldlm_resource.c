@@ -511,8 +511,7 @@ typedef struct {
 	cfs_hash_ops_t *nsd_hops;
 } ldlm_ns_hash_def_t;
 
-ldlm_ns_hash_def_t ldlm_ns_hash_defs[] =
-{
+ldlm_ns_hash_def_t ldlm_ns_hash_defs[] = {
 	{
 		.nsd_type       = LDLM_NS_TYPE_MDC,
 		.nsd_bkt_bits   = 11,

@@ -1074,8 +1074,7 @@ static inline char *hai_dump_data_field(struct hsm_action_item *hai,
 	ptr = buffer;
 	sz = len;
 	data_len = hai->hai_len - sizeof(*hai);
-	for (i = 0 ; (i < data_len) && (sz > 0) ; i++)
-	{
+	for (i = 0 ; (i < data_len) && (sz > 0) ; i++) {
 		int cnt;
 
 		cnt = snprintf(ptr, sz, "%.2X",

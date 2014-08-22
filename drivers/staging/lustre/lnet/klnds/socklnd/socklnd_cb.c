@@ -1675,8 +1675,7 @@ ksocknal_send_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 static int
 ksocknal_invert_type(int type)
 {
-	switch (type)
-	{
+	switch (type) {
 	case SOCKLND_CONN_ANY:
 	case SOCKLND_CONN_CONTROL:
 		return type;

@@ -1168,8 +1168,7 @@ int ldlm_pools_recalc(ldlm_side_t client)
 		 */
 		mutex_lock(ldlm_namespace_lock(client));
 		list_for_each_entry(ns, ldlm_namespace_list(client),
-					ns_list_chain)
-		{
+					ns_list_chain) {
 			if (ns->ns_appetite != LDLM_NAMESPACE_MODEST)
 				continue;
 

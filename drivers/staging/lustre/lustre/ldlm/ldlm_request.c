@@ -1248,8 +1248,7 @@ int ldlm_cli_update_pool(struct ptlrpc_request *req)
 	__u32 new_limit;
 
 	if (unlikely(!req->rq_import || !req->rq_import->imp_obd ||
-		     !imp_connect_lru_resize(req->rq_import)))
-	{
+		     !imp_connect_lru_resize(req->rq_import))) {
 		/*
 		 * Do nothing for corner cases.
 		 */
