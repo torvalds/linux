@@ -1204,8 +1204,8 @@ static int vpif_probe_complete(void)
 		INIT_LIST_HEAD(&common->dma_queue);
 
 		/* register video device */
-		vpif_dbg(1, debug, "channel=%x,channel->video_dev=%x\n",
-			 (int)ch, (int)&ch->video_dev);
+		vpif_dbg(1, debug, "channel=%p,channel->video_dev=%p\n",
+			 ch, &ch->video_dev);
 
 		/* Initialize the video_device structure */
 		vdev = ch->video_dev;
