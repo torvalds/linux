@@ -852,8 +852,8 @@ int gsc_prepare_addr(struct gsc_ctx *ctx, struct vb2_buffer *vb,
 		(frame->fmt->pixelformat == V4L2_PIX_FMT_YVU420M))
 		swap(addr->cb, addr->cr);
 
-	pr_debug("ADDR: y= 0x%X  cb= 0x%X cr= 0x%X ret= %d",
-		addr->y, addr->cb, addr->cr, ret);
+	pr_debug("ADDR: y= %pad  cb= %pad cr= %pad ret= %d",
+		&addr->y, &addr->cb, &addr->cr, ret);
 
 	return ret;
 }
