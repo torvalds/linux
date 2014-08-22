@@ -1637,22 +1637,23 @@ out:
 	return error;
 }
 
-static int generic_delete_lease(struct file *filp, struct file_lock **flp)
+static int generic_delete_lease(struct file *filp)
 {
+	int error = -EAGAIN;
 	struct file_lock *fl, **before;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 
-	trace_generic_delete_lease(inode, *flp);
-
 	for (before = &inode->i_flock;
 			((fl = *before) != NULL) && IS_LEASE(fl);
 			before = &fl->fl_next) {
-		if (fl->fl_file != filp)
-			continue;
-		return (*flp)->fl_lmops->lm_change(before, F_UNLCK);
+		if (fl->fl_file == filp)
+			break;
 	}
-	return -EAGAIN;
+	trace_generic_delete_lease(inode, fl);
+	if (fl)
+		error = fl->fl_lmops->lm_change(before, F_UNLCK);
+	return error;
 }
 
 /**
@@ -1682,13 +1683,15 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 
 	time_out_leases(inode);
 
-	BUG_ON(!(*flp)->fl_lmops->lm_break);
-
 	switch (arg) {
 	case F_UNLCK:
-		return generic_delete_lease(filp, flp);
+		return generic_delete_lease(filp);
 	case F_RDLCK:
 	case F_WRLCK:
+		if (!(*flp)->fl_lmops->lm_break) {
+			WARN_ON_ONCE(1);
+			return -ENOLCK;
+		}
 		return generic_add_lease(filp, arg, flp);
 	default:
 		return -EINVAL;
@@ -1743,15 +1746,6 @@ int vfs_setlease(struct file *filp, long arg, struct file_lock **lease)
 	return error;
 }
 EXPORT_SYMBOL_GPL(vfs_setlease);
-
-static int do_fcntl_delete_lease(struct file *filp)
-{
-	struct file_lock fl, *flp = &fl;
-
-	lease_init(filp, F_UNLCK, flp);
-
-	return vfs_setlease(filp, F_UNLCK, &flp);
-}
 
 static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 {
@@ -1809,7 +1803,7 @@ out_unlock:
 int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 {
 	if (arg == F_UNLCK)
-		return do_fcntl_delete_lease(filp);
+		return vfs_setlease(filp, F_UNLCK, NULL);
 	return do_fcntl_add_lease(fd, filp, arg);
 }
 
