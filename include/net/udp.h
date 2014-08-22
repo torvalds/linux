@@ -158,6 +158,24 @@ static inline __sum16 udp_v4_check(int len, __be32 saddr,
 void udp_set_csum(bool nocheck, struct sk_buff *skb,
 		  __be32 saddr, __be32 daddr, int len);
 
+struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
+				 struct udphdr *uh);
+int udp_gro_complete(struct sk_buff *skb, int nhoff);
+
+static inline struct udphdr *udp_gro_udphdr(struct sk_buff *skb)
+{
+	struct udphdr *uh;
+	unsigned int hlen, off;
+
+	off  = skb_gro_offset(skb);
+	hlen = off + sizeof(*uh);
+	uh   = skb_gro_header_fast(skb, off);
+	if (skb_gro_header_hard(skb, hlen))
+		uh = skb_gro_header_slow(skb, hlen, off);
+
+	return uh;
+}
+
 /* hash routines shared between UDPv4/6 and UDP-Litev4/6 */
 static inline void udp_lib_hash(struct sock *sk)
 {
