@@ -388,6 +388,15 @@ static void ocrdma_remove_sysfiles(struct ocrdma_dev *dev)
 		device_remove_file(&dev->ibdev.dev, ocrdma_attributes[i]);
 }
 
+static void ocrdma_add_default_sgid(struct ocrdma_dev *dev)
+{
+	/* GID Index 0 - Invariant manufacturer-assigned EUI-64 */
+	union ib_gid *sgid = &dev->sgid_tbl[0];
+
+	sgid->global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
+	ocrdma_get_guid(dev, &sgid->raw[8]);
+}
+
 static void ocrdma_init_ipv4_gids(struct ocrdma_dev *dev,
 				  struct net_device *net)
 {
@@ -434,6 +443,7 @@ static void ocrdma_init_gid_table(struct ocrdma_dev *dev)
 				rdma_vlan_dev_real_dev(net_dev) : net_dev;
 
 		if (real_dev == dev->nic_info.netdev) {
+			ocrdma_add_default_sgid(dev);
 			ocrdma_init_ipv4_gids(dev, net_dev);
 			ocrdma_init_ipv6_gids(dev, net_dev);
 		}
