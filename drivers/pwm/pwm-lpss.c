@@ -13,6 +13,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
