@@ -92,8 +92,6 @@ struct tipc_port_list;
 u32 tipc_port_init(struct tipc_port *p_ptr,
 		   const unsigned int importance);
 
-void tipc_acknowledge(u32 port_ref, u32 ack);
-
 void tipc_port_destroy(struct tipc_port *p_ptr);
 
 int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,

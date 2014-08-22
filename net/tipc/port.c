@@ -221,28 +221,6 @@ void tipc_port_reinit(void)
 	spin_unlock_bh(&tipc_port_list_lock);
 }
 
-void tipc_acknowledge(u32 ref, u32 ack)
-{
-	struct tipc_port *p_ptr;
-	struct sk_buff *buf = NULL;
-	struct tipc_msg *msg;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return;
-	if (p_ptr->connected)
-		buf = tipc_msg_create(CONN_MANAGER, CONN_ACK, INT_H_SIZE,
-				      0, tipc_port_peernode(p_ptr),
-				      tipc_own_addr, tipc_port_peerport(p_ptr),
-				      p_ptr->ref, TIPC_OK);
-	tipc_port_unlock(p_ptr);
-	if (!buf)
-		return;
-	msg = buf_msg(buf);
-	msg_set_msgcnt(msg, ack);
-	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
-}
-
 int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
 		 struct tipc_name_seq const *seq)
 {

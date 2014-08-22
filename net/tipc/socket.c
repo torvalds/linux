@@ -1106,6 +1106,24 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 	return 0;
 }
 
+static void tipc_sk_send_ack(struct tipc_port *port, uint ack)
+{
+	struct sk_buff *buf = NULL;
+	struct tipc_msg *msg;
+	u32 peer_port = tipc_port_peerport(port);
+	u32 dnode = tipc_port_peernode(port);
+
+	if (!port->connected)
+		return;
+	buf = tipc_msg_create(CONN_MANAGER, CONN_ACK, INT_H_SIZE, 0, dnode,
+			      tipc_own_addr, peer_port, port->ref, TIPC_OK);
+	if (!buf)
+		return;
+	msg = buf_msg(buf);
+	msg_set_msgcnt(msg, ack);
+	tipc_link_xmit(buf, dnode, msg_link_selector(msg));
+}
+
 static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 {
 	struct sock *sk = sock->sk;
@@ -1226,7 +1244,7 @@ restart:
 	if (likely(!(flags & MSG_PEEK))) {
 		if ((sock->state != SS_READY) &&
 		    (++tsk->rcv_unacked >= TIPC_CONNACK_INTV)) {
-			tipc_acknowledge(port->ref, tsk->rcv_unacked);
+			tipc_sk_send_ack(port, tsk->rcv_unacked);
 			tsk->rcv_unacked = 0;
 		}
 		advance_rx_queue(sk);
@@ -1337,7 +1355,7 @@ restart:
 	/* Consume received message (optional) */
 	if (likely(!(flags & MSG_PEEK))) {
 		if (unlikely(++tsk->rcv_unacked >= TIPC_CONNACK_INTV)) {
-			tipc_acknowledge(port->ref, tsk->rcv_unacked);
+			tipc_sk_send_ack(port, tsk->rcv_unacked);
 			tsk->rcv_unacked = 0;
 		}
 		advance_rx_queue(sk);
