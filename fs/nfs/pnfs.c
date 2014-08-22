@@ -1288,6 +1288,7 @@ pnfs_update_layout(struct inode *ino,
 	struct nfs_client *clp = server->nfs_client;
 	struct pnfs_layout_hdr *lo;
 	struct pnfs_layout_segment *lseg = NULL;
+	bool first;
 
 	if (!pnfs_enabled_sb(NFS_SERVER(ino)))
 		goto out;
@@ -1295,6 +1296,8 @@ pnfs_update_layout(struct inode *ino,
 	if (pnfs_within_mdsthreshold(ctx, ino, iomode))
 		goto out;
 
+lookup_again:
+	first = false;
 	spin_lock(&ino->i_lock);
 	lo = pnfs_find_alloc_layout(ino, ctx, gfp_flags);
 	if (lo == NULL) {
@@ -1312,10 +1315,27 @@ pnfs_update_layout(struct inode *ino,
 	if (pnfs_layout_io_test_failed(lo, iomode))
 		goto out_unlock;
 
-	/* Check to see if the layout for the given range already exists */
-	lseg = pnfs_find_lseg(lo, &arg);
-	if (lseg)
-		goto out_unlock;
+	first = list_empty(&lo->plh_segs);
+	if (first) {
+		/* The first layoutget for the file. Need to serialize per
+		 * RFC 5661 Errata 3208.
+		 */
+		if (test_and_set_bit(NFS_LAYOUT_FIRST_LAYOUTGET,
+				     &lo->plh_flags)) {
+			spin_unlock(&ino->i_lock);
+			wait_on_bit(&lo->plh_flags, NFS_LAYOUT_FIRST_LAYOUTGET,
+				    TASK_UNINTERRUPTIBLE);
+			pnfs_put_layout_hdr(lo);
+			goto lookup_again;
+		}
+	} else {
+		/* Check to see if the layout for the given range
+		 * already exists
+		 */
+		lseg = pnfs_find_lseg(lo, &arg);
+		if (lseg)
+			goto out_unlock;
+	}
 
 	if (pnfs_layoutgets_blocked(lo, 0))
 		goto out_unlock;
@@ -1343,6 +1363,13 @@ pnfs_update_layout(struct inode *ino,
 	lseg = send_layoutget(lo, ctx, &arg, gfp_flags);
 	atomic_dec(&lo->plh_outstanding);
 out_put_layout_hdr:
+	if (first) {
+		unsigned long *bitlock = &lo->plh_flags;
+
+		clear_bit_unlock(NFS_LAYOUT_FIRST_LAYOUTGET, bitlock);
+		smp_mb__after_atomic();
+		wake_up_bit(bitlock, NFS_LAYOUT_FIRST_LAYOUTGET);
+	}
 	pnfs_put_layout_hdr(lo);
 out:
 	dprintk("%s: inode %s/%llu pNFS layout segment %s for "
