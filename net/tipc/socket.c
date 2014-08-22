@@ -579,6 +579,7 @@ new_mtu:
 			goto new_mtu;
 		if (rc != -ELINKCONG)
 			break;
+		tipc_sk(sk)->link_cong = 1;
 		rc = tipc_wait_for_sndmsg(sock, &timeo);
 		if (rc)
 			kfree_skb_list(buf);
@@ -651,7 +652,7 @@ static int tipc_sk_proto_rcv(struct tipc_sock *tsk, u32 *dnode,
 		conn_cong = tipc_sk_conn_cong(tsk);
 		tsk->sent_unacked -= msg_msgcnt(msg);
 		if (conn_cong)
-			tipc_sock_wakeup(tsk);
+			tsk->sk.sk_write_space(&tsk->sk);
 	} else if (msg_type(msg) == CONN_PROBE) {
 		if (!tipc_msg_reverse(buf, dnode, TIPC_OK))
 			return TIPC_OK;
@@ -826,6 +827,7 @@ new_mtu:
 		goto exit;
 
 	do {
+		TIPC_SKB_CB(buf)->wakeup_pending = tsk->link_cong;
 		rc = tipc_link_xmit(buf, dnode, tsk->port.ref);
 		if (likely(rc >= 0)) {
 			if (sock->state != SS_READY)
@@ -835,10 +837,9 @@ new_mtu:
 		}
 		if (rc == -EMSGSIZE)
 			goto new_mtu;
-
 		if (rc != -ELINKCONG)
 			break;
-
+		tsk->link_cong = 1;
 		rc = tipc_wait_for_sndmsg(sock, &timeo);
 		if (rc)
 			kfree_skb_list(buf);
@@ -953,6 +954,7 @@ next:
 			}
 			if (rc != -ELINKCONG)
 				break;
+			tsk->link_cong = 1;
 		}
 		rc = tipc_wait_for_sndpkt(sock, &timeo);
 		if (rc)
@@ -1517,6 +1519,13 @@ static int filter_rcv(struct sock *sk, struct sk_buff *buf)
 
 	if (unlikely(msg_user(msg) == CONN_MANAGER))
 		return tipc_sk_proto_rcv(tsk, &onode, buf);
+
+	if (unlikely(msg_user(msg) == SOCK_WAKEUP)) {
+		kfree_skb(buf);
+		tsk->link_cong = 0;
+		sk->sk_write_space(sk);
+		return TIPC_OK;
+	}
 
 	/* Reject message if it is wrong sort of message for socket */
 	if (msg_type(msg) > TIPC_DIRECT_MSG)

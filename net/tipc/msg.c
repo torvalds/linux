@@ -182,7 +182,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 	struct sk_buff *buf, *prev;
 	char *pktpos;
 	int rc;
-
+	uint chain_sz = 0;
 	msg_set_size(mhdr, msz);
 
 	/* No fragmentation needed? */
@@ -193,6 +193,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 			return -ENOMEM;
 		skb_copy_to_linear_data(buf, mhdr, mhsz);
 		pktpos = buf->data + mhsz;
+		TIPC_SKB_CB(buf)->chain_sz = 1;
 		if (!dsz || !memcpy_fromiovecend(pktpos, iov, offset, dsz))
 			return dsz;
 		rc = -EFAULT;
@@ -209,6 +210,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 	*chain = buf = tipc_buf_acquire(pktmax);
 	if (!buf)
 		return -ENOMEM;
+	chain_sz = 1;
 	pktpos = buf->data;
 	skb_copy_to_linear_data(buf, &pkthdr, INT_H_SIZE);
 	pktpos += INT_H_SIZE;
@@ -242,6 +244,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 			rc = -ENOMEM;
 			goto error;
 		}
+		chain_sz++;
 		prev->next = buf;
 		msg_set_type(&pkthdr, FRAGMENT);
 		msg_set_size(&pkthdr, pktsz);
@@ -251,7 +254,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 		pktrem = pktsz - INT_H_SIZE;
 
 	} while (1);
-
+	TIPC_SKB_CB(*chain)->chain_sz = chain_sz;
 	msg_set_type(buf_msg(buf), LAST_FRAGMENT);
 	return dsz;
 error:

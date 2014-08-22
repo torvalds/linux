@@ -38,6 +38,7 @@
 #include "config.h"
 #include "node.h"
 #include "name_distr.h"
+#include "socket.h"
 
 #define NODE_HTABLE_SIZE 512
 
@@ -100,6 +101,7 @@ struct tipc_node *tipc_node_create(u32 addr)
 	INIT_HLIST_NODE(&n_ptr->hash);
 	INIT_LIST_HEAD(&n_ptr->list);
 	INIT_LIST_HEAD(&n_ptr->nsub);
+	__skb_queue_head_init(&n_ptr->waiting_sks);
 
 	hlist_add_head_rcu(&n_ptr->hash, &node_htable[tipc_hashfn(addr)]);
 
@@ -474,6 +476,7 @@ int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
 void tipc_node_unlock(struct tipc_node *node)
 {
 	LIST_HEAD(nsub_list);
+	struct sk_buff_head waiting_sks;
 	u32 addr = 0;
 
 	if (likely(!node->action_flags)) {
@@ -481,6 +484,11 @@ void tipc_node_unlock(struct tipc_node *node)
 		return;
 	}
 
+	__skb_queue_head_init(&waiting_sks);
+	if (node->action_flags & TIPC_WAKEUP_USERS) {
+		skb_queue_splice_init(&node->waiting_sks, &waiting_sks);
+		node->action_flags &= ~TIPC_WAKEUP_USERS;
+	}
 	if (node->action_flags & TIPC_NOTIFY_NODE_DOWN) {
 		list_replace_init(&node->nsub, &nsub_list);
 		node->action_flags &= ~TIPC_NOTIFY_NODE_DOWN;
@@ -491,8 +499,12 @@ void tipc_node_unlock(struct tipc_node *node)
 	}
 	spin_unlock_bh(&node->lock);
 
+	while (!skb_queue_empty(&waiting_sks))
+		tipc_sk_rcv(__skb_dequeue(&waiting_sks));
+
 	if (!list_empty(&nsub_list))
 		tipc_nodesub_notify(&nsub_list);
+
 	if (addr)
 		tipc_named_node_up(addr);
 }

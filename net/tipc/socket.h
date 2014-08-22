@@ -58,7 +58,7 @@ struct tipc_sock {
 	struct tipc_port port;
 	unsigned int conn_timeout;
 	atomic_t dupl_rcvcnt;
-	int link_cong;
+	bool link_cong;
 	uint sent_unacked;
 	uint rcv_unacked;
 };
@@ -71,11 +71,6 @@ static inline struct tipc_sock *tipc_sk(const struct sock *sk)
 static inline struct tipc_sock *tipc_port_to_sock(const struct tipc_port *port)
 {
 	return container_of(port, struct tipc_sock, port);
-}
-
-static inline void tipc_sock_wakeup(struct tipc_sock *tsk)
-{
-	tsk->sk.sk_write_space(&tsk->sk);
 }
 
 static inline int tipc_sk_conn_cong(struct tipc_sock *tsk)

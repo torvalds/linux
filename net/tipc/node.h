@@ -58,7 +58,8 @@ enum {
 	TIPC_WAIT_PEER_LINKS_DOWN	= (1 << 1),
 	TIPC_WAIT_OWN_LINKS_DOWN	= (1 << 2),
 	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
-	TIPC_NOTIFY_NODE_UP		= (1 << 4)
+	TIPC_NOTIFY_NODE_UP		= (1 << 4),
+	TIPC_WAKEUP_USERS		= (1 << 5)
 };
 
 /**
@@ -115,6 +116,7 @@ struct tipc_node {
 	int working_links;
 	u32 signature;
 	struct list_head nsub;
+	struct sk_buff_head waiting_sks;
 	struct rcu_head rcu;
 };
 
