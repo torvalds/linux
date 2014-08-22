@@ -569,10 +569,24 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
  */
 int hdmi_init_video_para(struct hdmi *hdmi_drv, struct hdmi_video_para *video)
 {
+	struct rk_lcdc_driver *lcdc_drv = NULL;
+
+	if (unlikely(hdmi_drv == NULL))
+		return -1;
+
+	lcdc_drv = hdmi_drv->lcdc;
+	if (unlikely(lcdc_drv == NULL))
+		return -1;
+
 	memset(video, 0, sizeof(struct hdmi_video_para));
+
 	video->vic = hdmi_drv->vic;
 	video->input_mode = VIDEO_INPUT_RGB_YCBCR_444;
-	video->input_color = VIDEO_INPUT_COLOR_RGB;
+	if (lcdc_drv->output_domain == OUTPUT_RGB_DOMAIN)
+		video->input_color = VIDEO_INPUT_COLOR_RGB;
+	else
+		video->input_color = VIDEO_INPUT_COLOR_YCBCR444;
+
 	video->output_mode = hdmi_drv->edid.sink_hdmi;
 	video->format_3d = 0;	/* TODO modify according to EDID if need */
 	video->pixel_repet = 0;

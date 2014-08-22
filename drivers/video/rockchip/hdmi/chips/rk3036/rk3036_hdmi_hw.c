@@ -287,8 +287,13 @@ static int rk3036_hdmi_config_video(struct hdmi *hdmi_drv,
 	if (hdmi_drv->data->soc_type == HDMI_SOC_RK3036) {
 		vpara->input_color = VIDEO_INPUT_COLOR_RGB;
 		vpara->output_color = VIDEO_OUTPUT_RGB444;/*rk3036 vop only can output rgb fmt*/
-	} else if (hdmi_drv->data->soc_type == HDMI_SOC_RK312X)
-		vpara->input_color = VIDEO_INPUT_COLOR_YCBCR444;/*rk3128 vop can output yuv444 fmt*/
+	} else if (hdmi_drv->data->soc_type == HDMI_SOC_RK312X) {
+		/* rk3128 vop can output yuv444 fmt */
+		if (vpara->input_color == VIDEO_INPUT_COLOR_YCBCR444)
+			vpara->output_color = VIDEO_OUTPUT_YCBCR444;
+		else
+			vpara->output_color = VIDEO_OUTPUT_RGB444;
+	}
 
 	if (hdmi_drv->pwr_mode == LOWER_PWR)
 		rk3036_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
