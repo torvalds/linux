@@ -166,7 +166,6 @@ struct ath10k_pci {
 
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct msi_fw_err;
-	struct tasklet_struct early_irq_tasklet;
 
 	int started;
 
