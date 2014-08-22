@@ -880,6 +880,32 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 		pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
+static int bxt_calc_pll_link(struct drm_i915_private *dev_priv,
+				enum intel_dpll_id dpll)
+{
+	/* FIXME formula not available in bspec */
+	return 0;
+}
+
+static void bxt_ddi_clock_get(struct intel_encoder *encoder,
+				struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	enum port port = intel_ddi_get_encoder_port(encoder);
+	uint32_t dpll = port;
+
+	pipe_config->port_clock =
+		bxt_calc_pll_link(dev_priv, dpll);
+
+	if (pipe_config->has_dp_encoder)
+		pipe_config->base.adjusted_mode.crtc_clock =
+			intel_dotclock_calculate(pipe_config->port_clock,
+							&pipe_config->dp_m_n);
+	else
+		pipe_config->base.adjusted_mode.crtc_clock =
+							pipe_config->port_clock;
+}
+
 void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_state *pipe_config)
 {
@@ -887,8 +913,10 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 
 	if (INTEL_INFO(dev)->gen <= 8)
 		hsw_ddi_clock_get(encoder, pipe_config);
-	else
+	else if (IS_SKYLAKE(dev))
 		skl_ddi_clock_get(encoder, pipe_config);
+	else if (IS_BROXTON(dev))
+		bxt_ddi_clock_get(encoder, pipe_config);
 }
 
 static void

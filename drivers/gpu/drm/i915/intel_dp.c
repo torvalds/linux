@@ -1471,6 +1471,8 @@ found:
 
 	if (IS_SKYLAKE(dev) && is_edp(intel_dp))
 		skl_edp_set_pll_config(pipe_config, common_rates[clock]);
+	else if (IS_BROXTON(dev))
+		/* handled in ddi */;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
 	else
