@@ -333,6 +333,19 @@ config HW_RANDOM_MSM
 
 	  If unsure, say Y.
 
+config HW_RANDOM_XGENE
+	tristate "APM X-Gene True Random Number Generator (TRNG) support"
+	depends on HW_RANDOM && ARCH_XGENE
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on APM X-Gene SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xgene_rng.
+
+	  If unsure, say Y.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
