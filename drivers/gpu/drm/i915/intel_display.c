@@ -2378,6 +2378,9 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg = DSPCNTR(plane);
+	int pixel_size;
+
+	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	if (!intel_crtc->primary_enabled) {
 		I915_WRITE(reg, 0);
@@ -2444,8 +2447,6 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	if (IS_G4X(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
-	I915_WRITE(reg, dspcntr);
-
 	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -2457,6 +2458,21 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	} else {
 		intel_crtc->dspaddr_offset = linear_offset;
 	}
+
+	if (to_intel_plane(crtc->primary)->rotation == BIT(DRM_ROTATE_180)) {
+		dspcntr |= DISPPLANE_ROTATE_180;
+
+		x += (intel_crtc->config.pipe_src_w - 1);
+		y += (intel_crtc->config.pipe_src_h - 1);
+
+		/* Finding the last pixel of the last line of the display
+		data and adding to linear_offset*/
+		linear_offset +=
+			(intel_crtc->config.pipe_src_h - 1) * fb->pitches[0] +
+			(intel_crtc->config.pipe_src_w - 1) * pixel_size;
+	}
+
+	I915_WRITE(reg, dspcntr);
 
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
 		      i915_gem_obj_ggtt_offset(obj), linear_offset, x, y,
@@ -2484,6 +2500,9 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg = DSPCNTR(plane);
+	int pixel_size;
+
+	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	if (!intel_crtc->primary_enabled) {
 		I915_WRITE(reg, 0);
@@ -2532,14 +2551,28 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
-	I915_WRITE(reg, dspcntr);
-
 	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 	intel_crtc->dspaddr_offset =
 		intel_gen4_compute_page_offset(&x, &y, obj->tiling_mode,
 					       fb->bits_per_pixel / 8,
 					       fb->pitches[0]);
 	linear_offset -= intel_crtc->dspaddr_offset;
+	if (to_intel_plane(crtc->primary)->rotation == BIT(DRM_ROTATE_180)) {
+		dspcntr |= DISPPLANE_ROTATE_180;
+
+		if (!IS_HASWELL(dev) && !IS_BROADWELL(dev)) {
+			x += (intel_crtc->config.pipe_src_w - 1);
+			y += (intel_crtc->config.pipe_src_h - 1);
+
+			/* Finding the last pixel of the last line of the display
+			data and adding to linear_offset*/
+			linear_offset +=
+				(intel_crtc->config.pipe_src_h - 1) * fb->pitches[0] +
+				(intel_crtc->config.pipe_src_w - 1) * pixel_size;
+		}
+	}
+
+	I915_WRITE(reg, dspcntr);
 
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
 		      i915_gem_obj_ggtt_offset(obj), linear_offset, x, y,
@@ -11562,6 +11595,7 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 			     uint32_t src_w, uint32_t src_h)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
@@ -11674,6 +11708,24 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 		mutex_unlock(&dev->struct_mutex);
 
 	} else {
+		if (intel_crtc && intel_crtc->active &&
+		    intel_crtc->primary_enabled) {
+			/*
+			 * FBC does not work on some platforms for rotated
+			 * planes, so disable it when rotation is not 0 and
+			 * update it when rotation is set back to 0.
+			 *
+			 * FIXME: This is redundant with the fbc update done in
+			 * the primary plane enable function except that that
+			 * one is done too late. We eventually need to unify
+			 * this.
+			 */
+			if (INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
+			    dev_priv->fbc.plane == intel_crtc->plane &&
+			    intel_plane->rotation != BIT(DRM_ROTATE_0)) {
+				intel_disable_fbc(dev);
+			}
+		}
 		ret = intel_pipe_set_base(crtc, src.x1, src.y1, fb);
 		if (ret)
 			return ret;
@@ -11707,6 +11759,7 @@ static const struct drm_plane_funcs intel_primary_plane_funcs = {
 	.update_plane = intel_primary_plane_setplane,
 	.disable_plane = intel_primary_plane_disable,
 	.destroy = intel_plane_destroy,
+	.set_property = intel_plane_set_property
 };
 
 static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
@@ -11724,6 +11777,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	primary->max_downscale = 1;
 	primary->pipe = pipe;
 	primary->plane = pipe;
+	primary->rotation = BIT(DRM_ROTATE_0);
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
 		primary->plane = !pipe;
 
@@ -11739,6 +11793,19 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 				 &intel_primary_plane_funcs,
 				 intel_primary_formats, num_formats,
 				 DRM_PLANE_TYPE_PRIMARY);
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (!dev->mode_config.rotation_property)
+			dev->mode_config.rotation_property =
+				drm_mode_create_rotation_property(dev,
+							BIT(DRM_ROTATE_0) |
+							BIT(DRM_ROTATE_180));
+		if (dev->mode_config.rotation_property)
+			drm_object_attach_property(&primary->base.base,
+				dev->mode_config.rotation_property,
+				primary->rotation);
+	}
+
 	return &primary->base;
 }
 

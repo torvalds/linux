@@ -581,6 +581,12 @@ void intel_update_fbc(struct drm_device *dev)
 			DRM_DEBUG_KMS("framebuffer not tiled or fenced, disabling compression\n");
 		goto out_disable;
 	}
+	if (INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
+	    to_intel_plane(crtc->primary)->rotation != BIT(DRM_ROTATE_0)) {
+		if (set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED_MODE))
+			DRM_DEBUG_KMS("Rotation unsupported, disabling\n");
+		goto out_disable;
+	}
 
 	/* If the kernel debugger is active, always disable compression */
 	if (in_dbg_master())

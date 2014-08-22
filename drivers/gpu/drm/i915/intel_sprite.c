@@ -1218,9 +1218,9 @@ out_unlock:
 	return ret;
 }
 
-static int intel_plane_set_property(struct drm_plane *plane,
-				    struct drm_property *prop,
-				    uint64_t val)
+int intel_plane_set_property(struct drm_plane *plane,
+			     struct drm_property *prop,
+			     uint64_t val)
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
@@ -1249,7 +1249,7 @@ int intel_plane_restore(struct drm_plane *plane)
 	if (!plane->crtc || !plane->fb)
 		return 0;
 
-	return intel_update_plane(plane, plane->crtc, plane->fb,
+	return plane->funcs->update_plane(plane, plane->crtc, plane->fb,
 				  intel_plane->crtc_x, intel_plane->crtc_y,
 				  intel_plane->crtc_w, intel_plane->crtc_h,
 				  intel_plane->src_x, intel_plane->src_y,
