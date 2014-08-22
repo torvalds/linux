@@ -586,6 +586,7 @@ conf_lock:
 	conflock->fl.fl_type = lock->fl.fl_type;
 	conflock->fl.fl_start = lock->fl.fl_start;
 	conflock->fl.fl_end = lock->fl.fl_end;
+	locks_release_private(&lock->fl);
 	ret = nlm_lck_denied;
 out:
 	if (block)
