@@ -874,15 +874,6 @@ void hdmi4_audio_stop(struct hdmi_core_data *core, struct hdmi_wp_data *wp)
 	hdmi_wp_audio_core_req_enable(wp, false);
 }
 
-int hdmi4_audio_get_dma_port(u32 *offset, u32 *size)
-{
-	if (!offset || !size)
-		return -EINVAL;
-	*offset = HDMI_WP_AUDIO_DATA;
-	*size = 4;
-	return 0;
-}
-
 int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
 	struct resource *res;
