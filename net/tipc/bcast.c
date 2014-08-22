@@ -37,7 +37,6 @@
 
 #include "core.h"
 #include "link.h"
-#include "port.h"
 #include "socket.h"
 #include "msg.h"
 #include "bcast.h"

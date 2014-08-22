@@ -36,7 +36,6 @@
 
 #include "core.h"
 #include "link.h"
-#include "port.h"
 #include "socket.h"
 #include "name_distr.h"
 #include "discover.h"

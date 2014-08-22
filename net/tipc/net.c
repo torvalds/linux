@@ -38,7 +38,6 @@
 #include "net.h"
 #include "name_distr.h"
 #include "subscr.h"
-#include "port.h"
 #include "socket.h"
 #include "node.h"
 #include "config.h"

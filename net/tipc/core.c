@@ -39,7 +39,7 @@
 #include "name_table.h"
 #include "subscr.h"
 #include "config.h"
-#include "port.h"
+#include "socket.h"
 
 #include <linux/module.h>
 

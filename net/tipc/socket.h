@@ -35,11 +35,48 @@
 #ifndef _TIPC_SOCK_H
 #define _TIPC_SOCK_H
 
-#include "port.h"
 #include <net/sock.h>
+#include "msg.h"
 
 #define TIPC_CONN_OK      0
 #define TIPC_CONN_PROBING 1
+#define TIPC_CONNACK_INTV         256
+#define TIPC_FLOWCTRL_WIN        (TIPC_CONNACK_INTV * 2)
+#define TIPC_CONN_OVERLOAD_LIMIT ((TIPC_FLOWCTRL_WIN * 2 + 1) * \
+				  SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
+
+/**
+ * struct tipc_port - TIPC port structure
+ * @lock: pointer to spinlock for controlling access to port
+ * @connected: non-zero if port is currently connected to a peer port
+ * @conn_type: TIPC type used when connection was established
+ * @conn_instance: TIPC instance used when connection was established
+ * @published: non-zero if port has one or more associated names
+ * @max_pkt: maximum packet size "hint" used when building messages sent by port
+ * @ref: unique reference to port in TIPC object registry
+ * @phdr: preformatted message header used when sending messages
+ * @port_list: adjacent ports in TIPC's global list of ports
+ * @publications: list of publications for port
+ * @pub_count: total # of publications port has made during its lifetime
+ * @probing_state:
+ * @probing_interval:
+ * @timer_ref:
+ */
+struct tipc_port {
+	int connected;
+	u32 conn_type;
+	u32 conn_instance;
+	int published;
+	u32 max_pkt;
+	u32 ref;
+	struct tipc_msg phdr;
+	struct list_head port_list;
+	struct list_head publications;
+	u32 pub_count;
+	u32 probing_state;
+	u32 probing_interval;
+	struct timer_list timer;
+};
 
 /**
  * struct tipc_sock - TIPC socket structure
