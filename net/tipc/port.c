@@ -40,9 +40,6 @@
 #include "name_table.h"
 #include "socket.h"
 
-/* Connection management: */
-#define PROBING_INTERVAL 3600000	/* [ms] => 1 h */
-
 #define MAX_REJECT_SIZE 1024
 
 DEFINE_SPINLOCK(tipc_port_list_lock);
@@ -302,86 +299,5 @@ int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
 	}
 	if (list_empty(&p_ptr->publications))
 		p_ptr->published = 0;
-	return res;
-}
-
-int tipc_port_connect(u32 ref, struct tipc_portid const *peer)
-{
-	struct tipc_port *p_ptr;
-	int res;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	res = __tipc_port_connect(ref, p_ptr, peer);
-	tipc_port_unlock(p_ptr);
-	return res;
-}
-
-/*
- * __tipc_port_connect - connect to a remote peer
- *
- * Port must be locked.
- */
-int __tipc_port_connect(u32 ref, struct tipc_port *p_ptr,
-			struct tipc_portid const *peer)
-{
-	struct tipc_msg *msg;
-	int res = -EINVAL;
-
-	if (p_ptr->published || p_ptr->connected)
-		goto exit;
-	if (!peer->ref)
-		goto exit;
-
-	msg = &p_ptr->phdr;
-	msg_set_destnode(msg, peer->node);
-	msg_set_destport(msg, peer->ref);
-	msg_set_type(msg, TIPC_CONN_MSG);
-	msg_set_lookup_scope(msg, 0);
-	msg_set_hdr_sz(msg, SHORT_H_SIZE);
-
-	p_ptr->probing_interval = PROBING_INTERVAL;
-	p_ptr->probing_state = TIPC_CONN_OK;
-	p_ptr->connected = 1;
-	k_start_timer(&p_ptr->timer, p_ptr->probing_interval);
-	res = tipc_node_add_conn(tipc_port_peernode(p_ptr), p_ptr->ref,
-				 tipc_port_peerport(p_ptr));
-exit:
-	p_ptr->max_pkt = tipc_node_get_mtu(peer->node, ref);
-	return res;
-}
-
-/*
- * __tipc_disconnect - disconnect port from peer
- *
- * Port must be locked.
- */
-int __tipc_port_disconnect(struct tipc_port *tp_ptr)
-{
-	if (tp_ptr->connected) {
-		tp_ptr->connected = 0;
-		/* let timer expire on it's own to avoid deadlock! */
-		tipc_node_remove_conn(tipc_port_peernode(tp_ptr), tp_ptr->ref);
-		return 0;
-	}
-
-	return -ENOTCONN;
-}
-
-/*
- * tipc_port_disconnect(): Disconnect port form peer.
- *                    This is a node local operation.
- */
-int tipc_port_disconnect(u32 ref)
-{
-	struct tipc_port *p_ptr;
-	int res;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	res = __tipc_port_disconnect(p_ptr);
-	tipc_port_unlock(p_ptr);
 	return res;
 }
