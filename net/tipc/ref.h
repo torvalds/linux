@@ -1,7 +1,7 @@
 /*
  * net/tipc/ref.h: Include file for TIPC object registry code
  *
- * Copyright (c) 1991-2006, Ericsson AB
+ * Copyright (c) 1991-2006, 2014, Ericsson AB
  * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
@@ -37,13 +37,20 @@
 #ifndef _TIPC_REF_H
 #define _TIPC_REF_H
 
+#include "socket.h"
+
 int tipc_ref_table_init(u32 requested_size, u32 start);
 void tipc_ref_table_stop(void);
 
-u32 tipc_ref_acquire(void *object, spinlock_t **lock);
+u32 tipc_ref_acquire(struct tipc_sock *tsk);
 void tipc_ref_discard(u32 ref);
 
-void *tipc_ref_lock(u32 ref);
-void *tipc_ref_lock_next(u32 *ref);
+struct tipc_sock *tipc_sk_get(u32 ref);
+struct tipc_sock *tipc_sk_get_next(u32 *ref);
+
+static inline void tipc_sk_put(struct tipc_sock *tsk)
+{
+	sock_put(&tsk->sk);
+}
 
 #endif

@@ -1,7 +1,7 @@
 /*
- * net/tipc/ref.c: TIPC object registry code
+ * net/tipc/ref.c: TIPC socket registry code
  *
- * Copyright (c) 1991-2006, Ericsson AB
+ * Copyright (c) 1991-2006, 2014, Ericsson AB
  * Copyright (c) 2004-2007, Wind River Systems
  * All rights reserved.
  *
@@ -38,24 +38,22 @@
 #include "ref.h"
 
 /**
- * struct reference - TIPC object reference entry
- * @object: pointer to object associated with reference entry
- * @lock: spinlock controlling access to object
- * @ref: reference value for object (combines instance & array index info)
+ * struct reference - TIPC socket reference entry
+ * @tsk: pointer to socket associated with reference entry
+ * @ref: reference value for socket (combines instance & array index info)
  */
 struct reference {
-	void *object;
-	spinlock_t lock;
+	struct tipc_sock *tsk;
 	u32 ref;
 };
 
 /**
- * struct tipc_ref_table - table of TIPC object reference entries
+ * struct tipc_ref_table - table of TIPC socket reference entries
  * @entries: pointer to array of reference entries
  * @capacity: array index of first unusable entry
  * @init_point: array index of first uninitialized entry
- * @first_free: array index of first unused object reference entry
- * @last_free: array index of last unused object reference entry
+ * @first_free: array index of first unused socket reference entry
+ * @last_free: array index of last unused socket reference entry
  * @index_mask: bitmask for array index portion of reference values
  * @start_mask: initial value for instance value portion of reference values
  */
@@ -70,9 +68,9 @@ struct ref_table {
 };
 
 /*
- * Object reference table consists of 2**N entries.
+ * Socket reference table consists of 2**N entries.
  *
- * State	Object ptr	Reference
+ * State	Socket ptr	Reference
  * -----        ----------      ---------
  * In use        non-NULL       XXXX|own index
  *				(XXXX changes each time entry is acquired)
@@ -89,10 +87,10 @@ struct ref_table {
 
 static struct ref_table tipc_ref_table;
 
-static DEFINE_SPINLOCK(ref_table_lock);
+static DEFINE_RWLOCK(ref_table_lock);
 
 /**
- * tipc_ref_table_init - create reference table for objects
+ * tipc_ref_table_init - create reference table for sockets
  */
 int tipc_ref_table_init(u32 requested_size, u32 start)
 {
@@ -122,84 +120,69 @@ int tipc_ref_table_init(u32 requested_size, u32 start)
 }
 
 /**
- * tipc_ref_table_stop - destroy reference table for objects
+ * tipc_ref_table_stop - destroy reference table for sockets
  */
 void tipc_ref_table_stop(void)
 {
+	if (!tipc_ref_table.entries)
+		return;
 	vfree(tipc_ref_table.entries);
 	tipc_ref_table.entries = NULL;
 }
 
-/**
- * tipc_ref_acquire - create reference to an object
+/* tipc_ref_acquire - create reference to a socket
  *
- * Register an object pointer in reference table and lock the object.
+ * Register an socket pointer in the reference table.
  * Returns a unique reference value that is used from then on to retrieve the
- * object pointer, or to determine that the object has been deregistered.
- *
- * Note: The object is returned in the locked state so that the caller can
- * register a partially initialized object, without running the risk that
- * the object will be accessed before initialization is complete.
+ * socket pointer, or to determine if the socket has been deregistered.
  */
-u32 tipc_ref_acquire(void *object, spinlock_t **lock)
+u32 tipc_ref_acquire(struct tipc_sock *tsk)
 {
 	u32 index;
 	u32 index_mask;
 	u32 next_plus_upper;
-	u32 ref;
-	struct reference *entry = NULL;
+	u32 ref = 0;
+	struct reference *entry;
 
-	if (!object) {
+	if (unlikely(!tsk)) {
 		pr_err("Attempt to acquire ref. to non-existent obj\n");
 		return 0;
 	}
-	if (!tipc_ref_table.entries) {
+	if (unlikely(!tipc_ref_table.entries)) {
 		pr_err("Ref. table not found in acquisition attempt\n");
 		return 0;
 	}
 
-	/* take a free entry, if available; otherwise initialize a new entry */
-	spin_lock_bh(&ref_table_lock);
-	if (tipc_ref_table.first_free) {
+	/* Take a free entry, if available; otherwise initialize a new one */
+	write_lock_bh(&ref_table_lock);
+	index = tipc_ref_table.first_free;
+	entry = &tipc_ref_table.entries[index];
+
+	if (likely(index)) {
 		index = tipc_ref_table.first_free;
 		entry = &(tipc_ref_table.entries[index]);
 		index_mask = tipc_ref_table.index_mask;
 		next_plus_upper = entry->ref;
 		tipc_ref_table.first_free = next_plus_upper & index_mask;
 		ref = (next_plus_upper & ~index_mask) + index;
+		entry->tsk = tsk;
 	} else if (tipc_ref_table.init_point < tipc_ref_table.capacity) {
 		index = tipc_ref_table.init_point++;
 		entry = &(tipc_ref_table.entries[index]);
-		spin_lock_init(&entry->lock);
 		ref = tipc_ref_table.start_mask + index;
-	} else {
-		ref = 0;
 	}
-	spin_unlock_bh(&ref_table_lock);
 
-	/*
-	 * Grab the lock so no one else can modify this entry
-	 * While we assign its ref value & object pointer
-	 */
-	if (entry) {
-		spin_lock_bh(&entry->lock);
+	if (ref) {
 		entry->ref = ref;
-		entry->object = object;
-		*lock = &entry->lock;
-		/*
-		 * keep it locked, the caller is responsible
-		 * for unlocking this when they're done with it
-		 */
+		entry->tsk = tsk;
 	}
-
+	write_unlock_bh(&ref_table_lock);
 	return ref;
 }
 
-/**
- * tipc_ref_discard - invalidate references to an object
+/* tipc_ref_discard - invalidate reference to an socket
  *
- * Disallow future references to an object and free up the entry for re-use.
- * Note: The entry's spin_lock may still be busy after discard
+ * Disallow future references to an socket and free up the entry for re-use.
  */
 void tipc_ref_discard(u32 ref)
 {
@@ -207,7 +190,7 @@ void tipc_ref_discard(u32 ref)
 	u32 index;
 	u32 index_mask;
 
-	if (!tipc_ref_table.entries) {
+	if (unlikely(!tipc_ref_table.entries)) {
 		pr_err("Ref. table not found during discard attempt\n");
 		return;
 	}
@@ -216,71 +199,72 @@ void tipc_ref_discard(u32 ref)
 	index = ref & index_mask;
 	entry = &(tipc_ref_table.entries[index]);
 
-	spin_lock_bh(&ref_table_lock);
+	write_lock_bh(&ref_table_lock);
 
-	if (!entry->object) {
-		pr_err("Attempt to discard ref. to non-existent obj\n");
+	if (unlikely(!entry->tsk)) {
+		pr_err("Attempt to discard ref. to non-existent socket\n");
 		goto exit;
 	}
-	if (entry->ref != ref) {
+	if (unlikely(entry->ref != ref)) {
 		pr_err("Attempt to discard non-existent reference\n");
 		goto exit;
 	}
 
 	/*
-	 * mark entry as unused; increment instance part of entry's reference
+	 * Mark entry as unused; increment instance part of entry's reference
 	 * to invalidate any subsequent references
 	 */
-	entry->object = NULL;
+	entry->tsk = NULL;
 	entry->ref = (ref & ~index_mask) + (index_mask + 1);
 
-	/* append entry to free entry list */
-	if (tipc_ref_table.first_free == 0)
+	/* Append entry to free entry list */
+	if (unlikely(tipc_ref_table.first_free == 0))
 		tipc_ref_table.first_free = index;
 	else
 		tipc_ref_table.entries[tipc_ref_table.last_free].ref |= index;
 	tipc_ref_table.last_free = index;
-
 exit:
-	spin_unlock_bh(&ref_table_lock);
+	write_unlock_bh(&ref_table_lock);
 }
 
-/**
- * tipc_ref_lock - lock referenced object and return pointer to it
+/* tipc_sk_get - find referenced socket and return pointer to it
  */
-void *tipc_ref_lock(u32 ref)
-{
-	if (likely(tipc_ref_table.entries)) {
-		struct reference *entry;
-
-		entry = &tipc_ref_table.entries[ref &
-						tipc_ref_table.index_mask];
-		if (likely(entry->ref != 0)) {
-			spin_lock_bh(&entry->lock);
-			if (likely((entry->ref == ref) && (entry->object)))
-				return entry->object;
-			spin_unlock_bh(&entry->lock);
-		}
-	}
-	return NULL;
-}
-
-/* tipc_ref_lock_next - lock & return next object after referenced one
-*/
-void *tipc_ref_lock_next(u32 *ref)
+struct tipc_sock *tipc_sk_get(u32 ref)
 {
 	struct reference *entry;
+	struct tipc_sock *tsk;
+
+	if (unlikely(!tipc_ref_table.entries))
+		return NULL;
+	read_lock_bh(&ref_table_lock);
+	entry = &tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
+	tsk = entry->tsk;
+	if (likely(tsk && (entry->ref == ref)))
+		sock_hold(&tsk->sk);
+	else
+		tsk = NULL;
+	read_unlock_bh(&ref_table_lock);
+	return tsk;
+}
+
+/* tipc_sk_get_next - lock & return next socket after referenced one
+*/
+struct tipc_sock *tipc_sk_get_next(u32 *ref)
+{
+	struct reference *entry;
+	struct tipc_sock *tsk = NULL;
 	uint index = *ref & tipc_ref_table.index_mask;
 
+	read_lock_bh(&ref_table_lock);
 	while (++index < tipc_ref_table.capacity) {
 		entry = &tipc_ref_table.entries[index];
-		if (!entry->object)
+		if (!entry->tsk)
 			continue;
-		spin_lock_bh(&entry->lock);
+		tsk = entry->tsk;
+		sock_hold(&tsk->sk);
 		*ref = entry->ref;
-		if (entry->object)
-			return entry->object;
-		spin_unlock_bh(&entry->lock);
+		break;
 	}
-	return NULL;
+	read_unlock_bh(&ref_table_lock);
+	return tsk;
 }

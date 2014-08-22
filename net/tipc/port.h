@@ -37,7 +37,6 @@
 #ifndef _TIPC_PORT_H
 #define _TIPC_PORT_H
 
-#include "ref.h"
 #include "net.h"
 #include "msg.h"
 #include "node_subscr.h"
@@ -65,7 +64,6 @@
  * @timer_ref:
  */
 struct tipc_port {
-	spinlock_t *lock;
 	int connected;
 	u32 conn_type;
 	u32 conn_instance;
@@ -97,24 +95,6 @@ int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
 int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
 void tipc_port_reinit(void);
-
-/**
- * tipc_port_lock - lock port instance referred to and return its pointer
- */
-static inline struct tipc_sock *tipc_port_lock(u32 ref)
-{
-	return (struct tipc_sock *)tipc_ref_lock(ref);
-}
-
-/**
- * tipc_port_unlock - unlock a port instance
- *
- * Can use pointer instead of tipc_ref_unlock() since port is already locked.
- */
-static inline void tipc_port_unlock(struct tipc_port *p_ptr)
-{
-	spin_unlock_bh(p_ptr->lock);
-}
 
 static inline u32 tipc_port_peernode(struct tipc_port *p_ptr)
 {
