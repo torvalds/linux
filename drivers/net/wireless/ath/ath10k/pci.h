@@ -181,6 +181,7 @@ struct ath10k_pci {
 
 	/* Map CE id to ce_state */
 	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
+	struct timer_list rx_post_retry;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
@@ -188,6 +189,7 @@ static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 	return (struct ath10k_pci *)ar->drv_priv;
 }
 
+#define ATH10K_PCI_RX_POST_RETRY_MS 50
 #define ATH_PCI_RESET_WAIT_MAX 10 /* ms */
 #define PCIE_WAKE_TIMEOUT 5000	/* 5ms */
 

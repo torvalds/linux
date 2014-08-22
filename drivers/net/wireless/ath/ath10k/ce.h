@@ -166,19 +166,9 @@ int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe);
 
 /*==================Recv=======================*/
 
-/*
- * Make a buffer available to receive. The buffer must be at least of a
- * minimal size appropriate for this copy engine (src_sz_max attribute).
- *   ce                    - which copy engine to use
- *   per_transfer_recv_context  - context passed back to caller's recv_cb
- *   buffer                     - address of buffer in CE space
- * Returns 0 on success; otherwise an error status.
- *
- * Implemenation note: Pushes a buffer to Dest ring.
- */
-int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
-			       void *per_transfer_recv_context,
-			       u32 buffer);
+int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe);
+int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
+int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
 
 /* recv flags */
 /* Data is byte-swapped */

@@ -385,44 +385,59 @@ int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe)
 	return delta;
 }
 
-int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
-			       void *per_recv_context,
-			       u32 buffer)
+
+int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe)
 {
-	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
-	u32 ctrl_addr = ce_state->ctrl_addr;
-	struct ath10k *ar = ce_state->ar;
+	struct ath10k *ar = pipe->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_ce_ring *dest_ring = pipe->dest_ring;
 	unsigned int nentries_mask = dest_ring->nentries_mask;
-	unsigned int write_index;
-	unsigned int sw_index;
+	unsigned int write_index = dest_ring->write_index;
+	unsigned int sw_index = dest_ring->sw_index;
+
+	lockdep_assert_held(&ar_pci->ce_lock);
+
+	return CE_RING_DELTA(nentries_mask, write_index, sw_index - 1);
+}
+
+int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
+{
+	struct ath10k *ar = pipe->ar;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_ce_ring *dest_ring = pipe->dest_ring;
+	unsigned int nentries_mask = dest_ring->nentries_mask;
+	unsigned int write_index = dest_ring->write_index;
+	unsigned int sw_index = dest_ring->sw_index;
+	struct ce_desc *base = dest_ring->base_addr_owner_space;
+	struct ce_desc *desc = CE_DEST_RING_TO_DESC(base, write_index);
+	u32 ctrl_addr = pipe->ctrl_addr;
+
+	lockdep_assert_held(&ar_pci->ce_lock);
+
+	if (CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) == 0)
+		return -EIO;
+
+	desc->addr = __cpu_to_le32(paddr);
+	desc->nbytes = 0;
+
+	dest_ring->per_transfer_context[write_index] = ctx;
+	write_index = CE_RING_IDX_INCR(nentries_mask, write_index);
+	ath10k_ce_dest_ring_write_index_set(ar, ctrl_addr, write_index);
+	dest_ring->write_index = write_index;
+
+	return 0;
+}
+
+int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
+{
+	struct ath10k *ar = pipe->ar;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
 
 	spin_lock_bh(&ar_pci->ce_lock);
-	write_index = dest_ring->write_index;
-	sw_index = dest_ring->sw_index;
-
-	if (CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) > 0) {
-		struct ce_desc *base = dest_ring->base_addr_owner_space;
-		struct ce_desc *desc = CE_DEST_RING_TO_DESC(base, write_index);
-
-		/* Update destination descriptor */
-		desc->addr    = __cpu_to_le32(buffer);
-		desc->nbytes = 0;
-
-		dest_ring->per_transfer_context[write_index] =
-							per_recv_context;
-
-		/* Update Destination Ring Write Index */
-		write_index = CE_RING_IDX_INCR(nentries_mask, write_index);
-		ath10k_ce_dest_ring_write_index_set(ar, ctrl_addr, write_index);
-		dest_ring->write_index = write_index;
-		ret = 0;
-	} else {
-		ret = -EIO;
-	}
-
+	ret = __ath10k_ce_rx_post_buf(pipe, ctx, paddr);
 	spin_unlock_bh(&ar_pci->ce_lock);
+
 	return ret;
 }
 
