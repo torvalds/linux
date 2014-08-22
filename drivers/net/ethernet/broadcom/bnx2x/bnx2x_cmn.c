@@ -1067,6 +1067,11 @@ reuse_rx:
 
 		skb_record_rx_queue(skb, fp->rx_queue);
 
+		/* Check if this packet was timestamped */
+		if (unlikely(le16_to_cpu(cqe->fast_path_cqe.type_error_flags) &
+			     (1 << ETH_FAST_PATH_RX_CQE_PTP_PKT_SHIFT)))
+			bnx2x_set_rx_ts(bp, skb);
+
 		if (le16_to_cpu(cqe_fp->pars_flags.flags) &
 		    PARSING_FLAGS_VLAN)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
@@ -2082,6 +2087,10 @@ int bnx2x_rss(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 			__set_bit(BNX2X_RSS_IPV4_UDP, &params.rss_flags);
 		if (rss_obj->udp_rss_v6)
 			__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
+
+		if (!CHIP_IS_E1x(bp))
+			/* valid only for TUNN_MODE_GRE tunnel mode */
+			__set_bit(BNX2X_RSS_GRE_INNER_HDRS, &params.rss_flags);
 	} else {
 		__set_bit(BNX2X_RSS_MODE_DISABLED, &params.rss_flags);
 	}
@@ -2804,7 +2813,11 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Initialize Rx filter. */
 	bnx2x_set_rx_mode_inner(bp);
 
-	/* Start the Tx */
+	if (bp->flags & PTP_SUPPORTED) {
+		bnx2x_init_ptp(bp);
+		bnx2x_configure_ptp_filters(bp);
+	}
+	/* Start Tx */
 	switch (load_mode) {
 	case LOAD_NORMAL:
 		/* Tx queue should be only re-enabled */
@@ -3441,26 +3454,6 @@ exit_lbl:
 }
 #endif
 
-static void bnx2x_set_pbd_gso_e2(struct sk_buff *skb, u32 *parsing_data,
-				 u32 xmit_type)
-{
-	struct ipv6hdr *ipv6;
-
-	*parsing_data |= (skb_shinfo(skb)->gso_size <<
-			      ETH_TX_PARSE_BD_E2_LSO_MSS_SHIFT) &
-			      ETH_TX_PARSE_BD_E2_LSO_MSS;
-
-	if (xmit_type & XMIT_GSO_ENC_V6)
-		ipv6 = inner_ipv6_hdr(skb);
-	else if (xmit_type & XMIT_GSO_V6)
-		ipv6 = ipv6_hdr(skb);
-	else
-		ipv6 = NULL;
-
-	if (ipv6 && ipv6->nexthdr == NEXTHDR_IPV6)
-		*parsing_data |= ETH_TX_PARSE_BD_E2_IPV6_WITH_EXT_HDR;
-}
-
 /**
  * bnx2x_set_pbd_gso - update PBD in GSO case.
  *
@@ -3470,7 +3463,6 @@ static void bnx2x_set_pbd_gso_e2(struct sk_buff *skb, u32 *parsing_data,
  */
 static void bnx2x_set_pbd_gso(struct sk_buff *skb,
 			      struct eth_tx_parse_bd_e1x *pbd,
-			      struct eth_tx_start_bd *tx_start_bd,
 			      u32 xmit_type)
 {
 	pbd->lso_mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
@@ -3483,9 +3475,6 @@ static void bnx2x_set_pbd_gso(struct sk_buff *skb,
 			bswab16(~csum_tcpudp_magic(ip_hdr(skb)->saddr,
 						   ip_hdr(skb)->daddr,
 						   0, IPPROTO_TCP, 0));
-
-		/* GSO on 57710/57711 needs FW to calculate IP checksum */
-		tx_start_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_IP_CSUM;
 	} else {
 		pbd->tcp_pseudo_csum =
 			bswab16(~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
@@ -3657,18 +3646,23 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 			   (__force u32)iph->tot_len -
 			   (__force u32)iph->frag_off;
 
+		outerip_len = iph->ihl << 1;
+
 		pbd2->fw_ip_csum_wo_len_flags_frag =
 			bswab16(csum_fold((__force __wsum)csum));
 	} else {
 		pbd2->fw_ip_hdr_to_payload_w =
 			hlen_w - ((sizeof(struct ipv6hdr)) >> 1);
+		pbd_e2->data.tunnel_data.flags |=
+			1 /*IPv6*/ << ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER;
 	}
 
 	pbd2->tcp_send_seq = bswab32(inner_tcp_hdr(skb)->seq);
 
 	pbd2->tcp_flags = pbd_tcp_flags(inner_tcp_hdr(skb));
 
-	if (xmit_type & XMIT_GSO_V4) {
+	/* inner IP header info */
+	if (xmit_type & XMIT_CSUM_ENC_V4) {
 		pbd2->hw_ip_id = bswab16(inner_ip_hdr(skb)->id);
 
 		pbd_e2->data.tunnel_data.pseudo_csum =
@@ -3676,8 +3670,6 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 					inner_ip_hdr(skb)->saddr,
 					inner_ip_hdr(skb)->daddr,
 					0, IPPROTO_TCP, 0));
-
-		outerip_len = ip_hdr(skb)->ihl << 1;
 	} else {
 		pbd_e2->data.tunnel_data.pseudo_csum =
 			bswab16(~csum_ipv6_magic(
@@ -3690,8 +3682,6 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 
 	*global_data |=
 		outerip_off |
-		(!!(xmit_type & XMIT_CSUM_V6) <<
-			ETH_TX_PARSE_2ND_BD_IP_HDR_TYPE_OUTER_SHIFT) |
 		(outerip_len <<
 			ETH_TX_PARSE_2ND_BD_IP_HDR_LEN_OUTER_W_SHIFT) |
 		((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
@@ -3701,6 +3691,23 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 		SET_FLAG(*global_data, ETH_TX_PARSE_2ND_BD_TUNNEL_UDP_EXIST, 1);
 		pbd2->tunnel_udp_hdr_start_w = skb_transport_offset(skb) >> 1;
 	}
+}
+
+static inline void bnx2x_set_ipv6_ext_e2(struct sk_buff *skb, u32 *parsing_data,
+					 u32 xmit_type)
+{
+	struct ipv6hdr *ipv6;
+
+	if (!(xmit_type & (XMIT_GSO_ENC_V6 | XMIT_GSO_V6)))
+		return;
+
+	if (xmit_type & XMIT_GSO_ENC_V6)
+		ipv6 = inner_ipv6_hdr(skb);
+	else /* XMIT_GSO_V6 */
+		ipv6 = ipv6_hdr(skb);
+
+	if (ipv6->nexthdr == NEXTHDR_IPV6)
+		*parsing_data |= ETH_TX_PARSE_BD_E2_IPV6_WITH_EXT_HDR;
 }
 
 /* called with netif_tx_lock
@@ -3835,6 +3842,20 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_start_bd->bd_flags.as_bitfield = ETH_TX_BD_FLAGS_START_BD;
 
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		if (!(bp->flags & TX_TIMESTAMPING_EN)) {
+			BNX2X_ERR("Tx timestamping was not enabled, this packet will not be timestamped\n");
+		} else if (bp->ptp_tx_skb) {
+			BNX2X_ERR("The device supports only a single outstanding packet to timestamp, this packet will not be timestamped\n");
+		} else {
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			/* schedule check for Tx timestamp */
+			bp->ptp_tx_skb = skb_get(skb);
+			bp->ptp_tx_start = jiffies;
+			schedule_work(&bp->ptp_task);
+		}
+	}
+
 	/* header nbd: indirectly zero other flags! */
 	tx_start_bd->general_data = 1 << ETH_TX_START_BD_HDR_NBDS_SHIFT;
 
@@ -3919,6 +3940,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						     xmit_type);
 		}
 
+		bnx2x_set_ipv6_ext_e2(skb, &pbd_e2_parsing_data, xmit_type);
 		/* Add the macs to the parsing BD if this is a vf or if
 		 * Tx Switching is enabled.
 		 */
@@ -3984,10 +4006,12 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						 bd_prod);
 		}
 		if (!CHIP_IS_E1x(bp))
-			bnx2x_set_pbd_gso_e2(skb, &pbd_e2_parsing_data,
-					     xmit_type);
+			pbd_e2_parsing_data |=
+				(skb_shinfo(skb)->gso_size <<
+				 ETH_TX_PARSE_BD_E2_LSO_MSS_SHIFT) &
+				 ETH_TX_PARSE_BD_E2_LSO_MSS;
 		else
-			bnx2x_set_pbd_gso(skb, pbd_e1x, first_bd, xmit_type);
+			bnx2x_set_pbd_gso(skb, pbd_e1x, xmit_type);
 	}
 
 	/* Set the PBD's parsing_data field if not zero
