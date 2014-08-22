@@ -2334,13 +2334,12 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice, PSTxMgmtPacket pPacket)
 	unsigned char *pbyBuffer = (unsigned char *)pDevice->tx_beacon_bufs;
 	unsigned int cbFrameSize = pPacket->cbMPDULen + WLAN_FCS_LEN;
 	unsigned int cbHeaderSize = 0;
-	unsigned short wTxBufSize = sizeof(STxShortBufHead);
-	PSTxShortBufHead pTxBufHead = (PSTxShortBufHead) pbyBuffer;
-	PSTxDataHead_ab  pTxDataHead = (PSTxDataHead_ab) (pbyBuffer + wTxBufSize);
+	struct vnt_tx_short_buf_head *short_head =
+				(struct vnt_tx_short_buf_head *)pbyBuffer;
 	PS802_11Header   pMACHeader;
 	unsigned short wCurrentRate;
 
-	memset(pTxBufHead, 0, wTxBufSize);
+	memset(short_head, 0, sizeof(*short_head));
 
 	if (pDevice->eCurrentPHYType == PHY_TYPE_11A) {
 		wCurrentRate = RATE_6M;
@@ -2353,26 +2352,30 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice, PSTxMgmtPacket pPacket)
 	//Set Preamble type always long
 	pDevice->byPreambleType = PREAMBLE_LONG;
 
-	//Set FIFOCTL_GENINT
+	/* Set FIFOCTL_GENINT */
+	short_head->fifo_ctl |= cpu_to_le16(FIFOCTL_GENINT);
 
-	pTxBufHead->wFIFOCtl |= FIFOCTL_GENINT;
-
-	//Set packet type & Get Duration
+	/* Set packet type & Get Duration */
 	if (byPktType == PK_TYPE_11A) {//0000 0000 0000 0000
-		pTxDataHead->wDuration = cpu_to_le16((unsigned short)s_uGetDataDuration(pDevice, DATADUR_A, cbFrameSize, byPktType,
-											wCurrentRate, false, 0, 0, 1, AUTO_FB_NONE));
+		short_head->duration =
+			cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_A,
+				    cbFrameSize, byPktType, wCurrentRate, false,
+				    0, 0, 1, AUTO_FB_NONE));
 	} else if (byPktType == PK_TYPE_11B) {//0000 0001 0000 0000
-		pTxBufHead->wFIFOCtl |= FIFOCTL_11B;
-		pTxDataHead->wDuration = cpu_to_le16((unsigned short)s_uGetDataDuration(pDevice, DATADUR_B, cbFrameSize, byPktType,
-											wCurrentRate, false, 0, 0, 1, AUTO_FB_NONE));
+		short_head->fifo_ctl |= cpu_to_le16(FIFOCTL_11B);
+
+		short_head->duration =
+			cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_B,
+				    cbFrameSize, byPktType, wCurrentRate, false,
+				    0, 0, 1, AUTO_FB_NONE));
 	}
 
 	vnt_get_phy_field(pDevice, cbFrameSize,
-			  wCurrentRate, byPktType, &pTxDataHead->ab);
+			  wCurrentRate, byPktType, &short_head->ab);
 
-	//Get TimeStampOff
-	pTxDataHead->wTimeStampOff = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE]);
-	cbHeaderSize = wTxBufSize + sizeof(STxDataHead_ab);
+	/* Get TimeStampOff */
+	short_head->time_stamp_off = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE]);
+	cbHeaderSize = sizeof(struct vnt_tx_short_buf_head);
 
 	//Generate Beacon Header
 	pMACHeader = (PS802_11Header)(pbyBuffer + cbHeaderSize);

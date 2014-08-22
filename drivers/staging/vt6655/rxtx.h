@@ -56,6 +56,14 @@ struct vnt_mic_hdr {
 	u16 packing; /* packing to 48 bytes */
 } __packed;
 
+struct vnt_tx_short_buf_head {
+	__le16 fifo_ctl;
+	u16 time_stamp;
+	struct vnt_phy_field ab;
+	__le16 duration;
+	__le16 time_stamp_off;
+} __packed;
+
 void
 vGenerateMACHeader(
 	struct vnt_private *,

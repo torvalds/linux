@@ -483,13 +483,6 @@ typedef struct tagSTxBufHead {
 STxBufHead, *PSTxBufHead;
 typedef const STxBufHead *PCSTxBufHead;
 
-typedef struct tagSTxShortBufHead {
-	unsigned short wFIFOCtl;
-	unsigned short wTimeStamp;
-} __attribute__ ((__packed__))
-STxShortBufHead, *PSTxShortBufHead;
-typedef const STxShortBufHead *PCSTxShortBufHead;
-
 //
 // Tx data header
 //
