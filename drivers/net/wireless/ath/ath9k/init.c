@@ -778,6 +778,8 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			hw->chanctx_data_size = sizeof(void *);
 			hw->extra_beacon_tailroom =
 				sizeof(struct ieee80211_p2p_noa_attr) + 9;
+
+			ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
 		}
 	}
 
