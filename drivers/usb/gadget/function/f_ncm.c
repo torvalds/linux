@@ -1101,7 +1101,7 @@ static void ncm_tx_tasklet(unsigned long data)
 	/* Only send if data is available. */
 	if (ncm->skb_tx_data) {
 		ncm->timer_force_tx = true;
-		ncm->netdev->netdev_ops->ndo_start_xmit(NULL, ncm->netdev);
+		netdev_start_xmit(NULL, ncm->netdev);
 		ncm->timer_force_tx = false;
 	}
 }

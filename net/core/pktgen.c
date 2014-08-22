@@ -3285,8 +3285,6 @@ static void pktgen_wait_for_skb(struct pktgen_dev *pkt_dev)
 static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 {
 	struct net_device *odev = pkt_dev->odev;
-	netdev_tx_t (*xmit)(struct sk_buff *, struct net_device *)
-		= odev->netdev_ops->ndo_start_xmit;
 	struct netdev_queue *txq;
 	u16 queue_map;
 	int ret;
@@ -3339,7 +3337,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		goto unlock;
 	}
 	atomic_inc(&(pkt_dev->skb->users));
-	ret = (*xmit)(pkt_dev->skb, odev);
+	ret = netdev_start_xmit(pkt_dev->skb, odev);
 
 	switch (ret) {
 	case NETDEV_TX_OK:
