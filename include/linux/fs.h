@@ -874,6 +874,7 @@ struct lock_manager_operations {
 	int (*lm_grant)(struct file_lock *, int);
 	void (*lm_break)(struct file_lock *);
 	int (*lm_change)(struct file_lock **, int);
+	void (*lm_setup)(struct file_lock *, void **);
 };
 
 struct lock_manager {

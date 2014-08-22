@@ -432,9 +432,27 @@ static void lease_break_callback(struct file_lock *fl)
 	kill_fasync(&fl->fl_fasync, SIGIO, POLL_MSG);
 }
 
+static void
+lease_setup(struct file_lock *fl, void **priv)
+{
+	struct file *filp = fl->fl_file;
+	struct fasync_struct *fa = *priv;
+
+	/*
+	 * fasync_insert_entry() returns the old entry if any. If there was no
+	 * old entry, then it used "priv" and inserted it into the fasync list.
+	 * Clear the pointer to indicate that it shouldn't be freed.
+	 */
+	if (!fasync_insert_entry(fa->fa_fd, filp, &fl->fl_fasync, fa))
+		*priv = NULL;
+
+	__f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
+}
+
 static const struct lock_manager_operations lease_manager_ops = {
 	.lm_break = lease_break_callback,
 	.lm_change = lease_modify,
+	.lm_setup = lease_setup,
 };
 
 /*
@@ -1607,10 +1625,11 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	}
 
 	if (my_before != NULL) {
+		lease = *my_before;
 		error = lease->fl_lmops->lm_change(my_before, arg);
-		if (!error)
-			*flp = *my_before;
-		goto out;
+		if (error)
+			goto out;
+		goto out_setup;
 	}
 
 	error = -EINVAL;
@@ -1631,9 +1650,15 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	error = check_conflicting_open(dentry, arg);
 	if (error)
 		goto out_unlink;
+
+out_setup:
+	if (lease->fl_lmops->lm_setup)
+		lease->fl_lmops->lm_setup(lease, priv);
 out:
 	if (is_deleg)
 		mutex_unlock(&inode->i_mutex);
+	if (!error && !my_before)
+		*flp = NULL;
 	return error;
 out_unlink:
 	locks_unlink_lock(before);
@@ -1661,10 +1686,11 @@ static int generic_delete_lease(struct file *filp)
 
 /**
  *	generic_setlease	-	sets a lease on an open file
- *	@filp: file pointer
- *	@arg: type of lease to obtain
- *	@flp: input - file_lock to use, output - file_lock inserted
- *	@priv: private data for lm_setup
+ *	@filp:	file pointer
+ *	@arg:	type of lease to obtain
+ *	@flp:	input - file_lock to use, output - file_lock inserted
+ *	@priv:	private data for lm_setup (may be NULL if lm_setup
+ *		doesn't require it)
  *
  *	The (input) flp->fl_lmops->lm_break function is required
  *	by break_lease().
@@ -1704,29 +1730,23 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp,
 }
 EXPORT_SYMBOL(generic_setlease);
 
-static int
-__vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
-{
-	if (filp->f_op->setlease)
-		return filp->f_op->setlease(filp, arg, lease, priv);
-	else
-		return generic_setlease(filp, arg, lease, priv);
-}
-
 /**
  * vfs_setlease        -       sets a lease on an open file
- * @filp: file pointer
- * @arg: type of lease to obtain
- * @lease: file_lock to use when adding a lease
- * @priv: private info for lm_setup when adding a lease
+ * @filp:	file pointer
+ * @arg:	type of lease to obtain
+ * @lease:	file_lock to use when adding a lease
+ * @priv:	private info for lm_setup when adding a lease (may be
+ * 		NULL if lm_setup doesn't require it)
  *
  * Call this to establish a lease on the file. The "lease" argument is not
  * used for F_UNLCK requests and may be NULL. For commands that set or alter
  * an existing lease, the (*lease)->fl_lmops->lm_break operation must be set;
  * if not, this function will return -ENOLCK (and generate a scary-looking
  * stack trace).
+ *
+ * The "priv" pointer is passed directly to the lm_setup function as-is. It
+ * may be NULL if the lm_setup operation doesn't require it.
  */
-
 int
 vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
 {
@@ -1734,17 +1754,18 @@ vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
 	int error;
 
 	spin_lock(&inode->i_lock);
-	error = __vfs_setlease(filp, arg, lease, priv);
+	if (filp->f_op->setlease)
+		error = filp->f_op->setlease(filp, arg, lease, priv);
+	else
+		error = generic_setlease(filp, arg, lease, priv);
 	spin_unlock(&inode->i_lock);
-
 	return error;
 }
 EXPORT_SYMBOL_GPL(vfs_setlease);
 
 static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 {
-	struct file_lock *fl, *ret;
-	struct inode *inode = file_inode(filp);
+	struct file_lock *fl;
 	struct fasync_struct *new;
 	int error;
 
@@ -1757,26 +1778,9 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 		locks_free_lock(fl);
 		return -ENOMEM;
 	}
-	ret = fl;
-	spin_lock(&inode->i_lock);
-	error = __vfs_setlease(filp, arg, &ret, NULL);
-	if (error)
-		goto out_unlock;
-	if (ret == fl)
-		fl = NULL;
+	new->fa_fd = fd;
 
-	/*
-	 * fasync_insert_entry() returns the old entry if any.
-	 * If there was no old entry, then it used 'new' and
-	 * inserted it into the fasync list. Clear new so that
-	 * we don't release it here.
-	 */
-	if (!fasync_insert_entry(fd, filp, &ret->fl_fasync, new))
-		new = NULL;
-
-	__f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
-out_unlock:
-	spin_unlock(&inode->i_lock);
+	error = vfs_setlease(filp, arg, &fl, (void **)&new);
 	if (fl)
 		locks_free_lock(fl);
 	if (new)

@@ -3793,12 +3793,10 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 	fl->fl_file = filp;
 	ret = fl;
 	status = vfs_setlease(filp, fl->fl_type, &fl, NULL);
-	if (status) {
+	if (fl)
 		locks_free_lock(fl);
+	if (status)
 		goto out_fput;
-	}
-	if (ret != fl)
-		locks_free_lock(fl);
 	spin_lock(&state_lock);
 	spin_lock(&fp->fi_lock);
 	/* Did the lease get broken before we took the lock? */
