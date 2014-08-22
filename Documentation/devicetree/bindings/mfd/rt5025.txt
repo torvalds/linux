@@ -1,0 +1,74 @@
+Richtek RT5025 Multi-functional device
+
+The RT5025 are Integrated Power Management Chips.
+These chips are connected to an i2c bus.
+
+
+Required properties:
+- compatible : Must be "rt,rt5025";
+- interrupts : This i2c device has an IRQ line connected to the main SoC
+- interrupt-parent : The parent interrupt controller.
+
+Optional node:
+- Child nodes contain in the RT5025. The twl family is made of several variants
+  that support a different number of features.
+
+
+Example:
+rt5025@35 {
+	compatible = "rt,rt5025";
+	reg = <0x35>;
+	interrupt-parent = <&msmgpio>;
+	interrupts = <73 0>;
+
+	rt5025_dcdc1: regulator_0 {
+		compatible = "rt,rt5025-dcdc1";
+		cell-index = <0>;
+		regulator-name = "rt5025-dcdc1";
+		regulator-min-microvolt = < 700000>;
+		regulator-max-microvolt = <2275000>;
+		rt,ramp_sel = <0x00>;
+		rt,allow_mode_mask;
+		qcom,comsumer-supplies = "rt5025-dcdc1", "";
+	};
+
+	rt5025-charger {
+		compatible = "rt,rt5025-charger";
+		rt,te_en;
+		//rt,screenon_adjust;
+		rt,iprec = <0x00>;
+		rt,ieoc = <0x00>;
+		rt,vprec = <0x05>;
+		rt,vdpm = <0x02>;
+		rt,chg_volt = <4200>;
+		rt,acchg_icc = <2000>;
+		rt,usbtachg_icc = <2000>;
+		rt,usbchg_icc = <500>;
+		rt,screenon_icc = <500>;
+		rt,temp = <0 150 500 600>;
+		rt,temp_scalar = <0x30 0x2b 0x28 0x22 0x15 0x10 0x10 0x0d>;
+	};
+
+	rt5025_gpiop: rt5025-gpio {
+		compatible = "rt,rt5025-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+		rt,ngpio = <3>;
+	};
+
+	rt5025-irq {
+		compatible = "rt,rt5025-irq";
+		rt,irq-gpio = <&msmgpio 73 0x00>;
+	};
+
+	rt5025-misc {
+		compatible = "rt,rt5025-misc";
+		rt,system_lv = <0x02>;
+		rt,shdn_lpress = <0x01>;
+		rt,start_lpress = <0x00>;
+		rt,syslv_enshutdown;
+	};
+
+	rt5025-debug {
+		compatible = "rt,rt5025-debug";
+	};

@@ -168,6 +168,11 @@
 		reg = <0x1c>;
 		status = "okay";
 	};
+	rt5025: rt5025@35 {
+			compatible = "rt,rt5025";
+			reg = <0x35>;
+			status = "okay";
+	};
 };
 &i2c2 {
 	status = "okay";
@@ -199,6 +204,106 @@
 
 &hdmi {
 	status = "okay";
+};
+
+/include/ "rt5025.dtsi"
+&rt5025 {
+
+			rt5025_dcdc1: regulator_0 {
+				regulator-name = "vdd_arm";
+				regulator-min-microvolt = < 700000>;
+				regulator-max-microvolt = <1500000>;
+				qcom,comsumer-supplies = "vdd_arm", "";
+				regulator-always-on;
+				regulator-boot-on;
+
+			};
+
+			rt5025_dcdc2: regulator_1 {
+				regulator-name = "vdd_logic";
+				regulator-min-microvolt = < 700000>;
+				regulator-max-microvolt = <1500000>;
+				qcom,comsumer-supplies = "vdd_logic", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			rt5025_dcdc3: regulator_2 {
+				regulator-name = "rt5025-dcdc3";
+				regulator-min-microvolt = < 1800000>;
+				regulator-max-microvolt = <3300000>;
+				qcom,comsumer-supplies = "rt5025-dcdc3", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			rt5025_dcdc4: regulator_3 {
+				regulator-name = "rt5025-dcdc4";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				qcom,comsumer-supplies = "rt5025-dcdc4", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			rt5025_ldo1: regulator_4 {
+				regulator-name = "rt5025-ldo1";
+				regulator-min-microvolt = < 1800000>;
+				regulator-max-microvolt = <1800000>;
+				qcom,comsumer-supplies = "rt5025-ldo1", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			rt5025_ldo2: regulator_5 {
+				regulator-name = "rt5025-ldo2";
+				regulator-min-microvolt = < 1200000>;
+				regulator-max-microvolt = <1200000>;
+				qcom,comsumer-supplies = "rt5025-ldo2", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			rt5025_ldo3: regulator_6 {
+				regulator-name = "rt5025-ldo3";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				qcom,comsumer-supplies = "rt5025-ldo3", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			rt5025_ldo4: regulator_7 {
+				regulator-name = "rt5025-ldo4";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				qcom,comsumer-supplies = "rt5025-ldo4", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			rt5025_ldo5: regulator_8 {
+				regulator-name = "rt5025-ldo5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				qcom,comsumer-supplies = "rt5025-ldo5", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			rt5025_ldo6: regulator_9 {
+				regulator-name = "rt5025-ldo6";
+				regulator-min-microvolt = <330000>;
+				regulator-max-microvolt = <3300000>;
+				qcom,comsumer-supplies = "rt5025-ldo6", "";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+	rt5025-irq {
+				compatible = "rt,rt5025-irq";
+				rt,irq-gpio = <&gpio1 GPIO_B1 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 /include/ "rk818.dtsi"

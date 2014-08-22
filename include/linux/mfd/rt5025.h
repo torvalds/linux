@@ -1,36 +1,147 @@
 /*
- *  include/linux/mfd/rt5025.h
+ *  include/linux/mfd/rt5025/rt5025.h
  *  Include header file for Richtek RT5025 Core file
  *
- *  Copyright (C) 2013 Richtek Electronics
+ *  Copyright (C) 2013 Richtek Technology Corp.
  *  cy_huang <cy_huang@richtek.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  */
 
 #ifndef __LINUX_MFD_RT5025_H
 #define __LINUX_MFD_RT5025_H
 
 #include <linux/power_supply.h>
-#include <linux/android_alarm.h>
+#include <linux/alarmtimer.h>
+#include <linux/wakelock.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
-#define RT5025_DEVICE_NAME "RT5025"
-#define RT5025_DRV_VER	   "1.0.8_R"
+#define RT5025_DEV_NAME "rt5025"
+#define RT5025_DRV_VER	   "1.1.0_R"
+
+#define RT_BATT_NAME	"rt-battery"
 
 enum {
-	RT5025_RSTDELAY1_100MS,
-	RT5025_RSTDELAY1_500MS,
-	RT5025_RSTDELAY1_1S,
-	RT5025_RSTDELAY1_2S,
-};
-
-enum {
-	RT5025_RSTDELAY2_100MS,
-	RT5025_RSTDELAY2_500MS,
-	RT5025_RSTDELAY2_1S,
-	RT5025_RSTDELAY2_2S,
+	RT5025_REG_DEVID,
+	RT5025_REG_RANGE1START = RT5025_REG_DEVID,
+	RT5025_REG_CHGCTL1,
+	RT5025_REG_CHGCTL2,
+	RT5025_REG_CHGCTL3,
+	RT5025_REG_CHGCTL4,
+	RT5025_REG_CHGCTL5,
+	RT5025_REG_CHGCTL6,
+	RT5025_REG_CHGCTL7,
+	RT5025_REG_DCDCCTL1,
+	RT5025_REG_DCDCCTL2,
+	RT5025_REG_DCDCCTL3,
+	RT5025_REG_VRCCTL,
+	RT5025_REG_DCDCCTL4,
+	RT5025_REG_LDOCTL1,
+	RT5025_REG_LDOCTL2,
+	RT5025_REG_LDOCTL3,
+	RT5025_REG_LDOCTL4,
+	RT5025_REG_LDOCTL5,
+	RT5025_REG_LDOCTL6,
+	RT5025_REG_RESV0,
+	RT5025_REG_LDOOMS,
+	RT5025_REG_MISC1,
+	RT5025_REG_ONEVENT,
+	RT5025_REG_DCDCONOFF,
+	RT5025_REG_LDOONOFF,
+	RT5025_REG_MISC2,
+	RT5025_REG_MISC3,
+	RT5025_REG_MISC4,
+	RT5025_REG_GPIO0,
+	RT5025_REG_GPIO1,
+	RT5025_REG_GPIO2,
+	RT5025_REG_RANGE1END = RT5025_REG_GPIO2,
+	RT5025_REG_OFFEVENT = 0x20,
+	RT5025_REG_RANGE2START = RT5025_REG_OFFEVENT,
+	RT5025_REG_RESV1,
+	RT5025_REG_RESV2,
+	RT5025_REG_RESV3,
+	RT5025_REG_RESV4,
+	RT5025_REG_RESV5,
+	RT5025_REG_RESV6,
+	RT5025_REG_RESV7,
+	RT5025_REG_RESV8,
+	RT5025_REG_RESV9,
+	RT5025_REG_RESV10,
+	RT5025_REG_RESV11,
+	RT5025_REG_RESV12,
+	RT5025_REG_RESV13,
+	RT5025_REG_RESV14,
+	RT5025_REG_RESV15,
+	RT5025_REG_IRQEN1,
+	RT5025_REG_IRQSTAT1,
+	RT5025_REG_IRQEN2,
+	RT5025_REG_IRQSTAT2,
+	RT5025_REG_IRQEN3,
+	RT5025_REG_IRQSTAT3,
+	RT5025_REG_IRQEN4,
+	RT5025_REG_IRQSTAT4,
+	RT5025_REG_IRQEN5,
+	RT5025_REG_IRQSTAT5,
+	RT5025_REG_RANGE2END = RT5025_REG_IRQSTAT5,
+	RT5025_REG_IRQCTL = 0x50,
+	RT5025_REG_RANGE3START = RT5025_REG_IRQCTL,
+	RT5025_REG_IRQFLG,
+	RT5025_REG_FGRESV1,
+	RT5025_REG_VALRTMAX,
+	RT5025_REG_VALRTMIN1,
+	RT5025_REG_VALRTMIN2,
+	RT5025_REG_TALRTMAX,
+	RT5025_REG_TALRTMIN,
+	RT5025_REG_VBATSH,
+	RT5025_REG_VBATSL,
+	RT5025_REG_INTEMPH,
+	RT5025_REG_INTEMPL,
+	RT5025_REG_FGRESV2,
+	RT5025_REG_CONFIG,
+	RT5025_REG_AINH,
+	RT5025_REG_AINL,
+	RT5025_REG_TIMERH,
+	RT5025_REG_TIMERL,
+	RT5025_REG_CHANNELH,
+	RT5025_REG_CHANNELL,
+	RT5025_REG_INACVLTH,
+	RT5025_REG_INACVLTL,
+	RT5025_REG_INUSBVLTH,
+	RT5025_REG_INUSBVLTL,
+	RT5025_REG_VSYSVLTH,
+	RT5025_REG_VSYSVLTL,
+	RT5025_REG_GPIO0VLTH,
+	RT5025_REG_GPIO0VLTL,
+	RT5025_REG_GPIO1VLTH,
+	RT5025_REG_GPIO1VLTL,
+	RT5025_REG_GPIO2VLTH,
+	RT5025_REG_GPIO2VLTL,
+	RT5025_REG_DCDC1VLTH,
+	RT5025_REG_DCDC1VLTL,
+	RT5025_REG_DCDC2VLTH,
+	RT5025_REG_DCDC2VLTL,
+	RT5025_REG_DCDC3VLTH,
+	RT5025_REG_DCDC3VLTL,
+	RT5025_REG_CURRH,
+	RT5025_REG_CURRL,
+	RT5025_REG_QCHGHH,
+	RT5025_REG_QCHGHL,
+	RT5025_REG_QCHGLH,
+	RT5025_REG_QCHGLL,
+	RT5025_REG_QDCHGHH,
+	RT5025_REG_QDCHGHL,
+	RT5025_REG_QDCHGLH,
+	RT5025_REG_QDCHGLL,
+	RT5025_REG_RANGE3END = RT5025_REG_QDCHGLL,
+	RT5025_REG_DCDC4OVP = 0xA9,
+	RT5025_REG_RANGE4START = RT5025_REG_DCDC4OVP,
+	RT5025_REG_RANGE4END = RT5025_REG_DCDC4OVP,
+	RT5025_REG_MAX,
 };
 
 enum {
@@ -42,6 +153,7 @@ enum {
 	RT5025_VOFF_3P3V,
 	RT5025_VOFF_3P4V,
 	RT5025_VOFF_3P5V,
+	RT5025_VOFF_MAX = RT5025_VOFF_3P5V,
 };
 
 enum {
@@ -49,13 +161,7 @@ enum {
 	RT5025_STARTIME_1S,
 	RT5025_STARTIME_2S,
 	RT5025_STARTIME_3S,
-};
-
-enum {
-	RT5025_LPRESS_1S,
-	RT5025_LPRESS_1P5S,
-	RT5025_LPRESS_2S,
-	RT5025_LPRESS_2P5S,
+	RT5025_STARTIME_MAX = RT5025_STARTIME_3S,
 };
 
 enum {
@@ -63,68 +169,21 @@ enum {
 	RT5025_SHDNPRESS_6S,
 	RT5025_SHDNPRESS_8S,
 	RT5025_SHDNPRESS_10S,
+	RT5025_SHDNPRESS_MAX = RT5025_SHDNPRESS_10S,
 };
 
 enum {
-	RT5025_PGDLY_10MS,
-	RT5025_PGDLY_50MS,
-	RT5025_PGDLY_100MS,
-	RT5025_PGDLY_200MS,
+	RT5025_VDPM_4V,
+	RT5025_VDPM_4P25V,
+	RT5025_VDPM_4P5V,
+	RT5025_VDPM_DIS,
+	RT5025_VDPM_MAX = RT5025_VDPM_DIS,
 };
 
 enum {
-	RT5025_SHDNDLY_100MS,
-	RT5025_SHDNDLY_500MS,
-	RT5025_SHDNDLY_1S,
-	RT5025_SHDNDLY_2S,
-};
-
-enum {
-	RT5025_CCCHG_TO_4H,
-	RT5025_CCCHG_TO_6H,
-	RT5025_CCCHG_TO_8H,
-	RT5025_CCCHG_TO_10H,
-};
-
-enum {
-	RT5025_PRECHG_TO_30M,
-	RT5025_PRECHG_TO_40M,
-	RT5025_PRECHG_TO_50M,
-	RT5025_PRECHG_TO_60M,
-};
-
-enum {
-	RT5025_ICC_0P5A,
-	RT5025_ICC_0P6A,
-	RT5025_ICC_0P7A,
-	RT5025_ICC_0P8A,
-	RT5025_ICC_0P9A,
-	RT5025_ICC_1A,
-	RT5025_ICC_1P1A,
-	RT5025_ICC_1P2A,
-	RT5025_ICC_1P3A,
-	RT5025_ICC_1P4A,
-	RT5025_ICC_1P5A,
-	RT5025_ICC_1P6A,
-	RT5025_ICC_1P7A,
-	RT5025_ICC_1P8A,
-	RT5025_ICC_1P9A,
-	RT5025_ICC_2A,
-	RT5025_ICC_MAX,
-};
-
-enum {
-	RT5025_AICR_100MA,
-	RT5025_AICR_500MA,
-	RT5025_AICR_1A,
-	RT5025_AICR_NOLIMIT,
-};
-
-enum {
-	RT5025_DPM_4V,
-	RT5025_DPM_4P25V,
-	RT5025_DPM_4P5V,
-	RT5025_DPM_DIS,
+	RT5025_IEOC_10P,
+	RT5025_IEOC_20P,
+	RT5025_IEOC_MAX = RT5025_IEOC_20P,
 };
 
 enum {
@@ -134,18 +193,13 @@ enum {
 	RT5025_VPREC_2P6V,
 	RT5025_VPREC_2P8V,
 	RT5025_VPREC_3V,
-	RT5025_VPREC_3V_1,
-	RT5025_VPREC_3V_2,
-};
-
-enum {
-	RT5025_IEOC_10P,
-	RT5025_IEOC_20P,
+	RT5025_VPREC_MAX = RT5025_VPREC_3V,
 };
 
 enum {
 	RT5025_IPREC_10P,
 	RT5025_IPREC_20P,
+	RT5025_IPREC_MAX = RT5025_IPREC_20P,
 };
 
 enum {
@@ -162,306 +216,58 @@ enum {
 	RT5025_MAX_REGULATOR,
 };
 
-struct rt5025_power_data {
-	union {
-		struct {
-			unsigned char Resv1:1;
-			unsigned char CHGBC_EN:1;
-			unsigned char TE:1;
-			unsigned char Resv2:1;
-			unsigned char CCCHG_TIMEOUT:2;
-			unsigned char PRECHG_TIMEOUT:2;
-		}bitfield;
-		unsigned char val;
-	}CHGControl2;
-	union {
-		struct {
-			unsigned char Resv:2;
-			unsigned char VOREG:6;
-		}bitfield;
-		unsigned char val;
-	}CHGControl3;
-	union {
-		struct {
-			unsigned char AICR_CON:1;
-			unsigned char AICR:2;
-			unsigned char ICC:4;
-			unsigned char CHG_RST:1;
-		}bitfield;
-		unsigned char val;
-	}CHGControl4;
-	union {
-		struct {
-			unsigned char Resv1:4;
-			unsigned char DPM:2;
-			unsigned char Resv2:2;
-		}bitfield;
-		unsigned char val;
-	}CHGControl5;
-	union {
-		struct {
-			unsigned char IPREC:1;
-			unsigned char IEOC:1;
-			unsigned char VPREC:3;
-			unsigned char Resv:3;
-		}bitfield;
-		unsigned char val;
-	}CHGControl6;
-	union {
-		struct {
-			unsigned char Resv1:4;
-			unsigned char CHGC_EN:1;
-			unsigned char CHG_DCDC_MODE:1;
-			unsigned char BATD_EN:1;
-			unsigned char Resv2:1;
-		}bitfield;
-		unsigned char val;
-	}CHGControl7;
+typedef void (*rt_irq_handler)(void *info, int eventno);
+
+#define RT5025_DCDCRAMP_MAX	0x03
+struct rt5025_regulator_ramp {
+	unsigned char ramp_sel:2;
 };
 
-struct rt5025_gpio_data {
-	unsigned gpio_base;
-	unsigned irq_base;
-};
-
-struct rt5025_misc_data {
-	union {
-		struct {
-			unsigned char Action:2;
-			unsigned char Delayed1:2;
-			unsigned char Delayed2:2;
-			unsigned char Resv:2;
-		}bitfield;
-		unsigned char val;
-	}RSTCtrl;
-	union {
-		struct {
-			unsigned char Resv:5;
-			unsigned char VOFF:3;
-		}bitfield;
-		unsigned char val;
-	}VSYSCtrl;
-	union {
-		struct {
-			unsigned char PG_DLY:2;
-			unsigned char SHDN_PRESS:2;
-			unsigned char LPRESS_TIME:2;
-			unsigned char START_TIME:2;
-		}bitfield;
-		unsigned char val;
-	}PwrOnCfg;
-	union {
-		struct {
-			unsigned char Resv:4;
-			unsigned char SHDN_DLYTIME:2;
-			unsigned char SHDN_TIMING:1;
-			unsigned char SHDN_CTRL:1;
-		}bitfield;
-		unsigned char val;
-	}SHDNCtrl;
-	union {
-		struct {
-			unsigned char Resv:2;
-			unsigned char OT_ENSHDN:1;
-			unsigned char PWRON_ENSHDN:1;
-			unsigned char DCDC3LV_ENSHDN:1;
-			unsigned char DCDC2LV_ENSHDN:1;
-			unsigned char DCDC1LV_ENSHDN:1;
-			unsigned char SYSLV_ENSHDN:1;
-		}bitfield;
-		unsigned char val;
-	}PwrOffCond;
-};
-
-struct rt5025_irq_data {
-	union {
-		struct {
-			unsigned char BATABS:1;
-			unsigned char Resv1:2;
-			unsigned char INUSB_PLUGIN:1;
-			unsigned char INUSBOVP:1;
-			unsigned char Resv2:1;
-			unsigned char INAC_PLUGIN:1;
-			unsigned char INACOVP:1;
-		}bitfield;
-		unsigned char val;
-	}irq_enable1;
-	union {
-		struct {
-			unsigned char CHTERMI:1;
-			unsigned char CHBATOVI:1;
-			unsigned char CHGOODI_INUSB:1;
-			unsigned char CHBADI_INUSB:1;
-			unsigned char CHSLPI_INUSB:1;
-			unsigned char CHGOODI_INAC:1;
-			unsigned char CHBADI_INAC:1;
-			unsigned char CHSLPI_INAC:1;
-		}bitfield;
-		unsigned char val;
-	}irq_enable2;
-	union {
-		struct {
-			unsigned char TIMEOUT_CC:1;
-			unsigned char TIMEOUT_PC:1;
-			unsigned char Resv:3;
-			unsigned char CHVSREGI:1;
-			unsigned char CHTREGI:1;
-			unsigned char CHRCHGI:1;
-		}bitfield;
-		unsigned char val;
-	}irq_enable3;
-	union {
-		struct {
-			unsigned char SYSLV:1;
-			unsigned char DCDC4LVHV:1;
-			unsigned char PWRONLP:1;
-			unsigned char PWRONSP:1;
-			unsigned char DCDC3LV:1;
-			unsigned char DCDC2LV:1;
-			unsigned char DCDC1LV:1;
-			unsigned char OT:1;
-		}bitfield;
-		unsigned char val;
-	}irq_enable4;
-	union {
-		struct {
-			unsigned char Resv:1;
-			unsigned char GPIO0_IE:1;
-			unsigned char GPIO1_IE:1;
-			unsigned char GPIO2_IE:1;
-			unsigned char RESETB:1;
-			unsigned char PWRONF:1;
-			unsigned char PWRONR:1;
-			unsigned char KPSHDN:1;
-		}bitfield;
-		unsigned char val;
-	}irq_enable5;
-};
-
-enum {
-	JEITA_NO_CHARGE,
-	JEITA_NORMAL_USB,
-	JEITA_USB_TA,
-	JEITA_AC_ADAPTER,
-	JEITA_CHARGER_MAX,
-};
-
-struct rt5025_jeita_data {
-	int* temp;
-	u8* temp_scalar;
-	int (*temp_cc)[5];
-	int (*temp_cv)[5];
-};
-
-#define CHG_EVENT_INACOVP	(0x80<<16)
-#define CHG_EVENT_INAC_PLUGIN	(0x40<<16)
-#define CHG_EVENT_INUSBOVP	(0x10<<16)
-#define CHG_EVENT_INUSB_PLUGIN	(0x08<<16)
-#define CHG_EVENT_BAT_ABS	(0x01<<16)
-
-#define CHG_EVENT_CHSLPI_INAC	(0x80<<8)
-#define CHG_EVENT_CHBADI_INAC	(0x40<<8)
-#define CHG_EVENT_CHGOODI_INAC	(0x20<<8)
-#define CHG_EVENT_CHSLPI_INUSB	(0x10<<8)
-#define CHG_EVENT_CHBADI_INUSB	(0x08<<8)
-#define CHG_EVENT_CHGOODI_INUSB	(0x04<<8)
-#define CHG_EVENT_CHBATOVI	(0x02<<8)
-#define CHG_EVENT_CHTERMI	(0x01<<8)
-
-#define CHG_EVENT_CHRCHGI	(0x80<<0)
-#define CHG_EVENT_CHTREGI	(0x40<<0)
-#define CHG_EVENT_CHVSREGI	(0x20<<0)
-#define CHG_EVENT_TIMEOUTPC	(0x02<<0)
-#define CHG_EVENT_TIMEOUTCC	(0x01<<0)
-
-#define CHARGER_DETECT_MASK	(CHG_EVENT_INAC_PLUGIN | CHG_EVENT_INUSB_PLUGIN | \
-				 CHG_EVENT_CHSLPI_INAC | CHG_EVENT_CHSLPI_INUSB | \
-				 CHG_EVENT_CHBADI_INAC | CHG_EVENT_CHBADI_INUSB | \
-				 CHG_EVENT_CHTERMI | CHG_EVENT_CHRCHGI)
- 
-
-#define PWR_EVENT_OTIQ		(0x80<<8)
-#define PWR_EVENT_DCDC1LV	(0x40<<8)
-#define PWR_EVENT_DCDC2LV	(0x20<<8)
-#define PWR_EVENT_DCDC3LV	(0x10<<8)
-#define PWR_EVENT_PWRONSP	(0x08<<8)
-#define PWR_EVENT_PWRONLP	(0x04<<8)
-#define PWR_EVENT_DCDC4LVHV	(0x02<<8)
-#define PWR_EVENT_SYSLV		(0x01<<8)
-
-#define PWR_EVENT_KPSHDN	(0x80<<0)
-#define PWR_EVNET_PWRONR	(0x40<<0)
-#define PWR_EVENT_PWRONF	(0x20<<0)
-#define PWR_EVENT_RESETB	(0x10<<0)
-#define PWR_EVENT_GPIO2IE	(0x08<<0)
-#define PWR_EVENT_GPIO1IE	(0x04<<0)
-#define PWR_EVENT_GPIO0IE	(0x02<<0)
-
-struct rt5025_event_callback {
-	#if 1
-	void (*charger_event_callback)(uint32_t detected);
-	void (*power_event_callkback)(uint32_t detected);
-	#else
-	void (*over_temperature_callback)(uint8_t detected);
-	void (*charging_complete_callback)(void);
-	void (*over_voltage_callback)(uint8_t detected);
-	void (*under_voltage_callback)(uint8_t detected);
-	void (*charge_fault_callback)(uint8_t detected);
-	void (*charge_warning_callback)(uint8_t detected);
-	#endif
-};
-
-struct rt5025_power_info {
+struct rt5025_charger_info {
 	struct i2c_client	*i2c;
 	struct device		*dev;
-	struct rt5025_chip	*chip;
-	//struct rt5025_gauge_callbacks *event_callback;
-	struct power_supply	ac;
-	struct power_supply	usb;
-	struct mutex	var_lock;
-	struct delayed_work usb_detect_work;
-	int usb_cnt;
-	int chg_term;
-	int otg_en;
-	unsigned		ac_online:1;
-	unsigned		usb_online:1;
-	unsigned		chg_stat:3;
-};
-
-struct rt5025_swjeita_info {
-	struct i2c_client *i2c;
-	struct rt5025_chip *chip;
-	struct delayed_work thermal_reg_work;
-	int *temp;
-	u8 *temp_scalar;
-	int (*temp_cc)[5];
-	int (*temp_cv)[5];
-	int dec_current;
-	int cur_section;
-	int cur_therm_region;
-	int cur_cable;
-	int cur_temp;
-	int cur_inttemp;
-	int init_once;
-	int suspend;
+	struct power_supply	psy;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend early_suspend;
+#endif /* CONFIG_HAS_EARLYSUSPEND */
+	struct delayed_work tempmon_work;
+	int temp[4];
+	u32 temp_scalar[8];
+	unsigned int te_en:1;
+	unsigned int online:1;
+	unsigned int batabs:1;
+	unsigned int battemp_region:3;
+	unsigned int inttemp_region:2;
+	unsigned int otg_en:1;
+	unsigned int init_once:1;
+	unsigned int suspend:1;
+	unsigned int screenon_adjust:1;
+	unsigned int screen_on:1;
+	int chg_status;
+	int charger_cable;
+	int chg_volt;
+	int acchg_icc;
+	int usbtachg_icc;
+	int usbchg_icc;
+	int screenon_icc;
 };
 
 struct rt5025_battery_info {
 	struct i2c_client *client;
-	struct rt5025_chip *chip;
-	//struct rt5025_gauge_callbacks cb;
-
 	struct power_supply	battery;
-	
 	struct delayed_work monitor_work;
 	struct wake_lock monitor_wake_lock;
 	struct wake_lock low_battery_wake_lock;
 	struct wake_lock status_wake_lock;
-//#if RT5025_TEST_WAKE_LOCK
-	struct wake_lock test_wake_lock;
-//#endif
+	struct wake_lock smooth0_wake_lock;
+	struct wake_lock smooth100_wake_lock;
+	struct wake_lock full_battery_wake_lock;
+	/*#if RT5025_TEST_WAKE_LOCK
+	//	struct wake_lock test_wake_lock;
+	//#endif*/
+	struct mutex status_change_lock;
 	struct alarm wakeup_alarm;
-	
+
 	bool temp_range_0_5;
 	bool temp_range_5_10;
 	bool temp_range_10_15;
@@ -471,7 +277,7 @@ struct rt5025_battery_info {
 	bool temp_range_35_40;
 	bool temp_range_40_45;
 	bool temp_range_45_50;
-	
+
 	bool range_0_5_done;
 	bool range_5_10_done;
 	bool range_10_15_done;
@@ -481,159 +287,183 @@ struct rt5025_battery_info {
 	bool range_35_40_done;
 	bool range_40_45_done;
 	bool range_45_50_done;
-	
-	
-	
+
 	bool	suspend_poll;
 	ktime_t	last_poll;
-//	ktime_t	last_event;
-  struct timespec last_event;
+	/*	ktime_t	last_event;*/
+	struct timespec last_event;
 
-  u16 update_time;
-  
-  /* previous battery voltage */
-  u16 pre_vcell;
-  /* previous battery current */
-  s16 pre_curr;	
-  /* battery voltage */
-  u16 vcell;
-  /* battery current */
-  s16 curr;
-  /* battery current offset */
-  u16 curr_offset;
-  /* AIN voltage */
-  u16 ain_volt;
-  /* battery internal temperature */
-  s16 int_temp;
-  /* battery external temperature */
-  s16 ext_temp;
-  /* charge coulomb counter */
-  u32 chg_cc;
-  u32 chg_cc_unuse;
-  /* discharge coulomb counter */
-  u32 dchg_cc;
-  u32 dchg_cc_unuse;
-  /* battery capacity */
-  u16 soc;
-  u16 temp_soc;
-  u16 pre_soc;
-  
-  u16 time_interval;
-  u16 pre_gauge_timer;
-    
-  u8 online;
-  u8 status;
-  u8 internal_status;
-  u8 health;
-  u8 present;
+	u16 update_time;
 
-  /* IRQ flag */
-  u8 irq_flag;
-   
-  /* max voltage IRQ flag */
-  bool max_volt_irq;
-  /* min voltage1 IRQ flag */
-  bool min_volt1_irq;  
-  /* min voltage2 IRQ flag */
-  bool min_volt2_irq;
-  /* max temperature IRQ flag */
-  bool max_temp_irq;
-  /* min temperature IRQ flag */
-  bool min_temp_irq;
+	/* previous battery voltage */
+	u16 pre_vcell;
+	/* previous battery current */
+	s16 pre_curr;
+	/* battery voltage */
+	u16 vcell;
+	/* battery current */
+	s16 curr;
+	/* battery current offset */
+	u16 curr_offset;
+	/* AIN voltage */
+	u16 ain_volt;
+	/* battery internal temperature */
+	s16 int_temp;
+	/* battery external temperature */
+	s16 ext_temp;
+	/* charge coulomb counter */
+	u32 chg_cc;
+	u32 chg_cc_unuse;
+	/* discharge coulomb counter */
+	u32 dchg_cc;
+	u32 dchg_cc_unuse;
+	/* battery capacity */
+	u16 soc;
+	u16 temp_soc;
+	u16 pre_soc;
 
-  bool min_volt2_alert;
+	u16 time_interval;
+	u16 pre_gauge_timer;
+
+	u8 online;
+	u8 status;
+	u8 internal_status;
+	u8 health;
+	u8 present;
+	u8 batt_present;
+
+	/* IRQ flag */
+	u8 irq_flag;
+
+	/* max voltage IRQ flag */
+	bool max_volt_irq;
+	/* min voltage1 IRQ flag */
+	bool min_volt1_irq;
+	/* min voltage2 IRQ flag */
+	bool min_volt2_irq;
+	/* max temperature IRQ flag */
+	bool max_temp_irq;
+	/* min temperature IRQ flag */
+	bool min_temp_irq;
+
+	bool min_volt2_alert;
 
 	u8 temp_high_cnt;
 	u8 temp_low_cnt;
 	u8 temp_recover_cnt;
-	
+
 	bool init_cap;
 	bool avg_flag;
-	
-  /* remain capacity */
-  u32 rm;
-  /* SOC permille  */
-  u16 permille;
-  /* full capccity */
-  u16 fcc_aging;
-  u16 fcc;
-  u16	dc;
-  s16 tempcmp;
-  #if 0
-  u32 time_to_empty;
-  u32 time_to_full;
-  #endif
-  
-  bool edv_flag;
-  bool edv_detection;
-  u8 edv_cnt;
-  
-  bool tp_flag;
-  u8 tp_cnt;
-  
-  u8 cycle_cnt;
-  u32 acc_dchg_cap;
 
-  bool smooth_flag;
-  
-  u16 gauge_timer;
-  s16 curr_raw;
-  u32 empty_edv;
-  u8  edv_region;
+	/* remain capacity */
+	u32 rm;
+	/* SOC permille  */
+	u16 permille;
+	/* full capccity */
+	u16 fcc_aging;
+	u16 fcc;
+	u16	dc;
+	s16 tempcmp;
 
-  bool init_once;
-  bool device_suspend;
-  bool last_suspend;
-  bool last_tp_flag;
-  u32 cal_fcc;
-  u8 test_temp;
+	bool edv_flag;
+	bool edv_detection;
+	u8 edv_cnt;
+
+	bool tp_flag;
+	u8 tp_cnt;
+
+	u8 cycle_cnt;
+	u32 acc_dchg_cap;
+
+	bool smooth_flag;
+
+	u16 gauge_timer;
+	s16 curr_raw;
+	u32 empty_edv;
+	u8  edv_region;
+	u32  soc1_lock_cnt;
+	u32  soc99_lock_cnt;
+
+	bool init_once;
+	bool device_suspend;
+	bool last_suspend;
+	bool last_tp_flag;
+	bool fcc_update_flag;
+	u32 cal_fcc;
+	u8 test_temp;
+	u8  last_tp;
+	u32 cal_eoc_fcc;
+	u32 cal_soc_offset;
+};
+
+
+struct rt5025_charger_data {
+	int *temp;
+	u32 *temp_scalar;
+	int chg_volt;
+	int acchg_icc;
+	int usbtachg_icc;
+	int usbchg_icc;
+	int screenon_icc;
+	unsigned int ieoc:1;
+	unsigned int vdpm:2;
+	unsigned int te_en:1;
+	unsigned int vprec:3;
+	unsigned int iprec:1;
+	unsigned int screenon_adjust:1;
+};
+
+struct rt5025_gpio_data {
+	int ngpio;
+};
+
+struct rt5025_misc_data {
+	unsigned char vsyslv:3;
+	unsigned char shdnlpress_time:2;
+	unsigned char startlpress_time:2;
+	unsigned char vsyslv_enshdn:1;
+};
+
+struct rt5025_irq_data {
+	int irq_gpio;
+};
+
+struct rt5025_chip;
+struct rt5025_platform_data {
+	struct regulator_init_data *regulator[RT5025_MAX_REGULATOR];
+	struct rt5025_charger_data *chg_pdata;
+	struct rt5025_gpio_data *gpio_pdata;
+	struct rt5025_misc_data *misc_pdata;
+	struct rt5025_irq_data *irq_pdata;
+	int (*pre_init)(struct rt5025_chip *rt5025_chip);
+	/** Called after subdevices are set up */
+	int (*post_init)(void);
+};
+
+struct rt5025_misc_info {
+	struct i2c_client *i2c;
+	struct device *dev;
 };
 
 struct rt5025_chip {
 	struct i2c_client *i2c;
-	struct workqueue_struct *wq;
 	struct device *dev;
-	struct rt5025_power_info *power_info;
-	struct rt5025_swjeita_info *jeita_info;
+	struct rt5025_charger_info *charger_info;
 	struct rt5025_battery_info *battery_info;
-	int suspend;
-	int irq;
-	struct delayed_work delayed_work;
+	struct rt5025_misc_info *misc_info;
 	struct mutex io_lock;
+	int suspend;
 };
 
-struct rt5025_platform_data {
-	struct regulator_init_data* regulator[RT5025_MAX_REGULATOR];
-	struct rt5025_power_data* power_data;
-	struct rt5025_gpio_data* gpio_data;
-	struct rt5025_misc_data* misc_data;
-	struct rt5025_irq_data* irq_data;
-	struct rt5025_jeita_data* jeita_data;
-	struct rt5025_event_callback *cb;
-	int (*pre_init)(struct rt5025_chip *rt5025_chip);
-	/** Called after subdevices are set up */
-	int (*post_init)(void);
-	int (*set_otg_enable)(int);
-	int intr_pin;
-};
-
-#ifdef CONFIG_MFD_RT5025_MISC
-extern void rt5025_power_off(void);
-extern int rt5025_cable_exist(void);
-#endif /* CONFIG_MFD_RT5025_MISC */
-
-#ifdef CONFIG_POWER_RT5025
-extern int rt5025_charger_reset_and_reinit(struct rt5025_power_info *);
-extern int rt5025_ext_set_charging_buck(int);
-extern int rt5025_set_charging_buck(struct i2c_client *, int);
-extern int rt5025_set_charging_current_switch(struct i2c_client *, int);
-extern void rt5025_gauge_set_status(struct rt5025_battery_info *, int);
-extern void rt5025_gauge_set_online(struct rt5025_battery_info *, bool);
-extern void rt5025_gauge_irq_handler(struct rt5025_battery_info *, u8);
-extern int rt5025_power_charge_detect(struct rt5025_power_info *);
-extern int rt5025_notify_charging_cable(struct rt5025_swjeita_info *, int);
-extern int rt5025_swjeita_irq_handler(struct rt5025_swjeita_info *, unsigned char);
-#endif /* CONFIG_POEWR_RT5025 */
+#ifdef CONFIG_CHARGER_RT5025
+void rt5025_charger_irq_handler(struct rt5025_charger_info *ci, unsigned int event);
+#endif /* #ifdef CONFIG_CHARGER_RT5025 */
+#ifdef CONFIG_MISC_RT5025
+void rt5025_misc_irq_handler(struct rt5025_misc_info *mi, unsigned int event);
+#endif /* #ifdef CONFIG_MISC_RT5025 */
+#ifdef CONFIG_BATTERY_RT5025
+void rt5025_gauge_irq_handler(struct rt5025_battery_info *bi, unsigned int event);
+#endif /* #ifdef CONFIG_BATTERY_RT5025 */
 
 extern int rt5025_reg_block_read(struct i2c_client *, int, int, void *);
 extern int rt5025_reg_block_write(struct i2c_client *, int, int, void *);
@@ -648,9 +478,9 @@ extern int rt5025_core_deinit(struct rt5025_chip *);
 
 #ifdef CONFIG_MFD_RT_SHOW_INFO
 #define RTINFO(format, args...) \
-	printk(KERN_INFO "%s:%s() line-%d: " format, RT5025_DEVICE_NAME,__FUNCTION__,__LINE__, ##args)
+	printk(KERN_INFO "%s:%s() line-%d: " format, RT5025_DEV_NAME, __FUNCTION__, __LINE__, ##args)
 #else
-#define RTINFO(format,args...)
+#define RTINFO(format, args...)
 #endif /* CONFIG_MFD_RT_SHOW_INFO */
 
 #endif /* __LINUX_MFD_RT5025_H */

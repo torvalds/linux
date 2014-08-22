@@ -262,6 +262,13 @@ config ACT8846_SUPPORT_RESET
 	help
 	  Support short press key to restart.
 
+config REGULATOR_RT5025
+	bool "Richtek RT5025 PMIC Voltage regulstors"
+	depends on MFD_RT5025
+	default n
+	help
+	  This driver supports voltage regulator in RT5025 PMIC chips.
+
 config ROCKCHIP_PWM_REGULATOR
 	tristate "rockchip pwm voltage regulator for discrete dcdc or ldo"
 	help

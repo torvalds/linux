@@ -64,6 +64,43 @@ config WM8350_POWER
           Say Y here to enable support for the power management unit
 	  provided by the Wolfson Microelectronics WM8350 PMIC.
 
+config CHARGER_RT5025
+	bool "RT5025 Charger Driver"
+	depends on MFD_RT5025
+	default n
+	help
+	  Enable RT5025 Charger driver.
+
+config RT_POWER
+	bool "RT5025 PMIC cable report"
+	depends on CHARGER_RT5025
+	default n
+	help
+	  Enable AC/USB report.
+
+config RT_SUPPORT_ACUSB_DUALIN
+	bool "RT AC/USB Dualin Option"
+	depends on RT_POWER
+	default n
+	help
+	  Say Y here to enable dualin, otherwise
+	  N is just singlein.
+
+config BATTERY_RT5025
+	bool "RT5025 PMIC ADC Type gauge driver"
+	depends on MFD_RT5025
+	default n
+	help
+	  Enable the RT5025 ADC Fuelgauge driver.
+
+config RT_JEITA_REMOVE
+	bool "RT Jeita function remobe"
+	depends on CHARGER_RT5025 && BATTERY_RT5025
+	default n
+	help
+	  Say Y here to remove Jeita function.
+
+
 config BATTERY_RICOH619
 	tristate "Ricoh RC5T619 PMIC battery driver"
 	depends on MFD_RICOH619 && I2C && GENERIC_HARDIRQS

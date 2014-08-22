@@ -55,6 +55,11 @@ obj-$(CONFIG_MFD_WM8350)	+= wm8350.o
 obj-$(CONFIG_MFD_WM8350_I2C)	+= wm8350-i2c.o
 obj-$(CONFIG_MFD_WM8994)	+= wm8994-core.o wm8994-irq.o wm8994-regmap.o
 
+obj-$(CONFIG_MFD_RT5025)	+= rt5025-i2c.o rt5025-core.o
+obj-$(CONFIG_MISC_RT5025)	+= rt5025-misc.o
+obj-$(CONFIG_IRQ_RT5025)	+= rt5025-irq.o
+obj-$(CONFIG_DEBUG_RT5025)	+= rt5025-debug.o
+
 obj-$(CONFIG_TPS6105X)		+= tps6105x.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o
 obj-$(CONFIG_TPS6507X)		+= tps6507x.o

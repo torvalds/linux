@@ -1,0 +1,113 @@
+/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&rt5025 {
+	compatible = "rt,rt5025";
+//	reg = <0x35>;
+
+			rt5025_dcdc1: regulator_0 {
+				compatible = "rt,rt5025-dcdc1";
+				cell-index = <0>;
+				rt,ramp_sel = <0x00>;
+				rt,allow_mode_mask;
+			};
+
+			rt5025_dcdc2: regulator_1 {
+				compatible = "rt,rt5025-dcdc2";
+				cell-index = <1>;
+				rt,ramp_sel = <0x00>;
+				rt,allow_mode_mask;
+			};
+
+			rt5025_dcdc3: regulator_2 {
+				compatible = "rt,rt5025-dcdc3";
+				cell-index = <2>;
+				rt,ramp_sel = <0x00>;
+				rt,allow_mode_mask;
+			};
+
+			rt5025_dcdc4: regulator_3 {
+				compatible = "rt,rt5025-dcdc4";
+				cell-index = <3>;
+			};
+
+			rt5025_ldo1: regulator_4 {
+				compatible = "rt,rt5025-ldo1";
+				cell-index = <4>;
+			};
+
+			rt5025_ldo2: regulator_5 {
+				compatible = "rt,rt5025-ldo2";
+				cell-index = <5>;
+			};
+
+			rt5025_ldo3: regulator_6 {
+				compatible = "rt,rt5025-ldo3";
+				cell-index = <6>;
+			};
+
+			rt5025_ldo4: regulator_7 {
+				compatible = "rt,rt5025-ldo4";
+				cell-index = <7>;
+			};
+
+			rt5025_ldo5: regulator_8 {
+				compatible = "rt,rt5025-ldo5";
+				cell-index = <8>;
+			};
+
+			rt5025_ldo6: regulator_9 {
+				compatible = "rt,rt5025-ldo6";
+				cell-index = <9>;
+			};
+			
+			rt5025-charger {
+				compatible = "rt,rt5025-charger";
+				rt,te_en;
+				//rt,screenon_adjust;
+				rt,iprec = <0x00>;
+				rt,ieoc = <0x00>;
+				rt,vprec = <0x05>;
+				rt,vdpm = <0x02>;
+				rt,chg_volt = <4200>;
+				rt,acchg_icc = <2000>;
+				rt,usbtachg_icc = <2000>;
+				rt,usbchg_icc = <500>;
+				rt,screenon_icc = <500>;
+				rt,temp = <0 150 500 600>;
+				rt,temp_scalar = <0x30 0x2b 0x28 0x22 0x15 0x10 0x10 0x0d>;
+			};
+
+			rt5025-battery {
+				compatible = "rt,rt5025-battery";
+			};
+
+			rt5025_gpio: rt5025-gpio {
+				compatible = "rt,rt5025-gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+				rt,ngpio = <3>;
+			};
+			rt5025-misc {
+				compatible = "rt,rt5025-misc";
+				rt,vsyslv = <0x02>;
+				rt,shdnlpress_time = <0x01>;
+				rt,startlpress_time = <0x00>;
+				rt,vsyslv_enshdn;
+				rt,system-power-controller;
+
+			};
+
+			rt5025-debug {
+				compatible = "rt,rt5025-debug";
+			};
+};

@@ -22,11 +22,12 @@
 #include <linux/mfd/rt5025.h>
 #include <linux/power/rt5025-swjeita.h>
 
-#define TEMP_TOLERANCE	30  // 'c*10 gap for tolerance
+#define TEMP_TOLERANCE	30  /*'c*10 gap for tolerance*/
 
 static int rt5025_set_charging_cc_switch (struct i2c_client *i2c, int onoff)
 {
 	int ret;
+
 	RTINFO("onoff = %d\n", onoff);
 	if (onoff)
 		ret = rt5025_set_bits(i2c, RT5025_REG_CHGCTL7, RT5025_CHGCCEN_MASK);
@@ -44,9 +45,9 @@ static int rt5025_set_charging_cc(struct i2c_client *i2c, int cur_value)
 	if (cur_value < 500)
 		data = 0;
 	else if (cur_value > 2000)
-		data = 0xf<<RT5025_CHGICC_SHIFT;
+		data = 0xf << RT5025_CHGICC_SHIFT;
 	else
-		data = ((cur_value-500)/100)<<RT5025_CHGICC_SHIFT;
+		data = ((cur_value - 500) / 100) << RT5025_CHGICC_SHIFT;
 
 	ret = rt5025_assign_bits(i2c, RT5025_REG_CHGCTL4, RT5025_CHGICC_MASK, data);
 
@@ -67,9 +68,9 @@ static int rt5025_set_charging_cv(struct i2c_client *i2c, int voltage)
 	if (voltage < 3500)
 		data = 0;
 	else if (voltage > 4440)
-		data = 0x2f<<RT5025_CHGCV_SHIFT;
+		data = 0x2f << RT5025_CHGCV_SHIFT;
 	else
-		data = ((voltage-3500)/20)<<RT5025_CHGCV_SHIFT;
+		data = ((voltage - 3500) / 20) << RT5025_CHGCV_SHIFT;
 
 	ret = rt5025_assign_bits(i2c, RT5025_REG_CHGCTL3, RT5025_CHGCV_MASK, data);
 	return ret;
@@ -101,53 +102,52 @@ static int rt5025_get_external_temp_index(struct rt5025_swjeita_info *swji)
 	u8 data[2];
 	long int temp;
 	int sect_index;
-	
+
 	RTINFO("\n");
 	if (rt5025_reg_block_read(swji->i2c, RT5025_REG_AINH, 2, data) < 0)
 		pr_err("%s: failed to read ext_temp register\n", __func__);
 
-	temp = (data[0]*256+data[1])*61/100;
-	temp = (temp * (-91738) +81521000)/100000;
+	temp = (data[0] * 256 + data[1]) * 61 / 100;
+	temp = (temp  *  (-91738) + 81521000) / 100000;
 
 	swji->cur_temp = temp;
 
 	RTINFO("cur_section = %d, cur_temp = %d\n", swji->cur_section, swji->cur_temp);
 
-	switch (swji->cur_section)
-	{
-		case 0:
-			if (temp < swji->temp[0]+TEMP_TOLERANCE)
-				sect_index = rt5025_sel_external_temp_index(swji);
-			else
-				sect_index = swji->cur_section;
-			break;
-		case 1:
-			if (temp <= swji->temp[0]-TEMP_TOLERANCE || temp >= swji->temp[1]+TEMP_TOLERANCE)
-				sect_index = rt5025_sel_external_temp_index(swji);
-			else
-				sect_index = swji->cur_section;
-			break;
-		case 2:
-			if (temp <= swji->temp[1]-TEMP_TOLERANCE || temp >= swji->temp[2]+TEMP_TOLERANCE)
-				sect_index = rt5025_sel_external_temp_index(swji);
-			else
-				sect_index = swji->cur_section;
-			break;
-		case 3:
-			if (temp <= swji->temp[2]-TEMP_TOLERANCE || temp >= swji->temp[3]+TEMP_TOLERANCE)
-				sect_index = rt5025_sel_external_temp_index(swji);
-			else
-				sect_index = swji->cur_section;
-			break;
-		case 4:
-			if (temp <= swji->temp[3]-TEMP_TOLERANCE)
-				sect_index = rt5025_sel_external_temp_index(swji);
-			else
-				sect_index = swji->cur_section;
-			break;
-		default:
-				sect_index = swji->cur_section;
-			break;
+	switch (swji->cur_section) {
+	case 0:
+		if (temp < swji->temp[0] + TEMP_TOLERANCE)
+			sect_index = rt5025_sel_external_temp_index(swji);
+		else
+			sect_index = swji->cur_section;
+		break;
+	case 1:
+		if (temp <= swji->temp[0] - TEMP_TOLERANCE || temp >= swji->temp[1] + TEMP_TOLERANCE)
+			sect_index = rt5025_sel_external_temp_index(swji);
+		else
+			sect_index = swji->cur_section;
+		break;
+	case 2:
+		if (temp <= swji->temp[1] - TEMP_TOLERANCE || temp >= swji->temp[2] + TEMP_TOLERANCE)
+			sect_index = rt5025_sel_external_temp_index(swji);
+		else
+			sect_index = swji->cur_section;
+		break;
+	case 3:
+		if (temp <= swji->temp[2] - TEMP_TOLERANCE || temp >= swji->temp[3] + TEMP_TOLERANCE)
+			sect_index = rt5025_sel_external_temp_index(swji);
+		else
+			sect_index = swji->cur_section;
+		break;
+	case 4:
+		if (temp <= swji->temp[3] - TEMP_TOLERANCE)
+			sect_index = rt5025_sel_external_temp_index(swji);
+		else
+			sect_index = swji->cur_section;
+		break;
+	default:
+		sect_index = swji->cur_section;
+		break;
 	}
 	RTINFO("sect_index = %d\n", sect_index);
 	return sect_index;
@@ -185,26 +185,25 @@ static int rt5025_set_exttemp_alert(struct rt5025_swjeita_info *swji, int index)
 
 	RTINFO("index = %d\n", index);
 
-	switch (index)
-	{
-		case 0:
-			rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMIN, swji->temp_scalar[1]);
-			break;
-		case 1:
-			rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMAX, swji->temp_scalar[0]);
-			rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMIN, swji->temp_scalar[3]);
-			break;
-		case 2:
-			rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMAX, swji->temp_scalar[2]);
-			rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMIN, swji->temp_scalar[5]);
-			break;
-		case 3:
-			rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMAX, swji->temp_scalar[4]);
-			rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMIN, swji->temp_scalar[7]);
-			break;
-		case 4:
-			rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMAX, swji->temp_scalar[6]);
-			break;
+	switch (index) {
+	case 0:
+		rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMIN, swji->temp_scalar[1]);
+		break;
+	case 1:
+		rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMAX, swji->temp_scalar[0]);
+		rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMIN, swji->temp_scalar[3]);
+		break;
+	case 2:
+		rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMAX, swji->temp_scalar[2]);
+		rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMIN, swji->temp_scalar[5]);
+		break;
+	case 3:
+		rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMAX, swji->temp_scalar[4]);
+		rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMIN, swji->temp_scalar[7]);
+		break;
+	case 4:
+		rt5025_reg_write(swji->i2c, RT5025_REG_TALRTMAX, swji->temp_scalar[6]);
+		break;
 	}
 
 	return ret;
@@ -212,38 +211,34 @@ static int rt5025_set_exttemp_alert(struct rt5025_swjeita_info *swji, int index)
 
 static int rt5025_exttemp_alert_switch(struct rt5025_swjeita_info *swji, int onoff)
 {
-	if (!onoff)
-	{
+	if (!onoff) {
 		rt5025_clr_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
 		rt5025_clr_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
-	}
-	else
-	{
-		switch (swji->cur_section)
-		{
-			case 0:
-				rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
-				break;
-			case 1:
-				rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
-				rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
-				break;
-			case 2:
-				rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
-				rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
-				break;
-			case 3:
-				rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
-				rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
-				break;
-			case 4:
-				rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
-				break;
+	} else {
+		switch (swji->cur_section) {
+		case 0:
+			rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
+			break;
+		case 1:
+			rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
+			rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
+			break;
+		case 2:
+			rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
+			rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
+			break;
+		case 3:
+			rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
+			rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMNEN_MASK);
+			break;
+		case 4:
+			rt5025_set_bits(swji->i2c, RT5025_REG_IRQCTL, RT5025_TMXEN_MASK);
+			break;
 		}
 	}
 
 	RTINFO("index=%d, onoff=%d\n", swji->cur_section, onoff);
-	return 0;		
+	return 0;
 }
 
 int rt5025_notify_charging_cable(struct rt5025_swjeita_info *swji, int cable_type)
@@ -256,34 +251,32 @@ int rt5025_notify_charging_cable(struct rt5025_swjeita_info *swji, int cable_typ
 	rt5025_exttemp_alert_switch(swji, 0);
 
 	sect_index = rt5025_get_external_temp_index(swji);
-	if (swji->cur_section != sect_index || swji->init_once == 0)
-	{
+	if (swji->cur_section != sect_index || swji->init_once == 0) {
 		rt5025_set_exttemp_alert(swji, sect_index);
 		swji->cur_section = sect_index;
 		swji->init_once = 1;
 	}
 
-	switch (cable_type)
-	{
-		case JEITA_NORMAL_USB:
-			rt5025_set_charging_cc(swji->i2c, swji->temp_cc[cable_type][swji->cur_section]\
-				- swji->dec_current);
-			rt5025_set_charging_cv(swji->i2c, swji->temp_cv[cable_type][swji->cur_section]);
-			break;
-		case JEITA_USB_TA:
-			rt5025_set_charging_cc(swji->i2c, swji->temp_cc[cable_type][swji->cur_section]\
-				- swji->dec_current);
-			rt5025_set_charging_cv(swji->i2c, swji->temp_cv[cable_type][swji->cur_section]);
-			break;
-		case JEITA_AC_ADAPTER:
-			rt5025_set_charging_cc(swji->i2c, swji->temp_cc[cable_type][swji->cur_section]\
-				- swji->dec_current);
-			rt5025_set_charging_cv(swji->i2c, swji->temp_cv[cable_type][swji->cur_section]);
-			break;
-		case JEITA_NO_CHARGE:
-			rt5025_set_charging_cc(swji->i2c, swji->temp_cc[cable_type][swji->cur_section]);
-			rt5025_set_charging_cv(swji->i2c, swji->temp_cv[cable_type][swji->cur_section]);
-			break;
+	switch (cable_type) {
+	case JEITA_NORMAL_USB:
+		rt5025_set_charging_cc(swji->i2c, swji->temp_cc[cable_type][swji->cur_section]\
+			- swji->dec_current);
+		rt5025_set_charging_cv(swji->i2c, swji->temp_cv[cable_type][swji->cur_section]);
+		break;
+	case JEITA_USB_TA:
+		rt5025_set_charging_cc(swji->i2c, swji->temp_cc[cable_type][swji->cur_section]\
+			- swji->dec_current);
+		rt5025_set_charging_cv(swji->i2c, swji->temp_cv[cable_type][swji->cur_section]);
+		break;
+	case JEITA_AC_ADAPTER:
+		rt5025_set_charging_cc(swji->i2c, swji->temp_cc[cable_type][swji->cur_section]\
+			- swji->dec_current);
+		rt5025_set_charging_cv(swji->i2c, swji->temp_cv[cable_type][swji->cur_section]);
+		break;
+	case JEITA_NO_CHARGE:
+		rt5025_set_charging_cc(swji->i2c, swji->temp_cc[cable_type][swji->cur_section]);
+		rt5025_set_charging_cv(swji->i2c, swji->temp_cv[cable_type][swji->cur_section]);
+		break;
 	}
 	swji->cur_cable = cable_type;
 
@@ -298,7 +291,7 @@ int rt5025_swjeita_irq_handler(struct rt5025_swjeita_info *swji, unsigned char e
 	int ret = 0;
 	RTINFO("event = 0x%02x\n", event);
 
-	if (event&(RT5025_TMXEN_MASK|RT5025_TMNEN_MASK))
+	if (event&(RT5025_TMXEN_MASK | RT5025_TMNEN_MASK))
 		rt5025_notify_charging_cable(swji, swji->cur_cable);
 
 	return ret;
@@ -309,54 +302,51 @@ static void rt5025_get_internal_temp(struct rt5025_swjeita_info *swji)
 {
 	u8 data[2];
 	s32 temp;
-	if (rt5025_reg_block_read(swji->i2c, RT5025_REG_INTTEMP_MSB, 2, data) < 0){
+	if (rt5025_reg_block_read(swji->i2c, RT5025_REG_INTTEMP_MSB, 2, data) < 0)
 		pr_err("%s: Failed to read internal TEMPERATURE\n", __func__);
-	}
 
-	temp = ((data[0]&0x1F)<<8) + data[1];
+	temp = ((data[0] & 0x1F) << 8) + data[1];
 	temp *= 15625;
 	temp /= 100000;
 
-	temp = (data[0]&0x20)?-temp:temp;
+	temp = (data[0] & 0x20) ? -temp : temp;
 	swji->cur_inttemp = temp;
 
 	RTINFO("internal temperature: %d\n", temp);
 }
-	
+
 static void thermal_reg_work_func(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = (struct delayed_work *)container_of(work, struct delayed_work, work);
 	struct rt5025_swjeita_info *swji = (struct rt5025_swjeita_info *)container_of(delayed_work, struct rt5025_swjeita_info, thermal_reg_work);
 	int therm_region = 0;
-	
+
 	RTINFO("%s ++", __func__);
 	rt5025_get_internal_temp(swji);
 
 	#if 1
-	switch (swji->cur_therm_region)
-	{
-		case 0:
-			if (swji->cur_inttemp >=820)
-				therm_region = 1;
-			else
-				therm_region = 0;
-			break;
-		case 1:
-			if (swji->cur_inttemp <= 780)
-				therm_region = 0;
-			else if (swji->cur_inttemp >= 1020)
-				therm_region = 2;
-			else
-				therm_region = 1; 
-			break;
-		case 2:
-			if (swji->cur_inttemp <= 980)
-				therm_region = 1;
-			else
-				therm_region = 2;
-			break;
-			
-	}
+	switch (swji->cur_therm_region) {
+	case 0:
+		if (swji->cur_inttemp >= 820)
+			therm_region = 1;
+		else
+			therm_region = 0;
+		break;
+	case 1:
+		if (swji->cur_inttemp <= 780)
+			therm_region = 0;
+		else if (swji->cur_inttemp >= 1020)
+			therm_region = 2;
+		else
+			therm_region = 1;
+		break;
+	case 2:
+		if (swji->cur_inttemp <= 980)
+			therm_region = 1;
+		else
+			therm_region = 2;
+		break;
+		}
 	#else
 	if (swji->cur_inttemp < 800)
 		therm_region = 0;
@@ -366,19 +356,17 @@ static void thermal_reg_work_func(struct work_struct *work)
 		therm_region = 2;
 	#endif /* #if 1*/
 
-	if (therm_region != swji->cur_therm_region)
-	{
-		switch (therm_region)
-		{
-			case 0:
-				swji->dec_current = 0;
-				break;
-			case 1:
-				swji->dec_current = 300;
-				break;
-			case 2:
-				swji->dec_current = 800;
-				break;
+	if (therm_region != swji->cur_therm_region) {
+		switch (therm_region) {
+		case 0:
+			swji->dec_current = 0;
+			break;
+		case 1:
+			swji->dec_current = 300;
+			break;
+		case 2:
+			swji->dec_current = 800;
+			break;
 		}
 		swji->cur_therm_region = therm_region;
 		rt5025_notify_charging_cable(swji, swji->cur_cable);
@@ -390,10 +378,10 @@ static void thermal_reg_work_func(struct work_struct *work)
 	RTINFO("%s --", __func__);
 }
 
-static int __devinit rt5025_swjeita_probe(struct platform_device *pdev)
+static int rt5025_swjeita_probe(struct platform_device *pdev)
 {
 	struct rt5025_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct rt5025_platform_data *pdata = chip->dev->platform_data; 
+	struct rt5025_platform_data *pdata = chip->dev->platform_data;
 	struct rt5025_swjeita_info *swji;
 	int ret = 0;
 
@@ -401,23 +389,20 @@ static int __devinit rt5025_swjeita_probe(struct platform_device *pdev)
 	if (!swji)
 		return -ENOMEM;
 
-	#if 0 // for debug pdata->jeita_data
-	for (ret=0; ret<4; ret++)
+	#if 0 /* for debug pdata->jeita_data*/
+	for (ret = 0; ret < 4; ret++)
 		RTINFO("jeita temp value %d\n", pdata->jeita_data->temp[ret]);
-	for (ret=0; ret<4; ret++)
-	{
+	for (ret = 0; ret < 4; ret++) {
 		RTINFO("jeita temp_cc value %d, %d, %d, %d, %d\n", pdata->jeita_data->temp_cc[ret][0], \
 		pdata->jeita_data->temp_cc[ret][1], pdata->jeita_data->temp_cc[ret][2], \
 		pdata->jeita_data->temp_cc[ret][3], pdata->jeita_data->temp_cc[ret][4]);
 	}
-	for (ret=0; ret<4; ret++)
-	{
+	for (ret = 0; ret < 4; ret++) {
 		RTINFO("jeita temp_cv value %d, %d, %d, %d, %d\n", pdata->jeita_data->temp_cv[ret][0], \
 		pdata->jeita_data->temp_cv[ret][1], pdata->jeita_data->temp_cv[ret][2], \
 		pdata->jeita_data->temp_cv[ret][3], pdata->jeita_data->temp_cv[ret][4]);
 	}
-	for (ret=0; ret<8; ret++)
-	{
+	for (ret = 0; ret < 8; ret++) {
 		RTINFO("temp_scalar[%d] = 0x%02x\n", ret, pdata->jeita_data->temp_scalar[ret]);
 	}
 	ret = 0;
@@ -425,7 +410,8 @@ static int __devinit rt5025_swjeita_probe(struct platform_device *pdev)
 
 	swji->i2c = chip->i2c;
 	swji->chip = chip;
-	swji->cur_section = 2; //initial as the normal temperature
+	swji->cur_section = 2;
+	/*initial as the normal temperature*/
 	swji->cur_cable = JEITA_NO_CHARGE;
 	swji->temp = pdata->jeita_data->temp;
 	swji->temp_scalar = pdata->jeita_data->temp_scalar;
@@ -445,7 +431,7 @@ static int __devinit rt5025_swjeita_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit rt5025_swjeita_remove(struct platform_device *pdev)
+static int rt5025_swjeita_remove(struct platform_device *pdev)
 {
 	struct rt5025_swjeita_info *swji = platform_get_drvdata(pdev);
 
@@ -458,6 +444,7 @@ static int __devexit rt5025_swjeita_remove(struct platform_device *pdev)
 static int rt5025_swjeita_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct rt5025_swjeita_info *swji = platform_get_drvdata(pdev);
+
 	swji->suspend = 1;
 	cancel_delayed_work_sync(&swji->thermal_reg_work);
 	swji->cur_therm_region = swji->dec_current = 0;
@@ -476,8 +463,7 @@ static int rt5025_swjeita_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver rt5025_swjeita_driver = 
-{
+static struct platform_driver rt5025_swjeita_driver = {
 	.driver = {
 		.name = RT5025_DEVICE_NAME "-swjeita",
 		.owner = THIS_MODULE,
@@ -488,13 +474,13 @@ static struct platform_driver rt5025_swjeita_driver =
 	.resume = rt5025_swjeita_resume,
 };
 
-static int __init rt5025_swjeita_init(void)
+static int rt5025_swjeita_init(void)
 {
 	return platform_driver_register(&rt5025_swjeita_driver);
 }
 module_init(rt5025_swjeita_init);
 
-static void __exit rt5025_swjeita_exit(void)
+static void rt5025_swjeita_exit(void)
 {
 	platform_driver_unregister(&rt5025_swjeita_driver);
 }
