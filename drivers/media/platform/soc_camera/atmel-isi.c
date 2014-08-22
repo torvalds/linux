@@ -394,7 +394,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 		return ret;
 	}
 	/* Disable all interrupts */
-	isi_writel(isi, ISI_INTDIS, ~0UL);
+	isi_writel(isi, ISI_INTDIS, (u32)~0UL);
 
 	spin_lock_irq(&isi->lock);
 	/* Clear any pending interrupt */
