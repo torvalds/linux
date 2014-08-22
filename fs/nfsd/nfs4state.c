@@ -679,14 +679,10 @@ nfs4_put_stid(struct nfs4_stid *s)
 static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 {
 	struct file *filp = NULL;
-	struct file_lock *fl;
 
 	spin_lock(&fp->fi_lock);
-	if (fp->fi_lease && atomic_dec_and_test(&fp->fi_delegees)) {
+	if (fp->fi_deleg_file && atomic_dec_and_test(&fp->fi_delegees))
 		swap(filp, fp->fi_deleg_file);
-		fl = fp->fi_lease;
-		fp->fi_lease = NULL;
-	}
 	spin_unlock(&fp->fi_lock);
 
 	if (filp) {
@@ -3068,8 +3064,8 @@ static void nfsd4_init_file(struct nfs4_file *fp, struct knfsd_fh *fh)
 	INIT_LIST_HEAD(&fp->fi_stateids);
 	INIT_LIST_HEAD(&fp->fi_delegations);
 	fh_copy_shallow(&fp->fi_fhandle, fh);
+	fp->fi_deleg_file = NULL;
 	fp->fi_had_conflict = false;
-	fp->fi_lease = NULL;
 	fp->fi_share_deny = 0;
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
 	memset(fp->fi_access, 0, sizeof(fp->fi_access));
@@ -3810,13 +3806,12 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 	if (fp->fi_had_conflict)
 		goto out_unlock;
 	/* Race breaker */
-	if (fp->fi_lease) {
+	if (fp->fi_deleg_file) {
 		status = 0;
 		atomic_inc(&fp->fi_delegees);
 		hash_delegation_locked(dp, fp);
 		goto out_unlock;
 	}
-	fp->fi_lease = fl;
 	fp->fi_deleg_file = filp;
 	atomic_set(&fp->fi_delegees, 1);
 	hash_delegation_locked(dp, fp);
@@ -3849,7 +3844,7 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 	spin_lock(&state_lock);
 	spin_lock(&fp->fi_lock);
 	dp->dl_stid.sc_file = fp;
-	if (!fp->fi_lease) {
+	if (!fp->fi_deleg_file) {
 		spin_unlock(&fp->fi_lock);
 		spin_unlock(&state_lock);
 		status = nfs4_setlease(dp);
