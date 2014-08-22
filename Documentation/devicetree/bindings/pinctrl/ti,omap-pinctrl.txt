@@ -7,5 +7,6 @@ Required properties:
   "ti,omap3-padconf" - OMAP3 compatible pinctrl
   "ti,omap4-padconf" - OMAP4 compatible pinctrl
   "ti,omap5-padconf" - OMAP5 compatible pinctrl
+  "ti,dra7-padconf" - DRA7 compatible pinctrl
 
 See Documentation/devicetree/bindings/pinctrl/pinctrl-single.txt for further details.
