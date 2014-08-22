@@ -357,7 +357,6 @@ enum ath10k_fw_features {
 enum ath10k_dev_flags {
 	/* Indicates that ath10k device is during CAC phase of DFS */
 	ATH10K_CAC_RUNNING,
-	ATH10K_FLAG_FIRST_BOOT_DONE,
 	ATH10K_FLAG_CORE_REGISTERED,
 };
 
