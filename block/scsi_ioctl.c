@@ -279,7 +279,6 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	r = blk_rq_unmap_user(bio);
 	if (!ret)
 		ret = r;
-	blk_put_request(rq);
 
 	return ret;
 }
@@ -322,10 +321,9 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		return -ENOMEM;
 	blk_rq_set_block_pc(rq);
 
-	if (blk_fill_sghdr_rq(q, rq, hdr, mode)) {
-		blk_put_request(rq);
-		return -EFAULT;
-	}
+	ret = -EFAULT;
+	if (blk_fill_sghdr_rq(q, rq, hdr, mode))
+		goto out;
 
 	if (hdr->iovec_count) {
 		size_t iov_data_len;
@@ -376,7 +374,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 
 	hdr->duration = jiffies_to_msecs(jiffies - start_time);
 
-	return blk_complete_sghdr_rq(rq, hdr, bio);
+	ret = blk_complete_sghdr_rq(rq, hdr, bio);
 out:
 	blk_put_request(rq);
 	return ret;
