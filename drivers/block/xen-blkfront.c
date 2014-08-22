@@ -582,6 +582,14 @@ static inline void flush_requests(struct blkfront_info *info)
 		notify_remote_via_irq(info->irq);
 }
 
+static inline bool blkif_request_flush_valid(struct request *req,
+					     struct blkfront_info *info)
+{
+	return ((req->cmd_type != REQ_TYPE_FS) ||
+		((req->cmd_flags & (REQ_FLUSH | REQ_FUA)) &&
+		!info->flush_op));
+}
+
 /*
  * do_blkif_request
  *  read a block; request is in a request queue
@@ -604,9 +612,7 @@ static void do_blkif_request(struct request_queue *rq)
 
 		blk_start_request(req);
 
-		if ((req->cmd_type != REQ_TYPE_FS) ||
-		    ((req->cmd_flags & (REQ_FLUSH | REQ_FUA)) &&
-		    !info->flush_op)) {
+		if (blkif_request_flush_valid(req, info)) {
 			__blk_end_request_all(req, -EIO);
 			continue;
 		}
