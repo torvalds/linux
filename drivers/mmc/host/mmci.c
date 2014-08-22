@@ -61,7 +61,7 @@ static unsigned int fmax = 515633;
  * @fifohalfsize: number of bytes that can be written when MCI_TXFIFOHALFEMPTY
  *		  is asserted (likewise for RX)
  * @data_cmd_enable: enable value for data commands.
- * @sdio: variant supports SDIO
+ * @st_sdio: enable ST specific SDIO logic
  * @st_clkdiv: true if using a ST-specific clock divider algorithm
  * @datactrl_mask_ddrmode: ddr mode mask in datactrl register.
  * @blksz_datactrl16: true if Block size is at b16..b30 position in datactrl register
@@ -90,7 +90,7 @@ struct variant_data {
 	unsigned int		data_cmd_enable;
 	unsigned int		datactrl_mask_ddrmode;
 	unsigned int		datactrl_mask_sdio;
-	bool			sdio;
+	bool			st_sdio;
 	bool			st_clkdiv;
 	bool			blksz_datactrl16;
 	bool			blksz_datactrl4;
@@ -139,7 +139,7 @@ static struct variant_data variant_u300 = {
 	.clkreg_8bit_bus_enable = MCI_ST_8BIT_BUS,
 	.datalength_bits	= 16,
 	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
-	.sdio			= true,
+	.st_sdio			= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.f_max			= 100000000,
 	.signal_direction	= true,
@@ -153,7 +153,7 @@ static struct variant_data variant_nomadik = {
 	.clkreg			= MCI_CLK_ENABLE,
 	.datalength_bits	= 24,
 	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
-	.sdio			= true,
+	.st_sdio		= true,
 	.st_clkdiv		= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.f_max			= 100000000,
@@ -171,7 +171,7 @@ static struct variant_data variant_ux500 = {
 	.clkreg_neg_edge_enable	= MCI_ST_UX500_NEG_EDGE,
 	.datalength_bits	= 24,
 	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
-	.sdio			= true,
+	.st_sdio		= true,
 	.st_clkdiv		= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.f_max			= 100000000,
@@ -191,7 +191,7 @@ static struct variant_data variant_ux500v2 = {
 	.datactrl_mask_ddrmode	= MCI_ST_DPSM_DDRMODE,
 	.datalength_bits	= 24,
 	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
-	.sdio			= true,
+	.st_sdio		= true,
 	.st_clkdiv		= true,
 	.blksz_datactrl16	= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
@@ -814,26 +814,26 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	if (data->flags & MMC_DATA_READ)
 		datactrl |= MCI_DPSM_DIRECTION;
 
-	if (variant->sdio && host->mmc->card)
-		if (mmc_card_sdio(host->mmc->card)) {
-			u32 clk;
-			datactrl |= variant->datactrl_mask_sdio;
+	if (host->mmc->card && mmc_card_sdio(host->mmc->card)) {
+		u32 clk;
 
-			/*
-			 * The ST Micro variant for SDIO small write transfers
-			 * needs to have clock H/W flow control disabled,
-			 * otherwise the transfer will not start. The threshold
-			 * depends on the rate of MCLK.
-			 */
-			if (data->flags & MMC_DATA_WRITE &&
-			    (host->size < 8 ||
-			     (host->size <= 8 && host->mclk > 50000000)))
-				clk = host->clk_reg & ~variant->clkreg_enable;
-			else
-				clk = host->clk_reg | variant->clkreg_enable;
+		datactrl |= variant->datactrl_mask_sdio;
 
-			mmci_write_clkreg(host, clk);
-		}
+		/*
+		 * The ST Micro variant for SDIO small write transfers
+		 * needs to have clock H/W flow control disabled,
+		 * otherwise the transfer will not start. The threshold
+		 * depends on the rate of MCLK.
+		 */
+		if (variant->st_sdio && data->flags & MMC_DATA_WRITE &&
+		    (host->size < 8 ||
+		     (host->size <= 8 && host->mclk > 50000000)))
+			clk = host->clk_reg & ~variant->clkreg_enable;
+		else
+			clk = host->clk_reg | variant->clkreg_enable;
+
+		mmci_write_clkreg(host, clk);
+	}
 
 	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50 ||
 	    host->mmc->ios.timing == MMC_TIMING_MMC_DDR52)
