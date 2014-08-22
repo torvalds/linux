@@ -2279,7 +2279,8 @@ mbx_err:
 
 static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 				struct ocrdma_modify_qp *cmd,
-				struct ib_qp_attr *attrs)
+				struct ib_qp_attr *attrs,
+				int attr_mask)
 {
 	int status;
 	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
@@ -2319,8 +2320,8 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	ocrdma_cpu_to_le32(&cmd->params.dgid[0], sizeof(cmd->params.dgid));
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
-	vlan_id = ah_attr->vlan_id;
-	if (vlan_id && (vlan_id < 0x1000)) {
+	if (attr_mask & IB_QP_VID) {
+		vlan_id = attrs->vlan_id;
 		cmd->params.vlan_dmac_b4_to_b5 |=
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;
@@ -2347,7 +2348,7 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 		cmd->flags |= OCRDMA_QP_PARA_QKEY_VALID;
 	}
 	if (attr_mask & IB_QP_AV) {
-		status = ocrdma_set_av_params(qp, cmd, attrs);
+		status = ocrdma_set_av_params(qp, cmd, attrs, attr_mask);
 		if (status)
 			return status;
 	} else if (qp->qp_type == IB_QPT_GSI || qp->qp_type == IB_QPT_UD) {
