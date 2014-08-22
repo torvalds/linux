@@ -290,6 +290,7 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	if (ieee->hwsec_active) {
 		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+
 		tcb_desc->bHwSec = 1;
 
 		if (ieee->need_sw_enc)
@@ -330,6 +331,7 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
 		return 0;
 	if (ieee->hwsec_active) {
 		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+
 		tcb_desc->bHwSec = 1;
 
 		if (ieee->need_sw_enc)
@@ -389,6 +391,7 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 		struct ieee_ibss_seq *entry = NULL;
 		u8 *mac = header->addr2;
 		int index = mac[5] % IEEE_IBSS_MAC_HASH_SIZE;
+
 		list_for_each(p, &ieee->ibss_mac_hash[index]) {
 			entry = list_entry(p, struct ieee_ibss_seq, list);
 			if (!memcmp(entry->mac, mac, ETH_ALEN))
@@ -471,8 +474,10 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb **prx
 	struct net_device_stats *stats = &ieee->stats;
 	u8 i = 0 , j = 0;
 	u16 ethertype;
+
 	for (j = 0; j < index; j++) {
 		struct rtllib_rxb *prxb = prxbIndicateArray[j];
+
 		for (i = 0; i < prxb->nr_subframes; i++) {
 			struct sk_buff *sub_skb = prxb->subframes[i];
 
@@ -572,6 +577,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 		pHTInfo->RxReorderDropCounter++;
 		{
 			int i;
+
 			for (i = 0; i < prxb->nr_subframes; i++)
 				dev_kfree_skb(prxb->subframes[i]);
 			kfree(prxb);
@@ -638,6 +644,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				list_add_tail(&pReorderEntry->List,
 					      &ieee->RxReorder_Unused_List); {
 					int i;
+
 					for (i = 0; i < prxb->nr_subframes; i++)
 						dev_kfree_skb(prxb->subframes[i]);
 					kfree(prxb);
@@ -661,6 +668,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				     "dropped!!\n");
 			{
 				int i;
+
 				for (i = 0; i < prxb->nr_subframes; i++)
 					dev_kfree_skb(prxb->subframes[i]);
 				kfree(prxb);
@@ -905,6 +913,7 @@ static int rtllib_rx_check_duplicate(struct rtllib_device *ieee,
 		}
 	} else {
 		struct rx_ts_record *pRxTS = NULL;
+
 		if (GetTs(ieee, (struct ts_common_info **) &pRxTS, hdr->addr2,
 			(u8)Frame_QoSTID((u8 *)(skb->data)), RX_DIR, true)) {
 			if ((fc & (1<<11)) && (frag == pRxTS->RxLastFragNum) &&
@@ -1074,6 +1083,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	if ((frag != 0 || (fc & RTLLIB_FCTL_MOREFRAGS))) {
 		int flen;
 		struct sk_buff *frag_skb = rtllib_frag_cache_get(ieee, hdr);
+
 		RTLLIB_DEBUG_FRAG("Rx Fragment received (%u)\n", frag);
 
 		if (!frag_skb) {

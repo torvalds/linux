@@ -33,6 +33,7 @@ static void rtl8192_hw_sleep_down(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
+
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -51,6 +52,7 @@ void rtl8192_hw_sleep_wq(void *data)
 	struct rtllib_device *ieee = container_of_dwork_rsl(data,
 				     struct rtllib_device, hw_sleep_wq);
 	struct net_device *dev = ieee->dev;
+
 	rtl8192_hw_sleep_down(dev);
 }
 
@@ -58,6 +60,7 @@ void rtl8192_hw_wakeup(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
+
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -77,8 +80,8 @@ void rtl8192_hw_wakeup_wq(void *data)
 	struct rtllib_device *ieee = container_of_dwork_rsl(data,
 				     struct rtllib_device, hw_wakeup_wq);
 	struct net_device *dev = ieee->dev;
-	rtl8192_hw_wakeup(dev);
 
+	rtl8192_hw_wakeup(dev);
 }
 
 #define MIN_SLEEP_TIME 50
@@ -179,6 +182,7 @@ void IPSLeave_wq(void *data)
 				     struct rtllib_device, ips_leave_wq);
 	struct net_device *dev = ieee->dev;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+
 	down(&priv->rtllib->ips_sem);
 	IPSLeave(dev);
 	up(&priv->rtllib->ips_sem);
@@ -188,6 +192,7 @@ void rtllib_ips_leave_wq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	enum rt_rf_power_state rtState;
+
 	rtState = priv->rtllib->eRFPowerState;
 
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
@@ -209,6 +214,7 @@ void rtllib_ips_leave_wq(struct net_device *dev)
 void rtllib_ips_leave(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+
 	down(&priv->rtllib->ips_sem);
 	IPSLeave(dev);
 	up(&priv->rtllib->ips_sem);

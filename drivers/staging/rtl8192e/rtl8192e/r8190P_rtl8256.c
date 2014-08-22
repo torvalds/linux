@@ -86,6 +86,7 @@ bool PHY_RF8256_Config(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool rtStatus = true;
+
 	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
 	rtStatus = phy_RF8256_Config_ParaFile(dev);
 

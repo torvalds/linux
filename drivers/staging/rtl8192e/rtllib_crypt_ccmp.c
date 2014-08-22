@@ -90,6 +90,7 @@ fail:
 static void rtllib_ccmp_deinit(void *priv)
 {
 	struct rtllib_ccmp_data *_priv = priv;
+
 	if (_priv && _priv->tfm)
 		crypto_free_cipher((void *)_priv->tfm);
 	kfree(priv);
@@ -99,6 +100,7 @@ static void rtllib_ccmp_deinit(void *priv)
 static inline void xor_block(u8 *b, u8 *a, size_t len)
 {
 	int i;
+
 	for (i = 0; i < len; i++)
 		b[i] ^= a[i];
 }
@@ -415,6 +417,7 @@ static int rtllib_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 static void rtllib_ccmp_print_stats(struct seq_file *m, void *priv)
 {
 	struct rtllib_ccmp_data *ccmp = priv;
+
 	seq_printf(m,
 		   "key[%d] alg=CCMP key_set=%d "
 		   "tx_pn=%pM rx_pn=%pM "
