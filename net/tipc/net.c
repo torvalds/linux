@@ -111,7 +111,7 @@ int tipc_net_start(u32 addr)
 
 	tipc_own_addr = addr;
 	tipc_named_reinit();
-	tipc_port_reinit();
+	tipc_sk_reinit();
 	res = tipc_bclink_init();
 	if (res)
 		return res;

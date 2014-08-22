@@ -35,7 +35,7 @@
  */
 
 #include "core.h"
-#include "port.h"
+#include "socket.h"
 #include "name_table.h"
 #include "config.h"
 #include "server.h"
@@ -266,7 +266,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		rep_tlv_buf = tipc_media_get_names();
 		break;
 	case TIPC_CMD_SHOW_PORTS:
-		rep_tlv_buf = tipc_port_get_ports();
+		rep_tlv_buf = tipc_sk_socks_show();
 		break;
 	case TIPC_CMD_SHOW_STATS:
 		rep_tlv_buf = tipc_show_stats();

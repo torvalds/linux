@@ -40,6 +40,7 @@
 #include "node.h"
 #include "link.h"
 #include <linux/export.h>
+#include "config.h"
 
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */
@@ -62,9 +63,6 @@ static const struct proto_ops msg_ops;
 
 static struct proto tipc_proto;
 static struct proto tipc_proto_kern;
-
-DEFINE_SPINLOCK(tipc_port_list_lock);
-LIST_HEAD(tipc_socks);
 
 /*
  * Revised TIPC socket locking policy:
@@ -112,6 +110,17 @@ LIST_HEAD(tipc_socks);
  */
 
 #include "socket.h"
+
+/* tipc_sk_lock_next: find & lock next socket in registry from given port number
+*/
+static struct tipc_sock *tipc_sk_lock_next(u32 *ref)
+{
+	struct tipc_port *port = (struct tipc_port *)tipc_ref_lock_next(ref);
+
+	if (!port)
+		return NULL;
+	return tipc_port_to_sock(port);
+}
 
 /**
  * advance_rx_queue - discard first buffer in socket receive queue
@@ -203,16 +212,11 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	port->max_pkt = MAX_PKT_DEFAULT;
 	port->ref = ref;
 	INIT_LIST_HEAD(&port->publications);
-	INIT_LIST_HEAD(&port->port_list);
 
-	/* Guard against race during node address update */
-	spin_lock_bh(&tipc_port_list_lock);
 	msg = &port->phdr;
 	tipc_msg_init(msg, TIPC_LOW_IMPORTANCE, TIPC_NAMED_MSG,
 		      NAMED_H_SIZE, 0);
 	msg_set_origport(msg, ref);
-	list_add_tail(&port->port_list, &tipc_socks);
-	spin_unlock_bh(&tipc_port_list_lock);
 
 	/* Finish initializing socket data structures */
 	sock->ops = ops;
@@ -377,9 +381,6 @@ static int tipc_release(struct socket *sock)
 			tipc_link_xmit(buf, dnode, port->ref);
 		tipc_node_remove_conn(dnode, port->ref);
 	}
-	spin_lock_bh(&tipc_port_list_lock);
-	list_del(&port->port_list);
-	spin_unlock_bh(&tipc_port_list_lock);
 	k_term_timer(&port->timer);
 
 	/* Discard any remaining (connection-based) messages in receive queue */
@@ -2041,6 +2042,101 @@ static void tipc_sk_timeout(unsigned long ref)
 
 	msg = buf_msg(buf);
 	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
+}
+
+static int tipc_sk_show(struct tipc_port *port, char *buf,
+			int len, int full_id)
+{
+	struct publication *publ;
+	int ret;
+
+	if (full_id)
+		ret = tipc_snprintf(buf, len, "<%u.%u.%u:%u>:",
+				    tipc_zone(tipc_own_addr),
+				    tipc_cluster(tipc_own_addr),
+				    tipc_node(tipc_own_addr), port->ref);
+	else
+		ret = tipc_snprintf(buf, len, "%-10u:", port->ref);
+
+	if (port->connected) {
+		u32 dport = tipc_port_peerport(port);
+		u32 destnode = tipc_port_peernode(port);
+
+		ret += tipc_snprintf(buf + ret, len - ret,
+				     " connected to <%u.%u.%u:%u>",
+				     tipc_zone(destnode),
+				     tipc_cluster(destnode),
+				     tipc_node(destnode), dport);
+		if (port->conn_type != 0)
+			ret += tipc_snprintf(buf + ret, len - ret,
+					     " via {%u,%u}", port->conn_type,
+					     port->conn_instance);
+	} else if (port->published) {
+		ret += tipc_snprintf(buf + ret, len - ret, " bound to");
+		list_for_each_entry(publ, &port->publications, pport_list) {
+			if (publ->lower == publ->upper)
+				ret += tipc_snprintf(buf + ret, len - ret,
+						     " {%u,%u}", publ->type,
+						     publ->lower);
+			else
+				ret += tipc_snprintf(buf + ret, len - ret,
+						     " {%u,%u,%u}", publ->type,
+						     publ->lower, publ->upper);
+		}
+	}
+	ret += tipc_snprintf(buf + ret, len - ret, "\n");
+	return ret;
+}
+
+struct sk_buff *tipc_sk_socks_show(void)
+{
+	struct sk_buff *buf;
+	struct tlv_desc *rep_tlv;
+	char *pb;
+	int pb_len;
+	struct tipc_sock *tsk;
+	int str_len = 0;
+	u32 ref = 0;
+
+	buf = tipc_cfg_reply_alloc(TLV_SPACE(ULTRA_STRING_MAX_LEN));
+	if (!buf)
+		return NULL;
+	rep_tlv = (struct tlv_desc *)buf->data;
+	pb = TLV_DATA(rep_tlv);
+	pb_len = ULTRA_STRING_MAX_LEN;
+
+	tsk = tipc_sk_lock_next(&ref);
+	for (; tsk; tsk = tipc_sk_lock_next(&ref)) {
+		bh_lock_sock(&tsk->sk);
+		str_len += tipc_sk_show(&tsk->port, pb + str_len,
+					pb_len - str_len, 0);
+		bh_unlock_sock(&tsk->sk);
+		tipc_port_unlock(&tsk->port);
+	}
+	str_len += 1;	/* for "\0" */
+	skb_put(buf, TLV_SPACE(str_len));
+	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
+
+	return buf;
+}
+
+/* tipc_sk_reinit: set non-zero address in all existing sockets
+ *                 when we go from standalone to network mode.
+ */
+void tipc_sk_reinit(void)
+{
+	struct tipc_msg *msg;
+	u32 ref = 0;
+	struct tipc_sock *tsk = tipc_sk_lock_next(&ref);
+
+	for (; tsk; tsk = tipc_sk_lock_next(&ref)) {
+		bh_lock_sock(&tsk->sk);
+		msg = &tsk->port.phdr;
+		msg_set_prevnode(msg, tipc_own_addr);
+		msg_set_orignode(msg, tipc_own_addr);
+		bh_unlock_sock(&tsk->sk);
+		tipc_port_unlock(&tsk->port);
+	}
 }
 
 /**

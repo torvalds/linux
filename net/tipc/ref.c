@@ -264,3 +264,23 @@ void *tipc_ref_lock(u32 ref)
 	}
 	return NULL;
 }
+
+/* tipc_ref_lock_next - lock & return next object after referenced one
+*/
+void *tipc_ref_lock_next(u32 *ref)
+{
+	struct reference *entry;
+	uint index = *ref & tipc_ref_table.index_mask;
+
+	while (++index < tipc_ref_table.capacity) {
+		entry = &tipc_ref_table.entries[index];
+		if (!entry->object)
+			continue;
+		spin_lock_bh(&entry->lock);
+		*ref = entry->ref;
+		if (entry->object)
+			return entry->object;
+		spin_unlock_bh(&entry->lock);
+	}
+	return NULL;
+}

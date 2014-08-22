@@ -73,16 +73,12 @@ struct tipc_port {
 	u32 max_pkt;
 	u32 ref;
 	struct tipc_msg phdr;
-	struct list_head port_list;
 	struct list_head publications;
 	u32 pub_count;
 	u32 probing_state;
 	u32 probing_interval;
 	struct timer_list timer;
 };
-
-extern struct list_head tipc_socks;
-extern spinlock_t tipc_port_list_lock;
 
 /*
  * TIPC port manipulation routines
@@ -100,7 +96,6 @@ int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
 
 int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
-struct sk_buff *tipc_port_get_ports(void);
 void tipc_port_reinit(void);
 
 /**
