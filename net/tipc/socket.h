@@ -36,85 +36,11 @@
 #define _TIPC_SOCK_H
 
 #include <net/sock.h>
-#include "msg.h"
 
-#define TIPC_CONN_OK      0
-#define TIPC_CONN_PROBING 1
 #define TIPC_CONNACK_INTV         256
 #define TIPC_FLOWCTRL_WIN        (TIPC_CONNACK_INTV * 2)
 #define TIPC_CONN_OVERLOAD_LIMIT ((TIPC_FLOWCTRL_WIN * 2 + 1) * \
 				  SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
-
-/**
- * struct tipc_port - TIPC port structure
- * @lock: pointer to spinlock for controlling access to port
- * @connected: non-zero if port is currently connected to a peer port
- * @conn_type: TIPC type used when connection was established
- * @conn_instance: TIPC instance used when connection was established
- * @published: non-zero if port has one or more associated names
- * @max_pkt: maximum packet size "hint" used when building messages sent by port
- * @ref: unique reference to port in TIPC object registry
- * @phdr: preformatted message header used when sending messages
- * @port_list: adjacent ports in TIPC's global list of ports
- * @publications: list of publications for port
- * @pub_count: total # of publications port has made during its lifetime
- * @probing_state:
- * @probing_interval:
- * @timer_ref:
- */
-struct tipc_port {
-	int connected;
-	u32 conn_type;
-	u32 conn_instance;
-	int published;
-	u32 max_pkt;
-	u32 ref;
-	struct tipc_msg phdr;
-	struct list_head port_list;
-	struct list_head publications;
-	u32 pub_count;
-	u32 probing_state;
-	u32 probing_interval;
-	struct timer_list timer;
-};
-
-/**
- * struct tipc_sock - TIPC socket structure
- * @sk: socket - interacts with 'port' and with user via the socket API
- * @port: port - interacts with 'sk' and with the rest of the TIPC stack
- * @peer_name: the peer of the connection, if any
- * @conn_timeout: the time we can wait for an unresponded setup request
- * @dupl_rcvcnt: number of bytes counted twice, in both backlog and rcv queue
- * @link_cong: non-zero if owner must sleep because of link congestion
- * @sent_unacked: # messages sent by socket, and not yet acked by peer
- * @rcv_unacked: # messages read by user, but not yet acked back to peer
- */
-
-struct tipc_sock {
-	struct sock sk;
-	struct tipc_port port;
-	unsigned int conn_timeout;
-	atomic_t dupl_rcvcnt;
-	bool link_cong;
-	uint sent_unacked;
-	uint rcv_unacked;
-};
-
-static inline struct tipc_sock *tipc_sk(const struct sock *sk)
-{
-	return container_of(sk, struct tipc_sock, sk);
-}
-
-static inline struct tipc_sock *tipc_port_to_sock(const struct tipc_port *port)
-{
-	return container_of(port, struct tipc_sock, port);
-}
-
-static inline int tipc_sk_conn_cong(struct tipc_sock *tsk)
-{
-	return tsk->sent_unacked >= TIPC_FLOWCTRL_WIN;
-}
-
 int tipc_sk_rcv(struct sk_buff *buf);
 struct sk_buff *tipc_sk_socks_show(void);
 void tipc_sk_mcast_rcv(struct sk_buff *buf);
