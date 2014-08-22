@@ -1243,11 +1243,10 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	ath10k_pci_irq_disable(ar);
 	ath10k_pci_flush(ar);
 
-	/* Make the sure the device won't access any structures on the host by
-	 * resetting it. The device was fed with PCI CE ringbuffer
-	 * configuration during init. If ringbuffers are freed and the device
-	 * were to access them this could lead to memory corruption on the
-	 * host. */
+	/* Most likely the device has HTT Rx ring configured. The only way to
+	 * prevent the device from accessing (and possible corrupting) host
+	 * memory is to reset the chip now.
+	 */
 	ath10k_pci_warm_reset(ar);
 
 	ar_pci->started = 0;
