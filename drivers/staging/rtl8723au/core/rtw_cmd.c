@@ -1513,8 +1513,8 @@ void rtw_setassocsta_cmdrsp_callback23a(struct rtw_adapter *padapter,
 {
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct set_assocsta_parm* passocsta_parm;
-	struct set_assocsta_rsp* passocsta_rsp;
+	struct set_assocsta_parm *passocsta_parm;
+	struct set_assocsta_rsp *passocsta_rsp;
 	struct sta_info *psta;
 
 	passocsta_parm = (struct set_assocsta_parm *)(pcmd->parmbuf);

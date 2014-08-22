@@ -208,7 +208,7 @@ int rtw_if_up23a(struct rtw_adapter *padapter)
 	return res;
 }
 
-void rtw_generate_random_ibss23a(u8* pibss)
+void rtw_generate_random_ibss23a(u8 *pibss)
 {
 	unsigned long curtime = jiffies;
 
@@ -610,7 +610,7 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 		   "rtw_survey_event_cb23a : WIFI_ADHOC_MASTER_STATE\n\n"); */
 		if (ether_addr_equal(pmlmepriv->cur_network.network.MacAddress,
 				     pnetwork->MacAddress)) {
-			struct wlan_network* ibss_wlan;
+			struct wlan_network *ibss_wlan;
 
 			pmlmepriv->cur_network.network.beacon_interval =
 				pnetwork->beacon_interval;
@@ -754,11 +754,11 @@ static void free_scanqueue(struct mlme_priv *pmlmepriv)
 void rtw_free_assoc_resources23a(struct rtw_adapter *adapter,
 				 int lock_scanned_queue)
 {
-	struct wlan_network* pwlan;
+	struct wlan_network *pwlan;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct sta_priv *pstapriv = &adapter->stapriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
-	struct sta_info* psta;
+	struct sta_info *psta;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
 		 ("+rtw_free_assoc_resources23a\n"));
@@ -1335,7 +1335,7 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	int mac_id;
 	struct sta_info *psta;
-	struct wlan_network* pwlan;
+	struct wlan_network *pwlan;
 	struct wlan_bssid_ex *pdev_network;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct stadel_event *pstadel = (struct stadel_event *)pbuf;
@@ -1768,7 +1768,7 @@ exit:
 int rtw_set_auth23a(struct rtw_adapter * adapter,
 		    struct security_priv *psecuritypriv)
 {
-	struct cmd_obj* pcmd;
+	struct cmd_obj *pcmd;
 	struct setauth_parm *psetauthparm;
 	struct cmd_priv *pcmdpriv = &adapter->cmdpriv;
 	int res = _SUCCESS;
@@ -2048,10 +2048,10 @@ int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 	return ielength;
 }
 
-void rtw_init_registrypriv_dev_network23a(struct rtw_adapter* adapter)
+void rtw_init_registrypriv_dev_network23a(struct rtw_adapter *adapter)
 {
-	struct registry_priv* pregistrypriv = &adapter->registrypriv;
-	struct eeprom_priv* peepriv = &adapter->eeprompriv;
+	struct registry_priv *pregistrypriv = &adapter->registrypriv;
+	struct eeprom_priv *peepriv = &adapter->eeprompriv;
 	struct wlan_bssid_ex    *pdev_network = &pregistrypriv->dev_network;
 	u8 *myhwaddr = myid(peepriv);
 
@@ -2063,10 +2063,10 @@ void rtw_init_registrypriv_dev_network23a(struct rtw_adapter* adapter)
 	pdev_network->beacon_interval = 100;
 }
 
-void rtw_update_registrypriv_dev_network23a(struct rtw_adapter* adapter)
+void rtw_update_registrypriv_dev_network23a(struct rtw_adapter *adapter)
 {
 	int sz = 0;
-	struct registry_priv* pregistrypriv = &adapter->registrypriv;
+	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 	struct wlan_network *cur_network = &adapter->mlmepriv.cur_network;

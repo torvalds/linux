@@ -266,7 +266,7 @@ struct mlme_handler {
 
 struct action_handler {
 	unsigned int   num;
-	char* str;
+	char *str;
 	int (*func)(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 };
 
@@ -446,7 +446,7 @@ struct mlme_ext_priv {
 	u8 active_keep_alive_check;
 };
 
-int init_mlme_ext_priv23a(struct rtw_adapter* padapter);
+int init_mlme_ext_priv23a(struct rtw_adapter *padapter);
 int init_hw_mlme_ext23a(struct rtw_adapter *padapter);
 void free_mlme_ext_priv23a (struct mlme_ext_priv *pmlmeext);
 void init_mlme_ext_timer23a(struct rtw_adapter *padapter);
@@ -514,7 +514,7 @@ void update_capinfo23a(struct rtw_adapter *Adapter, u16 updateCap);
 void update_wireless_mode23a(struct rtw_adapter * padapter);
 void update_tx_basic_rate23a(struct rtw_adapter *padapter, u8 modulation);
 void update_bmc_sta_support_rate23a(struct rtw_adapter *padapter, u32 mac_id);
-int update_sta_support_rate23a(struct rtw_adapter *padapter, u8* pvar_ie,
+int update_sta_support_rate23a(struct rtw_adapter *padapter, u8 *pvar_ie,
 			    uint var_ie_len, int cam_idx);
 
 /* for sta/adhoc mode */
