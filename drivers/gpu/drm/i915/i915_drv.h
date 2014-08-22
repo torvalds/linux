@@ -1168,6 +1168,7 @@ struct i915_gem_mm {
 };
 
 struct drm_i915_error_state_buf {
+	struct drm_i915_private *i915;
 	unsigned bytes;
 	unsigned size;
 	int err;
@@ -2666,6 +2667,7 @@ void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 int i915_error_state_to_str(struct drm_i915_error_state_buf *estr,
 			    const struct i915_error_state_file_priv *error);
 int i915_error_state_buf_init(struct drm_i915_error_state_buf *eb,
+			      struct drm_i915_private *i915,
 			      size_t count, loff_t pos);
 static inline void i915_error_state_buf_release(
 	struct drm_i915_error_state_buf *eb)
@@ -2680,7 +2682,7 @@ void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
 void i915_destroy_error_state(struct drm_device *dev);
 
 void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone);
-const char *i915_cache_level_str(int type);
+const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(void);

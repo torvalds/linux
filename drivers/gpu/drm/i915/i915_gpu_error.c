@@ -208,7 +208,7 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 		err_puts(m, err->userptr ? " userptr" : "");
 		err_puts(m, err->ring != -1 ? " " : "");
 		err_puts(m, ring_str(err->ring));
-		err_puts(m, i915_cache_level_str(err->cache_level));
+		err_puts(m, i915_cache_level_str(m->i915, err->cache_level));
 
 		if (err->name)
 			err_printf(m, " (name: %d)", err->name);
@@ -494,9 +494,11 @@ out:
 }
 
 int i915_error_state_buf_init(struct drm_i915_error_state_buf *ebuf,
+			      struct drm_i915_private *i915,
 			      size_t count, loff_t pos)
 {
 	memset(ebuf, 0, sizeof(*ebuf));
+	ebuf->i915 = i915;
 
 	/* We need to have enough room to store any i915_error_state printf
 	 * so that we can move it to start position.
@@ -1355,11 +1357,11 @@ void i915_destroy_error_state(struct drm_device *dev)
 		kref_put(&error->ref, i915_error_state_free);
 }
 
-const char *i915_cache_level_str(int type)
+const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 {
 	switch (type) {
 	case I915_CACHE_NONE: return " uncached";
-	case I915_CACHE_LLC: return " snooped or LLC";
+	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
 	case I915_CACHE_L3_LLC: return " L3+LLC";
 	case I915_CACHE_WT: return " WT";
 	default: return "";
