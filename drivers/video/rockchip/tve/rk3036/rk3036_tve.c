@@ -42,17 +42,26 @@ static struct rk3036_tve *rk3036_tve;
 static void dac_enable(bool enable)
 {
 	u32 mask, val;
+	u32 grfreg = 0;
 
 	TVEDBG("%s enable %d\n", __func__, enable);
 
 	if (enable) {
 		mask = m_VBG_EN | m_DAC_EN | m_DAC_GAIN;
-		val = m_VBG_EN | m_DAC_EN | v_DAC_GAIN(0x3b);
+		if (rk3036_tve->soctype == SOC_RK312X) {
+			val = m_VBG_EN | m_DAC_EN | v_DAC_GAIN(0x3b);
+			grfreg = RK312X_GRF_TVE_CON;
+		}
+		else if (rk3036_tve->soctype == SOC_RK3036) {
+			val = m_VBG_EN | m_DAC_EN | v_DAC_GAIN(0x3e);
+			grfreg = RK3036_GRF_SOC_CON3;
+		}
 	} else {
 		mask = m_VBG_EN | m_DAC_EN;
 		val = 0;
 	}
-	grf_writel(rk3036_tve->grfreg, (mask << 16) | val);
+	if (grfreg)
+		grf_writel(grfreg, (mask << 16) | val);
 }
 
 static void tve_set_mode(int mode)
@@ -96,15 +105,23 @@ static void tve_set_mode(int mode)
 			v_YPP_MODE(1) | v_Y_SYNC_ON(1) | v_PIC_MODE(mode));
 		tve_writel(TV_BW_CTRL, v_CHROMA_BW(BP_FILTER_PAL) |
 			v_COLOR_DIFF_BW(COLOR_DIFF_FILTER_BW_1_3));
-		tve_writel(TV_SATURATION, /*0x00325c40*/ 0x00326346);
-		tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008b00);
+		if (rk3036_tve->soctype == SOC_RK312X) {
+			tve_writel(TV_SATURATION, /*0x00325c40*/ 0x00386440);
+			tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008a00);
+		} else {
+			tve_writel(TV_SATURATION, /*0x00325c40*/ 0x00386346);
+			tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008b00);
+		}
 
 		tve_writel(TV_FREQ_SC,	0x2A098ACB);
 		tve_writel(TV_SYNC_TIMING, 0x00C28381);
 		tve_writel(TV_ADJ_TIMING, (0xc << 28) | 0x06c00800 | 0x80);
 		tve_writel(TV_ACT_ST,	0x001500F6);
 		tve_writel(TV_ACT_TIMING, 0x0694011D | (1 << 12) | (2 << 28));
-		tve_writel(TV_ADJ_TIMING, (0xa << 28) | 0x06c00800 | 0x80);
+		if (rk3036_tve->soctype == SOC_RK312X)
+			tve_writel(TV_ADJ_TIMING, (0x9<< 28) | 0x06c00800 | 0x80);
+		else
+			tve_writel(TV_ADJ_TIMING, (0xa<< 28) | 0x06c00800 | 0x80);
 	}
 }
 
@@ -321,10 +338,10 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 	}
 
 	if (!strcmp(match->compatible, "rockchip,rk3036-tve")) {
-		rk3036_tve->grfreg = RK3036_GRF_SOC_CON3;
+		rk3036_tve->soctype = SOC_RK3036;
 		rk3036_tve->inputformat = INPUT_FORMAT_RGB;
 	} else if (!strcmp(match->compatible, "rockchip,rk312x-tve")) {
-		rk3036_tve->grfreg = RK312X_GRF_TVE_CON;
+		rk3036_tve->soctype = SOC_RK312X;
 		rk3036_tve->inputformat = INPUT_FORMAT_YUV;
 	} else {
 		dev_err(&pdev->dev, "It is not a valid tv encoder!");

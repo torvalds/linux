@@ -88,6 +88,11 @@ enum {
 	INPUT_FORMAT_YUV
 };
 
+enum {
+	SOC_RK3036 = 0,
+	SOC_RK312X
+};
+
 #define TVOUT_DEAULT TVOUT_CVBS_PAL
 
 #define grf_writel(offset, v)	do { \
@@ -100,7 +105,7 @@ struct rk3036_tve {
 	void __iomem			*regbase;
 	u32				reg_phy_base;
 	u32				len;
-	int				grfreg;
+	int				soctype;
 	int				inputformat;
 	struct rk_display_device	*ddev;
 	unsigned int			enable;
