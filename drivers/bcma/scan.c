@@ -421,10 +421,13 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		core->io_addr = ioremap_nocache(core->addr, BCMA_CORE_SIZE);
 		if (!core->io_addr)
 			return -ENOMEM;
-		core->io_wrap = ioremap_nocache(core->wrap, BCMA_CORE_SIZE);
-		if (!core->io_wrap) {
-			iounmap(core->io_addr);
-			return -ENOMEM;
+		if (core->wrap) {
+			core->io_wrap = ioremap_nocache(core->wrap,
+							BCMA_CORE_SIZE);
+			if (!core->io_wrap) {
+				iounmap(core->io_addr);
+				return -ENOMEM;
+			}
 		}
 	}
 	return 0;

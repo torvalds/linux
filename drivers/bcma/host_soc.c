@@ -134,12 +134,16 @@ static void bcma_host_soc_block_write(struct bcma_device *core,
 
 static u32 bcma_host_soc_aread32(struct bcma_device *core, u16 offset)
 {
+	if (WARN_ONCE(!core->io_wrap, "Accessed core has no wrapper/agent\n"))
+		return ~0;
 	return readl(core->io_wrap + offset);
 }
 
 static void bcma_host_soc_awrite32(struct bcma_device *core, u16 offset,
 				  u32 value)
 {
+	if (WARN_ONCE(!core->io_wrap, "Accessed core has no wrapper/agent\n"))
+		return;
 	writel(value, core->io_wrap + offset);
 }
 
