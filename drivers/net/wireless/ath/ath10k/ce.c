@@ -769,11 +769,11 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar)
  *
  * Called with ce_lock held.
  */
-static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
-						int disable_copy_compl_intr)
+static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state)
 {
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	struct ath10k *ar = ce_state->ar;
+	bool disable_copy_compl_intr = ce_state->attr_flags & CE_ATTR_DIS_INTR;
 
 	if ((!disable_copy_compl_intr) &&
 	    (ce_state->send_cb || ce_state->recv_cb))
@@ -799,29 +799,13 @@ int ath10k_ce_disable_interrupts(struct ath10k *ar)
 	return 0;
 }
 
-void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
-				void (*send_cb)(struct ath10k_ce_pipe *),
-				int disable_interrupts)
+void ath10k_ce_enable_interrupts(struct ath10k *ar)
 {
-	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int ce_id;
 
-	spin_lock_bh(&ar_pci->ce_lock);
-	ce_state->send_cb = send_cb;
-	ath10k_ce_per_engine_handler_adjust(ce_state, disable_interrupts);
-	spin_unlock_bh(&ar_pci->ce_lock);
-}
-
-void ath10k_ce_recv_cb_register(struct ath10k_ce_pipe *ce_state,
-				void (*recv_cb)(struct ath10k_ce_pipe *))
-{
-	struct ath10k *ar = ce_state->ar;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
-	spin_lock_bh(&ar_pci->ce_lock);
-	ce_state->recv_cb = recv_cb;
-	ath10k_ce_per_engine_handler_adjust(ce_state, 0);
-	spin_unlock_bh(&ar_pci->ce_lock);
+	for (ce_id = 0; ce_id < CE_COUNT; ce_id++)
+		ath10k_ce_per_engine_handler_adjust(&ar_pci->ce_states[ce_id]);
 }
 
 static int ath10k_ce_init_src_ring(struct ath10k *ar,
@@ -1023,7 +1007,9 @@ ath10k_ce_alloc_dest_ring(struct ath10k *ar, unsigned int ce_id,
  * initialized by software/firmware.
  */
 int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
-			const struct ce_attr *attr)
+			const struct ce_attr *attr,
+			void (*send_cb)(struct ath10k_ce_pipe *),
+			void (*recv_cb)(struct ath10k_ce_pipe *))
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
@@ -1046,6 +1032,10 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 	ce_state->ctrl_addr = ath10k_ce_base_address(ce_id);
 	ce_state->attr_flags = attr->flags;
 	ce_state->src_sz_max = attr->src_sz_max;
+	if (attr->src_nentries)
+		ce_state->send_cb = send_cb;
+	if (attr->dest_nentries)
+		ce_state->recv_cb = recv_cb;
 	spin_unlock_bh(&ar_pci->ce_lock);
 
 	if (attr->src_nentries) {

@@ -162,10 +162,6 @@ int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 
 void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe);
 
-void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
-				void (*send_cb)(struct ath10k_ce_pipe *),
-				int disable_interrupts);
-
 int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe);
 
 /*==================Recv=======================*/
@@ -183,9 +179,6 @@ int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe);
 int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 			       void *per_transfer_recv_context,
 			       u32 buffer);
-
-void ath10k_ce_recv_cb_register(struct ath10k_ce_pipe *ce_state,
-				void (*recv_cb)(struct ath10k_ce_pipe *));
 
 /* recv flags */
 /* Data is byte-swapped */
@@ -214,7 +207,9 @@ int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 /*==================CE Engine Initialization=======================*/
 
 int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
-			const struct ce_attr *attr);
+			const struct ce_attr *attr,
+			void (*send_cb)(struct ath10k_ce_pipe *),
+			void (*recv_cb)(struct ath10k_ce_pipe *));
 void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id);
 int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 			  const struct ce_attr *attr);
@@ -245,6 +240,7 @@ int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 void ath10k_ce_per_engine_service_any(struct ath10k *ar);
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id);
 int ath10k_ce_disable_interrupts(struct ath10k *ar);
+void ath10k_ce_enable_interrupts(struct ath10k *ar);
 
 /* ce_attr.flags values */
 /* Use NonSnooping PCIe accesses? */

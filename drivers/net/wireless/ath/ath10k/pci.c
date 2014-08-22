@@ -941,37 +941,6 @@ static void ath10k_pci_hif_set_callbacks(struct ath10k *ar,
 	       sizeof(ar_pci->msg_callbacks_current));
 }
 
-static int ath10k_pci_setup_ce_irq(struct ath10k *ar)
-{
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	const struct ce_attr *attr;
-	struct ath10k_pci_pipe *pipe_info;
-	int pipe_num, disable_interrupts;
-
-	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
-		pipe_info = &ar_pci->pipe_info[pipe_num];
-
-		/* Handle Diagnostic CE specially */
-		if (pipe_info->ce_hdl == ar_pci->ce_diag)
-			continue;
-
-		attr = &host_ce_config_wlan[pipe_num];
-
-		if (attr->src_nentries) {
-			disable_interrupts = attr->flags & CE_ATTR_DIS_INTR;
-			ath10k_ce_send_cb_register(pipe_info->ce_hdl,
-						   ath10k_pci_ce_send_done,
-						   disable_interrupts);
-		}
-
-		if (attr->dest_nentries)
-			ath10k_ce_recv_cb_register(pipe_info->ce_hdl,
-						   ath10k_pci_ce_recv_data);
-	}
-
-	return 0;
-}
-
 static void ath10k_pci_kill_tasklet(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -1169,11 +1138,7 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 		goto err_early_irq;
 	}
 
-	ret = ath10k_pci_setup_ce_irq(ar);
-	if (ret) {
-		ath10k_warn("failed to setup CE interrupts: %d\n", ret);
-		goto err_stop;
-	}
+	ath10k_ce_enable_interrupts(ar);
 
 	/* Post buffers once to start things off. */
 	ret = ath10k_pci_post_rx(ar);
@@ -1786,7 +1751,9 @@ static int ath10k_pci_ce_init(struct ath10k *ar)
 		pipe_info->hif_ce_state = ar;
 		attr = &host_ce_config_wlan[pipe_num];
 
-		ret = ath10k_ce_init_pipe(ar, pipe_num, attr);
+		ret = ath10k_ce_init_pipe(ar, pipe_num, attr,
+					  ath10k_pci_ce_send_done,
+					  ath10k_pci_ce_recv_data);
 		if (ret) {
 			ath10k_err("failed to initialize copy engine pipe %d: %d\n",
 				   pipe_num, ret);
