@@ -48,7 +48,6 @@
 DEFINE_SPINLOCK(tipc_port_list_lock);
 
 static LIST_HEAD(ports);
-static void port_handle_node_down(unsigned long ref);
 static struct sk_buff *port_build_self_abort_msg(struct tipc_port *, u32 err);
 static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *, u32 err);
 static void port_timeout(unsigned long ref);
@@ -126,10 +125,10 @@ void tipc_port_destroy(struct tipc_port *p_ptr)
 	k_cancel_timer(&p_ptr->timer);
 	if (p_ptr->connected) {
 		buf = port_build_peer_abort_msg(p_ptr, TIPC_ERR_NO_PORT);
-		tipc_nodesub_unsubscribe(&p_ptr->subscription);
 		msg = buf_msg(buf);
 		peer = msg_destnode(msg);
 		tipc_link_xmit(buf, peer, msg_link_selector(msg));
+		tipc_node_remove_conn(peer, p_ptr->ref);
 	}
 	spin_lock_bh(&tipc_port_list_lock);
 	list_del(&p_ptr->port_list);
@@ -188,22 +187,6 @@ static void port_timeout(unsigned long ref)
 	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 }
 
-
-static void port_handle_node_down(unsigned long ref)
-{
-	struct tipc_port *p_ptr = tipc_port_lock(ref);
-	struct sk_buff *buf = NULL;
-	struct tipc_msg *msg = NULL;
-
-	if (!p_ptr)
-		return;
-	buf = port_build_self_abort_msg(p_ptr, TIPC_ERR_NO_NODE);
-	tipc_port_unlock(p_ptr);
-	msg = buf_msg(buf);
-	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
-}
-
-
 static struct sk_buff *port_build_self_abort_msg(struct tipc_port *p_ptr, u32 err)
 {
 	struct sk_buff *buf = port_build_peer_abort_msg(p_ptr, err);
@@ -216,7 +199,6 @@ static struct sk_buff *port_build_self_abort_msg(struct tipc_port *p_ptr, u32 er
 	}
 	return buf;
 }
-
 
 static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 err)
 {
@@ -447,11 +429,8 @@ int __tipc_port_connect(u32 ref, struct tipc_port *p_ptr,
 	p_ptr->probing_state = TIPC_CONN_OK;
 	p_ptr->connected = 1;
 	k_start_timer(&p_ptr->timer, p_ptr->probing_interval);
-
-	tipc_nodesub_subscribe(&p_ptr->subscription, peer->node,
-			  (void *)(unsigned long)ref,
-			  (net_ev_handler)port_handle_node_down);
-	res = 0;
+	res = tipc_node_add_conn(tipc_port_peernode(p_ptr), p_ptr->ref,
+				 tipc_port_peerport(p_ptr));
 exit:
 	p_ptr->max_pkt = tipc_node_get_mtu(peer->node, ref);
 	return res;
@@ -467,7 +446,7 @@ int __tipc_port_disconnect(struct tipc_port *tp_ptr)
 	if (tp_ptr->connected) {
 		tp_ptr->connected = 0;
 		/* let timer expire on it's own to avoid deadlock! */
-		tipc_nodesub_unsubscribe(&tp_ptr->subscription);
+		tipc_node_remove_conn(tipc_port_peernode(tp_ptr), tp_ptr->ref);
 		return 0;
 	}
 
