@@ -31,10 +31,8 @@
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 #include <sound/asound.h>
 #include <sound/asoundef.h>
-#endif
 
 #include "hdmi4_core.h"
 #include "dss_features.h"
@@ -530,7 +528,6 @@ void hdmi4_core_dump(struct hdmi_core_data *core, struct seq_file *s)
 	DUMPCOREAV(HDMI_CORE_AV_CEC_ADDR_ID);
 }
 
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 static void hdmi_core_audio_config(struct hdmi_core_data *core,
 					struct hdmi_core_audio_config *cfg)
 {
@@ -885,8 +882,6 @@ int hdmi4_audio_get_dma_port(u32 *offset, u32 *size)
 	*size = 4;
 	return 0;
 }
-
-#endif
 
 int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {

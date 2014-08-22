@@ -30,10 +30,8 @@
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <drm/drm_edid.h>
-#if defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 #include <sound/asound.h>
 #include <sound/asoundef.h>
-#endif
 
 #include "hdmi5_core.h"
 
@@ -644,9 +642,6 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	hdmi_core_enable_interrupts(core);
 }
 
-
-#if defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
-
 static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 			struct hdmi_core_audio_config *cfg)
 {
@@ -897,7 +892,6 @@ int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 
 	return 0;
 }
-#endif
 
 int hdmi5_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
