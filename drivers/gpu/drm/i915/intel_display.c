@@ -1195,26 +1195,39 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 				  enum pipe pipe)
 {
-	int pp_reg, lvds_reg;
+	struct drm_device *dev = dev_priv->dev;
+	int pp_reg;
 	u32 val;
 	enum pipe panel_pipe = PIPE_A;
 	bool locked = true;
 
-	if (HAS_PCH_SPLIT(dev_priv->dev)) {
+	if (WARN_ON(HAS_DDI(dev)))
+		return;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		u32 port_sel;
+
 		pp_reg = PCH_PP_CONTROL;
-		lvds_reg = PCH_LVDS;
+		port_sel = I915_READ(PCH_PP_ON_DELAYS) & PANEL_PORT_SELECT_MASK;
+
+		if (port_sel == PANEL_PORT_SELECT_LVDS &&
+		    I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT)
+			panel_pipe = PIPE_B;
+		/* XXX: else fix for eDP */
+	} else if (IS_VALLEYVIEW(dev)) {
+		/* presumably write lock depends on pipe, not port select */
+		pp_reg = VLV_PIPE_PP_CONTROL(pipe);
+		panel_pipe = pipe;
 	} else {
 		pp_reg = PP_CONTROL;
-		lvds_reg = LVDS;
+		if (I915_READ(LVDS) & LVDS_PIPEB_SELECT)
+			panel_pipe = PIPE_B;
 	}
 
 	val = I915_READ(pp_reg);
 	if (!(val & PANEL_POWER_ON) ||
 	    ((val & PANEL_UNLOCK_MASK) == PANEL_UNLOCK_REGS))
 		locked = false;
-
-	if (I915_READ(lvds_reg) & LVDS_PIPEB_SELECT)
-		panel_pipe = PIPE_B;
 
 	WARN(panel_pipe == pipe && locked,
 	     "panel assertion failure, pipe %c regs locked\n",
