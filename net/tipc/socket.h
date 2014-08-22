@@ -119,5 +119,7 @@ int tipc_sk_rcv(struct sk_buff *buf);
 struct sk_buff *tipc_sk_socks_show(void);
 void tipc_sk_mcast_rcv(struct sk_buff *buf);
 void tipc_sk_reinit(void);
+int tipc_sk_ref_table_init(u32 requested_size, u32 start);
+void tipc_sk_ref_table_stop(void);
 
 #endif
