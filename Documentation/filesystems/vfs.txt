@@ -895,8 +895,9 @@ otherwise noted.
   splice_read: called by the VFS to splice data from file to a pipe. This
 	       method is used by the splice(2) system call
 
-  setlease: called by the VFS to set or release a file lock lease.
-	    setlease has the file_lock_lock held and must not sleep.
+  setlease: called by the VFS to set or release a file lock lease. setlease
+	    implementations should call generic_setlease to record or remove
+	    the lease in the inode after setting it.
 
   fallocate: called by the VFS to preallocate blocks or punch a hole.
 

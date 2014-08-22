@@ -1330,6 +1330,8 @@ static void time_out_leases(struct inode *inode)
 	struct file_lock **before;
 	struct file_lock *fl;
 
+	lockdep_assert_held(&inode->i_lock);
+
 	before = &inode->i_flock;
 	while ((fl = *before) && IS_LEASE(fl) && lease_breaking(fl)) {
 		trace_time_out_leases(inode, fl);
@@ -1590,6 +1592,8 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 		return -EINVAL;
 	}
 
+	spin_lock(&inode->i_lock);
+	time_out_leases(inode);
 	error = check_conflicting_open(dentry, arg);
 	if (error)
 		goto out;
@@ -1655,6 +1659,7 @@ out_setup:
 	if (lease->fl_lmops->lm_setup)
 		lease->fl_lmops->lm_setup(lease, priv);
 out:
+	spin_unlock(&inode->i_lock);
 	if (is_deleg)
 		mutex_unlock(&inode->i_mutex);
 	if (!error && !my_before)
@@ -1672,6 +1677,7 @@ static int generic_delete_lease(struct file *filp)
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 
+	spin_lock(&inode->i_lock);
 	for (before = &inode->i_flock;
 			((fl = *before) != NULL) && IS_LEASE(fl);
 			before = &fl->fl_next) {
@@ -1681,6 +1687,7 @@ static int generic_delete_lease(struct file *filp)
 	trace_generic_delete_lease(inode, fl);
 	if (fl)
 		error = fl->fl_lmops->lm_change(before, F_UNLCK);
+	spin_unlock(&inode->i_lock);
 	return error;
 }
 
@@ -1694,8 +1701,6 @@ static int generic_delete_lease(struct file *filp)
  *
  *	The (input) flp->fl_lmops->lm_break function is required
  *	by break_lease().
- *
- *	Called with inode->i_lock held.
  */
 int generic_setlease(struct file *filp, long arg, struct file_lock **flp,
 			void **priv)
@@ -1711,8 +1716,6 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp,
 	error = security_file_lock(filp, arg);
 	if (error)
 		return error;
-
-	time_out_leases(inode);
 
 	switch (arg) {
 	case F_UNLCK:
@@ -1750,16 +1753,10 @@ EXPORT_SYMBOL(generic_setlease);
 int
 vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
 {
-	struct inode *inode = file_inode(filp);
-	int error;
-
-	spin_lock(&inode->i_lock);
 	if (filp->f_op->setlease)
-		error = filp->f_op->setlease(filp, arg, lease, priv);
+		return filp->f_op->setlease(filp, arg, lease, priv);
 	else
-		error = generic_setlease(filp, arg, lease, priv);
-	spin_unlock(&inode->i_lock);
-	return error;
+		return generic_setlease(filp, arg, lease, priv);
 }
 EXPORT_SYMBOL_GPL(vfs_setlease);
 

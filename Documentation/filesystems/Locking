@@ -472,8 +472,6 @@ locking rules:
 	All may block except for ->setlease.
 	No VFS locks held on entry except for ->setlease.
 
-->setlease has the file_list_lock held and must not sleep.
-
 ->llseek() locking has moved from llseek to the individual llseek
 implementations.  If your fs is not using generic_file_llseek, you
 need to acquire and release the appropriate locks in your ->llseek().
@@ -495,6 +493,10 @@ components. And there are other reasons why the current interface is a mess...
 
 ->read on directories probably must go away - we should just enforce -EISDIR
 in sys_read() and friends.
+
+->setlease operations should call generic_setlease() before or after setting
+the lease within the individual filesystem to record the result of the
+operation
 
 --------------------------- dquot_operations -------------------------------
 prototypes:
