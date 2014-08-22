@@ -9096,6 +9096,28 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 	return 0;
 }
 
+static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
+				enum port port,
+				struct intel_crtc_state *pipe_config)
+{
+	switch (port) {
+	case PORT_A:
+		pipe_config->ddi_pll_sel = SKL_DPLL0;
+		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL1;
+		break;
+	case PORT_B:
+		pipe_config->ddi_pll_sel = SKL_DPLL1;
+		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL2;
+		break;
+	case PORT_C:
+		pipe_config->ddi_pll_sel = SKL_DPLL2;
+		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL3;
+		break;
+	default:
+		DRM_ERROR("Incorrect port type\n");
+	}
+}
+
 static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
@@ -9158,6 +9180,8 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	if (IS_SKYLAKE(dev))
 		skylake_get_ddi_pll(dev_priv, port, pipe_config);
+	else if (IS_BROXTON(dev))
+		bxt_get_ddi_pll(dev_priv, port, pipe_config);
 	else
 		haswell_get_ddi_pll(dev_priv, port, pipe_config);
 
