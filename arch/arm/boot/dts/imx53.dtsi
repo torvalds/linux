@@ -747,5 +747,10 @@
 			reg = <0xf8000000 0x20000>;
 			clocks = <&clks IMX5_CLK_OCRAM>;
 		};
+
+		pmu {
+			compatible = "arm,cortex-a8-pmu";
+			interrupts = <77>;
+		};
 	};
 };
