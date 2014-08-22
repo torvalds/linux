@@ -79,7 +79,6 @@ static inline void decode_ctrl_reg(u32 reg,
  */
 #define ARM_MAX_BRP		16
 #define ARM_MAX_WRP		16
-#define ARM_MAX_HBP_SLOTS	(ARM_MAX_BRP + ARM_MAX_WRP)
 
 /* Virtual debug register bases. */
 #define AARCH64_DBG_REG_BVR	0
