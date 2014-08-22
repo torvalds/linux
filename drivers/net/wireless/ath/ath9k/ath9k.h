@@ -601,6 +601,7 @@ void ath_update_survey_nf(struct ath_softc *sc, int channel);
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 void ath_ps_full_sleep(unsigned long data);
 void ath9k_p2p_ps_timer(void *priv);
+void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp);
 void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif);
 void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop);
 
