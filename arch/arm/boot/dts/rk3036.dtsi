@@ -111,7 +111,7 @@
 	timer@20044000 {
 		compatible = "rockchip,timer";
 		reg = <0x20044000 0x20>;
-		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,broadcast = <1>;
 	};
 
