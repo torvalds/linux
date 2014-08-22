@@ -83,3 +83,8 @@
         hp_ctl_io = <&gpio1 GPIO_A0 0>;
 };
 
+&dwc_control_usb {
+	usb_uart {
+		status = "disabled";
+	};
+};

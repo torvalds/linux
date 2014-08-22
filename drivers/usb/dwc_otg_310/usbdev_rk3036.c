@@ -141,20 +141,42 @@ static int usb20otg_get_status(int id)
 	return ret;
 }
 
+#ifdef CONFIG_RK_USB_UART
+/**
+ *  dwc_otg_uart_enabled - check if a usb-uart bypass func is enabled in DT
+ *
+ *  Returns true if the status property of node "usb_uart" is set to "okay"
+ *  or "ok", if this property is absent it will use the default status "ok"
+ *  0 otherwise
+ */
+static bool dwc_otg_uart_enabled(void)
+{
+	struct device_node *np;
+
+	np = of_find_node_by_name(NULL, "usb_uart");
+	if (np && of_device_is_available(np))
+		return true;
+
+	return false;
+}
+
 static void dwc_otg_uart_mode(void *pdata, int enter_usb_uart_mode)
 {
-#ifdef CONFIG_RK_USB_UART
-	if (1 == enter_usb_uart_mode) {
+	if ((1 == enter_usb_uart_mode) && dwc_otg_uart_enabled()) {
 		/* bypass dm, enter uart mode */
-		writel(UOC_HIWORD_UPDATE(0x3, 0x3, 12),
-		       RK_GRF_VIRT + RK3036_GRF_UOC1_CON4);
+		writel(UOC_HIWORD_UPDATE(0x3, 0x3, 12), RK_GRF_VIRT + 
+			   RK3036_GRF_UOC1_CON4);
 	} else if (0 == enter_usb_uart_mode) {
 		/* enter usb mode */
-		writel(UOC_HIWORD_UPDATE(0x0, 0x3, 12),
-		       RK_GRF_VIRT + RK3036_GRF_UOC1_CON4);
+		writel(UOC_HIWORD_UPDATE(0x0, 0x3, 12), RK_GRF_VIRT + 
+			   RK3036_GRF_UOC1_CON4);
 	}
-#endif
 }
+#else
+static void dwc_otg_uart_mode(void *pdata, int enter_usb_uart_mode)
+{
+}
+#endif
 
 static void usb20otg_power_enable(int enable)
 {

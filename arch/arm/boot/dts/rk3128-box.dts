@@ -161,3 +161,9 @@
 &codec {
 	hp_ctl_io = <&gpio1 GPIO_A3 0>;
 };
+
+&dwc_control_usb {
+	usb_uart {
+		status = "disabled";
+	};
+};

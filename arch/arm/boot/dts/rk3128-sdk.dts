@@ -62,3 +62,9 @@
 			gpio-key,wakeup;
 		};
 };
+
+&dwc_control_usb {
+	usb_uart {
+		status = "ok";
+	};
+};

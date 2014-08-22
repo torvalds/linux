@@ -229,3 +229,9 @@
 //      power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
         reset-gpio = <&gpio2 GPIO_C6 GPIO_ACTIVE_LOW>;
 };
+
+&dwc_control_usb {
+	usb_uart {
+		status = "disabled";
+	};
+};
