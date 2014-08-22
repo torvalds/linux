@@ -2228,8 +2228,13 @@ static int ath9k_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	sc->offchannel.scan_req = req;
 	sc->offchannel.scan_idx = 0;
 
-	if (sc->offchannel.state == ATH_OFFCHANNEL_IDLE)
+	ath_dbg(common, CHAN_CTX, "HW scan request received on vif: %pM\n",
+		vif->addr);
+
+	if (sc->offchannel.state == ATH_OFFCHANNEL_IDLE) {
+		ath_dbg(common, CHAN_CTX, "Starting HW scan\n");
 		ath_offchannel_next(sc);
+	}
 
 out:
 	mutex_unlock(&sc->mutex);
@@ -2241,6 +2246,9 @@ static void ath9k_cancel_hw_scan(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	ath_dbg(common, CHAN_CTX, "Cancel HW scan on vif: %pM\n", vif->addr);
 
 	mutex_lock(&sc->mutex);
 	del_timer_sync(&sc->offchannel.timer);
@@ -2254,6 +2262,7 @@ static int ath9k_remain_on_channel(struct ieee80211_hw *hw,
 				   enum ieee80211_roc_type type)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int ret = 0;
 
 	mutex_lock(&sc->mutex);
@@ -2268,8 +2277,14 @@ static int ath9k_remain_on_channel(struct ieee80211_hw *hw,
 	sc->offchannel.roc_chan = chan;
 	sc->offchannel.roc_duration = duration;
 
-	if (sc->offchannel.state == ATH_OFFCHANNEL_IDLE)
+	ath_dbg(common, CHAN_CTX,
+		"RoC request on vif: %pM, type: %d duration: %d\n",
+		vif->addr, type, duration);
+
+	if (sc->offchannel.state == ATH_OFFCHANNEL_IDLE) {
+		ath_dbg(common, CHAN_CTX, "Starting RoC period\n");
 		ath_offchannel_next(sc);
+	}
 
 out:
 	mutex_unlock(&sc->mutex);
@@ -2280,9 +2295,11 @@ out:
 static int ath9k_cancel_remain_on_channel(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	mutex_lock(&sc->mutex);
 
+	ath_dbg(common, CHAN_CTX, "Cancel RoC\n");
 	del_timer_sync(&sc->offchannel.timer);
 
 	if (sc->offchannel.roc_vif) {
@@ -2299,6 +2316,7 @@ static int ath9k_add_chanctx(struct ieee80211_hw *hw,
 			     struct ieee80211_chanctx_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_chanctx *ctx, **ptr;
 	int pos;
 
@@ -2313,10 +2331,16 @@ static int ath9k_add_chanctx(struct ieee80211_hw *hw,
 		ctx->assigned = true;
 		pos = ctx - &sc->chanctx[0];
 		ctx->hw_queue_base = pos * IEEE80211_NUM_ACS;
+
+		ath_dbg(common, CHAN_CTX,
+			"Add channel context: %d MHz\n",
+			conf->def.chan->center_freq);
+
 		ath_chanctx_set_channel(sc, ctx, &conf->def);
 		mutex_unlock(&sc->mutex);
 		return 0;
 	}
+
 	mutex_unlock(&sc->mutex);
 	return -ENOSPC;
 }
@@ -2326,12 +2350,19 @@ static void ath9k_remove_chanctx(struct ieee80211_hw *hw,
 				 struct ieee80211_chanctx_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
 
 	mutex_lock(&sc->mutex);
+
+	ath_dbg(common, CHAN_CTX,
+		"Remove channel context: %d MHz\n",
+		conf->def.chan->center_freq);
+
 	ctx->assigned = false;
 	ctx->hw_queue_base = -1;
 	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_UNASSIGN);
+
 	mutex_unlock(&sc->mutex);
 }
 
@@ -2340,9 +2371,13 @@ static void ath9k_change_chanctx(struct ieee80211_hw *hw,
 				 u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
 
 	mutex_lock(&sc->mutex);
+	ath_dbg(common, CHAN_CTX,
+		"Change channel context: %d MHz\n",
+		conf->def.chan->center_freq);
 	ath_chanctx_set_channel(sc, ctx, &conf->def);
 	mutex_unlock(&sc->mutex);
 }
@@ -2352,16 +2387,24 @@ static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 				    struct ieee80211_chanctx_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
 	int i;
 
 	mutex_lock(&sc->mutex);
+
+	ath_dbg(common, CHAN_CTX,
+		"Assign VIF (addr: %pM, type: %d, p2p: %d) to channel context: %d MHz\n",
+		vif->addr, vif->type, vif->p2p,
+		conf->def.chan->center_freq);
+
 	avp->chanctx = ctx;
 	list_add_tail(&avp->list, &ctx->vifs);
 	ath9k_calculate_summary_state(sc, ctx);
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
 		vif->hw_queue[i] = ctx->hw_queue_base + i;
+
 	mutex_unlock(&sc->mutex);
 
 	return 0;
@@ -2372,16 +2415,24 @@ static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 				       struct ieee80211_chanctx_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
 	int ac;
 
 	mutex_lock(&sc->mutex);
+
+	ath_dbg(common, CHAN_CTX,
+		"Remove VIF (addr: %pM, type: %d, p2p: %d) from channel context: %d MHz\n",
+		vif->addr, vif->type, vif->p2p,
+		conf->def.chan->center_freq);
+
 	avp->chanctx = NULL;
 	list_del(&avp->list);
 	ath9k_calculate_summary_state(sc, ctx);
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 		vif->hw_queue[ac] = IEEE80211_INVAL_HW_QUEUE;
+
 	mutex_unlock(&sc->mutex);
 }
 
@@ -2390,16 +2441,16 @@ void ath9k_fill_chanctx_ops(void)
 	if (!ath9k_use_chanctx)
 		return;
 
-	ath9k_ops.hw_scan = ath9k_hw_scan;
-	ath9k_ops.cancel_hw_scan = ath9k_cancel_hw_scan;
-	ath9k_ops.remain_on_channel  = ath9k_remain_on_channel;
+	ath9k_ops.hw_scan                  = ath9k_hw_scan;
+	ath9k_ops.cancel_hw_scan           = ath9k_cancel_hw_scan;
+	ath9k_ops.remain_on_channel        = ath9k_remain_on_channel;
 	ath9k_ops.cancel_remain_on_channel = ath9k_cancel_remain_on_channel;
-	ath9k_ops.add_chanctx        = ath9k_add_chanctx;
-	ath9k_ops.remove_chanctx     = ath9k_remove_chanctx;
-	ath9k_ops.change_chanctx     = ath9k_change_chanctx;
-	ath9k_ops.assign_vif_chanctx = ath9k_assign_vif_chanctx;
-	ath9k_ops.unassign_vif_chanctx = ath9k_unassign_vif_chanctx;
-	ath9k_ops.mgd_prepare_tx = ath9k_chanctx_force_active;
+	ath9k_ops.add_chanctx              = ath9k_add_chanctx;
+	ath9k_ops.remove_chanctx           = ath9k_remove_chanctx;
+	ath9k_ops.change_chanctx           = ath9k_change_chanctx;
+	ath9k_ops.assign_vif_chanctx       = ath9k_assign_vif_chanctx;
+	ath9k_ops.unassign_vif_chanctx     = ath9k_unassign_vif_chanctx;
+	ath9k_ops.mgd_prepare_tx           = ath9k_chanctx_force_active;
 }
 
 struct ieee80211_ops ath9k_ops = {

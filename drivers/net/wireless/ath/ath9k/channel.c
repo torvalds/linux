@@ -16,6 +16,23 @@
 
 #include "ath9k.h"
 
+static const char *offchannel_state_string(enum ath_offchannel_state state)
+{
+#define case_rtn_string(val) case val: return #val
+
+	switch (state) {
+		case_rtn_string(ATH_OFFCHANNEL_IDLE);
+		case_rtn_string(ATH_OFFCHANNEL_PROBE_SEND);
+		case_rtn_string(ATH_OFFCHANNEL_PROBE_WAIT);
+		case_rtn_string(ATH_OFFCHANNEL_SUSPEND);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_START);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_WAIT);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_DONE);
+	default:
+		return "unknown";
+	}
+}
+
 /* Set/change channels.  If the channel is really being changed, it's done
  * by reseting the chip.  To accomplish this we must first cleanup any pending
  * DMA, then restart stuff.
@@ -373,13 +390,23 @@ void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 	}
 
 	sc->next_chan = ctx;
-	if (chandef)
+	if (chandef) {
 		ctx->chandef = *chandef;
+		ath_dbg(common, CHAN_CTX,
+			"Assigned next_chan to %d MHz\n", chandef->center_freq1);
+	}
 
 	if (sc->next_chan == &sc->offchannel.chan) {
 		sc->sched.offchannel_duration =
 			TU_TO_USEC(sc->offchannel.duration) +
 			sc->sched.channel_switch_time;
+
+		if (chandef) {
+			ath_dbg(common, CHAN_CTX,
+				"Offchannel duration for chan %d MHz : %u\n",
+				chandef->center_freq1,
+				sc->sched.offchannel_duration);
+		}
 	}
 	spin_unlock_bh(&sc->chan_lock);
 	ieee80211_queue_work(sc->hw, &sc->chanctx_work);
@@ -422,9 +449,12 @@ struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc, bool active)
 void ath_chanctx_offchan_switch(struct ath_softc *sc,
 				struct ieee80211_channel *chan)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct cfg80211_chan_def chandef;
 
 	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
+	ath_dbg(common, CHAN_CTX,
+		"Channel definition created: %d MHz\n", chandef.center_freq1);
 
 	ath_chanctx_switch(sc, &sc->offchannel.chan, &chandef);
 }
@@ -698,19 +728,30 @@ static int ath_scan_channel_duration(struct ath_softc *sc,
 static void
 ath_scan_next_channel(struct ath_softc *sc)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct cfg80211_scan_request *req = sc->offchannel.scan_req;
 	struct ieee80211_channel *chan;
 
 	if (sc->offchannel.scan_idx >= req->n_channels) {
+		ath_dbg(common, CHAN_CTX,
+			"Moving to ATH_OFFCHANNEL_IDLE state, scan_idx: %d, n_channels: %d\n",
+			sc->offchannel.scan_idx,
+			req->n_channels);
+
 		sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
 		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc, false),
 				   NULL);
 		return;
 	}
 
+	ath_dbg(common, CHAN_CTX,
+		"Moving to ATH_OFFCHANNEL_PROBE_SEND state, scan_idx: %d\n",
+		sc->offchannel.scan_idx);
+
 	chan = req->channels[sc->offchannel.scan_idx++];
 	sc->offchannel.duration = ath_scan_channel_duration(sc, chan);
 	sc->offchannel.state = ATH_OFFCHANNEL_PROBE_SEND;
+
 	ath_chanctx_offchan_switch(sc, chan);
 }
 
@@ -750,6 +791,11 @@ void ath_roc_complete(struct ath_softc *sc, bool abort)
 void ath_scan_complete(struct ath_softc *sc, bool abort)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (abort)
+		ath_dbg(common, CHAN_CTX, "HW scan aborted\n");
+	else
+		ath_dbg(common, CHAN_CTX, "HW scan complete\n");
 
 	sc->offchannel.scan_req = NULL;
 	sc->offchannel.scan_vif = NULL;
@@ -800,6 +846,7 @@ error:
 
 static void ath_scan_channel_start(struct ath_softc *sc)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct cfg80211_scan_request *req = sc->offchannel.scan_req;
 	int i;
 
@@ -810,12 +857,20 @@ static void ath_scan_channel_start(struct ath_softc *sc)
 
 	}
 
+	ath_dbg(common, CHAN_CTX,
+		"Moving to ATH_OFFCHANNEL_PROBE_WAIT state\n");
+
 	sc->offchannel.state = ATH_OFFCHANNEL_PROBE_WAIT;
 	mod_timer(&sc->offchannel.timer, jiffies + sc->offchannel.duration);
 }
 
 void ath_offchannel_channel_change(struct ath_softc *sc)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	ath_dbg(common, CHAN_CTX, "%s: state: %s\n",
+		__func__, offchannel_state_string(sc->offchannel.state));
+
 	switch (sc->offchannel.state) {
 	case ATH_OFFCHANNEL_PROBE_SEND:
 		if (!sc->offchannel.scan_req)
@@ -854,6 +909,10 @@ void ath_offchannel_timer(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
 	struct ath_chanctx *ctx;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	ath_dbg(common, CHAN_CTX, "%s: state: %s\n",
+		__func__, offchannel_state_string(sc->offchannel.state));
 
 	switch (sc->offchannel.state) {
 	case ATH_OFFCHANNEL_PROBE_WAIT:
