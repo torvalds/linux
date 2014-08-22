@@ -1619,7 +1619,7 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 	smp_mb();
 	error = check_conflicting_open(dentry, arg);
 	if (error)
-		locks_unlink_lock(flp);
+		locks_unlink_lock(before);
 out:
 	if (is_deleg)
 		mutex_unlock(&inode->i_mutex);
