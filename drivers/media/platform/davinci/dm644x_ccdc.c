@@ -291,7 +291,7 @@ static int ccdc_update_raw_params(struct ccdc_config_params_raw *raw_params)
 		dev_dbg(ccdc_cfg.dev, "\n copy_from_user failed");
 		return -EFAULT;
 	}
-	config_params->fault_pxl.fpc_table_addr = (unsigned int)fpc_physaddr;
+	config_params->fault_pxl.fpc_table_addr = (unsigned long)fpc_physaddr;
 	return 0;
 }
 
@@ -506,7 +506,7 @@ static void ccdc_config_fpc(struct ccdc_fault_pixel *fpc)
 
 	/* Configure Fault pixel if needed */
 	regw(fpc->fpc_table_addr, CCDC_FPC_ADDR);
-	dev_dbg(ccdc_cfg.dev, "\nWriting 0x%x to FPC_ADDR...\n",
+	dev_dbg(ccdc_cfg.dev, "\nWriting 0x%lx to FPC_ADDR...\n",
 		       (fpc->fpc_table_addr));
 	/* Write the FPC params with FPC disable */
 	val = fpc->fp_num & CCDC_FPC_FPC_NUM_MASK;
