@@ -1027,7 +1027,7 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 			"%s: Got unrecognized reply: "
 			"calldir 0x%x xpt_bc_xprt %p xid %08x\n",
 			__func__, ntohl(calldir),
-			bc_xprt, xid);
+			bc_xprt, ntohl(xid));
 		return -EAGAIN;
 	}
 
