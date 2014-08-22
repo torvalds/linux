@@ -206,10 +206,8 @@ static int process_measurement(struct file *file, const char *filename,
 	}
 
 	template_desc = ima_template_desc_current();
-	if (strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) == 0) {
-		if (action & IMA_APPRAISE_SUBMASK)
-			xattr_ptr = &xattr_value;
-	} else
+	if ((action & IMA_APPRAISE_SUBMASK) ||
+		    strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) != 0)
 		xattr_ptr = &xattr_value;
 
 	rc = ima_collect_measurement(iint, file, xattr_ptr, &xattr_len);
