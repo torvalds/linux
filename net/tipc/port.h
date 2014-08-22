@@ -63,7 +63,6 @@
  * @probing_state:
  * @probing_interval:
  * @timer_ref:
- * @subscription: "node down" subscription used to terminate failed connections
  */
 struct tipc_port {
 	spinlock_t *lock;
@@ -80,11 +79,10 @@ struct tipc_port {
 	u32 probing_state;
 	u32 probing_interval;
 	struct timer_list timer;
-	struct tipc_node_subscr subscription;
 };
 
+extern struct list_head tipc_socks;
 extern spinlock_t tipc_port_list_lock;
-struct tipc_port_list;
 
 /*
  * TIPC port manipulation routines

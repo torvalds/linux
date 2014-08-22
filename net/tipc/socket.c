@@ -63,6 +63,9 @@ static const struct proto_ops msg_ops;
 static struct proto tipc_proto;
 static struct proto tipc_proto_kern;
 
+DEFINE_SPINLOCK(tipc_port_list_lock);
+LIST_HEAD(tipc_socks);
+
 /*
  * Revised TIPC socket locking policy:
  *
@@ -156,6 +159,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	struct sock *sk;
 	struct tipc_sock *tsk;
 	struct tipc_port *port;
+	struct tipc_msg *msg;
 	u32 ref;
 
 	/* Validate arguments */
@@ -191,18 +195,28 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 
 	tsk = tipc_sk(sk);
 	port = &tsk->port;
-
-	ref = tipc_port_init(port, TIPC_LOW_IMPORTANCE);
+	ref = tipc_ref_acquire(port, &port->lock);
 	if (!ref) {
-		pr_warn("Socket registration failed, ref. table exhausted\n");
-		sk_free(sk);
+		pr_warn("Socket create failed; reference table exhausted\n");
 		return -ENOMEM;
 	}
+	port->max_pkt = MAX_PKT_DEFAULT;
+	port->ref = ref;
+	INIT_LIST_HEAD(&port->publications);
+	INIT_LIST_HEAD(&port->port_list);
+
+	/* Guard against race during node address update */
+	spin_lock_bh(&tipc_port_list_lock);
+	msg = &port->phdr;
+	tipc_msg_init(msg, TIPC_LOW_IMPORTANCE, TIPC_NAMED_MSG,
+		      NAMED_H_SIZE, 0);
+	msg_set_origport(msg, ref);
+	list_add_tail(&port->port_list, &tipc_socks);
+	spin_unlock_bh(&tipc_port_list_lock);
 
 	/* Finish initializing socket data structures */
 	sock->ops = ops;
 	sock->state = state;
-
 	sock_init_data(sock, sk);
 	k_init_timer(&port->timer, (Handler)tipc_sk_timeout, ref);
 	sk->sk_backlog_rcv = tipc_backlog_rcv;
@@ -330,6 +344,7 @@ static int tipc_release(struct socket *sock)
 	 * Reject all unreceived messages, except on an active connection
 	 * (which disconnects locally & sends a 'FIN+' to peer)
 	 */
+	dnode = tipc_port_peernode(port);
 	while (sock->state != SS_DISCONNECTING) {
 		buf = __skb_dequeue(&sk->sk_receive_queue);
 		if (buf == NULL)
@@ -341,18 +356,31 @@ static int tipc_release(struct socket *sock)
 			    (sock->state == SS_CONNECTED)) {
 				sock->state = SS_DISCONNECTING;
 				port->connected = 0;
-				tipc_node_remove_conn(tipc_port_peernode(port),
-						      port->ref);
+				tipc_node_remove_conn(dnode, port->ref);
 			}
 			if (tipc_msg_reverse(buf, &dnode, TIPC_ERR_NO_PORT))
 				tipc_link_xmit(buf, dnode, 0);
 		}
 	}
 
-	/* Destroy TIPC port; also disconnects an active connection and
-	 * sends a 'FIN-' to peer.
-	 */
-	tipc_port_destroy(port);
+	tipc_withdraw(port, 0, NULL);
+	spin_lock_bh(port->lock);
+	tipc_ref_discard(port->ref);
+	spin_unlock_bh(port->lock);
+	k_cancel_timer(&port->timer);
+	if (port->connected) {
+		buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
+				      SHORT_H_SIZE, 0, dnode, tipc_own_addr,
+				      tipc_port_peerport(port),
+				      port->ref, TIPC_ERR_NO_PORT);
+		if (buf)
+			tipc_link_xmit(buf, dnode, port->ref);
+		tipc_node_remove_conn(dnode, port->ref);
+	}
+	spin_lock_bh(&tipc_port_list_lock);
+	list_del(&port->port_list);
+	spin_unlock_bh(&tipc_port_list_lock);
+	k_term_timer(&port->timer);
 
 	/* Discard any remaining (connection-based) messages in receive queue */
 	__skb_queue_purge(&sk->sk_receive_queue);
@@ -360,7 +388,6 @@ static int tipc_release(struct socket *sock)
 	/* Reject any messages that accumulated in backlog queue */
 	sock->state = SS_DISCONNECTING;
 	release_sock(sk);
-
 	sock_put(sk);
 	sock->sk = NULL;
 

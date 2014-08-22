@@ -42,10 +42,6 @@
 
 #define MAX_REJECT_SIZE 1024
 
-DEFINE_SPINLOCK(tipc_port_list_lock);
-
-static LIST_HEAD(ports);
-
 /**
  * tipc_port_peer_msg - verify message was sent by connected port's peer
  *
@@ -65,73 +61,6 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg)
 	return (orignode == peernode) ||
 		(!orignode && (peernode == tipc_own_addr)) ||
 		(!peernode && (orignode == tipc_own_addr));
-}
-
-/* tipc_port_init - intiate TIPC port and lock it
- *
- * Returns obtained reference if initialization is successful, zero otherwise
- */
-u32 tipc_port_init(struct tipc_port *p_ptr,
-		   const unsigned int importance)
-{
-	struct tipc_msg *msg;
-	u32 ref;
-
-	ref = tipc_ref_acquire(p_ptr, &p_ptr->lock);
-	if (!ref) {
-		pr_warn("Port registration failed, ref. table exhausted\n");
-		return 0;
-	}
-
-	p_ptr->max_pkt = MAX_PKT_DEFAULT;
-	p_ptr->ref = ref;
-	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
-	INIT_LIST_HEAD(&p_ptr->publications);
-	INIT_LIST_HEAD(&p_ptr->port_list);
-
-	/*
-	 * Must hold port list lock while initializing message header template
-	 * to ensure a change to node's own network address doesn't result
-	 * in template containing out-dated network address information
-	 */
-	spin_lock_bh(&tipc_port_list_lock);
-	msg = &p_ptr->phdr;
-	tipc_msg_init(msg, importance, TIPC_NAMED_MSG, NAMED_H_SIZE, 0);
-	msg_set_origport(msg, ref);
-	list_add_tail(&p_ptr->port_list, &ports);
-	spin_unlock_bh(&tipc_port_list_lock);
-	return ref;
-}
-
-void tipc_port_destroy(struct tipc_port *p_ptr)
-{
-	struct sk_buff *buf = NULL;
-	struct tipc_msg *msg = NULL;
-	u32 peer_node;
-
-	tipc_withdraw(p_ptr, 0, NULL);
-
-	spin_lock_bh(p_ptr->lock);
-	tipc_ref_discard(p_ptr->ref);
-	spin_unlock_bh(p_ptr->lock);
-
-	k_cancel_timer(&p_ptr->timer);
-	if (p_ptr->connected) {
-		peer_node = tipc_port_peernode(p_ptr);
-		buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
-				      SHORT_H_SIZE, 0, peer_node,
-				      tipc_own_addr, tipc_port_peerport(p_ptr),
-				      p_ptr->ref, TIPC_ERR_NO_PORT);
-		if (buf) {
-			msg = buf_msg(buf);
-			tipc_link_xmit(buf, peer_node, msg_link_selector(msg));
-		}
-		tipc_node_remove_conn(peer_node, p_ptr->ref);
-	}
-	spin_lock_bh(&tipc_port_list_lock);
-	list_del(&p_ptr->port_list);
-	spin_unlock_bh(&tipc_port_list_lock);
-	k_term_timer(&p_ptr->timer);
 }
 
 static int port_print(struct tipc_port *p_ptr, char *buf, int len, int full_id)
@@ -194,7 +123,7 @@ struct sk_buff *tipc_port_get_ports(void)
 	pb_len = ULTRA_STRING_MAX_LEN;
 
 	spin_lock_bh(&tipc_port_list_lock);
-	list_for_each_entry(p_ptr, &ports, port_list) {
+	list_for_each_entry(p_ptr, &tipc_socks, port_list) {
 		spin_lock_bh(p_ptr->lock);
 		str_len += port_print(p_ptr, pb, pb_len, 0);
 		spin_unlock_bh(p_ptr->lock);
@@ -213,7 +142,7 @@ void tipc_port_reinit(void)
 	struct tipc_msg *msg;
 
 	spin_lock_bh(&tipc_port_list_lock);
-	list_for_each_entry(p_ptr, &ports, port_list) {
+	list_for_each_entry(p_ptr, &tipc_socks, port_list) {
 		msg = &p_ptr->phdr;
 		msg_set_prevnode(msg, tipc_own_addr);
 		msg_set_orignode(msg, tipc_own_addr);
