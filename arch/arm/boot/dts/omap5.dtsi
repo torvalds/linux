@@ -131,6 +131,7 @@
 		prm: prm@4ae06000 {
 			compatible = "ti,omap5-prm";
 			reg = <0x4ae06000 0x3000>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 
 			prm_clocks: clocks {
 				#address-cells = <1>;

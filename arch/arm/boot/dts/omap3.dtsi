@@ -97,6 +97,7 @@
 		prm: prm@48306000 {
 			compatible = "ti,omap3-prm";
 			reg = <0x48306000 0x4000>;
+			interrupts = <11>;
 
 			prm_clocks: clocks {
 				#address-cells = <1>;
