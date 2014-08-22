@@ -101,9 +101,9 @@ void tipc_port_reinit(void);
 /**
  * tipc_port_lock - lock port instance referred to and return its pointer
  */
-static inline struct tipc_port *tipc_port_lock(u32 ref)
+static inline struct tipc_sock *tipc_port_lock(u32 ref)
 {
-	return (struct tipc_port *)tipc_ref_lock(ref);
+	return (struct tipc_sock *)tipc_ref_lock(ref);
 }
 
 /**

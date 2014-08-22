@@ -115,11 +115,7 @@ static struct proto tipc_proto_kern;
 */
 static struct tipc_sock *tipc_sk_lock_next(u32 *ref)
 {
-	struct tipc_port *port = (struct tipc_port *)tipc_ref_lock_next(ref);
-
-	if (!port)
-		return NULL;
-	return tipc_port_to_sock(port);
+	return (struct tipc_sock *)tipc_ref_lock_next(ref);
 }
 
 /**
@@ -204,7 +200,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 
 	tsk = tipc_sk(sk);
 	port = &tsk->port;
-	ref = tipc_ref_acquire(port, &port->lock);
+	ref = tipc_ref_acquire(tsk, &port->lock);
 	if (!ref) {
 		pr_warn("Socket create failed; reference table exhausted\n");
 		return -ENOMEM;
@@ -1655,13 +1651,12 @@ int tipc_sk_rcv(struct sk_buff *buf)
 	u32 dnode;
 
 	/* Validate destination and message */
-	port = tipc_port_lock(dport);
-	if (unlikely(!port)) {
+	tsk = tipc_port_lock(dport);
+	if (unlikely(!tsk)) {
 		rc = tipc_msg_eval(buf, &dnode);
 		goto exit;
 	}
-
-	tsk = tipc_port_to_sock(port);
+	port = &tsk->port;
 	sk = &tsk->sk;
 
 	/* Queue message */
@@ -2002,21 +1997,21 @@ restart:
 
 static void tipc_sk_timeout(unsigned long ref)
 {
-	struct tipc_port *port = tipc_port_lock(ref);
-	struct tipc_sock *tsk;
+	struct tipc_sock *tsk = tipc_port_lock(ref);
+	struct tipc_port *port;
 	struct sock *sk;
 	struct sk_buff *buf = NULL;
 	struct tipc_msg *msg = NULL;
 	u32 peer_port, peer_node;
 
-	if (!port)
+	if (!tsk)
 		return;
 
+	port = &tsk->port;
 	if (!port->connected) {
 		tipc_port_unlock(port);
 		return;
 	}
-	tsk = tipc_port_to_sock(port);
 	sk = &tsk->sk;
 	bh_lock_sock(sk);
 	peer_port = tipc_port_peerport(port);
