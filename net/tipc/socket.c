@@ -53,6 +53,7 @@ static void tipc_write_space(struct sock *sk);
 static int tipc_release(struct socket *sock);
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags);
 static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p);
+static void tipc_sk_timeout(unsigned long ref);
 
 static const struct proto_ops packet_ops;
 static const struct proto_ops stream_ops;
@@ -202,6 +203,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	sock->state = state;
 
 	sock_init_data(sock, sk);
+	k_init_timer(&port->timer, (Handler)tipc_sk_timeout, ref);
 	sk->sk_backlog_rcv = tipc_backlog_rcv;
 	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
 	sk->sk_data_ready = tipc_data_ready;
@@ -1944,6 +1946,50 @@ restart:
 
 	release_sock(sk);
 	return res;
+}
+
+static void tipc_sk_timeout(unsigned long ref)
+{
+	struct tipc_port *port = tipc_port_lock(ref);
+	struct tipc_sock *tsk;
+	struct sock *sk;
+	struct sk_buff *buf = NULL;
+	struct tipc_msg *msg = NULL;
+	u32 peer_port, peer_node;
+
+	if (!port)
+		return;
+
+	if (!port->connected) {
+		tipc_port_unlock(port);
+		return;
+	}
+	tsk = tipc_port_to_sock(port);
+	sk = &tsk->sk;
+	bh_lock_sock(sk);
+	peer_port = tipc_port_peerport(port);
+	peer_node = tipc_port_peernode(port);
+
+	if (port->probing_state == TIPC_CONN_PROBING) {
+		/* Previous probe not answered -> self abort */
+		buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
+				      SHORT_H_SIZE, 0, tipc_own_addr,
+				      peer_node, ref, peer_port,
+				      TIPC_ERR_NO_PORT);
+	} else {
+		buf = tipc_msg_create(CONN_MANAGER, CONN_PROBE, INT_H_SIZE,
+				      0, peer_node, tipc_own_addr,
+				      peer_port, ref, TIPC_OK);
+		port->probing_state = TIPC_CONN_PROBING;
+		k_start_timer(&port->timer, port->probing_interval);
+	}
+	bh_unlock_sock(sk);
+	tipc_port_unlock(port);
+	if (!buf)
+		return;
+
+	msg = buf_msg(buf);
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 }
 
 /**
