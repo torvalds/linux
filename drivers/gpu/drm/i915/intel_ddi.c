@@ -1212,6 +1212,132 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 	return true;
 }
 
+/* bxt clock parameters */
+struct bxt_clk_div {
+	uint32_t p1;
+	uint32_t p2;
+	uint32_t m2_int;
+	uint32_t m2_frac;
+	bool m2_frac_en;
+	uint32_t n;
+	uint32_t prop_coef;
+	uint32_t int_coef;
+	uint32_t gain_ctl;
+	uint32_t targ_cnt;
+	uint32_t lanestagger;
+};
+
+/* pre-calculated values for DP linkrates */
+static struct bxt_clk_div bxt_dp_clk_val[7] = {
+	/* 162 */ {4, 2, 32, 1677722, 1, 1, 5, 11, 2, 9, 0xd},
+	/* 270 */ {4, 1, 27,       0, 0, 1, 3,  8, 1, 9, 0xd},
+	/* 540 */ {2, 1, 27,       0, 0, 1, 3,  8, 1, 9, 0x18},
+	/* 216 */ {3, 2, 32, 1677722, 1, 1, 5, 11, 2, 9, 0xd},
+	/* 243 */ {4, 1, 24, 1258291, 1, 1, 5, 11, 2, 9, 0xd},
+	/* 324 */ {4, 1, 32, 1677722, 1, 1, 5, 11, 2, 9, 0xd},
+	/* 432 */ {3, 1, 32, 1677722, 1, 1, 5, 11, 2, 9, 0x18}
+};
+
+static bool
+bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
+		   struct intel_crtc_state *crtc_state,
+		   struct intel_encoder *intel_encoder,
+		   int clock)
+{
+	struct intel_shared_dpll *pll;
+	struct bxt_clk_div clk_div = {0};
+
+	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
+		intel_clock_t best_clock;
+
+		/* Calculate HDMI div */
+		/*
+		 * FIXME: tie the following calculation into
+		 * i9xx_crtc_compute_clock
+		 */
+		if (!bxt_find_best_dpll(crtc_state, clock, &best_clock)) {
+			DRM_DEBUG_DRIVER("no PLL dividers found for clock %d pipe %c\n",
+					 clock, pipe_name(intel_crtc->pipe));
+			return false;
+		}
+
+		clk_div.p1 = best_clock.p1;
+		clk_div.p2 = best_clock.p2;
+		WARN_ON(best_clock.m1 != 2);
+		clk_div.n = best_clock.n;
+		clk_div.m2_int = best_clock.m2 >> 22;
+		clk_div.m2_frac = best_clock.m2 & ((1 << 22) - 1);
+		clk_div.m2_frac_en = clk_div.m2_frac != 0;
+
+		/* FIXME: set coef, gain, targcnt based on freq band */
+		clk_div.prop_coef = 5;
+		clk_div.int_coef = 11;
+		clk_div.gain_ctl = 2;
+		clk_div.targ_cnt = 9;
+		if (clock > 270000)
+			clk_div.lanestagger = 0x18;
+		else if (clock > 135000)
+			clk_div.lanestagger = 0x0d;
+		else if (clock > 67000)
+			clk_div.lanestagger = 0x07;
+		else if (clock > 33000)
+			clk_div.lanestagger = 0x04;
+		else
+			clk_div.lanestagger = 0x02;
+	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+			intel_encoder->type == INTEL_OUTPUT_EDP) {
+		struct drm_encoder *encoder = &intel_encoder->base;
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		switch (intel_dp->link_bw) {
+		case DP_LINK_BW_1_62:
+			clk_div = bxt_dp_clk_val[0];
+			break;
+		case DP_LINK_BW_2_7:
+			clk_div = bxt_dp_clk_val[1];
+			break;
+		case DP_LINK_BW_5_4:
+			clk_div = bxt_dp_clk_val[2];
+			break;
+		default:
+			clk_div = bxt_dp_clk_val[0];
+			DRM_ERROR("Unknown link rate\n");
+		}
+	}
+
+	crtc_state->dpll_hw_state.ebb0 =
+		PORT_PLL_P1(clk_div.p1) | PORT_PLL_P2(clk_div.p2);
+	crtc_state->dpll_hw_state.pll0 = clk_div.m2_int;
+	crtc_state->dpll_hw_state.pll1 = PORT_PLL_N(clk_div.n);
+	crtc_state->dpll_hw_state.pll2 = clk_div.m2_frac;
+
+	if (clk_div.m2_frac_en)
+		crtc_state->dpll_hw_state.pll3 =
+			PORT_PLL_M2_FRAC_ENABLE;
+
+	crtc_state->dpll_hw_state.pll6 =
+		clk_div.prop_coef | PORT_PLL_INT_COEFF(clk_div.int_coef);
+	crtc_state->dpll_hw_state.pll6 |=
+		PORT_PLL_GAIN_CTL(clk_div.gain_ctl);
+
+	crtc_state->dpll_hw_state.pll8 = clk_div.targ_cnt;
+
+	crtc_state->dpll_hw_state.pcsdw12 =
+		LANESTAGGER_STRAP_OVRD | clk_div.lanestagger;
+
+	pll = intel_get_shared_dpll(intel_crtc, crtc_state);
+	if (pll == NULL) {
+		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
+			pipe_name(intel_crtc->pipe));
+		return false;
+	}
+
+	/* shared DPLL id 0 is DPLL A */
+	crtc_state->ddi_pll_sel = pll->id;
+
+	return true;
+}
+
 /*
  * Tries to find a *shared* PLL for the CRTC and store it in
  * intel_crtc->ddi_pll_sel.
@@ -1229,6 +1355,9 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc,
 
 	if (IS_SKYLAKE(dev))
 		return skl_ddi_pll_select(intel_crtc, crtc_state,
+					  intel_encoder, clock);
+	else if (IS_BROXTON(dev))
+		return bxt_ddi_pll_select(intel_crtc, crtc_state,
 					  intel_encoder, clock);
 	else
 		return hsw_ddi_pll_select(intel_crtc, crtc_state,
