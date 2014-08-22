@@ -889,15 +889,28 @@ usbhsf_pio_prepare_push:
 static int usbhsf_dma_push_done(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
+	int is_short = pkt->trans % usbhs_pipe_get_maxpacket(pipe);
 
-	pkt->actual = pkt->trans;
+	pkt->actual += pkt->trans;
 
-	*is_done = !pkt->zero;	/* send zero packet ? */
+	if (pkt->actual < pkt->length)
+		*is_done = 0;		/* there are remainder data */
+	else if (is_short)
+		*is_done = 1;		/* short packet */
+	else
+		*is_done = !pkt->zero;	/* send zero packet? */
+
 	usbhs_pipe_running(pipe, !*is_done);
 
 	usbhsf_dma_stop(pipe, pipe->fifo);
 	usbhsf_dma_unmap(pkt);
 	usbhsf_fifo_unselect(pipe, pipe->fifo);
+
+	if (!*is_done) {
+		/* change handler to PIO */
+		pkt->handler = &usbhs_fifo_pio_push_handler;
+		return pkt->handler->try_run(pkt, is_done);
+	}
 
 	return 0;
 }
