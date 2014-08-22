@@ -432,6 +432,9 @@ struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc,
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev);
 void ath_chanctx_timer(unsigned long data);
+void ath_offchannel_next(struct ath_softc *sc);
+void ath_scan_complete(struct ath_softc *sc, bool abort);
+void ath_roc_complete(struct ath_softc *sc, bool abort);
 
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);
