@@ -436,6 +436,39 @@ void ath_offchannel_next(struct ath_softc *sc);
 void ath_scan_complete(struct ath_softc *sc, bool abort);
 void ath_roc_complete(struct ath_softc *sc, bool abort);
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+int ath9k_init_p2p(struct ath_softc *sc);
+void ath9k_deinit_p2p(struct ath_softc *sc);
+void ath9k_p2p_remove_vif(struct ath_softc *sc,
+			  struct ieee80211_vif *vif);
+void ath9k_p2p_beacon_sync(struct ath_softc *sc);
+void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
+				struct ieee80211_vif *vif);
+void ath9k_p2p_ps_timer(void *priv);
+#else
+static inline int ath9k_init_p2p(struct ath_softc *sc)
+{
+	return 0;
+}
+static inline void ath9k_deinit_p2p(struct ath_softc *sc)
+{
+}
+static inline void ath9k_p2p_remove_vif(struct ath_softc *sc,
+					struct ieee80211_vif *vif)
+{
+}
+static inline void ath9k_p2p_beacon_sync(struct ath_softc *sc)
+{
+}
+static inline void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
+					      struct ieee80211_vif *vif)
+{
+}
+static inline void ath9k_p2p_ps_timer(struct ath_softc *sc)
+{
+}
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
+
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
@@ -600,9 +633,6 @@ int ath_update_survey_stats(struct ath_softc *sc);
 void ath_update_survey_nf(struct ath_softc *sc, int channel);
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 void ath_ps_full_sleep(unsigned long data);
-void ath9k_p2p_ps_timer(void *priv);
-void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp);
-void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif);
 void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop);
 
 /**********/
@@ -857,8 +887,10 @@ struct ath_softc {
 	struct completion paprd_complete;
 	wait_queue_head_t tx_wait;
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 	struct ath_gen_timer *p2p_ps_timer;
 	struct ath_vif *p2p_ps_vif;
+#endif
 
 	unsigned long driver_data;
 

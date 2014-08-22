@@ -600,9 +600,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	if (ret)
 		goto err_btcoex;
 
-	sc->p2p_ps_timer = ath_gen_timer_alloc(sc->sc_ah, ath9k_p2p_ps_timer,
-					       NULL, sc, AR_FIRST_NDP_TIMER);
-	if (!sc->p2p_ps_timer)
+	ret = ath9k_init_p2p(sc);
+	if (ret)
 		goto err_btcoex;
 
 	ath9k_cmn_init_crypto(sc->sc_ah);
@@ -919,9 +918,7 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 {
 	int i = 0;
 
-	if (sc->p2p_ps_timer)
-		ath_gen_timer_free(sc->sc_ah, sc->p2p_ps_timer);
-
+	ath9k_deinit_p2p(sc);
 	ath9k_deinit_btcoex(sc);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)

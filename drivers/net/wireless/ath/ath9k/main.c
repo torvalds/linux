@@ -1213,12 +1213,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 
-	spin_lock_bh(&sc->sc_pcu_lock);
-	if (avp == sc->p2p_ps_vif) {
-		sc->p2p_ps_vif = NULL;
-		ath9k_update_p2p_ps_timer(sc, NULL);
-	}
-	spin_unlock_bh(&sc->sc_pcu_lock);
+	ath9k_p2p_remove_vif(sc, vif);
 
 	sc->nvifs--;
 	sc->tx99_vif = NULL;
@@ -1678,7 +1673,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
-	unsigned long flags;
 	int slottime;
 
 	ath9k_ps_wakeup(sc);
@@ -1727,14 +1721,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (changed & BSS_CHANGED_P2P_PS) {
-		spin_lock_bh(&sc->sc_pcu_lock);
-		spin_lock_irqsave(&sc->sc_pm_lock, flags);
-		if (!(sc->ps_flags & PS_BEACON_SYNC))
-			ath9k_update_p2p_ps(sc, vif);
-		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
-		spin_unlock_bh(&sc->sc_pcu_lock);
-	}
+	if (changed & BSS_CHANGED_P2P_PS)
+		ath9k_p2p_bss_info_changed(sc, vif);
 
 	if (changed & CHECK_ANI)
 		ath_check_ani(sc);

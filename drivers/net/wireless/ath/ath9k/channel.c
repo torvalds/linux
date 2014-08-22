@@ -514,7 +514,9 @@ static void ath_chanctx_setup_timer(struct ath_softc *sc, u32 tsf_time)
 {
 	struct ath_hw *ah = sc->sc_ah;
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, tsf_time, 1000000);
+#endif
 	tsf_time -= ath9k_hw_gettsf32(ah);
 	tsf_time = msecs_to_jiffies(tsf_time / 1000) + 1;
 	mod_timer(&sc->sched.timer, tsf_time);
@@ -945,7 +947,13 @@ void ath_offchannel_timer(unsigned long data)
 	}
 }
 
-void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
+/*****************/
+/* P2P Powersave */
+/*****************/
+
+static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	s32 tsf, target_tsf;
@@ -965,6 +973,23 @@ void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 		target_tsf = tsf + ATH_P2P_PS_STOP_TIME;
 
 	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, (u32) target_tsf, 1000000);
+}
+
+static void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
+{
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	u32 tsf;
+
+	if (!sc->p2p_ps_timer)
+		return;
+
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->p2p)
+		return;
+
+	sc->p2p_ps_vif = avp;
+	tsf = ath9k_hw_gettsf32(sc->sc_ah);
+	ieee80211_parse_p2p_noa(&vif->bss_conf.p2p_noa_attr, &avp->noa, tsf);
+	ath9k_update_p2p_ps_timer(sc, avp);
 }
 
 void ath9k_p2p_ps_timer(void *priv)
@@ -1014,19 +1039,52 @@ out:
 	rcu_read_unlock();
 }
 
-void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
+void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
+				struct ieee80211_vif *vif)
+{
+	unsigned long flags;
+
+	spin_lock_bh(&sc->sc_pcu_lock);
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (!(sc->ps_flags & PS_BEACON_SYNC))
+		ath9k_update_p2p_ps(sc, vif);
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+	spin_unlock_bh(&sc->sc_pcu_lock);
+}
+
+void ath9k_p2p_beacon_sync(struct ath_softc *sc)
+{
+	if (sc->p2p_ps_vif)
+		ath9k_update_p2p_ps(sc, sc->p2p_ps_vif->vif);
+}
+
+void ath9k_p2p_remove_vif(struct ath_softc *sc,
+			  struct ieee80211_vif *vif)
 {
 	struct ath_vif *avp = (void *)vif->drv_priv;
-	u32 tsf;
 
-	if (!sc->p2p_ps_timer)
-		return;
-
-	if (vif->type != NL80211_IFTYPE_STATION || !vif->p2p)
-		return;
-
-	sc->p2p_ps_vif = avp;
-	tsf = ath9k_hw_gettsf32(sc->sc_ah);
-	ieee80211_parse_p2p_noa(&vif->bss_conf.p2p_noa_attr, &avp->noa, tsf);
-	ath9k_update_p2p_ps_timer(sc, avp);
+	spin_lock_bh(&sc->sc_pcu_lock);
+	if (avp == sc->p2p_ps_vif) {
+		sc->p2p_ps_vif = NULL;
+		ath9k_update_p2p_ps_timer(sc, NULL);
+	}
+	spin_unlock_bh(&sc->sc_pcu_lock);
 }
+
+int ath9k_init_p2p(struct ath_softc *sc)
+{
+	sc->p2p_ps_timer = ath_gen_timer_alloc(sc->sc_ah, ath9k_p2p_ps_timer,
+					       NULL, sc, AR_FIRST_NDP_TIMER);
+	if (!sc->p2p_ps_timer)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void ath9k_deinit_p2p(struct ath_softc *sc)
+{
+	if (sc->p2p_ps_timer)
+		ath_gen_timer_free(sc->sc_ah, sc->p2p_ps_timer);
+}
+
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
