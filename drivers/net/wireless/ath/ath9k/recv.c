@@ -425,7 +425,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (AR_SREV_9550(sc->sc_ah) || AR_SREV_9531(sc->sc_ah))
 		rfilt |= ATH9K_RX_FILTER_4ADDRESS;
 
-	if (ath9k_use_chanctx &&
+	if (ath9k_is_chanctx_enabled() &&
 	    test_bit(ATH_OP_SCANNING, &common->op_flags))
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 

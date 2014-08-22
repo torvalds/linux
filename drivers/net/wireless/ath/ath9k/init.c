@@ -61,9 +61,13 @@ static int ath9k_ps_enable;
 module_param_named(ps_enable, ath9k_ps_enable, int, 0444);
 MODULE_PARM_DESC(ps_enable, "Enable WLAN PowerSave");
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
 int ath9k_use_chanctx;
 module_param_named(use_chanctx, ath9k_use_chanctx, int, 0444);
 MODULE_PARM_DESC(use_chanctx, "Enable channel context for concurrency");
+
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
 bool is_ath9k_unloaded;
 
@@ -511,7 +515,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	sc->tx99_power = MAX_RATE_POWER + 1;
 	init_waitqueue_head(&sc->tx_wait);
 	sc->cur_chan = &sc->chanctx[0];
-	if (!ath9k_use_chanctx)
+	if (!ath9k_is_chanctx_enabled())
 		sc->cur_chan->hw_queue_base = 0;
 
 	if (!pdata || pdata->use_eeprom) {
@@ -673,18 +677,12 @@ static const struct ieee80211_iface_limit wds_limits[] = {
 	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_WDS) },
 };
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
 static const struct ieee80211_iface_limit if_limits_multi[] = {
 	{ .max = 1,	.types = BIT(NL80211_IFTYPE_STATION) },
 	{ .max = 1,	.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
-};
-
-static const struct ieee80211_iface_limit if_dfs_limits[] = {
-	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) |
-#ifdef CONFIG_MAC80211_MESH
-				 BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-				 BIT(NL80211_IFTYPE_ADHOC) },
 };
 
 static const struct ieee80211_iface_combination if_comb_multi[] = {
@@ -695,6 +693,16 @@ static const struct ieee80211_iface_combination if_comb_multi[] = {
 		.num_different_channels = 2,
 		.beacon_int_infra_match = true,
 	},
+};
+
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
+
+static const struct ieee80211_iface_limit if_dfs_limits[] = {
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) |
+#ifdef CONFIG_MAC80211_MESH
+				 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+				 BIT(NL80211_IFTYPE_ADHOC) },
 };
 
 static const struct ieee80211_iface_combination if_comb[] = {
@@ -764,25 +772,30 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			BIT(NL80211_IFTYPE_AP) |
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_ADHOC) |
-			BIT(NL80211_IFTYPE_MESH_POINT);
-		if (!ath9k_use_chanctx) {
+			BIT(NL80211_IFTYPE_MESH_POINT) |
+			BIT(NL80211_IFTYPE_WDS);
+
 			hw->wiphy->iface_combinations = if_comb;
 			hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
-			hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_WDS);
-		} else {
-			hw->wiphy->iface_combinations = if_comb_multi;
-			hw->wiphy->n_iface_combinations =
-				ARRAY_SIZE(if_comb_multi);
-			hw->wiphy->max_scan_ssids = 255;
-			hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
-			hw->wiphy->max_remain_on_channel_duration = 10000;
-			hw->chanctx_data_size = sizeof(void *);
-			hw->extra_beacon_tailroom =
-				sizeof(struct ieee80211_p2p_noa_attr) + 9;
-
-			ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
-		}
 	}
+
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
+	if (ath9k_is_chanctx_enabled()) {
+		hw->wiphy->interface_modes &= ~ BIT(NL80211_IFTYPE_WDS);
+		hw->wiphy->iface_combinations = if_comb_multi;
+		hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_multi);
+		hw->wiphy->max_scan_ssids = 255;
+		hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+		hw->wiphy->max_remain_on_channel_duration = 10000;
+		hw->chanctx_data_size = sizeof(void *);
+		hw->extra_beacon_tailroom =
+			sizeof(struct ieee80211_p2p_noa_attr) + 9;
+
+		ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
+	}
+
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 

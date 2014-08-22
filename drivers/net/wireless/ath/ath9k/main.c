@@ -268,7 +268,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
 
-	if (!ath9k_use_chanctx)
+	if (!ath9k_is_chanctx_enabled())
 		ieee80211_wake_queues(sc->hw);
 	else {
 		if (sc->cur_chan == &sc->offchannel.chan)
@@ -1139,7 +1139,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		ath9k_beacon_assign_slot(sc, vif);
 
 	avp->vif = vif;
-	if (!ath9k_use_chanctx) {
+	if (!ath9k_is_chanctx_enabled()) {
 		avp->chanctx = sc->cur_chan;
 		list_add_tail(&avp->list, &avp->chanctx->vifs);
 	}
@@ -1217,7 +1217,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	sc->nvifs--;
 	sc->tx99_vif = NULL;
-	if (!ath9k_use_chanctx)
+	if (!ath9k_is_chanctx_enabled())
 		list_del(&avp->list);
 
 	if (ath9k_uses_beacons(vif->type))
@@ -1395,7 +1395,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	if (!ath9k_use_chanctx && (changed & IEEE80211_CONF_CHANGE_CHANNEL)) {
+	if (!ath9k_is_chanctx_enabled() && (changed & IEEE80211_CONF_CHANGE_CHANNEL)) {
 		ctx->offchannel = !!(conf->flags & IEEE80211_CONF_OFFCHANNEL);
 		ath_chanctx_set_channel(sc, ctx, &hw->conf.chandef);
 	}
@@ -2108,6 +2108,8 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 }
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
 static int ath9k_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_scan_request *hw_req)
 {
@@ -2339,7 +2341,7 @@ static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 void ath9k_fill_chanctx_ops(void)
 {
-	if (!ath9k_use_chanctx)
+	if (!ath9k_is_chanctx_enabled())
 		return;
 
 	ath9k_ops.hw_scan                  = ath9k_hw_scan;
@@ -2353,6 +2355,8 @@ void ath9k_fill_chanctx_ops(void)
 	ath9k_ops.unassign_vif_chanctx     = ath9k_unassign_vif_chanctx;
 	ath9k_ops.mgd_prepare_tx           = ath9k_chanctx_force_active;
 }
+
+#endif
 
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,

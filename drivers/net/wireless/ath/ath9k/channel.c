@@ -949,6 +949,11 @@ void ath_offchannel_timer(unsigned long data)
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
+bool ath9k_is_chanctx_enabled(void)
+{
+	return (ath9k_use_chanctx == 1);
+}
+
 /*****************/
 /* P2P Powersave */
 /*****************/

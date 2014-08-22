@@ -408,7 +408,6 @@ struct ath_offchannel {
 	     ctx <= &sc->chanctx[ARRAY_SIZE(sc->chanctx) - 1];      \
 	     ctx++)
 
-void ath9k_fill_chanctx_ops(void);
 void ath9k_chanctx_force_active(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif);
 static inline struct ath_chanctx *
@@ -437,6 +436,8 @@ void ath_scan_complete(struct ath_softc *sc, bool abort);
 void ath_roc_complete(struct ath_softc *sc, bool abort);
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+bool ath9k_is_chanctx_enabled(void);
+void ath9k_fill_chanctx_ops(void);
 int ath9k_init_p2p(struct ath_softc *sc);
 void ath9k_deinit_p2p(struct ath_softc *sc);
 void ath9k_p2p_remove_vif(struct ath_softc *sc,
@@ -446,6 +447,13 @@ void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 				struct ieee80211_vif *vif);
 void ath9k_p2p_ps_timer(void *priv);
 #else
+static inline bool ath9k_is_chanctx_enabled(void)
+{
+	return false;
+}
+static inline void ath9k_fill_chanctx_ops(void)
+{
+}
 static inline int ath9k_init_p2p(struct ath_softc *sc)
 {
 	return 0;
