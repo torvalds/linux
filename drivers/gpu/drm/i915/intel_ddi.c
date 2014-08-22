@@ -1567,7 +1567,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 		I915_WRITE(DPLL_CTRL2, val);
 
-	} else {
+	} else if (INTEL_INFO(dev)->gen < 9) {
 		WARN_ON(crtc->config->ddi_pll_sel == PORT_CLK_SEL_NONE);
 		I915_WRITE(PORT_CLK_SEL(port), crtc->config->ddi_pll_sel);
 	}
@@ -1626,7 +1626,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	if (IS_SKYLAKE(dev))
 		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
 					DPLL_CTRL2_DDI_CLK_OFF(port)));
-	else
+	else if (INTEL_INFO(dev)->gen < 9)
 		I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
 }
 
