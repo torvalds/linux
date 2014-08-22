@@ -106,8 +106,6 @@ int tipc_port_connect(u32 portref, struct tipc_portid const *port);
 
 int tipc_port_disconnect(u32 portref);
 
-int tipc_port_shutdown(u32 ref);
-
 /*
  * The following routines require that the port be locked on entry
  */

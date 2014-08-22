@@ -385,27 +385,3 @@ int tipc_port_disconnect(u32 ref)
 	tipc_port_unlock(p_ptr);
 	return res;
 }
-
-/*
- * tipc_port_shutdown(): Send a SHUTDOWN msg to peer and disconnect
- */
-int tipc_port_shutdown(u32 ref)
-{
-	struct tipc_msg *msg;
-	struct tipc_port *p_ptr;
-	struct sk_buff *buf = NULL;
-	u32 peer_node;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	peer_node = tipc_port_peernode(p_ptr);
-	buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
-			      SHORT_H_SIZE, 0, peer_node,
-			      tipc_own_addr, tipc_port_peerport(p_ptr),
-			      p_ptr->ref, TIPC_CONN_SHUTDOWN);
-	tipc_port_unlock(p_ptr);
-	msg = buf_msg(buf);
-	tipc_link_xmit(buf, peer_node,	msg_link_selector(msg));
-	return tipc_port_disconnect(ref);
-}

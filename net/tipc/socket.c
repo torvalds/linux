@@ -1899,7 +1899,7 @@ static int tipc_shutdown(struct socket *sock, int how)
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_port *port = &tsk->port;
 	struct sk_buff *buf;
-	u32 peer;
+	u32 dnode;
 	int res;
 
 	if (how != SHUT_RDWR)
@@ -1920,10 +1920,17 @@ restart:
 				goto restart;
 			}
 			tipc_port_disconnect(port->ref);
-			if (tipc_msg_reverse(buf, &peer, TIPC_CONN_SHUTDOWN))
-				tipc_link_xmit(buf, peer, 0);
+			if (tipc_msg_reverse(buf, &dnode, TIPC_CONN_SHUTDOWN))
+				tipc_link_xmit(buf, dnode, port->ref);
 		} else {
-			tipc_port_shutdown(port->ref);
+			dnode = tipc_port_peernode(port);
+			buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
+					      TIPC_CONN_MSG, SHORT_H_SIZE,
+					      0, dnode, tipc_own_addr,
+					      tipc_port_peerport(port),
+					      port->ref, TIPC_CONN_SHUTDOWN);
+			tipc_link_xmit(buf, dnode, port->ref);
+			__tipc_port_disconnect(port);
 		}
 
 		sock->state = SS_DISCONNECTING;
