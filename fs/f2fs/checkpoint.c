@@ -443,8 +443,8 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 	struct f2fs_orphan_block *orphan_blk = NULL;
 	unsigned int nentries = 0;
 	unsigned short index;
-	unsigned short orphan_blocks = (unsigned short)((sbi->n_orphans +
-		(F2FS_ORPHANS_PER_BLOCK - 1)) / F2FS_ORPHANS_PER_BLOCK);
+	unsigned short orphan_blocks =
+			(unsigned short)GET_ORPHAN_BLOCKS(sbi->n_orphans);
 	struct page *page = NULL;
 	struct ino_entry *orphan = NULL;
 
@@ -837,7 +837,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	ckpt->elapsed_time = cpu_to_le64(get_mtime(sbi));
 	ckpt->valid_block_count = cpu_to_le64(valid_user_blocks(sbi));
 	ckpt->free_segment_count = cpu_to_le32(free_segments(sbi));
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < NR_CURSEG_NODE_TYPE; i++) {
 		ckpt->cur_node_segno[i] =
 			cpu_to_le32(curseg_segno(sbi, i + CURSEG_HOT_NODE));
 		ckpt->cur_node_blkoff[i] =
@@ -845,7 +845,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 		ckpt->alloc_type[i + CURSEG_HOT_NODE] =
 				curseg_alloc_type(sbi, i + CURSEG_HOT_NODE);
 	}
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < NR_CURSEG_DATA_TYPE; i++) {
 		ckpt->cur_data_segno[i] =
 			cpu_to_le32(curseg_segno(sbi, i + CURSEG_HOT_DATA));
 		ckpt->cur_data_blkoff[i] =
@@ -860,24 +860,23 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 
 	/* 2 cp  + n data seg summary + orphan inode blocks */
 	data_sum_blocks = npages_for_summary_flush(sbi);
-	if (data_sum_blocks < 3)
+	if (data_sum_blocks < NR_CURSEG_DATA_TYPE)
 		set_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
 	else
 		clear_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
 
-	orphan_blocks = (sbi->n_orphans + F2FS_ORPHANS_PER_BLOCK - 1)
-					/ F2FS_ORPHANS_PER_BLOCK;
+	orphan_blocks = GET_ORPHAN_BLOCKS(sbi->n_orphans);
 	ckpt->cp_pack_start_sum = cpu_to_le32(1 + cp_payload_blks +
 			orphan_blocks);
 
 	if (is_umount) {
 		set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
-		ckpt->cp_pack_total_block_count = cpu_to_le32(2 +
+		ckpt->cp_pack_total_block_count = cpu_to_le32(F2FS_CP_PACKS+
 				cp_payload_blks + data_sum_blocks +
 				orphan_blocks + NR_CURSEG_NODE_TYPE);
 	} else {
 		clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
-		ckpt->cp_pack_total_block_count = cpu_to_le32(2 +
+		ckpt->cp_pack_total_block_count = cpu_to_le32(F2FS_CP_PACKS +
 				cp_payload_blks + data_sum_blocks +
 				orphan_blocks);
 	}
@@ -1022,8 +1021,8 @@ void init_ino_entry_info(struct f2fs_sb_info *sbi)
 	 * for cp pack we can have max 1020*504 orphan entries
 	 */
 	sbi->n_orphans = 0;
-	sbi->max_orphans = (sbi->blocks_per_seg - 2 - NR_CURSEG_TYPE)
-				* F2FS_ORPHANS_PER_BLOCK;
+	sbi->max_orphans = (sbi->blocks_per_seg - F2FS_CP_PACKS -
+			NR_CURSEG_TYPE) * F2FS_ORPHANS_PER_BLOCK;
 }
 
 int __init create_checkpoint_caches(void)
