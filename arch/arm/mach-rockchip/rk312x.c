@@ -104,6 +104,8 @@ static void usb_uart_init(void)
 
 static void __init rk312x_dt_map_io(void)
 {
+	u32 val;
+	
 	iotable_init(rk312x_io_desc, ARRAY_SIZE(rk312x_io_desc));
 	debug_ll_io_init();
 	usb_uart_init();
@@ -116,6 +118,11 @@ static void __init rk312x_dt_map_io(void)
 	dsb();
 	writel_relaxed(1, RK312X_TIMER5_VIRT + 0x10);
 	dsb();
+	val = readl_relaxed(RK_CRU_VIRT + RK312X_CRU_MISC_CON);
+	val &= (~(1 << 15));
+	writel_relaxed(0x80000000 | val, RK_CRU_VIRT + RK312X_CRU_MISC_CON);
+	dsb();
+
 }
 
 static void __init rk3126_dt_map_io(void)
