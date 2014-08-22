@@ -1990,6 +1990,169 @@ void broxton_ddi_phy_uninit(struct drm_device *dev)
 	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, 0);
 }
 
+static const char * const bxt_ddi_pll_names[] = {
+	"PORT PLL A",
+	"PORT PLL B",
+	"PORT PLL C",
+};
+
+static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
+				struct intel_shared_dpll *pll)
+{
+	uint32_t temp;
+	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
+
+	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
+	temp &= ~PORT_PLL_REF_SEL;
+	/* Non-SSC reference */
+	I915_WRITE(BXT_PORT_PLL_ENABLE(port), temp);
+
+	/* Disable 10 bit clock */
+	temp = I915_READ(BXT_PORT_PLL_EBB_4(port));
+	temp &= ~PORT_PLL_10BIT_CLK_ENABLE;
+	I915_WRITE(BXT_PORT_PLL_EBB_4(port), temp);
+
+	/* Write P1 & P2 */
+	temp = I915_READ(BXT_PORT_PLL_EBB_0(port));
+	temp &= ~(PORT_PLL_P1_MASK | PORT_PLL_P2_MASK);
+	temp |= pll->config.hw_state.ebb0;
+	I915_WRITE(BXT_PORT_PLL_EBB_0(port), temp);
+
+	/* Write M2 integer */
+	temp = I915_READ(BXT_PORT_PLL(port, 0));
+	temp &= ~PORT_PLL_M2_MASK;
+	temp |= pll->config.hw_state.pll0;
+	I915_WRITE(BXT_PORT_PLL(port, 0), temp);
+
+	/* Write N */
+	temp = I915_READ(BXT_PORT_PLL(port, 1));
+	temp &= ~PORT_PLL_N_MASK;
+	temp |= pll->config.hw_state.pll1;
+	I915_WRITE(BXT_PORT_PLL(port, 1), temp);
+
+	/* Write M2 fraction */
+	temp = I915_READ(BXT_PORT_PLL(port, 2));
+	temp &= ~PORT_PLL_M2_FRAC_MASK;
+	temp |= pll->config.hw_state.pll2;
+	I915_WRITE(BXT_PORT_PLL(port, 2), temp);
+
+	/* Write M2 fraction enable */
+	temp = I915_READ(BXT_PORT_PLL(port, 3));
+	temp &= ~PORT_PLL_M2_FRAC_ENABLE;
+	temp |= pll->config.hw_state.pll3;
+	I915_WRITE(BXT_PORT_PLL(port, 3), temp);
+
+	/* Write coeff */
+	temp = I915_READ(BXT_PORT_PLL(port, 6));
+	temp &= ~PORT_PLL_PROP_COEFF_MASK;
+	temp &= ~PORT_PLL_INT_COEFF_MASK;
+	temp &= ~PORT_PLL_GAIN_CTL_MASK;
+	temp |= pll->config.hw_state.pll6;
+	I915_WRITE(BXT_PORT_PLL(port, 6), temp);
+
+	/* Write calibration val */
+	temp = I915_READ(BXT_PORT_PLL(port, 8));
+	temp &= ~PORT_PLL_TARGET_CNT_MASK;
+	temp |= pll->config.hw_state.pll8;
+	I915_WRITE(BXT_PORT_PLL(port, 8), temp);
+
+	/*
+	 * FIXME: program PORT_PLL_9/i_lockthresh according to the latest
+	 * specification update.
+	 */
+
+	/* Recalibrate with new settings */
+	temp = I915_READ(BXT_PORT_PLL_EBB_4(port));
+	temp |= PORT_PLL_RECALIBRATE;
+	I915_WRITE(BXT_PORT_PLL_EBB_4(port), temp);
+	/* Enable 10 bit clock */
+	temp |= PORT_PLL_10BIT_CLK_ENABLE;
+	I915_WRITE(BXT_PORT_PLL_EBB_4(port), temp);
+
+	/* Enable PLL */
+	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
+	temp |= PORT_PLL_ENABLE;
+	I915_WRITE(BXT_PORT_PLL_ENABLE(port), temp);
+	POSTING_READ(BXT_PORT_PLL_ENABLE(port));
+
+	if (wait_for_atomic_us((I915_READ(BXT_PORT_PLL_ENABLE(port)) &
+			PORT_PLL_LOCK), 200))
+		DRM_ERROR("PLL %d not locked\n", port);
+
+	/*
+	 * While we write to the group register to program all lanes at once we
+	 * can read only lane registers and we pick lanes 0/1 for that.
+	 */
+	temp = I915_READ(BXT_PORT_PCS_DW12_LN01(port));
+	temp &= ~LANE_STAGGER_MASK;
+	temp &= ~LANESTAGGER_STRAP_OVRD;
+	temp |= pll->config.hw_state.pcsdw12;
+	I915_WRITE(BXT_PORT_PCS_DW12_GRP(port), temp);
+}
+
+static void bxt_ddi_pll_disable(struct drm_i915_private *dev_priv,
+					struct intel_shared_dpll *pll)
+{
+	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
+	uint32_t temp;
+
+	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
+	temp &= ~PORT_PLL_ENABLE;
+	I915_WRITE(BXT_PORT_PLL_ENABLE(port), temp);
+	POSTING_READ(BXT_PORT_PLL_ENABLE(port));
+}
+
+static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
+					struct intel_shared_dpll *pll,
+					struct intel_dpll_hw_state *hw_state)
+{
+	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
+	uint32_t val;
+
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PLLS))
+		return false;
+
+	val = I915_READ(BXT_PORT_PLL_ENABLE(port));
+	if (!(val & PORT_PLL_ENABLE))
+		return false;
+
+	hw_state->ebb0 = I915_READ(BXT_PORT_PLL_EBB_0(port));
+	hw_state->pll0 = I915_READ(BXT_PORT_PLL(port, 0));
+	hw_state->pll1 = I915_READ(BXT_PORT_PLL(port, 1));
+	hw_state->pll2 = I915_READ(BXT_PORT_PLL(port, 2));
+	hw_state->pll3 = I915_READ(BXT_PORT_PLL(port, 3));
+	hw_state->pll6 = I915_READ(BXT_PORT_PLL(port, 6));
+	hw_state->pll8 = I915_READ(BXT_PORT_PLL(port, 8));
+	/*
+	 * While we write to the group register to program all lanes at once we
+	 * can read only lane registers. We configure all lanes the same way, so
+	 * here just read out lanes 0/1 and output a note if lanes 2/3 differ.
+	 */
+	hw_state->pcsdw12 = I915_READ(BXT_PORT_PCS_DW12_LN01(port));
+	if (I915_READ(BXT_PORT_PCS_DW12_LN23(port) != hw_state->pcsdw12))
+		DRM_DEBUG_DRIVER("lane stagger config different for lane 01 (%08x) and 23 (%08x)\n",
+				 hw_state->pcsdw12,
+				 I915_READ(BXT_PORT_PCS_DW12_LN23(port)));
+
+	return true;
+}
+
+static void bxt_shared_dplls_init(struct drm_i915_private *dev_priv)
+{
+	int i;
+
+	dev_priv->num_shared_dpll = 3;
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		dev_priv->shared_dplls[i].id = i;
+		dev_priv->shared_dplls[i].name = bxt_ddi_pll_names[i];
+		dev_priv->shared_dplls[i].disable = bxt_ddi_pll_disable;
+		dev_priv->shared_dplls[i].enable = bxt_ddi_pll_enable;
+		dev_priv->shared_dplls[i].get_hw_state =
+			bxt_ddi_pll_get_hw_state;
+	}
+}
+
 void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1997,6 +2160,8 @@ void intel_ddi_pll_init(struct drm_device *dev)
 
 	if (IS_SKYLAKE(dev))
 		skl_shared_dplls_init(dev_priv);
+	else if (IS_BROXTON(dev))
+		bxt_shared_dplls_init(dev_priv);
 	else
 		hsw_shared_dplls_init(dev_priv);
 

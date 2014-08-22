@@ -1136,6 +1136,60 @@ enum skl_disp_power_wells {
 #define BXT_PHY_CTL_FAMILY(phy)		_BXT_PHY((phy), _PHY_CTL_FAMILY_DDI, \
 							_PHY_CTL_FAMILY_EDP)
 
+/* BXT PHY PLL registers */
+#define _PORT_PLL_A			0x46074
+#define _PORT_PLL_B			0x46078
+#define _PORT_PLL_C			0x4607c
+#define   PORT_PLL_ENABLE		(1 << 31)
+#define   PORT_PLL_LOCK			(1 << 30)
+#define   PORT_PLL_REF_SEL		(1 << 27)
+#define BXT_PORT_PLL_ENABLE(port)	_PORT(port, _PORT_PLL_A, _PORT_PLL_B)
+
+#define _PORT_PLL_EBB_0_A		0x162034
+#define _PORT_PLL_EBB_0_B		0x6C034
+#define _PORT_PLL_EBB_0_C		0x6C340
+#define   PORT_PLL_P1_MASK		(0x07 << 13)
+#define   PORT_PLL_P1(x)		((x)  << 13)
+#define   PORT_PLL_P2_MASK		(0x1f << 8)
+#define   PORT_PLL_P2(x)		((x)  << 8)
+#define BXT_PORT_PLL_EBB_0(port)	_PORT3(port, _PORT_PLL_EBB_0_A, \
+						_PORT_PLL_EBB_0_B,	\
+						_PORT_PLL_EBB_0_C)
+
+#define _PORT_PLL_EBB_4_A		0x162038
+#define _PORT_PLL_EBB_4_B		0x6C038
+#define _PORT_PLL_EBB_4_C		0x6C344
+#define   PORT_PLL_10BIT_CLK_ENABLE	(1 << 13)
+#define   PORT_PLL_RECALIBRATE		(1 << 14)
+#define BXT_PORT_PLL_EBB_4(port)	_PORT3(port, _PORT_PLL_EBB_4_A, \
+						_PORT_PLL_EBB_4_B,	\
+						_PORT_PLL_EBB_4_C)
+
+#define _PORT_PLL_0_A			0x162100
+#define _PORT_PLL_0_B			0x6C100
+#define _PORT_PLL_0_C			0x6C380
+/* PORT_PLL_0_A */
+#define   PORT_PLL_M2_MASK		0xFF
+/* PORT_PLL_1_A */
+#define   PORT_PLL_N_MASK		(0x0F << 8)
+#define   PORT_PLL_N(x)			((x) << 8)
+/* PORT_PLL_2_A */
+#define   PORT_PLL_M2_FRAC_MASK		0x3FFFFF
+/* PORT_PLL_3_A */
+#define   PORT_PLL_M2_FRAC_ENABLE	(1 << 16)
+/* PORT_PLL_6_A */
+#define   PORT_PLL_PROP_COEFF_MASK	0xF
+#define   PORT_PLL_INT_COEFF_MASK	(0x1F << 8)
+#define   PORT_PLL_INT_COEFF(x)		((x)  << 8)
+#define   PORT_PLL_GAIN_CTL_MASK	(0x07 << 16)
+#define   PORT_PLL_GAIN_CTL(x)		((x)  << 16)
+/* PORT_PLL_8_A */
+#define   PORT_PLL_TARGET_CNT_MASK	0x3FF
+#define _PORT_PLL_BASE(port)		_PORT3(port, _PORT_PLL_0_A,	\
+						_PORT_PLL_0_B,		\
+						_PORT_PLL_0_C)
+#define BXT_PORT_PLL(port, idx)		(_PORT_PLL_BASE(port) + (idx) * 4)
+
 /* BXT PHY common lane registers */
 #define _PORT_CL1CM_DW0_A		0x162000
 #define _PORT_CL1CM_DW0_BC		0x6C000
@@ -1204,6 +1258,28 @@ enum skl_disp_power_wells {
 #define   GRC_RDY_OVRD			(1 << 1)
 #define BXT_PORT_REF_DW8(phy)		_BXT_PHY((phy), _PORT_REF_DW8_BC,	\
 						      _PORT_REF_DW8_A)
+
+/* BXT PHY PCS registers */
+#define _PORT_PCS_DW12_LN01_A		0x162430
+#define _PORT_PCS_DW12_LN01_B		0x6C430
+#define _PORT_PCS_DW12_LN01_C		0x6C830
+#define _PORT_PCS_DW12_LN23_A		0x162630
+#define _PORT_PCS_DW12_LN23_B		0x6C630
+#define _PORT_PCS_DW12_LN23_C		0x6CA30
+#define _PORT_PCS_DW12_GRP_A		0x162c30
+#define _PORT_PCS_DW12_GRP_B		0x6CC30
+#define _PORT_PCS_DW12_GRP_C		0x6CE30
+#define   LANESTAGGER_STRAP_OVRD	(1 << 6)
+#define   LANE_STAGGER_MASK		0x1F
+#define BXT_PORT_PCS_DW12_LN01(port)	_PORT3(port, _PORT_PCS_DW12_LN01_A, \
+						     _PORT_PCS_DW12_LN01_B, \
+						     _PORT_PCS_DW12_LN01_C)
+#define BXT_PORT_PCS_DW12_LN23(port)	_PORT3(port, _PORT_PCS_DW12_LN23_A, \
+						     _PORT_PCS_DW12_LN23_B, \
+						     _PORT_PCS_DW12_LN23_C)
+#define BXT_PORT_PCS_DW12_GRP(port)	_PORT3(port, _PORT_PCS_DW12_GRP_A, \
+						     _PORT_PCS_DW12_GRP_B, \
+						     _PORT_PCS_DW12_GRP_C)
 
 /* BXT PHY TX registers */
 #define _BXT_LANE_OFFSET(lane)           (((lane) >> 1) * 0x200 +	\
