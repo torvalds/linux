@@ -22,7 +22,9 @@ struct rknand_info {
     int tag;
     int enable;
     int clk_rate[2];
-    int reserved0[8];
+    int nand_suspend_state;
+    int nand_shutdown_state;
+    int reserved0[6];
     
     void (*rknand_suspend)(void);
     void (*rknand_resume)(void);
@@ -201,6 +203,8 @@ static int rknand_probe(struct platform_device *pdev)
         gpNandInfo = kzalloc(sizeof(struct rknand_info), GFP_KERNEL);
         if (!gpNandInfo)
             return -ENOMEM;
+        gpNandInfo->nand_suspend_state = 0;
+        gpNandInfo->nand_shutdown_state = 0;
 	}
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	membase = devm_request_and_ioremap(&pdev->dev, mem);
@@ -260,8 +264,8 @@ static int rknand_probe(struct platform_device *pdev)
 
 static int rknand_suspend(struct platform_device *pdev, pm_message_t state)
 {
-    if(gpNandInfo->rknand_suspend)
-    {
+    if(gpNandInfo->rknand_suspend  && gpNandInfo->nand_suspend_state == 0){
+       gpNandInfo->nand_suspend_state = 1;
         gpNandInfo->rknand_suspend();
         //TODO:nandc clk disable
 	}
@@ -270,8 +274,8 @@ static int rknand_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int rknand_resume(struct platform_device *pdev)
 {
-    if(gpNandInfo->rknand_resume)
-    {
+    if(gpNandInfo->rknand_resume && gpNandInfo->nand_suspend_state == 1){
+       gpNandInfo->nand_suspend_state = 0;
        //TODO:nandc clk enable
        gpNandInfo->rknand_resume();  
 	}
@@ -280,8 +284,10 @@ static int rknand_resume(struct platform_device *pdev)
 
 static void rknand_shutdown(struct platform_device *pdev)
 {
-    if(gpNandInfo->rknand_buffer_shutdown)
-        gpNandInfo->rknand_buffer_shutdown();    
+    if(gpNandInfo->rknand_buffer_shutdown && gpNandInfo->nand_shutdown_state == 0){
+        gpNandInfo->nand_shutdown_state = 1;
+        gpNandInfo->rknand_buffer_shutdown();
+    }
 }
 
 void rknand_dev_cache_flush(void)
