@@ -329,7 +329,7 @@ int vpdma_alloc_desc_buf(struct vpdma_buf *buf, size_t size)
 	if (!buf->addr)
 		return -ENOMEM;
 
-	WARN_ON((u32) buf->addr & VPDMA_DESC_ALIGN);
+	WARN_ON(((u32) buf->addr & VPDMA_DESC_ALIGN) != 0);
 
 	return 0;
 }
