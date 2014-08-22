@@ -138,7 +138,8 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	}
 
 	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 8) +
-		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE;
+		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE +
+		  RADEON_GPU_PAGE_SIZE;
 	r = radeon_bo_create(rdev, bo_size, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &rdev->uvd.vcpu_bo);
 	if (r) {
@@ -647,38 +648,16 @@ int radeon_uvd_cs_parse(struct radeon_cs_parser *p)
 }
 
 static int radeon_uvd_send_msg(struct radeon_device *rdev,
-			       int ring, struct radeon_bo *bo,
+			       int ring, uint64_t addr,
 			       struct radeon_fence **fence)
 {
-	struct ttm_validate_buffer tv;
-	struct ww_acquire_ctx ticket;
-	struct list_head head;
 	struct radeon_ib ib;
-	uint64_t addr;
 	int i, r;
-
-	memset(&tv, 0, sizeof(tv));
-	tv.bo = &bo->tbo;
-
-	INIT_LIST_HEAD(&head);
-	list_add(&tv.head, &head);
-
-	r = ttm_eu_reserve_buffers(&ticket, &head);
-	if (r)
-		return r;
-
-	radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_VRAM);
-	radeon_uvd_force_into_uvd_segment(bo, RADEON_GEM_DOMAIN_VRAM);
-
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-	if (r) 
-		goto err;
 
 	r = radeon_ib_get(rdev, ring, &ib, NULL, 64);
 	if (r)
-		goto err;
+		return r;
 
-	addr = radeon_bo_gpu_offset(bo);
 	ib.ptr[0] = PACKET0(UVD_GPCOM_VCPU_DATA0, 0);
 	ib.ptr[1] = addr;
 	ib.ptr[2] = PACKET0(UVD_GPCOM_VCPU_DATA1, 0);
@@ -690,19 +669,11 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	ib.length_dw = 16;
 
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
-	if (r)
-		goto err;
-	ttm_eu_fence_buffer_objects(&ticket, &head, ib.fence);
 
 	if (fence)
 		*fence = radeon_fence_ref(ib.fence);
 
 	radeon_ib_free(rdev, &ib);
-	radeon_bo_unref(&bo);
-	return 0;
-
-err:
-	ttm_eu_backoff_reservation(&ticket, &head);
 	return r;
 }
 
@@ -712,27 +683,18 @@ err:
 int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 			      uint32_t handle, struct radeon_fence **fence)
 {
-	struct radeon_bo *bo;
-	uint32_t *msg;
+	/* we use the last page of the vcpu bo for the UVD message */
+	uint64_t offs = radeon_bo_size(rdev->uvd.vcpu_bo) -
+		RADEON_GPU_PAGE_SIZE;
+
+	uint32_t *msg = rdev->uvd.cpu_addr + offs;
+	uint64_t addr = rdev->uvd.gpu_addr + offs;
+
 	int r, i;
 
-	r = radeon_bo_create(rdev, 1024, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &bo);
+	r = radeon_bo_reserve(rdev->uvd.vcpu_bo, true);
 	if (r)
 		return r;
-
-	r = radeon_bo_reserve(bo, false);
-	if (r) {
-		radeon_bo_unref(&bo);
-		return r;
-	}
-
-	r = radeon_bo_kmap(bo, (void **)&msg);
-	if (r) {
-		radeon_bo_unreserve(bo);
-		radeon_bo_unref(&bo);
-		return r;
-	}
 
 	/* stitch together an UVD create msg */
 	msg[0] = cpu_to_le32(0x00000de4);
@@ -749,36 +711,26 @@ int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 	for (i = 11; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
 
-	radeon_bo_kunmap(bo);
-	radeon_bo_unreserve(bo);
-
-	return radeon_uvd_send_msg(rdev, ring, bo, fence);
+	r = radeon_uvd_send_msg(rdev, ring, addr, fence);
+	radeon_bo_unreserve(rdev->uvd.vcpu_bo);
+	return r;
 }
 
 int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 			       uint32_t handle, struct radeon_fence **fence)
 {
-	struct radeon_bo *bo;
-	uint32_t *msg;
+	/* we use the last page of the vcpu bo for the UVD message */
+	uint64_t offs = radeon_bo_size(rdev->uvd.vcpu_bo) -
+		RADEON_GPU_PAGE_SIZE;
+
+	uint32_t *msg = rdev->uvd.cpu_addr + offs;
+	uint64_t addr = rdev->uvd.gpu_addr + offs;
+
 	int r, i;
 
-	r = radeon_bo_create(rdev, 1024, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &bo);
+	r = radeon_bo_reserve(rdev->uvd.vcpu_bo, true);
 	if (r)
 		return r;
-
-	r = radeon_bo_reserve(bo, false);
-	if (r) {
-		radeon_bo_unref(&bo);
-		return r;
-	}
-
-	r = radeon_bo_kmap(bo, (void **)&msg);
-	if (r) {
-		radeon_bo_unreserve(bo);
-		radeon_bo_unref(&bo);
-		return r;
-	}
 
 	/* stitch together an UVD destroy msg */
 	msg[0] = cpu_to_le32(0x00000de4);
@@ -788,10 +740,9 @@ int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 	for (i = 4; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
 
-	radeon_bo_kunmap(bo);
-	radeon_bo_unreserve(bo);
-
-	return radeon_uvd_send_msg(rdev, ring, bo, fence);
+	r = radeon_uvd_send_msg(rdev, ring, addr, fence);
+	radeon_bo_unreserve(rdev->uvd.vcpu_bo);
+	return r;
 }
 
 /**
