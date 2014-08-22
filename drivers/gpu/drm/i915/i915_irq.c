@@ -2152,6 +2152,38 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	return ret;
 }
 
+static void bxt_hpd_handler(struct drm_device *dev, uint32_t iir_status)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t hp_control;
+	uint32_t hp_trigger;
+
+	/* Get the status */
+	hp_trigger = iir_status & BXT_DE_PORT_HOTPLUG_MASK;
+	hp_control = I915_READ(BXT_HOTPLUG_CTL);
+
+	/* Hotplug not enabled ? */
+	if (!(hp_control & BXT_HOTPLUG_CTL_MASK)) {
+		DRM_ERROR("Interrupt when HPD disabled\n");
+		return;
+	}
+
+	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
+		hp_control & BXT_HOTPLUG_CTL_MASK);
+
+	/* Check for HPD storm and schedule bottom half */
+	intel_hpd_irq_handler(dev, hp_trigger, hp_control, hpd_bxt);
+
+	/*
+	 * FIXME: Save the hot plug status for bottom half before
+	 * clearing the sticky status bits, else the status will be
+	 * lost.
+	 */
+
+	/* Clear sticky bits in hpd status */
+	I915_WRITE(BXT_HOTPLUG_CTL, hp_control);
+}
+
 static irqreturn_t gen8_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -2197,12 +2229,22 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	if (master_ctl & GEN8_DE_PORT_IRQ) {
 		tmp = I915_READ(GEN8_DE_PORT_IIR);
 		if (tmp) {
+			bool found = false;
+
 			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
 			ret = IRQ_HANDLED;
 
-			if (tmp & aux_mask)
+			if (tmp & aux_mask) {
 				dp_aux_irq_handler(dev);
-			else
+				found = true;
+			}
+
+			if (IS_BROXTON(dev) && tmp & BXT_DE_PORT_HOTPLUG_MASK) {
+				bxt_hpd_handler(dev, tmp);
+				found = true;
+			}
+
+			if (!found)
 				DRM_ERROR("Unexpected DE Port interrupt\n");
 		}
 		else
