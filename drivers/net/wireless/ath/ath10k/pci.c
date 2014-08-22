@@ -1115,14 +1115,11 @@ static void ath10k_pci_irq_enable(struct ath10k *ar)
 
 static int ath10k_pci_hif_start(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
 	ath10k_dbg(ATH10K_DBG_BOOT, "boot hif start\n");
 
 	ath10k_pci_irq_enable(ar);
 	ath10k_pci_rx_post(ar);
 
-	ar_pci->started = 1;
 	return 0;
 }
 
@@ -1225,12 +1222,7 @@ static void ath10k_pci_flush(struct ath10k *ar)
 
 static void ath10k_pci_hif_stop(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
 	ath10k_dbg(ATH10K_DBG_BOOT, "boot hif stop\n");
-
-	if (WARN_ON(!ar_pci->started))
-		return;
 
 	ath10k_pci_irq_disable(ar);
 	ath10k_pci_flush(ar);
@@ -1240,8 +1232,6 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	 * memory is to reset the chip now.
 	 */
 	ath10k_pci_warm_reset(ar);
-
-	ar_pci->started = 0;
 }
 
 static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
