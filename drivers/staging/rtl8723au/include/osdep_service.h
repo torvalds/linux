@@ -62,7 +62,7 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 	return (netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 0)) &&
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 1)) &&
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 2)) &&
-		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3)) );
+		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3)));
 }
 
 static inline u32 CHKBIT(u32 x)

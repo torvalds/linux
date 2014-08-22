@@ -731,7 +731,7 @@ EFUSE_ShadowRead23a(
 	struct rtw_adapter *	pAdapter,
 	u8		Type,
 	u16		Offset,
-	u32		*Value	)
+	u32		*Value)
 {
 	if (Type == 1)
 		efuse_ShadowRead1Byte(pAdapter, Offset, (u8 *)Value);
