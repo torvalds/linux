@@ -3799,8 +3799,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 
 static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	int i;
-
 	/* These are interrupts we'll toggle with the ring mask register */
 	uint32_t gt_interrupts[] = {
 		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
@@ -3817,10 +3815,11 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT
 		};
 
-	for (i = 0; i < ARRAY_SIZE(gt_interrupts); i++)
-		GEN8_IRQ_INIT_NDX(GT, i, ~gt_interrupts[i], gt_interrupts[i]);
-
 	dev_priv->pm_irq_mask = 0xffffffff;
+	GEN8_IRQ_INIT_NDX(GT, 0, ~gt_interrupts[0], gt_interrupts[0]);
+	GEN8_IRQ_INIT_NDX(GT, 1, ~gt_interrupts[1], gt_interrupts[1]);
+	GEN8_IRQ_INIT_NDX(GT, 2, dev_priv->pm_irq_mask, dev_priv->pm_rps_events);
+	GEN8_IRQ_INIT_NDX(GT, 3, ~gt_interrupts[3], gt_interrupts[3]);
 }
 
 static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
