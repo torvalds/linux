@@ -1121,6 +1121,40 @@ static int ath10k_pci_post_rx(struct ath10k *ar)
 	return 0;
 }
 
+static void ath10k_pci_irq_disable(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int i;
+
+	ath10k_ce_disable_interrupts(ar);
+
+	/* Regardless how many interrupts were assigned for MSI the first one
+	 * is always used for firmware indications (crashes). There's no way to
+	 * mask the irq in the device so call disable_irq(). Legacy (shared)
+	 * interrupts can be masked on the device though.
+	 */
+	if (ar_pci->num_msi_intrs > 0)
+		disable_irq(ar_pci->pdev->irq);
+	else
+		ath10k_pci_disable_and_clear_legacy_irq(ar);
+
+	for (i = 0; i < max(1, ar_pci->num_msi_intrs); i++)
+		synchronize_irq(ar_pci->pdev->irq + i);
+}
+
+static void ath10k_pci_irq_enable(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	ath10k_ce_enable_interrupts(ar);
+
+	/* See comment in ath10k_pci_irq_disable() */
+	if (ar_pci->num_msi_intrs > 0)
+		enable_irq(ar_pci->pdev->irq);
+	else
+		ath10k_pci_enable_legacy_irq(ar);
+}
+
 static int ath10k_pci_hif_start(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -1138,7 +1172,7 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 		goto err_early_irq;
 	}
 
-	ath10k_ce_enable_interrupts(ar);
+	ath10k_pci_irq_enable(ar);
 
 	/* Post buffers once to start things off. */
 	ret = ath10k_pci_post_rx(ar);
@@ -1152,7 +1186,7 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 	return 0;
 
 err_stop:
-	ath10k_ce_disable_interrupts(ar);
+	ath10k_pci_irq_disable(ar);
 	ath10k_pci_free_irq(ar);
 	ath10k_pci_kill_tasklet(ar);
 err_early_irq:
@@ -1275,10 +1309,7 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	if (WARN_ON(!ar_pci->started))
 		return;
 
-	ret = ath10k_ce_disable_interrupts(ar);
-	if (ret)
-		ath10k_warn("failed to disable CE interrupts: %d\n", ret);
-
+	ath10k_pci_irq_disable(ar);
 	ath10k_pci_free_irq(ar);
 	ath10k_pci_kill_tasklet(ar);
 
