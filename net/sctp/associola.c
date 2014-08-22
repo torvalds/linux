@@ -1245,7 +1245,7 @@ static struct sctp_transport *sctp_trans_elect_best(struct sctp_transport *curr,
 {
 	u8 score_curr, score_best;
 
-	if (best == NULL)
+	if (best == NULL || curr == best)
 		return curr;
 
 	score_curr = sctp_trans_score(curr);
