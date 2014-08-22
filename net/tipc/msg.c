@@ -56,8 +56,35 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 	msg_set_size(m, hsize);
 	msg_set_prevnode(m, tipc_own_addr);
 	msg_set_type(m, type);
-	msg_set_orignode(m, tipc_own_addr);
-	msg_set_destnode(m, destnode);
+	if (hsize > SHORT_H_SIZE) {
+		msg_set_orignode(m, tipc_own_addr);
+		msg_set_destnode(m, destnode);
+	}
+}
+
+struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
+				uint data_sz, u32 dnode, u32 onode,
+				u32 dport, u32 oport, int errcode)
+{
+	struct tipc_msg *msg;
+	struct sk_buff *buf;
+
+	buf = tipc_buf_acquire(hdr_sz + data_sz);
+	if (unlikely(!buf))
+		return NULL;
+
+	msg = buf_msg(buf);
+	tipc_msg_init(msg, user, type, hdr_sz, dnode);
+	msg_set_size(msg, hdr_sz + data_sz);
+	msg_set_prevnode(msg, onode);
+	msg_set_origport(msg, oport);
+	msg_set_destport(msg, dport);
+	msg_set_errcode(msg, errcode);
+	if (hdr_sz > SHORT_H_SIZE) {
+		msg_set_orignode(msg, onode);
+		msg_set_destnode(msg, dnode);
+	}
+	return buf;
 }
 
 /* tipc_buf_append(): Append a buffer to the fragment list of another buffer
