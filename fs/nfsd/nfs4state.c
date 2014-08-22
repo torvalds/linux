@@ -4876,9 +4876,25 @@ nfs4_transform_lock_offset(struct file_lock *lock)
 		lock->fl_end = OFFSET_MAX;
 }
 
-/* Hack!: For now, we're defining this just so we can use a pointer to it
- * as a unique cookie to identify our (NFSv4's) posix locks. */
+static void nfsd4_fl_get_owner(struct file_lock *dst, struct file_lock *src)
+{
+	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)src->fl_owner;
+	dst->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(&lo->lo_owner));
+}
+
+static void nfsd4_fl_put_owner(struct file_lock *fl)
+{
+	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)fl->fl_owner;
+
+	if (lo) {
+		nfs4_put_stateowner(&lo->lo_owner);
+		fl->fl_owner = NULL;
+	}
+}
+
 static const struct lock_manager_operations nfsd_posix_mng_ops  = {
+	.lm_get_owner = nfsd4_fl_get_owner,
+	.lm_put_owner = nfsd4_fl_put_owner,
 };
 
 static inline void
@@ -5243,7 +5259,8 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfserr_openmode;
 		goto out;
 	}
-	file_lock->fl_owner = (fl_owner_t)lock_sop;
+
+	file_lock->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(&lock_sop->lo_owner));
 	file_lock->fl_pid = current->tgid;
 	file_lock->fl_file = filp;
 	file_lock->fl_flags = FL_POSIX;
@@ -5439,7 +5456,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 
 	file_lock->fl_type = F_UNLCK;
-	file_lock->fl_owner = (fl_owner_t)lockowner(stp->st_stateowner);
+	file_lock->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(stp->st_stateowner));
 	file_lock->fl_pid = current->tgid;
 	file_lock->fl_file = filp;
 	file_lock->fl_flags = FL_POSIX;
