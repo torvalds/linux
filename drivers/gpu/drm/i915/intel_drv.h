@@ -936,6 +936,8 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 void intel_ddi_fdi_disable(struct drm_crtc *crtc);
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config);
+struct intel_encoder *
+intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state);
 
 void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder);
 void intel_ddi_clock_get(struct intel_encoder *encoder,

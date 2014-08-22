@@ -4209,6 +4209,26 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 		goto found;
 	}
 
+	if (IS_BROXTON(dev_priv->dev)) {
+		/* PLL is attached to port in bxt */
+		struct intel_encoder *encoder;
+		struct intel_digital_port *intel_dig_port;
+
+		encoder = intel_ddi_get_crtc_new_encoder(crtc_state);
+		if (WARN_ON(!encoder))
+			return NULL;
+
+		intel_dig_port = enc_to_dig_port(&encoder->base);
+		/* 1:1 mapping between ports and PLLs */
+		i = (enum intel_dpll_id)intel_dig_port->port;
+		pll = &dev_priv->shared_dplls[i];
+		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
+			crtc->base.base.id, pll->name);
+		WARN_ON(pll->new_config->crtc_mask);
+
+		goto found;
+	}
+
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		pll = &dev_priv->shared_dplls[i];
 

@@ -493,7 +493,7 @@ intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 	return ret;
 }
 
-static struct intel_encoder *
+struct intel_encoder *
 intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
