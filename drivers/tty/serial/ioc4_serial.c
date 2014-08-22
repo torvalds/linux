@@ -2597,7 +2597,6 @@ static struct uart_ops ioc4_ops = {
 	.stop_tx	= ic4_stop_tx,
 	.start_tx	= ic4_start_tx,
 	.stop_rx	= null_void_function,
-	.enable_ms	= null_void_function,
 	.break_ctl	= ic4_break_ctl,
 	.startup	= ic4_startup,
 	.shutdown	= ic4_shutdown,

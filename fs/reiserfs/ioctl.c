@@ -7,7 +7,7 @@
 #include <linux/mount.h>
 #include "reiserfs.h"
 #include <linux/time.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/pagemap.h>
 #include <linux/compat.h>
 

@@ -34,7 +34,9 @@ MODULE_LICENSE("GPL");
 struct key_type key_type_big_key = {
 	.name			= "big_key",
 	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
-	.instantiate		= big_key_instantiate,
+	.preparse		= big_key_preparse,
+	.free_preparse		= big_key_free_preparse,
+	.instantiate		= generic_key_instantiate,
 	.match			= user_match,
 	.revoke			= big_key_revoke,
 	.destroy		= big_key_destroy,
@@ -43,11 +45,11 @@ struct key_type key_type_big_key = {
 };
 
 /*
- * Instantiate a big key
+ * Preparse a big key
  */
-int big_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
+int big_key_preparse(struct key_preparsed_payload *prep)
 {
-	struct path *path = (struct path *)&key->payload.data2;
+	struct path *path = (struct path *)&prep->payload;
 	struct file *file;
 	ssize_t written;
 	size_t datalen = prep->datalen;
@@ -58,11 +60,9 @@ int big_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 		goto error;
 
 	/* Set an arbitrary quota */
-	ret = key_payload_reserve(key, 16);
-	if (ret < 0)
-		goto error;
+	prep->quotalen = 16;
 
-	key->type_data.x[1] = datalen;
+	prep->type_data[1] = (void *)(unsigned long)datalen;
 
 	if (datalen > BIG_KEY_FILE_THRESHOLD) {
 		/* Create a shmem file to store the data in.  This will permit the data
@@ -73,7 +73,7 @@ int big_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 		file = shmem_kernel_file_setup("", datalen, 0);
 		if (IS_ERR(file)) {
 			ret = PTR_ERR(file);
-			goto err_quota;
+			goto error;
 		}
 
 		written = kernel_write(file, prep->data, prep->datalen, 0);
@@ -93,21 +93,30 @@ int big_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 	} else {
 		/* Just store the data in a buffer */
 		void *data = kmalloc(datalen, GFP_KERNEL);
-		if (!data) {
-			ret = -ENOMEM;
-			goto err_quota;
-		}
+		if (!data)
+			return -ENOMEM;
 
-		key->payload.data = memcpy(data, prep->data, prep->datalen);
+		prep->payload[0] = memcpy(data, prep->data, prep->datalen);
 	}
 	return 0;
 
 err_fput:
 	fput(file);
-err_quota:
-	key_payload_reserve(key, 0);
 error:
 	return ret;
+}
+
+/*
+ * Clear preparsement.
+ */
+void big_key_free_preparse(struct key_preparsed_payload *prep)
+{
+	if (prep->datalen > BIG_KEY_FILE_THRESHOLD) {
+		struct path *path = (struct path *)&prep->payload;
+		path_put(path);
+	} else {
+		kfree(prep->payload[0]);
+	}
 }
 
 /*

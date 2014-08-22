@@ -46,6 +46,7 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe)
 		{ 0x00088, 0x01, 0xff },
 
 		{ 0x00070, priv->cfg.ts_mode, 0xff },
+		{ 0x00071, !priv->cfg.ts_clock_inv << 4, 0x10 },
 		{ 0x000cb, priv->cfg.if_agc_polarity << 6, 0x40 },
 		{ 0x000a5, 0x00, 0x01 },
 		{ 0x00082, 0x20, 0x60 },

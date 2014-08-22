@@ -36,8 +36,6 @@ Configuration options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#define DT2817_SIZE 5
-
 #define DT2817_CR 0
 #define DT2817_DATA 1
 
@@ -114,7 +112,7 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	struct comedi_subdevice *s;
 
-	ret = comedi_request_region(dev, it->options[0], DT2817_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x5);
 	if (ret)
 		return ret;
 

@@ -270,7 +270,7 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 
 			if (CR_CHAN(data[4 + i]) >=
 				this_board->i_NbrAiChannel) {
-				printk("bad channel list\n");
+				dev_err(dev->class_dev, "bad channel list\n");
 				return -2;
 			}
 		}
@@ -318,7 +318,8 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan < 1) {
 		if (!check)
-			comedi_error(dev, "range/channel list is empty!");
+			dev_err(dev->class_dev,
+				"range/channel list is empty!\n");
 		return 0;
 	}
 	/*  All is ok, so we can setup channel/range list */
@@ -344,11 +345,6 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 		us_TmpValue |= ((gain & 0x03) << 4);	/* <<4 for G0 and G1 bit in RAM */
 		us_TmpValue |= i << 8;	/* To select the RAM LOCATION.... */
 		outw(us_TmpValue, dev->iobase + APCI3120_SEQ_RAM_ADDRESS);
-
-		printk("\n Gain = %i",
-			(((unsigned char)CR_RANGE(chanlist[i]) & 0x03) << 2));
-		printk("\n Channel = %i", CR_CHAN(chanlist[i]));
-		printk("\n Polarity = %i", us_TmpValue & APCI3120_UNIPOLAR);
 	}
 	return 1;		/*  we can serve this with scan logic */
 }
@@ -369,10 +365,9 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	unsigned char b_Tmp;
 
 	/*  fix conversion time to 10 us */
-	if (!devpriv->ui_EocEosConversionTime) {
-		printk("No timer0 Value using 10 us\n");
+	if (!devpriv->ui_EocEosConversionTime)
 		us_ConvertTiming = 10;
-	} else
+	else
 		us_ConvertTiming = (unsigned short) (devpriv->ui_EocEosConversionTime / 1000);	/*  nano to useconds */
 
 	/*  this_board->ai_read(dev,us_ConvertTiming,insn->n,&insn->chanspec,data,insn->unused[0]); */
@@ -593,7 +588,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			break;
 
 		default:
-			printk("inputs wrong\n");
+			dev_err(dev->class_dev, "inputs wrong\n");
 
 		}
 		devpriv->ui_EocEosConversionTime = 0;	/*  re initializing the variable; */
@@ -1051,7 +1046,7 @@ static int apci3120_cyclic_ai(int mode,
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_LOW_WORD;
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-			outw(LOWORD(ui_TimerValue2),
+			outw(ui_TimerValue2 & 0xffff,
 				dev->iobase + APCI3120_TIMER_VALUE);
 
 			/* Writing HIGH unsigned short */
@@ -1059,7 +1054,7 @@ static int apci3120_cyclic_ai(int mode,
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_HIGH_WORD;
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-			outw(HIWORD(ui_TimerValue2),
+			outw((ui_TimerValue2 >> 16) & 0xffff,
 				dev->iobase + APCI3120_TIMER_VALUE);
 
 			/* (2) Reset FC_TIMER BIT  Clearing timer status register */
@@ -1373,10 +1368,10 @@ static void apci3120_interrupt_dma(int irq, void *d)
 
 	if (samplesinbuf <
 		devpriv->ui_DmaBufferUsesize[devpriv->ui_DmaActualBuffer]) {
-		comedi_error(dev, "Interrupted DMA transfer!");
+		dev_err(dev->class_dev, "Interrupted DMA transfer!\n");
 	}
 	if (samplesinbuf & 1) {
-		comedi_error(dev, "Odd count of bytes in DMA ring!");
+		dev_err(dev->class_dev, "Odd count of bytes in DMA ring!\n");
 		apci3120_cancel(dev, s);
 		return;
 	}
@@ -1548,7 +1543,7 @@ static void apci3120_interrupt(int irq, void *d)
 	int_amcc = inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	/*  get AMCC int register */
 
 	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT))) {
-		comedi_error(dev, "IRQ from unknown source");
+		dev_err(dev->class_dev, "IRQ from unknown source\n");
 		return;
 	}
 
@@ -1565,9 +1560,9 @@ static void apci3120_interrupt(int irq, void *d)
 	inb(devpriv->i_IobaseAmcc + APCI3120_TIMER_STATUS_REGISTER);
 
 	if (int_amcc & MASTER_ABORT_INT)
-		comedi_error(dev, "AMCC IRQ - MASTER DMA ABORT!");
+		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
 	if (int_amcc & TARGET_ABORT_INT)
-		comedi_error(dev, "AMCC IRQ - TARGET DMA ABORT!");
+		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
 
 	/*  Ckeck if EOC interrupt */
 	if (((int_daq & 0x8) == 0)
@@ -1740,7 +1735,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	unsigned char b_Tmp;
 
 	if (!data[1])
-		comedi_error(dev, "config:No timer constant !");
+		dev_err(dev->class_dev, "No timer constant!\n");
 
 	devpriv->b_Timer2Interrupt = (unsigned char) data[2];	/*  save info whether to enable or disable interrupt */
 
@@ -1805,7 +1800,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
-		outw(LOWORD(ui_Timervalue2),
+		outw(ui_Timervalue2 & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
@@ -1813,7 +1808,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
-		outw(HIWORD(ui_Timervalue2),
+		outw((ui_Timervalue2 >> 16) & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 		/*  timer2 in Timer mode enabled */
 		devpriv->b_Timer2Mode = APCI3120_TIMER;
@@ -1841,7 +1836,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
-		outw(LOWORD(ui_Timervalue2),
+		outw(ui_Timervalue2 & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
@@ -1850,7 +1845,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-		outw(HIWORD(ui_Timervalue2),
+		outw((ui_Timervalue2 >> 16) & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 		/* watchdog enabled */
 		devpriv->b_Timer2Mode = APCI3120_WATCHDOG;
@@ -1886,14 +1881,14 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
 		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
-		comedi_error(dev, "\nwrite:timer2  not configured ");
+		dev_err(dev->class_dev, "timer2 not configured\n");
 		return -EINVAL;
 	}
 
 	if (data[0] == 2) {	/*  write new value */
 		if (devpriv->b_Timer2Mode != APCI3120_TIMER) {
-			comedi_error(dev,
-				"write :timer2  not configured  in TIMER MODE");
+			dev_err(dev->class_dev,
+				"timer2 not configured in TIMER MODE\n");
 			return -EINVAL;
 		}
 
@@ -1991,8 +1986,8 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 
 	case 2:		/* write new value to Timer */
 		if (devpriv->b_Timer2Mode != APCI3120_TIMER) {
-			comedi_error(dev,
-				"write :timer2  not configured  in TIMER MODE");
+			dev_err(dev->class_dev,
+				"timer2 not configured in TIMER MODE\n");
 			return -EINVAL;
 		}
 		/*  ui_Timervalue2=data[1]; // passed as argument */
@@ -2017,7 +2012,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-		outw(LOWORD(ui_Timervalue2),
+		outw(ui_Timervalue2 & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
@@ -2026,7 +2021,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-		outw(HIWORD(ui_Timervalue2),
+		outw((ui_Timervalue2 >> 16) & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		break;
@@ -2056,7 +2051,7 @@ static int apci3120_read_insn_timer(struct comedi_device *dev,
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
 		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
-		comedi_error(dev, "\nread:timer2  not configured ");
+		dev_err(dev->class_dev, "timer2 not configured\n");
 	}
 
 	/* this_board->timer_read(dev,data); */
@@ -2161,10 +2156,6 @@ static int apci3120_ao_insn_write(struct comedi_device *dev,
 
 	}
 
-/*
- * out put n values at the given channel. printk("\nwaiting for
- * DA_READY BIT");
- */
 	do {			/* Waiting of DA_READY BIT */
 		us_TmpValue =
 			((unsigned short) inw(devpriv->iobase +

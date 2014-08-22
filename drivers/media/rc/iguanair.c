@@ -495,7 +495,7 @@ static int iguanair_probe(struct usb_interface *intf,
 	usb_to_input_id(ir->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc_set_allowed_protocols(rc, RC_BIT_ALL);
+	rc->allowed_protocols = RC_BIT_ALL;
 	rc->priv = ir;
 	rc->open = iguanair_open;
 	rc->close = iguanair_close;

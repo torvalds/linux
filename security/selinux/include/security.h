@@ -8,6 +8,7 @@
 #ifndef _SELINUX_SECURITY_H_
 #define _SELINUX_SECURITY_H_
 
+#include <linux/compiler.h>
 #include <linux/dcache.h>
 #include <linux/magic.h>
 #include <linux/types.h>
@@ -220,7 +221,7 @@ struct selinux_kernel_status {
 	/*
 	 * The version > 0 supports above members.
 	 */
-} __attribute__((packed));
+} __packed;
 
 extern void selinux_status_update_setenforce(int enforcing);
 extern void selinux_status_update_policyload(int seqno);

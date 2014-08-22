@@ -106,18 +106,19 @@ struct rsnd_src {
 /*
  *		Gen1/Gen2 common functions
  */
-int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
-			   struct rsnd_dai *rdai)
+int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
+			struct rsnd_dai *rdai,
+			int use_busif)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(ssi_mod);
-	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	int ssi_id = rsnd_mod_id(ssi_mod);
 
 	/*
 	 * SSI_MODE0
 	 */
 	rsnd_mod_bset(ssi_mod, SSI_MODE0, (1 << ssi_id),
-		      src_mod ? 0 : (1 << ssi_id));
+		      !use_busif << ssi_id);
 
 	/*
 	 * SSI_MODE1
@@ -142,6 +143,46 @@ int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
 				      rsnd_dai_is_clk_master(rdai) ?
 				      0x2 << shift : 0x1 << shift);
 	}
+
+	/*
+	 * DMA settings for SSIU
+	 */
+	if (use_busif) {
+		u32 val = 0x76543210;
+		u32 mask = ~0;
+
+		rsnd_mod_write(ssi_mod, SSI_BUSIF_ADINR,
+			       rsnd_get_adinr(ssi_mod));
+		rsnd_mod_write(ssi_mod, SSI_BUSIF_MODE,  1);
+		rsnd_mod_write(ssi_mod, SSI_CTRL, 0x1);
+
+		mask <<= runtime->channels * 4;
+		val = val & mask;
+
+		switch (runtime->sample_bits) {
+		case 16:
+			val |= 0x67452301 & ~mask;
+			break;
+		case 32:
+			val |= 0x76543210 & ~mask;
+			break;
+		}
+		rsnd_mod_write(ssi_mod, BUSIF_DALIGN, val);
+
+	}
+
+	return 0;
+}
+
+int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
+			struct rsnd_dai *rdai,
+			int use_busif)
+{
+	/*
+	 * DMA settings for SSIU
+	 */
+	if (use_busif)
+		rsnd_mod_write(ssi_mod, SSI_CTRL, 0);
 
 	return 0;
 }
@@ -461,18 +502,45 @@ static struct rsnd_mod_ops rsnd_src_gen1_ops = {
 static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 					  struct rsnd_dai *rdai)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	uint ratio;
 	int ret;
+
+	/* 6 - 1/6 are very enough ratio for SRC_BSDSR */
+	if (!rsnd_src_convert_rate(src))
+		ratio = 0;
+	else if (rsnd_src_convert_rate(src) > runtime->rate)
+		ratio = 100 * rsnd_src_convert_rate(src) / runtime->rate;
+	else
+		ratio = 100 * runtime->rate / rsnd_src_convert_rate(src);
+
+	if (ratio > 600) {
+		dev_err(dev, "FSO/FSI ratio error\n");
+		return -EINVAL;
+	}
 
 	ret = rsnd_src_set_convert_rate(mod, rdai);
 	if (ret < 0)
 		return ret;
 
-	rsnd_mod_write(mod, SSI_BUSIF_ADINR, rsnd_get_adinr(mod));
-	rsnd_mod_write(mod, SSI_BUSIF_MODE,  1);
-
 	rsnd_mod_write(mod, SRC_SRCCR, 0x00011110);
 
-	rsnd_mod_write(mod, SRC_BSDSR, 0x01800000);
+	switch (rsnd_mod_id(mod)) {
+	case 5:
+	case 6:
+	case 7:
+	case 8:
+		rsnd_mod_write(mod, SRC_BSDSR, 0x02400000);
+		break;
+	default:
+		rsnd_mod_write(mod, SRC_BSDSR, 0x01800000);
+		break;
+	}
+
 	rsnd_mod_write(mod, SRC_BSISR, 0x00100060);
 
 	return 0;
@@ -554,7 +622,6 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 
 	rsnd_dma_start(rsnd_mod_to_dma(&src->mod));
 
-	rsnd_mod_write(mod, SSI_CTRL, 0x1);
 	rsnd_mod_write(mod, SRC_CTRL, val);
 
 	return rsnd_src_start(mod, rdai);
@@ -565,7 +632,6 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	rsnd_mod_write(mod, SSI_CTRL, 0);
 	rsnd_mod_write(mod, SRC_CTRL, 0);
 
 	rsnd_dma_stop(rsnd_mod_to_dma(&src->mod));

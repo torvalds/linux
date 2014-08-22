@@ -2137,7 +2137,7 @@ ahd_linux_queue_cmd_complete(struct ahd_softc *ahd, struct scsi_cmnd *cmd)
 	if (do_fallback) {
 		printk("%s: device overrun (status %x) on %d:%d:%d\n",
 		       ahd_name(ahd), status, cmd->device->channel,
-		       cmd->device->id, cmd->device->lun);
+		       cmd->device->id, (u8)cmd->device->lun);
 	}
 
 	ahd_cmd_set_transaction_status(cmd, new_status);
@@ -2253,13 +2253,13 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 	disconnected = TRUE;
 	if (ahd_search_qinfifo(ahd, cmd->device->id, 
 			       cmd->device->channel + 'A',
-			       cmd->device->lun, 
+			       cmd->device->lun,
 			       pending_scb->hscb->tag,
 			       ROLE_INITIATOR, CAM_REQ_ABORTED,
 			       SEARCH_COMPLETE) > 0) {
 		printk("%s:%d:%d:%d: Cmd aborted from QINFIFO\n",
 		       ahd_name(ahd), cmd->device->channel, 
-		       cmd->device->id, cmd->device->lun);
+		       cmd->device->id, (u8)cmd->device->lun);
 		retval = SUCCESS;
 		goto done;
 	}

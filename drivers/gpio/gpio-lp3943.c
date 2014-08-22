@@ -216,7 +216,8 @@ static int lp3943_gpio_remove(struct platform_device *pdev)
 {
 	struct lp3943_gpio *lp3943_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&lp3943_gpio->chip);
+	gpiochip_remove(&lp3943_gpio->chip);
+	return 0;
 }
 
 static const struct of_device_id lp3943_gpio_of_match[] = {

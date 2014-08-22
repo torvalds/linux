@@ -1003,33 +1003,18 @@ static void iss_disable_clocks(struct iss_device *iss)
 	clk_disable(iss->iss_fck);
 }
 
-static void iss_put_clocks(struct iss_device *iss)
-{
-	if (iss->iss_fck) {
-		clk_put(iss->iss_fck);
-		iss->iss_fck = NULL;
-	}
-
-	if (iss->iss_ctrlclk) {
-		clk_put(iss->iss_ctrlclk);
-		iss->iss_ctrlclk = NULL;
-	}
-}
-
 static int iss_get_clocks(struct iss_device *iss)
 {
-	iss->iss_fck = clk_get(iss->dev, "iss_fck");
+	iss->iss_fck = devm_clk_get(iss->dev, "iss_fck");
 	if (IS_ERR(iss->iss_fck)) {
 		dev_err(iss->dev, "Unable to get iss_fck clock info\n");
-		iss_put_clocks(iss);
 		return PTR_ERR(iss->iss_fck);
 	}
 
-	iss->iss_ctrlclk = clk_get(iss->dev, "iss_ctrlclk");
+	iss->iss_ctrlclk = devm_clk_get(iss->dev, "iss_ctrlclk");
 	if (IS_ERR(iss->iss_ctrlclk)) {
 		dev_err(iss->dev, "Unable to get iss_ctrlclk clock info\n");
-		iss_put_clocks(iss);
-		return PTR_ERR(iss->iss_fck);
+		return PTR_ERR(iss->iss_ctrlclk);
 	}
 
 	return 0;
@@ -1104,29 +1089,11 @@ static int iss_map_mem_resource(struct platform_device *pdev,
 {
 	struct resource *mem;
 
-	/* request the mem region for the camera registers */
-
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, res);
-	if (!mem) {
-		dev_err(iss->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
 
-	if (!request_mem_region(mem->start, resource_size(mem), pdev->name)) {
-		dev_err(iss->dev,
-			"cannot reserve camera register I/O region\n");
-		return -ENODEV;
-	}
-	iss->res[res] = mem;
+	iss->regs[res] = devm_ioremap_resource(iss->dev, mem);
 
-	/* map the region */
-	iss->regs[res] = ioremap_nocache(mem->start, resource_size(mem));
-	if (!iss->regs[res]) {
-		dev_err(iss->dev, "cannot map camera register I/O region\n");
-		return -ENODEV;
-	}
-
-	return 0;
+	return PTR_ERR_OR_ZERO(iss->regs[res]);
 }
 
 static void iss_unregister_entities(struct iss_device *iss)
@@ -1389,7 +1356,7 @@ static int iss_probe(struct platform_device *pdev)
 	if (pdata == NULL)
 		return -EINVAL;
 
-	iss = kzalloc(sizeof(*iss), GFP_KERNEL);
+	iss = devm_kzalloc(&pdev->dev, sizeof(*iss), GFP_KERNEL);
 	if (!iss) {
 		dev_err(&pdev->dev, "Could not allocate memory\n");
 		return -ENOMEM;
@@ -1456,7 +1423,8 @@ static int iss_probe(struct platform_device *pdev)
 		goto error_iss;
 	}
 
-	if (request_irq(iss->irq_num, iss_isr, IRQF_SHARED, "OMAP4 ISS", iss)) {
+	if (devm_request_irq(iss->dev, iss->irq_num, iss_isr, IRQF_SHARED,
+			     "OMAP4 ISS", iss)) {
 		dev_err(iss->dev, "Unable to request IRQ\n");
 		ret = -EINVAL;
 		goto error_iss;
@@ -1465,7 +1433,7 @@ static int iss_probe(struct platform_device *pdev)
 	/* Entities */
 	ret = iss_initialize_modules(iss);
 	if (ret < 0)
-		goto error_irq;
+		goto error_iss;
 
 	ret = iss_register_entities(iss);
 	if (ret < 0)
@@ -1477,29 +1445,12 @@ static int iss_probe(struct platform_device *pdev)
 
 error_modules:
 	iss_cleanup_modules(iss);
-error_irq:
-	free_irq(iss->irq_num, iss);
 error_iss:
 	omap4iss_put(iss);
 error:
-	iss_put_clocks(iss);
-
-	for (i = 0; i < OMAP4_ISS_MEM_LAST; i++) {
-		if (iss->regs[i]) {
-			iounmap(iss->regs[i]);
-			iss->regs[i] = NULL;
-		}
-
-		if (iss->res[i]) {
-			release_mem_region(iss->res[i]->start,
-					   resource_size(iss->res[i]));
-			iss->res[i] = NULL;
-		}
-	}
 	platform_set_drvdata(pdev, NULL);
 
 	mutex_destroy(&iss->iss_mutex);
-	kfree(iss);
 
 	return ret;
 }
@@ -1507,28 +1458,9 @@ error:
 static int iss_remove(struct platform_device *pdev)
 {
 	struct iss_device *iss = platform_get_drvdata(pdev);
-	unsigned int i;
 
 	iss_unregister_entities(iss);
 	iss_cleanup_modules(iss);
-
-	free_irq(iss->irq_num, iss);
-	iss_put_clocks(iss);
-
-	for (i = 0; i < OMAP4_ISS_MEM_LAST; i++) {
-		if (iss->regs[i]) {
-			iounmap(iss->regs[i]);
-			iss->regs[i] = NULL;
-		}
-
-		if (iss->res[i]) {
-			release_mem_region(iss->res[i]->start,
-					   resource_size(iss->res[i]));
-			iss->res[i] = NULL;
-		}
-	}
-
-	kfree(iss);
 
 	return 0;
 }

@@ -102,3 +102,10 @@ void nouveau_gem_prime_unpin(struct drm_gem_object *obj)
 
 	nouveau_bo_unpin(nvbo);
 }
+
+struct reservation_object *nouveau_gem_prime_res_obj(struct drm_gem_object *obj)
+{
+	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
+
+	return nvbo->bo.resv;
+}

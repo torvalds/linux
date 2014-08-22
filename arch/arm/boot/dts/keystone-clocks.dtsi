@@ -215,7 +215,7 @@ clocks {
 	clkpa: clkpa {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,psc-clock";
-		clocks = <&chipclk16>;
+		clocks = <&paclk13>;
 		clock-output-names = "pa";
 		reg = <0x0235001c 0xb00>, <0x02350008 0x400>;
 		reg-names = "control", "domain";

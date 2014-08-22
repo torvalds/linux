@@ -167,15 +167,9 @@ err:
 static int adp5520_gpio_remove(struct platform_device *pdev)
 {
 	struct adp5520_gpio *dev;
-	int ret;
 
 	dev = platform_get_drvdata(pdev);
-	ret = gpiochip_remove(&dev->gpio_chip);
-	if (ret) {
-		dev_err(&pdev->dev, "%s failed, %d\n",
-				"gpiochip_remove()", ret);
-		return ret;
-	}
+	gpiochip_remove(&dev->gpio_chip);
 
 	return 0;
 }

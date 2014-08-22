@@ -648,7 +648,8 @@ static int get_channel_allocation_order(int ca)
  *
  * TODO: it could select the wrong CA from multiple candidates.
 */
-static int hdmi_channel_allocation(struct hdmi_eld *eld, int channels)
+static int hdmi_channel_allocation(struct hda_codec *codec,
+				   struct hdmi_eld *eld, int channels)
 {
 	int i;
 	int ca = 0;
@@ -694,7 +695,7 @@ static int hdmi_channel_allocation(struct hdmi_eld *eld, int channels)
 	}
 
 	snd_print_channel_allocation(eld->info.spk_alloc, buf, sizeof(buf));
-	snd_printdd("HDMI: select CA 0x%x for %d-channel allocation: %s\n",
+	codec_dbg(codec, "HDMI: select CA 0x%x for %d-channel allocation: %s\n",
 		    ca, channels, buf);
 
 	return ca;
@@ -1131,7 +1132,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	if (!non_pcm && per_pin->chmap_set)
 		ca = hdmi_manual_channel_allocation(channels, per_pin->chmap);
 	else
-		ca = hdmi_channel_allocation(eld, channels);
+		ca = hdmi_channel_allocation(codec, eld, channels);
 	if (ca < 0)
 		ca = 0;
 
@@ -1557,13 +1558,13 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 			eld->eld_valid = false;
 		else {
 			memset(&eld->info, 0, sizeof(struct parsed_hdmi_eld));
-			if (snd_hdmi_parse_eld(&eld->info, eld->eld_buffer,
+			if (snd_hdmi_parse_eld(codec, &eld->info, eld->eld_buffer,
 						    eld->eld_size) < 0)
 				eld->eld_valid = false;
 		}
 
 		if (eld->eld_valid) {
-			snd_hdmi_show_eld(&eld->info);
+			snd_hdmi_show_eld(codec, &eld->info);
 			update_eld = true;
 		}
 		else if (repoll) {
@@ -3355,6 +3356,7 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x80862808, .name = "Broadwell HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862880, .name = "CedarTrail HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862882, .name = "Valleyview2 HDMI",	.patch = patch_generic_hdmi },
+{ .id = 0x80862883, .name = "Braswell HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x808629fb, .name = "Crestline HDMI",	.patch = patch_generic_hdmi },
 {} /* terminator */
 };
@@ -3414,6 +3416,7 @@ MODULE_ALIAS("snd-hda-codec-id:80862807");
 MODULE_ALIAS("snd-hda-codec-id:80862808");
 MODULE_ALIAS("snd-hda-codec-id:80862880");
 MODULE_ALIAS("snd-hda-codec-id:80862882");
+MODULE_ALIAS("snd-hda-codec-id:80862883");
 MODULE_ALIAS("snd-hda-codec-id:808629fb");
 
 MODULE_LICENSE("GPL");

@@ -613,10 +613,8 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	wm9090 = devm_kzalloc(&i2c->dev, sizeof(*wm9090), GFP_KERNEL);
-	if (wm9090 == NULL) {
-		dev_err(&i2c->dev, "Can not allocate memory\n");
+	if (!wm9090)
 		return -ENOMEM;
-	}
 
 	wm9090->regmap = devm_regmap_init_i2c(i2c, &wm9090_regmap);
 	if (IS_ERR(wm9090->regmap)) {

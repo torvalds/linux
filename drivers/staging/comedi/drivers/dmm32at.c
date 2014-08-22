@@ -40,9 +40,6 @@ Configuration Options:
 #include "comedi_fc.h"
 
 /* Board register addresses */
-
-#define DMM32AT_MEMSIZE 0x10
-
 #define DMM32AT_CONV 0x00
 #define DMM32AT_AILSB 0x00
 #define DMM32AT_AUXDOUT 0x01
@@ -237,7 +234,7 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int dmm32at_ns_to_timer(unsigned int *ns, int round)
+static int dmm32at_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	/* trivial timer */
 	return *ns;
@@ -352,12 +349,12 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		dmm32at_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		dmm32at_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		dmm32at_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		dmm32at_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -491,7 +488,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 	int i;
 
 	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
 
@@ -684,7 +681,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
 
-	ret = comedi_request_region(dev, it->options[0], DMM32AT_MEMSIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 

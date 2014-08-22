@@ -1827,7 +1827,7 @@ dcopuop:
 	case -1:
 
 		if (cpu_has_mips_4_5_r)
-			cbit = fpucondbit[MIPSInst_RT(ir) >> 2];
+			cbit = fpucondbit[MIPSInst_FD(ir) >> 2];
 		else
 			cbit = FPU_CSR_COND;
 		if (rv.w)

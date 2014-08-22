@@ -146,35 +146,43 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 	int size = 0;
 
 	pacl = get_acl(inode, ACL_TYPE_ACCESS);
-	if (!pacl) {
+	if (!pacl)
 		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
-		if (IS_ERR(pacl))
-			return PTR_ERR(pacl);
-	}
+
+	if (IS_ERR(pacl))
+		return PTR_ERR(pacl);
+
 	/* allocate for worst case: one (deny, allow) pair each: */
 	size += 2 * pacl->a_count;
 
 	if (S_ISDIR(inode->i_mode)) {
 		flags = NFS4_ACL_DIR;
 		dpacl = get_acl(inode, ACL_TYPE_DEFAULT);
+		if (IS_ERR(dpacl)) {
+			error = PTR_ERR(dpacl);
+			goto rel_pacl;
+		}
+
 		if (dpacl)
 			size += 2 * dpacl->a_count;
 	}
 
-	*acl = nfs4_acl_new(size);
+	*acl = kmalloc(nfs4_acl_bytes(size), GFP_KERNEL);
 	if (*acl == NULL) {
 		error = -ENOMEM;
 		goto out;
 	}
+	(*acl)->naces = 0;
 
 	_posix_to_nfsv4_one(pacl, *acl, flags & ~NFS4_ACL_TYPE_DEFAULT);
 
 	if (dpacl)
 		_posix_to_nfsv4_one(dpacl, *acl, flags | NFS4_ACL_TYPE_DEFAULT);
 
- out:
-	posix_acl_release(pacl);
+out:
 	posix_acl_release(dpacl);
+rel_pacl:
+	posix_acl_release(pacl);
 	return error;
 }
 
@@ -872,16 +880,13 @@ ace2type(struct nfs4_ace *ace)
 	return -1;
 }
 
-struct nfs4_acl *
-nfs4_acl_new(int n)
+/*
+ * return the size of the struct nfs4_acl required to represent an acl
+ * with @entries entries.
+ */
+int nfs4_acl_bytes(int entries)
 {
-	struct nfs4_acl *acl;
-
-	acl = kmalloc(sizeof(*acl) + n*sizeof(struct nfs4_ace), GFP_KERNEL);
-	if (acl == NULL)
-		return NULL;
-	acl->naces = 0;
-	return acl;
+	return sizeof(struct nfs4_acl) + entries * sizeof(struct nfs4_ace);
 }
 
 static struct {
@@ -935,5 +940,5 @@ __be32 nfs4_acl_write_who(struct xdr_stream *xdr, int who)
 		return 0;
 	}
 	WARN_ON_ONCE(1);
-	return -1;
+	return nfserr_serverfault;
 }

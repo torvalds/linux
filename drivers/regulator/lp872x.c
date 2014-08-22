@@ -845,7 +845,6 @@ static struct lp872x_platform_data
 	struct device_node *np = dev->of_node;
 	struct lp872x_platform_data *pdata;
 	struct of_regulator_match *match;
-	struct regulator_init_data *d;
 	int num_matches;
 	int count;
 	int i;
@@ -892,14 +891,6 @@ static struct lp872x_platform_data
 		pdata->regulator_data[i].id =
 				(enum lp872x_regulator_id)match[i].driver_data;
 		pdata->regulator_data[i].init_data = match[i].init_data;
-
-		/* Operation mode configuration for buck/buck1/buck2 */
-		if (strncmp(match[i].name, "buck", 4))
-			continue;
-
-		d = pdata->regulator_data[i].init_data;
-		d->constraints.valid_modes_mask |= LP872X_VALID_OPMODE;
-		d->constraints.valid_ops_mask |= REGULATOR_CHANGE_MODE;
 	}
 out:
 	return pdata;

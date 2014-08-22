@@ -38,12 +38,12 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <lustre_lite.h>
-#include <lustre_ha.h>
-#include <lustre_dlm.h>
+#include "../include/lustre_lite.h"
+#include "../include/lustre_ha.h"
+#include "../include/lustre_dlm.h"
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <lprocfs_status.h>
+#include "../include/lprocfs_status.h"
 #include "llite_internal.h"
 
 static struct kmem_cache *ll_inode_cachep;

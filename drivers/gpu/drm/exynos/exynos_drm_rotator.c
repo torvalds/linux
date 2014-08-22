@@ -691,6 +691,7 @@ static const struct of_device_id exynos_rotator_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, exynos_rotator_match);
 
 static int rotator_probe(struct platform_device *pdev)
 {

@@ -10,11 +10,12 @@ Required properties:
 - cs-gpios: see spi-bus.txt
 
 Recommended properties :
-- efm32,location: Value to write to the ROUTE register's LOCATION bitfield to
-                  configure the pinmux for the device, see datasheet for values.
-                  If "efm32,location" property is not provided, keeping what is
-                  already configured in the hardware, so its either the reset
-                  default 0 or whatever the bootloader did.
+- energymicro,location: Value to write to the ROUTE register's LOCATION
+                        bitfield to configure the pinmux for the device, see
+                        datasheet for values.
+                        If this property is not provided, keeping what is
+                        already configured in the hardware, so its either the
+                        reset default 0 or whatever the bootloader did.
 
 Example:
 
@@ -26,7 +27,7 @@ spi1: spi@0x4000c400 { /* USART1 */
 	interrupts = <15 16>;
 	clocks = <&cmu 20>;
 	cs-gpios = <&gpio 51 1>; // D3
-	efm32,location = <1>;
+	energymicro,location = <1>;
 	status = "ok";
 
 	ks8851@0 {

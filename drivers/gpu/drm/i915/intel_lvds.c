@@ -51,6 +51,7 @@ struct intel_lvds_encoder {
 
 	bool is_dual_link;
 	u32 reg;
+	u32 a3_power;
 
 	struct intel_lvds_connector *attached_connector;
 };
@@ -71,7 +72,12 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	enum intel_display_power_domain power_domain;
 	u32 tmp;
+
+	power_domain = intel_display_port_power_domain(encoder);
+	if (!intel_display_power_enabled(dev_priv, power_domain))
+		return false;
 
 	tmp = I915_READ(lvds_encoder->reg);
 
@@ -172,8 +178,11 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 
 	/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
 	 * appropriately here, but we need to look more thoroughly into how
-	 * panels behave in the two modes.
+	 * panels behave in the two modes. For now, let's just maintain the
+	 * value we got from the BIOS.
 	 */
+	 temp &= ~LVDS_A3_POWER_MASK;
+	 temp |= lvds_encoder->a3_power;
 
 	/* Set the dithering flag on LVDS as needed, note that there is no
 	 * special lvds dither control bit on pch-split platforms, dithering is
@@ -271,7 +280,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 				      struct intel_crtc_config *pipe_config)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds_encoder *lvds_encoder =
 		to_lvds_encoder(&intel_encoder->base);
 	struct intel_connector *intel_connector =
@@ -286,8 +294,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		return false;
 	}
 
-	if ((I915_READ(lvds_encoder->reg) & LVDS_A3_POWER_MASK) ==
-	    LVDS_A3_POWER_UP)
+	if (lvds_encoder->a3_power == LVDS_A3_POWER_UP)
 		lvds_bpp = 8*3;
 	else
 		lvds_bpp = 6*3;
@@ -1088,6 +1095,9 @@ out:
 	DRM_DEBUG_KMS("detected %s-link lvds configuration\n",
 		      lvds_encoder->is_dual_link ? "dual" : "single");
 
+	lvds_encoder->a3_power = I915_READ(lvds_encoder->reg) &
+				 LVDS_A3_POWER_MASK;
+
 	/*
 	 * Unlock registers and just
 	 * leave them unlocked
@@ -1104,7 +1114,7 @@ out:
 		DRM_DEBUG_KMS("lid notifier registration failed\n");
 		lvds_connector->lid_notifier.notifier_call = NULL;
 	}
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 	intel_panel_setup_backlight(connector);

@@ -116,6 +116,7 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 
 	/* frame with out of date sequence number */
 	if (seq_less(seq, r->head_seq_num)) {
+		r->ssn_last_drop = seq;
 		dev_kfree_skb(skb);
 		goto out;
 	}

@@ -24,11 +24,20 @@
 #define RPM_AUTO		0x08	/* Use autosuspend_delay */
 
 #ifdef CONFIG_PM
+extern struct workqueue_struct *pm_wq;
+
+static inline bool queue_pm_work(struct work_struct *work)
+{
+	return queue_work(pm_wq, work);
+}
+
 extern int pm_generic_runtime_suspend(struct device *dev);
 extern int pm_generic_runtime_resume(struct device *dev);
 extern int pm_runtime_force_suspend(struct device *dev);
 extern int pm_runtime_force_resume(struct device *dev);
 #else
+static inline bool queue_pm_work(struct work_struct *work) { return false; }
+
 static inline int pm_generic_runtime_suspend(struct device *dev) { return 0; }
 static inline int pm_generic_runtime_resume(struct device *dev) { return 0; }
 static inline int pm_runtime_force_suspend(struct device *dev) { return 0; }
@@ -36,8 +45,6 @@ static inline int pm_runtime_force_resume(struct device *dev) { return 0; }
 #endif
 
 #ifdef CONFIG_PM_RUNTIME
-
-extern struct workqueue_struct *pm_wq;
 
 extern int __pm_runtime_idle(struct device *dev, int rpmflags);
 extern int __pm_runtime_suspend(struct device *dev, int rpmflags);

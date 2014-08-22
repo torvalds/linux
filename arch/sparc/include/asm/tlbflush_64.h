@@ -34,6 +34,8 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 {
 }
 
+void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+
 #define __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 
 void flush_tlb_pending(void);
@@ -48,11 +50,6 @@ void __flush_tlb_kernel_range(unsigned long start, unsigned long end);
 
 #ifndef CONFIG_SMP
 
-#define flush_tlb_kernel_range(start,end) \
-do {	flush_tsb_kernel_range(start,end); \
-	__flush_tlb_kernel_range(start,end); \
-} while (0)
-
 static inline void global_flush_tlb_page(struct mm_struct *mm, unsigned long vaddr)
 {
 	__flush_tlb_page(CTX_HWBITS(mm->context), vaddr);
@@ -62,11 +59,6 @@ static inline void global_flush_tlb_page(struct mm_struct *mm, unsigned long vad
 
 void smp_flush_tlb_kernel_range(unsigned long start, unsigned long end);
 void smp_flush_tlb_page(struct mm_struct *mm, unsigned long vaddr);
-
-#define flush_tlb_kernel_range(start, end) \
-do {	flush_tsb_kernel_range(start,end); \
-	smp_flush_tlb_kernel_range(start, end); \
-} while (0)
 
 #define global_flush_tlb_page(mm, vaddr) \
 	smp_flush_tlb_page(mm, vaddr)

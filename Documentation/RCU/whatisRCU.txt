@@ -818,7 +818,7 @@ RCU pointer/list update:
 	list_add_tail_rcu
 	list_del_rcu
 	list_replace_rcu
-	hlist_add_after_rcu
+	hlist_add_behind_rcu
 	hlist_add_before_rcu
 	hlist_add_head_rcu
 	hlist_del_rcu

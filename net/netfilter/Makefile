@@ -47,6 +47,9 @@ obj-$(CONFIG_NF_CONNTRACK_TFTP) += nf_conntrack_tftp.o
 nf_nat-y	:= nf_nat_core.o nf_nat_proto_unknown.o nf_nat_proto_common.o \
 		   nf_nat_proto_udp.o nf_nat_proto_tcp.o nf_nat_helper.o
 
+# generic transport layer logging
+obj-$(CONFIG_NF_LOG_COMMON) += nf_log_common.o
+
 obj-$(CONFIG_NF_NAT) += nf_nat.o
 
 # NAT protocols (nf_nat)

@@ -1476,6 +1476,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 
 	INIT_DELAYED_WORK(&codec->jackpoll_work, hda_jackpoll_work);
 	codec->depop_delay = -1;
+	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
 
 #ifdef CONFIG_PM
 	spin_lock_init(&codec->power_lock);
@@ -2727,7 +2728,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	return 0;
 }
 
-typedef int (*map_slave_func_t)(void *, struct snd_kcontrol *);
+typedef int (*map_slave_func_t)(struct hda_codec *, void *, struct snd_kcontrol *);
 
 /* apply the function to all matching slave ctls in the mixer list */
 static int map_slaves(struct hda_codec *codec, const char * const *slaves,
@@ -2751,7 +2752,7 @@ static int map_slaves(struct hda_codec *codec, const char * const *slaves,
 				name = tmpname;
 			}
 			if (!strcmp(sctl->id.name, name)) {
-				err = func(data, sctl);
+				err = func(codec, data, sctl);
 				if (err)
 					return err;
 				break;
@@ -2761,13 +2762,15 @@ static int map_slaves(struct hda_codec *codec, const char * const *slaves,
 	return 0;
 }
 
-static int check_slave_present(void *data, struct snd_kcontrol *sctl)
+static int check_slave_present(struct hda_codec *codec,
+			       void *data, struct snd_kcontrol *sctl)
 {
 	return 1;
 }
 
 /* guess the value corresponding to 0dB */
-static int get_kctl_0dB_offset(struct snd_kcontrol *kctl, int *step_to_check)
+static int get_kctl_0dB_offset(struct hda_codec *codec,
+			       struct snd_kcontrol *kctl, int *step_to_check)
 {
 	int _tlv[4];
 	const int *tlv = NULL;
@@ -2788,7 +2791,7 @@ static int get_kctl_0dB_offset(struct snd_kcontrol *kctl, int *step_to_check)
 		if (!step)
 			return -1;
 		if (*step_to_check && *step_to_check != step) {
-			snd_printk(KERN_ERR "hda_codec: Mismatching dB step for vmaster slave (%d!=%d)\n",
+			codec_err(codec, "Mismatching dB step for vmaster slave (%d!=%d)\n",
 -				   *step_to_check, step);
 			return -1;
 		}
@@ -2813,18 +2816,26 @@ static int put_kctl_with_value(struct snd_kcontrol *kctl, int val)
 }
 
 /* initialize the slave volume with 0dB */
-static int init_slave_0dB(void *data, struct snd_kcontrol *slave)
+static int init_slave_0dB(struct hda_codec *codec,
+			  void *data, struct snd_kcontrol *slave)
 {
-	int offset = get_kctl_0dB_offset(slave, data);
+	int offset = get_kctl_0dB_offset(codec, slave, data);
 	if (offset > 0)
 		put_kctl_with_value(slave, offset);
 	return 0;
 }
 
 /* unmute the slave */
-static int init_slave_unmute(void *data, struct snd_kcontrol *slave)
+static int init_slave_unmute(struct hda_codec *codec,
+			     void *data, struct snd_kcontrol *slave)
 {
 	return put_kctl_with_value(slave, 1);
+}
+
+static int add_slave(struct hda_codec *codec,
+		     void *data, struct snd_kcontrol *slave)
+{
+	return snd_ctl_add_slave(data, slave);
 }
 
 /**
@@ -2869,8 +2880,7 @@ int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	if (err < 0)
 		return err;
 
-	err = map_slaves(codec, slaves, suffix,
-			 (map_slave_func_t)snd_ctl_add_slave, kctl);
+	err = map_slaves(codec, slaves, suffix, add_slave, kctl);
 	if (err < 0)
 		return err;
 
@@ -4280,6 +4290,7 @@ static struct hda_rate_tbl rate_bits[] = {
 
 /**
  * snd_hda_calc_stream_format - calculate format bitset
+ * @codec: HD-audio codec
  * @rate: the sample rate
  * @channels: the number of channels
  * @format: the PCM format (SNDRV_PCM_FORMAT_XXX)
@@ -4289,7 +4300,8 @@ static struct hda_rate_tbl rate_bits[] = {
  *
  * Return zero if invalid.
  */
-unsigned int snd_hda_calc_stream_format(unsigned int rate,
+unsigned int snd_hda_calc_stream_format(struct hda_codec *codec,
+					unsigned int rate,
 					unsigned int channels,
 					unsigned int format,
 					unsigned int maxbps,
@@ -4304,12 +4316,12 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 			break;
 		}
 	if (!rate_bits[i].hz) {
-		snd_printdd("invalid rate %d\n", rate);
+		codec_dbg(codec, "invalid rate %d\n", rate);
 		return 0;
 	}
 
 	if (channels == 0 || channels > 8) {
-		snd_printdd("invalid channels %d\n", channels);
+		codec_dbg(codec, "invalid channels %d\n", channels);
 		return 0;
 	}
 	val |= channels - 1;
@@ -4332,7 +4344,7 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 			val |= AC_FMT_BITS_20;
 		break;
 	default:
-		snd_printdd("invalid format width %d\n",
+		codec_dbg(codec, "invalid format width %d\n",
 			  snd_pcm_format_width(format));
 		return 0;
 	}
@@ -5670,12 +5682,13 @@ EXPORT_SYMBOL_GPL(_snd_hda_set_pin_ctl);
  * suffix is appended to the label.  This label index number is stored
  * to type_idx when non-NULL pointer is given.
  */
-int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
+int snd_hda_add_imux_item(struct hda_codec *codec,
+			  struct hda_input_mux *imux, const char *label,
 			  int index, int *type_idx)
 {
 	int i, label_idx = 0;
 	if (imux->num_items >= HDA_MAX_NUM_INPUTS) {
-		snd_printd(KERN_ERR "hda_codec: Too many imux items!\n");
+		codec_err(codec, "hda_codec: Too many imux items!\n");
 		return -EINVAL;
 	}
 	for (i = 0; i < imux->num_items; i++) {

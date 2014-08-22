@@ -228,13 +228,6 @@
 
 #include "amplc_dio200.h"
 
-/* PCI IDs */
-#define PCI_DEVICE_ID_AMPLICON_PCI272 0x000a
-#define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
-#define PCI_DEVICE_ID_AMPLICON_PCIE236 0x0011
-#define PCI_DEVICE_ID_AMPLICON_PCIE215 0x0012
-#define PCI_DEVICE_ID_AMPLICON_PCIE296 0x0014
-
 /*
  * Board descriptions.
  */
@@ -394,16 +387,14 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 	if (pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) {
-		devpriv->io.u.membase = pci_ioremap_bar(pci_dev, bar);
-		if (!devpriv->io.u.membase) {
+		dev->mmio = pci_ioremap_bar(pci_dev, bar);
+		if (!dev->mmio) {
 			dev_err(dev->class_dev,
 				"error! cannot remap registers\n");
 			return -ENOMEM;
 		}
-		devpriv->io.regtype = mmio_regtype;
 	} else {
-		devpriv->io.u.iobase = pci_resource_start(pci_dev, bar);
-		devpriv->io.regtype = io_regtype;
+		dev->iobase = pci_resource_start(pci_dev, bar);
 	}
 	switch (context_model) {
 	case pcie215_model:
@@ -421,14 +412,9 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 
 static void dio200_pci_detach(struct comedi_device *dev)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
-
-	if (!thisboard || !devpriv)
-		return;
 	amplc_dio200_common_detach(dev);
-	if (devpriv->io.regtype == mmio_regtype)
-		iounmap(devpriv->io.u.membase);
+	if (dev->mmio)
+		iounmap(dev->mmio);
 	comedi_pci_disable(dev);
 }
 
@@ -440,22 +426,11 @@ static struct comedi_driver dio200_pci_comedi_driver = {
 };
 
 static const struct pci_device_id dio200_pci_table[] = {
-	{
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215),
-		pci215_model
-	}, {
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272),
-		pci272_model
-	}, {
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE236),
-		pcie236_model
-	}, {
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE215),
-		pcie215_model
-	}, {
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE296),
-		pcie296_model
-	},
+	{ PCI_VDEVICE(AMPLICON, 0x000b), pci215_model },
+	{ PCI_VDEVICE(AMPLICON, 0x000a), pci272_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0011), pcie236_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0012), pcie215_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0014), pcie296_model },
 	{0}
 };
 

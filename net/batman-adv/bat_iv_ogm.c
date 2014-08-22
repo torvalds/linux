@@ -108,14 +108,15 @@ static int batadv_iv_ogm_orig_add_if(struct batadv_orig_node *orig_node,
 				     int max_if_num)
 {
 	void *data_ptr;
-	size_t data_size, old_size;
+	size_t old_size;
 	int ret = -ENOMEM;
 
 	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 
-	data_size = max_if_num * sizeof(unsigned long) * BATADV_NUM_WORDS;
 	old_size = (max_if_num - 1) * sizeof(unsigned long) * BATADV_NUM_WORDS;
-	data_ptr = kmalloc(data_size, GFP_ATOMIC);
+	data_ptr = kmalloc_array(max_if_num,
+				 BATADV_NUM_WORDS * sizeof(unsigned long),
+				 GFP_ATOMIC);
 	if (!data_ptr)
 		goto unlock;
 
@@ -123,7 +124,7 @@ static int batadv_iv_ogm_orig_add_if(struct batadv_orig_node *orig_node,
 	kfree(orig_node->bat_iv.bcast_own);
 	orig_node->bat_iv.bcast_own = data_ptr;
 
-	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
+	data_ptr = kmalloc_array(max_if_num, sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr) {
 		kfree(orig_node->bat_iv.bcast_own);
 		goto unlock;
@@ -164,7 +165,7 @@ static int batadv_iv_ogm_orig_del_if(struct batadv_orig_node *orig_node,
 		goto free_bcast_own;
 
 	chunk_size = sizeof(unsigned long) * BATADV_NUM_WORDS;
-	data_ptr = kmalloc(max_if_num * chunk_size, GFP_ATOMIC);
+	data_ptr = kmalloc_array(max_if_num, chunk_size, GFP_ATOMIC);
 	if (!data_ptr)
 		goto unlock;
 
@@ -183,7 +184,7 @@ free_bcast_own:
 	if (max_if_num == 0)
 		goto free_own_sum;
 
-	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
+	data_ptr = kmalloc_array(max_if_num, sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr) {
 		kfree(orig_node->bat_iv.bcast_own);
 		goto unlock;

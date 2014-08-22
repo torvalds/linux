@@ -19,6 +19,7 @@
 
 #include <linux/pagemap.h>
 #include <linux/vfs.h>
+#include <linux/falloc.h>
 #include "cifsglob.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
@@ -112,6 +113,53 @@ smb2_get_credits(struct mid_q_entry *mid)
 	return le16_to_cpu(((struct smb2_hdr *)mid->resp_buf)->CreditRequest);
 }
 
+static int
+smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
+		      unsigned int *num, unsigned int *credits)
+{
+	int rc = 0;
+	unsigned int scredits;
+
+	spin_lock(&server->req_lock);
+	while (1) {
+		if (server->credits <= 0) {
+			spin_unlock(&server->req_lock);
+			cifs_num_waiters_inc(server);
+			rc = wait_event_killable(server->request_q,
+					has_credits(server, &server->credits));
+			cifs_num_waiters_dec(server);
+			if (rc)
+				return rc;
+			spin_lock(&server->req_lock);
+		} else {
+			if (server->tcpStatus == CifsExiting) {
+				spin_unlock(&server->req_lock);
+				return -ENOENT;
+			}
+
+			scredits = server->credits;
+			/* can deadlock with reopen */
+			if (scredits == 1) {
+				*num = SMB2_MAX_BUFFER_SIZE;
+				*credits = 0;
+				break;
+			}
+
+			/* leave one credit for a possible reopen */
+			scredits--;
+			*num = min_t(unsigned int, size,
+				     scredits * SMB2_MAX_BUFFER_SIZE);
+
+			*credits = DIV_ROUND_UP(*num, SMB2_MAX_BUFFER_SIZE);
+			server->credits -= *credits;
+			server->in_flight++;
+			break;
+		}
+	}
+	spin_unlock(&server->req_lock);
+	return rc;
+}
+
 static __u64
 smb2_get_next_mid(struct TCP_Server_Info *server)
 {
@@ -182,8 +230,9 @@ smb2_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	/* start with specified wsize, or default */
 	wsize = volume_info->wsize ? volume_info->wsize : CIFS_DEFAULT_IOSIZE;
 	wsize = min_t(unsigned int, wsize, server->max_write);
-	/* set it to the maximum buffer size value we can send with 1 credit */
-	wsize = min_t(unsigned int, wsize, SMB2_MAX_BUFFER_SIZE);
+
+	if (!(server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU))
+		wsize = min_t(unsigned int, wsize, SMB2_MAX_BUFFER_SIZE);
 
 	return wsize;
 }
@@ -197,8 +246,9 @@ smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	/* start with specified rsize, or default */
 	rsize = volume_info->rsize ? volume_info->rsize : CIFS_DEFAULT_IOSIZE;
 	rsize = min_t(unsigned int, rsize, server->max_read);
-	/* set it to the maximum buffer size value we can send with 1 credit */
-	rsize = min_t(unsigned int, rsize, SMB2_MAX_BUFFER_SIZE);
+
+	if (!(server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU))
+		rsize = min_t(unsigned int, rsize, SMB2_MAX_BUFFER_SIZE);
 
 	return rsize;
 }
@@ -687,7 +737,7 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	__le64 eof = cpu_to_le64(size);
 	return SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
-			    cfile->fid.volatile_fid, cfile->pid, &eof);
+			    cfile->fid.volatile_fid, cfile->pid, &eof, false);
 }
 
 static int
@@ -1104,6 +1154,13 @@ smb3_parse_lease_buf(void *buf, unsigned int *epoch)
 	return le32_to_cpu(lc->lcontext.LeaseState);
 }
 
+static unsigned int
+smb2_wp_retry_size(struct inode *inode)
+{
+	return min_t(unsigned int, CIFS_SB(inode->i_sb)->wsize,
+		     SMB2_MAX_BUFFER_SIZE);
+}
+
 struct smb_version_operations smb20_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -1113,6 +1170,7 @@ struct smb_version_operations smb20_operations = {
 	.set_credits = smb2_set_credits,
 	.get_credits_field = smb2_get_credits_field,
 	.get_credits = smb2_get_credits,
+	.wait_mtu_credits = cifs_wait_mtu_credits,
 	.get_next_mid = smb2_get_next_mid,
 	.read_data_offset = smb2_read_data_offset,
 	.read_data_length = smb2_read_data_length,
@@ -1177,6 +1235,7 @@ struct smb_version_operations smb20_operations = {
 	.create_lease_buf = smb2_create_lease_buf,
 	.parse_lease_buf = smb2_parse_lease_buf,
 	.clone_range = smb2_clone_range,
+	.wp_retry_size = smb2_wp_retry_size,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -1188,6 +1247,7 @@ struct smb_version_operations smb21_operations = {
 	.set_credits = smb2_set_credits,
 	.get_credits_field = smb2_get_credits_field,
 	.get_credits = smb2_get_credits,
+	.wait_mtu_credits = smb2_wait_mtu_credits,
 	.get_next_mid = smb2_get_next_mid,
 	.read_data_offset = smb2_read_data_offset,
 	.read_data_length = smb2_read_data_length,
@@ -1252,6 +1312,7 @@ struct smb_version_operations smb21_operations = {
 	.create_lease_buf = smb2_create_lease_buf,
 	.parse_lease_buf = smb2_parse_lease_buf,
 	.clone_range = smb2_clone_range,
+	.wp_retry_size = smb2_wp_retry_size,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -1263,6 +1324,7 @@ struct smb_version_operations smb30_operations = {
 	.set_credits = smb2_set_credits,
 	.get_credits_field = smb2_get_credits_field,
 	.get_credits = smb2_get_credits,
+	.wait_mtu_credits = smb2_wait_mtu_credits,
 	.get_next_mid = smb2_get_next_mid,
 	.read_data_offset = smb2_read_data_offset,
 	.read_data_length = smb2_read_data_length,
@@ -1330,6 +1392,7 @@ struct smb_version_operations smb30_operations = {
 	.parse_lease_buf = smb3_parse_lease_buf,
 	.clone_range = smb2_clone_range,
 	.validate_negotiate = smb3_validate_negotiate,
+	.wp_retry_size = smb2_wp_retry_size,
 };
 
 struct smb_version_values smb20_values = {

@@ -80,8 +80,7 @@ struct lm77_data {
  */
 static inline s16 LM77_TEMP_TO_REG(int temp)
 {
-	int ntemp = clamp_val(temp, LM77_TEMP_MIN, LM77_TEMP_MAX);
-	return (ntemp / 500) * 8;
+	return (temp / 500) * 8;
 }
 
 static inline int LM77_TEMP_FROM_REG(s16 reg)
@@ -175,6 +174,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	if (err)
 		return err;
 
+	val = clamp_val(val, LM77_TEMP_MIN, LM77_TEMP_MAX);
 	mutex_lock(&data->update_lock);
 	data->temp[nr] = val;
 	lm77_write_value(client, temp_regs[nr], LM77_TEMP_TO_REG(val));
@@ -192,15 +192,16 @@ static ssize_t set_temp_hyst(struct device *dev,
 {
 	struct lm77_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
-	unsigned long val;
+	long val;
 	int err;
 
-	err = kstrtoul(buf, 10, &val);
+	err = kstrtol(buf, 10, &val);
 	if (err)
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp[t_hyst] = data->temp[t_crit] - val;
+	val = clamp_val(data->temp[t_crit] - val, LM77_TEMP_MIN, LM77_TEMP_MAX);
+	data->temp[t_hyst] = val;
 	lm77_write_value(client, LM77_REG_TEMP_HYST,
 			 LM77_TEMP_TO_REG(data->temp[t_hyst]));
 	mutex_unlock(&data->update_lock);

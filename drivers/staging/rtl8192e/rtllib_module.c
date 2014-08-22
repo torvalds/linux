@@ -111,7 +111,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	dev = alloc_etherdev(sizeof(struct rtllib_device) + sizeof_priv);
 	if (!dev) {
 		RTLLIB_ERROR("Unable to network device.\n");
-		goto failed;
+		return NULL;
 	}
 	ieee = (struct rtllib_device *)netdev_priv_rsl(dev);
 	memset(ieee, 0, sizeof(struct rtllib_device)+sizeof_priv);
@@ -180,8 +180,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	return dev;
 
  failed:
-	if (dev)
-		free_netdev(dev);
+	free_netdev(dev);
 	return NULL;
 }
 EXPORT_SYMBOL(alloc_rtllib);

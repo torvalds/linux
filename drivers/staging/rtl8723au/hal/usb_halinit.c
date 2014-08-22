@@ -338,17 +338,6 @@ static void _InitQueuePriority(struct rtw_adapter *Adapter)
 	_InitNormalChipQueuePriority(Adapter);
 }
 
-static void _InitNetworkType(struct rtw_adapter *Adapter)
-{
-	u32 value32;
-
-	value32 = rtl8723au_read32(Adapter, REG_CR);
-
-	/*  TODO: use the other function to set network type */
-	value32 = (value32 & ~MASK_NETTYPE) | _NETTYPE(NT_LINK_AP);
-	rtl8723au_write32(Adapter, REG_CR, value32);
-}
-
 static void _InitTransferPageSize(struct rtw_adapter *Adapter)
 {
 	/*  Tx page size is always 128. */
@@ -484,62 +473,6 @@ static void _InitRetryFunction(struct rtw_adapter *Adapter)
 	rtl8723au_write8(Adapter, REG_ACKTO, 0x40);
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	usb_AggSettingTxUpdate()
- *
- * Overview:	Seperate TX/RX parameters update independent for TP
- *		detection and dynamic TX/RX aggreagtion parameters update.
- *
- * Input:			struct rtw_adapter *
- *
- * Output/Return:	NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	12/10/2010	MHC		Seperate to smaller function.
- *
- *---------------------------------------------------------------------------*/
-static void usb_AggSettingTxUpdate(struct rtw_adapter *Adapter)
-{
-}	/*  usb_AggSettingTxUpdate */
-
-/*-----------------------------------------------------------------------------
- * Function:	usb_AggSettingRxUpdate()
- *
- * Overview:	Seperate TX/RX parameters update independent for TP
- *		detection and dynamic TX/RX aggreagtion parameters update.
- *
- * Input:			struct rtw_adapter *
- *
- * Output/Return:	NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	12/10/2010	MHC		Seperate to smaller function.
- *
- *---------------------------------------------------------------------------*/
-static void usb_AggSettingRxUpdate(struct rtw_adapter *Adapter)
-{
-}	/*  usb_AggSettingRxUpdate */
-
-static void InitUsbAggregationSetting(struct rtw_adapter *Adapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-
-	/*  Tx aggregation setting */
-	usb_AggSettingTxUpdate(Adapter);
-
-	/*  Rx aggregation setting */
-	usb_AggSettingRxUpdate(Adapter);
-
-	/*  201/12/10 MH Add for USB agg mode dynamic switch. */
-	pHalData->UsbRxHighSpeedMode = false;
-}
-
-static void _InitOperationMode(struct rtw_adapter *Adapter)
-{
-}
-
 static void _InitRFType(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
@@ -584,24 +517,19 @@ enum rt_rf_power_state RfOnOffDetect23a(struct rtw_adapter *pAdapter)
 	u8 val8;
 	enum rt_rf_power_state rfpowerstate = rf_off;
 
-	if (pAdapter->pwrctrlpriv.bHWPowerdown) {
-		val8 = rtl8723au_read8(pAdapter, REG_HSISR);
-		DBG_8723A("pwrdown, 0x5c(BIT7) =%02x\n", val8);
-		rfpowerstate = (val8 & BIT(7)) ? rf_off : rf_on;
-	} else { /*  rf on/off */
-		rtl8723au_write8(pAdapter, REG_MAC_PINMUX_CFG,
-				 rtl8723au_read8(pAdapter, REG_MAC_PINMUX_CFG) &
-				 ~BIT(3));
-		val8 = rtl8723au_read8(pAdapter, REG_GPIO_IO_SEL);
-		DBG_8723A("GPIO_IN =%02x\n", val8);
-		rfpowerstate = (val8 & BIT(3)) ? rf_on : rf_off;
-	}
+	rtl8723au_write8(pAdapter, REG_MAC_PINMUX_CFG,
+			 rtl8723au_read8(pAdapter,
+					 REG_MAC_PINMUX_CFG) & ~BIT(3));
+	val8 = rtl8723au_read8(pAdapter, REG_GPIO_IO_SEL);
+	DBG_8723A("GPIO_IN =%02x\n", val8);
+	rfpowerstate = (val8 & BIT(3)) ? rf_on : rf_off;
+
 	return rfpowerstate;
-}	/*  HalDetectPwrDownMode */
+}
 
 void _ps_open_RF23a(struct rtw_adapter *padapter);
 
-static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
+int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 {
 	u8 val8 = 0;
 	u32 boundary;
@@ -611,6 +539,8 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
 
 	unsigned long init_start_time = jiffies;
+
+	Adapter->hw_init_completed = false;
 
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
 		_ps_open_RF23a(Adapter);
@@ -718,9 +648,9 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/*  Add for tx power by rate fine tune. We need to call the function after BB config. */
 	/*  Because the tx power by rate table is inited in BB config. */
 
-	status = PHY_RFConfig8723A(Adapter);
+	status = PHY_RF6052_Config8723A(Adapter);
 	if (status == _FAIL) {
-		DBG_8723A("PHY_RFConfig8723A fault !!\n");
+		DBG_8723A("PHY_RF6052_Config8723A failed!!\n");
 		goto exit;
 	}
 
@@ -756,14 +686,12 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	_InitInterrupt(Adapter);
 	hw_var_set_macaddr(Adapter, Adapter->eeprompriv.mac_addr);
-	_InitNetworkType(Adapter);/* set msr */
+	rtl8723a_set_media_status(Adapter, MSR_INFRA);
 	_InitWMACSetting(Adapter);
 	_InitAdaptiveCtrl(Adapter);
 	_InitEDCA(Adapter);
 	_InitRateFallback(Adapter);
 	_InitRetryFunction(Adapter);
-	InitUsbAggregationSetting(Adapter);
-	_InitOperationMode(Adapter);/* todo */
 	rtl8723a_InitBeaconParameters(Adapter);
 
 	_InitHWLed(Adapter);
@@ -771,7 +699,7 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	_BBTurnOnBlock(Adapter);
 	/* NicIFSetMacAddress(padapter, padapter->PermanentAddress); */
 
-	invalidate_cam_all23a(Adapter);
+	rtl8723a_cam_invalidate_all(Adapter);
 
 	/*  2010/12/17 MH We need to set TX power according to EFUSE content at first. */
 	PHY_SetTxPowerLevel8723A(Adapter, pHalData->CurrentChannel);
@@ -849,7 +777,9 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	rtl8723a_InitHalDm(Adapter);
 
-	rtl8723a_set_nav_upper(Adapter, WiFiNavUpperUs);
+	val8 = ((WiFiNavUpperUs + HAL_8723A_NAV_UPPER_UNIT - 1) /
+		HAL_8723A_NAV_UPPER_UNIT);
+	rtl8723au_write8(Adapter, REG_NAV_UPPER, val8);
 
 	/*  2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test, but we need to fin root cause. */
 	if (((rtl8723au_read32(Adapter, rFPGA0_RFMOD) & 0xFF000000) !=
@@ -863,6 +793,13 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 			  rtl8723au_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
 
 exit:
+	if (status == _SUCCESS) {
+		Adapter->hw_init_completed = true;
+
+		if (Adapter->registrypriv.notch_filter == 1)
+			rtl8723a_notch_filter(Adapter, 1);
+	}
+
 	DBG_8723A("%s in %dms\n", __func__,
 		  jiffies_to_msecs(jiffies - init_start_time));
 	return status;
@@ -1172,7 +1109,7 @@ static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 	rtl8723au_write8(Adapter, REG_RSV_CTRL, 0x0e);
 }
 
-static int rtl8723au_hal_deinit(struct rtw_adapter *padapter)
+int rtl8723au_hal_deinit(struct rtw_adapter *padapter)
 {
 	DBG_8723A("==> %s\n", __func__);
 
@@ -1184,6 +1121,8 @@ static int rtl8723au_hal_deinit(struct rtw_adapter *padapter)
 	    According to EEchou's opinion, we can enable the ability for all */
 	/*  IC. Accord to johnny's opinion, only RU need the support. */
 	CardDisableRTL8723U(padapter);
+
+	padapter->hw_init_completed = false;
 
 	return _SUCCESS;
 }
@@ -1532,9 +1471,9 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		mask = update_supported_rate23a(cur_network->SupportedRates,
 					     supportRateNum);
 		mask |= (pmlmeinfo->HT_enable) ?
-			update_MSC_rate23a(&pmlmeinfo->HT_caps) : 0;
+			update_MSC_rate23a(&pmlmeinfo->ht_cap) : 0;
 
-		if (support_short_GI23a(padapter, &pmlmeinfo->HT_caps))
+		if (support_short_GI23a(padapter, &pmlmeinfo->ht_cap))
 			shortGIrate = true;
 		break;
 
@@ -1569,8 +1508,8 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 
 	/* mask &= 0x0fffffff; */
 	rate_bitmap = 0x0fffffff;
-	rate_bitmap = ODM_Get_Rate_Bitmap23a(&pHalData->odmpriv,
-					  mac_id, mask, rssi_level);
+	rate_bitmap = ODM_Get_Rate_Bitmap23a(pHalData, mac_id, mask,
+					     rssi_level);
 	DBG_8723A("%s => mac_id:%d, networkType:0x%02x, "
 		  "mask:0x%08x\n\t ==> rssi_level:%d, rate_bitmap:0x%08x\n",
 		  __func__, mac_id, networkType, mask, rssi_level, rate_bitmap);
@@ -1609,41 +1548,4 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 
 	/* set correct initial date rate for each mac_id */
 	pdmpriv->INIDATA_RATE[mac_id] = init_rate;
-}
-
-int rtw_hal_init23a(struct rtw_adapter *padapter)
-{
-	int status;
-
-	padapter->hw_init_completed = false;
-
-	status = rtl8723au_hal_init(padapter);
-
-	if (status == _SUCCESS) {
-		padapter->hw_init_completed = true;
-
-		if (padapter->registrypriv.notch_filter == 1)
-			rtl8723a_notch_filter(padapter, 1);
-	} else {
-		padapter->hw_init_completed = false;
-		DBG_8723A("rtw_hal_init23a: hal__init fail\n");
-	}
-
-	RT_TRACE(_module_hal_init_c_, _drv_err_,
-		 ("-rtl871x_hal_init:status = 0x%x\n", status));
-
-	return status;
-}
-
-int rtw_hal_deinit23a(struct rtw_adapter *padapter)
-{
-	int status;
-
-	status = rtl8723au_hal_deinit(padapter);
-
-	if (status == _SUCCESS)
-		padapter->hw_init_completed = false;
-	else
-		DBG_8723A("\n rtw_hal_deinit23a: hal_init fail\n");
-	return status;
 }

@@ -231,6 +231,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_FN_PRIVILEGES			170
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
+#define OPCODE_COMMON_DELETE_OBJECT			174
 #define OPCODE_COMMON_MANAGE_IFACE_FILTERS		193
 #define OPCODE_COMMON_GET_IFACE_LIST			194
 #define OPCODE_COMMON_ENABLE_DISABLE_VF			196
@@ -1081,11 +1082,6 @@ struct be_cmd_req_modify_eq_delay {
 	struct be_set_eqd set_eqd[MAX_EVT_QS];
 } __packed;
 
-struct be_cmd_resp_modify_eq_delay {
-	struct be_cmd_resp_hdr hdr;
-	u32 rsvd0;
-} __packed;
-
 /******************** Get FW Config *******************/
 /* The HW can come up in either of the following multi-channel modes
  * based on the skew/IPL.
@@ -1154,11 +1150,6 @@ struct be_cmd_req_enable_disable_beacon {
 	u8  beacon_state;
 	u8  beacon_duration;
 	u8  status_duration;
-} __packed;
-
-struct be_cmd_resp_enable_disable_beacon {
-	struct be_cmd_resp_hdr resp_hdr;
-	u32 rsvd0;
 } __packed;
 
 struct be_cmd_req_get_beacon_state {
@@ -1263,6 +1254,13 @@ struct lancer_cmd_resp_read_object {
 	u32 eof;
 };
 
+struct lancer_cmd_req_delete_object {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd1;
+	u32 rsvd2;
+	u8 object_name[104];
+};
+
 /************************ WOL *******************************/
 struct be_cmd_req_acpi_wol_magic_config{
 	struct be_cmd_req_hdr hdr;
@@ -1324,11 +1322,6 @@ struct be_cmd_req_set_lmode {
 	u8 dest_port;
 	u8 loopback_type;
 	u8 loopback_state;
-};
-
-struct be_cmd_resp_set_lmode {
-	struct be_cmd_resp_hdr resp_hdr;
-	u8 rsvd0[4];
 };
 
 /********************** DDR DMA test *********************/
@@ -1432,11 +1425,6 @@ struct be_cmd_req_set_qos {
 	u32 valid_bits;
 	u32 max_bps_nic;
 	u32 rsvd[7];
-};
-
-struct be_cmd_resp_set_qos {
-	struct be_cmd_resp_hdr hdr;
-	u32 rsvd;
 };
 
 /*********************** Controller Attributes ***********************/
@@ -1571,11 +1559,6 @@ struct be_cmd_req_set_hsw_config {
 	struct be_cmd_req_hdr hdr;
 	u8 context[sizeof(struct amap_set_hsw_context) / 8];
 } __packed;
-
-struct be_cmd_resp_set_hsw_config {
-	struct be_cmd_resp_hdr hdr;
-	u32 rsvd;
-};
 
 struct amap_get_hsw_req_context {
 	u8 interface_id[16];
@@ -1835,6 +1818,7 @@ struct be_cmd_req_set_ext_fat_caps {
 #define PORT_RESOURCE_DESC_TYPE_V1		0x55
 #define MAX_RESOURCE_DESC			264
 
+#define VFT_SHIFT				3	/* VF template */
 #define IMM_SHIFT				6	/* Immediate */
 #define NOSV_SHIFT				7	/* No save */
 
@@ -1962,12 +1946,8 @@ struct be_cmd_req_set_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd;
 	u32 desc_count;
-	u8 desc[RESOURCE_DESC_SIZE_V1];
-};
-
-struct be_cmd_resp_set_profile_config {
-	struct be_cmd_resp_hdr hdr;
-};
+	u8 desc[2 * RESOURCE_DESC_SIZE_V1];
+} __packed;
 
 struct be_cmd_req_get_active_profile {
 	struct be_cmd_req_hdr hdr;
@@ -2070,16 +2050,14 @@ int be_cmd_reset(struct be_adapter *adapter);
 int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd);
 int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 			       struct be_dma_mem *nonemb_cmd);
-int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver,
-		      char *fw_on_flash);
+int be_cmd_get_fw_ver(struct be_adapter *adapter);
 int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *, int num);
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
 		       u32 num);
 int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 status);
 int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc);
 int be_cmd_get_flow_control(struct be_adapter *adapter, u32 *tx_fc, u32 *rx_fc);
-int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
-			u32 *function_mode, u32 *function_caps, u16 *asic_rev);
+int be_cmd_query_fw_cfg(struct be_adapter *adapter);
 int be_cmd_reset_function(struct be_adapter *adapter);
 int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 		      u32 rss_hash_opts, u16 table_size, const u8 *rss_hkey);
@@ -2097,6 +2075,7 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			   u32 data_size, u32 data_offset, const char *obj_name,
 			   u32 *data_read, u32 *eof, u8 *addn_status);
+int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 			  u16 optype, int offset);
 int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
@@ -2150,6 +2129,7 @@ int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 				   struct be_fat_conf_params *cfgs);
 int lancer_physdev_ctrl(struct be_adapter *adapter, u32 mask);
 int lancer_initiate_dump(struct be_adapter *adapter);
+int lancer_delete_dump(struct be_adapter *adapter);
 bool dump_present(struct be_adapter *adapter);
 int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
@@ -2157,8 +2137,6 @@ int be_cmd_get_func_config(struct be_adapter *adapter,
 			   struct be_resources *res);
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 domain);
-int be_cmd_set_profile_config(struct be_adapter *adapter, void *desc,
-			      int size, u8 version, u8 domain);
 int be_cmd_get_active_profile(struct be_adapter *adapter, u16 *profile);
 int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
 		     int vf_num);
@@ -2168,3 +2146,5 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 					  int link_state, u8 domain);
 int be_cmd_set_vxlan_port(struct be_adapter *adapter, __be16 port);
 int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op);
+int be_cmd_set_sriov_config(struct be_adapter *adapter,
+			    struct be_resources res, u16 num_vfs);

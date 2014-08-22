@@ -453,7 +453,7 @@ static inline bool bch_bkey_equal_header(const struct bkey *l,
 {
 	return (KEY_DIRTY(l) == KEY_DIRTY(r) &&
 		KEY_PTRS(l) == KEY_PTRS(r) &&
-		KEY_CSUM(l) == KEY_CSUM(l));
+		KEY_CSUM(l) == KEY_CSUM(r));
 }
 
 /* Keylists */

@@ -2292,7 +2292,8 @@ static struct net_device *tile_net_dev_init(const char *name)
 	 * tile_net_setup(), and saves "name".  Normally, "name" is a
 	 * template, instantiated by register_netdev(), but not for us.
 	 */
-	dev = alloc_netdev(sizeof(*priv), name, tile_net_setup);
+	dev = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN,
+			   tile_net_setup);
 	if (!dev) {
 		pr_err("alloc_netdev(%s) failed\n", name);
 		return NULL;

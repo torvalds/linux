@@ -93,4 +93,11 @@ config USB_DWC3_VERBOSE
 	help
 	  Say Y here to enable verbose debugging messages on DWC3 Driver.
 
+config DWC3_HOST_USB3_LPM_ENABLE
+	bool "Enable USB3 LPM Capability"
+	depends on USB_DWC3_HOST=y || USB_DWC3_DUAL_ROLE=y
+	default n
+	help
+	  Select this when you want to enable USB3 LPM with dwc3 xhci host.
+
 endif

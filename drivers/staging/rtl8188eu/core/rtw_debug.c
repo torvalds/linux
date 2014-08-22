@@ -20,7 +20,7 @@
 #define _RTW_DEBUG_C_
 
 #include <rtw_debug.h>
-#include <rtw_version.h>
+#include <usb_ops_linux.h>
 
 int proc_get_drv_version(char *page, char **start,
 			  off_t offset, int count,
@@ -64,13 +64,13 @@ int proc_set_write_reg(struct file *file, const char __user *buffer,
 		}
 		switch (len) {
 		case 1:
-			rtw_write8(padapter, addr, (u8)val);
+			usb_write8(padapter, addr, (u8)val);
 			break;
 		case 2:
-			rtw_write16(padapter, addr, (u16)val);
+			usb_write16(padapter, addr, (u16)val);
 			break;
 		case 4:
-			rtw_write32(padapter, addr, val);
+			usb_write32(padapter, addr, val);
 			break;
 		default:
 			DBG_88E("error write length =%d", len);
@@ -99,13 +99,13 @@ int proc_get_read_reg(char *page, char **start,
 
 	switch (proc_get_read_len) {
 	case 1:
-		len += snprintf(page + len, count - len, "rtw_read8(0x%x)=0x%x\n", proc_get_read_addr, rtw_read8(padapter, proc_get_read_addr));
+		len += snprintf(page + len, count - len, "usb_read8(0x%x)=0x%x\n", proc_get_read_addr, usb_read8(padapter, proc_get_read_addr));
 		break;
 	case 2:
-		len += snprintf(page + len, count - len, "rtw_read16(0x%x)=0x%x\n", proc_get_read_addr, rtw_read16(padapter, proc_get_read_addr));
+		len += snprintf(page + len, count - len, "usb_read16(0x%x)=0x%x\n", proc_get_read_addr, usb_read16(padapter, proc_get_read_addr));
 		break;
 	case 4:
-		len += snprintf(page + len, count - len, "rtw_read32(0x%x)=0x%x\n", proc_get_read_addr, rtw_read32(padapter, proc_get_read_addr));
+		len += snprintf(page + len, count - len, "usb_read32(0x%x)=0x%x\n", proc_get_read_addr, usb_read32(padapter, proc_get_read_addr));
 		break;
 	default:
 		len += snprintf(page + len, count - len, "error read length=%d\n", proc_get_read_len);
@@ -327,7 +327,7 @@ int proc_get_mac_reg_dump1(char *page, char **start,
 	for (i = 0x0; i < 0x300; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -350,7 +350,7 @@ int proc_get_mac_reg_dump2(char *page, char **start,
 	for (i = 0x300; i < 0x600; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -373,7 +373,7 @@ int proc_get_mac_reg_dump3(char *page, char **start,
 	for (i = 0x600; i < 0x800; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -395,7 +395,7 @@ int proc_get_bb_reg_dump1(char *page, char **start,
 	for (i = 0x800; i < 0xB00; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -416,7 +416,7 @@ int proc_get_bb_reg_dump2(char *page, char **start,
 	for (i = 0xB00; i < 0xE00; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -437,7 +437,7 @@ int proc_get_bb_reg_dump3(char *page, char **start,
 	for (i = 0xE00; i < 0x1000; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -853,7 +853,7 @@ int proc_get_all_sta_info(char *page, char **start,
 		phead = &(pstapriv->sta_hash[i]);
 		plist = phead->next;
 
-		while ((rtw_end_of_queue_search(phead, plist)) == false) {
+		while (phead != plist) {
 			psta = container_of(plist, struct sta_info, hash_list);
 
 			plist = plist->next;

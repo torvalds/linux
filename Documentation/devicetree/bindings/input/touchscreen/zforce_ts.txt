@@ -9,6 +9,9 @@ Required properties:
 - x-size: horizontal resolution of touchscreen
 - y-size: vertical resolution of touchscreen
 
+Optional properties:
+- vdd-supply: Regulator controlling the controller supply
+
 Example:
 
 	i2c@00000000 {
@@ -18,6 +21,7 @@ Example:
 			compatible = "neonode,zforce";
 			reg = <0x50>;
 			interrupts = <2 0>;
+			vdd-supply = <&reg_zforce_vdd>;
 
 			gpios = <&gpio5 6 0>, /* INT */
 				<&gpio5 9 0>; /* RST */

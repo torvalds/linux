@@ -99,8 +99,13 @@ nouveau_bar_alloc(struct nouveau_bar *bar, struct nouveau_object *parent,
 		  struct nouveau_mem *mem, struct nouveau_object **pobject)
 {
 	struct nouveau_object *engine = nv_object(bar);
-	return nouveau_object_ctor(parent, engine, &nouveau_barobj_oclass,
-				   mem, 0, pobject);
+	int ret = -ENOMEM;
+	if (bar->iomem) {
+		ret = nouveau_object_ctor(parent, engine,
+					  &nouveau_barobj_oclass,
+					  mem, 0, pobject);
+	}
+	return ret;
 }
 
 int
@@ -118,9 +123,12 @@ nouveau_bar_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	if (nv_device_resource_len(device, 3) != 0)
+	if (nv_device_resource_len(device, 3) != 0) {
 		bar->iomem = ioremap(nv_device_resource_start(device, 3),
 				     nv_device_resource_len(device, 3));
+		if (!bar->iomem)
+			nv_warn(bar, "PRAMIN ioremap failed\n");
+	}
 
 	return 0;
 }

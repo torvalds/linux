@@ -35,10 +35,4 @@ void ODM_ReadAndConfig_PHY_REG_1T_8723A(struct dm_odm_t *pDM_Odm);
 
 void ODM_ReadAndConfig_PHY_REG_MP_8723A(struct dm_odm_t *pDM_Odm);
 
-/******************************************************************************
-*                           PHY_REG_PG.TXT
-******************************************************************************/
-
-void ODM_ReadAndConfig_PHY_REG_PG_8723A(struct dm_odm_t *pDM_Odm);
-
 #endif /*  end of HWIMG_SUPPORT */

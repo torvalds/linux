@@ -190,7 +190,8 @@ static int tps65910_gpio_remove(struct platform_device *pdev)
 {
 	struct tps65910_gpio *tps65910_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&tps65910_gpio->gpio_chip);
+	gpiochip_remove(&tps65910_gpio->gpio_chip);
+	return 0;
 }
 
 static struct platform_driver tps65910_gpio_driver = {

@@ -19,27 +19,14 @@
  ******************************************************************************/
 
 #include <rtw_sreset.h>
+#include <usb_ops_linux.h>
 
 void sreset_init_value(struct adapter *padapter)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 
-	mutex_init(&psrtpriv->silentreset_mutex);
-	psrtpriv->silent_reset_inprogress = false;
 	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-	psrtpriv->last_tx_time = 0;
-	psrtpriv->last_tx_complete_time = 0;
-}
-void sreset_reset_value(struct adapter *padapter)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-
-	psrtpriv->silent_reset_inprogress = false;
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-	psrtpriv->last_tx_time = 0;
-	psrtpriv->last_tx_complete_time = 0;
 }
 
 u8 sreset_get_wifi_status(struct adapter *padapter)
@@ -50,9 +37,7 @@ u8 sreset_get_wifi_status(struct adapter *padapter)
 	u8 status = WIFI_STATUS_SUCCESS;
 	u32 val32 = 0;
 
-	if (psrtpriv->silent_reset_inprogress)
-		return status;
-	val32 = rtw_read32(padapter, REG_TXDMA_STATUS);
+	val32 = usb_read32(padapter, REG_TXDMA_STATUS);
 	if (val32 == 0xeaeaeaea) {
 		psrtpriv->Wifi_Error_Status = WIFI_IF_NOT_EXIST;
 	} else if (val32 != 0) {

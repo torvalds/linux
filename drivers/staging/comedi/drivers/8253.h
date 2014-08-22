@@ -34,7 +34,7 @@ static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
 					     unsigned int *d1,
 					     unsigned int *d2,
 					     unsigned int *nanosec,
-					     int round_mode)
+					     unsigned int flags)
 {
 	unsigned int divider;
 	unsigned int div1, div2;
@@ -90,8 +90,7 @@ static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
 		}
 	}
 
-	round_mode &= TRIG_ROUND_MASK;
-	switch (round_mode) {
+	switch (flags & TRIG_ROUND_MASK) {
 	case TRIG_ROUND_NEAREST:
 	default:
 		ns_high = div1_lub * div2_lub * i8253_osc_base;
@@ -118,7 +117,6 @@ static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
 	/*  masking is done since counter maps zero to 0x10000 */
 	*d1 = div1 & 0xffff;
 	*d2 = div2 & 0xffff;
-	return;
 }
 
 #ifndef CMDTEST

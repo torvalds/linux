@@ -628,21 +628,21 @@ static inline int cfs_hash_bd_dec_and_lock(struct cfs_hash *hs, struct cfs_hash_
 }
 
 static inline struct hlist_head *cfs_hash_bd_hhead(struct cfs_hash *hs,
-						  struct cfs_hash_bd *bd)
+						   struct cfs_hash_bd *bd)
 {
 	return hs->hs_hops->hop_hhead(hs, bd);
 }
 
 struct hlist_node *cfs_hash_bd_lookup_locked(struct cfs_hash *hs,
-					    struct cfs_hash_bd *bd, const void *key);
+					     struct cfs_hash_bd *bd, const void *key);
 struct hlist_node *cfs_hash_bd_peek_locked(struct cfs_hash *hs,
-					  struct cfs_hash_bd *bd, const void *key);
+					   struct cfs_hash_bd *bd, const void *key);
 struct hlist_node *cfs_hash_bd_findadd_locked(struct cfs_hash *hs,
-					     struct cfs_hash_bd *bd, const void *key,
+					      struct cfs_hash_bd *bd, const void *key,
 					     struct hlist_node *hnode,
 					     int insist_add);
 struct hlist_node *cfs_hash_bd_finddel_locked(struct cfs_hash *hs,
-					     struct cfs_hash_bd *bd, const void *key,
+					      struct cfs_hash_bd *bd, const void *key,
 					     struct hlist_node *hnode);
 
 /**
@@ -661,21 +661,21 @@ static inline void cfs_hash_dual_bd_get_and_lock(struct cfs_hash *hs, const void
 }
 
 struct hlist_node *cfs_hash_dual_bd_lookup_locked(struct cfs_hash *hs,
-						 struct cfs_hash_bd *bds,
+						  struct cfs_hash_bd *bds,
 						 const void *key);
 struct hlist_node *cfs_hash_dual_bd_findadd_locked(struct cfs_hash *hs,
-						  struct cfs_hash_bd *bds,
+						   struct cfs_hash_bd *bds,
 						  const void *key,
 						  struct hlist_node *hnode,
 						  int insist_add);
 struct hlist_node *cfs_hash_dual_bd_finddel_locked(struct cfs_hash *hs,
-						  struct cfs_hash_bd *bds,
+						   struct cfs_hash_bd *bds,
 						  const void *key,
 						  struct hlist_node *hnode);
 
 /* Hash init/cleanup functions */
 struct cfs_hash *cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
-			    unsigned bkt_bits, unsigned extra_bytes,
+				 unsigned bkt_bits, unsigned extra_bytes,
 			    unsigned min_theta, unsigned max_theta,
 			    cfs_hash_ops_t *ops, unsigned flags);
 

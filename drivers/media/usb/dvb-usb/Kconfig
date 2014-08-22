@@ -117,10 +117,12 @@ config DVB_USB_CXUSB
 	select DVB_TUNER_DIB0070 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_ATBM8830 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_LGS8GXX if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_SI2168 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_XC2028 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MXL5005S if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MAX2165 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
 	  Currently, only DVB and ATSC modes are supported, analog mode
@@ -128,6 +130,7 @@ config DVB_USB_CXUSB
 
 	  Medion MD95700 hybrid USB2.0 device.
 	  DViCO FusionHDTV (Bluebird) USB2.0 devices
+	  TechnoTrend TVStick CT2-4400
 
 config DVB_USB_M920X
 	tristate "Uli m920x DVB-T USB2.0 support"

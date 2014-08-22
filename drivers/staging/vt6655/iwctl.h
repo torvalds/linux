@@ -161,16 +161,6 @@ int iwctl_giwpower(struct net_device *dev,
 		   struct iw_param *wrq,
 		   char *extra);
 
-int iwctl_giwscan(struct net_device *dev,
-		  struct iw_request_info *info,
-		  struct iw_point *wrq,
-		  char *extra);
-
-int iwctl_siwscan(struct net_device *dev,
-		  struct iw_request_info *info,
-		  struct iw_param *wrq,
-		  char *extra);
-
 //2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 int iwctl_siwauth(struct net_device *dev,
@@ -186,12 +176,12 @@ int iwctl_giwauth(struct net_device *dev,
 int iwctl_siwgenie(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct iw_point *wrq,
-		   char *extra);
+		   char __user *extra);
 
 int iwctl_giwgenie(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct iw_point *wrq,
-		   char *extra);
+		   char __user *extra);
 
 int iwctl_siwencodeext(struct net_device *dev,
 		       struct iw_request_info *info,
@@ -206,11 +196,11 @@ int iwctl_giwencodeext(struct net_device *dev,
 int iwctl_siwmlme(struct net_device *dev,
 		  struct iw_request_info *info,
 		  struct iw_point *wrq,
-		  char *extra);
+		  char __user *extra);
 #endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 //End Add -- //2008-0409-07, <Add> by Einsn Liu
 
 extern const struct iw_handler_def	iwctl_handler_def;
-extern const struct iw_priv_args	iwctl_private_args;
+extern struct iw_priv_args       iwctl_private_args[];
 
 #endif // __IWCTL_H__

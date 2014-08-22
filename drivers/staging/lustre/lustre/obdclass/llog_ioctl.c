@@ -36,8 +36,8 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include <obd_class.h>
-#include <lustre_log.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_log.h"
 #include "llog_internal.h"
 
 static int str2logid(struct llog_logid *logid, char *str, int len)

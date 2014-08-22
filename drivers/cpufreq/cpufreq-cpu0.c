@@ -137,7 +137,7 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 		 * not yet registered, we should try defering probe.
 		 */
 		if (PTR_ERR(cpu_reg) == -EPROBE_DEFER) {
-			dev_err(cpu_dev, "cpu0 regulator not ready, retry\n");
+			dev_dbg(cpu_dev, "cpu0 regulator not ready, retry\n");
 			ret = -EPROBE_DEFER;
 			goto out_put_node;
 		}

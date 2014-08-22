@@ -258,6 +258,11 @@ unmap:
 	return ret;
 }
 
+/*
+ * mmap_sem must be held on entry.  If @nonblocking != NULL and
+ * *@flags does not include FOLL_NOWAIT, the mmap_sem may be released.
+ * If it is, *@nonblocking will be set to 0 and -EBUSY returned.
+ */
 static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
 		unsigned long address, unsigned int *flags, int *nonblocking)
 {
@@ -373,7 +378,7 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
  * with a put_page() call when it is finished with. vmas will only
  * remain valid while mmap_sem is held.
  *
- * Must be called with mmap_sem held for read or write.
+ * Must be called with mmap_sem held.  It may be released.  See below.
  *
  * __get_user_pages walks a process's page tables and takes a reference to
  * each struct page that each user address corresponds to at a given
@@ -396,7 +401,14 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
  *
  * If @nonblocking != NULL, __get_user_pages will not wait for disk IO
  * or mmap_sem contention, and if waiting is needed to pin all pages,
- * *@nonblocking will be set to 0.
+ * *@nonblocking will be set to 0.  Further, if @gup_flags does not
+ * include FOLL_NOWAIT, the mmap_sem will be released via up_read() in
+ * this case.
+ *
+ * A caller using such a combination of @nonblocking and @gup_flags
+ * must therefore hold the mmap_sem for reading only, and recognize
+ * when it's been released.  Otherwise, it must be held for either
+ * reading or writing and will not be released.
  *
  * In most cases, get_user_pages or get_user_pages_fast should be used
  * instead of __get_user_pages. __get_user_pages should be used only if
@@ -528,7 +540,7 @@ EXPORT_SYMBOL(__get_user_pages);
  * such architectures, gup() will not be enough to make a subsequent access
  * succeed.
  *
- * This should be called with the mm_sem held for read.
+ * This has the same semantics wrt the @mm->mmap_sem as does filemap_fault().
  */
 int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
 		     unsigned long address, unsigned int fault_flags)

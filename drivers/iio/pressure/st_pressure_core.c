@@ -307,6 +307,27 @@ static const struct st_sensors st_press_sensors[] = {
 	},
 };
 
+static int st_press_write_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *ch,
+			      int val,
+			      int val2,
+			      long mask)
+{
+	int err;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (val2)
+			return -EINVAL;
+		mutex_lock(&indio_dev->mlock);
+		err = st_sensors_set_odr(indio_dev, val);
+		mutex_unlock(&indio_dev->mlock);
+		return err;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int st_press_read_raw(struct iio_dev *indio_dev,
 			struct iio_chan_spec const *ch, int *val,
 							int *val2, long mask)
@@ -349,6 +370,9 @@ static int st_press_read_raw(struct iio_dev *indio_dev,
 		}
 
 		return IIO_VAL_FRACTIONAL;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = pdata->odr;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -357,12 +381,10 @@ read_error:
 	return err;
 }
 
-static ST_SENSOR_DEV_ATTR_SAMP_FREQ();
 static ST_SENSORS_DEV_ATTR_SAMP_FREQ_AVAIL();
 
 static struct attribute *st_press_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	NULL,
 };
 
@@ -374,6 +396,7 @@ static const struct iio_info press_info = {
 	.driver_module = THIS_MODULE,
 	.attrs = &st_press_attribute_group,
 	.read_raw = &st_press_read_raw,
+	.write_raw = &st_press_write_raw,
 };
 
 #ifdef CONFIG_IIO_TRIGGER

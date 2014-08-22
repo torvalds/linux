@@ -253,12 +253,12 @@ config EDAC_I7300
 	  Clarksboro MCH (Intel 7300 chipset).
 
 config EDAC_SBRIDGE
-	tristate "Intel Sandy-Bridge Integrated MC"
+	tristate "Intel Sandy-Bridge/Ivy-Bridge/Haswell Integrated MC"
 	depends on EDAC_MM_EDAC && PCI && X86_64 && X86_MCE_INTEL
 	depends on PCI_MMCONFIG
 	help
 	  Support for error detection and correction the Intel
-	  Sandy Bridge Integrated Memory Controller.
+	  Sandy Bridge, Ivy Bridge and Haswell Integrated Memory Controllers.
 
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"

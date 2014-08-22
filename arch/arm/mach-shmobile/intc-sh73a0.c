@@ -22,14 +22,15 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/sh_intc.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
-#include <mach/intc.h>
-#include <mach/irqs.h>
-#include <mach/sh73a0.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+#include "intc.h"
+#include "irqs.h"
+#include "sh73a0.h"
 
 enum {
 	UNUSED = 0,

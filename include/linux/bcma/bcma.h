@@ -6,6 +6,7 @@
 
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
+#include <linux/bcma/bcma_driver_pcie2.h>
 #include <linux/bcma/bcma_driver_mips.h>
 #include <linux/bcma/bcma_driver_gmac_cmn.h>
 #include <linux/ssb/ssb.h> /* SPROM sharing */
@@ -72,17 +73,17 @@ struct bcma_host_ops {
 /* Core-ID values. */
 #define BCMA_CORE_OOB_ROUTER		0x367	/* Out of band */
 #define BCMA_CORE_4706_CHIPCOMMON	0x500
-#define BCMA_CORE_PCIEG2		0x501
-#define BCMA_CORE_DMA			0x502
-#define BCMA_CORE_SDIO3			0x503
-#define BCMA_CORE_USB20			0x504
-#define BCMA_CORE_USB30			0x505
-#define BCMA_CORE_A9JTAG		0x506
-#define BCMA_CORE_DDR23			0x507
-#define BCMA_CORE_ROM			0x508
-#define BCMA_CORE_NAND			0x509
-#define BCMA_CORE_QSPI			0x50A
-#define BCMA_CORE_CHIPCOMMON_B		0x50B
+#define BCMA_CORE_NS_PCIEG2		0x501
+#define BCMA_CORE_NS_DMA		0x502
+#define BCMA_CORE_NS_SDIO3		0x503
+#define BCMA_CORE_NS_USB20		0x504
+#define BCMA_CORE_NS_USB30		0x505
+#define BCMA_CORE_NS_A9JTAG		0x506
+#define BCMA_CORE_NS_DDR23		0x507
+#define BCMA_CORE_NS_ROM		0x508
+#define BCMA_CORE_NS_NAND		0x509
+#define BCMA_CORE_NS_QSPI		0x50A
+#define BCMA_CORE_NS_CHIPCOMMON_B	0x50B
 #define BCMA_CORE_4706_SOC_RAM		0x50E
 #define BCMA_CORE_ARMCA9		0x510
 #define BCMA_CORE_4706_MAC_GBIT		0x52D
@@ -157,6 +158,9 @@ struct bcma_host_ops {
 /* Chip IDs of PCIe devices */
 #define BCMA_CHIP_ID_BCM4313	0x4313
 #define BCMA_CHIP_ID_BCM43142	43142
+#define BCMA_CHIP_ID_BCM43131	43131
+#define BCMA_CHIP_ID_BCM43217	43217
+#define BCMA_CHIP_ID_BCM43222	43222
 #define BCMA_CHIP_ID_BCM43224	43224
 #define  BCMA_PKG_ID_BCM43224_FAB_CSM	0x8
 #define  BCMA_PKG_ID_BCM43224_FAB_SMIC	0xa
@@ -333,6 +337,7 @@ struct bcma_bus {
 
 	struct bcma_drv_cc drv_cc;
 	struct bcma_drv_pci drv_pci[2];
+	struct bcma_drv_pcie2 drv_pcie2;
 	struct bcma_drv_mips drv_mips;
 	struct bcma_drv_gmac_cmn drv_gmac_cmn;
 

@@ -22,41 +22,20 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/pwr.h>
-
+#include "priv.h"
 #include "fuc/nv108.fuc.h"
 
-struct nv108_pwr_priv {
-	struct nouveau_pwr base;
-};
-
-static int
-nv108_pwr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
-{
-	struct nv108_pwr_priv *priv;
-	int ret;
-
-	ret = nouveau_pwr_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.code.data = nv108_pwr_code;
-	priv->base.code.size = sizeof(nv108_pwr_code);
-	priv->base.data.data = nv108_pwr_data;
-	priv->base.data.size = sizeof(nv108_pwr_data);
-	return 0;
-}
-
-struct nouveau_oclass
-nv108_pwr_oclass = {
-	.handle = NV_SUBDEV(PWR, 0x00),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv108_pwr_ctor,
+struct nouveau_oclass *
+nv108_pwr_oclass = &(struct nvkm_pwr_impl) {
+	.base.handle = NV_SUBDEV(PWR, 0x00),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nouveau_pwr_ctor,
 		.dtor = _nouveau_pwr_dtor,
 		.init = _nouveau_pwr_init,
 		.fini = _nouveau_pwr_fini,
 	},
-};
+	.code.data = nv108_pwr_code,
+	.code.size = sizeof(nv108_pwr_code),
+	.data.data = nv108_pwr_data,
+	.data.size = sizeof(nv108_pwr_data),
+}.base;

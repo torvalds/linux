@@ -579,8 +579,9 @@ drop:
  * netvsc_linkstatus_callback - Link up/down notification
  */
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
-				       unsigned int status)
+				struct rndis_message *resp)
 {
+	struct rndis_indicate_status *indicate = &resp->msg.indicate_status;
 	struct net_device *net;
 	struct net_device_context *ndev_ctx;
 	struct netvsc_device *net_device;
@@ -589,7 +590,19 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	net_device = hv_get_drvdata(device_obj);
 	rdev = net_device->extension;
 
-	rdev->link_state = status != 1;
+	switch (indicate->status) {
+	case RNDIS_STATUS_MEDIA_CONNECT:
+		rdev->link_state = false;
+		break;
+	case RNDIS_STATUS_MEDIA_DISCONNECT:
+		rdev->link_state = true;
+		break;
+	case RNDIS_STATUS_NETWORK_CHANGE:
+		rdev->link_change = true;
+		break;
+	default:
+		return;
+	}
 
 	net = net_device->ndev;
 
@@ -597,7 +610,7 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 		return;
 
 	ndev_ctx = netdev_priv(net);
-	if (status == 1) {
+	if (!rdev->link_state) {
 		schedule_delayed_work(&ndev_ctx->dwork, 0);
 		schedule_delayed_work(&ndev_ctx->dwork, msecs_to_jiffies(20));
 	} else {
@@ -736,6 +749,14 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	return err;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void netvsc_poll_controller(struct net_device *net)
+{
+	/* As netvsc_start_xmit() works synchronous we don't have to
+	 * trigger anything here.
+	 */
+}
+#endif
 
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
@@ -751,6 +772,9 @@ static const struct net_device_ops device_ops = {
 	.ndo_validate_addr =		eth_validate_addr,
 	.ndo_set_mac_address =		netvsc_set_mac_addr,
 	.ndo_select_queue =		netvsc_select_queue,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller =		netvsc_poll_controller,
+#endif
 };
 
 /*
@@ -767,7 +791,9 @@ static void netvsc_link_change(struct work_struct *w)
 	struct net_device *net;
 	struct netvsc_device *net_device;
 	struct rndis_device *rdev;
-	bool notify;
+	bool notify, refresh = false;
+	char *argv[] = { "/etc/init.d/network", "restart", NULL };
+	char *envp[] = { "HOME=/", "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL };
 
 	rtnl_lock();
 
@@ -782,9 +808,16 @@ static void netvsc_link_change(struct work_struct *w)
 	} else {
 		netif_carrier_on(net);
 		notify = true;
+		if (rdev->link_change) {
+			rdev->link_change = false;
+			refresh = true;
+		}
 	}
 
 	rtnl_unlock();
+
+	if (refresh)
+		call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 
 	if (notify)
 		netdev_notify_peers(net);

@@ -100,14 +100,19 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 	int retval;
 	struct snd_sst_params str_params;
 	struct sst_compress_cb cb;
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_platform *platform = rtd->platform;
+	struct sst_data *ctx = snd_soc_platform_get_drvdata(platform);
 
 	stream = cstream->runtime->private_data;
 	/* construct fw structure for this*/
 	memset(&str_params, 0, sizeof(str_params));
 
-	str_params.ops = STREAM_OPS_PLAYBACK;
-	str_params.stream_type = SST_STREAM_TYPE_MUSIC;
-	str_params.device_type = SND_SST_DEVICE_COMPRESS;
+	/* fill the device type and stream id to pass to SST driver */
+	retval = sst_fill_stream_params(cstream, ctx, &str_params, true);
+	pr_debug("compr_set_params: fill stream params ret_val = 0x%x\n", retval);
+	if (retval < 0)
+		return retval;
 
 	switch (params->codec.id) {
 	case SND_AUDIOCODEC_MP3: {

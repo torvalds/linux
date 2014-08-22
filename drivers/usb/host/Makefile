@@ -22,6 +22,9 @@ ifneq ($(CONFIG_USB_XHCI_PLATFORM), )
 ifneq ($(CONFIG_USB_XHCI_MVEBU), )
 	xhci-hcd-y		+= xhci-mvebu.o
 endif
+ifneq ($(CONFIG_USB_XHCI_RCAR), )
+	xhci-hcd-y		+= xhci-rcar.o
+endif
 endif
 
 obj-$(CONFIG_USB_WHCI_HCD)	+= whci/

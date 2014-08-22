@@ -1150,20 +1150,24 @@ The structure has a number of fields, some of which are mandatory:
 		const void	*data;
 		size_t		datalen;
 		size_t		quotalen;
+		time_t		expiry;
 	};
 
      Before calling the method, the caller will fill in data and datalen with
      the payload blob parameters; quotalen will be filled in with the default
-     quota size from the key type and the rest will be cleared.
+     quota size from the key type; expiry will be set to TIME_T_MAX and the
+     rest will be cleared.
 
      If a description can be proposed from the payload contents, that should be
      attached as a string to the description field.  This will be used for the
      key description if the caller of add_key() passes NULL or "".
 
      The method can attach anything it likes to type_data[] and payload.  These
-     are merely passed along to the instantiate() or update() operations.
+     are merely passed along to the instantiate() or update() operations.  If
+     set, the expiry time will be applied to the key if it is instantiated from
+     this data.
 
-     The method should return 0 if success ful or a negative error code
+     The method should return 0 if successful or a negative error code
      otherwise.
 
      
@@ -1172,7 +1176,9 @@ The structure has a number of fields, some of which are mandatory:
      This method is only required if the preparse() method is provided,
      otherwise it is unused.  It cleans up anything attached to the
      description, type_data and payload fields of the key_preparsed_payload
-     struct as filled in by the preparse() method.
+     struct as filled in by the preparse() method.  It will always be called
+     after preparse() returns successfully, even if instantiate() or update()
+     succeed.
 
 
  (*) int (*instantiate)(struct key *key, struct key_preparsed_payload *prep);

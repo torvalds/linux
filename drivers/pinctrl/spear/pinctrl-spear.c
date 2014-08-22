@@ -274,12 +274,6 @@ static int spear_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
 	return spear_pinctrl_endisable(pctldev, function, group, true);
 }
 
-static void spear_pinctrl_disable(struct pinctrl_dev *pctldev,
-		unsigned function, unsigned group)
-{
-	spear_pinctrl_endisable(pctldev, function, group, false);
-}
-
 /* gpio with pinmux */
 static struct spear_gpio_pingroup *get_gpio_pingroup(struct spear_pmx *pmx,
 		unsigned pin)
@@ -345,7 +339,6 @@ static const struct pinmux_ops spear_pinmux_ops = {
 	.get_function_name = spear_pinctrl_get_func_name,
 	.get_function_groups = spear_pinctrl_get_func_groups,
 	.enable = spear_pinctrl_enable,
-	.disable = spear_pinctrl_disable,
 	.gpio_request_enable = gpio_request_enable,
 	.gpio_disable_free = gpio_disable_free,
 };

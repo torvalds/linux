@@ -56,8 +56,6 @@ Configuration options:
 
 #include <linux/delay.h>
 
-#define DT2815_SIZE 2
-
 #define DT2815_DATA 0
 #define DT2815_STATUS 1
 
@@ -154,7 +152,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct comedi_lrange *current_range_type, *voltage_range_type;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], DT2815_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x2);
 	if (ret)
 		return ret;
 
@@ -195,6 +193,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		status = inb(dev->iobase + DT2815_STATUS);
 		if (status == 4) {
 			unsigned int program;
+
 			program = (it->options[4] & 0x3) << 3 | 0x7;
 			outb(program, dev->iobase + DT2815_DATA);
 			dev_dbg(dev->class_dev, "program: 0x%x (@t=%d)\n",

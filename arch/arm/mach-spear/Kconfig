@@ -19,6 +19,8 @@ config ARCH_SPEAR13XX
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select PINCTRL
+	select MFD_SYSCON
+	select MIGHT_HAVE_PCI
 	help
 	  Supports for ARM's SPEAR13XX family
 
@@ -27,12 +29,14 @@ if ARCH_SPEAR13XX
 config MACH_SPEAR1310
 	bool "SPEAr1310 Machine support with Device Tree"
 	select PINCTRL_SPEAR1310
+	select PHY_ST_SPEAR1310_MIPHY
 	help
 	  Supports ST SPEAr1310 machine configured via the device-tree
 
 config MACH_SPEAR1340
 	bool "SPEAr1340 Machine support with Device Tree"
 	select PINCTRL_SPEAR1340
+	select PHY_ST_SPEAR1340_MIPHY
 	help
 	  Supports ST SPEAr1340 machine configured via the device-tree
 

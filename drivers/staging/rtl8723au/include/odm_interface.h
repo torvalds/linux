@@ -33,17 +33,16 @@ ODM_REG(DIG,_pDM_Odm)
 #define _bit_11N(_name)			ODM_BIT_##_name##_11N
 #define _bit_11AC(_name)		ODM_BIT_##_name##_11AC
 
-#define _cat(_name, _ic_type, _func)									\
-	(															\
-		((_ic_type) & ODM_IC_11N_SERIES)? _func##_11N(_name):		\
-		_func##_11AC(_name)									\
+#define _cat(_name, _func)					\
+	(							\
+		_func##_11N(_name)				\
 	)
 
 /*  _name: name of register or bit. */
 /*  Example: "ODM_REG(R_A_AGC_CORE1, pDM_Odm)" */
 /*         gets "ODM_R_A_AGC_CORE1" or "ODM_R_A_AGC_CORE1_8192C", depends on SupportICType. */
-#define ODM_REG(_name, _pDM_Odm)	_cat(_name, _pDM_Odm->SupportICType, _reg)
-#define ODM_BIT(_name, _pDM_Odm)	_cat(_name, _pDM_Odm->SupportICType, _bit)
+#define ODM_REG(_name, _pDM_Odm)	_cat(_name, _reg)
+#define ODM_BIT(_name, _pDM_Odm)	_cat(_name, _bit)
 
 /*  */
 /*  2012/02/17 MH For non-MP compile pass only. Linux does not support workitem. */

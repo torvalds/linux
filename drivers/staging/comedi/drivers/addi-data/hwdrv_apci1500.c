@@ -872,7 +872,8 @@ static int apci1500_do_write(struct comedi_device *dev,
 					break;
 
 				default:
-					comedi_error(dev, " chan spec wrong");
+					dev_err(dev->class_dev,
+						"chan spec wrong\n");
 					return -EINVAL;	/*  "sorry channel spec wrong " */
 
 				}	/* switch(ui_NoOfChannels) */
@@ -950,8 +951,8 @@ static int apci1500_do_write(struct comedi_device *dev,
 						break;
 
 					default:
-						comedi_error(dev,
-							" chan spec wrong");
+						dev_err(dev->class_dev,
+							"chan spec wrong\n");
 						return -EINVAL;	/*  "sorry channel spec wrong " */
 
 					}	/* switch(ui_NoOfChannels) */

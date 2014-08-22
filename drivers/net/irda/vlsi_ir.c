@@ -58,7 +58,7 @@ MODULE_LICENSE("GPL");
 
 static /* const */ char drivername[] = DRIVER_NAME;
 
-static DEFINE_PCI_DEVICE_TABLE(vlsi_irda_table) = {
+static const struct pci_device_id vlsi_irda_table[] = {
 	{
 		.class =        PCI_CLASS_WIRELESS_IRDA << 8,
 		.class_mask =	PCI_CLASS_SUBCLASS_MASK << 8, 
@@ -485,13 +485,13 @@ static int vlsi_create_hwif(vlsi_irda_dev_t *idev)
 	idev->virtaddr = NULL;
 	idev->busaddr = 0;
 
-	ringarea = pci_alloc_consistent(idev->pdev, HW_RING_AREA_SIZE, &idev->busaddr);
+	ringarea = pci_zalloc_consistent(idev->pdev, HW_RING_AREA_SIZE,
+					 &idev->busaddr);
 	if (!ringarea) {
 		IRDA_ERROR("%s: insufficient memory for descriptor rings\n",
 			   __func__);
 		goto out;
 	}
-	memset(ringarea, 0, HW_RING_AREA_SIZE);
 
 	hwmap = (struct ring_descr_hw *)ringarea;
 	idev->rx_ring = vlsi_alloc_ring(idev->pdev, hwmap, ringsize[1],

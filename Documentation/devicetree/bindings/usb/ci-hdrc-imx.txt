@@ -4,6 +4,7 @@ Required properties:
 - compatible: Should be "fsl,imx27-usb"
 - reg: Should contain registers location and length
 - interrupts: Should contain controller interrupt
+- fsl,usbphy: phandle of usb phy that connects to the port
 
 Recommended properies:
 - phy_type: the type of the phy connected to the core. Should be one
@@ -12,7 +13,6 @@ Recommended properies:
 - dr_mode: One of "host", "peripheral" or "otg". Defaults to "otg"
 
 Optional properties:
-- fsl,usbphy: phandler of usb phy that connects to the only one port
 - fsl,usbmisc: phandler of non-core register device, with one argument
   that indicate usb controller index
 - vbus-supply: regulator for vbus

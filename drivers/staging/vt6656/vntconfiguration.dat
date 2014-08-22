@@ -1,6 +1,0 @@
-#VNT Configuration
-[start]
-ZONETYPE=EUROPE
-AUTHENMODE=12
-ENCRYPTIONMODE=34
-[end]

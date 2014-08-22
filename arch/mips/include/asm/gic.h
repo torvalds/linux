@@ -14,6 +14,8 @@
 #include <linux/bitmap.h>
 #include <linux/threads.h>
 
+#include <irq.h>
+
 #undef	GICISBYTELITTLEENDIAN
 
 /* Constants */
@@ -21,8 +23,6 @@
 #define GIC_POL_NEG			0
 #define GIC_TRIG_EDGE			1
 #define GIC_TRIG_LEVEL			0
-
-#define GIC_NUM_INTRS			(24 + NR_CPUS * 2)
 
 #define MSK(n) ((1 << (n)) - 1)
 #define REG32(addr)		(*(volatile unsigned int *) (addr))
@@ -43,18 +43,17 @@
 #ifdef GICISBYTELITTLEENDIAN
 #define GICREAD(reg, data)	((data) = (reg), (data) = le32_to_cpu(data))
 #define GICWRITE(reg, data)	((reg) = cpu_to_le32(data))
-#define GICBIS(reg, bits)			\
-	({unsigned int data;			\
-		GICREAD(reg, data);		\
-		data |= bits;			\
-		GICWRITE(reg, data);		\
-	})
-
 #else
 #define GICREAD(reg, data)	((data) = (reg))
 #define GICWRITE(reg, data)	((reg) = (data))
-#define GICBIS(reg, bits)	((reg) |= (bits))
 #endif
+#define GICBIS(reg, mask, bits)			\
+	do { u32 data;				\
+		GICREAD((reg), data);		\
+		data &= ~(mask);		\
+		data |= ((bits) & (mask));	\
+		GICWRITE((reg), data);		\
+	} while (0)
 
 
 /* GIC Address Space */
@@ -170,13 +169,15 @@
 #define GIC_SH_SET_POLARITY_OFS		0x0100
 #define GIC_SET_POLARITY(intr, pol) \
 	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_POLARITY_OFS + \
-		GIC_INTR_OFS(intr)), (pol) << GIC_INTR_BIT(intr))
+		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
+		(pol) << GIC_INTR_BIT(intr))
 
 /* Triggering : Reset Value is always 0 */
 #define GIC_SH_SET_TRIGGER_OFS		0x0180
 #define GIC_SET_TRIGGER(intr, trig) \
 	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_TRIGGER_OFS + \
-		GIC_INTR_OFS(intr)), (trig) << GIC_INTR_BIT(intr))
+		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
+		(trig) << GIC_INTR_BIT(intr))
 
 /* Mask manipulation */
 #define GIC_SH_SMASK_OFS		0x0380
@@ -306,18 +307,6 @@
 	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe)), \
 		 GIC_SH_MAP_TO_VPE_REG_BIT(vpe))
 
-struct gic_pcpu_mask {
-	DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
-};
-
-struct gic_pending_regs {
-	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
-};
-
-struct gic_intrmask_regs {
-	DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
-};
-
 /*
  * Interrupt Meta-data specification. The ipiflag helps
  * in building ipi_map.
@@ -329,8 +318,7 @@ struct gic_intr_map {
 	unsigned int polarity;	/* Polarity : +/-	*/
 	unsigned int trigtype;	/* Trigger  : Edge/Levl */
 	unsigned int flags;	/* Misc flags	*/
-#define GIC_FLAG_IPI	       0x01
-#define GIC_FLAG_TRANSPARENT   0x02
+#define GIC_FLAG_TRANSPARENT   0x01
 };
 
 /*
@@ -386,6 +374,7 @@ extern unsigned int plat_ipi_call_int_xlate(unsigned int);
 extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
 extern void gic_bind_eic_interrupt(int irq, int set);
 extern unsigned int gic_get_timer_pending(void);
+extern void gic_get_int_mask(unsigned long *dst, const unsigned long *src);
 extern unsigned int gic_get_int(void);
 extern void gic_enable_interrupt(int irq_vec);
 extern void gic_disable_interrupt(int irq_vec);

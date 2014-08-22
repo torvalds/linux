@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: 802.11n RX Re-ordering
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -249,13 +249,22 @@ void mwifiex_11n_del_rx_reorder_tbl_by_ta(struct mwifiex_private *priv, u8 *ta)
  * buffered in Rx reordering table.
  */
 static int
-mwifiex_11n_find_last_seq_num(struct mwifiex_rx_reorder_tbl *rx_reorder_tbl_ptr)
+mwifiex_11n_find_last_seq_num(struct reorder_tmr_cnxt *ctx)
 {
+	struct mwifiex_rx_reorder_tbl *rx_reorder_tbl_ptr = ctx->ptr;
+	struct mwifiex_private *priv = ctx->priv;
+	unsigned long flags;
 	int i;
 
-	for (i = (rx_reorder_tbl_ptr->win_size - 1); i >= 0; --i)
-		if (rx_reorder_tbl_ptr->rx_reorder_ptr[i])
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+	for (i = rx_reorder_tbl_ptr->win_size - 1; i >= 0; --i) {
+		if (rx_reorder_tbl_ptr->rx_reorder_ptr[i]) {
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
 			return i;
+		}
+	}
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 	return -1;
 }
@@ -274,7 +283,7 @@ mwifiex_flush_data(unsigned long context)
 		(struct reorder_tmr_cnxt *) context;
 	int start_win, seq_num;
 
-	seq_num = mwifiex_11n_find_last_seq_num(ctx->ptr);
+	seq_num = mwifiex_11n_find_last_seq_num(ctx);
 
 	if (seq_num < 0)
 		return;
@@ -729,9 +738,9 @@ void mwifiex_11n_cleanup_reorder_tbl(struct mwifiex_private *priv)
 		mwifiex_del_rx_reorder_entry(priv, del_tbl_ptr);
 		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	}
+	INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
-	INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
 	mwifiex_reset_11n_rx_seq_num(priv);
 }
 
@@ -749,10 +758,14 @@ void mwifiex_update_rxreor_flags(struct mwifiex_adapter *adapter, u8 flags)
 		priv = adapter->priv[i];
 		if (!priv)
 			continue;
-		if (list_empty(&priv->rx_reorder_tbl_ptr))
-			continue;
 
 		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, lock_flags);
+		if (list_empty(&priv->rx_reorder_tbl_ptr)) {
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       lock_flags);
+			continue;
+		}
+
 		list_for_each_entry(tbl, &priv->rx_reorder_tbl_ptr, list)
 			tbl->flags = flags;
 		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, lock_flags);

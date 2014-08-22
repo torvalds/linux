@@ -74,8 +74,10 @@ struct uart_8250_port {
 	struct list_head	list;		/* ports on this IRQ */
 	unsigned short		capabilities;	/* port capabilities */
 	unsigned short		bugs;		/* port bugs */
+	bool			fifo_bug;	/* min RX trigger if enabled */
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
 	unsigned char		acr;
+	unsigned char		fcr;
 	unsigned char		ier;
 	unsigned char		lcr;
 	unsigned char		mcr;
@@ -99,6 +101,11 @@ struct uart_8250_port {
 	int			(*dl_read)(struct uart_8250_port *);
 	void			(*dl_write)(struct uart_8250_port *, int);
 };
+
+static inline struct uart_8250_port *up_to_u8250p(struct uart_port *up)
+{
+	return container_of(up, struct uart_8250_port, port);
+}
 
 int serial8250_register_8250_port(struct uart_8250_port *);
 void serial8250_unregister_port(int line);

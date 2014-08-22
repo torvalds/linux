@@ -793,7 +793,6 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 	switch (isl_oid[n].flags & OID_FLAG_TYPE) {
 	case OID_TYPE_U32:
 		return snprintf(str, PRIV_STR_SIZE, "%u\n", r->u);
-		break;
 	case OID_TYPE_BUFFER:{
 			struct obj_buffer *buff = r->ptr;
 			return snprintf(str, PRIV_STR_SIZE,

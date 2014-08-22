@@ -201,16 +201,15 @@ EXPORT_SYMBOL(mipi_dsi_detach);
 /**
  * mipi_dsi_dcs_write - send DCS write command
  * @dsi: DSI device
- * @channel: virtual channel
  * @data: pointer to the command followed by parameters
  * @len: length of @data
  */
-int mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, unsigned int channel,
-		       const void *data, size_t len)
+ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, const void *data,
+			    size_t len)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 	struct mipi_dsi_msg msg = {
-		.channel = channel,
+		.channel = dsi->channel,
 		.tx_buf = data,
 		.tx_len = len
 	};
@@ -239,19 +238,18 @@ EXPORT_SYMBOL(mipi_dsi_dcs_write);
 /**
  * mipi_dsi_dcs_read - send DCS read request command
  * @dsi: DSI device
- * @channel: virtual channel
  * @cmd: DCS read command
  * @data: pointer to read buffer
  * @len: length of @data
  *
  * Function returns number of read bytes or error code.
  */
-ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, unsigned int channel,
-			  u8 cmd, void *data, size_t len)
+ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
+			  size_t len)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 	struct mipi_dsi_msg msg = {
-		.channel = channel,
+		.channel = dsi->channel,
 		.type = MIPI_DSI_DCS_READ,
 		.tx_buf = &cmd,
 		.tx_len = 1,

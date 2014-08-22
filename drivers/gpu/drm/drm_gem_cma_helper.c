@@ -327,7 +327,7 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
 	/* Create a CMA GEM buffer. */
 	cma_obj = __drm_gem_cma_create(dev, size);
 	if (IS_ERR(cma_obj))
-		return ERR_PTR(PTR_ERR(cma_obj));
+		return ERR_CAST(cma_obj);
 
 	cma_obj->paddr = sg_dma_address(sgt->sgl);
 	cma_obj->sgt = sgt;

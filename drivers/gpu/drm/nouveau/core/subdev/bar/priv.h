@@ -23,4 +23,10 @@ int  nouveau_bar_alloc(struct nouveau_bar *, struct nouveau_object *,
 
 void nv84_bar_flush(struct nouveau_bar *);
 
+int nvc0_bar_ctor(struct nouveau_object *, struct nouveau_object *,
+		  struct nouveau_oclass *, void *, u32,
+		  struct nouveau_object **);
+void nvc0_bar_dtor(struct nouveau_object *);
+int nvc0_bar_init(struct nouveau_object *);
+
 #endif

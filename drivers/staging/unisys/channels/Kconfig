@@ -4,7 +4,7 @@
 
 config UNISYS_CHANNELSTUB
 	tristate "Unisys channelstub driver"
-	depends on UNISYSSPAR
+	depends on UNISYSSPAR && UNISYS_VISORUTIL
 	---help---
 	If you say Y here, you will enable the Unisys channels driver.
 

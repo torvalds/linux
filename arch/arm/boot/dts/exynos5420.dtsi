@@ -265,11 +265,6 @@
 		clock-names = "oscclk", "pclk0", "clk0";
 	};
 
-	disp_pd: power-domain@100440C0 {
-		compatible = "samsung,exynos4210-pd";
-		reg = <0x100440C0 0x20>;
-	};
-
 	msc_pd: power-domain@10044120 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044120 0x20>;
@@ -520,8 +515,26 @@
 		phy-names = "dp";
 	};
 
+	mipi_phy: video-phy@10040714 {
+		compatible = "samsung,s5pv210-mipi-video-phy";
+		reg = <0x10040714 12>;
+		#phy-cells = <1>;
+	};
+
+	dsi@14500000 {
+		compatible = "samsung,exynos5410-mipi-dsi";
+		reg = <0x14500000 0x10000>;
+		interrupts = <0 82 0>;
+		phys = <&mipi_phy 1>;
+		phy-names = "dsim";
+		clocks = <&clock CLK_DSIM1>, <&clock CLK_SCLK_MIPI1>;
+		clock-names = "bus_clk", "pll_clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	fimd: fimd@14400000 {
-		samsung,power-domain = <&disp_pd>;
 		clocks = <&clock CLK_SCLK_FIMD1>, <&clock CLK_FIMD1>;
 		clock-names = "sclk_fimd", "fimd";
 	};

@@ -138,3 +138,19 @@ Description:
 
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/rx_trig_bytes
+Date:		May 2014
+Contact:	Yoshihiro YUNOMAE <yoshihiro.yunomae.ez@hitachi.com>
+Description:
+		 Shows current RX interrupt trigger bytes or sets the
+		 user specified value to change it for the FIFO buffer.
+		 Users can show or set this value regardless of opening the
+		 serial device file or not.
+
+		 The RX trigger can be set one of four kinds of values for UART
+		 serials. When users input a meaning less value to this I/F,
+		 the RX trigger is changed to the nearest lower value for the
+		 device specification. For example, when user sets 7bytes on
+		 16550A, which has 1/4/8/14 bytes trigger, the RX trigger is
+		 automatically changed to 4 bytes.

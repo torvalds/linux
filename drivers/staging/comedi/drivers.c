@@ -38,6 +38,7 @@
 #include "comedi_internal.h"
 
 struct comedi_driver *comedi_drivers;
+/* protects access to comedi_drivers */
 DEFINE_MUTEX(comedi_drivers_list_lock);
 
 int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev)
@@ -120,6 +121,7 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 	dev->driver = NULL;
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
+	dev->mmio = NULL;
 	dev->iobase = 0;
 	dev->iolen = 0;
 	dev->ioenabled = false;
@@ -319,7 +321,7 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 	if (s->buf_change) {
-		ret = s->buf_change(dev, s, buf_size);
+		ret = s->buf_change(dev, s);
 		if (ret < 0)
 			return ret;
 	}
@@ -566,8 +568,9 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->board_ptr = comedi_recognize(driv, it->board_name);
 			if (dev->board_ptr)
 				break;
-		} else if (strcmp(driv->driver_name, it->board_name) == 0)
+		} else if (strcmp(driv->driver_name, it->board_name) == 0) {
 			break;
+		}
 		module_put(driv->module);
 	}
 	if (driv == NULL) {
@@ -591,8 +594,6 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		ret = -ENOSYS;
 		goto out;
 	}
-	/* initialize dev->driver here so
-	 * comedi_error() can be called from attach */
 	dev->driver = driv;
 	dev->board_name = dev->board_ptr ? *(const char **)dev->board_ptr
 					 : dev->driver->driver_name;
