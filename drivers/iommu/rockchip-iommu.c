@@ -1218,7 +1218,7 @@ for (i = 0; i < pdev->num_resources; i++, res++) {
 			ret = -ENOENT;
 			goto err_res;
 		}
-		data->res_bases[i] = ioremap(res->start, resource_size(res));
+		data->res_bases[i] = devm_ioremap(dev,res->start, resource_size(res));
 		dev_dbg(dev,"res->start = 0x%08x  ioremap to  data->res_bases[%d] = 0x%08x\n",
 			res->start, i, (unsigned int)data->res_bases[i]);
 		if (!data->res_bases[i]) {
@@ -1270,8 +1270,6 @@ for (i = 0; i < pdev->num_resources; i++, res++) {
 
 err_irq:
 err_res:
-	while (data->num_res_mem-- > 0)
-		devm_iounmap(dev,data->res_bases[data->num_res_mem]);
 err_init:
 err_alloc:
 	dev_err(dev, "Failed to initialize\n");
