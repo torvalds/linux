@@ -955,7 +955,7 @@ static inline void mmd_phy_indirect(struct mii_bus *bus, int prtad, int devad,
  * 3) Write reg 13 // MMD Data Command for MMD DEVAD
  * 3) Read  reg 14 // Read MMD data
  */
-static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
+int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 				 int devad, int addr)
 {
 	struct phy_driver *phydrv = phydev->drv;
@@ -971,6 +971,7 @@ static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 	}
 	return value;
 }
+EXPORT_SYMBOL(phy_read_mmd_indirect);
 
 /**
  * phy_write_mmd_indirect - writes data to the MMD registers
@@ -988,7 +989,7 @@ static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
  * 3) Write reg 13 // MMD Data Command for MMD DEVAD
  * 3) Write reg 14 // Write MMD data
  */
-static void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
+void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 				   int devad, int addr, u32 data)
 {
 	struct phy_driver *phydrv = phydev->drv;
@@ -1002,6 +1003,7 @@ static void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 		phydrv->write_mmd_indirect(phydev, prtad, devad, addr, data);
 	}
 }
+EXPORT_SYMBOL(phy_write_mmd_indirect);
 
 /**
  * phy_init_eee - init and check the EEE feature
