@@ -437,7 +437,6 @@ static void sock_disable_timestamp(struct sock *sk, unsigned long flags)
 int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
-	int skb_len;
 	unsigned long flags;
 	struct sk_buff_head *list = &sk->sk_receive_queue;
 
@@ -458,13 +457,6 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
-
-	/* Cache the SKB length before we tack it onto the receive
-	 * queue.  Once it is added it no longer belongs to us and
-	 * may be freed by other threads of control pulling packets
-	 * from the queue.
-	 */
-	skb_len = skb->len;
 
 	/* we escape from rcu protected region, make sure we dont leak
 	 * a norefcounted dst
