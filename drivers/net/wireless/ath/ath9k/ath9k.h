@@ -413,16 +413,19 @@ struct ath_offchannel {
 	     ctx <= &sc->chanctx[ARRAY_SIZE(sc->chanctx) - 1];      \
 	     ctx++)
 
+void ath_chanctx_init(struct ath_softc *sc);
+void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
+			     struct cfg80211_chan_def *chandef);
+
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
 static inline struct ath_chanctx *
 ath_chanctx_get(struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath_chanctx **ptr = (void *) ctx->drv_priv;
 	return *ptr;
 }
-void ath_chanctx_init(struct ath_softc *sc);
-void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
-			     struct cfg80211_chan_def *chandef);
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
 bool ath9k_is_chanctx_enabled(void);
 void ath9k_fill_chanctx_ops(void);
 void ath9k_init_channel_context(struct ath_softc *sc);
@@ -451,7 +454,9 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force);
 void ath_offchannel_next(struct ath_softc *sc);
 void ath_scan_complete(struct ath_softc *sc, bool abort);
 void ath_roc_complete(struct ath_softc *sc, bool abort);
+
 #else
+
 static inline bool ath9k_is_chanctx_enabled(void)
 {
 	return false;
@@ -513,6 +518,7 @@ static inline void ath_chanctx_check_active(struct ath_softc *sc,
 					    struct ath_chanctx *ctx)
 {
 }
+
 #endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
