@@ -1684,8 +1684,12 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			bss_conf->bssid, bss_conf->assoc);
 
 		ath9k_calculate_summary_state(sc, avp->chanctx);
-		if (bss_conf->assoc)
-			ath_chanctx_event(sc, vif, ATH_CHANCTX_EVENT_ASSOC);
+
+		if (ath9k_is_chanctx_enabled()) {
+			if (bss_conf->assoc)
+				ath_chanctx_event(sc, vif,
+						  ATH_CHANCTX_EVENT_ASSOC);
+		}
 	}
 
 	if (changed & BSS_CHANGED_IBSS) {
