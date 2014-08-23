@@ -105,7 +105,7 @@
 
 		pinctrl_hummingboard_gpio3_5: hummingboard-gpio3_5 {
 			fsl,pins = <
-				MX6QDL_PAD_EIM_DA5__GPIO3_IO05 0x80000000
+				MX6QDL_PAD_EIM_DA5__GPIO3_IO05 0x1b0b1
 			>;
 		};
 
