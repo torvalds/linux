@@ -11,3 +11,11 @@
 	model = "SolidRun HummingBoard Dual/Quad";
 	compatible = "solidrun,hummingboard/q", "fsl,imx6q";
 };
+
+&sata {
+	status = "okay";
+	fsl,transmit-level-mV = <1025>;
+	fsl,transmit-boost-mdB = <3330>;
+	fsl,transmit-atten-16ths = <9>;
+	fsl,receive-eq-mdB = <3000>;
+};
