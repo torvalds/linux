@@ -571,11 +571,9 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	setup_timer(&sc->sleep_timer, ath_ps_full_sleep, (unsigned long)sc);
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
-	INIT_WORK(&sc->chanctx_work, ath_chanctx_work);
 	INIT_DELAYED_WORK(&sc->hw_pll_work, ath_hw_pll_work);
-	setup_timer(&sc->offchannel.timer, ath_offchannel_timer,
-		    (unsigned long)sc);
-	setup_timer(&sc->sched.timer, ath_chanctx_timer, (unsigned long)sc);
+
+	ath9k_init_channel_context(sc);
 
 	/*
 	 * Cache line size is used to size and align various

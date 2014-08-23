@@ -422,7 +422,6 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 			struct cfg80211_chan_def *chandef);
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
-void ath_offchannel_timer(unsigned long data);
 void ath_offchannel_channel_change(struct ath_softc *sc);
 void ath_chanctx_offchan_switch(struct ath_softc *sc,
 				struct ieee80211_channel *chan);
@@ -430,7 +429,6 @@ struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc,
 					      bool active);
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev);
-void ath_chanctx_timer(unsigned long data);
 void ath_offchannel_next(struct ath_softc *sc);
 void ath_scan_complete(struct ath_softc *sc, bool abort);
 void ath_roc_complete(struct ath_softc *sc, bool abort);
@@ -438,6 +436,7 @@ void ath_roc_complete(struct ath_softc *sc, bool abort);
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 bool ath9k_is_chanctx_enabled(void);
 void ath9k_fill_chanctx_ops(void);
+void ath9k_init_channel_context(struct ath_softc *sc);
 int ath9k_init_p2p(struct ath_softc *sc);
 void ath9k_deinit_p2p(struct ath_softc *sc);
 void ath9k_p2p_remove_vif(struct ath_softc *sc,
@@ -452,6 +451,9 @@ static inline bool ath9k_is_chanctx_enabled(void)
 	return false;
 }
 static inline void ath9k_fill_chanctx_ops(void)
+{
+}
+static inline void ath9k_init_channel_context(struct ath_softc *sc)
 {
 }
 static inline int ath9k_init_p2p(struct ath_softc *sc)

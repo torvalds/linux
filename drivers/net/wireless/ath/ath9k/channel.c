@@ -499,13 +499,6 @@ static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 	prev->tsf_val += offset;
 }
 
-void ath_chanctx_timer(unsigned long data)
-{
-	struct ath_softc *sc = (struct ath_softc *) data;
-
-	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_TSF_TIMER);
-}
-
 /* Configure the TSF based hardware timer for a channel switch.
  * Also set up backup software timer, in case the gen timer fails.
  * This could be caused by a hardware reset.
@@ -907,7 +900,16 @@ void ath_offchannel_channel_change(struct ath_softc *sc)
 	}
 }
 
-void ath_offchannel_timer(unsigned long data)
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
+static void ath_chanctx_timer(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *) data;
+
+	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_TSF_TIMER);
+}
+
+static void ath_offchannel_timer(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
 	struct ath_chanctx *ctx;
@@ -947,7 +949,15 @@ void ath_offchannel_timer(unsigned long data)
 	}
 }
 
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+void ath9k_init_channel_context(struct ath_softc *sc)
+{
+	INIT_WORK(&sc->chanctx_work, ath_chanctx_work);
+
+	setup_timer(&sc->offchannel.timer, ath_offchannel_timer,
+		    (unsigned long)sc);
+	setup_timer(&sc->sched.timer, ath_chanctx_timer,
+		    (unsigned long)sc);
+}
 
 bool ath9k_is_chanctx_enabled(void)
 {
