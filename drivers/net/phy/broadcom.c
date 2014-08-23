@@ -29,24 +29,6 @@ MODULE_DESCRIPTION("Broadcom PHY driver");
 MODULE_AUTHOR("Maciej W. Rozycki");
 MODULE_LICENSE("GPL");
 
-/*
- * Indirect register access functions for the 1000BASE-T/100BASE-TX/10BASE-T
- * 0x1c shadow registers.
- */
-static int bcm54xx_shadow_read(struct phy_device *phydev, u16 shadow)
-{
-	phy_write(phydev, MII_BCM54XX_SHD, MII_BCM54XX_SHD_VAL(shadow));
-	return MII_BCM54XX_SHD_DATA(phy_read(phydev, MII_BCM54XX_SHD));
-}
-
-static int bcm54xx_shadow_write(struct phy_device *phydev, u16 shadow, u16 val)
-{
-	return phy_write(phydev, MII_BCM54XX_SHD,
-			 MII_BCM54XX_SHD_WRITE |
-			 MII_BCM54XX_SHD_VAL(shadow) |
-			 MII_BCM54XX_SHD_DATA(val));
-}
-
 /* Indirect register access functions for the Expansion Registers */
 static int bcm54xx_exp_read(struct phy_device *phydev, u16 regnum)
 {
