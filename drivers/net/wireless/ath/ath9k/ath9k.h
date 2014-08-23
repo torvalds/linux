@@ -324,6 +324,10 @@ struct ath_rx {
 	u32 ampdu_ref;
 };
 
+/*******************/
+/* Channel Context */
+/*******************/
+
 struct ath_chanctx {
 	struct cfg80211_chan_def chandef;
 	struct list_head vifs;
@@ -917,15 +921,16 @@ struct ath_softc {
 	struct mutex mutex;
 	struct work_struct paprd_work;
 	struct work_struct hw_reset_work;
-	struct work_struct chanctx_work;
 	struct completion paprd_complete;
 	wait_queue_head_t tx_wait;
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+	struct work_struct chanctx_work;
 	struct ath_gen_timer *p2p_ps_timer;
 	struct ath_vif *p2p_ps_vif;
 	struct ath_chanctx_sched sched;
 	struct ath_offchannel offchannel;
+	struct ath_chanctx *next_chan;
 #endif
 
 	unsigned long driver_data;
@@ -947,7 +952,6 @@ struct ath_softc {
 	struct cfg80211_chan_def cur_chandef;
 	struct ath_chanctx chanctx[ATH9K_NUM_CHANCTX];
 	struct ath_chanctx *cur_chan;
-	struct ath_chanctx *next_chan;
 	spinlock_t chan_lock;
 
 #ifdef CONFIG_MAC80211_LEDS
