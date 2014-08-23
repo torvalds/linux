@@ -633,7 +633,6 @@ void ath9k_csa_update(struct ath_softc *sc);
 #define ATH_PAPRD_TIMEOUT         100 /* msecs */
 #define ATH_PLL_WORK_INTERVAL     100
 
-void ath_chanctx_work(struct work_struct *work);
 void ath_tx_complete_poll_work(struct work_struct *work);
 void ath_reset_work(struct work_struct *work);
 bool ath_hw_check(struct ath_softc *sc);

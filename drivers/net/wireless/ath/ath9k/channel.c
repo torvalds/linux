@@ -305,15 +305,6 @@ static void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_SWITCH);
 }
 
-void ath_chanctx_work(struct work_struct *work)
-{
-	struct ath_softc *sc = container_of(work, struct ath_softc,
-					    chanctx_work);
-	mutex_lock(&sc->mutex);
-	ath_chanctx_set_next(sc, false);
-	mutex_unlock(&sc->mutex);
-}
-
 void ath_chanctx_init(struct ath_softc *sc)
 {
 	struct ath_chanctx *ctx;
@@ -947,6 +938,15 @@ static void ath_offchannel_timer(unsigned long data)
 	default:
 		break;
 	}
+}
+
+static void ath_chanctx_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    chanctx_work);
+	mutex_lock(&sc->mutex);
+	ath_chanctx_set_next(sc, false);
+	mutex_unlock(&sc->mutex);
 }
 
 void ath9k_init_channel_context(struct ath_softc *sc)
