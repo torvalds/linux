@@ -59,6 +59,10 @@ static void dac_enable(bool enable)
 	} else {
 		mask = m_VBG_EN | m_DAC_EN;
 		val = 0;
+		if (rk3036_tve->soctype == SOC_RK312X)
+			grfreg = RK312X_GRF_TVE_CON;
+		else if (rk3036_tve->soctype == SOC_RK3036)
+			grfreg = RK3036_GRF_SOC_CON3;
 	}
 	if (grfreg)
 		grf_writel(grfreg, (mask << 16) | val);
