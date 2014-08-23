@@ -196,6 +196,10 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
+/**********************************************************/
+/* Functions to handle the channel context state machine. */
+/**********************************************************/
+
 static const char *offchannel_state_string(enum ath_offchannel_state state)
 {
 #define case_rtn_string(val) case val: return #val
@@ -956,6 +960,28 @@ void ath9k_deinit_channel_context(struct ath_softc *sc)
 bool ath9k_is_chanctx_enabled(void)
 {
 	return (ath9k_use_chanctx == 1);
+}
+
+/********************/
+/* Queue management */
+/********************/
+
+void ath9k_chanctx_wake_queues(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	int i;
+
+	if (sc->cur_chan == &sc->offchannel.chan) {
+		ieee80211_wake_queue(sc->hw,
+				     sc->hw->offchannel_tx_hw_queue);
+	} else {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			ieee80211_wake_queue(sc->hw,
+					     sc->cur_chan->hw_queue_base + i);
+	}
+
+	if (ah->opmode == NL80211_IFTYPE_AP)
+		ieee80211_wake_queue(sc->hw, sc->hw->queues - 2);
 }
 
 /*****************/

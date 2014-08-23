@@ -432,6 +432,7 @@ void ath9k_p2p_beacon_sync(struct ath_softc *sc);
 void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 				struct ieee80211_vif *vif);
 void ath9k_p2p_ps_timer(void *priv);
+void ath9k_chanctx_wake_queues(struct ath_softc *sc);
 
 void ath_chanctx_beacon_recv_ev(struct ath_softc *sc, u32 ts,
 				enum ath_chanctx_event ev);
@@ -489,6 +490,9 @@ static inline void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 {
 }
 static inline void ath9k_p2p_ps_timer(struct ath_softc *sc)
+{
+}
+static inline void ath9k_chanctx_wake_queues(struct ath_softc *sc)
 {
 }
 #endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */

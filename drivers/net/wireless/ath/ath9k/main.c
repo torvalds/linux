@@ -223,7 +223,6 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long flags;
-	int i;
 
 	if (ath_startrecv(sc) != 0) {
 		ath_err(common, "Unable to restart recv logic\n");
@@ -270,18 +269,8 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 	if (!ath9k_is_chanctx_enabled())
 		ieee80211_wake_queues(sc->hw);
-	else {
-		if (sc->cur_chan == &sc->offchannel.chan)
-			ieee80211_wake_queue(sc->hw,
-					sc->hw->offchannel_tx_hw_queue);
-		else {
-			for (i = 0; i < IEEE80211_NUM_ACS; i++)
-				ieee80211_wake_queue(sc->hw,
-					sc->cur_chan->hw_queue_base + i);
-		}
-		if (ah->opmode == NL80211_IFTYPE_AP)
-			ieee80211_wake_queue(sc->hw, sc->hw->queues - 2);
-	}
+	else
+		ath9k_chanctx_wake_queues(sc);
 
 	ath9k_p2p_ps_timer(sc);
 
