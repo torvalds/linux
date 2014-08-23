@@ -60,6 +60,15 @@
 #define MAX_NUM_BITRATES 32
 #define MAX_NUM_SAMPLE_RATES 32
 
+/* compressed TX */
+#define MAX_NUM_FRAMES_PER_BUFFER 1
+#define COMPRESSED_META_DATA_MODE 0x10
+#define META_DATA_LEN_BYTES 36
+#define Q6_AC3_DECODER	0x00010BF6
+#define Q6_EAC3_DECODER 0x00010C3C
+#define Q6_DTS		0x00010D88
+#define Q6_DTS_LBR	0x00010DBB
+
 /* Codecs are listed linearly to allow for extensibility */
 #define SND_AUDIOCODEC_PCM                   ((__u32) 0x00000001)
 #define SND_AUDIOCODEC_MP3                   ((__u32) 0x00000002)
