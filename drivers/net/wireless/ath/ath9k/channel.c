@@ -959,6 +959,11 @@ void ath9k_init_channel_context(struct ath_softc *sc)
 		    (unsigned long)sc);
 }
 
+void ath9k_deinit_channel_context(struct ath_softc *sc)
+{
+	cancel_work_sync(&sc->chanctx_work);
+}
+
 bool ath9k_is_chanctx_enabled(void)
 {
 	return (ath9k_use_chanctx == 1);

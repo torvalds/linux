@@ -822,7 +822,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	struct ath_common *common = ath9k_hw_common(ah);
 	bool prev_idle;
 
-	cancel_work_sync(&sc->chanctx_work);
+	ath9k_deinit_channel_context(sc);
+
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
