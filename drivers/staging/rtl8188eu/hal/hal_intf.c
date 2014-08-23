@@ -256,15 +256,6 @@ void rtw_hal_add_ra_tid(struct adapter *adapt, u32 bitmap, u8 arg,
 					       rssi_level);
 }
 
-u32 rtw_hal_read_bbreg(struct adapter *adapt, u32 regaddr, u32 bitmask)
-{
-	u32 data = 0;
-
-	if (adapt->HalFunc.read_bbreg)
-		data = adapt->HalFunc.read_bbreg(adapt, regaddr, bitmask);
-	return data;
-}
-
 void rtw_hal_write_bbreg(struct adapter *adapt, u32 regaddr, u32 bitmask,
 			 u32 data)
 {
