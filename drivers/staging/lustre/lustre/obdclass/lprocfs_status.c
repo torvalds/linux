@@ -1572,7 +1572,10 @@ lproc_exp_hash_seq_show(struct seq_file *m, void *unused)
 {
 	struct nid_stat *stats = (struct nid_stat *)m->private;
 	struct obd_device *obd = stats->nid_obd;
-	struct exp_hash_cb_data cb_data = {m, true};
+	struct exp_hash_cb_data cb_data = {
+		.m = m,
+		.first = true
+	};
 
 	cfs_hash_for_each_key(obd->obd_nid_hash, &stats->nid,
 			      lprocfs_exp_print_hash, &cb_data);
