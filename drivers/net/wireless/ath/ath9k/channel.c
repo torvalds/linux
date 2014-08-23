@@ -257,9 +257,7 @@ static void ath_chanctx_setup_timer(struct ath_softc *sc, u32 tsf_time)
 {
 	struct ath_hw *ah = sc->sc_ah;
 
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, tsf_time, 1000000);
-#endif
 	tsf_time -= ath9k_hw_gettsf32(ah);
 	tsf_time = msecs_to_jiffies(tsf_time / 1000) + 1;
 	mod_timer(&sc->sched.timer, tsf_time);
