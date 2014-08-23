@@ -101,51 +101,6 @@ static int ath_set_channel(struct ath_softc *sc)
 	return 0;
 }
 
-void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
-{
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_vif *avp;
-	bool active = false;
-	u8 n_active = 0;
-
-	if (!ctx)
-		return;
-
-	list_for_each_entry(avp, &ctx->vifs, list) {
-		struct ieee80211_vif *vif = avp->vif;
-
-		switch (vif->type) {
-		case NL80211_IFTYPE_P2P_CLIENT:
-		case NL80211_IFTYPE_STATION:
-			if (vif->bss_conf.assoc)
-				active = true;
-			break;
-		default:
-			active = true;
-			break;
-		}
-	}
-	ctx->active = active;
-
-	ath_for_each_chanctx(sc, ctx) {
-		if (!ctx->assigned || list_empty(&ctx->vifs))
-			continue;
-		n_active++;
-	}
-
-	if (n_active <= 1) {
-		clear_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags);
-		return;
-	}
-	if (test_and_set_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
-		return;
-
-	if (ath9k_is_chanctx_enabled()) {
-		ath_chanctx_event(sc, NULL,
-				  ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL);
-	}
-}
-
 void ath_chanctx_init(struct ath_softc *sc)
 {
 	struct ath_chanctx *ctx;
@@ -206,6 +161,51 @@ static const char *offchannel_state_string(enum ath_offchannel_state state)
 		case_rtn_string(ATH_OFFCHANNEL_ROC_DONE);
 	default:
 		return "unknown";
+	}
+}
+
+void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp;
+	bool active = false;
+	u8 n_active = 0;
+
+	if (!ctx)
+		return;
+
+	list_for_each_entry(avp, &ctx->vifs, list) {
+		struct ieee80211_vif *vif = avp->vif;
+
+		switch (vif->type) {
+		case NL80211_IFTYPE_P2P_CLIENT:
+		case NL80211_IFTYPE_STATION:
+			if (vif->bss_conf.assoc)
+				active = true;
+			break;
+		default:
+			active = true;
+			break;
+		}
+	}
+	ctx->active = active;
+
+	ath_for_each_chanctx(sc, ctx) {
+		if (!ctx->assigned || list_empty(&ctx->vifs))
+			continue;
+		n_active++;
+	}
+
+	if (n_active <= 1) {
+		clear_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags);
+		return;
+	}
+	if (test_and_set_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+		return;
+
+	if (ath9k_is_chanctx_enabled()) {
+		ath_chanctx_event(sc, NULL,
+				  ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL);
 	}
 }
 

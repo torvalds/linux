@@ -417,8 +417,6 @@ ath_chanctx_get(struct ieee80211_chanctx_conf *ctx)
 void ath_chanctx_init(struct ath_softc *sc);
 void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 			     struct cfg80211_chan_def *chandef);
-void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
-
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 bool ath9k_is_chanctx_enabled(void);
 void ath9k_fill_chanctx_ops(void);
@@ -434,6 +432,7 @@ void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 				struct ieee80211_vif *vif);
 void ath9k_p2p_ps_timer(void *priv);
 void ath9k_chanctx_wake_queues(struct ath_softc *sc);
+void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
 
 void ath_chanctx_beacon_recv_ev(struct ath_softc *sc, u32 ts,
 				enum ath_chanctx_event ev);
@@ -497,6 +496,10 @@ static inline void ath9k_p2p_ps_timer(struct ath_softc *sc)
 {
 }
 static inline void ath9k_chanctx_wake_queues(struct ath_softc *sc)
+{
+}
+static inline void ath_chanctx_check_active(struct ath_softc *sc,
+					    struct ath_chanctx *ctx)
 {
 }
 #endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
