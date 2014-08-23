@@ -2340,6 +2340,36 @@ static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	mutex_unlock(&sc->mutex);
 }
 
+static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp = (struct ath_vif *) vif->drv_priv;
+	bool changed = false;
+
+	if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+		return;
+
+	if (!avp->chanctx)
+		return;
+
+	mutex_lock(&sc->mutex);
+
+	spin_lock_bh(&sc->chan_lock);
+	if (sc->next_chan || (sc->cur_chan != avp->chanctx)) {
+		sc->next_chan = avp->chanctx;
+		changed = true;
+	}
+	sc->sched.state = ATH_CHANCTX_STATE_FORCE_ACTIVE;
+	spin_unlock_bh(&sc->chan_lock);
+
+	if (changed)
+		ath_chanctx_set_next(sc, true);
+
+	mutex_unlock(&sc->mutex);
+}
+
 void ath9k_fill_chanctx_ops(void)
 {
 	if (!ath9k_is_chanctx_enabled())
@@ -2354,7 +2384,7 @@ void ath9k_fill_chanctx_ops(void)
 	ath9k_ops.change_chanctx           = ath9k_change_chanctx;
 	ath9k_ops.assign_vif_chanctx       = ath9k_assign_vif_chanctx;
 	ath9k_ops.unassign_vif_chanctx     = ath9k_unassign_vif_chanctx;
-	ath9k_ops.mgd_prepare_tx           = ath9k_chanctx_force_active;
+	ath9k_ops.mgd_prepare_tx           = ath9k_mgd_prepare_tx;
 }
 
 #endif

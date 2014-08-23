@@ -243,7 +243,7 @@ static bool ath_chanctx_defer_switch(struct ath_softc *sc)
 	return true;
 }
 
-static void ath_chanctx_set_next(struct ath_softc *sc, bool force)
+void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 {
 	struct timespec ts;
 	bool measure_time = false;
@@ -334,36 +334,6 @@ void ath_chanctx_init(struct ath_softc *sc)
 		INIT_LIST_HEAD(&ctx->acq[j]);
 	sc->offchannel.chan.offchannel = true;
 
-}
-
-void ath9k_chanctx_force_active(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif)
-{
-	struct ath_softc *sc = hw->priv;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_vif *avp = (struct ath_vif *) vif->drv_priv;
-	bool changed = false;
-
-	if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
-		return;
-
-	if (!avp->chanctx)
-		return;
-
-	mutex_lock(&sc->mutex);
-
-	spin_lock_bh(&sc->chan_lock);
-	if (sc->next_chan || (sc->cur_chan != avp->chanctx)) {
-		sc->next_chan = avp->chanctx;
-		changed = true;
-	}
-	sc->sched.state = ATH_CHANCTX_STATE_FORCE_ACTIVE;
-	spin_unlock_bh(&sc->chan_lock);
-
-	if (changed)
-		ath_chanctx_set_next(sc, true);
-
-	mutex_unlock(&sc->mutex);
 }
 
 void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
