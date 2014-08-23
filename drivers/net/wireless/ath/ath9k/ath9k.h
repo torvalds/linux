@@ -925,6 +925,7 @@ struct ath_softc {
 	struct ath_gen_timer *p2p_ps_timer;
 	struct ath_vif *p2p_ps_vif;
 	struct ath_chanctx_sched sched;
+	struct ath_offchannel offchannel;
 #endif
 
 	unsigned long driver_data;
@@ -948,7 +949,6 @@ struct ath_softc {
 	struct ath_chanctx *cur_chan;
 	struct ath_chanctx *next_chan;
 	spinlock_t chan_lock;
-	struct ath_offchannel offchannel;
 
 #ifdef CONFIG_MAC80211_LEDS
 	bool led_registered;

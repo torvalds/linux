@@ -958,6 +958,7 @@ void ath9k_calculate_iter_data(struct ath_softc *sc,
 	list_for_each_entry(avp, &ctx->vifs, list)
 		ath9k_vif_iter(iter_data, avp->vif->addr, avp->vif);
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 	if (ctx == &sc->offchannel.chan) {
 		struct ieee80211_vif *vif;
 
@@ -970,6 +971,7 @@ void ath9k_calculate_iter_data(struct ath_softc *sc,
 			ath9k_vif_iter(iter_data, vif->addr, vif);
 		iter_data->beacons = false;
 	}
+#endif
 }
 
 static void ath9k_set_assoc_state(struct ath_softc *sc,
