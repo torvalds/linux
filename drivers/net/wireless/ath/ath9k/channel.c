@@ -227,23 +227,6 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 	ath_set_channel(sc);
 }
 
-struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc, bool active)
-{
-	struct ath_chanctx *ctx;
-
-	ath_for_each_chanctx(sc, ctx) {
-		if (!ctx->assigned || list_empty(&ctx->vifs))
-			continue;
-		if (active && !ctx->active)
-			continue;
-
-		if (ctx->switch_after_beacon)
-			return ctx;
-	}
-
-	return &sc->chanctx[0];
-}
-
 static struct ath_chanctx *
 ath_chanctx_get_next(struct ath_softc *sc, struct ath_chanctx *ctx)
 {
@@ -535,6 +518,24 @@ static void ath_chanctx_offchan_switch(struct ath_softc *sc,
 		"Channel definition created: %d MHz\n", chandef.center_freq1);
 
 	ath_chanctx_switch(sc, &sc->offchannel.chan, &chandef);
+}
+
+static struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc,
+						     bool active)
+{
+	struct ath_chanctx *ctx;
+
+	ath_for_each_chanctx(sc, ctx) {
+		if (!ctx->assigned || list_empty(&ctx->vifs))
+			continue;
+		if (active && !ctx->active)
+			continue;
+
+		if (ctx->switch_after_beacon)
+			return ctx;
+	}
+
+	return &sc->chanctx[0];
 }
 
 static void
