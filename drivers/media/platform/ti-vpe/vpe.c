@@ -139,12 +139,12 @@ struct vpe_dei_regs {
  * default expert DEI register values, unlikely to be modified.
  */
 static const struct vpe_dei_regs dei_regs = {
-	0x020C0804u,
-	0x0118100Fu,
-	0x08040200u,
-	0x1010100Cu,
-	0x10101010u,
-	0x10101010u,
+	.mdt_spacial_freq_thr_reg = 0x020C0804u,
+	.edi_config_reg = 0x0118100Fu,
+	.edi_lut_reg0 = 0x08040200u,
+	.edi_lut_reg1 = 0x1010100Cu,
+	.edi_lut_reg2 = 0x10101010u,
+	.edi_lut_reg3 = 0x10101010u,
 };
 
 /*
