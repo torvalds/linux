@@ -507,6 +507,25 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 	spin_unlock_bh(&sc->chan_lock);
 }
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
+static const char *offchannel_state_string(enum ath_offchannel_state state)
+{
+#define case_rtn_string(val) case val: return #val
+
+	switch (state) {
+		case_rtn_string(ATH_OFFCHANNEL_IDLE);
+		case_rtn_string(ATH_OFFCHANNEL_PROBE_SEND);
+		case_rtn_string(ATH_OFFCHANNEL_PROBE_WAIT);
+		case_rtn_string(ATH_OFFCHANNEL_SUSPEND);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_START);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_WAIT);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_DONE);
+	default:
+		return "unknown";
+	}
+}
+
 static int ath_scan_channel_duration(struct ath_softc *sc,
 				     struct ieee80211_channel *chan)
 {
@@ -597,25 +616,6 @@ void ath_scan_complete(struct ath_softc *sc, bool abort)
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 	ath_offchannel_next(sc);
 	ath9k_ps_restore(sc);
-}
-
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
-
-static const char *offchannel_state_string(enum ath_offchannel_state state)
-{
-#define case_rtn_string(val) case val: return #val
-
-	switch (state) {
-		case_rtn_string(ATH_OFFCHANNEL_IDLE);
-		case_rtn_string(ATH_OFFCHANNEL_PROBE_SEND);
-		case_rtn_string(ATH_OFFCHANNEL_PROBE_WAIT);
-		case_rtn_string(ATH_OFFCHANNEL_SUSPEND);
-		case_rtn_string(ATH_OFFCHANNEL_ROC_START);
-		case_rtn_string(ATH_OFFCHANNEL_ROC_WAIT);
-		case_rtn_string(ATH_OFFCHANNEL_ROC_DONE);
-	default:
-		return "unknown";
-	}
 }
 
 static void ath_scan_send_probe(struct ath_softc *sc,
