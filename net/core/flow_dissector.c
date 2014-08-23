@@ -298,7 +298,7 @@ u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
 		qcount = dev->tc_to_txq[tc].count;
 	}
 
-	return (u16) (((u64)skb_get_hash(skb) * qcount) >> 32) + qoffset;
+	return (u16) reciprocal_scale(skb_get_hash(skb), qcount) + qoffset;
 }
 EXPORT_SYMBOL(__skb_tx_hash);
 
@@ -371,9 +371,8 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 			if (map->len == 1)
 				queue_index = map->queues[0];
 			else
-				queue_index = map->queues[
-				    ((u64)skb_get_hash(skb) * map->len) >> 32];
-
+				queue_index = map->queues[reciprocal_scale(skb_get_hash(skb),
+									   map->len)];
 			if (unlikely(queue_index >= dev->real_num_tx_queues))
 				queue_index = -1;
 		}
