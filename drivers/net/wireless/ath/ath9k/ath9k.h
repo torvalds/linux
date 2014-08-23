@@ -31,6 +31,7 @@
 #include "spectral.h"
 
 struct ath_node;
+struct ath_vif;
 
 extern struct ieee80211_ops ath9k_ops;
 extern int ath9k_modparam_nohwcrypt;
@@ -434,6 +435,8 @@ void ath9k_p2p_remove_vif(struct ath_softc *sc,
 void ath9k_p2p_beacon_sync(struct ath_softc *sc);
 void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 				struct ieee80211_vif *vif);
+void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
+			  struct sk_buff *skb);
 void ath9k_p2p_ps_timer(void *priv);
 void ath9k_chanctx_wake_queues(struct ath_softc *sc);
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
@@ -494,6 +497,10 @@ static inline void ath9k_p2p_beacon_sync(struct ath_softc *sc)
 }
 static inline void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 					      struct ieee80211_vif *vif)
+{
+}
+static inline void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
+					struct sk_buff *skb)
 {
 }
 static inline void ath9k_p2p_ps_timer(struct ath_softc *sc)
