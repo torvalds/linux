@@ -37,13 +37,13 @@ struct pwm_lpss_chip {
 
 /* BayTrail */
 const struct pwm_lpss_boardinfo pwm_lpss_byt_info = {
-	25000000
+	.clk_rate = 25000000
 };
 EXPORT_SYMBOL_GPL(pwm_lpss_byt_info);
 
 /* Braswell */
 const struct pwm_lpss_boardinfo pwm_lpss_bsw_info = {
-	19200000
+	.clk_rate = 19200000
 };
 EXPORT_SYMBOL_GPL(pwm_lpss_bsw_info);
 
