@@ -214,5 +214,8 @@ static inline int bcm54xx_shadow_write(struct phy_device *phydev, u16 shadow,
 			 MII_BCM54XX_SHD_DATA(val));
 }
 
+#define BRCM_CL45VEN_EEE_CONTROL	0x803d
+#define LPI_FEATURE_EN			0x8000
+#define LPI_FEATURE_EN_DIG1000X		0x4000
 
 #endif /* _LINUX_BRCMPHY_H */
