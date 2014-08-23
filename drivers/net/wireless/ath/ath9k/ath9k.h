@@ -420,8 +420,6 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 			struct cfg80211_chan_def *chandef);
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
-void ath_chanctx_offchan_switch(struct ath_softc *sc,
-				struct ieee80211_channel *chan);
 struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc,
 					      bool active);
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,

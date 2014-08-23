@@ -244,19 +244,6 @@ struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc, bool active)
 	return &sc->chanctx[0];
 }
 
-void ath_chanctx_offchan_switch(struct ath_softc *sc,
-				struct ieee80211_channel *chan)
-{
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct cfg80211_chan_def chandef;
-
-	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
-	ath_dbg(common, CHAN_CTX,
-		"Channel definition created: %d MHz\n", chandef.center_freq1);
-
-	ath_chanctx_switch(sc, &sc->offchannel.chan, &chandef);
-}
-
 static struct ath_chanctx *
 ath_chanctx_get_next(struct ath_softc *sc, struct ath_chanctx *ctx)
 {
@@ -535,6 +522,19 @@ static int ath_scan_channel_duration(struct ath_softc *sc,
 		return (HZ / 9); /* ~110 ms */
 
 	return (HZ / 16); /* ~60 ms */
+}
+
+static void ath_chanctx_offchan_switch(struct ath_softc *sc,
+				       struct ieee80211_channel *chan)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct cfg80211_chan_def chandef;
+
+	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
+	ath_dbg(common, CHAN_CTX,
+		"Channel definition created: %d MHz\n", chandef.center_freq1);
+
+	ath_chanctx_switch(sc, &sc->offchannel.chan, &chandef);
 }
 
 static void
