@@ -173,43 +173,6 @@ void ath_chanctx_init(struct ath_softc *sc)
 
 }
 
-void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
-			struct cfg80211_chan_def *chandef)
-{
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-
-	spin_lock_bh(&sc->chan_lock);
-
-	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags) &&
-	    (sc->cur_chan != ctx) && (ctx == &sc->offchannel.chan)) {
-		sc->sched.offchannel_pending = true;
-		spin_unlock_bh(&sc->chan_lock);
-		return;
-	}
-
-	sc->next_chan = ctx;
-	if (chandef) {
-		ctx->chandef = *chandef;
-		ath_dbg(common, CHAN_CTX,
-			"Assigned next_chan to %d MHz\n", chandef->center_freq1);
-	}
-
-	if (sc->next_chan == &sc->offchannel.chan) {
-		sc->sched.offchannel_duration =
-			TU_TO_USEC(sc->offchannel.duration) +
-			sc->sched.channel_switch_time;
-
-		if (chandef) {
-			ath_dbg(common, CHAN_CTX,
-				"Offchannel duration for chan %d MHz : %u\n",
-				chandef->center_freq1,
-				sc->sched.offchannel_duration);
-		}
-	}
-	spin_unlock_bh(&sc->chan_lock);
-	ieee80211_queue_work(sc->hw, &sc->chanctx_work);
-}
-
 void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 			     struct cfg80211_chan_def *chandef)
 {
@@ -505,6 +468,43 @@ static int ath_scan_channel_duration(struct ath_softc *sc,
 		return (HZ / 9); /* ~110 ms */
 
 	return (HZ / 16); /* ~60 ms */
+}
+
+static void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
+			       struct cfg80211_chan_def *chandef)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	spin_lock_bh(&sc->chan_lock);
+
+	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags) &&
+	    (sc->cur_chan != ctx) && (ctx == &sc->offchannel.chan)) {
+		sc->sched.offchannel_pending = true;
+		spin_unlock_bh(&sc->chan_lock);
+		return;
+	}
+
+	sc->next_chan = ctx;
+	if (chandef) {
+		ctx->chandef = *chandef;
+		ath_dbg(common, CHAN_CTX,
+			"Assigned next_chan to %d MHz\n", chandef->center_freq1);
+	}
+
+	if (sc->next_chan == &sc->offchannel.chan) {
+		sc->sched.offchannel_duration =
+			TU_TO_USEC(sc->offchannel.duration) +
+			sc->sched.channel_switch_time;
+
+		if (chandef) {
+			ath_dbg(common, CHAN_CTX,
+				"Offchannel duration for chan %d MHz : %u\n",
+				chandef->center_freq1,
+				sc->sched.offchannel_duration);
+		}
+	}
+	spin_unlock_bh(&sc->chan_lock);
+	ieee80211_queue_work(sc->hw, &sc->chanctx_work);
 }
 
 static void ath_chanctx_offchan_switch(struct ath_softc *sc,
