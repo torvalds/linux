@@ -423,6 +423,7 @@ void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
 bool ath9k_is_chanctx_enabled(void);
 void ath9k_fill_chanctx_ops(void);
 void ath9k_init_channel_context(struct ath_softc *sc);
+void ath9k_offchannel_init(struct ath_softc *sc);
 void ath9k_deinit_channel_context(struct ath_softc *sc);
 int ath9k_init_p2p(struct ath_softc *sc);
 void ath9k_deinit_p2p(struct ath_softc *sc);
@@ -453,6 +454,9 @@ static inline void ath9k_fill_chanctx_ops(void)
 {
 }
 static inline void ath9k_init_channel_context(struct ath_softc *sc)
+{
+}
+static inline void ath9k_offchannel_init(struct ath_softc *sc)
 {
 }
 static inline void ath9k_deinit_channel_context(struct ath_softc *sc)
