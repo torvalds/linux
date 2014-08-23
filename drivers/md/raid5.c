@@ -531,9 +531,7 @@ static void init_stripe(struct stripe_head *sh, sector_t sector, int previous)
 	BUG_ON(stripe_operations_active(sh));
 
 	pr_debug("init_stripe called, stripe %llu\n",
-		(unsigned long long)sh->sector);
-
-	remove_hash(sh);
+		(unsigned long long)sector);
 retry:
 	seq = read_seqcount_begin(&conf->gen_lock);
 	sh->generation = conf->generation - previous;
