@@ -428,9 +428,8 @@ void ath9k_beacon_tasklet(unsigned long data)
 	/* EDMA devices check that in the tx completion function. */
 	if (!edma) {
 		if (ath9k_is_chanctx_enabled()) {
-			if (sc->sched.beacon_pending)
-				ath_chanctx_event(sc, NULL,
-						  ATH_CHANCTX_EVENT_BEACON_SENT);
+			ath_chanctx_beacon_sent_ev(sc,
+					  ATH_CHANCTX_EVENT_BEACON_SENT);
 		}
 
 		if (ath9k_csa_is_finished(sc, vif))

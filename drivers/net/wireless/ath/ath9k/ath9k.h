@@ -433,6 +433,10 @@ void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 				struct ieee80211_vif *vif);
 void ath9k_p2p_ps_timer(void *priv);
 
+void ath_chanctx_beacon_recv_ev(struct ath_softc *sc, u32 ts,
+				enum ath_chanctx_event ev);
+void ath_chanctx_beacon_sent_ev(struct ath_softc *sc,
+				enum ath_chanctx_event ev);
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev);
 void ath_chanctx_set_next(struct ath_softc *sc, bool force);
@@ -451,6 +455,14 @@ static inline void ath9k_init_channel_context(struct ath_softc *sc)
 {
 }
 static inline void ath9k_deinit_channel_context(struct ath_softc *sc)
+{
+}
+static inline void ath_chanctx_beacon_recv_ev(struct ath_softc *sc, u32 ts,
+					      enum ath_chanctx_event ev)
+{
+}
+static inline void ath_chanctx_beacon_sent_ev(struct ath_softc *sc,
+					      enum ath_chanctx_event ev)
 {
 }
 static inline void ath_chanctx_event(struct ath_softc *sc,
@@ -901,6 +913,7 @@ struct ath_softc {
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 	struct ath_gen_timer *p2p_ps_timer;
 	struct ath_vif *p2p_ps_vif;
+	struct ath_chanctx_sched sched;
 #endif
 
 	unsigned long driver_data;
@@ -925,7 +938,6 @@ struct ath_softc {
 	struct ath_chanctx *next_chan;
 	spinlock_t chan_lock;
 	struct ath_offchannel offchannel;
-	struct ath_chanctx_sched sched;
 
 #ifdef CONFIG_MAC80211_LEDS
 	bool led_registered;

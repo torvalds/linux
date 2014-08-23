@@ -893,11 +893,9 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	}
 
 	if (ath9k_is_chanctx_enabled()) {
-		if (rx_stats->is_mybeacon) {
-			sc->sched.next_tbtt = rx_stats->rs_tstamp;
-			ath_chanctx_event(sc, NULL,
-					  ATH_CHANCTX_EVENT_BEACON_RECEIVED);
-		}
+		if (rx_stats->is_mybeacon)
+			ath_chanctx_beacon_recv_ev(sc, rx_stats->rs_tstamp,
+					   ATH_CHANCTX_EVENT_BEACON_RECEIVED);
 	}
 
 	ath9k_cmn_process_rssi(common, hw, rx_stats, rx_status);

@@ -463,6 +463,20 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 	spin_unlock_bh(&sc->chan_lock);
 }
 
+void ath_chanctx_beacon_sent_ev(struct ath_softc *sc,
+				enum ath_chanctx_event ev)
+{
+	if (sc->sched.beacon_pending)
+		ath_chanctx_event(sc, NULL, ev);
+}
+
+void ath_chanctx_beacon_recv_ev(struct ath_softc *sc, u32 ts,
+				enum ath_chanctx_event ev)
+{
+	sc->sched.next_tbtt = ts;
+	ath_chanctx_event(sc, NULL, ev);
+}
+
 static int ath_scan_channel_duration(struct ath_softc *sc,
 				     struct ieee80211_channel *chan)
 {
