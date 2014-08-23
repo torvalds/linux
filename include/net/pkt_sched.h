@@ -50,7 +50,7 @@ typedef long	psched_tdiff_t;
 
 static inline psched_time_t psched_get_time(void)
 {
-	return PSCHED_NS2TICKS(ktime_to_ns(ktime_get()));
+	return PSCHED_NS2TICKS(ktime_get_ns());
 }
 
 static inline psched_tdiff_t

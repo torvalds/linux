@@ -416,7 +416,7 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	u64 now = ktime_to_ns(ktime_get());
+	u64 now = ktime_get_ns();
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
@@ -787,7 +787,7 @@ nla_put_failure:
 static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	u64 now = ktime_to_ns(ktime_get());
+	u64 now = ktime_get_ns();
 	struct tc_fq_qd_stats st = {
 		.gc_flows		= q->stat_gc_flows,
 		.highprio_packets	= q->stat_internal_packets,
