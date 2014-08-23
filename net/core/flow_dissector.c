@@ -34,28 +34,39 @@ static void iph_to_flow_copy_addrs(struct flow_keys *flow, const struct iphdr *i
  * The function will try to retrieve the ports at offset thoff + poff where poff
  * is the protocol port offset returned from proto_ports_offset
  */
-__be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto)
+__be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
+			    void *data, int hlen)
 {
 	int poff = proto_ports_offset(ip_proto);
+
+	if (!data) {
+		data = skb->data;
+		hlen = skb_headlen(skb);
+	}
 
 	if (poff >= 0) {
 		__be32 *ports, _ports;
 
-		ports = skb_header_pointer(skb, thoff + poff,
-					   sizeof(_ports), &_ports);
+		ports = __skb_header_pointer(skb, thoff + poff,
+					     sizeof(_ports), data, hlen, &_ports);
 		if (ports)
 			return *ports;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL(skb_flow_get_ports);
+EXPORT_SYMBOL(__skb_flow_get_ports);
 
-bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
+bool __skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow, void *data, int hlen)
 {
 	int nhoff = skb_network_offset(skb);
 	u8 ip_proto;
 	__be16 proto = skb->protocol;
+
+	if (!data) {
+		data = skb->data;
+		hlen = skb_headlen(skb);
+	}
 
 	memset(flow, 0, sizeof(*flow));
 
@@ -65,7 +76,7 @@ again:
 		const struct iphdr *iph;
 		struct iphdr _iph;
 ip:
-		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
+		iph = __skb_header_pointer(skb, nhoff, sizeof(_iph), data, hlen, &_iph);
 		if (!iph || iph->ihl < 5)
 			return false;
 		nhoff += iph->ihl * 4;
@@ -83,7 +94,7 @@ ip:
 		__be32 flow_label;
 
 ipv6:
-		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
+		iph = __skb_header_pointer(skb, nhoff, sizeof(_iph), data, hlen, &_iph);
 		if (!iph)
 			return false;
 
@@ -113,7 +124,7 @@ ipv6:
 		const struct vlan_hdr *vlan;
 		struct vlan_hdr _vlan;
 
-		vlan = skb_header_pointer(skb, nhoff, sizeof(_vlan), &_vlan);
+		vlan = __skb_header_pointer(skb, nhoff, sizeof(_vlan), data, hlen, &_vlan);
 		if (!vlan)
 			return false;
 
@@ -126,7 +137,7 @@ ipv6:
 			struct pppoe_hdr hdr;
 			__be16 proto;
 		} *hdr, _hdr;
-		hdr = skb_header_pointer(skb, nhoff, sizeof(_hdr), &_hdr);
+		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
 		if (!hdr)
 			return false;
 		proto = hdr->proto;
@@ -151,7 +162,7 @@ ipv6:
 			__be16 proto;
 		} *hdr, _hdr;
 
-		hdr = skb_header_pointer(skb, nhoff, sizeof(_hdr), &_hdr);
+		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
 		if (!hdr)
 			return false;
 		/*
@@ -171,8 +182,9 @@ ipv6:
 				const struct ethhdr *eth;
 				struct ethhdr _eth;
 
-				eth = skb_header_pointer(skb, nhoff,
-							 sizeof(_eth), &_eth);
+				eth = __skb_header_pointer(skb, nhoff,
+							   sizeof(_eth),
+							   data, hlen, &_eth);
 				if (!eth)
 					return false;
 				proto = eth->h_proto;
@@ -194,12 +206,12 @@ ipv6:
 
 	flow->n_proto = proto;
 	flow->ip_proto = ip_proto;
-	flow->ports = skb_flow_get_ports(skb, nhoff, ip_proto);
+	flow->ports = __skb_flow_get_ports(skb, nhoff, ip_proto, data, hlen);
 	flow->thoff = (u16) nhoff;
 
 	return true;
 }
-EXPORT_SYMBOL(skb_flow_dissect);
+EXPORT_SYMBOL(__skb_flow_dissect);
 
 static u32 hashrnd __read_mostly;
 static __always_inline void __flow_hash_secret_init(void)
