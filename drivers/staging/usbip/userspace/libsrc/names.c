@@ -201,6 +201,7 @@ void names_free(void)
 		pool = pool->next;
 		free(tmp);
 	}
+	pool_head = NULL;
 }
 
 static int new_vendor(const char *name, u_int16_t vendorid)
