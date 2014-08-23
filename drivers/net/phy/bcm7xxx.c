@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/brcmphy.h>
+#include <linux/mdio.h>
 
 /* Broadcom BCM7xxx internal PHY registers */
 #define MII_BCM7XXX_CHANNEL_WIDTH	0x2000
@@ -146,6 +147,53 @@ static int bcm7xxx_28nm_afe_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int bcm7xxx_apd_enable(struct phy_device *phydev)
+{
+	int val;
+
+	/* Enable powering down of the DLL during auto-power down */
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_SCR3);
+	if (val < 0)
+		return val;
+
+	val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
+	bcm54xx_shadow_write(phydev, BCM54XX_SHD_SCR3, val);
+
+	/* Enable auto-power down */
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_APD);
+	if (val < 0)
+		return val;
+
+	val |= BCM54XX_SHD_APD_EN;
+	return bcm54xx_shadow_write(phydev, BCM54XX_SHD_APD, val);
+}
+
+static int bcm7xxx_eee_enable(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
+				    MDIO_MMD_AN, phydev->addr);
+	if (val < 0)
+		return val;
+
+	/* Enable general EEE feature at the PHY level */
+	val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+
+	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
+			       MDIO_MMD_AN, phydev->addr, val);
+
+	/* Advertise supported modes */
+	val = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
+				    MDIO_MMD_AN, phydev->addr);
+
+	val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	phy_write_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
+			       MDIO_MMD_AN, phydev->addr, val);
+
+	return 0;
+}
+
 static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -154,7 +202,15 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	return bcm7xxx_28nm_afe_config_init(phydev);
+	ret = bcm7xxx_28nm_afe_config_init(phydev);
+	if (ret)
+		return ret;
+
+	ret = bcm7xxx_eee_enable(phydev);
+	if (ret)
+		return ret;
+
+	return bcm7xxx_apd_enable(phydev);
 }
 
 static int bcm7xxx_28nm_resume(struct phy_device *phydev)
