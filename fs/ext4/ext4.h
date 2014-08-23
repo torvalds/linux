@@ -1825,7 +1825,7 @@ ext4_group_first_block_no(struct super_block *sb, ext4_group_t group_no)
 /*
  * Special error return code only used by dx_probe() and its callers.
  */
-#define ERR_BAD_DX_DIR	-75000
+#define ERR_BAD_DX_DIR	(-(MAX_ERRNO - 1))
 
 /*
  * Timeout and state flag for lazy initialization inode thread.
