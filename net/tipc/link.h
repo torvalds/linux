@@ -1,7 +1,7 @@
 /*
  * net/tipc/link.h: Include file for TIPC link code
  *
- * Copyright (c) 1995-2006, 2013, Ericsson AB
+ * Copyright (c) 1995-2006, 2013-2014, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -133,7 +133,7 @@ struct tipc_stats {
  * @retransm_queue_size: number of messages to retransmit
  * @retransm_queue_head: sequence number of first message to retransmit
  * @next_out: ptr to first unsent outbound message in queue
- * @waiting_ports: linked list of ports waiting for link congestion to abate
+ * @waiting_sks: linked list of sockets waiting for link congestion to abate
  * @long_msg_seq_no: next identifier to use for outbound fragmented messages
  * @reasm_buf: head of partially reassembled inbound message fragments
  * @stats: collects statistics regarding link activity
@@ -194,7 +194,7 @@ struct tipc_link {
 	u32 retransm_queue_size;
 	u32 retransm_queue_head;
 	struct sk_buff *next_out;
-	struct list_head waiting_ports;
+	struct sk_buff_head waiting_sks;
 
 	/* Fragmentation/reassembly */
 	u32 long_msg_seq_no;
@@ -235,7 +235,6 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,
 void tipc_link_push_queue(struct tipc_link *l_ptr);
 u32 tipc_link_defer_pkt(struct sk_buff **head, struct sk_buff **tail,
 			struct sk_buff *buf);
-void tipc_link_wakeup_ports(struct tipc_link *l_ptr, int all);
 void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window);
 void tipc_link_retransmit(struct tipc_link *l_ptr,
 			  struct sk_buff *start, u32 retransmits);
