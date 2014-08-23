@@ -237,6 +237,31 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 EXPORT_SYMBOL(input_mt_report_pointer_emulation);
 
 /**
+ * input_mt_drop_unused() - Inactivate slots not seen in this frame
+ * @dev: input device with allocated MT slots
+ *
+ * Lift all slots not seen since the last call to this function.
+ */
+void input_mt_drop_unused(struct input_dev *dev)
+{
+	struct input_mt *mt = dev->mt;
+	int i;
+
+	if (!mt)
+		return;
+
+	for (i = 0; i < mt->num_slots; i++) {
+		if (!input_mt_is_used(mt, &mt->slots[i])) {
+			input_mt_slot(dev, i);
+			input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
+		}
+	}
+
+	mt->frame++;
+}
+EXPORT_SYMBOL(input_mt_drop_unused);
+
+/**
  * input_mt_sync_frame() - synchronize mt frame
  * @dev: input device with allocated MT slots
  *
@@ -247,27 +272,18 @@ EXPORT_SYMBOL(input_mt_report_pointer_emulation);
 void input_mt_sync_frame(struct input_dev *dev)
 {
 	struct input_mt *mt = dev->mt;
-	struct input_mt_slot *s;
 	bool use_count = false;
 
 	if (!mt)
 		return;
 
-	if (mt->flags & INPUT_MT_DROP_UNUSED) {
-		for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
-			if (input_mt_is_used(mt, s))
-				continue;
-			input_mt_slot(dev, s - mt->slots);
-			input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
-		}
-	}
+	if (mt->flags & INPUT_MT_DROP_UNUSED)
+		input_mt_drop_unused(dev);
 
 	if ((mt->flags & INPUT_MT_POINTER) && !(mt->flags & INPUT_MT_SEMI_MT))
 		use_count = true;
 
 	input_mt_report_pointer_emulation(dev, use_count);
-
-	mt->frame++;
 }
 EXPORT_SYMBOL(input_mt_sync_frame);
 

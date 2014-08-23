@@ -87,12 +87,25 @@ nvif_notify_get(struct nvif_notify *notify)
 	return 0;
 }
 
+static inline int
+nvif_notify_func(struct nvif_notify *notify, bool keep)
+{
+	int ret = notify->func(notify);
+	if (ret == NVIF_NOTIFY_KEEP ||
+	    !test_and_clear_bit(NVKM_NOTIFY_USER, &notify->flags)) {
+		if (!keep)
+			atomic_dec(&notify->putcnt);
+		else
+			nvif_notify_get_(notify);
+	}
+	return ret;
+}
+
 static void
 nvif_notify_work(struct work_struct *work)
 {
 	struct nvif_notify *notify = container_of(work, typeof(*notify), work);
-	if (notify->func(notify) == NVIF_NOTIFY_KEEP)
-		nvif_notify_get_(notify);
+	nvif_notify_func(notify, true);
 }
 
 int
@@ -113,19 +126,15 @@ nvif_notify(const void *header, u32 length, const void *data, u32 size)
 	if (!WARN_ON(notify == NULL)) {
 		struct nvif_client *client = nvif_client(notify->object);
 		if (!WARN_ON(notify->size != size)) {
+			atomic_inc(&notify->putcnt);
 			if (test_bit(NVIF_NOTIFY_WORK, &notify->flags)) {
-				atomic_inc(&notify->putcnt);
 				memcpy((void *)notify->data, data, size);
 				schedule_work(&notify->work);
 				return NVIF_NOTIFY_DROP;
 			}
 			notify->data = data;
-			ret = notify->func(notify);
+			ret = nvif_notify_func(notify, client->driver->keep);
 			notify->data = NULL;
-			if (ret != NVIF_NOTIFY_DROP && client->driver->keep) {
-				atomic_inc(&notify->putcnt);
-				nvif_notify_get_(notify);
-			}
 		}
 	}
 
@@ -228,8 +237,10 @@ nvif_notify_new(struct nvif_object *object, int (*func)(struct nvif_notify *),
 	if (notify) {
 		int ret = nvif_notify_init(object, nvif_notify_del, func, work,
 					   type, data, size, reply, notify);
-		if (ret)
+		if (ret) {
 			kfree(notify);
+			notify = NULL;
+		}
 		*pnotify = notify;
 		return ret;
 	}

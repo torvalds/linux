@@ -4824,7 +4824,7 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
 	if (rc) {
 		kfree(fw_control_context);
-		return rc;
+		return -EBUSY;
 	}
 	ccb = &pm8001_ha->ccb_info[tag];
 	ccb->fw_control_context = fw_control_context;
@@ -4946,7 +4946,7 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
 	if (rc) {
 		kfree(fw_control_context);
-		return rc;
+		return -EBUSY;
 	}
 	ccb = &pm8001_ha->ccb_info[tag];
 	ccb->fw_control_context = fw_control_context;
