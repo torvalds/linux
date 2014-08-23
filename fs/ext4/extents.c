@@ -4839,12 +4839,8 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	}
 
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
-
 	if (new_size) {
-		if (new_size > i_size_read(inode))
-			i_size_write(inode, new_size);
-		if (new_size > EXT4_I(inode)->i_disksize)
-			ext4_update_i_disksize(inode, new_size);
+		ext4_update_inode_size(inode, new_size);
 	} else {
 		/*
 		* Mark that we allocate beyond EOF so the subsequent truncate
@@ -4886,7 +4882,6 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	int ret = 0;
 	int flags;
 	ext4_lblk_t lblk;
-	struct timespec tv;
 	unsigned int blkbits = inode->i_blkbits;
 
 	/* Return error if mode is not supported */
@@ -4945,15 +4940,11 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (IS_ERR(handle))
 		goto out;
 
-	tv = inode->i_ctime = ext4_current_time(inode);
+	inode->i_ctime = ext4_current_time(inode);
 
 	if (new_size) {
-		if (new_size > i_size_read(inode)) {
-			i_size_write(inode, new_size);
-			inode->i_mtime = tv;
-		}
-		if (new_size > EXT4_I(inode)->i_disksize)
-			ext4_update_i_disksize(inode, new_size);
+		if (ext4_update_inode_size(inode, new_size) & 0x1)
+			inode->i_mtime = inode->i_ctime;
 	} else {
 		/*
 		* Mark that we allocate beyond EOF so the subsequent truncate
