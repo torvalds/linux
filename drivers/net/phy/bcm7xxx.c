@@ -146,6 +146,27 @@ static int bcm7xxx_28nm_afe_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int bcm7xxx_apd_enable(struct phy_device *phydev)
+{
+	int val;
+
+	/* Enable powering down of the DLL during auto-power down */
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_SCR3);
+	if (val < 0)
+		return val;
+
+	val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
+	bcm54xx_shadow_write(phydev, BCM54XX_SHD_SCR3, val);
+
+	/* Enable auto-power down */
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_APD);
+	if (val < 0)
+		return val;
+
+	val |= BCM54XX_SHD_APD_EN;
+	return bcm54xx_shadow_write(phydev, BCM54XX_SHD_APD, val);
+}
+
 static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -154,7 +175,11 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	return bcm7xxx_28nm_afe_config_init(phydev);
+	ret = bcm7xxx_28nm_afe_config_init(phydev);
+	if (ret)
+		return ret;
+
+	return bcm7xxx_apd_enable(phydev);
 }
 
 static int bcm7xxx_28nm_resume(struct phy_device *phydev)
