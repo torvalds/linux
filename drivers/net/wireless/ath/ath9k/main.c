@@ -893,9 +893,9 @@ static bool ath9k_uses_beacons(int type)
 	}
 }
 
-static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
+			   u8 *mac, struct ieee80211_vif *vif)
 {
-	struct ath9k_vif_iter_data *iter_data = data;
 	int i;
 
 	if (iter_data->has_hw_macaddr) {
