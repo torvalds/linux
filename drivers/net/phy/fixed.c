@@ -124,6 +124,17 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 	if (reg_num >= MII_REGS_NUM)
 		return -1;
 
+	/* We do not support emulating Clause 45 over Clause 22 register reads
+	 * return an error instead of bogus data.
+	 */
+	switch (reg_num) {
+	case MII_MMD_CTRL:
+	case MII_MMD_DATA:
+		return -1;
+	default:
+		break;
+	}
+
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
 			/* Issue callback if user registered it. */
