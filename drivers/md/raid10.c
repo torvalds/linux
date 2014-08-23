@@ -3834,6 +3834,8 @@ static int stop(struct mddev *mddev)
 		mempool_destroy(conf->r10bio_pool);
 	safe_put_page(conf->tmppage);
 	kfree(conf->mirrors);
+	kfree(conf->mirrors_old);
+	kfree(conf->mirrors_new);
 	kfree(conf);
 	mddev->private = NULL;
 	return 0;
@@ -4121,7 +4123,7 @@ static int raid10_start_reshape(struct mddev *mddev)
 		memcpy(conf->mirrors_new, conf->mirrors,
 		       sizeof(struct raid10_info)*conf->prev.raid_disks);
 		smp_mb();
-		kfree(conf->mirrors_old); /* FIXME and elsewhere */
+		kfree(conf->mirrors_old);
 		conf->mirrors_old = conf->mirrors;
 		conf->mirrors = conf->mirrors_new;
 		conf->mirrors_new = NULL;
