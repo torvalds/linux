@@ -118,7 +118,7 @@ int __pata_platform_probe(struct device *dev, struct resource *io_res,
 	 */
 	if (irq_res && irq_res->start > 0) {
 		irq = irq_res->start;
-		irq_flags = irq_res->flags;
+		irq_flags = irq_res->flags & IRQF_TRIGGER_MASK;
 	}
 
 	/*
@@ -213,8 +213,6 @@ static int pata_platform_probe(struct platform_device *pdev)
 	 * And the IRQ
 	 */
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (irq_res)
-		irq_res->flags = pp_info ? pp_info->irq_flags : 0;
 
 	return __pata_platform_probe(&pdev->dev, io_res, ctl_res, irq_res,
 				     pp_info ? pp_info->ioport_shift : 0,

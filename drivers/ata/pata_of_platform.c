@@ -43,8 +43,6 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 	}
 
 	irq_res = platform_get_resource(ofdev, IORESOURCE_IRQ, 0);
-	if (irq_res)
-		irq_res->flags = 0;
 
 	prop = of_get_property(dn, "reg-shift", NULL);
 	if (prop)
