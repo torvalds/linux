@@ -16,23 +16,6 @@
 
 #include "ath9k.h"
 
-static const char *offchannel_state_string(enum ath_offchannel_state state)
-{
-#define case_rtn_string(val) case val: return #val
-
-	switch (state) {
-		case_rtn_string(ATH_OFFCHANNEL_IDLE);
-		case_rtn_string(ATH_OFFCHANNEL_PROBE_SEND);
-		case_rtn_string(ATH_OFFCHANNEL_PROBE_WAIT);
-		case_rtn_string(ATH_OFFCHANNEL_SUSPEND);
-		case_rtn_string(ATH_OFFCHANNEL_ROC_START);
-		case_rtn_string(ATH_OFFCHANNEL_ROC_WAIT);
-		case_rtn_string(ATH_OFFCHANNEL_ROC_DONE);
-	default:
-		return "unknown";
-	}
-}
-
 /* Set/change channels.  If the channel is really being changed, it's done
  * by reseting the chip.  To accomplish this we must first cleanup any pending
  * DMA, then restart stuff.
@@ -616,6 +599,25 @@ void ath_scan_complete(struct ath_softc *sc, bool abort)
 	ath9k_ps_restore(sc);
 }
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
+static const char *offchannel_state_string(enum ath_offchannel_state state)
+{
+#define case_rtn_string(val) case val: return #val
+
+	switch (state) {
+		case_rtn_string(ATH_OFFCHANNEL_IDLE);
+		case_rtn_string(ATH_OFFCHANNEL_PROBE_SEND);
+		case_rtn_string(ATH_OFFCHANNEL_PROBE_WAIT);
+		case_rtn_string(ATH_OFFCHANNEL_SUSPEND);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_START);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_WAIT);
+		case_rtn_string(ATH_OFFCHANNEL_ROC_DONE);
+	default:
+		return "unknown";
+	}
+}
+
 static void ath_scan_send_probe(struct ath_softc *sc,
 				struct cfg80211_ssid *ssid)
 {
@@ -673,49 +675,6 @@ static void ath_scan_channel_start(struct ath_softc *sc)
 	sc->offchannel.state = ATH_OFFCHANNEL_PROBE_WAIT;
 	mod_timer(&sc->offchannel.timer, jiffies + sc->offchannel.duration);
 }
-
-void ath_offchannel_channel_change(struct ath_softc *sc)
-{
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-
-	ath_dbg(common, CHAN_CTX, "%s: state: %s\n",
-		__func__, offchannel_state_string(sc->offchannel.state));
-
-	switch (sc->offchannel.state) {
-	case ATH_OFFCHANNEL_PROBE_SEND:
-		if (!sc->offchannel.scan_req)
-			return;
-
-		if (sc->cur_chan->chandef.chan !=
-		    sc->offchannel.chan.chandef.chan)
-			return;
-
-		ath_scan_channel_start(sc);
-		break;
-	case ATH_OFFCHANNEL_IDLE:
-		if (!sc->offchannel.scan_req)
-			return;
-
-		ath_scan_complete(sc, false);
-		break;
-	case ATH_OFFCHANNEL_ROC_START:
-		if (sc->cur_chan != &sc->offchannel.chan)
-			break;
-
-		sc->offchannel.state = ATH_OFFCHANNEL_ROC_WAIT;
-		mod_timer(&sc->offchannel.timer, jiffies +
-			  msecs_to_jiffies(sc->offchannel.duration));
-		ieee80211_ready_on_channel(sc->hw);
-		break;
-	case ATH_OFFCHANNEL_ROC_DONE:
-		ath_roc_complete(sc, false);
-		break;
-	default:
-		break;
-	}
-}
-
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
 static void ath_chanctx_timer(unsigned long data)
 {
@@ -846,6 +805,47 @@ static bool ath_chanctx_defer_switch(struct ath_softc *sc)
 	}
 
 	return true;
+}
+
+static void ath_offchannel_channel_change(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	ath_dbg(common, CHAN_CTX, "%s: state: %s\n",
+		__func__, offchannel_state_string(sc->offchannel.state));
+
+	switch (sc->offchannel.state) {
+	case ATH_OFFCHANNEL_PROBE_SEND:
+		if (!sc->offchannel.scan_req)
+			return;
+
+		if (sc->cur_chan->chandef.chan !=
+		    sc->offchannel.chan.chandef.chan)
+			return;
+
+		ath_scan_channel_start(sc);
+		break;
+	case ATH_OFFCHANNEL_IDLE:
+		if (!sc->offchannel.scan_req)
+			return;
+
+		ath_scan_complete(sc, false);
+		break;
+	case ATH_OFFCHANNEL_ROC_START:
+		if (sc->cur_chan != &sc->offchannel.chan)
+			break;
+
+		sc->offchannel.state = ATH_OFFCHANNEL_ROC_WAIT;
+		mod_timer(&sc->offchannel.timer, jiffies +
+			  msecs_to_jiffies(sc->offchannel.duration));
+		ieee80211_ready_on_channel(sc->hw);
+		break;
+	case ATH_OFFCHANNEL_ROC_DONE:
+		ath_roc_complete(sc, false);
+		break;
+	default:
+		break;
+	}
 }
 
 void ath_chanctx_set_next(struct ath_softc *sc, bool force)
