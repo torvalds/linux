@@ -93,7 +93,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 			RT_TRACE(COMP_FIRMWARE,"=====================================================> tx full!\n");
 			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
 		} else {
-			priv->ieee80211->softmac_hard_start_xmit(skb,dev);
+			priv->ieee80211->softmac_hard_start_xmit(skb, dev);
 		}
 
 		code_virtual_address += frag_length;
@@ -257,7 +257,7 @@ bool init_firmware(struct net_device *dev)
 				mapped_file = pfirmware->firmware_buf;
 				file_length = fw_entry->size;
 			} else {
-				memset(pfirmware->firmware_buf,0,128);
+				memset(pfirmware->firmware_buf, 0, 128);
 				memcpy(&pfirmware->firmware_buf[128],fw_entry->data,fw_entry->size);
 				mapped_file = pfirmware->firmware_buf;
 				file_length = fw_entry->size + 128;
@@ -276,7 +276,7 @@ bool init_firmware(struct net_device *dev)
 		 * 3. each skb_buff packet data content will already include the firmware info
 		 *   and Tx descriptor info
 		 * */
-		rt_status = fw_download_code(dev,mapped_file,file_length);
+		rt_status = fw_download_code(dev, mapped_file, file_length);
 		if (rst_opt == OPT_SYSTEM_RESET)
 			release_firmware(fw_entry);
 
