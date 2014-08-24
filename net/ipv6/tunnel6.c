@@ -64,7 +64,6 @@ err:
 
 	return ret;
 }
-
 EXPORT_SYMBOL(xfrm6_tunnel_register);
 
 int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
@@ -92,7 +91,6 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(xfrm6_tunnel_deregister);
 
 #define for_each_tunnel_rcu(head, handler)		\

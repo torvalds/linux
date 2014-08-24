@@ -222,7 +222,6 @@ begin:
 	rcu_read_unlock();
 	return result;
 }
-
 EXPORT_SYMBOL_GPL(inet6_lookup_listener);
 
 struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
@@ -238,7 +237,6 @@ struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
 
 	return sk;
 }
-
 EXPORT_SYMBOL_GPL(inet6_lookup);
 
 static int __inet6_check_established(struct inet_timewait_death_row *death_row,
@@ -324,5 +322,4 @@ int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 	return __inet_hash_connect(death_row, sk, inet6_sk_port_offset(sk),
 			__inet6_check_established, __inet6_hash);
 }
-
 EXPORT_SYMBOL_GPL(inet6_hash_connect);

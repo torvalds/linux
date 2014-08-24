@@ -233,7 +233,6 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	kfree_skb(skb);
 	return -EMSGSIZE;
 }
-
 EXPORT_SYMBOL(ip6_xmit);
 
 static int ip6_call_ra_chain(struct sk_buff *skb, int sel)

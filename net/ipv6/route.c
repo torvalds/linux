@@ -843,7 +843,6 @@ struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
 
 	return NULL;
 }
-
 EXPORT_SYMBOL(rt6_lookup);
 
 /* ip6_ins_rt is called with FREE table->tb6_lock.
@@ -1041,7 +1040,6 @@ struct dst_entry *ip6_route_output(struct net *net, const struct sock *sk,
 
 	return fib6_rule_lookup(net, fl6, flags, ip6_pol_route_output);
 }
-
 EXPORT_SYMBOL(ip6_route_output);
 
 struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_orig)
