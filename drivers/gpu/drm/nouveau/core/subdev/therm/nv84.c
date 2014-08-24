@@ -33,7 +33,12 @@ struct nv84_therm_priv {
 int
 nv84_temp_get(struct nouveau_therm *therm)
 {
-	return nv_rd32(therm, 0x20400);
+	struct nouveau_fuse *fuse = nouveau_fuse(therm);
+
+	if (nv_ro32(fuse, 0x1a8) == 1)
+		return nv_rd32(therm, 0x20400);
+	else
+		return -ENODEV;
 }
 
 void
