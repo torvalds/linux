@@ -639,6 +639,11 @@ error:
 	return err;
 }
 
+static int python_flush_script(void)
+{
+	return 0;
+}
+
 /*
  * Stop trace script
  */
@@ -823,6 +828,7 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 struct scripting_ops python_scripting_ops = {
 	.name = "Python",
 	.start_script = python_start_script,
+	.flush_script = python_flush_script,
 	.stop_script = python_stop_script,
 	.process_event = python_process_event,
 	.generate_script = python_generate_script,

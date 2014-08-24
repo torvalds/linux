@@ -304,7 +304,7 @@ static int hpp__color_##_type(struct perf_hpp_fmt *fmt,				\
 static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
-	return hpp__fmt_acc(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
+	return hpp__fmt_acc(fmt, hpp, he, he_get_acc_##_field, " %*.2f%%",	\
 			    hpp_entry_scnprintf, true);				\
 }
 
@@ -452,7 +452,7 @@ void perf_hpp__init(void)
 	/*
 	 * If user specified field order, no need to setup default fields.
 	 */
-	if (field_order)
+	if (is_strict_order(field_order))
 		return;
 
 	if (symbol_conf.cumulate_callchain) {
@@ -519,7 +519,7 @@ void perf_hpp__column_disable(unsigned col)
 
 void perf_hpp__cancel_cumulate(void)
 {
-	if (field_order)
+	if (is_strict_order(field_order))
 		return;
 
 	perf_hpp__column_disable(PERF_HPP__OVERHEAD_ACC);

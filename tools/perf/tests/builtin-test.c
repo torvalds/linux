@@ -154,6 +154,10 @@ static struct test {
 		.func = test__hists_cumulate,
 	},
 	{
+		.desc = "Test tracking with sched_switch",
+		.func = test__switch_tracking,
+	},
+	{
 		.func = NULL,
 	},
 };
