@@ -223,7 +223,7 @@ err:
 /* Private functions */
 static struct airspy_frame_buf *airspy_get_next_fill_buf(struct airspy *s)
 {
-	unsigned long flags = 0;
+	unsigned long flags;
 	struct airspy_frame_buf *buf = NULL;
 
 	spin_lock_irqsave(&s->queued_bufs_lock, flags);
@@ -446,7 +446,7 @@ static int airspy_alloc_urbs(struct airspy *s)
 /* Must be called with vb_queue_lock hold */
 static void airspy_cleanup_queued_bufs(struct airspy *s)
 {
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(s->dev, "\n");
 
@@ -506,7 +506,7 @@ static void airspy_buf_queue(struct vb2_buffer *vb)
 	struct airspy *s = vb2_get_drv_priv(vb->vb2_queue);
 	struct airspy_frame_buf *buf =
 			container_of(vb, struct airspy_frame_buf, vb);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	/* Check the device has not disconnected between prep and queuing */
 	if (unlikely(!s->udev)) {
