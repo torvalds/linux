@@ -15,7 +15,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors	Mitsuru KANDA  <mk@linux-ipv6.org>
- * 		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
+ *		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
  *
  * Based on net/ipv4/xfrm4_tunnel.c
  *

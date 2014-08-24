@@ -812,9 +812,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	const struct ipv6hdr *iph6 = ipv6_hdr(skb);
 	u8     tos = tunnel->parms.iph.tos;
 	__be16 df = tiph->frag_off;
-	struct rtable *rt;     			/* Route to the other host */
-	struct net_device *tdev;		/* Device to other host */
-	unsigned int max_headroom;		/* The extra header space needed */
+	struct rtable *rt;		/* Route to the other host */
+	struct net_device *tdev;	/* Device to other host */
+	unsigned int max_headroom;	/* The extra header space needed */
 	__be32 dst = tiph->daddr;
 	struct flowi4 fl4;
 	int    mtu;
@@ -1123,7 +1123,7 @@ static int ipip6_tunnel_update_6rd(struct ip_tunnel *t,
 #endif
 
 static int
-ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
+ipip6_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	int err = 0;
 	struct ip_tunnel_parm p;
@@ -1339,10 +1339,10 @@ static void ipip6_dev_free(struct net_device *dev)
 static void ipip6_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipip6_netdev_ops;
-	dev->destructor 	= ipip6_dev_free;
+	dev->destructor		= ipip6_dev_free;
 
 	dev->type		= ARPHRD_SIT;
-	dev->hard_header_len 	= LL_MAX_HEADER + sizeof(struct iphdr);
+	dev->hard_header_len	= LL_MAX_HEADER + sizeof(struct iphdr);
 	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr);
 	dev->flags		= IFF_NOARP;
 	dev->priv_flags	       &= ~IFF_XMIT_DST_RELEASE;

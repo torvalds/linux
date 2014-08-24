@@ -35,7 +35,7 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 			if (found_rhdr)
 				return offset;
 			break;
-		default :
+		default:
 			return offset;
 		}
 

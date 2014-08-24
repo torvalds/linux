@@ -68,7 +68,7 @@ struct ip6frag_skb_cb
 	int			offset;
 };
 
-#define FRAG6_CB(skb)	((struct ip6frag_skb_cb*)((skb)->cb))
+#define FRAG6_CB(skb)	((struct ip6frag_skb_cb *)((skb)->cb))
 
 static inline u8 ip6_frag_ecn(const struct ipv6hdr *ipv6h)
 {
@@ -289,7 +289,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		goto found;
 	}
 	prev = NULL;
-	for(next = fq->q.fragments; next != NULL; next = next->next) {
+	for (next = fq->q.fragments; next != NULL; next = next->next) {
 		if (FRAG6_CB(next)->offset >= offset)
 			break;	/* bingo! */
 		prev = next;
@@ -529,7 +529,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	IP6_INC_STATS_BH(net, ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_REASMREQDS);
 
 	/* Jumbo payload inhibits frag. header */
-	if (hdr->payload_len==0)
+	if (hdr->payload_len == 0)
 		goto fail_hdr;
 
 	if (!pskb_may_pull(skb, (skb_transport_offset(skb) +

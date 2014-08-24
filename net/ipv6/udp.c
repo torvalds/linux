@@ -373,8 +373,8 @@ EXPORT_SYMBOL_GPL(udp6_lib_lookup);
 
 
 /*
- * 	This should be easy, if there is something there we
- * 	return it, otherwise we block.
+ *	This should be easy, if there is something there we
+ *	return it, otherwise we block.
  */
 
 int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
@@ -530,7 +530,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	const struct ipv6hdr *hdr = (const struct ipv6hdr *)skb->data;
 	const struct in6_addr *saddr = &hdr->saddr;
 	const struct in6_addr *daddr = &hdr->daddr;
-	struct udphdr *uh = (struct udphdr*)(skb->data+offset);
+	struct udphdr *uh = (struct udphdr *)(skb->data+offset);
 	struct sock *sk;
 	int err;
 	struct net *net = dev_net(skb->dev);
@@ -596,7 +596,7 @@ static int __udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 static __inline__ void udpv6_err(struct sk_buff *skb,
 				 struct inet6_skb_parm *opt, u8 type,
-				 u8 code, int offset, __be32 info     )
+				 u8 code, int offset, __be32 info)
 {
 	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
@@ -960,10 +960,10 @@ static void udp_v6_flush_pending_frames(struct sock *sk)
 }
 
 /**
- * 	udp6_hwcsum_outgoing  -  handle outgoing HW checksumming
- * 	@sk: 	socket we are sending on
- * 	@skb: 	sk_buff containing the filled-in UDP header
- * 	        (checksum field must be zeroed out)
+ *	udp6_hwcsum_outgoing  -  handle outgoing HW checksumming
+ *	@sk:	socket we are sending on
+ *	@skb:	sk_buff containing the filled-in UDP header
+ *		(checksum field must be zeroed out)
  */
 static void udp6_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 				 const struct in6_addr *saddr,
@@ -1294,7 +1294,7 @@ do_append_data:
 	getfrag  =  is_udplite ?  udplite_getfrag : ip_generic_getfrag;
 	err = ip6_append_data(sk, getfrag, msg->msg_iov, ulen,
 		sizeof(struct udphdr), hlimit, tclass, opt, &fl6,
-		(struct rt6_info*)dst,
+		(struct rt6_info *)dst,
 		corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags, dontfrag);
 	if (err)
 		udp_v6_flush_pending_frames(sk);

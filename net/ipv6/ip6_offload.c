@@ -244,7 +244,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 			continue;
 
 		iph2 = (struct ipv6hdr *)(p->data + off);
-		first_word = *(__be32 *)iph ^ *(__be32 *)iph2 ;
+		first_word = *(__be32 *)iph ^ *(__be32 *)iph2;
 
 		/* All fields must match except length and Traffic Class.
 		 * XXX skbs on the gro_list have all been parsed and pulled

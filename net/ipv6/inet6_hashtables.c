@@ -6,7 +6,7 @@
  *		Generic INET6 transport hashtables
  *
  * Authors:	Lotsa people, from code originally in tcp, generalised here
- * 		by Arnaldo Carvalho de Melo <acme@mandriva.com>
+ *		by Arnaldo Carvalho de Melo <acme@mandriva.com>
  *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License

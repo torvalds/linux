@@ -3,8 +3,8 @@
  *
  * Authors:
  *	Mitsuru KANDA @USAGI
- * 	Kazunori MIYAZAWA @USAGI
- * 	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
+ *	Kazunori MIYAZAWA @USAGI
+ *	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  *	YOSHIFUJI Hideaki @USAGI
  *		IPv6 support
  */

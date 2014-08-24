@@ -142,7 +142,7 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 		default: /* Other TLV code so scan list */
 			if (optlen > len)
 				goto bad;
-			for (curr=procs; curr->type >= 0; curr++) {
+			for (curr = procs; curr->type >= 0; curr++) {
 				if (curr->type == nh[off]) {
 					/* type specific length/alignment
 					   checks will be performed in the

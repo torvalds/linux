@@ -13,7 +13,7 @@ static ip6_icmp_send_t __rcu *ip6_icmp_send;
 int inet6_register_icmp_sender(ip6_icmp_send_t *fn)
 {
 	return (cmpxchg((ip6_icmp_send_t **)&ip6_icmp_send, NULL, fn) == NULL) ?
-	        0 : -EBUSY;
+		0 : -EBUSY;
 }
 EXPORT_SYMBOL(inet6_register_icmp_sender);
 

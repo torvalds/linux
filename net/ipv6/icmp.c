@@ -503,7 +503,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	msg.type = type;
 
 	len = skb->len - msg.offset;
-	len = min_t(unsigned int, len, IPV6_MIN_MTU - sizeof(struct ipv6hdr) -sizeof(struct icmp6hdr));
+	len = min_t(unsigned int, len, IPV6_MIN_MTU - sizeof(struct ipv6hdr) - sizeof(struct icmp6hdr));
 	if (len < 0) {
 		LIMIT_NETDEBUG(KERN_DEBUG "icmp: len problem\n");
 		goto out_dst_release;
@@ -636,7 +636,7 @@ void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 		/* now skip over extension headers */
 		inner_offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr),
 						&nexthdr, &frag_off);
-		if (inner_offset<0)
+		if (inner_offset < 0)
 			goto out;
 	} else {
 		inner_offset = sizeof(struct ipv6hdr);
@@ -808,7 +808,7 @@ void icmpv6_flow_init(struct sock *sk, struct flowi6 *fl6,
 	memset(fl6, 0, sizeof(*fl6));
 	fl6->saddr = *saddr;
 	fl6->daddr = *daddr;
-	fl6->flowi6_proto 	= IPPROTO_ICMPV6;
+	fl6->flowi6_proto	= IPPROTO_ICMPV6;
 	fl6->fl6_icmp_type	= type;
 	fl6->fl6_icmp_code	= 0;
 	fl6->flowi6_oif		= oif;
@@ -875,8 +875,8 @@ static void __net_exit icmpv6_sk_exit(struct net *net)
 }
 
 static struct pernet_operations icmpv6_sk_ops = {
-       .init = icmpv6_sk_init,
-       .exit = icmpv6_sk_exit,
+	.init = icmpv6_sk_init,
+	.exit = icmpv6_sk_exit,
 };
 
 int __init icmpv6_init(void)

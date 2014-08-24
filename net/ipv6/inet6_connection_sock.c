@@ -163,7 +163,7 @@ void inet6_csk_reqsk_queue_hash_add(struct sock *sk,
 
 EXPORT_SYMBOL_GPL(inet6_csk_reqsk_queue_hash_add);
 
-void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
+void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
 {
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) uaddr;
 

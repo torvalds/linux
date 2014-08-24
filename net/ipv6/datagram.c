@@ -43,13 +43,13 @@ static bool ipv6_mapped_addr_any(const struct in6_addr *a)
 int ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct sockaddr_in6	*usin = (struct sockaddr_in6 *) uaddr;
-	struct inet_sock      	*inet = inet_sk(sk);
-	struct ipv6_pinfo      	*np = inet6_sk(sk);
-	struct in6_addr		*daddr, *final_p, final;
+	struct inet_sock	*inet = inet_sk(sk);
+	struct ipv6_pinfo	*np = inet6_sk(sk);
+	struct in6_addr	*daddr, *final_p, final;
 	struct dst_entry	*dst;
 	struct flowi6		fl6;
 	struct ip6_flowlabel	*flowlabel = NULL;
-	struct ipv6_txoptions   *opt;
+	struct ipv6_txoptions	*opt;
 	int			addr_type;
 	int			err;
 
