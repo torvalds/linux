@@ -149,8 +149,6 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 
 static const char *offchannel_state_string(enum ath_offchannel_state state)
 {
-#define case_rtn_string(val) case val: return #val
-
 	switch (state) {
 		case_rtn_string(ATH_OFFCHANNEL_IDLE);
 		case_rtn_string(ATH_OFFCHANNEL_PROBE_SEND);
@@ -159,6 +157,37 @@ static const char *offchannel_state_string(enum ath_offchannel_state state)
 		case_rtn_string(ATH_OFFCHANNEL_ROC_START);
 		case_rtn_string(ATH_OFFCHANNEL_ROC_WAIT);
 		case_rtn_string(ATH_OFFCHANNEL_ROC_DONE);
+	default:
+		return "unknown";
+	}
+}
+
+static const char *chanctx_event_string(enum ath_chanctx_event ev)
+{
+	switch (ev) {
+		case_rtn_string(ATH_CHANCTX_EVENT_BEACON_PREPARE);
+		case_rtn_string(ATH_CHANCTX_EVENT_BEACON_SENT);
+		case_rtn_string(ATH_CHANCTX_EVENT_TSF_TIMER);
+		case_rtn_string(ATH_CHANCTX_EVENT_BEACON_RECEIVED);
+		case_rtn_string(ATH_CHANCTX_EVENT_ASSOC);
+		case_rtn_string(ATH_CHANCTX_EVENT_SWITCH);
+		case_rtn_string(ATH_CHANCTX_EVENT_ASSIGN);
+		case_rtn_string(ATH_CHANCTX_EVENT_UNASSIGN);
+		case_rtn_string(ATH_CHANCTX_EVENT_CHANGE);
+		case_rtn_string(ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL);
+	default:
+		return "unknown";
+	}
+}
+
+static const char *chanctx_state_string(enum ath_chanctx_state state)
+{
+	switch (state) {
+		case_rtn_string(ATH_CHANCTX_STATE_IDLE);
+		case_rtn_string(ATH_CHANCTX_STATE_WAIT_FOR_BEACON);
+		case_rtn_string(ATH_CHANCTX_STATE_WAIT_FOR_TIMER);
+		case_rtn_string(ATH_CHANCTX_STATE_SWITCH);
+		case_rtn_string(ATH_CHANCTX_STATE_FORCE_ACTIVE);
 	default:
 		return "unknown";
 	}
@@ -274,6 +303,10 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 	u32 tsf_time;
 	u32 beacon_int;
 	bool noa_changed = false;
+
+	ath_dbg(common, CHAN_CTX, "event: %s, state: %s\n",
+		chanctx_event_string(ev),
+		chanctx_state_string(sc->sched.state));
 
 	if (vif)
 		avp = (struct ath_vif *) vif->drv_priv;

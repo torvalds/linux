@@ -410,6 +410,9 @@ struct ath_offchannel {
 	int roc_duration;
 	int duration;
 };
+
+#define case_rtn_string(val) case val: return #val
+
 #define ath_for_each_chanctx(_sc, _ctx)                             \
 	for (ctx = &sc->chanctx[0];                                 \
 	     ctx <= &sc->chanctx[ARRAY_SIZE(sc->chanctx) - 1];      \
