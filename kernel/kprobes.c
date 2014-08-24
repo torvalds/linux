@@ -1778,7 +1778,18 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 	unsigned long hash, flags = 0;
 	struct kretprobe_instance *ri;
 
-	/*TODO: consider to only swap the RA after the last pre_handler fired */
+	/*
+	 * To avoid deadlocks, prohibit return probing in NMI contexts,
+	 * just skip the probe and increase the (inexact) 'nmissed'
+	 * statistical counter, so that the user is informed that
+	 * something happened:
+	 */
+	if (unlikely(in_nmi())) {
+		rp->nmissed++;
+		return 0;
+	}
+
+	/* TODO: consider to only swap the RA after the last pre_handler fired */
 	hash = hash_ptr(current, KPROBE_HASH_BITS);
 	raw_spin_lock_irqsave(&rp->lock, flags);
 	if (!hlist_empty(&rp->free_instances)) {
