@@ -6958,9 +6958,10 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 
 	tx_ring->next_to_use = i;
 
-	/* notify HW of packet */
-	ixgbe_write_tail(tx_ring, i);
-
+	if (!skb->xmit_more) {
+		/* notify HW of packet */
+		ixgbe_write_tail(tx_ring, i);
+	}
 	return;
 dma_error:
 	dev_err(tx_ring->dev, "TX DMA map failed\n");
