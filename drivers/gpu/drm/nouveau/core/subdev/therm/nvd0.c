@@ -150,6 +150,8 @@ nvd0_therm_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	nv84_sensor_setup(&priv->base.base);
+
 	priv->base.base.pwm_ctrl = nvd0_fan_pwm_ctrl;
 	priv->base.base.pwm_get = nvd0_fan_pwm_get;
 	priv->base.base.pwm_set = nvd0_fan_pwm_set;
