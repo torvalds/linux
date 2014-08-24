@@ -41,7 +41,7 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include "tracefile.h"
 
 static char debug_file_name[1024];
@@ -342,8 +342,8 @@ void libcfs_debug_dumplog_internal(void *arg)
 
 	if (strncmp(libcfs_debug_file_path_arr, "NONE", 4) != 0) {
 		snprintf(debug_file_name, sizeof(debug_file_name) - 1,
-			 "%s.%ld." LPLD, libcfs_debug_file_path_arr,
-			 cfs_time_current_sec(), (long_ptr_t)arg);
+			 "%s.%ld.%ld", libcfs_debug_file_path_arr,
+			 get_seconds(), (long_ptr_t)arg);
 		printk(KERN_ALERT "LustreError: dumping log to %s\n",
 		       debug_file_name);
 		cfs_tracefile_dump_all_pages(debug_file_name);
@@ -463,7 +463,7 @@ EXPORT_SYMBOL(libcfs_debug_set_level);
 void libcfs_log_goto(struct libcfs_debug_msg_data *msgdata, const char *label,
 		     long_ptr_t rc)
 {
-	libcfs_debug_msg(msgdata, "Process leaving via %s (rc=" LPLU " : " LPLD
-			 " : " LPLX ")\n", label, (ulong_ptr_t)rc, rc, rc);
+	libcfs_debug_msg(msgdata, "Process leaving via %s (rc=%lu : %ld : %#lx)\n",
+			 label, (ulong_ptr_t)rc, rc, rc);
 }
 EXPORT_SYMBOL(libcfs_log_goto);

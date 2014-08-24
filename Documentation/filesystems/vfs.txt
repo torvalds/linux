@@ -1053,7 +1053,8 @@ struct dentry_operations {
 	If the 'rcu_walk' parameter is true, then the caller is doing a
 	pathwalk in RCU-walk mode.  Sleeping is not permitted in this mode,
 	and the caller can be asked to leave it and call again by returning
-	-ECHILD.
+	-ECHILD.  -EISDIR may also be returned to tell pathwalk to
+	ignore d_automount or any mounts.
 
 	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
 	dentry being transited from.

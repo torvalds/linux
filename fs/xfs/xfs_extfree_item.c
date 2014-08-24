@@ -298,7 +298,7 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 		}
 		return 0;
 	}
-	return EFSCORRUPTED;
+	return -EFSCORRUPTED;
 }
 
 /*

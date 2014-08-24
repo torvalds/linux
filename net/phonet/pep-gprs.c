@@ -267,7 +267,7 @@ int gprs_attach(struct sock *sk)
 		return -EINVAL; /* need packet boundaries */
 
 	/* Create net device */
-	dev = alloc_netdev(sizeof(*gp), ifname, gprs_setup);
+	dev = alloc_netdev(sizeof(*gp), ifname, NET_NAME_UNKNOWN, gprs_setup);
 	if (!dev)
 		return -ENOMEM;
 	gp = netdev_priv(dev);

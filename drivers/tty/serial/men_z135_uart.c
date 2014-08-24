@@ -308,9 +308,6 @@ static void men_z135_handle_tx(struct men_z135_port *uart)
 	if (port->x_char)
 		goto out;
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
 	/* calculate bytes to copy */
 	qlen = uart_circ_chars_pending(xmit);
 	if (qlen <= 0)
@@ -356,6 +353,9 @@ static void men_z135_handle_tx(struct men_z135_port *uart)
 	iowrite32(n & 0x3ff, port->membase + MEN_Z135_TX_CTRL);
 
 	port->icount.tx += n;
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(port);
 
 irq_en:
 	if (!uart_circ_empty(xmit))

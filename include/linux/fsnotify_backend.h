@@ -322,16 +322,18 @@ extern int fsnotify_fasync(int fd, struct file *file, int on);
 extern void fsnotify_destroy_event(struct fsnotify_group *group,
 				   struct fsnotify_event *event);
 /* attach the event to the group notification queue */
-extern int fsnotify_add_notify_event(struct fsnotify_group *group,
-				     struct fsnotify_event *event,
-				     int (*merge)(struct list_head *,
-						  struct fsnotify_event *));
+extern int fsnotify_add_event(struct fsnotify_group *group,
+			      struct fsnotify_event *event,
+			      int (*merge)(struct list_head *,
+					   struct fsnotify_event *));
+/* Remove passed event from groups notification queue */
+extern void fsnotify_remove_event(struct fsnotify_group *group, struct fsnotify_event *event);
 /* true if the group notification queue is empty */
 extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
 /* return, but do not dequeue the first event on the notification queue */
-extern struct fsnotify_event *fsnotify_peek_notify_event(struct fsnotify_group *group);
+extern struct fsnotify_event *fsnotify_peek_first_event(struct fsnotify_group *group);
 /* return AND dequeue the first event on the notification queue */
-extern struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group *group);
+extern struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group *group);
 
 /* functions used to manipulate the marks attached to inodes */
 

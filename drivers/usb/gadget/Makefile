@@ -1,105 +1,12 @@
 #
 # USB peripheral controller drivers
 #
-ccflags-$(CONFIG_USB_GADGET_DEBUG)	:= -DDEBUG
-ccflags-$(CONFIG_USB_GADGET_VERBOSE)	+= -DVERBOSE_DEBUG
+subdir-ccflags-$(CONFIG_USB_GADGET_DEBUG)	:= -DDEBUG
+subdir-ccflags-$(CONFIG_USB_GADGET_VERBOSE)	+= -DVERBOSE_DEBUG
+ccflags-y				+= -I$(PWD)/drivers/usb/gadget/udc
 
-obj-$(CONFIG_USB_GADGET)	+= udc-core.o
 obj-$(CONFIG_USB_LIBCOMPOSITE)	+= libcomposite.o
 libcomposite-y			:= usbstring.o config.o epautoconf.o
 libcomposite-y			+= composite.o functions.o configfs.o u_f.o
-obj-$(CONFIG_USB_DUMMY_HCD)	+= dummy_hcd.o
-obj-$(CONFIG_USB_NET2272)	+= net2272.o
-obj-$(CONFIG_USB_NET2280)	+= net2280.o
-obj-$(CONFIG_USB_AMD5536UDC)	+= amd5536udc.o
-obj-$(CONFIG_USB_PXA25X)	+= pxa25x_udc.o
-obj-$(CONFIG_USB_PXA27X)	+= pxa27x_udc.o
-obj-$(CONFIG_USB_GOKU)		+= goku_udc.o
-obj-$(CONFIG_USB_OMAP)		+= omap_udc.o
-obj-$(CONFIG_USB_S3C2410)	+= s3c2410_udc.o
-obj-$(CONFIG_USB_AT91)		+= at91_udc.o
-obj-$(CONFIG_USB_ATMEL_USBA)	+= atmel_usba_udc.o
-obj-$(CONFIG_USB_BCM63XX_UDC)	+= bcm63xx_udc.o
-obj-$(CONFIG_USB_FSL_USB2)	+= fsl_usb2_udc.o
-fsl_usb2_udc-y			:= fsl_udc_core.o
-fsl_usb2_udc-$(CONFIG_ARCH_MXC)	+= fsl_mxc_udc.o
-obj-$(CONFIG_USB_M66592)	+= m66592-udc.o
-obj-$(CONFIG_USB_R8A66597)	+= r8a66597-udc.o
-obj-$(CONFIG_USB_FSL_QE)	+= fsl_qe_udc.o
-obj-$(CONFIG_USB_S3C_HSUDC)	+= s3c-hsudc.o
-obj-$(CONFIG_USB_LPC32XX)	+= lpc32xx_udc.o
-obj-$(CONFIG_USB_EG20T)		+= pch_udc.o
-obj-$(CONFIG_USB_MV_UDC)	+= mv_udc.o
-mv_udc-y			:= mv_udc_core.o
-obj-$(CONFIG_USB_FUSB300)	+= fusb300_udc.o
-obj-$(CONFIG_USB_FOTG210_UDC)	+= fotg210-udc.o
-obj-$(CONFIG_USB_MV_U3D)	+= mv_u3d_core.o
-obj-$(CONFIG_USB_GR_UDC)	+= gr_udc.o
 
-# USB Functions
-usb_f_acm-y			:= f_acm.o
-obj-$(CONFIG_USB_F_ACM)		+= usb_f_acm.o
-usb_f_ss_lb-y			:= f_loopback.o f_sourcesink.o
-obj-$(CONFIG_USB_F_SS_LB)	+= usb_f_ss_lb.o
-obj-$(CONFIG_USB_U_SERIAL)	+= u_serial.o
-usb_f_serial-y			:= f_serial.o
-obj-$(CONFIG_USB_F_SERIAL)	+= usb_f_serial.o
-usb_f_obex-y			:= f_obex.o
-obj-$(CONFIG_USB_F_OBEX)	+= usb_f_obex.o
-obj-$(CONFIG_USB_U_ETHER)	+= u_ether.o
-usb_f_ncm-y			:= f_ncm.o
-obj-$(CONFIG_USB_F_NCM)		+= usb_f_ncm.o
-usb_f_ecm-y			:= f_ecm.o
-obj-$(CONFIG_USB_F_ECM)		+= usb_f_ecm.o
-usb_f_phonet-y			:= f_phonet.o
-obj-$(CONFIG_USB_F_PHONET)	+= usb_f_phonet.o
-usb_f_eem-y			:= f_eem.o
-obj-$(CONFIG_USB_F_EEM)		+= usb_f_eem.o
-usb_f_ecm_subset-y		:= f_subset.o
-obj-$(CONFIG_USB_F_SUBSET)	+= usb_f_ecm_subset.o
-usb_f_rndis-y			:= f_rndis.o rndis.o
-obj-$(CONFIG_USB_F_RNDIS)	+= usb_f_rndis.o
-usb_f_mass_storage-y		:= f_mass_storage.o storage_common.o
-obj-$(CONFIG_USB_F_MASS_STORAGE)+= usb_f_mass_storage.o
-usb_f_fs-y			:= f_fs.o
-obj-$(CONFIG_USB_F_FS)		+= usb_f_fs.o
-
-#
-# USB gadget drivers
-#
-g_zero-y			:= zero.o
-g_audio-y			:= audio.o
-g_ether-y			:= ether.o
-g_serial-y			:= serial.o
-g_midi-y			:= gmidi.o
-gadgetfs-y			:= inode.o
-g_mass_storage-y		:= mass_storage.o
-g_printer-y			:= printer.o
-g_cdc-y				:= cdc2.o
-g_multi-y			:= multi.o
-g_hid-y				:= hid.o
-g_dbgp-y			:= dbgp.o
-g_nokia-y			:= nokia.o
-g_webcam-y			:= webcam.o
-g_ncm-y				:= ncm.o
-g_acm_ms-y			:= acm_ms.o
-g_tcm_usb_gadget-y		:= tcm_usb_gadget.o
-
-obj-$(CONFIG_USB_ZERO)		+= g_zero.o
-obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
-obj-$(CONFIG_USB_ETH)		+= g_ether.o
-obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o
-obj-$(CONFIG_USB_FUNCTIONFS)	+= g_ffs.o
-obj-$(CONFIG_USB_MASS_STORAGE)	+= g_mass_storage.o
-obj-$(CONFIG_USB_G_SERIAL)	+= g_serial.o
-obj-$(CONFIG_USB_G_PRINTER)	+= g_printer.o
-obj-$(CONFIG_USB_MIDI_GADGET)	+= g_midi.o
-obj-$(CONFIG_USB_CDC_COMPOSITE) += g_cdc.o
-obj-$(CONFIG_USB_G_HID)		+= g_hid.o
-obj-$(CONFIG_USB_G_DBGP)	+= g_dbgp.o
-obj-$(CONFIG_USB_G_MULTI)	+= g_multi.o
-obj-$(CONFIG_USB_G_NOKIA)	+= g_nokia.o
-obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
-obj-$(CONFIG_USB_G_NCM)		+= g_ncm.o
-obj-$(CONFIG_USB_G_ACM_MS)	+= g_acm_ms.o
-obj-$(CONFIG_USB_GADGET_TARGET)	+= tcm_usb_gadget.o
+obj-$(CONFIG_USB_GADGET)	+= udc/ function/ legacy/

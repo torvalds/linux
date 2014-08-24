@@ -265,9 +265,7 @@ static void sdv_gpio_remove(struct pci_dev *pdev)
 	free_irq(pdev->irq, sd);
 	irq_free_descs(sd->irq_base, SDV_NUM_PUB_GPIOS);
 
-	if (gpiochip_remove(&sd->bgpio.gc))
-		dev_err(&pdev->dev, "gpiochip_remove() failed.\n");
-
+	gpiochip_remove(&sd->bgpio.gc);
 	pci_release_region(pdev, GPIO_BAR);
 	iounmap(sd->gpio_pub_base);
 	pci_disable_device(pdev);

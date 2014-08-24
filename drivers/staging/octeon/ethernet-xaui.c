@@ -24,6 +24,7 @@
  * This file may also be available under a different license from Cavium.
  * Contact Cavium Networks for more information
 **********************************************************************/
+#include <linux/phy.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/ratelimit.h>
@@ -34,43 +35,11 @@
 #include "ethernet-defines.h"
 #include "octeon-ethernet.h"
 #include "ethernet-util.h"
+#include "ethernet-mdio.h"
 
 #include <asm/octeon/cvmx-helper.h>
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
-
-int cvm_oct_xaui_open(struct net_device *dev)
-{
-	union cvmx_gmxx_prtx_cfg gmx_cfg;
-	struct octeon_ethernet *priv = netdev_priv(dev);
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-	cvmx_helper_link_info_t link_info;
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 1;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-
-	if (!octeon_is_simulation()) {
-		link_info = cvmx_helper_link_get(priv->port);
-		if (!link_info.s.link_up)
-			netif_carrier_off(dev);
-	}
-	return 0;
-}
-
-int cvm_oct_xaui_stop(struct net_device *dev)
-{
-	union cvmx_gmxx_prtx_cfg gmx_cfg;
-	struct octeon_ethernet *priv = netdev_priv(dev);
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 0;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-	return 0;
-}
 
 static void cvm_oct_xaui_poll(struct net_device *dev)
 {
@@ -108,9 +77,58 @@ static void cvm_oct_xaui_poll(struct net_device *dev)
 	}
 }
 
+int cvm_oct_xaui_open(struct net_device *dev)
+{
+	union cvmx_gmxx_prtx_cfg gmx_cfg;
+	struct octeon_ethernet *priv = netdev_priv(dev);
+	int interface = INTERFACE(priv->port);
+	int index = INDEX(priv->port);
+	cvmx_helper_link_info_t link_info;
+	int rv;
+
+	rv = cvm_oct_phy_setup_device(dev);
+	if (rv)
+		return rv;
+
+	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+	gmx_cfg.s.en = 1;
+	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
+
+	if (octeon_is_simulation())
+		return 0;
+
+	if (priv->phydev) {
+		int r = phy_read_status(priv->phydev);
+		if (r == 0 && priv->phydev->link == 0)
+			netif_carrier_off(dev);
+		cvm_oct_adjust_link(dev);
+	} else {
+		link_info = cvmx_helper_link_get(priv->port);
+		if (!link_info.s.link_up)
+			netif_carrier_off(dev);
+		priv->poll = cvm_oct_xaui_poll;
+		cvm_oct_xaui_poll(dev);
+	}
+	return 0;
+}
+
+int cvm_oct_xaui_stop(struct net_device *dev)
+{
+	union cvmx_gmxx_prtx_cfg gmx_cfg;
+	struct octeon_ethernet *priv = netdev_priv(dev);
+	int interface = INTERFACE(priv->port);
+	int index = INDEX(priv->port);
+
+	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+	gmx_cfg.s.en = 0;
+	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
+	return cvm_oct_common_stop(dev);
+}
+
 int cvm_oct_xaui_init(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
+
 	cvm_oct_common_init(dev);
 	dev->netdev_ops->ndo_stop(dev);
 	if (!octeon_is_simulation() && priv->phydev == NULL)

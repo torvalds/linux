@@ -40,6 +40,7 @@ Gunter Kukkukk (testing and suggestions for support of old servers)
 Igor Mammedov (DFS support)
 Jeff Layton (many, many fixes, as well as great work on the cifs Kerberos code)
 Scott Lovenberg
+Pavel Shilovsky (for great work adding SMB2 support, and various SMB3 features)
 
 Test case and Bug Report contributors
 -------------------------------------

@@ -193,6 +193,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	u32 wow_triggers_enabled = 0;
 	int ret = 0;
 
+	cancel_work_sync(&sc->chanctx_work);
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);

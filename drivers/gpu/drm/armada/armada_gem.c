@@ -539,7 +539,7 @@ armada_gem_prime_export(struct drm_device *dev, struct drm_gem_object *obj,
 	int flags)
 {
 	return dma_buf_export(obj, &armada_gem_prime_dmabuf_ops, obj->size,
-			      O_RDWR);
+			      O_RDWR, NULL);
 }
 
 struct drm_gem_object *

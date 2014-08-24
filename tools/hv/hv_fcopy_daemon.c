@@ -88,7 +88,8 @@ static int hv_start_fcopy(struct hv_start_fcopy *smsg)
 		}
 	}
 
-	target_fd = open(target_fname, O_RDWR | O_CREAT | O_CLOEXEC, 0744);
+	target_fd = open(target_fname,
+			 O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC, 0744);
 	if (target_fd == -1) {
 		syslog(LOG_INFO, "Open Failed: %s", strerror(errno));
 		goto done;

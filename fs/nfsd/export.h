@@ -101,9 +101,10 @@ static inline void exp_put(struct svc_export *exp)
 	cache_put(&exp->h, exp->cd);
 }
 
-static inline void exp_get(struct svc_export *exp)
+static inline struct svc_export *exp_get(struct svc_export *exp)
 {
 	cache_get(&exp->h);
+	return exp;
 }
 struct svc_export * rqst_exp_find(struct svc_rqst *, int, u32 *);
 

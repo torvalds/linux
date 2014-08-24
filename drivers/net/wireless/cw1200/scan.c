@@ -53,9 +53,10 @@ static int cw1200_scan_start(struct cw1200_common *priv, struct wsm_scan *scan)
 
 int cw1200_hw_scan(struct ieee80211_hw *hw,
 		   struct ieee80211_vif *vif,
-		   struct cfg80211_scan_request *req)
+		   struct ieee80211_scan_request *hw_req)
 {
 	struct cw1200_common *priv = hw->priv;
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct wsm_template_frame frame = {
 		.frame_type = WSM_FRAME_TYPE_PROBE_REQUEST,
 	};

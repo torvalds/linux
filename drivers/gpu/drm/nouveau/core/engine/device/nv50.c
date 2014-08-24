@@ -74,7 +74,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv50_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -99,7 +99,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -127,7 +127,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -155,7 +155,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -183,7 +183,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -211,7 +211,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -239,7 +239,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -267,7 +267,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -295,7 +295,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -323,7 +323,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -350,9 +350,9 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] = &nva3_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] =  nva3_pwr_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -380,9 +380,9 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] = &nva3_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] =  nva3_pwr_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -409,9 +409,9 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] = &nva3_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] =  nva3_pwr_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
@@ -438,9 +438,9 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] = &nva3_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] =  nva3_pwr_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;

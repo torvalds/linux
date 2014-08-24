@@ -2,6 +2,10 @@
 
 Required properties:
 - compatible: should contain "snps,dw-pcie" to identify the core.
+- reg: Should contain the configuration address space.
+- reg-names: Must be "config" for the PCIe configuration space.
+    (The old way of getting the configuration address space from "ranges"
+    is deprecated and should be avoided.)
 - #address-cells: set to <3>
 - #size-cells: set to <2>
 - device_type: set to "pci"

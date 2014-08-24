@@ -198,6 +198,16 @@ config REGULATOR_DA9210
 	  converter 12A DC-DC Buck controlled through an I2C
 	  interface.
 
+config REGULATOR_DA9211
+	tristate "Dialog Semiconductor DA9211/DA9212 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor DA9211/DA9212.
+	  The DA9211/DA9212 is a multi-phase synchronous step down
+	  converter 12A DC-DC Buck controlled through an I2C
+	  interface.
+
 config REGULATOR_DBX500_PRCMU
 	bool
 
@@ -457,10 +467,10 @@ config REGULATOR_S2MPA01
 	 via I2C bus. S2MPA01 has 10 Bucks and 26 LDO outputs.
 
 config REGULATOR_S2MPS11
-	tristate "Samsung S2MPS11/S2MPS14 voltage regulator"
+	tristate "Samsung S2MPS11/S2MPS14/S2MPU02 voltage regulator"
 	depends on MFD_SEC_CORE
 	help
-	 This driver supports a Samsung S2MPS11/S2MPS14 voltage output
+	 This driver supports a Samsung S2MPS11/S2MPS14/S2MPU02 voltage output
 	 regulator via I2C bus. The chip is comprised of high efficient Buck
 	 converters including Dual-Phase Buck converter, Buck-Boost converter,
 	 various LDOs.

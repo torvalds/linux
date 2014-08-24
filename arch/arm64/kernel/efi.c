@@ -188,6 +188,8 @@ static __init void reserve_regions(void)
 		if (uefi_debug)
 			pr_cont("\n");
 	}
+
+	set_bit(EFI_MEMMAP, &efi.flags);
 }
 
 

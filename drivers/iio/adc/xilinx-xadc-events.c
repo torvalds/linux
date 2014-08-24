@@ -31,16 +31,10 @@ static const struct iio_chan_spec *xadc_event_to_channel(
 static void xadc_handle_event(struct iio_dev *indio_dev, unsigned int event)
 {
 	const struct iio_chan_spec *chan;
-	unsigned int offset;
 
 	/* Temperature threshold error, we don't handle this yet */
 	if (event == 0)
 		return;
-
-	if (event < 4)
-		offset = event;
-	else
-		offset = event + 4;
 
 	chan = xadc_event_to_channel(indio_dev, event);
 

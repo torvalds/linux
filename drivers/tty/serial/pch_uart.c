@@ -736,9 +736,10 @@ static void pch_request_dma(struct uart_port *port)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	dma_dev = pci_get_bus_and_slot(priv->pdev->bus->number,
-				       PCI_DEVFN(0xa, 0)); /* Get DMA's dev
-								information */
+	/* Get DMA's dev information */
+	dma_dev = pci_get_slot(priv->pdev->bus,
+			PCI_DEVFN(PCI_SLOT(priv->pdev->devfn), 0));
+
 	/* Set Tx DMA */
 	param = &priv->param_tx;
 	param->dma_dev = &dma_dev->dev;
@@ -1047,7 +1048,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 					priv->sg_tx_p, nent, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		dev_err(priv->port.dev, "%s:device_prep_slave_sg Failed\n",
+		dev_err(priv->port.dev, "%s:dmaengine_prep_slave_sg Failed\n",
 			__func__);
 		return 0;
 	}

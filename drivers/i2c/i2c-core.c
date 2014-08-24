@@ -1097,101 +1097,6 @@ EXPORT_SYMBOL(of_find_i2c_adapter_by_node);
 static void of_i2c_register_devices(struct i2c_adapter *adap) { }
 #endif /* CONFIG_OF */
 
-/* ACPI support code */
-
-#if IS_ENABLED(CONFIG_ACPI)
-static int acpi_i2c_add_resource(struct acpi_resource *ares, void *data)
-{
-	struct i2c_board_info *info = data;
-
-	if (ares->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
-		struct acpi_resource_i2c_serialbus *sb;
-
-		sb = &ares->data.i2c_serial_bus;
-		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_I2C) {
-			info->addr = sb->slave_address;
-			if (sb->access_mode == ACPI_I2C_10BIT_MODE)
-				info->flags |= I2C_CLIENT_TEN;
-		}
-	} else if (info->irq < 0) {
-		struct resource r;
-
-		if (acpi_dev_resource_interrupt(ares, 0, &r))
-			info->irq = r.start;
-	}
-
-	/* Tell the ACPI core to skip this resource */
-	return 1;
-}
-
-static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
-				       void *data, void **return_value)
-{
-	struct i2c_adapter *adapter = data;
-	struct list_head resource_list;
-	struct i2c_board_info info;
-	struct acpi_device *adev;
-	int ret;
-
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-	if (acpi_bus_get_status(adev) || !adev->status.present)
-		return AE_OK;
-
-	memset(&info, 0, sizeof(info));
-	info.acpi_node.companion = adev;
-	info.irq = -1;
-
-	INIT_LIST_HEAD(&resource_list);
-	ret = acpi_dev_get_resources(adev, &resource_list,
-				     acpi_i2c_add_resource, &info);
-	acpi_dev_free_resource_list(&resource_list);
-
-	if (ret < 0 || !info.addr)
-		return AE_OK;
-
-	adev->power.flags.ignore_parent = true;
-	strlcpy(info.type, dev_name(&adev->dev), sizeof(info.type));
-	if (!i2c_new_device(adapter, &info)) {
-		adev->power.flags.ignore_parent = false;
-		dev_err(&adapter->dev,
-			"failed to add I2C device %s from ACPI\n",
-			dev_name(&adev->dev));
-	}
-
-	return AE_OK;
-}
-
-/**
- * acpi_i2c_register_devices - enumerate I2C slave devices behind adapter
- * @adap: pointer to adapter
- *
- * Enumerate all I2C slave devices behind this adapter by walking the ACPI
- * namespace. When a device is found it will be added to the Linux device
- * model and bound to the corresponding ACPI handle.
- */
-static void acpi_i2c_register_devices(struct i2c_adapter *adap)
-{
-	acpi_handle handle;
-	acpi_status status;
-
-	if (!adap->dev.parent)
-		return;
-
-	handle = ACPI_HANDLE(adap->dev.parent);
-	if (!handle)
-		return;
-
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
-				     acpi_i2c_add_device, NULL,
-				     adap, NULL);
-	if (ACPI_FAILURE(status))
-		dev_warn(&adap->dev, "failed to enumerate I2C slaves\n");
-}
-#else
-static inline void acpi_i2c_register_devices(struct i2c_adapter *adap) {}
-#endif /* CONFIG_ACPI */
-
 static int i2c_do_add_adapter(struct i2c_driver *driver,
 			      struct i2c_adapter *adap)
 {
@@ -1298,6 +1203,7 @@ exit_recovery:
 	/* create pre-declared device nodes */
 	of_i2c_register_devices(adap);
 	acpi_i2c_register_devices(adap);
+	acpi_i2c_install_space_handler(adap);
 
 	if (adap->nr < __i2c_first_dynamic_bus_num)
 		i2c_scan_static_board_info(adap);
@@ -1471,6 +1377,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 		return;
 	}
 
+	acpi_i2c_remove_space_handler(adap);
 	/* Tell drivers about this removal */
 	mutex_lock(&core_lock);
 	bus_for_each_drv(&i2c_bus_type, NULL, adap,
@@ -2012,6 +1919,16 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	address_list = driver->address_list;
 	if (!driver->detect || !address_list)
 		return 0;
+
+	/* Warn that the adapter lost class based instantiation */
+	if (adapter->class == I2C_CLASS_DEPRECATED) {
+		dev_dbg(&adapter->dev,
+			"This adapter dropped support for I2C classes and "
+			"won't auto-detect %s devices anymore. If you need it, check "
+			"'Documentation/i2c/instantiating-devices' for alternatives.\n",
+			driver->driver.name);
+		return 0;
+	}
 
 	/* Stop here if the classes do not match */
 	if (!(adapter->class & driver->class))

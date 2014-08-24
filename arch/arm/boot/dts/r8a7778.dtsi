@@ -156,6 +156,48 @@
 		status = "disabled";
 	};
 
+	scif0: serial@ffe40000 {
+		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		reg = <0xffe40000 0x100>;
+		interrupts = <0 70 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scif1: serial@ffe41000 {
+		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		reg = <0xffe41000 0x100>;
+		interrupts = <0 71 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scif2: serial@ffe42000 {
+		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		reg = <0xffe42000 0x100>;
+		interrupts = <0 72 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scif3: serial@ffe43000 {
+		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		reg = <0xffe43000 0x100>;
+		interrupts = <0 73 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scif4: serial@ffe44000 {
+		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		reg = <0xffe44000 0x100>;
+		interrupts = <0 74 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scif5: serial@ffe45000 {
+		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		reg = <0xffe45000 0x100>;
+		interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	mmcif: mmc@ffe4e000 {
 		compatible = "renesas,sh-mmcif";
 		reg = <0xffe4e000 0x100>;

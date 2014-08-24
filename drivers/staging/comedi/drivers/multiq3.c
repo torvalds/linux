@@ -28,8 +28,6 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#define MULTIQ3_SIZE 16
-
 /*
  * MULTIQ-3 port offsets
  */
@@ -189,12 +187,12 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	int n;
 	int chan = CR_CHAN(insn->chanspec);
 	int control = MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan << 3);
+	int value;
+	int n;
 
 	for (n = 0; n < insn->n; n++) {
-		int value;
 		outw(control, dev->iobase + MULTIQ3_CONTROL);
 		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CONTROL);
 		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase + MULTIQ3_ENC_CONTROL);
@@ -233,7 +231,7 @@ static int multiq3_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], MULTIQ3_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 

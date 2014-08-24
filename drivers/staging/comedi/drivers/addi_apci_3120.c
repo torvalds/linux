@@ -88,7 +88,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	devpriv->us_UseDma = ADDI_ENABLE;
+	devpriv->us_UseDma = 1;
 
 	/* Allocate DMA buffers */
 	devpriv->b_DmaDoubleBuffer = 0;
@@ -109,7 +109,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		}
 	}
 	if (!devpriv->ul_DmaBufferVirtual[0])
-		devpriv->us_UseDma = ADDI_DISABLE;
+		devpriv->us_UseDma = 0;
 
 	if (devpriv->ul_DmaBufferVirtual[1])
 		devpriv->b_DmaDoubleBuffer = 1;
@@ -125,13 +125,10 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->subdev_flags =
 		SDF_READABLE | SDF_COMMON | SDF_GROUND
 		| SDF_DIFF;
-	if (this_board->i_NbrAiChannel) {
+	if (this_board->i_NbrAiChannel)
 		s->n_chan = this_board->i_NbrAiChannel;
-		devpriv->b_SingelDiff = 0;
-	} else {
+	else
 		s->n_chan = this_board->i_NbrAiChannelDiff;
-		devpriv->b_SingelDiff = 1;
-	}
 	s->maxdata = this_board->i_AiMaxdata;
 	s->len_chanlist = this_board->i_AiChannelList;
 	s->range_table = &range_apci3120_ai;

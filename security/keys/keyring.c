@@ -73,6 +73,8 @@ static inline unsigned keyring_hash(const char *desc)
  * can be treated as ordinary keys in addition to having their own special
  * operations.
  */
+static int keyring_preparse(struct key_preparsed_payload *prep);
+static void keyring_free_preparse(struct key_preparsed_payload *prep);
 static int keyring_instantiate(struct key *keyring,
 			       struct key_preparsed_payload *prep);
 static void keyring_revoke(struct key *keyring);
@@ -84,6 +86,8 @@ static long keyring_read(const struct key *keyring,
 struct key_type key_type_keyring = {
 	.name		= "keyring",
 	.def_datalen	= 0,
+	.preparse	= keyring_preparse,
+	.free_preparse	= keyring_free_preparse,
 	.instantiate	= keyring_instantiate,
 	.match		= user_match,
 	.revoke		= keyring_revoke,
@@ -123,6 +127,21 @@ static void keyring_publish_name(struct key *keyring)
 }
 
 /*
+ * Preparse a keyring payload
+ */
+static int keyring_preparse(struct key_preparsed_payload *prep)
+{
+	return prep->datalen != 0 ? -EINVAL : 0;
+}
+
+/*
+ * Free a preparse of a user defined key payload
+ */
+static void keyring_free_preparse(struct key_preparsed_payload *prep)
+{
+}
+
+/*
  * Initialise a keyring.
  *
  * Returns 0 on success, -EINVAL if given any data.
@@ -130,17 +149,10 @@ static void keyring_publish_name(struct key *keyring)
 static int keyring_instantiate(struct key *keyring,
 			       struct key_preparsed_payload *prep)
 {
-	int ret;
-
-	ret = -EINVAL;
-	if (prep->datalen == 0) {
-		assoc_array_init(&keyring->keys);
-		/* make the keyring available by name if it has one */
-		keyring_publish_name(keyring);
-		ret = 0;
-	}
-
-	return ret;
+	assoc_array_init(&keyring->keys);
+	/* make the keyring available by name if it has one */
+	keyring_publish_name(keyring);
+	return 0;
 }
 
 /*

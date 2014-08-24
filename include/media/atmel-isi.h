@@ -106,6 +106,8 @@
 #define ISI_DATAWIDTH_8				0x01
 #define ISI_DATAWIDTH_10			0x02
 
+struct v4l2_async_subdev;
+
 struct isi_platform_data {
 	u8 has_emb_sync;
 	u8 emb_crc_sync;
@@ -118,6 +120,8 @@ struct isi_platform_data {
 	u32 frate;
 	/* Using for ISI_MCK */
 	u32 mck_hz;
+	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
+	int *asd_sizes;		/* 0-terminated array of asd group sizes */
 };
 
 #endif /* __ATMEL_ISI_H__ */

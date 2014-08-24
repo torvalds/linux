@@ -101,65 +101,6 @@
 #define ADIS16260_SCAN_TEMP	3
 #define ADIS16260_SCAN_ANGL	4
 
-static ssize_t adis16260_read_frequency(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct adis *adis = iio_priv(indio_dev);
-	int ret, len = 0;
-	u16 t;
-	int sps;
-	ret = adis_read_reg_16(adis, ADIS16260_SMPL_PRD, &t);
-	if (ret)
-		return ret;
-
-	if (spi_get_device_id(adis->spi)->driver_data) /* If an adis16251 */
-		sps = (t & ADIS16260_SMPL_PRD_TIME_BASE) ? 8 : 256;
-	else
-		sps = (t & ADIS16260_SMPL_PRD_TIME_BASE) ? 66 : 2048;
-	sps /= (t & ADIS16260_SMPL_PRD_DIV_MASK) + 1;
-	len = sprintf(buf, "%d\n", sps);
-	return len;
-}
-
-static ssize_t adis16260_write_frequency(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct adis *adis = iio_priv(indio_dev);
-	unsigned int val;
-	int ret;
-	u8 t;
-
-	ret = kstrtouint(buf, 10, &val);
-	if (ret)
-		return ret;
-
-	mutex_lock(&indio_dev->mlock);
-	if (spi_get_device_id(adis->spi)->driver_data)
-		t = 256 / val;
-	else
-		t = 2048 / val;
-
-	if (t > ADIS16260_SMPL_PRD_DIV_MASK)
-		t = ADIS16260_SMPL_PRD_DIV_MASK;
-	else if (t > 0)
-		t--;
-
-	if (t >= 0x0A)
-		adis->spi->max_speed_hz = ADIS16260_SPI_SLOW;
-	else
-		adis->spi->max_speed_hz = ADIS16260_SPI_FAST;
-	ret = adis_write_reg_8(adis, ADIS16260_SMPL_PRD, t);
-
-	mutex_unlock(&indio_dev->mlock);
-
-	return ret ? ret : len;
-}
-
 /* Power down the device */
 static int adis16260_stop_device(struct iio_dev *indio_dev)
 {
@@ -174,18 +115,19 @@ static int adis16260_stop_device(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
-		adis16260_read_frequency,
-		adis16260_write_frequency);
-
 static const struct iio_chan_spec adis16260_channels[] = {
 	ADIS_GYRO_CHAN(X, ADIS16260_GYRO_OUT, ADIS16260_SCAN_GYRO,
 		BIT(IIO_CHAN_INFO_CALIBBIAS) |
-		BIT(IIO_CHAN_INFO_CALIBSCALE), 14),
-	ADIS_INCLI_CHAN(X, ADIS16260_ANGL_OUT, ADIS16260_SCAN_ANGL, 0, 14),
-	ADIS_TEMP_CHAN(ADIS16260_TEMP_OUT, ADIS16260_SCAN_TEMP, 12),
-	ADIS_SUPPLY_CHAN(ADIS16260_SUPPLY_OUT, ADIS16260_SCAN_SUPPLY, 12),
-	ADIS_AUX_ADC_CHAN(ADIS16260_AUX_ADC, ADIS16260_SCAN_AUX_ADC, 12),
+		BIT(IIO_CHAN_INFO_CALIBSCALE),
+		BIT(IIO_CHAN_INFO_SAMP_FREQ), 14),
+	ADIS_INCLI_CHAN(X, ADIS16260_ANGL_OUT, ADIS16260_SCAN_ANGL, 0,
+		BIT(IIO_CHAN_INFO_SAMP_FREQ), 14),
+	ADIS_TEMP_CHAN(ADIS16260_TEMP_OUT, ADIS16260_SCAN_TEMP,
+		BIT(IIO_CHAN_INFO_SAMP_FREQ), 12),
+	ADIS_SUPPLY_CHAN(ADIS16260_SUPPLY_OUT, ADIS16260_SCAN_SUPPLY,
+		BIT(IIO_CHAN_INFO_SAMP_FREQ), 12),
+	ADIS_AUX_ADC_CHAN(ADIS16260_AUX_ADC, ADIS16260_SCAN_AUX_ADC,
+		BIT(IIO_CHAN_INFO_SAMP_FREQ), 12),
 	IIO_CHAN_SOFT_TIMESTAMP(5),
 };
 
@@ -258,6 +200,20 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 
 		*val = val16;
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		ret = adis_read_reg_16(adis, ADIS16260_SMPL_PRD, &val16);
+		if (ret)
+			return ret;
+
+		if (spi_get_device_id(adis->spi)->driver_data)
+		/* If an adis16251 */
+			*val = (val16 & ADIS16260_SMPL_PRD_TIME_BASE) ?
+				8 : 256;
+		else
+			*val = (val16 & ADIS16260_SMPL_PRD_TIME_BASE) ?
+				66 : 2048;
+		*val /= (val16 & ADIS16260_SMPL_PRD_DIV_MASK) + 1;
+		return IIO_VAL_INT;
 	}
 	return -EINVAL;
 }
@@ -269,7 +225,9 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 			       long mask)
 {
 	struct adis *adis = iio_priv(indio_dev);
+	int ret;
 	u8 addr;
+	u8 t;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -284,21 +242,31 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 
 		addr = adis16260_addresses[chan->scan_index][1];
 		return adis_write_reg_16(adis, addr, val);
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		mutex_lock(&indio_dev->mlock);
+		if (spi_get_device_id(adis->spi)->driver_data)
+			t = 256 / val;
+		else
+			t = 2048 / val;
+
+		if (t > ADIS16260_SMPL_PRD_DIV_MASK)
+			t = ADIS16260_SMPL_PRD_DIV_MASK;
+		else if (t > 0)
+			t--;
+
+		if (t >= 0x0A)
+			adis->spi->max_speed_hz = ADIS16260_SPI_SLOW;
+		else
+			adis->spi->max_speed_hz = ADIS16260_SPI_FAST;
+		ret = adis_write_reg_8(adis, ADIS16260_SMPL_PRD, t);
+
+		mutex_unlock(&indio_dev->mlock);
+		return ret;
 	}
 	return -EINVAL;
 }
 
-static struct attribute *adis16260_attributes[] = {
-	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group adis16260_attribute_group = {
-	.attrs = adis16260_attributes,
-};
-
 static const struct iio_info adis16260_info = {
-	.attrs = &adis16260_attribute_group,
 	.read_raw = &adis16260_read_raw,
 	.write_raw = &adis16260_write_raw,
 	.update_scan_mode = adis_update_scan_mode,

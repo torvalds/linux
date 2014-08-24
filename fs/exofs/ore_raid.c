@@ -116,7 +116,7 @@ static int _sp2d_alloc(unsigned pages_in_unit, unsigned group_width,
 			num_a1pa = min_t(unsigned, PAGE_SIZE / sizeof__a1pa,
 							pages_in_unit - i);
 
-			__a1pa = kzalloc(num_a1pa * sizeof__a1pa, GFP_KERNEL);
+			__a1pa = kcalloc(num_a1pa, sizeof__a1pa, GFP_KERNEL);
 			if (unlikely(!__a1pa)) {
 				ORE_DBGMSG("!! Failed to _alloc_1p_arrays=%d\n",
 					   num_a1pa);

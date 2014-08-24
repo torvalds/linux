@@ -1671,9 +1671,12 @@ static bool __init supported_pmu(void)
 
 static int __init init_hw_perf_events(void)
 {
+	int err;
+
 	pr_info("Performance events: ");
 
-	if (!supported_pmu()) {
+	err = pcr_arch_init();
+	if (err || !supported_pmu()) {
 		pr_cont("No support for PMU type '%s'\n", sparc_pmu_type);
 		return 0;
 	}
@@ -1685,7 +1688,7 @@ static int __init init_hw_perf_events(void)
 
 	return 0;
 }
-early_initcall(init_hw_perf_events);
+pure_initcall(init_hw_perf_events);
 
 void perf_callchain_kernel(struct perf_callchain_entry *entry,
 			   struct pt_regs *regs)

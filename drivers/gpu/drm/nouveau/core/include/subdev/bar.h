@@ -20,6 +20,9 @@ struct nouveau_bar {
 		    u32 flags, struct nouveau_vma *);
 	void (*unmap)(struct nouveau_bar *, struct nouveau_vma *);
 	void (*flush)(struct nouveau_bar *);
+
+	/* whether the BAR supports to be ioremapped WC or should be uncached */
+	bool iomap_uncached;
 };
 
 static inline struct nouveau_bar *
@@ -30,5 +33,6 @@ nouveau_bar(void *obj)
 
 extern struct nouveau_oclass nv50_bar_oclass;
 extern struct nouveau_oclass nvc0_bar_oclass;
+extern struct nouveau_oclass gk20a_bar_oclass;
 
 #endif

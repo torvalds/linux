@@ -53,8 +53,7 @@
 #define KEY_CTL_CCMP        0x03
 #define KEY_CTL_INVALID     0xFF
 
-typedef struct tagSKeyItem
-{
+typedef struct tagSKeyItem {
 	bool bKeyValid;
 	unsigned long uKeyLength;
 	unsigned char abyKey[MAX_KEY_LEN];
@@ -67,8 +66,7 @@ typedef struct tagSKeyItem
 	void *pvKeyTable;
 } SKeyItem, *PSKeyItem; //64
 
-typedef struct tagSKeyTable
-{
+typedef struct tagSKeyTable {
 	unsigned char abyBSSID[ETH_ALEN];  //6
 	unsigned char byReserved0[2];              //8
 	SKeyItem    PairwiseKey;
@@ -82,8 +80,7 @@ typedef struct tagSKeyTable
 	unsigned char byReserved1[6];
 } SKeyTable, *PSKeyTable; //348
 
-typedef struct tagSKeyManagement
-{
+typedef struct tagSKeyManagement {
 	SKeyTable   KeyTable[MAX_KEY_TABLE];
 } SKeyManagement, *PSKeyManagement;
 
@@ -97,7 +94,7 @@ typedef struct tagSKeyManagement
 
 /*---------------------  Export Functions  --------------------------*/
 
-void KeyvInitTable(PSKeyManagement pTable, unsigned long dwIoBase);
+void KeyvInitTable(PSKeyManagement pTable, void __iomem *dwIoBase);
 
 bool KeybGetKey(
 	PSKeyManagement pTable,
@@ -114,7 +111,7 @@ bool KeybSetKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 );
 
@@ -125,7 +122,7 @@ bool KeybSetDefaultKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 );
 
@@ -133,7 +130,7 @@ bool KeybRemoveKey(
 	PSKeyManagement pTable,
 	unsigned char *pbyBSSID,
 	unsigned long dwKeyIndex,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 );
 
 bool KeybGetTransmitKey(
@@ -151,18 +148,18 @@ bool KeybCheckPairewiseKey(
 bool KeybRemoveAllKey(
 	PSKeyManagement pTable,
 	unsigned char *pbyBSSID,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 );
 
 void KeyvRemoveWEPKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 );
 
 void KeyvRemoveAllWEPKey(
 	PSKeyManagement pTable,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 );
 
 bool KeybSetAllGroupKey(
@@ -172,7 +169,7 @@ bool KeybSetAllGroupKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 );
 

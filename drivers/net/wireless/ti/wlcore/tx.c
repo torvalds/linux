@@ -126,7 +126,7 @@ static void wl1271_tx_regulate_link(struct wl1271 *wl,
 	if (WARN_ON(!test_bit(hlid, wlvif->links_map)))
 		return;
 
-	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+	fw_ps = test_bit(hlid, &wl->ap_fw_ps_map);
 	tx_pkts = wl->links[hlid].allocated_pkts;
 
 	/*

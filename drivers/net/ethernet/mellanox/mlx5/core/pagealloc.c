@@ -51,7 +51,7 @@ enum {
 
 struct mlx5_pages_req {
 	struct mlx5_core_dev *dev;
-	u32	func_id;
+	u16	func_id;
 	s32	npages;
 	struct work_struct work;
 };

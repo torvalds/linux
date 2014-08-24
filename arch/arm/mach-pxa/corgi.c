@@ -514,7 +514,7 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	.gpio_pullup		= CORGI_GPIO_USB_PULLUP,
 };
 
-#if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MASTER)
+#if IS_ENABLED(CONFIG_SPI_PXA2XX)
 static struct pxa2xx_spi_master corgi_spi_info = {
 	.num_chipselect	= 3,
 };

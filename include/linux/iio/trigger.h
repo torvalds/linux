@@ -129,12 +129,11 @@ void iio_trigger_unregister(struct iio_trigger *trig_info);
 /**
  * iio_trigger_poll() - called on a trigger occurring
  * @trig:	trigger which occurred
- * @time:	timestamp when trigger occurred
  *
  * Typically called in relevant hardware interrupt handler.
  **/
-void iio_trigger_poll(struct iio_trigger *trig, s64 time);
-void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time);
+void iio_trigger_poll(struct iio_trigger *trig);
+void iio_trigger_poll_chained(struct iio_trigger *trig);
 
 irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 

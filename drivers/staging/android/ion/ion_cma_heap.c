@@ -76,10 +76,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		return -EINVAL;
 
 	info = kzalloc(sizeof(struct ion_cma_buffer_info), GFP_KERNEL);
-	if (!info) {
-		dev_err(dev, "Can't allocate buffer info\n");
+	if (!info)
 		return ION_CMA_ALLOCATE_FAILED;
-	}
 
 	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
 						GFP_HIGHUSER | __GFP_ZERO);
@@ -90,10 +88,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	}
 
 	info->table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!info->table) {
-		dev_err(dev, "Fail to allocate sg table\n");
+	if (!info->table)
 		goto free_mem;
-	}
 
 	if (ion_cma_get_sgtable
 	    (dev, info->table, info->cpu_addr, info->handle, len))
@@ -155,7 +151,6 @@ static struct sg_table *ion_cma_heap_map_dma(struct ion_heap *heap,
 static void ion_cma_heap_unmap_dma(struct ion_heap *heap,
 				   struct ion_buffer *buffer)
 {
-	return;
 }
 
 static int ion_cma_mmap(struct ion_heap *mapper, struct ion_buffer *buffer,

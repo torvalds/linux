@@ -37,12 +37,10 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
 #include <plat/devs.h>
 #include <plat/nand-core.h>
-#include <plat/pll.h>
 #include <plat/pm.h>
 #include <plat/regs-spi.h>
 
@@ -169,10 +167,6 @@ void __init s3c2412_map_io(void)
 	/* register our io-tables */
 
 	iotable_init(s3c2412_iodesc, ARRAY_SIZE(s3c2412_iodesc));
-}
-
-void __init_or_cpufreq s3c2412_setup_clocks(void)
-{
 }
 
 /* need to register the subsystem before we actually register the device, and

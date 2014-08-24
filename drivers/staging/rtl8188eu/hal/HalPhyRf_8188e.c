@@ -1,5 +1,4 @@
-
-/******************************************************************************
+/*
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
@@ -15,39 +14,47 @@
  * You should have received a copy of the GNU General Public License along with
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ */
 
 #include "odm_precomp.h"
 
-/*---------------------------Define Local Constant---------------------------*/
 /*  2010/04/25 MH Define the max tx power tracking tx agc power. */
 #define		ODM_TXPWRTRACK_MAX_IDX_88E		6
 
-/*---------------------------Define Local Constant---------------------------*/
 
-/* 3============================================================ */
+static u8 ODM_GetRightChnlPlaceforIQK(u8 chnl)
+{
+	u8	channel_all[ODM_TARGET_CHNL_NUM_2G_5G] = {
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+		36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64,
+		100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122,
+		124, 126, 128, 130, 132, 134, 136, 138, 140, 149, 151, 153,
+		155, 157, 159, 161, 163, 165
+	};
+	u8	place = chnl;
+
+	if (chnl > 14) {
+		for (place = 14; place < sizeof(channel_all); place++) {
+			if (channel_all[place] == chnl)
+				return place-13;
+		}
+	}
+	return 0;
+}
+
 /* 3 Tx Power Tracking */
-/* 3============================================================ */
-/*-----------------------------------------------------------------------------
+/*
  * Function:	ODM_TxPwrTrackAdjust88E()
  *
  * Overview:	88E we can not write 0xc80/c94/c4c/ 0xa2x. Instead of write TX agc.
  *				No matter OFDM & CCK use the same method.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
  *
  * Revised History:
  *	When		Who		Remark
  *	04/23/2012	MHC		Create Version 0.
  *	04/23/2012	MHC		Adjust TX agc directly not throughput BB digital.
  *
- *---------------------------------------------------------------------------*/
+ */
 void ODM_TxPwrTrackAdjust88E(struct odm_dm_struct *dm_odm, u8 Type,/*  0 = OFDM, 1 = CCK */
 	u8 *pDirection, 		/*  1 = +(increase) 2 = -(decrease) */
 	u32 *pOutWriteVal		/*  Tx tracking CCK/OFDM BB swing index adjust */
@@ -96,23 +103,12 @@ void ODM_TxPwrTrackAdjust88E(struct odm_dm_struct *dm_odm, u8 Type,/*  0 = OFDM,
 	*pOutWriteVal = pwr_value | (pwr_value<<8) | (pwr_value<<16) | (pwr_value<<24);
 }	/*  ODM_TxPwrTrackAdjust88E */
 
-/*-----------------------------------------------------------------------------
+/*
  * Function:	odm_TxPwrTrackSetPwr88E()
  *
  * Overview:	88E change all channel tx power accordign to flag.
  *				OFDM & CCK are all different.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	04/23/2012	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
+ */
 static void odm_TxPwrTrackSetPwr88E(struct odm_dm_struct *dm_odm)
 {
 	if (dm_odm->BbSwingFlagOfdm || dm_odm->BbSwingFlagCck) {
@@ -123,7 +119,6 @@ static void odm_TxPwrTrackSetPwr88E(struct odm_dm_struct *dm_odm)
 	}
 }	/*  odm_TxPwrTrackSetPwr88E */
 
-/* 091212 chiyokolin */
 void
 odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	struct adapter *Adapter
@@ -455,8 +450,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 		}
 
 		if (delta_IQK >= 8) { /*  Delta temperature is equal to or larger than 20 centigrade. */
-			ODM_ResetIQKResult(dm_odm);
-
 			dm_odm->RFCalibrateInfo.ThermalValue_IQK = ThermalValue;
 			PHY_IQCalibrate_8188E(Adapter, false);
 		}
@@ -471,7 +464,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 
 /* 1 7.	IQK */
 #define MAX_TOLERANCE		5
-#define IQK_DELAY_TIME		1		/* ms */
 
 static u8 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
 phy_PathA_IQK_8188E(struct adapter *adapt, bool configPathB)
@@ -827,9 +819,9 @@ static void _PHY_SaveMACRegisters(
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Save MAC parameters.\n"));
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		MACBackup[i] = rtw_read8(adapt, MACReg[i]);
+		MACBackup[i] = usb_read8(adapt, MACReg[i]);
 	}
-	MACBackup[i] = rtw_read32(adapt, MACReg[i]);
+	MACBackup[i] = usb_read32(adapt, MACReg[i]);
 }
 
 static void reload_adda_reg(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
@@ -856,9 +848,9 @@ _PHY_ReloadMACRegisters(
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Reload MAC parameters !\n"));
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(adapt, MACReg[i], (u8)MACBackup[i]);
+		usb_write8(adapt, MACReg[i], (u8)MACBackup[i]);
 	}
-	rtw_write32(adapt, MACReg[i], MACBackup[i]);
+	usb_write32(adapt, MACReg[i], MACBackup[i]);
 }
 
 void
@@ -900,12 +892,12 @@ _PHY_MACSettingCalibration(
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("MAC settings for Calibration.\n"));
 
-	rtw_write8(adapt, MACReg[i], 0x3F);
+	usb_write8(adapt, MACReg[i], 0x3F);
 
 	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
+		usb_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
 	}
-	rtw_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
+	usb_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
 }
 
 void
@@ -1213,12 +1205,12 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	u32 RF_Amode = 0, RF_Bmode = 0, LC_Cal;
 
 	/* Check continuous TX and Packet TX */
-	tmpreg = rtw_read8(adapt, 0xd03);
+	tmpreg = usb_read8(adapt, 0xd03);
 
 	if ((tmpreg&0x70) != 0)			/* Deal with contisuous TX case */
-		rtw_write8(adapt, 0xd03, tmpreg&0x8F);	/* disable all continuous TX */
+		usb_write8(adapt, 0xd03, tmpreg&0x8F);	/* disable all continuous TX */
 	else							/*  Deal with Packet TX case */
-		rtw_write8(adapt, REG_TXPAUSE, 0xFF);			/*  block all queues */
+		usb_write8(adapt, REG_TXPAUSE, 0xFF);			/*  block all queues */
 
 	if ((tmpreg&0x70) != 0) {
 		/* 1. Read original RF mode */
@@ -1250,7 +1242,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	if ((tmpreg&0x70) != 0) {
 		/* Deal with continuous TX case */
 		/* Path-A */
-		rtw_write8(adapt, 0xd03, tmpreg);
+		usb_write8(adapt, 0xd03, tmpreg);
 		PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
 
 		/* Path-B */
@@ -1258,7 +1250,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 			PHY_SetRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits, RF_Bmode);
 	} else {
 		/*  Deal with Packet TX case */
-		rtw_write8(adapt, REG_TXPAUSE, 0x00);
+		usb_write8(adapt, REG_TXPAUSE, 0x00);
 	}
 }
 
@@ -1266,7 +1258,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	struct mpt_context *pMptCtx = &(adapt->mppriv.MptCtx);
 	s32 result[4][8];	/* last is final result */
 	u8 i, final_candidate, Indexforchannel;
 	bool pathaok, pathbok;
@@ -1285,11 +1276,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
-
-	if (*(dm_odm->mp_mode) == 1) {
-		singletone = pMptCtx->bSingleTone;
-		carrier_sup = pMptCtx->bCarrierSuppression;
-	}
 
 	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
 	if (singletone || carrier_sup)
@@ -1418,12 +1404,7 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 	u32 timeout = 2000, timecount = 0;
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	struct mpt_context *pMptCtx = &(adapt->mppriv.MptCtx);
 
-	if (*(dm_odm->mp_mode) == 1) {
-		singletone = pMptCtx->bSingleTone;
-		carrier_sup = pMptCtx->bCarrierSuppression;
-	}
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
 	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
@@ -1454,8 +1435,8 @@ static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2
 {
 	if (!adapt->hw_init_completed) {
 		u8 u1btmp;
-		u1btmp = rtw_read8(adapt, REG_LEDCFG2) | BIT7;
-		rtw_write8(adapt, REG_LEDCFG2, u1btmp);
+		u1btmp = usb_read8(adapt, REG_LEDCFG2) | BIT7;
+		usb_write8(adapt, REG_LEDCFG2, u1btmp);
 		PHY_SetBBReg(adapt, rFPGA0_XAB_RFParameter, BIT13, 0x01);
 	}
 

@@ -381,8 +381,8 @@ struct mlx5_buf {
 	struct mlx5_buf_list   *page_list;
 	int			nbufs;
 	int			npages;
-	int			page_shift;
 	int			size;
+	u8			page_shift;
 };
 
 struct mlx5_eq {
@@ -543,6 +543,10 @@ struct mlx5_priv {
 	/* protect mkey key part */
 	spinlock_t		mkey_lock;
 	u8			mkey_key;
+
+	struct list_head        dev_list;
+	struct list_head        ctx_list;
+	spinlock_t              ctx_lock;
 };
 
 struct mlx5_core_dev {
@@ -555,7 +559,7 @@ struct mlx5_core_dev {
 	struct mlx5_init_seg __iomem *iseg;
 	void			(*event) (struct mlx5_core_dev *dev,
 					  enum mlx5_dev_event event,
-					  void *data);
+					  unsigned long param);
 	struct mlx5_priv	priv;
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
@@ -604,8 +608,8 @@ struct mlx5_cmd_work_ent {
 	int			page_queue;
 	u8			status;
 	u8			token;
-	struct timespec		ts1;
-	struct timespec		ts2;
+	u64			ts1;
+	u64			ts2;
 	u16			op;
 };
 
@@ -686,8 +690,6 @@ static inline u32 mlx5_base_mkey(const u32 key)
 	return key & 0xffffff00u;
 }
 
-int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev);
-void mlx5_dev_cleanup(struct mlx5_core_dev *dev);
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
 void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
@@ -734,7 +736,7 @@ int mlx5_core_dump_fill_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn);
 int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn);
 int mlx5_core_mad_ifc(struct mlx5_core_dev *dev, void *inb, void *outb,
-		      u16 opmod, int port);
+		      u16 opmod, u8 port);
 void mlx5_pagealloc_init(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
 int mlx5_pagealloc_start(struct mlx5_core_dev *dev);
@@ -767,7 +769,7 @@ void mlx5_qp_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
-int mlx5_set_port_caps(struct mlx5_core_dev *dev, int port_num, u32 caps);
+int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
 
 int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
@@ -811,9 +813,20 @@ enum {
 	MAX_MR_CACHE_ENTRIES    = 16,
 };
 
+struct mlx5_interface {
+	void *			(*add)(struct mlx5_core_dev *dev);
+	void			(*remove)(struct mlx5_core_dev *dev, void *context);
+	void			(*event)(struct mlx5_core_dev *dev, void *context,
+					 enum mlx5_dev_event event, unsigned long param);
+	struct list_head	list;
+};
+
+int mlx5_register_interface(struct mlx5_interface *intf);
+void mlx5_unregister_interface(struct mlx5_interface *intf);
+
 struct mlx5_profile {
 	u64	mask;
-	u32	log_max_qp;
+	u8	log_max_qp;
 	struct {
 		int	size;
 		int	limit;

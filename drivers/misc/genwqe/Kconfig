@@ -11,3 +11,9 @@ menuconfig GENWQE
 	  Enables PCIe card driver for IBM GenWQE accelerators.
 	  The user-space interface is described in
 	  include/linux/genwqe/genwqe_card.h.
+
+config GENWQE_PLATFORM_ERROR_RECOVERY
+	int "Use platform recovery procedures (0=off, 1=on)"
+	depends on GENWQE
+	default 1 if PPC64
+	default 0

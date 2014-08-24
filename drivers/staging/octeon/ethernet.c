@@ -471,7 +471,6 @@ int cvm_oct_common_init(struct net_device *dev)
 	dev->features |= NETIF_F_LLTX;
 	dev->ethtool_ops = &cvm_oct_ethtool_ops;
 
-	cvm_oct_phy_setup_device(dev);
 	cvm_oct_set_mac_filter(dev);
 	dev->netdev_ops->ndo_change_mtu(dev, dev->mtu);
 
@@ -722,6 +721,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 			/* Initialize the device private structure. */
 			priv = netdev_priv(dev);
+			priv->netdev = dev;
 			priv->of_node = cvm_oct_node_for_port(pip, interface,
 								port_index);
 

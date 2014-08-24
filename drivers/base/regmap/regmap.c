@@ -1073,6 +1073,19 @@ struct regmap *dev_get_regmap(struct device *dev, const char *name)
 }
 EXPORT_SYMBOL_GPL(dev_get_regmap);
 
+/**
+ * regmap_get_device(): Obtain the device from a regmap
+ *
+ * @map: Register map to operate on.
+ *
+ * Returns the underlying device that the regmap has been created for.
+ */
+struct device *regmap_get_device(struct regmap *map)
+{
+	return map->dev;
+}
+EXPORT_SYMBOL_GPL(regmap_get_device);
+
 static int _regmap_select_page(struct regmap *map, unsigned int *reg,
 			       struct regmap_range_node *range,
 			       unsigned int val_num)

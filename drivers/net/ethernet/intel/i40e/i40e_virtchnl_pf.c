@@ -347,10 +347,6 @@ static int i40e_config_vsi_rx_queue(struct i40e_vf *vf, u16 vsi_idx,
 	rx_ctx.dsize = 1;
 
 	/* default values */
-	rx_ctx.tphrdesc_ena = 1;
-	rx_ctx.tphwdesc_ena = 1;
-	rx_ctx.tphdata_ena = 1;
-	rx_ctx.tphhead_ena = 1;
 	rx_ctx.lrxqthresh = 2;
 	rx_ctx.crcstrip = 1;
 	rx_ctx.prefena = 1;
@@ -673,7 +669,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	 */
 	for (i = 0; i < 100; i++) {
 		/* vf reset requires driver to first reset the
-		 * vf & than poll the status register to make sure
+		 * vf and then poll the status register to make sure
 		 * that the requested op was completed
 		 * successfully
 		 */
@@ -1007,10 +1003,18 @@ int i40e_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 				  u32 v_retval, u8 *msg, u16 msglen)
 {
-	struct i40e_pf *pf = vf->pf;
-	struct i40e_hw *hw = &pf->hw;
-	int true_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
+	struct i40e_pf *pf;
+	struct i40e_hw *hw;
+	int abs_vf_id;
 	i40e_status aq_ret;
+
+	/* validate the request */
+	if (!vf || vf->vf_id >= vf->pf->num_alloc_vfs)
+		return -EINVAL;
+
+	pf = vf->pf;
+	hw = &pf->hw;
+	abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 
 	/* single place to detect unsuccessful return values */
 	if (v_retval) {
@@ -1029,7 +1033,7 @@ static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 		vf->num_valid_msgs++;
 	}
 
-	aq_ret = i40e_aq_send_msg_to_vf(hw, true_vf_id,	v_opcode, v_retval,
+	aq_ret = i40e_aq_send_msg_to_vf(hw, abs_vf_id,	v_opcode, v_retval,
 					msg, msglen, NULL);
 	if (aq_ret) {
 		dev_err(&pf->pdev->dev,
@@ -1167,8 +1171,8 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 	    (struct i40e_virtchnl_promisc_info *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
+	struct i40e_vsi *vsi;
 	bool allmulti = false;
-	bool promisc = false;
 	i40e_status aq_ret;
 
 	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
@@ -1178,17 +1182,10 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
-
-	if (info->flags & I40E_FLAG_VF_UNICAST_PROMISC)
-		promisc = true;
-	aq_ret = i40e_aq_set_vsi_unicast_promiscuous(hw, info->vsi_id,
-						     promisc, NULL);
-	if (aq_ret)
-		goto error_param;
-
+	vsi = pf->vsi[info->vsi_id];
 	if (info->flags & I40E_FLAG_VF_MULTICAST_PROMISC)
 		allmulti = true;
-	aq_ret = i40e_aq_set_vsi_multicast_promiscuous(hw, info->vsi_id,
+	aq_ret = i40e_aq_set_vsi_multicast_promiscuous(hw, vsi->seid,
 						       allmulti, NULL);
 
 error_param:
@@ -1941,13 +1938,18 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 	struct i40e_vf *vf = pf->vf;
 	int i;
 
-	for (i = 0; i < pf->num_alloc_vfs; i++) {
+	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
+		int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
+		/* Not all vfs are enabled so skip the ones that are not */
+		if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
+		    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
+			continue;
+
 		/* Ignore return value on purpose - a given VF may fail, but
 		 * we need to keep going and send to all of them
 		 */
-		i40e_aq_send_msg_to_vf(hw, vf->vf_id, v_opcode, v_retval,
+		i40e_aq_send_msg_to_vf(hw, abs_vf_id, v_opcode, v_retval,
 				       msg, msglen, NULL);
-		vf++;
 	}
 }
 
@@ -1967,7 +1969,8 @@ void i40e_vc_notify_link_state(struct i40e_pf *pf)
 
 	pfe.event = I40E_VIRTCHNL_EVENT_LINK_CHANGE;
 	pfe.severity = I40E_PF_EVENT_SEVERITY_INFO;
-	for (i = 0; i < pf->num_alloc_vfs; i++) {
+	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
+		int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 		if (vf->link_forced) {
 			pfe.event_data.link_event.link_status = vf->link_up;
 			pfe.event_data.link_event.link_speed =
@@ -1977,10 +1980,9 @@ void i40e_vc_notify_link_state(struct i40e_pf *pf)
 				ls->link_info & I40E_AQ_LINK_UP;
 			pfe.event_data.link_event.link_speed = ls->link_speed;
 		}
-		i40e_aq_send_msg_to_vf(hw, vf->vf_id, I40E_VIRTCHNL_OP_EVENT,
+		i40e_aq_send_msg_to_vf(hw, abs_vf_id, I40E_VIRTCHNL_OP_EVENT,
 				       0, (u8 *)&pfe, sizeof(pfe),
 				       NULL);
-		vf++;
 	}
 }
 
@@ -2009,10 +2011,22 @@ void i40e_vc_notify_reset(struct i40e_pf *pf)
 void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
 {
 	struct i40e_virtchnl_pf_event pfe;
+	int abs_vf_id;
+
+	/* validate the request */
+	if (!vf || vf->vf_id >= vf->pf->num_alloc_vfs)
+		return;
+
+	/* verify if the VF is in either init or active before proceeding */
+	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
+	    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
+		return;
+
+	abs_vf_id = vf->vf_id + vf->pf->hw.func_caps.vf_base_id;
 
 	pfe.event = I40E_VIRTCHNL_EVENT_RESET_IMPENDING;
 	pfe.severity = I40E_PF_EVENT_SEVERITY_CERTAIN_DOOM;
-	i40e_aq_send_msg_to_vf(&vf->pf->hw, vf->vf_id, I40E_VIRTCHNL_OP_EVENT,
+	i40e_aq_send_msg_to_vf(&vf->pf->hw, abs_vf_id, I40E_VIRTCHNL_OP_EVENT,
 			       I40E_SUCCESS, (u8 *)&pfe,
 			       sizeof(struct i40e_virtchnl_pf_event), NULL);
 }
@@ -2077,6 +2091,8 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	}
 	ether_addr_copy(vf->default_lan_addr.addr, mac);
 	vf->pf_set_mac = true;
+	/* Force the VF driver stop so it has to reload with new MAC address */
+	i40e_vc_disable_vf(pf, vf);
 	dev_info(&pf->pdev->dev, "Reload the VF driver to make this change effective.\n");
 	ret = 0;
 
@@ -2347,6 +2363,7 @@ int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
 	struct i40e_virtchnl_pf_event pfe;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vf *vf;
+	int abs_vf_id;
 	int ret = 0;
 
 	/* validate the request */
@@ -2357,6 +2374,7 @@ int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
 	}
 
 	vf = &pf->vf[vf_id];
+	abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 
 	pfe.event = I40E_VIRTCHNL_EVENT_LINK_CHANGE;
 	pfe.severity = I40E_PF_EVENT_SEVERITY_INFO;
@@ -2386,7 +2404,7 @@ int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
 		goto error_out;
 	}
 	/* Notify the VF of its new link state */
-	i40e_aq_send_msg_to_vf(hw, vf->vf_id, I40E_VIRTCHNL_OP_EVENT,
+	i40e_aq_send_msg_to_vf(hw, abs_vf_id, I40E_VIRTCHNL_OP_EVENT,
 			       0, (u8 *)&pfe, sizeof(pfe), NULL);
 
 error_out:

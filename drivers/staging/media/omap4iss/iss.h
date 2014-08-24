@@ -97,7 +97,7 @@ struct iss_device {
 	u64 raw_dmamask;
 
 	struct mutex iss_mutex;	/* For handling ref_count field */
-	bool crashed;
+	unsigned int crashed;
 	int has_context;
 	int ref_count;
 

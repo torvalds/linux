@@ -233,9 +233,6 @@ acpi_status acpi_db_load_acpi_table(char *filename);
 acpi_status
 acpi_db_get_table_from_file(char *filename, struct acpi_table_header **table);
 
-acpi_status
-acpi_db_read_table_from_file(char *filename, struct acpi_table_header **table);
-
 /*
  * dbhistry - debugger HISTORY command
  */

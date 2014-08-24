@@ -4,7 +4,3 @@ lov-y := lov_obd.o lov_pack.o lov_offset.o lov_merge.o \
 	 lov_lock.o lov_io.o lovsub_dev.o lovsub_object.o lovsub_page.o      \
 	 lovsub_lock.o lovsub_io.o lov_pool.o
 lov-$(CONFIG_PROC_FS) += lproc_lov.o
-
-
-
-ccflags-y := -I$(src)/../include

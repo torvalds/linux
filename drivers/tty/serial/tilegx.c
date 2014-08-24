@@ -314,15 +314,6 @@ static void tilegx_stop_rx(struct uart_port *port)
 	mutex_unlock(&tile_uart->mutex);
 }
 
-
-/*
- * Enable modem status interrupts.
- */
-static void tilegx_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 /*
  * Control the transmission of a break signal.
  */
@@ -614,7 +605,6 @@ static const struct uart_ops tilegx_ops = {
 	.stop_tx	= tilegx_stop_tx,
 	.start_tx	= tilegx_start_tx,
 	.stop_rx	= tilegx_stop_rx,
-	.enable_ms	= tilegx_enable_ms,
 	.break_ctl	= tilegx_break_ctl,
 	.startup	= tilegx_startup,
 	.shutdown	= tilegx_shutdown,

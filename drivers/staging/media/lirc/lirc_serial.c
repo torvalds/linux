@@ -782,7 +782,7 @@ static int lirc_serial_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
 
-	result = request_irq(irq, lirc_irq_handler,
+	result = devm_request_irq(&dev->dev, irq, lirc_irq_handler,
 			     (share_irq ? IRQF_SHARED : 0),
 			     LIRC_DRIVER_NAME, (void *)&hardware);
 	if (result < 0) {
@@ -800,22 +800,22 @@ static int lirc_serial_probe(struct platform_device *dev)
 	 * for the NSLU2 it's done in boot code.
 	 */
 	if (((iommap != 0)
-	     && (request_mem_region(iommap, 8 << ioshift,
-				    LIRC_DRIVER_NAME) == NULL))
+	     && (devm_request_mem_region(&dev->dev, iommap, 8 << ioshift,
+					 LIRC_DRIVER_NAME) == NULL))
 	   || ((iommap == 0)
-	       && (request_region(io, 8, LIRC_DRIVER_NAME) == NULL))) {
+	       && (devm_request_region(&dev->dev, io, 8,
+				       LIRC_DRIVER_NAME) == NULL))) {
 		dev_err(&dev->dev, "port %04x already in use\n", io);
 		dev_warn(&dev->dev, "use 'setserial /dev/ttySX uart none'\n");
 		dev_warn(&dev->dev,
 			 "or compile the serial port driver as module and\n");
 		dev_warn(&dev->dev, "make sure this module is loaded first\n");
-		result = -EBUSY;
-		goto exit_free_irq;
+		return -EBUSY;
 	}
 
 	result = hardware_init_port();
 	if (result < 0)
-		goto exit_release_region;
+		return result;
 
 	/* Initialize pulse/space widths */
 	init_timing_params(duty_cycle, freq);
@@ -846,28 +846,6 @@ static int lirc_serial_probe(struct platform_device *dev)
 			 sense ? "low" : "high");
 
 	dprintk("Interrupt %d, port %04x obtained\n", irq, io);
-	return 0;
-
-exit_release_region:
-	if (iommap != 0)
-		release_mem_region(iommap, 8 << ioshift);
-	else
-		release_region(io, 8);
-exit_free_irq:
-	free_irq(irq, (void *)&hardware);
-
-	return result;
-}
-
-static int lirc_serial_remove(struct platform_device *dev)
-{
-	free_irq(irq, (void *)&hardware);
-
-	if (iommap != 0)
-		release_mem_region(iommap, 8 << ioshift);
-	else
-		release_region(io, 8);
-
 	return 0;
 }
 
@@ -1081,7 +1059,6 @@ static int lirc_serial_resume(struct platform_device *dev)
 
 static struct platform_driver lirc_serial_driver = {
 	.probe		= lirc_serial_probe,
-	.remove		= lirc_serial_remove,
 	.suspend	= lirc_serial_suspend,
 	.resume		= lirc_serial_resume,
 	.driver		= {

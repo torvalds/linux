@@ -87,7 +87,6 @@ struct ftdi_sio_quirk {
 };
 
 static int   ftdi_jtag_probe(struct usb_serial *serial);
-static int   ftdi_mtxorb_hack_setup(struct usb_serial *serial);
 static int   ftdi_NDI_device_setup(struct usb_serial *serial);
 static int   ftdi_stmclite_probe(struct usb_serial *serial);
 static int   ftdi_8u2232c_probe(struct usb_serial *serial);
@@ -96,10 +95,6 @@ static void  ftdi_HE_TIRA1_setup(struct ftdi_private *priv);
 
 static struct ftdi_sio_quirk ftdi_jtag_quirk = {
 	.probe	= ftdi_jtag_probe,
-};
-
-static struct ftdi_sio_quirk ftdi_mtxorb_hack_quirk = {
-	.probe  = ftdi_mtxorb_hack_setup,
 };
 
 static struct ftdi_sio_quirk ftdi_NDI_device_quirk = {
@@ -256,14 +251,12 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0124_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0125_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0126_PID) },
-	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0127_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_mtxorb_hack_quirk },
+	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0127_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0128_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0129_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_012A_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_012B_PID) },
-	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_012C_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_mtxorb_hack_quirk },
+	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_012C_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_012D_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_012E_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_012F_PID) },
@@ -302,18 +295,12 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0150_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0151_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0152_PID) },
-	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0153_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_mtxorb_hack_quirk },
-	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0154_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_mtxorb_hack_quirk },
-	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0155_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_mtxorb_hack_quirk },
-	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0156_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_mtxorb_hack_quirk },
-	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0157_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_mtxorb_hack_quirk },
-	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0158_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_mtxorb_hack_quirk },
+	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0153_PID) },
+	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0154_PID) },
+	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0155_PID) },
+	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0156_PID) },
+	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0157_PID) },
+	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0158_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_0159_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_015A_PID) },
 	{ USB_DEVICE(MTXORB_VID, MTXORB_FTDI_RANGE_015B_PID) },
@@ -673,6 +660,8 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_5_PID) },
 	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_6_PID) },
 	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_7_PID) },
+	{ USB_DEVICE(XSENS_VID, XSENS_CONVERTER_PID) },
+	{ USB_DEVICE(XSENS_VID, XSENS_MTW_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_OMNI1509) },
 	{ USB_DEVICE(MOBILITY_VID, MOBILITY_USB_SERIAL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ACTIVE_ROBOTS_PID) },
@@ -1559,45 +1548,40 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 }
 
 
-/* Determine the maximum packet size for the device.  This depends on the chip
- * type and the USB host capabilities.  The value should be obtained from the
- * device descriptor as the chip will use the appropriate values for the host.*/
+/*
+ * Determine the maximum packet size for the device. This depends on the chip
+ * type and the USB host capabilities. The value should be obtained from the
+ * device descriptor as the chip will use the appropriate values for the host.
+ */
 static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_serial *serial = port->serial;
-	struct usb_device *udev = serial->dev;
-
-	struct usb_interface *interface = serial->interface;
+	struct usb_interface *interface = port->serial->interface;
 	struct usb_endpoint_descriptor *ep_desc;
-
 	unsigned num_endpoints;
 	unsigned i;
 
 	num_endpoints = interface->cur_altsetting->desc.bNumEndpoints;
-	dev_info(&udev->dev, "Number of endpoints %d\n", num_endpoints);
-
 	if (!num_endpoints)
 		return;
 
-	/* NOTE: some customers have programmed FT232R/FT245R devices
-	 * with an endpoint size of 0 - not good.  In this case, we
+	/*
+	 * NOTE: Some customers have programmed FT232R/FT245R devices
+	 * with an endpoint size of 0 - not good. In this case, we
 	 * want to override the endpoint descriptor setting and use a
-	 * value of 64 for wMaxPacketSize */
+	 * value of 64 for wMaxPacketSize.
+	 */
 	for (i = 0; i < num_endpoints; i++) {
-		dev_info(&udev->dev, "Endpoint %d MaxPacketSize %d\n", i+1,
-			interface->cur_altsetting->endpoint[i].desc.wMaxPacketSize);
 		ep_desc = &interface->cur_altsetting->endpoint[i].desc;
-		if (ep_desc->wMaxPacketSize == 0) {
+		if (!ep_desc->wMaxPacketSize) {
 			ep_desc->wMaxPacketSize = cpu_to_le16(0x40);
-			dev_info(&udev->dev, "Overriding wMaxPacketSize on endpoint %d\n", i);
+			dev_warn(&port->dev, "Overriding wMaxPacketSize on endpoint %d\n",
+					usb_endpoint_num(ep_desc));
 		}
 	}
 
-	/* set max packet size based on descriptor */
+	/* Set max packet size based on last descriptor. */
 	priv->max_packet_size = usb_endpoint_maxp(ep_desc);
-
-	dev_info(&udev->dev, "Setting MaxPacketSize %d\n", priv->max_packet_size);
 }
 
 
@@ -1861,24 +1845,6 @@ static int ftdi_stmclite_probe(struct usb_serial *serial)
 	    interface == udev->actconfig->interface[1]) {
 		dev_info(&udev->dev, "Ignoring serial port reserved for JTAG\n");
 		return -ENODEV;
-	}
-
-	return 0;
-}
-
-/*
- * The Matrix Orbital VK204-25-USB has an invalid IN endpoint.
- * We have to correct it if we want to read from it.
- */
-static int ftdi_mtxorb_hack_setup(struct usb_serial *serial)
-{
-	struct usb_host_endpoint *ep = serial->dev->ep_in[1];
-	struct usb_endpoint_descriptor *ep_desc = &ep->desc;
-
-	if (ep->enabled && ep_desc->wMaxPacketSize == 0) {
-		ep_desc->wMaxPacketSize = cpu_to_le16(0x40);
-		dev_info(&serial->dev->dev,
-			 "Fixing invalid wMaxPacketSize on read pipe\n");
 	}
 
 	return 0;

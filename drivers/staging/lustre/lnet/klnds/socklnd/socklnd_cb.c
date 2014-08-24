@@ -212,7 +212,7 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 			rc = ksocknal_send_kiov (conn, tx);
 		}
 
-		bufnob = cfs_sock_wmem_queued(conn->ksnc_sock);
+		bufnob = conn->ksnc_sock->sk->sk_wmem_queued;
 		if (rc > 0)		     /* sent something? */
 			conn->ksnc_tx_bufnob += rc; /* account it */
 
@@ -630,7 +630,7 @@ ksocknal_find_conn_locked(ksock_peer_t *peer, ksock_tx_t *tx, int nonblk)
 	list_for_each (tmp, &peer->ksnp_conns) {
 		ksock_conn_t *c  = list_entry(tmp, ksock_conn_t, ksnc_list);
 		int	   nob = atomic_read(&c->ksnc_tx_nob) +
-				    cfs_sock_wmem_queued(c->ksnc_sock);
+				    c->ksnc_sock->sk->sk_wmem_queued;
 		int	   rc;
 
 		LASSERT (!c->ksnc_closing);
@@ -726,7 +726,7 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 	 * FIXME: SOCK_WMEM_QUEUED and SOCK_ERROR could block in __DARWIN8__
 	 * but they're used inside spinlocks a lot.
 	 */
-	bufnob = cfs_sock_wmem_queued(conn->ksnc_sock);
+	bufnob = conn->ksnc_sock->sk->sk_wmem_queued;
 	spin_lock_bh(&sched->kss_lock);
 
 	if (list_empty(&conn->ksnc_tx_queue) && bufnob == 0) {
@@ -780,7 +780,7 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 ksock_route_t *
 ksocknal_find_connectable_route_locked (ksock_peer_t *peer)
 {
-	cfs_time_t     now = cfs_time_current();
+	unsigned long     now = cfs_time_current();
 	struct list_head    *tmp;
 	ksock_route_t *route;
 
@@ -1199,7 +1199,7 @@ ksocknal_process_receive (ksock_conn_t *conn)
 					       conn->ksnc_msg.ksm_zc_cookies[1]);
 
 			if (rc != 0) {
-				CERROR("%s: Unknown ZC-ACK cookie: "LPU64", "LPU64"\n",
+				CERROR("%s: Unknown ZC-ACK cookie: %llu, %llu\n",
 				       libcfs_id2str(conn->ksnc_peer->ksnp_id),
 				       cookie, conn->ksnc_msg.ksm_zc_cookies[1]);
 				ksocknal_new_packet(conn, 0);
@@ -1699,7 +1699,7 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 	 *	EALREADY   lost connection race
 	 *	EPROTO     protocol version mismatch
 	 */
-	socket_t	*sock = conn->ksnc_sock;
+	struct socket	*sock = conn->ksnc_sock;
 	int		  active = (conn->ksnc_proto != NULL);
 	int		  timeout;
 	int		  proto_match;
@@ -1844,8 +1844,8 @@ ksocknal_connect (ksock_route_t *route)
 	ksock_peer_t     *peer = route->ksnr_peer;
 	int	       type;
 	int	       wanted;
-	socket_t     *sock;
-	cfs_time_t	deadline;
+	struct socket     *sock;
+	unsigned long	deadline;
 	int	       retry_later = 0;
 	int	       rc = 0;
 
@@ -2059,7 +2059,7 @@ ksocknal_connd_check_start(long sec, long *timeout)
 	/* we tried ... */
 	LASSERT(ksocknal_data.ksnd_connd_starting > 0);
 	ksocknal_data.ksnd_connd_starting--;
-	ksocknal_data.ksnd_connd_failed_stamp = cfs_time_current_sec();
+	ksocknal_data.ksnd_connd_failed_stamp = get_seconds();
 
 	return 1;
 }
@@ -2111,7 +2111,7 @@ static ksock_route_t *
 ksocknal_connd_get_route_locked(signed long *timeout_p)
 {
 	ksock_route_t *route;
-	cfs_time_t     now;
+	unsigned long     now;
 
 	now = cfs_time_current();
 
@@ -2152,7 +2152,7 @@ ksocknal_connd (void *arg)
 
 	while (!ksocknal_data.ksnd_shuttingdown) {
 		ksock_route_t *route = NULL;
-		long sec = cfs_time_current_sec();
+		long sec = get_seconds();
 		long timeout = MAX_SCHEDULE_TIMEOUT;
 		int  dropped_lock = 0;
 
@@ -2260,7 +2260,7 @@ ksocknal_find_timed_out_conn (ksock_peer_t *peer)
 
 		/* SOCK_ERROR will reset error code of socket in
 		 * some platform (like Darwin8.x) */
-		error = cfs_sock_error(conn->ksnc_sock);
+		error = conn->ksnc_sock->sk->sk_err;
 		if (error != 0) {
 			ksocknal_conn_addref(conn);
 
@@ -2311,7 +2311,7 @@ ksocknal_find_timed_out_conn (ksock_peer_t *peer)
 		}
 
 		if ((!list_empty(&conn->ksnc_tx_queue) ||
-		     cfs_sock_wmem_queued(conn->ksnc_sock) != 0) &&
+		     conn->ksnc_sock->sk->sk_wmem_queued != 0) &&
 		    cfs_time_aftereq(cfs_time_current(),
 				     conn->ksnc_tx_deadline)) {
 			/* Timed out messages queued for sending or
@@ -2368,13 +2368,12 @@ ksocknal_send_keepalive_locked(ksock_peer_t *peer)
 		return 0;
 
 	if (*ksocknal_tunables.ksnd_keepalive <= 0 ||
-	    cfs_time_before(cfs_time_current(),
-			    cfs_time_add(peer->ksnp_last_alive,
-					 cfs_time_seconds(*ksocknal_tunables.ksnd_keepalive))))
+	    time_before(cfs_time_current(),
+			cfs_time_add(peer->ksnp_last_alive,
+				     cfs_time_seconds(*ksocknal_tunables.ksnd_keepalive))))
 		return 0;
 
-	if (cfs_time_before(cfs_time_current(),
-			    peer->ksnp_send_keepalive))
+	if (time_before(cfs_time_current(), peer->ksnp_send_keepalive))
 		return 0;
 
 	/* retry 10 secs later, so we wouldn't put pressure
@@ -2431,7 +2430,7 @@ ksocknal_check_peer_timeouts (int idx)
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
 	list_for_each_entry(peer, peers, ksnp_list) {
-		cfs_time_t  deadline = 0;
+		unsigned long  deadline = 0;
 		int	 resid = 0;
 		int	 n     = 0;
 
@@ -2508,7 +2507,7 @@ ksocknal_check_peer_timeouts (int idx)
 		       "resid: %d, wmem: %d\n",
 		       n, libcfs_nid2str(peer->ksnp_id.nid), tx,
 		       cfs_duration_sec(cfs_time_current() - deadline),
-		       resid, cfs_sock_wmem_queued(conn->ksnc_sock));
+		       resid, conn->ksnc_sock->sk->sk_wmem_queued);
 
 		ksocknal_close_conn_and_siblings (conn, -ETIMEDOUT);
 		ksocknal_conn_decref(conn);
@@ -2526,10 +2525,10 @@ ksocknal_reaper (void *arg)
 	ksock_sched_t     *sched;
 	struct list_head	 enomem_conns;
 	int		nenomem_conns;
-	cfs_duration_t     timeout;
+	long     timeout;
 	int		i;
 	int		peer_index = 0;
-	cfs_time_t	 deadline = cfs_time_current();
+	unsigned long	 deadline = cfs_time_current();
 
 	cfs_block_allsigs ();
 

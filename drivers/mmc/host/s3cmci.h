@@ -26,7 +26,7 @@ struct s3cmci_host {
 	void __iomem		*base;
 	int			irq;
 	int			irq_cd;
-	int			dma;
+	struct dma_chan		*dma;
 
 	unsigned long		clk_rate;
 	unsigned long		clk_div;
@@ -36,8 +36,6 @@ struct s3cmci_host {
 	int			is2440;
 	unsigned		sdiimsk;
 	unsigned		sdidata;
-	int			dodma;
-	int			dmatogo;
 
 	bool			irq_disabled;
 	bool			irq_enabled;

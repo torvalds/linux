@@ -347,14 +347,16 @@ static int usb_stor_control_thread(void * __us)
 		 */
 		else if (us->srb->device->id &&
 				!(us->fflags & US_FL_SCM_MULT_TARG)) {
-			usb_stor_dbg(us, "Bad target number (%d:%d)\n",
-				     us->srb->device->id, us->srb->device->lun);
+			usb_stor_dbg(us, "Bad target number (%d:%llu)\n",
+				     us->srb->device->id,
+				     us->srb->device->lun);
 			us->srb->result = DID_BAD_TARGET << 16;
 		}
 
 		else if (us->srb->device->lun > us->max_lun) {
-			usb_stor_dbg(us, "Bad LUN (%d:%d)\n",
-				     us->srb->device->id, us->srb->device->lun);
+			usb_stor_dbg(us, "Bad LUN (%d:%llu)\n",
+				     us->srb->device->id,
+				     us->srb->device->lun);
 			us->srb->result = DID_BAD_TARGET << 16;
 		}
 

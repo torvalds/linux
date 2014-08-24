@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: functions for station ioctl
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -26,7 +26,7 @@
 #include "11n.h"
 #include "cfg80211.h"
 
-static int disconnect_on_suspend = 1;
+static int disconnect_on_suspend;
 module_param(disconnect_on_suspend, int, 0644);
 
 /*
@@ -283,10 +283,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
 		u8 config_bands;
 
-		ret = mwifiex_deauthenticate(priv, NULL);
-		if (ret)
-			goto done;
-
 		if (!bss_desc)
 			return -1;
 
@@ -345,12 +341,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			goto done;
 		}
 
-		/* Exit Adhoc mode first */
-		dev_dbg(adapter->dev, "info: Sending Adhoc Stop\n");
-		ret = mwifiex_deauthenticate(priv, NULL);
-		if (ret)
-			goto done;
-
 		priv->adhoc_is_link_sensed = false;
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
@@ -389,8 +379,8 @@ done:
  * This function prepares the correct firmware command and
  * issues it.
  */
-static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
-				 int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg)
+int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
+			  int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg)
 
 {
 	struct mwifiex_adapter *adapter = priv->adapter;

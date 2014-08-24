@@ -1923,12 +1923,11 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 				goto bail;
 			}
 
-			if (total_backoff >
-			    msecs_to_jiffies(DLM_JOIN_TIMEOUT_MSECS)) {
+			if (total_backoff > DLM_JOIN_TIMEOUT_MSECS) {
 				status = -ERESTARTSYS;
 				mlog(ML_NOTICE, "Timed out joining dlm domain "
 				     "%s after %u msecs\n", dlm->name,
-				     jiffies_to_msecs(total_backoff));
+				     total_backoff);
 				goto bail;
 			}
 

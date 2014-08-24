@@ -401,6 +401,11 @@ static int cap_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return 0;
 }
 
+static int cap_kernel_fw_from_file(struct file *file, char *buf, size_t size)
+{
+	return 0;
+}
+
 static int cap_kernel_module_request(char *kmod_name)
 {
 	return 0;
@@ -1015,6 +1020,7 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, cred_transfer);
 	set_to_cap_if_null(ops, kernel_act_as);
 	set_to_cap_if_null(ops, kernel_create_files_as);
+	set_to_cap_if_null(ops, kernel_fw_from_file);
 	set_to_cap_if_null(ops, kernel_module_request);
 	set_to_cap_if_null(ops, kernel_module_from_file);
 	set_to_cap_if_null(ops, task_fix_setuid);

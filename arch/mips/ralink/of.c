@@ -81,7 +81,7 @@ static int __init plat_of_setup(void)
 		panic("device tree not present");
 
 	strlcpy(of_ids[0].compatible, soc_info.compatible, len);
-	strncpy(of_ids[1].compatible, "palmbus", len);
+	strlcpy(of_ids[1].compatible, "palmbus", len);
 
 	if (of_platform_populate(NULL, of_ids, NULL, NULL))
 		panic("failed to populate DT");

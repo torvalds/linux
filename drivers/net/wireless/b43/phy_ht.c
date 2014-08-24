@@ -596,7 +596,7 @@ static void b43_phy_ht_tx_power_ctl_setup(struct b43_wldev *dev)
 	u8 target[3];
 	s16 a1[3], b0[3], b1[3];
 
-	u16 freq = dev->phy.channel_freq;
+	u16 freq = dev->phy.chandef->chan->center_freq;
 	int i, c;
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {

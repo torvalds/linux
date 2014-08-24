@@ -256,7 +256,7 @@ nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
 	char *p = data + *result;
 
 	acl = get_acl(inode, type);
-	if (!acl)
+	if (IS_ERR_OR_NULL(acl))
 		return 0;
 
 	posix_acl_release(acl);

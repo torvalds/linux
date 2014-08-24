@@ -3287,7 +3287,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 			}
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
-		card->dev = alloc_netdev(0, "hsi%d", ether_setup);
+		card->dev = alloc_netdev(0, "hsi%d", NET_NAME_UNKNOWN,
+					 ether_setup);
 		if (!card->dev)
 			return -ENODEV;
 		card->dev->flags |= IFF_NOARP;

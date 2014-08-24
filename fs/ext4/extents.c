@@ -161,6 +161,8 @@ int __ext4_ext_dirty(const char *where, unsigned int line, handle_t *handle,
 		     struct inode *inode, struct ext4_ext_path *path)
 {
 	int err;
+
+	WARN_ON(!rwsem_is_locked(&EXT4_I(inode)->i_data_sem));
 	if (path->p_bh) {
 		ext4_extent_block_csum_set(inode, ext_block_hdr(path->p_bh));
 		/* path points to block */
@@ -1808,8 +1810,7 @@ static void ext4_ext_try_to_merge_up(handle_t *handle,
 
 	brelse(path[1].p_bh);
 	ext4_free_blocks(handle, inode, NULL, blk, 1,
-			 EXT4_FREE_BLOCKS_METADATA | EXT4_FREE_BLOCKS_FORGET |
-			 EXT4_FREE_BLOCKS_RESERVE);
+			 EXT4_FREE_BLOCKS_METADATA | EXT4_FREE_BLOCKS_FORGET);
 }
 
 /*
@@ -3253,7 +3254,7 @@ out:
 
 fix_extent_len:
 	ex->ee_len = orig_ex.ee_len;
-	ext4_ext_dirty(handle, inode, path + depth);
+	ext4_ext_dirty(handle, inode, path + path->p_depth);
 	return err;
 }
 
@@ -5403,15 +5404,12 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	int ret;
 
 	/* Collapse range works only on fs block size aligned offsets. */
-	if (offset & (EXT4_BLOCK_SIZE(sb) - 1) ||
-	    len & (EXT4_BLOCK_SIZE(sb) - 1))
+	if (offset & (EXT4_CLUSTER_SIZE(sb) - 1) ||
+	    len & (EXT4_CLUSTER_SIZE(sb) - 1))
 		return -EINVAL;
 
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
-
-	if (EXT4_SB(inode->i_sb)->s_cluster_ratio > 1)
-		return -EOPNOTSUPP;
 
 	trace_ext4_collapse_range(inode, offset, len);
 

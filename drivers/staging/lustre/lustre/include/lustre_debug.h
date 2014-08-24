@@ -42,8 +42,8 @@
  * @{
  */
 
-#include <lustre_net.h>
-#include <obd.h>
+#include "lustre_net.h"
+#include "obd.h"
 
 /* lib/debug.c */
 void dump_lniobuf(struct niobuf_local *lnb);

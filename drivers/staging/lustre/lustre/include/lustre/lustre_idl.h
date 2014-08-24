@@ -91,14 +91,11 @@
 #ifndef _LUSTRE_IDL_H_
 #define _LUSTRE_IDL_H_
 
-#if !defined(LPU64)
-#include <linux/libcfs/libcfs.h> /* for LPUX64, etc */
-#endif
+#include "../../../include/linux/libcfs/libcfs.h"
 
 /* Defn's shared with user-space. */
-#include <lustre/lustre_user.h>
-
-#include <lustre/lustre_errno.h>
+#include "lustre_user.h"
+#include "lustre_errno.h"
 
 /*
  *  GENERAL STUFF
@@ -302,7 +299,7 @@ static inline int range_compare_loc(const struct lu_seq_range *r1,
 	       r1->lsr_flags != r2->lsr_flags;
 }
 
-#define DRANGE "[%#16.16"LPF64"x-%#16.16"LPF64"x):%x:%s"
+#define DRANGE "[%#16.16Lx-%#16.16Lx):%x:%s"
 
 #define PRANGE(range)		\
 	(range)->lsr_start,	\
@@ -682,14 +679,14 @@ static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 {
 	if (fid_seq_is_mdt0(ostid_seq(oi))) {
 		if (oid >= IDIF_MAX_OID) {
-			CERROR("Bad "LPU64" to set "DOSTID"\n",
+			CERROR("Bad %llu to set "DOSTID"\n",
 				oid, POSTID(oi));
 			return;
 		}
 		oi->oi.oi_id = oid;
 	} else {
 		if (oid > OBIF_MAX_OID) {
-			CERROR("Bad "LPU64" to set "DOSTID"\n",
+			CERROR("Bad %llu to set "DOSTID"\n",
 				oid, POSTID(oi));
 			return;
 		}
@@ -2748,7 +2745,7 @@ struct ldlm_res_id {
 	__u64 name[RES_NAME_SIZE];
 };
 
-#define DLDLMRES	"["LPX64":"LPX64":"LPX64"]."LPX64i
+#define DLDLMRES	"[%#llx:%#llx:%#llx].%llx"
 #define PLDLMRES(res)	(res)->lr_name.name[0], (res)->lr_name.name[1], \
 			(res)->lr_name.name[2], (res)->lr_name.name[3]
 

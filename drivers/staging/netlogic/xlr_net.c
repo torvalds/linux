@@ -185,7 +185,6 @@ static void xlr_net_fmn_handler(int bkt, int src_stnid, int size,
 		if (skb_new)
 			send_to_rfr_fifo(priv, skb_new->data);
 	}
-	return;
 }
 
 /* Ethtool operation */

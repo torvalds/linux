@@ -687,7 +687,7 @@ static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		lsa->l2tp_scope_id = 0;
 		lsa->l2tp_conn_id = 0;
 		if (ipv6_addr_type(&lsa->l2tp_addr) & IPV6_ADDR_LINKLOCAL)
-			lsa->l2tp_scope_id = IP6CB(skb)->iif;
+			lsa->l2tp_scope_id = inet6_iif(skb);
 	}
 
 	if (np->rxopt.all)

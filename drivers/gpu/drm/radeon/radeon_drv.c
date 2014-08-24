@@ -82,9 +82,11 @@
  *   2.38.0 - RADEON_GEM_OP (GET_INITIAL_DOMAIN, SET_INITIAL_DOMAIN),
  *            CIK: 1D and linear tiling modes contain valid PIPE_CONFIG
  *   2.39.0 - Add INFO query for number of active CUs
+ *   2.40.0 - Add RADEON_GEM_GTT_WC/UC, flush HDP cache before submitting
+ *            CS to GPU
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	39
+#define KMS_DRIVER_MINOR	40
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -132,6 +134,7 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 							struct sg_table *sg);
 int radeon_gem_prime_pin(struct drm_gem_object *obj);
 void radeon_gem_prime_unpin(struct drm_gem_object *obj);
+struct reservation_object *radeon_gem_prime_res_obj(struct drm_gem_object *);
 void *radeon_gem_prime_vmap(struct drm_gem_object *obj);
 void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 extern long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd,
@@ -173,9 +176,10 @@ int radeon_dpm = -1;
 int radeon_aspm = -1;
 int radeon_runtime_pm = -1;
 int radeon_hard_reset = 0;
-int radeon_vm_size = 4;
-int radeon_vm_block_size = 9;
+int radeon_vm_size = 8;
+int radeon_vm_block_size = -1;
 int radeon_deep_color = 0;
+int radeon_use_pflipirq = 2;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -246,11 +250,14 @@ module_param_named(hard_reset, radeon_hard_reset, int, 0444);
 MODULE_PARM_DESC(vm_size, "VM address space size in gigabytes (default 4GB)");
 module_param_named(vm_size, radeon_vm_size, int, 0444);
 
-MODULE_PARM_DESC(vm_block_size, "VM page table size in bits (default 9)");
+MODULE_PARM_DESC(vm_block_size, "VM page table size in bits (default depending on vm_size)");
 module_param_named(vm_block_size, radeon_vm_block_size, int, 0444);
 
 MODULE_PARM_DESC(deep_color, "Deep Color support (1 = enable, 0 = disable (default))");
 module_param_named(deep_color, radeon_deep_color, int, 0444);
+
+MODULE_PARM_DESC(use_pflipirq, "Pflip irqs for pageflip completion (0 = disable, 1 = as fallback, 2 = exclusive (default))");
+module_param_named(use_pflipirq, radeon_use_pflipirq, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
@@ -566,6 +573,7 @@ static struct drm_driver kms_driver = {
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_pin = radeon_gem_prime_pin,
 	.gem_prime_unpin = radeon_gem_prime_unpin,
+	.gem_prime_res_obj = radeon_gem_prime_res_obj,
 	.gem_prime_get_sg_table = radeon_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = radeon_gem_prime_import_sg_table,
 	.gem_prime_vmap = radeon_gem_prime_vmap,

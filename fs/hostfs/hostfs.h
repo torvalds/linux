@@ -89,6 +89,7 @@ extern int do_mknod(const char *file, int mode, unsigned int major,
 extern int link_file(const char *from, const char *to);
 extern int hostfs_do_readlink(char *file, char *buf, int size);
 extern int rename_file(char *from, char *to);
+extern int rename2_file(char *from, char *to, unsigned int flags);
 extern int do_statfs(char *root, long *bsize_out, long long *blocks_out,
 		     long long *bfree_out, long long *bavail_out,
 		     long long *files_out, long long *ffree_out,

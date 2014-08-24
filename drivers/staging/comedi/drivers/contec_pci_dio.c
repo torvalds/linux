@@ -30,8 +30,6 @@ Configuration Options: not applicable, uses comedi PCI auto config
 
 #include "../comedidev.h"
 
-#define PCI_DEVICE_ID_PIO1616L 0x8172
-
 /*
  * Register map
  */
@@ -110,7 +108,7 @@ static int contec_pci_dio_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id contec_pci_dio_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, 0x8172) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, contec_pci_dio_pci_table);

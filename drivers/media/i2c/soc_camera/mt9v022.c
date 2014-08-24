@@ -583,7 +583,7 @@ static int mt9v022_s_ctrl(struct v4l2_ctrl *ctrl)
 			/* mt9v022 has minimum == default */
 			unsigned long range = gain->maximum - gain->minimum;
 			/* Valid values 16 to 64, 32 to 64 must be even. */
-			unsigned long gain_val = ((gain->val - gain->minimum) *
+			unsigned long gain_val = ((gain->val - (s32)gain->minimum) *
 					      48 + range / 2) / range + 16;
 
 			if (gain_val >= 32)
@@ -608,7 +608,7 @@ static int mt9v022_s_ctrl(struct v4l2_ctrl *ctrl)
 		} else {
 			struct v4l2_ctrl *exp = mt9v022->exposure;
 			unsigned long range = exp->maximum - exp->minimum;
-			unsigned long shutter = ((exp->val - exp->minimum) *
+			unsigned long shutter = ((exp->val - (s32)exp->minimum) *
 					479 + range / 2) / range + 1;
 
 			/*

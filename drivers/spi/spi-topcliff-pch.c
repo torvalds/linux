@@ -874,8 +874,8 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* Get DMA's dev information */
-	dma_dev = pci_get_bus_and_slot(data->board_dat->pdev->bus->number,
-				       PCI_DEVFN(12, 0));
+	dma_dev = pci_get_slot(data->board_dat->pdev->bus,
+			PCI_DEVFN(PCI_SLOT(data->board_dat->pdev->devfn), 0));
 
 	/* Set Tx DMA */
 	param = &dma->param_tx;
@@ -1047,8 +1047,8 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 					num, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_rx) {
-		dev_err(&data->master->dev, "%s:device_prep_slave_sg Failed\n",
-			__func__);
+		dev_err(&data->master->dev,
+			"%s:dmaengine_prep_slave_sg Failed\n", __func__);
 		return;
 	}
 	dma_sync_sg_for_device(&data->master->dev, sg, num, DMA_FROM_DEVICE);
@@ -1106,8 +1106,8 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 					sg, num, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_tx) {
-		dev_err(&data->master->dev, "%s:device_prep_slave_sg Failed\n",
-			__func__);
+		dev_err(&data->master->dev,
+			"%s:dmaengine_prep_slave_sg Failed\n", __func__);
 		return;
 	}
 	dma_sync_sg_for_device(&data->master->dev, sg, num, DMA_TO_DEVICE);

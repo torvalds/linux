@@ -41,7 +41,7 @@
 #ifndef _LUSTRE_FSFILT_H
 #define _LUSTRE_FSFILT_H
 
-#include <linux/lustre_fsfilt.h>
+#include "../include/linux/lustre_fsfilt.h"
 
 #define LU221_BAD_TIME (0x80000000U + 24 * 3600)
 

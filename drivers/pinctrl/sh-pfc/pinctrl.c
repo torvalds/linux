@@ -345,27 +345,6 @@ done:
 	return ret;
 }
 
-static void sh_pfc_func_disable(struct pinctrl_dev *pctldev, unsigned selector,
-				unsigned group)
-{
-	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct sh_pfc *pfc = pmx->pfc;
-	const struct sh_pfc_pin_group *grp = &pfc->info->groups[group];
-	unsigned long flags;
-	unsigned int i;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-
-	for (i = 0; i < grp->nr_pins; ++i) {
-		int idx = sh_pfc_get_pin_index(pfc, grp->pins[i]);
-		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
-
-		cfg->type = PINMUX_TYPE_NONE;
-	}
-
-	spin_unlock_irqrestore(&pfc->lock, flags);
-}
-
 static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 				      struct pinctrl_gpio_range *range,
 				      unsigned offset)
@@ -464,7 +443,6 @@ static const struct pinmux_ops sh_pfc_pinmux_ops = {
 	.get_function_name	= sh_pfc_get_function_name,
 	.get_function_groups	= sh_pfc_get_function_groups,
 	.enable			= sh_pfc_func_enable,
-	.disable		= sh_pfc_func_disable,
 	.gpio_request_enable	= sh_pfc_gpio_request_enable,
 	.gpio_disable_free	= sh_pfc_gpio_disable_free,
 	.gpio_set_direction	= sh_pfc_gpio_set_direction,

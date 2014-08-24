@@ -66,7 +66,7 @@ struct bpf_test {
 	const char *descr;
 	union {
 		struct sock_filter insns[MAX_INSNS];
-		struct sock_filter_int insns_int[MAX_INSNS];
+		struct bpf_insn insns_int[MAX_INSNS];
 	} u;
 	__u8 aux;
 	__u8 data[MAX_DATA];
@@ -1761,9 +1761,9 @@ static int probe_filter_length(struct sock_filter *fp)
 	return len + 1;
 }
 
-static struct sk_filter *generate_filter(int which, int *err)
+static struct bpf_prog *generate_filter(int which, int *err)
 {
-	struct sk_filter *fp;
+	struct bpf_prog *fp;
 	struct sock_fprog_kern fprog;
 	unsigned int flen = probe_filter_length(tests[which].u.insns);
 	__u8 test_type = tests[which].aux & TEST_TYPE_MASK;
@@ -1773,7 +1773,7 @@ static struct sk_filter *generate_filter(int which, int *err)
 		fprog.filter = tests[which].u.insns;
 		fprog.len = flen;
 
-		*err = sk_unattached_filter_create(&fp, &fprog);
+		*err = bpf_prog_create(&fp, &fprog);
 		if (tests[which].aux & FLAG_EXPECTED_FAIL) {
 			if (*err == -EINVAL) {
 				pr_cont("PASS\n");
@@ -1798,7 +1798,7 @@ static struct sk_filter *generate_filter(int which, int *err)
 		break;
 
 	case INTERNAL:
-		fp = kzalloc(sk_filter_size(flen), GFP_KERNEL);
+		fp = kzalloc(bpf_prog_size(flen), GFP_KERNEL);
 		if (fp == NULL) {
 			pr_cont("UNEXPECTED_FAIL no memory left\n");
 			*err = -ENOMEM;
@@ -1807,9 +1807,9 @@ static struct sk_filter *generate_filter(int which, int *err)
 
 		fp->len = flen;
 		memcpy(fp->insnsi, tests[which].u.insns_int,
-		       fp->len * sizeof(struct sock_filter_int));
+		       fp->len * sizeof(struct bpf_insn));
 
-		sk_filter_select_runtime(fp);
+		bpf_prog_select_runtime(fp);
 		break;
 	}
 
@@ -1817,21 +1817,21 @@ static struct sk_filter *generate_filter(int which, int *err)
 	return fp;
 }
 
-static void release_filter(struct sk_filter *fp, int which)
+static void release_filter(struct bpf_prog *fp, int which)
 {
 	__u8 test_type = tests[which].aux & TEST_TYPE_MASK;
 
 	switch (test_type) {
 	case CLASSIC:
-		sk_unattached_filter_destroy(fp);
+		bpf_prog_destroy(fp);
 		break;
 	case INTERNAL:
-		sk_filter_free(fp);
+		bpf_prog_free(fp);
 		break;
 	}
 }
 
-static int __run_one(const struct sk_filter *fp, const void *data,
+static int __run_one(const struct bpf_prog *fp, const void *data,
 		     int runs, u64 *duration)
 {
 	u64 start, finish;
@@ -1840,7 +1840,7 @@ static int __run_one(const struct sk_filter *fp, const void *data,
 	start = ktime_to_us(ktime_get());
 
 	for (i = 0; i < runs; i++)
-		ret = SK_RUN_FILTER(fp, data);
+		ret = BPF_PROG_RUN(fp, data);
 
 	finish = ktime_to_us(ktime_get());
 
@@ -1850,7 +1850,7 @@ static int __run_one(const struct sk_filter *fp, const void *data,
 	return ret;
 }
 
-static int run_one(const struct sk_filter *fp, struct bpf_test *test)
+static int run_one(const struct bpf_prog *fp, struct bpf_test *test)
 {
 	int err_cnt = 0, i, runs = MAX_TESTRUNS;
 
@@ -1884,7 +1884,7 @@ static __init int test_bpf(void)
 	int i, err_cnt = 0, pass_cnt = 0;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		struct sk_filter *fp;
+		struct bpf_prog *fp;
 		int err;
 
 		pr_info("#%d %s ", i, tests[i].descr);

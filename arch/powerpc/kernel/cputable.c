@@ -123,96 +123,6 @@ extern void __restore_cpu_e6500(void);
 
 static struct cpu_spec __initdata cpu_specs[] = {
 #ifdef CONFIG_PPC_BOOK3S_64
-	{	/* Power3 */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00400000,
-		.cpu_name		= "POWER3 (630)",
-		.cpu_features		= CPU_FTRS_POWER3,
-		.cpu_user_features	= COMMON_USER_PPC64|PPC_FEATURE_PPC_LE,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power3",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "power3",
-	},
-	{	/* Power3+ */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00410000,
-		.cpu_name		= "POWER3 (630+)",
-		.cpu_features		= CPU_FTRS_POWER3,
-		.cpu_user_features	= COMMON_USER_PPC64|PPC_FEATURE_PPC_LE,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power3",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "power3",
-	},
-	{	/* Northstar */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00330000,
-		.cpu_name		= "RS64-II (northstar)",
-		.cpu_features		= CPU_FTRS_RS64,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "rs64",
-	},
-	{	/* Pulsar */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00340000,
-		.cpu_name		= "RS64-III (pulsar)",
-		.cpu_features		= CPU_FTRS_RS64,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "rs64",
-	},
-	{	/* I-star */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00360000,
-		.cpu_name		= "RS64-III (icestar)",
-		.cpu_features		= CPU_FTRS_RS64,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "rs64",
-	},
-	{	/* S-star */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00370000,
-		.cpu_name		= "RS64-IV (sstar)",
-		.cpu_features		= CPU_FTRS_RS64,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "rs64",
-	},
 	{	/* Power4 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00350000,
@@ -617,7 +527,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 #endif	/* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC32
-#if CLASSIC_PPC
+#ifdef CONFIG_PPC_BOOK3S_32
 	{	/* 601 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00010000,
@@ -1257,7 +1167,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc603",
 	},
-#endif /* CLASSIC_PPC */
+#endif /* CONFIG_PPC_BOOK3S_32 */
 #ifdef CONFIG_8xx
 	{	/* 8xx */
 		.pvr_mask		= 0xffff0000,

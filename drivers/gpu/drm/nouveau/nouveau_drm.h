@@ -9,8 +9,8 @@
 #define DRIVER_DATE		"20120801"
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	1
+#define DRIVER_MINOR		2
+#define DRIVER_PATCHLEVEL	0
 
 /*
  * 1.1.1:
@@ -21,15 +21,17 @@
  *        to control registers on the MPs to enable performance counters,
  *        and to control the warp error enable mask (OpenGL requires out of
  *        bounds access to local memory to be silently ignored / return 0).
+ * 1.1.2:
+ *      - fixes multiple bugs in flip completion events and timestamping
+ * 1.2.0:
+ * 	- object api exposed to userspace
+ * 	- fermi,kepler,maxwell zbc
  */
 
-#include <core/client.h>
-#include <core/event.h>
-
-#include <subdev/vm.h>
+#include <nvif/client.h>
+#include <nvif/device.h>
 
 #include <drmP.h>
-#include <drm/nouveau_drm.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
@@ -38,7 +40,10 @@
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
+#include "uapi/drm/nouveau_drm.h"
+
 struct nouveau_channel;
+struct platform_device;
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
@@ -48,6 +53,17 @@ struct nouveau_channel;
 struct nouveau_drm_tile {
 	struct nouveau_fence *fence;
 	bool used;
+};
+
+enum nouveau_drm_object_route {
+	NVDRM_OBJECT_NVIF = 0,
+	NVDRM_OBJECT_USIF,
+	NVDRM_OBJECT_ABI16,
+};
+
+enum nouveau_drm_notify_route {
+	NVDRM_NOTIFY_NVIF = 0,
+	NVDRM_NOTIFY_USIF
 };
 
 enum nouveau_drm_handle {
@@ -61,10 +77,13 @@ enum nouveau_drm_handle {
 };
 
 struct nouveau_cli {
-	struct nouveau_client base;
+	struct nvif_client base;
+	struct nouveau_vm *vm; /*XXX*/
 	struct list_head head;
 	struct mutex mutex;
 	void *abi16;
+	struct list_head objects;
+	struct list_head notifys;
 };
 
 static inline struct nouveau_cli *
@@ -73,13 +92,16 @@ nouveau_cli(struct drm_file *fpriv)
 	return fpriv ? fpriv->driver_priv : NULL;
 }
 
+#include <nvif/object.h>
+#include <nvif/device.h>
+
 extern int nouveau_runtime_pm;
 
 struct nouveau_drm {
 	struct nouveau_cli client;
 	struct drm_device *dev;
 
-	struct nouveau_object *device;
+	struct nvif_device device;
 	struct list_head clients;
 
 	struct {
@@ -102,6 +124,7 @@ struct nouveau_drm {
 			    struct ttm_buffer_object *,
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		struct nouveau_channel *chan;
+		struct nvif_object copy;
 		int mtrr;
 	} ttm;
 
@@ -119,6 +142,8 @@ struct nouveau_drm {
 	struct nouveau_channel *channel;
 	struct nouveau_gpuobj *notify;
 	struct nouveau_fbdev *fbcon;
+	struct nvif_object nvsw;
+	struct nvif_object ntfy;
 
 	/* nv10-nv40 tiling regions */
 	struct {
@@ -148,20 +173,25 @@ nouveau_drm(struct drm_device *dev)
 	return dev->dev_private;
 }
 
-static inline struct nouveau_device *
-nouveau_dev(struct drm_device *dev)
-{
-	return nv_device(nouveau_drm(dev)->device);
-}
-
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
 
-#define NV_FATAL(cli, fmt, args...) nv_fatal((cli), fmt, ##args)
-#define NV_ERROR(cli, fmt, args...) nv_error((cli), fmt, ##args)
-#define NV_WARN(cli, fmt, args...) nv_warn((cli), fmt, ##args)
-#define NV_INFO(cli, fmt, args...) nv_info((cli), fmt, ##args)
-#define NV_DEBUG(cli, fmt, args...) nv_debug((cli), fmt, ##args)
+#define nouveau_platform_device_create(p, u)                                   \
+	nouveau_platform_device_create_(p, sizeof(**u), (void **)u)
+struct drm_device *
+nouveau_platform_device_create_(struct platform_device *pdev,
+				int size, void **pobject);
+void nouveau_drm_device_remove(struct drm_device *dev);
+
+#define NV_PRINTK(l,c,f,a...) do {                                             \
+	struct nouveau_cli *_cli = (c);                                        \
+	nv_##l(_cli->base.base.priv, f, ##a);                                  \
+} while(0)
+#define NV_FATAL(drm,f,a...) NV_PRINTK(fatal, &(drm)->client, f, ##a)
+#define NV_ERROR(drm,f,a...) NV_PRINTK(error, &(drm)->client, f, ##a)
+#define NV_WARN(drm,f,a...) NV_PRINTK(warn, &(drm)->client, f, ##a)
+#define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
+#define NV_DEBUG(drm,f,a...) NV_PRINTK(debug, &(drm)->client, f, ##a)
 
 extern int nouveau_modeset;
 

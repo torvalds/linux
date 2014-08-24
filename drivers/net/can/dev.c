@@ -565,7 +565,7 @@ struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
 	else
 		size = sizeof_priv;
 
-	dev = alloc_netdev(size, "can%d", can_setup);
+	dev = alloc_netdev(size, "can%d", NET_NAME_UNKNOWN, can_setup);
 	if (!dev)
 		return NULL;
 

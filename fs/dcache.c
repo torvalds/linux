@@ -731,8 +731,6 @@ EXPORT_SYMBOL(dget_parent);
 /**
  * d_find_alias - grab a hashed alias of inode
  * @inode: inode in question
- * @want_discon:  flag, used by d_splice_alias, to request
- *          that only a DISCONNECTED alias be returned.
  *
  * If inode has a hashed alias, or is a directory and has any alias,
  * acquire the reference to alias and return it. Otherwise return NULL.
@@ -741,10 +739,9 @@ EXPORT_SYMBOL(dget_parent);
  * of a filesystem.
  *
  * If the inode has an IS_ROOT, DCACHE_DISCONNECTED alias, then prefer
- * any other hashed alias over that one unless @want_discon is set,
- * in which case only return an IS_ROOT, DCACHE_DISCONNECTED alias.
+ * any other hashed alias over that one.
  */
-static struct dentry *__d_find_alias(struct inode *inode, int want_discon)
+static struct dentry *__d_find_alias(struct inode *inode)
 {
 	struct dentry *alias, *discon_alias;
 
@@ -756,7 +753,7 @@ again:
 			if (IS_ROOT(alias) &&
 			    (alias->d_flags & DCACHE_DISCONNECTED)) {
 				discon_alias = alias;
-			} else if (!want_discon) {
+			} else {
 				__dget_dlock(alias);
 				spin_unlock(&alias->d_lock);
 				return alias;
@@ -768,12 +765,9 @@ again:
 		alias = discon_alias;
 		spin_lock(&alias->d_lock);
 		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
-			if (IS_ROOT(alias) &&
-			    (alias->d_flags & DCACHE_DISCONNECTED)) {
-				__dget_dlock(alias);
-				spin_unlock(&alias->d_lock);
-				return alias;
-			}
+			__dget_dlock(alias);
+			spin_unlock(&alias->d_lock);
+			return alias;
 		}
 		spin_unlock(&alias->d_lock);
 		goto again;
@@ -787,7 +781,7 @@ struct dentry *d_find_alias(struct inode *inode)
 
 	if (!hlist_empty(&inode->i_dentry)) {
 		spin_lock(&inode->i_lock);
-		de = __d_find_alias(inode, 0);
+		de = __d_find_alias(inode);
 		spin_unlock(&inode->i_lock);
 	}
 	return de;
@@ -1781,25 +1775,7 @@ struct dentry *d_find_any_alias(struct inode *inode)
 }
 EXPORT_SYMBOL(d_find_any_alias);
 
-/**
- * d_obtain_alias - find or allocate a dentry for a given inode
- * @inode: inode to allocate the dentry for
- *
- * Obtain a dentry for an inode resulting from NFS filehandle conversion or
- * similar open by handle operations.  The returned dentry may be anonymous,
- * or may have a full name (if the inode was already in the cache).
- *
- * When called on a directory inode, we must ensure that the inode only ever
- * has one dentry.  If a dentry is found, that is returned instead of
- * allocating a new one.
- *
- * On successful return, the reference to the inode has been transferred
- * to the dentry.  In case of an error the reference on the inode is released.
- * To make it easier to use in export operations a %NULL or IS_ERR inode may
- * be passed in and will be the error will be propagate to the return value,
- * with a %NULL @inode replaced by ERR_PTR(-ESTALE).
- */
-struct dentry *d_obtain_alias(struct inode *inode)
+static struct dentry *__d_obtain_alias(struct inode *inode, int disconnected)
 {
 	static const struct qstr anonstring = QSTR_INIT("/", 1);
 	struct dentry *tmp;
@@ -1830,7 +1806,10 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	}
 
 	/* attach a disconnected dentry */
-	add_flags = d_flags_for_inode(inode) | DCACHE_DISCONNECTED;
+	add_flags = d_flags_for_inode(inode);
+
+	if (disconnected)
+		add_flags |= DCACHE_DISCONNECTED;
 
 	spin_lock(&tmp->d_lock);
 	tmp->d_inode = inode;
@@ -1851,59 +1830,51 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	iput(inode);
 	return res;
 }
+
+/**
+ * d_obtain_alias - find or allocate a DISCONNECTED dentry for a given inode
+ * @inode: inode to allocate the dentry for
+ *
+ * Obtain a dentry for an inode resulting from NFS filehandle conversion or
+ * similar open by handle operations.  The returned dentry may be anonymous,
+ * or may have a full name (if the inode was already in the cache).
+ *
+ * When called on a directory inode, we must ensure that the inode only ever
+ * has one dentry.  If a dentry is found, that is returned instead of
+ * allocating a new one.
+ *
+ * On successful return, the reference to the inode has been transferred
+ * to the dentry.  In case of an error the reference on the inode is released.
+ * To make it easier to use in export operations a %NULL or IS_ERR inode may
+ * be passed in and the error will be propagated to the return value,
+ * with a %NULL @inode replaced by ERR_PTR(-ESTALE).
+ */
+struct dentry *d_obtain_alias(struct inode *inode)
+{
+	return __d_obtain_alias(inode, 1);
+}
 EXPORT_SYMBOL(d_obtain_alias);
 
 /**
- * d_splice_alias - splice a disconnected dentry into the tree if one exists
- * @inode:  the inode which may have a disconnected dentry
- * @dentry: a negative dentry which we want to point to the inode.
+ * d_obtain_root - find or allocate a dentry for a given inode
+ * @inode: inode to allocate the dentry for
  *
- * If inode is a directory and has a 'disconnected' dentry (i.e. IS_ROOT and
- * DCACHE_DISCONNECTED), then d_move that in place of the given dentry
- * and return it, else simply d_add the inode to the dentry and return NULL.
+ * Obtain an IS_ROOT dentry for the root of a filesystem.
  *
- * This is needed in the lookup routine of any filesystem that is exportable
- * (via knfsd) so that we can build dcache paths to directories effectively.
+ * We must ensure that directory inodes only ever have one dentry.  If a
+ * dentry is found, that is returned instead of allocating a new one.
  *
- * If a dentry was found and moved, then it is returned.  Otherwise NULL
- * is returned.  This matches the expected return value of ->lookup.
- *
- * Cluster filesystems may call this function with a negative, hashed dentry.
- * In that case, we know that the inode will be a regular file, and also this
- * will only occur during atomic_open. So we need to check for the dentry
- * being already hashed only in the final case.
+ * On successful return, the reference to the inode has been transferred
+ * to the dentry.  In case of an error the reference on the inode is
+ * released.  A %NULL or IS_ERR inode may be passed in and will be the
+ * error will be propagate to the return value, with a %NULL @inode
+ * replaced by ERR_PTR(-ESTALE).
  */
-struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
+struct dentry *d_obtain_root(struct inode *inode)
 {
-	struct dentry *new = NULL;
-
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-
-	if (inode && S_ISDIR(inode->i_mode)) {
-		spin_lock(&inode->i_lock);
-		new = __d_find_alias(inode, 1);
-		if (new) {
-			BUG_ON(!(new->d_flags & DCACHE_DISCONNECTED));
-			spin_unlock(&inode->i_lock);
-			security_d_instantiate(new, inode);
-			d_move(new, dentry);
-			iput(inode);
-		} else {
-			/* already taking inode->i_lock, so d_add() by hand */
-			__d_instantiate(dentry, inode);
-			spin_unlock(&inode->i_lock);
-			security_d_instantiate(dentry, inode);
-			d_rehash(dentry);
-		}
-	} else {
-		d_instantiate(dentry, inode);
-		if (d_unhashed(dentry))
-			d_rehash(dentry);
-	}
-	return new;
+	return __d_obtain_alias(inode, 0);
 }
-EXPORT_SYMBOL(d_splice_alias);
+EXPORT_SYMBOL(d_obtain_root);
 
 /**
  * d_add_ci - lookup or allocate new dentry with case-exact name
@@ -2697,6 +2668,75 @@ static void __d_materialise_dentry(struct dentry *dentry, struct dentry *anon)
 }
 
 /**
+ * d_splice_alias - splice a disconnected dentry into the tree if one exists
+ * @inode:  the inode which may have a disconnected dentry
+ * @dentry: a negative dentry which we want to point to the inode.
+ *
+ * If inode is a directory and has an IS_ROOT alias, then d_move that in
+ * place of the given dentry and return it, else simply d_add the inode
+ * to the dentry and return NULL.
+ *
+ * If a non-IS_ROOT directory is found, the filesystem is corrupt, and
+ * we should error out: directories can't have multiple aliases.
+ *
+ * This is needed in the lookup routine of any filesystem that is exportable
+ * (via knfsd) so that we can build dcache paths to directories effectively.
+ *
+ * If a dentry was found and moved, then it is returned.  Otherwise NULL
+ * is returned.  This matches the expected return value of ->lookup.
+ *
+ * Cluster filesystems may call this function with a negative, hashed dentry.
+ * In that case, we know that the inode will be a regular file, and also this
+ * will only occur during atomic_open. So we need to check for the dentry
+ * being already hashed only in the final case.
+ */
+struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
+{
+	struct dentry *new = NULL;
+
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	if (inode && S_ISDIR(inode->i_mode)) {
+		spin_lock(&inode->i_lock);
+		new = __d_find_any_alias(inode);
+		if (new) {
+			if (!IS_ROOT(new)) {
+				spin_unlock(&inode->i_lock);
+				dput(new);
+				return ERR_PTR(-EIO);
+			}
+			if (d_ancestor(new, dentry)) {
+				spin_unlock(&inode->i_lock);
+				dput(new);
+				return ERR_PTR(-EIO);
+			}
+			write_seqlock(&rename_lock);
+			__d_materialise_dentry(dentry, new);
+			write_sequnlock(&rename_lock);
+			__d_drop(new);
+			_d_rehash(new);
+			spin_unlock(&new->d_lock);
+			spin_unlock(&inode->i_lock);
+			security_d_instantiate(new, inode);
+			iput(inode);
+		} else {
+			/* already taking inode->i_lock, so d_add() by hand */
+			__d_instantiate(dentry, inode);
+			spin_unlock(&inode->i_lock);
+			security_d_instantiate(dentry, inode);
+			d_rehash(dentry);
+		}
+	} else {
+		d_instantiate(dentry, inode);
+		if (d_unhashed(dentry))
+			d_rehash(dentry);
+	}
+	return new;
+}
+EXPORT_SYMBOL(d_splice_alias);
+
+/**
  * d_materialise_unique - introduce an inode into the tree
  * @dentry: candidate dentry
  * @inode: inode to bind to the dentry, to which aliases may be attached
@@ -2724,7 +2764,7 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 		struct dentry *alias;
 
 		/* Does an aliased dentry already exist? */
-		alias = __d_find_alias(inode, 0);
+		alias = __d_find_alias(inode);
 		if (alias) {
 			actual = alias;
 			write_seqlock(&rename_lock);
