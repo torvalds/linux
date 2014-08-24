@@ -127,6 +127,7 @@ void ath_chanctx_init(struct ath_softc *sc)
 void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 			     struct cfg80211_chan_def *chandef)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	bool cur_chan;
 
 	spin_lock_bh(&sc->chan_lock);
@@ -135,8 +136,11 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 	cur_chan = sc->cur_chan == ctx;
 	spin_unlock_bh(&sc->chan_lock);
 
-	if (!cur_chan)
+	if (!cur_chan) {
+		ath_dbg(common, CHAN_CTX,
+			"Current context differs from the new context\n");
 		return;
+	}
 
 	ath_set_channel(sc);
 }
@@ -486,6 +490,22 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		ieee80211_queue_work(sc->hw, &sc->chanctx_work);
 		break;
 	case ATH_CHANCTX_EVENT_ASSIGN:
+		/*
+		 * When adding a new channel context, check if a scan
+		 * is in progress and abort it since the addition of
+		 * a new channel context is usually followed by VIF
+		 * assignment, in which case we have to start multi-channel
+		 * operation.
+		 */
+		if (test_bit(ATH_OP_SCANNING, &common->op_flags)) {
+			ath_dbg(common, CHAN_CTX,
+				"Aborting HW scan to add new context\n");
+
+			spin_unlock_bh(&sc->chan_lock);
+			del_timer_sync(&sc->offchannel.timer);
+			ath_scan_complete(sc, true);
+			spin_lock_bh(&sc->chan_lock);
+		}
 		break;
 	case ATH_CHANCTX_EVENT_CHANGE:
 		break;

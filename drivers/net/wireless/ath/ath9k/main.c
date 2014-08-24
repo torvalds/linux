@@ -2236,6 +2236,8 @@ static int ath9k_add_chanctx(struct ieee80211_hw *hw,
 			conf->def.chan->center_freq);
 
 		ath_chanctx_set_channel(sc, ctx, &conf->def);
+		ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_ASSIGN);
+
 		mutex_unlock(&sc->mutex);
 		return 0;
 	}
