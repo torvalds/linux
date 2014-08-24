@@ -1277,6 +1277,7 @@ F:	drivers/scsi/arm/
 ARM/Rockchip SoC support
 M:	Heiko Stuebner <heiko@sntech.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-rockchip@lists.infradead.org
 S:	Maintained
 F:	arch/arm/mach-rockchip/
 F:	drivers/*/*rockchip*

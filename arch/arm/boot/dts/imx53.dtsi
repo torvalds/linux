@@ -731,7 +731,7 @@
 				compatible = "fsl,imx53-vpu";
 				reg = <0x63ff4000 0x1000>;
 				interrupts = <9>;
-				clocks = <&clks IMX5_CLK_VPU_GATE>,
+				clocks = <&clks IMX5_CLK_VPU_REFERENCE_GATE>,
 				         <&clks IMX5_CLK_VPU_GATE>;
 				clock-names = "per", "ahb";
 				resets = <&src 1>;
