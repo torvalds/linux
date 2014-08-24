@@ -4010,6 +4010,7 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	dapm->dev = dev;
 	dapm->component = component;
 	dapm->bias_level = SND_SOC_BIAS_OFF;
+	dapm->idle_bias_off = true;
 	if (driver->seq_notifier)
 		dapm->seq_notifier = snd_soc_component_seq_notifier;
 	if (driver->stream_event)
@@ -4399,6 +4400,7 @@ int snd_soc_register_codec(struct device *dev,
 		codec->component.read = snd_soc_codec_drv_read;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
 	codec->dapm.codec = codec;
+	codec->dapm.idle_bias_off = codec_drv->idle_bias_off;
 	if (codec_drv->seq_notifier)
 		codec->dapm.seq_notifier = codec_drv->seq_notifier;
 	if (codec_drv->set_bias_level)
