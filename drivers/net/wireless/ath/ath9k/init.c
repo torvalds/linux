@@ -679,9 +679,11 @@ static const struct ieee80211_iface_limit wds_limits[] = {
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
 static const struct ieee80211_iface_limit if_limits_multi[] = {
-	{ .max = 1,	.types = BIT(NL80211_IFTYPE_STATION) },
-	{ .max = 1,	.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
+	{ .max = 2,	.types = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_ADHOC) },
 };
 
 static const struct ieee80211_iface_combination if_comb_multi[] = {
