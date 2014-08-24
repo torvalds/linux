@@ -452,6 +452,10 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		sc->next_chan = ctx;
 		ieee80211_queue_work(sc->hw, &sc->chanctx_work);
 		break;
+	case ATH_CHANCTX_EVENT_ASSIGN:
+		break;
+	case ATH_CHANCTX_EVENT_CHANGE:
+		break;
 	}
 
 	spin_unlock_bh(&sc->chan_lock);
