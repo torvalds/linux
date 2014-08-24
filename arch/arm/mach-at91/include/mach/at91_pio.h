@@ -71,4 +71,10 @@
 #define ABCDSR_PERIPH_C	0x2
 #define ABCDSR_PERIPH_D	0x3
 
+#define SAMA5D3_PIO_DRIVER1		0x118  /*PIO Driver 1 register offset*/
+#define SAMA5D3_PIO_DRIVER2		0x11C  /*PIO Driver 2 register offset*/
+
+#define AT91SAM9X5_PIO_DRIVER1	0x114  /*PIO Driver 1 register offset*/
+#define AT91SAM9X5_PIO_DRIVER2	0x118  /*PIO Driver 2 register offset*/
+
 #endif
