@@ -402,25 +402,20 @@ static int mei_hbm_add_single_flow_creds(struct mei_device *dev,
 				  struct hbm_flow_control *flow)
 {
 	struct mei_me_client *me_cl;
-	int id;
 
-	id = mei_me_cl_by_id(dev, flow->me_addr);
-	if (id < 0) {
+	me_cl = mei_me_cl_by_id(dev, flow->me_addr);
+	if (!me_cl) {
 		dev_err(&dev->pdev->dev, "no such me client %d\n",
 			flow->me_addr);
-		return id;
+		return -ENOENT;
 	}
 
-	me_cl = &dev->me_clients[id];
-	if (me_cl->props.single_recv_buf) {
-		me_cl->mei_flow_ctrl_creds++;
-		dev_dbg(&dev->pdev->dev, "recv flow ctrl msg ME %d (single).\n",
-		    flow->me_addr);
-		dev_dbg(&dev->pdev->dev, "flow control credentials =%d.\n",
-		    me_cl->mei_flow_ctrl_creds);
-	} else {
-		BUG();	/* error in flow control */
-	}
+	if (WARN_ON(me_cl->props.single_recv_buf == 0))
+		return -EINVAL;
+
+	me_cl->mei_flow_ctrl_creds++;
+	dev_dbg(&dev->pdev->dev, "recv flow ctrl msg ME %d (single) creds = %d.\n",
+	    flow->me_addr, me_cl->mei_flow_ctrl_creds);
 
 	return 0;
 }

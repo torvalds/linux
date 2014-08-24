@@ -59,7 +59,7 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
 int mei_wd_host_init(struct mei_device *dev)
 {
 	struct mei_cl *cl = &dev->wd_cl;
-	int id;
+	struct mei_me_client *me_cl;
 	int ret;
 
 	mei_cl_init(cl, dev);
@@ -69,13 +69,13 @@ int mei_wd_host_init(struct mei_device *dev)
 
 
 	/* check for valid client id */
-	id = mei_me_cl_by_uuid(dev, &mei_wd_guid);
-	if (id < 0) {
+	me_cl = mei_me_cl_by_uuid(dev, &mei_wd_guid);
+	if (!me_cl) {
 		dev_info(&dev->pdev->dev, "wd: failed to find the client\n");
 		return -ENOTTY;
 	}
 
-	cl->me_client_id = dev->me_clients[id].client_id;
+	cl->me_client_id = me_cl->client_id;
 
 	ret = mei_cl_link(cl, MEI_WD_HOST_CLIENT_ID);
 

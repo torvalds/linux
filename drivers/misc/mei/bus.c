@@ -229,8 +229,8 @@ static int ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking)
 {
 	struct mei_device *dev;
+	struct mei_me_client *me_cl;
 	struct mei_cl_cb *cb;
-	int id;
 	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -242,11 +242,11 @@ static int ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 		return -ENODEV;
 
 	/* Check if we have an ME client device */
-	id = mei_me_cl_by_id(dev, cl->me_client_id);
-	if (id < 0)
-		return id;
+	me_cl = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (!me_cl)
+		return -ENOTTY;
 
-	if (length > dev->me_clients[id].props.max_msg_length)
+	if (length > me_cl->props.max_msg_length)
 		return -EFBIG;
 
 	cb = mei_io_cb_init(cl, NULL);

@@ -68,27 +68,26 @@ void mei_amthif_reset_params(struct mei_device *dev)
 int mei_amthif_host_init(struct mei_device *dev)
 {
 	struct mei_cl *cl = &dev->iamthif_cl;
+	struct mei_me_client *me_cl;
 	unsigned char *msg_buf;
-	int ret, i;
+	int ret;
 
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 
 	mei_cl_init(cl, dev);
 
-	i = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
-	if (i < 0) {
-		dev_info(&dev->pdev->dev,
-			"amthif: failed to find the client %d\n", i);
+	me_cl = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
+	if (!me_cl) {
+		dev_info(&dev->pdev->dev, "amthif: failed to find the client");
 		return -ENOTTY;
 	}
 
-	cl->me_client_id = dev->me_clients[i].client_id;
+	cl->me_client_id = me_cl->client_id;
 
 	/* Assign iamthif_mtu to the value received from ME  */
 
-	dev->iamthif_mtu = dev->me_clients[i].props.max_msg_length;
-	dev_dbg(&dev->pdev->dev, "IAMTHIF_MTU = %d\n",
-			dev->me_clients[i].props.max_msg_length);
+	dev->iamthif_mtu = me_cl->props.max_msg_length;
+	dev_dbg(&dev->pdev->dev, "IAMTHIF_MTU = %d\n", dev->iamthif_mtu);
 
 	kfree(dev->iamthif_msg_buf);
 	dev->iamthif_msg_buf = NULL;
@@ -157,12 +156,11 @@ struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 int mei_amthif_read(struct mei_device *dev, struct file *file,
 	       char __user *ubuf, size_t length, loff_t *offset)
 {
+	struct mei_cl *cl = file->private_data;
+	struct mei_cl_cb *cb;
+	unsigned long timeout;
 	int rets;
 	int wait_ret;
-	struct mei_cl_cb *cb = NULL;
-	struct mei_cl *cl = file->private_data;
-	unsigned long timeout;
-	int i;
 
 	/* Only possible if we are in timeout */
 	if (!cl) {
@@ -170,11 +168,6 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		return -ETIME;
 	}
 
-	i = mei_me_cl_by_id(dev, dev->iamthif_cl.me_client_id);
-	if (i < 0) {
-		dev_dbg(&dev->pdev->dev, "amthif client not found.\n");
-		return -ENOTTY;
-	}
 	dev_dbg(&dev->pdev->dev, "checking amthif data\n");
 	cb = mei_amthif_find_read_list_entry(dev, file);
 

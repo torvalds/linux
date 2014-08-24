@@ -303,11 +303,11 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			 size_t length, loff_t *offset)
 {
 	struct mei_cl *cl = file->private_data;
+	struct mei_me_client *me_cl;
 	struct mei_cl_cb *write_cb = NULL;
 	struct mei_device *dev;
 	unsigned long timeout = 0;
 	int rets;
-	int id;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -321,8 +321,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	id = mei_me_cl_by_id(dev, cl->me_client_id);
-	if (id < 0) {
+	me_cl = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (!me_cl) {
 		rets = -ENOTTY;
 		goto out;
 	}
@@ -332,7 +332,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	if (length > dev->me_clients[id].props.max_msg_length) {
+	if (length > me_cl->props.max_msg_length) {
 		rets = -EFBIG;
 		goto out;
 	}
@@ -428,8 +428,8 @@ static int mei_ioctl_connect_client(struct file *file,
 {
 	struct mei_device *dev;
 	struct mei_client *client;
+	struct mei_me_client *me_cl;
 	struct mei_cl *cl;
-	int i;
 	int rets;
 
 	cl = file->private_data;
@@ -450,22 +450,22 @@ static int mei_ioctl_connect_client(struct file *file,
 	}
 
 	/* find ME client we're trying to connect to */
-	i = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
-	if (i < 0 || dev->me_clients[i].props.fixed_address) {
+	me_cl = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
+	if (!me_cl || me_cl->props.fixed_address) {
 		dev_dbg(&dev->pdev->dev, "Cannot connect to FW Client UUID = %pUl\n",
 				&data->in_client_uuid);
 		rets = -ENOTTY;
 		goto end;
 	}
 
-	cl->me_client_id = dev->me_clients[i].client_id;
+	cl->me_client_id = me_cl->client_id;
 
 	dev_dbg(&dev->pdev->dev, "Connect to FW Client ID = %d\n",
 			cl->me_client_id);
 	dev_dbg(&dev->pdev->dev, "FW Client - Protocol Version = %d\n",
-			dev->me_clients[i].props.protocol_version);
+			me_cl->props.protocol_version);
 	dev_dbg(&dev->pdev->dev, "FW Client - Max Msg Len = %d\n",
-			dev->me_clients[i].props.max_msg_length);
+			me_cl->props.max_msg_length);
 
 	/* if we're connecting to amthif client then we will use the
 	 * existing connection
@@ -484,10 +484,8 @@ static int mei_ioctl_connect_client(struct file *file,
 		file->private_data = &dev->iamthif_cl;
 
 		client = &data->out_client_properties;
-		client->max_msg_length =
-			dev->me_clients[i].props.max_msg_length;
-		client->protocol_version =
-			dev->me_clients[i].props.protocol_version;
+		client->max_msg_length = me_cl->props.max_msg_length;
+		client->protocol_version = me_cl->props.protocol_version;
 		rets = dev->iamthif_cl.status;
 
 		goto end;
@@ -496,8 +494,8 @@ static int mei_ioctl_connect_client(struct file *file,
 
 	/* prepare the output buffer */
 	client = &data->out_client_properties;
-	client->max_msg_length = dev->me_clients[i].props.max_msg_length;
-	client->protocol_version = dev->me_clients[i].props.protocol_version;
+	client->max_msg_length = me_cl->props.max_msg_length;
+	client->protocol_version = me_cl->props.protocol_version;
 	dev_dbg(&dev->pdev->dev, "Can connect?\n");
 
 
