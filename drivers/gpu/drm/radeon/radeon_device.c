@@ -1397,10 +1397,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		return r;
 
-	r = radeon_ib_ring_tests(rdev);
-	if (r)
-		DRM_ERROR("ib ring test failed (%d).\n", r);
-
 	r = radeon_gem_debugfs_init(rdev);
 	if (r) {
 		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
@@ -1417,6 +1413,10 @@ int radeon_device_init(struct radeon_device *rdev,
 		if (r)
 			return r;
 	}
+
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
+		DRM_ERROR("ib ring test failed (%d).\n", r);
 
 	if ((radeon_testing & 1)) {
 		if (rdev->accel_working)
