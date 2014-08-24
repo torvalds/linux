@@ -255,6 +255,7 @@ static unsigned int airspy_convert_stream(struct airspy *s,
 	if (unlikely(time_is_before_jiffies(s->jiffies_next))) {
 		#define MSECS 10000UL
 		unsigned int samples = s->sample - s->sample_measured;
+
 		s->jiffies_next = jiffies + msecs_to_jiffies(MSECS);
 		s->sample_measured = s->sample;
 		dev_dbg(&s->udev->dev,
@@ -462,6 +463,7 @@ static void airspy_cleanup_queued_bufs(struct airspy *s)
 	spin_lock_irqsave(&s->queued_bufs_lock, flags);
 	while (!list_empty(&s->queued_bufs)) {
 		struct airspy_frame_buf *buf;
+
 		buf = list_entry(s->queued_bufs.next,
 				struct airspy_frame_buf, list);
 		list_del(&buf->list);
@@ -772,6 +774,7 @@ static int airspy_g_frequency(struct file *file, void *priv,
 {
 	struct airspy *s = video_drvdata(file);
 	int ret  = 0;
+
 	dev_dbg(&s->udev->dev, "%s: tuner=%d type=%d\n",
 			__func__, f->tuner, f->type);
 
@@ -829,6 +832,7 @@ static int airspy_enum_freq_bands(struct file *file, void *priv,
 {
 	struct airspy *s = video_drvdata(file);
 	int ret;
+
 	dev_dbg(&s->udev->dev, "%s: tuner=%d type=%d index=%d\n",
 			__func__, band->tuner, band->type, band->index);
 
