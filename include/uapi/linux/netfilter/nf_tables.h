@@ -572,6 +572,7 @@ enum nft_exthdr_attributes {
  * @NFT_META_BRI_IIFNAME: packet input bridge interface name
  * @NFT_META_BRI_OIFNAME: packet output bridge interface name
  * @NFT_META_PKTTYPE: packet type (skb->pkt_type), special handling for loopback
+ * @NFT_META_CPU: cpu id through smp_processor_id()
  */
 enum nft_meta_keys {
 	NFT_META_LEN,
@@ -594,6 +595,7 @@ enum nft_meta_keys {
 	NFT_META_BRI_IIFNAME,
 	NFT_META_BRI_OIFNAME,
 	NFT_META_PKTTYPE,
+	NFT_META_CPU,
 };
 
 /**

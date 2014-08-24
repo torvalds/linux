@@ -17,6 +17,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/smp.h>
 #include <net/dst.h>
 #include <net/sock.h>
 #include <net/tcp_states.h> /* for TCP_TIME_WAIT */
@@ -151,6 +152,9 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			goto err;
 		}
 		break;
+	case NFT_META_CPU:
+		dest->data[0] = smp_processor_id();
+		break;
 	default:
 		WARN_ON(1);
 		goto err;
@@ -223,6 +227,7 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 	case NFT_META_SECMARK:
 #endif
 	case NFT_META_PKTTYPE:
+	case NFT_META_CPU:
 		break;
 	default:
 		return -EOPNOTSUPP;
