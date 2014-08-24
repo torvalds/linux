@@ -62,8 +62,7 @@
 
 static const char ip6_frag_cache_name[] = "ip6-frags";
 
-struct ip6frag_skb_cb
-{
+struct ip6frag_skb_cb {
 	struct inet6_skb_parm	h;
 	int			offset;
 };
@@ -575,8 +574,7 @@ fail_hdr:
 	return -1;
 }
 
-static const struct inet6_protocol frag_protocol =
-{
+static const struct inet6_protocol frag_protocol = {
 	.handler	=	ipv6_frag_rcv,
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
