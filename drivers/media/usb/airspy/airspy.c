@@ -250,16 +250,18 @@ static unsigned int airspy_convert_stream(struct airspy *s,
 		dst_len = 0;
 	}
 
-	/* calculate samping rate and output it in 10 seconds intervals */
+	/* calculate sample rate and output it in 10 seconds intervals */
 	if (unlikely(time_is_before_jiffies(s->jiffies_next))) {
 		#define MSECS 10000UL
+		unsigned int msecs = jiffies_to_msecs(jiffies -
+				s->jiffies_next + msecs_to_jiffies(MSECS));
 		unsigned int samples = s->sample - s->sample_measured;
 
 		s->jiffies_next = jiffies + msecs_to_jiffies(MSECS);
 		s->sample_measured = s->sample;
-		dev_dbg(s->dev, "slen=%d samples=%u msecs=%lu sample rate=%lu\n",
-				src_len, samples, MSECS,
-				samples * 1000UL / MSECS);
+		dev_dbg(s->dev, "slen=%u samples=%u msecs=%u sample rate=%lu\n",
+				src_len, samples, msecs,
+				samples * 1000UL / msecs);
 	}
 
 	/* total number of samples */
