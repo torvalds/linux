@@ -2065,7 +2065,7 @@ S:	Supported
 F:	drivers/scsi/bnx2i/
 
 BROADCOM KONA GPIO DRIVER
-M:	Markus Mayer <markus.mayer@linaro.org>
+M:	Ray Jui <rjui@broadcom.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Supported
 F:	drivers/gpio/gpio-bcm-kona.c
