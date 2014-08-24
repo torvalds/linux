@@ -1323,11 +1323,16 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 		struct intel_load_detect_pipe tmp;
 		struct drm_modeset_acquire_ctx ctx;
 
+		drm_modeset_acquire_init(&ctx, 0);
+
 		if (intel_get_load_detect_pipe(connector, &mode, &tmp, &ctx)) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(connector, &tmp, &ctx);
+			intel_release_load_detect_pipe(connector, &tmp);
 		} else
 			return connector_status_unknown;
+
+		drm_modeset_drop_locks(&ctx);
+		drm_modeset_acquire_fini(&ctx);
 	} else
 		return connector->status;
 
