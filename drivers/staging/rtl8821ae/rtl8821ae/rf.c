@@ -211,7 +211,7 @@ static void _rtl8821ae_get_txpower_writeval_by_regulatory(struct ieee80211_hw *h
 			if (rtlphy->pwrgroup_cnt == 1)
 				chnlgroup = 0;
 			else {
-				if(channel<3)
+				if (channel < 3)
 					chnlgroup = 0;
 				else if (channel <6)
 					chnlgroup = 1;

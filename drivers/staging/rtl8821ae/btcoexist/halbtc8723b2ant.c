@@ -1323,7 +1323,7 @@ static void halbtc8723b2ant_set_ant_path(struct btc_coexist *btcoexist,
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_EXT_SWITCH, &pg_ext_switch);
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_FW_VER, &fw_ver);
 
-	if ((fw_ver<0xc0000) || pg_ext_switch)
+	if ((fw_ver < 0xc0000) || pg_ext_switch)
 		use_ext_switch = true;
 
 	if (init_hwcfg) {

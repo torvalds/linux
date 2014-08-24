@@ -1252,7 +1252,7 @@ static bool _rtl8812ae_phy_config_mac_with_headerfile(struct ieee80211_hw *hw)
 	for (i = 0; i < arraylength; i += 2) {
 		v1 = ptrarray[i];
 		v2 = (u8) ptrarray[i + 1];
-		if (v1<0xCDCDCDCD) {
+		if (v1 < 0xCDCDCDCD) {
 			rtl_write_byte(rtlpriv, v1, (u8) v2);
 		} else {
 			if (!_rtl8821ae_check_condition(hw,v1)) {
@@ -1296,7 +1296,7 @@ static bool _rtl8821ae_phy_config_mac_with_headerfile(struct ieee80211_hw *hw)
 	for (i = 0; i < arraylength; i += 2) {
 		v1 = ptrarray[i];
 		v2 = (u8) ptrarray[i + 1];
-		if (v1<0xCDCDCDCD) {
+		if (v1 < 0xCDCDCDCD) {
 			rtl_write_byte(rtlpriv, v1, (u8) v2);
 			continue;
 		} else {
@@ -1342,7 +1342,7 @@ static bool _rtl8812ae_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 		for (i = 0; i < arraylen; i += 2) {
 			v1 = array_table[i];
 			v2 = array_table[i+1];
-			if (v1<0xCDCDCDCD) {
+			if (v1 < 0xCDCDCDCD) {
 				_rtl8812ae_config_bb_reg(hw, v1, v2);
 				continue;
 			} else {/*This line is the start line of branch.*/
@@ -1431,7 +1431,7 @@ static bool _rtl8821ae_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 		for (i = 0; i < arraylen; i += 2) {
 			v1 = array_table[i];
 			v2 = array_table[i+1];
-			if (v1<0xCDCDCDCD) {
+			if (v1 < 0xCDCDCDCD) {
 				_rtl8821ae_config_bb_reg(hw, v1, v2);
 				continue;
 			} else {/*This line is the start line of branch.*/
@@ -1566,7 +1566,7 @@ static bool _rtl8812ae_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 			v5 = phy_regarray_table_pg[i+4];
 			v6 = phy_regarray_table_pg[i+5];
 
-			if (v1<0xCDCDCDCD) {
+			if (v1 < 0xCDCDCDCD) {
 				if ( (v4 == 0xfe) || (v4 == 0xffe))
 					mdelay(50);
 				else
@@ -1617,7 +1617,7 @@ static bool _rtl8821ae_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 			v5 = phy_regarray_table_pg[i+4];
 			v6 = phy_regarray_table_pg[i+5];
 
-			if (v1<0xCDCDCDCD) {
+			if (v1 < 0xCDCDCDCD) {
 				if (v4 == 0xfe)
 					mdelay(50);
 				else if (v4 == 0xfd)
@@ -1682,7 +1682,7 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw * hw,
 		for (i = 0; i < radioa_arraylen_a; i = i + 2) {
 			v1 = radioa_array_table_a[i];
 			v2 = radioa_array_table_a[i+1];
-			if (v1<0xcdcdcdcd) {
+			if (v1 < 0xcdcdcdcd) {
 				_rtl8821ae_config_rf_radio_a(hw,v1,v2);
 				continue;
 			}else{/*This line is the start line of branch.*/
@@ -1714,7 +1714,7 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw * hw,
 		for (i = 0; i < radioa_arraylen_b; i = i + 2) {
 			v1 = radioa_array_table_b[i];
 			v2 = radioa_array_table_b[i+1];
-			if (v1<0xcdcdcdcd) {
+			if (v1 < 0xcdcdcdcd) {
 				_rtl8821ae_config_rf_radio_b(hw,v1,v2);
 				continue;
 			}else{/*This line is the start line of branch.*/
@@ -1779,7 +1779,7 @@ bool rtl8821ae_phy_config_rf_with_headerfile(struct ieee80211_hw * hw,
 		for (i = 0; i < radioa_arraylen; i = i + 2) {
 			v1 = radioa_array_table[i];
 			v2 = radioa_array_table[i+1];
-			if (v1<0xcdcdcdcd) {
+			if (v1 < 0xcdcdcdcd) {
 				_rtl8821ae_config_rf_radio_a(hw,v1,v2);
 			}else{/*This line is the start line of branch.*/
 				if(!_rtl8821ae_check_condition(hw,v1)){
