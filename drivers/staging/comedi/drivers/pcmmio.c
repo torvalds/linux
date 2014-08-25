@@ -192,8 +192,6 @@ struct pcmmio_private {
 	unsigned int enabled_mask;
 	unsigned int stop_count;
 	unsigned int active:1;
-
-	unsigned int ao_readback[8];
 };
 
 static void pcmmio_dio_write(struct comedi_device *dev, unsigned int val,
@@ -655,21 +653,6 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pcmmio_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct pcmmio_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return insn->n;
-}
-
 static int pcmmio_ao_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -688,11 +671,9 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct pcmmio_private *devpriv = dev->private;
 	unsigned long iobase = dev->iobase;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
 	unsigned char cmd = 0;
 	int ret;
 	int i;
@@ -719,7 +700,7 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
+		unsigned int val = data[i];
 
 		/* write the data to the channel */
 		outb(val & 0xff, iobase + PCMMIO_AO_LSB_REG);
@@ -731,7 +712,7 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		devpriv->ao_readback[chan] = val;
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
@@ -796,8 +777,12 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan	= 8;
 	s->maxdata	= 0xffff;
 	s->range_table	= &pcmmio_ao_ranges;
-	s->insn_read	= pcmmio_ao_insn_read;
 	s->insn_write	= pcmmio_ao_insn_write;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* initialize the resource enable register by clearing it */
 	outb(0, dev->iobase + PCMMIO_AO_RESOURCE_ENA_REG);
