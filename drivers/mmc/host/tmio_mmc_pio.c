@@ -572,6 +572,9 @@ static void tmio_mmc_card_irq_status(struct tmio_mmc_host *host,
 
 	pr_debug_status(*status);
 	pr_debug_status(*ireg);
+
+	/* Clear the status except the interrupt status */
+	sd_ctrl_write32(host, CTL_STATUS, TMIO_MASK_IRQ);
 }
 
 static bool __tmio_mmc_card_detect_irq(struct tmio_mmc_host *host,
