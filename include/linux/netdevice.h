@@ -782,19 +782,6 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *        (can also return NETDEV_TX_LOCKED iff NETIF_F_LLTX)
  *	Required can not be NULL.
  *
- * void (*ndo_xmit_flush)(struct net_device *dev, u16 queue);
- *	A driver implements this function when it wishes to support
- *	deferred TX queue flushing.  The idea is that the expensive
- *	operation to trigger TX queue processing can be done after
- *	N calls to ndo_start_xmit rather than being done every single
- *	time.  In this regime ndo_start_xmit will be called one or more
- *	times, and then a final ndo_xmit_flush call will be made to
- *	have the driver tell the device about the new pending TX queue
- *	entries.  The kernel keeps track of which queues need flushing
- *	by monitoring skb->queue_mapping of the packets it submits to
- *	ndo_start_xmit.  This is the queue value that will be passed
- *	to ndo_xmit_flush.
- *
  * u16 (*ndo_select_queue)(struct net_device *dev, struct sk_buff *skb,
  *                         void *accel_priv, select_queue_fallback_t fallback);
  *	Called to decide which queue to when device supports multiple
@@ -1018,7 +1005,6 @@ struct net_device_ops {
 	int			(*ndo_stop)(struct net_device *dev);
 	netdev_tx_t		(*ndo_start_xmit) (struct sk_buff *skb,
 						   struct net_device *dev);
-	void			(*ndo_xmit_flush)(struct net_device *dev, u16 queue);
 	u16			(*ndo_select_queue)(struct net_device *dev,
 						    struct sk_buff *skb,
 						    void *accel_priv,
@@ -3447,15 +3433,8 @@ int __init dev_proc_init(void);
 static inline netdev_tx_t __netdev_start_xmit(const struct net_device_ops *ops,
 					      struct sk_buff *skb, struct net_device *dev)
 {
-	netdev_tx_t ret;
-	u16 q;
-
-	q = skb->queue_mapping;
-	ret = ops->ndo_start_xmit(skb, dev);
-	if (dev_xmit_complete(ret) && ops->ndo_xmit_flush)
-		ops->ndo_xmit_flush(dev, q);
-
-	return ret;
+	skb->xmit_more = 0;
+	return ops->ndo_start_xmit(skb, dev);
 }
 
 static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
