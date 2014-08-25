@@ -2732,9 +2732,6 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 
 			calib_source = data[1] & 0xf;
 
-			if (calib_source > 0xF)
-				return -EINVAL;
-
 			devpriv->ai_calib_source = calib_source;
 			ni_writew(dev, calib_source, Calibration_Channel_6143);
 		} else {
