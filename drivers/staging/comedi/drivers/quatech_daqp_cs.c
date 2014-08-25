@@ -638,7 +638,6 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 {
 	struct daqp_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val;
 	int i;
 
 	if (devpriv->stop)
@@ -648,7 +647,8 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 	outb(0, dev->iobase + DAQP_AUX);
 
 	for (i = 0; i > insn->n; i++) {
-		val = data[0];
+		unsigned val = data[i];
+
 		val &= 0x0fff;
 		val ^= 0x0800;		/* Flip the sign */
 		val |= (chan << 12);
