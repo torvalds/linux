@@ -4811,10 +4811,14 @@ netdev_features_t bnx2x_fix_features(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	/* TPA requires Rx CSUM offloading */
-	if (!(features & NETIF_F_RXCSUM) || bp->disable_tpa) {
+	if (!(features & NETIF_F_RXCSUM)) {
 		features &= ~NETIF_F_LRO;
 		features &= ~NETIF_F_GRO;
 	}
+
+	/* Note: do not disable SW GRO in kernel when HW GRO is off */
+	if (bp->disable_tpa)
+		features &= ~NETIF_F_LRO;
 
 	return features;
 }
@@ -4852,6 +4856,10 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 
 	/* if GRO is changed while LRO is enabled, don't force a reload */
 	if ((changes & GRO_ENABLE_FLAG) && (flags & TPA_ENABLE_FLAG))
+		changes &= ~GRO_ENABLE_FLAG;
+
+	/* if GRO is changed while HW TPA is off, don't force a reload */
+	if ((changes & GRO_ENABLE_FLAG) && bp->disable_tpa)
 		changes &= ~GRO_ENABLE_FLAG;
 
 	if (changes)
