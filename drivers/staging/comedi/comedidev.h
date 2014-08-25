@@ -88,6 +88,8 @@ struct comedi_subdevice {
 
 	struct device *class_dev;
 	int minor;
+
+	unsigned int *readback;
 };
 
 struct comedi_buf_page {
@@ -448,6 +450,10 @@ unsigned int comedi_dio_update_state(struct comedi_subdevice *,
 
 void *comedi_alloc_devpriv(struct comedi_device *, size_t);
 int comedi_alloc_subdevices(struct comedi_device *, int);
+int comedi_alloc_subdev_readback(struct comedi_subdevice *);
+
+int comedi_readback_insn_read(struct comedi_device *, struct comedi_subdevice *,
+			      struct comedi_insn *, unsigned int *data);
 
 int comedi_load_firmware(struct comedi_device *, struct device *,
 			 const char *name,

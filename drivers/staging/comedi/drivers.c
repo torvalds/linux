@@ -96,6 +96,22 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
 
+/**
+ * comedi_alloc_subdev_readback() - Allocate memory for the subdevice readback.
+ * @s: comedi_subdevice struct
+ */
+int comedi_alloc_subdev_readback(struct comedi_subdevice *s)
+{
+	if (!s->n_chan)
+		return -EINVAL;
+
+	s->readback = kcalloc(s->n_chan, sizeof(*s->readback), GFP_KERNEL);
+	if (!s->readback)
+		return -ENOMEM;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(comedi_alloc_subdev_readback);
+
 static void comedi_device_detach_cleanup(struct comedi_device *dev)
 {
 	int i;
@@ -111,6 +127,7 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 				comedi_buf_alloc(dev, s, 0);
 				kfree(s->async);
 			}
+			kfree(s->readback);
 		}
 		kfree(dev->subdevices);
 		dev->subdevices = NULL;
@@ -155,6 +172,31 @@ int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	return -EINVAL;
 }
+
+/**
+ * comedi_readback_insn_read() - A generic (*insn_read) for subdevice readback.
+ * @dev: comedi_device struct
+ * @s: comedi_subdevice struct
+ * @insn: comedi_insn struct
+ * @data: pointer to return the readback data
+ */
+int comedi_readback_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	if (!s->readback)
+		return -EINVAL;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = s->readback[chan];
+
+	return insn->n;
+}
+EXPORT_SYMBOL_GPL(comedi_readback_insn_read);
 
 /**
  * comedi_timeout() - busy-wait for a driver condition to occur.
