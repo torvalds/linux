@@ -3549,12 +3549,10 @@ static int ni_cdio_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* step 4: fix up any arguments */
-
-	if (err)
-		return 4;
+	/* Step 4: fix up any arguments */
 
 	/* Step 5: check channel list if it exists */
+
 	if (cmd->chanlist && cmd->chanlist_len > 0)
 		err |= ni_cdio_check_chanlist(dev, s, cmd);
 
