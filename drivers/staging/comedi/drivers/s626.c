@@ -98,7 +98,6 @@ struct s626_private {
 	uint8_t trim_setpoint[12];	/* images of TrimDAC setpoints */
 	uint32_t i2c_adrs;		/* I2C device address for onboard EEPROM
 					 * (board rev dependent) */
-	unsigned int ao_readback[S626_DAC_CHANNELS];
 };
 
 /* Counter overflow/index event flag masks for RDMISC2. */
@@ -2268,38 +2267,28 @@ static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int s626_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct s626_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
-	int ret;
-	uint16_t chan = CR_CHAN(insn->chanspec);
-	int16_t dacdata;
 
 	for (i = 0; i < insn->n; i++) {
-		dacdata = (int16_t) data[i];
-		devpriv->ao_readback[CR_CHAN(insn->chanspec)] = data[i];
+		int16_t dacdata = (int16_t)data[i];
+		int ret;
+
 		dacdata -= (0x1fff);
 
 		ret = s626_set_dac(dev, chan, dacdata);
 		if (ret)
 			return ret;
+
+		s->readback[chan] = data[i];
 	}
 
-	return i;
-}
-
-static int s626_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
-{
-	struct s626_private *devpriv = dev->private;
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
-
-	return i;
+	return insn->n;
 }
 
 /* *************** DIGITAL I/O FUNCTIONS *************** */
@@ -2843,8 +2832,12 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->n_chan	= S626_DAC_CHANNELS;
 	s->maxdata	= 0x3fff;
 	s->range_table	= &range_bipolar10;
-	s->insn_write	= s626_ao_winsn;
-	s->insn_read	= s626_ao_rinsn;
+	s->insn_write	= s626_ao_insn_write;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* digital I/O subdevice */
