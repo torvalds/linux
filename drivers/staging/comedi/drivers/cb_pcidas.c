@@ -360,8 +360,6 @@ struct cb_pcidas_private {
 	unsigned int ao_divisor2;
 	/* number of analog output samples remaining */
 	unsigned int ao_count;
-	/* cached values for readback */
-	unsigned short ao_value[2];
 	unsigned int caldac_value[NUM_CHANNELS_8800];
 	unsigned int trimpot_value[NUM_CHANNELS_8402];
 	unsigned int dac08_value;
@@ -484,7 +482,7 @@ static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* remember value for readback */
-	devpriv->ao_value[chan] = data[0];
+	s->readback[chan] = data[0];
 
 	/* send data */
 	outw(data[0], devpriv->ao_registers + DAC_DATA_REG(chan));
@@ -515,24 +513,12 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* remember value for readback */
-	devpriv->ao_value[chan] = data[0];
+	s->readback[chan] = data[0];
 
 	/* send data */
 	outw(data[0], devpriv->ao_registers + DACDATA);
 
 	return insn->n;
-}
-
-static int cb_pcidas_ao_readback_insn(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
-{
-	struct cb_pcidas_private *devpriv = dev->private;
-
-	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
-
-	return 1;
 }
 
 static int wait_for_nvram_ready(unsigned long s5933_base_addr)
@@ -1511,16 +1497,22 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		 */
 		s->maxdata = (1 << thisboard->ai_bits) - 1;
 		s->range_table = &cb_pcidas_ao_ranges;
-		s->insn_read = cb_pcidas_ao_readback_insn;
+		/* default to no fifo (*insn_write) */
+		s->insn_write = cb_pcidas_ao_nofifo_winsn;
+		s->insn_read = comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
 		if (thisboard->has_ao_fifo) {
 			dev->write_subdev = s;
 			s->subdev_flags |= SDF_CMD_WRITE;
+			/* use fifo (*insn_write) instead */
 			s->insn_write = cb_pcidas_ao_fifo_winsn;
 			s->do_cmdtest = cb_pcidas_ao_cmdtest;
 			s->do_cmd = cb_pcidas_ao_cmd;
 			s->cancel = cb_pcidas_ao_cancel;
-		} else {
-			s->insn_write = cb_pcidas_ao_nofifo_winsn;
 		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
