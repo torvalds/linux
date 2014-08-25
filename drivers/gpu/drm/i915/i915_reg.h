@@ -497,10 +497,26 @@
 #define BUNIT_REG_BISOC				0x11
 
 #define PUNIT_REG_DSPFREQ			0x36
+#define   DSPFREQSTAT_SHIFT_CHV			24
+#define   DSPFREQSTAT_MASK_CHV			(0x1f << DSPFREQSTAT_SHIFT_CHV)
+#define   DSPFREQGUAR_SHIFT_CHV			8
+#define   DSPFREQGUAR_MASK_CHV			(0x1f << DSPFREQGUAR_SHIFT_CHV)
 #define   DSPFREQSTAT_SHIFT			30
 #define   DSPFREQSTAT_MASK			(0x3 << DSPFREQSTAT_SHIFT)
 #define   DSPFREQGUAR_SHIFT			14
 #define   DSPFREQGUAR_MASK			(0x3 << DSPFREQGUAR_SHIFT)
+#define   _DP_SSC(val, pipe)			((val) << (2 * (pipe)))
+#define   DP_SSC_MASK(pipe)			_DP_SSC(0x3, (pipe))
+#define   DP_SSC_PWR_ON(pipe)			_DP_SSC(0x0, (pipe))
+#define   DP_SSC_CLK_GATE(pipe)			_DP_SSC(0x1, (pipe))
+#define   DP_SSC_RESET(pipe)			_DP_SSC(0x2, (pipe))
+#define   DP_SSC_PWR_GATE(pipe)			_DP_SSC(0x3, (pipe))
+#define   _DP_SSS(val, pipe)			((val) << (2 * (pipe) + 16))
+#define   DP_SSS_MASK(pipe)			_DP_SSS(0x3, (pipe))
+#define   DP_SSS_PWR_ON(pipe)			_DP_SSS(0x0, (pipe))
+#define   DP_SSS_CLK_GATE(pipe)			_DP_SSS(0x1, (pipe))
+#define   DP_SSS_RESET(pipe)			_DP_SSS(0x2, (pipe))
+#define   DP_SSS_PWR_GATE(pipe)			_DP_SSS(0x3, (pipe))
 
 /* See the PUNIT HAS v0.8 for the below bits */
 enum punit_power_well {
@@ -514,6 +530,11 @@ enum punit_power_well {
 	PUNIT_POWER_WELL_DPIO_TX_C_LANES_23	= 9,
 	PUNIT_POWER_WELL_DPIO_RX0		= 10,
 	PUNIT_POWER_WELL_DPIO_RX1		= 11,
+	PUNIT_POWER_WELL_DPIO_CMN_D		= 12,
+	/* FIXME: guesswork below */
+	PUNIT_POWER_WELL_DPIO_TX_D_LANES_01	= 13,
+	PUNIT_POWER_WELL_DPIO_TX_D_LANES_23	= 14,
+	PUNIT_POWER_WELL_DPIO_RX2		= 15,
 
 	PUNIT_POWER_WELL_NUM,
 };
@@ -834,8 +855,8 @@ enum punit_power_well {
 
 #define _VLV_TX_DW2_CH0			0x8288
 #define _VLV_TX_DW2_CH1			0x8488
-#define   DPIO_SWING_MARGIN_SHIFT	16
-#define   DPIO_SWING_MARGIN_MASK	(0xff << DPIO_SWING_MARGIN_SHIFT)
+#define   DPIO_SWING_MARGIN000_SHIFT	16
+#define   DPIO_SWING_MARGIN000_MASK	(0xff << DPIO_SWING_MARGIN000_SHIFT)
 #define   DPIO_UNIQ_TRANS_SCALE_SHIFT	8
 #define VLV_TX_DW2(ch) _PORT(ch, _VLV_TX_DW2_CH0, _VLV_TX_DW2_CH1)
 
@@ -843,12 +864,16 @@ enum punit_power_well {
 #define _VLV_TX_DW3_CH1			0x848c
 /* The following bit for CHV phy */
 #define   DPIO_TX_UNIQ_TRANS_SCALE_EN	(1<<27)
+#define   DPIO_SWING_MARGIN101_SHIFT	16
+#define   DPIO_SWING_MARGIN101_MASK	(0xff << DPIO_SWING_MARGIN101_SHIFT)
 #define VLV_TX_DW3(ch) _PORT(ch, _VLV_TX_DW3_CH0, _VLV_TX_DW3_CH1)
 
 #define _VLV_TX_DW4_CH0			0x8290
 #define _VLV_TX_DW4_CH1			0x8490
 #define   DPIO_SWING_DEEMPH9P5_SHIFT	24
 #define   DPIO_SWING_DEEMPH9P5_MASK	(0xff << DPIO_SWING_DEEMPH9P5_SHIFT)
+#define   DPIO_SWING_DEEMPH6P0_SHIFT	16
+#define   DPIO_SWING_DEEMPH6P0_MASK	(0xff << DPIO_SWING_DEEMPH6P0_SHIFT)
 #define VLV_TX_DW4(ch) _PORT(ch, _VLV_TX_DW4_CH0, _VLV_TX_DW4_CH1)
 
 #define _VLV_TX3_DW4_CH0		0x690
@@ -1515,6 +1540,7 @@ enum punit_power_well {
 /* Framebuffer compression for Ironlake */
 #define ILK_DPFC_CB_BASE	0x43200
 #define ILK_DPFC_CONTROL	0x43208
+#define   FBC_CTL_FALSE_COLOR	(1<<10)
 /* The bit 28-8 is reserved */
 #define   DPFC_RESERVED		(0x1FFFFF00)
 #define ILK_DPFC_RECOMP_CTL	0x4320c
@@ -1671,12 +1697,9 @@ enum punit_power_well {
 #define DPIO_PHY_STATUS			(VLV_DISPLAY_BASE + 0x6240)
 #define   DPLL_PORTD_READY_MASK		(0xf)
 #define DISPLAY_PHY_CONTROL (VLV_DISPLAY_BASE + 0x60100)
-#define   PHY_COM_LANE_RESET_DEASSERT(phy, val) \
-				((phy == DPIO_PHY0) ? (val | 1) : (val | 2))
-#define   PHY_COM_LANE_RESET_ASSERT(phy, val) \
-				((phy == DPIO_PHY0) ? (val & ~1) : (val & ~2))
+#define   PHY_COM_LANE_RESET_DEASSERT(phy) (1 << (phy))
 #define DISPLAY_PHY_STATUS (VLV_DISPLAY_BASE + 0x60104)
-#define   PHY_POWERGOOD(phy)	((phy == DPIO_PHY0) ? (1<<31) : (1<<30))
+#define   PHY_POWERGOOD(phy)	(((phy) == DPIO_PHY0) ? (1<<31) : (1<<30))
 
 /*
  * The i830 generation, in LVDS mode, defines P1 as the bit number set within
@@ -3472,6 +3495,8 @@ enum punit_power_well {
 #define   DP_LINK_TRAIN_OFF		(3 << 28)
 #define   DP_LINK_TRAIN_MASK		(3 << 28)
 #define   DP_LINK_TRAIN_SHIFT		28
+#define   DP_LINK_TRAIN_PAT_3_CHV	(1 << 14)
+#define   DP_LINK_TRAIN_MASK_CHV	((3 << 28)|(1<<14))
 
 /* CPT Link training mode */
 #define   DP_LINK_TRAIN_PAT_1_CPT	(0 << 8)
@@ -3728,7 +3753,6 @@ enum punit_power_well {
 #define   PIPE_VSYNC_INTERRUPT_STATUS		(1UL<<9)
 #define   PIPE_DISPLAY_LINE_COMPARE_STATUS	(1UL<<8)
 #define   PIPE_DPST_EVENT_STATUS		(1UL<<7)
-#define   PIPE_LEGACY_BLC_EVENT_STATUS		(1UL<<6)
 #define   PIPE_A_PSR_STATUS_VLV			(1UL<<6)
 #define   PIPE_LEGACY_BLC_EVENT_STATUS		(1UL<<6)
 #define   PIPE_ODD_FIELD_INTERRUPT_STATUS	(1UL<<5)
@@ -3838,73 +3862,151 @@ enum punit_power_well {
 #define   DSPARB_BEND_SHIFT	9 /* on 855 */
 #define   DSPARB_AEND_SHIFT	0
 
+/* pnv/gen4/g4x/vlv/chv */
 #define DSPFW1			(dev_priv->info.display_mmio_offset + 0x70034)
-#define   DSPFW_SR_SHIFT	23
-#define   DSPFW_SR_MASK		(0x1ff<<23)
-#define   DSPFW_CURSORB_SHIFT	16
-#define   DSPFW_CURSORB_MASK	(0x3f<<16)
-#define   DSPFW_PLANEB_SHIFT	8
-#define   DSPFW_PLANEB_MASK	(0x7f<<8)
-#define   DSPFW_PLANEA_MASK	(0x7f)
+#define   DSPFW_SR_SHIFT		23
+#define   DSPFW_SR_MASK			(0x1ff<<23)
+#define   DSPFW_CURSORB_SHIFT		16
+#define   DSPFW_CURSORB_MASK		(0x3f<<16)
+#define   DSPFW_PLANEB_SHIFT		8
+#define   DSPFW_PLANEB_MASK		(0x7f<<8)
+#define   DSPFW_PLANEB_MASK_VLV		(0xff<<8) /* vlv/chv */
+#define   DSPFW_PLANEA_SHIFT		0
+#define   DSPFW_PLANEA_MASK		(0x7f<<0)
+#define   DSPFW_PLANEA_MASK_VLV		(0xff<<0) /* vlv/chv */
 #define DSPFW2			(dev_priv->info.display_mmio_offset + 0x70038)
-#define   DSPFW_CURSORA_MASK	0x00003f00
-#define   DSPFW_CURSORA_SHIFT	8
-#define   DSPFW_PLANEC_MASK	(0x7f)
+#define   DSPFW_FBC_SR_EN		(1<<31)	  /* g4x */
+#define   DSPFW_FBC_SR_SHIFT		28
+#define   DSPFW_FBC_SR_MASK		(0x7<<28) /* g4x */
+#define   DSPFW_FBC_HPLL_SR_SHIFT	24
+#define   DSPFW_FBC_HPLL_SR_MASK	(0xf<<24) /* g4x */
+#define   DSPFW_SPRITEB_SHIFT		(16)
+#define   DSPFW_SPRITEB_MASK		(0x7f<<16) /* g4x */
+#define   DSPFW_SPRITEB_MASK_VLV	(0xff<<16) /* vlv/chv */
+#define   DSPFW_CURSORA_SHIFT		8
+#define   DSPFW_CURSORA_MASK		(0x3f<<8)
+#define   DSPFW_PLANEC_SHIFT_OLD	0
+#define   DSPFW_PLANEC_MASK_OLD		(0x7f<<0) /* pre-gen4 sprite C */
+#define   DSPFW_SPRITEA_SHIFT		0
+#define   DSPFW_SPRITEA_MASK		(0x7f<<0) /* g4x */
+#define   DSPFW_SPRITEA_MASK_VLV	(0xff<<0) /* vlv/chv */
 #define DSPFW3			(dev_priv->info.display_mmio_offset + 0x7003c)
-#define   DSPFW_HPLL_SR_EN	(1<<31)
-#define   DSPFW_CURSOR_SR_SHIFT	24
+#define   DSPFW_HPLL_SR_EN		(1<<31)
 #define   PINEVIEW_SELF_REFRESH_EN	(1<<30)
+#define   DSPFW_CURSOR_SR_SHIFT		24
 #define   DSPFW_CURSOR_SR_MASK		(0x3f<<24)
 #define   DSPFW_HPLL_CURSOR_SHIFT	16
 #define   DSPFW_HPLL_CURSOR_MASK	(0x3f<<16)
-#define   DSPFW_HPLL_SR_MASK		(0x1ff)
-#define DSPFW4			(dev_priv->info.display_mmio_offset + 0x70070)
-#define DSPFW7			(dev_priv->info.display_mmio_offset + 0x7007c)
+#define   DSPFW_HPLL_SR_SHIFT		0
+#define   DSPFW_HPLL_SR_MASK		(0x1ff<<0)
+
+/* vlv/chv */
+#define DSPFW4			(VLV_DISPLAY_BASE + 0x70070)
+#define   DSPFW_SPRITEB_WM1_SHIFT	16
+#define   DSPFW_SPRITEB_WM1_MASK	(0xff<<16)
+#define   DSPFW_CURSORA_WM1_SHIFT	8
+#define   DSPFW_CURSORA_WM1_MASK	(0x3f<<8)
+#define   DSPFW_SPRITEA_WM1_SHIFT	0
+#define   DSPFW_SPRITEA_WM1_MASK	(0xff<<0)
+#define DSPFW5			(VLV_DISPLAY_BASE + 0x70074)
+#define   DSPFW_PLANEB_WM1_SHIFT	24
+#define   DSPFW_PLANEB_WM1_MASK		(0xff<<24)
+#define   DSPFW_PLANEA_WM1_SHIFT	16
+#define   DSPFW_PLANEA_WM1_MASK		(0xff<<16)
+#define   DSPFW_CURSORB_WM1_SHIFT	8
+#define   DSPFW_CURSORB_WM1_MASK	(0x3f<<8)
+#define   DSPFW_CURSOR_SR_WM1_SHIFT	0
+#define   DSPFW_CURSOR_SR_WM1_MASK	(0x3f<<0)
+#define DSPFW6			(VLV_DISPLAY_BASE + 0x70078)
+#define   DSPFW_SR_WM1_SHIFT		0
+#define   DSPFW_SR_WM1_MASK		(0x1ff<<0)
+#define DSPFW7			(VLV_DISPLAY_BASE + 0x7007c)
+#define DSPFW7_CHV		(VLV_DISPLAY_BASE + 0x700b4) /* wtf #1? */
+#define   DSPFW_SPRITED_WM1_SHIFT	24
+#define   DSPFW_SPRITED_WM1_MASK	(0xff<<24)
+#define   DSPFW_SPRITED_SHIFT		16
+#define   DSPFW_SPRITED_MASK		(0xff<<16)
+#define   DSPFW_SPRITEC_WM1_SHIFT	8
+#define   DSPFW_SPRITEC_WM1_MASK	(0xff<<8)
+#define   DSPFW_SPRITEC_SHIFT		0
+#define   DSPFW_SPRITEC_MASK		(0xff<<0)
+#define DSPFW8_CHV		(VLV_DISPLAY_BASE + 0x700b8)
+#define   DSPFW_SPRITEF_WM1_SHIFT	24
+#define   DSPFW_SPRITEF_WM1_MASK	(0xff<<24)
+#define   DSPFW_SPRITEF_SHIFT		16
+#define   DSPFW_SPRITEF_MASK		(0xff<<16)
+#define   DSPFW_SPRITEE_WM1_SHIFT	8
+#define   DSPFW_SPRITEE_WM1_MASK	(0xff<<8)
+#define   DSPFW_SPRITEE_SHIFT		0
+#define   DSPFW_SPRITEE_MASK		(0xff<<0)
+#define DSPFW9_CHV		(VLV_DISPLAY_BASE + 0x7007c) /* wtf #2? */
+#define   DSPFW_PLANEC_WM1_SHIFT	24
+#define   DSPFW_PLANEC_WM1_MASK		(0xff<<24)
+#define   DSPFW_PLANEC_SHIFT		16
+#define   DSPFW_PLANEC_MASK		(0xff<<16)
+#define   DSPFW_CURSORC_WM1_SHIFT	8
+#define   DSPFW_CURSORC_WM1_MASK	(0x3f<<16)
+#define   DSPFW_CURSORC_SHIFT		0
+#define   DSPFW_CURSORC_MASK		(0x3f<<0)
+
+/* vlv/chv high order bits */
+#define DSPHOWM			(VLV_DISPLAY_BASE + 0x70064)
+#define   DSPFW_SR_HI_SHIFT		24
+#define   DSPFW_SR_HI_MASK		(1<<24)
+#define   DSPFW_SPRITEF_HI_SHIFT	23
+#define   DSPFW_SPRITEF_HI_MASK		(1<<23)
+#define   DSPFW_SPRITEE_HI_SHIFT	22
+#define   DSPFW_SPRITEE_HI_MASK		(1<<22)
+#define   DSPFW_PLANEC_HI_SHIFT		21
+#define   DSPFW_PLANEC_HI_MASK		(1<<21)
+#define   DSPFW_SPRITED_HI_SHIFT	20
+#define   DSPFW_SPRITED_HI_MASK		(1<<20)
+#define   DSPFW_SPRITEC_HI_SHIFT	16
+#define   DSPFW_SPRITEC_HI_MASK		(1<<16)
+#define   DSPFW_PLANEB_HI_SHIFT		12
+#define   DSPFW_PLANEB_HI_MASK		(1<<12)
+#define   DSPFW_SPRITEB_HI_SHIFT	8
+#define   DSPFW_SPRITEB_HI_MASK		(1<<8)
+#define   DSPFW_SPRITEA_HI_SHIFT	4
+#define   DSPFW_SPRITEA_HI_MASK		(1<<4)
+#define   DSPFW_PLANEA_HI_SHIFT		0
+#define   DSPFW_PLANEA_HI_MASK		(1<<0)
+#define DSPHOWM1		(VLV_DISPLAY_BASE + 0x70068)
+#define   DSPFW_SR_WM1_HI_SHIFT		24
+#define   DSPFW_SR_WM1_HI_MASK		(1<<24)
+#define   DSPFW_SPRITEF_WM1_HI_SHIFT	23
+#define   DSPFW_SPRITEF_WM1_HI_MASK	(1<<23)
+#define   DSPFW_SPRITEE_WM1_HI_SHIFT	22
+#define   DSPFW_SPRITEE_WM1_HI_MASK	(1<<22)
+#define   DSPFW_PLANEC_WM1_HI_SHIFT	21
+#define   DSPFW_PLANEC_WM1_HI_MASK	(1<<21)
+#define   DSPFW_SPRITED_WM1_HI_SHIFT	20
+#define   DSPFW_SPRITED_WM1_HI_MASK	(1<<20)
+#define   DSPFW_SPRITEC_WM1_HI_SHIFT	16
+#define   DSPFW_SPRITEC_WM1_HI_MASK	(1<<16)
+#define   DSPFW_PLANEB_WM1_HI_SHIFT	12
+#define   DSPFW_PLANEB_WM1_HI_MASK	(1<<12)
+#define   DSPFW_SPRITEB_WM1_HI_SHIFT	8
+#define   DSPFW_SPRITEB_WM1_HI_MASK	(1<<8)
+#define   DSPFW_SPRITEA_WM1_HI_SHIFT	4
+#define   DSPFW_SPRITEA_WM1_HI_MASK	(1<<4)
+#define   DSPFW_PLANEA_WM1_HI_SHIFT	0
+#define   DSPFW_PLANEA_WM1_HI_MASK	(1<<0)
 
 /* drain latency register values*/
 #define DRAIN_LATENCY_PRECISION_32	32
 #define DRAIN_LATENCY_PRECISION_64	64
-#define VLV_DDL1			(VLV_DISPLAY_BASE + 0x70050)
-#define DDL_CURSORA_PRECISION_64	(1<<31)
-#define DDL_CURSORA_PRECISION_32	(0<<31)
-#define DDL_CURSORA_SHIFT		24
-#define DDL_SPRITEB_PRECISION_64	(1<<23)
-#define DDL_SPRITEB_PRECISION_32	(0<<23)
-#define DDL_SPRITEB_SHIFT		16
-#define DDL_SPRITEA_PRECISION_64	(1<<15)
-#define DDL_SPRITEA_PRECISION_32	(0<<15)
-#define DDL_SPRITEA_SHIFT		8
-#define DDL_PLANEA_PRECISION_64		(1<<7)
-#define DDL_PLANEA_PRECISION_32		(0<<7)
-#define DDL_PLANEA_SHIFT		0
-
-#define VLV_DDL2			(VLV_DISPLAY_BASE + 0x70054)
-#define DDL_CURSORB_PRECISION_64	(1<<31)
-#define DDL_CURSORB_PRECISION_32	(0<<31)
-#define DDL_CURSORB_SHIFT		24
-#define DDL_SPRITED_PRECISION_64	(1<<23)
-#define DDL_SPRITED_PRECISION_32	(0<<23)
-#define DDL_SPRITED_SHIFT		16
-#define DDL_SPRITEC_PRECISION_64	(1<<15)
-#define DDL_SPRITEC_PRECISION_32	(0<<15)
-#define DDL_SPRITEC_SHIFT		8
-#define DDL_PLANEB_PRECISION_64		(1<<7)
-#define DDL_PLANEB_PRECISION_32		(0<<7)
-#define DDL_PLANEB_SHIFT		0
-
-#define VLV_DDL3			(VLV_DISPLAY_BASE + 0x70058)
-#define DDL_CURSORC_PRECISION_64	(1<<31)
-#define DDL_CURSORC_PRECISION_32	(0<<31)
-#define DDL_CURSORC_SHIFT		24
-#define DDL_SPRITEF_PRECISION_64	(1<<23)
-#define DDL_SPRITEF_PRECISION_32	(0<<23)
-#define DDL_SPRITEF_SHIFT		16
-#define DDL_SPRITEE_PRECISION_64	(1<<15)
-#define DDL_SPRITEE_PRECISION_32	(0<<15)
-#define DDL_SPRITEE_SHIFT		8
-#define DDL_PLANEC_PRECISION_64		(1<<7)
-#define DDL_PLANEC_PRECISION_32		(0<<7)
-#define DDL_PLANEC_SHIFT		0
+#define VLV_DDL(pipe)			(VLV_DISPLAY_BASE + 0x70050 + 4 * (pipe))
+#define DDL_CURSOR_PRECISION_64		(1<<31)
+#define DDL_CURSOR_PRECISION_32		(0<<31)
+#define DDL_CURSOR_SHIFT		24
+#define DDL_SPRITE_PRECISION_64(sprite)	(1<<(15+8*(sprite)))
+#define DDL_SPRITE_PRECISION_32(sprite)	(0<<(15+8*(sprite)))
+#define DDL_SPRITE_SHIFT(sprite)	(8+8*(sprite))
+#define DDL_PLANE_PRECISION_64		(1<<7)
+#define DDL_PLANE_PRECISION_32		(0<<7)
+#define DDL_PLANE_SHIFT			0
+#define DRAIN_LATENCY_MASK		0x7f
 
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
@@ -4191,6 +4293,7 @@ enum punit_power_well {
 #define   DVS_YUV_ORDER_UYVY	(1<<16)
 #define   DVS_YUV_ORDER_YVYU	(2<<16)
 #define   DVS_YUV_ORDER_VYUY	(3<<16)
+#define   DVS_ROTATE_180	(1<<15)
 #define   DVS_DEST_KEY		(1<<2)
 #define   DVS_TRICKLE_FEED_DISABLE (1<<14)
 #define   DVS_TILED		(1<<10)
@@ -4261,6 +4364,7 @@ enum punit_power_well {
 #define   SPRITE_YUV_ORDER_UYVY		(1<<16)
 #define   SPRITE_YUV_ORDER_YVYU		(2<<16)
 #define   SPRITE_YUV_ORDER_VYUY		(3<<16)
+#define   SPRITE_ROTATE_180		(1<<15)
 #define   SPRITE_TRICKLE_FEED_DISABLE	(1<<14)
 #define   SPRITE_INT_GAMMA_ENABLE	(1<<13)
 #define   SPRITE_TILED			(1<<10)
@@ -4334,6 +4438,7 @@ enum punit_power_well {
 #define   SP_YUV_ORDER_UYVY		(1<<16)
 #define   SP_YUV_ORDER_YVYU		(2<<16)
 #define   SP_YUV_ORDER_VYUY		(3<<16)
+#define   SP_ROTATE_180			(1<<15)
 #define   SP_TILED			(1<<10)
 #define _SPALINOFF		(VLV_DISPLAY_BASE + 0x72184)
 #define _SPASTRIDE		(VLV_DISPLAY_BASE + 0x72188)
@@ -5403,7 +5508,6 @@ enum punit_power_well {
 #define   VLV_GTLC_ALLOWWAKEERR			(1 << 1)
 #define   VLV_GTLC_PW_MEDIA_STATUS_MASK		(1 << 5)
 #define   VLV_GTLC_PW_RENDER_STATUS_MASK	(1 << 7)
-#define VLV_GTLC_SURVIVABILITY_REG              0x130098
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define   FORCEWAKE_KERNEL			0x1
 #define   FORCEWAKE_USER			0x2

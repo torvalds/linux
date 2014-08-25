@@ -53,7 +53,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20140725"
+#define DRIVER_DATE		"20140808"
 
 enum pipe {
 	INVALID_PIPE = -1,
@@ -171,6 +171,11 @@ enum hpd_pin {
 #define for_each_intel_crtc(dev, intel_crtc) \
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
 
+#define for_each_intel_encoder(dev, intel_encoder)		\
+	list_for_each_entry(intel_encoder,			\
+			    &(dev)->mode_config.encoder_list,	\
+			    base.head)
+
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))
@@ -197,10 +202,13 @@ enum intel_dpll_id {
 #define I915_NUM_PLLS 2
 
 struct intel_dpll_hw_state {
+	/* i9xx, pch plls */
 	uint32_t dpll;
 	uint32_t dpll_md;
 	uint32_t fp0;
 	uint32_t fp1;
+
+	/* hsw, bdw */
 	uint32_t wrpll;
 };
 
@@ -633,6 +641,8 @@ struct i915_fbc {
 
 	struct drm_mm_node compressed_fb;
 	struct drm_mm_node *compressed_llb;
+
+	bool false_color;
 
 	struct intel_fbc_work {
 		struct delayed_work work;
@@ -1227,6 +1237,12 @@ enum modeset_restore {
 };
 
 struct ddi_vbt_port_info {
+	/*
+	 * This is an index in the HDMI/DVI DDI buffer translation table.
+	 * The special value HDMI_LEVEL_SHIFT_UNKNOWN means the VBT didn't
+	 * populate this field.
+	 */
+#define HDMI_LEVEL_SHIFT_UNKNOWN	0xff
 	uint8_t hdmi_level_shift;
 
 	uint8_t supports_dvi:1;
@@ -2049,8 +2065,8 @@ struct drm_i915_cmd_table {
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_GEN8(dev))
-#define USES_PPGTT(dev)		intel_enable_ppgtt(dev, false)
-#define USES_FULL_PPGTT(dev)	intel_enable_ppgtt(dev, true)
+#define USES_PPGTT(dev)		(i915.enable_ppgtt)
+#define USES_FULL_PPGTT(dev)	(i915.enable_ppgtt == 2)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)

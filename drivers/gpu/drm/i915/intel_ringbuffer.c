@@ -476,8 +476,8 @@ static bool stop_ring(struct intel_engine_cs *ring)
 
 	if (!IS_GEN2(ring->dev)) {
 		I915_WRITE_MODE(ring, _MASKED_BIT_ENABLE(STOP_RING));
-		if (wait_for_atomic((I915_READ_MODE(ring) & MODE_IDLE) != 0, 1000)) {
-			DRM_ERROR("%s :timed out trying to stop ring\n", ring->name);
+		if (wait_for((I915_READ_MODE(ring) & MODE_IDLE) != 0, 1000)) {
+			DRM_ERROR("%s : timed out trying to stop ring\n", ring->name);
 			return false;
 		}
 	}

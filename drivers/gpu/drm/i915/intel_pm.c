@@ -309,6 +309,9 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 
 	dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
 
+	if (dev_priv->fbc.false_color)
+		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
+
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
 	if (IS_IVYBRIDGE(dev)) {
@@ -1268,33 +1271,27 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-static bool vlv_compute_drain_latency(struct drm_device *dev,
-				     int plane,
-				     int *plane_prec_mult,
-				     int *plane_dl,
-				     int *cursor_prec_mult,
-				     int *cursor_dl)
+static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
+				      int pixel_size,
+				      int *prec_mult,
+				      int *drain_latency)
 {
-	struct drm_crtc *crtc;
-	int clock, pixel_size;
 	int entries;
+	int clock = to_intel_crtc(crtc)->config.adjusted_mode.crtc_clock;
 
-	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (!intel_crtc_active(crtc))
+	if (WARN(clock == 0, "Pixel clock is zero!\n"))
 		return false;
 
-	clock = to_intel_crtc(crtc)->config.adjusted_mode.crtc_clock;
-	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
+	if (WARN(pixel_size == 0, "Pixel size is zero!\n"))
+		return false;
 
-	entries = (clock / 1000) * pixel_size;
-	*plane_prec_mult = (entries > 128) ?
-		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
-	*plane_dl = (64 * (*plane_prec_mult) * 4) / entries;
+	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
+	*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_64 :
+				       DRAIN_LATENCY_PRECISION_32;
+	*drain_latency = (64 * (*prec_mult) * 4) / entries;
 
-	entries = (clock / 1000) * 4;	/* BPP is always 4 for cursor */
-	*cursor_prec_mult = (entries > 128) ?
-		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
-	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / entries;
+	if (*drain_latency > DRAIN_LATENCY_MASK)
+		*drain_latency = DRAIN_LATENCY_MASK;
 
 	return true;
 }
@@ -1307,39 +1304,48 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
  * latency value.
  */
 
-static void vlv_update_drain_latency(struct drm_device *dev)
+static void vlv_update_drain_latency(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int planea_prec, planea_dl, planeb_prec, planeb_dl;
-	int cursora_prec, cursora_dl, cursorb_prec, cursorb_dl;
-	int plane_prec_mult, cursor_prec_mult; /* Precision multiplier is
-							either 16 or 32 */
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pixel_size;
+	int drain_latency;
+	enum pipe pipe = intel_crtc->pipe;
+	int plane_prec, prec_mult, plane_dl;
 
-	/* For plane A, Cursor A */
-	if (vlv_compute_drain_latency(dev, 0, &plane_prec_mult, &planea_dl,
-				      &cursor_prec_mult, &cursora_dl)) {
-		cursora_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_CURSORA_PRECISION_32 : DDL_CURSORA_PRECISION_64;
-		planea_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_PLANEA_PRECISION_32 : DDL_PLANEA_PRECISION_64;
+	plane_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_PLANE_PRECISION_64 |
+		   DRAIN_LATENCY_MASK | DDL_CURSOR_PRECISION_64 |
+		   (DRAIN_LATENCY_MASK << DDL_CURSOR_SHIFT));
 
-		I915_WRITE(VLV_DDL1, cursora_prec |
-				(cursora_dl << DDL_CURSORA_SHIFT) |
-				planea_prec | planea_dl);
+	if (!intel_crtc_active(crtc)) {
+		I915_WRITE(VLV_DDL(pipe), plane_dl);
+		return;
 	}
 
-	/* For plane B, Cursor B */
-	if (vlv_compute_drain_latency(dev, 1, &plane_prec_mult, &planeb_dl,
-				      &cursor_prec_mult, &cursorb_dl)) {
-		cursorb_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_CURSORB_PRECISION_32 : DDL_CURSORB_PRECISION_64;
-		planeb_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_PLANEB_PRECISION_32 : DDL_PLANEB_PRECISION_64;
-
-		I915_WRITE(VLV_DDL2, cursorb_prec |
-				(cursorb_dl << DDL_CURSORB_SHIFT) |
-				planeb_prec | planeb_dl);
+	/* Primary plane Drain Latency */
+	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
+	if (vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
+		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
+					   DDL_PLANE_PRECISION_64 :
+					   DDL_PLANE_PRECISION_32;
+		plane_dl |= plane_prec | drain_latency;
 	}
+
+	/* Cursor Drain Latency
+	 * BPP is always 4 for cursor
+	 */
+	pixel_size = 4;
+
+	/* Program cursor DL only if it is enabled */
+	if (intel_crtc->cursor_base &&
+	    vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
+		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
+					   DDL_CURSOR_PRECISION_64 :
+					   DDL_CURSOR_PRECISION_32;
+		plane_dl |= plane_prec | (drain_latency << DDL_CURSOR_SHIFT);
+	}
+
+	I915_WRITE(VLV_DDL(pipe), plane_dl);
 }
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
@@ -1355,7 +1361,7 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 	unsigned int enabled = 0;
 	bool cxsr_enabled;
 
-	vlv_update_drain_latency(dev);
+	vlv_update_drain_latency(crtc);
 
 	if (g4x_compute_wm0(dev, PIPE_A,
 			    &valleyview_wm_info, latency_ns,
@@ -1387,7 +1393,8 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 		plane_sr = cursor_sr = 0;
 	}
 
-	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, "
+		      "B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
 		      planea_wm, cursora_wm,
 		      planeb_wm, cursorb_wm,
 		      plane_sr, cursor_sr);
@@ -1396,7 +1403,7 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 		   (plane_sr << DSPFW_SR_SHIFT) |
 		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
 		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
-		   planea_wm);
+		   (planea_wm << DSPFW_PLANEA_SHIFT));
 	I915_WRITE(DSPFW2,
 		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
@@ -1406,6 +1413,116 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 
 	if (cxsr_enabled)
 		intel_set_memory_cxsr(dev_priv, true);
+}
+
+static void cherryview_update_wm(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	static const int sr_latency_ns = 12000;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int planea_wm, planeb_wm, planec_wm;
+	int cursora_wm, cursorb_wm, cursorc_wm;
+	int plane_sr, cursor_sr;
+	int ignore_plane_sr, ignore_cursor_sr;
+	unsigned int enabled = 0;
+	bool cxsr_enabled;
+
+	vlv_update_drain_latency(crtc);
+
+	if (g4x_compute_wm0(dev, PIPE_A,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planea_wm, &cursora_wm))
+		enabled |= 1 << PIPE_A;
+
+	if (g4x_compute_wm0(dev, PIPE_B,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planeb_wm, &cursorb_wm))
+		enabled |= 1 << PIPE_B;
+
+	if (g4x_compute_wm0(dev, PIPE_C,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planec_wm, &cursorc_wm))
+		enabled |= 1 << PIPE_C;
+
+	if (single_plane_enabled(enabled) &&
+	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+			     sr_latency_ns,
+			     &valleyview_wm_info,
+			     &valleyview_cursor_wm_info,
+			     &plane_sr, &ignore_cursor_sr) &&
+	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+			     2*sr_latency_ns,
+			     &valleyview_wm_info,
+			     &valleyview_cursor_wm_info,
+			     &ignore_plane_sr, &cursor_sr)) {
+		cxsr_enabled = true;
+	} else {
+		cxsr_enabled = false;
+		intel_set_memory_cxsr(dev_priv, false);
+		plane_sr = cursor_sr = 0;
+	}
+
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, "
+		      "B: plane=%d, cursor=%d, C: plane=%d, cursor=%d, "
+		      "SR: plane=%d, cursor=%d\n",
+		      planea_wm, cursora_wm,
+		      planeb_wm, cursorb_wm,
+		      planec_wm, cursorc_wm,
+		      plane_sr, cursor_sr);
+
+	I915_WRITE(DSPFW1,
+		   (plane_sr << DSPFW_SR_SHIFT) |
+		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
+		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
+		   (planea_wm << DSPFW_PLANEA_SHIFT));
+	I915_WRITE(DSPFW2,
+		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
+		   (cursora_wm << DSPFW_CURSORA_SHIFT));
+	I915_WRITE(DSPFW3,
+		   (I915_READ(DSPFW3) & ~DSPFW_CURSOR_SR_MASK) |
+		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
+	I915_WRITE(DSPFW9_CHV,
+		   (I915_READ(DSPFW9_CHV) & ~(DSPFW_PLANEC_MASK |
+					      DSPFW_CURSORC_MASK)) |
+		   (planec_wm << DSPFW_PLANEC_SHIFT) |
+		   (cursorc_wm << DSPFW_CURSORC_SHIFT));
+
+	if (cxsr_enabled)
+		intel_set_memory_cxsr(dev_priv, true);
+}
+
+static void valleyview_update_sprite_wm(struct drm_plane *plane,
+					struct drm_crtc *crtc,
+					uint32_t sprite_width,
+					uint32_t sprite_height,
+					int pixel_size,
+					bool enabled, bool scaled)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = to_intel_plane(plane)->pipe;
+	int sprite = to_intel_plane(plane)->plane;
+	int drain_latency;
+	int plane_prec;
+	int sprite_dl;
+	int prec_mult;
+
+	sprite_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_SPRITE_PRECISION_64(sprite) |
+		    (DRAIN_LATENCY_MASK << DDL_SPRITE_SHIFT(sprite)));
+
+	if (enabled && vlv_compute_drain_latency(crtc, pixel_size, &prec_mult,
+						 &drain_latency)) {
+		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
+					   DDL_SPRITE_PRECISION_64(sprite) :
+					   DDL_SPRITE_PRECISION_32(sprite);
+		sprite_dl |= plane_prec |
+			     (drain_latency << DDL_SPRITE_SHIFT(sprite));
+	}
+
+	I915_WRITE(VLV_DDL(pipe), sprite_dl);
 }
 
 static void g4x_update_wm(struct drm_crtc *crtc)
@@ -1443,7 +1560,8 @@ static void g4x_update_wm(struct drm_crtc *crtc)
 		plane_sr = cursor_sr = 0;
 	}
 
-	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, "
+		      "B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
 		      planea_wm, cursora_wm,
 		      planeb_wm, cursorb_wm,
 		      plane_sr, cursor_sr);
@@ -1452,7 +1570,7 @@ static void g4x_update_wm(struct drm_crtc *crtc)
 		   (plane_sr << DSPFW_SR_SHIFT) |
 		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
 		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
-		   planea_wm);
+		   (planea_wm << DSPFW_PLANEA_SHIFT));
 	I915_WRITE(DSPFW2,
 		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
@@ -1526,8 +1644,11 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 
 	/* 965 has limitations... */
 	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) |
-		   (8 << 16) | (8 << 8) | (8 << 0));
-	I915_WRITE(DSPFW2, (8 << 8) | (8 << 0));
+		   (8 << DSPFW_CURSORB_SHIFT) |
+		   (8 << DSPFW_PLANEB_SHIFT) |
+		   (8 << DSPFW_PLANEA_SHIFT));
+	I915_WRITE(DSPFW2, (8 << DSPFW_CURSORA_SHIFT) |
+		   (8 << DSPFW_PLANEC_SHIFT_OLD));
 	/* update cursor SR watermark */
 	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 
@@ -6252,6 +6373,153 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, false);
 }
 
+static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
+{
+	enum dpio_phy phy;
+
+	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC &&
+		     power_well->data != PUNIT_POWER_WELL_DPIO_CMN_D);
+
+	/*
+	 * Enable the CRI clock source so we can get at the
+	 * display and the reference clock for VGA
+	 * hotplug / manual detection.
+	 */
+	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+		phy = DPIO_PHY0;
+		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+			   DPLL_REFA_CLK_ENABLE_VLV);
+		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+			   DPLL_REFA_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
+	} else {
+		phy = DPIO_PHY1;
+		I915_WRITE(DPLL(PIPE_C), I915_READ(DPLL(PIPE_C)) |
+			   DPLL_REFA_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
+	}
+	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
+	vlv_set_power_well(dev_priv, power_well, true);
+
+	/* Poll for phypwrgood signal */
+	if (wait_for(I915_READ(DISPLAY_PHY_STATUS) & PHY_POWERGOOD(phy), 1))
+		DRM_ERROR("Display PHY %d is not power up\n", phy);
+
+	I915_WRITE(DISPLAY_PHY_CONTROL, I915_READ(DISPLAY_PHY_CONTROL) |
+		   PHY_COM_LANE_RESET_DEASSERT(phy));
+}
+
+static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
+					    struct i915_power_well *power_well)
+{
+	enum dpio_phy phy;
+
+	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC &&
+		     power_well->data != PUNIT_POWER_WELL_DPIO_CMN_D);
+
+	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+		phy = DPIO_PHY0;
+		assert_pll_disabled(dev_priv, PIPE_A);
+		assert_pll_disabled(dev_priv, PIPE_B);
+	} else {
+		phy = DPIO_PHY1;
+		assert_pll_disabled(dev_priv, PIPE_C);
+	}
+
+	I915_WRITE(DISPLAY_PHY_CONTROL, I915_READ(DISPLAY_PHY_CONTROL) &
+		   ~PHY_COM_LANE_RESET_DEASSERT(phy));
+
+	vlv_set_power_well(dev_priv, power_well, false);
+}
+
+static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	enum pipe pipe = power_well->data;
+	bool enabled;
+	u32 state, ctrl;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	state = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSS_MASK(pipe);
+	/*
+	 * We only ever set the power-on and power-gate states, anything
+	 * else is unexpected.
+	 */
+	WARN_ON(state != DP_SSS_PWR_ON(pipe) && state != DP_SSS_PWR_GATE(pipe));
+	enabled = state == DP_SSS_PWR_ON(pipe);
+
+	/*
+	 * A transient state at this point would mean some unexpected party
+	 * is poking at the power controls too.
+	 */
+	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSC_MASK(pipe);
+	WARN_ON(ctrl << 16 != state);
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	return enabled;
+}
+
+static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
+				    struct i915_power_well *power_well,
+				    bool enable)
+{
+	enum pipe pipe = power_well->data;
+	u32 state;
+	u32 ctrl;
+
+	state = enable ? DP_SSS_PWR_ON(pipe) : DP_SSS_PWR_GATE(pipe);
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+#define COND \
+	((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSS_MASK(pipe)) == state)
+
+	if (COND)
+		goto out;
+
+	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	ctrl &= ~DP_SSC_MASK(pipe);
+	ctrl |= enable ? DP_SSC_PWR_ON(pipe) : DP_SSC_PWR_GATE(pipe);
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, ctrl);
+
+	if (wait_for(COND, 100))
+		DRM_ERROR("timout setting power well state %08x (%08x)\n",
+			  state,
+			  vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ));
+
+#undef COND
+
+out:
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
+static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	chv_set_pipe_power_well(dev_priv, power_well, power_well->count > 0);
+}
+
+static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
+				       struct i915_power_well *power_well)
+{
+	WARN_ON_ONCE(power_well->data != PIPE_A &&
+		     power_well->data != PIPE_B &&
+		     power_well->data != PIPE_C);
+
+	chv_set_pipe_power_well(dev_priv, power_well, true);
+}
+
+static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	WARN_ON_ONCE(power_well->data != PIPE_A &&
+		     power_well->data != PIPE_B &&
+		     power_well->data != PIPE_C);
+
+	chv_set_pipe_power_well(dev_priv, power_well, false);
+}
+
 static void check_power_well_state(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
@@ -6443,11 +6711,58 @@ EXPORT_SYMBOL_GPL(i915_get_cdclk_freq);
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
 	BIT(POWER_DOMAIN_INIT))
 
+#define CHV_PIPE_A_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PIPE_A) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_PIPE_B_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PIPE_B) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_PIPE_C_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PIPE_C) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_DPIO_CMN_BC_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PORT_DDI_B_2_LANES) |	\
+	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
+	BIT(POWER_DOMAIN_PORT_DDI_C_2_LANES) |	\
+	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_DPIO_CMN_D_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
+	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
+	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_INIT))
+
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
 	.sync_hw = i9xx_always_on_power_well_noop,
 	.enable = i9xx_always_on_power_well_noop,
 	.disable = i9xx_always_on_power_well_noop,
 	.is_enabled = i9xx_always_on_power_well_enabled,
+};
+
+static const struct i915_power_well_ops chv_pipe_power_well_ops = {
+	.sync_hw = chv_pipe_power_well_sync_hw,
+	.enable = chv_pipe_power_well_enable,
+	.disable = chv_pipe_power_well_disable,
+	.is_enabled = chv_pipe_power_well_enabled,
+};
+
+static const struct i915_power_well_ops chv_dpio_cmn_power_well_ops = {
+	.sync_hw = vlv_power_well_sync_hw,
+	.enable = chv_dpio_cmn_power_well_enable,
+	.disable = chv_dpio_cmn_power_well_disable,
+	.is_enabled = vlv_power_well_enabled,
 };
 
 static struct i915_power_well i9xx_always_on_power_well[] = {
@@ -6572,6 +6887,107 @@ static struct i915_power_well vlv_power_wells[] = {
 	},
 };
 
+static struct i915_power_well chv_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = VLV_ALWAYS_ON_POWER_DOMAINS,
+		.ops = &i9xx_always_on_power_well_ops,
+	},
+#if 0
+	{
+		.name = "display",
+		.domains = VLV_DISPLAY_POWER_DOMAINS,
+		.data = PUNIT_POWER_WELL_DISP2D,
+		.ops = &vlv_display_power_well_ops,
+	},
+	{
+		.name = "pipe-a",
+		.domains = CHV_PIPE_A_POWER_DOMAINS,
+		.data = PIPE_A,
+		.ops = &chv_pipe_power_well_ops,
+	},
+	{
+		.name = "pipe-b",
+		.domains = CHV_PIPE_B_POWER_DOMAINS,
+		.data = PIPE_B,
+		.ops = &chv_pipe_power_well_ops,
+	},
+	{
+		.name = "pipe-c",
+		.domains = CHV_PIPE_C_POWER_DOMAINS,
+		.data = PIPE_C,
+		.ops = &chv_pipe_power_well_ops,
+	},
+#endif
+	{
+		.name = "dpio-common-bc",
+		/*
+		 * XXX: cmnreset for one PHY seems to disturb the other.
+		 * As a workaround keep both powered on at the same
+		 * time for now.
+		 */
+		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS | CHV_DPIO_CMN_D_POWER_DOMAINS,
+		.data = PUNIT_POWER_WELL_DPIO_CMN_BC,
+		.ops = &chv_dpio_cmn_power_well_ops,
+	},
+	{
+		.name = "dpio-common-d",
+		/*
+		 * XXX: cmnreset for one PHY seems to disturb the other.
+		 * As a workaround keep both powered on at the same
+		 * time for now.
+		 */
+		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS | CHV_DPIO_CMN_D_POWER_DOMAINS,
+		.data = PUNIT_POWER_WELL_DPIO_CMN_D,
+		.ops = &chv_dpio_cmn_power_well_ops,
+	},
+#if 0
+	{
+		.name = "dpio-tx-b-01",
+		.domains = VLV_DPIO_TX_B_LANES_01_POWER_DOMAINS |
+			   VLV_DPIO_TX_B_LANES_23_POWER_DOMAINS,
+		.ops = &vlv_dpio_power_well_ops,
+		.data = PUNIT_POWER_WELL_DPIO_TX_B_LANES_01,
+	},
+	{
+		.name = "dpio-tx-b-23",
+		.domains = VLV_DPIO_TX_B_LANES_01_POWER_DOMAINS |
+			   VLV_DPIO_TX_B_LANES_23_POWER_DOMAINS,
+		.ops = &vlv_dpio_power_well_ops,
+		.data = PUNIT_POWER_WELL_DPIO_TX_B_LANES_23,
+	},
+	{
+		.name = "dpio-tx-c-01",
+		.domains = VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
+			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
+		.ops = &vlv_dpio_power_well_ops,
+		.data = PUNIT_POWER_WELL_DPIO_TX_C_LANES_01,
+	},
+	{
+		.name = "dpio-tx-c-23",
+		.domains = VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
+			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
+		.ops = &vlv_dpio_power_well_ops,
+		.data = PUNIT_POWER_WELL_DPIO_TX_C_LANES_23,
+	},
+	{
+		.name = "dpio-tx-d-01",
+		.domains = CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS |
+			   CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS,
+		.ops = &vlv_dpio_power_well_ops,
+		.data = PUNIT_POWER_WELL_DPIO_TX_D_LANES_01,
+	},
+	{
+		.name = "dpio-tx-d-23",
+		.domains = CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS |
+			   CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS,
+		.ops = &vlv_dpio_power_well_ops,
+		.data = PUNIT_POWER_WELL_DPIO_TX_D_LANES_23,
+	},
+#endif
+};
+
 static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
 						 enum punit_power_well power_well_id)
 {
@@ -6608,6 +7024,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	} else if (IS_BROADWELL(dev_priv->dev)) {
 		set_power_wells(power_domains, bdw_power_wells);
 		hsw_pwr = power_domains;
+	} else if (IS_CHERRYVIEW(dev_priv->dev)) {
+		set_power_wells(power_domains, chv_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv->dev)) {
 		set_power_wells(power_domains, vlv_power_wells);
 	} else {
@@ -6835,11 +7253,13 @@ void intel_init_pm(struct drm_device *dev)
 		else if (INTEL_INFO(dev)->gen == 8)
 			dev_priv->display.init_clock_gating = gen8_init_clock_gating;
 	} else if (IS_CHERRYVIEW(dev)) {
-		dev_priv->display.update_wm = valleyview_update_wm;
+		dev_priv->display.update_wm = cherryview_update_wm;
+		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
 		dev_priv->display.init_clock_gating =
 			cherryview_init_clock_gating;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.update_wm = valleyview_update_wm;
+		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
 		dev_priv->display.init_clock_gating =
 			valleyview_init_clock_gating;
 	} else if (IS_PINEVIEW(dev)) {

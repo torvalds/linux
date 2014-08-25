@@ -33,17 +33,6 @@
 static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv);
 static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);
 
-bool intel_enable_ppgtt(struct drm_device *dev, bool full)
-{
-	if (i915.enable_ppgtt == 0)
-		return false;
-
-	if (i915.enable_ppgtt == 1 && full)
-		return false;
-
-	return true;
-}
-
 static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 {
 	if (enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))

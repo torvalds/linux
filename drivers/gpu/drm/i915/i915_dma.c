@@ -1981,6 +1981,9 @@ void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
 	i915_gem_context_close(dev, file);
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		intel_modeset_preclose(dev, file);
 }
 
 void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)

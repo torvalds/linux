@@ -828,20 +828,6 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	}
 }
 
-static void
-intel_dp_set_m2_n2(struct intel_crtc *crtc, struct intel_link_m_n *m_n)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum transcoder transcoder = crtc->config.cpu_transcoder;
-
-	I915_WRITE(PIPE_DATA_M2(transcoder),
-		TU_SIZE(m_n->tu) | m_n->gmch_m);
-	I915_WRITE(PIPE_DATA_N2(transcoder), m_n->gmch_n);
-	I915_WRITE(PIPE_LINK_M2(transcoder), m_n->link_m);
-	I915_WRITE(PIPE_LINK_N2(transcoder), m_n->link_n);
-}
-
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_config *pipe_config)
@@ -867,6 +853,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_dp_encoder = true;
+	pipe_config->has_drrs = false;
 	pipe_config->has_audio = intel_dp->has_audio;
 
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
@@ -970,13 +957,14 @@ found:
 
 	if (intel_connector->panel.downclock_mode != NULL &&
 		intel_dp->drrs_state.type == SEAMLESS_DRRS_SUPPORT) {
+			pipe_config->has_drrs = true;
 			intel_link_compute_m_n(bpp, lane_count,
 				intel_connector->panel.downclock_mode->clock,
 				pipe_config->port_clock,
 				&pipe_config->dp_m2_n2);
 	}
 
-	if (HAS_DDI(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
 	else
 		intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
@@ -2293,6 +2281,8 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	enum pipe pipe = intel_crtc->pipe;
 	u32 val;
 
+	intel_dp_prepare(encoder);
+
 	mutex_lock(&dev_priv->dpio_lock);
 
 	/* program left/right clock distribution */
@@ -2659,8 +2649,8 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	/* Program swing margin */
 	for (i = 0; i < 4; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
-		val &= ~DPIO_SWING_MARGIN_MASK;
-		val |= margin_reg_value << DPIO_SWING_MARGIN_SHIFT;
+		val &= ~DPIO_SWING_MARGIN000_MASK;
+		val |= margin_reg_value << DPIO_SWING_MARGIN000_SHIFT;
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
 	}
 
@@ -2971,7 +2961,10 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 		}
 
 	} else {
-		*DP &= ~DP_LINK_TRAIN_MASK;
+		if (IS_CHERRYVIEW(dev))
+			*DP &= ~DP_LINK_TRAIN_MASK_CHV;
+		else
+			*DP &= ~DP_LINK_TRAIN_MASK;
 
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
 		case DP_TRAINING_PATTERN_DISABLE:
@@ -2984,8 +2977,12 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			DRM_ERROR("DP training pattern 3 not supported\n");
-			*DP |= DP_LINK_TRAIN_PAT_2;
+			if (IS_CHERRYVIEW(dev)) {
+				*DP |= DP_LINK_TRAIN_PAT_3_CHV;
+			} else {
+				DRM_ERROR("DP training pattern 3 not supported\n");
+				*DP |= DP_LINK_TRAIN_PAT_2;
+			}
 			break;
 		}
 	}
@@ -3272,7 +3269,10 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
 	} else {
-		DP &= ~DP_LINK_TRAIN_MASK;
+		if (IS_CHERRYVIEW(dev))
+			DP &= ~DP_LINK_TRAIN_MASK_CHV;
+		else
+			DP &= ~DP_LINK_TRAIN_MASK;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
 	}
 	POSTING_READ(intel_dp->output_reg);
@@ -4415,7 +4415,7 @@ void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		val = I915_READ(reg);
 		if (index > DRRS_HIGH_RR) {
 			val |= PIPECONF_EDP_RR_MODE_SWITCH;
-			intel_dp_set_m2_n2(intel_crtc, &config->dp_m2_n2);
+			intel_dp_set_m_n(intel_crtc);
 		} else {
 			val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
 		}
@@ -4455,7 +4455,7 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 	}
 
 	if (dev_priv->vbt.drrs_type != SEAMLESS_DRRS_SUPPORT) {
-		DRM_INFO("VBT doesn't support DRRS\n");
+		DRM_DEBUG_KMS("VBT doesn't support DRRS\n");
 		return NULL;
 	}
 
@@ -4463,7 +4463,7 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 					(dev, fixed_mode, connector);
 
 	if (!downclock_mode) {
-		DRM_INFO("DRRS not supported\n");
+		DRM_DEBUG_KMS("DRRS not supported\n");
 		return NULL;
 	}
 
@@ -4474,7 +4474,7 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 	intel_dp->drrs_state.type = dev_priv->vbt.drrs_type;
 
 	intel_dp->drrs_state.refresh_rate_type = DRRS_HIGH_RR;
-	DRM_INFO("seamless DRRS supported for eDP panel.\n");
+	DRM_DEBUG_KMS("seamless DRRS supported for eDP panel.\n");
 	return downclock_mode;
 }
 
