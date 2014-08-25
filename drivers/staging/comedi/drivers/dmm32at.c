@@ -47,9 +47,10 @@ Configuration Options:
 #define DMM32AT_AILOW 0x02
 #define DMM32AT_AIHIGH 0x03
 
-#define DMM32AT_DACLSB 0x04
 #define DMM32AT_DACSTAT 0x04
-#define DMM32AT_DACMSB 0x05
+#define DMM32AT_DACLSB_REG	0x04
+#define DMM32AT_DACMSB_REG	0x05
+#define DMM32AT_DACMSB_CHAN(x)	((x) << 6)
 
 #define DMM32AT_FIFOCNTRL 0x07
 #define DMM32AT_FIFOSTAT 0x07
@@ -540,42 +541,37 @@ static int dmm32at_ao_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int dmm32at_ao_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int dmm32at_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct dmm32at_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned char hi, lo, status;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
 	int ret;
+	int i;
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
+		val = data[i];
 
-		devpriv->ao_readback[chan] = data[i];
-
-		/* get the low byte */
-		lo = data[i] & 0x00ff;
-		/* high byte also contains channel number */
-		hi = (data[i] >> 8) + chan * (1 << 6);
-		/* write the low and high values to the board */
-		outb(lo, dev->iobase + DMM32AT_DACLSB);
-		outb(hi, dev->iobase + DMM32AT_DACMSB);
+		/* write LSB then MSB + chan to load DAC */
+		outb(val & 0xff, dev->iobase + DMM32AT_DACLSB_REG);
+		outb((val >> 8) | DMM32AT_DACMSB_CHAN(chan),
+		     dev->iobase + DMM32AT_DACMSB_REG);
 
 		/* wait for circuit to settle */
 		ret = comedi_timeout(dev, s, insn, dmm32at_ao_eoc, 0);
 		if (ret)
 			return ret;
 
-		/* dummy read to update trigger the output */
-		status = inb(dev->iobase + DMM32AT_DACMSB);
+		/* dummy read to update DAC */
+		inb(dev->iobase + DMM32AT_DACMSB_REG);
 
+		devpriv->ao_readback[chan] = val;
 	}
 
-	/* return the number of samples read/written */
-	return i;
+	return insn->n;
 }
 
 static int dmm32at_ao_rinsn(struct comedi_device *dev,
@@ -764,7 +760,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->n_chan = 4;
 	s->maxdata = 0x0fff;
 	s->range_table = &dmm32at_aoranges;
-	s->insn_write = dmm32at_ao_winsn;
+	s->insn_write = dmm32at_ao_insn_write;
 	s->insn_read = dmm32at_ao_rinsn;
 
 	s = &dev->subdevices[2];
