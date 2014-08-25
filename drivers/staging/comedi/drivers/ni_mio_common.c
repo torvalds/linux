@@ -2918,21 +2918,6 @@ static int ni_ao_config_chanlist(struct comedi_device *dev,
 		return ni_old_ao_config_chanlist(dev, s, chanspec, n_chans);
 }
 
-static int ni_ao_insn_read(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao[chan];
-
-	return insn->n;
-}
-
 static int ni_ao_insn_write(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn,
@@ -2959,7 +2944,7 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		unsigned int val = data[i];
 
-		devpriv->ao[chan] = val;
+		s->readback[chan] = val;
 
 		if (devpriv->is_6xxx) {
 			/*
@@ -5485,9 +5470,13 @@ static int ni_E_init(struct comedi_device *dev,
 		s->n_chan	= board->n_aochan;
 		s->maxdata	= board->ao_maxdata;
 		s->range_table	= board->ao_range_table;
-		s->insn_read	= ni_ao_insn_read;
-		s->insn_write	= ni_ao_insn_write;
 		s->insn_config	= ni_ao_insn_config;
+		s->insn_write	= ni_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 
 		/*
 		 * Along with the IRQ we need either a FIFO or DMA for
