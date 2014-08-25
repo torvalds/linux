@@ -77,14 +77,6 @@ lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
 	return netdev_priv(dev);
 }
 
-static inline void lowpan_address_flip(u8 *src, u8 *dest)
-{
-	int i;
-
-	for (i = 0; i < IEEE802154_ADDR_LEN; i++)
-		(dest)[IEEE802154_ADDR_LEN - i - 1] = (src)[i];
-}
-
 static int lowpan_header_create(struct sk_buff *skb, struct net_device *dev,
 				unsigned short type, const void *_daddr,
 				const void *_saddr, unsigned int len)

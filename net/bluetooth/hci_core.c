@@ -1898,6 +1898,8 @@ static int __hci_init(struct hci_dev *hdev)
 		debugfs_create_u16("discov_interleaved_timeout", 0644,
 				   hdev->debugfs,
 				   &hdev->discov_interleaved_timeout);
+
+		smp_register(hdev);
 	}
 
 	return 0;
@@ -3233,7 +3235,7 @@ struct smp_irk *hci_find_irk_by_rpa(struct hci_dev *hdev, bdaddr_t *rpa)
 	}
 
 	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
-		if (smp_irk_matches(hdev->tfm_aes, irk->val, rpa)) {
+		if (smp_irk_matches(hdev, irk->val, rpa)) {
 			bacpy(&irk->rpa, rpa);
 			return irk;
 		}
@@ -3882,7 +3884,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 		    !bacmp(&hdev->random_addr, &hdev->rpa))
 			return 0;
 
-		err = smp_generate_rpa(hdev->tfm_aes, hdev->irk, &hdev->rpa);
+		err = smp_generate_rpa(hdev, hdev->irk, &hdev->rpa);
 		if (err < 0) {
 			BT_ERR("%s failed to generate new RPA", hdev->name);
 			return err;
@@ -4090,18 +4092,9 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	dev_set_name(&hdev->dev, "%s", hdev->name);
 
-	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
-					       CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hdev->tfm_aes)) {
-		BT_ERR("Unable to create crypto context");
-		error = PTR_ERR(hdev->tfm_aes);
-		hdev->tfm_aes = NULL;
-		goto err_wqueue;
-	}
-
 	error = device_add(&hdev->dev);
 	if (error < 0)
-		goto err_tfm;
+		goto err_wqueue;
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				    RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops,
@@ -4143,8 +4136,6 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	return id;
 
-err_tfm:
-	crypto_free_blkcipher(hdev->tfm_aes);
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
 	destroy_workqueue(hdev->req_workqueue);
@@ -4196,8 +4187,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_destroy(hdev->rfkill);
 	}
 
-	if (hdev->tfm_aes)
-		crypto_free_blkcipher(hdev->tfm_aes);
+	smp_unregister(hdev);
 
 	device_del(&hdev->dev);
 
@@ -5679,4 +5669,53 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	err = hci_req_run(&req, update_background_scan_complete);
 	if (err)
 		BT_ERR("Failed to run HCI request: err %d", err);
+}
+
+static bool disconnected_whitelist_entries(struct hci_dev *hdev)
+{
+	struct bdaddr_list *b;
+
+	list_for_each_entry(b, &hdev->whitelist, list) {
+		struct hci_conn *conn;
+
+		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &b->bdaddr);
+		if (!conn)
+			return true;
+
+		if (conn->state != BT_CONNECTED && conn->state != BT_CONFIG)
+			return true;
+	}
+
+	return false;
+}
+
+void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req)
+{
+	u8 scan;
+
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+		return;
+
+	if (!hdev_is_powered(hdev))
+		return;
+
+	if (mgmt_powering_down(hdev))
+		return;
+
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
+	    disconnected_whitelist_entries(hdev))
+		scan = SCAN_PAGE;
+	else
+		scan = SCAN_DISABLED;
+
+	if (test_bit(HCI_PSCAN, &hdev->flags) == !!(scan & SCAN_PAGE))
+		return;
+
+	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+		scan |= SCAN_INQUIRY;
+
+	if (req)
+		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	else
+		hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 }
