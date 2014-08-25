@@ -226,6 +226,9 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		if (len > RX_BUF_SIZE)
 			len = RX_BUF_SIZE;
 
+		dma_sync_single_for_cpu(&ndev->dev,
+					priv->rx_mapping[rx_head],
+					priv->rx_buf_size, DMA_FROM_DEVICE);
 		skb = netdev_alloc_skb_ip_align(ndev, len);
 
 		if (unlikely(!skb)) {
@@ -347,6 +350,9 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		       0, ETH_ZLEN - skb->len);
 		len = ETH_ZLEN;
 	}
+
+	dma_sync_single_for_device(&ndev->dev, priv->tx_mapping[tx_head],
+				   priv->tx_buf_size, DMA_TO_DEVICE);
 
 	txdes1 = TX_DESC1_LTS | TX_DESC1_FTS | (len & TX_DESC1_BUF_SIZE_MASK);
 	if (tx_head == TX_DESC_NUM_MASK)
