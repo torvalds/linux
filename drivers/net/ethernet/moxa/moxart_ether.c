@@ -226,13 +226,15 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		if (len > RX_BUF_SIZE)
 			len = RX_BUF_SIZE;
 
-		skb = build_skb(priv->rx_buf[rx_head], priv->rx_buf_size);
+		skb = netdev_alloc_skb_ip_align(ndev, len);
+
 		if (unlikely(!skb)) {
-			net_dbg_ratelimited("build_skb failed\n");
+			net_dbg_ratelimited("netdev_alloc_skb_ip_align failed\n");
 			priv->stats.rx_dropped++;
 			priv->stats.rx_errors++;
 		}
 
+		memcpy(skb->data, priv->rx_buf[rx_head], len);
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, ndev);
 		napi_gro_receive(&priv->napi, skb);
@@ -464,8 +466,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->txlock);
 
 	priv->tx_buf_size = TX_BUF_SIZE;
-	priv->rx_buf_size = RX_BUF_SIZE +
-			    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	priv->rx_buf_size = RX_BUF_SIZE;
 
 	priv->tx_desc_base = dma_alloc_coherent(NULL, TX_REG_DESC_SIZE *
 						TX_DESC_NUM, &priv->tx_base,
