@@ -21,6 +21,7 @@
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
 #include <linux/ip.h>
+#include <linux/crash_dump.h>
 #include <net/tcp.h>
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
@@ -64,7 +65,7 @@ static int bnx2x_calc_num_queues(struct bnx2x *bp)
 	int nq = bnx2x_num_queues ? : netif_get_num_default_rss_queues();
 
 	/* Reduce memory usage in kdump environment by using only one queue */
-	if (reset_devices)
+	if (is_kdump_kernel())
 		nq = 1;
 
 	nq = clamp(nq, 1, BNX2X_MAX_QUEUES(bp));
