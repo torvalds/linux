@@ -823,22 +823,26 @@ int truncate_xattr_node(struct inode *inode, struct page *page)
  */
 void remove_inode_page(struct inode *inode)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	struct page *page;
-	nid_t ino = inode->i_ino;
 	struct dnode_of_data dn;
 
-	page = get_node_page(sbi, ino);
-	if (IS_ERR(page))
+	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
+	if (get_dnode_of_data(&dn, 0, LOOKUP_NODE))
 		return;
 
-	if (truncate_xattr_node(inode, page)) {
-		f2fs_put_page(page, 1);
+	if (truncate_xattr_node(inode, dn.inode_page)) {
+		f2fs_put_dnode(&dn);
 		return;
 	}
+
+	/* remove potential inline_data blocks */
+	if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+				S_ISLNK(inode->i_mode))
+		truncate_data_blocks_range(&dn, 1);
+
 	/* 0 is possible, after f2fs_new_inode() has failed */
 	f2fs_bug_on(inode->i_blocks != 0 && inode->i_blocks != 1);
-	set_new_dnode(&dn, inode, page, page, ino);
+
+	/* will put inode & node pages */
 	truncate_node(&dn);
 }
 
