@@ -363,6 +363,7 @@ static int si2168_init(struct dvb_frontend *fe)
 
 	dev_dbg(&s->client->dev, "\n");
 
+	/* initialize */
 	memcpy(cmd.args, "\xc0\x12\x00\x0c\x00\x0d\x16\x00\x00\x00\x00\x00\x00", 13);
 	cmd.wlen = 13;
 	cmd.rlen = 0;
@@ -370,6 +371,26 @@ static int si2168_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	if (s->fw_loaded) {
+		/* resume */
+		memcpy(cmd.args, "\xc0\x06\x08\x0f\x00\x20\x21\x01", 8);
+		cmd.wlen = 8;
+		cmd.rlen = 1;
+		ret = si2168_cmd_execute(s, &cmd);
+		if (ret)
+			goto err;
+
+		memcpy(cmd.args, "\x85", 1);
+		cmd.wlen = 1;
+		cmd.rlen = 1;
+		ret = si2168_cmd_execute(s, &cmd);
+		if (ret)
+			goto err;
+
+		goto warm;
+	}
+
+	/* power up */
 	memcpy(cmd.args, "\xc0\x06\x01\x0f\x00\x20\x20\x01", 8);
 	cmd.wlen = 8;
 	cmd.rlen = 1;
@@ -466,9 +487,6 @@ static int si2168_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	dev_info(&s->client->dev, "found a '%s' in warm state\n",
-			si2168_ops.info.name);
-
 	/* set ts mode */
 	memcpy(cmd.args, "\x14\x00\x01\x10\x10\x00", 6);
 	cmd.args[4] |= s->ts_mode;
@@ -477,6 +495,12 @@ static int si2168_init(struct dvb_frontend *fe)
 	ret = si2168_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
+
+	s->fw_loaded = true;
+
+warm:
+	dev_info(&s->client->dev, "found a '%s' in warm state\n",
+			si2168_ops.info.name);
 
 	s->active = true;
 
@@ -645,6 +669,7 @@ static int si2168_probe(struct i2c_client *client,
 	*config->i2c_adapter = s->adapter;
 	*config->fe = &s->fe;
 	s->ts_mode = config->ts_mode;
+	s->fw_loaded = false;
 
 	i2c_set_clientdata(client, s);
 
