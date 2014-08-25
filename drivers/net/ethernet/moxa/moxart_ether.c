@@ -346,10 +346,9 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		len = ETH_ZLEN;
 	}
 
-	txdes1 = readl(desc + TX_REG_OFFSET_DESC1);
-	txdes1 |= TX_DESC1_LTS | TX_DESC1_FTS;
-	txdes1 &= ~(TX_DESC1_FIFO_COMPLETE | TX_DESC1_INTR_COMPLETE);
-	txdes1 |= (len & TX_DESC1_BUF_SIZE_MASK);
+	txdes1 = TX_DESC1_LTS | TX_DESC1_FTS | (len & TX_DESC1_BUF_SIZE_MASK);
+	if (tx_head == TX_DESC_NUM_MASK)
+		txdes1 |= TX_DESC1_END;
 	writel(txdes1, desc + TX_REG_OFFSET_DESC1);
 	writel(TX_DESC0_DMA_OWN, desc + TX_REG_OFFSET_DESC0);
 
