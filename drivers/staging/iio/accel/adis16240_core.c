@@ -163,6 +163,7 @@ static int adis16240_write_raw(struct iio_dev *indio_dev,
 	int bits = 10;
 	s16 val16;
 	u8 addr;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
 		val16 = val & ((1 << bits) - 1);
