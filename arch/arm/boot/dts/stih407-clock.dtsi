@@ -5,6 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <dt-bindings/clock/stih407-clks.h>
 / {
 	clocks {
 		#address-cells = <1>;
@@ -62,6 +63,88 @@
 					 <&clk_sysin>;
 
 				clock-output-names = "clk-ic-lmi0";
+			};
+		};
+
+		clk_s_c0_quadfs: clk-s-c0-quadfs@9103000 {
+			#clock-cells = <1>;
+			compatible = "st,stih407-quadfs660-C", "st,quadfs";
+			reg = <0x9103000 0x1000>;
+
+			clocks = <&clk_sysin>;
+
+			clock-output-names = "clk-s-c0-fs0-ch0",
+					     "clk-s-c0-fs0-ch1",
+					     "clk-s-c0-fs0-ch2",
+					     "clk-s-c0-fs0-ch3";
+		};
+
+		clk_s_c0: clockgen-c@09103000 {
+			compatible = "st,clkgen-c32";
+			reg = <0x9103000 0x1000>;
+
+			clk_s_c0_pll0: clk-s-c0-pll0 {
+				#clock-cells = <1>;
+				compatible = "st,stih407-plls-c32-c0_0", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-s-c0-pll0-odf-0";
+			};
+
+			clk_s_c0_pll1: clk-s-c0-pll1 {
+				#clock-cells = <1>;
+				compatible = "st,stih407-plls-c32-c0_1", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-s-c0-pll1-odf-0";
+			};
+
+			clk_s_c0_flexgen: clk-s-c0-flexgen {
+				#clock-cells = <1>;
+				compatible = "st,flexgen";
+
+				clocks = <&clk_s_c0_pll0 0>,
+					 <&clk_s_c0_pll1 0>,
+					 <&clk_s_c0_quadfs 0>,
+					 <&clk_s_c0_quadfs 1>,
+					 <&clk_s_c0_quadfs 2>,
+					 <&clk_s_c0_quadfs 3>,
+					 <&clk_sysin>;
+
+				clock-output-names = "clk-icn-gpu",
+						     "clk-fdma",
+						     "clk-nand",
+						     "clk-hva",
+						     "clk-proc-stfe",
+						     "clk-proc-tp",
+						     "clk-rx-icn-dmu",
+						     "clk-rx-icn-hva",
+						     "clk-icn-cpu",
+						     "clk-tx-icn-dmu",
+						     "clk-mmc-0",
+						     "clk-mmc-1",
+						     "clk-jpegdec",
+						     "clk-ext2fa9",
+						     "clk-ic-bdisp-0",
+						     "clk-ic-bdisp-1",
+						     "clk-pp-dmu",
+						     "clk-vid-dmu",
+						     "clk-dss-lpc",
+						     "clk-st231-aud-0",
+						     "clk-st231-gp-1",
+						     "clk-st231-dmu",
+						     "clk-icn-lmi",
+						     "clk-tx-icn-disp-1",
+						     "clk-icn-sbc",
+						     "clk-stfe-frc2",
+						     "clk-eth-phy",
+						     "clk-eth-ref-phyclk",
+						     "clk-flash-promip",
+						     "clk-main-disp",
+						     "clk-aux-disp",
+						     "clk-compo-dvp";
 			};
 		};
 	};

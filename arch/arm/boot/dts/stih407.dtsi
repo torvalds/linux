@@ -120,7 +120,7 @@
 			interrupts = <GIC_SPI 122 IRQ_TYPE_NONE>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_serial0>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 
 			status = "disabled";
 		};
@@ -131,7 +131,7 @@
 			interrupts = <GIC_SPI 123 IRQ_TYPE_NONE>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_serial1>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 
 			status = "disabled";
 		};
@@ -142,7 +142,7 @@
 			interrupts = <GIC_SPI 124 IRQ_TYPE_NONE>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_serial2>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 
 			status = "disabled";
 		};
@@ -174,7 +174,7 @@
 			compatible = "st,comms-ssc4-i2c";
 			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x9840000 0x110>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names = "default";
@@ -187,7 +187,7 @@
 			compatible = "st,comms-ssc4-i2c";
 			reg = <0x9841000 0x110>;
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names = "default";
@@ -200,7 +200,7 @@
 			compatible = "st,comms-ssc4-i2c";
 			reg = <0x9842000 0x110>;
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names = "default";
@@ -213,7 +213,7 @@
 			compatible = "st,comms-ssc4-i2c";
 			reg = <0x9843000 0x110>;
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names = "default";
@@ -226,7 +226,7 @@
 			compatible = "st,comms-ssc4-i2c";
 			reg = <0x9844000 0x110>;
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names = "default";
@@ -239,7 +239,7 @@
 			compatible = "st,comms-ssc4-i2c";
 			reg = <0x9845000 0x110>;
 			interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_ext2f_a9>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names = "default";
