@@ -510,34 +510,32 @@ static int atmio16d_ao_insn_read(struct comedi_device *dev,
 
 static int atmio16d_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct atmio16d_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int reg = (chan) ? DAC1_REG : DAC0_REG;
+	bool munge = false;
 	int i;
-	int chan;
-	int d;
 
-	chan = CR_CHAN(insn->chanspec);
+	if (chan == 0 && devpriv->dac0_coding == dac_2comp)
+		munge = true;
+	if (chan == 1 && devpriv->dac1_coding == dac_2comp)
+		munge = true;
 
 	for (i = 0; i < insn->n; i++) {
-		d = data[i];
-		switch (chan) {
-		case 0:
-			if (devpriv->dac0_coding == dac_2comp)
-				d ^= 0x800;
-			outw(d, dev->iobase + DAC0_REG);
-			break;
-		case 1:
-			if (devpriv->dac1_coding == dac_2comp)
-				d ^= 0x800;
-			outw(d, dev->iobase + DAC1_REG);
-			break;
-		default:
-			return -EINVAL;
-		}
-		devpriv->ao_readback[chan] = data[i];
+		unsigned int val = data[i];
+
+		devpriv->ao_readback[chan] = val;
+
+		if (munge)
+			val ^= 0x800;
+
+		outw(val, dev->iobase + reg);
 	}
-	return i;
+
+	return insn->n;
 }
 
 static int atmio16d_dio_insn_bits(struct comedi_device *dev,
