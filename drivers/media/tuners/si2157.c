@@ -197,9 +197,10 @@ static int si2157_sleep(struct dvb_frontend *fe)
 
 	s->active = false;
 
-	memcpy(cmd.args, "\x13", 1);
-	cmd.wlen = 1;
-	cmd.rlen = 0;
+	/* standby */
+	memcpy(cmd.args, "\x16\x00", 2);
+	cmd.wlen = 2;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
