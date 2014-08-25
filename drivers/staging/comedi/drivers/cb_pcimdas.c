@@ -79,9 +79,6 @@ struct cb_pcimdas_private {
 	/* base addresses */
 	unsigned long daqio;
 	unsigned long BADR3;
-
-	/* Used for AO readback */
-	unsigned int ao_readback[2];
 };
 
 static int cb_pcimdas_ai_eoc(struct comedi_device *dev,
@@ -166,7 +163,7 @@ static int cb_pcimdas_ao_insn_write(struct comedi_device *dev,
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int val = s->readback[chan];
 	unsigned int reg = (chan) ? DAC1_OFFSET : DAC0_OFFSET;
 	int i;
 
@@ -174,25 +171,9 @@ static int cb_pcimdas_ao_insn_write(struct comedi_device *dev,
 		val = data[i];
 		outw(val, devpriv->daqio + reg);
 	}
-	devpriv->ao_readback[chan] = val;
+	s->readback[chan] = val;
 
 	return insn->n;
-}
-
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
-static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct cb_pcimdas_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
 }
 
 static int cb_pcimdas_auto_attach(struct comedi_device *dev,
@@ -240,7 +221,11 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	/* ranges are hardware settable, but not software readable. */
 	s->range_table = &range_unknown;
 	s->insn_write = cb_pcimdas_ao_insn_write;
-	s->insn_read = &cb_pcimdas_ao_rinsn;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
