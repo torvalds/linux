@@ -83,7 +83,6 @@ static const struct ni_670x_board ni_670x_boards[] = {
 struct ni_670x_private {
 	int boardtype;
 	int dio;
-	unsigned int ao_readback[32];
 };
 
 static int ni_670x_ao_insn_write(struct comedi_device *dev,
@@ -91,9 +90,8 @@ static int ni_670x_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct ni_670x_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int val = s->readback[chan];
 	int i;
 
 	/*
@@ -114,23 +112,9 @@ static int ni_670x_ao_insn_write(struct comedi_device *dev,
 		/* write channel value */
 		writel(val, dev->mmio + AO_VALUE_OFFSET);
 	}
-	devpriv->ao_readback[chan] = val;
+	s->readback[chan] = val;
 
 	return insn->n;
-}
-
-static int ni_670x_ao_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_670x_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
 }
 
 static int ni_670x_dio_insn_bits(struct comedi_device *dev,
@@ -244,7 +228,11 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 		s->range_table = &range_bipolar10;
 	}
 	s->insn_write = ni_670x_ao_insn_write;
-	s->insn_read = &ni_670x_ao_rinsn;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[1];
 	/* digital i/o subdevice */
