@@ -380,7 +380,6 @@ struct rtd_private {
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
 	DECLARE_BITMAP(chan_is_bipolar, RTD_MAX_CHANLIST);
-	unsigned int ao_readback[2];
 	unsigned fifosz;
 };
 
@@ -1138,7 +1137,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
 		writew(0, dev->mmio + ((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
 
-		devpriv->ao_readback[chan] = data[i];
+		s->readback[chan] = data[i];
 
 		ret = comedi_timeout(dev, s, insn, rtd_ao_eoc, 0);
 		if (ret)
@@ -1146,23 +1145,6 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 	}
 
 	/* return the number of samples read/written */
-	return i;
-}
-
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
-static int rtd_ao_rinsn(struct comedi_device *dev,
-			struct comedi_subdevice *s, struct comedi_insn *insn,
-			unsigned int *data)
-{
-	struct rtd_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-
 	return i;
 }
 
@@ -1323,7 +1305,11 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0x0fff;
 	s->range_table	= &rtd_ao_range;
 	s->insn_write	= rtd_ao_winsn;
-	s->insn_read	= rtd_ao_rinsn;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
