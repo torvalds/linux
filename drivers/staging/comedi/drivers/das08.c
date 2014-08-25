@@ -338,7 +338,6 @@ static void das08_ao_set_data(struct comedi_device *dev,
 			      unsigned int chan, unsigned int data)
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
-	struct das08_private_struct *devpriv = dev->private;
 	unsigned char lsb;
 	unsigned char msb;
 
@@ -355,18 +354,6 @@ static void das08_ao_set_data(struct comedi_device *dev,
 		/* load DACs */
 		inb(dev->iobase + DAS08AO_AO_UPDATE);
 	}
-	devpriv->ao_readback[chan] = data;
-}
-
-static void das08_ao_initialize(struct comedi_device *dev,
-				struct comedi_subdevice *s)
-{
-	int n;
-	unsigned int data;
-
-	data = s->maxdata / 2;	/* should be about 0 volts */
-	for (n = 0; n < s->n_chan; n++)
-		das08_ao_set_data(dev, n, data);
 }
 
 static int das08_ao_insn_write(struct comedi_device *dev,
@@ -375,28 +362,16 @@ static int das08_ao_insn_write(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
 
-	for (i = 0; i < insn->n; i++)
-		das08_ao_set_data(dev, chan, data[i]);
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		das08_ao_set_data(dev, chan, val);
+	}
+	s->readback[chan] = val;
 
 	return insn->n;
-}
-
-static int das08_ao_rinsn(struct comedi_device *dev,
-			  struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
-{
-	struct das08_private_struct *devpriv = dev->private;
-	unsigned int n;
-	unsigned int chan;
-
-	chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_readback[chan];
-
-	return n;
 }
 
 static void i8254_initialize(struct comedi_device *dev)
@@ -461,6 +436,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	struct das08_private_struct *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
+	int i;
 
 	dev->iobase = iobase;
 
@@ -498,8 +474,17 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
 		s->insn_write = das08_ao_insn_write;
-		s->insn_read = das08_ao_rinsn;
-		das08_ao_initialize(dev, s);
+		s->insn_read = comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
+		/* intialize all channels to 0V */
+		for (i = 0; i < s->n_chan; i++) {
+			s->readback[i] = s->maxdata / 2;
+			das08_ao_set_data(dev, i, s->readback[i]);
+		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
