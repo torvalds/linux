@@ -306,7 +306,7 @@ struct pci_mmcfg_hostbridge_probe {
 	const char *(*probe)(void);
 };
 
-static struct pci_mmcfg_hostbridge_probe pci_mmcfg_probes[] __initdata = {
+static const struct pci_mmcfg_hostbridge_probe pci_mmcfg_probes[] __initconst = {
 	{ 0, PCI_DEVFN(0, 0), PCI_VENDOR_ID_INTEL,
 	  PCI_DEVICE_ID_INTEL_E7520_MCH, pci_mmcfg_e7520 },
 	{ 0, PCI_DEVFN(0, 0), PCI_VENDOR_ID_INTEL,
