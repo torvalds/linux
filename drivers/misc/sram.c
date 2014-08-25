@@ -53,6 +53,8 @@ static int sram_probe(struct platform_device *pdev)
 		map_exec |= true;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res && of_get_property(pdev->dev.of_node, "map-cacheable", NULL))
+		res->flags |= IORESOURCE_CACHEABLE;
 	if (map_exec)
 		virt_base = devm_ioremap_exec_resource(&pdev->dev, res);
 	else
