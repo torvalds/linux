@@ -89,6 +89,11 @@
  */
 #define TMIO_MMC_HAVE_CMD12_CTRL	(1 << 7)
 
+/*
+ * Some controllers needs to set 1 on SDIO status reserved bits
+ */
+#define TMIO_MMC_SDIO_STATUS_QUIRK	(1 << 8)
+
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
 void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);

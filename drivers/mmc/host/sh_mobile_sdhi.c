@@ -230,6 +230,11 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 */
 	mmc_data->flags |= TMIO_MMC_HAVE_CMD12_CTRL;
 
+	/*
+	 * All SDHI need SDIO_INFO1 reserved bit
+	 */
+	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_QUIRK;
+
 	if (of_id && of_id->data) {
 		const struct sh_mobile_sdhi_of_data *of_data = of_id->data;
 		mmc_data->flags |= of_data->tmio_flags;
