@@ -522,7 +522,6 @@ struct pcl812_private {
 	unsigned int dma_runs_to_end;	/*  how many times we must switch DMA buffers */
 	unsigned int last_dma_run;	/*  how many bytes to transfer on last DMA buffer */
 	unsigned int max_812_ai_mode0_rangewait;	/*  setling time for gain */
-	unsigned int ao_readback[2];	/*  data for AO readback */
 	unsigned int divisor1;
 	unsigned int divisor2;
 	unsigned int use_diff:1;
@@ -1039,32 +1038,16 @@ static int pcl812_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct pcl812_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		outb((data[i] & 0xff),
-		     dev->iobase + PCL812_AO_LSB_REG(chan));
-		outb((data[i] >> 8) & 0x0f,
-		     dev->iobase + PCL812_AO_MSB_REG(chan));
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		outb(val & 0xff, dev->iobase + PCL812_AO_LSB_REG(chan));
+		outb((val >> 8) & 0x0f, dev->iobase + PCL812_AO_MSB_REG(chan));
 	}
-
-	return insn->n;
-}
-
-static int pcl812_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct pcl812_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
+	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -1336,8 +1319,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->n_chan	= board->n_aochan;
 		s->maxdata	= 0xfff;
 		s->range_table	= &range_unipolar5;
-		s->insn_read	= pcl812_ao_insn_read;
-		s->insn_write	= pcl812_ao_insn_write;
 		switch (board->board_type) {
 		case boardA821:
 			if (it->options[3] == 1)
@@ -1353,6 +1334,13 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				s->range_table = &range_unknown;
 			break;
 		}
+		s->insn_write	= pcl812_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
 		subdev++;
 	}
 
