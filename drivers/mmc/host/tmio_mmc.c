@@ -30,7 +30,7 @@ static int tmio_mmc_suspend(struct device *dev)
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	int ret;
 
-	ret = tmio_mmc_host_suspend(dev);
+	ret = pm_runtime_force_suspend(dev);
 
 	/* Tell MFD core it can disable us now.*/
 	if (!ret && cell->disable)
@@ -50,7 +50,7 @@ static int tmio_mmc_resume(struct device *dev)
 		ret = cell->resume(pdev);
 
 	if (!ret)
-		ret = tmio_mmc_host_resume(dev);
+		ret = pm_runtime_force_resume(dev);
 
 	return ret;
 }
