@@ -674,6 +674,7 @@ struct lcdc_device {
 	bool pre_init;
 	bool pwr18;			/* if lcdc use 1.8v power supply */
 	bool clk_on;			/* if aclk or hclk is closed ,acess to register is not allowed */
+	bool sclk_on;			/* if sclk is open or closed */
 	u8 atv_layer_cnt;		/* active layer counter,when atv_layer_cnt = 0,lcdc is disable*/
 
 	unsigned int		irq;

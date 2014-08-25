@@ -2768,24 +2768,6 @@ static int rk_fb_set_par(struct fb_info *info)
 		ysize = screen->mode.yres;
 	}
 
-	/* this is for device like rk2928/rk312x,
-	 * which have one lcdc but two display outputs
-	 * save win parameter set by android
-	 */
-	if (rk_fb->disp_mode != DUAL) {
-		if (screen->screen_id == 0) {
-			dev_drv->screen0->xsize = xsize;
-			dev_drv->screen0->ysize = ysize;
-			dev_drv->screen0->xpos = xpos;
-			dev_drv->screen0->ypos = ypos;
-		} else {
-			xsize = dev_drv->screen1->xsize;
-			ysize = dev_drv->screen1->ysize;
-			xpos = dev_drv->screen1->xpos;
-			ypos = dev_drv->screen1->ypos;
-		}
-	}
-
 	fb_data_fmt = rk_fb_data_fmt(data_format, var->bits_per_pixel);
 	pixel_width = rk_fb_pixel_width(fb_data_fmt);
 	vir_width_bit = pixel_width * xvir;
@@ -3342,8 +3324,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	screen_x = dev_drv->cur_screen->mode.xres;
 	screen_y = dev_drv->cur_screen->mode.yres;
 
-	if (inf->disp_mode != DUAL &&
-			dev_drv->cur_screen->screen_id == 1) {
+	if (inf->disp_mode != DUAL) {
 		dev_drv->cur_screen->xpos =
 		    (screen_x - screen_x * scale_x / 100) >> 1;
 		dev_drv->cur_screen->ypos =

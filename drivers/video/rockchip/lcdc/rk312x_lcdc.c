@@ -712,7 +712,10 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 				m_SCALER_EN | m_SCALER_OUT_ZERO | m_SCALER_OUT_EN,
 				v_SCALER_EN(0) | v_SCALER_OUT_ZERO(0) | v_SCALER_OUT_EN(0));
 		spin_unlock(&lcdc_dev->reg_lock);
-		clk_disable_unprepare(lcdc_dev->sclk);
+		if (lcdc_dev->sclk_on) {
+			clk_disable_unprepare(lcdc_dev->sclk);
+			lcdc_dev->sclk_on = false;
+		}
 		dev_dbg(lcdc_dev->dev, "%s: disable\n", __func__);
 		return 0;
 	}
@@ -728,12 +731,16 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 		return -EINVAL;
 	}
 
-	clk_prepare_enable(lcdc_dev->sclk);
-	lcdc_dev->s_pixclock = calc_sclk_freq(src, dst);
-	pll_freq = calc_sclk_pll_freq(lcdc_dev->s_pixclock);
-	clk_set_rate(lcdc_dev->pll_sclk, pll_freq);
-	clk_set_rate(lcdc_dev->sclk, lcdc_dev->s_pixclock);
-        dev_info(lcdc_dev->dev, "%s:sclk=%d\n", __func__, lcdc_dev->s_pixclock);
+	if (!lcdc_dev->sclk_on) {
+		clk_prepare_enable(lcdc_dev->sclk);
+		lcdc_dev->s_pixclock = calc_sclk_freq(src, dst);
+		pll_freq = calc_sclk_pll_freq(lcdc_dev->s_pixclock);
+		clk_set_rate(lcdc_dev->pll_sclk, pll_freq);
+		clk_set_rate(lcdc_dev->sclk, lcdc_dev->s_pixclock);
+		lcdc_dev->sclk_on = true;
+		dev_info(lcdc_dev->dev, "%s:sclk=%d\n", __func__,
+			 lcdc_dev->s_pixclock);
+	}
 
         /* config scale timing */
         calc_dsp_frm_vst_hst(src, dst);
