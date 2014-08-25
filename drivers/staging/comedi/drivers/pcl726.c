@@ -156,7 +156,6 @@ static const struct pcl726_board pcl726_boards[] = {
 
 struct pcl726_private {
 	const struct comedi_lrange *rangelist[12];
-	unsigned int ao_readback[12];
 	unsigned int cmd_running:1;
 };
 
@@ -249,15 +248,14 @@ static int pcl726_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct pcl726_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
-		devpriv->ao_readback[chan] = val;
+		unsigned int val = data[i];
+
+		s->readback[chan] = val;
 
 		/* bipolar data to the DAC is two's complement */
 		if (comedi_chan_range_is_bipolar(s, chan, range))
@@ -267,21 +265,6 @@ static int pcl726_ao_insn_write(struct comedi_device *dev,
 		outb((val >> 8) & 0xff, dev->iobase + PCL726_AO_MSB_REG(chan));
 		outb(val & 0xff, dev->iobase + PCL726_AO_LSB_REG(chan));
 	}
-
-	return insn->n;
-}
-
-static int pcl726_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct pcl726_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
 
 	return insn->n;
 }
@@ -394,7 +377,11 @@ static int pcl726_attach(struct comedi_device *dev,
 	s->maxdata	= 0x0fff;
 	s->range_table_list = devpriv->rangelist;
 	s->insn_write	= pcl726_ao_insn_write;
-	s->insn_read	= pcl726_ao_insn_read;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	if (board->have_dio) {
 		/* Digital Input subdevice */
