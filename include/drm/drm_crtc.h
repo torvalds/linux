@@ -218,10 +218,6 @@ struct drm_property {
 	struct list_head enum_blob_list;
 };
 
-void drm_modeset_lock_all(struct drm_device *dev);
-void drm_modeset_unlock_all(struct drm_device *dev);
-void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
-
 struct drm_crtc;
 struct drm_connector;
 struct drm_encoder;
@@ -345,10 +341,6 @@ struct drm_crtc {
 	int cursor_x;
 	int cursor_y;
 
-	/* Temporary tracking of the old fb while a modeset is ongoing. Used
-	 * by drm_mode_set_config_internal to implement correct refcounting. */
-	struct drm_framebuffer *old_fb;
-
 	bool enabled;
 
 	/* Requested mode from modesetting. */
@@ -375,6 +367,12 @@ struct drm_crtc {
 	void *helper_private;
 
 	struct drm_object_properties properties;
+
+	/*
+	 * For legacy crtc ioctls so that atomic drivers can get at the locking
+	 * acquire context.
+	 */
+	struct drm_modeset_acquire_ctx *acquire_ctx;
 };
 
 
@@ -548,6 +546,7 @@ struct drm_connector {
 	void *helper_private;
 
 	/* forced on connector */
+	struct drm_cmdline_mode cmdline_mode;
 	enum drm_connector_force force;
 	bool override_edid;
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
@@ -582,6 +581,7 @@ struct drm_plane_funcs {
 			    uint32_t src_w, uint32_t src_h);
 	int (*disable_plane)(struct drm_plane *plane);
 	void (*destroy)(struct drm_plane *plane);
+	void (*reset)(struct drm_plane *plane);
 
 	int (*set_property)(struct drm_plane *plane,
 			    struct drm_property *property, uint64_t val);
@@ -619,6 +619,10 @@ struct drm_plane {
 
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
+
+	/* Temporary tracking of the old fb while a modeset is ongoing. Used
+	 * by drm_mode_set_config_internal to implement correct refcounting. */
+	struct drm_framebuffer *old_fb;
 
 	const struct drm_plane_funcs *funcs;
 
@@ -903,6 +907,7 @@ int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
 
 extern void drm_connector_cleanup(struct drm_connector *connector);
+extern unsigned int drm_connector_index(struct drm_connector *connector);
 /* helper to unplug all connectors from sysfs for device */
 extern void drm_connector_unplug_all(struct drm_device *dev);
 
@@ -942,6 +947,7 @@ extern int drm_plane_init(struct drm_device *dev,
 			  const uint32_t *formats, uint32_t format_count,
 			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
+extern unsigned int drm_plane_index(struct drm_plane *plane);
 extern void drm_plane_force_disable(struct drm_plane *plane);
 extern int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 				   int x, int y,
