@@ -26,6 +26,7 @@
 #include <subdev/bus.h>
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
+#include <subdev/fuse.h>
 #include <subdev/clock.h>
 #include <subdev/therm.h>
 #include <subdev/mxm.h>
@@ -62,6 +63,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nve0_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nvd0_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nve0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
