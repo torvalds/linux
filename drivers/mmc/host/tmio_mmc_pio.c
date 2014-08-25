@@ -490,6 +490,9 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host)
 		goto out;
 
 	if (host->chan_tx && (data->flags & MMC_DATA_WRITE) && !host->force_pio) {
+		u32 status = sd_ctrl_read32(host, CTL_STATUS);
+		bool done = false;
+
 		/*
 		 * Has all data been written out yet? Testing on SuperH showed,
 		 * that in most cases the first interrupt comes already with the
@@ -498,7 +501,15 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host)
 		 * DATAEND interrupt with the BUSY bit set, in this cases
 		 * waiting for one more interrupt fixes the problem.
 		 */
-		if (!(sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_CMD_BUSY)) {
+		if (host->pdata->flags & TMIO_MMC_HAS_IDLE_WAIT) {
+			if (status & TMIO_STAT_ILL_FUNC)
+				done = true;
+		} else {
+			if (!(status & TMIO_STAT_CMD_BUSY))
+				done = true;
+		}
+
+		if (done) {
 			tmio_mmc_disable_mmc_irqs(host, TMIO_STAT_DATAEND);
 			tasklet_schedule(&host->dma_complete);
 		}
