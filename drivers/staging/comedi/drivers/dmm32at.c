@@ -151,15 +151,10 @@ static const struct comedi_lrange dmm32at_aoranges = {
 };
 
 struct dmm32at_private {
-
 	int data;
 	int ai_inuse;
 	unsigned int ai_scans_left;
-
-	/* Used for AO readback */
-	unsigned int ao_readback[4];
 	unsigned char dio_config;
-
 };
 
 static int dmm32at_ai_status(struct comedi_device *dev,
@@ -546,14 +541,12 @@ static int dmm32at_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct dmm32at_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val;
-	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
+		unsigned int val = data[i];
+		int ret;
 
 		/* write LSB then MSB + chan to load DAC */
 		outb(val & 0xff, dev->iobase + DMM32AT_DACLSB_REG);
@@ -568,24 +561,10 @@ static int dmm32at_ao_insn_write(struct comedi_device *dev,
 		/* dummy read to update DAC */
 		inb(dev->iobase + DMM32AT_DACMSB_REG);
 
-		devpriv->ao_readback[chan] = val;
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
-}
-
-static int dmm32at_ao_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	struct dmm32at_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
 }
 
 static int dmm32at_dio_insn_bits(struct comedi_device *dev,
@@ -761,7 +740,11 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->maxdata = 0x0fff;
 	s->range_table = &dmm32at_aoranges;
 	s->insn_write = dmm32at_ao_insn_write;
-	s->insn_read = dmm32at_ao_rinsn;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
