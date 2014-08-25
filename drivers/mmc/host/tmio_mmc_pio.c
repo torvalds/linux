@@ -1168,6 +1168,8 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
+	tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
+
 	if (host->clk_cache)
 		tmio_mmc_clk_stop(host);
 
