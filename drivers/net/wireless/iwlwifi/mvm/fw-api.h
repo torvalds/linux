@@ -184,6 +184,8 @@ enum {
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
 
+	MARKER_CMD = 0xcb,
+
 	/* BT Coex */
 	BT_COEX_PRIO_TABLE = 0xcc,
 	BT_COEX_PROT_ENV = 0xcd,
@@ -1306,6 +1308,38 @@ struct iwl_bcast_filter_cmd {
 	struct iwl_fw_bcast_filter filters[MAX_BCAST_FILTERS];
 	struct iwl_fw_bcast_mac macs[NUM_MAC_INDEX_DRIVER];
 } __packed; /* BCAST_FILTERING_HCMD_API_S_VER_1 */
+
+/*
+ * enum iwl_mvm_marker_id - maker ids
+ *
+ * The ids for different type of markers to insert into the usniffer logs
+ */
+enum iwl_mvm_marker_id {
+	MARKER_ID_TX_FRAME_LATENCY = 1,
+}; /* MARKER_ID_API_E_VER_1 */
+
+/**
+ * struct iwl_mvm_marker - mark info into the usniffer logs
+ *
+ * (MARKER_CMD = 0xcb)
+ *
+ * Mark the UTC time stamp into the usniffer logs together with additional
+ * metadata, so the usniffer output can be parsed.
+ * In the command response the ucode will return the GP2 time.
+ *
+ * @dw_len: The amount of dwords following this byte including this byte.
+ * @marker_id: A unique marker id (iwl_mvm_marker_id).
+ * @reserved: reserved.
+ * @timestamp: in milliseconds since 1970-01-01 00:00:00 UTC
+ * @metadata: additional meta data that will be written to the unsiffer log
+ */
+struct iwl_mvm_marker {
+	u8 dwLen;
+	u8 markerId;
+	__le16 reserved;
+	__le64 timestamp;
+	__le32 metadata[0];
+} __packed; /* MARKER_API_S_VER_1 */
 
 struct mvm_statistics_dbg {
 	__le32 burst_check;
