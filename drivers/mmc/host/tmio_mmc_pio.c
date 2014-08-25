@@ -44,6 +44,7 @@
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/mmc/sdio.h>
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -310,6 +311,7 @@ static void tmio_mmc_done_work(struct work_struct *work)
 #define TRANSFER_READ  0x1000
 #define TRANSFER_MULTI 0x2000
 #define SECURITY_CMD   0x4000
+#define NO_CMD12_ISSUE 0x4000 /* TMIO_MMC_HAVE_CMD12_CTRL */
 
 static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command *cmd)
 {
@@ -346,6 +348,14 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command
 		if (data->blocks > 1) {
 			sd_ctrl_write16(host, CTL_STOP_INTERNAL_ACTION, 0x100);
 			c |= TRANSFER_MULTI;
+
+			/*
+			 * Disable auto CMD12 at IO_RW_EXTENDED when
+			 * multiple block transfer
+			 */
+			if ((host->pdata->flags & TMIO_MMC_HAVE_CMD12_CTRL) &&
+			    (cmd->opcode == SD_IO_RW_EXTENDED))
+				c |= NO_CMD12_ISSUE;
 		}
 		if (data->flags & MMC_DATA_READ)
 			c |= TRANSFER_READ;
