@@ -451,7 +451,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 		dev_err(dev->class_dev,
 			"%s: urb resubmit failed (%d)\n",
 			__func__, ret);
-		if (ret == EL2NSYNC)
+		if (ret == -EL2NSYNC)
 			dev_err(dev->class_dev,
 				"buggy USB host controller or bug in IRQ handler\n");
 		usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
@@ -1148,7 +1148,7 @@ static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 	if (ret < 0) {
 		dev_err(dev->class_dev, "%s: urb resubmit failed (%d)\n",
 			__func__, ret);
-		if (ret == EL2NSYNC)
+		if (ret == -EL2NSYNC)
 			dev_err(dev->class_dev,
 				"buggy USB host controller or bug in IRQ handler\n");
 		usbduxsigma_pwm_stop(dev, 0);	/* w/o unlink */
