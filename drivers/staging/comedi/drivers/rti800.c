@@ -231,19 +231,19 @@ static int rti800_ao_insn_write(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	int reg_lo = chan ? RTI800_DAC1LO : RTI800_DAC0LO;
 	int reg_hi = chan ? RTI800_DAC1HI : RTI800_DAC0HI;
-	int val = devpriv->ao_readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
+		unsigned int val = data[i];
+
+		devpriv->ao_readback[chan] = val;
+
 		if (devpriv->dac_2comp[chan])
 			val ^= 0x800;
 
 		outb(val & 0xff, dev->iobase + reg_lo);
 		outb((val >> 8) & 0xff, dev->iobase + reg_hi);
 	}
-
-	devpriv->ao_readback[chan] = val;
 
 	return insn->n;
 }
