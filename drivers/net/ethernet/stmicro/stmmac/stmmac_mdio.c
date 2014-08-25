@@ -253,7 +253,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 			}
 
 			/*
-			 * If we're  going to bind the MAC to this PHY bus,
+			 * If we're going to bind the MAC to this PHY bus,
 			 * and no PHY number was provided to the MAC,
 			 * use the one probed here.
 			 */
