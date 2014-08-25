@@ -96,6 +96,7 @@ struct tmio_mmc_dma {
 	int slave_id_tx;
 	int slave_id_rx;
 	int alignment_shift;
+	dma_addr_t dma_rx_offset;
 	bool (*filter)(struct dma_chan *chan, void *arg);
 };
 

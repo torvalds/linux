@@ -39,6 +39,7 @@ struct sh_mobile_sdhi_of_data {
 	unsigned long tmio_flags;
 	unsigned long capabilities;
 	unsigned long capabilities2;
+	dma_addr_t dma_rx_offset;
 };
 
 static const struct sh_mobile_sdhi_of_data sh_mobile_sdhi_of_cfg[] = {
@@ -56,6 +57,7 @@ static const struct sh_mobile_sdhi_of_data of_rcar_gen2_compatible = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 	.capabilities2	= MMC_CAP2_NO_MULTI_READ,
+	.dma_rx_offset	= 0x2000,
 };
 
 static const struct of_device_id sh_mobile_sdhi_of_match[] = {
@@ -228,6 +230,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->flags |= of_data->tmio_flags;
 		mmc_data->capabilities |= of_data->capabilities;
 		mmc_data->capabilities2 |= of_data->capabilities2;
+		dma_priv->dma_rx_offset = of_data->dma_rx_offset;
 	}
 
 	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
