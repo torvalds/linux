@@ -1188,43 +1188,14 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/*=============================================================================
-  Analog output section
-  ===========================================================================*/
-
 static int me4000_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	const struct me4000_board *thisboard = comedi_board(dev);
 	struct me4000_info *info = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
-	int rang = CR_RANGE(insn->chanspec);
-	int aref = CR_AREF(insn->chanspec);
 	unsigned int tmp;
-
-	if (insn->n == 0) {
-		return 0;
-	} else if (insn->n > 1) {
-		dev_err(dev->class_dev, "Invalid instruction length %d\n",
-			insn->n);
-		return -EINVAL;
-	}
-
-	if (chan >= thisboard->ao_nchan) {
-		dev_err(dev->class_dev, "Invalid channel %d\n", insn->n);
-		return -EINVAL;
-	}
-
-	if (rang != 0) {
-		dev_err(dev->class_dev, "Invalid range %d\n", insn->n);
-		return -EINVAL;
-	}
-
-	if (aref != AREF_GROUND && aref != AREF_COMMON) {
-		dev_err(dev->class_dev, "Invalid aref %d\n", insn->n);
-		return -EINVAL;
-	}
 
 	/* Stop any running conversion */
 	tmp = inl(dev->iobase + ME4000_AO_CTRL_REG(chan));
