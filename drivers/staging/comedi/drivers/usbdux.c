@@ -109,8 +109,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #define USBDUX_CMD_PWM_ON	7
 #define USBDUX_CMD_PWM_OFF	8
 
-#define USBDUX_NUM_AO_CHAN	4
-
 /* timeout for the USB-transfer in ms */
 #define BULK_TIMEOUT		1000
 
@@ -201,8 +199,6 @@ struct usbdux_private {
 	uint16_t *in_buf;
 	/* input buffer for single insn */
 	uint16_t *insn_buf;
-
-	unsigned int ao_readback[USBDUX_NUM_AO_CHAN];
 
 	unsigned int high_speed:1;
 	unsigned int ai_cmd_running:1;
@@ -490,7 +486,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 			*datap++ = val & 0xff;
 			*datap++ = (val >> 8) & 0xff;
 			*datap++ = chan << 6;
-			devpriv->ao_readback[chan] = val;
+			s->readback[chan] = val;
 
 			s->async->events |= COMEDI_CB_BLOCK;
 			comedi_event(dev, s);
@@ -855,15 +851,13 @@ static int usbdux_ao_insn_read(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct usbdux_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
+	int ret;
 
 	down(&devpriv->sem);
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
+	ret = comedi_readback_insn_read(dev, s, insn, data);
 	up(&devpriv->sem);
 
-	return insn->n;
+	return ret;
 }
 
 static int usbdux_ao_insn_write(struct comedi_device *dev,
@@ -873,7 +867,7 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 {
 	struct usbdux_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int val = s->readback[chan];
 	uint16_t *p = (uint16_t *)&devpriv->dux_commands[2];
 	int ret = -EBUSY;
 	int i;
@@ -897,8 +891,9 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 		ret = send_dux_commands(dev, USBDUX_CMD_AO);
 		if (ret < 0)
 			goto ao_write_exit;
+
+		s->readback[chan] = val;
 	}
-	devpriv->ao_readback[chan] = val;
 
 ao_write_exit:
 	up(&devpriv->sem);
@@ -1720,7 +1715,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	dev->write_subdev = s;
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
-	s->n_chan	= USBDUX_NUM_AO_CHAN;
+	s->n_chan	= 4;
 	s->maxdata	= 0x0fff;
 	s->len_chanlist	= s->n_chan;
 	s->range_table	= &range_usbdux_ao_range;
@@ -1729,6 +1724,10 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	s->cancel	= usbdux_ao_cancel;
 	s->insn_read	= usbdux_ao_insn_read;
 	s->insn_write	= usbdux_ao_insn_write;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
