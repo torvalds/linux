@@ -150,6 +150,7 @@ config PWM_LPC32XX
 
 config PWM_LPSS
 	tristate "Intel LPSS PWM support"
+	depends on X86
 	help
 	  Generic PWM framework driver for Intel Low Power Subsystem PWM
 	  controller.
