@@ -441,14 +441,6 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-#if 0
-		/*
-		 * OK, since it works OK without enabling the DAC's,
-		 * let's keep it as simple as possible...
-		 */
-		writew((chan + 2) * 0x0010 | 0x0001, dev->mmio + dacControl);
-		udelay(1000);
-#endif
 		writew(data[i], dev->mmio + dacSetting(chan));
 
 		ret = comedi_timeout(dev, s, insn, daqboard2000_ao_eoc, 0);
@@ -456,14 +448,6 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 			return ret;
 
 		devpriv->ao_readback[chan] = data[i];
-#if 0
-		/*
-		 * Since we never enabled the DAC's, we don't need
-		 * to disable it...
-		 */
-		writew((chan + 2) * 0x0010 | 0x0000, dev->mmio + dacControl);
-		udelay(1000);
-#endif
 	}
 
 	return i;
