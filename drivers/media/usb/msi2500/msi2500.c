@@ -160,7 +160,7 @@ struct msi2500_state {
 static struct msi2500_frame_buf *msi2500_get_next_fill_buf(
 		struct msi2500_state *s)
 {
-	unsigned long flags = 0;
+	unsigned long flags;
 	struct msi2500_frame_buf *buf = NULL;
 
 	spin_lock_irqsave(&s->queued_bufs_lock, flags);
@@ -558,7 +558,7 @@ static int msi2500_isoc_init(struct msi2500_state *s)
 /* Must be called with vb_queue_lock hold */
 static void msi2500_cleanup_queued_bufs(struct msi2500_state *s)
 {
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(s->dev, "\n");
 
@@ -634,7 +634,7 @@ static void msi2500_buf_queue(struct vb2_buffer *vb)
 	struct msi2500_state *s = vb2_get_drv_priv(vb->vb2_queue);
 	struct msi2500_frame_buf *buf =
 			container_of(vb, struct msi2500_frame_buf, vb);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	/* Check the device has not disconnected between prep and queuing */
 	if (unlikely(!s->udev)) {
