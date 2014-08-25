@@ -731,7 +731,7 @@ static int ai_write_chanlist(struct comedi_device *dev,
 		else
 			entry |= ME4000_AI_LIST_RANGE_BIPOLAR_10;
 
-		if (aref == SDF_DIFF)
+		if (aref == AREF_DIFF)
 			entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
 		else
 			entry |= ME4000_AI_LIST_INPUT_SINGLE_ENDED;
