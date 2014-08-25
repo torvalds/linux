@@ -617,7 +617,7 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 			return -EINVAL;
 		}
 
-		if (aref == SDF_DIFF) {
+		if (aref == AREF_DIFF) {
 			if (chan >= max_diff_chan) {
 				dev_dbg(dev->class_dev,
 					"Channel number to high\n");
