@@ -94,6 +94,11 @@
  */
 #define TMIO_MMC_SDIO_STATUS_QUIRK	(1 << 8)
 
+/*
+ * Some controllers have DMA enable/disable register
+ */
+#define TMIO_MMC_HAVE_CTL_DMA_REG	(1 << 9)
+
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
 void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);

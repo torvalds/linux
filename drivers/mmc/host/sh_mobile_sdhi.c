@@ -235,6 +235,11 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 */
 	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_QUIRK;
 
+	/*
+	 * All SDHI have DMA control register
+	 */
+	mmc_data->flags |= TMIO_MMC_HAVE_CTL_DMA_REG;
+
 	if (of_id && of_id->data) {
 		const struct sh_mobile_sdhi_of_data *of_data = of_id->data;
 		mmc_data->flags |= of_data->tmio_flags;
