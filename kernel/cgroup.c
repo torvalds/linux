@@ -5161,7 +5161,7 @@ void cgroup_post_fork(struct task_struct *child)
 	int i;
 
 	/*
-	 * This may race against cgroup_enable_task_cg_links().  As that
+	 * This may race against cgroup_enable_task_cg_lists().  As that
 	 * function sets use_task_css_set_links before grabbing
 	 * tasklist_lock and we just went through tasklist_lock to add
 	 * @child, it's guaranteed that either we see the set
@@ -5176,7 +5176,7 @@ void cgroup_post_fork(struct task_struct *child)
 	 * when implementing operations which need to migrate all tasks of
 	 * a cgroup to another.
 	 *
-	 * Note that if we lose to cgroup_enable_task_cg_links(), @child
+	 * Note that if we lose to cgroup_enable_task_cg_lists(), @child
 	 * will remain in init_css_set.  This is safe because all tasks are
 	 * in the init_css_set before cg_links is enabled and there's no
 	 * operation which transfers all tasks out of init_css_set.
