@@ -364,6 +364,14 @@ static inline void inet_set_txhash(struct sock *sk)
 	sk->sk_txhash = flow_hash_from_keys(&keys);
 }
 
+static inline __wsum inet_gro_compute_pseudo(struct sk_buff *skb, int proto)
+{
+	const struct iphdr *iph = skb_gro_network_header(skb);
+
+	return csum_tcpudp_nofold(iph->saddr, iph->daddr,
+				  skb_gro_len(skb), proto, 0);
+}
+
 /*
  *	Map a multicast IP onto multicast MAC for type ethernet.
  */
