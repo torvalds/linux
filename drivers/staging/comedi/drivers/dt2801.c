@@ -207,9 +207,7 @@ static const struct dt2801_board boardtypes[] = {
 };
 
 struct dt2801_private {
-
 	const struct comedi_lrange *dac_range_types[2];
-	unsigned int ao_readback[2];
 };
 
 /* These are the low-level routines:
@@ -463,28 +461,18 @@ static int dt2801_ai_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static int dt2801_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct dt2801_private *devpriv = dev->private;
-
-	data[0] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
-
-	return 1;
-}
-
 static int dt2801_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	struct dt2801_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
 	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
-	dt2801_writedata(dev, CR_CHAN(insn->chanspec));
+	dt2801_writedata(dev, chan);
 	dt2801_writedata2(dev, data[0]);
 
-	devpriv->ao_readback[CR_CHAN(insn->chanspec)] = data[0];
+	s->readback[chan] = data[0];
 
 	return 1;
 }
@@ -608,8 +596,12 @@ havetype:
 	s->range_table_list = devpriv->dac_range_types;
 	devpriv->dac_range_types[0] = dac_range_lkup(it->options[4]);
 	devpriv->dac_range_types[1] = dac_range_lkup(it->options[5]);
-	s->insn_read = dt2801_ao_insn_read;
 	s->insn_write = dt2801_ao_insn_write;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* 1st digital subdevice */
