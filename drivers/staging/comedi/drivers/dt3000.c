@@ -245,7 +245,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 
 struct dt3k_private {
 	unsigned int lock;
-	unsigned int ao_readback[2];
 	unsigned int ai_front;
 	unsigned int ai_rear;
 };
@@ -545,35 +544,22 @@ static int dt3k_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
-static int dt3k_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			struct comedi_insn *insn, unsigned int *data)
+static int dt3k_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct dt3k_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
-	unsigned int chan;
 
-	chan = CR_CHAN(insn->chanspec);
 	for (i = 0; i < insn->n; i++) {
-		dt3k_writesingle(dev, SUBS_AO, chan, data[i]);
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		dt3k_writesingle(dev, SUBS_AO, chan, val);
 	}
+	s->readback[chan] = val;
 
-	return i;
-}
-
-static int dt3k_ao_insn_read(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
-{
-	struct dt3k_private *devpriv = dev->private;
-	int i;
-	unsigned int chan;
-
-	chan = CR_CHAN(insn->chanspec);
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
+	return insn->n;
 }
 
 static void dt3k_dio_config(struct comedi_device *dev, int bits)
@@ -709,11 +695,15 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
-	s->insn_read	= dt3k_ao_insn_read;
-	s->insn_write	= dt3k_ao_insn;
 	s->maxdata	= (1 << this_board->dabits) - 1;
 	s->len_chanlist	= 1;
 	s->range_table	= &range_bipolar10;
+	s->insn_write	= dt3k_ao_insn_write;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* dio subsystem */
