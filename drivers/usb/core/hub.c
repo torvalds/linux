@@ -4538,6 +4538,9 @@ check_highspeed (struct usb_hub *hub, struct usb_device *udev, int port1)
 	struct usb_qualifier_descriptor	*qual;
 	int				status;
 
+	if (udev->quirks & USB_QUIRK_DEVICE_QUALIFIER)
+		return;
+
 	qual = kmalloc (sizeof *qual, GFP_KERNEL);
 	if (qual == NULL)
 		return;
