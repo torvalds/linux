@@ -1629,6 +1629,11 @@ void bnx2x_stats_init(struct bnx2x *bp)
 	int /*abs*/port = BP_PORT(bp);
 	int mb_idx = BP_FW_MB_IDX(bp);
 
+	if (IS_VF(bp)) {
+		bnx2x_memset_stats(bp);
+		return;
+	}
+
 	bp->stats_pending = 0;
 	bp->executer_idx = 0;
 	bp->stats_counter = 0;
