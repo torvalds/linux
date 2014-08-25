@@ -240,16 +240,20 @@ static const char *__init pci_mmcfg_nvidia_mcp55(void)
 	int bus;
 	int mcp55_mmconf_found = 0;
 
-	static const u32 extcfg_regnum		= 0x90;
-	static const u32 extcfg_regsize		= 4;
-	static const u32 extcfg_enable_mask	= 1<<31;
-	static const u32 extcfg_start_mask	= 0xff<<16;
-	static const int extcfg_start_shift	= 16;
-	static const u32 extcfg_size_mask	= 0x3<<28;
-	static const int extcfg_size_shift	= 28;
-	static const int extcfg_sizebus[]	= {0x100, 0x80, 0x40, 0x20};
-	static const u32 extcfg_base_mask[]	= {0x7ff8, 0x7ffc, 0x7ffe, 0x7fff};
-	static const int extcfg_base_lshift	= 25;
+	static const u32 extcfg_regnum __initconst	= 0x90;
+	static const u32 extcfg_regsize __initconst	= 4;
+	static const u32 extcfg_enable_mask __initconst	= 1 << 31;
+	static const u32 extcfg_start_mask __initconst	= 0xff << 16;
+	static const int extcfg_start_shift __initconst	= 16;
+	static const u32 extcfg_size_mask __initconst	= 0x3 << 28;
+	static const int extcfg_size_shift __initconst	= 28;
+	static const int extcfg_sizebus[] __initconst	= {
+		0x100, 0x80, 0x40, 0x20
+	};
+	static const u32 extcfg_base_mask[] __initconst	= {
+		0x7ff8, 0x7ffc, 0x7ffe, 0x7fff
+	};
+	static const int extcfg_base_lshift __initconst	= 25;
 
 	/*
 	 * do check if amd fam10h already took over
