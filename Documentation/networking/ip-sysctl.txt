@@ -65,6 +65,12 @@ neigh/default/gc_thresh1 - INTEGER
 	purge entries if there are fewer than this number.
 	Default: 128
 
+neigh/default/gc_thresh2 - INTEGER
+	Threshold when garbage collector becomes more aggressive about
+	purging entries. Entries older than 5 seconds will be cleared
+	when over this number.
+	Default: 512
+
 neigh/default/gc_thresh3 - INTEGER
 	Maximum number of neighbor entries allowed.  Increase this
 	when using large numbers of interfaces and when communicating
