@@ -17,12 +17,94 @@
 
 #include <linux/module.h>
 #include <linux/debugfs.h>
+#include <linux/version.h>
+#include <linux/vermagic.h>
+#include <linux/vmalloc.h>
 
 #include "core.h"
 #include "debug.h"
 
 /* ms */
 #define ATH10K_DEBUG_HTT_STATS_INTERVAL 1000
+
+#define ATH10K_FW_CRASH_DUMP_VERSION 1
+
+/**
+ * enum ath10k_fw_crash_dump_type - types of data in the dump file
+ * @ATH10K_FW_CRASH_DUMP_REGDUMP: Register crash dump in binary format
+ */
+enum ath10k_fw_crash_dump_type {
+	ATH10K_FW_CRASH_DUMP_REGISTERS = 0,
+
+	ATH10K_FW_CRASH_DUMP_MAX,
+};
+
+struct ath10k_tlv_dump_data {
+	/* see ath10k_fw_crash_dump_type above */
+	__le32 type;
+
+	/* in bytes */
+	__le32 tlv_len;
+
+	/* pad to 32-bit boundaries as needed */
+	u8 tlv_data[];
+} __packed;
+
+struct ath10k_dump_file_data {
+	/* dump file information */
+
+	/* "ATH10K-FW-DUMP" */
+	char df_magic[16];
+
+	__le32 len;
+
+	/* file dump version */
+	__le32 version;
+
+	/* some info we can get from ath10k struct that might help */
+
+	u8 uuid[16];
+
+	__le32 chip_id;
+
+	/* 0 for now, in place for later hardware */
+	__le32 bus_type;
+
+	__le32 target_version;
+	__le32 fw_version_major;
+	__le32 fw_version_minor;
+	__le32 fw_version_release;
+	__le32 fw_version_build;
+	__le32 phy_capability;
+	__le32 hw_min_tx_power;
+	__le32 hw_max_tx_power;
+	__le32 ht_cap_info;
+	__le32 vht_cap_info;
+	__le32 num_rf_chains;
+
+	/* firmware version string */
+	char fw_ver[ETHTOOL_FWVERS_LEN];
+
+	/* Kernel related information */
+
+	/* time-of-day stamp */
+	__le64 tv_sec;
+
+	/* time-of-day stamp, nano-seconds */
+	__le64 tv_nsec;
+
+	/* LINUX_VERSION_CODE */
+	__le32 kernel_ver_code;
+
+	/* VERMAGIC_STRING */
+	char kernel_ver[64];
+
+	/* room for growth w/out changing binary format */
+	u8 unused[128];
+
+	/* struct ath10k_tlv_dump_data + more */
+	u8 data[0];
+} __packed;
 
 static int ath10k_printk(const char *level, const char *fmt, ...)
 {
@@ -588,6 +670,138 @@ static const struct file_operations fops_chip_id = {
 	.llseek = default_llseek,
 };
 
+struct ath10k_fw_crash_data *
+ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
+{
+	struct ath10k_fw_crash_data *crash_data = ar->debug.fw_crash_data;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	crash_data->crashed_since_read = true;
+	uuid_le_gen(&crash_data->uuid);
+	getnstimeofday(&crash_data->timestamp);
+
+	return crash_data;
+}
+EXPORT_SYMBOL(ath10k_debug_get_new_fw_crash_data);
+
+static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar)
+{
+	struct ath10k_fw_crash_data *crash_data = ar->debug.fw_crash_data;
+	struct ath10k_dump_file_data *dump_data;
+	struct ath10k_tlv_dump_data *dump_tlv;
+	int hdr_len = sizeof(*dump_data);
+	unsigned int len, sofar = 0;
+	unsigned char *buf;
+
+	len = hdr_len;
+	len += sizeof(*dump_tlv) + sizeof(crash_data->registers);
+
+	sofar += hdr_len;
+
+	/* This is going to get big when we start dumping FW RAM and such,
+	 * so go ahead and use vmalloc.
+	 */
+	buf = vzalloc(len);
+	if (!buf)
+		return NULL;
+
+	spin_lock_bh(&ar->data_lock);
+
+	if (!crash_data->crashed_since_read) {
+		spin_unlock_bh(&ar->data_lock);
+		vfree(buf);
+		return NULL;
+	}
+
+	dump_data = (struct ath10k_dump_file_data *)(buf);
+	strlcpy(dump_data->df_magic, "ATH10K-FW-DUMP",
+		sizeof(dump_data->df_magic));
+	dump_data->len = cpu_to_le32(len);
+
+	dump_data->version = cpu_to_le32(ATH10K_FW_CRASH_DUMP_VERSION);
+
+	memcpy(dump_data->uuid, &crash_data->uuid, sizeof(dump_data->uuid));
+	dump_data->chip_id = cpu_to_le32(ar->chip_id);
+	dump_data->bus_type = cpu_to_le32(0);
+	dump_data->target_version = cpu_to_le32(ar->target_version);
+	dump_data->fw_version_major = cpu_to_le32(ar->fw_version_major);
+	dump_data->fw_version_minor = cpu_to_le32(ar->fw_version_minor);
+	dump_data->fw_version_release = cpu_to_le32(ar->fw_version_release);
+	dump_data->fw_version_build = cpu_to_le32(ar->fw_version_build);
+	dump_data->phy_capability = cpu_to_le32(ar->phy_capability);
+	dump_data->hw_min_tx_power = cpu_to_le32(ar->hw_min_tx_power);
+	dump_data->hw_max_tx_power = cpu_to_le32(ar->hw_max_tx_power);
+	dump_data->ht_cap_info = cpu_to_le32(ar->ht_cap_info);
+	dump_data->vht_cap_info = cpu_to_le32(ar->vht_cap_info);
+	dump_data->num_rf_chains = cpu_to_le32(ar->num_rf_chains);
+
+	strlcpy(dump_data->fw_ver, ar->hw->wiphy->fw_version,
+		sizeof(dump_data->fw_ver));
+
+	dump_data->kernel_ver_code = cpu_to_le32(LINUX_VERSION_CODE);
+	strlcpy(dump_data->kernel_ver, VERMAGIC_STRING,
+		sizeof(dump_data->kernel_ver));
+
+	dump_data->tv_sec = cpu_to_le64(crash_data->timestamp.tv_sec);
+	dump_data->tv_nsec = cpu_to_le64(crash_data->timestamp.tv_nsec);
+
+	/* Gather crash-dump */
+	dump_tlv = (struct ath10k_tlv_dump_data *)(buf + sofar);
+	dump_tlv->type = cpu_to_le32(ATH10K_FW_CRASH_DUMP_REGISTERS);
+	dump_tlv->tlv_len = cpu_to_le32(sizeof(crash_data->registers));
+	memcpy(dump_tlv->tlv_data, &crash_data->registers,
+	       sizeof(crash_data->registers));
+	sofar += sizeof(*dump_tlv) + sizeof(crash_data->registers);
+
+	ar->debug.fw_crash_data->crashed_since_read = false;
+
+	spin_unlock_bh(&ar->data_lock);
+
+	return dump_data;
+}
+
+static int ath10k_fw_crash_dump_open(struct inode *inode, struct file *file)
+{
+	struct ath10k *ar = inode->i_private;
+	struct ath10k_dump_file_data *dump;
+
+	dump = ath10k_build_dump_file(ar);
+	if (!dump)
+		return -ENODATA;
+
+	file->private_data = dump;
+
+	return 0;
+}
+
+static ssize_t ath10k_fw_crash_dump_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct ath10k_dump_file_data *dump_file = file->private_data;
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       dump_file,
+				       le32_to_cpu(dump_file->len));
+}
+
+static int ath10k_fw_crash_dump_release(struct inode *inode,
+					struct file *file)
+{
+	vfree(file->private_data);
+
+	return 0;
+}
+
+static const struct file_operations fops_fw_crash_dump = {
+	.open = ath10k_fw_crash_dump_open,
+	.read = ath10k_fw_crash_dump_read,
+	.release = ath10k_fw_crash_dump_release,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static int ath10k_debug_htt_stats_req(struct ath10k *ar)
 {
 	u64 cookie;
@@ -921,11 +1135,20 @@ static const struct file_operations fops_dfs_stats = {
 
 int ath10k_debug_create(struct ath10k *ar)
 {
+	int ret;
+
+	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
+	if (!ar->debug.fw_crash_data) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
 	ar->debug.debugfs_phy = debugfs_create_dir("ath10k",
 						   ar->hw->wiphy->debugfsdir);
-
-	if (!ar->debug.debugfs_phy)
-		return -ENOMEM;
+	if (!ar->debug.debugfs_phy) {
+		ret = -ENOMEM;
+		goto err_free_fw_crash_data;
+	}
 
 	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,
 			  ath10k_debug_htt_stats_dwork);
@@ -940,6 +1163,9 @@ int ath10k_debug_create(struct ath10k *ar)
 
 	debugfs_create_file("simulate_fw_crash", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_simulate_fw_crash);
+
+	debugfs_create_file("fw_crash_dump", S_IRUSR, ar->debug.debugfs_phy,
+			    ar, &fops_fw_crash_dump);
 
 	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_chip_id);
@@ -969,10 +1195,17 @@ int ath10k_debug_create(struct ath10k *ar)
 	}
 
 	return 0;
+
+err_free_fw_crash_data:
+	vfree(ar->debug.fw_crash_data);
+
+err:
+	return ret;
 }
 
 void ath10k_debug_destroy(struct ath10k *ar)
 {
+	vfree(ar->debug.fw_crash_data);
 	cancel_delayed_work_sync(&ar->debug.htt_stats_dwork);
 }
 

@@ -832,16 +832,13 @@ static u16 ath10k_pci_hif_get_free_queue_number(struct ath10k *ar, u8 pipe)
 	return ath10k_ce_num_free_src_entries(ar_pci->pipe_info[pipe].ce_hdl);
 }
 
-static void ath10k_pci_hif_dump_area(struct ath10k *ar)
+static void ath10k_pci_dump_registers(struct ath10k *ar,
+				      struct ath10k_fw_crash_data *crash_data)
 {
-	u32 reg_dump_values[REG_DUMP_COUNT_QCA988X] = {};
+	u32 i, reg_dump_values[REG_DUMP_COUNT_QCA988X] = {};
 	int ret;
-	u32 i;
 
-	ath10k_err("firmware crashed!\n");
-	ath10k_err("hardware name %s version 0x%x\n",
-		   ar->hw_params.name, ar->target_version);
-	ath10k_err("firmware version: %s\n", ar->hw->wiphy->fw_version);
+	lockdep_assert_held(&ar->data_lock);
 
 	ret = ath10k_pci_diag_read_hi(ar, &reg_dump_values[0],
 				      hi_failure_state,
@@ -861,6 +858,38 @@ static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 			   reg_dump_values[i + 1],
 			   reg_dump_values[i + 2],
 			   reg_dump_values[i + 3]);
+
+	/* crash_data is in little endian */
+	for (i = 0; i < REG_DUMP_COUNT_QCA988X; i++)
+		crash_data->registers[i] = cpu_to_le32(reg_dump_values[i]);
+}
+
+static void ath10k_pci_hif_dump_area(struct ath10k *ar)
+{
+	struct ath10k_fw_crash_data *crash_data;
+	char uuid[50];
+
+	spin_lock_bh(&ar->data_lock);
+
+	crash_data = ath10k_debug_get_new_fw_crash_data(ar);
+
+	if (crash_data)
+		scnprintf(uuid, sizeof(uuid), "%pUl", &crash_data->uuid);
+	else
+		scnprintf(uuid, sizeof(uuid), "n/a");
+
+	ath10k_err("firmware crashed! (uuid %s)\n", uuid);
+	ath10k_err("hardware name %s version 0x%x\n",
+		   ar->hw_params.name, ar->target_version);
+	ath10k_err("firmware version: %s\n", ar->hw->wiphy->fw_version);
+
+	if (!crash_data)
+		goto exit;
+
+	ath10k_pci_dump_registers(ar, crash_data);
+
+exit:
+	spin_unlock_bh(&ar->data_lock);
 
 	queue_work(ar->workqueue, &ar->restart_work);
 }

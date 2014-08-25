@@ -22,6 +22,8 @@
 #include <linux/if_ether.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/uuid.h>
+#include <linux/time.h>
 
 #include "htt.h"
 #include "htc.h"
@@ -278,6 +280,15 @@ struct ath10k_vif_iter {
 	struct ath10k_vif *arvif;
 };
 
+/* used for crash-dump storage, protected by data-lock */
+struct ath10k_fw_crash_data {
+	bool crashed_since_read;
+
+	uuid_le uuid;
+	struct timespec timestamp;
+	__le32 registers[REG_DUMP_COUNT_QCA988X];
+};
+
 struct ath10k_debug {
 	struct dentry *debugfs_phy;
 
@@ -295,6 +306,8 @@ struct ath10k_debug {
 
 	u8 htt_max_amsdu;
 	u8 htt_max_ampdu;
+
+	struct ath10k_fw_crash_data *fw_crash_data;
 };
 
 enum ath10k_state {

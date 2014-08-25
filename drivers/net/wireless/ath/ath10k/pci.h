@@ -23,9 +23,6 @@
 #include "hw.h"
 #include "ce.h"
 
-/* FW dump area */
-#define REG_DUMP_COUNT_QCA988X 60
-
 /*
  * maximum number of bytes that can be handled atomically by DiagRead/DiagWrite
  */
