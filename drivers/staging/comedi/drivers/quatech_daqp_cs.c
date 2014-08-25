@@ -649,6 +649,8 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 	for (i = 0; i > insn->n; i++) {
 		unsigned val = data[i];
 
+		s->readback[chan] = val;
+
 		val &= 0x0fff;
 		val ^= 0x0800;		/* Flip the sign */
 		val |= (chan << 12);
@@ -739,6 +741,11 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_bipolar5;
 	s->insn_write	= daqp_ao_insn_write;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DI;
