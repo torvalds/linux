@@ -848,6 +848,8 @@ TRACE_EVENT(kvm_track_tsc,
 		  __print_symbolic(__entry->host_clock, host_clocks))
 );
 
+#endif /* CONFIG_X86_64 */
+
 TRACE_EVENT(kvm_ple_window,
 	TP_PROTO(bool grow, unsigned int vcpu_id, int new, int old),
 	TP_ARGS(grow, vcpu_id, new, old),
@@ -877,8 +879,6 @@ TRACE_EVENT(kvm_ple_window,
 	trace_kvm_ple_window(true, vcpu_id, new, old)
 #define trace_kvm_ple_window_shrink(vcpu_id, new, old) \
 	trace_kvm_ple_window(false, vcpu_id, new, old)
-
-#endif /* CONFIG_X86_64 */
 
 #endif /* _TRACE_KVM_H */
 
