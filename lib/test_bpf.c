@@ -1342,6 +1342,44 @@ static struct bpf_test tests[] = {
 		{ { 0, -1 } }
 	},
 	{
+		"INT: shifts by register",
+		.u.insns_int = {
+			BPF_MOV64_IMM(R0, -1234),
+			BPF_MOV64_IMM(R1, 1),
+			BPF_ALU32_REG(BPF_RSH, R0, R1),
+			BPF_JMP_IMM(BPF_JEQ, R0, 0x7ffffd97, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(R2, 1),
+			BPF_ALU64_REG(BPF_LSH, R0, R2),
+			BPF_MOV32_IMM(R4, -1234),
+			BPF_JMP_REG(BPF_JEQ, R0, R4, 1),
+			BPF_EXIT_INSN(),
+			BPF_ALU64_IMM(BPF_AND, R4, 63),
+			BPF_ALU64_REG(BPF_LSH, R0, R4), /* R0 <= 46 */
+			BPF_MOV64_IMM(R3, 47),
+			BPF_ALU64_REG(BPF_ARSH, R0, R3),
+			BPF_JMP_IMM(BPF_JEQ, R0, -617, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(R2, 1),
+			BPF_ALU64_REG(BPF_LSH, R4, R2), /* R4 = 46 << 1 */
+			BPF_JMP_IMM(BPF_JEQ, R4, 92, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(R4, 4),
+			BPF_ALU64_REG(BPF_LSH, R4, R4), /* R4 = 4 << 4 */
+			BPF_JMP_IMM(BPF_JEQ, R4, 64, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(R4, 5),
+			BPF_ALU32_REG(BPF_LSH, R4, R4), /* R4 = 5 << 5 */
+			BPF_JMP_IMM(BPF_JEQ, R4, 160, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(R0, -1),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, -1 } }
+	},
+	{
 		"INT: DIV + ABS",
 		.u.insns_int = {
 			BPF_ALU64_REG(BPF_MOV, R6, R1),

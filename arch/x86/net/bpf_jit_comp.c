@@ -515,6 +515,48 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			EMIT3(0xC1, add_1reg(b3, dst_reg), imm32);
 			break;
 
+		case BPF_ALU | BPF_LSH | BPF_X:
+		case BPF_ALU | BPF_RSH | BPF_X:
+		case BPF_ALU | BPF_ARSH | BPF_X:
+		case BPF_ALU64 | BPF_LSH | BPF_X:
+		case BPF_ALU64 | BPF_RSH | BPF_X:
+		case BPF_ALU64 | BPF_ARSH | BPF_X:
+
+			/* check for bad case when dst_reg == rcx */
+			if (dst_reg == BPF_REG_4) {
+				/* mov r11, dst_reg */
+				EMIT_mov(AUX_REG, dst_reg);
+				dst_reg = AUX_REG;
+			}
+
+			if (src_reg != BPF_REG_4) { /* common case */
+				EMIT1(0x51); /* push rcx */
+
+				/* mov rcx, src_reg */
+				EMIT_mov(BPF_REG_4, src_reg);
+			}
+
+			/* shl %rax, %cl | shr %rax, %cl | sar %rax, %cl */
+			if (BPF_CLASS(insn->code) == BPF_ALU64)
+				EMIT1(add_1mod(0x48, dst_reg));
+			else if (is_ereg(dst_reg))
+				EMIT1(add_1mod(0x40, dst_reg));
+
+			switch (BPF_OP(insn->code)) {
+			case BPF_LSH: b3 = 0xE0; break;
+			case BPF_RSH: b3 = 0xE8; break;
+			case BPF_ARSH: b3 = 0xF8; break;
+			}
+			EMIT2(0xD3, add_1reg(b3, dst_reg));
+
+			if (src_reg != BPF_REG_4)
+				EMIT1(0x59); /* pop rcx */
+
+			if (insn->dst_reg == BPF_REG_4)
+				/* mov dst_reg, r11 */
+				EMIT_mov(insn->dst_reg, AUX_REG);
+			break;
+
 		case BPF_ALU | BPF_END | BPF_FROM_BE:
 			switch (imm32) {
 			case 16:
