@@ -114,11 +114,7 @@ static const struct skel_board skel_boards[] = {
    feel free to suggest moving the variable to the struct comedi_device struct.
  */
 struct skel_private {
-
 	int data;
-
-	/* Used for AO readback */
-	unsigned int ao_readback[2];
 };
 
 /* This function doesn't require a particular form, this is just
@@ -305,38 +301,29 @@ static int skel_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int skel_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct skel_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
+	/*
+	 * Writing a list of values to an AO channel is probably not
+	 * very useful, but that's how the interface is defined.
+	 */
 	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+
 		/* a typical programming sequence */
-		/* outw(data[i],dev->iobase + SKEL_DA0 + chan); */
-		devpriv->ao_readback[chan] = data[i];
+		/* outw(data[i], dev->iobase + SKEL_DA0 + chan); */
 	}
+	/* save the last value for readback */
+	s->readback[chan] = val;
 
-	/* return the number of samples read/written */
-	return i;
-}
-
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
-static int skel_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
-{
-	struct skel_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
+	return insn->n;
 }
 
 /*
@@ -446,8 +433,25 @@ static int skel_common_attach(struct comedi_device *dev)
 	s->n_chan = 1;
 	s->maxdata = 0xffff;
 	s->range_table = &range_bipolar5;
-	s->insn_write = skel_ao_winsn;
-	s->insn_read = skel_ao_rinsn;
+	s->insn_write = skel_ao_insn_write;
+	/*
+	 * AO subdevices should have a (*insn_read) as well. Usually the
+	 * hardware is not readable so the channel values need to be stored
+	 * somewhere for readback. The comedi_subdevice has a 'readback'
+	 * member to handle this.
+	 *
+	 * The comedi_readback_insn_read() function provides the (*insn_read)
+	 * to return the 'readback' values.
+	 *
+	 * The comedi_alloc_subdev_readback() function will allocate memory
+	 * for s->n_chan 'readback' values. The core will kfree the memory
+	 * when the driver is detached.
+	 */
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
