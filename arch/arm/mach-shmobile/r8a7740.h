@@ -53,10 +53,10 @@ extern void r8a7740_clock_init(u8 md_ck);
 extern void r8a7740_pinmux_init(void);
 extern void r8a7740_pm_init(void);
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && !defined(CONFIG_ARCH_MULTIPLATFORM)
 extern void __init r8a7740_init_pm_domains(void);
 #else
 static inline void r8a7740_init_pm_domains(void) {}
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && !CONFIG_ARCH_MULTIPLATFORM */
 
 #endif /* __ASM_R8A7740_H__ */
