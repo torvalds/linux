@@ -53,6 +53,8 @@ config SOC_AT91SAM9
 	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
+	select MEMORY if USE_OF
+	select ATMEL_SDRAMC if USE_OF
 
 config SOC_SAMA5
 	bool
@@ -61,6 +63,8 @@ config SOC_SAMA5
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select USE_OF
+	select MEMORY
+	select ATMEL_SDRAMC
 
 menu "Atmel AT91 System-on-Chip"
 

@@ -119,13 +119,7 @@ at91_clk_register_system(struct at91_pmc *pmc, const char *name,
 	init.ops = &system_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
-	/*
-	 * CLK_IGNORE_UNUSED is used to avoid ddrck switch off.
-	 * TODO : we should implement a driver supporting at91 ddr controller
-	 * (see drivers/memory) which would request and enable the ddrck clock.
-	 * When this is done we will be able to remove CLK_IGNORE_UNUSED flag.
-	 */
-	init.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED;
+	init.flags = CLK_SET_RATE_PARENT;
 
 	sys->id = id;
 	sys->hw.init = &init;
