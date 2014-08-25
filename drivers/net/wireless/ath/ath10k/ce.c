@@ -284,7 +284,7 @@ int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 	int ret = 0;
 
 	if (nbytes > ce_state->src_sz_max)
-		ath10k_warn("%s: send more we can (nbytes: %d, max: %d)\n",
+		ath10k_warn(ar, "%s: send more we can (nbytes: %d, max: %d)\n",
 			    __func__, nbytes, ce_state->src_sz_max);
 
 	if (unlikely(CE_RING_DELTA(nentries_mask,
@@ -853,7 +853,7 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 	ath10k_ce_src_ring_lowmark_set(ar, ctrl_addr, 0);
 	ath10k_ce_src_ring_highmark_set(ar, ctrl_addr, nentries);
 
-	ath10k_dbg(ATH10K_DBG_BOOT,
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "boot init ce src ring id %d entries %d base_addr %p\n",
 		   ce_id, nentries, src_ring->base_addr_owner_space);
 
@@ -887,7 +887,7 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 	ath10k_ce_dest_ring_lowmark_set(ar, ctrl_addr, 0);
 	ath10k_ce_dest_ring_highmark_set(ar, ctrl_addr, nentries);
 
-	ath10k_dbg(ATH10K_DBG_BOOT,
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "boot ce dest ring id %d entries %d base_addr %p\n",
 		   ce_id, nentries, dest_ring->base_addr_owner_space);
 
@@ -1056,7 +1056,7 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 	if (attr->src_nentries) {
 		ret = ath10k_ce_init_src_ring(ar, ce_id, attr);
 		if (ret) {
-			ath10k_err("Failed to initialize CE src ring for ID: %d (%d)\n",
+			ath10k_err(ar, "Failed to initialize CE src ring for ID: %d (%d)\n",
 				   ce_id, ret);
 			return ret;
 		}
@@ -1065,7 +1065,7 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 	if (attr->dest_nentries) {
 		ret = ath10k_ce_init_dest_ring(ar, ce_id, attr);
 		if (ret) {
-			ath10k_err("Failed to initialize CE dest ring for ID: %d (%d)\n",
+			ath10k_err(ar, "Failed to initialize CE dest ring for ID: %d (%d)\n",
 				   ce_id, ret);
 			return ret;
 		}
@@ -1110,7 +1110,7 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 		ce_state->src_ring = ath10k_ce_alloc_src_ring(ar, ce_id, attr);
 		if (IS_ERR(ce_state->src_ring)) {
 			ret = PTR_ERR(ce_state->src_ring);
-			ath10k_err("failed to allocate copy engine source ring %d: %d\n",
+			ath10k_err(ar, "failed to allocate copy engine source ring %d: %d\n",
 				   ce_id, ret);
 			ce_state->src_ring = NULL;
 			return ret;
@@ -1122,7 +1122,7 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 								attr);
 		if (IS_ERR(ce_state->dest_ring)) {
 			ret = PTR_ERR(ce_state->dest_ring);
-			ath10k_err("failed to allocate copy engine destination ring %d: %d\n",
+			ath10k_err(ar, "failed to allocate copy engine destination ring %d: %d\n",
 				   ce_id, ret);
 			ce_state->dest_ring = NULL;
 			return ret;

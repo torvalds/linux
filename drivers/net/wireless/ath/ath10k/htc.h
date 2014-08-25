@@ -355,6 +355,6 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 			       struct ath10k_htc_svc_conn_resp *conn_resp);
 int ath10k_htc_send(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
 		    struct sk_buff *packet);
-struct sk_buff *ath10k_htc_alloc_skb(int size);
+struct sk_buff *ath10k_htc_alloc_skb(struct ath10k *ar, int size);
 
 #endif

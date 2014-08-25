@@ -237,7 +237,7 @@ static int ath10k_spectral_scan_config(struct ath10k *ar,
 					      WMI_SPECTRAL_TRIGGER_CMD_CLEAR,
 					      WMI_SPECTRAL_ENABLE_CMD_DISABLE);
 	if (res < 0) {
-		ath10k_warn("failed to enable spectral scan: %d\n", res);
+		ath10k_warn(ar, "failed to enable spectral scan: %d\n", res);
 		return res;
 	}
 
@@ -271,7 +271,7 @@ static int ath10k_spectral_scan_config(struct ath10k *ar,
 
 	res = ath10k_wmi_vdev_spectral_conf(ar, &arg);
 	if (res < 0) {
-		ath10k_warn("failed to configure spectral scan: %d\n", res);
+		ath10k_warn(ar, "failed to configure spectral scan: %d\n", res);
 		return res;
 	}
 
@@ -332,12 +332,12 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 			res = ath10k_spectral_scan_config(ar,
 							  ar->spectral.mode);
 			if (res < 0) {
-				ath10k_warn("failed to reconfigure spectral scan: %d\n",
+				ath10k_warn(ar, "failed to reconfigure spectral scan: %d\n",
 					    res);
 			}
 			res = ath10k_spectral_scan_trigger(ar);
 			if (res < 0) {
-				ath10k_warn("failed to trigger spectral scan: %d\n",
+				ath10k_warn(ar, "failed to trigger spectral scan: %d\n",
 					    res);
 			}
 		} else {

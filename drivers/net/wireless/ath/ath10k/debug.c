@@ -106,25 +106,7 @@ struct ath10k_dump_file_data {
 	u8 data[0];
 } __packed;
 
-static int ath10k_printk(const char *level, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-	int rtn;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	rtn = printk("%sath10k: %pV", level, &vaf);
-
-	va_end(args);
-
-	return rtn;
-}
-
-int ath10k_info(const char *fmt, ...)
+int ath10k_info(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
@@ -134,7 +116,7 @@ int ath10k_info(const char *fmt, ...)
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = ath10k_printk(KERN_INFO, "%pV", &vaf);
+	ret = dev_info(ar->dev, "%pV", &vaf);
 	trace_ath10k_log_info(&vaf);
 	va_end(args);
 
@@ -144,7 +126,7 @@ EXPORT_SYMBOL(ath10k_info);
 
 void ath10k_print_driver_info(struct ath10k *ar)
 {
-	ath10k_info("%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d\n",
+	ath10k_info(ar, "%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d\n",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
@@ -152,7 +134,7 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    ar->fw_api,
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor);
-	ath10k_info("debug %d debugfs %d tracing %d dfs %d\n",
+	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d\n",
 		    config_enabled(CONFIG_ATH10K_DEBUG),
 		    config_enabled(CONFIG_ATH10K_DEBUGFS),
 		    config_enabled(CONFIG_ATH10K_TRACING),
@@ -160,7 +142,7 @@ void ath10k_print_driver_info(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_print_driver_info);
 
-int ath10k_err(const char *fmt, ...)
+int ath10k_err(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
@@ -170,7 +152,7 @@ int ath10k_err(const char *fmt, ...)
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = ath10k_printk(KERN_ERR, "%pV", &vaf);
+	ret = dev_err(ar->dev, "%pV", &vaf);
 	trace_ath10k_log_err(&vaf);
 	va_end(args);
 
@@ -178,25 +160,21 @@ int ath10k_err(const char *fmt, ...)
 }
 EXPORT_SYMBOL(ath10k_err);
 
-int ath10k_warn(const char *fmt, ...)
+int ath10k_warn(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret = 0;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-
-	if (net_ratelimit())
-		ret = ath10k_printk(KERN_WARNING, "%pV", &vaf);
-
+	dev_warn_ratelimited(ar->dev, "%pV", &vaf);
 	trace_ath10k_log_warn(&vaf);
 
 	va_end(args);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(ath10k_warn);
 
@@ -417,7 +395,7 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 
 	ret = ath10k_wmi_request_stats(ar, WMI_REQUEST_PEER_STAT);
 	if (ret) {
-		ath10k_warn("could not request stats (%d)\n", ret);
+		ath10k_warn(ar, "could not request stats (%d)\n", ret);
 		goto exit;
 	}
 
@@ -635,10 +613,10 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 	}
 
 	if (!strcmp(buf, "soft")) {
-		ath10k_info("simulating soft firmware crash\n");
+		ath10k_info(ar, "simulating soft firmware crash\n");
 		ret = ath10k_wmi_force_fw_hang(ar, WMI_FORCE_FW_HANG_ASSERT, 0);
 	} else if (!strcmp(buf, "hard")) {
-		ath10k_info("simulating hard firmware crash\n");
+		ath10k_info(ar, "simulating hard firmware crash\n");
 		/* 0x7fff is vdev id, and it is always out of range for all
 		 * firmware variants in order to force a firmware crash.
 		 */
@@ -650,7 +628,7 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 	}
 
 	if (ret) {
-		ath10k_warn("failed to simulate firmware crash: %d\n", ret);
+		ath10k_warn(ar, "failed to simulate firmware crash: %d\n", ret);
 		goto exit;
 	}
 
@@ -839,7 +817,7 @@ static int ath10k_debug_htt_stats_req(struct ath10k *ar)
 	ret = ath10k_htt_h2t_stats_req(&ar->htt, ar->debug.htt_stats_mask,
 				       cookie);
 	if (ret) {
-		ath10k_warn("failed to send htt stats request: %d\n", ret);
+		ath10k_warn(ar, "failed to send htt stats request: %d\n", ret);
 		return ret;
 	}
 
@@ -1013,7 +991,7 @@ static ssize_t ath10k_write_fw_dbglog(struct file *file,
 	if (ar->state == ATH10K_STATE_ON) {
 		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask);
 		if (ret) {
-			ath10k_warn("dbglog cfg failed from debugfs: %d\n",
+			ath10k_warn(ar, "dbglog cfg failed from debugfs: %d\n",
 				    ret);
 			goto exit;
 		}
@@ -1044,13 +1022,14 @@ int ath10k_debug_start(struct ath10k *ar)
 	ret = ath10k_debug_htt_stats_req(ar);
 	if (ret)
 		/* continue normally anyway, this isn't serious */
-		ath10k_warn("failed to start htt stats workqueue: %d\n", ret);
+		ath10k_warn(ar, "failed to start htt stats workqueue: %d\n",
+			    ret);
 
 	if (ar->debug.fw_dbglog_mask) {
 		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask);
 		if (ret)
 			/* not serious */
-			ath10k_warn("failed to enable dbglog during start: %d",
+			ath10k_warn(ar, "failed to enable dbglog during start: %d",
 				    ret);
 	}
 
@@ -1230,7 +1209,8 @@ void ath10k_debug_destroy(struct ath10k *ar)
 #endif /* CONFIG_ATH10K_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG
-void ath10k_dbg(enum ath10k_debug_mask mask, const char *fmt, ...)
+void ath10k_dbg(struct ath10k *ar, enum ath10k_debug_mask mask,
+		const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -1241,7 +1221,7 @@ void ath10k_dbg(enum ath10k_debug_mask mask, const char *fmt, ...)
 	vaf.va = &args;
 
 	if (ath10k_debug_mask & mask)
-		ath10k_printk(KERN_DEBUG, "%pV", &vaf);
+		dev_printk(KERN_DEBUG, ar->dev, "%pV", &vaf);
 
 	trace_ath10k_log_dbg(mask, &vaf);
 
@@ -1249,13 +1229,14 @@ void ath10k_dbg(enum ath10k_debug_mask mask, const char *fmt, ...)
 }
 EXPORT_SYMBOL(ath10k_dbg);
 
-void ath10k_dbg_dump(enum ath10k_debug_mask mask,
+void ath10k_dbg_dump(struct ath10k *ar,
+		     enum ath10k_debug_mask mask,
 		     const char *msg, const char *prefix,
 		     const void *buf, size_t len)
 {
 	if (ath10k_debug_mask & mask) {
 		if (msg)
-			ath10k_dbg(mask, "%s\n", msg);
+			ath10k_dbg(ar, mask, "%s\n", msg);
 
 		print_hex_dump_bytes(prefix, DUMP_PREFIX_OFFSET, buf, len);
 	}
