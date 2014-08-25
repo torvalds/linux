@@ -176,8 +176,6 @@ broken.
 struct me4000_info {
 	unsigned long plx_regbase;
 	unsigned long timer_regbase;
-
-	unsigned int ao_readback[4];
 };
 
 enum me4000_boardid {
@@ -1193,7 +1191,6 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct me4000_info *info = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int tmp;
 
@@ -1209,26 +1206,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 	outl(data[0], dev->iobase + ME4000_AO_SINGLE_REG(chan));
 
 	/* Store in the mirror */
-	info->ao_readback[chan] = data[0];
-
-	return 1;
-}
-
-static int me4000_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct me4000_info *info = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-
-	if (insn->n == 0) {
-		return 0;
-	} else if (insn->n > 1) {
-		dev_err(dev->class_dev, "Invalid instruction length\n");
-		return -EINVAL;
-	}
-
-	data[0] = info->ao_readback[chan];
+	s->readback[chan] = data[0];
 
 	return 1;
 }
@@ -1478,7 +1456,11 @@ static int me4000_auto_attach(struct comedi_device *dev,
 		s->maxdata = 0xFFFF;	/*  16 bit DAC */
 		s->range_table = &range_bipolar10;
 		s->insn_write = me4000_ao_insn_write;
-		s->insn_read = me4000_ao_insn_read;
+		s->insn_read = comedi_readback_insn_read;
+
+		result = comedi_alloc_subdev_readback(s);
+		if (result)
+			return result;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
