@@ -1139,29 +1139,6 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
 
-#ifdef CONFIG_PM_SLEEP
-int tmio_mmc_host_suspend(struct device *dev)
-{
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-
-	tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
-	return 0;
-}
-EXPORT_SYMBOL(tmio_mmc_host_suspend);
-
-int tmio_mmc_host_resume(struct device *dev)
-{
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-
-	tmio_mmc_enable_dma(host, true);
-
-	return 0;
-}
-EXPORT_SYMBOL(tmio_mmc_host_resume);
-#endif
-
 #ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev)
 {

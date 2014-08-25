@@ -144,11 +144,6 @@ static inline void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
 }
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-int tmio_mmc_host_suspend(struct device *dev);
-int tmio_mmc_host_resume(struct device *dev);
-#endif
-
 #ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev);
 int tmio_mmc_host_runtime_resume(struct device *dev);
