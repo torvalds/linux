@@ -1089,8 +1089,6 @@ struct pcidas64_private {
 	unsigned int ao_dma_index;
 	/*  number of analog output samples remaining */
 	unsigned long ao_count;
-	/*  remember what the analog outputs are set to, to allow readback */
-	unsigned int ao_value[2];
 	unsigned int hw_revision;	/*  stc chip hardware revision number */
 	/*  last bits sent to INTR_ENABLE_REG register */
 	unsigned int intr_enable_bits;
@@ -3061,18 +3059,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	}
 
 	/*  remember output value */
-	devpriv->ao_value[chan] = data[0];
-
-	return 1;
-}
-
-static int ao_readback_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcidas64_private *devpriv = dev->private;
-
-	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
+	s->readback[chan] = data[0];
 
 	return 1;
 }
@@ -3788,8 +3775,13 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->n_chan = thisboard->ao_nchan;
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = thisboard->ao_range_table;
-		s->insn_read = ao_readback_insn;
 		s->insn_write = ao_winsn;
+		s->insn_read = comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
 		if (ao_cmd_is_supported(thisboard)) {
 			dev->write_subdev = s;
 			s->do_cmdtest = ao_cmdtest;
