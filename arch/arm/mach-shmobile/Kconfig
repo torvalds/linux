@@ -1,13 +1,18 @@
 config ARCH_SHMOBILE
 	bool
 
+config PM_RCAR
+	bool
+
 config ARCH_RCAR_GEN1
 	bool
+	select PM_RCAR if PM || SMP
 	select RENESAS_INTC_IRQPIN
 	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_RCAR_GEN2
 	bool
+	select PM_RCAR if PM || SMP
 	select RENESAS_IRQC
 	select SYS_SUPPORTS_SH_CMT
 
