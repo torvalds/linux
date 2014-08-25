@@ -89,7 +89,10 @@ static int si2157_init(struct dvb_frontend *fe)
 
 	dev_dbg(&s->client->dev, "\n");
 
-	/* configure? */
+	if (s->fw_loaded)
+		goto warm;
+
+	/* power up */
 	memcpy(cmd.args, "\xc0\x00\x0c\x00\x00\x01\x01\x01\x01\x01\x01\x02\x00\x00\x01", 15);
 	cmd.wlen = 15;
 	cmd.rlen = 1;
@@ -176,9 +179,12 @@ skip_fw_download:
 	if (ret)
 		goto err;
 
-	s->active = true;
+	s->fw_loaded = true;
 
+warm:
+	s->active = true;
 	return 0;
+
 err:
 	if (fw)
 		release_firmware(fw);
@@ -320,6 +326,7 @@ static int si2157_probe(struct i2c_client *client,
 	s->client = client;
 	s->fe = cfg->fe;
 	s->inversion = cfg->inversion;
+	s->fw_loaded = false;
 	mutex_init(&s->i2c_mutex);
 
 	/* check if the tuner is there */
