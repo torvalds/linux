@@ -515,7 +515,6 @@ struct pci230_private {
 	spinlock_t ao_stop_spinlock;	/* Spin lock for stopping AO command */
 	unsigned long daqio;		/* PCI230's DAQ I/O space */
 	unsigned long state;		/* State flags */
-	unsigned int ao_readback[2];	/* Used for AO readback */
 	unsigned int ai_scan_count;	/* Number of AI scans remaining */
 	unsigned int ai_scan_pos;	/* Current position within AI scan */
 	unsigned int ao_scan_count;	/* Number of AO scans remaining.  */
@@ -623,9 +622,6 @@ static inline void pci230_ao_write_nofifo(struct comedi_device *dev,
 {
 	struct pci230_private *devpriv = dev->private;
 
-	/* Store unmangled datum to be read back later. */
-	devpriv->ao_readback[chan] = datum;
-
 	/* Write mangled datum to appropriate DACOUT register. */
 	outw(pci230_ao_mangle_datum(dev, datum),
 	     devpriv->daqio + ((chan) == 0) ? PCI230_DACOUT1 : PCI230_DACOUT2);
@@ -635,9 +631,6 @@ static inline void pci230_ao_write_fifo(struct comedi_device *dev,
 					unsigned short datum, unsigned int chan)
 {
 	struct pci230_private *devpriv = dev->private;
-
-	/* Store unmangled datum to be read back later. */
-	devpriv->ao_readback[chan] = datum;
 
 	/* Write mangled datum to appropriate DACDATA register. */
 	outw(pci230_ao_mangle_datum(dev, datum),
@@ -909,20 +902,16 @@ static int pci230_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-/*
- *  COMEDI_SUBD_AO instructions;
- */
-static int pci230_ao_winsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int pci230_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pci230_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
-	int chan, range;
-
-	/* Unpack channel and range. */
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
 
 	/*
 	 * Set range - see analogue output range table; 0 => unipolar 10V,
@@ -931,35 +920,13 @@ static int pci230_ao_winsn(struct comedi_device *dev,
 	devpriv->ao_bipolar = pci230_ao_bipolar[range];
 	outw(range, devpriv->daqio + PCI230_DACCON);
 
-	/*
-	 * Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined.
-	 */
 	for (i = 0; i < insn->n; i++) {
-		/* Write value to DAC and store it. */
-		pci230_ao_write_nofifo(dev, data[i], chan);
+		val = data[i];
+		pci230_ao_write_nofifo(dev, val, chan);
 	}
+	s->readback[chan] = val;
 
-	/* return the number of samples read/written */
-	return i;
-}
-
-/*
- * AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv.
- */
-static int pci230_ao_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	struct pci230_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
+	return insn->n;
 }
 
 static int pci230_ao_check_chanlist(struct comedi_device *dev,
@@ -1186,6 +1153,8 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_scan_count == 0)
 		return;
 	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
 		/* Read sample from Comedi's circular buffer. */
 		ret = comedi_buf_get(s, &data);
 		if (ret == 0) {
@@ -1194,8 +1163,8 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 			dev_err(dev->class_dev, "AO buffer underrun\n");
 			return;
 		}
-		/* Write value to DAC. */
-		pci230_ao_write_nofifo(dev, data, CR_CHAN(cmd->chanlist[i]));
+		pci230_ao_write_nofifo(dev, data, chan);
+		s->readback[chan] = data;
 	}
 	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -1271,11 +1240,12 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 		/* Process scans. */
 		for (n = 0; n < num_scans; n++) {
 			for (i = 0; i < cmd->chanlist_len; i++) {
+				unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 				unsigned short datum;
 
 				comedi_buf_get(s, &datum);
-				pci230_ao_write_fifo(dev, datum,
-						     CR_CHAN(cmd->chanlist[i]));
+				pci230_ao_write_fifo(dev, datum, chan);
+				s->readback[chan] = datum;
 			}
 		}
 		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
@@ -2777,8 +2747,8 @@ static int pci230_attach_common(struct comedi_device *dev,
 		s->n_chan = thisboard->ao_chans;
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
-		s->insn_write = pci230_ao_winsn;
-		s->insn_read = pci230_ao_rinsn;
+		s->insn_write = pci230_ao_insn_write;
+		s->insn_read = comedi_readback_insn_read;
 		s->len_chanlist = thisboard->ao_chans;
 		if (dev->irq) {
 			dev->write_subdev = s;
@@ -2787,6 +2757,10 @@ static int pci230_attach_common(struct comedi_device *dev,
 			s->do_cmdtest = pci230_ao_cmdtest;
 			s->cancel = pci230_ao_cancel;
 		}
+
+		rc = comedi_alloc_subdev_readback(s);
+		if (rc)
+			return rc;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
