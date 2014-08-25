@@ -329,7 +329,7 @@ static int rtl2832_sdr_rd_reg_mask(struct rtl2832_sdr_state *s, u16 reg,
 static struct rtl2832_sdr_frame_buf *rtl2832_sdr_get_next_fill_buf(
 		struct rtl2832_sdr_state *s)
 {
-	unsigned long flags = 0;
+	unsigned long flags;
 	struct rtl2832_sdr_frame_buf *buf = NULL;
 
 	spin_lock_irqsave(&s->queued_bufs_lock, flags);
@@ -570,7 +570,7 @@ static int rtl2832_sdr_alloc_urbs(struct rtl2832_sdr_state *s)
 /* Must be called with vb_queue_lock hold */
 static void rtl2832_sdr_cleanup_queued_bufs(struct rtl2832_sdr_state *s)
 {
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(&s->udev->dev, "%s:\n", __func__);
 
@@ -659,7 +659,7 @@ static void rtl2832_sdr_buf_queue(struct vb2_buffer *vb)
 	struct rtl2832_sdr_state *s = vb2_get_drv_priv(vb->vb2_queue);
 	struct rtl2832_sdr_frame_buf *buf =
 			container_of(vb, struct rtl2832_sdr_frame_buf, vb);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	/* Check the device has not disconnected between prep and queuing */
 	if (!s->udev) {
