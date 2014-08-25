@@ -65,6 +65,7 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/interval_tree.h>
+#include <linux/hashtable.h>
 
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
@@ -488,6 +489,9 @@ struct radeon_bo {
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
+
+	struct radeon_mn		*mn;
+	struct interval_tree_node	mn_it;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
@@ -1728,6 +1732,11 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 			   struct radeon_ring *cpB);
 void radeon_test_syncing(struct radeon_device *rdev);
 
+/*
+ * MMU Notifier
+ */
+int radeon_mn_register(struct radeon_bo *bo, unsigned long addr);
+void radeon_mn_unregister(struct radeon_bo *bo);
 
 /*
  * Debugfs
@@ -2141,6 +2150,8 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
 int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *filp);
+int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *filp);
 int radeon_gem_pin_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int radeon_gem_unpin_ioctl(struct drm_device *dev, void *data,
@@ -2373,6 +2384,9 @@ struct radeon_device {
 	/* tracking pinned memory */
 	u64 vram_pin_size;
 	u64 gart_pin_size;
+
+	struct mutex	mn_lock;
+	DECLARE_HASHTABLE(mn_hash, 7);
 };
 
 bool radeon_is_px(struct drm_device *dev);
@@ -2874,6 +2888,10 @@ extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enabl
 extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
+extern int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
+				     uint32_t flags);
+extern bool radeon_ttm_tt_has_userptr(struct ttm_tt *ttm);
+extern bool radeon_ttm_tt_is_readonly(struct ttm_tt *ttm);
 extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
