@@ -75,8 +75,6 @@
 /* Number of channels (16 AD and offset)*/
 #define NUMCHANNELS 16
 
-#define USBDUXSIGMA_NUM_AO_CHAN		4
-
 /* Size of one A/D value */
 #define SIZEADIN          ((sizeof(uint32_t)))
 
@@ -160,8 +158,6 @@ struct usbduxsigma_private {
 	uint32_t *in_buf;
 	/* input buffer for single insn */
 	uint8_t *insn_buf;
-
-	unsigned int ao_readback[USBDUXSIGMA_NUM_AO_CHAN];
 
 	unsigned high_speed:1;
 	unsigned ai_cmd_running:1;
@@ -428,7 +424,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 			}
 			*datap++ = val;
 			*datap++ = chan;
-			devpriv->ao_readback[chan] = val;
+			s->readback[chan] = val;
 
 			s->async->events |= COMEDI_CB_BLOCK;
 			comedi_event(dev, s);
@@ -806,15 +802,13 @@ static int usbduxsigma_ao_insn_read(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
+	int ret;
 
 	down(&devpriv->sem);
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
+	ret = comedi_readback_insn_read(dev, s, insn, data);
 	up(&devpriv->sem);
 
-	return insn->n;
+	return ret;
 }
 
 static int usbduxsigma_ao_insn_write(struct comedi_device *dev,
@@ -842,7 +836,7 @@ static int usbduxsigma_ao_insn_write(struct comedi_device *dev,
 			up(&devpriv->sem);
 			return ret;
 		}
-		devpriv->ao_readback[chan] = data[i];
+		s->readback[chan] = data[i];
 	}
 	up(&devpriv->sem);
 
@@ -1611,7 +1605,7 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	dev->write_subdev = s;
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
-	s->n_chan	= USBDUXSIGMA_NUM_AO_CHAN;
+	s->n_chan	= 4;
 	s->len_chanlist	= s->n_chan;
 	s->maxdata	= 0x00ff;
 	s->range_table	= &range_unipolar2_5;
@@ -1620,6 +1614,10 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	s->do_cmdtest	= usbduxsigma_ao_cmdtest;
 	s->do_cmd	= usbduxsigma_ao_cmd;
 	s->cancel	= usbduxsigma_ao_cancel;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
