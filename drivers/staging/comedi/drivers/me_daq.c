@@ -325,6 +325,7 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	struct me_private_data *dev_private = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int rang = CR_RANGE(insn->chanspec);
+	unsigned int val = dev_private->ao_readback[chan];
 	int i;
 
 	/* Enable all DAC */
@@ -353,10 +354,11 @@ static int me_ao_insn_write(struct comedi_device *dev,
 
 	/* Set data register */
 	for (i = 0; i < insn->n; i++) {
-		writew((data[0] & s->maxdata),
-		       dev->mmio + ME_DAC_DATA_A + (chan << 1));
-		dev_private->ao_readback[chan] = (data[0] & s->maxdata);
+		val = data[i];
+
+		writew(val, dev->mmio + ME_DAC_DATA_A + (chan << 1));
 	}
+	dev_private->ao_readback[chan] = val;
 
 	/* Update dac with data registers */
 	readw(dev->mmio + ME_DAC_UPDATE);
