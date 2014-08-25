@@ -1,6 +1,11 @@
 config ARCH_SHMOBILE
 	bool
 
+config ARCH_RCAR_GEN1
+	bool
+	select RENESAS_INTC_IRQPIN
+	select SYS_SUPPORTS_SH_TMU
+
 config ARCH_RMOBILE
 	bool
 	select SYS_SUPPORTS_SH_CMT
@@ -33,8 +38,7 @@ config ARCH_R7S72100
 
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
-	select RENESAS_INTC_IRQPIN
-	select SYS_SUPPORTS_SH_TMU
+	select ARCH_RCAR_GEN1
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
@@ -114,21 +118,19 @@ config ARCH_R8A7740
 
 config ARCH_R8A7778
 	bool "R-Car M1A (R8A77781)"
+	select ARCH_RCAR_GEN1
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select CPU_V7
 	select SH_CLK_CPG
 	select ARM_GIC
-	select SYS_SUPPORTS_SH_TMU
-	select RENESAS_INTC_IRQPIN
 
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
+	select ARCH_RCAR_GEN1
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
 	select SH_CLK_CPG
-	select RENESAS_INTC_IRQPIN
-	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
