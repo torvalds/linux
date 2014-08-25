@@ -374,7 +374,6 @@ struct pci224_private {
 	unsigned long iobase1;
 	unsigned long state;
 	spinlock_t ao_spinlock;	/* spinlock for AO command handling */
-	unsigned int *ao_readback;
 	unsigned short *ao_scan_vals;
 	unsigned char *ao_scan_order;
 	int intr_cpuid;
@@ -398,8 +397,6 @@ pci224_ao_set_data(struct comedi_device *dev, int chan, int range,
 	struct pci224_private *devpriv = dev->private;
 	unsigned short mangled;
 
-	/* Store unmangled data for readback. */
-	devpriv->ao_readback[chan] = data;
 	/* Enable the channel. */
 	outw(1 << chan, dev->iobase + PCI224_DACCEN);
 	/* Set range and reset FIFO. */
@@ -424,53 +421,23 @@ pci224_ao_set_data(struct comedi_device *dev, int chan, int range,
 	inw(dev->iobase + PCI224_SOFTTRIG);
 }
 
-/*
- * 'insn_write' function for AO subdevice.
- */
-static int
-pci224_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-		     struct comedi_insn *insn, unsigned int *data)
+static int pci224_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
-	int chan, range;
 
-	/* Unpack channel and range. */
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		pci224_ao_set_data(dev, chan, range, val);
+	}
+	s->readback[chan] = val;
 
-	/*
-	 * Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined.
-	 */
-	for (i = 0; i < insn->n; i++)
-		pci224_ao_set_data(dev, chan, range, data[i]);
-
-	return i;
-}
-
-/*
- * 'insn_read' function for AO subdevice.
- *
- * N.B. The value read will not be valid if the DAC channel has
- * never been written successfully since the device was attached
- * or since the channel has been used by an AO streaming write
- * command.
- */
-static int
-pci224_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
-{
-	struct pci224_private *devpriv = dev->private;
-	int i;
-	int chan;
-
-	chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-
-	return i;
+	return insn->n;
 }
 
 /*
@@ -1094,13 +1061,6 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 	dev->iobase = pci_resource_start(pci_dev, 3);
 	irq = pci_dev->irq;
 
-	/* Allocate readback buffer for AO channels. */
-	devpriv->ao_readback = kmalloc(sizeof(devpriv->ao_readback[0]) *
-				       thisboard->ao_chans, GFP_KERNEL);
-	if (!devpriv->ao_readback)
-		return -ENOMEM;
-
-
 	/* Allocate buffer to hold values for AO channel scan. */
 	devpriv->ao_scan_vals = kmalloc(sizeof(devpriv->ao_scan_vals[0]) *
 					thisboard->ao_chans, GFP_KERNEL);
@@ -1140,13 +1100,17 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
 	s->range_table = thisboard->ao_range;
 	s->insn_write = pci224_ao_insn_write;
-	s->insn_read = pci224_ao_insn_read;
+	s->insn_read = comedi_readback_insn_read;
 	s->len_chanlist = s->n_chan;
 	dev->write_subdev = s;
 	s->do_cmd = pci224_ao_cmd;
 	s->do_cmdtest = pci224_ao_cmdtest;
 	s->cancel = pci224_ao_cancel;
 	s->munge = pci224_ao_munge;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	if (irq) {
 		ret = request_irq(irq, pci224_interrupt, IRQF_SHARED,
@@ -1169,7 +1133,6 @@ static void pci224_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
-		kfree(devpriv->ao_readback);
 		kfree(devpriv->ao_scan_vals);
 		kfree(devpriv->ao_scan_order);
 	}
