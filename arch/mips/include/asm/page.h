@@ -37,7 +37,7 @@
 
 /*
  * This is used for calculating the real page sizes
- * for FTLB or VTLB + FTLB confugrations.
+ * for FTLB or VTLB + FTLB configurations.
  */
 static inline unsigned int page_size_ftlb(unsigned int mmuextdef)
 {
