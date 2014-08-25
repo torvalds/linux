@@ -2108,7 +2108,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 	unsigned int mask = (s->maxdata + 1) >> 1;
 	int i, n;
 	unsigned signbits;
-	unsigned short d;
+	unsigned int d;
 	unsigned long dl;
 
 	ni_load_channelgain_list(dev, s, 1, &insn->chanspec);
