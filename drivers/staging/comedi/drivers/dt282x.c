@@ -315,8 +315,6 @@ struct dt282x_private {
 
 	unsigned int divisor;
 
-	unsigned short ao_readback[2];
-
 	int dacsr;	/* software copies of registers */
 	int adcsr;
 	int supcsr;
@@ -826,21 +824,6 @@ static int dt282x_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static int dt282x_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct dt282x_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return insn->n;
-}
-
 static int dt282x_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -849,14 +832,14 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 	struct dt282x_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val;
 	int i;
 
 	devpriv->dacsr |= DT2821_DACSR_SSEL | DT2821_DACSR_YSEL(chan);
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
-		devpriv->ao_readback[chan] = val;
+		unsigned int val = data[i];
+
+		s->readback[chan] = val;
 
 		if (comedi_range_is_bipolar(s, range))
 			val = comedi_offset_munge(s, val);
@@ -1252,12 +1235,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= board->dachan;
 		s->maxdata	= board->ao_maxdata;
-
 		/* ranges are per-channel, set by jumpers on the board */
 		s->range_table	= &dt282x_ao_range;
-
-		s->insn_read	= dt282x_ao_insn_read;
 		s->insn_write	= dt282x_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
 		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags	|= SDF_CMD_WRITE;
@@ -1266,6 +1247,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->do_cmd	= dt282x_ao_cmd;
 			s->cancel	= dt282x_ao_cancel;
 		}
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
