@@ -58,7 +58,6 @@
 #define MF6X4_DA7_R					0x2e
 /* Map DAC cahnnel id to real HW-dependent offset value */
 #define MF6X4_DAC_R(x)					(0x20 + ((x) * 2))
-#define MF6X4_DA_M					0x3fff
 
 /* BAR2 registers */
 #define MF634_GPIOC_R					0x68
@@ -182,6 +181,7 @@ static int mf6x4_ao_insn_write(struct comedi_device *dev,
 {
 	struct mf6x4_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
 	uint32_t gpioc;
 	int i;
 
@@ -191,10 +191,10 @@ static int mf6x4_ao_insn_write(struct comedi_device *dev,
 		  devpriv->gpioc_R);
 
 	for (i = 0; i < insn->n; i++) {
-		iowrite16(data[i] & MF6X4_DA_M, dev->mmio + MF6X4_DAC_R(chan));
-
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		iowrite16(val, dev->mmio + MF6X4_DAC_R(chan));
 	}
+	devpriv->ao_readback[chan] = val;
 
 	return insn->n;
 }
