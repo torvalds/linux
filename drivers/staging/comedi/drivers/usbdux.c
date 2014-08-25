@@ -513,7 +513,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 			dev_err(dev->class_dev,
 				"ao urb resubm failed in int-cont. ret=%d",
 				ret);
-			if (ret == EL2NSYNC)
+			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
 					"buggy USB host controller or bug in IRQ handling!\n");
 
@@ -1294,7 +1294,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 			dev_err(dev->class_dev,
 				"pwm urb resubm failed in int-cont. ret=%d",
 				ret);
-			if (ret == EL2NSYNC)
+			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
 					"buggy USB host controller or bug in IRQ handling!\n");
 
