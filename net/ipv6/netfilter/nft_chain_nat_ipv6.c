@@ -28,7 +28,7 @@
  * IPv6 NAT chains
  */
 
-static unsigned int nf_nat_ipv6_fn(const struct nf_hook_ops *ops,
+static unsigned int nft_nat_ipv6_fn(const struct nf_hook_ops *ops,
 			      struct sk_buff *skb,
 			      const struct net_device *in,
 			      const struct net_device *out,
@@ -97,7 +97,7 @@ static unsigned int nf_nat_ipv6_prerouting(const struct nf_hook_ops *ops,
 	struct in6_addr daddr = ipv6_hdr(skb)->daddr;
 	unsigned int ret;
 
-	ret = nf_nat_ipv6_fn(ops, skb, in, out, okfn);
+	ret = nft_nat_ipv6_fn(ops, skb, in, out, okfn);
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    ipv6_addr_cmp(&daddr, &ipv6_hdr(skb)->daddr))
 		skb_dst_drop(skb);
@@ -115,7 +115,7 @@ static unsigned int nf_nat_ipv6_postrouting(const struct nf_hook_ops *ops,
 	const struct nf_conn *ct __maybe_unused;
 	unsigned int ret;
 
-	ret = nf_nat_ipv6_fn(ops, skb, in, out, okfn);
+	ret = nft_nat_ipv6_fn(ops, skb, in, out, okfn);
 #ifdef CONFIG_XFRM
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    !(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
@@ -143,7 +143,7 @@ static unsigned int nf_nat_ipv6_output(const struct nf_hook_ops *ops,
 	const struct nf_conn *ct;
 	unsigned int ret;
 
-	ret = nf_nat_ipv6_fn(ops, skb, in, out, okfn);
+	ret = nft_nat_ipv6_fn(ops, skb, in, out, okfn);
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
@@ -177,7 +177,7 @@ static const struct nf_chain_type nft_chain_nat_ipv6 = {
 		[NF_INET_PRE_ROUTING]	= nf_nat_ipv6_prerouting,
 		[NF_INET_POST_ROUTING]	= nf_nat_ipv6_postrouting,
 		[NF_INET_LOCAL_OUT]	= nf_nat_ipv6_output,
-		[NF_INET_LOCAL_IN]	= nf_nat_ipv6_fn,
+		[NF_INET_LOCAL_IN]	= nft_nat_ipv6_fn,
 	},
 };
 
