@@ -916,6 +916,9 @@ static void ath10k_pci_dump_registers(struct ath10k *ar,
 			   reg_dump_values[i + 2],
 			   reg_dump_values[i + 3]);
 
+	if (!crash_data)
+		return;
+
 	/* crash_data is in little endian */
 	for (i = 0; i < REG_DUMP_COUNT_QCA988X; i++)
 		crash_data->registers[i] = cpu_to_le32(reg_dump_values[i]);
@@ -937,13 +940,8 @@ static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 
 	ath10k_err(ar, "firmware crashed! (uuid %s)\n", uuid);
 	ath10k_print_driver_info(ar);
-
-	if (!crash_data)
-		goto exit;
-
 	ath10k_pci_dump_registers(ar, crash_data);
 
-exit:
 	spin_unlock_bh(&ar->data_lock);
 
 	queue_work(ar->workqueue, &ar->restart_work);
