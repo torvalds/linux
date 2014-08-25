@@ -45,6 +45,9 @@
 #define ROTATE_180	8
 #define ROTATE_270	12
 
+#define COLOR_RGB	0
+#define COLOR_YCBCR	1
+
 /*      	lvds connect config       
  *                                        
  *          	LVDS_8BIT_1    LVDS_8BIT_2     LVDS_8BIT_3     LVDS_6BIT

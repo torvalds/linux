@@ -232,11 +232,6 @@ enum
 	SCALE_DOWN = 0x2
 };
 
-enum dsp_out_domain {
-	OUTPUT_RGB_DOMAIN = 0x0,
-	OUTPUT_YUV_DOMAIN,
-};
-
 typedef enum {
 	BRIGHTNESS	= 0x0,
 	CONTRAST        = 0x1,
@@ -553,7 +548,7 @@ struct rk_lcdc_driver {
 	u16 rotate_mode;
 	u16 cabc_mode;
 	u16 overlay_mode;
-	u16 output_domain;
+	u16 output_color;
 
 	char fb0_win_id;
 	char fb1_win_id;

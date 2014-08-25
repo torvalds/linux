@@ -111,6 +111,8 @@ static struct display_timing *of_get_display_timing(struct device_node *np)
 		dt->lvds_format = val;
 	if (!of_property_read_u32(np, "out-face", &val))
 		dt->face = val;
+	if (!of_property_read_u32(np, "color-mode", &val))
+                dt->color_mode = val;
 #endif
 
 	if (ret) {

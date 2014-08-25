@@ -777,6 +777,16 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
         scl_v_factor = ((src_h - 1) << 12) / (dst_h - 1);
 
         spin_lock(&lcdc_dev->reg_lock);
+	if (dst->color_mode != src->color_mode) {
+		dev_drv->output_color = dst->color_mode;
+		if (dev_drv->output_color == COLOR_YCBCR)
+			dev_drv->overlay_mode = VOP_YUV_DOMAIN;
+		else
+			dev_drv->overlay_mode = VOP_RGB_DOMAIN;
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_SW_OVERLAY_MODE,
+			     v_SW_OVERLAY_MODE(dev_drv->overlay_mode));
+	}
+
 	lcdc_writel(lcdc_dev, SCALER_FACTOR,
                     v_SCALER_H_FACTOR(scl_h_factor) |
                     v_SCALER_V_FACTOR(scl_v_factor));
@@ -805,6 +815,8 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 	lcdc_msk_reg(lcdc_dev, SCALER_CTRL,
                     m_SCALER_EN | m_SCALER_OUT_ZERO | m_SCALER_OUT_EN,
                     v_SCALER_EN(1) | v_SCALER_OUT_ZERO(0) | v_SCALER_OUT_EN(1));
+
+	lcdc_cfg_done(lcdc_dev);
         spin_unlock(&lcdc_dev->reg_lock);
 
 	return 0;
@@ -826,14 +838,24 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
+		/* Select output color domain */
+		dev_drv->output_color = screen->color_mode;
+		if (lcdc_dev->soc_type == VOP_RK312X) {
+			if (dev_drv->output_color == COLOR_YCBCR)
+				dev_drv->overlay_mode = VOP_YUV_DOMAIN;
+			else
+				dev_drv->overlay_mode = VOP_RGB_DOMAIN;
+		} else {
+			dev_drv->output_color = COLOR_RGB;
+			dev_drv->overlay_mode = VOP_RGB_DOMAIN;
+		}
+
 		switch (screen->type) {
                 case SCREEN_RGB:
                         if (lcdc_dev->soc_type == VOP_RK312X) {
                                 mask = m_RGB_DCLK_EN | m_RGB_DCLK_INVERT;
 			        val = v_RGB_DCLK_EN(1) | v_RGB_DCLK_INVERT(0);
                                 lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
-				dev_drv->overlay_mode = VOP_RGB_DOMAIN;
-				dev_drv->output_domain = OUTPUT_RGB_DOMAIN;
                         }
                         break;
                 case SCREEN_LVDS:
@@ -841,8 +863,6 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
                                 mask = m_LVDS_DCLK_EN | m_LVDS_DCLK_INVERT;
 			        val = v_LVDS_DCLK_EN(1) | v_LVDS_DCLK_INVERT(1);
                                 lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
-				dev_drv->overlay_mode = VOP_RGB_DOMAIN;
-				dev_drv->output_domain = OUTPUT_RGB_DOMAIN;
                         }
                         break;
                 case SCREEN_MIPI:
@@ -850,8 +870,6 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				mask = m_MIPI_DCLK_EN | m_MIPI_DCLK_INVERT;
 				val = v_MIPI_DCLK_EN(1) | v_MIPI_DCLK_INVERT(0);
 				lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
-				dev_drv->overlay_mode = VOP_RGB_DOMAIN;
-				dev_drv->output_domain = OUTPUT_RGB_DOMAIN;
                         }
                         break;
 		case SCREEN_HDMI:
@@ -866,10 +884,6 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			}
 			lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
                         if (lcdc_dev->soc_type == VOP_RK312X) {
-				if (dev_drv->output_domain == OUTPUT_YUV_DOMAIN)
-					dev_drv->overlay_mode = VOP_YUV_DOMAIN;
-				else
-					dev_drv->overlay_mode = VOP_RGB_DOMAIN;
                                 lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
                                              m_SW_UV_OFFSET_EN,
                                              v_SW_UV_OFFSET_EN(0));
@@ -1641,7 +1655,7 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	}
 
 	if (dev_drv->overlay_mode == VOP_YUV_DOMAIN) {
-		if (dev_drv->output_domain == OUTPUT_YUV_DOMAIN)	/* bypass */
+		if (dev_drv->output_color == COLOR_YCBCR)	/* bypass */
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL, m_BCSH_Y2R_EN,
 					v_BCSH_Y2R_EN(0));
 		else	/* YUV2RGB */
@@ -1649,7 +1663,7 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 					m_BCSH_Y2R_EN | m_BCSH_Y2R_CSC_MODE,
 					v_BCSH_Y2R_EN(1) | v_BCSH_Y2R_CSC_MODE(VOP_Y2R_CSC_MPEG));
 	} else {	/* overlay_mode=VOP_RGB_DOMAIN */
-		if (dev_drv->output_domain == OUTPUT_RGB_DOMAIN)	/* bypass */
+		if (dev_drv->output_color == COLOR_RGB)	/* bypass */
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL, m_BCSH_R2Y_EN,
 					v_BCSH_R2Y_EN(0));
 		else	/* RGB2YUV */

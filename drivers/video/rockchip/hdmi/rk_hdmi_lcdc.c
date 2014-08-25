@@ -106,6 +106,7 @@ int hdmi_set_info(struct rk_screen *screen, unsigned int vic)
 	/* screen type & face */
 	screen->type = OUT_TYPE;
 	screen->face = OUT_FACE;
+	screen->color_mode = COLOR_YCBCR;
 
 	/* Screen size */
 	screen->mode.xres = hdmi_mode[i].xres;
@@ -582,7 +583,7 @@ int hdmi_init_video_para(struct hdmi *hdmi_drv, struct hdmi_video_para *video)
 
 	video->vic = hdmi_drv->vic;
 	video->input_mode = VIDEO_INPUT_RGB_YCBCR_444;
-	if (lcdc_drv->output_domain == OUTPUT_RGB_DOMAIN)
+	if (lcdc_drv->output_color == COLOR_RGB)
 		video->input_color = VIDEO_INPUT_COLOR_RGB;
 	else
 		video->input_color = VIDEO_INPUT_COLOR_YCBCR444;

@@ -11,6 +11,7 @@
 				screen-type = <SCREEN_LVDS>;
 				lvds-format = <LVDS_8BIT_2>;
 				out-face    = <OUT_D888_P666>;
+				color-mode = <COLOR_RGB>;
 				clock-frequency = <71000000>;
 				hactive = <1280>;
 				vactive = <800>;
