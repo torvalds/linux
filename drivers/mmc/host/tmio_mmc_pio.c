@@ -1162,7 +1162,7 @@ int tmio_mmc_host_resume(struct device *dev)
 EXPORT_SYMBOL(tmio_mmc_host_resume);
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
