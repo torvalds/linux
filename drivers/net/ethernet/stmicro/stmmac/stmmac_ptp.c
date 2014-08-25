@@ -206,6 +206,7 @@ void stmmac_ptp_unregister(struct stmmac_priv *priv)
 {
 	if (priv->ptp_clock) {
 		ptp_clock_unregister(priv->ptp_clock);
+		priv->ptp_clock = NULL;
 		pr_debug("Removed PTP HW clock successfully on %s\n",
 			 priv->dev->name);
 	}
