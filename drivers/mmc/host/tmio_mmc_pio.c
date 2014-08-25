@@ -159,6 +159,11 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 		for (clock = host->mmc->f_min, clk = 0x80000080;
 			new_clock >= (clock<<1); clk >>= 1)
 			clock <<= 1;
+
+		/* 1/1 clock is option */
+		if ((host->pdata->flags & TMIO_MMC_CLK_ACTUAL) &&
+		    ((clk >> 22) & 0x1))
+			clk |= 0xff;
 	}
 
 	if (host->set_clk_div)
