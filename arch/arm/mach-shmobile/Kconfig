@@ -6,6 +6,11 @@ config ARCH_RCAR_GEN1
 	select RENESAS_INTC_IRQPIN
 	select SYS_SUPPORTS_SH_TMU
 
+config ARCH_RCAR_GEN2
+	bool
+	select RENESAS_IRQC
+	select SYS_SUPPORTS_SH_CMT
+
 config ARCH_RMOBILE
 	bool
 	select SYS_SUPPORTS_SH_CMT
@@ -42,13 +47,11 @@ config ARCH_R8A7779
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
-	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
+	select ARCH_RCAR_GEN2
 
 config ARCH_R8A7791
 	bool "R-Car M2 (R8A77910)"
-	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
+	select ARCH_RCAR_GEN2
 
 comment "Renesas ARM SoCs Board Type"
 
@@ -134,24 +137,22 @@ config ARCH_R8A7779
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
+	select ARCH_RCAR_GEN2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
 	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
-	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 
 config ARCH_R8A7791
 	bool "R-Car M2 (R8A77910)"
+	select ARCH_RCAR_GEN2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
 	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
-	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 
 config ARCH_R7S72100
