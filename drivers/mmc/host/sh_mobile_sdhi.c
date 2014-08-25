@@ -333,7 +333,7 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 
 static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tmio_mmc_host_suspend, tmio_mmc_host_resume)
-	SET_RUNTIME_PM_OPS(tmio_mmc_host_runtime_suspend,
+	SET_PM_RUNTIME_PM_OPS(tmio_mmc_host_runtime_suspend,
 			tmio_mmc_host_runtime_resume,
 			NULL)
 };
