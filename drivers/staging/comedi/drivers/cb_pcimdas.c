@@ -159,32 +159,24 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int cb_pcimdas_ao_insn_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int reg = (chan) ? DAC1_OFFSET : DAC0_OFFSET;
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
-		switch (chan) {
-		case 0:
-			outw(data[i] & 0x0FFF, devpriv->daqio + DAC0_OFFSET);
-			break;
-		case 1:
-			outw(data[i] & 0x0FFF, devpriv->daqio + DAC1_OFFSET);
-			break;
-		default:
-			return -1;
-		}
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		outw(val, devpriv->daqio + reg);
 	}
+	devpriv->ao_readback[chan] = val;
 
-	/* return the number of samples read/written */
-	return i;
+	return insn->n;
 }
 
 /* AO subdevices should have a read insn as well as a write insn.
@@ -247,7 +239,7 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	s->maxdata = 0xfff;
 	/* ranges are hardware settable, but not software readable. */
 	s->range_table = &range_unknown;
-	s->insn_write = &cb_pcimdas_ao_winsn;
+	s->insn_write = cb_pcimdas_ao_insn_write;
 	s->insn_read = &cb_pcimdas_ao_rinsn;
 
 	s = &dev->subdevices[2];
