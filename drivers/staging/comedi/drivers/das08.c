@@ -369,19 +369,18 @@ static void das08_ao_initialize(struct comedi_device *dev,
 		das08_ao_set_data(dev, n, data);
 }
 
-static int das08_ao_winsn(struct comedi_device *dev,
-			  struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int das08_ao_insn_write(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	unsigned int n;
-	unsigned int chan;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	chan = CR_CHAN(insn->chanspec);
+	for (i = 0; i < insn->n; i++)
+		das08_ao_set_data(dev, chan, data[i]);
 
-	for (n = 0; n < insn->n; n++)
-		das08_ao_set_data(dev, chan, *data);
-
-	return n;
+	return insn->n;
 }
 
 static int das08_ao_rinsn(struct comedi_device *dev,
@@ -498,7 +497,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
-		s->insn_write = das08_ao_winsn;
+		s->insn_write = das08_ao_insn_write;
 		s->insn_read = das08_ao_rinsn;
 		das08_ao_initialize(dev, s);
 	} else {
