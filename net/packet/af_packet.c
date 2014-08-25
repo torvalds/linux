@@ -240,7 +240,6 @@ static void __fanout_link(struct sock *sk, struct packet_sock *po);
 static int packet_direct_xmit(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
-	const struct net_device_ops *ops = dev->netdev_ops;
 	netdev_features_t features;
 	struct netdev_queue *txq;
 	int ret = NETDEV_TX_BUSY;
@@ -262,7 +261,7 @@ static int packet_direct_xmit(struct sk_buff *skb)
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_xmit_frozen_or_drv_stopped(txq)) {
-		ret = ops->ndo_start_xmit(skb, dev);
+		ret = netdev_start_xmit(skb, dev);
 		if (ret == NETDEV_TX_OK)
 			txq_trans_update(txq);
 	}

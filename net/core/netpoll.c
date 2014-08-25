@@ -72,7 +72,6 @@ module_param(carrier_timeout, uint, 0644);
 static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			      struct netdev_queue *txq)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
 	int status = NETDEV_TX_OK;
 	netdev_features_t features;
 
@@ -92,7 +91,7 @@ static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		skb->vlan_tci = 0;
 	}
 
-	status = ops->ndo_start_xmit(skb, dev);
+	status = netdev_start_xmit(skb, dev);
 	if (status == NETDEV_TX_OK)
 		txq_trans_update(txq);
 

@@ -2602,7 +2602,6 @@ EXPORT_SYMBOL(netif_skb_features);
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
 	int rc = NETDEV_TX_OK;
 	unsigned int skb_len;
 
@@ -2667,7 +2666,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 
 		skb_len = skb->len;
 		trace_net_dev_start_xmit(skb, dev);
-		rc = ops->ndo_start_xmit(skb, dev);
+		rc = netdev_start_xmit(skb, dev);
 		trace_net_dev_xmit(skb, rc, dev, skb_len);
 		if (rc == NETDEV_TX_OK)
 			txq_trans_update(txq);
@@ -2686,7 +2685,7 @@ gso:
 
 		skb_len = nskb->len;
 		trace_net_dev_start_xmit(nskb, dev);
-		rc = ops->ndo_start_xmit(nskb, dev);
+		rc = netdev_start_xmit(nskb, dev);
 		trace_net_dev_xmit(nskb, rc, dev, skb_len);
 		if (unlikely(rc != NETDEV_TX_OK)) {
 			if (rc & ~NETDEV_TX_MASK)

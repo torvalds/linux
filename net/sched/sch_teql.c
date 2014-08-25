@@ -301,7 +301,6 @@ restart:
 	do {
 		struct net_device *slave = qdisc_dev(q);
 		struct netdev_queue *slave_txq = netdev_get_tx_queue(slave, 0);
-		const struct net_device_ops *slave_ops = slave->netdev_ops;
 
 		if (slave_txq->qdisc_sleeping != q)
 			continue;
@@ -317,7 +316,7 @@ restart:
 				unsigned int length = qdisc_pkt_len(skb);
 
 				if (!netif_xmit_frozen_or_stopped(slave_txq) &&
-				    slave_ops->ndo_start_xmit(skb, slave) == NETDEV_TX_OK) {
+				    netdev_start_xmit(skb, slave) == NETDEV_TX_OK) {
 					txq_trans_update(slave_txq);
 					__netif_tx_unlock(slave_txq);
 					master->slaves = NEXT_SLAVE(q);
