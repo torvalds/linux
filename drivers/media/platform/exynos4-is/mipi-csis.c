@@ -752,7 +752,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 	v4l2_of_parse_endpoint(node, &endpoint);
 
 	state->index = endpoint.base.port - FIMC_INPUT_MIPI_CSI2_0;
-	if (state->index < 0 || state->index >= CSIS_MAX_ENTITIES)
+	if (state->index >= CSIS_MAX_ENTITIES)
 		return -ENXIO;
 
 	/* Get MIPI CSI-2 bus configration from the endpoint node. */
