@@ -2914,13 +2914,8 @@ static void s626_detach(struct comedi_device *dev)
 			writel(S626_MC1_SHUTDOWN, dev->mmio + S626_P_MC1);
 			writel(S626_ACON1_BASE, dev->mmio + S626_P_ACON1);
 		}
-
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-		if (dev->mmio)
-			iounmap(dev->mmio);
 	}
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 	s626_free_dma_buffers(dev);
 }
 
