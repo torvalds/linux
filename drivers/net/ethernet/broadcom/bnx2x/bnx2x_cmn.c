@@ -3874,12 +3874,16 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* when transmitting in a vf, start bd must hold the ethertype
 		 * for fw to enforce it
 		 */
+#ifndef BNX2X_STOP_ON_ERROR
 		if (IS_VF(bp))
+#endif
 			tx_start_bd->vlan_or_ethertype =
 				cpu_to_le16(ntohs(eth->h_proto));
+#ifndef BNX2X_STOP_ON_ERROR
 		else
 			/* used by FW for packet accounting */
 			tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
+#endif
 	}
 
 	nbd = 2; /* start_bd + pbd + frags (updated when pages are mapped) */
@@ -3952,11 +3956,22 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					      &pbd_e2->data.mac_addr.dst_mid,
 					      &pbd_e2->data.mac_addr.dst_lo,
 					      eth->h_dest);
-		} else if (bp->flags & TX_SWITCHING) {
-			bnx2x_set_fw_mac_addr(&pbd_e2->data.mac_addr.dst_hi,
-					      &pbd_e2->data.mac_addr.dst_mid,
-					      &pbd_e2->data.mac_addr.dst_lo,
-					      eth->h_dest);
+		} else {
+			if (bp->flags & TX_SWITCHING)
+				bnx2x_set_fw_mac_addr(
+						&pbd_e2->data.mac_addr.dst_hi,
+						&pbd_e2->data.mac_addr.dst_mid,
+						&pbd_e2->data.mac_addr.dst_lo,
+						eth->h_dest);
+#ifdef BNX2X_STOP_ON_ERROR
+			/* Enforce security is always set in Stop on Error -
+			 * source mac should be present in the parsing BD
+			 */
+			bnx2x_set_fw_mac_addr(&pbd_e2->data.mac_addr.src_hi,
+					      &pbd_e2->data.mac_addr.src_mid,
+					      &pbd_e2->data.mac_addr.src_lo,
+					      eth->h_source);
+#endif
 		}
 
 		SET_FLAG(pbd_e2_parsing_data,
@@ -4796,10 +4811,14 @@ netdev_features_t bnx2x_fix_features(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	/* TPA requires Rx CSUM offloading */
-	if (!(features & NETIF_F_RXCSUM) || bp->disable_tpa) {
+	if (!(features & NETIF_F_RXCSUM)) {
 		features &= ~NETIF_F_LRO;
 		features &= ~NETIF_F_GRO;
 	}
+
+	/* Note: do not disable SW GRO in kernel when HW GRO is off */
+	if (bp->disable_tpa)
+		features &= ~NETIF_F_LRO;
 
 	return features;
 }
@@ -4837,6 +4856,10 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 
 	/* if GRO is changed while LRO is enabled, don't force a reload */
 	if ((changes & GRO_ENABLE_FLAG) && (flags & TPA_ENABLE_FLAG))
+		changes &= ~GRO_ENABLE_FLAG;
+
+	/* if GRO is changed while HW TPA is off, don't force a reload */
+	if ((changes & GRO_ENABLE_FLAG) && bp->disable_tpa)
 		changes &= ~GRO_ENABLE_FLAG;
 
 	if (changes)

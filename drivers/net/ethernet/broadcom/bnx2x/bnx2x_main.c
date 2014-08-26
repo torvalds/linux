@@ -1143,7 +1143,7 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 			if (!fp->txdata_ptr)
 				break;
 
-			if (!txdata.tx_cons_sb)
+			if (!txdata->tx_cons_sb)
 				continue;
 
 			start = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) - 10);

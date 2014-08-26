@@ -5877,8 +5877,10 @@ int bnx2x_func_send_set_timesync(struct bnx2x *bp,
 		set_timesync_params->add_sub_drift_adjust_value;
 	rdata->drift_adjust_value = set_timesync_params->drift_adjust_value;
 	rdata->drift_adjust_period = set_timesync_params->drift_adjust_period;
-	rdata->offset_delta.lo = U64_LO(set_timesync_params->offset_delta);
-	rdata->offset_delta.hi = U64_HI(set_timesync_params->offset_delta);
+	rdata->offset_delta.lo =
+		cpu_to_le32(U64_LO(set_timesync_params->offset_delta));
+	rdata->offset_delta.hi =
+		cpu_to_le32(U64_HI(set_timesync_params->offset_delta));
 
 	DP(BNX2X_MSG_SP, "Set timesync command params: drift_cmd = %d, offset_cmd = %d, add_sub_drift = %d, drift_val = %d, drift_period = %d, offset_lo = %d, offset_hi = %d\n",
 	   rdata->drift_adjust_cmd, rdata->offset_cmd,
