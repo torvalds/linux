@@ -107,7 +107,6 @@ static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 */
 
 struct icp_multi_private {
-	char valid;		/*  card is usable */
 	unsigned int AdcCmdStatus;	/*  ADC Command/Status register */
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
 	unsigned int IntEnable;	/*  Interrupt Enable register */
@@ -530,18 +529,13 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->insn_read = icp_multi_insn_read_ctr;
 	s->insn_write = icp_multi_insn_write_ctr;
 
-	devpriv->valid = 1;
-
 	return 0;
 }
 
 static void icp_multi_detach(struct comedi_device *dev)
 {
-	struct icp_multi_private *devpriv = dev->private;
-
-	if (devpriv)
-		if (devpriv->valid)
-			icp_multi_reset(dev);
+	if (dev->mmio)
+		icp_multi_reset(dev);
 	comedi_pci_detach(dev);
 }
 
