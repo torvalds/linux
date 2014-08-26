@@ -25,21 +25,22 @@
 
 #include "dvb_frontend.h"
 
-#if defined(CONFIG_MEDIA_TUNER_IT913X) || \
-	(defined(CONFIG_MEDIA_TUNER_IT913X_MODULE) && defined(MODULE))
-extern struct dvb_frontend *it913x_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c_adap,
-	u8 i2c_addr,
-	u8 config);
-#else
-static inline struct dvb_frontend *it913x_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c_adap,
-	u8 i2c_addr,
-	u8 config)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif
+/*
+ * I2C address
+ * 0x38, 0x3a, 0x3c, 0x3e
+ */
+struct it913x_config {
+	/*
+	 * pointer to DVB frontend
+	 */
+	struct dvb_frontend *fe;
+
+	/*
+	 * chip version
+	 * 1 = IT9135 AX
+	 * 2 = IT9135 BX
+	 */
+	u8 chip_ver:2;
+};
 
 #endif

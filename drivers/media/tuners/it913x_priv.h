@@ -24,7 +24,6 @@
 #define IT913X_PRIV_H
 
 #include "it913x.h"
-#include "af9033.h"
 
 #define PRO_LINK		0x0
 #define PRO_DMOD		0x1
