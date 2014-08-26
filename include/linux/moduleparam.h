@@ -123,6 +123,12 @@ struct kparam_array
 	module_param_named(name, name, type, perm)
 
 /**
+ * module_param_unsafe - same as module_param but taints kernel
+ */
+#define module_param_unsafe(name, type, perm)			\
+	module_param_named_unsafe(name, name, type, perm)
+
+/**
  * module_param_named - typesafe helper for a renamed module/cmdline parameter
  * @name: a valid C identifier which is the parameter name.
  * @value: the actual lvalue to alter.
@@ -139,6 +145,14 @@ struct kparam_array
 	__MODULE_PARM_TYPE(name, #type)
 
 /**
+ * module_param_named_unsafe - same as module_param_named but taints kernel
+ */
+#define module_param_named_unsafe(name, value, type, perm)		\
+	param_check_##type(name, &(value));				\
+	module_param_cb_unsafe(name, &param_ops_##type, &value, perm);	\
+	__MODULE_PARM_TYPE(name, #type)
+
+/**
  * module_param_cb - general callback for a module/cmdline parameter
  * @name: a valid C identifier which is the parameter name.
  * @ops: the set & get operations for this parameter.
@@ -148,6 +162,10 @@ struct kparam_array
  */
 #define module_param_cb(name, ops, arg, perm)				      \
 	__module_param_call(MODULE_PARAM_PREFIX, name, ops, arg, perm, -1, 0)
+
+#define module_param_cb_unsafe(name, ops, arg, perm)			      \
+	__module_param_call(MODULE_PARAM_PREFIX, name, ops, arg, perm, -1,    \
+			    KERNEL_PARAM_FL_UNSAFE)
 
 /**
  * <level>_param_cb - general callback for a module/cmdline parameter
