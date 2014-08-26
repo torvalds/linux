@@ -36,7 +36,7 @@
 struct gic_chip_data {
 	void __iomem		*dist_base;
 	void __iomem		**redist_base;
-	void __percpu __iomem	**rdist;
+	void __iomem * __percpu	*rdist;
 	struct irq_domain	*domain;
 	u64			redist_stride;
 	u32			redist_regions;
