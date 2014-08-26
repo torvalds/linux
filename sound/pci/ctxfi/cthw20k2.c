@@ -1246,8 +1246,7 @@ static int hw_trn_init(struct hw *hw, const struct trn_conf *info)
 
 	/* Set up device page table */
 	if ((~0UL) == info->vm_pgt_phys) {
-		pr_alert("ctxfi: "
-		       "Wrong device page table page address!!!\n");
+		pr_alert("ctxfi: Wrong device page table page address!!!\n");
 		return -1;
 	}
 
@@ -1890,8 +1889,8 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_MMC, 0x0A),
 						MAKE_WM8775_DATA(0x0A));
 	} else {
-		pr_alert("ctxfi: Invalid master sampling "
-				  "rate (msr %d)!!!\n", info->msr);
+		pr_alert("ctxfi: Invalid master sampling rate (msr %d)!!!\n",
+			info->msr);
 		err = -EINVAL;
 		goto error;
 	}
@@ -2034,8 +2033,8 @@ static int hw_card_start(struct hw *hw)
 	/* Set DMA transfer mask */
 	if (pci_set_dma_mask(pci, CT_XFI_DMA_MASK) < 0 ||
 	    pci_set_consistent_dma_mask(pci, CT_XFI_DMA_MASK) < 0) {
-		pr_err("ctxfi: architecture does not support PCI "
-		"busmaster DMA with mask 0x%llx\n", CT_XFI_DMA_MASK);
+		pr_err("ctxfi: architecture does not support PCI busmaster DMA with mask 0x%llx\n",
+			CT_XFI_DMA_MASK);
 		err = -ENXIO;
 		goto error1;
 	}
