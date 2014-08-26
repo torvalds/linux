@@ -1839,6 +1839,13 @@ static int charger_manager_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, true);
 	device_set_wakeup_capable(&pdev->dev, false);
 
+	/*
+	 * Charger-manager have to check the charging state right after
+	 * tialization of charger-manager and then update current charging
+	 * state.
+	 */
+	cm_monitor();
+
 	schedule_work(&setup_polling);
 
 	return 0;
