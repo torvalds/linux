@@ -26,10 +26,12 @@ static void iph_to_flow_copy_addrs(struct flow_keys *flow, const struct iphdr *i
 }
 
 /**
- * skb_flow_get_ports - extract the upper layer ports and return them
- * @skb: buffer to extract the ports from
+ * __skb_flow_get_ports - extract the upper layer ports and return them
+ * @skb: sk_buff to extract the ports from
  * @thoff: transport header offset
  * @ip_proto: protocol for which to get port offset
+ * @data: raw buffer pointer to the packet, if NULL use skb->data
+ * @hlen: packet header length, if @data is NULL use skb_headlen(skb)
  *
  * The function will try to retrieve the ports at offset thoff + poff where poff
  * is the protocol port offset returned from proto_ports_offset
