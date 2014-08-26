@@ -82,7 +82,7 @@ struct kvm_vcpu *kvm_arm_get_running_vcpu(void)
 /**
  * kvm_arm_get_running_vcpus - get the per-CPU array of currently running vcpus.
  */
-struct kvm_vcpu __percpu **kvm_get_running_vcpus(void)
+struct kvm_vcpu * __percpu *kvm_get_running_vcpus(void)
 {
 	return &kvm_arm_running_vcpu;
 }
