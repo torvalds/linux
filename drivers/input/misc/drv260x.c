@@ -564,6 +564,14 @@ static int drv260x_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	if (haptics->mode == DRV260X_ERM_MODE &&
+	    (haptics->library == DRV260X_LIB_EMPTY ||
+	     haptics->library == DRV260X_LIB_LRA)) {
+		dev_err(&client->dev,
+			"ERM Mode with LRA Library mismatch\n");
+		return -EINVAL;
+	}
+
 	haptics->regulator = devm_regulator_get(&client->dev, "vbat");
 	if (IS_ERR(haptics->regulator)) {
 		error = PTR_ERR(haptics->regulator);
