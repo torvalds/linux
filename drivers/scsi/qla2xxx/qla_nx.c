@@ -2123,7 +2123,7 @@ qla82xx_msix_default(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	do {
 		host_int = RD_REG_DWORD(&reg->host_int);
-		if (qla2x00_check_reg_for_disconnect(vha, host_int))
+		if (qla2x00_check_reg32_for_disconnect(vha, host_int))
 			break;
 		if (host_int) {
 			stat = RD_REG_DWORD(&reg->host_status);
@@ -2184,7 +2184,7 @@ qla82xx_msix_rsp_q(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	host_int = RD_REG_DWORD(&reg->host_int);
-	if (qla2x00_check_reg_for_disconnect(vha, host_int))
+	if (qla2x00_check_reg32_for_disconnect(vha, host_int))
 		goto out;
 	qla24xx_process_response_queue(vha, rsp);
 	WRT_REG_DWORD(&reg->host_int, 0);
@@ -2219,7 +2219,7 @@ qla82xx_poll(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 
 	host_int = RD_REG_DWORD(&reg->host_int);
-	if (qla2x00_check_reg_for_disconnect(vha, host_int))
+	if (qla2x00_check_reg32_for_disconnect(vha, host_int))
 		goto out;
 	if (host_int) {
 		stat = RD_REG_DWORD(&reg->host_status);
