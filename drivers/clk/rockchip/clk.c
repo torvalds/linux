@@ -37,7 +37,7 @@
  *
  * sometimes without one of those components.
  */
-struct clk *rockchip_clk_register_branch(const char *name,
+static struct clk *rockchip_clk_register_branch(const char *name,
 		const char **parent_names, u8 num_parents, void __iomem *base,
 		int muxdiv_offset, u8 mux_shift, u8 mux_width, u8 mux_flags,
 		u8 div_shift, u8 div_width, u8 div_flags,
