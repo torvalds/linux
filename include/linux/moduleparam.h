@@ -42,7 +42,7 @@ struct kernel_param;
  * NOARG - the parameter allows for no argument (foo instead of foo=1)
  */
 enum {
-	KERNEL_PARAM_FL_NOARG = (1 << 0)
+	KERNEL_PARAM_OPS_FL_NOARG = (1 << 0)
 };
 
 struct kernel_param_ops {
