@@ -985,7 +985,7 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 		/* Tx */
 		for_each_cos_in_tx_queue(fp, cos)
 		{
-			if (!fp->txdata_ptr)
+			if (!fp->txdata_ptr[cos])
 				break;
 
 			txdata = *fp->txdata_ptr[cos];
@@ -1140,7 +1140,7 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 		for_each_cos_in_tx_queue(fp, cos) {
 			struct bnx2x_fp_txdata *txdata = fp->txdata_ptr[cos];
 
-			if (!fp->txdata_ptr)
+			if (!fp->txdata_ptr[cos])
 				break;
 
 			if (!txdata->tx_cons_sb)
