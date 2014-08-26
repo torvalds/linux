@@ -1557,8 +1557,8 @@ static const struct of_device_id vgic_ids[] = {
 int kvm_vgic_hyp_init(void)
 {
 	const struct of_device_id *matched_id;
-	int (*vgic_probe)(struct device_node *,const struct vgic_ops **,
-			  const struct vgic_params **);
+	const int (*vgic_probe)(struct device_node *,const struct vgic_ops **,
+				const struct vgic_params **);
 	struct device_node *vgic_node;
 	int ret;
 
