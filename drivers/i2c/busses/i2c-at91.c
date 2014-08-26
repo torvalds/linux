@@ -435,8 +435,8 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 		}
 	}
 
-	ret = wait_for_completion_interruptible_timeout(&dev->cmd_complete,
-							dev->adapter.timeout);
+	ret = wait_for_completion_io_timeout(&dev->cmd_complete,
+					     dev->adapter.timeout);
 	if (ret == 0) {
 		dev_err(dev->dev, "controller timed out\n");
 		at91_init_twi_bus(dev);
