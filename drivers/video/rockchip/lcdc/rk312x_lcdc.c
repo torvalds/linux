@@ -1812,16 +1812,25 @@ static ssize_t rk312x_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
                 x_act_w0 = (act_info & m_ACT_WIDTH) + 1;
 		y_act_w0 = ((act_info & m_ACT_HEIGHT) >> 16) + 1;
 
-                act_info = lcdc_readl(lcdc_dev, WIN1_ACT_INFO);
-                x_act_w1 = (act_info & m_ACT_WIDTH) + 1;
-		y_act_w1 = ((act_info & m_ACT_HEIGHT) >> 16) + 1;
+		if (lcdc_dev->soc_type == VOP_RK3036) {
+			act_info = lcdc_readl(lcdc_dev, WIN1_ACT_INFO);
+			x_act_w1 = (act_info & m_ACT_WIDTH) + 1;
+			y_act_w1 = ((act_info & m_ACT_HEIGHT) >> 16) + 1;
+		} else if (lcdc_dev->soc_type == VOP_RK312X) {
+			/* rk312x unsupport win1 scaler,so have no act info */
+			x_act_w1 = 0;
+			y_act_w1 = 0;
+		}
 
                 /* xsize/ysize */
 		dsp_info = lcdc_readl(lcdc_dev, WIN0_DSP_INFO);
                 x_dsp_w0 = (dsp_info & m_DSP_WIDTH) + 1;
 		y_dsp_w0 = ((dsp_info & m_DSP_HEIGHT) >> 16) + 1;
 
-                dsp_info = lcdc_readl(lcdc_dev, WIN1_DSP_INFO);
+		if (lcdc_dev->soc_type == VOP_RK3036)
+			dsp_info = lcdc_readl(lcdc_dev, WIN1_DSP_INFO);
+		else if (lcdc_dev->soc_type == VOP_RK312X)
+			dsp_info = lcdc_readl(lcdc_dev, WIN1_DSP_INFO_RK312X);
                 x_dsp_w1 = (dsp_info & m_DSP_WIDTH) + 1;
                 y_dsp_w1 = ((dsp_info & m_DSP_HEIGHT) >> 16) + 1;
 
