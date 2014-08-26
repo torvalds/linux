@@ -25,7 +25,7 @@
 
 extern int sysctl_tcp_syncookies;
 
-static u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
+static u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS] __read_mostly;
 
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
