@@ -713,8 +713,8 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	hdmi->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR(hdmi->regs))
-		return PTR_ERR(hdmi->regs);
+	if (!hdmi->regs)
+		return -ENOMEM;
 
 	if (of_device_is_compatible(np, "st,stih416-hdmi")) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -725,8 +725,8 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		}
 		hdmi->syscfg = devm_ioremap_nocache(dev, res->start,
 						    resource_size(res));
-		if (IS_ERR(hdmi->syscfg))
-			return PTR_ERR(hdmi->syscfg);
+		if (!hdmi->syscfg)
+			return -ENOMEM;
 
 	}
 
