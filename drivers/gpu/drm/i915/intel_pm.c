@@ -5536,37 +5536,12 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	/* FIXME(BDW): Check all the w/a, some might only apply to
 	 * pre-production hw. */
 
-	/* WaDisablePartialInstShootdown:bdw */
-	I915_WRITE(GEN8_ROW_CHICKEN,
-		   _MASKED_BIT_ENABLE(PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE));
 
-	/* WaDisableThreadStallDopClockGating:bdw */
-	/* FIXME: Unclear whether we really need this on production bdw. */
-	I915_WRITE(GEN8_ROW_CHICKEN,
-		   _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
-
-	/*
-	 * This GEN8_CENTROID_PIXEL_OPT_DIS W/A is only needed for
-	 * pre-production hardware
-	 */
-	I915_WRITE(HALF_SLICE_CHICKEN3,
-		   _MASKED_BIT_ENABLE(GEN8_CENTROID_PIXEL_OPT_DIS));
-	I915_WRITE(HALF_SLICE_CHICKEN3,
-		   _MASKED_BIT_ENABLE(GEN8_SAMPLER_POWER_BYPASS_DIS));
 	I915_WRITE(GAMTARBMODE, _MASKED_BIT_ENABLE(ARB_MODE_BWGTLB_DISABLE));
 
 	I915_WRITE(_3D_CHICKEN3,
 		   _MASKED_BIT_ENABLE(_3D_CHICKEN_SDE_LIMIT_FIFO_POLY_DEPTH(2)));
 
-	I915_WRITE(COMMON_SLICE_CHICKEN2,
-		   _MASKED_BIT_ENABLE(GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE));
-
-	I915_WRITE(GEN7_HALF_SLICE_CHICKEN1,
-		   _MASKED_BIT_ENABLE(GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE));
-
-	/* WaDisableDopClockGating:bdw May not be needed for production */
-	I915_WRITE(GEN7_ROW_CHICKEN2,
-		   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
 
 	/* WaSwitchSolVfFArbitrationPriority:bdw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
@@ -5582,30 +5557,11 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 			   BDW_DPRS_MASK_VBLANK_SRD);
 	}
 
-	/* Use Force Non-Coherent whenever executing a 3D context. This is a
-	 * workaround for for a possible hang in the unlikely event a TLB
-	 * invalidation occurs during a PSD flush.
-	 */
-	I915_WRITE(HDC_CHICKEN0,
-		   I915_READ(HDC_CHICKEN0) |
-		   _MASKED_BIT_ENABLE(HDC_FORCE_NON_COHERENT));
-
 	/* WaVSRefCountFullforceMissDisable:bdw */
 	/* WaDSRefCountFullforceMissDisable:bdw */
 	I915_WRITE(GEN7_FF_THREAD_MODE,
 		   I915_READ(GEN7_FF_THREAD_MODE) &
 		   ~(GEN8_FF_DS_REF_CNT_FFME | GEN7_FF_VS_REF_CNT_FFME));
-
-	/*
-	 * BSpec recommends 8x4 when MSAA is used,
-	 * however in practice 16x4 seems fastest.
-	 *
-	 * Note that PS/WM thread counts depend on the WIZ hashing
-	 * disable bit, which we don't touch here, but it's good
-	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
-	 */
-	I915_WRITE(GEN7_GT_MODE,
-		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
 
 	I915_WRITE(GEN6_RC_SLEEP_PSMI_CONTROL,
 		   _MASKED_BIT_ENABLE(GEN8_RC_SEMA_IDLE_MSG_DISABLE));
@@ -5613,10 +5569,6 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	/* WaDisableSDEUnitClockGating:bdw */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
-
-	/* Wa4x4STCOptimizationDisable:bdw */
-	I915_WRITE(CACHE_MODE_1,
-		   _MASKED_BIT_ENABLE(GEN8_4x4_STC_OPTIMIZATION_DISABLE));
 
 	lpt_init_clock_gating(dev);
 }

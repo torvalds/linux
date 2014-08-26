@@ -628,6 +628,12 @@ done:
 	ring->last_context = to;
 
 	if (uninitialized) {
+		if (ring->init_context) {
+			ret = ring->init_context(ring);
+			if (ret)
+				DRM_ERROR("ring init context: %d\n", ret);
+		}
+
 		ret = i915_gem_render_state_init(ring);
 		if (ret)
 			DRM_ERROR("init render state: %d\n", ret);

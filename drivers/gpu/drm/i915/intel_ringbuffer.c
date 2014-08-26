@@ -657,6 +657,84 @@ err:
 	return ret;
 }
 
+static inline void intel_ring_emit_wa(struct intel_engine_cs *ring,
+				       u32 addr, u32 value)
+{
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit(ring, addr);
+	intel_ring_emit(ring, value);
+}
+
+static int gen8_init_workarounds(struct intel_engine_cs *ring)
+{
+	int ret;
+
+	/*
+	 * workarounds applied in this fn are part of register state context,
+	 * they need to be re-initialized followed by gpu reset, suspend/resume,
+	 * module reload.
+	 */
+
+	/*
+	 * update the number of dwords required based on the
+	 * actual number of workarounds applied
+	 */
+	ret = intel_ring_begin(ring, 24);
+	if (ret)
+		return ret;
+
+	/* WaDisablePartialInstShootdown:bdw */
+	/* WaDisableThreadStallDopClockGating:bdw */
+	/* FIXME: Unclear whether we really need this on production bdw. */
+	intel_ring_emit_wa(ring, GEN8_ROW_CHICKEN,
+			   _MASKED_BIT_ENABLE(PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE
+					     | STALL_DOP_GATING_DISABLE));
+
+	/* WaDisableDopClockGating:bdw May not be needed for production */
+	intel_ring_emit_wa(ring, GEN7_ROW_CHICKEN2,
+			   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
+
+	/*
+	 * This GEN8_CENTROID_PIXEL_OPT_DIS W/A is only needed for
+	 * pre-production hardware
+	 */
+	intel_ring_emit_wa(ring, HALF_SLICE_CHICKEN3,
+			   _MASKED_BIT_ENABLE(GEN8_CENTROID_PIXEL_OPT_DIS
+					      | GEN8_SAMPLER_POWER_BYPASS_DIS));
+
+	intel_ring_emit_wa(ring, GEN7_HALF_SLICE_CHICKEN1,
+			   _MASKED_BIT_ENABLE(GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE));
+
+	intel_ring_emit_wa(ring, COMMON_SLICE_CHICKEN2,
+			   _MASKED_BIT_ENABLE(GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE));
+
+	/* Use Force Non-Coherent whenever executing a 3D context. This is a
+	 * workaround for for a possible hang in the unlikely event a TLB
+	 * invalidation occurs during a PSD flush.
+	 */
+	intel_ring_emit_wa(ring, HDC_CHICKEN0,
+			   _MASKED_BIT_ENABLE(HDC_FORCE_NON_COHERENT));
+
+	/* Wa4x4STCOptimizationDisable:bdw */
+	intel_ring_emit_wa(ring, CACHE_MODE_1,
+			   _MASKED_BIT_ENABLE(GEN8_4x4_STC_OPTIMIZATION_DISABLE));
+
+	/*
+	 * BSpec recommends 8x4 when MSAA is used,
+	 * however in practice 16x4 seems fastest.
+	 *
+	 * Note that PS/WM thread counts depend on the WIZ hashing
+	 * disable bit, which we don't touch here, but it's good
+	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
+	 */
+	intel_ring_emit_wa(ring, GEN7_GT_MODE,
+			   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
 static int init_render_ring(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -2143,6 +2221,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 					dev_priv->semaphore_obj = obj;
 			}
 		}
+		ring->init_context = gen8_init_workarounds;
 		ring->add_request = gen6_add_request;
 		ring->flush = gen8_render_ring_flush;
 		ring->irq_get = gen8_ring_get_irq;
