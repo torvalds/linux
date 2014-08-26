@@ -11,7 +11,7 @@ read-write.
 
 add_random (RW)
 ----------------
-This file allows to trun off the disk entropy contribution. Default
+This file allows to turn off the disk entropy contribution. Default
 value of this file is '1'(on).
 
 discard_granularity (RO)
@@ -72,7 +72,7 @@ Maximum segment size of the device.
 
 minimum_io_size (RO)
 --------------------
-This is the smallest preferred io size reported by the device.
+This is the smallest preferred IO size reported by the device.
 
 nomerges (RW)
 -------------
@@ -98,7 +98,7 @@ regulated by nr_requests.
 
 optimal_io_size (RO)
 --------------------
-This is the optimal io size reported by the device.
+This is the optimal IO size reported by the device.
 
 physical_block_size (RO)
 ------------------------
