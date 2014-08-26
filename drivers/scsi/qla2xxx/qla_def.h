@@ -3402,6 +3402,9 @@ typedef struct scsi_qla_host {
 #define FX00_CRITEMP_RECOVERY	25
 #define FX00_HOST_INFO_RESEND	26
 
+	unsigned long	pci_flags;
+#define PFLG_DISCONNECTED	0	/* PCI device removed */
+
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
 #define DFLG_NO_CABLE		BIT_1
