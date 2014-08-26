@@ -1487,7 +1487,7 @@ kiblnd_send (lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	switch (type) {
 	default:
 		LBUG();
-		return (-EIO);
+		return -EIO;
 
 	case LNET_MSG_ACK:
 		LASSERT (payload_nob == 0);

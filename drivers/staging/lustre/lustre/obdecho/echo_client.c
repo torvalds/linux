@@ -922,7 +922,7 @@ out:
 	default:
 		break;
 	}
-	return(ERR_PTR(rc));
+	return ERR_PTR(rc);
 }
 
 static int echo_device_init(const struct lu_env *env, struct lu_device *d,
@@ -1384,15 +1384,15 @@ echo_copyout_lsm (struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
 
 	nob = offsetof (struct lov_stripe_md, lsm_oinfo[lsm->lsm_stripe_count]);
 	if (nob > ulsm_nob)
-		return (-EINVAL);
+		return -EINVAL;
 
 	if (copy_to_user (ulsm, lsm, sizeof(*ulsm)))
-		return (-EFAULT);
+		return -EFAULT;
 
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
 		if (copy_to_user (ulsm->lsm_oinfo[i], lsm->lsm_oinfo[i],
 				      sizeof(lsm->lsm_oinfo[0])))
-			return (-EFAULT);
+			return -EFAULT;
 	}
 	return 0;
 }
@@ -1405,16 +1405,16 @@ echo_copyin_lsm (struct echo_device *ed, struct lov_stripe_md *lsm,
 	int		     i;
 
 	if (ulsm_nob < sizeof (*lsm))
-		return (-EINVAL);
+		return -EINVAL;
 
 	if (copy_from_user (lsm, ulsm, sizeof (*lsm)))
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (lsm->lsm_stripe_count > ec->ec_nstripes ||
 	    lsm->lsm_magic != LOV_MAGIC ||
 	    (lsm->lsm_stripe_size & (~CFS_PAGE_MASK)) != 0 ||
 	    ((__u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count > ~0UL))
-		return (-EINVAL);
+		return -EINVAL;
 
 
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
@@ -1422,9 +1422,9 @@ echo_copyin_lsm (struct echo_device *ed, struct lov_stripe_md *lsm,
 				       ((struct lov_stripe_md *)ulsm)-> \
 				       lsm_oinfo[i],
 				       sizeof(lsm->lsm_oinfo[0])))
-			return (-EFAULT);
+			return -EFAULT;
 	}
-	return (0);
+	return 0;
 }
 
 static inline void echo_md_build_name(struct lu_name *lname, char *name,
@@ -2282,7 +2282,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 		echo_free_memmd(ed, &lsm);
 	if (rc)
 		CERROR("create object failed with: rc = %d\n", rc);
-	return (rc);
+	return rc;
 }
 
 static int echo_get_object(struct echo_object **ecop, struct echo_device *ed,
@@ -3008,7 +3008,7 @@ static int echo_client_setup(const struct lu_env *env,
 	if (rc != 0) {
 		CERROR("fail to connect to device %s\n",
 		       lustre_cfg_string(lcfg, 1));
-		return (rc);
+		return rc;
 	}
 
 	return rc;

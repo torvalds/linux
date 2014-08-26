@@ -1114,7 +1114,7 @@ static int check_write_rcs(struct ptlrpc_request *req,
 						  niocount);
 	if (remote_rcs == NULL) {
 		CDEBUG(D_INFO, "Missing/short RC vector on BRW_WRITE reply\n");
-		return(-EPROTO);
+		return -EPROTO;
 	}
 
 	/* return error if any niobuf was in error */
@@ -1125,17 +1125,17 @@ static int check_write_rcs(struct ptlrpc_request *req,
 		if (remote_rcs[i] != 0) {
 			CDEBUG(D_INFO, "rc[%d] invalid (%d) req %p\n",
 				i, remote_rcs[i], req);
-			return(-EPROTO);
+			return -EPROTO;
 		}
 	}
 
 	if (req->rq_bulk->bd_nob_transferred != requested_nob) {
 		CERROR("Unexpected # bytes transferred: %d (requested %d)\n",
 		       req->rq_bulk->bd_nob_transferred, requested_nob);
-		return(-EPROTO);
+		return -EPROTO;
 	}
 
-	return (0);
+	return 0;
 }
 
 static inline int can_merge_pages(struct brw_page *p1, struct brw_page *p2)
@@ -1546,7 +1546,7 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 	if (rc != req->rq_bulk->bd_nob_transferred) {
 		CERROR ("Unexpected rc %d (%d transferred)\n",
 			rc, req->rq_bulk->bd_nob_transferred);
-		return (-EPROTO);
+		return -EPROTO;
 	}
 
 	if (rc < aa->aa_requested_nob)
@@ -1636,7 +1636,7 @@ restart_bulk:
 	rc = osc_brw_prep_request(cmd, &exp->exp_obd->u.cli, oa, lsm,
 				  page_count, pga, &req, ocapa, 0, resends);
 	if (rc != 0)
-		return (rc);
+		return rc;
 
 	if (resends) {
 		req->rq_generation_set = 1;
@@ -2292,10 +2292,10 @@ static int osc_find_cbdata(struct obd_export *exp, struct lov_stripe_md *lsm,
 	ostid_build_res_name(&lsm->lsm_oi, &res_id);
 	rc = ldlm_resource_iterate(obd->obd_namespace, &res_id, replace, data);
 	if (rc == LDLM_ITER_STOP)
-		return(1);
+		return 1;
 	if (rc == LDLM_ITER_CONTINUE)
-		return(0);
-	return(rc);
+		return 0;
+	return rc;
 }
 
 static int osc_enqueue_fini(struct ptlrpc_request *req, struct ost_lvb *lvb,
@@ -3561,7 +3561,7 @@ int osc_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg)
 		break;
 	}
 
-	return(rc);
+	return rc;
 }
 
 static int osc_process_config(struct obd_device *obd, u32 len, void *buf)

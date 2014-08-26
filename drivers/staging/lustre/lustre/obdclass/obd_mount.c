@@ -174,7 +174,7 @@ int do_lcfg(char *cfgname, lnet_nid_t nid, int cmd,
 	lcfg->lcfg_nid = nid;
 	rc = class_process_config(lcfg);
 	lustre_cfg_free(lcfg);
-	return(rc);
+	return rc;
 }
 EXPORT_SYMBOL(do_lcfg);
 

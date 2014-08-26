@@ -331,7 +331,7 @@ static int llog_client_close(const struct lu_env *env,
 	/* this doesn't call LLOG_ORIGIN_HANDLE_CLOSE because
 	   the servers all close the file at the end of every
 	   other LLOG_ RPC. */
-	return(0);
+	return 0;
 }
 
 struct llog_operations llog_client_ops = {

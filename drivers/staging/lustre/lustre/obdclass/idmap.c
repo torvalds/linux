@@ -443,7 +443,7 @@ struct lustre_idmap_table *lustre_idmap_init(void)
 
 	OBD_ALLOC_PTR(t);
 	if (unlikely(t == NULL))
-		return (ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&t->lit_lock);
 	for (i = 0; i < ARRAY_SIZE(t->lit_idmaps); i++)

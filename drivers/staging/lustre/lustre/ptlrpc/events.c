@@ -542,7 +542,7 @@ int ptlrpc_ni_init(void)
 	rc = LNetNIInit(pid);
 	if (rc < 0) {
 		CDEBUG(D_NET, "Can't init network interface: %d\n", rc);
-		return (-ENOENT);
+		return -ENOENT;
 	}
 
 	/* CAVEAT EMPTOR: how we process portals events is _radically_
@@ -558,7 +558,7 @@ int ptlrpc_ni_init(void)
 	CERROR("Failed to allocate event queue: %d\n", rc);
 	LNetNIFini();
 
-	return (-ENOMEM);
+	return -ENOMEM;
 }
 
 

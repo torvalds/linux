@@ -761,9 +761,9 @@ void ll_kill_super(struct super_block *sb)
 static inline int ll_set_opt(const char *opt, char *data, int fl)
 {
 	if (strncmp(opt, data, strlen(opt)) != 0)
-		return(0);
+		return 0;
 	else
-		return(fl);
+		return fl;
 }
 
 /* non-client-specific mount options are parsed in lmd_parse */
@@ -2213,7 +2213,7 @@ int ll_process_config(struct lustre_cfg *lcfg)
 				      lcfg, sb);
 	if (rc > 0)
 		rc = 0;
-	return(rc);
+	return rc;
 }
 
 /* this function prepares md_op_data hint for passing ot down to MD stack. */

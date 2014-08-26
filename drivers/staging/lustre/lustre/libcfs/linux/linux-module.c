@@ -105,12 +105,12 @@ libcfs_psdev_open(struct inode *inode, struct file *file)
 	int    rc = 0;
 
 	if (!inode)
-		return (-EINVAL);
+		return -EINVAL;
 	pdu = (struct libcfs_device_userstate **)&file->private_data;
 	if (libcfs_psdev_ops.p_open != NULL)
 		rc = libcfs_psdev_ops.p_open(0, (void *)pdu);
 	else
-		return (-EPERM);
+		return -EPERM;
 	return rc;
 }
 
@@ -122,7 +122,7 @@ libcfs_psdev_release(struct inode *inode, struct file *file)
 	int    rc = 0;
 
 	if (!inode)
-		return (-EINVAL);
+		return -EINVAL;
 	pdu = file->private_data;
 	if (libcfs_psdev_ops.p_close != NULL)
 		rc = libcfs_psdev_ops.p_close(0, (void *)pdu);
@@ -145,14 +145,14 @@ static long libcfs_ioctl(struct file *file,
 	     _IOC_NR(cmd) > IOC_LIBCFS_MAX_NR) {
 		CDEBUG(D_IOCTL, "invalid ioctl ( type %d, nr %d, size %d )\n",
 		       _IOC_TYPE(cmd), _IOC_NR(cmd), _IOC_SIZE(cmd));
-		return (-EINVAL);
+		return -EINVAL;
 	}
 
 	/* Handle platform-dependent IOC requests */
 	switch (cmd) {
 	case IOC_LIBCFS_PANIC:
 		if (!capable(CFS_CAP_SYS_BOOT))
-			return (-EPERM);
+			return -EPERM;
 		panic("debugctl-invoked panic");
 		return 0;
 	case IOC_LIBCFS_MEMHOG:

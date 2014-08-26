@@ -1927,8 +1927,8 @@ int lprocfs_obd_seq_create(struct obd_device *dev,
 			   const struct file_operations *seq_fops,
 			   void *data)
 {
-	return (lprocfs_seq_create(dev->obd_proc_entry, name,
-				   mode, seq_fops, data));
+	return lprocfs_seq_create(dev->obd_proc_entry, name,
+				  mode, seq_fops, data);
 }
 EXPORT_SYMBOL(lprocfs_obd_seq_create);
 

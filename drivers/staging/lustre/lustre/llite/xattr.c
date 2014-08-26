@@ -526,7 +526,7 @@ out:
 			ptlrpc_req_finished(request);
 		else if (lmm)
 			obd_free_diskmd(ll_i2dtexp(inode), &lmm);
-		return(rc);
+		return rc;
 	}
 
 	return ll_getxattr_common(inode, name, buffer, size, OBD_MD_FLXATTR);

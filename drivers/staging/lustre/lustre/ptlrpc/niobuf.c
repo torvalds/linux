@@ -443,7 +443,7 @@ int ptlrpc_reply(struct ptlrpc_request *req)
 	if (req->rq_no_reply)
 		return 0;
 	else
-		return (ptlrpc_send_reply(req, 0));
+		return ptlrpc_send_reply(req, 0);
 }
 EXPORT_SYMBOL(ptlrpc_reply);
 
@@ -691,7 +691,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	       service->srv_req_portal);
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_RQBD))
-		return (-ENOMEM);
+		return -ENOMEM;
 
 	/* NB: CPT affinity service should use new LNet flag LNET_INS_LOCAL,
 	 * which means buffer can only be attached on local CPT, and LND
@@ -702,7 +702,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 			  LNET_INS_LOCAL : LNET_INS_AFTER, &me_h);
 	if (rc != 0) {
 		CERROR("LNetMEAttach failed: %d\n", rc);
-		return (-ENOMEM);
+		return -ENOMEM;
 	}
 
 	LASSERT(rqbd->rqbd_refcount == 0);
@@ -718,7 +718,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 
 	rc = LNetMDAttach(me_h, md, LNET_UNLINK, &rqbd->rqbd_md_h);
 	if (rc == 0)
-		return (0);
+		return 0;
 
 	CERROR("LNetMDAttach failed: %d;\n", rc);
 	LASSERT(rc == -ENOMEM);
@@ -726,5 +726,5 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	LASSERT(rc == 0);
 	rqbd->rqbd_refcount = 0;
 
-	return (-ENOMEM);
+	return -ENOMEM;
 }

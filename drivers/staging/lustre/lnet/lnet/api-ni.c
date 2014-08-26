@@ -377,7 +377,7 @@ lnet_freelist_init (lnet_freelist_t *fl, int n, int size)
 
 	LIBCFS_ALLOC(space, n * size);
 	if (space == NULL)
-		return (-ENOMEM);
+		return -ENOMEM;
 
 	INIT_LIST_HEAD (&fl->fl_list);
 	fl->fl_objs = space;
@@ -390,7 +390,7 @@ lnet_freelist_init (lnet_freelist_t *fl, int n, int size)
 		space += size;
 	} while (--n != 0);
 
-	return (0);
+	return 0;
 }
 
 void

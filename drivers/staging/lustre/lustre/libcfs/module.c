@@ -119,7 +119,7 @@ kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
 	       count1 < PAGE_CACHE_SIZE/sizeof(struct page *)) {
 
 		if (cfs_signal_pending())
-			return (-EINTR);
+			return -EINTR;
 
 		*level1p = alloc_page(flags);
 		if (*level1p == NULL)
@@ -134,11 +134,11 @@ kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
 		       count2 < PAGE_CACHE_SIZE/sizeof(struct page *)) {
 
 			if (cfs_signal_pending())
-				return (-EINTR);
+				return -EINTR;
 
 			*level2p = alloc_page(flags);
 			if (*level2p == NULL)
-				return (-ENOMEM);
+				return -ENOMEM;
 			ldu->ldu_memhog_pages++;
 
 			level2p++;
@@ -351,7 +351,7 @@ static int init_libcfs_module(void)
 	rc = libcfs_debug_init(5 * 1024 * 1024);
 	if (rc < 0) {
 		printk(KERN_ERR "LustreError: libcfs_debug_init: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	rc = cfs_cpu_init();

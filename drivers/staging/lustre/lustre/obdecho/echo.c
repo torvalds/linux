@@ -276,7 +276,7 @@ echo_page_debug_check(struct page *page, u64 id,
 
 	kunmap(page);
 
-	return (rc);
+	return rc;
 }
 
 /* This allows us to verify that desc_private is passed unmolested */
@@ -659,7 +659,7 @@ int echo_persistent_pages_init(void)
 		OBD_PAGE_ALLOC(pg, gfp_mask);
 		if (pg == NULL) {
 			echo_persistent_pages_fini ();
-			return (-ENOMEM);
+			return -ENOMEM;
 		}
 
 		memset (kmap (pg), 0, PAGE_CACHE_SIZE);
@@ -668,5 +668,5 @@ int echo_persistent_pages_init(void)
 		echo_persistent_pages[i] = pg;
 	}
 
-	return (0);
+	return 0;
 }

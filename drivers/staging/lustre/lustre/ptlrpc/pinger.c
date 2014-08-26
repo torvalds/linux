@@ -435,7 +435,7 @@ struct timeout_item* ptlrpc_new_timeout(int time, enum timeout_event event,
 
 	OBD_ALLOC_PTR(ti);
 	if (!ti)
-		return(NULL);
+		return NULL;
 
 	INIT_LIST_HEAD(&ti->ti_obd_list);
 	INIT_LIST_HEAD(&ti->ti_chain);
@@ -490,7 +490,7 @@ int ptlrpc_add_timeout_client(int time, enum timeout_event event,
 	ti = ptlrpc_pinger_register_timeout(time, event, cb, data);
 	if (!ti) {
 		mutex_unlock(&pinger_mutex);
-		return (-EINVAL);
+		return -EINVAL;
 	}
 	list_add(obd_list, &ti->ti_obd_list);
 	mutex_unlock(&pinger_mutex);

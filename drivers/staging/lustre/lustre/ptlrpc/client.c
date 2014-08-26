@@ -313,14 +313,14 @@ static int unpack_reply(struct ptlrpc_request *req)
 		rc = ptlrpc_unpack_rep_msg(req, req->rq_replen);
 		if (rc) {
 			DEBUG_REQ(D_ERROR, req, "unpack_rep failed: %d", rc);
-			return(-EPROTO);
+			return -EPROTO;
 		}
 	}
 
 	rc = lustre_unpack_rep_ptlrpc_body(req, MSG_PTLRPC_BODY_OFF);
 	if (rc) {
 		DEBUG_REQ(D_ERROR, req, "unpack ptlrpc body failed: %d", rc);
-		return(-EPROTO);
+		return -EPROTO;
 	}
 	return 0;
 }
