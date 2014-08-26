@@ -204,7 +204,7 @@ static inline void arc_reg_clr(struct arc_emac_priv *priv, int reg, int mask)
 	arc_reg_set(priv, reg, value & ~mask);
 }
 
-int arc_mdio_probe(struct platform_device *pdev, struct arc_emac_priv *priv);
+int arc_mdio_probe(struct arc_emac_priv *priv);
 int arc_mdio_remove(struct arc_emac_priv *priv);
 
 #endif /* ARC_EMAC_H */

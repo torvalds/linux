@@ -799,7 +799,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 	dev_dbg(dev, "EMAC Device addr: Rx Ring [0x%x], Tx Ring[%x]\n",
 		(unsigned int)priv->rxbd_dma, (unsigned int)priv->txbd_dma);
 
-	err = arc_mdio_probe(pdev, priv);
+	err = arc_mdio_probe(priv);
 	if (err) {
 		dev_err(dev, "failed to probe MII bus\n");
 		goto out_clken;
