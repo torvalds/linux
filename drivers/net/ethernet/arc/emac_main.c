@@ -26,8 +26,6 @@
 
 #include "emac.h"
 
-#define DRV_NAME	"arc_emac"
-#define DRV_VERSION	"1.0"
 
 /**
  * arc_emac_adjust_link - Adjust the PHY link duplex.
@@ -120,8 +118,10 @@ static int arc_emac_set_settings(struct net_device *ndev,
 static void arc_emac_get_drvinfo(struct net_device *ndev,
 				 struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	struct arc_emac_priv *priv = netdev_priv(ndev);
+
+	strlcpy(info->driver, priv->drv_name, sizeof(info->driver));
+	strlcpy(info->version, priv->drv_version, sizeof(info->version));
 }
 
 static const struct ethtool_ops arc_emac_ethtool_ops = {
@@ -671,19 +671,16 @@ static const struct net_device_ops arc_emac_netdev_ops = {
 #endif
 };
 
-static int arc_emac_probe(struct platform_device *pdev)
+int arc_emac_probe(struct net_device *ndev, int interface)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = ndev->dev.parent;
 	struct resource res_regs;
 	struct device_node *phy_node;
 	struct arc_emac_priv *priv;
-	struct net_device *ndev;
 	const char *mac_addr;
 	unsigned int id, clock_frequency, irq;
 	int err;
 
-	if (!dev->of_node)
-		return -ENODEV;
 
 	/* Get PHY from device tree */
 	phy_node = of_parse_phandle(dev->of_node, "phy", 0);
@@ -706,12 +703,6 @@ static int arc_emac_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ndev = alloc_etherdev(sizeof(struct arc_emac_priv));
-	if (!ndev)
-		return -ENOMEM;
-
-	dev_set_drvdata(dev, ndev);
-	SET_NETDEV_DEV(ndev, dev);
 
 	ndev->netdev_ops = &arc_emac_netdev_ops;
 	ndev->ethtool_ops = &arc_emac_ethtool_ops;
@@ -724,28 +715,25 @@ static int arc_emac_probe(struct platform_device *pdev)
 
 	priv->regs = devm_ioremap_resource(dev, &res_regs);
 	if (IS_ERR(priv->regs)) {
-		err = PTR_ERR(priv->regs);
-		goto out_netdev;
+		return PTR_ERR(priv->regs);
 	}
 	dev_dbg(dev, "Registers base address is 0x%p\n", priv->regs);
 
-	priv->clk = of_clk_get(dev->of_node, 0);
-	if (IS_ERR(priv->clk)) {
-		/* Get CPU clock frequency from device tree */
-		if (of_property_read_u32(dev->of_node, "clock-frequency",
-					&clock_frequency)) {
-			dev_err(dev, "failed to retrieve <clock-frequency> from device tree\n");
-			err = -EINVAL;
-			goto out_netdev;
-		}
-	} else {
+	if (priv->clk) {
 		err = clk_prepare_enable(priv->clk);
 		if (err) {
 			dev_err(dev, "failed to enable clock\n");
-			goto out_clkget;
+			return err;
 		}
 
 		clock_frequency = clk_get_rate(priv->clk);
+	} else {
+		/* Get CPU clock frequency from device tree */
+		if (of_property_read_u32(dev->of_node, "clock-frequency",
+					 &clock_frequency)) {
+			dev_err(dev, "failed to retrieve <clock-frequency> from device tree\n");
+			return -EINVAL;
+		}
 	}
 
 	id = arc_reg_get(priv, R_ID);
@@ -806,7 +794,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 	}
 
 	priv->phy_dev = of_phy_connect(ndev, phy_node, arc_emac_adjust_link, 0,
-				       PHY_INTERFACE_MODE_MII);
+				       interface);
 	if (!priv->phy_dev) {
 		dev_err(dev, "of_phy_connect() failed\n");
 		err = -ENODEV;
@@ -833,20 +821,15 @@ out_netif_api:
 out_mdio:
 	arc_mdio_remove(priv);
 out_clken:
-	if (!IS_ERR(priv->clk))
+	if (priv->clk)
 		clk_disable_unprepare(priv->clk);
-out_clkget:
-	if (!IS_ERR(priv->clk))
-		clk_put(priv->clk);
-out_netdev:
-	free_netdev(ndev);
 	return err;
 }
+EXPORT_SYMBOL_GPL(arc_emac_probe);
 
-static int arc_emac_remove(struct platform_device *pdev)
+int arc_emac_remove(struct net_device *ndev)
 {
-	struct device *dev = &pdev->dev;
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct device *dev = ndev->dev.parent;
 	struct arc_emac_priv *priv = netdev_priv(ndev);
 
 	phy_disconnect(priv->phy_dev);
@@ -857,31 +840,12 @@ static int arc_emac_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(priv->clk)) {
 		clk_disable_unprepare(priv->clk);
-		clk_put(priv->clk);
 	}
 
-	free_netdev(ndev);
 
 	return 0;
 }
-
-static const struct of_device_id arc_emac_dt_ids[] = {
-	{ .compatible = "snps,arc-emac" },
-	{ /* Sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, arc_emac_dt_ids);
-
-static struct platform_driver arc_emac_driver = {
-	.probe = arc_emac_probe,
-	.remove = arc_emac_remove,
-	.driver = {
-		.name = DRV_NAME,
-		.owner = THIS_MODULE,
-		.of_match_table  = arc_emac_dt_ids,
-		},
-};
-
-module_platform_driver(arc_emac_driver);
+EXPORT_SYMBOL_GPL(arc_emac_remove);
 
 MODULE_AUTHOR("Alexey Brodkin <abrodkin@synopsys.com>");
 MODULE_DESCRIPTION("ARC EMAC driver");
