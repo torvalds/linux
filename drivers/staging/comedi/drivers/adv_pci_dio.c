@@ -393,7 +393,6 @@ static const struct dio_boardtype boardtypes[] = {
 };
 
 struct pci_dio_private {
-	char valid;		/*  card is usable */
 	char GlobalIrqEnabled;	/*  1= any IRQ source is enabled */
 	/*  PCI-1760 specific data */
 	unsigned char IDICntEnable;	/* counter's counting enable status */
@@ -1155,8 +1154,6 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	if (this_board->cardtype == TYPE_PCI1760)
 		pci1760_attach(dev);
 
-	devpriv->valid = 1;
-
 	pci_dio_reset(dev);
 
 	return 0;
@@ -1164,12 +1161,8 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 
 static void pci_dio_detach(struct comedi_device *dev)
 {
-	struct pci_dio_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (devpriv->valid)
-			pci_dio_reset(dev);
-	}
+	if (dev->iobase)
+		pci_dio_reset(dev);
 	comedi_pci_detach(dev);
 }
 
