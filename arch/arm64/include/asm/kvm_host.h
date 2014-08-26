@@ -42,7 +42,7 @@
 #define KVM_VCPU_MAX_FEATURES 3
 
 struct kvm_vcpu;
-int kvm_target_cpu(void);
+int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
 int kvm_arch_dev_ioctl_check_extension(long ext);
 
