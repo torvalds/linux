@@ -849,6 +849,13 @@ static int tegra_pcie_enable_controller(struct tegra_pcie *pcie)
 	value |= PADS_PLL_CTL_REFCLK_INTERNAL_CML | soc->tx_ref_sel;
 	pads_writel(pcie, value, soc->pads_pll_ctl);
 
+	/* reset PLL */
+	value = pads_readl(pcie, soc->pads_pll_ctl);
+	value &= ~PADS_PLL_CTL_RST_B4SM;
+	pads_writel(pcie, value, soc->pads_pll_ctl);
+
+	usleep_range(20, 100);
+
 	/* take PLL out of reset  */
 	value = pads_readl(pcie, soc->pads_pll_ctl);
 	value |= PADS_PLL_CTL_RST_B4SM;
