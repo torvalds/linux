@@ -3009,15 +3009,16 @@ static int r600_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = uvd_v1_0_resume(rdev);
-	if (!r) {
-		r = radeon_fence_driver_start_ring(rdev, R600_RING_TYPE_UVD_INDEX);
-		if (r) {
-			dev_err(rdev->dev, "failed initializing UVD fences (%d).\n", r);
+	if (rdev->has_uvd) {
+		r = uvd_v1_0_resume(rdev);
+		if (!r) {
+			r = radeon_fence_driver_start_ring(rdev, R600_RING_TYPE_UVD_INDEX);
+			if (r) {
+				dev_err(rdev->dev, "failed initializing UVD fences (%d).\n", r);
+			}
 		}
-	}
-	if (r) {
-		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+		if (r)
+			rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
 	}
 
 	/* Enable IRQ */
@@ -3048,14 +3049,16 @@ static int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-	if (ring->ring_size) {
-		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     RADEON_CP_PACKET2);
-		if (!r)
-			r = uvd_v1_0_init(rdev);
-		if (r)
-			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
+	if (rdev->has_uvd) {
+		ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+		if (ring->ring_size) {
+			r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
+					     RADEON_CP_PACKET2);
+			if (!r)
+				r = uvd_v1_0_init(rdev);
+			if (r)
+				DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
+		}
 	}
 
 	r = radeon_ib_pool_init(rdev);
@@ -3117,8 +3120,10 @@ int r600_suspend(struct radeon_device *rdev)
 	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
 	r600_cp_stop(rdev);
-	uvd_v1_0_fini(rdev);
-	radeon_uvd_suspend(rdev);
+	if (rdev->has_uvd) {
+		uvd_v1_0_fini(rdev);
+		radeon_uvd_suspend(rdev);
+	}
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
@@ -3198,10 +3203,12 @@ int r600_init(struct radeon_device *rdev)
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
-	r = radeon_uvd_init(rdev);
-	if (!r) {
-		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
-		r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX], 4096);
+	if (rdev->has_uvd) {
+		r = radeon_uvd_init(rdev);
+		if (!r) {
+			rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
+			r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX], 4096);
+		}
 	}
 
 	rdev->ih.ring_obj = NULL;
@@ -3233,8 +3240,10 @@ void r600_fini(struct radeon_device *rdev)
 	r600_audio_fini(rdev);
 	r600_cp_fini(rdev);
 	r600_irq_fini(rdev);
-	uvd_v1_0_fini(rdev);
-	radeon_uvd_fini(rdev);
+	if (rdev->has_uvd) {
+		uvd_v1_0_fini(rdev);
+		radeon_uvd_fini(rdev);
+	}
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);

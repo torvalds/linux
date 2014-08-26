@@ -2313,7 +2313,15 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_RS780:
 	case CHIP_RS880:
 		rdev->asic = &rs780_asic;
-		rdev->has_uvd = true;
+		/* 760G/780V/880V don't have UVD */
+		if ((rdev->pdev->device == 0x9616)||
+		    (rdev->pdev->device == 0x9611)||
+		    (rdev->pdev->device == 0x9613)||
+		    (rdev->pdev->device == 0x9711)||
+		    (rdev->pdev->device == 0x9713))
+			rdev->has_uvd = false;
+		else
+			rdev->has_uvd = true;
 		break;
 	case CHIP_RV770:
 	case CHIP_RV730:
