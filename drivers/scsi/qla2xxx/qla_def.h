@@ -3404,6 +3404,7 @@ typedef struct scsi_qla_host {
 
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */
+#define PFLG_DRIVER_REMOVING	1	/* PCI driver .remove */
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
