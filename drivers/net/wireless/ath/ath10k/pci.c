@@ -222,6 +222,102 @@ static const struct ce_pipe_config target_ce_config_wlan[] = {
 	/* CE7 used only by Host */
 };
 
+/*
+ * Map from service/endpoint to Copy Engine.
+ * This table is derived from the CE_PCI TABLE, above.
+ * It is passed to the Target at startup for use by firmware.
+ */
+static const struct service_to_pipe target_service_to_ce_map_wlan[] = {
+	{
+		 ATH10K_HTC_SVC_ID_WMI_DATA_VO,
+		 PIPEDIR_OUT,		/* out = UL = host -> target */
+		 3,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_DATA_VO,
+		 PIPEDIR_IN,		/* in = DL = target -> host */
+		 2,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_DATA_BK,
+		 PIPEDIR_OUT,		/* out = UL = host -> target */
+		 3,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_DATA_BK,
+		 PIPEDIR_IN,		/* in = DL = target -> host */
+		 2,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_DATA_BE,
+		 PIPEDIR_OUT,		/* out = UL = host -> target */
+		 3,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_DATA_BE,
+		 PIPEDIR_IN,		/* in = DL = target -> host */
+		 2,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_DATA_VI,
+		 PIPEDIR_OUT,		/* out = UL = host -> target */
+		 3,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_DATA_VI,
+		 PIPEDIR_IN,		/* in = DL = target -> host */
+		 2,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_CONTROL,
+		 PIPEDIR_OUT,		/* out = UL = host -> target */
+		 3,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_WMI_CONTROL,
+		 PIPEDIR_IN,		/* in = DL = target -> host */
+		 2,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_RSVD_CTRL,
+		 PIPEDIR_OUT,		/* out = UL = host -> target */
+		 0,		/* could be moved to 3 (share with WMI) */
+	},
+	{
+		 ATH10K_HTC_SVC_ID_RSVD_CTRL,
+		 PIPEDIR_IN,		/* in = DL = target -> host */
+		 1,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_TEST_RAW_STREAMS,	/* not currently used */
+		 PIPEDIR_OUT,		/* out = UL = host -> target */
+		 0,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_TEST_RAW_STREAMS,	/* not currently used */
+		 PIPEDIR_IN,		/* in = DL = target -> host */
+		 1,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_HTT_DATA_MSG,
+		 PIPEDIR_OUT,		/* out = UL = host -> target */
+		 4,
+	},
+	{
+		 ATH10K_HTC_SVC_ID_HTT_DATA_MSG,
+		 PIPEDIR_IN,		/* in = DL = target -> host */
+		 1,
+	},
+
+	/* (Additions here) */
+
+	{				/* Must be last */
+		 0,
+		 0,
+		 0,
+	},
+};
+
 static bool ath10k_pci_irq_pending(struct ath10k *ar)
 {
 	u32 cause;
@@ -1376,102 +1472,6 @@ static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
 
 	return -ETIMEDOUT;
 }
-
-/*
- * Map from service/endpoint to Copy Engine.
- * This table is derived from the CE_PCI TABLE, above.
- * It is passed to the Target at startup for use by firmware.
- */
-static const struct service_to_pipe target_service_to_ce_map_wlan[] = {
-	{
-		 ATH10K_HTC_SVC_ID_WMI_DATA_VO,
-		 PIPEDIR_OUT,		/* out = UL = host -> target */
-		 3,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_DATA_VO,
-		 PIPEDIR_IN,		/* in = DL = target -> host */
-		 2,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_DATA_BK,
-		 PIPEDIR_OUT,		/* out = UL = host -> target */
-		 3,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_DATA_BK,
-		 PIPEDIR_IN,		/* in = DL = target -> host */
-		 2,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_DATA_BE,
-		 PIPEDIR_OUT,		/* out = UL = host -> target */
-		 3,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_DATA_BE,
-		 PIPEDIR_IN,		/* in = DL = target -> host */
-		 2,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_DATA_VI,
-		 PIPEDIR_OUT,		/* out = UL = host -> target */
-		 3,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_DATA_VI,
-		 PIPEDIR_IN,		/* in = DL = target -> host */
-		 2,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_CONTROL,
-		 PIPEDIR_OUT,		/* out = UL = host -> target */
-		 3,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_WMI_CONTROL,
-		 PIPEDIR_IN,		/* in = DL = target -> host */
-		 2,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_RSVD_CTRL,
-		 PIPEDIR_OUT,		/* out = UL = host -> target */
-		 0,		/* could be moved to 3 (share with WMI) */
-	},
-	{
-		 ATH10K_HTC_SVC_ID_RSVD_CTRL,
-		 PIPEDIR_IN,		/* in = DL = target -> host */
-		 1,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_TEST_RAW_STREAMS,	/* not currently used */
-		 PIPEDIR_OUT,		/* out = UL = host -> target */
-		 0,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_TEST_RAW_STREAMS,	/* not currently used */
-		 PIPEDIR_IN,		/* in = DL = target -> host */
-		 1,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_HTT_DATA_MSG,
-		 PIPEDIR_OUT,		/* out = UL = host -> target */
-		 4,
-	},
-	{
-		 ATH10K_HTC_SVC_ID_HTT_DATA_MSG,
-		 PIPEDIR_IN,		/* in = DL = target -> host */
-		 1,
-	},
-
-	/* (Additions here) */
-
-	{				/* Must be last */
-		 0,
-		 0,
-		 0,
-	},
-};
 
 /*
  * Send an interrupt to the device to wake up the Target CPU
