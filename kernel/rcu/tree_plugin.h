@@ -793,11 +793,6 @@ sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
  * In fact, if you are using synchronize_rcu_expedited() in a loop,
  * please restructure your code to batch your updates, and then Use a
  * single synchronize_rcu() instead.
- *
- * Note that it is illegal to call this function while holding any lock
- * that is acquired by a CPU-hotplug notifier.  And yes, it is also illegal
- * to call this function from a CPU-hotplug notifier.  Failing to observe
- * these restriction will result in deadlock.
  */
 void synchronize_rcu_expedited(void)
 {
@@ -819,7 +814,11 @@ void synchronize_rcu_expedited(void)
 	 * being boosted.  This simplifies the process of moving tasks
 	 * from leaf to root rcu_node structures.
 	 */
-	get_online_cpus();
+	if (!try_get_online_cpus()) {
+		/* CPU-hotplug operation in flight, fall back to normal GP. */
+		wait_rcu_gp(call_rcu);
+		return;
+	}
 
 	/*
 	 * Acquire lock, falling back to synchronize_rcu() if too many
