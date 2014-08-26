@@ -505,6 +505,32 @@ static int gsc_hpdi_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void gsc_hpdi_free_dma(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct hpdi_private *devpriv = dev->private;
+	int i;
+
+	if (!devpriv)
+		return;
+
+	/* free pci dma buffers */
+	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
+		if (devpriv->dio_buffer[i])
+			pci_free_consistent(pcidev,
+					    DMA_BUFFER_SIZE,
+					    devpriv->dio_buffer[i],
+					    devpriv->dio_buffer_phys_addr[i]);
+	}
+	/* free dma descriptors */
+	if (devpriv->dma_desc)
+		pci_free_consistent(pcidev,
+				    sizeof(struct plx_dma_desc) *
+				    NUM_DMA_DESCRIPTORS,
+				    devpriv->dma_desc,
+				    devpriv->dma_desc_phys_addr);
+}
+
 static int gsc_hpdi_init(struct comedi_device *dev)
 {
 	struct hpdi_private *devpriv = dev->private;
@@ -679,9 +705,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 
 static void gsc_hpdi_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct hpdi_private *devpriv = dev->private;
-	unsigned int i;
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -692,24 +716,9 @@ static void gsc_hpdi_detach(struct comedi_device *dev)
 		}
 		if (dev->mmio)
 			iounmap(dev->mmio);
-		/*  free pci dma buffers */
-		for (i = 0; i < NUM_DMA_BUFFERS; i++) {
-			if (devpriv->dio_buffer[i])
-				pci_free_consistent(pcidev,
-						    DMA_BUFFER_SIZE,
-						    devpriv->dio_buffer[i],
-						    devpriv->
-						    dio_buffer_phys_addr[i]);
-		}
-		/*  free dma descriptors */
-		if (devpriv->dma_desc)
-			pci_free_consistent(pcidev,
-					    sizeof(struct plx_dma_desc) *
-					    NUM_DMA_DESCRIPTORS,
-					    devpriv->dma_desc,
-					    devpriv->dma_desc_phys_addr);
 	}
 	comedi_pci_disable(dev);
+	gsc_hpdi_free_dma(dev);
 }
 
 static struct comedi_driver gsc_hpdi_driver = {
