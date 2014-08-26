@@ -49,7 +49,6 @@ static int it913x_rd_regs(struct it913x_state *state,
 	b[0] = (u8)(reg >> 16) & 0xff;
 	b[1] = (u8)(reg >> 8) & 0xff;
 	b[2] = (u8) reg & 0xff;
-	b[0] |= 0x80; /* All reads from demodulator */
 
 	ret = i2c_transfer(state->client->adapter, msg, 2);
 
@@ -57,18 +56,21 @@ static int it913x_rd_regs(struct it913x_state *state,
 }
 
 /* read single register */
-static int it913x_rd_reg(struct it913x_state *state, u32 reg)
+static int it913x_rd_reg(struct it913x_state *state, u32 reg, u8 *val)
 {
 	int ret;
 	u8 b[1];
 
 	ret = it913x_rd_regs(state, reg, &b[0], sizeof(b));
-	return (ret < 0) ? -ENODEV : b[0];
+	if (ret < 0)
+		return -ENODEV;
+	*val = b[0];
+	return 0;
 }
 
 /* write multiple registers */
 static int it913x_wr_regs(struct it913x_state *state,
-		u8 pro, u32 reg, u8 buf[], u8 count)
+		u32 reg, u8 buf[], u8 count)
 {
 	u8 b[256];
 	struct i2c_msg msg[1] = {
@@ -82,9 +84,6 @@ static int it913x_wr_regs(struct it913x_state *state,
 	b[2] = (u8) reg & 0xff;
 	memcpy(&b[3], buf, count);
 
-	if (pro == PRO_DMOD)
-		b[0] |= 0x80;
-
 	ret = i2c_transfer(state->client->adapter, msg, 1);
 
 	if (ret < 0)
@@ -95,7 +94,7 @@ static int it913x_wr_regs(struct it913x_state *state,
 
 /* write single register */
 static int it913x_wr_reg(struct it913x_state *state,
-		u8 pro, u32 reg, u32 data)
+		u32 reg, u32 data)
 {
 	int ret;
 	u8 b[4];
@@ -115,7 +114,7 @@ static int it913x_wr_reg(struct it913x_state *state,
 	else
 		s = 0;
 
-	ret = it913x_wr_regs(state, pro, reg, &b[s], sizeof(b) - s);
+	ret = it913x_wr_regs(state, reg, &b[s], sizeof(b) - s);
 
 	return ret;
 }
@@ -129,9 +128,9 @@ static int it913x_script_loader(struct it913x_state *state,
 		return -EINVAL;
 
 	for (i = 0; i < 1000; ++i) {
-		if (loadscript[i].pro == 0xff)
+		if (loadscript[i].address == 0x000000)
 			break;
-		ret = it913x_wr_regs(state, loadscript[i].pro,
+		ret = it913x_wr_regs(state,
 			loadscript[i].address,
 			loadscript[i].reg, loadscript[i].count);
 		if (ret < 0)
@@ -143,12 +142,13 @@ static int it913x_script_loader(struct it913x_state *state,
 static int it913x_init(struct dvb_frontend *fe)
 {
 	struct it913x_state *state = fe->tuner_priv;
-	int ret, i, reg;
+	int ret, i;
+	u8 reg = 0;
 	u8 val, nv_val;
 	u8 nv[] = {48, 32, 24, 16, 12, 8, 6, 4, 2};
 	u8 b[2];
 
-	reg = it913x_rd_reg(state, 0xec86);
+	ret = it913x_rd_reg(state, 0x80ec86, &reg);
 	switch (reg) {
 	case 0:
 		state->tun_clk_mode = reg;
@@ -156,13 +156,8 @@ static int it913x_init(struct dvb_frontend *fe)
 		state->tun_fdiv = 3;
 		val = 16;
 		break;
-	case -ENODEV:
-		/* FIXME: these are just avoid divide by 0 */
-		state->tun_xtal = 2000;
-		state->tun_fdiv = 3;
-		return -ENODEV;
 	case 1:
-	default:
+	default: /* I/O error too */
 		state->tun_clk_mode = reg;
 		state->tun_xtal = 640;
 		state->tun_fdiv = 1;
@@ -170,7 +165,7 @@ static int it913x_init(struct dvb_frontend *fe)
 		break;
 	}
 
-	reg = it913x_rd_reg(state, 0xed03);
+	ret = it913x_rd_reg(state, 0x80ed03,  &reg);
 
 	if (reg < 0)
 		return -ENODEV;
@@ -180,7 +175,7 @@ static int it913x_init(struct dvb_frontend *fe)
 		nv_val = 2;
 
 	for (i = 0; i < 50; i++) {
-		ret = it913x_rd_regs(state, 0xed23, &b[0], sizeof(b));
+		ret = it913x_rd_regs(state, 0x80ed23, &b[0], sizeof(b));
 		reg = (b[1] << 8) + b[0];
 		if (reg > 0)
 			break;
@@ -196,21 +191,21 @@ static int it913x_init(struct dvb_frontend *fe)
 		msleep(50);
 	else {
 		for (i = 0; i < 50; i++) {
-			reg = it913x_rd_reg(state, 0xec82);
+			ret = it913x_rd_reg(state, 0x80ec82, &reg);
+			if (ret < 0)
+				return -ENODEV;
 			if (reg > 0)
 				break;
-			if (reg < 0)
-				return -ENODEV;
 			udelay(2000);
 		}
 	}
 
 	/* Power Up Tuner - common all versions */
-	ret = it913x_wr_reg(state, PRO_DMOD, 0xec40, 0x1);
-	ret |= it913x_wr_reg(state, PRO_DMOD, 0xec57, 0x0);
-	ret |= it913x_wr_reg(state, PRO_DMOD, 0xec58, 0x0);
+	ret = it913x_wr_reg(state, 0x80ec40, 0x1);
+	ret |= it913x_wr_reg(state, 0x80ec57, 0x0);
+	ret |= it913x_wr_reg(state, 0x80ec58, 0x0);
 
-	return it913x_wr_reg(state, PRO_DMOD, 0xed81, val);
+	return it913x_wr_reg(state, 0x80ed81, val);
 }
 
 static int it9137_set_params(struct dvb_frontend *fe)
@@ -220,7 +215,8 @@ static int it9137_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u32 bandwidth = p->bandwidth_hz;
 	u32 frequency_m = p->frequency;
-	int ret, reg;
+	int ret;
+	u8 reg = 0;
 	u32 frequency = frequency_m / 1000;
 	u32 freq, temp_f, tmp;
 	u16 iqik_m_cal;
@@ -321,7 +317,7 @@ static int it9137_set_params(struct dvb_frontend *fe)
 	} else
 		return -EINVAL;
 
-	reg = it913x_rd_reg(state, 0xed81);
+	ret = it913x_rd_reg(state, 0x80ed81, &reg);
 	iqik_m_cal = (u16)reg * n_div;
 
 	if (reg < 0x20) {
@@ -412,7 +408,7 @@ static int it913x_probe(struct i2c_client *client,
 	state->firmware_ver = 1;
 
 	/* tuner RF initial */
-	ret = it913x_wr_reg(state, PRO_DMOD, 0xec4c, 0x68);
+	ret = it913x_wr_reg(state, 0x80ec4c, 0x68);
 	if (ret < 0)
 		goto err;
 
