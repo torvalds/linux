@@ -4290,10 +4290,10 @@ static int si_pcie_gart_enable(struct radeon_device *rdev)
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2),
-			       rdev->gart.table_addr >> 12);
+			       rdev->vm_manager.saved_table_addr[i]);
 		else
 			WREG32(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((i - 8) << 2),
-			       rdev->gart.table_addr >> 12);
+			       rdev->vm_manager.saved_table_addr[i]);
 	}
 
 	/* enable context1-15 */
@@ -4325,6 +4325,17 @@ static int si_pcie_gart_enable(struct radeon_device *rdev)
 
 static void si_pcie_gart_disable(struct radeon_device *rdev)
 {
+	unsigned i;
+
+	for (i = 1; i < 16; ++i) {
+		uint32_t reg;
+		if (i < 8)
+			reg = VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2);
+		else
+			reg = VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((i - 8) << 2);
+		rdev->vm_manager.saved_table_addr[i] = RREG32(reg);
+	}
+
 	/* Disable all tables */
 	WREG32(VM_CONTEXT0_CNTL, 0);
 	WREG32(VM_CONTEXT1_CNTL, 0);
