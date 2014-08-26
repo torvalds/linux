@@ -1524,6 +1524,46 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	return 0;
 }
 
+static void cb_pcidas64_free_dma(struct comedi_device *dev)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pcidas64_private *devpriv = dev->private;
+	int i;
+
+	if (!devpriv)
+		return;
+
+	/* free pci dma buffers */
+	for (i = 0; i < ai_dma_ring_count(thisboard); i++) {
+		if (devpriv->ai_buffer[i])
+			pci_free_consistent(pcidev,
+					    DMA_BUFFER_SIZE,
+					    devpriv->ai_buffer[i],
+					    devpriv->ai_buffer_bus_addr[i]);
+	}
+	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
+		if (devpriv->ao_buffer[i])
+			pci_free_consistent(pcidev,
+					    DMA_BUFFER_SIZE,
+					    devpriv->ao_buffer[i],
+					    devpriv->ao_buffer_bus_addr[i]);
+	}
+	/* free dma descriptors */
+	if (devpriv->ai_dma_desc)
+		pci_free_consistent(pcidev,
+				    sizeof(struct plx_dma_desc) *
+				    ai_dma_ring_count(thisboard),
+				    devpriv->ai_dma_desc,
+				    devpriv->ai_dma_desc_bus_addr);
+	if (devpriv->ao_dma_desc)
+		pci_free_consistent(pcidev,
+				    sizeof(struct plx_dma_desc) *
+				    AO_DMA_RING_COUNT,
+				    devpriv->ao_dma_desc,
+				    devpriv->ao_dma_desc_bus_addr);
+}
+
 static inline void warn_external_queue(struct comedi_device *dev)
 {
 	dev_err(dev->class_dev,
@@ -3975,54 +4015,22 @@ static int auto_attach(struct comedi_device *dev,
 
 static void detach(struct comedi_device *dev)
 {
-	const struct pcidas64_board *thisboard = comedi_board(dev);
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pcidas64_private *devpriv = dev->private;
-	unsigned int i;
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
-		if (pcidev) {
-			if (devpriv->plx9080_iobase) {
-				disable_plx_interrupts(dev);
-				iounmap(devpriv->plx9080_iobase);
-			}
-			if (devpriv->main_iobase)
-				iounmap(devpriv->main_iobase);
-			if (dev->mmio)
-				iounmap(dev->mmio);
-			/*  free pci dma buffers */
-			for (i = 0; i < ai_dma_ring_count(thisboard); i++) {
-				if (devpriv->ai_buffer[i])
-					pci_free_consistent(pcidev,
-						DMA_BUFFER_SIZE,
-						devpriv->ai_buffer[i],
-						devpriv->ai_buffer_bus_addr[i]);
-			}
-			for (i = 0; i < AO_DMA_RING_COUNT; i++) {
-				if (devpriv->ao_buffer[i])
-					pci_free_consistent(pcidev,
-						DMA_BUFFER_SIZE,
-						devpriv->ao_buffer[i],
-						devpriv->ao_buffer_bus_addr[i]);
-			}
-			/*  free dma descriptors */
-			if (devpriv->ai_dma_desc)
-				pci_free_consistent(pcidev,
-					sizeof(struct plx_dma_desc) *
-					ai_dma_ring_count(thisboard),
-					devpriv->ai_dma_desc,
-					devpriv->ai_dma_desc_bus_addr);
-			if (devpriv->ao_dma_desc)
-				pci_free_consistent(pcidev,
-					sizeof(struct plx_dma_desc) *
-					AO_DMA_RING_COUNT,
-					devpriv->ao_dma_desc,
-					devpriv->ao_dma_desc_bus_addr);
+		if (devpriv->plx9080_iobase) {
+			disable_plx_interrupts(dev);
+			iounmap(devpriv->plx9080_iobase);
 		}
+		if (devpriv->main_iobase)
+			iounmap(devpriv->main_iobase);
+		if (dev->mmio)
+			iounmap(dev->mmio);
 	}
 	comedi_pci_disable(dev);
+	cb_pcidas64_free_dma(dev);
 }
 
 static struct comedi_driver cb_pcidas64_driver = {
