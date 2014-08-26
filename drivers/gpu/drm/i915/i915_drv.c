@@ -1373,7 +1373,9 @@ static int intel_runtime_suspend(struct device *device)
 	if (WARN_ON_ONCE(!(dev_priv->rps.enabled && intel_enable_rc6(dev))))
 		return -ENODEV;
 
-	WARN_ON(!HAS_RUNTIME_PM(dev));
+	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))
+		return -ENODEV;
+
 	assert_force_wake_inactive(dev_priv);
 
 	DRM_DEBUG_KMS("Suspending device\n");
@@ -1441,7 +1443,8 @@ static int intel_runtime_resume(struct device *device)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	WARN_ON(!HAS_RUNTIME_PM(dev));
+	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))
+		return -ENODEV;
 
 	DRM_DEBUG_KMS("Resuming device\n");
 
@@ -1476,16 +1479,12 @@ static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	int ret;
 
-	if (IS_GEN6(dev)) {
-		ret = 0;
-	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		ret = hsw_suspend_complete(dev_priv);
-	} else if (IS_VALLEYVIEW(dev)) {
+	else if (IS_VALLEYVIEW(dev))
 		ret = vlv_suspend_complete(dev_priv);
-	} else {
-		ret = -ENODEV;
-		WARN_ON(1);
-	}
+	else
+		ret = 0;
 
 	return ret;
 }
@@ -1501,16 +1500,14 @@ static int intel_resume_prepare(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	int ret;
 
-	if (IS_GEN6(dev)) {
+	if (IS_GEN6(dev))
 		ret = snb_resume_prepare(dev_priv, rpm_resume);
-	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		ret = hsw_resume_prepare(dev_priv, rpm_resume);
-	} else if (IS_VALLEYVIEW(dev)) {
+	else if (IS_VALLEYVIEW(dev))
 		ret = vlv_resume_prepare(dev_priv, rpm_resume);
-	} else {
-		WARN_ON(1);
-		ret = -ENODEV;
-	}
+	else
+		ret = 0;
 
 	return ret;
 }
