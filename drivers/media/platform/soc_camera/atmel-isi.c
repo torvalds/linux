@@ -384,7 +384,6 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
-	u32 sr = 0;
 	int ret;
 
 	/* Reset ISI */
@@ -398,7 +397,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	spin_lock_irq(&isi->lock);
 	/* Clear any pending interrupt */
-	sr = isi_readl(isi, ISI_STATUS);
+	isi_readl(isi, ISI_STATUS);
 
 	if (count)
 		start_dma(isi, isi->active);
