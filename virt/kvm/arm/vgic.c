@@ -1690,7 +1690,7 @@ out:
 	return ret;
 }
 
-static bool vgic_ioaddr_overlap(struct kvm *kvm)
+static int vgic_ioaddr_overlap(struct kvm *kvm)
 {
 	phys_addr_t dist = kvm->arch.vgic.vgic_dist_base;
 	phys_addr_t cpu = kvm->arch.vgic.vgic_cpu_base;
