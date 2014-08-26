@@ -577,7 +577,7 @@ static void vh264_set_params(void)
     unsigned int post_canvas;
     unsigned int frame_mbs_only_flag;
     unsigned int chroma_format_idc, chroma444;
-    unsigned int crop_infor, crop_bottom;
+    unsigned int crop_infor, crop_bottom,crop_right;
 
 
     buffer_for_recycle_rd = 0;
@@ -608,6 +608,7 @@ static void vh264_set_params(void)
        @AV_SCRATCH_6.15-0   =  (top << 8  | bottom ) <<  (2 - frame_mbs_only_flag) */
     crop_infor = READ_VREG(AV_SCRATCH_6);
     crop_bottom = (crop_infor & 0xff) >> (2 - frame_mbs_only_flag);
+    crop_right      = ((crop_infor >>16) & 0xff) >> (2 - frame_mbs_only_flag);
 
     /* if width or height from outside is not equal to mb, then use mb */
     /* add: for seeking stream with other resolution */
@@ -622,16 +623,18 @@ static void vh264_set_params(void)
     last_mb_width = mb_width;
     last_mb_height = mb_height;
 
-    if ((frame_width == 0) ||( frame_height == 0) ||(crop_infor && frame_height &&frame_width)) {
+    if ((frame_width == 0) ||( frame_height == 0) ||crop_infor) {
         frame_width = mb_width << 4;
         frame_height = mb_height << 4;
         if (frame_mbs_only_flag) {
             frame_height = frame_height - (2>>chroma444)*min(crop_bottom, (unsigned int)((8<<chroma444)-1));
+            frame_width  = frame_width - (2>>chroma444)*min(crop_right, (unsigned int)((8<<chroma444)-1));
         } else {
             frame_height = frame_height - (4>>chroma444)*min(crop_bottom, (unsigned int)((8<<chroma444)-1));
+            frame_width   = frame_width - (4>>chroma444)*min(crop_right, (unsigned int)((8<<chroma444)-1));			
         }
-        printk("frame_mbs_only_flag %d, crop_bottom %d, frame_height %d, mb_height %d\n",
-            frame_mbs_only_flag, crop_bottom, frame_height, mb_height);
+        printk("frame_mbs_only_flag %d, crop_bottom %d,  frame_height %d, mb_height %d,crop_right %d, frame_width %d, mb_width %d\n",
+            frame_mbs_only_flag, crop_bottom,frame_height, mb_height,crop_right,frame_width, mb_height);
 
         if (frame_height == 1088) {
             frame_height = 1080;
