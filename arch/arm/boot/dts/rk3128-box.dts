@@ -159,7 +159,16 @@
 };
 
 &codec {
-	hp_ctl_io = <&gpio1 GPIO_A3 0>;
+	spk_ctl_io = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
+	spk-mute-delay = <200>;
+	hp-mute-delay = <100>;
+	rk312x_for_mid = <1>;
+	is_rk3128 = <0>;
+	spk_volume = <25>;
+	hp_volume = <25>;
+	capture_volume = <26>;
+	gpio_debug = <1>;
+	codec_hp_det = <0>;
 };
 
 &dwc_control_usb {
