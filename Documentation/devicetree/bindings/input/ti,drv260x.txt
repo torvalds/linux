@@ -1,6 +1,4 @@
-Texas Instruments - drv260x Haptics driver family
-
-The drv260x family serial control bus communicates through I2C protocols
+* Texas Instruments - drv260x Haptics driver family
 
 Required properties:
 	- compatible - One of:
@@ -37,15 +35,16 @@ Optional properties:
 			  3.2 v.
 Example:
 
-drv2605l: drv2605l@5a {
-		compatible = "ti,drv2605l";
-		reg = <0x5a>;
-		enable-gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
-		mode = <DRV260X_LRA_MODE>;
-		library-sel = <DRV260X_LIB_LRA>;
-		vib-rated-mv = <3200>;
-		vib-overdriver-mv = <3200>;
-};
+haptics: haptics@5a {
+	compatible = "ti,drv2605l";
+	reg = <0x5a>;
+	vbat-supply = <&vbat>;
+	enable-gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+	mode = <DRV260X_LRA_MODE>;
+	library-sel = <DRV260X_LIB_LRA>;
+	vib-rated-mv = <3200>;
+	vib-overdriver-mv = <3200>;
+}
 
 For more product information please see the link below:
 http://www.ti.com/product/drv2605
