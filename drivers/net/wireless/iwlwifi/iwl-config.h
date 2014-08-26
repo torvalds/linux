@@ -120,6 +120,8 @@ enum iwl_led_mode {
 #define IWL_LONG_WD_TIMEOUT	10000
 #define IWL_MAX_WD_TIMEOUT	120000
 
+#define IWL_DEFAULT_MAX_TX_POWER 22
+
 /* Antenna presence definitions */
 #define	ANT_NONE	0x0
 #define	ANT_A		BIT(0)
