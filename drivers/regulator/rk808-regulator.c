@@ -294,11 +294,10 @@ static struct of_regulator_match rk808_reg_matches[] = {
 	[RK808_ID_SWITCH2]	= { .name = "SWITCH_REG2" },
 };
 
-static int rk808_regulator_dts(struct rk808 *rk808)
+static int rk808_regulator_dts(struct i2c_client *client,
+			       struct rk808_board *pdata)
 {
 	struct device_node *np, *reg_np;
-	struct i2c_client *client = rk808->i2c;
-	struct rk808_board *pdata = rk808->pdata;
 	int i, ret;
 
 	np = client->dev.of_node;
@@ -335,7 +334,7 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 {
 	struct rk808 *rk808 = dev_get_drvdata(pdev->dev.parent);
 	struct i2c_client *client = rk808->i2c;
-	struct rk808_board *pdata = rk808->pdata;
+	struct rk808_board *pdata = dev_get_platdata(&client->dev);
 	struct regulator_config config = {};
 	struct regulator_dev *rk808_rdev;
 	struct regulator_init_data *reg_data;
@@ -343,21 +342,14 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (!pdata) {
-		dev_warn(&client->dev, "%s no pdata, create it\n", __func__);
 		pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 	}
 
-	ret = rk808_regulator_dts(rk808);
+	ret = rk808_regulator_dts(client, pdata);
 	if (ret)
 		return ret;
-
-	rk808->num_regulators = RK808_NUM_REGULATORS;
-	rk808->rdev = devm_kzalloc(&pdev->dev, RK808_NUM_REGULATORS *
-				   sizeof(struct regulator_dev *), GFP_KERNEL);
-	if (!rk808->rdev)
-		return -ENOMEM;
 
 	/* Instantiate the regulators */
 	for (i = 0; i < RK808_NUM_REGULATORS; i++) {
@@ -382,7 +374,6 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 				"failed to register %d regulator\n", i);
 			return PTR_ERR(rk808_rdev);
 		}
-		rk808->rdev[i] = rk808_rdev;
 	}
 	return 0;
 }
