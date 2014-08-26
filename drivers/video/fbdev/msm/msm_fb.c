@@ -569,8 +569,13 @@ static int msmfb_probe(struct platform_device *pdev)
 	mutex_init(&msmfb->panel_init_lock);
 	init_waitqueue_head(&msmfb->frame_wq);
 	INIT_WORK(&msmfb->resume_work, power_on_panel);
-	msmfb->black = kzalloc(msmfb->fb->var.bits_per_pixel*msmfb->xres,
-			       GFP_KERNEL);
+	msmfb->black = devm_kzalloc(&pdev->dev,
+				    msmfb->fb->var.bits_per_pixel*msmfb->xres,
+				    GFP_KERNEL);
+	if (!msmfb->black) {
+		ret = -ENOMEM;
+		goto error_register_framebuffer;
+	}
 
 	printk(KERN_INFO "msmfb_probe() installing %d x %d panel\n",
 	       msmfb->xres, msmfb->yres);
