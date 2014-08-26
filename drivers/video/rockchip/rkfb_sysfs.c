@@ -38,7 +38,7 @@ static ssize_t show_screen_info(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
-	struct rk_screen *screen = dev_drv->screen0;
+	struct rk_screen *screen = dev_drv->cur_screen;
 	int fps;
 	u32 x = screen->mode.left_margin + screen->mode.right_margin +
 		screen->mode.xres + screen->mode.hsync_len;
