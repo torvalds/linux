@@ -112,7 +112,7 @@ static int esp_test_cmd_reply(struct genl_info *info, u32 cmd_type, char *reply_
         if (hdr == NULL)
                 goto nla_put_failure;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
         nla_put_string(skb, TEST_ATTR_STR, reply_info);
 #else
         NLA_PUT_STRING(skb, TEST_ATTR_STR, reply_info);
@@ -426,7 +426,7 @@ static int esp_test_sdiotest(struct sk_buff *skb_2,
 			if ((sdioTest.mode >= 3)&&(sdioTest.mode <= 7)) { // write mode, fill the test buf
                                 data_mask = (sdioTest.mode == 3)? 0xffffffff : (0x11111111<<(sdioTest.mode-4));
 				for (i = 0; i<SDIO_BUF_SIZE/ 4; i++) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 
 					*(u32 *)&sdiotest_buf[i*4] = get_random_int() & data_mask;
 #else

@@ -92,6 +92,15 @@ static void sip_show_trace(struct esp_sip *sip);
 #define SIP_MIN_DATA_PKT_LEN    (sizeof(struct esp_mac_rx_ctrl) + 24) //24 is min 80211hdr
 #define TARGET_RX_SIZE 524
 
+#ifdef ESP_PREALLOC
+extern struct sk_buff *esp_get_sip_skb(int size);
+extern void esp_put_sip_skb(struct sk_buff **skb);
+
+extern u8 *esp_get_tx_aggr_buf(void);
+extern void esp_put_tx_aggr_buf(u8 **p);
+
+#endif
+
 static struct sip_pkt *sip_get_ctrl_buf(struct esp_sip *sip, SIP_BUF_TYPE bftype);
 
 static void sip_reclaim_ctrl_buf(struct esp_sip *sip, struct sip_pkt *pkt, SIP_BUF_TYPE bftype);
@@ -545,7 +554,11 @@ _move_on:
 	}
 
 _exit:
+#ifdef ESP_PREALLOC 
+	esp_put_sip_skb(&skb);
+#else
 	kfree_skb(skb);
+#endif
 
 #ifdef RX_SYNC
 	if (trigger_rxq) {
@@ -660,10 +673,19 @@ int sip_rx(struct esp_pub *epub)
          */
         rx_blksz = sif_get_blksz(epub);
 #ifdef LOOKAHEAD
+#ifdef ESP_PREALLOC
+        first_skb = esp_get_sip_skb(roundup(first_sz, rx_blksz));
+#else 
         first_skb = __dev_alloc_skb(roundup(first_sz, rx_blksz), GFP_KERNEL);
+#endif /* ESP_PREALLOC */
+#else
+#ifdef ESP_PREALLOC
+        first_skb = esp_get_sip_skb(first_sz);
 #else
         first_skb = __dev_alloc_skb(first_sz, GFP_KERNEL);
-#endif
+#endif /* ESP_PREALLOC */
+#endif /* LOOKAHEAD */
+
         if (first_skb == NULL) {
         	    sif_unlock_bus(epub);
                 esp_sip_dbg(ESP_DBG_ERROR, "%s first no memory \n", __func__);
@@ -723,7 +745,11 @@ int sip_rx(struct esp_pub *epub)
 	sip_rx_count++;
         if (unlikely(err)) {
                 esp_dbg(ESP_DBG_ERROR, " %s first read err %d %d\n", __func__, err, sif_get_regs(epub)->config_w0);
+#ifdef ESP_PREALLOC
+		esp_put_sip_skb(&first_skb);
+#else
                 kfree_skb(first_skb);
+#endif /* ESP_PREALLOC */
         	sif_unlock_bus(epub);
                 goto _err;
         }
@@ -736,7 +762,11 @@ int sip_rx(struct esp_pub *epub)
 
         if ((shdr->len & 3) != 0){
                 esp_sip_dbg(ESP_DBG_ERROR, "%s shdr->len[%d] error\n", __func__, shdr->len);
+#ifdef ESP_PREALLOC
+		esp_put_sip_skb(&first_skb);
+#else
                 kfree_skb(first_skb);
+#endif /* ESP_PREALLOC */
                 sif_unlock_bus(epub);
                 err = -EIO;
                 goto _err;
@@ -745,7 +775,11 @@ int sip_rx(struct esp_pub *epub)
 #ifdef LOOKAHEAD
         if (shdr->len != first_sz){
 		esp_sip_dbg(ESP_DBG_ERROR, "%s shdr->len[%d]  first_size[%d] error\n", __func__, shdr->len, first_sz);
+#ifdef ESP_PREALLOC
+		esp_put_sip_skb(&first_skb);
+#else
                 kfree_skb(first_skb);
+#endif /* ESP_PREALLOC */
                 sif_unlock_bus(epub);
                 err = -EIO;
                 goto _err;
@@ -753,11 +787,20 @@ int sip_rx(struct esp_pub *epub)
 #else
         if (shdr->len > first_sz)  {
                 /* larger than one blk, fetch the rest */
+#ifdef ESP_PREALLOC
+                next_skb = esp_get_sip_skb(roundup(shdr->len, rx_blksz) + first_sz);
+#else
                 next_skb = __dev_alloc_skb(roundup(shdr->len, rx_blksz) + first_sz, GFP_KERNEL);
+#endif /* ESP_PREALLOC */
+
                 if (unlikely(next_skb == NULL)) {
                         sif_unlock_bus(epub);
                         esp_sip_dbg(ESP_DBG_ERROR, "%s next no memory \n", __func__);
-                        kfree_skb(first_skb);
+#ifdef ESP_PREALLOC
+			esp_put_sip_skb(&first_skb);
+#else
+			kfree_skb(first_skb);
+#endif /* ESP_PREALLOC */
                         goto _err;
                 }
                 rx_buf = skb_put(next_skb, shdr->len);
@@ -768,8 +811,13 @@ int sip_rx(struct esp_pub *epub)
 
                 if (unlikely(err)) {
                         esp_sip_dbg(ESP_DBG_ERROR, "%s next read err %d \n", __func__, err);
-                        kfree(first_skb);
-                        kfree(next_skb);
+#ifdef ESP_PREALLOC
+			esp_put_sip_skb(&first_skb);
+			esp_put_sip_skb(&next_skb);
+#else
+			kfree_skb(first_skb);
+                        kfree_skb(next_skb);
+#endif /* ESP_PREALLOC */
                         goto _err;
                 }
                 /* merge two skbs, TBD: could be optimized by skb_linearize*/
@@ -777,7 +825,11 @@ int sip_rx(struct esp_pub *epub)
                 esp_dbg(ESP_DBG_TRACE, " %s  next skb\n", __func__);
 
                 rx_skb = next_skb;
+#ifdef ESP_PREALLOC
+		esp_put_sip_skb(&first_skb);
+#else
                 kfree_skb(first_skb);
+#endif /* ESP_PREALLOC */
         }
 #endif 
         else {
@@ -788,7 +840,11 @@ int sip_rx(struct esp_pub *epub)
                 rx_skb = first_skb;
         }
         if (atomic_read(&sip->state) == SIP_STOP) {
+#ifdef ESP_PREALLOC
+		esp_put_sip_skb(&rx_skb);
+#else
 		kfree_skb(rx_skb);
+#endif /* ESP_PREALLOC */
                 esp_sip_dbg(ESP_DBG_ERROR, "%s when sip stopped\n", __func__);
                 return 0;
         }
@@ -866,7 +922,9 @@ sip_dec_credit(struct esp_sip *sip)
 int sip_post_init(struct esp_sip *sip, struct sip_evt_bootup2 *bevt)
 {
         struct esp_pub *epub;
+#ifndef ESP_PREALLOC
         int po = 0;
+#endif
 
 	if (sip == NULL) {
         	ESSERT(0);
@@ -875,8 +933,12 @@ int sip_post_init(struct esp_sip *sip, struct sip_evt_bootup2 *bevt)
 
         epub = sip->epub;
 
+#ifdef ESP_PREALLOC
+	sip->tx_aggr_buf = (u8 *)esp_get_tx_aggr_buf();
+#else
         po = get_order(SIP_TX_AGGR_BUF_SIZE);
         sip->tx_aggr_buf = (u8 *)__get_free_pages(GFP_ATOMIC, po);
+#endif
         if (sip->tx_aggr_buf == NULL) {
                 esp_dbg(ESP_DBG_ERROR, "no mem for tx_aggr_buf! \n");
                 return -ENOMEM;
@@ -1879,8 +1941,9 @@ static void sip_free_init_ctrl_buf(struct esp_sip *sip)
 
 void sip_detach(struct esp_sip *sip)
 {
+#ifndef ESP_PREALLOC
         int po;
-
+#endif
 	if (sip == NULL)
 		return ;
 
@@ -1916,9 +1979,13 @@ void sip_detach(struct esp_sip *sip)
                 skb_queue_purge(&sip->epub->txq);
                 skb_queue_purge(&sip->epub->txdoneq);
 
+#ifdef ESP_PREALLOC
+		esp_put_tx_aggr_buf(&sip->tx_aggr_buf);
+#else
                 po = get_order(SIP_TX_AGGR_BUF_SIZE);
                 free_pages((unsigned long)sip->tx_aggr_buf, po);
                 sip->tx_aggr_buf = NULL;
+#endif
 
                 atomic_set(&sip->state, SIP_INIT);
         } else if (atomic_read(&sip->state) >= SIP_BOOT && atomic_read(&sip->state) <= SIP_WAIT_BOOTUP) {

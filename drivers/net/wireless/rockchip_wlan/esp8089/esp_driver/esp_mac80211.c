@@ -1575,8 +1575,14 @@ static int esp_op_ampdu_action(struct ieee80211_hw *hw,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+                if(tid_info->state == ESP_TID_STATE_WAIT_STOP)
+                        tid_info->state = ESP_TID_STATE_STOP;
+                else
+                        tid_info->state = ESP_TID_STATE_INIT;
+#endif
                 ret = sip_send_ampdu_action(epub, SIP_AMPDU_TX_STOP, sta->addr, tid, node->ifidx, 0);
-		break;
+		        break;
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
