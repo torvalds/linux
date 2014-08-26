@@ -74,7 +74,7 @@
 
 #define FLUSH_INTERVAL 1000 /* in usec */
 
-struct mcryptd_alg_state sha1_mb_alg_state;
+static struct mcryptd_alg_state sha1_mb_alg_state;
 
 struct sha1_mb_ctx {
 	struct mcryptd_ahash *mcryptd_tfm;
@@ -99,11 +99,11 @@ static void req_ctx_init(struct mcryptd_hash_request_ctx *rctx,
 	rctx->flag = HASH_UPDATE;
 }
 
-asmlinkage void (*sha1_job_mgr_init)(struct sha1_mb_mgr *state);
-asmlinkage struct job_sha1* (*sha1_job_mgr_submit)(struct sha1_mb_mgr *state,
+static asmlinkage void (*sha1_job_mgr_init)(struct sha1_mb_mgr *state);
+static asmlinkage struct job_sha1* (*sha1_job_mgr_submit)(struct sha1_mb_mgr *state,
 							  struct job_sha1 *job);
-asmlinkage struct job_sha1* (*sha1_job_mgr_flush)(struct sha1_mb_mgr *state);
-asmlinkage struct job_sha1* (*sha1_job_mgr_get_comp_job)(struct sha1_mb_mgr *state);
+static asmlinkage struct job_sha1* (*sha1_job_mgr_flush)(struct sha1_mb_mgr *state);
+static asmlinkage struct job_sha1* (*sha1_job_mgr_get_comp_job)(struct sha1_mb_mgr *state);
 
 inline void sha1_init_digest(uint32_t *digest)
 {
@@ -212,7 +212,7 @@ static struct sha1_hash_ctx *sha1_ctx_mgr_resubmit(struct sha1_ctx_mgr *mgr, str
 	return NULL;
 }
 
-struct sha1_hash_ctx *sha1_ctx_mgr_get_comp_ctx(struct sha1_ctx_mgr *mgr)
+static struct sha1_hash_ctx *sha1_ctx_mgr_get_comp_ctx(struct sha1_ctx_mgr *mgr)
 {
 	/*
 	 * If get_comp_job returns NULL, there are no jobs complete.
@@ -227,12 +227,12 @@ struct sha1_hash_ctx *sha1_ctx_mgr_get_comp_ctx(struct sha1_ctx_mgr *mgr)
 	return sha1_ctx_mgr_resubmit(mgr, ctx);
 }
 
-void sha1_ctx_mgr_init(struct sha1_ctx_mgr *mgr)
+static void sha1_ctx_mgr_init(struct sha1_ctx_mgr *mgr)
 {
 	sha1_job_mgr_init(&mgr->mgr);
 }
 
-struct sha1_hash_ctx *sha1_ctx_mgr_submit(struct sha1_ctx_mgr *mgr,
+static struct sha1_hash_ctx *sha1_ctx_mgr_submit(struct sha1_ctx_mgr *mgr,
 					  struct sha1_hash_ctx *ctx,
 					  const void *buffer,
 					  uint32_t len,
@@ -321,7 +321,7 @@ struct sha1_hash_ctx *sha1_ctx_mgr_submit(struct sha1_ctx_mgr *mgr,
 	return sha1_ctx_mgr_resubmit(mgr, ctx);
 }
 
-struct sha1_hash_ctx *sha1_ctx_mgr_flush(struct sha1_ctx_mgr *mgr)
+static struct sha1_hash_ctx *sha1_ctx_mgr_flush(struct sha1_ctx_mgr *mgr)
 {
 	struct sha1_hash_ctx *ctx;
 
@@ -753,7 +753,7 @@ static int sha1_mb_async_final(struct ahash_request *req)
 	return crypto_ahash_final(mcryptd_req);
 }
 
-int sha1_mb_async_digest(struct ahash_request *req)
+static int sha1_mb_async_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct sha1_mb_ctx *ctx = crypto_ahash_ctx(tfm);
@@ -816,7 +816,7 @@ static struct ahash_alg sha1_mb_async_alg = {
 	},
 };
 
-unsigned long sha1_mb_flusher(struct mcryptd_alg_cstate *cstate)
+static unsigned long sha1_mb_flusher(struct mcryptd_alg_cstate *cstate)
 {
 	struct mcryptd_hash_request_ctx *rctx;
 	unsigned long cur_time;
