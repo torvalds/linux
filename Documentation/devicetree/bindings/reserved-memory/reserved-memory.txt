@@ -73,7 +73,11 @@ Device node references to reserved memory
 Regions in the /reserved-memory node may be referenced by other device
 nodes by adding a memory-region property to the device node.
 
-memory-region (optional) - phandle, specifier pairs to children of /reserved-memory
+memory-region (optional) - arrays of phandles, specifier pairs to children
+      of /reserved-memory, first phandle is used as a default memory
+      region
+memory-region-names (optional) - array of strings with names of memory
+      regions, used when more than one region has been defined
 
 Example
 -------
