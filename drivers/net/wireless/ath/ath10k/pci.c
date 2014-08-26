@@ -1094,68 +1094,57 @@ static void ath10k_pci_kill_tasklet(struct ath10k *ar)
 	del_timer_sync(&ar_pci->rx_post_retry);
 }
 
-/* TODO - temporary mapping while we have too few CE's */
 static int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar,
 					      u16 service_id, u8 *ul_pipe,
 					      u8 *dl_pipe, int *ul_is_polled,
 					      int *dl_is_polled)
 {
-	int ret = 0;
+	const struct service_to_pipe *entry;
+	bool ul_set = false, dl_set = false;
+	int i;
 
 	ath10k_dbg(ar, ATH10K_DBG_PCI, "pci hif map service\n");
 
 	/* polling for received messages not supported */
 	*dl_is_polled = 0;
 
-	switch (service_id) {
-	case ATH10K_HTC_SVC_ID_HTT_DATA_MSG:
-		/*
-		 * Host->target HTT gets its own pipe, so it can be polled
-		 * while other pipes are interrupt driven.
-		 */
-		*ul_pipe = 4;
-		/*
-		 * Use the same target->host pipe for HTC ctrl, HTC raw
-		 * streams, and HTT.
-		 */
-		*dl_pipe = 1;
-		break;
+	for (i = 0; i < ARRAY_SIZE(target_service_to_ce_map_wlan); i++) {
+		entry = &target_service_to_ce_map_wlan[i];
 
-	case ATH10K_HTC_SVC_ID_RSVD_CTRL:
-	case ATH10K_HTC_SVC_ID_TEST_RAW_STREAMS:
-		/*
-		 * Note: HTC_RAW_STREAMS_SVC is currently unused, and
-		 * HTC_CTRL_RSVD_SVC could share the same pipe as the
-		 * WMI services.  So, if another CE is needed, change
-		 * this to *ul_pipe = 3, which frees up CE 0.
-		 */
-		/* *ul_pipe = 3; */
-		*ul_pipe = 0;
-		*dl_pipe = 1;
-		break;
+		if (entry->service_id != service_id)
+			continue;
 
-	case ATH10K_HTC_SVC_ID_WMI_DATA_BK:
-	case ATH10K_HTC_SVC_ID_WMI_DATA_BE:
-	case ATH10K_HTC_SVC_ID_WMI_DATA_VI:
-	case ATH10K_HTC_SVC_ID_WMI_DATA_VO:
-
-	case ATH10K_HTC_SVC_ID_WMI_CONTROL:
-		*ul_pipe = 3;
-		*dl_pipe = 2;
-		break;
-
-		/* pipe 5 unused   */
-		/* pipe 6 reserved */
-		/* pipe 7 reserved */
-
-	default:
-		ret = -1;
-		break;
+		switch (entry->pipedir) {
+		case PIPEDIR_NONE:
+			break;
+		case PIPEDIR_IN:
+			WARN_ON(dl_set);
+			*dl_pipe = entry->pipenum;
+			dl_set = true;
+			break;
+		case PIPEDIR_OUT:
+			WARN_ON(ul_set);
+			*ul_pipe = entry->pipenum;
+			ul_set = true;
+			break;
+		case PIPEDIR_INOUT:
+			WARN_ON(dl_set);
+			WARN_ON(ul_set);
+			*dl_pipe = entry->pipenum;
+			*ul_pipe = entry->pipenum;
+			dl_set = true;
+			ul_set = true;
+			break;
+		}
 	}
+
+	if (WARN_ON(!ul_set || !dl_set))
+		return -ENOENT;
+
 	*ul_is_polled =
 		(host_ce_config_wlan[*ul_pipe].flags & CE_ATTR_DIS_INTR) != 0;
 
-	return ret;
+	return 0;
 }
 
 static void ath10k_pci_hif_get_default_pipe(struct ath10k *ar,
