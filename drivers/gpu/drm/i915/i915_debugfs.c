@@ -1381,7 +1381,7 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 
 	if (IS_VALLEYVIEW(dev))
 		return vlv_drpc_info(m);
-	else if (IS_GEN6(dev) || IS_GEN7(dev))
+	else if (INTEL_INFO(dev)->gen >= 6)
 		return gen6_drpc_info(m);
 	else
 		return ironlake_drpc_info(m);
