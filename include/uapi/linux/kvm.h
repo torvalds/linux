@@ -578,9 +578,7 @@ struct kvm_ppc_smmu_info {
 #endif
 /* Bug in KVM_SET_USER_MEMORY_REGION fixed: */
 #define KVM_CAP_DESTROY_MEMORY_REGION_WORKS 21
-#ifdef __KVM_HAVE_USER_NMI
 #define KVM_CAP_USER_NMI 22
-#endif
 #ifdef __KVM_HAVE_GUEST_DEBUG
 #define KVM_CAP_SET_GUEST_DEBUG 23
 #endif
@@ -995,7 +993,7 @@ struct kvm_s390_ucas_mapping {
 #define KVM_S390_INITIAL_RESET    _IO(KVMIO,   0x97)
 #define KVM_GET_MP_STATE          _IOR(KVMIO,  0x98, struct kvm_mp_state)
 #define KVM_SET_MP_STATE          _IOW(KVMIO,  0x99, struct kvm_mp_state)
-/* Available with KVM_CAP_NMI */
+/* Available with KVM_CAP_USER_NMI */
 #define KVM_NMI                   _IO(KVMIO,   0x9a)
 /* Available with KVM_CAP_SET_GUEST_DEBUG */
 #define KVM_SET_GUEST_DEBUG       _IOW(KVMIO,  0x9b, struct kvm_guest_debug)
