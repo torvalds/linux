@@ -41,6 +41,7 @@
 	pinctrl-0 = <&lcdc0_lcdc>;
 	pinctrl-1 = <&lcdc0_gpio>;
 
+	rockchip,fb-win-map = <FB_DEFAULT_ORDER>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 		lcd_cs: lcd_cs {

@@ -3569,7 +3569,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);
 	mutex_init(&dev_drv->fb_win_id_mutex);
-	dev_drv->ops->fb_win_remap(dev_drv, FB_DEFAULT_ORDER);
+	dev_drv->ops->fb_win_remap(dev_drv, dev_drv->fb_win_map);
 	dev_drv->first_frame = 1;
 	dev_drv->overscan.left = 100;
 	dev_drv->overscan.top = 100;

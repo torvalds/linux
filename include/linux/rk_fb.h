@@ -214,17 +214,6 @@ enum data_format {
 	YUV444_A,	
 };
 
-enum fb_win_map_order {
-	FB_DEFAULT_ORDER = 0,
-	FB0_WIN2_FB1_WIN1_FB2_WIN0 = 12,
-	FB0_WIN1_FB1_WIN2_FB2_WIN0 = 21,
-	FB0_WIN2_FB1_WIN0_FB2_WIN1 = 102,
-	FB0_WIN0_FB1_WIN2_FB2_WIN1 = 120,
-	FB0_WIN0_FB1_WIN1_FB2_WIN2 = 210,
-	FB0_WIN1_FB1_WIN0_FB2_WIN2 = 201,
-	FB0_WIN0_FB1_WIN1_FB2_WIN2_FB3_WIN3 = 3210,
-};
-
 enum
 {
 	SCALE_NONE = 0x0,
@@ -427,7 +416,7 @@ struct rk_lcdc_drv_ops {
 	int (*fps_mgr) (struct rk_lcdc_driver *dev_drv, int fps, bool set);
 	int (*fb_get_win_id) (struct rk_lcdc_driver *dev_drv, const char *id);	/*find layer for fb*/
 	int (*fb_win_remap) (struct rk_lcdc_driver *dev_drv,
-			       enum fb_win_map_order order);
+			     u16 fb_win_map_order);
 	int (*set_dsp_lut) (struct rk_lcdc_driver *dev_drv, int *lut);
 	int (*read_dsp_lut) (struct rk_lcdc_driver *dev_drv, int *lut);
 	int (*lcdc_hdmi_process) (struct rk_lcdc_driver *dev_drv, int mode);	/*some lcdc need to some process in hdmi mode*/
@@ -559,6 +548,7 @@ struct rk_lcdc_driver {
 	u16 overlay_mode;
 	u16 output_color;
 
+	u16 fb_win_map;
 	char fb0_win_id;
 	char fb1_win_id;
 	char fb2_win_id;

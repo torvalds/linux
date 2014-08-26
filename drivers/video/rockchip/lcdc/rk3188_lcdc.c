@@ -1300,8 +1300,7 @@ static int rk3188_lcdc_fps_mgr(struct rk_lcdc_driver *dev_drv, int fps,
 	return fps;
 }
 
-static int rk3188_fb_win_remap(struct rk_lcdc_driver *dev_drv,
-			       enum fb_win_map_order order)
+static int rk3188_fb_win_remap(struct rk_lcdc_driver *dev_drv, u16 order)
 {
 	mutex_lock(&dev_drv->fb_win_id_mutex);
 	if (order == FB_DEFAULT_ORDER)
@@ -1524,6 +1523,12 @@ static int rk3188_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 		lcdc_dev->pwr18 = false;	/*default set it as 3.xv power supply */
 	else
 		lcdc_dev->pwr18 = (val ? true : false);
+
+	if (of_property_read_u32(np, "rockchip,fb-win-map", &val))
+		lcdc_dev->driver.fb_win_map = FB_DEFAULT_ORDER;
+	else
+		lcdc_dev->driver.fb_win_map = val;
+
 	return 0;
 }
 

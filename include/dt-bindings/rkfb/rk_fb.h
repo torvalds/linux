@@ -48,6 +48,16 @@
 #define COLOR_RGB	0
 #define COLOR_YCBCR	1
 
+/* fb win map */
+#define FB_DEFAULT_ORDER		0
+#define FB0_WIN2_FB1_WIN1_FB2_WIN0	12
+#define FB0_WIN1_FB1_WIN2_FB2_WIN0	21
+#define FB0_WIN2_FB1_WIN0_FB2_WIN1	102
+#define FB0_WIN0_FB1_WIN2_FB2_WIN1	120
+#define FB0_WIN0_FB1_WIN1_FB2_WIN2	210
+#define FB0_WIN1_FB1_WIN0_FB2_WIN2	201
+#define FB0_WIN0_FB1_WIN1_FB2_WIN2_FB3_WIN3	3210
+
 /*      	lvds connect config       
  *                                        
  *          	LVDS_8BIT_1    LVDS_8BIT_2     LVDS_8BIT_3     LVDS_6BIT

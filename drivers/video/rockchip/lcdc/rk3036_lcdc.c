@@ -1237,8 +1237,7 @@ static int rk3036_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 
-static int rk3036_fb_win_remap(struct rk_lcdc_driver *dev_drv,
-			       enum fb_win_map_order order)
+static int rk3036_fb_win_remap(struct rk_lcdc_driver *dev_drv, u16 order)
 {
 	mutex_lock(&dev_drv->fb_win_id_mutex);
 	if (order == FB_DEFAULT_ORDER)
@@ -1409,10 +1408,10 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 
 static int rk3036_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 {
-#if defined(CONFIG_ROCKCHIP_IOMMU)
 	struct device_node *np = lcdc_dev->dev->of_node;
 	int val;
 
+#if defined(CONFIG_ROCKCHIP_IOMMU)
 	if (of_property_read_u32(np, "rockchip,iommu-enabled", &val))
 		lcdc_dev->driver.iommu_enabled = 0;
 	else
@@ -1420,6 +1419,11 @@ static int rk3036_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 #else
 	lcdc_dev->driver.iommu_enabled = 0;
 #endif
+	if (of_property_read_u32(np, "rockchip,fb-win-map", &val))
+		lcdc_dev->driver.fb_win_map = FB_DEFAULT_ORDER;
+	else
+		lcdc_dev->driver.fb_win_map = val;
+
 	return 0;
 }
 

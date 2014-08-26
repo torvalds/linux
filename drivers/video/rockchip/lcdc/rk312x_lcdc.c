@@ -1676,8 +1676,7 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	return 0;
 }
 
-static int rk312x_fb_win_remap(struct rk_lcdc_driver *dev_drv,
-			       enum fb_win_map_order order)
+static int rk312x_fb_win_remap(struct rk_lcdc_driver *dev_drv, u16 order)
 {
 	mutex_lock(&dev_drv->fb_win_id_mutex);
 	if (order == FB_DEFAULT_ORDER)
@@ -2039,6 +2038,12 @@ static int rk312x_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 #else
 	lcdc_dev->driver.iommu_enabled = 0;
 #endif
+
+	if (of_property_read_u32(np, "rockchip,fb-win-map", &val))
+		lcdc_dev->driver.fb_win_map = FB_DEFAULT_ORDER;
+	else
+		lcdc_dev->driver.fb_win_map = val;
+
         match = of_match_node(rk312x_lcdc_dt_ids, np);
         if (match) {
                 lcdc_drvdata = (const struct rk_lcdc_drvdata *)match->data;
