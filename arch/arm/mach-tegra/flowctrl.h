@@ -59,6 +59,8 @@ void flowctrl_write_cpu_halt(unsigned int cpuid, u32 value);
 
 void flowctrl_cpu_suspend_enter(unsigned int cpuid);
 void flowctrl_cpu_suspend_exit(unsigned int cpuid);
+
+void tegra_flowctrl_init(void);
 #endif
 
 #endif
