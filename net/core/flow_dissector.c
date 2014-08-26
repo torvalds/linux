@@ -59,14 +59,26 @@ __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
 }
 EXPORT_SYMBOL(__skb_flow_get_ports);
 
-bool __skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow, void *data, int hlen)
+/**
+ * __skb_flow_dissect - extract the flow_keys struct and return it
+ * @skb: sk_buff to extract the flow from, can be NULL if the rest are specified
+ * @data: raw buffer pointer to the packet, if NULL use skb->data
+ * @proto: protocol for which to get the flow, if @data is NULL use skb->protocol
+ * @nhoff: network header offset, if @data is NULL use skb_network_offset(skb)
+ * @hlen: packet header length, if @data is NULL use skb_headlen(skb)
+ *
+ * The function will try to retrieve the struct flow_keys from either the skbuff
+ * or a raw buffer specified by the rest parameters
+ */
+bool __skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow,
+			void *data, __be16 proto, int nhoff, int hlen)
 {
-	int nhoff = skb_network_offset(skb);
 	u8 ip_proto;
-	__be16 proto = skb->protocol;
 
 	if (!data) {
 		data = skb->data;
+		proto = skb->protocol;
+		nhoff = skb_network_offset(skb);
 		hlen = skb_headlen(skb);
 	}
 

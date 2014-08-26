@@ -28,10 +28,10 @@ struct flow_keys {
 };
 
 bool __skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow,
-			void *data, int hlen);
+			void *data, __be16 proto, int nhoff, int hlen);
 static inline bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
 {
-	return __skb_flow_dissect(skb, flow, NULL, 0);
+	return __skb_flow_dissect(skb, flow, NULL, 0, 0, 0);
 }
 __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
 			    void *data, int hlen_proto);
