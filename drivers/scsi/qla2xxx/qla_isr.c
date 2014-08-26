@@ -118,7 +118,8 @@ qla2x00_check_reg32_for_disconnect(scsi_qla_host_t *vha, uint32_t reg)
 	/* Check for PCI disconnection */
 	if (reg == 0xffffffff) {
 		if (!test_and_set_bit(PFLG_DISCONNECTED, &vha->pci_flags) &&
-		    !test_bit(PFLG_DRIVER_REMOVING, &vha->pci_flags)) {
+		    !test_bit(PFLG_DRIVER_REMOVING, &vha->pci_flags) &&
+		    !test_bit(PFLG_DRIVER_PROBING, &vha->pci_flags)) {
 			/*
 			 * Schedule this (only once) on the default system
 			 * workqueue so that all the adapter workqueues and the
