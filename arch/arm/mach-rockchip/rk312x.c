@@ -104,9 +104,17 @@ static void usb_uart_init(void)
 
 static void __init rk312x_dt_map_io(void)
 {
+	u32 v;
+
 	iotable_init(rk312x_io_desc, ARRAY_SIZE(rk312x_io_desc));
 	debug_ll_io_init();
 	usb_uart_init();
+
+	/* pmu reset by second global soft reset */
+	v = readl_relaxed(RK_CRU_VIRT + RK312X_CRU_GLB_CNT_TH);
+	v &= ~(3 << 12);
+	v |= 1 << 12;
+	writel_relaxed(v, RK_CRU_VIRT + RK312X_CRU_GLB_CNT_TH);
 
 	/* enable timer5 for core */
 	writel_relaxed(0, RK312X_TIMER5_VIRT + 0x10);
@@ -349,7 +357,7 @@ static void rk312x_restart(char mode, const char *cmd)
 	dsb();
 
 	/* pll enter slow mode */
-	writel_relaxed(0x30110000, RK_CRU_VIRT + RK312X_CRU_MODE_CON);
+	writel_relaxed(0x11010000, RK_CRU_VIRT + RK312X_CRU_MODE_CON);
 	dsb();
 	writel_relaxed(0xeca8, RK_CRU_VIRT + RK312X_CRU_GLB_SRST_SND_VALUE);
 	dsb();
