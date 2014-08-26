@@ -37,13 +37,13 @@ static int diag_release_pages(struct kvm_vcpu *vcpu)
 
 	/* we checked for start > end above */
 	if (end < prefix || start >= prefix + 2 * PAGE_SIZE) {
-		gmap_discard(start, end, vcpu->arch.gmap);
+		gmap_discard(vcpu->arch.gmap, start, end);
 	} else {
 		if (start < prefix)
-			gmap_discard(start, prefix, vcpu->arch.gmap);
+			gmap_discard(vcpu->arch.gmap, start, prefix);
 		if (end >= prefix)
-			gmap_discard(prefix + 2 * PAGE_SIZE,
-				     end, vcpu->arch.gmap);
+			gmap_discard(vcpu->arch.gmap,
+				     prefix + 2 * PAGE_SIZE, end);
 	}
 	return 0;
 }

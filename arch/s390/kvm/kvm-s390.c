@@ -451,7 +451,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (type & KVM_VM_S390_UCONTROL) {
 		kvm->arch.gmap = NULL;
 	} else {
-		kvm->arch.gmap = gmap_alloc(current->mm);
+		kvm->arch.gmap = gmap_alloc(current->mm, -1UL);
 		if (!kvm->arch.gmap)
 			goto out_nogmap;
 		kvm->arch.gmap->private = kvm;
@@ -535,7 +535,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
 	if (kvm_is_ucontrol(vcpu->kvm)) {
-		vcpu->arch.gmap = gmap_alloc(current->mm);
+		vcpu->arch.gmap = gmap_alloc(current->mm, -1UL);
 		if (!vcpu->arch.gmap)
 			return -ENOMEM;
 		vcpu->arch.gmap->private = vcpu->kvm;
@@ -546,7 +546,9 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	vcpu->run->kvm_valid_regs = KVM_SYNC_PREFIX |
 				    KVM_SYNC_GPRS |
 				    KVM_SYNC_ACRS |
-				    KVM_SYNC_CRS;
+				    KVM_SYNC_CRS |
+				    KVM_SYNC_ARCH0 |
+				    KVM_SYNC_PFAULT;
 	return 0;
 }
 
@@ -1053,6 +1055,11 @@ retry:
 		goto retry;
 	}
 
+	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu)) {
+		vcpu->arch.sie_block->ihcpu = 0xffff;
+		goto retry;
+	}
+
 	if (kvm_check_request(KVM_REQ_ENABLE_IBS, vcpu)) {
 		if (!ibs_enabled(vcpu)) {
 			trace_kvm_s390_enable_disable_ibs(vcpu->vcpu_id, 1);
@@ -1089,18 +1096,8 @@ retry:
  */
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable)
 {
-	struct mm_struct *mm = current->mm;
-	hva_t hva;
-	long rc;
-
-	hva = gmap_fault(gpa, vcpu->arch.gmap);
-	if (IS_ERR_VALUE(hva))
-		return (long)hva;
-	down_read(&mm->mmap_sem);
-	rc = get_user_pages(current, mm, hva, 1, writable, 0, NULL, NULL);
-	up_read(&mm->mmap_sem);
-
-	return rc < 0 ? rc : 0;
+	return gmap_fault(vcpu->arch.gmap, gpa,
+			  writable ? FAULT_FLAG_WRITE : 0);
 }
 
 static void __kvm_inject_pfault_token(struct kvm_vcpu *vcpu, bool start_token,
@@ -1195,8 +1192,11 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 	if (test_cpu_flag(CIF_MCCK_PENDING))
 		s390_handle_mcck();
 
-	if (!kvm_is_ucontrol(vcpu->kvm))
-		kvm_s390_deliver_pending_interrupts(vcpu);
+	if (!kvm_is_ucontrol(vcpu->kvm)) {
+		rc = kvm_s390_deliver_pending_interrupts(vcpu);
+		if (rc)
+			return rc;
+	}
 
 	rc = kvm_s390_handle_requests(vcpu);
 	if (rc)
@@ -1300,6 +1300,48 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	return rc;
 }
 
+static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	vcpu->arch.sie_block->gpsw.mask = kvm_run->psw_mask;
+	vcpu->arch.sie_block->gpsw.addr = kvm_run->psw_addr;
+	if (kvm_run->kvm_dirty_regs & KVM_SYNC_PREFIX)
+		kvm_s390_set_prefix(vcpu, kvm_run->s.regs.prefix);
+	if (kvm_run->kvm_dirty_regs & KVM_SYNC_CRS) {
+		memcpy(&vcpu->arch.sie_block->gcr, &kvm_run->s.regs.crs, 128);
+		/* some control register changes require a tlb flush */
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	}
+	if (kvm_run->kvm_dirty_regs & KVM_SYNC_ARCH0) {
+		vcpu->arch.sie_block->cputm = kvm_run->s.regs.cputm;
+		vcpu->arch.sie_block->ckc = kvm_run->s.regs.ckc;
+		vcpu->arch.sie_block->todpr = kvm_run->s.regs.todpr;
+		vcpu->arch.sie_block->pp = kvm_run->s.regs.pp;
+		vcpu->arch.sie_block->gbea = kvm_run->s.regs.gbea;
+	}
+	if (kvm_run->kvm_dirty_regs & KVM_SYNC_PFAULT) {
+		vcpu->arch.pfault_token = kvm_run->s.regs.pft;
+		vcpu->arch.pfault_select = kvm_run->s.regs.pfs;
+		vcpu->arch.pfault_compare = kvm_run->s.regs.pfc;
+	}
+	kvm_run->kvm_dirty_regs = 0;
+}
+
+static void store_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	kvm_run->psw_mask = vcpu->arch.sie_block->gpsw.mask;
+	kvm_run->psw_addr = vcpu->arch.sie_block->gpsw.addr;
+	kvm_run->s.regs.prefix = kvm_s390_get_prefix(vcpu);
+	memcpy(&kvm_run->s.regs.crs, &vcpu->arch.sie_block->gcr, 128);
+	kvm_run->s.regs.cputm = vcpu->arch.sie_block->cputm;
+	kvm_run->s.regs.ckc = vcpu->arch.sie_block->ckc;
+	kvm_run->s.regs.todpr = vcpu->arch.sie_block->todpr;
+	kvm_run->s.regs.pp = vcpu->arch.sie_block->pp;
+	kvm_run->s.regs.gbea = vcpu->arch.sie_block->gbea;
+	kvm_run->s.regs.pft = vcpu->arch.pfault_token;
+	kvm_run->s.regs.pfs = vcpu->arch.pfault_select;
+	kvm_run->s.regs.pfc = vcpu->arch.pfault_compare;
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int rc;
@@ -1321,17 +1363,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return -EINVAL;
 	}
 
-	vcpu->arch.sie_block->gpsw.mask = kvm_run->psw_mask;
-	vcpu->arch.sie_block->gpsw.addr = kvm_run->psw_addr;
-	if (kvm_run->kvm_dirty_regs & KVM_SYNC_PREFIX) {
-		kvm_run->kvm_dirty_regs &= ~KVM_SYNC_PREFIX;
-		kvm_s390_set_prefix(vcpu, kvm_run->s.regs.prefix);
-	}
-	if (kvm_run->kvm_dirty_regs & KVM_SYNC_CRS) {
-		kvm_run->kvm_dirty_regs &= ~KVM_SYNC_CRS;
-		memcpy(&vcpu->arch.sie_block->gcr, &kvm_run->s.regs.crs, 128);
-		kvm_s390_set_prefix(vcpu, kvm_run->s.regs.prefix);
-	}
+	sync_regs(vcpu, kvm_run);
 
 	might_fault();
 	rc = __vcpu_run(vcpu);
@@ -1361,10 +1393,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		rc = 0;
 	}
 
-	kvm_run->psw_mask     = vcpu->arch.sie_block->gpsw.mask;
-	kvm_run->psw_addr     = vcpu->arch.sie_block->gpsw.addr;
-	kvm_run->s.regs.prefix = kvm_s390_get_prefix(vcpu);
-	memcpy(&kvm_run->s.regs.crs, &vcpu->arch.sie_block->gcr, 128);
+	store_regs(vcpu, kvm_run);
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
@@ -1493,7 +1522,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 	 * Another VCPU might have used IBS while we were offline.
 	 * Let's play safe and flush the VCPU at startup.
 	 */
-	vcpu->arch.sie_block->ihcpu  = 0xffff;
+	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	spin_unlock(&vcpu->kvm->arch.start_stop_lock);
 	return;
 }
@@ -1648,9 +1677,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 #endif
 	case KVM_S390_VCPU_FAULT: {
-		r = gmap_fault(arg, vcpu->arch.gmap);
-		if (!IS_ERR_VALUE(r))
-			r = 0;
+		r = gmap_fault(vcpu->arch.gmap, arg, 0);
 		break;
 	}
 	case KVM_ENABLE_CAP:

@@ -70,7 +70,7 @@ static inline u32 kvm_s390_get_prefix(struct kvm_vcpu *vcpu)
 static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 {
 	vcpu->arch.sie_block->prefix = prefix >> GUEST_PREFIX_SHIFT;
-	vcpu->arch.sie_block->ihcpu  = 0xffff;
+	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 }
 
@@ -138,8 +138,7 @@ static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
-void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu);
-void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu);
+int kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu);
 void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu);
 void kvm_s390_clear_float_irqs(struct kvm *kvm);
 int __must_check kvm_s390_inject_vm(struct kvm *kvm,
