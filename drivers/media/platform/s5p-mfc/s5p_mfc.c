@@ -1311,11 +1311,9 @@ static int s5p_mfc_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s5p_mfc_dev *m_dev = platform_get_drvdata(pdev);
-	int pre_power;
 
 	if (!m_dev->alloc_ctx)
 		return 0;
-	pre_power = atomic_read(&m_dev->pm.power);
 	atomic_set(&m_dev->pm.power, 1);
 	return 0;
 }

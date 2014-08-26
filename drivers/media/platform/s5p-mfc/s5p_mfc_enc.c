@@ -739,14 +739,11 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 static void cleanup_ref_queue(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_buf *mb_entry;
-	unsigned long mb_y_addr, mb_c_addr;
 
 	/* move buffers in ref queue to src queue */
 	while (!list_empty(&ctx->ref_queue)) {
 		mb_entry = list_entry((&ctx->ref_queue)->next,
 						struct s5p_mfc_buf, list);
-		mb_y_addr = vb2_dma_contig_plane_dma_addr(mb_entry->b, 0);
-		mb_c_addr = vb2_dma_contig_plane_dma_addr(mb_entry->b, 1);
 		list_del(&mb_entry->list);
 		ctx->ref_queue_cnt--;
 		list_add_tail(&mb_entry->list, &ctx->src_queue);
@@ -1681,8 +1678,8 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	return 0;
 }
 
-int vidioc_encoder_cmd(struct file *file, void *priv,
-						struct v4l2_encoder_cmd *cmd)
+static int vidioc_encoder_cmd(struct file *file, void *priv,
+			      struct v4l2_encoder_cmd *cmd)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	struct s5p_mfc_dev *dev = ctx->dev;

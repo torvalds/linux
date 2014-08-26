@@ -1186,7 +1186,6 @@ static int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *temp_vb;
 	unsigned long flags;
-	unsigned int index;
 
 	if (ctx->state == MFCINST_FINISHING) {
 		last_frame = MFC_DEC_LAST_FRAME;
@@ -1211,7 +1210,6 @@ static int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 		vb2_dma_contig_plane_dma_addr(temp_vb->b, 0),
 		ctx->consumed_stream, temp_vb->b->v4l2_planes[0].bytesused);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
-	index = temp_vb->b->v4l2_buf.index;
 	dev->curr_ctx = ctx->num;
 	s5p_mfc_clean_ctx_int_flags(ctx);
 	if (temp_vb->b->v4l2_planes[0].bytesused == 0) {

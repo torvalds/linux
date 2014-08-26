@@ -823,8 +823,8 @@ static int vidioc_g_crop(struct file *file, void *priv,
 	return 0;
 }
 
-int vidioc_decoder_cmd(struct file *file, void *priv,
-						struct v4l2_decoder_cmd *cmd)
+static int vidioc_decoder_cmd(struct file *file, void *priv,
+			      struct v4l2_decoder_cmd *cmd)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	struct s5p_mfc_dev *dev = ctx->dev;
