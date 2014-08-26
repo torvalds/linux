@@ -569,6 +569,7 @@ static void tegra_pcie_port_enable(struct tegra_pcie_port *port)
 
 static void tegra_pcie_port_disable(struct tegra_pcie_port *port)
 {
+	const struct tegra_pcie_soc_data *soc = port->pcie->soc_data;
 	unsigned long ctrl = tegra_pcie_port_get_pex_ctrl(port);
 	unsigned long value;
 
@@ -579,6 +580,10 @@ static void tegra_pcie_port_disable(struct tegra_pcie_port *port)
 
 	/* disable reference clock */
 	value = afi_readl(port->pcie, ctrl);
+
+	if (soc->has_pex_clkreq_en)
+		value &= ~AFI_PEX_CTRL_CLKREQ_EN;
+
 	value &= ~AFI_PEX_CTRL_REFCLK_EN;
 	afi_writel(port->pcie, value, ctrl);
 }
