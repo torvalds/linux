@@ -509,6 +509,7 @@ struct pci_dev *comedi_to_pci_dev(struct comedi_device *);
 
 int comedi_pci_enable(struct comedi_device *);
 void comedi_pci_disable(struct comedi_device *);
+void comedi_pci_detach(struct comedi_device *);
 
 int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *,
 			   unsigned long context);
@@ -550,6 +551,10 @@ static inline int comedi_pci_enable(struct comedi_device *dev)
 }
 
 static inline void comedi_pci_disable(struct comedi_device *dev)
+{
+}
+
+static inline void comedi_pci_detach(struct comedi_device *dev)
 {
 }
 

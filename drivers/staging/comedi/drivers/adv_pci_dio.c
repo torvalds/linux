@@ -1170,7 +1170,7 @@ static void pci_dio_detach(struct comedi_device *dev)
 		if (devpriv->valid)
 			pci_dio_reset(dev);
 	}
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver adv_pci_dio_driver = {

@@ -246,18 +246,11 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void pci_8255_detach(struct comedi_device *dev)
-{
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver pci_8255_driver = {
 	.driver_name	= "8255_pci",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci_8255_auto_attach,
-	.detach		= pci_8255_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int pci_8255_pci_probe(struct pci_dev *dev,

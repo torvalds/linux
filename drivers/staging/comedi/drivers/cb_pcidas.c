@@ -1589,15 +1589,11 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (devpriv->s5933_config) {
-			outl(INTCSR_INBOX_INTR_STATUS,
-			     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
-		}
+	if (devpriv && devpriv->s5933_config) {
+		outl(INTCSR_INBOX_INTR_STATUS,
+		     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver cb_pcidas_driver = {

@@ -442,9 +442,7 @@ static void apci1564_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci1564_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci1564_driver = {

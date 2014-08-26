@@ -910,17 +910,9 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 static void apci3xxx_detach(struct comedi_device *dev)
 {
-	struct apci3xxx_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (dev->iobase)
-			apci3xxx_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-		if (dev->mmio)
-			iounmap(dev->mmio);
-	}
-	comedi_pci_disable(dev);
+	if (dev->iobase)
+		apci3xxx_reset(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci3xxx_driver = {

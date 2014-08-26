@@ -471,11 +471,7 @@ static void ni6527_detach(struct comedi_device *dev)
 {
 	if (dev->mmio)
 		ni6527_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver ni6527_driver = {

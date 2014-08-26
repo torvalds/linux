@@ -372,7 +372,7 @@ static struct comedi_driver adv_pci1724_driver = {
 	.driver_name = "adv_pci1724",
 	.module = THIS_MODULE,
 	.auto_attach = adv_pci1724_auto_attach,
-	.detach = comedi_pci_disable,
+	.detach = comedi_pci_detach,
 };
 
 static int adv_pci1724_pci_probe(struct pci_dev *dev,

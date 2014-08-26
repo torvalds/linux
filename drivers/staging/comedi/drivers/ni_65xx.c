@@ -792,13 +792,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 
 static void ni_65xx_detach(struct comedi_device *dev)
 {
-	if (dev->mmio) {
+	if (dev->mmio)
 		writeb(0x00, dev->mmio + NI_65XX_CTRL_REG);
-		iounmap(dev->mmio);
-	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver ni_65xx_driver = {

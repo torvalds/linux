@@ -544,14 +544,12 @@ static void me_detach(struct comedi_device *dev)
 	struct me_private_data *dev_private = dev->private;
 
 	if (dev_private) {
-		if (dev->mmio) {
+		if (dev->mmio)
 			me_reset(dev);
-			iounmap(dev->mmio);
-		}
 		if (dev_private->plx_regbase)
 			iounmap(dev_private->plx_regbase);
 	}
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver me_daq_driver = {

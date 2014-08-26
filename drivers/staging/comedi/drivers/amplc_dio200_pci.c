@@ -387,20 +387,11 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 	return amplc_dio200_common_attach(dev, pci_dev->irq, IRQF_SHARED);
 }
 
-static void dio200_pci_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver dio200_pci_comedi_driver = {
 	.driver_name	= "amplc_dio200_pci",
 	.module		= THIS_MODULE,
 	.auto_attach	= dio200_pci_auto_attach,
-	.detach		= dio200_pci_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static const struct pci_device_id dio200_pci_table[] = {

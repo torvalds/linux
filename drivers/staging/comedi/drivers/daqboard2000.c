@@ -727,15 +727,9 @@ static void daqboard2000_detach(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (dev->mmio)
-			iounmap(dev->mmio);
-		if (devpriv->plx)
-			iounmap(devpriv->plx);
-	}
-	comedi_pci_disable(dev);
+	if (devpriv && devpriv->plx)
+		iounmap(devpriv->plx);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver daqboard2000_driver = {

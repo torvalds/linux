@@ -268,13 +268,7 @@ static int addi_auto_attach(struct comedi_device *dev,
 
 static void i_ADDI_Detach(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (dev->iobase)
-			i_ADDI_Reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-	}
-	comedi_pci_disable(dev);
+	if (dev->iobase)
+		i_ADDI_Reset(dev);
+	comedi_pci_detach(dev);
 }

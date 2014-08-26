@@ -236,18 +236,11 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void cb_pcimdas_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver cb_pcimdas_driver = {
 	.driver_name	= "cb_pcimdas",
 	.module		= THIS_MODULE,
 	.auto_attach	= cb_pcimdas_auto_attach,
-	.detach		= cb_pcimdas_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int cb_pcimdas_pci_probe(struct pci_dev *dev,

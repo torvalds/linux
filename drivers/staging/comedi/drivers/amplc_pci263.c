@@ -86,7 +86,7 @@ static struct comedi_driver amplc_pci263_driver = {
 	.driver_name	= "amplc_pci263",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci263_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static const struct pci_device_id pci263_pci_table[] = {

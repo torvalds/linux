@@ -2033,11 +2033,10 @@ static void pci9118_detach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci9118_private *devpriv = dev->private;
 
+	if (dev->iobase)
+		pci9118_reset(dev);
+	comedi_pci_detach(dev);
 	if (devpriv) {
-		if (dev->iobase)
-			pci9118_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
 		if (devpriv->dmabuf_virt[0])
 			free_pages((unsigned long)devpriv->dmabuf_virt[0],
 				   devpriv->dmabuf_pages[0]);
@@ -2045,7 +2044,6 @@ static void pci9118_detach(struct comedi_device *dev)
 			free_pages((unsigned long)devpriv->dmabuf_virt[1],
 				   devpriv->dmabuf_pages[1]);
 	}
-	comedi_pci_disable(dev);
 	if (pcidev)
 		pci_dev_put(pcidev);
 }

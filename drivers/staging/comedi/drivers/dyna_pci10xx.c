@@ -243,9 +243,9 @@ static void dyna_pci10xx_detach(struct comedi_device *dev)
 {
 	struct dyna_pci10xx_private *devpriv = dev->private;
 
+	comedi_pci_detach(dev);
 	if (devpriv)
 		mutex_destroy(&devpriv->mutex);
-	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver dyna_pci10xx_driver = {

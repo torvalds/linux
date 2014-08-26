@@ -1130,13 +1130,11 @@ static void pci224_detach(struct comedi_device *dev)
 {
 	struct pci224_private *devpriv = dev->private;
 
-	if (dev->irq)
-		free_irq(dev->irq, dev);
+	comedi_pci_detach(dev);
 	if (devpriv) {
 		kfree(devpriv->ao_scan_vals);
 		kfree(devpriv->ao_scan_order);
 	}
-	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver amplc_pci224_driver = {

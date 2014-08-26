@@ -542,11 +542,7 @@ static void icp_multi_detach(struct comedi_device *dev)
 	if (devpriv)
 		if (devpriv->valid)
 			icp_multi_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver icp_multi_driver = {

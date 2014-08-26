@@ -640,7 +640,7 @@ static void skel_detach(struct comedi_device *dev)
 		 * If PCI device enabled by _auto_attach() (or _attach()),
 		 * disable it here.
 		 */
-		comedi_pci_disable(dev);
+		comedi_pci_detach(dev);
 	} else {
 		/*
 		 * ISA board

@@ -2830,9 +2830,7 @@ static void pci230_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 	if (pcidev)
 		pci_dev_put(pcidev);
 }

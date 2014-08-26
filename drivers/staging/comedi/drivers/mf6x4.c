@@ -290,14 +290,13 @@ static void mf6x4_detach(struct comedi_device *dev)
 {
 	struct mf6x4_private *devpriv = dev->private;
 
-	if (devpriv->bar0_mem)
-		iounmap(devpriv->bar0_mem);
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	if (devpriv->bar2_mem)
-		iounmap(devpriv->bar2_mem);
-
-	comedi_pci_disable(dev);
+	if (devpriv) {
+		if (devpriv->bar0_mem)
+			iounmap(devpriv->bar0_mem);
+		if (devpriv->bar2_mem)
+			iounmap(devpriv->bar2_mem);
+	}
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver mf6x4_driver = {

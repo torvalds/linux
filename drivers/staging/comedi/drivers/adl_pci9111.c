@@ -781,9 +781,7 @@ static void pci9111_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		pci9111_reset(dev);
-	if (dev->irq != 0)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver adl_pci9111_driver = {

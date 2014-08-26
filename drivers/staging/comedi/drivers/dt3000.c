@@ -735,20 +735,11 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void dt3000_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver dt3000_driver = {
 	.driver_name	= "dt3000",
 	.module		= THIS_MODULE,
 	.auto_attach	= dt3000_auto_attach,
-	.detach		= dt3000_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int dt3000_pci_probe(struct pci_dev *dev,

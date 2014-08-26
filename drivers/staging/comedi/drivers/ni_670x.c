@@ -256,14 +256,12 @@ static void ni_670x_detach(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
 
+	comedi_pci_detach(dev);
 	if (dev->n_subdevices) {
 		s = &dev->subdevices[0];
 		if (s)
 			kfree(s->range_table_list);
 	}
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni_670x_driver = {

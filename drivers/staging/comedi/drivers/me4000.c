@@ -1516,11 +1516,9 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 static void me4000_detach(struct comedi_device *dev)
 {
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	if (dev->iobase)
 		me4000_reset(dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver me4000_driver = {
