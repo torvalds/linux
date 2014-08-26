@@ -624,7 +624,7 @@ static int sti_tvout_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tvout_of_match[] = {
+static const struct of_device_id tvout_of_match[] = {
 	{ .compatible = "st,stih416-tvout", },
 	{ .compatible = "st,stih407-tvout", },
 	{ /* end node */ }

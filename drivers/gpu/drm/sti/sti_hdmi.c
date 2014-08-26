@@ -677,7 +677,7 @@ static const struct component_ops sti_hdmi_ops = {
 	.unbind = sti_hdmi_unbind,
 };
 
-static struct of_device_id hdmi_of_match[] = {
+static const struct of_device_id hdmi_of_match[] = {
 	{
 		.compatible = "st,stih416-hdmi",
 		.data = &tx3g0c55phy_ops,

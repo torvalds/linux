@@ -770,7 +770,7 @@ static int sti_hda_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id hda_of_match[] = {
+static const struct of_device_id hda_of_match[] = {
 	{ .compatible = "st,stih416-hda", },
 	{ .compatible = "st,stih407-hda", },
 	{ /* end node */ }
