@@ -38,7 +38,7 @@ struct mcryptd_flush_list {
 	struct mutex lock;
 };
 
-struct mcryptd_flush_list __percpu *mcryptd_flist;
+static struct mcryptd_flush_list __percpu *mcryptd_flist;
 
 struct hashd_instance_ctx {
 	struct crypto_shash_spawn spawn;
