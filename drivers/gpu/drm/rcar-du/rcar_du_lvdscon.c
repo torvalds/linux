@@ -40,18 +40,9 @@ static int rcar_du_lvds_connector_get_modes(struct drm_connector *connector)
 		return 0;
 
 	mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
-	mode->clock = lvdscon->panel->mode.clock;
-	mode->hdisplay = lvdscon->panel->mode.hdisplay;
-	mode->hsync_start = lvdscon->panel->mode.hsync_start;
-	mode->hsync_end = lvdscon->panel->mode.hsync_end;
-	mode->htotal = lvdscon->panel->mode.htotal;
-	mode->vdisplay = lvdscon->panel->mode.vdisplay;
-	mode->vsync_start = lvdscon->panel->mode.vsync_start;
-	mode->vsync_end = lvdscon->panel->mode.vsync_end;
-	mode->vtotal = lvdscon->panel->mode.vtotal;
-	mode->flags = lvdscon->panel->mode.flags;
 
-	drm_mode_set_name(mode);
+	drm_display_mode_from_videomode(&lvdscon->panel->mode, mode);
+
 	drm_mode_probed_add(connector, mode);
 
 	return 1;
