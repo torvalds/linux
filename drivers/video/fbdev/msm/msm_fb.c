@@ -589,6 +589,8 @@ static int msmfb_probe(struct platform_device *pdev)
 
 	msmfb->sleeping = WAKING;
 
+	platform_set_drvdata(pdev, msmfb);
+
 	return 0;
 
 error_register_framebuffer:
@@ -598,9 +600,23 @@ error_setup_fbmem:
 	return ret;
 }
 
+static int msmfb_remove(struct platform_device *pdev)
+{
+	struct msmfb_info *msmfb;
+
+	msmfb = platform_get_drvdata(pdev);
+
+	unregister_framebuffer(msmfb->fb);
+	iounmap(msmfb->fb->screen_base);
+	framebuffer_release(msmfb->fb);
+
+	return 0;
+}
+
 static struct platform_driver msm_panel_driver = {
 	/* need to write remove */
 	.probe = msmfb_probe,
+	.remove = msmfb_remove,
 	.driver = {.name = "msm_panel"},
 };
 
