@@ -20,6 +20,7 @@
 #include <linux/mbus.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <linux/io.h>
