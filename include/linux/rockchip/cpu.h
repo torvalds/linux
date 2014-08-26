@@ -3,7 +3,26 @@
 
 extern unsigned long rockchip_soc_id;
 
-static inline bool cpu_is_rockchip(void) { return rockchip_soc_id; }
+static inline bool cpu_is_rockchip(void)
+{
+	return rockchip_soc_id;
+}
+
+#define ROCKCHIP_CPU_VERION_MASK	0x0000f000
+#define ROCKCHIP_CPU_VERION_SHIFT	12
+
+static inline unsigned long rockchip_get_cpu_version(void)
+{
+	return (rockchip_soc_id & ROCKCHIP_CPU_VERION_MASK)
+		>> ROCKCHIP_CPU_VERION_SHIFT;
+}
+
+static inline void rockchip_set_cpu_version(unsigned long ver)
+{
+	rockchip_soc_id &= ~ROCKCHIP_CPU_VERION_MASK;
+	rockchip_soc_id |=
+		(ver << ROCKCHIP_CPU_VERION_SHIFT) & ROCKCHIP_CPU_VERION_MASK;
+}
 
 #define ROCKCHIP_CPU_MASK       0xffff0000
 #define ROCKCHIP_CPU_RK2928     0x29280000
@@ -16,16 +35,23 @@ static inline bool cpu_is_rockchip(void) { return rockchip_soc_id; }
 #define ROCKCHIP_CPU_RK319X     0x31900000
 #define ROCKCHIP_CPU_RK3288     0x32880000
 
-static inline bool cpu_is_rk2928(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK2928; }
-static inline bool cpu_is_rk3026(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3026; }
-static inline bool cpu_is_rk312x(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK312X; }
-static inline bool cpu_is_rk3036(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3036; }
-static inline bool cpu_is_rk30xx(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK30XX; }
-static inline bool cpu_is_rk3066b(void) { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3066B; }
-static inline bool cpu_is_rk3188(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3188; }
-static inline bool cpu_is_rk319x(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK319X; }
-static inline bool cpu_is_rk3288(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3288; }
+#define ROCKCHIP_CPU(id, ID) \
+static inline bool cpu_is_rk##id(void) \
+{ \
+	return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK ##ID; \
+}
 
+ROCKCHIP_CPU(2928, 2928)
+ROCKCHIP_CPU(3026, 3026)
+ROCKCHIP_CPU(3036, 3036)
+ROCKCHIP_CPU(30xx, 30XX)
+ROCKCHIP_CPU(3066b, 3066B)
+ROCKCHIP_CPU(312x, 312X)
+ROCKCHIP_CPU(3188, 3188)
+ROCKCHIP_CPU(319x, 319X)
+ROCKCHIP_CPU(3288, 3288)
+
+#define ROCKCHIP_SOC_MASK	(ROCKCHIP_CPU_MASK | 0xff)
 #define ROCKCHIP_SOC_RK2926     (ROCKCHIP_CPU_RK2928 | 0x00)
 #define ROCKCHIP_SOC_RK2928G    (ROCKCHIP_CPU_RK2928 | 0x01)
 #define ROCKCHIP_SOC_RK2928L    (ROCKCHIP_CPU_RK2928 | 0x02)
@@ -45,23 +71,29 @@ static inline bool cpu_is_rk3288(void)  { return (rockchip_soc_id & ROCKCHIP_CPU
 #define ROCKCHIP_SOC_RK3190     (ROCKCHIP_CPU_RK319X | 0x00)
 #define ROCKCHIP_SOC_RK3288     (ROCKCHIP_CPU_RK3288 | 0x00)
 
-static inline bool soc_is_rk2926(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK2926; }
-static inline bool soc_is_rk2928g(void) { return rockchip_soc_id == ROCKCHIP_SOC_RK2928G; }
-static inline bool soc_is_rk2928l(void) { return rockchip_soc_id == ROCKCHIP_SOC_RK2928L; }
-static inline bool soc_is_rk3028a(void) { return rockchip_soc_id == ROCKCHIP_SOC_RK3028A; }
-static inline bool soc_is_rk3026(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3026; }
-static inline bool soc_is_rk3126(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3126; }
-static inline bool soc_is_rk3128(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3128; }
-static inline bool soc_is_rk3036(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3036; }
-static inline bool soc_is_rk3000(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3000; }
-static inline bool soc_is_rk3066(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3066; }
-static inline bool soc_is_rk3068(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3068; }
-static inline bool soc_is_rk3066b(void) { return rockchip_soc_id == ROCKCHIP_SOC_RK3066B; }
-static inline bool soc_is_rk3168(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3168; }
-static inline bool soc_is_rk3028(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3028; }
-static inline bool soc_is_rk3188(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3188; }
-static inline bool soc_is_rk3188plus(void) { return rockchip_soc_id == ROCKCHIP_SOC_RK3188PLUS; }
-static inline bool soc_is_rk3190(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3190; }
-static inline bool soc_is_rk3288(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3288; }
+#define ROCKCHIP_SOC(id, ID) \
+static inline bool soc_is_rk##id(void) \
+{ \
+	return (rockchip_soc_id & ROCKCHIP_SOC_MASK) == ROCKCHIP_SOC_RK ##ID; \
+}
+
+ROCKCHIP_SOC(2926, 2926)
+ROCKCHIP_SOC(2928g, 2928G)
+ROCKCHIP_SOC(2928l, 2928L)
+ROCKCHIP_SOC(3028a, 3028A)
+ROCKCHIP_SOC(3026, 3026)
+ROCKCHIP_SOC(3126, 3126)
+ROCKCHIP_SOC(3128, 3128)
+ROCKCHIP_SOC(3036, 3036)
+ROCKCHIP_SOC(3000, 3000)
+ROCKCHIP_SOC(3066, 3066)
+ROCKCHIP_SOC(3068, 3068)
+ROCKCHIP_SOC(3066b, 3066B)
+ROCKCHIP_SOC(3168, 3168)
+ROCKCHIP_SOC(3028, 3028)
+ROCKCHIP_SOC(3188, 3188)
+ROCKCHIP_SOC(3188plus, 3188PLUS)
+ROCKCHIP_SOC(3190, 3190)
+ROCKCHIP_SOC(3288, 3288)
 
 #endif
