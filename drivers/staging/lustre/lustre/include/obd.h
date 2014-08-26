@@ -212,7 +212,7 @@ static inline int lov_lum_swab_if_needed(struct lov_user_md_v3 *lumv3,
 					 int *lmm_magic,
 					 struct lov_user_md *lum)
 {
-	if (lum && copy_from_user(lumv3, lum,sizeof(struct lov_user_md_v1)))
+	if (lum && copy_from_user(lumv3, lum, sizeof(struct lov_user_md_v1)))
 		return -EFAULT;
 
 	*lmm_magic = lumv3->lmm_magic;
@@ -745,7 +745,8 @@ static inline void oti_init(struct obd_trans_info *oti,
 		oti->oti_conn_cnt = lustre_msg_get_conn_cnt(req->rq_reqmsg);
 }
 
-static inline void oti_alloc_cookies(struct obd_trans_info *oti,int num_cookies)
+static inline void oti_alloc_cookies(struct obd_trans_info *oti,
+				     int num_cookies)
 {
 	if (!oti)
 		return;
@@ -1183,7 +1184,8 @@ struct obd_ops {
 			      __u64 max_age, struct ptlrpc_request_set *set);
 	int (*o_packmd)(struct obd_export *exp, struct lov_mds_md **disk_tgt,
 			struct lov_stripe_md *mem_src);
-	int (*o_unpackmd)(struct obd_export *exp,struct lov_stripe_md **mem_tgt,
+	int (*o_unpackmd)(struct obd_export *exp,
+			  struct lov_stripe_md **mem_tgt,
 			  struct lov_mds_md *disk_src, int disk_len);
 	int (*o_preallocate)(struct lustre_handle *, u32 *req, u64 *ids);
 	/* FIXME: add fid capability support for create & destroy! */

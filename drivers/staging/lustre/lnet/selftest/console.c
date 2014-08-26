@@ -910,7 +910,7 @@ lstcon_batch_list(int index, int len, char *name_up)
 
 	list_for_each_entry(bat, &console_session.ses_bat_list, bat_link) {
 		if (index-- == 0) {
-			return copy_to_user(name_up,bat->bat_name, len) ?
+			return copy_to_user(name_up, bat->bat_name, len) ?
 			       -EFAULT: 0;
 		}
 	}

@@ -318,7 +318,8 @@ int lustre_start_mgc(struct super_block *sb)
 		   (using its local copy of the log), but we do want to connect
 		   if at all possible. */
 		recov_bk++;
-		CDEBUG(D_MOUNT, "%s: Set MGC reconnect %d\n", mgcname,recov_bk);
+		CDEBUG(D_MOUNT, "%s: Set MGC reconnect %d\n", mgcname,
+		       recov_bk);
 		rc = obd_set_info_async(NULL, obd->obd_self_export,
 					sizeof(KEY_INIT_RECOV_BACKUP),
 					KEY_INIT_RECOV_BACKUP,

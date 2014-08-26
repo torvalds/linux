@@ -127,12 +127,12 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
  /* Max connect interval for nonresponsive servers; ~50s to avoid building up
     connect requests in the LND queues, but within obd_timeout so we don't
     miss the recovery window */
-#define CONNECTION_SWITCH_MAX min(50U, max(CONNECTION_SWITCH_MIN,obd_timeout))
+#define CONNECTION_SWITCH_MAX min(50U, max(CONNECTION_SWITCH_MIN, obd_timeout))
 #define CONNECTION_SWITCH_INC 5  /* Connection timeout backoff */
 /* In general this should be low to have quick detection of a system
    running on a backup server. (If it's too low, import_select_connection
    will increase the timeout anyhow.)  */
-#define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN,obd_timeout/20)
+#define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN, obd_timeout/20)
 /* The max delay between connects is SWITCH_MAX + SWITCH_INC + INITIAL */
 #define RECONNECT_DELAY_MAX (CONNECTION_SWITCH_MAX + CONNECTION_SWITCH_INC + \
 			     INITIAL_CONNECT_TIMEOUT)

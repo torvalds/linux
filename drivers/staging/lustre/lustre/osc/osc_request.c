@@ -836,7 +836,7 @@ static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 	oa->o_dropped = cli->cl_lost_grant;
 	cli->cl_lost_grant = 0;
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	CDEBUG(D_CACHE,"dirty: %llu undirty: %u dropped %u grant: %llu\n",
+	CDEBUG(D_CACHE, "dirty: %llu undirty: %u dropped %u grant: %llu\n",
 	       oa->o_dirty, oa->o_undirty, oa->o_dropped, oa->o_grant);
 
 }
@@ -1218,7 +1218,8 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 	return cksum;
 }
 
-static int osc_brw_prep_request(int cmd, struct client_obd *cli,struct obdo *oa,
+static int osc_brw_prep_request(int cmd, struct client_obd *cli,
+				struct obdo *oa,
 				struct lov_stripe_md *lsm, u32 page_count,
 				struct brw_page **pga,
 				struct ptlrpc_request **reqp,
@@ -1523,7 +1524,8 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 					 cksum_type_unpack(aa->aa_oa->o_flags)))
 			return -EAGAIN;
 
-		rc = check_write_rcs(req, aa->aa_requested_nob,aa->aa_nio_count,
+		rc = check_write_rcs(req, aa->aa_requested_nob,
+				     aa->aa_nio_count,
 				     aa->aa_page_count, aa->aa_ppga);
 		GOTO(out, rc);
 	}
@@ -2320,7 +2322,7 @@ static int osc_enqueue_fini(struct ptlrpc_request *req, struct ost_lvb *lvb,
 	if ((intent != 0 && rc == ELDLM_LOCK_ABORTED && agl == 0) ||
 	    (rc == 0)) {
 		*flags |= LDLM_FL_LVB_READY;
-		CDEBUG(D_INODE,"got kms %llu blocks %llu mtime %llu\n",
+		CDEBUG(D_INODE, "got kms %llu blocks %llu mtime %llu\n",
 		       lvb->lvb_size, lvb->lvb_blocks, lvb->lvb_mtime);
 	}
 

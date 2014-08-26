@@ -351,7 +351,7 @@ struct obd_histogram;
 
 /* Days / hours / mins / seconds format */
 struct dhms {
-	int d,h,m,s;
+	int d, h, m, s;
 };
 static inline void s2dhms(struct dhms *ts, time_t secs)
 {
@@ -864,7 +864,8 @@ static inline void lprocfs_free_md_stats(struct obd_device *obddev)
 struct obd_export;
 static inline int lprocfs_add_clear_entry(struct obd_export *exp)
 { return 0; }
-static inline int lprocfs_exp_setup(struct obd_export *exp,lnet_nid_t *peer_nid,
+static inline int lprocfs_exp_setup(struct obd_export *exp,
+				    lnet_nid_t *peer_nid,
 				    int *newnid)
 { return 0; }
 static inline int lprocfs_exp_cleanup(struct obd_export *exp)

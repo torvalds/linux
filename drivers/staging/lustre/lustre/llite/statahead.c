@@ -528,7 +528,7 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 		spin_unlock(&lli->lli_sa_lock);
 
 		if (sai->sai_sent > sai->sai_replied)
-			CDEBUG(D_READA,"statahead for dir "DFID
+			CDEBUG(D_READA, "statahead for dir "DFID
 			      " does not finish: [sent:%llu] [replied:%llu]\n",
 			      PFID(&lli->lli_fid),
 			      sai->sai_sent, sai->sai_replied);
@@ -878,7 +878,8 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 		return 1;
 
 	entry->se_inode = igrab(inode);
-	rc = md_revalidate_lock(ll_i2mdexp(dir), &it, ll_inode2fid(inode),NULL);
+	rc = md_revalidate_lock(ll_i2mdexp(dir), &it, ll_inode2fid(inode),
+				NULL);
 	if (rc == 1) {
 		entry->se_handle = it.d.lustre.it_lock_handle;
 		ll_intent_release(&it);

@@ -947,7 +947,8 @@ int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list)
 					       list, obd);
 	if (IS_ERR(obd->obd_proc_entry)) {
 		rc = PTR_ERR(obd->obd_proc_entry);
-		CERROR("error %d setting up lprocfs for %s\n",rc,obd->obd_name);
+		CERROR("error %d setting up lprocfs for %s\n",
+		       rc, obd->obd_name);
 		obd->obd_proc_entry = NULL;
 	}
 	return rc;
@@ -1596,7 +1597,7 @@ static int lprocfs_nid_stats_clear_write_cb(void *obj, void *data)
 {
 	struct nid_stat *stat = obj;
 
-	CDEBUG(D_INFO,"refcnt %d\n", atomic_read(&stat->nid_exp_ref_count));
+	CDEBUG(D_INFO, "refcnt %d\n", atomic_read(&stat->nid_exp_ref_count));
 	if (atomic_read(&stat->nid_exp_ref_count) == 1) {
 		/* object has only hash references. */
 		spin_lock(&stat->nid_obd->obd_nid_lock);
@@ -1786,7 +1787,8 @@ int lprocfs_seq_read_frac_helper(struct seq_file *m, long val, int mult)
 }
 EXPORT_SYMBOL(lprocfs_seq_read_frac_helper);
 
-int lprocfs_write_u64_helper(const char *buffer, unsigned long count,__u64 *val)
+int lprocfs_write_u64_helper(const char *buffer, unsigned long count,
+			     __u64 *val)
 {
 	return lprocfs_write_frac_u64_helper(buffer, count, val, 1);
 }

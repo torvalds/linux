@@ -1146,8 +1146,8 @@ struct lu_context_key {
 	struct __##mod##__dummy_fini {;} /* semicolon catcher */
 
 #define LU_KEY_INIT_FINI(mod, type)   \
-	LU_KEY_INIT(mod,type);	\
-	LU_KEY_FINI(mod,type)
+	LU_KEY_INIT(mod, type);	\
+	LU_KEY_FINI(mod, type)
 
 #define LU_CONTEXT_KEY_DEFINE(mod, tags)		\
 	struct lu_context_key mod##_thread_key = {      \

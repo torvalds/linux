@@ -186,7 +186,8 @@ void client_bulk_callback(lnet_event_t *ev)
 	if (CFS_FAIL_CHECK_ORSET(OBD_FAIL_PTLRPC_CLIENT_BULK_CB, CFS_FAIL_ONCE))
 		ev->status = -EIO;
 
-	if (CFS_FAIL_CHECK_ORSET(OBD_FAIL_PTLRPC_CLIENT_BULK_CB2,CFS_FAIL_ONCE))
+	if (CFS_FAIL_CHECK_ORSET(OBD_FAIL_PTLRPC_CLIENT_BULK_CB2,
+				 CFS_FAIL_ONCE))
 		ev->status = -EIO;
 
 	CDEBUG((ev->status == 0) ? D_NET : D_ERROR,
@@ -481,7 +482,7 @@ int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
 		}
 	}
 
-	CDEBUG(D_NET,"%s->%s\n", uuid->uuid, libcfs_id2str(*peer));
+	CDEBUG(D_NET, "%s->%s\n", uuid->uuid, libcfs_id2str(*peer));
 	return rc;
 }
 

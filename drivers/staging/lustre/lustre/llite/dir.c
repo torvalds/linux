@@ -1721,7 +1721,7 @@ out_quotactl_18:
 
 		rc = quotactl_ioctl(sbi, qctl);
 
-		if (rc == 0 && copy_to_user((void *)arg,qctl,sizeof(*qctl)))
+		if (rc == 0 && copy_to_user((void *)arg, qctl, sizeof(*qctl)))
 			rc = -EFAULT;
 
 out_quotactl:

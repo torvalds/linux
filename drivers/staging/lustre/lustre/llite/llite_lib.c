@@ -1377,7 +1377,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 * OST maximum object size and number of stripes.  This
 		 * needs another check in addition to the VFS check above. */
 		if (attr->ia_size > ll_file_maxbytes(inode)) {
-			CDEBUG(D_INODE,"file "DFID" too large %llu > %llu\n",
+			CDEBUG(D_INODE, "file "DFID" too large %llu > %llu\n",
 			       PFID(&lli->lli_fid), attr->ia_size,
 			       ll_file_maxbytes(inode));
 			return -EFBIG;
@@ -1568,7 +1568,8 @@ int ll_statfs_internal(struct super_block *sb, struct obd_statfs *osfs,
 	osfs->os_type = sb->s_magic;
 
 	CDEBUG(D_SUPER, "MDC blocks %llu/%llu objects %llu/%llu\n",
-	       osfs->os_bavail, osfs->os_blocks, osfs->os_ffree,osfs->os_files);
+	       osfs->os_bavail, osfs->os_blocks, osfs->os_ffree,
+	       osfs->os_files);
 
 	if (sbi->ll_flags & LL_SBI_LAZYSTATFS)
 		flags |= OBD_STATFS_NODELAY;

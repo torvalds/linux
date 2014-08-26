@@ -1425,7 +1425,8 @@ int obd_export_evict_by_nid(struct obd_device *obd, const char *nid)
 	cfs_hash_putref(nid_hash);
 
 	if (!exports_evicted)
-		CDEBUG(D_HA,"%s: can't disconnect NID '%s': no exports found\n",
+		CDEBUG(D_HA,
+		       "%s: can't disconnect NID '%s': no exports found\n",
 		       obd->obd_name, nid);
 	return exports_evicted;
 }

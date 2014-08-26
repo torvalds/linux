@@ -652,7 +652,7 @@ static inline struct inode *ll_info2i(struct ll_inode_info *lli)
 }
 
 __u32 ll_i2suppgid(struct inode *i);
-void ll_i2gids(__u32 *suppgids, struct inode *i1,struct inode *i2);
+void ll_i2gids(__u32 *suppgids, struct inode *i1, struct inode *i2);
 
 static inline int ll_need_32bit_api(struct ll_sb_info *sbi)
 {

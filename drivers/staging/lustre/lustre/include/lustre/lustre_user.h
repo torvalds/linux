@@ -841,7 +841,7 @@ struct ioc_data_version {
 				version. Dirty caches are left unchanged. */
 
 #ifndef offsetof
-# define offsetof(typ,memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
+# define offsetof(typ, memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
 #endif
 
 #define dot_lustre_name ".lustre"

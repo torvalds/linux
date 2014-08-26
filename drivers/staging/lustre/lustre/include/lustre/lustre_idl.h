@@ -1355,8 +1355,9 @@ extern void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 #define CLIENT_CONNECT_MDT_REQD (OBD_CONNECT_IBITS | OBD_CONNECT_FID | \
 				 OBD_CONNECT_FULL20)
 
-#define OBD_OCD_VERSION(major,minor,patch,fix) (((major)<<24) + ((minor)<<16) +\
-						((patch)<<8) + (fix))
+#define OBD_OCD_VERSION(major, minor, patch, fix) (((major)<<24) + \
+						  ((minor)<<16) + \
+						  ((patch)<<8) + (fix))
 #define OBD_OCD_VERSION_MAJOR(version) ((int)((version)>>24)&255)
 #define OBD_OCD_VERSION_MINOR(version) ((int)((version)>>16)&255)
 #define OBD_OCD_VERSION_PATCH(version) ((int)((version)>>8)&255)
@@ -2855,7 +2856,7 @@ extern void lustre_swab_ldlm_request (struct ldlm_request *rq);
 
 /* If LDLM_ENQUEUE, 1 slot is already occupied, 1 is available.
  * Otherwise, 2 are available. */
-#define ldlm_request_bufsize(count,type)				\
+#define ldlm_request_bufsize(count, type)				\
 ({								      \
 	int _avail = LDLM_LOCKREQ_HANDLES;			      \
 	_avail -= (type == LDLM_ENQUEUE ? LDLM_ENQUEUE_CANCEL_OFF : 0); \

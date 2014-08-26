@@ -495,7 +495,8 @@ ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	hdr->msg.hello.type = cpu_to_le32 (hello->kshm_ctype);
 	hdr->msg.hello.incarnation = cpu_to_le64 (hello->kshm_src_incarnation);
 
-	rc = libcfs_sock_write(sock, hdr, sizeof(*hdr),lnet_acceptor_timeout());
+	rc = libcfs_sock_write(sock, hdr, sizeof(*hdr),
+			       lnet_acceptor_timeout());
 
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO hdr to %pI4h/%d\n",
@@ -568,7 +569,8 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 }
 
 static int
-ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
+ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
+		       int timeout)
 {
 	struct socket	*sock = conn->ksnc_sock;
 	lnet_hdr_t	  *hdr;

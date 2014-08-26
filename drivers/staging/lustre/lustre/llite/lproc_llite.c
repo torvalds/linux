@@ -1098,7 +1098,7 @@ void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi)
 }
 #undef MAX_STRING_SIZE
 
-#define pct(a,b) (b ? a * 100 / b : 0)
+#define pct(a, b) (b ? a * 100 / b : 0)
 
 static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 				   struct seq_file *seq, int which)

@@ -217,7 +217,7 @@ int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand)
 }
 EXPORT_SYMBOL(libcfs_deregister_ioctl);
 
-static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
+static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 			    void *arg, struct libcfs_ioctl_data *data)
 {
 	int err = -EINVAL;

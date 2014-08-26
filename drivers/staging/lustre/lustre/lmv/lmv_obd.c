@@ -1802,7 +1802,7 @@ lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 }
 
 static int
-lmv_getattr_name(struct obd_export *exp,struct md_op_data *op_data,
+lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 		 struct ptlrpc_request **request)
 {
 	struct ptlrpc_request   *req = NULL;

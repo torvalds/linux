@@ -1315,7 +1315,8 @@ out_set:
 			(tot) += (add);				 \
 	} while (0)
 
-int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,int success)
+int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,
+		    int success)
 {
 	if (success) {
 		__u32 expected_stripes = lov_get_stripecnt(&obd->u.lov,

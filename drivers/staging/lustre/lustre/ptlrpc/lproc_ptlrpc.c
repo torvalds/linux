@@ -119,7 +119,7 @@ struct ll_rpc_opcode {
 	{ OBD_IDX_READ,	    "dt_index_read" },
 	{ LLOG_ORIGIN_HANDLE_CREATE,	 "llog_origin_handle_open" },
 	{ LLOG_ORIGIN_HANDLE_NEXT_BLOCK, "llog_origin_handle_next_block" },
-	{ LLOG_ORIGIN_HANDLE_READ_HEADER,"llog_origin_handle_read_header" },
+	{ LLOG_ORIGIN_HANDLE_READ_HEADER, "llog_origin_handle_read_header" },
 	{ LLOG_ORIGIN_HANDLE_WRITE_REC,  "llog_origin_handle_write_rec" },
 	{ LLOG_ORIGIN_HANDLE_CLOSE,      "llog_origin_handle_close" },
 	{ LLOG_ORIGIN_CONNECT,	   "llog_origin_connect" },
@@ -130,7 +130,7 @@ struct ll_rpc_opcode {
 	{ QUOTA_DQREL,      "quota_release" },
 	{ SEQ_QUERY,	"seq_query" },
 	{ SEC_CTX_INIT,     "sec_ctx_init" },
-	{ SEC_CTX_INIT_CONT,"sec_ctx_init_cont" },
+	{ SEC_CTX_INIT_CONT, "sec_ctx_init_cont" },
 	{ SEC_CTX_FINI,     "sec_ctx_fini" },
 	{ FLD_QUERY,	"fld_query" },
 	{ UPDATE_OBJ,	    "update_obj" },
@@ -194,7 +194,8 @@ void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 	LASSERT(*procroot_ret == NULL);
 	LASSERT(*stats_ret == NULL);
 
-	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,0);
+	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,
+					0);
 	if (svc_stats == NULL)
 		return;
 

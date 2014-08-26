@@ -721,7 +721,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 			CDEBUG(D_PAGE,
 				"llite: mkwrite and truncate race happened: "
 				"%p: 0x%lx 0x%lx\n",
-				vmpage->mapping,fio->ft_index,last_index);
+				vmpage->mapping, fio->ft_index, last_index);
 			/*
 			 * We need to return if we are
 			 * passed the end of the file. This will propagate

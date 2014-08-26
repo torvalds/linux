@@ -281,7 +281,8 @@ static int ptlrpc_pinger_main(void *arg)
 		   ping will get sent 2 timeouts from now!  Beware. */
 		CDEBUG(D_INFO, "next wakeup in "CFS_DURATION_T" ("
 		       CFS_TIME_T")\n", time_to_next_wake,
-		       cfs_time_add(this_ping,cfs_time_seconds(PING_INTERVAL)));
+		       cfs_time_add(this_ping,
+				    cfs_time_seconds(PING_INTERVAL)));
 		if (time_to_next_wake > 0) {
 			lwi = LWI_TIMEOUT(max_t(long, time_to_next_wake,
 						cfs_time_seconds(1)),

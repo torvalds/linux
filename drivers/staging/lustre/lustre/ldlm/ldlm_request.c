@@ -510,7 +510,7 @@ static void failed_lock_cleanup(struct ldlm_namespace *ns,
 int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			  ldlm_type_t type, __u8 with_policy, ldlm_mode_t mode,
 			  __u64 *flags, void *lvb, __u32 lvb_len,
-			  struct lustre_handle *lockh,int rc)
+			  struct lustre_handle *lockh, int rc)
 {
 	struct ldlm_namespace *ns = exp->exp_obd->obd_namespace;
 	int is_replay = *flags & LDLM_FL_REPLAY;
@@ -629,7 +629,8 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 						&reply->lock_desc.l_policy_data,
 						&lock->l_policy_data);
 		if (type != LDLM_PLAIN)
-			LDLM_DEBUG(lock,"client-side enqueue, new policy data");
+			LDLM_DEBUG(lock,
+				   "client-side enqueue, new policy data");
 	}
 
 	if ((*flags) & LDLM_FL_AST_SENT ||

@@ -565,7 +565,7 @@ static struct lprocfs_vars lprocfs_osc_module_vars[] = {
 	{ NULL }
 };
 
-#define pct(a,b) (b ? a * 100 / b : 0)
+#define pct(a, b) (b ? a * 100 / b : 0)
 
 static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 {

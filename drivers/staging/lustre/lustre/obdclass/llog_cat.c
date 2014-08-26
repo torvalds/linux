@@ -114,7 +114,8 @@ static int llog_cat_new_log(const struct lu_env *env,
 	cathandle->lgh_last_idx = index;
 	llh->llh_tail.lrt_index = index;
 
-	CDEBUG(D_RPCTRACE,"new recovery log "DOSTID":%x for index %u of catalog"
+	CDEBUG(D_RPCTRACE,
+	       "new recovery log "DOSTID":%x for index %u of catalog"
 	       DOSTID"\n", POSTID(&loghandle->lgh_id.lgl_oi),
 	       loghandle->lgh_id.lgl_ogen, index,
 	       POSTID(&cathandle->lgh_id.lgl_oi));

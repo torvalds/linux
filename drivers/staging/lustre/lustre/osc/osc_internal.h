@@ -161,7 +161,7 @@ static inline unsigned long rpcs_in_flight(struct client_obd *cli)
 }
 
 #ifndef min_t
-#define min_t(type,x,y) \
+#define min_t(type, x, y) \
 	({ type __x = (x); type __y = (y); __x < __y ? __x: __y; })
 #endif
 

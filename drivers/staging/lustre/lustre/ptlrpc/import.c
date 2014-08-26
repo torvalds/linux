@@ -297,7 +297,8 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 			timeout = 1;
 		}
 
-		CDEBUG(D_RPCTRACE,"Sleeping %d sec for inflight to error out\n",
+		CDEBUG(D_RPCTRACE,
+		       "Sleeping %d sec for inflight to error out\n",
 		       timeout);
 
 		/* Wait for all requests to error out and call completion
@@ -843,7 +844,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	if ((ocd->ocd_connect_flags & imp->imp_connect_flags_orig) !=
 	    ocd->ocd_connect_flags) {
 		CERROR("%s: Server didn't granted asked subset of flags: asked=%#llx grranted=%#llx\n",
-		       imp->imp_obd->obd_name,imp->imp_connect_flags_orig,
+		       imp->imp_obd->obd_name, imp->imp_connect_flags_orig,
 		       ocd->ocd_connect_flags);
 		GOTO(out, rc = -EPROTO);
 	}

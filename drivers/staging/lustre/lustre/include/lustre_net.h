@@ -2912,11 +2912,13 @@ __u32 lustre_msg_calc_cksum(struct lustre_msg *msg, int compat18);
 # warning "remove checksum compatibility support for b1_8"
 __u32 lustre_msg_calc_cksum(struct lustre_msg *msg);
 #endif
-void lustre_msg_set_handle(struct lustre_msg *msg,struct lustre_handle *handle);
+void lustre_msg_set_handle(struct lustre_msg *msg,
+			   struct lustre_handle *handle);
 void lustre_msg_set_type(struct lustre_msg *msg, __u32 type);
 void lustre_msg_set_opc(struct lustre_msg *msg, __u32 opc);
 void lustre_msg_set_last_xid(struct lustre_msg *msg, __u64 last_xid);
-void lustre_msg_set_last_committed(struct lustre_msg *msg,__u64 last_committed);
+void lustre_msg_set_last_committed(struct lustre_msg *msg,
+				   __u64 last_committed);
 void lustre_msg_set_versions(struct lustre_msg *msg, __u64 *versions);
 void lustre_msg_set_transno(struct lustre_msg *msg, __u64 transno);
 void lustre_msg_set_status(struct lustre_msg *msg, __u32 status);

@@ -59,7 +59,7 @@ struct fsfilt_operations {
 	char   *(* fs_getlabel)(struct super_block *sb);
 	void   *(* fs_start)(struct inode *inode, int op, void *desc_private,
 			     int logs);
-	int     (* fs_commit)(struct inode *inode, void *handle,int force_sync);
+	int     (*fs_commit)(struct inode *inode, void *handle, int force_sync);
 	int     (* fs_map_inode_pages)(struct inode *inode, struct page **page,
 				       int pages, unsigned long *blocks,
 				       int create, struct mutex *sem);
@@ -155,7 +155,8 @@ static inline int fsfilt_write_record(struct obd_device *obd, struct file *file,
 				      void *buf, loff_t size, loff_t *offs,
 				      int force_sync)
 {
-	return obd->obd_fsops->fs_write_record(file, buf, size,offs,force_sync);
+	return obd->obd_fsops->fs_write_record(file, buf, size, offs,
+					       force_sync);
 }
 
 static inline int fsfilt_setup(struct obd_device *obd, struct super_block *fs)

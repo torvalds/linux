@@ -1896,7 +1896,8 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 		libcfs_debug_dumplog();
 
 	do_gettimeofday(&work_start);
-	timediff = cfs_timeval_sub(&work_start, &request->rq_arrival_time,NULL);
+	timediff = cfs_timeval_sub(&work_start, &request->rq_arrival_time,
+				   NULL);
 	if (likely(svc->srv_stats != NULL)) {
 		lprocfs_counter_add(svc->srv_stats, PTLRPC_REQWAIT_CNTR,
 				    timediff);

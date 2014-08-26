@@ -316,7 +316,7 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 	}
 
 	if (!UC_CACHE_IS_ACQUIRING(entry)) {
-		CDEBUG(D_RPCTRACE,"%s: found uptodate entry %p (key %llu)\n",
+		CDEBUG(D_RPCTRACE, "%s: found uptodate entry %p (key %llu)\n",
 		       cache->uc_name, entry, entry->ue_key);
 		GOTO(out, rc = 0);
 	}

@@ -943,7 +943,7 @@ static inline struct obd_uuid *obd_get_uuid(struct obd_export *exp)
  *    by obd are returned.
  */
 static inline int obd_connect(const struct lu_env *env,
-			      struct obd_export **exp,struct obd_device *obd,
+			      struct obd_export **exp, struct obd_device *obd,
 			      struct obd_uuid *cluuid,
 			      struct obd_connect_data *data,
 			      void *localdata)
@@ -1165,7 +1165,8 @@ static inline int obd_statfs_async(struct obd_export *exp,
 	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs_async)(exp, oinfo, max_age, rqset);
 	} else {
-		CDEBUG(D_SUPER,"%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
+		CDEBUG(D_SUPER,
+		       "%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
 		       obd->obd_name, &obd->obd_osfs,
 		       obd->obd_osfs.os_bavail, obd->obd_osfs.os_blocks,
 		       obd->obd_osfs.os_ffree, obd->obd_osfs.os_files);

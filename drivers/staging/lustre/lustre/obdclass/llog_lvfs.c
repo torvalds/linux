@@ -78,7 +78,8 @@ static int llog_lvfs_pad(struct obd_device *obd, struct file *file, int len,
 	}
 
 	file->f_pos += len - sizeof(rec) - sizeof(tail);
-	rc = fsfilt_write_record(obd, file, &tail, sizeof(tail),&file->f_pos,0);
+	rc = fsfilt_write_record(obd, file, &tail, sizeof(tail),
+				 &file->f_pos, 0);
 	if (rc) {
 		CERROR("error writing padding record: rc %d\n", rc);
 		goto out;
@@ -102,7 +103,8 @@ static int llog_lvfs_write_blob(struct obd_device *obd, struct file *file,
 		CWARN("0-length record\n");
 
 	if (!buf) {
-		rc = fsfilt_write_record(obd, file, rec, buflen,&file->f_pos,0);
+		rc = fsfilt_write_record(obd, file, rec, buflen,
+					 &file->f_pos, 0);
 		if (rc) {
 			CERROR("error writing log record: rc %d\n", rc);
 			goto out;

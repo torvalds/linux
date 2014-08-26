@@ -970,7 +970,8 @@ static void search_granted_lock(struct list_head *queue,
 			prev->policy_link = &req->l_sl_policy;
 			return;
 		} else {
-			LDLM_ERROR(lock,"is not LDLM_PLAIN or LDLM_IBITS lock");
+			LDLM_ERROR(lock,
+				   "is not LDLM_PLAIN or LDLM_IBITS lock");
 			LBUG();
 		}
 	}

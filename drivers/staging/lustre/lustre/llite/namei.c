@@ -1137,7 +1137,8 @@ static int ll_rename_generic(struct inode *src, struct dentry *src_dparent,
 	struct md_op_data *op_data;
 	int err;
 
-	CDEBUG(D_VFSTRACE,"VFS Op:oldname=%.*s,src_dir=%lu/%u(%p),newname=%.*s,"
+	CDEBUG(D_VFSTRACE,
+	       "VFS Op:oldname=%.*s,src_dir=%lu/%u(%p),newname=%.*s,"
 	       "tgt_dir=%lu/%u(%p)\n", src_name->len, src_name->name,
 	       src->i_ino, src->i_generation, src, tgt_name->len,
 	       tgt_name->name, tgt->i_ino, tgt->i_generation, tgt);
