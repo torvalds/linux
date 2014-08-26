@@ -30,15 +30,15 @@
 
 		//wifi-bt-power-toggle;
 
-		uart_rts_gpios = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
+		uart_rts_gpios = <&gpio1 GPIO_B3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default","rts_gpio";
-		pinctrl-0 = <&uart0_rts>;
-		pinctrl-1 = <&uart0_rts_gpio>;
+		pinctrl-0 = <&uart1_rts>;
+		pinctrl-1 = <&uart1_rts_gpio>;
 
 		//BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
 		BT,reset_gpio = <&gpio3 GPIO_C5 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio = <&gpio1 GPIO_B4 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+		BT,wake_host_irq = <&gpio0 GPIO_C6 GPIO_ACTIVE_LOW>;
 
         status = "okay";
     };
@@ -117,10 +117,10 @@
 	status = "okay";
 };
 
-&uart0{
+&uart1{
 	status = "okay";
 	dma-names = "!tx", "!rx";
-	pinctrl-0 = <&uart0_xfer &uart0_cts>;
+	pinctrl-0 = <&uart1_xfer &uart1_cts>;
 };
 
 &pwm2 {
