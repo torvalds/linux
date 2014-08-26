@@ -48,11 +48,6 @@ void __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 	handle_arch_irq = handle_irq;
 }
 
-void handle_IRQ(unsigned int irq, struct pt_regs *regs)
-{
-	__handle_domain_irq(NULL, irq, false, regs);
-}
-
 void __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	handle_arch_irq(regs);
