@@ -310,6 +310,15 @@ struct rk_lcdc_post_cfg{
 	u32 ysize;
 };
 
+struct rk_lcdc_bcsh {
+	bool enable;
+	u16 brightness;
+	u16 contrast;
+	u16 sat_con;
+	u16 sin_hue;
+	u16 cos_hue;
+};
+
 struct rk_lcdc_win_area{
 	bool state;
 	u32 y_offset;		/*yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx*/
@@ -589,6 +598,7 @@ struct rk_lcdc_driver {
 	void (*irq_call_back)(struct rk_lcdc_driver *driver);
 #endif
 	struct overscan overscan;
+	struct rk_lcdc_bcsh bcsh;
 };
 
 /*disp_mode: dual display mode

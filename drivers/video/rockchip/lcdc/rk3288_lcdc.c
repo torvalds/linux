@@ -48,6 +48,9 @@ module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
 	if (unlikely(dbg_thresd >= level))	\
 		printk(KERN_INFO x); } while (0)
 
+static int rk3288_lcdc_set_bcsh(struct rk_lcdc_driver *dev_drv,
+				     bool enable);
+
 /*#define WAIT_FOR_SYNC 1*/
 
 static int rk3288_lcdc_get_id(u32 phy_base)
@@ -1325,6 +1328,8 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		} else {
 			rk3288_load_screen(dev_drv, 1);
 		}
+		if (dev_drv->bcsh.enable)
+			rk3288_lcdc_set_bcsh(dev_drv, 1);
 		spin_lock(&lcdc_dev->reg_lock);
 		if (dev_drv->cur_screen->dsp_lut)
 			rk3288_lcdc_set_lut(dev_drv);
@@ -3386,6 +3391,37 @@ static int rk3288_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	return 0;
 }
 
+static int rk3288_lcdc_set_bcsh(struct rk_lcdc_driver *dev_drv,
+				     bool enable)
+{
+	if (!enable || !dev_drv->bcsh.enable) {
+		rk3288_lcdc_open_bcsh(dev_drv, false);
+		return 0;
+	}
+
+	if (dev_drv->bcsh.brightness <= 255 ||
+	    dev_drv->bcsh.contrast <= 510 ||
+	    dev_drv->bcsh.sat_con <= 1015 ||
+	    (dev_drv->bcsh.sin_hue <= 511 && dev_drv->bcsh.cos_hue <= 511)) {
+		rk3288_lcdc_open_bcsh(dev_drv, true);
+		if (dev_drv->bcsh.brightness <= 255)
+			rk3288_lcdc_set_bcsh_bcs(dev_drv, BRIGHTNESS,
+						 dev_drv->bcsh.brightness);
+		if (dev_drv->bcsh.contrast <= 510)
+			rk3288_lcdc_set_bcsh_bcs(dev_drv, CONTRAST,
+						 dev_drv->bcsh.contrast);
+		if (dev_drv->bcsh.sat_con <= 1015)
+			rk3288_lcdc_set_bcsh_bcs(dev_drv, SAT_CON,
+						 dev_drv->bcsh.sat_con);
+		if (dev_drv->bcsh.sin_hue <= 511 &&
+		    dev_drv->bcsh.cos_hue <= 511)
+			rk3288_lcdc_set_bcsh_hue(dev_drv,
+						 dev_drv->bcsh.sin_hue,
+						 dev_drv->bcsh.cos_hue);
+	}
+	return 0;
+}
+
 static struct rk_lcdc_win lcdc_win[] = {
 	[0] = {
 	       .name = "win0",
@@ -3546,6 +3582,7 @@ static int rk3288_lcdc_resume(struct platform_device *pdev)
 static int rk3288_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 {
 	struct device_node *np = lcdc_dev->dev->of_node;
+	struct rk_lcdc_driver *dev_drv = &lcdc_dev->driver;
 	int val;
 
 	if (of_property_read_u32(np, "rockchip,prop", &val))
@@ -3554,26 +3591,55 @@ static int rk3288_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 		lcdc_dev->prop = val;
 
 	if (of_property_read_u32(np, "rockchip,mirror", &val))
-		lcdc_dev->driver.rotate_mode = NO_MIRROR;
+		dev_drv->rotate_mode = NO_MIRROR;
 	else
-		lcdc_dev->driver.rotate_mode = val;
+		dev_drv->rotate_mode = val;
 
 	if (of_property_read_u32(np, "rockchip,cabc_mode", &val))
-		lcdc_dev->driver.cabc_mode = 0;	/* default set close cabc */
+		dev_drv->cabc_mode = 0;	/* default set close cabc */
 	else
-		lcdc_dev->driver.cabc_mode = val;
+		dev_drv->cabc_mode = val;
 
 	if (of_property_read_u32(np, "rockchip,pwr18", &val))
 		lcdc_dev->pwr18 = false;	/*default set it as 3.xv power supply */
 	else
 		lcdc_dev->pwr18 = (val ? true : false);
+
+	if (of_property_read_u32(np, "rockchip,bcsh-en", &val))
+		dev_drv->bcsh.enable = false;
+	else
+		dev_drv->bcsh.enable = (val ? true : false);
+
+	if (of_property_read_u32(np, "rockchip,brightness", &val))
+		dev_drv->bcsh.brightness = 0xffff;
+	else
+		dev_drv->bcsh.brightness = val;
+
+	if (of_property_read_u32(np, "rockchip,contrast", &val))
+		dev_drv->bcsh.contrast = 0xffff;
+	else
+		dev_drv->bcsh.contrast = val;
+
+	if (of_property_read_u32(np, "rockchip,sat-con", &val))
+		dev_drv->bcsh.sat_con = 0xffff;
+	else
+		dev_drv->bcsh.sat_con = val;
+
+	if (of_property_read_u32(np, "rockchip,hue", &val)) {
+		dev_drv->bcsh.sin_hue = 0xffff;
+		dev_drv->bcsh.cos_hue = 0xffff;
+	} else {
+		dev_drv->bcsh.sin_hue = val & 0xff;
+		dev_drv->bcsh.cos_hue = (val >> 8) & 0xff;
+	}
+
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 	if (of_property_read_u32(np, "rockchip,iommu-enabled", &val))
-		lcdc_dev->driver.iommu_enabled = 0;
+		dev_drv->iommu_enabled = 0;
 	else
-		lcdc_dev->driver.iommu_enabled = val;
+		dev_drv->iommu_enabled = val;
 #else
-	lcdc_dev->driver.iommu_enabled = 0;
+	dev_drv->iommu_enabled = 0;
 #endif
 	return 0;
 }
