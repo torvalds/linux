@@ -374,22 +374,6 @@ static inline void destroy_params(const struct kernel_param *params,
 #define __param_check(name, p, type) \
 	static inline type __always_unused *__check_##name(void) { return(p); }
 
-/**
- * param_check_unsafe - Warn and taint the kernel if setting dangerous options.
- *
- * This gets called from all the standard param setters, but can be used from
- * custom setters as well.
- */
-static inline void
-param_check_unsafe(const struct kernel_param *kp)
-{
-	if (kp->flags & KERNEL_PARAM_FL_UNSAFE) {
-		pr_warn("Setting dangerous option %s - tainting kernel\n",
-			kp->name);
-		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
-	}
-}
-
 extern struct kernel_param_ops param_ops_byte;
 extern int param_set_byte(const char *val, const struct kernel_param *kp);
 extern int param_get_byte(char *buffer, const struct kernel_param *kp);
