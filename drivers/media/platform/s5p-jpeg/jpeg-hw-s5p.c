@@ -326,7 +326,7 @@ void s5p_jpeg_clear_int(void __iomem *regs)
 {
 	unsigned long reg;
 
-	reg = readl(regs + S5P_JPGINTST);
+	readl(regs + S5P_JPGINTST);
 	writel(S5P_INT_RELEASE, regs + S5P_JPGCOM);
 	reg = readl(regs + S5P_JPGOPR);
 }
