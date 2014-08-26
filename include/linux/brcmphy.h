@@ -21,7 +21,7 @@
 #define PHY_BCM_OUI_1			0x00206000
 #define PHY_BCM_OUI_2			0x0143bc00
 #define PHY_BCM_OUI_3			0x03625c00
-#define PHY_BCM_OUI_4			0x600d0000
+#define PHY_BCM_OUI_4			0x600d8400
 #define PHY_BCM_OUI_5			0x03625e00
 
 
