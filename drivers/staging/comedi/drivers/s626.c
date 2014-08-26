@@ -2445,26 +2445,6 @@ static void s626_write_misc2(struct comedi_device *dev, uint16_t new_image)
 	s626_debi_write(dev, S626_LP_MISC1, S626_MISC1_WDISABLE);
 }
 
-static void s626_close_dma_b(struct comedi_device *dev,
-			     struct s626_buffer_dma *pdma, size_t bsize)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	void *vbptr;
-	dma_addr_t vpptr;
-
-	if (pdma == NULL)
-		return;
-
-	/* find the matching allocation from the board struct */
-	vbptr = pdma->logical_base;
-	vpptr = pdma->physical_base;
-	if (vbptr) {
-		pci_free_consistent(pcidev, bsize, vbptr, vpptr);
-		pdma->logical_base = NULL;
-		pdma->physical_base = 0;
-	}
-}
-
 static void s626_counters_init(struct comedi_device *dev)
 {
 	int chan;
@@ -2513,6 +2493,24 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 	devpriv->rps_buf.physical_base = appdma;
 
 	return 0;
+}
+
+static void s626_free_dma_buffers(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct s626_private *devpriv = dev->private;
+
+	if (!devpriv)
+		return;
+
+	if (devpriv->rps_buf.logical_base)
+		pci_free_consistent(pcidev, S626_DMABUF_SIZE,
+				    devpriv->rps_buf.logical_base,
+				    devpriv->rps_buf.physical_base);
+	if (devpriv->ana_buf.logical_base)
+		pci_free_consistent(pcidev, S626_DMABUF_SIZE,
+				    devpriv->ana_buf.logical_base,
+				    devpriv->ana_buf.physical_base);
 }
 
 static int s626_initialize(struct comedi_device *dev)
@@ -2915,11 +2913,6 @@ static void s626_detach(struct comedi_device *dev)
 			/* Close all interfaces on 7146 device */
 			writel(S626_MC1_SHUTDOWN, dev->mmio + S626_P_MC1);
 			writel(S626_ACON1_BASE, dev->mmio + S626_P_ACON1);
-
-			s626_close_dma_b(dev, &devpriv->rps_buf,
-					 S626_DMABUF_SIZE);
-			s626_close_dma_b(dev, &devpriv->ana_buf,
-					 S626_DMABUF_SIZE);
 		}
 
 		if (dev->irq)
@@ -2928,6 +2921,7 @@ static void s626_detach(struct comedi_device *dev)
 			iounmap(dev->mmio);
 	}
 	comedi_pci_disable(dev);
+	s626_free_dma_buffers(dev);
 }
 
 static struct comedi_driver s626_driver = {
