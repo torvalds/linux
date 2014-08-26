@@ -369,7 +369,7 @@ static int omapvid_setup_overlay(struct omap_vout_device *vout,
 {
 	int ret = 0;
 	struct omap_overlay_info info;
-	int cropheight, cropwidth, pixheight, pixwidth;
+	int cropheight, cropwidth, pixwidth;
 
 	if ((ovl->caps & OMAP_DSS_OVL_CAP_SCALE) == 0 &&
 			(outw != vout->pix.width || outh != vout->pix.height)) {
@@ -389,12 +389,10 @@ static int omapvid_setup_overlay(struct omap_vout_device *vout,
 	if (is_rotation_90_or_270(vout)) {
 		cropheight = vout->crop.width;
 		cropwidth = vout->crop.height;
-		pixheight = vout->pix.width;
 		pixwidth = vout->pix.height;
 	} else {
 		cropheight = vout->crop.height;
 		cropwidth = vout->crop.width;
-		pixheight = vout->pix.height;
 		pixwidth = vout->pix.width;
 	}
 
@@ -1451,12 +1449,10 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *a)
 	}
 	case V4L2_CID_VFLIP:
 	{
-		struct omap_overlay *ovl;
 		struct omapvideo_info *ovid;
 		unsigned int  mirror = a->value;
 
 		ovid = &vout->vid_info;
-		ovl = ovid->overlays[0];
 
 		mutex_lock(&vout->lock);
 		if (mirror && ovid->rotation_type == VOUT_ROT_NONE) {
@@ -1489,7 +1485,7 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 	struct omap_vout_device *vout = fh;
 	struct videobuf_queue *q = &vout->vbq;
 
-	if ((req->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) || (req->count < 0))
+	if (req->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 	/* if memory is not mmp or userptr
 	   return error */
