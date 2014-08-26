@@ -541,7 +541,7 @@ static int get_daio_rsc(struct daio_mgr *mgr,
 	err = daio_mgr_get_rsc(&mgr->mgr, desc->type);
 	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
 	if (err) {
-		printk(KERN_ERR "Can't meet DAIO resource request!\n");
+		pr_err("Can't meet DAIO resource request!\n");
 		return err;
 	}
 

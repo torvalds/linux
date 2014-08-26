@@ -1187,7 +1187,7 @@ static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 		hw_write_20kx(hw, AUDIO_IO_TX_BLRCLK, 0x21212121);
 		hw_write_20kx(hw, AUDIO_IO_RX_BLRCLK, 0);
 	} else {
-		printk(KERN_ALERT "ctxfi: ERROR!!! Invalid sampling rate!!!\n");
+		pr_alert("ctxfi: ERROR!!! Invalid sampling rate!!!\n");
 		return -EINVAL;
 	}
 
@@ -1246,7 +1246,7 @@ static int hw_trn_init(struct hw *hw, const struct trn_conf *info)
 
 	/* Set up device page table */
 	if ((~0UL) == info->vm_pgt_phys) {
-		printk(KERN_ALERT "ctxfi: "
+		pr_alert("ctxfi: "
 		       "Wrong device page table page address!!!\n");
 		return -1;
 	}
@@ -1352,7 +1352,7 @@ static int hw_pll_init(struct hw *hw, unsigned int rsr)
 		break;
 	}
 	if (i >= 1000) {
-		printk(KERN_ALERT "ctxfi: PLL initialization failed!!!\n");
+		pr_alert("ctxfi: PLL initialization failed!!!\n");
 		return -EBUSY;
 	}
 
@@ -1376,7 +1376,7 @@ static int hw_auto_init(struct hw *hw)
 			break;
 	}
 	if (!get_field(gctl, GCTL_AID)) {
-		printk(KERN_ALERT "ctxfi: Card Auto-init failed!!!\n");
+		pr_alert("ctxfi: Card Auto-init failed!!!\n");
 		return -EBUSY;
 	}
 
@@ -1847,7 +1847,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 	/* Initialize I2C */
 	err = hw20k2_i2c_init(hw, 0x1A, 1, 1);
 	if (err < 0) {
-		printk(KERN_ALERT "ctxfi: Failure to acquire I2C!!!\n");
+		pr_alert("ctxfi: Failure to acquire I2C!!!\n");
 		goto error;
 	}
 
@@ -1890,7 +1890,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_MMC, 0x0A),
 						MAKE_WM8775_DATA(0x0A));
 	} else {
-		printk(KERN_ALERT "ctxfi: Invalid master sampling "
+		pr_alert("ctxfi: Invalid master sampling "
 				  "rate (msr %d)!!!\n", info->msr);
 		err = -EINVAL;
 		goto error;
@@ -2034,7 +2034,7 @@ static int hw_card_start(struct hw *hw)
 	/* Set DMA transfer mask */
 	if (pci_set_dma_mask(pci, CT_XFI_DMA_MASK) < 0 ||
 	    pci_set_consistent_dma_mask(pci, CT_XFI_DMA_MASK) < 0) {
-		printk(KERN_ERR "ctxfi: architecture does not support PCI "
+		pr_err("ctxfi: architecture does not support PCI "
 		"busmaster DMA with mask 0x%llx\n", CT_XFI_DMA_MASK);
 		err = -ENXIO;
 		goto error1;
@@ -2063,7 +2063,7 @@ static int hw_card_start(struct hw *hw)
 		err = request_irq(pci->irq, ct_20k2_interrupt, IRQF_SHARED,
 				  KBUILD_MODNAME, hw);
 		if (err < 0) {
-			printk(KERN_ERR "XFi: Cannot get irq %d\n", pci->irq);
+			pr_err("XFi: Cannot get irq %d\n", pci->irq);
 			goto error2;
 		}
 		hw->irq = pci->irq;

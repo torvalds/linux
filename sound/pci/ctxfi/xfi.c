@@ -76,16 +76,16 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	if (err)
 		return err;
 	if ((reference_rate != 48000) && (reference_rate != 44100)) {
-		printk(KERN_ERR "ctxfi: Invalid reference_rate value %u!!!\n",
+		pr_err("ctxfi: Invalid reference_rate value %u!!!\n",
 		       reference_rate);
-		printk(KERN_ERR "ctxfi: The valid values for reference_rate "
+		pr_err("ctxfi: The valid values for reference_rate "
 		       "are 48000 and 44100, Value 48000 is assumed.\n");
 		reference_rate = 48000;
 	}
 	if ((multiple != 1) && (multiple != 2) && (multiple != 4)) {
-		printk(KERN_ERR "ctxfi: Invalid multiple value %u!!!\n",
+		pr_err("ctxfi: Invalid multiple value %u!!!\n",
 		       multiple);
-		printk(KERN_ERR "ctxfi: The valid values for multiple are "
+		pr_err("ctxfi: The valid values for multiple are "
 		       "1, 2 and 4, Value 2 is assumed.\n");
 		multiple = 2;
 	}

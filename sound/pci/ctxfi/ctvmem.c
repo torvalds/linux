@@ -36,7 +36,7 @@ get_vm_block(struct ct_vm *vm, unsigned int size)
 
 	size = CT_PAGE_ALIGN(size);
 	if (size > vm->size) {
-		printk(KERN_ERR "ctxfi: Fail! No sufficient device virtual "
+		pr_err("ctxfi: Fail! No sufficient device virtual "
 				  "memory space available!\n");
 		return NULL;
 	}
@@ -132,7 +132,7 @@ ct_vm_map(struct ct_vm *vm, struct snd_pcm_substream *substream, int size)
 
 	block = get_vm_block(vm, size);
 	if (block == NULL) {
-		printk(KERN_ERR "ctxfi: No virtual memory block that is big "
+		pr_err("ctxfi: No virtual memory block that is big "
 				  "enough to allocate!\n");
 		return NULL;
 	}
