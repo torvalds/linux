@@ -3642,7 +3642,6 @@ static int s3c_hsotg_resume(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id s3c_hsotg_of_ids[] = {
-	{ .compatible = "samsung,s3c6400-hsotg", },
 	{ .compatible = "snps,dwc2", },
 	{ /* sentinel */ }
 };
