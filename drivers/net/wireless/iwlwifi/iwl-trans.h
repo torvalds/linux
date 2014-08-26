@@ -828,12 +828,6 @@ static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,
 	iwl_trans_txq_enable_cfg(trans, queue, 0, &cfg);
 }
 
-static inline void
-iwl_trans_txq_enable_no_scd(struct iwl_trans *trans, int queue, u16 ssn)
-{
-	iwl_trans_txq_enable_cfg(trans, queue, ssn, NULL);
-}
-
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans,
 						u32 txq_bm)
 {
