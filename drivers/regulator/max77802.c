@@ -540,7 +540,17 @@ static int max77802_pmic_probe(struct platform_device *pdev)
 		config.of_node = pdata->regulators[i].of_node;
 
 		ret = regmap_read(iodev->regmap, regulators[i].enable_reg, &val);
-		max77802->opmode[id] = val >> shift & MAX77802_OPMODE_MASK;
+		val = val >> shift & MAX77802_OPMODE_MASK;
+
+		/*
+		 * If the regulator is disabled and the system warm rebooted,
+		 * the hardware reports OFF as the regulator operating mode.
+		 * Default to operating mode NORMAL in that case.
+		 */
+		if (val == MAX77802_OPMODE_OFF)
+			max77802->opmode[id] = MAX77802_OPMODE_NORMAL;
+		else
+			max77802->opmode[id] = val;
 
 		rdev = devm_regulator_register(&pdev->dev,
 					       &regulators[i], &config);
