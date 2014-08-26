@@ -87,11 +87,11 @@
 /* A TimeUnit is 1024 microsecond */
 #define MSEC_TO_TU(_msec)	(_msec*1000/1024)
 
-/*
- * The CSA NoA is scheduled IWL_MVM_CHANNEL_SWITCH_TIME TUs before "beacon 0"
- * TBTT. This value should be big enough to ensure that we switch in time.
+/* This value represents the number of TUs before CSA "beacon 0" TBTT
+ * when the CSA time-event needs to be scheduled to start.  It must be
+ * big enough to ensure that we switch in time.
  */
-#define IWL_MVM_CHANNEL_SWITCH_TIME 40
+#define IWL_MVM_CHANNEL_SWITCH_TIME_GO		40
 
 /*
  * This value (in TUs) is used to fine tune the CSA NoA end time which should
