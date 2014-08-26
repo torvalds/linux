@@ -1556,6 +1556,20 @@ struct drm_i915_private {
 	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 
+	/*
+	 * workarounds are currently applied at different places and
+	 * changes are being done to consolidate them so exact count is
+	 * not clear at this point, use a max value for now.
+	 */
+#define I915_MAX_WA_REGS  16
+	struct {
+		u32 addr;
+		u32 value;
+		/* bitmask representing WA bits */
+		u32 mask;
+	} intel_wa_regs[I915_MAX_WA_REGS];
+	u32 num_wa_regs;
+
 	/* Reclocking support */
 	bool render_reclock_avail;
 	bool lvds_downclock_avail;

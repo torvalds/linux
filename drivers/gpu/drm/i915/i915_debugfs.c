@@ -2628,6 +2628,45 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int intel_wa_registers(struct seq_file *m, void *unused)
+{
+	int i;
+	int ret;
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_BROADWELL(dev)) {
+		DRM_DEBUG_DRIVER("Workaround table not available !!\n");
+		return -EINVAL;
+	}
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	intel_runtime_pm_get(dev_priv);
+
+	seq_printf(m, "Workarounds applied: %d\n", dev_priv->num_wa_regs);
+	for (i = 0; i < dev_priv->num_wa_regs; ++i) {
+		u32 addr, mask;
+
+		addr = dev_priv->intel_wa_regs[i].addr;
+		mask = dev_priv->intel_wa_regs[i].mask;
+		dev_priv->intel_wa_regs[i].value = I915_READ(addr) | mask;
+		if (dev_priv->intel_wa_regs[i].addr)
+			seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X\n",
+				   dev_priv->intel_wa_regs[i].addr,
+				   dev_priv->intel_wa_regs[i].value,
+				   dev_priv->intel_wa_regs[i].mask);
+	}
+
+	intel_runtime_pm_put(dev_priv);
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 struct pipe_crc_info {
 	const char *name;
 	struct drm_device *dev;
@@ -4159,6 +4198,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
+	{"intel_wa_registers", intel_wa_registers, 0}
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

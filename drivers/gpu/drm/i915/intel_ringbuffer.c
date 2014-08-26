@@ -660,20 +660,40 @@ err:
 static inline void intel_ring_emit_wa(struct intel_engine_cs *ring,
 				       u32 addr, u32 value)
 {
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->num_wa_regs > I915_MAX_WA_REGS)
+		return;
+
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, addr);
 	intel_ring_emit(ring, value);
+
+	dev_priv->intel_wa_regs[dev_priv->num_wa_regs].addr = addr;
+	dev_priv->intel_wa_regs[dev_priv->num_wa_regs].mask = (value) & 0xFFFF;
+	/* value is updated with the status of remaining bits of this
+	 * register when it is read from debugfs file
+	 */
+	dev_priv->intel_wa_regs[dev_priv->num_wa_regs].value = value;
+	dev_priv->num_wa_regs++;
+
+	return;
 }
 
 static int gen8_init_workarounds(struct intel_engine_cs *ring)
 {
 	int ret;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/*
 	 * workarounds applied in this fn are part of register state context,
 	 * they need to be re-initialized followed by gpu reset, suspend/resume,
 	 * module reload.
 	 */
+	dev_priv->num_wa_regs = 0;
+	memset(dev_priv->intel_wa_regs, 0, sizeof(dev_priv->intel_wa_regs));
 
 	/*
 	 * update the number of dwords required based on the
@@ -731,6 +751,9 @@ static int gen8_init_workarounds(struct intel_engine_cs *ring)
 			   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
 
 	intel_ring_advance(ring);
+
+	DRM_DEBUG_DRIVER("Number of Workarounds applied: %d\n",
+			 dev_priv->num_wa_regs);
 
 	return 0;
 }
