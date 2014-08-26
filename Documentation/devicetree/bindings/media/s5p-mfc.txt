@@ -21,15 +21,15 @@ Required properties:
   - clock-names : from common clock binding: must contain "mfc",
 		  corresponding to entry in the clocks property.
 
-  - samsung,mfc-r : Base address of the first memory bank used by MFC
-		    for DMA contiguous memory allocation and its size.
-
-  - samsung,mfc-l : Base address of the second memory bank used by MFC
-		    for DMA contiguous memory allocation and its size.
-
 Optional properties:
   - power-domains : power-domain property defined with a phandle
 			   to respective power domain.
+
+  - memory-region : from reserved memory binding: phandles to two reserved
+	memory regions: accessed by "left" and "right" mfc memory bus
+	interfaces, used when no SYSMMU support is available
+  - memory-region-names : from reserved memory binding: must be "left"
+	and "right"
 
 Example:
 SoC specific DT entry:
@@ -46,6 +46,6 @@ mfc: codec@13400000 {
 Board specific DT entry:
 
 codec@13400000 {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
+	memory-region = <&mfc_left>, <&mfc_right>;
+	memory-region-names = "left", "right";
 };

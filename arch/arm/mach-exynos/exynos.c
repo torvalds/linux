@@ -28,7 +28,6 @@
 #include <asm/memory.h>
 
 #include "common.h"
-#include "mfc.h"
 #include "regs-pmu.h"
 #include "regs-sys.h"
 
@@ -301,22 +300,6 @@ static char const *exynos_dt_compat[] __initconst = {
 	NULL
 };
 
-static void __init exynos_reserve(void)
-{
-#ifdef CONFIG_S5P_DEV_MFC
-	int i;
-	char *mfc_mem[] = {
-		"samsung,mfc-v5",
-		"samsung,mfc-v6",
-		"samsung,mfc-v7",
-	};
-
-	for (i = 0; i < ARRAY_SIZE(mfc_mem); i++)
-		if (of_scan_flat_dt(s5p_fdt_alloc_mfc_mem, mfc_mem[i]))
-			break;
-#endif
-}
-
 static void __init exynos_dt_fixup(void)
 {
 	/*
@@ -338,6 +321,5 @@ DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
 	.init_machine	= exynos_dt_machine_init,
 	.init_late	= exynos_init_late,
 	.dt_compat	= exynos_dt_compat,
-	.reserve	= exynos_reserve,
 	.dt_fixup	= exynos_dt_fixup,
 MACHINE_END
