@@ -697,7 +697,7 @@ static const int snb_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX] = {
 };
 
 /* core */
-void intel_pmu_lbr_init_core(void)
+void __init intel_pmu_lbr_init_core(void)
 {
 	x86_pmu.lbr_nr     = 4;
 	x86_pmu.lbr_tos    = MSR_LBR_TOS;
@@ -712,7 +712,7 @@ void intel_pmu_lbr_init_core(void)
 }
 
 /* nehalem/westmere */
-void intel_pmu_lbr_init_nhm(void)
+void __init intel_pmu_lbr_init_nhm(void)
 {
 	x86_pmu.lbr_nr     = 16;
 	x86_pmu.lbr_tos    = MSR_LBR_TOS;
@@ -733,7 +733,7 @@ void intel_pmu_lbr_init_nhm(void)
 }
 
 /* sandy bridge */
-void intel_pmu_lbr_init_snb(void)
+void __init intel_pmu_lbr_init_snb(void)
 {
 	x86_pmu.lbr_nr	 = 16;
 	x86_pmu.lbr_tos	 = MSR_LBR_TOS;
@@ -753,7 +753,7 @@ void intel_pmu_lbr_init_snb(void)
 }
 
 /* atom */
-void intel_pmu_lbr_init_atom(void)
+void __init intel_pmu_lbr_init_atom(void)
 {
 	/*
 	 * only models starting at stepping 10 seems

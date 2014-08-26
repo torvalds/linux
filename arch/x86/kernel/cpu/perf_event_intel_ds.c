@@ -1014,7 +1014,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
  * BTS, PEBS probe and setup
  */
 
-void intel_ds_init(void)
+void __init intel_ds_init(void)
 {
 	/*
 	 * No support for 32bit formats
