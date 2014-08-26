@@ -21,6 +21,7 @@
 #include "s5p_mfc_intr.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_pm.h"
+#include "s5p_mfc_ctrl.h"
 
 /* Allocate memory for firmware */
 int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
