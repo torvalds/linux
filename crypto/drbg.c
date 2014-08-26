@@ -277,7 +277,7 @@ static bool drbg_fips_continuous_test(struct drbg_state *drbg,
 static inline void drbg_cpu_to_be32(__u32 val, unsigned char *buf)
 {
 	struct s {
-		__u32 conv;
+		__be32 conv;
 	};
 	struct s *conversion = (struct s *) buf;
 
@@ -989,7 +989,7 @@ static int drbg_hash_generate(struct drbg_state *drbg,
 	int ret = 0;
 	union {
 		unsigned char req[8];
-		__u64 req_int;
+		__be64 req_int;
 	} u;
 	unsigned char prefix = DRBG_PREFIX3;
 	struct drbg_string data1, data2;
