@@ -330,6 +330,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	if (blk_fill_sghdr_rq(q, rq, hdr, mode))
 		goto out_free_cdb;
 
+	ret = 0;
 	if (hdr->iovec_count) {
 		size_t iov_data_len;
 		struct iovec *iov = NULL;
