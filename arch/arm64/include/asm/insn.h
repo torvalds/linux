@@ -206,6 +206,17 @@ enum aarch64_insn_data3_type {
 	AARCH64_INSN_DATA3_MSUB,
 };
 
+enum aarch64_insn_logic_type {
+	AARCH64_INSN_LOGIC_AND,
+	AARCH64_INSN_LOGIC_BIC,
+	AARCH64_INSN_LOGIC_ORR,
+	AARCH64_INSN_LOGIC_ORN,
+	AARCH64_INSN_LOGIC_EOR,
+	AARCH64_INSN_LOGIC_EON,
+	AARCH64_INSN_LOGIC_AND_SETFLAGS,
+	AARCH64_INSN_LOGIC_BIC_SETFLAGS
+};
+
 #define	__AARCH64_INSN_FUNCS(abbr, mask, val)	\
 static __always_inline bool aarch64_insn_is_##abbr(u32 code) \
 { return (code & (mask)) == (val); } \
@@ -243,6 +254,14 @@ __AARCH64_INSN_FUNCS(rorv,	0x7FE0FC00, 0x1AC02C00)
 __AARCH64_INSN_FUNCS(rev16,	0x7FFFFC00, 0x5AC00400)
 __AARCH64_INSN_FUNCS(rev32,	0x7FFFFC00, 0x5AC00800)
 __AARCH64_INSN_FUNCS(rev64,	0x7FFFFC00, 0x5AC00C00)
+__AARCH64_INSN_FUNCS(and,	0x7F200000, 0x0A000000)
+__AARCH64_INSN_FUNCS(bic,	0x7F200000, 0x0A200000)
+__AARCH64_INSN_FUNCS(orr,	0x7F200000, 0x2A000000)
+__AARCH64_INSN_FUNCS(orn,	0x7F200000, 0x2A200000)
+__AARCH64_INSN_FUNCS(eor,	0x7F200000, 0x4A000000)
+__AARCH64_INSN_FUNCS(eon,	0x7F200000, 0x4A200000)
+__AARCH64_INSN_FUNCS(ands,	0x7F200000, 0x6A000000)
+__AARCH64_INSN_FUNCS(bics,	0x7F200000, 0x6A200000)
 __AARCH64_INSN_FUNCS(b,		0xFC000000, 0x14000000)
 __AARCH64_INSN_FUNCS(bl,	0xFC000000, 0x94000000)
 __AARCH64_INSN_FUNCS(cbz,	0xFE000000, 0x34000000)
@@ -323,6 +342,12 @@ u32 aarch64_insn_gen_data3(enum aarch64_insn_register dst,
 			   enum aarch64_insn_register reg2,
 			   enum aarch64_insn_variant variant,
 			   enum aarch64_insn_data3_type type);
+u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
+					 enum aarch64_insn_register src,
+					 enum aarch64_insn_register reg,
+					 int shift,
+					 enum aarch64_insn_variant variant,
+					 enum aarch64_insn_logic_type type);
 
 bool aarch64_insn_hotpatch_safe(u32 old_insn, u32 new_insn);
 
