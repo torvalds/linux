@@ -1142,10 +1142,10 @@ static int bcm_char_ioctl_chip_reset(struct bcm_mini_adapter *ad)
 static int bcm_char_ioctl_qos_threshold(ULONG arg,
 					struct bcm_mini_adapter *ad)
 {
-	USHORT uiLoopIndex;
+	USHORT i;
 
-	for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
-		if (get_user(ad->PackInfo[uiLoopIndex].uiThreshold,
+	for (i = 0; i < NO_OF_QUEUES; i++) {
+		if (get_user(ad->PackInfo[i].uiThreshold,
 				(unsigned long __user *)arg)) {
 			return -EFAULT;
 		}
