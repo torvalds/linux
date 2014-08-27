@@ -943,13 +943,13 @@ retry:
 	}
 	if (!(pte_val(*ptep) & _PAGE_INVALID) &&
 	     (pte_val(*ptep) & _PAGE_PROTECT)) {
-			pte_unmap_unlock(*ptep, ptl);
-			if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE)) {
-				up_read(&mm->mmap_sem);
-				return -EFAULT;
-			}
-			goto retry;
+		pte_unmap_unlock(*ptep, ptl);
+		if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE)) {
+			up_read(&mm->mmap_sem);
+			return -EFAULT;
 		}
+		goto retry;
+	}
 
 	new = old = pgste_get_lock(ptep);
 	pgste_val(new) &= ~(PGSTE_GR_BIT | PGSTE_GC_BIT |
