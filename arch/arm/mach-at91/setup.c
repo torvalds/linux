@@ -343,11 +343,15 @@ static void at91_dt_ramc(void)
 	struct device_node *np;
 	const struct of_device_id *of_id;
 	int idx = 0;
+	const void *standby = NULL;
 
-	for_each_matching_node(np, ramc_ids) {
+	for_each_matching_node_and_match(np, ramc_ids, &of_id) {
 		at91_ramc_base[idx] = of_iomap(np, 0);
 		if (!at91_ramc_base[idx])
 			panic(pr_fmt("unable to map ramc[%d] cpu registers\n"), idx);
+
+		if (!standby)
+			standby = of_id->data;
 
 		idx++;
 	}
@@ -355,13 +359,12 @@ static void at91_dt_ramc(void)
 	if (!idx)
 		panic(pr_fmt("unable to find compatible ram controller node in dtb\n"));
 
-	of_id = of_match_node(ramc_ids, np);
-	if (!of_id) {
+	if (!standby) {
 		pr_warn("ramc no standby function available\n");
 		return;
 	}
 
-	at91_pm_set_standby(of_id->data);
+	at91_pm_set_standby(standby);
 }
 
 void __init at91rm9200_dt_initialize(void)
