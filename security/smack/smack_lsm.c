@@ -54,6 +54,149 @@
 
 LIST_HEAD(smk_ipv6_port_list);
 
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+static void smk_bu_mode(int mode, char *s)
+{
+	int i = 0;
+
+	if (mode & MAY_READ)
+		s[i++] = 'r';
+	if (mode & MAY_WRITE)
+		s[i++] = 'w';
+	if (mode & MAY_EXEC)
+		s[i++] = 'x';
+	if (mode & MAY_APPEND)
+		s[i++] = 'a';
+	if (mode & MAY_TRANSMUTE)
+		s[i++] = 't';
+	if (mode & MAY_LOCK)
+		s[i++] = 'l';
+	if (i == 0)
+		s[i++] = '-';
+	s[i] = '\0';
+}
+#endif
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+static int smk_bu_note(char *note, struct smack_known *sskp, char *osp,
+			int mode, int rc)
+{
+	char acc[SMK_NUM_ACCESS_TYPE + 1];
+
+	if (rc <= 0)
+		return rc;
+
+	smk_bu_mode(mode, acc);
+	pr_info("Smack Bringup: (%s %s %s) %s\n",
+		sskp->smk_known, osp, acc, note);
+	return 0;
+}
+#else
+#define smk_bu_note(note, sskp, osp, mode, RC) (RC)
+#endif
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+static int smk_bu_current(char *note, char *osp, int mode, int rc)
+{
+	struct task_smack *tsp = current_security();
+	char acc[SMK_NUM_ACCESS_TYPE + 1];
+
+	if (rc <= 0)
+		return rc;
+
+	smk_bu_mode(mode, acc);
+	pr_info("Smack Bringup: (%s %s %s) %s %s\n",
+		tsp->smk_task->smk_known, osp, acc, current->comm, note);
+	return 0;
+}
+#else
+#define smk_bu_current(note, osp, mode, RC) (RC)
+#endif
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+static int smk_bu_task(struct task_struct *otp, int mode, int rc)
+{
+	struct task_smack *tsp = current_security();
+	struct task_smack *otsp = task_security(otp);
+	char acc[SMK_NUM_ACCESS_TYPE + 1];
+
+	if (rc <= 0)
+		return rc;
+
+	smk_bu_mode(mode, acc);
+	pr_info("Smack Bringup: (%s %s %s) %s to %s\n",
+		tsp->smk_task->smk_known, otsp->smk_task->smk_known, acc,
+		current->comm, otp->comm);
+	return 0;
+}
+#else
+#define smk_bu_task(otp, mode, RC) (RC)
+#endif
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+static int smk_bu_inode(struct inode *inode, int mode, int rc)
+{
+	struct task_smack *tsp = current_security();
+	char acc[SMK_NUM_ACCESS_TYPE + 1];
+
+	if (rc <= 0)
+		return rc;
+
+	smk_bu_mode(mode, acc);
+	pr_info("Smack Bringup: (%s %s %s) inode=(%s %ld) %s\n",
+		tsp->smk_task->smk_known, smk_of_inode(inode), acc,
+		inode->i_sb->s_id, inode->i_ino, current->comm);
+	return 0;
+}
+#else
+#define smk_bu_inode(inode, mode, RC) (RC)
+#endif
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+static int smk_bu_file(struct file *file, int mode, int rc)
+{
+	struct task_smack *tsp = current_security();
+	struct smack_known *sskp = tsp->smk_task;
+	struct inode *inode = file->f_inode;
+	char acc[SMK_NUM_ACCESS_TYPE + 1];
+
+	if (rc <= 0)
+		return rc;
+
+	smk_bu_mode(mode, acc);
+	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %s) %s\n",
+		sskp->smk_known, (char *)file->f_security, acc,
+		inode->i_sb->s_id, inode->i_ino, file->f_dentry->d_name.name,
+		current->comm);
+	return 0;
+}
+#else
+#define smk_bu_file(file, mode, RC) (RC)
+#endif
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+static int smk_bu_credfile(const struct cred *cred, struct file *file,
+				int mode, int rc)
+{
+	struct task_smack *tsp = cred->security;
+	struct smack_known *sskp = tsp->smk_task;
+	struct inode *inode = file->f_inode;
+	char acc[SMK_NUM_ACCESS_TYPE + 1];
+
+	if (rc <= 0)
+		return rc;
+
+	smk_bu_mode(mode, acc);
+	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %s) %s\n",
+		sskp->smk_known, smk_of_inode(inode), acc,
+		inode->i_sb->s_id, inode->i_ino, file->f_dentry->d_name.name,
+		current->comm);
+	return 0;
+}
+#else
+#define smk_bu_credfile(cred, file, mode, RC) (RC)
+#endif
+
 /**
  * smk_fetch - Fetch the smack label from a file.
  * @ip: a pointer to the inode
@@ -507,6 +650,7 @@ static int smack_sb_statfs(struct dentry *dentry)
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	rc = smk_curacc(sbp->smk_floor, MAY_READ, &ad);
+	rc = smk_bu_current("statfs", sbp->smk_floor, MAY_READ, rc);
 	return rc;
 }
 
@@ -697,11 +841,13 @@ static int smack_inode_link(struct dentry *old_dentry, struct inode *dir,
 
 	isp = smk_of_inode(old_dentry->d_inode);
 	rc = smk_curacc(isp, MAY_WRITE, &ad);
+	rc = smk_bu_inode(old_dentry->d_inode, MAY_WRITE, rc);
 
 	if (rc == 0 && new_dentry->d_inode != NULL) {
 		isp = smk_of_inode(new_dentry->d_inode);
 		smk_ad_setfield_u_fs_path_dentry(&ad, new_dentry);
 		rc = smk_curacc(isp, MAY_WRITE, &ad);
+		rc = smk_bu_inode(new_dentry->d_inode, MAY_WRITE, rc);
 	}
 
 	return rc;
@@ -728,6 +874,7 @@ static int smack_inode_unlink(struct inode *dir, struct dentry *dentry)
 	 * You need write access to the thing you're unlinking
 	 */
 	rc = smk_curacc(smk_of_inode(ip), MAY_WRITE, &ad);
+	rc = smk_bu_inode(ip, MAY_WRITE, rc);
 	if (rc == 0) {
 		/*
 		 * You also need write access to the containing directory
@@ -735,6 +882,7 @@ static int smack_inode_unlink(struct inode *dir, struct dentry *dentry)
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
 		smk_ad_setfield_u_fs_inode(&ad, dir);
 		rc = smk_curacc(smk_of_inode(dir), MAY_WRITE, &ad);
+		rc = smk_bu_inode(dir, MAY_WRITE, rc);
 	}
 	return rc;
 }
@@ -759,6 +907,7 @@ static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
 	 * You need write access to the thing you're removing
 	 */
 	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
+	rc = smk_bu_inode(dentry->d_inode, MAY_WRITE, rc);
 	if (rc == 0) {
 		/*
 		 * You also need write access to the containing directory
@@ -766,6 +915,7 @@ static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
 		smk_ad_setfield_u_fs_inode(&ad, dir);
 		rc = smk_curacc(smk_of_inode(dir), MAY_WRITE, &ad);
+		rc = smk_bu_inode(dir, MAY_WRITE, rc);
 	}
 
 	return rc;
@@ -797,11 +947,13 @@ static int smack_inode_rename(struct inode *old_inode,
 
 	isp = smk_of_inode(old_dentry->d_inode);
 	rc = smk_curacc(isp, MAY_READWRITE, &ad);
+	rc = smk_bu_inode(old_dentry->d_inode, MAY_READWRITE, rc);
 
 	if (rc == 0 && new_dentry->d_inode != NULL) {
 		isp = smk_of_inode(new_dentry->d_inode);
 		smk_ad_setfield_u_fs_path_dentry(&ad, new_dentry);
 		rc = smk_curacc(isp, MAY_READWRITE, &ad);
+		rc = smk_bu_inode(new_dentry->d_inode, MAY_READWRITE, rc);
 	}
 	return rc;
 }
@@ -819,6 +971,7 @@ static int smack_inode_permission(struct inode *inode, int mask)
 {
 	struct smk_audit_info ad;
 	int no_block = mask & MAY_NOT_BLOCK;
+	int rc;
 
 	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
 	/*
@@ -832,7 +985,9 @@ static int smack_inode_permission(struct inode *inode, int mask)
 		return -ECHILD;
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
 	smk_ad_setfield_u_fs_inode(&ad, inode);
-	return smk_curacc(smk_of_inode(inode), mask, &ad);
+	rc = smk_curacc(smk_of_inode(inode), mask, &ad);
+	rc = smk_bu_inode(inode, mask, rc);
+	return rc;
 }
 
 /**
@@ -845,6 +1000,8 @@ static int smack_inode_permission(struct inode *inode, int mask)
 static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct smk_audit_info ad;
+	int rc;
+
 	/*
 	 * Need to allow for clearing the setuid bit.
 	 */
@@ -853,7 +1010,9 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
+	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
+	rc = smk_bu_inode(dentry->d_inode, MAY_WRITE, rc);
+	return rc;
 }
 
 /**
@@ -867,13 +1026,16 @@ static int smack_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct smk_audit_info ad;
 	struct path path;
+	int rc;
 
 	path.dentry = dentry;
 	path.mnt = mnt;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, path);
-	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
+	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
+	rc = smk_bu_inode(dentry->d_inode, MAY_READ, rc);
+	return rc;
 }
 
 /**
@@ -932,8 +1094,10 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	if (rc == 0)
+	if (rc == 0) {
 		rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
+		rc = smk_bu_inode(dentry->d_inode, MAY_WRITE, rc);
+	}
 
 	return rc;
 }
@@ -993,11 +1157,14 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 static int smack_inode_getxattr(struct dentry *dentry, const char *name)
 {
 	struct smk_audit_info ad;
+	int rc;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
+	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
+	rc = smk_bu_inode(dentry->d_inode, MAY_READ, rc);
+	return rc;
 }
 
 /**
@@ -1033,6 +1200,7 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
+	rc = smk_bu_inode(dentry->d_inode, MAY_WRITE, rc);
 	if (rc != 0)
 		return rc;
 
@@ -1213,11 +1381,15 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
-	if (_IOC_DIR(cmd) & _IOC_WRITE)
+	if (_IOC_DIR(cmd) & _IOC_WRITE) {
 		rc = smk_curacc(file->f_security, MAY_WRITE, &ad);
+		rc = smk_bu_file(file, MAY_WRITE, rc);
+	}
 
-	if (rc == 0 && (_IOC_DIR(cmd) & _IOC_READ))
+	if (rc == 0 && (_IOC_DIR(cmd) & _IOC_READ)) {
 		rc = smk_curacc(file->f_security, MAY_READ, &ad);
+		rc = smk_bu_file(file, MAY_READ, rc);
+	}
 
 	return rc;
 }
@@ -1232,10 +1404,13 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
 static int smack_file_lock(struct file *file, unsigned int cmd)
 {
 	struct smk_audit_info ad;
+	int rc;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	return smk_curacc(file->f_security, MAY_LOCK, &ad);
+	rc = smk_curacc(file->f_security, MAY_LOCK, &ad);
+	rc = smk_bu_file(file, MAY_LOCK, rc);
+	return rc;
 }
 
 /**
@@ -1265,12 +1440,14 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 		smk_ad_setfield_u_fs_path(&ad, file->f_path);
 		rc = smk_curacc(file->f_security, MAY_LOCK, &ad);
+		rc = smk_bu_file(file, MAY_LOCK, rc);
 		break;
 	case F_SETOWN:
 	case F_SETSIG:
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 		smk_ad_setfield_u_fs_path(&ad, file->f_path);
 		rc = smk_curacc(file->f_security, MAY_WRITE, &ad);
+		rc = smk_bu_file(file, MAY_WRITE, rc);
 		break;
 	default:
 		break;
@@ -1425,6 +1602,7 @@ static int smack_file_send_sigiotask(struct task_struct *tsk,
 	/* we don't log here as rc can be overriden */
 	skp = smk_find_entry(file->f_security);
 	rc = smk_access(skp, tkp->smk_known, MAY_WRITE, NULL);
+	rc = smk_bu_note("sigiotask", skp, tkp->smk_known, MAY_WRITE, rc);
 	if (rc != 0 && has_capability(tsk, CAP_MAC_OVERRIDE))
 		rc = 0;
 
@@ -1442,6 +1620,7 @@ static int smack_file_send_sigiotask(struct task_struct *tsk,
  */
 static int smack_file_receive(struct file *file)
 {
+	int rc;
 	int may = 0;
 	struct smk_audit_info ad;
 
@@ -1455,7 +1634,9 @@ static int smack_file_receive(struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		may |= MAY_WRITE;
 
-	return smk_curacc(file->f_security, may, &ad);
+	rc = smk_curacc(file->f_security, may, &ad);
+	rc = smk_bu_file(file, may, rc);
+	return rc;
 }
 
 /**
@@ -1485,6 +1666,7 @@ static int smack_file_open(struct file *file, const struct cred *cred)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 	rc = smk_access(tsp->smk_task, isp->smk_inode, MAY_READ, &ad);
+	rc = smk_bu_credfile(cred, file, MAY_READ, rc);
 	if (rc == 0)
 		file->f_security = isp->smk_inode;
 
@@ -1641,10 +1823,13 @@ static int smk_curacc_on_task(struct task_struct *p, int access,
 {
 	struct smk_audit_info ad;
 	struct smack_known *skp = smk_of_task(task_security(p));
+	int rc;
 
 	smk_ad_init(&ad, caller, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, p);
-	return smk_curacc(skp->smk_known, access, &ad);
+	rc = smk_curacc(skp->smk_known, access, &ad);
+	rc = smk_bu_task(p, access, rc);
+	return rc;
 }
 
 /**
@@ -1798,6 +1983,7 @@ static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 	struct smk_audit_info ad;
 	struct smack_known *skp;
 	struct smack_known *tkp = smk_of_task(task_security(p));
+	int rc;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, p);
@@ -1805,15 +1991,20 @@ static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 	 * Sending a signal requires that the sender
 	 * can write the receiver.
 	 */
-	if (secid == 0)
-		return smk_curacc(tkp->smk_known, MAY_WRITE, &ad);
+	if (secid == 0) {
+		rc = smk_curacc(tkp->smk_known, MAY_WRITE, &ad);
+		rc = smk_bu_task(p, MAY_WRITE, rc);
+		return rc;
+	}
 	/*
 	 * If the secid isn't 0 we're dealing with some USB IO
 	 * specific behavior. This is not clean. For one thing
 	 * we can't take privilege into account.
 	 */
 	skp = smack_from_secid(secid);
-	return smk_access(skp, tkp->smk_known, MAY_WRITE, &ad);
+	rc = smk_access(skp, tkp->smk_known, MAY_WRITE, &ad);
+	rc = smk_bu_note("USB signal", skp, tkp->smk_known, MAY_WRITE, rc);
+	return rc;
 }
 
 /**
@@ -2005,6 +2196,7 @@ static int smack_netlabel_send(struct sock *sk, struct sockaddr_in *sap)
 		sk_lbl = SMACK_UNLABELED_SOCKET;
 		skp = ssp->smk_out;
 		rc = smk_access(skp, hostsp, MAY_WRITE, &ad);
+		rc = smk_bu_note("IPv4 host check", skp, hostsp, MAY_WRITE, rc);
 	} else {
 		sk_lbl = SMACK_CIPSO_SOCKET;
 		rc = 0;
@@ -2107,6 +2299,7 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 	unsigned short port = 0;
 	char *object;
 	struct smk_audit_info ad;
+	int rc;
 #ifdef CONFIG_AUDIT
 	struct lsm_network_audit net;
 #endif
@@ -2160,7 +2353,9 @@ auditout:
 	else
 		ad.a.u.net->v6info.daddr = address->sin6_addr;
 #endif
-	return smk_access(skp, object, MAY_WRITE, &ad);
+	rc = smk_access(skp, object, MAY_WRITE, &ad);
+	rc = smk_bu_note("IPv6 port check", skp, object, MAY_WRITE, rc);
+	return rc;
 }
 
 /**
@@ -2399,12 +2594,15 @@ static int smk_curacc_shm(struct shmid_kernel *shp, int access)
 {
 	char *ssp = smack_of_shm(shp);
 	struct smk_audit_info ad;
+	int rc;
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
 	ad.a.u.ipc_id = shp->shm_perm.id;
 #endif
-	return smk_curacc(ssp, access, &ad);
+	rc = smk_curacc(ssp, access, &ad);
+	rc = smk_bu_current("shm", ssp, access, rc);
+	return rc;
 }
 
 /**
@@ -2523,12 +2721,15 @@ static int smk_curacc_sem(struct sem_array *sma, int access)
 {
 	char *ssp = smack_of_sem(sma);
 	struct smk_audit_info ad;
+	int rc;
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
 	ad.a.u.ipc_id = sma->sem_perm.id;
 #endif
-	return smk_curacc(ssp, access, &ad);
+	rc = smk_curacc(ssp, access, &ad);
+	rc = smk_bu_current("sem", ssp, access, rc);
+	return rc;
 }
 
 /**
@@ -2653,12 +2854,15 @@ static int smk_curacc_msq(struct msg_queue *msq, int access)
 {
 	char *msp = smack_of_msq(msq);
 	struct smk_audit_info ad;
+	int rc;
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
 	ad.a.u.ipc_id = msq->q_perm.id;
 #endif
-	return smk_curacc(msp, access, &ad);
+	rc = smk_curacc(msp, access, &ad);
+	rc = smk_bu_current("msq", msp, access, rc);
+	return rc;
 }
 
 /**
@@ -2754,12 +2958,15 @@ static int smack_ipc_permission(struct kern_ipc_perm *ipp, short flag)
 	char *isp = ipp->security;
 	int may = smack_flags_to_may(flag);
 	struct smk_audit_info ad;
+	int rc;
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
 	ad.a.u.ipc_id = ipp->id;
 #endif
-	return smk_curacc(isp, may, &ad);
+	rc = smk_curacc(isp, may, &ad);
+	rc = smk_bu_current("svipc", isp, may, rc);
+	return rc;
 }
 
 /**
@@ -3092,8 +3299,13 @@ static int smack_unix_stream_connect(struct sock *sock,
 		smk_ad_setfield_u_net_sk(&ad, other);
 #endif
 		rc = smk_access(skp, okp->smk_known, MAY_WRITE, &ad);
-		if (rc == 0)
+		rc = smk_bu_note("UDS connect", skp, okp->smk_known,
+					MAY_WRITE, rc);
+		if (rc == 0) {
 			rc = smk_access(okp, okp->smk_known, MAY_WRITE, NULL);
+			rc = smk_bu_note("UDS connect", okp, okp->smk_known,
+						MAY_WRITE, rc);
+		}
 	}
 
 	/*
@@ -3121,6 +3333,7 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
 	struct socket_smack *osp = other->sk->sk_security;
 	struct smack_known *skp;
 	struct smk_audit_info ad;
+	int rc;
 
 #ifdef CONFIG_AUDIT
 	struct lsm_network_audit net;
@@ -3133,7 +3346,10 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
 		return 0;
 
 	skp = ssp->smk_out;
-	return smk_access(skp, osp->smk_in->smk_known, MAY_WRITE, &ad);
+	rc = smk_access(skp, osp->smk_in->smk_known, MAY_WRITE, &ad);
+	rc = smk_bu_note("UDS send", skp, osp->smk_in->smk_known,
+				MAY_WRITE, rc);
+	return rc;
 }
 
 /**
@@ -3348,6 +3564,8 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		 * for networking.
 		 */
 		rc = smk_access(skp, ssp->smk_in->smk_known, MAY_WRITE, &ad);
+		rc = smk_bu_note("IPv4 delivery", skp, ssp->smk_in->smk_known,
+					MAY_WRITE, rc);
 		if (rc != 0)
 			netlbl_skbuff_err(skb, rc, 0);
 		break;
@@ -3528,6 +3746,8 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	 * here. Read access is not required.
 	 */
 	rc = smk_access(skp, ssp->smk_in->smk_known, MAY_WRITE, &ad);
+	rc = smk_bu_note("IPv4 connect", skp, ssp->smk_in->smk_known,
+				MAY_WRITE, rc);
 	if (rc != 0)
 		return rc;
 
@@ -3631,6 +3851,7 @@ static int smack_key_permission(key_ref_t key_ref,
 	struct smk_audit_info ad;
 	struct smack_known *tkp = smk_of_task(cred->security);
 	int request = 0;
+	int rc;
 
 	keyp = key_ref_to_ptr(key_ref);
 	if (keyp == NULL)
@@ -3655,7 +3876,9 @@ static int smack_key_permission(key_ref_t key_ref,
 		request = MAY_READ;
 	if (perm & (KEY_NEED_WRITE | KEY_NEED_LINK | KEY_NEED_SETATTR))
 		request = MAY_WRITE;
-	return smk_access(tkp, keyp->security, request, &ad);
+	rc = smk_access(tkp, keyp->security, request, &ad);
+	rc = smk_bu_note("key access", tkp, keyp->security, request, rc);
+	return rc;
 }
 #endif /* CONFIG_KEYS */
 

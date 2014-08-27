@@ -191,6 +191,7 @@ struct smk_port_label {
  */
 #define MAY_TRANSMUTE	0x00001000	/* Controls directory labeling */
 #define MAY_LOCK	0x00002000	/* Locks should be writes, but ... */
+#define MAY_BRINGUP	0x00004000	/* Report use of this rule */
 
 /*
  * Just to make the common cases easier to deal with
@@ -200,9 +201,9 @@ struct smk_port_label {
 #define MAY_NOT		0
 
 /*
- * Number of access types used by Smack (rwxatl)
+ * Number of access types used by Smack (rwxatlb)
  */
-#define SMK_NUM_ACCESS_TYPE 6
+#define SMK_NUM_ACCESS_TYPE 7
 
 /* SMACK data */
 struct smack_audit_data {

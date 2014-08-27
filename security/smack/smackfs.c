@@ -304,6 +304,10 @@ static int smk_perm_from_str(const char *string)
 		case 'L':
 			perm |= MAY_LOCK;
 			break;
+		case 'b':
+		case 'B':
+			perm |= MAY_BRINGUP;
+			break;
 		default:
 			return perm;
 		}
@@ -616,6 +620,8 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 		seq_putc(s, 't');
 	if (srp->smk_access & MAY_LOCK)
 		seq_putc(s, 'l');
+	if (srp->smk_access & MAY_BRINGUP)
+		seq_putc(s, 'b');
 
 	seq_putc(s, '\n');
 }
@@ -1880,7 +1886,10 @@ static ssize_t smk_user_access(struct file *file, const char __user *buf,
 	else if (res != -ENOENT)
 		return -EINVAL;
 
-	data[0] = res == 0 ? '1' : '0';
+	/*
+	 * smk_access() can return a value > 0 in the "bringup" case.
+	 */
+	data[0] = res >= 0 ? '1' : '0';
 	data[1] = '\0';
 
 	simple_transaction_set(file, 2);

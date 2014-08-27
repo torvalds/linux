@@ -178,16 +178,27 @@ int smk_access(struct smack_known *subject_known, char *object_label,
 				&subject_known->smk_rules);
 	rcu_read_unlock();
 
-	if (may > 0 && (request & may) == request)
+	if (may <= 0 || (request & may) != request) {
+		rc = -EACCES;
 		goto out_audit;
+	}
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+	/*
+	 * Return a positive value if using bringup mode.
+	 * This allows the hooks to identify checks that
+	 * succeed because of "b" rules.
+	 */
+	if (may & MAY_BRINGUP)
+		rc = MAY_BRINGUP;
+#endif
 
-	rc = -EACCES;
 out_audit:
 #ifdef CONFIG_AUDIT
 	if (a)
 		smack_log(subject_known->smk_known, object_label, request,
 				rc, a);
 #endif
+
 	return rc;
 }
 
@@ -214,7 +225,7 @@ int smk_tskacc(struct task_smack *subject, char *obj_label,
 	 * Check the global rule list
 	 */
 	rc = smk_access(skp, obj_label, mode, NULL);
-	if (rc == 0) {
+	if (rc >= 0) {
 		/*
 		 * If there is an entry in the task's rule list
 		 * it can further restrict access.
@@ -328,6 +339,13 @@ void smack_log(char *subject_label, char *object_label, int request,
 	struct smack_audit_data *sad;
 	struct common_audit_data *a = &ad->a;
 
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+	/*
+	 * The result may be positive in bringup mode.
+	 */
+	if (result > 0)
+		result = 0;
+#endif
 	/* check if we have to log the current event */
 	if (result != 0 && (log_policy & SMACK_AUDIT_DENIED) == 0)
 		return;
