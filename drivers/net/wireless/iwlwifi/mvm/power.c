@@ -286,12 +286,28 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	return true;
 }
 
+static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_channel *chan;
+	bool radar_detect = false;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	WARN_ON(!chanctx_conf);
+	if (chanctx_conf) {
+		chan = chanctx_conf->def.chan;
+		radar_detect = chan->flags & IEEE80211_CHAN_RADAR;
+	}
+	rcu_read_unlock();
+
+	return radar_detect;
+}
+
 static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct iwl_mac_power_cmd *cmd)
 {
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_channel *chan;
 	int dtimper, dtimper_msec;
 	int keep_alive;
 	bool radar_detect = false;
@@ -333,14 +349,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	}
 
 	/* Check if radar detection is required on current channel */
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
-	WARN_ON(!chanctx_conf);
-	if (chanctx_conf) {
-		chan = chanctx_conf->def.chan;
-		radar_detect = chan->flags & IEEE80211_CHAN_RADAR;
-	}
-	rcu_read_unlock();
+	radar_detect = iwl_mvm_power_is_radar(vif);
 
 	/* Check skip over DTIM conditions */
 	if (!radar_detect && (dtimper <= 10) &&
@@ -961,17 +970,22 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	if (enable) {
-		/* configure skip over dtim up to 300 msec */
+		/* configure skip over dtim up to 306TU - 314 msec */
 		int dtimper = vif->bss_conf.dtim_period ?: 1;
-		int dtimper_msec = dtimper * vif->bss_conf.beacon_int;
+		int dtimper_tu = dtimper * vif->bss_conf.beacon_int;
+		bool radar_detect = iwl_mvm_power_is_radar(vif);
 
-		if (WARN_ON(!dtimper_msec))
+		if (WARN_ON(!dtimper_tu))
 			return 0;
 
-		cmd.skip_dtim_periods = 300 / dtimper_msec;
-		if (cmd.skip_dtim_periods)
-			cmd.flags |=
-				cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		/* Check skip over DTIM conditions */
+		/* TODO: check that multicast wake lock is off */
+		if (!radar_detect && (dtimper < 10)) {
+			cmd.skip_dtim_periods = 306 / dtimper_tu;
+			if (cmd.skip_dtim_periods)
+				cmd.flags |= cpu_to_le16(
+					POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		}
 	}
 	iwl_mvm_power_log(mvm, &cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
