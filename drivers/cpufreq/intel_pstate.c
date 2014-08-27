@@ -688,7 +688,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	add_timer_on(&cpu->timer, cpunum);
 
-	pr_info("Intel pstate controlling: cpu %d\n", cpunum);
+	pr_debug("Intel pstate controlling: cpu %d\n", cpunum);
 
 	return 0;
 }
