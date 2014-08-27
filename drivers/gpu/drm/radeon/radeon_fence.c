@@ -833,6 +833,7 @@ static int radeon_debugfs_gpu_reset(struct seq_file *m, void *data)
 	down_read(&rdev->exclusive_lock);
 	seq_printf(m, "%d\n", rdev->needs_reset);
 	rdev->needs_reset = true;
+	wake_up_all(&rdev->fence_queue);
 	up_read(&rdev->exclusive_lock);
 
 	return 0;
