@@ -1492,7 +1492,7 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 	struct bcm_nvm_readwrite nvm_rw;
 	struct timeval tv0, tv1;
 	struct bcm_ioctl_buffer io_buff;
-	PUCHAR pReadData = NULL;
+	PUCHAR read_data = NULL;
 	INT status = STATUS_FAILURE;
 
 	memset(&tv0, 0, sizeof(struct timeval));
@@ -1535,14 +1535,14 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 		ad->uiNVMDSDSize - nvm_rw.uiNumBytes)
 		return STATUS_FAILURE;
 
-	pReadData = memdup_user(nvm_rw.pBuffer,
+	read_data = memdup_user(nvm_rw.pBuffer,
 				nvm_rw.uiNumBytes);
-	if (IS_ERR(pReadData))
-		return PTR_ERR(pReadData);
+	if (IS_ERR(read_data))
+		return PTR_ERR(read_data);
 
 	do_gettimeofday(&tv0);
 	if (IOCTL_BCM_NVM_READ == cmd) {
-		int ret = bcm_handle_nvm_read_cmd(ad, pReadData,
+		int ret = bcm_handle_nvm_read_cmd(ad, read_data,
 				&nvm_rw);
 		if (ret != STATUS_SUCCESS)
 			return ret;
@@ -1557,20 +1557,20 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 				DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"Device is in Idle/Shutdown Mode\n");
 			up(&ad->NVMRdmWrmLock);
-			kfree(pReadData);
+			kfree(read_data);
 			return -EACCES;
 		}
 
 		ad->bHeaderChangeAllowed = TRUE;
 		if (IsFlash2x(ad)) {
 			int ret = handle_flash2x_adapter(ad,
-							pReadData,
+							read_data,
 							&nvm_rw);
 			if (ret != STATUS_SUCCESS)
 				return ret;
 		}
 
-		status = BeceemNVMWrite(ad, (PUINT)pReadData,
+		status = BeceemNVMWrite(ad, (PUINT)read_data,
 			nvm_rw.uiOffset, nvm_rw.uiNumBytes,
 			nvm_rw.bVerify);
 		if (IsFlash2x(ad))
@@ -1581,7 +1581,7 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 		up(&ad->NVMRdmWrmLock);
 
 		if (status != STATUS_SUCCESS) {
-			kfree(pReadData);
+			kfree(read_data);
 			return status;
 		}
 	}
@@ -1592,7 +1592,7 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 		(tv1.tv_sec - tv0.tv_sec)*1000 +
 		(tv1.tv_usec - tv0.tv_usec)/1000);
 
-	kfree(pReadData);
+	kfree(read_data);
 	return STATUS_SUCCESS;
 }
 
