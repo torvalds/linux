@@ -3,3 +3,9 @@ config AMLOGIC_MESON_CPUFREQ
 	depends on PLAT_MESON
 	help
 	  This adds the CPUFreq driver for Meson series CPU
+
+config FIX_SYSPLL
+    bool "Meson CPU Fix syspll mode support"
+    depends on ARCH_MESON8B 
+    help
+        This add fix sys pll mode support for M8baby

@@ -55,12 +55,13 @@ extern struct arm_delay_ops arm_delay_ops;
 
 static DEFINE_SPINLOCK(clockfw_lock);
 static DEFINE_MUTEX(clock_ops_lock);
+static int measure_cpu_clock = 0;
 
 /**************** SYS PLL**************************/
 #define SYS_PLL_TABLE_MIN	 24000000
 #define SYS_PLL_TABLE_MAX	2112000000
 
-#define CPU_FREQ_LIMIT 1488000000
+#define CPU_FREQ_LIMIT 1536000000
 
 struct sys_pll_s {
     unsigned int freq;
@@ -339,10 +340,11 @@ long clk_round_rate_sys(struct clk *clk, unsigned long rate)
 		dst = setup_a9_clk_min;
 	else if(dst > setup_a9_clk_max)
 		dst = setup_a9_clk_max;
- 	 
-	idx = ((dst - SYS_PLL_TABLE_MIN) / 1000000) / 24;
-	//printk("sys round rate: %d -- %d\n",rate,sys_pll_settings[idx][0]);
-	rate = sys_pll_settings[idx][0] * 1000000;
+ 	if ((rate != 1250000000)) {
+	    idx = ((dst - SYS_PLL_TABLE_MIN) / 1000000) / 24;
+        //printk("sys round rate: %ld -- %d\n",rate,sys_pll_settings[idx][0]);
+        rate = sys_pll_settings[idx][0] * 1000000;
+    } 
 	
 	return rate;
 }
@@ -744,8 +746,11 @@ static unsigned long clk_get_rate_a9(struct clk * clkdev)
 			parent_clk = clk_get_rate_xtal(NULL);
 		else if(pll_sel == 1)
 			parent_clk = clk_get_rate_sys(clkdev->parent);
-		else
+	    else if (pll_sel == 2) {
+            clk = 1250000000;   // from MPLL / 2 
+        } else { 
 			printk(KERN_INFO "Error : A9 parent pll selection incorrect!\n");
+        }
 		if(parent_clk > 0){
 			unsigned int N = (aml_read_reg32(P_HHI_SYS_CPU_CLK_CNTL1) >> 20) & 0x3FF;
 			unsigned int div = 1;
@@ -792,11 +797,14 @@ static int _clk_set_rate_cpu(struct clk *clk, unsigned long cpu, unsigned long g
 	unsigned long parent = 0;
 	unsigned long oldcpu = clk_get_rate_a9(clk);
 	unsigned int cpu_clk_cntl = aml_read_reg32(P_HHI_SYS_CPU_CLK_CNTL);
+	int test_n = 0;
 	
 //	if ((cpu_clk_cntl & 3) == 1) {
 	{
+		unsigned long real_cpu;
 		parent = clk_get_rate_sys(clk->parent);
 		// CPU switch to xtal 
+
 		aml_write_reg32(P_HHI_SYS_CPU_CLK_CNTL, cpu_clk_cntl & ~(1 << 7));
 		if (oldcpu <= cpu) {
 			// when increasing frequency, lpj has already been adjusted
@@ -805,7 +813,19 @@ static int _clk_set_rate_cpu(struct clk *clk, unsigned long cpu, unsigned long g
 			// when decreasing frequency, lpj has not yet been adjusted
 			udelay_scaled(10, oldcpu / 1000000, 24 /*clk_get_rate_xtal*/);
 		}
-		set_sys_pll(clk->parent, cpu);
+
+	    aml_set_reg32_bits(P_HHI_SYS_CPU_CLK_CNTL, 1, 0, 2);    // path select to syspll
+        if (cpu == 1250000000) {
+	    	aml_set_reg32_bits(P_HHI_MPLL_CNTL6, 1, 27, 1);
+	    	aml_set_reg32_bits(P_HHI_SYS_CPU_CLK_CNTL, 2, 0, 2);    // select to mpll
+			aml_set_reg32_bits(P_HHI_SYS_CPU_CLK_CNTL, 0, 2, 2);    // cancel external od
+		    udelay_scaled(500, oldcpu / 1000000, 24 /*clk_get_rate_xtal*/);
+	        printk(KERN_DEBUG"CTS_CPU_CLK %4ld --> %4ld (MHz)\n",
+									clk->rate / 1000000, cpu / 1000000);
+            clk->parent->rate = cpu;
+        } else {
+    		set_sys_pll(clk->parent, cpu);
+        }
 
 		// Read CBUS for short delay, then CPU switch to sys pll
 		cpu_clk_cntl = aml_read_reg32(P_HHI_SYS_CPU_CLK_CNTL);
@@ -818,6 +838,16 @@ static int _clk_set_rate_cpu(struct clk *clk, unsigned long cpu, unsigned long g
 			udelay_scaled(100, oldcpu / 1000000, cpu / 1000000);
 		}
 
+        if (measure_cpu_clock) {
+            while (test_n < 5) {
+	            real_cpu = clk_util_clk_msr(18) << 4;
+	            if ((real_cpu < cpu && (cpu - real_cpu) > 48000000) ||
+	            	(real_cpu > cpu && (real_cpu - cpu) > 48000000)) {
+	            	pr_info("hope to set cpu clk as %ld, real value is %ld, time %d\n", cpu, real_cpu, test_n);
+	            }
+                test_n++;
+            }
+        }
 		// CPU switch to sys pll
 		//cpu_clk_cntl = aml_read_reg32(P_HHI_SYS_CPU_CLK_CNTL);
 		//aml_set_reg32_mask(P_HHI_SYS_CPU_CLK_CNTL, (1 << 7));
@@ -1173,7 +1203,12 @@ SETPLL:
 			aml_set_reg32_bits(P_HHI_SYS_CPU_CLK_CNTL, 3, 2, 2);
 		else
 			aml_set_reg32_bits(P_HHI_SYS_CPU_CLK_CNTL, 0, 2, 2);
-		aml_write_reg32(P_HHI_SYS_PLL_CNTL,  cpu_clk_cntl | (1 << 29));
+      //aml_write_reg32(P_HHI_SYS_PLL_CNTL,  cpu_clk_cntl | (1 << 29));
+        if((cpu_clk_cntl & 0x3fff) != (curr_cntl & 0x3fff)) {
+            //dest M,N is equal to curr_cntl, So, we neednot reset the pll, just change the OD.
+            aml_write_reg32(P_HHI_SYS_PLL_CNTL,  cpu_clk_cntl | (1 << 29));
+        }
+
 		if(only_once == 99){
 			only_once = 1;
 			aml_write_reg32(P_HHI_SYS_PLL_CNTL2, M8_SYS_PLL_CNTL_2);
@@ -1684,9 +1719,25 @@ static ssize_t freq_limit_show(struct class *cla, struct class_attribute *attr, 
 	return sprintf(buf, "%d\n", freq_limit);
 }
 
+static ssize_t check_clock_store(struct class *cla, struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+		return -EINVAL;
+	measure_cpu_clock = input;
+	return count;
+}
+static ssize_t check_clock_show(struct class *cla, struct class_attribute *attr, char *buf)
+{
+	printk("%u\n", measure_cpu_clock);
+	return sprintf(buf, "%d\n", measure_cpu_clock);
+}
 
 static struct class_attribute freq_limit_class_attrs[] = {
 	__ATTR(limit, S_IRUGO|S_IWUSR|S_IWGRP, freq_limit_show, freq_limit_store),
+	__ATTR(check_clock, S_IRUGO|S_IWUSR|S_IWGRP, check_clock_show, check_clock_store),
 	__ATTR_NULL,
 };
 
