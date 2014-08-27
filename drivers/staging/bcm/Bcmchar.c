@@ -2264,7 +2264,7 @@ static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 {
 	struct bcm_ioctl_buffer io_buff;
 	INT status = STATUS_FAILURE;
-	ULONG RxCntrlMsgBitMask = 0;
+	ULONG rx_cntrl_msg_bit_mask = 0;
 
 	/* Copy Ioctl Buffer structure */
 	status = copy_from_user(&io_buff, argp,
@@ -2278,7 +2278,7 @@ static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 	if (io_buff.InputLength != sizeof(unsigned long))
 		return -EINVAL;
 
-	status = copy_from_user(&RxCntrlMsgBitMask, io_buff.InputBuffer,
+	status = copy_from_user(&rx_cntrl_msg_bit_mask, io_buff.InputBuffer,
 				io_buff.InputLength);
 	if (status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -2287,8 +2287,8 @@ static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 	}
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"\n Got user defined cntrl msg bit mask :%lx",
-			RxCntrlMsgBitMask);
-	pTarang->RxCntrlMsgBitMask = RxCntrlMsgBitMask;
+			rx_cntrl_msg_bit_mask);
+	pTarang->RxCntrlMsgBitMask = rx_cntrl_msg_bit_mask;
 
 	return status;
 }
