@@ -727,6 +727,8 @@ struct iwl_mvm {
 
 	/* system time of last beacon (for AP/GO interface) */
 	u32 ap_last_beacon_gp2;
+
+	u8 low_latency_agg_frame_limit;
 };
 
 /* Extract MVM priv from op_mode and _hw */
