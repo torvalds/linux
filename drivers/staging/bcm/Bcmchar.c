@@ -964,7 +964,7 @@ static int bcm_char_ioctl_buffer_download_start(
 static int bcm_char_ioctl_buffer_download(void __user *argp,
 					  struct bcm_mini_adapter *ad)
 {
-	struct bcm_firmware_info *psFwInfo = NULL;
+	struct bcm_firmware_info *fw_info = NULL;
 	struct bcm_ioctl_buffer io_buff;
 	INT status;
 
@@ -992,35 +992,35 @@ static int bcm_char_ioctl_buffer_download(void __user *argp,
 		return -EINVAL;
 	}
 
-	psFwInfo = kmalloc(sizeof(*psFwInfo), GFP_KERNEL);
-	if (!psFwInfo) {
+	fw_info = kmalloc(sizeof(*fw_info), GFP_KERNEL);
+	if (!fw_info) {
 		up(&ad->fw_download_sema);
 		return -ENOMEM;
 	}
 
-	if (copy_from_user(psFwInfo, io_buff.InputBuffer,
+	if (copy_from_user(fw_info, io_buff.InputBuffer,
 		io_buff.InputLength)) {
 		up(&ad->fw_download_sema);
-		kfree(psFwInfo);
+		kfree(fw_info);
 		return -EFAULT;
 	}
 
-	if (!psFwInfo->pvMappedFirmwareAddress ||
-		(psFwInfo->u32FirmwareLength == 0)) {
+	if (!fw_info->pvMappedFirmwareAddress ||
+		(fw_info->u32FirmwareLength == 0)) {
 
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Something else is wrong %lu\n",
-				psFwInfo->u32FirmwareLength);
+				fw_info->u32FirmwareLength);
 		up(&ad->fw_download_sema);
-		kfree(psFwInfo);
+		kfree(fw_info);
 		status = -EINVAL;
 		return status;
 	}
 
-	status = bcm_ioctl_fw_download(ad, psFwInfo);
+	status = bcm_ioctl_fw_download(ad, fw_info);
 
 	if (status != STATUS_SUCCESS) {
-		if (psFwInfo->u32StartingAddress == CONFIG_BEGIN_ADDR)
+		if (fw_info->u32StartingAddress == CONFIG_BEGIN_ADDR)
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"IOCTL: Configuration File Upload Failed\n");
 		else
@@ -1042,7 +1042,7 @@ static int bcm_char_ioctl_buffer_download(void __user *argp,
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, OSAL_DBG, DBG_LVL_ALL,
 		"IOCTL: Firmware File Uploaded\n");
-	kfree(psFwInfo);
+	kfree(fw_info);
 	return status;
 }
 
