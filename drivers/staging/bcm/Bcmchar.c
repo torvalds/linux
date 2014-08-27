@@ -1602,7 +1602,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	struct bcm_flash2x_readwrite flash_2x_read = {0};
 	struct bcm_ioctl_buffer io_buff;
 	PUCHAR read_buff = NULL;
-	UINT NOB = 0;
+	UINT nob = 0;
 	UINT buff_size = 0;
 	UINT read_bytes = 0;
 	UINT read_offset = 0;
@@ -1644,11 +1644,11 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	if (validateFlash2xReadWrite(ad, &flash_2x_read) == false)
 		return STATUS_FAILURE;
 
-	NOB = flash_2x_read.numOfBytes;
-	if (NOB > ad->uiSectorSize)
+	nob = flash_2x_read.numOfBytes;
+	if (nob > ad->uiSectorSize)
 		buff_size = ad->uiSectorSize;
 	else
-		buff_size = NOB;
+		buff_size = nob;
 
 	read_offset = flash_2x_read.offset;
 	OutPutBuff = io_buff.OutputBuffer;
@@ -1673,11 +1673,11 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 		return -EACCES;
 	}
 
-	while (NOB) {
-		if (NOB > ad->uiSectorSize)
+	while (nob) {
+		if (nob > ad->uiSectorSize)
 			read_bytes = ad->uiSectorSize;
 		else
-			read_bytes = NOB;
+			read_bytes = nob;
 
 		/* Reading the data from Flash 2.x */
 		status = BcmFlash2xBulkRead(ad, (PUINT)read_buff,
@@ -1702,8 +1702,8 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 			kfree(read_buff);
 			return -EFAULT;
 		}
-		NOB = NOB - read_bytes;
-		if (NOB) {
+		nob = nob - read_bytes;
+		if (nob) {
 			read_offset = read_offset + read_bytes;
 			OutPutBuff = OutPutBuff + read_bytes;
 		}
@@ -1721,7 +1721,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	struct bcm_ioctl_buffer io_buff;
 	PUCHAR write_buff;
 	void __user *input_addr;
-	UINT NOB = 0;
+	UINT nob = 0;
 	UINT buff_size = 0;
 	UINT write_off = 0;
 	UINT write_bytes = 0;
@@ -1770,12 +1770,12 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 
 	input_addr = sFlash2xWrite.pDataBuff;
 	write_off = sFlash2xWrite.offset;
-	NOB = sFlash2xWrite.numOfBytes;
+	nob = sFlash2xWrite.numOfBytes;
 
-	if (NOB > ad->uiSectorSize)
+	if (nob > ad->uiSectorSize)
 		buff_size = ad->uiSectorSize;
 	else
-		buff_size = NOB;
+		buff_size = nob;
 
 	write_buff = kmalloc(buff_size, GFP_KERNEL);
 
@@ -1789,8 +1789,8 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 			(write_off % ad->uiSectorSize);
 	}
 
-	if (NOB < write_bytes)
-		write_bytes = NOB;
+	if (nob < write_bytes)
+		write_bytes = nob;
 
 	down(&ad->NVMRdmWrmLock);
 
@@ -1831,16 +1831,16 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 			break;
 		}
 
-		NOB = NOB - write_bytes;
-		if (NOB) {
+		nob = nob - write_bytes;
+		if (nob) {
 			write_off = write_off + write_bytes;
 			input_addr = input_addr + write_bytes;
-			if (NOB > ad->uiSectorSize)
+			if (nob > ad->uiSectorSize)
 				write_bytes = ad->uiSectorSize;
 			else
-				write_bytes = NOB;
+				write_bytes = nob;
 		}
-	} while (NOB > 0);
+	} while (nob > 0);
 
 	BcmFlash2xWriteSig(ad, sFlash2xWrite.Section);
 	up(&ad->NVMRdmWrmLock);
@@ -1995,7 +1995,7 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"offset :%x", copy_sect_strut.offset);
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"NOB :%x", copy_sect_strut.numOfBytes);
+			"nob :%x", copy_sect_strut.numOfBytes);
 
 	if (IsSectionExistInFlash(ad, copy_sect_strut.SrcSection) == false) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -2161,7 +2161,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 {
 	struct bcm_nvm_readwrite nvm_read;
 	struct bcm_ioctl_buffer io_buff;
-	unsigned int NOB;
+	unsigned int nob;
 	INT buff_size;
 	INT read_offset = 0;
 	UINT read_bytes = 0;
@@ -2186,13 +2186,13 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 		sizeof(struct bcm_nvm_readwrite)))
 		return -EFAULT;
 
-	NOB = nvm_read.uiNumBytes;
+	nob = nvm_read.uiNumBytes;
 	/* In Raw-Read max Buff size : 64MB */
 
-	if (NOB > DEFAULT_BUFF_SIZE)
+	if (nob > DEFAULT_BUFF_SIZE)
 		buff_size = DEFAULT_BUFF_SIZE;
 	else
-		buff_size = NOB;
+		buff_size = nob;
 
 	read_offset = nvm_read.uiOffset;
 	OutPutBuff = nvm_read.pBuffer;
@@ -2218,11 +2218,11 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 
 	ad->bFlashRawRead = TRUE;
 
-	while (NOB) {
-		if (NOB > DEFAULT_BUFF_SIZE)
+	while (nob) {
+		if (nob > DEFAULT_BUFF_SIZE)
 			read_bytes = DEFAULT_BUFF_SIZE;
 		else
-			read_bytes = NOB;
+			read_bytes = nob;
 
 		/* Reading the data from Flash 2.x */
 		status = BeceemNVMRead(ad, (PUINT)read_buff,
@@ -2246,8 +2246,8 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 			kfree(read_buff);
 			return -EFAULT;
 		}
-		NOB = NOB - read_bytes;
-		if (NOB) {
+		nob = nob - read_bytes;
+		if (nob) {
 			read_offset = read_offset + read_bytes;
 			OutPutBuff = OutPutBuff + read_bytes;
 		}
