@@ -164,6 +164,8 @@ static void of_dma_configure(struct device *dev)
 {
 	u64 dma_addr, paddr, size;
 	int ret;
+	bool coherent;
+	unsigned long offset;
 
 	/*
 	 * Set default dma-mask to 32 bit. Drivers are expected to setup
@@ -178,28 +180,21 @@ static void of_dma_configure(struct device *dev)
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
 
-	/*
-	 * if dma-coherent property exist, call arch hook to setup
-	 * dma coherent operations.
-	 */
-	if (of_dma_is_coherent(dev->of_node)) {
-		set_arch_dma_coherent_ops(dev);
-		dev_dbg(dev, "device is dma coherent\n");
-	}
-
-	/*
-	 * if dma-ranges property doesn't exist - just return else
-	 * setup the dma offset
-	 */
 	ret = of_dma_get_range(dev->of_node, &dma_addr, &paddr, &size);
 	if (ret < 0) {
-		dev_dbg(dev, "no dma range information to setup\n");
-		return;
+		dma_addr = offset = 0;
+		size = dev->coherent_dma_mask;
+	} else {
+		offset = PFN_DOWN(paddr - dma_addr);
+		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", dev->dma_pfn_offset);
 	}
+	dev->dma_pfn_offset = offset;
 
-	/* DMA ranges found. Calculate and set dma_pfn_offset */
-	dev->dma_pfn_offset = PFN_DOWN(paddr - dma_addr);
-	dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", dev->dma_pfn_offset);
+	coherent = of_dma_is_coherent(dev->of_node);
+	dev_dbg(dev, "device is%sdma coherent\n",
+		coherent ? " " : " not ");
+
+	arch_setup_dma_ops(dev, coherent);
 }
 
 /**

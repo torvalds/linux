@@ -121,12 +121,12 @@ static inline unsigned long dma_max_pfn(struct device *dev)
 }
 #define dma_max_pfn(dev) dma_max_pfn(dev)
 
-static inline int set_arch_dma_coherent_ops(struct device *dev)
+static inline void arch_setup_dma_ops(struct device *dev, bool coherent)
 {
-	set_dma_ops(dev, &arm_coherent_dma_ops);
-	return 0;
+	if (coherent)
+		set_dma_ops(dev, &arm_coherent_dma_ops);
 }
-#define set_arch_dma_coherent_ops(dev)	set_arch_dma_coherent_ops(dev)
+#define arch_setup_dma_ops arch_setup_dma_ops
 
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
