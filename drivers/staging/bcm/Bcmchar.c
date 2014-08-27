@@ -2296,26 +2296,26 @@ static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 static int bcm_char_ioctl_get_device_driver_info(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
-	struct bcm_driver_info DevInfo;
+	struct bcm_driver_info dev_info;
 	struct bcm_ioctl_buffer io_buff;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"Called IOCTL_BCM_GET_DEVICE_DRIVER_INFO\n");
 
-	memset(&DevInfo, 0, sizeof(DevInfo));
-	DevInfo.MaxRDMBufferSize = BUFFER_4K;
-	DevInfo.u32DSDStartOffset = EEPROM_CALPARAM_START;
-	DevInfo.u32RxAlignmentCorrection = 0;
-	DevInfo.u32NVMType = ad->eNVMType;
-	DevInfo.u32InterfaceType = BCM_USB;
+	memset(&dev_info, 0, sizeof(dev_info));
+	dev_info.MaxRDMBufferSize = BUFFER_4K;
+	dev_info.u32DSDStartOffset = EEPROM_CALPARAM_START;
+	dev_info.u32RxAlignmentCorrection = 0;
+	dev_info.u32NVMType = ad->eNVMType;
+	dev_info.u32InterfaceType = BCM_USB;
 
 	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (io_buff.OutputLength < sizeof(DevInfo))
+	if (io_buff.OutputLength < sizeof(dev_info))
 		return -EINVAL;
 
-	if (copy_to_user(io_buff.OutputBuffer, &DevInfo, sizeof(DevInfo)))
+	if (copy_to_user(io_buff.OutputBuffer, &dev_info, sizeof(dev_info)))
 		return -EFAULT;
 
 	return STATUS_SUCCESS;
