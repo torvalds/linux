@@ -1201,18 +1201,8 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 clock_set:
-	if (real_div) {
+	if (real_div)
 		host->mmc->actual_clock = (host->max_clk * clk_mul) / real_div;
-		if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
-			host->timeout_clk = host->mmc->actual_clock / 1000;
-			host->mmc->max_busy_timeout =
-					host->ops->get_max_timeout_count ?
-					host->ops->get_max_timeout_count(host) :
-					1 << 27;
-			host->mmc->max_busy_timeout /= host->timeout_clk;
-		}
-	}
-
 	clk |= (div & SDHCI_DIV_MASK) << SDHCI_DIVIDER_SHIFT;
 	clk |= ((div & SDHCI_DIV_HI_MASK) >> SDHCI_DIV_MASK_LEN)
 		<< SDHCI_DIVIDER_HI_SHIFT;
@@ -1489,6 +1479,18 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 	if (!ios->clock || ios->clock != host->clock) {
 		host->ops->set_clock(host, ios->clock);
 		host->clock = ios->clock;
+
+		if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK &&
+		    host->clock) {
+			host->timeout_clk = host->mmc->actual_clock ?
+						host->mmc->actual_clock / 1000 :
+						host->clock / 1000;
+			host->mmc->max_busy_timeout =
+				host->ops->get_max_timeout_count ?
+				host->ops->get_max_timeout_count(host) :
+				1 << 27;
+			host->mmc->max_busy_timeout /= host->timeout_clk;
+		}
 	}
 
 	sdhci_set_power(host, ios->power_mode, ios->vdd);
