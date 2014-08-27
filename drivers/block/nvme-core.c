@@ -1807,11 +1807,9 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
 					unsigned int cmd, unsigned long arg)
 {
-	struct nvme_ns *ns = bdev->bd_disk->private_data;
-
 	switch (cmd) {
 	case SG_IO:
-		return nvme_sg_io32(ns, arg);
+		return -ENOIOCTLCMD;
 	}
 	return nvme_ioctl(bdev, mode, cmd, arg);
 }
