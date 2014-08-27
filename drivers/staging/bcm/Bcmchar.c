@@ -1851,7 +1851,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 static int bcm_char_ioctl_flash2x_section_bitmap(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
-	struct bcm_flash2x_bitmap *psFlash2xBitMap;
+	struct bcm_flash2x_bitmap *flash_2x_bit_map;
 	struct bcm_ioctl_buffer io_buff;
 
 BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -1863,10 +1863,10 @@ BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 	if (io_buff.OutputLength != sizeof(struct bcm_flash2x_bitmap))
 		return -EINVAL;
 
-	psFlash2xBitMap = kzalloc(sizeof(struct bcm_flash2x_bitmap),
+	flash_2x_bit_map = kzalloc(sizeof(struct bcm_flash2x_bitmap),
 			GFP_KERNEL);
 
-	if (psFlash2xBitMap == NULL) {
+	if (flash_2x_bit_map == NULL) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			"Memory is not available");
 		return -ENOMEM;
@@ -1882,19 +1882,19 @@ BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"Device is in Idle/Shutdown Mode\n");
 		up(&ad->NVMRdmWrmLock);
-		kfree(psFlash2xBitMap);
+		kfree(flash_2x_bit_map);
 		return -EACCES;
 	}
 
-	BcmGetFlash2xSectionalBitMap(ad, psFlash2xBitMap);
+	BcmGetFlash2xSectionalBitMap(ad, flash_2x_bit_map);
 	up(&ad->NVMRdmWrmLock);
-	if (copy_to_user(io_buff.OutputBuffer, psFlash2xBitMap,
+	if (copy_to_user(io_buff.OutputBuffer, flash_2x_bit_map,
 		sizeof(struct bcm_flash2x_bitmap))) {
-		kfree(psFlash2xBitMap);
+		kfree(flash_2x_bit_map);
 		return -EFAULT;
 	}
 
-	kfree(psFlash2xBitMap);
+	kfree(flash_2x_bit_map);
 	return STATUS_FAILURE;
 }
 
