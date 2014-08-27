@@ -1400,7 +1400,7 @@ static int bcm_char_ioctl_cal_init(void __user *argp,
 				   struct bcm_mini_adapter *ad)
 {
 	struct bcm_ioctl_buffer io_buff;
-	UINT uiSectorSize = 0;
+	UINT sector_size = 0;
 	INT status = STATUS_FAILURE;
 
 	if (ad->eNVMType == NVM_FLASH) {
@@ -1408,12 +1408,12 @@ static int bcm_char_ioctl_cal_init(void __user *argp,
 			sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		if (copy_from_user(&uiSectorSize, io_buff.InputBuffer,
+		if (copy_from_user(&sector_size, io_buff.InputBuffer,
 			sizeof(UINT)))
 			return -EFAULT;
 
-		if ((uiSectorSize < MIN_SECTOR_SIZE) ||
-			(uiSectorSize > MAX_SECTOR_SIZE)) {
+		if ((sector_size < MIN_SECTOR_SIZE) ||
+			(sector_size > MAX_SECTOR_SIZE)) {
 			if (copy_to_user(io_buff.OutputBuffer,
 				&ad->uiSectorSize, sizeof(UINT)))
 				return -EFAULT;
@@ -1431,7 +1431,7 @@ static int bcm_char_ioctl_cal_init(void __user *argp,
 					return -EACCES;
 				}
 
-				ad->uiSectorSize = uiSectorSize;
+				ad->uiSectorSize = sector_size;
 				BcmUpdateSectorSize(ad,
 					ad->uiSectorSize);
 			}
