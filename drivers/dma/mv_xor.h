@@ -110,9 +110,7 @@ struct mv_xor_chan {
  * @completed_node: node on the mv_xor_chan.completed_slots list
  * @hw_desc: virtual address of the hardware descriptor chain
  * @phys: hardware address of the hardware descriptor chain
- * @group_head: first operation in a transaction
- * @slot_cnt: total slots used in an transaction (group of operations)
- * @slots_per_op: number of slots per operation
+ * @slot_used: slot in use or not
  * @idx: pool index
  * @unmap_src_cnt: number of xor sources
  * @unmap_len: transaction bytecount
@@ -127,14 +125,11 @@ struct mv_xor_desc_slot {
 	struct list_head	completed_node;
 	enum dma_transaction_type	type;
 	void			*hw_desc;
-	struct mv_xor_desc_slot	*group_head;
-	u16			slot_cnt;
-	u16			slots_per_op;
+	u16			slot_used;
 	u16			idx;
 	u16			unmap_src_cnt;
 	u32			value;
 	size_t			unmap_len;
-	struct list_head	tx_list;
 	struct dma_async_tx_descriptor	async_tx;
 	union {
 		u32		*xor_check_result;
