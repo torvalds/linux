@@ -1956,7 +1956,7 @@ static int bcm_char_ioctl_set_active_section(void __user *argp,
 static int bcm_char_ioctl_copy_section(void __user *argp,
 				       struct bcm_mini_adapter *ad)
 {
-	struct bcm_flash2x_copy_section sCopySectStrut = {0};
+	struct bcm_flash2x_copy_section copy_sect_strut = {0};
 	struct bcm_ioctl_buffer io_buff;
 	INT status = STATUS_SUCCESS;
 
@@ -1979,7 +1979,7 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 		return -EFAULT;
 	}
 
-	status = copy_from_user(&sCopySectStrut, io_buff.InputBuffer,
+	status = copy_from_user(&copy_sect_strut, io_buff.InputBuffer,
 				sizeof(struct bcm_flash2x_copy_section));
 	if (status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -1989,29 +1989,29 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 	}
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"Source SEction :%x", sCopySectStrut.SrcSection);
+			"Source SEction :%x", copy_sect_strut.SrcSection);
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"Destination SEction :%x", sCopySectStrut.DstSection);
+			"Destination SEction :%x", copy_sect_strut.DstSection);
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"offset :%x", sCopySectStrut.offset);
+			"offset :%x", copy_sect_strut.offset);
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"NOB :%x", sCopySectStrut.numOfBytes);
+			"NOB :%x", copy_sect_strut.numOfBytes);
 
-	if (IsSectionExistInFlash(ad, sCopySectStrut.SrcSection) == false) {
+	if (IsSectionExistInFlash(ad, copy_sect_strut.SrcSection) == false) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Source Section<%x> does not exist in Flash ",
-				sCopySectStrut.SrcSection);
+				copy_sect_strut.SrcSection);
 		return -EINVAL;
 	}
 
-	if (IsSectionExistInFlash(ad, sCopySectStrut.DstSection) == false) {
+	if (IsSectionExistInFlash(ad, copy_sect_strut.DstSection) == false) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Destinatio Section<%x> does not exist in Flash ",
-				sCopySectStrut.DstSection);
+				copy_sect_strut.DstSection);
 		return -EINVAL;
 	}
 
-	if (sCopySectStrut.SrcSection == sCopySectStrut.DstSection) {
+	if (copy_sect_strut.SrcSection == copy_sect_strut.DstSection) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"Source and Destination section should be different");
 		return -EINVAL;
@@ -2029,14 +2029,14 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 		return -EACCES;
 	}
 
-	if (sCopySectStrut.SrcSection == ISO_IMAGE1 ||
-		sCopySectStrut.SrcSection == ISO_IMAGE2) {
+	if (copy_sect_strut.SrcSection == ISO_IMAGE1 ||
+		copy_sect_strut.SrcSection == ISO_IMAGE2) {
 		if (IsNonCDLessDevice(ad)) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 					"Device is Non-CDLess hence won't have ISO !!");
 			status = -EINVAL;
-		} else if (sCopySectStrut.numOfBytes == 0) {
-			status = BcmCopyISO(ad, sCopySectStrut);
+		} else if (copy_sect_strut.numOfBytes == 0) {
+			status = BcmCopyISO(ad, copy_sect_strut);
 		} else {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 					"Partial Copy of ISO section is not Allowed..");
@@ -2046,10 +2046,10 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 		return status;
 	}
 
-	status = BcmCopySection(ad, sCopySectStrut.SrcSection,
-				sCopySectStrut.DstSection,
-				sCopySectStrut.offset,
-				sCopySectStrut.numOfBytes);
+	status = BcmCopySection(ad, copy_sect_strut.SrcSection,
+				copy_sect_strut.DstSection,
+				copy_sect_strut.offset,
+				copy_sect_strut.numOfBytes);
 	up(&ad->NVMRdmWrmLock);
 	return status;
 }
