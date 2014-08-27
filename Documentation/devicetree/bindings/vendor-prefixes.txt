@@ -134,6 +134,7 @@ st	STMicroelectronics
 ste	ST-Ericsson
 stericsson	ST-Ericsson
 synology	Synology, Inc.
+thine	THine Electronics, Inc.
 ti	Texas Instruments
 tlm	Trusted Logic Mobility
 toradex	Toradex AG
