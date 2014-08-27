@@ -16,7 +16,6 @@
 #define OLD_PROTOCOL		0x01
 #define	NEW_PROTOCOL		0x02
 
-#define TB1_USE_F402            0
 
 /***********************vtl ts driver config ******************************************/
 
@@ -26,7 +25,7 @@
 #define	XY_DATA_PROTOCOL	NEW_PROTOCOL//OLD_PROTOCOL//
 
 #define TS_I2C_SPEED		400000	    //for rockchip
-
+/*
 #if(TB1_USE_F402)
 #define		XY_SWAP_ENABLE		1
 #else
@@ -40,6 +39,7 @@
 #else
 #define		Y_REVERSE_ENABLE	1
 #endif
+*/
 
 #define		CHIP_UPDATE_ENABLE	1
 
@@ -157,6 +157,12 @@ struct ts_config_info{
         
         unsigned int	screen_max_x;
         unsigned int	screen_max_y;
+        unsigned int	xy_swap;
+        unsigned int	x_reverse;
+        unsigned int	y_reverse;
+        unsigned int	x_mul;
+        unsigned int	y_mul;
+		unsigned int	bin_ver;
 	unsigned int	irq_gpio_number;
 	unsigned int	irq_number;
         unsigned int	rst_gpio_number;

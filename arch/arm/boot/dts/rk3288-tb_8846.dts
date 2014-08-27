@@ -3,6 +3,8 @@
 #include "rk3288.dtsi"
 //#include "lcd-b101ew05.dtsi"
 #include "lcd-F402.dtsi"
+#include "vtl_ts_sdk8846.dtsi"
+
 / {
 	fiq-debugger {
 		status = "okay";
@@ -573,6 +575,12 @@
 		reg = <0x01>;
 		screen_max_x = <1536>;
 		screen_max_y = <2048>;
+		xy_swap = <1>;
+		x_reverse = <0>;
+		y_reverse = <0>;
+		x_mul = <2>;
+		y_mul = <2>;
+		bin_ver = <0>;
 		irq_gpio_number = <&gpio7 GPIO_A6 IRQ_TYPE_LEVEL_LOW>;
 		rst_gpio_number = <&gpio7 GPIO_A5 GPIO_ACTIVE_HIGH>;
 	};

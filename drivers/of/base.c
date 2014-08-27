@@ -936,6 +936,24 @@ int of_property_read_u8_array(const struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(of_property_read_u8_array);
 
+
+int of_property_read_u8_array_tp(const struct device_node *np,
+			const char *propname, u8 *out_values, size_t sz)
+{
+	const __be32 *val = of_find_property_value_of_size(np, propname,
+						(sz * sizeof(*out_values)));
+
+	if (IS_ERR(val))
+		return PTR_ERR(val);
+
+	while (sz--)
+		*out_values++ = (unsigned char)(be32_to_cpup(val++));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_property_read_u8_array_tp);
+
+
+
 /**
  * of_property_read_u16_array - Find and read an array of u16 from a property.
  *

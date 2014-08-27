@@ -25,17 +25,6 @@ static struct ts_info * ts_object = NULL;
 static struct chip_cmd (*chip) = NULL;
 
 
-static unsigned char binary_data[] = {
-#if(TB1_USE_F402)
-#include "f307&f317&f316_CT363S_01_V10_F7E9_140212.dat"
-#else
-#include "LX20JS06_A1_CT363_V03_5198_121015.dat"
-#endif
-};
-
-
-
-
 
 enum cmd_index {
 
@@ -376,9 +365,15 @@ static int chip_erase_flash(struct i2c_client *client)
 	return 0;
 }
 
+extern unsigned char *gtpfw;
 static int chip_set_code(unsigned int flash_addr, unsigned char *buf)
 {
 	unsigned char i;	
+	static unsigned char *binary_data = NULL;
+
+	if (binary_data == NULL) {
+		binary_data = gtpfw;
+	}
 
 	buf[2] = (flash_addr >> 8);
 	buf[3] = (flash_addr & 0xFF);

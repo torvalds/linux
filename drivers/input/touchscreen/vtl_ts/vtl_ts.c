@@ -36,6 +36,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/of_gpio.h>
+#include <linux/vmalloc.h>
 
 
 #include "vtl_ts.h"
@@ -81,7 +82,7 @@ static struct i2c_board_info i2c_info[] = {
 // ****************************************************************************
 // Function declaration
 // ****************************************************************************
-
+unsigned char *gtpfw;
 static int vtl_ts_config(struct ts_info *ts)
 {
 	struct device *dev = &ts->driver->client->dev;
@@ -91,6 +92,49 @@ static int vtl_ts_config(struct ts_info *ts)
 	enum of_gpio_flags rst_flags;
 	unsigned long irq_flags;
 	int val;
+	struct device_node *tnp;
+	struct property *prop;
+	int length,ret;
+	unsigned int max_num;
+	unsigned char *levels;
+
+		
+	tnp = of_find_node_by_path("/tp-fw");
+	if (!tnp){
+		printk(" error tp_fw not node!!!\n");
+		return -EINVAL;
+	}	
+	/* determine the number of brightness levels */
+	prop = of_find_property(tnp, "tp_fw", &length);
+	if (!prop){
+		printk(" error tp_fw not property!!!\n");
+		return -EINVAL;
+	}
+
+	max_num = length / sizeof(u32);
+
+	printk(" max-num:%d,length:%d.\n",max_num,length);
+	
+	/* read max_num from DT property */
+	if (max_num > 0) {
+	
+		levels = (unsigned char*)vmalloc(max_num);
+		if (!levels){
+			printk("<xiaoyao> error vmalloc failed!!!\n");
+			return -ENOMEM;
+		}
+
+		ret = of_property_read_u8_array_tp(tnp,"tp_fw",levels,max_num);
+		if (ret != 0){
+			printk(" of_property_read_u8_array failed!!!\n");
+			return -ENOMEM;
+		}
+
+	}else
+		printk("tp fw error!!!\n");
+	
+	gtpfw = levels;
+
 
 	DEBUG();
 	/* ts config */
@@ -106,23 +150,54 @@ static int vtl_ts_config(struct ts_info *ts)
 			dev_err(&ts->driver->client->dev, "no screen_max_x defined\n");
 			return -EINVAL;
 		}
-	
 		ts->config_info.screen_max_x = val;
+
 		if (of_property_read_u32(np, "screen_max_y", &val)) {
 			dev_err(&ts->driver->client->dev, "no screen_max_y defined\n");
 			return -EINVAL;
 		}
 		ts->config_info.screen_max_y = val;
+
+        if (of_property_read_u32(np, "xy_swap", &val)) {
+			val = 0;
+        }
+        ts->config_info.xy_swap = val;
+
+        if (of_property_read_u32(np, "x_reverse", &val)) {
+			val = 0;
+        }
+        ts->config_info.x_reverse = val;
+
+        if (of_property_read_u32(np, "y_reverse", &val)) {
+			val = 0;
+        }
+        ts->config_info.y_reverse = val;
+
+        if (of_property_read_u32(np, "x_mul", &val)) {
+			val = 1;
+        }
+        ts->config_info.x_mul = val;
+
+        if (of_property_read_u32(np, "y_mul", &val)) {
+			val = 1;
+        }
+        ts->config_info.y_mul = val;
+
+
+		if (of_property_read_u32(np, "bin_ver", &val)) {
+            val = 0;
+        }
+		ts->config_info.bin_ver = val;
+		printk("--->>> vtl_ts : xy_swap %d, x_reverse %d, y_reverse %d, x_mul %d, y_mul %d, bin_ver %d\n",
+				ts->config_info.xy_swap, 
+				ts->config_info.x_reverse, ts->config_info.y_reverse, 
+				ts->config_info.x_mul, ts->config_info.y_mul, 
+				ts->config_info.bin_ver);
 		printk("the screen_x is %d , screen_y is %d \n",ts->config_info.screen_max_x,ts->config_info.screen_max_y);
 		
 		ts->config_info.irq_gpio_number = of_get_named_gpio_flags(np, "irq_gpio_number", 0, (enum of_gpio_flags *)&irq_flags);
 		ts->config_info.rst_gpio_number = of_get_named_gpio_flags(np, "rst_gpio_number", 0, &rst_flags);
-				
-		ts->config_info.screen_max_x	   = ts->config_info.screen_max_x;
-        ts->config_info.screen_max_y	   = ts->config_info.screen_max_y;
-		ts->config_info.irq_gpio_number    = ts->config_info.irq_gpio_number;
-        ts->config_info.rst_gpio_number    = ts->config_info.rst_gpio_number;
-			
+
 	}
 	
 	ts->config_info.irq_number = gpio_to_irq(ts->config_info.irq_gpio_number);/* IRQ config*/
@@ -254,25 +329,29 @@ static void vtl_ts_report_xy_coord(struct ts_info *ts)
 		if ((xy_data->point[id].xhi != 0xFF) && (xy_data->point[id].yhi != 0xFF) &&
 		     ( (xy_data->point[id].status == 1) || (xy_data->point[id].status == 2))) 
 		{
-		
-		#if(XY_SWAP_ENABLE)
-			x = (xy_data->point[id].yhi<<4)|(xy_data->point[id].ylo&0xF);
-			y = (xy_data->point[id].xhi<<4)|(xy_data->point[id].xlo&0xF);
-		#else
-			x = (xy_data->point[id].xhi<<4)|(xy_data->point[id].xlo&0xF);
-		 	y = (xy_data->point[id].yhi<<4)|(xy_data->point[id].ylo&0xF);
-		#endif
-		#if(X_REVERSE_ENABLE)
-			x = ts->config_info.screen_max_x - x;
-		#endif
-		#if(Y_REVERSE_ENABLE)
-			y = ts->config_info.screen_max_y - y;
-		#endif
 
-		#if(TB1_USE_F402)	
-			x = 2*x;
-			y = 2*y;
-		#endif
+/*
+			printk("--->>> vtl_ts report: xy_swap %d, x_reverse %d, y_reverse %d, x_mul %d, y_mul %d, bin_ver %d\n",
+					ts->config_info.xy_swap, 
+					ts->config_info.x_reverse, ts->config_info.y_reverse, 
+					ts->config_info.x_mul, ts->config_info.y_mul, 
+					ts->config_info.bin_ver);
+*/
+		
+			if (ts->config_info.xy_swap == 1) {
+				x = (xy_data->point[id].yhi<<4)|(xy_data->point[id].ylo&0xF);
+				y = (xy_data->point[id].xhi<<4)|(xy_data->point[id].xlo&0xF);
+			} else {
+				x = (xy_data->point[id].xhi<<4)|(xy_data->point[id].xlo&0xF);
+		 		y = (xy_data->point[id].yhi<<4)|(xy_data->point[id].ylo&0xF);
+			}
+			if (ts->config_info.x_reverse)
+				x = ts->config_info.screen_max_x - x;
+			if (ts->config_info.y_reverse)
+				y = ts->config_info.screen_max_y - y;
+
+			x = ts->config_info.x_mul*x;
+			y = ts->config_info.x_mul*y;
 
 		//#if(DEBUG_ENABLE)
 		//if((ts->debug)||(DEBUG_ENABLE)){
