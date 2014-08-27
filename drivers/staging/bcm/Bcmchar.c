@@ -1311,7 +1311,7 @@ static int bcm_char_ioctl_get_host_mibs(void __user *argp,
 static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 				   struct bcm_mini_adapter *ad, UINT cmd)
 {
-	struct bcm_bulk_wrm_buffer *pBulkBuffer;
+	struct bcm_bulk_wrm_buffer *bulk_buff;
 	struct bcm_ioctl_buffer io_buff;
 	UINT uiTempVar = 0;
 	INT status = STATUS_FAILURE;
@@ -1338,18 +1338,18 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 	if (IS_ERR(buff))
 		return PTR_ERR(buff);
 
-	pBulkBuffer = (struct bcm_bulk_wrm_buffer *)buff;
+	bulk_buff = (struct bcm_bulk_wrm_buffer *)buff;
 
-	if (((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
-		((ULONG)pBulkBuffer->Register & 0x3)) {
+	if (((ULONG)bulk_buff->Register & 0x0F000000) != 0x0F000000 ||
+		((ULONG)bulk_buff->Register & 0x3)) {
 		BCM_DEBUG_PRINT (ad, DBG_TYPE_PRINTK, 0, 0,
 			"WRM Done On invalid Address : %x Access Denied.\n",
-			(int)pBulkBuffer->Register);
+			(int)bulk_buff->Register);
 		kfree(buff);
 		return -EINVAL;
 	}
 
-	uiTempVar = pBulkBuffer->Register & EEPROM_REJECT_MASK;
+	uiTempVar = bulk_buff->Register & EEPROM_REJECT_MASK;
 	if (!((ad->pstargetparams->m_u32Customize)&VSG_MODE) &&
 		((uiTempVar == EEPROM_REJECT_REG_1) ||
 			(uiTempVar == EEPROM_REJECT_REG_2) ||
@@ -1363,13 +1363,13 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 		return -EFAULT;
 	}
 
-	if (pBulkBuffer->SwapEndian == false)
-		status = wrmWithLock(ad, (UINT)pBulkBuffer->Register,
-			(PCHAR)pBulkBuffer->Values,
+	if (bulk_buff->SwapEndian == false)
+		status = wrmWithLock(ad, (UINT)bulk_buff->Register,
+			(PCHAR)bulk_buff->Values,
 			io_buff.InputLength - 2*sizeof(ULONG));
 	else
-		status = wrmaltWithLock(ad, (UINT)pBulkBuffer->Register,
-			(PUINT)pBulkBuffer->Values,
+		status = wrmaltWithLock(ad, (UINT)bulk_buff->Register,
+			(PUINT)bulk_buff->Values,
 			io_buff.InputLength - 2*sizeof(ULONG));
 
 	if (status != STATUS_SUCCESS)
