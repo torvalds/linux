@@ -308,13 +308,9 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 	if (!con_id)
 		con_id = ctx->cd_label;
 
-	desc = devm_gpiod_get_index(host->parent, con_id, idx);
+	desc = devm_gpiod_get_index(host->parent, con_id, idx, GPIOD_IN);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
-
-	ret = gpiod_direction_input(desc);
-	if (ret < 0)
-		return ret;
 
 	if (debounce) {
 		ret = gpiod_set_debounce(desc, debounce);
