@@ -188,11 +188,13 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
 	struct qxl_bo *qbo;
-	static u32 placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+	static struct ttm_place placements = {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
+	};
 
 	if (!qxl_ttm_bo_is_qxl_bo(bo)) {
-		placement->fpfn = 0;
-		placement->lpfn = 0;
 		placement->placement = &placements;
 		placement->busy_placement = &placements;
 		placement->num_placement = 1;

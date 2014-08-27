@@ -45,12 +45,24 @@ struct ttm_bo_device;
 
 struct drm_mm_node;
 
+/**
+ * struct ttm_place
+ *
+ * @fpfn:	first valid page frame number to put the object
+ * @lpfn:	last valid page frame number to put the object
+ * @flags:	memory domain and caching flags for the object
+ *
+ * Structure indicating a possible place to put an object.
+ */
+struct ttm_place {
+	unsigned	fpfn;
+	unsigned	lpfn;
+	uint32_t	flags;
+};
 
 /**
  * struct ttm_placement
  *
- * @fpfn:		first valid page frame number to put the object
- * @lpfn:		last valid page frame number to put the object
  * @num_placement:	number of preferred placements
  * @placement:		preferred placements
  * @num_busy_placement:	number of preferred placements when need to evict buffer
@@ -59,12 +71,10 @@ struct drm_mm_node;
  * Structure indicating the placement you request for an object.
  */
 struct ttm_placement {
-	unsigned	fpfn;
-	unsigned	lpfn;
-	unsigned	num_placement;
-	const uint32_t	*placement;
-	unsigned	num_busy_placement;
-	const uint32_t	*busy_placement;
+	unsigned		num_placement;
+	const struct ttm_place	*placement;
+	unsigned		num_busy_placement;
+	const struct ttm_place	*busy_placement;
 };
 
 /**
@@ -517,20 +527,6 @@ extern int ttm_bo_create(struct ttm_bo_device *bdev,
 				bool interruptible,
 				struct file *persistent_swap_storage,
 				struct ttm_buffer_object **p_bo);
-
-/**
- * ttm_bo_check_placement
- *
- * @bo:		the buffer object.
- * @placement:	placements
- *
- * Performs minimal validity checking on an intended change of
- * placement flags.
- * Returns
- * -EINVAL: Intended change is invalid or not allowed.
- */
-extern int ttm_bo_check_placement(struct ttm_buffer_object *bo,
-					struct ttm_placement *placement);
 
 /**
  * ttm_bo_init_mm
