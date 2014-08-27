@@ -1720,7 +1720,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	struct bcm_flash2x_readwrite sFlash2xWrite = {0};
 	struct bcm_ioctl_buffer io_buff;
 	PUCHAR write_buff;
-	void __user *InputAddr;
+	void __user *input_addr;
 	UINT NOB = 0;
 	UINT buff_size = 0;
 	UINT WriteOffset = 0;
@@ -1768,7 +1768,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	if (validateFlash2xReadWrite(ad, &sFlash2xWrite) == false)
 		return STATUS_FAILURE;
 
-	InputAddr = sFlash2xWrite.pDataBuff;
+	input_addr = sFlash2xWrite.pDataBuff;
 	WriteOffset = sFlash2xWrite.offset;
 	NOB = sFlash2xWrite.numOfBytes;
 
@@ -1807,7 +1807,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 
 	BcmFlash2xCorruptSig(ad, sFlash2xWrite.Section);
 	do {
-		status = copy_from_user(write_buff, InputAddr, write_bytes);
+		status = copy_from_user(write_buff, input_addr, write_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Copy to user failed with status :%d", status);
@@ -1834,7 +1834,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 		NOB = NOB - write_bytes;
 		if (NOB) {
 			WriteOffset = WriteOffset + write_bytes;
-			InputAddr = InputAddr + write_bytes;
+			input_addr = input_addr + write_bytes;
 			if (NOB > ad->uiSectorSize)
 				write_bytes = ad->uiSectorSize;
 			else
