@@ -883,7 +883,7 @@ static int bcm_char_ioctl_misc_request(void __user *argp,
 				       struct bcm_mini_adapter *ad)
 {
 	struct bcm_ioctl_buffer io_buff;
-	PVOID pvBuffer = NULL;
+	PVOID buff = NULL;
 	INT status;
 
 	/* Copy Ioctl Buffer structure */
@@ -896,10 +896,10 @@ static int bcm_char_ioctl_misc_request(void __user *argp,
 	if (io_buff.InputLength > MAX_CNTL_PKT_SIZE)
 		return -EINVAL;
 
-	pvBuffer = memdup_user(io_buff.InputBuffer,
+	buff = memdup_user(io_buff.InputBuffer,
 			       io_buff.InputLength);
-	if (IS_ERR(pvBuffer))
-		return PTR_ERR(pvBuffer);
+	if (IS_ERR(buff))
+		return PTR_ERR(buff);
 
 	down(&ad->LowPowerModeSync);
 	status = wait_event_interruptible_timeout(
@@ -916,11 +916,11 @@ static int bcm_char_ioctl_misc_request(void __user *argp,
 		status = STATUS_FAILURE;
 		goto cntrlEnd;
 	}
-	status = CopyBufferToControlPacket(ad, (PVOID)pvBuffer);
+	status = CopyBufferToControlPacket(ad, (PVOID)buff);
 
 cntrlEnd:
 	up(&ad->LowPowerModeSync);
-	kfree(pvBuffer);
+	kfree(buff);
 	return status;
 }
 
@@ -1315,7 +1315,7 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 	struct bcm_ioctl_buffer io_buff;
 	UINT uiTempVar = 0;
 	INT status = STATUS_FAILURE;
-	PCHAR pvBuffer = NULL;
+	PCHAR buff = NULL;
 
 	if ((ad->IdleMode == TRUE) ||
 		(ad->bShutStatus == TRUE) ||
@@ -1333,19 +1333,19 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 	if (io_buff.InputLength < sizeof(ULONG) * 2)
 		return -EINVAL;
 
-	pvBuffer = memdup_user(io_buff.InputBuffer,
+	buff = memdup_user(io_buff.InputBuffer,
 			       io_buff.InputLength);
-	if (IS_ERR(pvBuffer))
-		return PTR_ERR(pvBuffer);
+	if (IS_ERR(buff))
+		return PTR_ERR(buff);
 
-	pBulkBuffer = (struct bcm_bulk_wrm_buffer *)pvBuffer;
+	pBulkBuffer = (struct bcm_bulk_wrm_buffer *)buff;
 
 	if (((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
 		((ULONG)pBulkBuffer->Register & 0x3)) {
 		BCM_DEBUG_PRINT (ad, DBG_TYPE_PRINTK, 0, 0,
 			"WRM Done On invalid Address : %x Access Denied.\n",
 			(int)pBulkBuffer->Register);
-		kfree(pvBuffer);
+		kfree(buff);
 		return -EINVAL;
 	}
 
@@ -1357,7 +1357,7 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 			(uiTempVar == EEPROM_REJECT_REG_4)) &&
 		(cmd == IOCTL_BCM_REGISTER_WRITE)) {
 
-		kfree(pvBuffer);
+		kfree(buff);
 		BCM_DEBUG_PRINT (ad, DBG_TYPE_PRINTK, 0, 0,
 			"EEPROM Access Denied, not in VSG Mode\n");
 		return -EFAULT;
@@ -1375,7 +1375,7 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 	if (status != STATUS_SUCCESS)
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0, "WRM Failed\n");
 
-	kfree(pvBuffer);
+	kfree(buff);
 	return status;
 }
 
