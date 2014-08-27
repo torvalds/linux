@@ -360,7 +360,6 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_SFP_MODULE_TYPE(data)		(((data) >> 4) & 0x1F)
 #define QLC_83XX_SFP_CU_LENGTH(data)		(LSB((data) >> 16))
 #define QLC_83XX_SFP_TX_FAULT(data)		((data) & BIT_10)
-#define QLC_83XX_SFP_10G_CAPABLE(data)		((data) & BIT_11)
 #define QLC_83XX_LINK_STATS(data)		((data) & BIT_0)
 #define QLC_83XX_CURRENT_LINK_SPEED(data)	(((data) >> 3) & 7)
 #define QLC_83XX_LINK_PAUSE(data)		(((data) >> 6) & 3)
