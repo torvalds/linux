@@ -495,17 +495,18 @@ static int ili922x_probe(struct spi_device *spi)
 			"no LCD found: Chip ID 0x%x, ret %d\n",
 			reg, ret);
 		return -ENODEV;
-	} else {
-		dev_info(&spi->dev, "ILI%x found, SPI freq %d, mode %d\n",
-			 reg, spi->max_speed_hz, spi->mode);
 	}
+
+	dev_info(&spi->dev, "ILI%x found, SPI freq %d, mode %d\n",
+		 reg, spi->max_speed_hz, spi->mode);
 
 	ret = ili922x_read_status(spi, &reg);
 	if (ret) {
 		dev_err(&spi->dev, "reading RS failed...\n");
 		return ret;
-	} else
-		dev_dbg(&spi->dev, "status: 0x%x\n", reg);
+	}
+
+	dev_dbg(&spi->dev, "status: 0x%x\n", reg);
 
 	ili922x_display_init(spi);
 
