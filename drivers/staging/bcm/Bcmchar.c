@@ -1489,7 +1489,7 @@ static int bcm_char_ioctl_set_debug(void __user *argp,
 static int bcm_char_ioctl_nvm_rw(void __user *argp,
 				 struct bcm_mini_adapter *ad, UINT cmd)
 {
-	struct bcm_nvm_readwrite stNVMReadWrite;
+	struct bcm_nvm_readwrite nvm_rw;
 	struct timeval tv0, tv1;
 	struct bcm_ioctl_buffer io_buff;
 	PUCHAR pReadData = NULL;
@@ -1519,7 +1519,7 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (copy_from_user(&stNVMReadWrite,
+	if (copy_from_user(&nvm_rw,
 				(IOCTL_BCM_NVM_READ == cmd) ?
 				io_buff.OutputBuffer : io_buff.InputBuffer,
 				sizeof(struct bcm_nvm_readwrite)))
@@ -1528,22 +1528,22 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 	/*
 	 * Deny the access if the offset crosses the cal area limit.
 	 */
-	if (stNVMReadWrite.uiNumBytes > ad->uiNVMDSDSize)
+	if (nvm_rw.uiNumBytes > ad->uiNVMDSDSize)
 		return STATUS_FAILURE;
 
-	if (stNVMReadWrite.uiOffset >
-		ad->uiNVMDSDSize - stNVMReadWrite.uiNumBytes)
+	if (nvm_rw.uiOffset >
+		ad->uiNVMDSDSize - nvm_rw.uiNumBytes)
 		return STATUS_FAILURE;
 
-	pReadData = memdup_user(stNVMReadWrite.pBuffer,
-				stNVMReadWrite.uiNumBytes);
+	pReadData = memdup_user(nvm_rw.pBuffer,
+				nvm_rw.uiNumBytes);
 	if (IS_ERR(pReadData))
 		return PTR_ERR(pReadData);
 
 	do_gettimeofday(&tv0);
 	if (IOCTL_BCM_NVM_READ == cmd) {
 		int ret = bcm_handle_nvm_read_cmd(ad, pReadData,
-				&stNVMReadWrite);
+				&nvm_rw);
 		if (ret != STATUS_SUCCESS)
 			return ret;
 	} else {
@@ -1565,14 +1565,14 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 		if (IsFlash2x(ad)) {
 			int ret = handle_flash2x_adapter(ad,
 							pReadData,
-							&stNVMReadWrite);
+							&nvm_rw);
 			if (ret != STATUS_SUCCESS)
 				return ret;
 		}
 
 		status = BeceemNVMWrite(ad, (PUINT)pReadData,
-			stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes,
-			stNVMReadWrite.bVerify);
+			nvm_rw.uiOffset, nvm_rw.uiNumBytes,
+			nvm_rw.bVerify);
 		if (IsFlash2x(ad))
 			BcmFlash2xWriteSig(ad, ad->eActiveDSD);
 
