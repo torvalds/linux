@@ -607,7 +607,6 @@ static ssize_t store_poweron_clock_level(struct class *class, struct class_attri
 {
     unsigned val;
     ssize_t ret;
-    int i;
 
     ret = sscanf(buf, "%d", &val);     
     if(ret != 1 ) {
