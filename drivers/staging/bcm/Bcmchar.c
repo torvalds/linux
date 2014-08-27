@@ -1723,7 +1723,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	void __user *input_addr;
 	UINT NOB = 0;
 	UINT buff_size = 0;
-	UINT WriteOffset = 0;
+	UINT write_off = 0;
 	UINT write_bytes = 0;
 	INT status = STATUS_FAILURE;
 
@@ -1769,7 +1769,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 		return STATUS_FAILURE;
 
 	input_addr = sFlash2xWrite.pDataBuff;
-	WriteOffset = sFlash2xWrite.offset;
+	write_off = sFlash2xWrite.offset;
 	NOB = sFlash2xWrite.numOfBytes;
 
 	if (NOB > ad->uiSectorSize)
@@ -1784,9 +1784,9 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 
 	/* extracting the remainder of the given offset. */
 	write_bytes = ad->uiSectorSize;
-	if (WriteOffset % ad->uiSectorSize) {
+	if (write_off % ad->uiSectorSize) {
 		write_bytes = ad->uiSectorSize -
-			(WriteOffset % ad->uiSectorSize);
+			(write_off % ad->uiSectorSize);
 	}
 
 	if (NOB < write_bytes)
@@ -1821,7 +1821,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 		/* Writing the data from Flash 2.x */
 		status = BcmFlash2xBulkWrite(ad, (PUINT)write_buff,
 					     sFlash2xWrite.Section,
-					     WriteOffset,
+					     write_off,
 					     write_bytes,
 					     sFlash2xWrite.bVerify);
 
@@ -1833,7 +1833,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 
 		NOB = NOB - write_bytes;
 		if (NOB) {
-			WriteOffset = WriteOffset + write_bytes;
+			write_off = write_off + write_bytes;
 			input_addr = input_addr + write_bytes;
 			if (NOB > ad->uiSectorSize)
 				write_bytes = ad->uiSectorSize;
