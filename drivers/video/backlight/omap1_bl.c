@@ -120,6 +120,7 @@ static int omapbl_update_status(struct backlight_device *dev)
 static int omapbl_get_intensity(struct backlight_device *dev)
 {
 	struct omap_backlight *bl = bl_get_data(dev);
+
 	return bl->current_intensity;
 }
 
