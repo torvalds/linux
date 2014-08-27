@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -155,7 +154,7 @@ struct twl4030_usb {
 	struct regulator	*usb3v1;
 
 	/* for vbus reporting with irqs disabled */
-	spinlock_t		lock;
+	struct mutex		lock;
 
 	/* pin configuration */
 	enum twl4030_usb_mode	usb_mode;
@@ -516,13 +515,12 @@ static ssize_t twl4030_usb_vbus_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
-	unsigned long flags;
 	int ret = -EINVAL;
 
-	spin_lock_irqsave(&twl->lock, flags);
+	mutex_lock(&twl->lock);
 	ret = sprintf(buf, "%s\n",
 			twl->vbus_supplied ? "on" : "off");
-	spin_unlock_irqrestore(&twl->lock, flags);
+	mutex_unlock(&twl->lock);
 
 	return ret;
 }
@@ -536,12 +534,12 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 
 	status = twl4030_usb_linkstat(twl);
 
-	spin_lock_irq(&twl->lock);
+	mutex_lock(&twl->lock);
 	if (status >= 0 && status != twl->linkstat) {
 		twl->linkstat = status;
 		status_changed = true;
 	}
-	spin_unlock_irq(&twl->lock);
+	mutex_unlock(&twl->lock);
 
 	if (status_changed) {
 		/* FIXME add a set_power() method so that B-devices can
@@ -695,8 +693,8 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	if (IS_ERR(phy_provider))
 		return PTR_ERR(phy_provider);
 
-	/* init spinlock for workqueue */
-	spin_lock_init(&twl->lock);
+	/* init mutex for workqueue */
+	mutex_init(&twl->lock);
 
 	INIT_DELAYED_WORK(&twl->id_workaround_work, twl4030_id_workaround_work);
 
