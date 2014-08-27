@@ -34,8 +34,7 @@
 void
 cifs_dump_mem(char *label, void *data, int length)
 {
-	printk(KERN_DEBUG "%s: dump of %d bytes of data at 0x%p\n",
-		label, length, data);
+	pr_debug("%s: dump of %d bytes of data at 0x%p\n", label, length, data);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 4,
 		       data, length, true);
 }
@@ -51,7 +50,7 @@ void cifs_vfs_err(const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk(KERN_ERR "CIFS VFS: %pV", &vaf);
+	pr_err("CIFS VFS: %pV", &vaf);
 
 	va_end(args);
 }
