@@ -59,41 +59,6 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 	__flush_tlb_one(vaddr);
 }
 
-/*
- * Associate a large virtual page frame with a given physical page frame 
- * and protection flags for that frame. pfn is for the base of the page,
- * vaddr is what the page gets mapped to - both must be properly aligned. 
- * The pmd must already be instantiated. Assumes PAE mode.
- */ 
-void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-
-	if (vaddr & (PMD_SIZE-1)) {		/* vaddr is misaligned */
-		printk(KERN_WARNING "set_pmd_pfn: vaddr misaligned\n");
-		return; /* BUG(); */
-	}
-	if (pfn & (PTRS_PER_PTE-1)) {		/* pfn is misaligned */
-		printk(KERN_WARNING "set_pmd_pfn: pfn misaligned\n");
-		return; /* BUG(); */
-	}
-	pgd = swapper_pg_dir + pgd_index(vaddr);
-	if (pgd_none(*pgd)) {
-		printk(KERN_WARNING "set_pmd_pfn: pgd_none\n");
-		return; /* BUG(); */
-	}
-	pud = pud_offset(pgd, vaddr);
-	pmd = pmd_offset(pud, vaddr);
-	set_pmd(pmd, pfn_pmd(pfn, flags));
-	/*
-	 * It's enough to flush this one mapping.
-	 * (PGE mappings get flushed as well)
-	 */
-	__flush_tlb_one(vaddr);
-}
-
 unsigned long __FIXADDR_TOP = 0xfffff000;
 EXPORT_SYMBOL(__FIXADDR_TOP);
 
