@@ -1248,7 +1248,7 @@ static int bcm_char_ioctl_get_dsx_indication(void __user *argp,
 					     struct bcm_mini_adapter *ad)
 {
 	struct bcm_ioctl_buffer io_buff;
-	ULONG ulSFId = 0;
+	ULONG sf_id = 0;
 
 	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
@@ -1261,12 +1261,12 @@ static int bcm_char_ioctl_get_dsx_indication(void __user *argp,
 		return -EINVAL;
 	}
 
-	if (copy_from_user(&ulSFId, io_buff.InputBuffer, sizeof(ulSFId)))
+	if (copy_from_user(&sf_id, io_buff.InputBuffer, sizeof(sf_id)))
 		return -EFAULT;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-		"Get DSX Data SF ID is =%lx\n", ulSFId);
-	get_dsx_sf_data_to_application(ad, ulSFId, io_buff.OutputBuffer);
+		"Get DSX Data SF ID is =%lx\n", sf_id);
+	get_dsx_sf_data_to_application(ad, sf_id, io_buff.OutputBuffer);
 	return STATUS_SUCCESS;
 }
 
