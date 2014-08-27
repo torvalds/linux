@@ -2361,6 +2361,9 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 		sc->next_chan = avp->chanctx;
 		changed = true;
 	}
+	ath_dbg(common, CHAN_CTX,
+		"%s: Set chanctx state to FORCE_ACTIVE, changed: %d\n",
+		__func__, changed);
 	sc->sched.state = ATH_CHANCTX_STATE_FORCE_ACTIVE;
 	spin_unlock_bh(&sc->chan_lock);
 
