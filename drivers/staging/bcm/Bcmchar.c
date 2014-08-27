@@ -643,7 +643,7 @@ static int bcm_char_ioctl_gpio_status_request(void __user *argp,
 	struct bcm_gpio_info gpio_info = {0};
 	struct bcm_ioctl_buffer io_buff;
 	ULONG bit = 0;
-	UCHAR ucRead[4];
+	UCHAR read[4];
 	INT Status;
 	int bytes;
 
@@ -666,7 +666,7 @@ static int bcm_char_ioctl_gpio_status_request(void __user *argp,
 
 	/* Set the gpio output register */
 	bytes = rdmaltWithLock(ad, (UINT)GPIO_PIN_STATE_REGISTER,
-				(PUINT)ucRead, sizeof(UINT));
+				(PUINT)read, sizeof(UINT));
 
 	if (bytes < 0) {
 		Status = bytes;
