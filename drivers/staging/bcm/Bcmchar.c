@@ -1724,7 +1724,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	UINT NOB = 0;
 	UINT buff_size = 0;
 	UINT WriteOffset = 0;
-	UINT WriteBytes = 0;
+	UINT write_bytes = 0;
 	INT status = STATUS_FAILURE;
 
 	if (IsFlash2x(ad) != TRUE) {
@@ -1783,14 +1783,14 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 		return -ENOMEM;
 
 	/* extracting the remainder of the given offset. */
-	WriteBytes = ad->uiSectorSize;
+	write_bytes = ad->uiSectorSize;
 	if (WriteOffset % ad->uiSectorSize) {
-		WriteBytes = ad->uiSectorSize -
+		write_bytes = ad->uiSectorSize -
 			(WriteOffset % ad->uiSectorSize);
 	}
 
-	if (NOB < WriteBytes)
-		WriteBytes = NOB;
+	if (NOB < write_bytes)
+		write_bytes = NOB;
 
 	down(&ad->NVMRdmWrmLock);
 
@@ -1807,7 +1807,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 
 	BcmFlash2xCorruptSig(ad, sFlash2xWrite.Section);
 	do {
-		status = copy_from_user(pWriteBuff, InputAddr, WriteBytes);
+		status = copy_from_user(pWriteBuff, InputAddr, write_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Copy to user failed with status :%d", status);
@@ -1816,13 +1816,13 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 			return -EFAULT;
 		}
 		BCM_DEBUG_PRINT_BUFFER(ad, DBG_TYPE_OTHERS,
-			OSAL_DBG, DBG_LVL_ALL, pWriteBuff, WriteBytes);
+			OSAL_DBG, DBG_LVL_ALL, pWriteBuff, write_bytes);
 
 		/* Writing the data from Flash 2.x */
 		status = BcmFlash2xBulkWrite(ad, (PUINT)pWriteBuff,
 					     sFlash2xWrite.Section,
 					     WriteOffset,
-					     WriteBytes,
+					     write_bytes,
 					     sFlash2xWrite.bVerify);
 
 		if (status) {
@@ -1831,14 +1831,14 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 			break;
 		}
 
-		NOB = NOB - WriteBytes;
+		NOB = NOB - write_bytes;
 		if (NOB) {
-			WriteOffset = WriteOffset + WriteBytes;
-			InputAddr = InputAddr + WriteBytes;
+			WriteOffset = WriteOffset + write_bytes;
+			InputAddr = InputAddr + write_bytes;
 			if (NOB > ad->uiSectorSize)
-				WriteBytes = ad->uiSectorSize;
+				write_bytes = ad->uiSectorSize;
 			else
-				WriteBytes = NOB;
+				write_bytes = NOB;
 		}
 	} while (NOB > 0);
 
