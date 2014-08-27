@@ -1481,7 +1481,8 @@ static void intel_edp_backlight_power(struct intel_connector *connector,
 	if (is_enabled == enable)
 		return;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DEBUG_KMS("panel power control backlight %s\n",
+		      enable ? "enable" : "disable");
 
 	if (enable)
 		_intel_edp_backlight_on(intel_dp);
