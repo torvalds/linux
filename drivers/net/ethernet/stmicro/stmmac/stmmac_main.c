@@ -603,16 +603,16 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		/* calculate default added value:
 		 * formula is :
 		 * addend = (2^32)/freq_div_ratio;
-		 * where, freq_div_ratio = STMMAC_SYSCLOCK/50MHz
-		 * hence, addend = ((2^32) * 50MHz)/STMMAC_SYSCLOCK;
-		 * NOTE: STMMAC_SYSCLOCK should be >= 50MHz to
+		 * where, freq_div_ratio = clk_ptp_ref_i/50MHz
+		 * hence, addend = ((2^32) * 50MHz)/clk_ptp_ref_i;
+		 * NOTE: clk_ptp_ref_i should be >= 50MHz to
 		 *       achive 20ns accuracy.
 		 *
 		 * 2^x * y == (y << x), hence
 		 * 2^32 * 50000000 ==> (50000000 << 32)
 		 */
 		temp = (u64) (50000000ULL << 32);
-		priv->default_addend = div_u64(temp, STMMAC_SYSCLOCK);
+		priv->default_addend = div_u64(temp, priv->clk_ptp_rate);
 		priv->hw->ptp->config_addend(priv->ioaddr,
 					     priv->default_addend);
 
@@ -638,6 +638,16 @@ static int stmmac_init_ptp(struct stmmac_priv *priv)
 	if (!(priv->dma_cap.time_stamp || priv->dma_cap.atime_stamp))
 		return -EOPNOTSUPP;
 
+	/* Fall-back to main clock in case of no PTP ref is passed */
+	priv->clk_ptp_ref = devm_clk_get(priv->device, "clk_ptp_ref");
+	if (IS_ERR(priv->clk_ptp_ref)) {
+		priv->clk_ptp_rate = clk_get_rate(priv->stmmac_clk);
+		priv->clk_ptp_ref = NULL;
+	} else {
+		clk_prepare_enable(priv->clk_ptp_ref);
+		priv->clk_ptp_rate = clk_get_rate(priv->clk_ptp_ref);
+	}
+
 	priv->adv_ts = 0;
 	if (priv->dma_cap.atime_stamp && priv->extend_desc)
 		priv->adv_ts = 1;
@@ -657,6 +667,8 @@ static int stmmac_init_ptp(struct stmmac_priv *priv)
 
 static void stmmac_release_ptp(struct stmmac_priv *priv)
 {
+	if (priv->clk_ptp_ref)
+		clk_disable_unprepare(priv->clk_ptp_ref);
 	stmmac_ptp_unregister(priv);
 }
 

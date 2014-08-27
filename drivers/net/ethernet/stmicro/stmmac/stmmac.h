@@ -105,6 +105,8 @@ struct stmmac_priv {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;
+	struct clk *clk_ptp_ref;
+	unsigned int clk_ptp_rate;
 	u32 adv_ts;
 	int use_riwt;
 	int irq_wake;
