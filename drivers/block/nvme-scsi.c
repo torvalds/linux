@@ -2915,6 +2915,14 @@ static int nvme_scsi_translate(struct nvme_ns *ns, struct sg_io_hdr *hdr)
 	if (copy_from_user(cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
 
+	/*
+	 * Prime the hdr with good status for scsi commands that don't require
+	 * an nvme command for translation.
+	 */
+	retcode = nvme_trans_status_code(hdr, NVME_SC_SUCCESS);
+	if (retcode)
+		return retcode;
+
 	opcode = cmd[0];
 
 	switch (opcode) {
