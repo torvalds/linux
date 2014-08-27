@@ -1272,7 +1272,7 @@ static int bcm_char_ioctl_get_dsx_indication(void __user *argp,
 
 static int bcm_char_ioctl_get_host_mibs(void __user *argp,
 					struct bcm_mini_adapter *ad,
-					struct bcm_tarang_data *pTarang)
+					struct bcm_tarang_data *tarang)
 {
 	struct bcm_ioctl_buffer io_buff;
 	INT status = STATUS_FAILURE;
@@ -1294,7 +1294,7 @@ static int bcm_char_ioctl_get_host_mibs(void __user *argp,
 		return STATUS_FAILURE;
 
 	status = ProcessGetHostMibs(ad, temp_buff);
-	GetDroppedAppCntrlPktMibs(temp_buff, pTarang);
+	GetDroppedAppCntrlPktMibs(temp_buff, tarang);
 
 	if (status != STATUS_FAILURE) {
 		if (copy_to_user(io_buff.OutputBuffer, temp_buff,
@@ -2260,7 +2260,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 
 static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 					struct bcm_mini_adapter *ad,
-					struct bcm_tarang_data *pTarang)
+					struct bcm_tarang_data *tarang)
 {
 	struct bcm_ioctl_buffer io_buff;
 	INT status = STATUS_FAILURE;
@@ -2288,7 +2288,7 @@ static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"\n Got user defined cntrl msg bit mask :%lx",
 			rx_cntrl_msg_bit_mask);
-	pTarang->RxCntrlMsgBitMask = rx_cntrl_msg_bit_mask;
+	tarang->RxCntrlMsgBitMask = rx_cntrl_msg_bit_mask;
 
 	return status;
 }
@@ -2349,9 +2349,9 @@ static int bcm_char_ioctl_time_since_net_entry(void __user *argp,
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
-	struct bcm_tarang_data *pTarang = filp->private_data;
+	struct bcm_tarang_data *tarang = filp->private_data;
 	void __user *argp = (void __user *)arg;
-	struct bcm_mini_adapter *ad = pTarang->Adapter;
+	struct bcm_mini_adapter *ad = tarang->Adapter;
 	INT status = STATUS_FAILURE;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -2512,7 +2512,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		return status;
 
 	case IOCTL_BCM_GET_HOST_MIBS:
-		status = bcm_char_ioctl_get_host_mibs(argp, ad, pTarang);
+		status = bcm_char_ioctl_get_host_mibs(argp, ad, tarang);
 		return status;
 
 	case IOCTL_BCM_WAKE_UP_DEVICE_FROM_IDLE:
@@ -2588,7 +2588,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		return status;
 
 	case IOCTL_BCM_CNTRLMSG_MASK:
-		status = bcm_char_ioctl_cntrlmsg_mask(argp, ad, pTarang);
+		status = bcm_char_ioctl_cntrlmsg_mask(argp, ad, tarang);
 		return status;
 
 	case IOCTL_BCM_GET_DEVICE_DRIVER_INFO:
