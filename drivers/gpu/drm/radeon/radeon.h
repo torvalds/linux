@@ -350,6 +350,7 @@ extern void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
  * Fences.
  */
 struct radeon_fence_driver {
+	struct radeon_device		*rdev;
 	uint32_t			scratch_reg;
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
@@ -357,6 +358,7 @@ struct radeon_fence_driver {
 	uint64_t			sync_seq[RADEON_NUM_RINGS];
 	atomic64_t			last_seq;
 	bool				initialized;
+	struct delayed_work		lockup_work;
 };
 
 struct radeon_fence {
