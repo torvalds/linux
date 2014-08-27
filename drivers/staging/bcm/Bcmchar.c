@@ -589,7 +589,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp,
 		struct bcm_mini_adapter *ad)
 {
-	struct bcm_user_thread_req threadReq = {0};
+	struct bcm_user_thread_req thread_req = {0};
 	struct bcm_ioctl_buffer IoBuffer;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -608,10 +608,10 @@ static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp,
 	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(threadReq))
+	if (IoBuffer.InputLength > sizeof(thread_req))
 		return -EINVAL;
 
-	if (copy_from_user(&threadReq, IoBuffer.InputBuffer,
+	if (copy_from_user(&thread_req, IoBuffer.InputBuffer,
 			   IoBuffer.InputLength))
 		return -EFAULT;
 
@@ -619,7 +619,7 @@ static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp,
 	 * set it state to make inactive
 	 */
 	if (ad->LEDInfo.led_thread_running) {
-		if (threadReq.ThreadState == LED_THREAD_ACTIVATION_REQ) {
+		if (thread_req.ThreadState == LED_THREAD_ACTIVATION_REQ) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS,
 					OSAL_DBG, DBG_LVL_ALL,
 					"Activating thread req");
