@@ -187,9 +187,9 @@ static const struct ethtool_ops bcm_ethtool_ops = {
 int register_networkdev(struct bcm_mini_adapter *ad)
 {
 	struct net_device *net = ad->dev;
-	struct bcm_interface_adapter *IntfAdapter = ad->pvInterfaceAdapter;
-	struct usb_interface *udev = IntfAdapter->interface;
-	struct usb_device *xdev = IntfAdapter->udev;
+	struct bcm_interface_adapter *intf_ad = ad->pvInterfaceAdapter;
+	struct usb_interface *udev = intf_ad->interface;
+	struct usb_device *xdev = intf_ad->udev;
 
 	int result;
 
@@ -228,9 +228,9 @@ int register_networkdev(struct bcm_mini_adapter *ad)
 void unregister_networkdev(struct bcm_mini_adapter *ad)
 {
 	struct net_device *net = ad->dev;
-	struct bcm_interface_adapter *IntfAdapter = ad->pvInterfaceAdapter;
-	struct usb_interface *udev = IntfAdapter->interface;
-	struct usb_device *xdev = IntfAdapter->udev;
+	struct bcm_interface_adapter *intf_ad = ad->pvInterfaceAdapter;
+	struct usb_interface *udev = intf_ad->interface;
+	struct usb_device *xdev = intf_ad->udev;
 
 	if (netif_msg_probe(ad))
 		dev_info(&udev->dev, PFX "%s: unregister usb-%s%s\n",
