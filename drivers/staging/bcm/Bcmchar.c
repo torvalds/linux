@@ -590,7 +590,7 @@ static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp,
 		struct bcm_mini_adapter *ad)
 {
 	struct bcm_user_thread_req thread_req = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"User made LED thread InActive");
@@ -605,14 +605,14 @@ static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp,
 		return -EACCES;
 	}
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(thread_req))
+	if (io_buff.InputLength > sizeof(thread_req))
 		return -EINVAL;
 
-	if (copy_from_user(&thread_req, IoBuffer.InputBuffer,
-			   IoBuffer.InputLength))
+	if (copy_from_user(&thread_req, io_buff.InputBuffer,
+			   io_buff.InputLength))
 		return -EFAULT;
 
 	/* if LED thread is running(Actively or Inactively)
@@ -641,7 +641,7 @@ static int bcm_char_ioctl_gpio_status_request(void __user *argp,
 					      struct bcm_mini_adapter *ad)
 {
 	struct bcm_gpio_info gpio_info = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	ULONG uiBit = 0;
 	UCHAR ucRead[4];
 	INT Status;
@@ -652,14 +652,14 @@ static int bcm_char_ioctl_gpio_status_request(void __user *argp,
 		(ad->bPreparingForLowPowerMode == TRUE))
 		return -EACCES;
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(gpio_info))
+	if (io_buff.InputLength > sizeof(gpio_info))
 		return -EINVAL;
 
-	if (copy_from_user(&gpio_info, IoBuffer.InputBuffer,
-		IoBuffer.InputLength))
+	if (copy_from_user(&gpio_info, io_buff.InputBuffer,
+		io_buff.InputLength))
 		return -EFAULT;
 
 	uiBit = gpio_info.uiGpioNumber;
@@ -685,7 +685,7 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 	struct bcm_gpio_multi_info gpio_multi_info[MAX_IDX];
 	struct bcm_gpio_multi_info *pgpio_multi_info =
 		(struct bcm_gpio_multi_info *)gpio_multi_info;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	UCHAR ucResetValue[4];
 	INT Status = STATUS_FAILURE;
 	int bytes;
@@ -698,16 +698,16 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 		(ad->bPreparingForLowPowerMode == TRUE))
 		return -EINVAL;
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(gpio_multi_info))
+	if (io_buff.InputLength > sizeof(gpio_multi_info))
 		return -EINVAL;
-	if (IoBuffer.OutputLength > sizeof(gpio_multi_info))
-		IoBuffer.OutputLength = sizeof(gpio_multi_info);
+	if (io_buff.OutputLength > sizeof(gpio_multi_info))
+		io_buff.OutputLength = sizeof(gpio_multi_info);
 
-	if (copy_from_user(&gpio_multi_info, IoBuffer.InputBuffer,
-			   IoBuffer.InputLength))
+	if (copy_from_user(&gpio_multi_info, io_buff.InputBuffer,
+			   io_buff.InputLength))
 		return -EFAULT;
 
 	if (IsReqGpioIsLedInNVM(ad, pgpio_multi_info[WIMAX_IDX].uiGPIOMask)
@@ -775,8 +775,8 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 			pgpio_multi_info[WIMAX_IDX].uiGPIOMask);
 	}
 
-	Status = copy_to_user(IoBuffer.OutputBuffer, &gpio_multi_info,
-		IoBuffer.OutputLength);
+	Status = copy_to_user(io_buff.OutputBuffer, &gpio_multi_info,
+		io_buff.OutputLength);
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			"Failed while copying Content to IOBufer for user space err:%d",
@@ -792,7 +792,7 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 	struct bcm_gpio_multi_mode gpio_multi_mode[MAX_IDX];
 	struct bcm_gpio_multi_mode *pgpio_multi_mode =
 		(struct bcm_gpio_multi_mode *)gpio_multi_mode;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	UCHAR ucResetValue[4];
 	INT Status;
 	int bytes;
@@ -802,16 +802,16 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 		(ad->bPreparingForLowPowerMode == TRUE))
 		return -EINVAL;
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(gpio_multi_mode))
+	if (io_buff.InputLength > sizeof(gpio_multi_mode))
 		return -EINVAL;
-	if (IoBuffer.OutputLength > sizeof(gpio_multi_mode))
-		IoBuffer.OutputLength = sizeof(gpio_multi_mode);
+	if (io_buff.OutputLength > sizeof(gpio_multi_mode))
+		io_buff.OutputLength = sizeof(gpio_multi_mode);
 
-	if (copy_from_user(&gpio_multi_mode, IoBuffer.InputBuffer,
-		IoBuffer.InputLength))
+	if (copy_from_user(&gpio_multi_mode, io_buff.InputBuffer,
+		io_buff.InputLength))
 		return -EFAULT;
 
 	bytes = rdmaltWithLock(ad, (UINT)GPIO_MODE_REGISTER,
@@ -868,8 +868,8 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 		pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *(UINT *)ucResetValue;
 	}
 
-	Status = copy_to_user(IoBuffer.OutputBuffer, &gpio_multi_mode,
-		IoBuffer.OutputLength);
+	Status = copy_to_user(io_buff.OutputBuffer, &gpio_multi_mode,
+		io_buff.OutputLength);
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			"Failed while copying Content to IOBufer for user space err:%d",
@@ -882,22 +882,22 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 static int bcm_char_ioctl_misc_request(void __user *argp,
 				       struct bcm_mini_adapter *ad)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	PVOID pvBuffer = NULL;
 	INT Status;
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength < sizeof(struct bcm_link_request))
+	if (io_buff.InputLength < sizeof(struct bcm_link_request))
 		return -EINVAL;
 
-	if (IoBuffer.InputLength > MAX_CNTL_PKT_SIZE)
+	if (io_buff.InputLength > MAX_CNTL_PKT_SIZE)
 		return -EINVAL;
 
-	pvBuffer = memdup_user(IoBuffer.InputBuffer,
-			       IoBuffer.InputLength);
+	pvBuffer = memdup_user(io_buff.InputBuffer,
+			       io_buff.InputLength);
 	if (IS_ERR(pvBuffer))
 		return PTR_ERR(pvBuffer);
 
@@ -965,7 +965,7 @@ static int bcm_char_ioctl_buffer_download(void __user *argp,
 					  struct bcm_mini_adapter *ad)
 {
 	struct bcm_firmware_info *psFwInfo = NULL;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	INT Status;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -979,15 +979,15 @@ static int bcm_char_ioctl_buffer_download(void __user *argp,
 	}
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer))) {
 		up(&ad->fw_download_sema);
 		return -EFAULT;
 	}
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
-			"Length for FW DLD is : %lx\n", IoBuffer.InputLength);
+			"Length for FW DLD is : %lx\n", io_buff.InputLength);
 
-	if (IoBuffer.InputLength > sizeof(struct bcm_firmware_info)) {
+	if (io_buff.InputLength > sizeof(struct bcm_firmware_info)) {
 		up(&ad->fw_download_sema);
 		return -EINVAL;
 	}
@@ -998,8 +998,8 @@ static int bcm_char_ioctl_buffer_download(void __user *argp,
 		return -ENOMEM;
 	}
 
-	if (copy_from_user(psFwInfo, IoBuffer.InputBuffer,
-		IoBuffer.InputLength)) {
+	if (copy_from_user(psFwInfo, io_buff.InputBuffer,
+		io_buff.InputLength)) {
 		up(&ad->fw_download_sema);
 		kfree(psFwInfo);
 		return -EFAULT;
@@ -1177,16 +1177,16 @@ static int bcm_char_ioctl_switch_transfer_mode(void __user *argp,
 
 static int bcm_char_ioctl_get_driver_version(void __user *argp)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	ulong len;
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	len = min_t(ulong, IoBuffer.OutputLength, strlen(DRV_VERSION) + 1);
+	len = min_t(ulong, io_buff.OutputLength, strlen(DRV_VERSION) + 1);
 
-	if (copy_to_user(IoBuffer.OutputBuffer, DRV_VERSION, len))
+	if (copy_to_user(io_buff.OutputBuffer, DRV_VERSION, len))
 		return -EFAULT;
 
 	return STATUS_SUCCESS;
@@ -1196,16 +1196,16 @@ static int bcm_char_ioctl_get_current_status(void __user *argp,
 					     struct bcm_mini_adapter *ad)
 {
 	struct bcm_link_state link_state;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer))) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			"copy_from_user failed..\n");
 		return -EFAULT;
 	}
 
-	if (IoBuffer.OutputLength != sizeof(link_state))
+	if (io_buff.OutputLength != sizeof(link_state))
 		return -EINVAL;
 
 	memset(&link_state, 0, sizeof(link_state));
@@ -1213,8 +1213,8 @@ static int bcm_char_ioctl_get_current_status(void __user *argp,
 	link_state.bShutdownMode = ad->bShutStatus;
 	link_state.ucLinkStatus = ad->LinkStatus;
 
-	if (copy_to_user(IoBuffer.OutputBuffer, &link_state, min_t(size_t,
-		sizeof(link_state), IoBuffer.OutputLength))) {
+	if (copy_to_user(io_buff.OutputBuffer, &link_state, min_t(size_t,
+		sizeof(link_state), io_buff.OutputLength))) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			"Copy_to_user Failed..\n");
 		return -EFAULT;
@@ -1226,14 +1226,14 @@ static int bcm_char_ioctl_get_current_status(void __user *argp,
 static int bcm_char_ioctl_set_mac_tracing(void __user *argp,
 					  struct bcm_mini_adapter *ad)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	UINT tracing_flag;
 
 	/* copy ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (copy_from_user(&tracing_flag, IoBuffer.InputBuffer, sizeof(UINT)))
+	if (copy_from_user(&tracing_flag, io_buff.InputBuffer, sizeof(UINT)))
 		return -EFAULT;
 
 	if (tracing_flag)
@@ -1247,26 +1247,26 @@ static int bcm_char_ioctl_set_mac_tracing(void __user *argp,
 static int bcm_char_ioctl_get_dsx_indication(void __user *argp,
 					     struct bcm_mini_adapter *ad)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	ULONG ulSFId = 0;
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.OutputLength < sizeof(struct bcm_add_indication_alt)) {
+	if (io_buff.OutputLength < sizeof(struct bcm_add_indication_alt)) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			"Mismatch req: %lx needed is =0x%zx!!!",
-			IoBuffer.OutputLength,
+			io_buff.OutputLength,
 			sizeof(struct bcm_add_indication_alt));
 		return -EINVAL;
 	}
 
-	if (copy_from_user(&ulSFId, IoBuffer.InputBuffer, sizeof(ulSFId)))
+	if (copy_from_user(&ulSFId, io_buff.InputBuffer, sizeof(ulSFId)))
 		return -EFAULT;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 		"Get DSX Data SF ID is =%lx\n", ulSFId);
-	get_dsx_sf_data_to_application(ad, ulSFId, IoBuffer.OutputBuffer);
+	get_dsx_sf_data_to_application(ad, ulSFId, io_buff.OutputBuffer);
 	return STATUS_SUCCESS;
 }
 
@@ -1274,16 +1274,16 @@ static int bcm_char_ioctl_get_host_mibs(void __user *argp,
 					struct bcm_mini_adapter *ad,
 					struct bcm_tarang_data *pTarang)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	INT Status = STATUS_FAILURE;
 	PVOID temp_buff;
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.OutputLength != sizeof(struct bcm_host_stats_mibs)) {
+	if (io_buff.OutputLength != sizeof(struct bcm_host_stats_mibs)) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
-			"Length Check failed %lu %zd\n", IoBuffer.OutputLength,
+			"Length Check failed %lu %zd\n", io_buff.OutputLength,
 			sizeof(struct bcm_host_stats_mibs));
 		return -EINVAL;
 	}
@@ -1297,7 +1297,7 @@ static int bcm_char_ioctl_get_host_mibs(void __user *argp,
 	GetDroppedAppCntrlPktMibs(temp_buff, pTarang);
 
 	if (Status != STATUS_FAILURE) {
-		if (copy_to_user(IoBuffer.OutputBuffer, temp_buff,
+		if (copy_to_user(io_buff.OutputBuffer, temp_buff,
 			sizeof(struct bcm_host_stats_mibs))) {
 			kfree(temp_buff);
 			return -EFAULT;
@@ -1312,7 +1312,7 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 				   struct bcm_mini_adapter *ad, UINT cmd)
 {
 	struct bcm_bulk_wrm_buffer *pBulkBuffer;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	UINT uiTempVar = 0;
 	INT Status = STATUS_FAILURE;
 	PCHAR pvBuffer = NULL;
@@ -1327,14 +1327,14 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 	}
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength < sizeof(ULONG) * 2)
+	if (io_buff.InputLength < sizeof(ULONG) * 2)
 		return -EINVAL;
 
-	pvBuffer = memdup_user(IoBuffer.InputBuffer,
-			       IoBuffer.InputLength);
+	pvBuffer = memdup_user(io_buff.InputBuffer,
+			       io_buff.InputLength);
 	if (IS_ERR(pvBuffer))
 		return PTR_ERR(pvBuffer);
 
@@ -1366,11 +1366,11 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 	if (pBulkBuffer->SwapEndian == false)
 		Status = wrmWithLock(ad, (UINT)pBulkBuffer->Register,
 			(PCHAR)pBulkBuffer->Values,
-			IoBuffer.InputLength - 2*sizeof(ULONG));
+			io_buff.InputLength - 2*sizeof(ULONG));
 	else
 		Status = wrmaltWithLock(ad, (UINT)pBulkBuffer->Register,
 			(PUINT)pBulkBuffer->Values,
-			IoBuffer.InputLength - 2*sizeof(ULONG));
+			io_buff.InputLength - 2*sizeof(ULONG));
 
 	if (Status != STATUS_SUCCESS)
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0, "WRM Failed\n");
@@ -1382,13 +1382,13 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 static int bcm_char_ioctl_get_nvm_size(void __user *argp,
 				       struct bcm_mini_adapter *ad)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
 	if (ad->eNVMType == NVM_EEPROM || ad->eNVMType == NVM_FLASH) {
-		if (copy_to_user(IoBuffer.OutputBuffer, &ad->uiNVMDSDSize,
+		if (copy_to_user(io_buff.OutputBuffer, &ad->uiNVMDSDSize,
 			sizeof(UINT)))
 			return -EFAULT;
 	}
@@ -1399,27 +1399,27 @@ static int bcm_char_ioctl_get_nvm_size(void __user *argp,
 static int bcm_char_ioctl_cal_init(void __user *argp,
 				   struct bcm_mini_adapter *ad)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	UINT uiSectorSize = 0;
 	INT Status = STATUS_FAILURE;
 
 	if (ad->eNVMType == NVM_FLASH) {
-		if (copy_from_user(&IoBuffer, argp,
+		if (copy_from_user(&io_buff, argp,
 			sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		if (copy_from_user(&uiSectorSize, IoBuffer.InputBuffer,
+		if (copy_from_user(&uiSectorSize, io_buff.InputBuffer,
 			sizeof(UINT)))
 			return -EFAULT;
 
 		if ((uiSectorSize < MIN_SECTOR_SIZE) ||
 			(uiSectorSize > MAX_SECTOR_SIZE)) {
-			if (copy_to_user(IoBuffer.OutputBuffer,
+			if (copy_to_user(io_buff.OutputBuffer,
 				&ad->uiSectorSize, sizeof(UINT)))
 				return -EFAULT;
 		} else {
 			if (IsFlash2x(ad)) {
-				if (copy_to_user(IoBuffer.OutputBuffer,
+				if (copy_to_user(io_buff.OutputBuffer,
 					&ad->uiSectorSize, sizeof(UINT)))
 					return -EFAULT;
 			} else {
@@ -1447,15 +1447,15 @@ static int bcm_char_ioctl_set_debug(void __user *argp,
 				    struct bcm_mini_adapter *ad)
 {
 #ifdef DEBUG
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	struct bcm_user_debug_state sUserDebugState;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 		"In SET_DEBUG ioctl\n");
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (copy_from_user(&sUserDebugState, IoBuffer.InputBuffer,
+	if (copy_from_user(&sUserDebugState, io_buff.InputBuffer,
 		sizeof(struct bcm_user_debug_state)))
 		return -EFAULT;
 
@@ -1491,7 +1491,7 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 {
 	struct bcm_nvm_readwrite stNVMReadWrite;
 	struct timeval tv0, tv1;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	PUCHAR pReadData = NULL;
 	INT Status = STATUS_FAILURE;
 
@@ -1516,12 +1516,12 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 	}
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
 	if (copy_from_user(&stNVMReadWrite,
 				(IOCTL_BCM_NVM_READ == cmd) ?
-				IoBuffer.OutputBuffer : IoBuffer.InputBuffer,
+				io_buff.OutputBuffer : io_buff.InputBuffer,
 				sizeof(struct bcm_nvm_readwrite)))
 		return -EFAULT;
 
@@ -1600,7 +1600,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
 	struct bcm_flash2x_readwrite sFlash2xRead = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	PUCHAR pReadBuff = NULL;
 	UINT NOB = 0;
 	UINT BuffSize = 0;
@@ -1617,11 +1617,11 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
 		DBG_LVL_ALL, "IOCTL_BCM_FLASH2X_SECTION_READ Called");
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
 	/* Reading FLASH 2.x READ structure */
-	if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer,
+	if (copy_from_user(&sFlash2xRead, io_buff.InputBuffer,
 		sizeof(struct bcm_flash2x_readwrite)))
 		return -EFAULT;
 
@@ -1651,7 +1651,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 		BuffSize = NOB;
 
 	ReadOffset = sFlash2xRead.offset;
-	OutPutBuff = IoBuffer.OutputBuffer;
+	OutPutBuff = io_buff.OutputBuffer;
 	pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
 
 	if (pReadBuff == NULL) {
@@ -1718,7 +1718,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
 	struct bcm_flash2x_readwrite sFlash2xWrite = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	PUCHAR pWriteBuff;
 	void __user *InputAddr;
 	UINT NOB = 0;
@@ -1741,11 +1741,11 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 		"IOCTL_BCM_FLASH2X_SECTION_WRITE Called");
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
 	/* Reading FLASH 2.x READ structure */
-	if (copy_from_user(&sFlash2xWrite, IoBuffer.InputBuffer,
+	if (copy_from_user(&sFlash2xWrite, io_buff.InputBuffer,
 		sizeof(struct bcm_flash2x_readwrite)))
 		return -EFAULT;
 
@@ -1852,15 +1852,15 @@ static int bcm_char_ioctl_flash2x_section_bitmap(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
 	struct bcm_flash2x_bitmap *psFlash2xBitMap;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 
 BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 	"IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP Called");
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.OutputLength != sizeof(struct bcm_flash2x_bitmap))
+	if (io_buff.OutputLength != sizeof(struct bcm_flash2x_bitmap))
 		return -EINVAL;
 
 	psFlash2xBitMap = kzalloc(sizeof(struct bcm_flash2x_bitmap),
@@ -1888,7 +1888,7 @@ BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 
 	BcmGetFlash2xSectionalBitMap(ad, psFlash2xBitMap);
 	up(&ad->NVMRdmWrmLock);
-	if (copy_to_user(IoBuffer.OutputBuffer, psFlash2xBitMap,
+	if (copy_to_user(io_buff.OutputBuffer, psFlash2xBitMap,
 		sizeof(struct bcm_flash2x_bitmap))) {
 		kfree(psFlash2xBitMap);
 		return -EFAULT;
@@ -1903,7 +1903,7 @@ static int bcm_char_ioctl_set_active_section(void __user *argp,
 {
 	enum bcm_flash2x_section_val eFlash2xSectionVal = 0;
 	INT Status = STATUS_FAILURE;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"IOCTL_BCM_SET_ACTIVE_SECTION Called");
@@ -1914,7 +1914,7 @@ static int bcm_char_ioctl_set_active_section(void __user *argp,
 		return -EINVAL;
 	}
 
-	Status = copy_from_user(&IoBuffer, argp,
+	Status = copy_from_user(&io_buff, argp,
 				sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -1923,7 +1923,7 @@ static int bcm_char_ioctl_set_active_section(void __user *argp,
 	}
 
 	Status = copy_from_user(&eFlash2xSectionVal,
-				IoBuffer.InputBuffer, sizeof(INT));
+				io_buff.InputBuffer, sizeof(INT));
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			"Copy of flash section val failed");
@@ -1957,7 +1957,7 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 				       struct bcm_mini_adapter *ad)
 {
 	struct bcm_flash2x_copy_section sCopySectStrut = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	INT Status = STATUS_SUCCESS;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -1970,7 +1970,7 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 		return -EINVAL;
 	}
 
-	Status = copy_from_user(&IoBuffer, argp,
+	Status = copy_from_user(&io_buff, argp,
 				sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -1979,7 +1979,7 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 		return -EFAULT;
 	}
 
-	Status = copy_from_user(&sCopySectStrut, IoBuffer.InputBuffer,
+	Status = copy_from_user(&sCopySectStrut, io_buff.InputBuffer,
 				sizeof(struct bcm_flash2x_copy_section));
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -2057,13 +2057,13 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 static int bcm_char_ioctl_get_flash_cs_info(void __user *argp,
 					    struct bcm_mini_adapter *ad)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	INT Status = STATUS_SUCCESS;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			" IOCTL_BCM_GET_FLASH_CS_INFO Called");
 
-	Status = copy_from_user(&IoBuffer, argp,
+	Status = copy_from_user(&io_buff, argp,
 			sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -2078,18 +2078,18 @@ static int bcm_char_ioctl_get_flash_cs_info(void __user *argp,
 	}
 
 	if (IsFlash2x(ad) == TRUE) {
-		if (IoBuffer.OutputLength < sizeof(struct bcm_flash2x_cs_info))
+		if (io_buff.OutputLength < sizeof(struct bcm_flash2x_cs_info))
 			return -EINVAL;
 
-		if (copy_to_user(IoBuffer.OutputBuffer,
+		if (copy_to_user(io_buff.OutputBuffer,
 				 ad->psFlash2xCSInfo,
 				 sizeof(struct bcm_flash2x_cs_info)))
 			return -EFAULT;
 	} else {
-		if (IoBuffer.OutputLength < sizeof(struct bcm_flash_cs_info))
+		if (io_buff.OutputLength < sizeof(struct bcm_flash_cs_info))
 			return -EINVAL;
 
-		if (copy_to_user(IoBuffer.OutputBuffer, ad->psFlashCSInfo,
+		if (copy_to_user(io_buff.OutputBuffer, ad->psFlashCSInfo,
 				 sizeof(struct bcm_flash_cs_info)))
 			return -EFAULT;
 	}
@@ -2099,7 +2099,7 @@ static int bcm_char_ioctl_get_flash_cs_info(void __user *argp,
 static int bcm_char_ioctl_select_dsd(void __user *argp,
 				     struct bcm_mini_adapter *ad)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	INT Status = STATUS_FAILURE;
 	UINT SectOfset = 0;
 	enum bcm_flash2x_section_val eFlash2xSectionVal;
@@ -2114,14 +2114,14 @@ static int bcm_char_ioctl_select_dsd(void __user *argp,
 		return -EINVAL;
 	}
 
-	Status = copy_from_user(&IoBuffer, argp,
+	Status = copy_from_user(&io_buff, argp,
 				sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Copy of IOCTL BUFFER failed");
 		return -EFAULT;
 	}
-	Status = copy_from_user(&eFlash2xSectionVal, IoBuffer.InputBuffer,
+	Status = copy_from_user(&eFlash2xSectionVal, io_buff.InputBuffer,
 		sizeof(INT));
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -2160,7 +2160,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 				       struct bcm_mini_adapter *ad)
 {
 	struct bcm_nvm_readwrite stNVMRead;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	unsigned int NOB;
 	INT BuffSize;
 	INT ReadOffset = 0;
@@ -2176,13 +2176,13 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	}
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer))) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"copy_from_user 1 failed\n");
 		return -EFAULT;
 	}
 
-	if (copy_from_user(&stNVMRead, IoBuffer.OutputBuffer,
+	if (copy_from_user(&stNVMRead, io_buff.OutputBuffer,
 		sizeof(struct bcm_nvm_readwrite)))
 		return -EFAULT;
 
@@ -2262,12 +2262,12 @@ static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 					struct bcm_mini_adapter *ad,
 					struct bcm_tarang_data *pTarang)
 {
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	INT Status = STATUS_FAILURE;
 	ULONG RxCntrlMsgBitMask = 0;
 
 	/* Copy Ioctl Buffer structure */
-	Status = copy_from_user(&IoBuffer, argp,
+	Status = copy_from_user(&io_buff, argp,
 			sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -2275,11 +2275,11 @@ static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 		return -EFAULT;
 	}
 
-	if (IoBuffer.InputLength != sizeof(unsigned long))
+	if (io_buff.InputLength != sizeof(unsigned long))
 		return -EINVAL;
 
-	Status = copy_from_user(&RxCntrlMsgBitMask, IoBuffer.InputBuffer,
-				IoBuffer.InputLength);
+	Status = copy_from_user(&RxCntrlMsgBitMask, io_buff.InputBuffer,
+				io_buff.InputLength);
 	if (Status) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"copy of control bit mask failed from user space");
@@ -2297,7 +2297,7 @@ static int bcm_char_ioctl_get_device_driver_info(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
 	struct bcm_driver_info DevInfo;
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"Called IOCTL_BCM_GET_DEVICE_DRIVER_INFO\n");
@@ -2309,13 +2309,13 @@ static int bcm_char_ioctl_get_device_driver_info(void __user *argp,
 	DevInfo.u32NVMType = ad->eNVMType;
 	DevInfo.u32InterfaceType = BCM_USB;
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.OutputLength < sizeof(DevInfo))
+	if (io_buff.OutputLength < sizeof(DevInfo))
 		return -EINVAL;
 
-	if (copy_to_user(IoBuffer.OutputBuffer, &DevInfo, sizeof(DevInfo)))
+	if (copy_to_user(io_buff.OutputBuffer, &DevInfo, sizeof(DevInfo)))
 		return -EFAULT;
 
 	return STATUS_SUCCESS;
@@ -2325,21 +2325,21 @@ static int bcm_char_ioctl_time_since_net_entry(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
 	struct bcm_time_elapsed stTimeElapsedSinceNetEntry = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"IOCTL_BCM_TIME_SINCE_NET_ENTRY called");
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.OutputLength < sizeof(struct bcm_time_elapsed))
+	if (io_buff.OutputLength < sizeof(struct bcm_time_elapsed))
 		return -EINVAL;
 
 	stTimeElapsedSinceNetEntry.ul64TimeElapsedSinceNetEntry =
 		get_seconds() - ad->liTimeSinceLastNetEntry;
 
-	if (copy_to_user(IoBuffer.OutputBuffer, &stTimeElapsedSinceNetEntry,
+	if (copy_to_user(io_buff.OutputBuffer, &stTimeElapsedSinceNetEntry,
 			 sizeof(struct bcm_time_elapsed)))
 		return -EFAULT;
 
