@@ -143,8 +143,8 @@ static void bcm_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info)
 {
 	struct bcm_mini_adapter *ad = GET_BCM_ADAPTER(dev);
-	struct bcm_interface_adapter *psIntfAdapter = ad->pvInterfaceAdapter;
-	struct usb_device *udev = interface_to_usbdev(psIntfAdapter->interface);
+	struct bcm_interface_adapter *intf_ad = ad->pvInterfaceAdapter;
+	struct usb_device *udev = interface_to_usbdev(intf_ad->interface);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
