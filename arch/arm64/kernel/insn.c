@@ -255,6 +255,10 @@ u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 		mask = BIT(9) - 1;
 		shift = 12;
 		break;
+	case AARCH64_INSN_IMM_7:
+		mask = BIT(7) - 1;
+		shift = 15;
+		break;
 	default:
 		pr_err("aarch64_insn_encode_immediate: unknown immediate encoding %d\n",
 			type);
@@ -285,6 +289,9 @@ static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
 		break;
 	case AARCH64_INSN_REGTYPE_RN:
 		shift = 5;
+		break;
+	case AARCH64_INSN_REGTYPE_RT2:
+		shift = 10;
 		break;
 	case AARCH64_INSN_REGTYPE_RM:
 		shift = 16;
@@ -489,4 +496,62 @@ u32 aarch64_insn_gen_load_store_reg(enum aarch64_insn_register reg,
 
 	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn,
 					    offset);
+}
+
+u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
+				     enum aarch64_insn_register reg2,
+				     enum aarch64_insn_register base,
+				     int offset,
+				     enum aarch64_insn_variant variant,
+				     enum aarch64_insn_ldst_type type)
+{
+	u32 insn;
+	int shift;
+
+	switch (type) {
+	case AARCH64_INSN_LDST_LOAD_PAIR_PRE_INDEX:
+		insn = aarch64_insn_get_ldp_pre_value();
+		break;
+	case AARCH64_INSN_LDST_STORE_PAIR_PRE_INDEX:
+		insn = aarch64_insn_get_stp_pre_value();
+		break;
+	case AARCH64_INSN_LDST_LOAD_PAIR_POST_INDEX:
+		insn = aarch64_insn_get_ldp_post_value();
+		break;
+	case AARCH64_INSN_LDST_STORE_PAIR_POST_INDEX:
+		insn = aarch64_insn_get_stp_post_value();
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		/* offset must be multiples of 4 in the range [-256, 252] */
+		BUG_ON(offset & 0x3);
+		BUG_ON(offset < -256 || offset > 252);
+		shift = 2;
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		/* offset must be multiples of 8 in the range [-512, 504] */
+		BUG_ON(offset & 0x7);
+		BUG_ON(offset < -512 || offset > 504);
+		shift = 3;
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn,
+					    reg1);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT2, insn,
+					    reg2);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn,
+					    base);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_7, insn,
+					     offset >> shift);
 }
