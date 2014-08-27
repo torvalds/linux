@@ -2324,7 +2324,7 @@ static int bcm_char_ioctl_get_device_driver_info(void __user *argp,
 static int bcm_char_ioctl_time_since_net_entry(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
-	struct bcm_time_elapsed stTimeElapsedSinceNetEntry = {0};
+	struct bcm_time_elapsed time_elapsed_since_net_entry = {0};
 	struct bcm_ioctl_buffer io_buff;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -2336,10 +2336,10 @@ static int bcm_char_ioctl_time_since_net_entry(void __user *argp,
 	if (io_buff.OutputLength < sizeof(struct bcm_time_elapsed))
 		return -EINVAL;
 
-	stTimeElapsedSinceNetEntry.ul64TimeElapsedSinceNetEntry =
+	time_elapsed_since_net_entry.ul64TimeElapsedSinceNetEntry =
 		get_seconds() - ad->liTimeSinceLastNetEntry;
 
-	if (copy_to_user(io_buff.OutputBuffer, &stTimeElapsedSinceNetEntry,
+	if (copy_to_user(io_buff.OutputBuffer, &time_elapsed_since_net_entry,
 			 sizeof(struct bcm_time_elapsed)))
 		return -EFAULT;
 
