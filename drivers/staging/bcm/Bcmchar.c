@@ -1719,7 +1719,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 {
 	struct bcm_flash2x_readwrite sFlash2xWrite = {0};
 	struct bcm_ioctl_buffer io_buff;
-	PUCHAR pWriteBuff;
+	PUCHAR write_buff;
 	void __user *InputAddr;
 	UINT NOB = 0;
 	UINT buff_size = 0;
@@ -1777,9 +1777,9 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	else
 		buff_size = NOB;
 
-	pWriteBuff = kmalloc(buff_size, GFP_KERNEL);
+	write_buff = kmalloc(buff_size, GFP_KERNEL);
 
-	if (pWriteBuff == NULL)
+	if (write_buff == NULL)
 		return -ENOMEM;
 
 	/* extracting the remainder of the given offset. */
@@ -1801,25 +1801,25 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"Device is in Idle/Shutdown Mode\n");
 		up(&ad->NVMRdmWrmLock);
-		kfree(pWriteBuff);
+		kfree(write_buff);
 		return -EACCES;
 	}
 
 	BcmFlash2xCorruptSig(ad, sFlash2xWrite.Section);
 	do {
-		status = copy_from_user(pWriteBuff, InputAddr, write_bytes);
+		status = copy_from_user(write_buff, InputAddr, write_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Copy to user failed with status :%d", status);
 			up(&ad->NVMRdmWrmLock);
-			kfree(pWriteBuff);
+			kfree(write_buff);
 			return -EFAULT;
 		}
 		BCM_DEBUG_PRINT_BUFFER(ad, DBG_TYPE_OTHERS,
-			OSAL_DBG, DBG_LVL_ALL, pWriteBuff, write_bytes);
+			OSAL_DBG, DBG_LVL_ALL, write_buff, write_bytes);
 
 		/* Writing the data from Flash 2.x */
-		status = BcmFlash2xBulkWrite(ad, (PUINT)pWriteBuff,
+		status = BcmFlash2xBulkWrite(ad, (PUINT)write_buff,
 					     sFlash2xWrite.Section,
 					     WriteOffset,
 					     write_bytes,
@@ -1844,7 +1844,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 
 	BcmFlash2xWriteSig(ad, sFlash2xWrite.Section);
 	up(&ad->NVMRdmWrmLock);
-	kfree(pWriteBuff);
+	kfree(write_buff);
 	return status;
 }
 
