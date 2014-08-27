@@ -92,6 +92,15 @@ struct snd_uac2_chip {
 
 	struct snd_card *card;
 	struct snd_pcm *pcm;
+
+	/* timekeeping for the playback endpoint */
+	unsigned int p_interval;
+	unsigned int p_residue;
+
+	/* pre-calculated values for playback iso completion */
+	unsigned int p_pktsize;
+	unsigned int p_pktsize_residue;
+	unsigned int p_framesize;
 };
 
 #define BUFF_SIZE_MAX	(PAGE_SIZE * 16)
@@ -191,8 +200,29 @@ agdev_iso_complete(struct usb_ep *ep, struct usb_request *req)
 
 	spin_lock_irqsave(&prm->lock, flags);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		/*
+		 * For each IN packet, take the quotient of the current data
+		 * rate and the endpoint's interval as the base packet size.
+		 * If there is a residue from this division, add it to the
+		 * residue accumulator.
+		 */
+		req->length = uac2->p_pktsize;
+		uac2->p_residue += uac2->p_pktsize_residue;
+
+		/*
+		 * Whenever there are more bytes in the accumulator than we
+		 * need to add one more sample frame, increase this packet's
+		 * size and decrease the accumulator.
+		 */
+		if (uac2->p_residue / uac2->p_interval >= uac2->p_framesize) {
+			req->length += uac2->p_framesize;
+			uac2->p_residue -= uac2->p_framesize *
+					   uac2->p_interval;
+		}
+
 		req->actual = req->length;
+	}
 
 	pending = prm->hw_ptr % prm->period_size;
 	pending += req->actual;
@@ -346,6 +376,7 @@ static int uac2_pcm_open(struct snd_pcm_substream *substream)
 	c_srate = opts->c_srate;
 	p_chmask = opts->p_chmask;
 	c_chmask = opts->c_chmask;
+	uac2->p_residue = 0;
 
 	runtime->hw = uac2_pcm_hardware;
 
@@ -1077,7 +1108,7 @@ afunc_set_alt(struct usb_function *fn, unsigned intf, unsigned alt)
 	struct usb_request *req;
 	struct usb_ep *ep;
 	struct uac2_rtd_params *prm;
-	int i;
+	int req_len, i;
 
 	/* No i/f has more than 2 alt settings */
 	if (alt > 1) {
@@ -1099,11 +1130,41 @@ afunc_set_alt(struct usb_function *fn, unsigned intf, unsigned alt)
 		prm = &uac2->c_prm;
 		config_ep_by_speed(gadget, fn, ep);
 		agdev->as_out_alt = alt;
+		req_len = prm->max_psize;
 	} else if (intf == agdev->as_in_intf) {
+		struct f_uac2_opts *opts = agdev_to_uac2_opts(agdev);
+		unsigned int factor, rate;
+		struct usb_endpoint_descriptor *ep_desc;
+
 		ep = agdev->in_ep;
 		prm = &uac2->p_prm;
 		config_ep_by_speed(gadget, fn, ep);
 		agdev->as_in_alt = alt;
+
+		/* pre-calculate the playback endpoint's interval */
+		if (gadget->speed == USB_SPEED_FULL) {
+			ep_desc = &fs_epin_desc;
+			factor = 1000;
+		} else {
+			ep_desc = &hs_epin_desc;
+			factor = 125;
+		}
+
+		/* pre-compute some values for iso_complete() */
+		uac2->p_framesize = opts->p_ssize *
+				    num_channels(opts->p_chmask);
+		rate = opts->p_srate * uac2->p_framesize;
+		uac2->p_interval = (1 << (ep_desc->bInterval - 1)) * factor;
+		uac2->p_pktsize = min_t(unsigned int, rate / uac2->p_interval,
+					prm->max_psize);
+
+		if (uac2->p_pktsize < prm->max_psize)
+			uac2->p_pktsize_residue = rate % uac2->p_interval;
+		else
+			uac2->p_pktsize_residue = 0;
+
+		req_len = uac2->p_pktsize;
+		uac2->p_residue = 0;
 	} else {
 		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 		return -EINVAL;
@@ -1128,9 +1189,9 @@ afunc_set_alt(struct usb_function *fn, unsigned intf, unsigned alt)
 
 			req->zero = 0;
 			req->context = &prm->ureq[i];
-			req->length = prm->max_psize;
+			req->length = req_len;
 			req->complete = agdev_iso_complete;
-			req->buf = prm->rbuf + i * req->length;
+			req->buf = prm->rbuf + i * prm->max_psize;
 		}
 
 		if (usb_ep_queue(ep, prm->ureq[i].req, GFP_ATOMIC))
