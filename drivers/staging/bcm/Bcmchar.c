@@ -2159,7 +2159,7 @@ static int bcm_char_ioctl_select_dsd(void __user *argp,
 static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 				       struct bcm_mini_adapter *ad)
 {
-	struct bcm_nvm_readwrite stNVMRead;
+	struct bcm_nvm_readwrite nvm_read;
 	struct bcm_ioctl_buffer io_buff;
 	unsigned int NOB;
 	INT buff_size;
@@ -2182,11 +2182,11 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 		return -EFAULT;
 	}
 
-	if (copy_from_user(&stNVMRead, io_buff.OutputBuffer,
+	if (copy_from_user(&nvm_read, io_buff.OutputBuffer,
 		sizeof(struct bcm_nvm_readwrite)))
 		return -EFAULT;
 
-	NOB = stNVMRead.uiNumBytes;
+	NOB = nvm_read.uiNumBytes;
 	/* In Raw-Read max Buff size : 64MB */
 
 	if (NOB > DEFAULT_BUFF_SIZE)
@@ -2194,8 +2194,8 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	else
 		buff_size = NOB;
 
-	ReadOffset = stNVMRead.uiOffset;
-	OutPutBuff = stNVMRead.pBuffer;
+	ReadOffset = nvm_read.uiOffset;
+	OutPutBuff = nvm_read.pBuffer;
 
 	read_buff = kzalloc(buff_size , GFP_KERNEL);
 	if (read_buff == NULL) {
