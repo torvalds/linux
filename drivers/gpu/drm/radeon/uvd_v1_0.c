@@ -319,11 +319,11 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	/* enable UMC */
 	WREG32_P(UVD_LMI_CTRL2, 0, ~(1 << 8));
 
+	WREG32_P(UVD_RB_ARB_CTRL, 0, ~(1 << 3));
+
 	/* boot up the VCPU */
 	WREG32(UVD_SOFT_RESET, 0);
 	mdelay(10);
-
-	WREG32_P(UVD_RB_ARB_CTRL, 0, ~(1 << 3));
 
 	for (i = 0; i < 10; ++i) {
 		uint32_t status;
