@@ -372,6 +372,8 @@
 				<&clk_gates4 3>,/*aclk_peri_axi_matrix*/
 				<&clk_gates5 1>,/*aclk_dmac2*/
 				<&clk_gates9 15>,/*aclk_peri_niu*/
+				<&clk_gates9 2>,/*g_pclk_pmu*/
+				<&clk_gates9 3>,/*g_pclk_pmu_noc*/
 				<&clk_gates4 2>,/*aclk_cpu_peri*/
 
 				/*hclk_peri_pre*/

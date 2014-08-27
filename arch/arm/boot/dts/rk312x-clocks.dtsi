@@ -1534,7 +1534,7 @@
 
 					clock-output-names =
 						"pclk_dbg",			"aclk_cpu",	 /*clk_cpu_cpll*/
-						"clk_ddr",		"aclk_cpu_pre",
+						"reserved",		"aclk_cpu_pre",
 
 						"hclk_cpu_pre",		"pclk_cpu_pre",
 						"clk_core",		"aclk_core_pre",
