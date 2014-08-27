@@ -1264,12 +1264,8 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
 	if (hpp->enable_serr)
 		pci_cmd |= PCI_COMMAND_SERR;
-	else
-		pci_cmd &= ~PCI_COMMAND_SERR;
 	if (hpp->enable_perr)
 		pci_cmd |= PCI_COMMAND_PARITY;
-	else
-		pci_cmd &= ~PCI_COMMAND_PARITY;
 	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
 
 	/* Program bridge control value */
@@ -1279,12 +1275,8 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
 		if (hpp->enable_serr)
 			pci_bctl |= PCI_BRIDGE_CTL_SERR;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
 		if (hpp->enable_perr)
 			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;
 		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
 	}
 }
