@@ -28,98 +28,103 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 
+struct ddi_buf_trans {
+	u32 trans1;	/* balance leg enable, de-emph level */
+	u32 trans2;	/* vref sel, vswing */
+};
+
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share
  * them for both DP and FDI transports, allowing those ports to
  * automatically adapt to HDMI connections as well
  */
-static const u32 hsw_ddi_translations_dp[] = {
-	0x00FFFFFF, 0x0006000E,
-	0x00D75FFF, 0x0005000A,
-	0x00C30FFF, 0x00040006,
-	0x80AAAFFF, 0x000B0000,
-	0x00FFFFFF, 0x0005000A,
-	0x00D75FFF, 0x000C0004,
-	0x80C30FFF, 0x000B0000,
-	0x00FFFFFF, 0x00040006,
-	0x80D75FFF, 0x000B0000,
+static const struct ddi_buf_trans hsw_ddi_translations_dp[] = {
+	{ 0x00FFFFFF, 0x0006000E },
+	{ 0x00D75FFF, 0x0005000A },
+	{ 0x00C30FFF, 0x00040006 },
+	{ 0x80AAAFFF, 0x000B0000 },
+	{ 0x00FFFFFF, 0x0005000A },
+	{ 0x00D75FFF, 0x000C0004 },
+	{ 0x80C30FFF, 0x000B0000 },
+	{ 0x00FFFFFF, 0x00040006 },
+	{ 0x80D75FFF, 0x000B0000 },
 };
 
-static const u32 hsw_ddi_translations_fdi[] = {
-	0x00FFFFFF, 0x0007000E,
-	0x00D75FFF, 0x000F000A,
-	0x00C30FFF, 0x00060006,
-	0x00AAAFFF, 0x001E0000,
-	0x00FFFFFF, 0x000F000A,
-	0x00D75FFF, 0x00160004,
-	0x00C30FFF, 0x001E0000,
-	0x00FFFFFF, 0x00060006,
-	0x00D75FFF, 0x001E0000,
+static const struct ddi_buf_trans hsw_ddi_translations_fdi[] = {
+	{ 0x00FFFFFF, 0x0007000E },
+	{ 0x00D75FFF, 0x000F000A },
+	{ 0x00C30FFF, 0x00060006 },
+	{ 0x00AAAFFF, 0x001E0000 },
+	{ 0x00FFFFFF, 0x000F000A },
+	{ 0x00D75FFF, 0x00160004 },
+	{ 0x00C30FFF, 0x001E0000 },
+	{ 0x00FFFFFF, 0x00060006 },
+	{ 0x00D75FFF, 0x001E0000 },
 };
 
-static const u32 hsw_ddi_translations_hdmi[] = {
-				/* Idx	NT mV diff	T mV diff	db  */
-	0x00FFFFFF, 0x0006000E, /* 0:	400		400		0   */
-	0x00E79FFF, 0x000E000C, /* 1:	400		500		2   */
-	0x00D75FFF, 0x0005000A, /* 2:	400		600		3.5 */
-	0x00FFFFFF, 0x0005000A, /* 3:	600		600		0   */
-	0x00E79FFF, 0x001D0007, /* 4:	600		750		2   */
-	0x00D75FFF, 0x000C0004, /* 5:	600		900		3.5 */
-	0x00FFFFFF, 0x00040006, /* 6:	800		800		0   */
-	0x80E79FFF, 0x00030002, /* 7:	800		1000		2   */
-	0x00FFFFFF, 0x00140005, /* 8:	850		850		0   */
-	0x00FFFFFF, 0x000C0004, /* 9:	900		900		0   */
-	0x00FFFFFF, 0x001C0003, /* 10:	950		950		0   */
-	0x80FFFFFF, 0x00030002, /* 11:	1000		1000		0   */
+static const struct ddi_buf_trans hsw_ddi_translations_hdmi[] = {
+					/* Idx	NT mV d	T mV d	db	*/
+	{ 0x00FFFFFF, 0x0006000E },	/* 0:	400	400	0	*/
+	{ 0x00E79FFF, 0x000E000C },	/* 1:	400	500	2	*/
+	{ 0x00D75FFF, 0x0005000A },	/* 2:	400	600	3.5	*/
+	{ 0x00FFFFFF, 0x0005000A },	/* 3:	600	600	0	*/
+	{ 0x00E79FFF, 0x001D0007 },	/* 4:	600	750	2	*/
+	{ 0x00D75FFF, 0x000C0004 },	/* 5:	600	900	3.5	*/
+	{ 0x00FFFFFF, 0x00040006 },	/* 6:	800	800	0	*/
+	{ 0x80E79FFF, 0x00030002 },	/* 7:	800	1000	2	*/
+	{ 0x00FFFFFF, 0x00140005 },	/* 8:	850	850	0	*/
+	{ 0x00FFFFFF, 0x000C0004 },	/* 9:	900	900	0	*/
+	{ 0x00FFFFFF, 0x001C0003 },	/* 10:	950	950	0	*/
+	{ 0x80FFFFFF, 0x00030002 },	/* 11:	1000	1000	0	*/
 };
 
-static const u32 bdw_ddi_translations_edp[] = {
-	0x00FFFFFF, 0x00000012,
-	0x00EBAFFF, 0x00020011,
-	0x00C71FFF, 0x0006000F,
-	0x00AAAFFF, 0x000E000A,
-	0x00FFFFFF, 0x00020011,
-	0x00DB6FFF, 0x0005000F,
-	0x00BEEFFF, 0x000A000C,
-	0x00FFFFFF, 0x0005000F,
-	0x00DB6FFF, 0x000A000C,
+static const struct ddi_buf_trans bdw_ddi_translations_edp[] = {
+	{ 0x00FFFFFF, 0x00000012 },
+	{ 0x00EBAFFF, 0x00020011 },
+	{ 0x00C71FFF, 0x0006000F },
+	{ 0x00AAAFFF, 0x000E000A },
+	{ 0x00FFFFFF, 0x00020011 },
+	{ 0x00DB6FFF, 0x0005000F },
+	{ 0x00BEEFFF, 0x000A000C },
+	{ 0x00FFFFFF, 0x0005000F },
+	{ 0x00DB6FFF, 0x000A000C },
 };
 
-static const u32 bdw_ddi_translations_dp[] = {
-	0x00FFFFFF, 0x0007000E,
-	0x00D75FFF, 0x000E000A,
-	0x00BEFFFF, 0x00140006,
-	0x80B2CFFF, 0x001B0002,
-	0x00FFFFFF, 0x000E000A,
-	0x00D75FFF, 0x00180004,
-	0x80CB2FFF, 0x001B0002,
-	0x00F7DFFF, 0x00180004,
-	0x80D75FFF, 0x001B0002,
+static const struct ddi_buf_trans bdw_ddi_translations_dp[] = {
+	{ 0x00FFFFFF, 0x0007000E },
+	{ 0x00D75FFF, 0x000E000A },
+	{ 0x00BEFFFF, 0x00140006 },
+	{ 0x80B2CFFF, 0x001B0002 },
+	{ 0x00FFFFFF, 0x000E000A },
+	{ 0x00D75FFF, 0x00180004 },
+	{ 0x80CB2FFF, 0x001B0002 },
+	{ 0x00F7DFFF, 0x00180004 },
+	{ 0x80D75FFF, 0x001B0002 },
 };
 
-static const u32 bdw_ddi_translations_fdi[] = {
-	0x00FFFFFF, 0x0001000E,
-	0x00D75FFF, 0x0004000A,
-	0x00C30FFF, 0x00070006,
-	0x00AAAFFF, 0x000C0000,
-	0x00FFFFFF, 0x0004000A,
-	0x00D75FFF, 0x00090004,
-	0x00C30FFF, 0x000C0000,
-	0x00FFFFFF, 0x00070006,
-	0x00D75FFF, 0x000C0000,
+static const struct ddi_buf_trans bdw_ddi_translations_fdi[] = {
+	{ 0x00FFFFFF, 0x0001000E },
+	{ 0x00D75FFF, 0x0004000A },
+	{ 0x00C30FFF, 0x00070006 },
+	{ 0x00AAAFFF, 0x000C0000 },
+	{ 0x00FFFFFF, 0x0004000A },
+	{ 0x00D75FFF, 0x00090004 },
+	{ 0x00C30FFF, 0x000C0000 },
+	{ 0x00FFFFFF, 0x00070006 },
+	{ 0x00D75FFF, 0x000C0000 },
 };
 
-static const u32 bdw_ddi_translations_hdmi[] = {
-				/* Idx	NT mV diff	T mV diff	db  */
-	0x00FFFFFF, 0x0007000E, /* 0:	400		400		0   */
-	0x00D75FFF, 0x000E000A, /* 1:	400		600		3.5 */
-	0x00BEFFFF, 0x00140006, /* 2:	400		800		6   */
-	0x00FFFFFF, 0x0009000D, /* 3:	450		450		0   */
-	0x00FFFFFF, 0x000E000A, /* 4:	600		600		0   */
-	0x00D7FFFF, 0x00140006, /* 5:	600		800		2.5 */
-	0x80CB2FFF, 0x001B0002, /* 6:	600		1000		4.5 */
-	0x00FFFFFF, 0x00140006, /* 7:	800		800		0   */
-	0x80E79FFF, 0x001B0002, /* 8:	800		1000		2   */
-	0x80FFFFFF, 0x001B0002, /* 9:	1000		1000		0   */
+static const struct ddi_buf_trans bdw_ddi_translations_hdmi[] = {
+					/* Idx	NT mV d	T mV df	db	*/
+	{ 0x00FFFFFF, 0x0007000E },	/* 0:	400	400	0	*/
+	{ 0x00D75FFF, 0x000E000A },	/* 1:	400	600	3.5	*/
+	{ 0x00BEFFFF, 0x00140006 },	/* 2:	400	800	6	*/
+	{ 0x00FFFFFF, 0x0009000D },	/* 3:	450	450	0	*/
+	{ 0x00FFFFFF, 0x000E000A },	/* 4:	600	600	0	*/
+	{ 0x00D7FFFF, 0x00140006 },	/* 5:	600	800	2.5	*/
+	{ 0x80CB2FFF, 0x001B0002 },	/* 6:	600	1000	4.5	*/
+	{ 0x00FFFFFF, 0x00140006 },	/* 7:	800	800	0	*/
+	{ 0x80E79FFF, 0x001B0002 },	/* 8:	800	1000	2	*/
+	{ 0x80FFFFFF, 0x001B0002 },	/* 9:	1000	1000	0	*/
 };
 
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
@@ -158,25 +163,25 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	u32 reg;
 	int i, n_hdmi_entries, hdmi_800mV_0dB;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
-	const u32 *ddi_translations_fdi;
-	const u32 *ddi_translations_dp;
-	const u32 *ddi_translations_edp;
-	const u32 *ddi_translations_hdmi;
-	const u32 *ddi_translations;
+	const struct ddi_buf_trans *ddi_translations_fdi;
+	const struct ddi_buf_trans *ddi_translations_dp;
+	const struct ddi_buf_trans *ddi_translations_edp;
+	const struct ddi_buf_trans *ddi_translations_hdmi;
+	const struct ddi_buf_trans *ddi_translations;
 
 	if (IS_BROADWELL(dev)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_edp = bdw_ddi_translations_edp;
 		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi) / 2;
+		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
 		hdmi_800mV_0dB = 7;
 	} else if (IS_HASWELL(dev)) {
 		ddi_translations_fdi = hsw_ddi_translations_fdi;
 		ddi_translations_dp = hsw_ddi_translations_dp;
 		ddi_translations_edp = hsw_ddi_translations_dp;
 		ddi_translations_hdmi = hsw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi) / 2;
+		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
 		hdmi_800mV_0dB = 6;
 	} else {
 		WARN(1, "ddi translation table missing\n");
@@ -184,7 +189,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi) / 2;
+		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
 		hdmi_800mV_0dB = 7;
 	}
 
@@ -211,7 +216,9 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 
 	for (i = 0, reg = DDI_BUF_TRANS(port);
 	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
-		I915_WRITE(reg, ddi_translations[i]);
+		I915_WRITE(reg, ddi_translations[i].trans1);
+		reg += 4;
+		I915_WRITE(reg, ddi_translations[i].trans2);
 		reg += 4;
 	}
 
@@ -221,10 +228,10 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		hdmi_level = hdmi_800mV_0dB;
 
 	/* Entry 9 is for HDMI: */
-	for (i = 0; i < 2; i++) {
-		I915_WRITE(reg, ddi_translations_hdmi[hdmi_level * 2 + i]);
-		reg += 4;
-	}
+	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans1);
+	reg += 4;
+	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans2);
+	reg += 4;
 }
 
 /* Program DDI buffers translations for DP. By default, program ports A-D in DP
@@ -264,8 +271,6 @@ static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
  * DDI A (which is used for eDP)
  */
 
-#define NUM_FDI_TRANSLATION_ENTRIES (ARRAY_SIZE(hsw_ddi_translations_fdi) / 2)
-
 void hsw_fdi_link_train(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -302,7 +307,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 
 	/* Start the training iterating through available voltages and emphasis,
 	 * testing each value twice. */
-	for (i = 0; i < NUM_FDI_TRANSLATION_ENTRIES * 2; i++) {
+	for (i = 0; i < ARRAY_SIZE(hsw_ddi_translations_fdi) * 2; i++) {
 		/* Configure DP_TP_CTL with auto-training */
 		I915_WRITE(DP_TP_CTL(PORT_E),
 					DP_TP_CTL_FDI_AUTOTRAIN |
