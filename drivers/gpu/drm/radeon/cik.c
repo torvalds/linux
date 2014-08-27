@@ -9563,6 +9563,9 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev)
 	int ret, i;
 	u16 tmp16;
 
+	if (pci_is_root_bus(rdev->pdev->bus))
+		return;
+
 	if (radeon_pcie_gen2 == 0)
 		return;
 
@@ -9789,7 +9792,8 @@ static void cik_program_aspm(struct radeon_device *rdev)
 			if (orig != data)
 				WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, data);
 
-			if (!disable_clkreq) {
+			if (!disable_clkreq &&
+			    !pci_is_root_bus(rdev->pdev->bus)) {
 				struct pci_dev *root = rdev->pdev->bus->self;
 				u32 lnkcap;
 
