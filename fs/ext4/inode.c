@@ -2077,6 +2077,7 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 	struct ext4_map_blocks *map = &mpd->map;
 	int err;
 	loff_t disksize;
+	int progress = 0;
 
 	mpd->io_submit.io_end->offset =
 				((loff_t)map->m_lblk) << inode->i_blkbits;
@@ -2093,8 +2094,11 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 			 * is non-zero, a commit should free up blocks.
 			 */
 			if ((err == -ENOMEM) ||
-			    (err == -ENOSPC && ext4_count_free_clusters(sb)))
+			    (err == -ENOSPC && ext4_count_free_clusters(sb))) {
+				if (progress)
+					goto update_disksize;
 				return err;
+			}
 			ext4_msg(sb, KERN_CRIT,
 				 "Delayed block allocation failed for "
 				 "inode %lu at logical offset %llu with"
@@ -2111,15 +2115,17 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 			*give_up_on_write = true;
 			return err;
 		}
+		progress = 1;
 		/*
 		 * Update buffer state, submit mapped pages, and get us new
 		 * extent to map
 		 */
 		err = mpage_map_and_submit_buffers(mpd);
 		if (err < 0)
-			return err;
+			goto update_disksize;
 	} while (map->m_len);
 
+update_disksize:
 	/*
 	 * Update on-disk size after IO is submitted.  Races with
 	 * truncate are avoided by checking i_size under i_data_sem.
