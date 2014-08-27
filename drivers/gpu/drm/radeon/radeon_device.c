@@ -1673,9 +1673,6 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		return 0;
 	}
 
-	rdev->in_reset = true;
-	rdev->needs_reset = false;
-
 	radeon_save_bios_scratch_regs(rdev);
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
@@ -1738,6 +1735,10 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 	radeon_hpd_init(rdev);
 
 	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
+
+	rdev->in_reset = true;
+	rdev->needs_reset = false;
+
 	downgrade_write(&rdev->exclusive_lock);
 
 	drm_helper_resume_force_mode(rdev->ddev);
