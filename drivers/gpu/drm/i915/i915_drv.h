@@ -50,8 +50,6 @@
 /* General customization:
  */
 
-#define DRIVER_AUTHOR		"Tungsten Graphics, Inc."
-
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
 #define DRIVER_DATE		"20140822"
