@@ -1702,7 +1702,8 @@ static int parport_ECP_supported(struct parport *pb)
 }
 #endif
 
-static int intel_bug_present(struct parport *pb)
+#ifdef CONFIG_X86_32
+static int intel_bug_present_check_epp(struct parport *pb)
 {
 	const struct parport_pc_private *priv = pb->private_data;
 	int bug_present = 0;
@@ -1725,6 +1726,21 @@ static int intel_bug_present(struct parport *pb)
 
 	return bug_present;
 }
+static int intel_bug_present(struct parport *pb)
+{
+/* Check whether the device is legacy, not PCI or PCMCIA. Only legacy is known to be affected. */
+	if (pb->dev != NULL) {
+		return 0;
+	}
+
+	return intel_bug_present_check_epp(pb);
+}
+#else
+static int intel_bug_present(struct parport *pb)
+{
+	return 0;
+}
+#endif /* CONFIG_X86_32 */
 
 static int parport_ECPPS2_supported(struct parport *pb)
 {
