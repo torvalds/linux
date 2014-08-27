@@ -140,6 +140,12 @@ struct snd_uac2_chip *pdev_to_uac2(struct platform_device *p)
 }
 
 static inline
+struct f_uac2_opts *agdev_to_uac2_opts(struct audio_dev *agdev)
+{
+	return container_of(agdev->func.fi, struct f_uac2_opts, func_inst);
+}
+
+static inline
 uint num_channels(uint chanmask)
 {
 	uint num = 0;
@@ -1168,7 +1174,7 @@ in_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	int value = -EOPNOTSUPP;
 	int p_srate, c_srate;
 
-	opts = container_of(agdev->func.fi, struct f_uac2_opts, func_inst);
+	opts = agdev_to_uac2_opts(agdev);
 	p_srate = opts->p_srate;
 	c_srate = opts->c_srate;
 
@@ -1210,7 +1216,7 @@ in_rq_range(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	int value = -EOPNOTSUPP;
 	int p_srate, c_srate;
 
-	opts = container_of(agdev->func.fi, struct f_uac2_opts, func_inst);
+	opts = agdev_to_uac2_opts(agdev);
 	p_srate = opts->p_srate;
 	c_srate = opts->c_srate;
 
