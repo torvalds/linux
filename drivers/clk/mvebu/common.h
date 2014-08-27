@@ -17,6 +17,8 @@
 
 #include <linux/kernel.h>
 
+extern spinlock_t ctrl_gating_lock;
+
 struct device_node;
 
 struct coreclk_ratio {

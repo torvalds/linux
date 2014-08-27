@@ -89,8 +89,10 @@ void __init mvebu_coreclk_setup(struct device_node *np,
  * Clock Gating Control
  */
 
+DEFINE_SPINLOCK(ctrl_gating_lock);
+
 struct clk_gating_ctrl {
-	spinlock_t lock;
+	spinlock_t *lock;
 	struct clk **gates;
 	int num_gates;
 };
@@ -138,7 +140,8 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 	if (WARN_ON(!ctrl))
 		goto ctrl_out;
 
-	spin_lock_init(&ctrl->lock);
+	/* lock must already be initialized */
+	ctrl->lock = &ctrl_gating_lock;
 
 	/* Count, allocate, and register clock gates */
 	for (n = 0; desc[n].name;)
@@ -155,7 +158,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 			(desc[n].parent) ? desc[n].parent : default_parent;
 		ctrl->gates[n] = clk_register_gate(NULL, desc[n].name, parent,
 					desc[n].flags, base, desc[n].bit_idx,
-					0, &ctrl->lock);
+					0, ctrl->lock);
 		WARN_ON(IS_ERR(ctrl->gates[n]));
 	}
 
