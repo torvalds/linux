@@ -589,6 +589,7 @@ __i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 	u32 pipestat = I915_READ(reg) & PIPESTAT_INT_ENABLE_MASK;
 
 	assert_spin_locked(&dev_priv->irq_lock);
+	WARN_ON(!intel_irqs_enabled(dev_priv));
 
 	if (WARN_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
 		      status_mask & ~PIPESTAT_INT_STATUS_MASK,
@@ -615,6 +616,7 @@ __i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 	u32 pipestat = I915_READ(reg) & PIPESTAT_INT_ENABLE_MASK;
 
 	assert_spin_locked(&dev_priv->irq_lock);
+	WARN_ON(!intel_irqs_enabled(dev_priv));
 
 	if (WARN_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
 		      status_mask & ~PIPESTAT_INT_STATUS_MASK,
