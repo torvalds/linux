@@ -111,6 +111,7 @@ static int wm831x_backlight_update_status(struct backlight_device *bl)
 static int wm831x_backlight_get_brightness(struct backlight_device *bl)
 {
 	struct wm831x_backlight_data *data = bl_get_data(bl);
+
 	return data->current_brightness;
 }
 
