@@ -1700,14 +1700,19 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 
 	SND_SOC_DAPM_INPUT("Haptic Generator"),
 
-	SND_SOC_DAPM_PGA("DMIC1", RT5677_DMIC_CTRL1, RT5677_DMIC_1_EN_SFT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_PGA("DMIC2", RT5677_DMIC_CTRL1, RT5677_DMIC_2_EN_SFT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_PGA("DMIC3", RT5677_DMIC_CTRL1, RT5677_DMIC_3_EN_SFT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_PGA("DMIC4", RT5677_DMIC_CTRL2, RT5677_DMIC_4_EN_SFT, 0,
-		NULL, 0),
+	SND_SOC_DAPM_PGA("DMIC1", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DMIC2", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DMIC3", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DMIC4", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_SUPPLY("DMIC1 power", RT5677_DMIC_CTRL1,
+		RT5677_DMIC_1_EN_SFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DMIC2 power", RT5677_DMIC_CTRL1,
+		RT5677_DMIC_2_EN_SFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DMIC3 power", RT5677_DMIC_CTRL1,
+		RT5677_DMIC_3_EN_SFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DMIC4 power", RT5677_DMIC_CTRL2,
+		RT5677_DMIC_4_EN_SFT, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("DMIC CLK", SND_SOC_NOPM, 0, 0,
 		set_dmic_clk, SND_SOC_DAPM_PRE_PMU),
@@ -2129,6 +2134,13 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "DMIC R3", NULL, "DMIC CLK" },
 	{ "DMIC L4", NULL, "DMIC CLK" },
 	{ "DMIC R4", NULL, "DMIC CLK" },
+
+	{ "DMIC L1", NULL, "DMIC1 power" },
+	{ "DMIC R1", NULL, "DMIC1 power" },
+	{ "DMIC L3", NULL, "DMIC3 power" },
+	{ "DMIC R3", NULL, "DMIC3 power" },
+	{ "DMIC L4", NULL, "DMIC4 power" },
+	{ "DMIC R4", NULL, "DMIC4 power" },
 
 	{ "BST1", NULL, "IN1P" },
 	{ "BST1", NULL, "IN1N" },
@@ -2793,6 +2805,16 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "PDM2R", NULL, "PDM2 R Mux" },
 };
 
+static const struct snd_soc_dapm_route rt5677_dmic2_clk_1[] = {
+	{ "DMIC L2", NULL, "DMIC1 power" },
+	{ "DMIC R2", NULL, "DMIC1 power" },
+};
+
+static const struct snd_soc_dapm_route rt5677_dmic2_clk_2[] = {
+	{ "DMIC L2", NULL, "DMIC2 power" },
+	{ "DMIC R2", NULL, "DMIC2 power" },
+};
+
 static int rt5677_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
@@ -3144,6 +3166,16 @@ static int rt5677_probe(struct snd_soc_codec *codec)
 
 	rt5677->codec = codec;
 
+	if (rt5677->pdata.dmic2_clk_pin == RT5677_DMIC_CLK2) {
+		snd_soc_dapm_add_routes(&codec->dapm,
+			rt5677_dmic2_clk_2,
+			ARRAY_SIZE(rt5677_dmic2_clk_2));
+	} else { /*use dmic1 clock by default*/
+		snd_soc_dapm_add_routes(&codec->dapm,
+			rt5677_dmic2_clk_1,
+			ARRAY_SIZE(rt5677_dmic2_clk_1));
+	}
+
 	rt5677_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	regmap_write(rt5677->regmap, RT5677_DIG_MISC, 0x0020);
@@ -3380,6 +3412,15 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 	if (rt5677->pdata.in2_diff)
 		regmap_update_bits(rt5677->regmap, RT5677_IN1,
 					RT5677_IN_DF2, RT5677_IN_DF2);
+
+	if (rt5677->pdata.dmic2_clk_pin == RT5677_DMIC_CLK2) {
+		regmap_update_bits(rt5677->regmap, RT5677_GEN_CTRL2,
+					RT5677_GPIO5_FUNC_MASK,
+					RT5677_GPIO5_FUNC_DMIC);
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
+					RT5677_GPIO5_DIR_MASK,
+					RT5677_GPIO5_DIR_OUT);
+	}
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5677,
 				      rt5677_dai, ARRAY_SIZE(rt5677_dai));

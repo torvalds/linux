@@ -1363,6 +1363,11 @@
 #define RT5677_SEL_SRC_IB01			(0x1 << 0)
 #define RT5677_SEL_SRC_IB01_SFT			0
 
+/* GPIO Control 2 (0xc1) */
+#define RT5677_GPIO5_DIR_MASK			(0x1 << 14)
+#define RT5677_GPIO5_DIR_IN			(0x0 << 14)
+#define RT5677_GPIO5_DIR_OUT			(0x1 << 14)
+
 /* Virtual DSP Mixer Control (0xf7 0xf8 0xf9) */
 #define RT5677_DSP_IB_01_H			(0x1 << 15)
 #define RT5677_DSP_IB_01_H_SFT			15
@@ -1392,6 +1397,11 @@
 #define RT5677_DSP_IB_8_L_SFT			2
 #define RT5677_DSP_IB_9_L			(0x1 << 1)
 #define RT5677_DSP_IB_9_L_SFT			1
+
+/* General Control2 (0xfc)*/
+#define RT5677_GPIO5_FUNC_MASK			(0x1 << 9)
+#define RT5677_GPIO5_FUNC_GPIO			(0x0 << 9)
+#define RT5677_GPIO5_FUNC_DMIC			(0x1 << 9)
 
 /* System Clock Source */
 enum {
