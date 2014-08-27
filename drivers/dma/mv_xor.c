@@ -46,13 +46,16 @@ static void mv_xor_issue_pending(struct dma_chan *chan);
 	((chan)->dmadev.dev)
 
 static void mv_desc_init(struct mv_xor_desc_slot *desc,
-			 dma_addr_t addr, u32 byte_count)
+			 dma_addr_t addr, u32 byte_count,
+			 enum dma_ctrl_flags flags)
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
 
 	hw_desc->status = XOR_DESC_DMA_OWNED;
 	hw_desc->phy_next_desc = 0;
-	hw_desc->desc_command = XOR_DESC_EOD_INT_EN;
+	/* Enable end-of-descriptor interrupts only for DMA_PREP_INTERRUPT */
+	hw_desc->desc_command = (flags & DMA_PREP_INTERRUPT) ?
+				XOR_DESC_EOD_INT_EN : 0;
 	hw_desc->phy_dest_addr = addr;
 	hw_desc->byte_count = byte_count;
 }
@@ -107,7 +110,10 @@ static u32 mv_chan_get_intr_cause(struct mv_xor_chan *chan)
 
 static void mv_xor_device_clear_eoc_cause(struct mv_xor_chan *chan)
 {
-	u32 val = ~(XOR_INT_END_OF_DESC	<< (chan->idx * 16));
+	u32 val;
+
+	val = XOR_INT_END_OF_DESC | XOR_INT_END_OF_CHAIN | XOR_INT_STOPPED;
+	val = ~(val << (chan->idx * 16));
 	dev_dbg(mv_chan_to_devp(chan), "%s, val 0x%08x\n", __func__, val);
 	writel_relaxed(val, XOR_INTR_CAUSE(chan));
 }
@@ -510,7 +516,7 @@ mv_xor_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 	if (sw_desc) {
 		sw_desc->type = DMA_XOR;
 		sw_desc->async_tx.flags = flags;
-		mv_desc_init(sw_desc, dest, len);
+		mv_desc_init(sw_desc, dest, len, flags);
 		sw_desc->unmap_src_cnt = src_cnt;
 		sw_desc->unmap_len = len;
 		while (src_cnt--)
