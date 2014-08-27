@@ -653,6 +653,13 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		up_read(&rdev->exclusive_lock);
 		return -EBUSY;
 	}
+	if (rdev->in_reset) {
+		up_read(&rdev->exclusive_lock);
+		r = radeon_gpu_reset(rdev);
+		if (!r)
+			r = -EAGAIN;
+		return r;
+	}
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
 	parser.filp = filp;

@@ -1673,6 +1673,7 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		return 0;
 	}
 
+	rdev->in_reset = true;
 	rdev->needs_reset = false;
 
 	radeon_save_bios_scratch_regs(rdev);
@@ -1691,7 +1692,6 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		}
 	}
 
-retry:
 	r = radeon_asic_reset(rdev);
 	if (!r) {
 		dev_info(rdev->dev, "GPU reset succeeded, trying to resume\n");
@@ -1700,25 +1700,11 @@ retry:
 
 	radeon_restore_bios_scratch_regs(rdev);
 
-	if (!r) {
-		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		if (!r && ring_data[i]) {
 			radeon_ring_restore(rdev, &rdev->ring[i],
 					    ring_sizes[i], ring_data[i]);
-			ring_sizes[i] = 0;
-			ring_data[i] = NULL;
-		}
-
-		r = radeon_ib_ring_tests(rdev);
-		if (r) {
-			dev_err(rdev->dev, "ib ring test failed (%d).\n", r);
-			if (saved) {
-				saved = false;
-				radeon_suspend(rdev);
-				goto retry;
-			}
-		}
-	} else {
-		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		} else {
 			radeon_fence_driver_force_completion(rdev, i);
 			kfree(ring_data[i]);
 		}
@@ -1751,19 +1737,28 @@ retry:
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 
+	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
+	downgrade_write(&rdev->exclusive_lock);
+
 	drm_helper_resume_force_mode(rdev->ddev);
 
 	/* set the power state here in case we are a PX system or headless */
 	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
 		radeon_pm_compute_clocks(rdev);
 
-	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
-	if (r) {
+	if (!r) {
+		r = radeon_ib_ring_tests(rdev);
+		if (r && saved)
+			r = -EAGAIN;
+	} else {
 		/* bad news, how to tell it to userspace ? */
 		dev_info(rdev->dev, "GPU reset failed\n");
 	}
 
-	up_write(&rdev->exclusive_lock);
+	rdev->needs_reset = r == -EAGAIN;
+	rdev->in_reset = false;
+
+	up_read(&rdev->exclusive_lock);
 	return r;
 }
 
