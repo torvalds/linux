@@ -23,7 +23,6 @@
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 
-#define USE_TIMER
 #define MV_XOR_POOL_SIZE		PAGE_SIZE
 #define MV_XOR_SLOT_SIZE		64
 #define MV_XOR_THRESHOLD		1
@@ -117,10 +116,6 @@ struct mv_xor_chan {
 	struct list_head	all_slots;
 	int			slots_allocated;
 	struct tasklet_struct	irq_tasklet;
-#ifdef USE_TIMER
-	unsigned long		cleanup_time;
-	u32			current_on_last_cleanup;
-#endif
 };
 
 /**
@@ -132,12 +127,8 @@ struct mv_xor_chan {
  * @phys: hardware address of the hardware descriptor chain
  * @slot_used: slot in use or not
  * @idx: pool index
- * @unmap_src_cnt: number of xor sources
- * @unmap_len: transaction bytecount
  * @tx_list: list of slots that make up a multi-descriptor transaction
  * @async_tx: support for the async_tx api
- * @xor_check_result: result of zero sum
- * @crc32_result: result crc calculation
  */
 struct mv_xor_desc_slot {
 	struct list_head	slot_node;
@@ -147,18 +138,7 @@ struct mv_xor_desc_slot {
 	void			*hw_desc;
 	u16			slot_used;
 	u16			idx;
-	u16			unmap_src_cnt;
-	u32			value;
-	size_t			unmap_len;
 	struct dma_async_tx_descriptor	async_tx;
-	union {
-		u32		*xor_check_result;
-		u32		*crc32_result;
-	};
-#ifdef USE_TIMER
-	unsigned long		arrival_time;
-	struct timer_list	timeout;
-#endif
 };
 
 /*
