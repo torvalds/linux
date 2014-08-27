@@ -120,9 +120,6 @@ extern int radeon_bapm;
 #define RADEONFB_CONN_LIMIT			4
 #define RADEON_BIOS_NUM_SCRATCH			8
 
-/* fence seq are set to this number when signaled */
-#define RADEON_FENCE_SIGNALED_SEQ		0LL
-
 /* internal ring indices */
 /* r1xx+ has gfx CP ring */
 #define RADEON_RING_TYPE_GFX_INDEX		0

@@ -328,16 +328,10 @@ static bool radeon_fence_seq_signaled(struct radeon_device *rdev,
  */
 bool radeon_fence_signaled(struct radeon_fence *fence)
 {
-	if (!fence) {
+	if (!fence)
 		return true;
-	}
-	if (fence->seq == RADEON_FENCE_SIGNALED_SEQ) {
+	if (radeon_fence_seq_signaled(fence->rdev, fence->seq, fence->ring))
 		return true;
-	}
-	if (radeon_fence_seq_signaled(fence->rdev, fence->seq, fence->ring)) {
-		fence->seq = RADEON_FENCE_SIGNALED_SEQ;
-		return true;
-	}
 	return false;
 }
 
@@ -445,15 +439,11 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 	}
 
 	seq[fence->ring] = fence->seq;
-	if (seq[fence->ring] == RADEON_FENCE_SIGNALED_SEQ)
-		return 0;
-
 	r = radeon_fence_wait_seq_timeout(fence->rdev, seq, intr, MAX_SCHEDULE_TIMEOUT);
 	if (r < 0) {
 		return r;
 	}
 
-	fence->seq = RADEON_FENCE_SIGNALED_SEQ;
 	return 0;
 }
 
@@ -487,10 +477,6 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 
 		seq[i] = fences[i]->seq;
 		++num_rings;
-
-		/* test if something was allready signaled */
-		if (seq[i] == RADEON_FENCE_SIGNALED_SEQ)
-			return 0;
 	}
 
 	/* nothing to wait for ? */
