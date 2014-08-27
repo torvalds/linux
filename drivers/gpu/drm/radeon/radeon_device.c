@@ -1488,7 +1488,6 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
 	int i, r;
-	bool force_completion = false;
 
 	if (dev == NULL || dev->dev_private == NULL) {
 		return -ENODEV;
@@ -1532,11 +1531,8 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 		r = radeon_fence_wait_empty(rdev, i);
 		if (r) {
 			/* delay GPU reset to resume */
-			force_completion = true;
+			radeon_fence_driver_force_completion(rdev, i);
 		}
-	}
-	if (force_completion) {
-		radeon_fence_driver_force_completion(rdev);
 	}
 
 	radeon_save_bios_scratch_regs(rdev);
@@ -1722,8 +1718,8 @@ retry:
 			}
 		}
 	} else {
-		radeon_fence_driver_force_completion(rdev);
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+			radeon_fence_driver_force_completion(rdev, i);
 			kfree(ring_data[i]);
 		}
 	}

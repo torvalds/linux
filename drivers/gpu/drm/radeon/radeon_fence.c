@@ -758,7 +758,7 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
 		r = radeon_fence_wait_empty(rdev, ring);
 		if (r) {
 			/* no need to trigger GPU reset as we are unloading */
-			radeon_fence_driver_force_completion(rdev);
+			radeon_fence_driver_force_completion(rdev, ring);
 		}
 		wake_up_all(&rdev->fence_queue);
 		radeon_scratch_free(rdev, rdev->fence_drv[ring].scratch_reg);
@@ -771,19 +771,15 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
  * radeon_fence_driver_force_completion - force all fence waiter to complete
  *
  * @rdev: radeon device pointer
+ * @ring: the ring to complete
  *
  * In case of GPU reset failure make sure no process keep waiting on fence
  * that will never complete.
  */
-void radeon_fence_driver_force_completion(struct radeon_device *rdev)
+void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring)
 {
-	int ring;
-
-	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
-		if (!rdev->fence_drv[ring].initialized)
-			continue;
+	if (rdev->fence_drv[ring].initialized)
 		radeon_fence_write(rdev, rdev->fence_drv[ring].sync_seq[ring], ring);
-	}
 }
 
 
