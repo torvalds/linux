@@ -1341,46 +1341,53 @@ void rt_bind_peer(struct rtable *rt, __be32 daddr, int create)
 		rt->rt_peer_genid = rt_peer_genid();
 }
 
-/*
- * Peer allocation may fail only in serious out-of-memory conditions.  However
- * we still can generate some output.
- * Random ID selection looks a bit dangerous because we have no chances to
- * select ID being unique in a reasonable period of time.
- * But broken packet identifier may be better than no packet at all.
+#define IP_IDENTS_SZ 2048u
+struct ip_ident_bucket {
+	atomic_t	id;
+	u32		stamp32;
+};
+
+static struct ip_ident_bucket *ip_idents __read_mostly;
+
+/* In order to protect privacy, we add a perturbation to identifiers
+ * if one generator is seldom used. This makes hard for an attacker
+ * to infer how many packets were sent between two points in time.
  */
-static void ip_select_fb_ident(struct iphdr *iph)
+u32 ip_idents_reserve(u32 hash, int segs)
 {
-	static DEFINE_SPINLOCK(ip_fb_id_lock);
-	static u32 ip_fallback_id;
-	u32 salt;
+	struct ip_ident_bucket *bucket = ip_idents + hash % IP_IDENTS_SZ;
+	u32 old = ACCESS_ONCE(bucket->stamp32);
+	u32 now = (u32)jiffies;
+	u32 delta = 0;
 
-	spin_lock_bh(&ip_fb_id_lock);
-	salt = secure_ip_id((__force __be32)ip_fallback_id ^ iph->daddr);
-	iph->id = htons(salt & 0xFFFF);
-	ip_fallback_id = salt;
-	spin_unlock_bh(&ip_fb_id_lock);
+	if (old != now && cmpxchg(&bucket->stamp32, old, now) == old) {
+		u64 x = random32();
+
+		x *= (now - old);
+		delta = (u32)(x >> 32);
+	}
+
+	return atomic_add_return(segs + delta, &bucket->id) - segs;
 }
+EXPORT_SYMBOL(ip_idents_reserve);
 
-void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
+void __ip_select_ident(struct iphdr *iph, int segs)
 {
-	struct rtable *rt = (struct rtable *) dst;
+	static u32 ip_idents_hashrnd __read_mostly;
+	static bool hashrnd_initialized = false;
+	u32 hash, id;
 
-	if (rt && !(rt->dst.flags & DST_NOPEER)) {
-		if (rt->peer == NULL)
-			rt_bind_peer(rt, rt->rt_dst, 1);
+	if (unlikely(!hashrnd_initialized)) {
+		hashrnd_initialized = true;
+		get_random_bytes(&ip_idents_hashrnd, sizeof(ip_idents_hashrnd));
+	}
 
-		/* If peer is attached to destination, it is never detached,
-		   so that we need not to grab a lock to dereference it.
-		 */
-		if (rt->peer) {
-			iph->id = htons(inet_getid(rt->peer, more));
-			return;
-		}
-	} else if (!rt)
-		printk(KERN_DEBUG "rt_bind_peer(0) @%p\n",
-		       __builtin_return_address(0));
-
-	ip_select_fb_ident(iph);
+	hash = jhash_3words((__force u32)iph->daddr,
+			    (__force u32)iph->saddr,
+			    iph->protocol,
+			    ip_idents_hashrnd);
+	id = ip_idents_reserve(hash, segs);
+	iph->id = htons(id);
 }
 EXPORT_SYMBOL(__ip_select_ident);
 
@@ -3009,7 +3016,6 @@ static int rt_fill_info(struct net *net,
 	error = rt->dst.error;
 	if (peer) {
 		inet_peer_refcheck(rt->peer);
-		id = atomic_read(&peer->ip_id_count) & 0xffff;
 		if (peer->tcp_ts_stamp) {
 			ts = peer->tcp_ts;
 			tsage = get_seconds() - peer->tcp_ts_stamp;
@@ -3440,6 +3446,12 @@ __setup("rhash_entries=", set_rhash_entries);
 int __init ip_rt_init(void)
 {
 	int rc = 0;
+
+	ip_idents = kmalloc(IP_IDENTS_SZ * sizeof(*ip_idents), GFP_KERNEL);
+	if (!ip_idents)
+		panic("IP: failed to allocate ip_idents\n");
+
+	get_random_bytes(ip_idents, IP_IDENTS_SZ * sizeof(*ip_idents));
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	ip_rt_acct = __alloc_percpu(256 * sizeof(struct ip_rt_acct), __alignof__(struct ip_rt_acct));
