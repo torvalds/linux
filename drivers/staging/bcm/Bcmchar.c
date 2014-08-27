@@ -1605,7 +1605,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	UINT NOB = 0;
 	UINT buff_size = 0;
 	UINT read_bytes = 0;
-	UINT ReadOffset = 0;
+	UINT read_offset = 0;
 	INT status = STATUS_FAILURE;
 	void __user *OutPutBuff;
 
@@ -1650,7 +1650,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	else
 		buff_size = NOB;
 
-	ReadOffset = flash_2x_read.offset;
+	read_offset = flash_2x_read.offset;
 	OutPutBuff = io_buff.OutputBuffer;
 	read_buff = kzalloc(buff_size , GFP_KERNEL);
 
@@ -1681,7 +1681,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 
 		/* Reading the data from Flash 2.x */
 		status = BcmFlash2xBulkRead(ad, (PUINT)read_buff,
-			flash_2x_read.Section, ReadOffset, read_bytes);
+			flash_2x_read.Section, read_offset, read_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad,
 				DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -1704,7 +1704,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 		}
 		NOB = NOB - read_bytes;
 		if (NOB) {
-			ReadOffset = ReadOffset + read_bytes;
+			read_offset = read_offset + read_bytes;
 			OutPutBuff = OutPutBuff + read_bytes;
 		}
 	}
@@ -2163,7 +2163,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	struct bcm_ioctl_buffer io_buff;
 	unsigned int NOB;
 	INT buff_size;
-	INT ReadOffset = 0;
+	INT read_offset = 0;
 	UINT read_bytes = 0;
 	PUCHAR read_buff;
 	void __user *OutPutBuff;
@@ -2194,7 +2194,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	else
 		buff_size = NOB;
 
-	ReadOffset = nvm_read.uiOffset;
+	read_offset = nvm_read.uiOffset;
 	OutPutBuff = nvm_read.pBuffer;
 
 	read_buff = kzalloc(buff_size , GFP_KERNEL);
@@ -2226,7 +2226,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 
 		/* Reading the data from Flash 2.x */
 		status = BeceemNVMRead(ad, (PUINT)read_buff,
-			ReadOffset, read_bytes);
+			read_offset, read_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 					"Flash 2x read err with status :%d",
@@ -2248,7 +2248,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 		}
 		NOB = NOB - read_bytes;
 		if (NOB) {
-			ReadOffset = ReadOffset + read_bytes;
+			read_offset = read_offset + read_bytes;
 			OutPutBuff = OutPutBuff + read_bytes;
 		}
 	}
