@@ -2388,14 +2388,12 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_i915_gem_object *obj;
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg = DSPCNTR(plane);
 	int pixel_size;
-
-	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	if (!intel_crtc->primary_enabled) {
 		I915_WRITE(reg, 0);
@@ -2406,6 +2404,12 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 		POSTING_READ(reg);
 		return;
 	}
+
+	obj = intel_fb_obj(fb);
+	if (WARN_ON(obj == NULL))
+		return;
+
+	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
@@ -2510,14 +2514,12 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_i915_gem_object *obj;
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg = DSPCNTR(plane);
 	int pixel_size;
-
-	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	if (!intel_crtc->primary_enabled) {
 		I915_WRITE(reg, 0);
@@ -2525,6 +2527,12 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 		POSTING_READ(reg);
 		return;
 	}
+
+	obj = intel_fb_obj(fb);
+	if (WARN_ON(obj == NULL))
+		return;
+
+	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
