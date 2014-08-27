@@ -1603,7 +1603,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	struct bcm_ioctl_buffer io_buff;
 	PUCHAR read_buff = NULL;
 	UINT NOB = 0;
-	UINT BuffSize = 0;
+	UINT buff_size = 0;
 	UINT ReadBytes = 0;
 	UINT ReadOffset = 0;
 	INT status = STATUS_FAILURE;
@@ -1646,13 +1646,13 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 
 	NOB = flash_2x_read.numOfBytes;
 	if (NOB > ad->uiSectorSize)
-		BuffSize = ad->uiSectorSize;
+		buff_size = ad->uiSectorSize;
 	else
-		BuffSize = NOB;
+		buff_size = NOB;
 
 	ReadOffset = flash_2x_read.offset;
 	OutPutBuff = io_buff.OutputBuffer;
-	read_buff = kzalloc(BuffSize , GFP_KERNEL);
+	read_buff = kzalloc(buff_size , GFP_KERNEL);
 
 	if (read_buff == NULL) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -1722,7 +1722,7 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	PUCHAR pWriteBuff;
 	void __user *InputAddr;
 	UINT NOB = 0;
-	UINT BuffSize = 0;
+	UINT buff_size = 0;
 	UINT WriteOffset = 0;
 	UINT WriteBytes = 0;
 	INT status = STATUS_FAILURE;
@@ -1773,11 +1773,11 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 	NOB = sFlash2xWrite.numOfBytes;
 
 	if (NOB > ad->uiSectorSize)
-		BuffSize = ad->uiSectorSize;
+		buff_size = ad->uiSectorSize;
 	else
-		BuffSize = NOB;
+		buff_size = NOB;
 
-	pWriteBuff = kmalloc(BuffSize, GFP_KERNEL);
+	pWriteBuff = kmalloc(buff_size, GFP_KERNEL);
 
 	if (pWriteBuff == NULL)
 		return -ENOMEM;
@@ -2162,7 +2162,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	struct bcm_nvm_readwrite stNVMRead;
 	struct bcm_ioctl_buffer io_buff;
 	unsigned int NOB;
-	INT BuffSize;
+	INT buff_size;
 	INT ReadOffset = 0;
 	UINT ReadBytes = 0;
 	PUCHAR read_buff;
@@ -2190,14 +2190,14 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	/* In Raw-Read max Buff size : 64MB */
 
 	if (NOB > DEFAULT_BUFF_SIZE)
-		BuffSize = DEFAULT_BUFF_SIZE;
+		buff_size = DEFAULT_BUFF_SIZE;
 	else
-		BuffSize = NOB;
+		buff_size = NOB;
 
 	ReadOffset = stNVMRead.uiOffset;
 	OutPutBuff = stNVMRead.pBuffer;
 
-	read_buff = kzalloc(BuffSize , GFP_KERNEL);
+	read_buff = kzalloc(buff_size , GFP_KERNEL);
 	if (read_buff == NULL) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Memory allocation failed for Flash 2.x Read Structure");
