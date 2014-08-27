@@ -22,6 +22,9 @@
 #include <linux/of.h>
 #include <linux/of_iommu.h>
 
+static const struct of_device_id __iommu_of_table_sentinel
+	__used __section(__iommu_of_table_end);
+
 /**
  * of_get_dma_window - Parse *dma-window property and returns 0 if found.
  *
@@ -89,3 +92,17 @@ int of_get_dma_window(struct device_node *dn, const char *prefix, int index,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_dma_window);
+
+void __init of_iommu_init(void)
+{
+	struct device_node *np;
+	const struct of_device_id *match, *matches = &__iommu_of_table;
+
+	for_each_matching_node_and_match(np, matches, &match) {
+		const of_iommu_init_fn init_fn = match->data;
+
+		if (init_fn(np))
+			pr_err("Failed to initialise IOMMU %s\n",
+				of_node_full_name(np));
+	}
+}
