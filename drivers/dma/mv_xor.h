@@ -34,6 +34,9 @@
 #define XOR_OPERATION_MODE_MEMCPY	2
 #define XOR_DESCRIPTOR_SWAP		BIT(14)
 
+#define XOR_DESC_DMA_OWNED		BIT(31)
+#define XOR_DESC_EOD_INT_EN		BIT(31)
+
 #define XOR_CURR_DESC(chan)	(chan->mmr_high_base + 0x10 + (chan->idx * 4))
 #define XOR_NEXT_DESC(chan)	(chan->mmr_high_base + 0x00 + (chan->idx * 4))
 #define XOR_BYTE_COUNT(chan)	(chan->mmr_high_base + 0x20 + (chan->idx * 4))
@@ -48,7 +51,24 @@
 #define XOR_INTR_MASK(chan)	(chan->mmr_base + 0x40)
 #define XOR_ERROR_CAUSE(chan)	(chan->mmr_base + 0x50)
 #define XOR_ERROR_ADDR(chan)	(chan->mmr_base + 0x60)
-#define XOR_INTR_MASK_VALUE	0x3F5
+
+#define XOR_INT_END_OF_DESC	BIT(0)
+#define XOR_INT_END_OF_CHAIN	BIT(1)
+#define XOR_INT_STOPPED		BIT(2)
+#define XOR_INT_PAUSED		BIT(3)
+#define XOR_INT_ERR_DECODE	BIT(4)
+#define XOR_INT_ERR_RDPROT	BIT(5)
+#define XOR_INT_ERR_WRPROT	BIT(6)
+#define XOR_INT_ERR_OWN		BIT(7)
+#define XOR_INT_ERR_PAR		BIT(8)
+#define XOR_INT_ERR_MBUS	BIT(9)
+
+#define XOR_INTR_ERRORS		(XOR_INT_ERR_DECODE | XOR_INT_ERR_RDPROT | \
+				 XOR_INT_ERR_WRPROT | XOR_INT_ERR_OWN    | \
+				 XOR_INT_ERR_PAR    | XOR_INT_ERR_MBUS)
+
+#define XOR_INTR_MASK_VALUE	(XOR_INT_END_OF_DESC | \
+				 XOR_INT_STOPPED     | XOR_INTR_ERRORS)
 
 #define WINDOW_BASE(w)		(0x50 + ((w) << 2))
 #define WINDOW_SIZE(w)		(0x70 + ((w) << 2))

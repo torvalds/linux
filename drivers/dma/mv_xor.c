@@ -50,9 +50,9 @@ static void mv_desc_init(struct mv_xor_desc_slot *desc,
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
 
-	hw_desc->status = (1 << 31);
+	hw_desc->status = XOR_DESC_DMA_OWNED;
 	hw_desc->phy_next_desc = 0;
-	hw_desc->desc_command = (1 << 31);
+	hw_desc->desc_command = XOR_DESC_EOD_INT_EN;
 	hw_desc->phy_dest_addr = addr;
 	hw_desc->byte_count = byte_count;
 }
@@ -105,17 +105,9 @@ static u32 mv_chan_get_intr_cause(struct mv_xor_chan *chan)
 	return intr_cause;
 }
 
-static int mv_is_err_intr(u32 intr_cause)
-{
-	if (intr_cause & ((1<<4)|(1<<5)|(1<<6)|(1<<7)|(1<<8)|(1<<9)))
-		return 1;
-
-	return 0;
-}
-
 static void mv_xor_device_clear_eoc_cause(struct mv_xor_chan *chan)
 {
-	u32 val = ~(1 << (chan->idx * 16));
+	u32 val = ~(XOR_INT_END_OF_DESC	<< (chan->idx * 16));
 	dev_dbg(mv_chan_to_devp(chan), "%s, val 0x%08x\n", __func__, val);
 	writel_relaxed(val, XOR_INTR_CAUSE(chan));
 }
@@ -627,18 +619,16 @@ static void mv_dump_xor_regs(struct mv_xor_chan *chan)
 static void mv_xor_err_interrupt_handler(struct mv_xor_chan *chan,
 					 u32 intr_cause)
 {
-	if (intr_cause & (1 << 4)) {
-	     dev_dbg(mv_chan_to_devp(chan),
-		     "ignore this error\n");
-	     return;
+	if (intr_cause & XOR_INT_ERR_DECODE) {
+		dev_dbg(mv_chan_to_devp(chan), "ignoring address decode error\n");
+		return;
 	}
 
-	dev_err(mv_chan_to_devp(chan),
-		"error on chan %d. intr cause 0x%08x\n",
+	dev_err(mv_chan_to_devp(chan), "error on chan %d. intr cause 0x%08x\n",
 		chan->idx, intr_cause);
 
 	mv_dump_xor_regs(chan);
-	BUG();
+	WARN_ON(1);
 }
 
 static irqreturn_t mv_xor_interrupt_handler(int irq, void *data)
@@ -648,7 +638,7 @@ static irqreturn_t mv_xor_interrupt_handler(int irq, void *data)
 
 	dev_dbg(mv_chan_to_devp(chan), "intr cause %x\n", intr_cause);
 
-	if (mv_is_err_intr(intr_cause))
+	if (intr_cause & XOR_INTR_ERRORS)
 		mv_xor_err_interrupt_handler(chan, intr_cause);
 
 	tasklet_schedule(&chan->irq_tasklet);
