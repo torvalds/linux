@@ -449,100 +449,64 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 }
 EXPORT_SYMBOL_GPL(regmap_attach_dev);
 
-enum regmap_endian_type {
-	REGMAP_ENDIAN_REG,
-	REGMAP_ENDIAN_VAL,
-};
+static enum regmap_endian regmap_get_reg_endian(const struct regmap_bus *bus,
+					const struct regmap_config *config)
+{
+	enum regmap_endian endian;
 
-static int of_regmap_get_endian(struct device *dev,
-				const struct regmap_bus *bus,
-				const struct regmap_config *config,
-				enum regmap_endian_type type,
-				enum regmap_endian *endian)
+	/* Retrieve the endianness specification from the regmap config */
+	endian = config->reg_format_endian;
+
+	/* If the regmap config specified a non-default value, use that */
+	if (endian != REGMAP_ENDIAN_DEFAULT)
+		return endian;
+
+	/* Retrieve the endianness specification from the bus config */
+	if (bus && bus->reg_format_endian_default)
+		endian = bus->reg_format_endian_default;
+
+	/* If the bus specified a non-default value, use that */
+	if (endian != REGMAP_ENDIAN_DEFAULT)
+		return endian;
+
+	/* Use this if no other value was found */
+	return REGMAP_ENDIAN_BIG;
+}
+
+static enum regmap_endian regmap_get_val_endian(struct device *dev,
+					const struct regmap_bus *bus,
+					const struct regmap_config *config)
 {
 	struct device_node *np = dev->of_node;
+	enum regmap_endian endian;
 
-	if (!endian || !config)
-		return -EINVAL;
+	/* Retrieve the endianness specification from the regmap config */
+	endian = config->val_format_endian;
 
-	/*
-	 * Firstly, try to parse the endianness from driver's config,
-	 * this is to be compatible with the none DT or the old drivers.
-	 * From the driver's config the endianness value maybe:
-	 *   REGMAP_ENDIAN_BIG,
-	 *   REGMAP_ENDIAN_LITTLE,
-	 *   REGMAP_ENDIAN_NATIVE,
-	 *   REGMAP_ENDIAN_DEFAULT.
-	 */
-	switch (type) {
-	case REGMAP_ENDIAN_REG:
-		*endian = config->reg_format_endian;
-		break;
-	case REGMAP_ENDIAN_VAL:
-		*endian = config->val_format_endian;
-		break;
-	default:
-		return -EINVAL;
-	}
+	/* If the regmap config specified a non-default value, use that */
+	if (endian != REGMAP_ENDIAN_DEFAULT)
+		return endian;
 
-	/*
-	 * If the endianness parsed from driver config is
-	 * REGMAP_ENDIAN_DEFAULT, that means maybe we are using the DT
-	 * node to specify the endianness information.
-	 */
-	if (*endian != REGMAP_ENDIAN_DEFAULT)
-		return 0;
+	/* Parse the device's DT node for an endianness specification */
+	if (of_property_read_bool(np, "big-endian"))
+		endian = REGMAP_ENDIAN_BIG;
+	else if (of_property_read_bool(np, "little-endian"))
+		endian = REGMAP_ENDIAN_LITTLE;
 
-	/*
-	 * Secondly, try to parse the endianness from DT node if the
-	 * driver config does not specify it.
-	 * From the DT node the endianness value maybe:
-	 *   REGMAP_ENDIAN_BIG,
-	 *   REGMAP_ENDIAN_LITTLE,
-	 *   REGMAP_ENDIAN_NATIVE,
-	 */
-	switch (type) {
-	case REGMAP_ENDIAN_VAL:
-		if (of_property_read_bool(np, "big-endian"))
-			*endian = REGMAP_ENDIAN_BIG;
-		else if (of_property_read_bool(np, "little-endian"))
-			*endian = REGMAP_ENDIAN_LITTLE;
-		else
-			*endian = REGMAP_ENDIAN_NATIVE;
-		break;
-	case REGMAP_ENDIAN_REG:
-		break;
-	default:
-		return -EINVAL;
-	}
+	/* If the endianness was specified in DT, use that */
+	if (endian != REGMAP_ENDIAN_DEFAULT)
+		return endian;
 
-	/*
-	 * If the endianness parsed from DT node is REGMAP_ENDIAN_NATIVE, that
-	 * maybe means the DT does not care the endianness or it should use
-	 * the regmap bus's default endianness, then we should try to check
-	 * whether the regmap bus has specified the default endianness.
-	 */
-	if (*endian != REGMAP_ENDIAN_NATIVE)
-		return 0;
+	/* Retrieve the endianness specification from the bus config */
+	if (bus && bus->val_format_endian_default)
+		endian = bus->val_format_endian_default;
 
-	/*
-	 * Finally, try to parse the endianness from regmap bus config
-	 * if in device's DT node the endianness property is absent.
-	 */
-	switch (type) {
-	case REGMAP_ENDIAN_REG:
-		if (bus && bus->reg_format_endian_default)
-			*endian = bus->reg_format_endian_default;
-		break;
-	case REGMAP_ENDIAN_VAL:
-		if (bus && bus->val_format_endian_default)
-			*endian = bus->val_format_endian_default;
-		break;
-	default:
-		return -EINVAL;
-	}
+	/* If the bus specified a non-default value, use that */
+	if (endian != REGMAP_ENDIAN_DEFAULT)
+		return endian;
 
-	return 0;
+	/* Use this if no other value was found */
+	return REGMAP_ENDIAN_BIG;
 }
 
 /**
@@ -648,15 +612,8 @@ struct regmap *regmap_init(struct device *dev,
 		map->reg_read  = _regmap_bus_read;
 	}
 
-	ret = of_regmap_get_endian(dev, bus, config, REGMAP_ENDIAN_REG,
-				   &reg_endian);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ret = of_regmap_get_endian(dev, bus, config, REGMAP_ENDIAN_VAL,
-				   &val_endian);
-	if (ret)
-		return ERR_PTR(ret);
+	reg_endian = regmap_get_reg_endian(bus, config);
+	val_endian = regmap_get_val_endian(dev, bus, config);
 
 	switch (config->reg_bits + map->reg_shift) {
 	case 2:
