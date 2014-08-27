@@ -33,13 +33,13 @@ static inline int tlb1_next(void)
 
 	ncams = mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY;
 
-	index = this_cpu_read(next_tlbcam_idx);
+	index = __get_cpu_var(next_tlbcam_idx);
 
 	/* Just round-robin the entries and wrap when we hit the end */
 	if (unlikely(index == ncams - 1))
-		__this_cpu_write(next_tlbcam_idx, tlbcam_index);
+		__get_cpu_var(next_tlbcam_idx) = tlbcam_index;
 	else
-		__this_cpu_inc(next_tlbcam_idx);
+		__get_cpu_var(next_tlbcam_idx)++;
 
 	return index;
 }

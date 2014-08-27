@@ -394,10 +394,10 @@ void ppc_enable_pmcs(void)
 	ppc_set_pmu_inuse(1);
 
 	/* Only need to enable them once */
-	if (__this_cpu_read(pmcs_enabled))
+	if (__get_cpu_var(pmcs_enabled))
 		return;
 
-	__this_cpu_write(pmcs_enabled, 1);
+	__get_cpu_var(pmcs_enabled) = 1;
 
 	if (ppc_md.enable_pmcs)
 		ppc_md.enable_pmcs();

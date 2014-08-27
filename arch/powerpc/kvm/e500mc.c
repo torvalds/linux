@@ -141,9 +141,9 @@ static void kvmppc_core_vcpu_load_e500mc(struct kvm_vcpu *vcpu, int cpu)
 	mtspr(SPRN_GESR, vcpu->arch.shared->esr);
 
 	if (vcpu->arch.oldpir != mfspr(SPRN_PIR) ||
-	    __this_cpu_read(last_vcpu_of_lpid[vcpu->kvm->arch.lpid]) != vcpu) {
+	    __get_cpu_var(last_vcpu_of_lpid)[vcpu->kvm->arch.lpid] != vcpu) {
 		kvmppc_e500_tlbil_all(vcpu_e500);
-		__this_cpu_write(last_vcpu_of_lpid[vcpu->kvm->arch.lpid], vcpu);
+		__get_cpu_var(last_vcpu_of_lpid)[vcpu->kvm->arch.lpid] = vcpu;
 	}
 
 	kvmppc_load_guest_fp(vcpu);
