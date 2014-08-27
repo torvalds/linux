@@ -117,6 +117,24 @@ enum aarch64_insn_variant {
 	AARCH64_INSN_VARIANT_64BIT
 };
 
+enum aarch64_insn_condition {
+	AARCH64_INSN_COND_EQ = 0x0, /* == */
+	AARCH64_INSN_COND_NE = 0x1, /* != */
+	AARCH64_INSN_COND_CS = 0x2, /* unsigned >= */
+	AARCH64_INSN_COND_CC = 0x3, /* unsigned < */
+	AARCH64_INSN_COND_MI = 0x4, /* < 0 */
+	AARCH64_INSN_COND_PL = 0x5, /* >= 0 */
+	AARCH64_INSN_COND_VS = 0x6, /* overflow */
+	AARCH64_INSN_COND_VC = 0x7, /* no overflow */
+	AARCH64_INSN_COND_HI = 0x8, /* unsigned > */
+	AARCH64_INSN_COND_LS = 0x9, /* unsigned <= */
+	AARCH64_INSN_COND_GE = 0xa, /* signed >= */
+	AARCH64_INSN_COND_LT = 0xb, /* signed < */
+	AARCH64_INSN_COND_GT = 0xc, /* signed > */
+	AARCH64_INSN_COND_LE = 0xd, /* signed <= */
+	AARCH64_INSN_COND_AL = 0xe, /* always */
+};
+
 enum aarch64_insn_branch_type {
 	AARCH64_INSN_BRANCH_NOLINK,
 	AARCH64_INSN_BRANCH_LINK,
@@ -135,6 +153,7 @@ __AARCH64_INSN_FUNCS(b,		0xFC000000, 0x14000000)
 __AARCH64_INSN_FUNCS(bl,	0xFC000000, 0x94000000)
 __AARCH64_INSN_FUNCS(cbz,	0xFE000000, 0x34000000)
 __AARCH64_INSN_FUNCS(cbnz,	0xFE000000, 0x35000000)
+__AARCH64_INSN_FUNCS(bcond,	0xFF000010, 0x54000000)
 __AARCH64_INSN_FUNCS(svc,	0xFFE0001F, 0xD4000001)
 __AARCH64_INSN_FUNCS(hvc,	0xFFE0001F, 0xD4000002)
 __AARCH64_INSN_FUNCS(smc,	0xFFE0001F, 0xD4000003)
@@ -159,6 +178,8 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 				     enum aarch64_insn_register reg,
 				     enum aarch64_insn_variant variant,
 				     enum aarch64_insn_branch_type type);
+u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
+				     enum aarch64_insn_condition cond);
 u32 aarch64_insn_gen_hint(enum aarch64_insn_hint_op op);
 u32 aarch64_insn_gen_nop(void);
 u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,

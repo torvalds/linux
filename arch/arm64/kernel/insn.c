@@ -380,6 +380,23 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 					     offset >> 2);
 }
 
+u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
+				     enum aarch64_insn_condition cond)
+{
+	u32 insn;
+	long offset;
+
+	offset = branch_imm_common(pc, addr, SZ_1M);
+
+	insn = aarch64_insn_get_bcond_value();
+
+	BUG_ON(cond < AARCH64_INSN_COND_EQ || cond > AARCH64_INSN_COND_AL);
+	insn |= cond;
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_19, insn,
+					     offset >> 2);
+}
+
 u32 __kprobes aarch64_insn_gen_hint(enum aarch64_insn_hint_op op)
 {
 	return aarch64_insn_get_hint_value() | op;
