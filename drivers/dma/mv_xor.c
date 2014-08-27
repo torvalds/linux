@@ -82,13 +82,6 @@ static void mv_desc_set_dest_addr(struct mv_xor_desc_slot *desc,
 	hw_desc->phy_dest_addr = addr;
 }
 
-static int mv_chan_memset_slot_count(size_t len)
-{
-	return 1;
-}
-
-#define mv_chan_memcpy_slot_count(c) mv_chan_memset_slot_count(c)
-
 static void mv_desc_set_src_addr(struct mv_xor_desc_slot *desc,
 				 int index, dma_addr_t addr)
 {
@@ -142,17 +135,6 @@ static void mv_xor_device_clear_err_status(struct mv_xor_chan *chan)
 {
 	u32 val = 0xFFFF0000 >> (chan->idx * 16);
 	writel_relaxed(val, XOR_INTR_CAUSE(chan));
-}
-
-static int mv_can_chain(struct mv_xor_desc_slot *desc)
-{
-	struct mv_xor_desc_slot *chain_old_tail = list_entry(
-		desc->chain_node.prev, struct mv_xor_desc_slot, chain_node);
-
-	if (chain_old_tail->type != desc->type)
-		return 0;
-
-	return 1;
 }
 
 static void mv_set_mode(struct mv_xor_chan *chan,
@@ -236,8 +218,6 @@ static void mv_xor_start_new_chain(struct mv_xor_chan *mv_chan,
 {
 	dev_dbg(mv_chan_to_devp(mv_chan), "%s %d: sw_desc %p\n",
 		__func__, __LINE__, sw_desc);
-	if (sw_desc->type != mv_chan->current_type)
-		mv_set_mode(mv_chan, sw_desc->type);
 
 	/* set the hardware chain */
 	mv_chan_set_next_descriptor(mv_chan, sw_desc->async_tx.phys);
@@ -492,9 +472,6 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 		list_splice_init(&grp_start->tx_list,
 				 &old_chain_tail->chain_node);
 
-		if (!mv_can_chain(grp_start))
-			goto submit_done;
-
 		dev_dbg(mv_chan_to_devp(mv_chan), "Append to last desc %pa\n",
 			&old_chain_tail->async_tx.phys);
 
@@ -516,7 +493,6 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 	if (new_hw_chain)
 		mv_xor_start_new_chain(mv_chan, grp_start);
 
-submit_done:
 	spin_unlock_bh(&mv_chan->lock);
 
 	return cookie;
@@ -573,45 +549,6 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 }
 
 static struct dma_async_tx_descriptor *
-mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
-		size_t len, unsigned long flags)
-{
-	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
-	struct mv_xor_desc_slot *sw_desc, *grp_start;
-	int slot_cnt;
-
-	dev_dbg(mv_chan_to_devp(mv_chan),
-		"%s dest: %pad src %pad len: %u flags: %ld\n",
-		__func__, &dest, &src, len, flags);
-	if (unlikely(len < MV_XOR_MIN_BYTE_COUNT))
-		return NULL;
-
-	BUG_ON(len > MV_XOR_MAX_BYTE_COUNT);
-
-	spin_lock_bh(&mv_chan->lock);
-	slot_cnt = mv_chan_memcpy_slot_count(len);
-	sw_desc = mv_xor_alloc_slots(mv_chan, slot_cnt, 1);
-	if (sw_desc) {
-		sw_desc->type = DMA_MEMCPY;
-		sw_desc->async_tx.flags = flags;
-		grp_start = sw_desc->group_head;
-		mv_desc_init(grp_start, flags);
-		mv_desc_set_byte_count(grp_start, len);
-		mv_desc_set_dest_addr(sw_desc->group_head, dest);
-		mv_desc_set_src_addr(grp_start, 0, src);
-		sw_desc->unmap_src_cnt = 1;
-		sw_desc->unmap_len = len;
-	}
-	spin_unlock_bh(&mv_chan->lock);
-
-	dev_dbg(mv_chan_to_devp(mv_chan),
-		"%s sw_desc %p async_tx %p\n",
-		__func__, sw_desc, sw_desc ? &sw_desc->async_tx : NULL);
-
-	return sw_desc ? &sw_desc->async_tx : NULL;
-}
-
-static struct dma_async_tx_descriptor *
 mv_xor_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 		    unsigned int src_cnt, size_t len, unsigned long flags)
 {
@@ -636,7 +573,6 @@ mv_xor_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 		sw_desc->async_tx.flags = flags;
 		grp_start = sw_desc->group_head;
 		mv_desc_init(grp_start, flags);
-		/* the byte count field is the same as in memcpy desc*/
 		mv_desc_set_byte_count(grp_start, len);
 		mv_desc_set_dest_addr(sw_desc->group_head, dest);
 		sw_desc->unmap_src_cnt = src_cnt;
@@ -649,6 +585,17 @@ mv_xor_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 		"%s sw_desc %p async_tx %p \n",
 		__func__, sw_desc, &sw_desc->async_tx);
 	return sw_desc ? &sw_desc->async_tx : NULL;
+}
+
+static struct dma_async_tx_descriptor *
+mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
+		size_t len, unsigned long flags)
+{
+	/*
+	 * A MEMCPY operation is identical to an XOR operation with only
+	 * a single source address.
+	 */
+	return mv_xor_prep_dma_xor(chan, dest, &src, 1, len, flags);
 }
 
 static void mv_xor_free_chan_resources(struct dma_chan *chan)
@@ -1071,7 +1018,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 
 	mv_chan_unmask_interrupts(mv_chan);
 
-	mv_set_mode(mv_chan, DMA_MEMCPY);
+	mv_set_mode(mv_chan, DMA_XOR);
 
 	spin_lock_init(&mv_chan->lock);
 	INIT_LIST_HEAD(&mv_chan->chain);
