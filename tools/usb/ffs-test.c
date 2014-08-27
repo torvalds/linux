@@ -1,5 +1,5 @@
 /*
- * ffs-test.c.c -- user mode filesystem api for usb composite function
+ * ffs-test.c -- user mode filesystem api for usb composite function
  *
  * Copyright (C) 2010 Samsung Electronics
  *                    Author: Michal Nazarewicz <mina86@mina86.com>
@@ -106,7 +106,9 @@ static void _msg(unsigned level, const char *fmt, ...)
 /******************** Descriptors and Strings *******************************/
 
 static const struct {
-	struct usb_functionfs_descs_head header;
+	struct usb_functionfs_descs_head_v2 header;
+	__le32 fs_count;
+	__le32 hs_count;
 	struct {
 		struct usb_interface_descriptor intf;
 		struct usb_endpoint_descriptor_no_audio sink;
@@ -114,11 +116,12 @@ static const struct {
 	} __attribute__((packed)) fs_descs, hs_descs;
 } __attribute__((packed)) descriptors = {
 	.header = {
-		.magic = cpu_to_le32(FUNCTIONFS_DESCRIPTORS_MAGIC),
+		.magic = cpu_to_le32(FUNCTIONFS_DESCRIPTORS_MAGIC_V2),
+		.flags = cpu_to_le32(FUNCTIONFS_HAS_FS_DESC |
+				     FUNCTIONFS_HAS_HS_DESC),
 		.length = cpu_to_le32(sizeof descriptors),
-		.fs_count = cpu_to_le32(3),
-		.hs_count = cpu_to_le32(3),
 	},
+	.fs_count = cpu_to_le32(3),
 	.fs_descs = {
 		.intf = {
 			.bLength = sizeof descriptors.fs_descs.intf,
@@ -142,6 +145,7 @@ static const struct {
 			/* .wMaxPacketSize = autoconfiguration (kernel) */
 		},
 	},
+	.hs_count = cpu_to_le32(3),
 	.hs_descs = {
 		.intf = {
 			.bLength = sizeof descriptors.fs_descs.intf,
