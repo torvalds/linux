@@ -1104,31 +1104,24 @@ afunc_set_alt(struct usb_function *fn, unsigned intf, unsigned alt)
 	usb_ep_enable(ep);
 
 	for (i = 0; i < USB_XFERS; i++) {
-		if (prm->ureq[i].req) {
-			if (usb_ep_queue(ep, prm->ureq[i].req, GFP_ATOMIC))
-				dev_err(&uac2->pdev.dev, "%d Error!\n",
-					__LINE__);
-			continue;
+		if (!prm->ureq[i].req) {
+			req = usb_ep_alloc_request(ep, GFP_ATOMIC);
+			if (req == NULL)
+				return -ENOMEM;
+
+			prm->ureq[i].req = req;
+			prm->ureq[i].pp = prm;
+
+			req->zero = 0;
+			req->context = &prm->ureq[i];
+			req->length = prm->max_psize;
+			req->complete = agdev_iso_complete;
+			req->buf = prm->rbuf + i * req->length;
 		}
 
-		req = usb_ep_alloc_request(ep, GFP_ATOMIC);
-		if (req == NULL) {
-			dev_err(&uac2->pdev.dev,
-				"%s:%d Error!\n", __func__, __LINE__);
-			return -EINVAL;
-		}
-
-		prm->ureq[i].req = req;
-		prm->ureq[i].pp = prm;
-
-		req->zero = 0;
-		req->context = &prm->ureq[i];
-		req->length = prm->max_psize;
-		req->complete =	agdev_iso_complete;
-		req->buf = prm->rbuf + i * req->length;
-
-		if (usb_ep_queue(ep, req, GFP_ATOMIC))
-			dev_err(&uac2->pdev.dev, "%d Error!\n", __LINE__);
+		if (usb_ep_queue(ep, prm->ureq[i].req, GFP_ATOMIC))
+			dev_err(&uac2->pdev.dev, "%s:%d Error!\n",
+				__func__, __LINE__);
 	}
 
 	return 0;
