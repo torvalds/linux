@@ -364,28 +364,31 @@ static bool radeon_fence_any_seq_signaled(struct radeon_device *rdev, u64 *seq)
 }
 
 /**
- * radeon_fence_wait_seq - wait for a specific sequence numbers
+ * radeon_fence_wait_seq_timeout - wait for a specific sequence numbers
  *
  * @rdev: radeon device pointer
  * @target_seq: sequence number(s) we want to wait for
  * @intr: use interruptable sleep
+ * @timeout: maximum time to wait, or MAX_SCHEDULE_TIMEOUT for infinite wait
  *
  * Wait for the requested sequence number(s) to be written by any ring
  * (all asics).  Sequnce number array is indexed by ring id.
  * @intr selects whether to use interruptable (true) or non-interruptable
  * (false) sleep when waiting for the sequence number.  Helper function
  * for radeon_fence_wait_*().
- * Returns 0 if the sequence number has passed, error for all other cases.
+ * Returns remaining time if the sequence number has passed, 0 when
+ * the wait timeout, or an error for all other cases.
  * -EDEADLK is returned when a GPU lockup has been detected.
  */
-static int radeon_fence_wait_seq(struct radeon_device *rdev, u64 *target_seq,
-				 bool intr)
+static long radeon_fence_wait_seq_timeout(struct radeon_device *rdev,
+					  u64 *target_seq, bool intr,
+					  long timeout)
 {
 	long r;
 	int i;
 
 	if (radeon_fence_any_seq_signaled(rdev, target_seq))
-		return 0;
+		return timeout;
 
 	/* enable IRQs and tracing */
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
@@ -399,11 +402,11 @@ static int radeon_fence_wait_seq(struct radeon_device *rdev, u64 *target_seq,
 	if (intr) {
 		r = wait_event_interruptible_timeout(rdev->fence_queue, (
 			radeon_fence_any_seq_signaled(rdev, target_seq)
-			 || rdev->needs_reset), MAX_SCHEDULE_TIMEOUT);
+			 || rdev->needs_reset), timeout);
 	} else {
 		r = wait_event_timeout(rdev->fence_queue, (
 			radeon_fence_any_seq_signaled(rdev, target_seq)
-			 || rdev->needs_reset), MAX_SCHEDULE_TIMEOUT);
+			 || rdev->needs_reset), timeout);
 	}
 
 	if (rdev->needs_reset)
@@ -417,14 +420,14 @@ static int radeon_fence_wait_seq(struct radeon_device *rdev, u64 *target_seq,
 		trace_radeon_fence_wait_end(rdev->ddev, i, target_seq[i]);
 	}
 
-	return r < 0 ? r : 0;
+	return r;
 }
 
 /**
  * radeon_fence_wait - wait for a fence to signal
  *
  * @fence: radeon fence object
- * @intr: use interruptable sleep
+ * @intr: use interruptible sleep
  *
  * Wait for the requested fence to signal (all asics).
  * @intr selects whether to use interruptable (true) or non-interruptable
@@ -434,7 +437,7 @@ static int radeon_fence_wait_seq(struct radeon_device *rdev, u64 *target_seq,
 int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 {
 	uint64_t seq[RADEON_NUM_RINGS] = {};
-	int r;
+	long r;
 
 	if (fence == NULL) {
 		WARN(1, "Querying an invalid fence : %p !\n", fence);
@@ -445,9 +448,10 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 	if (seq[fence->ring] == RADEON_FENCE_SIGNALED_SEQ)
 		return 0;
 
-	r = radeon_fence_wait_seq(fence->rdev, seq, intr);
-	if (r)
+	r = radeon_fence_wait_seq_timeout(fence->rdev, seq, intr, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0) {
 		return r;
+	}
 
 	fence->seq = RADEON_FENCE_SIGNALED_SEQ;
 	return 0;
@@ -472,7 +476,7 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 {
 	uint64_t seq[RADEON_NUM_RINGS];
 	unsigned i, num_rings = 0;
-	int r;
+	long r;
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 		seq[i] = 0;
@@ -493,8 +497,8 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 	if (num_rings == 0)
 		return -ENOENT;
 
-	r = radeon_fence_wait_seq(rdev, seq, intr);
-	if (r) {
+	r = radeon_fence_wait_seq_timeout(rdev, seq, intr, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0) {
 		return r;
 	}
 	return 0;
@@ -513,6 +517,7 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 {
 	uint64_t seq[RADEON_NUM_RINGS] = {};
+	long r;
 
 	seq[ring] = atomic64_read(&rdev->fence_drv[ring].last_seq) + 1ULL;
 	if (seq[ring] >= rdev->fence_drv[ring].sync_seq[ring]) {
@@ -520,7 +525,10 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 		   already the last emited fence */
 		return -ENOENT;
 	}
-	return radeon_fence_wait_seq(rdev, seq, false);
+	r = radeon_fence_wait_seq_timeout(rdev, seq, false, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
+		return r;
+	return 0;
 }
 
 /**
@@ -536,18 +544,18 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 int radeon_fence_wait_empty(struct radeon_device *rdev, int ring)
 {
 	uint64_t seq[RADEON_NUM_RINGS] = {};
-	int r;
+	long r;
 
 	seq[ring] = rdev->fence_drv[ring].sync_seq[ring];
 	if (!seq[ring])
 		return 0;
 
-	r = radeon_fence_wait_seq(rdev, seq, false);
-	if (r) {
+	r = radeon_fence_wait_seq_timeout(rdev, seq, false, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0) {
 		if (r == -EDEADLK)
 			return -EDEADLK;
 
-		dev_err(rdev->dev, "error waiting for ring[%d] to become idle (%d)\n",
+		dev_err(rdev->dev, "error waiting for ring[%d] to become idle (%ld)\n",
 			ring, r);
 	}
 	return 0;
