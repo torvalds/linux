@@ -286,6 +286,9 @@ static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
 	case AARCH64_INSN_REGTYPE_RN:
 		shift = 5;
 		break;
+	case AARCH64_INSN_REGTYPE_RM:
+		shift = 16;
+		break;
 	default:
 		pr_err("%s: unknown register type encoding %d\n", __func__,
 		       type);
@@ -294,6 +297,35 @@ static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
 
 	insn &= ~(GENMASK(4, 0) << shift);
 	insn |= reg << shift;
+
+	return insn;
+}
+
+static u32 aarch64_insn_encode_ldst_size(enum aarch64_insn_size_type type,
+					 u32 insn)
+{
+	u32 size;
+
+	switch (type) {
+	case AARCH64_INSN_SIZE_8:
+		size = 0;
+		break;
+	case AARCH64_INSN_SIZE_16:
+		size = 1;
+		break;
+	case AARCH64_INSN_SIZE_32:
+		size = 2;
+		break;
+	case AARCH64_INSN_SIZE_64:
+		size = 3;
+		break;
+	default:
+		pr_err("%s: unknown size encoding %d\n", __func__, type);
+		return 0;
+	}
+
+	insn &= ~GENMASK(31, 30);
+	insn |= size << 30;
 
 	return insn;
 }
@@ -427,4 +459,34 @@ u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
 	}
 
 	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, reg);
+}
+
+u32 aarch64_insn_gen_load_store_reg(enum aarch64_insn_register reg,
+				    enum aarch64_insn_register base,
+				    enum aarch64_insn_register offset,
+				    enum aarch64_insn_size_type size,
+				    enum aarch64_insn_ldst_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_LDST_LOAD_REG_OFFSET:
+		insn = aarch64_insn_get_ldr_reg_value();
+		break;
+	case AARCH64_INSN_LDST_STORE_REG_OFFSET:
+		insn = aarch64_insn_get_str_reg_value();
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	insn = aarch64_insn_encode_ldst_size(size, insn);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn, reg);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn,
+					    base);
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn,
+					    offset);
 }
