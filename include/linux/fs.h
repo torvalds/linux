@@ -2599,6 +2599,7 @@ extern int simple_write_end(struct file *file, struct address_space *mapping,
 			struct page *page, void *fsdata);
 extern int always_delete_dentry(const struct dentry *);
 extern struct inode *alloc_anon_inode(struct super_block *);
+extern int simple_nosetlease(struct file *, long, struct file_lock **);
 extern const struct dentry_operations simple_dentry_operations;
 
 extern struct dentry *simple_lookup(struct inode *, struct dentry *, unsigned int flags);
