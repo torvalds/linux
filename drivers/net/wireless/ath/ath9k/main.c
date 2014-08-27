@@ -303,6 +303,9 @@ int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 	if (!ath_prepare_reset(sc))
 		fastcc = false;
 
+	if (ath9k_is_chanctx_enabled())
+		fastcc = false;
+
 	spin_lock_bh(&sc->chan_lock);
 	sc->cur_chandef = sc->cur_chan->chandef;
 	spin_unlock_bh(&sc->chan_lock);
