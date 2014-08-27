@@ -9,7 +9,7 @@
 	};
 
 	chosen {
-		bootargs = "vmalloc=512M clk_ignore_unused";
+		bootargs = "vmalloc=496M clk_ignore_unused";
 	};
 
 	pwm_regulator1:pwm-regulator1 {

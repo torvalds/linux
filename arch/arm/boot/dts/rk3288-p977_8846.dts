@@ -155,10 +155,6 @@
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 	};
-
-        chosen {
-                bootargs = "vmalloc=512M";
-        };
 };
 &pinctrl {
 	gpio0_gpio {

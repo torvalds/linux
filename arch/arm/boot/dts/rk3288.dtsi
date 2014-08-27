@@ -1364,4 +1364,8 @@
 		pinctrl-1 = <&sdcard_vcc_18>;
 		pinctrl-2 = <&sdcard_vcc_33>;
 	};
+
+        chosen {
+                bootargs = "vmalloc=496M";
+        };
 };
