@@ -24,6 +24,7 @@
 #include <linux/regmap.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/regulator/da9211.h>
 #include "da9211-regulator.h"
 
@@ -236,6 +237,59 @@ static struct regulator_desc da9211_regulators[] = {
 	DA9211_BUCK(BUCKB),
 };
 
+#ifdef CONFIG_OF
+static struct of_regulator_match da9211_matches[] = {
+	[DA9211_ID_BUCKA] = { .name = "BUCKA" },
+	[DA9211_ID_BUCKB] = { .name = "BUCKB" },
+	};
+
+static struct da9211_pdata *da9211_parse_regulators_dt(
+		struct device *dev)
+{
+	struct da9211_pdata *pdata;
+	struct device_node *node;
+	int i, num, n;
+
+	node = of_get_child_by_name(dev->of_node, "regulators");
+	if (!node) {
+		dev_err(dev, "regulators node not found\n");
+		return ERR_PTR(-ENODEV);
+	}
+
+	num = of_regulator_match(dev, node, da9211_matches,
+				 ARRAY_SIZE(da9211_matches));
+	of_node_put(node);
+	if (num < 0) {
+		dev_err(dev, "Failed to match regulators\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->num_buck = num;
+
+	n = 0;
+	for (i = 0; i < ARRAY_SIZE(da9211_matches); i++) {
+		if (!da9211_matches[i].init_data)
+			continue;
+
+		pdata->init_data[n] = da9211_matches[i].init_data;
+
+		n++;
+	};
+
+	return pdata;
+}
+#else
+static struct da9211_pdata *da9211_parse_regulators_dt(
+		struct device *dev)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
+
 static irqreturn_t da9211_irq_handler(int irq, void *data)
 {
 	struct da9211 *chip = data;
@@ -306,7 +360,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 	}
 
 	for (i = 0; i < chip->num_regulator; i++) {
-		config.init_data = &(chip->pdata->init_data[i]);
+		config.init_data = chip->pdata->init_data[i];
 		config.dev = chip->dev;
 		config.driver_data = chip;
 		config.regmap = chip->regmap;
@@ -332,6 +386,21 @@ static int da9211_regulator_init(struct da9211 *chip)
 
 	return 0;
 }
+
+static const struct i2c_device_id da9211_i2c_id[] = {
+	{"da9211", DA9211},
+	{"da9213", DA9213},
+	{},
+};
+
+#ifdef CONFIG_OF
+static const struct of_device_id da9211_dt_ids[] = {
+	{ .compatible = "dlg,da9211", .data = &da9211_i2c_id[0] },
+	{ .compatible = "dlg,da9213", .data = &da9211_i2c_id[1] },
+	{},
+};
+#endif
+
 /*
  * I2C driver interface functions
  */
@@ -377,6 +446,14 @@ static int da9211_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
+	if (!chip->pdata)
+		chip->pdata = da9211_parse_regulators_dt(chip->dev);
+
+	if (IS_ERR(chip->pdata)) {
+		dev_err(chip->dev, "No regulators defined for the platform\n");
+		return PTR_ERR(chip->pdata);
+	}
+
 	chip->chip_irq = i2c->irq;
 
 	if (chip->chip_irq != 0) {
@@ -400,12 +477,6 @@ static int da9211_i2c_probe(struct i2c_client *i2c,
 
 	return ret;
 }
-
-static const struct i2c_device_id da9211_i2c_id[] = {
-	{"da9211", DA9211},
-	{"da9213", DA9213},
-	{},
-};
 
 MODULE_DEVICE_TABLE(i2c, da9211_i2c_id);
 

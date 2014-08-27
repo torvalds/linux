@@ -32,6 +32,6 @@ struct da9211_pdata {
 	 * 2 : 2 phase 2 buck
 	 */
 	int num_buck;
-	struct regulator_init_data *init_data;
+	struct regulator_init_data *init_data[DA9211_MAX_REGULATORS];
 };
 #endif
