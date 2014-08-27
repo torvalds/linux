@@ -1121,10 +1121,10 @@ static int bcm_char_ioctl_buffer_download_stop(void __user *argp,
 static int bcm_char_ioctl_chip_reset(struct bcm_mini_adapter *ad)
 {
 	INT status;
-	INT NVMAccess;
+	INT nvm_access;
 
-	NVMAccess = down_trylock(&ad->NVMRdmWrmLock);
-	if (NVMAccess) {
+	nvm_access = down_trylock(&ad->NVMRdmWrmLock);
+	if (nvm_access) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			" IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
 		return -EACCES;
