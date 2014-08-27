@@ -1313,7 +1313,7 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 {
 	struct bcm_bulk_wrm_buffer *bulk_buff;
 	struct bcm_ioctl_buffer io_buff;
-	UINT uiTempVar = 0;
+	UINT tmp = 0;
 	INT status = STATUS_FAILURE;
 	PCHAR buff = NULL;
 
@@ -1349,12 +1349,12 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 		return -EINVAL;
 	}
 
-	uiTempVar = bulk_buff->Register & EEPROM_REJECT_MASK;
+	tmp = bulk_buff->Register & EEPROM_REJECT_MASK;
 	if (!((ad->pstargetparams->m_u32Customize)&VSG_MODE) &&
-		((uiTempVar == EEPROM_REJECT_REG_1) ||
-			(uiTempVar == EEPROM_REJECT_REG_2) ||
-			(uiTempVar == EEPROM_REJECT_REG_3) ||
-			(uiTempVar == EEPROM_REJECT_REG_4)) &&
+		((tmp == EEPROM_REJECT_REG_1) ||
+			(tmp == EEPROM_REJECT_REG_2) ||
+			(tmp == EEPROM_REJECT_REG_3) ||
+			(tmp == EEPROM_REJECT_REG_4)) &&
 		(cmd == IOCTL_BCM_REGISTER_WRITE)) {
 
 		kfree(buff);
