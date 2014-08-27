@@ -67,6 +67,7 @@ static int adp5520_bl_set(struct backlight_device *bl, int brightness)
 static int adp5520_bl_update_status(struct backlight_device *bl)
 {
 	int brightness = bl->props.brightness;
+
 	if (bl->props.power != FB_BLANK_UNBLANK)
 		brightness = 0;
 
