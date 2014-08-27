@@ -1197,7 +1197,10 @@ clock_set:
 		if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
 			host->timeout_clk = host->mmc->actual_clock / 1000;
 			host->mmc->max_busy_timeout =
-				(1 << 27) / host->timeout_clk;
+					host->ops->get_max_timeout_count ?
+					host->ops->get_max_timeout_count(host) :
+					1 << 27;
+			host->mmc->max_busy_timeout /= host->timeout_clk;
 		}
 	}
 
@@ -2937,7 +2940,9 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)
 		host->timeout_clk = mmc->f_max / 1000;
 
-	mmc->max_busy_timeout = (1 << 27) / host->timeout_clk;
+	mmc->max_busy_timeout = host->ops->get_max_timeout_count ?
+			host->ops->get_max_timeout_count(host) : 1 << 27;
+	mmc->max_busy_timeout /= host->timeout_clk;
 
 	mmc->caps |= MMC_CAP_SDIO_IRQ | MMC_CAP_ERASE | MMC_CAP_CMD23;
 	mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
