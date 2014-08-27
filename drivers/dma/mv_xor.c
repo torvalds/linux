@@ -537,8 +537,9 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 	while (idx < num_descs_in_pool) {
 		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 		if (!slot) {
-			printk(KERN_INFO "MV XOR Channel only initialized"
-				" %d descriptor slots", idx);
+			dev_info(mv_chan_to_devp(mv_chan),
+				 "channel only initialized %d descriptor slots",
+				 idx);
 			break;
 		}
 		virt_desc = mv_chan->dma_desc_pool_virt;
