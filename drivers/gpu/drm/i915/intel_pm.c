@@ -6011,14 +6011,6 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
 
-	/* WaDisablePartialInstShootdown:chv */
-	I915_WRITE(GEN8_ROW_CHICKEN,
-		   _MASKED_BIT_ENABLE(PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE));
-
-	/* WaDisableThreadStallDopClockGating:chv */
-	I915_WRITE(GEN8_ROW_CHICKEN,
-		   _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
-
 	/* WaVSRefCountFullforceMissDisable:chv */
 	/* WaDSRefCountFullforceMissDisable:chv */
 	I915_WRITE(GEN7_FF_THREAD_MODE,
@@ -6037,10 +6029,6 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 
-	/* WaDisableSamplerPowerBypass:chv (pre-production hw) */
-	I915_WRITE(HALF_SLICE_CHICKEN3,
-		   _MASKED_BIT_ENABLE(GEN8_SAMPLER_POWER_BYPASS_DIS));
-
 	/* WaDisableGunitClockGating:chv (pre-production hw) */
 	I915_WRITE(VLV_GUNIT_CLOCK_GATE, I915_READ(VLV_GUNIT_CLOCK_GATE) |
 		   GINT_DIS);
@@ -6050,8 +6038,6 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 		   _MASKED_BIT_ENABLE(GEN8_FF_DOP_CLOCK_GATE_DISABLE));
 
 	/* WaDisableDopClockGating:chv (pre-production hw) */
-	I915_WRITE(GEN7_ROW_CHICKEN2,
-		   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
 	I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
 		   GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE);
 }

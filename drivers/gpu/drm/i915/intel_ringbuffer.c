@@ -681,7 +681,7 @@ static inline void intel_ring_emit_wa(struct intel_engine_cs *ring,
 	return;
 }
 
-static int gen8_init_workarounds(struct intel_engine_cs *ring)
+static int bdw_init_workarounds(struct intel_engine_cs *ring)
 {
 	int ret;
 	struct drm_device *dev = ring->dev;
@@ -754,6 +754,45 @@ static int gen8_init_workarounds(struct intel_engine_cs *ring)
 
 	DRM_DEBUG_DRIVER("Number of Workarounds applied: %d\n",
 			 dev_priv->num_wa_regs);
+
+	return 0;
+}
+
+static int chv_init_workarounds(struct intel_engine_cs *ring)
+{
+	int ret;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/*
+	 * workarounds applied in this fn are part of register state context,
+	 * they need to be re-initialized followed by gpu reset, suspend/resume,
+	 * module reload.
+	 */
+	dev_priv->num_wa_regs = 0;
+	memset(dev_priv->intel_wa_regs, 0, sizeof(dev_priv->intel_wa_regs));
+
+	ret = intel_ring_begin(ring, 12);
+	if (ret)
+		return ret;
+
+	/* WaDisablePartialInstShootdown:chv */
+	intel_ring_emit_wa(ring, GEN8_ROW_CHICKEN,
+			   _MASKED_BIT_ENABLE(PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE));
+
+	/* WaDisableThreadStallDopClockGating:chv */
+	intel_ring_emit_wa(ring, GEN8_ROW_CHICKEN,
+			   _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
+
+	/* WaDisableDopClockGating:chv (pre-production hw) */
+	intel_ring_emit_wa(ring, GEN7_ROW_CHICKEN2,
+			   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
+
+	/* WaDisableSamplerPowerBypass:chv (pre-production hw) */
+	intel_ring_emit_wa(ring, HALF_SLICE_CHICKEN3,
+			   _MASKED_BIT_ENABLE(GEN8_SAMPLER_POWER_BYPASS_DIS));
+
+	intel_ring_advance(ring);
 
 	return 0;
 }
@@ -2244,7 +2283,10 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 					dev_priv->semaphore_obj = obj;
 			}
 		}
-		ring->init_context = gen8_init_workarounds;
+		if (IS_CHERRYVIEW(dev))
+			ring->init_context = chv_init_workarounds;
+		else
+			ring->init_context = bdw_init_workarounds;
 		ring->add_request = gen6_add_request;
 		ring->flush = gen8_render_ring_flush;
 		ring->irq_get = gen8_ring_get_irq;
