@@ -67,6 +67,7 @@ enum aarch64_insn_imm_type {
 	AARCH64_INSN_IMM_12,
 	AARCH64_INSN_IMM_9,
 	AARCH64_INSN_IMM_7,
+	AARCH64_INSN_IMM_6,
 	AARCH64_INSN_IMM_S,
 	AARCH64_INSN_IMM_R,
 	AARCH64_INSN_IMM_MAX
@@ -206,6 +207,10 @@ __AARCH64_INSN_FUNCS(bfm,	0x7F800000, 0x33000000)
 __AARCH64_INSN_FUNCS(movz,	0x7F800000, 0x52800000)
 __AARCH64_INSN_FUNCS(ubfm,	0x7F800000, 0x53000000)
 __AARCH64_INSN_FUNCS(movk,	0x7F800000, 0x72800000)
+__AARCH64_INSN_FUNCS(add,	0x7F200000, 0x0B000000)
+__AARCH64_INSN_FUNCS(adds,	0x7F200000, 0x2B000000)
+__AARCH64_INSN_FUNCS(sub,	0x7F200000, 0x4B000000)
+__AARCH64_INSN_FUNCS(subs,	0x7F200000, 0x6B000000)
 __AARCH64_INSN_FUNCS(b,		0xFC000000, 0x14000000)
 __AARCH64_INSN_FUNCS(bl,	0xFC000000, 0x94000000)
 __AARCH64_INSN_FUNCS(cbz,	0xFE000000, 0x34000000)
@@ -265,6 +270,12 @@ u32 aarch64_insn_gen_movewide(enum aarch64_insn_register dst,
 			      int imm, int shift,
 			      enum aarch64_insn_variant variant,
 			      enum aarch64_insn_movewide_type type);
+u32 aarch64_insn_gen_add_sub_shifted_reg(enum aarch64_insn_register dst,
+					 enum aarch64_insn_register src,
+					 enum aarch64_insn_register reg,
+					 int shift,
+					 enum aarch64_insn_variant variant,
+					 enum aarch64_insn_adsb_type type);
 
 bool aarch64_insn_hotpatch_safe(u32 old_insn, u32 new_insn);
 
