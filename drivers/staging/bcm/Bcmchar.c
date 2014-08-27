@@ -1601,7 +1601,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 {
 	struct bcm_flash2x_readwrite flash_2x_read = {0};
 	struct bcm_ioctl_buffer io_buff;
-	PUCHAR pReadBuff = NULL;
+	PUCHAR read_buff = NULL;
 	UINT NOB = 0;
 	UINT BuffSize = 0;
 	UINT ReadBytes = 0;
@@ -1652,9 +1652,9 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 
 	ReadOffset = flash_2x_read.offset;
 	OutPutBuff = io_buff.OutputBuffer;
-	pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
+	read_buff = kzalloc(BuffSize , GFP_KERNEL);
 
-	if (pReadBuff == NULL) {
+	if (read_buff == NULL) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Memory allocation failed for Flash 2.x Read Structure");
 		return -ENOMEM;
@@ -1669,7 +1669,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 				DBG_LVL_ALL,
 				"Device is in Idle/Shutdown Mode\n");
 		up(&ad->NVMRdmWrmLock);
-		kfree(pReadBuff);
+		kfree(read_buff);
 		return -EACCES;
 	}
 
@@ -1680,7 +1680,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 			ReadBytes = NOB;
 
 		/* Reading the data from Flash 2.x */
-		status = BcmFlash2xBulkRead(ad, (PUINT)pReadBuff,
+		status = BcmFlash2xBulkRead(ad, (PUINT)read_buff,
 			flash_2x_read.Section, ReadOffset, ReadBytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad,
@@ -1691,15 +1691,15 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 		}
 
 		BCM_DEBUG_PRINT_BUFFER(ad, DBG_TYPE_OTHERS, OSAL_DBG,
-			DBG_LVL_ALL, pReadBuff, ReadBytes);
+			DBG_LVL_ALL, read_buff, ReadBytes);
 
-		status = copy_to_user(OutPutBuff, pReadBuff, ReadBytes);
+		status = copy_to_user(OutPutBuff, read_buff, ReadBytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad,
 				DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"Copy to use failed with status :%d", status);
 			up(&ad->NVMRdmWrmLock);
-			kfree(pReadBuff);
+			kfree(read_buff);
 			return -EFAULT;
 		}
 		NOB = NOB - ReadBytes;
@@ -1710,7 +1710,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	}
 
 	up(&ad->NVMRdmWrmLock);
-	kfree(pReadBuff);
+	kfree(read_buff);
 	return status;
 }
 
@@ -2165,7 +2165,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	INT BuffSize;
 	INT ReadOffset = 0;
 	UINT ReadBytes = 0;
-	PUCHAR pReadBuff;
+	PUCHAR read_buff;
 	void __user *OutPutBuff;
 	INT status = STATUS_FAILURE;
 
@@ -2197,8 +2197,8 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	ReadOffset = stNVMRead.uiOffset;
 	OutPutBuff = stNVMRead.pBuffer;
 
-	pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
-	if (pReadBuff == NULL) {
+	read_buff = kzalloc(BuffSize , GFP_KERNEL);
+	if (read_buff == NULL) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Memory allocation failed for Flash 2.x Read Structure");
 		return -ENOMEM;
@@ -2211,7 +2211,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"Device is in Idle/Shutdown Mode\n");
-		kfree(pReadBuff);
+		kfree(read_buff);
 		up(&ad->NVMRdmWrmLock);
 		return -EACCES;
 	}
@@ -2225,7 +2225,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 			ReadBytes = NOB;
 
 		/* Reading the data from Flash 2.x */
-		status = BeceemNVMRead(ad, (PUINT)pReadBuff,
+		status = BeceemNVMRead(ad, (PUINT)read_buff,
 			ReadOffset, ReadBytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -2235,15 +2235,15 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 		}
 
 		BCM_DEBUG_PRINT_BUFFER(ad, DBG_TYPE_OTHERS, OSAL_DBG,
-				       DBG_LVL_ALL, pReadBuff, ReadBytes);
+				       DBG_LVL_ALL, read_buff, ReadBytes);
 
-		status = copy_to_user(OutPutBuff, pReadBuff, ReadBytes);
+		status = copy_to_user(OutPutBuff, read_buff, ReadBytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 					"Copy to use failed with status :%d",
 					status);
 			up(&ad->NVMRdmWrmLock);
-			kfree(pReadBuff);
+			kfree(read_buff);
 			return -EFAULT;
 		}
 		NOB = NOB - ReadBytes;
@@ -2254,7 +2254,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	}
 	ad->bFlashRawRead = false;
 	up(&ad->NVMRdmWrmLock);
-	kfree(pReadBuff);
+	kfree(read_buff);
 	return status;
 }
 
