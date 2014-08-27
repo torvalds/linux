@@ -310,9 +310,7 @@ int mmc_of_parse(struct mmc_host *host)
 {
 	struct device_node *np;
 	u32 bus_width;
-	bool explicit_inv_wp, gpio_inv_wp = false;
-	enum of_gpio_flags flags;
-	int len, ret, gpio;
+	int len, ret;
 
 	if (!host->parent || !host->parent->of_node)
 		return 0;
@@ -360,60 +358,40 @@ int mmc_of_parse(struct mmc_host *host)
 	if (of_find_property(np, "non-removable", &len)) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
 	} else {
-		bool explicit_inv_cd, gpio_inv_cd = false;
-
-		explicit_inv_cd = of_property_read_bool(np, "cd-inverted");
+		if (of_property_read_bool(np, "cd-inverted"))
+			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 
 		if (of_find_property(np, "broken-cd", &len))
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
-		gpio = of_get_named_gpio_flags(np, "cd-gpios", 0, &flags);
-		if (gpio == -EPROBE_DEFER)
-			return gpio;
-		if (gpio_is_valid(gpio)) {
-			if (!(flags & OF_GPIO_ACTIVE_LOW))
-				gpio_inv_cd = true;
-
-			ret = mmc_gpio_request_cd(host, gpio, 0);
-			if (ret < 0) {
-				dev_err(host->parent,
-					"Failed to request CD GPIO #%d: %d!\n",
-					gpio, ret);
+		ret = mmc_gpiod_request_cd(host, "cd", 0, false, 0);
+		if (ret) {
+			if (ret == -EPROBE_DEFER)
 				return ret;
-			} else {
-				dev_info(host->parent, "Got CD GPIO #%d.\n",
-					 gpio);
+			if (ret != -ENOENT) {
+				dev_err(host->parent,
+					"Failed to request CD GPIO: %d\n",
+					ret);
 			}
-		}
-
-		if (explicit_inv_cd ^ gpio_inv_cd)
-			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+		} else
+			dev_info(host->parent, "Got CD GPIO\n");
 	}
 
 	/* Parse Write Protection */
-	explicit_inv_wp = of_property_read_bool(np, "wp-inverted");
-
-	gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
-	if (gpio == -EPROBE_DEFER) {
-		ret = -EPROBE_DEFER;
-		goto out;
-	}
-	if (gpio_is_valid(gpio)) {
-		if (!(flags & OF_GPIO_ACTIVE_LOW))
-			gpio_inv_wp = true;
-
-		ret = mmc_gpio_request_ro(host, gpio);
-		if (ret < 0) {
-			dev_err(host->parent,
-				"Failed to request WP GPIO: %d!\n", ret);
-			goto out;
-		} else {
-				dev_info(host->parent, "Got WP GPIO #%d.\n",
-					 gpio);
-		}
-	}
-	if (explicit_inv_wp ^ gpio_inv_wp)
+	if (of_property_read_bool(np, "wp-inverted"))
 		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+
+	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0);
+	if (ret) {
+		if (ret == -EPROBE_DEFER)
+			goto out;
+		if (ret != -ENOENT) {
+			dev_err(host->parent,
+				"Failed to request WP GPIO: %d\n",
+				ret);
+		}
+	} else
+		dev_info(host->parent, "Got WP GPIO\n");
 
 	if (of_find_property(np, "cap-sd-highspeed", &len))
 		host->caps |= MMC_CAP_SD_HIGHSPEED;
