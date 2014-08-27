@@ -3147,7 +3147,8 @@ static int ext4_find_delete_entry(handle_t *handle, struct inode *dir,
 	return retval;
 }
 
-static void ext4_rename_delete(handle_t *handle, struct ext4_renament *ent)
+static void ext4_rename_delete(handle_t *handle, struct ext4_renament *ent,
+			       int force_reread)
 {
 	int retval;
 	/*
@@ -3159,7 +3160,8 @@ static void ext4_rename_delete(handle_t *handle, struct ext4_renament *ent)
 	if (le32_to_cpu(ent->de->inode) != ent->inode->i_ino ||
 	    ent->de->name_len != ent->dentry->d_name.len ||
 	    strncmp(ent->de->name, ent->dentry->d_name.name,
-		    ent->de->name_len)) {
+		    ent->de->name_len) ||
+	    force_reread) {
 		retval = ext4_find_delete_entry(handle, ent->dir,
 						&ent->dentry->d_name);
 	} else {
@@ -3210,6 +3212,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		.dentry = new_dentry,
 		.inode = new_dentry->d_inode,
 	};
+	int force_reread;
 	int retval;
 
 	dquot_initialize(old.dir);
@@ -3271,6 +3274,15 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (retval)
 			goto end_rename;
 	}
+	/*
+	 * If we're renaming a file within an inline_data dir and adding or
+	 * setting the new dirent causes a conversion from inline_data to
+	 * extents/blockmap, we need to force the dirent delete code to
+	 * re-read the directory, or else we end up trying to delete a dirent
+	 * from what is now the extent tree root (or a block map).
+	 */
+	force_reread = (new.dir->i_ino == old.dir->i_ino &&
+			ext4_test_inode_flag(new.dir, EXT4_INODE_INLINE_DATA));
 	if (!new.bh) {
 		retval = ext4_add_entry(handle, new.dentry, old.inode);
 		if (retval)
@@ -3281,6 +3293,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (retval)
 			goto end_rename;
 	}
+	if (force_reread)
+		force_reread = !ext4_test_inode_flag(new.dir,
+						     EXT4_INODE_INLINE_DATA);
 
 	/*
 	 * Like most other Unix systems, set the ctime for inodes on a
@@ -3292,7 +3307,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/*
 	 * ok, that's it
 	 */
-	ext4_rename_delete(handle, &old);
+	ext4_rename_delete(handle, &old, force_reread);
 
 	if (new.inode) {
 		ext4_dec_count(handle, new.inode);
