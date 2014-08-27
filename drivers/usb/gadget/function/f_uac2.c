@@ -163,8 +163,8 @@ agdev_iso_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	unsigned pending;
 	unsigned long flags;
+	unsigned int hw_ptr;
 	bool update_alsa = false;
-	unsigned char *src, *dst;
 	int status = req->status;
 	struct uac2_req *ur = req->context;
 	struct snd_pcm_substream *substream;
@@ -191,26 +191,40 @@ agdev_iso_complete(struct usb_ep *ep, struct usb_request *req)
 
 	spin_lock_irqsave(&prm->lock, flags);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		src = prm->dma_area + prm->hw_ptr;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		req->actual = req->length;
-		dst = req->buf;
-	} else {
-		dst = prm->dma_area + prm->hw_ptr;
-		src = req->buf;
-	}
 
 	pending = prm->hw_ptr % prm->period_size;
 	pending += req->actual;
 	if (pending >= prm->period_size)
 		update_alsa = true;
 
+	hw_ptr = prm->hw_ptr;
 	prm->hw_ptr = (prm->hw_ptr + req->actual) % prm->dma_bytes;
 
 	spin_unlock_irqrestore(&prm->lock, flags);
 
 	/* Pack USB load in ALSA ring buffer */
-	memcpy(dst, src, req->actual);
+	pending = prm->dma_bytes - hw_ptr;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (unlikely(pending < req->actual)) {
+			memcpy(req->buf, prm->dma_area + hw_ptr, pending);
+			memcpy(req->buf + pending, prm->dma_area,
+			       req->actual - pending);
+		} else {
+			memcpy(req->buf, prm->dma_area + hw_ptr, req->actual);
+		}
+	} else {
+		if (unlikely(pending < req->actual)) {
+			memcpy(prm->dma_area + hw_ptr, req->buf, pending);
+			memcpy(prm->dma_area, req->buf + pending,
+			       req->actual - pending);
+		} else {
+			memcpy(prm->dma_area + hw_ptr, req->buf, req->actual);
+		}
+	}
+
 exit:
 	if (usb_ep_queue(ep, req, GFP_ATOMIC))
 		dev_err(&uac2->pdev.dev, "%d Error!\n", __LINE__);
