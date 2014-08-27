@@ -243,7 +243,6 @@ static int packet_direct_xmit(struct sk_buff *skb)
 	netdev_features_t features;
 	struct netdev_queue *txq;
 	int ret = NETDEV_TX_BUSY;
-	u16 queue_map;
 
 	if (unlikely(!netif_running(dev) ||
 		     !netif_carrier_ok(dev)))
@@ -254,8 +253,7 @@ static int packet_direct_xmit(struct sk_buff *skb)
 	    __skb_linearize(skb))
 		goto drop;
 
-	queue_map = skb_get_queue_mapping(skb);
-	txq = netdev_get_tx_queue(dev, queue_map);
+	txq = skb_get_tx_queue(dev, skb);
 
 	local_bh_disable();
 

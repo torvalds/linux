@@ -63,7 +63,7 @@ static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 
 	if (unlikely(skb)) {
 		/* check the reason of requeuing without tx lock first */
-		txq = netdev_get_tx_queue(txq->dev, skb_get_queue_mapping(skb));
+		txq = skb_get_tx_queue(txq->dev, skb);
 		if (!netif_xmit_frozen_or_stopped(txq)) {
 			q->gso_skb = NULL;
 			q->q.qlen--;
@@ -183,10 +183,12 @@ static inline int qdisc_restart(struct Qdisc *q)
 	skb = dequeue_skb(q);
 	if (unlikely(!skb))
 		return 0;
+
 	WARN_ON_ONCE(skb_dst_is_noref(skb));
+
 	root_lock = qdisc_lock(q);
 	dev = qdisc_dev(q);
-	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+	txq = skb_get_tx_queue(dev, skb);
 
 	return sch_direct_xmit(skb, q, dev, txq, root_lock);
 }
