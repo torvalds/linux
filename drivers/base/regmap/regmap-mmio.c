@@ -273,19 +273,15 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 	ctx->pad_bytes = config->pad_bits / 8;
 	ctx->clk = ERR_PTR(-ENODEV);
 
-	if (clk_id == NULL)
-		return ctx;
-
 	ctx->clk = clk_get(dev, clk_id);
-	if (IS_ERR(ctx->clk)) {
-		ret = PTR_ERR(ctx->clk);
-		goto err_free;
-	}
-
-	ret = clk_prepare(ctx->clk);
-	if (ret < 0) {
-		clk_put(ctx->clk);
-		goto err_free;
+	if (!IS_ERR(ctx->clk)) {
+		ret = clk_prepare(ctx->clk);
+		if (ret < 0) {
+			clk_put(ctx->clk);
+			goto err_free;
+		}
+	} else {
+		ctx->clk = NULL;
 	}
 
 	return ctx;
