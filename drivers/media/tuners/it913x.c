@@ -26,7 +26,8 @@ struct it913x_dev {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct dvb_frontend *fe;
-	u8 chip_ver;
+	u8 chip_ver:2;
+	u8 role:2;
 	u8 firmware_ver;
 	u16 tun_xtal;
 	u8 tun_fdiv;
@@ -120,6 +121,62 @@ static int it913x_init(struct dvb_frontend *fe)
 	ret |= regmap_write(dev->regmap, 0x80ec58, 0x0);
 
 	return regmap_write(dev->regmap, 0x80ed81, val);
+}
+
+static int it913x_sleep(struct dvb_frontend *fe)
+{
+	struct it913x_dev *dev = fe->tuner_priv;
+	int ret, len;
+
+	dev_dbg(&dev->client->dev, "role=%u\n", dev->role);
+
+	ret  = regmap_bulk_write(dev->regmap, 0x80ec40, "\x00", 1);
+	if (ret)
+		goto err;
+
+	/*
+	 * Writing '0x00' to master tuner register '0x80ec08' causes slave tuner
+	 * communication lost. Due to that, we cannot put master full sleep.
+	 */
+	if (dev->role == IT913X_ROLE_DUAL_MASTER)
+		len = 4;
+	else
+		len = 15;
+
+	dev_dbg(&dev->client->dev, "role=%u len=%d\n", dev->role, len);
+
+	ret = regmap_bulk_write(dev->regmap, 0x80ec02,
+			"\x3f\x1f\x3f\x3e\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+			len);
+	if (ret)
+		goto err;
+
+	ret = regmap_bulk_write(dev->regmap, 0x80ec12, "\x00\x00\x00\x00", 4);
+	if (ret)
+		goto err;
+
+	ret = regmap_bulk_write(dev->regmap, 0x80ec17,
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00", 9);
+	if (ret)
+		goto err;
+
+	ret = regmap_bulk_write(dev->regmap, 0x80ec22,
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 10);
+	if (ret)
+		goto err;
+
+	ret = regmap_bulk_write(dev->regmap, 0x80ec20, "\x00", 1);
+	if (ret)
+		goto err;
+
+	ret = regmap_bulk_write(dev->regmap, 0x80ec3f, "\x01", 1);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&dev->client->dev, "failed %d\n", ret);
+	return ret;
 }
 
 static int it9137_set_params(struct dvb_frontend *fe)
@@ -274,20 +331,6 @@ static int it9137_set_params(struct dvb_frontend *fe)
 	return (ret < 0) ? -ENODEV : 0;
 }
 
-/* Power sequence */
-/* Power Up	Tuner on -> Frontend suspend off -> Tuner clk on */
-/* Power Down	Frontend suspend on -> Tuner clk off -> Tuner off */
-
-static int it913x_sleep(struct dvb_frontend *fe)
-{
-	struct it913x_dev *dev = fe->tuner_priv;
-
-	if (dev->chip_ver == 0x01)
-		return it913x_script_loader(dev, it9135ax_tuner_off);
-	else
-		return it913x_script_loader(dev, it9137_tuner_off);
-}
-
 static const struct dvb_tuner_ops it913x_tuner_ops = {
 	.info = {
 		.name           = "ITE Tech IT913X",
@@ -323,6 +366,7 @@ static int it913x_probe(struct i2c_client *client,
 	dev->client = client;
 	dev->fe = cfg->fe;
 	dev->chip_ver = cfg->chip_ver;
+	dev->role = cfg->role;
 	dev->firmware_ver = 1;
 	dev->regmap = regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(dev->regmap)) {
@@ -349,7 +393,7 @@ static int it913x_probe(struct i2c_client *client,
 
 	dev_info(&dev->client->dev, "ITE IT913X %s successfully attached\n",
 			chip_ver_str);
-	dev_dbg(&dev->client->dev, "chip_ver=%02x\n", dev->chip_ver);
+	dev_dbg(&dev->client->dev, "chip_ver=%u role=%u\n", dev->chip_ver, dev->role);
 	return 0;
 
 err_regmap_exit:

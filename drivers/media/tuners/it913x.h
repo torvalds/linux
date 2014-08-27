@@ -40,7 +40,15 @@ struct it913x_config {
 	 * 1 = IT9135 AX
 	 * 2 = IT9135 BX
 	 */
-	u8 chip_ver:2;
+	unsigned int chip_ver:2;
+
+	/*
+	 * tuner role
+	 */
+#define IT913X_ROLE_SINGLE         0
+#define IT913X_ROLE_DUAL_MASTER    1
+#define IT913X_ROLE_DUAL_SLAVE     2
+	unsigned int role:2;
 };
 
 #endif

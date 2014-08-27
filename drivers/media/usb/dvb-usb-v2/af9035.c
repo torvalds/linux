@@ -1324,6 +1324,13 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 			.chip_ver = 1,
 		};
 
+		if (state->dual_mode) {
+			if (adap->id == 0)
+				it913x_config.role = IT913X_ROLE_DUAL_MASTER;
+			else
+				it913x_config.role = IT913X_ROLE_DUAL_SLAVE;
+		}
+
 		ret = af9035_add_i2c_dev(d, "it913x",
 				state->af9033_config[adap->id].i2c_addr,
 				&it913x_config);
@@ -1341,6 +1348,13 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 			.fe = adap->fe[0],
 			.chip_ver = 2,
 		};
+
+		if (state->dual_mode) {
+			if (adap->id == 0)
+				it913x_config.role = IT913X_ROLE_DUAL_MASTER;
+			else
+				it913x_config.role = IT913X_ROLE_DUAL_SLAVE;
+		}
 
 		ret = af9035_add_i2c_dev(d, "it913x",
 				state->af9033_config[adap->id].i2c_addr,
