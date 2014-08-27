@@ -1599,7 +1599,7 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	struct bcm_mini_adapter *ad)
 {
-	struct bcm_flash2x_readwrite sFlash2xRead = {0};
+	struct bcm_flash2x_readwrite flash_2x_read = {0};
 	struct bcm_ioctl_buffer io_buff;
 	PUCHAR pReadBuff = NULL;
 	UINT NOB = 0;
@@ -1621,36 +1621,36 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 		return -EFAULT;
 
 	/* Reading FLASH 2.x READ structure */
-	if (copy_from_user(&sFlash2xRead, io_buff.InputBuffer,
+	if (copy_from_user(&flash_2x_read, io_buff.InputBuffer,
 		sizeof(struct bcm_flash2x_readwrite)))
 		return -EFAULT;
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"\nsFlash2xRead.Section :%x",
-			sFlash2xRead.Section);
+			"\nflash_2x_read.Section :%x",
+			flash_2x_read.Section);
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"\nsFlash2xRead.offset :%x",
-			sFlash2xRead.offset);
+			"\nflash_2x_read.offset :%x",
+			flash_2x_read.offset);
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"\nsFlash2xRead.numOfBytes :%x",
-			sFlash2xRead.numOfBytes);
+			"\nflash_2x_read.numOfBytes :%x",
+			flash_2x_read.numOfBytes);
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-			"\nsFlash2xRead.bVerify :%x\n",
-			sFlash2xRead.bVerify);
+			"\nflash_2x_read.bVerify :%x\n",
+			flash_2x_read.bVerify);
 
 	/* This was internal to driver for raw read.
 	 * now it has ben exposed to user space app.
 	 */
-	if (validateFlash2xReadWrite(ad, &sFlash2xRead) == false)
+	if (validateFlash2xReadWrite(ad, &flash_2x_read) == false)
 		return STATUS_FAILURE;
 
-	NOB = sFlash2xRead.numOfBytes;
+	NOB = flash_2x_read.numOfBytes;
 	if (NOB > ad->uiSectorSize)
 		BuffSize = ad->uiSectorSize;
 	else
 		BuffSize = NOB;
 
-	ReadOffset = sFlash2xRead.offset;
+	ReadOffset = flash_2x_read.offset;
 	OutPutBuff = io_buff.OutputBuffer;
 	pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
 
@@ -1681,7 +1681,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 
 		/* Reading the data from Flash 2.x */
 		status = BcmFlash2xBulkRead(ad, (PUINT)pReadBuff,
-			sFlash2xRead.Section, ReadOffset, ReadBytes);
+			flash_2x_read.Section, ReadOffset, ReadBytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad,
 				DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
