@@ -2701,7 +2701,7 @@ static int qlcnic_83xx_poll_flash_status_reg(struct qlcnic_adapter *adapter)
 		    QLC_83XX_FLASH_STATUS_READY)
 			break;
 
-		msleep(QLC_83XX_FLASH_STATUS_REG_POLL_DELAY);
+		usleep_range(1000, 1100);
 	} while (--retries);
 
 	if (!retries)
