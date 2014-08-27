@@ -18,6 +18,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/iommu.h>
 #include <linux/limits.h>
 #include <linux/of.h>
 #include <linux/of_iommu.h>
@@ -92,6 +93,38 @@ int of_get_dma_window(struct device_node *dn, const char *prefix, int index,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_dma_window);
+
+struct iommu_ops *of_iommu_configure(struct device *dev)
+{
+	struct of_phandle_args iommu_spec;
+	struct device_node *np;
+	struct iommu_ops *ops = NULL;
+	int idx = 0;
+
+	/*
+	 * We don't currently walk up the tree looking for a parent IOMMU.
+	 * See the `Notes:' section of
+	 * Documentation/devicetree/bindings/iommu/iommu.txt
+	 */
+	while (!of_parse_phandle_with_args(dev->of_node, "iommus",
+					   "#iommu-cells", idx,
+					   &iommu_spec)) {
+		np = iommu_spec.np;
+		ops = of_iommu_get_ops(np);
+
+		if (!ops || !ops->of_xlate || ops->of_xlate(dev, &iommu_spec))
+			goto err_put_node;
+
+		of_node_put(np);
+		idx++;
+	}
+
+	return ops;
+
+err_put_node:
+	of_node_put(np);
+	return NULL;
+}
 
 void __init of_iommu_init(void)
 {
