@@ -107,6 +107,33 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
+static int bond_slave_changelink(struct net_device *bond_dev,
+				 struct net_device *slave_dev,
+				 struct nlattr *tb[], struct nlattr *data[])
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct bond_opt_value newval;
+	int err;
+
+	if (!data)
+		return 0;
+
+	if (data[IFLA_BOND_SLAVE_QUEUE_ID]) {
+		u16 queue_id = nla_get_u16(data[IFLA_BOND_SLAVE_QUEUE_ID]);
+		char queue_id_str[IFNAMSIZ + 7];
+
+		/* queue_id option setting expects slave_name:queue_id */
+		snprintf(queue_id_str, sizeof(queue_id_str), "%s:%u\n",
+			 slave_dev->name, queue_id);
+		bond_opt_initstr(&newval, queue_id_str);
+		err = __bond_opt_set(bond, BOND_OPT_QUEUE_ID, &newval);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int bond_changelink(struct net_device *bond_dev,
 			   struct nlattr *tb[], struct nlattr *data[])
 {
@@ -553,10 +580,12 @@ struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.priv_size		= sizeof(struct bonding),
 	.setup			= bond_setup,
 	.maxtype		= IFLA_BOND_MAX,
+	.slave_maxtype		= IFLA_BOND_SLAVE_MAX,
 	.policy			= bond_policy,
 	.validate		= bond_validate,
 	.newlink		= bond_newlink,
 	.changelink		= bond_changelink,
+	.slave_changelink	= bond_slave_changelink,
 	.get_size		= bond_get_size,
 	.fill_info		= bond_fill_info,
 	.get_num_tx_queues	= bond_get_num_tx_queues,
