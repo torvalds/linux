@@ -4035,7 +4035,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		 */
 		if (!ecc->size && (mtd->oobsize >= 64)) {
 			ecc->size = 512;
-			ecc->bytes = 7;
+			ecc->bytes = DIV_ROUND_UP(13 * ecc->strength, 8);
 		}
 		ecc->priv = nand_bch_init(mtd, ecc->size, ecc->bytes,
 					       &ecc->layout);
