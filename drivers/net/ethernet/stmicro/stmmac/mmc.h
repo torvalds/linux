@@ -68,7 +68,7 @@ struct stmmac_counters {
 	unsigned int mmc_rx_octetcount_g;
 	unsigned int mmc_rx_broadcastframe_g;
 	unsigned int mmc_rx_multicastframe_g;
-	unsigned int mmc_rx_crc_errror;
+	unsigned int mmc_rx_crc_error;
 	unsigned int mmc_rx_align_error;
 	unsigned int mmc_rx_run_error;
 	unsigned int mmc_rx_jabber_error;
