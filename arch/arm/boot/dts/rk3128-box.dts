@@ -102,7 +102,7 @@
 		528000
 		>;
 	auto-freq=<0>;
-	status="disable";
+	status="okay";
 };
 
 &pwm_regulator1 {
