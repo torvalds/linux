@@ -1674,16 +1674,35 @@ static int mmci_probe(struct amba_device *dev,
 	writel(0, host->base + MMCIMASK1);
 	writel(0xfff, host->base + MMCICLEAR);
 
-	/* If DT, cd/wp gpios must be supplied through it. */
-	if (!np && gpio_is_valid(plat->gpio_cd)) {
-		ret = mmc_gpio_request_cd(mmc, plat->gpio_cd, 0);
-		if (ret)
-			goto clk_disable;
-	}
-	if (!np && gpio_is_valid(plat->gpio_wp)) {
-		ret = mmc_gpio_request_ro(mmc, plat->gpio_wp);
-		if (ret)
-			goto clk_disable;
+	/*
+	 * If:
+	 * - not using DT but using a descriptor table, or
+	 * - using a table of descriptors ALONGSIDE DT, or
+	 * look up these descriptors named "cd" and "wp" right here, fail
+	 * silently of these do not exist and proceed to try platform data
+	 */
+	if (!np) {
+		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
+		if (ret < 0) {
+			if (ret == -EPROBE_DEFER)
+				goto clk_disable;
+			else if (gpio_is_valid(plat->gpio_cd)) {
+				ret = mmc_gpio_request_cd(mmc, plat->gpio_cd, 0);
+				if (ret)
+					goto clk_disable;
+			}
+		}
+
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0);
+		if (ret < 0) {
+			if (ret == -EPROBE_DEFER)
+				goto clk_disable;
+			else if (gpio_is_valid(plat->gpio_wp)) {
+				ret = mmc_gpio_request_ro(mmc, plat->gpio_wp);
+				if (ret)
+					goto clk_disable;
+			}
+		}
 	}
 
 	ret = devm_request_irq(&dev->dev, dev->irq[0], mmci_irq, IRQF_SHARED,
