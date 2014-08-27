@@ -686,7 +686,7 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 	struct bcm_gpio_multi_info *pgpio_multi_info =
 		(struct bcm_gpio_multi_info *)gpio_multi_info;
 	struct bcm_ioctl_buffer io_buff;
-	UCHAR ucResetValue[4];
+	UCHAR reset_val[4];
 	INT status = STATUS_FAILURE;
 	int bytes;
 
@@ -724,14 +724,14 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 	if ((pgpio_multi_info[WIMAX_IDX].uiGPIOMask) &
 		(pgpio_multi_info[WIMAX_IDX].uiGPIOCommand)) {
 		/* Set 1's in GPIO OUTPUT REGISTER */
-		*(UINT *)ucResetValue = pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
+		*(UINT *)reset_val = pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
 			pgpio_multi_info[WIMAX_IDX].uiGPIOCommand &
 			pgpio_multi_info[WIMAX_IDX].uiGPIOValue;
 
-		if (*(UINT *) ucResetValue)
+		if (*(UINT *) reset_val)
 			status = wrmaltWithLock(ad,
 				BCM_GPIO_OUTPUT_SET_REG,
-				(PUINT)ucResetValue, sizeof(ULONG));
+				(PUINT)reset_val, sizeof(ULONG));
 
 		if (status != STATUS_SUCCESS) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -740,14 +740,14 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 		}
 
 		/* Clear to 0's in GPIO OUTPUT REGISTER */
-		*(UINT *)ucResetValue =
+		*(UINT *)reset_val =
 			(pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
 			pgpio_multi_info[WIMAX_IDX].uiGPIOCommand &
 			(~(pgpio_multi_info[WIMAX_IDX].uiGPIOValue)));
 
-		if (*(UINT *) ucResetValue)
+		if (*(UINT *) reset_val)
 			status = wrmaltWithLock(ad,
-				BCM_GPIO_OUTPUT_CLR_REG, (PUINT)ucResetValue,
+				BCM_GPIO_OUTPUT_CLR_REG, (PUINT)reset_val,
 				sizeof(ULONG));
 
 		if (status != STATUS_SUCCESS) {
@@ -759,7 +759,7 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 
 	if (pgpio_multi_info[WIMAX_IDX].uiGPIOMask) {
 		bytes = rdmaltWithLock(ad, (UINT)GPIO_PIN_STATE_REGISTER,
-				       (PUINT)ucResetValue, sizeof(UINT));
+				       (PUINT)reset_val, sizeof(UINT));
 
 		if (bytes < 0) {
 			status = bytes;
@@ -771,7 +771,7 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 		}
 
 		pgpio_multi_info[WIMAX_IDX].uiGPIOValue =
-			(*(UINT *)ucResetValue &
+			(*(UINT *)reset_val &
 			pgpio_multi_info[WIMAX_IDX].uiGPIOMask);
 	}
 
@@ -793,7 +793,7 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 	struct bcm_gpio_multi_mode *pgpio_multi_mode =
 		(struct bcm_gpio_multi_mode *)gpio_multi_mode;
 	struct bcm_ioctl_buffer io_buff;
-	UCHAR ucResetValue[4];
+	UCHAR reset_val[4];
 	INT status;
 	int bytes;
 
@@ -815,7 +815,7 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 		return -EFAULT;
 
 	bytes = rdmaltWithLock(ad, (UINT)GPIO_MODE_REGISTER,
-		(PUINT)ucResetValue, sizeof(UINT));
+		(PUINT)reset_val, sizeof(UINT));
 
 	if (bytes < 0) {
 		status = bytes;
@@ -838,22 +838,22 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 
 	if (pgpio_multi_mode[WIMAX_IDX].uiGPIOMask) {
 		/* write all OUT's (1's) */
-		*(UINT *) ucResetValue |=
+		*(UINT *) reset_val |=
 			(pgpio_multi_mode[WIMAX_IDX].uiGPIOMode &
 					pgpio_multi_mode[WIMAX_IDX].uiGPIOMask);
 
 		/* write all IN's (0's) */
-		*(UINT *) ucResetValue &=
+		*(UINT *) reset_val &=
 			~((~pgpio_multi_mode[WIMAX_IDX].uiGPIOMode) &
 					pgpio_multi_mode[WIMAX_IDX].uiGPIOMask);
 
 		/* Currently implemented return the modes of all GPIO's
 		 * else needs to bit AND with  mask
 		 */
-		pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *(UINT *)ucResetValue;
+		pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *(UINT *)reset_val;
 
 		status = wrmaltWithLock(ad, GPIO_MODE_REGISTER,
-			(PUINT)ucResetValue, sizeof(ULONG));
+			(PUINT)reset_val, sizeof(ULONG));
 		if (status == STATUS_SUCCESS) {
 			BCM_DEBUG_PRINT(ad,
 				DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -865,7 +865,7 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 		}
 	} else {
 		/* if uiGPIOMask is 0 then return mode register configuration */
-		pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *(UINT *)ucResetValue;
+		pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *(UINT *)reset_val;
 	}
 
 	status = copy_to_user(io_buff.OutputBuffer, &gpio_multi_mode,
