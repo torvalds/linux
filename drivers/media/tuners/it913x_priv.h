@@ -24,6 +24,7 @@
 #define IT913X_PRIV_H
 
 #include "it913x.h"
+#include <linux/regmap.h>
 
 #define TRIGGER_OFSM		0x0000
 
