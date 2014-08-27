@@ -32,6 +32,16 @@ struct usb_endpoint_descriptor_no_audio {
 	__u8  bInterval;
 } __attribute__((packed));
 
+struct usb_functionfs_descs_head_v2 {
+	__le32 magic;
+	__le32 length;
+	__le32 flags;
+	/*
+	 * __le32 fs_count, hs_count, fs_count; must be included manually in
+	 * the structure taking flags into consideration.
+	 */
+} __attribute__((packed));
+
 /* Legacy format, deprecated as of 3.14. */
 struct usb_functionfs_descs_head {
 	__le32 magic;
