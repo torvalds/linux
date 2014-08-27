@@ -283,6 +283,9 @@ static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
 	case AARCH64_INSN_REGTYPE_RT:
 		shift = 0;
 		break;
+	case AARCH64_INSN_REGTYPE_RN:
+		shift = 5;
+		break;
 	default:
 		pr_err("%s: unknown register type encoding %d\n", __func__,
 		       type);
@@ -325,10 +328,16 @@ u32 __kprobes aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,
 	 */
 	offset = branch_imm_common(pc, addr, SZ_128M);
 
-	if (type == AARCH64_INSN_BRANCH_LINK)
+	switch (type) {
+	case AARCH64_INSN_BRANCH_LINK:
 		insn = aarch64_insn_get_bl_value();
-	else
+		break;
+	case AARCH64_INSN_BRANCH_NOLINK:
 		insn = aarch64_insn_get_b_value();
+		break;
+	default:
+		BUG_ON(1);
+	}
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_26, insn,
 					     offset >> 2);
@@ -379,4 +388,26 @@ u32 __kprobes aarch64_insn_gen_hint(enum aarch64_insn_hint_op op)
 u32 __kprobes aarch64_insn_gen_nop(void)
 {
 	return aarch64_insn_gen_hint(AARCH64_INSN_HINT_NOP);
+}
+
+u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
+				enum aarch64_insn_branch_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_BRANCH_NOLINK:
+		insn = aarch64_insn_get_br_value();
+		break;
+	case AARCH64_INSN_BRANCH_LINK:
+		insn = aarch64_insn_get_blr_value();
+		break;
+	case AARCH64_INSN_BRANCH_RETURN:
+		insn = aarch64_insn_get_ret_value();
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, reg);
 }
