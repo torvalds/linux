@@ -784,3 +784,51 @@ u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
 
 	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
 }
+
+u32 aarch64_insn_gen_data2(enum aarch64_insn_register dst,
+			   enum aarch64_insn_register src,
+			   enum aarch64_insn_register reg,
+			   enum aarch64_insn_variant variant,
+			   enum aarch64_insn_data2_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_DATA2_UDIV:
+		insn = aarch64_insn_get_udiv_value();
+		break;
+	case AARCH64_INSN_DATA2_SDIV:
+		insn = aarch64_insn_get_sdiv_value();
+		break;
+	case AARCH64_INSN_DATA2_LSLV:
+		insn = aarch64_insn_get_lslv_value();
+		break;
+	case AARCH64_INSN_DATA2_LSRV:
+		insn = aarch64_insn_get_lsrv_value();
+		break;
+	case AARCH64_INSN_DATA2_ASRV:
+		insn = aarch64_insn_get_asrv_value();
+		break;
+	case AARCH64_INSN_DATA2_RORV:
+		insn = aarch64_insn_get_rorv_value();
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn, reg);
+}

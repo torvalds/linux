@@ -191,6 +191,15 @@ enum aarch64_insn_data1_type {
 	AARCH64_INSN_DATA1_REVERSE_64,
 };
 
+enum aarch64_insn_data2_type {
+	AARCH64_INSN_DATA2_UDIV,
+	AARCH64_INSN_DATA2_SDIV,
+	AARCH64_INSN_DATA2_LSLV,
+	AARCH64_INSN_DATA2_LSRV,
+	AARCH64_INSN_DATA2_ASRV,
+	AARCH64_INSN_DATA2_RORV,
+};
+
 #define	__AARCH64_INSN_FUNCS(abbr, mask, val)	\
 static __always_inline bool aarch64_insn_is_##abbr(u32 code) \
 { return (code & (mask)) == (val); } \
@@ -217,6 +226,12 @@ __AARCH64_INSN_FUNCS(add,	0x7F200000, 0x0B000000)
 __AARCH64_INSN_FUNCS(adds,	0x7F200000, 0x2B000000)
 __AARCH64_INSN_FUNCS(sub,	0x7F200000, 0x4B000000)
 __AARCH64_INSN_FUNCS(subs,	0x7F200000, 0x6B000000)
+__AARCH64_INSN_FUNCS(udiv,	0x7FE0FC00, 0x1AC00800)
+__AARCH64_INSN_FUNCS(sdiv,	0x7FE0FC00, 0x1AC00C00)
+__AARCH64_INSN_FUNCS(lslv,	0x7FE0FC00, 0x1AC02000)
+__AARCH64_INSN_FUNCS(lsrv,	0x7FE0FC00, 0x1AC02400)
+__AARCH64_INSN_FUNCS(asrv,	0x7FE0FC00, 0x1AC02800)
+__AARCH64_INSN_FUNCS(rorv,	0x7FE0FC00, 0x1AC02C00)
 __AARCH64_INSN_FUNCS(rev16,	0x7FFFFC00, 0x5AC00400)
 __AARCH64_INSN_FUNCS(rev32,	0x7FFFFC00, 0x5AC00800)
 __AARCH64_INSN_FUNCS(rev64,	0x7FFFFC00, 0x5AC00C00)
@@ -289,6 +304,11 @@ u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
 			   enum aarch64_insn_register src,
 			   enum aarch64_insn_variant variant,
 			   enum aarch64_insn_data1_type type);
+u32 aarch64_insn_gen_data2(enum aarch64_insn_register dst,
+			   enum aarch64_insn_register src,
+			   enum aarch64_insn_register reg,
+			   enum aarch64_insn_variant variant,
+			   enum aarch64_insn_data2_type type);
 
 bool aarch64_insn_hotpatch_safe(u32 old_insn, u32 new_insn);
 
