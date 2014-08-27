@@ -6,6 +6,7 @@ obj-y += rk3188.o
 obj-y += rk3288.o
 obj-y += ddr_freq.o
 obj-y += efuse.o
+obj-y += pvtm.o
 obj-y += rk_system_status.o
 obj-$(CONFIG_PM) += rockchip_pm.o sleep.o
 obj-$(CONFIG_RK_FPGA) += fpga.o

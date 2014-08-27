@@ -59,13 +59,16 @@ struct pm_attribute {
 			const char *buf, size_t n);
 };
 
+extern ssize_t pvtm_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
+extern ssize_t pvtm_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t n);
+
 static struct pm_attribute pm_attrs[] = {
 	/* node_name	permision	show_func	store_func*/
 	__ATTR(clk_rate, S_IRUGO | S_IWUSR | S_IWUGO, clk_rate_show, clk_rate_store),
 	__ATTR(clk_volt, S_IRUGO | S_IWUSR | S_IWUGO, clk_volt_show, clk_volt_store),
 	__ATTR(dvfs_table_scan, S_IRUGO | S_IWUSR | S_IWUGO, dvfs_table_scan_show, dvfs_table_scan_store),
 	__ATTR(cpu_usage, S_IRUGO | S_IWUSR, cpu_usage_show, cpu_usage_store),
-
+	__ATTR(pvtm, S_IRUGO | S_IWUSR, pvtm_show, pvtm_store),
 /*
 	__ATTR(maxfreq_volt, S_IRUGO | S_IWUSR, maxfreq_show, maxfreq_store),
 	__ATTR(freq_limit, S_IRUGO | S_IWUSR, freq_limit_show, freq_limit_store),
