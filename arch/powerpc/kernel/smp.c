@@ -380,8 +380,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		/*
 		 * numa_node_id() works after this.
 		 */
-		set_cpu_numa_node(cpu, numa_cpu_lookup_table[cpu]);
-		set_cpu_numa_mem(cpu, local_memory_node(numa_cpu_lookup_table[cpu]));
+		if (cpu_present(cpu)) {
+			set_cpu_numa_node(cpu, numa_cpu_lookup_table[cpu]);
+			set_cpu_numa_mem(cpu,
+				local_memory_node(numa_cpu_lookup_table[cpu]));
+		}
 	}
 
 	cpumask_set_cpu(boot_cpuid, cpu_sibling_mask(boot_cpuid));
@@ -728,6 +731,9 @@ void start_secondary(void *unused)
 		cpumask_set_cpu(base + i, cpu_core_mask(cpu));
 	}
 	traverse_core_siblings(cpu, true);
+
+	set_numa_node(numa_cpu_lookup_table[cpu]);
+	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
 
 	smp_wmb();
 	notify_cpu_starting(cpu);
