@@ -1386,6 +1386,29 @@ void pci_configure_slot(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_configure_slot);
 
+static void pci_configure_device(struct pci_dev *dev)
+{
+	struct hotplug_params hpp;
+	int ret;
+
+	if (system_state == SYSTEM_BOOTING)
+		return;
+
+	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
+			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
+			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
+		return;
+
+	memset(&hpp, 0, sizeof(hpp));
+	ret = pci_get_hp_params(dev, &hpp);
+	if (ret)
+		return;
+
+	program_hpp_type2(dev, hpp.t2);
+	program_hpp_type1(dev, hpp.t1);
+	program_hpp_type0(dev, hpp.t0);
+}
+
 static void pci_release_capabilities(struct pci_dev *dev)
 {
 	pci_vpd_release(dev);
@@ -1522,6 +1545,8 @@ static void pci_init_capabilities(struct pci_dev *dev)
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 {
 	int ret;
+
+	pci_configure_device(dev);
 
 	device_initialize(&dev->dev);
 	dev->dev.release = pci_release_dev;
