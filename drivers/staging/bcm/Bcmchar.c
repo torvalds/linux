@@ -1156,12 +1156,12 @@ static int bcm_char_ioctl_qos_threshold(ULONG arg,
 static int bcm_char_ioctl_switch_transfer_mode(void __user *argp,
 					       struct bcm_mini_adapter *ad)
 {
-	UINT uiData = 0;
+	UINT data = 0;
 
-	if (copy_from_user(&uiData, argp, sizeof(UINT)))
+	if (copy_from_user(&data, argp, sizeof(UINT)))
 		return -EFAULT;
 
-	if (uiData) {
+	if (data) {
 		/* Allow All Packets */
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"IOCTL_BCM_SWITCH_TRANSFER_MODE: ETH_PACKET_TUNNELING_MODE\n");
