@@ -2074,9 +2074,9 @@ static void wake_nocb_leader(struct rcu_data *rdp, bool force)
 
 	if (!ACCESS_ONCE(rdp_leader->nocb_kthread))
 		return;
-	if (!ACCESS_ONCE(rdp_leader->nocb_leader_wake) || force) {
+	if (ACCESS_ONCE(rdp_leader->nocb_leader_sleep) || force) {
 		/* Prior xchg orders against prior callback enqueue. */
-		ACCESS_ONCE(rdp_leader->nocb_leader_wake) = true;
+		ACCESS_ONCE(rdp_leader->nocb_leader_sleep) = false;
 		wake_up(&rdp_leader->nocb_wq);
 	}
 }
@@ -2253,7 +2253,7 @@ wait_again:
 	if (!rcu_nocb_poll) {
 		trace_rcu_nocb_wake(my_rdp->rsp->name, my_rdp->cpu, "Sleep");
 		wait_event_interruptible(my_rdp->nocb_wq,
-					 ACCESS_ONCE(my_rdp->nocb_leader_wake));
+				!ACCESS_ONCE(my_rdp->nocb_leader_sleep));
 		/* Memory barrier handled by smp_mb() calls below and repoll. */
 	} else if (firsttime) {
 		firsttime = false; /* Don't drown trace log with "Poll"! */
@@ -2292,12 +2292,12 @@ wait_again:
 		schedule_timeout_interruptible(1);
 
 		/* Rescan in case we were a victim of memory ordering. */
-		my_rdp->nocb_leader_wake = false;
-		smp_mb();  /* Ensure _wake false before scan. */
+		my_rdp->nocb_leader_sleep = true;
+		smp_mb();  /* Ensure _sleep true before scan. */
 		for (rdp = my_rdp; rdp; rdp = rdp->nocb_next_follower)
 			if (ACCESS_ONCE(rdp->nocb_head)) {
 				/* Found CB, so short-circuit next wait. */
-				my_rdp->nocb_leader_wake = true;
+				my_rdp->nocb_leader_sleep = false;
 				break;
 			}
 		goto wait_again;
@@ -2307,17 +2307,17 @@ wait_again:
 	rcu_nocb_wait_gp(my_rdp);
 
 	/*
-	 * We left ->nocb_leader_wake set to reduce cache thrashing.
-	 * We clear it now, but recheck for new callbacks while
+	 * We left ->nocb_leader_sleep unset to reduce cache thrashing.
+	 * We set it now, but recheck for new callbacks while
 	 * traversing our follower list.
 	 */
-	my_rdp->nocb_leader_wake = false;
-	smp_mb(); /* Ensure _wake false before scan of ->nocb_head. */
+	my_rdp->nocb_leader_sleep = true;
+	smp_mb(); /* Ensure _sleep true before scan of ->nocb_head. */
 
 	/* Each pass through the following loop wakes a follower, if needed. */
 	for (rdp = my_rdp; rdp; rdp = rdp->nocb_next_follower) {
 		if (ACCESS_ONCE(rdp->nocb_head))
-			my_rdp->nocb_leader_wake = true; /* No need to wait. */
+			my_rdp->nocb_leader_sleep = false;/* No need to sleep.*/
 		if (!rdp->nocb_gp_head)
 			continue; /* No CBs, so no need to wake follower. */
 
