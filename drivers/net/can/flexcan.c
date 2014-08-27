@@ -298,7 +298,7 @@ static int flexcan_chip_enable(struct flexcan_priv *priv)
 	flexcan_write(reg, &regs->mcr);
 
 	while (timeout-- && (flexcan_read(&regs->mcr) & FLEXCAN_MCR_LPM_ACK))
-		usleep_range(10, 20);
+		udelay(10);
 
 	if (flexcan_read(&regs->mcr) & FLEXCAN_MCR_LPM_ACK)
 		return -ETIMEDOUT;
@@ -317,7 +317,7 @@ static int flexcan_chip_disable(struct flexcan_priv *priv)
 	flexcan_write(reg, &regs->mcr);
 
 	while (timeout-- && !(flexcan_read(&regs->mcr) & FLEXCAN_MCR_LPM_ACK))
-		usleep_range(10, 20);
+		udelay(10);
 
 	if (!(flexcan_read(&regs->mcr) & FLEXCAN_MCR_LPM_ACK))
 		return -ETIMEDOUT;
@@ -336,7 +336,7 @@ static int flexcan_chip_freeze(struct flexcan_priv *priv)
 	flexcan_write(reg, &regs->mcr);
 
 	while (timeout-- && !(flexcan_read(&regs->mcr) & FLEXCAN_MCR_FRZ_ACK))
-		usleep_range(100, 200);
+		udelay(100);
 
 	if (!(flexcan_read(&regs->mcr) & FLEXCAN_MCR_FRZ_ACK))
 		return -ETIMEDOUT;
@@ -355,7 +355,7 @@ static int flexcan_chip_unfreeze(struct flexcan_priv *priv)
 	flexcan_write(reg, &regs->mcr);
 
 	while (timeout-- && (flexcan_read(&regs->mcr) & FLEXCAN_MCR_FRZ_ACK))
-		usleep_range(10, 20);
+		udelay(10);
 
 	if (flexcan_read(&regs->mcr) & FLEXCAN_MCR_FRZ_ACK)
 		return -ETIMEDOUT;
@@ -370,7 +370,7 @@ static int flexcan_chip_softreset(struct flexcan_priv *priv)
 
 	flexcan_write(FLEXCAN_MCR_SOFTRST, &regs->mcr);
 	while (timeout-- && (flexcan_read(&regs->mcr) & FLEXCAN_MCR_SOFTRST))
-		usleep_range(10, 20);
+		udelay(10);
 
 	if (flexcan_read(&regs->mcr) & FLEXCAN_MCR_SOFTRST)
 		return -ETIMEDOUT;
