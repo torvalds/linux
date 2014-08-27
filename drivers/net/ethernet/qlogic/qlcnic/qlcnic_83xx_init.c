@@ -2284,6 +2284,7 @@ static int qlcnic_83xx_get_fw_info(struct qlcnic_adapter *adapter)
 		fw_info = ahw->fw_info;
 		switch (pdev->device) {
 		case PCI_DEVICE_ID_QLOGIC_QLE834X:
+		case PCI_DEVICE_ID_QLOGIC_QLE8830:
 			strncpy(fw_info->fw_file_name, QLC_83XX_FW_FILE_NAME,
 				QLC_FW_FILE_NAME_LEN);
 			break;
