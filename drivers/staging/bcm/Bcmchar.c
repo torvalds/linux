@@ -1604,7 +1604,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 	PUCHAR read_buff = NULL;
 	UINT NOB = 0;
 	UINT buff_size = 0;
-	UINT ReadBytes = 0;
+	UINT read_bytes = 0;
 	UINT ReadOffset = 0;
 	INT status = STATUS_FAILURE;
 	void __user *OutPutBuff;
@@ -1675,13 +1675,13 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 
 	while (NOB) {
 		if (NOB > ad->uiSectorSize)
-			ReadBytes = ad->uiSectorSize;
+			read_bytes = ad->uiSectorSize;
 		else
-			ReadBytes = NOB;
+			read_bytes = NOB;
 
 		/* Reading the data from Flash 2.x */
 		status = BcmFlash2xBulkRead(ad, (PUINT)read_buff,
-			flash_2x_read.Section, ReadOffset, ReadBytes);
+			flash_2x_read.Section, ReadOffset, read_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad,
 				DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -1691,9 +1691,9 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 		}
 
 		BCM_DEBUG_PRINT_BUFFER(ad, DBG_TYPE_OTHERS, OSAL_DBG,
-			DBG_LVL_ALL, read_buff, ReadBytes);
+			DBG_LVL_ALL, read_buff, read_bytes);
 
-		status = copy_to_user(OutPutBuff, read_buff, ReadBytes);
+		status = copy_to_user(OutPutBuff, read_buff, read_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad,
 				DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -1702,10 +1702,10 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 			kfree(read_buff);
 			return -EFAULT;
 		}
-		NOB = NOB - ReadBytes;
+		NOB = NOB - read_bytes;
 		if (NOB) {
-			ReadOffset = ReadOffset + ReadBytes;
-			OutPutBuff = OutPutBuff + ReadBytes;
+			ReadOffset = ReadOffset + read_bytes;
+			OutPutBuff = OutPutBuff + read_bytes;
 		}
 	}
 
@@ -2164,7 +2164,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 	unsigned int NOB;
 	INT buff_size;
 	INT ReadOffset = 0;
-	UINT ReadBytes = 0;
+	UINT read_bytes = 0;
 	PUCHAR read_buff;
 	void __user *OutPutBuff;
 	INT status = STATUS_FAILURE;
@@ -2220,13 +2220,13 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 
 	while (NOB) {
 		if (NOB > DEFAULT_BUFF_SIZE)
-			ReadBytes = DEFAULT_BUFF_SIZE;
+			read_bytes = DEFAULT_BUFF_SIZE;
 		else
-			ReadBytes = NOB;
+			read_bytes = NOB;
 
 		/* Reading the data from Flash 2.x */
 		status = BeceemNVMRead(ad, (PUINT)read_buff,
-			ReadOffset, ReadBytes);
+			ReadOffset, read_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 					"Flash 2x read err with status :%d",
@@ -2235,9 +2235,9 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 		}
 
 		BCM_DEBUG_PRINT_BUFFER(ad, DBG_TYPE_OTHERS, OSAL_DBG,
-				       DBG_LVL_ALL, read_buff, ReadBytes);
+				       DBG_LVL_ALL, read_buff, read_bytes);
 
-		status = copy_to_user(OutPutBuff, read_buff, ReadBytes);
+		status = copy_to_user(OutPutBuff, read_buff, read_bytes);
 		if (status) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 					"Copy to use failed with status :%d",
@@ -2246,10 +2246,10 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 			kfree(read_buff);
 			return -EFAULT;
 		}
-		NOB = NOB - ReadBytes;
+		NOB = NOB - read_bytes;
 		if (NOB) {
-			ReadOffset = ReadOffset + ReadBytes;
-			OutPutBuff = OutPutBuff + ReadBytes;
+			ReadOffset = ReadOffset + read_bytes;
+			OutPutBuff = OutPutBuff + read_bytes;
 		}
 	}
 	ad->bFlashRawRead = false;
