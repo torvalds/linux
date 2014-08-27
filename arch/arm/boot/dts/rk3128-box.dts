@@ -135,13 +135,17 @@
 	display-timings = <&disp_timings>;
 };
 
+&fb {
+	rockchip,disp-mode = <NO_DUAL>;
+};
+
 &lcdc {
 	status = "okay";
 	rockchip,fb-win-map = <FB0_WIN1_FB1_WIN0_FB2_WIN2>;
 };
 
 &tve {
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c2 {

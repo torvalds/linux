@@ -2037,9 +2037,9 @@ static int rk312x_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
         struct device_node *np = lcdc_dev->dev->of_node;
         const struct of_device_id *match;
         const struct rk_lcdc_drvdata *lcdc_drvdata;
+	int val;
 
 #if defined(CONFIG_ROCKCHIP_IOMMU)
-	int val;
 	if (of_property_read_u32(np, "rockchip,iommu-enabled", &val))
 		lcdc_dev->driver.iommu_enabled = 0;
 	else

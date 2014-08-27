@@ -2725,7 +2725,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	struct rk_lcdc_win *extend_win = NULL;
 	struct rk_lcdc_win *win = NULL;
 	struct rk_screen *screen = dev_drv->cur_screen;
-	struct rk_screen screen_primary;
 	int win_id = 0;
 	u32 cblen = 0, crlen = 0;
 	u16 xsize = 0, ysize = 0;	/* winx display window height/width --->LCDC_WINx_DSP_INFO */
@@ -2764,6 +2763,10 @@ static int rk_fb_set_par(struct fb_info *info)
 	if (var->grayscale >> 8) {
 		xsize = (var->grayscale >> 8) & 0xfff;
 		ysize = (var->grayscale >> 20) & 0xfff;
+		if (xsize > screen->mode.xres)
+			xsize = screen->mode.xres;
+		if (ysize > screen->mode.yres)
+			ysize = screen->mode.yres;
 	} else {		/*ohterwise  full  screen display */
 		xsize = screen->mode.xres;
 		ysize = screen->mode.yres;
@@ -2861,14 +2864,13 @@ static int rk_fb_set_par(struct fb_info *info)
 		}
 	}
 
-	rk_fb_get_prmry_screen(&screen_primary);
 	win->format = fb_data_fmt;
 	win->area[0].y_vir_stride = stride >> 2;
 	win->area[0].uv_vir_stride = uv_stride >> 2;
-	win->area[0].xpos = xpos*screen->mode.xres/screen_primary.mode.xres;
-	win->area[0].ypos = ypos*screen->mode.yres/screen_primary.mode.yres;
-	win->area[0].xsize = screen->mode.xres*xsize/screen_primary.mode.xres;
-	win->area[0].ysize = screen->mode.yres*ysize/screen_primary.mode.yres;
+	win->area[0].xpos = xpos;
+	win->area[0].ypos = ypos;
+	win->area[0].xsize = xsize;
+	win->area[0].ysize = ysize;
 	win->area[0].xact = var->xres;	/* winx active window height,is a wint of vir */
 	win->area[0].yact = var->yres;
 	win->area[0].xvir = var->xres_virtual;	/* virtual resolution  stride --->LCDC_WINx_VIR */

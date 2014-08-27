@@ -23,8 +23,10 @@
 
 static const struct fb_videomode rk3036_cvbs_mode[] = {
 	/*name		refresh	xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw			polariry				PorI		flag*/
-	{"NTSC",	60,	720,	480,	27000000,	57,	19,	19,	0,	62,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	FB_VMODE_INTERLACED,	0},
-	{"PAL",		50,	720,	576,	27000000,	69,	12,	19,	2,	63,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	FB_VMODE_INTERLACED,	0},
+/*	{"NTSC",        60,     720,    480,    27000000,       57,     19,     19,     0,      62,     3,      FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,   FB_VMODE_INTERLACED,    0},
+	{"PAL",         50,     720,    576,    27000000,       69,     12,     19,     2,      63,     3,      FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,   FB_VMODE_INTERLACED,    0},
+*/	{"NTSC",	60,	720,	480,	27000000,	43,	33,	19,	0,	62,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	FB_VMODE_INTERLACED,	0},
+	{"PAL",		50,	720,	576,	27000000,	52,	29,	19,	2,	63,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	FB_VMODE_INTERLACED,	0},
 };
 
 static struct rk3036_tve *rk3036_tve;
@@ -140,7 +142,7 @@ static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
 	/* screen type & face */
 	screen->type = SCREEN_TVOUT;
 	screen->face = OUT_P888;
-
+	screen->color_mode = COLOR_YCBCR;
 	screen->mode = *modedb;
 
 	/* Pin polarity */
@@ -403,7 +405,7 @@ static void __exit rk3036_tve_exit(void)
 	platform_driver_unregister(&rk3036_tve_driver);
 }
 
-module_init(rk3036_tve_init);
+late_initcall(rk3036_tve_init);
 module_exit(rk3036_tve_exit);
 
 /* Module information */
