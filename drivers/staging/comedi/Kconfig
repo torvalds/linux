@@ -42,17 +42,14 @@ menuconfig COMEDI_MISC_DRIVERS
 
 if COMEDI_MISC_DRIVERS
 
-config COMEDI_KCOMEDILIB
-	tristate "Comedi kcomedilib"
-	---help---
-	  Build the kcomedilib
-
 config COMEDI_BOND
-	tristate "Device bonding support"
-	depends on COMEDI_KCOMEDILIB
+	tristate "Comedi device bonding support"
+	select COMEDI_KCOMEDILIB
 	---help---
 	  Enable support for a driver to 'bond' (merge) multiple subdevices
 	  from multiple devices together as one.
+
+	  Currently, it only handles digital I/O subdevices.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called comedi_bond.
@@ -1271,6 +1268,20 @@ config COMEDI_8255
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called 8255.
+
+config COMEDI_KCOMEDILIB
+	tristate "Comedi kcomedilib"
+	---help---
+	  Build the kcomedilib.
+
+	  This is a kernel module used to open and manipulate Comedi devices
+	  from within kernel code.  It is currently only used by the
+	  comedi_bond driver, and its functionality has been stripped down to
+	  the needs of that driver, so is currently not very useful for
+	  anything else.
+
+	  To compile kcomedilib as a module, choose M here: the module will be
+	  called kcomedilib.
 
 config COMEDI_FC
 	tristate
