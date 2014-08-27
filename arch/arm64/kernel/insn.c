@@ -655,3 +655,46 @@ u32 aarch64_insn_gen_bitfield(enum aarch64_insn_register dst,
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_S, insn, imms);
 }
+
+u32 aarch64_insn_gen_movewide(enum aarch64_insn_register dst,
+			      int imm, int shift,
+			      enum aarch64_insn_variant variant,
+			      enum aarch64_insn_movewide_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_MOVEWIDE_ZERO:
+		insn = aarch64_insn_get_movz_value();
+		break;
+	case AARCH64_INSN_MOVEWIDE_KEEP:
+		insn = aarch64_insn_get_movk_value();
+		break;
+	case AARCH64_INSN_MOVEWIDE_INVERSE:
+		insn = aarch64_insn_get_movn_value();
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	BUG_ON(imm & ~(SZ_64K - 1));
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		BUG_ON(shift != 0 && shift != 16);
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		BUG_ON(shift != 0 && shift != 16 && shift != 32 &&
+		       shift != 48);
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	insn |= (shift >> 4) << 21;
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_16, insn, imm);
+}

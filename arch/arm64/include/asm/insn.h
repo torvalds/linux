@@ -172,6 +172,12 @@ enum aarch64_insn_adsb_type {
 	AARCH64_INSN_ADSB_SUB_SETFLAGS
 };
 
+enum aarch64_insn_movewide_type {
+	AARCH64_INSN_MOVEWIDE_ZERO,
+	AARCH64_INSN_MOVEWIDE_KEEP,
+	AARCH64_INSN_MOVEWIDE_INVERSE
+};
+
 enum aarch64_insn_bitfield_type {
 	AARCH64_INSN_BITFIELD_MOVE,
 	AARCH64_INSN_BITFIELD_MOVE_UNSIGNED,
@@ -194,9 +200,12 @@ __AARCH64_INSN_FUNCS(add_imm,	0x7F000000, 0x11000000)
 __AARCH64_INSN_FUNCS(adds_imm,	0x7F000000, 0x31000000)
 __AARCH64_INSN_FUNCS(sub_imm,	0x7F000000, 0x51000000)
 __AARCH64_INSN_FUNCS(subs_imm,	0x7F000000, 0x71000000)
+__AARCH64_INSN_FUNCS(movn,	0x7F800000, 0x12800000)
 __AARCH64_INSN_FUNCS(sbfm,	0x7F800000, 0x13000000)
 __AARCH64_INSN_FUNCS(bfm,	0x7F800000, 0x33000000)
+__AARCH64_INSN_FUNCS(movz,	0x7F800000, 0x52800000)
 __AARCH64_INSN_FUNCS(ubfm,	0x7F800000, 0x53000000)
+__AARCH64_INSN_FUNCS(movk,	0x7F800000, 0x72800000)
 __AARCH64_INSN_FUNCS(b,		0xFC000000, 0x14000000)
 __AARCH64_INSN_FUNCS(bl,	0xFC000000, 0x94000000)
 __AARCH64_INSN_FUNCS(cbz,	0xFE000000, 0x34000000)
@@ -252,6 +261,10 @@ u32 aarch64_insn_gen_bitfield(enum aarch64_insn_register dst,
 			      int immr, int imms,
 			      enum aarch64_insn_variant variant,
 			      enum aarch64_insn_bitfield_type type);
+u32 aarch64_insn_gen_movewide(enum aarch64_insn_register dst,
+			      int imm, int shift,
+			      enum aarch64_insn_variant variant,
+			      enum aarch64_insn_movewide_type type);
 
 bool aarch64_insn_hotpatch_safe(u32 old_insn, u32 new_insn);
 
