@@ -538,6 +538,24 @@ mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	return mv_xor_prep_dma_xor(chan, dest, &src, 1, len, flags);
 }
 
+static struct dma_async_tx_descriptor *
+mv_xor_prep_dma_interrupt(struct dma_chan *chan, unsigned long flags)
+{
+	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
+	dma_addr_t src, dest;
+	size_t len;
+
+	src = mv_chan->dummy_src_addr;
+	dest = mv_chan->dummy_dst_addr;
+	len = MV_XOR_MIN_BYTE_COUNT;
+
+	/*
+	 * We implement the DMA_INTERRUPT operation as a minimum sized
+	 * XOR operation with a single dummy source address.
+	 */
+	return mv_xor_prep_dma_xor(chan, dest, &src, 1, len, flags);
+}
+
 static void mv_xor_free_chan_resources(struct dma_chan *chan)
 {
 	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
@@ -881,6 +899,10 @@ static int mv_xor_channel_remove(struct mv_xor_chan *mv_chan)
 
 	dma_free_coherent(dev, MV_XOR_POOL_SIZE,
 			  mv_chan->dma_desc_pool_virt, mv_chan->dma_desc_pool);
+	dma_unmap_single(dev, mv_chan->dummy_src_addr,
+			 MV_XOR_MIN_BYTE_COUNT, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, mv_chan->dummy_dst_addr,
+			 MV_XOR_MIN_BYTE_COUNT, DMA_TO_DEVICE);
 
 	list_for_each_entry_safe(chan, _chan, &mv_chan->dmadev.channels,
 				 device_node) {
@@ -910,6 +932,16 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 
 	dma_dev = &mv_chan->dmadev;
 
+	/*
+	 * These source and destination dummy buffers are used to implement
+	 * a DMA_INTERRUPT operation as a minimum-sized XOR operation.
+	 * Hence, we only need to map the buffers at initialization-time.
+	 */
+	mv_chan->dummy_src_addr = dma_map_single(dma_dev->dev,
+		mv_chan->dummy_src, MV_XOR_MIN_BYTE_COUNT, DMA_FROM_DEVICE);
+	mv_chan->dummy_dst_addr = dma_map_single(dma_dev->dev,
+		mv_chan->dummy_dst, MV_XOR_MIN_BYTE_COUNT, DMA_TO_DEVICE);
+
 	/* allocate coherent memory for hardware descriptors
 	 * note: writecombine gives slightly better performance, but
 	 * requires that we explicitly flush the writes
@@ -934,6 +966,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	dma_dev->dev = &pdev->dev;
 
 	/* set prep routines based on capability */
+	if (dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask))
+		dma_dev->device_prep_dma_interrupt = mv_xor_prep_dma_interrupt;
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask))
 		dma_dev->device_prep_dma_memcpy = mv_xor_prep_dma_memcpy;
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {

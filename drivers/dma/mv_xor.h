@@ -28,6 +28,9 @@
 #define MV_XOR_THRESHOLD		1
 #define MV_XOR_MAX_CHANNELS             2
 
+#define MV_XOR_MIN_BYTE_COUNT		SZ_128
+#define MV_XOR_MAX_BYTE_COUNT		(SZ_16M - 1)
+
 /* Values for the XOR_CONFIG register */
 #define XOR_OPERATION_MODE_XOR		0
 #define XOR_OPERATION_MODE_MEMCPY	2
@@ -116,6 +119,9 @@ struct mv_xor_chan {
 	struct list_head	all_slots;
 	int			slots_allocated;
 	struct tasklet_struct	irq_tasklet;
+	char			dummy_src[MV_XOR_MIN_BYTE_COUNT];
+	char			dummy_dst[MV_XOR_MIN_BYTE_COUNT];
+	dma_addr_t		dummy_src_addr, dummy_dst_addr;
 };
 
 /**
@@ -183,10 +189,5 @@ struct mv_xor_desc {
 
 #define mv_hw_desc_slot_idx(hw_desc, idx)	\
 	((void *)(((unsigned long)hw_desc) + ((idx) << 5)))
-
-#define MV_XOR_MIN_BYTE_COUNT	(128)
-#define XOR_MAX_BYTE_COUNT	((16 * 1024 * 1024) - 1)
-#define MV_XOR_MAX_BYTE_COUNT	XOR_MAX_BYTE_COUNT
-
 
 #endif
