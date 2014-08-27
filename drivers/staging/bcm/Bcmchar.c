@@ -2101,7 +2101,7 @@ static int bcm_char_ioctl_select_dsd(void __user *argp,
 {
 	struct bcm_ioctl_buffer io_buff;
 	INT status = STATUS_FAILURE;
-	UINT SectOfset = 0;
+	UINT sect_offset = 0;
 	enum bcm_flash2x_section_val flash_2x_section_val;
 
 	flash_2x_section_val = NO_SECTION_VAL;
@@ -2141,8 +2141,8 @@ static int bcm_char_ioctl_select_dsd(void __user *argp,
 		return STATUS_FAILURE;
 	}
 
-	SectOfset = BcmGetSectionValStartOffset(ad, flash_2x_section_val);
-	if (SectOfset == INVALID_OFFSET) {
+	sect_offset = BcmGetSectionValStartOffset(ad, flash_2x_section_val);
+	if (sect_offset == INVALID_OFFSET) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"Provided Section val <%d> does not exist in Flash 2.x",
 				flash_2x_section_val);
@@ -2150,7 +2150,7 @@ static int bcm_char_ioctl_select_dsd(void __user *argp,
 	}
 
 	ad->bAllDSDWriteAllow = TRUE;
-	ad->ulFlashCalStart = SectOfset;
+	ad->ulFlashCalStart = sect_offset;
 	ad->eActiveDSD = flash_2x_section_val;
 
 	return STATUS_SUCCESS;
