@@ -854,10 +854,6 @@ struct lu_local_obj_desc {
 	struct list_head		       llod_linkage;
 };
 
-int lustre_buf2som(void *buf, int rc, struct md_som_data *msd);
-int lustre_buf2hsm(void *buf, int rc, struct md_hsm *mh);
-void lustre_hsm2buf(void *buf, struct md_hsm *mh);
-
 struct lu_ucred {
 	__u32	       uc_valid;
 	__u32	       uc_o_uid;

@@ -321,9 +321,6 @@ enum lma_incompat {
 };
 #define LMA_INCOMPAT_SUPP	(LMAI_AGENT | LMAI_REMOTE_PARENT)
 
-extern void lustre_lma_swab(struct lustre_mdt_attrs *lma);
-extern void lustre_lma_init(struct lustre_mdt_attrs *lma,
-			    const struct lu_fid *fid, __u32 incompat);
 /**
  * SOM on-disk attributes stored in a separate xattr.
  */
@@ -344,8 +341,6 @@ struct som_attrs {
 	/** mds mount id the size is valid for */
 	__u64	som_mountid;
 };
-extern void lustre_som_swab(struct som_attrs *attrs);
-
 #define SOM_INCOMPAT_SUPP 0x0
 
 /**
@@ -362,7 +357,6 @@ struct hsm_attrs {
 	/** version associated with the last archiving, if any */
 	__u64	hsm_arch_ver;
 };
-extern void lustre_hsm_swab(struct hsm_attrs *attrs);
 
 /**
  * fid constants
