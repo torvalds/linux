@@ -233,8 +233,12 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 
 void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo)
 {
-	rbo->placement.fpfn = 0 >> PAGE_SHIFT;
-	rbo->placement.lpfn = (256 * 1024 * 1024) >> PAGE_SHIFT;
+	int i;
+
+	for (i = 0; i < rbo->placement.num_placement; ++i) {
+		rbo->placements[i].fpfn = 0 >> PAGE_SHIFT;
+		rbo->placements[i].lpfn = (256 * 1024 * 1024) >> PAGE_SHIFT;
+	}
 }
 
 void radeon_uvd_free_handles(struct radeon_device *rdev, struct drm_file *filp)

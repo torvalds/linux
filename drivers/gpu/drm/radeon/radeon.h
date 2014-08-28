@@ -469,7 +469,7 @@ struct radeon_bo {
 	struct list_head		list;
 	/* Protected by tbo.reserved */
 	u32				initial_domain;
-	u32				placements[3];
+	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;

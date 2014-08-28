@@ -178,12 +178,15 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 static void radeon_evict_flags(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
+	static struct ttm_place placements = {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
+	};
+
 	struct radeon_bo *rbo;
-	static u32 placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 
 	if (!radeon_ttm_bo_is_radeon_bo(bo)) {
-		placement->fpfn = 0;
-		placement->lpfn = 0;
 		placement->placement = &placements;
 		placement->busy_placement = &placements;
 		placement->num_placement = 1;
@@ -286,20 +289,20 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	struct radeon_device *rdev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
-	u32 placements;
+	struct ttm_place placements;
 	struct ttm_placement placement;
 	int r;
 
 	rdev = radeon_get_rdev(bo->bdev);
 	tmp_mem = *new_mem;
 	tmp_mem.mm_node = NULL;
-	placement.fpfn = 0;
-	placement.lpfn = 0;
 	placement.num_placement = 1;
 	placement.placement = &placements;
 	placement.num_busy_placement = 1;
 	placement.busy_placement = &placements;
-	placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	placements.fpfn = 0;
+	placements.lpfn = 0;
+	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem,
 			     interruptible, no_wait_gpu);
 	if (unlikely(r)) {
@@ -334,19 +337,19 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
 	struct ttm_placement placement;
-	u32 placements;
+	struct ttm_place placements;
 	int r;
 
 	rdev = radeon_get_rdev(bo->bdev);
 	tmp_mem = *new_mem;
 	tmp_mem.mm_node = NULL;
-	placement.fpfn = 0;
-	placement.lpfn = 0;
 	placement.num_placement = 1;
 	placement.placement = &placements;
 	placement.num_busy_placement = 1;
 	placement.busy_placement = &placements;
-	placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	placements.fpfn = 0;
+	placements.lpfn = 0;
+	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem,
 			     interruptible, no_wait_gpu);
 	if (unlikely(r)) {

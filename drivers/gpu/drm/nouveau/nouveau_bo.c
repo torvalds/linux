@@ -241,16 +241,16 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 }
 
 static void
-set_placement_list(uint32_t *pl, unsigned *n, uint32_t type, uint32_t flags)
+set_placement_list(struct ttm_place *pl, unsigned *n, uint32_t type, uint32_t flags)
 {
 	*n = 0;
 
 	if (type & TTM_PL_FLAG_VRAM)
-		pl[(*n)++] = TTM_PL_FLAG_VRAM | flags;
+		pl[(*n)++].flags = TTM_PL_FLAG_VRAM | flags;
 	if (type & TTM_PL_FLAG_TT)
-		pl[(*n)++] = TTM_PL_FLAG_TT | flags;
+		pl[(*n)++].flags = TTM_PL_FLAG_TT | flags;
 	if (type & TTM_PL_FLAG_SYSTEM)
-		pl[(*n)++] = TTM_PL_FLAG_SYSTEM | flags;
+		pl[(*n)++].flags = TTM_PL_FLAG_SYSTEM | flags;
 }
 
 static void
@@ -258,6 +258,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	u32 vram_pages = drm->device.info.ram_size >> PAGE_SHIFT;
+	unsigned i, fpfn, lpfn;
 
 	if (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
@@ -269,11 +270,19 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 		 * at the same time.
 		 */
 		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_ZETA) {
-			nvbo->placement.fpfn = vram_pages / 2;
-			nvbo->placement.lpfn = ~0;
+			fpfn = vram_pages / 2;
+			lpfn = ~0;
 		} else {
-			nvbo->placement.fpfn = 0;
-			nvbo->placement.lpfn = vram_pages / 2;
+			fpfn = 0;
+			lpfn = vram_pages / 2;
+		}
+		for (i = 0; i < nvbo->placement.num_placement; ++i) {
+			nvbo->placements[i].fpfn = fpfn;
+			nvbo->placements[i].lpfn = lpfn;
+		}
+		for (i = 0; i < nvbo->placement.num_busy_placement; ++i) {
+			nvbo->busy_placements[i].fpfn = fpfn;
+			nvbo->busy_placements[i].lpfn = lpfn;
 		}
 	}
 }
@@ -1041,12 +1050,15 @@ static int
 nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 		      bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
-	u32 placement_memtype = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
+	struct ttm_place placement_memtype = {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
+	};
 	struct ttm_placement placement;
 	struct ttm_mem_reg tmp_mem;
 	int ret;
 
-	placement.fpfn = placement.lpfn = 0;
 	placement.num_placement = placement.num_busy_placement = 1;
 	placement.placement = placement.busy_placement = &placement_memtype;
 
@@ -1074,12 +1086,15 @@ static int
 nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 		      bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
-	u32 placement_memtype = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
+	struct ttm_place placement_memtype = {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
+	};
 	struct ttm_placement placement;
 	struct ttm_mem_reg tmp_mem;
 	int ret;
 
-	placement.fpfn = placement.lpfn = 0;
 	placement.num_placement = placement.num_busy_placement = 1;
 	placement.placement = placement.busy_placement = &placement_memtype;
 
@@ -1294,7 +1309,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nvif_device *device = &drm->device;
 	u32 mappable = nv_device_resource_len(nvkm_device(device), 1) >> PAGE_SHIFT;
-	int ret;
+	int i, ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
 	 * nothing to do here.
@@ -1319,9 +1334,16 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	    bo->mem.start + bo->mem.num_pages < mappable)
 		return 0;
 
+	for (i = 0; i < nvbo->placement.num_placement; ++i) {
+		nvbo->placements[i].fpfn = 0;
+		nvbo->placements[i].lpfn = mappable;
+	}
 
-	nvbo->placement.fpfn = 0;
-	nvbo->placement.lpfn = mappable;
+	for (i = 0; i < nvbo->placement.num_busy_placement; ++i) {
+		nvbo->busy_placements[i].fpfn = 0;
+		nvbo->busy_placements[i].lpfn = mappable;
+	}
+
 	nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_VRAM, 0);
 	return nouveau_bo_validate(nvbo, false, false);
 }
