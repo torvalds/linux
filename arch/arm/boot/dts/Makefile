@@ -361,7 +361,6 @@ dtb-$(CONFIG_ARCH_SHMOBILE_LEGACY) += r7s72100-genmai.dtb \
 	r8a7740-armadillo800eva.dtb \
 	r8a7778-bockw.dtb \
 	r8a7778-bockw-reference.dtb \
-	r8a7740-armadillo800eva-reference.dtb \
 	r8a7779-marzen.dtb \
 	r8a7791-koelsch.dtb \
 	r8a7790-lager.dtb \
