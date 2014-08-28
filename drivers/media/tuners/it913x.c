@@ -28,7 +28,6 @@ struct it913x_dev {
 	struct dvb_frontend *fe;
 	u8 chip_ver:2;
 	u8 role:2;
-	u8 firmware_ver;
 	u16 tun_xtal;
 	u8 tun_fdiv;
 	u8 tun_clk_mode;
@@ -182,7 +181,7 @@ err:
 static int it9137_set_params(struct dvb_frontend *fe)
 {
 	struct it913x_dev *dev = fe->tuner_priv;
-	struct it913xset *set_tuner = set_it9137_template;
+	struct it913xset *set_tuner = set_it9135_template;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u32 bandwidth = p->bandwidth_hz;
 	u32 frequency_m = p->frequency;
@@ -196,11 +195,6 @@ static int it9137_set_params(struct dvb_frontend *fe)
 	u8 l_band;
 	u8 lna_band;
 	u8 bw;
-
-	if (dev->firmware_ver == 1)
-		set_tuner = set_it9135_template;
-	else
-		set_tuner = set_it9137_template;
 
 	dev_dbg(&dev->client->dev, "Tuner Frequency %d Bandwidth %d\n",
 			frequency, bandwidth);
@@ -367,7 +361,6 @@ static int it913x_probe(struct i2c_client *client,
 	dev->fe = cfg->fe;
 	dev->chip_ver = cfg->chip_ver;
 	dev->role = cfg->role;
-	dev->firmware_ver = 1;
 	dev->regmap = regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(dev->regmap)) {
 		ret = PTR_ERR(dev->regmap);
