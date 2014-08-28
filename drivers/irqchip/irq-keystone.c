@@ -36,7 +36,7 @@ struct keystone_irq_device {
 	struct device		*dev;
 	struct irq_chip		 chip;
 	u32			 mask;
-	u32			 irq;
+	int			 irq;
 	struct irq_domain	*irqd;
 	struct regmap		*devctrl_regs;
 	u32			devctrl_offset;
