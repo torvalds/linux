@@ -110,6 +110,18 @@
 	refclk-frequency = <24000000>;
 };
 
+&max77686 {
+	voltage-regulators {
+		/* On the Odroid-U2/U3 this buck regulator supplies the LAN9730 block. */
+		buck8_reg: buck@8 {
+			regulator-compatible = "BUCK8";
+			regulator-name = "input_lan9730_3.3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
+};
+
 &ehci {
 	port@1 {
 		status = "okay";

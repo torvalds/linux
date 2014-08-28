@@ -71,6 +71,18 @@
 	};
 };
 
+&max77686 {
+	voltage-regulators {
+		/* On the Odroid-X2 this buck regulator supplies the core of the eMMC. */
+		buck8_reg: buck@8 {
+			regulator-compatible = "BUCK8";
+			regulator-name = "vddf_emmc_2.85V";
+			regulator-min-microvolt = <2850000>;
+			regulator-max-microvolt = <2850000>;
+		};
+	};
+};
+
 &ehci {
 	port@1 {
 		status = "okay";
