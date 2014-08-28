@@ -919,8 +919,8 @@ static int ion_debug_client_show_buffer_map(struct seq_file *s, struct ion_buffe
 
 	while (node != NULL) {
 		iommu_map = rb_entry(node, struct ion_iommu_map, node);
-		seq_printf(s, "%16.16s:   0x%08lx   0x%08x %8zuKB %4d\n",
-			"<iommu>", iommu_map->iova_addr, 0, iommu_map->mapped_size>>10,
+		seq_printf(s, "%16.16s:   0x%08lx   0x%08x   0x%08x %8zuKB %4d\n",
+			"<iommu>", iommu_map->iova_addr, 0, 0, iommu_map->mapped_size>>10,
 			atomic_read(&iommu_map->ref.refcount));
 
 		node = rb_next(node);
@@ -948,8 +948,8 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 	struct rb_node *n;
 
 	seq_printf(s, "----------------------------------------------------\n");
-	seq_printf(s, "%16.s: %12.s %12.s %10.s %4.s %4.s %4.s\n", "heap_name", "VA", "PA",
-		"size", "HC", "IBR", "IHR");
+	seq_printf(s, "%16.s: %12.s %12.s %12.s %10.s %4.s %4.s %4.s\n",
+		"heap_name", "VA", "PA", "IBUF", "size", "HC", "IBR", "IHR");
 	mutex_lock(&client->lock);
 	for (n = rb_first(&client->handles); n; n = rb_next(n)) {
 		struct ion_handle *handle = rb_entry(n, struct ion_handle, node);
@@ -962,9 +962,11 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 		if (buffer->heap->ops->phys)
 			buffer->heap->ops->phys(buffer->heap, buffer, &pa, &len);
 
-		seq_printf(s, "%16.16s:   0x%08lx   0x%08lx %8zuKB %4d %4d %4d\n",
-			buffer->heap->name, (unsigned long)buffer->vaddr, pa, len>>10, buffer->handle_count,
-			atomic_read(&buffer->ref.refcount), atomic_read(&handle->ref.refcount));
+		seq_printf(s, "%16.16s:   0x%08lx   0x%08lx   0x%08lx %8zuKB %4d %4d %4d\n",
+			buffer->heap->name, (unsigned long)buffer->vaddr, pa,
+			(unsigned long)buffer, len>>10, buffer->handle_count,
+			atomic_read(&buffer->ref.refcount),
+			atomic_read(&handle->ref.refcount));
 
 		mutex_unlock(&buffer->lock);
 
