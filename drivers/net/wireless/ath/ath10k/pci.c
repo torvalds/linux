@@ -1172,16 +1172,8 @@ static void ath10k_pci_irq_disable(struct ath10k *ar)
 	int i;
 
 	ath10k_ce_disable_interrupts(ar);
-
-	/* Regardless how many interrupts were assigned for MSI the first one
-	 * is always used for firmware indications (crashes). There's no way to
-	 * mask the irq in the device so call disable_irq(). Legacy (shared)
-	 * interrupts can be masked on the device though.
-	 */
-	if (ar_pci->num_msi_intrs > 0)
-		disable_irq(ar_pci->pdev->irq);
-	else
-		ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	/* FIXME: How to mask all MSI interrupts? */
 
 	for (i = 0; i < max(1, ar_pci->num_msi_intrs); i++)
 		synchronize_irq(ar_pci->pdev->irq + i);
@@ -1189,15 +1181,9 @@ static void ath10k_pci_irq_disable(struct ath10k *ar)
 
 static void ath10k_pci_irq_enable(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
 	ath10k_ce_enable_interrupts(ar);
-
-	/* See comment in ath10k_pci_irq_disable() */
-	if (ar_pci->num_msi_intrs > 0)
-		enable_irq(ar_pci->pdev->irq);
-	else
-		ath10k_pci_enable_legacy_irq(ar);
+	ath10k_pci_enable_legacy_irq(ar);
+	/* FIXME: How to unmask all MSI interrupts? */
 }
 
 static int ath10k_pci_hif_start(struct ath10k *ar)
@@ -1311,14 +1297,21 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 {
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif stop\n");
 
-	ath10k_pci_irq_disable(ar);
-	ath10k_pci_flush(ar);
-
 	/* Most likely the device has HTT Rx ring configured. The only way to
 	 * prevent the device from accessing (and possible corrupting) host
 	 * memory is to reset the chip now.
+	 *
+	 * There's also no known way of masking MSI interrupts on the device.
+	 * For ranged MSI the CE-related interrupts can be masked. However
+	 * regardless how many MSI interrupts are assigned the first one
+	 * is always used for firmware indications (crashes) and cannot be
+	 * masked. To prevent the device from asserting the interrupt reset it
+	 * before proceeding with cleanup.
 	 */
 	ath10k_pci_warm_reset(ar);
+
+	ath10k_pci_irq_disable(ar);
+	ath10k_pci_flush(ar);
 }
 
 static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
