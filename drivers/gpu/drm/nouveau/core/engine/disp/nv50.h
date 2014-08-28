@@ -42,6 +42,7 @@ struct nv50_disp_priv {
 		int (*hda_eld)(NV50_DISP_MTHD_V1);
 		int (*hdmi)(NV50_DISP_MTHD_V1);
 		u32 lvdsconf;
+		void (*magic)(struct nvkm_output *);
 	} sor;
 	struct {
 		int nr;
@@ -245,6 +246,7 @@ extern struct nvkm_output_dp_impl nvd0_sor_dp_impl;
 int nvd0_sor_dp_lnk_ctl(struct nvkm_output_dp *, int, int, bool);
 extern struct nouveau_oclass *nvd0_disp_outp_sclass[];
 
+void gm204_sor_magic(struct nvkm_output *outp);
 extern struct nvkm_output_dp_impl gm204_sor_dp_impl;
 
 #endif

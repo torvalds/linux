@@ -1055,6 +1055,9 @@ nvd0_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 
 		if (nvkm_output_dp_train(outp, pclk, true))
 			ERR("link not trained before attach\n");
+	} else {
+		if (priv->sor.magic)
+			priv->sor.magic(outp);
 	}
 
 	exec_clkcmp(priv, head, 0, pclk, &conf);

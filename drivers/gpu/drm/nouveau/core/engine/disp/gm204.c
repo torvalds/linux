@@ -85,6 +85,7 @@ gm204_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hda_eld = nvd0_hda_eld;
 	priv->sor.hdmi = nvd0_hdmi_ctrl;
+	priv->sor.magic = gm204_sor_magic;
 	return 0;
 }
 
