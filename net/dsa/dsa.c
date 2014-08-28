@@ -635,6 +635,7 @@ struct packet_type dsa_pack_type __read_mostly = {
 };
 
 static const struct of_device_id dsa_of_match_table[] = {
+	{ .compatible = "brcm,bcm7445-switch-v4.0" },
 	{ .compatible = "marvell,dsa", },
 	{}
 };
