@@ -8307,7 +8307,6 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 	if (!obj) {
 		DRM_DEBUG_KMS("cursor off\n");
 		addr = 0;
-		obj = NULL;
 		mutex_lock(&dev->struct_mutex);
 		goto finish;
 	}
