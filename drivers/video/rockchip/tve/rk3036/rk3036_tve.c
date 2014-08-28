@@ -405,7 +405,7 @@ static void __exit rk3036_tve_exit(void)
 	platform_driver_unregister(&rk3036_tve_driver);
 }
 
-late_initcall(rk3036_tve_init);
+module_init(rk3036_tve_init);
 module_exit(rk3036_tve_exit);
 
 /* Module information */
