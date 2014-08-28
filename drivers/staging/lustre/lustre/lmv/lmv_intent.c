@@ -41,7 +41,7 @@
 #include <asm/div64.h>
 #include <linux/seq_file.h>
 #include <linux/namei.h>
-#include "../include/linux/lustre_intent.h"
+#include "../include/lustre_intent.h"
 #include "../include/obd_support.h"
 #include "../include/lustre/lustre_idl.h"
 #include "../include/lustre_lib.h"

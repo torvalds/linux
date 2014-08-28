@@ -42,7 +42,7 @@
 #define DEBUG_SUBSYSTEM S_LDLM
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include "../include/linux/lustre_intent.h"
+#include "../include/lustre_intent.h"
 #include "../include/obd_class.h"
 #include "ldlm_internal.h"
 

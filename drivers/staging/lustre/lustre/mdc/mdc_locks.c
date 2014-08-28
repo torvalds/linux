@@ -38,7 +38,7 @@
 
 # include <linux/module.h>
 
-#include "../include/linux/lustre_intent.h"
+#include "../include/lustre_intent.h"
 #include "../include/obd.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_dlm.h"
