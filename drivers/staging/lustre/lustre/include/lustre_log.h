@@ -56,8 +56,6 @@
  * @{
  */
 
-#include "linux/lustre_log.h"
-
 #include "obd_class.h"
 #include "obd_ost.h"
 #include "lustre/lustre_idl.h"
