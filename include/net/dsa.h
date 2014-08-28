@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/of.h>
 
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
@@ -25,6 +26,12 @@ struct dsa_chip_data {
 	 */
 	struct device	*mii_bus;
 	int		sw_addr;
+
+	/* Device tree node pointer for this specific switch chip
+	 * used during switch setup in case additional properties
+	 * and resources needs to be used
+	 */
+	struct device_node *of_node;
 
 	/*
 	 * The names of the switch's ports.  Use "cpu" to
