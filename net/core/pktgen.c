@@ -202,6 +202,7 @@
 #define F_QUEUE_MAP_CPU (1<<14)	/* queue map mirrors smp_processor_id() */
 #define F_NODE          (1<<15)	/* Node memory alloc*/
 #define F_UDPCSUM       (1<<16)	/* Include UDP checksum */
+#define F_NO_TIMESTAMP  (1<<17)	/* Don't timestamp packets (default TS) */
 
 /* Thread control flag bits */
 #define T_STOP        (1<<0)	/* Stop run */
@@ -637,6 +638,9 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	if (pkt_dev->flags & F_UDPCSUM)
 		seq_puts(seq, "UDPCSUM  ");
+
+	if (pkt_dev->flags & F_NO_TIMESTAMP)
+		seq_puts(seq, "NO_TIMESTAMP  ");
 
 	if (pkt_dev->flags & F_MPLS_RND)
 		seq_puts(seq,  "MPLS_RND  ");
@@ -1243,6 +1247,9 @@ static ssize_t pktgen_if_write(struct file *file,
 		else if (strcmp(f, "!UDPCSUM") == 0)
 			pkt_dev->flags &= ~F_UDPCSUM;
 
+		else if (strcmp(f, "NO_TIMESTAMP") == 0)
+			pkt_dev->flags |= F_NO_TIMESTAMP;
+
 		else {
 			sprintf(pg_result,
 				"Flag -:%s:- unknown\nAvailable flags, (prepend ! to un-set flag):\n%s",
@@ -1251,6 +1258,7 @@ static ssize_t pktgen_if_write(struct file *file,
 				"MACSRC_RND, MACDST_RND, TXSIZE_RND, IPV6, "
 				"MPLS_RND, VID_RND, SVID_RND, FLOW_SEQ, "
 				"QUEUE_MAP_RND, QUEUE_MAP_CPU, UDPCSUM, "
+				"NO_TIMESTAMP, "
 #ifdef CONFIG_XFRM
 				"IPSEC, "
 #endif
@@ -2685,9 +2693,14 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 	pgh->pgh_magic = htonl(PKTGEN_MAGIC);
 	pgh->seq_num = htonl(pkt_dev->seq_num);
 
-	do_gettimeofday(&timestamp);
-	pgh->tv_sec = htonl(timestamp.tv_sec);
-	pgh->tv_usec = htonl(timestamp.tv_usec);
+	if (pkt_dev->flags & F_NO_TIMESTAMP) {
+		pgh->tv_sec = 0;
+		pgh->tv_usec = 0;
+	} else {
+		do_gettimeofday(&timestamp);
+		pgh->tv_sec = htonl(timestamp.tv_sec);
+		pgh->tv_usec = htonl(timestamp.tv_usec);
+	}
 }
 
 static struct sk_buff *pktgen_alloc_skb(struct net_device *dev,
