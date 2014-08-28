@@ -106,7 +106,7 @@ static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
 	return ret;
 }
 
-static int allocate_resources(struct device **cdev,
+static int allocate_resources(int cpu, struct device **cdev,
 			      struct regulator **creg, struct clk **cclk)
 {
 	struct device *cpu_dev;
@@ -115,24 +115,28 @@ static int allocate_resources(struct device **cdev,
 	int ret = 0;
 	char *reg_cpu0 = "cpu0", *reg_cpu = "cpu", *reg;
 
-	cpu_dev = get_cpu_device(0);
+	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev) {
-		pr_err("failed to get cpu0 device\n");
+		pr_err("failed to get cpu%d device\n", cpu);
 		return -ENODEV;
 	}
 
 	/* Try "cpu0" for older DTs */
-	reg = reg_cpu0;
+	if (!cpu)
+		reg = reg_cpu0;
+	else
+		reg = reg_cpu;
 
 try_again:
 	cpu_reg = regulator_get_optional(cpu_dev, reg);
 	if (IS_ERR(cpu_reg)) {
 		/*
-		 * If cpu0 regulator supply node is present, but regulator is
+		 * If cpu's regulator supply node is present, but regulator is
 		 * not yet registered, we should try defering probe.
 		 */
 		if (PTR_ERR(cpu_reg) == -EPROBE_DEFER) {
-			dev_dbg(cpu_dev, "cpu0 regulator not ready, retry\n");
+			dev_dbg(cpu_dev, "cpu%d regulator not ready, retry\n",
+				cpu);
 			return -EPROBE_DEFER;
 		}
 
@@ -142,8 +146,8 @@ try_again:
 			goto try_again;
 		}
 
-		dev_warn(cpu_dev, "failed to get cpu0 regulator: %ld\n",
-			 PTR_ERR(cpu_reg));
+		dev_warn(cpu_dev, "failed to get cpu%d regulator: %ld\n",
+			 cpu, PTR_ERR(cpu_reg));
 	}
 
 	cpu_clk = clk_get(cpu_dev, NULL);
@@ -159,9 +163,10 @@ try_again:
 		 * registered, we should try defering probe.
 		 */
 		if (ret == -EPROBE_DEFER)
-			dev_dbg(cpu_dev, "cpu0 clock not ready, retry\n");
+			dev_dbg(cpu_dev, "cpu%d clock not ready, retry\n", cpu);
 		else
-			dev_err(cpu_dev, "failed to get cpu0 clock: %d\n", ret);
+			dev_err(cpu_dev, "failed to get cpu%d clock: %d\n", ret,
+				cpu);
 	} else {
 		*cdev = cpu_dev;
 		*creg = cpu_reg;
@@ -183,8 +188,7 @@ static int cpu0_cpufreq_init(struct cpufreq_policy *policy)
 	unsigned int transition_latency;
 	int ret;
 
-	/* We only support cpu0 currently */
-	ret = allocate_resources(&cpu_dev, &cpu_reg, &cpu_clk);
+	ret = allocate_resources(policy->cpu, &cpu_dev, &cpu_reg, &cpu_clk);
 	if (ret) {
 		pr_err("%s: Failed to allocate resources\n: %d", __func__, ret);
 		return ret;
@@ -322,7 +326,7 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 	 *
 	 * FIXME: Is checking this only for CPU0 sufficient ?
 	 */
-	ret = allocate_resources(&cpu_dev, &cpu_reg, &cpu_clk);
+	ret = allocate_resources(0, &cpu_dev, &cpu_reg, &cpu_clk);
 	if (ret)
 		return ret;
 
