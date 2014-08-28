@@ -352,16 +352,16 @@
 					regulator-compatible = "LDO20";
 					regulator-name = "vddq_emmc_1.8V";
 					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
+					regulator-max-microvolt = <3000000>;
 					regulator-boot-on;
 				};
 
 				/* Supply for core of SDHC. */
 				ldo21_reg: ldo@21 {
 					regulator-compatible = "LDO21";
-					regulator-name = "tflash_3.3V";
-					regulator-min-microvolt = <3300000>;
-					regulator-max-microvolt = <3300000>;
+					regulator-name = "tflash_2.8V";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
@@ -378,8 +378,8 @@
 				buck1_reg: buck@1 {
 					regulator-compatible = "BUCK1";
 					regulator-name = "vdd_mif";
-					regulator-min-microvolt = <1000000>;
-					regulator-max-microvolt = <1000000>;
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
@@ -396,8 +396,8 @@
 				buck3_reg: buck@3 {
 					regulator-compatible = "BUCK3";
 					regulator-name = "vdd_int";
-					regulator-min-microvolt = <1000000>;
-					regulator-max-microvolt = <1000000>;
+					regulator-min-microvolt = <1125000>;
+					regulator-max-microvolt = <1125000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
@@ -405,8 +405,8 @@
 				buck4_reg: buck@4 {
 					regulator-compatible = "BUCK4";
 					regulator-name = "vdd_g3d";
-					regulator-min-microvolt = <900000>;
-					regulator-max-microvolt = <1100000>;
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1200000>;
 					regulator-microvolt-offset = <50000>;
 				};
 
