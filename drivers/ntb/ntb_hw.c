@@ -109,6 +109,41 @@ static const struct pci_device_id ntb_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ntb_pci_tbl);
 
+static int is_ntb_xeon(struct ntb_device *ndev)
+{
+	switch (ndev->pdev->device) {
+	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+		return 1;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int is_ntb_atom(struct ntb_device *ndev)
+{
+	switch (ndev->pdev->device) {
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_BWD:
+		return 1;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
 /**
  * ntb_register_event_callback() - register event callback
  * @ndev: pointer to ntb_device instance
@@ -535,7 +570,7 @@ static void ntb_link_event(struct ntb_device *ndev, int link_state)
 		ndev->link_status = NTB_LINK_UP;
 		event = NTB_EVENT_HW_LINK_UP;
 
-		if (ndev->hw_type == BWD_HW ||
+		if (is_ntb_atom(ndev) ||
 		    ndev->conn_type == NTB_CONN_TRANSPARENT)
 			status = readw(ndev->reg_ofs.lnk_stat);
 		else {
@@ -566,7 +601,7 @@ static int ntb_link_status(struct ntb_device *ndev)
 {
 	int link_state;
 
-	if (ndev->hw_type == BWD_HW) {
+	if (is_ntb_atom(ndev)) {
 		u32 ntb_cntl;
 
 		ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
@@ -932,27 +967,12 @@ static int ntb_device_setup(struct ntb_device *ndev)
 {
 	int rc;
 
-	switch (ndev->pdev->device) {
-	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+	if (is_ntb_xeon(ndev))
 		rc = ntb_xeon_setup(ndev);
-		break;
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_BWD:
+	else if (is_ntb_atom(ndev))
 		rc = ntb_bwd_setup(ndev);
-		break;
-	default:
+	else
 		rc = -ENODEV;
-	}
 
 	if (rc)
 		return rc;
@@ -970,7 +990,7 @@ static int ntb_device_setup(struct ntb_device *ndev)
 
 static void ntb_device_free(struct ntb_device *ndev)
 {
-	if (ndev->hw_type == BWD_HW) {
+	if (is_ntb_atom(ndev)) {
 		cancel_delayed_work_sync(&ndev->hb_timer);
 		cancel_delayed_work_sync(&ndev->lr_timer);
 	}
@@ -1050,7 +1070,7 @@ static irqreturn_t ntb_interrupt(int irq, void *dev)
 	struct ntb_device *ndev = dev;
 	unsigned int i = 0;
 
-	if (ndev->hw_type == BWD_HW) {
+	if (is_ntb_atom(ndev)) {
 		u64 ldb = readq(ndev->reg_ofs.ldb);
 
 		dev_dbg(&ndev->pdev->dev, "irq %d - ldb = %Lx\n", irq, ldb);
@@ -1192,7 +1212,7 @@ static int ntb_setup_msix(struct ntb_device *ndev)
 	for (i = 0; i < msix_entries; i++)
 		ndev->msix_entries[i].entry = i;
 
-	if (ndev->hw_type == BWD_HW)
+	if (is_ntb_atom(ndev))
 		rc = ntb_setup_bwd_msix(ndev, msix_entries);
 	else
 		rc = ntb_setup_snb_msix(ndev, msix_entries);
@@ -1252,7 +1272,7 @@ static int ntb_setup_interrupts(struct ntb_device *ndev)
 	/* On BWD, disable all interrupts.  On SNB, disable all but Link
 	 * Interrupt.  The rest will be unmasked as callbacks are registered.
 	 */
-	if (ndev->hw_type == BWD_HW)
+	if (is_ntb_atom(ndev))
 		writeq(~0, ndev->reg_ofs.ldb_mask);
 	else {
 		u16 var = 1 << SNB_LINK_DB;
@@ -1285,7 +1305,7 @@ static void ntb_free_interrupts(struct ntb_device *ndev)
 	struct pci_dev *pdev = ndev->pdev;
 
 	/* mask interrupts */
-	if (ndev->hw_type == BWD_HW)
+	if (is_ntb_atom(ndev))
 		writeq(~0, ndev->reg_ofs.ldb_mask);
 	else
 		writew(~0, ndev->reg_ofs.ldb_mask);
@@ -1296,7 +1316,7 @@ static void ntb_free_interrupts(struct ntb_device *ndev)
 
 		for (i = 0; i < ndev->num_msix; i++) {
 			msix = &ndev->msix_entries[i];
-			if (ndev->hw_type != BWD_HW && i == ndev->num_msix - 1)
+			if (is_ntb_xeon(ndev) && i == ndev->num_msix - 1)
 				free_irq(msix->vector, ndev);
 			else
 				free_irq(msix->vector, &ndev->db_cb[i]);
@@ -1385,7 +1405,7 @@ static ssize_t ntb_debugfs_read(struct file *filp, char __user *ubuf,
 				   ndev->link_width);
 	}
 
-	if (ndev->hw_type != BWD_HW) {
+	if (is_ntb_xeon(ndev)) {
 		u32 status32;
 		u16 status16;
 		int rc;
