@@ -715,24 +715,24 @@ static int fimc_src_set_addr(struct device *dev,
 	case IPP_BUF_ENQUEUE:
 		config = &property->config[EXYNOS_DRM_OPS_SRC];
 		fimc_write(ctx, buf_info->base[EXYNOS_DRM_PLANAR_Y],
-			EXYNOS_CIIYSA(buf_id));
+			EXYNOS_CIIYSA0);
 
 		if (config->fmt == DRM_FORMAT_YVU420) {
 			fimc_write(ctx, buf_info->base[EXYNOS_DRM_PLANAR_CR],
-				EXYNOS_CIICBSA(buf_id));
+				EXYNOS_CIICBSA0);
 			fimc_write(ctx, buf_info->base[EXYNOS_DRM_PLANAR_CB],
-				EXYNOS_CIICRSA(buf_id));
+				EXYNOS_CIICRSA0);
 		} else {
 			fimc_write(ctx, buf_info->base[EXYNOS_DRM_PLANAR_CB],
-				EXYNOS_CIICBSA(buf_id));
+				EXYNOS_CIICBSA0);
 			fimc_write(ctx, buf_info->base[EXYNOS_DRM_PLANAR_CR],
-				EXYNOS_CIICRSA(buf_id));
+				EXYNOS_CIICRSA0);
 		}
 		break;
 	case IPP_BUF_DEQUEUE:
-		fimc_write(ctx, 0x0, EXYNOS_CIIYSA(buf_id));
-		fimc_write(ctx, 0x0, EXYNOS_CIICBSA(buf_id));
-		fimc_write(ctx, 0x0, EXYNOS_CIICRSA(buf_id));
+		fimc_write(ctx, 0x0, EXYNOS_CIIYSA0);
+		fimc_write(ctx, 0x0, EXYNOS_CIICBSA0);
+		fimc_write(ctx, 0x0, EXYNOS_CIICRSA0);
 		break;
 	default:
 		/* bypass */
