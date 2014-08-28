@@ -242,4 +242,10 @@ static inline void vgic_arch_setup(const struct vgic_params *vgic)
 	}
 }
 
+static inline void kvm_arch_hardware_disable(void *garbage) {}
+static inline void kvm_arch_hardware_unsetup(void) {}
+static inline void kvm_arch_sync_events(struct kvm *kvm) {}
+static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+
 #endif /* __ARM64_KVM_HOST_H__ */

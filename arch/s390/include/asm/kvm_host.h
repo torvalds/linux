@@ -269,4 +269,18 @@ struct kvm_arch{
 };
 
 extern int sie64a(struct kvm_s390_sie_block *, u64 *);
+
+static inline void kvm_arch_hardware_disable(void *garbage) {}
+static inline void kvm_arch_check_processor_compat(void *rtn) {}
+static inline void kvm_arch_exit(void) {}
+static inline void kvm_arch_sync_events(struct kvm *kvm) {}
+static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+static inline void kvm_arch_free_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *free, struct kvm_memory_slot *dont) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *slot) {}
+
 #endif

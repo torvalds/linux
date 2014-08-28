@@ -1363,20 +1363,12 @@ static void kvm_release_vm_pages(struct kvm *kvm)
 	}
 }
 
-void kvm_arch_sync_events(struct kvm *kvm)
-{
-}
-
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_iommu_unmap_guest(kvm);
 	kvm_free_all_assigned_devices(kvm);
 	kfree(kvm->arch.vioapic);
 	kvm_release_vm_pages(kvm);
-}
-
-void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
-{
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -1467,7 +1459,6 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 	kfree(vcpu->arch.apic);
 }
 
-
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -1550,19 +1541,10 @@ int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
-			   struct kvm_memory_slot *dont)
-{
-}
-
 int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 			    unsigned long npages)
 {
 	return 0;
-}
-
-void kvm_arch_memslots_updated(struct kvm *kvm)
-{
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
@@ -1594,14 +1576,6 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	}
 
 	return 0;
-}
-
-void kvm_arch_commit_memory_region(struct kvm *kvm,
-		struct kvm_userspace_memory_region *mem,
-		const struct kvm_memory_slot *old,
-		enum kvm_mr_change change)
-{
-	return;
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
@@ -1850,10 +1824,6 @@ out:
 int kvm_arch_hardware_setup(void)
 {
 	return 0;
-}
-
-void kvm_arch_hardware_unsetup(void)
-{
 }
 
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq)

@@ -92,10 +92,6 @@ int kvm_arch_hardware_enable(void *garbage)
 	return 0;
 }
 
-void kvm_arch_hardware_disable(void *garbage)
-{
-}
-
 int kvm_arch_hardware_setup(void)
 {
 	return 0;
@@ -105,17 +101,9 @@ void kvm_arch_hardware_unsetup(void)
 {
 }
 
-void kvm_arch_check_processor_compat(void *rtn)
-{
-}
-
 int kvm_arch_init(void *opaque)
 {
 	return 0;
-}
-
-void kvm_arch_exit(void)
-{
 }
 
 /* Section: device related */
@@ -289,10 +277,6 @@ static void kvm_free_vcpus(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 }
 
-void kvm_arch_sync_events(struct kvm *kvm)
-{
-}
-
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_free_vcpus(kvm);
@@ -318,15 +302,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 				    KVM_SYNC_ACRS |
 				    KVM_SYNC_CRS;
 	return 0;
-}
-
-void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
-{
-	/* Nothing todo */
-}
-
-void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
-{
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -975,19 +950,10 @@ int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
-			   struct kvm_memory_slot *dont)
-{
-}
-
 int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 			    unsigned long npages)
 {
 	return 0;
-}
-
-void kvm_arch_memslots_updated(struct kvm *kvm)
-{
 }
 
 /* Section: memory related */
@@ -1033,15 +999,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	if (rc)
 		printk(KERN_WARNING "kvm-s390: failed to commit memory region\n");
 	return;
-}
-
-void kvm_arch_flush_shadow_all(struct kvm *kvm)
-{
-}
-
-void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
-				   struct kvm_memory_slot *slot)
-{
 }
 
 static int __init kvm_s390_init(void)
