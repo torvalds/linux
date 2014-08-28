@@ -129,6 +129,7 @@
 		compatible = "mmio-sram";
 		reg = <0x10080000 0x2000>;
 		map-exec;
+		map-cacheable;
 	};
 
 	timer {

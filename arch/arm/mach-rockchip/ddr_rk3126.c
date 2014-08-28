@@ -647,6 +647,7 @@ typedef enum DRAM_TYPE_Tag {
 	DDR,
 	DDR2,
 	DDR3,
+	LPDDR2S2,
 	LPDDR2,
 
 	DRAM_MAX
@@ -1004,15 +1005,15 @@ static uint32_t __sramfunc ddr_data_training(void)
 	pDDR_Reg->TREFI = 0;
 	dram_bw = (pPHY_Reg->PHY_REG0 >> 4) & 0xf;
 	pPHY_Reg->PHY_REG2 |= PHY_AUTO_CALIBRATION;
+	dsb();
 	/*wait echo byte DTDONE*/
-	ddr_delayus(5);
+	ddr_delayus(1);
 	/*stop DTT*/
 	while ((pPHY_Reg->PHY_REGff & 0xf) != dram_bw)
 	;
 	pPHY_Reg->PHY_REG2 = (pPHY_Reg->PHY_REG2 & (~0x1));
 	/*send some auto refresh to complement the lost while DTT*/
-	ddr_send_command(3, REF_cmd, 0);
-	ddr_send_command(3, REF_cmd, 0);
+	ddr_send_command(3, PREA_cmd, 0);
 	ddr_send_command(3, REF_cmd, 0);
 	ddr_send_command(3, REF_cmd, 0);
 
@@ -1195,7 +1196,6 @@ static uint32 ddr_get_parameter(uint32 nMHz)
 	p_pctl_timing->togcnt1u = nMHz;
 	p_pctl_timing->togcnt100n = nMHz / 10;
 	p_pctl_timing->tinit = 200;
-	p_pctl_timing->trsth = 500;
 
 	if (p_ddr_reg->mem_type == DDR3) {
 		if (p_ddr_reg->ddr_speed_bin > DDR3_DEFAULT) {
@@ -1227,7 +1227,7 @@ static uint32 ddr_get_parameter(uint32 nMHz)
 #define DDR3_tRSTL           (100)
 #define DDR3_tZQCL           (320)
 #define DDR3_tDLLK           (512)
-
+		p_pctl_timing->trsth = 500;
 		al = 0;
 		bl = 8;
 		if (nMHz <= 330) {
@@ -1813,7 +1813,7 @@ static uint32 __sramfunc ddr_update_timing(void)
 			       (0x1 << 16)))) | mddr_lpddr2_bl_8 | tfaw_cfg(6) |
 			    pd_exit_fast | pd_type(1);
 		}
-		pDDR_Reg->DFITRDDATAEN = pDDR_Reg->TCL - 1;
+		pDDR_Reg->DFITRDDATAEN = pDDR_Reg->TCL - 3;
 		pDDR_Reg->DFITPHYWRLAT = pDDR_Reg->TCWL;
 
 	}
@@ -1829,49 +1829,48 @@ static uint32 __sramfunc ddr_update_timing(void)
 *----------------------------------------------------------------------*/
 static uint32 __sramfunc ddr_update_mr(void)
 {
-	uint32 cs;
-
+	/*uint32 cs;
 	cs = READ_CS_INFO();
-	cs = (2 << cs) - 1;	/*case 0:1rank cs=1; case 1:2rank cs =3*/
+	cs = (1 << cs) - 1;	*/
 	if (DATA(ddr_reg).mem_type == DDR3) {
 		if (DATA(ddr_freq) > DDR3_DDR2_DLL_DISABLE_FREQ) {
 			if (DATA(ddr_dll_status) == DDR3_DLL_DISABLE) {	/*off -> on*/
-				ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((DATA(ddr_reg).ddrMR[1])));	/*DLL enable*/
-				ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr(((DATA(ddr_reg).ddrMR[0])) | DDR3_DLL_RESET));	/*DLL reset*/
+				ddr_send_command(3, MRS_cmd, bank_addr(0x1) | cmd_addr((DATA(ddr_reg).ddrMR[1])));	/*DLL enable*/
+				ddr_send_command(3, MRS_cmd, bank_addr(0x0) | cmd_addr(((DATA(ddr_reg).ddrMR[0])) | DDR3_DLL_RESET));	/*DLL reset*/
 				ddr_delayus(2);	/*at least 200 DDR cycle*/
-				ddr_send_command(cs, MRS_cmd,
+				ddr_send_command(3, MRS_cmd,
 						 bank_addr(0x0) |
 						 cmd_addr((DATA(ddr_reg).ddrMR
 							   [0])));
 				DATA(ddr_dll_status) = DDR3_DLL_ENABLE;
 			} else{  	/*on -> on*/
-				ddr_send_command(cs, MRS_cmd,
+				ddr_send_command(3, MRS_cmd,
 						 bank_addr(0x1) |
 						 cmd_addr((DATA(ddr_reg).ddrMR
 							   [1])));
-				ddr_send_command(cs, MRS_cmd,
+				ddr_send_command(3, MRS_cmd,
 						 bank_addr(0x0) |
 						 cmd_addr((DATA(ddr_reg).ddrMR
 							   [0])));
 			}
 		} else {
-			ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr(((DATA(ddr_reg).ddrMR[1])) | DDR3_DLL_DISABLE));	/*DLL disable*/
-			ddr_send_command(cs, MRS_cmd,
+			ddr_send_command(3, MRS_cmd, bank_addr(0x1) | cmd_addr(((DATA(ddr_reg).ddrMR[1])) | DDR3_DLL_DISABLE));	/*DLL disable*/
+			ddr_send_command(3, MRS_cmd,
 					 bank_addr(0x0) |
 					 cmd_addr((DATA(ddr_reg).ddrMR[0])));
 			DATA(ddr_dll_status) = DDR3_DLL_DISABLE;
 		}
-		ddr_send_command(cs, MRS_cmd,
+		ddr_send_command(3, MRS_cmd,
 				 bank_addr(0x2) |
 				 cmd_addr((DATA(ddr_reg).ddrMR[2])));
 	} else if (DATA(ddr_reg).mem_type == LPDDR2) {
-		ddr_send_command(cs, MRS_cmd,
+		ddr_send_command(3, MRS_cmd,
 				 lpddr2_ma(0x1) |
 				 lpddr2_op(DATA(ddr_reg).ddrMR[1]));
-		ddr_send_command(cs, MRS_cmd,
+		ddr_send_command(3, MRS_cmd,
 				 lpddr2_ma(0x2) |
 				 lpddr2_op(DATA(ddr_reg).ddrMR[2]));
-		ddr_send_command(cs, MRS_cmd,
+		ddr_send_command(3, MRS_cmd,
 				 lpddr2_ma(0x3) |
 				 lpddr2_op(DATA(ddr_reg).ddrMR[3]));
 	}
@@ -1887,17 +1886,21 @@ static uint32 __sramfunc ddr_update_mr(void)
 static void __sramfunc ddr_update_odt(void)
 {
 	/*adjust DRV and ODT*/
-	if (DATA(ddr_freq) <= PHY_ODT_DISABLE_FREQ) {
-		pPHY_Reg->PHY_REG21 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS0 odt*/
-		pPHY_Reg->PHY_REG31 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS1 odt*/
-		pPHY_Reg->PHY_REG41 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS2 odt*/
-		pPHY_Reg->PHY_REG51 = PHY_DRV_ODT_SET(PHY_RTT_DISABLE);	/*DQS3 odt*/
+	uint32 phy_odt;
+	if (DATA(ddr_reg).mem_type == DDR3) {
+		if (DATA(ddr_freq) <= PHY_ODT_DISABLE_FREQ) {
+			phy_odt = PHY_RTT_DISABLE;
+		} else {
+			phy_odt = PHY_RTT_216ohm;
+		}
 	} else {
-		pPHY_Reg->PHY_REG21 = PHY_DRV_ODT_SET(PHY_RTT_216ohm);	/*DQS0 odt*/
-		pPHY_Reg->PHY_REG31 = PHY_DRV_ODT_SET(PHY_RTT_216ohm);	/*DQS1 odt*/
-		pPHY_Reg->PHY_REG41 = PHY_DRV_ODT_SET(PHY_RTT_216ohm);	/*DQS2 odt*/
-		pPHY_Reg->PHY_REG51 = PHY_DRV_ODT_SET(PHY_RTT_216ohm);	/*DQS3 odt*/
+		phy_odt = PHY_RTT_DISABLE;
 	}
+
+	pPHY_Reg->PHY_REG21 = PHY_DRV_ODT_SET(phy_odt);	/*DQS0 odt*/
+	pPHY_Reg->PHY_REG31 = PHY_DRV_ODT_SET(phy_odt);	/*DQS1 odt*/
+	pPHY_Reg->PHY_REG41 = PHY_DRV_ODT_SET(phy_odt);	/*DQS2 odt*/
+	pPHY_Reg->PHY_REG51 = PHY_DRV_ODT_SET(phy_odt);	/*DQS3 odt*/
 
 	pPHY_Reg->PHY_REG11 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*cmd drv*/
 	pPHY_Reg->PHY_REG16 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*clk drv*/
@@ -2081,7 +2084,6 @@ uint32 dtt_buffer[8];
 *----------------------------------------------------------------------*/
 void ddr_dtt_check(void)
 {
-#if 1
 	uint32 i;
 	for (i = 0; i < 8; i++) {
 		dtt_buffer[i] = p_copy_data[i];
@@ -2096,7 +2098,6 @@ void ddr_dtt_check(void)
 		}
 		dtt_buffer[i] = 0;
 	}
-#endif
 }
 
 /*----------------------------------------------------------------------
@@ -2169,6 +2170,7 @@ void __sramlocalfunc ddr_change_freq_out(uint32 freq_slew)
 		ddr_update_timing();
 		ddr_update_mr();
 	}
+	ddr_data_training();
 }
 
 static void __sramfunc ddr_SRE_2_SRX(uint32 freq, uint32 freq_slew)
@@ -2405,7 +2407,7 @@ static int _ddr_change_freq(uint32 nMHz)
 	int test_count = 0;
 #endif
 	int ret;
-
+	/*ddr_print("ddr change freq to:%d\n",nMHz);*/
 	memset(&ddr_freq_t, 0x00, sizeof(ddr_freq_t));
 
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
@@ -2597,7 +2599,7 @@ static long _ddr_round_rate(uint32 nMHz)
 }
 
 enum ddr_bandwidth_id{
-	ddrbw_wr_num=0,
+	ddrbw_wr_num = 0,
 	ddrbw_rd_num,
 	ddrbw_act_num,
 	ddrbw_time_num,
@@ -2613,7 +2615,7 @@ static void ddr_dfi_monitor_stop(void)
 	pGRF_Reg->GRF_SOC_CON[0] = DDR_MONITOR_DISB;
 }
 
-void _ddr_bandwidth_get(struct ddr_bw_info * ddr_bw_ch0, struct ddr_bw_info * ddr_bw_ch1)
+void _ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0, struct ddr_bw_info *ddr_bw_ch1)
 {
 	uint32 ddr_bw_val[ddrbw_id_end], ddr_freq;
 	u64 temp64;
@@ -2622,7 +2624,7 @@ void _ddr_bandwidth_get(struct ddr_bw_info * ddr_bw_ch0, struct ddr_bw_info * dd
 
 	ddr_bw = READ_BW_INFO();
 	ddr_dfi_monitor_stop();
-	for (i=0; i<ddrbw_id_end; i++) {
+	for (i = 0; i < ddrbw_id_end; i++) {
 		ddr_bw_val[i] = *(uint32 *)(&(pGRF_Reg->GRF_DFI_WRNUM) + i);
 	}
 	if (!ddr_bw_val[ddrbw_time_num])
@@ -2657,8 +2659,9 @@ int ddr_init(uint32_t dram_speed_bin, uint32 freq)
 	uint32_t cs, die = 1;
 	/*uint32_t calStatusLeft, calStatusRight*/
 	struct clk *clk;
-	ddr_print("version 1.01 20140815\n");
-	cs = READ_CS_INFO();	/*case 0:1rank ; case 1:2rank*/
+
+	ddr_print("version 1.02 20140828\n");
+	cs = READ_CS_INFO();	/*case 1:1rank ; case 2:2rank*/
 
 	p_ddr_reg = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_reg));
 	p_ddr_freq = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_freq));
@@ -2672,36 +2675,25 @@ int ddr_init(uint32_t dram_speed_bin, uint32 freq)
 	*kern_to_pie(rockchip_pie_chunk, &DATA(ddr_dll_status)) =
 	    DDR3_DLL_DISABLE;
 	p_copy_data = kern_to_pie(rockchip_pie_chunk, &copy_data[0]);
-	if (p_ddr_reg->mem_type != DDR3) {
-		ddr_print("ddr type error type=%d\n", (p_ddr_reg->mem_type));
-		return -1;
-	}
 
-	switch (READ_DIE_BW_INFO()) {
-	case 0:		/*8bit*/
-		die = 2;
+	switch (p_ddr_reg->mem_type) {
+	case DDR3:
+		ddr_print("DRAM Type:DDR3\n");
 		break;
-	case 1:		/*16bit*/
-		die = 1;
+	case LPDDR2:
+		ddr_print("DRAM Type:LPDDR2\n");
 		break;
 	default:
-		ddr_print("ddr die BW error=%d\n", READ_DIE_BW_INFO());
-		break;
+		ddr_print("ddr type error type=%d\n", (p_ddr_reg->mem_type));
 	}
-
-	/*get capability per chip, not total size, used for calculate tRFC*/
+	die = 1 << (READ_BW_INFO() - READ_DIE_BW_INFO());
 	p_ddr_reg->ddr_capability_per_die = ddr_get_cap() / (cs * die);
 	ddr_print("%d CS, ROW=%d, Bank=%d, COL=%d, Total Capability=%dMB\n",
 						cs, READ_CS0_ROW_INFO(),
 						(0x1 << (READ_BK_INFO())),
 						READ_COL_INFO(),
 						(ddr_get_cap() >> 20));
-#if 0
-	while (stop)
-	;
-	_ddr_change_freq(freq);
-	ddr_print("init success!!! freq=%dMHz\n", freq);
-#endif
+
 	clk = clk_get(NULL, "clk_ddr");
 	if (IS_ERR(clk)) {
 		ddr_print("failed to get ddr clk\n");
