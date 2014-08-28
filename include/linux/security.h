@@ -2108,7 +2108,7 @@ static inline int security_dentry_init_security(struct dentry *dentry,
 static inline int security_inode_init_security(struct inode *inode,
 						struct inode *dir,
 						const struct qstr *qstr,
-						const initxattrs initxattrs,
+						const initxattrs xattrs,
 						void *fs_data)
 {
 	return 0;
