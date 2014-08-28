@@ -452,7 +452,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 extern int sie64a(struct kvm_s390_sie_block *, u64 *);
 extern char sie_exit;
 
-static inline void kvm_arch_hardware_disable(void *garbage) {}
+static inline void kvm_arch_hardware_disable(void) {}
 static inline void kvm_arch_check_processor_compat(void *rtn) {}
 static inline void kvm_arch_exit(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
