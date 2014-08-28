@@ -3651,7 +3651,7 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 		pbd2->fw_ip_hdr_to_payload_w =
 			hlen_w - ((sizeof(struct ipv6hdr)) >> 1);
 		pbd_e2->data.tunnel_data.flags |=
-			1 /*IPv6*/ << ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER;
+			ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER;
 	}
 
 	pbd2->tcp_send_seq = bswab32(inner_tcp_hdr(skb)->seq);
