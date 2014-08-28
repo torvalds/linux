@@ -75,7 +75,6 @@ struct drm_exynos_ipp_mem_node {
 	u32	prop_id;
 	u32	buf_id;
 	struct drm_exynos_ipp_buf_info	buf_info;
-	struct drm_file		*filp;
 };
 
 /*
@@ -448,6 +447,7 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 	c_node->dev = dev;
 	c_node->property = *property;
 	c_node->state = IPP_STATE_IDLE;
+	c_node->filp = file;
 
 	c_node->start_work = ipp_create_cmd_work();
 	if (IS_ERR(c_node->start_work)) {
@@ -645,7 +645,6 @@ static struct drm_exynos_ipp_mem_node
 		}
 	}
 
-	m_node->filp = file;
 	mutex_lock(&c_node->mem_lock);
 	list_add_tail(&m_node->list, &c_node->mem_list[qbuf->ops_id]);
 	mutex_unlock(&c_node->mem_lock);
@@ -677,7 +676,7 @@ static int ipp_put_mem_node(struct drm_device *drm_dev,
 		unsigned long handle = m_node->buf_info.handles[i];
 		if (handle)
 			exynos_drm_gem_put_dma_addr(drm_dev, handle,
-							m_node->filp);
+							c_node->filp);
 	}
 
 	/* delete list in queue */
