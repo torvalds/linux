@@ -6,6 +6,10 @@ Required properties:
 			 "renesas,sh-mobile-msiof" for SH Mobile series.
 			 Examples with soctypes are:
 			 "renesas,msiof-r8a7790" (R-Car H2)
+			 "renesas,msiof-r8a7791" (R-Car M2-W)
+			 "renesas,msiof-r8a7792" (R-Car V2H)
+			 "renesas,msiof-r8a7793" (R-Car M2-N)
+			 "renesas,msiof-r8a7794" (R-Car E2)
 - reg                  : A list of offsets and lengths of the register sets for
 			 the device.
 			 If only one register set is present, it is to be used
@@ -31,7 +35,7 @@ Optional properties, deprecated for soctype-specific bindings:
 - renesas,tx-fifo-size : Overrides the default tx fifo size given in words
 			 (default is 64)
 - renesas,rx-fifo-size : Overrides the default rx fifo size given in words
-			 (default is 64, or 256 on R-Car H2 and M2)
+			 (default is 64, or 256 on R-Car Gen2)
 
 Pinctrl properties might be needed, too.  See
 Documentation/devicetree/bindings/pinctrl/renesas,*.
