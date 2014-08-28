@@ -435,10 +435,10 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 	index = cs4265_get_clk_index(cs4265->sysclk, params_rate(params));
 	if (index >= 0) {
 		snd_soc_update_bits(codec, CS4265_ADC_CTL,
-			CS4265_ADC_FM, clk_map_table[index].fm_mode);
+			CS4265_ADC_FM, clk_map_table[index].fm_mode << 6);
 		snd_soc_update_bits(codec, CS4265_MCLK_FREQ,
 			CS4265_MCLK_FREQ_MASK,
-			clk_map_table[index].mclkdiv);
+			clk_map_table[index].mclkdiv << 4);
 
 	} else {
 		dev_err(codec->dev, "can't get correct mclk\n");
