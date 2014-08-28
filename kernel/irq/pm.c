@@ -13,13 +13,26 @@
 
 #include "internals.h"
 
+static void suspend_device_irq(struct irq_desc *desc, int irq)
+{
+	if (!desc->action || (desc->action->flags & IRQF_NO_SUSPEND))
+		return;
+
+	desc->istate |= IRQS_SUSPENDED;
+	__disable_irq(desc, irq);
+}
+
 /**
  * suspend_device_irqs - disable all currently enabled interrupt lines
  *
- * During system-wide suspend or hibernation device drivers need to be prevented
- * from receiving interrupts and this function is provided for this purpose.
- * It marks all interrupt lines in use, except for the timer ones, as disabled
- * and sets the IRQS_SUSPENDED flag for each of them.
+ * During system-wide suspend or hibernation device drivers need to be
+ * prevented from receiving interrupts and this function is provided
+ * for this purpose.
+ *
+ * So we disable all interrupts and mark them IRQS_SUSPENDED except
+ * for those which are unused and those which are marked as not
+ * suspendable via an interrupt request with the flag IRQF_NO_SUSPEND
+ * set.
  */
 void suspend_device_irqs(void)
 {
@@ -30,7 +43,7 @@ void suspend_device_irqs(void)
 		unsigned long flags;
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
-		__disable_irq(desc, irq, true);
+		suspend_device_irq(desc, irq);
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 
@@ -39,6 +52,25 @@ void suspend_device_irqs(void)
 			synchronize_irq(irq);
 }
 EXPORT_SYMBOL_GPL(suspend_device_irqs);
+
+static void resume_irq(struct irq_desc *desc, int irq)
+{
+	if (desc->istate & IRQS_SUSPENDED)
+		goto resume;
+
+	if (!desc->action)
+		return;
+
+	/* Interrupts marked with that flag are force reenabled */
+	if (!(desc->action->flags & IRQF_FORCE_RESUME))
+		return;
+
+	/* Pretend that it got disabled ! */
+	desc->depth++;
+resume:
+	desc->istate &= ~IRQS_SUSPENDED;
+	__enable_irq(desc, irq);
+}
 
 static void resume_irqs(bool want_early)
 {
@@ -54,7 +86,7 @@ static void resume_irqs(bool want_early)
 			continue;
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
-		__enable_irq(desc, irq, true);
+		resume_irq(desc, irq);
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
