@@ -358,6 +358,18 @@ static void dsa_slave_adjust_link(struct net_device *dev)
 		phy_print_status(p->phy);
 }
 
+static int dsa_slave_fixed_link_update(struct net_device *dev,
+				       struct fixed_phy_status *status)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	if (ds->drv->fixed_link_update)
+		ds->drv->fixed_link_update(ds, p->port, status);
+
+	return 0;
+}
+
 /* slave device setup *******************************************************/
 static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 				struct net_device *slave_dev)
@@ -365,6 +377,7 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	struct dsa_switch *ds = p->parent;
 	struct dsa_chip_data *cd = ds->pd;
 	struct device_node *phy_dn, *port_dn;
+	bool phy_is_fixed = false;
 	int ret;
 
 	port_dn = cd->port_dn[p->port];
@@ -380,6 +393,7 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 			pr_err("failed to register fixed PHY\n");
 			return;
 		}
+		phy_is_fixed = true;
 		phy_dn = port_dn;
 	}
 
@@ -387,6 +401,9 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 		p->phy = of_phy_connect(slave_dev, phy_dn,
 					dsa_slave_adjust_link, 0,
 					p->phy_interface);
+
+	if (p->phy && phy_is_fixed)
+		fixed_phy_set_link_update(p->phy, dsa_slave_fixed_link_update);
 
 	/* We could not connect to a designated PHY, so use the switch internal
 	 * MDIO bus instead
