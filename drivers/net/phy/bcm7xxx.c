@@ -319,44 +319,28 @@ static int bcm7xxx_dummy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+#define BCM7XXX_28NM_GPHY(_oui, _name)					\
+{									\
+	.phy_id		= (_oui),					\
+	.phy_id_mask	= 0xfffffff0,					\
+	.name		= _name,					\
+	.features	= PHY_GBIT_FEATURES |				\
+			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,	\
+	.flags		= PHY_IS_INTERNAL,				\
+	.config_init	= bcm7xxx_28nm_afe_config_init,			\
+	.config_aneg	= genphy_config_aneg,				\
+	.read_status	= genphy_read_status,				\
+	.resume		= bcm7xxx_28nm_resume,				\
+	.driver		= { .owner = THIS_MODULE },			\
+}
+
 static struct phy_driver bcm7xxx_driver[] = {
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7250, "Broadcom BCM7250"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7364, "Broadcom BCM7364"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7366, "Broadcom BCM7366"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7439, "Broadcom BCM7439"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7445, "Broadcom BCM7445"),
 {
-	.phy_id		= PHY_ID_BCM7366,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7366",
-	.features	= PHY_GBIT_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_afe_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_resume,
-	.driver		= { .owner = THIS_MODULE },
-}, {
-	.phy_id		= PHY_ID_BCM7439,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7439",
-	.features	= PHY_GBIT_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_afe_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_resume,
-	.driver		= { .owner = THIS_MODULE },
-}, {
-	.phy_id		= PHY_ID_BCM7445,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7445",
-	.features	= PHY_GBIT_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_afe_config_init,
-	.driver		= { .owner = THIS_MODULE },
-}, {
 	.phy_id		= PHY_BCM_OUI_4,
 	.phy_id_mask	= 0xffff0000,
 	.name		= "Broadcom BCM7XXX 40nm",
@@ -385,6 +369,8 @@ static struct phy_driver bcm7xxx_driver[] = {
 } };
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
+	{ PHY_ID_BCM7250, 0xfffffff0, },
+	{ PHY_ID_BCM7364, 0xfffffff0, },
 	{ PHY_ID_BCM7366, 0xfffffff0, },
 	{ PHY_ID_BCM7439, 0xfffffff0, },
 	{ PHY_ID_BCM7445, 0xfffffff0, },
