@@ -144,6 +144,11 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 		goto out;
 	}
 
+	/* Make the built-in MII bus mask match the number of ports,
+	 * switch drivers can override this later
+	 */
+	ds->phys_mii_mask = ds->phys_port_mask;
+
 	/*
 	 * If the CPU connects to this switch, set the switch tree
 	 * tagging protocol to the preferred tagging format of this

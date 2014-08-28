@@ -12,6 +12,8 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
+#include <linux/of_net.h>
+#include <linux/of_mdio.h>
 #include "dsa_priv.h"
 
 /* slave mii_bus handling ***************************************************/
@@ -19,7 +21,7 @@ static int dsa_slave_phy_read(struct mii_bus *bus, int addr, int reg)
 {
 	struct dsa_switch *ds = bus->priv;
 
-	if (ds->phys_port_mask & (1 << addr))
+	if (ds->phys_mii_mask & (1 << addr))
 		return ds->drv->phy_read(ds, addr, reg);
 
 	return 0xffff;
@@ -29,7 +31,7 @@ static int dsa_slave_phy_write(struct mii_bus *bus, int addr, int reg, u16 val)
 {
 	struct dsa_switch *ds = bus->priv;
 
-	if (ds->phys_port_mask & (1 << addr))
+	if (ds->phys_mii_mask & (1 << addr))
 		return ds->drv->phy_write(ds, addr, reg, val);
 
 	return 0;
@@ -312,7 +314,70 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_do_ioctl		= dsa_slave_ioctl,
 };
 
+static void dsa_slave_adjust_link(struct net_device *dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	unsigned int status_changed = 0;
+
+	if (p->old_link != p->phy->link) {
+		status_changed = 1;
+		p->old_link = p->phy->link;
+	}
+
+	if (p->old_duplex != p->phy->duplex) {
+		status_changed = 1;
+		p->old_duplex = p->phy->duplex;
+	}
+
+	if (p->old_pause != p->phy->pause) {
+		status_changed = 1;
+		p->old_pause = p->phy->pause;
+	}
+
+	if (status_changed)
+		phy_print_status(p->phy);
+}
+
 /* slave device setup *******************************************************/
+static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
+				struct net_device *slave_dev)
+{
+	struct dsa_switch *ds = p->parent;
+	struct dsa_chip_data *cd = ds->pd;
+	struct device_node *phy_dn, *port_dn;
+	int ret;
+
+	port_dn = cd->port_dn[p->port];
+	p->phy_interface = of_get_phy_mode(port_dn);
+
+	phy_dn = of_parse_phandle(port_dn, "phy-handle", 0);
+	if (of_phy_is_fixed_link(port_dn)) {
+		/* In the case of a fixed PHY, the DT node associated
+		 * to the fixed PHY is the Port DT node
+		 */
+		ret = of_phy_register_fixed_link(port_dn);
+		if (ret) {
+			pr_err("failed to register fixed PHY\n");
+			return;
+		}
+		phy_dn = port_dn;
+	}
+
+	if (phy_dn)
+		p->phy = of_phy_connect(slave_dev, phy_dn,
+					dsa_slave_adjust_link, 0,
+					p->phy_interface);
+
+	/* We could not connect to a designated PHY, so use the switch internal
+	 * MDIO bus instead
+	 */
+	if (!p->phy)
+		p->phy = ds->slave_mii_bus->phy_map[p->port];
+	else
+		pr_info("attached PHY at address %d [%s]\n",
+			p->phy->addr, p->phy->drv->name);
+}
+
 struct net_device *
 dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		 int port, char *name)
@@ -361,7 +426,12 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	p->dev = slave_dev;
 	p->parent = ds;
 	p->port = port;
-	p->phy = ds->slave_mii_bus->phy_map[port];
+
+	p->old_pause = -1;
+	p->old_link = -1;
+	p->old_duplex = -1;
+
+	dsa_slave_phy_setup(p, slave_dev);
 
 	ret = register_netdev(slave_dev);
 	if (ret) {

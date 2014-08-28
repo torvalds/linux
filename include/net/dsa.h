@@ -130,6 +130,7 @@ struct dsa_switch {
 	 */
 	u32			dsa_port_mask;
 	u32			phys_port_mask;
+	u32			phys_mii_mask;
 	struct mii_bus		*slave_mii_bus;
 	struct net_device	*ports[DSA_MAX_PORTS];
 };
