@@ -108,7 +108,7 @@ void obdo_from_inode(struct obdo *dst, struct inode *src, u32 valid)
 		newvalid |= OBD_MD_FLGID;
 	}
 	if (valid & OBD_MD_FLFLAGS) {
-		dst->o_flags = ll_inode_flags(src);
+		dst->o_flags = src->i_flags;
 		newvalid |= OBD_MD_FLFLAGS;
 	}
 	dst->o_valid |= newvalid;

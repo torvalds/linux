@@ -45,8 +45,6 @@
 #include "lustre/lustre_idl.h"
 #include "lprocfs_status.h"
 
-#include "linux/obd_class.h"
-
 #define OBD_STATFS_NODELAY      0x0001  /* requests should be send without delay
 					 * and resends for avoid deadlocks */
 #define OBD_STATFS_FROM_CACHE   0x0002  /* the statfs callback should not update
@@ -307,6 +305,13 @@ static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 		0);
 }
 
+struct inode;
+struct lu_attr;
+struct obdo;
+void obdo_from_la(struct obdo *dst, struct lu_attr *la, __u64 valid);
+void la_from_obdo(struct lu_attr *la, struct obdo *dst, u32 valid);
+void obdo_refresh_inode(struct inode *dst, struct obdo *src, u32 valid);
+void obdo_to_inode(struct inode *dst, struct obdo *src, u32 valid);
 
 void obdo_cpy_md(struct obdo *dst, struct obdo *src, u32 valid);
 void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj);
