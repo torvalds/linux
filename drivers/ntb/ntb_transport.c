@@ -576,6 +576,19 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 		return -ENOMEM;
 	}
 
+	/*
+	 * we must ensure that the memory address allocated is BAR size
+	 * aligned in order for the XLAT register to take the value. This
+	 * is a requirement of the hardware. It is recommended to setup CMA
+	 * for BAR sizes equal or greater than 4MB.
+	 */
+	if (!IS_ALIGNED(mw->dma_addr, mw->size)) {
+		dev_err(&pdev->dev, "DMA memory %pad not aligned to BAR size\n",
+			&mw->dma_addr);
+		ntb_free_mw(nt, num_mw);
+		return -ENOMEM;
+	}
+
 	/* Notify HW the memory location of the receive buffer */
 	ntb_set_mw_addr(nt->ndev, num_mw, mw->dma_addr);
 
