@@ -49,10 +49,10 @@ void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action)
 		desc->no_suspend_depth--;
 }
 
-static void suspend_device_irq(struct irq_desc *desc, int irq)
+static bool suspend_device_irq(struct irq_desc *desc, int irq)
 {
 	if (!desc->action || desc->no_suspend_depth)
-		return;
+		return false;
 
 	desc->istate |= IRQS_SUSPENDED;
 	__disable_irq(desc, irq);
@@ -65,6 +65,7 @@ static void suspend_device_irq(struct irq_desc *desc, int irq)
 	 */
 	if (irq_desc_get_chip(desc)->flags & IRQCHIP_MASK_ON_SUSPEND)
 		mask_irq(desc);
+	return true;
 }
 
 /**
@@ -86,15 +87,15 @@ void suspend_device_irqs(void)
 
 	for_each_irq_desc(irq, desc) {
 		unsigned long flags;
+		bool sync;
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
-		suspend_device_irq(desc, irq);
+		sync = suspend_device_irq(desc, irq);
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
-	}
 
-	for_each_irq_desc(irq, desc)
-		if (desc->istate & IRQS_SUSPENDED)
+		if (sync)
 			synchronize_irq(irq);
+	}
 }
 EXPORT_SYMBOL_GPL(suspend_device_irqs);
 
