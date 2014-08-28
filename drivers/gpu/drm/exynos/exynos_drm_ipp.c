@@ -603,10 +603,15 @@ static void ipp_clean_mem_nodes(struct drm_device *drm_dev,
 static void ipp_clean_cmd_node(struct ipp_context *ctx,
 				struct drm_exynos_ipp_cmd_node *c_node)
 {
+	int i;
+
 	/* cancel works */
 	cancel_work_sync(&c_node->start_work->work);
 	cancel_work_sync(&c_node->stop_work->work);
 	cancel_work_sync(&c_node->event_work->work);
+
+	for_each_ipp_ops(i)
+		ipp_clean_mem_nodes(ctx->subdrv.drm_dev, c_node, i);
 
 	/* delete list */
 	list_del(&c_node->list);
