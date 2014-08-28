@@ -48,8 +48,6 @@
 #ifndef _LUSTRE_DLM_H__
 #define _LUSTRE_DLM_H__
 
-#include "linux/lustre_dlm.h"
-
 #include "lustre_lib.h"
 #include "lustre_net.h"
 #include "lustre_import.h"
