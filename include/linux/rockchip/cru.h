@@ -59,7 +59,7 @@
 #define RK3288_CRU_CLKGATES_CON(i)	(RK3288_CRU_CLKGATE_CON + ((i) * 4))
 
 /******************PLL MODE BITS*******************/
-// apll dpll,cpll,gpll,npll 0~4
+/*************apll dpll,cpll,gpll,npll 0~4************/
 #define RK3288_PLLS_MODE_OFFSET(id) ((id)<=3 ? (id*4) : 14)
 #define RK3288_PLL_MODE_MSK(id)		(0x3 << RK3288_PLLS_MODE_OFFSET(id))
 #define RK3288_PLL_MODE_SLOW(id)	((0x0<<RK3288_PLLS_MODE_OFFSET(id))|(0x3<<(16+RK3288_PLLS_MODE_OFFSET(id))))
@@ -73,7 +73,6 @@
 
 enum rk3288_cru_clk_gate {
 	/* SCU CLK GATE 0 CON */
-        //gate0
 	RK3288_CLKGATE_UART0_SRC    =   (RK3288_CRU_CONS_GATEID(1)+8),   
 	
 	RK3288_CLKGATE_UART4_SRC    =   (RK3288_CRU_CONS_GATEID(2)+12),   
@@ -127,6 +126,27 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 
 #define RK3036_CRU_MODE_CON 0x0040
 
+/******************PLL MODE BITS*******************/
+/****************apll dpll,gpll 0~2******************/
+#define RK3036_PLLS_MODE_OFFSET(id) ((id) < 2 ? (id*4) : 12)
+
+#define RK3036_PLL_MODE_SLOW(id)	((0x0 << RK3036_PLLS_MODE_OFFSET(id)) \
+	| (((id) < 2 ? 0x1 : 0x3) << (16 + RK3036_PLLS_MODE_OFFSET(id))))
+
+#define RK3036_PLL_MODE_MSK(id)	(0x1 << RK3036_PLLS_MODE_OFFSET(id))
+
+#define RK3036_APLL_MODE_SLOW	((0x0<<0x00)|(0x1<<(16+0x00)))
+#define RK3036_DPLL_MODE_SLOW	((0x0<<0x04)|(0x1<<(16+0x04)))
+#define RK3036_GPLL_MODE_SLOW	((0x0<<0x12)|(0x3<<(16+0x12)))
+
+#define RK3036_APLL_MODE_NORM	((0x1<<0x00)|(0x1<<(16+0x00)))
+#define RK3036_DPLL_MODE_NORM	((0x1<<0x04)|(0x1<<(16+0x04)))
+#define RK3036_GPLL_MODE_NORM	((0x1<<0x12)|(0x3<<(16+0x12)))
+
+#define RK3036_GPLL_MODE_DEEP	((0x10<<0x12)|(0x3<<(16+0x12)))
+
+#define RK3036_PLL_CONS(id, i)	(((id) < 2 ? id : (id + 1)) * 0x10 + ((i) * 4))
+
 #define RK3036_CRU_GLB_SRST_FST_VALUE 0x00100
 #define RK3036_CRU_GLB_SRST_SND_VALUE 0x00104
 #define RK3036_CRU_SOFTRST0_CON 0x00110
@@ -155,7 +175,7 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 #define RK3036_CRU_CLKSELS_CON_CNT	(35)
 #define RK3036_CRU_CLKSELS_CON(i)	(RK3036_CRU_CLKSEL_CON + ((i) * 4))
 
-#define RK3036_CRU_CLKGATES_CON_CNT	(10)
+#define RK3036_CRU_CLKGATES_CON_CNT	(11)
 #define RK3036_CRU_CLKGATES_CON(i)	(RK3036_CRU_CLKGATE_CON + ((i) * 4))
 
 #define RK3036_CRU_SOFTRSTS_CON_CNT	(9)

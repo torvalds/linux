@@ -3,6 +3,7 @@
 #include "skeleton.dtsi"
 #include "rk3036-clocks.dtsi"
 #include "rk3036-pinctrl.dtsi"
+#include <dt-bindings/suspend/rockchip-pm.h>
 
 / {
 	compatible = "rockchip,rk3036";
@@ -690,6 +691,29 @@
 		reg = <0x10108800 0x100>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
+	};
+
+	rockchip_suspend {
+		rockchip,ctrbits = <
+			(0
+			 //|RKPM_CTR_PWR_DMNS
+			 |RKPM_CTR_GTCLKS
+			 |RKPM_CTR_PLLS
+			 //|RKPM_CTR_GPIOS
+			 //|RKPM_CTR_SYSCLK_DIV
+			 //|RKPM_CTR_IDLEAUTO_MD
+			 //|RKPM_CTR_ARMOFF_LPMD
+			 //|RKPM_CTR_ARMOFF_LOGDP_LPMD
+			)
+			>;
+/*
+		rockchip,pmic-suspend_gpios = <
+			RKPM_PINGPIO_BITS_OUTPUT(GPIO7_A1,RKPM_GPIO_OUT_H)
+			>;
+                rockchip,pmic-resume_gpios = <
+			RKPM_PINGPIO_BITS_FUN(PWM1,RKPM_GPIO_PULL_DN)
+			>;
+*/
 	};
 
 	vmac: eth@10200000 {

@@ -132,12 +132,12 @@ static int rk3036_sys_set_power_domain(enum pmu_power_domain pd, bool on)
 	if (on) {
 #ifdef CONFIG_SMP
 		if (PD_CPU_1 == pd) {
-			writel_relaxed(0x20000,
-				       RK_CRU_VIRT + RK3036_CRU_SOFTRST0_CON);
+			writel_relaxed(0x20000
+				, RK_CRU_VIRT + RK3036_CRU_SOFTRST0_CON);
 			dsb();
 			udelay(10);
 			writel_relaxed(virt_to_phys(secondary_startup),
-				       RK3036_IMEM_VIRT + 8);
+					   RK3036_IMEM_VIRT + 8);
 			writel_relaxed(0xDEADBEAF, RK3036_IMEM_VIRT + 4);
 			dsb_sev();
 		}
@@ -145,8 +145,8 @@ static int rk3036_sys_set_power_domain(enum pmu_power_domain pd, bool on)
 	} else {
 #ifdef CONFIG_SMP
 		if (PD_CPU_1 == pd) {
-			writel_relaxed(0x20002,
-				       RK_CRU_VIRT + RK3036_CRU_SOFTRST0_CON);
+			writel_relaxed(0x20002
+				, RK_CRU_VIRT + RK3036_CRU_SOFTRST0_CON);
 			dsb();
 		}
 #endif
@@ -203,19 +203,26 @@ static void rk3036_ddr_printch(char byte)
 	}
 }
 
+enum rk_plls_id {
+	APLL_ID = 0,
+	DPLL_ID,
+	GPLL_ID,
+	RK3036_END_PLL_ID,
+};
+
 #define GPIO_INTEN		0x30
 #define GPIO_INT_STATUS		0x40
 #define GIC_DIST_PENDING_SET	0x200
 static void rk3036_pm_dump_irq(void)
 {
-	u32 irq_gpio =
-	    (readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 8) >> 4) & 7;
+	u32 irq_gpio = (readl_relaxed(RK_GIC_VIRT
+		+ GIC_DIST_PENDING_SET + 8) >> 4) & 7;
 	u32 irq[4];
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(irq); i++) {
 		irq[i] = readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET +
-				       (1 + i) * 4);
+					   (1 + i) * 4);
 		if (irq[i])
 			log_wakeup_reason(32 * (i + 1) + fls(irq[i]) - 1);
 	}
@@ -225,7 +232,7 @@ static void rk3036_pm_dump_irq(void)
 		if (irq_gpio & (1 << i))
 			pr_info("wakeup gpio%d: %08x\n", i,
 				readl_relaxed(RK_GPIO_VIRT(i) +
-					      GPIO_INT_STATUS));
+						  GPIO_INT_STATUS));
 	}
 }
 
@@ -244,9 +251,224 @@ static void rk3036_pm_dump_inten(void)
 	DUMP_GPIO_INTEN(2);
 }
 
+static u32 clk_ungt_msk[RK3036_CRU_CLKGATES_CON_CNT];
+/*first clk gating setting*/
+
+static u32 clk_ungt_msk_1[RK3036_CRU_CLKGATES_CON_CNT];
+/* first clk gating setting*/
+
+static u32 clk_ungt_save[RK3036_CRU_CLKGATES_CON_CNT];
+/*first clk gating value saveing*/
+
+static u32 *p_rkpm_clkgt_last_set;
+#define CLK_MSK_GATING(msk, con) cru_writel((0xffff << 16) | msk, con)
+#define CLK_MSK_UNGATING(msk, con) cru_writel(((~msk) << 16) | 0xffff, con)
+
+static void gtclks_suspend(void)
+{
+	int i;
+
+	for (i = 0; i < RK3036_CRU_CLKGATES_CON_CNT; i++) {
+		clk_ungt_save[i] = cru_readl(RK3036_CRU_CLKGATES_CON(i));
+		if (i != 10)
+			CLK_MSK_GATING(clk_ungt_msk[i]
+			, RK3036_CRU_CLKGATES_CON(i));
+		else
+			cru_writel(clk_ungt_msk[i], RK3036_CRU_CLKGATES_CON(i));
+	}
+}
+
+static void gtclks_resume(void)
+{
+	int i;
+
+	for (i = 0; i < RK3036_CRU_CLKGATES_CON_CNT; i++) {
+		if (i != 10)
+			cru_writel(clk_ungt_save[i] | 0xffff0000
+				, RK3036_CRU_CLKGATES_CON(i));
+		else
+			cru_writel(clk_ungt_msk[i]
+				, RK3036_CRU_CLKGATES_CON(i));
+	}
+}
+
+static void clks_gating_suspend_init(void)
+{
+	p_rkpm_clkgt_last_set = &clk_ungt_msk_1[0];
+	if (clk_suspend_clkgt_info_get(clk_ungt_msk, p_rkpm_clkgt_last_set
+		, RK3036_CRU_CLKGATES_CON_CNT) == RK3036_CRU_CLKGATES_CON(0))
+		rkpm_set_ops_gtclks(gtclks_suspend, gtclks_resume);
+}
+
+#define RK3036_PLL_BYPASS CRU_W_MSK_SETBITS(1, 0xF, 0x01)
+#define RK3036_PLL_NOBYPASS CRU_W_MSK_SETBITS(0, 0xF, 0x01)
+
+#define grf_readl(offset) readl_relaxed(RK_GRF_VIRT + offset)
+#define grf_writel(v, offset) do { writel_relaxed(v, \
+	RK_GRF_VIRT + offset); dsb(); } while (0)
+
+#define gpio0_readl(offset) readl_relaxed(RK_GPIO_VIRT(0) + offset)
+#define gpio0_writel(v, offset) do { writel_relaxed(v, RK_GPIO_VIRT(0) \
+	+ offset); dsb(); } while (0)
+
+static u32 plls_con0_save[RK3036_END_PLL_ID];
+static u32 plls_con1_save[RK3036_END_PLL_ID];
+static u32 plls_con2_save[RK3036_END_PLL_ID];
+
+static u32 cru_mode_con;
+static u32 clk_sel0, clk_sel1, clk_sel10;
+static int goio0_pin_iomux, gpio0_pin_data, gpio0_pin_dir;
+
+static void pm_pll_wait_lock(u32 pll_idx)
+{
+	u32 delay = 600000U;
+
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	while (delay > 0) {
+		if ((cru_readl(RK3036_PLL_CONS(pll_idx, 1)) & (0x1 << 10)))
+			break;
+		delay--;
+	}
+	if (delay == 0) {
+		rkpm_ddr_printascii("unlock-pll:");
+		rkpm_ddr_printhex(pll_idx);
+		rkpm_ddr_printch('\n');
+	}
+}
+
+static void pll_udelay(u32 udelay)
+{
+	u32 mode;
+
+	mode = cru_readl(RK3036_CRU_MODE_CON);
+	cru_writel(RK3036_PLL_MODE_SLOW(APLL_ID), RK3036_CRU_MODE_CON);
+	rkpm_udelay(udelay * 5);
+	cru_writel(mode|(RK3036_PLL_MODE_MSK(APLL_ID)
+		<< 16), RK3036_CRU_MODE_CON);
+}
+
+static inline void plls_suspend(u32 pll_id)
+{
+	plls_con0_save[pll_id] = cru_readl(RK3036_PLL_CONS((pll_id), 0));
+	plls_con1_save[pll_id] = cru_readl(RK3036_PLL_CONS((pll_id), 1));
+	plls_con2_save[pll_id] = cru_readl(RK3036_PLL_CONS((pll_id), 2));
+
+	cru_writel(RK3036_PLL_BYPASS, RK3036_PLL_CONS((pll_id), 0));
+}
+static inline void plls_resume(u32 pll_id)
+{
+	u32 pllcon0, pllcon1, pllcon2;
+
+	pllcon0 = plls_con0_save[pll_id];
+	pllcon1 = plls_con1_save[pll_id];
+	pllcon2 = plls_con2_save[pll_id];
+
+	cru_writel(pllcon0 | 0xffff0000, RK3036_PLL_CONS(pll_id, 0));
+	cru_writel(pllcon1 | 0xf5ff0000, RK3036_PLL_CONS(pll_id, 1));
+	cru_writel(pllcon2, RK3036_PLL_CONS(pll_id, 2));
+
+	pll_udelay(5);
+
+	pll_udelay(168);
+	pm_pll_wait_lock(pll_id);
+}
+
+static void pm_plls_suspend(void)
+{
+	cru_mode_con  = cru_readl(RK3036_CRU_MODE_CON);
+
+	clk_sel0 = cru_readl(RK3036_CRU_CLKSELS_CON(0));
+	clk_sel1 = cru_readl(RK3036_CRU_CLKSELS_CON(1));
+	clk_sel10 = cru_readl(RK3036_CRU_CLKSELS_CON(10));
+
+	cru_writel(RK3036_PLL_MODE_SLOW(GPLL_ID), RK3036_CRU_MODE_CON);
+	cru_writel(0
+						|CRU_W_MSK_SETBITS(0, 0, 0x1f)
+						|CRU_W_MSK_SETBITS(0, 8, 0x3)
+						|CRU_W_MSK_SETBITS(0, 12, 0x3)
+						, RK3036_CRU_CLKSELS_CON(10));
+	plls_suspend(GPLL_ID);
+
+
+	cru_writel(RK3036_PLL_MODE_SLOW(APLL_ID), RK3036_CRU_MODE_CON);
+
+	cru_writel(0
+						|CRU_W_MSK_SETBITS(0, 0, 0x1f)
+						|CRU_W_MSK_SETBITS(0, 8, 0x1f)
+					  , RK3036_CRU_CLKSELS_CON(0));
+
+	cru_writel(0
+						|CRU_W_MSK_SETBITS(0, 0, 0xf)
+						|CRU_W_MSK_SETBITS(0, 4, 0x7)
+						|CRU_W_MSK_SETBITS(0, 8, 0x3)
+						|CRU_W_MSK_SETBITS(0, 12, 0x7)
+					 , RK3036_CRU_CLKSELS_CON(1));
+
+	plls_suspend(APLL_ID);
+
+	goio0_pin_iomux = grf_readl(0xa8);
+	grf_writel(0x000c0000, 0xa8);
+
+	gpio0_pin_data = gpio0_readl(0x0);
+	gpio0_pin_dir = gpio0_readl(0x04);
+
+	gpio0_writel(gpio0_pin_dir|0x2, 0x04);
+	gpio0_writel(gpio0_pin_data|0x2, 0x00);
+}
+
+static void pm_plls_resume(void)
+{
+	gpio0_writel(gpio0_pin_dir, 0x04);
+	gpio0_writel(gpio0_pin_data, 0x00);
+	grf_writel(0x000c0008, 0xa8);
+
+	cru_writel(clk_sel0 | (CRU_W_MSK(0, 0x1f) | CRU_W_MSK(8, 0x1f))
+		, RK3036_CRU_CLKSELS_CON(0));
+	cru_writel(clk_sel1 | (CRU_W_MSK(0, 0xf) | CRU_W_MSK(4, 0x7)
+		|CRU_W_MSK(8, 0x3) | CRU_W_MSK(12, 0x7))
+		, RK3036_CRU_CLKSELS_CON(1));
+
+	plls_resume(APLL_ID);
+	cru_writel(cru_mode_con | (RK3036_PLL_MODE_MSK(APLL_ID) << 16)
+		, RK3036_CRU_MODE_CON);
+	cru_writel(clk_sel1 | (CRU_W_MSK(0, 0x1f) | CRU_W_MSK(8, 0x3)
+		| CRU_W_MSK(12, 0x3)), RK3036_CRU_CLKSELS_CON(10));
+	plls_resume(GPLL_ID);
+	cru_writel(cru_mode_con | (RK3036_PLL_MODE_MSK(GPLL_ID)
+		<< 16), RK3036_CRU_MODE_CON);
+}
+
 static void __init rk3036_suspend_init(void)
 {
-	rkpm_set_ops_prepare_finish(rk3036_pm_dump_inten, rk3036_pm_dump_irq);
+	struct device_node *parent;
+	u32 pm_ctrbits;
+
+	PM_LOG("%s enter\n", __func__);
+
+	parent = of_find_node_by_name(NULL, "rockchip_suspend");
+
+	if (IS_ERR_OR_NULL(parent)) {
+		PM_ERR("%s dev node err\n", __func__);
+		return;
+	}
+
+	if (of_property_read_u32_array(parent, "rockchip,ctrbits"
+		, &pm_ctrbits, 1)) {
+			PM_ERR("%s:get pm ctr error\n", __func__);
+			return;
+	}
+	PM_LOG("%s: pm_ctrbits =%x\n", __func__, pm_ctrbits);
+	rkpm_set_ctrbits(pm_ctrbits);
+
+	clks_gating_suspend_init();
+	rkpm_set_ops_plls(pm_plls_suspend, pm_plls_resume);
+	rkpm_set_ops_prepare_finish(rk3036_pm_dump_inten
+		, rk3036_pm_dump_irq);
 	rkpm_set_ops_printch(rk3036_ddr_printch);
 	rockchip_suspend_init();
 }
@@ -270,9 +492,10 @@ static void rk3036_restart(char mode, const char *cmd)
 	u32 boot_flag, boot_mode;
 
 	rockchip_restart_get_boot_mode(cmd, &boot_flag, &boot_mode);
-
-	writel_relaxed(boot_flag, RK_GRF_VIRT + RK3036_GRF_OS_REG4);	// for loader
-	writel_relaxed(boot_mode, RK_GRF_VIRT + RK3036_GRF_OS_REG5);	// for linux
+	/* for loader */
+	writel_relaxed(boot_flag, RK_GRF_VIRT + RK3036_GRF_OS_REG4);
+	/* for linux */
+	writel_relaxed(boot_mode, RK_GRF_VIRT + RK3036_GRF_OS_REG5);
 	dsb();
 
 	/* pll enter slow mode */
