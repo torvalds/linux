@@ -790,7 +790,7 @@ static void ipp_handle_cmd_work(struct device *dev,
 
 	cmd_work->ippdrv = ippdrv;
 	cmd_work->c_node = c_node;
-	queue_work(ctx->cmd_workq, (struct work_struct *)cmd_work);
+	queue_work(ctx->cmd_workq, &cmd_work->work);
 }
 
 static int ipp_queue_buf_with_run(struct device *dev,
@@ -1318,7 +1318,7 @@ err_clear:
 void ipp_sched_cmd(struct work_struct *work)
 {
 	struct drm_exynos_ipp_cmd_work *cmd_work =
-		(struct drm_exynos_ipp_cmd_work *)work;
+		container_of(work, struct drm_exynos_ipp_cmd_work, work);
 	struct exynos_drm_ippdrv *ippdrv;
 	struct drm_exynos_ipp_cmd_node *c_node;
 	struct drm_exynos_ipp_property *property;
@@ -1531,7 +1531,7 @@ err_event_unlock:
 void ipp_sched_event(struct work_struct *work)
 {
 	struct drm_exynos_ipp_event_work *event_work =
-		(struct drm_exynos_ipp_event_work *)work;
+		container_of(work, struct drm_exynos_ipp_event_work, work);
 	struct exynos_drm_ippdrv *ippdrv;
 	struct drm_exynos_ipp_cmd_node *c_node;
 	int ret;
