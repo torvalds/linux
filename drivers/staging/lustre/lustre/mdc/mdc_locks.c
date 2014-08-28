@@ -1236,7 +1236,7 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 	if (rc < 0) {
 		CERROR("ldlm_cli_enqueue_fini: %d\n", rc);
 		mdc_clear_replay_flag(req, rc);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	lockrep = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
@@ -1247,7 +1247,7 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 
 	rc = mdc_finish_enqueue(exp, req, einfo, it, lockh, rc);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	rc = mdc_finish_intent_lock(exp, req, &minfo->mi_data, it, lockh);
 
