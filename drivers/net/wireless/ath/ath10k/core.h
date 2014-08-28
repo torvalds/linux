@@ -472,7 +472,6 @@ struct ath10k {
 	struct cfg80211_chan_def chandef;
 
 	int free_vdev_map;
-	bool promisc;
 	bool monitor;
 	int monitor_vdev_id;
 	bool monitor_started;
