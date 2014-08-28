@@ -1063,10 +1063,18 @@ nvd0_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 		addr = 0x612280 + (ffs(outp->info.or) - 1) * 0x800;
 		data = 0x00000000;
 	} else {
-		if (outp->info.type == DCB_OUTPUT_DP)
-			nvd0_disp_intr_unk2_2_tu(priv, head, &outp->info);
 		addr = 0x612300 + (ffs(outp->info.or) - 1) * 0x800;
 		data = (conf & 0x0100) ? 0x00000101 : 0x00000000;
+		switch (outp->info.type) {
+		case DCB_OUTPUT_TMDS:
+			nv_mask(priv, addr, 0x007c0000, 0x00280000);
+			break;
+		case DCB_OUTPUT_DP:
+			nvd0_disp_intr_unk2_2_tu(priv, head, &outp->info);
+			break;
+		default:
+			break;
+		}
 	}
 
 	nv_mask(priv, addr, 0x00000707, data);
