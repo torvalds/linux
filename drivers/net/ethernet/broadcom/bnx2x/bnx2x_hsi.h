@@ -3983,29 +3983,10 @@ struct eth_mac_addresses {
 
 /* tunneling related data */
 struct eth_tunnel_data {
-#if defined(__BIG_ENDIAN)
-	__le16 dst_mid;
-	__le16 dst_lo;
-#elif defined(__LITTLE_ENDIAN)
 	__le16 dst_lo;
 	__le16 dst_mid;
-#endif
-#if defined(__BIG_ENDIAN)
-	__le16 fw_ip_hdr_csum;
-	__le16 dst_hi;
-#elif defined(__LITTLE_ENDIAN)
 	__le16 dst_hi;
 	__le16 fw_ip_hdr_csum;
-#endif
-#if defined(__BIG_ENDIAN)
-	u8 flags;
-#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER (0x1<<0)
-#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER_SHIFT 0
-#define ETH_TUNNEL_DATA_RESERVED (0x7F<<1)
-#define ETH_TUNNEL_DATA_RESERVED_SHIFT 1
-	u8 ip_hdr_start_inner_w;
-	__le16 pseudo_csum;
-#elif defined(__LITTLE_ENDIAN)
 	__le16 pseudo_csum;
 	u8 ip_hdr_start_inner_w;
 	u8 flags;
@@ -4013,7 +3994,6 @@ struct eth_tunnel_data {
 #define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER_SHIFT 0
 #define ETH_TUNNEL_DATA_RESERVED (0x7F<<1)
 #define ETH_TUNNEL_DATA_RESERVED_SHIFT 1
-#endif
 };
 
 /* union for mac addresses and for tunneling data.
