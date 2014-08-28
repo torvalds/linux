@@ -275,6 +275,7 @@ static void stmmac_eee_ctrl_timer(unsigned long arg)
  */
 bool stmmac_eee_init(struct stmmac_priv *priv)
 {
+	char *phy_bus_name = priv->plat->phy_bus_name;
 	bool ret = false;
 
 	/* Using PCS we cannot dial with the phy registers at this stage
@@ -282,6 +283,10 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 	 */
 	if ((priv->pcs == STMMAC_PCS_RGMII) || (priv->pcs == STMMAC_PCS_TBI) ||
 	    (priv->pcs == STMMAC_PCS_RTBI))
+		goto out;
+
+	/* Never init EEE in case of a switch is attached */
+	if (phy_bus_name && (!strcmp(phy_bus_name, "fixed")))
 		goto out;
 
 	/* MAC core supports the EEE feature. */
