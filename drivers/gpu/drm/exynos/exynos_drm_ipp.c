@@ -1808,63 +1808,12 @@ static int ipp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int ipp_power_ctrl(struct ipp_context *ctx, bool enable)
-{
-	DRM_DEBUG_KMS("enable[%d]\n", enable);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM_SLEEP
-static int ipp_suspend(struct device *dev)
-{
-	struct ipp_context *ctx = get_ipp_context(dev);
-
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	return ipp_power_ctrl(ctx, false);
-}
-
-static int ipp_resume(struct device *dev)
-{
-	struct ipp_context *ctx = get_ipp_context(dev);
-
-	if (!pm_runtime_suspended(dev))
-		return ipp_power_ctrl(ctx, true);
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_PM_RUNTIME
-static int ipp_runtime_suspend(struct device *dev)
-{
-	struct ipp_context *ctx = get_ipp_context(dev);
-
-	return ipp_power_ctrl(ctx, false);
-}
-
-static int ipp_runtime_resume(struct device *dev)
-{
-	struct ipp_context *ctx = get_ipp_context(dev);
-
-	return ipp_power_ctrl(ctx, true);
-}
-#endif
-
-static const struct dev_pm_ops ipp_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ipp_suspend, ipp_resume)
-	SET_RUNTIME_PM_OPS(ipp_runtime_suspend, ipp_runtime_resume, NULL)
-};
-
 struct platform_driver ipp_driver = {
 	.probe		= ipp_probe,
 	.remove		= ipp_remove,
 	.driver		= {
 		.name	= "exynos-drm-ipp",
 		.owner	= THIS_MODULE,
-		.pm	= &ipp_pm_ops,
 	},
 };
 
