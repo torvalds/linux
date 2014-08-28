@@ -274,6 +274,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 				dai_link->codec_dai_name);
 	dai_link->name = dai_link->stream_name = name;
 	dai_link->ops = &asoc_simple_card_ops;
+	dai_link->init = asoc_simple_card_dai_init;
 
 	dev_dbg(dev, "\tname : %s\n", dai_link->stream_name);
 	dev_dbg(dev, "\tcpu : %s / %04x / %d\n",
@@ -465,6 +466,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		dai_link->codec_name	= cinfo->codec;
 		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
 		dai_link->codec_dai_name = cinfo->codec_dai.name;
+		dai_link->init		= asoc_simple_card_dai_init;
 		memcpy(&priv->dai_props->cpu_dai, &cinfo->cpu_dai,
 					sizeof(priv->dai_props->cpu_dai));
 		memcpy(&priv->dai_props->codec_dai, &cinfo->codec_dai,
@@ -473,11 +475,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		priv->dai_props->cpu_dai.fmt	|= cinfo->daifmt;
 		priv->dai_props->codec_dai.fmt	|= cinfo->daifmt;
 	}
-
-	/*
-	 * init snd_soc_dai_link
-	 */
-	dai_link->init = asoc_simple_card_dai_init;
 
 	snd_soc_card_set_drvdata(&priv->snd_card, priv);
 
