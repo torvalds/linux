@@ -720,6 +720,8 @@ reuse_slot:
 		ip_set_init_counter(ext_counter(data, set), ext);
 	if (SET_WITH_COMMENT(set))
 		ip_set_init_comment(ext_comment(data, set), ext);
+	if (SET_WITH_SKBINFO(set))
+		ip_set_init_skbinfo(ext_skbinfo(data, set), ext);
 
 out:
 	rcu_read_unlock_bh();
@@ -797,6 +799,9 @@ mtype_data_match(struct mtype_elem *data, const struct ip_set_ext *ext,
 	if (SET_WITH_COUNTER(set))
 		ip_set_update_counter(ext_counter(data, set),
 				      ext, mext, flags);
+	if (SET_WITH_SKBINFO(set))
+		ip_set_get_skbinfo(ext_skbinfo(data, set),
+				   ext, mext, flags);
 	return mtype_do_data_match(data);
 }
 
