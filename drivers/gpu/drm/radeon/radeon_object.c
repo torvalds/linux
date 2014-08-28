@@ -491,6 +491,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 		bo = lobj->robj;
 		if (!bo->pin_count) {
 			u32 domain = lobj->prefered_domains;
+			u32 allowed = lobj->allowed_domains;
 			u32 current_domain =
 				radeon_mem_type_to_domain(bo->tbo.mem.mem_type);
 
@@ -502,7 +503,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			 * into account. We don't want to disallow buffer moves
 			 * completely.
 			 */
-			if ((lobj->allowed_domains & current_domain) != 0 &&
+			if ((allowed & current_domain) != 0 &&
 			    (domain & current_domain) == 0 && /* will be moved */
 			    bytes_moved > bytes_moved_threshold) {
 				/* don't move it */
@@ -512,7 +513,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 		retry:
 			radeon_ttm_placement_from_domain(bo, domain);
 			if (ring == R600_RING_TYPE_UVD_INDEX)
-				radeon_uvd_force_into_uvd_segment(bo);
+				radeon_uvd_force_into_uvd_segment(bo, allowed);
 
 			initial_bytes_moved = atomic64_read(&rdev->num_bytes_moved);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
