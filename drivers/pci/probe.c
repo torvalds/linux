@@ -1358,34 +1358,6 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	 */
 }
 
-void pci_configure_slot(struct pci_dev *dev)
-{
-	struct pci_dev *cdev;
-	struct hotplug_params hpp;
-	int ret;
-
-	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
-			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
-			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
-		return;
-
-	pcie_bus_configure_settings(dev->bus);
-
-	memset(&hpp, 0, sizeof(hpp));
-	ret = pci_get_hp_params(dev, &hpp);
-
-	program_hpp_type2(dev, hpp.t2);
-	program_hpp_type1(dev, hpp.t1);
-	program_hpp_type0(dev, hpp.t0);
-
-	if (dev->subordinate) {
-		list_for_each_entry(cdev, &dev->subordinate->devices,
-				    bus_list)
-			pci_configure_slot(cdev);
-	}
-}
-EXPORT_SYMBOL_GPL(pci_configure_slot);
-
 static void pci_configure_device(struct pci_dev *dev)
 {
 	struct hotplug_params hpp;
