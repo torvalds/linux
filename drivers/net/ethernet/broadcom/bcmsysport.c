@@ -139,6 +139,15 @@ static int bcm_sysport_set_rx_csum(struct net_device *dev,
 	else
 		reg &= ~RXCHK_SKIP_FCS;
 
+	/* If Broadcom tags are enabled (e.g: using a switch), make
+	 * sure we tell the RXCHK hardware to expect a 4-bytes Broadcom
+	 * tag after the Ethernet MAC Source Address.
+	 */
+	if (netdev_uses_dsa(dev))
+		reg |= RXCHK_BRCM_TAG_EN;
+	else
+		reg &= ~RXCHK_BRCM_TAG_EN;
+
 	rxchk_writel(priv, reg, RXCHK_CONTROL);
 
 	return 0;
