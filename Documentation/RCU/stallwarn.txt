@@ -26,12 +26,6 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	Stall-warning messages may be enabled and disabled completely via
 	/sys/module/rcupdate/parameters/rcu_cpu_stall_suppress.
 
-CONFIG_RCU_CPU_STALL_VERBOSE
-
-	This kernel configuration parameter causes the stall warning to
-	also dump the stacks of any tasks that are blocking the current
-	RCU-preempt grace period.
-
 CONFIG_RCU_CPU_STALL_INFO
 
 	This kernel configuration parameter causes the stall warning to

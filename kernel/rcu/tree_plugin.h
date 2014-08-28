@@ -72,9 +72,6 @@ static void __init rcu_bootup_announce_oddness(void)
 #ifdef CONFIG_RCU_TORTURE_TEST_RUNNABLE
 	pr_info("\tRCU torture testing starts during boot.\n");
 #endif
-#if defined(CONFIG_TREE_PREEMPT_RCU) && !defined(CONFIG_RCU_CPU_STALL_VERBOSE)
-	pr_info("\tDump stacks of tasks blocking RCU-preempt GP.\n");
-#endif
 #if defined(CONFIG_RCU_CPU_STALL_INFO)
 	pr_info("\tAdditional per-CPU info printed with stalls.\n");
 #endif
@@ -415,8 +412,6 @@ void rcu_read_unlock_special(struct task_struct *t)
 	}
 }
 
-#ifdef CONFIG_RCU_CPU_STALL_VERBOSE
-
 /*
  * Dump detailed information for all tasks blocking the current RCU
  * grace period on the specified rcu_node structure.
@@ -450,14 +445,6 @@ static void rcu_print_detail_task_stall(struct rcu_state *rsp)
 	rcu_for_each_leaf_node(rsp, rnp)
 		rcu_print_detail_task_stall_rnp(rnp);
 }
-
-#else /* #ifdef CONFIG_RCU_CPU_STALL_VERBOSE */
-
-static void rcu_print_detail_task_stall(struct rcu_state *rsp)
-{
-}
-
-#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_VERBOSE */
 
 #ifdef CONFIG_RCU_CPU_STALL_INFO
 
