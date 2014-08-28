@@ -19,6 +19,11 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 
+/* Not an official ethertype value, used only internally for DSA
+ * demultiplexing
+ */
+#define ETH_P_BRCMTAG		(ETH_P_XDSA + 1)
+
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
 

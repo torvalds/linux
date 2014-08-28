@@ -57,5 +57,8 @@ extern const struct dsa_device_ops edsa_netdev_ops;
 /* tag_trailer.c */
 extern const struct dsa_device_ops trailer_netdev_ops;
 
+/* tag_brcm.c */
+extern const struct dsa_device_ops brcm_netdev_ops;
+
 
 #endif

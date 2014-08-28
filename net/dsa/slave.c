@@ -451,6 +451,11 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		ds->dst->ops = &trailer_netdev_ops;
 		break;
 #endif
+#ifdef CONFIG_NET_DSA_TAG_BRCM
+	case htons(ETH_P_BRCMTAG):
+		ds->dst->ops = &brcm_netdev_ops;
+		break;
+#endif
 	default:
 		ds->dst->ops = &notag_netdev_ops;
 		break;
