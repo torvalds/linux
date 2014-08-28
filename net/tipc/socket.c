@@ -2118,9 +2118,9 @@ static void tipc_sk_timeout(unsigned long ref)
 
 	tsk = tipc_sk_get(ref);
 	if (!tsk)
-		goto exit;
-	sk = &tsk->sk;
+		return;
 
+	sk = &tsk->sk;
 	bh_lock_sock(sk);
 	if (!tsk->connected) {
 		bh_unlock_sock(sk);
