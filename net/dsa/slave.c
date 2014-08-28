@@ -181,6 +181,17 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	return dst->ops->xmit(skb, dev);
 }
 
+static netdev_tx_t dsa_slave_notag_xmit(struct sk_buff *skb,
+					struct net_device *dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+
+	skb->dev = p->parent->dst->master_netdev;
+	dev_queue_xmit(skb);
+
+	return NETDEV_TX_OK;
+}
+
 
 /* ethtool operations *******************************************************/
 static int
@@ -314,6 +325,11 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_do_ioctl		= dsa_slave_ioctl,
 };
 
+static const struct dsa_device_ops notag_netdev_ops = {
+	.xmit	= dsa_slave_notag_xmit,
+	.rcv	= NULL,
+};
+
 static void dsa_slave_adjust_link(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -415,7 +431,8 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		break;
 #endif
 	default:
-		BUG();
+		ds->dst->ops = &notag_netdev_ops;
+		break;
 	}
 
 	SET_NETDEV_DEV(slave_dev, parent);

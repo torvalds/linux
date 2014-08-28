@@ -1784,10 +1784,10 @@ void dev_net_set(struct net_device *dev, struct net *net)
 static inline bool netdev_uses_dsa(struct net_device *dev)
 {
 #ifdef CONFIG_NET_DSA
-	return dev->dsa_ptr != NULL;
-#else
-	return false;
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_tagged_protocol(dev->dsa_ptr);
 #endif
+	return false;
 }
 
 /**

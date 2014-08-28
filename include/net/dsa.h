@@ -198,4 +198,9 @@ static inline void *ds_to_priv(struct dsa_switch *ds)
 	return (void *)(ds + 1);
 }
 
+static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
+{
+	return dst->tag_protocol != 0;
+}
+
 #endif
