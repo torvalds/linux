@@ -144,7 +144,12 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 
 	for (i = 0; i < c; ++i) {
 		rbo->placements[i].fpfn = 0;
-		rbo->placements[i].lpfn = 0;
+		if ((rbo->flags & RADEON_GEM_CPU_ACCESS) &&
+		    (rbo->placements[i].flags & TTM_PL_FLAG_VRAM))
+			rbo->placements[i].lpfn =
+				rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+		else
+			rbo->placements[i].lpfn = 0;
 	}
 
 	/*
@@ -152,7 +157,9 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	 * improve fragmentation quality.
 	 * 512kb was measured as the most optimal number.
 	 */
-	if (rbo->tbo.mem.size > 512 * 1024) {
+	if (!((rbo->flags & RADEON_GEM_CPU_ACCESS) &&
+	      (rbo->placements[i].flags & TTM_PL_FLAG_VRAM)) &&
+	    rbo->tbo.mem.size > 512 * 1024) {
 		for (i = 0; i < c; i++) {
 			rbo->placements[i].flags |= TTM_PL_FLAG_TOPDOWN;
 		}

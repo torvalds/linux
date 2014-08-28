@@ -801,6 +801,8 @@ struct drm_radeon_gem_info {
 #define RADEON_GEM_NO_BACKING_STORE	(1 << 0)
 #define RADEON_GEM_GTT_UC		(1 << 1)
 #define RADEON_GEM_GTT_WC		(1 << 2)
+/* BO is expected to be accessed by the CPU */
+#define RADEON_GEM_CPU_ACCESS		(1 << 3)
 
 struct drm_radeon_gem_create {
 	uint64_t	size;
