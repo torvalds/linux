@@ -1065,7 +1065,7 @@ reuse_rx:
 		skb_record_rx_queue(skb, fp->rx_queue);
 
 		/* Check if this packet was timestamped */
-		if (unlikely(le16_to_cpu(cqe->fast_path_cqe.type_error_flags) &
+		if (unlikely(cqe->fast_path_cqe.type_error_flags &
 			     (1 << ETH_FAST_PATH_RX_CQE_PTP_PKT_SHIFT)))
 			bnx2x_set_rx_ts(bp, skb);
 
