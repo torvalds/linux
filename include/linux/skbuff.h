@@ -598,6 +598,10 @@ struct sk_buff {
 		__u32		reserved_tailroom;
 	};
 
+	kmemcheck_bitfield_begin(flags3);
+	/* 16 bit hole */
+	kmemcheck_bitfield_end(flags3);
+
 	__be16			inner_protocol;
 	__u16			inner_transport_header;
 	__u16			inner_network_header;
