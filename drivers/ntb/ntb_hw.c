@@ -84,8 +84,8 @@ static struct dentry *debugfs_dir;
 
 #define BWD_LINK_RECOVERY_TIME	500
 
-/* Translate memory window 0,1 to BAR 2,4 */
-#define MW_TO_BAR(mw)	(mw * NTB_MAX_NUM_MW + 2)
+/* Translate memory window 0,1,2 to BAR 2,4,5 */
+#define MW_TO_BAR(mw)	(mw == 0 ? 2 : (mw == 1 ? 4 : 5))
 
 static const struct pci_device_id ntb_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_BWD)},
@@ -506,8 +506,14 @@ void ntb_set_mw_addr(struct ntb_device *ndev, unsigned int mw, u64 addr)
 	case NTB_BAR_23:
 		writeq(addr, ndev->reg_ofs.bar2_xlat);
 		break;
-	case NTB_BAR_45:
-		writeq(addr, ndev->reg_ofs.bar4_xlat);
+	case NTB_BAR_4:
+		if (ndev->split_bar)
+			writel(addr, ndev->reg_ofs.bar4_xlat);
+		else
+			writeq(addr, ndev->reg_ofs.bar4_xlat);
+		break;
+	case NTB_BAR_5:
+		writel(addr, ndev->reg_ofs.bar5_xlat);
 		break;
 	}
 }
@@ -729,6 +735,9 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET;
 		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_SBAR2XLAT_OFFSET;
 		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_SBAR4XLAT_OFFSET;
+		if (ndev->split_bar)
+			ndev->reg_ofs.bar5_xlat =
+				ndev->reg_base + SNB_SBAR5XLAT_OFFSET;
 		ndev->limits.max_spads = SNB_MAX_B2B_SPADS;
 
 		/* There is a Xeon hardware errata related to writes to
@@ -738,15 +747,16 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		 * scratch pad registers on the remote system.
 		 */
 		if (ndev->wa_flags & WA_SNB_ERR) {
-			if (!ndev->mw[1].bar_sz)
+			if (!ndev->mw[ndev->limits.max_mw - 1].bar_sz)
 				return -EINVAL;
 
-			ndev->limits.max_mw = SNB_ERRATA_MAX_MW;
 			ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
-			ndev->reg_ofs.spad_write = ndev->mw[1].vbase +
-						   SNB_SPAD_OFFSET;
-			ndev->reg_ofs.rdb = ndev->mw[1].vbase +
-					    SNB_PDOORBELL_OFFSET;
+			ndev->reg_ofs.spad_write =
+				ndev->mw[ndev->limits.max_mw - 1].vbase +
+				SNB_SPAD_OFFSET;
+			ndev->reg_ofs.rdb =
+				ndev->mw[ndev->limits.max_mw - 1].vbase +
+				SNB_PDOORBELL_OFFSET;
 
 			/* Set the Limit register to 4k, the minimum size, to
 			 * prevent an illegal access
@@ -759,9 +769,9 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			 * the driver defaults, but write the Limit registers
 			 * first just in case.
 			 */
-		} else {
-			ndev->limits.max_mw = SNB_MAX_MW;
 
+			ndev->limits.max_mw = SNB_ERRATA_MAX_MW;
+		} else {
 			/* HW Errata on bit 14 of b2bdoorbell register.  Writes
 			 * will not be mirrored to the remote system.  Shrink
 			 * the number of bits by one, since bit 14 is the last
@@ -774,7 +784,8 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 					    SNB_B2B_DOORBELL_OFFSET;
 
 			/* Disable the Limit register, just incase it is set to
-			 * something silly
+			 * something silly. A 64bit write should handle it
+			 * regardless of whether it has a split BAR or not.
 			 */
 			writeq(0, ndev->reg_base + SNB_PBAR4LMT_OFFSET);
 			/* HW errata on the Limit registers.  They can only be
@@ -783,6 +794,10 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			 * the driver defaults, but write the Limit registers
 			 * first just in case.
 			 */
+			if (ndev->split_bar)
+				ndev->limits.max_mw = HSX_SPLITBAR_MAX_MW;
+			else
+				ndev->limits.max_mw = SNB_MAX_MW;
 		}
 
 		/* The Xeon errata workaround requires setting SBAR Base
@@ -796,8 +811,18 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 				writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
 				       SNB_PBAR4XLAT_OFFSET);
 			else {
-				writeq(SNB_MBAR45_DSD_ADDR, ndev->reg_base +
-				       SNB_PBAR4XLAT_OFFSET);
+				if (ndev->split_bar) {
+					writel(SNB_MBAR4_DSD_ADDR,
+					       ndev->reg_base +
+					       SNB_PBAR4XLAT_OFFSET);
+					writel(SNB_MBAR5_DSD_ADDR,
+					       ndev->reg_base +
+					       SNB_PBAR5XLAT_OFFSET);
+				} else
+					writeq(SNB_MBAR4_DSD_ADDR,
+					       ndev->reg_base +
+					       SNB_PBAR4XLAT_OFFSET);
+
 				/* B2B_XLAT_OFFSET is a 64bit register, but can
 				 * only take 32bit writes
 				 */
@@ -811,8 +836,14 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			       SNB_SBAR0BASE_OFFSET);
 			writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
 			       SNB_SBAR2BASE_OFFSET);
-			writeq(SNB_MBAR45_USD_ADDR, ndev->reg_base +
-			       SNB_SBAR4BASE_OFFSET);
+			if (ndev->split_bar) {
+				writel(SNB_MBAR4_USD_ADDR, ndev->reg_base +
+				       SNB_SBAR4BASE_OFFSET);
+				writel(SNB_MBAR5_USD_ADDR, ndev->reg_base +
+				       SNB_SBAR5BASE_OFFSET);
+			} else
+				writeq(SNB_MBAR4_USD_ADDR, ndev->reg_base +
+				       SNB_SBAR4BASE_OFFSET);
 		} else {
 			writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
 			       SNB_PBAR2XLAT_OFFSET);
@@ -820,9 +851,20 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 				writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
 				       SNB_PBAR4XLAT_OFFSET);
 			else {
-				writeq(SNB_MBAR45_USD_ADDR, ndev->reg_base +
-				       SNB_PBAR4XLAT_OFFSET);
-				/* B2B_XLAT_OFFSET is a 64bit register, but can
+				if (ndev->split_bar) {
+					writel(SNB_MBAR4_USD_ADDR,
+					       ndev->reg_base +
+					       SNB_PBAR4XLAT_OFFSET);
+					writel(SNB_MBAR5_USD_ADDR,
+					       ndev->reg_base +
+					       SNB_PBAR5XLAT_OFFSET);
+				} else
+					writeq(SNB_MBAR4_USD_ADDR,
+					       ndev->reg_base +
+					       SNB_PBAR4XLAT_OFFSET);
+
+				/*
+				 * B2B_XLAT_OFFSET is a 64bit register, but can
 				 * only take 32bit writes
 				 */
 				writel(SNB_MBAR01_USD_ADDR & 0xffffffff,
@@ -834,8 +876,15 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			       SNB_SBAR0BASE_OFFSET);
 			writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
 			       SNB_SBAR2BASE_OFFSET);
-			writeq(SNB_MBAR45_DSD_ADDR, ndev->reg_base +
-			       SNB_SBAR4BASE_OFFSET);
+			if (ndev->split_bar) {
+				writel(SNB_MBAR4_DSD_ADDR, ndev->reg_base +
+				       SNB_SBAR4BASE_OFFSET);
+				writel(SNB_MBAR5_DSD_ADDR, ndev->reg_base +
+				       SNB_SBAR5BASE_OFFSET);
+			} else
+				writeq(SNB_MBAR4_DSD_ADDR, ndev->reg_base +
+				       SNB_SBAR4BASE_OFFSET);
+
 		}
 		break;
 	case NTB_CONN_RP:
@@ -865,7 +914,12 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET;
 		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_SBAR2XLAT_OFFSET;
 		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_SBAR4XLAT_OFFSET;
-		ndev->limits.max_mw = SNB_MAX_MW;
+		if (ndev->split_bar) {
+			ndev->reg_ofs.bar5_xlat =
+				ndev->reg_base + SNB_SBAR5XLAT_OFFSET;
+			ndev->limits.max_mw = HSX_SPLITBAR_MAX_MW;
+		} else
+			ndev->limits.max_mw = SNB_MAX_MW;
 		break;
 	case NTB_CONN_TRANSPARENT:
 		if (ndev->wa_flags & WA_SNB_ERR) {
@@ -892,7 +946,12 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_PBAR2XLAT_OFFSET;
 		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_PBAR4XLAT_OFFSET;
 
-		ndev->limits.max_mw = SNB_MAX_MW;
+		if (ndev->split_bar) {
+			ndev->reg_ofs.bar5_xlat =
+				ndev->reg_base + SNB_PBAR5XLAT_OFFSET;
+			ndev->limits.max_mw = HSX_SPLITBAR_MAX_MW;
+		} else
+			ndev->limits.max_mw = SNB_MAX_MW;
 		break;
 	default:
 		/*
@@ -1499,7 +1558,11 @@ static void ntb_hw_link_up(struct ntb_device *ndev)
 		ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
 		ntb_cntl &= ~(NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK);
 		ntb_cntl |= NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP;
-		ntb_cntl |= NTB_CNTL_P2S_BAR45_SNOOP | NTB_CNTL_S2P_BAR45_SNOOP;
+		ntb_cntl |= NTB_CNTL_P2S_BAR4_SNOOP | NTB_CNTL_S2P_BAR4_SNOOP;
+		if (ndev->split_bar)
+			ntb_cntl |= NTB_CNTL_P2S_BAR5_SNOOP |
+				    NTB_CNTL_S2P_BAR5_SNOOP;
+
 		writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
 	}
 }
@@ -1516,14 +1579,26 @@ static void ntb_hw_link_down(struct ntb_device *ndev)
 	/* Bring NTB link down */
 	ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
 	ntb_cntl &= ~(NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP);
-	ntb_cntl &= ~(NTB_CNTL_P2S_BAR45_SNOOP | NTB_CNTL_S2P_BAR45_SNOOP);
+	ntb_cntl &= ~(NTB_CNTL_P2S_BAR4_SNOOP | NTB_CNTL_S2P_BAR4_SNOOP);
+	if (ndev->split_bar)
+		ntb_cntl &= ~(NTB_CNTL_P2S_BAR5_SNOOP |
+			      NTB_CNTL_S2P_BAR5_SNOOP);
 	ntb_cntl |= NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK;
 	writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
 }
 
+static void ntb_max_mw_detect(struct ntb_device *ndev)
+{
+	if (ndev->split_bar)
+		ndev->limits.max_mw = HSX_SPLITBAR_MAX_MW;
+	else
+		ndev->limits.max_mw = SNB_MAX_MW;
+}
+
 static int ntb_xeon_detect(struct ntb_device *ndev)
 {
-	int rc;
+	int rc, bars_mask;
+	u32 bars;
 	u8 ppd;
 
 	ndev->hw_type = SNB_HW;
@@ -1536,6 +1611,8 @@ static int ntb_xeon_detect(struct ntb_device *ndev)
 		ndev->dev_type = NTB_DEV_USD;
 	else
 		ndev->dev_type = NTB_DEV_DSD;
+
+	ndev->split_bar = (ppd & SNB_PPD_SPLIT_BAR) ? 1 : 0;
 
 	switch (ppd & SNB_PPD_CONN_TYPE) {
 	case NTB_CONN_B2B:
@@ -1555,11 +1632,24 @@ static int ntb_xeon_detect(struct ntb_device *ndev)
 		 * NTB. We will just force correct here.
 		 */
 		ndev->dev_type = NTB_DEV_USD;
+
+		/*
+		 * This is a way for transparent BAR to figure out if we
+		 * are doing split BAR or not. There is no way for the hw
+		 * on the transparent side to know and set the PPD.
+		 */
+		bars_mask = pci_select_bars(ndev->pdev, IORESOURCE_MEM);
+		bars = hweight32(bars_mask);
+		if (bars == (HSX_SPLITBAR_MAX_MW + 1))
+			ndev->split_bar = 1;
+
 		break;
 	default:
 		dev_err(&ndev->pdev->dev, "Unknown PPD %x\n", ppd);
 		return -ENODEV;
 	}
+
+	ntb_max_mw_detect(ndev);
 
 	return 0;
 }
@@ -1638,22 +1728,50 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		goto err;
 
-	rc = pci_request_selected_regions(pdev, NTB_BAR_MASK, KBUILD_MODNAME);
-	if (rc)
+	ndev->mw = kcalloc(ndev->limits.max_mw, sizeof(struct ntb_mw),
+			   GFP_KERNEL);
+	if (!ndev->mw) {
+		rc = -ENOMEM;
 		goto err1;
+	}
+
+	if (ndev->split_bar)
+		rc = pci_request_selected_regions(pdev, NTB_SPLITBAR_MASK,
+						  KBUILD_MODNAME);
+	else
+		rc = pci_request_selected_regions(pdev, NTB_BAR_MASK,
+						  KBUILD_MODNAME);
+
+	if (rc)
+		goto err2;
 
 	ndev->reg_base = pci_ioremap_bar(pdev, NTB_BAR_MMIO);
 	if (!ndev->reg_base) {
 		dev_warn(&pdev->dev, "Cannot remap BAR 0\n");
 		rc = -EIO;
-		goto err2;
+		goto err3;
 	}
 
-	for (i = 0; i < NTB_MAX_NUM_MW; i++) {
+	for (i = 0; i < ndev->limits.max_mw; i++) {
 		ndev->mw[i].bar_sz = pci_resource_len(pdev, MW_TO_BAR(i));
-		ndev->mw[i].vbase =
-		    ioremap_wc(pci_resource_start(pdev, MW_TO_BAR(i)),
-			       ndev->mw[i].bar_sz);
+
+		/*
+		 * with the errata we need to steal last of the memory
+		 * windows for workarounds and they point to MMIO registers.
+		 */
+		if ((ndev->wa_flags & WA_SNB_ERR) &&
+		    (i == (ndev->limits.max_mw - 1))) {
+			ndev->mw[i].vbase =
+				ioremap_nocache(pci_resource_start(pdev,
+							MW_TO_BAR(i)),
+						ndev->mw[i].bar_sz);
+		} else {
+			ndev->mw[i].vbase =
+				ioremap_wc(pci_resource_start(pdev,
+							MW_TO_BAR(i)),
+					   ndev->mw[i].bar_sz);
+		}
+
 		dev_info(&pdev->dev, "MW %d size %llu\n", i,
 			 (unsigned long long) ndev->mw[i].bar_sz);
 		if (!ndev->mw[i].vbase) {
@@ -1668,7 +1786,7 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc) {
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc)
-			goto err3;
+			goto err4;
 
 		dev_warn(&pdev->dev, "Cannot DMA highmem\n");
 	}
@@ -1677,22 +1795,22 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc) {
 		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc)
-			goto err3;
+			goto err4;
 
 		dev_warn(&pdev->dev, "Cannot DMA consistent highmem\n");
 	}
 
 	rc = ntb_device_setup(ndev);
 	if (rc)
-		goto err3;
+		goto err4;
 
 	rc = ntb_create_callbacks(ndev);
 	if (rc)
-		goto err4;
+		goto err5;
 
 	rc = ntb_setup_interrupts(ndev);
 	if (rc)
-		goto err5;
+		goto err6;
 
 	/* The scratchpad registers keep the values between rmmod/insmod,
 	 * blast them now
@@ -1704,24 +1822,29 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rc = ntb_transport_init(pdev);
 	if (rc)
-		goto err6;
+		goto err7;
 
 	ntb_hw_link_up(ndev);
 
 	return 0;
 
-err6:
+err7:
 	ntb_free_interrupts(ndev);
-err5:
+err6:
 	ntb_free_callbacks(ndev);
-err4:
+err5:
 	ntb_device_free(ndev);
-err3:
+err4:
 	for (i--; i >= 0; i--)
 		iounmap(ndev->mw[i].vbase);
 	iounmap(ndev->reg_base);
+err3:
+	if (ndev->split_bar)
+		pci_release_selected_regions(pdev, NTB_SPLITBAR_MASK);
+	else
+		pci_release_selected_regions(pdev, NTB_BAR_MASK);
 err2:
-	pci_release_selected_regions(pdev, NTB_BAR_MASK);
+	kfree(ndev->mw);
 err1:
 	pci_disable_device(pdev);
 err:
@@ -1745,11 +1868,19 @@ static void ntb_pci_remove(struct pci_dev *pdev)
 	ntb_free_callbacks(ndev);
 	ntb_device_free(ndev);
 
-	for (i = 0; i < NTB_MAX_NUM_MW; i++)
+	/* need to reset max_mw limits so we can unmap properly */
+	if (ndev->hw_type == SNB_HW)
+		ntb_max_mw_detect(ndev);
+
+	for (i = 0; i < ndev->limits.max_mw; i++)
 		iounmap(ndev->mw[i].vbase);
 
+	kfree(ndev->mw);
 	iounmap(ndev->reg_base);
-	pci_release_selected_regions(pdev, NTB_BAR_MASK);
+	if (ndev->split_bar)
+		pci_release_selected_regions(pdev, NTB_SPLITBAR_MASK);
+	else
+		pci_release_selected_regions(pdev, NTB_BAR_MASK);
 	pci_disable_device(pdev);
 	ntb_free_debugfs(ndev);
 	kfree(ndev);
