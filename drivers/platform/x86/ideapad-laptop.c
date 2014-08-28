@@ -455,7 +455,7 @@ struct ideapad_rfk_data {
 	int type;
 };
 
-const const struct ideapad_rfk_data ideapad_rfk_data[] = {
+static const struct ideapad_rfk_data ideapad_rfk_data[] = {
 	{ "ideapad_wlan",    CFG_WIFI_BIT, VPCCMD_W_WIFI, RFKILL_TYPE_WLAN },
 	{ "ideapad_bluetooth", CFG_BT_BIT, VPCCMD_W_BT, RFKILL_TYPE_BLUETOOTH },
 	{ "ideapad_3g",        CFG_3G_BIT, VPCCMD_W_3G, RFKILL_TYPE_WWAN },
@@ -829,7 +829,7 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
  * always results in 0 on these models, causing ideapad_laptop to wrongly
  * report all radios as hardware-blocked.
  */
-static struct dmi_system_id no_hw_rfkill_list[] = {
+static const struct dmi_system_id no_hw_rfkill_list[] = {
 	{
 		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
 		.matches = {
