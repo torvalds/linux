@@ -762,5 +762,16 @@ extern int kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc,
 extern void kvm_mips_dump_stats(struct kvm_vcpu *vcpu);
 extern unsigned long kvm_mips_get_ramsize(struct kvm *kvm);
 
+static inline void kvm_arch_hardware_disable(void *garbage) {}
+static inline void kvm_arch_hardware_unsetup(void) {}
+static inline void kvm_arch_sync_events(struct kvm *kvm) {}
+static inline void kvm_arch_free_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *free, struct kvm_memory_slot *dont) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *slot) {}
+static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 
 #endif /* __MIPS_KVM_HOST_H__ */
