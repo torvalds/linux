@@ -366,7 +366,7 @@ ENTRY(vector_swi)
 	str	r0, [sp, #S_OLD_R0]		@ Save OLD_R0
 #endif
 	zero_fp
-	alignment_trap ip, __cr_alignment
+	alignment_trap r10, ip, __cr_alignment
 	enable_irq
 	ct_user_exit
 	get_thread_info tsk

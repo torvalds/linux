@@ -321,12 +321,17 @@ ENDPROC(__pabt_svc)
  ARM(	stmib	sp, {r1 - r12}	)
  THUMB(	stmia	sp, {r0 - r12}	)
 
+ ATRAP(	mrc	p15, 0, r7, c1, c0, 0)
+ ATRAP(	ldr	r8, .LCcralign)
+
 	ldmia	r0, {r3 - r5}
 	add	r0, sp, #S_PC		@ here for interlock avoidance
 	mov	r6, #-1			@  ""  ""     ""        ""
 
 	str	r3, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
+
+ ATRAP(	ldr	r8, [r8, #0])
 
 	@
 	@ We are now ready to fill in the remaining blanks on the stack:
@@ -341,10 +346,9 @@ ENDPROC(__pabt_svc)
  ARM(	stmdb	r0, {sp, lr}^			)
  THUMB(	store_user_sp_lr r0, r1, S_SP - S_PC	)
 
-	@
 	@ Enable the alignment trap while in kernel mode
-	@
-	alignment_trap r0, .LCcralign
+ ATRAP(	teq	r8, r7)
+ ATRAP( mcrne	p15, 0, r8, c1, c0, 0)
 
 	@
 	@ Clear FP to mark the first stack frame
