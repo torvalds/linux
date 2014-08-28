@@ -263,52 +263,54 @@ static void named_purge_publ(struct publication *publ)
 }
 
 /**
+ * tipc_update_nametbl - try to process a nametable update and notify
+ *			 subscribers
+ *
+ * tipc_nametbl_lock must be held.
+ * Returns the publication item if successful, otherwise NULL.
+ */
+struct publication *tipc_update_nametbl(struct distr_item *i, u32 node,
+					u32 dtype)
+{
+	struct publication *publ = NULL;
+
+	if (dtype == PUBLICATION) {
+		publ = tipc_nametbl_insert_publ(ntohl(i->type), ntohl(i->lower),
+						ntohl(i->upper),
+						TIPC_CLUSTER_SCOPE, node,
+						ntohl(i->ref), ntohl(i->key));
+		if (publ) {
+			tipc_nodesub_subscribe(&publ->subscr, node, publ,
+					       (net_ev_handler)
+					       named_purge_publ);
+		}
+	} else if (dtype == WITHDRAWAL) {
+		publ = tipc_nametbl_remove_publ(ntohl(i->type), ntohl(i->lower),
+						node, ntohl(i->ref),
+						ntohl(i->key));
+		if (publ) {
+			tipc_nodesub_unsubscribe(&publ->subscr);
+			kfree(publ);
+		}
+	} else {
+		pr_warn("Unrecognized name table message received\n");
+	}
+	return publ;
+}
+
+/**
  * tipc_named_rcv - process name table update message sent by another node
  */
 void tipc_named_rcv(struct sk_buff *buf)
 {
-	struct publication *publ;
 	struct tipc_msg *msg = buf_msg(buf);
 	struct distr_item *item = (struct distr_item *)msg_data(msg);
 	u32 count = msg_data_sz(msg) / ITEM_SIZE;
 
 	write_lock_bh(&tipc_nametbl_lock);
 	while (count--) {
-		if (msg_type(msg) == PUBLICATION) {
-			publ = tipc_nametbl_insert_publ(ntohl(item->type),
-							ntohl(item->lower),
-							ntohl(item->upper),
-							TIPC_CLUSTER_SCOPE,
-							msg_orignode(msg),
-							ntohl(item->ref),
-							ntohl(item->key));
-			if (publ) {
-				tipc_nodesub_subscribe(&publ->subscr,
-						       msg_orignode(msg),
-						       publ,
-						       (net_ev_handler)
-						       named_purge_publ);
-			}
-		} else if (msg_type(msg) == WITHDRAWAL) {
-			publ = tipc_nametbl_remove_publ(ntohl(item->type),
-							ntohl(item->lower),
-							msg_orignode(msg),
-							ntohl(item->ref),
-							ntohl(item->key));
-
-			if (publ) {
-				tipc_nodesub_unsubscribe(&publ->subscr);
-				kfree(publ);
-			} else {
-				pr_err("Unable to remove publication by node 0x%x\n"
-				       " (type=%u, lower=%u, ref=%u, key=%u)\n",
-				       msg_orignode(msg), ntohl(item->type),
-				       ntohl(item->lower), ntohl(item->ref),
-				       ntohl(item->key));
-			}
-		} else {
-			pr_warn("Unrecognized name table message received\n");
-		}
+		tipc_update_nametbl(item, msg_orignode(msg),
+				    msg_type(msg));
 		item++;
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
