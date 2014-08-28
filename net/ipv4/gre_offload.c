@@ -172,12 +172,9 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 	}
 
 	/* Don't bother verifying checksum if we're going to flush anyway. */
-	if (greh->flags & GRE_CSUM) {
-		if (!NAPI_GRO_CB(skb)->flush &&
-		    skb_gro_checksum_simple_validate(skb))
+	if ((greh->flags & GRE_CSUM) && !NAPI_GRO_CB(skb)->flush &&
+	    skb_gro_checksum_simple_validate(skb))
 			goto out_unlock;
-		NAPI_GRO_CB(skb)->encapsulation++;
-	}
 
 	flush = 0;
 
