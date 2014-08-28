@@ -270,7 +270,7 @@ config IMX_SDMA
 	select DMA_ENGINE
 	help
 	  Support the i.MX SDMA engine. This engine is integrated into
-	  Freescale i.MX25/31/35/51/53 chips.
+	  Freescale i.MX25/31/35/51/53/6 chips.
 
 config IMX_DMA
 	tristate "i.MX DMA support"
