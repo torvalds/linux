@@ -58,7 +58,8 @@ static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
 		opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_Hz);
 		if (IS_ERR(opp)) {
 			rcu_read_unlock();
-			pr_err("failed to find OPP for %ld\n", freq_Hz);
+			dev_err(cpu_dev, "failed to find OPP for %ld\n",
+				freq_Hz);
 			return PTR_ERR(opp);
 		}
 		volt = dev_pm_opp_get_voltage(opp);
@@ -67,22 +68,23 @@ static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
 		volt_old = regulator_get_voltage(cpu_reg);
 	}
 
-	pr_debug("%u MHz, %ld mV --> %u MHz, %ld mV\n",
-		 old_freq / 1000, volt_old ? volt_old / 1000 : -1,
-		 new_freq / 1000, volt ? volt / 1000 : -1);
+	dev_dbg(cpu_dev, "%u MHz, %ld mV --> %u MHz, %ld mV\n",
+		old_freq / 1000, volt_old ? volt_old / 1000 : -1,
+		new_freq / 1000, volt ? volt / 1000 : -1);
 
 	/* scaling up?  scale voltage before frequency */
 	if (!IS_ERR(cpu_reg) && new_freq > old_freq) {
 		ret = regulator_set_voltage_tol(cpu_reg, volt, tol);
 		if (ret) {
-			pr_err("failed to scale voltage up: %d\n", ret);
+			dev_err(cpu_dev, "failed to scale voltage up: %d\n",
+				ret);
 			return ret;
 		}
 	}
 
 	ret = clk_set_rate(cpu_clk, freq_exact);
 	if (ret) {
-		pr_err("failed to set clock rate: %d\n", ret);
+		dev_err(cpu_dev, "failed to set clock rate: %d\n", ret);
 		if (!IS_ERR(cpu_reg))
 			regulator_set_voltage_tol(cpu_reg, volt_old, tol);
 		return ret;
@@ -92,7 +94,8 @@ static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
 	if (!IS_ERR(cpu_reg) && new_freq < old_freq) {
 		ret = regulator_set_voltage_tol(cpu_reg, volt, tol);
 		if (ret) {
-			pr_err("failed to scale voltage down: %d\n", ret);
+			dev_err(cpu_dev, "failed to scale voltage down: %d\n",
+				ret);
 			clk_set_rate(cpu_clk, old_freq * 1000);
 		}
 	}
@@ -129,7 +132,7 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 
 	np = of_node_get(cpu_dev->of_node);
 	if (!np) {
-		pr_err("failed to find cpu0 node\n");
+		dev_err(cpu_dev, "failed to find cpu0 node\n");
 		return -ENOENT;
 	}
 
@@ -144,8 +147,8 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 			ret = -EPROBE_DEFER;
 			goto out_put_node;
 		}
-		pr_warn("failed to get cpu0 regulator: %ld\n",
-			PTR_ERR(cpu_reg));
+		dev_warn(cpu_dev, "failed to get cpu0 regulator: %ld\n",
+			 PTR_ERR(cpu_reg));
 	}
 
 	cpu_clk = clk_get(cpu_dev, NULL);
@@ -169,7 +172,7 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 
 	ret = dev_pm_opp_init_cpufreq_table(cpu_dev, &freq_table);
 	if (ret) {
-		pr_err("failed to init cpufreq table: %d\n", ret);
+		dev_err(cpu_dev, "failed to init cpufreq table: %d\n", ret);
 		goto out_put_clk;
 	}
 
@@ -205,7 +208,7 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 
 	ret = cpufreq_register_driver(&cpu0_cpufreq_driver);
 	if (ret) {
-		pr_err("failed register driver: %d\n", ret);
+		dev_err(cpu_dev, "failed to register driver: %d\n", ret);
 		goto out_free_table;
 	}
 
@@ -216,8 +219,9 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 	if (of_find_property(np, "#cooling-cells", NULL)) {
 		cdev = of_cpufreq_cooling_register(np, cpu_present_mask);
 		if (IS_ERR(cdev))
-			pr_err("running cpufreq without cooling device: %ld\n",
-			       PTR_ERR(cdev));
+			dev_err(cpu_dev,
+				"running cpufreq without cooling device: %ld\n",
+				PTR_ERR(cdev));
 	}
 
 	of_node_put(np);
