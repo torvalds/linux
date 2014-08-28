@@ -261,8 +261,6 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 
 		/* Lower end overlaps existing entry => need an exact match */
 		if ((sseq->lower != lower) || (sseq->upper != upper)) {
-			pr_warn("Cannot publish {%u,%u,%u}, overlap error\n",
-				type, lower, upper);
 			return NULL;
 		}
 
@@ -284,8 +282,6 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 		/* Fail if upper end overlaps into an existing entry */
 		if ((inspos < nseq->first_free) &&
 		    (upper >= nseq->sseqs[inspos].lower)) {
-			pr_warn("Cannot publish {%u,%u,%u}, overlap error\n",
-				type, lower, upper);
 			return NULL;
 		}
 
@@ -677,6 +673,8 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	if (likely(publ)) {
 		table.local_publ_count++;
 		buf = tipc_named_publish(publ);
+		/* Any pending external events? */
+		tipc_named_process_backlog();
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
 
@@ -698,6 +696,8 @@ int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
 	if (likely(publ)) {
 		table.local_publ_count--;
 		buf = tipc_named_withdraw(publ);
+		/* Any pending external events? */
+		tipc_named_process_backlog();
 		write_unlock_bh(&tipc_nametbl_lock);
 		list_del_init(&publ->pport_list);
 		kfree(publ);
