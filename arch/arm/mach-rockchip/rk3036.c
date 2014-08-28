@@ -210,9 +210,9 @@ enum rk_plls_id {
 	RK3036_END_PLL_ID,
 };
 
-#define GPIO_INTEN		0x30
-#define GPIO_INT_STATUS		0x40
-#define GIC_DIST_PENDING_SET	0x200
+#define GPIO_INTEN 0x30
+#define GPIO_INT_STATUS 0x40
+#define GIC_DIST_PENDING_SET 0x200
 static void rk3036_pm_dump_irq(void)
 {
 	u32 irq_gpio = (readl_relaxed(RK_GIC_VIRT
@@ -276,6 +276,10 @@ static void gtclks_suspend(void)
 		else
 			cru_writel(clk_ungt_msk[i], RK3036_CRU_CLKGATES_CON(i));
 	}
+
+	/*gpio0_a1 clk gate should be disable for volt adjust*/
+	if (cru_readl(RK3036_CRU_CLKGATES_CON(8)) & 0x200)
+		cru_writel(0x02000000, RK3036_CRU_CLKGATES_CON(8));
 }
 
 static void gtclks_resume(void)
@@ -287,7 +291,7 @@ static void gtclks_resume(void)
 			cru_writel(clk_ungt_save[i] | 0xffff0000
 				, RK3036_CRU_CLKGATES_CON(i));
 		else
-			cru_writel(clk_ungt_msk[i]
+			cru_writel(clk_ungt_save[i]
 				, RK3036_CRU_CLKGATES_CON(i));
 	}
 }
