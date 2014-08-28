@@ -1,0 +1,16 @@
+
+menuconfig ARM64_CRYPTO
+	bool "ARM64 Accelerated Cryptographic Algorithms"
+	depends on ARM64
+	help
+	  Say Y here to choose from a selection of cryptographic algorithms
+	  implemented using ARM64 specific CPU features or instructions.
+
+if ARM64_CRYPTO
+
+config CRYPTO_SHA1_ARM64_CE
+	tristate "SHA-1 digest algorithm (ARMv8 Crypto Extensions)"
+	depends on ARM64 && KERNEL_MODE_NEON
+	select CRYPTO_HASH
+
+endif
