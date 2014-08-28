@@ -333,6 +333,7 @@ static const struct dsa_device_ops notag_netdev_ops = {
 static void dsa_slave_adjust_link(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
 	unsigned int status_changed = 0;
 
 	if (p->old_link != p->phy->link) {
@@ -349,6 +350,9 @@ static void dsa_slave_adjust_link(struct net_device *dev)
 		status_changed = 1;
 		p->old_pause = p->phy->pause;
 	}
+
+	if (ds->drv->adjust_link && status_changed)
+		ds->drv->adjust_link(ds, p->port, p->phy);
 
 	if (status_changed)
 		phy_print_status(p->phy);

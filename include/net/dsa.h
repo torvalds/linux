@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/phy.h>
 
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
@@ -180,6 +181,12 @@ struct dsa_switch_driver {
 	 * Link state polling and IRQ handling.
 	 */
 	void	(*poll_link)(struct dsa_switch *ds);
+
+	/*
+	 * Link state adjustment (called from libphy)
+	 */
+	void	(*adjust_link)(struct dsa_switch *ds, int port,
+				struct phy_device *phydev);
 
 	/*
 	 * ethtool hardware statistics.
