@@ -20,7 +20,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
-#include "it913x_priv.h"
+#include "it913x.h"
+#include <linux/regmap.h>
 
 struct it913x_dev {
 	struct i2c_client *client;
@@ -33,25 +34,6 @@ struct it913x_dev {
 	u8 tun_clk_mode;
 	u32 tun_fn_min;
 };
-
-static int it913x_script_loader(struct it913x_dev *dev,
-		struct it913xset *loadscript)
-{
-	int ret, i;
-
-	if (loadscript == NULL)
-		return -EINVAL;
-
-	for (i = 0; i < 1000; ++i) {
-		if (loadscript[i].address == 0x000000)
-			break;
-		ret = regmap_bulk_write(dev->regmap, loadscript[i].address,
-			loadscript[i].reg, loadscript[i].count);
-		if (ret < 0)
-			return -ENODEV;
-	}
-	return 0;
-}
 
 static int it913x_init(struct dvb_frontend *fe)
 {
@@ -181,7 +163,6 @@ err:
 static int it9137_set_params(struct dvb_frontend *fe)
 {
 	struct it913x_dev *dev = fe->tuner_priv;
-	struct it913xset *set_tuner = set_it9135_template;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u32 bandwidth = p->bandwidth_hz;
 	u32 frequency_m = p->frequency;
@@ -231,7 +212,10 @@ static int it9137_set_params(struct dvb_frontend *fe)
 		lna_band = 1;
 	} else
 		return -EINVAL;
-	set_tuner[0].reg[0] = lna_band;
+
+	ret = regmap_write(dev->regmap, 0x80ee06, lna_band);
+	if (ret)
+		goto err;
 
 	switch (bandwidth) {
 	case 5000000:
@@ -249,8 +233,13 @@ static int it9137_set_params(struct dvb_frontend *fe)
 		break;
 	}
 
-	set_tuner[1].reg[0] = bw;
-	set_tuner[2].reg[0] = 0xa0 | (l_band << 3);
+	ret = regmap_write(dev->regmap, 0x80ec56, bw);
+	if (ret)
+		goto err;
+
+	ret = regmap_write(dev->regmap, 0x80ec4c, 0xa0 | (l_band << 3));
+	if (ret)
+		goto err;
 
 	if (frequency > 53000 && frequency <= 74000) {
 		n_div = 48;
@@ -309,20 +298,30 @@ static int it9137_set_params(struct dvb_frontend *fe)
 	/* Frequency OMEGA_IQIK_M_CAL_MID*/
 	temp_f = freq + (u32)iqik_m_cal;
 
-	set_tuner[3].reg[0] =  temp_f & 0xff;
-	set_tuner[4].reg[0] =  (temp_f >> 8) & 0xff;
+	ret = regmap_write(dev->regmap, 0x80ec4d, temp_f & 0xff);
+	if (ret)
+		goto err;
+
+	ret = regmap_write(dev->regmap, 0x80ec4e, (temp_f >> 8) & 0xff);
+	if (ret)
+		goto err;
 
 	dev_dbg(&dev->client->dev, "High Frequency = %04x\n", temp_f);
 
 	/* Lower frequency */
-	set_tuner[5].reg[0] =  freq & 0xff;
-	set_tuner[6].reg[0] =  (freq >> 8) & 0xff;
+	ret = regmap_write(dev->regmap, 0x80011e, freq & 0xff);
+	if (ret)
+		goto err;
+
+	ret = regmap_write(dev->regmap, 0x80011f, (freq >> 8) & 0xff);
+	if (ret)
+		goto err;
 
 	dev_dbg(&dev->client->dev, "low Frequency = %04x\n", freq);
-
-	ret = it913x_script_loader(dev, set_tuner);
-
-	return (ret < 0) ? -ENODEV : 0;
+	return 0;
+err:
+	dev_dbg(&dev->client->dev, "failed %d\n", ret);
+	return ret;
 }
 
 static const struct dvb_tuner_ops it913x_tuner_ops = {
