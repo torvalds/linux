@@ -562,8 +562,6 @@ static int cs35l32_i2c_remove(struct i2c_client *i2c_client)
 	if (cs35l32->reset_gpio)
 		gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
 
-	regulator_bulk_free(ARRAY_SIZE(cs35l32->supplies), cs35l32->supplies);
-
 	return 0;
 }
 
