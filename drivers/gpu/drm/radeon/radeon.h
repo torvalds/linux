@@ -120,9 +120,6 @@ extern int radeon_bapm;
 #define RADEONFB_CONN_LIMIT			4
 #define RADEON_BIOS_NUM_SCRATCH			8
 
-/* fence seq are set to this number when signaled */
-#define RADEON_FENCE_SIGNALED_SEQ		0LL
-
 /* internal ring indices */
 /* r1xx+ has gfx CP ring */
 #define RADEON_RING_TYPE_GFX_INDEX		0
@@ -350,6 +347,7 @@ extern void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
  * Fences.
  */
 struct radeon_fence_driver {
+	struct radeon_device		*rdev;
 	uint32_t			scratch_reg;
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
@@ -357,6 +355,7 @@ struct radeon_fence_driver {
 	uint64_t			sync_seq[RADEON_NUM_RINGS];
 	atomic64_t			last_seq;
 	bool				initialized;
+	struct delayed_work		lockup_work;
 };
 
 struct radeon_fence {
@@ -371,7 +370,7 @@ struct radeon_fence {
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
 int radeon_fence_driver_init(struct radeon_device *rdev);
 void radeon_fence_driver_fini(struct radeon_device *rdev);
-void radeon_fence_driver_force_completion(struct radeon_device *rdev);
+void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring);
 int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
 void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
@@ -2326,7 +2325,7 @@ struct radeon_device {
 	bool				need_dma32;
 	bool				accel_working;
 	bool				fastfb_working; /* IGP feature*/
-	bool				needs_reset;
+	bool				needs_reset, in_reset;
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
@@ -2347,7 +2346,6 @@ struct radeon_device {
 	struct radeon_mec mec;
 	struct work_struct hotplug_work;
 	struct work_struct audio_work;
-	struct work_struct reset_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
 	bool has_uvd;

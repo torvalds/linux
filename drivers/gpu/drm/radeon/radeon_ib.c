@@ -269,6 +269,7 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
 
 		r = radeon_ib_test(rdev, i, ring);
 		if (r) {
+			radeon_fence_driver_force_completion(rdev, i);
 			ring->ready = false;
 			rdev->needs_reset = false;
 

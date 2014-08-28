@@ -40,12 +40,18 @@
 #define UVD_IDLE_TIMEOUT_MS	1000
 
 /* Firmware Names */
+#define FIRMWARE_R600		"radeon/R600_uvd.bin"
+#define FIRMWARE_RS780		"radeon/RS780_uvd.bin"
+#define FIRMWARE_RV770		"radeon/RV770_uvd.bin"
 #define FIRMWARE_RV710		"radeon/RV710_uvd.bin"
 #define FIRMWARE_CYPRESS	"radeon/CYPRESS_uvd.bin"
 #define FIRMWARE_SUMO		"radeon/SUMO_uvd.bin"
 #define FIRMWARE_TAHITI		"radeon/TAHITI_uvd.bin"
 #define FIRMWARE_BONAIRE	"radeon/BONAIRE_uvd.bin"
 
+MODULE_FIRMWARE(FIRMWARE_R600);
+MODULE_FIRMWARE(FIRMWARE_RS780);
+MODULE_FIRMWARE(FIRMWARE_RV770);
 MODULE_FIRMWARE(FIRMWARE_RV710);
 MODULE_FIRMWARE(FIRMWARE_CYPRESS);
 MODULE_FIRMWARE(FIRMWARE_SUMO);
@@ -63,6 +69,23 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	INIT_DELAYED_WORK(&rdev->uvd.idle_work, radeon_uvd_idle_work_handler);
 
 	switch (rdev->family) {
+	case CHIP_RV610:
+	case CHIP_RV630:
+	case CHIP_RV670:
+	case CHIP_RV620:
+	case CHIP_RV635:
+		fw_name = FIRMWARE_R600;
+		break;
+
+	case CHIP_RS780:
+	case CHIP_RS880:
+		fw_name = FIRMWARE_RS780;
+		break;
+
+	case CHIP_RV770:
+		fw_name = FIRMWARE_RV770;
+		break;
+
 	case CHIP_RV710:
 	case CHIP_RV730:
 	case CHIP_RV740:

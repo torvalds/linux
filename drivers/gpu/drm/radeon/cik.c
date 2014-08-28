@@ -8246,8 +8246,10 @@ restart_ih:
 	}
 	if (queue_hotplug)
 		schedule_work(&rdev->hotplug_work);
-	if (queue_reset)
-		schedule_work(&rdev->reset_work);
+	if (queue_reset) {
+		rdev->needs_reset = true;
+		wake_up_all(&rdev->fence_queue);
+	}
 	if (queue_thermal)
 		schedule_work(&rdev->pm.dpm.thermal.work);
 	rdev->ih.rptr = rptr;
