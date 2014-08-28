@@ -2547,6 +2547,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 err_free_irq:
 	ath10k_pci_free_irq(ar);
+	ath10k_pci_kill_tasklet(ar);
 
 err_deinit_irq:
 	ath10k_pci_deinit_irq(ar);
@@ -2583,6 +2584,7 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 
 	ath10k_core_unregister(ar);
 	ath10k_pci_free_irq(ar);
+	ath10k_pci_kill_tasklet(ar);
 	ath10k_pci_deinit_irq(ar);
 	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_free_ce(ar);
