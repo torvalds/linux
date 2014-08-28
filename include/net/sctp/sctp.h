@@ -320,6 +320,19 @@ static inline sctp_assoc_t sctp_assoc2id(const struct sctp_association *asoc)
 	return asoc ? asoc->assoc_id : 0;
 }
 
+static inline enum sctp_sstat_state
+sctp_assoc_to_state(const struct sctp_association *asoc)
+{
+	/* SCTP's uapi always had SCTP_EMPTY(=0) as a dummy state, but we
+	 * got rid of it in kernel space. Therefore SCTP_CLOSED et al
+	 * start at =1 in user space, but actually as =0 in kernel space.
+	 * Now that we can not break user space and SCTP_EMPTY is exposed
+	 * there, we need to fix it up with an ugly offset not to break
+	 * applications. :(
+	 */
+	return asoc->state + 1;
+}
+
 /* Look up the association by its id.  */
 struct sctp_association *sctp_id2assoc(struct sock *sk, sctp_assoc_t id);
 
