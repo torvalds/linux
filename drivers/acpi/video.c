@@ -417,6 +417,12 @@ static int __init video_set_use_native_backlight(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init video_disable_native_backlight(const struct dmi_system_id *d)
+{
+	use_native_backlight_dmi = false;
+	return 0;
+}
+
 static struct dmi_system_id video_dmi_table[] __initdata = {
 	/*
 	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
@@ -718,6 +724,30 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "HP EliteBook 8780w"),
+		},
+	},
+
+	/*
+	 * These models have a working acpi_video backlight control, and using
+	 * native backlight causes a regression where backlight does not work
+	 * when userspace is not handling brightness key events. Disable
+	 * native_backlight on these to fix this:
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=81691
+	 */
+	{
+	 .callback = video_disable_native_backlight,
+	 .ident = "ThinkPad T420",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T420"),
+		},
+	},
+	{
+	 .callback = video_disable_native_backlight,
+	 .ident = "ThinkPad T520",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T520"),
 		},
 	},
 	{}
