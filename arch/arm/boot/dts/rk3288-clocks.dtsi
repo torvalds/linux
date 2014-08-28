@@ -2368,7 +2368,7 @@
 						"g_pclk_uart0",		"g_pclk_uart1",
 						"reserved",		"g_pclk_uart3",
 
-						"g_pclk_uart4",		"g_pclk_i2c2",
+						"g_pclk_uart4",		"g_pclk_i2c1",
 						"g_pclk_i2c3",		"g_pclk_i2c4";
                                             rockchip,suspend-clkgating-setting=<0x0003 0x0003>;
 
@@ -2492,7 +2492,7 @@
 
 					clock-output-names =
 						"g_pclk_pwm",		"g_pclk_timer",
-						"g_pclk_i2c0",		"g_pclk_i2c1",
+						"g_pclk_i2c0",		"g_pclk_i2c2",
 
 						"g_aclk_intmem",		"g_clk_intmem0",
 						"g_clk_intmem1",		"g_clk_intmem2",
