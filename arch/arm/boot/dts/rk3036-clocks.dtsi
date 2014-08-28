@@ -1174,7 +1174,7 @@
 
 						"clk_cryto",		"clk_i2s_out",
 						"clk_i2s",		"clk_testout";
-					rockchip,suspend-clkgating-setting=<0xe600 0xe600>;
+					rockchip,suspend-clkgating-setting=<0x19ff 0x19ff>;
 
 					#clock-cells = <1>;
 				};
@@ -1208,7 +1208,7 @@
 						"clk_uart2_div",	"uart2_frac",
 						"reserved",	"reserved";
 
-					 rockchip,suspend-clkgating-setting=<0x0F78 0x0F78>;
+					 rockchip,suspend-clkgating-setting=<0xf087 0xf087>;
 					#clock-cells = <1>;
 				};
 
@@ -1240,7 +1240,7 @@
 
 						"spdif_frac",		"clk_sdio",
 						"clk_emmc",		"reserved";
-					    rockchip,suspend-clkgating-setting=<0x7E40 0x7E40>;
+					    rockchip,suspend-clkgating-setting=<0x81bf 0x81bf>;
 
 					#clock-cells = <1>;
 				};
@@ -1273,7 +1273,7 @@
 
 						"hclk_vcodec",		"clk_gpu",
 						"g_hclk_sfc",		"reserved";
-						rockchip,suspend-clkgating-setting=<0x5804 0x5804>;
+						rockchip,suspend-clkgating-setting=<0xa7fb 0xa7fb>;
 
 					#clock-cells = <1>;
 				};
@@ -1308,7 +1308,7 @@
 						"g_aclk_intmem",		"reserved",
 						"reserved",		"reserved";
 
-					rockchip,suspend-clkgating-setting = <0x0000 0x0000>;
+					rockchip,suspend-clkgating-setting = <0xffff 0xffff>;
 					#clock-cells = <1>;
 				};
 
@@ -1341,7 +1341,7 @@
 						"reserved",		"g_hclk_otg0",
 						"g_pclk_acodec",		"reserved";
 
-					rockchip,suspend-clkgating-setting = <0x6e02 0x6e02>;
+					rockchip,suspend-clkgating-setting = <0x91fd 0x91fd>;
 
 					#clock-cells = <1>;
 				};
@@ -1375,7 +1375,7 @@
 						"g_hclk_vio_bus",		"g_aclk_vio",
 						"reserved",		"reserved";
 
-					rockchip,suspend-clkgating-setting = <0x0000 0x0000>;
+					rockchip,suspend-clkgating-setting = <0xffff 0xffff>;
 
 					#clock-cells = <1>;
 				};
@@ -1409,7 +1409,7 @@
 						"g_pclk_spi",		"reserved",
 						"reserved",		"g_pclk_wdt";
 
-					rockchip,suspend-clkgating-setting = <0x900d 0x900d>;
+					rockchip,suspend-clkgating-setting = <0x6ff2 0x6ff2>;
 
 					#clock-cells = <1>;
 				};
@@ -1443,7 +1443,7 @@
 						"reserved",		"reserved",
 						"reserved",		"reserved";
 
-					rockchip,suspend-clkgating-setting=<0x0c73 0x0c73>;
+					rockchip,suspend-clkgating-setting=<0xf38c 0xf38c>;
 					#clock-cells = <1>;
 				};
 
@@ -1476,7 +1476,7 @@
 						"reserved",		"g_hclk_usb_peri",
 						"g_hclk_pe_arbi",		"g_aclk_peri_niu";
 
-					rockchip,suspend-clkgating-setting=<0x2060 0x2060>;
+					rockchip,suspend-clkgating-setting=<0xdf9f 0xdf9f>;
 
 					#clock-cells = <1>;
 				};

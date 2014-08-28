@@ -261,7 +261,7 @@ static u32 clk_ungt_save[RK3036_CRU_CLKGATES_CON_CNT];
 /*first clk gating value saveing*/
 
 static u32 *p_rkpm_clkgt_last_set;
-#define CLK_MSK_GATING(msk, con) cru_writel((0xffff << 16) | msk, con)
+#define CLK_MSK_GATING(msk, con) cru_writel((msk << 16) | 0xffff, con)
 #define CLK_MSK_UNGATING(msk, con) cru_writel(((~msk) << 16) | 0xffff, con)
 
 static void gtclks_suspend(void)
@@ -271,7 +271,7 @@ static void gtclks_suspend(void)
 	for (i = 0; i < RK3036_CRU_CLKGATES_CON_CNT; i++) {
 		clk_ungt_save[i] = cru_readl(RK3036_CRU_CLKGATES_CON(i));
 		if (i != 10)
-			CLK_MSK_GATING(clk_ungt_msk[i]
+			CLK_MSK_UNGATING(clk_ungt_msk[i]
 			, RK3036_CRU_CLKGATES_CON(i));
 		else
 			cru_writel(clk_ungt_msk[i], RK3036_CRU_CLKGATES_CON(i));
@@ -372,6 +372,7 @@ static inline void plls_resume(u32 pll_id)
 	cru_writel(pllcon1 | 0xf5ff0000, RK3036_PLL_CONS(pll_id, 1));
 	cru_writel(pllcon2, RK3036_PLL_CONS(pll_id, 2));
 
+
 	pll_udelay(5);
 
 	pll_udelay(168);
@@ -417,8 +418,8 @@ static void pm_plls_suspend(void)
 	gpio0_pin_data = gpio0_readl(0x0);
 	gpio0_pin_dir = gpio0_readl(0x04);
 
-	gpio0_writel(gpio0_pin_dir|0x2, 0x04);
-	gpio0_writel(gpio0_pin_data|0x2, 0x00);
+	gpio0_writel(gpio0_pin_dir | 0x2, 0x04);
+	gpio0_writel(gpio0_pin_data | 0x2, 0x00);
 }
 
 static void pm_plls_resume(void)
@@ -436,7 +437,7 @@ static void pm_plls_resume(void)
 	plls_resume(APLL_ID);
 	cru_writel(cru_mode_con | (RK3036_PLL_MODE_MSK(APLL_ID) << 16)
 		, RK3036_CRU_MODE_CON);
-	cru_writel(clk_sel1 | (CRU_W_MSK(0, 0x1f) | CRU_W_MSK(8, 0x3)
+	cru_writel(clk_sel10 | (CRU_W_MSK(0, 0x1f) | CRU_W_MSK(8, 0x3)
 		| CRU_W_MSK(12, 0x3)), RK3036_CRU_CLKSELS_CON(10));
 	plls_resume(GPLL_ID);
 	cru_writel(cru_mode_con | (RK3036_PLL_MODE_MSK(GPLL_ID)
