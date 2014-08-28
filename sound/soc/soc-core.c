@@ -311,8 +311,6 @@ static void soc_init_codec_debugfs(struct snd_soc_component *component)
 
 	debugfs_create_bool("cache_sync", 0444, codec->component.debugfs_root,
 			    &codec->cache_sync);
-	debugfs_create_bool("cache_only", 0444, codec->component.debugfs_root,
-			    &codec->cache_only);
 
 	codec->debugfs_reg = debugfs_create_file("codec_reg", 0644,
 						 codec->component.debugfs_root,
