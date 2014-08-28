@@ -1282,12 +1282,15 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 		struct drm_exynos_ipp_cmd_node *c_node)
 {
 	struct drm_exynos_ipp_property *property = &c_node->property;
-	int ret = 0, i;
+	int i;
 
 	DRM_DEBUG_KMS("prop_id[%d]\n", property->prop_id);
 
 	/* put event */
 	ipp_put_event(c_node, NULL);
+	/* stop operations */
+	if (ippdrv->stop)
+		ippdrv->stop(ippdrv->dev, property->cmd);
 
 	/* check command */
 	switch (property->cmd) {
@@ -1303,16 +1306,10 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 		break;
 	default:
 		DRM_ERROR("invalid operations.\n");
-		ret = -EINVAL;
-		goto err_clear;
+		return -EINVAL;
 	}
 
-err_clear:
-	/* stop operations */
-	if (ippdrv->stop)
-		ippdrv->stop(ippdrv->dev, property->cmd);
-
-	return ret;
+	return 0;
 }
 
 void ipp_sched_cmd(struct work_struct *work)
