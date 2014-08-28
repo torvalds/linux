@@ -171,9 +171,9 @@ static bool cs42l56_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS42L56_INT_STATUS:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
