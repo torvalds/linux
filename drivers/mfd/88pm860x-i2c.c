@@ -122,7 +122,7 @@ static int read_device(struct i2c_client *i2c, int reg,
 static int write_device(struct i2c_client *i2c, int reg,
 			int bytes, void *src)
 {
-	unsigned char buf[bytes + 1];
+	unsigned char buf[2];
 	struct i2c_adapter *adap = i2c->adapter;
 	struct i2c_msg msg;
 	int ret;
