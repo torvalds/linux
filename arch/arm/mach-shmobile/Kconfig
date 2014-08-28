@@ -59,7 +59,7 @@ config ARCH_R8A7790
 	select ARCH_RCAR_GEN2
 
 config ARCH_R8A7791
-	bool "R-Car M2 (R8A77910)"
+	bool "R-Car M2-W (R8A77910)"
 	select ARCH_RCAR_GEN2
 
 comment "Renesas ARM SoCs Board Type"
@@ -141,7 +141,7 @@ config ARCH_R8A7790
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 
 config ARCH_R8A7791
-	bool "R-Car M2 (R8A77910)"
+	bool "R-Car M2-W (R8A77910)"
 	select ARCH_RCAR_GEN2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
