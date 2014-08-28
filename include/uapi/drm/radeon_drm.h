@@ -803,6 +803,8 @@ struct drm_radeon_gem_info {
 #define RADEON_GEM_GTT_WC		(1 << 2)
 /* BO is expected to be accessed by the CPU */
 #define RADEON_GEM_CPU_ACCESS		(1 << 3)
+/* CPU access is not expected to work for this BO */
+#define RADEON_GEM_NO_CPU_ACCESS	(1 << 4)
 
 struct drm_radeon_gem_create {
 	uint64_t	size;
