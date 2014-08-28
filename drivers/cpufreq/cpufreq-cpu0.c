@@ -113,6 +113,7 @@ static int allocate_resources(struct device **cdev,
 	struct regulator *cpu_reg;
 	struct clk *cpu_clk;
 	int ret = 0;
+	char *reg_cpu0 = "cpu0", *reg_cpu = "cpu", *reg;
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev) {
@@ -120,7 +121,11 @@ static int allocate_resources(struct device **cdev,
 		return -ENODEV;
 	}
 
-	cpu_reg = regulator_get_optional(cpu_dev, "cpu0");
+	/* Try "cpu0" for older DTs */
+	reg = reg_cpu0;
+
+try_again:
+	cpu_reg = regulator_get_optional(cpu_dev, reg);
 	if (IS_ERR(cpu_reg)) {
 		/*
 		 * If cpu0 regulator supply node is present, but regulator is
@@ -130,6 +135,13 @@ static int allocate_resources(struct device **cdev,
 			dev_dbg(cpu_dev, "cpu0 regulator not ready, retry\n");
 			return -EPROBE_DEFER;
 		}
+
+		/* Try with "cpu-supply" */
+		if (reg == reg_cpu0) {
+			reg = reg_cpu;
+			goto try_again;
+		}
+
 		dev_warn(cpu_dev, "failed to get cpu0 regulator: %ld\n",
 			 PTR_ERR(cpu_reg));
 	}
