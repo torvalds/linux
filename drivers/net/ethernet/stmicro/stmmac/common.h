@@ -220,10 +220,10 @@ enum dma_irq_status {
 	handle_tx = 0x8,
 };
 
-#define	CORE_IRQ_TX_PATH_IN_LPI_MODE	(1 << 1)
-#define	CORE_IRQ_TX_PATH_EXIT_LPI_MODE	(1 << 2)
-#define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 3)
-#define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 4)
+#define	CORE_IRQ_TX_PATH_IN_LPI_MODE	(1 << 0)
+#define	CORE_IRQ_TX_PATH_EXIT_LPI_MODE	(1 << 1)
+#define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 2)
+#define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 3)
 
 #define	CORE_PCS_ANE_COMPLETE		(1 << 5)
 #define	CORE_PCS_LINK_STATUS		(1 << 6)
