@@ -453,6 +453,41 @@ GENL_op(DRBD_ADM_GET_TIMEOUT_TYPE, 26, GENL_doit(drbd_adm_get_timeout_type),
 GENL_op(DRBD_ADM_DOWN,		27, GENL_doit(drbd_adm_down),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
 
+GENL_op(DRBD_ADM_GET_RESOURCES, 30,
+	 GENL_op_init(
+		 .dumpit = drbd_adm_dump_resources,
+	 ),
+	 GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_RESOURCE_INFO, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_RESOURCE_STATISTICS, DRBD_GENLA_F_MANDATORY))
+
+GENL_op(DRBD_ADM_GET_DEVICES, 31,
+	 GENL_op_init(
+		 .dumpit = drbd_adm_dump_devices,
+		 .done = drbd_adm_dump_devices_done,
+	 ),
+	 GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_DEVICE_INFO, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_DEVICE_STATISTICS, DRBD_GENLA_F_MANDATORY))
+
+GENL_op(DRBD_ADM_GET_CONNECTIONS, 32,
+	 GENL_op_init(
+		 .dumpit = drbd_adm_dump_connections,
+		 .done = drbd_adm_dump_connections_done,
+	 ),
+	 GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_CONNECTION_INFO, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_CONNECTION_STATISTICS, DRBD_GENLA_F_MANDATORY))
+
+GENL_op(DRBD_ADM_GET_PEER_DEVICES, 33,
+	 GENL_op_init(
+		 .dumpit = drbd_adm_dump_peer_devices,
+		 .done = drbd_adm_dump_peer_devices_done,
+	 ),
+	 GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_PEER_DEVICE_INFO, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_PEER_DEVICE_STATISTICS, DRBD_GENLA_F_MANDATORY))
+
 GENL_notification(
 	DRBD_RESOURCE_STATE, 34, events,
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
