@@ -3169,8 +3169,16 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (info->assoc)
+		if (info->assoc) {
+			/* Workaround: Make sure monitor vdev is not running
+			 * when associating to prevent some firmware revisions
+			 * (e.g. 10.1 and 10.2) from crashing.
+			 */
+			if (ar->monitor_started)
+				ath10k_monitor_stop(ar);
 			ath10k_bss_assoc(hw, vif, info);
+			ath10k_monitor_recalc(ar);
+		}
 	}
 
 exit:
