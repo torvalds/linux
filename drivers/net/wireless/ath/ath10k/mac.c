@@ -1615,7 +1615,7 @@ static int ath10k_station_assoc(struct ath10k *ar, struct ath10k_vif *arvif,
 		return ret;
 	}
 
-	if (!sta->wme) {
+	if (!sta->wme && !reassoc) {
 		arvif->num_legacy_stations++;
 		ret  = ath10k_recalc_rtscts_prot(arvif);
 		if (ret) {
