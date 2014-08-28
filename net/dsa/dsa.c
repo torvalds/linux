@@ -608,6 +608,24 @@ static void dsa_shutdown(struct platform_device *pdev)
 {
 }
 
+static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
+			  struct packet_type *pt, struct net_device *orig_dev)
+{
+	struct dsa_switch_tree *dst = dev->dsa_ptr;
+
+	if (unlikely(dst == NULL)) {
+		kfree_skb(skb);
+		return 0;
+	}
+
+	return dst->ops->rcv(skb, dev, pt, orig_dev);
+}
+
+struct packet_type dsa_pack_type __read_mostly = {
+	.type	= cpu_to_be16(ETH_P_XDSA),
+	.func	= dsa_switch_rcv,
+};
+
 static const struct of_device_id dsa_of_match_table[] = {
 	{ .compatible = "marvell,dsa", },
 	{}
@@ -633,30 +651,15 @@ static int __init dsa_init_module(void)
 	if (rc)
 		return rc;
 
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	dev_add_pack(&dsa_packet_type);
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	dev_add_pack(&edsa_packet_type);
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	dev_add_pack(&trailer_packet_type);
-#endif
+	dev_add_pack(&dsa_pack_type);
+
 	return 0;
 }
 module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	dev_remove_pack(&trailer_packet_type);
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	dev_remove_pack(&edsa_packet_type);
-#endif
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	dev_remove_pack(&dsa_packet_type);
-#endif
+	dev_remove_pack(&dsa_pack_type);
 	platform_driver_unregister(&dsa_driver);
 }
 module_exit(dsa_cleanup_module);

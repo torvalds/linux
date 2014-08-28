@@ -45,16 +45,13 @@ struct net_device *dsa_slave_create(struct dsa_switch *ds,
 				    int port, char *name);
 
 /* tag_dsa.c */
-netdev_tx_t dsa_xmit(struct sk_buff *skb, struct net_device *dev);
-extern struct packet_type dsa_packet_type;
+extern const struct dsa_device_ops dsa_netdev_ops;
 
 /* tag_edsa.c */
-netdev_tx_t edsa_xmit(struct sk_buff *skb, struct net_device *dev);
-extern struct packet_type edsa_packet_type;
+extern const struct dsa_device_ops edsa_netdev_ops;
 
 /* tag_trailer.c */
-netdev_tx_t trailer_xmit(struct sk_buff *skb, struct net_device *dev);
-extern struct packet_type trailer_packet_type;
+extern const struct dsa_device_ops trailer_netdev_ops;
 
 
 #endif

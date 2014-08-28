@@ -171,6 +171,14 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EOPNOTSUPP;
 }
 
+static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch_tree *dst = p->parent->dst;
+
+	return dst->ops->xmit(skb, dev);
+}
+
 
 /* ethtool operations *******************************************************/
 static int
@@ -293,42 +301,16 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_sset_count		= dsa_slave_get_sset_count,
 };
 
-#ifdef CONFIG_NET_DSA_TAG_DSA
-static const struct net_device_ops dsa_netdev_ops = {
+static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_init		= dsa_slave_init,
 	.ndo_open	 	= dsa_slave_open,
 	.ndo_stop		= dsa_slave_close,
-	.ndo_start_xmit		= dsa_xmit,
+	.ndo_start_xmit		= dsa_slave_xmit,
 	.ndo_change_rx_flags	= dsa_slave_change_rx_flags,
 	.ndo_set_rx_mode	= dsa_slave_set_rx_mode,
 	.ndo_set_mac_address	= dsa_slave_set_mac_address,
 	.ndo_do_ioctl		= dsa_slave_ioctl,
 };
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-static const struct net_device_ops edsa_netdev_ops = {
-	.ndo_init		= dsa_slave_init,
-	.ndo_open	 	= dsa_slave_open,
-	.ndo_stop		= dsa_slave_close,
-	.ndo_start_xmit		= edsa_xmit,
-	.ndo_change_rx_flags	= dsa_slave_change_rx_flags,
-	.ndo_set_rx_mode	= dsa_slave_set_rx_mode,
-	.ndo_set_mac_address	= dsa_slave_set_mac_address,
-	.ndo_do_ioctl		= dsa_slave_ioctl,
-};
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-static const struct net_device_ops trailer_netdev_ops = {
-	.ndo_init		= dsa_slave_init,
-	.ndo_open	 	= dsa_slave_open,
-	.ndo_stop		= dsa_slave_close,
-	.ndo_start_xmit		= trailer_xmit,
-	.ndo_change_rx_flags	= dsa_slave_change_rx_flags,
-	.ndo_set_rx_mode	= dsa_slave_set_rx_mode,
-	.ndo_set_mac_address	= dsa_slave_set_mac_address,
-	.ndo_do_ioctl		= dsa_slave_ioctl,
-};
-#endif
 
 /* slave device setup *******************************************************/
 struct net_device *
@@ -349,21 +331,22 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->tx_queue_len = 0;
+	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
 
 	switch (ds->dst->tag_protocol) {
 #ifdef CONFIG_NET_DSA_TAG_DSA
 	case htons(ETH_P_DSA):
-		slave_dev->netdev_ops = &dsa_netdev_ops;
+		ds->dst->ops = &dsa_netdev_ops;
 		break;
 #endif
 #ifdef CONFIG_NET_DSA_TAG_EDSA
 	case htons(ETH_P_EDSA):
-		slave_dev->netdev_ops = &edsa_netdev_ops;
+		ds->dst->ops = &edsa_netdev_ops;
 		break;
 #endif
 #ifdef CONFIG_NET_DSA_TAG_TRAILER
 	case htons(ETH_P_TRAILER):
-		slave_dev->netdev_ops = &trailer_netdev_ops;
+		ds->dst->ops = &trailer_netdev_ops;
 		break;
 #endif
 	default:

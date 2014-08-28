@@ -59,6 +59,8 @@ struct dsa_platform_data {
 	struct dsa_chip_data	*chip;
 };
 
+struct dsa_device_ops;
+
 struct dsa_switch_tree {
 	/*
 	 * Configuration data for the platform device that owns
@@ -71,6 +73,7 @@ struct dsa_switch_tree {
 	 * protocol to use.
 	 */
 	struct net_device	*master_netdev;
+	const struct dsa_device_ops	*ops;
 	__be16			tag_protocol;
 
 	/*
@@ -184,23 +187,6 @@ void unregister_switch_driver(struct dsa_switch_driver *type);
 static inline void *ds_to_priv(struct dsa_switch *ds)
 {
 	return (void *)(ds + 1);
-}
-
-/*
- * The original DSA tag format and some other tag formats have no
- * ethertype, which means that we need to add a little hack to the
- * networking receive path to make sure that received frames get
- * the right ->protocol assigned to them when one of those tag
- * formats is in use.
- */
-static inline bool dsa_uses_dsa_tags(struct dsa_switch_tree *dst)
-{
-	return !!(dst->tag_protocol == htons(ETH_P_DSA));
-}
-
-static inline bool dsa_uses_trailer_tags(struct dsa_switch_tree *dst)
-{
-	return !!(dst->tag_protocol == htons(ETH_P_TRAILER));
 }
 
 #endif

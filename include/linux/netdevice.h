@@ -1781,24 +1781,13 @@ void dev_net_set(struct net_device *dev, struct net *net)
 #endif
 }
 
-static inline bool netdev_uses_dsa_tags(struct net_device *dev)
+static inline bool netdev_uses_dsa(struct net_device *dev)
 {
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	if (dev->dsa_ptr != NULL)
-		return dsa_uses_dsa_tags(dev->dsa_ptr);
+#ifdef CONFIG_NET_DSA
+	return dev->dsa_ptr != NULL;
+#else
+	return false;
 #endif
-
-	return 0;
-}
-
-static inline bool netdev_uses_trailer_tags(struct net_device *dev)
-{
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	if (dev->dsa_ptr != NULL)
-		return dsa_uses_trailer_tags(dev->dsa_ptr);
-#endif
-
-	return 0;
 }
 
 /**
@@ -1932,6 +1921,13 @@ struct udp_offload {
 	__be16			 port;
 	struct offload_callbacks callbacks;
 };
+
+struct dsa_device_ops {
+	netdev_tx_t (*xmit)(struct sk_buff *skb, struct net_device *dev);
+	int (*rcv)(struct sk_buff *skb, struct net_device *dev,
+		   struct packet_type *pt, struct net_device *orig_dev);
+};
+
 
 /* often modified stats are per cpu, other are shared (netdev->stats) */
 struct pcpu_sw_netstats {
