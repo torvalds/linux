@@ -17,6 +17,8 @@
 #ifndef SPECTRAL_H
 #define SPECTRAL_H
 
+#include "../spectral_common.h"
+
 /* enum spectral_mode:
  *
  * @SPECTRAL_DISABLED: spectral mode is disabled
@@ -54,8 +56,6 @@ struct ath_ht20_mag_info {
 	u8 max_exp;
 } __packed;
 
-#define SPECTRAL_HT20_NUM_BINS		56
-
 /* WARNING: don't actually use this struct! MAC may vary the amount of
  * data by -1/+2. This struct is for reference only.
  */
@@ -82,8 +82,6 @@ struct ath_ht20_40_mag_info {
 	u8 upper_bins[3];
 	u8 max_exp;
 } __packed;
-
-#define SPECTRAL_HT20_40_NUM_BINS		128
 
 /* WARNING: don't actually use this struct! MAC may vary the amount of
  * data. This struct is for reference only.
@@ -124,71 +122,6 @@ static inline u8 spectral_bitmap_weight(u8 *bins)
 {
 	return bins[0] & 0x3f;
 }
-
-/* FFT sample format given to userspace via debugfs.
- *
- * Please keep the type/length at the front position and change
- * other fields after adding another sample type
- *
- * TODO: this might need rework when switching to nl80211-based
- * interface.
- */
-enum ath_fft_sample_type {
-	ATH_FFT_SAMPLE_HT20 = 1,
-	ATH_FFT_SAMPLE_HT20_40,
-};
-
-struct fft_sample_tlv {
-	u8 type;	/* see ath_fft_sample */
-	__be16 length;
-	/* type dependent data follows */
-} __packed;
-
-struct fft_sample_ht20 {
-	struct fft_sample_tlv tlv;
-
-	u8 max_exp;
-
-	__be16 freq;
-	s8 rssi;
-	s8 noise;
-
-	__be16 max_magnitude;
-	u8 max_index;
-	u8 bitmap_weight;
-
-	__be64 tsf;
-
-	u8 data[SPECTRAL_HT20_NUM_BINS];
-} __packed;
-
-struct fft_sample_ht20_40 {
-	struct fft_sample_tlv tlv;
-
-	u8 channel_type;
-	__be16 freq;
-
-	s8 lower_rssi;
-	s8 upper_rssi;
-
-	__be64 tsf;
-
-	s8 lower_noise;
-	s8 upper_noise;
-
-	__be16 lower_max_magnitude;
-	__be16 upper_max_magnitude;
-
-	u8 lower_max_index;
-	u8 upper_max_index;
-
-	u8 lower_bitmap_weight;
-	u8 upper_bitmap_weight;
-
-	u8 max_exp;
-
-	u8 data[SPECTRAL_HT20_40_NUM_BINS];
-} __packed;
 
 void ath9k_spectral_init_debug(struct ath_softc *sc);
 void ath9k_spectral_deinit_debug(struct ath_softc *sc);

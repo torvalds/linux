@@ -39,9 +39,10 @@ enum ath10k_debug_mask {
 
 extern unsigned int ath10k_debug_mask;
 
-__printf(1, 2) int ath10k_info(const char *fmt, ...);
-__printf(1, 2) int ath10k_err(const char *fmt, ...);
-__printf(1, 2) int ath10k_warn(const char *fmt, ...);
+__printf(2, 3) int ath10k_info(struct ath10k *ar, const char *fmt, ...);
+__printf(2, 3) int ath10k_err(struct ath10k *ar, const char *fmt, ...);
+__printf(2, 3) int ath10k_warn(struct ath10k *ar, const char *fmt, ...);
+void ath10k_print_driver_info(struct ath10k *ar);
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 int ath10k_debug_start(struct ath10k *ar);
@@ -53,6 +54,10 @@ void ath10k_debug_read_service_map(struct ath10k *ar,
 				   size_t map_size);
 void ath10k_debug_read_target_stats(struct ath10k *ar,
 				    struct wmi_stats_event *ev);
+struct ath10k_fw_crash_data *
+ath10k_debug_get_new_fw_crash_data(struct ath10k *ar);
+
+void ath10k_debug_dbglog_add(struct ath10k *ar, u8 *buffer, int len);
 
 #define ATH10K_DFS_STAT_INC(ar, c) (ar->debug.dfs_stats.c++)
 
@@ -86,25 +91,40 @@ static inline void ath10k_debug_read_target_stats(struct ath10k *ar,
 {
 }
 
+static inline void ath10k_debug_dbglog_add(struct ath10k *ar, u8 *buffer,
+					   int len)
+{
+}
+
+static inline struct ath10k_fw_crash_data *
+ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
+{
+	return NULL;
+}
+
 #define ATH10K_DFS_STAT_INC(ar, c) do { } while (0)
 
 #endif /* CONFIG_ATH10K_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG
-__printf(2, 3) void ath10k_dbg(enum ath10k_debug_mask mask,
+__printf(3, 4) void ath10k_dbg(struct ath10k *ar,
+			       enum ath10k_debug_mask mask,
 			       const char *fmt, ...);
-void ath10k_dbg_dump(enum ath10k_debug_mask mask,
+void ath10k_dbg_dump(struct ath10k *ar,
+		     enum ath10k_debug_mask mask,
 		     const char *msg, const char *prefix,
 		     const void *buf, size_t len);
 #else /* CONFIG_ATH10K_DEBUG */
 
-static inline int ath10k_dbg(enum ath10k_debug_mask dbg_mask,
+static inline int ath10k_dbg(struct ath10k *ar,
+			     enum ath10k_debug_mask dbg_mask,
 			     const char *fmt, ...)
 {
 	return 0;
 }
 
-static inline void ath10k_dbg_dump(enum ath10k_debug_mask mask,
+static inline void ath10k_dbg_dump(struct ath10k *ar,
+				   enum ath10k_debug_mask mask,
 				   const char *msg, const char *prefix,
 				   const void *buf, size_t len)
 {
