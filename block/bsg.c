@@ -287,6 +287,7 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr, fmode_t has_write_perm,
 		next_rq = blk_get_request(q, READ, GFP_KERNEL);
 		if (IS_ERR(next_rq)) {
 			ret = PTR_ERR(next_rq);
+			next_rq = NULL;
 			goto out;
 		}
 		rq->next_rq = next_rq;
