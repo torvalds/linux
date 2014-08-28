@@ -87,7 +87,7 @@
 /* RSPI on SH only */
 #define SPCR_TXMD		0x02	/* TX Only Mode (vs. Full Duplex) */
 #define SPCR_SPMS		0x01	/* 3-wire Mode (vs. 4-wire) */
-/* QSPI on R-Car M2 only */
+/* QSPI on R-Car Gen2 only */
 #define SPCR_WSWAP		0x02	/* Word Swap of read-data for DMAC */
 #define SPCR_BSWAP		0x01	/* Byte Swap of read-data for DMAC */
 
