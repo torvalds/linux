@@ -342,7 +342,7 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (!pdata) {
-		pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 	}
