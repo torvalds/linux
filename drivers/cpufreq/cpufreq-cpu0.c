@@ -1,6 +1,9 @@
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
  *
+ * Copyright (C) 2014 Linaro.
+ * Viresh Kumar <viresh.kumar@linaro.org>
+ *
  * The OPP code in function cpu0_set_target() is reused from
  * drivers/cpufreq/omap-cpufreq.c
  *
@@ -243,6 +246,7 @@ static struct platform_driver cpu0_cpufreq_platdrv = {
 };
 module_platform_driver(cpu0_cpufreq_platdrv);
 
+MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
 MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
 MODULE_DESCRIPTION("Generic CPU0 cpufreq driver");
 MODULE_LICENSE("GPL");
