@@ -10,6 +10,11 @@
 #include "omap4460.dtsi"
 #include "omap4-panda-common.dtsi"
 
+/ {
+	model = "TI OMAP4 PandaBoard-ES";
+	compatible = "ti,omap4-panda-es", "ti,omap4-panda", "ti,omap4460", "ti,omap4430", "ti,omap4";
+};
+
 /* Audio routing is differnet between PandaBoard4430 and PandaBoardES */
 &sound {
 	ti,model = "PandaBoardES";
