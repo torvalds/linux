@@ -210,7 +210,7 @@ static int bcm53xxspi_transfer_one(struct spi_master *master,
  * BCMA
  **************************************************/
 
-struct spi_board_info bcm53xx_info = {
+static struct spi_board_info bcm53xx_info = {
 	.modalias	= "bcm53xxspiflash",
 };
 
