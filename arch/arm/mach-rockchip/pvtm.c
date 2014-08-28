@@ -155,5 +155,5 @@ static int __init pvtm_init(void)
 	return 0;
 }
 
-fs_initcall(pvtm_init);
+core_initcall(pvtm_init);
 
