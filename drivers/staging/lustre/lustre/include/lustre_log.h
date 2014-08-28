@@ -315,9 +315,6 @@ struct llog_handle {
 	atomic_t		 lgh_refcount;
 };
 
-/* llog_lvfs.c */
-extern struct llog_operations llog_lvfs_ops;
-
 /* llog_osd.c */
 extern struct llog_operations llog_osd_ops;
 int llog_osd_get_cat_list(const struct lu_env *env, struct dt_device *d,
