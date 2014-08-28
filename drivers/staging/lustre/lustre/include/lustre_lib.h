@@ -46,11 +46,13 @@
  * @{
  */
 
+#include <linux/sched.h>
+#include <linux/signal.h>
+#include <linux/types.h>
 #include "../../include/linux/libcfs/libcfs.h"
 #include "lustre/lustre_idl.h"
 #include "lustre_ver.h"
 #include "lustre_cfg.h"
-#include "linux/lustre_lib.h"
 
 /* target.c */
 struct kstatfs;
@@ -62,6 +64,13 @@ struct l_wait_info;
 #include "lustre_net.h"
 #include "lvfs.h"
 
+#define LI_POISON 0x5a5a5a5a
+#if BITS_PER_LONG > 32
+# define LL_POISON 0x5a5a5a5a5a5a5a5aL
+#else
+# define LL_POISON 0x5a5a5a5aL
+#endif
+#define LP_POISON ((void *)LL_POISON)
 
 int target_pack_pool_reply(struct ptlrpc_request *req);
 int do_set_info_async(struct obd_import *imp,
@@ -270,6 +279,8 @@ static inline void obd_ioctl_freedata(char *buf, int len)
  * we change _IOR to _IOWR so BSD will copyin obd_ioctl_data
  * for us. Does this change affect Linux?  (XXX Liang)
  */
+#define OBD_IOC_DATA_TYPE long
+
 #define OBD_IOC_CREATE		 _IOWR('f', 101, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_DESTROY		_IOW ('f', 104, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_PREALLOCATE	    _IOWR('f', 105, OBD_IOC_DATA_TYPE)
@@ -508,6 +519,10 @@ struct l_wait_info {
 })
 
 #define LWI_INTR(cb, data)  LWI_TIMEOUT_INTR(0, NULL, cb, data)
+
+#define LUSTRE_FATAL_SIGS (sigmask(SIGKILL) | sigmask(SIGINT) |		\
+			   sigmask(SIGTERM) | sigmask(SIGQUIT) |	\
+			   sigmask(SIGALRM))
 
 
 /*
