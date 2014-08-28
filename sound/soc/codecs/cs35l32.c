@@ -121,9 +121,9 @@ static bool cs35l32_volatile_register(struct device *dev, unsigned int reg)
 	case CS35L32_INT_STATUS_2:
 	case CS35L32_INT_STATUS_3:
 	case CS35L32_LED_STATUS:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -134,9 +134,9 @@ static bool cs35l32_precious_register(struct device *dev, unsigned int reg)
 	case CS35L32_INT_STATUS_2:
 	case CS35L32_INT_STATUS_3:
 	case CS35L32_LED_STATUS:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
