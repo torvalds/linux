@@ -64,10 +64,6 @@ MODULE_VERSION(NTB_VER);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel Corporation");
 
-static bool xeon_errata_workaround = true;
-module_param(xeon_errata_workaround, bool, 0644);
-MODULE_PARM_DESC(xeon_errata_workaround, "Workaround for the Xeon Errata");
-
 enum {
 	NTB_CONN_TRANSPARENT = 0,
 	NTB_CONN_B2B,
@@ -142,6 +138,30 @@ static int is_ntb_atom(struct ntb_device *ndev)
 	}
 
 	return 0;
+}
+
+static void ntb_set_errata_flags(struct ntb_device *ndev)
+{
+	switch (ndev->pdev->device) {
+	/*
+	 * this workaround applies to all platform up to IvyBridge
+	 * Haswell has splitbar support and use a different workaround
+	 */
+	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+		ndev->wa_flags |= WA_SNB_ERR;
+		break;
+	}
 }
 
 /**
@@ -717,7 +737,7 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		 * this use the second memory window to access the interrupt and
 		 * scratch pad registers on the remote system.
 		 */
-		if (xeon_errata_workaround) {
+		if (ndev->wa_flags & WA_SNB_ERR) {
 			if (!ndev->mw[1].bar_sz)
 				return -EINVAL;
 
@@ -772,7 +792,7 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		if (ndev->dev_type == NTB_DEV_USD) {
 			writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
 			       SNB_PBAR2XLAT_OFFSET);
-			if (xeon_errata_workaround)
+			if (ndev->wa_flags & WA_SNB_ERR)
 				writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
 				       SNB_PBAR4XLAT_OFFSET);
 			else {
@@ -796,7 +816,7 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		} else {
 			writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
 			       SNB_PBAR2XLAT_OFFSET);
-			if (xeon_errata_workaround)
+			if (ndev->wa_flags & WA_SNB_ERR)
 				writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
 				       SNB_PBAR4XLAT_OFFSET);
 			else {
@@ -819,9 +839,9 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		}
 		break;
 	case NTB_CONN_RP:
-		if (xeon_errata_workaround) {
+		if (ndev->wa_flags & WA_SNB_ERR) {
 			dev_err(&ndev->pdev->dev,
-				"NTB-RP disabled due to hardware errata.  To disregard this warning and potentially lock-up the system, add the parameter 'xeon_errata_workaround=0'.\n");
+				"NTB-RP disabled due to hardware errata.\n");
 			return -EINVAL;
 		}
 
@@ -848,6 +868,12 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		ndev->limits.max_mw = SNB_MAX_MW;
 		break;
 	case NTB_CONN_TRANSPARENT:
+		if (ndev->wa_flags & WA_SNB_ERR) {
+			dev_err(&ndev->pdev->dev,
+				"NTB-TRANSPARENT disabled due to hardware errata.\n");
+			return -EINVAL;
+		}
+
 		/* Scratch pads need to have exclusive access from the primary
 		 * or secondary side.  Halve the num spads so that each side can
 		 * have an equal amount.
@@ -1595,6 +1621,9 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	ndev->pdev = pdev;
+
+	ntb_set_errata_flags(ndev);
+
 	ndev->link_status = NTB_LINK_DOWN;
 	pci_set_drvdata(pdev, ndev);
 	ntb_setup_debugfs(ndev);

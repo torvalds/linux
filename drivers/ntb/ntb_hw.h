@@ -109,6 +109,8 @@ struct ntb_db_cb {
 	struct tasklet_struct irq_work;
 };
 
+#define WA_SNB_ERR	0x00000001
+
 struct ntb_device {
 	struct pci_dev *pdev;
 	struct msix_entry *msix_entries;
@@ -153,6 +155,8 @@ struct ntb_device {
 
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_info;
+
+	unsigned int wa_flags;
 };
 
 /**
