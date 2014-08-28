@@ -346,8 +346,9 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 
 	if (multi) {
 		struct device_node *np = NULL;
-		int i;
-		for (i = 0; (np = of_get_next_child(node, np)); i++) {
+		int i = 0;
+
+		for_each_child_of_node(node, np) {
 			dev_dbg(dev, "\tlink %d:\n", i);
 			ret = asoc_simple_card_dai_link_of(np, dev,
 							   dai_link + i,
@@ -357,6 +358,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 				of_node_put(np);
 				return ret;
 			}
+			i++;
 		}
 	} else {
 		ret = asoc_simple_card_dai_link_of(node, dev,
