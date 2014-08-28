@@ -599,62 +599,6 @@ static int ipp_set_mem_node(struct exynos_drm_ippdrv *ippdrv,
 	return ret;
 }
 
-static struct drm_exynos_ipp_mem_node
-		*ipp_get_mem_node(struct drm_device *drm_dev,
-		struct drm_file *file,
-		struct drm_exynos_ipp_cmd_node *c_node,
-		struct drm_exynos_ipp_queue_buf *qbuf)
-{
-	struct drm_exynos_ipp_mem_node *m_node;
-	struct drm_exynos_ipp_buf_info *buf_info;
-	int i;
-
-	m_node = kzalloc(sizeof(*m_node), GFP_KERNEL);
-	if (!m_node)
-		return ERR_PTR(-ENOMEM);
-
-	buf_info = &m_node->buf_info;
-
-	/* operations, buffer id */
-	m_node->ops_id = qbuf->ops_id;
-	m_node->prop_id = qbuf->prop_id;
-	m_node->buf_id = qbuf->buf_id;
-
-	DRM_DEBUG_KMS("m_node[0x%x]ops_id[%d]\n", (int)m_node, qbuf->ops_id);
-	DRM_DEBUG_KMS("prop_id[%d]buf_id[%d]\n", qbuf->prop_id, m_node->buf_id);
-
-	for_each_ipp_planar(i) {
-		DRM_DEBUG_KMS("i[%d]handle[0x%x]\n", i, qbuf->handle[i]);
-
-		/* get dma address by handle */
-		if (qbuf->handle[i]) {
-			dma_addr_t *addr;
-
-			addr = exynos_drm_gem_get_dma_addr(drm_dev,
-					qbuf->handle[i], file);
-			if (IS_ERR(addr)) {
-				DRM_ERROR("failed to get addr.\n");
-				goto err_clear;
-			}
-
-			buf_info->handles[i] = qbuf->handle[i];
-			buf_info->base[i] = *addr;
-			DRM_DEBUG_KMS("i[%d]base[0x%x]hd[0x%lx]\n", i,
-				      buf_info->base[i], buf_info->handles[i]);
-		}
-	}
-
-	mutex_lock(&c_node->mem_lock);
-	list_add_tail(&m_node->list, &c_node->mem_list[qbuf->ops_id]);
-	mutex_unlock(&c_node->mem_lock);
-
-	return m_node;
-
-err_clear:
-	kfree(m_node);
-	return ERR_PTR(-EFAULT);
-}
-
 static int ipp_put_mem_node(struct drm_device *drm_dev,
 		struct drm_exynos_ipp_cmd_node *c_node,
 		struct drm_exynos_ipp_mem_node *m_node)
@@ -678,11 +622,64 @@ static int ipp_put_mem_node(struct drm_device *drm_dev,
 							c_node->filp);
 	}
 
-	/* delete list in queue */
 	list_del(&m_node->list);
 	kfree(m_node);
 
 	return 0;
+}
+
+static struct drm_exynos_ipp_mem_node
+		*ipp_get_mem_node(struct drm_device *drm_dev,
+		struct drm_file *file,
+		struct drm_exynos_ipp_cmd_node *c_node,
+		struct drm_exynos_ipp_queue_buf *qbuf)
+{
+	struct drm_exynos_ipp_mem_node *m_node;
+	struct drm_exynos_ipp_buf_info *buf_info;
+	int i;
+
+	m_node = kzalloc(sizeof(*m_node), GFP_KERNEL);
+	if (!m_node)
+		return ERR_PTR(-ENOMEM);
+
+	buf_info = &m_node->buf_info;
+
+	/* operations, buffer id */
+	m_node->ops_id = qbuf->ops_id;
+	m_node->prop_id = qbuf->prop_id;
+	m_node->buf_id = qbuf->buf_id;
+	INIT_LIST_HEAD(&m_node->list);
+
+	DRM_DEBUG_KMS("m_node[0x%x]ops_id[%d]\n", (int)m_node, qbuf->ops_id);
+	DRM_DEBUG_KMS("prop_id[%d]buf_id[%d]\n", qbuf->prop_id, m_node->buf_id);
+
+	for_each_ipp_planar(i) {
+		DRM_DEBUG_KMS("i[%d]handle[0x%x]\n", i, qbuf->handle[i]);
+
+		/* get dma address by handle */
+		if (qbuf->handle[i]) {
+			dma_addr_t *addr;
+
+			addr = exynos_drm_gem_get_dma_addr(drm_dev,
+					qbuf->handle[i], file);
+			if (IS_ERR(addr)) {
+				DRM_ERROR("failed to get addr.\n");
+				ipp_put_mem_node(drm_dev, c_node, m_node);
+				return ERR_PTR(-EFAULT);
+			}
+
+			buf_info->handles[i] = qbuf->handle[i];
+			buf_info->base[i] = *addr;
+			DRM_DEBUG_KMS("i[%d]base[0x%x]hd[0x%lx]\n", i,
+				      buf_info->base[i], buf_info->handles[i]);
+		}
+	}
+
+	mutex_lock(&c_node->mem_lock);
+	list_add_tail(&m_node->list, &c_node->mem_list[qbuf->ops_id]);
+	mutex_unlock(&c_node->mem_lock);
+
+	return m_node;
 }
 
 static void ipp_free_event(struct drm_pending_event *event)
