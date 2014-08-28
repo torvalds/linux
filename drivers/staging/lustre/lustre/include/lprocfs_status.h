@@ -42,7 +42,11 @@
 #ifndef _LPROCFS_SNMP_H
 #define _LPROCFS_SNMP_H
 
-#include "linux/lprocfs_status.h"
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+
 #include "lustre/lustre_idl.h"
 
 struct lprocfs_vars {

@@ -53,6 +53,7 @@
 #include "linux/lustre_lib.h"
 
 /* target.c */
+struct kstatfs;
 struct ptlrpc_request;
 struct obd_export;
 struct lu_target;

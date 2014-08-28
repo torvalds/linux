@@ -41,6 +41,7 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include <linux/module.h>
+#include <linux/statfs.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 
