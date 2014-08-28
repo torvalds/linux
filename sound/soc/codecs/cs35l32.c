@@ -242,41 +242,27 @@ static struct snd_soc_dai_driver cs35l32_dai[] = {
 static int cs35l32_codec_set_sysclk(struct snd_soc_codec *codec,
 			      int clk_id, int source, unsigned int freq, int dir)
 {
+	unsigned int val;
 
 	switch (freq) {
 	case 6000000:
-		snd_soc_update_bits(codec, CS35L32_CLK_CTL,
-				    CS35L32_MCLK_DIV2_MASK, 0);
-		snd_soc_update_bits(codec, CS35L32_CLK_CTL,
-				    CS35L32_MCLK_RATIO_MASK,
-					CS35L32_MCLK_RATIO);
+		val = CS35L32_MCLK_RATIO;
 		break;
 	case 12000000:
-		snd_soc_update_bits(codec, CS35L32_CLK_CTL,
-				    CS35L32_MCLK_DIV2_MASK,
-					CS35L32_MCLK_DIV2_MASK);
-		snd_soc_update_bits(codec, CS35L32_CLK_CTL,
-				    CS35L32_MCLK_RATIO_MASK,
-					CS35L32_MCLK_RATIO);
+		val = CS35L32_MCLK_DIV2_MASK | CS35L32_MCLK_RATIO;
 		break;
 	case 6144000:
-		snd_soc_update_bits(codec, CS35L32_CLK_CTL,
-				    CS35L32_MCLK_DIV2_MASK, 0);
-		snd_soc_update_bits(codec, CS35L32_CLK_CTL,
-				    CS35L32_MCLK_RATIO_MASK, 0);
+		val = 0;
 		break;
 	case 12288000:
-		snd_soc_update_bits(codec, CS35L32_CLK_CTL,
-				    CS35L32_MCLK_DIV2_MASK,
-					CS35L32_MCLK_DIV2_MASK);
-		snd_soc_update_bits(codec, CS35L32_CLK_CTL,
-				    CS35L32_MCLK_RATIO_MASK, 0);
+		val = CS35L32_MCLK_DIV2_MASK;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return 0;
+	return snd_soc_update_bits(codec, CS35L32_CLK_CTL,
+			CS35L32_MCLK_DIV2_MASK | CS35L32_MCLK_RATIO_MASK, val);
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_cs35l32 = {
