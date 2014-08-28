@@ -146,7 +146,7 @@ int drm_gem_object_init(struct drm_device *dev,
 EXPORT_SYMBOL(drm_gem_object_init);
 
 /**
- * drm_gem_object_init - initialize an allocated private GEM object
+ * drm_gem_private_object_init - initialize an allocated private GEM object
  * @dev: drm_device the object should be initialized for
  * @obj: drm_gem_object to initialize
  * @size: object size
