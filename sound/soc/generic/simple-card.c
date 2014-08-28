@@ -285,6 +285,17 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 		dai_props->codec_dai.fmt,
 		dai_props->codec_dai.sysclk);
 
+	/*
+	 * soc_bind_dai_link() will check cpu name
+	 * after of_node matching if dai_link has cpu_dai_name.
+	 * but, it will never match if name was created by fmt_single_name()
+	 * remove cpu_dai_name to escape name matching.
+	 * see
+	 *	fmt_single_name()
+	 *	fmt_multiple_name()
+	 */
+	dai_link->cpu_dai_name = NULL;
+
 dai_link_of_err:
 	if (np)
 		of_node_put(np);
@@ -428,18 +439,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 				dev_err(dev, "parse error %d\n", ret);
 			goto err;
 		}
-
-		/*
-		 * soc_bind_dai_link() will check cpu name
-		 * after of_node matching if dai_link has cpu_dai_name.
-		 * but, it will never match if name was created by fmt_single_name()
-		 * remove cpu_dai_name to escape name matching.
-		 * see
-		 *	fmt_single_name()
-		 *	fmt_multiple_name()
-		 */
-		if (num_links == 1)
-			dai_link->cpu_dai_name = NULL;
 
 	} else {
 		struct asoc_simple_card_info *cinfo;
