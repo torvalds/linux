@@ -194,3 +194,13 @@ static inline void kstat_incr_irqs_this_cpu(unsigned int irq, struct irq_desc *d
 	__this_cpu_inc(*desc->kstat_irqs);
 	__this_cpu_inc(kstat.irqs_sum);
 }
+
+#ifdef CONFIG_PM_SLEEP
+void irq_pm_install_action(struct irq_desc *desc, struct irqaction *action);
+void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action);
+#else
+static inline void
+irq_pm_install_action(struct irq_desc *desc, struct irqaction *action) { }
+static inline void
+irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action) { }
+#endif

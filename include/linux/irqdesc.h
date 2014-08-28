@@ -36,6 +36,11 @@ struct irq_desc;
  * @threads_oneshot:	bitfield to handle shared oneshot threads
  * @threads_active:	number of irqaction threads currently running
  * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
+ * @nr_actions:		number of installed actions on this descriptor
+ * @no_suspend_depth:	number of irqactions on a irq descriptor with
+ *			IRQF_NO_SUSPEND set
+ * @force_resume_depth:	number of irqactions on a irq descriptor with
+ *			IRQF_FORCE_RESUME set
  * @dir:		/proc/irq/ procfs entry
  * @name:		flow handler name for /proc/interrupts output
  */
@@ -68,6 +73,11 @@ struct irq_desc {
 	unsigned long		threads_oneshot;
 	atomic_t		threads_active;
 	wait_queue_head_t       wait_for_threads;
+#ifdef CONFIG_PM_SLEEP
+	unsigned int		nr_actions;
+	unsigned int		no_suspend_depth;
+	unsigned int		force_resume_depth;
+#endif
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*dir;
 #endif

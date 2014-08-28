@@ -1200,6 +1200,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	new->irq = irq;
 	*old_ptr = new;
 
+	irq_pm_install_action(desc, new);
+
 	/* Reset broken irq detection when installing new handler */
 	desc->irq_count = 0;
 	desc->irqs_unhandled = 0;
@@ -1317,6 +1319,8 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 
 	/* Found it - now remove it from the list of entries: */
 	*action_ptr = action->next;
+
+	irq_pm_remove_action(desc, action);
 
 	/* If this was the last handler, shut down the IRQ line: */
 	if (!desc->action) {

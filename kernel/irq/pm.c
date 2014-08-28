@@ -13,6 +13,42 @@
 
 #include "internals.h"
 
+/*
+ * Called from __setup_irq() with desc->lock held after @action has
+ * been installed in the action chain.
+ */
+void irq_pm_install_action(struct irq_desc *desc, struct irqaction *action)
+{
+	desc->nr_actions++;
+
+	if (action->flags & IRQF_FORCE_RESUME)
+		desc->force_resume_depth++;
+
+	WARN_ON_ONCE(desc->force_resume_depth &&
+		     desc->force_resume_depth != desc->nr_actions);
+
+	if (action->flags & IRQF_NO_SUSPEND)
+		desc->no_suspend_depth++;
+
+	WARN_ON_ONCE(desc->no_suspend_depth &&
+		     desc->no_suspend_depth != desc->nr_actions);
+}
+
+/*
+ * Called from __free_irq() with desc->lock held after @action has
+ * been removed from the action chain.
+ */
+void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action)
+{
+	desc->nr_actions--;
+
+	if (action->flags & IRQF_FORCE_RESUME)
+		desc->force_resume_depth--;
+
+	if (action->flags & IRQF_NO_SUSPEND)
+		desc->no_suspend_depth--;
+}
+
 static void suspend_device_irq(struct irq_desc *desc, int irq)
 {
 	if (!desc->action || (desc->action->flags & IRQF_NO_SUSPEND))
