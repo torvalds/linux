@@ -56,6 +56,15 @@ static void suspend_device_irq(struct irq_desc *desc, int irq)
 
 	desc->istate |= IRQS_SUSPENDED;
 	__disable_irq(desc, irq);
+
+	/*
+	 * Hardware which has no wakeup source configuration facility
+	 * requires that the non wakeup interrupts are masked at the
+	 * chip level. The chip implementation indicates that with
+	 * IRQCHIP_MASK_ON_SUSPEND.
+	 */
+	if (irq_desc_get_chip(desc)->flags & IRQCHIP_MASK_ON_SUSPEND)
+		mask_irq(desc);
 }
 
 /**
@@ -176,19 +185,7 @@ int check_wakeup_irqs(void)
 		if (irqd_is_wakeup_set(&desc->irq_data)) {
 			if (desc->depth == 1 && desc->istate & IRQS_PENDING)
 				return -EBUSY;
-			continue;
 		}
-		/*
-		 * Check the non wakeup interrupts whether they need
-		 * to be masked before finally going into suspend
-		 * state. That's for hardware which has no wakeup
-		 * source configuration facility. The chip
-		 * implementation indicates that with
-		 * IRQCHIP_MASK_ON_SUSPEND.
-		 */
-		if (desc->istate & IRQS_SUSPENDED &&
-		    irq_desc_get_chip(desc)->flags & IRQCHIP_MASK_ON_SUSPEND)
-			mask_irq(desc);
 	}
 
 	return 0;
