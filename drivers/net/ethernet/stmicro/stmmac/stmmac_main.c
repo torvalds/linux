@@ -321,10 +321,9 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 			priv->hw->mac->set_eee_timer(priv->hw,
 						     STMMAC_DEFAULT_LIT_LS,
 						     tx_lpi_timer);
-		} else
-			/* Set HW EEE according to the speed */
-			priv->hw->mac->set_eee_pls(priv->hw,
-						   priv->phydev->link);
+		}
+		/* Set HW EEE according to the speed */
+		priv->hw->mac->set_eee_pls(priv->hw, priv->phydev->link);
 
 		pr_debug("stmmac: Energy-Efficient Ethernet initialized\n");
 
