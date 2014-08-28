@@ -725,6 +725,12 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 		(BIT_VCODEC_SEL) | (BIT_VCODEC_SEL << 16),
 		RK319X_GRF_BASE + GRF_SOC_CON1);
 #endif
+#define BIT_VCODEC_CLK_SEL	(1<<10)
+	if (cpu_is_rk312x())
+		writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK312X_GRF_SOC_CON1) |
+			BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16),
+			RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
+
 
 	udelay(10);
 	wake_lock(&pservice->wake_lock);
