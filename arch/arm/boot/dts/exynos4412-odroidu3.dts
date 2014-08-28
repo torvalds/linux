@@ -112,6 +112,15 @@
 
 &max77686 {
 	voltage-regulators {
+		ldo22_reg: ldo@22 {
+			regulator-compatible = "LDO22";
+			regulator-name = "vddf_emmc_2.85V";
+			regulator-min-microvolt = <2850000>;
+			regulator-max-microvolt = <2850000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
 		/* On the Odroid-U2/U3 this buck regulator supplies the LAN9730 block. */
 		buck8_reg: buck@8 {
 			regulator-compatible = "BUCK8";
