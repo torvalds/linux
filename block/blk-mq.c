@@ -218,9 +218,11 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
 	struct blk_mq_hw_ctx *hctx;
 	struct request *rq;
 	struct blk_mq_alloc_data alloc_data;
+	int ret;
 
-	if (blk_mq_queue_enter(q))
-		return NULL;
+	ret = blk_mq_queue_enter(q);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
@@ -240,6 +242,8 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
 		ctx = alloc_data.ctx;
 	}
 	blk_mq_put_ctx(ctx);
+	if (!rq)
+		return ERR_PTR(-EWOULDBLOCK);
 	return rq;
 }
 EXPORT_SYMBOL(blk_mq_alloc_request);
