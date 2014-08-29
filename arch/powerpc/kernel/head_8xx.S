@@ -480,12 +480,8 @@ InstructionTLBError:
 	b	InstructionAccess
 
 /* This is the data TLB error on the MPC8xx.  This could be due to
- * many reasons, including a dirty update to a pte.  We can catch that
- * one here, but anything else is an error.  First, we track down the
- * Linux pte.  If it is valid, write access is allowed, but the
- * page dirty bit is not set, we will set it and reload the TLB.  For
- * any other case, we bail out to a higher level function that can
- * handle it.
+ * many reasons, including a dirty update to a pte.  We bail out to
+ * a higher level function that can handle it.
  */
 	. = 0x1400
 DataTLBError:
