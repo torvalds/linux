@@ -447,7 +447,7 @@ static struct attribute *isl29018_attributes[] = {
 	NULL
 };
 
-static const struct attribute_group isl29108_group = {
+static const struct attribute_group isl29018_group = {
 	.attrs = isl29018_attributes,
 };
 
@@ -510,8 +510,8 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 	return 0;
 }
 
-static const struct iio_info isl29108_info = {
-	.attrs = &isl29108_group,
+static const struct iio_info isl29018_info = {
+	.attrs = &isl29018_group,
 	.driver_module = THIS_MODULE,
 	.read_raw = &isl29018_read_raw,
 	.write_raw = &isl29018_write_raw,
@@ -579,7 +579,7 @@ static int isl29018_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-	indio_dev->info = &isl29108_info;
+	indio_dev->info = &isl29018_info;
 	indio_dev->channels = isl29018_channels;
 	indio_dev->num_channels = ARRAY_SIZE(isl29018_channels);
 	indio_dev->name = id->name;
