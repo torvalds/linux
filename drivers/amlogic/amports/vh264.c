@@ -1162,6 +1162,12 @@ static void vh264_isr(void)
 
                 kfifo_put(&display_q, (const vframe_t **)&vf);
 
+                if (READ_VREG(AV_SCRATCH_F) & 2) {
+                    vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
+                    WRITE_VREG(AV_SCRATCH_0, 0);
+                    return IRQ_HANDLED;
+                }
+
                 if (kfifo_get(&newframe_q, &vf) == 0) {
                     printk("fatal error, no available buffer slot.");
                     return IRQ_HANDLED;
