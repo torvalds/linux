@@ -348,7 +348,7 @@ static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 
 	/* Clear MAC flow control */
 	max_q_count = XGMAC_MAX_FLOW_CONTROL_QUEUES;
-	q_count = min_t(unsigned int, pdata->rx_q_count, max_q_count);
+	q_count = min_t(unsigned int, pdata->tx_q_count, max_q_count);
 	reg = MAC_Q0TFCR;
 	for (i = 0; i < q_count; i++) {
 		reg_val = XGMAC_IOREAD(pdata, reg);
@@ -373,7 +373,7 @@ static int xgbe_enable_tx_flow_control(struct xgbe_prv_data *pdata)
 
 	/* Set MAC flow control */
 	max_q_count = XGMAC_MAX_FLOW_CONTROL_QUEUES;
-	q_count = min_t(unsigned int, pdata->rx_q_count, max_q_count);
+	q_count = min_t(unsigned int, pdata->tx_q_count, max_q_count);
 	reg = MAC_Q0TFCR;
 	for (i = 0; i < q_count; i++) {
 		reg_val = XGMAC_IOREAD(pdata, reg);
