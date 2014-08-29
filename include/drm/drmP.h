@@ -1,16 +1,13 @@
-/**
- * \file drmP.h
- * Private header for Direct Rendering Manager
- *
- * \author Rickard E. (Rik) Faith <faith@valinux.com>
- * \author Gareth Hughes <gareth@valinux.com>
- */
-
 /*
+ * Internal Header for the Direct Rendering Manager
+ *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * Copyright (c) 2009-2010, Code Aurora Forum.
  * All rights reserved.
+ *
+ * Author: Rickard E. (Rik) Faith <faith@valinux.com>
+ * Author: Gareth Hughes <gareth@valinux.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -64,8 +61,14 @@
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 
-#include <drm/drm.h>
+#include <uapi/drm/drm.h>
+#include <uapi/drm/drm_mode.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_global.h>
 #include <drm/drm_hashtab.h>
+#include <drm/drm_mem_util.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_os_linux.h>
 #include <drm/drm_sarea.h>
@@ -563,8 +566,6 @@ struct drm_gem_object {
 	 */
 	struct dma_buf_attachment *import_attach;
 };
-
-#include <drm/drm_crtc.h>
 
 /**
  * struct drm_master - drm master structure
@@ -1228,10 +1229,6 @@ extern void drm_vblank_post_modeset(struct drm_device *dev, int crtc);
 extern int drm_modeset_ctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 
-				/* AGP/GART support (drm_agpsupport.h) */
-
-#include <drm/drm_agpsupport.h>
-
 				/* Stub support (drm_stub.h) */
 extern int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
@@ -1397,8 +1394,6 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 		     struct vm_area_struct *vma);
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
-#include <drm/drm_global.h>
-
 static inline void
 drm_gem_object_reference(struct drm_gem_object *obj)
 {
@@ -1471,8 +1466,6 @@ static __inline__ struct drm_local_map *drm_core_findmap(struct drm_device *dev,
 static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
 }
-
-#include <drm/drm_mem_util.h>
 
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent);

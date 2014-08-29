@@ -31,8 +31,8 @@
 #include <linux/idr.h>
 #include <linux/fb.h>
 #include <linux/hdmi.h>
-#include <drm/drm_mode.h>
-#include <drm/drm_fourcc.h>
+#include <uapi/drm/drm_mode.h>
+#include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
 
 struct drm_device;

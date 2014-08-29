@@ -1,12 +1,16 @@
 #ifndef _DRM_AGPSUPPORT_H_
 #define _DRM_AGPSUPPORT_H_
 
+#include <linux/agp_backend.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
-#include <linux/agp_backend.h>
-#include <drm/drmP.h>
+#include <uapi/drm/drm.h>
+
+struct drm_device;
+struct drm_file;
 
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && \
 					      defined(MODULE)))
@@ -61,6 +65,7 @@ int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
 int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request);
 int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
+
 #else /* __OS_HAS_AGP */
 
 static inline void drm_free_agp(struct agp_memory * handle, int pages)
@@ -188,6 +193,7 @@ static inline int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
 {
 	return -ENODEV;
 }
+
 #endif /* __OS_HAS_AGP */
 
 #endif /* _DRM_AGPSUPPORT_H_ */
