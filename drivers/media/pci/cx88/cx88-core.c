@@ -132,14 +132,13 @@ static __le32* cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 	return rp;
 }
 
-int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
+int cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 		     struct scatterlist *sglist,
 		     unsigned int top_offset, unsigned int bottom_offset,
 		     unsigned int bpl, unsigned int padding, unsigned int lines)
 {
 	u32 instructions,fields;
 	__le32 *rp;
-	int rc;
 
 	fields = 0;
 	if (UNSET != top_offset)
@@ -153,8 +152,11 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	   region may be smaller than PAGE_SIZE */
 	instructions  = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE + lines);
 	instructions += 4;
-	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
-		return rc;
+	risc->size = instructions * 8;
+	risc->dma = 0;
+	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
+	if (NULL == risc->cpu)
+		return -ENOMEM;
 
 	/* write risc instructions */
 	rp = risc->cpu;
@@ -171,13 +173,12 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	return 0;
 }
 
-int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
+int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 			 struct scatterlist *sglist, unsigned int bpl,
 			 unsigned int lines, unsigned int lpi)
 {
 	u32 instructions;
 	__le32 *rp;
-	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
 	   one write per scan line + syncs + jump (all 2 dwords).  Here
@@ -185,8 +186,11 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	   than PAGE_SIZE */
 	instructions  = 1 + (bpl * lines) / PAGE_SIZE + lines;
 	instructions += 3;
-	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
-		return rc;
+	risc->size = instructions * 8;
+	risc->dma = 0;
+	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
+	if (NULL == risc->cpu)
+		return -ENOMEM;
 
 	/* write risc instructions */
 	rp = risc->cpu;

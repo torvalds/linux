@@ -505,8 +505,11 @@ static void buffer_finish(struct vb2_buffer *vb)
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
+	struct cx88_riscmem *risc = &buf->risc;
 
-	btcx_riscmem_free(dev->pci, &buf->risc);
+	if (risc->cpu)
+		pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
+	memset(risc, 0, sizeof(*risc));
 
 	dma_unmap_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 }

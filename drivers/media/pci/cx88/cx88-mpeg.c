@@ -228,6 +228,7 @@ int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
 {
 	int size = dev->ts_packet_size * dev->ts_packet_count;
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(&buf->vb, 0);
+	struct cx88_riscmem *risc = &buf->risc;
 	int rc;
 
 	if (vb2_plane_size(&buf->vb, 0) < size)
@@ -238,10 +239,12 @@ int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
 	if (!rc)
 		return -EIO;
 
-	rc = cx88_risc_databuffer(dev->pci, &buf->risc, sgt->sgl,
+	rc = cx88_risc_databuffer(dev->pci, risc, sgt->sgl,
 			     dev->ts_packet_size, dev->ts_packet_count, 0);
 	if (rc) {
-		btcx_riscmem_free(dev->pci, &buf->risc);
+		if (risc->cpu)
+			pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
+		memset(risc, 0, sizeof(*risc));
 		return rc;
 	}
 	return 0;

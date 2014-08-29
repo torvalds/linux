@@ -61,7 +61,7 @@
 
 struct cx88_audio_buffer {
 	unsigned int               bpl;
-	struct btcx_riscmem        risc;
+	struct cx88_riscmem        risc;
 	void			*vaddr;
 	struct scatterlist	*sglist;
 	int                     sglen;
@@ -370,12 +370,15 @@ static int cx88_alsa_dma_free(struct cx88_audio_buffer *buf)
 
 static int dsp_buffer_free(snd_cx88_card_t *chip)
 {
+	struct cx88_riscmem *risc = &chip->buf->risc;
+
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2,"Freeing buffer\n");
 	cx88_alsa_dma_unmap(chip);
 	cx88_alsa_dma_free(chip->buf);
-	btcx_riscmem_free(chip->pci, &chip->buf->risc);
+	if (risc->cpu)
+		pci_free_consistent(chip->pci, risc->size, risc->cpu, risc->dma);
 	kfree(chip->buf);
 
 	chip->buf = NULL;

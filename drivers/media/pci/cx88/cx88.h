@@ -35,7 +35,6 @@
 #include <media/ir-kbd-i2c.h>
 #include <media/wm8775.h>
 
-#include "btcx-risc.h"
 #include "cx88-reg.h"
 #include "tuner-xc2028.h"
 
@@ -311,6 +310,13 @@ enum cx88_tvaudio {
 
 #define BUFFER_TIMEOUT     msecs_to_jiffies(2000)
 
+struct cx88_riscmem {
+	unsigned int   size;
+	__le32         *cpu;
+	__le32         *jmp;
+	dma_addr_t     dma;
+};
+
 /* buffer for one video frame */
 struct cx88_buffer {
 	/* common v4l buffer stuff -- must be first */
@@ -319,7 +325,7 @@ struct cx88_buffer {
 
 	/* cx88 specific */
 	unsigned int           bpl;
-	struct btcx_riscmem    risc;
+	struct cx88_riscmem    risc;
 	u32                    count;
 };
 
@@ -616,17 +622,17 @@ extern void cx88_shutdown(struct cx88_core *core);
 extern int cx88_reset(struct cx88_core *core);
 
 extern int
-cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
+cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 		 struct scatterlist *sglist,
 		 unsigned int top_offset, unsigned int bottom_offset,
 		 unsigned int bpl, unsigned int padding, unsigned int lines);
 extern int
-cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
+cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 		     struct scatterlist *sglist, unsigned int bpl,
 		     unsigned int lines, unsigned int lpi);
 
 extern void cx88_risc_disasm(struct cx88_core *core,
-			     struct btcx_riscmem *risc);
+			     struct cx88_riscmem *risc);
 extern int cx88_sram_channel_setup(struct cx88_core *core,
 				   const struct sram_channel *ch,
 				   unsigned int bpl, u32 risc);
