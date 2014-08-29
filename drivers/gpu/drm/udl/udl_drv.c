@@ -34,6 +34,11 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 MODULE_LICENSE("GPL");
 
+static int udl_driver_set_busid(struct drm_device *d, struct drm_master *m)
+{
+	return 0;
+}
+
 static int udl_usb_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id)
 {
@@ -75,6 +80,7 @@ static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load = udl_driver_load,
 	.unload = udl_driver_unload,
+	.set_busid = udl_driver_set_busid,
 
 	/* gem hooks */
 	.gem_free_object = udl_gem_free_object,

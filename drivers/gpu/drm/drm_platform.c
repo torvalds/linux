@@ -68,7 +68,7 @@ err_free:
 	return ret;
 }
 
-static int drm_platform_set_busid(struct drm_device *dev, struct drm_master *master)
+int drm_platform_set_busid(struct drm_device *dev, struct drm_master *master)
 {
 	int id;
 
@@ -84,6 +84,7 @@ static int drm_platform_set_busid(struct drm_device *dev, struct drm_master *mas
 	master->unique_len = strlen(master->unique);
 	return 0;
 }
+EXPORT_SYMBOL(drm_platform_set_busid);
 
 static struct drm_bus drm_platform_bus = {
 	.set_busid = drm_platform_set_busid,

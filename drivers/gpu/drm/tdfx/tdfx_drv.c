@@ -55,6 +55,7 @@ static const struct file_operations tdfx_driver_fops = {
 };
 
 static struct drm_driver driver = {
+	.set_busid = drm_pci_set_busid,
 	.fops = &tdfx_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

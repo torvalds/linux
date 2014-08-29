@@ -235,6 +235,8 @@ static struct drm_driver qxl_driver = {
 	.enable_vblank = qxl_noop_enable_vblank,
 	.disable_vblank = qxl_noop_disable_vblank,
 
+	.set_busid = drm_pci_set_busid,
+
 	.dumb_create = qxl_mode_dumb_create,
 	.dumb_map_offset = qxl_mode_dumb_mmap,
 	.dumb_destroy = drm_gem_dumb_destroy,

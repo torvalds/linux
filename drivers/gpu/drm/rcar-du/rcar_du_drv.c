@@ -158,6 +158,7 @@ static struct drm_driver rcar_du_driver = {
 	.unload			= rcar_du_unload,
 	.preclose		= rcar_du_preclose,
 	.lastclose		= rcar_du_lastclose,
+	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= rcar_du_enable_vblank,
 	.disable_vblank		= rcar_du_disable_vblank,
