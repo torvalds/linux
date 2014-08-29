@@ -1536,16 +1536,20 @@ static void o2net_idle_timer(unsigned long data)
 #endif
 
 	printk(KERN_NOTICE "o2net: Connection to " SC_NODEF_FMT " has been "
-	       "idle for %lu.%lu secs, shutting it down.\n", SC_NODEF_ARGS(sc),
-	       msecs / 1000, msecs % 1000);
+	       "idle for %lu.%lu secs.\n",
+	       SC_NODEF_ARGS(sc), msecs / 1000, msecs % 1000);
 
-	/*
-	 * Initialize the nn_timeout so that the next connection attempt
-	 * will continue in o2net_start_connect.
+	/* idle timerout happen, don't shutdown the connection, but
+	 * make fence decision. Maybe the connection can recover before
+	 * the decision is made.
 	 */
 	atomic_set(&nn->nn_timeout, 1);
+	o2quo_conn_err(o2net_num_from_nn(nn));
+	queue_delayed_work(o2net_wq, &nn->nn_still_up,
+			msecs_to_jiffies(O2NET_QUORUM_DELAY_MS));
 
-	o2net_sc_queue_work(sc, &sc->sc_shutdown_work);
+	o2net_sc_reset_idle_timer(sc);
+
 }
 
 static void o2net_sc_reset_idle_timer(struct o2net_sock_container *sc)
@@ -1560,6 +1564,15 @@ static void o2net_sc_reset_idle_timer(struct o2net_sock_container *sc)
 
 static void o2net_sc_postpone_idle(struct o2net_sock_container *sc)
 {
+	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
+
+	/* clear fence decision since the connection recover from timeout*/
+	if (atomic_read(&nn->nn_timeout)) {
+		o2quo_conn_up(o2net_num_from_nn(nn));
+		cancel_delayed_work(&nn->nn_still_up);
+		atomic_set(&nn->nn_timeout, 0);
+	}
+
 	/* Only push out an existing timer */
 	if (timer_pending(&sc->sc_idle_timeout))
 		o2net_sc_reset_idle_timer(sc);
