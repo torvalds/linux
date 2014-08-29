@@ -2012,10 +2012,10 @@ void igb_reset(struct igb_adapter *adapter)
 		case e1000_i350:
 		case e1000_i210:
 		case e1000_i211:
-			igb_set_eee_i350(hw);
+			igb_set_eee_i350(hw, true, true);
 			break;
 		case e1000_i354:
-			igb_set_eee_i354(hw);
+			igb_set_eee_i354(hw, true, true);
 			break;
 		default:
 			break;
@@ -2619,7 +2619,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		case e1000_i210:
 		case e1000_i211:
 			/* Enable EEE for internal copper PHY devices */
-			err = igb_set_eee_i350(hw);
+			err = igb_set_eee_i350(hw, true, true);
 			if ((!err) &&
 			    (!hw->dev_spec._82575.eee_disable)) {
 				adapter->eee_advert =
@@ -2630,7 +2630,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		case e1000_i354:
 			if ((rd32(E1000_CTRL_EXT) &
 			    E1000_CTRL_EXT_LINK_MODE_SGMII)) {
-				err = igb_set_eee_i354(hw);
+				err = igb_set_eee_i354(hw, true, true);
 				if ((!err) &&
 					(!hw->dev_spec._82575.eee_disable)) {
 					adapter->eee_advert =
