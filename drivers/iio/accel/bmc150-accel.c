@@ -173,7 +173,7 @@ static const struct {
 } bmc150_accel_scale_table[] = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
 				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
 				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
-				 {77057, BMC150_ACCEL_DEF_RANGE_16G} };
+				 {76590, BMC150_ACCEL_DEF_RANGE_16G} };
 
 static const struct {
 	int sleep_dur;
