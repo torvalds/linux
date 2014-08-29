@@ -567,10 +567,14 @@ static int dice_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	/*
-	 * At rates above 96 kHz, pretend that the stream runs at half the
-	 * actual sample rate with twice the number of channels; two samples
-	 * of a channel are stored consecutively in the packet. Requires
-	 * blocking mode and PCM buffer size should be aligned to SYT_INTERVAL.
+	 * At 176.4/192.0 kHz, Dice has a quirk to transfer two PCM frames in
+	 * one data block of AMDTP packet. Thus sampling transfer frequency is
+	 * a half of PCM sampling frequency, i.e. PCM frames at 192.0 kHz are
+	 * transferred on AMDTP packets at 96 kHz. Two successive samples of a
+	 * channel are stored consecutively in the packet. This quirk is called
+	 * as 'Dual Wire'.
+	 * For this quirk, blocking mode is required and PCM buffer size should
+	 * be aligned to SYT_INTERVAL.
 	 */
 	channels = params_channels(hw_params);
 	if (rate_index > 4) {
@@ -581,6 +585,9 @@ static int dice_hw_params(struct snd_pcm_substream *substream,
 
 		rate /= 2;
 		channels *= 2;
+		dice->stream.double_pcm_frames = true;
+	} else {
+		dice->stream.double_pcm_frames = false;
 	}
 
 	mode = rate_index_to_mode(rate_index);
