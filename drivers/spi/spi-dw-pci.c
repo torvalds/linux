@@ -55,7 +55,7 @@ static int spi_pci_probe(struct pci_dev *pdev,
 	/* Get basic io resource and map it */
 	dws->paddr = pci_resource_start(pdev, pci_bar);
 
-	ret = pcim_iomap_regions(pdev, 1, dev_name(&pdev->dev));
+	ret = pcim_iomap_regions(pdev, 1 << pci_bar, pci_name(pdev));
 	if (ret)
 		return ret;
 
