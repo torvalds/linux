@@ -40,6 +40,7 @@
 #include <linux/efi.h>
 #include <linux/slab.h>
 #endif
+#include <asm/pgtable.h>
 #include "drm_legacy.h"
 
 struct drm_vma_entry {

@@ -36,12 +36,7 @@
 #define _DRM_P_H_
 
 #ifdef __KERNEL__
-#ifdef __alpha__
-/* add include of current.h so that "current" is defined
- * before static inline funcs in wait.h. Doing this so we
- * can build the DRM (part of PI DRI). 4/21/2000 S + B */
-#include <asm/current.h>
-#endif				/* __alpha__ */
+#include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/miscdevice.h>
@@ -58,9 +53,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
-#if defined(__alpha__) || defined(__powerpc__)
-#include <asm/pgtable.h>	/* For pte_wrprotect */
-#endif
 #include <asm/mman.h>
 #include <asm/uaccess.h>
 #include <linux/types.h>
