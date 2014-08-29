@@ -27,6 +27,15 @@
 		bootargs = "console=ttyPS0,115200 earlyprintk";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		ds23 {
+			label = "ds23";
+			gpios = <&gpio0 10 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
 };
 
 &can0 {
