@@ -35,7 +35,6 @@
 #ifndef _DRM_P_H_
 #define _DRM_P_H_
 
-#ifdef __KERNEL__
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
@@ -1544,5 +1543,4 @@ static __inline__ bool drm_can_sleep(void)
 	return true;
 }
 
-#endif				/* __KERNEL__ */
 #endif
