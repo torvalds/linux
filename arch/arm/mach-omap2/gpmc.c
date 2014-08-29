@@ -283,13 +283,8 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
 			   p->cycle2cyclediffcsen);
 }
 
-#ifdef DEBUG
 static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 			       int time, const char *name)
-#else
-static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
-			       int time)
-#endif
 {
 	u32 l;
 	int ticks, mask, nr_bits;
@@ -299,15 +294,15 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 	else
 		ticks = gpmc_ns_to_ticks(time);
 	nr_bits = end_bit - st_bit + 1;
-	if (ticks >= 1 << nr_bits) {
-#ifdef DEBUG
-		printk(KERN_INFO "GPMC CS%d: %-10s* %3d ns, %3d ticks >= %d\n",
-				cs, name, time, ticks, 1 << nr_bits);
-#endif
+	mask = (1 << nr_bits) - 1;
+
+	if (ticks > mask) {
+		pr_err("%s: GPMC error! CS%d: %s: %d ns, %d ticks > %d\n",
+		       __func__, cs, name, time, ticks, mask);
+
 		return -1;
 	}
 
-	mask = (1 << nr_bits) - 1;
 	l = gpmc_cs_read_reg(cs, reg);
 #ifdef DEBUG
 	printk(KERN_INFO
@@ -322,16 +317,10 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 	return 0;
 }
 
-#ifdef DEBUG
 #define GPMC_SET_ONE(reg, st, end, field) \
 	if (set_gpmc_timing_reg(cs, (reg), (st), (end),		\
 			t->field, #field) < 0)			\
 		return -1
-#else
-#define GPMC_SET_ONE(reg, st, end, field) \
-	if (set_gpmc_timing_reg(cs, (reg), (st), (end), t->field) < 0) \
-		return -1
-#endif
 
 int gpmc_calc_divider(unsigned int sync_clk)
 {
