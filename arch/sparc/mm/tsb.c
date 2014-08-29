@@ -133,7 +133,19 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 	mm->context.tsb_block[tsb_idx].tsb_nentries =
 		tsb_bytes / sizeof(struct tsb);
 
-	base = TSBMAP_BASE;
+	switch (tsb_idx) {
+	case MM_TSB_BASE:
+		base = TSBMAP_8K_BASE;
+		break;
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+	case MM_TSB_HUGE:
+		base = TSBMAP_4M_BASE;
+		break;
+#endif
+	default:
+		BUG();
+	}
+
 	tte = pgprot_val(PAGE_KERNEL_LOCKED);
 	tsb_paddr = __pa(mm->context.tsb_block[tsb_idx].tsb);
 	BUG_ON(tsb_paddr & (tsb_bytes - 1UL));
