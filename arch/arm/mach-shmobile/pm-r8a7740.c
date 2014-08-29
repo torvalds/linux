@@ -34,22 +34,20 @@ static int r8a7740_pd_a3sp_suspend(void)
 
 static struct rmobile_pm_domain r8a7740_pm_domains[] = {
 	{
+		.genpd.name	= "A4LC",
+		.bit_shift	= 1,
+	}, {
 		.genpd.name	= "A4S",
 		.bit_shift	= 10,
 		.gov		= &pm_domain_always_on_gov,
 		.no_debug	= true,
 		.suspend	= r8a7740_pd_a4s_suspend,
-	},
-	{
+	}, {
 		.genpd.name	= "A3SP",
 		.bit_shift	= 11,
 		.gov		= &pm_domain_always_on_gov,
 		.no_debug	= true,
 		.suspend	= r8a7740_pd_a3sp_suspend,
-	},
-	{
-		.genpd.name	= "A4LC",
-		.bit_shift	= 1,
 	},
 };
 
