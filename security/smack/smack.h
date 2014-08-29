@@ -71,11 +71,11 @@ struct smack_known {
 #define SMK_CIPSOLEN	24
 
 struct superblock_smack {
-	char		*smk_root;
-	char		*smk_floor;
-	char		*smk_hat;
-	char		*smk_default;
-	int		smk_initialized;
+	struct smack_known	*smk_root;
+	struct smack_known	*smk_floor;
+	struct smack_known	*smk_hat;
+	struct smack_known	*smk_default;
+	int			smk_initialized;
 };
 
 struct socket_smack {
@@ -88,7 +88,7 @@ struct socket_smack {
  * Inode smack data
  */
 struct inode_smack {
-	char			*smk_inode;	/* label of the fso */
+	struct smack_known	*smk_inode;	/* label of the fso */
 	struct smack_known	*smk_task;	/* label of the task */
 	struct smack_known	*smk_mmap;	/* label of the mmap domain */
 	struct mutex		smk_lock;	/* initialization lock */
@@ -112,7 +112,7 @@ struct task_smack {
 struct smack_rule {
 	struct list_head	list;
 	struct smack_known	*smk_subject;
-	char			*smk_object;
+	struct smack_known	*smk_object;
 	int			smk_access;
 };
 
@@ -123,7 +123,7 @@ struct smk_netlbladdr {
 	struct list_head	list;
 	struct sockaddr_in	smk_host;	/* network address */
 	struct in_addr		smk_mask;	/* network mask */
-	char			*smk_label;	/* label */
+	struct smack_known	*smk_label;	/* label */
 };
 
 /*
@@ -227,23 +227,23 @@ struct smk_audit_info {
 /*
  * These functions are in smack_lsm.c
  */
-struct inode_smack *new_inode_smack(char *);
+struct inode_smack *new_inode_smack(struct smack_known *);
 
 /*
  * These functions are in smack_access.c
  */
 int smk_access_entry(char *, char *, struct list_head *);
-int smk_access(struct smack_known *, char *, int, struct smk_audit_info *);
-int smk_tskacc(struct task_smack *, char *, u32, struct smk_audit_info *);
-int smk_curacc(char *, u32, struct smk_audit_info *);
+int smk_access(struct smack_known *, struct smack_known *,
+	       int, struct smk_audit_info *);
+int smk_tskacc(struct task_smack *, struct smack_known *,
+	       u32, struct smk_audit_info *);
+int smk_curacc(struct smack_known *, u32, struct smk_audit_info *);
 struct smack_known *smack_from_secid(const u32);
 char *smk_parse_smack(const char *string, int len);
 int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
-char *smk_import(const char *, int);
 struct smack_known *smk_import_entry(const char *, int);
 void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
-u32 smack_to_secid(const char *);
 
 /*
  * Shared data.
@@ -253,7 +253,7 @@ extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;
 extern struct smack_known *smack_onlycap;
 extern struct smack_known *smack_syslog_label;
-extern const char *smack_cipso_option;
+extern struct smack_known smack_cipso_option;
 extern int smack_ptrace_rule;
 
 extern struct smack_known smack_known_floor;
@@ -282,9 +282,9 @@ static inline int smk_inode_transmutable(const struct inode *isp)
 }
 
 /*
- * Present a pointer to the smack label in an inode blob.
+ * Present a pointer to the smack label entry in an inode blob.
  */
-static inline char *smk_of_inode(const struct inode *isp)
+static inline struct smack_known *smk_of_inode(const struct inode *isp)
 {
 	struct inode_smack *sip = isp->i_security;
 	return sip->smk_inode;
