@@ -9,9 +9,23 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/suspend.h>
 #include <linux/syscore_ops.h>
 
 #include "internals.h"
+
+bool irq_pm_check_wakeup(struct irq_desc *desc)
+{
+	if (irqd_is_wakeup_armed(&desc->irq_data)) {
+		irqd_clear(&desc->irq_data, IRQD_WAKEUP_ARMED);
+		desc->istate |= IRQS_SUSPENDED | IRQS_PENDING;
+		desc->depth++;
+		irq_disable(desc);
+		pm_system_wakeup();
+		return true;
+	}
+	return false;
+}
 
 /*
  * Called from __setup_irq() with desc->lock held after @action has
@@ -54,8 +68,16 @@ static bool suspend_device_irq(struct irq_desc *desc, int irq)
 	if (!desc->action || desc->no_suspend_depth)
 		return false;
 
-	if (irqd_is_wakeup_set(&desc->irq_data))
+	if (irqd_is_wakeup_set(&desc->irq_data)) {
 		irqd_set(&desc->irq_data, IRQD_WAKEUP_ARMED);
+		/*
+		 * We return true here to force the caller to issue
+		 * synchronize_irq(). We need to make sure that the
+		 * IRQD_WAKEUP_ARMED is visible before we return from
+		 * suspend_device_irqs().
+		 */
+		return true;
+	}
 
 	desc->istate |= IRQS_SUSPENDED;
 	__disable_irq(desc, irq);
@@ -79,9 +101,13 @@ static bool suspend_device_irq(struct irq_desc *desc, int irq)
  * for this purpose.
  *
  * So we disable all interrupts and mark them IRQS_SUSPENDED except
- * for those which are unused and those which are marked as not
+ * for those which are unused, those which are marked as not
  * suspendable via an interrupt request with the flag IRQF_NO_SUSPEND
- * set.
+ * set and those which are marked as active wakeup sources.
+ *
+ * The active wakeup sources are handled by the flow handler entry
+ * code which checks for the IRQD_WAKEUP_ARMED flag, suspends the
+ * interrupt and notifies the pm core about the wakeup.
  */
 void suspend_device_irqs(void)
 {
@@ -173,26 +199,3 @@ void resume_device_irqs(void)
 	resume_irqs(false);
 }
 EXPORT_SYMBOL_GPL(resume_device_irqs);
-
-/**
- * check_wakeup_irqs - check if any wake-up interrupts are pending
- */
-int check_wakeup_irqs(void)
-{
-	struct irq_desc *desc;
-	int irq;
-
-	for_each_irq_desc(irq, desc) {
-		/*
-		 * Only interrupts which are marked as wakeup source
-		 * and have not been disabled before the suspend check
-		 * can abort suspend.
-		 */
-		if (irqd_is_wakeup_set(&desc->irq_data)) {
-			if (desc->depth == 1 && desc->istate & IRQS_PENDING)
-				return -EBUSY;
-		}
-	}
-
-	return 0;
-}
