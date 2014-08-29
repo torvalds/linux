@@ -37,6 +37,10 @@
 	 };	
 };
 
+&fb {
+        rockchip,disp-mode = <NO_DUAL>;
+};
+
 &rk_screen {
 	display-timings = <&disp_timings>;
 };
