@@ -2344,8 +2344,7 @@ v4l2_dev_unreg:
 
 static int vpe_remove(struct platform_device *pdev)
 {
-	struct vpe_dev *dev =
-		(struct vpe_dev *) platform_get_drvdata(pdev);
+	struct vpe_dev *dev = platform_get_drvdata(pdev);
 
 	v4l2_info(&dev->v4l2_dev, "Removing " VPE_MODULE_NAME);
 
