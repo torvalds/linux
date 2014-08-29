@@ -278,7 +278,7 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 		pdata->init_data[n] = da9211_matches[i].init_data;
 
 		n++;
-	};
+	}
 
 	return pdata;
 }
