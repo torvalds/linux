@@ -1726,7 +1726,7 @@ static bool valid_mtrr_type(unsigned t)
 static bool mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	int i;
-	u64 mask = 0;
+	u64 mask;
 
 	if (!msr_mtrr_valid(msr))
 		return false;
@@ -1750,8 +1750,7 @@ static bool mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	/* variable MTRRs */
 	WARN_ON(!(msr >= 0x200 && msr < 0x200 + 2 * KVM_NR_VAR_MTRR));
 
-	for (i = 63; i > boot_cpu_data.x86_phys_bits; i--)
-		mask |= (1ULL << i);
+	mask = (~0ULL) << cpuid_maxphyaddr(vcpu);
 	if ((msr & 1) == 0) {
 		/* MTRR base */
 		if (!valid_mtrr_type(data & 0xff))
