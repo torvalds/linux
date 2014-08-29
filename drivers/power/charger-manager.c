@@ -1656,7 +1656,7 @@ static inline struct charger_desc *cm_get_drv_data(struct platform_device *pdev)
 {
 	if (pdev->dev.of_node)
 		return of_cm_parse_desc(&pdev->dev);
-	return (struct charger_desc *)dev_get_platdata(&pdev->dev);
+	return dev_get_platdata(&pdev->dev);
 }
 
 static int charger_manager_probe(struct platform_device *pdev)
