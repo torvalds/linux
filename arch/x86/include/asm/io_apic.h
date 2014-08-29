@@ -227,6 +227,8 @@ static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned 
 
 extern void io_apic_eoi(unsigned int apic, unsigned int vector);
 
+extern bool mp_should_keep_irq(struct device *dev);
+
 #else  /* !CONFIG_X86_IO_APIC */
 
 #define io_apic_assign_pci_irqs 0
