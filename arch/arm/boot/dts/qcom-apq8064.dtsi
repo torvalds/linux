@@ -80,6 +80,16 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <0 16 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&ps_hold>;
+
+			ps_hold: ps_hold {
+				mux {
+					pins = "gpio78";
+					function = "ps_hold";
+				};
+			};
 		};
 
 		intc: interrupt-controller@2000000 {
