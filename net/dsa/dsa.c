@@ -629,7 +629,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	return dst->ops->rcv(skb, dev, pt, orig_dev);
 }
 
-struct packet_type dsa_pack_type __read_mostly = {
+static struct packet_type dsa_pack_type __read_mostly = {
 	.type	= cpu_to_be16(ETH_P_XDSA),
 	.func	= dsa_switch_rcv,
 };
