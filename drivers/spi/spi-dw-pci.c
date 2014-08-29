@@ -32,11 +32,19 @@ struct dw_spi_pci {
 	struct dw_spi	dws;
 };
 
-static int spi_pci_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+struct spi_pci_desc {
+	int	(*setup)(struct dw_spi *);
+};
+
+static struct spi_pci_desc spi_pci_mid_desc = {
+	.setup = dw_spi_mid_init,
+};
+
+static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct dw_spi_pci *dwpci;
 	struct dw_spi *dws;
+	struct spi_pci_desc *desc = (struct spi_pci_desc *)ent->driver_data;
 	int pci_bar = 0;
 	int ret;
 
@@ -64,11 +72,11 @@ static int spi_pci_probe(struct pci_dev *pdev,
 	dws->irq = pdev->irq;
 
 	/*
-	 * Specific handling for Intel MID paltforms, like dma setup,
+	 * Specific handling for paltforms, like dma setup,
 	 * clock rate, FIFO depth.
 	 */
-	if (pdev->device == 0x0800) {
-		ret = dw_spi_mid_init(dws);
+	if (desc && desc->setup) {
+		ret = desc->setup(dws);
 		if (ret)
 			return ret;
 	}
@@ -115,7 +123,7 @@ static SIMPLE_DEV_PM_OPS(dw_spi_pm_ops, spi_suspend, spi_resume);
 
 static const struct pci_device_id pci_ids[] = {
 	/* Intel MID platform SPI controller 0 */
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0800) },
+	{ PCI_VDEVICE(INTEL, 0x0800), (kernel_ulong_t)&spi_pci_mid_desc},
 	{},
 };
 
