@@ -198,12 +198,6 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	return 0;
 }
 
-void
-cx88_free_buffer(struct vb2_queue *q, struct cx88_buffer *buf)
-{
-	btcx_riscmem_free(to_pci_dev(q->drv_priv), &buf->risc);
-}
-
 /* ------------------------------------------------------------------ */
 /* our SRAM memory layout                                             */
 
@@ -1072,7 +1066,6 @@ EXPORT_SYMBOL(cx88_shutdown);
 
 EXPORT_SYMBOL(cx88_risc_buffer);
 EXPORT_SYMBOL(cx88_risc_databuffer);
-EXPORT_SYMBOL(cx88_free_buffer);
 
 EXPORT_SYMBOL(cx88_sram_channels);
 EXPORT_SYMBOL(cx88_sram_channel_setup);

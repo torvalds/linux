@@ -110,7 +110,7 @@ static void buffer_finish(struct vb2_buffer *vb)
 	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 
-	cx88_free_buffer(vb->vb2_queue, buf);
+	btcx_riscmem_free(dev->pci, &buf->risc);
 
 	dma_unmap_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 }

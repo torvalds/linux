@@ -238,8 +238,12 @@ int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
 	if (!rc)
 		return -EIO;
 
-	cx88_risc_databuffer(dev->pci, &buf->risc, sgt->sgl,
+	rc = cx88_risc_databuffer(dev->pci, &buf->risc, sgt->sgl,
 			     dev->ts_packet_size, dev->ts_packet_count, 0);
+	if (rc) {
+		btcx_riscmem_free(dev->pci, &buf->risc);
+		return rc;
+	}
 	return 0;
 }
 

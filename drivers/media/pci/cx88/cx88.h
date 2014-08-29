@@ -624,8 +624,6 @@ extern int
 cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 		     struct scatterlist *sglist, unsigned int bpl,
 		     unsigned int lines, unsigned int lpi);
-extern void
-cx88_free_buffer(struct vb2_queue *q, struct cx88_buffer *buf);
 
 extern void cx88_risc_disasm(struct cx88_core *core,
 			     struct btcx_riscmem *risc);
