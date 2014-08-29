@@ -3302,8 +3302,8 @@ static int smack_unix_stream_connect(struct sock *sock,
 		rc = smk_bu_note("UDS connect", skp, okp->smk_known,
 					MAY_WRITE, rc);
 		if (rc == 0) {
-			rc = smk_access(okp, okp->smk_known, MAY_WRITE, NULL);
-			rc = smk_bu_note("UDS connect", okp, okp->smk_known,
+			rc = smk_access(okp, skp->smk_known, MAY_WRITE, NULL);
+			rc = smk_bu_note("UDS connect", okp, skp->smk_known,
 						MAY_WRITE, rc);
 		}
 	}
