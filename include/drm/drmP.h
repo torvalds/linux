@@ -58,6 +58,8 @@
 #include <linux/agp_backend.h>
 #include <linux/workqueue.h>
 #include <linux/poll.h>
+#include <linux/highmem.h>
+#include <linux/vmalloc.h>
 #include <asm/pgalloc.h>
 #include <drm/drm.h>
 #include <drm/drm_sarea.h>
@@ -1126,10 +1128,6 @@ extern int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma);
 extern void drm_vm_open_locked(struct drm_device *dev, struct vm_area_struct *vma);
 extern void drm_vm_close_locked(struct drm_device *dev, struct vm_area_struct *vma);
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
-
-				/* Memory management support (drm_memory.h) */
-#include <drm/drm_memory.h>
-
 
 				/* Misc. IOCTL support (drm_ioctl.h) */
 extern int drm_irq_by_busid(struct drm_device *dev, void *data,
