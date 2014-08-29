@@ -254,10 +254,6 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 	}
 }
 
-static struct drm_bus drm_pci_bus = {
-	.set_busid = drm_pci_set_busid,
-};
-
 /**
  * drm_get_pci_dev - Register a PCI device with the DRM subsystem
  * @pdev: PCI device
@@ -337,8 +333,6 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	int i;
 
 	DRM_DEBUG("\n");
-
-	driver->bus = &drm_pci_bus;
 
 	if (driver->driver_features & DRIVER_MODESET)
 		return pci_register_driver(pdriver);

@@ -36,16 +36,6 @@ err_free:
 }
 EXPORT_SYMBOL(drm_get_usb_dev);
 
-static int drm_usb_set_busid(struct drm_device *dev,
-			       struct drm_master *master)
-{
-	return 0;
-}
-
-static struct drm_bus drm_usb_bus = {
-	.set_busid = drm_usb_set_busid,
-};
-
 /**
  * drm_usb_init - Register matching USB devices with the DRM subsystem
  * @driver: DRM device driver
@@ -60,8 +50,6 @@ int drm_usb_init(struct drm_driver *driver, struct usb_driver *udriver)
 {
 	int res;
 	DRM_DEBUG("\n");
-
-	driver->bus = &drm_usb_bus;
 
 	res = usb_register(udriver);
 	return res;

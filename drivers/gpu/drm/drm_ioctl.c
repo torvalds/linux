@@ -250,15 +250,9 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 			drm_unset_busid(dev, master);
 			return ret;
 		}
-	} else if (dev->driver->bus && dev->driver->bus->set_busid) {
-		ret = dev->driver->bus->set_busid(dev, master);
-		if (ret) {
-			drm_unset_busid(dev, master);
-			return ret;
-		}
 	} else {
 		if (WARN(dev->unique == NULL,
-			 "No drm_bus.set_busid() implementation provided by "
+			 "No drm_driver.set_busid() implementation provided by "
 			 "%ps. Use drm_dev_set_unique() to set the unique "
 			 "name explicitly.", dev->driver))
 			return -EINVAL;

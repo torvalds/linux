@@ -605,10 +605,6 @@ struct drm_master {
 #define DRM_SCANOUTPOS_INVBL        (1 << 1)
 #define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 
-struct drm_bus {
-	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
-};
-
 /**
  * DRM driver structure. This structure represent the common code for
  * a family of cards. There will one drm_device for each card present
@@ -846,7 +842,6 @@ struct drm_driver {
 	const struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	const struct file_operations *fops;
-	struct drm_bus *bus;
 
 	/* List of devices hanging off this driver with stealth attach. */
 	struct list_head legacy_dev_list;
