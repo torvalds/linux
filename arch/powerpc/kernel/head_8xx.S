@@ -301,7 +301,7 @@ InstructionTLBMiss:
 	stw	r11, 4(r0)
 #else
 	mtspr	SPRN_DAR, r10
-	mtspr	SPRN_SPRG2, r11
+	mtspr	SPRN_SPRG_SCRATCH2, r11
 #endif
 	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
 #ifdef CONFIG_8xx_CPU15
@@ -363,7 +363,7 @@ InstructionTLBMiss:
 	mfspr	r10, SPRN_DAR
 	mtcr	r10
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
-	mfspr	r11, SPRN_SPRG2
+	mfspr	r11, SPRN_SPRG_SCRATCH2
 #else
 	lwz	r11, 0(r0)
 	mtcr	r11
@@ -386,7 +386,7 @@ InstructionTLBMiss:
 	mtcr	r10
 	li	r11, 0x00f0
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
-	mfspr	r11, SPRN_SPRG2
+	mfspr	r11, SPRN_SPRG_SCRATCH2
 #else
 	lwz	r11, 0(r0)
 	mtcr	r11
@@ -409,7 +409,7 @@ DataStoreTLBMiss:
 	stw	r11, 4(r0)
 #else
 	mtspr	SPRN_DAR, r10
-	mtspr	SPRN_SPRG2, r11
+	mtspr	SPRN_SPRG_SCRATCH2, r11
 #endif
 	mfspr	r10, SPRN_M_TWB	/* Get level 1 table entry address */
 
@@ -487,7 +487,7 @@ DataStoreTLBMiss:
 	mfspr	r10, SPRN_DAR
 	mtcr	r10
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
-	mfspr	r11, SPRN_SPRG2
+	mfspr	r11, SPRN_SPRG_SCRATCH2
 #else
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
 	lwz	r11, 0(r0)
