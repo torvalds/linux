@@ -35,37 +35,41 @@
 #ifndef _DRM_P_H_
 #define _DRM_P_H_
 
-#include <linux/sched.h>
+#include <linux/agp_backend.h>
+#include <linux/cdev.h>
+#include <linux/dma-mapping.h>
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/highmem.h>
+#include <linux/idr.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/miscdevice.h>
-#include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/file.h>
-#include <linux/platform_device.h>
-#include <linux/pci.h>
-#include <linux/jiffies.h>
-#include <linux/dma-mapping.h>
 #include <linux/mm.h>
-#include <linux/cdev.h>
 #include <linux/mutex.h>
-#include <linux/io.h>
-#include <linux/slab.h>
-#include <linux/ratelimit.h>
-#include <asm/mman.h>
-#include <asm/uaccess.h>
-#include <linux/types.h>
-#include <linux/agp_backend.h>
-#include <linux/workqueue.h>
+#include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/poll.h>
-#include <linux/highmem.h>
+#include <linux/ratelimit.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/vmalloc.h>
+#include <linux/workqueue.h>
+
+#include <asm/mman.h>
 #include <asm/pgalloc.h>
+#include <asm/uaccess.h>
+
 #include <drm/drm.h>
+#include <drm/drm_hashtab.h>
+#include <drm/drm_mm.h>
+#include <drm/drm_os_linux.h>
 #include <drm/drm_sarea.h>
 #include <drm/drm_vma_manager.h>
-
-#include <linux/idr.h>
 
 struct module;
 
@@ -76,10 +80,6 @@ struct drm_agp_head;
 struct device_node;
 struct videomode;
 struct reservation_object;
-
-#include <drm/drm_os_linux.h>
-#include <drm/drm_hashtab.h>
-#include <drm/drm_mm.h>
 
 /*
  * 4 debug categories are defined:
