@@ -296,12 +296,6 @@ struct drm_magic_entry {
 	struct drm_file *priv;
 };
 
-struct drm_vma_entry {
-	struct list_head head;
-	struct vm_area_struct *vma;
-	pid_t pid;
-};
-
 /**
  * DMA buffer.
  */
@@ -1448,6 +1442,8 @@ struct drm_local_map *drm_legacy_getsarea(struct drm_device *dev);
 
 int drm_legacy_addbufs_agp(struct drm_device *d, struct drm_buf_desc *req);
 int drm_legacy_addbufs_pci(struct drm_device *d, struct drm_buf_desc *req);
+
+void drm_legacy_vma_flush(struct drm_device *d);
 
 			       /* sysfs support (drm_sysfs.c) */
 struct drm_sysfs_class;

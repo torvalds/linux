@@ -330,8 +330,6 @@ static void drm_legacy_dev_reinit(struct drm_device *dev)
  */
 int drm_lastclose(struct drm_device * dev)
 {
-	struct drm_vma_entry *vma, *vma_temp;
-
 	DRM_DEBUG("\n");
 
 	if (dev->driver->lastclose)
@@ -346,13 +344,7 @@ int drm_lastclose(struct drm_device * dev)
 	drm_agp_clear(dev);
 
 	drm_legacy_sg_cleanup(dev);
-
-	/* Clear vma list (only built for debugging) */
-	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
-		list_del(&vma->head);
-		kfree(vma);
-	}
-
+	drm_legacy_vma_flush(dev);
 	drm_legacy_dma_takedown(dev);
 
 	mutex_unlock(&dev->struct_mutex);
