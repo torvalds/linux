@@ -85,6 +85,8 @@
 #define GPMC_ECC_CTRL_ECCREG8		0x008
 #define GPMC_ECC_CTRL_ECCREG9		0x009
 
+#define GPMC_CONFIG_LIMITEDADDRESS		BIT(1)
+
 #define	GPMC_CONFIG2_CSEXTRADELAY		BIT(7)
 #define	GPMC_CONFIG3_ADVEXTRADELAY		BIT(7)
 #define	GPMC_CONFIG4_OEEXTRADELAY		BIT(7)
@@ -1501,6 +1503,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	struct resource res;
 	unsigned long base;
 	int ret, cs;
+	u32 val;
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
 		dev_err(&pdev->dev, "%s has no 'reg' property\n",
@@ -1568,6 +1571,11 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 			child->name);
 		goto err;
 	}
+
+	/* Clear limited address i.e. enable A26-A11 */
+	val = gpmc_read_reg(GPMC_CONFIG);
+	val &= ~GPMC_CONFIG_LIMITEDADDRESS;
+	gpmc_write_reg(GPMC_CONFIG, val);
 
 no_timings:
 	if (of_platform_device_create(child, NULL, &pdev->dev))
