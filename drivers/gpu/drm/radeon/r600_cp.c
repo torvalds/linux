@@ -2052,7 +2052,7 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	dev_priv->buffers_offset = init->buffers_offset;
 	dev_priv->gart_textures_offset = init->gart_textures_offset;
 
-	master_priv->sarea = drm_getsarea(dev);
+	master_priv->sarea = drm_legacy_getsarea(dev);
 	if (!master_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		r600_do_cleanup_cp(dev);

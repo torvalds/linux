@@ -196,7 +196,7 @@ static int i915_initialize(struct drm_device *dev, drm_i915_init_t *init)
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	int ret;
 
-	master_priv->sarea = drm_getsarea(dev);
+	master_priv->sarea = drm_legacy_getsarea(dev);
 	if (master_priv->sarea) {
 		master_priv->sarea_priv = (drm_i915_sarea_t *)
 			((u8 *)master_priv->sarea->handle + init->sarea_priv_offset);

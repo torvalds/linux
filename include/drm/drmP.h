@@ -153,8 +153,6 @@ int drm_err(const char *func, const char *format, ...);
 
 #define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
 
-#define DRM_MAP_HASH_OFFSET 0x10000000
-
 /*@}*/
 
 /***********************************************************************/
@@ -1243,31 +1241,6 @@ extern void drm_idlelock_release(struct drm_lock_data *lock_data);
 
 extern int drm_i_have_hw_lock(struct drm_device *dev, struct drm_file *file_priv);
 
-				/* Buffer management support (drm_bufs.h) */
-extern int drm_addbufs_agp(struct drm_device *dev, struct drm_buf_desc * request);
-extern int drm_addbufs_pci(struct drm_device *dev, struct drm_buf_desc * request);
-extern int drm_addmap(struct drm_device *dev, resource_size_t offset,
-		      unsigned int size, enum drm_map_type type,
-		      enum drm_map_flags flags, struct drm_local_map **map_ptr);
-extern int drm_addmap_ioctl(struct drm_device *dev, void *data,
-			    struct drm_file *file_priv);
-extern int drm_rmmap(struct drm_device *dev, struct drm_local_map *map);
-extern int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map);
-extern int drm_rmmap_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-extern int drm_addbufs(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-extern int drm_infobufs(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-extern int drm_markbufs(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-extern int drm_freebufs(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-extern int drm_mapbufs(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-extern int drm_dma_ioctl(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-
 				/* DMA support (drm_dma.h) */
 extern int drm_legacy_dma_setup(struct drm_device *dev);
 extern void drm_legacy_dma_takedown(struct drm_device *dev);
@@ -1353,8 +1326,6 @@ extern unsigned int drm_timestamp_precision;
 extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
-
-extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 
 				/* Debugfs support */
 #if defined(CONFIG_DEBUG_FS)
@@ -1465,6 +1436,18 @@ extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 extern int drm_pci_set_unique(struct drm_device *dev,
 			      struct drm_master *master,
 			      struct drm_unique *u);
+
+				/* Legacy Support */
+
+int drm_legacy_addmap(struct drm_device *d, resource_size_t offset,
+		      unsigned int size, enum drm_map_type type,
+		      enum drm_map_flags flags, struct drm_local_map **map_p);
+int drm_legacy_rmmap(struct drm_device *d, struct drm_local_map *map);
+int drm_legacy_rmmap_locked(struct drm_device *d, struct drm_local_map *map);
+struct drm_local_map *drm_legacy_getsarea(struct drm_device *dev);
+
+int drm_legacy_addbufs_agp(struct drm_device *d, struct drm_buf_desc *req);
+int drm_legacy_addbufs_pci(struct drm_device *d, struct drm_buf_desc *req);
 
 			       /* sysfs support (drm_sysfs.c) */
 struct drm_sysfs_class;

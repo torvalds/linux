@@ -143,7 +143,7 @@ static void drm_master_destroy(struct kref *kref)
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head) {
 		if (r_list->master == master) {
-			drm_rmmap_locked(dev, r_list->map);
+			drm_legacy_rmmap_locked(dev, r_list->map);
 			r_list = NULL;
 		}
 	}
@@ -779,7 +779,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_vblank_cleanup(dev);
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
-		drm_rmmap(dev, r_list->map);
+		drm_legacy_rmmap(dev, r_list->map);
 
 	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);

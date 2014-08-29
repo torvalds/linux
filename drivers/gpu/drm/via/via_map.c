@@ -31,7 +31,7 @@ static int via_do_init_map(struct drm_device *dev, drm_via_init_t *init)
 
 	DRM_DEBUG("\n");
 
-	dev_priv->sarea = drm_getsarea(dev);
+	dev_priv->sarea = drm_legacy_getsarea(dev);
 	if (!dev_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		dev->dev_private = (void *)dev_priv;

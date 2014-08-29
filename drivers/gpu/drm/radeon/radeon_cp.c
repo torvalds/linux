@@ -1298,7 +1298,7 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	dev_priv->buffers_offset = init->buffers_offset;
 	dev_priv->gart_textures_offset = init->gart_textures_offset;
 
-	master_priv->sarea = drm_getsarea(dev);
+	master_priv->sarea = drm_legacy_getsarea(dev);
 	if (!master_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		radeon_do_cleanup_cp(dev);
@@ -2106,9 +2106,9 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	else
 		dev_priv->flags |= RADEON_IS_PCI;
 
-	ret = drm_addmap(dev, pci_resource_start(dev->pdev, 2),
-			 pci_resource_len(dev->pdev, 2), _DRM_REGISTERS,
-			 _DRM_READ_ONLY | _DRM_DRIVER, &dev_priv->mmio);
+	ret = drm_legacy_addmap(dev, pci_resource_start(dev->pdev, 2),
+				pci_resource_len(dev->pdev, 2), _DRM_REGISTERS,
+				_DRM_READ_ONLY | _DRM_DRIVER, &dev_priv->mmio);
 	if (ret != 0)
 		return ret;
 
@@ -2135,8 +2135,8 @@ int radeon_master_create(struct drm_device *dev, struct drm_master *master)
 
 	/* prebuild the SAREA */
 	sareapage = max_t(unsigned long, SAREA_MAX, PAGE_SIZE);
-	ret = drm_addmap(dev, 0, sareapage, _DRM_SHM, _DRM_CONTAINS_LOCK,
-			 &master_priv->sarea);
+	ret = drm_legacy_addmap(dev, 0, sareapage, _DRM_SHM, _DRM_CONTAINS_LOCK,
+				&master_priv->sarea);
 	if (ret) {
 		DRM_ERROR("SAREA setup failed\n");
 		kfree(master_priv);
@@ -2162,7 +2162,7 @@ void radeon_master_destroy(struct drm_device *dev, struct drm_master *master)
 
 	master_priv->sarea_priv = NULL;
 	if (master_priv->sarea)
-		drm_rmmap_locked(dev, master_priv->sarea);
+		drm_legacy_rmmap_locked(dev, master_priv->sarea);
 
 	kfree(master_priv);
 
@@ -2181,9 +2181,9 @@ int radeon_driver_firstopen(struct drm_device *dev)
 	dev_priv->gart_info.table_size = RADEON_PCIGART_TABLE_SIZE;
 
 	dev_priv->fb_aper_offset = pci_resource_start(dev->pdev, 0);
-	ret = drm_addmap(dev, dev_priv->fb_aper_offset,
-			 pci_resource_len(dev->pdev, 0), _DRM_FRAME_BUFFER,
-			 _DRM_WRITE_COMBINING, &map);
+	ret = drm_legacy_addmap(dev, dev_priv->fb_aper_offset,
+				pci_resource_len(dev->pdev, 0),
+				_DRM_FRAME_BUFFER, _DRM_WRITE_COMBINING, &map);
 	if (ret != 0)
 		return ret;
 
@@ -2196,7 +2196,7 @@ int radeon_driver_unload(struct drm_device *dev)
 
 	DRM_DEBUG("\n");
 
-	drm_rmmap(dev, dev_priv->mmio);
+	drm_legacy_rmmap(dev, dev_priv->mmio);
 
 	kfree(dev_priv);
 
