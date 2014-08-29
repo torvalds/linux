@@ -37,6 +37,7 @@ struct rk_display_ops {
 	int (*getmode)(struct rk_display_device *, struct fb_videomode *mode);
 	int (*setscale)(struct rk_display_device *, int, int);
 	int (*getscale)(struct rk_display_device *, int);
+	int (*setdebug)(struct rk_display_device *, int);
 };
 
 struct rk_display_device {
