@@ -229,17 +229,13 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 				dprintk(1,"[%p/%d] restart_queue - first active\n",
 					buf,buf->vb.i);
 
-			} else if (prev->vb.width  == buf->vb.width  &&
-				   prev->vb.height == buf->vb.height &&
-				   prev->fmt       == buf->fmt) {
+			} else {
 				list_move_tail(&buf->vb.queue, &q->active);
 				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 				dprintk(1,"[%p/%d] restart_queue - move to active\n",
 					buf,buf->vb.i);
-			} else {
-				return 0;
 			}
 			prev = buf;
 		}

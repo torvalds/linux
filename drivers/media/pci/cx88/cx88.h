@@ -319,7 +319,6 @@ struct cx88_buffer {
 	/* cx88 specific */
 	unsigned int           bpl;
 	struct btcx_riscmem    risc;
-	const struct cx8800_fmt *fmt;
 	u32                    count;
 };
 
