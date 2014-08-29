@@ -313,7 +313,7 @@ int rtsx_read_pci_cfg_byte(u8 bus, u8 dev, u8 func, u8 offset, u8 *val)
  */
 static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
+	struct rtsx_dev *dev = pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
 	if (!dev)
@@ -348,7 +348,7 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 
 static int rtsx_resume(struct pci_dev *pci)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
+	struct rtsx_dev *dev = pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
 	if (!dev)
@@ -394,7 +394,7 @@ static int rtsx_resume(struct pci_dev *pci)
 
 static void rtsx_shutdown(struct pci_dev *pci)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
+	struct rtsx_dev *dev = pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
 	if (!dev)
@@ -1017,7 +1017,7 @@ errout:
 
 static void rtsx_remove(struct pci_dev *pci)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
+	struct rtsx_dev *dev = pci_get_drvdata(pci);
 
 	dev_info(&pci->dev, "rtsx_remove() called\n");
 
