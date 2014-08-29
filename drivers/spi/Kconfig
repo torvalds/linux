@@ -69,6 +69,7 @@ config SPI_ATH79
 
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
+	depends on HAS_DMA
 	depends on (ARCH_AT91 || AVR32 || COMPILE_TEST)
 	help
 	  This selects a driver for the Atmel SPI Controller, present on
@@ -185,6 +186,7 @@ config SPI_EFM32
 
 config SPI_EP93XX
 	tristate "Cirrus Logic EP93xx SPI controller"
+	depends on HAS_DMA
 	depends on ARCH_EP93XX || COMPILE_TEST
 	help
 	  This enables using the Cirrus EP93xx SPI controller in master
@@ -314,6 +316,7 @@ config SPI_OMAP_UWIRE
 
 config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP"
+	depends on HAS_DMA
 	depends on ARM || ARM64 || AVR32 || HEXAGON || MIPS || SUPERH
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
@@ -500,7 +503,7 @@ config SPI_MXS
 config SPI_TEGRA114
 	tristate "NVIDIA Tegra114 SPI Controller"
 	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
-	depends on RESET_CONTROLLER
+	depends on RESET_CONTROLLER && HAS_DMA
 	help
 	  SPI driver for NVIDIA Tegra114 SPI Controller interface. This controller
 	  is different than the older SoCs SPI controller and also register interface
@@ -518,7 +521,7 @@ config SPI_TEGRA20_SFLASH
 config SPI_TEGRA20_SLINK
 	tristate "Nvidia Tegra20/Tegra30 SLINK Controller"
 	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
-	depends on RESET_CONTROLLER
+	depends on RESET_CONTROLLER && HAS_DMA
 	help
 	  SPI driver for Nvidia Tegra20/Tegra30 SLINK Controller interface.
 
