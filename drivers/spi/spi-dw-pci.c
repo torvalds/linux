@@ -40,9 +40,6 @@ static int spi_pci_probe(struct pci_dev *pdev,
 	int pci_bar = 0;
 	int ret;
 
-	dev_info(&pdev->dev, "found PCI SPI controller(ID: %04x:%04x)\n",
-		pdev->vendor, pdev->device);
-
 	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
@@ -82,6 +79,9 @@ static int spi_pci_probe(struct pci_dev *pdev,
 
 	/* PCI hook and SPI hook use the same drv data */
 	pci_set_drvdata(pdev, dwpci);
+
+	dev_info(&pdev->dev, "found PCI SPI controller(ID: %04x:%04x)\n",
+		pdev->vendor, pdev->device);
 
 	return 0;
 }
