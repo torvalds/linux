@@ -54,6 +54,9 @@ static bool suspend_device_irq(struct irq_desc *desc, int irq)
 	if (!desc->action || desc->no_suspend_depth)
 		return false;
 
+	if (irqd_is_wakeup_set(&desc->irq_data))
+		irqd_set(&desc->irq_data, IRQD_WAKEUP_ARMED);
+
 	desc->istate |= IRQS_SUSPENDED;
 	__disable_irq(desc, irq);
 
@@ -101,6 +104,8 @@ EXPORT_SYMBOL_GPL(suspend_device_irqs);
 
 static void resume_irq(struct irq_desc *desc, int irq)
 {
+	irqd_clear(&desc->irq_data, IRQD_WAKEUP_ARMED);
+
 	if (desc->istate & IRQS_SUSPENDED)
 		goto resume;
 
