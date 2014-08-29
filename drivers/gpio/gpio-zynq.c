@@ -88,16 +88,17 @@
  * @chip:	instance of the gpio_chip
  * @base_addr:	base address of the GPIO device
  * @clk:	clock resource for this controller
+ * @irq:	interrupt for the GPIO device
  */
 struct zynq_gpio {
 	struct gpio_chip chip;
 	void __iomem *base_addr;
 	struct clk *clk;
+	int irq;
 };
 
 static struct irq_chip zynq_gpio_level_irqchip;
 static struct irq_chip zynq_gpio_edge_irqchip;
-
 /**
  * zynq_gpio_get_bank_pin - Get the bank number and pin number within that bank
  * for a given pin in the GPIO device
@@ -434,10 +435,9 @@ static int zynq_gpio_set_irq_type(struct irq_data *irq_data, unsigned int type)
 
 static int zynq_gpio_set_wake(struct irq_data *data, unsigned int on)
 {
-	if (on)
-		zynq_gpio_irq_unmask(data);
-	else
-		zynq_gpio_irq_mask(data);
+	struct zynq_gpio *gpio = irq_data_get_irq_chip_data(data);
+
+	irq_set_irq_wake(gpio->irq, on);
 
 	return 0;
 }
@@ -518,7 +518,11 @@ static void zynq_gpio_irqhandler(unsigned int irq, struct irq_desc *desc)
 
 static int __maybe_unused zynq_gpio_suspend(struct device *dev)
 {
-	if (!device_may_wakeup(dev))
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq = platform_get_irq(pdev, 0);
+	struct irq_data *data = irq_get_irq_data(irq);
+
+	if (!irqd_is_wakeup_set(data))
 		return pm_runtime_force_suspend(dev);
 
 	return 0;
@@ -526,7 +530,11 @@ static int __maybe_unused zynq_gpio_suspend(struct device *dev)
 
 static int __maybe_unused zynq_gpio_resume(struct device *dev)
 {
-	if (!device_may_wakeup(dev))
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq = platform_get_irq(pdev, 0);
+	struct irq_data *data = irq_get_irq_data(irq);
+
+	if (!irqd_is_wakeup_set(data))
 		return pm_runtime_force_resume(dev);
 
 	return 0;
@@ -587,7 +595,7 @@ static const struct dev_pm_ops zynq_gpio_dev_pm_ops = {
  */
 static int zynq_gpio_probe(struct platform_device *pdev)
 {
-	int ret, bank_num, irq;
+	int ret, bank_num;
 	struct zynq_gpio *gpio;
 	struct gpio_chip *chip;
 	struct resource *res;
@@ -603,10 +611,10 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio->base_addr))
 		return PTR_ERR(gpio->base_addr);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
+	gpio->irq = platform_get_irq(pdev, 0);
+	if (gpio->irq < 0) {
 		dev_err(&pdev->dev, "invalid IRQ\n");
-		return irq;
+		return gpio->irq;
 	}
 
 	/* configure the gpio chip */
@@ -654,13 +662,11 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 		goto err_rm_gpiochip;
 	}
 
-	gpiochip_set_chained_irqchip(chip, &zynq_gpio_edge_irqchip, irq,
+	gpiochip_set_chained_irqchip(chip, &zynq_gpio_edge_irqchip, gpio->irq,
 				     zynq_gpio_irqhandler);
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-
-	device_set_wakeup_capable(&pdev->dev, 1);
 
 	return 0;
 
