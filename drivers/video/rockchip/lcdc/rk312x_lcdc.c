@@ -87,6 +87,9 @@ static irqreturn_t rk312x_lcdc_isr(int irq, void *dev_id)
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 
 	} else if (int_reg & m_LF_INT_STA) {
+		lcdc_dev->driver.frame_time.last_framedone_t =
+				lcdc_dev->driver.frame_time.framedone_t;
+		lcdc_dev->driver.frame_time.framedone_t = cpu_clock(0);
 		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_LF_INT_CLEAR,
 			     v_LF_INT_CLEAR(1));
 	}
