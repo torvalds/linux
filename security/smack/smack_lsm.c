@@ -771,8 +771,8 @@ static void smack_inode_free_security(struct inode *inode)
 
 /**
  * smack_inode_init_security - copy out the smack from an inode
- * @inode: the inode
- * @dir: unused
+ * @inode: the newly created inode
+ * @dir: containing directory object
  * @qstr: unused
  * @name: where to put the attribute name
  * @value: where to put the attribute value
@@ -923,10 +923,10 @@ static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
 
 /**
  * smack_inode_rename - Smack check on rename
- * @old_inode: the old directory
- * @old_dentry: unused
- * @new_inode: the new directory
- * @new_dentry: unused
+ * @old_inode: unused
+ * @old_dentry: the old object
+ * @new_inode: unused
+ * @new_dentry: the new object
  *
  * Read and write access is required on both the old and
  * new directories.
@@ -1017,7 +1017,7 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 
 /**
  * smack_inode_getattr - Smack check for getting attributes
- * @mnt: unused
+ * @mnt: vfsmount of the object
  * @dentry: the object
  *
  * Returns 0 if access is permitted, an error code otherwise
@@ -1042,8 +1042,8 @@ static int smack_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
  * smack_inode_setxattr - Smack check for setting xattrs
  * @dentry: the object
  * @name: name of the attribute
- * @value: unused
- * @size: unused
+ * @value: value of the attribute
+ * @size: size of the value
  * @flags: unused
  *
  * This protects the Smack attribute explicitly.
