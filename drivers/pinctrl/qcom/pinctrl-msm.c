@@ -12,6 +12,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -27,12 +28,15 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 
+#include <asm/system_misc.h>
+
 #include "../core.h"
 #include "../pinconf.h"
 #include "pinctrl-msm.h"
 #include "../pinctrl-utils.h"
 
 #define MAX_NR_GPIO 300
+#define PS_HOLD_OFFSET 0x820
 
 /**
  * struct msm_pinctrl - state for a pinctrl-msm device
@@ -850,6 +854,30 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	return 0;
 }
 
+#ifdef CONFIG_ARM
+static void __iomem *msm_ps_hold;
+
+static void msm_reset(enum reboot_mode reboot_mode, const char *cmd)
+{
+	writel(0, msm_ps_hold);
+	mdelay(10000);
+}
+
+static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
+{
+	int i = 0;
+	const struct msm_function *func = pctrl->soc->functions;
+
+	for (; i <= pctrl->soc->nfunctions; i++)
+		if (!strcmp(func[i].name, "ps_hold")) {
+			msm_ps_hold = pctrl->regs + PS_HOLD_OFFSET;
+			arm_pm_restart = msm_reset;
+		}
+}
+#else
+static void msm_pinctrl_setup_pm_reset(const struct msm_pinctrl *pctrl) {}
+#endif
+
 int msm_pinctrl_probe(struct platform_device *pdev,
 		      const struct msm_pinctrl_soc_data *soc_data)
 {
@@ -872,6 +900,8 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	pctrl->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pctrl->regs))
 		return PTR_ERR(pctrl->regs);
+
+	msm_pinctrl_setup_pm_reset(pctrl);
 
 	pctrl->irq = platform_get_irq(pdev, 0);
 	if (pctrl->irq < 0) {
