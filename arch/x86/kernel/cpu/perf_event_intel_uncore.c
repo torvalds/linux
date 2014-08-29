@@ -661,7 +661,7 @@ static struct attribute_group uncore_pmu_attr_group = {
 	.attrs = uncore_pmu_attrs,
 };
 
-static int __init uncore_pmu_register(struct intel_uncore_pmu *pmu)
+static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
 {
 	int ret;
 
