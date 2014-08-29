@@ -25,12 +25,6 @@ config DRM_MIPI_DSI
 	bool
 	depends on DRM
 
-config DRM_USB
-	tristate
-	depends on DRM
-	depends on USB_SUPPORT && USB_ARCH_HAS_HCD
-	select USB
-
 config DRM_KMS_HELPER
 	tristate
 	depends on DRM

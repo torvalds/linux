@@ -1020,7 +1020,6 @@ struct drm_device {
 #endif
 
 	struct platform_device *platformdev; /**< Platform device struture */
-	struct usb_device *usbdev;
 
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
