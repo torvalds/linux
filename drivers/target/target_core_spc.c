@@ -664,7 +664,7 @@ spc_emulate_evpd_b3(struct se_cmd *cmd, unsigned char *buf)
 	buf[0] = dev->transport->get_device_type(dev);
 	buf[3] = 0x0c;
 	put_unaligned_be32(dev->t10_alua.lba_map_segment_size, &buf[8]);
-	put_unaligned_be32(dev->t10_alua.lba_map_segment_size, &buf[12]);
+	put_unaligned_be32(dev->t10_alua.lba_map_segment_multiplier, &buf[12]);
 
 	return 0;
 }
