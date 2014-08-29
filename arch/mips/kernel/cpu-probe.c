@@ -69,6 +69,63 @@ static int __init htw_disable(char *s)
 
 __setup("nohtw", htw_disable);
 
+static int mips_ftlb_disabled;
+static int mips_has_ftlb_configured;
+
+static void set_ftlb_enable(struct cpuinfo_mips *c, int enable);
+
+static int __init ftlb_disable(char *s)
+{
+	unsigned int config4, mmuextdef;
+
+	/*
+	 * If the core hasn't done any FTLB configuration, there is nothing
+	 * for us to do here.
+	 */
+	if (!mips_has_ftlb_configured)
+		return 1;
+
+	/* Disable it in the boot cpu */
+	set_ftlb_enable(&cpu_data[0], 0);
+
+	back_to_back_c0_hazard();
+
+	config4 = read_c0_config4();
+
+	/* Check that FTLB has been disabled */
+	mmuextdef = config4 & MIPS_CONF4_MMUEXTDEF;
+	/* MMUSIZEEXT == VTLB ON, FTLB OFF */
+	if (mmuextdef == MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT) {
+		/* This should never happen */
+		pr_warn("FTLB could not be disabled!\n");
+		return 1;
+	}
+
+	mips_ftlb_disabled = 1;
+	mips_has_ftlb_configured = 0;
+
+	/*
+	 * noftlb is mainly used for debug purposes so print
+	 * an informative message instead of using pr_debug()
+	 */
+	pr_info("FTLB has been disabled\n");
+
+	/*
+	 * Some of these bits are duplicated in the decode_config4.
+	 * MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT is the only possible case
+	 * once FTLB has been disabled so undo what decode_config4 did.
+	 */
+	cpu_data[0].tlbsize -= cpu_data[0].tlbsizeftlbways *
+			       cpu_data[0].tlbsizeftlbsets;
+	cpu_data[0].tlbsizeftlbsets = 0;
+	cpu_data[0].tlbsizeftlbways = 0;
+
+	return 1;
+}
+
+__setup("noftlb", ftlb_disable);
+
+
 static inline void check_errata(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -368,6 +425,8 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 			ftlb_page = MIPS_CONF4_VFTLBPAGESIZE;
 			/* fall through */
 		case MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT:
+			if (mips_ftlb_disabled)
+				break;
 			newcf4 = (config4 & ~ftlb_page) |
 				(page_size_ftlb(mmuextdef) <<
 				 MIPS_CONF4_FTLBPAGESIZE_SHIFT);
@@ -387,6 +446,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 			c->tlbsizeftlbways = ((config4 & MIPS_CONF4_FTLBWAYS) >>
 					      MIPS_CONF4_FTLBWAYS_SHIFT) + 2;
 			c->tlbsize += c->tlbsizeftlbways * c->tlbsizeftlbsets;
+			mips_has_ftlb_configured = 1;
 			break;
 		}
 	}
@@ -422,8 +482,8 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
-	/* Enable FTLB if present */
-	set_ftlb_enable(c, 1);
+	/* Enable FTLB if present and not disabled */
+	set_ftlb_enable(c, !mips_ftlb_disabled);
 
 	ok = decode_config0(c);			/* Read Config registers.  */
 	BUG_ON(!ok);				/* Arch spec violation!	 */
