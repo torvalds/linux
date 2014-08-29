@@ -563,8 +563,6 @@ static void stop_streaming(struct vb2_queue *q)
 	struct cx88_dmaqueue *dmaq = &dev->vidq;
 	unsigned long flags;
 
-	cx88_sram_channel_dump(core, &cx88_sram_channels[SRAM_CH21]);
-
 	cx_clear(MO_VID_DMACNTRL, 0x11);
 	cx_clear(VID_CAPTURE_CONTROL, 0x06);
 	spin_lock_irqsave(&dev->slock, flags);

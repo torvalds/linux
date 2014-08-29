@@ -203,8 +203,6 @@ static void stop_streaming(struct vb2_queue *q)
 	struct cx88_dmaqueue *dmaq = &dev->vbiq;
 	unsigned long flags;
 
-	cx88_sram_channel_dump(core, &cx88_sram_channels[SRAM_CH21]);
-
 	cx_clear(MO_VID_DMACNTRL, 0x11);
 	cx_clear(VID_CAPTURE_CONTROL, 0x06);
 	cx8800_stop_vbi_dma(dev);
