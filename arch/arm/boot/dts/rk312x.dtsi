@@ -359,17 +359,17 @@
 				<&clk_gates4 10>,/*aclk_strc_sys*/
 
 				/*hclk_cpu_pre*/
-				<&clk_gates5 6>,/*hclk_rom*/
-				<&clk_gates3 5>,/*hclk_crypto*/
+				//<&clk_gates5 6>,/*hclk_rom*/
+				//<&clk_gates3 5>,/*hclk_crypto*/
 
 				/*pclk_cpu_pre*/
 				<&clk_gates5 4>,/*pclk_grf*/
 				<&clk_gates5 7>,/*pclk_ddrupctl*/
-				<&clk_gates5 14>,/*pclk_acodec*/
-				<&clk_gates3 8>,/*pclk_hdmi*/
+				//<&clk_gates5 14>,/*pclk_acodec*/
+				//<&clk_gates3 8>,/*pclk_hdmi*/
 
 				/*aclk_peri_pre*/
-				<&clk_gates10 10>,/*aclk_gmac*/
+				//<&clk_gates10 10>,/*aclk_gmac*/
 				<&clk_gates4 3>,/*aclk_peri_axi_matrix*/
 				<&clk_gates5 1>,/*aclk_dmac2*/
 				<&clk_gates9 15>,/*aclk_peri_niu*/
@@ -379,7 +379,7 @@
 
 				/*hclk_peri_pre*/
 				<&clk_gates4 0>,/*hclk_peri_matrix*/
-				<&clk_gates9 13>,/*hclk_usb_peri*/
+				//<&clk_gates9 13>,/*hclk_usb_peri*/
 				<&clk_gates9 14>,/*hclk_peri_arbi*/
 
 				/*pclk_peri_pre*/
@@ -387,24 +387,24 @@
 
 				/*hclk_vio_pre*/
 				<&clk_gates6 12>,/*hclk_vio_niu*/
-				<&clk_gates6 1>,/*hclk_lcdc*/
+				//<&clk_gates6 1>,/*hclk_lcdc*/
 
 				/*aclk_vio0_pre*/
 				<&clk_gates6 13>,/*aclk_vio*/
-				<&clk_gates6 0>,/*aclk_lcdc*/
+				//<&clk_gates6 0>,/*aclk_lcdc*/
 
 				/*aclk_vio1_pre*/
-				<&clk_gates9 10>,/*aclk_vio1_niu*/
+				//<&clk_gates9 10>,/*aclk_vio1_niu*/
 
 				/*UART*/
 				<&clk_gates1 12>,
 				<&clk_gates1 13>,
 				<&clk_gates8 2>,/*pclk_uart2*/
 
-				<&clk_gpu>,
+				//<&clk_gpu>,
 
 				/*jtag*/
-				<&clk_gates1 3>,/*clk_jtag*/
+				//<&clk_gates1 3>,/*clk_jtag*/
 
 				/*pmu*/
 				<&clk_gates1 0>;/*pclk_pmu_pre*/
