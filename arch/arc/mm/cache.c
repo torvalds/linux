@@ -21,6 +21,10 @@
 #include <asm/cachectl.h>
 #include <asm/setup.h>
 
+#ifdef CONFIG_ISA_ARCV2
+#define USE_RGN_FLSH	1
+#endif
+
 static int l2_line_sz;
 static int ioc_exists;
 int slc_enable = 1, ioc_enable = 1;
@@ -332,6 +336,8 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 	}
 }
 
+#ifndef USE_RGN_FLSH
+
 /*
  * In HS38x (MMU v4), I-cache is VIPT (can alias), D-cache is PIPT
  * Here's how cache ops are implemented
@@ -393,6 +399,68 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 		paddr += L1_CACHE_BYTES;
 	}
 }
+
+#else
+
+/*
+ * optimized flush operation which takes a region as opposed to iterating per line
+ */
+static inline
+void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
+			  unsigned long sz, const int op, const int full_page)
+{
+	const unsigned int ctl = ARC_REG_DC_CTRL;
+	unsigned int s, e, val;
+
+	/* Only for Non aliasing I-cache in HS38 */
+	if (op == OP_INV_IC) {
+		s = ARC_REG_IC_IVIR;
+		e = ARC_REG_IC_ENDR;
+	} else {
+		s = ARC_REG_DC_STARTR;
+		e = ARC_REG_DC_ENDR;
+	}
+
+	if (!full_page) {
+		/* for any leading gap between @paddr and start of cache line */
+		sz += paddr & ~CACHE_LINE_MASK;
+		paddr &= CACHE_LINE_MASK;
+
+		/*
+		 *  account for any trailing gap to end of cache line
+		 *  this is equivalent to DIV_ROUND_UP() in line ops above
+		 */
+		sz += L1_CACHE_BYTES - 1;
+	}
+
+	if (is_pae40_enabled()) {
+		/* TBD: check if crossing 4TB boundary */
+		if (op == OP_INV_IC)
+			write_aux_reg(ARC_REG_IC_PTAG_HI, (u64)paddr >> 32);
+		else
+			write_aux_reg(ARC_REG_DC_PTAG_HI, (u64)paddr >> 32);
+	}
+
+	/*
+	 * Flush / Invalidate is provided by DC_CTRL.RNG_OP 0 or 1
+	 * Flush-n-invalidate additionally uses setting DC_CTRL.IM = 1
+	 * just as for line ops which is handled in __before_dc_op()
+	 */
+	val = read_aux_reg(ctl) & ~DC_CTRL_RGN_OP_MSK;
+
+	if (op & OP_INV)
+		val |= DC_CTRL_RGN_OP_INV;
+
+	write_aux_reg(ctl, val);
+
+	/* ENDR needs to be set ahead of START */
+	write_aux_reg(e, paddr + sz);	/* ENDR is exclusive */
+	write_aux_reg(s, paddr);
+
+	/* caller waits on DC_CTRL.FS */
+}
+
+#endif
 
 #if (CONFIG_ARC_MMU_VER < 3)
 #define __cache_line_loop	__cache_line_loop_v2
