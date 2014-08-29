@@ -55,6 +55,7 @@ int rockchip_cpu_disable(unsigned int cpu);
 int rockchip_boot_mode(void);
 void __init rockchip_boot_mode_init(u32 flag, u32 mode);
 void rockchip_restart_get_boot_mode(const char *cmd, u32 *flag, u32 *mode);
+void __init rockchip_efuse_init(void);
 void __init rockchip_suspend_init(void);
 void __init rockchip_ion_reserve(void);
 
