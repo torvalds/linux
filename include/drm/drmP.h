@@ -140,9 +140,6 @@ int drm_err(const char *func, const char *format, ...);
 /** \name Begin the DRM... */
 /*@{*/
 
-#define DRM_DEBUG_CODE 2	  /**< Include debugging code if > 1, then
-				     also include looping detection. */
-
 #define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
 
 /*@}*/
@@ -188,7 +185,6 @@ int drm_err(const char *func, const char *format, ...);
  * \param fmt printf() like format string.
  * \param arg arguments
  */
-#if DRM_DEBUG_CODE
 #define DRM_DEBUG(fmt, args...)						\
 	do {								\
 		if (unlikely(drm_debug & DRM_UT_CORE))			\
@@ -210,12 +206,6 @@ int drm_err(const char *func, const char *format, ...);
 		if (unlikely(drm_debug & DRM_UT_PRIME))			\
 			drm_ut_debug_printk(__func__, fmt, ##args);	\
 	} while (0)
-#else
-#define DRM_DEBUG_DRIVER(fmt, args...) do { } while (0)
-#define DRM_DEBUG_KMS(fmt, args...)	do { } while (0)
-#define DRM_DEBUG_PRIME(fmt, args...)	do { } while (0)
-#define DRM_DEBUG(fmt, arg...)		 do { } while (0)
-#endif
 
 /*@}*/
 
@@ -1348,9 +1338,7 @@ void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv);
 void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv);
 void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
 
-#if DRM_DEBUG_CODE
 extern int drm_vma_info(struct seq_file *m, void *data);
-#endif
 
 				/* Scatter Gather Support (drm_scatter.h) */
 extern void drm_legacy_sg_cleanup(struct drm_device *dev);

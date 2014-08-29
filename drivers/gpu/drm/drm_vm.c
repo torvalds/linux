@@ -683,8 +683,6 @@ void drm_legacy_vma_flush(struct drm_device *dev)
 	}
 }
 
-#if DRM_DEBUG_CODE
-
 int drm_vma_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -738,5 +736,3 @@ int drm_vma_info(struct seq_file *m, void *data)
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
-
-#endif
