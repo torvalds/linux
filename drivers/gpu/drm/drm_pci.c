@@ -129,31 +129,17 @@ static int drm_get_pci_domain(struct drm_device *dev)
 
 static int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 {
-	int len, ret;
-	master->unique_len = 40;
-	master->unique_size = master->unique_len;
-	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
-	if (master->unique == NULL)
+	master->unique = kasprintf(GFP_KERNEL, "pci:%04x:%02x:%02x.%d",
+					drm_get_pci_domain(dev),
+					dev->pdev->bus->number,
+					PCI_SLOT(dev->pdev->devfn),
+					PCI_FUNC(dev->pdev->devfn));
+	if (!master->unique)
 		return -ENOMEM;
 
-
-	len = snprintf(master->unique, master->unique_len,
-		       "pci:%04x:%02x:%02x.%d",
-		       drm_get_pci_domain(dev),
-		       dev->pdev->bus->number,
-		       PCI_SLOT(dev->pdev->devfn),
-		       PCI_FUNC(dev->pdev->devfn));
-
-	if (len >= master->unique_len) {
-		DRM_ERROR("buffer overflow");
-		ret = -EINVAL;
-		goto err;
-	} else
-		master->unique_len = len;
-
+	master->unique_len = strlen(master->unique);
+	master->unique_size = master->unique_len + 1;
 	return 0;
-err:
-	return ret;
 }
 
 int drm_pci_set_unique(struct drm_device *dev,
