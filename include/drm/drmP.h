@@ -320,17 +320,6 @@ struct drm_buf {
 	void *dev_private;		 /**< Per-buffer private storage */
 };
 
-/** bufs is one longer than it has to be */
-struct drm_waitlist {
-	int count;			/**< Number of possible buffers */
-	struct drm_buf **bufs;		/**< List of pointers to buffers */
-	struct drm_buf **rp;			/**< Read pointer */
-	struct drm_buf **wp;			/**< Write pointer */
-	struct drm_buf **end;		/**< End pointer */
-	spinlock_t read_lock;
-	spinlock_t write_lock;
-};
-
 typedef struct drm_dma_handle {
 	dma_addr_t busaddr;
 	void *vaddr;
