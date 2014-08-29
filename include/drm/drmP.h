@@ -80,6 +80,7 @@ struct module;
 
 struct drm_file;
 struct drm_device;
+struct drm_agp_head;
 
 struct device_node;
 struct videomode;
@@ -437,35 +438,6 @@ struct drm_device_dma {
 		_DRM_DMA_USE_PCI_RO = 0x08
 	} flags;
 
-};
-
-/**
- * AGP memory entry.  Stored as a doubly linked list.
- */
-struct drm_agp_mem {
-	unsigned long handle;		/**< handle */
-	struct agp_memory *memory;
-	unsigned long bound;		/**< address */
-	int pages;
-	struct list_head head;
-};
-
-/**
- * AGP data.
- *
- * \sa drm_agp_init() and drm_device::agp.
- */
-struct drm_agp_head {
-	struct agp_kern_info agp_info;		/**< AGP device information */
-	struct list_head memory;
-	unsigned long mode;		/**< AGP mode */
-	struct agp_bridge_data *bridge;
-	int enabled;			/**< whether the AGP bus as been enabled */
-	int acquired;			/**< whether the AGP device has been acquired */
-	unsigned long base;
-	int agp_mtrr;
-	int cant_use_aperture;
-	unsigned long page_mask;
 };
 
 /**

@@ -28,6 +28,9 @@
  * should no longer be using. They cannot be removed as legacy
  * drivers use them, and removing them are API breaks.
  */
+#include <linux/list.h>
+
+struct agp_memory;
 struct drm_device;
 struct drm_file;
 
@@ -67,5 +70,17 @@ int drm_legacy_markbufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_freebufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_mapbufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_dma_ioctl(struct drm_device *d, void *v, struct drm_file *f);
+
+/*
+ * AGP Support
+ */
+
+struct drm_agp_mem {
+	unsigned long handle;
+	struct agp_memory *memory;
+	unsigned long bound;
+	int pages;
+	struct list_head head;
+};
 
 #endif /* __DRM_LEGACY_H__ */

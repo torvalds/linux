@@ -8,6 +8,19 @@
 #include <linux/agp_backend.h>
 #include <drm/drmP.h>
 
+struct drm_agp_head {
+	struct agp_kern_info agp_info;
+	struct list_head memory;
+	unsigned long mode;
+	struct agp_bridge_data *bridge;
+	int enabled;
+	int acquired;
+	unsigned long base;
+	int agp_mtrr;
+	int cant_use_aperture;
+	unsigned long page_mask;
+};
+
 #if __OS_HAS_AGP
 
 void drm_free_agp(struct agp_memory * handle, int pages);

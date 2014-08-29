@@ -40,6 +40,7 @@
 #include <linux/efi.h>
 #include <linux/slab.h>
 #endif
+#include "drm_legacy.h"
 
 struct drm_vma_entry {
 	struct list_head head;
