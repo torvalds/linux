@@ -3139,12 +3139,8 @@ static int em_clts(struct x86_emulate_ctxt *ctxt)
 
 static int em_vmcall(struct x86_emulate_ctxt *ctxt)
 {
-	int rc;
+	int rc = ctxt->ops->fix_hypercall(ctxt);
 
-	if (ctxt->modrm_mod != 3 || ctxt->modrm_rm != 1)
-		return X86EMUL_UNHANDLEABLE;
-
-	rc = ctxt->ops->fix_hypercall(ctxt);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
@@ -3562,6 +3558,12 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 		F2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock, _e),	\
 		F2bv(((_f) & ~Lock) | DstAcc | SrcImm, _e)
 
+static const struct opcode group7_rm0[] = {
+	N,
+	I(SrcNone | Priv | EmulateOnUD,	em_vmcall),
+	N, N, N, N, N, N,
+};
+
 static const struct opcode group7_rm1[] = {
 	DI(SrcNone | Priv, monitor),
 	DI(SrcNone | Priv, mwait),
@@ -3655,7 +3657,7 @@ static const struct group_dual group7 = { {
 	II(SrcMem16 | Mov | Priv,		em_lmsw, lmsw),
 	II(SrcMem | ByteOp | Priv | NoAccess,	em_invlpg, invlpg),
 }, {
-	I(SrcNone | Priv | EmulateOnUD,	em_vmcall),
+	EXT(0, group7_rm0),
 	EXT(0, group7_rm1),
 	N, EXT(0, group7_rm3),
 	II(SrcNone | DstMem | Mov,		em_smsw, smsw), N,
