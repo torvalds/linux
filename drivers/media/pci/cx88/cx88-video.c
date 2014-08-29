@@ -1532,7 +1532,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	}
 
 	/* start tvaudio thread */
-	if (core->board.tuner_type != TUNER_ABSENT) {
+	if (core->board.tuner_type != UNSET) {
 		core->kthread = kthread_run(cx88_audio_thread, core, "cx88 tvaudio");
 		if (IS_ERR(core->kthread)) {
 			err = PTR_ERR(core->kthread);
