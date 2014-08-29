@@ -24,7 +24,4 @@ $(obj)/kexec-purgatory.c: $(obj)/purgatory.ro FORCE
 	$(call if_changed,bin2c)
 
 
-# No loaders for 32bits yet.
-ifeq ($(CONFIG_X86_64),y)
- obj-$(CONFIG_KEXEC)		+= kexec-purgatory.o
-endif
+obj-$(CONFIG_KEXEC_FILE)	+= kexec-purgatory.o
