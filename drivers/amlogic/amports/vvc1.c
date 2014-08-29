@@ -121,6 +121,8 @@ static u32 intra_output;
 static u32 pts_by_offset = 1;
 static u32 total_frame;
 static u32 next_pts;
+static u64 next_pts_us64;
+
 #ifdef DEBUG_PTS
 static u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
 #endif
@@ -242,6 +244,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
     u32 buffer_index;
     unsigned int pts, pts_valid = 0, offset;
     u32 v_width, v_height;
+    u64 pts_us64 = 0;
 
     reg = READ_VREG(VC1_BUFFEROUT);
 
@@ -260,7 +263,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
         
         if (pts_by_offset) {
             offset = READ_VREG(VC1_OFFSET_REG);
-            if (pts_lookup_offset(PTS_TYPE_VIDEO, offset, &pts, 0) == 0) {
+            if (pts_lookup_offset_us64(PTS_TYPE_VIDEO, offset, &pts, 0, &pts_us64) == 0) {
                 pts_valid = 1;
 #ifdef DEBUG_PTS
                 pts_hit++;
@@ -353,23 +356,31 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 
             if (pts_valid) {
                 vf->pts = pts;
+                vf->pts_us64 = pts_us64;
                 if ((repeat_count > 1) && avi_flag) {
                     vf->duration = vvc1_amstream_dec_info.rate * repeat_count >> 1;
                     next_pts = pts + (vvc1_amstream_dec_info.rate * repeat_count >> 1) * 15 / 16;
+                    next_pts_us64 = pts_us64 + ((vvc1_amstream_dec_info.rate * repeat_count >> 1) * 15 / 16) * 100 / 9;
                 } else {
                     vf->duration = vvc1_amstream_dec_info.rate >> 1;
                     next_pts = 0;
+                    next_pts_us64 = 0;
                 }
             } else {
                 vf->pts = next_pts;
+                vf->pts_us64 = next_pts_us64;
                 if ((repeat_count > 1) && avi_flag) {
                     vf->duration = vvc1_amstream_dec_info.rate * repeat_count >> 1;
                     if (next_pts != 0) {
                         next_pts += ((vf->duration) - ((vf->duration) >> 4));
                     }
+                    if (next_pts_us64 != 0) {
+                        next_pts_us64 += ((vf->duration) - ((vf->duration) >> 4)) * 100 / 9;
+                    }
                 } else {
                     vf->duration = vvc1_amstream_dec_info.rate >> 1;
                     next_pts = 0;
+                    next_pts_us64 = 0;
                 }
             }
 
@@ -399,14 +410,19 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
             vf->bufWidth = 1920;
 
             vf->pts = next_pts;
+            vf->pts_us64 = next_pts_us64;
             if ((repeat_count > 1) && avi_flag) {
                 vf->duration = vvc1_amstream_dec_info.rate * repeat_count >> 1;
                 if (next_pts != 0) {
                     next_pts += ((vf->duration) - ((vf->duration) >> 4));
                 }
+                if (next_pts_us64 != 0) {
+                    next_pts_us64 += ((vf->duration) - ((vf->duration) >> 4)) * 100 / 9;
+                }
             } else {
                 vf->duration = vvc1_amstream_dec_info.rate >> 1;
                 next_pts = 0;
+                next_pts_us64 = 0;
             }
 
             vf->duration_pulldown = 0;
@@ -436,23 +452,31 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 
             if (pts_valid) {
                 vf->pts = pts;
+                vf->pts_us64 = pts_us64;
                 if ((repeat_count > 1) && avi_flag) {
                     vf->duration = vvc1_amstream_dec_info.rate * repeat_count;
                     next_pts = pts + (vvc1_amstream_dec_info.rate * repeat_count) * 15 / 16;
+                    next_pts_us64 = pts_us64 + ((vvc1_amstream_dec_info.rate * repeat_count) * 15 / 16) * 100 / 9;
                 } else {
                     vf->duration = vvc1_amstream_dec_info.rate;
                     next_pts = 0;
+                    next_pts_us64 = 0;
                 }
             } else {
                 vf->pts = next_pts;
+                vf->pts_us64 = next_pts_us64;
                 if ((repeat_count > 1) && avi_flag) {
                     vf->duration = vvc1_amstream_dec_info.rate * repeat_count;
                     if (next_pts != 0) {
                         next_pts += ((vf->duration) - ((vf->duration) >> 4));
                     }
+                    if (next_pts_us64 != 0) {
+                        next_pts_us64 += ((vf->duration) - ((vf->duration) >> 4)) * 100 / 9;
+                    }
                 } else {
                     vf->duration = vvc1_amstream_dec_info.rate;
                     next_pts = 0;
+                    next_pts_us64 = 0;
                 }
             }
 
@@ -720,6 +744,8 @@ static void vvc1_local_init(void)
     total_frame = 0;
 
     next_pts = 0;
+
+    next_pts_us64 = 0;
 
 #ifdef DEBUG_PTS
     pts_hit = pts_missed = pts_i_hit = pts_i_missed = 0;

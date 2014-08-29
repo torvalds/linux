@@ -246,6 +246,8 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 {
     u32 reg, info, seqinfo, offset, pts, pts_valid = 0;
     vframe_t *vf;
+    ulong flags;
+    u64 pts_us64 = 0;;
 
     WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
 
@@ -266,7 +268,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
         }
 
         if ((((info & PICINFO_TYPE_MASK) == PICINFO_TYPE_I) || ((info & PICINFO_TYPE_MASK) == PICINFO_TYPE_P))
-             && (pts_lookup_offset(PTS_TYPE_VIDEO, offset, &pts, 0) == 0)) {
+             && (pts_lookup_offset_us64(PTS_TYPE_VIDEO, offset, &pts, 0, &pts_us64) == 0)) {
             pts_valid = 1;
         }
 
@@ -345,6 +347,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
             vf->canvas0Addr = vf->canvas1Addr = index2canvas(index);
             vf->orientation = 0 ;
             vf->pts = (pts_valid) ? pts : 0;
+            vf->pts_us64 = (pts_valid) ? pts_us64 : 0;
 
             vfbuf_use[index] = 1;
 
@@ -400,6 +403,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
             vf->orientation = 0 ;
             vf->canvas0Addr = vf->canvas1Addr = index2canvas(index);
             vf->pts = (pts_valid) ? pts : 0;
+            vf->pts_us64 = (pts_valid) ? pts_us64 : 0;
 
             if ((error_skip(info, vf)) ||
                 ((first_i_frame_ready == 0) && ((PICINFO_TYPE_MASK & info) != PICINFO_TYPE_I))) {
@@ -429,6 +433,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
             vf->orientation = 0 ;
             vf->canvas0Addr = vf->canvas1Addr = index2canvas(index);
             vf->pts = 0;
+            vf->pts_us64 = 0;
 
             if ((error_skip(info, vf)) ||
                 ((first_i_frame_ready == 0) && ((PICINFO_TYPE_MASK & info) != PICINFO_TYPE_I))) {

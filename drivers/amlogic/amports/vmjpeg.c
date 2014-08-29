@@ -160,6 +160,7 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 {
     u32 reg, offset, pts, pts_valid = 0;
     vframe_t *vf = NULL;
+    u64 pts_us64;
 
     WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
 
@@ -168,7 +169,7 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
     if (reg & PICINFO_BUF_IDX_MASK) {
         offset = READ_VREG(MREG_FRAME_OFFSET);
 
-        if (pts_lookup_offset(PTS_TYPE_VIDEO, offset, &pts, 0) == 0) {
+        if (pts_lookup_offset_us64(PTS_TYPE_VIDEO, offset, &pts, 0, &pts_us64) == 0) {
             pts_valid = 1;
         }
 
@@ -195,6 +196,7 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 #endif
             vf->canvas0Addr = vf->canvas1Addr = index2canvas0(index);
             vf->pts = (pts_valid) ? pts : 0;
+            vf->pts_us64 = (pts_valid) ? pts_us64 : 0;
 			vf->orientation = 0 ;
             vfbuf_use[index]++;
 
@@ -262,8 +264,10 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 			vf->orientation = 0 ;
             if (pts_valid) {
                 vf->pts = pts;
+                vf->pts_us64 = pts_us64;
             } else {
                 vf->pts = 0;
+                vf->pts_us64 = 0;
             }
 
             vfbuf_use[index]++;
