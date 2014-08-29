@@ -51,7 +51,7 @@ static void dac_enable(bool enable)
 	if (enable) {
 		mask = m_VBG_EN | m_DAC_EN | m_DAC_GAIN;
 		if (rk3036_tve->soctype == SOC_RK312X) {
-			val = m_VBG_EN | m_DAC_EN | v_DAC_GAIN(0x3b);
+			val = m_VBG_EN | m_DAC_EN | v_DAC_GAIN(0x3a);
 			grfreg = RK312X_GRF_TVE_CON;
 		}
 		else if (rk3036_tve->soctype == SOC_RK3036) {
@@ -112,8 +112,8 @@ static void tve_set_mode(int mode)
 		tve_writel(TV_BW_CTRL, v_CHROMA_BW(BP_FILTER_PAL) |
 			v_COLOR_DIFF_BW(COLOR_DIFF_FILTER_BW_1_3));
 		if (rk3036_tve->soctype == SOC_RK312X) {
-			tve_writel(TV_SATURATION, /*0x00325c40*/ 0x00386440);
-			tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008a00);
+			tve_writel(TV_SATURATION, /*0x00325c40*/ 0x002b4d3c);
+			tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008a0a);
 		} else {
 			tve_writel(TV_SATURATION, /*0x00325c40*/ 0x00386346);
 			tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008b00);
@@ -124,8 +124,12 @@ static void tve_set_mode(int mode)
 		tve_writel(TV_ADJ_TIMING, (0xc << 28) | 0x06c00800 | 0x80);
 		tve_writel(TV_ACT_ST,	0x001500F6);
 		tve_writel(TV_ACT_TIMING, 0x0694011D | (1 << 12) | (2 << 28));
-		if (rk3036_tve->soctype == SOC_RK312X)
-			tve_writel(TV_ADJ_TIMING, (0x9<< 28) | 0x06c00800 | 0x80);
+		if (rk3036_tve->soctype == SOC_RK312X){
+			tve_writel(TV_ADJ_TIMING, (0xa<< 28) | 0x06c00800 | 0x80);
+			udelay(100);
+			tve_writel(TV_ADJ_TIMING, (0xa<< 28) | 0x06c00800 | 0x80);
+			tve_writel(TV_ACT_TIMING, 0x0694011D | (1 << 12) | (2 << 28));
+		}
 		else
 			tve_writel(TV_ADJ_TIMING, (0xa<< 28) | 0x06c00800 | 0x80);
 	}
@@ -405,7 +409,7 @@ static void __exit rk3036_tve_exit(void)
 	platform_driver_unregister(&rk3036_tve_driver);
 }
 
-module_init(rk3036_tve_init);
+late_initcall(rk3036_tve_init);
 module_exit(rk3036_tve_exit);
 
 /* Module information */
