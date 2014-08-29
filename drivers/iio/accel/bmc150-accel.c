@@ -499,6 +499,7 @@ static int bmc150_accel_get_bw(struct bmc150_accel_data *data, int *val,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_PM_RUNTIME
 static int bmc150_accel_get_startup_times(struct bmc150_accel_data *data)
 {
 	int i;
@@ -529,6 +530,12 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 
 	return 0;
 }
+#else
+static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
+{
+	return 0;
+}
+#endif
 
 static int bmc150_accel_set_scale(struct bmc150_accel_data *data, int val)
 {
