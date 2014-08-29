@@ -1036,8 +1036,13 @@ config TRACE_IRQFLAGS
 	  either tracing or lock debugging.
 
 config STACKTRACE
-	bool
+	bool "Stack backtrace support"
 	depends on STACKTRACE_SUPPORT
+	help
+	  This option causes the kernel to create a /proc/pid/stack for
+	  every process, showing its current stack trace.
+	  It is also used by various kernel debugging features that require
+	  stack trace generation.
 
 config DEBUG_KOBJECT
 	bool "kobject debugging"
