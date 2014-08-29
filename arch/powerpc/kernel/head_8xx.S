@@ -644,9 +644,11 @@ modified_instr:
 
 	/* special handling for r10,r11 since these are modified already */
 153:	mfspr	r11, SPRN_SPRG_SCRATCH1	/* load r11 from SPRN_SPRG_SCRATCH1 */
-	b	155f
+	add	r10, r10, r11	/* add it */
+	mfctr	r11		/* restore r11 */
+	b	151b
 154:	mfspr	r11, SPRN_SPRG_SCRATCH0	/* load r10 from SPRN_SPRG_SCRATCH0 */
-155:	add	r10, r10, r11	/* add it */
+	add	r10, r10, r11	/* add it */
 	mfctr	r11		/* restore r11 */
 	b	151b
 #endif
