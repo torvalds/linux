@@ -935,12 +935,13 @@ static void sixaxis_parse_report(struct sony_sc *sc, __u8 *rd, int size)
 	if (rd[30] >= 0xee) {
 		battery_capacity = 100;
 		battery_charging = !(rd[30] & 0x01);
+		cable_state = 1;
 	} else {
 		__u8 index = rd[30] <= 5 ? rd[30] : 5;
 		battery_capacity = sixaxis_battery_capacity[index];
 		battery_charging = 0;
+		cable_state = 0;
 	}
-	cable_state = !(rd[31] & 0x04);
 
 	spin_lock_irqsave(&sc->lock, flags);
 	sc->cable_state = cable_state;
