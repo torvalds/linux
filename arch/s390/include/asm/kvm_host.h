@@ -13,8 +13,11 @@
 
 #ifndef ASM_KVM_HOST_H
 #define ASM_KVM_HOST_H
+
+#include <linux/types.h>
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
+#include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <asm/debug.h>
@@ -431,8 +434,6 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 }
 
 #define ASYNC_PF_PER_VCPU	64
-struct kvm_vcpu;
-struct kvm_async_pf;
 struct kvm_arch_async_pf {
 	unsigned long pfault_token;
 };

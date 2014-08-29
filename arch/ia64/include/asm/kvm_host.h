@@ -234,9 +234,6 @@ struct kvm_vm_data {
 #define KVM_REQ_PTC_G		32
 #define KVM_REQ_RESUME		33
 
-struct kvm;
-struct kvm_vcpu;
-
 struct kvm_mmio_req {
 	uint64_t addr;          /*  physical address		*/
 	uint64_t size;          /*  size in bytes		*/
