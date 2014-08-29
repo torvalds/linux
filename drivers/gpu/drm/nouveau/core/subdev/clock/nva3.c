@@ -23,6 +23,7 @@
  *          Roy Spliet
  */
 
+#include <engine/fifo.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/timer.h>
@@ -293,6 +294,41 @@ calc_host(struct nva3_clock_priv *priv, struct nouveau_cstate *cstate)
 	return ret;
 }
 
+int
+nva3_clock_pre(struct nouveau_clock *clk, unsigned long *flags)
+{
+	struct nouveau_fifo *pfifo = nouveau_fifo(clk);
+
+	/* halt and idle execution engines */
+	nv_mask(clk, 0x020060, 0x00070000, 0x00000000);
+	nv_mask(clk, 0x002504, 0x00000001, 0x00000001);
+	/* Wait until the interrupt handler is finished */
+	if (!nv_wait(clk, 0x000100, 0xffffffff, 0x00000000))
+		return -EBUSY;
+
+	if (pfifo)
+		pfifo->pause(pfifo, flags);
+
+	if (!nv_wait(clk, 0x002504, 0x00000010, 0x00000010))
+		return -EIO;
+	if (!nv_wait(clk, 0x00251c, 0x0000003f, 0x0000003f))
+		return -EIO;
+
+	return 0;
+}
+
+void
+nva3_clock_post(struct nouveau_clock *clk, unsigned long *flags)
+{
+	struct nouveau_fifo *pfifo = nouveau_fifo(clk);
+
+	if (pfifo && flags)
+		pfifo->start(pfifo, flags);
+
+	nv_mask(clk, 0x002504, 0x00000001, 0x00000000);
+	nv_mask(clk, 0x020060, 0x00070000, 0x00040000);
+}
+
 static void
 disable_clk_src(struct nva3_clock_priv *priv, u32 src)
 {
@@ -421,6 +457,13 @@ nva3_clock_prog(struct nouveau_clock *clk)
 {
 	struct nva3_clock_priv *priv = (void *)clk;
 	struct nva3_clock_info *core = &priv->eng[nv_clk_src_core];
+	int ret = 0;
+	unsigned long flags;
+	unsigned long *f = &flags;
+
+	ret = nva3_clock_pre(clk, f);
+	if (ret)
+		goto out;
 
 	if (core->pll)
 		prog_core(priv, nv_clk_src_core_intm);
@@ -430,7 +473,14 @@ nva3_clock_prog(struct nouveau_clock *clk)
 	prog_clk(priv, 0x20, nv_clk_src_disp);
 	prog_clk(priv, 0x21, nv_clk_src_vdec);
 	prog_host(priv);
-	return 0;
+
+out:
+	if (ret == -EBUSY)
+		f = NULL;
+
+	nva3_clock_post(clk, f);
+
+	return ret;
 }
 
 static void

@@ -15,5 +15,6 @@ struct nva3_clock_info {
 
 int nva3_pll_info(struct nouveau_clock *, int, u32, u32,
 		    struct nva3_clock_info *);
-
+int nva3_clock_pre(struct nouveau_clock *clk, unsigned long *flags);
+void nva3_clock_post(struct nouveau_clock *clk, unsigned long *flags);
 #endif
