@@ -120,7 +120,7 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		sigaddset(&dev->sigmask, SIGTTOU);
 		dev->sigdata.context = lock->context;
 		dev->sigdata.lock = master->lock.hw_lock;
-		block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
+		block_all_signals(drm_notifier, dev, &dev->sigmask);
 	}
 
 	if (dev->driver->dma_quiescent && (lock->flags & _DRM_LOCK_QUIESCENT))
@@ -286,26 +286,27 @@ int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context)
  * If the lock is not held, then let the signal proceed as usual.  If the lock
  * is held, then set the contended flag and keep the signal blocked.
  *
- * \param priv pointer to a drm_sigdata structure.
+ * \param priv pointer to a drm_device structure.
  * \return one if the signal should be delivered normally, or zero if the
  * signal should be blocked.
  */
 static int drm_notifier(void *priv)
 {
-	struct drm_sigdata *s = (struct drm_sigdata *) priv;
+	struct drm_device *dev = priv;
+	struct drm_hw_lock *lock = dev->sigdata.lock;
 	unsigned int old, new, prev;
 
 	/* Allow signal delivery if lock isn't held */
-	if (!s->lock || !_DRM_LOCK_IS_HELD(s->lock->lock)
-	    || _DRM_LOCKING_CONTEXT(s->lock->lock) != s->context)
+	if (!lock || !_DRM_LOCK_IS_HELD(lock->lock)
+	    || _DRM_LOCKING_CONTEXT(lock->lock) != dev->sigdata.context)
 		return 1;
 
 	/* Otherwise, set flag to force call to
 	   drmUnlock */
 	do {
-		old = s->lock->lock;
+		old = lock->lock;
 		new = old | _DRM_LOCK_CONT;
-		prev = cmpxchg(&s->lock->lock, old, new);
+		prev = cmpxchg(&lock->lock, old, new);
 	} while (prev != old);
 	return 0;
 }

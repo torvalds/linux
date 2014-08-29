@@ -432,12 +432,6 @@ struct drm_sg_mem {
 	dma_addr_t *busaddr;
 };
 
-struct drm_sigdata {
-	int context;
-	struct drm_hw_lock *lock;
-};
-
-
 /**
  * Kernel side of a mapping
  */
@@ -1035,8 +1029,12 @@ struct drm_device {
 
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
-	struct drm_sigdata sigdata;	   /**< For block_all_signals */
 	sigset_t sigmask;
+
+	struct {
+		int context;
+		struct drm_hw_lock *lock;
+	} sigdata;
 
 	struct drm_local_map *agp_buffer_map;
 	unsigned int agp_buffer_token;
