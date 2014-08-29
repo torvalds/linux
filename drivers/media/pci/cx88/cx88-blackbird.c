@@ -348,7 +348,7 @@ static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 dat
 	memory_write(dev->core, dev->mailbox, flag);
 
 	/* wait for firmware to handle the API command */
-	timeout = jiffies + msecs_to_jiffies(10);
+	timeout = jiffies + msecs_to_jiffies(1000);
 	for (;;) {
 		memory_read(dev->core, dev->mailbox, &flag);
 		if (0 != (flag & 4))
