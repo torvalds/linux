@@ -53,7 +53,6 @@
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 
-struct kvm;
 extern int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 extern int kvm_unmap_hva_range(struct kvm *kvm,
 			       unsigned long start, unsigned long end);
@@ -80,10 +79,6 @@ extern void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 
 /* Physical Address Mask - allowed range of real mode RAM access */
 #define KVM_PAM			0x0fffffffffffffffULL
-
-struct kvm;
-struct kvm_run;
-struct kvm_vcpu;
 
 struct lppaca;
 struct slb_shadow;

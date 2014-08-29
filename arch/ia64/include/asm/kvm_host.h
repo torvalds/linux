@@ -238,9 +238,6 @@ struct kvm_vm_data {
 #define KVM_NR_PAGE_SIZES	1
 #define KVM_PAGES_PER_HPAGE(x)	1
 
-struct kvm;
-struct kvm_vcpu;
-
 struct kvm_mmio_req {
 	uint64_t addr;          /*  physical address		*/
 	uint64_t size;          /*  size in bytes		*/

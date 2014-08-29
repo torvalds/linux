@@ -129,8 +129,6 @@ static inline bool is_error_page(struct page *page)
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
 
-struct kvm;
-struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
 
 extern spinlock_t kvm_lock;
@@ -300,8 +298,6 @@ struct kvm_kernel_irq_routing_entry {
 	};
 	struct hlist_node link;
 };
-
-struct kvm_irq_routing_table;
 
 #ifndef KVM_PRIVATE_MEM_SLOTS
 #define KVM_PRIVATE_MEM_SLOTS 0
@@ -993,8 +989,6 @@ static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 }
 
 extern bool kvm_rebooting;
-
-struct kvm_device_ops;
 
 struct kvm_device {
 	struct kvm_device_ops *ops;

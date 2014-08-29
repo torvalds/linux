@@ -103,10 +103,6 @@ static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
 
 #define ASYNC_PF_PER_VCPU 64
 
-struct kvm_vcpu;
-struct kvm;
-struct kvm_async_pf;
-
 enum kvm_reg {
 	VCPU_REGS_RAX = 0,
 	VCPU_REGS_RCX = 1,
