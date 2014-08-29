@@ -864,6 +864,13 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	u32 bdelay,agcdelay,htotal;
 	u32 cxiformat, cxoformat;
 
+	if (norm == core->tvnorm)
+		return 0;
+	if (core->v4ldev && (vb2_is_busy(&core->v4ldev->vb2_vidq) ||
+			     vb2_is_busy(&core->v4ldev->vb2_vbiq)))
+		return -EBUSY;
+	if (core->dvbdev && vb2_is_busy(&core->dvbdev->vb2_mpegq))
+		return -EBUSY;
 	core->tvnorm = norm;
 	fsc8       = norm_fsc8(norm);
 	adc_clock  = xtal;

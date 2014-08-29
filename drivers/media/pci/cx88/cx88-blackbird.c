@@ -855,6 +855,11 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core  *core = dev->core;
 
+	if (vb2_is_busy(&dev->vb2_mpegq))
+		return -EBUSY;
+	if (core->v4ldev && (vb2_is_busy(&core->v4ldev->vb2_vidq) ||
+			     vb2_is_busy(&core->v4ldev->vb2_vbiq)))
+		return -EBUSY;
 	vidioc_try_fmt_vid_cap(file, priv, f);
 	core->width = f->fmt.pix.width;
 	core->height = f->fmt.pix.height;
@@ -1002,8 +1007,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	cx88_set_tvnorm(core, id);
-	return 0;
+	return cx88_set_tvnorm(core, id);
 }
 
 static const struct v4l2_file_operations mpeg_fops =

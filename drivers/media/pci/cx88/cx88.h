@@ -334,6 +334,9 @@ struct cx88_dmaqueue {
 	u32                    count;
 };
 
+struct cx8800_dev;
+struct cx8802_dev;
+
 struct cx88_core {
 	struct list_head           devlist;
 	atomic_t                   refcount;
@@ -401,8 +404,13 @@ struct cx88_core {
 	/* various v4l controls */
 	u32                        freq;
 
-	/* cx88-video needs to access cx8802 for hybrid tuner pll access. */
+	/*
+	 * cx88-video needs to access cx8802 for hybrid tuner pll access and
+	 * for vb2_is_busy() checks.
+	 */
 	struct cx8802_dev          *dvbdev;
+	/* cx88-blackbird needs to access cx8800 for vb2_is_busy() checks */
+	struct cx8800_dev          *v4ldev;
 	enum cx88_board_type       active_type_id;
 	int			   active_ref;
 	int			   active_fe_id;
@@ -455,9 +463,6 @@ static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
 		}								\
 		val;								\
 	})
-
-struct cx8800_dev;
-struct cx8802_dev;
 
 /* ----------------------------------------------------------- */
 /* function 0: video stuff                                     */

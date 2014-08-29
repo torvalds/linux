@@ -792,6 +792,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 	if (0 != err)
 		return err;
+	if (vb2_is_busy(&dev->vb2_vidq) || vb2_is_busy(&dev->vb2_vbiq))
+		return -EBUSY;
+	if (core->dvbdev && vb2_is_busy(&core->dvbdev->vb2_mpegq))
+		return -EBUSY;
 	dev->fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	core->width = f->fmt.pix.width;
 	core->height = f->fmt.pix.height;
@@ -864,9 +868,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 	struct cx8800_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	cx88_set_tvnorm(core, tvnorms);
-
-	return 0;
+	return cx88_set_tvnorm(core, tvnorms);
 }
 
 /* only one input in this sample driver */
@@ -1442,6 +1444,9 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 
 	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 
+	/* Maintain a reference so cx88-blackbird can query the 8800 device. */
+	core->v4ldev = dev;
+
 	/* initial device configuration */
 	mutex_lock(&core->lock);
 	cx88_set_tvnorm(core, core->tvnorm);
@@ -1544,6 +1549,7 @@ fail_unreg:
 	free_irq(pci_dev->irq, dev);
 	mutex_unlock(&core->lock);
 fail_core:
+	core->v4ldev = NULL;
 	cx88_core_put(core,dev->pci);
 fail_free:
 	kfree(dev);
@@ -1571,6 +1577,8 @@ static void cx8800_finidev(struct pci_dev *pci_dev)
 
 	free_irq(pci_dev->irq, dev);
 	cx8800_unregister_video(dev);
+
+	core->v4ldev = NULL;
 
 	/* free memory */
 	cx88_core_put(core,dev->pci);
