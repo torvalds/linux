@@ -189,7 +189,6 @@ drm_unset_busid(struct drm_device *dev,
 	kfree(master->unique);
 	master->unique = NULL;
 	master->unique_len = 0;
-	master->unique_size = 0;
 }
 
 /**

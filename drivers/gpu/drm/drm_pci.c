@@ -138,7 +138,6 @@ static int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 		return -ENOMEM;
 
 	master->unique_len = strlen(master->unique);
-	master->unique_size = master->unique_len + 1;
 	return 0;
 }
 
@@ -149,8 +148,7 @@ int drm_pci_set_unique(struct drm_device *dev,
 	int domain, bus, slot, func, ret;
 
 	master->unique_len = u->unique_len;
-	master->unique_size = u->unique_len + 1;
-	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
+	master->unique = kmalloc(master->unique_len + 1, GFP_KERNEL);
 	if (!master->unique) {
 		ret = -ENOMEM;
 		goto err;

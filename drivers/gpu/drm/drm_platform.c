@@ -82,7 +82,6 @@ static int drm_platform_set_busid(struct drm_device *dev, struct drm_master *mas
 		return -ENOMEM;
 
 	master->unique_len = strlen(master->unique);
-	master->unique_size = master->unique_len;
 	return 0;
 }
 

@@ -574,7 +574,6 @@ struct drm_gem_object {
  * @minor: Link back to minor char device we are master for. Immutable.
  * @unique: Unique identifier: e.g. busid. Protected by drm_global_mutex.
  * @unique_len: Length of unique field. Protected by drm_global_mutex.
- * @unique_size: Amount allocated. Protected by drm_global_mutex.
  * @magiclist: Hash of used authentication tokens. Protected by struct_mutex.
  * @magicfree: List of used authentication tokens. Protected by struct_mutex.
  * @lock: DRI lock information.
@@ -585,7 +584,6 @@ struct drm_master {
 	struct drm_minor *minor;
 	char *unique;
 	int unique_len;
-	int unique_size;
 	struct drm_open_hash magiclist;
 	struct list_head magicfree;
 	struct drm_lock_data lock;
