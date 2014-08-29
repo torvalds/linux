@@ -1215,9 +1215,9 @@ void i810_driver_preclose(struct drm_device *dev, struct drm_file *file_priv)
 	}
 
 	if (file_priv->master && file_priv->master->lock.hw_lock) {
-		drm_idlelock_take(&file_priv->master->lock);
+		drm_legacy_idlelock_take(&file_priv->master->lock);
 		i810_driver_reclaim_buffers(dev, file_priv);
-		drm_idlelock_release(&file_priv->master->lock);
+		drm_legacy_idlelock_release(&file_priv->master->lock);
 	} else {
 		/* master disappeared, clean up stuff anyway and hope nothing
 		 * goes wrong */

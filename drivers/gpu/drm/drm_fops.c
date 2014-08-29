@@ -268,11 +268,11 @@ static void drm_master_release(struct drm_device *dev, struct file *filp)
 {
 	struct drm_file *file_priv = filp->private_data;
 
-	if (drm_i_have_hw_lock(dev, file_priv)) {
+	if (drm_legacy_i_have_hw_lock(dev, file_priv)) {
 		DRM_DEBUG("File %p released, freeing lock for context %d\n",
 			  filp, _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
-		drm_lock_free(&file_priv->master->lock,
-			      _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
+		drm_legacy_lock_free(&file_priv->master->lock,
+				     _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
 	}
 }
 

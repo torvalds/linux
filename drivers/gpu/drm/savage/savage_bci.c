@@ -1051,7 +1051,7 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 		return;
 
 	if (file_priv->master && file_priv->master->lock.hw_lock) {
-		drm_idlelock_take(&file_priv->master->lock);
+		drm_legacy_idlelock_take(&file_priv->master->lock);
 		release_idlelock = 1;
 	}
 
@@ -1070,7 +1070,7 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 	}
 
 	if (release_idlelock)
-		drm_idlelock_release(&file_priv->master->lock);
+		drm_legacy_idlelock_release(&file_priv->master->lock);
 }
 
 const struct drm_ioctl_desc savage_ioctls[] = {

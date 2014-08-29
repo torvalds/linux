@@ -319,12 +319,12 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 	if (!(file->minor->master && file->master->lock.hw_lock))
 		return;
 
-	drm_idlelock_take(&file->master->lock);
+	drm_legacy_idlelock_take(&file->master->lock);
 
 	mutex_lock(&dev->struct_mutex);
 	if (list_empty(&file_priv->obj_list)) {
 		mutex_unlock(&dev->struct_mutex);
-		drm_idlelock_release(&file->master->lock);
+		drm_legacy_idlelock_release(&file->master->lock);
 
 		return;
 	}
@@ -345,7 +345,7 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	drm_idlelock_release(&file->master->lock);
+	drm_legacy_idlelock_release(&file->master->lock);
 
 	return;
 }
