@@ -193,6 +193,7 @@ static struct of_device_id unimac_mdio_ids[] = {
 	{ .compatible = "brcm,genet-mdio-v2", },
 	{ .compatible = "brcm,genet-mdio-v1", },
 	{ .compatible = "brcm,unimac-mdio", },
+	{ /* sentinel */ },
 };
 
 static struct platform_driver unimac_mdio_driver = {
