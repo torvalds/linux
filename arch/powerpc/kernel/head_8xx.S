@@ -548,10 +548,8 @@ FixupDAR:/* Entry point for dcbx workaround. */
 /* Check if it really is a dcbx instruction. */
 /* dcbt and dcbtst does not generate DTLB Misses/Errors,
  * no need to include them here */
-	srwi	r10, r11, 26	/* check if major OP code is 31 */
-	cmpwi	cr0, r10, 31
-	bne-	141f
-	rlwinm	r10, r11, 0, 21, 30
+	xoris	r10, r11, 0x7c00	/* check if major OP code is 31 */
+	rlwinm	r10, r10, 0, 21, 5
 	cmpwi	cr0, r10, 2028	/* Is dcbz? */
 	beq+	142f
 	cmpwi	cr0, r10, 940	/* Is dcbi? */
