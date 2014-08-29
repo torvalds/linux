@@ -93,37 +93,25 @@ static void spi_pci_remove(struct pci_dev *pdev)
 	dw_spi_remove_host(&dwpci->dws);
 }
 
-#ifdef CONFIG_PM
-static int spi_suspend(struct pci_dev *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int spi_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dw_spi_pci *dwpci = pci_get_drvdata(pdev);
-	int ret;
 
-	ret = dw_spi_suspend_host(&dwpci->dws);
-	if (ret)
-		return ret;
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-	return ret;
+	return dw_spi_suspend_host(&dwpci->dws);
 }
 
-static int spi_resume(struct pci_dev *pdev)
+static int spi_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dw_spi_pci *dwpci = pci_get_drvdata(pdev);
-	int ret;
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
-	if (ret)
-		return ret;
 	return dw_spi_resume_host(&dwpci->dws);
 }
-#else
-#define spi_suspend	NULL
-#define spi_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(dw_spi_pm_ops, spi_suspend, spi_resume);
 
 static const struct pci_device_id pci_ids[] = {
 	/* Intel MID platform SPI controller 0 */
@@ -136,8 +124,9 @@ static struct pci_driver dw_spi_driver = {
 	.id_table =	pci_ids,
 	.probe =	spi_pci_probe,
 	.remove =	spi_pci_remove,
-	.suspend =	spi_suspend,
-	.resume	=	spi_resume,
+	.driver         = {
+		.pm     = &dw_spi_pm_ops,
+	},
 };
 
 module_pci_driver(dw_spi_driver);
