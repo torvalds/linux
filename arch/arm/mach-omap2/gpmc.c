@@ -1562,7 +1562,12 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		goto err;
 
 	gpmc_read_timings_dt(child, &gpmc_t);
-	gpmc_cs_set_timings(cs, &gpmc_t);
+	ret = gpmc_cs_set_timings(cs, &gpmc_t);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to set gpmc timings for: %s\n",
+			child->name);
+		goto err;
+	}
 
 no_timings:
 	if (of_platform_device_create(child, NULL, &pdev->dev))
