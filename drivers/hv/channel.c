@@ -486,11 +486,14 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	channel->state = CHANNEL_OPEN_STATE;
 	channel->sc_creation_callback = NULL;
 	/* Stop callback and cancel the timer asap */
-	if (channel->target_cpu != smp_processor_id())
+	if (channel->target_cpu != get_cpu()) {
+		put_cpu();
 		smp_call_function_single(channel->target_cpu, reset_channel_cb,
 					 channel, true);
-	else
+	} else {
 		reset_channel_cb(channel);
+		put_cpu();
+	}
 
 	/* Send a closing message */
 
