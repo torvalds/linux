@@ -8,6 +8,9 @@
 #include <linux/agp_backend.h>
 #include <drm/drmP.h>
 
+#define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && \
+					      defined(MODULE)))
+
 struct drm_agp_head {
 	struct agp_kern_info agp_info;
 	struct list_head memory;

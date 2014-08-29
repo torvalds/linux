@@ -67,8 +67,6 @@
 
 #include <linux/idr.h>
 
-#define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
-
 struct module;
 
 struct drm_file;
