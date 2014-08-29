@@ -351,15 +351,12 @@ static int find_next_iomem_res(struct resource *res, char *name,
 	end = res->end;
 	BUG_ON(start >= end);
 
+	if (first_level_children_only)
+		sibling_only = true;
+
 	read_lock(&resource_lock);
 
-	if (first_level_children_only) {
-		p = iomem_resource.child;
-		sibling_only = true;
-	} else
-		p = &iomem_resource;
-
-	while ((p = next_resource(p, sibling_only))) {
+	for (p = iomem_resource.child; p; p = next_resource(p, sibling_only)) {
 		if (p->flags != res->flags)
 			continue;
 		if (name && strcmp(p->name, name))
