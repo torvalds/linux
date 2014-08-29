@@ -579,11 +579,6 @@ static int dice_hw_params(struct snd_pcm_substream *substream,
 			return err;
 		}
 
-		for (i = 0; i < channels; i++) {
-			dice->stream.pcm_positions[i * 2] = i;
-			dice->stream.pcm_positions[i * 2 + 1] = i + channels;
-		}
-
 		rate /= 2;
 		channels *= 2;
 	}
@@ -591,6 +586,15 @@ static int dice_hw_params(struct snd_pcm_substream *substream,
 	mode = rate_index_to_mode(rate_index);
 	amdtp_stream_set_parameters(&dice->stream, rate, channels,
 				    dice->rx_midi_ports[mode]);
+	if (rate_index > 4) {
+		channels /= 2;
+
+		for (i = 0; i < channels; i++) {
+			dice->stream.pcm_positions[i] = i * 2;
+			dice->stream.pcm_positions[i + channels] = i * 2 + 1;
+		}
+	}
+
 	amdtp_stream_set_pcm_format(&dice->stream,
 				    params_format(hw_params));
 
