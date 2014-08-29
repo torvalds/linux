@@ -428,7 +428,7 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 	int i, retval = 0;
 	u32 value = 0;
 	u32 checksum = 0;
-	u32 *dataptr;
+	__le32 *dataptr;
 
 	retval  = register_write(dev->core, IVTV_REG_VPU, 0xFFFFFFED);
 	retval |= register_write(dev->core, IVTV_REG_HW_BLOCKS, IVTV_CMD_HW_BLOCKS_RST);
@@ -467,7 +467,7 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 
 	/* transfer to the chip */
 	dprintk(1,"Loading firmware ...\n");
-	dataptr = (u32*)firmware->data;
+	dataptr = (__le32 *)firmware->data;
 	for (i = 0; i < (firmware->size >> 2); i++) {
 		value = le32_to_cpu(*dataptr);
 		checksum += ~value;
