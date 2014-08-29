@@ -290,12 +290,6 @@ struct drm_ioctl_desc {
 #define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)			\
 	[DRM_IOCTL_NR(DRM_##ioctl)] = {.cmd = DRM_##ioctl, .func = _func, .flags = _flags, .cmd_drv = DRM_IOCTL_##ioctl, .name = #ioctl}
 
-struct drm_magic_entry {
-	struct list_head head;
-	struct drm_hash_item hash_item;
-	struct drm_file *priv;
-};
-
 /**
  * DMA buffer.
  */

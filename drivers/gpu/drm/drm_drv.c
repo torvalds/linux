@@ -133,7 +133,6 @@ EXPORT_SYMBOL(drm_master_get);
 static void drm_master_destroy(struct kref *kref)
 {
 	struct drm_master *master = container_of(kref, struct drm_master, refcount);
-	struct drm_magic_entry *pt, *next;
 	struct drm_device *dev = master->minor->dev;
 	struct drm_map_list *r_list, *list_temp;
 
@@ -152,12 +151,6 @@ static void drm_master_destroy(struct kref *kref)
 		kfree(master->unique);
 		master->unique = NULL;
 		master->unique_len = 0;
-	}
-
-	list_for_each_entry_safe(pt, next, &master->magicfree, head) {
-		list_del(&pt->head);
-		drm_ht_remove_item(&master->magiclist, &pt->hash_item);
-		kfree(pt);
 	}
 
 	drm_ht_remove(&master->magiclist);
