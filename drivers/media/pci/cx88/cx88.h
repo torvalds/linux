@@ -557,7 +557,6 @@ struct cx8802_dev {
 #if IS_ENABLED(CONFIG_VIDEO_CX88_BLACKBIRD)
 	struct video_device        *mpeg_dev;
 	u32                        mailbox;
-	unsigned char              mpeg_active; /* nonzero if mpeg encoder is active */
 
 	/* mpeg params */
 	struct cx2341x_handler     cxhdl;

@@ -536,9 +536,6 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	dprintk(1,"Initialize codec\n");
 	retval = blackbird_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 	if (retval < 0) {
-
-		dev->mpeg_active = 0;
-
 		/* ping was not successful, reset and upload firmware */
 		cx_write(MO_SRST_IO, 0); /* SYS_RSTO=0 */
 		cx_write(MO_SRST_IO, 1); /* SYS_RSTO=1 */
@@ -622,7 +619,6 @@ static int blackbird_start_codec(struct cx8802_dev *dev)
 			BLACKBIRD_RAW_BITS_NONE
 		);
 
-	dev->mpeg_active = 1;
 	return 0;
 }
 
@@ -636,7 +632,6 @@ static int blackbird_stop_codec(struct cx8802_dev *dev)
 
 	cx2341x_handler_set_busy(&dev->cxhdl, 0);
 
-	dev->mpeg_active = 0;
 	return 0;
 }
 
@@ -875,18 +870,22 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
+	bool streaming;
 
 	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
-	if (dev->mpeg_active)
+	streaming = dev->vb2_mpegq.start_streaming_called;
+	if (streaming)
 		blackbird_stop_codec(dev);
 
 	cx88_set_freq (core,f);
 	blackbird_initialize_codec(dev);
 	cx88_set_scale(core, core->width, core->height,
 			core->field);
+	if (streaming)
+		blackbird_start_codec(dev);
 	return 0;
 }
 
