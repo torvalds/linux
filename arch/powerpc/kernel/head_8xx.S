@@ -498,7 +498,7 @@ DataTLBError:
 	mfspr	r10, SPRN_DAR
 	cmpwi	cr0, r10, 0x00f0
 	beq-	FixupDAR	/* must be a buggy dcbX, icbi insn. */
-DARFixed:/* Return from dcbx instruction bug workaround, r10 holds value of DAR */
+DARFixed:/* Return from dcbx instruction bug workaround */
 #ifdef CONFIG_8xx_CPU6
 	lwz	r3, 8(r0)
 #endif
@@ -527,7 +527,7 @@ DARFixed:/* Return from dcbx instruction bug workaround, r10 holds value of DAR 
 
 /* This is the procedure to calculate the data EA for buggy dcbx,dcbi instructions
  * by decoding the registers used by the dcbx instruction and adding them.
- * DAR is set to the calculated address and r10 also holds the EA on exit.
+ * DAR is set to the calculated address.
  */
  /* define if you don't want to use self modifying code */
 #define NO_SELF_MODIFYING_CODE
@@ -567,8 +567,7 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	beq+	142f
 	cmpwi	cr0, r10, 1964	/* Is icbi? */
 	beq+	142f
-141:	mfspr	r10, SPRN_DAR	/* r10 must hold DAR at exit */
-	b	DARFixed	/* Nope, go back to normal TLB processing */
+141:	b	DARFixed	/* Nope, go back to normal TLB processing */
 
 144:	mfspr	r10, SPRN_DSISR
 	rlwinm	r10, r10,0,7,5	/* Clear store bit for buggy dcbst insn */
