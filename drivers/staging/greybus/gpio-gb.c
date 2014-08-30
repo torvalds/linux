@@ -51,7 +51,8 @@ static void gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 	return;
 }
 
-static int gpio_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
+int gb_gpio_probe(struct greybus_device *gdev,
+		  const struct greybus_device_id *id)
 {
 	struct gb_gpio_device *gb_gpio;
 	struct gpio_chip *gpio;
@@ -87,7 +88,7 @@ static int gpio_gb_probe(struct greybus_device *gdev, const struct greybus_devic
 	return 0;
 }
 
-static void gpio_gb_disconnect(struct greybus_device *gdev)
+void gb_gpio_disconnect(struct greybus_device *gdev)
 {
 	struct gb_gpio_device *gb_gpio_dev;
 
@@ -96,9 +97,10 @@ static void gpio_gb_disconnect(struct greybus_device *gdev)
 	gpiochip_remove(&gb_gpio_dev->chip);
 }
 
+#if 0
 static struct greybus_driver gpio_gb_driver = {
-	.probe =	gpio_gb_probe,
-	.disconnect =	gpio_gb_disconnect,
+	.probe =	gb_gpio_probe,
+	.disconnect =	gb_gpio_disconnect,
 	.id_table =	id_table,
 };
 
@@ -106,3 +108,4 @@ module_greybus_driver(gpio_gb_driver);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Greybus GPIO driver");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
+#endif

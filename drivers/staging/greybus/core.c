@@ -157,17 +157,58 @@ static int new_device(struct greybus_device *gdev,
 
 	/* Allocate all of the different "sub device types" for this device */
 	retval = gb_i2c_probe(gdev, id);
+	if (retval)
+		goto error_i2c;
+
+	retval = gb_gpio_probe(gdev, id);
+	if (retval)
+		goto error_gpio;
+
+	retval = gb_sdio_probe(gdev, id);
+	if (retval)
+		goto error_sdio;
+
+	retval = gb_tty_probe(gdev, id);
+	if (retval)
+		goto error_tty;
 	return 0;
+
+error_tty:
+	gb_sdio_disconnect(gdev);
+
+error_sdio:
+	gb_gpio_disconnect(gdev);
+
+error_gpio:
+	gb_i2c_disconnect(gdev);
+
+error_i2c:
+	return retval;
 }
 
+static void remove_device(struct greybus_device *gdev)
+{
+	/* tear down all of the "sub device types" for this device */
+	gb_i2c_disconnect(gdev);
+	gb_gpio_disconnect(gdev);
+	gb_sdio_disconnect(gdev);
+	gb_tty_disconnect(gdev);
+}
 
 static int __init gb_init(void)
 {
+	int retval;
+
+	retval = gb_tty_init();
+	if (retval)
+		return retval;
+
 	return 0;
 }
 
 static void __exit gb_exit(void)
 {
+	gb_tty_exit();
 }
 
 module_init(gb_init);

@@ -109,7 +109,15 @@ struct greybus_device {
  */
 int gb_i2c_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
 void gb_i2c_disconnect(struct greybus_device *gdev);
+int gb_gpio_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+void gb_gpio_disconnect(struct greybus_device *gdev);
+int gb_sdio_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+void gb_sdio_disconnect(struct greybus_device *gdev);
+int gb_tty_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+void gb_tty_disconnect(struct greybus_device *gdev);
 
+int gb_tty_init(void);
+void gb_tty_exit(void);
 
 struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
 				struct cport *cport,

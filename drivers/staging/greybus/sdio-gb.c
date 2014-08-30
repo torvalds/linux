@@ -45,7 +45,8 @@ static const struct mmc_host_ops gb_sd_ops = {
 	.get_ro		= gb_sd_get_ro,
 };
 
-static int sd_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
+int gb_sdio_probe(struct greybus_device *gdev,
+		  const struct greybus_device_id *id)
 {
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
@@ -64,7 +65,7 @@ static int sd_gb_probe(struct greybus_device *gdev, const struct greybus_device_
 	return 0;
 }
 
-static void sd_gb_disconnect(struct greybus_device *gdev)
+void gb_sdio_disconnect(struct greybus_device *gdev)
 {
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
@@ -76,9 +77,10 @@ static void sd_gb_disconnect(struct greybus_device *gdev)
 	mmc_free_host(mmc);
 }
 
+#if 0
 static struct greybus_driver sd_gb_driver = {
-	.probe =	sd_gb_probe,
-	.disconnect =	sd_gb_disconnect,
+	.probe =	gb_sdio_probe,
+	.disconnect =	gb_sdio_disconnect,
 	.id_table =	id_table,
 };
 
@@ -86,3 +88,4 @@ module_greybus_driver(sd_gb_driver);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Greybus SD/MMC Host driver");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
+#endif

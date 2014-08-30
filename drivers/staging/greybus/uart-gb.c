@@ -382,7 +382,8 @@ static const struct tty_operations gb_ops = {
 };
 
 
-static int tty_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
+int gb_tty_probe(struct greybus_device *gdev,
+		 const struct greybus_device_id *id)
 {
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;
@@ -427,7 +428,7 @@ error:
 	return retval;
 }
 
-static void tty_gb_disconnect(struct greybus_device *gdev)
+void gb_tty_disconnect(struct greybus_device *gdev)
 {
 	struct gb_tty *gb_tty = greybus_get_drvdata(gdev);
 	struct tty_struct *tty;
@@ -457,13 +458,13 @@ static void tty_gb_disconnect(struct greybus_device *gdev)
 }
 
 static struct greybus_driver tty_gb_driver = {
-	.probe =	tty_gb_probe,
-	.disconnect =	tty_gb_disconnect,
+	.probe =	gb_tty_probe,
+	.disconnect =	gb_tty_disconnect,
 	.id_table =	id_table,
 };
 
 
-static int __init gb_tty_init(void)
+int __init gb_tty_init(void)
 {
 	int retval;
 
@@ -496,14 +497,16 @@ static int __init gb_tty_init(void)
 	return retval;
 }
 
-static void __exit gb_tty_exit(void)
+void __exit gb_tty_exit(void)
 {
 	greybus_deregister(&tty_gb_driver);
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
 }
 
+#if 0
 module_init(gb_tty_init);
 module_exit(gb_tty_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
+#endif
