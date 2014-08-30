@@ -1043,33 +1043,42 @@ s_vFillCTSHead(
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 		if (byFBOption != AUTO_FB_NONE && uDMAIdx != TYPE_ATIMDMA && uDMAIdx != TYPE_BEACONDMA) {
 			// Auto Fall back
-			PSCTS_FB pBuf = (PSCTS_FB)pvCTS;
+			struct vnt_cts_fb *buf = pvCTS;
 			/* Get SignalField, ServiceField & Length */
 			vnt_get_phy_field(pDevice, uCTSFrameLen,
 					  pDevice->byTopCCKBasicRate,
-					  PK_TYPE_11B, &pBuf->b);
+					  PK_TYPE_11B, &buf->b);
 
-			pBuf->wDuration_ba = (unsigned short)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption); //3:CTSDuration_ba, 1:2.4G, 2,3:2.4G OFDM Data
-			pBuf->wDuration_ba += pDevice->wCTSDuration;
-			pBuf->wDuration_ba = cpu_to_le16(pBuf->wDuration_ba);
-			//Get CTSDuration_ba_f0
-			pBuf->wCTSDuration_ba_f0 = (unsigned short)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F0, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption); //8:CTSDuration_ba_f0, 1:2.4G, 2,3:2.4G OFDM Data
-			pBuf->wCTSDuration_ba_f0 += pDevice->wCTSDuration;
-			pBuf->wCTSDuration_ba_f0 = cpu_to_le16(pBuf->wCTSDuration_ba_f0);
+			buf->duration_ba = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA, cbFrameLength,
+								     byPktType, wCurrentRate, bNeedAck, byFBOption);
+			buf->duration_ba += pDevice->wCTSDuration;
+
+			buf->duration_ba = cpu_to_le16(buf->duration_ba);
+			/* Get CTSDuration_ba_f0 */
+			buf->cts_duration_ba_f0 = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F0, cbFrameLength,
+									    byPktType, wCurrentRate,
+									    bNeedAck, byFBOption);
+
+			buf->cts_duration_ba_f0 += pDevice->wCTSDuration;
+
+			buf->cts_duration_ba_f0 = cpu_to_le16(buf->cts_duration_ba_f0);
 			//Get CTSDuration_ba_f1
-			pBuf->wCTSDuration_ba_f1 = (unsigned short)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F1, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption); //9:CTSDuration_ba_f1, 1:2.4G, 2,3:2.4G OFDM Data
-			pBuf->wCTSDuration_ba_f1 += pDevice->wCTSDuration;
-			pBuf->wCTSDuration_ba_f1 = cpu_to_le16(pBuf->wCTSDuration_ba_f1);
-			/* Get CTS Frame body */
-			pBuf->data.duration = pBuf->wDuration_ba;
+			buf->cts_duration_ba_f1 = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F1, cbFrameLength,
+									    byPktType, wCurrentRate,
+									    bNeedAck, byFBOption);
+			buf->cts_duration_ba_f1 += pDevice->wCTSDuration;
 
-			pBuf->data.frame_control =
+			buf->cts_duration_ba_f1 = cpu_to_le16(buf->cts_duration_ba_f1);
+			/* Get CTS Frame body */
+			buf->data.duration = buf->duration_ba;
+
+			buf->data.frame_control =
 				cpu_to_le16(IEEE80211_FTYPE_CTL |
 					    IEEE80211_STYPE_CTS);
 
-			pBuf->reserved2 = 0x0;
-			memcpy(&pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
+			buf->reserved2 = 0x0;
 
+			memcpy(&buf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 		} else { //if (byFBOption != AUTO_FB_NONE && uDMAIdx != TYPE_ATIMDMA && uDMAIdx != TYPE_BEACONDMA)
 			struct vnt_cts *buf = pvCTS;
 			/* Get SignalField, ServiceField & Length */
@@ -1414,10 +1423,11 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 				pvRrvTime = (void *)(pbyTxBufferAddr + wTxBufSize);
 				pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_cts));
 				pvRTS = NULL;
-				pvCTS = (PSCTS_FB) (pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR);
-				pvTxDataHd = (void  *)(pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR + sizeof(SCTS_FB));
+				pvCTS = (void *)(pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR);
+				pvTxDataHd = (void  *)(pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
+					cbMICHDR + sizeof(struct vnt_cts_fb));
 				cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
-					cbMICHDR + sizeof(SCTS_FB) + sizeof(struct vnt_tx_datahead_g_fb);
+					cbMICHDR + sizeof(struct vnt_cts_fb) + sizeof(struct vnt_tx_datahead_g_fb);
 			}
 		} // Auto Fall Back
 	} else {//802.11a/b packet

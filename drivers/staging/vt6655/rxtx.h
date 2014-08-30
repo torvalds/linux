@@ -163,6 +163,16 @@ struct vnt_cts {
 	u16 reserved2;
 } __packed;
 
+struct vnt_cts_fb {
+	struct vnt_phy_field b;
+	__le16 duration_ba;
+	u16 reserved;
+	__le16 cts_duration_ba_f0;
+	__le16 cts_duration_ba_f1;
+	struct ieee80211_cts data;
+	u16 reserved2;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;

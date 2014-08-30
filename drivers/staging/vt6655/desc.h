@@ -353,21 +353,6 @@ union vnt_phy_field_swap {
 };
 
 //
-// CTS buffer header
-//
-typedef struct tagSCTS_FB {
-	struct vnt_phy_field b;
-	unsigned short wDuration_ba;
-	unsigned short wReserved;
-	unsigned short wCTSDuration_ba_f0;
-	unsigned short wCTSDuration_ba_f1;
-	struct ieee80211_cts data;
-	u16 reserved2;
-} __attribute__ ((__packed__))
-SCTS_FB, *PSCTS_FB;
-typedef const SCTS_FB *PCSCTS_FB;
-
-//
 // Tx FIFO header
 //
 typedef struct tagSTxBufHead {
