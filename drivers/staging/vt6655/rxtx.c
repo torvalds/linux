@@ -1016,11 +1016,15 @@ s_vFillCTSHead(
 			pBuf->wCTSDuration_ba_f1 = (unsigned short)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F1, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption); //9:CTSDuration_ba_f1, 1:2.4G, 2,3:2.4G OFDM Data
 			pBuf->wCTSDuration_ba_f1 += pDevice->wCTSDuration;
 			pBuf->wCTSDuration_ba_f1 = cpu_to_le16(pBuf->wCTSDuration_ba_f1);
-			//Get CTS Frame body
-			pBuf->Data.wDurationID = pBuf->wDuration_ba;
-			pBuf->Data.wFrameControl = TYPE_CTL_CTS;//0x00C4
-			pBuf->Data.wReserved = 0x0000;
-			memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyCurrentNetAddr[0]), ETH_ALEN);
+			/* Get CTS Frame body */
+			pBuf->data.duration = pBuf->wDuration_ba;
+
+			pBuf->data.frame_control =
+				cpu_to_le16(IEEE80211_FTYPE_CTL |
+					    IEEE80211_STYPE_CTS);
+
+			pBuf->reserved2 = 0x0;
+			memcpy(&pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 
 		} else { //if (byFBOption != AUTO_FB_NONE && uDMAIdx != TYPE_ATIMDMA && uDMAIdx != TYPE_BEACONDMA)
 			PSCTS pBuf = (PSCTS)pvCTS;
@@ -1035,10 +1039,14 @@ s_vFillCTSHead(
 			pBuf->wDuration_ba = cpu_to_le16(pBuf->wDuration_ba);
 
 			//Get CTS Frame body
-			pBuf->Data.wDurationID = pBuf->wDuration_ba;
-			pBuf->Data.wFrameControl = TYPE_CTL_CTS;//0x00C4
-			pBuf->Data.wReserved = 0x0000;
-			memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyCurrentNetAddr[0]), ETH_ALEN);
+			pBuf->data.duration = pBuf->wDuration_ba;
+
+			pBuf->data.frame_control =
+				cpu_to_le16(IEEE80211_FTYPE_CTL |
+					    IEEE80211_STYPE_CTS);
+
+			pBuf->reserved2 = 0x0;
+			memcpy(&pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 		}
 	}
 }
