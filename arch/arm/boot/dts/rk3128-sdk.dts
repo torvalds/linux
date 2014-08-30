@@ -56,6 +56,10 @@
 	};
 };
 
+&hdmi {
+        status = "okay";
+};
+
 &sdmmc {
 	cd-gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
 };

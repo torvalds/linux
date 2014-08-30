@@ -202,9 +202,6 @@
 	rockchip,uboot-logo-on = <0>;
 };
 
-&hdmi {
-	status = "okay";
-};
 
 /include/ "rt5025.dtsi"
 &rt5025 {

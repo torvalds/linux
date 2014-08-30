@@ -72,6 +72,10 @@
 	};
 };
 
+&hdmi {
+        status = "disabled";
+};
+
 &key {
 		io-channels = <&adc 2>;
 		power-key {
