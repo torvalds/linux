@@ -113,6 +113,17 @@ struct vnt_tx_datahead_a_fb {
 	__le16 duration_f1;
 } __packed;
 
+/* RTS buffer header */
+struct vnt_rts_g {
+	struct vnt_phy_field b;
+	struct vnt_phy_field a;
+	__le16 duration_ba;
+	__le16 duration_aa;
+	__le16 duration_bb;
+	u16 reserved;
+	struct ieee80211_rts data;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;
