@@ -119,7 +119,7 @@ config ARM_INTEGRATOR
 	  If in doubt, say Y.
 
 config ARM_KIRKWOOD_CPUFREQ
-	def_bool ARCH_KIRKWOOD || MACH_KIRKWOOD
+	def_bool MACH_KIRKWOOD
 	help
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.
