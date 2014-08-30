@@ -56,6 +56,16 @@ struct vnt_mic_hdr {
 	u16 packing; /* packing to 48 bytes */
 } __packed;
 
+/* RsvTime buffer header */
+struct vnt_rrv_time_rts {
+	__le16 rts_rrv_time_ba;
+	__le16 rts_rrv_time_aa;
+	__le16 rts_rrv_time_bb;
+	u16 reserved;
+	__le16 rrv_time_b;
+	__le16 rrv_time_a;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;
