@@ -107,7 +107,7 @@ int gb_i2c_probe(struct greybus_device *gdev,
 	i2c_gb_dev->gdev = gdev;
 	i2c_gb_dev->adapter = adapter;
 
-	greybus_set_drvdata(gdev, i2c_gb_dev);
+	gdev->gb_i2c_dev = i2c_gb_dev;
 	return 0;
 error:
 	kfree(adapter);
@@ -119,7 +119,7 @@ void gb_i2c_disconnect(struct greybus_device *gdev)
 {
 	struct gb_i2c_device *i2c_gb_dev;
 
-	i2c_gb_dev = greybus_get_drvdata(gdev);
+	i2c_gb_dev = gdev->gb_i2c_dev;
 	i2c_del_adapter(i2c_gb_dev->adapter);
 	kfree(i2c_gb_dev->adapter);
 	kfree(i2c_gb_dev);
