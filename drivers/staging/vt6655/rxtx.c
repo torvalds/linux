@@ -1051,22 +1051,17 @@ s_vFillCTSHead(
 
 			buf->duration_ba = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA, cbFrameLength,
 								     byPktType, wCurrentRate, bNeedAck, byFBOption);
-			buf->duration_ba += pDevice->wCTSDuration;
-
 			buf->duration_ba = cpu_to_le16(buf->duration_ba);
 			/* Get CTSDuration_ba_f0 */
 			buf->cts_duration_ba_f0 = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F0, cbFrameLength,
 									    byPktType, wCurrentRate,
 									    bNeedAck, byFBOption);
 
-			buf->cts_duration_ba_f0 += pDevice->wCTSDuration;
-
 			buf->cts_duration_ba_f0 = cpu_to_le16(buf->cts_duration_ba_f0);
 			//Get CTSDuration_ba_f1
 			buf->cts_duration_ba_f1 = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F1, cbFrameLength,
 									    byPktType, wCurrentRate,
 									    bNeedAck, byFBOption);
-			buf->cts_duration_ba_f1 += pDevice->wCTSDuration;
 
 			buf->cts_duration_ba_f1 = cpu_to_le16(buf->cts_duration_ba_f1);
 			/* Get CTS Frame body */
@@ -1091,7 +1086,7 @@ s_vFillCTSHead(
 				cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA, cbFrameLength,
 								      byPktType, wCurrentRate, bNeedAck,
 								      byFBOption));
-			buf->duration_ba += pDevice->wCTSDuration;
+
 			buf->duration_ba = cpu_to_le16(buf->duration_ba);
 
 			/* Get CTS Frame body */

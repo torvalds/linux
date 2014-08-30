@@ -387,7 +387,6 @@ device_set_options(struct vnt_private *pDevice)
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
 	pDevice->bUpdateBBVGA = true;
 	pDevice->byFOETuning = 0;
-	pDevice->wCTSDuration = 0;
 	pDevice->byPreambleType = 0;
 
 	pr_debug(" uChannel= %d\n", (int)pDevice->uChannel);

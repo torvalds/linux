@@ -476,7 +476,6 @@ struct vnt_private {
 	unsigned short wMaxTransmitMSDULifetime;
 	unsigned char abyBSSID[ETH_ALEN];
 	unsigned char abyDesireBSSID[ETH_ALEN];
-	unsigned short wCTSDuration;       // update while speed change
 	unsigned short wACKDuration;       // update while speed change
 	unsigned short wRTSTransmitLen;    // update while speed change
 	unsigned char byRTSServiceField;  // update while speed change
