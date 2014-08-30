@@ -1204,7 +1204,6 @@ struct ptlrpc_nrs_request {
 	unsigned			nr_enqueued:1;
 	unsigned			nr_started:1;
 	unsigned			nr_finalized:1;
-	cfs_binheap_node_t		nr_node;
 
 	/**
 	 * Policy-specific fields, used for determining a request's scheduling

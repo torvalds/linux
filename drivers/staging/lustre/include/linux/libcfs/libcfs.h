@@ -165,7 +165,6 @@ void cfs_get_random_bytes(void *buf, int size);
 #include "libcfs_kernelcomm.h"
 #include "libcfs_workitem.h"
 #include "libcfs_hash.h"
-#include "libcfs_heap.h"
 #include "libcfs_fail.h"
 #include "libcfs_crypto.h"
 
