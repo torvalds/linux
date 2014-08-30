@@ -2616,6 +2616,34 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 	return rc;
 }
 
+static struct sk_buff *xmit_list(struct sk_buff *first, struct net_device *dev,
+				 struct netdev_queue *txq, int *ret)
+{
+	struct sk_buff *skb = first;
+	int rc = NETDEV_TX_OK;
+
+	while (skb) {
+		struct sk_buff *next = skb->next;
+
+		skb->next = NULL;
+		rc = xmit_one(skb, dev, txq);
+		if (unlikely(!dev_xmit_complete(rc))) {
+			skb->next = next;
+			goto out;
+		}
+
+		skb = next;
+		if (netif_xmit_stopped(txq) && skb) {
+			rc = NETDEV_TX_BUSY;
+			break;
+		}
+	}
+
+out:
+	*ret = rc;
+	return skb;
+}
+
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
@@ -2681,25 +2709,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 	}
 
 gso:
-	do {
-		struct sk_buff *nskb = skb->next;
-
-		skb->next = nskb->next;
-		nskb->next = NULL;
-
-		rc = xmit_one(nskb, dev, txq);
-		if (unlikely(rc != NETDEV_TX_OK)) {
-			if (rc & ~NETDEV_TX_MASK)
-				goto out_kfree_gso_skb;
-			nskb->next = skb->next;
-			skb->next = nskb;
-			return rc;
-		}
-		if (unlikely(netif_xmit_stopped(txq) && skb->next))
-			return NETDEV_TX_BUSY;
-	} while (skb->next);
-
-out_kfree_gso_skb:
+	skb->next = xmit_list(skb->next, dev, txq, &rc);
 	if (likely(skb->next == NULL)) {
 		skb->destructor = DEV_GSO_CB(skb)->destructor;
 		consume_skb(skb);
