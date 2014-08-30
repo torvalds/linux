@@ -853,7 +853,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	if (err) {
 		dev_err(&pdev->dev,
 			"could not connect irqchip to gpiochip\n");
-		goto out;
+		goto out_banks;
 	}
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
