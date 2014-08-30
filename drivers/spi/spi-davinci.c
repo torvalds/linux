@@ -417,16 +417,16 @@ static int davinci_spi_setup(struct spi_device *spi)
 						  flags, dev_name(&spi->dev));
 			internal_cs = false;
 		}
-	}
 
-	if (retval) {
-		dev_err(&spi->dev, "GPIO %d setup failed (%d)\n",
-			spi->cs_gpio, retval);
-		return retval;
-	}
+		if (retval) {
+			dev_err(&spi->dev, "GPIO %d setup failed (%d)\n",
+				spi->cs_gpio, retval);
+			return retval;
+		}
 
-	if (internal_cs)
-		set_io_bits(dspi->base + SPIPC0, 1 << spi->chip_select);
+		if (internal_cs)
+			set_io_bits(dspi->base + SPIPC0, 1 << spi->chip_select);
+	}
 
 	if (spi->mode & SPI_READY)
 		set_io_bits(dspi->base + SPIPC0, SPIPC0_SPIENA_MASK);
