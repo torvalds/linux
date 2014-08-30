@@ -253,8 +253,7 @@ static unsigned dx_node_limit(struct inode *dir);
 static struct dx_frame *dx_probe(const struct qstr *d_name,
 				 struct inode *dir,
 				 struct dx_hash_info *hinfo,
-				 struct dx_frame *frame,
-				 int *err);
+				 struct dx_frame *frame);
 static void dx_release(struct dx_frame *frames);
 static int dx_make_map(struct ext4_dir_entry_2 *de, unsigned blocksize,
 		       struct dx_hash_info *hinfo, struct dx_map_entry map[]);
@@ -670,29 +669,25 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
  */
 static struct dx_frame *
 dx_probe(const struct qstr *d_name, struct inode *dir,
-	 struct dx_hash_info *hinfo, struct dx_frame *frame_in, int *err)
+	 struct dx_hash_info *hinfo, struct dx_frame *frame_in)
 {
 	unsigned count, indirect;
 	struct dx_entry *at, *entries, *p, *q, *m;
 	struct dx_root *root;
-	struct buffer_head *bh;
 	struct dx_frame *frame = frame_in;
+	struct dx_frame *ret_err = ERR_PTR(ERR_BAD_DX_DIR);
 	u32 hash;
 
-	frame->bh = NULL;
-	bh = ext4_read_dirblock(dir, 0, INDEX);
-	if (IS_ERR(bh)) {
-		*err = PTR_ERR(bh);
-		goto fail;
-	}
-	root = (struct dx_root *) bh->b_data;
+	frame->bh = ext4_read_dirblock(dir, 0, INDEX);
+	if (IS_ERR(frame->bh))
+		return (struct dx_frame *) frame->bh;
+
+	root = (struct dx_root *) frame->bh->b_data;
 	if (root->info.hash_version != DX_HASH_TEA &&
 	    root->info.hash_version != DX_HASH_HALF_MD4 &&
 	    root->info.hash_version != DX_HASH_LEGACY) {
 		ext4_warning(dir->i_sb, "Unrecognised inode hash code %d",
 			     root->info.hash_version);
-		brelse(bh);
-		*err = ERR_BAD_DX_DIR;
 		goto fail;
 	}
 	hinfo->hash_version = root->info.hash_version;
@@ -706,16 +701,12 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 	if (root->info.unused_flags & 1) {
 		ext4_warning(dir->i_sb, "Unimplemented inode hash flags: %#06x",
 			     root->info.unused_flags);
-		brelse(bh);
-		*err = ERR_BAD_DX_DIR;
 		goto fail;
 	}
 
 	if ((indirect = root->info.indirect_levels) > 1) {
 		ext4_warning(dir->i_sb, "Unimplemented inode hash depth: %#06x",
 			     root->info.indirect_levels);
-		brelse(bh);
-		*err = ERR_BAD_DX_DIR;
 		goto fail;
 	}
 
@@ -725,27 +716,21 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 	if (dx_get_limit(entries) != dx_root_limit(dir,
 						   root->info.info_length)) {
 		ext4_warning(dir->i_sb, "dx entry: limit != root limit");
-		brelse(bh);
-		*err = ERR_BAD_DX_DIR;
 		goto fail;
 	}
 
 	dxtrace(printk("Look up %x", hash));
-	while (1)
-	{
+	while (1) {
 		count = dx_get_count(entries);
 		if (!count || count > dx_get_limit(entries)) {
 			ext4_warning(dir->i_sb,
 				     "dx entry: no count or count > limit");
-			brelse(bh);
-			*err = ERR_BAD_DX_DIR;
-			goto fail2;
+			goto fail;
 		}
 
 		p = entries + 1;
 		q = entries + count - 1;
-		while (p <= q)
-		{
+		while (p <= q) {
 			m = p + (q - p)/2;
 			dxtrace(printk("."));
 			if (dx_get_hash(m) > hash)
@@ -754,8 +739,7 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 				p = m + 1;
 		}
 
-		if (0) // linear search cross check
-		{
+		if (0) { // linear search cross check
 			unsigned n = count - 1;
 			at = entries;
 			while (n--)
@@ -772,38 +756,35 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 
 		at = p - 1;
 		dxtrace(printk(" %x->%u\n", at == entries? 0: dx_get_hash(at), dx_get_block(at)));
-		frame->bh = bh;
 		frame->entries = entries;
 		frame->at = at;
-		if (!indirect--) return frame;
-		bh = ext4_read_dirblock(dir, dx_get_block(at), INDEX);
-		if (IS_ERR(bh)) {
-			*err = PTR_ERR(bh);
-			goto fail2;
+		if (!indirect--)
+			return frame;
+		frame++;
+		frame->bh = ext4_read_dirblock(dir, dx_get_block(at), INDEX);
+		if (IS_ERR(frame->bh)) {
+			ret_err = (struct dx_frame *) frame->bh;
+			frame->bh = NULL;
+			goto fail;
 		}
-		entries = ((struct dx_node *) bh->b_data)->entries;
+		entries = ((struct dx_node *) frame->bh->b_data)->entries;
 
 		if (dx_get_limit(entries) != dx_node_limit (dir)) {
 			ext4_warning(dir->i_sb,
 				     "dx entry: limit != node limit");
-			brelse(bh);
-			*err = ERR_BAD_DX_DIR;
-			goto fail2;
+			goto fail;
 		}
-		frame++;
-		frame->bh = NULL;
 	}
-fail2:
+fail:
 	while (frame >= frame_in) {
 		brelse(frame->bh);
 		frame--;
 	}
-fail:
-	if (*err == ERR_BAD_DX_DIR)
+	if (ret_err == ERR_PTR(ERR_BAD_DX_DIR))
 		ext4_warning(dir->i_sb,
 			     "Corrupt dir inode %lu, running e2fsck is "
 			     "recommended.", dir->i_ino);
-	return NULL;
+	return ret_err;
 }
 
 static void dx_release (struct dx_frame *frames)
@@ -989,9 +970,9 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	}
 	hinfo.hash = start_hash;
 	hinfo.minor_hash = 0;
-	frame = dx_probe(NULL, dir, &hinfo, frames, &err);
-	if (!frame)
-		return err;
+	frame = dx_probe(NULL, dir, &hinfo, frames);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	/* Add '.' and '..' from the htree header */
 	if (!start_hash && !start_minor_hash) {
@@ -1369,11 +1350,11 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir, const struct q
 	struct dx_frame frames[2], *frame;
 	struct buffer_head *bh;
 	ext4_lblk_t block;
-	int err = 0, retval;
+	int retval;
 
-	frame = dx_probe(d_name, dir, &hinfo, frames, &err);
-	if (err)
-		return ERR_PTR(err);
+	frame = dx_probe(d_name, dir, &hinfo, frames);
+	if (IS_ERR(frame))
+		return (struct buffer_head *) frame;
 	do {
 		block = dx_get_block(frame->at);
 		bh = ext4_read_dirblock(dir, block, DIRENT);
@@ -1977,9 +1958,9 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 	struct ext4_dir_entry_2 *de;
 	int err;
 
-	frame = dx_probe(&dentry->d_name, dir, &hinfo, frames, &err);
-	if (!frame)
-		return err;
+	frame = dx_probe(&dentry->d_name, dir, &hinfo, frames);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 	entries = frame->entries;
 	at = frame->at;
 	bh = ext4_read_dirblock(dir, dx_get_block(frame->at), DIRENT);
