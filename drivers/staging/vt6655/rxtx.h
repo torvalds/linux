@@ -105,6 +105,14 @@ struct vnt_tx_datahead_ab {
 	__le16 time_stamp_off;
 } __packed;
 
+struct vnt_tx_datahead_a_fb {
+	struct vnt_phy_field a;
+	__le16 duration;
+	__le16 time_stamp_off;
+	__le16 duration_f0;
+	__le16 duration_f1;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;
