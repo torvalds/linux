@@ -663,7 +663,7 @@ static inline void intel_ring_emit_wa(struct intel_engine_cs *ring,
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->num_wa_regs >= I915_MAX_WA_REGS)
+	if (WARN_ON(dev_priv->num_wa_regs >= I915_MAX_WA_REGS))
 		return;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
