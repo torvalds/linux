@@ -91,7 +91,7 @@ static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		skb->vlan_tci = 0;
 	}
 
-	status = netdev_start_xmit(skb, dev, txq);
+	status = netdev_start_xmit(skb, dev, txq, false);
 
 out:
 	return status;

@@ -3335,7 +3335,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		goto unlock;
 	}
 	atomic_inc(&(pkt_dev->skb->users));
-	ret = netdev_start_xmit(pkt_dev->skb, odev, txq);
+	ret = netdev_start_xmit(pkt_dev->skb, odev, txq, false);
 
 	switch (ret) {
 	case NETDEV_TX_OK:
