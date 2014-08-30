@@ -1226,8 +1226,7 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 				   buffer */
 	int num = 0;
 	ext4_lblk_t  nblocks;
-	int i, err = 0;
-	int namelen;
+	int i, namelen;
 
 	*res_dir = NULL;
 	sb = dir->i_sb;
@@ -1293,10 +1292,10 @@ restart:
 					break;
 				}
 				num++;
-				bh = ext4_getblk(NULL, dir, b++, 0, &err);
-				if (unlikely(err)) {
+				bh = ext4_getblk(NULL, dir, b++, 0);
+				if (unlikely(IS_ERR(bh))) {
 					if (ra_max == 0)
-						return ERR_PTR(err);
+						return bh;
 					break;
 				}
 				bh_use[ra_max] = bh;
