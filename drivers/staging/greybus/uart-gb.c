@@ -412,7 +412,7 @@ int gb_tty_probe(struct greybus_device *gdev,
 
 	/* FIXME - allocate gb buffers */
 
-	greybus_set_drvdata(gdev, gb_tty);
+	gdev->gb_tty = gb_tty;
 
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
 					   &gdev->dev);
@@ -423,14 +423,14 @@ int gb_tty_probe(struct greybus_device *gdev,
 
 	return 0;
 error:
-	greybus_set_drvdata(gdev, NULL);
+	gdev->gb_tty = NULL;
 	release_minor(gb_tty);
 	return retval;
 }
 
 void gb_tty_disconnect(struct greybus_device *gdev)
 {
-	struct gb_tty *gb_tty = greybus_get_drvdata(gdev);
+	struct gb_tty *gb_tty = gdev->gb_tty;
 	struct tty_struct *tty;
 
 	if (!gb_tty)
@@ -440,7 +440,7 @@ void gb_tty_disconnect(struct greybus_device *gdev)
 	gb_tty->disconnected = true;
 
 	wake_up_all(&gb_tty->wioctl);
-	greybus_set_drvdata(gdev, NULL);
+	gdev->gb_tty = NULL;
 	mutex_unlock(&gb_tty->mutex);
 
 	tty = tty_port_tty_get(&gb_tty->port);
