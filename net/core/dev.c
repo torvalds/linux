@@ -3962,13 +3962,6 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 	gro_list_prepare(napi, skb);
 
-	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		NAPI_GRO_CB(skb)->csum = skb->csum;
-		NAPI_GRO_CB(skb)->csum_valid = 1;
-	} else {
-		NAPI_GRO_CB(skb)->csum_valid = 0;
-	}
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
 		if (ptype->type != type || !ptype->callbacks.gro_receive)
@@ -3980,7 +3973,22 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		NAPI_GRO_CB(skb)->flush = 0;
 		NAPI_GRO_CB(skb)->free = 0;
 		NAPI_GRO_CB(skb)->udp_mark = 0;
-		NAPI_GRO_CB(skb)->encapsulation = 0;
+
+		/* Setup for GRO checksum validation */
+		switch (skb->ip_summed) {
+		case CHECKSUM_COMPLETE:
+			NAPI_GRO_CB(skb)->csum = skb->csum;
+			NAPI_GRO_CB(skb)->csum_valid = 1;
+			NAPI_GRO_CB(skb)->csum_cnt = 0;
+			break;
+		case CHECKSUM_UNNECESSARY:
+			NAPI_GRO_CB(skb)->csum_cnt = skb->csum_level + 1;
+			NAPI_GRO_CB(skb)->csum_valid = 0;
+			break;
+		default:
+			NAPI_GRO_CB(skb)->csum_cnt = 0;
+			NAPI_GRO_CB(skb)->csum_valid = 0;
+		}
 
 		pp = ptype->callbacks.gro_receive(&napi->gro_list, skb);
 		break;

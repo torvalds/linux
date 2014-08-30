@@ -1883,8 +1883,8 @@ struct napi_gro_cb {
 	/* GRO checksum is valid */
 	u8	csum_valid:1;
 
-	/* Number encapsulation layers crossed */
-	u8	encapsulation;
+	/* Number of checksums via CHECKSUM_UNNECESSARY */
+	u8	csum_cnt:3;
 
 	/* used to support CHECKSUM_COMPLETE for tunneling protocols */
 	__wsum	csum;
@@ -2179,8 +2179,7 @@ static inline bool __skb_gro_checksum_validate_needed(struct sk_buff *skb,
 						      __sum16 check)
 {
 	return (skb->ip_summed != CHECKSUM_PARTIAL &&
-		(skb->ip_summed != CHECKSUM_UNNECESSARY ||
-		 (NAPI_GRO_CB(skb)->encapsulation > skb->encapsulation)) &&
+		NAPI_GRO_CB(skb)->csum_cnt == 0 &&
 		(!zero_okay || check));
 }
 
@@ -2196,18 +2195,17 @@ static inline __sum16 __skb_gro_checksum_validate_complete(struct sk_buff *skb,
 	return __skb_gro_checksum_complete(skb);
 }
 
-/* Update skb for CHECKSUM_UNNECESSARY when we verified a top level
- * checksum or an encapsulated one during GRO. This saves work
- * if we fallback to normal path with the packet.
- */
 static inline void skb_gro_incr_csum_unnecessary(struct sk_buff *skb)
 {
-	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
-		if (NAPI_GRO_CB(skb)->encapsulation)
-			skb->encapsulation = 1;
-	} else if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		skb->encapsulation = 0;
+	if (NAPI_GRO_CB(skb)->csum_cnt > 0) {
+		/* Consume a checksum from CHECKSUM_UNNECESSARY */
+		NAPI_GRO_CB(skb)->csum_cnt--;
+	} else {
+		/* Update skb for CHECKSUM_UNNECESSARY and csum_level when we
+		 * verified a new top level checksum or an encapsulated one
+		 * during GRO. This saves work if we fallback to normal path.
+		 */
+		__skb_incr_checksum_unnecessary(skb);
 	}
 }
 
