@@ -293,7 +293,7 @@ static int fld_client_proc_init(struct lu_client_fld *fld)
 	if (rc) {
 		CERROR("%s: Can't init FLD proc, rc %d\n",
 		       fld->lcf_name, rc);
-		GOTO(out_cleanup, rc);
+		goto out_cleanup;
 	}
 
 	return 0;
@@ -363,12 +363,12 @@ int fld_client_init(struct lu_client_fld *fld,
 	if (IS_ERR(fld->lcf_cache)) {
 		rc = PTR_ERR(fld->lcf_cache);
 		fld->lcf_cache = NULL;
-		GOTO(out, rc);
+		goto out;
 	}
 
 	rc = fld_client_proc_init(fld);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 out:
 	if (rc)
 		fld_client_fini(fld);
@@ -441,11 +441,13 @@ int fld_client_rpc(struct obd_export *exp,
 	if (fld_op != FLD_LOOKUP)
 		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
-		GOTO(out_req, rc);
+		goto out_req;
 
 	prange = req_capsule_server_get(&req->rq_pill, &RMF_FLD_MDFLD);
-	if (prange == NULL)
-		GOTO(out_req, rc = -EFAULT);
+	if (prange == NULL) {
+		rc = -EFAULT;
+		goto out_req;
+	}
 	*range = *prange;
 out_req:
 	ptlrpc_req_finished(req);

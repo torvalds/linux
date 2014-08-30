@@ -113,7 +113,7 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	if (seq->lcs_type == LUSTRE_SEQ_METADATA)
 		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
-		GOTO(out_req, rc);
+		goto out_req;
 
 	out = req_capsule_server_get(&req->rq_pill, &RMF_SEQ_RANGE);
 	*output = *out;
@@ -121,13 +121,15 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	if (!range_is_sane(output)) {
 		CERROR("%s: Invalid range received from server: "
 		       DRANGE"\n", seq->lcs_name, PRANGE(output));
-		GOTO(out_req, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_req;
 	}
 
 	if (range_is_exhausted(output)) {
 		CERROR("%s: Range received from server is exhausted: "
 		       DRANGE"]\n", seq->lcs_name, PRANGE(output));
-		GOTO(out_req, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_req;
 	}
 
 	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence "DRANGE"]\n",
@@ -430,7 +432,7 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 	if (rc) {
 		CERROR("%s: Can't init sequence manager proc, rc %d\n",
 		       seq->lcs_name, rc);
-		GOTO(out_cleanup, rc);
+		goto out_cleanup;
 	}
 
 	return 0;
@@ -508,8 +510,10 @@ int client_fid_init(struct obd_device *obd,
 		return -ENOMEM;
 
 	OBD_ALLOC(prefix, MAX_OBD_NAME + 5);
-	if (prefix == NULL)
-		GOTO(out_free_seq, rc = -ENOMEM);
+	if (prefix == NULL) {
+		rc = -ENOMEM;
+		goto out_free_seq;
+	}
 
 	snprintf(prefix, MAX_OBD_NAME + 5, "cli-%s", obd->obd_name);
 
@@ -517,7 +521,7 @@ int client_fid_init(struct obd_device *obd,
 	rc = seq_client_init(cli->cl_seq, exp, type, prefix, NULL);
 	OBD_FREE(prefix, MAX_OBD_NAME + 5);
 	if (rc)
-		GOTO(out_free_seq, rc);
+		goto out_free_seq;
 
 	return rc;
 out_free_seq:
