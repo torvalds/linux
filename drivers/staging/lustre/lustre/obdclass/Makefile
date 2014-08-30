@@ -6,5 +6,4 @@ obdclass-y := linux/linux-module.o linux/linux-obdo.o linux/linux-sysctl.o \
 	      lustre_handles.o lustre_peer.o llog_osd.o \
 	      local_storage.o statfs_pack.o obdo.o obd_config.o obd_mount.o\
 	      mea.o lu_object.o dt_object.o capa.o cl_object.o   \
-	      cl_page.o cl_lock.o cl_io.o lu_ref.o acl.o \
-	      lu_ucred.o
+	      cl_page.o cl_lock.o cl_io.o lu_ref.o acl.o
