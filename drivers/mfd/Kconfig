@@ -597,6 +597,17 @@ config MFD_RC5T583
 	  Additional drivers must be enabled in order to use the
 	  different functionality of the device.
 
+config MFD_RN5T618
+	tristate "Ricoh RN5T5618 PMIC"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say yes here to add support for the Ricoh RN5T618 PMIC. This
+	  driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 config MFD_SEC_CORE
 	bool "SAMSUNG Electronics PMIC Series Support"
 	depends on I2C=y
