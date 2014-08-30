@@ -144,8 +144,10 @@ static int do_check_remote_perm(struct ll_inode_info *lli, int mask)
 		break;
 	}
 
-	if (!found)
-		GOTO(out, rc = -ENOENT);
+	if (!found) {
+		rc = -ENOENT;
+		goto out;
+	}
 
 	CDEBUG(D_SEC, "found remote perm: %u/%u/%u/%u - %#x\n",
 	       lrp->lrp_uid, lrp->lrp_gid, lrp->lrp_fsuid, lrp->lrp_fsgid,

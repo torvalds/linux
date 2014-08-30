@@ -181,12 +181,14 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	LASSERT(vmpage != NULL);
 
 	io = ll_fault_io_init(vma, &env,  &nest, vmpage->index, NULL);
-	if (IS_ERR(io))
-		GOTO(out, result = PTR_ERR(io));
+	if (IS_ERR(io)) {
+		result = PTR_ERR(io);
+		goto out;
+	}
 
 	result = io->ci_result;
 	if (result < 0)
-		GOTO(out_io, result);
+		goto out_io;
 
 	io->u.ci_fault.ft_mkwrite = 1;
 	io->u.ci_fault.ft_writable = 1;

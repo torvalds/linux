@@ -441,7 +441,7 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 				continue;
 			}
 
-			GOTO(out, result);
+			goto out;
 		}
 		iov_iter_advance(iter, result);
 		tot_bytes += result;

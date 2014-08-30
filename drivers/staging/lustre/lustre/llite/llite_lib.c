@@ -256,10 +256,10 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				   "recovery, of which this client is not a "
 				   "part. Please wait for recovery to complete,"
 				   " abort, or time out.\n", md);
-		GOTO(out, err);
+		goto out;
 	} else if (err) {
 		CERROR("cannot connect to %s: rc = %d\n", md, err);
-		GOTO(out, err);
+		goto out;
 	}
 
 	sbi->ll_md_exp->exp_connect_data = *data;
@@ -269,7 +269,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (err) {
 		CERROR("%s: Can't init metadata layer FID infrastructure, "
 		       "rc = %d\n", sbi->ll_md_exp->exp_obd->obd_name, err);
-		GOTO(out_md, err);
+		goto out_md;
 	}
 
 	/* For mount, we only need fs info from MDT0, and also in DNE, it
@@ -279,7 +279,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 			cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			OBD_STATFS_FOR_MDT0);
 	if (err)
-		GOTO(out_md_fid, err);
+		goto out_md_fid;
 
 	/* This needs to be after statfs to ensure connect has finished.
 	 * Note that "data" does NOT contain the valid connect reply.
@@ -302,7 +302,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				   "server or downgrade client.\n",
 				   sbi->ll_md_exp->exp_obd->obd_name, buf);
 		OBD_FREE(buf, PAGE_CACHE_SIZE);
-		GOTO(out_md_fid, err = -EPROTO);
+		err = -EPROTO;
+		goto out_md_fid;
 	}
 
 	size = sizeof(*data);
@@ -311,7 +312,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (err) {
 		CERROR("%s: Get connect data failed: rc = %d\n",
 		       sbi->ll_md_exp->exp_obd->obd_name, err);
-		GOTO(out_md_fid, err);
+		goto out_md_fid;
 	}
 
 	LASSERT(osfs->os_bsize);
@@ -392,7 +393,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	obd = class_name2obd(dt);
 	if (!obd) {
 		CERROR("DT %s: not setup or attached\n", dt);
-		GOTO(out_md_fid, err = -ENODEV);
+		err = -ENODEV;
+		goto out_md_fid;
 	}
 
 	data->ocd_connect_flags = OBD_CONNECT_GRANT     | OBD_CONNECT_VERSION  |
@@ -443,11 +445,11 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				   "recovery, of which this client is not a "
 				   "part.  Please wait for recovery to "
 				   "complete, abort, or time out.\n", dt);
-		GOTO(out_md, err);
+		goto out_md;
 	} else if (err) {
 		CERROR("%s: Cannot connect to %s: rc = %d\n",
 		       sbi->ll_dt_exp->exp_obd->obd_name, dt, err);
-		GOTO(out_md, err);
+		goto out_md;
 	}
 
 	sbi->ll_dt_exp->exp_connect_data = *data;
@@ -457,7 +459,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (err) {
 		CERROR("%s: Can't init data layer FID infrastructure, "
 		       "rc = %d\n", sbi->ll_dt_exp->exp_obd->obd_name, err);
-		GOTO(out_dt, err);
+		goto out_dt;
 	}
 
 	mutex_lock(&sbi->ll_lco.lco_lock);
@@ -470,13 +472,14 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	err = md_getstatus(sbi->ll_md_exp, &sbi->ll_root_fid, &oc);
 	if (err) {
 		CERROR("cannot mds_connect: rc = %d\n", err);
-		GOTO(out_lock_cn_cb, err);
+		goto out_lock_cn_cb;
 	}
 	if (!fid_is_sane(&sbi->ll_root_fid)) {
 		CERROR("%s: Invalid root fid "DFID" during mount\n",
 		       sbi->ll_md_exp->exp_obd->obd_name,
 		       PFID(&sbi->ll_root_fid));
-		GOTO(out_lock_cn_cb, err = -EINVAL);
+		err = -EINVAL;
+		goto out_lock_cn_cb;
 	}
 	CDEBUG(D_SUPER, "rootfid "DFID"\n", PFID(&sbi->ll_root_fid));
 
@@ -494,8 +497,10 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		valid |= OBD_MD_FLACL;
 
 	OBD_ALLOC_PTR(op_data);
-	if (op_data == NULL)
-		GOTO(out_lock_cn_cb, err = -ENOMEM);
+	if (op_data == NULL) {
+		err = -ENOMEM;
+		goto out_lock_cn_cb;
+	}
 
 	op_data->op_fid1 = sbi->ll_root_fid;
 	op_data->op_mode = 0;
@@ -509,7 +514,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (err) {
 		CERROR("%s: md_getattr failed for root: rc = %d\n",
 		       sbi->ll_md_exp->exp_obd->obd_name, err);
-		GOTO(out_lock_cn_cb, err);
+		goto out_lock_cn_cb;
 	}
 
 	err = md_get_lustre_md(sbi->ll_md_exp, request, sbi->ll_dt_exp,
@@ -517,7 +522,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (err) {
 		CERROR("failed to understand root inode md: rc = %d\n", err);
 		ptlrpc_req_finished(request);
-		GOTO(out_lock_cn_cb, err);
+		goto out_lock_cn_cb;
 	}
 
 	LASSERT(fid_is_sane(&sbi->ll_root_fid));
@@ -539,13 +544,13 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		err = IS_ERR(root) ? PTR_ERR(root) : -EBADF;
 		root = NULL;
 		CERROR("lustre_lite: bad iget4 for root\n");
-		GOTO(out_root, err);
+		goto out_root;
 	}
 
 	err = ll_close_thread_start(&sbi->ll_lcq);
 	if (err) {
 		CERROR("cannot start close thread: rc %d\n", err);
-		GOTO(out_root, err);
+		goto out_root;
 	}
 
 #ifdef CONFIG_FS_POSIX_ACL
@@ -569,7 +574,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (sb->s_root == NULL) {
 		CERROR("%s: can't make root dentry\n",
 			ll_get_fsname(sb, NULL, 0));
-		GOTO(out_root, err = -ENOMEM);
+		err = -ENOMEM;
+		goto out_root;
 	}
 
 	sbi->ll_sdev_orig = sb->s_dev;
@@ -1003,16 +1009,16 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 
 	err = ll_options(lsi->lsi_lmd->lmd_opts, &sbi->ll_flags);
 	if (err)
-		GOTO(out_free, err);
+		goto out_free;
 
 	err = bdi_init(&lsi->lsi_bdi);
 	if (err)
-		GOTO(out_free, err);
+		goto out_free;
 	lsi->lsi_flags |= LSI_BDI_INITIALIZED;
 	lsi->lsi_bdi.capabilities = BDI_CAP_MAP_COPY;
 	err = ll_bdi_register(&lsi->lsi_bdi);
 	if (err)
-		GOTO(out_free, err);
+		goto out_free;
 
 	sb->s_bdi = &lsi->lsi_bdi;
 	/* kernel >= 2.6.38 store dentry operations in sb->s_d_op. */
@@ -1028,7 +1034,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	err = lustre_process_log(sb, profilenm, cfg);
 	if (err < 0) {
 		CERROR("Unable to process log: %d\n", err);
-		GOTO(out_free, err);
+		goto out_free;
 	}
 
 	/* Profile set with LCFG_MOUNTOPT so we can find our mdc and osc obds */
@@ -1037,19 +1043,24 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 		LCONSOLE_ERROR_MSG(0x156, "The client profile '%s' could not be"
 				   " read from the MGS.  Does that filesystem "
 				   "exist?\n", profilenm);
-		GOTO(out_free, err = -EINVAL);
+		err = -EINVAL;
+		goto out_free;
 	}
 	CDEBUG(D_CONFIG, "Found profile %s: mdc=%s osc=%s\n", profilenm,
 	       lprof->lp_md, lprof->lp_dt);
 
 	OBD_ALLOC(dt, strlen(lprof->lp_dt) + instlen + 2);
-	if (!dt)
-		GOTO(out_free, err = -ENOMEM);
+	if (!dt) {
+		err = -ENOMEM;
+		goto out_free;
+	}
 	sprintf(dt, "%s-%p", lprof->lp_dt, cfg->cfg_instance);
 
 	OBD_ALLOC(md, strlen(lprof->lp_md) + instlen + 2);
-	if (!md)
-		GOTO(out_free, err = -ENOMEM);
+	if (!md) {
+		err = -ENOMEM;
+		goto out_free;
+	}
 	sprintf(md, "%s-%p", lprof->lp_md, cfg->cfg_instance);
 
 	/* connections, registrations, sb setup */
@@ -1467,14 +1478,15 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 
 	rc = ll_md_setattr(dentry, op_data, &mod);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	/* truncate failed (only when non HSM import), others succeed */
 	if (file_is_released) {
 		if ((attr->ia_valid & ATTR_SIZE) && !hsm_import)
-			GOTO(out, rc = -ENODATA);
+			rc = -ENODATA;
 		else
-			GOTO(out, rc = 0);
+			rc = 0;
+		goto out;
 	}
 
 	/* RPC to MDT is sent, cancel data modification flag */
@@ -1485,8 +1497,10 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	}
 
 	ll_ioepoch_open(lli, op_data->op_ioepoch);
-	if (!S_ISREG(inode->i_mode))
-		GOTO(out, rc = 0);
+	if (!S_ISREG(inode->i_mode)) {
+		rc = 0;
+		goto out;
+	}
 
 	if (attr->ia_valid & (ATTR_SIZE |
 			      ATTR_ATIME | ATTR_ATIME_SET |
@@ -2103,7 +2117,7 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 			rc = IS_ERR(*inode) ? PTR_ERR(*inode) : -ENOMEM;
 			*inode = NULL;
 			CERROR("new_inode -fatal: rc %d\n", rc);
-			GOTO(out, rc);
+			goto out;
 		}
 	}
 
@@ -2152,36 +2166,44 @@ int ll_obd_statfs(struct inode *inode, void *arg)
 	__u32 flags;
 	int len = 0, rc;
 
-	if (!inode || !(sbi = ll_i2sbi(inode)))
-		GOTO(out_statfs, rc = -EINVAL);
+	if (!inode || !(sbi = ll_i2sbi(inode))) {
+		rc = -EINVAL;
+		goto out_statfs;
+	}
 
 	rc = obd_ioctl_getdata(&buf, &len, arg);
 	if (rc)
-		GOTO(out_statfs, rc);
+		goto out_statfs;
 
 	data = (void*)buf;
 	if (!data->ioc_inlbuf1 || !data->ioc_inlbuf2 ||
-	    !data->ioc_pbuf1 || !data->ioc_pbuf2)
-		GOTO(out_statfs, rc = -EINVAL);
+	    !data->ioc_pbuf1 || !data->ioc_pbuf2) {
+		rc = -EINVAL;
+		goto out_statfs;
+	}
 
 	if (data->ioc_inllen1 != sizeof(__u32) ||
 	    data->ioc_inllen2 != sizeof(__u32) ||
 	    data->ioc_plen1 != sizeof(struct obd_statfs) ||
-	    data->ioc_plen2 != sizeof(struct obd_uuid))
-		GOTO(out_statfs, rc = -EINVAL);
+	    data->ioc_plen2 != sizeof(struct obd_uuid)) {
+		rc = -EINVAL;
+		goto out_statfs;
+	}
 
 	memcpy(&type, data->ioc_inlbuf1, sizeof(__u32));
 	if (type & LL_STATFS_LMV)
 		exp = sbi->ll_md_exp;
 	else if (type & LL_STATFS_LOV)
 		exp = sbi->ll_dt_exp;
-	else
-		GOTO(out_statfs, rc = -ENODEV);
+	else {
+		rc = -ENODEV;
+		goto out_statfs;
+	}
 
 	flags = (type & LL_STATFS_NODELAY) ? OBD_STATFS_NODELAY : 0;
 	rc = obd_iocontrol(IOC_OBD_STATFS, exp, len, buf, &flags);
 	if (rc)
-		GOTO(out_statfs, rc);
+		goto out_statfs;
 out_statfs:
 	if (buf)
 		obd_ioctl_freedata(buf, len);

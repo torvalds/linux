@@ -236,11 +236,15 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		.ctx.actor = ll_nfs_get_name_filldir,
 	};
 
-	if (!dir || !S_ISDIR(dir->i_mode))
-		GOTO(out, rc = -ENOTDIR);
+	if (!dir || !S_ISDIR(dir->i_mode)) {
+		rc = -ENOTDIR;
+		goto out;
+	}
 
-	if (!dir->i_fop)
-		GOTO(out, rc = -EINVAL);
+	if (!dir->i_fop) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	mutex_lock(&dir->i_mutex);
 	rc = ll_dir_read(dir, &lgd.ctx);

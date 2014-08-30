@@ -398,7 +398,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 	if (IS_ERR(page)) {
 		CERROR("dir page locate: "DFID" at %llu: rc %ld\n",
 		       PFID(ll_inode2fid(dir)), lhash, PTR_ERR(page));
-		GOTO(out_unlock, page);
+		goto out_unlock;
 	} else if (page != NULL) {
 		/*
 		 * XXX nikita: not entirely correct handling of a corner case:
@@ -414,7 +414,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		 * it as an "overflow" page. 1. invalidate all pages at
 		 * once. 2. use HASH|1 as an index for P1.
 		 */
-		GOTO(hash_collision, page);
+		goto hash_collision;
 	}
 
 	page = read_cache_page(mapping, hash_x_index(hash, hash64),
@@ -422,7 +422,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 	if (IS_ERR(page)) {
 		CERROR("read cache page: "DFID" at %llu: rc %ld\n",
 		       PFID(ll_inode2fid(dir)), hash, PTR_ERR(page));
-		GOTO(out_unlock, page);
+		goto out_unlock;
 	}
 
 	wait_on_page_locked(page);
@@ -604,11 +604,13 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	       " 32bit_api %d\n", inode->i_ino, inode->i_generation,
 	       inode, (unsigned long)lfd->lfd_pos, i_size_read(inode), api32);
 
-	if (lfd->lfd_pos == MDS_DIR_END_OFF)
+	if (lfd->lfd_pos == MDS_DIR_END_OFF) {
 		/*
 		 * end-of-file.
 		 */
-		GOTO(out, rc = 0);
+		rc = 0;
+		goto out;
+	}
 
 	ctx->pos = lfd->lfd_pos;
 	rc = ll_dir_read(inode, ctx);
@@ -663,8 +665,10 @@ int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
 	op_data = ll_prep_md_op_data(NULL, dir, NULL, filename,
 				     strlen(filename), mode, LUSTRE_OPC_MKDIR,
 				     lump);
-	if (IS_ERR(op_data))
-		GOTO(err_exit, err = PTR_ERR(op_data));
+	if (IS_ERR(op_data)) {
+		err = PTR_ERR(op_data);
+		goto err_exit;
+	}
 
 	op_data->op_cli_flags |= CLI_SET_MEA;
 	err = md_create(sbi->ll_md_exp, op_data, lump, sizeof(*lump), mode,
@@ -673,7 +677,7 @@ int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
 			cfs_curproc_cap_pack(), 0, &request);
 	ll_finish_md_op_data(op_data);
 	if (err)
-		GOTO(err_exit, err);
+		goto err_exit;
 err_exit:
 	ptlrpc_req_finished(request);
 	return err;
@@ -748,8 +752,10 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 		char *buf;
 
 		OBD_ALLOC(param, MGS_PARAM_MAXLEN);
-		if (param == NULL)
-			GOTO(end, rc = -ENOMEM);
+		if (param == NULL) {
+			rc = -ENOMEM;
+			goto end;
+		}
 
 		buf = param;
 		/* Get fsname and assume devname to be -MDT0000. */
@@ -762,14 +768,14 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 			lump ? le32_to_cpu(lump->lmm_stripe_size) : 0);
 		rc = ll_send_mgc_param(mgc->u.cli.cl_mgc_mgsexp, param);
 		if (rc)
-			GOTO(end, rc);
+			goto end;
 
 		/* Set root stripecount */
 		sprintf(buf, ".stripecount=%hd",
 			lump ? le16_to_cpu(lump->lmm_stripe_count) : 0);
 		rc = ll_send_mgc_param(mgc->u.cli.cl_mgc_mgsexp, param);
 		if (rc)
-			GOTO(end, rc);
+			goto end;
 
 		/* Set root stripeoffset */
 		sprintf(buf, ".stripeoffset=%hd",
@@ -811,7 +817,7 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 		CDEBUG(D_INFO, "md_getattr failed on inode "
 		       "%lu/%u: rc %d\n", inode->i_ino,
 		       inode->i_generation, rc);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
@@ -821,7 +827,8 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 
 	if (!(body->valid & (OBD_MD_FLEASIZE | OBD_MD_FLDIREA)) ||
 	    lmmsize == 0) {
-		GOTO(out, rc = -ENODATA);
+		rc = -ENODATA;
+		goto out;
 	}
 
 	lmm = req_capsule_server_sized_get(&req->rq_pill,
@@ -917,7 +924,8 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 			hpk.hpk_flags |= HP_FLAG_RETRY;
 			/* hpk_errval is >= 0 */
 			hpk.hpk_errval = -PTR_ERR(inode);
-			GOTO(progress, rc = PTR_ERR(inode));
+			rc = PTR_ERR(inode);
+			goto progress;
 		}
 
 		/* Read current file data version */
@@ -931,7 +939,7 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 			hpk.hpk_flags |= HP_FLAG_RETRY;
 			/* hpk_errval must be >= 0 */
 			hpk.hpk_errval = -rc;
-			GOTO(progress, rc);
+			goto progress;
 		}
 
 		/* Store it the hsm_copy for later copytool use.
@@ -997,7 +1005,8 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 			hpk.hpk_flags |= HP_FLAG_RETRY;
 			/* hpk_errval must be >= 0 */
 			hpk.hpk_errval = -PTR_ERR(inode);
-			GOTO(progress, rc = PTR_ERR(inode));
+			rc = PTR_ERR(inode);
+			goto progress;
 		}
 
 		rc = ll_data_version(inode, &data_version,
@@ -1008,7 +1017,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 				      "Request could not be confirmed.\n");
 			if (hpk.hpk_errval == 0)
 				hpk.hpk_errval = -rc;
-			GOTO(progress, rc);
+			goto progress;
 		}
 
 		/* Store it the hsm_copy for later copytool use.
@@ -1165,8 +1174,10 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 			struct obd_quotactl *oqctl_tmp;
 
 			OBD_ALLOC_PTR(oqctl_tmp);
-			if (oqctl_tmp == NULL)
-				GOTO(out, rc = -ENOMEM);
+			if (oqctl_tmp == NULL) {
+				rc = -ENOMEM;
+				goto out;
+			}
 
 			oqctl_tmp->qc_cmd = Q_GETOQUOTA;
 			oqctl_tmp->qc_id = oqctl->qc_id;
@@ -1286,20 +1297,23 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (namelen < 1) {
 			CDEBUG(D_INFO, "IOC_MDC_LOOKUP missing filename\n");
-			GOTO(out_free, rc = -EINVAL);
+			rc = -EINVAL;
+			goto out_free;
 		}
 
 		op_data = ll_prep_md_op_data(NULL, inode, NULL, filename, namelen,
 					     0, LUSTRE_OPC_ANY, NULL);
-		if (IS_ERR(op_data))
-			GOTO(out_free, rc = PTR_ERR(op_data));
+		if (IS_ERR(op_data)) {
+			rc = PTR_ERR(op_data);
+			goto out_free;
+		}
 
 		op_data->op_valid = OBD_MD_FLID;
 		rc = md_getattr_name(sbi->ll_md_exp, op_data, &request);
 		ll_finish_md_op_data(op_data);
 		if (rc < 0) {
 			CDEBUG(D_INFO, "md_getattr_name: %d\n", rc);
-			GOTO(out_free, rc);
+			goto out_free;
 		}
 		ptlrpc_req_finished(request);
 out_free:
@@ -1321,15 +1335,18 @@ out_free:
 
 		data = (void *)buf;
 		if (data->ioc_inlbuf1 == NULL || data->ioc_inlbuf2 == NULL ||
-		    data->ioc_inllen1 == 0 || data->ioc_inllen2 == 0)
-			GOTO(lmv_out_free, rc = -EINVAL);
+		    data->ioc_inllen1 == 0 || data->ioc_inllen2 == 0) {
+			rc = -EINVAL;
+			goto lmv_out_free;
+		}
 
 		filename = data->ioc_inlbuf1;
 		namelen = data->ioc_inllen1;
 
 		if (namelen < 1) {
 			CDEBUG(D_INFO, "IOC_MDC_LOOKUP missing filename\n");
-			GOTO(lmv_out_free, rc = -EINVAL);
+			rc = -EINVAL;
+			goto lmv_out_free;
 		}
 		lum = (struct lmv_user_md *)data->ioc_inlbuf2;
 		lumlen = data->ioc_inllen2;
@@ -1338,7 +1355,8 @@ out_free:
 		    lumlen != sizeof(*lum)) {
 			CERROR("%s: wrong lum magic %x or size %d: rc = %d\n",
 			       filename, lum->lum_magic, lumlen, -EFAULT);
-			GOTO(lmv_out_free, rc = -EINVAL);
+			rc = -EINVAL;
+			goto lmv_out_free;
 		}
 
 		/**
@@ -1395,22 +1413,28 @@ lmv_out_free:
 
 		lum_size = lmv_user_md_size(1, LMV_MAGIC_V1);
 		OBD_ALLOC(tmp, lum_size);
-		if (tmp == NULL)
-			GOTO(free_lmv, rc = -ENOMEM);
+		if (tmp == NULL) {
+			rc = -ENOMEM;
+			goto free_lmv;
+		}
 
 		*tmp = lum;
 		tmp->lum_type = LMV_STRIPE_TYPE;
 		tmp->lum_stripe_count = 1;
 		mdtindex = ll_get_mdt_idx(inode);
-		if (mdtindex < 0)
-			GOTO(free_lmv, rc = -ENOMEM);
+		if (mdtindex < 0) {
+			rc = -ENOMEM;
+			goto free_lmv;
+		}
 
 		tmp->lum_stripe_offset = mdtindex;
 		tmp->lum_objects[0].lum_mds = mdtindex;
 		memcpy(&tmp->lum_objects[0].lum_fid, ll_inode2fid(inode),
 		       sizeof(struct lu_fid));
-		if (copy_to_user((void *)arg, tmp, lum_size))
-			GOTO(free_lmv, rc = -EFAULT);
+		if (copy_to_user((void *)arg, tmp, lum_size)) {
+			rc = -EFAULT;
+			goto free_lmv;
+		}
 free_lmv:
 		if (tmp)
 			OBD_FREE(tmp, lum_size);
@@ -1434,8 +1458,10 @@ free_lmv:
 			return PTR_ERR(filename);
 
 		namelen = strlen(filename);
-		if (namelen < 1)
-			GOTO(out_rmdir, rc = -EINVAL);
+		if (namelen < 1) {
+			rc = -EINVAL;
+			goto out_rmdir;
+		}
 
 		rc = ll_rmdir_entry(inode, filename, namelen);
 out_rmdir:
@@ -1475,15 +1501,17 @@ out_rmdir:
 						      &RMF_MDT_BODY);
 			LASSERT(body != NULL);
 		} else {
-			GOTO(out_req, rc);
+			goto out_req;
 		}
 
 		if (rc < 0) {
 			if (rc == -ENODATA && (cmd == IOC_MDC_GETFILEINFO ||
-					       cmd == LL_IOC_MDC_GETINFO))
-				GOTO(skip_lmm, rc = 0);
+					       cmd == LL_IOC_MDC_GETINFO)) {
+				rc = 0;
+				goto skip_lmm;
+			}
 			else
-				GOTO(out_req, rc);
+				goto out_req;
 		}
 
 		if (cmd == IOC_MDC_GETFILESTRIPE ||
@@ -1495,8 +1523,10 @@ out_rmdir:
 			lump = &lmdp->lmd_lmm;
 		}
 		if (copy_to_user(lump, lmm, lmmsize)) {
-			if (copy_to_user(lump, lmm, sizeof(*lump)))
-				GOTO(out_req, rc = -EFAULT);
+			if (copy_to_user(lump, lmm, sizeof(*lump))) {
+				rc = -EFAULT;
+				goto out_req;
+			}
 			rc = -EOVERFLOW;
 		}
 skip_lmm:
@@ -1519,8 +1549,10 @@ skip_lmm:
 			st.st_ino     = inode->i_ino;
 
 			lmdp = (struct lov_user_mds_data *)arg;
-			if (copy_to_user(&lmdp->lmd_st, &st, sizeof(st)))
-				GOTO(out_req, rc = -EFAULT);
+			if (copy_to_user(&lmdp->lmd_st, &st, sizeof(st))) {
+				rc = -EFAULT;
+				goto out_req;
+			}
 		}
 
 out_req:
@@ -1547,8 +1579,10 @@ out_req:
 		OBD_ALLOC_LARGE(lmm, lmmsize);
 		if (lmm == NULL)
 			return -ENOMEM;
-		if (copy_from_user(lmm, lum, lmmsize))
-			GOTO(free_lmm, rc = -EFAULT);
+		if (copy_from_user(lmm, lum, lmmsize)) {
+			rc = -EFAULT;
+			goto free_lmm;
+		}
 
 		switch (lmm->lmm_magic) {
 		case LOV_USER_MAGIC_V1:
@@ -1570,22 +1604,27 @@ out_req:
 			lustre_swab_lov_user_md_v3((struct lov_user_md_v3 *)lmm);
 			break;
 		default:
-			GOTO(free_lmm, rc = -EINVAL);
+			rc = -EINVAL;
+			goto free_lmm;
 		}
 
 		rc = obd_unpackmd(sbi->ll_dt_exp, &lsm, lmm, lmmsize);
-		if (rc < 0)
-			GOTO(free_lmm, rc = -ENOMEM);
+		if (rc < 0) {
+			rc = -ENOMEM;
+			goto free_lmm;
+		}
 
 		/* Perform glimpse_size operation. */
 		memset(&st, 0, sizeof(st));
 
 		rc = ll_glimpse_ioctl(sbi, lsm, &st);
 		if (rc)
-			GOTO(free_lsm, rc);
+			goto free_lsm;
 
-		if (copy_to_user(&lumd->lmd_st, &st, sizeof(st)))
-			GOTO(free_lsm, rc = -EFAULT);
+		if (copy_to_user(&lumd->lmd_st, &st, sizeof(st))) {
+			rc = -EFAULT;
+			goto free_lsm;
+		}
 
 free_lsm:
 		obd_free_memmd(sbi->ll_dt_exp, &lsm);
@@ -1639,7 +1678,7 @@ free_lmm:
 			if (copy_to_user((void *)arg, check,
 					     sizeof(*check)))
 				CDEBUG(D_QUOTA, "copy_to_user failed\n");
-			GOTO(out_poll, rc);
+			goto out_poll;
 		}
 
 		rc = obd_iocontrol(cmd, sbi->ll_dt_exp, 0, (void *)check,
@@ -1649,7 +1688,7 @@ free_lmm:
 			if (copy_to_user((void *)arg, check,
 					     sizeof(*check)))
 				CDEBUG(D_QUOTA, "copy_to_user failed\n");
-			GOTO(out_poll, rc);
+			goto out_poll;
 		}
 out_poll:
 		OBD_FREE_PTR(check);
@@ -1667,11 +1706,15 @@ out_poll:
 			return -ENOMEM;
 
 		OBD_ALLOC_PTR(qctl_20);
-		if (!qctl_20)
-			GOTO(out_quotactl_18, rc = -ENOMEM);
+		if (!qctl_20) {
+			rc = -ENOMEM;
+			goto out_quotactl_18;
+		}
 
-		if (copy_from_user(qctl_18, (void *)arg, sizeof(*qctl_18)))
-			GOTO(out_quotactl_20, rc = -ENOMEM);
+		if (copy_from_user(qctl_18, (void *)arg, sizeof(*qctl_18))) {
+			rc = -ENOMEM;
+			goto out_quotactl_20;
+		}
 
 		QCTL_COPY(qctl_20, qctl_18);
 		qctl_20->qc_idx = 0;
@@ -1716,8 +1759,10 @@ out_quotactl_18:
 		if (!qctl)
 			return -ENOMEM;
 
-		if (copy_from_user(qctl, (void *)arg, sizeof(*qctl)))
-			GOTO(out_quotactl, rc = -EFAULT);
+		if (copy_from_user(qctl, (void *)arg, sizeof(*qctl))) {
+			rc = -EFAULT;
+			goto out_quotactl;
+		}
 
 		rc = quotactl_ioctl(sbi, qctl);
 
@@ -1931,14 +1976,14 @@ static loff_t ll_dir_seek(struct file *file, loff_t offset, int origin)
 			break;
 		case SEEK_END:
 			if (offset > 0)
-				GOTO(out, ret);
+				goto out;
 			if (api32)
 				offset += LL_DIR_END_OFF_32BIT;
 			else
 				offset += LL_DIR_END_OFF;
 			break;
 		default:
-			GOTO(out, ret);
+			goto out;
 	}
 
 	if (offset >= 0 &&
@@ -1957,7 +2002,7 @@ static loff_t ll_dir_seek(struct file *file, loff_t offset, int origin)
 		}
 		ret = offset;
 	}
-	GOTO(out, ret);
+	goto out;
 
 out:
 	mutex_unlock(&inode->i_mutex);

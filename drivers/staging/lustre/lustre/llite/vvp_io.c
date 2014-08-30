@@ -704,7 +704,8 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 		/* return +1 to stop cl_io_loop() and ll_fault() will catch
 		 * and retry. */
-		GOTO(out, result = +1);
+		result = +1;
+		goto out;
 	}
 
 
@@ -733,13 +734,16 @@ static int vvp_io_fault_start(const struct lu_env *env,
 			 * in ll_page_mkwrite0. Thus we return -ENODATA
 			 * to handle both cases
 			 */
-			GOTO(out, result = -ENODATA);
+			result = -ENODATA;
+			goto out;
 		}
 	}
 
 	page = cl_page_find(env, obj, fio->ft_index, vmpage, CPT_CACHEABLE);
-	if (IS_ERR(page))
-		GOTO(out, result = PTR_ERR(page));
+	if (IS_ERR(page)) {
+		result = PTR_ERR(page);
+		goto out;
+	}
 
 	/* if page is going to be written, we should add this page into cache
 	 * earlier. */
@@ -771,7 +775,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 				/* we're in big trouble, what can we do now? */
 				if (result == -EDQUOT)
 					result = -ENOSPC;
-				GOTO(out, result);
+				goto out;
 			} else
 				cl_page_disown(env, io, page);
 		}

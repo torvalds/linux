@@ -410,7 +410,8 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 	/* easy - add more LRU slots. */
 	if (diff >= 0) {
 		atomic_add(diff, &cache->ccc_lru_left);
-		GOTO(out, rc = 0);
+		rc = 0;
+		goto out;
 	}
 
 	diff = -diff;
@@ -997,8 +998,10 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	/* File operations stats */
 	sbi->ll_stats = lprocfs_alloc_stats(LPROC_LL_FILE_OPCODES,
 					    LPROCFS_STATS_FLAG_NONE);
-	if (sbi->ll_stats == NULL)
-		GOTO(out, err = -ENOMEM);
+	if (sbi->ll_stats == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 	/* do counter init */
 	for (id = 0; id < LPROC_LL_FILE_OPCODES; id++) {
 		__u32 type = llite_opcode_table[id].type;
@@ -1016,12 +1019,14 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	}
 	err = lprocfs_register_stats(sbi->ll_proc_root, "stats", sbi->ll_stats);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	sbi->ll_ra_stats = lprocfs_alloc_stats(ARRAY_SIZE(ra_stat_string),
 					       LPROCFS_STATS_FLAG_NONE);
-	if (sbi->ll_ra_stats == NULL)
-		GOTO(out, err = -ENOMEM);
+	if (sbi->ll_ra_stats == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	for (id = 0; id < ARRAY_SIZE(ra_stat_string); id++)
 		lprocfs_counter_init(sbi->ll_ra_stats, id, 0,
@@ -1029,12 +1034,12 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	err = lprocfs_register_stats(sbi->ll_proc_root, "read_ahead_stats",
 				     sbi->ll_ra_stats);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 
 	err = lprocfs_add_vars(sbi->ll_proc_root, lprocfs_llite_obd_vars, sb);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	/* MDC info */
 	obd = class_name2obd(mdc);
@@ -1044,20 +1049,22 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	LASSERT(obd->obd_type->typ_name != NULL);
 
 	dir = proc_mkdir(obd->obd_type->typ_name, sbi->ll_proc_root);
-	if (dir == NULL)
-		GOTO(out, err = -ENOMEM);
+	if (dir == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	snprintf(name, MAX_STRING_SIZE, "common_name");
 	lvars[0].fops = &llite_name_fops;
 	err = lprocfs_add_vars(dir, lvars, obd);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	snprintf(name, MAX_STRING_SIZE, "uuid");
 	lvars[0].fops = &llite_uuid_fops;
 	err = lprocfs_add_vars(dir, lvars, obd);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	/* OSC */
 	obd = class_name2obd(osc);
@@ -1067,14 +1074,16 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	LASSERT(obd->obd_type->typ_name != NULL);
 
 	dir = proc_mkdir(obd->obd_type->typ_name, sbi->ll_proc_root);
-	if (dir == NULL)
-		GOTO(out, err = -ENOMEM);
+	if (dir == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	snprintf(name, MAX_STRING_SIZE, "common_name");
 	lvars[0].fops = &llite_name_fops;
 	err = lprocfs_add_vars(dir, lvars, obd);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	snprintf(name, MAX_STRING_SIZE, "uuid");
 	lvars[0].fops = &llite_uuid_fops;
