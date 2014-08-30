@@ -246,7 +246,6 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 {
     u32 reg, info, seqinfo, offset, pts, pts_valid = 0;
     vframe_t *vf;
-    ulong flags;
     u64 pts_us64 = 0;;
 
     WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
