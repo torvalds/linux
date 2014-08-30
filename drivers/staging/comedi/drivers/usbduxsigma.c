@@ -155,7 +155,7 @@ struct usbduxsigma_private {
 	/* size of the PWM buffer which holds the bit pattern */
 	int pwm_buf_sz;
 	/* input buffer for the ISO-transfer */
-	uint32_t *in_buf;
+	__be32 *in_buf;
 	/* input buffer for single insn */
 	uint8_t *insn_buf;
 
