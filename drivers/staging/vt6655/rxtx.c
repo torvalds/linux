@@ -166,7 +166,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 		  unsigned int uNodeIndex, unsigned int *puMACfragNum);
 
 static
-unsigned int
+__le16
 s_uFillDataHead(
 	struct vnt_private *pDevice,
 	unsigned char byPktType,
@@ -671,7 +671,7 @@ s_uGetRTSCTSDuration(
 }
 
 static
-unsigned int
+__le16
 s_uFillDataHead(
 	struct vnt_private *pDevice,
 	unsigned char byPktType,
@@ -1202,7 +1202,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 	unsigned char *pbyIVHead;
 	unsigned char *pbyMacHdr;
 	unsigned short wFragType; //00:Non-Frag, 01:Start, 10:Mid, 11:Last
-	unsigned int uDuration;
+	__le16 uDuration;
 	unsigned char *pbyBuffer;
 	unsigned int cbIVlen = 0;
 	unsigned int cbICVlen = 0;
@@ -1448,7 +1448,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 				uDuration = s_uFillDataHead(pDevice, byPktType, pvTxDataHd, cbFragmentSize, uDMAIdx, bNeedACK,
 							    uFragIdx, cbLastFragmentSize, uMACfragNum, byFBOption, pDevice->wCurrentRate);
 				// Generate TX MAC Header
-				vGenerateMACHeader(pDevice, pbyMacHdr, (unsigned short)uDuration, psEthHeader, bNeedEncrypt,
+				vGenerateMACHeader(pDevice, pbyMacHdr, uDuration, psEthHeader, bNeedEncrypt,
 						   wFragType, uDMAIdx, uFragIdx);
 
 				if (bNeedEncrypt == true) {
@@ -1539,7 +1539,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 							    uFragIdx, cbLastFragmentSize, uMACfragNum, byFBOption, pDevice->wCurrentRate);
 
 				// Generate TX MAC Header
-				vGenerateMACHeader(pDevice, pbyMacHdr, (unsigned short)uDuration, psEthHeader, bNeedEncrypt,
+				vGenerateMACHeader(pDevice, pbyMacHdr, uDuration, psEthHeader, bNeedEncrypt,
 						   wFragType, uDMAIdx, uFragIdx);
 
 				if (bNeedEncrypt == true) {
@@ -1657,7 +1657,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 							    uFragIdx, cbLastFragmentSize, uMACfragNum, byFBOption, pDevice->wCurrentRate);
 
 				// Generate TX MAC Header
-				vGenerateMACHeader(pDevice, pbyMacHdr, (unsigned short)uDuration, psEthHeader, bNeedEncrypt,
+				vGenerateMACHeader(pDevice, pbyMacHdr, uDuration, psEthHeader, bNeedEncrypt,
 						   wFragType, uDMAIdx, uFragIdx);
 
 				if (bNeedEncrypt == true) {
@@ -1765,7 +1765,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 					    0, 0, uMACfragNum, byFBOption, pDevice->wCurrentRate);
 
 		// Generate TX MAC Header
-		vGenerateMACHeader(pDevice, pbyMacHdr, (unsigned short)uDuration, psEthHeader, bNeedEncrypt,
+		vGenerateMACHeader(pDevice, pbyMacHdr, uDuration, psEthHeader, bNeedEncrypt,
 				   wFragType, uDMAIdx, 0);
 
 		if (bNeedEncrypt == true) {
@@ -1989,7 +1989,7 @@ void
 vGenerateMACHeader(
 	struct vnt_private *pDevice,
 	unsigned char *pbyBufferAddr,
-	unsigned short wDuration,
+	__le16 wDuration,
 	PSEthernetHeader psEthHeader,
 	bool bNeedEncrypt,
 	unsigned short wFragType,
@@ -2027,7 +2027,7 @@ vGenerateMACHeader(
 	if (bNeedEncrypt)
 		pMACHeader->wFrameCtl |= cpu_to_le16((unsigned short)WLAN_SET_FC_ISWEP(1));
 
-	pMACHeader->wDurationID = cpu_to_le16(wDuration);
+	pMACHeader->wDurationID = le16_to_cpu(wDuration);
 
 	if (pDevice->bLongHeader) {
 		PWLAN_80211HDR_A4 pMACA4Header  = (PWLAN_80211HDR_A4) pbyBufferAddr;
