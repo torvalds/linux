@@ -53,7 +53,7 @@ static struct buffer_head *ext4_append(handle_t *handle,
 					ext4_lblk_t *block)
 {
 	struct buffer_head *bh;
-	int err = 0;
+	int err;
 
 	if (unlikely(EXT4_SB(inode->i_sb)->s_max_dir_size_kb &&
 		     ((inode->i_size >> 10) >=
@@ -62,9 +62,9 @@ static struct buffer_head *ext4_append(handle_t *handle,
 
 	*block = inode->i_size >> inode->i_sb->s_blocksize_bits;
 
-	bh = ext4_bread(handle, inode, *block, 1, &err);
-	if (!bh)
-		return ERR_PTR(err);
+	bh = ext4_bread(handle, inode, *block, 1);
+	if (IS_ERR(bh))
+		return bh;
 	inode->i_size += inode->i_sb->s_blocksize;
 	EXT4_I(inode)->i_disksize = inode->i_size;
 	BUFFER_TRACE(bh, "get_write_access");
@@ -94,20 +94,20 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 {
 	struct buffer_head *bh;
 	struct ext4_dir_entry *dirent;
-	int err = 0, is_dx_block = 0;
+	int is_dx_block = 0;
 
-	bh = ext4_bread(NULL, inode, block, 0, &err);
-	if (!bh) {
-		if (err == 0) {
-			ext4_error_inode(inode, __func__, line, block,
-					       "Directory hole found");
-			return ERR_PTR(-EIO);
-		}
+	bh = ext4_bread(NULL, inode, block, 0);
+	if (IS_ERR(bh)) {
 		__ext4_warning(inode->i_sb, __func__, line,
-			       "error reading directory block "
-			       "(ino %lu, block %lu)", inode->i_ino,
+			       "error %ld reading directory block "
+			       "(ino %lu, block %lu)", PTR_ERR(bh), inode->i_ino,
 			       (unsigned long) block);
-		return ERR_PTR(err);
+
+		return bh;
+	}
+	if (!bh) {
+		ext4_error_inode(inode, __func__, line, block, "Directory hole found");
+		return ERR_PTR(-EIO);
 	}
 	dirent = (struct ext4_dir_entry *) bh->b_data;
 	/* Determine whether or not we have an index block */
@@ -640,7 +640,9 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 		u32 range = i < count - 1? (dx_get_hash(entries + 1) - hash): ~hash;
 		struct stats stats;
 		printk("%s%3u:%03u hash %8x/%8x ",levels?"":"   ", i, block, hash, range);
-		if (!(bh = ext4_bread (NULL,dir, block, 0,&err))) continue;
+		bh = ext4_bread(NULL,dir, block, 0);
+		if (!bh || IS_ERR(bh))
+			continue;
 		stats = levels?
 		   dx_show_entries(hinfo, dir, ((struct dx_node *) bh->b_data)->entries, levels - 1):
 		   dx_show_leaf(hinfo, (struct ext4_dir_entry_2 *) bh->b_data, blocksize, 0);
