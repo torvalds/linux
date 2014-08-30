@@ -31,6 +31,7 @@
 
 #include "ttype.h"
 #include <linux/types.h>
+#include <linux/nl80211.h>
 
 //
 // Loopback mode
@@ -70,13 +71,6 @@ typedef enum _CARD_STATUS_TYPE {
 	CARD_STATUS_PMKID
 } CARD_STATUS_TYPE, *PCARD_STATUS_TYPE;
 
-typedef enum _CARD_OP_MODE {
-	OP_MODE_INFRASTRUCTURE,
-	OP_MODE_ADHOC,
-	OP_MODE_AP,
-	OP_MODE_UNKNOWN
-} CARD_OP_MODE, *PCARD_OP_MODE;
-
 struct vnt_private;
 
 void CARDvSetRSPINF(struct vnt_private *, CARD_PHY_TYPE ePHYType);
@@ -108,7 +102,7 @@ bool CARDbStopTxPacket(struct vnt_private *, CARD_PKT_TYPE ePktType);
 bool CARDbStartTxPacket(struct vnt_private *, CARD_PKT_TYPE ePktType);
 bool CARDbSetBeaconPeriod(struct vnt_private *, unsigned short wBeaconInterval);
 bool CARDbSetBSSID(struct vnt_private *,
-		   unsigned char *pbyBSSID, CARD_OP_MODE eOPMode);
+		   unsigned char *pbyBSSID, enum nl80211_iftype);
 
 bool CARDbPowerDown(struct vnt_private *);
 

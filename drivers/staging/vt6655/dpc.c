@@ -603,7 +603,7 @@ device_receive_frame(
 
 	// Now it only supports 802.11g Infrastructure Mode, and support rate must up to 54 Mbps
 	if (pDevice->bDiversityEnable && (FrameSize > 50) &&
-	    (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
+	    (pDevice->op_mode == NL80211_IFTYPE_STATION) &&
 	    pDevice->bLinkPass) {
 		BBvAntennaDiversity(pDevice, s_byGetRateIdx(*pbyRxRate), 0);
 	}

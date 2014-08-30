@@ -698,7 +698,7 @@ bool CARDbStartTxPacket(struct vnt_private *pDevice, CARD_PKT_TYPE ePktType)
 
 	if ((pDevice->bStopBeacon == false) &&
 	    (pDevice->bBeaconBufReady == true) &&
-	    (pDevice->eOPMode == OP_MODE_ADHOC)) {
+	    (pDevice->op_mode == NL80211_IFTYPE_ADHOC)) {
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TCR, TCR_AUTOBCNTX);
 	}
 
@@ -720,22 +720,22 @@ bool CARDbStartTxPacket(struct vnt_private *pDevice, CARD_PKT_TYPE ePktType)
  *
  */
 bool CARDbSetBSSID(struct vnt_private *pDevice,
-		   unsigned char *pbyBSSID, CARD_OP_MODE eOPMode)
+		   unsigned char *pbyBSSID, enum nl80211_iftype op_mode)
 {
 
 	MACvWriteBSSIDAddress(pDevice->PortOffset, pbyBSSID);
 	memcpy(pDevice->abyBSSID, pbyBSSID, WLAN_BSSID_LEN);
-	if (eOPMode == OP_MODE_ADHOC)
+	if (op_mode == NL80211_IFTYPE_ADHOC)
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_HOSTCR, HOSTCR_ADHOC);
 	else
 		MACvRegBitsOff(pDevice->PortOffset, MAC_REG_HOSTCR, HOSTCR_ADHOC);
 
-	if (eOPMode == OP_MODE_AP)
+	if (op_mode == NL80211_IFTYPE_AP)
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_HOSTCR, HOSTCR_AP);
 	else
 		MACvRegBitsOff(pDevice->PortOffset, MAC_REG_HOSTCR, HOSTCR_AP);
 
-	if (eOPMode == OP_MODE_UNKNOWN) {
+	if (op_mode == NL80211_IFTYPE_UNSPECIFIED) {
 		MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
 		pDevice->bBSSIDFilter = false;
 		pDevice->byRxMode &= ~RCR_BSSID;
@@ -749,7 +749,7 @@ bool CARDbSetBSSID(struct vnt_private *pDevice,
 		pr_debug("wmgr: rx_mode = %x\n", pDevice->byRxMode);
 	}
 	// Adopt BSS state in Adapter Device Object
-	pDevice->eOPMode = eOPMode;
+	pDevice->op_mode = op_mode;
 	return true;
 }
 

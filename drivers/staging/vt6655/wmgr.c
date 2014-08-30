@@ -2356,9 +2356,9 @@ vMgrCreateOwnIBSS(
 	pMgmt->byERPContext = 0;
 
 	if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
-		CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_AP);
+		CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, NL80211_IFTYPE_AP);
 	} else {
-		CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_ADHOC);
+		CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, NL80211_IFTYPE_ADHOC);
 	}
 
 	CARDbSetPhyParameter(pMgmt->pAdapter,
@@ -2727,13 +2727,13 @@ s_vMgrSynchBSS(
 	}
 
 	if (WLAN_GET_CAP_INFO_ESS(pCurr->wCapInfo)) {
-		CARDbSetBSSID(pMgmt->pAdapter, pCurr->abyBSSID, OP_MODE_INFRASTRUCTURE);
+		CARDbSetBSSID(pMgmt->pAdapter, pCurr->abyBSSID, NL80211_IFTYPE_STATION);
 		// Add current BSS to Candidate list
 		// This should only works for WPA2 BSS, and WPA2 BSS check must be done before.
 		if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)
 			CARDbAdd_PMKID_Candidate(pMgmt->pAdapter, pMgmt->abyCurrBSSID, pCurr->sRSNCapObj.bRSNCapExist, pCurr->sRSNCapObj.wRSNCap);
 	} else {
-		CARDbSetBSSID(pMgmt->pAdapter, pCurr->abyBSSID, OP_MODE_ADHOC);
+		CARDbSetBSSID(pMgmt->pAdapter, pCurr->abyBSSID, NL80211_IFTYPE_ADHOC);
 	}
 
 	if (!CARDbSetPhyParameter(pMgmt->pAdapter,

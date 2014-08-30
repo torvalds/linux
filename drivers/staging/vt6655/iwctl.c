@@ -76,7 +76,7 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	struct vnt_private *pDevice = netdev_priv(dev);
 	long ldBm;
 
-	pDevice->wstats.status = pDevice->eOPMode;
+	pDevice->wstats.status = pDevice->op_mode;
 #ifdef Calcu_LinkQual
 	if (pDevice->scStatistic.LinkQuality > 100)
 		pDevice->scStatistic.LinkQuality = 100;

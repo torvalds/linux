@@ -2341,7 +2341,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 				}
 			}
 			if (pDevice->bChannelSwitch &&
-			    (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)) {
+			    (pDevice->op_mode == NL80211_IFTYPE_STATION)) {
 				pDevice->byChannelSwitchCount--;
 				if (pDevice->byChannelSwitchCount == 0) {
 					pDevice->bChannelSwitch = false;
@@ -2354,7 +2354,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 
 				}
 			}
-			if (pDevice->eOPMode != OP_MODE_ADHOC) {
+			if (pDevice->op_mode != NL80211_IFTYPE_ADHOC) {
 				if ((pDevice->bUpdateBBVGA) && pDevice->bLinkPass && (pDevice->uCurrRSSI != 0)) {
 					long            ldBm;
 
@@ -2394,8 +2394,8 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 			if (pDevice->bEnablePSMode)
 				PSbIsNextTBTTWakeUp((void *)pDevice);
 
-			if ((pDevice->eOPMode == OP_MODE_AP) ||
-			    (pDevice->eOPMode == OP_MODE_ADHOC)) {
+			if ((pDevice->op_mode == NL80211_IFTYPE_AP) ||
+			    (pDevice->op_mode == NL80211_IFTYPE_ADHOC)) {
 				MACvOneShotTimer1MicroSec(pDevice->PortOffset,
 							  (pMgmt->wIBSSBeaconPeriod - MAKE_BEACON_RESERVED) << 10);
 			}
@@ -2405,12 +2405,12 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 		}
 
 		if (pDevice->dwIsr & ISR_BNTX) {
-			if (pDevice->eOPMode == OP_MODE_ADHOC) {
+			if (pDevice->op_mode == NL80211_IFTYPE_ADHOC) {
 				pDevice->bIsBeaconBufReadySet = false;
 				pDevice->cbBeaconBufReadySetCnt = 0;
 			}
 
-			if (pDevice->eOPMode == OP_MODE_AP) {
+			if (pDevice->op_mode == NL80211_IFTYPE_AP) {
 				if (pMgmt->byDTIMCount > 0) {
 					pMgmt->byDTIMCount--;
 					pMgmt->sNodeDBTable[0].bRxPSPoll = false;
@@ -2453,7 +2453,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 			max_count += device_tx_srv(pDevice, TYPE_AC0DMA);
 
 		if (pDevice->dwIsr & ISR_SOFTTIMER1) {
-			if (pDevice->eOPMode == OP_MODE_AP) {
+			if (pDevice->op_mode == NL80211_IFTYPE_AP) {
 				if (pDevice->bShortSlotTime)
 					pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTSLOTTIME(1);
 				else

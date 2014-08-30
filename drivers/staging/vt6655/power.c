@@ -78,7 +78,7 @@ PSvEnablePowerSaving(
 
 	// set period of power up before TBTT
 	VNSvOutPortW(pDevice->PortOffset + MAC_REG_PWBT, C_PWBT);
-	if (pDevice->eOPMode != OP_MODE_ADHOC) {
+	if (pDevice->op_mode != NL80211_IFTYPE_ADHOC) {
 		// set AID
 		VNSvOutPortW(pDevice->PortOffset + MAC_REG_AIDATIM, wAID);
 	} else {
@@ -107,7 +107,8 @@ PSvEnablePowerSaving(
 	pDevice->bEnablePSMode = true;
 
 	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
-	if (pDevice->eOPMode != OP_MODE_ADHOC && pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
+	if (pDevice->op_mode != NL80211_IFTYPE_ADHOC &&
+	    pDevice->op_mode == NL80211_IFTYPE_STATION)
 		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = true;
@@ -142,7 +143,7 @@ PSvDisablePowerSaving(
 
 	pDevice->bEnablePSMode = false;
 
-	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
+	if (pDevice->op_mode == NL80211_IFTYPE_STATION)
 		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = false;

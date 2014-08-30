@@ -851,13 +851,13 @@ s_vFillRTSHead(
 						    IEEE80211_STYPE_RTS);
 
 
-			if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-			    (pDevice->eOPMode == OP_MODE_AP)) {
+			if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
+			    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
 				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
 			} else {
 				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 			}
-			if (pDevice->eOPMode == OP_MODE_AP)
+			if (pDevice->op_mode == NL80211_IFTYPE_AP)
 				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
 			else
 				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
@@ -915,14 +915,14 @@ s_vFillRTSHead(
 						    IEEE80211_STYPE_RTS);
 
 
-			if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-			    (pDevice->eOPMode == OP_MODE_AP)) {
+			if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
+			    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
 				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
 			} else {
 				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 			}
 
-			if (pDevice->eOPMode == OP_MODE_AP)
+			if (pDevice->op_mode == NL80211_IFTYPE_AP)
 				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
 			else
 				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
@@ -948,14 +948,14 @@ s_vFillRTSHead(
 						    IEEE80211_STYPE_RTS);
 
 
-			if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-			    (pDevice->eOPMode == OP_MODE_AP)) {
+			if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
+			    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
 				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
 			} else {
 				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 			}
 
-			if (pDevice->eOPMode == OP_MODE_AP)
+			if (pDevice->op_mode == NL80211_IFTYPE_AP)
 				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
 			else
 				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
@@ -988,13 +988,13 @@ s_vFillRTSHead(
 					cpu_to_le16(IEEE80211_FTYPE_CTL |
 						    IEEE80211_STYPE_RTS);
 
-			if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-			    (pDevice->eOPMode == OP_MODE_AP)) {
+			if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
+			    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
 				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
 			} else {
 				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 			}
-			if (pDevice->eOPMode == OP_MODE_AP)
+			if (pDevice->op_mode == NL80211_IFTYPE_AP)
 				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
 			else
 				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
@@ -1016,14 +1016,14 @@ s_vFillRTSHead(
 		buf->data.frame_control =
 			cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
 
-		if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-		    (pDevice->eOPMode == OP_MODE_AP)) {
+		if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
+		    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
 			memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
 		} else {
 			memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 		}
 
-		if (pDevice->eOPMode == OP_MODE_AP)
+		if (pDevice->op_mode == NL80211_IFTYPE_AP)
 			memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
 		else
 			memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
@@ -1335,8 +1335,8 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 
 	pvRrvTime = pMICHDR = pvRTS = pvCTS = pvTxDataHd = NULL;
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-	    (pDevice->eOPMode == OP_MODE_AP)) {
+	if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
+	    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
 		if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])))
 			bNeedACK = false;
 		else
@@ -1976,8 +1976,8 @@ vGenerateFIFOHeader(struct vnt_private *pDevice, unsigned char byPktType,
 	memset(pTxBufHead, 0, wTxBufSize);
 	//Set FIFOCTL_NEEDACK
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-	    (pDevice->eOPMode == OP_MODE_AP)) {
+	if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
+	    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
 		if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
 			bNeedACK = false;
 			pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
@@ -2104,13 +2104,13 @@ vGenerateMACHeader(
 	else
 		pMACHeader->wFrameCtl = TYPE_802_11_DATA;
 
-	if (pDevice->eOPMode == OP_MODE_AP) {
+	if (pDevice->op_mode == NL80211_IFTYPE_AP) {
 		memcpy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), ETH_ALEN);
 		memcpy(&(pMACHeader->abyAddr2[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
 		memcpy(&(pMACHeader->abyAddr3[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
 		pMACHeader->wFrameCtl |= FC_FROMDS;
 	} else {
-		if (pDevice->eOPMode == OP_MODE_ADHOC) {
+		if (pDevice->op_mode == NL80211_IFTYPE_ADHOC) {
 			memcpy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), ETH_ALEN);
 			memcpy(&(pMACHeader->abyAddr2[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
 			memcpy(&(pMACHeader->abyAddr3[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
@@ -2349,7 +2349,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice, PSTxMgmtPacket pPacket)
 		// S/W or H/W Encryption
 		//---------------------------
 		do {
-			if ((pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
+			if ((pDevice->op_mode == NL80211_IFTYPE_STATION) &&
 			    (pDevice->bLinkPass == true)) {
 				pbyBSSID = pDevice->abyBSSID;
 				// get pairwise key
@@ -2369,7 +2369,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice, PSTxMgmtPacket pPacket)
 			if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
 				pTransmitKey = NULL;
 				pr_debug("KEY is NULL. OP Mode[%d]\n",
-					 pDevice->eOPMode);
+					 pDevice->op_mode);
 			} else {
 				pr_debug("Get GTK\n");
 			}
@@ -2531,8 +2531,8 @@ cbGetFragCount(
 	unsigned int uMACfragNum = 1;
 	bool bNeedACK;
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-	    (pDevice->eOPMode == OP_MODE_AP)) {
+	if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
+	    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
 		if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])))
 			bNeedACK = false;
 		else

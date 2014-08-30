@@ -328,7 +328,7 @@ vCommandTimer(
 
 		if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
 			s_bCommandComplete(pDevice);
-			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_AP);
+			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, NL80211_IFTYPE_AP);
 			spin_unlock_irq(&pDevice->lock);
 			return;
 		}
@@ -356,9 +356,9 @@ vCommandTimer(
 			pr_debug("Scanning, set back to channel: [%d]\n",
 				 pMgmt->uCurrChannel);
 			if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)
-				CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_ADHOC);
+				CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, NL80211_IFTYPE_ADHOC);
 			else
-				CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_INFRASTRUCTURE);
+				CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, NL80211_IFTYPE_STATION);
 
 			vAdHocBeaconRestart(pDevice);
 			s_bCommandComplete(pDevice);
@@ -393,7 +393,7 @@ vCommandTimer(
 				pr_debug("SET SCAN Channel Fail: %d\n",
 					 pMgmt->uScanChannel);
 
-			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_UNKNOWN);
+			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, NL80211_IFTYPE_UNSPECIFIED);
 			pMgmt->uScanChannel++;
 //2008-8-4 <modify> by chester
 			if (!is_channel_valid(pMgmt->uScanChannel) &&
@@ -427,9 +427,9 @@ vCommandTimer(
 		pr_debug("Scanning, set back to channel: [%d]\n",
 			 pMgmt->uCurrChannel);
 		if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)
-			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_ADHOC);
+			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, NL80211_IFTYPE_ADHOC);
 		else
-			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_INFRASTRUCTURE);
+			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, NL80211_IFTYPE_STATION);
 
 		pMgmt->eScanState = WMAC_NO_SCANNING;
 		vAdHocBeaconRestart(pDevice);

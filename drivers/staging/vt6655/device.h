@@ -470,7 +470,7 @@ struct vnt_private {
 	unsigned short wFragmentationThreshold;
 	unsigned char byShortRetryLimit;
 	unsigned char byLongRetryLimit;
-	CARD_OP_MODE                eOPMode;
+	enum nl80211_iftype op_mode;
 	unsigned char byOpMode;
 	bool bBSSIDFilter;
 	unsigned short wMaxTransmitMSDULifetime;
