@@ -61,7 +61,7 @@ int gb_sdio_probe(struct greybus_device *gdev,
 	mmc->ops = &gb_sd_ops;
 	// FIXME - set up size limits we can handle.
 
-	greybus_set_drvdata(gdev, host);
+	gdev->gb_sdio_host = host;
 	return 0;
 }
 
@@ -70,7 +70,7 @@ void gb_sdio_disconnect(struct greybus_device *gdev)
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
 
-	host = greybus_get_drvdata(gdev);
+	host = gdev->gb_sdio_host;
 	mmc = host->mmc;
 
 	mmc_remove_host(mmc);
