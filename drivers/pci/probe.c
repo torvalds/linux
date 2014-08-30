@@ -1249,15 +1249,8 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 {
 	u16 pci_cmd, pci_bctl;
 
-	if (!hpp) {
-		/*
-		 * Perhaps we *should* use default settings for PCIe, but
-		 * pciehp didn't, so we won't either.
-		 */
-		if (pci_is_pcie(dev))
-			return;
+	if (!hpp)
 		hpp = &pci_default_type0;
-	}
 
 	if (hpp->revision > 1) {
 		dev_warn(&dev->dev,
