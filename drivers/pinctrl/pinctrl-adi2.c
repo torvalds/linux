@@ -1041,7 +1041,6 @@ static int adi_gpio_remove(struct platform_device *pdev)
 	u8 offset;
 
 	list_del(&port->node);
-	gpiochip_remove_pin_ranges(&port->chip);
 	gpiochip_remove(&port->chip);
 	if (port->pint) {
 		for (offset = 0; offset < port->width; offset++)
