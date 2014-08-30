@@ -331,15 +331,6 @@ typedef const STxSyncDesc *PCSTxSyncDesc;
 //
 // RsvTime buffer header
 //
-typedef struct tagSRrvTime_gCTS {
-	unsigned short wCTSTxRrvTime_ba;
-	unsigned short wReserved;
-	unsigned short wTxRrvTime_b;
-	unsigned short wTxRrvTime_a;
-} __attribute__ ((__packed__))
-SRrvTime_gCTS, *PSRrvTime_gCTS;
-typedef const SRrvTime_gCTS *PCSRrvTime_gCTS;
-
 typedef struct tagSRrvTime_ab {
 	unsigned short wRTSTxRrvTime;
 	unsigned short wTxRrvTime;

@@ -66,6 +66,13 @@ struct vnt_rrv_time_rts {
 	__le16 rrv_time_a;
 } __packed;
 
+struct vnt_rrv_time_cts {
+	__le16 cts_rrv_time_ba;
+	u16 reserved;
+	__le16 rrv_time_b;
+	__le16 rrv_time_a;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;
