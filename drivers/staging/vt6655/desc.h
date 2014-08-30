@@ -33,6 +33,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include "linux/ieee80211.h"
 #include "ttype.h"
 #include "tether.h"
 
@@ -338,18 +339,6 @@ typedef struct tagSRrvTime_atim {
 SRrvTime_atim, *PSRrvTime_atim;
 typedef const SRrvTime_atim *PCSRrvTime_atim;
 
-//
-// RTS buffer header
-//
-typedef struct tagSRTSData {
-	unsigned short wFrameControl;
-	unsigned short wDurationID;
-	unsigned char abyRA[ETH_ALEN];
-	unsigned char abyTA[ETH_ALEN];
-} __attribute__ ((__packed__))
-SRTSData, *PSRTSData;
-typedef const SRTSData *PCSRTSData;
-
 /* Length, Service, and Signal fields of Phy for Tx */
 struct vnt_phy_field {
 	u8 signal;
@@ -370,7 +359,7 @@ typedef struct tagSRTS_g {
 	unsigned short wDuration_aa;
 	unsigned short wDuration_bb;
 	unsigned short wReserved;
-	SRTSData    Data;
+	struct ieee80211_rts data;
 } __attribute__ ((__packed__))
 SRTS_g, *PSRTS_g;
 typedef const SRTS_g *PCSRTS_g;
@@ -386,7 +375,7 @@ typedef struct tagSRTS_g_FB {
 	unsigned short wRTSDuration_aa_f0;
 	unsigned short wRTSDuration_ba_f1;
 	unsigned short wRTSDuration_aa_f1;
-	SRTSData    Data;
+	struct ieee80211_rts data;
 } __attribute__ ((__packed__))
 SRTS_g_FB, *PSRTS_g_FB;
 typedef const SRTS_g_FB *PCSRTS_g_FB;
@@ -395,7 +384,7 @@ typedef struct tagSRTS_ab {
 	struct vnt_phy_field ab;
 	unsigned short wDuration;
 	unsigned short wReserved;
-	SRTSData    Data;
+	struct ieee80211_rts data;
 } __attribute__ ((__packed__))
 SRTS_ab, *PSRTS_ab;
 typedef const SRTS_ab *PCSRTS_ab;
@@ -406,7 +395,7 @@ typedef struct tagSRTS_a_FB {
 	unsigned short wReserved;
 	unsigned short wRTSDuration_f0;
 	unsigned short wRTSDuration_f1;
-	SRTSData    Data;
+	struct ieee80211_rts data;
 } __attribute__ ((__packed__))
 SRTS_a_FB, *PSRTS_a_FB;
 typedef const SRTS_a_FB *PCSRTS_a_FB;
