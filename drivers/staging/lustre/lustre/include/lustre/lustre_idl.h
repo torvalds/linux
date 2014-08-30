@@ -322,43 +322,6 @@ enum lma_incompat {
 #define LMA_INCOMPAT_SUPP	(LMAI_AGENT | LMAI_REMOTE_PARENT)
 
 /**
- * SOM on-disk attributes stored in a separate xattr.
- */
-struct som_attrs {
-	/** Bitfield for supported data in this structure. For future use. */
-	__u32	som_compat;
-
-	/** Incompat feature list. The supported feature mask is available in
-	 * SOM_INCOMPAT_SUPP */
-	__u32	som_incompat;
-
-	/** IO Epoch SOM attributes belongs to */
-	__u64	som_ioepoch;
-	/** total file size in objects */
-	__u64	som_size;
-	/** total fs blocks in objects */
-	__u64	som_blocks;
-	/** mds mount id the size is valid for */
-	__u64	som_mountid;
-};
-#define SOM_INCOMPAT_SUPP 0x0
-
-/**
- * HSM on-disk attributes stored in a separate xattr.
- */
-struct hsm_attrs {
-	/** Bitfield for supported data in this structure. For future use. */
-	__u32	hsm_compat;
-
-	/** HSM flags, see hsm_flags enum below */
-	__u32	hsm_flags;
-	/** backend archive id associated with the file */
-	__u64	hsm_arch_id;
-	/** version associated with the last archiving, if any */
-	__u64	hsm_arch_ver;
-};
-
-/**
  * fid constants
  */
 enum {
