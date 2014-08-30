@@ -32,11 +32,11 @@ static s32 i2c_gb_access(struct i2c_adapter *adap, u16 addr,
 			 unsigned short flags, char read_write, u8 command,
 			 int size, union i2c_smbus_data *data)
 {
-	struct gb_i2c_device *i2c_gb_dev;
+	struct gb_i2c_device *gb_i2c_dev;
 	struct greybus_device *gdev;
 
-	i2c_gb_dev = i2c_get_adapdata(adap);
-	gdev = i2c_gb_dev->gdev;
+	gb_i2c_dev = i2c_get_adapdata(adap);
+	gdev = gb_i2c_dev->gdev;
 
 	// FIXME - do the actual work of sending a i2c message here...
 	switch (size) {
@@ -78,20 +78,20 @@ static const struct i2c_algorithm smbus_algorithm = {
 int gb_i2c_probe(struct greybus_device *gdev,
 		 const struct greybus_device_id *id)
 {
-	struct gb_i2c_device *i2c_gb_dev;
+	struct gb_i2c_device *gb_i2c_dev;
 	struct i2c_adapter *adapter;
 	int retval;
 
-	i2c_gb_dev = kzalloc(sizeof(*i2c_gb_dev), GFP_KERNEL);
-	if (!i2c_gb_dev)
+	gb_i2c_dev = kzalloc(sizeof(*gb_i2c_dev), GFP_KERNEL);
+	if (!gb_i2c_dev)
 		return -ENOMEM;
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
-		kfree(i2c_gb_dev);
+		kfree(gb_i2c_dev);
 		return -ENOMEM;
 	}
 
-	i2c_set_adapdata(adapter, i2c_gb_dev);
+	i2c_set_adapdata(adapter, gb_i2c_dev);
 	adapter->owner = THIS_MODULE;
 	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->algo = &smbus_algorithm;
@@ -104,25 +104,25 @@ int gb_i2c_probe(struct greybus_device *gdev,
 		goto error;
 	}
 
-	i2c_gb_dev->gdev = gdev;
-	i2c_gb_dev->adapter = adapter;
+	gb_i2c_dev->gdev = gdev;
+	gb_i2c_dev->adapter = adapter;
 
-	gdev->gb_i2c_dev = i2c_gb_dev;
+	gdev->gb_i2c_dev = gb_i2c_dev;
 	return 0;
 error:
 	kfree(adapter);
-	kfree(i2c_gb_dev);
+	kfree(gb_i2c_dev);
 	return retval;
 }
 
 void gb_i2c_disconnect(struct greybus_device *gdev)
 {
-	struct gb_i2c_device *i2c_gb_dev;
+	struct gb_i2c_device *gb_i2c_dev;
 
-	i2c_gb_dev = gdev->gb_i2c_dev;
-	i2c_del_adapter(i2c_gb_dev->adapter);
-	kfree(i2c_gb_dev->adapter);
-	kfree(i2c_gb_dev);
+	gb_i2c_dev = gdev->gb_i2c_dev;
+	i2c_del_adapter(gb_i2c_dev->adapter);
+	kfree(gb_i2c_dev->adapter);
+	kfree(gb_i2c_dev);
 }
 
 #if 0
