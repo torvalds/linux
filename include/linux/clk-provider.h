@@ -13,6 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/of.h>
 
 #ifdef CONFIG_COMMON_CLK
 
