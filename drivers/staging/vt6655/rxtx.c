@@ -950,32 +950,40 @@ s_vFillRTSHead(
 				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
 
 		} else {
-			PSRTS_a_FB pBuf = (PSRTS_a_FB)pvRTS;
+			struct vnt_rts_a_fb *buf = pvRTS;
 			/* Get SignalField, ServiceField & Length */
 			vnt_get_phy_field(pDevice, uRTSFrameLen,
 					  pDevice->byTopOFDMBasicRate,
-					  byPktType, &pBuf->a);
-			//Get Duration
-			pBuf->wDuration = cpu_to_le16((unsigned short)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //0:RTSDuration_aa, 0:5G, 0: 5G OFDMData
-			pBuf->wRTSDuration_f0 = cpu_to_le16((unsigned short)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA_F0, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //5:RTSDuration_aa_f0, 0:5G, 0: 5G OFDMData
-			pBuf->wRTSDuration_f1 = cpu_to_le16((unsigned short)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA_F1, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //7:RTSDuration_aa_f1, 0:5G, 0:
-			pBuf->data.duration = pBuf->wDuration;
+					  byPktType, &buf->a);
+			/* Get Duration */
+			buf->duration =
+				cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA, cbFrameLength,
+								      byPktType, wCurrentRate,
+								      bNeedAck, byFBOption));
+			buf->rts_duration_f0 =
+				cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA_F0, cbFrameLength,
+								      byPktType, wCurrentRate,
+								      bNeedAck, byFBOption));
+			buf->rts_duration_f1 =
+				cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA_F1, cbFrameLength,
+								      byPktType, wCurrentRate,
+								      bNeedAck, byFBOption));
+			buf->data.duration = buf->duration;
 			/* Get RTS Frame body */
-			pBuf->data.frame_control =
+			buf->data.frame_control =
 					cpu_to_le16(IEEE80211_FTYPE_CTL |
 						    IEEE80211_STYPE_RTS);
 
-
 			if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
 			    (pDevice->eOPMode == OP_MODE_AP)) {
-				memcpy(&pBuf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
+				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
 			} else {
-				memcpy(&pBuf->data.ra, pDevice->abyBSSID, ETH_ALEN);
+				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 			}
 			if (pDevice->eOPMode == OP_MODE_AP)
-				memcpy(&pBuf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
 			else
-				memcpy(&pBuf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
+				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
 		}
 	} else if (byPktType == PK_TYPE_11B) {
 		struct vnt_rts_ab *buf = pvRTS;
@@ -1434,11 +1442,12 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 			if (bRTS == true) {//RTS_need
 				pvRrvTime = (void *)(pbyTxBufferAddr + wTxBufSize);
 				pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_ab));
-				pvRTS = (PSRTS_a_FB) (pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR);
+				pvRTS = (void *)(pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR);
 				pvCTS = NULL;
-				pvTxDataHd = (void *)(pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR + sizeof(SRTS_a_FB));
+				pvTxDataHd = (void *)(pbyTxBufferAddr + wTxBufSize +
+					sizeof(struct vnt_rrv_time_ab) + cbMICHDR + sizeof(struct vnt_rts_a_fb));
 				cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_ab) +
-					cbMICHDR + sizeof(SRTS_a_FB) + sizeof(struct vnt_tx_datahead_a_fb);
+					cbMICHDR + sizeof(struct vnt_rts_a_fb) + sizeof(struct vnt_tx_datahead_a_fb);
 			} else { //RTS_needless
 				pvRrvTime = (void *)(pbyTxBufferAddr + wTxBufSize);
 				pMICHDR = (struct vnt_mic_hdr *)(pbyTxBufferAddr + wTxBufSize + sizeof(struct vnt_rrv_time_ab));

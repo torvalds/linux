@@ -145,6 +145,15 @@ struct vnt_rts_ab {
 	struct ieee80211_rts data;
 } __packed;
 
+struct vnt_rts_a_fb {
+	struct vnt_phy_field a;
+	__le16 duration;
+	u16 reserved;
+	__le16 rts_duration_f0;
+	__le16 rts_duration_f1;
+	struct ieee80211_rts data;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;
