@@ -344,27 +344,22 @@ static int gb_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			unsigned long arg)
 {
 	struct gb_tty *gb_tty = tty->driver_data;
-	int retval = -ENOIOCTLCMD;
 
 	switch (cmd) {
 	case TIOCGSERIAL:
-		retval = get_serial_info(gb_tty,
-					 (struct serial_struct __user *)arg);
-		break;
+		return get_serial_info(gb_tty,
+				       (struct serial_struct __user *)arg);
 	case TIOCSSERIAL:
-		retval = set_serial_info(gb_tty,
-					 (struct serial_struct __user *)arg);
-		break;
+		return set_serial_info(gb_tty,
+				       (struct serial_struct __user *)arg);
 	case TIOCMIWAIT:
-		retval = wait_serial_change(gb_tty, arg);
-		break;
+		return wait_serial_change(gb_tty, arg);
 	case TIOCGICOUNT:
-		retval = get_serial_usage(gb_tty,
-					  (struct serial_icounter_struct __user *)arg);
-		break;
+		return get_serial_usage(gb_tty,
+					(struct serial_icounter_struct __user *)arg);
 	}
 
-	return retval;
+	return -ENOIOCTLCMD;
 }
 
 

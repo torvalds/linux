@@ -12,7 +12,7 @@
 #include <linux/mmc/host.h>
 #include "greybus.h"
 
-struct sd_gb_host {
+struct gb_sdio_host {
 	struct mmc_host	*mmc;
 	struct mmc_request *mrq;
 	// FIXME - some lock?
@@ -48,9 +48,9 @@ static const struct mmc_host_ops gb_sd_ops = {
 static int sd_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
 {
 	struct mmc_host *mmc;
-	struct sd_gb_host *host;
+	struct gb_sdio_host *host;
 
-	mmc = mmc_alloc_host(sizeof(struct sd_gb_host), &gdev->dev);
+	mmc = mmc_alloc_host(sizeof(struct gb_sdio_host), &gdev->dev);
 	if (!mmc)
 		return -ENOMEM;
 
@@ -67,7 +67,7 @@ static int sd_gb_probe(struct greybus_device *gdev, const struct greybus_device_
 static void sd_gb_disconnect(struct greybus_device *gdev)
 {
 	struct mmc_host *mmc;
-	struct sd_gb_host *host;
+	struct gb_sdio_host *host;
 
 	host = greybus_get_drvdata(gdev);
 	mmc = host->mmc;

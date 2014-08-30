@@ -149,5 +149,29 @@ void greybus_deregister(struct greybus_driver *driver)
 }
 EXPORT_SYMBOL_GPL(greybus_deregister);
 
+
+static int new_device(struct greybus_device *gdev,
+		      const struct greybus_device_id *id)
+{
+	int retval;
+
+	/* Allocate all of the different "sub device types" for this device */
+	retval = gb_i2c_probe(gdev, id);
+	return 0;
+}
+
+
+int __init gb_init(void)
+{
+	return 0;
+}
+
+void __exit gb_exit(void)
+{
+}
+
+module_init(gb_init);
+module_exit(gb_exit);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");

@@ -12,7 +12,7 @@
 #include <linux/i2c.h>
 #include "greybus.h"
 
-struct i2c_gb_data {
+struct gb_i2c_device {
 	struct i2c_adapter *adapter;
 	struct greybus_device *gdev;
 };
@@ -32,11 +32,11 @@ static s32 i2c_gb_access(struct i2c_adapter *adap, u16 addr,
 			 unsigned short flags, char read_write, u8 command,
 			 int size, union i2c_smbus_data *data)
 {
-	struct i2c_gb_data *i2c_gb_data;
+	struct gb_i2c_device *i2c_gb_dev;
 	struct greybus_device *gdev;
 
-	i2c_gb_data = i2c_get_adapdata(adap);
-	gdev = i2c_gb_data->gdev;
+	i2c_gb_dev = i2c_get_adapdata(adap);
+	gdev = i2c_gb_dev->gdev;
 
 	// FIXME - do the actual work of sending a i2c message here...
 	switch (size) {
@@ -75,22 +75,23 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= i2c_gb_func,
 };
 
-static int i2c_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
+int gb_i2c_probe(struct greybus_device *gdev,
+		 const struct greybus_device_id *id)
 {
-	struct i2c_gb_data *i2c_gb_data;
+	struct gb_i2c_device *i2c_gb_dev;
 	struct i2c_adapter *adapter;
 	int retval;
 
-	i2c_gb_data = kzalloc(sizeof(*i2c_gb_data), GFP_KERNEL);
-	if (!i2c_gb_data)
+	i2c_gb_dev = kzalloc(sizeof(*i2c_gb_dev), GFP_KERNEL);
+	if (!i2c_gb_dev)
 		return -ENOMEM;
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
-		kfree(i2c_gb_data);
+		kfree(i2c_gb_dev);
 		return -ENOMEM;
 	}
 
-	i2c_set_adapdata(adapter, i2c_gb_data);
+	i2c_set_adapdata(adapter, i2c_gb_dev);
 	adapter->owner = THIS_MODULE;
 	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->algo = &smbus_algorithm;
@@ -103,33 +104,35 @@ static int i2c_gb_probe(struct greybus_device *gdev, const struct greybus_device
 		goto error;
 	}
 
-	i2c_gb_data->gdev = gdev;
-	i2c_gb_data->adapter = adapter;
+	i2c_gb_dev->gdev = gdev;
+	i2c_gb_dev->adapter = adapter;
 
-	greybus_set_drvdata(gdev, i2c_gb_data);
+	greybus_set_drvdata(gdev, i2c_gb_dev);
 	return 0;
 error:
 	kfree(adapter);
-	kfree(i2c_gb_data);
+	kfree(i2c_gb_dev);
 	return retval;
 }
 
-static void i2c_gb_disconnect(struct greybus_device *gdev)
+void gb_i2c_disconnect(struct greybus_device *gdev)
 {
-	struct i2c_gb_data *i2c_gb_data;
+	struct gb_i2c_device *i2c_gb_dev;
 
-	i2c_gb_data = greybus_get_drvdata(gdev);
-	i2c_del_adapter(i2c_gb_data->adapter);
-	kfree(i2c_gb_data->adapter);
-	kfree(i2c_gb_data);
+	i2c_gb_dev = greybus_get_drvdata(gdev);
+	i2c_del_adapter(i2c_gb_dev->adapter);
+	kfree(i2c_gb_dev->adapter);
+	kfree(i2c_gb_dev);
 }
 
+#if 0
 static struct greybus_driver i2c_gb_driver = {
-	.probe =	i2c_gb_probe,
-	.disconnect =	i2c_gb_disconnect,
+	.probe =	gb_i2c_probe,
+	.disconnect =	gb_i2c_disconnect,
 	.id_table =	id_table,
 };
 
 module_greybus_driver(i2c_gb_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
+#endif

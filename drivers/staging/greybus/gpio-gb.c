@@ -13,7 +13,7 @@
 #include <linux/gpio/driver.h>
 #include "greybus.h"
 
-struct gb_gpio {
+struct gb_gpio_device {
 	struct gpio_chip chip;
 	struct greybus_device *gdev;
 	struct gpio_chip *gpio;
@@ -27,7 +27,7 @@ static const struct greybus_device_id id_table[] = {
 
 static int direction_input(struct gpio_chip *gpio, unsigned nr)
 {
-//	struct gb_gpio *gb_gpio = container_of(gpio, struct gb_gpio, chip);
+	//struct gb_gpio_device *gb_gpio_dev = container_of(gpio, struct gb_gpio_device, chip);
 
 	// FIXME - do something there
 	return 0;
@@ -53,7 +53,7 @@ static void gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 
 static int gpio_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
 {
-	struct gb_gpio *gb_gpio;
+	struct gb_gpio_device *gb_gpio;
 	struct gpio_chip *gpio;
 	struct device *dev = &gdev->dev;
 	int retval;
@@ -89,11 +89,11 @@ static int gpio_gb_probe(struct greybus_device *gdev, const struct greybus_devic
 
 static void gpio_gb_disconnect(struct greybus_device *gdev)
 {
-	struct gb_gpio *gb_gpio;
+	struct gb_gpio_device *gb_gpio_dev;
 
-	gb_gpio = greybus_get_drvdata(gdev);
+	gb_gpio_dev = greybus_get_drvdata(gdev);
 
-	gpiochip_remove(&gb_gpio->chip);
+	gpiochip_remove(&gb_gpio_dev->chip);
 }
 
 static struct greybus_driver gpio_gb_driver = {

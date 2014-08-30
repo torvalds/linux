@@ -72,14 +72,43 @@ struct gbuf {
  */
 #define GBUF_FREE_BUFFER	BIT(0)	/* Free the transfer buffer with the gbuf */
 
+/* For SP1 hardware, we are going to "hardcode" each device to have all logical
+ * blocks in order to be able to address them as one unified "unit".  Then
+ * higher up layers will then be able to talk to them as one logical block and
+ * properly know how they are hooked together (i.e. which i2c port is on the
+ * same module as the gpio pins, etc.)
+ *
+ * So, put the "private" data structures here in greybus.h and link to them off
+ * of the "main" greybus_device structure.
+ */
+
+struct gb_i2c_device;
+struct gb_gpio_device;
+struct gb_sdio_host;
+struct gb_tty;
+struct gb_usb_device;
 
 struct greybus_device {
 	struct device dev;
 	struct greybus_descriptor descriptor;
 	int num_cport;
 	struct cport cport[0];
+
+	struct gb_i2c_device *gb_i2c_dev;
+	struct gb_gpio_device *gb_gpio_dev;
+	struct gb_sdio_host *gb_sdio_host;
+	struct gb_tty *gb_tty;
+	struct gb_usb_device *gb_usb_dev;
 };
 #define to_greybus_device(d) container_of(d, struct greybus_device, dev)
+
+/*
+ * Because we are allocating a data structure per "type" in the greybus device,
+ * we have static functions for this, not "dynamic" drivers like we really
+ * should in the end.
+ */
+int gb_i2c_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+void gb_i2c_disconnect(struct greybus_device *gdev);
 
 
 struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
