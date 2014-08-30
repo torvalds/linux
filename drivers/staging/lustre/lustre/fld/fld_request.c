@@ -53,7 +53,6 @@
 #include "../include/lprocfs_status.h"
 
 #include "../include/dt_object.h"
-#include "../include/md_object.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"
 #include "../include/lustre_mdc.h"
