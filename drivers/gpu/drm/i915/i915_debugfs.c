@@ -2628,7 +2628,7 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int intel_wa_registers(struct seq_file *m, void *unused)
+static int i915_wa_registers(struct seq_file *m, void *unused)
 {
 	int i;
 	int ret;
@@ -4198,7 +4198,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
-	{"intel_wa_registers", intel_wa_registers, 0}
+	{"i915_wa_registers", i915_wa_registers, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
