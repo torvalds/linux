@@ -93,16 +93,6 @@ struct echo_lock {
 	atomic_t	   el_refcount;
 };
 
-struct echo_io {
-	struct cl_io_slice     ei_cl;
-};
-
-#if 0
-struct echo_req {
-	struct cl_req_slice er_cl;
-};
-#endif
-
 static int echo_client_setup(const struct lu_env *env,
 			     struct obd_device *obddev,
 			     struct lustre_cfg *lcfg);
@@ -200,7 +190,6 @@ static struct kmem_cache *echo_lock_kmem;
 static struct kmem_cache *echo_object_kmem;
 static struct kmem_cache *echo_thread_kmem;
 static struct kmem_cache *echo_session_kmem;
-//static struct kmem_cache *echo_req_kmem;
 
 static struct lu_kmem_descr echo_caches[] = {
 	{
@@ -223,13 +212,6 @@ static struct lu_kmem_descr echo_caches[] = {
 		.ckd_name  = "echo_session_kmem",
 		.ckd_size  = sizeof (struct echo_session_info)
 	},
-#if 0
-	{
-		.ckd_cache = &echo_req_kmem,
-		.ckd_name  = "echo_req_kmem",
-		.ckd_size  = sizeof (struct echo_req)
-	},
-#endif
 	{
 		.ckd_cache = NULL
 	}
@@ -2100,36 +2082,10 @@ static int echo_client_connect(const struct lu_env *env,
 
 static int echo_client_disconnect(struct obd_export *exp)
 {
-#if 0
-	struct obd_device      *obd;
-	struct echo_client_obd *ec;
-	struct ec_lock	 *ecl;
-#endif
 	int		     rc;
 
 	if (exp == NULL)
 		GOTO(out, rc = -EINVAL);
-
-#if 0
-	obd = exp->exp_obd;
-	ec = &obd->u.echo_client;
-
-	/* no more contention on export's lock list */
-	while (!list_empty (&exp->exp_ec_data.eced_locks)) {
-		ecl = list_entry (exp->exp_ec_data.eced_locks.next,
-				      struct ec_lock, ecl_exp_chain);
-		list_del (&ecl->ecl_exp_chain);
-
-		rc = obd_cancel(ec->ec_exp, ecl->ecl_object->eco_lsm,
-				 ecl->ecl_mode, &ecl->ecl_lock_handle);
-
-		CDEBUG (D_INFO, "Cancel lock on object %#llx on disconnect "
-			"(%d)\n", ecl->ecl_object->eco_id, rc);
-
-		echo_put_object (ecl->ecl_object);
-		OBD_FREE (ecl, sizeof (*ecl));
-	}
-#endif
 
 	rc = class_disconnect(exp);
 	GOTO(out, rc);
@@ -2139,12 +2095,6 @@ static int echo_client_disconnect(struct obd_export *exp)
 
 static struct obd_ops echo_client_obd_ops = {
 	.o_owner       = THIS_MODULE,
-
-#if 0
-	.o_setup       = echo_client_setup,
-	.o_cleanup     = echo_client_cleanup,
-#endif
-
 	.o_iocontrol   = echo_client_iocontrol,
 	.o_connect     = echo_client_connect,
 	.o_disconnect  = echo_client_disconnect
