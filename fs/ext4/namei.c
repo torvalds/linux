@@ -1509,7 +1509,7 @@ static struct ext4_dir_entry_2* dx_pack_dirents(char *base, unsigned blocksize)
  */
 static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 			struct buffer_head **bh,struct dx_frame *frame,
-			struct dx_hash_info *hinfo, int *error)
+			struct dx_hash_info *hinfo)
 {
 	unsigned blocksize = dir->i_sb->s_blocksize;
 	unsigned count, continued;
@@ -1532,8 +1532,7 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	if (IS_ERR(bh2)) {
 		brelse(*bh);
 		*bh = NULL;
-		*error = PTR_ERR(bh2);
-		return NULL;
+		return (struct ext4_dir_entry_2 *) bh2;
 	}
 
 	BUFFER_TRACE(*bh, "get_write_access");
@@ -1593,8 +1592,7 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	dxtrace(dx_show_leaf (hinfo, (struct ext4_dir_entry_2 *) data2, blocksize, 1));
 
 	/* Which block gets the new entry? */
-	if (hinfo->hash >= hash2)
-	{
+	if (hinfo->hash >= hash2) {
 		swap(*bh, bh2);
 		de = de2;
 	}
@@ -1614,8 +1612,7 @@ journal_error:
 	brelse(bh2);
 	*bh = NULL;
 	ext4_std_error(dir->i_sb, err);
-	*error = err;
-	return NULL;
+	return ERR_PTR(err);
 }
 
 int ext4_find_dest_de(struct inode *dir, struct inode *inode,
@@ -1838,8 +1835,8 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 	ext4_handle_dirty_dx_node(handle, dir, frame->bh);
 	ext4_handle_dirty_dirent_node(handle, dir, bh);
 
-	de = do_split(handle,dir, &bh, frame, &hinfo, &retval);
-	if (!de) {
+	de = do_split(handle,dir, &bh, frame, &hinfo);
+	if (IS_ERR(de)) {
 		/*
 		 * Even if the block split failed, we have to properly write
 		 * out all the changes we did so far. Otherwise we can end up
@@ -1847,7 +1844,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 		 */
 		ext4_mark_inode_dirty(handle, dir);
 		dx_release(frames);
-		return retval;
+		return PTR_ERR(de);
 	}
 	dx_release(frames);
 
@@ -2071,9 +2068,11 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			goto cleanup;
 		}
 	}
-	de = do_split(handle, dir, &bh, frame, &hinfo, &err);
-	if (!de)
+	de = do_split(handle, dir, &bh, frame, &hinfo);
+	if (IS_ERR(de)) {
+		err = PTR_ERR(de);
 		goto cleanup;
+	}
 	err = add_dirent_to_buf(handle, dentry, inode, de, bh);
 	goto cleanup;
 
