@@ -459,17 +459,6 @@ typedef const STxBufHead *PCSTxBufHead;
 //
 // Tx data header
 //
-typedef struct tagSTxDataHead_g {
-	struct vnt_phy_field b;
-	struct vnt_phy_field a;
-	unsigned short wDuration_b;
-	unsigned short wDuration_a;
-	unsigned short wTimeStampOff_b;
-	unsigned short wTimeStampOff_a;
-} __attribute__ ((__packed__))
-STxDataHead_g, *PSTxDataHead_g;
-typedef const STxDataHead_g *PCSTxDataHead_g;
-
 typedef struct tagSTxDataHead_g_FB {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;

@@ -78,6 +78,16 @@ struct vnt_rrv_time_ab {
 	__le16 rrv_time;
 } __packed;
 
+/* TX data header */
+struct vnt_tx_datahead_g {
+	struct vnt_phy_field b;
+	struct vnt_phy_field a;
+	__le16 duration_b;
+	__le16 duration_a;
+	__le16 time_stamp_off_b;
+	__le16 time_stamp_off_a;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;
