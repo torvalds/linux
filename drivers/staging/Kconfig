@@ -114,8 +114,6 @@ source "drivers/staging/dgap/Kconfig"
 
 source "drivers/staging/gs_fpgaboot/Kconfig"
 
-source "drivers/staging/nokia_h4p/Kconfig"
-
 source "drivers/staging/skein/Kconfig"
 
 source "drivers/staging/unisys/Kconfig"
