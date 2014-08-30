@@ -2599,11 +2599,27 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_skb_features);
 
+static int xmit_one(struct sk_buff *skb, struct net_device *dev,
+		    struct netdev_queue *txq)
+{
+	unsigned int len;
+	int rc;
+
+	if (!list_empty(&ptype_all))
+		dev_queue_xmit_nit(skb, dev);
+
+	len = skb->len;
+	trace_net_dev_start_xmit(skb, dev);
+	rc = netdev_start_xmit(skb, dev, txq);
+	trace_net_dev_xmit(skb, rc, dev, len);
+
+	return rc;
+}
+
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
 	int rc = NETDEV_TX_OK;
-	unsigned int skb_len;
 
 	if (likely(!skb->next)) {
 		netdev_features_t features;
@@ -2661,14 +2677,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			}
 		}
 
-		if (!list_empty(&ptype_all))
-			dev_queue_xmit_nit(skb, dev);
-
-		skb_len = skb->len;
-		trace_net_dev_start_xmit(skb, dev);
-		rc = netdev_start_xmit(skb, dev, txq);
-		trace_net_dev_xmit(skb, rc, dev, skb_len);
-		return rc;
+		return xmit_one(skb, dev, txq);
 	}
 
 gso:
@@ -2678,13 +2687,7 @@ gso:
 		skb->next = nskb->next;
 		nskb->next = NULL;
 
-		if (!list_empty(&ptype_all))
-			dev_queue_xmit_nit(nskb, dev);
-
-		skb_len = nskb->len;
-		trace_net_dev_start_xmit(nskb, dev);
-		rc = netdev_start_xmit(nskb, dev, txq);
-		trace_net_dev_xmit(nskb, rc, dev, skb_len);
+		rc = xmit_one(nskb, dev, txq);
 		if (unlikely(rc != NETDEV_TX_OK)) {
 			if (rc & ~NETDEV_TX_MASK)
 				goto out_kfree_gso_skb;
