@@ -196,9 +196,9 @@ struct usbdux_private {
 	/* size of the PWM buffer which holds the bit pattern */
 	int pwm_buf_sz;
 	/* input buffer for the ISO-transfer */
-	uint16_t *in_buf;
+	__le16 *in_buf;
 	/* input buffer for single insn */
-	uint16_t *insn_buf;
+	__le16 *insn_buf;
 
 	unsigned int high_speed:1;
 	unsigned int ai_cmd_running:1;
