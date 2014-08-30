@@ -355,16 +355,6 @@ union vnt_phy_field_swap {
 //
 // CTS buffer header
 //
-typedef struct tagSCTS {
-	struct vnt_phy_field b;
-	unsigned short wDuration_ba;
-	unsigned short wReserved;
-	struct ieee80211_cts data;
-	u16 reserved2;
-} __attribute__ ((__packed__))
-SCTS, *PSCTS;
-typedef const SCTS *PCSCTS;
-
 typedef struct tagSCTS_FB {
 	struct vnt_phy_field b;
 	unsigned short wDuration_ba;

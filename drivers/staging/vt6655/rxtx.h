@@ -154,6 +154,15 @@ struct vnt_rts_a_fb {
 	struct ieee80211_rts data;
 } __packed;
 
+/* CTS buffer header */
+struct vnt_cts {
+	struct vnt_phy_field b;
+	__le16 duration_ba;
+	u16 reserved;
+	struct ieee80211_cts data;
+	u16 reserved2;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;
