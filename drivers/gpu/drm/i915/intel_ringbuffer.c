@@ -671,7 +671,7 @@ static inline void intel_ring_emit_wa(struct intel_engine_cs *ring,
 	intel_ring_emit(ring, value);
 
 	dev_priv->intel_wa_regs[dev_priv->num_wa_regs].addr = addr;
-	dev_priv->intel_wa_regs[dev_priv->num_wa_regs].mask = (value) & 0xFFFF;
+	dev_priv->intel_wa_regs[dev_priv->num_wa_regs].mask = value & 0xFFFF;
 	/* value is updated with the status of remaining bits of this
 	 * register when it is read from debugfs file
 	 */
