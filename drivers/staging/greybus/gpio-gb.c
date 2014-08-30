@@ -77,7 +77,7 @@ int gb_gpio_probe(struct greybus_device *gdev,
 	gpio->ngpio = 42;		// FIXME!!!
 	gpio->can_sleep = false;	// FIXME!!!
 
-	greybus_set_drvdata(gdev, gb_gpio);
+	gdev->gb_gpio_dev= gb_gpio;
 
 	retval = gpiochip_add(gpio);
 	if (retval) {
@@ -92,7 +92,7 @@ void gb_gpio_disconnect(struct greybus_device *gdev)
 {
 	struct gb_gpio_device *gb_gpio_dev;
 
-	gb_gpio_dev = greybus_get_drvdata(gdev);
+	gb_gpio_dev = gdev->gb_gpio_dev;
 
 	gpiochip_remove(&gb_gpio_dev->chip);
 }
