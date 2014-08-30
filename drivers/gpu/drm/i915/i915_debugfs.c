@@ -2636,11 +2636,6 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!IS_BROADWELL(dev)) {
-		DRM_DEBUG_DRIVER("Workaround table not available !!\n");
-		return -EINVAL;
-	}
-
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
