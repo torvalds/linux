@@ -352,22 +352,6 @@ union vnt_phy_field_swap {
 	u32 field_write;
 };
 
-typedef struct tagSRTS_g_FB {
-	struct vnt_phy_field b;
-	struct vnt_phy_field a;
-	unsigned short wDuration_ba;
-	unsigned short wDuration_aa;
-	unsigned short wDuration_bb;
-	unsigned short wReserved;
-	unsigned short wRTSDuration_ba_f0;
-	unsigned short wRTSDuration_aa_f0;
-	unsigned short wRTSDuration_ba_f1;
-	unsigned short wRTSDuration_aa_f1;
-	struct ieee80211_rts data;
-} __attribute__ ((__packed__))
-SRTS_g_FB, *PSRTS_g_FB;
-typedef const SRTS_g_FB *PCSRTS_g_FB;
-
 typedef struct tagSRTS_ab {
 	struct vnt_phy_field ab;
 	unsigned short wDuration;
