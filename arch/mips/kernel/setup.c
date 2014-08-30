@@ -52,13 +52,6 @@ struct screen_info screen_info;
 #endif
 
 /*
- * Despite it's name this variable is even if we don't have PCI
- */
-unsigned int PCI_DMA_BUS_IS_PHYS;
-
-EXPORT_SYMBOL(PCI_DMA_BUS_IS_PHYS);
-
-/*
  * Setup information
  *
  * These are initialized so they are in the .data section

@@ -38,9 +38,6 @@ extern void pnx833x_machine_power_off(void);
 
 int __init plat_mem_setup(void)
 {
-	/* fake pci bus to avoid bounce buffers */
-	PCI_DMA_BUS_IS_PHYS = 1;
-
 	/* set mips clock to 320MHz */
 #if defined(CONFIG_SOC_PNX8335)
 	PNX8335_WRITEFIELD(0x17, CLOCK_PLL_CPU_CTL, FREQ);
