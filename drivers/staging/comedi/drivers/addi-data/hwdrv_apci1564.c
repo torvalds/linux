@@ -1,26 +1,3 @@
-/*
- * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
- *
- *	ADDI-DATA GmbH
- *	Dieselstrasse 3
- *	D-77833 Ottersweier
- *	Tel: +19(0)7223/9493-0
- *	Fax: +49(0)7223/9493-92
- *	http://www.addi-data.com
- *	info@addi-data.com
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free Software
- * Foundation; either version 2 of the License, or (at your option) any later
- * version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
- * details.
- *
- */
-
 /* Digital Input IRQ Function Selection */
 #define APCI1564_DI_INT_OR				(0 << 1)
 #define APCI1564_DI_INT_AND				(1 << 1)
