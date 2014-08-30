@@ -19,6 +19,7 @@
 ******************************************************************************/
 
 #include "odm_precomp.h"
+#include "phy.h"
 #include <rtw_iol.h>
 
 /* MAC_REG.TXT */
