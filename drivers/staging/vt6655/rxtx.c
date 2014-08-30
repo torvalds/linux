@@ -366,6 +366,13 @@ s_uGetTxRsvTime(
 		return uDataTime;
 }
 
+static __le16 vnt_rxtx_rsvtime_le16(struct vnt_private *priv, u8 pkt_type,
+				    u32 frame_length, u16 rate, bool need_ack)
+{
+	return cpu_to_le16((u16)s_uGetTxRsvTime(priv, pkt_type,
+						frame_length, rate, need_ack));
+}
+
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
 static
 unsigned int
@@ -1086,8 +1093,8 @@ s_vGenerateTxParameter(
 				buf->rts_rrv_time_aa = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 2, byPktType, cbFrameSize, wCurrentRate));
 				buf->rts_rrv_time_ba = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 1, byPktType, cbFrameSize, wCurrentRate));
 				buf->rts_rrv_time_bb = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 0, byPktType, cbFrameSize, wCurrentRate));
-				buf->rrv_time_a = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));
-				buf->rrv_time_b = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate, bNeedACK));
+				buf->rrv_time_a = vnt_rxtx_rsvtime_le16(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK);
+				buf->rrv_time_b = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate, bNeedACK);
 			}
 			//Fill RTS
 			s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK, bDisCRC, psEthHeader, wCurrentRate, byFBOption);
@@ -1097,8 +1104,8 @@ s_vGenerateTxParameter(
 			if (pvRrvTime) {
 				struct vnt_rrv_time_cts *buf = pvRrvTime;
 
-				buf->rrv_time_a = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));
-				buf->rrv_time_b = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate, bNeedACK));
+				buf->rrv_time_a = vnt_rxtx_rsvtime_le16(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK);
+				buf->rrv_time_b = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate, bNeedACK);
 				buf->cts_rrv_time_ba = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 3, byPktType, cbFrameSize, wCurrentRate));
 			}
 
@@ -1112,7 +1119,7 @@ s_vGenerateTxParameter(
 				struct vnt_rrv_time_ab *buf = pvRrvTime;
 
 				buf->rts_rrv_time = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 2, byPktType, cbFrameSize, wCurrentRate));
-				buf->rrv_time = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));
+				buf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK);
 			}
 			//Fill RTS
 			s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK, bDisCRC, psEthHeader, wCurrentRate, byFBOption);
@@ -1121,7 +1128,7 @@ s_vGenerateTxParameter(
 			if (pvRrvTime) {
 				struct vnt_rrv_time_ab *buf = pvRrvTime;
 
-				buf->rrv_time = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, PK_TYPE_11A, cbFrameSize, wCurrentRate, bNeedACK));
+				buf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11A, cbFrameSize, wCurrentRate, bNeedACK);
 			}
 		}
 	} else if (byPktType == PK_TYPE_11B) {
@@ -1131,7 +1138,7 @@ s_vGenerateTxParameter(
 				struct vnt_rrv_time_ab *buf = pvRrvTime;
 
 				buf->rts_rrv_time = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 0, byPktType, cbFrameSize, wCurrentRate));
-				buf->rrv_time = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, wCurrentRate, bNeedACK));
+				buf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B, cbFrameSize, wCurrentRate, bNeedACK);
 			}
 			//Fill RTS
 			s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK, bDisCRC, psEthHeader, wCurrentRate, byFBOption);
@@ -1140,7 +1147,7 @@ s_vGenerateTxParameter(
 			if (pvRrvTime) {
 				struct vnt_rrv_time_ab *buf = pvRrvTime;
 
-				buf->rrv_time = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, wCurrentRate, bNeedACK));
+				buf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B, cbFrameSize, wCurrentRate, bNeedACK);
 			}
 		}
 	}
