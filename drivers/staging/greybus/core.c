@@ -161,12 +161,12 @@ static int new_device(struct greybus_device *gdev,
 }
 
 
-int __init gb_init(void)
+static int __init gb_init(void)
 {
 	return 0;
 }
 
-void __exit gb_exit(void)
+static void __exit gb_exit(void)
 {
 }
 
