@@ -345,7 +345,6 @@ struct iwl_lq_sta {
 	u8 max_siso_rate_idx;
 	u8 max_mimo2_rate_idx;
 
-	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 
 	struct iwl_lq_cmd lq;

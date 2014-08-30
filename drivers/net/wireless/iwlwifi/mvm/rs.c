@@ -2036,18 +2036,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 		return;
 	}
 
-	/* force user max rate if set by user */
-	if ((lq_sta->max_rate_idx != -1) &&
-	    (lq_sta->max_rate_idx < index)) {
-		index = lq_sta->max_rate_idx;
-		update_lq = 1;
-		window = &(tbl->win[index]);
-		IWL_DEBUG_RATE(mvm,
-			       "Forcing user max rate %d\n",
-			       index);
-		goto lq_update;
-	}
-
+	/* TODO: handle rate_idx_mask and rate_idx_mcs_mask */
 	window = &(tbl->win[index]);
 
 	/*
@@ -2135,10 +2124,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	low = high_low & 0xff;
 	high = (high_low >> 8) & 0xff;
 
-	/* If user set max rate, dont allow higher than user constrain */
-	if ((lq_sta->max_rate_idx != -1) &&
-	    (lq_sta->max_rate_idx < high))
-		high = IWL_RATE_INVALID;
+	/* TODO: handle rate_idx_mask and rate_idx_mcs_mask */
 
 	sr = window->success_ratio;
 
@@ -2370,23 +2356,13 @@ static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
 			struct ieee80211_tx_rate_control *txrc)
 {
 	struct sk_buff *skb = txrc->skb;
-	struct ieee80211_supported_band *sband = txrc->sband;
 	struct iwl_op_mode *op_mode __maybe_unused =
 			(struct iwl_op_mode *)mvm_r;
 	struct iwl_mvm *mvm __maybe_unused = IWL_OP_MODE_GET_MVM(op_mode);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = mvm_sta;
 
-	/* Get max rate if user set max rate */
-	if (lq_sta) {
-		lq_sta->max_rate_idx = txrc->max_rate_idx;
-		if ((sband->band == IEEE80211_BAND_5GHZ) &&
-		    (lq_sta->max_rate_idx != -1))
-			lq_sta->max_rate_idx += IWL_FIRST_OFDM_RATE;
-		if ((lq_sta->max_rate_idx < 0) ||
-		    (lq_sta->max_rate_idx >= IWL_RATE_COUNT))
-			lq_sta->max_rate_idx = -1;
-	}
+	/* TODO: handle rate_idx_mask and rate_idx_mcs_mask */
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (lq_sta && !lq_sta->pers.drv) {
@@ -2587,7 +2563,6 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 * previous packets? Need to have IEEE 802.1X auth succeed immediately
 	 * after assoc.. */
 
-	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
 	lq_sta->band = sband->band;
 	/*
