@@ -3437,11 +3437,17 @@ static inline netdev_tx_t __netdev_start_xmit(const struct net_device_ops *ops,
 	return ops->ndo_start_xmit(skb, dev);
 }
 
-static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb, struct net_device *dev,
+					    struct netdev_queue *txq)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+	int rc;
 
-	return __netdev_start_xmit(ops, skb, dev);
+	rc = __netdev_start_xmit(ops, skb, dev);
+	if (rc == NETDEV_TX_OK)
+		txq_trans_update(txq);
+
+	return rc;
 }
 
 int netdev_class_create_file_ns(struct class_attribute *class_attr,
