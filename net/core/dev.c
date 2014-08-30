@@ -2644,80 +2644,97 @@ out:
 	return skb;
 }
 
+struct sk_buff *validate_xmit_vlan(struct sk_buff *skb, netdev_features_t features)
+{
+	if (vlan_tx_tag_present(skb) &&
+	    !vlan_hw_offload_capable(features, skb->vlan_proto)) {
+		skb = __vlan_put_tag(skb, skb->vlan_proto,
+				     vlan_tx_tag_get(skb));
+		if (skb)
+			skb->vlan_tci = 0;
+	}
+	return skb;
+}
+
+static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device *dev)
+{
+	netdev_features_t features;
+
+	if (skb->next)
+		return skb;
+
+	/* If device doesn't need skb->dst, release it right now while
+	 * its hot in this cpu cache
+	 */
+	if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
+		skb_dst_drop(skb);
+
+	features = netif_skb_features(skb);
+	skb = validate_xmit_vlan(skb, features);
+	if (unlikely(!skb))
+		goto out_null;
+
+	/* If encapsulation offload request, verify we are testing
+	 * hardware encapsulation features instead of standard
+	 * features for the netdev
+	 */
+	if (skb->encapsulation)
+		features &= dev->hw_enc_features;
+
+	if (netif_needs_gso(skb, features)) {
+		if (unlikely(dev_gso_segment(skb, features)))
+			goto out_kfree_skb;
+	} else {
+		if (skb_needs_linearize(skb, features) &&
+		    __skb_linearize(skb))
+			goto out_kfree_skb;
+
+		/* If packet is not checksummed and device does not
+		 * support checksumming for this protocol, complete
+		 * checksumming here.
+		 */
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			if (skb->encapsulation)
+				skb_set_inner_transport_header(skb,
+							       skb_checksum_start_offset(skb));
+			else
+				skb_set_transport_header(skb,
+							 skb_checksum_start_offset(skb));
+			if (!(features & NETIF_F_ALL_CSUM) &&
+			    skb_checksum_help(skb))
+				goto out_kfree_skb;
+		}
+	}
+
+	return skb;
+
+out_kfree_skb:
+	kfree_skb(skb);
+out_null:
+	return NULL;
+}
+
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
 	int rc = NETDEV_TX_OK;
 
-	if (likely(!skb->next)) {
-		netdev_features_t features;
+	skb = validate_xmit_skb(skb, dev);
+	if (!skb)
+		return rc;
 
-		/*
-		 * If device doesn't need skb->dst, release it right now while
-		 * its hot in this cpu cache
-		 */
-		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
-			skb_dst_drop(skb);
-
-		features = netif_skb_features(skb);
-
-		if (vlan_tx_tag_present(skb) &&
-		    !vlan_hw_offload_capable(features, skb->vlan_proto)) {
-			skb = __vlan_put_tag(skb, skb->vlan_proto,
-					     vlan_tx_tag_get(skb));
-			if (unlikely(!skb))
-				goto out;
-
-			skb->vlan_tci = 0;
-		}
-
-		/* If encapsulation offload request, verify we are testing
-		 * hardware encapsulation features instead of standard
-		 * features for the netdev
-		 */
-		if (skb->encapsulation)
-			features &= dev->hw_enc_features;
-
-		if (netif_needs_gso(skb, features)) {
-			if (unlikely(dev_gso_segment(skb, features)))
-				goto out_kfree_skb;
-			if (skb->next)
-				goto gso;
-		} else {
-			if (skb_needs_linearize(skb, features) &&
-			    __skb_linearize(skb))
-				goto out_kfree_skb;
-
-			/* If packet is not checksummed and device does not
-			 * support checksumming for this protocol, complete
-			 * checksumming here.
-			 */
-			if (skb->ip_summed == CHECKSUM_PARTIAL) {
-				if (skb->encapsulation)
-					skb_set_inner_transport_header(skb,
-						skb_checksum_start_offset(skb));
-				else
-					skb_set_transport_header(skb,
-						skb_checksum_start_offset(skb));
-				if (!(features & NETIF_F_ALL_CSUM) &&
-				     skb_checksum_help(skb))
-					goto out_kfree_skb;
-			}
-		}
-
+	if (likely(!skb->next))
 		return xmit_one(skb, dev, txq, false);
-	}
 
-gso:
 	skb->next = xmit_list(skb->next, dev, txq, &rc);
 	if (likely(skb->next == NULL)) {
 		skb->destructor = DEV_GSO_CB(skb)->destructor;
 		consume_skb(skb);
 		return rc;
 	}
-out_kfree_skb:
+
 	kfree_skb(skb);
-out:
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(dev_hard_start_xmit);
