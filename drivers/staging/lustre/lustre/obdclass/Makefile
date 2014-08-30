@@ -1,4 +1,4 @@
-obj-$(CONFIG_LUSTRE_FS) += obdclass.o llog_test.o
+obj-$(CONFIG_LUSTRE_FS) += obdclass.o
 
 obdclass-y := linux/linux-module.o linux/linux-obdo.o linux/linux-sysctl.o \
 	      llog.o llog_cat.o llog_obd.o llog_swab.o class_obd.o debug.o \
