@@ -1494,7 +1494,7 @@ static int ll_lov_setea(struct inode *inode, struct file *file,
 	if (lump == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(lump, (struct lov_user_md  *)arg, lum_size)) {
+	if (copy_from_user(lump, (struct lov_user_md *)arg, lum_size)) {
 		OBD_FREE_LARGE(lump, lum_size);
 		return -EFAULT;
 	}
@@ -2328,7 +2328,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (mdtidx < 0)
 			return mdtidx;
 
-		if (put_user((int)mdtidx, (int*)arg))
+		if (put_user((int)mdtidx, (int *)arg))
 			return -EFAULT;
 
 		return 0;

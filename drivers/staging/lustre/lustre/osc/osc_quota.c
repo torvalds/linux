@@ -138,7 +138,7 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 static unsigned
 oqi_hashfn(struct cfs_hash *hs, const void *key, unsigned mask)
 {
-	return cfs_hash_u32_hash(*((__u32*)key), mask);
+	return cfs_hash_u32_hash(*((__u32 *)key), mask);
 }
 
 static int

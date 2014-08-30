@@ -208,7 +208,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 
 	/* only for debugging */
 	if (cmd == LIBCFS_IOC_DEBUG_MASK) {
-		debug_data = (struct libcfs_debug_ioctl_data*)arg;
+		debug_data = (struct libcfs_debug_ioctl_data *)arg;
 		libcfs_subsystem_debug = debug_data->subs;
 		libcfs_debug = debug_data->debug;
 		return 0;

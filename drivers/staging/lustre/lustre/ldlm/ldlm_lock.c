@@ -1747,7 +1747,7 @@ ldlm_work_revoke_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	desc.l_req_mode = LCK_EX;
 	desc.l_granted_mode = 0;
 
-	rc = lock->l_blocking_ast(lock, &desc, (void*)arg, LDLM_CB_BLOCKING);
+	rc = lock->l_blocking_ast(lock, &desc, (void *)arg, LDLM_CB_BLOCKING);
 	LDLM_LOCK_RELEASE(lock);
 
 	return rc;
@@ -1776,7 +1776,7 @@ int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	arg->gl_desc = gl_work->gl_desc;
 
 	/* invoke the actual glimpse callback */
-	if (lock->l_glimpse_ast(lock, (void*)arg) == 0)
+	if (lock->l_glimpse_ast(lock, (void *)arg) == 0)
 		rc = 1;
 
 	LDLM_LOCK_RELEASE(lock);

@@ -1361,7 +1361,7 @@ int class_config_llog_handler(const struct lu_env *env,
 {
 	struct config_llog_instance *clli = data;
 	int cfg_len = rec->lrh_len;
-	char *cfg_buf = (char*) (rec + 1);
+	char *cfg_buf = (char *) (rec + 1);
 	int rc = 0;
 
 	//class_config_dump_handler(handle, rec, data);

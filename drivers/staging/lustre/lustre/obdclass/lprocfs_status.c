@@ -927,7 +927,7 @@ EXPORT_SYMBOL(lprocfs_rd_num_exports);
 
 int lprocfs_rd_numrefs(struct seq_file *m, void *data)
 {
-	struct obd_type *class = (struct obd_type*) data;
+	struct obd_type *class = (struct obd_type *) data;
 
 	LASSERT(class != NULL);
 	return seq_printf(m, "%d\n", class->typ_refcnt);

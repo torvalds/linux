@@ -705,7 +705,7 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		dev = MKDEV(lloop_major, lo->lo_number);
 
 		/* quit if the used pointer is writable */
-		if (put_user((long)old_encode_dev(dev), (long*)arg)) {
+		if (put_user((long)old_encode_dev(dev), (long *)arg)) {
 			err = -EFAULT;
 			goto out;
 		}

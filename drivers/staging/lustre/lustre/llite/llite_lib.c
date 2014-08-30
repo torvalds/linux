@@ -2175,7 +2175,7 @@ int ll_obd_statfs(struct inode *inode, void *arg)
 	if (rc)
 		goto out_statfs;
 
-	data = (void*)buf;
+	data = (void *)buf;
 	if (!data->ioc_inlbuf1 || !data->ioc_inlbuf2 ||
 	    !data->ioc_pbuf1 || !data->ioc_pbuf2) {
 		rc = -EINVAL;
