@@ -140,7 +140,7 @@ static inline struct lov_lock_handles *
 lov_handle2llh(struct lustre_handle *handle)
 {
 	LASSERT(handle != NULL);
-	return(class_handle2object(handle->cookie));
+	return class_handle2object(handle->cookie);
 }
 
 static inline void lov_llh_put(struct lov_lock_handles *llh)

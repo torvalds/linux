@@ -107,7 +107,7 @@ static void *pool_key(struct hlist_node *hnode)
 	struct pool_desc *pool;
 
 	pool = hlist_entry(hnode, struct pool_desc, pool_hash);
-	return (pool->pool_name);
+	return pool->pool_name;
 }
 
 static int pool_hashkey_keycmp(const void *key, struct hlist_node *compared_hnode)

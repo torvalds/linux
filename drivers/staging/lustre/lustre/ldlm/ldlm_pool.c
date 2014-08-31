@@ -631,7 +631,7 @@ EXPORT_SYMBOL(ldlm_pool_shrink);
 int ldlm_pool_setup(struct ldlm_pool *pl, int limit)
 {
 	if (pl->pl_ops->po_setup != NULL)
-		return(pl->pl_ops->po_setup(pl, limit));
+		return pl->pl_ops->po_setup(pl, limit);
 	return 0;
 }
 EXPORT_SYMBOL(ldlm_pool_setup);

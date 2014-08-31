@@ -447,7 +447,7 @@ static inline int llog_group_ctxt_null(struct obd_llog_group *olg, int index)
 
 static inline int llog_ctxt_null(struct obd_device *obd, int index)
 {
-	return (llog_group_ctxt_null(&obd->obd_olg, index));
+	return llog_group_ctxt_null(&obd->obd_olg, index);
 }
 
 static inline int llog_destroy(const struct lu_env *env,
