@@ -5304,7 +5304,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	struct ext4_ext_path *path;
 	int ret = 0, depth;
 	struct ext4_extent *extent;
-	ext4_lblk_t stop_block, current_block;
+	ext4_lblk_t stop_block;
 	ext4_lblk_t ex_start, ex_end;
 
 	/* Let path point to the last extent */
@@ -5365,17 +5365,15 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 					 (unsigned long) start);
 			return -EIO;
 		}
-
-		current_block = le32_to_cpu(extent->ee_block);
-		if (start > current_block) {
+		if (start > le32_to_cpu(extent->ee_block)) {
 			/* Hole, move to the next extent */
-			ret = mext_next_extent(inode, path, &extent);
-			if (ret != 0) {
+			if (extent < EXT_LAST_EXTENT(path[depth].p_hdr)) {
+				path[depth].p_ext++;
+			} else {
+				start = ext4_ext_next_allocated_block(path);
 				ext4_ext_drop_refs(path);
 				kfree(path);
-				if (ret == 1)
-					ret = 0;
-				break;
+				continue;
 			}
 		}
 		ret = ext4_ext_shift_path_extents(path, shift, inode,
