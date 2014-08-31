@@ -25,7 +25,7 @@
 #define MAX_XFER_SIZE  64
 
 struct af9033_dev {
-	struct i2c_adapter *i2c;
+	struct i2c_client *client;
 	struct dvb_frontend fe;
 	struct af9033_config cfg;
 
@@ -46,7 +46,7 @@ static int af9033_wr_regs(struct af9033_dev *dev, u32 reg, const u8 *val,
 	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
-			.addr = dev->cfg.i2c_addr,
+			.addr = dev->client->addr,
 			.flags = 0,
 			.len = 3 + len,
 			.buf = buf,
@@ -54,7 +54,7 @@ static int af9033_wr_regs(struct af9033_dev *dev, u32 reg, const u8 *val,
 	};
 
 	if (3 + len > sizeof(buf)) {
-		dev_warn(&dev->i2c->dev,
+		dev_warn(&dev->client->dev,
 			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
 			 KBUILD_MODNAME, reg, len);
 		return -EINVAL;
@@ -65,11 +65,11 @@ static int af9033_wr_regs(struct af9033_dev *dev, u32 reg, const u8 *val,
 	buf[2] = (reg >>  0) & 0xff;
 	memcpy(&buf[3], val, len);
 
-	ret = i2c_transfer(dev->i2c, msg, 1);
+	ret = i2c_transfer(dev->client->adapter, msg, 1);
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		dev_warn(&dev->i2c->dev,
+		dev_warn(&dev->client->dev,
 				"%s: i2c wr failed=%d reg=%06x len=%d\n",
 				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
@@ -86,23 +86,23 @@ static int af9033_rd_regs(struct af9033_dev *dev, u32 reg, u8 *val, int len)
 			(reg >> 0) & 0xff };
 	struct i2c_msg msg[2] = {
 		{
-			.addr = dev->cfg.i2c_addr,
+			.addr = dev->client->addr,
 			.flags = 0,
 			.len = sizeof(buf),
 			.buf = buf
 		}, {
-			.addr = dev->cfg.i2c_addr,
+			.addr = dev->client->addr,
 			.flags = I2C_M_RD,
 			.len = len,
 			.buf = val
 		}
 	};
 
-	ret = i2c_transfer(dev->i2c, msg, 2);
+	ret = i2c_transfer(dev->client->adapter, msg, 2);
 	if (ret == 2) {
 		ret = 0;
 	} else {
-		dev_warn(&dev->i2c->dev,
+		dev_warn(&dev->client->dev,
 				"%s: i2c rd failed=%d reg=%06x len=%d\n",
 				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
@@ -176,10 +176,10 @@ static int af9033_wr_reg_val_tab(struct af9033_dev *dev,
 	int ret, i, j;
 	u8 buf[1 + MAX_TAB_LEN];
 
-	dev_dbg(&dev->i2c->dev, "%s: tab_len=%d\n", __func__, tab_len);
+	dev_dbg(&dev->client->dev, "%s: tab_len=%d\n", __func__, tab_len);
 
 	if (tab_len > sizeof(buf)) {
-		dev_warn(&dev->i2c->dev, "%s: tab len %d is too big\n",
+		dev_warn(&dev->client->dev, "%s: tab len %d is too big\n",
 				KBUILD_MODNAME, tab_len);
 		return -EINVAL;
 	}
@@ -201,7 +201,7 @@ static int af9033_wr_reg_val_tab(struct af9033_dev *dev,
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -210,7 +210,7 @@ static u32 af9033_div(struct af9033_dev *dev, u32 a, u32 b, u32 x)
 {
 	u32 r = 0, c = 0, i;
 
-	dev_dbg(&dev->i2c->dev, "%s: a=%d b=%d x=%d\n", __func__, a, b, x);
+	dev_dbg(&dev->client->dev, "%s: a=%d b=%d x=%d\n", __func__, a, b, x);
 
 	if (a > b) {
 		c = a / b;
@@ -227,17 +227,10 @@ static u32 af9033_div(struct af9033_dev *dev, u32 a, u32 b, u32 x)
 	}
 	r = (c << (u32)x) + r;
 
-	dev_dbg(&dev->i2c->dev, "%s: a=%d b=%d x=%d r=%d r=%x\n",
+	dev_dbg(&dev->client->dev, "%s: a=%d b=%d x=%d r=%d r=%x\n",
 			__func__, a, b, x, r, r);
 
 	return r;
-}
-
-static void af9033_release(struct dvb_frontend *fe)
-{
-	struct af9033_dev *dev = fe->demodulator_priv;
-
-	kfree(dev);
 }
 
 static int af9033_init(struct dvb_frontend *fe)
@@ -283,7 +276,7 @@ static int af9033_init(struct dvb_frontend *fe)
 	buf[2] = (clock_cw >> 16) & 0xff;
 	buf[3] = (clock_cw >> 24) & 0xff;
 
-	dev_dbg(&dev->i2c->dev, "%s: clock=%d clock_cw=%08x\n",
+	dev_dbg(&dev->client->dev, "%s: clock=%d clock_cw=%08x\n",
 			__func__, dev->cfg.clock, clock_cw);
 
 	ret = af9033_wr_regs(dev, 0x800025, buf, 4);
@@ -301,7 +294,7 @@ static int af9033_init(struct dvb_frontend *fe)
 	buf[1] = (adc_cw >>  8) & 0xff;
 	buf[2] = (adc_cw >> 16) & 0xff;
 
-	dev_dbg(&dev->i2c->dev, "%s: adc=%d adc_cw=%06x\n",
+	dev_dbg(&dev->client->dev, "%s: adc=%d adc_cw=%06x\n",
 			__func__, clock_adc_lut[i].adc, adc_cw);
 
 	ret = af9033_wr_regs(dev, 0x80f1cd, buf, 3);
@@ -343,7 +336,7 @@ static int af9033_init(struct dvb_frontend *fe)
 	}
 
 	/* load OFSM settings */
-	dev_dbg(&dev->i2c->dev, "%s: load ofsm settings\n", __func__);
+	dev_dbg(&dev->client->dev, "%s: load ofsm settings\n", __func__);
 	switch (dev->cfg.tuner) {
 	case AF9033_TUNER_IT9135_38:
 	case AF9033_TUNER_IT9135_51:
@@ -368,7 +361,7 @@ static int af9033_init(struct dvb_frontend *fe)
 		goto err;
 
 	/* load tuner specific settings */
-	dev_dbg(&dev->i2c->dev, "%s: load tuner specific settings\n",
+	dev_dbg(&dev->client->dev, "%s: load tuner specific settings\n",
 			__func__);
 	switch (dev->cfg.tuner) {
 	case AF9033_TUNER_TUA9001:
@@ -420,7 +413,7 @@ static int af9033_init(struct dvb_frontend *fe)
 		init = tuner_init_it9135_62;
 		break;
 	default:
-		dev_dbg(&dev->i2c->dev, "%s: unsupported tuner ID=%d\n",
+		dev_dbg(&dev->client->dev, "%s: unsupported tuner ID=%d\n",
 				__func__, dev->cfg.tuner);
 		ret = -ENODEV;
 		goto err;
@@ -458,7 +451,7 @@ static int af9033_init(struct dvb_frontend *fe)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -485,7 +478,7 @@ static int af9033_sleep(struct dvb_frontend *fe)
 		usleep_range(200, 10000);
 	}
 
-	dev_dbg(&dev->i2c->dev, "%s: loop=%d\n", __func__, i);
+	dev_dbg(&dev->client->dev, "%s: loop=%d\n", __func__, i);
 
 	if (i == 0) {
 		ret = -ETIMEDOUT;
@@ -511,7 +504,7 @@ static int af9033_sleep(struct dvb_frontend *fe)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -535,7 +528,7 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 	u8 tmp, buf[3], bandwidth_reg_val;
 	u32 if_frequency, freq_cw, adc_freq;
 
-	dev_dbg(&dev->i2c->dev, "%s: frequency=%d bandwidth_hz=%d\n",
+	dev_dbg(&dev->client->dev, "%s: frequency=%d bandwidth_hz=%d\n",
 			__func__, c->frequency, c->bandwidth_hz);
 
 	/* check bandwidth */
@@ -550,7 +543,7 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 		bandwidth_reg_val = 0x02;
 		break;
 	default:
-		dev_dbg(&dev->i2c->dev, "%s: invalid bandwidth_hz\n",
+		dev_dbg(&dev->client->dev, "%s: invalid bandwidth_hz\n",
 				__func__);
 		ret = -EINVAL;
 		goto err;
@@ -653,7 +646,7 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -665,7 +658,7 @@ static int af9033_get_frontend(struct dvb_frontend *fe)
 	int ret;
 	u8 buf[8];
 
-	dev_dbg(&dev->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&dev->client->dev, "%s:\n", __func__);
 
 	/* read all needed registers */
 	ret = af9033_rd_regs(dev, 0x80f900, buf, sizeof(buf));
@@ -780,7 +773,7 @@ static int af9033_get_frontend(struct dvb_frontend *fe)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -826,7 +819,7 @@ static int af9033_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -880,7 +873,7 @@ static int af9033_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -902,7 +895,7 @@ static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -948,7 +941,7 @@ static int af9033_update_ch_stat(struct af9033_dev *dev)
 
 	return 0;
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -986,7 +979,7 @@ static int af9033_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	struct af9033_dev *dev = fe->demodulator_priv;
 	int ret;
 
-	dev_dbg(&dev->i2c->dev, "%s: enable=%d\n", __func__, enable);
+	dev_dbg(&dev->client->dev, "%s: enable=%d\n", __func__, enable);
 
 	ret = af9033_wr_reg_mask(dev, 0x00fa04, enable, 0x01);
 	if (ret < 0)
@@ -995,7 +988,7 @@ static int af9033_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -1005,7 +998,7 @@ static int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
 	struct af9033_dev *dev = fe->demodulator_priv;
 	int ret;
 
-	dev_dbg(&dev->i2c->dev, "%s: onoff=%d\n", __func__, onoff);
+	dev_dbg(&dev->client->dev, "%s: onoff=%d\n", __func__, onoff);
 
 	ret = af9033_wr_reg_mask(dev, 0x80f993, onoff, 0x01);
 	if (ret < 0)
@@ -1014,7 +1007,7 @@ static int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -1026,7 +1019,7 @@ static int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid,
 	int ret;
 	u8 wbuf[2] = {(pid >> 0) & 0xff, (pid >> 8) & 0xff};
 
-	dev_dbg(&dev->i2c->dev, "%s: index=%d pid=%04x onoff=%d\n",
+	dev_dbg(&dev->client->dev, "%s: index=%d pid=%04x onoff=%d\n",
 			__func__, index, pid, onoff);
 
 	if (pid > 0x1fff)
@@ -1047,118 +1040,10 @@ static int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid,
 	return 0;
 
 err:
-	dev_dbg(&dev->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&dev->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
-
-static struct dvb_frontend_ops af9033_ops;
-
-struct dvb_frontend *af9033_attach(const struct af9033_config *config,
-				   struct i2c_adapter *i2c,
-				   struct af9033_ops *ops)
-{
-	int ret;
-	struct af9033_dev *dev;
-	u8 buf[8];
-	u32 reg;
-
-	dev_dbg(&i2c->dev, "%s:\n", __func__);
-
-	/* allocate memory for the internal state */
-	dev = kzalloc(sizeof(struct af9033_dev), GFP_KERNEL);
-	if (dev == NULL)
-		goto err;
-
-	/* setup the state */
-	dev->i2c = i2c;
-	memcpy(&dev->cfg, config, sizeof(struct af9033_config));
-
-	if (dev->cfg.clock != 12000000) {
-		dev_err(&dev->i2c->dev,
-				"%s: af9033: unsupported clock=%d, only 12000000 Hz is supported currently\n",
-				KBUILD_MODNAME, dev->cfg.clock);
-		goto err;
-	}
-
-	/* firmware version */
-	switch (dev->cfg.tuner) {
-	case AF9033_TUNER_IT9135_38:
-	case AF9033_TUNER_IT9135_51:
-	case AF9033_TUNER_IT9135_52:
-	case AF9033_TUNER_IT9135_60:
-	case AF9033_TUNER_IT9135_61:
-	case AF9033_TUNER_IT9135_62:
-		reg = 0x004bfc;
-		break;
-	default:
-		reg = 0x0083e9;
-		break;
-	}
-
-	ret = af9033_rd_regs(dev, reg, &buf[0], 4);
-	if (ret < 0)
-		goto err;
-
-	ret = af9033_rd_regs(dev, 0x804191, &buf[4], 4);
-	if (ret < 0)
-		goto err;
-
-	dev_info(&dev->i2c->dev,
-			"%s: firmware version: LINK=%d.%d.%d.%d OFDM=%d.%d.%d.%d\n",
-			KBUILD_MODNAME, buf[0], buf[1], buf[2], buf[3], buf[4],
-			buf[5], buf[6], buf[7]);
-
-	/* sleep */
-	switch (dev->cfg.tuner) {
-	case AF9033_TUNER_IT9135_38:
-	case AF9033_TUNER_IT9135_51:
-	case AF9033_TUNER_IT9135_52:
-	case AF9033_TUNER_IT9135_60:
-	case AF9033_TUNER_IT9135_61:
-	case AF9033_TUNER_IT9135_62:
-		/* IT9135 did not like to sleep at that early */
-		break;
-	default:
-		ret = af9033_wr_reg(dev, 0x80004c, 1);
-		if (ret < 0)
-			goto err;
-
-		ret = af9033_wr_reg(dev, 0x800000, 0);
-		if (ret < 0)
-			goto err;
-	}
-
-	/* configure internal TS mode */
-	switch (dev->cfg.ts_mode) {
-	case AF9033_TS_MODE_PARALLEL:
-		dev->ts_mode_parallel = true;
-		break;
-	case AF9033_TS_MODE_SERIAL:
-		dev->ts_mode_serial = true;
-		break;
-	case AF9033_TS_MODE_USB:
-		/* usb mode for AF9035 */
-	default:
-		break;
-	}
-
-	/* create dvb_frontend */
-	memcpy(&dev->fe.ops, &af9033_ops, sizeof(struct dvb_frontend_ops));
-	dev->fe.demodulator_priv = dev;
-
-	if (ops) {
-		ops->pid_filter = af9033_pid_filter;
-		ops->pid_filter_ctrl = af9033_pid_filter_ctrl;
-	}
-
-	return &dev->fe;
-
-err:
-	kfree(dev);
-	return NULL;
-}
-EXPORT_SYMBOL(af9033_attach);
 
 static struct dvb_frontend_ops af9033_ops = {
 	.delsys = { SYS_DVBT },
@@ -1185,8 +1070,6 @@ static struct dvb_frontend_ops af9033_ops = {
 			FE_CAN_MUTE_TS
 	},
 
-	.release = af9033_release,
-
 	.init = af9033_init,
 	.sleep = af9033_sleep,
 
@@ -1202,6 +1085,147 @@ static struct dvb_frontend_ops af9033_ops = {
 
 	.i2c_gate_ctrl = af9033_i2c_gate_ctrl,
 };
+
+static int af9033_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	struct af9033_config *cfg = client->dev.platform_data;
+	struct af9033_dev *dev;
+	int ret;
+	u8 buf[8];
+	u32 reg;
+
+	/* allocate memory for the internal state */
+	dev = kzalloc(sizeof(struct af9033_dev), GFP_KERNEL);
+	if (dev == NULL) {
+		ret = -ENOMEM;
+		dev_err(&client->dev, "Could not allocate memory for state\n");
+		goto err;
+	}
+
+	/* setup the state */
+	dev->client = client;
+	memcpy(&dev->cfg, cfg, sizeof(struct af9033_config));
+
+	if (dev->cfg.clock != 12000000) {
+		ret = -ENODEV;
+		dev_err(&dev->client->dev,
+				"%s: af9033: unsupported clock=%d, only 12000000 Hz is supported currently\n",
+				KBUILD_MODNAME, dev->cfg.clock);
+		goto err_kfree;
+	}
+
+	/* firmware version */
+	switch (dev->cfg.tuner) {
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		reg = 0x004bfc;
+		break;
+	default:
+		reg = 0x0083e9;
+		break;
+	}
+
+	ret = af9033_rd_regs(dev, reg, &buf[0], 4);
+	if (ret < 0)
+		goto err_kfree;
+
+	ret = af9033_rd_regs(dev, 0x804191, &buf[4], 4);
+	if (ret < 0)
+		goto err_kfree;
+
+	dev_info(&dev->client->dev,
+			"%s: firmware version: LINK=%d.%d.%d.%d OFDM=%d.%d.%d.%d\n",
+			KBUILD_MODNAME, buf[0], buf[1], buf[2], buf[3], buf[4],
+			buf[5], buf[6], buf[7]);
+
+	/* sleep */
+	switch (dev->cfg.tuner) {
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		/* IT9135 did not like to sleep at that early */
+		break;
+	default:
+		ret = af9033_wr_reg(dev, 0x80004c, 1);
+		if (ret < 0)
+			goto err_kfree;
+
+		ret = af9033_wr_reg(dev, 0x800000, 0);
+		if (ret < 0)
+			goto err_kfree;
+	}
+
+	/* configure internal TS mode */
+	switch (dev->cfg.ts_mode) {
+	case AF9033_TS_MODE_PARALLEL:
+		dev->ts_mode_parallel = true;
+		break;
+	case AF9033_TS_MODE_SERIAL:
+		dev->ts_mode_serial = true;
+		break;
+	case AF9033_TS_MODE_USB:
+		/* usb mode for AF9035 */
+	default:
+		break;
+	}
+
+	/* create dvb_frontend */
+	memcpy(&dev->fe.ops, &af9033_ops, sizeof(struct dvb_frontend_ops));
+	dev->fe.demodulator_priv = dev;
+	*cfg->fe = &dev->fe;
+	if (cfg->ops) {
+		cfg->ops->pid_filter = af9033_pid_filter;
+		cfg->ops->pid_filter_ctrl = af9033_pid_filter_ctrl;
+	}
+	i2c_set_clientdata(client, dev);
+
+	dev_info(&dev->client->dev, "Afatech AF9033 successfully attached\n");
+	return 0;
+err_kfree:
+	kfree(dev);
+err:
+	dev_dbg(&client->dev, "failed %d\n", ret);
+	return ret;
+}
+
+static int af9033_remove(struct i2c_client *client)
+{
+	struct af9033_dev *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "%s\n", __func__);
+
+	dev->fe.ops.release = NULL;
+	dev->fe.demodulator_priv = NULL;
+	kfree(dev);
+
+	return 0;
+}
+
+static const struct i2c_device_id af9033_id_table[] = {
+	{"af9033", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, af9033_id_table);
+
+static struct i2c_driver af9033_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "af9033",
+	},
+	.probe		= af9033_probe,
+	.remove		= af9033_remove,
+	.id_table	= af9033_id_table,
+};
+
+module_i2c_driver(af9033_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Afatech AF9033 DVB-T demodulator driver");

@@ -63,7 +63,7 @@ struct state {
 	u16 eeprom_addr;
 	struct af9033_config af9033_config[2];
 	struct af9033_ops ops;
-	#define AF9035_I2C_CLIENT_MAX 2
+	#define AF9035_I2C_CLIENT_MAX 4
 	struct i2c_client *i2c_client[AF9035_I2C_CLIENT_MAX];
 };
 
