@@ -18,6 +18,21 @@
 #include <linux/device.h>
 #include "greybus.h"
 
+/*
+ * AP <-> SVC message structure format:
+ *
+ * 
+ *
+ */
+struct svc_msg {
+	u8	function;
+	u8	type;
+	u8	version_major;
+	u8	version_minor;
+	u16	payload_length;
+};
+
+
 struct ap_msg {
 	u8 *data;
 	int size;
