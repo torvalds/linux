@@ -367,24 +367,24 @@ void PHY_SetBWMode8188E(struct adapter *Adapter, enum ht_channel_width Bandwidth
 		pHalData->CurrentChannelBW = tmpBW;
 }
 
-static void _PHY_SwChnl8192C(struct adapter *Adapter, u8 channel)
+static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 {
-	u8 eRFPath;
+	u8 rf_path;
 	u32 param1, param2;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 
-	if (Adapter->bNotifyChannelChange)
+	if (adapt->bNotifyChannelChange)
 		DBG_88E("[%s] ch = %d\n", __func__, channel);
 
-	/* s1. pre common command - CmdID_SetTxPowerLevel */
-	PHY_SetTxPowerLevel8188E(Adapter, channel);
+	PHY_SetTxPowerLevel8188E(adapt, channel);
 
-	/* s2. RF dependent command - CmdID_RF_WriteReg, param1=RF_CHNLBW, param2=channel */
 	param1 = RF_CHNLBW;
 	param2 = channel;
-	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
-		pHalData->RfRegChnlVal[eRFPath] = ((pHalData->RfRegChnlVal[eRFPath] & 0xfffffc00) | param2);
-		phy_set_rf_reg(Adapter, (enum rf_radio_path)eRFPath, param1, bRFRegOffsetMask, pHalData->RfRegChnlVal[eRFPath]);
+	for (rf_path = 0; rf_path < hal_data->NumTotalRFPath; rf_path++) {
+		hal_data->RfRegChnlVal[rf_path] = (hal_data->RfRegChnlVal[rf_path] &
+						  0xfffffc00) | param2;
+		phy_set_rf_reg(adapt, (enum rf_radio_path)rf_path, param1,
+			       bRFRegOffsetMask, hal_data->RfRegChnlVal[rf_path]);
 	}
 }
 
@@ -404,7 +404,7 @@ void PHY_SwChnl8188E(struct adapter *Adapter, u8 channel)
 	pHalData->CurrentChannel = channel;
 
 	if ((!Adapter->bDriverStopped) && (!Adapter->bSurpriseRemoved)) {
-		_PHY_SwChnl8192C(Adapter, channel);
+		phy_sw_chnl_callback(Adapter, channel);
 
 		if (bResult)
 			;
