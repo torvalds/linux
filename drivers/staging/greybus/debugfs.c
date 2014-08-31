@@ -19,7 +19,7 @@
 
 static struct dentry *gb_debug_root;
 
-int greybus_debugfs_init(void)
+int gb_debugfs_init(void)
 {
 	gb_debug_root = debugfs_create_dir("greybus", NULL);
 	if (!gb_debug_root)
@@ -28,7 +28,7 @@ int greybus_debugfs_init(void)
 	return 0;
 }
 
-void greybus_debugfs_cleanup(void)
+void gb_debugfs_cleanup(void)
 {
 	debugfs_remove_recursive(gb_debug_root);
 }

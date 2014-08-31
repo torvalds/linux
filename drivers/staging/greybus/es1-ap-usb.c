@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/usb.h>
-
+#include "greybus.h"
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0000, 0x0000) },		// FIXME
@@ -33,6 +33,68 @@ struct es1_ap_dev {
  * create one static structure pointer.
  */
 static struct es1_ap_dev *es1_ap_dev;
+
+static void ap_in_callback(struct urb *urb)
+{
+	struct device *dev = &urb->dev->dev;
+	int status = urb->status;
+	int retval;
+
+	switch (status) {
+	case 0:
+		break;
+	case -EOVERFLOW:
+		dev_err(dev, "%s: overflow actual length is %d\n",
+			__func__, urb->actual_length);
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+	case -EILSEQ:
+		/* device is gone, stop sending */
+		return;
+	default:
+		dev_err(dev, "%s: unknown status %d\n", __func__, status);
+		goto exit;
+	}
+
+	/* We have a message, create a new message structure, add it to the
+	 * list, and wake up our thread that will process the messages.
+	 */
+	gb_new_ap_msg(urb->transfer_buffer, urb->actual_length);
+
+exit:
+	/* resubmit the urb to get more messages */
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
+		dev_err(dev, "Can not submit urb for AP data: %d\n", retval);
+}
+
+static void ap_out_callback(struct urb *urb)
+{
+	struct device *dev = &urb->dev->dev;
+	int status = urb->status;
+
+	switch (status) {
+	case 0:
+		break;
+	case -EOVERFLOW:
+		dev_err(dev, "%s: overflow actual length is %d\n",
+			__func__, urb->actual_length);
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+	case -EILSEQ:
+		/* device is gone, stop sending */
+		return;
+	default:
+		dev_err(dev, "%s: unknown status %d\n", __func__, status);
+		goto exit;
+	}
+
+	// FIXME - queue up next AP message to send???
+exit:
+	return;
+}
 
 
 static int ap_probe(struct usb_interface *interface,

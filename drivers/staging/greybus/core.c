@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/device.h>
 
 #include "greybus.h"
@@ -199,13 +200,17 @@ static int __init gb_init(void)
 {
 	int retval;
 
-	retval = greybus_debugfs_init();
+	retval = gb_debugfs_init();
 	if (retval)
 		return retval;
 
 	retval = bus_register(&greybus_bus_type);
 	if (retval)
 		goto error_bus;
+
+	retval = gb_thread_init();
+	if (retval)
+		goto error_thread;
 
 	// FIXME - more gb core init goes here
 
@@ -216,10 +221,13 @@ static int __init gb_init(void)
 	return 0;
 
 error_tty:
+	gb_thread_destroy();
+
+error_thread:
 	bus_unregister(&greybus_bus_type);
 
 error_bus:
-	greybus_debugfs_cleanup();
+	gb_debugfs_cleanup();
 
 	return retval;
 }
@@ -228,7 +236,7 @@ static void __exit gb_exit(void)
 {
 	gb_tty_exit();
 	bus_unregister(&greybus_bus_type);
-	greybus_debugfs_cleanup();
+	gb_debugfs_cleanup();
 }
 
 module_init(gb_init);

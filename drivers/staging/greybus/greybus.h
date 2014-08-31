@@ -176,8 +176,16 @@ void greybus_deregister(struct greybus_driver *driver);
 
 int greybus_disabled(void);
 
-int greybus_debugfs_init(void);
-void greybus_debugfs_cleanup(void);
+
+/* Internal functions to gb module, move to internal .h file eventually. */
+
+int gb_new_ap_msg(u8 *data, int length);
+int gb_thread_init(void);
+void gb_thread_destroy(void);
+int gb_debugfs_init(void);
+void gb_debugfs_cleanup(void);
+
+
 
 #endif /* __KERNEL__ */
 #endif /* __LINUX_GREYBUS_H */
