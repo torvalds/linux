@@ -1554,24 +1554,24 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 	case CVMX_USB_STAGE_DATA:
 		usbc_hctsiz.s.pid = __cvmx_usb_get_data_pid(pipe);
 		if (__cvmx_usb_pipe_needs_split(usb, pipe)) {
-			if (header->bRequestType & 0x80)
+			if (header->bRequestType & USB_DIR_IN)
 				bytes_to_transfer = 0;
 			else if (bytes_to_transfer > pipe->max_packet)
 				bytes_to_transfer = pipe->max_packet;
 		}
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
 				union cvmx_usbcx_hccharx, epdir,
-				((header->bRequestType & 0x80) ?
+				((header->bRequestType & USB_DIR_IN) ?
 					CVMX_USB_DIRECTION_IN :
 					CVMX_USB_DIRECTION_OUT));
 		break;
 	case CVMX_USB_STAGE_DATA_SPLIT_COMPLETE:
 		usbc_hctsiz.s.pid = __cvmx_usb_get_data_pid(pipe);
-		if (!(header->bRequestType & 0x80))
+		if (!(header->bRequestType & USB_DIR_IN))
 			bytes_to_transfer = 0;
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
 				union cvmx_usbcx_hccharx, epdir,
-				((header->bRequestType & 0x80) ?
+				((header->bRequestType & USB_DIR_IN) ?
 					CVMX_USB_DIRECTION_IN :
 					CVMX_USB_DIRECTION_OUT));
 		USB_SET_FIELD32(CVMX_USBCX_HCSPLTX(channel, usb->index),
@@ -1582,7 +1582,7 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 		bytes_to_transfer = 0;
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
 				union cvmx_usbcx_hccharx, epdir,
-				((header->bRequestType & 0x80) ?
+				((header->bRequestType & USB_DIR_IN) ?
 					CVMX_USB_DIRECTION_OUT :
 					CVMX_USB_DIRECTION_IN));
 		break;
@@ -1591,7 +1591,7 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 		bytes_to_transfer = 0;
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
 				union cvmx_usbcx_hccharx, epdir,
-				((header->bRequestType & 0x80) ?
+				((header->bRequestType & USB_DIR_IN) ?
 					CVMX_USB_DIRECTION_OUT :
 					CVMX_USB_DIRECTION_IN));
 		USB_SET_FIELD32(CVMX_USBCX_HCSPLTX(channel, usb->index),
@@ -2424,7 +2424,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_control(
 	uint64_t control_header = urb->setup_dma;
 	struct usb_ctrlrequest *header = cvmx_phys_to_ptr(control_header);
 
-	if ((header->bRequestType & 0x80) == 0)
+	if ((header->bRequestType & USB_DIR_IN) == 0)
 		buffer_length = le16_to_cpu(header->wLength);
 
 	return __cvmx_usb_submit_transaction(usb, pipe,
