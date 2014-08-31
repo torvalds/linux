@@ -237,7 +237,7 @@ void phy_set_tx_power_level(struct adapter *adapt, u8 channel)
 	phy_power_index_check(adapt, channel, &cck_pwr[0], &ofdm_pwr[0],
 			      &bw20_pwr[0], &bw40_pwr[0]);
 
-	rtl8188e_PHY_RF6052SetCckTxPower(adapt, &cck_pwr[0]);
+	rtl88eu_phy_rf6052_set_cck_txpower(adapt, &cck_pwr[0]);
 	rtl8188e_PHY_RF6052SetOFDMTxPower(adapt, &ofdm_pwr[0], &bw20_pwr[0],
 					  &bw40_pwr[0], channel);
 }

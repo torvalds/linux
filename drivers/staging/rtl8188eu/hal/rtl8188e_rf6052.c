@@ -45,119 +45,85 @@ void rtl88eu_phy_rf6052_set_bandwidth(struct adapter *adapt,
 	}
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	PHY_RF6052SetCckTxPower
- *
- * Overview:
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/05/2008	MHC		Simulate 8192series..
- *
- *---------------------------------------------------------------------------*/
-
-void
-rtl8188e_PHY_RF6052SetCckTxPower(
-		struct adapter *Adapter,
-		u8 *pPowerlevel)
+void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv *pdmpriv = &pHalData->dmpriv;
-	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
-	u32 TxAGC[2] = {0, 0}, tmpval = 0, pwrtrac_value;
-	bool TurboScanOff = false;
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct dm_priv *pdmpriv = &hal_data->dmpriv;
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	u32 tx_agc[2] = {0, 0}, tmpval = 0, pwrtrac_value;
 	u8 idx1, idx2;
 	u8 *ptr;
 	u8 direction;
-	/* FOR CE ,must disable turbo scan */
-	TurboScanOff = true;
 
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
-		TxAGC[RF_PATH_A] = 0x3f3f3f3f;
-		TxAGC[RF_PATH_B] = 0x3f3f3f3f;
-
-		TurboScanOff = true;/* disable turbo scan */
-
-		if (TurboScanOff) {
-			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-				TxAGC[idx1] =
-					pPowerlevel[idx1] | (pPowerlevel[idx1]<<8) |
-					(pPowerlevel[idx1]<<16) | (pPowerlevel[idx1]<<24);
-				/*  2010/10/18 MH For external PA module. We need to limit power index to be less than 0x20. */
-				if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
-					TxAGC[idx1] = 0x20;
-			}
+		tx_agc[RF_PATH_A] = 0x3f3f3f3f;
+		tx_agc[RF_PATH_B] = 0x3f3f3f3f;
+		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
+			tx_agc[idx1] = powerlevel[idx1] |
+				      (powerlevel[idx1]<<8) |
+				      (powerlevel[idx1]<<16) |
+				      (powerlevel[idx1]<<24);
+			if (tx_agc[idx1] > 0x20 && hal_data->ExternalPA)
+				tx_agc[idx1] = 0x20;
 		}
 	} else {
-		/* Driver dynamic Tx power shall not affect Tx power.
-		 * It shall be determined by power training mechanism.
-i		 *  Currently, we cannot fully disable driver dynamic
-		 * tx power mechanism because it is referenced by BT
-		 * coexist mechanism.
-		 * In the future, two mechanism shall be separated from
-		 * each other and maintained independently. */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
-			TxAGC[RF_PATH_A] = 0x10101010;
-			TxAGC[RF_PATH_B] = 0x10101010;
+			tx_agc[RF_PATH_A] = 0x10101010;
+			tx_agc[RF_PATH_B] = 0x10101010;
 		} else if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level2) {
-			TxAGC[RF_PATH_A] = 0x00000000;
-			TxAGC[RF_PATH_B] = 0x00000000;
+			tx_agc[RF_PATH_A] = 0x00000000;
+			tx_agc[RF_PATH_B] = 0x00000000;
 		} else {
 			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-				TxAGC[idx1] =
-					pPowerlevel[idx1] | (pPowerlevel[idx1]<<8) |
-					(pPowerlevel[idx1]<<16) | (pPowerlevel[idx1]<<24);
+				tx_agc[idx1] = powerlevel[idx1] |
+					       (powerlevel[idx1]<<8) |
+					       (powerlevel[idx1]<<16) |
+					       (powerlevel[idx1]<<24);
 			}
-			if (pHalData->EEPROMRegulatory == 0) {
-				tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][6]) +
-						(pHalData->MCSTxPowerLevelOriginalOffset[0][7]<<8);
-				TxAGC[RF_PATH_A] += tmpval;
+			if (hal_data->EEPROMRegulatory == 0) {
+				tmpval = hal_data->MCSTxPowerLevelOriginalOffset[0][6] +
+					 (hal_data->MCSTxPowerLevelOriginalOffset[0][7]<<8);
+				tx_agc[RF_PATH_A] += tmpval;
 
-				tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][14]) +
-						(pHalData->MCSTxPowerLevelOriginalOffset[0][15]<<24);
-				TxAGC[RF_PATH_B] += tmpval;
+				tmpval = hal_data->MCSTxPowerLevelOriginalOffset[0][14] +
+					 (hal_data->MCSTxPowerLevelOriginalOffset[0][15]<<24);
+				tx_agc[RF_PATH_B] += tmpval;
 			}
 		}
 	}
 	for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-		ptr = (u8 *)(&(TxAGC[idx1]));
+		ptr = (u8 *)(&(tx_agc[idx1]));
 		for (idx2 = 0; idx2 < 4; idx2++) {
 			if (*ptr > RF6052_MAX_TX_PWR)
 				*ptr = RF6052_MAX_TX_PWR;
 			ptr++;
 		}
 	}
-	ODM_TxPwrTrackAdjust88E(&pHalData->odmpriv, 1, &direction, &pwrtrac_value);
+	ODM_TxPwrTrackAdjust88E(&hal_data->odmpriv, 1, &direction, &pwrtrac_value);
 
 	if (direction == 1) {
 		/*  Increase TX power */
-		TxAGC[0] += pwrtrac_value;
-		TxAGC[1] += pwrtrac_value;
+		tx_agc[0] += pwrtrac_value;
+		tx_agc[1] += pwrtrac_value;
 	} else if (direction == 2) {
 		/*  Decrease TX power */
-		TxAGC[0] -=  pwrtrac_value;
-		TxAGC[1] -=  pwrtrac_value;
+		tx_agc[0] -=  pwrtrac_value;
+		tx_agc[1] -=  pwrtrac_value;
 	}
 
 	/*  rf-A cck tx power */
-	tmpval = TxAGC[RF_PATH_A]&0xff;
-	phy_set_bb_reg(Adapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, tmpval);
-	tmpval = TxAGC[RF_PATH_A]>>8;
-	phy_set_bb_reg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
+	tmpval = tx_agc[RF_PATH_A]&0xff;
+	phy_set_bb_reg(adapt, rTxAGC_A_CCK1_Mcs32, bMaskByte1, tmpval);
+	tmpval = tx_agc[RF_PATH_A]>>8;
+	phy_set_bb_reg(adapt, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
 
 	/*  rf-B cck tx power */
-	tmpval = TxAGC[RF_PATH_B]>>24;
-	phy_set_bb_reg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, tmpval);
-	tmpval = TxAGC[RF_PATH_B]&0x00ffffff;
-	phy_set_bb_reg(Adapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
-}	/* PHY_RF6052SetCckTxPower */
+	tmpval = tx_agc[RF_PATH_B]>>24;
+	phy_set_bb_reg(adapt, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, tmpval);
+	tmpval = tx_agc[RF_PATH_B]&0x00ffffff;
+	phy_set_bb_reg(adapt, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
+}
 
 /*  */
 /*  powerbase0 for OFDM rates */
