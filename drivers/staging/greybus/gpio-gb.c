@@ -59,7 +59,7 @@ int gb_gpio_probe(struct greybus_device *gdev,
 	struct device *dev = &gdev->dev;
 	int retval;
 
-	gb_gpio = devm_kzalloc(dev, sizeof(*gb_gpio), GFP_KERNEL);
+	gb_gpio = kzalloc(dev, sizeof(*gb_gpio), GFP_KERNEL);
 	if (!gb_gpio)
 		return -ENOMEM;
 	gb_gpio->gdev = gdev;
@@ -95,6 +95,7 @@ void gb_gpio_disconnect(struct greybus_device *gdev)
 	gb_gpio_dev = gdev->gb_gpio_dev;
 
 	gpiochip_remove(&gb_gpio_dev->chip);
+	kfree(gb_gpio_dev);
 }
 
 #if 0

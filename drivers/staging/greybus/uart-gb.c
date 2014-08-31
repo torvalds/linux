@@ -390,7 +390,7 @@ int gb_tty_probe(struct greybus_device *gdev,
 	int retval;
 	int minor;
 
-	gb_tty = devm_kzalloc(&gdev->dev, sizeof(*gb_tty), GFP_KERNEL);
+	gb_tty = kzalloc(&gdev->dev, sizeof(*gb_tty), GFP_KERNEL);
 	if (!gb_tty)
 		return -ENOMEM;
 
@@ -455,6 +455,8 @@ void gb_tty_disconnect(struct greybus_device *gdev)
 	/* FIXME - free transmit / recieve buffers */
 
 	tty_port_put(&gb_tty->port);
+
+	kfree(gb_tty);
 }
 
 static struct greybus_driver tty_gb_driver = {
