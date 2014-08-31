@@ -945,7 +945,7 @@ static int au1550_spi_remove(struct platform_device *pdev)
 	spi_bitbang_stop(&hw->bitbang);
 	free_irq(hw->irq, hw);
 	iounmap((void __iomem *)hw->regs);
-	release_mem_region(r->start, sizeof(psc_spi_t));
+	release_mem_region(hw->ioarea->start, sizeof(psc_spi_t));
 
 	if (hw->usedma) {
 		au1550_spi_dma_rxtmp_free(hw);
