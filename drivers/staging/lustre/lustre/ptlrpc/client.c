@@ -289,7 +289,7 @@ static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 	at = &req->rq_import->imp_at;
 
 	/* Network latency is total time less server processing time */
-	nl = max_t(int, now - req->rq_sent - service_time, 0) +1/*st rounding*/;
+	nl = max_t(int, now - req->rq_sent - service_time, 0) + 1/*st rounding*/;
 	if (service_time > now - req->rq_sent + 3 /* bz16408 */)
 		CWARN("Reported service time %u > total measured time "
 		      CFS_DURATION_T"\n", service_time,

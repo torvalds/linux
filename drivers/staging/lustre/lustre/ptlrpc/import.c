@@ -922,7 +922,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			 * participate since we can reestablish all of our state
 			 * with server again */
 			if ((MSG_CONNECT_RECOVERING & msg_flags)) {
-				CDEBUG(level,"%s@%s changed server handle from %#llx to %#llx but is still in recovery\n",
+				CDEBUG(level, "%s@%s changed server handle from %#llx to %#llx but is still in recovery\n",
 				       obd2cli_tgt(imp->imp_obd),
 				       imp->imp_connection->c_remote_uuid.uuid,
 				       imp->imp_remote_handle.cookie,
@@ -1104,7 +1104,7 @@ finish:
 			 * Enforce ADLER for backward compatibility*/
 			cli->cl_supp_cksum_types = OBD_CKSUM_ADLER;
 		}
-		cli->cl_cksum_type =cksum_type_select(cli->cl_supp_cksum_types);
+		cli->cl_cksum_type = cksum_type_select(cli->cl_supp_cksum_types);
 
 		if (ocd->ocd_connect_flags & OBD_CONNECT_BRW_SIZE)
 			cli->cl_max_pages_per_rpc =

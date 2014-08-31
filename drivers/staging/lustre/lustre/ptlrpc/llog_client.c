@@ -187,7 +187,7 @@ static int llog_client_next_block(const struct lu_env *env,
 					LUSTRE_LOG_VERSION,
 					LLOG_ORIGIN_HANDLE_NEXT_BLOCK);
 	if (req == NULL)
-		GOTO(err_exit, rc =-ENOMEM);
+		GOTO(err_exit, rc = -ENOMEM);
 
 	body = req_capsule_client_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	body->lgd_logid = loghandle->lgh_id;
@@ -206,12 +206,12 @@ static int llog_client_next_block(const struct lu_env *env,
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	if (body == NULL)
-		GOTO(out, rc =-EFAULT);
+		GOTO(out, rc = -EFAULT);
 
 	/* The log records are swabbed as they are processed */
 	ptr = req_capsule_server_get(&req->rq_pill, &RMF_EADATA);
 	if (ptr == NULL)
-		GOTO(out, rc =-EFAULT);
+		GOTO(out, rc = -EFAULT);
 
 	*cur_idx = body->lgd_saved_index;
 	*cur_offset = body->lgd_cur_offset;
@@ -257,11 +257,11 @@ static int llog_client_prev_block(const struct lu_env *env,
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	if (body == NULL)
-		GOTO(out, rc =-EFAULT);
+		GOTO(out, rc = -EFAULT);
 
 	ptr = req_capsule_server_get(&req->rq_pill, &RMF_EADATA);
 	if (ptr == NULL)
-		GOTO(out, rc =-EFAULT);
+		GOTO(out, rc = -EFAULT);
 
 	memcpy(buf, ptr, len);
 out:
@@ -282,7 +282,7 @@ static int llog_client_read_header(const struct lu_env *env,
 	int		    rc;
 
 	LLOG_CLIENT_ENTRY(handle->lgh_ctxt, imp);
-	req = ptlrpc_request_alloc_pack(imp,&RQF_LLOG_ORIGIN_HANDLE_READ_HEADER,
+	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_READ_HEADER,
 					LUSTRE_LOG_VERSION,
 					LLOG_ORIGIN_HANDLE_READ_HEADER);
 	if (req == NULL)
@@ -300,7 +300,7 @@ static int llog_client_read_header(const struct lu_env *env,
 
 	hdr = req_capsule_server_get(&req->rq_pill, &RMF_LLOG_LOG_HDR);
 	if (hdr == NULL)
-		GOTO(out, rc =-EFAULT);
+		GOTO(out, rc = -EFAULT);
 
 	memcpy(handle->lgh_hdr, hdr, sizeof(*hdr));
 	handle->lgh_last_idx = handle->lgh_hdr->llh_tail.lrt_index;

@@ -908,7 +908,7 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd)
 	struct obd_import  *imp;
 
 	LASSERT(strcmp(obd->obd_type->typ_name, LUSTRE_MDC_NAME) == 0 ||
-		strcmp(obd->obd_type->typ_name, LUSTRE_OSC_NAME) ==0);
+		strcmp(obd->obd_type->typ_name, LUSTRE_OSC_NAME) == 0);
 	CDEBUG(D_SEC, "obd %s\n", obd->u.cli.cl_target_uuid.uuid);
 
 	/* serialize with connect/disconnect import */
@@ -1201,7 +1201,7 @@ int sptlrpc_conf_target_get_rules(struct obd_device *obd,
 	conf_tgt = sptlrpc_conf_get_tgt(conf, obd->obd_name, 0);
 
 	rc = sptlrpc_rule_set_extract(&conf->sc_rset,
-				      conf_tgt ? &conf_tgt->sct_rset: NULL,
+				      conf_tgt ? &conf_tgt->sct_rset : NULL,
 				      LUSTRE_SP_ANY, sp_dst, rset);
 out:
 	mutex_unlock(&sptlrpc_conf_lock);
