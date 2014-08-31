@@ -52,7 +52,8 @@ lnet_md_unlink(lnet_libmd_t *md)
 
 		md->md_flags |= LNET_MD_FLAG_ZOMBIE;
 
-		/* Disassociate from ME (if any), and unlink it if it was created
+		/* Disassociate from ME (if any),
+		 * and unlink it if it was created
 		 * with LNET_UNLINK */
 		if (me != NULL) {
 			/* detach MD from portal */
@@ -113,7 +114,8 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 
 		for (i = 0; i < (int)niov; i++) {
 			/* We take the base address on trust */
-			if (lmd->md_iov.iov[i].iov_len <= 0) /* invalid length */
+			/* invalid length */
+			if (lmd->md_iov.iov[i].iov_len <= 0)
 				return -EINVAL;
 
 			total_length += lmd->md_iov.iov[i].iov_len;
@@ -206,7 +208,8 @@ lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd)
 	 * and that's all.
 	 */
 	umd->start = lmd->md_start;
-	umd->length = ((lmd->md_options & (LNET_MD_IOVEC | LNET_MD_KIOV)) == 0) ?
+	umd->length = ((lmd->md_options &
+			(LNET_MD_IOVEC | LNET_MD_KIOV)) == 0) ?
 		      lmd->md_length : lmd->md_niov;
 	umd->threshold = lmd->md_threshold;
 	umd->max_size = lmd->md_max_size;
