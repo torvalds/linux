@@ -868,7 +868,7 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 	struct usbdux_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val = s->readback[chan];
-	uint16_t *p = (uint16_t *)&devpriv->dux_commands[2];
+	__le16 *p = (__le16 *)&devpriv->dux_commands[2];
 	int ret = -EBUSY;
 	int i;
 
@@ -1180,7 +1180,7 @@ static int usbdux_counter_write(struct comedi_device *dev,
 {
 	struct usbdux_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	uint16_t *p = (uint16_t *)&devpriv->dux_commands[2];
+	__le16 *p = (__le16 *)&devpriv->dux_commands[2];
 	int ret = 0;
 	int i;
 
