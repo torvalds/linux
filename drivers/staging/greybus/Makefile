@@ -1,6 +1,7 @@
 greybus-y := core.o gbuf.o i2c-gb.o gpio-gb.o sdio-gb.o uart-gb.o
 
 obj-m += greybus.o
+obj-m += es1-ap-usb.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
