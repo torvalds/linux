@@ -134,16 +134,26 @@ static struct sk_buff **udp6_gro_receive(struct sk_buff **head,
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);
 
-	/* Don't bother verifying checksum if we're going to flush anyway. */
-	if (unlikely(!uh) ||
-	    (!NAPI_GRO_CB(skb)->flush &&
-	     skb_gro_checksum_validate_zero_check(skb, IPPROTO_UDP, uh->check,
-						  ip6_gro_compute_pseudo))) {
-		NAPI_GRO_CB(skb)->flush = 1;
-		return NULL;
-	}
+	if (unlikely(!uh))
+		goto flush;
 
+	/* Don't bother verifying checksum if we're going to flush anyway. */
+	if (!NAPI_GRO_CB(skb)->flush)
+		goto skip;
+
+	if (skb_gro_checksum_validate_zero_check(skb, IPPROTO_UDP, uh->check,
+						 ip6_gro_compute_pseudo))
+		goto flush;
+	else if (uh->check)
+		skb_gro_checksum_try_convert(skb, IPPROTO_UDP, uh->check,
+					     ip6_gro_compute_pseudo);
+
+skip:
 	return udp_gro_receive(head, skb, uh);
+
+flush:
+	NAPI_GRO_CB(skb)->flush = 1;
+	return NULL;
 }
 
 int udp6_gro_complete(struct sk_buff *skb, int nhoff)
