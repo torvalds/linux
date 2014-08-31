@@ -223,40 +223,22 @@ static void phy_power_index_check(struct adapter *adapt, u8 channel,
 	hal_data->CurrentBW4024GTxPwrIdx = bw40_pwr[0];
 }
 
-/*-----------------------------------------------------------------------------
- * Function:    SetTxPowerLevel8190()
- *
- * Overview:    This function is export to "HalCommon" moudule
- *			We must consider RF path later!!!!!!!
- *
- * Input:       struct adapter *Adapter
- *			u8		channel
- *
- * Output:      NONE
- *
- * Return:      NONE
- *	2008/11/04	MHC		We remove EEPROM_93C56.
- *						We need to move CCX relative code to independet file.
- *	2009/01/21	MHC		Support new EEPROM format from SD3 requirement.
- *
- *---------------------------------------------------------------------------*/
-void
-PHY_SetTxPowerLevel8188E(
-		struct adapter *Adapter,
-		u8 channel
-	)
+void phy_set_tx_power_level(struct adapter *adapt, u8 channel)
 {
-	u8 cckPowerLevel[MAX_TX_COUNT] = {0};
-	u8 ofdmPowerLevel[MAX_TX_COUNT] = {0};/*  [0]:RF-A, [1]:RF-B */
-	u8 BW20PowerLevel[MAX_TX_COUNT] = {0};
-	u8 BW40PowerLevel[MAX_TX_COUNT] = {0};
+	u8 cck_pwr[MAX_TX_COUNT] = {0};
+	u8 ofdm_pwr[MAX_TX_COUNT] = {0};/*  [0]:RF-A, [1]:RF-B */
+	u8 bw20_pwr[MAX_TX_COUNT] = {0};
+	u8 bw40_pwr[MAX_TX_COUNT] = {0};
 
-	get_tx_power_index(Adapter, channel, &cckPowerLevel[0], &ofdmPowerLevel[0], &BW20PowerLevel[0], &BW40PowerLevel[0]);
+	get_tx_power_index(adapt, channel, &cck_pwr[0], &ofdm_pwr[0],
+			   &bw20_pwr[0], &bw40_pwr[0]);
 
-	phy_power_index_check(Adapter, channel, &cckPowerLevel[0], &ofdmPowerLevel[0], &BW20PowerLevel[0], &BW40PowerLevel[0]);
+	phy_power_index_check(adapt, channel, &cck_pwr[0], &ofdm_pwr[0],
+			      &bw20_pwr[0], &bw40_pwr[0]);
 
-	rtl8188e_PHY_RF6052SetCckTxPower(Adapter, &cckPowerLevel[0]);
-	rtl8188e_PHY_RF6052SetOFDMTxPower(Adapter, &ofdmPowerLevel[0], &BW20PowerLevel[0], &BW40PowerLevel[0], channel);
+	rtl8188e_PHY_RF6052SetCckTxPower(adapt, &cck_pwr[0]);
+	rtl8188e_PHY_RF6052SetOFDMTxPower(adapt, &ofdm_pwr[0], &bw20_pwr[0],
+					  &bw40_pwr[0], channel);
 }
 
 static void phy_set_bw_mode_callback(struct adapter *adapt)
@@ -376,7 +358,7 @@ static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 	if (adapt->bNotifyChannelChange)
 		DBG_88E("[%s] ch = %d\n", __func__, channel);
 
-	PHY_SetTxPowerLevel8188E(adapt, channel);
+	phy_set_tx_power_level(adapt, channel);
 
 	param1 = RF_CHNLBW;
 	param2 = channel;

@@ -114,7 +114,7 @@ static void odm_TxPwrTrackSetPwr88E(struct odm_dm_struct *dm_odm)
 {
 	if (dm_odm->BbSwingFlagOfdm || dm_odm->BbSwingFlagCck) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD, ("odm_TxPwrTrackSetPwr88E CH=%d\n", *(dm_odm->pChannel)));
-		PHY_SetTxPowerLevel8188E(dm_odm->Adapter, *(dm_odm->pChannel));
+		phy_set_tx_power_level(dm_odm->Adapter, *(dm_odm->pChannel));
 		dm_odm->BbSwingFlagOfdm = false;
 		dm_odm->BbSwingFlagCck	= false;
 	}

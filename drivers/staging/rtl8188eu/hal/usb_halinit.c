@@ -829,7 +829,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_SECURITY);
 
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 	/*  2010/12/17 MH We need to set TX power according to EFUSE content at first. */
-	PHY_SetTxPowerLevel8188E(Adapter, haldata->CurrentChannel);
+	phy_set_tx_power_level(Adapter, haldata->CurrentChannel);
 
 /*  Move by Neo for USB SS to below setp */
 /* _RfPowerSave(Adapter); */
