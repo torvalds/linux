@@ -255,17 +255,18 @@ static bool rf6052_conf_para(struct adapter *adapt)
 			break;
 		}
 
-		PHY_SetBBReg(adapt, pphyreg->rfintfe, BRFSI_RFENV << 16, 0x1);
+		phy_set_bb_reg(adapt, pphyreg->rfintfe, BRFSI_RFENV << 16, 0x1);
 		udelay(1);
 
-		PHY_SetBBReg(adapt, pphyreg->rfintfo, BRFSI_RFENV, 0x1);
+		phy_set_bb_reg(adapt, pphyreg->rfintfo, BRFSI_RFENV, 0x1);
 		udelay(1);
 
-		PHY_SetBBReg(adapt, pphyreg->rfHSSIPara2,
+		phy_set_bb_reg(adapt, pphyreg->rfHSSIPara2,
 			      B3WIREADDREAALENGTH, 0x0);
 		udelay(1);
 
-		PHY_SetBBReg(adapt, pphyreg->rfHSSIPara2, B3WIREDATALENGTH, 0x0);
+		phy_set_bb_reg(adapt, pphyreg->rfHSSIPara2,
+			       B3WIREDATALENGTH, 0x0);
 		udelay(1);
 
 		switch (rfpath) {
@@ -284,12 +285,13 @@ static bool rf6052_conf_para(struct adapter *adapt)
 		switch (rfpath) {
 		case RF90_PATH_A:
 		case RF90_PATH_C:
-			PHY_SetBBReg(adapt, pphyreg->rfintfs, BRFSI_RFENV, u4val);
+			phy_set_bb_reg(adapt, pphyreg->rfintfs,
+				       BRFSI_RFENV, u4val);
 			break;
 		case RF90_PATH_B:
 		case RF90_PATH_D:
-			PHY_SetBBReg(adapt, pphyreg->rfintfs, BRFSI_RFENV << 16,
-				      u4val);
+			phy_set_bb_reg(adapt, pphyreg->rfintfs,
+				       BRFSI_RFENV << 16, u4val);
 			break;
 		}
 

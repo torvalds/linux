@@ -174,7 +174,7 @@ static bool set_baseband_agc_config(struct adapter *adapt)
 		u32 v2 = array[i+1];
 
 		if (v1 < 0xCDCDCDCD){
-			PHY_SetBBReg(adapt, v1, bMaskDWord, v2);
+			phy_set_bb_reg(adapt, v1, bMaskDWord, v2);
 			udelay(1);
 		}
 	}
@@ -392,7 +392,7 @@ static void rtl_bb_delay(struct adapter *adapt, u32 addr, u32 data)
 	} else if (addr == 0xf9) {
 		udelay(1);
 	} else {
-		PHY_SetBBReg(adapt, addr, bMaskDWord, data);
+		phy_set_bb_reg(adapt, addr, bMaskDWord, data);
 		/*  Add 1us delay between BB/RF register setting. */
 		udelay(1);
 	}
@@ -709,7 +709,7 @@ bool rtl88eu_phy_bb_config(struct adapter *adapt)
 
 	/*  write 0x24[16:11] = 0x24[22:17] = crystal_cap */
 	crystal_cap = hal_data->CrystalCap & 0x3F;
-	PHY_SetBBReg(adapt, REG_AFE_XTAL_CTRL, 0x7ff800, (crystal_cap | (crystal_cap << 6)));
+	phy_set_bb_reg(adapt, REG_AFE_XTAL_CTRL, 0x7ff800, (crystal_cap | (crystal_cap << 6)));
 
 	return rtstatus;
 }

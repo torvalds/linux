@@ -51,37 +51,18 @@ u32 phy_query_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask)
 	return return_value;
 }
 
-/**
-* Function:	PHY_SetBBReg
-*
-* OverView:	Write "Specific bits" to BB register (page 8~)
-*
-* Input:
-*			struct adapter *Adapter,
-*			u32			RegAddr,	The target address to be modified
-*			u32			BitMask		The target bit position in the target address
-*									to be modified
-*			u32			Data		The new register value in the target bit position
-*									of the target address
-*
-* Output:	None
-* Return:		None
-* Note:		This function is equal to "PutRegSetting" in PHY programming guide
-*/
-
-void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u32 Data)
+void phy_set_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask, u32 data)
 {
-	u32 OriginalValue, BitShift;
+	u32 original_value, bit_shift;
 
-	if (BitMask != bMaskDWord) { /* if not "double word" write */
-		OriginalValue = usb_read32(Adapter, RegAddr);
-		BitShift = cal_bit_shift(BitMask);
-		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
+	if (bitmask != bMaskDWord) { /* if not "double word" write */
+		original_value = usb_read32(adapt, regaddr);
+		bit_shift = cal_bit_shift(bitmask);
+		data = ((original_value & (~bitmask)) | (data << bit_shift));
 	}
 
-	usb_write32(Adapter, RegAddr, Data);
+	usb_write32(adapt, regaddr, data);
 }
-
 
 /*  */
 /*  2. RF register R/W API */
@@ -139,10 +120,10 @@ phy_RFSerialRead(
 
 	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) | (NewOffset<<23) | bLSSIReadEdge;	/* T65 RF */
 
-	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong&(~bLSSIReadEdge));
+	phy_set_bb_reg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong&(~bLSSIReadEdge));
 	udelay(10);/*  PlatformStallExecution(10); */
 
-	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord, tmplong2);
+	phy_set_bb_reg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord, tmplong2);
 	udelay(100);/* PlatformStallExecution(100); */
 
 	udelay(10);/* PlatformStallExecution(10); */
@@ -234,7 +215,7 @@ phy_RFSerialWrite(
 	/*  */
 	/*  Write Operation */
 	/*  */
-	PHY_SetBBReg(Adapter, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
+	phy_set_bb_reg(Adapter, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
 }
 
 /**
@@ -491,17 +472,17 @@ _PHY_SetBWMode92C(
 	switch (pHalData->CurrentChannelBW) {
 	/* 20 MHz channel*/
 	case HT_CHANNEL_WIDTH_20:
-		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bRFMOD, 0x0);
-		PHY_SetBBReg(Adapter, rFPGA1_RFMOD, bRFMOD, 0x0);
+		phy_set_bb_reg(Adapter, rFPGA0_RFMOD, bRFMOD, 0x0);
+		phy_set_bb_reg(Adapter, rFPGA1_RFMOD, bRFMOD, 0x0);
 		break;
 	/* 40 MHz channel*/
 	case HT_CHANNEL_WIDTH_40:
-		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bRFMOD, 0x1);
-		PHY_SetBBReg(Adapter, rFPGA1_RFMOD, bRFMOD, 0x1);
+		phy_set_bb_reg(Adapter, rFPGA0_RFMOD, bRFMOD, 0x1);
+		phy_set_bb_reg(Adapter, rFPGA1_RFMOD, bRFMOD, 0x1);
 		/*  Set Control channel to upper or lower. These settings are required only for 40MHz */
-		PHY_SetBBReg(Adapter, rCCK0_System, bCCKSideBand, (pHalData->nCur40MhzPrimeSC>>1));
-		PHY_SetBBReg(Adapter, rOFDM1_LSTF, 0xC00, pHalData->nCur40MhzPrimeSC);
-		PHY_SetBBReg(Adapter, 0x818, (BIT26 | BIT27),
+		phy_set_bb_reg(Adapter, rCCK0_System, bCCKSideBand, (pHalData->nCur40MhzPrimeSC>>1));
+		phy_set_bb_reg(Adapter, rOFDM1_LSTF, 0xC00, pHalData->nCur40MhzPrimeSC);
+		phy_set_bb_reg(Adapter, 0x818, (BIT26 | BIT27),
 			     (pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:

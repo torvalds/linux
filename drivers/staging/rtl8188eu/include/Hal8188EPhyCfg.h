@@ -198,8 +198,6 @@ struct ant_sel_cck {
 /*  */
 /*  BB and RF register read/write */
 /*  */
-void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr,
-			   u32 mask, u32 data);
 u32 rtl8188e_PHY_QueryRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
 			    u32 regaddr, u32 mask);
 void rtl8188e_PHY_SetRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
@@ -234,8 +232,6 @@ bool SetAntennaConfig92C(struct adapter *adapter, u8 defaultant);
 
 /*--------------------------Exported Function prototype---------------------*/
 
-#define PHY_SetBBReg(adapt, regaddr, bitmask, data)		\
-	 rtl8188e_PHY_SetBBReg((adapt), (regaddr), (bitmask), (data))
 #define PHY_QueryRFReg(adapt, rfpath, regaddr, bitmask)	\
 	rtl8188e_PHY_QueryRFReg((adapt), (rfpath), (regaddr), (bitmask))
 #define PHY_SetRFReg(adapt, rfpath, regaddr, bitmask, data)	\
