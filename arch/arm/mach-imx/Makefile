@@ -41,7 +41,6 @@ obj-y += ssi-fiq-ksym.o
 endif
 
 # i.MX1 based machines
-obj-$(CONFIG_ARCH_MX1ADS) += mach-mx1ads.o
 obj-$(CONFIG_MACH_SCB9328) += mach-scb9328.o
 obj-$(CONFIG_MACH_APF9328) += mach-apf9328.o
 
