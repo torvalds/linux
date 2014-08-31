@@ -2485,52 +2485,6 @@ static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 	return 0;
 }
 
-struct dev_gso_cb {
-	void (*destructor)(struct sk_buff *skb);
-};
-
-#define DEV_GSO_CB(skb) ((struct dev_gso_cb *)(skb)->cb)
-
-static void dev_gso_skb_destructor(struct sk_buff *skb)
-{
-	struct dev_gso_cb *cb;
-
-	kfree_skb_list(skb->next);
-	skb->next = NULL;
-
-	cb = DEV_GSO_CB(skb);
-	if (cb->destructor)
-		cb->destructor(skb);
-}
-
-/**
- *	dev_gso_segment - Perform emulated hardware segmentation on skb.
- *	@skb: buffer to segment
- *	@features: device features as applicable to this skb
- *
- *	This function segments the given skb and stores the list of segments
- *	in skb->next.
- */
-static int dev_gso_segment(struct sk_buff *skb, netdev_features_t features)
-{
-	struct sk_buff *segs;
-
-	segs = skb_gso_segment(skb, features);
-
-	/* Verifying header integrity only. */
-	if (!segs)
-		return 0;
-
-	if (IS_ERR(segs))
-		return PTR_ERR(segs);
-
-	skb->next = segs;
-	DEV_GSO_CB(skb)->destructor = skb->destructor;
-	skb->destructor = dev_gso_skb_destructor;
-
-	return 0;
-}
-
 /* If MPLS offload request, verify we are testing hardware MPLS features
  * instead of standard features for the netdev.
  */
@@ -2682,8 +2636,13 @@ struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device *dev)
 		features &= dev->hw_enc_features;
 
 	if (netif_needs_gso(skb, features)) {
-		if (unlikely(dev_gso_segment(skb, features)))
-			goto out_kfree_skb;
+		struct sk_buff *segs;
+
+		segs = skb_gso_segment(skb, features);
+		kfree_skb(skb);
+		if (IS_ERR(segs))
+			segs = NULL;
+		skb = segs;
 	} else {
 		if (skb_needs_linearize(skb, features) &&
 		    __skb_linearize(skb))
@@ -2714,26 +2673,16 @@ out_null:
 	return NULL;
 }
 
-int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
-			struct netdev_queue *txq)
+struct sk_buff *dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
+				    struct netdev_queue *txq, int *ret)
 {
-	int rc = NETDEV_TX_OK;
-
-	if (likely(!skb->next))
-		return xmit_one(skb, dev, txq, false);
-
-	skb->next = xmit_list(skb->next, dev, txq, &rc);
-	if (likely(skb->next == NULL)) {
-		skb->destructor = DEV_GSO_CB(skb)->destructor;
-		consume_skb(skb);
-		return rc;
+	if (likely(!skb->next)) {
+		*ret = xmit_one(skb, dev, txq, false);
+		return skb;
 	}
 
-	kfree_skb(skb);
-
-	return rc;
+	return xmit_list(skb, dev, txq, ret);
 }
-EXPORT_SYMBOL_GPL(dev_hard_start_xmit);
 
 static void qdisc_pkt_len_init(struct sk_buff *skb)
 {
@@ -2945,7 +2894,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 
 			if (!netif_xmit_stopped(txq)) {
 				__this_cpu_inc(xmit_recursion);
-				rc = dev_hard_start_xmit(skb, dev, txq);
+				skb = dev_hard_start_xmit(skb, dev, txq, &rc);
 				__this_cpu_dec(xmit_recursion);
 				if (dev_xmit_complete(rc)) {
 					HARD_TX_UNLOCK(dev, txq);

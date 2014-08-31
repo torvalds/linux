@@ -129,7 +129,7 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_xmit_frozen_or_stopped(txq))
-		ret = dev_hard_start_xmit(skb, dev, txq);
+		skb = dev_hard_start_xmit(skb, dev, txq, &ret);
 
 	HARD_TX_UNLOCK(dev, txq);
 
