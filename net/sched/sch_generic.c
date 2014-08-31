@@ -70,8 +70,11 @@ static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 		} else
 			skb = NULL;
 	} else {
-		if (!(q->flags & TCQ_F_ONETXQUEUE) || !netif_xmit_frozen_or_stopped(txq))
+		if (!(q->flags & TCQ_F_ONETXQUEUE) || !netif_xmit_frozen_or_stopped(txq)) {
 			skb = q->dequeue(q);
+			if (skb)
+				skb = validate_xmit_skb(skb, qdisc_dev(q));
+		}
 	}
 
 	return skb;

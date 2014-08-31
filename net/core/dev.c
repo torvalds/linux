@@ -2656,7 +2656,7 @@ struct sk_buff *validate_xmit_vlan(struct sk_buff *skb, netdev_features_t featur
 	return skb;
 }
 
-static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device *dev)
+struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device *dev)
 {
 	netdev_features_t features;
 
@@ -2718,10 +2718,6 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
 	int rc = NETDEV_TX_OK;
-
-	skb = validate_xmit_skb(skb, dev);
-	if (!skb)
-		return rc;
 
 	if (likely(!skb->next))
 		return xmit_one(skb, dev, txq, false);
