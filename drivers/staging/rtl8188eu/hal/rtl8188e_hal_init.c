@@ -221,7 +221,7 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->read_chip_version = &rtl8188e_read_chip_version;
 
-	pHalFunc->set_bwmode_handler = &PHY_SetBWMode8188E;
+	pHalFunc->set_bwmode_handler = &phy_set_bw_mode;
 	pHalFunc->set_channel_handler = &PHY_SwChnl8188E;
 
 	pHalFunc->hal_dm_watchdog = &rtl8188e_HalDmWatchDog;

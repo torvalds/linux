@@ -319,34 +319,19 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 	}
 }
 
- /*-----------------------------------------------------------------------------
- * Function:   SetBWMode8190Pci()
- *
- * Overview:  This function is export to "HalCommon" moudule
- *
- * Input:		struct adapter *Adapter
- *			enum ht_channel_width Bandwidth	20M or 40M
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Note:		We do not take j mode into consideration now
- *---------------------------------------------------------------------------*/
-void PHY_SetBWMode8188E(struct adapter *Adapter, enum ht_channel_width Bandwidth,	/*  20M or 40M */
-			unsigned char	Offset)		/*  Upper, Lower, or Don't care */
+void phy_set_bw_mode(struct adapter *adapt, enum ht_channel_width bandwidth,
+		     unsigned char offset)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
-	enum ht_channel_width tmpBW = pHalData->CurrentChannelBW;
+	struct hal_data_8188e	*hal_data = GET_HAL_DATA(adapt);
+	enum ht_channel_width tmp_bw = hal_data->CurrentChannelBW;
 
-	pHalData->CurrentChannelBW = Bandwidth;
+	hal_data->CurrentChannelBW = bandwidth;
+	hal_data->nCur40MhzPrimeSC = offset;
 
-	pHalData->nCur40MhzPrimeSC = Offset;
-
-	if ((!Adapter->bDriverStopped) && (!Adapter->bSurpriseRemoved))
-		phy_set_bw_mode_callback(Adapter);
+	if ((!adapt->bDriverStopped) && (!adapt->bSurpriseRemoved))
+		phy_set_bw_mode_callback(adapt);
 	else
-		pHalData->CurrentChannelBW = tmpBW;
+		hal_data->CurrentChannelBW = tmp_bw;
 }
 
 static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)

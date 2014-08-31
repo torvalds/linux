@@ -10,3 +10,6 @@ void phy_set_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
 		    u32 reg_addr, u32 bit_mask, u32 data);
 
 void phy_set_tx_power_level(struct adapter *adapt, u8 channel);
+
+void phy_set_bw_mode(struct adapter *adapt, enum ht_channel_width bandwidth,
+		     unsigned char offset);
