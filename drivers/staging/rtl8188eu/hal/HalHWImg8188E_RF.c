@@ -245,13 +245,13 @@ static bool rf6052_conf_para(struct adapter *adapt)
 		switch (rfpath) {
 		case RF90_PATH_A:
 		case RF90_PATH_C:
-			u4val = PHY_QueryBBReg(adapt, pphyreg->rfintfs,
-						    BRFSI_RFENV);
+			u4val = phy_query_bb_reg(adapt, pphyreg->rfintfs,
+						 BRFSI_RFENV);
 			break;
 		case RF90_PATH_B:
 		case RF90_PATH_D:
-			u4val = PHY_QueryBBReg(adapt, pphyreg->rfintfs,
-						    BRFSI_RFENV << 16);
+			u4val = phy_query_bb_reg(adapt, pphyreg->rfintfs,
+						 BRFSI_RFENV << 16);
 			break;
 		}
 

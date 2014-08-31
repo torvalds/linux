@@ -41,35 +41,15 @@ static u32 cal_bit_shift(u32 bitmask)
 	return i;
 }
 
-/**
-* Function:	PHY_QueryBBReg
-*
-* OverView:	Read "sepcific bits" from BB register
-*
-* Input:
-*			struct adapter *Adapter,
-*			u32			RegAddr,	The target address to be readback
-*			u32			BitMask		The target bit position in the target address
-*								to be readback
-* Output:	None
-* Return:		u32			Data		The readback register value
-* Note:		This function is equal to "GetRegSetting" in PHY programming guide
-*/
-u32
-rtl8188e_PHY_QueryBBReg(
-		struct adapter *Adapter,
-		u32 RegAddr,
-		u32 BitMask
-	)
+u32 phy_query_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask)
 {
-	u32 ReturnValue = 0, OriginalValue, BitShift;
+	u32 return_value = 0, original_value, bit_shift;
 
-	OriginalValue = usb_read32(Adapter, RegAddr);
-	BitShift = cal_bit_shift(BitMask);
-	ReturnValue = (OriginalValue & BitMask) >> BitShift;
-	return ReturnValue;
+	original_value = usb_read32(adapt, regaddr);
+	bit_shift = cal_bit_shift(bitmask);
+	return_value = (original_value & bitmask) >> bit_shift;
+	return return_value;
 }
-
 
 /**
 * Function:	PHY_SetBBReg
@@ -151,11 +131,11 @@ phy_RFSerialRead(
 	/*  For 92S LSSI Read RFLSSIRead */
 	/*  For RF A/B write 0x824/82c(does not work in the future) */
 	/*  We must use 0x824 for RF A and B to execute read trigger */
-	tmplong = PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord);
+	tmplong = phy_query_bb_reg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord);
 	if (eRFPath == RF_PATH_A)
 		tmplong2 = tmplong;
 	else
-		tmplong2 = PHY_QueryBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord);
+		tmplong2 = phy_query_bb_reg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord);
 
 	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) | (NewOffset<<23) | bLSSIReadEdge;	/* T65 RF */
 
@@ -168,14 +148,14 @@ phy_RFSerialRead(
 	udelay(10);/* PlatformStallExecution(10); */
 
 	if (eRFPath == RF_PATH_A)
-		RfPiEnable = (u8)PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter1, BIT8);
+		RfPiEnable = (u8)phy_query_bb_reg(Adapter, rFPGA0_XA_HSSIParameter1, BIT8);
 	else if (eRFPath == RF_PATH_B)
-		RfPiEnable = (u8)PHY_QueryBBReg(Adapter, rFPGA0_XB_HSSIParameter1, BIT8);
+		RfPiEnable = (u8)phy_query_bb_reg(Adapter, rFPGA0_XB_HSSIParameter1, BIT8);
 
 	if (RfPiEnable) {	/*  Read from BBreg8b8, 12 bits for 8190, 20bits for T65 RF */
-		retValue = PHY_QueryBBReg(Adapter, pPhyReg->rfLSSIReadBackPi, bLSSIReadBackData);
+		retValue = phy_query_bb_reg(Adapter, pPhyReg->rfLSSIReadBackPi, bLSSIReadBackData);
 	} else {	/* Read from BBreg8a0, 12 bits for 8190, 20 bits for T65 RF */
-		retValue = PHY_QueryBBReg(Adapter, pPhyReg->rfLSSIReadBack, bLSSIReadBackData);
+		retValue = phy_query_bb_reg(Adapter, pPhyReg->rfLSSIReadBack, bLSSIReadBackData);
 	}
 	return retValue;
 }

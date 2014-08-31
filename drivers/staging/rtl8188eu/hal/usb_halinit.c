@@ -633,7 +633,7 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
 	usb_write32(Adapter, REG_LEDCFG0, usb_read32(Adapter, REG_LEDCFG0)|BIT23);
 	PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, BIT13, 0x01);
 
-	if (PHY_QueryBBReg(Adapter, rFPGA0_XA_RFInterfaceOE, 0x300) == Antenna_A)
+	if (phy_query_bb_reg(Adapter, rFPGA0_XA_RFInterfaceOE, 0x300) == Antenna_A)
 		haldata->CurAntenna = Antenna_A;
 	else
 		haldata->CurAntenna = Antenna_B;
