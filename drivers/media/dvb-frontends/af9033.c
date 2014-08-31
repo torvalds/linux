@@ -1061,6 +1061,7 @@ struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 	int ret;
 	struct af9033_state *state;
 	u8 buf[8];
+	u32 reg;
 
 	dev_dbg(&i2c->dev, "%s:\n", __func__);
 
@@ -1081,7 +1082,21 @@ struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 	}
 
 	/* firmware version */
-	ret = af9033_rd_regs(state, 0x0083e9, &buf[0], 4);
+	switch (state->cfg.tuner) {
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		reg = 0x004bfc;
+		break;
+	default:
+		reg = 0x0083e9;
+		break;
+	}
+
+	ret = af9033_rd_regs(state, reg, &buf[0], 4);
 	if (ret < 0)
 		goto err;
 
