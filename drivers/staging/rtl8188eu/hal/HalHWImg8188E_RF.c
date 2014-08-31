@@ -179,7 +179,7 @@ static void rtl_rfreg_delay(struct adapter *adapt, enum rf_radio_path rfpath,u32
 	} else if (addr == 0xf9) {
 		udelay(1);
 	} else {
-		rtl8188e_PHY_SetRFReg(adapt, rfpath, addr, mask, data);
+		phy_set_rf_reg(adapt, rfpath, addr, mask, data);
 		udelay(1);
 	}
 }

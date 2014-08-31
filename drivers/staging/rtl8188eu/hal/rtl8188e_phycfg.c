@@ -135,43 +135,19 @@ u32 phy_query_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
 	return readback_value;
 }
 
-/**
-* Function:	PHY_SetRFReg
-*
-* OverView:	Write "Specific bits" to RF register (page 8~)
-*
-* Input:
-*			struct adapter *Adapter,
-*			enum rf_radio_path eRFPath,	Radio path of A/B/C/D
-*			u32			RegAddr,	The target address to be modified
-*			u32			BitMask		The target bit position in the target address
-*									to be modified
-*			u32			Data		The new register Data in the target bit position
-*									of the target address
-*
-* Output:	None
-* Return:		None
-* Note:		This function is equal to "PutRFRegSetting" in PHY programming guide
-*/
-void
-rtl8188e_PHY_SetRFReg(
-		struct adapter *Adapter,
-		enum rf_radio_path eRFPath,
-		u32 RegAddr,
-		u32 BitMask,
-		u32 Data
-	)
+void phy_set_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
+		     u32 reg_addr, u32 bit_mask, u32 data)
 {
-	u32 Original_Value, BitShift;
+	u32 original_value, bit_shift;
 
 	/*  RF data is 12 bits only */
-	if (BitMask != bRFRegOffsetMask) {
-		Original_Value = rf_serial_read(Adapter, eRFPath, RegAddr);
-		BitShift =  cal_bit_shift(BitMask);
-		Data = ((Original_Value & (~BitMask)) | (Data << BitShift));
+	if (bit_mask != bRFRegOffsetMask) {
+		original_value = rf_serial_read(adapt, rf_path, reg_addr);
+		bit_shift =  cal_bit_shift(bit_mask);
+		data = ((original_value & (~bit_mask)) | (data << bit_shift));
 	}
 
-	rf_serial_write(Adapter, eRFPath, RegAddr, Data);
+	rf_serial_write(adapt, rf_path, reg_addr, data);
 }
 
 static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPowerLevel,
@@ -446,7 +422,7 @@ static void _PHY_SwChnl8192C(struct adapter *Adapter, u8 channel)
 	param2 = channel;
 	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
 		pHalData->RfRegChnlVal[eRFPath] = ((pHalData->RfRegChnlVal[eRFPath] & 0xfffffc00) | param2);
-		PHY_SetRFReg(Adapter, (enum rf_radio_path)eRFPath, param1, bRFRegOffsetMask, pHalData->RfRegChnlVal[eRFPath]);
+		phy_set_rf_reg(Adapter, (enum rf_radio_path)eRFPath, param1, bRFRegOffsetMask, pHalData->RfRegChnlVal[eRFPath]);
 	}
 }
 

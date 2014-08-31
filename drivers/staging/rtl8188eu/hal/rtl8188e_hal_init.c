@@ -231,7 +231,7 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->AntDivBeforeLinkHandler = &AntDivBeforeLink8188E;
 	pHalFunc->AntDivCompareHandler = &AntDivCompare8188E;
 	pHalFunc->read_rfreg = &phy_query_rf_reg;
-	pHalFunc->write_rfreg = &rtl8188e_PHY_SetRFReg;
+	pHalFunc->write_rfreg = &phy_set_rf_reg;
 
 	pHalFunc->sreset_init_value = &sreset_init_value;
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
