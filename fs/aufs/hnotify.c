@@ -227,7 +227,7 @@ static int hn_gen_by_inode(char *name, unsigned int nlen, struct inode *inode,
 		spin_unlock(&inode->i_lock);
 	} else {
 		au_fset_si(au_sbi(inode->i_sb), FAILED_REFRESH_DIR);
-		d = d_find_alias(inode);
+		d = d_find_any_alias(inode);
 		if (!d) {
 			au_iigen_dec(inode);
 			goto out;
@@ -372,7 +372,7 @@ static struct dentry *lookup_wlock_by_name(char *name, unsigned int nlen,
 	struct dentry *dentry, *d, *parent;
 	struct qstr *dname;
 
-	parent = d_find_alias(dir);
+	parent = d_find_any_alias(dir);
 	if (!parent)
 		return NULL;
 
