@@ -54,9 +54,9 @@
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
 #define	DRVSTR		"dgnc"			/* Driver name string
 						 * displayed by APR	 */
-#define	APR(args)	do { PRINTF_TO_KMEM(args); printk(DRVSTR": "); printk args; \
+#define	APR(args)	do { printk(DRVSTR": "); printk args; \
 			   } while (0)
-#define	RAPR(args)	do { PRINTF_TO_KMEM(args); printk args; } while (0)
+#define	RAPR(args)	do { printk args; } while (0)
 
 #define TRC_TO_CONSOLE 1
 
@@ -88,9 +88,6 @@
 #define	DBG_INTR		(dgnc_debug & 0x8000)
 
 #define	DBG_CARR		(dgnc_debug & 0x10000)
-
-#define PRINTF_TO_KMEM(args)
-# define TRC(ARGS)
 
 /* Number of boards we support at once. */
 #define	MAXBOARDS	20
