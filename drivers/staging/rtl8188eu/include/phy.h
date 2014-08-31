@@ -13,3 +13,4 @@ void phy_set_tx_power_level(struct adapter *adapt, u8 channel);
 
 void phy_set_bw_mode(struct adapter *adapt, enum ht_channel_width bandwidth,
 		     unsigned char offset);
+void phy_sw_chnl(struct adapter *adapt, u8 channel);

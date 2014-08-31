@@ -355,30 +355,27 @@ static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 	}
 }
 
-void PHY_SwChnl8188E(struct adapter *Adapter, u8 channel)
+void phy_sw_chnl(struct adapter *adapt, u8 channel)
 {
-	/*  Call after initialization */
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
-	u8 tmpchannel = pHalData->CurrentChannel;
-	bool  bResult = true;
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	u8 tmpchannel = hal_data->CurrentChannel;
+	bool  result = true;
 
-	if (pHalData->rf_chip == RF_PSEUDO_11N)
-		return;		/* return immediately if it is peudo-phy */
+	if (hal_data->rf_chip == RF_PSEUDO_11N)
+		return;
 
 	if (channel == 0)
 		channel = 1;
 
-	pHalData->CurrentChannel = channel;
+	hal_data->CurrentChannel = channel;
 
-	if ((!Adapter->bDriverStopped) && (!Adapter->bSurpriseRemoved)) {
-		phy_sw_chnl_callback(Adapter, channel);
+	if ((!adapt->bDriverStopped) && (!adapt->bSurpriseRemoved)) {
+		phy_sw_chnl_callback(adapt, channel);
 
-		if (bResult)
-			;
-		else
-			pHalData->CurrentChannel = tmpchannel;
+		if (!result)
+			hal_data->CurrentChannel = tmpchannel;
 
 	} else {
-		pHalData->CurrentChannel = tmpchannel;
+		hal_data->CurrentChannel = tmpchannel;
 	}
 }

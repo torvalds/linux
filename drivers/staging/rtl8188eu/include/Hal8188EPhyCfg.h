@@ -207,8 +207,6 @@ void PHY_GetTxPowerLevel8188E(struct adapter *adapter, u32 *powerlevel);
 
 void PHY_ScanOperationBackup8188E(struct adapter *Adapter, u8 Operation);
 
-/*  channel switch related funciton */
-void PHY_SwChnl8188E(struct adapter *adapter, u8 channel);
 /*  Call after initialization */
 void ChkFwCmdIoDone(struct adapter *adapter);
 
