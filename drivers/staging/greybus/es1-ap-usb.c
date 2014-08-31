@@ -18,17 +18,40 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
+/*
+ * Hack, we "know" we will only have one of these at any one time, so only
+ * create one static structure pointer.
+ */
+struct es1_ap_dev {
+	struct usb_interface *usb_intf;
+
+} *es1_ap_dev;
+
 
 static int ap_probe(struct usb_interface *interface,
 		    const struct usb_device_id *id)
 {
+	if (es1_ap_dev) {
+		dev_err(&interface->dev, "Already have a es1_ap_dev???\n");
+		return -ENODEV;
+	}
+	es1_ap_dev = kzalloc(sizeof(*es1_ap_dev), GFP_KERNEL);
+	if (!es1_ap_dev)
+		return -ENOMEM;
 
+	es1_ap_dev->usb_intf = interface;
+	usb_set_intfdata(interface, es1_ap_dev);
 	return 0;
 }
 
 static void ap_disconnect(struct usb_interface *interface)
 {
+	es1_ap_dev = usb_get_intfdata(interface);
 
+	/* Tear down everything! */
+
+	kfree(es1_ap_dev);
+	es1_ap_dev = NULL;
 
 }
 
