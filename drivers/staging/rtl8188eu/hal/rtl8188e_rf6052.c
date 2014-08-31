@@ -15,64 +15,30 @@
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- *
  ******************************************************************************/
-/******************************************************************************
- *
- *
- * Module:	rtl8192c_rf6052.c	( Source C File)
- *
- * Note:	Provide RF 6052 series relative API.
- *
- * Function:
- *
- * Export:
- *
- * Abbrev:
- *
- * History:
- * Data			Who		Remark
- *
- * 09/25/2008	MHC		Create initial version.
- * 11/05/2008	MHC		Add API for tw power setting.
- *
- *
-******************************************************************************/
-
-#define _RTL8188E_RF6052_C_
 
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <phy.h>
 #include <rtl8188e_hal.h>
 
-/*-----------------------------------------------------------------------------
- * Function:    PHY_RF6052SetBandwidth()
- *
- * Overview:    This function is called by SetBWModeCallback8190Pci() only
- *
- * Input:       struct adapter *Adapter
- *			WIRELESS_BANDWIDTH_E	Bandwidth	20M or 40M
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Note:		For RF type 0222D
- *---------------------------------------------------------------------------*/
-void rtl8188e_PHY_RF6052SetBandwidth(struct adapter *Adapter,
-				     enum ht_channel_width Bandwidth)
+void rtl88eu_phy_rf6052_set_bandwidth(struct adapter *adapt,
+				      enum ht_channel_width bandwidth)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 
-	switch (Bandwidth) {
+	switch (bandwidth) {
 	case HT_CHANNEL_WIDTH_20:
-		pHalData->RfRegChnlVal[0] = ((pHalData->RfRegChnlVal[0] & 0xfffff3ff) | BIT(10) | BIT(11));
-		phy_set_rf_reg(Adapter, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal[0]);
+		hal_data->RfRegChnlVal[0] = ((hal_data->RfRegChnlVal[0] &
+					      0xfffff3ff) | BIT(10) | BIT(11));
+		phy_set_rf_reg(adapt, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask,
+			       hal_data->RfRegChnlVal[0]);
 		break;
 	case HT_CHANNEL_WIDTH_40:
-		pHalData->RfRegChnlVal[0] = ((pHalData->RfRegChnlVal[0] & 0xfffff3ff) | BIT(10));
-		phy_set_rf_reg(Adapter, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal[0]);
+		hal_data->RfRegChnlVal[0] = ((hal_data->RfRegChnlVal[0] &
+					      0xfffff3ff) | BIT(10));
+		phy_set_rf_reg(adapt, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask,
+			       hal_data->RfRegChnlVal[0]);
 		break;
 	default:
 		break;

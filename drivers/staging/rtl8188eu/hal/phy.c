@@ -23,6 +23,7 @@
 #include <drv_types.h>
 #include <rtw_iol.h>
 #include <rtl8188e_hal.h>
+#include <rf.h>
 
 #define MAX_PRECMD_CNT 16
 #define MAX_RFDEPENDCMD_CNT 16
@@ -312,7 +313,7 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 	case RF_PSEUDO_11N:
 		break;
 	case RF_6052:
-		rtl8188e_PHY_RF6052SetBandwidth(adapt, hal_data->CurrentChannelBW);
+		rtl88eu_phy_rf6052_set_bandwidth(adapt, hal_data->CurrentChannelBW);
 		break;
 	default:
 		break;
