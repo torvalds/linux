@@ -3349,6 +3349,9 @@ int __init omap_hwmod_register_links(struct omap_hwmod_ocp_if **ois)
 	if (!ois)
 		return 0;
 
+	if (ois[0] == NULL) /* Empty list */
+		return 0;
+
 	if (!linkspace) {
 		if (_alloc_linkspace(ois)) {
 			pr_err("omap_hwmod: could not allocate link space\n");
