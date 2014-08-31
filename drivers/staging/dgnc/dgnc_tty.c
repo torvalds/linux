@@ -462,7 +462,7 @@ void dgnc_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *buf, int
 	char *p;
 	int too_much_data;
 
-	tmpbuf = kzalloc(TMPBUFLEN, GFP_KERNEL);
+	tmpbuf = kzalloc(TMPBUFLEN, GFP_ATOMIC);
 	if (!tmpbuf)
 		return;
 	p = tmpbuf;
