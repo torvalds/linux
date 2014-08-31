@@ -869,7 +869,7 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 	if (!path) {
 		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 2),
 				GFP_NOFS);
-		if (!path)
+		if (unlikely(!path))
 			return ERR_PTR(-ENOMEM);
 		alloc = 1;
 	}
@@ -889,7 +889,7 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 
 		bh = read_extent_tree_block(inode, path[ppos].p_block, --i,
 					    flags);
-		if (IS_ERR(bh)) {
+		if (unlikely(IS_ERR(bh))) {
 			ret = PTR_ERR(bh);
 			goto err;
 		}
@@ -5545,10 +5545,10 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 	BUG_ON(!mutex_is_locked(&inode1->i_mutex));
 
 	*erp = ext4_es_remove_extent(inode1, lblk1, count);
-	if (*erp)
+	if (unlikely(*erp))
 		return 0;
 	*erp = ext4_es_remove_extent(inode2, lblk2, count);
-	if (*erp)
+	if (unlikely(*erp))
 		return 0;
 
 	while (count) {
@@ -5558,20 +5558,24 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 		int split = 0;
 
 		path1 = ext4_ext_find_extent(inode1, lblk1, NULL, EXT4_EX_NOCACHE);
-		if (IS_ERR(path1)) {
+		if (unlikely(IS_ERR(path1))) {
 			*erp = PTR_ERR(path1);
-			break;
+			path1 = NULL;
+		finish:
+			count = 0;
+			goto repeat;
 		}
 		path2 = ext4_ext_find_extent(inode2, lblk2, NULL, EXT4_EX_NOCACHE);
-		if (IS_ERR(path2)) {
+		if (unlikely(IS_ERR(path2))) {
 			*erp = PTR_ERR(path2);
-			break;
+			path2 = NULL;
+			goto finish;
 		}
 		ex1 = path1[path1->p_depth].p_ext;
 		ex2 = path2[path2->p_depth].p_ext;
 		/* Do we have somthing to swap ? */
 		if (unlikely(!ex2 || !ex1))
-			break;
+			goto finish;
 
 		e1_blk = le32_to_cpu(ex1->ee_block);
 		e2_blk = le32_to_cpu(ex2->ee_block);
@@ -5593,7 +5597,7 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 				next2 = e1_blk;
 			/* Do we have something to swap */
 			if (next1 == EXT_MAX_BLOCKS || next2 == EXT_MAX_BLOCKS)
-				break;
+				goto finish;
 			/* Move to the rightest boundary */
 			len = next1 - lblk1;
 			if (len < next2 - lblk2)
@@ -5611,15 +5615,15 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 			split = 1;
 			*erp = ext4_force_split_extent_at(handle, inode1,
 						path1, lblk1, 0);
-			if (*erp)
-				break;
+			if (unlikely(*erp))
+				goto finish;
 		}
 		if (e2_blk < lblk2) {
 			split = 1;
 			*erp = ext4_force_split_extent_at(handle, inode2,
 						path2,  lblk2, 0);
-			if (*erp)
-				break;
+			if (unlikely(*erp))
+				goto finish;
 		}
 		/* ext4_split_extent_at() may retult in leaf extent split,
 		 * path must to be revalidated. */
@@ -5637,15 +5641,15 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 			split = 1;
 			*erp = ext4_force_split_extent_at(handle, inode1,
 						path1, lblk1 + len, 0);
-			if (*erp)
-				break;
+			if (unlikely(*erp))
+				goto finish;
 		}
 		if (len != e2_len) {
 			split = 1;
 			*erp = ext4_force_split_extent_at(handle, inode2,
 						path2, lblk2 + len, 0);
 			if (*erp)
-				break;
+				goto finish;
 		}
 		/* ext4_split_extent_at() may retult in leaf extent split,
 		 * path must to be revalidated. */
@@ -5654,11 +5658,11 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 
 		BUG_ON(e2_len != e1_len);
 		*erp = ext4_ext_get_access(handle, inode1, path1 + path1->p_depth);
-		if (*erp)
-			break;
+		if (unlikely(*erp))
+			goto finish;
 		*erp = ext4_ext_get_access(handle, inode2, path2 + path2->p_depth);
-		if (*erp)
-			break;
+		if (unlikely(*erp))
+			goto finish;
 
 		/* Both extents are fully inside boundaries. Swap it now */
 		tmp_ex = *ex1;
@@ -5675,8 +5679,8 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 		ext4_ext_try_to_merge(handle, inode1, path1, ex1);
 		*erp = ext4_ext_dirty(handle, inode2, path2 +
 				      path2->p_depth);
-		if (*erp)
-			break;
+		if (unlikely(*erp))
+			goto finish;
 		*erp = ext4_ext_dirty(handle, inode1, path1 +
 				      path1->p_depth);
 		/*
@@ -5685,8 +5689,8 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 		 * only due to journal error, so full transaction will be
 		 * aborted anyway.
 		 */
-		if (*erp)
-			break;
+		if (unlikely(*erp))
+			goto finish;
 		lblk1 += len;
 		lblk2 += len;
 		replaced_count += len;
@@ -5703,14 +5707,6 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 			kfree(path2);
 			path2 = NULL;
 		}
-	}
-	if (path1) {
-		ext4_ext_drop_refs(path1);
-		kfree(path1);
-	}
-	if (path2) {
-		ext4_ext_drop_refs(path2);
-		kfree(path2);
 	}
 	return replaced_count;
 }
