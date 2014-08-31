@@ -305,60 +305,33 @@ static void writeOFDMPowerReg88E(struct adapter *Adapter, u8 index, u32 *pValue)
 	}
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	PHY_RF6052SetOFDMTxPower
- *
- * Overview:	For legacy and HY OFDM, we must read EEPROM TX power index for
- *			different channel and read original value in TX power register area from
- *			0xe00. We increase offset and original value to be correct tx pwr.
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/05/2008	MHC		Simulate 8192 series method.
- * 01/06/2009	MHC		1. Prevent Path B tx power overflow or underflow dure to
- *						A/B pwr difference or legacy/HT pwr diff.
- *						2. We concern with path B legacy/HT OFDM difference.
- * 01/22/2009	MHC		Support new EPRO format from SD3.
- *
- *---------------------------------------------------------------------------*/
-
-void
-rtl8188e_PHY_RF6052SetOFDMTxPower(
-		struct adapter *Adapter,
-		u8 *pPowerLevelOFDM,
-		u8 *pPowerLevelBW20,
-		u8 *pPowerLevelBW40,
-		u8 Channel)
+void rtl88eu_phy_rf6052_set_ofdm_txpower(struct adapter *adapt,
+					 u8 *pwr_level_ofdm,
+					 u8 *pwr_level_bw20,
+					 u8 *pwr_level_bw40, u8 channel)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
-	u32 writeVal[2], powerBase0[2], powerBase1[2], pwrtrac_value;
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	u32 write_val[2], powerbase0[2], powerbase1[2], pwrtrac_value;
 	u8 direction;
 	u8 index = 0;
 
-	getpowerbase88e(Adapter, pPowerLevelOFDM, pPowerLevelBW20, pPowerLevelBW40, Channel, &powerBase0[0], &powerBase1[0]);
+	getpowerbase88e(adapt, pwr_level_ofdm, pwr_level_bw20, pwr_level_bw40,
+			channel, &powerbase0[0], &powerbase1[0]);
 
-	/*  2012/04/23 MH According to power tracking value, we need to revise OFDM tx power. */
-	/*  This is ued to fix unstable power tracking mode. */
-	ODM_TxPwrTrackAdjust88E(&pHalData->odmpriv, 0, &direction, &pwrtrac_value);
+	ODM_TxPwrTrackAdjust88E(&hal_data->odmpriv, 0, &direction, &pwrtrac_value);
 
 	for (index = 0; index < 6; index++) {
-		get_rx_power_val_by_reg(Adapter, Channel, index,
-					&powerBase0[0], &powerBase1[0],
-					&writeVal[0]);
+		get_rx_power_val_by_reg(adapt, channel, index,
+					&powerbase0[0], &powerbase1[0],
+					&write_val[0]);
 
 		if (direction == 1) {
-			writeVal[0] += pwrtrac_value;
-			writeVal[1] += pwrtrac_value;
+			write_val[0] += pwrtrac_value;
+			write_val[1] += pwrtrac_value;
 		} else if (direction == 2) {
-			writeVal[0] -= pwrtrac_value;
-			writeVal[1] -= pwrtrac_value;
+			write_val[0] -= pwrtrac_value;
+			write_val[1] -= pwrtrac_value;
 		}
-		writeOFDMPowerReg88E(Adapter, index, &writeVal[0]);
+		writeOFDMPowerReg88E(adapt, index, &write_val[0]);
 	}
 }
