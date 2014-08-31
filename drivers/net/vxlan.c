@@ -2370,6 +2370,8 @@ static struct socket *vxlan_create_sock(struct net *net, bool ipv6,
 	/* Disable multicast loopback */
 	inet_sk(sock->sk)->mc_loop = 0;
 
+	udp_set_convert_csum(sock->sk, true);
+
 	return sock;
 }
 
