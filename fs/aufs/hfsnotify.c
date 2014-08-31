@@ -60,10 +60,12 @@ static int au_hfsn_alloc(struct au_hinode *hinode)
 	 * by udba rename or rmdir, aufs assign a new inode to the known
 	 * h_inode, so specify 1 to allow dups.
 	 */
+	lockdep_off();
 	err = fsnotify_add_mark(mark, br->br_hfsn->hfsn_group, hinode->hi_inode,
 				 /*mnt*/NULL, /*allow_dups*/1);
 	/* even if err */
 	fsnotify_put_mark(mark);
+	lockdep_on();
 
 	return err;
 }
@@ -82,8 +84,10 @@ static int au_hfsn_free(struct au_hinode *hinode, struct au_hnotify *hn)
 	group = mark->group;
 	fsnotify_get_group(group);
 	spin_unlock(&mark->lock);
+	lockdep_off();
 	fsnotify_destroy_mark(mark, group);
 	fsnotify_put_group(group);
+	lockdep_on();
 
 	/* free hn by myself */
 	return 0;
@@ -224,8 +228,11 @@ static void au_hfsn_fin_br(struct au_branch *br)
 	struct au_br_hfsnotify *hfsn;
 
 	hfsn = br->br_hfsn;
-	if (hfsn)
+	if (hfsn) {
+		lockdep_off();
 		fsnotify_put_group(hfsn->hfsn_group);
+		lockdep_on();
+	}
 }
 
 static int au_hfsn_init_br(struct au_branch *br, int perm)

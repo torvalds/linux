@@ -158,7 +158,9 @@ int vfsub_create(struct inode *dir, struct path *path, int mode, bool want_excl)
 	if (unlikely(err))
 		goto out;
 
+	lockdep_off();
 	err = vfs_create(dir, path->dentry, mode, want_excl);
+	lockdep_on();
 	if (!err) {
 		struct path tmp = *path;
 		int did;
@@ -189,7 +191,9 @@ int vfsub_symlink(struct inode *dir, struct path *path, const char *symname)
 	if (unlikely(err))
 		goto out;
 
+	lockdep_off();
 	err = vfs_symlink(dir, path->dentry, symname);
+	lockdep_on();
 	if (!err) {
 		struct path tmp = *path;
 		int did;
@@ -220,7 +224,9 @@ int vfsub_mknod(struct inode *dir, struct path *path, int mode, dev_t dev)
 	if (unlikely(err))
 		goto out;
 
+	lockdep_off();
 	err = vfs_mknod(dir, path->dentry, mode, dev);
+	lockdep_on();
 	if (!err) {
 		struct path tmp = *path;
 		int did;
@@ -343,7 +349,9 @@ int vfsub_mkdir(struct inode *dir, struct path *path, int mode)
 	if (unlikely(err))
 		goto out;
 
+	lockdep_off();
 	err = vfs_mkdir(dir, path->dentry, mode);
+	lockdep_on();
 	if (!err) {
 		struct path tmp = *path;
 		int did;
@@ -587,9 +595,11 @@ int vfsub_sio_mkdir(struct inode *dir, struct path *path, int mode)
 	int err, do_sio, wkq_err;
 
 	do_sio = au_test_h_perm_sio(dir, MAY_EXEC | MAY_WRITE);
-	if (!do_sio)
+	if (!do_sio) {
+		lockdep_off();
 		err = vfsub_mkdir(dir, path, mode);
-	else {
+		lockdep_on();
+	} else {
 		struct au_vfsub_mkdir_args args = {
 			.errp	= &err,
 			.dir	= dir,
@@ -621,9 +631,11 @@ int vfsub_sio_rmdir(struct inode *dir, struct path *path)
 	int err, do_sio, wkq_err;
 
 	do_sio = au_test_h_perm_sio(dir, MAY_EXEC | MAY_WRITE);
-	if (!do_sio)
+	if (!do_sio) {
+		lockdep_off();
 		err = vfsub_rmdir(dir, path);
-	else {
+		lockdep_on();
+	} else {
 		struct au_vfsub_rmdir_args args = {
 			.errp	= &err,
 			.dir	= dir,
@@ -655,7 +667,9 @@ static void call_notify_change(void *args)
 
 	*a->errp = -EPERM;
 	if (!IS_IMMUTABLE(h_inode) && !IS_APPEND(h_inode)) {
+		lockdep_off();
 		*a->errp = notify_change(a->path->dentry, a->ia);
+		lockdep_on();
 		if (!*a->errp)
 			vfsub_update_h_iattr(a->path, /*did*/NULL); /*ignore*/
 	}
