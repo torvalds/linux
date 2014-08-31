@@ -20,6 +20,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <phy.h>
+#include <rf.h>
 #include <rtl8188e_hal.h>
 
 void rtl88eu_phy_rf6052_set_bandwidth(struct adapter *adapt,
