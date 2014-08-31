@@ -59,7 +59,7 @@ int gb_gpio_probe(struct greybus_device *gdev,
 	struct device *dev = &gdev->dev;
 	int retval;
 
-	gb_gpio = kzalloc(dev, sizeof(*gb_gpio), GFP_KERNEL);
+	gb_gpio = kzalloc(sizeof(*gb_gpio), GFP_KERNEL);
 	if (!gb_gpio)
 		return -ENOMEM;
 	gb_gpio->gdev = gdev;

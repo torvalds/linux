@@ -390,7 +390,7 @@ int gb_tty_probe(struct greybus_device *gdev,
 	int retval;
 	int minor;
 
-	gb_tty = kzalloc(&gdev->dev, sizeof(*gb_tty), GFP_KERNEL);
+	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
 	if (!gb_tty)
 		return -ENOMEM;
 
