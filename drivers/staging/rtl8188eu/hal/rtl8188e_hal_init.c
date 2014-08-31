@@ -23,7 +23,7 @@
 #include <linux/vmalloc.h>
 #include <drv_types.h>
 #include <rtw_efuse.h>
-
+#include <phy.h>
 #include <rtl8188e_hal.h>
 
 #include <rtw_iol.h>
@@ -230,7 +230,7 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->AntDivBeforeLinkHandler = &AntDivBeforeLink8188E;
 	pHalFunc->AntDivCompareHandler = &AntDivCompare8188E;
-	pHalFunc->read_rfreg = &rtl8188e_PHY_QueryRFReg;
+	pHalFunc->read_rfreg = &phy_query_rf_reg;
 	pHalFunc->write_rfreg = &rtl8188e_PHY_SetRFReg;
 
 	pHalFunc->sreset_init_value = &sreset_init_value;
