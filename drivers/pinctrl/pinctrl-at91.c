@@ -1735,14 +1735,14 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	at91_chip->pioc_virq = irq;
 	at91_chip->pioc_idx = alias_idx;
 
-	at91_chip->clock = clk_get(&pdev->dev, NULL);
+	at91_chip->clock = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(at91_chip->clock)) {
 		dev_err(&pdev->dev, "failed to get clock, ignoring.\n");
 		goto err;
 	}
 
 	if (clk_prepare(at91_chip->clock))
-		goto clk_prep_err;
+		goto err;
 
 	/* enable PIO controller's clock */
 	if (clk_enable(at91_chip->clock)) {
@@ -1805,8 +1805,6 @@ static int at91_gpio_probe(struct platform_device *pdev)
 
 clk_err:
 	clk_unprepare(at91_chip->clock);
-clk_prep_err:
-	clk_put(at91_chip->clock);
 err:
 	dev_err(&pdev->dev, "Failure %i for GPIO %i\n", ret, alias_idx);
 
