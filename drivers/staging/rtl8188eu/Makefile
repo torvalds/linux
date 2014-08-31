@@ -34,7 +34,7 @@ r8188eu-y :=				\
 		hal/rtl8188e_cmd.o	\
 		hal/rtl8188e_dm.o	\
 		hal/rtl8188e_hal_init.o	\
-		hal/rtl8188e_phycfg.o	\
+		hal/phy.o \
 		hal/rtl8188e_rf6052.o	\
 		hal/rtl8188e_rxdesc.o	\
 		hal/rtl8188e_xmit.o	\
