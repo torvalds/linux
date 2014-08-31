@@ -1,4 +1,4 @@
-greybus-y := core.o gbuf.o i2c-gb.o gpio-gb.o sdio-gb.o uart-gb.o
+greybus-y := core.o gbuf.o debugfs.o i2c-gb.o gpio-gb.o sdio-gb.o uart-gb.o
 
 obj-m += greybus.o
 obj-m += es1-ap-usb.o

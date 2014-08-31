@@ -86,7 +86,7 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct bus_type greybus_bus_type = {
+static struct bus_type greybus_bus_type = {
 	.name =		"greybus",
 	.match =	greybus_device_match,
 	.uevent =	greybus_uevent,
@@ -199,16 +199,36 @@ static int __init gb_init(void)
 {
 	int retval;
 
-	retval = gb_tty_init();
+	retval = greybus_debugfs_init();
 	if (retval)
 		return retval;
 
+	retval = bus_register(&greybus_bus_type);
+	if (retval)
+		goto error_bus;
+
+	// FIXME - more gb core init goes here
+
+	retval = gb_tty_init();
+	if (retval)
+		goto error_tty;
+
 	return 0;
+
+error_tty:
+	bus_unregister(&greybus_bus_type);
+
+error_bus:
+	greybus_debugfs_cleanup();
+
+	return retval;
 }
 
 static void __exit gb_exit(void)
 {
 	gb_tty_exit();
+	bus_unregister(&greybus_bus_type);
+	greybus_debugfs_cleanup();
 }
 
 module_init(gb_init);

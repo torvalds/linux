@@ -174,10 +174,10 @@ void greybus_deregister(struct greybus_driver *driver);
 #define module_greybus_driver(__greybus_driver)	\
 	module_driver(__greybus_driver, greybus_register, greybus_deregister)
 
-extern struct bus_type greybus_bus_type;
-
 int greybus_disabled(void);
 
+int greybus_debugfs_init(void);
+void greybus_debugfs_cleanup(void);
 
 #endif /* __KERNEL__ */
 #endif /* __LINUX_GREYBUS_H */
