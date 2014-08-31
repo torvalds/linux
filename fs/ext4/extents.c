@@ -291,6 +291,19 @@ static inline int ext4_ext_space_root_idx(struct inode *inode, int check)
 	return size;
 }
 
+static inline int
+ext4_force_split_extent_at(handle_t *handle, struct inode *inode,
+			   struct ext4_ext_path *path, ext4_lblk_t lblk,
+			   int nofail)
+{
+	int unwritten = ext4_ext_is_unwritten(path[path->p_depth].p_ext);
+
+	return ext4_split_extent_at(handle, inode, path, lblk, unwritten ?
+			EXT4_EXT_MARK_UNWRIT1|EXT4_EXT_MARK_UNWRIT2 : 0,
+			EXT4_EX_NOCACHE | EXT4_GET_BLOCKS_PRE_IO |
+			(nofail ? EXT4_GET_BLOCKS_METADATA_NOFAIL:0));
+}
+
 /*
  * Calculate the number of metadata blocks needed
  * to allocate @blocks
@@ -1559,7 +1572,7 @@ found_extent:
  * allocated block. Thus, index entries have to be consistent
  * with leaves.
  */
-static ext4_lblk_t
+ext4_lblk_t
 ext4_ext_next_allocated_block(struct ext4_ext_path *path)
 {
 	int depth;
@@ -2854,24 +2867,14 @@ again:
 		 */
 		if (end >= ee_block &&
 		    end < ee_block + ext4_ext_get_actual_len(ex) - 1) {
-			int split_flag = 0;
-
-			if (ext4_ext_is_unwritten(ex))
-				split_flag = EXT4_EXT_MARK_UNWRIT1 |
-					     EXT4_EXT_MARK_UNWRIT2;
-
 			/*
 			 * Split the extent in two so that 'end' is the last
 			 * block in the first new extent. Also we should not
 			 * fail removing space due to ENOSPC so try to use
 			 * reserved block if that happens.
 			 */
-			err = ext4_split_extent_at(handle, inode, path,
-					end + 1, split_flag,
-					EXT4_EX_NOCACHE |
-					EXT4_GET_BLOCKS_PRE_IO |
-					EXT4_GET_BLOCKS_METADATA_NOFAIL);
-
+			err = ext4_force_split_extent_at(handle, inode, path,
+							 end + 1, 1);
 			if (err < 0)
 				goto out;
 		}
@@ -5505,4 +5508,209 @@ out_dio:
 out_mutex:
 	mutex_unlock(&inode->i_mutex);
 	return ret;
+}
+
+/**
+ * ext4_swap_extents - Swap extents between two inodes
+ *
+ * @inode1:	First inode
+ * @inode2:	Second inode
+ * @lblk1:	Start block for first inode
+ * @lblk2:	Start block for second inode
+ * @count:	Number of blocks to swap
+ * @mark_unwritten: Mark second inode's extents as unwritten after swap
+ * @erp:	Pointer to save error value
+ *
+ * This helper routine does exactly what is promise "swap extents". All other
+ * stuff such as page-cache locking consistency, bh mapping consistency or
+ * extent's data copying must be performed by caller.
+ * Locking:
+ * 		i_mutex is held for both inodes
+ * 		i_data_sem is locked for write for both inodes
+ * Assumptions:
+ *		All pages from requested range are locked for both inodes
+ */
+int
+ext4_swap_extents(handle_t *handle, struct inode *inode1,
+		     struct inode *inode2, ext4_lblk_t lblk1, ext4_lblk_t lblk2,
+		  ext4_lblk_t count, int unwritten, int *erp)
+{
+	struct ext4_ext_path *path1 = NULL;
+	struct ext4_ext_path *path2 = NULL;
+	int replaced_count = 0;
+
+	BUG_ON(!rwsem_is_locked(&EXT4_I(inode1)->i_data_sem));
+	BUG_ON(!rwsem_is_locked(&EXT4_I(inode2)->i_data_sem));
+	BUG_ON(!mutex_is_locked(&inode1->i_mutex));
+	BUG_ON(!mutex_is_locked(&inode1->i_mutex));
+
+	*erp = ext4_es_remove_extent(inode1, lblk1, count);
+	if (*erp)
+		return 0;
+	*erp = ext4_es_remove_extent(inode2, lblk2, count);
+	if (*erp)
+		return 0;
+
+	while (count) {
+		struct ext4_extent *ex1, *ex2, tmp_ex;
+		ext4_lblk_t e1_blk, e2_blk;
+		int e1_len, e2_len, len;
+		int split = 0;
+
+		path1 = ext4_ext_find_extent(inode1, lblk1, NULL, EXT4_EX_NOCACHE);
+		if (IS_ERR(path1)) {
+			*erp = PTR_ERR(path1);
+			break;
+		}
+		path2 = ext4_ext_find_extent(inode2, lblk2, NULL, EXT4_EX_NOCACHE);
+		if (IS_ERR(path2)) {
+			*erp = PTR_ERR(path2);
+			break;
+		}
+		ex1 = path1[path1->p_depth].p_ext;
+		ex2 = path2[path2->p_depth].p_ext;
+		/* Do we have somthing to swap ? */
+		if (unlikely(!ex2 || !ex1))
+			break;
+
+		e1_blk = le32_to_cpu(ex1->ee_block);
+		e2_blk = le32_to_cpu(ex2->ee_block);
+		e1_len = ext4_ext_get_actual_len(ex1);
+		e2_len = ext4_ext_get_actual_len(ex2);
+
+		/* Hole handling */
+		if (!in_range(lblk1, e1_blk, e1_len) ||
+		    !in_range(lblk2, e2_blk, e2_len)) {
+			ext4_lblk_t next1, next2;
+
+			/* if hole after extent, then go to next extent */
+			next1 = ext4_ext_next_allocated_block(path1);
+			next2 = ext4_ext_next_allocated_block(path2);
+			/* If hole before extent, then shift to that extent */
+			if (e1_blk > lblk1)
+				next1 = e1_blk;
+			if (e2_blk > lblk2)
+				next2 = e1_blk;
+			/* Do we have something to swap */
+			if (next1 == EXT_MAX_BLOCKS || next2 == EXT_MAX_BLOCKS)
+				break;
+			/* Move to the rightest boundary */
+			len = next1 - lblk1;
+			if (len < next2 - lblk2)
+				len = next2 - lblk2;
+			if (len > count)
+				len = count;
+			lblk1 += len;
+			lblk2 += len;
+			count -= len;
+			goto repeat;
+		}
+
+		/* Prepare left boundary */
+		if (e1_blk < lblk1) {
+			split = 1;
+			*erp = ext4_force_split_extent_at(handle, inode1,
+						path1, lblk1, 0);
+			if (*erp)
+				break;
+		}
+		if (e2_blk < lblk2) {
+			split = 1;
+			*erp = ext4_force_split_extent_at(handle, inode2,
+						path2,  lblk2, 0);
+			if (*erp)
+				break;
+		}
+		/* ext4_split_extent_at() may retult in leaf extent split,
+		 * path must to be revalidated. */
+		if (split)
+			goto repeat;
+
+		/* Prepare right boundary */
+		len = count;
+		if (len > e1_blk + e1_len - lblk1)
+			len = e1_blk + e1_len - lblk1;
+		if (len > e2_blk + e2_len - lblk2)
+			len = e2_blk + e2_len - lblk2;
+
+		if (len != e1_len) {
+			split = 1;
+			*erp = ext4_force_split_extent_at(handle, inode1,
+						path1, lblk1 + len, 0);
+			if (*erp)
+				break;
+		}
+		if (len != e2_len) {
+			split = 1;
+			*erp = ext4_force_split_extent_at(handle, inode2,
+						path2, lblk2 + len, 0);
+			if (*erp)
+				break;
+		}
+		/* ext4_split_extent_at() may retult in leaf extent split,
+		 * path must to be revalidated. */
+		if (split)
+			goto repeat;
+
+		BUG_ON(e2_len != e1_len);
+		*erp = ext4_ext_get_access(handle, inode1, path1 + path1->p_depth);
+		if (*erp)
+			break;
+		*erp = ext4_ext_get_access(handle, inode2, path2 + path2->p_depth);
+		if (*erp)
+			break;
+
+		/* Both extents are fully inside boundaries. Swap it now */
+		tmp_ex = *ex1;
+		ext4_ext_store_pblock(ex1, ext4_ext_pblock(ex2));
+		ext4_ext_store_pblock(ex2, ext4_ext_pblock(&tmp_ex));
+		ex1->ee_len = cpu_to_le16(e2_len);
+		ex2->ee_len = cpu_to_le16(e1_len);
+		if (unwritten)
+			ext4_ext_mark_unwritten(ex2);
+		if (ext4_ext_is_unwritten(&tmp_ex))
+			ext4_ext_mark_unwritten(ex1);
+
+		ext4_ext_try_to_merge(handle, inode2, path2, ex2);
+		ext4_ext_try_to_merge(handle, inode1, path1, ex1);
+		*erp = ext4_ext_dirty(handle, inode2, path2 +
+				      path2->p_depth);
+		if (*erp)
+			break;
+		*erp = ext4_ext_dirty(handle, inode1, path1 +
+				      path1->p_depth);
+		/*
+		 * Looks scarry ah..? second inode already points to new blocks,
+		 * and it was successfully dirtied. But luckily error may happen
+		 * only due to journal error, so full transaction will be
+		 * aborted anyway.
+		 */
+		if (*erp)
+			break;
+		lblk1 += len;
+		lblk2 += len;
+		replaced_count += len;
+		count -= len;
+
+	repeat:
+		if (path1) {
+			ext4_ext_drop_refs(path1);
+			kfree(path1);
+			path1 = NULL;
+		}
+		if (path2) {
+			ext4_ext_drop_refs(path2);
+			kfree(path2);
+			path2 = NULL;
+		}
+	}
+	if (path1) {
+		ext4_ext_drop_refs(path1);
+		kfree(path1);
+	}
+	if (path2) {
+		ext4_ext_drop_refs(path2);
+		kfree(path2);
+	}
+	return replaced_count;
 }
