@@ -18,7 +18,7 @@ r8188eu-y :=				\
 		core/rtw_wlan_util.o	\
 		core/rtw_xmit.o		\
 		hal/fw.o	\
-		hal/HalHWImg8188E_MAC.o	\
+		hal/mac_cfg.o \
 		hal/bb_cfg.o \
 		hal/rf_cfg.o \
 		hal/HalPhyRf_8188e.o	\
