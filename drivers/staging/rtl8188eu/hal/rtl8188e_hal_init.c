@@ -704,21 +704,3 @@ void Hal_ReadThermalMeter_88E(struct adapter *Adapter, u8 *PROMContent, bool Aut
 	}
 	DBG_88E("ThermalMeter = 0x%x\n", pHalData->EEPROMThermalMeter);
 }
-
-/*  This function is used only for 92C to set REG_BCN_CTRL(0x550) register. */
-/*  We just reserve the value of the register in variable pHalData->RegBcnCtrlVal and then operate */
-/*  the value of the register via atomic operation. */
-/*  This prevents from race condition when setting this register. */
-/*  The value of pHalData->RegBcnCtrlVal is initialized in HwConfigureRTL8192CE() function. */
-
-void SetBcnCtrlReg(struct adapter *padapter, u8 SetBits, u8 ClearBits)
-{
-	struct hal_data_8188e *pHalData;
-
-	pHalData = GET_HAL_DATA(padapter);
-
-	pHalData->RegBcnCtrlVal |= SetBits;
-	pHalData->RegBcnCtrlVal &= ~ClearBits;
-
-	usb_write8(padapter, REG_BCN_CTRL, (u8)pHalData->RegBcnCtrlVal);
-}

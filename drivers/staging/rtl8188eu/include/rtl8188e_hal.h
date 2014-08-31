@@ -417,7 +417,6 @@ void Hal_ReadPowerSavingMode88E(struct adapter *pAdapter, u8 *hwinfo,
 void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 
 /*  register */
-void SetBcnCtrlReg(struct adapter *padapter, u8 SetBits, u8 ClearBits);
 
 void rtl8188e_start_thread(struct adapter *padapter);
 void rtl8188e_stop_thread(struct adapter *padapter);
