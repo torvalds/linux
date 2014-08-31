@@ -112,10 +112,8 @@ static inline unsigned char *xlr_alloc_skb(void)
 
 	/* skb->data is cache aligned */
 	skb = alloc_skb(XLR_RX_BUF_SIZE, GFP_ATOMIC);
-	if (!skb) {
-		pr_err("SKB allocation failed\n");
+	if (!skb)
 		return NULL;
-	}
 	skb_data = skb->data;
 	skb_put(skb, MAC_SKB_BACK_PTR_SIZE);
 	skb_pull(skb, MAC_SKB_BACK_PTR_SIZE);
