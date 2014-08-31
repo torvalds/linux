@@ -695,7 +695,7 @@ static int aufs_encode_fh(struct inode *inode, __u32 *fh, int *max_len,
 	ii_read_lock_child(inode);
 	bindex = au_ibstart(inode);
 	if (!dir) {
-		dentry = d_find_alias(inode);
+		dentry = d_find_any_alias(inode);
 		if (unlikely(!dentry))
 			goto out_unlock;
 		AuDebugOn(au_test_anon(dentry));
@@ -711,7 +711,7 @@ static int aufs_encode_fh(struct inode *inode, __u32 *fh, int *max_len,
 	ii_read_unlock(dir);
 	if (unlikely(!h_dir))
 		goto out_parent;
-	h_parent = d_find_alias(h_dir);
+	h_parent = d_find_any_alias(h_dir);
 	if (unlikely(!h_parent))
 		goto out_hparent;
 
