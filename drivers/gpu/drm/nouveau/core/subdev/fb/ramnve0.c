@@ -1173,18 +1173,19 @@ nve0_ram_init(struct nouveau_object *object)
 
 	cnt  = nv_ro08(bios, data + 0x14); /* guess at count */
 	data = nv_ro32(bios, data + 0x10); /* guess u32... */
-	save = nv_rd32(pfb, 0x10f65c);
-	for (i = 0; i < cnt; i++) {
-		nv_mask(pfb, 0x10f65c, 0x000000f0, i << 4);
-		nvbios_exec(&(struct nvbios_init) {
-				.subdev = nv_subdev(pfb),
-				.bios = bios,
-				.offset = nv_ro32(bios, data), /* guess u32 */
-				.execute = 1,
-			    });
-		data += 4;
+	save = nv_rd32(pfb, 0x10f65c) & 0x000000f0;
+	for (i = 0; i < cnt; i++, data += 4) {
+		if (i != save >> 4) {
+			nv_mask(pfb, 0x10f65c, 0x000000f0, i << 4);
+			nvbios_exec(&(struct nvbios_init) {
+					.subdev = nv_subdev(pfb),
+					.bios = bios,
+					.offset = nv_ro32(bios, data),
+					.execute = 1,
+				    });
+		}
 	}
-	nv_wr32(pfb, 0x10f65c, save);
+	nv_mask(pfb, 0x10f65c, 0x000000f0, save);
 	nv_mask(pfb, 0x10f584, 0x11000000, 0x00000000);
 
 	switch (ram->base.type) {
