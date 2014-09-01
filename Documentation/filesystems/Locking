@@ -469,8 +469,7 @@ prototypes:
 };
 
 locking rules:
-	All may block except for ->setlease.
-	No VFS locks held on entry except for ->setlease.
+	All may block.
 
 ->llseek() locking has moved from llseek to the individual llseek
 implementations.  If your fs is not using generic_file_llseek, you

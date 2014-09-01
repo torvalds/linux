@@ -1292,7 +1292,7 @@ static void lease_clear_pending(struct file_lock *fl, int arg)
 }
 
 /* We already had a lease on this file; just change its type */
-int lease_modify(struct file_lock **before, int arg)
+int lease_modify(struct file_lock **before, int arg, struct list_head *dispose)
 {
 	struct file_lock *fl = *before;
 	int error = assign_type(fl, arg);
@@ -1311,7 +1311,7 @@ int lease_modify(struct file_lock **before, int arg)
 			printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
 			fl->fl_fasync = NULL;
 		}
-		locks_delete_lock(before, NULL);
+		locks_delete_lock(before, dispose);
 	}
 	return 0;
 }
@@ -1325,7 +1325,7 @@ static bool past_time(unsigned long then)
 	return time_after(jiffies, then);
 }
 
-static void time_out_leases(struct inode *inode)
+static void time_out_leases(struct inode *inode, struct list_head *dispose)
 {
 	struct file_lock **before;
 	struct file_lock *fl;
@@ -1336,9 +1336,9 @@ static void time_out_leases(struct inode *inode)
 	while ((fl = *before) && IS_LEASE(fl) && lease_breaking(fl)) {
 		trace_time_out_leases(inode, fl);
 		if (past_time(fl->fl_downgrade_time))
-			lease_modify(before, F_RDLCK);
+			lease_modify(before, F_RDLCK, dispose);
 		if (past_time(fl->fl_break_time))
-			lease_modify(before, F_UNLCK);
+			lease_modify(before, F_UNLCK, dispose);
 		if (fl == *before)	/* lease_modify may have freed fl */
 			before = &fl->fl_next;
 	}
@@ -1373,6 +1373,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 	int i_have_this_lease = 0;
 	bool lease_conflict = false;
 	int want_write = (mode & O_ACCMODE) != O_RDONLY;
+	LIST_HEAD(dispose);
 
 	new_fl = lease_alloc(NULL, want_write ? F_WRLCK : F_RDLCK);
 	if (IS_ERR(new_fl))
@@ -1381,7 +1382,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 
 	spin_lock(&inode->i_lock);
 
-	time_out_leases(inode);
+	time_out_leases(inode, &dispose);
 
 	flock = inode->i_flock;
 	if ((flock == NULL) || !IS_LEASE(flock))
@@ -1436,6 +1437,7 @@ restart:
 	locks_insert_block(flock, new_fl);
 	trace_break_lease_block(inode, new_fl);
 	spin_unlock(&inode->i_lock);
+	locks_dispose_list(&dispose);
 	error = wait_event_interruptible_timeout(new_fl->fl_wait,
 						!new_fl->fl_next, break_time);
 	spin_lock(&inode->i_lock);
@@ -1443,7 +1445,7 @@ restart:
 	locks_delete_block(new_fl);
 	if (error >= 0) {
 		if (error == 0)
-			time_out_leases(inode);
+			time_out_leases(inode, &dispose);
 		/*
 		 * Wait for the next conflicting lease that has not been
 		 * broken yet
@@ -1458,6 +1460,7 @@ restart:
 
 out:
 	spin_unlock(&inode->i_lock);
+	locks_dispose_list(&dispose);
 	locks_free_lock(new_fl);
 	return error;
 }
@@ -1522,9 +1525,10 @@ int fcntl_getlease(struct file *filp)
 	struct file_lock *fl;
 	struct inode *inode = file_inode(filp);
 	int type = F_UNLCK;
+	LIST_HEAD(dispose);
 
 	spin_lock(&inode->i_lock);
-	time_out_leases(file_inode(filp));
+	time_out_leases(file_inode(filp), &dispose);
 	for (fl = file_inode(filp)->i_flock; fl && IS_LEASE(fl);
 			fl = fl->fl_next) {
 		if (fl->fl_file == filp) {
@@ -1533,6 +1537,7 @@ int fcntl_getlease(struct file *filp)
 		}
 	}
 	spin_unlock(&inode->i_lock);
+	locks_dispose_list(&dispose);
 	return type;
 }
 
@@ -1570,6 +1575,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	struct inode *inode = dentry->d_inode;
 	bool is_deleg = (*flp)->fl_flags & FL_DELEG;
 	int error;
+	LIST_HEAD(dispose);
 
 	lease = *flp;
 	trace_generic_add_lease(inode, lease);
@@ -1593,7 +1599,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	}
 
 	spin_lock(&inode->i_lock);
-	time_out_leases(inode);
+	time_out_leases(inode, &dispose);
 	error = check_conflicting_open(dentry, arg);
 	if (error)
 		goto out;
@@ -1630,7 +1636,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 
 	if (my_before != NULL) {
 		lease = *my_before;
-		error = lease->fl_lmops->lm_change(my_before, arg);
+		error = lease->fl_lmops->lm_change(my_before, arg, &dispose);
 		if (error)
 			goto out;
 		goto out_setup;
@@ -1660,6 +1666,7 @@ out_setup:
 		lease->fl_lmops->lm_setup(lease, priv);
 out:
 	spin_unlock(&inode->i_lock);
+	locks_dispose_list(&dispose);
 	if (is_deleg)
 		mutex_unlock(&inode->i_mutex);
 	if (!error && !my_before)
@@ -1676,8 +1683,10 @@ static int generic_delete_lease(struct file *filp)
 	struct file_lock *fl, **before;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
+	LIST_HEAD(dispose);
 
 	spin_lock(&inode->i_lock);
+	time_out_leases(inode, &dispose);
 	for (before = &inode->i_flock;
 			((fl = *before) != NULL) && IS_LEASE(fl);
 			before = &fl->fl_next) {
@@ -1686,8 +1695,9 @@ static int generic_delete_lease(struct file *filp)
 	}
 	trace_generic_delete_lease(inode, fl);
 	if (fl)
-		error = fl->fl_lmops->lm_change(before, F_UNLCK);
+		error = fl->fl_lmops->lm_change(before, F_UNLCK, &dispose);
 	spin_unlock(&inode->i_lock);
+	locks_dispose_list(&dispose);
 	return error;
 }
 
@@ -2372,7 +2382,7 @@ void locks_remove_file(struct file *filp)
 	while ((fl = *before) != NULL) {
 		if (fl->fl_file == filp) {
 			if (IS_LEASE(fl)) {
-				lease_modify(before, F_UNLCK);
+				lease_modify(before, F_UNLCK, &dispose);
 				continue;
 			}
 
