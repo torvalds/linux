@@ -6,6 +6,10 @@
  *
  * Copyright 2014 Google Inc.
  */
+
+#ifndef __SVC_MSG_H
+#define __SVC_MSG_H
+
 enum svc_function_type {
 	SVC_FUNCTION_HANDSHAKE			= 0x00,
 	SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT	= 0x01,
@@ -21,7 +25,7 @@ struct svc_msg_header {
 	u8	type;		/* enum svc_function_type */
 	u8	version_major;
 	u8	version_minor;
-	u16	payload_length;
+	__le16	payload_length;
 };
 
 enum svc_function_handshake_type {
@@ -81,7 +85,7 @@ struct svc_function_ddb_get {
 struct svc_function_ddb_response {
 	u8	device_id;
 	u8	message_id;
-	u16	descriptor_length;
+	__le16	descriptor_length;
 	u8	ddb[0];
 };
 
@@ -107,8 +111,8 @@ enum svc_function_battery_status {
 };
 
 struct svc_function_power_battery_status {
-	u16	charge_full;
-	u16	charge_now;
+	__le16	charge_full;
+	__le16	charge_now;
 	u8	status;	/* enum svc_function_battery_status */
 };
 
@@ -158,5 +162,4 @@ struct svc_msg {
 	};
 };
 
-
-
+#endif /* __SVC_MSG_H */

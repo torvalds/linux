@@ -17,8 +17,8 @@
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include "svc_msg.h"
+#include "greybus_desc.h"
 #include "greybus.h"
-
 
 struct ap_msg {
 	u8 *data;
