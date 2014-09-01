@@ -454,10 +454,10 @@ enum {
 struct pci230_board {
 	const char *name;
 	unsigned short id;
-	int ai_bits;
-	int ao_bits;
-	int have_dio;
-	unsigned int min_hwver;	/* Minimum hardware version supported. */
+	unsigned char ai_bits;
+	unsigned char ao_bits;
+	unsigned char min_hwver; /* Minimum hardware version supported. */
+	bool have_dio:1;
 };
 
 static const struct pci230_board pci230_boards[] = {
@@ -466,7 +466,7 @@ static const struct pci230_board pci230_boards[] = {
 		.id		= PCI_DEVICE_ID_PCI230,
 		.ai_bits	= 16,
 		.ao_bits	= 12,
-		.have_dio	= 1,
+		.have_dio	= true,
 		.min_hwver	= 1,
 	},
 	{
@@ -480,7 +480,7 @@ static const struct pci230_board pci230_boards[] = {
 		.id		= PCI_DEVICE_ID_PCI230,
 		.ai_bits	= 12,
 		.ao_bits	= 12,
-		.have_dio	= 1,
+		.have_dio	= true,
 	},
 	{
 		.name		= "pci260",
