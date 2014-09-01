@@ -367,15 +367,12 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 
 	msr = rcar_i2c_read(priv, ICMSR);
 
+	/* Only handle interrupts that are currently enabled */
+	msr &= rcar_i2c_read(priv, ICMIER);
+
 	/* Arbitration lost */
 	if (msr & MAL) {
 		rcar_i2c_flags_set(priv, (ID_DONE | ID_ARBLOST));
-		goto out;
-	}
-
-	/* Stop */
-	if (msr & MST) {
-		rcar_i2c_flags_set(priv, ID_DONE);
 		goto out;
 	}
 
@@ -385,6 +382,12 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
 		rcar_i2c_write(priv, ICMIER, RCAR_IRQ_STOP);
 		rcar_i2c_flags_set(priv, ID_NACK);
+		goto out;
+	}
+
+	/* Stop */
+	if (msr & MST) {
+		rcar_i2c_flags_set(priv, ID_DONE);
 		goto out;
 	}
 
