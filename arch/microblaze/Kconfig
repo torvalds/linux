@@ -248,9 +248,9 @@ config MICROBLAZE_64K_PAGES
 
 endchoice
 
-endmenu
-
 source "mm/Kconfig"
+
+endmenu
 
 menu "Executable file formats"
 
