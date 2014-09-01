@@ -3661,23 +3661,11 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 	return intel_dp_detect_dpcd(intel_dp);
 }
 
-static enum drm_connector_status
-g4x_dp_detect(struct intel_dp *intel_dp)
+static int g4x_digital_port_connected(struct drm_device *dev,
+				       struct intel_digital_port *intel_dig_port)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	uint32_t bit;
-
-	/* Can't disconnect eDP, but you can close the lid... */
-	if (is_edp(intel_dp)) {
-		enum drm_connector_status status;
-
-		status = intel_panel_detect(dev);
-		if (status == connector_status_unknown)
-			status = connector_status_connected;
-		return status;
-	}
 
 	if (IS_VALLEYVIEW(dev)) {
 		switch (intel_dig_port->port) {
@@ -3691,7 +3679,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 			bit = PORTD_HOTPLUG_LIVE_STATUS_VLV;
 			break;
 		default:
-			return connector_status_unknown;
+			return -EINVAL;
 		}
 	} else {
 		switch (intel_dig_port->port) {
@@ -3705,11 +3693,36 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 			bit = PORTD_HOTPLUG_LIVE_STATUS_G4X;
 			break;
 		default:
-			return connector_status_unknown;
+			return -EINVAL;
 		}
 	}
 
 	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) == 0)
+		return 0;
+	return 1;
+}
+
+static enum drm_connector_status
+g4x_dp_detect(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	int ret;
+
+	/* Can't disconnect eDP, but you can close the lid... */
+	if (is_edp(intel_dp)) {
+		enum drm_connector_status status;
+
+		status = intel_panel_detect(dev);
+		if (status == connector_status_unknown)
+			status = connector_status_connected;
+		return status;
+	}
+
+	ret = g4x_digital_port_connected(dev, intel_dig_port);
+	if (ret == -EINVAL)
+		return connector_status_unknown;
+	else if (ret == 0)
 		return connector_status_disconnected;
 
 	return intel_dp_detect_dpcd(intel_dp);
@@ -4066,8 +4079,14 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	intel_display_power_get(dev_priv, power_domain);
 
 	if (long_hpd) {
-		if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
-			goto mst_fail;
+
+		if (HAS_PCH_SPLIT(dev)) {
+			if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
+				goto mst_fail;
+		} else {
+			if (g4x_digital_port_connected(dev, intel_dig_port) != 1)
+				goto mst_fail;
+		}
 
 		if (!intel_dp_get_dpcd(intel_dp)) {
 			goto mst_fail;
