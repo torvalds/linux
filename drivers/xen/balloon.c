@@ -230,8 +230,8 @@ static enum bp_state reserve_additional_memory(long credit)
 	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
 
 	if (rc) {
-		pr_info("%s: add_memory() failed: %i\n", __func__, rc);
-		return BP_EAGAIN;
+		pr_warn("Cannot add additional memory (%i)\n", rc);
+		return BP_ECANCELED;
 	}
 
 	balloon_hotplug -= credit;
