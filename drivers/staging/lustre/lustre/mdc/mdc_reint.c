@@ -57,9 +57,9 @@ static int mdc_reint(struct ptlrpc_request *request,
 	mdc_put_rpc_lock(rpc_lock, NULL);
 	if (rc)
 		CDEBUG(D_INFO, "error in handling %d\n", rc);
-	else if (!req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY)) {
+	else if (!req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY))
 		rc = -EPROTO;
-	}
+
 	return rc;
 }
 
