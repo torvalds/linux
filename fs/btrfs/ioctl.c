@@ -711,39 +711,6 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (ret)
 		goto fail;
 
-	ret = btrfs_orphan_cleanup(pending_snapshot->snap);
-	if (ret)
-		goto fail;
-
-	/*
-	 * If orphan cleanup did remove any orphans, it means the tree was
-	 * modified and therefore the commit root is not the same as the
-	 * current root anymore. This is a problem, because send uses the
-	 * commit root and therefore can see inode items that don't exist
-	 * in the current root anymore, and for example make calls to
-	 * btrfs_iget, which will do tree lookups based on the current root
-	 * and not on the commit root. Those lookups will fail, returning a
-	 * -ESTALE error, and making send fail with that error. So make sure
-	 * a send does not see any orphans we have just removed, and that it
-	 * will see the same inodes regardless of whether a transaction
-	 * commit happened before it started (meaning that the commit root
-	 * will be the same as the current root) or not.
-	 */
-	if (readonly && pending_snapshot->snap->node !=
-	    pending_snapshot->snap->commit_root) {
-		trans = btrfs_join_transaction(pending_snapshot->snap);
-		if (IS_ERR(trans) && PTR_ERR(trans) != -ENOENT) {
-			ret = PTR_ERR(trans);
-			goto fail;
-		}
-		if (!IS_ERR(trans)) {
-			ret = btrfs_commit_transaction(trans,
-						       pending_snapshot->snap);
-			if (ret)
-				goto fail;
-		}
-	}
-
 	inode = btrfs_lookup_dentry(dentry->d_parent->d_inode, dentry);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
@@ -3527,7 +3494,8 @@ process_slot:
 			btrfs_mark_buffer_dirty(leaf);
 			btrfs_release_path(path);
 
-			last_dest_end = new_key.offset + datal;
+			last_dest_end = ALIGN(new_key.offset + datal,
+					      root->sectorsize);
 			ret = clone_finish_inode_update(trans, inode,
 							last_dest_end,
 							destoff, olen);

@@ -343,6 +343,7 @@ struct pch_vbus_gpio_data {
  * @setup_data:		Received setup data
  * @phys_addr:		of device memory
  * @base_addr:		for mapped device memory
+ * @bar:		Indicates which PCI BAR for USB regs
  * @irq:		IRQ line for the device
  * @cfg_data:		current cfg, intf, and alt in use
  * @vbus_gpio:		GPIO informaton for detecting VBUS
@@ -370,14 +371,17 @@ struct pch_udc_dev {
 	struct usb_ctrlrequest		setup_data;
 	unsigned long			phys_addr;
 	void __iomem			*base_addr;
+	unsigned			bar;
 	unsigned			irq;
 	struct pch_udc_cfg_data		cfg_data;
 	struct pch_vbus_gpio_data	vbus_gpio;
 };
 #define to_pch_udc(g)	(container_of((g), struct pch_udc_dev, gadget))
 
+#define PCH_UDC_PCI_BAR_QUARK_X1000	0
 #define PCH_UDC_PCI_BAR			1
 #define PCI_DEVICE_ID_INTEL_EG20T_UDC	0x8808
+#define PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC	0x0939
 #define PCI_VENDOR_ID_ROHM		0x10DB
 #define PCI_DEVICE_ID_ML7213_IOH_UDC	0x801D
 #define PCI_DEVICE_ID_ML7831_IOH_UDC	0x8808
@@ -3076,7 +3080,7 @@ static void pch_udc_remove(struct pci_dev *pdev)
 		iounmap(dev->base_addr);
 	if (dev->mem_region)
 		release_mem_region(dev->phys_addr,
-				   pci_resource_len(pdev, PCH_UDC_PCI_BAR));
+				   pci_resource_len(pdev, dev->bar));
 	if (dev->active)
 		pci_disable_device(pdev);
 	kfree(dev);
@@ -3144,9 +3148,15 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	dev->active = 1;
 	pci_set_drvdata(pdev, dev);
 
+	/* Determine BAR based on PCI ID */
+	if (id->device == PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC)
+		dev->bar = PCH_UDC_PCI_BAR_QUARK_X1000;
+	else
+		dev->bar = PCH_UDC_PCI_BAR;
+
 	/* PCI resource allocation */
-	resource = pci_resource_start(pdev, 1);
-	len = pci_resource_len(pdev, 1);
+	resource = pci_resource_start(pdev, dev->bar);
+	len = pci_resource_len(pdev, dev->bar);
 
 	if (!request_mem_region(resource, len, KBUILD_MODNAME)) {
 		dev_err(&pdev->dev, "%s: pci device used already\n", __func__);
@@ -3211,6 +3221,12 @@ finished:
 }
 
 static const struct pci_device_id pch_udc_pcidev_id[] = {
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL,
+			   PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC),
+		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class_mask = 0xffffffff,
+	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC),
 		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,

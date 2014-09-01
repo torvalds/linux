@@ -27,6 +27,7 @@ static struct selftest_results {
 #define NO_OF_NODES 2
 static struct device_node *nodes[NO_OF_NODES];
 static int last_node_index;
+static bool selftest_live_tree;
 
 #define selftest(result, fmt, ...) { \
 	if (!(result)) { \
@@ -630,13 +631,6 @@ static int attach_node_and_children(struct device_node *np)
 {
 	struct device_node *next, *root = np, *dup;
 
-	if (!np) {
-		pr_warn("%s: No tree to attach; not running tests\n",
-			__func__);
-		return -ENODATA;
-	}
-
-
 	/* skip root node */
 	np = np->child;
 	/* storing a copy in temporary node */
@@ -672,12 +666,12 @@ static int attach_node_and_children(struct device_node *np)
 static int __init selftest_data_add(void)
 {
 	void *selftest_data;
-	struct device_node *selftest_data_node;
+	struct device_node *selftest_data_node, *np;
 	extern uint8_t __dtb_testcases_begin[];
 	extern uint8_t __dtb_testcases_end[];
 	const int size = __dtb_testcases_end - __dtb_testcases_begin;
 
-	if (!size || !of_allnodes) {
+	if (!size) {
 		pr_warn("%s: No testcase data to attach; not running tests\n",
 			__func__);
 		return -ENODATA;
@@ -692,6 +686,22 @@ static int __init selftest_data_add(void)
 		return -ENOMEM;
 	}
 	of_fdt_unflatten_tree(selftest_data, &selftest_data_node);
+	if (!selftest_data_node) {
+		pr_warn("%s: No tree to attach; not running tests\n", __func__);
+		return -ENODATA;
+	}
+
+	if (!of_allnodes) {
+		/* enabling flag for removing nodes */
+		selftest_live_tree = true;
+		of_allnodes = selftest_data_node;
+
+		for_each_of_allnodes(np)
+			__of_attach_node_sysfs(np);
+		of_aliases = of_find_node_by_path("/aliases");
+		of_chosen = of_find_node_by_path("/chosen");
+		return 0;
+	}
 
 	/* attach the sub-tree to live tree */
 	return attach_node_and_children(selftest_data_node);
@@ -722,6 +732,18 @@ static void selftest_data_remove(void)
 {
 	struct device_node *np;
 	struct property *prop;
+
+	if (selftest_live_tree) {
+		of_node_put(of_aliases);
+		of_node_put(of_chosen);
+		of_aliases = NULL;
+		of_chosen = NULL;
+		for_each_child_of_node(of_allnodes, np)
+			detach_node_and_children(np);
+		__of_detach_node_sysfs(of_allnodes);
+		of_allnodes = NULL;
+		return;
+	}
 
 	while (last_node_index >= 0) {
 		if (nodes[last_node_index]) {

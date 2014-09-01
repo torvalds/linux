@@ -573,6 +573,12 @@ struct copychunk_ioctl {
 	__u32 Reserved2;
 } __packed;
 
+/* this goes in the ioctl buffer when doing FSCTL_SET_ZERO_DATA */
+struct file_zero_data_information {
+	__le64	FileOffset;
+	__le64	BeyondFinalZero;
+} __packed;
+
 struct copychunk_ioctl_rsp {
 	__le32 ChunksWritten;
 	__le32 ChunkBytesWritten;

@@ -660,6 +660,7 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	ICPU(0x3f, core_params),
 	ICPU(0x45, core_params),
 	ICPU(0x46, core_params),
+	ICPU(0x4c, byt_params),
 	ICPU(0x4f, core_params),
 	ICPU(0x56, core_params),
 	{}
@@ -688,7 +689,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	add_timer_on(&cpu->timer, cpunum);
 
-	pr_info("Intel pstate controlling: cpu %d\n", cpunum);
+	pr_debug("Intel pstate controlling: cpu %d\n", cpunum);
 
 	return 0;
 }

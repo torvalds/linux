@@ -315,6 +315,7 @@ static struct zpool_driver zs_zpool_driver = {
 	.total_size =	zs_zpool_total_size,
 };
 
+MODULE_ALIAS("zpool-zsmalloc");
 #endif /* CONFIG_ZPOOL */
 
 /* per-cpu VM mapping areas for zspage accesses that cross page boundaries */

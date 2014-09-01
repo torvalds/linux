@@ -178,9 +178,24 @@ smb2_check_message(char *buf, unsigned int length)
 		/* Windows 7 server returns 24 bytes more */
 		if (clc_len + 20 == len && command == SMB2_OPLOCK_BREAK_HE)
 			return 0;
-		/* server can return one byte more */
+		/* server can return one byte more due to implied bcc[0] */
 		if (clc_len == 4 + len + 1)
 			return 0;
+
+		/*
+		 * MacOS server pads after SMB2.1 write response with 3 bytes
+		 * of junk. Other servers match RFC1001 len to actual
+		 * SMB2/SMB3 frame length (header + smb2 response specific data)
+		 * Log the server error (once), but allow it and continue
+		 * since the frame is parseable.
+		 */
+		if (clc_len < 4 /* RFC1001 header size */ + len) {
+			printk_once(KERN_WARNING
+				"SMB2 server sent bad RFC1001 len %d not %d\n",
+				len, clc_len - 4);
+			return 0;
+		}
+
 		return 1;
 	}
 	return 0;

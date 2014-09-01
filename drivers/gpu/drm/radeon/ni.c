@@ -1271,7 +1271,7 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 		WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR + (i << 2), 0);
 		WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR + (i << 2), rdev->vm_manager.max_pfn);
 		WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2),
-			rdev->gart.table_addr >> 12);
+		       rdev->vm_manager.saved_table_addr[i]);
 	}
 
 	/* enable context1-7 */
@@ -1303,6 +1303,13 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 
 static void cayman_pcie_gart_disable(struct radeon_device *rdev)
 {
+	unsigned i;
+
+	for (i = 1; i < 8; ++i) {
+		rdev->vm_manager.saved_table_addr[i] = RREG32(
+			VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2));
+	}
+
 	/* Disable all tables */
 	WREG32(VM_CONTEXT0_CNTL, 0);
 	WREG32(VM_CONTEXT1_CNTL, 0);
@@ -1505,7 +1512,7 @@ static int cayman_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, 0);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	cayman_cp_enable(rdev, true);
 
@@ -1547,7 +1554,7 @@ static int cayman_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	radeon_ring_write(ring, 0x00000010); /*  */
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	/* XXX init other rings */
 

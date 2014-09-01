@@ -420,7 +420,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 	radeon_asic_vm_pad_ib(rdev, &ib);
 	WARN_ON(ib.length_dw > 64);
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r)
                 goto error;
 
@@ -483,6 +483,10 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			/* add a clone of the bo_va to clear the old address */
 			struct radeon_bo_va *tmp;
 			tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
+			if (!tmp) {
+				mutex_unlock(&vm->mutex);
+				return -ENOMEM;
+			}
 			tmp->it.start = bo_va->it.start;
 			tmp->it.last = bo_va->it.last;
 			tmp->vm = vm;
@@ -693,7 +697,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 		radeon_semaphore_sync_to(ib.semaphore, pd->tbo.sync_obj);
 		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
 		WARN_ON(ib.length_dw > ndw);
-		r = radeon_ib_schedule(rdev, &ib, NULL);
+		r = radeon_ib_schedule(rdev, &ib, NULL, false);
 		if (r) {
 			radeon_ib_free(rdev, &ib);
 			return r;
@@ -957,7 +961,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	WARN_ON(ib.length_dw > ndw);
 
 	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
 		return r;

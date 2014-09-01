@@ -172,6 +172,7 @@ menu "System type"
 #
 config CPU_SH2
 	bool
+	select SH_INTC
 
 config CPU_SH2A
 	bool
@@ -182,6 +183,7 @@ config CPU_SH3
 	bool
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
+	select SH_INTC
 	select SYS_SUPPORTS_SH_TMU
 
 config CPU_SH4
@@ -189,6 +191,7 @@ config CPU_SH4
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
 	select CPU_HAS_FPU if !CPU_SH4AL_DSP
+	select SH_INTC
 	select SYS_SUPPORTS_SH_TMU
 	select SYS_SUPPORTS_HUGETLBFS if MMU
 
@@ -595,8 +598,6 @@ source kernel/Kconfig.hz
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
 	depends on SUPERH32 && MMU
-	select CRYPTO
-	select CRYPTO_SHA256
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
