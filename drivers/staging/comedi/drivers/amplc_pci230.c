@@ -2542,21 +2542,6 @@ static const struct pci230_board *pci230_find_pci_board(struct pci_dev *pci_dev)
 	return NULL;
 }
 
-static int pci230_alloc_private(struct comedi_device *dev)
-{
-	struct pci230_private *devpriv;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
-
-	spin_lock_init(&devpriv->isr_spinlock);
-	spin_lock_init(&devpriv->res_spinlock);
-	spin_lock_init(&devpriv->ai_stop_spinlock);
-	spin_lock_init(&devpriv->ao_stop_spinlock);
-	return 0;
-}
-
 static int pci230_auto_attach(struct comedi_device *dev,
 			      unsigned long context_unused)
 {
@@ -2569,9 +2554,14 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	dev_info(dev->class_dev, "amplc_pci230: attach pci %s\n",
 		 pci_name(pci_dev));
 
-	rc = pci230_alloc_private(dev);
-	if (rc)
-		return rc;
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
+
+	spin_lock_init(&devpriv->isr_spinlock);
+	spin_lock_init(&devpriv->res_spinlock);
+	spin_lock_init(&devpriv->ai_stop_spinlock);
+	spin_lock_init(&devpriv->ao_stop_spinlock);
 
 	dev->board_ptr = pci230_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
@@ -2580,8 +2570,6 @@ static int pci230_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 	thisboard = comedi_board(dev);
-	devpriv = dev->private;
-
 	dev->board_name = thisboard->name;
 
 	rc = comedi_pci_enable(dev);
