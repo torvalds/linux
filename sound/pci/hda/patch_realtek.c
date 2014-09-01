@@ -4408,6 +4408,7 @@ enum {
 	ALC292_FIXUP_TPT440_DOCK,
 	ALC283_FIXUP_BXBT2807_MIC,
 	ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED,
+	ALC282_FIXUP_ASPIRE_V5_PINS,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -4855,6 +4856,22 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained_before = true,
 		.chain_id = ALC255_FIXUP_DELL1_MIC_NO_PRESENCE
 	},
+	[ALC282_FIXUP_ASPIRE_V5_PINS] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x12, 0x90a60130 },
+			{ 0x14, 0x90170110 },
+			{ 0x17, 0x40000008 },
+			{ 0x18, 0x411111f0 },
+			{ 0x19, 0x411111f0 },
+			{ 0x1a, 0x411111f0 },
+			{ 0x1b, 0x411111f0 },
+			{ 0x1d, 0x40f89b2d },
+			{ 0x1e, 0x411111f0 },
+			{ 0x21, 0x0321101f },
+			{ },
+		},
+	},
 
 };
 
@@ -4866,6 +4883,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0740, "Acer AO725", ALC271_FIXUP_HP_GATE_MIC_JACK),
 	SND_PCI_QUIRK(0x1025, 0x0742, "Acer AO756", ALC271_FIXUP_HP_GATE_MIC_JACK),
 	SND_PCI_QUIRK(0x1025, 0x0775, "Acer Aspire E1-572", ALC271_FIXUP_HP_GATE_MIC_JACK_E1_572),
+	SND_PCI_QUIRK(0x1025, 0x079b, "Acer Aspire V5-573G", ALC282_FIXUP_ASPIRE_V5_PINS),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
 	SND_PCI_QUIRK(0x1028, 0x05bd, "Dell", ALC269_FIXUP_DELL2_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x05be, "Dell", ALC269_FIXUP_DELL2_MIC_NO_PRESENCE),

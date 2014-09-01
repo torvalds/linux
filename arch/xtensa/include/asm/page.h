@@ -78,7 +78,9 @@
 # define DCACHE_ALIAS_EQ(a,b)	((((a) ^ (b)) & DCACHE_ALIAS_MASK) == 0)
 #else
 # define DCACHE_ALIAS_ORDER	0
+# define DCACHE_ALIAS(a)	((void)(a), 0)
 #endif
+#define DCACHE_N_COLORS		(1 << DCACHE_ALIAS_ORDER)
 
 #if ICACHE_WAY_SIZE > PAGE_SIZE
 # define ICACHE_ALIAS_ORDER	(ICACHE_WAY_SHIFT - PAGE_SHIFT)
@@ -134,6 +136,7 @@ static inline __attribute_const__ int get_order(unsigned long size)
 #endif
 
 struct page;
+struct vm_area_struct;
 extern void clear_page(void *page);
 extern void copy_page(void *to, void *from);
 
@@ -143,8 +146,15 @@ extern void copy_page(void *to, void *from);
  */
 
 #if DCACHE_WAY_SIZE > PAGE_SIZE
-extern void clear_user_page(void*, unsigned long, struct page*);
-extern void copy_user_page(void*, void*, unsigned long, struct page*);
+extern void clear_page_alias(void *vaddr, unsigned long paddr);
+extern void copy_page_alias(void *to, void *from,
+			    unsigned long to_paddr, unsigned long from_paddr);
+
+#define clear_user_highpage clear_user_highpage
+void clear_user_highpage(struct page *page, unsigned long vaddr);
+#define __HAVE_ARCH_COPY_USER_HIGHPAGE
+void copy_user_highpage(struct page *to, struct page *from,
+			unsigned long vaddr, struct vm_area_struct *vma);
 #else
 # define clear_user_page(page, vaddr, pg)	clear_page(page)
 # define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
