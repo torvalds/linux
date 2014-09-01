@@ -665,6 +665,7 @@ static int es8328_codec_probe(struct snd_soc_codec *codec)
 	es8328->clk = devm_clk_get(codec->dev, NULL);
 	if (IS_ERR(es8328->clk)) {
 		dev_err(codec->dev, "codec clock missing or invalid\n");
+		ret = PTR_ERR(es8328->clk);
 		goto clk_fail;
 	}
 
