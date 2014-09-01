@@ -182,7 +182,7 @@ void exynos4_jpeg_set_huf_table_enable(void __iomem *base, int value)
 		writel(reg | EXYNOS4_HUF_TBL_EN,
 					base + EXYNOS4_JPEG_CNTL_REG);
 	else
-		writel(reg | ~EXYNOS4_HUF_TBL_EN,
+		writel(reg & ~EXYNOS4_HUF_TBL_EN,
 					base + EXYNOS4_JPEG_CNTL_REG);
 }
 
