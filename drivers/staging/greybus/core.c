@@ -31,7 +31,7 @@ int greybus_disabled(void)
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
 static int greybus_match_one_id(struct greybus_device *gdev,
-				const struct greybus_device_id *id)
+				const struct greybus_module_id *id)
 {
 	struct greybus_descriptor *des = &gdev->descriptor;
 
@@ -50,9 +50,9 @@ static int greybus_match_one_id(struct greybus_device *gdev,
 	return 1;
 }
 
-static const struct greybus_device_id *greybus_match_id(
+static const struct greybus_module_id *greybus_match_id(
 		struct greybus_device *gdev,
-		const struct greybus_device_id *id)
+		const struct greybus_module_id *id)
 {
 	if (id == NULL)
 		return NULL;
@@ -70,7 +70,7 @@ static int greybus_device_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
 	struct greybus_device *gdev = to_greybus_device(dev);
-	const struct greybus_device_id *id;
+	const struct greybus_module_id *id;
 
 	id = greybus_match_id(gdev, driver->id_table);
 	if (id)
@@ -97,7 +97,7 @@ static int greybus_probe(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
 	struct greybus_device *gdev = to_greybus_device(dev);
-	const struct greybus_device_id *id;
+	const struct greybus_module_id *id;
 	int retval;
 
 	/* match id */
@@ -152,7 +152,7 @@ EXPORT_SYMBOL_GPL(greybus_deregister);
 
 
 static int new_device(struct greybus_device *gdev,
-		      const struct greybus_device_id *id)
+		      const struct greybus_module_id *id)
 {
 	int retval;
 

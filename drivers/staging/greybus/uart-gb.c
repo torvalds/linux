@@ -46,7 +46,7 @@ struct gb_tty {
 	struct mutex mutex;
 };
 
-static const struct greybus_device_id id_table[] = {
+static const struct greybus_module_id id_table[] = {
 	{ GREYBUS_DEVICE(0x45, 0x45) },	/* make shit up */
 	{ },	/* terminating NULL entry */
 };
@@ -383,7 +383,7 @@ static const struct tty_operations gb_ops = {
 
 
 int gb_tty_probe(struct greybus_device *gdev,
-		 const struct greybus_device_id *id)
+		 const struct greybus_module_id *id)
 {
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;

@@ -115,13 +115,13 @@ struct greybus_driver {
 	const char *name;
 
 	int (*probe)(struct greybus_device *gdev,
-		     const struct greybus_device_id *id);
+		     const struct greybus_module_id *id);
 	void (*disconnect)(struct greybus_device *gdev);
 
 	int (*suspend)(struct greybus_device *gdev, pm_message_t message);
 	int (*resume)(struct greybus_device *gdev);
 
-	const struct greybus_device_id *id_table;
+	const struct greybus_module_id *id_table;
 
 	struct device_driver driver;
 };
@@ -173,13 +173,13 @@ void gb_debugfs_cleanup(void);
  * we have static functions for this, not "dynamic" drivers like we really
  * should in the end.
  */
-int gb_i2c_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+int gb_i2c_probe(struct greybus_device *gdev, const struct greybus_module_id *id);
 void gb_i2c_disconnect(struct greybus_device *gdev);
-int gb_gpio_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+int gb_gpio_probe(struct greybus_device *gdev, const struct greybus_module_id *id);
 void gb_gpio_disconnect(struct greybus_device *gdev);
-int gb_sdio_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+int gb_sdio_probe(struct greybus_device *gdev, const struct greybus_module_id *id);
 void gb_sdio_disconnect(struct greybus_device *gdev);
-int gb_tty_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+int gb_tty_probe(struct greybus_device *gdev, const struct greybus_module_id *id);
 void gb_tty_disconnect(struct greybus_device *gdev);
 
 int gb_tty_init(void);

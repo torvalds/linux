@@ -18,7 +18,7 @@ struct gb_sdio_host {
 	// FIXME - some lock?
 };
 
-static const struct greybus_device_id id_table[] = {
+static const struct greybus_module_id id_table[] = {
 	{ GREYBUS_DEVICE(0x43, 0x43) },	/* make shit up */
 	{ },	/* terminating NULL entry */
 };
@@ -46,7 +46,7 @@ static const struct mmc_host_ops gb_sd_ops = {
 };
 
 int gb_sdio_probe(struct greybus_device *gdev,
-		  const struct greybus_device_id *id)
+		  const struct greybus_module_id *id)
 {
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;

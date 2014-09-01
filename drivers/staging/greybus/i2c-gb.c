@@ -17,7 +17,7 @@ struct gb_i2c_device {
 	struct greybus_device *gdev;
 };
 
-static const struct greybus_device_id id_table[] = {
+static const struct greybus_module_id id_table[] = {
 	{ GREYBUS_DEVICE(0x42, 0x42) },	/* make shit up */
 	{ },	/* terminating NULL entry */
 };
@@ -76,7 +76,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 };
 
 int gb_i2c_probe(struct greybus_device *gdev,
-		 const struct greybus_device_id *id)
+		 const struct greybus_module_id *id)
 {
 	struct gb_i2c_device *gb_i2c_dev;
 	struct i2c_adapter *adapter;

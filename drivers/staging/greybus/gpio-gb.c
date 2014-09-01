@@ -20,7 +20,7 @@ struct gb_gpio_device {
 	// FIXME - some lock?
 };
 
-static const struct greybus_device_id id_table[] = {
+static const struct greybus_module_id id_table[] = {
 	{ GREYBUS_DEVICE(0x44, 0x44) },	/* make shit up */
 	{ },	/* terminating NULL entry */
 };
@@ -52,7 +52,7 @@ static void gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 }
 
 int gb_gpio_probe(struct greybus_device *gdev,
-		  const struct greybus_device_id *id)
+		  const struct greybus_module_id *id)
 {
 	struct gb_gpio_device *gb_gpio;
 	struct gpio_chip *gpio;
