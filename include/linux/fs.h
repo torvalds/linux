@@ -872,7 +872,7 @@ struct lock_manager_operations {
 	void (*lm_put_owner)(struct file_lock *);
 	void (*lm_notify)(struct file_lock *);	/* unblock callback */
 	int (*lm_grant)(struct file_lock *, int);
-	void (*lm_break)(struct file_lock *);
+	bool (*lm_break)(struct file_lock *);
 	int (*lm_change)(struct file_lock **, int, struct list_head *);
 	void (*lm_setup)(struct file_lock *, void **);
 };

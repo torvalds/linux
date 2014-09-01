@@ -3391,18 +3391,20 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 }
 
 /* Called from break_lease() with i_lock held. */
-static void nfsd_break_deleg_cb(struct file_lock *fl)
+static bool
+nfsd_break_deleg_cb(struct file_lock *fl)
 {
+	bool ret = false;
 	struct nfs4_file *fp = (struct nfs4_file *)fl->fl_owner;
 	struct nfs4_delegation *dp;
 
 	if (!fp) {
 		WARN(1, "(%p)->fl_owner NULL\n", fl);
-		return;
+		return ret;
 	}
 	if (fp->fi_had_conflict) {
 		WARN(1, "duplicate break on %p\n", fp);
-		return;
+		return ret;
 	}
 	/*
 	 * We don't want the locks code to timeout the lease for us;
@@ -3414,17 +3416,16 @@ static void nfsd_break_deleg_cb(struct file_lock *fl)
 	spin_lock(&fp->fi_lock);
 	fp->fi_had_conflict = true;
 	/*
-	 * If there are no delegations on the list, then we can't count on this
-	 * lease ever being cleaned up. Set the fl_break_time to jiffies so that
-	 * time_out_leases will do it ASAP. The fact that fi_had_conflict is now
-	 * true should keep any new delegations from being hashed.
+	 * If there are no delegations on the list, then return true
+	 * so that the lease code will go ahead and delete it.
 	 */
 	if (list_empty(&fp->fi_delegations))
-		fl->fl_break_time = jiffies;
+		ret = true;
 	else
 		list_for_each_entry(dp, &fp->fi_delegations, dl_perfile)
 			nfsd_break_one_deleg(dp);
 	spin_unlock(&fp->fi_lock);
+	return ret;
 }
 
 static int

@@ -427,9 +427,11 @@ static int flock_to_posix_lock(struct file *filp, struct file_lock *fl,
 }
 
 /* default lease lock manager operations */
-static void lease_break_callback(struct file_lock *fl)
+static bool
+lease_break_callback(struct file_lock *fl)
 {
 	kill_fasync(&fl->fl_fasync, SIGIO, POLL_MSG);
+	return false;
 }
 
 static void
@@ -1382,7 +1384,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 {
 	int error = 0;
 	struct file_lock *new_fl;
-	struct file_lock *fl;
+	struct file_lock *fl, **before;
 	unsigned long break_time;
 	int want_write = (mode & O_ACCMODE) != O_RDONLY;
 	LIST_HEAD(dispose);
@@ -1406,7 +1408,9 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 			break_time++;	/* so that 0 means no break time */
 	}
 
-	for (fl = inode->i_flock; fl && IS_LEASE(fl); fl = fl->fl_next) {
+	for (before = &inode->i_flock;
+			((fl = *before) != NULL) && IS_LEASE(fl);
+			before = &fl->fl_next) {
 		if (!leases_conflict(fl, new_fl))
 			continue;
 		if (want_write) {
@@ -1420,8 +1424,13 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 			fl->fl_flags |= FL_DOWNGRADE_PENDING;
 			fl->fl_downgrade_time = break_time;
 		}
-		fl->fl_lmops->lm_break(fl);
+		if (fl->fl_lmops->lm_break(fl))
+			locks_delete_lock(before, &dispose);
 	}
+
+	fl = inode->i_flock;
+	if (!fl || !IS_LEASE(fl))
+		goto out;
 
 	if (mode & O_NONBLOCK) {
 		trace_break_lease_noblock(inode, new_fl);
