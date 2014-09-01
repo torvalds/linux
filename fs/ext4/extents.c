@@ -857,8 +857,8 @@ int ext4_ext_tree_init(handle_t *handle, struct inode *inode)
 }
 
 struct ext4_ext_path *
-ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
-		     struct ext4_ext_path **orig_path, int flags)
+ext4_find_extent(struct inode *inode, ext4_lblk_t block,
+		 struct ext4_ext_path **orig_path, int flags)
 {
 	struct ext4_extent_header *eh;
 	struct buffer_head *bh;
@@ -1366,7 +1366,7 @@ repeat:
 			goto out;
 
 		/* refill path */
-		path = ext4_ext_find_extent(inode,
+		path = ext4_find_extent(inode,
 				    (ext4_lblk_t)le32_to_cpu(newext->ee_block),
 				    ppath, gb_flags);
 		if (IS_ERR(path))
@@ -1378,7 +1378,7 @@ repeat:
 			goto out;
 
 		/* refill path */
-		path = ext4_ext_find_extent(inode,
+		path = ext4_find_extent(inode,
 				   (ext4_lblk_t)le32_to_cpu(newext->ee_block),
 				    ppath, gb_flags);
 		if (IS_ERR(path)) {
@@ -1951,7 +1951,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 		/*
 		 * Try to see whether we should rather test the extent on
 		 * right from ex, or from the left of ex. This is because
-		 * ext4_ext_find_extent() can return either extent on the
+		 * ext4_find_extent() can return either extent on the
 		 * left, or on the right from the searched position. This
 		 * will make merging more effective.
 		 */
@@ -2034,7 +2034,7 @@ prepend:
 	if (next != EXT_MAX_BLOCKS) {
 		ext_debug("next leaf block - %u\n", next);
 		BUG_ON(npath != NULL);
-		npath = ext4_ext_find_extent(inode, next, NULL, 0);
+		npath = ext4_find_extent(inode, next, NULL, 0);
 		if (IS_ERR(npath))
 			return PTR_ERR(npath);
 		BUG_ON(npath->p_depth != path->p_depth);
@@ -2157,7 +2157,7 @@ static int ext4_fill_fiemap_extents(struct inode *inode,
 		/* find extent for this block */
 		down_read(&EXT4_I(inode)->i_data_sem);
 
-		path = ext4_ext_find_extent(inode, block, &path, 0);
+		path = ext4_find_extent(inode, block, &path, 0);
 		if (IS_ERR(path)) {
 			up_read(&EXT4_I(inode)->i_data_sem);
 			err = PTR_ERR(path);
@@ -2840,7 +2840,7 @@ again:
 		ext4_lblk_t ee_block;
 
 		/* find extent for this block */
-		path = ext4_ext_find_extent(inode, end, NULL, EXT4_EX_NOCACHE);
+		path = ext4_find_extent(inode, end, NULL, EXT4_EX_NOCACHE);
 		if (IS_ERR(path)) {
 			ext4_journal_stop(handle);
 			return PTR_ERR(path);
@@ -3314,7 +3314,7 @@ static int ext4_split_extent(handle_t *handle,
 	 * Update path is required because previous ext4_split_extent_at() may
 	 * result in split of original leaf or extent zeroout.
 	 */
-	path = ext4_ext_find_extent(inode, map->m_lblk, ppath, 0);
+	path = ext4_find_extent(inode, map->m_lblk, ppath, 0);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 	depth = ext_depth(inode);
@@ -3712,7 +3712,7 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 						 EXT4_GET_BLOCKS_CONVERT);
 		if (err < 0)
 			return err;
-		path = ext4_ext_find_extent(inode, map->m_lblk, ppath, 0);
+		path = ext4_find_extent(inode, map->m_lblk, ppath, 0);
 		if (IS_ERR(path))
 			return PTR_ERR(path);
 		depth = ext_depth(inode);
@@ -3940,7 +3940,7 @@ convert_initialized_extent(handle_t *handle, struct inode *inode,
 				EXT4_GET_BLOCKS_CONVERT_UNWRITTEN);
 		if (err < 0)
 			return err;
-		path = ext4_ext_find_extent(inode, map->m_lblk, ppath, 0);
+		path = ext4_find_extent(inode, map->m_lblk, ppath, 0);
 		if (IS_ERR(path))
 			return PTR_ERR(path);
 		depth = ext_depth(inode);
@@ -4266,7 +4266,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	trace_ext4_ext_map_blocks_enter(inode, map->m_lblk, map->m_len, flags);
 
 	/* find extent for this block */
-	path = ext4_ext_find_extent(inode, map->m_lblk, NULL, 0);
+	path = ext4_find_extent(inode, map->m_lblk, NULL, 0);
 	if (IS_ERR(path)) {
 		err = PTR_ERR(path);
 		path = NULL;
@@ -4278,7 +4278,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	/*
 	 * consistent leaf must not be empty;
 	 * this situation is possible, though, _during_ tree modification;
-	 * this is why assert can't be put in ext4_ext_find_extent()
+	 * this is why assert can't be put in ext4_find_extent()
 	 */
 	if (unlikely(path[depth].p_ext == NULL && depth != 0)) {
 		EXT4_ERROR_INODE(inode, "bad extent address "
@@ -4363,7 +4363,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 
 	/*
 	 * If we are doing bigalloc, check to see if the extent returned
-	 * by ext4_ext_find_extent() implies a cluster we can use.
+	 * by ext4_find_extent() implies a cluster we can use.
 	 */
 	if (cluster_offset && ex &&
 	    get_implied_cluster_alloc(inode->i_sb, map, ex, path)) {
@@ -5300,7 +5300,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	ext4_lblk_t ex_start, ex_end;
 
 	/* Let path point to the last extent */
-	path = ext4_ext_find_extent(inode, EXT_MAX_BLOCKS - 1, NULL, 0);
+	path = ext4_find_extent(inode, EXT_MAX_BLOCKS - 1, NULL, 0);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
@@ -5320,7 +5320,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	 * Don't start shifting extents until we make sure the hole is big
 	 * enough to accomodate the shift.
 	 */
-	path = ext4_ext_find_extent(inode, start - 1, &path, 0);
+	path = ext4_find_extent(inode, start - 1, &path, 0);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 	depth = path->p_depth;
@@ -5340,7 +5340,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 
 	/* Its safe to start updating extents */
 	while (start < stop_block) {
-		path = ext4_ext_find_extent(inode, start, &path, 0);
+		path = ext4_find_extent(inode, start, &path, 0);
 		if (IS_ERR(path))
 			return PTR_ERR(path);
 		depth = path->p_depth;
@@ -5537,7 +5537,7 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 		int e1_len, e2_len, len;
 		int split = 0;
 
-		path1 = ext4_ext_find_extent(inode1, lblk1, NULL, EXT4_EX_NOCACHE);
+		path1 = ext4_find_extent(inode1, lblk1, NULL, EXT4_EX_NOCACHE);
 		if (unlikely(IS_ERR(path1))) {
 			*erp = PTR_ERR(path1);
 			path1 = NULL;
@@ -5545,7 +5545,7 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 			count = 0;
 			goto repeat;
 		}
-		path2 = ext4_ext_find_extent(inode2, lblk2, NULL, EXT4_EX_NOCACHE);
+		path2 = ext4_find_extent(inode2, lblk2, NULL, EXT4_EX_NOCACHE);
 		if (unlikely(IS_ERR(path2))) {
 			*erp = PTR_ERR(path2);
 			path2 = NULL;

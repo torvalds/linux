@@ -27,7 +27,7 @@
  * @lblock:	logical block number to find an extent path
  * @path:	pointer to an extent path pointer (for output)
  *
- * ext4_ext_find_extent wrapper. Return 0 on success, or a negative error value
+ * ext4_find_extent wrapper. Return 0 on success, or a negative error value
  * on failure.
  */
 static inline int
@@ -36,7 +36,7 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 {
 	struct ext4_ext_path *path;
 
-	path = ext4_ext_find_extent(inode, lblock, ppath, EXT4_EX_NOCACHE);
+	path = ext4_find_extent(inode, lblock, ppath, EXT4_EX_NOCACHE);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 	if (path[ext_depth(inode)].p_ext == NULL) {

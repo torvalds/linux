@@ -573,7 +573,7 @@ enum {
 
 /*
  * The bit position of these flags must not overlap with any of the
- * EXT4_GET_BLOCKS_*.  They are used by ext4_ext_find_extent(),
+ * EXT4_GET_BLOCKS_*.  They are used by ext4_find_extent(),
  * read_extent_tree_block(), ext4_split_extent_at(),
  * ext4_ext_insert_extent(), and ext4_ext_create_new_leaf().
  * EXT4_EX_NOCACHE is used to indicate that the we shouldn't be
@@ -2732,9 +2732,9 @@ extern int ext4_can_extents_be_merged(struct inode *inode,
 extern int ext4_ext_insert_extent(handle_t *, struct inode *,
 				  struct ext4_ext_path **,
 				  struct ext4_extent *, int);
-extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,
-						  struct ext4_ext_path **,
-						  int flags);
+extern struct ext4_ext_path *ext4_find_extent(struct inode *, ext4_lblk_t,
+					      struct ext4_ext_path **,
+					      int flags);
 extern void ext4_ext_drop_refs(struct ext4_ext_path *);
 extern int ext4_ext_check_inode(struct inode *inode);
 extern int ext4_find_delalloc_range(struct inode *inode,

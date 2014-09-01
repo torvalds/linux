@@ -41,8 +41,7 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	ext4_ext_store_pblock(&newext, lb->first_pblock);
 	/* Locking only for convinience since we are operating on temp inode */
 	down_write(&EXT4_I(inode)->i_data_sem);
-	path = ext4_ext_find_extent(inode, lb->first_block, NULL, 0);
-
+	path = ext4_find_extent(inode, lb->first_block, NULL, 0);
 	if (IS_ERR(path)) {
 		retval = PTR_ERR(path);
 		path = NULL;
