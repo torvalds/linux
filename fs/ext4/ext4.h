@@ -569,6 +569,7 @@ enum {
 #define EXT4_GET_BLOCKS_NO_PUT_HOLE		0x0200
 	/* Convert written extents to unwritten */
 #define EXT4_GET_BLOCKS_CONVERT_UNWRITTEN	0x0400
+/* DO NOT ASSIGN ADDITIONAL FLAG VALUES WITHOUT ADJUSTING THE FLAGS BELOW */
 
 /*
  * The bit position of these flags must not overlap with any of the
@@ -579,8 +580,8 @@ enum {
  * caching the extents when reading from the extent tree while a
  * truncate or punch hole operation is in progress.
  */
-#define EXT4_EX_NOCACHE				0x0400
-#define EXT4_EX_FORCE_CACHE			0x0800
+#define EXT4_EX_NOCACHE				0x0800
+#define EXT4_EX_FORCE_CACHE			0x1000
 
 /*
  * Flags used by ext4_free_blocks
