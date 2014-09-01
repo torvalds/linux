@@ -214,7 +214,6 @@ static void fimd_wait_for_vblank(struct exynos_drm_manager *mgr)
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
-
 static void fimd_clear_channel(struct exynos_drm_manager *mgr)
 {
 	struct fimd_context *ctx = mgr->ctx;
@@ -224,17 +223,31 @@ static void fimd_clear_channel(struct exynos_drm_manager *mgr)
 
 	/* Check if any channel is enabled. */
 	for (win = 0; win < WINDOWS_NR; win++) {
-		u32 val = readl(ctx->regs + SHADOWCON);
-		if (val & SHADOWCON_CHx_ENABLE(win)) {
-			val &= ~SHADOWCON_CHx_ENABLE(win);
-			writel(val, ctx->regs + SHADOWCON);
+		u32 val = readl(ctx->regs + WINCON(win));
+
+		if (val & WINCONx_ENWIN) {
+			/* wincon */
+			val &= ~WINCONx_ENWIN;
+			writel(val, ctx->regs + WINCON(win));
+
+			/* unprotect windows */
+			if (ctx->driver_data->has_shadowcon) {
+				val = readl(ctx->regs + SHADOWCON);
+				val &= ~SHADOWCON_CHx_ENABLE(win);
+				writel(val, ctx->regs + SHADOWCON);
+			}
 			ch_enabled = 1;
 		}
 	}
 
 	/* Wait for vsync, as disable channel takes effect at next vsync */
-	if (ch_enabled)
+	if (ch_enabled) {
+		unsigned int state = ctx->suspended;
+
+		ctx->suspended = 0;
 		fimd_wait_for_vblank(mgr);
+		ctx->suspended = state;
+	}
 }
 
 static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
