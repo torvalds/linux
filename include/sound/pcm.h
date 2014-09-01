@@ -494,9 +494,6 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree);
  *  Native I/O
  */
 
-extern rwlock_t snd_pcm_link_rwlock;
-extern struct rw_semaphore snd_pcm_link_rwsem;
-
 int snd_pcm_info(struct snd_pcm_substream *substream, struct snd_pcm_info *info);
 int snd_pcm_info_user(struct snd_pcm_substream *substream,
 		      struct snd_pcm_info __user *info);
@@ -540,72 +537,18 @@ static inline int snd_pcm_stream_linked(struct snd_pcm_substream *substream)
 	return substream->group != &substream->self_group;
 }
 
-static inline void snd_pcm_stream_lock(struct snd_pcm_substream *substream)
-{
-	if (substream->pcm->nonatomic) {
-		down_read(&snd_pcm_link_rwsem);
-		mutex_lock(&substream->self_group.mutex);
-	} else {
-		read_lock(&snd_pcm_link_rwlock);
-		spin_lock(&substream->self_group.lock);
-	}
-}
-
-static inline void snd_pcm_stream_unlock(struct snd_pcm_substream *substream)
-{
-	if (substream->pcm->nonatomic) {
-		mutex_unlock(&substream->self_group.mutex);
-		up_read(&snd_pcm_link_rwsem);
-	} else {
-		spin_unlock(&substream->self_group.lock);
-		read_unlock(&snd_pcm_link_rwlock);
-	}
-}
-
-static inline void snd_pcm_stream_lock_irq(struct snd_pcm_substream *substream)
-{
-	if (substream->pcm->nonatomic) {
-		down_read(&snd_pcm_link_rwsem);
-		mutex_lock(&substream->self_group.mutex);
-	} else {
-		read_lock_irq(&snd_pcm_link_rwlock);
-		spin_lock(&substream->self_group.lock);
-	}
-}
-
-static inline void snd_pcm_stream_unlock_irq(struct snd_pcm_substream *substream)
-{
-	if (substream->pcm->nonatomic) {
-		mutex_unlock(&substream->self_group.mutex);
-		up_read(&snd_pcm_link_rwsem);
-	} else {
-		spin_unlock(&substream->self_group.lock);
-		read_unlock_irq(&snd_pcm_link_rwlock);
-	}
-}
-
-#define snd_pcm_stream_lock_irqsave(substream, flags) \
-do { \
-	if ((substream)->pcm->nonatomic) {			  \
-		(flags) = 0; /* XXX for avoid warning */	  \
-		down_read(&snd_pcm_link_rwsem);			  \
-		mutex_lock(&(substream)->self_group.mutex);	  \
-	} else {						  \
-		read_lock_irqsave(&snd_pcm_link_rwlock, (flags)); \
-		spin_lock(&(substream)->self_group.lock);	  \
-	}							  \
-} while (0)
-
-#define snd_pcm_stream_unlock_irqrestore(substream, flags) \
-do { \
-	if ((substream)->pcm->nonatomic) {			       \
-		mutex_unlock(&(substream)->self_group.mutex);	       \
-		up_read(&snd_pcm_link_rwsem);			       \
-	} else {						       \
-		spin_unlock(&(substream)->self_group.lock);	       \
-		read_unlock_irqrestore(&snd_pcm_link_rwlock, (flags)); \
-	}							       \
-} while (0)
+void snd_pcm_stream_lock(struct snd_pcm_substream *substream);
+void snd_pcm_stream_unlock(struct snd_pcm_substream *substream);
+void snd_pcm_stream_lock_irq(struct snd_pcm_substream *substream);
+void snd_pcm_stream_unlock_irq(struct snd_pcm_substream *substream);
+unsigned long _snd_pcm_stream_lock_irqsave(struct snd_pcm_substream *substream);
+#define snd_pcm_stream_lock_irqsave(substream, flags)		 \
+	do {							 \
+		typecheck(unsigned long, flags);		 \
+		flags = _snd_pcm_stream_lock_irqsave(substream); \
+	} while (0)
+void snd_pcm_stream_unlock_irqrestore(struct snd_pcm_substream *substream,
+				      unsigned long flags);
 
 #define snd_pcm_group_for_each_entry(s, substream) \
 	list_for_each_entry(s, &substream->group->substreams, link_list)

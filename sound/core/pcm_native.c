@@ -74,11 +74,67 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream);
  *
  */
 
-DEFINE_RWLOCK(snd_pcm_link_rwlock);
-EXPORT_SYMBOL(snd_pcm_link_rwlock);
+static DEFINE_RWLOCK(snd_pcm_link_rwlock);
+static DECLARE_RWSEM(snd_pcm_link_rwsem);
 
-DECLARE_RWSEM(snd_pcm_link_rwsem);
-EXPORT_SYMBOL(snd_pcm_link_rwsem);
+void snd_pcm_stream_lock(struct snd_pcm_substream *substream)
+{
+	if (substream->pcm->nonatomic) {
+		down_read(&snd_pcm_link_rwsem);
+		mutex_lock(&substream->self_group.mutex);
+	} else {
+		read_lock(&snd_pcm_link_rwlock);
+		spin_lock(&substream->self_group.lock);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_lock);
+
+void snd_pcm_stream_unlock(struct snd_pcm_substream *substream)
+{
+	if (substream->pcm->nonatomic) {
+		mutex_unlock(&substream->self_group.mutex);
+		up_read(&snd_pcm_link_rwsem);
+	} else {
+		spin_unlock(&substream->self_group.lock);
+		read_unlock(&snd_pcm_link_rwlock);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock);
+
+void snd_pcm_stream_lock_irq(struct snd_pcm_substream *substream)
+{
+	if (!substream->pcm->nonatomic)
+		local_irq_disable();
+	snd_pcm_stream_lock(substream);
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_lock_irq);
+
+void snd_pcm_stream_unlock_irq(struct snd_pcm_substream *substream)
+{
+	snd_pcm_stream_unlock(substream);
+	if (!substream->pcm->nonatomic)
+		local_irq_enable();
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock_irq);
+
+unsigned long _snd_pcm_stream_lock_irqsave(struct snd_pcm_substream *substream)
+{
+	unsigned long flags = 0;
+	if (!substream->pcm->nonatomic)
+		local_irq_save(flags);
+	snd_pcm_stream_lock(substream);
+	return flags;
+}
+EXPORT_SYMBOL_GPL(_snd_pcm_stream_lock_irqsave);
+
+void snd_pcm_stream_unlock_irqrestore(struct snd_pcm_substream *substream,
+				      unsigned long flags)
+{
+	snd_pcm_stream_unlock(substream);
+	if (!substream->pcm->nonatomic)
+		local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock_irqrestore);
 
 static inline mm_segment_t snd_enter_user(void)
 {
