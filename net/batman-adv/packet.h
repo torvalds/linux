@@ -198,6 +198,7 @@ struct batadv_bla_claim_dst {
 	uint8_t type;		/* bla_claimframe */
 	__be16 group;		/* group id */
 };
+
 #pragma pack()
 
 /**
