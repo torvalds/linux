@@ -159,7 +159,7 @@ static struct regulator_desc max1586_reg[] = {
 	},
 };
 
-int of_get_max1586_platform_data(struct device *dev,
+static int of_get_max1586_platform_data(struct device *dev,
 				 struct max1586_platform_data *pdata)
 {
 	struct max1586_subdev_data *sub;
