@@ -878,7 +878,7 @@ batadv_iv_ogm_slide_own_bcast_window(struct batadv_hard_iface *hard_iface)
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
 			spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 			word_index = hard_iface->if_num * BATADV_NUM_WORDS;
-			word = &(orig_node->bat_iv.bcast_own[word_index]);
+			word = &orig_node->bat_iv.bcast_own[word_index];
 
 			batadv_bit_get_packet(bat_priv, word, 1, 0);
 			if_num = hard_iface->if_num;
@@ -1663,7 +1663,7 @@ static void batadv_iv_ogm_process(const struct sk_buff *skb, int ogm_offset,
 			offset = if_num * BATADV_NUM_WORDS;
 
 			spin_lock_bh(&orig_neigh_node->bat_iv.ogm_cnt_lock);
-			word = &(orig_neigh_node->bat_iv.bcast_own[offset]);
+			word = &orig_neigh_node->bat_iv.bcast_own[offset];
 			bit_pos = if_incoming_seqno - 2;
 			bit_pos -= ntohl(ogm_packet->seqno);
 			batadv_set_bit(word, bit_pos);
