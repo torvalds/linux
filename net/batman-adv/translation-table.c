@@ -1780,7 +1780,6 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 		batadv_tt_global_del_roaming(bat_priv, tt_global_entry,
 					     orig_node, message);
 
-
 out:
 	if (tt_global_entry)
 		batadv_tt_global_entry_free_ref(tt_global_entry);

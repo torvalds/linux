@@ -26,7 +26,6 @@
 #include "bat_algo.h"
 #include "network-coding.h"
 
-
 /**
  * enum batadv_dup_status - duplicate status
  * @BATADV_NO_DUP: the packet is a duplicate
@@ -1361,7 +1360,6 @@ out:
 		batadv_orig_ifinfo_free_ref(orig_ifinfo);
 	return ret;
 }
-
 
 /**
  * batadv_iv_ogm_process_per_outif - process a batman iv OGM for an outgoing if

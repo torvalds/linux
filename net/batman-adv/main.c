@@ -41,7 +41,6 @@
 #include "network-coding.h"
 #include "fragmentation.h"
 
-
 /* List manipulations on hardif_list have to be rtnl_lock()'ed,
  * list traversals just rcu-locked
  */

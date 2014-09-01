@@ -69,7 +69,6 @@ static inline uint32_t batadv_choose_backbone_gw(const void *data,
 	return hash % size;
 }
 
-
 /* compares address and vid of two backbone gws */
 static int batadv_compare_backbone_gw(const struct hlist_node *node,
 				      const void *data2)
@@ -662,7 +661,6 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv,
 	if (unlikely(!backbone_gw))
 		return 1;
 
-
 	/* handle as ANNOUNCE frame */
 	backbone_gw->lasttime = jiffies;
 	crc = ntohs(*((__be16 *)(&an_addr[4])));
@@ -848,7 +846,6 @@ static int batadv_check_claim_group(struct batadv_priv *bat_priv,
 
 	return 2;
 }
-
 
 /**
  * batadv_bla_process_claim
@@ -1347,8 +1344,6 @@ out:
 	return ret;
 }
 
-
-
 /**
  * batadv_bla_is_backbone_gw_orig
  * @bat_priv: the bat priv with all the soft interface information
@@ -1389,7 +1384,6 @@ bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig,
 
 	return false;
 }
-
 
 /**
  * batadv_bla_is_backbone_gw
@@ -1479,7 +1473,6 @@ int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
 		goto allow;
-
 
 	if (unlikely(atomic_read(&bat_priv->bla.num_requests)))
 		/* don't allow broadcasts while requests are in flight */

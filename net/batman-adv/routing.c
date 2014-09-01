@@ -292,7 +292,6 @@ out:
 	return ret;
 }
 
-
 int batadv_recv_icmp_packet(struct sk_buff *skb,
 			    struct batadv_hard_iface *recv_if)
 {
