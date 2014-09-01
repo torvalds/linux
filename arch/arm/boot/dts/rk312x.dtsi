@@ -360,7 +360,7 @@
 
 				/*hclk_cpu_pre*/
 				//<&clk_gates5 6>,/*hclk_rom*/
-				//<&clk_gates3 5>,/*hclk_crypto*/
+				<&clk_gates3 5>,/*hclk_crypto*/
 
 				/*pclk_cpu_pre*/
 				<&clk_gates5 4>,/*pclk_grf*/
