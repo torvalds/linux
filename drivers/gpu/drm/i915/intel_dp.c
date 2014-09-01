@@ -3368,15 +3368,11 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	char dpcd_hex_dump[sizeof(intel_dp->dpcd) * 3];
-
 	if (intel_dp_dpcd_read_wake(&intel_dp->aux, 0x000, intel_dp->dpcd,
 				    sizeof(intel_dp->dpcd)) < 0)
 		return false; /* aux transfer failed */
 
-	hex_dump_to_buffer(intel_dp->dpcd, sizeof(intel_dp->dpcd),
-			   32, 1, dpcd_hex_dump, sizeof(dpcd_hex_dump), false);
-	DRM_DEBUG_KMS("DPCD: %s\n", dpcd_hex_dump);
+	DRM_DEBUG_KMS("DPCD: %*ph\n", (int) sizeof(intel_dp->dpcd), intel_dp->dpcd);
 
 	if (intel_dp->dpcd[DP_DPCD_REV] == 0)
 		return false; /* DPCD not present */
