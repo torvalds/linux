@@ -1213,7 +1213,7 @@ nve0_ram_init(struct nouveau_object *object)
 
 		for (i = 0; i < 0x100; i++) {
 			nv_wr32(pfb, 0x10f96c, i);
-			nv_wr32(pfb, 0x10f900, train1[2 + (i & 1)]);
+			nv_wr32(pfb, 0x10f904, train1[2 + (i & 1)]);
 		}
 		break;
 	default:
