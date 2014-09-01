@@ -2333,8 +2333,6 @@ static netdev_features_t stmmac_fix_features(struct net_device *dev,
 
 	if (priv->plat->rx_coe == STMMAC_RX_COE_NONE)
 		features &= ~NETIF_F_RXCSUM;
-	else if (priv->plat->rx_coe == STMMAC_RX_COE_TYPE1)
-		features &= ~NETIF_F_IPV6_CSUM;
 
 	if (!priv->plat->tx_coe)
 		features &= ~NETIF_F_ALL_CSUM;
