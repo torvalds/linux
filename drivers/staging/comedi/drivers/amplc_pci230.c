@@ -1109,10 +1109,12 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 	}
 }
 
-/* Loads DAC FIFO (if using it) from buffer. */
-/* Returns 0 if AO finished due to completion or error, 1 if still going. */
-static int pci230_handle_ao_fifo(struct comedi_device *dev,
-				 struct comedi_subdevice *s)
+/*
+ * Loads DAC FIFO (if using it) from buffer.
+ * Returns false if AO finished due to completion or error, true if still going.
+ */
+static bool pci230_handle_ao_fifo(struct comedi_device *dev,
+				  struct comedi_subdevice *s)
 {
 	struct pci230_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
@@ -1122,7 +1124,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 	unsigned short dacstat;
 	unsigned int i, n;
 	unsigned int events = 0;
-	int running;
+	bool running;
 
 	/* Get DAC FIFO status. */
 	dacstat = inw(devpriv->daqio + PCI230_DACCON);
@@ -1207,9 +1209,9 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 	if (events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)) {
 		/* Stopping AO due to completion or error. */
 		pci230_ao_stop(dev, s);
-		running = 0;
+		running = false;
 	} else {
-		running = 1;
+		running = true;
 	}
 	async->events |= events;
 	return running;
@@ -1267,7 +1269,7 @@ static void pci230_ao_start(struct comedi_device *dev,
 	if (devpriv->hwver >= 2) {
 		/* Using DAC FIFO. */
 		unsigned short scantrig;
-		int run;
+		bool run;
 
 		/* Preload FIFO data. */
 		run = pci230_handle_ao_fifo(dev, s);
