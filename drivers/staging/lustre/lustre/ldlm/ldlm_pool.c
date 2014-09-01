@@ -735,7 +735,8 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	if (parent_ns_proc == NULL) {
 		CERROR("%s: proc entry is not initialized\n",
 		       ldlm_ns_name(ns));
-		GOTO(out_free_name, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_free_name;
 	}
 	pl->pl_proc_dir = lprocfs_register("pool", parent_ns_proc,
 					   NULL, NULL);
@@ -743,7 +744,7 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 		CERROR("LProcFS failed in ldlm-pool-init\n");
 		rc = PTR_ERR(pl->pl_proc_dir);
 		pl->pl_proc_dir = NULL;
-		GOTO(out_free_name, rc);
+		goto out_free_name;
 	}
 
 	var_name[MAX_STRING_SIZE] = '\0';
@@ -767,8 +768,10 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 
 	pl->pl_stats = lprocfs_alloc_stats(LDLM_POOL_LAST_STAT -
 					   LDLM_POOL_FIRST_STAT, 0);
-	if (!pl->pl_stats)
-		GOTO(out_free_name, rc = -ENOMEM);
+	if (!pl->pl_stats) {
+		rc = -ENOMEM;
+		goto out_free_name;
+	}
 
 	lprocfs_counter_init(pl->pl_stats, LDLM_POOL_GRANTED_STAT,
 			     LPROCFS_CNTR_AVGMINMAX | LPROCFS_CNTR_STDDEV,

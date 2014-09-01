@@ -1254,18 +1254,26 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 
 	lock = search_queue(&res->lr_granted, &mode, policy, old_lock,
 			    flags, unref);
-	if (lock != NULL)
-		GOTO(out, rc = 1);
-	if (flags & LDLM_FL_BLOCK_GRANTED)
-		GOTO(out, rc = 0);
+	if (lock != NULL) {
+		rc = 1;
+		goto out;
+	}
+	if (flags & LDLM_FL_BLOCK_GRANTED) {
+		rc = 0;
+		goto out;
+	}
 	lock = search_queue(&res->lr_converting, &mode, policy, old_lock,
 			    flags, unref);
-	if (lock != NULL)
-		GOTO(out, rc = 1);
+	if (lock != NULL) {
+		rc = 1;
+		goto out;
+	}
 	lock = search_queue(&res->lr_waiting, &mode, policy, old_lock,
 			    flags, unref);
-	if (lock != NULL)
-		GOTO(out, rc = 1);
+	if (lock != NULL) {
+		rc = 1;
+		goto out;
+	}
 
  out:
 	unlock_res(res);
@@ -1355,11 +1363,11 @@ ldlm_mode_t ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
 	if (lock != NULL) {
 		lock_res_and_lock(lock);
 		if (lock->l_flags & LDLM_FL_GONE_MASK)
-			GOTO(out, mode);
+			goto out;
 
 		if (lock->l_flags & LDLM_FL_CBPENDING &&
 		    lock->l_readers == 0 && lock->l_writers == 0)
-			GOTO(out, mode);
+			goto out;
 
 		if (bits)
 			*bits = lock->l_policy_data.l_inodebits.bits;
@@ -1513,19 +1521,19 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 	/* if this is the extent lock, allocate the interval tree node */
 	if (type == LDLM_EXTENT) {
 		if (ldlm_interval_alloc(lock) == NULL)
-			GOTO(out, 0);
+			goto out;
 	}
 
 	if (lvb_len) {
 		lock->l_lvb_len = lvb_len;
 		OBD_ALLOC(lock->l_lvb_data, lvb_len);
 		if (lock->l_lvb_data == NULL)
-			GOTO(out, 0);
+			goto out;
 	}
 
 	lock->l_lvb_type = lvb_type;
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_NEW_LOCK))
-		GOTO(out, 0);
+		goto out;
 
 	return lock;
 
@@ -1593,14 +1601,15 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 		 * need to do anything else. */
 		*flags &= ~(LDLM_FL_BLOCK_GRANTED |
 			    LDLM_FL_BLOCK_CONV | LDLM_FL_BLOCK_WAIT);
-		GOTO(out, ELDLM_OK);
+		goto out;
 	}
 
 	ldlm_resource_unlink_lock(lock);
 	if (res->lr_type == LDLM_EXTENT && lock->l_tree_node == NULL) {
 		if (node == NULL) {
 			ldlm_lock_destroy_nolock(lock);
-			GOTO(out, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto out;
 		}
 
 		INIT_LIST_HEAD(&node->li_group);
@@ -1630,7 +1639,7 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 			ldlm_resource_add_lock(res, &res->lr_waiting, lock);
 		else
 			ldlm_grant_lock(lock, NULL);
-		GOTO(out, ELDLM_OK);
+		goto out;
 	} else {
 		CERROR("This is client-side-only module, cannot handle "
 		       "LDLM_NAMESPACE_SERVER resource type lock.\n");
@@ -1837,14 +1846,16 @@ int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 	 * to keep the number of requests in flight to ns_max_parallel_ast */
 	arg->set = ptlrpc_prep_fcset(ns->ns_max_parallel_ast ? : UINT_MAX,
 				     work_ast_lock, arg);
-	if (arg->set == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (arg->set == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	ptlrpc_set_wait(arg->set);
 	ptlrpc_set_destroy(arg->set);
 
 	rc = atomic_read(&arg->restart) ? -ERESTART : 0;
-	GOTO(out, rc);
+	goto out;
 out:
 	OBD_FREE_PTR(arg);
 	return rc;

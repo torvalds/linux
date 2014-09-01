@@ -423,8 +423,10 @@ int ldlm_cli_enqueue_local(struct ldlm_namespace *ns,
 
 	lock = ldlm_lock_create(ns, res_id, type, mode, &cbs, data, lvb_len,
 				lvb_type);
-	if (unlikely(!lock))
-		GOTO(out_nolock, err = -ENOMEM);
+	if (unlikely(!lock)) {
+		err = -ENOMEM;
+		goto out_nolock;
+	}
 
 	ldlm_lock2handle(lock, lockh);
 
@@ -444,7 +446,7 @@ int ldlm_cli_enqueue_local(struct ldlm_namespace *ns,
 
 	err = ldlm_lock_enqueue(ns, &lock, policy, flags);
 	if (unlikely(err != ELDLM_OK))
-		GOTO(out, err);
+		goto out;
 
 	if (policy != NULL)
 		*policy = lock->l_policy_data;
@@ -535,13 +537,15 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			   rc == ELDLM_LOCK_ABORTED ? "ABORTED" : "FAILED");
 
 		if (rc != ELDLM_LOCK_ABORTED)
-			GOTO(cleanup, rc);
+			goto cleanup;
 	}
 
 	/* Before we return, swab the reply */
 	reply = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
-	if (reply == NULL)
-		GOTO(cleanup, rc = -EPROTO);
+	if (reply == NULL) {
+		rc = -EPROTO;
+		goto cleanup;
+	}
 
 	if (lvb_len != 0) {
 		LASSERT(lvb != NULL);
@@ -550,12 +554,14 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 					    RCL_SERVER);
 		if (size < 0) {
 			LDLM_ERROR(lock, "Fail to get lvb_len, rc = %d", size);
-			GOTO(cleanup, rc = size);
+			rc = size;
+			goto cleanup;
 		} else if (unlikely(size > lvb_len)) {
 			LDLM_ERROR(lock, "Replied LVB is larger than "
 				   "expectation, expected = %d, replied = %d",
 				   lvb_len, size);
-			GOTO(cleanup, rc = -EINVAL);
+			rc = -EINVAL;
+			goto cleanup;
 		}
 	}
 
@@ -563,7 +569,8 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 		if (lvb_len != 0)
 			rc = ldlm_fill_lvb(lock, &req->rq_pill, RCL_SERVER,
 					   lvb, size);
-		GOTO(cleanup, rc = (rc != 0 ? rc : ELDLM_LOCK_ABORTED));
+		rc = (rc != 0 ? rc : ELDLM_LOCK_ABORTED);
+		goto cleanup;
 	}
 
 	/* lock enqueued on the server */
@@ -616,8 +623,10 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 
 			rc = ldlm_lock_change_resource(ns, lock,
 					&reply->lock_desc.l_resource.lr_name);
-			if (rc || lock->l_resource == NULL)
-				GOTO(cleanup, rc = -ENOMEM);
+			if (rc || lock->l_resource == NULL) {
+				rc = -ENOMEM;
+				goto cleanup;
+			}
 			LDLM_DEBUG(lock, "client-side enqueue, new resource");
 		}
 		if (with_policy)
@@ -658,7 +667,7 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 		unlock_res_and_lock(lock);
 		if (rc < 0) {
 			cleanup_phase = 1;
-			GOTO(cleanup, rc);
+			goto cleanup;
 		}
 	}
 
@@ -1037,14 +1046,18 @@ int ldlm_cli_convert(struct lustre_handle *lockh, int new_mode, __u32 *flags)
 	ptlrpc_request_set_replen(req);
 	rc = ptlrpc_queue_wait(req);
 	if (rc != ELDLM_OK)
-		GOTO(out, rc);
+		goto out;
 
 	reply = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
-	if (reply == NULL)
-		GOTO(out, rc = -EPROTO);
+	if (reply == NULL) {
+		rc = -EPROTO;
+		goto out;
+	}
 
-	if (req->rq_status)
-		GOTO(out, rc = req->rq_status);
+	if (req->rq_status) {
+		rc = req->rq_status;
+		goto out;
+	}
 
 	res = ldlm_lock_convert(lock, new_mode, &reply->lock_flags);
 	if (res != NULL) {
@@ -1055,7 +1068,7 @@ int ldlm_cli_convert(struct lustre_handle *lockh, int new_mode, __u32 *flags)
 			rc = lock->l_completion_ast(lock, LDLM_FL_WAIT_NOREPROC,
 						    NULL);
 			if (rc)
-				GOTO(out, rc);
+				goto out;
 		}
 	} else {
 		rc = LUSTRE_EDEADLK;
@@ -1179,8 +1192,10 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 		}
 
 		req = ptlrpc_request_alloc(imp, &RQF_LDLM_CANCEL);
-		if (req == NULL)
-			GOTO(out, rc = -ENOMEM);
+		if (req == NULL) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
 		req_capsule_filled_sizes(&req->rq_pill, RCL_CLIENT);
 		req_capsule_set_size(&req->rq_pill, &RMF_DLM_REQ, RCL_CLIENT,
@@ -1189,7 +1204,7 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 		rc = ptlrpc_request_pack(req, LUSTRE_DLM_VERSION, LDLM_CANCEL);
 		if (rc) {
 			ptlrpc_request_free(req);
-			GOTO(out, rc);
+			goto out;
 		}
 
 		req->rq_request_portal = LDLM_CANCEL_REQUEST_PORTAL;
@@ -1202,7 +1217,7 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 		if (flags & LCF_ASYNC) {
 			ptlrpcd_add_req(req, PDL_POLICY_LOCAL, -1);
 			sent = count;
-			GOTO(out, 0);
+			goto out;
 		} else {
 			rc = ptlrpc_queue_wait(req);
 		}
@@ -1961,22 +1976,28 @@ int ldlm_resource_foreach(struct ldlm_resource *res, ldlm_iterator_t iter,
 	list_for_each_safe(tmp, next, &res->lr_granted) {
 		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
 
-		if (iter(lock, closure) == LDLM_ITER_STOP)
-			GOTO(out, rc = LDLM_ITER_STOP);
+		if (iter(lock, closure) == LDLM_ITER_STOP) {
+			rc = LDLM_ITER_STOP;
+			goto out;
+		}
 	}
 
 	list_for_each_safe(tmp, next, &res->lr_converting) {
 		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
 
-		if (iter(lock, closure) == LDLM_ITER_STOP)
-			GOTO(out, rc = LDLM_ITER_STOP);
+		if (iter(lock, closure) == LDLM_ITER_STOP) {
+			rc = LDLM_ITER_STOP;
+			goto out;
+		}
 	}
 
 	list_for_each_safe(tmp, next, &res->lr_waiting) {
 		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
 
-		if (iter(lock, closure) == LDLM_ITER_STOP)
-			GOTO(out, rc = LDLM_ITER_STOP);
+		if (iter(lock, closure) == LDLM_ITER_STOP) {
+			rc = LDLM_ITER_STOP;
+			goto out;
+		}
 	}
  out:
 	unlock_res(res);
@@ -2081,12 +2102,14 @@ static int replay_lock_interpret(const struct lu_env *env,
 
 	atomic_dec(&req->rq_import->imp_replay_inflight);
 	if (rc != ELDLM_OK)
-		GOTO(out, rc);
+		goto out;
 
 
 	reply = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
-	if (reply == NULL)
-		GOTO(out, rc = -EPROTO);
+	if (reply == NULL) {
+		rc = -EPROTO;
+		goto out;
+	}
 
 	lock = ldlm_handle2lock(&aa->lock_handle);
 	if (!lock) {
@@ -2095,7 +2118,8 @@ static int replay_lock_interpret(const struct lu_env *env,
 		       aa->lock_handle.cookie, reply->lock_handle.cookie,
 		       req->rq_export->exp_client_uuid.uuid,
 		       libcfs_id2str(req->rq_peer));
-		GOTO(out, rc = -ESTALE);
+		rc = -ESTALE;
+		goto out;
 	}
 
 	/* Key change rehash lock in per-export hash with new key */

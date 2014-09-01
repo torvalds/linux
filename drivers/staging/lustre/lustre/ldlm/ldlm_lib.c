@@ -74,8 +74,10 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 
 	if (create) {
 		OBD_ALLOC(imp_conn, sizeof(*imp_conn));
-		if (!imp_conn)
-			GOTO(out_put, rc = -ENOMEM);
+		if (!imp_conn) {
+			rc = -ENOMEM;
+			goto out_put;
+		}
 	}
 
 	spin_lock(&imp->imp_lock);
@@ -91,7 +93,8 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 			       imp, imp->imp_obd->obd_name, uuid->uuid,
 			       (priority ? ", moved to head" : ""));
 			spin_unlock(&imp->imp_lock);
-			GOTO(out_free, rc = 0);
+			rc = 0;
+			goto out_free;
 		}
 	}
 	/* No existing import connection found for \a uuid. */
@@ -109,7 +112,8 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 		       (priority ? "head" : "tail"));
 	} else {
 		spin_unlock(&imp->imp_lock);
-		GOTO(out_free, rc = -ENOENT);
+		rc = -ENOENT;
+		goto out_free;
 	}
 
 	spin_unlock(&imp->imp_lock);
@@ -143,7 +147,7 @@ int client_import_del_conn(struct obd_import *imp, struct obd_uuid *uuid)
 	spin_lock(&imp->imp_lock);
 	if (list_empty(&imp->imp_conn_list)) {
 		LASSERT(!imp->imp_connection);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	list_for_each_entry(imp_conn, &imp->imp_conn_list, oic_item) {
@@ -157,7 +161,8 @@ int client_import_del_conn(struct obd_import *imp, struct obd_uuid *uuid)
 			if (imp->imp_state != LUSTRE_IMP_CLOSED &&
 			    imp->imp_state != LUSTRE_IMP_DISCON) {
 				CERROR("can't remove current connection\n");
-				GOTO(out, rc = -EBUSY);
+				rc = -EBUSY;
+				goto out;
 			}
 
 			ptlrpc_connection_put(imp->imp_connection);
@@ -398,15 +403,17 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	rc = ldlm_get_ref();
 	if (rc) {
 		CERROR("ldlm_get_ref failed: %d\n", rc);
-		GOTO(err, rc);
+		goto err;
 	}
 
 	ptlrpc_init_client(rq_portal, rp_portal, name,
 			   &obddev->obd_ldlm_client);
 
 	imp = class_new_import(obddev);
-	if (imp == NULL)
-		GOTO(err_ldlm, rc = -ENOENT);
+	if (imp == NULL) {
+		rc = -ENOENT;
+		goto err_ldlm;
+	}
 	imp->imp_client = &obddev->obd_ldlm_client;
 	imp->imp_connect_op = connect_op;
 	memcpy(cli->cl_target_uuid.uuid, lustre_cfg_buf(lcfg, 1),
@@ -416,7 +423,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	rc = client_import_add_conn(imp, &server_uuid, 1);
 	if (rc) {
 		CERROR("can't add initial connection\n");
-		GOTO(err_import, rc);
+		goto err_import;
 	}
 
 	cli->cl_import = imp;
@@ -442,7 +449,8 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	if (obddev->obd_namespace == NULL) {
 		CERROR("Unable to create client namespace - %s\n",
 		       obddev->obd_name);
-		GOTO(err_import, rc = -ENOMEM);
+		rc = -ENOMEM;
+		goto err_import;
 	}
 
 	cli->cl_qchk_stat = CL_NOT_QUOTACHECKED;
@@ -485,12 +493,14 @@ int client_connect_import(const struct lu_env *env,
 
 	*exp = NULL;
 	down_write(&cli->cl_sem);
-	if (cli->cl_conn_count > 0 )
-		GOTO(out_sem, rc = -EALREADY);
+	if (cli->cl_conn_count > 0) {
+		rc = -EALREADY;
+		goto out_sem;
+	}
 
 	rc = class_connect(&conn, obd, cluuid);
 	if (rc)
-		GOTO(out_sem, rc);
+		goto out_sem;
 
 	cli->cl_conn_count++;
 	*exp = class_conn2export(&conn);
@@ -500,7 +510,7 @@ int client_connect_import(const struct lu_env *env,
 	imp->imp_dlm_handle = conn;
 	rc = ptlrpc_init_import(imp);
 	if (rc != 0)
-		GOTO(out_ldlm, rc);
+		goto out_ldlm;
 
 	ocd = &imp->imp_connect_data;
 	if (data) {
@@ -511,7 +521,7 @@ int client_connect_import(const struct lu_env *env,
 	rc = ptlrpc_connect_import(imp);
 	if (rc != 0) {
 		LASSERT(imp->imp_state == LUSTRE_IMP_DISCON);
-		GOTO(out_ldlm, rc);
+		goto out_ldlm;
 	}
 	LASSERT(*exp != NULL && (*exp)->exp_connection);
 
@@ -560,12 +570,15 @@ int client_disconnect_export(struct obd_export *exp)
 	if (!cli->cl_conn_count) {
 		CERROR("disconnecting disconnected device (%s)\n",
 		       obd->obd_name);
-		GOTO(out_disconnect, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_disconnect;
 	}
 
 	cli->cl_conn_count--;
-	if (cli->cl_conn_count)
-		GOTO(out_disconnect, rc = 0);
+	if (cli->cl_conn_count) {
+		rc = 0;
+		goto out_disconnect;
+	}
 
 	/* Mark import deactivated now, so we don't try to reconnect if any
 	 * of the cleanup RPCs fails (e.g. LDLM cancel, etc).  We don't
