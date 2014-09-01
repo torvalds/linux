@@ -5306,26 +5306,21 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 
 	depth = path->p_depth;
 	extent = path[depth].p_ext;
-	if (!extent) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
-		return ret;
-	}
+	if (!extent)
+		goto out;
 
 	stop_block = le32_to_cpu(extent->ee_block) +
 			ext4_ext_get_actual_len(extent);
-	ext4_ext_drop_refs(path);
-	kfree(path);
 
 	/* Nothing to shift, if hole is at the end of file */
 	if (start >= stop_block)
-		return ret;
+		goto out;
 
 	/*
 	 * Don't start shifting extents until we make sure the hole is big
 	 * enough to accomodate the shift.
 	 */
-	path = ext4_ext_find_extent(inode, start - 1, NULL, 0);
+	path = ext4_ext_find_extent(inode, start - 1, &path, 0);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 	depth = path->p_depth;
@@ -5338,8 +5333,6 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 		ex_start = 0;
 		ex_end = 0;
 	}
-	ext4_ext_drop_refs(path);
-	kfree(path);
 
 	if ((start == ex_start && shift > ex_start) ||
 	    (shift > start - ex_end))
@@ -5347,7 +5340,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 
 	/* Its safe to start updating extents */
 	while (start < stop_block) {
-		path = ext4_ext_find_extent(inode, start, NULL, 0);
+		path = ext4_ext_find_extent(inode, start, &path, 0);
 		if (IS_ERR(path))
 			return PTR_ERR(path);
 		depth = path->p_depth;
@@ -5363,19 +5356,17 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 				path[depth].p_ext++;
 			} else {
 				start = ext4_ext_next_allocated_block(path);
-				ext4_ext_drop_refs(path);
-				kfree(path);
 				continue;
 			}
 		}
 		ret = ext4_ext_shift_path_extents(path, shift, inode,
 				handle, &start);
-		ext4_ext_drop_refs(path);
-		kfree(path);
 		if (ret)
 			break;
 	}
-
+out:
+	ext4_ext_drop_refs(path);
+	kfree(path);
 	return ret;
 }
 
