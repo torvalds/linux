@@ -851,13 +851,7 @@ static inline struct file *get_file(struct file *f)
  */
 #define FILE_LOCK_DEFERRED 1
 
-/*
- * The POSIX file lock owner is determined by
- * the "struct files_struct" in the thread group
- * (or NULL for no owner - BSD locks).
- *
- * Lockd stuffs a "host" pointer into this.
- */
+/* legacy typedef, should eventually be removed */
 typedef void *fl_owner_t;
 
 struct file_lock_operations {

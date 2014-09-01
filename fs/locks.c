@@ -465,7 +465,7 @@ static int lease_init(struct file *filp, long type, struct file_lock *fl)
 	if (assign_type(fl, type) != 0)
 		return -EINVAL;
 
-	fl->fl_owner = current->files;
+	fl->fl_owner = filp;
 	fl->fl_pid = current->tgid;
 
 	fl->fl_file = filp;
