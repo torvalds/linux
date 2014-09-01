@@ -24,24 +24,19 @@
  * Author: Allan Willcox <allanwillcox@ozemail.com.au>,
  *   Steve D Sharples <steve.sharples@nottingham.ac.uk>,
  *   Ian Abbott <abbotti@mev.co.uk>
- * Updated: Wed, 22 Oct 2008 12:34:49 +0100
- * Devices: [Amplicon] PCI230 (pci230 or amplc_pci230),
- *   PCI230+ (pci230+ or amplc_pci230),
- *   PCI260 (pci260 or amplc_pci230), PCI260+ (pci260+ or amplc_pci230)
+ * Updated: Mon, 01 Sep 2014 10:09:16 +0000
+ * Devices: [Amplicon] PCI230 (amplc_pci230), PCI230+, PCI260, PCI260+
  * Status: works
  *
  * Configuration options:
- *   [0] - PCI bus of device (optional).
- *   [1] - PCI slot of device (optional).
- *           If bus/slot is not specified, the first available PCI device
- *           will be used.
+ *   none
  *
- * Configuring a "amplc_pci230" will match any supported card and it will
- * choose the best match, picking the "+" models if possible.  Configuring
- * a "pci230" will match a PCI230 or PCI230+ card and it will be treated as
- * a PCI230.  Configuring a "pci260" will match a PCI260 or PCI260+ card
- * and it will be treated as a PCI260.  Configuring a "pci230+" will match
- * a PCI230+ card.  Configuring a "pci260+" will match a PCI260+ card.
+ * Manual configuration of PCI cards is not supported; they are configured
+ * automatically.
+ *
+ * The PCI230+ and PCI260+ have the same PCI device IDs as the PCI230 and
+ * PCI260, but can be distinguished by the the size of the PCI regions.  A
+ * card will be configured as a "+" model if detected as such.
  *
  * Subdevices:
  *
@@ -201,7 +196,6 @@
  */
 #define PCI_DEVICE_ID_PCI230 0x0000
 #define PCI_DEVICE_ID_PCI260 0x0006
-#define PCI_DEVICE_ID_INVALID 0xffff
 
 /*
  * PCI230 i/o space 1 registers.
@@ -500,11 +494,6 @@ static const struct pci230_board pci230_boards[] = {
 		.id		= PCI_DEVICE_ID_PCI260,
 		.ai_chans	= 16,
 		.ai_bits	= 12,
-	},
-	{
-		/* Wildcard matches any above */
-		.name		= "amplc_pci230",
-		.id		= PCI_DEVICE_ID_INVALID,
 	},
 };
 
@@ -2553,46 +2542,6 @@ static const struct pci230_board *pci230_find_pci_board(struct pci_dev *pci_dev)
 	return NULL;
 }
 
-/* Look for PCI device matching requested board name, bus and slot. */
-static struct pci_dev *pci230_find_pci_dev(struct comedi_device *dev,
-					   struct comedi_devconfig *it)
-{
-	const struct pci230_board *thisboard = comedi_board(dev);
-	struct pci_dev *pci_dev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-
-	for_each_pci_dev(pci_dev) {
-		/* Check vendor ID (same for all supported PCI boards). */
-		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
-			continue;
-		/* If bus/slot specified, check them. */
-		if ((bus || slot) &&
-		    (bus != pci_dev->bus->number ||
-		     slot != PCI_SLOT(pci_dev->devfn)))
-			continue;
-		if (thisboard->id == PCI_DEVICE_ID_INVALID) {
-			/* Wildcard board matches any supported PCI board. */
-			const struct pci230_board *foundboard;
-
-			foundboard = pci230_find_pci_board(pci_dev);
-			if (foundboard == NULL)
-				continue;
-			/* Replace wildcard board_ptr. */
-			dev->board_ptr = foundboard;
-		} else {
-			/* Need to match a specific board. */
-			if (!pci230_match_pci_board(thisboard, pci_dev))
-				continue;
-		}
-		return pci_dev;
-	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
-	return NULL;
-}
-
 static int pci230_alloc_private(struct comedi_device *dev)
 {
 	struct pci230_private *devpriv;
@@ -2761,25 +2710,6 @@ static int pci230_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	const struct pci230_board *thisboard = comedi_board(dev);
-	struct pci_dev *pci_dev;
-	int rc;
-
-	dev_info(dev->class_dev, "amplc_pci230: attach %s %d,%d\n",
-		 thisboard->name, it->options[0], it->options[1]);
-
-	rc = pci230_alloc_private(dev);
-	if (rc)
-		return rc;
-
-	pci_dev = pci230_find_pci_dev(dev, it);
-	if (!pci_dev)
-		return -EIO;
-	return pci230_attach_common(dev, pci_dev);
-}
-
 static int pci230_auto_attach(struct comedi_device *dev,
 			      unsigned long context_unused)
 {
@@ -2821,12 +2751,8 @@ static void pci230_detach(struct comedi_device *dev)
 static struct comedi_driver amplc_pci230_driver = {
 	.driver_name	= "amplc_pci230",
 	.module		= THIS_MODULE,
-	.attach		= pci230_attach,
 	.auto_attach	= pci230_auto_attach,
 	.detach		= pci230_detach,
-	.board_name	= &pci230_boards[0].name,
-	.offset		= sizeof(pci230_boards[0]),
-	.num_names	= ARRAY_SIZE(pci230_boards),
 };
 
 static int amplc_pci230_pci_probe(struct pci_dev *dev,
