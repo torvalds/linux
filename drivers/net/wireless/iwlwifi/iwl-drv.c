@@ -1254,7 +1254,9 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
 	.wd_disable = true,
-	.uapsd_disable = false,
+#ifndef CONFIG_IWLWIFI_UAPSD
+	.uapsd_disable = true,
+#endif /* CONFIG_IWLWIFI_UAPSD */
 	/* the rest are 0 by default */
 };
 IWL_EXPORT_SYMBOL(iwlwifi_mod_params);
@@ -1370,7 +1372,11 @@ MODULE_PARM_DESC(nvm_file, "NVM file name");
 
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
 		   bool, S_IRUGO);
+#ifdef CONFIG_IWLWIFI_UAPSD
 MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: N)");
+#else
+MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: Y)");
+#endif
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer
