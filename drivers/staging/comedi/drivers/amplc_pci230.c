@@ -1802,43 +1802,39 @@ static int pci230_ai_inttrig_convert(struct comedi_device *dev,
 {
 	struct pci230_private *devpriv = dev->private;
 	unsigned long irqflags;
+	unsigned int delayus;
 
 	if (trig_num)
 		return -EINVAL;
 
 	spin_lock_irqsave(&devpriv->ai_stop_spinlock, irqflags);
-	if (devpriv->ai_cmd_started) {
-		unsigned int delayus;
-
-		/*
-		 * Trigger conversion by toggling Z2-CT2 output.
-		 * Finish with output high.
-		 */
-		i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0,
-			       2, I8254_MODE0);
-		i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0,
-			       2, I8254_MODE1);
-		/*
-		 * Delay.  Should driver be responsible for this?  An
-		 * alternative would be to wait until conversion is complete,
-		 * but we can't tell when it's complete because the ADC busy
-		 * bit has a different meaning when FIFO enabled (and when
-		 * FIFO not enabled, it only works for software triggers).
-		 */
-		if ((devpriv->adccon & PCI230_ADC_IM_MASK) ==
-		    PCI230_ADC_IM_DIF && devpriv->hwver == 0) {
-			/* PCI230/260 in differential mode */
-			delayus = 8;
-		} else {
-			/* single-ended or PCI230+/260+ */
-			delayus = 4;
-		}
+	if (!devpriv->ai_cmd_started) {
 		spin_unlock_irqrestore(&devpriv->ai_stop_spinlock, irqflags);
-		udelay(delayus);
-	} else {
-		spin_unlock_irqrestore(&devpriv->ai_stop_spinlock, irqflags);
+		return 1;
 	}
-
+	/*
+	 * Trigger conversion by toggling Z2-CT2 output.
+	 * Finish with output high.
+	 */
+	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE0);
+	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE1);
+	/*
+	 * Delay.  Should driver be responsible for this?  An
+	 * alternative would be to wait until conversion is complete,
+	 * but we can't tell when it's complete because the ADC busy
+	 * bit has a different meaning when FIFO enabled (and when
+	 * FIFO not enabled, it only works for software triggers).
+	 */
+	if ((devpriv->adccon & PCI230_ADC_IM_MASK) == PCI230_ADC_IM_DIF &&
+	    devpriv->hwver == 0) {
+		/* PCI230/260 in differential mode */
+		delayus = 8;
+	} else {
+		/* single-ended or PCI230+/260+ */
+		delayus = 4;
+	}
+	spin_unlock_irqrestore(&devpriv->ai_stop_spinlock, irqflags);
+	udelay(delayus);
 	return 1;
 }
 
