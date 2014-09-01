@@ -583,17 +583,16 @@ static inline unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
 	struct pci230_private *devpriv = dev->private;
 
 	/*
-	 * If a bipolar range was specified, mangle it
-	 * (straight binary->twos complement).
-	 */
-	if (devpriv->ao_bipolar)
-		datum ^= 1 << (thisboard->ao_bits - 1);
-
-	/*
 	 * PCI230 is 12 bit - stored in upper bits of 16 bit register (lower
 	 * four bits reserved for expansion).  PCI230+ is also 12 bit AO.
 	 */
 	datum <<= (16 - thisboard->ao_bits);
+	/*
+	 * If a bipolar range was specified, mangle it
+	 * (straight binary->twos complement).
+	 */
+	if (devpriv->ao_bipolar)
+		datum ^= 0x8000;
 	return datum;
 }
 
