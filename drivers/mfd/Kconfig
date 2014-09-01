@@ -210,6 +210,19 @@ config MFD_MC13XXX_I2C
 	help
 	  Select this if your MC13xxx is connected via an I2C bus.
 
+config MFD_HI6421_PMIC
+	tristate "HiSilicon Hi6421 PMU/Codec IC"
+	depends on OF
+	select MFD_CORE
+	select REGMAP_MMIO
+	help
+	  Add support for HiSilicon Hi6421 PMIC. Hi6421 includes multi-
+	  functions, such as regulators, RTC, codec, Coulomb counter, etc.
+	  This driver includes core APIs _only_. You have to select
+	  individul components like voltage regulators under corresponding
+	  menus in order to enable them.
+	  We communicate with the Hi6421 via memory-mapped I/O.
+
 config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GPIOLIB && ARM
