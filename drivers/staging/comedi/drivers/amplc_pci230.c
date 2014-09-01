@@ -1844,32 +1844,25 @@ static void pci230_ai_update_fifo_trigger_level(struct comedi_device *dev,
 	unsigned short triglev;
 	unsigned short adccon;
 
-	if (cmd->flags & TRIG_WAKE_EOS) {
-		/* Wake at end of scan. */
+	if (cmd->flags & TRIG_WAKE_EOS)
 		wake = scanlen - devpriv->ai_scan_pos;
-	} else {
-		if (cmd->stop_src != TRIG_COUNT ||
-		    devpriv->ai_scan_count >= PCI230_ADC_FIFOLEVEL_HALFFULL ||
-		    scanlen >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
-			wake = PCI230_ADC_FIFOLEVEL_HALFFULL;
-		} else {
-			wake = devpriv->ai_scan_count * scanlen -
-			       devpriv->ai_scan_pos;
-		}
-	}
+	else if (cmd->stop_src != TRIG_COUNT ||
+		 devpriv->ai_scan_count >= PCI230_ADC_FIFOLEVEL_HALFFULL ||
+		 scanlen >= PCI230_ADC_FIFOLEVEL_HALFFULL)
+		wake = PCI230_ADC_FIFOLEVEL_HALFFULL;
+	else
+		wake = devpriv->ai_scan_count * scanlen - devpriv->ai_scan_pos;
 	if (wake >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
 		triglev = PCI230_ADC_INT_FIFO_HALF;
-	} else {
-		if (wake > 1 && devpriv->hwver > 0) {
-			/* PCI230+/260+ programmable FIFO interrupt level. */
-			if (devpriv->adcfifothresh != wake) {
-				devpriv->adcfifothresh = wake;
-				outw(wake, devpriv->daqio + PCI230P_ADCFFTH);
-			}
-			triglev = PCI230P_ADC_INT_FIFO_THRESH;
-		} else {
-			triglev = PCI230_ADC_INT_FIFO_NEMPTY;
+	} else if (wake > 1 && devpriv->hwver > 0) {
+		/* PCI230+/260+ programmable FIFO interrupt level. */
+		if (devpriv->adcfifothresh != wake) {
+			devpriv->adcfifothresh = wake;
+			outw(wake, devpriv->daqio + PCI230P_ADCFFTH);
 		}
+		triglev = PCI230P_ADC_INT_FIFO_THRESH;
+	} else {
+		triglev = PCI230_ADC_INT_FIFO_NEMPTY;
 	}
 	adccon = (devpriv->adccon & ~PCI230_ADC_INT_FIFO_MASK) | triglev;
 	if (adccon != devpriv->adccon) {
@@ -2211,19 +2204,15 @@ static void pci230_handle_ai(struct comedi_device *dev,
 			} else if (status_fifo & PCI230_ADC_FIFO_HALF) {
 				/* FIFO half full. */
 				fifoamount = PCI230_ADC_FIFOLEVEL_HALFFULL;
+			} else if (devpriv->hwver > 0) {
+				/* Read PCI230+/260+ ADC FIFO level. */
+				fifoamount = inw(devpriv->daqio +
+						 PCI230P_ADCFFLEV);
+				if (fifoamount == 0)
+					break;	/* Shouldn't happen. */
 			} else {
 				/* FIFO not empty. */
-				if (devpriv->hwver > 0) {
-					/* Read PCI230+/260+ ADC FIFO level. */
-					fifoamount = inw(devpriv->daqio +
-							 PCI230P_ADCFFLEV);
-					if (fifoamount == 0) {
-						/* Shouldn't happen. */
-						break;
-					}
-				} else {
-					fifoamount = 1;
-				}
+				fifoamount = 1;
 			}
 		}
 		/* Read sample and store in Comedi's circular buffer. */
