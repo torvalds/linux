@@ -295,11 +295,6 @@ static bool check_mmio_spte(struct kvm *kvm, u64 spte)
 	return likely(kvm_gen == spte_gen);
 }
 
-static inline u64 rsvd_bits(int s, int e)
-{
-	return ((1ULL << (e - s + 1)) - 1) << s;
-}
-
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 		u64 dirty_mask, u64 nx_mask, u64 x_mask)
 {
