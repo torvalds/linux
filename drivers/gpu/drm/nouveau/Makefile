@@ -53,6 +53,7 @@ nouveau-y += core/subdev/bios/vmap.o
 nouveau-y += core/subdev/bios/volt.o
 nouveau-y += core/subdev/bios/xpio.o
 nouveau-y += core/subdev/bios/M0205.o
+nouveau-y += core/subdev/bios/M0209.o
 nouveau-y += core/subdev/bios/P0260.o
 nouveau-y += core/subdev/bus/hwsq.o
 nouveau-y += core/subdev/bus/nv04.o
