@@ -34,7 +34,7 @@ struct es1_ap_dev {
  */
 static struct es1_ap_dev *es1_ap_dev;
 
-static void ap_in_callback(struct urb *urb)
+void ap_in_callback(struct urb *urb)
 {
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
@@ -69,7 +69,7 @@ exit:
 		dev_err(dev, "Can not submit urb for AP data: %d\n", retval);
 }
 
-static void ap_out_callback(struct urb *urb)
+void ap_out_callback(struct urb *urb)
 {
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
