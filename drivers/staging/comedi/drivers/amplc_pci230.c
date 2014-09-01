@@ -1226,28 +1226,25 @@ static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
 		return -EINVAL;
 
 	spin_lock_irqsave(&devpriv->ao_stop_spinlock, irqflags);
-	if (devpriv->ao_cmd_started) {
-		/* Perform scan. */
-		if (devpriv->hwver < 2) {
-			/* Not using DAC FIFO. */
-			spin_unlock_irqrestore(&devpriv->ao_stop_spinlock,
-					       irqflags);
-			pci230_handle_ao_nofifo(dev, s);
-			comedi_event(dev, s);
-		} else {
-			/* Using DAC FIFO. */
-			/* Read DACSWTRIG register to trigger conversion. */
-			inw(devpriv->daqio + PCI230P2_DACSWTRIG);
-			spin_unlock_irqrestore(&devpriv->ao_stop_spinlock,
-					       irqflags);
-		}
-		/* Delay.  Should driver be responsible for this? */
-		/* XXX TODO: See if DAC busy bit can be used. */
-		udelay(8);
+	if (!devpriv->ao_cmd_started) {
+		spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
+		return 1;
+	}
+	/* Perform scan. */
+	if (devpriv->hwver < 2) {
+		/* Not using DAC FIFO. */
+		spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
+		pci230_handle_ao_nofifo(dev, s);
+		comedi_event(dev, s);
 	} else {
+		/* Using DAC FIFO. */
+		/* Read DACSWTRIG register to trigger conversion. */
+		inw(devpriv->daqio + PCI230P2_DACSWTRIG);
 		spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
 	}
-
+	/* Delay.  Should driver be responsible for this? */
+	/* XXX TODO: See if DAC busy bit can be used. */
+	udelay(8);
 	return 1;
 }
 
