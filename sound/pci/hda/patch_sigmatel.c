@@ -32,7 +32,6 @@
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
-#include <sound/tlv.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_auto_parser.h"
@@ -4227,9 +4226,6 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	/* minimum value is actually mute */
-	spec->gen.vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
-
 	/* setup analog beep controls */
 	if (spec->anabeep_nid > 0) {
 		err = stac_auto_create_beep_ctls(codec,
@@ -4413,6 +4409,7 @@ static int alloc_stac_spec(struct hda_codec *codec)
 	snd_hda_gen_spec_init(&spec->gen);
 	codec->spec = spec;
 	codec->no_trigger_sense = 1; /* seems common with STAC/IDT codecs */
+	spec->gen.dac_min_mute = true;
 	return 0;
 }
 

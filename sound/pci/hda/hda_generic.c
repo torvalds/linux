@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
+#include <sound/tlv.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_auto_parser.h"
@@ -1105,6 +1106,7 @@ enum {
  */
 static int assign_out_path_ctls(struct hda_codec *codec, struct nid_path *path)
 {
+	struct hda_gen_spec *spec = codec->spec;
 	hda_nid_t nid;
 	unsigned int val;
 	int badness = 0;
@@ -1119,6 +1121,8 @@ static int assign_out_path_ctls(struct hda_codec *codec, struct nid_path *path)
 	nid = look_for_out_vol_nid(codec, path);
 	if (nid) {
 		val = HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT);
+		if (spec->dac_min_mute)
+			val |= HDA_AMP_VAL_MIN_MUTE;
 		if (is_ctl_used(codec, val, NID_PATH_VOL_CTL))
 			badness += BAD_SHARED_VOL;
 		else
@@ -1880,9 +1884,12 @@ static int parse_output_paths(struct hda_codec *codec)
 		path = snd_hda_get_path_from_idx(codec, spec->out_paths[0]);
 		if (path)
 			spec->vmaster_nid = look_for_out_vol_nid(codec, path);
-		if (spec->vmaster_nid)
+		if (spec->vmaster_nid) {
 			snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
 						HDA_OUTPUT, spec->vmaster_tlv);
+			if (spec->dac_min_mute)
+				spec->vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
+		}
 	}
 
 	/* set initial pinctl targets */
