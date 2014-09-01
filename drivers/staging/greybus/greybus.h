@@ -102,23 +102,6 @@ struct greybus_device {
 };
 #define to_greybus_device(d) container_of(d, struct greybus_device, dev)
 
-/*
- * Because we are allocating a data structure per "type" in the greybus device,
- * we have static functions for this, not "dynamic" drivers like we really
- * should in the end.
- */
-int gb_i2c_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
-void gb_i2c_disconnect(struct greybus_device *gdev);
-int gb_gpio_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
-void gb_gpio_disconnect(struct greybus_device *gdev);
-int gb_sdio_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
-void gb_sdio_disconnect(struct greybus_device *gdev);
-int gb_tty_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
-void gb_tty_disconnect(struct greybus_device *gdev);
-
-int gb_tty_init(void);
-void gb_tty_exit(void);
-
 struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
 				struct cport *cport,
 				gfp_t mem_flags);
@@ -184,6 +167,23 @@ int gb_thread_init(void);
 void gb_thread_destroy(void);
 int gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
+
+/*
+ * Because we are allocating a data structure per "type" in the greybus device,
+ * we have static functions for this, not "dynamic" drivers like we really
+ * should in the end.
+ */
+int gb_i2c_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+void gb_i2c_disconnect(struct greybus_device *gdev);
+int gb_gpio_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+void gb_gpio_disconnect(struct greybus_device *gdev);
+int gb_sdio_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+void gb_sdio_disconnect(struct greybus_device *gdev);
+int gb_tty_probe(struct greybus_device *gdev, const struct greybus_device_id *id);
+void gb_tty_disconnect(struct greybus_device *gdev);
+
+int gb_tty_init(void);
+void gb_tty_exit(void);
 
 
 
