@@ -22,7 +22,7 @@
 #ifndef __HAL8188EPWRSEQ_H__
 #define __HAL8188EPWRSEQ_H__
 
-#include "HalPwrSeqCmd.h"
+#include "pwrseqcmd.h"
 
 /*
 	Check document WM-20110607-Paul-RTL8188E_Power_Architecture-R02.vsd

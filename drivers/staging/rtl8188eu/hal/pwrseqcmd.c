@@ -17,7 +17,7 @@
  *
  ******************************************************************************/
 
-#include <HalPwrSeqCmd.h>
+#include <pwrseqcmd.h>
 #include <usb_ops_linux.h>
 
 /* This routine deals with the Power Configuration CMDs parsing
