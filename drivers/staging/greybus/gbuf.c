@@ -18,7 +18,7 @@
 
 
 struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
-				struct cport *cport,
+				struct gdev_cport *cport,
 				gfp_t mem_flags)
 {
 	return NULL;

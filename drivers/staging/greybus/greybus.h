@@ -35,10 +35,17 @@
 
 struct gbuf;
 
-struct cport {
+struct gdev_cport {
 	u16	number;
 	u16	size;
 	// FIXME, what else?
+	u8	speed;	// valid???
+};
+
+struct gdev_string {
+	u16	length;
+	u8	id;
+	u8	string[0];
 };
 
 typedef void (*gbuf_complete_t)(struct gbuf *gbuf);
@@ -51,7 +58,7 @@ struct gbuf {
 	struct gbuf_anchor *anchor;	// FIXME do we need?
 
 	struct greybus_device *gdev;
-	struct cport *cport;
+	struct gdev_cport *cport;
 	int status;
 	void *transfer_buffer;
 	u32 transfer_flags;		/* flags for the transfer buffer */
@@ -86,14 +93,20 @@ struct gb_sdio_host;
 struct gb_tty;
 struct gb_usb_device;
 
+/* Increase these values if needed */
+#define MAX_CPORTS_PER_MODULE	10
+#define MAX_STRINGS_PER_MODULE	10
+
 struct greybus_device {
 	struct device dev;
 	u16 module_number;
 	struct greybus_descriptor_function function;
 	struct greybus_descriptor_module_id module_id;
 	struct greybus_descriptor_serial_number serial_number;
-	int num_cport;
-	struct cport *cport[10];		// FIXME - no more than 10 cports per device...
+	int num_cports;
+	int num_strings;
+	struct gdev_cport *cport[MAX_CPORTS_PER_MODULE];
+	struct gdev_string *string[MAX_STRINGS_PER_MODULE];
 
 	struct gb_i2c_device *gb_i2c_dev;
 	struct gb_gpio_device *gb_gpio_dev;
@@ -104,7 +117,7 @@ struct greybus_device {
 #define to_greybus_device(d) container_of(d, struct greybus_device, dev)
 
 struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
-				struct cport *cport,
+				struct gdev_cport *cport,
 				gfp_t mem_flags);
 void greybus_free_gbuf(struct gbuf *gbuf);
 
