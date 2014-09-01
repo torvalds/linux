@@ -81,7 +81,7 @@ struct greybus_descriptor_cport {
 	__u8	reserved;
 };
 
-struct greybus_msg_descriptor {
+struct greybus_descriptor {
 	struct greybus_descriptor_header	header;
 	union {
 		struct greybus_descriptor_function	function;

@@ -11,29 +11,26 @@
 
 #ifdef __KERNEL__
 
+#include <linux/types.h>
 #include <linux/list.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include "greybus_id.h"
+#include "greybus_desc.h"
 
 
 #define GREYBUS_DEVICE_ID_MATCH_DEVICE \
 		(GREYBUS_DEVICE_ID_MATCH_VENDOR | GREYBUS_DEVICE_ID_MATCH_PRODUCT)
 
-#define GREYBUS_DEVICE(vendor, product)				\
+#define GREYBUS_DEVICE(v, p)					\
 	.match_flags	= GREYBUS_DEVICE_ID_MATCH_DEVICE,	\
-	.wVendor	= (vendor),				\
-	.wProduct	= (product),
+	.vendor		= (v),					\
+	.product	= (p),
 
-#define GREYBUS_DEVICE_SERIAL(serial)				\
+#define GREYBUS_DEVICE_SERIAL(s)				\
 	.match_flags	= GREYBUS_DEVICE_ID_MATCH_SERIAL,	\
-	.lSerial	= (serial),
+	.serial_number	= (s),
 
-struct greybus_descriptor {
-	__u16	wVendor;
-	__u16	wProduct;
-	__u64	lSerialNumber;
-};
 
 
 struct gbuf;
@@ -90,7 +87,9 @@ struct gb_usb_device;
 
 struct greybus_device {
 	struct device dev;
-	struct greybus_descriptor descriptor;
+	struct greybus_descriptor_function function;
+	struct greybus_descriptor_module_id module_id;
+	struct greybus_descriptor_serial_number serial_number;
 	int num_cport;
 	struct cport cport[0];
 

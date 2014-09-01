@@ -33,18 +33,22 @@ EXPORT_SYMBOL_GPL(greybus_disabled);
 static int greybus_match_one_id(struct greybus_device *gdev,
 				const struct greybus_module_id *id)
 {
-	struct greybus_descriptor *des = &gdev->descriptor;
+	struct greybus_descriptor_module_id *module_id;
+	struct greybus_descriptor_serial_number *serial_num;
+
+	module_id = &gdev->module_id;
+	serial_num = &gdev->serial_number;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_VENDOR) &&
-	    (des->wVendor != id->wVendor))
+	    (id->vendor != le16_to_cpu(module_id->vendor)))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_PRODUCT) &&
-	    (des->wProduct != id->wProduct))
+	    (id->product != le16_to_cpu(module_id->product)))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_SERIAL) &&
-	    (des->lSerialNumber != id->lSerialNumber))
+	    (id->serial_number != le64_to_cpu(serial_num->serial_number)))
 		return 0;
 
 	return 1;
@@ -57,7 +61,7 @@ static const struct greybus_module_id *greybus_match_id(
 	if (id == NULL)
 		return NULL;
 
-	for (; id->wVendor || id->wProduct || id->lSerialNumber ||
+	for (; id->vendor || id->product || id->serial_number ||
 	       id->driver_info ; id++) {
 		if (greybus_match_one_id(gdev, id))
 			return id;
@@ -151,7 +155,7 @@ void greybus_deregister(struct greybus_driver *driver)
 EXPORT_SYMBOL_GPL(greybus_deregister);
 
 
-static int new_device(struct greybus_device *gdev,
+int new_device(struct greybus_device *gdev,
 		      const struct greybus_module_id *id)
 {
 	int retval;
@@ -187,7 +191,7 @@ error_i2c:
 	return retval;
 }
 
-static void remove_device(struct greybus_device *gdev)
+void remove_device(struct greybus_device *gdev)
 {
 	/* tear down all of the "sub device types" for this device */
 	gb_i2c_disconnect(gdev);
