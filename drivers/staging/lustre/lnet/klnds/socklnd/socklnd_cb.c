@@ -1594,8 +1594,8 @@ void ksocknal_write_callback (ksock_conn_t *conn)
 
 	conn->ksnc_tx_ready = 1;
 
-	if (!conn->ksnc_tx_scheduled && // not being progressed
-	    !list_empty(&conn->ksnc_tx_queue)){//packets to send
+	if (!conn->ksnc_tx_scheduled && /* not being progressed */
+	    !list_empty(&conn->ksnc_tx_queue)) { /* packets to send */
 		list_add_tail (&conn->ksnc_tx_list,
 				   &sched->kss_tx_conns);
 		conn->ksnc_tx_scheduled = 1;

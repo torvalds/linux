@@ -305,8 +305,8 @@ int ll_xattr_cache_get(struct inode *inode,
 void ll_inode_size_lock(struct inode *inode);
 void ll_inode_size_unlock(struct inode *inode);
 
-// FIXME: replace the name of this with LL_I to conform to kernel stuff
-// static inline struct ll_inode_info *LL_I(struct inode *inode)
+/* FIXME: replace the name of this with LL_I to conform to kernel stuff */
+/* static inline struct ll_inode_info *LL_I(struct inode *inode) */
 static inline struct ll_inode_info *ll_i2info(struct inode *inode)
 {
 	return container_of(inode, struct ll_inode_info, lli_vfs_inode);
@@ -1036,7 +1036,7 @@ static inline struct client_obd *sbi2mdc(struct ll_sb_info *sbi)
 	return &obd->u.cli;
 }
 
-// FIXME: replace the name of this with LL_SB to conform to kernel stuff
+/* FIXME: replace the name of this with LL_SB to conform to kernel stuff */
 static inline struct ll_sb_info *ll_i2sbi(struct inode *inode)
 {
 	return ll_s2sbi(inode->i_sb);
