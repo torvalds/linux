@@ -123,6 +123,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 
 	fbi->screen_base = buffer->kvaddr + offset;
 	fbi->screen_size = size;
+	fbi->fix.smem_len = size;
 
 	return 0;
 }
