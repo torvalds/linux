@@ -835,10 +835,9 @@ static int apci1500_do_write(struct comedi_device *dev,
 	unsigned int ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
 
-	if (!devpriv->b_OutputMemoryStatus) {
+	if (!devpriv->b_OutputMemoryStatus)
 		ui_Temp = 0;
 
-	}			/* if(!devpriv->b_OutputMemoryStatus ) */
 	if (data[3] == 0) {
 		if (data[1] == 0) {
 			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
@@ -1502,12 +1501,11 @@ static int apci1500_timer_write(struct comedi_device *dev,
 		switch (data[1]) {
 		case START:
 			if (i_TimerCounter1Init == 1) {
-				if (i_TimerCounterWatchdogInterrupt == 1) {
+				if (i_TimerCounterWatchdogInterrupt == 1)
 					i_CommandAndStatusValue = 0xC4;	/* Enable the interrupt */
-				}	/*  if(i_TimerCounterWatchdogInterrupt==1) */
-				else {
+				else
 					i_CommandAndStatusValue = 0xE4;	/* disable the interrupt */
-				}	/* elseif(i_TimerCounterWatchdogInterrupt==1) */
+
 				/* Starts timer/counter 1 */
 				i_TimerCounter1Enabled = 1;
 				/* Selects the commands and status register */
@@ -1578,12 +1576,11 @@ static int apci1500_timer_write(struct comedi_device *dev,
 		switch (data[1]) {
 		case START:
 			if (i_TimerCounter2Init == 1) {
-				if (i_TimerCounterWatchdogInterrupt == 1) {
+				if (i_TimerCounterWatchdogInterrupt == 1)
 					i_CommandAndStatusValue = 0xC4;	/* Enable the interrupt */
-				}	/*  if(i_TimerCounterWatchdogInterrupt==1) */
-				else {
+				else
 					i_CommandAndStatusValue = 0xE4;	/* disable the interrupt */
-				}	/* elseif(i_TimerCounterWatchdogInterrupt==1) */
+
 				/* Starts timer/counter 2 */
 				i_TimerCounter2Enabled = 1;
 				/* Selects the commands and status register */
@@ -1652,12 +1649,11 @@ static int apci1500_timer_write(struct comedi_device *dev,
 		case START:
 			if (i_WatchdogCounter3Init == 1) {
 
-				if (i_TimerCounterWatchdogInterrupt == 1) {
+				if (i_TimerCounterWatchdogInterrupt == 1)
 					i_CommandAndStatusValue = 0xC4;	/* Enable the interrupt */
-				}	/*  if(i_TimerCounterWatchdogInterrupt==1) */
-				else {
+				else
 					i_CommandAndStatusValue = 0xE4;	/* disable the interrupt */
-				}	/* elseif(i_TimerCounterWatchdogInterrupt==1) */
+
 				/* Starts Watchdog/counter 3 */
 				i_WatchdogCounter3Enabled = 1;
 				/* Selects the commands and status register */
@@ -2208,12 +2204,10 @@ static void apci1500_interrupt(int irq, void *d)
 			outb(i_RegValue,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
-			if (i_CounterLogic == APCI1500_COUNTER) {
+			if (i_CounterLogic == APCI1500_COUNTER)
 				i_InterruptMask = i_InterruptMask | 0x10;
-			}	/* if(i_CounterLogic==APCI1500_COUNTER) */
-			else {
+			else
 				i_InterruptMask = i_InterruptMask | 0x20;
-			}
 		}		/*  if ((i_RegValue & 0x60) == 0x60) */
 
 		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
