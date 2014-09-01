@@ -21,10 +21,10 @@ enum svc_function_type {
 };
 
 struct svc_msg_header {
-	u8	function;
-	u8	type;		/* enum svc_function_type */
-	u8	version_major;
-	u8	version_minor;
+	__u8	function;
+	__u8	type;		/* enum svc_function_type */
+	__u8	version_major;
+	__u8	version_minor;
 	__le16	payload_length;
 };
 
@@ -35,18 +35,18 @@ enum svc_function_handshake_type {
 };
 
 struct svc_function_handshake {
-	u8	handshake_type;	/* enum svc_function_handshake_type */
+	__u8	handshake_type;	/* enum svc_function_handshake_type */
 };
 
 struct svc_function_unipro_set_route {
-	u8	source_device_id;
-	u8	source_cport_id;
-	u8	destination_device_id;
-	u8	destination_cport_id;
+	__u8	source_device_id;
+	__u8	source_cport_id;
+	__u8	destination_device_id;
+	__u8	destination_cport_id;
 };
 
 struct svc_function_unipro_link_up {
-	u8	device_id;
+	__u8	device_id;
 };
 
 enum svc_function_management_event {
@@ -55,7 +55,7 @@ enum svc_function_management_event {
 };
 
 struct svc_function_unipro_management {
-	u8	management_packet_type;	/* enum svc_function_management_event */
+	__u8	management_packet_type;	/* enum svc_function_management_event */
 	union {
 		struct svc_function_unipro_set_route	set_route;
 		struct svc_function_unipro_link_up	link_up;
@@ -68,8 +68,8 @@ enum svc_function_hotplug_event {
 };
 
 struct svc_function_hotplug {
-	u8	hotplug_event;	/* enum svc_function_hotplug_event */
-	u8	device_id;
+	__u8	hotplug_event;	/* enum svc_function_hotplug_event */
+	__u8	device_id;
 };
 
 enum svc_function_ddb_type {
@@ -78,19 +78,19 @@ enum svc_function_ddb_type {
 };
 
 struct svc_function_ddb_get {
-	u8	device_id;
-	u8	message_id;
+	__u8	device_id;
+	__u8	message_id;
 };
 
 struct svc_function_ddb_response {
-	u8	device_id;
-	u8	message_id;
+	__u8	device_id;
+	__u8	message_id;
 	__le16	descriptor_length;
-	u8	ddb[0];
+	__u8	ddb[0];
 };
 
 struct svc_function_ddb {
-	u8	ddb_type;	/* enum svc_function_ddb_type */
+	__u8	ddb_type;	/* enum svc_function_ddb_type */
 	union {
 		struct svc_function_ddb_get		ddb_get;
 		struct svc_function_ddb_response	ddb_response;
@@ -113,16 +113,16 @@ enum svc_function_battery_status {
 struct svc_function_power_battery_status {
 	__le16	charge_full;
 	__le16	charge_now;
-	u8	status;	/* enum svc_function_battery_status */
+	__u8	status;	/* enum svc_function_battery_status */
 };
 
 struct svc_function_power_battery_status_request {
-	u8	epm_command_type;	/* enum svc_function_epm_command_type */
-	u8	device_id;
+	__u8	epm_command_type;	/* enum svc_function_epm_command_type */
+	__u8	device_id;
 };
 
 struct svc_function_power {
-	u8	power_type;	/* enum svc_function_power_type */
+	__u8	power_type;	/* enum svc_function_power_type */
 	union {
 		struct svc_function_power_battery_status		status;
 		struct svc_function_power_battery_status_request	request;
@@ -135,8 +135,8 @@ enum svc_function_epm_command_type {
 };
 
 struct svc_function_epm {
-	u8	epm_command_type;	/* enum svc_function_epm_command_type */
-	u8	device_id;
+	__u8	epm_command_type;	/* enum svc_function_epm_command_type */
+	__u8	device_id;
 };
 
 enum svc_function_suspend_command_type {
@@ -145,8 +145,8 @@ enum svc_function_suspend_command_type {
 };
 
 struct svc_function_suspend {
-	u8	suspend_command_type;	/* enum function_suspend_command_type */
-	u8	device_id;
+	__u8	suspend_command_type;	/* enum function_suspend_command_type */
+	__u8	device_id;
 };
 
 struct svc_msg {

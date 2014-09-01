@@ -12,8 +12,8 @@
 
 struct greybus_decriptor_block_header {
 	__le16	size;
-	u8	version_major;
-	u8	version_minor;
+	__u8	version_major;
+	__u8	version_minor;
 };
 
 enum greybus_descriptor_type {
@@ -35,8 +35,8 @@ struct greybus_descriptor_deviceid {
 	__le16	vendor;
 	__le16	product;
 	__le16	version;
-	u8	vendor_stringid;
-	u8	product_stringid;
+	__u8	vendor_stringid;
+	__u8	product_stringid;
 };
 
 struct greybus_descriptor_serial_number {
@@ -44,15 +44,15 @@ struct greybus_descriptor_serial_number {
 };
 
 struct greybus_descriptor_string {
-	u8	id;
+	__u8	id;
 	__le16	length;
-	u8	string[0];
+	__u8	string[0];
 };
 
 struct greybus_descriptor_cport {
 	__le16	number;
-	u8	speed;	// FIXME
-	u8	reserved;
+	__u8	speed;	// FIXME
+	__u8	reserved;
 };
 
 enum greybus_function_class {
@@ -75,10 +75,10 @@ enum greybus_function_class {
 struct greybus_descriptor_function {
 	__le16	number;
 	__le16	cport;
-	u8	function_class;		/* enum greybus_function_class */
-	u8	function_subclass;
-	u8	function_protocol;
-	u8	reserved;
+	__u8	function_class;		/* enum greybus_function_class */
+	__u8	function_subclass;
+	__u8	function_protocol;
+	__u8	reserved;
 };
 
 struct greybus_msg_descriptor {
