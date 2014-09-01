@@ -2732,16 +2732,11 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	return pci230_attach_common(dev, pci_dev);
 }
 
-static void pci230_detach(struct comedi_device *dev)
-{
-	comedi_pci_detach(dev);
-}
-
 static struct comedi_driver amplc_pci230_driver = {
 	.driver_name	= "amplc_pci230",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci230_auto_attach,
-	.detach		= pci230_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int amplc_pci230_pci_probe(struct pci_dev *dev,
