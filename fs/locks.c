@@ -1370,7 +1370,6 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 	struct file_lock *new_fl, *flock;
 	struct file_lock *fl;
 	unsigned long break_time;
-	int i_have_this_lease = 0;
 	bool lease_conflict = false;
 	int want_write = (mode & O_ACCMODE) != O_RDONLY;
 	LIST_HEAD(dispose);
@@ -1391,8 +1390,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 	for (fl = flock; fl && IS_LEASE(fl); fl = fl->fl_next) {
 		if (leases_conflict(fl, new_fl)) {
 			lease_conflict = true;
-			if (fl->fl_owner == current->files)
-				i_have_this_lease = 1;
+			break;
 		}
 	}
 	if (!lease_conflict)
@@ -1422,7 +1420,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 		fl->fl_lmops->lm_break(fl);
 	}
 
-	if (i_have_this_lease || (mode & O_NONBLOCK)) {
+	if (mode & O_NONBLOCK) {
 		trace_break_lease_noblock(inode, new_fl);
 		error = -EWOULDBLOCK;
 		goto out;
