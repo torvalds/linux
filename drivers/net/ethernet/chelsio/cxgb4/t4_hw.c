@@ -1403,15 +1403,18 @@ static void pcie_intr_handler(struct adapter *adapter)
 
 	int fat;
 
-	fat = t4_handle_intr_status(adapter,
-				    PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-				    sysbus_intr_info) +
-	      t4_handle_intr_status(adapter,
-				    PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
-				    pcie_port_intr_info) +
-	      t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
-				    is_t4(adapter->params.chip) ?
-				    pcie_intr_info : t5_pcie_intr_info);
+	if (is_t4(adapter->params.chip))
+		fat = t4_handle_intr_status(adapter,
+					    PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
+					    sysbus_intr_info) +
+			t4_handle_intr_status(adapter,
+					      PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
+					      pcie_port_intr_info) +
+			t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
+					      pcie_intr_info);
+	else
+		fat = t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
+					    t5_pcie_intr_info);
 
 	if (fat)
 		t4_fatal_err(adapter);
@@ -1777,10 +1780,16 @@ static void ma_intr_handler(struct adapter *adap)
 {
 	u32 v, status = t4_read_reg(adap, MA_INT_CAUSE);
 
-	if (status & MEM_PERR_INT_CAUSE)
+	if (status & MEM_PERR_INT_CAUSE) {
 		dev_alert(adap->pdev_dev,
 			  "MA parity error, parity status %#x\n",
 			  t4_read_reg(adap, MA_PARITY_ERROR_STATUS));
+		if (is_t5(adap->params.chip))
+			dev_alert(adap->pdev_dev,
+				  "MA parity error, parity status %#x\n",
+				  t4_read_reg(adap,
+					      MA_PARITY_ERROR_STATUS2));
+	}
 	if (status & MEM_WRAP_INT_CAUSE) {
 		v = t4_read_reg(adap, MA_INT_WRAP_STATUS);
 		dev_alert(adap->pdev_dev, "MA address wrap-around error by "

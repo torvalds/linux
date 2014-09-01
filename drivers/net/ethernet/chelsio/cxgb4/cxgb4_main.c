@@ -1253,7 +1253,9 @@ freeout:	t4_free_sge_resources(adap);
 			goto freeout;
 	}
 
-	t4_write_reg(adap, MPS_TRC_RSS_CONTROL,
+	t4_write_reg(adap, is_t4(adap->params.chip) ?
+				MPS_TRC_RSS_CONTROL :
+				MPS_T5_TRC_RSS_CONTROL,
 		     RSSCONTROL(netdev2pinfo(adap->port[0])->tx_chan) |
 		     QUEUENUMBER(s->ethrxq[0].rspq.abs_id));
 	return 0;
