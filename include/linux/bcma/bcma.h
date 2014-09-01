@@ -332,7 +332,6 @@ struct bcma_bus {
 	struct bcma_device *mapped_core;
 	struct list_head cores;
 	u8 nr_cores;
-	u8 init_done:1;
 	u8 num;
 
 	struct bcma_drv_cc drv_cc;

@@ -178,6 +178,9 @@ int __init bcma_host_soc_register(struct bcma_soc *soc)
 	bus->hosttype = BCMA_HOSTTYPE_SOC;
 	bus->ops = &bcma_host_soc_ops;
 
+	/* Initialize struct, detect chip */
+	bcma_init_bus(bus);
+
 	/* Register */
 	err = bcma_bus_early_register(bus, &soc->core_cc, &soc->core_mips);
 	if (err)

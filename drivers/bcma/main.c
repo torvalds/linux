@@ -334,8 +334,6 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 	struct bcma_device *core;
 	struct bcma_device_id match;
 
-	bcma_init_bus(bus);
-
 	match.manuf = BCMA_MANUF_BCM;
 	match.id = bcma_cc_core_id(bus);
 	match.class = BCMA_CL_SIM;
