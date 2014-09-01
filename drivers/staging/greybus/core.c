@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/device.h>
 
@@ -155,8 +156,8 @@ void greybus_deregister(struct greybus_driver *driver)
 EXPORT_SYMBOL_GPL(greybus_deregister);
 
 
-int new_device(struct greybus_device *gdev,
-		      const struct greybus_module_id *id)
+static int gb_init_subdevs(struct greybus_device *gdev,
+			   const struct greybus_module_id *id)
 {
 	int retval;
 
@@ -189,6 +190,118 @@ error_gpio:
 
 error_i2c:
 	return retval;
+}
+
+static const struct greybus_module_id fake_gb_id =
+	{ GREYBUS_DEVICE(0x42, 0x42) };
+
+/**
+ * greybus_new_device:
+ *
+ * Pass in a buffer that _should_ be a set of greybus descriptor fields and spit
+ * out a greybus device structure.
+ */
+struct greybus_device *greybus_new_device(int module_number, u8 *data, int size)
+{
+	struct greybus_device *gdev;
+	struct greybus_descriptor_block_header *block;
+	struct greybus_descriptor *desc;
+	int retval;
+	int overall_size;
+	int header_size;
+	int desc_size;
+	u8 version_major;
+	u8 version_minor;
+
+	/* we have to have at _least_ the block header */
+	if (size <= sizeof(struct greybus_descriptor_block_header))
+		return NULL;
+
+	gdev = kzalloc(sizeof(*gdev), GFP_KERNEL);
+	if (!gdev)
+		return NULL;
+
+	gdev->module_number = module_number;
+
+	block = (struct greybus_descriptor_block_header *)data;
+	overall_size = le16_to_cpu(block->size);
+	if (overall_size != size) {
+		pr_err("size != block header size, %d != %d\n", size,
+				overall_size);
+		goto error;
+	}
+
+	version_major = block->version_major;
+	version_minor = block->version_minor;
+
+	// FIXME - check version major/minor here!
+
+	size -= sizeof(struct greybus_descriptor_block_header);
+	data += sizeof(struct greybus_descriptor_block_header);
+	while (size > 0) {
+		desc = (struct greybus_descriptor *)data;
+		desc_size = le16_to_cpu(desc->header.size);
+
+		switch (desc->header.type) {
+		case GREYBUS_TYPE_FUNCTION:
+			header_size =
+				sizeof(struct greybus_descriptor_function);
+			if (desc_size != header_size) {
+				pr_err("invalid function header size %d\n",
+				       desc_size);
+				goto error;
+			}
+			memcpy(&gdev->function, &desc->function, header_size);
+			size -= header_size;
+			data += header_size;
+			break;
+
+		case GREYBUS_TYPE_MODULE_ID:
+			header_size =
+				sizeof(struct greybus_descriptor_module_id);
+			if (desc_size != header_size) {
+				pr_err("invalid module header size %d\n",
+				       desc_size);
+				goto error;
+			}
+			memcpy(&gdev->module_id, &desc->module_id, header_size);
+			size -= header_size;
+			data += header_size;
+			break;
+
+		case GREYBUS_TYPE_SERIAL_NUMBER:
+			header_size =
+				sizeof(struct greybus_descriptor_serial_number);
+			if (desc_size != header_size) {
+				pr_err("invalid serial number header size %d\n",
+				       desc_size);
+				goto error;
+			}
+			memcpy(&gdev->serial_number, &desc->serial_number,
+			       header_size);
+			size -= header_size;
+			data += header_size;
+			break;
+
+		case GREYBUS_TYPE_DEVICE_STRING:
+		case GREYBUS_TYPE_CPORT:
+		case GREYBUS_TYPE_INVALID:
+		default:
+			pr_err("invalid descriptor type %d\n", desc->header.type);
+			goto error;
+		}
+#if 0
+		struct greybus_descriptor_string	string;
+		struct greybus_descriptor_cport		cport;
+#endif
+	}
+	retval = gb_init_subdevs(gdev, &fake_gb_id);
+	if (retval)
+		goto error;
+	return gdev;
+error:
+	kfree(gdev);
+	return NULL;
 }
 
 void remove_device(struct greybus_device *gdev)

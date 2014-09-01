@@ -10,7 +10,7 @@
 #ifndef __GREYBUS_DESC_H
 #define __GREYBUS_DESC_H
 
-struct greybus_decriptor_block_header {
+struct greybus_descriptor_block_header {
 	__le16	size;
 	__u8	version_major;
 	__u8	version_minor;

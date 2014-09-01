@@ -37,6 +37,7 @@ struct gbuf;
 
 struct cport {
 	u16	number;
+	u16	size;
 	// FIXME, what else?
 };
 
@@ -87,11 +88,12 @@ struct gb_usb_device;
 
 struct greybus_device {
 	struct device dev;
+	u16 module_number;
 	struct greybus_descriptor_function function;
 	struct greybus_descriptor_module_id module_id;
 	struct greybus_descriptor_serial_number serial_number;
 	int num_cport;
-	struct cport cport[0];
+	struct cport *cport[10];		// FIXME - no more than 10 cports per device...
 
 	struct gb_i2c_device *gb_i2c_dev;
 	struct gb_gpio_device *gb_gpio_dev;
