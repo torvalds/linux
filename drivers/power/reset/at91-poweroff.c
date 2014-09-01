@@ -51,7 +51,7 @@ static void __iomem *at91_shdwc_base;
 
 static void __init at91_wakeup_status(void)
 {
-	u32 reg = readl(at91_shdwc_base);
+	u32 reg = readl(at91_shdwc_base + AT91_SHDW_SR);
 	char *reason = "unknown";
 
 	/* Simple power-on, just bail out */
