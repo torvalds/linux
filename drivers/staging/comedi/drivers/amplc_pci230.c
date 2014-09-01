@@ -2869,5 +2869,5 @@ static struct pci_driver amplc_pci230_pci_driver = {
 module_comedi_pci_driver(amplc_pci230_driver, amplc_pci230_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for Amplicon PCI230(+) and PCI260(+)");
 MODULE_LICENSE("GPL");
