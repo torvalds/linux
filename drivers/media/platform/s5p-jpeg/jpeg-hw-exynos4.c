@@ -193,9 +193,9 @@ void exynos4_jpeg_set_sys_int_enable(void __iomem *base, int value)
 	reg = readl(base + EXYNOS4_JPEG_CNTL_REG) & ~(EXYNOS4_SYS_INT_EN);
 
 	if (value == 1)
-		writel(EXYNOS4_SYS_INT_EN, base + EXYNOS4_JPEG_CNTL_REG);
+		writel(reg | EXYNOS4_SYS_INT_EN, base + EXYNOS4_JPEG_CNTL_REG);
 	else
-		writel(~EXYNOS4_SYS_INT_EN, base + EXYNOS4_JPEG_CNTL_REG);
+		writel(reg & ~EXYNOS4_SYS_INT_EN, base + EXYNOS4_JPEG_CNTL_REG);
 }
 
 void exynos4_jpeg_set_stream_buf_address(void __iomem *base,
