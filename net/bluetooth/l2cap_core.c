@@ -5413,6 +5413,11 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 
 	if (test_bit(FLAG_DEFER_SETUP, &chan->flags)) {
 		l2cap_state_change(chan, BT_CONNECT2);
+		/* The following result value is actually not defined
+		 * for LE CoC but we use it to let the function know
+		 * that it should bail out after doing its cleanup
+		 * instead of sending a response.
+		 */
 		result = L2CAP_CR_PEND;
 		chan->ops->defer(chan);
 	} else {
