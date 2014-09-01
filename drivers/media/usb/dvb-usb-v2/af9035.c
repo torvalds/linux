@@ -1728,9 +1728,9 @@ static const struct usb_device_id af9035_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xf900,
 		&af9035_props, "Hauppauge WinTV-MiniStick 2", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_PCTV, USB_PID_PCTV_78E,
-		&af9035_props, "PCTV 78e", RC_MAP_IT913X_V1) },
+		&af9035_props, "PCTV AndroiDTV (78e)", RC_MAP_IT913X_V1) },
 	{ DVB_USB_DEVICE(USB_VID_PCTV, USB_PID_PCTV_79E,
-		&af9035_props, "PCTV 79e", RC_MAP_IT913X_V2) },
+		&af9035_props, "PCTV microStick (79e)", RC_MAP_IT913X_V2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9035_id_table);
