@@ -125,7 +125,7 @@ u16 ft1000_read_dpram(struct net_device *dev, int offset)
 	data = ft1000_read_reg(dev, FT1000_REG_DPRAM_DATA);
 	spin_unlock_irqrestore(&info->dpram_lock, flags);
 
-	return (data);
+	return data;
 }
 
 /*---------------------------------------------------------------------------
@@ -183,7 +183,7 @@ u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset, int Index)
 	}
 	spin_unlock_irqrestore(&info->dpram_lock, flags);
 
-	return (data);
+	return data;
 }
 
 /*---------------------------------------------------------------------------
@@ -240,7 +240,7 @@ u32 ft1000_read_dpram_mag_32(struct net_device *dev, int offset)
 	data = inl(dev->base_addr + FT1000_REG_MAG_DPDATAL);
 	spin_unlock_irqrestore(&info->dpram_lock, flags);
 
-	return (data);
+	return data;
 }
 
 /*---------------------------------------------------------------------------
@@ -1922,7 +1922,8 @@ static int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 static struct net_device_stats *ft1000_stats(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-	return (&info->stats);
+
+	return &info->stats;
 }
 
 static int ft1000_open(struct net_device *dev)

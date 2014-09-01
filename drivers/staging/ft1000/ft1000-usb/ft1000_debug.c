@@ -390,7 +390,7 @@ static unsigned int ft1000_poll_dev(struct file *file, poll_table *wait)
     poll_wait(file, &dev->app_info[i].wait_dpram_msg, wait);
     /* DEBUG("FT1000:ft1000_poll_dev:Polling for data from DSP\n"); */
 
-    return (0);
+	return 0;
 }
 
 /*
