@@ -1232,6 +1232,9 @@ int intel_plane_set_property(struct drm_plane *plane,
 		if (hweight32(val & 0xf) != 1)
 			return -EINVAL;
 
+		if (intel_plane->rotation == val)
+			return 0;
+
 		old_val = intel_plane->rotation;
 		intel_plane->rotation = val;
 		ret = intel_plane_restore(plane);
