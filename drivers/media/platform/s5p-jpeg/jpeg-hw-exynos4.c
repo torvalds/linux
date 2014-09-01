@@ -151,9 +151,6 @@ void exynos4_jpeg_set_enc_out_fmt(void __iomem *base, unsigned int out_fmt)
 
 void exynos4_jpeg_set_interrupt(void __iomem *base)
 {
-	unsigned int reg;
-
-	reg = readl(base + EXYNOS4_INT_EN_REG) & ~EXYNOS4_INT_EN_MASK;
 	writel(EXYNOS4_INT_EN_ALL, base + EXYNOS4_INT_EN_REG);
 }
 
