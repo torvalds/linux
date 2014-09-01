@@ -813,7 +813,7 @@ static int aic31xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u8 iface_reg1 = 0;
-	u8 iface_reg3 = 0;
+	u8 iface_reg2 = 0;
 	u8 dsp_a_val = 0;
 
 	dev_dbg(codec->dev, "## %s: fmt = 0x%x\n", __func__, fmt);
@@ -838,7 +838,7 @@ static int aic31xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		/* NOTE: BCLKINV bit value 1 equas NB and 0 equals IB */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
-			iface_reg3 |= AIC31XX_BCLKINV_MASK;
+			iface_reg2 |= AIC31XX_BCLKINV_MASK;
 			break;
 		case SND_SOC_DAIFMT_IB_NF:
 			break;
@@ -870,7 +870,7 @@ static int aic31xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			    dsp_a_val);
 	snd_soc_update_bits(codec, AIC31XX_IFACE2,
 			    AIC31XX_BCLKINV_MASK,
-			    iface_reg3);
+			    iface_reg2);
 
 	return 0;
 }
