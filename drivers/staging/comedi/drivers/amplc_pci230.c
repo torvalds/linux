@@ -563,16 +563,13 @@ static unsigned short pci230_ai_read(struct comedi_device *dev)
 	/*
 	 * PCI230 is 12 bit - stored in upper bits of 16 bit register
 	 * (lower four bits reserved for expansion).  PCI230+ is 16 bit AI.
-	 */
-	data = data >> (16 - thisboard->ai_bits);
-
-	/*
+	 *
 	 * If a bipolar range was specified, mangle it
 	 * (twos complement->straight binary).
 	 */
 	if (devpriv->ai_bipolar)
-		data ^= 1 << (thisboard->ai_bits - 1);
-
+		data ^= 0x8000;
+	data >>= (16 - thisboard->ai_bits);
 	return data;
 }
 
