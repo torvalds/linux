@@ -2582,8 +2582,6 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	thisboard = comedi_board(dev);
 	devpriv = dev->private;
 
-	comedi_set_hw_dev(dev, &pci_dev->dev);
-
 	dev->board_name = thisboard->name;
 
 	rc = comedi_pci_enable(dev);
