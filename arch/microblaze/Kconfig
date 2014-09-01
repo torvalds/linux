@@ -127,7 +127,7 @@ config SECCOMP
 
 endmenu
 
-menu "Advanced setup"
+menu "Kernel features"
 
 config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
