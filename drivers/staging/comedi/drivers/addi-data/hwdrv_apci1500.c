@@ -986,7 +986,7 @@ static int apci1500_timer_config(struct comedi_device *dev,
 
 	devpriv->tsk_Current = current;
 
-/* Selection of the input clock */
+	/* Selection of the input clock */
 	if (data[0] == 0 || data[0] == 1 || data[0] == 2) {
 		outw(data[0], devpriv->i_IobaseAddon + APCI1500_CLK_SELECT);
 	} else {
@@ -2180,7 +2180,6 @@ static void apci1500_interrupt(int irq, void *d)
 			"Interrupt from unknown source\n");
 
 	}
-	return;
 }
 
 static int apci1500_reset(struct comedi_device *dev)
@@ -2329,36 +2328,36 @@ static int apci1500_reset(struct comedi_device *dev)
 	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* reset all the digital outputs */
 	outw(0x0, devpriv->i_IobaseAddon + APCI1500_DIGITAL_OP);
-/* Disable the board interrupt */
+	/* Disable the board interrupt */
 	/* Selects the master interrupt control register */
 	outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-/* Deactivates all interrupts */
+	/* Deactivates all interrupts */
 	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Selects the command and status register of port A */
 	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-/* Deactivates all interrupts */
+	/* Deactivates all interrupts */
 	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Selects the command and status register of port B */
 	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-/* Deactivates all interrupts */
+	/* Deactivates all interrupts */
 	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Selects the command and status register of timer 1 */
 	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-/* Deactivates all interrupts */
+	/* Deactivates all interrupts */
 	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Selects the command and status register of timer 2 */
 	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-/* Deactivates all interrupts */
+	/* Deactivates all interrupts */
 	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-/* Selects the command and status register of timer 3*/
+	/* Selects the command and status register of timer 3*/
 	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-/* Deactivates all interrupts */
+	/* Deactivates all interrupts */
 	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	return 0;
 }
