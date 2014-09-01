@@ -1293,9 +1293,12 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 		/*
 		 * Flush input queues.
 		 */
-		ch->ch_r_head = ch->ch_r_tail = 0;
-		ch->ch_e_head = ch->ch_e_tail = 0;
-		ch->ch_w_head = ch->ch_w_tail = 0;
+		ch->ch_r_head = 0;
+		ch->ch_r_tail = 0;
+		ch->ch_e_head = 0;
+		ch->ch_e_tail = 0;
+		ch->ch_w_head = 0;
+		ch->ch_w_tail = 0;
 
 		brd->bd_ops->flush_uart_write(ch);
 		brd->bd_ops->flush_uart_read(ch);

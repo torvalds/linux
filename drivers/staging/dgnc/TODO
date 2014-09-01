@@ -1,6 +1,4 @@
 * checkpatch fixes
-* split two assignments into the two assignments on two lines;
-  don't use two equals signs
 * remove unecessary comments
 * remove unecessary error messages. Example kzalloc() has its 
   own error message. Adding an extra one is useless.

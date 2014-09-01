@@ -410,14 +410,16 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	unsigned long flags;
 
 	/* get the board structure and prep it */
-	brd = dgnc_Board[dgnc_NumBoards] =
-		kzalloc(sizeof(*brd), GFP_KERNEL);
+	dgnc_Board[dgnc_NumBoards] = kzalloc(sizeof(*brd), GFP_KERNEL);
+	brd = dgnc_Board[dgnc_NumBoards];
+
 	if (!brd)
 		return -ENOMEM;
 
 	/* make a temporary message buffer for the boot messages */
-	brd->msgbuf = brd->msgbuf_head =
-		kzalloc(sizeof(u8) * 8192, GFP_KERNEL);
+	brd->msgbuf_head = kzalloc(sizeof(u8) * 8192, GFP_KERNEL);
+	brd->msgbuf = brd->msgbuf_head;
+
 	if (!brd->msgbuf) {
 		kfree(brd);
 		return -ENOMEM;

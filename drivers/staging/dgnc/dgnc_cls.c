@@ -493,9 +493,12 @@ static void cls_param(struct tty_struct *tty)
 	 * If baud rate is zero, flush queues, and set mval to drop DTR.
 	 */
 	if ((ch->ch_c_cflag & (CBAUD)) == 0) {
-		ch->ch_r_head = ch->ch_r_tail = 0;
-		ch->ch_e_head = ch->ch_e_tail = 0;
-		ch->ch_w_head = ch->ch_w_tail = 0;
+		ch->ch_r_head = 0;
+		ch->ch_r_tail = 0;
+		ch->ch_e_head = 0;
+		ch->ch_e_tail = 0;
+		ch->ch_w_head = 0;
+		ch->ch_w_tail = 0;
 
 		cls_flush_uart_write(ch);
 		cls_flush_uart_read(ch);
@@ -627,7 +630,8 @@ static void cls_param(struct tty_struct *tty)
 		break;
 	}
 
-	ier = uart_ier = readb(&ch->ch_cls_uart->ier);
+	uart_ier = readb(&ch->ch_cls_uart->ier);
+	ier =  uart_ier;
 	uart_lcr = readb(&ch->ch_cls_uart->lcr);
 
 	if (baud == 0)
@@ -915,7 +919,8 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * I hope thats okay with everyone? Yes? Good.
 		 */
 		while (qleft < 1) {
-			ch->ch_r_tail = tail = (tail + 1) & RQUEUEMASK;
+			tail = (tail + 1) & RQUEUEMASK;
+			ch->ch_r_tail = tail;
 			ch->ch_err_overrun++;
 			qleft++;
 		}
