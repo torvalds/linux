@@ -454,7 +454,6 @@ enum {
 struct pci230_board {
 	const char *name;
 	unsigned short id;
-	int ai_chans;
 	int ai_bits;
 	int ao_chans;
 	int ao_bits;
@@ -466,7 +465,6 @@ static const struct pci230_board pci230_boards[] = {
 	{
 		.name		= "pci230+",
 		.id		= PCI_DEVICE_ID_PCI230,
-		.ai_chans	= 16,
 		.ai_bits	= 16,
 		.ao_chans	= 2,
 		.ao_bits	= 12,
@@ -476,14 +474,12 @@ static const struct pci230_board pci230_boards[] = {
 	{
 		.name		= "pci260+",
 		.id		= PCI_DEVICE_ID_PCI260,
-		.ai_chans	= 16,
 		.ai_bits	= 16,
 		.min_hwver	= 1,
 	},
 	{
 		.name		= "pci230",
 		.id		= PCI_DEVICE_ID_PCI230,
-		.ai_chans	= 16,
 		.ai_bits	= 12,
 		.ao_chans	= 2,
 		.ao_bits	= 12,
@@ -492,7 +488,6 @@ static const struct pci230_board pci230_boards[] = {
 	{
 		.name		= "pci260",
 		.id		= PCI_DEVICE_ID_PCI260,
-		.ai_chans	= 16,
 		.ai_bits	= 12,
 	},
 };
@@ -2660,7 +2655,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
-	s->n_chan = thisboard->ai_chans;
+	s->n_chan = 16;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &pci230_ai_range;
 	s->insn_read = pci230_ai_rinsn;
