@@ -613,8 +613,8 @@ static void pci230_ao_write_fifo(struct comedi_device *dev,
 	     devpriv->daqio + PCI230P2_DACDATA);
 }
 
-static int get_resources(struct comedi_device *dev, unsigned int res_mask,
-			 unsigned char owner)
+static int pci230_get_resources(struct comedi_device *dev,
+				unsigned int res_mask, unsigned char owner)
 {
 	struct pci230_private *devpriv = dev->private;
 	int ok;
@@ -649,14 +649,14 @@ static int get_resources(struct comedi_device *dev, unsigned int res_mask,
 	return ok;
 }
 
-static int get_one_resource(struct comedi_device *dev,
-			    unsigned int resource, unsigned char owner)
+static int pci230_get_one_resource(struct comedi_device *dev,
+				   unsigned int resource, unsigned char owner)
 {
-	return get_resources(dev, 1U << resource, owner);
+	return pci230_get_resources(dev, 1U << resource, owner);
 }
 
-static void put_resources(struct comedi_device *dev, unsigned int res_mask,
-			  unsigned char owner)
+static void pci230_put_resources(struct comedi_device *dev,
+				 unsigned int res_mask, unsigned char owner)
 {
 	struct pci230_private *devpriv = dev->private;
 	unsigned int i;
@@ -674,19 +674,20 @@ static void put_resources(struct comedi_device *dev, unsigned int res_mask,
 	spin_unlock_irqrestore(&devpriv->res_spinlock, irqflags);
 }
 
-static void put_one_resource(struct comedi_device *dev,
-			     unsigned int resource, unsigned char owner)
+static void pci230_put_one_resource(struct comedi_device *dev,
+				    unsigned int resource, unsigned char owner)
 {
-	put_resources(dev, 1U << resource, owner);
+	pci230_put_resources(dev, 1U << resource, owner);
 }
 
-static void put_all_resources(struct comedi_device *dev, unsigned char owner)
+static void pci230_put_all_resources(struct comedi_device *dev,
+				     unsigned char owner)
 {
-	put_resources(dev, (1U << NUM_RESOURCES) - 1, owner);
+	pci230_put_resources(dev, (1U << NUM_RESOURCES) - 1, owner);
 }
 
-static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
-			      unsigned int flags)
+static unsigned int pci230_divide_ns(uint64_t ns, unsigned int timebase,
+				     unsigned int flags)
 {
 	uint64_t div;
 	unsigned int rem;
@@ -717,7 +718,7 @@ static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
 	unsigned int clk_src, cnt;
 
 	for (clk_src = CLK_10MHZ;; clk_src++) {
-		cnt = divide_ns(ns, pci230_timebase[clk_src], flags);
+		cnt = pci230_divide_ns(ns, pci230_timebase[clk_src], flags);
 		if (cnt <= 65536 || clk_src == CLK_1KHZ)
 			break;
 	}
@@ -1112,7 +1113,7 @@ static void pci230_ao_stop(struct comedi_device *dev,
 		     devpriv->daqio + PCI230_DACCON);
 	}
 	/* Release resources. */
-	put_all_resources(dev, OWNER_AOCMD);
+	pci230_put_all_resources(dev, OWNER_AOCMD);
 }
 
 static void pci230_handle_ao_nofifo(struct comedi_device *dev,
@@ -1408,7 +1409,7 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* Claim Z2-CT1. */
-		if (!get_one_resource(dev, RES_Z2CT1, OWNER_AOCMD))
+		if (!pci230_get_one_resource(dev, RES_Z2CT1, OWNER_AOCMD))
 			return -EBUSY;
 	}
 
@@ -1963,7 +1964,7 @@ static void pci230_ai_stop(struct comedi_device *dev,
 	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
 	     devpriv->daqio + PCI230_ADCCON);
 	/* Release resources. */
-	put_all_resources(dev, OWNER_AICMD);
+	pci230_put_all_resources(dev, OWNER_AICMD);
 }
 
 static void pci230_ai_start(struct comedi_device *dev,
@@ -2112,7 +2113,7 @@ static void pci230_ai_start(struct comedi_device *dev,
 			}
 		} else if (cmd->convert_src != TRIG_INT) {
 			/* No longer need Z2-CT2. */
-			put_one_resource(dev, RES_Z2CT2, OWNER_AICMD);
+			pci230_put_one_resource(dev, RES_Z2CT2, OWNER_AICMD);
 		}
 	}
 }
@@ -2253,7 +2254,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 	}
 	/* Claim resources. */
-	if (!get_resources(dev, res_mask, OWNER_AICMD))
+	if (!pci230_get_resources(dev, res_mask, OWNER_AICMD))
 		return -EBUSY;
 
 	/* Get number of scans required. */
