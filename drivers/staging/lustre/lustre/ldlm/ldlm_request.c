@@ -569,7 +569,8 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 		if (lvb_len != 0)
 			rc = ldlm_fill_lvb(lock, &req->rq_pill, RCL_SERVER,
 					   lvb, size);
-		rc = (rc != 0 ? rc : ELDLM_LOCK_ABORTED);
+		if (rc == 0)
+			rc = ELDLM_LOCK_ABORTED;
 		goto cleanup;
 	}
 
