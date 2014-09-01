@@ -445,6 +445,7 @@ struct mac_device_info {
 	int multicast_filter_bins;
 	int unicast_filter_entries;
 	int mcast_bits_log2;
+	unsigned int rx_csum;
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,

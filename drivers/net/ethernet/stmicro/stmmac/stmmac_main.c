@@ -1673,6 +1673,7 @@ static int stmmac_hw_setup(struct net_device *dev)
 	if (!ret) {
 		pr_warn(" RX IPC Checksum Offload disabled\n");
 		priv->plat->rx_coe = STMMAC_RX_COE_NONE;
+		priv->hw->rx_csum = 0;
 	}
 
 	/* Enable the MAC Rx/Tx */
@@ -2111,7 +2112,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 	unsigned int entry = priv->cur_rx % rxsize;
 	unsigned int next_entry;
 	unsigned int count = 0;
-	int coe = priv->plat->rx_coe;
+	int coe = priv->hw->rx_csum;
 
 	if (netif_msg_rx_status(priv)) {
 		pr_debug("%s: descriptor ring:\n", __func__);
@@ -2334,6 +2335,7 @@ static netdev_features_t stmmac_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_RXCSUM;
 	else if (priv->plat->rx_coe == STMMAC_RX_COE_TYPE1)
 		features &= ~NETIF_F_IPV6_CSUM;
+
 	if (!priv->plat->tx_coe)
 		features &= ~NETIF_F_ALL_CSUM;
 
@@ -2346,6 +2348,24 @@ static netdev_features_t stmmac_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_ALL_CSUM;
 
 	return features;
+}
+
+static int stmmac_set_features(struct net_device *netdev,
+			       netdev_features_t features)
+{
+	struct stmmac_priv *priv = netdev_priv(netdev);
+
+	/* Keep the COE Type in case of csum is supporting */
+	if (features & NETIF_F_RXCSUM)
+		priv->hw->rx_csum = priv->plat->rx_coe;
+	else
+		priv->hw->rx_csum = 0;
+	/* No check needed because rx_coe has been set before and it will be
+	 * fixed in case of issue.
+	 */
+	priv->hw->mac->rx_ipc(priv->hw);
+
+	return 0;
 }
 
 /**
@@ -2628,6 +2648,7 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_stop = stmmac_release,
 	.ndo_change_mtu = stmmac_change_mtu,
 	.ndo_fix_features = stmmac_fix_features,
+	.ndo_set_features = stmmac_set_features,
 	.ndo_set_rx_mode = stmmac_set_rx_mode,
 	.ndo_tx_timeout = stmmac_tx_timeout,
 	.ndo_do_ioctl = stmmac_ioctl,
@@ -2704,9 +2725,11 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* To use alternate (extended) or normal descriptor structures */
 	stmmac_selec_desc_mode(priv);
 
-	if (priv->plat->rx_coe)
+	if (priv->plat->rx_coe) {
+		priv->hw->rx_csum = priv->plat->rx_coe;
 		pr_info(" RX Checksum Offload Engine supported (type %d)\n",
 			priv->plat->rx_coe);
+	}
 	if (priv->plat->tx_coe)
 		pr_info(" TX Checksum insertion supported\n");
 
