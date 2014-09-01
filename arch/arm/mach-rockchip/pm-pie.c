@@ -95,7 +95,7 @@ static void __sramfunc rkpm_sram_suspend(u32 ctrbits)
     
         rkpm_sram_printch('9');
                 
-       RKPM_BITCTR_SRAM_FUN(GTCLKS,gtclks);
+      /* RKPM_BITCTR_SRAM_FUN(GTCLKS,gtclks);*/
 	
 	RKPM_BITSCTR_SRAM_PFUN(RKPM_CTR_SYSCLK,sysclk(rkpm_sram_ctrbits),sysclk);
 	
@@ -111,7 +111,7 @@ static void __sramfunc rkpm_sram_suspend(u32 ctrbits)
      
 	RKPM_BITSCTR_SRAM_PFUN(RKPM_CTR_SYSCLK,re_sysclk(rkpm_sram_ctrbits),re_sysclk);
     
-	RKPM_BITCTR_SRAM_FUN(GTCLKS,re_gtclks);
+	/*RKPM_BITCTR_SRAM_FUN(GTCLKS,re_gtclks);*/
     
 	rkpm_sram_printch('9');
 	RKPM_BITCTR_SRAM_FUN(VOLTS,re_volts);
