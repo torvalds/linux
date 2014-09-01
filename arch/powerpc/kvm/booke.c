@@ -1822,10 +1822,8 @@ void kvmppc_clr_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
 	update_timer_ints(vcpu);
 }
 
-void kvmppc_decrementer_func(unsigned long data)
+void kvmppc_decrementer_func(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
-
 	if (vcpu->arch.tcr & TCR_ARE) {
 		vcpu->arch.dec = vcpu->arch.decar;
 		kvmppc_emulate_dec(vcpu);

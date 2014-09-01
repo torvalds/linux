@@ -718,10 +718,8 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
-void kvmppc_decrementer_func(unsigned long data)
+void kvmppc_decrementer_func(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
-
 	kvmppc_core_queue_dec(vcpu);
 	kvm_vcpu_kick(vcpu);
 }

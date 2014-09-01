@@ -606,7 +606,6 @@ struct kvm_vcpu_arch {
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 
 	struct hrtimer dec_timer;
-	struct tasklet_struct tasklet;
 	u64 dec_jiffies;
 	u64 dec_expires;
 	unsigned long pending_exceptions;

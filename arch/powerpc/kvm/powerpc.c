@@ -638,7 +638,6 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	/* Make sure we're not using the vcpu anymore */
 	hrtimer_cancel(&vcpu->arch.dec_timer);
-	tasklet_kill(&vcpu->arch.tasklet);
 
 	kvmppc_remove_vcpu_debugfs(vcpu);
 
@@ -664,16 +663,12 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return kvmppc_core_pending_dec(vcpu);
 }
 
-/*
- * low level hrtimer wake routine. Because this runs in hardirq context
- * we schedule a tasklet to do the real work.
- */
 enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.dec_timer);
-	tasklet_schedule(&vcpu->arch.tasklet);
+	kvmppc_decrementer_func(vcpu);
 
 	return HRTIMER_NORESTART;
 }
@@ -683,7 +678,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	int ret;
 
 	hrtimer_init(&vcpu->arch.dec_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	tasklet_init(&vcpu->arch.tasklet, kvmppc_decrementer_func, (ulong)vcpu);
 	vcpu->arch.dec_timer.function = kvmppc_decrementer_wakeup;
 	vcpu->arch.dec_expires = ~(u64)0;
 
