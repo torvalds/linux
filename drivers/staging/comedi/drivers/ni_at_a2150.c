@@ -705,7 +705,11 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	dev->board_ptr = a2150_boards + a2150_probe(dev);
+	i = a2150_probe(dev);
+	if (i >= ARRAY_SIZE(a2150_boards))
+		return -ENODEV;
+
+	dev->board_ptr = a2150_boards + i;
 	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
 
