@@ -204,11 +204,6 @@ static unsigned long gpmc_get_fclk_period(void)
 {
 	unsigned long rate = clk_get_rate(gpmc_l3_clk);
 
-	if (rate == 0) {
-		printk(KERN_WARNING "gpmc_l3_clk not enabled\n");
-		return 0;
-	}
-
 	rate /= 1000;
 	rate = 1000000000 / rate;	/* In picoseconds */
 
@@ -1692,11 +1687,16 @@ static int gpmc_probe(struct platform_device *pdev)
 	else
 		gpmc_irq = res->start;
 
-	gpmc_l3_clk = clk_get(&pdev->dev, "fck");
+	gpmc_l3_clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(gpmc_l3_clk)) {
-		dev_err(&pdev->dev, "error: clk_get\n");
+		dev_err(&pdev->dev, "Failed to get GPMC fck\n");
 		gpmc_irq = 0;
 		return PTR_ERR(gpmc_l3_clk);
+	}
+
+	if (!clk_get_rate(gpmc_l3_clk)) {
+		dev_err(&pdev->dev, "Invalid GPMC fck clock rate\n");
+		return -EINVAL;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -1741,7 +1741,6 @@ static int gpmc_probe(struct platform_device *pdev)
 	rc = gpmc_probe_dt(pdev);
 	if (rc < 0) {
 		pm_runtime_put_sync(&pdev->dev);
-		clk_put(gpmc_l3_clk);
 		dev_err(gpmc_dev, "failed to probe DT parameters\n");
 		return rc;
 	}
