@@ -1262,78 +1262,73 @@ static void pci230_ao_start(struct comedi_device *dev,
 		async->events |= COMEDI_CB_EOA;
 		pci230_ao_stop(dev, s);
 		comedi_event(dev, s);
-	} else {
-		if (devpriv->hwver >= 2) {
-			/* Using DAC FIFO. */
-			unsigned short scantrig;
-			int run;
+		return;
+	}
+	if (devpriv->hwver >= 2) {
+		/* Using DAC FIFO. */
+		unsigned short scantrig;
+		int run;
 
-			/* Preload FIFO data. */
-			run = pci230_handle_ao_fifo(dev, s);
-			comedi_event(dev, s);
-			if (!run) {
-				/* Stopped. */
-				return;
-			}
-			/* Set scan trigger source. */
-			switch (cmd->scan_begin_src) {
-			case TRIG_TIMER:
-				scantrig = PCI230P2_DAC_TRIG_Z2CT1;
-				break;
-			case TRIG_EXT:
-				/* Trigger on EXTTRIG/EXTCONVCLK pin. */
-				if ((cmd->scan_begin_arg & CR_INVERT) == 0) {
-					/* +ve edge */
-					scantrig = PCI230P2_DAC_TRIG_EXTP;
-				} else {
-					/* -ve edge */
-					scantrig = PCI230P2_DAC_TRIG_EXTN;
-				}
-				break;
-			case TRIG_INT:
-				scantrig = PCI230P2_DAC_TRIG_SW;
-				break;
-			default:
-				/* Shouldn't get here. */
-				scantrig = PCI230P2_DAC_TRIG_NONE;
-				break;
-			}
-			devpriv->daccon =
-			    (devpriv->daccon & ~PCI230P2_DAC_TRIG_MASK) |
-			    scantrig;
-			outw(devpriv->daccon, devpriv->daqio + PCI230_DACCON);
+		/* Preload FIFO data. */
+		run = pci230_handle_ao_fifo(dev, s);
+		comedi_event(dev, s);
+		if (!run) {
+			/* Stopped. */
+			return;
 		}
+		/* Set scan trigger source. */
 		switch (cmd->scan_begin_src) {
 		case TRIG_TIMER:
-			if (devpriv->hwver < 2) {
-				/* Not using DAC FIFO. */
-				/* Enable CT1 timer interrupt. */
-				spin_lock_irqsave(&devpriv->isr_spinlock,
-						  irqflags);
-				devpriv->int_en |= PCI230_INT_ZCLK_CT1;
-				devpriv->ier |= PCI230_INT_ZCLK_CT1;
-				outb(devpriv->ier,
-				     dev->iobase + PCI230_INT_SCE);
-				spin_unlock_irqrestore(&devpriv->isr_spinlock,
-						       irqflags);
+			scantrig = PCI230P2_DAC_TRIG_Z2CT1;
+			break;
+		case TRIG_EXT:
+			/* Trigger on EXTTRIG/EXTCONVCLK pin. */
+			if ((cmd->scan_begin_arg & CR_INVERT) == 0) {
+				/* +ve edge */
+				scantrig = PCI230P2_DAC_TRIG_EXTP;
+			} else {
+				/* -ve edge */
+				scantrig = PCI230P2_DAC_TRIG_EXTN;
 			}
-			/* Set CT1 gate high to start counting. */
-			outb(GAT_CONFIG(1, GAT_VCC),
-			     dev->iobase + PCI230_ZGAT_SCE);
 			break;
 		case TRIG_INT:
-			async->inttrig = pci230_ao_inttrig_scan_begin;
+			scantrig = PCI230P2_DAC_TRIG_SW;
+			break;
+		default:
+			/* Shouldn't get here. */
+			scantrig = PCI230P2_DAC_TRIG_NONE;
 			break;
 		}
-		if (devpriv->hwver >= 2) {
-			/* Using DAC FIFO.  Enable DAC FIFO interrupt. */
+		devpriv->daccon =
+		    (devpriv->daccon & ~PCI230P2_DAC_TRIG_MASK) | scantrig;
+		outw(devpriv->daccon, devpriv->daqio + PCI230_DACCON);
+	}
+	switch (cmd->scan_begin_src) {
+	case TRIG_TIMER:
+		if (devpriv->hwver < 2) {
+			/* Not using DAC FIFO. */
+			/* Enable CT1 timer interrupt. */
 			spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-			devpriv->int_en |= PCI230P2_INT_DAC;
-			devpriv->ier |= PCI230P2_INT_DAC;
+			devpriv->int_en |= PCI230_INT_ZCLK_CT1;
+			devpriv->ier |= PCI230_INT_ZCLK_CT1;
 			outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
 			spin_unlock_irqrestore(&devpriv->isr_spinlock,
 					       irqflags);
 		}
+		/* Set CT1 gate high to start counting. */
+		outb(GAT_CONFIG(1, GAT_VCC), dev->iobase + PCI230_ZGAT_SCE);
+		break;
+	case TRIG_INT:
+		async->inttrig = pci230_ao_inttrig_scan_begin;
+		break;
+	}
+	if (devpriv->hwver >= 2) {
+		/* Using DAC FIFO.  Enable DAC FIFO interrupt. */
+		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
+		devpriv->int_en |= PCI230P2_INT_DAC;
+		devpriv->ier |= PCI230P2_INT_DAC;
+		outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
+		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 	}
 }
 
