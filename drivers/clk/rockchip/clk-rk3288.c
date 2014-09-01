@@ -20,7 +20,7 @@
 #include "clk.h"
 
 #define RK3288_GRF_SOC_CON(x)	(0x244 + x * 4)
-#define RK3288_GRF_SOC_STATUS	0x280
+#define RK3288_GRF_SOC_STATUS1	0x284
 
 enum rk3288_plls {
 	apll, dpll, cpll, gpll, npll,
@@ -733,7 +733,7 @@ static void __init rk3288_clk_init(struct device_node *np)
 
 	rockchip_clk_register_plls(rk3288_pll_clks,
 				   ARRAY_SIZE(rk3288_pll_clks),
-				   RK3288_GRF_SOC_STATUS);
+				   RK3288_GRF_SOC_STATUS1);
 	rockchip_clk_register_branches(rk3288_clk_branches,
 				  ARRAY_SIZE(rk3288_clk_branches));
 	rockchip_clk_protect_critical(rk3288_critical_clocks,
