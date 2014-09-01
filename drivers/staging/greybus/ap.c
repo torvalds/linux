@@ -106,6 +106,8 @@ int gb_new_ap_msg(u8 *data, int size)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(gb_new_ap_msg);
+
 
 int gb_thread_init(void)
 {
