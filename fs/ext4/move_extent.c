@@ -32,20 +32,21 @@
  */
 static inline int
 get_ext_path(struct inode *inode, ext4_lblk_t lblock,
-		struct ext4_ext_path **orig_path)
+		struct ext4_ext_path **ppath)
 {
-	int ret = 0;
 	struct ext4_ext_path *path;
 
-	path = ext4_ext_find_extent(inode, lblock, orig_path, EXT4_EX_NOCACHE);
+	path = ext4_ext_find_extent(inode, lblock, ppath, EXT4_EX_NOCACHE);
 	if (IS_ERR(path))
-		ret = PTR_ERR(path);
-	else if (path[ext_depth(inode)].p_ext == NULL)
-		ret = -ENODATA;
-	else
-		*orig_path = path;
-
-	return ret;
+		return PTR_ERR(path);
+	if (path[ext_depth(inode)].p_ext == NULL) {
+		ext4_ext_drop_refs(path);
+		kfree(path);
+		*ppath = NULL;
+		return -ENODATA;
+	}
+	*ppath = path;
+	return 0;
 }
 
 /**
@@ -667,7 +668,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 			}
 			d_start += next_blk - o_start;
 			o_start = next_blk;
-			goto repeat;
+			continue;
 		/* Check hole after the start pos */
 		} else if (cur_blk > o_start) {
 			/* Skip hole */
@@ -708,10 +709,6 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 			break;
 		o_start += cur_len;
 		d_start += cur_len;
-	repeat:
-		ext4_ext_drop_refs(path);
-		kfree(path);
-		path = NULL;
 	}
 	*moved_len = o_start - orig_blk;
 	if (*moved_len > len)
