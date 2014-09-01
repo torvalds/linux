@@ -4802,7 +4802,8 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 		max_blocks -= lblk;
 
 	flags = EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT |
-		EXT4_GET_BLOCKS_CONVERT_UNWRITTEN;
+		EXT4_GET_BLOCKS_CONVERT_UNWRITTEN |
+		EXT4_EX_NOCACHE;
 	if (mode & FALLOC_FL_KEEP_SIZE)
 		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
 
@@ -4840,15 +4841,21 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 		ext4_inode_block_unlocked_dio(inode);
 		inode_dio_wait(inode);
 
-		/*
-		 * Remove entire range from the extent status tree.
-		 */
-		ret = ext4_es_remove_extent(inode, lblk, max_blocks);
-		if (ret)
-			goto out_dio;
-
 		ret = ext4_alloc_file_blocks(file, lblk, max_blocks, new_size,
 					     flags, mode);
+		if (ret)
+			goto out_dio;
+		/*
+		 * Remove entire range from the extent status tree.
+		 *
+		 * ext4_es_remove_extent(inode, lblk, max_blocks) is
+		 * NOT sufficient.  I'm not sure why this is the case,
+		 * but let's be conservative and remove the extent
+		 * status tree for the entire inode.  There should be
+		 * no outstanding delalloc extents thanks to the
+		 * filemap_write_and_wait_range() call above.
+		 */
+		ret = ext4_es_remove_extent(inode, 0, EXT_MAX_BLOCKS);
 		if (ret)
 			goto out_dio;
 	}
