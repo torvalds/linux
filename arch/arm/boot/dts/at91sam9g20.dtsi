@@ -40,6 +40,7 @@
 				};
 
 				pllb: pllbck {
+					compatible = "atmel,at91sam9g20-clk-pllb";
 					atmel,clk-input-range = <2000000 32000000>;
 					atmel,pll-clk-output-ranges = <30000000 100000000 0 0>;
 				};
