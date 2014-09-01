@@ -774,9 +774,9 @@ static int pci230_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int pci230_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int pci230_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci230_private *devpriv = dev->private;
 	unsigned int n;
@@ -2649,7 +2649,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &pci230_ai_range;
-	s->insn_read = pci230_ai_rinsn;
+	s->insn_read = pci230_ai_insn_read;
 	s->len_chanlist = 256;	/* but there are restrictions. */
 	if (dev->irq) {
 		dev->read_subdev = s;
