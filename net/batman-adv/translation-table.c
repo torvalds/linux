@@ -2769,9 +2769,8 @@ static bool batadv_send_tt_response(struct batadv_priv *bat_priv,
 {
 	if (batadv_is_my_mac(bat_priv, req_dst))
 		return batadv_send_my_tt_response(bat_priv, tt_data, req_src);
-	else
-		return batadv_send_other_tt_response(bat_priv, tt_data,
-						     req_src, req_dst);
+	return batadv_send_other_tt_response(bat_priv, tt_data, req_src,
+					     req_dst);
 }
 
 static void _batadv_tt_update_changes(struct batadv_priv *bat_priv,
