@@ -2570,8 +2570,8 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 	return rc;
 }
 
-static struct sk_buff *xmit_list(struct sk_buff *first, struct net_device *dev,
-				 struct netdev_queue *txq, int *ret)
+struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *dev,
+				    struct netdev_queue *txq, int *ret)
 {
 	struct sk_buff *skb = first;
 	int rc = NETDEV_TX_OK;
@@ -2671,17 +2671,6 @@ out_kfree_skb:
 	kfree_skb(skb);
 out_null:
 	return NULL;
-}
-
-struct sk_buff *dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
-				    struct netdev_queue *txq, int *ret)
-{
-	if (likely(!skb->next)) {
-		*ret = xmit_one(skb, dev, txq, false);
-		return skb;
-	}
-
-	return xmit_list(skb, dev, txq, ret);
 }
 
 static void qdisc_pkt_len_init(struct sk_buff *skb)
