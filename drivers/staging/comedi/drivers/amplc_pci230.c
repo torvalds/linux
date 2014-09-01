@@ -2557,14 +2557,30 @@ static int pci230_alloc_private(struct comedi_device *dev)
 	return 0;
 }
 
-/* Common part of attach and auto_attach. */
-static int pci230_attach_common(struct comedi_device *dev,
-				struct pci_dev *pci_dev)
+static int pci230_auto_attach(struct comedi_device *dev,
+			      unsigned long context_unused)
 {
-	const struct pci230_board *thisboard = comedi_board(dev);
-	struct pci230_private *devpriv = dev->private;
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
+	const struct pci230_board *thisboard;
+	struct pci230_private *devpriv;
 	struct comedi_subdevice *s;
 	int rc;
+
+	dev_info(dev->class_dev, "amplc_pci230: attach pci %s\n",
+		 pci_name(pci_dev));
+
+	rc = pci230_alloc_private(dev);
+	if (rc)
+		return rc;
+
+	dev->board_ptr = pci230_find_pci_board(pci_dev);
+	if (dev->board_ptr == NULL) {
+		dev_err(dev->class_dev,
+			"amplc_pci230: BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+	thisboard = comedi_board(dev);
+	devpriv = dev->private;
 
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
@@ -2708,28 +2724,6 @@ static int pci230_attach_common(struct comedi_device *dev,
 	}
 
 	return 0;
-}
-
-static int pci230_auto_attach(struct comedi_device *dev,
-			      unsigned long context_unused)
-{
-	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
-	int rc;
-
-	dev_info(dev->class_dev, "amplc_pci230: attach pci %s\n",
-		 pci_name(pci_dev));
-
-	rc = pci230_alloc_private(dev);
-	if (rc)
-		return rc;
-
-	dev->board_ptr = pci230_find_pci_board(pci_dev);
-	if (dev->board_ptr == NULL) {
-		dev_err(dev->class_dev,
-			"amplc_pci230: BUG! cannot determine board type!\n");
-		return -EINVAL;
-	}
-	return pci230_attach_common(dev, pci_dev);
 }
 
 static struct comedi_driver amplc_pci230_driver = {
