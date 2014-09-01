@@ -582,6 +582,7 @@ enum {
  */
 #define EXT4_EX_NOCACHE				0x0800
 #define EXT4_EX_FORCE_CACHE			0x1000
+#define EXT4_EX_NOFREE_ON_ERR			0x2000
 
 /*
  * Flags used by ext4_free_blocks
@@ -2733,7 +2734,7 @@ extern int ext4_ext_insert_extent(handle_t *, struct inode *,
 				  struct ext4_ext_path *,
 				  struct ext4_extent *, int);
 extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,
-						  struct ext4_ext_path *,
+						  struct ext4_ext_path **,
 						  int flags);
 extern void ext4_ext_drop_refs(struct ext4_ext_path *);
 extern int ext4_ext_check_inode(struct inode *inode);
