@@ -455,7 +455,6 @@ struct pci230_board {
 	const char *name;
 	unsigned short id;
 	int ai_bits;
-	int ao_chans;
 	int ao_bits;
 	int have_dio;
 	unsigned int min_hwver;	/* Minimum hardware version supported. */
@@ -466,7 +465,6 @@ static const struct pci230_board pci230_boards[] = {
 		.name		= "pci230+",
 		.id		= PCI_DEVICE_ID_PCI230,
 		.ai_bits	= 16,
-		.ao_chans	= 2,
 		.ao_bits	= 12,
 		.have_dio	= 1,
 		.min_hwver	= 1,
@@ -481,7 +479,6 @@ static const struct pci230_board pci230_boards[] = {
 		.name		= "pci230",
 		.id		= PCI_DEVICE_ID_PCI230,
 		.ai_bits	= 12,
-		.ao_chans	= 2,
 		.ao_bits	= 12,
 		.have_dio	= 1,
 	},
@@ -2609,7 +2606,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 				 */
 				extfunc |= PCI230P_EXTFUNC_GAT_EXTTRIG;
 			}
-			if (thisboard->ao_chans > 0 && devpriv->hwver >= 2) {
+			if (thisboard->ao_bits && devpriv->hwver >= 2) {
 				/* Enable DAC FIFO functionality. */
 				extfunc |= PCI230P2_EXTFUNC_DACFIFO;
 			}
@@ -2670,15 +2667,15 @@ static int pci230_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	if (thisboard->ao_chans > 0) {
+	if (thisboard->ao_bits) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = thisboard->ao_chans;
+		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
 		s->insn_write = pci230_ao_insn_write;
 		s->insn_read = comedi_readback_insn_read;
-		s->len_chanlist = thisboard->ao_chans;
+		s->len_chanlist = 2;
 		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags |= SDF_CMD_WRITE;
