@@ -122,7 +122,7 @@ struct wl_pwr_cfg {
 
 
 /*	Prototype of protected function. */
-u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 CutVersion, u8 FabVersion,
-		       u8 InterfaceType, struct wl_pwr_cfg PwrCfgCmd[]);
+u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
+			    u8 ifacetype, struct wl_pwr_cfg pwrcfgCmd[]);
 
 #endif
