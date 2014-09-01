@@ -113,10 +113,8 @@ mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
 	}
 	ret = 1;
 out:
-	if (path) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
-	}
+	ext4_ext_drop_refs(path);
+	kfree(path);
 	return ret;
 }
 
@@ -711,11 +709,9 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		o_start += cur_len;
 		d_start += cur_len;
 	repeat:
-		if (path) {
-			ext4_ext_drop_refs(path);
-			kfree(path);
-			path = NULL;
-		}
+		ext4_ext_drop_refs(path);
+		kfree(path);
+		path = NULL;
 	}
 	*moved_len = o_start - orig_blk;
 	if (*moved_len > len)
@@ -727,10 +723,8 @@ out:
 		ext4_discard_preallocations(donor_inode);
 	}
 
-	if (path) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
-	}
+	ext4_ext_drop_refs(path);
+	kfree(path);
 	ext4_double_up_write_data_sem(orig_inode, donor_inode);
 	ext4_inode_resume_unlocked_dio(orig_inode);
 	ext4_inode_resume_unlocked_dio(donor_inode);

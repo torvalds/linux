@@ -499,10 +499,8 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		}
 	}
 out:
-	if (path) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
-	}
+	ext4_ext_drop_refs(path);
+	kfree(path);
 }
 
 static void ext4_es_insert_extent_ind_check(struct inode *inode,
