@@ -330,15 +330,15 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 		if (msg[0].len > 40 || msg[1].len > 40) {
 			/* TODO: correct limits > 40 */
 			ret = -EOPNOTSUPP;
-		} else if ((msg[0].addr == state->af9033_config[0].i2c_addr) ||
-			   (msg[0].addr == state->af9033_config[1].i2c_addr) ||
+		} else if ((msg[0].addr == state->af9033_i2c_addr[0]) ||
+			   (msg[0].addr == state->af9033_i2c_addr[1]) ||
 			   (state->chip_type == 0x9135)) {
 			/* demod access via firmware interface */
 			u32 reg = msg[0].buf[0] << 16 | msg[0].buf[1] << 8 |
 					msg[0].buf[2];
 
-			if (msg[0].addr == state->af9033_config[1].i2c_addr ||
-			    msg[0].addr == (state->af9033_config[1].i2c_addr >> 1))
+			if (msg[0].addr == state->af9033_i2c_addr[1] ||
+			    msg[0].addr == (state->af9033_i2c_addr[1] >> 1))
 				reg |= 0x100000;
 
 			ret = af9035_rd_regs(d, reg, &msg[1].buf[0],
@@ -362,15 +362,15 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 		if (msg[0].len > 40) {
 			/* TODO: correct limits > 40 */
 			ret = -EOPNOTSUPP;
-		} else if ((msg[0].addr == state->af9033_config[0].i2c_addr) ||
-			   (msg[0].addr == state->af9033_config[1].i2c_addr) ||
+		} else if ((msg[0].addr == state->af9033_i2c_addr[0]) ||
+			   (msg[0].addr == state->af9033_i2c_addr[1]) ||
 			   (state->chip_type == 0x9135)) {
 			/* demod access via firmware interface */
 			u32 reg = msg[0].buf[0] << 16 | msg[0].buf[1] << 8 |
 					msg[0].buf[2];
 
-			if (msg[0].addr == state->af9033_config[1].i2c_addr ||
-			    msg[0].addr == (state->af9033_config[1].i2c_addr >> 1))
+			if (msg[0].addr == state->af9033_i2c_addr[1] ||
+			    msg[0].addr == (state->af9033_i2c_addr[1] >> 1))
 				reg |= 0x100000;
 
 			ret = af9035_wr_regs(d, reg, &msg[0].buf[3],
@@ -736,8 +736,8 @@ static int af9035_read_config(struct dvb_usb_device *d)
 	u16 tmp16, addr;
 
 	/* demod I2C "address" */
-	state->af9033_config[0].i2c_addr = 0x38;
-	state->af9033_config[1].i2c_addr = 0x3a;
+	state->af9033_i2c_addr[0] = 0x38;
+	state->af9033_i2c_addr[1] = 0x3a;
 	state->af9033_config[0].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 	state->af9033_config[1].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 	state->af9033_config[0].ts_mode = AF9033_TS_MODE_USB;
@@ -789,7 +789,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 			goto err;
 
 		if (tmp)
-			state->af9033_config[1].i2c_addr = tmp;
+			state->af9033_i2c_addr[1] = tmp;
 
 		dev_dbg(&d->udev->dev, "%s: 2nd demod I2C addr=%02x\n",
 				__func__, tmp);
@@ -1092,8 +1092,7 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 
 	state->af9033_config[adap->id].fe = &adap->fe[0];
 	state->af9033_config[adap->id].ops = &state->ops;
-	ret = af9035_add_i2c_dev(d, "af9033",
-			state->af9033_config[adap->id].i2c_addr,
+	ret = af9035_add_i2c_dev(d, "af9033", state->af9033_i2c_addr[adap->id],
 			&state->af9033_config[adap->id]);
 	if (ret)
 		goto err;
@@ -1348,7 +1347,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		}
 
 		ret = af9035_add_i2c_dev(d, "it913x",
-				state->af9033_config[adap->id].i2c_addr >> 1,
+				state->af9033_i2c_addr[adap->id] >> 1,
 				&it913x_config);
 		if (ret)
 			goto err;
@@ -1373,7 +1372,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		}
 
 		ret = af9035_add_i2c_dev(d, "it913x",
-				state->af9033_config[adap->id].i2c_addr >> 1,
+				state->af9033_i2c_addr[adap->id] >> 1,
 				&it913x_config);
 		if (ret)
 			goto err;

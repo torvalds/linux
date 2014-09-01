@@ -61,6 +61,7 @@ struct state {
 	u16 chip_type;
 	u8 dual_mode:1;
 	u16 eeprom_addr;
+	u8 af9033_i2c_addr[2];
 	struct af9033_config af9033_config[2];
 	struct af9033_ops ops;
 	#define AF9035_I2C_CLIENT_MAX 4

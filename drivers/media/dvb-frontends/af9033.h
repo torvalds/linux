@@ -24,12 +24,11 @@
 
 #include <linux/kconfig.h>
 
+/*
+ * I2C address (TODO: are these in 8-bit format?)
+ * 0x38, 0x3a, 0x3c, 0x3e
+ */
 struct af9033_config {
-	/*
-	 * I2C address
-	 */
-	u8 i2c_addr;
-
 	/*
 	 * clock Hz
 	 * 12000000, 22000000, 24000000, 34000000, 32000000, 28000000, 26000000,
