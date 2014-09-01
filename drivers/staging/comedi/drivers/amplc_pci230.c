@@ -507,8 +507,8 @@ struct pci230_private {
 	unsigned short adcg;		/* ADCG register value */
 	unsigned char int_en;		/* Interrupt enable bits */
 	unsigned char ier;		/* Copy of interrupt enable register */
-	unsigned char intr_running;	/* Flag set in interrupt routine */
 	unsigned char res_owner[NUM_RESOURCES]; /* Shared resource owners */
+	bool intr_running:1;		/* Flag set in interrupt routine */
 	bool ai_bipolar:1;		/* Flag AI range is bipolar */
 	bool ao_bipolar:1;		/* Flag AO range is bipolar */
 };
@@ -2451,7 +2451,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 	 */
 	devpriv->ier = devpriv->int_en & ~status_int;
 	outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
-	devpriv->intr_running = 1;
+	devpriv->intr_running = true;
 	devpriv->intr_cpuid = THISCPU;
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 
@@ -2487,7 +2487,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 		devpriv->ier = devpriv->int_en;
 		outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
 	}
-	devpriv->intr_running = 0;
+	devpriv->intr_running = false;
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 
 	return IRQ_HANDLED;
