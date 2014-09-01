@@ -102,7 +102,7 @@ static irqreturn_t rk312x_lcdc_isr(int irq, void *dev_id)
 	} else if (int_reg & m_WIN1_EMPTY_INT_STA) {
 		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_WIN1_EMPTY_INT_CLEAR,
 			     v_WIN1_EMPTY_INT_CLEAR(1));
-		dev_info(lcdc_dev->dev, "win0 empty irq\n");
+		dev_info(lcdc_dev->dev, "win1 empty irq\n");
 	}
 #endif
 
