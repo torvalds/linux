@@ -3915,9 +3915,10 @@ get_reserved_cluster_alloc(struct inode *inode, ext4_lblk_t lblk_start,
 static int
 convert_initialized_extent(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map,
-			   struct ext4_ext_path *path, int flags,
+			   struct ext4_ext_path **ppath, int flags,
 			   unsigned int allocated, ext4_fsblk_t newblock)
 {
+	struct ext4_ext_path *path = *ppath;
 	struct ext4_extent *ex;
 	ext4_lblk_t ee_block;
 	unsigned int ee_len;
@@ -3946,8 +3947,7 @@ convert_initialized_extent(handle_t *handle, struct inode *inode,
 		if (err < 0)
 			return err;
 		ext4_ext_drop_refs(path);
-		path = ext4_ext_find_extent(inode, map->m_lblk, &path,
-					    EXT4_EX_NOFREE_ON_ERR);
+		path = ext4_ext_find_extent(inode, map->m_lblk, ppath, 0);
 		if (IS_ERR(path))
 			return PTR_ERR(path);
 		depth = ext_depth(inode);
@@ -4325,8 +4325,8 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 			if ((!ext4_ext_is_unwritten(ex)) &&
 			    (flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN)) {
 				allocated = convert_initialized_extent(
-						handle, inode, map, path, flags,
-						allocated, newblock);
+						handle, inode, map, &path,
+						flags, allocated, newblock);
 				goto out2;
 			} else if (!ext4_ext_is_unwritten(ex))
 				goto out;
