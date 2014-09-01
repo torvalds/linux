@@ -175,7 +175,6 @@ static void ipoctal_irq_rx(struct ipoctal_channel *channel, u8 sr)
 				flag = TTY_FRAME;
 			}
 			if (sr & SR_RECEIVED_BREAK) {
-				iowrite8(CR_CMD_RESET_BREAK_CHANGE, &channel->regs->w.cr);
 				channel->stats.rcv_break++;
 				flag = TTY_BREAK;
 			}
@@ -219,6 +218,9 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 	 * to read from */
 	isr = ioread8(&channel->block_regs->r.isr);
 	sr = ioread8(&channel->regs->r.sr);
+
+	if (isr & (IMR_DELTA_BREAK_A | IMR_DELTA_BREAK_B))
+		iowrite8(CR_CMD_RESET_BREAK_CHANGE, &channel->regs->w.cr);
 
 	if ((sr & SR_TX_EMPTY) && (channel->nb_bytes == 0)) {
 		iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
