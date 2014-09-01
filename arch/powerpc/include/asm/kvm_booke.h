@@ -23,7 +23,10 @@
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 
-/* LPIDs we support with this build -- runtime limit may be lower */
+/*
+ * Number of available lpids. Only the low-order 6 bits of LPID rgister are
+ * implemented on e500mc+ cores.
+ */
 #define KVMPPC_NR_LPIDS                        64
 
 #define KVMPPC_INST_EHPRIV		0x7c00021c
