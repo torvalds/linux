@@ -499,8 +499,7 @@ struct pci230_private {
 	unsigned short daccon;		/* DACCON register value */
 	unsigned short adcfifothresh;	/* ADC FIFO threshold (PCI230+/260+) */
 	unsigned short adcg;		/* ADCG register value */
-	unsigned char int_en;		/* Interrupt enable bits */
-	unsigned char ier;		/* Copy of interrupt enable register */
+	unsigned char ier;		/* Interrupt enable bits */
 	unsigned char res_owned[NUM_OWNERS]; /* Owned resources */
 	bool intr_running:1;		/* Flag set in interrupt routine */
 	bool ai_bipolar:1;		/* Flag AI range is bipolar */
@@ -1049,15 +1048,12 @@ static void pci230_ao_stop(struct comedi_device *dev,
 	 * unless we are called from the interrupt routine.
 	 */
 	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	devpriv->int_en &= ~intsrc;
+	devpriv->ier &= ~intsrc;
 	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
 		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
 	}
-	if (devpriv->ier != devpriv->int_en) {
-		devpriv->ier = devpriv->int_en;
-		outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
-	}
+	outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 	if (devpriv->hwver >= 2) {
 		/*
@@ -1311,7 +1307,6 @@ static void pci230_ao_start(struct comedi_device *dev,
 			/* Not using DAC FIFO. */
 			/* Enable CT1 timer interrupt. */
 			spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-			devpriv->int_en |= PCI230_INT_ZCLK_CT1;
 			devpriv->ier |= PCI230_INT_ZCLK_CT1;
 			outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
 			spin_unlock_irqrestore(&devpriv->isr_spinlock,
@@ -1327,7 +1322,6 @@ static void pci230_ao_start(struct comedi_device *dev,
 	if (devpriv->hwver >= 2) {
 		/* Using DAC FIFO.  Enable DAC FIFO interrupt. */
 		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-		devpriv->int_en |= PCI230P2_INT_DAC;
 		devpriv->ier |= PCI230P2_INT_DAC;
 		outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
 		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
@@ -1892,15 +1886,12 @@ static void pci230_ai_stop(struct comedi_device *dev,
 	 * Disable ADC interrupt and wait for interrupt routine to finish
 	 * running unless we are called from the interrupt routine.
 	 */
-	devpriv->int_en &= ~PCI230_INT_ADC;
+	devpriv->ier &= ~PCI230_INT_ADC;
 	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
 		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
 	}
-	if (devpriv->ier != devpriv->int_en) {
-		devpriv->ier = devpriv->int_en;
-		outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
-	}
+	outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 	/*
 	 * Reset FIFO, disable FIFO and set start conversion source to none.
@@ -1935,7 +1926,6 @@ static void pci230_ai_start(struct comedi_device *dev,
 
 	/* Enable ADC FIFO trigger level interrupt. */
 	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	devpriv->int_en |= PCI230_INT_ADC;
 	devpriv->ier |= PCI230_INT_ADC;
 	outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
@@ -2379,7 +2369,7 @@ static int pci230_ai_cancel(struct comedi_device *dev,
 /* Interrupt handler */
 static irqreturn_t pci230_interrupt(int irq, void *d)
 {
-	unsigned char status_int, valid_status_int;
+	unsigned char status_int, valid_status_int, temp_ier;
 	struct comedi_device *dev = (struct comedi_device *)d;
 	struct pci230_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
@@ -2392,14 +2382,14 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	valid_status_int = devpriv->int_en & status_int;
+	valid_status_int = devpriv->ier & status_int;
 	/*
 	 * Disable triggered interrupts.
 	 * (Only those interrupts that need re-enabling, are, later in the
 	 * handler).
 	 */
-	devpriv->ier = devpriv->int_en & ~status_int;
-	outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
+	temp_ier = devpriv->ier & ~status_int;
+	outb(temp_ier, dev->iobase + PCI230_INT_SCE);
 	devpriv->intr_running = true;
 	devpriv->intr_cpuid = THISCPU;
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
@@ -2432,10 +2422,8 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 
 	/* Reenable interrupts. */
 	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	if (devpriv->ier != devpriv->int_en) {
-		devpriv->ier = devpriv->int_en;
+	if (devpriv->ier != temp_ier)
 		outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
-	}
 	devpriv->intr_running = false;
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 
