@@ -573,8 +573,8 @@ static unsigned short pci230_ai_read(struct comedi_device *dev)
 	return data;
 }
 
-static inline unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
-						    unsigned short datum)
+static unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
+					     unsigned short datum)
 {
 	const struct pci230_board *thisboard = comedi_board(dev);
 	struct pci230_private *devpriv = dev->private;
@@ -593,9 +593,8 @@ static inline unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
 	return datum;
 }
 
-static inline void pci230_ao_write_nofifo(struct comedi_device *dev,
-					  unsigned short datum,
-					  unsigned int chan)
+static void pci230_ao_write_nofifo(struct comedi_device *dev,
+				   unsigned short datum, unsigned int chan)
 {
 	struct pci230_private *devpriv = dev->private;
 
@@ -604,8 +603,8 @@ static inline void pci230_ao_write_nofifo(struct comedi_device *dev,
 	     devpriv->daqio + ((chan == 0) ? PCI230_DACOUT1 : PCI230_DACOUT2));
 }
 
-static inline void pci230_ao_write_fifo(struct comedi_device *dev,
-					unsigned short datum, unsigned int chan)
+static void pci230_ao_write_fifo(struct comedi_device *dev,
+				 unsigned short datum, unsigned int chan)
 {
 	struct pci230_private *devpriv = dev->private;
 
@@ -650,8 +649,8 @@ static int get_resources(struct comedi_device *dev, unsigned int res_mask,
 	return ok;
 }
 
-static inline int get_one_resource(struct comedi_device *dev,
-				   unsigned int resource, unsigned char owner)
+static int get_one_resource(struct comedi_device *dev,
+			    unsigned int resource, unsigned char owner)
 {
 	return get_resources(dev, 1U << resource, owner);
 }
@@ -675,14 +674,13 @@ static void put_resources(struct comedi_device *dev, unsigned int res_mask,
 	spin_unlock_irqrestore(&devpriv->res_spinlock, irqflags);
 }
 
-static inline void put_one_resource(struct comedi_device *dev,
-				    unsigned int resource, unsigned char owner)
+static void put_one_resource(struct comedi_device *dev,
+			     unsigned int resource, unsigned char owner)
 {
 	put_resources(dev, 1U << resource, owner);
 }
 
-static inline void put_all_resources(struct comedi_device *dev,
-				     unsigned char owner)
+static void put_all_resources(struct comedi_device *dev, unsigned char owner)
 {
 	put_resources(dev, (1U << NUM_RESOURCES) - 1, owner);
 }
