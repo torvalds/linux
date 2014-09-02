@@ -823,9 +823,17 @@ static void trf7970a_switch_rf_off(struct trf7970a *trf)
 
 static void trf7970a_switch_rf_on(struct trf7970a *trf)
 {
+	int ret;
+
 	dev_dbg(trf->dev, "Switching rf on\n");
 
 	pm_runtime_get_sync(trf->dev);
+
+	ret = trf7970a_init(trf);
+	if (ret) {
+		dev_err(trf->dev, "%s - Can't initialize: %d\n", __func__, ret);
+		return;
+	}
 
 	trf->state = TRF7970A_ST_IDLE;
 }
@@ -1472,12 +1480,6 @@ static int trf7970a_pm_runtime_resume(struct device *dev)
 	gpio_set_value(trf->en_gpio, 1);
 
 	usleep_range(20000, 21000);
-
-	ret = trf7970a_init(trf);
-	if (ret) {
-		dev_err(dev, "%s - Can't initialize: %d\n", __func__, ret);
-		return ret;
-	}
 
 	pm_runtime_mark_last_busy(dev);
 
