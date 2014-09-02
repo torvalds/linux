@@ -132,6 +132,7 @@
 /* TX length is 3 nibbles long ==> 4KB - 1 bytes max */
 #define TRF7970A_TX_MAX				(4096 - 1)
 
+#define TRF7970A_WAIT_FOR_TX_IRQ		20
 #define TRF7970A_WAIT_FOR_RX_DATA_TIMEOUT	20
 #define TRF7970A_WAIT_FOR_FIFO_DRAIN_TIMEOUT	20
 #define TRF7970A_WAIT_TO_ISSUE_ISO15693_EOF	40
@@ -555,7 +556,11 @@ static int trf7970a_transmit(struct trf7970a *trf, struct sk_buff *skb,
 			timeout = TRF7970A_WAIT_TO_ISSUE_ISO15693_EOF;
 		} else {
 			trf->state = TRF7970A_ST_WAIT_FOR_RX_DATA;
-			timeout = trf->timeout;
+
+			if (!trf->timeout)
+				timeout = TRF7970A_WAIT_FOR_TX_IRQ;
+			else
+				timeout = trf->timeout;
 		}
 	}
 
@@ -754,6 +759,14 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 				trf7970a_cmd(trf, TRF7970A_CMD_FIFO_RESET);
 		} else if (status == TRF7970A_IRQ_STATUS_TX) {
 			trf7970a_cmd(trf, TRF7970A_CMD_FIFO_RESET);
+
+			if (!trf->timeout) {
+				trf->ignore_timeout = !cancel_delayed_work(
+						&trf->timeout_work);
+				trf->rx_skb = ERR_PTR(0);
+				trf7970a_send_upstream(trf);
+				break;
+			}
 		} else {
 			trf7970a_send_err_upstream(trf, -EIO);
 		}
@@ -1253,12 +1266,14 @@ static int trf7970a_in_send_cmd(struct nfc_digital_dev *ddev,
 		goto out_err;
 	}
 
-	trf->rx_skb = nfc_alloc_recv_skb(TRF7970A_RX_SKB_ALLOC_SIZE,
-			GFP_KERNEL);
-	if (!trf->rx_skb) {
-		dev_dbg(trf->dev, "Can't alloc rx_skb\n");
-		ret = -ENOMEM;
-		goto out_err;
+	if (timeout) {
+		trf->rx_skb = nfc_alloc_recv_skb(TRF7970A_RX_SKB_ALLOC_SIZE,
+				GFP_KERNEL);
+		if (!trf->rx_skb) {
+			dev_dbg(trf->dev, "Can't alloc rx_skb\n");
+			ret = -ENOMEM;
+			goto out_err;
+		}
 	}
 
 	if (trf->state == TRF7970A_ST_IDLE_RX_BLOCKED) {
