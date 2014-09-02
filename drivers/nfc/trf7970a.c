@@ -134,6 +134,12 @@
 #define TRF7970A_WAIT_FOR_FIFO_DRAIN_TIMEOUT	3
 #define TRF7970A_WAIT_TO_ISSUE_ISO15693_EOF	20
 
+/* Guard times for various RF technologies (in us) */
+#define TRF7970A_GUARD_TIME_NFCA		5000
+#define TRF7970A_GUARD_TIME_NFCB		5000
+#define TRF7970A_GUARD_TIME_NFCF		20000
+#define TRF7970A_GUARD_TIME_15693		1000
+
 /* Quirks */
 /* Erratum: When reading IRQ Status register on trf7970a, we must issue a
  * read continuous command for IRQ Status and Collision Position registers.
@@ -351,6 +357,7 @@ struct trf7970a {
 	u8				iso_ctrl_tech;
 	u8				modulator_sys_clk_ctrl;
 	u8				special_fcn_reg1;
+	unsigned int			guard_time;
 	int				technology;
 	int				framing;
 	u8				tx_cmd;
@@ -887,22 +894,27 @@ static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
 	case NFC_DIGITAL_RF_TECH_106A:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443A_106;
 		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
+		trf->guard_time = TRF7970A_GUARD_TIME_NFCA;
 		break;
 	case NFC_DIGITAL_RF_TECH_106B:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443B_106;
 		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		trf->guard_time = TRF7970A_GUARD_TIME_NFCB;
 		break;
 	case NFC_DIGITAL_RF_TECH_212F:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_FELICA_212;
 		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		trf->guard_time = TRF7970A_GUARD_TIME_NFCF;
 		break;
 	case NFC_DIGITAL_RF_TECH_424F:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_FELICA_424;
 		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		trf->guard_time = TRF7970A_GUARD_TIME_NFCF;
 		break;
 	case NFC_DIGITAL_RF_TECH_ISO15693:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_15693_SGL_1OF4_2648;
 		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
+		trf->guard_time = TRF7970A_GUARD_TIME_15693;
 		break;
 	default:
 		dev_dbg(trf->dev, "Unsupported rf technology: %d\n", tech);
@@ -971,7 +983,7 @@ static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 
 		trf->chip_status_ctrl |= TRF7970A_CHIP_STATUS_RF_ON;
 
-		usleep_range(5000, 6000);
+		usleep_range(trf->guard_time, trf->guard_time + 1000);
 	}
 
 	return 0;
