@@ -48,7 +48,6 @@ static int gpio_get(struct gpio_chip *gpio, unsigned nr)
 static void gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 {
 	// FIXME - do something there
-	return;
 }
 
 int gb_gpio_probe(struct greybus_device *gdev,
@@ -77,7 +76,7 @@ int gb_gpio_probe(struct greybus_device *gdev,
 	gpio->ngpio = 42;		// FIXME!!!
 	gpio->can_sleep = false;	// FIXME!!!
 
-	gdev->gb_gpio_dev= gb_gpio;
+	gdev->gb_gpio_dev = gb_gpio;
 
 	retval = gpiochip_add(gpio);
 	if (retval) {

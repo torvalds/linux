@@ -226,8 +226,9 @@ error_i2c:
 	return retval;
 }
 
-static const struct greybus_module_id fake_gb_id =
-	{ GREYBUS_DEVICE(0x42, 0x42) };
+static const struct greybus_module_id fake_gb_id = {
+	GREYBUS_DEVICE(0x42, 0x42)
+};
 
 static int create_function(struct greybus_device *gdev,
 			   struct greybus_descriptor *desc, int desc_size)

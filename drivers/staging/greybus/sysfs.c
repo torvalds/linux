@@ -85,6 +85,7 @@ static ssize_t module_vendor_string_show(struct device *dev,
 					 char *buf)
 {
 	struct greybus_device *gdev = to_greybus_device(dev);
+
 	return sprintf(buf, "%s",
 		       greybus_string(gdev, gdev->module_id.vendor_stringid));
 }
@@ -95,6 +96,7 @@ static ssize_t module_product_string_show(struct device *dev,
 					 char *buf)
 {
 	struct greybus_device *gdev = to_greybus_device(dev);
+
 	return sprintf(buf, "%s",
 		       greybus_string(gdev, gdev->module_id.product_stringid));
 }
@@ -141,6 +143,7 @@ static ssize_t serial_number_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct greybus_device *gdev = to_greybus_device(dev);
+
 	return sprintf(buf, "%llX\n",
 		      (unsigned long long)gdev->serial_number.serial_number);
 }

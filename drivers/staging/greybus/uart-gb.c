@@ -245,8 +245,7 @@ static int get_serial_info(struct gb_tty *gb_tty,
 
 	if (copy_to_user(info, &tmp, sizeof(tmp)))
 		return -EFAULT;
-	else
-		return 0;
+	return 0;
 }
 
 static int set_serial_info(struct gb_tty *gb_tty,
