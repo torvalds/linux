@@ -1272,6 +1272,12 @@ static int trf7970a_probe(struct spi_device *spi)
 	spi->mode = SPI_MODE_1;
 	spi->bits_per_word = 8;
 
+	ret = spi_setup(spi);
+	if (ret < 0) {
+		dev_err(trf->dev, "Can't set up SPI Communication\n");
+		return ret;
+	}
+
 	if (of_property_read_bool(np, "irq-status-read-quirk"))
 		trf->quirks |= TRF7970A_QUIRK_IRQ_STATUS_READ;
 
