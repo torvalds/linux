@@ -246,6 +246,7 @@ struct iwl_pwr_tx_backoff {
  * @nvm_hw_section_num: the ID of the HW NVM section
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
+ * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -285,6 +286,7 @@ struct iwl_cfg {
 	const char *default_nvm_file;
 	unsigned int max_rx_agg_size;
 	bool disable_dummy_notification;
+	unsigned int max_tx_agg_size;
 };
 
 /*
