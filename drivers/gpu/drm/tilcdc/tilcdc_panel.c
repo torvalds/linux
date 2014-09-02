@@ -342,7 +342,7 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 
 static int panel_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_node *bl_node, *node = pdev->dev.of_node;
 	struct panel_module *panel_mod;
 	struct tilcdc_module *mod;
 	struct pinctrl *pinctrl;
@@ -357,6 +357,17 @@ static int panel_probe(struct platform_device *pdev)
 	panel_mod = devm_kzalloc(&pdev->dev, sizeof(*panel_mod), GFP_KERNEL);
 	if (!panel_mod)
 		return -ENOMEM;
+
+	bl_node = of_parse_phandle(node, "backlight", 0);
+	if (bl_node) {
+		panel_mod->backlight = of_find_backlight_by_node(bl_node);
+		of_node_put(bl_node);
+
+		if (!panel_mod->backlight)
+			return -EPROBE_DEFER;
+
+		dev_info(&pdev->dev, "found backlight\n");
+	}
 
 	mod = &panel_mod->base;
 	pdev->dev.platform_data = mod;
@@ -381,10 +392,6 @@ static int panel_probe(struct platform_device *pdev)
 
 	mod->preferred_bpp = panel_mod->info->bpp;
 
-	panel_mod->backlight = of_find_backlight_by_node(node);
-	if (panel_mod->backlight)
-		dev_info(&pdev->dev, "found backlight\n");
-
 	return 0;
 
 fail_timings:
@@ -392,6 +399,8 @@ fail_timings:
 
 fail_free:
 	tilcdc_module_cleanup(mod);
+	if (panel_mod->backlight)
+		put_device(&panel_mod->backlight->dev);
 	return ret;
 }
 
@@ -399,6 +408,10 @@ static int panel_remove(struct platform_device *pdev)
 {
 	struct tilcdc_module *mod = dev_get_platdata(&pdev->dev);
 	struct panel_module *panel_mod = to_panel_module(mod);
+	struct backlight_device *backlight = panel_mod->backlight;
+
+	if (backlight)
+		put_device(&backlight->dev);
 
 	display_timings_release(panel_mod->timings);
 
