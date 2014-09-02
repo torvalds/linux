@@ -93,7 +93,7 @@ static __inline__ int atomic_##op##_return(int i, atomic_t * v)			\
 		"	" #asm_op " %0, %1, %3				\n"	\
 		"	sc	%0, %2					\n"	\
 		"	beqzl	%0, 1b					\n"	\
-		"	addu	%0, %1, %3				\n"	\
+		"	" #asm_op " %0, %1, %3				\n"	\
 		"	.set	mips0					\n"	\
 		: "=&r" (result), "=&r" (temp), "+m" (v->counter)		\
 		: "Ir" (i));							\
@@ -111,7 +111,7 @@ static __inline__ int atomic_##op##_return(int i, atomic_t * v)			\
 			: "Ir" (i));						\
 		} while (unlikely(!result));					\
 										\
-		result = temp + i;						\
+		result = temp; result c_op i;					\
 	} else {								\
 		unsigned long flags;						\
 										\
@@ -387,7 +387,7 @@ static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)		\
 			: "memory");						\
 		} while (unlikely(!result));					\
 										\
-		result = temp + i;						\
+		result = temp; result c_op i;					\
 	} else {								\
 		unsigned long flags;						\
 										\
