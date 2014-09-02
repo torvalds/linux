@@ -186,6 +186,7 @@ struct enic {
 	____cacheline_aligned struct vnic_cq cq[ENIC_CQ_MAX];
 	unsigned int cq_count;
 	struct enic_rfs_flw_tbl rfs_h;
+	u32 rx_copybreak;
 };
 
 static inline struct device *enic_get_dev(struct enic *enic)
