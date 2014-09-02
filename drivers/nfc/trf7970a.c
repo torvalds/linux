@@ -1594,6 +1594,42 @@ static int trf7970a_remove(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int trf7970a_suspend(struct device *dev)
+{
+	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct trf7970a *trf = spi_get_drvdata(spi);
+	int ret = 0;
+
+	dev_dbg(dev, "Suspend\n");
+
+	mutex_lock(&trf->lock);
+
+	trf7970a_shutdown(trf);
+
+	mutex_unlock(&trf->lock);
+
+	return ret;
+}
+
+static int trf7970a_resume(struct device *dev)
+{
+	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct trf7970a *trf = spi_get_drvdata(spi);
+	int ret = 0;
+
+	dev_dbg(dev, "Resume\n");
+
+	mutex_lock(&trf->lock);
+
+	ret = trf7970a_startup(trf);
+
+	mutex_unlock(&trf->lock);
+
+	return ret;
+}
+#endif
+
 #ifdef CONFIG_PM_RUNTIME
 static int trf7970a_pm_runtime_suspend(struct device *dev)
 {
@@ -1629,6 +1665,7 @@ static int trf7970a_pm_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops trf7970a_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(trf7970a_suspend, trf7970a_resume)
 	SET_RUNTIME_PM_OPS(trf7970a_pm_runtime_suspend,
 			trf7970a_pm_runtime_resume, NULL)
 };
