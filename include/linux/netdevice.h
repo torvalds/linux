@@ -2827,8 +2827,9 @@ int dev_set_mac_address(struct net_device *, struct sockaddr *);
 int dev_change_carrier(struct net_device *, bool new_carrier);
 int dev_get_phys_port_id(struct net_device *dev,
 			 struct netdev_phys_port_id *ppid);
-int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
-			struct netdev_queue *txq);
+struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device *dev);
+struct sk_buff *dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
+				    struct netdev_queue *txq, int *ret);
 int __dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
 int dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
 bool is_skb_forwardable(struct net_device *dev, struct sk_buff *skb);
@@ -3431,17 +3432,24 @@ int __init dev_proc_init(void);
 #endif
 
 static inline netdev_tx_t __netdev_start_xmit(const struct net_device_ops *ops,
-					      struct sk_buff *skb, struct net_device *dev)
+					      struct sk_buff *skb, struct net_device *dev,
+					      bool more)
 {
-	skb->xmit_more = 0;
+	skb->xmit_more = more ? 1 : 0;
 	return ops->ndo_start_xmit(skb, dev);
 }
 
-static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb, struct net_device *dev,
+					    struct netdev_queue *txq, bool more)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+	int rc;
 
-	return __netdev_start_xmit(ops, skb, dev);
+	rc = __netdev_start_xmit(ops, skb, dev, more);
+	if (rc == NETDEV_TX_OK)
+		txq_trans_update(txq);
+
+	return rc;
 }
 
 int netdev_class_create_file_ns(struct class_attribute *class_attr,
