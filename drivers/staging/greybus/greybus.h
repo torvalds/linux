@@ -173,6 +173,10 @@ void greybus_deregister(struct greybus_driver *driver);
 
 int greybus_disabled(void);
 
+struct greybus_device *greybus_new_device(struct device *parent,
+					  int module_number, u8 *data,
+					  int size);
+void greybus_remove_device(struct greybus_device *gdev);
 
 /* Internal functions to gb module, move to internal .h file eventually. */
 

@@ -50,9 +50,9 @@ enum greybus_function_class {
 struct greybus_descriptor_function {
 	__le16	number;
 	__le16	cport;
-	__u8	function_class;		/* enum greybus_function_class */
-	__u8	function_subclass;
-	__u8	function_protocol;
+	__u8	class;		/* enum greybus_function_class */
+	__u8	subclass;
+	__u8	protocol;
 	__u8	reserved;
 };
 
