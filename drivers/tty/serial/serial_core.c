@@ -175,12 +175,8 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 			if (tty->termios.c_cflag & CBAUD)
 				uart_set_mctrl(uport, TIOCM_RTS | TIOCM_DTR);
 		}
-		/*
-		 * if hw support flow control without software intervention,
-		 * then skip the below check
-		 */
-		if (tty_port_cts_enabled(port) &&
-		    !(uport->flags & UPF_HARD_FLOW)) {
+
+		if (tty_port_cts_enabled(port)) {
 			spin_lock_irq(&uport->lock);
 			if (!(uport->ops->get_mctrl(uport) & TIOCM_CTS))
 				tty->hw_stopped = 1;
@@ -2789,9 +2785,7 @@ void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 
 	uport->icount.cts++;
 
-	/* skip below code if the hw flow control is supported */
-	if (tty_port_cts_enabled(port) &&
-	    !(uport->flags & UPF_HARD_FLOW)) {
+	if (tty_port_cts_enabled(port)) {
 		if (tty->hw_stopped) {
 			if (status) {
 				tty->hw_stopped = 0;
