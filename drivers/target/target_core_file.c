@@ -762,7 +762,9 @@ static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
 			fd_dev->fbd_flags |= FBDF_HAS_SIZE;
 			break;
 		case Opt_fd_buffered_io:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			if (arg != 1) {
 				pr_err("bogus fd_buffered_io=%d value\n", arg);
 				ret = -EINVAL;
