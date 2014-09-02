@@ -215,7 +215,8 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 	memset(&ent, 0, sizeof(ent));
 
 	/* Authentication name */
-	if (qword_get(&buf, buf1, PAGE_SIZE) <= 0)
+	len = qword_get(&buf, buf1, PAGE_SIZE);
+	if (len <= 0 || len >= IDMAP_NAMESZ)
 		goto out;
 	memcpy(ent.authname, buf1, sizeof(ent.authname));
 
@@ -245,12 +246,10 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 	/* Name */
 	error = -EINVAL;
 	len = qword_get(&buf, buf1, PAGE_SIZE);
-	if (len < 0)
+	if (len < 0 || len >= IDMAP_NAMESZ)
 		goto out;
 	if (len == 0)
 		set_bit(CACHE_NEGATIVE, &ent.h.flags);
-	else if (len >= IDMAP_NAMESZ)
-		goto out;
 	else
 		memcpy(ent.name, buf1, sizeof(ent.name));
 	error = -ENOMEM;
@@ -259,14 +258,11 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 		goto out;
 
 	cache_put(&res->h, cd);
-
 	error = 0;
 out:
 	kfree(buf1);
-
 	return error;
 }
-
 
 static struct ent *
 idtoname_lookup(struct cache_detail *cd, struct ent *item)
@@ -381,7 +377,8 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 	memset(&ent, 0, sizeof(ent));
 
 	/* Authentication name */
-	if (qword_get(&buf, buf1, PAGE_SIZE) <= 0)
+	len = qword_get(&buf, buf1, PAGE_SIZE);
+	if (len <= 0 || len >= IDMAP_NAMESZ)
 		goto out;
 	memcpy(ent.authname, buf1, sizeof(ent.authname));
 
@@ -421,7 +418,6 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 	error = 0;
 out:
 	kfree(buf1);
-
 	return (error);
 }
 
