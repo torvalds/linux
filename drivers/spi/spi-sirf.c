@@ -438,7 +438,8 @@ static void spi_sirfsoc_pio_transfer(struct spi_device *spi,
 			sspi->tx_word(sspi);
 		writel(SIRFSOC_SPI_TXFIFO_EMPTY_INT_EN |
 			SIRFSOC_SPI_TX_UFLOW_INT_EN |
-			SIRFSOC_SPI_RX_OFLOW_INT_EN,
+			SIRFSOC_SPI_RX_OFLOW_INT_EN |
+			SIRFSOC_SPI_RX_IO_DMA_INT_EN,
 			sspi->base + SIRFSOC_SPI_INT_EN);
 		writel(SIRFSOC_SPI_RX_EN | SIRFSOC_SPI_TX_EN,
 			sspi->base + SIRFSOC_SPI_TX_RX_EN);
