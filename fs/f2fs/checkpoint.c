@@ -882,6 +882,9 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	else
 		clear_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
 
+	if (sbi->need_fsck)
+		set_ckpt_flags(ckpt, CP_FSCK_FLAG);
+
 	/* update SIT/NAT bitmap */
 	get_sit_bitmap(sbi, __bitmap_ptr(sbi, SIT_BITMAP));
 	get_nat_bitmap(sbi, __bitmap_ptr(sbi, NAT_BITMAP));
