@@ -285,6 +285,13 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 		goto out;
 	}
 	evm_status = evm_verify_current_integrity(dentry);
+	if (evm_status == INTEGRITY_NOXATTRS) {
+		struct integrity_iint_cache *iint;
+
+		iint = integrity_iint_find(dentry->d_inode);
+		if (iint && (iint->flags & IMA_NEW_FILE))
+			return 0;
+	}
 out:
 	if (evm_status != INTEGRITY_PASS)
 		integrity_audit_msg(AUDIT_INTEGRITY_METADATA, dentry->d_inode,
