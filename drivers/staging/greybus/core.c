@@ -169,6 +169,22 @@ static void greybus_module_release(struct device *dev)
 }
 
 
+const u8 *greybus_string(struct greybus_device *gdev, int id)
+{
+	int i;
+	struct gdev_string *string;
+
+	if (!gdev)
+		return NULL;
+
+	for (i = 0; i < gdev->num_strings; ++i) {
+		string = gdev->string[i];
+		if (string->id == id)
+			return &string->string[0];
+	}
+	return NULL;
+}
+
 static struct device_type greybus_module_type = {
 	.name =		"greybus_module",
 	.release =	greybus_module_release,
@@ -242,7 +258,7 @@ static ssize_t module_vendor_string_show(struct device *dev,
 {
 	struct greybus_device *gdev = to_greybus_device(dev);
 	return sprintf(buf, "%s",
-		       greybus_string(gdev->module_id.vendor_stringid));
+		       greybus_string(gdev, gdev->module_id.vendor_stringid));
 }
 static DEVICE_ATTR_RO(module_vendor_string);
 
@@ -252,7 +268,7 @@ static ssize_t module_product_string_show(struct device *dev,
 {
 	struct greybus_device *gdev = to_greybus_device(dev);
 	return sprintf(buf, "%s",
-		       greybus_string(gdev->module_id.product_stringid));
+		       greybus_string(gdev, gdev->module_id.product_stringid));
 }
 static DEVICE_ATTR_RO(module_product_string);
 

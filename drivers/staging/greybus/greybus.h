@@ -178,7 +178,7 @@ struct greybus_device *greybus_new_device(struct device *parent,
 					  int size);
 void greybus_remove_device(struct greybus_device *gdev);
 
-const u8 *greybus_string(int id);
+const u8 *greybus_string(struct greybus_device *gdev, int id);
 
 /* Internal functions to gb module, move to internal .h file eventually. */
 
