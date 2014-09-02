@@ -394,7 +394,7 @@
 				//<&clk_gates6 0>,/*aclk_lcdc*/
 
 				/*aclk_vio1_pre*/
-				//<&clk_gates9 10>,/*aclk_vio1_niu*/
+				<&clk_gates9 10>,/*aclk_vio1_niu*/
 
 				/*UART*/
 				<&clk_gates1 12>,
