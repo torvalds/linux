@@ -31,7 +31,7 @@
 				 (layout)->mul_mask)
 #define PLL_ICPR_SHIFT(id)	((id) * 16)
 #define PLL_ICPR_MASK(id)	(0xffff << PLL_ICPR_SHIFT(id))
-#define PLL_MAX_COUNT		0x3ff
+#define PLL_MAX_COUNT		0x3f
 #define PLL_COUNT_SHIFT		8
 #define PLL_OUT_SHIFT		14
 #define PLL_MAX_ID		1
