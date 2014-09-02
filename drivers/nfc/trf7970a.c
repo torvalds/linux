@@ -941,7 +941,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 	return ret;
 }
 
-static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
+static int trf7970a_in_config_rf_tech(struct trf7970a *trf, int tech)
 {
 	int ret = 0;
 
@@ -983,7 +983,7 @@ static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
 	return ret;
 }
 
-static int trf7970a_config_framing(struct trf7970a *trf, int framing)
+static int trf7970a_in_config_framing(struct trf7970a *trf, int framing)
 {
 	u8 iso_ctrl = trf->iso_ctrl_tech;
 	int ret;
@@ -1065,10 +1065,10 @@ static int trf7970a_in_configure_hw(struct nfc_digital_dev *ddev, int type,
 
 	switch (type) {
 	case NFC_DIGITAL_CONFIG_RF_TECH:
-		ret = trf7970a_config_rf_tech(trf, param);
+		ret = trf7970a_in_config_rf_tech(trf, param);
 		break;
 	case NFC_DIGITAL_CONFIG_FRAMING:
-		ret = trf7970a_config_framing(trf, param);
+		ret = trf7970a_in_config_framing(trf, param);
 		break;
 	default:
 		dev_dbg(trf->dev, "Unknown type: %d\n", type);
