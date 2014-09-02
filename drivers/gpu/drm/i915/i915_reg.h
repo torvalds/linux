@@ -272,6 +272,7 @@
 #define   MI_SEMAPHORE_POLL		(1<<15)
 #define   MI_SEMAPHORE_SAD_GTE_SDD	(1<<12)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
+#define MI_STORE_DWORD_IMM_GEN8	MI_INSTR(0x20, 2)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
 #define   MI_STORE_DWORD_INDEX_SHIFT 2
@@ -282,6 +283,7 @@
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*(x)-1)
+#define   MI_LRI_FORCE_POSTED		(1<<12)
 #define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*(x)-1)
 #define MI_STORE_REGISTER_MEM_GEN8(x) MI_INSTR(0x24, 3*(x)-1)
 #define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
@@ -1085,6 +1087,7 @@ enum punit_power_well {
 #define RING_ACTHD_UDW(base)	((base)+0x5c)
 #define RING_NOPID(base)	((base)+0x94)
 #define RING_IMR(base)		((base)+0xa8)
+#define RING_HWSTAM(base)	((base)+0x98)
 #define RING_TIMESTAMP(base)	((base)+0x358)
 #define   TAIL_ADDR		0x001FFFF8
 #define   HEAD_WRAP_COUNT	0xFFE00000
@@ -1401,6 +1404,7 @@ enum punit_power_well {
 #define GT_BSD_CS_ERROR_INTERRUPT		(1 << 15)
 #define GT_BSD_USER_INTERRUPT			(1 << 12)
 #define GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1	(1 << 11) /* hsw+; rsvd on snb, ivb, vlv */
+#define GT_CONTEXT_SWITCH_INTERRUPT		(1 <<  8)
 #define GT_RENDER_L3_PARITY_ERROR_INTERRUPT	(1 <<  5) /* !snb */
 #define GT_RENDER_PIPECTL_NOTIFY_INTERRUPT	(1 <<  4)
 #define GT_RENDER_CS_MASTER_ERROR_INTERRUPT	(1 <<  3)
@@ -4124,7 +4128,8 @@ enum punit_power_well {
 /* Old style CUR*CNTR flags (desktop 8xx) */
 #define   CURSOR_ENABLE		0x80000000
 #define   CURSOR_GAMMA_ENABLE	0x40000000
-#define   CURSOR_STRIDE_MASK	0x30000000
+#define   CURSOR_STRIDE_SHIFT	28
+#define   CURSOR_STRIDE(x)	((ffs(x)-9) << CURSOR_STRIDE_SHIFT) /* 256,512,1k,2k */
 #define   CURSOR_PIPE_CSC_ENABLE (1<<24)
 #define   CURSOR_FORMAT_SHIFT	24
 #define   CURSOR_FORMAT_MASK	(0x07 << CURSOR_FORMAT_SHIFT)

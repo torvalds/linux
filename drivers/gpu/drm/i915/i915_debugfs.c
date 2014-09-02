@@ -333,7 +333,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 			}
 
 			ppgtt = container_of(vma->vm, struct i915_hw_ppgtt, base);
-			if (ppgtt->ctx && ppgtt->ctx->file_priv != stats->file_priv)
+			if (ppgtt->file_priv != stats->file_priv)
 				continue;
 
 			if (obj->ring) /* XXX per-vma statistic */
@@ -703,6 +703,12 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		}
 
 		for_each_pipe(pipe) {
+			if (!intel_display_power_enabled(dev_priv,
+						POWER_DOMAIN_PIPE(pipe))) {
+				seq_printf(m, "Pipe %c power disabled\n",
+					   pipe_name(pipe));
+				continue;
+			}
 			seq_printf(m, "Pipe %c IMR:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(GEN8_DE_PIPE_IMR(pipe)));
@@ -1671,6 +1677,14 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static void describe_ctx_ringbuf(struct seq_file *m,
+				 struct intel_ringbuffer *ringbuf)
+{
+	seq_printf(m, " (ringbuffer, space: %d, head: %u, tail: %u, last head: %d)",
+		   ringbuf->space, ringbuf->head, ringbuf->tail,
+		   ringbuf->last_retired_head);
+}
+
 static int i915_context_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -1697,16 +1711,168 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	}
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
-		if (ctx->legacy_hw_ctx.rcs_state == NULL)
+		if (!i915.enable_execlists &&
+		    ctx->legacy_hw_ctx.rcs_state == NULL)
 			continue;
 
 		seq_puts(m, "HW context ");
 		describe_ctx(m, ctx);
-		for_each_ring(ring, dev_priv, i)
+		for_each_ring(ring, dev_priv, i) {
 			if (ring->default_context == ctx)
-				seq_printf(m, "(default context %s) ", ring->name);
+				seq_printf(m, "(default context %s) ",
+					   ring->name);
+		}
 
-		describe_obj(m, ctx->legacy_hw_ctx.rcs_state);
+		if (i915.enable_execlists) {
+			seq_putc(m, '\n');
+			for_each_ring(ring, dev_priv, i) {
+				struct drm_i915_gem_object *ctx_obj =
+					ctx->engine[i].state;
+				struct intel_ringbuffer *ringbuf =
+					ctx->engine[i].ringbuf;
+
+				seq_printf(m, "%s: ", ring->name);
+				if (ctx_obj)
+					describe_obj(m, ctx_obj);
+				if (ringbuf)
+					describe_ctx_ringbuf(m, ringbuf);
+				seq_putc(m, '\n');
+			}
+		} else {
+			describe_obj(m, ctx->legacy_hw_ctx.rcs_state);
+		}
+
+		seq_putc(m, '\n');
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+static int i915_dump_lrc(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	struct intel_context *ctx;
+	int ret, i;
+
+	if (!i915.enable_execlists) {
+		seq_printf(m, "Logical Ring Contexts are disabled\n");
+		return 0;
+	}
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	list_for_each_entry(ctx, &dev_priv->context_list, link) {
+		for_each_ring(ring, dev_priv, i) {
+			struct drm_i915_gem_object *ctx_obj = ctx->engine[i].state;
+
+			if (ring->default_context == ctx)
+				continue;
+
+			if (ctx_obj) {
+				struct page *page = i915_gem_object_get_page(ctx_obj, 1);
+				uint32_t *reg_state = kmap_atomic(page);
+				int j;
+
+				seq_printf(m, "CONTEXT: %s %u\n", ring->name,
+						intel_execlists_ctx_id(ctx_obj));
+
+				for (j = 0; j < 0x600 / sizeof(u32) / 4; j += 4) {
+					seq_printf(m, "\t[0x%08lx] 0x%08x 0x%08x 0x%08x 0x%08x\n",
+					i915_gem_obj_ggtt_offset(ctx_obj) + 4096 + (j * 4),
+					reg_state[j], reg_state[j + 1],
+					reg_state[j + 2], reg_state[j + 3]);
+				}
+				kunmap_atomic(reg_state);
+
+				seq_putc(m, '\n');
+			}
+		}
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+static int i915_execlists(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	u32 status_pointer;
+	u8 read_pointer;
+	u8 write_pointer;
+	u32 status;
+	u32 ctx_id;
+	struct list_head *cursor;
+	int ring_id, i;
+	int ret;
+
+	if (!i915.enable_execlists) {
+		seq_puts(m, "Logical Ring Contexts are disabled\n");
+		return 0;
+	}
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	for_each_ring(ring, dev_priv, ring_id) {
+		struct intel_ctx_submit_request *head_req = NULL;
+		int count = 0;
+		unsigned long flags;
+
+		seq_printf(m, "%s\n", ring->name);
+
+		status = I915_READ(RING_EXECLIST_STATUS(ring));
+		ctx_id = I915_READ(RING_EXECLIST_STATUS(ring) + 4);
+		seq_printf(m, "\tExeclist status: 0x%08X, context: %u\n",
+			   status, ctx_id);
+
+		status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(ring));
+		seq_printf(m, "\tStatus pointer: 0x%08X\n", status_pointer);
+
+		read_pointer = ring->next_context_status_buffer;
+		write_pointer = status_pointer & 0x07;
+		if (read_pointer > write_pointer)
+			write_pointer += 6;
+		seq_printf(m, "\tRead pointer: 0x%08X, write pointer 0x%08X\n",
+			   read_pointer, write_pointer);
+
+		for (i = 0; i < 6; i++) {
+			status = I915_READ(RING_CONTEXT_STATUS_BUF(ring) + 8*i);
+			ctx_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) + 8*i + 4);
+
+			seq_printf(m, "\tStatus buffer %d: 0x%08X, context: %u\n",
+				   i, status, ctx_id);
+		}
+
+		spin_lock_irqsave(&ring->execlist_lock, flags);
+		list_for_each(cursor, &ring->execlist_queue)
+			count++;
+		head_req = list_first_entry_or_null(&ring->execlist_queue,
+				struct intel_ctx_submit_request, execlist_link);
+		spin_unlock_irqrestore(&ring->execlist_lock, flags);
+
+		seq_printf(m, "\t%d requests in queue\n", count);
+		if (head_req) {
+			struct drm_i915_gem_object *ctx_obj;
+
+			ctx_obj = head_req->ctx->engine[ring_id].state;
+			seq_printf(m, "\tHead request id: %u\n",
+				   intel_execlists_ctx_id(ctx_obj));
+			seq_printf(m, "\tHead request tail: %u\n",
+				   head_req->tail);
+		}
+
 		seq_putc(m, '\n');
 	}
 
@@ -1815,7 +1981,13 @@ static int per_file_ctx(int id, void *ptr, void *data)
 {
 	struct intel_context *ctx = ptr;
 	struct seq_file *m = data;
-	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(ctx);
+	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
+
+	if (!ppgtt) {
+		seq_printf(m, "  no ppgtt for context %d\n",
+			   ctx->user_handle);
+		return 0;
+	}
 
 	if (i915_gem_context_is_default(ctx))
 		seq_puts(m, "  default context:\n");
@@ -1875,8 +2047,7 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd_offset);
 
 		ppgtt->debug_dump(ppgtt, m);
-	} else
-		return;
+	}
 
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
@@ -3963,6 +4134,8 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_opregion", i915_opregion, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_context_status", i915_context_status, 0},
+	{"i915_dump_lrc", i915_dump_lrc, 0},
+	{"i915_execlists", i915_execlists, 0},
 	{"i915_gen6_forcewake_count", i915_gen6_forcewake_count_info, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},

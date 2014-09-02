@@ -411,6 +411,7 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	int16_t cursor_width, cursor_height;
 	uint32_t cursor_cntl;
+	uint32_t cursor_size;
 	uint32_t cursor_base;
 
 	struct intel_plane_config plane_config;
@@ -952,7 +953,7 @@ void intel_dvo_init(struct drm_device *dev);
 extern int intel_fbdev_init(struct drm_device *dev);
 extern void intel_fbdev_initial_config(struct drm_device *dev);
 extern void intel_fbdev_fini(struct drm_device *dev);
-extern void intel_fbdev_set_suspend(struct drm_device *dev, int state);
+extern void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous);
 extern void intel_fbdev_output_poll_changed(struct drm_device *dev);
 extern void intel_fbdev_restore_mode(struct drm_device *dev);
 #else
@@ -969,7 +970,7 @@ static inline void intel_fbdev_fini(struct drm_device *dev)
 {
 }
 
-static inline void intel_fbdev_set_suspend(struct drm_device *dev, int state)
+static inline void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
 {
 }
 

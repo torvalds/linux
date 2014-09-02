@@ -1322,10 +1322,10 @@ static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
  * @dev_priv: DRM device private
  *
  */
-static u32 vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
+static int vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
 {
 	u32 residency_C0_up = 0, residency_C0_down = 0;
-	u8 new_delay, adj;
+	int new_delay, adj;
 
 	dev_priv->rps.ei_interrupt_count++;
 
@@ -1627,6 +1627,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 				       struct drm_i915_private *dev_priv,
 				       u32 master_ctl)
 {
+	struct intel_engine_cs *ring;
 	u32 rcs, bcs, vcs;
 	uint32_t tmp = 0;
 	irqreturn_t ret = IRQ_NONE;
@@ -1636,12 +1637,20 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 		if (tmp) {
 			I915_WRITE(GEN8_GT_IIR(0), tmp);
 			ret = IRQ_HANDLED;
+
 			rcs = tmp >> GEN8_RCS_IRQ_SHIFT;
-			bcs = tmp >> GEN8_BCS_IRQ_SHIFT;
+			ring = &dev_priv->ring[RCS];
 			if (rcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[RCS]);
+				notify_ring(dev, ring);
+			if (rcs & GT_CONTEXT_SWITCH_INTERRUPT)
+				intel_execlists_handle_ctx_events(ring);
+
+			bcs = tmp >> GEN8_BCS_IRQ_SHIFT;
+			ring = &dev_priv->ring[BCS];
 			if (bcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[BCS]);
+				notify_ring(dev, ring);
+			if (bcs & GT_CONTEXT_SWITCH_INTERRUPT)
+				intel_execlists_handle_ctx_events(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT0)!\n");
 	}
@@ -1651,12 +1660,20 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 		if (tmp) {
 			I915_WRITE(GEN8_GT_IIR(1), tmp);
 			ret = IRQ_HANDLED;
+
 			vcs = tmp >> GEN8_VCS1_IRQ_SHIFT;
+			ring = &dev_priv->ring[VCS];
 			if (vcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[VCS]);
+				notify_ring(dev, ring);
+			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
+				intel_execlists_handle_ctx_events(ring);
+
 			vcs = tmp >> GEN8_VCS2_IRQ_SHIFT;
+			ring = &dev_priv->ring[VCS2];
 			if (vcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[VCS2]);
+				notify_ring(dev, ring);
+			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
+				intel_execlists_handle_ctx_events(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT1)!\n");
 	}
@@ -1677,9 +1694,13 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 		if (tmp) {
 			I915_WRITE(GEN8_GT_IIR(3), tmp);
 			ret = IRQ_HANDLED;
+
 			vcs = tmp >> GEN8_VECS_IRQ_SHIFT;
+			ring = &dev_priv->ring[VECS];
 			if (vcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[VECS]);
+				notify_ring(dev, ring);
+			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
+				intel_execlists_handle_ctx_events(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT3)!\n");
 	}
@@ -1772,7 +1793,9 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 				long_hpd = (dig_hotplug_reg >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
 			}
 
-			DRM_DEBUG_DRIVER("digital hpd port %d %d\n", port, long_hpd);
+			DRM_DEBUG_DRIVER("digital hpd port %c - %s\n",
+					 port_name(port),
+					 long_hpd ? "long" : "short");
 			/* for long HPD pulses we want to have the digital queue happen,
 			   but we still want HPD storm detection to function. */
 			if (long_hpd) {
@@ -3781,12 +3804,17 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 	/* These are interrupts we'll toggle with the ring mask register */
 	uint32_t gt_interrupts[] = {
 		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
+			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
 			GT_RENDER_L3_PARITY_ERROR_INTERRUPT |
-			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT,
+			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT |
+			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT,
 		GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
-			GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT,
+			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
+			GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT |
+			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS2_IRQ_SHIFT,
 		0,
-		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT
+		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT |
+			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT
 		};
 
 	for (i = 0; i < ARRAY_SIZE(gt_interrupts); i++)
