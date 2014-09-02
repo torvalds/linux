@@ -3512,6 +3512,7 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	int maxphyaddr = cpuid_maxphyaddr(vcpu);
 	u64 exb_bit_rsvd = 0;
 	u64 gbpages_bit_rsvd = 0;
+	u64 nonleaf_bit8_rsvd = 0;
 
 	context->bad_mt_xwr = 0;
 
@@ -3519,6 +3520,14 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 		exb_bit_rsvd = rsvd_bits(63, 63);
 	if (!guest_cpuid_has_gbpages(vcpu))
 		gbpages_bit_rsvd = rsvd_bits(7, 7);
+
+	/*
+	 * Non-leaf PML4Es and PDPEs reserve bit 8 (which would be the G bit for
+	 * leaf entries) on AMD CPUs only.
+	 */
+	if (guest_cpuid_is_amd(vcpu))
+		nonleaf_bit8_rsvd = rsvd_bits(8, 8);
+
 	switch (context->root_level) {
 	case PT32_ROOT_LEVEL:
 		/* no rsvd bits for 2 level 4K page table entries */
@@ -3553,9 +3562,9 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 		break;
 	case PT64_ROOT_LEVEL:
 		context->rsvd_bits_mask[0][3] = exb_bit_rsvd |
-			rsvd_bits(maxphyaddr, 51) | rsvd_bits(7, 7);
+			nonleaf_bit8_rsvd | rsvd_bits(7, 7) | rsvd_bits(maxphyaddr, 51);
 		context->rsvd_bits_mask[0][2] = exb_bit_rsvd |
-			gbpages_bit_rsvd | rsvd_bits(maxphyaddr, 51);
+			nonleaf_bit8_rsvd | gbpages_bit_rsvd | rsvd_bits(maxphyaddr, 51);
 		context->rsvd_bits_mask[0][1] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 51);
 		context->rsvd_bits_mask[0][0] = exb_bit_rsvd |
