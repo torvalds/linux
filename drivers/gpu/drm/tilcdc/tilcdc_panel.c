@@ -340,8 +340,6 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 	return info;
 }
 
-static struct of_device_id panel_of_match[];
-
 static int panel_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
