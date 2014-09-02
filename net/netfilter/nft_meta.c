@@ -155,6 +155,16 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	case NFT_META_CPU:
 		dest->data[0] = smp_processor_id();
 		break;
+	case NFT_META_IIFGROUP:
+		if (in == NULL)
+			goto err;
+		dest->data[0] = in->group;
+		break;
+	case NFT_META_OIFGROUP:
+		if (out == NULL)
+			goto err;
+		dest->data[0] = out->group;
+		break;
 	default:
 		WARN_ON(1);
 		goto err;
@@ -228,6 +238,8 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 #endif
 	case NFT_META_PKTTYPE:
 	case NFT_META_CPU:
+	case NFT_META_IIFGROUP:
+	case NFT_META_OIFGROUP:
 		break;
 	default:
 		return -EOPNOTSUPP;
