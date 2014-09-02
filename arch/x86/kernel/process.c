@@ -66,7 +66,9 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	*dst = *src;
 
-	memset(&dst->thread.fpu, 0, sizeof(dst->thread.fpu));
+	dst->thread.fpu.has_fpu = 0;
+	dst->thread.fpu.last_cpu = ~0;
+	dst->thread.fpu.state = NULL;
 	if (tsk_used_math(src)) {
 		int err = fpu_alloc(&dst->thread.fpu);
 		if (err)
