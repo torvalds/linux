@@ -1149,7 +1149,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 static void check_for_stack(struct device *dev, void *addr)
 {
 	if (object_is_on_stack(addr))
-		err_printk(dev, NULL, "DMA-API: device driver maps memory from"
+		err_printk(dev, NULL, "DMA-API: device driver maps memory from "
 				"stack [addr=%p]\n", addr);
 }
 
