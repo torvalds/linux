@@ -13,6 +13,7 @@ struct at91_init_soc {
 	void (*register_clocks)(void);
 	void (*register_devices)(void);
 	void (*init)(void);
+	void (*init_time)(void);
 };
 
 extern struct at91_init_soc at91_boot_soc;
