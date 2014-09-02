@@ -322,8 +322,20 @@ retry_walk:
 
 		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
 					      PFERR_USER_MASK|PFERR_WRITE_MASK);
+
+		/*
+		 * FIXME: This can happen if emulation (for of an INS/OUTS
+		 * instruction) triggers a nested page fault.  The exit
+		 * qualification / exit info field will incorrectly have
+		 * "guest page access" as the nested page fault's cause,
+		 * instead of "guest page structure access".  To fix this,
+		 * the x86_exception struct should be augmented with enough
+		 * information to fix the exit_qualification or exit_info_1
+		 * fields.
+		 */
 		if (unlikely(real_gfn == UNMAPPED_GVA))
 			goto error;
+
 		real_gfn = gpa_to_gfn(real_gfn);
 
 		host_addr = gfn_to_hva_prot(vcpu->kvm, real_gfn,
