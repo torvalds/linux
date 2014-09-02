@@ -137,12 +137,14 @@ static int zynq_cpu_kill(unsigned cpu)
 	return 1;
 }
 
-/*
- * platform-specific code to shutdown a CPU
+/**
+ * zynq_cpu_die - Let a CPU core die
+ * @cpu:	Dying CPU
  *
- * Called with IRQs disabled
+ * Platform-specific code to shutdown a CPU.
+ * Called with IRQs disabled on the dying CPU.
  */
-static void zynq_platform_cpu_die(unsigned int cpu)
+static void zynq_cpu_die(unsigned int cpu)
 {
 	zynq_slcr_cpu_state_write(cpu, true);
 
@@ -162,7 +164,7 @@ struct smp_operations zynq_smp_ops __initdata = {
 	.smp_boot_secondary	= zynq_boot_secondary,
 	.smp_secondary_init	= zynq_secondary_init,
 #ifdef CONFIG_HOTPLUG_CPU
-	.cpu_die		= zynq_platform_cpu_die,
+	.cpu_die		= zynq_cpu_die,
 	.cpu_kill		= zynq_cpu_kill,
 #endif
 };
