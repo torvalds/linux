@@ -580,6 +580,12 @@ static void trf7970a_fill_fifo(struct trf7970a *trf)
 
 	/* Calculate how much more data can be written to the fifo */
 	len = TRF7970A_FIFO_SIZE - fifo_bytes;
+	if (!len) {
+		schedule_delayed_work(&trf->timeout_work,
+			msecs_to_jiffies(TRF7970A_WAIT_FOR_FIFO_DRAIN_TIMEOUT));
+		return;
+	}
+
 	len = min(skb->len, len);
 
 	prefix = TRF7970A_CMD_BIT_CONTINUOUS | TRF7970A_FIFO_IO_REGISTER;
