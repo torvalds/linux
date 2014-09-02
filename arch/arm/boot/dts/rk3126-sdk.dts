@@ -108,3 +108,7 @@
 		status = "disabled";
 	};
 };
+
+&rk3126_cif_sensor{
+	status = "okay";
+};

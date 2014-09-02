@@ -258,8 +258,10 @@ static u32 DISABLE_INVERT_PCLK_CIF1;
 *v0.1.1:
          1. spin lock in struct rk_cif_clk is not neccessary,and scheduled func clk_get called in this spin lock scope
             cause warning, so remove this spin lock .
+*v0.1.2:
+		 1. rk3126 and rk3128 use different dts file.		 
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x1)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x2)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -492,7 +494,6 @@ static void rk_camera_cif_reset(struct rk_camera_dev *pcdev, int only_rst)
     int ctrl_reg,inten_reg,crop_reg,set_size_reg,for_reg,vir_line_width_reg,scl_reg,y_reg,uv_reg;
 	u32 RK_CRU_SOFTRST_CON = 0;
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-	printk("&&&&&&&&&&&&&&&&&&&%s&&&&&&&&&&&&&&&\n",pcdev->pdata->rockchip_name);
 	if(strstr(pcdev->pdata->rockchip_name,"3128")||strstr(pcdev->pdata->rockchip_name,"3126"))
 		RK_CRU_SOFTRST_CON = RK312X_CRU_SOFTRSTS_CON(6);
 	

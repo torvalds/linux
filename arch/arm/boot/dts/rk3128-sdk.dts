@@ -89,3 +89,8 @@
         gpio_debug = <1>;
         codec_hp_det = <0>;
 };
+
+&rk3128_cif_sensor{
+	status = "okay";
+};
+

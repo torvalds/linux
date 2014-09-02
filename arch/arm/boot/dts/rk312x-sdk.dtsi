@@ -1,8 +1,9 @@
 /dts-v1/;
 
 #include "rk312x.dtsi"
+#include "rk3126-cif-sensor.dtsi"
+#include "rk3128-cif-sensor.dtsi"
 
-#include "rk312x-cif-sensor.dtsi"
 / {
 	fiq-debugger {
 		status = "okay";
@@ -174,6 +175,10 @@
 			status = "okay";
 	};
 };
+&i2c1 {
+	status = "okay";
+};
+
 &i2c2 {
 	status = "okay";
 	ts@55 {
@@ -533,6 +538,3 @@
         status = "okay";
 };
 
-&cif_sensor{
-	status = "okay";
-};
