@@ -1982,6 +1982,8 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 out_unwind:
 	while (--i >= 0)
 		blk_mq_free_rq_map(set, set->tags[i], i);
+	kfree(set->tags);
+	set->tags = NULL;
 out:
 	return -ENOMEM;
 }
@@ -1997,6 +1999,7 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 	}
 
 	kfree(set->tags);
+	set->tags = NULL;
 }
 EXPORT_SYMBOL(blk_mq_free_tag_set);
 
