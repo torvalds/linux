@@ -1071,16 +1071,19 @@ static void bcm_sysport_adj_link(struct net_device *dev)
 	if (!phydev->pause)
 		cmd_bits |= CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
 
-	if (changed) {
+	if (!changed)
+		return;
+
+	if (phydev->link) {
 		reg = umac_readl(priv, UMAC_CMD);
 		reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
 			CMD_HD_EN | CMD_RX_PAUSE_IGNORE |
 			CMD_TX_PAUSE_IGNORE);
 		reg |= cmd_bits;
 		umac_writel(priv, reg, UMAC_CMD);
-
-		phy_print_status(priv->phydev);
 	}
+
+	phy_print_status(priv->phydev);
 }
 
 static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
