@@ -1857,9 +1857,16 @@ static int toshiba_acpi_resume(struct device *device)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(to_acpi_device(device));
 	u32 result;
+	acpi_status status;
 
-	if (dev->hotkey_dev)
+	if (dev->hotkey_dev) {
+		status = acpi_evaluate_object(dev->acpi_dev->handle, "ENAB",
+				NULL, NULL);
+		if (ACPI_FAILURE(status))
+			pr_info("Unable to re-enable hotkeys\n");
+
 		hci_write1(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_ENABLE, &result);
+	}
 
 	return 0;
 }
