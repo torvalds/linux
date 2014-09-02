@@ -835,6 +835,16 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 
 	spin_lock(&tid_agg_rx->reorder_lock);
 
+	/*
+	 * Offloaded BA sessions have no known starting sequence number so pick
+	 * one from first Rxed frame for this tid after BA was started.
+	 */
+	if (unlikely(tid_agg_rx->auto_seq)) {
+		tid_agg_rx->auto_seq = false;
+		tid_agg_rx->ssn = mpdu_seq_num;
+		tid_agg_rx->head_seq_num = mpdu_seq_num;
+	}
+
 	buf_size = tid_agg_rx->buf_size;
 	head_seq_num = tid_agg_rx->head_seq_num;
 
