@@ -168,9 +168,9 @@ static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
  */
 static int pcpu_nr_empty_pop_pages;
 
-/* reclaim work to release fully free chunks, scheduled from free path */
-static void pcpu_reclaim(struct work_struct *work);
-static DECLARE_WORK(pcpu_reclaim_work, pcpu_reclaim);
+/* balance work is used to populate or destroy chunks asynchronously */
+static void pcpu_balance_workfn(struct work_struct *work);
+static DECLARE_WORK(pcpu_balance_work, pcpu_balance_workfn);
 
 static bool pcpu_addr_in_first_chunk(void *addr)
 {
@@ -1080,36 +1080,33 @@ void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
 }
 
 /**
- * pcpu_reclaim - reclaim fully free chunks, workqueue function
+ * pcpu_balance_workfn - reclaim fully free chunks, workqueue function
  * @work: unused
  *
  * Reclaim all fully free chunks except for the first one.
- *
- * CONTEXT:
- * workqueue context.
  */
-static void pcpu_reclaim(struct work_struct *work)
+static void pcpu_balance_workfn(struct work_struct *work)
 {
-	LIST_HEAD(todo);
-	struct list_head *head = &pcpu_slot[pcpu_nr_slots - 1];
+	LIST_HEAD(to_free);
+	struct list_head *free_head = &pcpu_slot[pcpu_nr_slots - 1];
 	struct pcpu_chunk *chunk, *next;
 
 	mutex_lock(&pcpu_alloc_mutex);
 	spin_lock_irq(&pcpu_lock);
 
-	list_for_each_entry_safe(chunk, next, head, list) {
+	list_for_each_entry_safe(chunk, next, free_head, list) {
 		WARN_ON(chunk->immutable);
 
 		/* spare the first one */
-		if (chunk == list_first_entry(head, struct pcpu_chunk, list))
+		if (chunk == list_first_entry(free_head, struct pcpu_chunk, list))
 			continue;
 
-		list_move(&chunk->list, &todo);
+		list_move(&chunk->list, &to_free);
 	}
 
 	spin_unlock_irq(&pcpu_lock);
 
-	list_for_each_entry_safe(chunk, next, &todo, list) {
+	list_for_each_entry_safe(chunk, next, &to_free, list) {
 		int rs, re;
 
 		pcpu_for_each_pop_region(chunk, rs, re, 0, pcpu_unit_pages) {
@@ -1163,7 +1160,7 @@ void free_percpu(void __percpu *ptr)
 
 		list_for_each_entry(pos, &pcpu_slot[pcpu_nr_slots - 1], list)
 			if (pos != chunk) {
-				schedule_work(&pcpu_reclaim_work);
+				schedule_work(&pcpu_balance_work);
 				break;
 			}
 	}
