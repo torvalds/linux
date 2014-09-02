@@ -368,7 +368,7 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 {
 	struct ent ent, *res;
 	char *buf1;
-	int error = -EINVAL;
+	int len, error = -EINVAL;
 
 	if (buf[buflen - 1] != '\n')
 		return (-EINVAL);
@@ -392,8 +392,8 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 		IDMAP_TYPE_USER : IDMAP_TYPE_GROUP;
 
 	/* Name */
-	error = qword_get(&buf, buf1, PAGE_SIZE);
-	if (error <= 0 || error >= IDMAP_NAMESZ)
+	len = qword_get(&buf, buf1, PAGE_SIZE);
+	if (len <= 0 || len >= IDMAP_NAMESZ)
 		goto out;
 	memcpy(ent.name, buf1, sizeof(ent.name));
 
