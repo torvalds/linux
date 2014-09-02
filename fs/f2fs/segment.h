@@ -480,7 +480,7 @@ enum {
 
 static inline bool need_inplace_update(struct inode *inode)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 
 	/* IPU can be done only for the user data */
 	if (S_ISDIR(inode->i_mode))

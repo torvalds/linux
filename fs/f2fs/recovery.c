@@ -75,7 +75,7 @@ retry:
 				err = -EEXIST;
 			goto out_unmap_put;
 		}
-		err = acquire_orphan_inode(F2FS_SB(inode->i_sb));
+		err = acquire_orphan_inode(F2FS_I_SB(inode));
 		if (err) {
 			iput(einode);
 			goto out_unmap_put;

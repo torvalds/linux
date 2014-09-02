@@ -236,7 +236,7 @@ static void __set_data_blkaddr(struct dnode_of_data *dn, block_t new_addr)
 
 int reserve_new_block(struct dnode_of_data *dn)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return -EPERM;
@@ -396,7 +396,6 @@ end_update:
 
 struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct address_space *mapping = inode->i_mapping;
 	struct dnode_of_data dn;
 	struct page *page;
@@ -429,7 +428,7 @@ struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
 		return page;
 	}
 
-	err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
+	err = f2fs_submit_page_bio(F2FS_I_SB(inode), page, dn.data_blkaddr,
 					sync ? READ_SYNC : READA);
 	if (err)
 		return ERR_PTR(err);
@@ -451,7 +450,6 @@ struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
  */
 struct page *get_lock_data_page(struct inode *inode, pgoff_t index)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct address_space *mapping = inode->i_mapping;
 	struct dnode_of_data dn;
 	struct page *page;
@@ -490,7 +488,8 @@ repeat:
 		return page;
 	}
 
-	err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr, READ_SYNC);
+	err = f2fs_submit_page_bio(F2FS_I_SB(inode), page,
+					dn.data_blkaddr, READ_SYNC);
 	if (err)
 		return ERR_PTR(err);
 
@@ -517,7 +516,6 @@ repeat:
 struct page *get_new_data_page(struct inode *inode,
 		struct page *ipage, pgoff_t index, bool new_i_size)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
 	struct dnode_of_data dn;
@@ -541,8 +539,8 @@ repeat:
 		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 		SetPageUptodate(page);
 	} else {
-		err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
-								READ_SYNC);
+		err = f2fs_submit_page_bio(F2FS_I_SB(inode), page,
+						dn.data_blkaddr, READ_SYNC);
 		if (err)
 			goto put_err;
 
@@ -573,7 +571,7 @@ put_err:
 
 static int __allocate_data_block(struct dnode_of_data *dn)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_summary sum;
 	block_t new_blkaddr;
 	struct node_info ni;
@@ -614,7 +612,6 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 static int __get_data_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create, bool fiemap)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	unsigned int blkbits = inode->i_sb->s_blocksize_bits;
 	unsigned maxblocks = bh_result->b_size >> blkbits;
 	struct dnode_of_data dn;
@@ -630,8 +627,8 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 		goto out;
 
 	if (create) {
-		f2fs_balance_fs(sbi);
-		f2fs_lock_op(sbi);
+		f2fs_balance_fs(F2FS_I_SB(inode));
+		f2fs_lock_op(F2FS_I_SB(inode));
 	}
 
 	/* When reading holes, we need its node page */
@@ -707,7 +704,7 @@ put_out:
 	f2fs_put_dnode(&dn);
 unlock_out:
 	if (create)
-		f2fs_unlock_op(sbi);
+		f2fs_unlock_op(F2FS_I_SB(inode));
 out:
 	trace_f2fs_get_data_block(inode, iblock, bh_result, err);
 	return err;
@@ -804,7 +801,7 @@ static int f2fs_write_data_page(struct page *page,
 					struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	loff_t i_size = i_size_read(inode);
 	const pgoff_t end_index = ((unsigned long long) i_size)
 							>> PAGE_CACHE_SHIFT;
@@ -892,7 +889,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	bool locked = false;
 	int ret;
 	long diff;
@@ -945,7 +942,7 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 		struct page **pagep, void **fsdata)
 {
 	struct inode *inode = mapping->host;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct page *page;
 	pgoff_t index = ((unsigned long long) pos) >> PAGE_CACHE_SHIFT;
 	struct dnode_of_data dn;
@@ -1093,7 +1090,7 @@ static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
 		return 0;
 
 	/* clear fsync mark to recover these blocks */
-	fsync_mark_clear(F2FS_SB(inode->i_sb), inode->i_ino);
+	fsync_mark_clear(F2FS_I_SB(inode), inode->i_ino);
 
 	trace_f2fs_direct_IO_enter(inode, offset, count, rw);
 

@@ -54,7 +54,6 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 static void clear_node_page_dirty(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
-	struct f2fs_sb_info *sbi = F2FS_SB(mapping->host->i_sb);
 	unsigned int long flags;
 
 	if (PageDirty(page)) {
@@ -65,7 +64,7 @@ static void clear_node_page_dirty(struct page *page)
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
 
 		clear_page_dirty_for_io(page);
-		dec_page_count(sbi, F2FS_DIRTY_NODES);
+		dec_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_NODES);
 	}
 	ClearPageUptodate(page);
 }
@@ -411,7 +410,7 @@ got:
  */
 int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct page *npage[4];
 	struct page *parent;
 	int offset[4];
@@ -504,7 +503,7 @@ release_out:
 
 static void truncate_node(struct dnode_of_data *dn)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct node_info ni;
 
 	get_node_info(sbi, dn->nid, &ni);
@@ -540,14 +539,13 @@ invalidate:
 
 static int truncate_dnode(struct dnode_of_data *dn)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
 	struct page *page;
 
 	if (dn->nid == 0)
 		return 1;
 
 	/* get direct node */
-	page = get_node_page(sbi, dn->nid);
+	page = get_node_page(F2FS_I_SB(dn->inode), dn->nid);
 	if (IS_ERR(page) && PTR_ERR(page) == -ENOENT)
 		return 1;
 	else if (IS_ERR(page))
@@ -564,7 +562,6 @@ static int truncate_dnode(struct dnode_of_data *dn)
 static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 						int ofs, int depth)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
 	struct dnode_of_data rdn = *dn;
 	struct page *page;
 	struct f2fs_node *rn;
@@ -578,7 +575,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 
 	trace_f2fs_truncate_nodes_enter(dn->inode, dn->nid, dn->data_blkaddr);
 
-	page = get_node_page(sbi, dn->nid);
+	page = get_node_page(F2FS_I_SB(dn->inode), dn->nid);
 	if (IS_ERR(page)) {
 		trace_f2fs_truncate_nodes_exit(dn->inode, PTR_ERR(page));
 		return PTR_ERR(page);
@@ -636,7 +633,6 @@ out_err:
 static int truncate_partial_nodes(struct dnode_of_data *dn,
 			struct f2fs_inode *ri, int *offset, int depth)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
 	struct page *pages[2];
 	nid_t nid[3];
 	nid_t child_nid;
@@ -651,7 +647,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 	/* get indirect nodes in the path */
 	for (i = 0; i < idx + 1; i++) {
 		/* reference count'll be increased */
-		pages[i] = get_node_page(sbi, nid[i]);
+		pages[i] = get_node_page(F2FS_I_SB(dn->inode), nid[i]);
 		if (IS_ERR(pages[i])) {
 			err = PTR_ERR(pages[i]);
 			idx = i - 1;
@@ -696,7 +692,7 @@ fail:
  */
 int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int err = 0, cont = 1;
 	int level, offset[4], noffset[4];
 	unsigned int nofs = 0;
@@ -792,7 +788,7 @@ fail:
 
 int truncate_xattr_node(struct inode *inode, struct page *page)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	nid_t nid = F2FS_I(inode)->i_xattr_nid;
 	struct dnode_of_data dn;
 	struct page *npage;
@@ -860,7 +856,7 @@ struct page *new_inode_page(struct inode *inode)
 struct page *new_node_page(struct dnode_of_data *dn,
 				unsigned int ofs, struct page *ipage)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct node_info old_ni, new_ni;
 	struct page *page;
 	int err;
@@ -918,7 +914,7 @@ fail:
  */
 static int read_node_page(struct page *page, int rw)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 	struct node_info ni;
 
 	get_node_info(sbi, page->index, &ni);
@@ -994,7 +990,7 @@ got_it:
  */
 struct page *get_node_page_ra(struct page *parent, int start)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(parent->mapping->host->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
 	struct blk_plug plug;
 	struct page *page;
 	int err, i, end;
@@ -1206,7 +1202,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 static int f2fs_write_node_page(struct page *page,
 				struct writeback_control *wbc)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 	nid_t nid;
 	block_t new_addr;
 	struct node_info ni;
@@ -1257,7 +1253,7 @@ redirty_out:
 static int f2fs_write_node_pages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(mapping->host->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_M_SB(mapping);
 	long diff;
 
 	trace_f2fs_writepages(mapping->host, wbc, NODE);
@@ -1282,15 +1278,12 @@ skip_write:
 
 static int f2fs_set_node_page_dirty(struct page *page)
 {
-	struct address_space *mapping = page->mapping;
-	struct f2fs_sb_info *sbi = F2FS_SB(mapping->host->i_sb);
-
 	trace_f2fs_set_page_dirty(page, NODE);
 
 	SetPageUptodate(page);
 	if (!PageDirty(page)) {
 		__set_page_dirty_nobuffers(page);
-		inc_page_count(sbi, F2FS_DIRTY_NODES);
+		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
 		SetPagePrivate(page);
 		return 1;
 	}
@@ -1301,9 +1294,8 @@ static void f2fs_invalidate_node_page(struct page *page, unsigned int offset,
 				      unsigned int length)
 {
 	struct inode *inode = page->mapping->host;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	if (PageDirty(page))
-		dec_page_count(sbi, F2FS_DIRTY_NODES);
+		dec_page_count(F2FS_I_SB(inode), F2FS_DIRTY_NODES);
 	ClearPagePrivate(page);
 }
 
@@ -1551,13 +1543,12 @@ void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 
 void recover_inline_xattr(struct inode *inode, struct page *page)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	void *src_addr, *dst_addr;
 	size_t inline_size;
 	struct page *ipage;
 	struct f2fs_inode *ri;
 
-	ipage = get_node_page(sbi, inode->i_ino);
+	ipage = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	f2fs_bug_on(IS_ERR(ipage));
 
 	ri = F2FS_INODE(page);
@@ -1579,7 +1570,7 @@ update_inode:
 
 void recover_xattr_data(struct inode *inode, struct page *page, block_t blkaddr)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	nid_t prev_xnid = F2FS_I(inode)->i_xattr_nid;
 	nid_t new_xnid = nid_of_node(page);
 	struct node_info ni;

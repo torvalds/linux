@@ -33,7 +33,7 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 {
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vma->vm_file);
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct dnode_of_data dn;
 	int err;
 
@@ -117,7 +117,7 @@ static int get_parent_ino(struct inode *inode, nid_t *pino)
 
 static inline bool need_do_checkpoint(struct inode *inode)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	bool need_cp = false;
 
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
@@ -138,7 +138,7 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int ret = 0;
 	bool need_cp = false;
 	struct writeback_control wbc = {
@@ -226,7 +226,7 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 flush_out:
 		remove_dirty_inode(sbi, inode->i_ino, UPDATE_INO);
 		clear_inode_flag(fi, FI_UPDATE_WRITE);
-		ret = f2fs_issue_flush(F2FS_SB(inode->i_sb));
+		ret = f2fs_issue_flush(F2FS_I_SB(inode));
 	}
 out:
 	trace_f2fs_sync_file_exit(inode, need_cp, datasync, ret);
@@ -369,7 +369,7 @@ static int f2fs_file_mmap(struct file *file, struct vm_area_struct *vma)
 int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 {
 	int nr_free = 0, ofs = dn->ofs_in_node;
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_node *raw_node;
 	__le32 *addr;
 
@@ -432,7 +432,7 @@ out:
 
 int truncate_blocks(struct inode *inode, u64 from, bool lock)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	unsigned int blocksize = inode->i_sb->s_blocksize;
 	struct dnode_of_data dn;
 	pgoff_t free_from;
@@ -555,7 +555,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 
 		truncate_setsize(inode, attr->ia_size);
 		f2fs_truncate(inode);
-		f2fs_balance_fs(F2FS_SB(inode->i_sb));
+		f2fs_balance_fs(F2FS_I_SB(inode));
 	}
 
 	__setattr_copy(inode, attr);
@@ -589,7 +589,7 @@ const struct inode_operations f2fs_file_inode_operations = {
 static void fill_zero(struct inode *inode, pgoff_t index,
 					loff_t start, loff_t len)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct page *page;
 
 	if (!len)
@@ -661,7 +661,7 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		if (pg_start < pg_end) {
 			struct address_space *mapping = inode->i_mapping;
 			loff_t blk_start, blk_end;
-			struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+			struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 
 			f2fs_balance_fs(sbi);
 
@@ -682,7 +682,7 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 static int expand_inode_data(struct inode *inode, loff_t offset,
 					loff_t len, int mode)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	pgoff_t index, pg_start, pg_end;
 	loff_t new_size = i_size_read(inode);
 	loff_t off_start, off_end;

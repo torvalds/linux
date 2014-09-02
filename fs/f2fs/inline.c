@@ -15,11 +15,10 @@
 
 bool f2fs_may_inline(struct inode *inode)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	block_t nr_blocks;
 	loff_t i_size;
 
-	if (!test_opt(sbi, INLINE_DATA))
+	if (!test_opt(F2FS_I_SB(inode), INLINE_DATA))
 		return false;
 
 	nr_blocks = F2FS_I(inode)->i_xattr_nid ? 3 : 2;
@@ -35,7 +34,6 @@ bool f2fs_may_inline(struct inode *inode)
 
 int f2fs_read_inline_data(struct inode *inode, struct page *page)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *ipage;
 	void *src_addr, *dst_addr;
 
@@ -44,7 +42,7 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 		goto out;
 	}
 
-	ipage = get_node_page(sbi, inode->i_ino);
+	ipage = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(ipage)) {
 		unlock_page(page);
 		return PTR_ERR(ipage);
@@ -73,7 +71,7 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 	struct dnode_of_data dn;
 	void *src_addr, *dst_addr;
 	block_t new_blk_addr;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_io_info fio = {
 		.type = DATA,
 		.rw = WRITE_SYNC | REQ_PRIO,
@@ -189,13 +187,12 @@ int f2fs_write_inline_data(struct inode *inode,
 
 void truncate_inline_data(struct inode *inode, u64 from)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *ipage;
 
 	if (from >= MAX_INLINE_DATA)
 		return;
 
-	ipage = get_node_page(sbi, inode->i_ino);
+	ipage = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(ipage))
 		return;
 
@@ -209,7 +206,7 @@ void truncate_inline_data(struct inode *inode, u64 from)
 
 bool recover_inline_data(struct inode *inode, struct page *npage)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode *ri = NULL;
 	void *src_addr, *dst_addr;
 	struct page *ipage;

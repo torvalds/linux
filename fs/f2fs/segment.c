@@ -953,15 +953,14 @@ static int __get_segment_type_6(struct page *page, enum page_type p_type)
 
 static int __get_segment_type(struct page *page, enum page_type p_type)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
-	switch (sbi->active_logs) {
+	switch (F2FS_P_SB(page)->active_logs) {
 	case 2:
 		return __get_segment_type_2(page, p_type);
 	case 4:
 		return __get_segment_type_4(page, p_type);
 	}
 	/* NR_CURSEG_TYPE(6) logs by default */
-	f2fs_bug_on(sbi->active_logs != NR_CURSEG_TYPE);
+	f2fs_bug_on(F2FS_P_SB(page)->active_logs != NR_CURSEG_TYPE);
 	return __get_segment_type_6(page, p_type);
 }
 
@@ -1041,7 +1040,7 @@ void write_node_page(struct f2fs_sb_info *sbi, struct page *page,
 void write_data_page(struct page *page, struct dnode_of_data *dn,
 		block_t *new_blkaddr, struct f2fs_io_info *fio)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_summary sum;
 	struct node_info ni;
 
@@ -1055,9 +1054,7 @@ void write_data_page(struct page *page, struct dnode_of_data *dn,
 void rewrite_data_page(struct page *page, block_t old_blkaddr,
 					struct f2fs_io_info *fio)
 {
-	struct inode *inode = page->mapping->host;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	f2fs_submit_page_mbio(sbi, page, old_blkaddr, fio);
+	f2fs_submit_page_mbio(F2FS_P_SB(page), page, old_blkaddr, fio);
 }
 
 void recover_data_page(struct f2fs_sb_info *sbi,
@@ -1130,8 +1127,9 @@ out:
 void f2fs_wait_on_page_writeback(struct page *page,
 				enum page_type type)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
 	if (PageWriteback(page)) {
+		struct f2fs_sb_info *sbi = F2FS_P_SB(page);
+
 		if (is_merged_page(sbi, page, type))
 			f2fs_submit_merged_bio(sbi, type, WRITE);
 		wait_on_page_writeback(page);

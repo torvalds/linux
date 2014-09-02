@@ -539,6 +539,21 @@ static inline struct f2fs_sb_info *F2FS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
+static inline struct f2fs_sb_info *F2FS_I_SB(struct inode *inode)
+{
+	return F2FS_SB(inode->i_sb);
+}
+
+static inline struct f2fs_sb_info *F2FS_M_SB(struct address_space *mapping)
+{
+	return F2FS_I_SB(mapping->host);
+}
+
+static inline struct f2fs_sb_info *F2FS_P_SB(struct page *page)
+{
+	return F2FS_M_SB(page->mapping);
+}
+
 static inline struct f2fs_super_block *F2FS_RAW_SUPER(struct f2fs_sb_info *sbi)
 {
 	return (struct f2fs_super_block *)(sbi->raw_super);
@@ -718,7 +733,7 @@ static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 
 static inline void inode_inc_dirty_dents(struct inode *inode)
 {
-	inc_page_count(F2FS_SB(inode->i_sb), F2FS_DIRTY_DENTS);
+	inc_page_count(F2FS_I_SB(inode), F2FS_DIRTY_DENTS);
 	atomic_inc(&F2FS_I(inode)->dirty_dents);
 }
 
@@ -732,7 +747,7 @@ static inline void inode_dec_dirty_dents(struct inode *inode)
 	if (!S_ISDIR(inode->i_mode))
 		return;
 
-	dec_page_count(F2FS_SB(inode->i_sb), F2FS_DIRTY_DENTS);
+	dec_page_count(F2FS_I_SB(inode), F2FS_DIRTY_DENTS);
 	atomic_dec(&F2FS_I(inode)->dirty_dents);
 }
 
@@ -1359,12 +1374,12 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 #define stat_inc_inline_inode(inode)					\
 	do {								\
 		if (f2fs_has_inline_data(inode))			\
-			((F2FS_SB(inode->i_sb))->inline_inode++);	\
+			((F2FS_I_SB(inode))->inline_inode++);		\
 	} while (0)
 #define stat_dec_inline_inode(inode)					\
 	do {								\
 		if (f2fs_has_inline_data(inode))			\
-			((F2FS_SB(inode->i_sb))->inline_inode--);	\
+			((F2FS_I_SB(inode))->inline_inode--);		\
 	} while (0)
 
 #define stat_inc_seg_type(sbi, curseg)					\
