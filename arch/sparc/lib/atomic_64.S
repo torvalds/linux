@@ -37,7 +37,7 @@ ENTRY(atomic_##op##_return) /* %o0 = increment, %o1 = atomic_ptr */	\
 	cas	[%o1], %g1, %g7;					\
 	cmp	%g1, %g7;						\
 	bne,pn	%icc, BACKOFF_LABEL(2f, 1b);				\
-	 add	%g1, %o0, %g1;						\
+	 op	%g1, %o0, %g1;						\
 	retl;								\
 	 sra	%g1, 0, %o0;						\
 2:	BACKOFF_SPIN(%o2, %o3, 1b);					\
@@ -76,7 +76,7 @@ ENTRY(atomic64_##op##_return) /* %o0 = increment, %o1 = atomic_ptr */	\
 	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b);				\
 	 nop;								\
 	retl;								\
-	 add	%g1, %o0, %o0;						\
+	 op	%g1, %o0, %o0;						\
 2:	BACKOFF_SPIN(%o2, %o3, 1b);					\
 ENDPROC(atomic64_##op##_return);
 
