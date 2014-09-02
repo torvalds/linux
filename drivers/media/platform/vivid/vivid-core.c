@@ -578,7 +578,6 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_g_fmt_vid_out_overlay	= vidioc_g_fmt_vid_out_overlay,
 	.vidioc_try_fmt_vid_out_overlay	= vidioc_try_fmt_vid_out_overlay,
 	.vidioc_s_fmt_vid_out_overlay	= vidioc_s_fmt_vid_out_overlay,
-	.vidioc_overlay			= vidioc_overlay,
 	.vidioc_g_fbuf			= vidioc_g_fbuf,
 	.vidioc_s_fbuf			= vidioc_s_fbuf,
 
