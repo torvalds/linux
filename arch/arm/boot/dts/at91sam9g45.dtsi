@@ -1191,6 +1191,13 @@
 					clocks = <&slow_rc_osc &slow_osc>;
 				};
 			};
+
+			rtc@fffffdb0 {
+				compatible = "atmel,at91rm9200-rtc";
+				reg = <0xfffffdb0 0x30>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+				status = "disabled";
+			};
 		};
 
 		fb0: fb@0x00500000 {
