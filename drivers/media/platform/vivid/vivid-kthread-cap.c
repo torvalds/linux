@@ -49,6 +49,7 @@
 #include "vivid-vbi-out.h"
 #include "vivid-osd.h"
 #include "vivid-ctrls.h"
+#include "vivid-kthread-cap.h"
 
 static inline v4l2_std_id vivid_get_std_cap(const struct vivid_dev *dev)
 {

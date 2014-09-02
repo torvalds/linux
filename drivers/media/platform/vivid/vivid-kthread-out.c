@@ -49,6 +49,7 @@
 #include "vivid-vbi-out.h"
 #include "vivid-osd.h"
 #include "vivid-ctrls.h"
+#include "vivid-kthread-out.h"
 
 static void vivid_thread_vid_out_tick(struct vivid_dev *dev)
 {
