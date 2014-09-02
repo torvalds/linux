@@ -225,6 +225,10 @@
 				status = "okay";
 			};
 
+			sscg@18330 {
+				reg = <0x18330 0x4>;
+			};
+
 			interrupt-controller@20000 {
 				reg = <0x20a00 0x1d0>, <0x21870 0x58>;
 			};
