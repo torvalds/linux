@@ -4090,18 +4090,15 @@ static int lancer_fw_download(struct be_adapter *adapter,
 
 	if (!IS_ALIGNED(fw->size, sizeof(u32))) {
 		dev_err(dev, "FW image size should be multiple of 4\n");
-		status = -EINVAL;
-		goto lancer_fw_exit;
+		return -EINVAL;
 	}
 
 	flash_cmd.size = sizeof(struct lancer_cmd_req_write_object)
 				+ LANCER_FW_DOWNLOAD_CHUNK;
 	flash_cmd.va = dma_alloc_coherent(dev, flash_cmd.size,
 					  &flash_cmd.dma, GFP_KERNEL);
-	if (!flash_cmd.va) {
-		status = -ENOMEM;
-		goto lancer_fw_exit;
-	}
+	if (!flash_cmd.va)
+		return -ENOMEM;
 
 	dest_image_ptr = flash_cmd.va +
 				sizeof(struct lancer_cmd_req_write_object);
@@ -4139,7 +4136,7 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	dma_free_coherent(dev, flash_cmd.size, flash_cmd.va, flash_cmd.dma);
 	if (status) {
 		dev_err(dev, "Firmware load error\n");
-		goto lancer_fw_exit;
+		return be_cmd_status(status);
 	}
 
 	dev_info(dev, "Firmware flashed successfully\n");
@@ -4151,13 +4148,12 @@ static int lancer_fw_download(struct be_adapter *adapter,
 		if (status) {
 			dev_err(dev, "Adapter busy, could not reset FW\n");
 			dev_err(dev, "Reboot server to activate new FW\n");
-			goto lancer_fw_exit;
 		}
 	} else if (change_status != LANCER_NO_RESET_NEEDED) {
 		dev_info(dev, "Reboot server to activate new FW\n");
 	}
-lancer_fw_exit:
-	return status;
+
+	return 0;
 }
 
 #define UFI_TYPE2		2
