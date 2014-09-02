@@ -561,12 +561,7 @@ static void trf7970a_fill_fifo(struct trf7970a *trf)
 
 	dev_dbg(trf->dev, "Filling FIFO - fifo_bytes: 0x%x\n", fifo_bytes);
 
-	if (fifo_bytes & TRF7970A_FIFO_STATUS_OVERFLOW) {
-		dev_err(trf->dev, "%s - fifo overflow: 0x%x\n", __func__,
-				fifo_bytes);
-		trf7970a_send_err_upstream(trf, -EIO);
-		return;
-	}
+	fifo_bytes &= ~TRF7970A_FIFO_STATUS_OVERFLOW;
 
 	/* Calculate how much more data can be written to the fifo */
 	len = TRF7970A_FIFO_SIZE - fifo_bytes;
@@ -596,15 +591,10 @@ static void trf7970a_drain_fifo(struct trf7970a *trf, u8 status)
 
 	dev_dbg(trf->dev, "Draining FIFO - fifo_bytes: 0x%x\n", fifo_bytes);
 
+	fifo_bytes &= ~TRF7970A_FIFO_STATUS_OVERFLOW;
+
 	if (!fifo_bytes)
 		goto no_rx_data;
-
-	if (fifo_bytes & TRF7970A_FIFO_STATUS_OVERFLOW) {
-		dev_err(trf->dev, "%s - fifo overflow: 0x%x\n", __func__,
-				fifo_bytes);
-		trf7970a_send_err_upstream(trf, -EIO);
-		return;
-	}
 
 	if (fifo_bytes > skb_tailroom(skb)) {
 		skb = skb_copy_expand(skb, skb_headroom(skb),
