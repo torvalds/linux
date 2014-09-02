@@ -1127,7 +1127,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long addr, pte_t *ptep)
 {
 	pgste_t pgste;
-	pte_t pte;
+	pte_t pte, oldpte;
 	int young;
 
 	if (mm_has_pgste(vma->vm_mm)) {
@@ -1135,12 +1135,13 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 		pgste = pgste_ipte_notify(vma->vm_mm, ptep, pgste);
 	}
 
-	pte = *ptep;
+	oldpte = pte = *ptep;
 	ptep_flush_direct(vma->vm_mm, addr, ptep);
 	young = pte_young(pte);
 	pte = pte_mkold(pte);
 
 	if (mm_has_pgste(vma->vm_mm)) {
+		pgste = pgste_update_all(&oldpte, pgste, vma->vm_mm);
 		pgste = pgste_set_pte(ptep, pgste, pte);
 		pgste_set_unlock(ptep, pgste);
 	} else
@@ -1330,6 +1331,7 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 	ptep_flush_direct(vma->vm_mm, address, ptep);
 
 	if (mm_has_pgste(vma->vm_mm)) {
+		pgste_set_key(ptep, pgste, entry, vma->vm_mm);
 		pgste = pgste_set_pte(ptep, pgste, entry);
 		pgste_set_unlock(ptep, pgste);
 	} else
