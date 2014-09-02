@@ -600,6 +600,23 @@ static void __kprobes do_cmp_unsigned(struct pt_regs *regs, unsigned long v1,
 	regs->ccr = (regs->ccr & ~(0xf << shift)) | (crval << shift);
 }
 
+static int __kprobes trap_compare(long v1, long v2)
+{
+	int ret = 0;
+
+	if (v1 < v2)
+		ret |= 0x10;
+	else if (v1 > v2)
+		ret |= 0x08;
+	else
+		ret |= 0x04;
+	if ((unsigned long)v1 < (unsigned long)v2)
+		ret |= 0x02;
+	else if ((unsigned long)v1 > (unsigned long)v2)
+		ret |= 0x01;
+	return ret;
+}
+
 /*
  * Elements of 32-bit rotate and mask instructions.
  */
@@ -669,6 +686,13 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 		return 1;
 	case 19:
 		switch ((instr >> 1) & 0x3ff) {
+		case 0:		/* mcrf */
+			rd = (instr >> 21) & 0x1c;
+			ra = (instr >> 16) & 0x1c;
+			val = (regs->ccr >> ra) & 0xf;
+			regs->ccr = (regs->ccr & ~(0xfUL << rd)) | (val << rd);
+			goto instr_done;
+
 		case 16:	/* bclr */
 		case 528:	/* bcctr */
 			op->type = BRANCH;
@@ -745,6 +769,17 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 	rb = (instr >> 11) & 0x1f;
 
 	switch (opcode) {
+#ifdef __powerpc64__
+	case 2:		/* tdi */
+		if (rd & trap_compare(regs->gpr[ra], (short) instr))
+			goto trap;
+		goto instr_done;
+#endif
+	case 3:		/* twi */
+		if (rd & trap_compare((int)regs->gpr[ra], (short) instr))
+			goto trap;
+		goto instr_done;
+
 	case 7:		/* mulli */
 		regs->gpr[rd] = regs->gpr[ra] * (short) instr;
 		goto instr_done;
@@ -893,6 +928,18 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 
 	case 31:
 		switch ((instr >> 1) & 0x3ff) {
+		case 4:		/* tw */
+			if (rd == 0x1f ||
+			    (rd & trap_compare((int)regs->gpr[ra],
+					       (int)regs->gpr[rb])))
+				goto trap;
+			goto instr_done;
+#ifdef __powerpc64__
+		case 68:	/* td */
+			if (rd & trap_compare(regs->gpr[ra], regs->gpr[rb]))
+				goto trap;
+			goto instr_done;
+#endif
 		case 83:	/* mfmsr */
 			if (regs->msr & MSR_PR)
 				goto priv;
@@ -1269,6 +1316,11 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 			op->ea = xform_ea(instr, regs);
 			op->reg = rd;
 			return 0;
+
+		case 982:	/* icbi */
+			op->type = MKOP(CACHEOP, ICBI, 0);
+			op->ea = xform_ea(instr, regs);
+			return 0;
 		}
 		break;
 	}
@@ -1597,6 +1649,11 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 	op->val = SRR1_PROGPRIV;
 	return 0;
 
+ trap:
+	op->type = INTERRUPT | 0x700;
+	op->val = SRR1_PROGTRAP;
+	return 0;
+
 #ifdef CONFIG_PPC_FPU
  fpunavail:
 	op->type = INTERRUPT | 0x800;
@@ -1713,6 +1770,9 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		case DCBT:
 			if (op.reg == 0)
 				prefetch((void *) op.ea);
+			break;
+		case ICBI:
+			__cacheop_user_asmx(op.ea, err, "icbi");
 			break;
 		}
 		if (err)

@@ -66,6 +66,7 @@ enum instruction_type {
 #define DCBF		0x100
 #define DCBTST		0x200
 #define DCBT		0x300
+#define ICBI		0x400
 
 /* Size field in type word */
 #define SIZE(n)		((n) << 8)
