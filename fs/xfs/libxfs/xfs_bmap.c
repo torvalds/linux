@@ -5424,7 +5424,7 @@ xfs_bmap_shift_extents(
 	struct xfs_bmap_free	*flist,
 	int			num_exts)
 {
-	struct xfs_btree_cur		*cur;
+	struct xfs_btree_cur		*cur = NULL;
 	struct xfs_bmbt_rec_host	*gotp;
 	struct xfs_bmbt_irec            got;
 	struct xfs_bmbt_irec		left;
@@ -5435,7 +5435,7 @@ xfs_bmap_shift_extents(
 	int				error = 0;
 	int				i;
 	int				whichfork = XFS_DATA_FORK;
-	int				logflags;
+	int				logflags = 0;
 	xfs_filblks_t			blockcount = 0;
 	int				total_extents;
 
@@ -5478,16 +5478,11 @@ xfs_bmap_shift_extents(
 		}
 	}
 
-	/* We are going to change core inode */
-	logflags = XFS_ILOG_CORE;
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
 		cur->bc_private.b.firstblock = *firstblock;
 		cur->bc_private.b.flist = flist;
 		cur->bc_private.b.flags = 0;
-	} else {
-		cur = NULL;
-		logflags |= XFS_ILOG_DEXT;
 	}
 
 	/*
@@ -5545,11 +5540,14 @@ xfs_bmap_shift_extents(
 			blockcount = left.br_blockcount +
 				got.br_blockcount;
 			xfs_iext_remove(ip, *current_ext, 1, 0);
+			logflags |= XFS_ILOG_CORE;
 			if (cur) {
 				error = xfs_btree_delete(cur, &i);
 				if (error)
 					goto del_cursor;
 				XFS_WANT_CORRUPTED_GOTO(i == 1, del_cursor);
+			} else {
+				logflags |= XFS_ILOG_DEXT;
 			}
 			XFS_IFORK_NEXT_SET(ip, whichfork,
 				XFS_IFORK_NEXTENTS(ip, whichfork) - 1);
@@ -5575,6 +5573,7 @@ xfs_bmap_shift_extents(
 			got.br_startoff = startoff;
 		}
 
+		logflags |= XFS_ILOG_CORE;
 		if (cur) {
 			error = xfs_bmbt_update(cur, got.br_startoff,
 						got.br_startblock,
@@ -5582,6 +5581,8 @@ xfs_bmap_shift_extents(
 						got.br_state);
 			if (error)
 				goto del_cursor;
+		} else {
+			logflags |= XFS_ILOG_DEXT;
 		}
 
 		(*current_ext)++;
@@ -5597,6 +5598,7 @@ del_cursor:
 		xfs_btree_del_cursor(cur,
 			error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
 
-	xfs_trans_log_inode(tp, ip, logflags);
+	if (logflags)
+		xfs_trans_log_inode(tp, ip, logflags);
 	return error;
 }
