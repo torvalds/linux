@@ -265,7 +265,7 @@ static void pcpu_post_map_flush(struct pcpu_chunk *chunk,
  * @size: size of the area to populate in bytes
  *
  * For each cpu, populate and map pages [@page_start,@page_end) into
- * @chunk.  The area is cleared on return.
+ * @chunk.
  *
  * CONTEXT:
  * pcpu_alloc_mutex, does GFP_KERNEL allocation.
@@ -276,17 +276,7 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
 	int page_end = PFN_UP(off + size);
 	int free_end = page_start, unmap_end = page_start;
 	struct page **pages;
-	unsigned int cpu;
 	int rs, re, rc;
-
-	/* quick path, check whether all pages are already there */
-	rs = page_start;
-	pcpu_next_pop(chunk, &rs, &re, page_end);
-	if (rs == page_start && re == page_end)
-		goto clear;
-
-	/* need to allocate and map pages, this chunk can't be immutable */
-	WARN_ON(chunk->immutable);
 
 	pages = pcpu_get_pages(chunk);
 	if (!pages)
@@ -308,10 +298,6 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
 	}
 	pcpu_post_map_flush(chunk, page_start, page_end);
 
-	bitmap_set(chunk->populated, page_start, page_end - page_start);
-clear:
-	for_each_possible_cpu(cpu)
-		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
 	return 0;
 
 err_unmap:
@@ -345,15 +331,6 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size)
 	struct page **pages;
 	int rs, re;
 
-	/* quick path, check whether it's empty already */
-	rs = page_start;
-	pcpu_next_unpop(chunk, &rs, &re, page_end);
-	if (rs == page_start && re == page_end)
-		return;
-
-	/* immutable chunks can't be depopulated */
-	WARN_ON(chunk->immutable);
-
 	/*
 	 * If control reaches here, there must have been at least one
 	 * successful population attempt so the temp pages array must
@@ -372,8 +349,6 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size)
 
 	pcpu_for_each_pop_region(chunk, rs, re, page_start, page_end)
 		pcpu_free_pages(chunk, pages, rs, re);
-
-	bitmap_clear(chunk->populated, page_start, page_end - page_start);
 }
 
 static struct pcpu_chunk *pcpu_create_chunk(void)

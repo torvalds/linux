@@ -709,7 +709,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
 	static int warn_limit = 10;
 	struct pcpu_chunk *chunk;
 	const char *err;
-	int slot, off, new_alloc;
+	int slot, off, new_alloc, cpu;
+	int page_start, page_end, rs, re;
 	unsigned long flags;
 	void __percpu *ptr;
 
@@ -802,17 +803,32 @@ restart:
 area_found:
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	/* populate, map and clear the area */
-	if (pcpu_populate_chunk(chunk, off, size)) {
-		spin_lock_irqsave(&pcpu_lock, flags);
-		pcpu_free_area(chunk, off);
-		err = "failed to populate";
-		goto fail_unlock;
+	/* populate if not all pages are already there */
+	page_start = PFN_DOWN(off);
+	page_end = PFN_UP(off + size);
+
+	rs = page_start;
+	pcpu_next_pop(chunk, &rs, &re, page_end);
+
+	if (rs != page_start || re != page_end) {
+		WARN_ON(chunk->immutable);
+
+		if (pcpu_populate_chunk(chunk, off, size)) {
+			spin_lock_irqsave(&pcpu_lock, flags);
+			pcpu_free_area(chunk, off);
+			err = "failed to populate";
+			goto fail_unlock;
+		}
+
+		bitmap_set(chunk->populated, page_start, page_end - page_start);
 	}
 
 	mutex_unlock(&pcpu_alloc_mutex);
 
-	/* return address relative to base address */
+	/* clear the areas and return address relative to base address */
+	for_each_possible_cpu(cpu)
+		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
+
 	ptr = __addr_to_pcpu_ptr(chunk->base_addr + off);
 	kmemleak_alloc_percpu(ptr, size);
 	return ptr;
@@ -903,7 +919,12 @@ static void pcpu_reclaim(struct work_struct *work)
 	spin_unlock_irq(&pcpu_lock);
 
 	list_for_each_entry_safe(chunk, next, &todo, list) {
-		pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size);
+		int rs = 0, re;
+
+		pcpu_next_unpop(chunk, &rs, &re, PFN_UP(pcpu_unit_size));
+		if (rs || re != PFN_UP(pcpu_unit_size))
+			pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size);
+
 		pcpu_destroy_chunk(chunk);
 	}
 

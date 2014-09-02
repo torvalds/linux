@@ -35,11 +35,6 @@
 
 static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
 {
-	unsigned int cpu;
-
-	for_each_possible_cpu(cpu)
-		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-
 	return 0;
 }
 
