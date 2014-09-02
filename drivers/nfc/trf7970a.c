@@ -332,7 +332,7 @@
 		(ISO15693_REQ_FLAG_SUB_CARRIER | ISO15693_REQ_FLAG_DATA_RATE)
 
 enum trf7970a_state {
-	TRF7970A_ST_OFF,
+	TRF7970A_ST_RF_OFF,
 	TRF7970A_ST_IDLE,
 	TRF7970A_ST_IDLE_RX_BLOCKED,
 	TRF7970A_ST_WAIT_FOR_TX_FIFO,
@@ -686,7 +686,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 
 	mutex_lock(&trf->lock);
 
-	if (trf->state == TRF7970A_ST_OFF) {
+	if (trf->state == TRF7970A_ST_RF_OFF) {
 		mutex_unlock(&trf->lock);
 		return IRQ_NONE;
 	}
@@ -863,7 +863,7 @@ static void trf7970a_switch_rf_off(struct trf7970a *trf)
 	trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL, trf->chip_status_ctrl);
 
 	trf->aborting = false;
-	trf->state = TRF7970A_ST_OFF;
+	trf->state = TRF7970A_ST_RF_OFF;
 
 	pm_runtime_mark_last_busy(trf->dev);
 	pm_runtime_put_autosuspend(trf->dev);
@@ -899,7 +899,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 
 	if (on) {
 		switch (trf->state) {
-		case TRF7970A_ST_OFF:
+		case TRF7970A_ST_RF_OFF:
 			ret = trf7970a_switch_rf_on(trf);
 			break;
 		case TRF7970A_ST_IDLE:
@@ -913,7 +913,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 		}
 	} else {
 		switch (trf->state) {
-		case TRF7970A_ST_OFF:
+		case TRF7970A_ST_RF_OFF:
 			break;
 		default:
 			dev_err(trf->dev, "%s - Invalid request: %d %d\n",
@@ -1045,7 +1045,7 @@ static int trf7970a_in_configure_hw(struct nfc_digital_dev *ddev, int type,
 
 	mutex_lock(&trf->lock);
 
-	if (trf->state == TRF7970A_ST_OFF) {
+	if (trf->state == TRF7970A_ST_RF_OFF) {
 		ret = trf7970a_switch_rf_on(trf);
 		if (ret)
 			goto err_unlock;
@@ -1348,7 +1348,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	if (!trf)
 		return -ENOMEM;
 
-	trf->state = TRF7970A_ST_OFF;
+	trf->state = TRF7970A_ST_RF_OFF;
 	trf->dev = &spi->dev;
 	trf->spi = spi;
 
@@ -1507,7 +1507,7 @@ static int trf7970a_pm_runtime_suspend(struct device *dev)
 
 	dev_dbg(dev, "Runtime suspend\n");
 
-	if (trf->state != TRF7970A_ST_OFF) {
+	if (trf->state != TRF7970A_ST_RF_OFF) {
 		dev_dbg(dev, "Can't suspend - not in OFF state (%d)\n",
 				trf->state);
 		return -EBUSY;
