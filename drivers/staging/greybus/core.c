@@ -169,7 +169,6 @@ static void greybus_module_release(struct device *dev)
 }
 
 
-
 static struct device_type greybus_module_type = {
 	.name =		"greybus_module",
 	.release =	greybus_module_release,
@@ -222,8 +221,40 @@ static struct attribute_group function_addr_grp = {
 	.is_visible =	function_attrs_are_visible,
 };
 
+#if 0
+struct greybus_descriptor_module_id {
+	__le16	vendor;
+	__le16	product;
+	__le16	version;
+	__u8	vendor_stringid;
+	__u8	product_stringid;
+};
+#endif
+
+/* Serial Number */
+static ssize_t serial_number_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct greybus_device *gdev = to_greybus_device(dev);
+	return sprintf(buf, "%llX\n",
+		      (unsigned long long)gdev->serial_number.serial_number);
+}
+static DEVICE_ATTR_RO(serial_number);
+
+static struct attribute *serial_number_attrs[] = {
+	&dev_attr_serial_number.attr,
+	NULL,
+};
+
+static struct attribute_group serial_number_grp = {
+	.attrs =	serial_number_attrs,
+	.is_visible =	function_attrs_are_visible,
+};
+
+
 static const struct attribute_group *greybus_module_groups[] = {
 	&function_addr_grp,
+	&serial_number_grp,
 	NULL,
 };
 
