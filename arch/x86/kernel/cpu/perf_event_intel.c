@@ -2540,10 +2540,10 @@ __init int intel_pmu_init(void)
 		break;
 
 
-	case 60: /* 22nm Haswell */
-	case 63:
-	case 69:
-	case 70:
+	case 60: /* 22nm Haswell Core */
+	case 63: /* 22nm Haswell Server */
+	case 69: /* 22nm Haswell ULT */
+	case 70: /* 22nm Haswell + GT3e (Intel Iris Pro graphics) */
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, snb_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
