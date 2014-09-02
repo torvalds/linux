@@ -1433,9 +1433,22 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 			break;
 
 #endif
+		case 533:	/* lswx */
+			op->type = MKOP(LOAD_MULTI, 0, regs->xer & 0x7f);
+			break;
 
 		case 534:	/* lwbrx */
 			op->type = MKOP(LOAD, BYTEREV, 4);
+			break;
+
+		case 597:	/* lswi */
+			if (rb == 0)
+				rb = 32;	/* # bytes to load */
+			op->type = MKOP(LOAD_MULTI, 0, rb);
+			op->ea = 0;
+			if (ra)
+				op->ea = truncate_if_32bit(regs->msr,
+							   regs->gpr[ra]);
 			break;
 
 #ifdef CONFIG_PPC_FPU
@@ -1475,9 +1488,23 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 			break;
 
 #endif
+		case 661:	/* stswx */
+			op->type = MKOP(STORE_MULTI, 0, regs->xer & 0x7f);
+			break;
+
 		case 662:	/* stwbrx */
 			op->type = MKOP(STORE, BYTEREV, 4);
 			op->val = byterev_4(regs->gpr[rd]);
+			break;
+
+		case 725:
+			if (rb == 0)
+				rb = 32;	/* # bytes to store */
+			op->type = MKOP(STORE_MULTI, 0, rb);
+			op->ea = 0;
+			if (ra)
+				op->ea = truncate_if_32bit(regs->msr,
+							   regs->gpr[ra]);
 			break;
 
 		case 790:	/* lhbrx */
@@ -1553,15 +1580,14 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 		break;
 
 	case 46:	/* lmw */
-		ra = (instr >> 16) & 0x1f;
 		if (ra >= rd)
 			break;		/* invalid form, ra in range to load */
-		op->type = MKOP(LOAD_MULTI, 0, 4);
+		op->type = MKOP(LOAD_MULTI, 0, 4 * (32 - rd));
 		op->ea = dform_ea(instr, regs);
 		break;
 
 	case 47:	/* stmw */
-		op->type = MKOP(STORE_MULTI, 0, 4);
+		op->type = MKOP(STORE_MULTI, 0, 4 * (32 - rd));
 		op->ea = dform_ea(instr, regs);
 		break;
 
@@ -1744,7 +1770,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 	int r, err, size;
 	unsigned long val;
 	unsigned int cr;
-	int rd;
+	int i, rd, nb;
 
 	r = analyse_instr(&op, regs, instr);
 	if (r != 0)
@@ -1866,12 +1892,18 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (regs->msr & MSR_LE)
 			return 0;
 		rd = op.reg;
-		do {
-			err = read_mem(&regs->gpr[rd], op.ea, 4, regs);
+		for (i = 0; i < size; i += 4) {
+			nb = size - i;
+			if (nb > 4)
+				nb = 4;
+			err = read_mem(&regs->gpr[rd], op.ea, nb, regs);
 			if (err)
 				return 0;
+			if (nb < 4)	/* left-justify last bytes */
+				regs->gpr[rd] <<= 32 - 8 * nb;
 			op.ea += 4;
-		} while (++rd < 32);
+			++rd;
+		}
 		goto instr_done;
 
 	case STORE:
@@ -1914,12 +1946,19 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (regs->msr & MSR_LE)
 			return 0;
 		rd = op.reg;
-		do {
-			err = write_mem(regs->gpr[rd], op.ea, 4, regs);
+		for (i = 0; i < size; i += 4) {
+			val = regs->gpr[rd];
+			nb = size - i;
+			if (nb > 4)
+				nb = 4;
+			else
+				val >>= 32 - 8 * nb;
+			err = write_mem(val, op.ea, nb, regs);
 			if (err)
 				return 0;
 			op.ea += 4;
-		} while (++rd < 32);
+			++rd;
+		}
 		goto instr_done;
 
 	case MFMSR:
