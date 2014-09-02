@@ -3491,17 +3491,18 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 	WARN_ON(val > dev_priv->rps.max_freq_softlimit);
 	WARN_ON(val < dev_priv->rps.min_freq_softlimit);
 
-	DRM_DEBUG_DRIVER("GPU freq request from %d MHz (%u) to %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
-			 dev_priv->rps.cur_freq,
-			 vlv_gpu_freq(dev_priv, val), val);
-
 	if (WARN_ONCE(IS_CHERRYVIEW(dev) && (val & 1),
 		      "Odd GPU freq value\n"))
 		val &= ~1;
 
-	if (val != dev_priv->rps.cur_freq)
+	if (val != dev_priv->rps.cur_freq) {
+		DRM_DEBUG_DRIVER("GPU freq request from %d MHz (%u) to %d MHz (%u)\n",
+				 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
+				 dev_priv->rps.cur_freq,
+				 vlv_gpu_freq(dev_priv, val), val);
+
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+	}
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
