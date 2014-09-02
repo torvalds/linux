@@ -910,7 +910,7 @@ void PIE_FUNC(pwm_regulator_suspend)(void)
 	int clk_gates8;
 
 	clk_gates8 = cru_readl(0xf0);
-	cru_writel(0x1e001e00, 0xf0);
+	cru_writel(0x1e000000, 0xf0);
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM0)) {
 		grf_writel(0x00100000, 0xb4);/*iomux  gpio0d2*/
 		gpio0_inout = readl_relaxed(RK_GPIO_VIRT(0) + 0x04);
@@ -950,7 +950,7 @@ void PIE_FUNC(pwm_regulator_resume)(void)
 	int clk_gates8;
 
 	clk_gates8 = cru_readl(0xf0);
-	cru_writel(0x1e001e00, 0xf0);
+	cru_writel(0x1e000000, 0xf0);
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM0)) {
 		gpio0_inout = readl_relaxed(RK_GPIO_VIRT(0) + 0x04);
 		gpio0_ddr = readl_relaxed(RK_GPIO_VIRT(0));
