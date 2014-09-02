@@ -647,12 +647,8 @@ static void uart_unthrottle(struct tty_struct *tty)
 		mask &= ~port->flags;
 	}
 
-	if (mask & UPF_SOFT_FLOW) {
-		if (port->x_char)
-			port->x_char = 0;
-		else
-			uart_send_xchar(tty, START_CHAR(tty));
-	}
+	if (mask & UPF_SOFT_FLOW)
+		uart_send_xchar(tty, START_CHAR(tty));
 
 	if (mask & UPF_HARD_FLOW)
 		uart_set_mctrl(port, TIOCM_RTS);
