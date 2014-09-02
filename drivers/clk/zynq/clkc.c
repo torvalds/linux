@@ -619,5 +619,4 @@ void __init zynq_clock_init(void)
 np_err:
 	of_node_put(np);
 	BUG();
-	return;
 }
