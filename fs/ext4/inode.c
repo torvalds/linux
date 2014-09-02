@@ -590,7 +590,7 @@ found:
 	/*
 	 * New blocks allocate and/or writing to unwritten extent
 	 * will possibly result in updating i_data, so we take
-	 * the write lock of i_data_sem, and call get_blocks()
+	 * the write lock of i_data_sem, and call get_block()
 	 * with create == 1 flag.
 	 */
 	down_write(&EXT4_I(inode)->i_data_sem);
@@ -1529,7 +1529,7 @@ out_unlock:
 }
 
 /*
- * This is a special get_blocks_t callback which is used by
+ * This is a special get_block_t callback which is used by
  * ext4_da_write_begin().  It will either return mapped block or
  * reserve space for a single block.
  *
