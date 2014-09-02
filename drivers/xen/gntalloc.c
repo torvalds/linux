@@ -124,7 +124,7 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 	int i, rc, readonly;
 	LIST_HEAD(queue_gref);
 	LIST_HEAD(queue_file);
-	struct gntalloc_gref *gref;
+	struct gntalloc_gref *gref, *next;
 
 	readonly = !(op->flags & GNTALLOC_FLAG_WRITABLE);
 	rc = -ENOMEM;
@@ -160,8 +160,8 @@ undo:
 	mutex_lock(&gref_mutex);
 	gref_size -= (op->count - i);
 
-	list_for_each_entry(gref, &queue_file, next_file) {
-		/* __del_gref does not remove from queue_file */
+	list_for_each_entry_safe(gref, next, &queue_file, next_file) {
+		list_del(&gref->next_file);
 		__del_gref(gref);
 	}
 
