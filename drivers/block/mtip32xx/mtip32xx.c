@@ -3918,7 +3918,6 @@ skip_create_disk:
 	if (rv) {
 		dev_err(&dd->pdev->dev,
 			"Unable to allocate request queue\n");
-		rv = -ENOMEM;
 		goto block_queue_alloc_init_error;
 	}
 
