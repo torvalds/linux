@@ -1117,6 +1117,7 @@ int vivid_vid_out_s_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
+#if 0
 int vivid_vid_out_g_edid(struct file *file, void *_fh,
 			 struct v4l2_edid *edid)
 {
@@ -1171,6 +1172,7 @@ int vivid_vid_out_s_edid(struct file *file, void *_fh,
 	memcpy(dev->edid, edid->edid, edid->blocks * 128);
 	return 0;
 }
+#endif
 
 int vivid_vid_out_g_parm(struct file *file, void *priv,
 			  struct v4l2_streamparm *parm)
