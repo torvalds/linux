@@ -661,6 +661,18 @@ static inline u32 amap_get(void *ptr, u32 dw_offset, u32 mask, u32 offset)
 			amap_mask(sizeof(((_struct *)0)->field)),	\
 			AMAP_BIT_OFFSET(_struct, field))
 
+#define GET_RX_COMPL_V0_BITS(field, ptr)				\
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, field, ptr)
+
+#define GET_RX_COMPL_V1_BITS(field, ptr)				\
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, field, ptr)
+
+#define GET_TX_COMPL_BITS(field, ptr)					\
+		AMAP_GET_BITS(struct amap_eth_tx_compl, field, ptr)
+
+#define SET_TX_WRB_HDR_BITS(field, ptr, val)				\
+		AMAP_SET_BITS(struct amap_eth_hdr_wrb, field, ptr, val)
+
 #define be_dws_cpu_to_le(wrb, len)	swap_dws(wrb, len)
 #define be_dws_le_to_cpu(wrb, len)	swap_dws(wrb, len)
 static inline void swap_dws(void *wrb, int len)

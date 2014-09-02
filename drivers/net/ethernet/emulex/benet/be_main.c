@@ -738,38 +738,37 @@ static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
 
 	memset(hdr, 0, sizeof(*hdr));
 
-	AMAP_SET_BITS(struct amap_eth_hdr_wrb, crc, hdr, 1);
+	SET_TX_WRB_HDR_BITS(crc, hdr, 1);
 
 	if (skb_is_gso(skb)) {
-		AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso, hdr, 1);
-		AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso_mss,
-			hdr, skb_shinfo(skb)->gso_size);
+		SET_TX_WRB_HDR_BITS(lso, hdr, 1);
+		SET_TX_WRB_HDR_BITS(lso_mss, hdr, skb_shinfo(skb)->gso_size);
 		if (skb_is_gso_v6(skb) && !lancer_chip(adapter))
-			AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso6, hdr, 1);
+			SET_TX_WRB_HDR_BITS(lso6, hdr, 1);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (skb->encapsulation) {
-			AMAP_SET_BITS(struct amap_eth_hdr_wrb, ipcs, hdr, 1);
+			SET_TX_WRB_HDR_BITS(ipcs, hdr, 1);
 			proto = skb_inner_ip_proto(skb);
 		} else {
 			proto = skb_ip_proto(skb);
 		}
 		if (proto == IPPROTO_TCP)
-			AMAP_SET_BITS(struct amap_eth_hdr_wrb, tcpcs, hdr, 1);
+			SET_TX_WRB_HDR_BITS(tcpcs, hdr, 1);
 		else if (proto == IPPROTO_UDP)
-			AMAP_SET_BITS(struct amap_eth_hdr_wrb, udpcs, hdr, 1);
+			SET_TX_WRB_HDR_BITS(udpcs, hdr, 1);
 	}
 
 	if (vlan_tx_tag_present(skb)) {
-		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan, hdr, 1);
+		SET_TX_WRB_HDR_BITS(vlan, hdr, 1);
 		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
-		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan_tag, hdr, vlan_tag);
+		SET_TX_WRB_HDR_BITS(vlan_tag, hdr, vlan_tag);
 	}
 
 	/* To skip HW VLAN tagging: evt = 1, compl = 0 */
-	AMAP_SET_BITS(struct amap_eth_hdr_wrb, complete, hdr, !skip_hw_vlan);
-	AMAP_SET_BITS(struct amap_eth_hdr_wrb, event, hdr, 1);
-	AMAP_SET_BITS(struct amap_eth_hdr_wrb, num_wrb, hdr, wrb_cnt);
-	AMAP_SET_BITS(struct amap_eth_hdr_wrb, len, hdr, len);
+	SET_TX_WRB_HDR_BITS(complete, hdr, !skip_hw_vlan);
+	SET_TX_WRB_HDR_BITS(event, hdr, 1);
+	SET_TX_WRB_HDR_BITS(num_wrb, hdr, wrb_cnt);
+	SET_TX_WRB_HDR_BITS(len, hdr, len);
 }
 
 static void unmap_tx_frag(struct device *dev, struct be_eth_wrb *wrb,
@@ -1753,65 +1752,46 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 static void be_parse_rx_compl_v1(struct be_eth_rx_compl *compl,
 				 struct be_rx_compl_info *rxcp)
 {
-	rxcp->pkt_size =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, pktsize, compl);
-	rxcp->vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtp, compl);
-	rxcp->err = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, err, compl);
-	rxcp->tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, tcpf, compl);
-	rxcp->udpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, udpf, compl);
-	rxcp->ip_csum =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, ipcksm, compl);
-	rxcp->l4_csum =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, l4_cksm, compl);
-	rxcp->ipv6 =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, ip_version, compl);
-	rxcp->num_rcvd =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, numfrags, compl);
-	rxcp->pkt_type =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, cast_enc, compl);
-	rxcp->rss_hash =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, rsshash, compl);
+	rxcp->pkt_size = GET_RX_COMPL_V1_BITS(pktsize, compl);
+	rxcp->vlanf = GET_RX_COMPL_V1_BITS(vtp, compl);
+	rxcp->err = GET_RX_COMPL_V1_BITS(err, compl);
+	rxcp->tcpf = GET_RX_COMPL_V1_BITS(tcpf, compl);
+	rxcp->udpf = GET_RX_COMPL_V1_BITS(udpf, compl);
+	rxcp->ip_csum = GET_RX_COMPL_V1_BITS(ipcksm, compl);
+	rxcp->l4_csum = GET_RX_COMPL_V1_BITS(l4_cksm, compl);
+	rxcp->ipv6 = GET_RX_COMPL_V1_BITS(ip_version, compl);
+	rxcp->num_rcvd = GET_RX_COMPL_V1_BITS(numfrags, compl);
+	rxcp->pkt_type = GET_RX_COMPL_V1_BITS(cast_enc, compl);
+	rxcp->rss_hash = GET_RX_COMPL_V1_BITS(rsshash, compl);
 	if (rxcp->vlanf) {
-		rxcp->qnq = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, qnq,
-					  compl);
-		rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v1,
-					       vlan_tag, compl);
+		rxcp->qnq = GET_RX_COMPL_V1_BITS(qnq, compl);
+		rxcp->vlan_tag = GET_RX_COMPL_V1_BITS(vlan_tag, compl);
 	}
-	rxcp->port = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, port, compl);
+	rxcp->port = GET_RX_COMPL_V1_BITS(port, compl);
 	rxcp->tunneled =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, tunneled, compl);
+		GET_RX_COMPL_V1_BITS(tunneled, compl);
 }
 
 static void be_parse_rx_compl_v0(struct be_eth_rx_compl *compl,
 				 struct be_rx_compl_info *rxcp)
 {
-	rxcp->pkt_size =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, pktsize, compl);
-	rxcp->vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtp, compl);
-	rxcp->err = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, err, compl);
-	rxcp->tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, tcpf, compl);
-	rxcp->udpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, udpf, compl);
-	rxcp->ip_csum =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, ipcksm, compl);
-	rxcp->l4_csum =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, l4_cksm, compl);
-	rxcp->ipv6 =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, ip_version, compl);
-	rxcp->num_rcvd =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, numfrags, compl);
-	rxcp->pkt_type =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, cast_enc, compl);
-	rxcp->rss_hash =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, rsshash, compl);
+	rxcp->pkt_size = GET_RX_COMPL_V0_BITS(pktsize, compl);
+	rxcp->vlanf = GET_RX_COMPL_V0_BITS(vtp, compl);
+	rxcp->err = GET_RX_COMPL_V0_BITS(err, compl);
+	rxcp->tcpf = GET_RX_COMPL_V0_BITS(tcpf, compl);
+	rxcp->udpf = GET_RX_COMPL_V0_BITS(udpf, compl);
+	rxcp->ip_csum = GET_RX_COMPL_V0_BITS(ipcksm, compl);
+	rxcp->l4_csum = GET_RX_COMPL_V0_BITS(l4_cksm, compl);
+	rxcp->ipv6 = GET_RX_COMPL_V0_BITS(ip_version, compl);
+	rxcp->num_rcvd = GET_RX_COMPL_V0_BITS(numfrags, compl);
+	rxcp->pkt_type = GET_RX_COMPL_V0_BITS(cast_enc, compl);
+	rxcp->rss_hash = GET_RX_COMPL_V0_BITS(rsshash, compl);
 	if (rxcp->vlanf) {
-		rxcp->qnq = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, qnq,
-					  compl);
-		rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v0,
-					       vlan_tag, compl);
+		rxcp->qnq = GET_RX_COMPL_V0_BITS(qnq, compl);
+		rxcp->vlan_tag = GET_RX_COMPL_V0_BITS(vlan_tag, compl);
 	}
-	rxcp->port = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, port, compl);
-	rxcp->ip_frag = AMAP_GET_BITS(struct amap_eth_rx_compl_v0,
-				      ip_frag, compl);
+	rxcp->port = GET_RX_COMPL_V0_BITS(port, compl);
+	rxcp->ip_frag = GET_RX_COMPL_V0_BITS(ip_frag, compl);
 }
 
 static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
@@ -2091,9 +2071,7 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 			num_wrbs = 0;
 			txq = &txo->q;
 			while ((txcp = be_tx_compl_get(&txo->cq))) {
-				end_idx =
-					AMAP_GET_BITS(struct amap_eth_tx_compl,
-						      wrb_index, txcp);
+				end_idx = GET_TX_COMPL_BITS(wrb_index, txcp);
 				num_wrbs += be_tx_compl_process(adapter, txo,
 								end_idx);
 				cmpl++;
@@ -2454,9 +2432,8 @@ static bool be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 		if (!txcp)
 			break;
 		num_wrbs += be_tx_compl_process(adapter, txo,
-						AMAP_GET_BITS(struct
-							      amap_eth_tx_compl,
-							      wrb_index, txcp));
+						GET_TX_COMPL_BITS(wrb_index,
+								  txcp));
 	}
 
 	if (work_done) {
