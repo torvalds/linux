@@ -1463,6 +1463,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 }
 EXPORT_SYMBOL_GPL(serial8250_tx_chars);
 
+/* Caller holds uart port lock */
 unsigned int serial8250_modem_status(struct uart_8250_port *up)
 {
 	struct uart_port *port = &up->port;
