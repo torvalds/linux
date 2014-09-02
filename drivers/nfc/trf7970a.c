@@ -125,13 +125,6 @@
 
 #define TRF7970A_AUTOSUSPEND_DELAY		30000 /* 30 seconds */
 
-/* TX data must be prefixed with a FIFO reset cmd, a cmd that depends
- * on what the current framing is, the address of the TX length byte 1
- * register (0x1d), and the 2 byte length of the data to be transmitted.
- * That totals 5 bytes.
- */
-#define TRF7970A_TX_SKB_HEADROOM		5
-
 #define TRF7970A_RX_SKB_ALLOC_SIZE		256
 
 #define TRF7970A_FIFO_SIZE			127
@@ -515,15 +508,29 @@ static void trf7970a_send_err_upstream(struct trf7970a *trf, int errno)
 }
 
 static int trf7970a_transmit(struct trf7970a *trf, struct sk_buff *skb,
-		unsigned int len)
+		unsigned int len, u8 *prefix, unsigned int prefix_len)
 {
+	struct spi_transfer t[2];
+	struct spi_message m;
 	unsigned int timeout;
 	int ret;
 
 	print_hex_dump_debug("trf7970a tx data: ", DUMP_PREFIX_NONE,
 			16, 1, skb->data, len, false);
 
-	ret = spi_write(trf->spi, skb->data, len);
+	spi_message_init(&m);
+
+	memset(&t, 0, sizeof(t));
+
+	t[0].tx_buf = prefix;
+	t[0].len = prefix_len;
+	spi_message_add_tail(&t[0], &m);
+
+	t[1].tx_buf = skb->data;
+	t[1].len = len;
+	spi_message_add_tail(&t[1], &m);
+
+	ret = spi_sync(trf->spi, &m);
 	if (ret) {
 		dev_err(trf->dev, "%s - Can't send tx data: %d\n", __func__,
 				ret);
@@ -559,6 +566,7 @@ static void trf7970a_fill_fifo(struct trf7970a *trf)
 	unsigned int len;
 	int ret;
 	u8 fifo_bytes;
+	u8 prefix;
 
 	ret = trf7970a_read(trf, TRF7970A_FIFO_STATUS, &fifo_bytes);
 	if (ret) {
@@ -574,7 +582,9 @@ static void trf7970a_fill_fifo(struct trf7970a *trf)
 	len = TRF7970A_FIFO_SIZE - fifo_bytes;
 	len = min(skb->len, len);
 
-	ret = trf7970a_transmit(trf, skb, len);
+	prefix = TRF7970A_CMD_BIT_CONTINUOUS | TRF7970A_FIFO_IO_REGISTER;
+
+	ret = trf7970a_transmit(trf, skb, len, &prefix, sizeof(prefix));
 	if (ret)
 		trf7970a_send_err_upstream(trf, ret);
 }
@@ -1108,7 +1118,7 @@ static int trf7970a_in_send_cmd(struct nfc_digital_dev *ddev,
 		nfc_digital_cmd_complete_t cb, void *arg)
 {
 	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
-	char *prefix;
+	u8 prefix[5];
 	unsigned int len;
 	int ret;
 	u8 status;
@@ -1164,11 +1174,11 @@ static int trf7970a_in_send_cmd(struct nfc_digital_dev *ddev,
 	trf->ignore_timeout = false;
 
 	len = skb->len;
-	prefix = skb_push(skb, TRF7970A_TX_SKB_HEADROOM);
 
 	/* TX data must be prefixed with a FIFO reset cmd, a cmd that depends
 	 * on what the current framing is, the address of the TX length byte 1
 	 * register (0x1d), and the 2 byte length of the data to be transmitted.
+	 * That totals 5 bytes.
 	 */
 	prefix[0] = TRF7970A_CMD_BIT_CTRL |
 			TRF7970A_CMD_BIT_OPCODE(TRF7970A_CMD_FIFO_RESET);
@@ -1192,7 +1202,7 @@ static int trf7970a_in_send_cmd(struct nfc_digital_dev *ddev,
 	if (ret)
 		goto out_err;
 
-	ret = trf7970a_transmit(trf, skb, len);
+	ret = trf7970a_transmit(trf, skb, len, prefix, sizeof(prefix));
 	if (ret) {
 		kfree_skb(trf->rx_skb);
 		trf->rx_skb = NULL;
@@ -1377,8 +1387,7 @@ static int trf7970a_probe(struct spi_device *spi)
 
 	trf->ddev = nfc_digital_allocate_device(&trf7970a_nfc_ops,
 			TRF7970A_SUPPORTED_PROTOCOLS,
-			NFC_DIGITAL_DRV_CAPS_IN_CRC, TRF7970A_TX_SKB_HEADROOM,
-			0);
+			NFC_DIGITAL_DRV_CAPS_IN_CRC, 0, 0);
 	if (!trf->ddev) {
 		dev_err(trf->dev, "Can't allocate NFC digital device\n");
 		ret = -ENOMEM;
