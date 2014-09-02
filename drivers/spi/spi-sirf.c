@@ -303,7 +303,7 @@ static void spi_sirfsoc_dma_fini_callback(void *data)
 	complete(dma_complete);
 }
 
-static int spi_sirfsoc_cmd_transfer(struct spi_device *spi,
+static void spi_sirfsoc_cmd_transfer(struct spi_device *spi,
 	struct spi_transfer *t)
 {
 	struct sirfsoc_spi *sspi;
@@ -325,10 +325,9 @@ static int spi_sirfsoc_cmd_transfer(struct spi_device *spi,
 		sspi->base + SIRFSOC_SPI_TX_RX_EN);
 	if (wait_for_completion_timeout(&sspi->tx_done, timeout) == 0) {
 		dev_err(&spi->dev, "cmd transfer timeout\n");
-		return 0;
+		return;
 	}
-
-	return t->len;
+	sspi->left_rx_word -= t->len;
 }
 
 static void spi_sirfsoc_dma_transfer(struct spi_device *spi,
