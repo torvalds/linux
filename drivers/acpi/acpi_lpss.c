@@ -61,19 +61,12 @@ ACPI_MODULE_NAME("acpi_lpss");
 #define LPSS_LTR			BIT(3)
 #define LPSS_SAVE_CTX			BIT(4)
 
-struct lpss_shared_clock {
-	const char *name;
-	unsigned long rate;
-	struct clk *clk;
-};
-
 struct lpss_private_data;
 
 struct lpss_device_desc {
 	unsigned int flags;
 	unsigned int prv_offset;
 	size_t prv_size_override;
-	struct lpss_shared_clock *shared_clock;
 	void (*setup)(struct lpss_private_data *pdata);
 };
 
@@ -140,14 +133,8 @@ static struct lpss_device_desc lpt_sdio_dev_desc = {
 	.prv_size_override = 0x1018,
 };
 
-static struct lpss_shared_clock pwm_clock = {
-	.name = "pwm_clk",
-	.rate = 25000000,
-};
-
 static struct lpss_device_desc byt_pwm_dev_desc = {
-	.flags = LPSS_CLK | LPSS_SAVE_CTX,
-	.shared_clock = &pwm_clock,
+	.flags = LPSS_SAVE_CTX,
 };
 
 static struct lpss_device_desc byt_uart_dev_desc = {
@@ -169,16 +156,6 @@ static struct lpss_device_desc byt_i2c_dev_desc = {
 	.flags = LPSS_CLK | LPSS_SAVE_CTX,
 	.prv_offset = 0x800,
 	.setup = byt_i2c_setup,
-};
-
-static struct lpss_shared_clock bsw_pwm_clock = {
-	.name = "pwm_clk",
-	.rate = 19200000,
-};
-
-static struct lpss_device_desc bsw_pwm_dev_desc = {
-	.flags = LPSS_CLK | LPSS_SAVE_CTX,
-	.shared_clock = &bsw_pwm_clock,
 };
 
 #else
@@ -211,7 +188,7 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT33FC", },
 
 	/* Braswell LPSS devices */
-	{ "80862288", LPSS_ADDR(bsw_pwm_dev_desc) },
+	{ "80862288", LPSS_ADDR(byt_pwm_dev_desc) },
 	{ "8086228A", LPSS_ADDR(byt_uart_dev_desc) },
 	{ "8086228E", LPSS_ADDR(byt_spi_dev_desc) },
 	{ "808622C1", LPSS_ADDR(byt_i2c_dev_desc) },
@@ -251,7 +228,6 @@ static int register_device_clock(struct acpi_device *adev,
 				 struct lpss_private_data *pdata)
 {
 	const struct lpss_device_desc *dev_desc = pdata->dev_desc;
-	struct lpss_shared_clock *shared_clock = dev_desc->shared_clock;
 	const char *devname = dev_name(&adev->dev);
 	struct clk *clk = ERR_PTR(-ENODEV);
 	struct lpss_clk_data *clk_data;
@@ -272,17 +248,6 @@ static int register_device_clock(struct acpi_device *adev,
 
 	parent = clk_data->name;
 	prv_base = pdata->mmio_base + dev_desc->prv_offset;
-
-	if (shared_clock) {
-		clk = shared_clock->clk;
-		if (!clk) {
-			clk = clk_register_fixed_rate(NULL, shared_clock->name,
-						      "lpss_clk", 0,
-						      shared_clock->rate);
-			shared_clock->clk = clk;
-		}
-		parent = shared_clock->name;
-	}
 
 	if (pdata->fixed_clk_rate) {
 		clk = clk_register_fixed_rate(NULL, devname, parent, 0,
