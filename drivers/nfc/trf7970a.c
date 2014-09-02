@@ -648,6 +648,21 @@ static void trf7970a_drain_fifo(struct trf7970a *trf, u8 status)
 		status = TRF7970A_IRQ_STATUS_SRX;
 	} else {
 		trf->state = TRF7970A_ST_WAIT_FOR_RX_DATA_CONT;
+
+		ret = trf7970a_read(trf, TRF7970A_FIFO_STATUS, &fifo_bytes);
+		if (ret) {
+			trf7970a_send_err_upstream(trf, ret);
+			return;
+		}
+
+		fifo_bytes &= ~TRF7970A_FIFO_STATUS_OVERFLOW;
+
+		/* If there are bytes in the FIFO, set status to '0' so
+		 * the if stmt below doesn't fire and the driver will wait
+		 * for the trf7970a to generate another RX interrupt.
+		 */
+		if (fifo_bytes)
+			status = 0;
 	}
 
 no_rx_data:
