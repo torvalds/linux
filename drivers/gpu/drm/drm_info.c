@@ -183,15 +183,32 @@ int drm_clients_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_file *priv;
 
+	seq_printf(m,
+		   "%20s %5s %3s master a %5s %10s\n",
+		   "command",
+		   "pid",
+		   "dev",
+		   "uid",
+		   "magic");
+
+	/* dev->filelist is sorted youngest first, but we want to present
+	 * oldest first (i.e. kernel, servers, clients), so walk backwardss.
+	 */
 	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "a dev	pid    uid	magic\n\n");
-	list_for_each_entry(priv, &dev->filelist, lhead) {
-		seq_printf(m, "%c %3d %5d %5d %10u\n",
-			   priv->authenticated ? 'y' : 'n',
-			   priv->minor->index,
+	list_for_each_entry_reverse(priv, &dev->filelist, lhead) {
+		struct task_struct *task;
+
+		rcu_read_lock(); /* locks pid_task()->comm */
+		task = pid_task(priv->pid, PIDTYPE_PID);
+		seq_printf(m, "%20s %5d %3d   %c    %c %5d %10u\n",
+			   task ? task->comm : "<unknown>",
 			   pid_vnr(priv->pid),
+			   priv->minor->index,
+			   priv->is_master ? 'y' : 'n',
+			   priv->authenticated ? 'y' : 'n',
 			   from_kuid_munged(seq_user_ns(m), priv->uid),
 			   priv->magic);
+		rcu_read_unlock();
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
