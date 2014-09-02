@@ -127,6 +127,12 @@ static void zynq_secondary_init(unsigned int cpu)
 #ifdef CONFIG_HOTPLUG_CPU
 static int zynq_cpu_kill(unsigned cpu)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(50);
+
+	while (zynq_slcr_cpu_state_read(cpu))
+		if (time_after(jiffies, timeout))
+			return 0;
+
 	zynq_slcr_cpu_stop(cpu);
 	return 1;
 }
