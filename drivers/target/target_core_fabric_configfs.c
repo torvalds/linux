@@ -320,7 +320,7 @@ static struct config_group *target_fabric_make_mappedlun(
 			struct se_node_acl, acl_group);
 	struct se_portal_group *se_tpg = se_nacl->se_tpg;
 	struct target_fabric_configfs *tf = se_tpg->se_tpg_wwn->wwn_tf;
-	struct se_lun_acl *lacl;
+	struct se_lun_acl *lacl = NULL;
 	struct config_item *acl_ci;
 	struct config_group *lacl_cg = NULL, *ml_stat_grp = NULL;
 	char *buf;
@@ -406,6 +406,7 @@ static struct config_group *target_fabric_make_mappedlun(
 out:
 	if (lacl_cg)
 		kfree(lacl_cg->default_groups);
+	kfree(lacl);
 	kfree(buf);
 	return ERR_PTR(ret);
 }
