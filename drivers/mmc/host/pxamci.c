@@ -474,7 +474,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		unsigned int clk = rate / ios->clock;
 
 		if (host->clkrt == CLKRT_OFF)
-			clk_enable(host->clk);
+			clk_prepare_enable(host->clk);
 
 		if (ios->clock == 26000000) {
 			/* to support 26MHz */
@@ -501,7 +501,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		pxamci_stop_clock(host);
 		if (host->clkrt != CLKRT_OFF) {
 			host->clkrt = CLKRT_OFF;
-			clk_disable(host->clk);
+			clk_disable_unprepare(host->clk);
 		}
 	}
 
