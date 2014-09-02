@@ -1160,8 +1160,6 @@ static int trf7970a_in_send_cmd(struct nfc_digital_dev *ddev,
 
 	len = min_t(int, skb->len, TRF7970A_FIFO_SIZE);
 
-	usleep_range(1000, 2000);
-
 	ret = trf7970a_transmit(trf, skb, len);
 	if (ret) {
 		kfree_skb(trf->rx_skb);
