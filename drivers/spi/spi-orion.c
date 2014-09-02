@@ -179,8 +179,8 @@ static inline int orion_spi_wait_till_ready(struct orion_spi *orion_spi)
 	for (i = 0; i < ORION_SPI_WAIT_RDY_MAX_LOOP; i++) {
 		if (readl(spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG)))
 			return 1;
-		else
-			udelay(1);
+
+		udelay(1);
 	}
 
 	return -1;
@@ -360,6 +360,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		master->bus_num = pdev->id;
 	if (pdev->dev.of_node) {
 		u32 cell_index;
+
 		if (!of_property_read_u32(pdev->dev.of_node, "cell-index",
 					  &cell_index))
 			master->bus_num = cell_index;
