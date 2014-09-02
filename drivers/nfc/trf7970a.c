@@ -506,6 +506,8 @@ static void trf7970a_send_err_upstream(struct trf7970a *trf, int errno)
 {
 	dev_dbg(trf->dev, "Error - state: %d, errno: %d\n", trf->state, errno);
 
+	cancel_delayed_work(&trf->timeout_work);
+
 	kfree_skb(trf->rx_skb);
 	trf->rx_skb = ERR_PTR(errno);
 
