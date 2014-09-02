@@ -121,6 +121,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 #define IPV6_MLD_MAX_MSF	64
 
 int sysctl_mld_max_msf __read_mostly = IPV6_MLD_MAX_MSF;
+int sysctl_mld_qrv __read_mostly = MLD_QRV_DEFAULT;
 
 /*
  *	socket join on multicast group
@@ -1191,15 +1192,16 @@ static void mld_update_qrv(struct inet6_dev *idev,
 	 * and SHOULD NOT be one. Catch this here if we ever run
 	 * into such a case in future.
 	 */
+	const int min_qrv = min(MLD_QRV_DEFAULT, sysctl_mld_qrv);
 	WARN_ON(idev->mc_qrv == 0);
 
 	if (mlh2->mld2q_qrv > 0)
 		idev->mc_qrv = mlh2->mld2q_qrv;
 
-	if (unlikely(idev->mc_qrv < 2)) {
+	if (unlikely(idev->mc_qrv < min_qrv)) {
 		net_warn_ratelimited("IPv6: MLD: clamping QRV from %u to %u!\n",
-				     idev->mc_qrv, MLD_QRV_DEFAULT);
-		idev->mc_qrv = MLD_QRV_DEFAULT;
+				     idev->mc_qrv, min_qrv);
+		idev->mc_qrv = min_qrv;
 	}
 }
 
@@ -2478,6 +2480,14 @@ void ipv6_mc_down(struct inet6_dev *idev)
 	mld_clear_delrec(idev);
 }
 
+static void ipv6_mc_reset(struct inet6_dev *idev)
+{
+	idev->mc_qrv = sysctl_mld_qrv;
+	idev->mc_qi = MLD_QI_DEFAULT;
+	idev->mc_qri = MLD_QRI_DEFAULT;
+	idev->mc_v1_seen = 0;
+	idev->mc_maxdelay = unsolicited_report_interval(idev);
+}
 
 /* Device going up */
 
@@ -2488,6 +2498,7 @@ void ipv6_mc_up(struct inet6_dev *idev)
 	/* Install multicast list, except for all-nodes (already installed) */
 
 	read_lock_bh(&idev->lock);
+	ipv6_mc_reset(idev);
 	for (i = idev->mc_list; i; i = i->next)
 		igmp6_group_added(i);
 	read_unlock_bh(&idev->lock);
@@ -2508,13 +2519,7 @@ void ipv6_mc_init_dev(struct inet6_dev *idev)
 			(unsigned long)idev);
 	setup_timer(&idev->mc_dad_timer, mld_dad_timer_expire,
 		    (unsigned long)idev);
-
-	idev->mc_qrv = MLD_QRV_DEFAULT;
-	idev->mc_qi = MLD_QI_DEFAULT;
-	idev->mc_qri = MLD_QRI_DEFAULT;
-
-	idev->mc_maxdelay = unsolicited_report_interval(idev);
-	idev->mc_v1_seen = 0;
+	ipv6_mc_reset(idev);
 	write_unlock_bh(&idev->lock);
 }
 

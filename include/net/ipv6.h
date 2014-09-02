@@ -121,6 +121,7 @@ struct frag_hdr {
 
 /* sysctls */
 extern int sysctl_mld_max_msf;
+extern int sysctl_mld_qrv;
 
 #define _DEVINC(net, statname, modifier, idev, field)			\
 ({									\
