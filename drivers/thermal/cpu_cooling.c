@@ -195,10 +195,21 @@ static int get_property(unsigned int cpu, unsigned long input,
 		/* now we have a valid frequency entry */
 		freq = table[i].frequency;
 
-		if (property == GET_LEVEL && (unsigned int)input == freq) {
+		if (property == GET_LEVEL) {
 			/* get level by frequency */
-			*output = descend ? j : (max_level - j - 1);
-			return 0;
+            if (descend && input >= freq) {
+                *output = (j - 1);
+                if (input != freq) {
+                    pr_debug("descend, fit %ld to level:%d, next freq:%d\n", input, *output, freq);
+                }
+                return 0;
+            } else if (!descend && input <= freq) {
+                *output = (max_level - j - 1);
+                if (input != freq) {
+                    pr_debug("ascend, fit %ld to level:%d, next freq:%d\n", input, *output, freq);
+                }
+                return 0;
+            }
 		}
 		if (property == GET_FREQ && level == j) {
 			/* get frequency by level */
