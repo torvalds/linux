@@ -1522,83 +1522,6 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void vgic_init_maintenance_interrupt(void *info)
-{
-	enable_percpu_irq(vgic->maint_irq, 0);
-}
-
-static int vgic_cpu_notify(struct notifier_block *self,
-			   unsigned long action, void *cpu)
-{
-	switch (action) {
-	case CPU_STARTING:
-	case CPU_STARTING_FROZEN:
-		vgic_init_maintenance_interrupt(NULL);
-		break;
-	case CPU_DYING:
-	case CPU_DYING_FROZEN:
-		disable_percpu_irq(vgic->maint_irq);
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block vgic_cpu_nb = {
-	.notifier_call = vgic_cpu_notify,
-};
-
-static const struct of_device_id vgic_ids[] = {
-	{ .compatible = "arm,cortex-a15-gic", .data = vgic_v2_probe, },
-	{ .compatible = "arm,gic-v3", .data = vgic_v3_probe, },
-	{},
-};
-
-int kvm_vgic_hyp_init(void)
-{
-	const struct of_device_id *matched_id;
-	const int (*vgic_probe)(struct device_node *,const struct vgic_ops **,
-				const struct vgic_params **);
-	struct device_node *vgic_node;
-	int ret;
-
-	vgic_node = of_find_matching_node_and_match(NULL,
-						    vgic_ids, &matched_id);
-	if (!vgic_node) {
-		kvm_err("error: no compatible GIC node found\n");
-		return -ENODEV;
-	}
-
-	vgic_probe = matched_id->data;
-	ret = vgic_probe(vgic_node, &vgic_ops, &vgic);
-	if (ret)
-		return ret;
-
-	ret = request_percpu_irq(vgic->maint_irq, vgic_maintenance_handler,
-				 "vgic", kvm_get_running_vcpus());
-	if (ret) {
-		kvm_err("Cannot register interrupt %d\n", vgic->maint_irq);
-		return ret;
-	}
-
-	ret = __register_cpu_notifier(&vgic_cpu_nb);
-	if (ret) {
-		kvm_err("Cannot register vgic CPU notifier\n");
-		goto out_free_irq;
-	}
-
-	/* Callback into for arch code for setup */
-	vgic_arch_setup(vgic);
-
-	on_each_cpu(vgic_init_maintenance_interrupt, NULL, 1);
-
-	return 0;
-
-out_free_irq:
-	free_percpu_irq(vgic->maint_irq, kvm_get_running_vcpus());
-	return ret;
-}
-
 /**
  * kvm_vgic_init - Initialize global VGIC state before running any VCPUs
  * @kvm: pointer to the kvm struct
@@ -2062,7 +1985,7 @@ static int vgic_create(struct kvm_device *dev, u32 type)
 	return kvm_vgic_create(dev->kvm);
 }
 
-struct kvm_device_ops kvm_arm_vgic_v2_ops = {
+static struct kvm_device_ops kvm_arm_vgic_v2_ops = {
 	.name = "kvm-arm-vgic",
 	.create = vgic_create,
 	.destroy = vgic_destroy,
@@ -2070,3 +1993,81 @@ struct kvm_device_ops kvm_arm_vgic_v2_ops = {
 	.get_attr = vgic_get_attr,
 	.has_attr = vgic_has_attr,
 };
+
+static void vgic_init_maintenance_interrupt(void *info)
+{
+	enable_percpu_irq(vgic->maint_irq, 0);
+}
+
+static int vgic_cpu_notify(struct notifier_block *self,
+			   unsigned long action, void *cpu)
+{
+	switch (action) {
+	case CPU_STARTING:
+	case CPU_STARTING_FROZEN:
+		vgic_init_maintenance_interrupt(NULL);
+		break;
+	case CPU_DYING:
+	case CPU_DYING_FROZEN:
+		disable_percpu_irq(vgic->maint_irq);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block vgic_cpu_nb = {
+	.notifier_call = vgic_cpu_notify,
+};
+
+static const struct of_device_id vgic_ids[] = {
+	{ .compatible = "arm,cortex-a15-gic", .data = vgic_v2_probe, },
+	{ .compatible = "arm,gic-v3", .data = vgic_v3_probe, },
+	{},
+};
+
+int kvm_vgic_hyp_init(void)
+{
+	const struct of_device_id *matched_id;
+	int (*vgic_probe)(struct device_node *,const struct vgic_ops **,
+			  const struct vgic_params **);
+	struct device_node *vgic_node;
+	int ret;
+
+	vgic_node = of_find_matching_node_and_match(NULL,
+						    vgic_ids, &matched_id);
+	if (!vgic_node) {
+		kvm_err("error: no compatible GIC node found\n");
+		return -ENODEV;
+	}
+
+	vgic_probe = matched_id->data;
+	ret = vgic_probe(vgic_node, &vgic_ops, &vgic);
+	if (ret)
+		return ret;
+
+	ret = request_percpu_irq(vgic->maint_irq, vgic_maintenance_handler,
+				 "vgic", kvm_get_running_vcpus());
+	if (ret) {
+		kvm_err("Cannot register interrupt %d\n", vgic->maint_irq);
+		return ret;
+	}
+
+	ret = __register_cpu_notifier(&vgic_cpu_nb);
+	if (ret) {
+		kvm_err("Cannot register vgic CPU notifier\n");
+		goto out_free_irq;
+	}
+
+	/* Callback into for arch code for setup */
+	vgic_arch_setup(vgic);
+
+	on_each_cpu(vgic_init_maintenance_interrupt, NULL, 1);
+
+	return kvm_register_device_ops(&kvm_arm_vgic_v2_ops,
+				       KVM_DEV_TYPE_ARM_VGIC_V2);
+
+out_free_irq:
+	free_percpu_irq(vgic->maint_irq, kvm_get_running_vcpus());
+	return ret;
+}

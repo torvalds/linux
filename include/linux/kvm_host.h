@@ -1027,7 +1027,6 @@ int kvm_register_device_ops(struct kvm_device_ops *ops, u32 type);
 extern struct kvm_device_ops kvm_mpic_ops;
 extern struct kvm_device_ops kvm_xics_ops;
 extern struct kvm_device_ops kvm_vfio_ops;
-extern struct kvm_device_ops kvm_arm_vgic_v2_ops;
 
 #ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
 

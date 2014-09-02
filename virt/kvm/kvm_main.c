@@ -2274,10 +2274,6 @@ static struct kvm_device_ops *kvm_device_ops_table[KVM_DEV_TYPE_MAX] = {
 #ifdef CONFIG_KVM_VFIO
 	[KVM_DEV_TYPE_VFIO]		= &kvm_vfio_ops,
 #endif
-
-#ifdef CONFIG_KVM_ARM_VGIC
-	[KVM_DEV_TYPE_ARM_VGIC_V2]	= &kvm_arm_vgic_v2_ops,
-#endif
 };
 
 int kvm_register_device_ops(struct kvm_device_ops *ops, u32 type)
