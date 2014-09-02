@@ -2286,10 +2286,6 @@ static struct kvm_device_ops *kvm_device_ops_table[KVM_DEV_TYPE_MAX] = {
 	[KVM_DEV_TYPE_VFIO]		= &kvm_vfio_ops,
 #endif
 
-#ifdef CONFIG_KVM_ARM_VGIC
-	[KVM_DEV_TYPE_ARM_VGIC_V2]	= &kvm_arm_vgic_v2_ops,
-#endif
-
 #ifdef CONFIG_S390
 	[KVM_DEV_TYPE_FLIC]		= &kvm_flic_ops,
 #endif
