@@ -1857,11 +1857,10 @@ static u8 ath10k_tx_h_get_tid(struct ieee80211_hdr *hdr)
 	return ieee80211_get_qos_ctl(hdr)[0] & IEEE80211_QOS_CTL_TID_MASK;
 }
 
-static u8 ath10k_tx_h_get_vdev_id(struct ath10k *ar,
-				  struct ieee80211_tx_info *info)
+static u8 ath10k_tx_h_get_vdev_id(struct ath10k *ar, struct ieee80211_vif *vif)
 {
-	if (info->control.vif)
-		return ath10k_vif_to_arvif(info->control.vif)->vdev_id;
+	if (vif)
+		return ath10k_vif_to_arvif(vif)->vdev_id;
 
 	if (ar->monitor_started)
 		return ar->monitor_vdev_id;
@@ -2317,7 +2316,7 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 
 	ATH10K_SKB_CB(skb)->htt.is_offchan = false;
 	ATH10K_SKB_CB(skb)->htt.tid = ath10k_tx_h_get_tid(hdr);
-	ATH10K_SKB_CB(skb)->vdev_id = ath10k_tx_h_get_vdev_id(ar, info);
+	ATH10K_SKB_CB(skb)->vdev_id = ath10k_tx_h_get_vdev_id(ar, vif);
 
 	/* it makes no sense to process injected frames like that */
 	if (vif && vif->type != NL80211_IFTYPE_MONITOR) {
