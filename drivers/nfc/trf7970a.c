@@ -164,8 +164,8 @@
 #define TRF7970A_CMD_CLOSE_SLOT			0x15
 #define TRF7970A_CMD_BLOCK_RX			0x16
 #define TRF7970A_CMD_ENABLE_RX			0x17
-#define TRF7970A_CMD_TEST_EXT_RF		0x18
-#define TRF7970A_CMD_TEST_INT_RF		0x19
+#define TRF7970A_CMD_TEST_INT_RF		0x18
+#define TRF7970A_CMD_TEST_EXT_RF		0x19
 #define TRF7970A_CMD_RX_GAIN_ADJUST		0x1a
 
 /* Bits determining whether its a direct command or register R/W,
@@ -279,6 +279,10 @@
 		 TRF7970A_IRQ_STATUS_FRAMING_EOF_ERROR |	\
 		 TRF7970A_IRQ_STATUS_PARITY_ERROR |		\
 		 TRF7970A_IRQ_STATUS_CRC_ERROR)
+
+#define TRF7970A_RSSI_OSC_STATUS_RSSI_MASK	(BIT(2) | BIT(1) | BIT(0))
+#define TRF7970A_RSSI_OSC_STATUS_RSSI_X_MASK	(BIT(5) | BIT(4) | BIT(3))
+#define TRF7970A_RSSI_OSC_STATUS_RSSI_OSC_OK	BIT(6)
 
 #define TRF7970A_SPECIAL_FCN_REG1_COL_7_6		BIT(0)
 #define TRF7970A_SPECIAL_FCN_REG1_14_ANTICOLL		BIT(1)
@@ -989,9 +993,43 @@ static int trf7970a_in_config_rf_tech(struct trf7970a *trf, int tech)
 	return ret;
 }
 
+static int trf7970a_is_rf_field(struct trf7970a *trf, bool *is_rf_field)
+{
+	int ret;
+	u8 rssi;
+
+	ret = trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL,
+			trf->chip_status_ctrl | TRF7970A_CHIP_STATUS_REC_ON);
+	if (ret)
+		return ret;
+
+	ret = trf7970a_cmd(trf, TRF7970A_CMD_TEST_EXT_RF);
+	if (ret)
+		return ret;
+
+	usleep_range(50, 60);
+
+	ret = trf7970a_read(trf, TRF7970A_RSSI_OSC_STATUS, &rssi);
+	if (ret)
+		return ret;
+
+	ret = trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL,
+			trf->chip_status_ctrl);
+	if (ret)
+		return ret;
+
+	if (rssi & TRF7970A_RSSI_OSC_STATUS_RSSI_MASK)
+		*is_rf_field = true;
+	else
+		*is_rf_field = false;
+
+	return 0;
+}
+
 static int trf7970a_in_config_framing(struct trf7970a *trf, int framing)
 {
 	u8 iso_ctrl = trf->iso_ctrl_tech;
+	bool is_rf_field = false;
 	int ret;
 
 	dev_dbg(trf->dev, "framing: %d\n", framing);
@@ -1023,6 +1061,15 @@ static int trf7970a_in_config_framing(struct trf7970a *trf, int framing)
 	}
 
 	trf->framing = framing;
+
+	if (!(trf->chip_status_ctrl & TRF7970A_CHIP_STATUS_RF_ON)) {
+		ret = trf7970a_is_rf_field(trf, &is_rf_field);
+		if (ret)
+			return ret;
+
+		if (is_rf_field)
+			return -EBUSY;
+	}
 
 	if (iso_ctrl != trf->iso_ctrl) {
 		ret = trf7970a_write(trf, TRF7970A_ISO_CTRL, iso_ctrl);
