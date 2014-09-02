@@ -99,7 +99,7 @@
 #define SPI_TX_TRIG_MASK		(0x3 << 16)
 #define SPI_TX_TRIG_1W			(0x0 << 16)
 #define SPI_TX_TRIG_4W			(0x1 << 16)
-#define SPI_DMA_BLK_COUNT(count)	(((count) - 1) & 0xFFFF);
+#define SPI_DMA_BLK_COUNT(count)	(((count) - 1) & 0xFFFF)
 
 #define SPI_TX_FIFO			0x10
 #define SPI_RX_FIFO			0x20
@@ -221,6 +221,7 @@ static int tegra_sflash_read_rx_fifo_to_client_rxbuf(
 	while (!(status & SPI_RXF_EMPTY)) {
 		int i;
 		u32 x = tegra_sflash_readl(tsd, SPI_RX_FIFO);
+
 		for (i = 0; (i < tsd->bytes_per_word); i++)
 			*rx_buf++ = (x >> (i*8)) & 0xFF;
 		read_words++;
