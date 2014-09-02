@@ -188,6 +188,8 @@ void gb_thread_destroy(void);
 int gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
 
+extern const struct attribute_group *greybus_module_groups[];
+
 /*
  * Because we are allocating a data structure per "type" in the greybus device,
  * we have static functions for this, not "dynamic" drivers like we really
