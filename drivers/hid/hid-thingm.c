@@ -250,6 +250,7 @@ static int thingm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (!tdev->fwinfo) {
 		hid_err(hdev, "unsupported firmware %c\n", tdev->version.major);
+		err = -ENODEV;
 		goto stop;
 	}
 
