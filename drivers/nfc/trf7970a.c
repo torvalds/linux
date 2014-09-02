@@ -478,8 +478,6 @@ static int trf7970a_read_irqstatus(struct trf7970a *trf, u8 *status)
 
 static void trf7970a_send_upstream(struct trf7970a *trf)
 {
-	u8 rssi;
-
 	dev_kfree_skb_any(trf->tx_skb);
 	trf->tx_skb = NULL;
 
@@ -487,13 +485,6 @@ static void trf7970a_send_upstream(struct trf7970a *trf)
 		print_hex_dump_debug("trf7970a rx data: ", DUMP_PREFIX_NONE,
 				16, 1, trf->rx_skb->data, trf->rx_skb->len,
 				false);
-
-	/* According to the manual it is "good form" to reset the fifo and
-	 * read the RSSI levels & oscillator status register here.  It doesn't
-	 * explain why.
-	 */
-	trf7970a_cmd(trf, TRF7970A_CMD_FIFO_RESET);
-	trf7970a_read(trf, TRF7970A_RSSI_OSC_STATUS, &rssi);
 
 	trf->state = TRF7970A_ST_IDLE;
 
