@@ -73,7 +73,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 {
 	struct iser_cq_desc *cq_desc;
 	struct ib_device_attr *dev_attr = &device->dev_attr;
-	int ret, i, j;
+	int ret, i;
 
 	ret = ib_query_device(device->ib_device, dev_attr);
 	if (ret) {
@@ -125,16 +125,20 @@ static int iser_create_device_ib_res(struct iser_device *device)
 					  iser_cq_event_callback,
 					  (void *)&cq_desc[i],
 					  ISER_MAX_RX_CQ_LEN, i);
-		if (IS_ERR(device->rx_cq[i]))
+		if (IS_ERR(device->rx_cq[i])) {
+			device->rx_cq[i] = NULL;
 			goto cq_err;
+		}
 
 		device->tx_cq[i] = ib_create_cq(device->ib_device,
 					  NULL, iser_cq_event_callback,
 					  (void *)&cq_desc[i],
 					  ISER_MAX_TX_CQ_LEN, i);
 
-		if (IS_ERR(device->tx_cq[i]))
+		if (IS_ERR(device->tx_cq[i])) {
+			device->tx_cq[i] = NULL;
 			goto cq_err;
+		}
 
 		if (ib_req_notify_cq(device->rx_cq[i], IB_CQ_NEXT_COMP))
 			goto cq_err;
@@ -160,14 +164,14 @@ static int iser_create_device_ib_res(struct iser_device *device)
 handler_err:
 	ib_dereg_mr(device->mr);
 dma_mr_err:
-	for (j = 0; j < device->cqs_used; j++)
-		tasklet_kill(&device->cq_tasklet[j]);
+	for (i = 0; i < device->cqs_used; i++)
+		tasklet_kill(&device->cq_tasklet[i]);
 cq_err:
-	for (j = 0; j < i; j++) {
-		if (device->tx_cq[j])
-			ib_destroy_cq(device->tx_cq[j]);
-		if (device->rx_cq[j])
-			ib_destroy_cq(device->rx_cq[j]);
+	for (i = 0; i < device->cqs_used; i++) {
+		if (device->tx_cq[i])
+			ib_destroy_cq(device->tx_cq[i]);
+		if (device->rx_cq[i])
+			ib_destroy_cq(device->rx_cq[i]);
 	}
 	ib_dealloc_pd(device->pd);
 pd_err:
