@@ -1167,11 +1167,10 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 
 	for (i = 0; i < RAPL_DOMAIN_MAX; i++) {
 		/* use physical package id to read counters */
-		if (!rapl_check_domain(cpu, i))
+		if (!rapl_check_domain(cpu, i)) {
 			rp->domain_map |= 1 << i;
-		else
-			pr_warn("RAPL domain %s detection failed\n",
-				rapl_domain_names[i]);
+			pr_info("Found RAPL domain %s\n", rapl_domain_names[i]);
+		}
 	}
 	rp->nr_domains = bitmap_weight(&rp->domain_map,	RAPL_DOMAIN_MAX);
 	if (!rp->nr_domains) {
