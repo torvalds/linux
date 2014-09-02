@@ -1771,6 +1771,7 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter)
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_get_fw_version *resp = embedded_payload(wrb);
+
 		strcpy(adapter->fw_ver, resp->firmware_version_string);
 		strcpy(adapter->fw_on_flash, resp->fw_on_flash_version_string);
 	}
@@ -2018,6 +2019,9 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter)
 		adapter->function_mode = le32_to_cpu(resp->function_mode);
 		adapter->function_caps = le32_to_cpu(resp->function_caps);
 		adapter->asic_rev = le32_to_cpu(resp->asic_revision) & 0xFF;
+		dev_info(&adapter->pdev->dev,
+			 "FW config: function_mode=0x%x, function_caps=0x%x\n",
+			 adapter->function_mode, adapter->function_caps);
 	}
 
 	mutex_unlock(&adapter->mbox_lock);
