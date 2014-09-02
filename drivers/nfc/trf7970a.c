@@ -869,7 +869,7 @@ static void trf7970a_switch_rf_off(struct trf7970a *trf)
 	pm_runtime_put_autosuspend(trf->dev);
 }
 
-static void trf7970a_switch_rf_on(struct trf7970a *trf)
+static int trf7970a_switch_rf_on(struct trf7970a *trf)
 {
 	int ret;
 
@@ -880,15 +880,18 @@ static void trf7970a_switch_rf_on(struct trf7970a *trf)
 	ret = trf7970a_init(trf);
 	if (ret) {
 		dev_err(trf->dev, "%s - Can't initialize: %d\n", __func__, ret);
-		return;
+		return ret;
 	}
 
 	trf->state = TRF7970A_ST_IDLE;
+
+	return 0;
 }
 
 static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 {
 	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
+	int ret = 0;
 
 	dev_dbg(trf->dev, "Switching RF - state: %d, on: %d\n", trf->state, on);
 
@@ -897,7 +900,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 	if (on) {
 		switch (trf->state) {
 		case TRF7970A_ST_OFF:
-			trf7970a_switch_rf_on(trf);
+			ret = trf7970a_switch_rf_on(trf);
 			break;
 		case TRF7970A_ST_IDLE:
 		case TRF7970A_ST_IDLE_RX_BLOCKED:
@@ -906,6 +909,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 			dev_err(trf->dev, "%s - Invalid request: %d %d\n",
 					__func__, trf->state, on);
 			trf7970a_switch_rf_off(trf);
+			ret = -EINVAL;
 		}
 	} else {
 		switch (trf->state) {
@@ -914,6 +918,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 		default:
 			dev_err(trf->dev, "%s - Invalid request: %d %d\n",
 					__func__, trf->state, on);
+			ret = -EINVAL;
 			/* FALLTHROUGH */
 		case TRF7970A_ST_IDLE:
 		case TRF7970A_ST_IDLE_RX_BLOCKED:
@@ -922,7 +927,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 	}
 
 	mutex_unlock(&trf->lock);
-	return 0;
+	return ret;
 }
 
 static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
@@ -1040,8 +1045,11 @@ static int trf7970a_in_configure_hw(struct nfc_digital_dev *ddev, int type,
 
 	mutex_lock(&trf->lock);
 
-	if (trf->state == TRF7970A_ST_OFF)
-		trf7970a_switch_rf_on(trf);
+	if (trf->state == TRF7970A_ST_OFF) {
+		ret = trf7970a_switch_rf_on(trf);
+		if (ret)
+			goto err_unlock;
+	}
 
 	switch (type) {
 	case NFC_DIGITAL_CONFIG_RF_TECH:
@@ -1055,6 +1063,7 @@ static int trf7970a_in_configure_hw(struct nfc_digital_dev *ddev, int type,
 		ret = -EINVAL;
 	}
 
+err_unlock:
 	mutex_unlock(&trf->lock);
 	return ret;
 }
