@@ -3688,20 +3688,24 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 }
 
 static enum drm_connector_status
+edp_detect(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	enum drm_connector_status status;
+
+	status = intel_panel_detect(dev);
+	if (status == connector_status_unknown)
+		status = connector_status_connected;
+
+	return status;
+}
+
+static enum drm_connector_status
 ironlake_dp_detect(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	enum drm_connector_status status;
-
-	/* Can't disconnect eDP, but you can close the lid... */
-	if (is_edp(intel_dp)) {
-		status = intel_panel_detect(dev);
-		if (status == connector_status_unknown)
-			status = connector_status_connected;
-		return status;
-	}
 
 	if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
 		return connector_status_disconnected;
@@ -3716,16 +3720,6 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	uint32_t bit;
-
-	/* Can't disconnect eDP, but you can close the lid... */
-	if (is_edp(intel_dp)) {
-		enum drm_connector_status status;
-
-		status = intel_panel_detect(dev);
-		if (status == connector_status_unknown)
-			status = connector_status_connected;
-		return status;
-	}
 
 	if (IS_VALLEYVIEW(dev)) {
 		switch (intel_dig_port->port) {
@@ -3827,11 +3821,13 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 
 	intel_dp->has_audio = false;
 
-	if (HAS_PCH_SPLIT(dev))
+	/* Can't disconnect eDP, but you can close the lid... */
+	if (is_edp(intel_dp))
+		status = edp_detect(intel_dp);
+	else if (HAS_PCH_SPLIT(dev))
 		status = ironlake_dp_detect(intel_dp);
 	else
 		status = g4x_dp_detect(intel_dp);
-
 	if (status != connector_status_connected)
 		goto out;
 
