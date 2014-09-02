@@ -152,6 +152,7 @@ struct uart_port {
 	unsigned long		sysrq;			/* sysrq timeout */
 #endif
 
+	/* flags must be updated while holding port mutex */
 	upf_t			flags;
 
 #define UPF_FOURPORT		((__force upf_t) (1 << 1))
