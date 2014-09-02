@@ -216,20 +216,81 @@ static umode_t function_attrs_are_visible(struct kobject *kobj,
 	return 0;
 }
 
-static struct attribute_group function_addr_grp = {
+static struct attribute_group function_attr_grp = {
 	.attrs =	function_attrs,
 	.is_visible =	function_attrs_are_visible,
 };
 
-#if 0
-struct greybus_descriptor_module_id {
-	__le16	vendor;
-	__le16	product;
-	__le16	version;
-	__u8	vendor_stringid;
-	__u8	product_stringid;
+/* Module fields */
+#define greybus_module_attr(field)					\
+static ssize_t module_##field##_show(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     char *buf)				\
+{									\
+	struct greybus_device *gdev = to_greybus_device(dev);		\
+	return sprintf(buf, "%x\n", gdev->module_id.field);		\
+}									\
+static DEVICE_ATTR_RO(module_##field)
+
+greybus_module_attr(vendor);
+greybus_module_attr(product);
+greybus_module_attr(version);
+
+static ssize_t module_vendor_string_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct greybus_device *gdev = to_greybus_device(dev);
+	return sprintf(buf, "%s",
+		       greybus_string(gdev->module_id.vendor_stringid));
+}
+static DEVICE_ATTR_RO(module_vendor_string);
+
+static ssize_t module_product_string_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct greybus_device *gdev = to_greybus_device(dev);
+	return sprintf(buf, "%s",
+		       greybus_string(gdev->module_id.product_stringid));
+}
+static DEVICE_ATTR_RO(module_product_string);
+
+static struct attribute *module_attrs[] = {
+	&dev_attr_module_vendor.attr,
+	&dev_attr_module_product.attr,
+	&dev_attr_module_version.attr,
+	&dev_attr_module_vendor_string.attr,
+	&dev_attr_module_product_string.attr,
+	NULL,
 };
-#endif
+
+static umode_t module_attrs_are_visible(struct kobject *kobj,
+					struct attribute *a, int n)
+{
+	struct greybus_device *gdev = to_greybus_device(kobj_to_dev(kobj));
+
+	if ((a == &dev_attr_module_vendor_string.attr) &&
+	    (gdev->module_id.vendor_stringid))
+		return a->mode;
+	if ((a == &dev_attr_module_product_string.attr) &&
+	    (gdev->module_id.product_stringid))
+		return a->mode;
+
+	// FIXME - make this a dynamic structure to "know" if it really is here
+	// or not easier?
+	if (gdev->module_id.vendor ||
+	    gdev->module_id.product ||
+	    gdev->module_id.version)
+		return a->mode;
+	return 0;
+}
+
+static struct attribute_group module_attr_grp = {
+	.attrs =	module_attrs,
+	.is_visible =	module_attrs_are_visible,
+};
+
 
 /* Serial Number */
 static ssize_t serial_number_show(struct device *dev,
@@ -246,15 +307,16 @@ static struct attribute *serial_number_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group serial_number_grp = {
+static struct attribute_group serial_number_attr_grp = {
 	.attrs =	serial_number_attrs,
 	.is_visible =	function_attrs_are_visible,
 };
 
 
 static const struct attribute_group *greybus_module_groups[] = {
-	&function_addr_grp,
-	&serial_number_grp,
+	&function_attr_grp,
+	&module_attr_grp,
+	&serial_number_attr_grp,
 	NULL,
 };
 
