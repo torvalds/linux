@@ -1253,8 +1253,6 @@ static int trf7970a_get_autosuspend_delay(struct device_node *np)
 	if (ret)
 		autosuspend_delay = TRF7970A_AUTOSUSPEND_DELAY;
 
-	of_node_put(np);
-
 	return autosuspend_delay;
 }
 
