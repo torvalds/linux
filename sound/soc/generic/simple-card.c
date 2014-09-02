@@ -112,8 +112,10 @@ static int
 asoc_simple_card_sub_parse_of(struct device_node *np,
 			      struct asoc_simple_dai *dai,
 			      struct device_node **p_node,
-			      const char **name)
+			      const char **name,
+			      int *args_count)
 {
+	struct of_phandle_args args;
 	struct device_node *node;
 	struct clk *clk;
 	u32 val;
@@ -123,10 +125,15 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	 * get node via "sound-dai = <&phandle port>"
 	 * it will be used as xxx_of_node on soc_bind_dai_link()
 	 */
-	node = of_parse_phandle(np, "sound-dai", 0);
-	if (!node)
-		return -ENODEV;
-	*p_node = node;
+	ret = of_parse_phandle_with_args(np, "sound-dai",
+					 "#sound-dai-cells", 0, &args);
+	if (ret)
+		return ret;
+
+	*p_node = args.np;
+
+	if (args_count)
+		*args_count = args.args_count;
 
 	/* get dai->name */
 	ret = snd_soc_of_get_dai_name(np, name);
@@ -176,7 +183,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	char *name;
 	char prop[128];
 	char *prefix = "";
-	int ret;
+	int ret, cpu_args;
 
 	if (is_top_level_node)
 		prefix = "simple-audio-card,";
@@ -195,7 +202,8 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 
 	ret = asoc_simple_card_sub_parse_of(np, &dai_props->cpu_dai,
 					    &dai_link->cpu_of_node,
-					    &dai_link->cpu_dai_name);
+					    &dai_link->cpu_dai_name,
+					    &cpu_args);
 	if (ret < 0)
 		goto dai_link_of_err;
 
@@ -226,7 +234,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 
 	ret = asoc_simple_card_sub_parse_of(np, &dai_props->codec_dai,
 					    &dai_link->codec_of_node,
-					    &dai_link->codec_dai_name);
+					    &dai_link->codec_dai_name, NULL);
 	if (ret < 0)
 		goto dai_link_of_err;
 
@@ -290,12 +298,13 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	 * soc_bind_dai_link() will check cpu name
 	 * after of_node matching if dai_link has cpu_dai_name.
 	 * but, it will never match if name was created by fmt_single_name()
-	 * remove cpu_dai_name to escape name matching.
+	 * remove cpu_dai_name if cpu_args was 0.
 	 * see
 	 *	fmt_single_name()
 	 *	fmt_multiple_name()
 	 */
-	dai_link->cpu_dai_name = NULL;
+	if (!cpu_args)
+		dai_link->cpu_dai_name = NULL;
 
 dai_link_of_err:
 	if (np)
