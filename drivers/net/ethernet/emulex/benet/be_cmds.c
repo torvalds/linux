@@ -1681,17 +1681,17 @@ err:
 	return status;
 }
 
-void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
+int be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
 {
 	struct be_dma_mem get_fat_cmd;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_fat *req;
 	u32 offset = 0, total_size, buf_size,
 				log_offset = sizeof(u32), payload_len;
-	int status;
+	int status = 0;
 
 	if (buf_len == 0)
-		return;
+		return -EIO;
 
 	total_size = buf_len;
 
@@ -1700,10 +1700,9 @@ void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
 					      get_fat_cmd.size,
 					      &get_fat_cmd.dma);
 	if (!get_fat_cmd.va) {
-		status = -ENOMEM;
 		dev_err(&adapter->pdev->dev,
 		"Memory allocation failure while retrieving FAT data\n");
-		return;
+		return -ENOMEM;
 	}
 
 	spin_lock_bh(&adapter->mcc_lock);
@@ -1746,6 +1745,7 @@ err:
 	pci_free_consistent(adapter->pdev, get_fat_cmd.size,
 			    get_fat_cmd.va, get_fat_cmd.dma);
 	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
 }
 
 /* Uses synchronous mcc */

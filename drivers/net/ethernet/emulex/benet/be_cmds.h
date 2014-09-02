@@ -2101,7 +2101,7 @@ int be_cmd_get_die_temperature(struct be_adapter *adapter);
 int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 int be_cmd_req_native_mode(struct be_adapter *adapter);
 int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
-void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
+int be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
 int be_cmd_get_fn_privileges(struct be_adapter *adapter, u32 *privilege,
 			     u32 domain);
 int be_cmd_set_fn_privileges(struct be_adapter *adapter, u32 privileges,
