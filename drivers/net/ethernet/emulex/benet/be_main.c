@@ -2143,7 +2143,6 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 		napi_hash_add(&eqo->napi);
 		aic = &adapter->aic_obj[i];
 		eqo->adapter = adapter;
-		eqo->tx_budget = BE_TX_BUDGET;
 		eqo->idx = i;
 		aic->max_eqd = BE_MAX_EQD;
 		aic->enable = true;
@@ -2459,20 +2458,19 @@ static inline void lancer_update_tx_err(struct be_tx_obj *txo, u32 status)
 	}
 }
 
-static bool be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
-			  int budget, int idx)
+static void be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
+			  int idx)
 {
 	struct be_eth_tx_compl *txcp;
-	int num_wrbs = 0, work_done;
+	int num_wrbs = 0, work_done = 0;
 	u32 compl_status;
+	u16 last_idx;
 
-	for (work_done = 0; work_done < budget; work_done++) {
-		txcp = be_tx_compl_get(&txo->cq);
-		if (!txcp)
-			break;
-		num_wrbs += be_tx_compl_process(adapter, txo,
-						GET_TX_COMPL_BITS(wrb_index,
-								  txcp));
+	while ((txcp = be_tx_compl_get(&txo->cq))) {
+		last_idx = GET_TX_COMPL_BITS(wrb_index, txcp);
+		num_wrbs += be_tx_compl_process(adapter, txo, last_idx);
+		work_done++;
+
 		compl_status = GET_TX_COMPL_BITS(status, txcp);
 		if (compl_status) {
 			if (lancer_chip(adapter))
@@ -2497,7 +2495,6 @@ static bool be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 		tx_stats(txo)->tx_compl += work_done;
 		u64_stats_update_end(&tx_stats(txo)->sync_compl);
 	}
-	return (work_done < budget); /* Done */
 }
 
 int be_poll(struct napi_struct *napi, int budget)
@@ -2506,17 +2503,12 @@ int be_poll(struct napi_struct *napi, int budget)
 	struct be_adapter *adapter = eqo->adapter;
 	int max_work = 0, work, i, num_evts;
 	struct be_rx_obj *rxo;
-	bool tx_done;
 
 	num_evts = events_get(eqo);
 
 	/* Process all TXQs serviced by this EQ */
-	for (i = eqo->idx; i < adapter->num_tx_qs; i += adapter->num_evt_qs) {
-		tx_done = be_process_tx(adapter, &adapter->tx_obj[i],
-					eqo->tx_budget, i);
-		if (!tx_done)
-			max_work = budget;
-	}
+	for (i = eqo->idx; i < adapter->num_tx_qs; i += adapter->num_evt_qs)
+		be_process_tx(adapter, &adapter->tx_obj[i], i);
 
 	if (be_lock_napi(eqo)) {
 		/* This loop will iterate twice for EQ0 in which

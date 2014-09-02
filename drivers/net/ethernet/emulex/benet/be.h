@@ -114,7 +114,6 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MAX_ROCE_EQS		5
 #define MAX_MSIX_VECTORS	32
 #define MIN_MSIX_VECTORS	1
-#define BE_TX_BUDGET		256
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
@@ -200,7 +199,6 @@ struct be_eq_obj {
 
 	u8 idx;			/* array index */
 	u8 msix_idx;
-	u16 tx_budget;
 	u16 spurious_intr;
 	struct napi_struct napi;
 	struct be_adapter *adapter;
