@@ -125,7 +125,7 @@
 
 #define TRF7970A_RX_SKB_ALLOC_SIZE		256
 
-#define TRF7970A_FIFO_SIZE			128
+#define TRF7970A_FIFO_SIZE			127
 
 /* TX length is 3 nibbles long ==> 4KB - 1 bytes max */
 #define TRF7970A_TX_MAX				(4096 - 1)
