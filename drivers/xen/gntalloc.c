@@ -141,13 +141,11 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 			goto undo;
 
 		/* Grant foreign access to the page. */
-		gref->gref_id = gnttab_grant_foreign_access(op->domid,
+		rc = gnttab_grant_foreign_access(op->domid,
 			pfn_to_mfn(page_to_pfn(gref->page)), readonly);
-		if ((int)gref->gref_id < 0) {
-			rc = gref->gref_id;
+		if (rc < 0)
 			goto undo;
-		}
-		gref_ids[i] = gref->gref_id;
+		gref_ids[i] = gref->gref_id = rc;
 	}
 
 	/* Add to gref lists. */
@@ -193,7 +191,7 @@ static void __del_gref(struct gntalloc_gref *gref)
 
 	gref->notify.flags = 0;
 
-	if (gref->gref_id > 0) {
+	if (gref->gref_id) {
 		if (gnttab_query_foreign_access(gref->gref_id))
 			return;
 
