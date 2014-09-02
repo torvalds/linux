@@ -483,6 +483,7 @@
 		//pinctrl-names = "default", "sleep";
 		//pinctrl-0 = <&i2s0_mclk &i2s0_sclk &i2s0_lrckrx &i2s0_lrcktx &i2s0_sdi &i2s0_sdo>;
 		//pinctrl-1 = <&i2s0_gpio>;
+		status = "disabled";
 	};
 
 	i2s1: i2s@10200000 {
