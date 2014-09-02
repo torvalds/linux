@@ -10,6 +10,8 @@
 #ifndef __GREYBUS_DESC_H
 #define __GREYBUS_DESC_H
 
+#pragma pack(push, 1)
+
 struct greybus_descriptor_block_header {
 	__le16	size;
 	__u8	version_major;
@@ -91,5 +93,7 @@ struct greybus_descriptor {
 		struct greybus_descriptor_cport		cport;
 	};
 };
+
+#pragma pack(pop)
 
 #endif /* __GREYBUS_DESC_H */

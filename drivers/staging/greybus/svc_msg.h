@@ -10,6 +10,8 @@
 #ifndef __SVC_MSG_H
 #define __SVC_MSG_H
 
+#pragma pack(push, 1)
+
 enum svc_function_type {
 	SVC_FUNCTION_HANDSHAKE			= 0x00,
 	SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT	= 0x01,
@@ -160,5 +162,7 @@ struct svc_msg {
 		struct svc_function_suspend		suspend;
 	};
 };
+
+#pragma pack(pop)
 
 #endif /* __SVC_MSG_H */
