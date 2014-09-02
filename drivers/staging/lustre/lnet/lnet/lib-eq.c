@@ -72,8 +72,8 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 {
 	lnet_eq_t     *eq;
 
-	LASSERT (the_lnet.ln_init);
-	LASSERT (the_lnet.ln_refcount > 0);
+	LASSERT(the_lnet.ln_init);
+	LASSERT(the_lnet.ln_refcount > 0);
 
 	/* We need count to be a power of 2 so that when eq_{enq,deq}_seq
 	 * overflow, they don't skip entries, so the queue has the same
@@ -287,7 +287,7 @@ lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
  * EQ has been dropped due to limited space in the EQ.
  */
 int
-LNetEQGet (lnet_handle_eq_t eventq, lnet_event_t *event)
+LNetEQGet(lnet_handle_eq_t eventq, lnet_event_t *event)
 {
 	int which;
 
@@ -313,7 +313,7 @@ EXPORT_SYMBOL(LNetEQGet);
  * EQ has been dropped due to limited space in the EQ.
  */
 int
-LNetEQWait (lnet_handle_eq_t eventq, lnet_event_t *event)
+LNetEQWait(lnet_handle_eq_t eventq, lnet_event_t *event)
 {
 	int which;
 
@@ -400,8 +400,8 @@ LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
 	int	rc;
 	int	i;
 
-	LASSERT (the_lnet.ln_init);
-	LASSERT (the_lnet.ln_refcount > 0);
+	LASSERT(the_lnet.ln_init);
+	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (neq < 1)
 		return -ENOENT;
