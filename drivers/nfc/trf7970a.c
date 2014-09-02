@@ -83,6 +83,13 @@
  * been received and there isn't an error).  The delay is 20 ms since delays
  * of ~16 ms have been observed during testing.
  *
+ * When transmitting a frame larger than the FIFO size (127 bytes), the
+ * driver will wait 20 ms for the FIFO to drain past the low-watermark
+ * and generate an interrupt.  The low-watermark set to 32 bytes so the
+ * interrupt should fire after 127 - 32 = 95 bytes have been sent.  At
+ * the lowest possible bit rate (6.62 kbps for 15693), it will take up
+ * to ~14.35 ms so 20 ms is used for the timeout.
+ *
  * Type 2 write and sector select commands respond with a 4-bit ACK or NACK.
  * Having only 4 bits in the FIFO won't normally generate an interrupt so
  * driver enables the '4_bit_RX' bit of the Special Functions register 1
@@ -105,7 +112,9 @@
  * Note under Table 1-1 in section 1.6 of
  * http://www.ti.com/lit/ug/scbu011/scbu011.pdf, that wait should be at least
  * 10 ms for TI Tag-it HF-I tags; however testing has shown that is not long
- * enough.  For this reason, the driver waits 20 ms which seems to work
+ * enough so 20 ms is used.  So the timer is set to 40 ms - 20 ms to drain
+ * up to 127 bytes in the FIFO at the lowest bit rate plus another 20 ms to
+ * ensure the wait is long enough before sending the EOF.  This seems to work
  * reliably.
  */
 
@@ -131,8 +140,8 @@
 #define TRF7970A_TX_MAX				(4096 - 1)
 
 #define TRF7970A_WAIT_FOR_RX_DATA_TIMEOUT	20
-#define TRF7970A_WAIT_FOR_FIFO_DRAIN_TIMEOUT	3
-#define TRF7970A_WAIT_TO_ISSUE_ISO15693_EOF	20
+#define TRF7970A_WAIT_FOR_FIFO_DRAIN_TIMEOUT	20
+#define TRF7970A_WAIT_TO_ISSUE_ISO15693_EOF	40
 
 /* Guard times for various RF technologies (in us) */
 #define TRF7970A_GUARD_TIME_NFCA		5000
