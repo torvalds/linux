@@ -859,6 +859,10 @@ err_out:
 
 static void trf7970a_switch_rf_off(struct trf7970a *trf)
 {
+	if ((trf->state == TRF7970A_ST_PWR_OFF) ||
+			(trf->state == TRF7970A_ST_RF_OFF))
+		return;
+
 	dev_dbg(trf->dev, "Switching rf off\n");
 
 	trf->chip_status_ctrl &= ~TRF7970A_CHIP_STATUS_RF_ON;
