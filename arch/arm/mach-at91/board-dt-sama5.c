@@ -17,7 +17,6 @@
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/clk-provider.h>
-#include <linux/clocksource.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -27,14 +26,6 @@
 
 #include "at91_aic.h"
 #include "generic.h"
-
-static void __init sama5_dt_timer_init(void)
-{
-#if defined(CONFIG_COMMON_CLK)
-	of_clk_init(NULL);
-#endif
-	clocksource_of_init();
-}
 
 static int ksz9021rn_phy_fixup(struct phy_device *phy)
 {
@@ -70,7 +61,6 @@ static const char *sama5_dt_board_compat[] __initdata = {
 
 DT_MACHINE_START(sama5_dt, "Atmel SAMA5 (Device Tree)")
 	/* Maintainer: Atmel */
-	.init_time	= sama5_dt_timer_init,
 	.map_io		= at91_map_io,
 	.init_early	= at91_dt_initialize,
 	.init_machine	= sama5_dt_device_init,
