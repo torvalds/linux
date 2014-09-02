@@ -279,10 +279,13 @@ static int at91rm9200_clk_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 	int i;
 	struct at91rm9200_clk_usb *usb = to_at91rm9200_clk_usb(hw);
 	struct at91_pmc *pmc = usb->pmc;
-	unsigned long div = parent_rate / rate;
+	unsigned long div;
 
-	if (parent_rate % rate)
+	if (!rate || parent_rate % rate)
 		return -EINVAL;
+
+	div = parent_rate / rate;
+
 	for (i = 0; i < RM9200_USB_DIV_TAB_SIZE; i++) {
 		if (usb->divisors[i] == div) {
 			tmp = pmc_read(pmc, AT91_CKGR_PLLBR) &
