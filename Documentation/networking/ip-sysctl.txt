@@ -844,6 +844,11 @@ igmp_max_memberships - INTEGER
 
 	conf/all/*	  is special, changes the settings for all interfaces
 
+igmp_qrv - INTEGER
+	 Controls the IGMP query robustness variable (see RFC2236 8.1).
+	 Default: 2 (as specified by RFC2236 8.1)
+	 Minimum: 1 (as specified by RFC6636 4.5)
+
 log_martians - BOOLEAN
 	Log packets with impossible addresses to kernel log.
 	log_martians for the interface will be enabled if at least one of
