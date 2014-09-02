@@ -600,12 +600,11 @@ static void uart_send_xchar(struct tty_struct *tty, char ch)
 	if (port->ops->send_xchar)
 		port->ops->send_xchar(port, ch);
 	else {
+		spin_lock_irqsave(&port->lock, flags);
 		port->x_char = ch;
-		if (ch) {
-			spin_lock_irqsave(&port->lock, flags);
+		if (ch)
 			port->ops->start_tx(port);
-			spin_unlock_irqrestore(&port->lock, flags);
-		}
+		spin_unlock_irqrestore(&port->lock, flags);
 	}
 }
 
