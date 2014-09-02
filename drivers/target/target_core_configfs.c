@@ -1263,7 +1263,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 {
 	unsigned char *i_fabric = NULL, *i_port = NULL, *isid = NULL;
 	unsigned char *t_fabric = NULL, *t_port = NULL;
-	char *orig, *ptr, *arg_p, *opts;
+	char *orig, *ptr, *opts;
 	substring_t args[MAX_OPT_ARGS];
 	unsigned long long tmp_ll;
 	u64 sa_res_key = 0;
@@ -1295,14 +1295,14 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 		token = match_token(ptr, tokens, args);
 		switch (token) {
 		case Opt_initiator_fabric:
-			i_fabric = match_strdup(&args[0]);
+			i_fabric = match_strdup(args);
 			if (!i_fabric) {
 				ret = -ENOMEM;
 				goto out;
 			}
 			break;
 		case Opt_initiator_node:
-			i_port = match_strdup(&args[0]);
+			i_port = match_strdup(args);
 			if (!i_port) {
 				ret = -ENOMEM;
 				goto out;
@@ -1316,7 +1316,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			}
 			break;
 		case Opt_initiator_sid:
-			isid = match_strdup(&args[0]);
+			isid = match_strdup(args);
 			if (!isid) {
 				ret = -ENOMEM;
 				goto out;
@@ -1330,15 +1330,9 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			}
 			break;
 		case Opt_sa_res_key:
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
-				goto out;
-			}
-			ret = kstrtoull(arg_p, 0, &tmp_ll);
+			ret = kstrtoull(args->from, 0, &tmp_ll);
 			if (ret < 0) {
-				pr_err("kstrtoull() failed for"
-					" sa_res_key=\n");
+				pr_err("kstrtoull() failed for sa_res_key=\n");
 				goto out;
 			}
 			sa_res_key = (u64)tmp_ll;
@@ -1370,14 +1364,14 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 		 * PR APTPL Metadata for Target Port
 		 */
 		case Opt_target_fabric:
-			t_fabric = match_strdup(&args[0]);
+			t_fabric = match_strdup(args);
 			if (!t_fabric) {
 				ret = -ENOMEM;
 				goto out;
 			}
 			break;
 		case Opt_target_node:
-			t_port = match_strdup(&args[0]);
+			t_port = match_strdup(args);
 			if (!t_port) {
 				ret = -ENOMEM;
 				goto out;
