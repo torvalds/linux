@@ -100,7 +100,14 @@ static void __init test_wakealarm(struct rtc_device *rtc, suspend_state_t state)
 	if (state == PM_SUSPEND_STANDBY) {
 		printk(info_test, pm_states[state]);
 		status = pm_suspend(state);
+		if (status < 0)
+			state = PM_SUSPEND_FREEZE;
 	}
+	if (state == PM_SUSPEND_FREEZE) {
+		printk(info_test, pm_states[state]);
+		status = pm_suspend(state);
+	}
+
 	if (status < 0)
 		printk(err_suspend, status);
 
