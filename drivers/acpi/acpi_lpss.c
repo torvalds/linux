@@ -70,7 +70,6 @@ struct lpss_shared_clock {
 struct lpss_private_data;
 
 struct lpss_device_desc {
-	const char *clkdev_name;
 	unsigned int flags;
 	unsigned int prv_offset;
 	size_t prv_size_override;
@@ -79,7 +78,6 @@ struct lpss_device_desc {
 };
 
 static struct lpss_device_desc lpss_dma_desc = {
-	.clkdev_name = "hclk",
 	.flags = LPSS_CLK,
 };
 
@@ -268,12 +266,7 @@ static int register_device_clock(struct acpi_device *adev,
 	clk_data = platform_get_drvdata(lpss_clk_dev);
 	if (!clk_data)
 		return -ENODEV;
-
-	if (dev_desc->clkdev_name) {
-		clk_register_clkdev(clk_data->clk, dev_desc->clkdev_name,
-				    devname);
-		return 0;
-	}
+	clk = clk_data->clk;
 
 	if (!pdata->mmio_base
 	    || pdata->mmio_size < dev_desc->prv_offset + LPSS_CLK_SIZE)
