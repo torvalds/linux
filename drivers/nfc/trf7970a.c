@@ -1120,6 +1120,7 @@ static int trf7970a_in_send_cmd(struct nfc_digital_dev *ddev,
 	char *prefix;
 	unsigned int len;
 	int ret;
+	u8 status;
 
 	dev_dbg(trf->dev, "New request - state: %d, timeout: %d ms, len: %d\n",
 			trf->state, timeout, skb->len);
@@ -1194,6 +1195,11 @@ static int trf7970a_in_send_cmd(struct nfc_digital_dev *ddev,
 	}
 
 	len = min_t(int, skb->len, TRF7970A_FIFO_SIZE);
+
+	/* Clear possible spurious interrupt */
+	ret = trf7970a_read_irqstatus(trf, &status);
+	if (ret)
+		goto out_err;
 
 	ret = trf7970a_transmit(trf, skb, len);
 	if (ret) {
