@@ -113,6 +113,7 @@ struct pcpu_chunk {
 	void			*data;		/* chunk data */
 	int			first_free;	/* no free below this */
 	bool			immutable;	/* no [de]population allowed */
+	int			nr_populated;	/* # of populated pages */
 	unsigned long		populated[];	/* populated bitmap */
 };
 
@@ -160,6 +161,12 @@ static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
 static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop */
 
 static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
+
+/*
+ * The number of empty populated pages, protected by pcpu_lock.  The
+ * reserved chunk doesn't contribute to the count.
+ */
+static int pcpu_nr_empty_pop_pages;
 
 /* reclaim work to release fully free chunks, scheduled from free path */
 static void pcpu_reclaim(struct work_struct *work);
@@ -293,6 +300,38 @@ static void pcpu_mem_free(void *ptr, size_t size)
 		kfree(ptr);
 	else
 		vfree(ptr);
+}
+
+/**
+ * pcpu_count_occupied_pages - count the number of pages an area occupies
+ * @chunk: chunk of interest
+ * @i: index of the area in question
+ *
+ * Count the number of pages chunk's @i'th area occupies.  When the area's
+ * start and/or end address isn't aligned to page boundary, the straddled
+ * page is included in the count iff the rest of the page is free.
+ */
+static int pcpu_count_occupied_pages(struct pcpu_chunk *chunk, int i)
+{
+	int off = chunk->map[i] & ~1;
+	int end = chunk->map[i + 1] & ~1;
+
+	if (!PAGE_ALIGNED(off) && i > 0) {
+		int prev = chunk->map[i - 1];
+
+		if (!(prev & 1) && prev <= round_down(off, PAGE_SIZE))
+			off = round_down(off, PAGE_SIZE);
+	}
+
+	if (!PAGE_ALIGNED(end) && i + 1 < chunk->map_used) {
+		int next = chunk->map[i + 1];
+		int nend = chunk->map[i + 2] & ~1;
+
+		if (!(next & 1) && nend >= round_up(end, PAGE_SIZE))
+			end = round_up(end, PAGE_SIZE);
+	}
+
+	return max_t(int, PFN_DOWN(end) - PFN_UP(off), 0);
 }
 
 /**
@@ -483,6 +522,7 @@ static int pcpu_fit_in_area(struct pcpu_chunk *chunk, int off, int this_size,
  * @size: wanted size in bytes
  * @align: wanted align
  * @pop_only: allocate only from the populated area
+ * @occ_pages_p: out param for the number of pages the area occupies
  *
  * Try to allocate @size bytes area aligned at @align from @chunk.
  * Note that this function only allocates the offset.  It doesn't
@@ -498,7 +538,7 @@ static int pcpu_fit_in_area(struct pcpu_chunk *chunk, int off, int this_size,
  * found.
  */
 static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align,
-			   bool pop_only)
+			   bool pop_only, int *occ_pages_p)
 {
 	int oslot = pcpu_chunk_slot(chunk);
 	int max_contig = 0;
@@ -587,6 +627,7 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align,
 		chunk->free_size -= size;
 		*p |= 1;
 
+		*occ_pages_p = pcpu_count_occupied_pages(chunk, i);
 		pcpu_chunk_relocate(chunk, oslot);
 		return off;
 	}
@@ -602,6 +643,7 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align,
  * pcpu_free_area - free area to a pcpu_chunk
  * @chunk: chunk of interest
  * @freeme: offset of area to free
+ * @occ_pages_p: out param for the number of pages the area occupies
  *
  * Free area starting from @freeme to @chunk.  Note that this function
  * only modifies the allocation map.  It doesn't depopulate or unmap
@@ -610,7 +652,8 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align,
  * CONTEXT:
  * pcpu_lock.
  */
-static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
+static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,
+			   int *occ_pages_p)
 {
 	int oslot = pcpu_chunk_slot(chunk);
 	int off = 0;
@@ -640,6 +683,8 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
 	p = chunk->map + i;
 	*p = off &= ~1;
 	chunk->free_size += (p[1] & ~1) - off;
+
+	*occ_pages_p = pcpu_count_occupied_pages(chunk, i);
 
 	/* merge with next? */
 	if (!(p[1] & 1))
@@ -694,6 +739,50 @@ static void pcpu_free_chunk(struct pcpu_chunk *chunk)
 		return;
 	pcpu_mem_free(chunk->map, chunk->map_alloc * sizeof(chunk->map[0]));
 	pcpu_mem_free(chunk, pcpu_chunk_struct_size);
+}
+
+/**
+ * pcpu_chunk_populated - post-population bookkeeping
+ * @chunk: pcpu_chunk which got populated
+ * @page_start: the start page
+ * @page_end: the end page
+ *
+ * Pages in [@page_start,@page_end) have been populated to @chunk.  Update
+ * the bookkeeping information accordingly.  Must be called after each
+ * successful population.
+ */
+static void pcpu_chunk_populated(struct pcpu_chunk *chunk,
+				 int page_start, int page_end)
+{
+	int nr = page_end - page_start;
+
+	lockdep_assert_held(&pcpu_lock);
+
+	bitmap_set(chunk->populated, page_start, nr);
+	chunk->nr_populated += nr;
+	pcpu_nr_empty_pop_pages += nr;
+}
+
+/**
+ * pcpu_chunk_depopulated - post-depopulation bookkeeping
+ * @chunk: pcpu_chunk which got depopulated
+ * @page_start: the start page
+ * @page_end: the end page
+ *
+ * Pages in [@page_start,@page_end) have been depopulated from @chunk.
+ * Update the bookkeeping information accordingly.  Must be called after
+ * each successful depopulation.
+ */
+static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
+				   int page_start, int page_end)
+{
+	int nr = page_end - page_start;
+
+	lockdep_assert_held(&pcpu_lock);
+
+	bitmap_clear(chunk->populated, page_start, nr);
+	chunk->nr_populated -= nr;
+	pcpu_nr_empty_pop_pages -= nr;
 }
 
 /*
@@ -772,6 +861,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 	struct pcpu_chunk *chunk;
 	const char *err;
 	bool is_atomic = !(gfp & GFP_KERNEL);
+	int occ_pages = 0;
 	int slot, off, new_alloc, cpu, ret;
 	unsigned long flags;
 	void __percpu *ptr;
@@ -812,7 +902,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 			spin_lock_irqsave(&pcpu_lock, flags);
 		}
 
-		off = pcpu_alloc_area(chunk, size, align, is_atomic);
+		off = pcpu_alloc_area(chunk, size, align, is_atomic,
+				      &occ_pages);
 		if (off >= 0)
 			goto area_found;
 
@@ -845,7 +936,8 @@ restart:
 				goto restart;
 			}
 
-			off = pcpu_alloc_area(chunk, size, align, is_atomic);
+			off = pcpu_alloc_area(chunk, size, align, is_atomic,
+					      &occ_pages);
 			if (off >= 0)
 				goto area_found;
 		}
@@ -899,16 +991,19 @@ area_found:
 			spin_lock_irqsave(&pcpu_lock, flags);
 			if (ret) {
 				mutex_unlock(&pcpu_alloc_mutex);
-				pcpu_free_area(chunk, off);
+				pcpu_free_area(chunk, off, &occ_pages);
 				err = "failed to populate";
 				goto fail_unlock;
 			}
-			bitmap_set(chunk->populated, rs, re - rs);
+			pcpu_chunk_populated(chunk, rs, re);
 			spin_unlock_irqrestore(&pcpu_lock, flags);
 		}
 
 		mutex_unlock(&pcpu_alloc_mutex);
 	}
+
+	if (chunk != pcpu_reserved_chunk)
+		pcpu_nr_empty_pop_pages -= occ_pages;
 
 	/* clear the areas and return address relative to base address */
 	for_each_possible_cpu(cpu)
@@ -1019,7 +1114,9 @@ static void pcpu_reclaim(struct work_struct *work)
 
 		pcpu_for_each_pop_region(chunk, rs, re, 0, pcpu_unit_pages) {
 			pcpu_depopulate_chunk(chunk, rs, re);
-			bitmap_clear(chunk->populated, rs, re - rs);
+			spin_lock_irq(&pcpu_lock);
+			pcpu_chunk_depopulated(chunk, rs, re);
+			spin_unlock_irq(&pcpu_lock);
 		}
 		pcpu_destroy_chunk(chunk);
 	}
@@ -1041,7 +1138,7 @@ void free_percpu(void __percpu *ptr)
 	void *addr;
 	struct pcpu_chunk *chunk;
 	unsigned long flags;
-	int off;
+	int off, occ_pages;
 
 	if (!ptr)
 		return;
@@ -1055,7 +1152,10 @@ void free_percpu(void __percpu *ptr)
 	chunk = pcpu_chunk_addr_search(addr);
 	off = addr - chunk->base_addr;
 
-	pcpu_free_area(chunk, off);
+	pcpu_free_area(chunk, off, &occ_pages);
+
+	if (chunk != pcpu_reserved_chunk)
+		pcpu_nr_empty_pop_pages += occ_pages;
 
 	/* if there are more than one fully free chunks, wake up grim reaper */
 	if (chunk->free_size == pcpu_unit_size) {
@@ -1459,6 +1559,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	schunk->map_alloc = ARRAY_SIZE(smap);
 	schunk->immutable = true;
 	bitmap_fill(schunk->populated, pcpu_unit_pages);
+	schunk->nr_populated = pcpu_unit_pages;
 
 	if (ai->reserved_size) {
 		schunk->free_size = ai->reserved_size;
@@ -1488,6 +1589,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		dchunk->map_alloc = ARRAY_SIZE(dmap);
 		dchunk->immutable = true;
 		bitmap_fill(dchunk->populated, pcpu_unit_pages);
+		dchunk->nr_populated = pcpu_unit_pages;
 
 		dchunk->contig_hint = dchunk->free_size = dyn_size;
 		dchunk->map[0] = 1;
@@ -1498,6 +1600,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	/* link the first chunk in */
 	pcpu_first_chunk = dchunk ?: schunk;
+	pcpu_nr_empty_pop_pages +=
+		pcpu_count_occupied_pages(pcpu_first_chunk, 1);
 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
 
 	/* we're done */
