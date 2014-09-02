@@ -340,6 +340,39 @@
 #define TRF7970A_NFC_TARGET_LEVEL_LD_S_7BYTES	(0x1 << 6)
 #define TRF7970A_NFC_TARGET_LEVEL_LD_S_10BYTES	(0x2 << 6)
 
+#define TRF79070A_NFC_TARGET_PROTOCOL_NFCBR_106		BIT(0)
+#define TRF79070A_NFC_TARGET_PROTOCOL_NFCBR_212		BIT(1)
+#define TRF79070A_NFC_TARGET_PROTOCOL_NFCBR_424		(BIT(0) | BIT(1))
+#define TRF79070A_NFC_TARGET_PROTOCOL_PAS_14443B	BIT(2)
+#define TRF79070A_NFC_TARGET_PROTOCOL_PAS_106		BIT(3)
+#define TRF79070A_NFC_TARGET_PROTOCOL_FELICA		BIT(4)
+#define TRF79070A_NFC_TARGET_PROTOCOL_RF_L		BIT(6)
+#define TRF79070A_NFC_TARGET_PROTOCOL_RF_H		BIT(7)
+
+#define TRF79070A_NFC_TARGET_PROTOCOL_106A		\
+	 (TRF79070A_NFC_TARGET_PROTOCOL_RF_H |		\
+	  TRF79070A_NFC_TARGET_PROTOCOL_RF_L |		\
+	  TRF79070A_NFC_TARGET_PROTOCOL_PAS_106 |	\
+	  TRF79070A_NFC_TARGET_PROTOCOL_NFCBR_106)
+
+#define TRF79070A_NFC_TARGET_PROTOCOL_106B		\
+	 (TRF79070A_NFC_TARGET_PROTOCOL_RF_H |		\
+	  TRF79070A_NFC_TARGET_PROTOCOL_RF_L |		\
+	  TRF79070A_NFC_TARGET_PROTOCOL_PAS_14443B |	\
+	  TRF79070A_NFC_TARGET_PROTOCOL_NFCBR_106)
+
+#define TRF79070A_NFC_TARGET_PROTOCOL_212F		\
+	 (TRF79070A_NFC_TARGET_PROTOCOL_RF_H |		\
+	  TRF79070A_NFC_TARGET_PROTOCOL_RF_L |		\
+	  TRF79070A_NFC_TARGET_PROTOCOL_FELICA |	\
+	  TRF79070A_NFC_TARGET_PROTOCOL_NFCBR_212)
+
+#define TRF79070A_NFC_TARGET_PROTOCOL_424F		\
+	 (TRF79070A_NFC_TARGET_PROTOCOL_RF_H |		\
+	  TRF79070A_NFC_TARGET_PROTOCOL_RF_L |		\
+	  TRF79070A_NFC_TARGET_PROTOCOL_FELICA |	\
+	  TRF79070A_NFC_TARGET_PROTOCOL_NFCBR_424)
+
 #define TRF7970A_FIFO_STATUS_OVERFLOW		BIT(7)
 
 /* NFC (ISO/IEC 14443A) Type 2 Tag commands */
@@ -385,6 +418,7 @@ enum trf7970a_state {
 	TRF7970A_ST_WAIT_FOR_RX_DATA_CONT,
 	TRF7970A_ST_WAIT_TO_ISSUE_EOF,
 	TRF7970A_ST_LISTENING,
+	TRF7970A_ST_LISTENING_MD,
 	TRF7970A_ST_MAX
 };
 
@@ -409,6 +443,7 @@ struct trf7970a {
 	unsigned int			guard_time;
 	int				technology;
 	int				framing;
+	u8				md_rf_tech;
 	u8				tx_cmd;
 	bool				issue_eof;
 	int				en2_gpio;
@@ -512,6 +547,58 @@ static int trf7970a_read_irqstatus(struct trf7970a *trf, u8 *status)
 				__func__, ret);
 	else
 		*status = buf[0];
+
+	return ret;
+}
+
+static int trf7970a_read_target_proto(struct trf7970a *trf, u8 *target_proto)
+{
+	int ret;
+	u8 buf[2];
+	u8 addr;
+
+	addr = TRF79070A_NFC_TARGET_PROTOCOL | TRF7970A_CMD_BIT_RW |
+		TRF7970A_CMD_BIT_CONTINUOUS;
+
+	ret = spi_write_then_read(trf->spi, &addr, 1, buf, 2);
+	if (ret)
+		dev_err(trf->dev, "%s - target_proto: Read failed: %d\n",
+				__func__, ret);
+	else
+		*target_proto = buf[0];
+
+	return ret;
+}
+
+static int trf7970a_mode_detect(struct trf7970a *trf, u8 *rf_tech)
+{
+	int ret;
+	u8 target_proto, tech;
+
+	ret = trf7970a_read_target_proto(trf, &target_proto);
+	if (ret)
+		return ret;
+
+	switch (target_proto) {
+	case TRF79070A_NFC_TARGET_PROTOCOL_106A:
+		tech = NFC_DIGITAL_RF_TECH_106A;
+		break;
+	case TRF79070A_NFC_TARGET_PROTOCOL_106B:
+		tech = NFC_DIGITAL_RF_TECH_106B;
+		break;
+	case TRF79070A_NFC_TARGET_PROTOCOL_212F:
+		tech = NFC_DIGITAL_RF_TECH_212F;
+		break;
+	case TRF79070A_NFC_TARGET_PROTOCOL_424F:
+		tech = NFC_DIGITAL_RF_TECH_424F;
+		break;
+	default:
+		dev_dbg(trf->dev, "%s - mode_detect: target_proto: 0x%x\n",
+				__func__, target_proto);
+		return -EIO;
+	}
+
+	*rf_tech = tech;
 
 	return ret;
 }
@@ -863,6 +950,22 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 			trf->ignore_timeout =
 				!cancel_delayed_work(&trf->timeout_work);
 			trf7970a_drain_fifo(trf, status);
+		} else if (!(status & TRF7970A_IRQ_STATUS_NFC_RF)) {
+			trf7970a_send_err_upstream(trf, -EIO);
+		}
+		break;
+	case TRF7970A_ST_LISTENING_MD:
+		if (status & TRF7970A_IRQ_STATUS_SRX) {
+			trf->ignore_timeout =
+				!cancel_delayed_work(&trf->timeout_work);
+
+			ret = trf7970a_mode_detect(trf, &trf->md_rf_tech);
+			if (ret) {
+				trf7970a_send_err_upstream(trf, ret);
+			} else {
+				trf->state = TRF7970A_ST_LISTENING;
+				trf7970a_drain_fifo(trf, status);
+			}
 		} else if (!(status & TRF7970A_IRQ_STATUS_NFC_RF)) {
 			trf7970a_send_err_upstream(trf, -EIO);
 		}
@@ -1587,14 +1690,11 @@ err_unlock:
 	return ret;
 }
 
-static int trf7970a_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
-		nfc_digital_cmd_complete_t cb, void *arg)
+static int _trf7970a_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
+		nfc_digital_cmd_complete_t cb, void *arg, bool mode_detect)
 {
 	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
 	int ret;
-
-	dev_dbg(trf->dev, "Listen - state: %d, timeout: %d ms\n",
-			trf->state, timeout);
 
 	mutex_lock(&trf->lock);
 
@@ -1654,13 +1754,59 @@ static int trf7970a_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
 	if (ret)
 		goto out_err;
 
-	trf->state = TRF7970A_ST_LISTENING;
+	trf->state = mode_detect ? TRF7970A_ST_LISTENING_MD :
+				   TRF7970A_ST_LISTENING;
 
 	schedule_delayed_work(&trf->timeout_work, msecs_to_jiffies(timeout));
 
 out_err:
 	mutex_unlock(&trf->lock);
 	return ret;
+}
+
+static int trf7970a_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
+		nfc_digital_cmd_complete_t cb, void *arg)
+{
+	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
+
+	dev_dbg(trf->dev, "Listen - state: %d, timeout: %d ms\n",
+			trf->state, timeout);
+
+	return _trf7970a_tg_listen(ddev, timeout, cb, arg, false);
+}
+
+static int trf7970a_tg_listen_md(struct nfc_digital_dev *ddev,
+		u16 timeout, nfc_digital_cmd_complete_t cb, void *arg)
+{
+	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
+	int ret;
+
+	dev_dbg(trf->dev, "Listen MD - state: %d, timeout: %d ms\n",
+			trf->state, timeout);
+
+	ret = trf7970a_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_RF_TECH,
+			NFC_DIGITAL_RF_TECH_106A);
+	if (ret)
+		return ret;
+
+	ret = trf7970a_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING,
+			NFC_DIGITAL_FRAMING_NFCA_NFC_DEP);
+	if (ret)
+		return ret;
+
+	return _trf7970a_tg_listen(ddev, timeout, cb, arg, true);
+}
+
+static int trf7970a_tg_get_rf_tech(struct nfc_digital_dev *ddev, u8 *rf_tech)
+{
+	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
+
+	dev_dbg(trf->dev, "Get RF Tech - state: %d, rf_tech: %d\n",
+			trf->state, trf->md_rf_tech);
+
+	*rf_tech = trf->md_rf_tech;
+
+	return 0;
 }
 
 static void trf7970a_abort_cmd(struct nfc_digital_dev *ddev)
@@ -1696,6 +1842,8 @@ static struct nfc_digital_ops trf7970a_nfc_ops = {
 	.tg_configure_hw	= trf7970a_tg_configure_hw,
 	.tg_send_cmd		= trf7970a_send_cmd,
 	.tg_listen		= trf7970a_tg_listen,
+	.tg_listen_md		= trf7970a_tg_listen_md,
+	.tg_get_rf_tech		= trf7970a_tg_get_rf_tech,
 	.switch_rf		= trf7970a_switch_rf,
 	.abort_cmd		= trf7970a_abort_cmd,
 };
