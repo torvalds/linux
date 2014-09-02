@@ -226,7 +226,7 @@ bool recover_inline_data(struct inode *inode, struct page *npage)
 			ri && (ri->i_inline & F2FS_INLINE_DATA)) {
 process_inline:
 		ipage = get_node_page(sbi, inode->i_ino);
-		f2fs_bug_on(IS_ERR(ipage));
+		f2fs_bug_on(sbi, IS_ERR(ipage));
 
 		f2fs_wait_on_page_writeback(ipage, NODE);
 
@@ -240,7 +240,7 @@ process_inline:
 
 	if (f2fs_has_inline_data(inode)) {
 		ipage = get_node_page(sbi, inode->i_ino);
-		f2fs_bug_on(IS_ERR(ipage));
+		f2fs_bug_on(sbi, IS_ERR(ipage));
 		f2fs_wait_on_page_writeback(ipage, NODE);
 		zero_user_segment(ipage, INLINE_DATA_OFFSET,
 				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);

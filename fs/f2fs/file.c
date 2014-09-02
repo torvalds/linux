@@ -463,7 +463,7 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	count = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
 
 	count -= dn.ofs_in_node;
-	f2fs_bug_on(count < 0);
+	f2fs_bug_on(sbi, count < 0);
 
 	if (dn.ofs_in_node || IS_INODE(dn.node_page)) {
 		truncate_data_blocks_range(&dn, count);

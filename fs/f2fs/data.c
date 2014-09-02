@@ -258,7 +258,7 @@ int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
 	int err;
 
 	/* if inode_page exists, index should be zero */
-	f2fs_bug_on(!need_put && index);
+	f2fs_bug_on(F2FS_I_SB(dn->inode), !need_put && index);
 
 	err = get_dnode_of_data(dn, index, ALLOC_NODE);
 	if (err)
@@ -321,7 +321,7 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 	block_t start_blkaddr, end_blkaddr;
 	int need_update = true;
 
-	f2fs_bug_on(blk_addr == NEW_ADDR);
+	f2fs_bug_on(F2FS_I_SB(dn->inode), blk_addr == NEW_ADDR);
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
 

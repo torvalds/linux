@@ -126,7 +126,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 		 * For the most part, it should be a bug when name_len is zero.
 		 * We stop here for figuring out where the bugs has occurred.
 		 */
-		f2fs_bug_on(!de->name_len);
+		f2fs_bug_on(F2FS_P_SB(dentry_page), !de->name_len);
 
 		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
 	}
@@ -151,7 +151,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	bool room = false;
 	int max_slots = 0;
 
-	f2fs_bug_on(level > MAX_DIR_HASH_DEPTH);
+	f2fs_bug_on(F2FS_I_SB(dir), level > MAX_DIR_HASH_DEPTH);
 
 	nbucket = dir_buckets(level, F2FS_I(dir)->i_dir_level);
 	nblock = bucket_blocks(level);

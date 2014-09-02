@@ -331,8 +331,8 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	f2fs_wait_on_page_writeback(dn.node_page, NODE);
 
 	get_node_info(sbi, dn.nid, &ni);
-	f2fs_bug_on(ni.ino != ino_of_node(page));
-	f2fs_bug_on(ofs_of_node(dn.node_page) != ofs_of_node(page));
+	f2fs_bug_on(sbi, ni.ino != ino_of_node(page));
+	f2fs_bug_on(sbi, ofs_of_node(dn.node_page) != ofs_of_node(page));
 
 	for (; start < end; start++) {
 		block_t src, dest;
@@ -344,7 +344,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			if (src == NULL_ADDR) {
 				err = reserve_new_block(&dn);
 				/* We should not get -ENOSPC */
-				f2fs_bug_on(err);
+				f2fs_bug_on(sbi, err);
 			}
 
 			/* Check the previous node page having this index */
@@ -474,7 +474,7 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 	/* step #2: recover data */
 	err = recover_data(sbi, &inode_list, CURSEG_WARM_NODE);
 	if (!err)
-		f2fs_bug_on(!list_empty(&inode_list));
+		f2fs_bug_on(sbi, !list_empty(&inode_list));
 out:
 	destroy_fsync_dnodes(&inode_list);
 	kmem_cache_destroy(fsync_entry_slab);

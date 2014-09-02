@@ -374,7 +374,7 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 void release_orphan_inode(struct f2fs_sb_info *sbi)
 {
 	spin_lock(&sbi->ino_lock[ORPHAN_INO]);
-	f2fs_bug_on(sbi->n_orphans == 0);
+	f2fs_bug_on(sbi, sbi->n_orphans == 0);
 	sbi->n_orphans--;
 	spin_unlock(&sbi->ino_lock[ORPHAN_INO]);
 }
@@ -394,7 +394,7 @@ void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 static void recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 {
 	struct inode *inode = f2fs_iget(sbi->sb, ino);
-	f2fs_bug_on(IS_ERR(inode));
+	f2fs_bug_on(sbi, IS_ERR(inode));
 	clear_nlink(inode);
 
 	/* truncate all the data during iput */
@@ -455,7 +455,7 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 	list_for_each_entry(orphan, head, list) {
 		if (!page) {
 			page = find_get_page(META_MAPPING(sbi), start_blk++);
-			f2fs_bug_on(!page);
+			f2fs_bug_on(sbi, !page);
 			orphan_blk =
 				(struct f2fs_orphan_block *)page_address(page);
 			memset(orphan_blk, 0, sizeof(*orphan_blk));
