@@ -346,7 +346,7 @@ static int panel_probe(struct platform_device *pdev)
 	struct panel_module *panel_mod;
 	struct tilcdc_module *mod;
 	struct pinctrl *pinctrl;
-	int ret = -EINVAL;
+	int ret;
 
 	/* bail out early if no DT data: */
 	if (!node) {
@@ -381,12 +381,14 @@ static int panel_probe(struct platform_device *pdev)
 	panel_mod->timings = of_get_display_timings(node);
 	if (!panel_mod->timings) {
 		dev_err(&pdev->dev, "could not get panel timings\n");
+		ret = -EINVAL;
 		goto fail_free;
 	}
 
 	panel_mod->info = of_get_panel_info(node);
 	if (!panel_mod->info) {
 		dev_err(&pdev->dev, "could not get panel info\n");
+		ret = -EINVAL;
 		goto fail_timings;
 	}
 
