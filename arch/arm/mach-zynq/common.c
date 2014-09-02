@@ -101,6 +101,7 @@ static int __init zynq_get_revision(void)
 static void __init zynq_init_late(void)
 {
 	zynq_core_pm_init();
+	zynq_pm_late_init();
 }
 
 /**

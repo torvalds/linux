@@ -40,6 +40,8 @@ extern void __iomem *zynq_scu_base;
 /* Hotplug */
 extern void zynq_platform_cpu_die(unsigned int cpu);
 
+void zynq_pm_late_init(void);
+
 static inline void zynq_core_pm_init(void)
 {
 	/* A9 clock gating */
