@@ -67,6 +67,9 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 
 	chunk->data = pages;
 	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
+
+	bitmap_fill(chunk->populated, nr_pages);
+
 	return chunk;
 }
 
