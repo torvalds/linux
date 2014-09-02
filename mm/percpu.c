@@ -807,20 +807,17 @@ area_found:
 	page_start = PFN_DOWN(off);
 	page_end = PFN_UP(off + size);
 
-	rs = page_start;
-	pcpu_next_pop(chunk, &rs, &re, page_end);
-
-	if (rs != page_start || re != page_end) {
+	pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
 		WARN_ON(chunk->immutable);
 
-		if (pcpu_populate_chunk(chunk, off, size)) {
+		if (pcpu_populate_chunk(chunk, rs, re)) {
 			spin_lock_irqsave(&pcpu_lock, flags);
 			pcpu_free_area(chunk, off);
 			err = "failed to populate";
 			goto fail_unlock;
 		}
 
-		bitmap_set(chunk->populated, page_start, page_end - page_start);
+		bitmap_set(chunk->populated, rs, re - rs);
 	}
 
 	mutex_unlock(&pcpu_alloc_mutex);
@@ -919,12 +916,12 @@ static void pcpu_reclaim(struct work_struct *work)
 	spin_unlock_irq(&pcpu_lock);
 
 	list_for_each_entry_safe(chunk, next, &todo, list) {
-		int rs = 0, re;
+		int rs, re;
 
-		pcpu_next_unpop(chunk, &rs, &re, PFN_UP(pcpu_unit_size));
-		if (rs || re != PFN_UP(pcpu_unit_size))
-			pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size);
-
+		pcpu_for_each_pop_region(chunk, rs, re, 0, pcpu_unit_pages) {
+			pcpu_depopulate_chunk(chunk, rs, re);
+			bitmap_clear(chunk->populated, rs, re - rs);
+		}
 		pcpu_destroy_chunk(chunk);
 	}
 

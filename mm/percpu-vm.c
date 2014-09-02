@@ -261,8 +261,8 @@ static void pcpu_post_map_flush(struct pcpu_chunk *chunk,
 /**
  * pcpu_populate_chunk - populate and map an area of a pcpu_chunk
  * @chunk: chunk of interest
- * @off: offset to the area to populate
- * @size: size of the area to populate in bytes
+ * @page_start: the start page
+ * @page_end: the end page
  *
  * For each cpu, populate and map pages [@page_start,@page_end) into
  * @chunk.
@@ -270,66 +270,43 @@ static void pcpu_post_map_flush(struct pcpu_chunk *chunk,
  * CONTEXT:
  * pcpu_alloc_mutex, does GFP_KERNEL allocation.
  */
-static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
+static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
+			       int page_start, int page_end)
 {
-	int page_start = PFN_DOWN(off);
-	int page_end = PFN_UP(off + size);
-	int free_end = page_start, unmap_end = page_start;
 	struct page **pages;
-	int rs, re, rc;
 
 	pages = pcpu_get_pages(chunk);
 	if (!pages)
 		return -ENOMEM;
 
-	/* alloc and map */
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
-		rc = pcpu_alloc_pages(chunk, pages, rs, re);
-		if (rc)
-			goto err_free;
-		free_end = re;
-	}
+	if (pcpu_alloc_pages(chunk, pages, page_start, page_end))
+		return -ENOMEM;
 
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
-		rc = pcpu_map_pages(chunk, pages, rs, re);
-		if (rc)
-			goto err_unmap;
-		unmap_end = re;
+	if (pcpu_map_pages(chunk, pages, page_start, page_end)) {
+		pcpu_free_pages(chunk, pages, page_start, page_end);
+		return -ENOMEM;
 	}
 	pcpu_post_map_flush(chunk, page_start, page_end);
 
 	return 0;
-
-err_unmap:
-	pcpu_pre_unmap_flush(chunk, page_start, unmap_end);
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, unmap_end)
-		pcpu_unmap_pages(chunk, pages, rs, re);
-	pcpu_post_unmap_tlb_flush(chunk, page_start, unmap_end);
-err_free:
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, free_end)
-		pcpu_free_pages(chunk, pages, rs, re);
-	return rc;
 }
 
 /**
  * pcpu_depopulate_chunk - depopulate and unmap an area of a pcpu_chunk
  * @chunk: chunk to depopulate
- * @off: offset to the area to depopulate
- * @size: size of the area to depopulate in bytes
+ * @page_start: the start page
+ * @page_end: the end page
  *
  * For each cpu, depopulate and unmap pages [@page_start,@page_end)
- * from @chunk.  If @flush is true, vcache is flushed before unmapping
- * and tlb after.
+ * from @chunk.
  *
  * CONTEXT:
  * pcpu_alloc_mutex.
  */
-static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size)
+static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
+				  int page_start, int page_end)
 {
-	int page_start = PFN_DOWN(off);
-	int page_end = PFN_UP(off + size);
 	struct page **pages;
-	int rs, re;
 
 	/*
 	 * If control reaches here, there must have been at least one
@@ -342,13 +319,11 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size)
 	/* unmap and free */
 	pcpu_pre_unmap_flush(chunk, page_start, page_end);
 
-	pcpu_for_each_pop_region(chunk, rs, re, page_start, page_end)
-		pcpu_unmap_pages(chunk, pages, rs, re);
+	pcpu_unmap_pages(chunk, pages, page_start, page_end);
 
 	/* no need to flush tlb, vmalloc will handle it lazily */
 
-	pcpu_for_each_pop_region(chunk, rs, re, page_start, page_end)
-		pcpu_free_pages(chunk, pages, rs, re);
+	pcpu_free_pages(chunk, pages, page_start, page_end);
 }
 
 static struct pcpu_chunk *pcpu_create_chunk(void)
