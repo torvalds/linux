@@ -57,7 +57,7 @@ config NFT_REJECT_IPV6
 
 config NF_LOG_IPV6
 	tristate "IPv6 packet logging"
-	depends on NETFILTER_ADVANCED
+	default m if NETFILTER_ADVANCED=n
 	select NF_LOG_COMMON
 
 config NF_NAT_IPV6
