@@ -443,6 +443,12 @@ int x86_pmu_hw_config(struct perf_event *event)
 	if (event->attr.type == PERF_TYPE_RAW)
 		event->hw.config |= event->attr.config & X86_RAW_EVENT_MASK;
 
+	if (event->attr.sample_period && x86_pmu.limit_period) {
+		if (x86_pmu.limit_period(event, event->attr.sample_period) >
+				event->attr.sample_period)
+			return -EINVAL;
+	}
+
 	return x86_setup_perfctr(event);
 }
 
@@ -979,6 +985,9 @@ int x86_perf_event_set_period(struct perf_event *event)
 
 	if (left > x86_pmu.max_period)
 		left = x86_pmu.max_period;
+
+	if (x86_pmu.limit_period)
+		left = x86_pmu.limit_period(event, left);
 
 	per_cpu(pmc_prev_left[idx], smp_processor_id()) = left;
 
