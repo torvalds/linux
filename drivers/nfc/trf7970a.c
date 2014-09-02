@@ -1385,6 +1385,44 @@ static int trf7970a_power_down(struct trf7970a *trf)
 	return ret;
 }
 
+static int trf7970a_startup(struct trf7970a *trf)
+{
+	int ret;
+
+	ret = trf7970a_power_up(trf);
+	if (ret)
+		return ret;
+
+	pm_runtime_set_active(trf->dev);
+	pm_runtime_enable(trf->dev);
+	pm_runtime_mark_last_busy(trf->dev);
+
+	return 0;
+}
+
+static void trf7970a_shutdown(struct trf7970a *trf)
+{
+	switch (trf->state) {
+	case TRF7970A_ST_WAIT_FOR_TX_FIFO:
+	case TRF7970A_ST_WAIT_FOR_RX_DATA:
+	case TRF7970A_ST_WAIT_FOR_RX_DATA_CONT:
+	case TRF7970A_ST_WAIT_TO_ISSUE_EOF:
+		trf7970a_send_err_upstream(trf, -ECANCELED);
+		/* FALLTHROUGH */
+	case TRF7970A_ST_IDLE:
+	case TRF7970A_ST_IDLE_RX_BLOCKED:
+		trf7970a_switch_rf_off(trf);
+		break;
+	default:
+		break;
+	}
+
+	pm_runtime_disable(trf->dev);
+	pm_runtime_set_suspended(trf->dev);
+
+	trf7970a_power_down(trf);
+}
+
 static int trf7970a_get_autosuspend_delay(struct device_node *np)
 {
 	int autosuspend_delay, ret;
@@ -1512,27 +1550,21 @@ static int trf7970a_probe(struct spi_device *spi)
 	pm_runtime_set_autosuspend_delay(trf->dev, autosuspend_delay);
 	pm_runtime_use_autosuspend(trf->dev);
 
-	ret = trf7970a_power_up(trf);
+	ret = trf7970a_startup(trf);
 	if (ret)
 		goto err_free_ddev;
-
-	pm_runtime_set_active(trf->dev);
-	pm_runtime_enable(trf->dev);
-	pm_runtime_mark_last_busy(trf->dev);
 
 	ret = nfc_digital_register_device(trf->ddev);
 	if (ret) {
 		dev_err(trf->dev, "Can't register NFC digital device: %d\n",
 				ret);
-		goto err_power_down;
+		goto err_shutdown;
 	}
 
 	return 0;
 
-err_power_down:
-	pm_runtime_disable(trf->dev);
-	pm_runtime_set_suspended(trf->dev);
-	trf7970a_power_down(trf);
+err_shutdown:
+	trf7970a_shutdown(trf);
 err_free_ddev:
 	nfc_digital_free_device(trf->ddev);
 err_disable_regulator:
@@ -1548,25 +1580,7 @@ static int trf7970a_remove(struct spi_device *spi)
 
 	mutex_lock(&trf->lock);
 
-	switch (trf->state) {
-	case TRF7970A_ST_WAIT_FOR_TX_FIFO:
-	case TRF7970A_ST_WAIT_FOR_RX_DATA:
-	case TRF7970A_ST_WAIT_FOR_RX_DATA_CONT:
-	case TRF7970A_ST_WAIT_TO_ISSUE_EOF:
-		trf7970a_send_err_upstream(trf, -ECANCELED);
-		/* FALLTHROUGH */
-	case TRF7970A_ST_IDLE:
-	case TRF7970A_ST_IDLE_RX_BLOCKED:
-		trf7970a_switch_rf_off(trf);
-		break;
-	default:
-		break;
-	}
-
-	pm_runtime_disable(trf->dev);
-	pm_runtime_set_suspended(trf->dev);
-
-	trf7970a_power_down(trf);
+	trf7970a_shutdown(trf);
 
 	mutex_unlock(&trf->lock);
 
