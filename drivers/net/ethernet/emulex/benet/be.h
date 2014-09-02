@@ -621,6 +621,10 @@ extern const struct ethtool_ops be_ethtool_ops;
 	for (i = eqo->idx, rxo = &adapter->rx_obj[i]; i < adapter->num_rx_qs;\
 		 i += adapter->num_evt_qs, rxo += adapter->num_evt_qs)
 
+#define for_all_tx_queues_on_eq(adapter, eqo, txo, i)			\
+	for (i = eqo->idx, txo = &adapter->tx_obj[i]; i < adapter->num_tx_qs;\
+		i += adapter->num_evt_qs, txo += adapter->num_evt_qs)
+
 #define is_mcc_eqo(eqo)			(eqo->idx == 0)
 #define mcc_eqo(adapter)		(&adapter->eq_obj[0])
 
