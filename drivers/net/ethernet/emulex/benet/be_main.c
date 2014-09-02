@@ -849,6 +849,7 @@ dma_err:
 		unmap_tx_frag(dev, wrb, map_single);
 		map_single = false;
 		copied -= wrb->frag_len;
+		adapter->drv_stats.dma_map_errors++;
 		queue_head_inc(txq);
 	}
 	return 0;
@@ -1877,7 +1878,7 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp)
 			if (dma_mapping_error(dev, page_dmaaddr)) {
 				put_page(pagep);
 				pagep = NULL;
-				rx_stats(rxo)->rx_post_fail++;
+				adapter->drv_stats.dma_map_errors++;
 				break;
 			}
 			page_offset = 0;

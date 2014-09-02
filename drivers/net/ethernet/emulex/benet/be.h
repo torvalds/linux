@@ -323,6 +323,7 @@ struct be_rx_obj {
 struct be_drv_stats {
 	u32 be_on_die_temperature;
 	u32 eth_red_drops;
+	u32 dma_map_errors;
 	u32 rx_drops_no_pbuf;
 	u32 rx_drops_no_txpb;
 	u32 rx_drops_no_erx_descr;
