@@ -3758,9 +3758,9 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 }
 
 static struct edid *
-intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
+intel_dp_get_edid(struct intel_dp *intel_dp)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
 
 	/* use cached edid if we have one */
 	if (intel_connector->edid) {
@@ -3769,27 +3769,55 @@ intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 			return NULL;
 
 		return drm_edid_duplicate(intel_connector->edid);
-	}
-
-	return drm_get_edid(connector, adapter);
+	} else
+		return drm_get_edid(&intel_connector->base,
+				    &intel_dp->aux.ddc);
 }
 
-static int
-intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter *adapter)
+static void
+intel_dp_set_edid(struct intel_dp *intel_dp)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct edid *edid;
 
-	/* use cached edid if we have one */
-	if (intel_connector->edid) {
-		/* invalid edid */
-		if (IS_ERR(intel_connector->edid))
-			return 0;
+	edid = intel_dp_get_edid(intel_dp);
+	intel_connector->detect_edid = edid;
 
-		return intel_connector_update_modes(connector,
-						    intel_connector->edid);
-	}
+	if (intel_dp->force_audio != HDMI_AUDIO_AUTO)
+		intel_dp->has_audio = intel_dp->force_audio == HDMI_AUDIO_ON;
+	else
+		intel_dp->has_audio = drm_detect_monitor_audio(edid);
+}
 
-	return intel_ddc_get_modes(connector, adapter);
+static void
+intel_dp_unset_edid(struct intel_dp *intel_dp)
+{
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+
+	kfree(intel_connector->detect_edid);
+	intel_connector->detect_edid = NULL;
+
+	intel_dp->has_audio = false;
+}
+
+static enum intel_display_power_domain
+intel_dp_power_get(struct intel_dp *dp)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(dp)->base;
+	enum intel_display_power_domain power_domain;
+
+	power_domain = intel_display_port_power_domain(encoder);
+	intel_display_power_get(to_i915(encoder->base.dev), power_domain);
+
+	return power_domain;
+}
+
+static void
+intel_dp_power_put(struct intel_dp *dp,
+		   enum intel_display_power_domain power_domain)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(dp)->base;
+	intel_display_power_put(to_i915(encoder->base.dev), power_domain);
 }
 
 static enum drm_connector_status
@@ -3799,27 +3827,22 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum drm_connector_status status;
 	enum intel_display_power_domain power_domain;
-	struct edid *edid = NULL;
 	bool ret;
-
-	power_domain = intel_display_port_power_domain(intel_encoder);
-	intel_display_power_get(dev_priv, power_domain);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
+	intel_dp_unset_edid(intel_dp);
 
 	if (intel_dp->is_mst) {
 		/* MST devices are disconnected from a monitor POV */
 		if (intel_encoder->type != INTEL_OUTPUT_EDP)
 			intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
-		status = connector_status_disconnected;
-		goto out;
+		return connector_status_disconnected;
 	}
 
-	intel_dp->has_audio = false;
+	power_domain = intel_dp_power_get(intel_dp);
 
 	/* Can't disconnect eDP, but you can close the lid... */
 	if (is_edp(intel_dp))
@@ -3843,82 +3866,78 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		goto out;
 	}
 
-	if (intel_dp->force_audio != HDMI_AUDIO_AUTO) {
-		intel_dp->has_audio = (intel_dp->force_audio == HDMI_AUDIO_ON);
-	} else {
-		edid = intel_dp_get_edid(connector, &intel_dp->aux.ddc);
-		if (edid) {
-			intel_dp->has_audio = drm_detect_monitor_audio(edid);
-			kfree(edid);
-		}
-	}
+	intel_dp_set_edid(intel_dp);
 
 	if (intel_encoder->type != INTEL_OUTPUT_EDP)
 		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 	status = connector_status_connected;
 
 out:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_dp_power_put(intel_dp, power_domain);
 	return status;
+}
+
+static void
+intel_dp_force(struct drm_connector *connector)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
+	enum intel_display_power_domain power_domain;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, connector->name);
+	intel_dp_unset_edid(intel_dp);
+
+	if (connector->status != connector_status_connected)
+		return;
+
+	power_domain = intel_dp_power_get(intel_dp);
+
+	intel_dp_set_edid(intel_dp);
+
+	intel_dp_power_put(intel_dp, power_domain);
+
+	if (intel_encoder->type != INTEL_OUTPUT_EDP)
+		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 }
 
 static int intel_dp_get_modes(struct drm_connector *connector)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum intel_display_power_domain power_domain;
-	int ret;
+	struct edid *edid;
 
-	/* We should parse the EDID data and find out if it has an audio sink
-	 */
-
-	power_domain = intel_display_port_power_domain(intel_encoder);
-	intel_display_power_get(dev_priv, power_domain);
-
-	ret = intel_dp_get_edid_modes(connector, &intel_dp->aux.ddc);
-	intel_display_power_put(dev_priv, power_domain);
-	if (ret)
-		return ret;
+	edid = intel_connector->detect_edid;
+	if (edid) {
+		int ret = intel_connector_update_modes(connector, edid);
+		if (ret)
+			return ret;
+	}
 
 	/* if eDP has no EDID, fall back to fixed mode */
-	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
+	if (is_edp(intel_attached_dp(connector)) &&
+	    intel_connector->panel.fixed_mode) {
 		struct drm_display_mode *mode;
-		mode = drm_mode_duplicate(dev,
+
+		mode = drm_mode_duplicate(connector->dev,
 					  intel_connector->panel.fixed_mode);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);
 			return 1;
 		}
 	}
+
 	return 0;
 }
 
 static bool
 intel_dp_detect_audio(struct drm_connector *connector)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct intel_encoder *intel_encoder = &intel_dig_port->base;
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum intel_display_power_domain power_domain;
-	struct edid *edid;
 	bool has_audio = false;
+	struct edid *edid;
 
-	power_domain = intel_display_port_power_domain(intel_encoder);
-	intel_display_power_get(dev_priv, power_domain);
-
-	edid = intel_dp_get_edid(connector, &intel_dp->aux.ddc);
-	if (edid) {
+	edid = to_intel_connector(connector)->detect_edid;
+	if (edid)
 		has_audio = drm_detect_monitor_audio(edid);
-		kfree(edid);
-	}
-
-	intel_display_power_put(dev_priv, power_domain);
 
 	return has_audio;
 }
@@ -4016,6 +4035,8 @@ intel_dp_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
+	intel_dp_unset_edid(intel_attached_dp(connector));
+
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 
@@ -4068,6 +4089,7 @@ static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_dp_detect,
+	.force = intel_dp_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_dp_set_property,
 	.destroy = intel_dp_connector_destroy,
