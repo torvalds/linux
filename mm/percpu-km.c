@@ -68,7 +68,9 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 	chunk->data = pages;
 	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
 
+	spin_lock_irq(&pcpu_lock);
 	bitmap_fill(chunk->populated, nr_pages);
+	spin_unlock_irq(&pcpu_lock);
 
 	return chunk;
 }

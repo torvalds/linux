@@ -152,31 +152,12 @@ static struct pcpu_chunk *pcpu_reserved_chunk;
 static int pcpu_reserved_chunk_limit;
 
 /*
- * Synchronization rules.
- *
- * There are two locks - pcpu_alloc_mutex and pcpu_lock.  The former
- * protects allocation/reclaim paths, chunks, populated bitmap and
- * vmalloc mapping.  The latter is a spinlock and protects the index
- * data structures - chunk slots, chunks and area maps in chunks.
- *
- * During allocation, pcpu_alloc_mutex is kept locked all the time and
- * pcpu_lock is grabbed and released as necessary.  All actual memory
- * allocations are done using GFP_KERNEL with pcpu_lock released.  In
- * general, percpu memory can't be allocated with irq off but
- * irqsave/restore are still used in alloc path so that it can be used
- * from early init path - sched_init() specifically.
- *
- * Free path accesses and alters only the index data structures, so it
- * can be safely called from atomic context.  When memory needs to be
- * returned to the system, free path schedules reclaim_work which
- * grabs both pcpu_alloc_mutex and pcpu_lock, unlinks chunks to be
- * reclaimed, release both locks and frees the chunks.  Note that it's
- * necessary to grab both locks to remove a chunk from circulation as
- * allocation path might be referencing the chunk with only
- * pcpu_alloc_mutex locked.
+ * Free path accesses and alters only the index data structures and can be
+ * safely called from atomic context.  When memory needs to be returned to
+ * the system, free path schedules reclaim_work.
  */
-static DEFINE_MUTEX(pcpu_alloc_mutex);	/* protects whole alloc and reclaim */
-static DEFINE_SPINLOCK(pcpu_lock);	/* protects index data structures */
+static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
+static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop */
 
 static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
 
@@ -709,7 +690,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
 	static int warn_limit = 10;
 	struct pcpu_chunk *chunk;
 	const char *err;
-	int slot, off, new_alloc, cpu;
+	int slot, off, new_alloc, cpu, ret;
 	int page_start, page_end, rs, re;
 	unsigned long flags;
 	void __percpu *ptr;
@@ -729,7 +710,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
 		return NULL;
 	}
 
-	mutex_lock(&pcpu_alloc_mutex);
 	spin_lock_irqsave(&pcpu_lock, flags);
 
 	/* serve reserved allocations from the reserved chunk if available */
@@ -745,7 +725,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
 			spin_unlock_irqrestore(&pcpu_lock, flags);
 			if (pcpu_extend_area_map(chunk, new_alloc) < 0) {
 				err = "failed to extend area map of reserved chunk";
-				goto fail_unlock_mutex;
+				goto fail;
 			}
 			spin_lock_irqsave(&pcpu_lock, flags);
 		}
@@ -771,7 +751,7 @@ restart:
 				if (pcpu_extend_area_map(chunk,
 							 new_alloc) < 0) {
 					err = "failed to extend area map";
-					goto fail_unlock_mutex;
+					goto fail;
 				}
 				spin_lock_irqsave(&pcpu_lock, flags);
 				/*
@@ -787,37 +767,53 @@ restart:
 		}
 	}
 
-	/* hmmm... no space left, create a new chunk */
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	chunk = pcpu_create_chunk();
-	if (!chunk) {
-		err = "failed to allocate new chunk";
-		goto fail_unlock_mutex;
+	/*
+	 * No space left.  Create a new chunk.  We don't want multiple
+	 * tasks to create chunks simultaneously.  Serialize and create iff
+	 * there's still no empty chunk after grabbing the mutex.
+	 */
+	mutex_lock(&pcpu_alloc_mutex);
+
+	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
+		chunk = pcpu_create_chunk();
+		if (!chunk) {
+			err = "failed to allocate new chunk";
+			goto fail;
+		}
+
+		spin_lock_irqsave(&pcpu_lock, flags);
+		pcpu_chunk_relocate(chunk, -1);
+	} else {
+		spin_lock_irqsave(&pcpu_lock, flags);
 	}
 
-	spin_lock_irqsave(&pcpu_lock, flags);
-	pcpu_chunk_relocate(chunk, -1);
+	mutex_unlock(&pcpu_alloc_mutex);
 	goto restart;
 
 area_found:
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	/* populate if not all pages are already there */
+	mutex_lock(&pcpu_alloc_mutex);
 	page_start = PFN_DOWN(off);
 	page_end = PFN_UP(off + size);
 
 	pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
 		WARN_ON(chunk->immutable);
 
-		if (pcpu_populate_chunk(chunk, rs, re)) {
-			spin_lock_irqsave(&pcpu_lock, flags);
+		ret = pcpu_populate_chunk(chunk, rs, re);
+
+		spin_lock_irqsave(&pcpu_lock, flags);
+		if (ret) {
+			mutex_unlock(&pcpu_alloc_mutex);
 			pcpu_free_area(chunk, off);
 			err = "failed to populate";
 			goto fail_unlock;
 		}
-
 		bitmap_set(chunk->populated, rs, re - rs);
+		spin_unlock_irqrestore(&pcpu_lock, flags);
 	}
 
 	mutex_unlock(&pcpu_alloc_mutex);
@@ -832,8 +828,7 @@ area_found:
 
 fail_unlock:
 	spin_unlock_irqrestore(&pcpu_lock, flags);
-fail_unlock_mutex:
-	mutex_unlock(&pcpu_alloc_mutex);
+fail:
 	if (warn_limit) {
 		pr_warning("PERCPU: allocation failed, size=%zu align=%zu, "
 			   "%s\n", size, align, err);
