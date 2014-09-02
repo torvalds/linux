@@ -85,14 +85,6 @@ config COMEDI_SERIAL2002
 	  To compile this driver as a module, choose M here: the module will be
 	  called serial2002.
 
-config COMEDI_SKEL
-	tristate "Comedi skeleton driver"
-	---help---
-	  Build the Skeleton driver, an example for driver writers
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called skel.
-
 config COMEDI_SSV_DNP
 	tristate "SSV Embedded Systems DIL/Net-PC support"
 	depends on X86_32 || COMPILE_TEST
