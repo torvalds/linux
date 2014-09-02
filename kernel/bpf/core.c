@@ -22,6 +22,7 @@
  */
 #include <linux/filter.h>
 #include <linux/skbuff.h>
+#include <linux/vmalloc.h>
 #include <asm/unaligned.h>
 
 /* Registers */
@@ -62,6 +63,67 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 
 	return NULL;
 }
+
+struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
+{
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO |
+			  gfp_extra_flags;
+	struct bpf_work_struct *ws;
+	struct bpf_prog *fp;
+
+	size = round_up(size, PAGE_SIZE);
+	fp = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+	if (fp == NULL)
+		return NULL;
+
+	ws = kmalloc(sizeof(*ws), GFP_KERNEL | gfp_extra_flags);
+	if (ws == NULL) {
+		vfree(fp);
+		return NULL;
+	}
+
+	fp->pages = size / PAGE_SIZE;
+	fp->work = ws;
+
+	return fp;
+}
+EXPORT_SYMBOL_GPL(bpf_prog_alloc);
+
+struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
+				  gfp_t gfp_extra_flags)
+{
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO |
+			  gfp_extra_flags;
+	struct bpf_prog *fp;
+
+	BUG_ON(fp_old == NULL);
+
+	size = round_up(size, PAGE_SIZE);
+	if (size <= fp_old->pages * PAGE_SIZE)
+		return fp_old;
+
+	fp = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+	if (fp != NULL) {
+		memcpy(fp, fp_old, fp_old->pages * PAGE_SIZE);
+		fp->pages = size / PAGE_SIZE;
+
+		/* We keep fp->work from fp_old around in the new
+		 * reallocated structure.
+		 */
+		fp_old->work = NULL;
+		__bpf_prog_free(fp_old);
+	}
+
+	return fp;
+}
+EXPORT_SYMBOL_GPL(bpf_prog_realloc);
+
+void __bpf_prog_free(struct bpf_prog *fp)
+{
+	kfree(fp->work);
+	vfree(fp);
+}
+EXPORT_SYMBOL_GPL(__bpf_prog_free);
 
 /* Base function for offset calculation. Needs to go into .text section,
  * therefore keeping it non-static as well; will also be used by JITs
@@ -523,12 +585,26 @@ void bpf_prog_select_runtime(struct bpf_prog *fp)
 
 	/* Probe if internal BPF can be JITed */
 	bpf_int_jit_compile(fp);
+	/* Lock whole bpf_prog as read-only */
+	bpf_prog_lock_ro(fp);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
 
-/* free internal BPF program */
+static void bpf_prog_free_deferred(struct work_struct *work)
+{
+	struct bpf_work_struct *ws;
+
+	ws = container_of(work, struct bpf_work_struct, work);
+	bpf_jit_free(ws->prog);
+}
+
+/* Free internal BPF program */
 void bpf_prog_free(struct bpf_prog *fp)
 {
-	bpf_jit_free(fp);
+	struct bpf_work_struct *ws = fp->work;
+
+	INIT_WORK(&ws->work, bpf_prog_free_deferred);
+	ws->prog = fp;
+	schedule_work(&ws->work);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);

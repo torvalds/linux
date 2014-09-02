@@ -9,6 +9,11 @@
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <uapi/linux/filter.h>
+#include <asm/cacheflush.h>
+
+struct sk_buff;
+struct sock;
+struct seccomp_data;
 
 /* Internally used and optimized filter representation with extended
  * instruction set based on top of classic BPF.
@@ -320,20 +325,23 @@ struct sock_fprog_kern {
 	struct sock_filter	*filter;
 };
 
-struct sk_buff;
-struct sock;
-struct seccomp_data;
+struct bpf_work_struct {
+	struct bpf_prog *prog;
+	struct work_struct work;
+};
 
 struct bpf_prog {
+	u32			pages;		/* Number of allocated pages */
 	u32			jited:1,	/* Is our filter JIT'ed? */
 				len:31;		/* Number of filter blocks */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
+	struct bpf_work_struct	*work;		/* Deferred free work struct */
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,
 					    const struct bpf_insn *filter);
+	/* Instructions for interpreter */
 	union {
 		struct sock_filter	insns[0];
 		struct bpf_insn		insnsi[0];
-		struct work_struct	work;
 	};
 };
 
@@ -353,6 +361,26 @@ static inline unsigned int bpf_prog_size(unsigned int proglen)
 
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
 
+#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
+{
+	set_memory_ro((unsigned long)fp, fp->pages);
+}
+
+static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
+{
+	set_memory_rw((unsigned long)fp, fp->pages);
+}
+#else
+static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
+{
+}
+
+static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
+{
+}
+#endif /* CONFIG_DEBUG_SET_MODULE_RONX */
+
 int sk_filter(struct sock *sk, struct sk_buff *skb);
 
 void bpf_prog_select_runtime(struct bpf_prog *fp);
@@ -360,6 +388,17 @@ void bpf_prog_free(struct bpf_prog *fp);
 
 int bpf_convert_filter(struct sock_filter *prog, int len,
 		       struct bpf_insn *new_prog, int *new_len);
+
+struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
+struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
+				  gfp_t gfp_extra_flags);
+void __bpf_prog_free(struct bpf_prog *fp);
+
+static inline void bpf_prog_unlock_free(struct bpf_prog *fp)
+{
+	bpf_prog_unlock_ro(fp);
+	__bpf_prog_free(fp);
+}
 
 int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog);
 void bpf_prog_destroy(struct bpf_prog *fp);
@@ -450,7 +489,7 @@ static inline void bpf_jit_compile(struct bpf_prog *fp)
 
 static inline void bpf_jit_free(struct bpf_prog *fp)
 {
-	kfree(fp);
+	bpf_prog_unlock_free(fp);
 }
 #endif /* CONFIG_BPF_JIT */
 

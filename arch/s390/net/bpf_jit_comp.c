@@ -887,5 +887,5 @@ void bpf_jit_free(struct bpf_prog *fp)
 	module_free(NULL, header);
 
 free_filter:
-	kfree(fp);
+	bpf_prog_unlock_free(fp);
 }

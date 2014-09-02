@@ -395,16 +395,15 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	if (!filter)
 		goto free_prog;
 
-	filter->prog = kzalloc(bpf_prog_size(new_len),
-			       GFP_KERNEL|__GFP_NOWARN);
+	filter->prog = bpf_prog_alloc(bpf_prog_size(new_len), __GFP_NOWARN);
 	if (!filter->prog)
 		goto free_filter;
 
 	ret = bpf_convert_filter(fp, fprog->len, filter->prog->insnsi, &new_len);
 	if (ret)
 		goto free_filter_prog;
-	kfree(fp);
 
+	kfree(fp);
 	atomic_set(&filter->usage, 1);
 	filter->prog->len = new_len;
 
@@ -413,7 +412,7 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	return filter;
 
 free_filter_prog:
-	kfree(filter->prog);
+	__bpf_prog_free(filter->prog);
 free_filter:
 	kfree(filter);
 free_prog:

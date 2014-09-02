@@ -1836,7 +1836,7 @@ static struct bpf_prog *generate_filter(int which, int *err)
 		break;
 
 	case INTERNAL:
-		fp = kzalloc(bpf_prog_size(flen), GFP_KERNEL);
+		fp = bpf_prog_alloc(bpf_prog_size(flen), 0);
 		if (fp == NULL) {
 			pr_cont("UNEXPECTED_FAIL no memory left\n");
 			*err = -ENOMEM;
