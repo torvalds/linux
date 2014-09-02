@@ -829,7 +829,6 @@ EXPORT_SYMBOL_GPL(arc_emac_probe);
 
 int arc_emac_remove(struct net_device *ndev)
 {
-	struct device *dev = ndev->dev.parent;
 	struct arc_emac_priv *priv = netdev_priv(ndev);
 
 	phy_disconnect(priv->phy_dev);
