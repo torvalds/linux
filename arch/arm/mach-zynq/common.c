@@ -98,6 +98,11 @@ static int __init zynq_get_revision(void)
 	return revision;
 }
 
+static void __init zynq_init_late(void)
+{
+	zynq_core_pm_init();
+}
+
 /**
  * zynq_init_machine - System specific initialization, intended to be
  *		       called from board specific initialization.
@@ -204,6 +209,7 @@ DT_MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
 	.map_io		= zynq_map_io,
 	.init_irq	= zynq_irq_init,
 	.init_machine	= zynq_init_machine,
+	.init_late	= zynq_init_late,
 	.init_time	= zynq_timer_init,
 	.dt_compat	= zynq_dt_match,
 	.reserve	= zynq_memory_init,

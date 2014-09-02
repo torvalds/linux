@@ -40,4 +40,15 @@ extern void __iomem *zynq_scu_base;
 /* Hotplug */
 extern void zynq_platform_cpu_die(unsigned int cpu);
 
+static inline void zynq_core_pm_init(void)
+{
+	/* A9 clock gating */
+	asm volatile ("mrc  p15, 0, r12, c15, c0, 0\n"
+		      "orr  r12, r12, #1\n"
+		      "mcr  p15, 0, r12, c15, c0, 0\n"
+		      : /* no outputs */
+		      : /* no inputs */
+		      : "r12");
+}
+
 #endif

@@ -112,6 +112,18 @@ static void __init zynq_smp_prepare_cpus(unsigned int max_cpus)
 	scu_enable(zynq_scu_base);
 }
 
+/**
+ * zynq_secondary_init - Initialize secondary CPU cores
+ * @cpu:	CPU that is initialized
+ *
+ * This function is in the hotplug path. Don't move it into the
+ * init section!!
+ */
+static void zynq_secondary_init(unsigned int cpu)
+{
+	zynq_core_pm_init();
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 static int zynq_cpu_kill(unsigned cpu)
 {
@@ -124,6 +136,7 @@ struct smp_operations zynq_smp_ops __initdata = {
 	.smp_init_cpus		= zynq_smp_init_cpus,
 	.smp_prepare_cpus	= zynq_smp_prepare_cpus,
 	.smp_boot_secondary	= zynq_boot_secondary,
+	.smp_secondary_init	= zynq_secondary_init,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= zynq_platform_cpu_die,
 	.cpu_kill		= zynq_cpu_kill,
