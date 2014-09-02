@@ -2421,11 +2421,49 @@ loop_continue:
 	return work_done;
 }
 
+static inline void be_update_tx_err(struct be_tx_obj *txo, u32 status)
+{
+	switch (status) {
+	case BE_TX_COMP_HDR_PARSE_ERR:
+		tx_stats(txo)->tx_hdr_parse_err++;
+		break;
+	case BE_TX_COMP_NDMA_ERR:
+		tx_stats(txo)->tx_dma_err++;
+		break;
+	case BE_TX_COMP_ACL_ERR:
+		tx_stats(txo)->tx_spoof_check_err++;
+		break;
+	}
+}
+
+static inline void lancer_update_tx_err(struct be_tx_obj *txo, u32 status)
+{
+	switch (status) {
+	case LANCER_TX_COMP_LSO_ERR:
+		tx_stats(txo)->tx_tso_err++;
+		break;
+	case LANCER_TX_COMP_HSW_DROP_MAC_ERR:
+	case LANCER_TX_COMP_HSW_DROP_VLAN_ERR:
+		tx_stats(txo)->tx_spoof_check_err++;
+		break;
+	case LANCER_TX_COMP_QINQ_ERR:
+		tx_stats(txo)->tx_qinq_err++;
+		break;
+	case LANCER_TX_COMP_PARITY_ERR:
+		tx_stats(txo)->tx_internal_parity_err++;
+		break;
+	case LANCER_TX_COMP_DMA_ERR:
+		tx_stats(txo)->tx_dma_err++;
+		break;
+	}
+}
+
 static bool be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 			  int budget, int idx)
 {
 	struct be_eth_tx_compl *txcp;
 	int num_wrbs = 0, work_done;
+	u32 compl_status;
 
 	for (work_done = 0; work_done < budget; work_done++) {
 		txcp = be_tx_compl_get(&txo->cq);
@@ -2434,6 +2472,13 @@ static bool be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 		num_wrbs += be_tx_compl_process(adapter, txo,
 						GET_TX_COMPL_BITS(wrb_index,
 								  txcp));
+		compl_status = GET_TX_COMPL_BITS(status, txcp);
+		if (compl_status) {
+			if (lancer_chip(adapter))
+				lancer_update_tx_err(txo, compl_status);
+			else
+				be_update_tx_err(txo, compl_status);
+		}
 	}
 
 	if (work_done) {

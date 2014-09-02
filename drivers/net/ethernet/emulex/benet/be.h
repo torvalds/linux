@@ -248,6 +248,13 @@ struct be_tx_stats {
 	ulong tx_jiffies;
 	u32 tx_stops;
 	u32 tx_drv_drops;	/* pkts dropped by driver */
+	/* the error counters are described in be_ethtool.c */
+	u32 tx_hdr_parse_err;
+	u32 tx_dma_err;
+	u32 tx_tso_err;
+	u32 tx_spoof_check_err;
+	u32 tx_qinq_err;
+	u32 tx_internal_parity_err;
 	struct u64_stats_sync sync;
 	struct u64_stats_sync sync_compl;
 };

@@ -157,6 +157,34 @@ static const struct be_ethtool_stat et_rx_stats[] = {
  */
 static const struct be_ethtool_stat et_tx_stats[] = {
 	{DRVSTAT_TX_INFO(tx_compl)}, /* If moving this member see above note */
+	/* This counter is incremented when the HW encounters an error while
+	 * parsing the packet header of an outgoing TX request. This counter is
+	 * applicable only for BE2, BE3 and Skyhawk based adapters.
+	 */
+	{DRVSTAT_TX_INFO(tx_hdr_parse_err)},
+	/* This counter is incremented when an error occurs in the DMA
+	 * operation associated with the TX request from the host to the device.
+	 */
+	{DRVSTAT_TX_INFO(tx_dma_err)},
+	/* This counter is incremented when MAC or VLAN spoof checking is
+	 * enabled on the interface and the TX request fails the spoof check
+	 * in HW.
+	 */
+	{DRVSTAT_TX_INFO(tx_spoof_check_err)},
+	/* This counter is incremented when the HW encounters an error while
+	 * performing TSO offload. This counter is applicable only for Lancer
+	 * adapters.
+	 */
+	{DRVSTAT_TX_INFO(tx_tso_err)},
+	/* This counter is incremented when the HW detects Q-in-Q style VLAN
+	 * tagging in a packet and such tagging is not expected on the outgoing
+	 * interface. This counter is applicable only for Lancer adapters.
+	 */
+	{DRVSTAT_TX_INFO(tx_qinq_err)},
+	/* This counter is incremented when the HW detects parity errors in the
+	 * packet data. This counter is applicable only for Lancer adapters.
+	 */
+	{DRVSTAT_TX_INFO(tx_internal_parity_err)},
 	{DRVSTAT_TX_INFO(tx_bytes)},
 	{DRVSTAT_TX_INFO(tx_pkts)},
 	/* Number of skbs queued for trasmission by the driver */
