@@ -606,6 +606,14 @@
 	i2c@0,7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
+
+		trackpad@4b {
+			compatible = "atmel,maxtouch";
+			reg = <0x4b>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_LOW>;
+			linux,gpio-keymap = <0 0 0 BTN_LEFT>;
+		};
 	};
 
 	i2c@0,7000c500 {
