@@ -1201,17 +1201,6 @@ static int trf7970a_tg_listen(struct nfc_digital_dev *ddev,
 	return -EINVAL;
 }
 
-static int trf7970a_tg_listen_mdaa(struct nfc_digital_dev *ddev,
-		struct digital_tg_mdaa_params *mdaa_params,
-		u16 timeout, nfc_digital_cmd_complete_t cb, void *arg)
-{
-	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
-
-	dev_dbg(trf->dev, "Unsupported interface\n");
-
-	return -EINVAL;
-}
-
 static void trf7970a_abort_cmd(struct nfc_digital_dev *ddev)
 {
 	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
@@ -1240,7 +1229,6 @@ static struct nfc_digital_ops trf7970a_nfc_ops = {
 	.tg_configure_hw	= trf7970a_tg_configure_hw,
 	.tg_send_cmd		= trf7970a_tg_send_cmd,
 	.tg_listen		= trf7970a_tg_listen,
-	.tg_listen_mdaa		= trf7970a_tg_listen_mdaa,
 	.switch_rf		= trf7970a_switch_rf,
 	.abort_cmd		= trf7970a_abort_cmd,
 };
