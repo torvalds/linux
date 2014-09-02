@@ -12,20 +12,3 @@
  */
 #include <asm/proc-fns.h>
 
-/*
- * platform-specific code to shutdown a CPU
- *
- * Called with IRQs disabled
- */
-void zynq_platform_cpu_die(unsigned int cpu)
-{
-	zynq_slcr_cpu_state_write(cpu, true);
-
-	/*
-	 * there is no power-control hardware on this platform, so all
-	 * we can do is put the core into WFI; this is safe as the calling
-	 * code will have already disabled interrupts
-	 */
-	for (;;)
-		cpu_do_idle();
-}
