@@ -468,6 +468,9 @@ static void sunsab_send_xchar(struct uart_port *port, char ch)
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 	unsigned long flags;
 
+	if (ch == __DISABLED_CHAR)
+		return;
+
 	spin_lock_irqsave(&up->port.lock, flags);
 
 	sunsab_tec_wait(up);
