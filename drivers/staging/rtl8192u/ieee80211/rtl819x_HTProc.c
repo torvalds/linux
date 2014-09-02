@@ -278,7 +278,7 @@ u16 HTHalfMcsToDataRate(struct ieee80211_device *ieee,	u8	nMcsRate)
 }
 
 
-u16 HTMcsToDataRate( struct ieee80211_device *ieee, u8 nMcsRate)
+u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
@@ -297,7 +297,7 @@ u16 HTMcsToDataRate( struct ieee80211_device *ieee, u8 nMcsRate)
  *  return:  tx rate
  *  notice:  quite unsure about how to use this function //wb
  * *****************************************************************************************************************/
-u16  TxCountToDataRate( struct ieee80211_device *ieee, u8 nDataRate)
+u16  TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate)
 {
 	//PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	u16		CCKOFDMRate[12] = {0x02 , 0x04 , 0x0b , 0x16 , 0x0c , 0x12 , 0x18 , 0x24 , 0x30 , 0x48 , 0x60 , 0x6c};
