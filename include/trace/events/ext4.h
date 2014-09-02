@@ -2450,6 +2450,37 @@ TRACE_EVENT(ext4_collapse_range,
 		  __entry->offset, __entry->len)
 );
 
+TRACE_EVENT(ext4_es_shrink,
+	TP_PROTO(struct super_block *sb, int nr_shrunk, u64 scan_time,
+		 int skip_precached, int nr_skipped, int retried),
+
+	TP_ARGS(sb, nr_shrunk, scan_time, skip_precached, nr_skipped, retried),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,		dev		)
+		__field(	int,		nr_shrunk	)
+		__field(	unsigned long long, scan_time	)
+		__field(	int,		skip_precached	)
+		__field(	int,		nr_skipped	)
+		__field(	int,		retried		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->nr_shrunk	= nr_shrunk;
+		__entry->scan_time	= div_u64(scan_time, 1000);
+		__entry->skip_precached = skip_precached;
+		__entry->nr_skipped	= nr_skipped;
+		__entry->retried	= retried;
+	),
+
+	TP_printk("dev %d,%d nr_shrunk %d, scan_time %llu skip_precached %d "
+		  "nr_skipped %d retried %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->nr_shrunk,
+		  __entry->scan_time, __entry->skip_precached,
+		  __entry->nr_skipped, __entry->retried)
+);
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */

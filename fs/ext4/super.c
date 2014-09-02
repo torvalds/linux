@@ -820,7 +820,6 @@ static void ext4_put_super(struct super_block *sb)
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);
 	percpu_counter_destroy(&sbi->s_dirtyclusters_counter);
-	percpu_counter_destroy(&sbi->s_extent_cache_cnt);
 	brelse(sbi->s_sbh);
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < MAXQUOTAS; i++)
@@ -885,6 +884,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ext4_es_init_tree(&ei->i_es_tree);
 	rwlock_init(&ei->i_es_lock);
 	INIT_LIST_HEAD(&ei->i_es_lru);
+	ei->i_es_all_nr = 0;
 	ei->i_es_lru_nr = 0;
 	ei->i_touch_when = 0;
 	ei->i_reserved_data_blocks = 0;
@@ -3890,12 +3890,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_err_report.data = (unsigned long) sb;
 
 	/* Register extent status tree shrinker */
-	ext4_es_register_shrinker(sbi);
-
-	if ((err = percpu_counter_init(&sbi->s_extent_cache_cnt, 0)) != 0) {
-		ext4_msg(sb, KERN_ERR, "insufficient memory");
+	if (ext4_es_register_shrinker(sbi))
 		goto failed_mount3;
-	}
 
 	sbi->s_stripe = ext4_get_stripe_size(sbi);
 	sbi->s_extent_max_zeroout_kb = 32;
@@ -4225,10 +4221,9 @@ failed_mount_wq:
 		jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
 	}
-failed_mount3:
 	ext4_es_unregister_shrinker(sbi);
+failed_mount3:
 	del_timer_sync(&sbi->s_err_report);
-	percpu_counter_destroy(&sbi->s_extent_cache_cnt);
 	if (sbi->s_mmp_tsk)
 		kthread_stop(sbi->s_mmp_tsk);
 failed_mount2:
