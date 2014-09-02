@@ -120,6 +120,10 @@ config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	help
 	 Use ARM global timer clock source as sched_clock
 
+config ATMEL_PIT
+	select CLKSRC_OF if OF
+	def_bool SOC_AT91SAM9 || SOC_SAMA5
+
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
 	help
