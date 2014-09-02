@@ -1553,8 +1553,6 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 	if (mode != DRM_MODE_DPMS_ON) {
 		ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER,
 					 DP_SET_POWER_D3);
-		if (ret != 1)
-			DRM_DEBUG_DRIVER("failed to write sink power state\n");
 	} else {
 		/*
 		 * When turning on, we need to retry for 1ms to give the sink
@@ -1568,6 +1566,10 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 			msleep(1);
 		}
 	}
+
+	if (ret != 1)
+		DRM_DEBUG_KMS("failed to %s sink power state\n",
+			      mode == DRM_MODE_DPMS_ON ? "enable" : "disable");
 }
 
 static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
