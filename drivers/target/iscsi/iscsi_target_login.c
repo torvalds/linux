@@ -1190,8 +1190,7 @@ old_sess_out:
 	if (!IS_ERR(conn->conn_tx_hash.tfm))
 		crypto_free_hash(conn->conn_tx_hash.tfm);
 
-	if (conn->conn_cpumask)
-		free_cpumask_var(conn->conn_cpumask);
+	free_cpumask_var(conn->conn_cpumask);
 
 	kfree(conn->conn_ops);
 
