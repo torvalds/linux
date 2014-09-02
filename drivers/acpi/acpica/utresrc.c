@@ -87,7 +87,9 @@ const char *acpi_gbl_io_decode[] = {
 
 const char *acpi_gbl_ll_decode[] = {
 	"ActiveHigh",
-	"ActiveLow"
+	"ActiveLow",
+	"ActiveBoth",
+	"Reserved"
 };
 
 const char *acpi_gbl_max_decode[] = {
