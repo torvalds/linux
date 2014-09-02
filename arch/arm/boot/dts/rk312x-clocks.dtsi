@@ -1477,7 +1477,7 @@
 					clk_gpu: clk_gpu_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <5 3>;
-						clocks = <&dummy_cpll>, <&clk_gpll>, <&clk_gpll_div2>, <&clk_gpll_div3>, <&usb480m>;
+						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_gpll_div2>, <&clk_gpll_div3>, <&usb480m>;
 						clock-output-names = "clk_gpu";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
