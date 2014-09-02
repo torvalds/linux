@@ -800,7 +800,7 @@ static void trf7970a_timeout_work_handler(struct work_struct *work)
 	if (trf->ignore_timeout)
 		trf->ignore_timeout = false;
 	else if (trf->state == TRF7970A_ST_WAIT_FOR_RX_DATA_CONT)
-		trf7970a_send_upstream(trf); /* No more rx data so send up */
+		trf7970a_drain_fifo(trf, TRF7970A_IRQ_STATUS_SRX);
 	else if (trf->state == TRF7970A_ST_WAIT_TO_ISSUE_EOF)
 		trf7970a_issue_eof(trf);
 	else
