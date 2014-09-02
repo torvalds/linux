@@ -1135,7 +1135,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	u32 sa_lo;
 	u32 sa_hi = 0;
 	u32 pf_ctrl = 0;
-	u32 *wolw;
+	u32 __iomem *wolw;
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
 	writel(0x8, &rxmac->ctrl);
@@ -1255,7 +1255,7 @@ static void et1310_config_txmac_regs(struct et131x_adapter *adapter)
 static void et1310_config_macstat_regs(struct et131x_adapter *adapter)
 {
 	struct macstat_regs __iomem *macstat = &adapter->regs->macstat;
-	u32 *reg;
+	u32 __iomem *reg;
 
 	/* initialize all the macstat registers to zero on the device  */
 	for (reg = &macstat->txrx_0_64_byte_frames;
