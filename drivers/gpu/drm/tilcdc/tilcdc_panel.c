@@ -348,7 +348,6 @@ static int panel_probe(struct platform_device *pdev)
 	struct pinctrl *pinctrl;
 	int ret = -EINVAL;
 
-
 	/* bail out early if no DT data: */
 	if (!node) {
 		dev_err(&pdev->dev, "device-tree data is missing\n");
