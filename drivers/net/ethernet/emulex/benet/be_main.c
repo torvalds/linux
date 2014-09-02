@@ -3324,10 +3324,20 @@ static void BEx_get_resources(struct be_adapter *adapter,
 	 */
 	if (BE2_chip(adapter) || use_sriov ||  (adapter->port_num > 1) ||
 	    !be_physfn(adapter) || (be_is_mc(adapter) &&
-	    !(adapter->function_caps & BE_FUNCTION_CAPS_RSS)))
+	    !(adapter->function_caps & BE_FUNCTION_CAPS_RSS))) {
 		res->max_tx_qs = 1;
-	else
+	} else if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC) {
+		struct be_resources super_nic_res = {0};
+
+		/* On a SuperNIC profile, the driver needs to use the
+		 * GET_PROFILE_CONFIG cmd to query the per-function TXQ limits
+		 */
+		be_cmd_get_profile_config(adapter, &super_nic_res, 0);
+		/* Some old versions of BE3 FW don't report max_tx_qs value */
+		res->max_tx_qs = super_nic_res.max_tx_qs ? : BE3_MAX_TX_QS;
+	} else {
 		res->max_tx_qs = BE3_MAX_TX_QS;
+	}
 
 	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
 	    !use_sriov && be_physfn(adapter))
