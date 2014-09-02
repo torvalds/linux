@@ -38,6 +38,8 @@ struct af9033_dev {
 	fe_status_t fe_status;
 	u32 ber;
 	u32 ucb;
+	u64 post_bit_error;
+	u64 post_bit_count;
 	u64 error_block_count;
 	u64 total_block_count;
 	struct delayed_work stat_work;
@@ -1093,6 +1095,8 @@ static void af9033_stat_work(struct work_struct *work)
 	if (dev->fe_status & FE_HAS_LOCK) {
 		/* outer FEC, 204 byte packets */
 		u16 abort_packet_count, rsd_packet_count;
+		/* inner FEC, bits */
+		u32 rsd_bit_err_count;
 
 		/*
 		 * Packet count used for measurement is 10000
@@ -1104,10 +1108,13 @@ static void af9033_stat_work(struct work_struct *work)
 			goto err;
 
 		abort_packet_count = (buf[1] << 8) | (buf[0] << 0);
+		rsd_bit_err_count = (buf[4] << 16) | (buf[3] << 8) | buf[2];
 		rsd_packet_count = (buf[6] << 8) | (buf[5] << 0);
 
 		dev->error_block_count += abort_packet_count;
 		dev->total_block_count += rsd_packet_count;
+		dev->post_bit_error += rsd_bit_err_count;
+		dev->post_bit_count += rsd_packet_count * 204 * 8;
 
 		c->block_count.len = 1;
 		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
@@ -1116,6 +1123,14 @@ static void af9033_stat_work(struct work_struct *work)
 		c->block_error.len = 1;
 		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
 		c->block_error.stat[0].uvalue = dev->error_block_count;
+
+		c->post_bit_count.len = 1;
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_count.stat[0].uvalue = dev->post_bit_count;
+
+		c->post_bit_error.len = 1;
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue = dev->post_bit_error;
 	}
 
 err_schedule_delayed_work:
