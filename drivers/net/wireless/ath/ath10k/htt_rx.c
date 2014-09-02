@@ -1654,7 +1654,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		/* FIX THIS */
 		break;
 	case HTT_T2H_MSG_TYPE_STATS_CONF:
-		trace_ath10k_htt_stats(skb->data, skb->len);
+		trace_ath10k_htt_stats(ar, skb->data, skb->len);
 		break;
 	case HTT_T2H_MSG_TYPE_TX_INSPECT_IND:
 		/* Firmware can return tx frames if it's unable to fully

@@ -666,7 +666,7 @@ static int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
 
 	memset(skb_cb, 0, sizeof(*skb_cb));
 	ret = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
-	trace_ath10k_wmi_cmd(cmd_id, skb->data, skb->len, ret);
+	trace_ath10k_wmi_cmd(ar, cmd_id, skb->data, skb->len, ret);
 
 	if (ret)
 		goto err_pull;
@@ -1288,7 +1288,7 @@ static int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi event debug mesg len %d\n",
 		   skb->len);
 
-	trace_ath10k_wmi_dbglog(skb->data, skb->len);
+	trace_ath10k_wmi_dbglog(ar, skb->data, skb->len);
 
 	return 0;
 }
@@ -2371,7 +2371,7 @@ static void ath10k_wmi_main_process_rx(struct ath10k *ar, struct sk_buff *skb)
 	if (skb_pull(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
 		return;
 
-	trace_ath10k_wmi_event(id, skb->data, skb->len);
+	trace_ath10k_wmi_event(ar, id, skb->data, skb->len);
 
 	switch (id) {
 	case WMI_MGMT_RX_EVENTID:
@@ -2487,7 +2487,7 @@ static void ath10k_wmi_10x_process_rx(struct ath10k *ar, struct sk_buff *skb)
 	if (skb_pull(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
 		return;
 
-	trace_ath10k_wmi_event(id, skb->data, skb->len);
+	trace_ath10k_wmi_event(ar, id, skb->data, skb->len);
 
 	switch (id) {
 	case WMI_10X_MGMT_RX_EVENTID:
@@ -2594,7 +2594,7 @@ static void ath10k_wmi_10_2_process_rx(struct ath10k *ar, struct sk_buff *skb)
 	if (skb_pull(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
 		return;
 
-	trace_ath10k_wmi_event(id, skb->data, skb->len);
+	trace_ath10k_wmi_event(ar, id, skb->data, skb->len);
 
 	switch (id) {
 	case WMI_10_2_MGMT_RX_EVENTID:

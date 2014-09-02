@@ -117,7 +117,7 @@ int ath10k_info(struct ath10k *ar, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	ret = dev_info(ar->dev, "%pV", &vaf);
-	trace_ath10k_log_info(&vaf);
+	trace_ath10k_log_info(ar, &vaf);
 	va_end(args);
 
 	return ret;
@@ -153,7 +153,7 @@ int ath10k_err(struct ath10k *ar, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	ret = dev_err(ar->dev, "%pV", &vaf);
-	trace_ath10k_log_err(&vaf);
+	trace_ath10k_log_err(ar, &vaf);
 	va_end(args);
 
 	return ret;
@@ -170,7 +170,7 @@ int ath10k_warn(struct ath10k *ar, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	dev_warn_ratelimited(ar->dev, "%pV", &vaf);
-	trace_ath10k_log_warn(&vaf);
+	trace_ath10k_log_warn(ar, &vaf);
 
 	va_end(args);
 
@@ -1223,7 +1223,7 @@ void ath10k_dbg(struct ath10k *ar, enum ath10k_debug_mask mask,
 	if (ath10k_debug_mask & mask)
 		dev_printk(KERN_DEBUG, ar->dev, "%pV", &vaf);
 
-	trace_ath10k_log_dbg(mask, &vaf);
+	trace_ath10k_log_dbg(ar, mask, &vaf);
 
 	va_end(args);
 }
@@ -1242,7 +1242,7 @@ void ath10k_dbg_dump(struct ath10k *ar,
 	}
 
 	/* tracing code doesn't like null strings :/ */
-	trace_ath10k_log_dbg_dump(msg ? msg : "", prefix ? prefix : "",
+	trace_ath10k_log_dbg_dump(ar, msg ? msg : "", prefix ? prefix : "",
 				  buf, len);
 }
 EXPORT_SYMBOL(ath10k_dbg_dump);
