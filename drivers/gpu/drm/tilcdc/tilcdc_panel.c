@@ -18,6 +18,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/backlight.h>
+#include <linux/gpio/consumer.h>
 #include <video/display_timing.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
@@ -29,6 +30,7 @@ struct panel_module {
 	struct tilcdc_panel_info *info;
 	struct display_timings *timings;
 	struct backlight_device *backlight;
+	struct gpio_desc *enable_gpio;
 };
 #define to_panel_module(x) container_of(x, struct panel_module, base)
 
@@ -55,13 +57,17 @@ static void panel_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct panel_encoder *panel_encoder = to_panel_encoder(encoder);
 	struct backlight_device *backlight = panel_encoder->mod->backlight;
+	struct gpio_desc *gpio = panel_encoder->mod->enable_gpio;
 
-	if (!backlight)
-		return;
+	if (backlight) {
+		backlight->props.power = mode == DRM_MODE_DPMS_ON ?
+					 FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+		backlight_update_status(backlight);
+	}
 
-	backlight->props.power = mode == DRM_MODE_DPMS_ON
-				     ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
-	backlight_update_status(backlight);
+	if (gpio)
+		gpiod_set_value_cansleep(gpio,
+					 mode == DRM_MODE_DPMS_ON ? 1 : 0);
 }
 
 static bool panel_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -369,6 +375,25 @@ static int panel_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "found backlight\n");
 	}
 
+	panel_mod->enable_gpio = devm_gpiod_get(&pdev->dev, "enable");
+	if (IS_ERR(panel_mod->enable_gpio)) {
+		ret = PTR_ERR(panel_mod->enable_gpio);
+		if (ret != -ENOENT) {
+			dev_err(&pdev->dev, "failed to request enable GPIO\n");
+			goto fail_backlight;
+		}
+
+		/* Optional GPIO is not here, continue silently. */
+		panel_mod->enable_gpio = NULL;
+	} else {
+		ret = gpiod_direction_output(panel_mod->enable_gpio, 0);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to setup GPIO\n");
+			goto fail_backlight;
+		}
+		dev_info(&pdev->dev, "found enable GPIO\n");
+	}
+
 	mod = &panel_mod->base;
 	pdev->dev.platform_data = mod;
 
@@ -401,6 +426,8 @@ fail_timings:
 
 fail_free:
 	tilcdc_module_cleanup(mod);
+
+fail_backlight:
 	if (panel_mod->backlight)
 		put_device(&panel_mod->backlight->dev);
 	return ret;

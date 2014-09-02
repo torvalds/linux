@@ -20,6 +20,7 @@ Required properties:
 
 Optional properties:
 - backlight: phandle of the backlight device attached to the panel
+- enable-gpios: GPIO pin to enable or disable the panel
 
 Recommended properties:
  - pinctrl-names, pinctrl-0: the pincontrol settings to configure
@@ -33,6 +34,7 @@ Example:
 		pinctrl-names = "default";
 		pinctrl-0 = <&bone_lcd3_cape_lcd_pins>;
 		backlight = <&backlight>;
+		enable-gpios = <&gpio3 19 0>;
 
 		panel-info {
 			ac-bias           = <255>;
