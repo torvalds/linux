@@ -172,9 +172,13 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 	}
 
 	/* Don't bother verifying checksum if we're going to flush anyway. */
-	if ((greh->flags & GRE_CSUM) && !NAPI_GRO_CB(skb)->flush &&
-	    skb_gro_checksum_simple_validate(skb))
+	if ((greh->flags & GRE_CSUM) && !NAPI_GRO_CB(skb)->flush) {
+		if (skb_gro_checksum_simple_validate(skb))
 			goto out_unlock;
+
+		skb_gro_checksum_try_convert(skb, IPPROTO_GRE, 0,
+					     null_compute_pseudo);
+	}
 
 	flush = 0;
 

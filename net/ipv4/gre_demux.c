@@ -125,6 +125,10 @@ static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			*csum_err = true;
 			return -EINVAL;
 		}
+
+		skb_checksum_try_convert(skb, IPPROTO_GRE, 0,
+					 null_compute_pseudo);
+
 		options++;
 	}
 
