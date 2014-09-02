@@ -255,8 +255,11 @@ static u32 DISABLE_INVERT_PCLK_CIF1;
 *v0.1.0 : this driver is 3.10 kernel driver;
 		copy and updata from v0.3.0x19;
 		support rk312x;
+*v0.1.1:
+         1. spin lock in struct rk_cif_clk is not neccessary,and scheduled func clk_get called in this spin lock scope
+            cause warning, so remove this spin lock .
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x0)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x1)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -359,7 +362,7 @@ struct rk_cif_clk
     struct clk *cif_clk_out;
 	/************must modify end************/
 
-    spinlock_t lock;
+   // spinlock_t lock;
     bool on;
 };
 
@@ -1221,7 +1224,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
         goto rk_camera_clk_ctrl_end;
     }
    
-    spin_lock(&clk->lock);
+    //spin_lock(&clk->lock);
     if (on && !clk->on) {  
         clk_prepare_enable(clk->pd_cif);    /*yzm*/
         clk_prepare_enable(clk->aclk_cif);
@@ -1256,7 +1259,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
         if(err)
            RKCAMERA_TR("WARNING %s_%s_%d: camera sensor mclk maybe not close, please check!!!\n", __FILE__, __FUNCTION__, __LINE__); 
     }
-    spin_unlock(&clk->lock);
+    //spin_unlock(&clk->lock);
 rk_camera_clk_ctrl_end:
     return err;
 }
@@ -3052,7 +3055,7 @@ static int rk_camera_probe(struct platform_device *pdev)
         cif_clk[0].hclk_cif = devm_clk_get(dev_cif, "hclk_cif0");
         cif_clk[0].cif_clk_in = devm_clk_get(dev_cif, "cif0_in");
         cif_clk[0].cif_clk_out = devm_clk_get(dev_cif, "cif0_out");
-        spin_lock_init(&cif_clk[0].lock);
+        //spin_lock_init(&cif_clk[0].lock);
         cif_clk[0].on = false;
         rk_camera_cif_iomux(dev_cif);/*yzm*/
     } else {
@@ -3062,7 +3065,7 @@ static int rk_camera_probe(struct platform_device *pdev)
         cif_clk[1].hclk_cif = devm_clk_get(dev_cif, "hclk_cif0");
         cif_clk[1].cif_clk_in = devm_clk_get(dev_cif, "cif0_in");
         cif_clk[1].cif_clk_out = devm_clk_get(dev_cif, "cif0_out");
-        spin_lock_init(&cif_clk[1].lock);
+        //spin_lock_init(&cif_clk[1].lock);
         cif_clk[1].on = false;
         rk_camera_cif_iomux(dev_cif);/*yzm*/
     }
