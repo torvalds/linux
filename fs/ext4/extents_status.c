@@ -1019,7 +1019,7 @@ static unsigned long ext4_es_count(struct shrinker *shrink,
 
 	sbi = container_of(shrink, struct ext4_sb_info, s_es_shrinker);
 	nr = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
-	trace_ext4_es_shrink_enter(sbi->s_sb, sc->nr_to_scan, nr);
+	trace_ext4_es_shrink_count(sbi->s_sb, sc->nr_to_scan, nr);
 	return nr;
 }
 
@@ -1032,14 +1032,14 @@ static unsigned long ext4_es_scan(struct shrinker *shrink,
 	int ret, nr_shrunk;
 
 	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
-	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan, ret);
+	trace_ext4_es_shrink_scan_enter(sbi->s_sb, nr_to_scan, ret);
 
 	if (!nr_to_scan)
 		return ret;
 
 	nr_shrunk = __ext4_es_shrink(sbi, nr_to_scan, NULL);
 
-	trace_ext4_es_shrink_exit(sbi->s_sb, nr_shrunk, ret);
+	trace_ext4_es_shrink_scan_exit(sbi->s_sb, nr_shrunk, ret);
 	return nr_shrunk;
 }
 
