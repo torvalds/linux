@@ -1471,8 +1471,10 @@ xfs_collapse_file_space(
 	shift_fsb = XFS_B_TO_FSB(mp, len);
 
 	/*
-	 * writeback the entire file to prevent concurrent writeback of ranges
-	 * outside the collapsing region from changing the extent list.
+	 * Writeback the entire file and force remove any post-eof blocks. The
+	 * writeback prevents changes to the extent list via concurrent
+	 * writeback and the eofblocks trim prevents the extent shift algorithm
+	 * from running into a post-eof delalloc extent.
 	 *
 	 * XXX: This is a temporary fix until the extent shift loop below is
 	 * converted to use offsets and lookups within the ILOCK rather than
@@ -1482,6 +1484,11 @@ xfs_collapse_file_space(
 	error = filemap_write_and_wait(VFS_I(ip)->i_mapping);
 	if (error)
 		return error;
+	if (xfs_can_free_eofblocks(ip, true)) {
+		error = xfs_free_eofblocks(mp, ip, false);
+		if (error)
+			return error;
+	}
 
 	error = xfs_free_file_space(ip, offset, len);
 	if (error)
