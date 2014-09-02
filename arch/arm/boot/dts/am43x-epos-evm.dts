@@ -435,7 +435,7 @@
 };
 
 &gpmc {
-	status = "okay";
+	status = "okay";	/* Disable QSPI when enabling GPMC (NAND) */
 	pinctrl-names = "default";
 	pinctrl-0 = <&nand_flash_x8>;
 	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
@@ -556,7 +556,7 @@
 };
 
 &qspi {
-	status = "okay";
+	status = "disabled";	/* Disable GPMC (NAND) when enabling QSPI */
 	pinctrl-names = "default";
 	pinctrl-0 = <&qspi1_default>;
 
