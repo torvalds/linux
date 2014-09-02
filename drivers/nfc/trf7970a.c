@@ -826,6 +826,8 @@ static int trf7970a_init(struct trf7970a *trf)
 
 	usleep_range(1000, 2000);
 
+	trf->chip_status_ctrl &= ~TRF7970A_CHIP_STATUS_RF_ON;
+
 	ret = trf7970a_write(trf, TRF7970A_MODULATOR_SYS_CLK_CTRL, 0);
 	if (ret)
 		goto err_out;
