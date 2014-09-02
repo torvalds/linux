@@ -151,16 +151,11 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 					 unsigned long parent_rate)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
-	const struct clk_pll_layout *layout = pll->layout;
-	struct at91_pmc *pmc = pll->pmc;
-	int offset = PLL_REG(pll->id);
-	u32 tmp = pmc_read(pmc, offset) & layout->pllr_mask;
-	u8 div = PLL_DIV(tmp);
-	u16 mul = PLL_MUL(tmp, layout);
-	if (!div || !mul)
+
+	if (!pll->div || !pll->mul)
 		return 0;
 
-	return (parent_rate * (mul + 1)) / div;
+	return (parent_rate / pll->div) * (pll->mul + 1);
 }
 
 static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,
