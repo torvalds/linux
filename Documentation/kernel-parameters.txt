@@ -3303,11 +3303,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	tdfx=		[HW,DRM]
 
-	test_suspend=	[SUSPEND]
+	test_suspend=	[SUSPEND][,N]
 			Specify "mem" (for Suspend-to-RAM) or "standby" (for
-			standby suspend) as the system sleep state to briefly
-			enter during system startup.  The system is woken from
-			this state using a wakeup-capable RTC alarm.
+			standby suspend) or "freeze" (for suspend type freeze)
+			as the system sleep state during system startup with
+			the optional capability to repeat N number of times.
+			The system is woken from this state using a
+			wakeup-capable RTC alarm.
 
 	thash_entries=	[KNL,NET]
 			Set number of hash buckets for TCP connection
