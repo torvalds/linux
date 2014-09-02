@@ -348,7 +348,7 @@ static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 
 	/* Clear MAC flow control */
 	max_q_count = XGMAC_MAX_FLOW_CONTROL_QUEUES;
-	q_count = min_t(unsigned int, pdata->rx_q_count, max_q_count);
+	q_count = min_t(unsigned int, pdata->tx_q_count, max_q_count);
 	reg = MAC_Q0TFCR;
 	for (i = 0; i < q_count; i++) {
 		reg_val = XGMAC_IOREAD(pdata, reg);
@@ -373,7 +373,7 @@ static int xgbe_enable_tx_flow_control(struct xgbe_prv_data *pdata)
 
 	/* Set MAC flow control */
 	max_q_count = XGMAC_MAX_FLOW_CONTROL_QUEUES;
-	q_count = min_t(unsigned int, pdata->rx_q_count, max_q_count);
+	q_count = min_t(unsigned int, pdata->tx_q_count, max_q_count);
 	reg = MAC_Q0TFCR;
 	for (i = 0; i < q_count; i++) {
 		reg_val = XGMAC_IOREAD(pdata, reg);
@@ -1633,6 +1633,9 @@ static int xgbe_flush_tx_queues(struct xgbe_prv_data *pdata)
 {
 	unsigned int i, count;
 
+	if (XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER) < 0x21)
+		return 0;
+
 	for (i = 0; i < pdata->tx_q_count; i++)
 		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, FTQ, 1);
 
@@ -1703,8 +1706,8 @@ static void xgbe_config_mtl_mode(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, RAA, MTL_RAA_SP);
 }
 
-static unsigned int xgbe_calculate_per_queue_fifo(unsigned long fifo_size,
-						  unsigned char queue_count)
+static unsigned int xgbe_calculate_per_queue_fifo(unsigned int fifo_size,
+						  unsigned int queue_count)
 {
 	unsigned int q_fifo_size = 0;
 	enum xgbe_mtl_fifo_size p_fifo = XGMAC_MTL_FIFO_SIZE_256;
@@ -1748,6 +1751,10 @@ static unsigned int xgbe_calculate_per_queue_fifo(unsigned long fifo_size,
 		q_fifo_size = XGBE_FIFO_SIZE_KB(256);
 		break;
 	}
+
+	/* The configured value is not the actual amount of fifo RAM */
+	q_fifo_size = min_t(unsigned int, XGBE_FIFO_MAX, q_fifo_size);
+
 	q_fifo_size = q_fifo_size / queue_count;
 
 	/* Set the queue fifo size programmable value */

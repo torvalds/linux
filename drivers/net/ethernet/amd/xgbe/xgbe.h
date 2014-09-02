@@ -183,6 +183,7 @@
 #define XGMAC_DRIVER_CONTEXT	1
 #define XGMAC_IOCTL_CONTEXT	2
 
+#define XGBE_FIFO_MAX		81920
 #define XGBE_FIFO_SIZE_B(x)	(x)
 #define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
@@ -526,6 +527,9 @@ struct xgbe_desc_if {
  * or configurations are present in the device.
  */
 struct xgbe_hw_features {
+	/* HW Version */
+	unsigned int version;
+
 	/* HW Feature Register0 */
 	unsigned int gmii;		/* 1000 Mbps support */
 	unsigned int vlhash;		/* VLAN Hash Filter */
