@@ -1470,6 +1470,19 @@ xfs_collapse_file_space(
 	start_fsb = XFS_B_TO_FSB(mp, offset + len);
 	shift_fsb = XFS_B_TO_FSB(mp, len);
 
+	/*
+	 * writeback the entire file to prevent concurrent writeback of ranges
+	 * outside the collapsing region from changing the extent list.
+	 *
+	 * XXX: This is a temporary fix until the extent shift loop below is
+	 * converted to use offsets and lookups within the ILOCK rather than
+	 * carrying around the index into the extent list for the next
+	 * iteration.
+	 */
+	error = filemap_write_and_wait(VFS_I(ip)->i_mapping);
+	if (error)
+		return error;
+
 	error = xfs_free_file_space(ip, offset, len);
 	if (error)
 		return error;
