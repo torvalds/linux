@@ -55,6 +55,12 @@ struct ipoctal {
 	u8 __iomem			*int_space;
 };
 
+static inline struct ipoctal *chan_to_ipoctal(struct ipoctal_channel *chan,
+					      unsigned int index)
+{
+	return container_of(chan, struct ipoctal, channel[index]);
+}
+
 static void ipoctal_reset_channel(struct ipoctal_channel *channel)
 {
 	iowrite8(CR_DISABLE_RX | CR_DISABLE_TX, &channel->regs->w.cr);
@@ -82,12 +88,20 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 
 static int ipoctal_open(struct tty_struct *tty, struct file *file)
 {
-	struct ipoctal_channel *channel;
+	struct ipoctal_channel *channel = dev_get_drvdata(tty->dev);
+	struct ipoctal *ipoctal = chan_to_ipoctal(channel, tty->index);
+	int err;
 
-	channel = dev_get_drvdata(tty->dev);
 	tty->driver_data = channel;
 
-	return tty_port_open(&channel->tty_port, tty, file);
+	if (!ipack_get_carrier(ipoctal->dev))
+		return -EBUSY;
+
+	err = tty_port_open(&channel->tty_port, tty, file);
+	if (err)
+		ipack_put_carrier(ipoctal->dev);
+
+	return err;
 }
 
 static void ipoctal_reset_stats(struct ipoctal_stats *stats)
@@ -629,6 +643,15 @@ static void ipoctal_shutdown(struct tty_struct *tty)
 	clear_bit(ASYNCB_INITIALIZED, &channel->tty_port.flags);
 }
 
+static void ipoctal_cleanup(struct tty_struct *tty)
+{
+	struct ipoctal_channel *channel = tty->driver_data;
+	struct ipoctal *ipoctal = chan_to_ipoctal(channel, tty->index);
+
+	/* release the carrier driver */
+	ipack_put_carrier(ipoctal->dev);
+}
+
 static const struct tty_operations ipoctal_fops = {
 	.ioctl =		NULL,
 	.open =			ipoctal_open,
@@ -640,6 +663,7 @@ static const struct tty_operations ipoctal_fops = {
 	.get_icount =		ipoctal_get_icount,
 	.hangup =		ipoctal_hangup,
 	.shutdown =		ipoctal_shutdown,
+	.cleanup =              ipoctal_cleanup,
 };
 
 static int ipoctal_probe(struct ipack_device *dev)
