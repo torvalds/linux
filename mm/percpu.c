@@ -742,7 +742,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
 	struct pcpu_chunk *chunk;
 	const char *err;
 	int slot, off, new_alloc, cpu, ret;
-	int page_start, page_end, rs, re;
 	unsigned long flags;
 	void __percpu *ptr;
 
@@ -847,27 +846,32 @@ area_found:
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	/* populate if not all pages are already there */
-	mutex_lock(&pcpu_alloc_mutex);
-	page_start = PFN_DOWN(off);
-	page_end = PFN_UP(off + size);
+	if (true) {
+		int page_start, page_end, rs, re;
 
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
-		WARN_ON(chunk->immutable);
+		mutex_lock(&pcpu_alloc_mutex);
 
-		ret = pcpu_populate_chunk(chunk, rs, re);
+		page_start = PFN_DOWN(off);
+		page_end = PFN_UP(off + size);
 
-		spin_lock_irqsave(&pcpu_lock, flags);
-		if (ret) {
-			mutex_unlock(&pcpu_alloc_mutex);
-			pcpu_free_area(chunk, off);
-			err = "failed to populate";
-			goto fail_unlock;
+		pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
+			WARN_ON(chunk->immutable);
+
+			ret = pcpu_populate_chunk(chunk, rs, re);
+
+			spin_lock_irqsave(&pcpu_lock, flags);
+			if (ret) {
+				mutex_unlock(&pcpu_alloc_mutex);
+				pcpu_free_area(chunk, off);
+				err = "failed to populate";
+				goto fail_unlock;
+			}
+			bitmap_set(chunk->populated, rs, re - rs);
+			spin_unlock_irqrestore(&pcpu_lock, flags);
 		}
-		bitmap_set(chunk->populated, rs, re - rs);
-		spin_unlock_irqrestore(&pcpu_lock, flags);
-	}
 
-	mutex_unlock(&pcpu_alloc_mutex);
+		mutex_unlock(&pcpu_alloc_mutex);
+	}
 
 	/* clear the areas and return address relative to base address */
 	for_each_possible_cpu(cpu)
