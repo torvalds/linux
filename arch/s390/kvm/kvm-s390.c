@@ -122,7 +122,8 @@ void kvm_arch_hardware_unsetup(void)
 
 int kvm_arch_init(void *opaque)
 {
-	return 0;
+	/* Register floating interrupt controller interface. */
+	return kvm_register_device_ops(&kvm_flic_ops, KVM_DEV_TYPE_FLIC);
 }
 
 /* Section: device related */
