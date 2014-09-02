@@ -354,7 +354,7 @@ static int panel_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	panel_mod = kzalloc(sizeof(*panel_mod), GFP_KERNEL);
+	panel_mod = devm_kzalloc(&pdev->dev, sizeof(*panel_mod), GFP_KERNEL);
 	if (!panel_mod)
 		return -ENOMEM;
 
@@ -391,7 +391,6 @@ fail_timings:
 	display_timings_release(panel_mod->timings);
 
 fail_free:
-	kfree(panel_mod);
 	tilcdc_module_cleanup(mod);
 	return ret;
 }
@@ -405,7 +404,6 @@ static int panel_remove(struct platform_device *pdev)
 
 	tilcdc_module_cleanup(mod);
 	kfree(panel_mod->info);
-	kfree(panel_mod);
 
 	return 0;
 }
