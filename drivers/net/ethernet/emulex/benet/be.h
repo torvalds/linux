@@ -86,6 +86,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 
 #define BE_MAX_JUMBO_FRAME_SIZE	9018
 #define BE_MIN_MTU		256
+#define BE_MAX_MTU              (BE_MAX_JUMBO_FRAME_SIZE -	\
+				 (ETH_HLEN + ETH_FCS_LEN))
 
 #define BE_NUM_VLANS_SUPPORTED	64
 #define BE_MAX_EQD		128u
