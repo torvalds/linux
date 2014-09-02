@@ -2261,6 +2261,37 @@ struct kvm_device *kvm_device_from_filp(struct file *filp)
 	return filp->private_data;
 }
 
+static struct kvm_device_ops *kvm_device_ops_table[KVM_DEV_TYPE_MAX] = {
+#ifdef CONFIG_KVM_MPIC
+	[KVM_DEV_TYPE_FSL_MPIC_20]	= &kvm_mpic_ops,
+	[KVM_DEV_TYPE_FSL_MPIC_42]	= &kvm_mpic_ops,
+#endif
+
+#ifdef CONFIG_KVM_XICS
+	[KVM_DEV_TYPE_XICS]		= &kvm_xics_ops,
+#endif
+
+#ifdef CONFIG_KVM_VFIO
+	[KVM_DEV_TYPE_VFIO]		= &kvm_vfio_ops,
+#endif
+
+#ifdef CONFIG_KVM_ARM_VGIC
+	[KVM_DEV_TYPE_ARM_VGIC_V2]	= &kvm_arm_vgic_v2_ops,
+#endif
+};
+
+int kvm_register_device_ops(struct kvm_device_ops *ops, u32 type)
+{
+	if (type >= ARRAY_SIZE(kvm_device_ops_table))
+		return -ENOSPC;
+
+	if (kvm_device_ops_table[type] != NULL)
+		return -EEXIST;
+
+	kvm_device_ops_table[type] = ops;
+	return 0;
+}
+
 static int kvm_ioctl_create_device(struct kvm *kvm,
 				   struct kvm_create_device *cd)
 {
@@ -2269,31 +2300,12 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 	bool test = cd->flags & KVM_CREATE_DEVICE_TEST;
 	int ret;
 
-	switch (cd->type) {
-#ifdef CONFIG_KVM_MPIC
-	case KVM_DEV_TYPE_FSL_MPIC_20:
-	case KVM_DEV_TYPE_FSL_MPIC_42:
-		ops = &kvm_mpic_ops;
-		break;
-#endif
-#ifdef CONFIG_KVM_XICS
-	case KVM_DEV_TYPE_XICS:
-		ops = &kvm_xics_ops;
-		break;
-#endif
-#ifdef CONFIG_KVM_VFIO
-	case KVM_DEV_TYPE_VFIO:
-		ops = &kvm_vfio_ops;
-		break;
-#endif
-#ifdef CONFIG_KVM_ARM_VGIC
-	case KVM_DEV_TYPE_ARM_VGIC_V2:
-		ops = &kvm_arm_vgic_v2_ops;
-		break;
-#endif
-	default:
+	if (cd->type >= ARRAY_SIZE(kvm_device_ops_table))
 		return -ENODEV;
-	}
+
+	ops = kvm_device_ops_table[cd->type];
+	if (ops == NULL)
+		return -ENODEV;
 
 	if (test)
 		return 0;
