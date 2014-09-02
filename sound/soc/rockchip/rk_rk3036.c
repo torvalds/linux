@@ -85,6 +85,7 @@ static int rk30_hw_params(struct snd_pcm_substream *
 		return ret;
 	}
 
+	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,
 			       (pll_out/4)/params_rate(params)-1);
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
