@@ -311,6 +311,7 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		pr_err("%s: allocation failed\n", __func__);
+		of_node_put(info_np);
 		return NULL;
 	}
 
@@ -331,8 +332,10 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 	if (ret) {
 		pr_err("%s: error reading panel-info properties\n", __func__);
 		kfree(info);
+		of_node_put(info_np);
 		return NULL;
 	}
+	of_node_put(info_np);
 
 	return info;
 }
