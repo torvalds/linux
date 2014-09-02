@@ -340,12 +340,12 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 	unsigned w, h;
 	unsigned p;
 
-	fmt = get_format(dev, mp->pixelformat);
+	fmt = vivid_get_format(dev, mp->pixelformat);
 	if (!fmt) {
 		dprintk(dev, 1, "Fourcc format (0x%08x) unknown.\n",
 			mp->pixelformat);
 		mp->pixelformat = V4L2_PIX_FMT_YUYV;
-		fmt = get_format(dev, mp->pixelformat);
+		fmt = vivid_get_format(dev, mp->pixelformat);
 	}
 
 	mp->field = vivid_field_out(dev, mp->field);
@@ -440,7 +440,7 @@ int vivid_s_fmt_vid_out(struct file *file, void *priv,
 	if (vb2_is_busy(q))
 		goto set_colorspace;
 
-	dev->fmt_out = get_format(dev, mp->pixelformat);
+	dev->fmt_out = vivid_get_format(dev, mp->pixelformat);
 	if (V4L2_FIELD_HAS_T_OR_B(mp->field))
 		factor = 2;
 

@@ -32,7 +32,7 @@ int fmt_sp2mp_func(struct file *file, void *priv,
 
 extern const struct v4l2_dv_timings_cap vivid_dv_timings_cap;
 
-const struct vivid_fmt *get_format(struct vivid_dev *dev, u32 pixelformat);
+const struct vivid_fmt *vivid_get_format(struct vivid_dev *dev, u32 pixelformat);
 
 bool vivid_vid_can_loop(struct vivid_dev *dev);
 void vivid_send_source_change(struct vivid_dev *dev, unsigned type);

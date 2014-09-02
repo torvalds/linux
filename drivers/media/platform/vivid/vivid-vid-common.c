@@ -186,7 +186,7 @@ struct vivid_fmt vivid_formats[] = {
 /* There are 2 multiplanar formats in the list */
 #define VIVID_MPLANAR_FORMATS 2
 
-const struct vivid_fmt *get_format(struct vivid_dev *dev, u32 pixelformat)
+const struct vivid_fmt *vivid_get_format(struct vivid_dev *dev, u32 pixelformat)
 {
 	const struct vivid_fmt *fmt;
 	unsigned k;

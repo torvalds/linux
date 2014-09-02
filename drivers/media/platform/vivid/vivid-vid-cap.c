@@ -130,7 +130,7 @@ static int vid_cap_queue_setup(struct vb2_queue *vq, const struct v4l2_format *f
 		 */
 		if (mp->num_planes != planes)
 			return -EINVAL;
-		vfmt = get_format(dev, mp->pixelformat);
+		vfmt = vivid_get_format(dev, mp->pixelformat);
 		for (p = 0; p < planes; p++) {
 			sizes[p] = mp->plane_fmt[p].sizeimage;
 			if (sizes[0] < tpg_g_bytesperline(&dev->tpg, 0) * h +
@@ -531,12 +531,12 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 	unsigned w, h;
 	unsigned p;
 
-	fmt = get_format(dev, mp->pixelformat);
+	fmt = vivid_get_format(dev, mp->pixelformat);
 	if (!fmt) {
 		dprintk(dev, 1, "Fourcc format (0x%08x) unknown.\n",
 			mp->pixelformat);
 		mp->pixelformat = V4L2_PIX_FMT_YUYV;
-		fmt = get_format(dev, mp->pixelformat);
+		fmt = vivid_get_format(dev, mp->pixelformat);
 	}
 
 	mp->field = vivid_field_cap(dev, mp->field);
@@ -623,7 +623,7 @@ int vivid_s_fmt_vid_cap(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	dev->fmt_cap = get_format(dev, mp->pixelformat);
+	dev->fmt_cap = vivid_get_format(dev, mp->pixelformat);
 	if (V4L2_FIELD_HAS_T_OR_B(mp->field))
 		factor = 2;
 
@@ -1180,7 +1180,7 @@ int vivid_vid_cap_s_fbuf(struct file *file, void *fh,
 
 	if (a->fmt.width < 48 || a->fmt.height < 32)
 		return -EINVAL;
-	fmt = get_format(dev, a->fmt.pixelformat);
+	fmt = vivid_get_format(dev, a->fmt.pixelformat);
 	if (!fmt || !fmt->can_do_overlay)
 		return -EINVAL;
 	if (a->fmt.bytesperline < (a->fmt.width * fmt->depth) / 8)
@@ -1610,7 +1610,7 @@ int vidioc_enum_framesizes(struct file *file, void *fh,
 
 	if (!vivid_is_webcam(dev) && !dev->has_scaler_cap)
 		return -EINVAL;
-	if (get_format(dev, fsize->pixel_format) == NULL)
+	if (vivid_get_format(dev, fsize->pixel_format) == NULL)
 		return -EINVAL;
 	if (vivid_is_webcam(dev)) {
 		if (fsize->index >= ARRAY_SIZE(webcam_sizes))
@@ -1639,7 +1639,7 @@ int vidioc_enum_frameintervals(struct file *file, void *priv,
 	const struct vivid_fmt *fmt;
 	int i;
 
-	fmt = get_format(dev, fival->pixel_format);
+	fmt = vivid_get_format(dev, fival->pixel_format);
 	if (!fmt)
 		return -EINVAL;
 
