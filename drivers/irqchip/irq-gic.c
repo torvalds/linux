@@ -102,7 +102,7 @@ static struct gic_chip_data gic_data[MAX_GIC_NR] __read_mostly;
 #ifdef CONFIG_GIC_NON_BANKED
 static void __iomem *gic_get_percpu_base(union gic_base *base)
 {
-	return raw_cpu_read(base->percpu_base);
+	return raw_cpu_read(*base->percpu_base);
 }
 
 static void __iomem *gic_get_common_base(union gic_base *base)
