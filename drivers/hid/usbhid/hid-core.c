@@ -116,40 +116,24 @@ static void hid_reset(struct work_struct *work)
 	struct usbhid_device *usbhid =
 		container_of(work, struct usbhid_device, reset_work);
 	struct hid_device *hid = usbhid->hid;
-	int rc = 0;
+	int rc;
 
 	if (test_bit(HID_CLEAR_HALT, &usbhid->iofl)) {
 		dev_dbg(&usbhid->intf->dev, "clear halt\n");
 		rc = usb_clear_halt(hid_to_usb_dev(hid), usbhid->urbin->pipe);
 		clear_bit(HID_CLEAR_HALT, &usbhid->iofl);
-		hid_start_in(hid);
-	}
-
-	else if (test_bit(HID_RESET_PENDING, &usbhid->iofl)) {
-		dev_dbg(&usbhid->intf->dev, "resetting device\n");
-		rc = usb_lock_device_for_reset(hid_to_usb_dev(hid), usbhid->intf);
 		if (rc == 0) {
-			rc = usb_reset_device(hid_to_usb_dev(hid));
-			usb_unlock_device(hid_to_usb_dev(hid));
+			hid_start_in(hid);
+		} else {
+			dev_dbg(&usbhid->intf->dev,
+					"clear-halt failed: %d\n", rc);
+			set_bit(HID_RESET_PENDING, &usbhid->iofl);
 		}
-		clear_bit(HID_RESET_PENDING, &usbhid->iofl);
 	}
 
-	switch (rc) {
-	case 0:
-		if (!test_bit(HID_IN_RUNNING, &usbhid->iofl))
-			hid_io_error(hid);
-		break;
-	default:
-		hid_err(hid, "can't reset device, %s-%s/input%d, status %d\n",
-			hid_to_usb_dev(hid)->bus->bus_name,
-			hid_to_usb_dev(hid)->devpath,
-			usbhid->ifnum, rc);
-		/* FALLTHROUGH */
-	case -EHOSTUNREACH:
-	case -ENODEV:
-	case -EINTR:
-		break;
+	if (test_bit(HID_RESET_PENDING, &usbhid->iofl)) {
+		dev_dbg(&usbhid->intf->dev, "resetting device\n");
+		usb_queue_reset_device(usbhid->intf);
 	}
 }
 
