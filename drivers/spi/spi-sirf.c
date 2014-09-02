@@ -312,6 +312,8 @@ static int spi_sirfsoc_cmd_transfer(struct spi_device *spi,
 	u32 cmd;
 
 	sspi = spi_master_get_devdata(spi->master);
+	writel(SIRFSOC_SPI_FIFO_RESET, sspi->base + SIRFSOC_SPI_TXFIFO_OP);
+	writel(SIRFSOC_SPI_FIFO_START, sspi->base + SIRFSOC_SPI_TXFIFO_OP);
 	memcpy(&cmd, sspi->tx, t->len);
 	if (sspi->word_width == 1 && !(spi->mode & SPI_LSB_FIRST))
 		cmd = cpu_to_be32(cmd) >>
