@@ -393,15 +393,28 @@ static int trf7970a_read(struct trf7970a *trf, u8 reg, u8 *val)
 	return ret;
 }
 
-static int trf7970a_read_cont(struct trf7970a *trf, u8 reg,
-		u8 *buf, size_t len)
+static int trf7970a_read_cont(struct trf7970a *trf, u8 reg, u8 *buf, size_t len)
 {
 	u8 addr = reg | TRF7970A_CMD_BIT_RW | TRF7970A_CMD_BIT_CONTINUOUS;
+	struct spi_transfer t[2];
+	struct spi_message m;
 	int ret;
 
 	dev_dbg(trf->dev, "read_cont(0x%x, %zd)\n", addr, len);
 
-	ret = spi_write_then_read(trf->spi, &addr, 1, buf, len);
+	spi_message_init(&m);
+
+	memset(&t, 0, sizeof(t));
+
+	t[0].tx_buf = &addr;
+	t[0].len = sizeof(addr);
+	spi_message_add_tail(&t[0], &m);
+
+	t[1].rx_buf = buf;
+	t[1].len = len;
+	spi_message_add_tail(&t[1], &m);
+
+	ret = spi_sync(trf->spi, &m);
 	if (ret)
 		dev_err(trf->dev, "%s - addr: 0x%x, ret: %d\n", __func__, addr,
 				ret);
