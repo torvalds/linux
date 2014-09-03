@@ -9415,8 +9415,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	memcpy(&key, &block_group->key, sizeof(key));
 
-	btrfs_clear_space_info_full(root->fs_info);
-
 	btrfs_put_block_group(block_group);
 	btrfs_put_block_group(block_group);
 
