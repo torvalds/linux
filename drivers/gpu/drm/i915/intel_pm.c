@@ -872,7 +872,7 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
  * A value of 5us seems to be a good balance; safe for very low end
  * platforms but not overly aggressive on lower latency configs.
  */
-static const int latency_ns = 5000;
+static const int pessimal_latency_ns = 5000;
 
 static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 {
@@ -1387,14 +1387,14 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 	vlv_update_drain_latency(crtc);
 
 	if (g4x_compute_wm0(dev, PIPE_A,
-			    &valleyview_wm_info, latency_ns,
-			    &valleyview_cursor_wm_info, latency_ns,
+			    &valleyview_wm_info, pessimal_latency_ns,
+			    &valleyview_cursor_wm_info, pessimal_latency_ns,
 			    &planea_wm, &cursora_wm))
 		enabled |= 1 << PIPE_A;
 
 	if (g4x_compute_wm0(dev, PIPE_B,
-			    &valleyview_wm_info, latency_ns,
-			    &valleyview_cursor_wm_info, latency_ns,
+			    &valleyview_wm_info, pessimal_latency_ns,
+			    &valleyview_cursor_wm_info, pessimal_latency_ns,
 			    &planeb_wm, &cursorb_wm))
 		enabled |= 1 << PIPE_B;
 
@@ -1453,20 +1453,20 @@ static void cherryview_update_wm(struct drm_crtc *crtc)
 	vlv_update_drain_latency(crtc);
 
 	if (g4x_compute_wm0(dev, PIPE_A,
-			    &valleyview_wm_info, latency_ns,
-			    &valleyview_cursor_wm_info, latency_ns,
+			    &valleyview_wm_info, pessimal_latency_ns,
+			    &valleyview_cursor_wm_info, pessimal_latency_ns,
 			    &planea_wm, &cursora_wm))
 		enabled |= 1 << PIPE_A;
 
 	if (g4x_compute_wm0(dev, PIPE_B,
-			    &valleyview_wm_info, latency_ns,
-			    &valleyview_cursor_wm_info, latency_ns,
+			    &valleyview_wm_info, pessimal_latency_ns,
+			    &valleyview_cursor_wm_info, pessimal_latency_ns,
 			    &planeb_wm, &cursorb_wm))
 		enabled |= 1 << PIPE_B;
 
 	if (g4x_compute_wm0(dev, PIPE_C,
-			    &valleyview_wm_info, latency_ns,
-			    &valleyview_cursor_wm_info, latency_ns,
+			    &valleyview_wm_info, pessimal_latency_ns,
+			    &valleyview_cursor_wm_info, pessimal_latency_ns,
 			    &planec_wm, &cursorc_wm))
 		enabled |= 1 << PIPE_C;
 
@@ -1559,14 +1559,14 @@ static void g4x_update_wm(struct drm_crtc *crtc)
 	bool cxsr_enabled;
 
 	if (g4x_compute_wm0(dev, PIPE_A,
-			    &g4x_wm_info, latency_ns,
-			    &g4x_cursor_wm_info, latency_ns,
+			    &g4x_wm_info, pessimal_latency_ns,
+			    &g4x_cursor_wm_info, pessimal_latency_ns,
 			    &planea_wm, &cursora_wm))
 		enabled |= 1 << PIPE_A;
 
 	if (g4x_compute_wm0(dev, PIPE_B,
-			    &g4x_wm_info, latency_ns,
-			    &g4x_cursor_wm_info, latency_ns,
+			    &g4x_wm_info, pessimal_latency_ns,
+			    &g4x_cursor_wm_info, pessimal_latency_ns,
 			    &planeb_wm, &cursorb_wm))
 		enabled |= 1 << PIPE_B;
 
@@ -1709,7 +1709,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 		planea_wm = intel_calculate_wm(adjusted_mode->crtc_clock,
 					       wm_info, fifo_size, cpp,
-					       latency_ns);
+					       pessimal_latency_ns);
 		enabled = crtc;
 	} else {
 		planea_wm = fifo_size - wm_info->guard_size;
@@ -1731,7 +1731,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 		planeb_wm = intel_calculate_wm(adjusted_mode->crtc_clock,
 					       wm_info, fifo_size, cpp,
-					       latency_ns);
+					       pessimal_latency_ns);
 		if (enabled == NULL)
 			enabled = crtc;
 		else
@@ -1827,7 +1827,7 @@ static void i845_update_wm(struct drm_crtc *unused_crtc)
 	planea_wm = intel_calculate_wm(adjusted_mode->crtc_clock,
 				       &i845_wm_info,
 				       dev_priv->display.get_fifo_size(dev, 0),
-				       4, latency_ns);
+				       4, pessimal_latency_ns);
 	fwater_lo = I915_READ(FW_BLC) & ~0xfff;
 	fwater_lo |= (3<<8) | planea_wm;
 
