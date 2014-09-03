@@ -302,7 +302,7 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
 			"commands at RT priority not supported in this driver\n");
 		return -1;
