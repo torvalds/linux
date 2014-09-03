@@ -630,7 +630,7 @@ void au0828_dvb_suspend(struct au0828_dev *dev)
 			stop_urb_transfer(dev);
 			au0828_stop_transport(dev, 1);
 			mutex_unlock(&dvb->lock);
-			dev->need_urb_start = 1;
+			dev->need_urb_start = true;
 		}
 		/* suspend frontend - does tuner and fe to sleep */
 		rc = dvb_frontend_suspend(dvb->frontend);
