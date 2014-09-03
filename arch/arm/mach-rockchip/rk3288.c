@@ -161,6 +161,7 @@ static void __init rk3288_dt_map_io(void)
 	writel_relaxed(24, RK_PMU_VIRT + RK3288_PMU_GPU_PWRUP_CNT);
 
 	rk3288_boot_mode_init();
+	rockchip_efuse_init();
 }
 
 static const u8 pmu_st_map[] = {

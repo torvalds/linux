@@ -158,7 +158,7 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 	for_each_child_of_node(np, cp) {
 		u32 flash_attach = 0,mir = 0,i2c_rata = 0,i2c_chl = 0,i2c_add = 0;
 		u32 cif_chl = 0, mclk_rate = 0, is_front = 0;
-		u32 resolution = 0, pwdn_info = 0, powerup_sequence = 0;
+		u32 resolution = 0, powerup_sequence = 0;
 		
 		u32	powerdown = INVALID_GPIO,power = INVALID_GPIO,reset = INVALID_GPIO;
 		u32 af = INVALID_GPIO,flash = INVALID_GPIO;
@@ -228,9 +228,6 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		if (of_property_read_u32(cp, "resolution", &resolution)) {
 			printk("%s:Get %s rockchip,resolution failed!\n",__func__, cp->name);				
 		}
-		if (of_property_read_u32(cp, "pwdn_info", &pwdn_info)) {
-			printk("%s:Get %s rockchip,pwdn_info failed!\n",__func__, cp->name);				
-		}
 		if (of_property_read_u32(cp, "powerup_sequence", &powerup_sequence)) {
 			printk("%s:Get %s rockchip,powerup_sequence failed!\n",__func__, cp->name);				
 		}
@@ -260,7 +257,7 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		new_camera->mirror = mir;
 		new_camera->i2c_rate = i2c_rata;
 		new_camera->flash = flash_attach;
-		new_camera->pwdn_info = ((pwdn_info&0x10)|0x01);
+		new_camera->pwdn_info = ((pwdn_active&0x10)|0x01);
 		new_camera->powerup_sequence = powerup_sequence;
 		new_camera->mclk_rate = mclk_rate;
 		new_camera->of_node = cp;

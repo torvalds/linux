@@ -1277,7 +1277,7 @@ static int rk3288_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	    v_DSP_LINE_FLAG_NUM(screen->mode.vsync_len + screen->mode.upper_margin +
 	    screen->mode.yres);
 	lcdc_msk_reg(lcdc_dev, INTR_CTRL0, mask, val);	
-#if 0
+#ifdef LCDC_IRQ_EMPTY_DEBUG
 		 mask = m_WIN0_EMPTY_INTR_EN | m_WIN1_EMPTY_INTR_EN | m_WIN2_EMPTY_INTR_EN |
 			 m_WIN3_EMPTY_INTR_EN |m_HWC_EMPTY_INTR_EN | m_POST_BUF_EMPTY_INTR_EN |
 			 m_PWM_GEN_INTR_EN;
@@ -3553,8 +3553,8 @@ static irqreturn_t rk3288_lcdc_isr(int irq, void *dev_id)
 		dev_warn(lcdc_dev->dev,"buf_error_int!");
 	}
 
-	/*for debug*/
-#ifdef LCDC_IRQ_DEBUG
+	/* for win empty debug */
+#ifdef LCDC_IRQ_EMPTY_DEBUG
 	intr1_reg = lcdc_readl(lcdc_dev, INTR_CTRL1);
 	if (intr1_reg != 0) {
 		rk3288_lcdc_parse_irq(lcdc_dev,intr1_reg);

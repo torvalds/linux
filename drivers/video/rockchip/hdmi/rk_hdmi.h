@@ -313,6 +313,12 @@ struct rk_hdmi_drvdata  {
 	u8 soc_type;
 	u32 reversed;
 };
+struct hdmi;
+
+struct rk_hdmi_drv_ops {
+	int (*hdmi_debug) (struct hdmi *hdmi, int cmd);
+};
+
 
 struct hdmi {
 	struct device *dev;
@@ -381,6 +387,7 @@ struct hdmi {
 	void (*cec_irq)(void);
 	void (*cec_set_device_pa)(int);
 	int (*cec_enumerate)(void);
+	struct rk_hdmi_drv_ops *ops;
 };
 
 #define hdmi_err(dev, format, arg...)		\

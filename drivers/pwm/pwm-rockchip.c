@@ -467,13 +467,13 @@ static int  rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
 	int ret;
 	
-	ret = clk_prepare_enable(pc->clk);
+	ret = clk_enable(pc->clk);
 	if (ret)
 		return ret;
 
 	ret = pc->config(chip, pwm, duty_ns, period_ns);
-	
-	clk_disable_unprepare(pc->clk);
+
+	clk_disable(pc->clk);
 
 	return 0;
 }
@@ -482,7 +482,7 @@ static int rk_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
 	int ret = 0;
 
-	ret = clk_prepare_enable(pc->clk);
+	ret = clk_enable(pc->clk);
 	if (ret)
 		return ret;
 
@@ -496,7 +496,7 @@ static void rk_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	pc->set_enable(chip, pwm,false);
 
-	clk_disable_unprepare(pc->clk);
+	clk_disable(pc->clk);
 
 }
 
@@ -587,6 +587,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	pc->chip.base = -1;
 	pc->chip.npwm = NUM_PWM;
 	spin_lock_init(&pc->lock);
+	clk_prepare(pc->clk);
 
 	/* Following enables PWM chip, channels would still be enabled individually through their control register */
 	DBG("npwm = %d, of_pwm_ncells =%d \n", pc->chip.npwm,pc->chip.of_pwm_n_cells);

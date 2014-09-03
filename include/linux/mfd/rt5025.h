@@ -22,7 +22,7 @@
 #endif /* CONFIG_HAS_EARLYSUSPEND */
 
 #define RT5025_DEV_NAME "rt5025"
-#define RT5025_DRV_VER	   "1.1.0_R"
+#define RT5025_DRV_VER	   "1.1.1_R"
 
 #define RT_BATT_NAME	"rt-battery"
 
@@ -321,6 +321,7 @@ struct rt5025_battery_info {
 	u16 soc;
 	u16 temp_soc;
 	u16 pre_soc;
+	u16 last_soc;
 
 	u16 time_interval;
 	u16 pre_gauge_timer;

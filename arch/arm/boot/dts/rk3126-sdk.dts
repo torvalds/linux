@@ -37,6 +37,10 @@
 	 };	
 };
 
+&fb {
+        rockchip,disp-mode = <NO_DUAL>;
+};
+
 &rk_screen {
 	display-timings = <&disp_timings>;
 };
@@ -66,6 +70,10 @@
 			rockchip,delay = <10>;
 		};
 	};
+};
+
+&hdmi {
+        status = "disabled";
 };
 
 &key {
@@ -99,4 +107,8 @@
 	usb_uart {
 		status = "disabled";
 	};
+};
+
+&rk3126_cif_sensor{
+	status = "okay";
 };

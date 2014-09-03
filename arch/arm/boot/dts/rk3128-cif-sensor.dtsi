@@ -2,8 +2,9 @@
 #include "rk312x-pinctrl.dtsi"
 #include "../../mach-rockchip/rk_camera_sensor_info.h"
 /{
-	cif_sensor: cif_sensor{
+	rk3128_cif_sensor: rk3128_cif_sensor{
 			compatible = "rockchip,sensor";
+			status = "disabled";
 			CONFIG_SENSOR_POWER_IOCTL_USR 		= <1>;
 			CONFIG_SENSOR_RESET_IOCTL_USR 		= <0>;
 			CONFIG_SENSOR_POWERDOWN_IOCTL_USR	= <0>;
@@ -13,7 +14,7 @@
 		ov2659{
 			is_front = <1>; 
 			rockchip,powerdown = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;
-			#pwdn_active = <>;
+			pwdn_active = <ov2659_PWRDN_ACTIVE>;
 			#rockchip,power = <>;
 			#pwr_active = <>;
 			#rockchip,reset = <>;
@@ -21,7 +22,6 @@
 			mir = <0>;
 			flash_attach = <0>;
 			resolution = <ov2659_FULL_RESOLUTION>;
-			pwdn_info = <ov2659_PWRDN_ACTIVE>;
 			powerup_sequence = <ov2659_PWRSEQ>;		
 			orientation = <0>;
 			i2c_add = <ov2659_I2C_ADDR>;
@@ -33,7 +33,7 @@
 		gc0329{
 			is_front = <1>; 
 			rockchip,powerdown = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;
-			#pwdn_active = <>;
+			pwdn_active = <gc0329_PWRDN_ACTIVE>;
 			#rockchip,power = <>;
 			#pwr_active = <>;
 			#rockchip,reset = <>;
@@ -41,7 +41,6 @@
 			mir = <0>;
 			flash_attach = <0>;
 			resolution = <gc0329_FULL_RESOLUTION>;
-			pwdn_info = <gc0329_PWRDN_ACTIVE>;
 			powerup_sequence = <gc0329_PWRSEQ>;	
 			orientation = <0>;
 			i2c_add = <gc0329_I2C_ADDR>;

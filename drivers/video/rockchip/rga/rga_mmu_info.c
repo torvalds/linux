@@ -468,6 +468,8 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         }
 
         /* Cal out the needed mem size */
+        SrcMemSize = (SrcMemSize + 15) & (~15);
+        DstMemSize = (DstMemSize + 15) & (~15);
         AllSize = SrcMemSize + DstMemSize;
 
         pages = kzalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);

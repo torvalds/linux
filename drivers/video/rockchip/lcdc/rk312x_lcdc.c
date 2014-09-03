@@ -87,9 +87,25 @@ static irqreturn_t rk312x_lcdc_isr(int irq, void *dev_id)
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 
 	} else if (int_reg & m_LF_INT_STA) {
+		lcdc_dev->driver.frame_time.last_framedone_t =
+				lcdc_dev->driver.frame_time.framedone_t;
+		lcdc_dev->driver.frame_time.framedone_t = cpu_clock(0);
 		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_LF_INT_CLEAR,
 			     v_LF_INT_CLEAR(1));
 	}
+
+#ifdef LCDC_IRQ_EMPTY_DEBUG
+	if (int_reg & m_WIN0_EMPTY_INT_STA) {
+		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_WIN0_EMPTY_INT_CLEAR,
+			     v_WIN0_EMPTY_INT_CLEAR(1));
+		dev_info(lcdc_dev->dev, "win0 empty irq\n");
+	} else if (int_reg & m_WIN1_EMPTY_INT_STA) {
+		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_WIN1_EMPTY_INT_CLEAR,
+			     v_WIN1_EMPTY_INT_CLEAR(1));
+		dev_info(lcdc_dev->dev, "win1 empty irq\n");
+	}
+#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -150,6 +166,11 @@ static int rk312x_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	                v_LF_INT_NUM(screen->mode.vsync_len +
 	                             screen->mode.upper_margin +
 	                             screen->mode.yres);
+#ifdef LCDC_IRQ_EMPTY_DEBUG
+		mask |= m_WIN0_EMPTY_INT_EN | m_WIN1_EMPTY_INT_EN;
+		val |= v_WIN0_EMPTY_INT_EN(1) | v_WIN1_EMPTY_INT_EN(1);
+#endif
+
 	        lcdc_msk_reg(lcdc_dev, INT_STATUS, mask, val);
                 spin_unlock(&lcdc_dev->reg_lock);
         } else {
@@ -170,6 +191,11 @@ static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 	        val = v_FS_INT_CLEAR(0) | v_FS_INT_EN(0) |
                         v_LF_INT_CLEAR(0) | v_LF_INT_EN(0) |
                         v_BUS_ERR_INT_CLEAR(0) | v_BUS_ERR_INT_EN(0);
+#ifdef LCDC_IRQ_EMPTY_DEBUG
+		mask |= m_WIN0_EMPTY_INT_EN | m_WIN1_EMPTY_INT_EN;
+		val |= v_WIN0_EMPTY_INT_EN(0) | v_WIN1_EMPTY_INT_EN(0);
+#endif
+
 		lcdc_msk_reg(lcdc_dev, INT_STATUS, mask, val);
 		spin_unlock(&lcdc_dev->reg_lock);
 	} else {

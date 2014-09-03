@@ -828,7 +828,6 @@
 						<LCDC0_HSYNC>,
 						<LCDC0_VSYNC>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 
 			lcdc0_gpio:lcdc0-gpio {
@@ -838,7 +837,6 @@
 						<FUNC_TO_GPIO(LCDC0_HSYNC)>,
 						<FUNC_TO_GPIO(LCDC0_VSYNC)>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 
 		};
@@ -863,7 +861,6 @@
 						<LCDC0_D23>;
 						*/
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 
 			lcdc0_lcdc_gpio: lcdc0-lcdc_gpio {
@@ -885,7 +882,6 @@
 						<FUNC_TO_GPIO(LCDC0_D23)>;
 						*/
 				rockchip,pull = <VALUE_PULL_DOWN>;
-				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 
 		};

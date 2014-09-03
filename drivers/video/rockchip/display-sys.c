@@ -189,6 +189,27 @@ static ssize_t display_store_scale(struct device *dev,
 	return -EINVAL;
 }
 
+static ssize_t display_show_debug(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return -EINVAL;
+}
+
+static ssize_t display_store_debug(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	int cmd;
+	struct rk_display_device *dsp = dev_get_drvdata(dev);
+
+	if(dsp->ops && dsp->ops->setdebug) {
+		sscanf(buf, "%d", &cmd);
+		dsp->ops->setdebug(dsp, cmd);
+		return count;
+	}
+	return -EINVAL;
+}
+
 static struct device_attribute display_attrs[] = {
 	__ATTR(name, S_IRUGO, display_show_name, NULL),
 	__ATTR(type, S_IRUGO, display_show_type, NULL),
@@ -197,6 +218,7 @@ static struct device_attribute display_attrs[] = {
 	__ATTR(modes, S_IRUGO, display_show_modes, NULL),
 	__ATTR(mode, 0664, display_show_mode, display_store_mode),
 	__ATTR(scale, 0664, display_show_scale, display_store_scale),
+	__ATTR(debug, 0664, display_show_debug, display_store_debug),
 	__ATTR_NULL
 };
 

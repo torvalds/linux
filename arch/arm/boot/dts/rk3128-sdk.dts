@@ -22,6 +22,10 @@
 	};
 };
 
+&fb {
+	rockchip,disp-mode = <ONE_DUAL>;
+};
+
 &rk_screen {
 	display-timings = <&disp_timings>;
 };
@@ -50,6 +54,10 @@
 			rockchip,delay = <10>;
 		};
 	};
+};
+
+&hdmi {
+        status = "okay";
 };
 
 &sdmmc {
@@ -81,3 +89,8 @@
         gpio_debug = <1>;
         codec_hp_det = <0>;
 };
+
+&rk3128_cif_sensor{
+	status = "okay";
+};
+

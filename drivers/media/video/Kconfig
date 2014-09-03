@@ -31,6 +31,7 @@ menu "rockchip camera sensor interface driver"
 
 	config GC0329
 		tristate "gc0329,support"
+		default y
 
 	config GC2015
 		tristate "gc2015,support"

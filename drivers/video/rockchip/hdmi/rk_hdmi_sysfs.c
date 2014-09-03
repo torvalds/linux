@@ -141,6 +141,18 @@ static int hdmi_get_scale(struct rk_display_device *device, int direction)
 	else
 		return -1;
 }
+static int hdmi_set_debug(struct rk_display_device *device, int cmd)
+{
+	struct hdmi *hdmi = device->priv_data;
+
+	if (!hdmi)
+		return -1;
+	if (hdmi->ops && hdmi->ops->hdmi_debug)
+		hdmi->ops->hdmi_debug(hdmi,cmd);
+
+	return 0;
+}
+
 
 struct rk_display_ops hdmi_display_ops = {
 	.setenable = hdmi_set_enable,
@@ -151,6 +163,7 @@ struct rk_display_ops hdmi_display_ops = {
 	.getmode = hdmi_get_mode,
 	.setscale = hdmi_set_scale,
 	.getscale = hdmi_get_scale,
+	.setdebug = hdmi_set_debug,
 };
 
 #if 1

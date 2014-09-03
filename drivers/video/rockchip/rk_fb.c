@@ -2373,12 +2373,20 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 					break;
 				}
 
+				if (ion_hanle[ION_MAX - 1] != 0) {
+					/*ion_unmap_kernel(rk_fb->ion_client, ion_hanle[ION_MAX - 1]);*/
+					/*ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client, ion_hanle[ION_MAX - 1]);*/
+					ion_free(rk_fb->ion_client, ion_hanle[ION_MAX - 1]);
+					ion_hanle[ION_MAX - 1] = 0;
+				}
+
 				hdl = ion_import_dma_buf(rk_fb->ion_client, usr_fd);
 				if (IS_ERR(hdl)) {
 					dev_err(info->dev, "failed to get ion handle:%ld\n",
 						PTR_ERR(hdl));
 					return -EFAULT;
 				}
+
 				ret = ion_map_iommu(dev_drv->dev, rk_fb->ion_client, hdl,
 							(unsigned long *)&phy_addr,
 							(unsigned long *)&len);
@@ -2389,13 +2397,10 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 				}
 				fix->smem_start = phy_addr;
 				fix->mmio_start = phy_addr + offset;
+				fix->smem_len = len;
+				/*info->screen_base = ion_map_kernel(rk_fb->ion_client, hdl);*/
 
-				if (ion_hanle[ION_MAX - 1] != 0) {
-					ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client, ion_hanle[ION_MAX - 1]);
-					ion_free(rk_fb->ion_client, ion_hanle[ION_MAX - 1]);
-				}
 				ion_hanle[0] = hdl;
-
 				for (tmp = ION_MAX - 1; tmp > 0; tmp--)
 					ion_hanle[tmp] = ion_hanle[tmp - 1];
 				ion_hanle[0] = 0;
@@ -3201,8 +3206,12 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		printk(KERN_ERR "%s driver not found!", name);
 		return -ENODEV;
 	}
-	printk("hdmi %s lcdc%d\n", enable ? "connect to" : "remove from",
-               dev_drv->id);
+	if (screen->type == SCREEN_HDMI)
+		printk("hdmi %s lcdc%d\n", enable ? "connect to" : "remove from",
+               		dev_drv->id);
+        else if (screen->type == SCREEN_TVOUT)
+        	printk("cvbs %s lcdc%d\n", enable ? "connect to" : "remove from",
+               		dev_drv->id);
 
 	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
@@ -3225,8 +3234,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			dev_drv->ops->load_screen(dev_drv, 1);
 			if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 				dev_drv->trsm_ops->enable();
-		} else {
-			/* disable the layer which attached to this device */
+		} else if (rk_fb->num_lcdc > 1) {
+			/* If there is more than one lcdc device, we disable
+			   the layer which attached to this device */
 			for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 				if (dev_drv->win[i] && dev_drv->win[i]->state)
 					dev_drv->ops->open(dev_drv, i, 0);

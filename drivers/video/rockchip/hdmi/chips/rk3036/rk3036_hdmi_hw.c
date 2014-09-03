@@ -515,6 +515,7 @@ void rk3036_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 		}
 		rk3036_hdmi_sys_power(hdmi_drv, true);
 		rk3036_hdmi_sys_power(hdmi_drv, false);
+		delay100us();
 		rk3036_hdmi_sys_power(hdmi_drv, true);
 		hdmi_writel(hdmi_dev, 0xce, 0x00);
 		delay100us();
@@ -578,6 +579,25 @@ static void rk3036_hdmi_reset(struct hdmi *hdmi_drv)
 
 	rk3036_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
 }
+static int rk3036_hdmi_debug(struct hdmi *hdmi_drv,int cmd)
+{
+	switch(cmd) {
+	case 0:
+		printk("%s[%d]:cmd=%d\n",__func__,__LINE__,cmd);
+		break;
+	case 1:
+		printk("%s[%d]:cmd=%d\n",__func__,__LINE__,cmd);
+		break;
+	default:
+		printk("%s[%d]:cmd=%d\n",__func__,__LINE__,cmd);
+		break;
+	}
+	return 0;
+}
+
+static struct rk_hdmi_drv_ops hdmi_drv_ops = {
+	.hdmi_debug = rk3036_hdmi_debug,
+};
 
 int rk3036_hdmi_initial(struct hdmi *hdmi_drv)
 {
@@ -591,6 +611,7 @@ int rk3036_hdmi_initial(struct hdmi *hdmi_drv)
 	hdmi_drv->detect_hotplug = rk3036_hdmi_detect_hotplug;
 	hdmi_drv->read_edid = rk3036_hdmi_read_edid;
 	hdmi_drv->insert    = rk3036_hdmi_insert;
+	hdmi_drv->ops = &hdmi_drv_ops;
 
 	rk3036_hdmi_reset_pclk();
 	rk3036_hdmi_reset(hdmi_drv);

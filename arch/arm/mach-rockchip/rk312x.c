@@ -456,6 +456,7 @@ static void __init rk321x_init_suspend(void)
 {
 	pr_info("%s\n", __func__);
 	rockchip_suspend_init();
+	rkpm_pie_init();
 	rk312x_suspend_init();
 	rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend, rk_pm_soc_pd_resume);
 }

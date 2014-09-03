@@ -2071,7 +2071,7 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
                 del_timer_sync(&host->dto_timer);
 	    if(MMC_SEND_STATUS != cmd->opcode)
 	        if(host->cmd_rto >= SDMMC_CMD_RTO_MAX_HOLD){
-	                MMC_DBG_ERR_FUNC(host->mmc, " command complete, cmd=%d,cmdError=%d [%s]",\
+	                MMC_DBG_CMD_FUNC(host->mmc, " command complete, cmd=%d,cmdError=%d [%s]",\
                                 cmd->opcode, cmd->error,mmc_hostname(host->mmc));
                         host->cmd_rto = 0;
     	        }
