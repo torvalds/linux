@@ -761,7 +761,7 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 			*tim2 = this_board->ai_ns_min;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
 					  div1, div2,
-					  tim2, flags & TRIG_ROUND_NEAREST);
+					  tim2, flags & CMDF_ROUND_NEAREST);
 		break;
 	case 2:
 		if (*tim2 < this_board->ai_ns_min)
