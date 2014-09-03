@@ -490,7 +490,6 @@ struct et131x_adapter {
 	spinlock_t send_hw_lock;
 
 	spinlock_t rcv_lock;
-	spinlock_t fbr_lock;
 
 	/* Packet Filter and look ahead size */
 	u32 packet_filter;
@@ -2325,8 +2324,6 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 		u32 __iomem *offset;
 		struct fbr_desc *next;
 
-		spin_lock_irqsave(&adapter->fbr_lock, flags);
-
 		if (ring_index == 0)
 			offset = &rx_dma->fbr0_full_offset;
 		else
@@ -2346,8 +2343,6 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 		free_buff_ring = bump_free_buff_ring(&fbr->local_full,
 						     fbr->num_entries - 1);
 		writel(free_buff_ring, offset);
-
-		spin_unlock_irqrestore(&adapter->fbr_lock, flags);
 	} else {
 		dev_err(&adapter->pdev->dev,
 			  "%s illegal Buffer Index returned\n", __func__);
@@ -3691,7 +3686,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	spin_lock_init(&adapter->tcb_ready_qlock);
 	spin_lock_init(&adapter->send_hw_lock);
 	spin_lock_init(&adapter->rcv_lock);
-	spin_lock_init(&adapter->fbr_lock);
 
 	adapter->registry_jumbo_packet = 1514;	/* 1514-9216 */
 
