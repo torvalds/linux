@@ -1819,22 +1819,17 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 	list_del_rcu(&srcdev->dev_list);
 	list_del_rcu(&srcdev->dev_alloc_list);
 	fs_devices->num_devices--;
-	if (srcdev->missing) {
+	if (srcdev->missing)
 		fs_devices->missing_devices--;
-		if (!fs_devices->seeding)
-			fs_devices->rw_devices++;
+
+	if (srcdev->writeable) {
+		fs_devices->rw_devices--;
+		/* zero out the old super if it is writable */
+		btrfs_scratch_superblock(srcdev);
 	}
 
-	if (srcdev->bdev) {
+	if (srcdev->bdev)
 		fs_devices->open_devices--;
-
-		/*
-		 * zero out the old super if it is not writable
-		 * (e.g. seed device)
-		 */
-		if (srcdev->writeable)
-			btrfs_scratch_superblock(srcdev);
-	}
 
 	call_rcu(&srcdev->rcu, free_device);
 

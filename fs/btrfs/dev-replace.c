@@ -569,8 +569,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	if (fs_info->fs_devices->latest_bdev == src_device->bdev)
 		fs_info->fs_devices->latest_bdev = tgt_device->bdev;
 	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
-	if (src_device->fs_devices->seeding)
-		fs_info->fs_devices->rw_devices++;
+	fs_info->fs_devices->rw_devices++;
 
 	/* replace the sysfs entry */
 	btrfs_kobj_rm_device(fs_info, src_device);
