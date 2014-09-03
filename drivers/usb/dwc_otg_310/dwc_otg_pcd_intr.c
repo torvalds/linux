@@ -2084,15 +2084,7 @@ static int32_t ep0_complete_request(dwc_otg_pcd_ep_t *ep)
 		/* For older cores do setup in status phase in Slave/BDMA modes,
 		 * starting from 3.00 do that only in slave, and for DMA modes
 		 * just re-enable ep 0 OUT here*/
-		if (core_if->dma_enable == 0
-		    || (core_if->dma_desc_enable == 0
-			&& core_if->snpsid <= OTG_CORE_REV_2_94a)) {
-			do_setup_in_status_phase(pcd);
-		} else if (core_if->snpsid >= OTG_CORE_REV_3_00a) {
-			DWC_DEBUGPL(DBG_PCDV,
-				    "Enable out ep before in status phase\n");
-			ep0_out_start(core_if, pcd);
-		}
+		do_setup_in_status_phase(pcd);
 	}
 
 	/* Complete the request */
