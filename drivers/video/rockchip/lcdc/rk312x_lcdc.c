@@ -255,6 +255,20 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 		lcdc_msk_reg(lcdc_dev, ALPHA_CTRL, mask, val);
 	}
 
+	if(lcdc_dev->driver.win[2]->state == 1) {
+		mask =  m_HWC_ALPAH_EN;
+		val = v_HWC_ALPAH_EN(1);
+		lcdc_msk_reg(lcdc_dev, ALPHA_CTRL, mask, val);
+
+		mask =  m_HWC_ALPHA_MODE;
+		val = v_HWC_ALPHA_MODE(1);
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
+	} else {
+		mask =  m_HWC_ALPAH_EN;
+		val = v_HWC_ALPAH_EN(0);
+		lcdc_msk_reg(lcdc_dev, ALPHA_CTRL, mask, val);
+	}
+
 	return 0;
 }
 
@@ -307,6 +321,7 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 				   struct rk_lcdc_win *win)
 {
 	u32 mask, val;
+	int hwc_size;
 
 	if (win->state == 1) {
 		if (lcdc_dev->soc_type == VOP_RK312X)
@@ -380,6 +395,21 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 
 
 		} else if (win->id == 2) {
+			mask = m_HWC_EN;
+			val = v_HWC_EN(win->state);
+			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
+			if((win->area[0].xsize == 32) &&(win->area[0].ysize == 32))
+				hwc_size = 0;
+			else if((win->area[0].xsize == 64) &&(win->area[0].ysize == 64))
+				hwc_size = 1;
+			else
+				dev_err(lcdc_dev->dev,"unsupport hwc size:x=%d,y=%d\n",
+					win->area[0].xsize,win->area[0].ysize);
+			lcdc_writel(lcdc_dev, HWC_DSP_ST,
+				    v_DSP_STX(win->area[0].dsp_stx) |
+				    v_DSP_STY(win->area[0].dsp_sty));
+
+			lcdc_writel(lcdc_dev, HWC_MST, win->area[0].y_addr);
 		}
 	} else {
 		win->area[0].y_addr = 0;
@@ -488,7 +518,34 @@ static void rk312x_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 }
+static int rk312x_lcdc_set_hwc_lut(struct rk_lcdc_driver *dev_drv, int *hwc_lut,int mode)
+{
+	int i = 0;
+	int __iomem *c;
+	int v;
+	int len=256*4;
+	struct lcdc_device *lcdc_dev =
+                container_of(dev_drv, struct lcdc_device, driver);
+	if(dev_drv->hwc_lut == NULL) {
+		dev_drv->hwc_lut = devm_kzalloc(lcdc_dev->dev, len, GFP_KERNEL);
+	}
+	spin_lock(&lcdc_dev->reg_lock);
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_HWC_LUT_EN, v_HWC_LUT_EN(0));
+	lcdc_cfg_done(lcdc_dev);
+	mdelay(25);
+	for (i = 0; i < 256; i++) {
+		if(mode == 1)
+			dev_drv->hwc_lut[i] = hwc_lut[i];
+		v = dev_drv->hwc_lut[i];
+		c = lcdc_dev->hwc_lut_addr_base + i<<2;
+		writel_relaxed(v, c);
+	}
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_HWC_LUT_EN, v_HWC_LUT_EN(1));
+        lcdc_cfg_done(lcdc_dev);
+        spin_unlock(&lcdc_dev->reg_lock);
+	return 0;
 
+}
 static int rk312x_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
 {
 	int i = 0;
@@ -503,7 +560,7 @@ static int rk312x_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
 	mdelay(25);
 	for (i = 0; i < 256; i++) {
 		v = dev_drv->cur_screen->dsp_lut[i];
-		c = lcdc_dev->dsp_lut_addr_base + i;
+		c = lcdc_dev->dsp_lut_addr_base + i<<2;
 		writel_relaxed(v, c);
 
 	}
@@ -1198,6 +1255,8 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		win = dev_drv->win[0];
 	} else if (win_id == 1) {
 		win = dev_drv->win[1];
+	} else if (win_id == 2) {
+		win = dev_drv->win[2];
 	} else {
 		dev_err(dev_drv->dev, "un supported win number:%d\n", win_id);
 		return -EINVAL;
@@ -1312,7 +1371,9 @@ static int rk312x_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 		win = dev_drv->win[0];
 	} else if (win_id == 1) {
 		win = dev_drv->win[1];
-	} else {
+	} else if (win_id == 2) {
+		win = dev_drv->win[2];
+	}else {
 		dev_err(dev_drv->dev, "invalid win number:%d!\n", win_id);
 		return -EINVAL;
 	}
@@ -1473,6 +1534,8 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
                 /* set screen lut */
 		if (dev_drv->cur_screen->dsp_lut)
 			rk312x_lcdc_set_lut(dev_drv);
+		/*set hwc lut*/
+		rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
 
 		spin_lock(&lcdc_dev->reg_lock);
 
@@ -2033,6 +2096,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.get_dsp_bcsh_bcs = rk312x_lcdc_get_bcsh_bcs,
 	.open_bcsh = rk312x_lcdc_open_bcsh,
 	.set_screen_scaler = rk312x_lcdc_set_scaler,
+	.set_hwc_lut = rk312x_lcdc_set_hwc_lut,
 };
 #if 0
 static const struct rk_lcdc_drvdata rk3036_lcdc_drvdata = {
@@ -2125,7 +2189,8 @@ static int rk312x_lcdc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(lcdc_dev->regsbak);
                 goto err_remap_reg;
         }
-
+	lcdc_dev->hwc_lut_addr_base = (lcdc_dev->regs + HWC_LUT_ADDR);
+	lcdc_dev->dsp_lut_addr_base = (lcdc_dev->regs + DSP_LUT_ADDR);
 	dev_set_name(lcdc_dev->dev, "lcdc%d", lcdc_dev->id);
 	dev_drv = &lcdc_dev->driver;
 	dev_drv->dev = dev;

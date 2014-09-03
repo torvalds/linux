@@ -667,7 +667,8 @@ struct lcdc_device {
 	u32 reg_phy_base;       	/* physical basic address of lcdc register */
 	u32 len;               		/* physical map length of lcdc register */
 	spinlock_t  reg_lock;		/* one time only one process allowed to config the register */
-	
+
+	int __iomem *hwc_lut_addr_base;
 	int __iomem *dsp_lut_addr_base;
 
 	int prop;			/* used for primary or extended display device */
