@@ -134,7 +134,9 @@ struct kvm_s390_sie_block {
 	__u8	reserved60;		/* 0x0060 */
 	__u8	ecb;			/* 0x0061 */
 	__u8    ecb2;                   /* 0x0062 */
-	__u8    reserved63[1];          /* 0x0063 */
+#define ECB3_AES 0x04
+#define ECB3_DEA 0x08
+	__u8    ecb3;			/* 0x0063 */
 	__u32	scaol;			/* 0x0064 */
 	__u8	reserved68[4];		/* 0x0068 */
 	__u32	todpr;			/* 0x006c */
@@ -505,10 +507,14 @@ struct s390_io_adapter {
 struct kvm_s390_crypto {
 	struct kvm_s390_crypto_cb *crycb;
 	__u32 crycbd;
+	__u8 aes_kw;
+	__u8 dea_kw;
 };
 
 struct kvm_s390_crypto_cb {
-	__u8    reserved00[128];                /* 0x0000 */
+	__u8    reserved00[72];                 /* 0x0000 */
+	__u8    dea_wrapping_key_mask[24];      /* 0x0048 */
+	__u8    aes_wrapping_key_mask[32];      /* 0x0060 */
 };
 
 struct kvm_arch{

@@ -58,6 +58,7 @@ struct kvm_s390_io_adapter_req {
 /* kvm attr_group  on vm fd */
 #define KVM_S390_VM_MEM_CTRL		0
 #define KVM_S390_VM_TOD			1
+#define KVM_S390_VM_CRYPTO		2
 
 /* kvm attributes for mem_ctrl */
 #define KVM_S390_VM_MEM_ENABLE_CMMA	0
@@ -67,6 +68,12 @@ struct kvm_s390_io_adapter_req {
 /* kvm attributes for KVM_S390_VM_TOD */
 #define KVM_S390_VM_TOD_LOW		0
 #define KVM_S390_VM_TOD_HIGH		1
+
+/* kvm attributes for crypto */
+#define KVM_S390_VM_CRYPTO_ENABLE_AES_KW	0
+#define KVM_S390_VM_CRYPTO_ENABLE_DEA_KW	1
+#define KVM_S390_VM_CRYPTO_DISABLE_AES_KW	2
+#define KVM_S390_VM_CRYPTO_DISABLE_DEA_KW	3
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {

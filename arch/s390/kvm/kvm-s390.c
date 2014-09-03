@@ -22,6 +22,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
+#include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <asm/asm-offsets.h>
@@ -342,6 +343,53 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	return ret;
 }
 
+static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu);
+
+static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	if (!test_vfacility(76))
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+	switch (attr->attr) {
+	case KVM_S390_VM_CRYPTO_ENABLE_AES_KW:
+		get_random_bytes(
+			kvm->arch.crypto.crycb->aes_wrapping_key_mask,
+			sizeof(kvm->arch.crypto.crycb->aes_wrapping_key_mask));
+		kvm->arch.crypto.aes_kw = 1;
+		break;
+	case KVM_S390_VM_CRYPTO_ENABLE_DEA_KW:
+		get_random_bytes(
+			kvm->arch.crypto.crycb->dea_wrapping_key_mask,
+			sizeof(kvm->arch.crypto.crycb->dea_wrapping_key_mask));
+		kvm->arch.crypto.dea_kw = 1;
+		break;
+	case KVM_S390_VM_CRYPTO_DISABLE_AES_KW:
+		kvm->arch.crypto.aes_kw = 0;
+		memset(kvm->arch.crypto.crycb->aes_wrapping_key_mask, 0,
+			sizeof(kvm->arch.crypto.crycb->aes_wrapping_key_mask));
+		break;
+	case KVM_S390_VM_CRYPTO_DISABLE_DEA_KW:
+		kvm->arch.crypto.dea_kw = 0;
+		memset(kvm->arch.crypto.crycb->dea_wrapping_key_mask, 0,
+			sizeof(kvm->arch.crypto.crycb->dea_wrapping_key_mask));
+		break;
+	default:
+		mutex_unlock(&kvm->lock);
+		return -ENXIO;
+	}
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		kvm_s390_vcpu_crypto_setup(vcpu);
+		exit_sie(vcpu);
+	}
+	mutex_unlock(&kvm->lock);
+	return 0;
+}
+
 static int kvm_s390_set_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	u8 gtod_high;
@@ -460,6 +508,9 @@ static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 	case KVM_S390_VM_TOD:
 		ret = kvm_s390_set_tod(kvm, attr);
 		break;
+	case KVM_S390_VM_CRYPTO:
+		ret = kvm_s390_vm_set_crypto(kvm, attr);
+		break;
 	default:
 		ret = -ENXIO;
 		break;
@@ -508,6 +559,19 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		switch (attr->attr) {
 		case KVM_S390_VM_TOD_LOW:
 		case KVM_S390_VM_TOD_HIGH:
+			ret = 0;
+			break;
+		default:
+			ret = -ENXIO;
+			break;
+		}
+		break;
+	case KVM_S390_VM_CRYPTO:
+		switch (attr->attr) {
+		case KVM_S390_VM_CRYPTO_ENABLE_AES_KW:
+		case KVM_S390_VM_CRYPTO_ENABLE_DEA_KW:
+		case KVM_S390_VM_CRYPTO_DISABLE_AES_KW:
+		case KVM_S390_VM_CRYPTO_DISABLE_DEA_KW:
 			ret = 0;
 			break;
 		default:
@@ -601,6 +665,10 @@ static int kvm_s390_crypto_init(struct kvm *kvm)
 
 	kvm->arch.crypto.crycbd = (__u32) (unsigned long) kvm->arch.crypto.crycb |
 				  CRYCB_FORMAT1;
+
+	/* Disable AES/DEA protected key functions by default */
+	kvm->arch.crypto.aes_kw = 0;
+	kvm->arch.crypto.dea_kw = 0;
 
 	return 0;
 }
@@ -822,6 +890,13 @@ static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 {
 	if (!test_vfacility(76))
 		return;
+
+	vcpu->arch.sie_block->ecb3 &= ~(ECB3_AES | ECB3_DEA);
+
+	if (vcpu->kvm->arch.crypto.aes_kw)
+		vcpu->arch.sie_block->ecb3 |= ECB3_AES;
+	if (vcpu->kvm->arch.crypto.dea_kw)
+		vcpu->arch.sie_block->ecb3 |= ECB3_DEA;
 
 	vcpu->arch.sie_block->crycbd = vcpu->kvm->arch.crypto.crycbd;
 }
