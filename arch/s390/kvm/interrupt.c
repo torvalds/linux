@@ -1352,7 +1352,6 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 		r = enqueue_floating_irq(dev, attr);
 		break;
 	case KVM_DEV_FLIC_CLEAR_IRQS:
-		r = 0;
 		kvm_s390_clear_float_irqs(dev->kvm);
 		break;
 	case KVM_DEV_FLIC_APF_ENABLE:
