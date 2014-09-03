@@ -168,7 +168,9 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
 	if (r == -EREMOTEIO) {  /* Retry, chip was in standby */
 		usleep_range(1000, 4000);
 		r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
-	} else if (r != ST21NFCB_NCI_I2C_MIN_SIZE) {
+	}
+
+	if (r != ST21NFCB_NCI_I2C_MIN_SIZE) {
 		nfc_err(&client->dev, "cannot read ndlc & nci header\n");
 		return -EREMOTEIO;
 	}
