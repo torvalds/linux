@@ -140,10 +140,45 @@ static const struct syscon_gpio_data clps711x_mctrl_gpio = {
 	.dat_bit_offset	= 0x40 * 8 + 8,
 };
 
+#define KEYSTONE_LOCK_BIT BIT(0)
+
+static void keystone_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
+{
+	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+	unsigned int offs;
+	int ret;
+
+	offs = priv->dreg_offset + priv->data->dat_bit_offset + offset;
+
+	if (!val)
+		return;
+
+	ret = regmap_update_bits(
+			priv->syscon,
+			(offs / SYSCON_REG_BITS) * SYSCON_REG_SIZE,
+			BIT(offs % SYSCON_REG_BITS) | KEYSTONE_LOCK_BIT,
+			BIT(offs % SYSCON_REG_BITS) | KEYSTONE_LOCK_BIT);
+	if (ret < 0)
+		dev_err(chip->dev, "gpio write failed ret(%d)\n", ret);
+}
+
+static const struct syscon_gpio_data keystone_dsp_gpio = {
+	/* ARM Keystone 2 */
+	.compatible	= NULL,
+	.flags		= GPIO_SYSCON_FEAT_OUT,
+	.bit_count	= 28,
+	.dat_bit_offset	= 4,
+	.set		= keystone_gpio_set,
+};
+
 static const struct of_device_id syscon_gpio_ids[] = {
 	{
 		.compatible	= "cirrus,clps711x-mctrl-gpio",
 		.data		= &clps711x_mctrl_gpio,
+	},
+	{
+		.compatible	= "ti,keystone-dsp-gpio",
+		.data		= &keystone_dsp_gpio,
 	},
 	{ }
 };
