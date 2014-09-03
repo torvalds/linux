@@ -31,6 +31,7 @@
 #include "goldfish_nand_reg.h"
 
 struct goldfish_nand {
+	/* lock protects access to the device registers */
 	struct mutex            lock;
 	unsigned char __iomem  *base;
 	struct cmd_params       *cmd_params;
