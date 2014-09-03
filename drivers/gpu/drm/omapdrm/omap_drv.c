@@ -298,14 +298,13 @@ static int omap_modeset_init(struct drm_device *dev)
 		for (id = 0; id < priv->num_crtcs; id++) {
 			struct drm_crtc *crtc = priv->crtcs[id];
 			enum omap_channel crtc_channel;
-			enum omap_dss_output_id supported_outputs;
 
 			crtc_channel = omap_crtc_channel(crtc);
-			supported_outputs =
-				dss_feat_get_supported_outputs(crtc_channel);
 
-			if (supported_outputs & output->id)
+			if (output->dispc_channel == crtc_channel) {
 				encoder->possible_crtcs |= (1 << id);
+				break;
+			}
 		}
 
 		omap_dss_put_device(output);
