@@ -4432,6 +4432,11 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	for (i = 0; i < map->num_stripes; i++)
 		map->stripes[i].dev->bytes_used += stripe_size;
 
+	spin_lock(&extent_root->fs_info->free_chunk_lock);
+	extent_root->fs_info->free_chunk_space -= (stripe_size *
+						   map->num_stripes);
+	spin_unlock(&extent_root->fs_info->free_chunk_lock);
+
 	free_extent_map(em);
 	check_raid56_incompat_flag(extent_root->fs_info, type);
 
@@ -4514,11 +4519,6 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 	}
-
-	spin_lock(&extent_root->fs_info->free_chunk_lock);
-	extent_root->fs_info->free_chunk_space -= (stripe_size *
-						   map->num_stripes);
-	spin_unlock(&extent_root->fs_info->free_chunk_lock);
 
 	stripe = &chunk->stripe;
 	for (i = 0; i < map->num_stripes; i++) {
