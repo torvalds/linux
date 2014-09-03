@@ -1558,7 +1558,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	async->cb_mask =
 	    COMEDI_CB_EOA | COMEDI_CB_BLOCK | COMEDI_CB_ERROR |
 	    COMEDI_CB_OVERFLOW;
-	if (async->cmd.flags & TRIG_WAKE_EOS)
+	if (async->cmd.flags & CMDF_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
 	comedi_set_subdevice_runflags(s, SRF_ERROR | SRF_RUNNING, SRF_RUNNING);
