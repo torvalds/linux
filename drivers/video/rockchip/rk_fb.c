@@ -994,7 +994,8 @@ static void rga_win_check(struct rk_lcdc_win *dst_win,
 }
 
 static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
-			    struct rk_lcdc_win *src_win, u16 orientation)
+			    struct rk_lcdc_win *src_win,
+			    u16 orientation, int iommu_en)
 {
 	struct rga_req Rga_Request;
 	long ret = 0;
@@ -1074,8 +1075,13 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 	Rga_Request.clip.ymax = dst_win->area[0].yact - 1;
 	Rga_Request.scale_mode = 0;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
-	Rga_Request.mmu_info.mmu_en = 1;	/* TODO Modify for use mmu */
-	Rga_Request.mmu_info.mmu_flag = 1;
+	if (iommu_en) {
+		Rga_Request.mmu_info.mmu_en = 1;
+		Rga_Request.mmu_info.mmu_flag = 1;
+	} else {
+		Rga_Request.mmu_info.mmu_en = 0;
+		Rga_Request.mmu_info.mmu_flag = 0;
+	}
 #else
 	Rga_Request.mmu_info.mmu_en = 0;
 	Rga_Request.mmu_info.mmu_flag = 0;
@@ -1105,7 +1111,8 @@ static void fb_copy_by_rga(struct fb_info *dst_info, struct fb_info *src_info,
 	    ext_dev_drv->ops->fb_get_win_id(ext_dev_drv, dst_info->fix.id);
 	dst_win = ext_dev_drv->win[ext_win_id];
 
-	win_copy_by_rga(dst_win, src_win, ext_dev_drv->rotate_mode);
+	win_copy_by_rga(dst_win, src_win, ext_dev_drv->rotate_mode,
+			ext_dev_drv->iommu_enabled);
 }
 
 #endif
@@ -1124,10 +1131,11 @@ static int rk_fb_rotate(struct fb_info *dst_info,
 }
 
 static int rk_fb_win_rotate(struct rk_lcdc_win *dst_win,
-			    struct rk_lcdc_win *src_win, u16 rotate)
+			    struct rk_lcdc_win *src_win,
+			    u16 rotate, int iommu_en)
 {
 #if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
-	win_copy_by_rga(dst_win, src_win, rotate);
+	win_copy_by_rga(dst_win, src_win, rotate, iommu_en);
 #else
 	return -1;
 #endif
@@ -1776,7 +1784,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 
                         if (ext_dev_drv->rotate_mode > X_Y_MIRROR)
 			        rk_fb_win_rotate(ext_win, win,
-			                         ext_dev_drv->rotate_mode);
+			                         ext_dev_drv->rotate_mode,
+						 ext_dev_drv->iommu_enabled);
 
                         ext_dev_drv->ops->set_par(ext_dev_drv, i);
 		        ext_dev_drv->ops->pan_display(ext_dev_drv, i);
@@ -3594,8 +3603,8 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 			dev_drv->ops->set_dsp_cabc(dev_drv, dev_drv->cabc_mode);
 		rk_fb_set_prmry_screen(screen);
 	}
-	rk_fb_get_prmry_screen(screen);
 	dev_drv->trsm_ops = rk_fb_trsm_ops_get(screen->type);
+	rk_fb_get_prmry_screen(screen);
 
 	return 0;
 }
