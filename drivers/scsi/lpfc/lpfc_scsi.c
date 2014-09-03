@@ -306,7 +306,7 @@ lpfc_send_sdev_queuedepth_change_event(struct lpfc_hba *phba,
  * depth for a scsi device. This function sets the queue depth to the new
  * value and sends an event out to log the queue depth change.
  **/
-int
+static int
 lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
@@ -741,7 +741,7 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
  *
  * Returns: 0 = failure, non-zero number of successfully posted buffers.
  **/
-int
+static int
 lpfc_sli4_post_scsi_sgl_list(struct lpfc_hba *phba,
 			     struct list_head *post_sblist, int sb_count)
 {
@@ -2965,7 +2965,7 @@ err:
  * on the specified data using a CRC algorithmn
  * using crc_t10dif.
  */
-uint16_t
+static uint16_t
 lpfc_bg_crc(uint8_t *data, int count)
 {
 	uint16_t crc = 0;
@@ -2981,7 +2981,7 @@ lpfc_bg_crc(uint8_t *data, int count)
  * on the specified data using a CSUM algorithmn
  * using ip_compute_csum.
  */
-uint16_t
+static uint16_t
 lpfc_bg_csum(uint8_t *data, int count)
 {
 	uint16_t ret;
@@ -2994,7 +2994,7 @@ lpfc_bg_csum(uint8_t *data, int count)
  * This function examines the protection data to try to determine
  * what type of T10-DIF error occurred.
  */
-void
+static void
 lpfc_calc_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 {
 	struct scatterlist *sgpe; /* s/g prot entry */
