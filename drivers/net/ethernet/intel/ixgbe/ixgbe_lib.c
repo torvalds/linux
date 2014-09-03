@@ -717,12 +717,12 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 					vector_threshold, vectors);
 
 	if (vectors < 0) {
-		/* Can't allocate enough MSI-X interrupts?  Oh well.
-		 * This just means we'll go with either a single MSI
-		 * vector or fall back to legacy interrupts.
+		/* A negative count of allocated vectors indicates an error in
+		 * acquiring within the specified range of MSI-X vectors
 		 */
-		netif_printk(adapter, hw, KERN_DEBUG, adapter->netdev,
-			     "Unable to allocate MSI-X interrupts\n");
+		e_dev_warn("Failed to allocate MSI-X interrupts. Err: %d\n",
+			   vectors);
+
 		adapter->flags &= ~IXGBE_FLAG_MSIX_ENABLED;
 		kfree(adapter->msix_entries);
 		adapter->msix_entries = NULL;
