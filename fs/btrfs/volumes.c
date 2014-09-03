@@ -1649,8 +1649,8 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (device->writeable) {
 		lock_chunks(root);
 		list_del_init(&device->dev_alloc_list);
+		device->fs_devices->rw_devices--;
 		unlock_chunks(root);
-		root->fs_info->fs_devices->rw_devices--;
 		clear_super = true;
 	}
 
@@ -1795,8 +1795,8 @@ error_undo:
 		lock_chunks(root);
 		list_add(&device->dev_alloc_list,
 			 &root->fs_info->fs_devices->alloc_list);
+		device->fs_devices->rw_devices++;
 		unlock_chunks(root);
-		root->fs_info->fs_devices->rw_devices++;
 	}
 	goto error_brelse;
 }
