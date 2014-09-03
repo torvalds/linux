@@ -1102,9 +1102,9 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	 * capability.
 	 */
 
-	/* disable DCB if number of TCs exceeds 1 */
+	/* Disable DCB unless we only have a single traffic class */
 	if (netdev_get_num_tc(adapter->netdev) > 1) {
-		e_err(probe, "num TCs exceeds number of queues - disabling DCB\n");
+		e_dev_warn("Number of DCB TCs exceeds number of available queues. Disabling DCB support.\n");
 		netdev_reset_tc(adapter->netdev);
 
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
