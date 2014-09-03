@@ -2220,12 +2220,13 @@ static int set_agc_rf(struct drxk_state *state,
 		}
 
 		/* Set TOP, only if IF-AGC is in AUTO mode */
-		if (p_if_agc_settings->ctrl_mode == DRXK_AGC_CTRL_AUTO)
+		if (p_if_agc_settings->ctrl_mode == DRXK_AGC_CTRL_AUTO) {
 			status = write16(state,
 					 SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
 					 p_agc_cfg->top);
 			if (status < 0)
 				goto error;
+		}
 
 		/* Cut-Off current */
 		status = write16(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A,
