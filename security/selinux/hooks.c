@@ -6071,7 +6071,7 @@ security_initcall(selinux_init);
 
 #if defined(CONFIG_NETFILTER)
 
-static struct nf_hook_ops selinux_ipv4_ops[] = {
+static struct nf_hook_ops selinux_nf_ops[] = {
 	{
 		.hook =		selinux_ipv4_postroute,
 		.owner =	THIS_MODULE,
@@ -6092,12 +6092,8 @@ static struct nf_hook_ops selinux_ipv4_ops[] = {
 		.pf =		NFPROTO_IPV4,
 		.hooknum =	NF_INET_LOCAL_OUT,
 		.priority =	NF_IP_PRI_SELINUX_FIRST,
-	}
-};
-
+	},
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-
-static struct nf_hook_ops selinux_ipv6_ops[] = {
 	{
 		.hook =		selinux_ipv6_postroute,
 		.owner =	THIS_MODULE,
@@ -6111,32 +6107,24 @@ static struct nf_hook_ops selinux_ipv6_ops[] = {
 		.pf =		NFPROTO_IPV6,
 		.hooknum =	NF_INET_FORWARD,
 		.priority =	NF_IP6_PRI_SELINUX_FIRST,
-	}
-};
-
+	},
 #endif	/* IPV6 */
+};
 
 static int __init selinux_nf_ip_init(void)
 {
-	int err = 0;
+	int err;
 
 	if (!selinux_enabled)
-		goto out;
+		return 0;
 
 	printk(KERN_DEBUG "SELinux:  Registering netfilter hooks\n");
 
-	err = nf_register_hooks(selinux_ipv4_ops, ARRAY_SIZE(selinux_ipv4_ops));
+	err = nf_register_hooks(selinux_nf_ops, ARRAY_SIZE(selinux_nf_ops));
 	if (err)
-		panic("SELinux: nf_register_hooks for IPv4: error %d\n", err);
+		panic("SELinux: nf_register_hooks: error %d\n", err);
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	err = nf_register_hooks(selinux_ipv6_ops, ARRAY_SIZE(selinux_ipv6_ops));
-	if (err)
-		panic("SELinux: nf_register_hooks for IPv6: error %d\n", err);
-#endif	/* IPV6 */
-
-out:
-	return err;
+	return 0;
 }
 
 __initcall(selinux_nf_ip_init);
@@ -6146,10 +6134,7 @@ static void selinux_nf_ip_exit(void)
 {
 	printk(KERN_DEBUG "SELinux:  Unregistering netfilter hooks\n");
 
-	nf_unregister_hooks(selinux_ipv4_ops, ARRAY_SIZE(selinux_ipv4_ops));
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	nf_unregister_hooks(selinux_ipv6_ops, ARRAY_SIZE(selinux_ipv6_ops));
-#endif	/* IPV6 */
+	nf_unregister_hooks(selinux_nf_ops, ARRAY_SIZE(selinux_nf_ops));
 }
 #endif
 
