@@ -319,7 +319,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			}
 		}
 	}
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 	return tx_info->nr_txbb;
 }
 
