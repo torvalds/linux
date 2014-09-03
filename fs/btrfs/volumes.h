@@ -32,6 +32,19 @@ struct btrfs_pending_bios {
 	struct bio *tail;
 };
 
+/*
+ * Use sequence counter to get consistent device stat data on
+ * 32-bit processors.
+ */
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+#include <linux/seqlock.h>
+#define __BTRFS_NEED_DEVICE_DATA_ORDERED
+#define btrfs_device_data_ordered_init(device)	\
+	seqcount_init(&device->data_seqcount)
+#else
+#define btrfs_device_data_ordered_init(device) do { } while (0)
+#endif
+
 struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
@@ -60,6 +73,10 @@ struct btrfs_device {
 	int missing;
 	int can_discard;
 	int is_tgtdev_for_dev_replace;
+
+#ifdef __BTRFS_NEED_DEVICE_DATA_ORDERED
+	seqcount_t data_seqcount;
+#endif
 
 	/* the internal btrfs device id */
 	u64 devid;
@@ -132,6 +149,73 @@ struct btrfs_device {
 	atomic_t dev_stats_ccnt;
 	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
 };
+
+/*
+ * If we read those variants at the context of their own lock, we needn't
+ * use the following helpers, reading them directly is safe.
+ */
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+#define BTRFS_DEVICE_GETSET_FUNCS(name)					\
+static inline u64							\
+btrfs_device_get_##name(const struct btrfs_device *dev)			\
+{									\
+	u64 size;							\
+	unsigned int seq;						\
+									\
+	do {								\
+		seq = read_seqcount_begin(&dev->data_seqcount);		\
+		size = dev->name;					\
+	} while (read_seqcount_retry(&dev->data_seqcount, seq));	\
+	return size;							\
+}									\
+									\
+static inline void							\
+btrfs_device_set_##name(struct btrfs_device *dev, u64 size)		\
+{									\
+	preempt_disable();						\
+	write_seqcount_begin(&dev->data_seqcount);			\
+	dev->name = size;						\
+	write_seqcount_end(&dev->data_seqcount);			\
+	preempt_enable();						\
+}
+#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPT)
+#define BTRFS_DEVICE_GETSET_FUNCS(name)					\
+static inline u64							\
+btrfs_device_get_##name(const struct btrfs_device *dev)			\
+{									\
+	u64 size;							\
+									\
+	preempt_disable();						\
+	size = dev->name;						\
+	preempt_enable();						\
+	return size;							\
+}									\
+									\
+static inline void							\
+btrfs_device_set_##name(struct btrfs_device *dev, u64 size)		\
+{									\
+	preempt_disable();						\
+	dev->name = size;						\
+	preempt_enable();						\
+}
+#else
+#define BTRFS_DEVICE_GETSET_FUNCS(name)					\
+static inline u64							\
+btrfs_device_get_##name(const struct btrfs_device *dev)			\
+{									\
+	return dev->name;						\
+}									\
+									\
+static inline void							\
+btrfs_device_set_##name(struct btrfs_device *dev, u64 size)		\
+{									\
+	dev->name = size;						\
+}
+#endif
+
+BTRFS_DEVICE_GETSET_FUNCS(total_bytes);
+BTRFS_DEVICE_GETSET_FUNCS(disk_total_bytes);
+BTRFS_DEVICE_GETSET_FUNCS(bytes_used);
 
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */

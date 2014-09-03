@@ -418,7 +418,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 
 	/* the disk copy procedure reuses the scrub code */
 	ret = btrfs_scrub_dev(fs_info, src_device->devid, 0,
-			      src_device->total_bytes,
+			      btrfs_device_get_total_bytes(src_device),
 			      &dev_replace->scrub_progress, 0, 1);
 
 	ret = btrfs_dev_replace_finishing(root->fs_info, ret);
@@ -555,11 +555,12 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	memcpy(uuid_tmp, tgt_device->uuid, sizeof(uuid_tmp));
 	memcpy(tgt_device->uuid, src_device->uuid, sizeof(tgt_device->uuid));
 	memcpy(src_device->uuid, uuid_tmp, sizeof(src_device->uuid));
-	tgt_device->total_bytes = src_device->total_bytes;
-	tgt_device->disk_total_bytes = src_device->disk_total_bytes;
+	btrfs_device_set_total_bytes(tgt_device, src_device->total_bytes);
+	btrfs_device_set_disk_total_bytes(tgt_device,
+					  src_device->disk_total_bytes);
+	btrfs_device_set_bytes_used(tgt_device, src_device->bytes_used);
 	ASSERT(list_empty(&src_device->resized_list));
 	tgt_device->commit_total_bytes = src_device->commit_total_bytes;
-	tgt_device->bytes_used = src_device->bytes_used;
 	tgt_device->commit_bytes_used = src_device->bytes_used;
 	if (fs_info->sb->s_bdev == src_device->bdev)
 		fs_info->sb->s_bdev = tgt_device->bdev;
@@ -650,6 +651,7 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 			      struct btrfs_ioctl_dev_replace_args *args)
 {
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
+	struct btrfs_device *srcdev;
 
 	btrfs_dev_replace_lock(dev_replace);
 	/* even if !dev_replace_is_valid, the values are good enough for
@@ -672,8 +674,9 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 		break;
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
+		srcdev = dev_replace->srcdev;
 		args->status.progress_1000 = div64_u64(dev_replace->cursor_left,
-			div64_u64(dev_replace->srcdev->total_bytes, 1000));
+			div64_u64(btrfs_device_get_total_bytes(srcdev), 1000));
 		break;
 	}
 	btrfs_dev_replace_unlock(dev_replace);
@@ -832,7 +835,7 @@ static int btrfs_dev_replace_continue_on_mount(struct btrfs_fs_info *fs_info)
 
 	ret = btrfs_scrub_dev(fs_info, dev_replace->srcdev->devid,
 			      dev_replace->committed_cursor_left,
-			      dev_replace->srcdev->total_bytes,
+			      btrfs_device_get_total_bytes(dev_replace->srcdev),
 			      &dev_replace->scrub_progress, 0, 1);
 	ret = btrfs_dev_replace_finishing(fs_info, ret);
 	WARN_ON(ret);
