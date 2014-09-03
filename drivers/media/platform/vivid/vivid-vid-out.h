@@ -51,7 +51,6 @@ int vidioc_g_audout(struct file *file, void *fh, struct v4l2_audioout *vout);
 int vidioc_s_audout(struct file *file, void *fh, const struct v4l2_audioout *vout);
 int vivid_vid_out_s_std(struct file *file, void *priv, v4l2_std_id id);
 int vivid_vid_out_s_dv_timings(struct file *file, void *_fh, struct v4l2_dv_timings *timings);
-int vidioc_g_edid(struct file *file, void *_fh, struct v4l2_edid *edid);
 int vivid_vid_out_g_parm(struct file *file, void *priv, struct v4l2_streamparm *parm);
 
 #endif

@@ -1113,63 +1113,6 @@ int vivid_vid_out_s_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
-#if 0
-int vivid_vid_out_g_edid(struct file *file, void *_fh,
-			 struct v4l2_edid *edid)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-	struct video_device *vdev = video_devdata(file);
-
-	memset(edid->reserved, 0, sizeof(edid->reserved));
-	if (vdev->vfl_dir == VFL_DIR_RX) {
-		if (edid->pad >= dev->num_inputs)
-			return -EINVAL;
-		if (dev->input_type[edid->pad] != HDMI)
-			return -EINVAL;
-	} else {
-		if (edid->pad >= dev->num_outputs)
-			return -EINVAL;
-		if (dev->output_type[edid->pad] != HDMI)
-			return -EINVAL;
-	}
-	if (edid->start_block == 0 && edid->blocks == 0) {
-		edid->blocks = dev->edid_blocks;
-		return 0;
-	}
-	if (dev->edid_blocks == 0)
-		return -ENODATA;
-	if (edid->start_block >= dev->edid_blocks)
-		return -EINVAL;
-	if (edid->start_block + edid->blocks > dev->edid_blocks)
-		edid->blocks = dev->edid_blocks - edid->start_block;
-	memcpy(edid->edid, dev->edid, edid->blocks * 128);
-	return 0;
-}
-
-int vivid_vid_out_s_edid(struct file *file, void *_fh,
-			 struct v4l2_edid *edid)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	memset(edid->reserved, 0, sizeof(edid->reserved));
-	if (edid->pad >= dev->num_inputs)
-		return -EINVAL;
-	if (dev->input_type[edid->pad] != HDMI || edid->start_block)
-		return -EINVAL;
-	if (edid->blocks == 0) {
-		dev->edid_blocks = 0;
-		return 0;
-	}
-	if (edid->blocks > dev->edid_max_blocks) {
-		edid->blocks = dev->edid_max_blocks;
-		return -E2BIG;
-	}
-	dev->edid_blocks = edid->blocks;
-	memcpy(dev->edid, edid->edid, edid->blocks * 128);
-	return 0;
-}
-#endif
-
 int vivid_vid_out_g_parm(struct file *file, void *priv,
 			  struct v4l2_streamparm *parm)
 {
