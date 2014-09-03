@@ -789,11 +789,6 @@ void __kprobes jprobe_return(void)
 	asm volatile(".word 0x0002");
 }
 
-static void __used __kprobes jprobe_return_end(void)
-{
-	asm volatile("bcr 0,0");
-}
-
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
