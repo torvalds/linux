@@ -78,17 +78,15 @@ struct rtl_phy *rtlphy = &(rtlpriv->phy);
 if (rtlpriv->link_info.b_busytraffic) {
 	rtlpcipriv->btcoexist.current_state &= ~BT_COEX_STATE_WIFI_IDLE;
 
-	if (rtlpriv->link_info.b_tx_busy_traffic) {
+	if (rtlpriv->link_info.b_tx_busy_traffic)
 		rtlpcipriv->btcoexist.current_state |= BT_COEX_STATE_WIFI_UPLINK;
-	} else {
+	else
 		rtlpcipriv->btcoexist.current_state &= ~BT_COEX_STATE_WIFI_UPLINK;
-	}
 
-	if (rtlpriv->link_info.b_rx_busy_traffic) {
+	if (rtlpriv->link_info.b_rx_busy_traffic)
 		rtlpcipriv->btcoexist.current_state |= BT_COEX_STATE_WIFI_DOWNLINK;
-	} else {
+	else
 		rtlpcipriv->btcoexist.current_state &= ~BT_COEX_STATE_WIFI_DOWNLINK;
-	}
 } else {
 	rtlpcipriv->btcoexist.current_state |= BT_COEX_STATE_WIFI_IDLE;
 	rtlpcipriv->btcoexist.current_state &= ~BT_COEX_STATE_WIFI_UPLINK;
@@ -111,11 +109,10 @@ if (rtlpriv->mac80211.mode == WIRELESS_MODE_G
 	}
 }
 
-if (bt_operation_on) {
+if (bt_operation_on)
 	rtlpcipriv->btcoexist.current_state |= BT_COEX_STATE_BT30;
-} else {
+else
 	rtlpcipriv->btcoexist.current_state &= ~BT_COEX_STATE_BT30;
-}
 }
 
 
@@ -254,8 +251,7 @@ u8 rtl8821ae_dm_bt_check_coex_rssi_state(struct ieee80211_hw *hw,
 					("[DM][BT], RSSI state stay at High\n"));
 			}
 		}
-	}
-	else if (level_num == 3) {
+	} else if (level_num == 3) {
 		if (rssi_thresh > rssi_thresh1) {
 			RT_TRACE(COMP_BT_COEXIST, DBG_TRACE,
 				("[DM][BT], RSSI thresh error!!\n"));
@@ -292,8 +288,7 @@ u8 rtl8821ae_dm_bt_check_coex_rssi_state(struct ieee80211_hw *hw,
 					&= ~BT_COEX_STATE_WIFI_RSSI_MEDIUM;
 				RT_TRACE(COMP_BT_COEXIST, DBG_TRACE,
 					("[DM][BT], RSSI state switch to High\n"));
-			} else if (undecoratedsmoothed_pwdb < rssi_thresh)
-			{
+			} else if (undecoratedsmoothed_pwdb < rssi_thresh) {
 				bt_rssi_state = BT_RSSI_STATE_LOW;
 				rtlpcipriv->btcoexist.current_state
 					|= BT_COEX_STATE_WIFI_RSSI_LOW;
