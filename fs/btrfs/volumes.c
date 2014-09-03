@@ -2370,6 +2370,7 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
 	ASSERT(list_empty(&srcdev->resized_list));
 	device->commit_total_bytes = srcdev->commit_total_bytes;
 	device->bytes_used = srcdev->bytes_used;
+	device->commit_bytes_used = device->bytes_used;
 	device->dev_root = fs_info->dev_root;
 	device->bdev = bdev;
 	device->in_fs_metadata = 1;
@@ -6009,6 +6010,7 @@ static void fill_device_from_item(struct extent_buffer *leaf,
 	device->total_bytes = device->disk_total_bytes;
 	device->commit_total_bytes = device->disk_total_bytes;
 	device->bytes_used = btrfs_device_bytes_used(leaf, dev_item);
+	device->commit_bytes_used = device->bytes_used;
 	device->type = btrfs_device_type(leaf, dev_item);
 	device->io_align = btrfs_device_io_align(leaf, dev_item);
 	device->io_width = btrfs_device_io_width(leaf, dev_item);
@@ -6557,4 +6559,29 @@ void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info)
 	}
 	unlock_chunks(fs_info->dev_root);
 	mutex_unlock(&fs_devices->device_list_mutex);
+}
+
+/* Must be invoked during the transaction commit */
+void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
+					struct btrfs_transaction *transaction)
+{
+	struct extent_map *em;
+	struct map_lookup *map;
+	struct btrfs_device *dev;
+	int i;
+
+	if (list_empty(&transaction->pending_chunks))
+		return;
+
+	/* In order to kick the device replace finish process */
+	lock_chunks(root);
+	list_for_each_entry(em, &transaction->pending_chunks, list) {
+		map = (struct map_lookup *)em->bdev;
+
+		for (i = 0; i < map->num_stripes; i++) {
+			dev = map->stripes[i].dev;
+			dev->commit_bytes_used = dev->bytes_used;
+		}
+	}
+	unlock_chunks(root);
 }

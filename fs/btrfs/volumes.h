@@ -95,6 +95,8 @@ struct btrfs_device {
 	 */
 	u64 commit_total_bytes;
 
+	/* bytes used on the current transaction */
+	u64 commit_bytes_used;
 	/*
 	 * used to manage the device which is resized
 	 *
@@ -420,4 +422,6 @@ static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
 }
 
 void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
+void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
+					struct btrfs_transaction *transaction);
 #endif

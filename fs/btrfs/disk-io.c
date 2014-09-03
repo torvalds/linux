@@ -3446,7 +3446,8 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		btrfs_set_stack_device_id(dev_item, dev->devid);
 		btrfs_set_stack_device_total_bytes(dev_item,
 						   dev->commit_total_bytes);
-		btrfs_set_stack_device_bytes_used(dev_item, dev->bytes_used);
+		btrfs_set_stack_device_bytes_used(dev_item,
+						  dev->commit_bytes_used);
 		btrfs_set_stack_device_io_align(dev_item, dev->io_align);
 		btrfs_set_stack_device_io_width(dev_item, dev->io_width);
 		btrfs_set_stack_device_sector_size(dev_item, dev->sector_size);

@@ -172,6 +172,8 @@ no_valid_dev_replace_entry_found:
 					dev_replace->srcdev->commit_total_bytes;
 				dev_replace->tgtdev->bytes_used =
 					dev_replace->srcdev->bytes_used;
+				dev_replace->tgtdev->commit_bytes_used =
+					dev_replace->srcdev->commit_bytes_used;
 			}
 			dev_replace->tgtdev->is_tgtdev_for_dev_replace = 1;
 			btrfs_init_dev_replace_tgtdev_for_resume(fs_info,
@@ -558,6 +560,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	ASSERT(list_empty(&src_device->resized_list));
 	tgt_device->commit_total_bytes = src_device->commit_total_bytes;
 	tgt_device->bytes_used = src_device->bytes_used;
+	tgt_device->commit_bytes_used = src_device->bytes_used;
 	if (fs_info->sb->s_bdev == src_device->bdev)
 		fs_info->sb->s_bdev = tgt_device->bdev;
 	if (fs_info->fs_devices->latest_bdev == src_device->bdev)
