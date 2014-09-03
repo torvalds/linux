@@ -862,7 +862,6 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
 			r = st21nfca_tm_event_send_data(hdev, skb, gate);
 			if (r < 0)
 				goto exit;
-			return 0;
 		} else {
 			info->dep_info.curr_nfc_dep_pni = 0;
 			return 1;
