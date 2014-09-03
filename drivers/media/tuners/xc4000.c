@@ -569,67 +569,67 @@ static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val)
 #define dump_firm_type(t)	dump_firm_type_and_int_freq(t, 0)
 static void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
 {
-	 if (type & BASE)
+	if (type & BASE)
 		printk(KERN_CONT "BASE ");
-	 if (type & INIT1)
+	if (type & INIT1)
 		printk(KERN_CONT "INIT1 ");
-	 if (type & F8MHZ)
+	if (type & F8MHZ)
 		printk(KERN_CONT "F8MHZ ");
-	 if (type & MTS)
+	if (type & MTS)
 		printk(KERN_CONT "MTS ");
-	 if (type & D2620)
+	if (type & D2620)
 		printk(KERN_CONT "D2620 ");
-	 if (type & D2633)
+	if (type & D2633)
 		printk(KERN_CONT "D2633 ");
-	 if (type & DTV6)
+	if (type & DTV6)
 		printk(KERN_CONT "DTV6 ");
-	 if (type & QAM)
+	if (type & QAM)
 		printk(KERN_CONT "QAM ");
-	 if (type & DTV7)
+	if (type & DTV7)
 		printk(KERN_CONT "DTV7 ");
-	 if (type & DTV78)
+	if (type & DTV78)
 		printk(KERN_CONT "DTV78 ");
-	 if (type & DTV8)
+	if (type & DTV8)
 		printk(KERN_CONT "DTV8 ");
-	 if (type & FM)
+	if (type & FM)
 		printk(KERN_CONT "FM ");
-	 if (type & INPUT1)
+	if (type & INPUT1)
 		printk(KERN_CONT "INPUT1 ");
-	 if (type & LCD)
+	if (type & LCD)
 		printk(KERN_CONT "LCD ");
-	 if (type & NOGD)
+	if (type & NOGD)
 		printk(KERN_CONT "NOGD ");
-	 if (type & MONO)
+	if (type & MONO)
 		printk(KERN_CONT "MONO ");
-	 if (type & ATSC)
+	if (type & ATSC)
 		printk(KERN_CONT "ATSC ");
-	 if (type & IF)
+	if (type & IF)
 		printk(KERN_CONT "IF ");
-	 if (type & LG60)
+	if (type & LG60)
 		printk(KERN_CONT "LG60 ");
-	 if (type & ATI638)
+	if (type & ATI638)
 		printk(KERN_CONT "ATI638 ");
-	 if (type & OREN538)
+	if (type & OREN538)
 		printk(KERN_CONT "OREN538 ");
-	 if (type & OREN36)
+	if (type & OREN36)
 		printk(KERN_CONT "OREN36 ");
-	 if (type & TOYOTA388)
+	if (type & TOYOTA388)
 		printk(KERN_CONT "TOYOTA388 ");
-	 if (type & TOYOTA794)
+	if (type & TOYOTA794)
 		printk(KERN_CONT "TOYOTA794 ");
-	 if (type & DIBCOM52)
+	if (type & DIBCOM52)
 		printk(KERN_CONT "DIBCOM52 ");
-	 if (type & ZARLINK456)
+	if (type & ZARLINK456)
 		printk(KERN_CONT "ZARLINK456 ");
-	 if (type & CHINA)
+	if (type & CHINA)
 		printk(KERN_CONT "CHINA ");
-	 if (type & F6MHZ)
+	if (type & F6MHZ)
 		printk(KERN_CONT "F6MHZ ");
-	 if (type & INPUT2)
+	if (type & INPUT2)
 		printk(KERN_CONT "INPUT2 ");
-	 if (type & SCODE)
+	if (type & SCODE)
 		printk(KERN_CONT "SCODE ");
-	 if (type & HAS_IF)
+	if (type & HAS_IF)
 		printk(KERN_CONT "HAS_IF_%d ", int_freq);
 }
 
