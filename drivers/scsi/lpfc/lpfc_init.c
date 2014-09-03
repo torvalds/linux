@@ -6719,7 +6719,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	struct lpfc_mbx_get_func_cfg *get_func_cfg;
 	struct lpfc_rsrc_desc_fcfcoe *desc;
 	char *pdesc_0;
-	uint32_t desc_count;
 	int length, i, rc = 0, rc2;
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -6850,7 +6849,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 
 	/* search for fc_fcoe resrouce descriptor */
 	get_func_cfg = &pmb->u.mqe.un.get_func_cfg;
-	desc_count = get_func_cfg->func_cfg.rsrc_desc_count;
 
 	pdesc_0 = (char *)&get_func_cfg->func_cfg.desc[0];
 	desc = (struct lpfc_rsrc_desc_fcfcoe *)pdesc_0;

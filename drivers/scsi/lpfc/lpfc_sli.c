@@ -187,7 +187,6 @@ lpfc_sli4_mq_put(struct lpfc_queue *q, struct lpfc_mqe *mqe)
 {
 	struct lpfc_mqe *temp_mqe;
 	struct lpfc_register doorbell;
-	uint32_t host_index;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
@@ -202,7 +201,6 @@ lpfc_sli4_mq_put(struct lpfc_queue *q, struct lpfc_mqe *mqe)
 	q->phba->mbox = (MAILBOX_t *)temp_mqe;
 
 	/* Update the host index before invoking device */
-	host_index = q->host_index;
 	q->host_index = ((q->host_index + 1) % q->entry_count);
 
 	/* Ring Doorbell */
@@ -2435,11 +2433,9 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	IOCB_t           * irsp;
 	WORD5            * w5p;
 	uint32_t           Rctl, Type;
-	uint32_t           match;
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_dmabuf *dmzbuf;
 
-	match = 0;
 	irsp = &(saveq->iocb);
 
 	if (irsp->ulpCommand == CMD_ASYNC_STATUS) {
@@ -2865,7 +2861,7 @@ lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 void lpfc_poll_eratt(unsigned long ptr)
 {
 	struct lpfc_hba *phba;
-	uint32_t eratt = 0, rem;
+	uint32_t eratt = 0;
 	uint64_t sli_intr, cnt;
 
 	phba = (struct lpfc_hba *)ptr;
@@ -2880,7 +2876,7 @@ void lpfc_poll_eratt(unsigned long ptr)
 		cnt = (sli_intr - phba->sli.slistat.sli_prev_intr);
 
 	/* 64-bit integer division not supporte on 32-bit x86 - use do_div */
-	rem = do_div(cnt, LPFC_ERATT_POLL_INTERVAL);
+	do_div(cnt, LPFC_ERATT_POLL_INTERVAL);
 	phba->sli.slistat.sli_ips = cnt;
 
 	phba->sli.slistat.sli_prev_intr = sli_intr;
@@ -5953,9 +5949,6 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 		curr_blks++;
 	}
 
-	/* Calculate the total requested length of the dma memory. */
-	req_len = curr_blks * sizeof(uint16_t);
-
 	/*
 	 * Calculate the size of an embedded mailbox.  The uint32_t
 	 * accounts for extents-specific word.
@@ -6766,13 +6759,16 @@ void
 lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *pmbox = phba->sli.mbox_active;
-	MAILBOX_t *mb = &pmbox->u.mb;
+	MAILBOX_t *mb = NULL;
+
 	struct lpfc_sli *psli = &phba->sli;
 
 	/* If the mailbox completed, process the completion and return */
 	if (lpfc_sli4_process_missed_mbox_completions(phba))
 		return;
 
+	if (pmbox != NULL)
+		mb = &pmbox->u.mb;
 	/* Check the pmbox pointer first.  There is a race condition
 	 * between the mbox timeout handler getting executed in the
 	 * worklist and the mailbox actually completing. When this
@@ -8121,7 +8117,6 @@ lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba)
 			cpup += cpu;
 			return cpup->channel_id;
 		}
-		chann = cpu;
 	}
 	chann = atomic_add_return(1, &phba->fcp_qidx);
 	chann = (chann % phba->cfg_fcp_io_channel);
@@ -12604,6 +12599,9 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	 * Process all the event on FCP fast-path EQ
 	 */
 	while ((eqe = lpfc_sli4_eq_get(fpeq))) {
+		if (eqe == NULL)
+			break;
+
 		lpfc_sli4_hba_handle_eqe(phba, eqe, fcp_eqidx);
 		if (!(++ecount % fpeq->entry_repost))
 			lpfc_sli4_eq_release(fpeq, LPFC_QUEUE_NOARM);
@@ -14244,7 +14242,6 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 				"2511 POST_SGL mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
-		rc = -ENXIO;
 	}
 	return 0;
 }

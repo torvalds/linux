@@ -1439,7 +1439,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			/* #2 HBA attribute entry */
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) rh + size);
 			ae->ad.bits.AttrType = be16_to_cpu(MANUFACTURER);
-			strcpy(ae->un.Manufacturer, "Emulex Corporation");
+			strncpy(ae->un.Manufacturer, "Emulex Corporation", 64);
 			len = strlen(ae->un.Manufacturer);
 			len += (len & 3) ? (4 - (len & 3)) : 4;
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + len);
@@ -1449,7 +1449,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			/* #3 HBA attribute entry */
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) rh + size);
 			ae->ad.bits.AttrType = be16_to_cpu(SERIAL_NUMBER);
-			strcpy(ae->un.SerialNumber, phba->SerialNumber);
+			strncpy(ae->un.SerialNumber, phba->SerialNumber, 64);
 			len = strlen(ae->un.SerialNumber);
 			len += (len & 3) ? (4 - (len & 3)) : 4;
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + len);
@@ -1459,7 +1459,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			/* #4 HBA attribute entry */
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) rh + size);
 			ae->ad.bits.AttrType = be16_to_cpu(MODEL);
-			strcpy(ae->un.Model, phba->ModelName);
+			strncpy(ae->un.Model, phba->ModelName, 256);
 			len = strlen(ae->un.Model);
 			len += (len & 3) ? (4 - (len & 3)) : 4;
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + len);
@@ -1469,7 +1469,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			/* #5 HBA attribute entry */
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) rh + size);
 			ae->ad.bits.AttrType = be16_to_cpu(MODEL_DESCRIPTION);
-			strcpy(ae->un.ModelDescription, phba->ModelDesc);
+			strncpy(ae->un.ModelDescription, phba->ModelDesc, 256);
 			len = strlen(ae->un.ModelDescription);
 			len += (len & 3) ? (4 - (len & 3)) : 4;
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + len);
@@ -1500,7 +1500,8 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			/* #7 HBA attribute entry */
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) rh + size);
 			ae->ad.bits.AttrType = be16_to_cpu(DRIVER_VERSION);
-			strcpy(ae->un.DriverVersion, lpfc_release_version);
+			strncpy(ae->un.DriverVersion,
+				lpfc_release_version, 256);
 			len = strlen(ae->un.DriverVersion);
 			len += (len & 3) ? (4 - (len & 3)) : 4;
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + len);
@@ -1510,7 +1511,8 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			/* #8 HBA attribute entry */
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) rh + size);
 			ae->ad.bits.AttrType = be16_to_cpu(OPTION_ROM_VERSION);
-			strcpy(ae->un.OptionROMVersion, phba->OptionROMVersion);
+			strncpy(ae->un.OptionROMVersion,
+				phba->OptionROMVersion, 256);
 			len = strlen(ae->un.OptionROMVersion);
 			len += (len & 3) ? (4 - (len & 3)) : 4;
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + len);
