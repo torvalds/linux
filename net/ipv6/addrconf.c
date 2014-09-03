@@ -4772,11 +4772,8 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 
 			rt = rt6_lookup(dev_net(dev), &ifp->peer_addr, NULL,
 					dev->ifindex, 1);
-			if (rt) {
-				dst_hold(&rt->dst);
-				if (ip6_del_rt(rt))
-					dst_free(&rt->dst);
-			}
+			if (rt && ip6_del_rt(rt))
+				dst_free(&rt->dst);
 		}
 		dst_hold(&ifp->rt->dst);
 
