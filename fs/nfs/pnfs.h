@@ -280,6 +280,13 @@ void nfs4_deviceid_purge_client(const struct nfs_client *);
 int nfs4_deviceid_getdevicelist(struct nfs_server *server,
 		const struct nfs_fh *fh);
 
+static inline struct nfs4_deviceid_node *
+nfs4_get_deviceid(struct nfs4_deviceid_node *d)
+{
+	atomic_inc(&d->ref);
+	return d;
+}
+
 static inline struct pnfs_layout_segment *
 pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
