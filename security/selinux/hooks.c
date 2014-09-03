@@ -4993,6 +4993,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb, int ifindex,
 			case PF_INET6:
 				if (IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED)
 					return NF_ACCEPT;
+				break;
 			default:
 				return NF_DROP_ERR(-ECONNREFUSED);
 			}
