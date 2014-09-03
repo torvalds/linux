@@ -3856,7 +3856,7 @@ static int sh73a0_pinmux_soc_init(struct sh_pfc *pfc)
 	return 0;
 }
 
-static const struct sh_pfc_soc_operations sh73a0_pinmux_ops = {
+static const struct sh_pfc_soc_operations sh73a0_pfc_ops = {
 	.init = sh73a0_pinmux_soc_init,
 	.get_bias = sh73a0_pinmux_get_bias,
 	.set_bias = sh73a0_pinmux_set_bias,
@@ -3864,7 +3864,7 @@ static const struct sh_pfc_soc_operations sh73a0_pinmux_ops = {
 
 const struct sh_pfc_soc_info sh73a0_pinmux_info = {
 	.name = "sh73a0_pfc",
-	.ops = &sh73a0_pinmux_ops,
+	.ops = &sh73a0_pfc_ops,
 
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
