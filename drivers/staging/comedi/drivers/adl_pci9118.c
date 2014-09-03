@@ -36,8 +36,8 @@
  * b) DMA transfers must have the length aligned to two samples (32 bit),
  *  so there is some problems if cmd->chanlist_len is odd. This driver tries
  *  bypass this with adding one sample to the end of the every scan and discard
- *  it on output but this cann't be used if cmd->scan_begin_src=TRIG_FOLLOW
- *  and is used flag TRIG_WAKE_EOS, then driver switch to interrupt driven mode
+ *  it on output but this can't be used if cmd->scan_begin_src=TRIG_FOLLOW
+ *  and is used flag CMDF_WAKE_EOS, then driver switch to interrupt driven mode
  *  with interrupt after every sample.
  * c) If isn't used DMA then you can use only mode where
  *  cmd->scan_begin_src=TRIG_FOLLOW.
@@ -1294,12 +1294,12 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 	}
 
 	/* we want wake up every scan? */
-	if (devpriv->ai_flags & TRIG_WAKE_EOS) {
+	if (devpriv->ai_flags & CMDF_WAKE_EOS) {
 		if (dmalen0 < (devpriv->ai_n_realscanlen << 1)) {
 			/* uff, too short DMA buffer, disable EOS support! */
-			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
+			devpriv->ai_flags &= (~CMDF_WAKE_EOS);
 			dev_info(dev->class_dev,
-				 "WAR: DMA0 buf too short, can't support TRIG_WAKE_EOS (%d<%d)\n",
+				 "WAR: DMA0 buf too short, can't support CMDF_WAKE_EOS (%d<%d)\n",
 				  dmalen0, devpriv->ai_n_realscanlen << 1);
 		} else {
 			/* short first DMA buffer to one scan */
@@ -1312,12 +1312,12 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 			}
 		}
 	}
-	if (devpriv->ai_flags & TRIG_WAKE_EOS) {
+	if (devpriv->ai_flags & CMDF_WAKE_EOS) {
 		if (dmalen1 < (devpriv->ai_n_realscanlen << 1)) {
 			/* uff, too short DMA buffer, disable EOS support! */
-			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
+			devpriv->ai_flags &= (~CMDF_WAKE_EOS);
 			dev_info(dev->class_dev,
-				 "WAR: DMA1 buf too short, can't support TRIG_WAKE_EOS (%d<%d)\n",
+				 "WAR: DMA1 buf too short, can't support CMDF_WAKE_EOS (%d<%d)\n",
 				 dmalen1, devpriv->ai_n_realscanlen << 1);
 		} else {
 			/* short second DMA buffer to one scan */
@@ -1331,8 +1331,8 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 		}
 	}
 
-	/* transfer without TRIG_WAKE_EOS */
-	if (!(devpriv->ai_flags & TRIG_WAKE_EOS)) {
+	/* transfer without CMDF_WAKE_EOS */
+	if (!(devpriv->ai_flags & CMDF_WAKE_EOS)) {
 		/* if it's possible then align DMA buffers to length of scan */
 		i = dmalen0;
 		dmalen0 =
@@ -1570,7 +1570,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_add_back = 0;
 	if (devpriv->master) {
 		devpriv->usedma = 1;
-		if ((cmd->flags & TRIG_WAKE_EOS) &&
+		if ((cmd->flags & CMDF_WAKE_EOS) &&
 		    (cmd->scan_end_arg == 1)) {
 			if (cmd->convert_src == TRIG_NOW)
 				devpriv->ai_add_back = 1;
@@ -1582,7 +1582,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					 */
 			}
 		}
-		if ((cmd->flags & TRIG_WAKE_EOS) &&
+		if ((cmd->flags & CMDF_WAKE_EOS) &&
 		    (cmd->scan_end_arg & 1) &&
 		    (cmd->scan_end_arg > 1)) {
 			if (cmd->scan_begin_src == TRIG_FOLLOW) {
