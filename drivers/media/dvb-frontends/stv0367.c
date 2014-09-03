@@ -1935,8 +1935,6 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367ter_state *ter_state = state->ter_state;
-
-	int error = 0;
 	enum stv0367_ter_mode mode;
 	int constell = 0,/* snr = 0,*/ Data = 0;
 
@@ -2020,7 +2018,7 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe)
 
 	p->guard_interval = stv0367_readbits(state, F367TER_SYR_GUARD);
 
-	return error;
+	return 0;
 }
 
 static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
