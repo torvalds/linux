@@ -49,6 +49,12 @@ static inline bool trigger_allbutself_cpu_backtrace(void)
 	arch_trigger_all_cpu_backtrace(false);
 	return true;
 }
+
+/* generic implementation */
+void nmi_trigger_all_cpu_backtrace(bool include_self,
+				   void (*raise)(cpumask_t *mask));
+bool nmi_cpu_backtrace(struct pt_regs *regs);
+
 #else
 static inline bool trigger_all_cpu_backtrace(void)
 {
