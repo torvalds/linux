@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-common.h>

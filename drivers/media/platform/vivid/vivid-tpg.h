@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/random.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 
 #include "vivid-tpg-colors.h"
