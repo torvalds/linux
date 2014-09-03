@@ -817,6 +817,15 @@ bool iommu_present(struct bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(iommu_present);
 
+bool iommu_capable(struct bus_type *bus, enum iommu_cap cap)
+{
+	if (!bus->iommu_ops || !bus->iommu_ops->capable)
+		return false;
+
+	return bus->iommu_ops->capable(cap);
+}
+EXPORT_SYMBOL_GPL(iommu_capable);
+
 /**
  * iommu_set_fault_handler() - set a fault handler for an iommu domain
  * @domain: iommu domain
@@ -950,10 +959,13 @@ EXPORT_SYMBOL_GPL(iommu_iova_to_phys);
 int iommu_domain_has_cap(struct iommu_domain *domain,
 			 enum iommu_cap cap)
 {
-	if (unlikely(domain->ops->domain_has_cap == NULL))
-		return 0;
+	if (domain->ops->domain_has_cap != NULL)
+		return domain->ops->domain_has_cap(domain, cap);
 
-	return domain->ops->domain_has_cap(domain, cap);
+	if (domain->ops->capable != NULL)
+		return domain->ops->capable(cap);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(iommu_domain_has_cap);
 

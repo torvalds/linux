@@ -105,6 +105,7 @@ enum iommu_attr {
  * @pgsize_bitmap: bitmap of supported page sizes
  */
 struct iommu_ops {
+	bool (*capable)(enum iommu_cap);
 	int (*domain_init)(struct iommu_domain *domain);
 	void (*domain_destroy)(struct iommu_domain *domain);
 	int (*attach_dev)(struct iommu_domain *domain, struct device *dev);
@@ -145,6 +146,7 @@ struct iommu_ops {
 
 extern int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops);
 extern bool iommu_present(struct bus_type *bus);
+extern bool iommu_capable(struct bus_type *bus, enum iommu_cap cap);
 extern struct iommu_domain *iommu_domain_alloc(struct bus_type *bus);
 extern struct iommu_group *iommu_group_get_by_id(int id);
 extern void iommu_domain_free(struct iommu_domain *domain);
@@ -249,6 +251,11 @@ struct iommu_ops {};
 struct iommu_group {};
 
 static inline bool iommu_present(struct bus_type *bus)
+{
+	return false;
+}
+
+static inline bool iommu_capable(struct bus_type *bus, enum iommu_cap cap)
 {
 	return false;
 }
