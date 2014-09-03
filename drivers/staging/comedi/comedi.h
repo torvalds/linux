@@ -123,13 +123,14 @@
 /* trigger flags */
 /* These flags are used in comedi_trig structures */
 
-#define TRIG_BOGUS	0x0001	/* do the motions */
 #define TRIG_DITHER	0x0002	/* enable dithering */
 #define TRIG_DEGLITCH	0x0004	/* enable deglitching */
 #define TRIG_CONFIG	0x0010	/* perform configuration, not triggering */
 
 /* command flags */
 /* These flags are used in comedi_cmd structures */
+
+#define CMDF_BOGUS		0x00000001	/* do the motions */
 
 /* try to use a real-time interrupt while performing command */
 #define CMDF_PRIORITY		0x00000008
@@ -154,6 +155,7 @@
 #define TRIG_ROUND_UP_NEXT	0x00030000
 
 /* compatibility definitions */
+#define TRIG_BOGUS		CMDF_BOGUS
 #define TRIG_RT			CMDF_PRIORITY
 #define TRIG_WAKE_EOS		CMDF_WAKE_EOS
 #define TRIG_WRITE		CMDF_WRITE
