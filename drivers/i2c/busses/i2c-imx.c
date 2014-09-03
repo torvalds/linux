@@ -268,6 +268,14 @@ static int i2c_imx_bus_busy(struct imx_i2c_struct *i2c_imx, int for_busy)
 
 	while (1) {
 		temp = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2SR);
+
+		/* check for arbitration lost */
+		if (temp & I2SR_IAL) {
+			temp &= ~I2SR_IAL;
+			imx_i2c_write_reg(temp, i2c_imx, IMX_I2C_I2SR);
+			return -EAGAIN;
+		}
+
 		if (for_busy && (temp & I2SR_IBB))
 			break;
 		if (!for_busy && !(temp & I2SR_IBB))
