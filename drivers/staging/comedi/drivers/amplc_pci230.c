@@ -1765,7 +1765,7 @@ static void pci230_ai_update_fifo_trigger_level(struct comedi_device *dev,
 	unsigned short triglev;
 	unsigned short adccon;
 
-	if (cmd->flags & TRIG_WAKE_EOS)
+	if (cmd->flags & CMDF_WAKE_EOS)
 		wake = scanlen - devpriv->ai_scan_pos;
 	else if (cmd->stop_src != TRIG_COUNT ||
 		 devpriv->ai_scan_count >= PCI230_ADC_FIFOLEVEL_HALFFULL ||
