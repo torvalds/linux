@@ -1114,7 +1114,7 @@ static int apci3120_cyclic_ai(int mode,
 					  dmalen0;
 		}
 
-		if (cmd->flags & TRIG_WAKE_EOS) {
+		if (cmd->flags & CMDF_WAKE_EOS) {
 			/*  don't we want wake up every scan? */
 			if (dmalen0 > scan_bytes) {
 				dmalen0 = scan_bytes;
@@ -1433,7 +1433,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 			devpriv->ul_DmaBufferVirtual[devpriv->
 				ui_DmaActualBuffer], samplesinbuf);
 
-		if (!(cmd->flags & TRIG_WAKE_EOS)) {
+		if (!(cmd->flags & CMDF_WAKE_EOS)) {
 			s->async->events |= COMEDI_CB_EOS;
 			comedi_event(dev, s);
 		}
