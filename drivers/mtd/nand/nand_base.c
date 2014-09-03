@@ -485,11 +485,11 @@ static int nand_check_wp(struct mtd_info *mtd)
 }
 
 /**
- * nand_block_checkbad - [GENERIC] Check if a block is marked bad
+ * nand_block_isreserved - [GENERIC] Check if a block is marked reserved.
  * @mtd: MTD device structure
  * @ofs: offset from device start
  *
- * Check if the block is mark as reserved.
+ * Check if the block is marked as reserved.
  */
 static int nand_block_isreserved(struct mtd_info *mtd, loff_t ofs)
 {
