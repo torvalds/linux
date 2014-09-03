@@ -249,7 +249,7 @@ void tpg_s_crop_compose(struct tpg_data *tpg, const struct v4l2_rect *crop,
 }
 
 void tpg_reset_source(struct tpg_data *tpg, unsigned width, unsigned height,
-		       enum v4l2_field field)
+		       u32 field)
 {
 	unsigned p;
 
