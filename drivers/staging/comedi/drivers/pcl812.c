@@ -812,7 +812,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	s->async->cur_chan = 0;
 
 	/*  don't we want wake up every scan? */
-	if (cmd->flags & TRIG_WAKE_EOS) {
+	if (cmd->flags & CMDF_WAKE_EOS) {
 		devpriv->ai_eos = 1;
 
 		/*  DMA is useless for this situation */
