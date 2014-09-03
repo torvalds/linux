@@ -653,8 +653,6 @@ static void msm_gpio_irq_ack(struct irq_data *d)
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 }
 
-#define INTR_TARGET_PROC_APPS    4
-
 static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
@@ -678,7 +676,7 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	/* Route interrupts to application cpu */
 	val = readl(pctrl->regs + g->intr_target_reg);
 	val &= ~(7 << g->intr_target_bit);
-	val |= INTR_TARGET_PROC_APPS << g->intr_target_bit;
+	val |= g->intr_target_kpss_val << g->intr_target_bit;
 	writel(val, pctrl->regs + g->intr_target_reg);
 
 	/* Update configuration for gpio.
