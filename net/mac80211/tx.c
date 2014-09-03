@@ -1789,9 +1789,8 @@ static void ieee80211_tx_latency_start_msrmnt(struct ieee80211_local *local,
  * @skb: packet to be sent
  * @dev: incoming interface
  *
- * Returns: 0 on success (and frees skb in this case) or 1 on failure (skb will
- * not be freed, and caller is responsible for either retrying later or freeing
- * skb).
+ * Returns: NETDEV_TX_OK both on success and on failure. On failure skb will
+ *	be freed.
  *
  * This function takes in an Ethernet header and encapsulates it with suitable
  * IEEE 802.11 header based on which interface the packet is coming in. The
