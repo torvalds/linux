@@ -326,8 +326,8 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			}
 		}
 	}
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		/*  if least upper bound is better approximation */
 		if (lub - *period < *period - glb)
@@ -335,10 +335,10 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 		else
 			*period = glb;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		*period = lub;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		*period = glb;
 		break;
 	}
