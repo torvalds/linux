@@ -207,21 +207,6 @@ config X86_PKG_TEMP_THERMAL
 	  two trip points which can be set by user to get notifications via thermal
 	  notification methods.
 
-config ACPI_INT3403_THERMAL
-	tristate "ACPI INT3403 thermal driver"
-	depends on X86 && ACPI
-	help
-	  Newer laptops and tablets that use ACPI may have thermal sensors
-	  outside the core CPU/SOC for thermal safety reasons. These
-	  temperature sensors are also exposed for the OS to use via the so
-	  called INT3403 ACPI object. This driver will, on devices that have
-	  such sensors, expose the temperature information from these sensors
-	  to userspace via the normal thermal framework. This means that a wide
-	  range of applications and GUI widgets can show this information to
-	  the user or use this information for making decisions. For example,
-	  the Intel Thermal Daemon can use this information to allow the user
-	  to select his laptop to run without turning on the fans.
-
 config INTEL_SOC_DTS_THERMAL
 	tristate "Intel SoCs DTS thermal driver"
 	depends on X86 && IOSF_MBI
