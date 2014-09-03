@@ -164,7 +164,7 @@ static int process_measurement(struct file *file, const char *filename,
 	struct ima_template_desc *template_desc;
 	char *pathbuf = NULL;
 	const char *pathname = NULL;
-	int rc = -ENOMEM, action, must_appraise, _func;
+	int rc = -ENOMEM, action, must_appraise;
 	struct evm_ima_xattr_data *xattr_value = NULL, **xattr_ptr = NULL;
 	int xattr_len = 0;
 
@@ -182,7 +182,8 @@ static int process_measurement(struct file *file, const char *filename,
 	must_appraise = action & IMA_APPRAISE;
 
 	/*  Is the appraise rule hook specific?  */
-	_func = (action & IMA_FILE_APPRAISE) ? FILE_CHECK : function;
+	if (action & IMA_FILE_APPRAISE)
+		function = FILE_CHECK;
 
 	mutex_lock(&inode->i_mutex);
 
@@ -201,7 +202,7 @@ static int process_measurement(struct file *file, const char *filename,
 	/* Nothing to do, just return existing appraised status */
 	if (!action) {
 		if (must_appraise)
-			rc = ima_get_cache_status(iint, _func);
+			rc = ima_get_cache_status(iint, function);
 		goto out_digsig;
 	}
 
@@ -223,7 +224,7 @@ static int process_measurement(struct file *file, const char *filename,
 		ima_store_measurement(iint, file, pathname,
 				      xattr_value, xattr_len);
 	if (action & IMA_APPRAISE_SUBMASK)
-		rc = ima_appraise_measurement(_func, iint, file, pathname,
+		rc = ima_appraise_measurement(function, iint, file, pathname,
 					      xattr_value, xattr_len, opened);
 	if (action & IMA_AUDIT)
 		ima_audit_measurement(iint, pathname);
