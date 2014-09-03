@@ -75,7 +75,6 @@
 #include <linux/of_device.h>
 #include <linux/uaccess.h>
 
-
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION("1.0.0-a");
@@ -172,7 +171,6 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define SPEED_1000_TXAMP		0xf
 #define SPEED_1000_WORD			0x1
 
-
 /* SerDes RxTx register offsets */
 #define RXTX_REG20			0x0050
 #define RXTX_REG114			0x01c8
@@ -266,7 +264,6 @@ do {									\
 	XSIR1_IOWRITE((_priv), _reg, reg_val);				\
 } while (0)
 
-
 /* Macros for reading or writing SerDes RxTx registers
  *  The ioread macros will get bit fields or full values using the
  *  register definitions formed using the input names
@@ -293,7 +290,6 @@ do {									\
 		 _reg##_##_field##_WIDTH, (_val));			\
 	XRXTX_IOWRITE((_priv), _reg, reg_val);				\
 } while (0)
-
 
 enum amd_xgbe_phy_an {
 	AMD_XGBE_AN_READY = 0,
