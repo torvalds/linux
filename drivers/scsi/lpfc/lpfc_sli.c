@@ -14270,7 +14270,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
  *	A nonzero rpi defined as rpi_base <= rpi < max_rpi if successful
  *	LPFC_RPI_ALLOC_ERROR if no rpis are available.
  **/
-uint16_t
+static uint16_t
 lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
 {
 	unsigned long xri;
@@ -14300,7 +14300,7 @@ lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
  * This routine is invoked to release an xri to the pool of
  * available rpis maintained by the driver.
  **/
-void
+static void
 __lpfc_sli4_free_xri(struct lpfc_hba *phba, int xri)
 {
 	if (test_and_clear_bit(xri, phba->sli4_hba.xri_bmask)) {
@@ -14720,7 +14720,7 @@ lpfc_fc_frame_to_vport(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr,
  * the driver uses this time stamp to indicate if any received sequences have
  * timed out.
  **/
-void
+static void
 lpfc_update_rcv_time_stamp(struct lpfc_vport *vport)
 {
 	struct lpfc_dmabuf *h_buf;
@@ -15189,7 +15189,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
  * unsolicited sequence has been aborted. After that, it will issue a basic
  * accept to accept the abort.
  **/
-void
+static void
 lpfc_sli4_handle_unsol_abort(struct lpfc_vport *vport,
 			     struct hbq_dmabuf *dmabuf)
 {
@@ -15734,7 +15734,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
  * This routine is invoked to release an rpi to the pool of
  * available rpis maintained by the driver.
  **/
-void
+static void
 __lpfc_sli4_free_rpi(struct lpfc_hba *phba, int rpi)
 {
 	if (test_and_clear_bit(rpi, phba->sli4_hba.rpi_bmask)) {
@@ -16172,7 +16172,7 @@ fail_fcf_read:
  * returns:
  * 1=success 0=failure
  **/
-int
+static int
 lpfc_check_next_fcf_pri_level(struct lpfc_hba *phba)
 {
 	uint16_t next_fcf_pri;
@@ -16403,7 +16403,7 @@ lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *phba, uint16_t fcf_index)
  * command. If the mailbox command returned failure, it will try to stop the
  * FCF rediscover wait timer.
  **/
-void
+static void
 lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
 	struct lpfc_mbx_redisc_fcf_tbl *redisc_fcf;
