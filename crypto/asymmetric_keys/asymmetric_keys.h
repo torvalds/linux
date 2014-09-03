@@ -9,6 +9,8 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+int asymmetric_keyid_match(const char *kid, const char *id);
+
 static inline const char *asymmetric_key_id(const struct key *key)
 {
 	return key->type_data.p[1];

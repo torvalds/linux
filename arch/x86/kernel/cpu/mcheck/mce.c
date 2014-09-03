@@ -2136,7 +2136,7 @@ static ssize_t set_bank(struct device *s, struct device_attribute *attr,
 {
 	u64 new;
 
-	if (strict_strtoull(buf, 0, &new) < 0)
+	if (kstrtou64(buf, 0, &new) < 0)
 		return -EINVAL;
 
 	attr_to_bank(attr)->ctl = new;
@@ -2174,7 +2174,7 @@ static ssize_t set_ignore_ce(struct device *s,
 {
 	u64 new;
 
-	if (strict_strtoull(buf, 0, &new) < 0)
+	if (kstrtou64(buf, 0, &new) < 0)
 		return -EINVAL;
 
 	if (mca_cfg.ignore_ce ^ !!new) {
@@ -2198,7 +2198,7 @@ static ssize_t set_cmci_disabled(struct device *s,
 {
 	u64 new;
 
-	if (strict_strtoull(buf, 0, &new) < 0)
+	if (kstrtou64(buf, 0, &new) < 0)
 		return -EINVAL;
 
 	if (mca_cfg.cmci_disabled ^ !!new) {
@@ -2385,6 +2385,10 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			threshold_cpu_callback(action, cpu);
 		mce_device_remove(cpu);
 		mce_intel_hcpu_update(cpu);
+
+		/* intentionally ignoring frozen here */
+		if (!(action & CPU_TASKS_FROZEN))
+			cmci_rediscover();
 		break;
 	case CPU_DOWN_PREPARE:
 		smp_call_function_single(cpu, mce_disable_cpu, &action, 1);
@@ -2394,11 +2398,6 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
 		mce_start_timer(cpu, t);
 		break;
-	}
-
-	if (action == CPU_POST_DEAD) {
-		/* intentionally ignoring frozen here */
-		cmci_rediscover();
 	}
 
 	return NOTIFY_OK;

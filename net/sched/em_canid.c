@@ -125,7 +125,6 @@ static int em_canid_change(struct tcf_proto *tp, void *data, int len,
 {
 	struct can_filter *conf = data; /* Array with rules */
 	struct canid_match *cm;
-	struct canid_match *cm_old = (struct canid_match *)m->data;
 	int i;
 
 	if (!len)
@@ -181,12 +180,6 @@ static int em_canid_change(struct tcf_proto *tp, void *data, int len,
 
 	m->datalen = sizeof(struct canid_match) + len;
 	m->data = (unsigned long)cm;
-
-	if (cm_old != NULL) {
-		pr_err("canid: Configuring an existing ematch!\n");
-		kfree(cm_old);
-	}
-
 	return 0;
 }
 

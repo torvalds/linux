@@ -60,7 +60,6 @@ irq can be omitted, although the cmd interface will not work without it.
 #include "8253.h"
 #include "comedi_fc.h"
 
-#define DAS16M1_SIZE 16
 #define DAS16M1_SIZE2 8
 
 #define FIFO_SIZE 1024		/*  1024 sample fifo */
@@ -126,7 +125,7 @@ static const struct comedi_lrange range_das16m1 = {
 
 struct das16m1_private_struct {
 	unsigned int control_state;
-	volatile unsigned int adc_count;	/*  number of samples completed */
+	unsigned int adc_count;	/*  number of samples completed */
 	/* initial value in lower half of hardware conversion counter,
 	 * needed to keep track of whether new count has been loaded into
 	 * counter yet (loaded by first sample conversion) */
@@ -460,7 +459,7 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	 * overrun interrupts, but we might as well try */
 	if (status & OVRUN) {
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_error(dev, "fifo overflow");
+		dev_err(dev->class_dev, "fifo overflow\n");
 	}
 
 	cfc_handle_events(dev, s);
@@ -477,7 +476,7 @@ static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	das16m1_handler(dev, status);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	return s->async->buf_write_count - s->async->buf_read_count;
+	return comedi_buf_n_bytes_ready(s);
 }
 
 static irqreturn_t das16m1_interrupt(int irq, void *d)
@@ -486,7 +485,7 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 
 	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+		dev_err(dev->class_dev, "premature interrupt\n");
 		return IRQ_HANDLED;
 	}
 	/*  prevent race with comedi_poll() */
@@ -495,7 +494,7 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 	status = inb(dev->iobase + DAS16M1_CS);
 
 	if ((status & (IRQDATA | OVRUN)) == 0) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		spin_unlock(&dev->spinlock);
 		return IRQ_NONE;
 	}
@@ -549,7 +548,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], DAS16M1_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 	/* Request an additional region for the 8255 */

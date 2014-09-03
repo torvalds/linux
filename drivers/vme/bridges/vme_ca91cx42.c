@@ -1555,15 +1555,13 @@ static int ca91cx42_crcsr_init(struct vme_bridge *ca91cx42_bridge,
 	}
 
 	/* Allocate mem for CR/CSR image */
-	bridge->crcsr_kernel = pci_alloc_consistent(pdev, VME_CRCSR_BUF_SIZE,
-		&bridge->crcsr_bus);
+	bridge->crcsr_kernel = pci_zalloc_consistent(pdev, VME_CRCSR_BUF_SIZE,
+						     &bridge->crcsr_bus);
 	if (bridge->crcsr_kernel == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for CR/CSR "
 			"image\n");
 		return -ENOMEM;
 	}
-
-	memset(bridge->crcsr_kernel, 0, VME_CRCSR_BUF_SIZE);
 
 	crcsr_addr = slot * (512 * 1024);
 	iowrite32(bridge->crcsr_bus - crcsr_addr, bridge->base + VCSR_TO);

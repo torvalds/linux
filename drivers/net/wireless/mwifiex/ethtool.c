@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: ethtool
  *
- * Copyright (C) 2013, Marvell International Ltd.
+ * Copyright (C) 2013-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -64,7 +64,90 @@ static int mwifiex_ethtool_set_wol(struct net_device *dev,
 	return 0;
 }
 
+static int
+mwifiex_get_dump_flag(struct net_device *dev, struct ethtool_dump *dump)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct memory_type_mapping *entry;
+
+	if (!adapter->if_ops.fw_dump)
+		return -ENOTSUPP;
+
+	dump->flag = adapter->curr_mem_idx;
+	dump->version = 1;
+	if (adapter->curr_mem_idx != MWIFIEX_FW_DUMP_IDX) {
+		entry = &adapter->mem_type_mapping_tbl[adapter->curr_mem_idx];
+		dump->len = entry->mem_size;
+	} else {
+		dump->len = 0;
+	}
+
+	return 0;
+}
+
+static int
+mwifiex_get_dump_data(struct net_device *dev, struct ethtool_dump *dump,
+		      void *buffer)
+{
+	u8 *p = buffer;
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct memory_type_mapping *entry;
+
+	if (!adapter->if_ops.fw_dump)
+		return -ENOTSUPP;
+
+	if (adapter->curr_mem_idx == MWIFIEX_FW_DUMP_IDX) {
+		dev_err(adapter->dev, "firmware dump in progress!!\n");
+		return -EBUSY;
+	}
+
+	entry = &adapter->mem_type_mapping_tbl[adapter->curr_mem_idx];
+
+	if (!entry->mem_ptr)
+		return -EFAULT;
+
+	memcpy(p, entry->mem_ptr, entry->mem_size);
+
+	entry->mem_size = 0;
+	vfree(entry->mem_ptr);
+	entry->mem_ptr = NULL;
+
+	return 0;
+}
+
+static int mwifiex_set_dump(struct net_device *dev, struct ethtool_dump *val)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	if (!adapter->if_ops.fw_dump)
+		return -ENOTSUPP;
+
+	if (adapter->curr_mem_idx == MWIFIEX_FW_DUMP_IDX) {
+		dev_err(adapter->dev, "firmware dump in progress!!\n");
+		return -EBUSY;
+	}
+
+	if (val->flag == MWIFIEX_FW_DUMP_IDX) {
+		adapter->curr_mem_idx = val->flag;
+		adapter->if_ops.fw_dump(adapter);
+		return 0;
+	}
+
+	if (val->flag < 0 || val->flag >= adapter->num_mem_types)
+		return -EINVAL;
+
+	adapter->curr_mem_idx = val->flag;
+
+	return 0;
+}
+
 const struct ethtool_ops mwifiex_ethtool_ops = {
 	.get_wol = mwifiex_ethtool_get_wol,
 	.set_wol = mwifiex_ethtool_set_wol,
+	.get_dump_flag = mwifiex_get_dump_flag,
+	.get_dump_data = mwifiex_get_dump_data,
+	.set_dump = mwifiex_set_dump,
 };

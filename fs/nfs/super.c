@@ -1027,8 +1027,7 @@ static bool nfs_auth_info_add(struct nfs_auth_info *auth_info,
 			      rpc_authflavor_t flavor)
 {
 	unsigned int i;
-	unsigned int max_flavor_len = (sizeof(auth_info->flavors) /
-				       sizeof(auth_info->flavors[0]));
+	unsigned int max_flavor_len = ARRAY_SIZE(auth_info->flavors);
 
 	/* make sure this flavor isn't already in the list */
 	for (i = 0; i < auth_info->flavor_len; i++) {
@@ -2180,7 +2179,7 @@ out_no_address:
 	return -EINVAL;
 }
 
-#define NFS_MOUNT_CMP_FLAGMASK ~(NFS_MOUNT_INTR \
+#define NFS_REMOUNT_CMP_FLAGMASK ~(NFS_MOUNT_INTR \
 		| NFS_MOUNT_SECURE \
 		| NFS_MOUNT_TCP \
 		| NFS_MOUNT_VER3 \
@@ -2188,15 +2187,16 @@ out_no_address:
 		| NFS_MOUNT_NONLM \
 		| NFS_MOUNT_BROKEN_SUID \
 		| NFS_MOUNT_STRICTLOCK \
-		| NFS_MOUNT_UNSHARED \
-		| NFS_MOUNT_NORESVPORT \
 		| NFS_MOUNT_LEGACY_INTERFACE)
+
+#define NFS_MOUNT_CMP_FLAGMASK (NFS_REMOUNT_CMP_FLAGMASK & \
+		~(NFS_MOUNT_UNSHARED | NFS_MOUNT_NORESVPORT))
 
 static int
 nfs_compare_remount_data(struct nfs_server *nfss,
 			 struct nfs_parsed_mount_data *data)
 {
-	if ((data->flags ^ nfss->flags) & NFS_MOUNT_CMP_FLAGMASK ||
+	if ((data->flags ^ nfss->flags) & NFS_REMOUNT_CMP_FLAGMASK ||
 	    data->rsize != nfss->rsize ||
 	    data->wsize != nfss->wsize ||
 	    data->version != nfss->nfs_client->rpc_ops->version ||

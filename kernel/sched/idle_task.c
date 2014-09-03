@@ -20,7 +20,7 @@ select_task_rq_idle(struct task_struct *p, int cpu, int sd_flag, int flags)
  */
 static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int flags)
 {
-	resched_task(rq->idle);
+	resched_curr(rq);
 }
 
 static struct task_struct *

@@ -61,9 +61,9 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include <lustre_dlm.h>
-#include <obd_class.h>
-#include <obd.h>
+#include "../include/lustre_dlm.h"
+#include "../include/obd_class.h"
+#include "../include/obd.h"
 
 #include "ldlm_internal.h"
 
@@ -95,18 +95,18 @@ int ldlm_expired_completion_wait(void *data)
 	struct obd_device *obd;
 
 	if (lock->l_conn_export == NULL) {
-		static cfs_time_t next_dump = 0, last_dump = 0;
+		static unsigned long next_dump = 0, last_dump = 0;
 
 		LCONSOLE_WARN("lock timed out (enqueued at "CFS_TIME_T", "
 			      CFS_DURATION_T"s ago)\n",
 			      lock->l_last_activity,
-			      cfs_time_sub(cfs_time_current_sec(),
+			      cfs_time_sub(get_seconds(),
 					   lock->l_last_activity));
 		LDLM_DEBUG(lock, "lock timed out (enqueued at "CFS_TIME_T", "
 			   CFS_DURATION_T"s ago); not entering recovery in "
 			   "server code, just going back to sleep",
 			   lock->l_last_activity,
-			   cfs_time_sub(cfs_time_current_sec(),
+			   cfs_time_sub(get_seconds(),
 					lock->l_last_activity));
 		if (cfs_time_after(cfs_time_current(), next_dump)) {
 			last_dump = next_dump;
@@ -125,7 +125,7 @@ int ldlm_expired_completion_wait(void *data)
 	LDLM_ERROR(lock, "lock timed out (enqueued at "CFS_TIME_T", "
 		  CFS_DURATION_T"s ago), entering recovery for %s@%s",
 		  lock->l_last_activity,
-		  cfs_time_sub(cfs_time_current_sec(), lock->l_last_activity),
+		  cfs_time_sub(get_seconds(), lock->l_last_activity),
 		  obd2cli_tgt(obd), imp->imp_connection->c_remote_uuid.uuid);
 
 	return 0;
@@ -160,7 +160,7 @@ static int ldlm_completion_tail(struct ldlm_lock *lock)
 		LDLM_DEBUG(lock, "client-side enqueue: destroyed");
 		result = -EIO;
 	} else {
-		delay = cfs_time_sub(cfs_time_current_sec(),
+		delay = cfs_time_sub(get_seconds(),
 				     lock->l_last_activity);
 		LDLM_DEBUG(lock, "client-side enqueue: granted after "
 			   CFS_DURATION_T"s", delay);
@@ -592,7 +592,7 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 					      LDLM_FL_NO_TIMEOUT);
 	unlock_res_and_lock(lock);
 
-	CDEBUG(D_INFO, "local: %p, remote cookie: "LPX64", flags: 0x%llx\n",
+	CDEBUG(D_INFO, "local: %p, remote cookie: %#llx, flags: 0x%llx\n",
 	       lock, reply->lock_handle.cookie, *flags);
 
 	/* If enqueue returned a blocked lock but the completion handler has
@@ -1276,8 +1276,7 @@ int ldlm_cli_update_pool(struct ptlrpc_request *req)
 	 * server-side namespace is not possible. */
 	if (lustre_msg_get_slv(req->rq_repmsg) == 0 ||
 	    lustre_msg_get_limit(req->rq_repmsg) == 0) {
-		DEBUG_REQ(D_HA, req, "Zero SLV or Limit found "
-			  "(SLV: "LPU64", Limit: %u)",
+		DEBUG_REQ(D_HA, req, "Zero SLV or Limit found (SLV: %llu, Limit: %u)",
 			  lustre_msg_get_slv(req->rq_repmsg),
 			  lustre_msg_get_limit(req->rq_repmsg));
 		return 0;
@@ -1447,10 +1446,10 @@ static ldlm_policy_res_t ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 						 int unused, int added,
 						 int count)
 {
-	cfs_time_t cur = cfs_time_current();
+	unsigned long cur = cfs_time_current();
 	struct ldlm_pool *pl = &ns->ns_pool;
 	__u64 slv, lvf, lv;
-	cfs_time_t la;
+	unsigned long la;
 
 	/* Stop LRU processing when we reach past @count or have checked all
 	 * locks in LRU. */
@@ -1508,9 +1507,8 @@ static ldlm_policy_res_t ldlm_cancel_aged_policy(struct ldlm_namespace *ns,
 {
 	/* Stop LRU processing if young lock is found and we reach past count */
 	return ((added >= count) &&
-		cfs_time_before(cfs_time_current(),
-				cfs_time_add(lock->l_last_used,
-					     ns->ns_max_age))) ?
+		time_before(cfs_time_current(),
+			    cfs_time_add(lock->l_last_used, ns->ns_max_age))) ?
 		LDLM_POLICY_KEEP_LOCK : LDLM_POLICY_CANCEL_LOCK;
 }
 
@@ -1768,7 +1766,7 @@ int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,
 int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
 			       ldlm_policy_data_t *policy,
-			       ldlm_mode_t mode, int lock_flags,
+			       ldlm_mode_t mode, __u64 lock_flags,
 			       ldlm_cancel_flags_t cancel_flags, void *opaque)
 {
 	struct ldlm_lock *lock;
@@ -1894,7 +1892,7 @@ int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 	res = ldlm_resource_get(ns, NULL, res_id, 0, 0);
 	if (res == NULL) {
 		/* This is not a problem. */
-		CDEBUG(D_INFO, "No resource "LPU64"\n", res_id->name[0]);
+		CDEBUG(D_INFO, "No resource %llu\n", res_id->name[0]);
 		return 0;
 	}
 
@@ -2105,8 +2103,8 @@ static int replay_lock_interpret(const struct lu_env *env,
 
 	lock = ldlm_handle2lock(&aa->lock_handle);
 	if (!lock) {
-		CERROR("received replay ack for unknown local cookie "LPX64
-		       " remote cookie "LPX64 " from server %s id %s\n",
+		CERROR("received replay ack for unknown local cookie %#llx"
+		       " remote cookie %#llx from server %s id %s\n",
 		       aa->lock_handle.cookie, reply->lock_handle.cookie,
 		       req->rq_export->exp_client_uuid.uuid,
 		       libcfs_id2str(req->rq_peer));

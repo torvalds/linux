@@ -44,13 +44,13 @@
 
 #define DEBUG_SUBSYSTEM S_MGC
 
-#include <liblustre.h>
+#include "../include/liblustre.h"
 
-#include <obd_class.h>
-#include <lustre_dlm.h>
-#include <lustre_log.h>
-#include <lustre_fsfilt.h>
-#include <lustre_disk.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_fsfilt.h"
+#include "../include/lustre_disk.h"
 
 
 static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)

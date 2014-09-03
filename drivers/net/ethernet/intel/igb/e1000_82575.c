@@ -579,7 +579,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_MAC_INIT;
-		break;
 	}
 
 	/* Set media type */
@@ -837,7 +836,6 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 		default:
 			ret_val = -E1000_ERR_PHY;
 			goto out;
-			break;
 		}
 		ret_val = igb_get_phy_id(hw);
 		goto out;

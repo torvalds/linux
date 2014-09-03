@@ -1426,7 +1426,8 @@ __u8 *irlmp_hint_to_service(__u8 *hint)
 		if (hint[1] & HINT_TELEPHONY) {
 			IRDA_DEBUG(1, "Telephony ");
 			service[i++] = S_TELEPHONY;
-		} if (hint[1] & HINT_FILE_SERVER)
+		}
+		if (hint[1] & HINT_FILE_SERVER)
 			IRDA_DEBUG(1, "File Server ");
 
 		if (hint[1] & HINT_COMM) {

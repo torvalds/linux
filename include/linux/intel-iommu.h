@@ -336,6 +336,7 @@ struct intel_iommu {
 #ifdef CONFIG_IRQ_REMAP
 	struct ir_table *ir_table;	/* Interrupt remapping info */
 #endif
+	struct device	*iommu_dev; /* IOMMU-sysfs device */
 	int		node;
 };
 
@@ -364,5 +365,7 @@ extern void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
 extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
 extern int dmar_ir_support(void);
+
+extern const struct attribute_group *intel_iommu_groups[];
 
 #endif

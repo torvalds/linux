@@ -136,13 +136,13 @@ void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
 			tmp = VIDEO_LIPSYNC(connector->video_latency[1]) |
 				AUDIO_LIPSYNC(connector->audio_latency[1]);
 		else
-			tmp = VIDEO_LIPSYNC(255) | AUDIO_LIPSYNC(255);
+			tmp = VIDEO_LIPSYNC(0) | AUDIO_LIPSYNC(0);
 	} else {
 		if (connector->latency_present[0])
 			tmp = VIDEO_LIPSYNC(connector->video_latency[0]) |
 				AUDIO_LIPSYNC(connector->audio_latency[0]);
 		else
-			tmp = VIDEO_LIPSYNC(255) | AUDIO_LIPSYNC(255);
+			tmp = VIDEO_LIPSYNC(0) | AUDIO_LIPSYNC(0);
 	}
 	WREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_RESPONSE_LIPSYNC, tmp);
 }
@@ -164,8 +164,10 @@ void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	offset = dig->afmt->pin->offset;
 
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder)
+		if (connector->encoder == encoder) {
 			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
 	}
 
 	if (!radeon_connector) {
@@ -173,7 +175,7 @@ void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 		return;
 	}
 
-	sad_count = drm_edid_to_speaker_allocation(radeon_connector->edid, &sadb);
+	sad_count = drm_edid_to_speaker_allocation(radeon_connector_edid(connector), &sadb);
 	if (sad_count <= 0) {
 		DRM_ERROR("Couldn't read Speaker Allocation Data Block: %d\n", sad_count);
 		return;
@@ -225,8 +227,10 @@ void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
 	offset = dig->afmt->pin->offset;
 
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder)
+		if (connector->encoder == encoder) {
 			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
 	}
 
 	if (!radeon_connector) {
@@ -234,7 +238,7 @@ void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
 		return;
 	}
 
-	sad_count = drm_edid_to_sad(radeon_connector->edid, &sads);
+	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
 	if (sad_count <= 0) {
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
 		return;

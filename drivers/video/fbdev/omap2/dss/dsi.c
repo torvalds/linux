@@ -5658,18 +5658,11 @@ err_runtime_get:
 	return r;
 }
 
-static int dsi_unregister_child(struct device *dev, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	platform_device_unregister(pdev);
-	return 0;
-}
-
 static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
-	device_for_each_child(&dsidev->dev, NULL, dsi_unregister_child);
+	of_platform_depopulate(&dsidev->dev);
 
 	WARN_ON(dsi->scp_clk_refcount > 0);
 

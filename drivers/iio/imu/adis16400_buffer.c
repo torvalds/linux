@@ -18,7 +18,7 @@ int adis16400_update_scan_mode(struct iio_dev *indio_dev,
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
 	struct adis *adis = &st->adis;
-	uint16_t *tx, *rx;
+	uint16_t *tx;
 
 	if (st->variant->flags & ADIS16400_NO_BURST)
 		return adis_update_scan_mode(indio_dev, scan_mask);
@@ -35,7 +35,6 @@ int adis16400_update_scan_mode(struct iio_dev *indio_dev,
 	if (!adis->buffer)
 		return -ENOMEM;
 
-	rx = adis->buffer;
 	tx = adis->buffer + indio_dev->scan_bytes;
 
 	tx[0] = ADIS_READ_REG(ADIS16400_GLOB_CMD);

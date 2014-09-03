@@ -4,5 +4,6 @@ generic-y += hash.h
 generic-y += mcs_spinlock.h
 generic-y += preempt.h
 generic-y += rwsem.h
+generic-y += scatterlist.h
 generic-y += trace_clock.h
 generic-y += vtime.h

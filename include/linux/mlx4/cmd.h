@@ -116,6 +116,7 @@ enum {
 	/* special QP and management commands */
 	MLX4_CMD_CONF_SPECIAL_QP = 0x23,
 	MLX4_CMD_MAD_IFC	 = 0x24,
+	MLX4_CMD_MAD_DEMUX	 = 0x203,
 
 	/* multicast commands */
 	MLX4_CMD_READ_MCG	 = 0x25,
@@ -183,6 +184,12 @@ enum {
 	MLX4_SET_PORT_PRIO2TC	= 0x8,
 	MLX4_SET_PORT_SCHEDULER = 0x9,
 	MLX4_SET_PORT_VXLAN	= 0xB
+};
+
+enum {
+	MLX4_CMD_MAD_DEMUX_CONFIG	= 0,
+	MLX4_CMD_MAD_DEMUX_QUERY_STATE	= 1,
+	MLX4_CMD_MAD_DEMUX_QUERY_RESTR	= 2, /* Query mad demux restrictions */
 };
 
 enum {

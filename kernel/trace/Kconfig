@@ -29,11 +29,6 @@ config HAVE_FUNCTION_GRAPH_FP_TEST
 	help
 	  See Documentation/trace/ftrace-design.txt
 
-config HAVE_FUNCTION_TRACE_MCOUNT_TEST
-	bool
-	help
-	  See Documentation/trace/ftrace-design.txt
-
 config HAVE_DYNAMIC_FTRACE
 	bool
 	help

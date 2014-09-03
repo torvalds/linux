@@ -25,38 +25,13 @@
 #include <drv_types.h>
 #include <mlme_osdep.h>
 
-void rtw_join_timeout_handler (void *FunctionContext)
-{
-	struct adapter *adapter = (struct adapter *)FunctionContext;
-
-	_rtw_join_timeout_handler(adapter);
-}
-
-
-void _rtw_scan_timeout_handler (void *FunctionContext)
-{
-	struct adapter *adapter = (struct adapter *)FunctionContext;
-
-	rtw_scan_timeout_handler(adapter);
-}
-
-static void _dynamic_check_timer_handlder(void *FunctionContext)
-{
-	struct adapter *adapter = (struct adapter *)FunctionContext;
-
-	if (adapter->registrypriv.mp_mode == 1)
-		return;
-	rtw_dynamic_check_timer_handlder(adapter);
-	_set_timer(&adapter->mlmepriv.dynamic_chk_timer, 2000);
-}
-
 void rtw_init_mlme_timer(struct adapter *padapter)
 {
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	_init_timer(&(pmlmepriv->assoc_timer), padapter->pnetdev, rtw_join_timeout_handler, padapter);
-	_init_timer(&(pmlmepriv->scan_to_timer), padapter->pnetdev, _rtw_scan_timeout_handler, padapter);
-	_init_timer(&(pmlmepriv->dynamic_chk_timer), padapter->pnetdev, _dynamic_check_timer_handlder, padapter);
+	_init_timer(&(pmlmepriv->assoc_timer), padapter->pnetdev, _rtw_join_timeout_handler, padapter);
+	_init_timer(&(pmlmepriv->scan_to_timer), padapter->pnetdev, rtw_scan_timeout_handler, padapter);
+	_init_timer(&(pmlmepriv->dynamic_chk_timer), padapter->pnetdev, rtw_dynamic_check_timer_handlder, padapter);
 }
 
 void rtw_os_indicate_connect(struct adapter *adapter)
@@ -85,12 +60,12 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		/*  We have to backup the PMK information for WiFi PMK Caching test item. */
 		/*  Backup the btkip_countermeasure information. */
 		/*  When the countermeasure is trigger, the driver have to disconnect with AP for 60 seconds. */
-		_rtw_memset(&backup_pmkid[0], 0x00, sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
+		memset(&backup_pmkid[0], 0x00, sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		memcpy(&backup_pmkid[0], &adapter->securitypriv.PMKIDList[0], sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		backup_index = adapter->securitypriv.PMKIDIndex;
 		backup_counter = adapter->securitypriv.btkip_countermeasure;
 		backup_time = adapter->securitypriv.btkip_countermeasure_time;
-		_rtw_memset((unsigned char *)&adapter->securitypriv, 0, sizeof(struct security_priv));
+		memset((unsigned char *)&adapter->securitypriv, 0, sizeof(struct security_priv));
 
 		/*  Restore the PMK information to securitypriv structure for the following connection. */
 		memcpy(&adapter->securitypriv.PMKIDList[0],
@@ -137,7 +112,7 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 		buff = rtw_malloc(IW_CUSTOM_MAX);
 		if (!buff)
 			return;
-		_rtw_memset(buff, 0, IW_CUSTOM_MAX);
+		memset(buff, 0, IW_CUSTOM_MAX);
 		p = buff;
 		p += sprintf(p, "ASSOCINFO(ReqIEs =");
 		len = sec_ie[1]+2;
@@ -145,7 +120,7 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 		for (i = 0; i < len; i++)
 			p += sprintf(p, "%02x", sec_ie[i]);
 		p += sprintf(p, ")");
-		_rtw_memset(&wrqu, 0, sizeof(wrqu));
+		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.data.length = p-buff;
 		wrqu.data.length = (wrqu.data.length < IW_CUSTOM_MAX) ?
 				   wrqu.data.length : IW_CUSTOM_MAX;
@@ -154,36 +129,17 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 	}
 }
 
-static void _survey_timer_hdl(void *FunctionContext)
-{
-	struct adapter *padapter = (struct adapter *)FunctionContext;
-
-	survey_timer_hdl(padapter);
-}
-
-static void _link_timer_hdl(void *FunctionContext)
-{
-	struct adapter *padapter = (struct adapter *)FunctionContext;
-	link_timer_hdl(padapter);
-}
-
-static void _addba_timer_hdl(void *FunctionContext)
-{
-	struct sta_info *psta = (struct sta_info *)FunctionContext;
-	addba_timer_hdl(psta);
-}
-
 void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
 {
-	_init_timer(&psta->addba_retry_timer, padapter->pnetdev, _addba_timer_hdl, psta);
+	_init_timer(&psta->addba_retry_timer, padapter->pnetdev, addba_timer_hdl, psta);
 }
 
 void init_mlme_ext_timer(struct adapter *padapter)
 {
 	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
-	_init_timer(&pmlmeext->survey_timer, padapter->pnetdev, _survey_timer_hdl, padapter);
-	_init_timer(&pmlmeext->link_timer, padapter->pnetdev, _link_timer_hdl, padapter);
+	_init_timer(&pmlmeext->survey_timer, padapter->pnetdev, survey_timer_hdl, padapter);
+	_init_timer(&pmlmeext->link_timer, padapter->pnetdev, link_timer_hdl, padapter);
 }
 
 #ifdef CONFIG_88EU_AP_MODE

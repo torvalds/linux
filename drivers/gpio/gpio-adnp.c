@@ -585,15 +585,8 @@ static int adnp_i2c_remove(struct i2c_client *client)
 {
 	struct adnp *adnp = i2c_get_clientdata(client);
 	struct device_node *np = client->dev.of_node;
-	int err;
 
-	err = gpiochip_remove(&adnp->gpio);
-	if (err < 0) {
-		dev_err(&client->dev, "%s failed: %d\n", "gpiochip_remove()",
-			err);
-		return err;
-	}
-
+	gpiochip_remove(&adnp->gpio);
 	if (of_find_property(np, "interrupt-controller", NULL))
 		adnp_irq_teardown(adnp);
 

@@ -133,5 +133,7 @@ int vnic_dev_enable2(struct vnic_dev *vdev, int active);
 int vnic_dev_enable2_done(struct vnic_dev *vdev, int *status);
 int vnic_dev_deinit_done(struct vnic_dev *vdev, int *status);
 int vnic_dev_set_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
+int vnic_dev_classifier(struct vnic_dev *vdev, u8 cmd, u16 *entry,
+			struct filter *data);
 
 #endif /* _VNIC_DEV_H_ */

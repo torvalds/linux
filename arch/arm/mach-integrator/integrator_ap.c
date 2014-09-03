@@ -31,7 +31,7 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/irqchip/versatile-fpga.h>
+#include <linux/irqchip.h>
 #include <linux/mtd/physmap.h>
 #include <linux/clk.h>
 #include <linux/platform_data/clk-integrator.h>
@@ -439,15 +439,10 @@ static void __init ap_of_timer_init(void)
 	integrator_clockevent_init(rate, base, irq);
 }
 
-static const struct of_device_id fpga_irq_of_match[] __initconst = {
-	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
-	{ /* Sentinel */ }
-};
-
 static void __init ap_init_irq_of(void)
 {
 	cm_init();
-	of_irq_init(fpga_irq_of_match);
+	irqchip_init();
 }
 
 /* For the Device Tree, add in the UART callbacks as AUXDATA */
@@ -558,7 +553,6 @@ DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.map_io		= ap_map_io,
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq_of,
-	.handle_irq	= fpga_handle_irq,
 	.init_time	= ap_of_timer_init,
 	.init_machine	= ap_init_of,
 	.restart	= integrator_restart,

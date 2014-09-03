@@ -563,7 +563,7 @@ static struct platform_driver ds1wm_driver = {
 
 static int __init ds1wm_init(void)
 {
-	printk("DS1WM w1 busmaster driver - (c) 2004 Szabolcs Gyurko\n");
+	pr_info("DS1WM w1 busmaster driver - (c) 2004 Szabolcs Gyurko\n");
 	return platform_driver_register(&ds1wm_driver);
 }
 

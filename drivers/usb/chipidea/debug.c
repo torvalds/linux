@@ -208,7 +208,7 @@ static const struct file_operations ci_requests_fops = {
 	.release	= single_release,
 };
 
-int ci_otg_show(struct seq_file *s, void *unused)
+static int ci_otg_show(struct seq_file *s, void *unused)
 {
 	struct ci_hdrc *ci = s->private;
 	struct otg_fsm *fsm;
@@ -331,7 +331,7 @@ static const struct file_operations ci_role_fops = {
 	.release	= single_release,
 };
 
-int ci_registers_show(struct seq_file *s, void *unused)
+static int ci_registers_show(struct seq_file *s, void *unused)
 {
 	struct ci_hdrc *ci = s->private;
 	u32 tmp_reg;

@@ -479,7 +479,6 @@
 #define RSZ_TYP_Y_SHIFT			0
 #define RSZ_TYP_C_SHIFT			1
 #define RSZ_LPF_INT_MASK		0x3f
-#define RSZ_LPF_INT_MASK		0x3f
 #define RSZ_LPF_INT_C_SHIFT		6
 #define RSZ_H_PHS_MASK			0x3fff
 #define RSZ_H_DIF_MASK			0x3fff

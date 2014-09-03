@@ -291,7 +291,6 @@ fail_ioremap:
 static int __exit tb10x_gpio_remove(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio = platform_get_drvdata(pdev);
-	int ret;
 
 	if (tb10x_gpio->gc.to_irq) {
 		irq_remove_generic_chip(tb10x_gpio->domain->gc->gc[0],
@@ -300,9 +299,7 @@ static int __exit tb10x_gpio_remove(struct platform_device *pdev)
 		irq_domain_remove(tb10x_gpio->domain);
 		free_irq(tb10x_gpio->irq, tb10x_gpio);
 	}
-	ret = gpiochip_remove(&tb10x_gpio->gc);
-	if (ret)
-		return ret;
+	gpiochip_remove(&tb10x_gpio->gc);
 
 	return 0;
 }

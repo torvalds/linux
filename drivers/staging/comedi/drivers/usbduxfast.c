@@ -33,8 +33,6 @@
  *       udev coldplug problem
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -275,8 +273,9 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 		return;
 
 	default:
-		pr_err("non-zero urb status received in ai intr context: %d\n",
-		       urb->status);
+		dev_err(dev->class_dev,
+			"non-zero urb status received in ai intr context: %d\n",
+			urb->status);
 		async->events |= COMEDI_CB_EOA;
 		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
@@ -746,6 +745,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 				    0x00, (0xff - 0x02) & rngmask, 0x00);
 
 		usbduxfast_cmd_data(dev, 6, 0x01, 0x00, rngmask, 0x00);
+		break;
 
 	case 16:
 		if (CR_RANGE(cmd->chanlist[0]) > 0)

@@ -1147,7 +1147,7 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 }
 
 /* Called from client specific probe routines */
-int stmpe_probe(struct stmpe_client_info *ci, int partnum)
+int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 {
 	struct stmpe_platform_data *pdata = dev_get_platdata(ci->dev);
 	struct device_node *np = ci->dev->of_node;

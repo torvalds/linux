@@ -19,6 +19,8 @@
 #define MAX_EVENT_ALTERNATIVES	8
 #define MAX_LIMITED_HWCOUNTERS	2
 
+struct perf_event;
+
 /*
  * This struct provides the constants and functions needed to
  * describe the PMU on a particular POWER-family CPU.
@@ -30,7 +32,8 @@ struct power_pmu {
 	unsigned long	add_fields;
 	unsigned long	test_adder;
 	int		(*compute_mmcr)(u64 events[], int n_ev,
-				unsigned int hwc[], unsigned long mmcr[]);
+				unsigned int hwc[], unsigned long mmcr[],
+				struct perf_event *pevents[]);
 	int		(*get_constraint)(u64 event_id, unsigned long *mskp,
 				unsigned long *valp);
 	int		(*get_alternatives)(u64 event_id, unsigned int flags,

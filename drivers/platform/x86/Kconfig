@@ -652,6 +652,25 @@ config TOSHIBA_BT_RFKILL
 	  If you have a modern Toshiba laptop with a Bluetooth and an
 	  RFKill switch (such as the Portege R500), say Y.
 
+config TOSHIBA_HAPS
+	tristate "Toshiba HDD Active Protection Sensor"
+	depends on ACPI
+	---help---
+	  This driver adds support for the built-in accelerometer
+	  found on recent Toshiba laptops equiped with HID TOS620A
+	  device.
+
+	  This driver receives ACPI notify events 0x80 when the sensor
+	  detects a sudden move or a harsh vibration, as well as an
+	  ACPI notify event 0x81 whenever the movement or vibration has
+	  been stabilized.
+
+	  Also provides sysfs entries to get/set the desired protection
+	  level and reseting the HDD protection interface.
+
+	  If you have a recent Toshiba laptop with a built-in accelerometer
+	  device, say Y.
+
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
 	depends on X86 && ACPI

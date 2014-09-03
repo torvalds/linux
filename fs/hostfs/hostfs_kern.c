@@ -741,21 +741,31 @@ static int hostfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, 
 	return err;
 }
 
-static int hostfs_rename(struct inode *from_ino, struct dentry *from,
-			 struct inode *to_ino, struct dentry *to)
+static int hostfs_rename2(struct inode *old_dir, struct dentry *old_dentry,
+			  struct inode *new_dir, struct dentry *new_dentry,
+			  unsigned int flags)
 {
-	char *from_name, *to_name;
+	char *old_name, *new_name;
 	int err;
 
-	if ((from_name = dentry_name(from)) == NULL)
+	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+		return -EINVAL;
+
+	old_name = dentry_name(old_dentry);
+	if (old_name == NULL)
 		return -ENOMEM;
-	if ((to_name = dentry_name(to)) == NULL) {
-		__putname(from_name);
+	new_name = dentry_name(new_dentry);
+	if (new_name == NULL) {
+		__putname(old_name);
 		return -ENOMEM;
 	}
-	err = rename_file(from_name, to_name);
-	__putname(from_name);
-	__putname(to_name);
+	if (!flags)
+		err = rename_file(old_name, new_name);
+	else
+		err = rename2_file(old_name, new_name, flags);
+
+	__putname(old_name);
+	__putname(new_name);
 	return err;
 }
 
@@ -867,7 +877,7 @@ static const struct inode_operations hostfs_dir_iops = {
 	.mkdir		= hostfs_mkdir,
 	.rmdir		= hostfs_rmdir,
 	.mknod		= hostfs_mknod,
-	.rename		= hostfs_rename,
+	.rename2	= hostfs_rename2,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 };

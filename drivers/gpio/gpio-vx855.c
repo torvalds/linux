@@ -288,8 +288,7 @@ static int vx855gpio_remove(struct platform_device *pdev)
 	struct vx855_gpio *vg = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	if (gpiochip_remove(&vg->gpio))
-		dev_err(&pdev->dev, "unable to remove gpio_chip?\n");
+	gpiochip_remove(&vg->gpio);
 
 	if (vg->gpi_reserved) {
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);

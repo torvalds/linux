@@ -124,9 +124,9 @@
 	};
 
 	sound {
-		compatible = "fsl,imx6q-sabrelite-sgtl5000",
+		compatible = "fsl,imx6q-ventana-sgtl5000",
 			     "fsl,imx-audio-sgtl5000";
-		model = "imx6q-sabrelite-sgtl5000";
+		model = "sgtl5000-audio";
 		ssi-controller = <&ssi1>;
 		audio-codec = <&codec>;
 		audio-routing =
@@ -533,7 +533,6 @@
 };
 
 &ssi1 {
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 

@@ -16,12 +16,16 @@
 #include <linux/io.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/sizes.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
+
+/* Runtime PM autosuspend timeout: PM is fairly light on this driver */
+#define SPI_AUTOSUSPEND_TIMEOUT		200
 
 #define ORION_NUM_CHIPSELECTS		1 /* only one slave is supported*/
 #define ORION_SPI_WAIT_RDY_MAX_LOOP	2000 /* in usec */
@@ -277,7 +281,6 @@ out:
 	return xfer->len - count;
 }
 
-
 static int orion_spi_transfer_one_message(struct spi_master *master,
 					   struct spi_message *m)
 {
@@ -346,8 +349,6 @@ static int orion_spi_probe(struct platform_device *pdev)
 	struct resource *r;
 	unsigned long tclk_hz;
 	int status = 0;
-	const u32 *iprop;
-	int size;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
 	if (master == NULL) {
@@ -358,10 +359,10 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (pdev->id != -1)
 		master->bus_num = pdev->id;
 	if (pdev->dev.of_node) {
-		iprop = of_get_property(pdev->dev.of_node, "cell-index",
-					&size);
-		if (iprop && size == sizeof(*iprop))
-			master->bus_num = *iprop;
+		u32 cell_index;
+		if (!of_property_read_u32(pdev->dev.of_node, "cell-index",
+					  &cell_index))
+			master->bus_num = cell_index;
 	}
 
 	/* we support only mode 0, and no options */
@@ -370,6 +371,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	master->transfer_one_message = orion_spi_transfer_one_message;
 	master->num_chipselect = ORION_NUM_CHIPSELECTS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
+	master->auto_runtime_pm = true;
 
 	platform_set_drvdata(pdev, master);
 
@@ -382,8 +384,10 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	clk_prepare(spi->clk);
-	clk_enable(spi->clk);
+	status = clk_prepare_enable(spi->clk);
+	if (status)
+		goto out;
+
 	tclk_hz = clk_get_rate(spi->clk);
 	master->max_speed_hz = DIV_ROUND_UP(tclk_hz, 4);
 	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, 30);
@@ -395,16 +399,27 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out_rel_clk;
 	}
 
-	if (orion_spi_reset(spi) < 0)
-		goto out_rel_clk;
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
+	pm_runtime_enable(&pdev->dev);
+
+	status = orion_spi_reset(spi);
+	if (status < 0)
+		goto out_rel_pm;
+
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
 
 	master->dev.of_node = pdev->dev.of_node;
-	status = devm_spi_register_master(&pdev->dev, master);
+	status = spi_register_master(master);
 	if (status < 0)
-		goto out_rel_clk;
+		goto out_rel_pm;
 
 	return status;
 
+out_rel_pm:
+	pm_runtime_disable(&pdev->dev);
 out_rel_clk:
 	clk_disable_unprepare(spi->clk);
 out:
@@ -415,18 +430,44 @@ out:
 
 static int orion_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master;
-	struct orion_spi *spi;
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct orion_spi *spi = spi_master_get_devdata(master);
 
-	master = platform_get_drvdata(pdev);
-	spi = spi_master_get_devdata(master);
-
+	pm_runtime_get_sync(&pdev->dev);
 	clk_disable_unprepare(spi->clk);
+
+	spi_unregister_master(master);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
+
+#ifdef CONFIG_PM_RUNTIME
+static int orion_spi_runtime_suspend(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct orion_spi *spi = spi_master_get_devdata(master);
+
+	clk_disable_unprepare(spi->clk);
+	return 0;
+}
+
+static int orion_spi_runtime_resume(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct orion_spi *spi = spi_master_get_devdata(master);
+
+	return clk_prepare_enable(spi->clk);
+}
+#endif
+
+static const struct dev_pm_ops orion_spi_pm_ops = {
+	SET_RUNTIME_PM_OPS(orion_spi_runtime_suspend,
+			   orion_spi_runtime_resume,
+			   NULL)
+};
 
 static const struct of_device_id orion_spi_of_match_table[] = {
 	{ .compatible = "marvell,orion-spi", },
@@ -438,6 +479,7 @@ static struct platform_driver orion_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= &orion_spi_pm_ops,
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
 	.probe		= orion_spi_probe,

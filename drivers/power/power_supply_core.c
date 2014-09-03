@@ -537,7 +537,8 @@ static void psy_unregister_cooler(struct power_supply *psy)
 }
 #endif
 
-int __power_supply_register(struct device *parent, struct power_supply *psy, bool ws)
+static int __power_supply_register(struct device *parent,
+				   struct power_supply *psy, bool ws)
 {
 	struct device *dev;
 	int rc;

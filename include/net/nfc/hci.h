@@ -37,6 +37,7 @@ struct nfc_hci_ops {
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*start_poll) (struct nfc_hci_dev *hdev,
 			   u32 im_protocols, u32 tm_protocols);
+	void (*stop_poll) (struct nfc_hci_dev *hdev);
 	int (*dep_link_up)(struct nfc_hci_dev *hdev, struct nfc_target *target,
 			   u8 comm_mode, u8 *gb, size_t gb_len);
 	int (*dep_link_down)(struct nfc_hci_dev *hdev);

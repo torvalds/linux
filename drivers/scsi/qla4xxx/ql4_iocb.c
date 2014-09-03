@@ -83,7 +83,7 @@ static int qla4xxx_get_req_pkt(struct scsi_qla_host *ha,
  * This routine issues a marker IOCB.
  **/
 int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
-	struct ddb_entry *ddb_entry, int lun, uint16_t mrkr_mod)
+	struct ddb_entry *ddb_entry, uint64_t lun, uint16_t mrkr_mod)
 {
 	struct qla4_marker_entry *marker_entry;
 	unsigned long flags = 0;

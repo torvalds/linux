@@ -210,8 +210,7 @@ static void bl_end_io_read(struct bio *bio, int err)
 			SetPageUptodate(bvec->bv_page);
 
 	if (err) {
-		struct nfs_pgio_data *rdata = par->data;
-		struct nfs_pgio_header *header = rdata->header;
+		struct nfs_pgio_header *header = par->data;
 
 		if (!header->pnfs_error)
 			header->pnfs_error = -EIO;
@@ -224,43 +223,44 @@ static void bl_end_io_read(struct bio *bio, int err)
 static void bl_read_cleanup(struct work_struct *work)
 {
 	struct rpc_task *task;
-	struct nfs_pgio_data *rdata;
+	struct nfs_pgio_header *hdr;
 	dprintk("%s enter\n", __func__);
 	task = container_of(work, struct rpc_task, u.tk_work);
-	rdata = container_of(task, struct nfs_pgio_data, task);
-	pnfs_ld_read_done(rdata);
+	hdr = container_of(task, struct nfs_pgio_header, task);
+	pnfs_ld_read_done(hdr);
 }
 
 static void
 bl_end_par_io_read(void *data, int unused)
 {
-	struct nfs_pgio_data *rdata = data;
+	struct nfs_pgio_header *hdr = data;
 
-	rdata->task.tk_status = rdata->header->pnfs_error;
-	INIT_WORK(&rdata->task.u.tk_work, bl_read_cleanup);
-	schedule_work(&rdata->task.u.tk_work);
+	hdr->task.tk_status = hdr->pnfs_error;
+	INIT_WORK(&hdr->task.u.tk_work, bl_read_cleanup);
+	schedule_work(&hdr->task.u.tk_work);
 }
 
 static enum pnfs_try_status
-bl_read_pagelist(struct nfs_pgio_data *rdata)
+bl_read_pagelist(struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *header = rdata->header;
+	struct nfs_pgio_header *header = hdr;
 	int i, hole;
 	struct bio *bio = NULL;
 	struct pnfs_block_extent *be = NULL, *cow_read = NULL;
 	sector_t isect, extent_length = 0;
 	struct parallel_io *par;
-	loff_t f_offset = rdata->args.offset;
-	size_t bytes_left = rdata->args.count;
+	loff_t f_offset = hdr->args.offset;
+	size_t bytes_left = hdr->args.count;
 	unsigned int pg_offset, pg_len;
-	struct page **pages = rdata->args.pages;
-	int pg_index = rdata->args.pgbase >> PAGE_CACHE_SHIFT;
+	struct page **pages = hdr->args.pages;
+	int pg_index = hdr->args.pgbase >> PAGE_CACHE_SHIFT;
 	const bool is_dio = (header->dreq != NULL);
 
 	dprintk("%s enter nr_pages %u offset %lld count %u\n", __func__,
-	       rdata->pages.npages, f_offset, (unsigned int)rdata->args.count);
+		hdr->page_array.npages, f_offset,
+		(unsigned int)hdr->args.count);
 
-	par = alloc_parallel(rdata);
+	par = alloc_parallel(hdr);
 	if (!par)
 		goto use_mds;
 	par->pnfs_callback = bl_end_par_io_read;
@@ -268,7 +268,7 @@ bl_read_pagelist(struct nfs_pgio_data *rdata)
 
 	isect = (sector_t) (f_offset >> SECTOR_SHIFT);
 	/* Code assumes extents are page-aligned */
-	for (i = pg_index; i < rdata->pages.npages; i++) {
+	for (i = pg_index; i < hdr->page_array.npages; i++) {
 		if (!extent_length) {
 			/* We've used up the previous extent */
 			bl_put_extent(be);
@@ -317,7 +317,8 @@ bl_read_pagelist(struct nfs_pgio_data *rdata)
 			struct pnfs_block_extent *be_read;
 
 			be_read = (hole && cow_read) ? cow_read : be;
-			bio = do_add_page_to_bio(bio, rdata->pages.npages - i,
+			bio = do_add_page_to_bio(bio,
+						 hdr->page_array.npages - i,
 						 READ,
 						 isect, pages[i], be_read,
 						 bl_end_io_read, par,
@@ -332,10 +333,10 @@ bl_read_pagelist(struct nfs_pgio_data *rdata)
 		extent_length -= PAGE_CACHE_SECTORS;
 	}
 	if ((isect << SECTOR_SHIFT) >= header->inode->i_size) {
-		rdata->res.eof = 1;
-		rdata->res.count = header->inode->i_size - rdata->args.offset;
+		hdr->res.eof = 1;
+		hdr->res.count = header->inode->i_size - hdr->args.offset;
 	} else {
-		rdata->res.count = (isect << SECTOR_SHIFT) - rdata->args.offset;
+		hdr->res.count = (isect << SECTOR_SHIFT) - hdr->args.offset;
 	}
 out:
 	bl_put_extent(be);
@@ -390,8 +391,7 @@ static void bl_end_io_write_zero(struct bio *bio, int err)
 	}
 
 	if (unlikely(err)) {
-		struct nfs_pgio_data *data = par->data;
-		struct nfs_pgio_header *header = data->header;
+		struct nfs_pgio_header *header = par->data;
 
 		if (!header->pnfs_error)
 			header->pnfs_error = -EIO;
@@ -405,8 +405,7 @@ static void bl_end_io_write(struct bio *bio, int err)
 {
 	struct parallel_io *par = bio->bi_private;
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct nfs_pgio_data *data = par->data;
-	struct nfs_pgio_header *header = data->header;
+	struct nfs_pgio_header *header = par->data;
 
 	if (!uptodate) {
 		if (!header->pnfs_error)
@@ -423,32 +422,32 @@ static void bl_end_io_write(struct bio *bio, int err)
 static void bl_write_cleanup(struct work_struct *work)
 {
 	struct rpc_task *task;
-	struct nfs_pgio_data *wdata;
+	struct nfs_pgio_header *hdr;
 	dprintk("%s enter\n", __func__);
 	task = container_of(work, struct rpc_task, u.tk_work);
-	wdata = container_of(task, struct nfs_pgio_data, task);
-	if (likely(!wdata->header->pnfs_error)) {
+	hdr = container_of(task, struct nfs_pgio_header, task);
+	if (likely(!hdr->pnfs_error)) {
 		/* Marks for LAYOUTCOMMIT */
-		mark_extents_written(BLK_LSEG2EXT(wdata->header->lseg),
-				     wdata->args.offset, wdata->args.count);
+		mark_extents_written(BLK_LSEG2EXT(hdr->lseg),
+				     hdr->args.offset, hdr->args.count);
 	}
-	pnfs_ld_write_done(wdata);
+	pnfs_ld_write_done(hdr);
 }
 
 /* Called when last of bios associated with a bl_write_pagelist call finishes */
 static void bl_end_par_io_write(void *data, int num_se)
 {
-	struct nfs_pgio_data *wdata = data;
+	struct nfs_pgio_header *hdr = data;
 
-	if (unlikely(wdata->header->pnfs_error)) {
-		bl_free_short_extents(&BLK_LSEG2EXT(wdata->header->lseg)->bl_inval,
+	if (unlikely(hdr->pnfs_error)) {
+		bl_free_short_extents(&BLK_LSEG2EXT(hdr->lseg)->bl_inval,
 					num_se);
 	}
 
-	wdata->task.tk_status = wdata->header->pnfs_error;
-	wdata->verf.committed = NFS_FILE_SYNC;
-	INIT_WORK(&wdata->task.u.tk_work, bl_write_cleanup);
-	schedule_work(&wdata->task.u.tk_work);
+	hdr->task.tk_status = hdr->pnfs_error;
+	hdr->verf.committed = NFS_FILE_SYNC;
+	INIT_WORK(&hdr->task.u.tk_work, bl_write_cleanup);
+	schedule_work(&hdr->task.u.tk_work);
 }
 
 /* FIXME STUB - mark intersection of layout and page as bad, so is not
@@ -673,18 +672,17 @@ check_page:
 }
 
 static enum pnfs_try_status
-bl_write_pagelist(struct nfs_pgio_data *wdata, int sync)
+bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 {
-	struct nfs_pgio_header *header = wdata->header;
 	int i, ret, npg_zero, pg_index, last = 0;
 	struct bio *bio = NULL;
 	struct pnfs_block_extent *be = NULL, *cow_read = NULL;
 	sector_t isect, last_isect = 0, extent_length = 0;
 	struct parallel_io *par = NULL;
-	loff_t offset = wdata->args.offset;
-	size_t count = wdata->args.count;
+	loff_t offset = header->args.offset;
+	size_t count = header->args.count;
 	unsigned int pg_offset, pg_len, saved_len;
-	struct page **pages = wdata->args.pages;
+	struct page **pages = header->args.pages;
 	struct page *page;
 	pgoff_t index;
 	u64 temp;
@@ -699,11 +697,11 @@ bl_write_pagelist(struct nfs_pgio_data *wdata, int sync)
 		dprintk("pnfsblock nonblock aligned DIO writes. Resend MDS\n");
 		goto out_mds;
 	}
-	/* At this point, wdata->pages is a (sequential) list of nfs_pages.
+	/* At this point, header->page_aray is a (sequential) list of nfs_pages.
 	 * We want to write each, and if there is an error set pnfs_error
 	 * to have it redone using nfs.
 	 */
-	par = alloc_parallel(wdata);
+	par = alloc_parallel(header);
 	if (!par)
 		goto out_mds;
 	par->pnfs_callback = bl_end_par_io_write;
@@ -790,8 +788,8 @@ next_page:
 	bio = bl_submit_bio(WRITE, bio);
 
 	/* Middle pages */
-	pg_index = wdata->args.pgbase >> PAGE_CACHE_SHIFT;
-	for (i = pg_index; i < wdata->pages.npages; i++) {
+	pg_index = header->args.pgbase >> PAGE_CACHE_SHIFT;
+	for (i = pg_index; i < header->page_array.npages; i++) {
 		if (!extent_length) {
 			/* We've used up the previous extent */
 			bl_put_extent(be);
@@ -862,7 +860,8 @@ next_page:
 		}
 
 
-		bio = do_add_page_to_bio(bio, wdata->pages.npages - i, WRITE,
+		bio = do_add_page_to_bio(bio, header->page_array.npages - i,
+					 WRITE,
 					 isect, pages[i], be,
 					 bl_end_io_write, par,
 					 pg_offset, pg_len);
@@ -890,7 +889,7 @@ next_page:
 	}
 
 write_done:
-	wdata->res.count = wdata->args.count;
+	header->res.count = header->args.count;
 out:
 	bl_put_extent(be);
 	bl_put_extent(cow_read);
@@ -1063,7 +1062,7 @@ nfs4_blk_get_deviceinfo(struct nfs_server *server, const struct nfs_fh *fh,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	pages = kzalloc(max_pages * sizeof(struct page *), GFP_NOFS);
+	pages = kcalloc(max_pages, sizeof(struct page *), GFP_NOFS);
 	if (pages == NULL) {
 		kfree(dev);
 		return ERR_PTR(-ENOMEM);

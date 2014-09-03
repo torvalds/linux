@@ -502,7 +502,6 @@
 };
 
 &ssi1 {
-	fsl,mode = "i2s-slave";
 	codec-handle = <&sgtl5000>;
 	status = "okay";
 };

@@ -97,6 +97,13 @@ static inline void append_dec_op1(u32 *desc, u32 type)
 {
 	u32 *jump_cmd, *uncond_jump_cmd;
 
+	/* DK bit is valid only for AES */
+	if ((type & OP_ALG_ALGSEL_MASK) != OP_ALG_ALGSEL_AES) {
+		append_operation(desc, type | OP_ALG_AS_INITFINAL |
+				 OP_ALG_DECRYPT);
+		return;
+	}
+
 	jump_cmd = append_jump(desc, JUMP_TEST_ALL | JUMP_COND_SHRD);
 	append_operation(desc, type | OP_ALG_AS_INITFINAL |
 			 OP_ALG_DECRYPT);
@@ -786,7 +793,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
+	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
@@ -1313,8 +1320,13 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 					 DMA_FROM_DEVICE, dst_chained);
 	}
 
-	/* Check if data are contiguous */
 	iv_dma = dma_map_single(jrdev, req->iv, ivsize, DMA_TO_DEVICE);
+	if (dma_mapping_error(jrdev, iv_dma)) {
+		dev_err(jrdev, "unable to map IV\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	/* Check if data are contiguous */
 	if (assoc_nents || sg_dma_address(req->assoc) + req->assoclen !=
 	    iv_dma || src_nents || iv_dma + ivsize !=
 	    sg_dma_address(req->src)) {
@@ -1345,8 +1357,6 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct aead_edesc) +
 			 desc_bytes;
-	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
-					    sec4_sg_bytes, DMA_TO_DEVICE);
 	*all_contig_ptr = all_contig;
 
 	sec4_sg_index = 0;
@@ -1368,6 +1378,12 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	if (dst_nents) {
 		sg_to_sec4_sg_last(req->dst, dst_nents,
 				   edesc->sec4_sg + sec4_sg_index, 0);
+	}
+	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
+					    sec4_sg_bytes, DMA_TO_DEVICE);
+	if (dma_mapping_error(jrdev, edesc->sec4_sg_dma)) {
+		dev_err(jrdev, "unable to map S/G table\n");
+		return ERR_PTR(-ENOMEM);
 	}
 
 	return edesc;
@@ -1494,8 +1510,13 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 					 DMA_FROM_DEVICE, dst_chained);
 	}
 
-	/* Check if data are contiguous */
 	iv_dma = dma_map_single(jrdev, greq->giv, ivsize, DMA_TO_DEVICE);
+	if (dma_mapping_error(jrdev, iv_dma)) {
+		dev_err(jrdev, "unable to map IV\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	/* Check if data are contiguous */
 	if (assoc_nents || sg_dma_address(req->assoc) + req->assoclen !=
 	    iv_dma || src_nents || iv_dma + ivsize != sg_dma_address(req->src))
 		contig &= ~GIV_SRC_CONTIG;
@@ -1534,8 +1555,6 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct aead_edesc) +
 			 desc_bytes;
-	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
-					    sec4_sg_bytes, DMA_TO_DEVICE);
 	*contig_ptr = contig;
 
 	sec4_sg_index = 0;
@@ -1558,6 +1577,12 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 		sec4_sg_index += 1;
 		sg_to_sec4_sg_last(req->dst, dst_nents,
 				   edesc->sec4_sg + sec4_sg_index, 0);
+	}
+	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
+					    sec4_sg_bytes, DMA_TO_DEVICE);
+	if (dma_mapping_error(jrdev, edesc->sec4_sg_dma)) {
+		dev_err(jrdev, "unable to map S/G table\n");
+		return ERR_PTR(-ENOMEM);
 	}
 
 	return edesc;
@@ -1650,11 +1675,16 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 					 DMA_FROM_DEVICE, dst_chained);
 	}
 
+	iv_dma = dma_map_single(jrdev, req->info, ivsize, DMA_TO_DEVICE);
+	if (dma_mapping_error(jrdev, iv_dma)) {
+		dev_err(jrdev, "unable to map IV\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
 	/*
 	 * Check if iv can be contiguous with source and destination.
 	 * If so, include it. If not, create scatterlist.
 	 */
-	iv_dma = dma_map_single(jrdev, req->info, ivsize, DMA_TO_DEVICE);
 	if (!src_nents && iv_dma + ivsize == sg_dma_address(req->src))
 		iv_contig = true;
 	else
@@ -1693,6 +1723,11 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 
 	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
 					    sec4_sg_bytes, DMA_TO_DEVICE);
+	if (dma_mapping_error(jrdev, edesc->sec4_sg_dma)) {
+		dev_err(jrdev, "unable to map S/G table\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
 	edesc->iv_dma = iv_dma;
 
 #ifdef DEBUG
@@ -2441,7 +2476,36 @@ static struct caam_crypto_alg *caam_alg_alloc(struct caam_alg_template
 
 static int __init caam_algapi_init(void)
 {
+	struct device_node *dev_node;
+	struct platform_device *pdev;
+	struct device *ctrldev;
+	void *priv;
 	int i = 0, err = 0;
+
+	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
+	if (!dev_node) {
+		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
+		if (!dev_node)
+			return -ENODEV;
+	}
+
+	pdev = of_find_device_by_node(dev_node);
+	if (!pdev) {
+		of_node_put(dev_node);
+		return -ENODEV;
+	}
+
+	ctrldev = &pdev->dev;
+	priv = dev_get_drvdata(ctrldev);
+	of_node_put(dev_node);
+
+	/*
+	 * If priv is NULL, it's probably because the caam driver wasn't
+	 * properly initialized (e.g. RNG4 init failed). Thus, bail out here.
+	 */
+	if (!priv)
+		return -ENODEV;
+
 
 	INIT_LIST_HEAD(&alg_list);
 

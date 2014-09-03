@@ -42,16 +42,16 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-# include <linux/libcfs/libcfs.h>
-# include <linux/module.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/module.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <dt_object.h>
-#include <md_object.h>
-#include <obd_support.h>
-#include <lustre_req_layout.h>
-#include <lustre_fid.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/dt_object.h"
+#include "../include/md_object.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_fid.h"
 #include "fid_internal.h"
 
 /* Format: [0x64BIT_INT - 0x64BIT_INT] + 32 bytes just in case */
@@ -98,9 +98,10 @@ static ssize_t lprocfs_fid_space_seq_write(struct file *file,
 					   const char __user *buffer,
 					   size_t count, loff_t *off)
 {
-	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
+	struct lu_client_seq *seq;
 	int rc;
 
+	seq = ((struct seq_file *)file->private_data)->private;
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
@@ -125,7 +126,7 @@ lprocfs_fid_space_seq_show(struct seq_file *m, void *unused)
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = seq_printf(m, "["LPX64" - "LPX64"]:%x:%s\n", PRANGE(&seq->lcs_space));
+	rc = seq_printf(m, "[%#llx - %#llx]:%x:%s\n", PRANGE(&seq->lcs_space));
 	mutex_unlock(&seq->lcs_mutex);
 
 	return rc;
@@ -135,10 +136,11 @@ static ssize_t lprocfs_fid_width_seq_write(struct file *file,
 					   const char __user *buffer,
 					   size_t count, loff_t *off)
 {
-	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
+	struct lu_client_seq *seq;
 	__u64  max;
 	int rc, val;
 
+	seq = ((struct seq_file *)file->private_data)->private;
 	LASSERT(seq != NULL);
 
 	rc = lprocfs_write_helper(buffer, count, &val);
@@ -155,7 +157,7 @@ static ssize_t lprocfs_fid_width_seq_write(struct file *file,
 		seq->lcs_width = val;
 
 		if (rc == 0) {
-			CDEBUG(D_INFO, "%s: Sequence size: "LPU64"\n",
+			CDEBUG(D_INFO, "%s: Sequence size: %llu\n",
 			       seq->lcs_name, seq->lcs_width);
 		}
 	}
@@ -174,7 +176,7 @@ lprocfs_fid_width_seq_show(struct seq_file *m, void *unused)
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = seq_printf(m, LPU64"\n", seq->lcs_width);
+	rc = seq_printf(m, "%llu\n", seq->lcs_width);
 	mutex_unlock(&seq->lcs_mutex);
 
 	return rc;

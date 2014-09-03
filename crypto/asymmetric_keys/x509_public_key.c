@@ -18,10 +18,85 @@
 #include <linux/asn1_decoder.h>
 #include <keys/asymmetric-subtype.h>
 #include <keys/asymmetric-parser.h>
+#include <keys/system_keyring.h>
 #include <crypto/hash.h>
 #include "asymmetric_keys.h"
 #include "public_key.h"
 #include "x509_parser.h"
+
+static bool use_builtin_keys;
+static char *ca_keyid;
+
+#ifndef MODULE
+static int __init ca_keys_setup(char *str)
+{
+	if (!str)		/* default system keyring */
+		return 1;
+
+	if (strncmp(str, "id:", 3) == 0)
+		ca_keyid = str;	/* owner key 'id:xxxxxx' */
+	else if (strcmp(str, "builtin") == 0)
+		use_builtin_keys = true;
+
+	return 1;
+}
+__setup("ca_keys=", ca_keys_setup);
+#endif
+
+/**
+ * x509_request_asymmetric_key - Request a key by X.509 certificate params.
+ * @keyring: The keys to search.
+ * @subject: The name of the subject to whom the key belongs.
+ * @key_id: The subject key ID as a hex string.
+ *
+ * Find a key in the given keyring by subject name and key ID.  These might,
+ * for instance, be the issuer name and the authority key ID of an X.509
+ * certificate that needs to be verified.
+ */
+struct key *x509_request_asymmetric_key(struct key *keyring,
+					const char *subject,
+					const char *key_id)
+{
+	key_ref_t key;
+	size_t subject_len = strlen(subject), key_id_len = strlen(key_id);
+	char *id;
+
+	/* Construct an identifier "<subjname>:<keyid>". */
+	id = kmalloc(subject_len + 2 + key_id_len + 1, GFP_KERNEL);
+	if (!id)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(id, subject, subject_len);
+	id[subject_len + 0] = ':';
+	id[subject_len + 1] = ' ';
+	memcpy(id + subject_len + 2, key_id, key_id_len);
+	id[subject_len + 2 + key_id_len] = 0;
+
+	pr_debug("Look up: \"%s\"\n", id);
+
+	key = keyring_search(make_key_ref(keyring, 1),
+			     &key_type_asymmetric, id);
+	if (IS_ERR(key))
+		pr_debug("Request for key '%s' err %ld\n", id, PTR_ERR(key));
+	kfree(id);
+
+	if (IS_ERR(key)) {
+		switch (PTR_ERR(key)) {
+			/* Hide some search errors */
+		case -EACCES:
+		case -ENOTDIR:
+		case -EAGAIN:
+			return ERR_PTR(-ENOKEY);
+		default:
+			return ERR_CAST(key);
+		}
+	}
+
+	pr_devel("<==%s() = 0 [%x]\n", __func__,
+		 key_serial(key_ref_to_ptr(key)));
+	return key_ref_to_ptr(key);
+}
+EXPORT_SYMBOL_GPL(x509_request_asymmetric_key);
 
 /*
  * Set up the signature parameters in an X.509 certificate.  This involves
@@ -103,6 +178,38 @@ int x509_check_signature(const struct public_key *pub,
 EXPORT_SYMBOL_GPL(x509_check_signature);
 
 /*
+ * Check the new certificate against the ones in the trust keyring.  If one of
+ * those is the signing key and validates the new certificate, then mark the
+ * new certificate as being trusted.
+ *
+ * Return 0 if the new certificate was successfully validated, 1 if we couldn't
+ * find a matching parent certificate in the trusted list and an error if there
+ * is a matching certificate but the signature check fails.
+ */
+static int x509_validate_trust(struct x509_certificate *cert,
+			       struct key *trust_keyring)
+{
+	struct key *key;
+	int ret = 1;
+
+	if (!trust_keyring)
+		return -EOPNOTSUPP;
+
+	if (ca_keyid && !asymmetric_keyid_match(cert->authority, ca_keyid))
+		return -EPERM;
+
+	key = x509_request_asymmetric_key(trust_keyring,
+					  cert->issuer, cert->authority);
+	if (!IS_ERR(key))  {
+		if (!use_builtin_keys
+		    || test_bit(KEY_FLAG_BUILTIN, &key->flags))
+			ret = x509_check_signature(key->payload.data, cert);
+		key_put(key);
+	}
+	return ret;
+}
+
+/*
  * Attempt to parse a data blob for a key as an X509 certificate.
  */
 static int x509_key_preparse(struct key_preparsed_payload *prep)
@@ -155,9 +262,13 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	/* Check the signature on the key if it appears to be self-signed */
 	if (!cert->authority ||
 	    strcmp(cert->fingerprint, cert->authority) == 0) {
-		ret = x509_check_signature(cert->pub, cert);
+		ret = x509_check_signature(cert->pub, cert); /* self-signed */
 		if (ret < 0)
 			goto error_free_cert;
+	} else if (!prep->trusted) {
+		ret = x509_validate_trust(cert, get_system_trusted_keyring());
+		if (!ret)
+			prep->trusted = 1;
 	}
 
 	/* Propose a description */
@@ -177,7 +288,7 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	__module_get(public_key_subtype.owner);
 	prep->type_data[0] = &public_key_subtype;
 	prep->type_data[1] = cert->fingerprint;
-	prep->payload = cert->pub;
+	prep->payload[0] = cert->pub;
 	prep->description = desc;
 	prep->quotalen = 100;
 

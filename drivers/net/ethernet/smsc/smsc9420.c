@@ -83,7 +83,7 @@ struct smsc9420_pdata {
 	int last_carrier;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(smsc9420_id_table) = {
+static const struct pci_device_id smsc9420_id_table[] = {
 	{ PCI_VENDOR_ID_9420, PCI_DEVICE_ID_9420, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }
 };

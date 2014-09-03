@@ -42,12 +42,6 @@ conditions.
 
 ** System MMU optional properties:
 
-- smmu-parent   : When multiple SMMUs are chained together, this
-                  property can be used to provide a phandle to the
-                  parent SMMU (that is the next SMMU on the path going
-                  from the mmu-masters towards memory) node for this
-                  SMMU.
-
 - calxeda,smmu-secure-config-access : Enable proper handling of buggy
                   implementations that always use secure access to
                   SMMU configuration registers. In this case non-secure

@@ -32,6 +32,11 @@ MODULE_DESCRIPTION("Sun LDOM virtual network driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
+/* Heuristic for the number of times to exponentially backoff and
+ * retry sending an LDC trigger when EAGAIN is encountered
+ */
+#define	VNET_MAX_RETRIES	10
+
 /* Ordered from largest major to lowest */
 static struct vio_version vnet_versions[] = {
 	{ .major = 1, .minor = 0 },
@@ -260,6 +265,7 @@ static int vnet_send_ack(struct vnet_port *port, struct vio_dring_state *dr,
 		.state			= vio_dring_state,
 	};
 	int err, delay;
+	int retries = 0;
 
 	hdr.seq = dr->snd_nxt;
 	delay = 1;
@@ -272,6 +278,13 @@ static int vnet_send_ack(struct vnet_port *port, struct vio_dring_state *dr,
 		udelay(delay);
 		if ((delay <<= 1) > 128)
 			delay = 128;
+		if (retries++ > VNET_MAX_RETRIES) {
+			pr_info("ECONNRESET %x:%x:%x:%x:%x:%x\n",
+				port->raddr[0], port->raddr[1],
+				port->raddr[2], port->raddr[3],
+				port->raddr[4], port->raddr[5]);
+			err = -ECONNRESET;
+		}
 	} while (err == -EAGAIN);
 
 	return err;
@@ -475,8 +488,9 @@ static int handle_mcast(struct vnet_port *port, void *msgbuf)
 	return 0;
 }
 
-static void maybe_tx_wakeup(struct vnet *vp)
+static void maybe_tx_wakeup(unsigned long param)
 {
+	struct vnet *vp = (struct vnet *)param;
 	struct net_device *dev = vp->dev;
 
 	netif_tx_lock(dev);
@@ -573,8 +587,13 @@ static void vnet_event(void *arg, int event)
 			break;
 	}
 	spin_unlock(&vio->lock);
+	/* Kick off a tasklet to wake the queue.  We cannot call
+	 * maybe_tx_wakeup directly here because we could deadlock on
+	 * netif_tx_lock() with dev_watchdog()
+	 */
 	if (unlikely(tx_wakeup && err != -ECONNRESET))
-		maybe_tx_wakeup(port->vp);
+		tasklet_schedule(&port->vp->vnet_tx_wakeup);
+
 	local_irq_restore(flags);
 }
 
@@ -593,6 +612,7 @@ static int __vnet_tx_trigger(struct vnet_port *port)
 		.end_idx		= (u32) -1,
 	};
 	int err, delay;
+	int retries = 0;
 
 	hdr.seq = dr->snd_nxt;
 	delay = 1;
@@ -605,6 +625,8 @@ static int __vnet_tx_trigger(struct vnet_port *port)
 		udelay(delay);
 		if ((delay <<= 1) > 128)
 			delay = 128;
+		if (retries++ > VNET_MAX_RETRIES)
+			break;
 	} while (err == -EAGAIN);
 
 	return err;
@@ -691,7 +713,15 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		memset(tx_buf+VNET_PACKET_SKIP+skb->len, 0, len - skb->len);
 	}
 
-	d->hdr.ack = VIO_ACK_ENABLE;
+	/* We don't rely on the ACKs to free the skb in vnet_start_xmit(),
+	 * thus it is safe to not set VIO_ACK_ENABLE for each transmission:
+	 * the protocol itself does not require it as long as the peer
+	 * sends a VIO_SUBTYPE_ACK for VIO_DRING_STOPPED.
+	 *
+	 * An ACK for every packet in the ring is expensive as the
+	 * sending of LDC messages is slow and affects performance.
+	 */
+	d->hdr.ack = VIO_ACK_DISABLE;
 	d->size = len;
 	d->ncookies = port->tx_bufs[dr->prod].ncookies;
 	for (i = 0; i < d->ncookies; i++)
@@ -1046,6 +1076,7 @@ static struct vnet *vnet_new(const u64 *local_mac)
 	vp = netdev_priv(dev);
 
 	spin_lock_init(&vp->lock);
+	tasklet_init(&vp->vnet_tx_wakeup, maybe_tx_wakeup, (unsigned long)vp);
 	vp->dev = dev;
 
 	INIT_LIST_HEAD(&vp->port_list);
@@ -1105,6 +1136,7 @@ static void vnet_cleanup(void)
 		vp = list_first_entry(&vnet_list, struct vnet, list);
 		list_del(&vp->list);
 		dev = vp->dev;
+		tasklet_kill(&vp->vnet_tx_wakeup);
 		/* vio_unregister_driver() should have cleaned up port_list */
 		BUG_ON(!list_empty(&vp->port_list));
 		unregister_netdev(dev);

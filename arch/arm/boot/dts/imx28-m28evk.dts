@@ -10,52 +10,14 @@
  */
 
 /dts-v1/;
-#include "imx28.dtsi"
+#include "imx28-m28.dtsi"
 
 / {
 	model = "DENX M28EVK";
 	compatible = "denx,m28evk", "fsl,imx28";
 
-	memory {
-		reg = <0x40000000 0x08000000>;
-	};
-
 	apb@80000000 {
 		apbh@80000000 {
-			gpmi-nand@8000c000 {
-				#address-cells = <1>;
-				#size-cells = <1>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
-				status = "okay";
-
-				partition@0 {
-					label = "bootloader";
-					reg = <0x00000000 0x00300000>;
-					read-only;
-				};
-
-				partition@1 {
-					label = "environment";
-					reg = <0x00300000 0x00080000>;
-				};
-
-				partition@2 {
-					label = "redundant-environment";
-					reg = <0x00380000 0x00080000>;
-				};
-
-				partition@3 {
-					label = "kernel";
-					reg = <0x00400000 0x00400000>;
-				};
-
-				partition@4 {
-					label = "filesystem";
-					reg = <0x00800000 0x0f800000>;
-				};
-			};
-
 			ssp0: ssp@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
@@ -175,10 +137,6 @@
 			};
 
 			i2c0: i2c@80058000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&i2c0_pins_a>;
-				status = "okay";
-
 				sgtl5000: codec@0a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
@@ -191,11 +149,6 @@
 					compatible = "atmel,24c128";
 					reg = <0x51>;
 					pagesize = <32>;
-				};
-
-				rtc: rtc@68 {
-					compatible = "stm,m41t62";
-					reg = <0x68>;
 				};
 			};
 
@@ -284,19 +237,6 @@
 	};
 
 	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_3p3v: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "3P3V";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
-
 		reg_vddio_sd0: regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;

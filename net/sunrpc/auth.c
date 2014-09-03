@@ -48,7 +48,7 @@ static int param_set_hashtbl_sz(const char *val, const struct kernel_param *kp)
 
 	if (!val)
 		goto out_inval;
-	ret = strict_strtoul(val, 0, &num);
+	ret = kstrtoul(val, 0, &num);
 	if (ret == -EINVAL)
 		goto out_inval;
 	nbits = fls(num);
@@ -79,6 +79,10 @@ static struct kernel_param_ops param_ops_hashtbl_sz = {
 
 module_param_named(auth_hashtable_size, auth_hashbits, hashtbl_sz, 0644);
 MODULE_PARM_DESC(auth_hashtable_size, "RPC credential cache hashtable size");
+
+static unsigned long auth_max_cred_cachesize = ULONG_MAX;
+module_param(auth_max_cred_cachesize, ulong, 0644);
+MODULE_PARM_DESC(auth_max_cred_cachesize, "RPC credential maximum total cache size");
 
 static u32
 pseudoflavor_to_flavor(u32 flavor) {
@@ -363,6 +367,15 @@ rpcauth_cred_key_to_expire(struct rpc_cred *cred)
 }
 EXPORT_SYMBOL_GPL(rpcauth_cred_key_to_expire);
 
+char *
+rpcauth_stringify_acceptor(struct rpc_cred *cred)
+{
+	if (!cred->cr_ops->crstringify_acceptor)
+		return NULL;
+	return cred->cr_ops->crstringify_acceptor(cred);
+}
+EXPORT_SYMBOL_GPL(rpcauth_stringify_acceptor);
+
 /*
  * Destroy a list of credentials
  */
@@ -472,6 +485,20 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 	return freed;
 }
 
+static unsigned long
+rpcauth_cache_do_shrink(int nr_to_scan)
+{
+	LIST_HEAD(free);
+	unsigned long freed;
+
+	spin_lock(&rpc_credcache_lock);
+	freed = rpcauth_prune_expired(&free, nr_to_scan);
+	spin_unlock(&rpc_credcache_lock);
+	rpcauth_destroy_credlist(&free);
+
+	return freed;
+}
+
 /*
  * Run memory cache shrinker.
  */
@@ -479,9 +506,6 @@ static unsigned long
 rpcauth_cache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 
 {
-	LIST_HEAD(free);
-	unsigned long freed;
-
 	if ((sc->gfp_mask & GFP_KERNEL) != GFP_KERNEL)
 		return SHRINK_STOP;
 
@@ -489,12 +513,7 @@ rpcauth_cache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	if (list_empty(&cred_unused))
 		return SHRINK_STOP;
 
-	spin_lock(&rpc_credcache_lock);
-	freed = rpcauth_prune_expired(&free, sc->nr_to_scan);
-	spin_unlock(&rpc_credcache_lock);
-	rpcauth_destroy_credlist(&free);
-
-	return freed;
+	return rpcauth_cache_do_shrink(sc->nr_to_scan);
 }
 
 static unsigned long
@@ -502,6 +521,21 @@ rpcauth_cache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 
 {
 	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
+}
+
+static void
+rpcauth_cache_enforce_limit(void)
+{
+	unsigned long diff;
+	unsigned int nr_to_scan;
+
+	if (number_cred_unused <= auth_max_cred_cachesize)
+		return;
+	diff = number_cred_unused - auth_max_cred_cachesize;
+	nr_to_scan = 100;
+	if (diff < nr_to_scan)
+		nr_to_scan = diff;
+	rpcauth_cache_do_shrink(nr_to_scan);
 }
 
 /*
@@ -523,6 +557,12 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 	hlist_for_each_entry_rcu(entry, &cache->hashtable[nr], cr_hash) {
 		if (!entry->cr_ops->crmatch(acred, entry, flags))
 			continue;
+		if (flags & RPCAUTH_LOOKUP_RCU) {
+			if (test_bit(RPCAUTH_CRED_HASHED, &entry->cr_flags) &&
+			    !test_bit(RPCAUTH_CRED_NEW, &entry->cr_flags))
+				cred = entry;
+			break;
+		}
 		spin_lock(&cache->lock);
 		if (test_bit(RPCAUTH_CRED_HASHED, &entry->cr_flags) == 0) {
 			spin_unlock(&cache->lock);
@@ -536,6 +576,9 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 
 	if (cred != NULL)
 		goto found;
+
+	if (flags & RPCAUTH_LOOKUP_RCU)
+		return ERR_PTR(-ECHILD);
 
 	new = auth->au_ops->crcreate(auth, acred, flags);
 	if (IS_ERR(new)) {
@@ -557,6 +600,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 	} else
 		list_add_tail(&new->cr_lru, &free);
 	spin_unlock(&cache->lock);
+	rpcauth_cache_enforce_limit();
 found:
 	if (test_bit(RPCAUTH_CRED_NEW, &cred->cr_flags) &&
 	    cred->cr_ops->cr_init != NULL &&
@@ -586,10 +630,8 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	memset(&acred, 0, sizeof(acred));
 	acred.uid = cred->fsuid;
 	acred.gid = cred->fsgid;
-	acred.group_info = get_group_info(((struct cred *)cred)->group_info);
-
+	acred.group_info = cred->group_info;
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
-	put_group_info(acred.group_info);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rpcauth_lookupcred);

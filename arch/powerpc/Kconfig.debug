@@ -202,9 +202,7 @@ config PPC_EARLY_DEBUG_BEAT
 
 config PPC_EARLY_DEBUG_44x
 	bool "Early serial debugging for IBM/AMCC 44x CPUs"
-	# PPC_EARLY_DEBUG on 440 leaves AS=1 mappings above the TLB high water
-	# mark, which doesn't work with current 440 KVM.
-	depends on 44x && !KVM
+	depends on 44x
 	help
 	  Select this to enable early debugging for IBM 44x chips via the
 	  inbuilt serial port.  If you enable this, ensure you set

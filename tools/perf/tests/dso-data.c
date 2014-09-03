@@ -10,6 +10,7 @@
 #include "machine.h"
 #include "symbol.h"
 #include "tests.h"
+#include "debug.h"
 
 static char *test_file(int size)
 {

@@ -1302,8 +1302,10 @@ static int ads7846_probe(struct spi_device *spi)
 	pdata = dev_get_platdata(&spi->dev);
 	if (!pdata) {
 		pdata = ads7846_probe_dt(&spi->dev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
+		if (IS_ERR(pdata)) {
+			err = PTR_ERR(pdata);
+			goto err_free_mem;
+		}
 	}
 
 	ts->model = pdata->model ? : 7846;

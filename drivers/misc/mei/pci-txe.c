@@ -149,7 +149,7 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, MEI_TXI_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
 
-	err = mei_register(dev);
+	err = mei_register(dev, &pdev->dev);
 	if (err)
 		goto release_irq;
 
@@ -306,7 +306,7 @@ static int mei_txe_pm_runtime_idle(struct device *device)
 	if (!dev)
 		return -ENODEV;
 	if (mei_write_is_idle(dev))
-		pm_schedule_suspend(device, MEI_TXI_RPM_TIMEOUT * 2);
+		pm_runtime_autosuspend(device);
 
 	return -EBUSY;
 }

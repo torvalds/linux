@@ -26,7 +26,6 @@ Contents:
   -- Data granularity
   -- Probing
   -- Buffer allocation
-  -- Memory management
   -- The "nonempty" message (supporting poll)
 
 
@@ -364,28 +363,6 @@ single page is requested from the kernel, and that page is partially used.
 Or, if there already is a partially used page at hand, the buffer is packed
 into that page. It can be shown that all pages requested from the kernel
 (except possibly for the last) are 100% utilized this way.
-
-Memory management
------------------
-
-The tricky part about the buffer allocation procedure described above is
-freeing and unmapping the buffers, in particular if something goes wrong in
-the middle, and the allocations need to be rolled back. The three-stage
-probing procedure makes this even more crucial, since temporary buffers are
-set up and mapped in the first of its two stages.
-
-To keep the code clean from complicated and bug-prone memory release routines,
-there are special routines for allocating memory. For example, instead of
-calling kzalloc, there's
-
-void *xilly_malloc(struct xilly_cleanup *mem, size_t size)
-
-which effectively allocates a zeroed buffer of size "size". Its first
-argument, "mem", is where this allocation is enlisted, so that it's released
-when xillybus_do_cleanup() is called with the same "mem" structure.
-
-Two other functions enlist allocations in this structure: xilly_pagealloc()
-for page allocations and xilly_map_single_*() for DMA mapping.
 
 The "nonempty" message (supporting poll)
 ---------------------------------------

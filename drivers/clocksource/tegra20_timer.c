@@ -27,6 +27,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
+#include <linux/delay.h>
 
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
@@ -52,6 +53,8 @@ static void __iomem *rtc_base;
 
 static struct timespec persistent_ts;
 static u64 persistent_ms, last_persistent_ms;
+
+static struct delay_timer tegra_delay_timer;
 
 #define timer_writel(value, reg) \
 	__raw_writel(value, timer_reg_base + (reg))
@@ -139,6 +142,11 @@ static void tegra_read_persistent_clock(struct timespec *ts)
 	*ts = *tsp;
 }
 
+static unsigned long tegra_delay_timer_read_counter_long(void)
+{
+	return readl(timer_reg_base + TIMERUS_CNTR_1US);
+}
+
 static irqreturn_t tegra_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = (struct clock_event_device *)dev_id;
@@ -205,6 +213,11 @@ static void __init tegra20_init_timer(struct device_node *np)
 		pr_err("Failed to register clocksource\n");
 		BUG();
 	}
+
+	tegra_delay_timer.read_current_timer =
+			tegra_delay_timer_read_counter_long;
+	tegra_delay_timer.freq = 1000000;
+	register_current_timer_delay(&tegra_delay_timer);
 
 	ret = setup_irq(tegra_timer_irq.irq, &tegra_timer_irq);
 	if (ret) {

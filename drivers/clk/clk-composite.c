@@ -64,11 +64,56 @@ static long clk_composite_determine_rate(struct clk_hw *hw, unsigned long rate,
 	const struct clk_ops *mux_ops = composite->mux_ops;
 	struct clk_hw *rate_hw = composite->rate_hw;
 	struct clk_hw *mux_hw = composite->mux_hw;
+	struct clk *parent;
+	unsigned long parent_rate;
+	long tmp_rate, best_rate = 0;
+	unsigned long rate_diff;
+	unsigned long best_rate_diff = ULONG_MAX;
+	int i;
 
 	if (rate_hw && rate_ops && rate_ops->determine_rate) {
 		rate_hw->clk = hw->clk;
 		return rate_ops->determine_rate(rate_hw, rate, best_parent_rate,
 						best_parent_p);
+	} else if (rate_hw && rate_ops && rate_ops->round_rate &&
+		   mux_hw && mux_ops && mux_ops->set_parent) {
+		*best_parent_p = NULL;
+
+		if (__clk_get_flags(hw->clk) & CLK_SET_RATE_NO_REPARENT) {
+			*best_parent_p = clk_get_parent(mux_hw->clk);
+			*best_parent_rate = __clk_get_rate(*best_parent_p);
+
+			return rate_ops->round_rate(rate_hw, rate,
+						    best_parent_rate);
+		}
+
+		for (i = 0; i < __clk_get_num_parents(mux_hw->clk); i++) {
+			parent = clk_get_parent_by_index(mux_hw->clk, i);
+			if (!parent)
+				continue;
+
+			parent_rate = __clk_get_rate(parent);
+
+			tmp_rate = rate_ops->round_rate(rate_hw, rate,
+							&parent_rate);
+			if (tmp_rate < 0)
+				continue;
+
+			rate_diff = abs(rate - tmp_rate);
+
+			if (!rate_diff || !*best_parent_p
+				       || best_rate_diff > rate_diff) {
+				*best_parent_p = parent;
+				*best_parent_rate = parent_rate;
+				best_rate_diff = rate_diff;
+				best_rate = tmp_rate;
+			}
+
+			if (!rate_diff)
+				return rate;
+		}
+
+		return best_rate;
 	} else if (mux_hw && mux_ops && mux_ops->determine_rate) {
 		mux_hw->clk = hw->clk;
 		return mux_ops->determine_rate(mux_hw, rate, best_parent_rate,
@@ -162,7 +207,7 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 	clk_composite_ops = &composite->ops;
 
 	if (mux_hw && mux_ops) {
-		if (!mux_ops->get_parent || !mux_ops->set_parent) {
+		if (!mux_ops->get_parent) {
 			clk = ERR_PTR(-EINVAL);
 			goto err;
 		}
@@ -170,7 +215,8 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 		composite->mux_hw = mux_hw;
 		composite->mux_ops = mux_ops;
 		clk_composite_ops->get_parent = clk_composite_get_parent;
-		clk_composite_ops->set_parent = clk_composite_set_parent;
+		if (mux_ops->set_parent)
+			clk_composite_ops->set_parent = clk_composite_set_parent;
 		if (mux_ops->determine_rate)
 			clk_composite_ops->determine_rate = clk_composite_determine_rate;
 	}
@@ -180,24 +226,27 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 			clk = ERR_PTR(-EINVAL);
 			goto err;
 		}
+		clk_composite_ops->recalc_rate = clk_composite_recalc_rate;
 
-		/* .round_rate is a prerequisite for .set_rate */
-		if (rate_ops->round_rate) {
-			clk_composite_ops->round_rate = clk_composite_round_rate;
-			if (rate_ops->set_rate) {
-				clk_composite_ops->set_rate = clk_composite_set_rate;
-			}
-		} else {
-			WARN(rate_ops->set_rate,
-				"%s: missing round_rate op is required\n",
-				__func__);
+		if (rate_ops->determine_rate)
+			clk_composite_ops->determine_rate =
+				clk_composite_determine_rate;
+		else if (rate_ops->round_rate)
+			clk_composite_ops->round_rate =
+				clk_composite_round_rate;
+
+		/* .set_rate requires either .round_rate or .determine_rate */
+		if (rate_ops->set_rate) {
+			if (rate_ops->determine_rate || rate_ops->round_rate)
+				clk_composite_ops->set_rate =
+						clk_composite_set_rate;
+			else
+				WARN(1, "%s: missing round_rate op is required\n",
+						__func__);
 		}
 
 		composite->rate_hw = rate_hw;
 		composite->rate_ops = rate_ops;
-		clk_composite_ops->recalc_rate = clk_composite_recalc_rate;
-		if (rate_ops->determine_rate)
-			clk_composite_ops->determine_rate = clk_composite_determine_rate;
 	}
 
 	if (gate_hw && gate_ops) {

@@ -130,7 +130,6 @@ static inline unsigned int get_nmi_count(int cpu)
 
 static __init void nmi_cpu_busy(void *data)
 {
-	local_irq_enable_in_hardirq();
 	while (endflag == 0)
 		mb();
 }

@@ -224,7 +224,6 @@ SetAntennaConfig92C(struct rtw_adapter *Adapter, u8 DefaultAnt);
 
 /* MAC/BB/RF HAL config */
 int PHY_BBConfig8723A(struct rtw_adapter *Adapter);
-int PHY_RFConfig8723A(struct rtw_adapter *Adapter);
 s32 PHY_MACConfig8723A(struct rtw_adapter *padapter);
 
 #endif

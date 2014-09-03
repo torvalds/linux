@@ -206,7 +206,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 	unsigned int data;
 
 	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
 

@@ -565,18 +565,6 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter,
 s32 dump_mgntframe_and_wait_ack(struct adapter *padapter,
 				struct xmit_frame *pmgntframe);
 
-#ifdef CONFIG_88EU_P2P
-void issue_probersp_p2p(struct adapter *padapter, unsigned char *da);
-void issue_p2p_provision_request(struct adapter *padapter, u8 *pssid,
-				 u8 ussidlen, u8 *pdev_raddr);
-void issue_p2p_GO_request(struct adapter *padapter, u8 *raddr);
-void issue_probereq_p2p(struct adapter *padapter, u8 *da);
-int issue_probereq_p2p_ex(struct adapter *adapter, u8 *da, int try_cnt,
-			  int wait_ms);
-void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr,
-				   u8 dialogToken, u8 success);
-void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr);
-#endif /* CONFIG_88EU_P2P */
 void issue_beacon(struct adapter *padapter, int timeout_ms);
 void issue_probersp(struct adapter *padapter, unsigned char *da,
 		    u8 is_valid_p2p_probereq);
@@ -658,9 +646,9 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter,
 
 void linked_status_chk(struct adapter *padapter);
 
-void survey_timer_hdl (struct adapter *padapter);
-void link_timer_hdl (struct adapter *padapter);
-void addba_timer_hdl(struct sta_info *psta);
+void survey_timer_hdl (void *function_context);
+void link_timer_hdl (void *funtion_context);
+void addba_timer_hdl(void *function_context);
 
 #define set_survey_timer(mlmeext, ms) \
 	do { \
@@ -720,78 +708,21 @@ u8 tdls_hdl(struct adapter *padapter, unsigned char *pbuf);
 #ifdef _RTW_CMD_C_
 
 static struct cmd_hdl wlancmds[] = {
-	GEN_DRV_CMD_HANDLER(0, NULL) /*0*/
-	GEN_DRV_CMD_HANDLER(0, NULL)
-	GEN_DRV_CMD_HANDLER(0, NULL)
-	GEN_DRV_CMD_HANDLER(0, NULL)
-	GEN_DRV_CMD_HANDLER(0, NULL)
-	GEN_DRV_CMD_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL) /*10*/
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct joinbss_parm), join_cmd_hdl) /*14*/
+	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), join_cmd_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof (struct disconnect_parm), disconnect_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct createbss_parm), createbss_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), createbss_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof (struct setopmode_parm), setopmode_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct sitesurvey_parm),
-			     sitesurvey_cmd_hdl) /*18*/
+	GEN_MLME_EXT_HANDLER(sizeof (struct sitesurvey_parm), sitesurvey_cmd_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof (struct setauth_parm), setauth_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setkey_parm), setkey_hdl) /*20*/
+	GEN_MLME_EXT_HANDLER(sizeof (struct setkey_parm), setkey_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof (struct set_stakey_parm), set_stakey_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof (struct set_assocsta_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct del_assocsta_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setstapwrstate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setbasicrate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getbasicrate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setdatarate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getdatarate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setphyinfo_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getphyinfo_parm), NULL)  /*30*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct setphy_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getphy_parm), NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)	/*40*/
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(sizeof(struct addBaReq_parm), add_ba_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof(struct set_ch_parm), set_ch_hdl) /* 46 */
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL) /*50*/
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(sizeof(struct Tx_Beacon_param),
-			     tx_beacon_hdl) /*55*/
-
-	GEN_MLME_EXT_HANDLER(0, mlme_evt_hdl) /*56*/
-	GEN_MLME_EXT_HANDLER(0, rtw_drvextra_cmd_hdl) /*57*/
-
-	GEN_MLME_EXT_HANDLER(0, h2c_msg_hdl) /*58*/
-	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelPlan_param),
-			     set_chplan_hdl) /*59*/
-	GEN_MLME_EXT_HANDLER(sizeof(struct LedBlink_param),
-			     led_blink_hdl) /*60*/
-
-	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelSwitch_param),
-			     set_csa_hdl) /*61*/
-	GEN_MLME_EXT_HANDLER(sizeof(struct TDLSoption_param),
-			     tdls_hdl) /*62*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct set_ch_parm), set_ch_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), tx_beacon_hdl)
+	GEN_MLME_EXT_HANDLER(0, mlme_evt_hdl)
+	GEN_MLME_EXT_HANDLER(0, rtw_drvextra_cmd_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelPlan_param), set_chplan_hdl)
 };
 
 #endif

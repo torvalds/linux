@@ -22,278 +22,149 @@
 #include <rtl8723a_hal.h>
 #include <rtl8723a_recv.h>
 
-static int usbctrl_vendorreq(struct rtw_adapter *padapter, u8 request,
-			     u16 value, u16 index, void *pdata, u16 len,
-			     u8 requesttype)
+u8 rtl8723au_read8(struct rtw_adapter *padapter, u16 addr)
 {
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device *udev = pdvobjpriv->pusbdev;
-
-	unsigned int pipe;
-	int status = 0;
-	u8 reqtype;
-	u8 *pIo_buf;
-	int vendorreq_times = 0;
-
-	if (padapter->bSurpriseRemoved || padapter->pwrctrlpriv.pnp_bstop_trx) {
-		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usbctrl_vendorreq:(padapter->bSurpriseRemoved||"
-			  "adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n"));
-		status = -EPERM;
-		goto exit;
-	}
-
-	if (len > MAX_VENDOR_REQ_CMD_SIZE) {
-		DBG_8723A("[%s] Buffer len error , vendor request failed\n",
-			  __func__);
-		status = -EINVAL;
-		goto exit;
-	}
+	int len;
+	u8 data;
 
 	mutex_lock(&pdvobjpriv->usb_vendor_req_mutex);
+	len = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			      REALTEK_USB_VENQT_CMD_REQ, REALTEK_USB_VENQT_READ,
+			      addr, 0, &pdvobjpriv->usb_buf.val8, sizeof(data),
+			      RTW_USB_CONTROL_MSG_TIMEOUT);
 
-	/*  Acquire IO memory for vendorreq */
-	pIo_buf = pdvobjpriv->usb_vendor_req_buf;
-
-	if (pIo_buf == NULL) {
-		DBG_8723A("[%s] pIo_buf == NULL \n", __func__);
-		status = -ENOMEM;
-		goto release_mutex;
-	}
-
-	while (++vendorreq_times <= MAX_USBCTRL_VENDORREQ_TIMES) {
-		memset(pIo_buf, 0, len);
-
-		if (requesttype == 0x01) {
-			pipe = usb_rcvctrlpipe(udev, 0);/* read_in */
-			reqtype =  REALTEK_USB_VENQT_READ;
-		} else {
-			pipe = usb_sndctrlpipe(udev, 0);/* write_out */
-			reqtype =  REALTEK_USB_VENQT_WRITE;
-			memcpy(pIo_buf, pdata, len);
-		}
-
-		status = usb_control_msg(udev, pipe, request, reqtype,
-					 value, index, pIo_buf, len,
-					 RTW_USB_CONTROL_MSG_TIMEOUT);
-
-		if (status == len) {   /*  Success this control transfer. */
-			rtw_reset_continual_urb_error(pdvobjpriv);
-			if (requesttype == 0x01) {
-				/* For Control read transfer, we have to copy
-				 * the read data from pIo_buf to pdata.
-				 */
-				memcpy(pdata, pIo_buf,  len);
-			}
-		} else { /*  error cases */
-			DBG_8723A("reg 0x%x, usb %s %u fail, status:%d value ="
-				  " 0x%x, vendorreq_times:%d\n",
-				  value, (requesttype == 0x01) ?
-				  "read" : "write",
-				  len, status, *(u32 *)pdata, vendorreq_times);
-
-			if (status < 0) {
-				if (status == -ESHUTDOWN || status == -ENODEV)
-					padapter->bSurpriseRemoved = true;
-				else {
-					struct hal_data_8723a *pHalData;
-					pHalData = GET_HAL_DATA(padapter);
-					pHalData->srestpriv.Wifi_Error_Status =
-						USB_VEN_REQ_CMD_FAIL;
-				}
-			} else { /*  status != len && status >= 0 */
-				if (status > 0) {
-					if (requesttype == 0x01) {
-						/*
-						 * For Control read transfer,
-						 * we have to copy the read
-						 * data from pIo_buf to pdata.
-						 */
-						memcpy(pdata, pIo_buf,  len);
-					}
-				}
-			}
-
-			if (rtw_inc_and_chk_continual_urb_error(pdvobjpriv)) {
-				padapter->bSurpriseRemoved = true;
-				break;
-			}
-		}
-
-		/*  firmware download is checksumed, don't retry */
-		if ((value >= FW_8723A_START_ADDRESS &&
-		     value <= FW_8723A_END_ADDRESS) || status == len)
-			break;
-	}
-
-release_mutex:
+	data = pdvobjpriv->usb_buf.val8;
 	mutex_unlock(&pdvobjpriv->usb_vendor_req_mutex);
-exit:
-	return status;
-}
-
-u8 rtl8723au_read8(struct rtw_adapter *padapter, u32 addr)
-{
-	u8 request;
-	u8 requesttype;
-	u16 wvalue;
-	u16 index;
-	u16 len;
-	u8 data = 0;
-
-	request = 0x05;
-	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
-
-	wvalue = (u16)(addr&0x0000ffff);
-	len = 1;
-
-	usbctrl_vendorreq(padapter, request, wvalue, index, &data,
-			  len, requesttype);
 
 	return data;
 }
 
-u16 rtl8723au_read16(struct rtw_adapter *padapter, u32 addr)
+u16 rtl8723au_read16(struct rtw_adapter *padapter, u16 addr)
 {
-	u8 request;
-	u8 requesttype;
-	u16 wvalue;
-	u16 index;
-	u16 len;
-	__le16 data;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct usb_device *udev = pdvobjpriv->pusbdev;
+	int len;
+	u16 data;
 
-	request = 0x05;
-	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
+	mutex_lock(&pdvobjpriv->usb_vendor_req_mutex);
+	len = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			      REALTEK_USB_VENQT_CMD_REQ, REALTEK_USB_VENQT_READ,
+			      addr, 0, &pdvobjpriv->usb_buf.val16, sizeof(data),
+			      RTW_USB_CONTROL_MSG_TIMEOUT);
 
-	wvalue = (u16)(addr&0x0000ffff);
-	len = 2;
+	data = le16_to_cpu(pdvobjpriv->usb_buf.val16);
+	mutex_unlock(&pdvobjpriv->usb_vendor_req_mutex);
 
-	usbctrl_vendorreq(padapter, request, wvalue, index, &data,
-			  len, requesttype);
-
-	return le16_to_cpu(data);
+	return data;
 }
 
-u32 rtl8723au_read32(struct rtw_adapter *padapter, u32 addr)
+u32 rtl8723au_read32(struct rtw_adapter *padapter, u16 addr)
 {
-	u8 request;
-	u8 requesttype;
-	u16 wvalue;
-	u16 index;
-	u16 len;
-	__le32 data;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct usb_device *udev = pdvobjpriv->pusbdev;
+	int len;
+	u32 data;
 
-	request = 0x05;
-	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
+	mutex_lock(&pdvobjpriv->usb_vendor_req_mutex);
+	len = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			      REALTEK_USB_VENQT_CMD_REQ, REALTEK_USB_VENQT_READ,
+			      addr, 0, &pdvobjpriv->usb_buf.val32, sizeof(data),
+			      RTW_USB_CONTROL_MSG_TIMEOUT);
 
-	wvalue = (u16)(addr&0x0000ffff);
-	len = 4;
+	data = le32_to_cpu(pdvobjpriv->usb_buf.val32);
+	mutex_unlock(&pdvobjpriv->usb_vendor_req_mutex);
 
-	usbctrl_vendorreq(padapter, request, wvalue, index, &data,
-			  len, requesttype);
-
-	return le32_to_cpu(data);
+	return data;
 }
 
-int rtl8723au_write8(struct rtw_adapter *padapter, u32 addr, u8 val)
+int rtl8723au_write8(struct rtw_adapter *padapter, u16 addr, u8 val)
 {
-	u8 request;
-	u8 requesttype;
-	u16 wvalue;
-	u16 index;
-	u16 len;
-	u8 data;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct usb_device *udev = pdvobjpriv->pusbdev;
 	int ret;
 
-	request = 0x05;
-	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
+	mutex_lock(&pdvobjpriv->usb_vendor_req_mutex);
+	pdvobjpriv->usb_buf.val8 = val;
 
-	wvalue = (u16)(addr&0x0000ffff);
-	len = 1;
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			      REALTEK_USB_VENQT_CMD_REQ,
+			      REALTEK_USB_VENQT_WRITE,
+			      addr, 0, &pdvobjpriv->usb_buf.val8, sizeof(val),
+			      RTW_USB_CONTROL_MSG_TIMEOUT);
 
-	data = val;
+	if (ret != sizeof(val))
+		ret = _FAIL;
+	else
+		ret = _SUCCESS;
 
-	ret = usbctrl_vendorreq(padapter, request, wvalue, index, &data,
-				len, requesttype);
-
+	mutex_unlock(&pdvobjpriv->usb_vendor_req_mutex);
 	return ret;
 }
 
-int rtl8723au_write16(struct rtw_adapter *padapter, u32 addr, u16 val)
+int rtl8723au_write16(struct rtw_adapter *padapter, u16 addr, u16 val)
 {
-	u8 request;
-	u8 requesttype;
-	u16 wvalue;
-	u16 index;
-	u16 len;
-	__le16 data;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct usb_device *udev = pdvobjpriv->pusbdev;
 	int ret;
 
-	request = 0x05;
-	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
+	mutex_lock(&pdvobjpriv->usb_vendor_req_mutex);
+	pdvobjpriv->usb_buf.val16 = cpu_to_le16(val);
 
-	wvalue = (u16)(addr&0x0000ffff);
-	len = 2;
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			      REALTEK_USB_VENQT_CMD_REQ,
+			      REALTEK_USB_VENQT_WRITE,
+			      addr, 0, &pdvobjpriv->usb_buf.val16, sizeof(val),
+			      RTW_USB_CONTROL_MSG_TIMEOUT);
 
-	data = cpu_to_le16(val);
+	if (ret != sizeof(val))
+		ret = _FAIL;
+	else
+		ret = _SUCCESS;
 
-	ret = usbctrl_vendorreq(padapter, request, wvalue, index, &data,
-				len, requesttype);
+	mutex_unlock(&pdvobjpriv->usb_vendor_req_mutex);
 	return ret;
 }
 
-int rtl8723au_write32(struct rtw_adapter *padapter, u32 addr, u32 val)
+int rtl8723au_write32(struct rtw_adapter *padapter, u16 addr, u32 val)
 {
-	u8 request;
-	u8 requesttype;
-	u16 wvalue;
-	u16 index;
-	u16 len;
-	__le32 data;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct usb_device *udev = pdvobjpriv->pusbdev;
 	int ret;
 
-	request = 0x05;
-	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
+	mutex_lock(&pdvobjpriv->usb_vendor_req_mutex);
+	pdvobjpriv->usb_buf.val32 = cpu_to_le32(val);
 
-	wvalue = (u16)(addr&0x0000ffff);
-	len = 4;
-	data = cpu_to_le32(val);
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			      REALTEK_USB_VENQT_CMD_REQ,
+			      REALTEK_USB_VENQT_WRITE,
+			      addr, 0, &pdvobjpriv->usb_buf.val32, sizeof(val),
+			      RTW_USB_CONTROL_MSG_TIMEOUT);
 
-	ret = usbctrl_vendorreq(padapter, request, wvalue, index, &data,
-				len, requesttype);
+	if (ret != sizeof(val))
+		ret = _FAIL;
+	else
+		ret = _SUCCESS;
 
+	mutex_unlock(&pdvobjpriv->usb_vendor_req_mutex);
 	return ret;
 }
 
-int rtl8723au_writeN(struct rtw_adapter *padapter,
-		     u32 addr, u32 length, u8 *pdata)
+int rtl8723au_writeN(struct rtw_adapter *padapter, u16 addr, u16 len, u8 *buf)
 {
-	u8 request;
-	u8 requesttype;
-	u16 wvalue;
-	u16 index;
-	u16 len;
-	u8 buf[VENDOR_CMD_MAX_DATA_LEN] = {0};
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct usb_device *udev = pdvobjpriv->pusbdev;
 	int ret;
 
-	request = 0x05;
-	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			      REALTEK_USB_VENQT_CMD_REQ,
+			      REALTEK_USB_VENQT_WRITE,
+			      addr, 0, buf, len, RTW_USB_CONTROL_MSG_TIMEOUT);
 
-	wvalue = (u16)(addr&0x0000ffff);
-	len = length;
-	memcpy(buf, pdata, len);
-
-	ret = usbctrl_vendorreq(padapter, request, wvalue, index, buf,
-				len, requesttype);
-
-	return ret;
+	if (ret != len)
+		return _FAIL;
+	return _SUCCESS;
 }
 
 /*
@@ -647,7 +518,6 @@ static void usb_read_port_complete(struct urb *purb)
 	struct recv_buf *precvbuf = (struct recv_buf *)purb->context;
 	struct rtw_adapter *padapter = (struct rtw_adapter *)precvbuf->adapter;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
-	struct hal_data_8723a *pHalData;
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
 		 ("usb_read_port_complete!!!\n"));
@@ -726,9 +596,6 @@ static void usb_read_port_complete(struct urb *purb)
 			break;
 		case -EPROTO:
 		case -EOVERFLOW:
-			pHalData = GET_HAL_DATA(padapter);
-			pHalData->srestpriv.Wifi_Error_Status =
-				USB_READ_PORT_FAIL;
 			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
 					    precvbuf);
 			break;
@@ -754,12 +621,10 @@ int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 	struct recv_priv *precvpriv = &adapter->recvpriv;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
-	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
-	    adapter->pwrctrlpriv.pnp_bstop_trx) {
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
 			 ("usb_read_port:(padapter->bDriverStopped ||"
-			  "padapter->bSurpriseRemoved ||adapter->"
-			  "pwrctrlpriv.pnp_bstop_trx)!!!\n"));
+			  "padapter->bSurpriseRemoved)!!!\n"));
 		return _FAIL;
 	}
 

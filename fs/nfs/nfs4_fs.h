@@ -54,7 +54,7 @@ struct nfs4_minor_version_ops {
 			const nfs4_stateid *);
 	int	(*find_root_sec)(struct nfs_server *, struct nfs_fh *,
 			struct nfs_fsinfo *);
-	int	(*free_lock_state)(struct nfs_server *,
+	void	(*free_lock_state)(struct nfs_server *,
 			struct nfs4_lock_state *);
 	const struct rpc_call_ops *call_sync_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
@@ -129,27 +129,17 @@ enum {
  * LOCK: one nfs4_state (LOCK) to hold the lock stateid nfs4_state(OPEN)
  */
 
-struct nfs4_lock_owner {
-	unsigned int lo_type;
-#define NFS4_ANY_LOCK_TYPE	(0U)
-#define NFS4_FLOCK_LOCK_TYPE	(1U << 0)
-#define NFS4_POSIX_LOCK_TYPE	(1U << 1)
-	union {
-		fl_owner_t posix_owner;
-		pid_t flock_owner;
-	} lo_u;
-};
-
 struct nfs4_lock_state {
-	struct list_head	ls_locks;	/* Other lock stateids */
-	struct nfs4_state *	ls_state;	/* Pointer to open state */
+	struct list_head		ls_locks;   /* Other lock stateids */
+	struct nfs4_state *		ls_state;   /* Pointer to open state */
 #define NFS_LOCK_INITIALIZED 0
 #define NFS_LOCK_LOST        1
-	unsigned long		ls_flags;
+	unsigned long			ls_flags;
 	struct nfs_seqid_counter	ls_seqid;
-	nfs4_stateid		ls_stateid;
-	atomic_t		ls_count;
-	struct nfs4_lock_owner	ls_owner;
+	nfs4_stateid			ls_stateid;
+	atomic_t			ls_count;
+	fl_owner_t			ls_owner;
+	struct work_struct		ls_release;
 };
 
 /* bits for nfs4_state->flags */
@@ -337,11 +327,11 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
  */
 static inline void
 nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_pgio_data *wdata)
+			 struct rpc_message *msg, struct nfs_pgio_header *hdr)
 {
 	if (_nfs4_state_protect(clp, NFS_SP4_MACH_CRED_WRITE, clntp, msg) &&
 	    !test_bit(NFS_SP4_MACH_CRED_COMMIT, &clp->cl_sp4_flags))
-		wdata->args.stable = NFS_FILE_SYNC;
+		hdr->args.stable = NFS_FILE_SYNC;
 }
 #else /* CONFIG_NFS_v4_1 */
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
@@ -369,7 +359,7 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_flags,
 
 static inline void
 nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_pgio_data *wdata)
+			 struct rpc_message *msg, struct nfs_pgio_header *hdr)
 {
 }
 #endif /* CONFIG_NFS_V4_1 */

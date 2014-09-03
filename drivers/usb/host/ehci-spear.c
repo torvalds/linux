@@ -150,7 +150,7 @@ static int spear_ehci_hcd_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id spear_ehci_id_table[] = {
+static const struct of_device_id spear_ehci_id_table[] = {
 	{ .compatible = "st,spear600-ehci", },
 	{ },
 };

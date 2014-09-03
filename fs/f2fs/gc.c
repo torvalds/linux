@@ -186,7 +186,6 @@ static unsigned int get_max_cost(struct f2fs_sb_info *sbi,
 static unsigned int check_bg_victims(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-	unsigned int hint = 0;
 	unsigned int secno;
 
 	/*
@@ -194,11 +193,9 @@ static unsigned int check_bg_victims(struct f2fs_sb_info *sbi)
 	 * selected by background GC before.
 	 * Those segments guarantee they have small valid blocks.
 	 */
-next:
-	secno = find_next_bit(dirty_i->victim_secmap, TOTAL_SECS(sbi), hint++);
-	if (secno < TOTAL_SECS(sbi)) {
+	for_each_set_bit(secno, dirty_i->victim_secmap, TOTAL_SECS(sbi)) {
 		if (sec_usage_check(sbi, secno))
-			goto next;
+			continue;
 		clear_bit(secno, dirty_i->victim_secmap);
 		return secno * sbi->segs_per_sec;
 	}

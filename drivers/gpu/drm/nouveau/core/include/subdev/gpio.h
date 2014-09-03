@@ -8,16 +8,22 @@
 #include <subdev/bios.h>
 #include <subdev/bios/gpio.h>
 
-enum nvkm_gpio_event {
-	NVKM_GPIO_HI = 1,
-	NVKM_GPIO_LO = 2,
-	NVKM_GPIO_TOGGLED = (NVKM_GPIO_HI | NVKM_GPIO_LO),
+struct nvkm_gpio_ntfy_req {
+#define NVKM_GPIO_HI                                                       0x01
+#define NVKM_GPIO_LO                                                       0x02
+#define NVKM_GPIO_TOGGLED                                                  0x03
+	u8 mask;
+	u8 line;
+};
+
+struct nvkm_gpio_ntfy_rep {
+	u8 mask;
 };
 
 struct nouveau_gpio {
 	struct nouveau_subdev base;
 
-	struct nouveau_event *events;
+	struct nvkm_event event;
 
 	void (*reset)(struct nouveau_gpio *, u8 func);
 	int  (*find)(struct nouveau_gpio *, int idx, u8 tag, u8 line,

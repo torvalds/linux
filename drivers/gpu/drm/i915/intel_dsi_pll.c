@@ -298,3 +298,84 @@ void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 
 	mutex_unlock(&dev_priv->dpio_lock);
 }
+
+static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
+{
+	int bpp;
+
+	switch (pixel_format) {
+	default:
+	case VID_MODE_FORMAT_RGB888:
+	case VID_MODE_FORMAT_RGB666_LOOSE:
+		bpp = 24;
+		break;
+	case VID_MODE_FORMAT_RGB666:
+		bpp = 18;
+		break;
+	case VID_MODE_FORMAT_RGB565:
+		bpp = 16;
+		break;
+	}
+
+	WARN(bpp != pipe_bpp,
+		"bpp match assertion failure (expected %d, current %d)\n",
+		bpp, pipe_bpp);
+}
+
+u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 dsi_clock, pclk;
+	u32 pll_ctl, pll_div;
+	u32 m = 0, p = 0;
+	int refclk = 25000;
+	int i;
+
+	DRM_DEBUG_KMS("\n");
+
+	mutex_lock(&dev_priv->dpio_lock);
+	pll_ctl = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
+	pll_div = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_DIVIDER);
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	/* mask out other bits and extract the P1 divisor */
+	pll_ctl &= DSI_PLL_P1_POST_DIV_MASK;
+	pll_ctl = pll_ctl >> (DSI_PLL_P1_POST_DIV_SHIFT - 2);
+
+	/* mask out the other bits and extract the M1 divisor */
+	pll_div &= DSI_PLL_M1_DIV_MASK;
+	pll_div = pll_div >> DSI_PLL_M1_DIV_SHIFT;
+
+	while (pll_ctl) {
+		pll_ctl = pll_ctl >> 1;
+		p++;
+	}
+	p--;
+
+	if (!p) {
+		DRM_ERROR("wrong P1 divisor\n");
+		return 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(lfsr_converts); i++) {
+		if (lfsr_converts[i] == pll_div)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(lfsr_converts)) {
+		DRM_ERROR("wrong m_seed programmed\n");
+		return 0;
+	}
+
+	m = i + 62;
+
+	dsi_clock = (m * refclk) / p;
+
+	/* pixel_format and pipe_bpp should agree */
+	assert_bpp_mismatch(intel_dsi->pixel_format, pipe_bpp);
+
+	pclk = DIV_ROUND_CLOSEST(dsi_clock * intel_dsi->lane_count, pipe_bpp);
+
+	return pclk;
+}

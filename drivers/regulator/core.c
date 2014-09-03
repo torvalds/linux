@@ -24,6 +24,7 @@
 #include <linux/suspend.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/of_regulator.h>
@@ -77,7 +78,7 @@ struct regulator_map {
  */
 struct regulator_enable_gpio {
 	struct list_head list;
-	int gpio;
+	struct gpio_desc *gpiod;
 	u32 enable_count;	/* a number of enabled shared GPIO */
 	u32 request_count;	/* a number of requested shared GPIO */
 	unsigned int ena_gpio_invert:1;
@@ -846,7 +847,9 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 	    rdev->constraints->min_uV == rdev->constraints->max_uV) {
 		int current_uV = _regulator_get_voltage(rdev);
 		if (current_uV < 0) {
-			rdev_err(rdev, "failed to get the current voltage\n");
+			rdev_err(rdev,
+				 "failed to get the current voltage(%d)\n",
+				 current_uV);
 			return current_uV;
 		}
 		if (current_uV < rdev->constraints->min_uV ||
@@ -856,8 +859,8 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 				rdev->constraints->max_uV);
 			if (ret < 0) {
 				rdev_err(rdev,
-					"failed to apply %duV constraint\n",
-					rdev->constraints->min_uV);
+					"failed to apply %duV constraint(%d)\n",
+					rdev->constraints->min_uV, ret);
 				return ret;
 			}
 		}
@@ -1660,10 +1663,13 @@ static int regulator_ena_gpio_request(struct regulator_dev *rdev,
 				const struct regulator_config *config)
 {
 	struct regulator_enable_gpio *pin;
+	struct gpio_desc *gpiod;
 	int ret;
 
+	gpiod = gpio_to_desc(config->ena_gpio);
+
 	list_for_each_entry(pin, &regulator_ena_gpio_list, list) {
-		if (pin->gpio == config->ena_gpio) {
+		if (pin->gpiod == gpiod) {
 			rdev_dbg(rdev, "GPIO %d is already used\n",
 				config->ena_gpio);
 			goto update_ena_gpio_to_rdev;
@@ -1682,7 +1688,7 @@ static int regulator_ena_gpio_request(struct regulator_dev *rdev,
 		return -ENOMEM;
 	}
 
-	pin->gpio = config->ena_gpio;
+	pin->gpiod = gpiod;
 	pin->ena_gpio_invert = config->ena_gpio_invert;
 	list_add(&pin->list, &regulator_ena_gpio_list);
 
@@ -1701,10 +1707,10 @@ static void regulator_ena_gpio_free(struct regulator_dev *rdev)
 
 	/* Free the GPIO only in case of no use */
 	list_for_each_entry_safe(pin, n, &regulator_ena_gpio_list, list) {
-		if (pin->gpio == rdev->ena_pin->gpio) {
+		if (pin->gpiod == rdev->ena_pin->gpiod) {
 			if (pin->request_count <= 1) {
 				pin->request_count = 0;
-				gpio_free(pin->gpio);
+				gpiod_put(pin->gpiod);
 				list_del(&pin->list);
 				kfree(pin);
 			} else {
@@ -1732,8 +1738,8 @@ static int regulator_ena_gpio_ctrl(struct regulator_dev *rdev, bool enable)
 	if (enable) {
 		/* Enable GPIO at initial use */
 		if (pin->enable_count == 0)
-			gpio_set_value_cansleep(pin->gpio,
-						!pin->ena_gpio_invert);
+			gpiod_set_value_cansleep(pin->gpiod,
+						 !pin->ena_gpio_invert);
 
 		pin->enable_count++;
 	} else {
@@ -1744,8 +1750,8 @@ static int regulator_ena_gpio_ctrl(struct regulator_dev *rdev, bool enable)
 
 		/* Disable GPIO if not used */
 		if (pin->enable_count <= 1) {
-			gpio_set_value_cansleep(pin->gpio,
-						pin->ena_gpio_invert);
+			gpiod_set_value_cansleep(pin->gpiod,
+						 pin->ena_gpio_invert);
 			pin->enable_count = 0;
 		}
 	}
@@ -2180,7 +2186,13 @@ int regulator_count_voltages(struct regulator *regulator)
 {
 	struct regulator_dev	*rdev = regulator->rdev;
 
-	return rdev->desc->n_voltages ? : -EINVAL;
+	if (rdev->desc->n_voltages)
+		return rdev->desc->n_voltages;
+
+	if (!rdev->supply)
+		return -EINVAL;
+
+	return regulator_count_voltages(rdev->supply);
 }
 EXPORT_SYMBOL_GPL(regulator_count_voltages);
 
@@ -2203,12 +2215,17 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 	if (rdev->desc->fixed_uV && rdev->desc->n_voltages == 1 && !selector)
 		return rdev->desc->fixed_uV;
 
-	if (!ops->list_voltage || selector >= rdev->desc->n_voltages)
+	if (ops->list_voltage) {
+		if (selector >= rdev->desc->n_voltages)
+			return -EINVAL;
+		mutex_lock(&rdev->mutex);
+		ret = ops->list_voltage(rdev, selector);
+		mutex_unlock(&rdev->mutex);
+	} else if (rdev->supply) {
+		ret = regulator_list_voltage(rdev->supply, selector);
+	} else {
 		return -EINVAL;
-
-	mutex_lock(&rdev->mutex);
-	ret = ops->list_voltage(rdev, selector);
-	mutex_unlock(&rdev->mutex);
+	}
 
 	if (ret > 0) {
 		if (ret < rdev->constraints->min_uV)
@@ -2220,6 +2237,77 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_list_voltage);
+
+/**
+ * regulator_get_regmap - get the regulator's register map
+ * @regulator: regulator source
+ *
+ * Returns the register map for the given regulator, or an ERR_PTR value
+ * if the regulator doesn't use regmap.
+ */
+struct regmap *regulator_get_regmap(struct regulator *regulator)
+{
+	struct regmap *map = regulator->rdev->regmap;
+
+	return map ? map : ERR_PTR(-EOPNOTSUPP);
+}
+
+/**
+ * regulator_get_hardware_vsel_register - get the HW voltage selector register
+ * @regulator: regulator source
+ * @vsel_reg: voltage selector register, output parameter
+ * @vsel_mask: mask for voltage selector bitfield, output parameter
+ *
+ * Returns the hardware register offset and bitmask used for setting the
+ * regulator voltage. This might be useful when configuring voltage-scaling
+ * hardware or firmware that can make I2C requests behind the kernel's back,
+ * for example.
+ *
+ * On success, the output parameters @vsel_reg and @vsel_mask are filled in
+ * and 0 is returned, otherwise a negative errno is returned.
+ */
+int regulator_get_hardware_vsel_register(struct regulator *regulator,
+					 unsigned *vsel_reg,
+					 unsigned *vsel_mask)
+{
+	struct regulator_dev	*rdev = regulator->rdev;
+	struct regulator_ops	*ops = rdev->desc->ops;
+
+	if (ops->set_voltage_sel != regulator_set_voltage_sel_regmap)
+		return -EOPNOTSUPP;
+
+	 *vsel_reg = rdev->desc->vsel_reg;
+	 *vsel_mask = rdev->desc->vsel_mask;
+
+	 return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_get_hardware_vsel_register);
+
+/**
+ * regulator_list_hardware_vsel - get the HW-specific register value for a selector
+ * @regulator: regulator source
+ * @selector: identify voltage to list
+ *
+ * Converts the selector to a hardware-specific voltage selector that can be
+ * directly written to the regulator registers. The address of the voltage
+ * register can be determined by calling @regulator_get_hardware_vsel_register.
+ *
+ * On error a negative errno is returned.
+ */
+int regulator_list_hardware_vsel(struct regulator *regulator,
+				 unsigned selector)
+{
+	struct regulator_dev	*rdev = regulator->rdev;
+	struct regulator_ops	*ops = rdev->desc->ops;
+
+	if (selector >= rdev->desc->n_voltages)
+		return -EINVAL;
+	if (ops->set_voltage_sel != regulator_set_voltage_sel_regmap)
+		return -EOPNOTSUPP;
+
+	return selector;
+}
+EXPORT_SYMBOL_GPL(regulator_list_hardware_vsel);
 
 /**
  * regulator_get_linear_step - return the voltage step size between VSEL values
@@ -2618,6 +2706,8 @@ static int _regulator_get_voltage(struct regulator_dev *rdev)
 		ret = rdev->desc->ops->list_voltage(rdev, 0);
 	} else if (rdev->desc->fixed_uV && (rdev->desc->n_voltages == 1)) {
 		ret = rdev->desc->fixed_uV;
+	} else if (rdev->supply) {
+		ret = regulator_get_voltage(rdev->supply);
 	} else {
 		return -EINVAL;
 	}

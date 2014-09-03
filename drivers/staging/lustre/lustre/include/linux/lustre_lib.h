@@ -49,8 +49,8 @@
 # include <linux/sched.h>
 # include <linux/signal.h>
 # include <linux/types.h>
-# include <linux/lustre_compat25.h>
-# include <linux/lustre_common.h>
+#include "lustre_compat25.h"
+#include "lustre_common.h"
 
 #ifndef LP_POISON
 # define LI_POISON 0x5a5a5a5a

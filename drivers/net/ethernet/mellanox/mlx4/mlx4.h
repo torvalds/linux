@@ -62,11 +62,6 @@
 
 #define INIT_HCA_TPT_MW_ENABLE          (1 << 7)
 
-#define MLX4_NUM_UP		8
-#define MLX4_NUM_TC		8
-#define MLX4_RATELIMIT_UNITS 3 /* 100 Mbps */
-#define MLX4_RATELIMIT_DEFAULT 0xffff
-
 struct mlx4_set_port_prio2tc_context {
 	u8 prio2tc[4];
 };
@@ -279,6 +274,8 @@ struct mlx4_icm_table {
 #define MLX4_MPT_FLAG_PHYSICAL	    (1 <<  9)
 #define MLX4_MPT_FLAG_REGION	    (1 <<  8)
 
+#define MLX4_MPT_PD_MASK	    (0x1FFFFUL)
+#define MLX4_MPT_PD_VF_MASK	    (0xFE0000UL)
 #define MLX4_MPT_PD_FLAG_FAST_REG   (1 << 27)
 #define MLX4_MPT_PD_FLAG_RAE	    (1 << 28)
 #define MLX4_MPT_PD_FLAG_EN_INV	    (3 << 24)
@@ -1311,5 +1308,6 @@ void mlx4_init_quotas(struct mlx4_dev *dev);
 int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave, int port);
 /* Returns the VF index of slave */
 int mlx4_get_vf_indx(struct mlx4_dev *dev, int slave);
+int mlx4_config_mad_demux(struct mlx4_dev *dev);
 
 #endif /* MLX4_H */

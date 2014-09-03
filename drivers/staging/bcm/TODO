@@ -1,5 +1,9 @@
 This driver is barely functional in its current state.
 
+Kevin McKinney(klmckinney1@gmail.com) and Matthias Beyer(mail@beyermatthias.de)
+are currently maintaining/cleaning up this driver.  Please copy us on all
+patches.  More maintainers are aways welcomed.
+
 BIG:
 	- existing API is (/dev/tarang) should be replaced
 	  Is it possible to use same API as Intel Wimax stack and

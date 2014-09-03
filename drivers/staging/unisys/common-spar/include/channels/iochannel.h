@@ -213,7 +213,7 @@ typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
 #endif				/* MAX_MACADDR_LEN */
 
 #define ETH_IS_LOCALLY_ADMINISTERED(Address) \
-	(((U8 *) (Address))[0] & ((U8) 0x02))
+	(((u8 *) (Address))[0] & ((u8) 0x02))
 #define NIC_VENDOR_ID 0x0008000B
 
 /* various types of scsi task mgmt commands  */
@@ -250,35 +250,35 @@ typedef enum { VDISK_MGMT_ACQUIRE = 1, VDISK_MGMT_RELEASE,
 #pragma pack(push, 1)
 
 struct guest_phys_info {
-	U64 address;
-	U64 length;
+	u64 address;
+	u64 length;
 };
 
 #define GPI_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct guest_phys_info))
 
 struct uisscsi_dest {
-	U32 channel;		/* channel == bus number */
-	U32 id;			/* id == target number */
-	U32 lun;		/* lun == logical unit number */
+	u32 channel;		/* channel == bus number */
+	u32 id;			/* id == target number */
+	u32 lun;		/* lun == logical unit number */
 };
 
 struct vhba_wwnn {
-	U32 wwnn1;
-	U32 wwnn2;
+	u32 wwnn1;
+	u32 wwnn2;
 };
 
 /* WARNING: Values stired in this structure must contain maximum counts (not
  * maximum values). */
 struct vhba_config_max {	/* 20 bytes */
-	U32 max_channel;	/* maximum channel for devices attached to this
+	u32 max_channel;	/* maximum channel for devices attached to this
 				 * bus */
-	U32 max_id;		/* maximum SCSI ID for devices attached to this
+	u32 max_id;		/* maximum SCSI ID for devices attached to this
 				 * bus */
-	U32 max_lun;		/* maximum SCSI LUN for devices attached to this
+	u32 max_lun;		/* maximum SCSI LUN for devices attached to this
 				 * bus */
-	U32 cmd_per_lun;	/* maximum number of outstanding commands per
+	u32 cmd_per_lun;	/* maximum number of outstanding commands per
 				 * lun that are allowed at one time */
-	U32 max_io_size;	/* maximum io size for devices attached to this
+	u32 max_io_size;	/* maximum io size for devices attached to this
 				 * bus */
 	/* max io size is often determined by the resource of the hba. e.g */
 	/* max scatter gather list length * page size / sector size */
@@ -287,9 +287,9 @@ struct vhba_config_max {	/* 20 bytes */
 struct uiscmdrsp_scsi {
 	void *scsicmd;		/* the handle to the cmd that was received -
 				 * send it back as is in the rsp packet.  */
-	U8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
-	U32 bufflen;		/* length of data to be transferred out or in */
-	U16 guest_phys_entries;	/* Number of entries in scatter-gather (sg)
+	u8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
+	u32 bufflen;		/* length of data to be transferred out or in */
+	u16 guest_phys_entries;	/* Number of entries in scatter-gather (sg)
 				 * list */
 	struct guest_phys_info gpi_list[MAX_PHYS_INFO];	/* physical address
 							 * information for each
@@ -302,8 +302,8 @@ struct uiscmdrsp_scsi {
 	     * originator */
 	int linuxstat;		/* the original Linux status - for use by linux
 				 * vdisk code */
-	U8 scsistat;		/* the scsi status */
-	U8 addlstat;		/* non-scsi status - covers cases like timeout
+	u8 scsistat;		/* the scsi status */
+	u8 addlstat;		/* non-scsi status - covers cases like timeout
 				 * needed by windows guests */
 #define ADDL_RESET		1
 #define ADDL_TIMEOUT		2
@@ -314,7 +314,7 @@ struct uiscmdrsp_scsi {
 #define ADDL_RETRY		7
 
 	/* the following fields are need to determine the result of command */
-	 U8 sensebuf[MAX_SENSE_SIZE];	/* sense info in case cmd failed; */
+	 u8 sensebuf[MAX_SENSE_SIZE];	/* sense info in case cmd failed; */
 	/* it holds the sense_data struct; */
 	/* see that struct for details. */
 	void *vdisk; /* contains pointer to the vdisk so that we can clean up
@@ -376,16 +376,16 @@ struct uiscmdrsp_scsi {
 
 #define SET_NO_DISK_INQUIRY_RESULT(buf, len, lun, lun0notpresent, notpresent) \
 	do {								\
-		MEMSET(buf, 0,						\
+		memset(buf, 0,						\
 		       MINNUM(len,					\
 			      (unsigned int) NO_DISK_INQUIRY_RESULT_LEN)); \
-		buf[2] = (U8) SCSI_SPC2_VER;				\
+		buf[2] = (u8) SCSI_SPC2_VER;				\
 		if (lun == 0) {						\
-			buf[0] = (U8) lun0notpresent;			\
-			buf[3] = (U8) DEV_HISUPPORT;			\
+			buf[0] = (u8) lun0notpresent;			\
+			buf[3] = (u8) DEV_HISUPPORT;			\
 		} else							\
-			buf[0] = (U8) notpresent;			\
-		buf[4] = (U8) (						\
+			buf[0] = (u8) notpresent;			\
+		buf[4] = (u8) (						\
 			MINNUM(len,					\
 			       (unsigned int) NO_DISK_INQUIRY_RESULT_LEN) - 5);	\
 		if (len >= NO_DISK_INQUIRY_RESULT_LEN) {		\
@@ -430,21 +430,21 @@ struct uiscmdrsp_scsi {
 * AdditionalSenseLength		contains will be sizeof(sense_data)-8=10.
 */
 struct sense_data {
-	U8 ErrorCode:7;
-	U8 Valid:1;
-	U8 SegmentNumber;
-	U8 SenseKey:4;
-	U8 Reserved:1;
-	U8 IncorrectLength:1;
-	U8 EndOfMedia:1;
-	U8 FileMark:1;
-	U8 Information[4];
-	U8 AdditionalSenseLength;
-	U8 CommandSpecificInformation[4];
-	U8 AdditionalSenseCode;
-	U8 AdditionalSenseCodeQualifier;
-	U8 FieldReplaceableUnitCode;
-	U8 SenseKeySpecific[3];
+	u8 ErrorCode:7;
+	u8 Valid:1;
+	u8 SegmentNumber;
+	u8 SenseKey:4;
+	u8 Reserved:1;
+	u8 IncorrectLength:1;
+	u8 EndOfMedia:1;
+	u8 FileMark:1;
+	u8 Information[4];
+	u8 AdditionalSenseLength;
+	u8 CommandSpecificInformation[4];
+	u8 AdditionalSenseCode;
+	u8 AdditionalSenseCodeQualifier;
+	u8 FieldReplaceableUnitCode;
+	u8 SenseKeySpecific[3];
 };
 
 /* some SCSI ADSENSE codes */
@@ -487,15 +487,15 @@ struct net_pkt_xmt {
 	struct {
 
 		    /* these are needed for csum at uisnic end */
-		U8 valid;	/* 1 = rest of this struct is valid - else
+		u8 valid;	/* 1 = rest of this struct is valid - else
 				 * ignore */
-		U8 hrawoffv;	/* 1 = hwrafoff is valid */
-		U8 nhrawoffv;	/* 1 = nhwrafoff is valid */
-		U16 protocol;	/* specifies packet protocol */
-		U32 csum;	/* value used to set skb->csum at IOPart */
-		U32 hrawoff;	/* value used to set skb->h.raw at IOPart */
+		u8 hrawoffv;	/* 1 = hwrafoff is valid */
+		u8 nhrawoffv;	/* 1 = nhwrafoff is valid */
+		u16 protocol;	/* specifies packet protocol */
+		u32 csum;	/* value used to set skb->csum at IOPart */
+		u32 hrawoff;	/* value used to set skb->h.raw at IOPart */
 		/* hrawoff points to the start of the TRANSPORT LAYER HEADER */
-		U32 nhrawoff;	/* value used to set skb->nh.raw at IOPart */
+		u32 nhrawoff;	/* value used to set skb->nh.raw at IOPart */
 		/* nhrawoff points to the start of the NETWORK LAYER HEADER */
 	} lincsum;
 
@@ -508,7 +508,7 @@ struct net_pkt_xmt {
 };
 
 struct net_pkt_xmtdone {
-	U32 xmt_done_result;	/* result of NET_XMIT */
+	u32 xmt_done_result;	/* result of NET_XMIT */
 #define XMIT_SUCCESS 0
 #define XMIT_FAILED 1
 };
@@ -529,7 +529,7 @@ struct net_pkt_rcvpost {
 	    * to be describable */
 	    struct phys_info frag;	/* physical page information for the
 					 * single fragment 2K rcv buf */
-	    U64 UniqueNum;		/* This is used to make sure that
+	    u64 UniqueNum;		/* This is used to make sure that
 					 * receive posts are returned to  */
 	    /* the Adapter which sent them origonally. */
 };
@@ -538,25 +538,25 @@ struct net_pkt_rcv {
 
 	/* the number of receive buffers that can be chained  */
 	/* is based on max mtu and size of each rcv buf */
-	U32 rcv_done_len;	/* length of received data */
-	U8 numrcvbufs;		/* number of receive buffers that contain the */
+	u32 rcv_done_len;	/* length of received data */
+	u8 numrcvbufs;		/* number of receive buffers that contain the */
 	/* incoming data; guest end MUST chain these together. */
 	void *rcvbuf[MAX_NET_RCV_CHAIN];	/* the list of receive buffers
 						 * that must be chained; */
 	/* each entry is a receive buffer provided by NET_RCV_POST. */
 	/* NOTE: first rcvbuf in the chain will also be provided in net.buf. */
-	U64 UniqueNum;
-	U32 RcvsDroppedDelta;
+	u64 UniqueNum;
+	u32 RcvsDroppedDelta;
 };
 
 struct net_pkt_enbdis {
 	void *context;
-	U16 enable;		/* 1 = enable, 0 = disable */
+	u16 enable;		/* 1 = enable, 0 = disable */
 };
 
 struct net_pkt_macaddr {
 	void *context;
-	U8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
+	u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
 };
 
 /* cmd rsp packet used for VNIC network traffic  */
@@ -615,10 +615,10 @@ struct uiscmdrsp_scsitaskmgmt {
  * Guest */
 /* Note that the vHba pointer is not used by the Client/Guest side. */
 struct uiscmdrsp_disknotify {
-	U8 add;		/* 0-remove, 1-add */
+	u8 add;		/* 0-remove, 1-add */
 	void *vHba;		/* Pointer to vhba_info for channel info to
 				 * route msg */
-	U32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
+	u32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
 };
 
 /* The following is used by virthba/vSCSI to send the Acquire/Release commands
@@ -695,15 +695,15 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 			struct vhba_config_max max;	/* 20 bytes */
 		} vhba;		/* 28 */
 		struct {
-			U8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
-			U32 num_rcv_bufs;	/* 4 */
-			U32 mtu;	/* 4 */
+			u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
+			u32 num_rcv_bufs;	/* 4 */
+			u32 mtu;	/* 4 */
 			uuid_le zoneGuid;	/* 16 */
 		} vnic;		/* total     30 */
 	};
 
 #define MAX_CLIENTSTRING_LEN 1024
-	 U8 clientString[MAX_CLIENTSTRING_LEN];	/* NULL terminated - so holds
+	 u8 clientString[MAX_CLIENTSTRING_LEN];	/* NULL terminated - so holds
 						 * max - 1 bytes */
 } ULTRA_IO_CHANNEL_PROTOCOL;
 
@@ -777,9 +777,9 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 				OFFSETOF(type, clientString);		\
 			MEMCPY(chan->clientString, clientStr,		\
 			       MINNUM(clientStrLen,			\
-				      (U32) (MAX_CLIENTSTRING_LEN - 1))); \
+				      (u32) (MAX_CLIENTSTRING_LEN - 1))); \
 			chan->clientString[MINNUM(clientStrLen,		\
-						  (U32) (MAX_CLIENTSTRING_LEN \
+						  (u32) (MAX_CLIENTSTRING_LEN \
 							 - 1))]		\
 				= '\0';					\
 		}							\
@@ -801,8 +801,8 @@ static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 					      struct vhba_wwnn *wwnn,
 					      struct vhba_config_max *max,
 					      unsigned char *clientStr,
-					      U32 clientStrLen, U64 bytes)  {
-	MEMSET(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
+					      u32 clientStrLen, u64 bytes)  {
+	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	x->ChannelHeader.VersionId = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
 	x->ChannelHeader.Signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
 	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
@@ -833,12 +833,12 @@ static inline void ULTRA_VHBA_set_max(ULTRA_IO_CHANNEL_PROTOCOL *x,
 
 static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 						 unsigned char *macaddr,
-						 U32 num_rcv_bufs, U32 mtu,
+						 u32 num_rcv_bufs, u32 mtu,
 						 uuid_le zoneGuid,
 						 unsigned char *clientStr,
-						 U32 clientStrLen,
-						 U64 bytes)  {
-	MEMSET(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
+						 u32 clientStrLen,
+						 u64 bytes)  {
+	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	x->ChannelHeader.VersionId = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
 	x->ChannelHeader.Signature = ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE;
 	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
@@ -882,22 +882,22 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 /* returns next non-zero index on success or zero on failure (i.e. out of
  * room)
  */
-static INLINE  U16
-add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
+static INLINE  u16
+add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 					 * to add entries */
-		     U16 inp_off,	/* input - specifies the off to be used
+		     u16 inp_off,	/* input - specifies the off to be used
 					 * to add entries */
-		     U32 inp_len,	/* input - specifies the len to be used
+		     u32 inp_len,	/* input - specifies the len to be used
 					 * to add entries */
-		     U16 index,		/* input - index in array at which new
+		     u16 index,		/* input - index in array at which new
 					 * entries are added */
-		     U16 max_pi_arr_entries,	/* input - specifies the maximum
+		     u16 max_pi_arr_entries,	/* input - specifies the maximum
 						 * entries pi_arr can hold */
 		     struct phys_info pi_arr[]) /* input & output - array to
 						  * which entries are added */
 {
-	U32 len;
-	U16 i, firstlen;
+	u32 len;
+	u16 i, firstlen;
 
 	firstlen = PI_PAGE_SIZE - inp_off;
 	if (inp_len <= firstlen) {
@@ -906,8 +906,8 @@ add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
 		if (index >= max_pi_arr_entries)
 			return 0;
 		pi_arr[index].pi_pfn = inp_pfn;
-		pi_arr[index].pi_off = (U16) inp_off;
-		pi_arr[index].pi_len = (U16) inp_len;
+		pi_arr[index].pi_off = (u16) inp_off;
+		pi_arr[index].pi_len = (u16) inp_len;
 		    return index + 1;
 	}
 
@@ -925,7 +925,7 @@ add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
 		else {
 			pi_arr[index + i].pi_off = 0;
 			pi_arr[index + i].pi_len =
-			    (U16) MINNUM(len, (U32) PI_PAGE_SIZE);
+			    (u16) MINNUM(len, (u32) PI_PAGE_SIZE);
 		}
 
 	}

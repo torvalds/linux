@@ -936,28 +936,14 @@ static int nx842_OF_upd(struct property *new_prop)
 		goto error_out;
 	}
 
-	/* Set ptr to new property if provided */
-	if (new_prop) {
-		/* Single property */
-		if (!strncmp(new_prop->name, "status", new_prop->length)) {
-			status = new_prop;
-
-		} else if (!strncmp(new_prop->name, "ibm,max-sg-len",
-					new_prop->length)) {
-			maxsglen = new_prop;
-
-		} else if (!strncmp(new_prop->name, "ibm,max-sync-cop",
-					new_prop->length)) {
-			maxsyncop = new_prop;
-
-		} else {
-			/*
-			 * Skip the update, the property being updated
-			 * has no impact.
-			 */
-			goto out;
-		}
-	}
+	/*
+	 * If this is a property update, there are only certain properties that
+	 * we care about. Bail if it isn't in the below list
+	 */
+	if (new_prop && (strncmp(new_prop->name, "status", new_prop->length) ||
+		         strncmp(new_prop->name, "ibm,max-sg-len", new_prop->length) ||
+		         strncmp(new_prop->name, "ibm,max-sync-cop", new_prop->length)))
+		goto out;
 
 	/* Perform property updates */
 	ret = nx842_OF_upd_status(new_devdata, status);
@@ -1247,7 +1233,7 @@ static struct vio_device_id nx842_driver_ids[] = {
 static struct vio_driver nx842_driver = {
 	.name = MODULE_NAME,
 	.probe = nx842_probe,
-	.remove = nx842_remove,
+	.remove = __exit_p(nx842_remove),
 	.get_desired_dma = nx842_get_desired_dma,
 	.id_table = nx842_driver_ids,
 };

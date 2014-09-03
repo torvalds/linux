@@ -41,15 +41,15 @@
 #define DEBUG_SUBSYSTEM D_OTHER
 
 
-#include <obd_ost.h>
-#include <obd_support.h>
-#include <lustre_debug.h>
-#include <lustre_net.h>
+#include "../include/obd_ost.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre_net.h"
 
 void dump_lniobuf(struct niobuf_local *nb)
 {
 	CDEBUG(D_RPCTRACE,
-	       "niobuf_local: file_offset="LPD64", len=%d, page=%p, rc=%d\n",
+	       "niobuf_local: file_offset=%lld, len=%d, page=%p, rc=%d\n",
 	       nb->lnb_file_offset, nb->len, nb->page, nb->rc);
 	CDEBUG(D_RPCTRACE, "nb->page: index = %ld\n",
 			nb->page ? page_index(nb->page) : -1);
@@ -84,25 +84,25 @@ int block_debug_check(char *who, void *addr, int end, __u64 off, __u64 id)
 	ne_off = le64_to_cpu (off);
 	id = le64_to_cpu (id);
 	if (memcmp(addr, (char *)&ne_off, LPDS)) {
-		CDEBUG(D_ERROR, "%s: id "LPX64" offset "LPU64" off: "LPX64" != "
-		       LPX64"\n", who, id, off, *(__u64 *)addr, ne_off);
+		CDEBUG(D_ERROR, "%s: id %#llx offset %llu off: %#llx != %#llx\n",
+		       who, id, off, *(__u64 *)addr, ne_off);
 		err = -EINVAL;
 	}
 	if (memcmp(addr + LPDS, (char *)&id, LPDS)) {
-		CDEBUG(D_ERROR, "%s: id "LPX64" offset "LPU64" id: "LPX64" != "LPX64"\n",
+		CDEBUG(D_ERROR, "%s: id %#llx offset %llu id: %#llx != %#llx\n",
 		       who, id, off, *(__u64 *)(addr + LPDS), id);
 		err = -EINVAL;
 	}
 
 	addr += end - LPDS - LPDS;
 	if (memcmp(addr, (char *)&ne_off, LPDS)) {
-		CDEBUG(D_ERROR, "%s: id "LPX64" offset "LPU64" end off: "LPX64" != "
-		       LPX64"\n", who, id, off, *(__u64 *)addr, ne_off);
+		CDEBUG(D_ERROR, "%s: id %#llx offset %llu end off: %#llx != %#llx\n",
+		       who, id, off, *(__u64 *)addr, ne_off);
 		err = -EINVAL;
 	}
 	if (memcmp(addr + LPDS, (char *)&id, LPDS)) {
-		CDEBUG(D_ERROR, "%s: id "LPX64" offset "LPU64" end id: "LPX64" != "
-		       LPX64"\n", who, id, off, *(__u64 *)(addr + LPDS), id);
+		CDEBUG(D_ERROR, "%s: id %#llx offset %llu end id: %#llx != %#llx\n",
+		       who, id, off, *(__u64 *)(addr + LPDS), id);
 		err = -EINVAL;
 	}
 

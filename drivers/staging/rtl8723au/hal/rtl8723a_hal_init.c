@@ -49,93 +49,14 @@ static void _FWDownloadEnable(struct rtw_adapter *padapter, bool enable)
 
 static int _BlockWrite(struct rtw_adapter *padapter, void *buffer, u32 buffSize)
 {
-	int ret = _SUCCESS;
-	/*  (Default) Phase #1 : PCI muse use 4-byte write to download FW */
-	u32 blockSize_p1 = 4;
-	/*  Phase #2 : Use 8-byte, if Phase#1 use big size to write FW. */
-	u32 blockSize_p2 = 8;
-	/*  Phase #3 : Use 1-byte, the remnant of FW image. */
-	u32 blockSize_p3 = 1;
-	u32 blockCount_p1 = 0, blockCount_p2 = 0, blockCount_p3 = 0;
-	u32 remainSize_p1 = 0, remainSize_p2 = 0;
-	u8 *bufferPtr = (u8 *) buffer;
-	u32 i = 0, offset = 0;
+	int ret;
 
-	blockSize_p1 = 254;
+	if (buffSize > MAX_PAGE_SIZE)
+		return _FAIL;
 
-	/* 3 Phase #1 */
-	blockCount_p1 = buffSize / blockSize_p1;
-	remainSize_p1 = buffSize % blockSize_p1;
+	ret = rtl8723au_writeN(padapter, FW_8723A_START_ADDRESS,
+			       buffSize, buffer);
 
-	if (blockCount_p1) {
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
-			 ("_BlockWrite: [P1] buffSize(%d) blockSize_p1(%d) "
-			  "blockCount_p1(%d) remainSize_p1(%d)\n",
-			  buffSize, blockSize_p1, blockCount_p1,
-			  remainSize_p1));
-	}
-
-	for (i = 0; i < blockCount_p1; i++) {
-		ret = rtl8723au_writeN(padapter, (FW_8723A_START_ADDRESS +
-						  i * blockSize_p1),
-				       blockSize_p1,
-				       (bufferPtr + i * blockSize_p1));
-		if (ret == _FAIL)
-			goto exit;
-	}
-
-	/* 3 Phase #2 */
-	if (remainSize_p1) {
-		offset = blockCount_p1 * blockSize_p1;
-
-		blockCount_p2 = remainSize_p1 / blockSize_p2;
-		remainSize_p2 = remainSize_p1 % blockSize_p2;
-
-		if (blockCount_p2) {
-			RT_TRACE(_module_hal_init_c_, _drv_notice_,
-				 ("_BlockWrite: [P2] buffSize_p2(%d) "
-				  "blockSize_p2(%d) blockCount_p2(%d) "
-				  "remainSize_p2(%d)\n",
-				  (buffSize - offset), blockSize_p2,
-				  blockCount_p2, remainSize_p2));
-		}
-
-		for (i = 0; i < blockCount_p2; i++) {
-			ret = rtl8723au_writeN(padapter,
-					       (FW_8723A_START_ADDRESS +
-						offset + i * blockSize_p2),
-					       blockSize_p2,
-					       (bufferPtr + offset +
-						i * blockSize_p2));
-
-			if (ret == _FAIL)
-				goto exit;
-		}
-	}
-
-	/* 3 Phase #3 */
-	if (remainSize_p2) {
-		offset = (blockCount_p1 * blockSize_p1) +
-			(blockCount_p2 * blockSize_p2);
-
-		blockCount_p3 = remainSize_p2 / blockSize_p3;
-
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
-			 ("_BlockWrite: [P3] buffSize_p3(%d) blockSize_p3(%d) "
-			  "blockCount_p3(%d)\n",
-			  (buffSize - offset), blockSize_p3, blockCount_p3));
-
-		for (i = 0; i < blockCount_p3; i++) {
-			ret = rtl8723au_write8(padapter,
-					       (FW_8723A_START_ADDRESS + offset + i),
-					       *(bufferPtr + offset + i));
-
-			if (ret == _FAIL)
-				goto exit;
-		}
-	}
-
-exit:
 	return ret;
 }
 
@@ -961,28 +882,18 @@ void rtl8723a_read_chip_version(struct rtw_adapter *padapter)
 /*  */
 void SetBcnCtrlReg23a(struct rtw_adapter *padapter, u8 SetBits, u8 ClearBits)
 {
-	struct hal_data_8723a *pHalData;
-	u32 addr;
-	u8 *pRegBcnCtrlVal;
+	u8 val8;
 
-	pHalData = GET_HAL_DATA(padapter);
-	pRegBcnCtrlVal = (u8 *)&pHalData->RegBcnCtrlVal;
+	val8 = rtl8723au_read8(padapter, REG_BCN_CTRL);
+	val8 |= SetBits;
+	val8 &= ~ClearBits;
 
-	addr = REG_BCN_CTRL;
-
-	*pRegBcnCtrlVal = rtl8723au_read8(padapter, addr);
-	*pRegBcnCtrlVal |= SetBits;
-	*pRegBcnCtrlVal &= ~ClearBits;
-
-	rtl8723au_write8(padapter, addr, *pRegBcnCtrlVal);
+	rtl8723au_write8(padapter, REG_BCN_CTRL, val8);
 }
 
 void rtl8723a_InitBeaconParameters(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-
 	rtl8723au_write16(padapter, REG_BCN_CTRL, 0x1010);
-	pHalData->RegBcnCtrlVal = 0x1010;
 
 	/*  TODO: Remove these magic number */
 	rtl8723au_write16(padapter, REG_TBTT_PROHIBIT, 0x6404);	/*  ms */
@@ -1034,8 +945,6 @@ static void StopTxBeacon(struct rtw_adapter *padapter)
 	rtl8723au_write8(padapter, REG_TBTT_PROHIBIT + 1, 0x64);
 	pHalData->RegReg542 &= ~BIT(0);
 	rtl8723au_write8(padapter, REG_TBTT_PROHIBIT + 2, pHalData->RegReg542);
-
-	CheckFwRsvdPageContent23a(padapter); /*  2010.06.23. Added by tynli. */
 }
 
 static void _BeaconFunctionEnable(struct rtw_adapter *padapter, u8 Enable,
@@ -2381,18 +2290,18 @@ void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode)
 {
 	u8 val8;
 
-	if ((mode == _HW_STATE_STATION_) || (mode == _HW_STATE_NOLINK_)) {
+	if (mode == MSR_INFRA || mode == MSR_NOLINK) {
 		StopTxBeacon(padapter);
 
 		/*  disable atim wnd */
 		val8 = DIS_TSF_UDT | EN_BCN_FUNCTION | DIS_ATIM;
 		SetBcnCtrlReg23a(padapter, val8, ~val8);
-	} else if ((mode == _HW_STATE_ADHOC_) /*|| (mode == _HW_STATE_AP_) */) {
+	} else if (mode == MSR_ADHOC) {
 		ResumeTxBeacon(padapter);
 
 		val8 = DIS_TSF_UDT | EN_BCN_FUNCTION | DIS_BCNQ_SUB;
 		SetBcnCtrlReg23a(padapter, val8, ~val8);
-	} else if (mode == _HW_STATE_AP_) {
+	} else if (mode == MSR_AP) {
 		/*  add NULL Data and BT NULL Data Packets to FW RSVD Page */
 		rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(padapter);
 
@@ -2474,8 +2383,8 @@ void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 		do_div(pmlmeext->TSFValue,
 		       (pmlmeinfo->bcn_interval * 1024)) - 1024;	/* us */
 
-	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
-	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
+	if (((pmlmeinfo->state & 0x03) == MSR_ADHOC) ||
+	    ((pmlmeinfo->state & 0x03) == MSR_AP)) {
 		/* pHalData->RegTxPause |= STOP_BCNQ;BIT(6) */
 		/* rtl8723au_write8(padapter, REG_TXPAUSE,
 		   (rtl8723au_read8(Adapter, REG_TXPAUSE)|BIT(6))); */
@@ -2493,8 +2402,8 @@ void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 	/* enable related TSF function */
 	SetBcnCtrlReg23a(padapter, EN_BCN_FUNCTION, 0);
 
-	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
-	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE))
+	if (((pmlmeinfo->state & 0x03) == MSR_ADHOC) ||
+	    ((pmlmeinfo->state & 0x03) == MSR_AP))
 		ResumeTxBeacon(padapter);
 }
 

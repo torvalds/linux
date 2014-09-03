@@ -14,6 +14,15 @@
 
 #include <mach/hardware.h>
 
+static const struct resource clps711x_cpuidle_res __initconst =
+	DEFINE_RES_MEM(CLPS711X_PHYS_BASE + HALT, SZ_128);
+
+static void __init clps711x_add_cpuidle(void)
+{
+	platform_device_register_simple("clps711x-cpuidle", PLATFORM_DEVID_NONE,
+					&clps711x_cpuidle_res, 1);
+}
+
 static const phys_addr_t clps711x_gpios[][2] __initconst = {
 	{ PADR, PADDR },
 	{ PBDR, PBDDR },
@@ -83,6 +92,7 @@ static void __init clps711x_add_uart(void)
 
 void __init clps711x_devices_init(void)
 {
+	clps711x_add_cpuidle();
 	clps711x_add_gpio();
 	clps711x_add_syscon();
 	clps711x_add_uart();

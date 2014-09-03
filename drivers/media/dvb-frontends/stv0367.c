@@ -922,18 +922,13 @@ static int stv0367ter_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 static u32 stv0367_get_tuner_freq(struct dvb_frontend *fe)
 {
-	struct dvb_frontend_ops	*frontend_ops = NULL;
-	struct dvb_tuner_ops	*tuner_ops = NULL;
+	struct dvb_frontend_ops	*frontend_ops = &fe->ops;
+	struct dvb_tuner_ops	*tuner_ops = &frontend_ops->tuner_ops;
 	u32 freq = 0;
 	int err = 0;
 
 	dprintk("%s:\n", __func__);
 
-
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
 	if (tuner_ops->get_frequency) {
 		err = tuner_ops->get_frequency(fe, &freq);
 		if (err < 0) {

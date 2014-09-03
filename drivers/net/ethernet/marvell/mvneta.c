@@ -2969,14 +2969,14 @@ static int mvneta_probe(struct platform_device *pdev)
 		/* In the case of a fixed PHY, the DT node associated
 		 * to the PHY is the Ethernet MAC DT node.
 		 */
-		phy_node = dn;
+		phy_node = of_node_get(dn);
 	}
 
 	phy_mode = of_get_phy_mode(dn);
 	if (phy_mode < 0) {
 		dev_err(&pdev->dev, "incorrect phy-mode\n");
 		err = -EINVAL;
-		goto err_free_irq;
+		goto err_put_phy_node;
 	}
 
 	dev->tx_queue_len = MVNETA_MAX_TXD;
@@ -2992,7 +2992,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	pp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pp->clk)) {
 		err = PTR_ERR(pp->clk);
-		goto err_free_irq;
+		goto err_put_phy_node;
 	}
 
 	clk_prepare_enable(pp->clk);
@@ -3071,6 +3071,8 @@ err_free_stats:
 	free_percpu(pp->stats);
 err_clk:
 	clk_disable_unprepare(pp->clk);
+err_put_phy_node:
+	of_node_put(phy_node);
 err_free_irq:
 	irq_dispose_mapping(dev->irq);
 err_free_netdev:
@@ -3088,6 +3090,7 @@ static int mvneta_remove(struct platform_device *pdev)
 	clk_disable_unprepare(pp->clk);
 	free_percpu(pp->stats);
 	irq_dispose_mapping(dev->irq);
+	of_node_put(pp->phy_node);
 	free_netdev(dev);
 
 	return 0;

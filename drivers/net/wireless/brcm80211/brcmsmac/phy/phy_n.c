@@ -22916,7 +22916,6 @@ static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type)
 		break;
 	default:
 		return;
-		break;
 	}
 
 	classif_state = wlc_phy_classifier_nphy(pi, 0, 0);

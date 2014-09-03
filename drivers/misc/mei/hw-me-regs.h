@@ -115,6 +115,7 @@
 #define MEI_DEV_ID_LPT_HR     0x8CBA  /* Lynx Point H Refresh */
 
 #define MEI_DEV_ID_WPT_LP     0x9CBA  /* Wildcat Point LP */
+#define MEI_DEV_ID_WPT_LP_2   0x9CBB  /* Wildcat Point LP 2 */
 
 /* Host Firmware Status Registers in PCI Config Space */
 #define PCI_CFG_HFS_1         0x40

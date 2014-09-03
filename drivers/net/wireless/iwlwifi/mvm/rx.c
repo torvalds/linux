@@ -259,6 +259,23 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	memset(&rx_status, 0, sizeof(rx_status));
 
 	/*
+	 * We have tx blocked stations (with CS bit). If we heard frames from
+	 * a blocked station on a new channel we can TX to it again.
+	 */
+	if (unlikely(mvm->csa_tx_block_bcn_timeout)) {
+		struct ieee80211_sta *sta;
+
+		rcu_read_lock();
+
+		sta = ieee80211_find_sta(
+			rcu_dereference(mvm->csa_tx_blocked_vif), hdr->addr2);
+		if (sta)
+			iwl_mvm_sta_modify_disable_tx_ap(mvm, sta, false);
+
+		rcu_read_unlock();
+	}
+
+	/*
 	 * drop the packet if it has failed being decrypted by HW
 	 */
 	if (iwl_mvm_set_mac80211_rx_flag(mvm, hdr, &rx_status, rx_pkt_status)) {

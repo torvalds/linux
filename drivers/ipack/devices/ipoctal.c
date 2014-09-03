@@ -177,19 +177,20 @@ static void ipoctal_irq_tx(struct ipoctal_channel *channel)
 	if (channel->nb_bytes == 0)
 		return;
 
+	spin_lock(&channel->lock);
 	value = channel->tty_port.xmit_buf[*pointer_write];
 	iowrite8(value, &channel->regs->w.thr);
 	channel->stats.tx++;
 	(*pointer_write)++;
 	*pointer_write = *pointer_write % PAGE_SIZE;
 	channel->nb_bytes--;
+	spin_unlock(&channel->lock);
 }
 
 static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 {
 	u8 isr, sr;
 
-	spin_lock(&channel->lock);
 	/* The HW is organized in pair of channels.  See which register we need
 	 * to read from */
 	isr = ioread8(&channel->block_regs->r.isr);
@@ -213,8 +214,6 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 	/* TX of each character */
 	if ((isr & channel->isr_tx_rdy_mask) && (sr & SR_TX_READY))
 		ipoctal_irq_tx(channel);
-
-	spin_unlock(&channel->lock);
 }
 
 static irqreturn_t ipoctal_irq_handler(void *arg)
@@ -324,13 +323,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 			 &block_regs[i].w.imr);
 	}
 
-	/*
-	 * IP-OCTAL has different addresses to copy its IRQ vector.
-	 * Depending of the carrier these addresses are accesible or not.
-	 * More info in the datasheet.
-	 */
-	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
-				       ipoctal_irq_handler, ipoctal);
 	/* Dummy write */
 	iowrite8(1, ipoctal->mem8_space + 1);
 
@@ -390,6 +382,14 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		}
 		dev_set_drvdata(tty_dev, channel);
 	}
+
+	/*
+	 * IP-OCTAL has different addresses to copy its IRQ vector.
+	 * Depending of the carrier these addresses are accesible or not.
+	 * More info in the datasheet.
+	 */
+	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
+				       ipoctal_irq_handler, ipoctal);
 
 	return 0;
 }

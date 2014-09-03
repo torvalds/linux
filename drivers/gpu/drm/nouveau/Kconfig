@@ -1,5 +1,5 @@
 config DRM_NOUVEAU
-	tristate "Nouveau (nVidia) cards"
+	tristate "Nouveau (NVIDIA) cards"
 	depends on DRM && PCI
         select FW_LOADER
 	select DRM_KMS_HELPER
@@ -23,7 +23,15 @@ config DRM_NOUVEAU
 	select THERMAL if ACPI && X86
 	select ACPI_VIDEO if ACPI && X86
 	help
-	  Choose this option for open-source nVidia support.
+	  Choose this option for open-source NVIDIA support.
+
+config NOUVEAU_PLATFORM_DRIVER
+	tristate "Nouveau (NVIDIA) SoC GPUs"
+	depends on DRM_NOUVEAU && ARCH_TEGRA
+	default y
+	help
+	  Support for Nouveau platform driver, used for SoC GPUs as found
+	  on NVIDIA Tegra K1.
 
 config NOUVEAU_DEBUG
 	int "Maximum debug level"

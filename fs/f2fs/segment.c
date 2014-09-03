@@ -239,6 +239,12 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 	struct flush_cmd_control *fcc = SM_I(sbi)->cmd_control_info;
 	struct flush_cmd cmd;
 
+	trace_f2fs_issue_flush(sbi->sb, test_opt(sbi, NOBARRIER),
+					test_opt(sbi, FLUSH_MERGE));
+
+	if (test_opt(sbi, NOBARRIER))
+		return 0;
+
 	if (!test_opt(sbi, FLUSH_MERGE))
 		return blkdev_issue_flush(sbi->sb->s_bdev, GFP_KERNEL, NULL);
 
@@ -272,13 +278,13 @@ int create_flush_cmd_control(struct f2fs_sb_info *sbi)
 		return -ENOMEM;
 	spin_lock_init(&fcc->issue_lock);
 	init_waitqueue_head(&fcc->flush_wait_queue);
-	sbi->sm_info->cmd_control_info = fcc;
+	SM_I(sbi)->cmd_control_info = fcc;
 	fcc->f2fs_issue_flush = kthread_run(issue_flush_thread, sbi,
 				"f2fs_flush-%u:%u", MAJOR(dev), MINOR(dev));
 	if (IS_ERR(fcc->f2fs_issue_flush)) {
 		err = PTR_ERR(fcc->f2fs_issue_flush);
 		kfree(fcc);
-		sbi->sm_info->cmd_control_info = NULL;
+		SM_I(sbi)->cmd_control_info = NULL;
 		return err;
 	}
 
@@ -287,13 +293,12 @@ int create_flush_cmd_control(struct f2fs_sb_info *sbi)
 
 void destroy_flush_cmd_control(struct f2fs_sb_info *sbi)
 {
-	struct flush_cmd_control *fcc =
-				sbi->sm_info->cmd_control_info;
+	struct flush_cmd_control *fcc = SM_I(sbi)->cmd_control_info;
 
 	if (fcc && fcc->f2fs_issue_flush)
 		kthread_stop(fcc->f2fs_issue_flush);
 	kfree(fcc);
-	sbi->sm_info->cmd_control_info = NULL;
+	SM_I(sbi)->cmd_control_info = NULL;
 }
 
 static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
@@ -377,11 +382,8 @@ static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 	return blkdev_issue_discard(sbi->sb->s_bdev, start, len, GFP_NOFS, 0);
 }
 
-void discard_next_dnode(struct f2fs_sb_info *sbi)
+void discard_next_dnode(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
-	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
-	block_t blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
-
 	if (f2fs_issue_discard(sbi, blkaddr, 1)) {
 		struct page *page = grab_meta_page(sbi, blkaddr);
 		/* zero-filled page */
@@ -437,17 +439,12 @@ static void add_discard_addrs(struct f2fs_sb_info *sbi,
 static void set_prefree_as_free_segments(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-	unsigned int segno = -1;
+	unsigned int segno;
 	unsigned int total_segs = TOTAL_SEGS(sbi);
 
 	mutex_lock(&dirty_i->seglist_lock);
-	while (1) {
-		segno = find_next_bit(dirty_i->dirty_segmap[PRE], total_segs,
-				segno + 1);
-		if (segno >= total_segs)
-			break;
+	for_each_set_bit(segno, dirty_i->dirty_segmap[PRE], total_segs)
 		__set_test_and_free(sbi, segno);
-	}
 	mutex_unlock(&dirty_i->seglist_lock);
 }
 
@@ -974,14 +971,12 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	struct curseg_info *curseg;
-	unsigned int old_cursegno;
 
 	curseg = CURSEG_I(sbi, type);
 
 	mutex_lock(&curseg->curseg_mutex);
 
 	*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
-	old_cursegno = curseg->segno;
 
 	/*
 	 * __add_sum_entry should be resided under the curseg_mutex
@@ -1002,7 +997,6 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	 * since SSR needs latest valid block information.
 	 */
 	refresh_sit_entry(sbi, old_blkaddr, *new_blkaddr);
-	locate_dirty_segment(sbi, old_cursegno);
 
 	mutex_unlock(&sit_i->sentry_lock);
 
@@ -1532,7 +1526,7 @@ void flush_sit_entries(struct f2fs_sb_info *sbi)
 	struct page *page = NULL;
 	struct f2fs_sit_block *raw_sit = NULL;
 	unsigned int start = 0, end = 0;
-	unsigned int segno = -1;
+	unsigned int segno;
 	bool flushed;
 
 	mutex_lock(&curseg->curseg_mutex);
@@ -1544,7 +1538,7 @@ void flush_sit_entries(struct f2fs_sb_info *sbi)
 	 */
 	flushed = flush_sits_in_journal(sbi);
 
-	while ((segno = find_next_bit(bitmap, nsegs, segno + 1)) < nsegs) {
+	for_each_set_bit(segno, bitmap, nsegs) {
 		struct seg_entry *se = get_seg_entry(sbi, segno);
 		int sit_offset, offset;
 
@@ -1703,7 +1697,7 @@ static int build_curseg(struct f2fs_sb_info *sbi)
 	struct curseg_info *array;
 	int i;
 
-	array = kzalloc(sizeof(*array) * NR_CURSEG_TYPE, GFP_KERNEL);
+	array = kcalloc(NR_CURSEG_TYPE, sizeof(*array), GFP_KERNEL);
 	if (!array)
 		return -ENOMEM;
 

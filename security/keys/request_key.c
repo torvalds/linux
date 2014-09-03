@@ -21,24 +21,6 @@
 
 #define key_negative_timeout	60	/* default timeout on a negative key's existence */
 
-/*
- * wait_on_bit() sleep function for uninterruptible waiting
- */
-static int key_wait_bit(void *flags)
-{
-	schedule();
-	return 0;
-}
-
-/*
- * wait_on_bit() sleep function for interruptible waiting
- */
-static int key_wait_bit_intr(void *flags)
-{
-	schedule();
-	return signal_pending(current) ? -ERESTARTSYS : 0;
-}
-
 /**
  * complete_request_key - Complete the construction of a key.
  * @cons: The key construction record.
@@ -592,10 +574,9 @@ int wait_for_key_construction(struct key *key, bool intr)
 	int ret;
 
 	ret = wait_on_bit(&key->flags, KEY_FLAG_USER_CONSTRUCT,
-			  intr ? key_wait_bit_intr : key_wait_bit,
 			  intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-	if (ret < 0)
-		return ret;
+	if (ret)
+		return -ERESTARTSYS;
 	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
 		smp_rmb();
 		return key->type_data.reject_error;

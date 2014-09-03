@@ -701,7 +701,6 @@ int usbtv_video_init(struct usbtv *usbtv)
 	usbtv->vdev.tvnorms = USBTV_TV_STD;
 	usbtv->vdev.queue = &usbtv->vb2q;
 	usbtv->vdev.lock = &usbtv->v4l2_lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &usbtv->vdev.flags);
 	video_set_drvdata(&usbtv->vdev, usbtv);
 	ret = video_register_device(&usbtv->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {

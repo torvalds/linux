@@ -799,6 +799,25 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		addr += 0x10; /* shift for the 2nd tuner params */
 	}
 
+	/*
+	 * These AVerMedia devices has a bad EEPROM content :-(
+	 * Override some wrong values here.
+	 */
+	if (le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_AVERMEDIA) {
+		switch (le16_to_cpu(d->udev->descriptor.idProduct)) {
+		case USB_PID_AVERMEDIA_A835B_1835:
+		case USB_PID_AVERMEDIA_A835B_2835:
+		case USB_PID_AVERMEDIA_A835B_3835:
+			dev_info(&d->udev->dev,
+				 "%s: overriding tuner from %02x to %02x\n",
+				 KBUILD_MODNAME, state->af9033_config[0].tuner,
+				 AF9033_TUNER_IT9135_60);
+
+			state->af9033_config[0].tuner = AF9033_TUNER_IT9135_60;
+			break;
+		}
+	}
+
 skip_eeprom:
 	/* get demod clock */
 	ret = af9035_rd_reg(d, 0x00d800, &tmp);
@@ -1313,19 +1332,20 @@ static int af9035_rc_query(struct dvb_usb_device *d)
 	if ((buf[2] + buf[3]) == 0xff) {
 		if ((buf[0] + buf[1]) == 0xff) {
 			/* NEC standard 16bit */
-			key = buf[0] << 8 | buf[2];
+			key = RC_SCANCODE_NEC(buf[0], buf[2]);
 		} else {
 			/* NEC extended 24bit */
-			key = buf[0] << 16 | buf[1] << 8 | buf[2];
+			key = RC_SCANCODE_NECX(buf[0] << 8 | buf[1], buf[2]);
 		}
 	} else {
 		/* NEC full code 32bit */
-		key = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
+		key = RC_SCANCODE_NEC32(buf[0] << 24 | buf[1] << 16 |
+					buf[2] << 8  | buf[3]);
 	}
 
 	dev_dbg(&d->udev->dev, "%s: %*ph\n", __func__, 4, buf);
 
-	rc_keydown(d->rc_dev, key, 0);
+	rc_keydown(d->rc_dev, RC_TYPE_NEC, key, 0);
 
 	return 0;
 

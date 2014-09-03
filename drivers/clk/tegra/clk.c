@@ -19,7 +19,8 @@
 #include <linux/of.h>
 #include <linux/clk/tegra.h>
 #include <linux/reset-controller.h>
-#include <linux/tegra-soc.h>
+
+#include <soc/tegra/fuse.h>
 
 #include "clk.h"
 
@@ -277,6 +278,12 @@ void __init tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
 	for (i = 0; i < num; i++, dev_clks++)
 		clk_register_clkdev(clks[dev_clks->dt_id], dev_clks->con_id,
 				dev_clks->dev_id);
+
+	for (i = 0; i < clk_num; i++) {
+		if (!IS_ERR_OR_NULL(clks[i]))
+			clk_register_clkdev(clks[i], __clk_get_name(clks[i]),
+				"tegra-clk-debug");
+	}
 }
 
 struct clk ** __init tegra_lookup_dt_id(int clk_id,

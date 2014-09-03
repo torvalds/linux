@@ -99,7 +99,7 @@ struct LED_871x {
 						   * either LED_ON or OFF.*/
 
 	struct timer_list	BlinkTimer; /* Timer object for led blinking.*/
-	_workitem		BlinkWorkItem; /* Workitem used by BlinkTimer */
+	struct work_struct	BlinkWorkItem; /* Workitem used by BlinkTimer */
 };
 
 struct led_priv {

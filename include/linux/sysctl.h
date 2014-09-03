@@ -34,8 +34,6 @@ struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
 
-typedef struct ctl_table ctl_table;
-
 typedef int proc_handler (struct ctl_table *ctl, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos);
 

@@ -293,3 +293,143 @@ void drm_rect_debug_print(const struct drm_rect *r, bool fixed_point)
 		DRM_DEBUG_KMS("%dx%d%+d%+d\n", w, h, r->x1, r->y1);
 }
 EXPORT_SYMBOL(drm_rect_debug_print);
+
+/**
+ * drm_rect_rotate - Rotate the rectangle
+ * @r: rectangle to be rotated
+ * @width: Width of the coordinate space
+ * @height: Height of the coordinate space
+ * @rotation: Transformation to be applied
+ *
+ * Apply @rotation to the coordinates of rectangle @r.
+ *
+ * @width and @height combined with @rotation define
+ * the location of the new origin.
+ *
+ * @width correcsponds to the horizontal and @height
+ * to the vertical axis of the untransformed coordinate
+ * space.
+ */
+void drm_rect_rotate(struct drm_rect *r,
+		     int width, int height,
+		     unsigned int rotation)
+{
+	struct drm_rect tmp;
+
+	if (rotation & (BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y))) {
+		tmp = *r;
+
+		if (rotation & BIT(DRM_REFLECT_X)) {
+			r->x1 = width - tmp.x2;
+			r->x2 = width - tmp.x1;
+		}
+
+		if (rotation & BIT(DRM_REFLECT_Y)) {
+			r->y1 = height - tmp.y2;
+			r->y2 = height - tmp.y1;
+		}
+	}
+
+	switch (rotation & 0xf) {
+	case BIT(DRM_ROTATE_0):
+		break;
+	case BIT(DRM_ROTATE_90):
+		tmp = *r;
+		r->x1 = tmp.y1;
+		r->x2 = tmp.y2;
+		r->y1 = width - tmp.x2;
+		r->y2 = width - tmp.x1;
+		break;
+	case BIT(DRM_ROTATE_180):
+		tmp = *r;
+		r->x1 = width - tmp.x2;
+		r->x2 = width - tmp.x1;
+		r->y1 = height - tmp.y2;
+		r->y2 = height - tmp.y1;
+		break;
+	case BIT(DRM_ROTATE_270):
+		tmp = *r;
+		r->x1 = height - tmp.y2;
+		r->x2 = height - tmp.y1;
+		r->y1 = tmp.x1;
+		r->y2 = tmp.x2;
+		break;
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL(drm_rect_rotate);
+
+/**
+ * drm_rect_rotate_inv - Inverse rotate the rectangle
+ * @r: rectangle to be rotated
+ * @width: Width of the coordinate space
+ * @height: Height of the coordinate space
+ * @rotation: Transformation whose inverse is to be applied
+ *
+ * Apply the inverse of @rotation to the coordinates
+ * of rectangle @r.
+ *
+ * @width and @height combined with @rotation define
+ * the location of the new origin.
+ *
+ * @width correcsponds to the horizontal and @height
+ * to the vertical axis of the original untransformed
+ * coordinate space, so that you never have to flip
+ * them when doing a rotatation and its inverse.
+ * That is, if you do:
+ *
+ * drm_rotate(&r, width, height, rotation);
+ * drm_rotate_inv(&r, width, height, rotation);
+ *
+ * you will always get back the original rectangle.
+ */
+void drm_rect_rotate_inv(struct drm_rect *r,
+			 int width, int height,
+			 unsigned int rotation)
+{
+	struct drm_rect tmp;
+
+	switch (rotation & 0xf) {
+	case BIT(DRM_ROTATE_0):
+		break;
+	case BIT(DRM_ROTATE_90):
+		tmp = *r;
+		r->x1 = width - tmp.y2;
+		r->x2 = width - tmp.y1;
+		r->y1 = tmp.x1;
+		r->y2 = tmp.x2;
+		break;
+	case BIT(DRM_ROTATE_180):
+		tmp = *r;
+		r->x1 = width - tmp.x2;
+		r->x2 = width - tmp.x1;
+		r->y1 = height - tmp.y2;
+		r->y2 = height - tmp.y1;
+		break;
+	case BIT(DRM_ROTATE_270):
+		tmp = *r;
+		r->x1 = tmp.y1;
+		r->x2 = tmp.y2;
+		r->y1 = height - tmp.x2;
+		r->y2 = height - tmp.x1;
+		break;
+	default:
+		break;
+	}
+
+	if (rotation & (BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y))) {
+		tmp = *r;
+
+		if (rotation & BIT(DRM_REFLECT_X)) {
+			r->x1 = width - tmp.x2;
+			r->x2 = width - tmp.x1;
+		}
+
+		if (rotation & BIT(DRM_REFLECT_Y)) {
+			r->y1 = height - tmp.y2;
+			r->y2 = height - tmp.y1;
+		}
+	}
+}
+EXPORT_SYMBOL(drm_rect_rotate_inv);

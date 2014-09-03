@@ -79,11 +79,13 @@ static int acpi_button_remove(struct acpi_device *device);
 static void acpi_button_notify(struct acpi_device *device, u32 event);
 
 #ifdef CONFIG_PM_SLEEP
+static int acpi_button_suspend(struct device *dev);
 static int acpi_button_resume(struct device *dev);
 #else
+#define acpi_button_suspend NULL
 #define acpi_button_resume NULL
 #endif
-static SIMPLE_DEV_PM_OPS(acpi_button_pm, NULL, acpi_button_resume);
+static SIMPLE_DEV_PM_OPS(acpi_button_pm, acpi_button_suspend, acpi_button_resume);
 
 static struct acpi_driver acpi_button_driver = {
 	.name = "button",
@@ -102,6 +104,7 @@ struct acpi_button {
 	struct input_dev *input;
 	char phys[32];			/* for input device */
 	unsigned long pushed;
+	bool suspended;
 };
 
 static BLOCKING_NOTIFIER_HEAD(acpi_lid_notifier);
@@ -293,15 +296,19 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 		if (button->type == ACPI_BUTTON_TYPE_LID) {
 			acpi_lid_send_state(device);
 		} else {
-			int keycode = test_bit(KEY_SLEEP, input->keybit) ?
-						KEY_SLEEP : KEY_POWER;
+			int keycode;
 
+			pm_wakeup_event(&device->dev, 0);
+			if (button->suspended)
+				break;
+
+			keycode = test_bit(KEY_SLEEP, input->keybit) ?
+						KEY_SLEEP : KEY_POWER;
 			input_report_key(input, keycode, 1);
 			input_sync(input);
 			input_report_key(input, keycode, 0);
 			input_sync(input);
 
-			pm_wakeup_event(&device->dev, 0);
 			acpi_bus_generate_netlink_event(
 					device->pnp.device_class,
 					dev_name(&device->dev),
@@ -316,11 +323,21 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static int acpi_button_suspend(struct device *dev)
+{
+	struct acpi_device *device = to_acpi_device(dev);
+	struct acpi_button *button = acpi_driver_data(device);
+
+	button->suspended = true;
+	return 0;
+}
+
 static int acpi_button_resume(struct device *dev)
 {
 	struct acpi_device *device = to_acpi_device(dev);
 	struct acpi_button *button = acpi_driver_data(device);
 
+	button->suspended = false;
 	if (button->type == ACPI_BUTTON_TYPE_LID)
 		return acpi_lid_send_state(device);
 	return 0;

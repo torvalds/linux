@@ -20,6 +20,12 @@
 	compatible = "samsung,exynos5410", "samsung,exynos5";
 	interrupt-parent = <&gic>;
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -28,24 +34,28 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0x0>;
+			clock-frequency = <1600000000>;
 		};
 
 		CPU1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0x1>;
+			clock-frequency = <1600000000>;
 		};
 
 		CPU2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0x2>;
+			clock-frequency = <1600000000>;
 		};
 
 		CPU3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0x3>;
+			clock-frequency = <1600000000>;
 		};
 	};
 
@@ -85,6 +95,11 @@
 		chipid@10000000 {
 			compatible = "samsung,exynos4210-chipid";
 			reg = <0x10000000 0x100>;
+		};
+
+		pmu_system_controller: system-controller@10040000 {
+			compatible = "samsung,exynos5410-pmu", "syscon";
+			reg = <0x10040000 0x5000>;
 		};
 
 		mct: mct@101C0000 {

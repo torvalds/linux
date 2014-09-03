@@ -37,15 +37,15 @@
 #define __CLASS_OBD_H
 
 
-#include <obd_support.h>
-#include <lustre_import.h>
-#include <lustre_net.h>
-#include <obd.h>
-#include <lustre_lib.h>
-#include <lustre/lustre_idl.h>
-#include <lprocfs_status.h>
+#include "obd_support.h"
+#include "lustre_import.h"
+#include "lustre_net.h"
+#include "obd.h"
+#include "lustre_lib.h"
+#include "lustre/lustre_idl.h"
+#include "lprocfs_status.h"
 
-#include <linux/obd_class.h>
+#include "linux/obd_class.h"
 
 #define OBD_STATFS_NODELAY      0x0001  /* requests should be send without delay
 					 * and resends for avoid deadlocks */
@@ -141,7 +141,7 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg);
 int class_add_uuid(const char *uuid, __u64 nid);
 
 /*obdecho*/
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 extern void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars)
@@ -347,7 +347,7 @@ do {							    \
 } while (0)
 
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 #define OBD_COUNTER_OFFSET(op)				  \
 	((offsetof(struct obd_ops, o_ ## op) -		  \
 	  offsetof(struct obd_ops, o_iocontrol))		\
@@ -1160,13 +1160,12 @@ static inline int obd_statfs_async(struct obd_export *exp,
 	OBD_CHECK_DT_OP(obd, statfs, -EOPNOTSUPP);
 	OBD_COUNTER_INCREMENT(obd, statfs);
 
-	CDEBUG(D_SUPER, "%s: osfs %p age "LPU64", max_age "LPU64"\n",
+	CDEBUG(D_SUPER, "%s: osfs %p age %llu, max_age %llu\n",
 	       obd->obd_name, &obd->obd_osfs, obd->obd_osfs_age, max_age);
 	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs_async)(exp, oinfo, max_age, rqset);
 	} else {
-		CDEBUG(D_SUPER,"%s: use %p cache blocks "LPU64"/"LPU64
-		       " objects "LPU64"/"LPU64"\n",
+		CDEBUG(D_SUPER,"%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
 		       obd->obd_name, &obd->obd_osfs,
 		       obd->obd_osfs.os_bavail, obd->obd_osfs.os_blocks,
 		       obd->obd_osfs.os_ffree, obd->obd_osfs.os_files);
@@ -1217,7 +1216,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 	OBD_CHECK_DT_OP(obd, statfs, -EOPNOTSUPP);
 	OBD_COUNTER_INCREMENT(obd, statfs);
 
-	CDEBUG(D_SUPER, "osfs "LPU64", max_age "LPU64"\n",
+	CDEBUG(D_SUPER, "osfs %llu, max_age %llu\n",
 	       obd->obd_osfs_age, max_age);
 	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs)(env, exp, osfs, max_age, flags);
@@ -1228,8 +1227,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 			spin_unlock(&obd->obd_osfs_lock);
 		}
 	} else {
-		CDEBUG(D_SUPER, "%s: use %p cache blocks "LPU64"/"LPU64
-		       " objects "LPU64"/"LPU64"\n",
+		CDEBUG(D_SUPER, "%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
 		       obd->obd_name, &obd->obd_osfs,
 		       obd->obd_osfs.os_bavail, obd->obd_osfs.os_blocks,
 		       obd->obd_osfs.os_ffree, obd->obd_osfs.os_files);
@@ -1818,7 +1816,7 @@ static inline int md_enqueue(struct obd_export *exp,
 			     struct lustre_handle *lockh,
 			     void *lmm, int lmmsize,
 			     struct ptlrpc_request **req,
-			     int extra_lock_flags)
+			     __u64 extra_lock_flags)
 {
 	int rc;
 

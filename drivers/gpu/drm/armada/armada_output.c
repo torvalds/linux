@@ -48,7 +48,7 @@ static void armada_drm_connector_destroy(struct drm_connector *conn)
 {
 	struct armada_connector *dconn = drm_to_armada_conn(conn);
 
-	drm_sysfs_connector_remove(conn);
+	drm_connector_unregister(conn);
 	drm_connector_cleanup(conn);
 	kfree(dconn);
 }
@@ -141,7 +141,7 @@ int armada_output_create(struct drm_device *dev,
 	if (ret)
 		goto err_conn;
 
-	ret = drm_sysfs_connector_add(&dconn->conn);
+	ret = drm_connector_register(&dconn->conn);
 	if (ret)
 		goto err_sysfs;
 

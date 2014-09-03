@@ -59,15 +59,24 @@ static DEFINE_RWLOCK(resource_lock);
 static struct resource *bootmem_resource_free;
 static DEFINE_SPINLOCK(bootmem_resource_lock);
 
-static void *r_next(struct seq_file *m, void *v, loff_t *pos)
+static struct resource *next_resource(struct resource *p, bool sibling_only)
 {
-	struct resource *p = v;
-	(*pos)++;
+	/* Caller wants to traverse through siblings only */
+	if (sibling_only)
+		return p->sibling;
+
 	if (p->child)
 		return p->child;
 	while (!p->sibling && p->parent)
 		p = p->parent;
 	return p->sibling;
+}
+
+static void *r_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct resource *p = v;
+	(*pos)++;
+	return (void *)next_resource(p, false);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -322,16 +331,19 @@ int release_resource(struct resource *old)
 
 EXPORT_SYMBOL(release_resource);
 
-#if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
 /*
- * Finds the lowest memory reosurce exists within [res->start.res->end)
+ * Finds the lowest iomem reosurce exists with-in [res->start.res->end)
  * the caller must specify res->start, res->end, res->flags and "name".
  * If found, returns 0, res is overwritten, if not found, returns -1.
+ * This walks through whole tree and not just first level children
+ * until and unless first_level_children_only is true.
  */
-static int find_next_system_ram(struct resource *res, char *name)
+static int find_next_iomem_res(struct resource *res, char *name,
+			       bool first_level_children_only)
 {
 	resource_size_t start, end;
 	struct resource *p;
+	bool sibling_only = false;
 
 	BUG_ON(!res);
 
@@ -339,9 +351,12 @@ static int find_next_system_ram(struct resource *res, char *name)
 	end = res->end;
 	BUG_ON(start >= end);
 
+	if (first_level_children_only)
+		sibling_only = true;
+
 	read_lock(&resource_lock);
-	for (p = iomem_resource.child; p ; p = p->sibling) {
-		/* system ram is just marked as IORESOURCE_MEM */
+
+	for (p = iomem_resource.child; p; p = next_resource(p, sibling_only)) {
 		if (p->flags != res->flags)
 			continue;
 		if (name && strcmp(p->name, name))
@@ -353,6 +368,7 @@ static int find_next_system_ram(struct resource *res, char *name)
 		if ((p->end >= start) && (p->start < end))
 			break;
 	}
+
 	read_unlock(&resource_lock);
 	if (!p)
 		return -1;
@@ -363,6 +379,70 @@ static int find_next_system_ram(struct resource *res, char *name)
 		res->end = p->end;
 	return 0;
 }
+
+/*
+ * Walks through iomem resources and calls func() with matching resource
+ * ranges. This walks through whole tree and not just first level children.
+ * All the memory ranges which overlap start,end and also match flags and
+ * name are valid candidates.
+ *
+ * @name: name of resource
+ * @flags: resource flags
+ * @start: start addr
+ * @end: end addr
+ */
+int walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end,
+		void *arg, int (*func)(u64, u64, void *))
+{
+	struct resource res;
+	u64 orig_end;
+	int ret = -1;
+
+	res.start = start;
+	res.end = end;
+	res.flags = flags;
+	orig_end = res.end;
+	while ((res.start < res.end) &&
+		(!find_next_iomem_res(&res, name, false))) {
+		ret = (*func)(res.start, res.end, arg);
+		if (ret)
+			break;
+		res.start = res.end + 1;
+		res.end = orig_end;
+	}
+	return ret;
+}
+
+/*
+ * This function calls callback against all memory range of "System RAM"
+ * which are marked as IORESOURCE_MEM and IORESOUCE_BUSY.
+ * Now, this function is only for "System RAM". This function deals with
+ * full ranges and not pfn. If resources are not pfn aligned, dealing
+ * with pfn can truncate ranges.
+ */
+int walk_system_ram_res(u64 start, u64 end, void *arg,
+				int (*func)(u64, u64, void *))
+{
+	struct resource res;
+	u64 orig_end;
+	int ret = -1;
+
+	res.start = start;
+	res.end = end;
+	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+	orig_end = res.end;
+	while ((res.start < res.end) &&
+		(!find_next_iomem_res(&res, "System RAM", true))) {
+		ret = (*func)(res.start, res.end, arg);
+		if (ret)
+			break;
+		res.start = res.end + 1;
+		res.end = orig_end;
+	}
+	return ret;
+}
+
+#if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
 
 /*
  * This function calls callback against all memory range of "System RAM"
@@ -382,7 +462,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	orig_end = res.end;
 	while ((res.start < res.end) &&
-		(find_next_system_ram(&res, "System RAM") >= 0)) {
+		(find_next_iomem_res(&res, "System RAM", true) >= 0)) {
 		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		end_pfn = (res.end + 1) >> PAGE_SHIFT;
 		if (end_pfn > pfn)

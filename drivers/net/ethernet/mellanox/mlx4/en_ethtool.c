@@ -98,6 +98,10 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	drvinfo->eedump_len = 0;
 }
 
+static const char mlx4_en_priv_flags[][ETH_GSTRING_LEN] = {
+	"blueflame",
+};
+
 static const char main_strings[][ETH_GSTRING_LEN] = {
 	"rx_packets", "tx_packets", "rx_bytes", "tx_bytes", "rx_errors",
 	"tx_errors", "rx_dropped", "tx_dropped", "multicast", "collisions",
@@ -235,6 +239,8 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_TEST:
 		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.flags
 					& MLX4_DEV_CAP_FLAG_UC_LOOPBACK) * 2;
+	case ETH_SS_PRIV_FLAGS:
+		return ARRAY_SIZE(mlx4_en_priv_flags);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -358,6 +364,12 @@ static void mlx4_en_get_strings(struct net_device *dev,
 #endif
 		}
 		break;
+	case ETH_SS_PRIV_FLAGS:
+		for (i = 0; i < ARRAY_SIZE(mlx4_en_priv_flags); i++)
+			strcpy(data + i * ETH_GSTRING_LEN,
+			       mlx4_en_priv_flags[i]);
+		break;
+
 	}
 }
 
@@ -1209,6 +1221,49 @@ static int mlx4_en_get_ts_info(struct net_device *dev,
 	return ret;
 }
 
+static int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	bool bf_enabled_new = !!(flags & MLX4_EN_PRIV_FLAGS_BLUEFLAME);
+	bool bf_enabled_old = !!(priv->pflags & MLX4_EN_PRIV_FLAGS_BLUEFLAME);
+	int i;
+
+	if (bf_enabled_new == bf_enabled_old)
+		return 0; /* Nothing to do */
+
+	if (bf_enabled_new) {
+		bool bf_supported = true;
+
+		for (i = 0; i < priv->tx_ring_num; i++)
+			bf_supported &= priv->tx_ring[i]->bf_alloced;
+
+		if (!bf_supported) {
+			en_err(priv, "BlueFlame is not supported\n");
+			return -EINVAL;
+		}
+
+		priv->pflags |= MLX4_EN_PRIV_FLAGS_BLUEFLAME;
+	} else {
+		priv->pflags &= ~MLX4_EN_PRIV_FLAGS_BLUEFLAME;
+	}
+
+	for (i = 0; i < priv->tx_ring_num; i++)
+		priv->tx_ring[i]->bf_enabled = bf_enabled_new;
+
+	en_info(priv, "BlueFlame %s\n",
+		bf_enabled_new ?  "Enabled" : "Disabled");
+
+	return 0;
+}
+
+static u32 mlx4_en_get_priv_flags(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	return priv->pflags;
+}
+
+
 const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_settings = mlx4_en_get_settings,
@@ -1236,6 +1291,8 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_channels = mlx4_en_get_channels,
 	.set_channels = mlx4_en_set_channels,
 	.get_ts_info = mlx4_en_get_ts_info,
+	.set_priv_flags = mlx4_en_set_priv_flags,
+	.get_priv_flags = mlx4_en_get_priv_flags,
 };
 
 

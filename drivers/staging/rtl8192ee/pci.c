@@ -892,7 +892,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		}
 
 		/* handle command packet here */
-		if (rtlpriv->cfg->ops->rx_command_packet(hw, stats, skb)) {
+		if (rtlpriv->cfg->ops->rx_command_packet(hw, &stats, skb)) {
 				dev_kfree_skb_any(skb);
 				goto end;
 		}
@@ -1224,10 +1224,10 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 
 	/* alloc tx buffer desc for new trx flow*/
 	if (rtlpriv->use_new_trx_flow) {
-		buffer_desc = pci_alloc_consistent(rtlpci->pdev,
-					sizeof(*buffer_desc) * entries,
-					&buffer_desc_dma);
-
+		buffer_desc =
+			pci_zalloc_consistent(rtlpci->pdev,
+					      sizeof(*buffer_desc) * entries,
+					      &buffer_desc_dma);
 		if (!buffer_desc || (unsigned long)buffer_desc & 0xFF) {
 			RT_TRACE(COMP_ERR, DBG_EMERG,
 				 ("Cannot allocate TX ring (prio = %d)\n",
@@ -1235,7 +1235,6 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 			return -ENOMEM;
 		}
 
-		memset(buffer_desc, 0, sizeof(*buffer_desc) * entries);
 		rtlpci->tx_ring[prio].buffer_desc = buffer_desc;
 		rtlpci->tx_ring[prio].buffer_desc_dma = buffer_desc_dma;
 
@@ -1245,16 +1244,14 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 	}
 
 	/* alloc dma for this ring */
-	desc = pci_alloc_consistent(rtlpci->pdev,
-				    sizeof(*desc) * entries, &desc_dma);
-
+	desc = pci_zalloc_consistent(rtlpci->pdev, sizeof(*desc) * entries,
+				     &desc_dma);
 	if (!desc || (unsigned long)desc & 0xFF) {
 		RT_TRACE(COMP_ERR, DBG_EMERG,
 			 ("Cannot allocate TX ring (prio = %d)\n", prio));
 		return -ENOMEM;
 	}
 
-	memset(desc, 0, sizeof(*desc) * entries);
 	rtlpci->tx_ring[prio].desc = desc;
 	rtlpci->tx_ring[prio].dma = desc_dma;
 
@@ -1290,21 +1287,15 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw, int rxring_idx)
 		struct rtl_rx_buffer_desc *entry = NULL;
 		/* alloc dma for this ring */
 		rtlpci->rx_ring[rxring_idx].buffer_desc =
-		    pci_alloc_consistent(rtlpci->pdev,
-					 sizeof(*rtlpci->rx_ring[rxring_idx].
-						buffer_desc) *
-						rtlpci->rxringcount,
-					 &rtlpci->rx_ring[rxring_idx].dma);
+			pci_zalloc_consistent(rtlpci->pdev,
+					      sizeof(*rtlpci->rx_ring[rxring_idx].buffer_desc) * rtlpci->rxringcount,
+					      &rtlpci->rx_ring[rxring_idx].dma);
 		if (!rtlpci->rx_ring[rxring_idx].buffer_desc ||
 		    (unsigned long)rtlpci->rx_ring[rxring_idx].buffer_desc & 0xFF) {
 			RT_TRACE(COMP_ERR, DBG_EMERG,
 				 ("Cannot allocate RX ring\n"));
 			return -ENOMEM;
 		}
-
-		memset(rtlpci->rx_ring[rxring_idx].buffer_desc, 0,
-		       sizeof(*rtlpci->rx_ring[rxring_idx].buffer_desc) *
-		       rtlpci->rxringcount);
 
 		/* init every desc in this ring */
 		rtlpci->rx_ring[rxring_idx].idx = 0;
@@ -1320,19 +1311,15 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw, int rxring_idx)
 		u8 tmp_one = 1;
 		/* alloc dma for this ring */
 		rtlpci->rx_ring[rxring_idx].desc =
-		    pci_alloc_consistent(rtlpci->pdev,
-					 sizeof(*rtlpci->rx_ring[rxring_idx].
-					desc) * rtlpci->rxringcount,
-					 &rtlpci->rx_ring[rxring_idx].dma);
+			pci_zalloc_consistent(rtlpci->pdev,
+					      sizeof(*rtlpci->rx_ring[rxring_idx].desc) * rtlpci->rxringcount,
+					      &rtlpci->rx_ring[rxring_idx].dma);
 		if (!rtlpci->rx_ring[rxring_idx].desc ||
 		    (unsigned long)rtlpci->rx_ring[rxring_idx].desc & 0xFF) {
 			RT_TRACE(COMP_ERR, DBG_EMERG,
 				 ("Cannot allocate RX ring\n"));
 			return -ENOMEM;
 		}
-		memset(rtlpci->rx_ring[rxring_idx].desc, 0,
-		       sizeof(*rtlpci->rx_ring[rxring_idx].desc) *
-		       rtlpci->rxringcount);
 
 		/* init every desc in this ring */
 		rtlpci->rx_ring[rxring_idx].idx = 0;

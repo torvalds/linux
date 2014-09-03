@@ -5,4 +5,5 @@ generic-y += exec.h
 generic-y += hash.h
 generic-y += mcs_spinlock.h
 generic-y += preempt.h
+generic-y += scatterlist.h
 generic-y += trace_clock.h

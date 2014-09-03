@@ -78,6 +78,7 @@ nvkm_output_create_(struct nouveau_object *parent,
 
 	outp->info = *dcbE;
 	outp->index = index;
+	outp->or = ffs(outp->info.or) - 1;
 
 	DBG("type %02x loc %d or %d link %d con %x edid %x bus %d head %x\n",
 	    dcbE->type, dcbE->location, dcbE->or, dcbE->type >= 2 ?

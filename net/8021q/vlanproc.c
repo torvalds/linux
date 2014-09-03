@@ -171,6 +171,8 @@ int vlan_proc_add_dev(struct net_device *vlandev)
 	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
 	struct vlan_net *vn = net_generic(dev_net(vlandev), vlan_net_id);
 
+	if (!strcmp(vlandev->name, name_conf))
+		return -EINVAL;
 	vlan->dent =
 		proc_create_data(vlandev->name, S_IFREG|S_IRUSR|S_IWUSR,
 				 vn->proc_vlan_dir, &vlandev_fops, vlandev);

@@ -55,21 +55,21 @@
  * @{
  */
 
-#include <linux/lustre_net.h>
+#include "linux/lustre_net.h"
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 // #include <obd.h>
-#include <linux/lnet/lnet.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_ha.h>
-#include <lustre_sec.h>
-#include <lustre_import.h>
-#include <lprocfs_status.h>
-#include <lu_object.h>
-#include <lustre_req_layout.h>
+#include "../../include/linux/lnet/lnet.h"
+#include "lustre/lustre_idl.h"
+#include "lustre_ha.h"
+#include "lustre_sec.h"
+#include "lustre_import.h"
+#include "lprocfs_status.h"
+#include "lu_object.h"
+#include "lustre_req_layout.h"
 
-#include <obd_support.h>
-#include <lustre_ver.h>
+#include "obd_support.h"
+#include "lustre_ver.h"
 
 /* MD flags we _always_ use */
 #define PTLRPC_MD_OPTIONS  0
@@ -1591,7 +1591,8 @@ struct ptlrpc_request {
 		rq_replay:1,
 		rq_no_resend:1, rq_waiting:1, rq_receiving_reply:1,
 		rq_no_delay:1, rq_net_err:1, rq_wait_ctx:1,
-		rq_early:1, rq_must_unlink:1,
+		rq_early:1,
+		rq_req_unlink:1, rq_reply_unlink:1,
 		rq_memalloc:1,      /* req originated from "kswapd" */
 		/* server-side flags */
 		rq_packed_final:1,  /* packed final reply */
@@ -1712,9 +1713,9 @@ struct ptlrpc_request {
 	lnet_handle_md_t     rq_req_md_h;
 	struct ptlrpc_cb_id  rq_req_cbid;
 	/** optional time limit for send attempts */
-	cfs_duration_t       rq_delay_limit;
+	long       rq_delay_limit;
 	/** time request was first queued */
-	cfs_time_t	   rq_queued_time;
+	unsigned long	   rq_queued_time;
 
 	/* server-side... */
 	/** request arrival time */
@@ -2355,7 +2356,7 @@ struct ptlrpc_service_part {
 	/** incoming reqs */
 	struct list_head			scp_req_incoming;
 	/** timeout before re-posting reqs, in tick */
-	cfs_duration_t			scp_rqbd_timeout;
+	long			scp_rqbd_timeout;
 	/**
 	 * all threads sleep on this. This wait-queue is signalled when new
 	 * incoming request arrives and when difficult reply has to be handled.
@@ -2406,7 +2407,7 @@ struct ptlrpc_service_part {
 	/** early reply timer */
 	struct timer_list		scp_at_timer;
 	/** debug */
-	cfs_time_t			scp_at_checktime;
+	unsigned long			scp_at_checktime;
 	/** check early replies */
 	unsigned			scp_at_check;
 	/** @} */
@@ -2593,7 +2594,7 @@ static inline int ptlrpc_client_bulk_active(struct ptlrpc_request *req)
 	desc = req->rq_bulk;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
-	    req->rq_bulk_deadline > cfs_time_current_sec())
+	    req->rq_bulk_deadline > get_seconds())
 		return 1;
 
 	if (!desc)
@@ -3001,7 +3002,7 @@ static inline int
 ptlrpc_client_early(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 0;
 	return req->rq_early;
 }
@@ -3013,7 +3014,7 @@ static inline int
 ptlrpc_client_replied(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 0;
 	return req->rq_replied;
 }
@@ -3023,7 +3024,7 @@ static inline int
 ptlrpc_client_recv(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 1;
 	return req->rq_receiving_reply;
 }
@@ -3035,11 +3036,12 @@ ptlrpc_client_recv_or_unlink(struct ptlrpc_request *req)
 
 	spin_lock(&req->rq_lock);
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec()) {
+	    req->rq_reply_deadline > get_seconds()) {
 		spin_unlock(&req->rq_lock);
 		return 1;
 	}
-	rc = req->rq_receiving_reply || req->rq_must_unlink;
+	rc = req->rq_receiving_reply;
+	rc = rc || req->rq_req_unlink || req->rq_reply_unlink;
 	spin_unlock(&req->rq_lock);
 	return rc;
 }
@@ -3098,9 +3100,9 @@ static inline int ptlrpc_req_get_repsize(struct ptlrpc_request *req)
 static inline int ptlrpc_send_limit_expired(struct ptlrpc_request *req)
 {
 	if (req->rq_delay_limit != 0 &&
-	    cfs_time_before(cfs_time_add(req->rq_queued_time,
-					 cfs_time_seconds(req->rq_delay_limit)),
-			    cfs_time_current())) {
+	    time_before(cfs_time_add(req->rq_queued_time,
+				     cfs_time_seconds(req->rq_delay_limit)),
+			cfs_time_current())) {
 		return 1;
 	}
 	return 0;
@@ -3227,7 +3229,7 @@ void ptlrpcd_decref(void);
  * @{
  */
 const char* ll_opcode2str(__u32 opcode);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 void ptlrpc_lprocfs_register_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes);

@@ -436,6 +436,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	int ret = 0;
 	struct v4l2_pix_format_mplane *pix_mp;
+	struct s5p_mfc_buf_size *buf_size = dev->variant->buf_size;
 
 	mfc_debug_enter();
 	ret = vidioc_try_fmt(file, priv, f);
@@ -459,11 +460,13 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		mfc_debug(2, "The codec number is: %d\n", ctx->codec_mode);
 		pix_mp->height = 0;
 		pix_mp->width = 0;
-		if (pix_mp->plane_fmt[0].sizeimage)
-			ctx->dec_src_buf_size = pix_mp->plane_fmt[0].sizeimage;
-		else
+		if (pix_mp->plane_fmt[0].sizeimage == 0)
 			pix_mp->plane_fmt[0].sizeimage = ctx->dec_src_buf_size =
 								DEF_CPB_SIZE;
+		else if (pix_mp->plane_fmt[0].sizeimage > buf_size->cpb)
+			ctx->dec_src_buf_size = buf_size->cpb;
+		else
+			ctx->dec_src_buf_size = pix_mp->plane_fmt[0].sizeimage;
 		pix_mp->plane_fmt[0].bytesperline = 0;
 		ctx->state = MFCINST_INIT;
 		ret = 0;

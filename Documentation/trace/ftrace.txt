@@ -1515,7 +1515,7 @@ Doing the same with chrt -r 5 and function-trace set.
   <idle>-0       3d.h4    1us+:      0:120:R   + [003]  2448: 94:R sleep
   <idle>-0       3d.h4    2us : ttwu_do_activate.constprop.87 <-try_to_wake_up
   <idle>-0       3d.h3    3us : check_preempt_curr <-ttwu_do_wakeup
-  <idle>-0       3d.h3    3us : resched_task <-check_preempt_curr
+  <idle>-0       3d.h3    3us : resched_curr <-check_preempt_curr
   <idle>-0       3dNh3    4us : task_woken_rt <-ttwu_do_wakeup
   <idle>-0       3dNh3    4us : _raw_spin_unlock <-try_to_wake_up
   <idle>-0       3dNh3    4us : sub_preempt_count <-_raw_spin_unlock

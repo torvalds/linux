@@ -1718,6 +1718,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	xen_setup_runstate_info(0);
 
+	xen_efi_init();
+
 	/* Start the world */
 #ifdef CONFIG_X86_32
 	i386_start_kernel();
@@ -1826,8 +1828,19 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_init_mmu_ops();
 }
 
+static bool xen_nopv = false;
+static __init int xen_parse_nopv(char *arg)
+{
+       xen_nopv = true;
+       return 0;
+}
+early_param("xen_nopv", xen_parse_nopv);
+
 static uint32_t __init xen_hvm_platform(void)
 {
+	if (xen_nopv)
+		return 0;
+
 	if (xen_pv_domain())
 		return 0;
 
@@ -1836,6 +1849,8 @@ static uint32_t __init xen_hvm_platform(void)
 
 bool xen_hvm_need_lapic(void)
 {
+	if (xen_nopv)
+		return false;
 	if (xen_pv_domain())
 		return false;
 	if (!xen_hvm_domain())

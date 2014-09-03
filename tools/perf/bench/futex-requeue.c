@@ -29,13 +29,6 @@ static u_int32_t futex1 = 0, futex2 = 0;
  */
 static unsigned int nrequeue = 1;
 
-/*
- * There can be significant variance from run to run,
- * the more repeats, the more exact the overall avg and
- * the better idea of the futex latency.
- */
-static unsigned int repeat = 10;
-
 static pthread_t *worker;
 static bool done = 0, silent = 0;
 static pthread_mutex_t thread_lock;
@@ -46,7 +39,6 @@ static unsigned int ncpus, threads_starting, nthreads = 0;
 static const struct option options[] = {
 	OPT_UINTEGER('t', "threads",  &nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('q', "nrequeue", &nrequeue, "Specify amount of threads to requeue at once"),
-	OPT_UINTEGER('r', "repeat",   &repeat,   "Specify amount of times to repeat the run"),
 	OPT_BOOLEAN( 's', "silent",   &silent,   "Silent mode: do not display data/details"),
 	OPT_END()
 };
@@ -146,7 +138,7 @@ int bench_futex_requeue(int argc, const char **argv,
 	pthread_cond_init(&thread_parent, NULL);
 	pthread_cond_init(&thread_worker, NULL);
 
-	for (j = 0; j < repeat && !done; j++) {
+	for (j = 0; j < bench_repeat && !done; j++) {
 		unsigned int nrequeued = 0;
 		struct timeval start, end, runtime;
 

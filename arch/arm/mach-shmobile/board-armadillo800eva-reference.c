@@ -24,10 +24,12 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
-#include <mach/common.h>
-#include <mach/r8a7740.h>
+
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
+
+#include "common.h"
+#include "r8a7740.h"
 
 /*
  * CON1		Camera Module
@@ -53,11 +55,11 @@
  * CON22	Serial
  * CON23	LAN
  * CON24	USB3
- * LED1		Camera LED(Yellow)
+ * LED1		Camera LED (Yellow)
  * LED2		Power LED (Green)
- * ED3-LED6	User LED(Yellow)
- * LED7		LAN link LED(Green)
- * LED8		LAN activity LED(Yellow)
+ * LED3-LED6	User LED (Yellow)
+ * LED7		LAN link LED (Green)
+ * LED8		LAN activity LED (Yellow)
  */
 
 /*

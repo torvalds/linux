@@ -604,7 +604,7 @@ struct acpi_hest_generic {
 
 /* Generic Error Status block */
 
-struct acpi_generic_status {
+struct acpi_hest_generic_status {
 	u32 block_status;
 	u32 raw_data_offset;
 	u32 raw_data_length;
@@ -614,15 +614,15 @@ struct acpi_generic_status {
 
 /* Values for block_status flags above */
 
-#define ACPI_GEN_ERR_UC			BIT(0)
-#define ACPI_GEN_ERR_CE			BIT(1)
-#define ACPI_GEN_ERR_MULTI_UC		BIT(2)
-#define ACPI_GEN_ERR_MULTI_CE		BIT(3)
-#define ACPI_GEN_ERR_COUNT_SHIFT	(0xFF<<4) /* 8 bits, error count */
+#define ACPI_HEST_UNCORRECTABLE             (1)
+#define ACPI_HEST_CORRECTABLE               (1<<1)
+#define ACPI_HEST_MULTIPLE_UNCORRECTABLE    (1<<2)
+#define ACPI_HEST_MULTIPLE_CORRECTABLE      (1<<3)
+#define ACPI_HEST_ERROR_ENTRY_COUNT         (0xFF<<4)	/* 8 bits, error count */
 
 /* Generic Error Data entry */
 
-struct acpi_generic_data {
+struct acpi_hest_generic_data {
 	u8 section_type[16];
 	u32 error_severity;
 	u16 revision;
@@ -671,7 +671,9 @@ enum acpi_madt_type {
 	ACPI_MADT_TYPE_LOCAL_X2APIC_NMI = 10,
 	ACPI_MADT_TYPE_GENERIC_INTERRUPT = 11,
 	ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR = 12,
-	ACPI_MADT_TYPE_RESERVED = 13	/* 13 and greater are reserved */
+	ACPI_MADT_TYPE_GENERIC_MSI_FRAME = 13,
+	ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR = 14,
+	ACPI_MADT_TYPE_RESERVED = 15	/* 15 and greater are reserved */
 };
 
 /*
@@ -797,14 +799,25 @@ struct acpi_madt_local_x2apic_nmi {
 struct acpi_madt_generic_interrupt {
 	struct acpi_subtable_header header;
 	u16 reserved;		/* reserved - must be zero */
-	u32 gic_id;
+	u32 cpu_interface_number;
 	u32 uid;
 	u32 flags;
 	u32 parking_version;
 	u32 performance_interrupt;
 	u64 parked_address;
 	u64 base_address;
+	u64 gicv_base_address;
+	u64 gich_base_address;
+	u32 vgic_interrupt;
+	u64 gicr_base_address;
+	u64 arm_mpidr;
 };
+
+/* Masks for Flags field above */
+
+/* ACPI_MADT_ENABLED                    (1)      Processor is usable if set */
+#define ACPI_MADT_PERFORMANCE_IRQ_MODE  (1<<1)	/* 01: Performance Interrupt Mode */
+#define ACPI_MADT_VGIC_IRQ_MODE         (1<<2)	/* 02: VGIC Maintenance Interrupt mode */
 
 /* 12: Generic Distributor (ACPI 5.0) */
 
@@ -817,11 +830,36 @@ struct acpi_madt_generic_distributor {
 	u32 reserved2;		/* reserved - must be zero */
 };
 
+/* 13: Generic MSI Frame (ACPI 5.1) */
+
+struct acpi_madt_generic_msi_frame {
+	struct acpi_subtable_header header;
+	u16 reserved;		/* reserved - must be zero */
+	u32 msi_frame_id;
+	u64 base_address;
+	u32 flags;
+	u16 spi_count;
+	u16 spi_base;
+};
+
+/* Masks for Flags field above */
+
+#define ACPI_MADT_OVERRIDE_SPI_VALUES   (1)
+
+/* 14: Generic Redistributor (ACPI 5.1) */
+
+struct acpi_madt_generic_redistributor {
+	struct acpi_subtable_header header;
+	u16 reserved;		/* reserved - must be zero */
+	u64 base_address;
+	u32 length;
+};
+
 /*
  * Common flags fields for MADT subtables
  */
 
-/* MADT Local APIC flags (lapic_flags) and GIC flags */
+/* MADT Local APIC flags */
 
 #define ACPI_MADT_ENABLED           (1)	/* 00: Processor is usable if set */
 

@@ -28,6 +28,7 @@ struct netns_sysctl_ipv6 {
 	int ip6_rt_mtu_expires;
 	int ip6_rt_min_advmss;
 	int flowlabel_consistency;
+	int auto_flowlabels;
 	int icmpv6_time;
 	int anycast_src_echo_reply;
 	int fwmark_reflect;

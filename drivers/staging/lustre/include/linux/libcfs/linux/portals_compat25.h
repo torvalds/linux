@@ -37,14 +37,14 @@
 #ifndef __LIBCFS_LINUX_PORTALS_COMPAT_H__
 #define __LIBCFS_LINUX_PORTALS_COMPAT_H__
 
-// XXX BUG 1511 -- remove this stanza and all callers when bug 1511 is resolved
+/* XXX BUG 1511 -- remove this stanza and all callers when bug 1511 is resolved */
 #if defined(SPINLOCK_DEBUG) && SPINLOCK_DEBUG
 #  define SIGNAL_MASK_ASSERT() \
    LASSERT(current->sighand->siglock.magic == SPINLOCK_MAGIC)
 #else
 # define SIGNAL_MASK_ASSERT()
 #endif
-// XXX BUG 1511 -- remove this stanza and all callers when bug 1511 is resolved
+/* XXX BUG 1511 -- remove this stanza and all callers when bug 1511 is resolved */
 
 #define SIGNAL_MASK_LOCK(task, flags)				  \
 	spin_lock_irqsave(&task->sighand->siglock, flags)
@@ -77,23 +77,5 @@
 #else
 #define __cfs_fls __fls
 #endif
-
-#define ll_proc_dointvec(table, write, filp, buffer, lenp, ppos)	\
-	proc_dointvec(table, write, buffer, lenp, ppos);
-
-#define ll_proc_dolongvec(table, write, filp, buffer, lenp, ppos)	\
-	proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
-#define ll_proc_dostring(table, write, filp, buffer, lenp, ppos)	\
-	proc_dostring(table, write, buffer, lenp, ppos);
-#define LL_PROC_PROTO(name)					     \
-	name(ctl_table_t *table, int write,		      \
-	     void __user *buffer, size_t *lenp, loff_t *ppos)
-#define DECLARE_LL_PROC_PPOS_DECL
-
-/* helper for sysctl handlers */
-int proc_call_handler(void *data, int write,
-		      loff_t *ppos, void *buffer, size_t *lenp,
-		      int (*handler)(void *data, int write,
-				     loff_t pos, void *buffer, int len));
 
 #endif /* _PORTALS_COMPAT_H */

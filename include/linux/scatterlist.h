@@ -136,7 +136,7 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 			    struct scatterlist *sgl)
 {
-#ifndef ARCH_HAS_SG_CHAIN
+#ifndef CONFIG_ARCH_HAS_SG_CHAIN
 	BUG();
 #endif
 
@@ -229,10 +229,10 @@ void sg_init_one(struct scatterlist *, const void *, unsigned int);
 typedef struct scatterlist *(sg_alloc_fn)(unsigned int, gfp_t);
 typedef void (sg_free_fn)(struct scatterlist *, unsigned int);
 
-void __sg_free_table(struct sg_table *, unsigned int, sg_free_fn *);
+void __sg_free_table(struct sg_table *, unsigned int, bool, sg_free_fn *);
 void sg_free_table(struct sg_table *);
-int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int, gfp_t,
-		     sg_alloc_fn *);
+int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int,
+		     struct scatterlist *, gfp_t, sg_alloc_fn *);
 int sg_alloc_table(struct sg_table *, unsigned int, gfp_t);
 int sg_alloc_table_from_pages(struct sg_table *sgt,
 	struct page **pages, unsigned int n_pages,

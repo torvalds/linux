@@ -93,11 +93,6 @@ static int ipw_open(struct tty_struct *linux_tty, struct file *filp)
 		return -ENODEV;
 
 	mutex_lock(&tty->ipw_tty_mutex);
-
-	if (tty->closing) {
-		mutex_unlock(&tty->ipw_tty_mutex);
-		return -ENODEV;
-	}
 	if (tty->port.count == 0)
 		tty->tx_bytes_queued = 0;
 

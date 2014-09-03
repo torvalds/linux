@@ -39,7 +39,6 @@ static void mid_get_fuse_settings(struct drm_device *dev)
 #define FB_REG06 0xD0810600
 #define FB_MIPI_DISABLE  (1 << 11)
 #define FB_REG09 0xD0810900
-#define FB_REG09 0xD0810900
 #define FB_SKU_MASK  0x7000
 #define FB_SKU_SHIFT 12
 #define FB_SKU_100 0

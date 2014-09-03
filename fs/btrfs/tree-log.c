@@ -3298,7 +3298,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	struct list_head ordered_sums;
 	int skip_csum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 	bool has_extents = false;
-	bool need_find_last_extent = (*last_extent == 0);
+	bool need_find_last_extent = true;
 	bool done = false;
 
 	INIT_LIST_HEAD(&ordered_sums);
@@ -3352,8 +3352,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 		 */
 		if (ins_keys[i].type == BTRFS_EXTENT_DATA_KEY) {
 			has_extents = true;
-			if (need_find_last_extent &&
-			    first_key.objectid == (u64)-1)
+			if (first_key.objectid == (u64)-1)
 				first_key = ins_keys[i];
 		} else {
 			need_find_last_extent = false;
@@ -3426,6 +3425,16 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 
 	if (!has_extents)
 		return ret;
+
+	if (need_find_last_extent && *last_extent == first_key.offset) {
+		/*
+		 * We don't have any leafs between our current one and the one
+		 * we processed before that can have file extent items for our
+		 * inode (and have a generation number smaller than our current
+		 * transaction id).
+		 */
+		need_find_last_extent = false;
+	}
 
 	/*
 	 * Because we use btrfs_search_forward we could skip leaves that were
@@ -3537,7 +3546,7 @@ fill_holes:
 					       0, 0);
 		if (ret)
 			break;
-		*last_extent = offset + len;
+		*last_extent = extent_end;
 	}
 	/*
 	 * Need to let the callers know we dropped the path so they should

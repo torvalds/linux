@@ -25,12 +25,15 @@
 int string_get_size(u64 size, const enum string_size_units units,
 		    char *buf, int len)
 {
-	static const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
-				   "EB", "ZB", "YB", NULL};
-	static const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
-				 "EiB", "ZiB", "YiB", NULL };
-	static const char **units_str[] = {
-		[STRING_UNITS_10] =  units_10,
+	static const char *const units_10[] = {
+		"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", NULL
+	};
+	static const char *const units_2[] = {
+		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB",
+		NULL
+	};
+	static const char *const *const units_str[] = {
+		[STRING_UNITS_10] = units_10,
 		[STRING_UNITS_2] = units_2,
 	};
 	static const unsigned int divisor[] = {

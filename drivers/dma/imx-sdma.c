@@ -271,6 +271,7 @@ struct sdma_channel {
 	unsigned int			chn_count;
 	unsigned int			chn_real_count;
 	struct tasklet_struct		tasklet;
+	struct imx_dma_data		data;
 };
 
 #define IMX_DMA_SG_LOOP		BIT(0)
@@ -749,6 +750,11 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 		emi_2_per = sdma->script_addrs->asrc_2_mcu_addr;
 		per_2_per = sdma->script_addrs->per_2_per_addr;
 		break;
+	case IMX_DMATYPE_ASRC_SP:
+		per_2_emi = sdma->script_addrs->shp_2_mcu_addr;
+		emi_2_per = sdma->script_addrs->mcu_2_shp_addr;
+		per_2_per = sdma->script_addrs->per_2_per_addr;
+		break;
 	case IMX_DMATYPE_MSHC:
 		per_2_emi = sdma->script_addrs->mshc_2_mcu_addr;
 		emi_2_per = sdma->script_addrs->mcu_2_mshc_addr;
@@ -911,13 +917,12 @@ static int sdma_request_channel(struct sdma_channel *sdmac)
 	int channel = sdmac->channel;
 	int ret = -EBUSY;
 
-	sdmac->bd = dma_alloc_coherent(NULL, PAGE_SIZE, &sdmac->bd_phys, GFP_KERNEL);
+	sdmac->bd = dma_zalloc_coherent(NULL, PAGE_SIZE, &sdmac->bd_phys,
+					GFP_KERNEL);
 	if (!sdmac->bd) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memset(sdmac->bd, 0, PAGE_SIZE);
 
 	sdma->channel_control[channel].base_bd_ptr = sdmac->bd_phys;
 	sdma->channel_control[channel].current_bd_ptr = sdmac->bd_phys;
@@ -1120,7 +1125,7 @@ err_out:
 static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
-		unsigned long flags, void *context)
+		unsigned long flags)
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
@@ -1414,12 +1419,14 @@ err_dma_alloc:
 
 static bool sdma_filter_fn(struct dma_chan *chan, void *fn_param)
 {
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct imx_dma_data *data = fn_param;
 
 	if (!imx_dma_is_general_purpose(chan))
 		return false;
 
-	chan->private = data;
+	sdmac->data = *data;
+	chan->private = &sdmac->data;
 
 	return true;
 }

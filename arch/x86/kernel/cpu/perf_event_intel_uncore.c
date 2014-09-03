@@ -945,7 +945,7 @@ static struct intel_uncore_type *snbep_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snbep_uncore_pci_ids) = {
+static const struct pci_device_id snbep_uncore_pci_ids[] = {
 	{ /* Home Agent */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_HA),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNBEP_PCI_UNCORE_HA, 0),
@@ -1510,7 +1510,7 @@ static struct intel_uncore_type *ivt_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(ivt_uncore_pci_ids) = {
+static const struct pci_device_id ivt_uncore_pci_ids[] = {
 	{ /* Home Agent 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xe30),
 		.driver_data = UNCORE_PCI_DEV_DATA(IVT_PCI_UNCORE_HA, 0),
@@ -1985,7 +1985,7 @@ static struct intel_uncore_type *snb_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snb_uncore_pci_ids) = {
+static const struct pci_device_id snb_uncore_pci_ids[] = {
 	{ /* IMC */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SNB_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
@@ -1993,7 +1993,7 @@ static DEFINE_PCI_DEVICE_TABLE(snb_uncore_pci_ids) = {
 	{ /* end: all zeroes */ },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(ivb_uncore_pci_ids) = {
+static const struct pci_device_id ivb_uncore_pci_ids[] = {
 	{ /* IMC */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
@@ -2001,7 +2001,7 @@ static DEFINE_PCI_DEVICE_TABLE(ivb_uncore_pci_ids) = {
 	{ /* end: all zeroes */ },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(hsw_uncore_pci_ids) = {
+static const struct pci_device_id hsw_uncore_pci_ids[] = {
 	{ /* IMC */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HSW_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
@@ -2947,10 +2947,7 @@ again:
 		 * extra registers. If we failed to take an extra
 		 * register, try the alternative.
 		 */
-		if (idx % 2)
-			idx--;
-		else
-			idx++;
+		idx ^= 1;
 		if (idx != reg1->idx % 6) {
 			if (idx == 2)
 				config1 >>= 8;

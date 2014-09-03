@@ -320,8 +320,8 @@ struct srb_iocb {
 			 * defined in tsk_mgmt_entry struct
 			 * for control_flags field in qla_fw.h.
 			 */
+			uint64_t lun;
 			uint32_t flags;
-			uint32_t lun;
 			uint32_t data;
 			struct completion comp;
 			__le16 comp_status;
@@ -2529,8 +2529,8 @@ struct isp_operations {
 	void (*disable_intrs) (struct qla_hw_data *);
 
 	int (*abort_command) (srb_t *);
-	int (*target_reset) (struct fc_port *, unsigned int, int);
-	int (*lun_reset) (struct fc_port *, unsigned int, int);
+	int (*target_reset) (struct fc_port *, uint64_t, int);
+	int (*lun_reset) (struct fc_port *, uint64_t, int);
 	int (*fabric_login) (struct scsi_qla_host *, uint16_t, uint8_t,
 		uint8_t, uint8_t, uint16_t *, uint8_t);
 	int (*fabric_logout) (struct scsi_qla_host *, uint16_t, uint8_t,

@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <linux/list_nulls.h>
 #include <linux/atomic.h>
+#include <linux/workqueue.h>
 #include <linux/netfilter/nf_conntrack_tcp.h>
 #include <linux/seqlock.h>
 
@@ -73,6 +74,10 @@ struct ct_pcpu {
 struct netns_ct {
 	atomic_t		count;
 	unsigned int		expect_count;
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	struct delayed_work ecache_dwork;
+	bool ecache_dwork_pending;
+#endif
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_header;
 	struct ctl_table_header	*acct_sysctl_header;
@@ -82,7 +87,6 @@ struct netns_ct {
 #endif
 	char			*slabname;
 	unsigned int		sysctl_log_invalid; /* Log invalid packets */
-	unsigned int		sysctl_events_retry_timeout;
 	int			sysctl_events;
 	int			sysctl_acct;
 	int			sysctl_auto_assign_helper;

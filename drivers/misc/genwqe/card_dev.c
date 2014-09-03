@@ -1048,9 +1048,14 @@ static long genwqe_ioctl(struct file *filp, unsigned int cmd,
 	int rc = 0;
 	struct genwqe_file *cfile = (struct genwqe_file *)filp->private_data;
 	struct genwqe_dev *cd = cfile->cd;
+	struct pci_dev *pci_dev = cd->pci_dev;
 	struct genwqe_reg_io __user *io;
 	u64 val;
 	u32 reg_offs;
+
+	/* Return -EIO if card hit EEH */
+	if (pci_channel_offline(pci_dev))
+		return -EIO;
 
 	if (_IOC_TYPE(cmd) != GENWQE_IOC_CODE)
 		return -EINVAL;

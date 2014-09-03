@@ -305,7 +305,15 @@ faster, the map/unmap handling has been implemented in real mode which provides
 an excellent performance which has limitations such as inability to do
 locked pages accounting in real time.
 
-So 3 additional ioctls have been added:
+4) According to sPAPR specification, A Partitionable Endpoint (PE) is an I/O
+subtree that can be treated as a unit for the purposes of partitioning and
+error recovery. A PE may be a single or multi-function IOA (IO Adapter), a
+function of a multi-function IOA, or multiple IOAs (possibly including switch
+and bridge structures above the multiple IOAs). PPC64 guests detect PCI errors
+and recover from them via EEH RTAS services, which works on the basis of
+additional ioctl commands.
+
+So 4 additional ioctls have been added:
 
 	VFIO_IOMMU_SPAPR_TCE_GET_INFO - returns the size and the start
 		of the DMA window on the PCI bus.
@@ -316,8 +324,11 @@ So 3 additional ioctls have been added:
 
 	VFIO_IOMMU_DISABLE - disables the container.
 
+	VFIO_EEH_PE_OP - provides an API for EEH setup, error detection and recovery.
 
 The code flow from the example above should be slightly changed:
+
+	struct vfio_eeh_pe_op pe_op = { .argsz = sizeof(pe_op), .flags = 0 };
 
 	.....
 	/* Add the group to the container */
@@ -342,9 +353,79 @@ The code flow from the example above should be slightly changed:
 	dma_map.flags = VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE;
 
 	/* Check here is .iova/.size are within DMA window from spapr_iommu_info */
-
 	ioctl(container, VFIO_IOMMU_MAP_DMA, &dma_map);
-	.....
+
+	/* Get a file descriptor for the device */
+	device = ioctl(group, VFIO_GROUP_GET_DEVICE_FD, "0000:06:0d.0");
+
+	....
+
+	/* Gratuitous device reset and go... */
+	ioctl(device, VFIO_DEVICE_RESET);
+
+	/* Make sure EEH is supported */
+	ioctl(container, VFIO_CHECK_EXTENSION, VFIO_EEH);
+
+	/* Enable the EEH functionality on the device */
+	pe_op.op = VFIO_EEH_PE_ENABLE;
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+
+	/* You're suggested to create additional data struct to represent
+	 * PE, and put child devices belonging to same IOMMU group to the
+	 * PE instance for later reference.
+	 */
+
+	/* Check the PE's state and make sure it's in functional state */
+	pe_op.op = VFIO_EEH_PE_GET_STATE;
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+
+	/* Save device state using pci_save_state().
+	 * EEH should be enabled on the specified device.
+	 */
+
+	....
+
+	/* When 0xFF's returned from reading PCI config space or IO BARs
+	 * of the PCI device. Check the PE's state to see if that has been
+	 * frozen.
+	 */
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+
+	/* Waiting for pending PCI transactions to be completed and don't
+	 * produce any more PCI traffic from/to the affected PE until
+	 * recovery is finished.
+	 */
+
+	/* Enable IO for the affected PE and collect logs. Usually, the
+	 * standard part of PCI config space, AER registers are dumped
+	 * as logs for further analysis.
+	 */
+	pe_op.op = VFIO_EEH_PE_UNFREEZE_IO;
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+
+	/*
+	 * Issue PE reset: hot or fundamental reset. Usually, hot reset
+	 * is enough. However, the firmware of some PCI adapters would
+	 * require fundamental reset.
+	 */
+	pe_op.op = VFIO_EEH_PE_RESET_HOT;
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+	pe_op.op = VFIO_EEH_PE_RESET_DEACTIVATE;
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+
+	/* Configure the PCI bridges for the affected PE */
+	pe_op.op = VFIO_EEH_PE_CONFIGURE;
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+
+	/* Restored state we saved at initialization time. pci_restore_state()
+	 * is good enough as an example.
+	 */
+
+	/* Hopefully, error is recovered successfully. Now, you can resume to
+	 * start PCI traffic to/from the affected PE.
+	 */
+
+	....
 
 -------------------------------------------------------------------------------
 

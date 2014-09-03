@@ -37,8 +37,8 @@
 #ifndef LOV_INTERNAL_H
 #define LOV_INTERNAL_H
 
-#include <obd_class.h>
-#include <lustre/lustre_user.h>
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_user.h"
 
 /* lov_do_div64(a, b) returns a % b, and a = a / b.
  * The 32-bit code is LOV-specific due to knowing about stripe limits in
@@ -252,7 +252,7 @@ int lov_prep_match_set(struct obd_export *exp, struct obd_info *oinfo,
 		       ldlm_policy_data_t *policy, __u32 mode,
 		       struct lustre_handle *lockh,
 		       struct lov_request_set **reqset);
-int lov_fini_match_set(struct lov_request_set *set, __u32 mode, int flags);
+int lov_fini_match_set(struct lov_request_set *set, __u32 mode, __u64 flags);
 int lov_prep_cancel_set(struct obd_export *exp, struct obd_info *oinfo,
 			struct lov_stripe_md *lsm,
 			__u32 mode, struct lustre_handle *lockh,
@@ -310,7 +310,7 @@ void dump_lsm(unsigned int level, const struct lov_stripe_md *lsm);
 int lovea_destroy_object(struct lov_obd *lov, struct lov_stripe_md *lsm,
 			 struct obdo *oa, void *data);
 /* lproc_lov.c */
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 extern const struct file_operations lov_proc_target_fops;
 void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars);
 #else

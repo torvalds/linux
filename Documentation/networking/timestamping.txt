@@ -40,7 +40,7 @@ the set bits correspond to data that is available, then the control
 message will not be generated:
 
 SOF_TIMESTAMPING_SOFTWARE:     report systime if available
-SOF_TIMESTAMPING_SYS_HARDWARE: report hwtimetrans if available
+SOF_TIMESTAMPING_SYS_HARDWARE: report hwtimetrans if available (deprecated)
 SOF_TIMESTAMPING_RAW_HARDWARE: report hwtimeraw if available
 
 It is worth noting that timestamps may be collected for reasons other
@@ -88,13 +88,12 @@ hwtimeraw is the original hardware time stamp. Filled in if
 SOF_TIMESTAMPING_RAW_HARDWARE is set. No assumptions about its
 relation to system time should be made.
 
-hwtimetrans is the hardware time stamp transformed so that it
-corresponds as good as possible to system time. This correlation is
-not perfect; as a consequence, sorting packets received via different
-NICs by their hwtimetrans may differ from the order in which they were
-received. hwtimetrans may be non-monotonic even for the same NIC.
-Filled in if SOF_TIMESTAMPING_SYS_HARDWARE is set. Requires support
-by the network device and will be empty without that support.
+hwtimetrans is always zero. This field is deprecated. It used to hold
+hw timestamps converted to system time. Instead, expose the hardware
+clock device on the NIC directly as a HW PTP clock source, to allow
+time conversion in userspace and optionally synchronize system time
+with a userspace PTP stack such as linuxptp. For the PTP clock API,
+see Documentation/ptp/ptp.txt.
 
 
 SIOCSHWTSTAMP, SIOCGHWTSTAMP:
@@ -185,7 +184,6 @@ struct skb_shared_hwtstamps {
 	 * since arbitrary point in time
 	 */
 	ktime_t	hwtstamp;
-	ktime_t	syststamp; /* hwtstamp transformed to system time base */
 };
 
 Time stamps for outgoing packets are to be generated as follows:

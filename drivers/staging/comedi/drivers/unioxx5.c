@@ -43,7 +43,6 @@ Devices: [Fastwel] UNIOxx-5 (unioxx5),
 #include <linux/delay.h>
 #include "../comedidev.h"
 
-#define DRIVER_NAME "unioxx5"
 #define UNIOXX5_SIZE 0x10
 #define UNIOXX5_SUBDEV_BASE 0xA000	/* base addr of first subdev */
 #define UNIOXX5_SUBDEV_ODDS 0x400
@@ -496,7 +495,7 @@ static void unioxx5_detach(struct comedi_device *dev)
 }
 
 static struct comedi_driver unioxx5_driver = {
-	.driver_name	= DRIVER_NAME,
+	.driver_name	= "unioxx5",
 	.module		= THIS_MODULE,
 	.attach		= unioxx5_attach,
 	.detach		= unioxx5_detach,

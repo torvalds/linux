@@ -95,7 +95,7 @@ xfs_dir2_sf_getdents(
 	 */
 	if (dp->i_d.di_size < offsetof(xfs_dir2_sf_hdr_t, parent)) {
 		ASSERT(XFS_FORCED_SHUTDOWN(dp->i_mount));
-		return XFS_ERROR(EIO);
+		return -EIO;
 	}
 
 	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
@@ -677,7 +677,7 @@ xfs_readdir(
 	trace_xfs_readdir(dp);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return XFS_ERROR(EIO);
+		return -EIO;
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
 	XFS_STATS_INC(xs_dir_getdents);

@@ -35,15 +35,13 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
-#include <linux/etherdevice.h>
 #include <linux/suspend.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
-#include <net/iw_handler.h>
-#include <net/cfg80211.h>
 #include <linux/timer.h>
 #include <linux/usb.h>
 #include <linux/crc32.h>
+#include <net/mac80211.h>
 
 #ifdef SIOCETHTOOL
 #define DEVICE_ETHTOOL_IOCTL_SUPPORT
@@ -52,17 +50,27 @@
 #undef DEVICE_ETHTOOL_IOCTL_SUPPORT
 #endif
 
+#define RATE_1M		0
+#define RATE_2M		1
+#define RATE_5M		2
+#define RATE_11M	3
+#define RATE_6M		4
+#define RATE_9M		5
+#define RATE_12M	6
+#define RATE_18M	7
+#define RATE_24M	8
+#define RATE_36M	9
+#define RATE_48M	10
+#define RATE_54M	11
+#define RATE_AUTO	12
+
 #define MAX_RATE			12
 
 /*
  * device specific
  */
 
-#include "80211hdr.h"
-#include "tether.h"
-#include "wmgr.h"
 #include "wcmd.h"
-#include "rc4.h"
 #include "desc.h"
 #include "key.h"
 #include "card.h"
@@ -73,7 +81,7 @@
 #define DEVICE_NAME			"vt6656"
 #define DEVICE_FULL_DRV_NAM		"VIA Networking Wireless LAN USB Driver"
 
-#define DEVICE_VERSION			"1.19_12"
+#define DEVICE_VERSION			"mac80211"
 
 #define CONFIG_PATH			"/etc/vntconfiguration.dat"
 
@@ -177,23 +185,6 @@
 /* USB registers */
 #define USB_REG4			0x604
 
-#ifndef RUN_AT
-#define RUN_AT(x)                       (jiffies+(x))
-#endif
-
-#define PRIVATE_Message                 0
-
-#define DBG_PRT(l, p, args...) { if (l <= msglevel) printk(p, ##args); }
-#define PRINT_K(p, args...) { if (PRIVATE_Message) printk(p, ##args); }
-
-typedef enum __device_msg_level {
-	MSG_LEVEL_ERR = 0,            /* Errors causing abnormal operation */
-	MSG_LEVEL_NOTICE = 1,         /* Errors needing user notification */
-	MSG_LEVEL_INFO = 2,           /* Normal message. */
-	MSG_LEVEL_VERBOSE = 3,        /* Will report all trival errors. */
-	MSG_LEVEL_DEBUG = 4           /* Only for debug purpose. */
-} DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
-
 #define DEVICE_INIT_COLD	0x0 /* cold init */
 #define DEVICE_INIT_RESET	0x1 /* reset init or Dx to D0 power remain */
 #define DEVICE_INIT_DXPL	0x2 /* Dx to D0 power lost init */
@@ -222,18 +213,16 @@ struct vnt_rsp_card_init {
  */
 enum {
 	CONTEXT_DATA_PACKET = 1,
-	CONTEXT_MGMT_PACKET
+	CONTEXT_MGMT_PACKET,
+	CONTEXT_BEACON_PACKET
 };
 
 /* RCB (Receive Control Block) */
 struct vnt_rcb {
-	void *Next;
-	signed long Ref;
-	void *pDevice;
-	struct urb *pUrb;
-	struct vnt_rx_mgmt sMngPacket;
+	void *priv;
+	struct urb *urb;
 	struct sk_buff *skb;
-	int bBoolInUse;
+	int in_use;
 };
 
 /* used to track bulk out irps */
@@ -241,27 +230,19 @@ struct vnt_usb_send_context {
 	void *priv;
 	struct sk_buff *skb;
 	struct urb *urb;
+	struct ieee80211_hdr *hdr;
 	unsigned int buf_len;
+	u32 frame_len;
+	u16 tx_hdr_size;
+	u16 tx_rate;
 	u8 type;
+	u8 pkt_no;
+	u8 pkt_type;
+	u8 need_ack;
+	u8 fb_option;
 	bool in_use;
 	unsigned char data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 };
-
-/* tx packet info for rxtx */
-struct vnt_tx_pkt_info {
-	u16 fifo_ctl;
-	u8 dest_addr[ETH_ALEN];
-};
-
-/* structure got from configuration file as user-desired default settings */
-typedef struct _DEFAULT_CONFIG {
-	signed int    ZoneType;
-	signed int    eConfigMode;
-	signed int    eAuthenMode;        /* open/wep/wpa */
-	signed int    bShareKeyAlgorithm; /* open-open/{open,wep}-sharekey */
-	signed int    keyidx;             /* wepkey index */
-	signed int    eEncryptionStatus;
-} DEFAULT_CONFIG, *PDEFAULT_CONFIG;
 
 /*
  * Structure to keep track of USB interrupt packets
@@ -273,463 +254,154 @@ struct vnt_interrupt_buffer {
 
 /*++ NDIS related */
 
-typedef enum __DEVICE_NDIS_STATUS {
-    STATUS_SUCCESS = 0,
-    STATUS_FAILURE,
-    STATUS_RESOURCES,
-    STATUS_PENDING,
-} DEVICE_NDIS_STATUS, *PDEVICE_NDIS_STATUS;
-
-#define MAX_BSSIDINFO_4_PMKID   16
-#define MAX_PMKIDLIST           5
-/* flags for PMKID Candidate list structure */
-#define NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED	0x01
-
-/* PMKID Structures */
-typedef unsigned char   NDIS_802_11_PMKID_VALUE[16];
-
-typedef enum _NDIS_802_11_WEP_STATUS
-{
-    Ndis802_11WEPEnabled,
-    Ndis802_11Encryption1Enabled = Ndis802_11WEPEnabled,
-    Ndis802_11WEPDisabled,
-    Ndis802_11EncryptionDisabled = Ndis802_11WEPDisabled,
-    Ndis802_11WEPKeyAbsent,
-    Ndis802_11Encryption1KeyAbsent = Ndis802_11WEPKeyAbsent,
-    Ndis802_11WEPNotSupported,
-    Ndis802_11EncryptionNotSupported = Ndis802_11WEPNotSupported,
-    Ndis802_11Encryption2Enabled,
-    Ndis802_11Encryption2KeyAbsent,
-    Ndis802_11Encryption3Enabled,
-    Ndis802_11Encryption3KeyAbsent
-} NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
-  NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
-
-typedef enum _NDIS_802_11_STATUS_TYPE
-{
-	Ndis802_11StatusType_Authentication,
-	Ndis802_11StatusType_MediaStreamMode,
-	Ndis802_11StatusType_PMKID_CandidateList,
-	Ndis802_11StatusTypeMax, /* not a real type, defined as upper bound */
-} NDIS_802_11_STATUS_TYPE, *PNDIS_802_11_STATUS_TYPE;
-
-/* added new types for PMKID Candidate lists */
-typedef struct _PMKID_CANDIDATE {
-    NDIS_802_11_MAC_ADDRESS BSSID;
-    unsigned long Flags;
-} PMKID_CANDIDATE, *PPMKID_CANDIDATE;
-
-typedef struct _BSSID_INFO
-{
-    NDIS_802_11_MAC_ADDRESS BSSID;
-    NDIS_802_11_PMKID_VALUE PMKID;
-} BSSID_INFO, *PBSSID_INFO;
-
-typedef struct tagSPMKID {
-    unsigned long Length;
-    unsigned long BSSIDInfoCount;
-    BSSID_INFO BSSIDInfo[MAX_BSSIDINFO_4_PMKID];
-} SPMKID, *PSPMKID;
-
-typedef struct tagSPMKIDCandidateEvent {
-    NDIS_802_11_STATUS_TYPE     StatusType;
-	unsigned long Version;       /* Version of the structure */
-	unsigned long NumCandidates; /* No. of pmkid candidates */
-    PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
-} SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
-
-/* The receive duplicate detection cache entry */
-typedef struct tagSCacheEntry{
-	__le16 wFmSequence;
-	u8 abyAddr2[ETH_ALEN];
-	__le16 wFrameCtl;
-} SCacheEntry, *PSCacheEntry;
-
-typedef struct tagSCache{
-/* The receive cache is updated circularly.  The next entry to be written is
- * indexed by the "InPtr".
- */
-	unsigned int uInPtr; /* Place to use next */
-    SCacheEntry     asCacheEntry[DUPLICATE_RX_CACHE_LENGTH];
-} SCache, *PSCache;
-
-#define CB_MAX_RX_FRAG                 64
-/*
- * DeFragment Control Block, used for collecting fragments prior to reassembly
- */
-typedef struct tagSDeFragControlBlock
-{
-    u16            wSequence;
-    u16            wFragNum;
-    u8            abyAddr2[ETH_ALEN];
-	unsigned int            uLifetime;
-    struct sk_buff* skb;
-    u8 *           pbyRxBuffer;
-    unsigned int            cbFrameLength;
-    bool            bInUse;
-} SDeFragControlBlock, *PSDeFragControlBlock;
+enum {
+	STATUS_SUCCESS = 0,
+	STATUS_FAILURE,
+	STATUS_RESOURCES,
+	STATUS_PENDING,
+};
 
 /* flags for options */
-#define     DEVICE_FLAGS_UNPLUG          0x00000001UL
-
-/* flags for driver status */
-#define     DEVICE_FLAGS_OPENED          0x00010000UL
-
-typedef struct __device_opt {
-	int nRxDescs0;  /* number of RX descriptors 0 */
-	int nTxDescs0;  /* number of TX descriptors 0, 1, 2, 3 */
-	int rts_thresh; /* RTS threshold */
-    int         frag_thresh;
-    int         OpMode;
-    int         data_rate;
-    int         channel_num;
-    int         short_retry;
-    int         long_retry;
-    int         bbp_type;
-    u32         flags;
-} OPTIONS, *POPTIONS;
+#define DEVICE_FLAGS_UNPLUG		BIT(0)
+#define DEVICE_FLAGS_DISCONNECTED	BIT(1)
 
 struct vnt_private {
+	/* mac80211 */
+	struct ieee80211_hw *hw;
+	struct ieee80211_vif *vif;
+	u8 mac_hw;
 	/* netdev */
 	struct usb_device *usb;
-	struct net_device *dev;
-	struct net_device_stats stats;
 
-	OPTIONS sOpts;
-
-	struct work_struct read_work_item;
-	struct work_struct rx_mng_work_item;
+	u64 tsf_time;
+	u8 rx_rate;
 
 	u32 rx_buf_sz;
-	int multicast_limit;
-	u8 byRxMode;
+	int mc_list_count;
 
 	spinlock_t lock;
 	struct mutex usb_lock;
 
-	u32 rx_bytes;
-
-	u32 flags;
-	unsigned long Flags;
-
-	SCache sDupRxCache;
-
-	SDeFragControlBlock sRxDFCB[CB_MAX_RX_FRAG];
-	u32 cbDFCB;
-	u32 cbFreeDFCB;
-	u32 uCurrentDFCBIdx;
+	unsigned long flags;
 
 	/* USB */
-	struct urb *pInterruptURB;
+	struct urb *interrupt_urb;
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */
-	struct vnt_rcb *pRCBMem;
-	struct vnt_rcb *apRCB[CB_MAX_RX_DESC];
-	u32 cbRD;
-	struct vnt_rcb *FirstRecvFreeList;
-	struct vnt_rcb *LastRecvFreeList;
-	u32 NumRecvFreeList;
-	struct vnt_rcb *FirstRecvMngList;
-	struct vnt_rcb *LastRecvMngList;
-	u32 NumRecvMngList;
-	int bIsRxWorkItemQueued;
-	int bIsRxMngWorkItemQueued;
-	unsigned long ulRcvRefCount; /* packets that have not returned back */
+	struct vnt_rcb *rcb[CB_MAX_RX_DESC];
+	u32 num_rcb;
 
 	/* Variables to track resources for the BULK Out Pipe */
-	struct vnt_usb_send_context *apTD[CB_MAX_TX_DESC];
-	u32 cbTD;
-	struct vnt_tx_pkt_info pkt_info[16];
+	struct vnt_usb_send_context *tx_context[CB_MAX_TX_DESC];
+	u32 num_tx_context;
 
 	/* Variables to track resources for the Interrupt In Pipe */
 	struct vnt_interrupt_buffer int_buf;
 
-	/* default config from file by user setting */
-	DEFAULT_CONFIG config_file;
-
 	/* Version control */
-	u16 wFirmwareVersion;
-	u8 byLocalID;
-	u8 byRFType;
-	u8 byBBRxConf;
+	u16 firmware_version;
+	u8 local_id;
+	u8 rf_type;
+	u8 bb_rx_conf;
 
-	u8 byZoneType;
-	int bZoneRegExist;
-
-	u8 byOriginalZonetype;
-
-	int bLinkPass; /* link status: OK or fail */
 	struct vnt_cmd_card_init init_command;
 	struct vnt_rsp_card_init init_response;
-	u8 abyCurrentNetAddr[ETH_ALEN];
-	u8 abyPermanentNetAddr[ETH_ALEN];
+	u8 current_net_addr[ETH_ALEN];
+	u8 permanent_net_addr[ETH_ALEN];
 
-	int bExistSWNetAddr;
+	u8 exist_sw_net_addr;
 
-	/* Maintain statistical debug info. */
-	unsigned long SendContextsInUse;
-	unsigned long RcvBuffersInUse;
-
-	/* 802.11 management */
-	struct vnt_manager vnt_mgmt;
-
-	u64 qwCurrTSF;
-	u32 cbBulkInMax;
-	int bPSRxBeacon;
+	u64 current_tsf;
 
 	/* 802.11 MAC specific */
-	u32 uCurrRSSI;
-	u8 byCurrSQ;
+	u32 current_rssi;
 
 	/* Antenna Diversity */
-	int bTxRxAntInv;
-	u32 dwRxAntennaSel;
-	u32 dwTxAntennaSel;
-	u8 byAntennaCount;
-	u8 byRxAntennaMode;
-	u8 byTxAntennaMode;
-	u8 byRadioCtl;
-	u8 bHWRadioOff;
+	int tx_rx_ant_inv;
+	u32 rx_antenna_sel;
+	u8 rx_antenna_mode;
+	u8 tx_antenna_mode;
+	u8 radio_ctl;
 
 	/* IFS & Cw */
-	u32 uSIFS;  /* Current SIFS */
-	u32 uDIFS;  /* Current DIFS */
-	u32 uEIFS;  /* Current EIFS */
-	u32 uSlot;  /* Current SlotTime */
-	u32 uCwMin; /* Current CwMin */
-	u32 uCwMax; /* CwMax is fixed on 1023 */
-
-	/* PHY parameter */
-	u8  bySIFS;
-	u8  byDIFS;
-	u8  byEIFS;
-	u8  bySlot;
-	u8  byCWMaxMin;
+	u32 sifs;  /* Current SIFS */
+	u32 difs;  /* Current DIFS */
+	u32 eifs;  /* Current EIFS */
+	u32 slot;  /* Current SlotTime */
 
 	/* Rate */
-	u8 byBBType; /* 0: 11A, 1:11B, 2:11G */
-	u8 byPacketType; /* 0:11a 1:11b 2:11gb 3:11ga */
-	u16 wBasicRate;
-	u8 byTopOFDMBasicRate;
-	u8 byTopCCKBasicRate;
+	u8 bb_type; /* 0: 11A, 1:11B, 2:11G */
+	u8 packet_type; /* 0:11a 1:11b 2:11gb 3:11ga */
+	u32 basic_rates;
+	u8 top_ofdm_basic_rate;
+	u8 top_cck_basic_rate;
 
-	u8 abyEEPROM[EEP_MAX_CONTEXT_SIZE];  /*u32 alignment */
+	u8 eeprom[EEP_MAX_CONTEXT_SIZE];  /*u32 alignment */
 
-	u8 byMinChannel;
-	u8 byMaxChannel;
-	u32 uConnectionRate;
-
-	u8 byPreambleType;
-	u8 byShortPreamble;
-	/* CARD_PHY_TYPE */
-	u8 eConfigPHYMode;
+	u8 preamble_type;
 
 	/* For RF Power table */
-	u8 byCCKPwr;
-	u8 byOFDMPwrG;
-	u8 byOFDMPwrA;
-	u8 byCurPwr;
-	u8 abyCCKPwrTbl[14];
-	u8 abyOFDMPwrTbl[14];
-	u8 abyOFDMAPwrTbl[42];
+	u8 cck_pwr;
+	u8 ofdm_pwr_g;
+	u8 ofdm_pwr_a;
+	u8 power;
+	u8 cck_pwr_tbl[14];
+	u8 ofdm_pwr_tbl[14];
+	u8 ofdm_a_pwr_tbl[42];
 
-	u16 wCurrentRate;
+	u16 current_rate;
 	u16 tx_rate_fb0;
 	u16 tx_rate_fb1;
 
-	u16 wRTSThreshold;
-	u16 wFragmentationThreshold;
-	u8 byShortRetryLimit;
-	u8 byLongRetryLimit;
+	u8 short_retry_limit;
+	u8 long_retry_limit;
 
 	enum nl80211_iftype op_mode;
 
-	int bBSSIDFilter;
-	u16 wMaxTransmitMSDULifetime;
-	u8 abyBSSID[ETH_ALEN];
-	u8 abyDesireBSSID[ETH_ALEN];
-
-	u32 dwMaxReceiveLifetime;  /* dot11MaxReceiveLifetime */
-
-	int bEncryptionEnable;
-	int bShortSlotTime;
-	int bProtectMode;
-	int bNonERPPresent;
-	int bBarkerPreambleMd;
-
-	u8 byERPFlag;
-	u16 wUseProtectCntDown;
-
-	int bRadioControlOff;
-	int bRadioOff;
+	int short_slot_time;
 
 	/* Power save */
-	int bEnablePSMode;
-	u16 wListenInterval;
-	int bPWBitOn;
-	WMAC_POWER_MODE ePSMode;
-	unsigned long ulPSModeWaitTx;
-	int bPSModeTxBurst;
+	u16 current_aid;
 
 	/* Beacon releated */
-	u16 wSeqCounter;
-	int bBeaconBufReady;
-	int bBeaconSent;
-	int bFixRate;
-	u8 byCurrentCh;
+	u16 seq_counter;
 
-	CMD_STATE eCommandState;
+	enum vnt_cmd_state command_state;
 
-	CMD_CODE eCommand;
-	int bBeaconTx;
-	u8 byScanBBType;
-
-	int bStopBeacon;
-	int bStopDataPkt;
-	int bStopTx0Pkt;
-	u32 uAutoReConnectTime;
-	u32 uIsroamingTime;
+	enum vnt_cmd command;
 
 	/* 802.11 counter */
 
-	CMD_ITEM eCmdQueue[CMD_Q_SIZE];
-	u32 uCmdDequeueIdx;
-	u32 uCmdEnqueueIdx;
-	u32 cbFreeCmdQueue;
-	int bCmdRunning;
-	int bCmdClear;
-	int bNeedRadioOFF;
+	enum vnt_cmd cmd_queue[CMD_Q_SIZE];
+	u32 cmd_dequeue_idx;
+	u32 cmd_enqueue_idx;
+	u32 free_cmd_queue;
+	int cmd_running;
 
-	int bEnableRoaming;
-	int bIsRoaming;
-	int bFastRoaming;
-	u8 bSameBSSMaxNum;
-	u8 bSameBSSCurNum;
-	int bRoaming;
-	int b11hEable;
+	unsigned long key_entry_inuse;
 
-	/* Encryption */
-	NDIS_802_11_WEP_STATUS eEncryptionStatus;
-	int  bTransmitKey;
-	NDIS_802_11_WEP_STATUS eOldEncryptionStatus;
-	SKeyManagement sKey;
-	u32 dwIVCounter;
-
-	RC4Ext SBox;
-	u8 abyPRNG[WLAN_WEPMAX_KEYLEN+3];
-	u8 byKeyIndex;
-
-	u32 uKeyLength;
-	u8 abyKey[WLAN_WEP232_KEYLEN];
-
-	/* for AP mode */
-	u32 uAssocCount;
-	int bMoreData;
-
-	/* QoS */
-	int bGrpAckPolicy;
-
-	u8 byAutoFBCtrl;
-
-	int bTxMICFail;
-	int bRxMICFail;
+	u8 auto_fb_ctrl;
 
 	/* For Update BaseBand VGA Gain Offset */
-	u32 uBBVGADiffCount;
-	u8 byBBVGANew;
-	u8 byBBVGACurrent;
-	u8 abyBBVGA[BB_VGA_LEVEL];
-	signed long ldBmThreshold[BB_VGA_LEVEL];
+	u8 bb_vga[BB_VGA_LEVEL];
 
-	u8 byBBPreEDRSSI;
-	u8 byBBPreEDIndex;
-
-	int bRadioCmd;
+	u8 bb_pre_ed_rssi;
+	u8 bb_pre_ed_index;
 
 	/* command timer */
 	struct delayed_work run_command_work;
-	/* One second callback */
-	struct delayed_work second_callback_work;
 
-	u8 tx_data_time_out;
-	bool tx_trigger;
-	int fWPA_Authened; /*is WPA/WPA-PSK or WPA2/WPA2-PSK authen?? */
-	u8 byReAssocCount;
-	u8 byLinkWaitCount;
-
-	struct ethhdr sTxEthHeader;
-	struct ethhdr sRxEthHeader;
-	u8 abyBroadcastAddr[ETH_ALEN];
-	u8 abySNAP_RFC1042[ETH_ALEN];
-	u8 abySNAP_Bridgetunnel[ETH_ALEN];
-
-	/* Pre-Authentication & PMK cache */
-	SPMKID gsPMKID;
-	SPMKIDCandidateEvent gsPMKIDCandidate;
-
-	/* for 802.11h */
-	int b11hEnable;
-
-	int bChannelSwitch;
-	u8 byNewChannel;
-	u8 byChannelSwitchCount;
-
-	/* WPA supplicant daemon */
-	int bWPADEVUp;
-	int bwextstep0;
-	int bwextstep1;
-	int bwextstep2;
-	int bwextstep3;
-	int bWPASuppWextEnabled;
-
-	u32 uChannel;
-
-	struct iw_statistics wstats; /* wireless stats */
-
-	int bCommit;
-
+	struct ieee80211_low_level_stats low_stats;
 };
 
-#define EnqueueRCB(_Head, _Tail, _RCB)                  \
-{                                                       \
-    if (!_Head) {                                       \
-        _Head = _RCB;                                   \
-    }                                                   \
-    else {                                              \
-        _Tail->Next = _RCB;                             \
-    }                                                   \
-    _RCB->Next = NULL;                                  \
-    _Tail = _RCB;                                       \
+#define ADD_ONE_WITH_WRAP_AROUND(uVar, uModulo) {	\
+	if ((uVar) >= ((uModulo) - 1))			\
+		(uVar) = 0;				\
+	else						\
+		(uVar)++;				\
 }
 
-#define DequeueRCB(Head, Tail)                          \
-{                                                       \
-    struct vnt_rcb *RCB = Head;                         \
-    if (!RCB->Next) {                                   \
-        Tail = NULL;                                    \
-    }                                                   \
-    Head = RCB->Next;                                   \
-}
-
-#define ADD_ONE_WITH_WRAP_AROUND(uVar, uModulo) {   \
-    if ((uVar) >= ((uModulo) - 1))                  \
-        (uVar) = 0;                                 \
-    else                                            \
-        (uVar)++;                                   \
-}
-
-#define fMP_DISCONNECTED                    0x00000002
-#define fMP_POST_READS                      0x00000100
-#define fMP_POST_WRITES                     0x00000200
-
-#define MP_SET_FLAG(_M, _F)             ((_M)->Flags |= (_F))
-#define MP_CLEAR_FLAG(_M, _F)            ((_M)->Flags &= ~(_F))
-#define MP_TEST_FLAGS(_M, _F)            (((_M)->Flags & (_F)) == (_F))
-
-#define MP_IS_READY(_M)        (((_M)->Flags & fMP_DISCONNECTED) == 0)
-
-int device_alloc_frag_buf(struct vnt_private *, PSDeFragControlBlock pDeF);
-void vnt_configure_filter(struct vnt_private *);
+int vnt_init(struct vnt_private *priv);
 
 #endif

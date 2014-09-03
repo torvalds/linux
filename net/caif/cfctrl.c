@@ -547,7 +547,6 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 	default:
 		pr_err("Unrecognized Control Frame\n");
 		goto error;
-		break;
 	}
 	ret = 0;
 error:

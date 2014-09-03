@@ -132,7 +132,7 @@ xfs_rtmount_init(
 		return 0;
 
 	xfs_warn(mp, "Not built with CONFIG_XFS_RT");
-	return ENOSYS;
+	return -ENOSYS;
 }
 # define xfs_rtmount_inodes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (ENOSYS))
 # define xfs_rtunmount_inodes(m)

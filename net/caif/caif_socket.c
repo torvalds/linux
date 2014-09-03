@@ -908,8 +908,7 @@ static int caif_release(struct socket *sock)
 	sock->sk = NULL;
 
 	WARN_ON(IS_ERR(cf_sk->debugfs_socket_dir));
-	if (cf_sk->debugfs_socket_dir != NULL)
-		debugfs_remove_recursive(cf_sk->debugfs_socket_dir);
+	debugfs_remove_recursive(cf_sk->debugfs_socket_dir);
 
 	lock_sock(&(cf_sk->sk));
 	sk->sk_state = CAIF_DISCONNECTED;

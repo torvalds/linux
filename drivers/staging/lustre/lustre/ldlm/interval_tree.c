@@ -38,9 +38,9 @@
  * Author: Huang Wei <huangwei@clusterfs.com>
  * Author: Jay Xiong <jinshan.xiong@sun.com>
  */
-# include <lustre_dlm.h>
-#include <obd_support.h>
-#include <interval_tree.h>
+#include "../include/lustre_dlm.h"
+#include "../include/obd_support.h"
+#include "../include/interval_tree.h"
 
 enum {
 	INTERVAL_RED = 0,

@@ -438,7 +438,6 @@ err_out_files:
 out:
 	return ret;
 }
-EXPORT_SYMBOL(drm_sysfs_connector_add);
 
 /**
  * drm_sysfs_connector_remove - remove an connector device from sysfs
@@ -468,7 +467,6 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 	device_unregister(connector->kdev);
 	connector->kdev = NULL;
 }
-EXPORT_SYMBOL(drm_sysfs_connector_remove);
 
 /**
  * drm_sysfs_hotplug_event - generate a DRM uevent
@@ -495,70 +493,54 @@ static void drm_sysfs_release(struct device *dev)
 }
 
 /**
- * drm_sysfs_device_add - adds a class device to sysfs for a character driver
- * @dev: DRM device to be added
- * @head: DRM head in question
+ * drm_sysfs_minor_alloc() - Allocate sysfs device for given minor
+ * @minor: minor to allocate sysfs device for
  *
- * Add a DRM device to the DRM's device model class.  We use @dev's PCI device
- * as the parent for the Linux device, and make sure it has a file containing
- * the driver we're using (for userspace compatibility).
+ * This allocates a new sysfs device for @minor and returns it. The device is
+ * not registered nor linked. The caller has to use device_add() and
+ * device_del() to register and unregister it.
+ *
+ * Note that dev_get_drvdata() on the new device will return the minor.
+ * However, the device does not hold a ref-count to the minor nor to the
+ * underlying drm_device. This is unproblematic as long as you access the
+ * private data only in sysfs callbacks. device_del() disables those
+ * synchronously, so they cannot be called after you cleanup a minor.
  */
-int drm_sysfs_device_add(struct drm_minor *minor)
+struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 {
-	char *minor_str;
+	const char *minor_str;
+	struct device *kdev;
 	int r;
 
 	if (minor->type == DRM_MINOR_CONTROL)
 		minor_str = "controlD%d";
-        else if (minor->type == DRM_MINOR_RENDER)
-                minor_str = "renderD%d";
-        else
-                minor_str = "card%d";
+	else if (minor->type == DRM_MINOR_RENDER)
+		minor_str = "renderD%d";
+	else
+		minor_str = "card%d";
 
-	minor->kdev = kzalloc(sizeof(*minor->kdev), GFP_KERNEL);
-	if (!minor->kdev) {
-		r = -ENOMEM;
-		goto error;
-	}
+	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
+	if (!kdev)
+		return ERR_PTR(-ENOMEM);
 
-	device_initialize(minor->kdev);
-	minor->kdev->devt = MKDEV(DRM_MAJOR, minor->index);
-	minor->kdev->class = drm_class;
-	minor->kdev->type = &drm_sysfs_device_minor;
-	minor->kdev->parent = minor->dev->dev;
-	minor->kdev->release = drm_sysfs_release;
-	dev_set_drvdata(minor->kdev, minor);
+	device_initialize(kdev);
+	kdev->devt = MKDEV(DRM_MAJOR, minor->index);
+	kdev->class = drm_class;
+	kdev->type = &drm_sysfs_device_minor;
+	kdev->parent = minor->dev->dev;
+	kdev->release = drm_sysfs_release;
+	dev_set_drvdata(kdev, minor);
 
-	r = dev_set_name(minor->kdev, minor_str, minor->index);
+	r = dev_set_name(kdev, minor_str, minor->index);
 	if (r < 0)
-		goto error;
+		goto err_free;
 
-	r = device_add(minor->kdev);
-	if (r < 0)
-		goto error;
+	return kdev;
 
-	return 0;
-
-error:
-	DRM_ERROR("device create failed %d\n", r);
-	put_device(minor->kdev);
-	return r;
+err_free:
+	put_device(kdev);
+	return ERR_PTR(r);
 }
-
-/**
- * drm_sysfs_device_remove - remove DRM device
- * @dev: DRM device to remove
- *
- * This call unregisters and cleans up a class device that was created with a
- * call to drm_sysfs_device_add()
- */
-void drm_sysfs_device_remove(struct drm_minor *minor)
-{
-	if (minor->kdev)
-		device_unregister(minor->kdev);
-	minor->kdev = NULL;
-}
-
 
 /**
  * drm_class_device_register - Register a struct device in the drm class.

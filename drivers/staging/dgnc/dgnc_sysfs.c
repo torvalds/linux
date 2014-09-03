@@ -150,15 +150,17 @@ void dgnc_remove_driver_sysfiles(struct pci_driver *dgnc_driver)
 }
 
 
-#define DGNC_VERIFY_BOARD(p, bd)			\
-	if (!p)						\
-		return 0;				\
-							\
-	bd = dev_get_drvdata(p);			\
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)	\
-		return 0;				\
-	if (bd->state != BOARD_READY)			\
-		return 0;				\
+#define DGNC_VERIFY_BOARD(p, bd)				\
+	do {							\
+		if (!p)						\
+			return 0;				\
+								\
+		bd = dev_get_drvdata(p);			\
+		if (!bd || bd->magic != DGNC_BOARD_MAGIC)	\
+			return 0;				\
+		if (bd->state != BOARD_READY)			\
+			return 0;				\
+	} while (0)
 
 
 

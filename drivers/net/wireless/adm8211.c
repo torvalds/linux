@@ -41,7 +41,7 @@ static unsigned int rx_ring_size __read_mostly = 16;
 module_param(tx_ring_size, uint, 0);
 module_param(rx_ring_size, uint, 0);
 
-static DEFINE_PCI_DEVICE_TABLE(adm8211_pci_id_table) = {
+static const struct pci_device_id adm8211_pci_id_table[] = {
 	/* ADMtek ADM8211 */
 	{ PCI_DEVICE(0x10B7, 0x6000) }, /* 3Com 3CRSHPW796 */
 	{ PCI_DEVICE(0x1200, 0x8201) }, /* ? */

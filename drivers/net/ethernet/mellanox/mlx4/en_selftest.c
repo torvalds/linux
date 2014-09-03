@@ -159,7 +159,8 @@ void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf)
 		if (priv->mdev->dev->caps.flags &
 					MLX4_DEV_CAP_FLAG_UC_LOOPBACK) {
 			buf[3] = mlx4_en_test_registers(priv);
-			buf[4] = mlx4_en_test_loopback(priv);
+			if (priv->port_up)
+				buf[4] = mlx4_en_test_loopback(priv);
 		}
 
 		if (carrier_ok)

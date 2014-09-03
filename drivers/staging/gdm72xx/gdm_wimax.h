@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __GDM_WIMAX_H__
-#define __GDM_WIMAX_H__
+#ifndef __GDM72XX_GDM_WIMAX_H__
+#define __GDM72XX_GDM_WIMAX_H__
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -22,16 +22,6 @@
 #endif
 
 #define DRIVER_VERSION		"3.2.3"
-
-#define H2L(x)		__cpu_to_le16(x)
-#define L2H(x)		__le16_to_cpu(x)
-#define DH2L(x)		__cpu_to_le32(x)
-#define DL2H(x)		__le32_to_cpu(x)
-
-#define H2B(x)		__cpu_to_be16(x)
-#define B2H(x)		__be16_to_cpu(x)
-#define DH2B(x)		__cpu_to_be32(x)
-#define DB2H(x)		__be32_to_cpu(x)
 
 struct phy_dev {
 	void			*priv_dev;
@@ -46,7 +36,6 @@ struct phy_dev {
 struct nic {
 	struct net_device	*netdev;
 	struct phy_dev		*phy_dev;
-	struct net_device_stats	stats;
 	struct data_s		sdk_data[SIOC_DATA_MAX];
 #if defined(CONFIG_WIMAX_GDM72XX_QOS)
 	struct qos_cb_s		qos;
@@ -57,4 +46,4 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);
 int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev);
 void unregister_wimax_device(struct phy_dev *phy_dev);
 
-#endif
+#endif /* __GDM72XX_GDM_WIMAX_H__ */

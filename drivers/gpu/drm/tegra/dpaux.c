@@ -382,6 +382,7 @@ static const struct of_device_id tegra_dpaux_of_match[] = {
 	{ .compatible = "nvidia,tegra124-dpaux", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, tegra_dpaux_of_match);
 
 struct platform_driver tegra_dpaux_driver = {
 	.driver = {

@@ -30,8 +30,7 @@
 #define MINOR(dev)	((unsigned int) ((dev) & MINORMASK))
 
 static unsigned long long
-process_jbd2_dev_to_name(struct trace_seq *s,
-			 unsigned long long *args)
+process_jbd2_dev_to_name(struct trace_seq *s, unsigned long long *args)
 {
 	unsigned int dev = args[0];
 
@@ -40,8 +39,7 @@ process_jbd2_dev_to_name(struct trace_seq *s,
 }
 
 static unsigned long long
-process_jiffies_to_msecs(struct trace_seq *s,
-			 unsigned long long *args)
+process_jiffies_to_msecs(struct trace_seq *s, unsigned long long *args)
 {
 	unsigned long long jiffies = args[0];
 

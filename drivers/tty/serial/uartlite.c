@@ -250,11 +250,6 @@ static void ulite_stop_rx(struct uart_port *port)
 		| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 }
 
-static void ulite_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 static void ulite_break_ctl(struct uart_port *port, int ctl)
 {
 	/* N/A */
@@ -395,7 +390,6 @@ static struct uart_ops ulite_ops = {
 	.stop_tx	= ulite_stop_tx,
 	.start_tx	= ulite_start_tx,
 	.stop_rx	= ulite_stop_rx,
-	.enable_ms	= ulite_enable_ms,
 	.break_ctl	= ulite_break_ctl,
 	.startup	= ulite_startup,
 	.shutdown	= ulite_shutdown,

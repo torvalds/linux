@@ -774,17 +774,12 @@ static void __free_preds(struct event_filter *filter)
 	filter->n_preds = 0;
 }
 
-static void call_filter_disable(struct ftrace_event_call *call)
-{
-	call->flags &= ~TRACE_EVENT_FL_FILTERED;
-}
-
 static void filter_disable(struct ftrace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
 	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		call_filter_disable(call);
+		call->flags &= ~TRACE_EVENT_FL_FILTERED;
 	else
 		file->flags &= ~FTRACE_EVENT_FL_FILTERED;
 }
@@ -802,32 +797,6 @@ static void __free_filter(struct event_filter *filter)
 void free_event_filter(struct event_filter *filter)
 {
 	__free_filter(filter);
-}
-
-void destroy_call_preds(struct ftrace_event_call *call)
-{
-	__free_filter(call->filter);
-	call->filter = NULL;
-}
-
-static void destroy_file_preds(struct ftrace_event_file *file)
-{
-	__free_filter(file->filter);
-	file->filter = NULL;
-}
-
-/*
- * Called when destroying the ftrace_event_file.
- * The file is being freed, so we do not need to worry about
- * the file being currently used. This is for module code removing
- * the tracepoints from within it.
- */
-void destroy_preds(struct ftrace_event_file *file)
-{
-	if (file->event_call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		destroy_call_preds(file->event_call);
-	else
-		destroy_file_preds(file);
 }
 
 static struct event_filter *__alloc_filter(void)
@@ -873,17 +842,14 @@ static inline void __remove_filter(struct ftrace_event_file *file)
 		remove_filter_string(file->filter);
 }
 
-static void filter_free_subsystem_preds(struct event_subsystem *system,
+static void filter_free_subsystem_preds(struct ftrace_subsystem_dir *dir,
 					struct trace_array *tr)
 {
 	struct ftrace_event_file *file;
-	struct ftrace_event_call *call;
 
 	list_for_each_entry(file, &tr->events, list) {
-		call = file->event_call;
-		if (strcmp(call->class->system, system->name) != 0)
+		if (file->system != dir)
 			continue;
-
 		__remove_filter(file);
 	}
 }
@@ -901,15 +867,13 @@ static inline void __free_subsystem_filter(struct ftrace_event_file *file)
 	}
 }
 
-static void filter_free_subsystem_filters(struct event_subsystem *system,
+static void filter_free_subsystem_filters(struct ftrace_subsystem_dir *dir,
 					  struct trace_array *tr)
 {
 	struct ftrace_event_file *file;
-	struct ftrace_event_call *call;
 
 	list_for_each_entry(file, &tr->events, list) {
-		call = file->event_call;
-		if (strcmp(call->class->system, system->name) != 0)
+		if (file->system != dir)
 			continue;
 		__free_subsystem_filter(file);
 	}
@@ -1582,7 +1546,6 @@ static int fold_pred_tree(struct event_filter *filter,
 static int replace_preds(struct ftrace_event_call *call,
 			 struct event_filter *filter,
 			 struct filter_parse_state *ps,
-			 char *filter_string,
 			 bool dry_run)
 {
 	char *operand1 = NULL, *operand2 = NULL;
@@ -1755,13 +1718,12 @@ struct filter_list {
 	struct event_filter	*filter;
 };
 
-static int replace_system_preds(struct event_subsystem *system,
+static int replace_system_preds(struct ftrace_subsystem_dir *dir,
 				struct trace_array *tr,
 				struct filter_parse_state *ps,
 				char *filter_string)
 {
 	struct ftrace_event_file *file;
-	struct ftrace_event_call *call;
 	struct filter_list *filter_item;
 	struct filter_list *tmp;
 	LIST_HEAD(filter_list);
@@ -1769,15 +1731,14 @@ static int replace_system_preds(struct event_subsystem *system,
 	int err;
 
 	list_for_each_entry(file, &tr->events, list) {
-		call = file->event_call;
-		if (strcmp(call->class->system, system->name) != 0)
+		if (file->system != dir)
 			continue;
 
 		/*
 		 * Try to see if the filter can be applied
 		 *  (filter arg is ignored on dry_run)
 		 */
-		err = replace_preds(call, NULL, ps, filter_string, true);
+		err = replace_preds(file->event_call, NULL, ps, true);
 		if (err)
 			event_set_no_set_filter_flag(file);
 		else
@@ -1787,9 +1748,7 @@ static int replace_system_preds(struct event_subsystem *system,
 	list_for_each_entry(file, &tr->events, list) {
 		struct event_filter *filter;
 
-		call = file->event_call;
-
-		if (strcmp(call->class->system, system->name) != 0)
+		if (file->system != dir)
 			continue;
 
 		if (event_no_set_filter_flag(file))
@@ -1811,7 +1770,7 @@ static int replace_system_preds(struct event_subsystem *system,
 		if (err)
 			goto fail_mem;
 
-		err = replace_preds(call, filter, ps, filter_string, false);
+		err = replace_preds(file->event_call, filter, ps, false);
 		if (err) {
 			filter_disable(file);
 			parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
@@ -1933,7 +1892,7 @@ static int create_filter(struct ftrace_event_call *call,
 
 	err = create_filter_start(filter_str, set_str, &ps, &filter);
 	if (!err) {
-		err = replace_preds(call, filter, ps, filter_str, false);
+		err = replace_preds(call, filter, ps, false);
 		if (err && set_str)
 			append_filter_err(ps, filter);
 	}
@@ -1959,7 +1918,7 @@ int create_event_filter(struct ftrace_event_call *call,
  * Identical to create_filter() except that it creates a subsystem filter
  * and always remembers @filter_str.
  */
-static int create_system_filter(struct event_subsystem *system,
+static int create_system_filter(struct ftrace_subsystem_dir *dir,
 				struct trace_array *tr,
 				char *filter_str, struct event_filter **filterp)
 {
@@ -1969,7 +1928,7 @@ static int create_system_filter(struct event_subsystem *system,
 
 	err = create_filter_start(filter_str, true, &ps, &filter);
 	if (!err) {
-		err = replace_system_preds(system, tr, ps, filter_str);
+		err = replace_system_preds(dir, tr, ps, filter_str);
 		if (!err) {
 			/* System filters just show a default message */
 			kfree(filter->filter_string);
@@ -2053,18 +2012,18 @@ int apply_subsystem_event_filter(struct ftrace_subsystem_dir *dir,
 	}
 
 	if (!strcmp(strstrip(filter_string), "0")) {
-		filter_free_subsystem_preds(system, tr);
+		filter_free_subsystem_preds(dir, tr);
 		remove_filter_string(system->filter);
 		filter = system->filter;
 		system->filter = NULL;
 		/* Ensure all filters are no longer used */
 		synchronize_sched();
-		filter_free_subsystem_filters(system, tr);
+		filter_free_subsystem_filters(dir, tr);
 		__free_filter(filter);
 		goto out_unlock;
 	}
 
-	err = create_system_filter(system, tr, filter_string, &filter);
+	err = create_system_filter(dir, tr, filter_string, &filter);
 	if (filter) {
 		/*
 		 * No event actually uses the system filter
