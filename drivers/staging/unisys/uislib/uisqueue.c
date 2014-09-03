@@ -78,41 +78,18 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 			u64 interruptHandle, u8 *channelId)
 {
 	unsigned long flags;
-	unsigned char queueWasEmpty;
-	unsigned int locked = 0;
-	unsigned int acquired = 0;
 	u8 rc = 0;
 
 	spin_lock_irqsave(lock, flags);
-	locked = 1;
-
 	if (!ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(queueinfo->chan, channelId, NULL))
-		goto Away;
-
-	acquired = 1;
-
-	queueWasEmpty = visor_signalqueue_empty(queueinfo->chan, whichqueue);
-	if (!visor_signal_insert(queueinfo->chan, whichqueue, pSignal))
-		goto Away;
+		goto unlock;
+	if (visor_signal_insert(queueinfo->chan, whichqueue, pSignal)) {
+		queueinfo->packets_sent++;
+		rc = 1;
+	}
 	ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId, NULL);
-	acquired = 0;
-	spin_unlock_irqrestore(lock, flags);
-	locked = 0;
-
-	queueinfo->packets_sent++;
-
-	rc = 1;
-Away:
-	if (acquired) {
-		ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId,
-						NULL);
-		acquired = 0;
-	}
-	if (locked) {
-		spin_unlock_irqrestore((spinlock_t *) lock, flags);
-		locked = 0;
-	}
-
+unlock:
+	spin_unlock_irqrestore((spinlock_t *)lock, flags);
 	return rc;
 }
 
