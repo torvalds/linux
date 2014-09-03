@@ -1986,7 +1986,7 @@ bool of_console_check(struct device_node *dn, char *name, int index)
 {
 	if (!dn || dn != of_stdout || console_set_on_cmdline)
 		return false;
-	return add_preferred_console(name, index, NULL);
+	return !add_preferred_console(name, index, NULL);
 }
 EXPORT_SYMBOL_GPL(of_console_check);
 
