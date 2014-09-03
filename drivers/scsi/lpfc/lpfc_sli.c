@@ -10132,7 +10132,9 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 			uint16_t tgt_id, uint64_t lun_id, lpfc_ctx_cmd cmd)
 {
 	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_scsi_buf *lpfc_cmd;
 	struct lpfc_iocbq *abtsiocbq;
+	struct lpfc_nodelist *ndlp;
 	struct lpfc_iocbq *iocbq;
 	IOCB_t *icmd;
 	int sum, i, ret_val;
@@ -10187,7 +10189,11 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		if (iocbq->iocb_flag & LPFC_IO_FOF)
 			abtsiocbq->iocb_flag |= LPFC_IO_FOF;
 
-		if (lpfc_is_link_up(phba))
+		lpfc_cmd = container_of(iocbq, struct lpfc_scsi_buf, cur_iocbq);
+		ndlp = lpfc_cmd->rdata->pnode;
+
+		if (lpfc_is_link_up(phba) &&
+		    (ndlp && ndlp->nlp_state == NLP_STE_MAPPED_NODE))
 			abtsiocbq->iocb.ulpCommand = CMD_ABORT_XRI_CN;
 		else
 			abtsiocbq->iocb.ulpCommand = CMD_CLOSE_XRI_CN;
