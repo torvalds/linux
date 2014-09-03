@@ -1243,8 +1243,8 @@ static void enable_ai_interrupts(struct comedi_device *dev,
 	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT |
 	       EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
 	/*  Use pio transfer and interrupt on end of conversion
-	 *  if TRIG_WAKE_EOS flag is set. */
-	if (cmd->flags & TRIG_WAKE_EOS) {
+	 *  if CMDF_WAKE_EOS flag is set. */
+	if (cmd->flags & CMDF_WAKE_EOS) {
 		/*  4020 doesn't support pio transfers except for fifo dregs */
 		if (thisboard->layout != LAYOUT_4020)
 			bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
@@ -2579,7 +2579,7 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  clear adc buffer */
 	writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
 
-	if ((cmd->flags & TRIG_WAKE_EOS) == 0 ||
+	if ((cmd->flags & CMDF_WAKE_EOS) == 0 ||
 	    thisboard->layout == LAYOUT_4020) {
 		devpriv->ai_dma_index = 0;
 
@@ -2613,7 +2613,7 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT;
-	if (cmd->flags & TRIG_WAKE_EOS)
+	if (cmd->flags & CMDF_WAKE_EOS)
 		bits |= ADC_DMA_DISABLE_BIT;
 	/*  set start trigger */
 	if (cmd->start_src == TRIG_EXT) {
@@ -2820,7 +2820,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 
 	/*  drain fifo with pio */
 	if ((status & ADC_DONE_BIT) ||
-	    ((cmd->flags & TRIG_WAKE_EOS) &&
+	    ((cmd->flags & CMDF_WAKE_EOS) &&
 	     (status & ADC_INTR_PENDING_BIT) &&
 	     (thisboard->layout != LAYOUT_4020))) {
 		spin_lock_irqsave(&dev->spinlock, flags);
