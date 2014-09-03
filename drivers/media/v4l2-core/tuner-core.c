@@ -601,7 +601,7 @@ static int tuner_probe(struct i2c_client *client,
 	t->name = "(tuner unset)";
 	t->type = UNSET;
 	t->audmode = V4L2_TUNER_MODE_STEREO;
-	t->standby = 1;
+	t->standby = true;
 	t->radio_freq = 87.5 * 16000;	/* Initial freq range */
 	t->tv_freq = 400 * 16; /* Sets freq to VHF High - needed for some PLL's to properly start */
 
