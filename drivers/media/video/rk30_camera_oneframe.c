@@ -260,8 +260,10 @@ static u32 DISABLE_INVERT_PCLK_CIF1;
             cause warning, so remove this spin lock .
 *v0.1.2:
 		 1. rk3126 and rk3128 use different dts file.		 
+*v0.1.3:
+		 1. i2c 1 and wifi use the common io in rk3128,so just enable i2c1 in rk3126 dts file
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x2)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x3)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 

@@ -109,6 +109,10 @@
 	};
 };
 
+&i2c1 {
+	status = "okay";
+};
+
 &rk3126_cif_sensor{
 	status = "okay";
 };
