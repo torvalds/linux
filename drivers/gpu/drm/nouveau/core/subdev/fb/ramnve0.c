@@ -29,6 +29,8 @@
 #include <subdev/bios/init.h>
 #include <subdev/bios/rammap.h>
 #include <subdev/bios/timing.h>
+#include <subdev/bios/M0205.h>
+#include <subdev/bios/M0209.h>
 
 #include <subdev/clock.h>
 #include <subdev/clock/pll.h>
@@ -1130,24 +1132,147 @@ nve0_ram_tidy(struct nouveau_fb *pfb)
 	ram_exec(fuc, false);
 }
 
+struct nve0_ram_train {
+	u16 mask;
+	struct nvbios_M0209S remap;
+	struct nvbios_M0209S type00;
+	struct nvbios_M0209S type01;
+	struct nvbios_M0209S type04;
+	struct nvbios_M0209S type06;
+	struct nvbios_M0209S type07;
+	struct nvbios_M0209S type08;
+	struct nvbios_M0209S type09;
+};
+
+static int
+nve0_ram_train_type(struct nouveau_fb *pfb, int i, u8 ramcfg,
+		    struct nve0_ram_train *train)
+{
+	struct nouveau_bios *bios = nouveau_bios(pfb);
+	struct nvbios_M0205E M0205E;
+	struct nvbios_M0205S M0205S;
+	struct nvbios_M0209E M0209E;
+	struct nvbios_M0209S *remap = &train->remap;
+	struct nvbios_M0209S *value;
+	u8  ver, hdr, cnt, len;
+	u32 data;
+
+	/* determine type of data for this index */
+	if (!(data = nvbios_M0205Ep(bios, i, &ver, &hdr, &cnt, &len, &M0205E)))
+		return -ENOENT;
+
+	switch (M0205E.type) {
+	case 0x00: value = &train->type00; break;
+	case 0x01: value = &train->type01; break;
+	case 0x04: value = &train->type04; break;
+	case 0x06: value = &train->type06; break;
+	case 0x07: value = &train->type07; break;
+	case 0x08: value = &train->type08; break;
+	case 0x09: value = &train->type09; break;
+	default:
+		return 0;
+	}
+
+	/* training data index determined by ramcfg strap */
+	if (!(data = nvbios_M0205Sp(bios, i, ramcfg, &ver, &hdr, &M0205S)))
+		return -EINVAL;
+	i = M0205S.data;
+
+	/* training data format information */
+	if (!(data = nvbios_M0209Ep(bios, i, &ver, &hdr, &cnt, &len, &M0209E)))
+		return -EINVAL;
+
+	/* ... and the raw data */
+	if (!(data = nvbios_M0209Sp(bios, i, 0, &ver, &hdr, value)))
+		return -EINVAL;
+
+	if (M0209E.v02_07 == 2) {
+		/* of course! why wouldn't we have a pointer to another entry
+		 * in the same table, and use the first one as an array of
+		 * remap indices...
+		 */
+		if (!(data = nvbios_M0209Sp(bios, M0209E.v03, 0, &ver, &hdr,
+					    remap)))
+			return -EINVAL;
+
+		for (i = 0; i < ARRAY_SIZE(value->data); i++)
+			value->data[i] = remap->data[value->data[i]];
+	} else
+	if (M0209E.v02_07 != 1)
+		return -EINVAL;
+
+	train->mask |= 1 << M0205E.type;
+	return 0;
+}
+
+static int
+nve0_ram_train_init_0(struct nouveau_fb *pfb, struct nve0_ram_train *train)
+{
+	int i, j;
+
+	if ((train->mask & 0x03d3) != 0x03d3) {
+		nv_warn(pfb, "missing link training data\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 0x30; i++) {
+		for (j = 0; j < 8; j += 4) {
+			nv_wr32(pfb, 0x10f968 + j, 0x00000000 | (i << 8));
+			nv_wr32(pfb, 0x10f920 + j, 0x00000000 |
+						   train->type08.data[i] << 4 |
+						   train->type06.data[i]);
+			nv_wr32(pfb, 0x10f918 + j, train->type00.data[i]);
+			nv_wr32(pfb, 0x10f920 + j, 0x00000100 |
+						   train->type09.data[i] << 4 |
+						   train->type07.data[i]);
+			nv_wr32(pfb, 0x10f918 + j, train->type01.data[i]);
+		}
+	}
+
+	for (j = 0; j < 8; j += 4) {
+		for (i = 0; i < 0x100; i++) {
+			nv_wr32(pfb, 0x10f968 + j, i);
+			nv_wr32(pfb, 0x10f900 + j, train->type04.data[i]);
+		}
+	}
+
+	return 0;
+}
+
+static int
+nve0_ram_train_init(struct nouveau_fb *pfb)
+{
+	u8 ramcfg = nvbios_ramcfg_index(nv_subdev(pfb));
+	struct nve0_ram_train *train;
+	int ret = -ENOMEM, i;
+
+	if ((train = kzalloc(sizeof(*train), GFP_KERNEL))) {
+		for (i = 0; i < 0x100; i++) {
+			ret = nve0_ram_train_type(pfb, i, ramcfg, train);
+			if (ret && ret != -ENOENT)
+				break;
+		}
+	}
+
+	switch (pfb->ram->type) {
+	case NV_MEM_TYPE_GDDR5:
+		ret = nve0_ram_train_init_0(pfb, train);
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+
+	kfree(train);
+	return ret;
+}
+
 int
 nve0_ram_init(struct nouveau_object *object)
 {
 	struct nouveau_fb *pfb = (void *)object->parent;
 	struct nve0_ram *ram   = (void *)object;
 	struct nouveau_bios *bios = nouveau_bios(pfb);
-	static const u8  train0[] = {
-		0x00, 0xff, 0xff, 0x00, 0xff, 0x00,
-		0x00, 0xff, 0xff, 0x00, 0xff, 0x00,
-	};
-	static const u32 train1[] = {
-		0x00000000, 0xffffffff,
-		0x55555555, 0xaaaaaaaa,
-		0x33333333, 0xcccccccc,
-		0xf0f0f0f0, 0x0f0f0f0f,
-		0x00ff00ff, 0xff00ff00,
-		0x0000ffff, 0xffff0000,
-	};
 	u8  ver, hdr, cnt, len, snr, ssz;
 	u32 data, save;
 	int ret, i;
@@ -1190,37 +1315,7 @@ nve0_ram_init(struct nouveau_object *object)
 	nv_wr32(pfb, 0x10ecc0, 0xffffffff);
 	nv_mask(pfb, 0x10f160, 0x00000010, 0x00000010);
 
-	switch (ram->base.type) {
-	case NV_MEM_TYPE_GDDR5:
-		for (i = 0; i < 0x30; i++) {
-			nv_wr32(pfb, 0x10f968, 0x00000000 | (i << 8));
-			nv_wr32(pfb, 0x10f920, 0x00000000 | train0[i % 12]);
-			nv_wr32(pfb, 0x10f918,              train1[i % 12]);
-			nv_wr32(pfb, 0x10f920, 0x00000100 | train0[i % 12]);
-			nv_wr32(pfb, 0x10f918,              train1[i % 12]);
-
-			nv_wr32(pfb, 0x10f96c, 0x00000000 | (i << 8));
-			nv_wr32(pfb, 0x10f924, 0x00000000 | train0[i % 12]);
-			nv_wr32(pfb, 0x10f91c,              train1[i % 12]);
-			nv_wr32(pfb, 0x10f924, 0x00000100 | train0[i % 12]);
-			nv_wr32(pfb, 0x10f91c,              train1[i % 12]);
-		}
-
-		for (i = 0; i < 0x100; i++) {
-			nv_wr32(pfb, 0x10f968, i);
-			nv_wr32(pfb, 0x10f900, train1[2 + (i & 1)]);
-		}
-
-		for (i = 0; i < 0x100; i++) {
-			nv_wr32(pfb, 0x10f96c, i);
-			nv_wr32(pfb, 0x10f904, train1[2 + (i & 1)]);
-		}
-		break;
-	default:
-		break;
-	}
-
-	return 0;
+	return nve0_ram_train_init(pfb);
 }
 
 static int
