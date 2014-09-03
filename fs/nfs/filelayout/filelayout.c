@@ -649,18 +649,15 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	}
 
 	/* find and reference the deviceid */
-	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode)->pnfs_curr_ld,
-				   NFS_SERVER(lo->plh_inode)->nfs_client, id);
-	if (d == NULL) {
-		dsaddr = filelayout_get_device_info(lo->plh_inode, id,
-				lo->plh_lc_cred, gfp_flags);
-		if (dsaddr == NULL)
-			goto out;
-	} else
-		dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
+	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode), id,
+			lo->plh_lc_cred, gfp_flags);
+	if (d == NULL)
+		goto out;
+
+	dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
 	/* Found deviceid is unavailable */
 	if (filelayout_test_devid_unavailable(&dsaddr->id_node))
-			goto out_put;
+		goto out_put;
 
 	fl->dsaddr = dsaddr;
 
@@ -1371,6 +1368,17 @@ out:
 	cinfo->ds->ncommitting = 0;
 	return PNFS_ATTEMPTED;
 }
+static struct nfs4_deviceid_node *
+filelayout_alloc_deviceid_node(struct nfs_server *server,
+		struct pnfs_device *pdev, gfp_t gfp_flags)
+{
+	struct nfs4_file_layout_dsaddr *dsaddr;
+
+	dsaddr = nfs4_fl_alloc_deviceid_node(server, pdev, gfp_flags);
+	if (!dsaddr)
+		return NULL;
+	return &dsaddr->id_node;
+}
 
 static void
 filelayout_free_deveiceid_node(struct nfs4_deviceid_node *d)
@@ -1423,6 +1431,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.commit_pagelist	= filelayout_commit_pagelist,
 	.read_pagelist		= filelayout_read_pagelist,
 	.write_pagelist		= filelayout_write_pagelist,
+	.alloc_deviceid_node	= filelayout_alloc_deviceid_node,
 	.free_deviceid_node	= filelayout_free_deveiceid_node,
 };
 

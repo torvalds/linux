@@ -84,6 +84,7 @@ struct pnfs_layoutdriver_type {
 	const char *name;
 	struct module *owner;
 	unsigned flags;
+	unsigned max_deviceinfo_size;
 
 	int (*set_layoutdriver) (struct nfs_server *, const struct nfs_fh *);
 	int (*clear_layoutdriver) (struct nfs_server *);
@@ -126,6 +127,9 @@ struct pnfs_layoutdriver_type {
 	enum pnfs_try_status (*write_pagelist)(struct nfs_pgio_header *, int);
 
 	void (*free_deviceid_node) (struct nfs4_deviceid_node *);
+	struct nfs4_deviceid_node * (*alloc_deviceid_node)
+			(struct nfs_server *server, struct pnfs_device *pdev,
+			gfp_t gfp_flags);
 
 	void (*encode_layoutreturn) (struct pnfs_layout_hdr *layoutid,
 				     struct xdr_stream *xdr,
@@ -261,11 +265,12 @@ struct nfs4_deviceid_node {
 	atomic_t			ref;
 };
 
-struct nfs4_deviceid_node *nfs4_find_get_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
+struct nfs4_deviceid_node *
+nfs4_find_get_deviceid(struct nfs_server *server,
+		const struct nfs4_deviceid *id, struct rpc_cred *cred,
+		gfp_t gfp_mask);
 void nfs4_delete_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
-void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
-			     const struct pnfs_layoutdriver_type *,
-			     const struct nfs_client *,
+void nfs4_init_deviceid_node(struct nfs4_deviceid_node *, struct nfs_server *,
 			     const struct nfs4_deviceid *);
 struct nfs4_deviceid_node *nfs4_insert_deviceid_node(struct nfs4_deviceid_node *);
 bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
