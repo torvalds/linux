@@ -43,8 +43,8 @@
 
 	i2c3_pins: pinmux_i2c3_pins {
 		pinctrl-single,pins = <
-			0x410 (PIN_INPUT | MUX_MODE0) /* i2c3_sda */
-			0x414 (PIN_INPUT | MUX_MODE0) /* i2c3_scl */
+			0x288 (PIN_INPUT | MUX_MODE9) /* gpio6_14.i2c3_sda */
+			0x28c (PIN_INPUT | MUX_MODE9) /* gpio6_15.i2c3_scl */
 		>;
 	};
 
@@ -284,7 +284,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
-	clock-frequency = <3400000>;
+	clock-frequency = <400000>;
 };
 
 &mcspi1 {
