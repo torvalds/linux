@@ -185,6 +185,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	char *prefix = "";
 	int ret, cpu_args;
 
+	/* For single DAI link & old style of DT node */
 	if (is_top_level_node)
 		prefix = "simple-audio-card,";
 
@@ -318,13 +319,15 @@ dai_link_of_err:
 
 static int asoc_simple_card_parse_of(struct device_node *node,
 				     struct simple_card_data *priv,
-				     struct device *dev,
-				     int multi)
+				     struct device *dev)
 {
 	struct snd_soc_dai_link *dai_link = priv->snd_card.dai_link;
 	struct simple_dai_props *dai_props = priv->dai_props;
 	u32 val;
 	int ret;
+
+	if (!node)
+		return -EINVAL;
 
 	/* parsing the card name from DT */
 	snd_soc_of_parse_card_name(&priv->snd_card, "simple-audio-card,name");
@@ -353,7 +356,8 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	dev_dbg(dev, "New simple-card: %s\n", priv->snd_card.name ?
 		priv->snd_card.name : "");
 
-	if (multi) {
+	/* Single/Muti DAI link(s) & New style of DT node */
+	if (of_get_child_by_name(node, "simple-audio-card,dai-link")) {
 		struct device_node *np = NULL;
 		int i = 0;
 
@@ -370,6 +374,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			i++;
 		}
 	} else {
+		/* For single DAI link & old style of DT node */
 		ret = asoc_simple_card_dai_link_of(node, dev,
 						   dai_link, dai_props, true);
 		if (ret < 0)
@@ -409,16 +414,13 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link *dai_link;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	int num_links, multi, ret;
+	int num_links, ret;
 
 	/* get the number of DAI links */
-	if (np && of_get_child_by_name(np, "simple-audio-card,dai-link")) {
+	if (np && of_get_child_by_name(np, "simple-audio-card,dai-link"))
 		num_links = of_get_child_count(np);
-		multi = 1;
-	} else {
+	else
 		num_links = 1;
-		multi = 0;
-	}
 
 	/* allocate the private data and the DAI link array */
 	priv = devm_kzalloc(dev,
@@ -445,7 +447,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 
 	if (np && of_device_is_available(np)) {
 
-		ret = asoc_simple_card_parse_of(np, priv, dev, multi);
+		ret = asoc_simple_card_parse_of(np, priv, dev);
 		if (ret < 0) {
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev, "parse error %d\n", ret);
