@@ -400,7 +400,7 @@ static int e4000_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	struct e4000 *s = container_of(ctrl->handler, struct e4000, hdl);
 	int ret;
 
-	if (s->active == false)
+	if (!s->active)
 		return 0;
 
 	switch (ctrl->id) {
@@ -423,7 +423,7 @@ static int e4000_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 
-	if (s->active == false)
+	if (!s->active)
 		return 0;
 
 	switch (ctrl->id) {
