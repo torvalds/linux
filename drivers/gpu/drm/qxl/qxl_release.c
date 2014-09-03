@@ -162,12 +162,14 @@ static void
 qxl_release_free_list(struct qxl_release *release)
 {
 	while (!list_empty(&release->bos)) {
-		struct ttm_validate_buffer *entry;
+		struct qxl_bo_list *entry;
+		struct qxl_bo *bo;
 
 		entry = container_of(release->bos.next,
-				     struct ttm_validate_buffer, head);
-
-		list_del(&entry->head);
+				     struct qxl_bo_list, tv.head);
+		bo = to_qxl_bo(entry->tv.bo);
+		qxl_bo_unref(&bo);
+		list_del(&entry->tv.head);
 		kfree(entry);
 	}
 }
