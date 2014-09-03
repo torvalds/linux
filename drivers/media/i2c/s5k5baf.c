@@ -816,7 +816,7 @@ static void s5k5baf_hw_find_min_fiv(struct s5k5baf *state)
 				 "error setting frame interval: %d\n", err);
 			state->error = -EINVAL;
 		}
-	};
+	}
 	v4l2_err(&state->sd, "cannot find correct frame interval\n");
 	state->error = -ERANGE;
 }
