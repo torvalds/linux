@@ -157,7 +157,6 @@ static int mt2060_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct mt2060_priv *priv;
-	int ret=0;
 	int i=0;
 	u32 freq;
 	u8  lnaband;
@@ -240,7 +239,7 @@ static int mt2060_set_params(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
-	return ret;
+	return 0;
 }
 
 static void mt2060_calibrate(struct mt2060_priv *priv)
