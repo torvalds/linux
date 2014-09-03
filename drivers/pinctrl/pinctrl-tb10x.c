@@ -697,7 +697,7 @@ static void tb10x_gpio_disable_free(struct pinctrl_dev *pctl,
 	mutex_unlock(&state->mutex);
 }
 
-static int tb10x_pctl_enable(struct pinctrl_dev *pctl,
+static int tb10x_pctl_set_mux(struct pinctrl_dev *pctl,
 			unsigned func_selector, unsigned group_selector)
 {
 	struct tb10x_pinctrl *state = pinctrl_dev_get_drvdata(pctl);
@@ -744,7 +744,7 @@ static struct pinmux_ops tb10x_pinmux_ops = {
 	.get_function_groups = tb10x_get_function_groups,
 	.gpio_request_enable = tb10x_gpio_request_enable,
 	.gpio_disable_free = tb10x_gpio_disable_free,
-	.enable = tb10x_pctl_enable,
+	.set_mux = tb10x_pctl_set_mux,
 };
 
 static struct pinctrl_desc tb10x_pindesc = {

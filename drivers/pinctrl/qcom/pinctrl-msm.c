@@ -134,9 +134,9 @@ static int msm_get_function_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int msm_pinmux_enable(struct pinctrl_dev *pctldev,
-			     unsigned function,
-			     unsigned group)
+static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
+			      unsigned function,
+			      unsigned group)
 {
 	struct msm_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct msm_pingroup *g;
@@ -170,7 +170,7 @@ static const struct pinmux_ops msm_pinmux_ops = {
 	.get_functions_count	= msm_get_functions_count,
 	.get_function_name	= msm_get_function_name,
 	.get_function_groups	= msm_get_function_groups,
-	.enable			= msm_pinmux_enable,
+	.set_mux		= msm_pinmux_set_mux,
 };
 
 static int msm_config_reg(struct msm_pinctrl *pctrl,

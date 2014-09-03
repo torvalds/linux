@@ -709,8 +709,8 @@ static int abx500_pmx_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int abx500_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
-			     unsigned group)
+static int abx500_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
+			  unsigned group)
 {
 	struct abx500_pinctrl *pct = pinctrl_dev_get_drvdata(pctldev);
 	struct gpio_chip *chip = &pct->chip;
@@ -784,7 +784,7 @@ static const struct pinmux_ops abx500_pinmux_ops = {
 	.get_functions_count = abx500_pmx_get_funcs_cnt,
 	.get_function_name = abx500_pmx_get_func_name,
 	.get_function_groups = abx500_pmx_get_func_groups,
-	.enable = abx500_pmx_enable,
+	.set_mux = abx500_pmx_set,
 	.gpio_request_enable = abx500_gpio_request_enable,
 	.gpio_disable_free = abx500_gpio_disable_free,
 };

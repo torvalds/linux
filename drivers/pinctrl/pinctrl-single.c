@@ -447,7 +447,7 @@ static int pcs_get_function(struct pinctrl_dev *pctldev, unsigned pin,
 	return 0;
 }
 
-static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
+static int pcs_set_mux(struct pinctrl_dev *pctldev, unsigned fselector,
 	unsigned group)
 {
 	struct pcs_device *pcs;
@@ -519,7 +519,7 @@ static const struct pinmux_ops pcs_pinmux_ops = {
 	.get_functions_count = pcs_get_functions_count,
 	.get_function_name = pcs_get_function_name,
 	.get_function_groups = pcs_get_function_groups,
-	.enable = pcs_enable,
+	.set_mux = pcs_sex_mux,
 	.gpio_request_enable = pcs_request_gpio,
 };
 

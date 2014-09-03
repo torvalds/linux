@@ -393,9 +393,9 @@ static void sunxi_pmx_set(struct pinctrl_dev *pctldev,
 	spin_unlock_irqrestore(&pctl->lock, flags);
 }
 
-static int sunxi_pmx_enable(struct pinctrl_dev *pctldev,
-			    unsigned function,
-			    unsigned group)
+static int sunxi_pmx_set_mux(struct pinctrl_dev *pctldev,
+			     unsigned function,
+			     unsigned group)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct sunxi_pinctrl_group *g = pctl->groups + group;
@@ -441,7 +441,7 @@ static const struct pinmux_ops sunxi_pmx_ops = {
 	.get_functions_count	= sunxi_pmx_get_funcs_cnt,
 	.get_function_name	= sunxi_pmx_get_func_name,
 	.get_function_groups	= sunxi_pmx_get_func_groups,
-	.enable			= sunxi_pmx_enable,
+	.set_mux		= sunxi_pmx_set_mux,
 	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
 };
 

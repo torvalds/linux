@@ -401,8 +401,9 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 }
 
 /* enable a specified pinmux by writing to registers */
-static int samsung_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
-					unsigned group)
+static int samsung_pinmux_set_mux(struct pinctrl_dev *pctldev,
+				  unsigned selector,
+				  unsigned group)
 {
 	samsung_pinmux_setup(pctldev, selector, group, true);
 	return 0;
@@ -413,7 +414,7 @@ static const struct pinmux_ops samsung_pinmux_ops = {
 	.get_functions_count	= samsung_get_functions_count,
 	.get_function_name	= samsung_pinmux_get_fname,
 	.get_function_groups	= samsung_pinmux_get_groups,
-	.enable			= samsung_pinmux_enable,
+	.set_mux		= samsung_pinmux_set_mux,
 };
 
 /* set or get the pin config settings for a specified pin */

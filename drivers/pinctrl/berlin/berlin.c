@@ -170,9 +170,9 @@ berlin_pinctrl_find_function_by_name(struct berlin_pinctrl *pctrl,
 	return NULL;
 }
 
-static int berlin_pinmux_enable(struct pinctrl_dev *pctrl_dev,
-				unsigned function,
-				unsigned group)
+static int berlin_pinmux_set(struct pinctrl_dev *pctrl_dev,
+			     unsigned function,
+			     unsigned group)
 {
 	struct berlin_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctrl_dev);
 	const struct berlin_desc_group *group_desc = pctrl->desc->groups + group;
@@ -197,7 +197,7 @@ static const struct pinmux_ops berlin_pinmux_ops = {
 	.get_functions_count	= &berlin_pinmux_get_functions_count,
 	.get_function_name	= &berlin_pinmux_get_function_name,
 	.get_function_groups	= &berlin_pinmux_get_function_groups,
-	.enable			= &berlin_pinmux_enable,
+	.set_mux		= &berlin_pinmux_set,
 };
 
 static int berlin_pinctrl_add_function(struct berlin_pinctrl *pctrl,

@@ -547,8 +547,9 @@ static void tz1090_pdc_pinctrl_mux(struct tz1090_pdc_pmx *pmx,
 	__global_unlock2(flags);
 }
 
-static int tz1090_pdc_pinctrl_enable(struct pinctrl_dev *pctldev,
-				     unsigned int function, unsigned int group)
+static int tz1090_pdc_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+				      unsigned int function,
+				      unsigned int group)
 {
 	struct tz1090_pdc_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const struct tz1090_pdc_pingroup *grp = &tz1090_pdc_groups[group];
@@ -634,7 +635,7 @@ static struct pinmux_ops tz1090_pdc_pinmux_ops = {
 	.get_functions_count	= tz1090_pdc_pinctrl_get_funcs_count,
 	.get_function_name	= tz1090_pdc_pinctrl_get_func_name,
 	.get_function_groups	= tz1090_pdc_pinctrl_get_func_groups,
-	.enable			= tz1090_pdc_pinctrl_enable,
+	.set_mux		= tz1090_pdc_pinctrl_set_mux,
 	.gpio_request_enable	= tz1090_pdc_pinctrl_gpio_request_enable,
 	.gpio_disable_free	= tz1090_pdc_pinctrl_gpio_disable_free,
 };

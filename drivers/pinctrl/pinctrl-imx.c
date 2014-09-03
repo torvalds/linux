@@ -179,8 +179,8 @@ static const struct pinctrl_ops imx_pctrl_ops = {
 
 };
 
-static int imx_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
-			   unsigned group)
+static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
+		       unsigned group)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
@@ -298,7 +298,7 @@ static const struct pinmux_ops imx_pmx_ops = {
 	.get_functions_count = imx_pmx_get_funcs_count,
 	.get_function_name = imx_pmx_get_func_name,
 	.get_function_groups = imx_pmx_get_groups,
-	.enable = imx_pmx_enable,
+	.set_mux = imx_pmx_set,
 };
 
 static int imx_pinconf_get(struct pinctrl_dev *pctldev,

@@ -554,8 +554,8 @@ static void at91_mux_gpio_enable(void __iomem *pio, unsigned mask, bool input)
 	writel_relaxed(mask, pio + (input ? PIO_ODR : PIO_OER));
 }
 
-static int at91_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
-			   unsigned group)
+static int at91_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
+			unsigned group)
 {
 	struct at91_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const struct at91_pmx_pin *pins_conf = info->groups[group].pins_conf;
@@ -684,7 +684,7 @@ static const struct pinmux_ops at91_pmx_ops = {
 	.get_functions_count	= at91_pmx_get_funcs_count,
 	.get_function_name	= at91_pmx_get_func_name,
 	.get_function_groups	= at91_pmx_get_groups,
-	.enable			= at91_pmx_enable,
+	.set_mux		= at91_pmx_set,
 	.gpio_request_enable	= at91_gpio_request_enable,
 	.gpio_disable_free	= at91_gpio_disable_free,
 };
