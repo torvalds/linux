@@ -564,13 +564,13 @@ static int ov9740_set_res(struct i2c_client *client, u32 width, u32 height)
 	u32 y_start;
 	u32 x_end;
 	u32 y_end;
-	bool scaling = 0;
+	bool scaling = false;
 	u32 scale_input_x;
 	u32 scale_input_y;
 	int ret;
 
 	if ((width != OV9740_MAX_WIDTH) || (height != OV9740_MAX_HEIGHT))
-		scaling = 1;
+		scaling = true;
 
 	/*
 	 * Try to use as much of the sensor area as possible when supporting
