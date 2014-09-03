@@ -3643,18 +3643,20 @@ static int et131x_mii_probe(struct net_device *netdev)
 		return PTR_ERR(phydev);
 	}
 
-	phydev->supported &= (SUPPORTED_10baseT_Half
-				| SUPPORTED_10baseT_Full
-				| SUPPORTED_100baseT_Half
-				| SUPPORTED_100baseT_Full
-				| SUPPORTED_Autoneg
-				| SUPPORTED_MII
-				| SUPPORTED_TP);
+	phydev->supported &= (SUPPORTED_10baseT_Half |
+			      SUPPORTED_10baseT_Full |
+			      SUPPORTED_100baseT_Half |
+			      SUPPORTED_100baseT_Full |
+			      SUPPORTED_Autoneg |
+			      SUPPORTED_MII |
+			      SUPPORTED_TP);
 
 	if (adapter->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
-		phydev->supported |= SUPPORTED_1000baseT_Full;
+		phydev->supported |= SUPPORTED_1000baseT_Half |
+				     SUPPORTED_1000baseT_Full;
 
 	phydev->advertising = phydev->supported;
+	phydev->autoneg = AUTONEG_ENABLE;
 	adapter->phydev = phydev;
 
 	dev_info(&adapter->pdev->dev,
