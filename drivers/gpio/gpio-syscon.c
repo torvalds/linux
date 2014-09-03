@@ -37,6 +37,8 @@
  * dat_bit_offset:	Offset (in bits) to the first GPIO bit.
  * dir_bit_offset:	Optional offset (in bits) to the first bit to switch
  *			GPIO direction (Used with GPIO_SYSCON_FEAT_DIR flag).
+ * set:		HW specific callback to assigns output value
+ *			for signal "offset"
  */
 
 struct syscon_gpio_data {
@@ -45,6 +47,8 @@ struct syscon_gpio_data {
 	unsigned int	bit_count;
 	unsigned int	dat_bit_offset;
 	unsigned int	dir_bit_offset;
+	void		(*set)(struct gpio_chip *chip,
+			       unsigned offset, int value);
 };
 
 struct syscon_gpio_priv {
@@ -111,7 +115,7 @@ static int syscon_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int val)
 				   BIT(offs % SYSCON_REG_BITS));
 	}
 
-	syscon_gpio_set(chip, offset, val);
+	priv->data->set(chip, offset, val);
 
 	return 0;
 }
@@ -159,7 +163,7 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 	if (priv->data->flags & GPIO_SYSCON_FEAT_IN)
 		priv->chip.direction_input = syscon_gpio_dir_in;
 	if (priv->data->flags & GPIO_SYSCON_FEAT_OUT) {
-		priv->chip.set = syscon_gpio_set;
+		priv->chip.set = priv->data->set ? : syscon_gpio_set;
 		priv->chip.direction_output = syscon_gpio_dir_out;
 	}
 
