@@ -13003,7 +13003,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		}
 	}
 
-	if (crtc->active || IS_VALLEYVIEW(dev) || INTEL_INFO(dev)->gen < 5) {
+	if (crtc->active || HAS_GMCH_DISPLAY(dev)) {
 		/*
 		 * We start out with underrun reporting disabled to avoid races.
 		 * For correct bookkeeping mark this on active crtcs.
