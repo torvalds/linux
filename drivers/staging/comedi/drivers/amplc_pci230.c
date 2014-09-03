@@ -649,14 +649,14 @@ static unsigned int pci230_divide_ns(uint64_t ns, unsigned int timebase,
 
 	div = ns;
 	rem = do_div(div, timebase);
-	switch (flags & TRIG_ROUND_MASK) {
+	switch (flags & CMDF_ROUND_MASK) {
 	default:
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 		div += (rem + (timebase / 2)) / timebase;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		div += (rem + timebase - 1) / timebase;
 		break;
 	}
@@ -1735,7 +1735,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 		if (!pci230_ai_check_scan_period(cmd)) {
 			/* Was below minimum required.  Round up. */
 			pci230_ns_to_single_timer(&cmd->scan_begin_arg,
-						  TRIG_ROUND_UP);
+						  CMDF_ROUND_UP);
 			pci230_ai_check_scan_period(cmd);
 		}
 		if (tmp != cmd->scan_begin_arg)
@@ -2334,7 +2334,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			pci230_ct_setup_ns_mode(dev, 0, I8254_MODE1,
 						((uint64_t)cmd->convert_arg *
 						 cmd->scan_end_arg),
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 			if (cmd->scan_begin_src == TRIG_TIMER) {
 				/*
 				 * Monostable on CT0 will be triggered by
