@@ -6093,7 +6093,7 @@ static int read_one_dev(struct btrfs_root *root,
 
 	if (memcmp(fs_uuid, root->fs_info->fsid, BTRFS_UUID_SIZE)) {
 		ret = open_seed_devices(root, fs_uuid);
-		if (ret && !btrfs_test_opt(root, DEGRADED))
+		if (ret && !(ret == -ENOENT && btrfs_test_opt(root, DEGRADED)))
 			return ret;
 	}
 
