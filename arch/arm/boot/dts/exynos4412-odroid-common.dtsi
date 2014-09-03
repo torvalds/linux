@@ -204,6 +204,7 @@
 			connect-gpios = <&gpx3 4 0>;
 			reset-gpios = <&gpx3 5 0>;
 			initial-mode = <1>;
+			usb3503-gpio-waittime = <100>;
 		};
 
 		max77686: pmic@09 {
