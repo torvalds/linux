@@ -696,8 +696,8 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	ixgbe_set_rss_queues(adapter);
 }
 
-static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
-				       int vectors)
+static int ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
+				      int vectors)
 {
 	int vector_threshold;
 
@@ -726,16 +726,22 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 		adapter->flags &= ~IXGBE_FLAG_MSIX_ENABLED;
 		kfree(adapter->msix_entries);
 		adapter->msix_entries = NULL;
-	} else {
-		adapter->flags |= IXGBE_FLAG_MSIX_ENABLED; /* Woot! */
-		/*
-		 * Adjust for only the vectors we'll use, which is minimum
-		 * of max_msix_q_vectors + NON_Q_VECTORS, or the number of
-		 * vectors we were allocated.
-		 */
-		vectors -= NON_Q_VECTORS;
-		adapter->num_q_vectors = min(vectors, adapter->max_q_vectors);
+
+		return vectors;
 	}
+
+	/* we successfully allocated some number of vectors within our
+	 * requested range.
+	 */
+	adapter->flags |= IXGBE_FLAG_MSIX_ENABLED;
+
+	/* Adjust for only the vectors we'll use, which is minimum
+	 * of max_q_vectors, or the number of vectors we were allocated.
+	 */
+	vectors -= NON_Q_VECTORS;
+	adapter->num_q_vectors = min_t(int, vectors, adapter->max_q_vectors);
+
+	return 0;
 }
 
 static void ixgbe_add_ring(struct ixgbe_ring *ring,
@@ -1085,9 +1091,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		for (vector = 0; vector < v_budget; vector++)
 			adapter->msix_entries[vector].entry = vector;
 
-		ixgbe_acquire_msix_vectors(adapter, v_budget);
-
-		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
+		if (!ixgbe_acquire_msix_vectors(adapter, v_budget))
 			return;
 	}
 
