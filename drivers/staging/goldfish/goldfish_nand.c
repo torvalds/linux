@@ -329,9 +329,10 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 
 	mtd->priv = nand;
 
-	mtd->name = name = devm_kzalloc(&pdev->dev, name_len + 1, GFP_KERNEL);
+	name = devm_kzalloc(&pdev->dev, name_len + 1, GFP_KERNEL);
 	if (name == NULL)
 		return -ENOMEM;
+	mtd->name = name;
 
 	result = goldfish_nand_cmd(mtd, NAND_CMD_GET_DEV_NAME, 0, name_len,
 				   name);
