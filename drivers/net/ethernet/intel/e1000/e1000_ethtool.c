@@ -968,7 +968,7 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 			if (rxdr->buffer_info[i].dma)
 				dma_unmap_single(&pdev->dev,
 						 rxdr->buffer_info[i].dma,
-						 rxdr->buffer_info[i].length,
+						 E1000_RXBUFFER_2048,
 						 DMA_FROM_DEVICE);
 			if (rxdr->buffer_info[i].skb)
 				dev_kfree_skb(rxdr->buffer_info[i].skb);
@@ -1065,7 +1065,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	if (!rxdr->count)
 		rxdr->count = E1000_DEFAULT_RXD;
 
-	rxdr->buffer_info = kcalloc(rxdr->count, sizeof(struct e1000_buffer),
+	rxdr->buffer_info = kcalloc(rxdr->count, sizeof(struct e1000_rx_buffer),
 				    GFP_KERNEL);
 	if (!rxdr->buffer_info) {
 		ret_val = 5;
@@ -1104,7 +1104,6 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		}
 		skb_reserve(skb, NET_IP_ALIGN);
 		rxdr->buffer_info[i].skb = skb;
-		rxdr->buffer_info[i].length = E1000_RXBUFFER_2048;
 		rxdr->buffer_info[i].dma =
 			dma_map_single(&pdev->dev, skb->data,
 				       E1000_RXBUFFER_2048, DMA_FROM_DEVICE);
@@ -1440,7 +1439,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 		do { /* receive the sent packets */
 			dma_sync_single_for_cpu(&pdev->dev,
 						rxdr->buffer_info[l].dma,
-						rxdr->buffer_info[l].length,
+						E1000_RXBUFFER_2048,
 						DMA_FROM_DEVICE);
 
 			ret_val = e1000_check_lbtest_frame(

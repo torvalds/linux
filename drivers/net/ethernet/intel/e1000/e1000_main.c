@@ -1687,7 +1687,7 @@ static int e1000_setup_rx_resources(struct e1000_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	int size, desc_len;
 
-	size = sizeof(struct e1000_buffer) * rxdr->count;
+	size = sizeof(struct e1000_rx_buffer) * rxdr->count;
 	rxdr->buffer_info = vzalloc(size);
 	if (!rxdr->buffer_info)
 		return -ENOMEM;
@@ -2062,7 +2062,7 @@ static void e1000_clean_rx_ring(struct e1000_adapter *adapter,
 				struct e1000_rx_ring *rx_ring)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	struct e1000_buffer *buffer_info;
+	struct e1000_rx_buffer *buffer_info;
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned long size;
 	unsigned int i;
@@ -2073,12 +2073,12 @@ static void e1000_clean_rx_ring(struct e1000_adapter *adapter,
 		if (buffer_info->dma &&
 		    adapter->clean_rx == e1000_clean_rx_irq) {
 			dma_unmap_single(&pdev->dev, buffer_info->dma,
-			                 buffer_info->length,
+					 adapter->rx_buffer_len,
 					 DMA_FROM_DEVICE);
 		} else if (buffer_info->dma &&
 		           adapter->clean_rx == e1000_clean_jumbo_rx_irq) {
 			dma_unmap_page(&pdev->dev, buffer_info->dma,
-				       buffer_info->length,
+				       adapter->rx_buffer_len,
 				       DMA_FROM_DEVICE);
 		}
 
@@ -2099,7 +2099,7 @@ static void e1000_clean_rx_ring(struct e1000_adapter *adapter,
 		rx_ring->rx_skb_top = NULL;
 	}
 
-	size = sizeof(struct e1000_buffer) * rx_ring->count;
+	size = sizeof(struct e1000_rx_buffer) * rx_ring->count;
 	memset(rx_ring->buffer_info, 0, size);
 
 	/* Zero out the descriptor ring */
@@ -3415,7 +3415,7 @@ rx_ring_summary:
 
 	for (i = 0; rx_ring->desc && (i < rx_ring->count); i++) {
 		struct e1000_rx_desc *rx_desc = E1000_RX_DESC(*rx_ring, i);
-		struct e1000_buffer *buffer_info = &rx_ring->buffer_info[i];
+		struct e1000_rx_buffer *buffer_info = &rx_ring->buffer_info[i];
 		struct my_u { __le64 a; __le64 b; };
 		struct my_u *u = (struct my_u *)rx_desc;
 		const char *type;
@@ -3951,7 +3951,7 @@ static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
 /**
  * e1000_consume_page - helper function
  **/
-static void e1000_consume_page(struct e1000_buffer *bi, struct sk_buff *skb,
+static void e1000_consume_page(struct e1000_rx_buffer *bi, struct sk_buff *skb,
 			       u16 length)
 {
 	bi->page = NULL;
@@ -4104,7 +4104,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_rx_desc *rx_desc, *next_rxd;
-	struct e1000_buffer *buffer_info, *next_buffer;
+	struct e1000_rx_buffer *buffer_info, *next_buffer;
 	u32 length;
 	unsigned int i;
 	int cleaned_count = 0;
@@ -4137,7 +4137,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 		cleaned = true;
 		cleaned_count++;
 		dma_unmap_page(&pdev->dev, buffer_info->dma,
-			       buffer_info->length, DMA_FROM_DEVICE);
+			       adapter->rx_buffer_len, DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
 		length = le16_to_cpu(rx_desc->length);
@@ -4273,7 +4273,7 @@ next_desc:
  * of reassembly being done in the stack
  */
 static struct sk_buff *e1000_copybreak(struct e1000_adapter *adapter,
-				       struct e1000_buffer *buffer_info,
+				       struct e1000_rx_buffer *buffer_info,
 				       u32 length, const void *data)
 {
 	struct sk_buff *skb;
@@ -4307,7 +4307,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_rx_desc *rx_desc, *next_rxd;
-	struct e1000_buffer *buffer_info, *next_buffer;
+	struct e1000_rx_buffer *buffer_info, *next_buffer;
 	u32 length;
 	unsigned int i;
 	int cleaned_count = 0;
@@ -4337,7 +4337,8 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			skb = buffer_info->skb;
 			buffer_info->skb = NULL;
 			dma_unmap_single(&pdev->dev, buffer_info->dma,
-					 buffer_info->length, DMA_FROM_DEVICE);
+					 adapter->rx_buffer_len,
+					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
 		}
 
@@ -4443,7 +4444,7 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_rx_desc *rx_desc;
-	struct e1000_buffer *buffer_info;
+	struct e1000_rx_buffer *buffer_info;
 	struct sk_buff *skb;
 	unsigned int i;
 	unsigned int bufsz = 256 - 16 /*for skb_reserve */ ;
@@ -4466,7 +4467,6 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 		}
 
 		buffer_info->skb = skb;
-		buffer_info->length = adapter->rx_buffer_len;
 check_page:
 		/* allocate a new page if necessary */
 		if (!buffer_info->page) {
@@ -4480,7 +4480,7 @@ check_page:
 		if (!buffer_info->dma) {
 			buffer_info->dma = dma_map_page(&pdev->dev,
 							buffer_info->page, 0,
-							buffer_info->length,
+							PAGE_SIZE,
 							DMA_FROM_DEVICE);
 			if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
 				put_page(buffer_info->page);
@@ -4528,7 +4528,7 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_rx_desc *rx_desc;
-	struct e1000_buffer *buffer_info;
+	struct e1000_rx_buffer *buffer_info;
 	struct sk_buff *skb;
 	unsigned int i;
 	unsigned int bufsz = adapter->rx_buffer_len;
@@ -4576,10 +4576,9 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 			dev_kfree_skb(oldskb);
 		}
 		buffer_info->skb = skb;
-		buffer_info->length = adapter->rx_buffer_len;
 		buffer_info->dma = dma_map_single(&pdev->dev,
 						  skb->data,
-						  buffer_info->length,
+						  adapter->rx_buffer_len,
 						  DMA_FROM_DEVICE);
 		if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
 			dev_kfree_skb(skb);

@@ -160,6 +160,12 @@ struct e1000_buffer {
 	u16 mapped_as_page;
 };
 
+struct e1000_rx_buffer {
+	struct sk_buff *skb;
+	dma_addr_t dma;
+	struct page *page;
+};
+
 struct e1000_tx_ring {
 	/* pointer to the descriptor ring memory */
 	void *desc;
@@ -195,7 +201,7 @@ struct e1000_rx_ring {
 	/* next descriptor to check for DD status bit */
 	unsigned int next_to_clean;
 	/* array of buffer information structs */
-	struct e1000_buffer *buffer_info;
+	struct e1000_rx_buffer *buffer_info;
 	struct sk_buff *rx_skb_top;
 
 	/* cpu for rx queue */
