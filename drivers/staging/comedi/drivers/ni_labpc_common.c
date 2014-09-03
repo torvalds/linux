@@ -690,7 +690,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (labpc_have_dma_chan(dev) &&
 	    /* dma unsafe at RT priority,
 	     * and too much setup time for TRIG_WAKE_EOS */
-	    (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0)
+	    (cmd->flags & (TRIG_WAKE_EOS | CMDF_PRIORITY)) == 0)
 		xfer = isa_dma_transfer;
 	else if (/* pc-plus has no fifo-half full interrupt */
 		 board->is_labpc1200 &&
