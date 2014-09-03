@@ -59,7 +59,7 @@ static ssize_t ts_write(struct file *file, const char __user *buf,
 				     (&dev->tsout_rbuf) >= count) < 0)
 		return 0;
 
-	dvb_ringbuffer_write(&dev->tsout_rbuf, buf, count);
+	dvb_ringbuffer_write_user(&dev->tsout_rbuf, buf, count);
 
 	return count;
 }
