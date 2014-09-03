@@ -835,10 +835,10 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 					VPDMA_STRIDE_ALIGN);
 		mv_buf_size = bytes_per_line * s_q_data->height;
 
-		ctx->deinterlacing = 1;
+		ctx->deinterlacing = true;
 		src_h <<= 1;
 	} else {
-		ctx->deinterlacing = 0;
+		ctx->deinterlacing = false;
 		mv_buf_size = 0;
 	}
 
