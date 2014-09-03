@@ -253,11 +253,17 @@ static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
 	int i;
 
 	for (i = 0; i < p->nrelocs; i++) {
+		struct reservation_object *resv;
+		struct fence *fence;
+
 		if (!p->relocs[i].robj)
 			continue;
 
+		resv = p->relocs[i].robj->tbo.resv;
+		fence = reservation_object_get_excl(resv);
+
 		radeon_semaphore_sync_to(p->ib.semaphore,
-					 p->relocs[i].robj->tbo.sync_obj);
+					 (struct radeon_fence *)fence);
 	}
 }
 
@@ -427,7 +433,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
-					    parser->ib.fence);
+					    &parser->ib.fence->base);
 	} else if (backoff) {
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);

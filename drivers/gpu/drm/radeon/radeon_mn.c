@@ -122,6 +122,7 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 	it = interval_tree_iter_first(&rmn->objects, start, end);
 	while (it) {
 		struct radeon_bo *bo;
+		struct fence *fence;
 		int r;
 
 		bo = container_of(it, struct radeon_bo, mn_it);
@@ -133,8 +134,9 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 			continue;
 		}
 
-		if (bo->tbo.sync_obj) {
-			r = radeon_fence_wait(bo->tbo.sync_obj, false);
+		fence = reservation_object_get_excl(bo->tbo.resv);
+		if (fence) {
+			r = radeon_fence_wait((struct radeon_fence *)fence, false);
 			if (r)
 				DRM_ERROR("(%d) failed to wait for user bo\n", r);
 		}

@@ -82,7 +82,7 @@ nv84_fence_emit(struct nouveau_fence *fence)
 	else
 		addr += fctx->vma.offset;
 
-	return fctx->base.emit32(chan, addr, fence->sequence);
+	return fctx->base.emit32(chan, addr, fence->base.seqno);
 }
 
 static int
@@ -97,7 +97,7 @@ nv84_fence_sync(struct nouveau_fence *fence,
 	else
 		addr += fctx->vma.offset;
 
-	return fctx->base.sync32(chan, addr, fence->sequence);
+	return fctx->base.sync32(chan, addr, fence->base.seqno);
 }
 
 static u32
@@ -139,12 +139,13 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	if (!fctx)
 		return -ENOMEM;
 
-	nouveau_fence_context_new(&fctx->base);
+	nouveau_fence_context_new(chan, &fctx->base);
 	fctx->base.emit = nv84_fence_emit;
 	fctx->base.sync = nv84_fence_sync;
 	fctx->base.read = nv84_fence_read;
 	fctx->base.emit32 = nv84_fence_emit32;
 	fctx->base.sync32 = nv84_fence_sync32;
+	fctx->base.sequence = nv84_fence_read(chan);
 
 	ret = nouveau_bo_vma_add(priv->bo, cli->vm, &fctx->vma);
 	if (ret == 0) {
@@ -168,13 +169,12 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 static bool
 nv84_fence_suspend(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo *pfifo = nvkm_fifo(&drm->device);
 	struct nv84_fence_priv *priv = drm->fence;
 	int i;
 
-	priv->suspend = vmalloc((pfifo->max + 1) * sizeof(u32));
+	priv->suspend = vmalloc(priv->base.contexts * sizeof(u32));
 	if (priv->suspend) {
-		for (i = 0; i <= pfifo->max; i++)
+		for (i = 0; i < priv->base.contexts; i++)
 			priv->suspend[i] = nouveau_bo_rd32(priv->bo, i*4);
 	}
 
@@ -184,12 +184,11 @@ nv84_fence_suspend(struct nouveau_drm *drm)
 static void
 nv84_fence_resume(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo *pfifo = nvkm_fifo(&drm->device);
 	struct nv84_fence_priv *priv = drm->fence;
 	int i;
 
 	if (priv->suspend) {
-		for (i = 0; i <= pfifo->max; i++)
+		for (i = 0; i < priv->base.contexts; i++)
 			nouveau_bo_wr32(priv->bo, i*4, priv->suspend[i]);
 		vfree(priv->suspend);
 		priv->suspend = NULL;
@@ -229,10 +228,11 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
 
-	init_waitqueue_head(&priv->base.waiting);
+	priv->base.contexts = pfifo->max + 1;
+	priv->base.context_base = fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
 
-	ret = nouveau_bo_new(drm->dev, 16 * (pfifo->max + 1), 0,
+	ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
 			     TTM_PL_FLAG_VRAM, 0, 0, NULL, &priv->bo);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
@@ -246,7 +246,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	}
 
 	if (ret == 0)
-		ret = nouveau_bo_new(drm->dev, 16 * (pfifo->max + 1), 0,
+		ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
 				     TTM_PL_FLAG_TT, 0, 0, NULL,
 				     &priv->bo_gart);
 	if (ret == 0) {

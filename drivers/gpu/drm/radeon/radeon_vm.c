@@ -399,7 +399,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
         INIT_LIST_HEAD(&head);
         list_add(&tv.head, &head);
 
-        r = ttm_eu_reserve_buffers(&ticket, &head);
+        r = ttm_eu_reserve_buffers(&ticket, &head, true);
         if (r)
 		return r;
 
@@ -424,7 +424,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 	if (r)
                 goto error;
 
-	ttm_eu_fence_buffer_objects(&ticket, &head, ib.fence);
+	ttm_eu_fence_buffer_objects(&ticket, &head, &ib.fence->base);
 	radeon_ib_free(rdev, &ib);
 
 	return 0;
@@ -693,8 +693,14 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 				    incr, R600_PTE_VALID);
 
 	if (ib.length_dw != 0) {
+		struct fence *fence;
+
 		radeon_asic_vm_pad_ib(rdev, &ib);
-		radeon_semaphore_sync_to(ib.semaphore, pd->tbo.sync_obj);
+
+		fence = reservation_object_get_excl(pd->tbo.resv);
+		radeon_semaphore_sync_to(ib.semaphore,
+					 (struct radeon_fence *)fence);
+
 		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
 		WARN_ON(ib.length_dw > ndw);
 		r = radeon_ib_schedule(rdev, &ib, NULL, false);
@@ -820,8 +826,11 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 		struct radeon_bo *pt = vm->page_tables[pt_idx].bo;
 		unsigned nptes;
 		uint64_t pte;
+		struct fence *fence;
 
-		radeon_semaphore_sync_to(ib->semaphore, pt->tbo.sync_obj);
+		fence = reservation_object_get_excl(pt->tbo.resv);
+		radeon_semaphore_sync_to(ib->semaphore,
+					 (struct radeon_fence *)fence);
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;

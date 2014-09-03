@@ -324,6 +324,21 @@ void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev, int ring)
 }
 
 /**
+ * radeon_irq_kms_sw_irq_get_delayed - enable software interrupt
+ *
+ * @rdev: radeon device pointer
+ * @ring: ring whose interrupt you want to enable
+ *
+ * Enables the software interrupt for a specific ring (all asics).
+ * The software interrupt is generally used to signal a fence on
+ * a particular ring.
+ */
+bool radeon_irq_kms_sw_irq_get_delayed(struct radeon_device *rdev, int ring)
+{
+	return atomic_inc_return(&rdev->irq.ring_int[ring]) == 1;
+}
+
+/**
  * radeon_irq_kms_sw_irq_put - disable software interrupt
  *
  * @rdev: radeon device pointer
