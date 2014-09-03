@@ -435,6 +435,7 @@ void rtl8821ae_dm_bt_fw_coex_all_off(struct ieee80211_hw *hw)
 {
 	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	RT_TRACE(COMP_BT_COEXIST, DBG_TRACE,
 		("rtl8821ae_dm_bt_fw_coex_all_off()\n"));
 
