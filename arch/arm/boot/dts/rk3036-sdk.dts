@@ -37,7 +37,7 @@
 	wireless-wlan {
 		compatible = "wlan-platdata";
 
-		wifi_chip_type = "";
+		wifi_chip_type = "esp8089";
 		sdio_vref = <0>; //1800mv or 3300mv
 
 		//power_ctrl_by_pmu;
