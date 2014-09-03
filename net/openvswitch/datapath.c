@@ -265,8 +265,11 @@ void ovs_dp_process_received_packet(struct vport *p, struct sk_buff *skb)
 		upcall.key = &key;
 		upcall.userdata = NULL;
 		upcall.portid = ovs_vport_find_upcall_portid(p, skb);
-		ovs_dp_upcall(dp, skb, &upcall);
-		consume_skb(skb);
+		error = ovs_dp_upcall(dp, skb, &upcall);
+		if (unlikely(error))
+			kfree_skb(skb);
+		else
+			consume_skb(skb);
 		stats_counter = &stats->n_missed;
 		goto out;
 	}
