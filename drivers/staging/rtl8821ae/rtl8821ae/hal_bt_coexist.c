@@ -44,7 +44,7 @@ void rtl8821ae_dm_bt_reject_ap_aggregated_packet(struct ieee80211_hw *hw, bool b
 	PRX_TS_RECORD			pRxTs = NULL;
 
 	if(b_reject){
-		// Do not allow receiving A-MPDU aggregation.
+		/* Do not allow receiving A-MPDU aggregation. */
 		if (rtlpriv->mac80211.vendor == PEER_CISCO) {
 				if (pHTInfo->bAcceptAddbaReq) {
 					RTPRINT(FBT, BT_TRACE, ("BT_Disallow AMPDU \n"));
