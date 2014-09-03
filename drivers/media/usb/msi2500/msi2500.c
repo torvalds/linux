@@ -1212,7 +1212,7 @@ static int msi2500_probe(struct usb_interface *intf,
 	s->pixelformat = formats[0].pixelformat;
 	s->buffersize = formats[0].buffersize;
 	s->num_formats = NUM_FORMATS;
-	if (msi2500_emulated_fmt == false)
+	if (!msi2500_emulated_fmt)
 		s->num_formats -= 2;
 
 	/* Init videobuf2 queue structure */
