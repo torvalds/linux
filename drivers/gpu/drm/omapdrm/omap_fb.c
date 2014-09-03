@@ -86,6 +86,7 @@ struct plane {
 
 struct omap_framebuffer {
 	struct drm_framebuffer base;
+	int pin_count;
 	const struct format *format;
 	struct plane planes[4];
 };
@@ -249,6 +250,11 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	int ret, i, n = drm_format_num_planes(fb->pixel_format);
 
+	if (omap_fb->pin_count > 0) {
+		omap_fb->pin_count++;
+		return 0;
+	}
+
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
 		ret = omap_gem_get_paddr(plane->bo, &plane->paddr, true);
@@ -256,6 +262,8 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 			goto fail;
 		omap_gem_dma_sync(plane->bo, DMA_TO_DEVICE);
 	}
+
+	omap_fb->pin_count++;
 
 	return 0;
 
@@ -274,6 +282,11 @@ int omap_framebuffer_unpin(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	int ret, i, n = drm_format_num_planes(fb->pixel_format);
+
+	omap_fb->pin_count--;
+
+	if (omap_fb->pin_count > 0)
+		return 0;
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
