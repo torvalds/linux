@@ -720,8 +720,6 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 			fs_devices->rw_devices--;
 		}
 
-		if (device->can_discard)
-			fs_devices->num_can_discard--;
 		if (device->missing)
 			fs_devices->missing_devices--;
 
@@ -828,10 +826,8 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		}
 
 		q = bdev_get_queue(bdev);
-		if (blk_queue_discard(q)) {
+		if (blk_queue_discard(q))
 			device->can_discard = 1;
-			fs_devices->num_can_discard++;
-		}
 
 		device->bdev = bdev;
 		device->in_fs_metadata = 0;
@@ -1835,8 +1831,7 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 		if (!fs_devices->seeding)
 			fs_devices->rw_devices++;
 	}
-	if (srcdev->can_discard)
-		fs_devices->num_can_discard--;
+
 	if (srcdev->bdev) {
 		fs_devices->open_devices--;
 
@@ -1886,8 +1881,6 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		fs_info->fs_devices->open_devices--;
 	}
 	fs_info->fs_devices->num_devices--;
-	if (tgtdev->can_discard)
-		fs_info->fs_devices->num_can_discard++;
 
 	next_device = list_entry(fs_info->fs_devices->devices.next,
 				 struct btrfs_device, dev_list);
@@ -2008,7 +2001,6 @@ static int btrfs_prepare_sprout(struct btrfs_root *root)
 	fs_devices->num_devices = 0;
 	fs_devices->open_devices = 0;
 	fs_devices->missing_devices = 0;
-	fs_devices->num_can_discard = 0;
 	fs_devices->rotating = 0;
 	fs_devices->seed = seed_devices;
 
@@ -2200,8 +2192,6 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	root->fs_info->fs_devices->open_devices++;
 	root->fs_info->fs_devices->rw_devices++;
 	root->fs_info->fs_devices->total_devices++;
-	if (device->can_discard)
-		root->fs_info->fs_devices->num_can_discard++;
 	root->fs_info->fs_devices->total_rw_bytes += device->total_bytes;
 
 	spin_lock(&root->fs_info->free_chunk_lock);
@@ -2371,8 +2361,6 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
 	list_add(&device->dev_list, &fs_info->fs_devices->devices);
 	fs_info->fs_devices->num_devices++;
 	fs_info->fs_devices->open_devices++;
-	if (device->can_discard)
-		fs_info->fs_devices->num_can_discard++;
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	*device_out = device;

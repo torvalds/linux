@@ -124,7 +124,6 @@ struct btrfs_fs_devices {
 	u64 rw_devices;
 	u64 missing_devices;
 	u64 total_rw_bytes;
-	u64 num_can_discard;
 	u64 total_devices;
 	struct block_device *latest_bdev;
 
