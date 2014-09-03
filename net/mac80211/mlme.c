@@ -673,6 +673,9 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	    (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT))
 		capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
 
+	if (ifmgd->flags & IEEE80211_STA_ENABLE_RRM)
+		capab |= WLAN_CAPABILITY_RADIO_MEASURE;
+
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
 	memset(mgmt, 0, 24);
 	memcpy(mgmt->da, assoc_data->bss->bssid, ETH_ALEN);
@@ -738,16 +741,17 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		}
 	}
 
-	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT) {
-		/* 1. power capabilities */
+	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT ||
+	    capab & WLAN_CAPABILITY_RADIO_MEASURE) {
 		pos = skb_put(skb, 4);
 		*pos++ = WLAN_EID_PWR_CAPABILITY;
 		*pos++ = 2;
 		*pos++ = 0; /* min tx power */
 		 /* max tx power */
 		*pos++ = ieee80211_chandef_max_power(&chanctx_conf->def);
+	}
 
-		/* 2. supported channels */
+	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT) {
 		/* TODO: get this in reg domain format */
 		pos = skb_put(skb, 2 * sband->n_channels + 2);
 		*pos++ = WLAN_EID_SUPPORTED_CHANNELS;
@@ -4409,6 +4413,11 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->mfp = IEEE80211_MFP_DISABLED;
 		ifmgd->flags &= ~IEEE80211_STA_MFP_ENABLED;
 	}
+
+	if (req->flags & ASSOC_REQ_USE_RRM)
+		ifmgd->flags |= IEEE80211_STA_ENABLE_RRM;
+	else
+		ifmgd->flags &= ~IEEE80211_STA_ENABLE_RRM;
 
 	if (req->crypto.control_port)
 		ifmgd->flags |= IEEE80211_STA_CONTROL_PORT;
