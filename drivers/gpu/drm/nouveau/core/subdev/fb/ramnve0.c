@@ -1073,13 +1073,99 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	return nve0_ram_calc_xits(pfb, ram->base.next);
 }
 
+static void
+nve0_ram_prog_0(struct nouveau_fb *pfb, u32 freq)
+{
+	struct nve0_ram *ram = (void *)pfb->ram;
+	struct nouveau_ram_data *cfg;
+	u32 mhz = freq / 1000;
+	u32 mask, data;
+
+	list_for_each_entry(cfg, &ram->cfg, head) {
+		if (mhz >= cfg->bios.rammap_min &&
+		    mhz <= cfg->bios.rammap_max)
+			break;
+	}
+
+	if (&cfg->head == &ram->cfg)
+		return;
+
+	if (mask = 0, data = 0, ram->diff.rammap_11_0a_03fe) {
+		data |= cfg->bios.rammap_11_0a_03fe << 12;
+		mask |= 0x001ff000;
+	}
+	if (ram->diff.rammap_11_09_01ff) {
+		data |= cfg->bios.rammap_11_09_01ff;
+		mask |= 0x000001ff;
+	}
+	nv_mask(pfb, 0x10f468, mask, data);
+
+	if (mask = 0, data = 0, ram->diff.rammap_11_0a_0400) {
+		data |= cfg->bios.rammap_11_0a_0400;
+		mask |= 0x00000001;
+	}
+	nv_mask(pfb, 0x10f420, mask, data);
+
+	if (mask = 0, data = 0, ram->diff.rammap_11_0a_0800) {
+		data |= cfg->bios.rammap_11_0a_0800;
+		mask |= 0x00000001;
+	}
+	nv_mask(pfb, 0x10f430, mask, data);
+
+	if (mask = 0, data = 0, ram->diff.rammap_11_0b_01f0) {
+		data |= cfg->bios.rammap_11_0b_01f0;
+		mask |= 0x0000001f;
+	}
+	nv_mask(pfb, 0x10f400, mask, data);
+
+	if (mask = 0, data = 0, ram->diff.rammap_11_0b_0200) {
+		data |= cfg->bios.rammap_11_0b_0200 << 9;
+		mask |= 0x00000200;
+	}
+	nv_mask(pfb, 0x10f410, mask, data);
+
+	if (mask = 0, data = 0, ram->diff.rammap_11_0d) {
+		data |= cfg->bios.rammap_11_0d << 16;
+		mask |= 0x00ff0000;
+	}
+	if (ram->diff.rammap_11_0f) {
+		data |= cfg->bios.rammap_11_0f << 8;
+		mask |= 0x0000ff00;
+	}
+	nv_mask(pfb, 0x10f440, mask, data);
+
+	if (mask = 0, data = 0, ram->diff.rammap_11_0e) {
+		data |= cfg->bios.rammap_11_0e << 8;
+		mask |= 0x0000ff00;
+	}
+	if (ram->diff.rammap_11_0b_0800) {
+		data |= cfg->bios.rammap_11_0b_0800 << 7;
+		mask |= 0x00000080;
+	}
+	if (ram->diff.rammap_11_0b_0400) {
+		data |= cfg->bios.rammap_11_0b_0400 << 5;
+		mask |= 0x00000020;
+	}
+	nv_mask(pfb, 0x10f444, mask, data);
+}
+
 static int
 nve0_ram_prog(struct nouveau_fb *pfb)
 {
 	struct nouveau_device *device = nv_device(pfb);
 	struct nve0_ram *ram = (void *)pfb->ram;
 	struct nve0_ramfuc *fuc = &ram->fuc;
-	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", true));
+	struct nouveau_ram_data *next = ram->base.next;
+
+	if (!nouveau_boolopt(device->cfgopt, "NvMemExec", true)) {
+		ram_exec(fuc, false);
+		return (ram->base.next == &ram->base.xition);
+	}
+
+	nve0_ram_prog_0(pfb, 1000);
+	ram_exec(fuc, true);
+	nve0_ram_prog_0(pfb, next->freq);
+
 	return (ram->base.next == &ram->base.xition);
 }
 
@@ -1325,6 +1411,17 @@ nve0_ram_ctor_data(struct nve0_ram *ram, u8 ramcfg, int i)
 	if (ret = 0, i == 0)
 		goto done;
 
+	d->rammap_11_0a_03fe |= p->rammap_11_0a_03fe != n->rammap_11_0a_03fe;
+	d->rammap_11_09_01ff |= p->rammap_11_09_01ff != n->rammap_11_09_01ff;
+	d->rammap_11_0a_0400 |= p->rammap_11_0a_0400 != n->rammap_11_0a_0400;
+	d->rammap_11_0a_0800 |= p->rammap_11_0a_0800 != n->rammap_11_0a_0800;
+	d->rammap_11_0b_01f0 |= p->rammap_11_0b_01f0 != n->rammap_11_0b_01f0;
+	d->rammap_11_0b_0200 |= p->rammap_11_0b_0200 != n->rammap_11_0b_0200;
+	d->rammap_11_0d |= p->rammap_11_0d != n->rammap_11_0d;
+	d->rammap_11_0f |= p->rammap_11_0f != n->rammap_11_0f;
+	d->rammap_11_0e |= p->rammap_11_0e != n->rammap_11_0e;
+	d->rammap_11_0b_0800 |= p->rammap_11_0b_0800 != n->rammap_11_0b_0800;
+	d->rammap_11_0b_0400 |= p->rammap_11_0b_0400 != n->rammap_11_0b_0400;
 	d->ramcfg_11_01_01 |= p->ramcfg_11_01_01 != n->ramcfg_11_01_01;
 	d->ramcfg_11_01_02 |= p->ramcfg_11_01_02 != n->ramcfg_11_01_02;
 	d->ramcfg_11_01_10 |= p->ramcfg_11_01_10 != n->ramcfg_11_01_10;
