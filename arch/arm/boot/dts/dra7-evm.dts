@@ -483,7 +483,7 @@
 			reg = <0x001c0000 0x00020000>;
 		};
 		partition@7 {
-			label = "NAND.u-boot-env";
+			label = "NAND.u-boot-env.backup1";
 			reg = <0x001e0000 0x00020000>;
 		};
 		partition@8 {
