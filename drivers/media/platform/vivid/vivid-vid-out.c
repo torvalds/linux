@@ -897,14 +897,10 @@ int vidioc_s_fmt_vid_out_overlay(struct file *file, void *priv,
 		return ret;
 
 	if (win->bitmap) {
-		new_bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+		new_bitmap = memdup_user(win->bitmap, bitmap_size);
 
-		if (new_bitmap == NULL)
-			return -ENOMEM;
-		if (copy_from_user(new_bitmap, win->bitmap, bitmap_size)) {
-			kfree(new_bitmap);
-			return -EFAULT;
-		}
+		if (IS_ERR(new_bitmap))
+			return PTR_ERR(new_bitmap);
 	}
 
 	dev->overlay_out_top = win->w.top;
