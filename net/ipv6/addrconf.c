@@ -4768,10 +4768,9 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
 		if (!ipv6_addr_any(&ifp->peer_addr)) {
 			struct rt6_info *rt;
-			struct net_device *dev = ifp->idev->dev;
 
-			rt = rt6_lookup(dev_net(dev), &ifp->peer_addr, NULL,
-					dev->ifindex, 1);
+			rt = addrconf_get_prefix_route(&ifp->peer_addr, 128,
+						       ifp->idev->dev, 0, 0);
 			if (rt && ip6_del_rt(rt))
 				dst_free(&rt->dst);
 		}
