@@ -17,23 +17,15 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/crc-ccitt.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
-#include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
-#include <linux/firmware.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/platform_data/st21nfcb.h>
-
-#include <net/nfc/nci.h>
-#include <net/nfc/llc.h>
-#include <net/nfc/nfc.h>
 
 #include "ndlc.h"
 

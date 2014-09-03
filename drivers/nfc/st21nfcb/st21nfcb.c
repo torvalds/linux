@@ -22,7 +22,6 @@
 #include <net/nfc/nci_core.h>
 
 #include "st21nfcb.h"
-#include "ndlc.h"
 
 #define DRIVER_DESC "NCI NFC driver for ST21NFCB"
 
