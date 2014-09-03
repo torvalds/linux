@@ -66,8 +66,6 @@ static struct generic_pm_domain *pm_genpd_lookup_name(const char *domain_name)
 	return genpd;
 }
 
-#ifdef CONFIG_PM
-
 struct generic_pm_domain *dev_to_genpd(struct device *dev)
 {
 	if (IS_ERR_OR_NULL(dev->pm_domain))
@@ -280,8 +278,6 @@ int pm_genpd_name_poweron(const char *domain_name)
 	genpd = pm_genpd_lookup_name(domain_name);
 	return genpd ? pm_genpd_poweron(genpd) : -EINVAL;
 }
-
-#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_RUNTIME
 
