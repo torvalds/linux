@@ -756,9 +756,9 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned long flags;
 	int range;
 
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
-			 "isa dma transfers cannot be performed with TRIG_RT, aborting\n");
+			 "isa dma transfers cannot be performed with CMDF_PRIORITY, aborting\n");
 		return -1;
 	}
 
