@@ -2840,7 +2840,8 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
 		bytenr = btrfs_sb_offset(i);
-		if (bytenr + BTRFS_SUPER_INFO_SIZE > scrub_dev->total_bytes)
+		if (bytenr + BTRFS_SUPER_INFO_SIZE >
+		    scrub_dev->commit_total_bytes)
 			break;
 
 		ret = scrub_pages(sctx, bytenr, BTRFS_SUPER_INFO_SIZE, bytenr,

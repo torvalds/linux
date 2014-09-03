@@ -1868,6 +1868,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	memcpy(root->fs_info->super_for_commit, root->fs_info->super_copy,
 	       sizeof(*root->fs_info->super_copy));
 
+	btrfs_update_commit_device_size(root->fs_info);
+
 	spin_lock(&root->fs_info->trans_lock);
 	cur_trans->state = TRANS_STATE_UNBLOCKED;
 	root->fs_info->running_transaction = NULL;

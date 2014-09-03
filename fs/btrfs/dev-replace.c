@@ -168,6 +168,8 @@ no_valid_dev_replace_entry_found:
 					dev_replace->srcdev->total_bytes;
 				dev_replace->tgtdev->disk_total_bytes =
 					dev_replace->srcdev->disk_total_bytes;
+				dev_replace->tgtdev->commit_total_bytes =
+					dev_replace->srcdev->commit_total_bytes;
 				dev_replace->tgtdev->bytes_used =
 					dev_replace->srcdev->bytes_used;
 			}
@@ -329,6 +331,20 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	    args->start.tgtdev_name[0] == '\0')
 		return -EINVAL;
 
+	/*
+	 * Here we commit the transaction to make sure commit_total_bytes
+	 * of all the devices are updated.
+	 */
+	trans = btrfs_attach_transaction(root);
+	if (!IS_ERR(trans)) {
+		ret = btrfs_commit_transaction(trans, root);
+		if (ret)
+			return ret;
+	} else if (PTR_ERR(trans) != -ENOENT) {
+		return PTR_ERR(trans);
+	}
+
+	/* the disk copy procedure reuses the scrub code */
 	mutex_lock(&fs_info->volume_mutex);
 	ret = btrfs_dev_replace_find_srcdev(root, args->start.srcdevid,
 					    args->start.srcdev_name,
@@ -539,6 +555,8 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	memcpy(src_device->uuid, uuid_tmp, sizeof(src_device->uuid));
 	tgt_device->total_bytes = src_device->total_bytes;
 	tgt_device->disk_total_bytes = src_device->disk_total_bytes;
+	ASSERT(list_empty(&src_device->resized_list));
+	tgt_device->commit_total_bytes = src_device->commit_total_bytes;
 	tgt_device->bytes_used = src_device->bytes_used;
 	if (fs_info->sb->s_bdev == src_device->bdev)
 		fs_info->sb->s_bdev = tgt_device->bdev;

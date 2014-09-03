@@ -807,7 +807,7 @@ static int btrfsic_process_superblock_dev_mirror(
 
 	/* super block bytenr is always the unmapped device bytenr */
 	dev_bytenr = btrfs_sb_offset(superblock_mirror_num);
-	if (dev_bytenr + BTRFS_SUPER_INFO_SIZE > device->total_bytes)
+	if (dev_bytenr + BTRFS_SUPER_INFO_SIZE > device->commit_total_bytes)
 		return -1;
 	bh = __bread(superblock_bdev, dev_bytenr / 4096,
 		     BTRFS_SUPER_INFO_SIZE);

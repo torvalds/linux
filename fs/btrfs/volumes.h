@@ -87,6 +87,21 @@ struct btrfs_device {
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
 
+	/*
+	 * size of the device on the current transaction
+	 *
+	 * This variant is update when committing the transaction,
+	 * and protected by device_list_mutex
+	 */
+	u64 commit_total_bytes;
+
+	/*
+	 * used to manage the device which is resized
+	 *
+	 * It is protected by chunk_lock.
+	 */
+	struct list_head resized_list;
+
 	/* for sending down flush barriers */
 	int nobarriers;
 	struct bio *flush_bio;
@@ -136,6 +151,7 @@ struct btrfs_fs_devices {
 	struct mutex device_list_mutex;
 	struct list_head devices;
 
+	struct list_head resized_devices;
 	/* devices not currently being allocated */
 	struct list_head alloc_list;
 	struct list_head list;
@@ -402,4 +418,6 @@ static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
 {
 	btrfs_dev_stat_set(dev, index, 0);
 }
+
+void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
 #endif
