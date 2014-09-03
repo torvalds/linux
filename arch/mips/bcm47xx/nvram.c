@@ -23,13 +23,13 @@
 static char nvram_buf[NVRAM_SPACE];
 static const u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
 
-static u32 find_nvram_size(u32 end)
+static u32 find_nvram_size(void __iomem *end)
 {
-	struct nvram_header *header;
+	struct nvram_header __iomem *header;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
-		header = (struct nvram_header *)KSEG1ADDR(end - nvram_sizes[i]);
+		header = (struct nvram_header *)(end - nvram_sizes[i]);
 		if (header->magic == NVRAM_HEADER)
 			return nvram_sizes[i];
 	}
@@ -38,35 +38,39 @@ static u32 find_nvram_size(u32 end)
 }
 
 /* Probe for NVRAM header */
-static int nvram_find_and_copy(u32 base, u32 lim)
+static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 {
-	struct nvram_header *header;
+	struct nvram_header __iomem *header;
 	int i;
 	u32 off;
 	u32 *src, *dst;
 	u32 size;
 
+	if (nvram_buf[0]) {
+		pr_warn("nvram already initialized\n");
+		return -EEXIST;
+	}
+
 	/* TODO: when nvram is on nand flash check for bad blocks first. */
 	off = FLASH_MIN;
 	while (off <= lim) {
 		/* Windowed flash access */
-		size = find_nvram_size(base + off);
+		size = find_nvram_size(iobase + off);
 		if (size) {
-			header = (struct nvram_header *)KSEG1ADDR(base + off -
-								  size);
+			header = (struct nvram_header *)(iobase + off - size);
 			goto found;
 		}
 		off <<= 1;
 	}
 
 	/* Try embedded NVRAM at 4 KB and 1 KB as last resorts */
-	header = (struct nvram_header *) KSEG1ADDR(base + 4096);
+	header = (struct nvram_header *)(iobase + 4096);
 	if (header->magic == NVRAM_HEADER) {
 		size = NVRAM_SPACE;
 		goto found;
 	}
 
-	header = (struct nvram_header *) KSEG1ADDR(base + 1024);
+	header = (struct nvram_header *)(iobase + 1024);
 	if (header->magic == NVRAM_HEADER) {
 		size = NVRAM_SPACE;
 		goto found;
@@ -94,6 +98,22 @@ found:
 	return 0;
 }
 
+static int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
+{
+	void __iomem *iobase;
+	int err;
+
+	iobase = ioremap_nocache(base, lim);
+	if (!iobase)
+		return -ENOMEM;
+
+	err = nvram_find_and_copy(iobase, lim);
+
+	iounmap(iobase);
+
+	return err;
+}
+
 #ifdef CONFIG_BCM47XX_SSB
 static int nvram_init_ssb(void)
 {
@@ -109,7 +129,7 @@ static int nvram_init_ssb(void)
 		return -ENXIO;
 	}
 
-	return nvram_find_and_copy(base, lim);
+	return bcm47xx_nvram_init_from_mem(base, lim);
 }
 #endif
 
@@ -139,7 +159,7 @@ static int nvram_init_bcma(void)
 		return -ENXIO;
 	}
 
-	return nvram_find_and_copy(base, lim);
+	return bcm47xx_nvram_init_from_mem(base, lim);
 }
 #endif
 
