@@ -511,9 +511,9 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
 
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
-			"dma incompatible with hard real-time interrupt (TRIG_RT), aborting\n");
+			"dma incompatible with hard real-time interrupt (CMDF_PRIORITY), aborting\n");
 		return -1;
 	}
 	/*  clear fifo and reset triggering circuitry */
