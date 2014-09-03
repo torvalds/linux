@@ -6693,6 +6693,13 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	phba->fc_stat.elsRcvFrame++;
 
+	/*
+	 * Do not process any unsolicited ELS commands
+	 * if the ndlp is in DEV_LOSS
+	 */
+	if (ndlp->nlp_add_flag & NLP_IN_DEV_LOSS)
+		goto dropit;
+
 	elsiocb->context1 = lpfc_nlp_get(ndlp);
 	elsiocb->vport = vport;
 

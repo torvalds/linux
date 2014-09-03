@@ -153,6 +153,16 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 			put_device(&rport->dev);
 			return;
 		}
+
+		put_node = rdata->pnode != NULL;
+		put_rport = ndlp->rport != NULL;
+		rdata->pnode = NULL;
+		ndlp->rport = NULL;
+		if (put_node)
+			lpfc_nlp_put(ndlp);
+		if (put_rport)
+			put_device(&rport->dev);
+		return;
 	}
 
 	evtp = &ndlp->dev_loss_evt;
@@ -161,6 +171,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		return;
 
 	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
+	ndlp->nlp_add_flag |= NLP_IN_DEV_LOSS;
 
 	spin_lock_irq(&phba->hbalock);
 	/* We need to hold the node by incrementing the reference
@@ -201,8 +212,10 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 
 	rport = ndlp->rport;
 
-	if (!rport)
+	if (!rport) {
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		return fcf_inuse;
+	}
 
 	rdata = rport->dd_data;
 	name = (uint8_t *) &ndlp->nlp_portname;
@@ -235,6 +248,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		put_rport = ndlp->rport != NULL;
 		rdata->pnode = NULL;
 		ndlp->rport = NULL;
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		if (put_node)
 			lpfc_nlp_put(ndlp);
 		if (put_rport)
@@ -250,6 +264,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 *name, *(name+1), *(name+2), *(name+3),
 				 *(name+4), *(name+5), *(name+6), *(name+7),
 				 ndlp->nlp_DID);
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		return fcf_inuse;
 	}
 
@@ -259,6 +274,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		put_rport = ndlp->rport != NULL;
 		rdata->pnode = NULL;
 		ndlp->rport = NULL;
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		if (put_node)
 			lpfc_nlp_put(ndlp);
 		if (put_rport)
@@ -297,6 +313,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	put_rport = ndlp->rport != NULL;
 	rdata->pnode = NULL;
 	ndlp->rport = NULL;
+	ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 	if (put_node)
 		lpfc_nlp_put(ndlp);
 	if (put_rport)
