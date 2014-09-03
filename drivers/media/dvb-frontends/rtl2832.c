@@ -936,7 +936,7 @@ static void rtl2832_i2c_gate_work(struct work_struct *work)
 	if (ret != 1)
 		goto err;
 
-	priv->i2c_gate_state = 0;
+	priv->i2c_gate_state = false;
 
 	return;
 err:

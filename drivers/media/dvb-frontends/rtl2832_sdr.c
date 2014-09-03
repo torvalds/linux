@@ -1432,7 +1432,7 @@ struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 	s->pixelformat = formats[0].pixelformat;
 	s->buffersize = formats[0].buffersize;
 	s->num_formats = NUM_FORMATS;
-	if (rtl2832_sdr_emulated_fmt == false)
+	if (!rtl2832_sdr_emulated_fmt)
 		s->num_formats -= 1;
 
 	mutex_init(&s->v4l2_lock);
