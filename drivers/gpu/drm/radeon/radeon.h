@@ -915,6 +915,8 @@ struct radeon_vm_manager {
 	u64				vram_base_offset;
 	/* is vm enabled? */
 	bool				enabled;
+	/* for hw to save the PD addr on suspend/resume */
+	uint32_t			saved_table_addr[RADEON_NUM_VM];
 };
 
 /*

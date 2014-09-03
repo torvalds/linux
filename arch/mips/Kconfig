@@ -2396,8 +2396,6 @@ source "kernel/Kconfig.preempt"
 
 config KEXEC
 	bool "Kexec system call"
-	select CRYPTO
-	select CRYPTO_SHA256
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
