@@ -3,6 +3,7 @@
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014, Intel Corporation
+ * Copyright 2014  Intel Mobile Communications GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
