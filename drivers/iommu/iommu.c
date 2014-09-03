@@ -948,7 +948,7 @@ phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
 EXPORT_SYMBOL_GPL(iommu_iova_to_phys);
 
 int iommu_domain_has_cap(struct iommu_domain *domain,
-			 unsigned long cap)
+			 enum iommu_cap cap)
 {
 	if (unlikely(domain->ops->domain_has_cap == NULL))
 		return 0;

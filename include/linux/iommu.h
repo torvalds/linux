@@ -57,8 +57,11 @@ struct iommu_domain {
 	struct iommu_domain_geometry geometry;
 };
 
-#define IOMMU_CAP_CACHE_COHERENCY	0x1
-#define IOMMU_CAP_INTR_REMAP		0x2	/* isolates device intrs */
+enum iommu_cap {
+	IOMMU_CAP_CACHE_COHERENCY,	/* IOMMU can enforce cache coherent DMA
+					   transactions */
+	IOMMU_CAP_INTR_REMAP,		/* IOMMU supports interrupt isolation */
+};
 
 /*
  * Following constraints are specifc to FSL_PAMUV1:
@@ -155,7 +158,7 @@ extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 		       size_t size);
 extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova);
 extern int iommu_domain_has_cap(struct iommu_domain *domain,
-				unsigned long cap);
+				enum iommu_cap cap);
 extern void iommu_set_fault_handler(struct iommu_domain *domain,
 			iommu_fault_handler_t handler, void *token);
 
@@ -305,7 +308,7 @@ static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_ad
 }
 
 static inline int iommu_domain_has_cap(struct iommu_domain *domain,
-				       unsigned long cap)
+				       enum iommu_cap cap)
 {
 	return 0;
 }
