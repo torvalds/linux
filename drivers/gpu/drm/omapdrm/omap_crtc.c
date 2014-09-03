@@ -606,7 +606,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 	if (omap_crtc->old_fb) {
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		dev_err(dev->dev, "already a pending flip\n");
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	omap_crtc->event = event;
