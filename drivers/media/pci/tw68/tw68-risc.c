@@ -9,7 +9,11 @@
  *  acknowledged.  Full credit goes to them - any problems within this code
  *  are mine.
  *
- *  Copyright (C) 2009  William M. Brack <wbrack@mmm.com.hk>
+ *  Copyright (C) 2009  William M. Brack
+ *
+ *  Refactored and updated to the latest v4l core frameworks:
+ *
+ *  Copyright (C) 2014 Hans Verkuil <hverkuil@xs4all.nl>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,15 +24,9 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "tw68.h"
-
-#define NO_SYNC_LINE (-1U)
 
 /**
  *  @rp		pointer to current risc program position
@@ -38,32 +36,35 @@
  *  @bpl	number of bytes per scan line
  *  @padding	number of bytes of padding to add
  *  @lines	number of lines in field
- *  @lpi	lines per IRQ, or 0 to not generate irqs
- *		Note: IRQ to be generated _after_ lpi lines are transferred
+ *  @jump	insert a jump at the start
  */
 static __le32 *tw68_risc_field(__le32 *rp, struct scatterlist *sglist,
 			    unsigned int offset, u32 sync_line,
 			    unsigned int bpl, unsigned int padding,
-			    unsigned int lines, unsigned int lpi)
+			    unsigned int lines, bool jump)
 {
 	struct scatterlist *sg;
 	unsigned int line, todo, done;
 
-	/* sync instruction */
-	if (sync_line != NO_SYNC_LINE) {
-		if (sync_line == 1)
-			*(rp++) = cpu_to_le32(RISC_SYNCO);
-		else
-			*(rp++) = cpu_to_le32(RISC_SYNCE);
+	if (jump) {
+		*(rp++) = cpu_to_le32(RISC_JUMP);
 		*(rp++) = 0;
 	}
+
+	/* sync instruction */
+	if (sync_line == 1)
+		*(rp++) = cpu_to_le32(RISC_SYNCO);
+	else
+		*(rp++) = cpu_to_le32(RISC_SYNCE);
+	*(rp++) = 0;
+
 	/* scan lines */
 	sg = sglist;
 	for (line = 0; line < lines; line++) {
 		/* calculate next starting position */
 		while (offset && offset >= sg_dma_len(sg)) {
 			offset -= sg_dma_len(sg);
-			sg++;
+			sg = sg_next(sg);
 		}
 		if (bpl <= sg_dma_len(sg) - offset) {
 			/* fits into current chunk */
@@ -86,7 +87,7 @@ static __le32 *tw68_risc_field(__le32 *rp, struct scatterlist *sglist,
 						done);
 			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
 			todo -= done;
-			sg++;
+			sg = sg_next(sg);
 			/* succeeding fragments have no offset */
 			while (todo > sg_dma_len(sg)) {
 				*(rp++) = cpu_to_le32(RISC_INLINE |
@@ -94,7 +95,7 @@ static __le32 *tw68_risc_field(__le32 *rp, struct scatterlist *sglist,
 						sg_dma_len(sg));
 				*(rp++) = cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
-				sg++;
+				sg = sg_next(sg);
 				done += sg_dma_len(sg);
 			}
 			if (todo) {
@@ -107,9 +108,6 @@ static __le32 *tw68_risc_field(__le32 *rp, struct scatterlist *sglist,
 			offset = todo;
 		}
 		offset += padding;
-		/* If this line needs an interrupt, put it in */
-		if (lpi && line > 0 && !(line % lpi))
-			*(rp-2) |= RISC_INT_BIT;
 	}
 
 	return rp;
@@ -118,25 +116,25 @@ static __le32 *tw68_risc_field(__le32 *rp, struct scatterlist *sglist,
 /**
  * tw68_risc_buffer
  *
- * 	This routine is called by tw68-video.  It allocates
- * 	memory for the dma controller "program" and then fills in that
- * 	memory with the appropriate "instructions".
+ *	This routine is called by tw68-video.  It allocates
+ *	memory for the dma controller "program" and then fills in that
+ *	memory with the appropriate "instructions".
  *
- * 	@pci_dev	structure with info about the pci
- * 			slot which our device is in.
- * 	@risc		structure with info about the memory
- * 			used for our controller program.
- * 	@sglist		scatter-gather list entry
- * 	@top_offset	offset within the risc program area for the
- * 			first odd frame line
- * 	@bottom_offset	offset within the risc program area for the
- * 			first even frame line
- * 	@bpl		number of data bytes per scan line
- * 	@padding	number of extra bytes to add at end of line
- * 	@lines		number of scan lines
+ *	@pci_dev	structure with info about the pci
+ *			slot which our device is in.
+ *	@risc		structure with info about the memory
+ *			used for our controller program.
+ *	@sglist		scatter-gather list entry
+ *	@top_offset	offset within the risc program area for the
+ *			first odd frame line
+ *	@bottom_offset	offset within the risc program area for the
+ *			first even frame line
+ *	@bpl		number of data bytes per scan line
+ *	@padding	number of extra bytes to add at end of line
+ *	@lines		number of scan lines
  */
 int tw68_risc_buffer(struct pci_dev *pci,
-			struct btcx_riscmem *risc,
+			struct tw68_buf *buf,
 			struct scatterlist *sglist,
 			unsigned int top_offset,
 			unsigned int bottom_offset,
@@ -146,7 +144,6 @@ int tw68_risc_buffer(struct pci_dev *pci,
 {
 	u32 instructions, fields;
 	__le32 *rp;
-	int rc;
 
 	fields = 0;
 	if (UNSET != top_offset)
@@ -155,29 +152,31 @@ int tw68_risc_buffer(struct pci_dev *pci,
 		fields++;
 	/*
 	 * estimate risc mem: worst case is one write per page border +
-	 * one write per scan line + syncs + jump (all 2 dwords).
+	 * one write per scan line + syncs + 2 jumps (all 2 dwords).
 	 * Padding can cause next bpl to start close to a page border.
 	 * First DMA region may be smaller than PAGE_SIZE
 	 */
 	instructions  = fields * (1 + (((bpl + padding) * lines) /
-			 PAGE_SIZE) + lines) + 2;
-	rc = btcx_riscmem_alloc(pci, risc, instructions * 8);
-	if (rc < 0)
-		return rc;
+			 PAGE_SIZE) + lines) + 4;
+	buf->size = instructions * 8;
+	buf->cpu = pci_alloc_consistent(pci, buf->size, &buf->dma);
+	if (buf->cpu == NULL)
+		return -ENOMEM;
 
 	/* write risc instructions */
-	rp = risc->cpu;
+	rp = buf->cpu;
 	if (UNSET != top_offset)	/* generates SYNCO */
 		rp = tw68_risc_field(rp, sglist, top_offset, 1,
-				     bpl, padding, lines, 0);
+				     bpl, padding, lines, true);
 	if (UNSET != bottom_offset)	/* generates SYNCE */
 		rp = tw68_risc_field(rp, sglist, bottom_offset, 2,
-				     bpl, padding, lines, 0);
+				     bpl, padding, lines, top_offset == UNSET);
 
 	/* save pointer to jmp instruction address */
-	risc->jmp = rp;
+	buf->jmp = rp;
+	buf->cpu[1] = cpu_to_le32(buf->dma + 8);
 	/* assure risc buffer hasn't overflowed */
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	BUG_ON((buf->jmp - buf->cpu + 2) * sizeof(buf->cpu[0]) > buf->size);
 	return 0;
 }
 
@@ -204,65 +203,28 @@ static void tw68_risc_decode(u32 risc, u32 addr)
 
 	p = RISC_OP(risc);
 	if (!(risc & 0x80000000) || !instr[p].name) {
-		printk(KERN_DEBUG "0x%08x [ INVALID ]\n", risc);
+		pr_debug("0x%08x [ INVALID ]\n", risc);
 		return;
 	}
-	printk(KERN_DEBUG "0x%08x %-9s IRQ=%d",
+	pr_debug("0x%08x %-9s IRQ=%d",
 		risc, instr[p].name, (risc >> 27) & 1);
 	if (instr[p].has_data_type)
-		printk(KERN_DEBUG " Type=%d", (risc >> 24) & 7);
+		pr_debug(" Type=%d", (risc >> 24) & 7);
 	if (instr[p].has_byte_info)
-		printk(KERN_DEBUG " Start=0x%03x Count=%03u",
+		pr_debug(" Start=0x%03x Count=%03u",
 			(risc >> 12) & 0xfff, risc & 0xfff);
 	if (instr[p].has_addr)
-		printk(KERN_DEBUG " StartAddr=0x%08x", addr);
-	printk(KERN_DEBUG "\n");
+		pr_debug(" StartAddr=0x%08x", addr);
+	pr_debug("\n");
 }
 
-void tw68_risc_program_dump(struct tw68_core *core,
-			    struct btcx_riscmem *risc)
+void tw68_risc_program_dump(struct tw68_core *core, struct tw68_buf *buf)
 {
-	__le32 *addr;
+	const __le32 *addr;
 
-	printk(KERN_DEBUG "%s: risc_program_dump: risc=%p, "
-			  "risc->cpu=0x%p, risc->jmp=0x%p\n",
-			  core->name, risc, risc->cpu, risc->jmp);
-	for (addr = risc->cpu; addr <= risc->jmp; addr += 2)
+	pr_debug("%s: risc_program_dump: risc=%p, buf->cpu=0x%p, buf->jmp=0x%p\n",
+		  core->name, buf, buf->cpu, buf->jmp);
+	for (addr = buf->cpu; addr <= buf->jmp; addr += 2)
 		tw68_risc_decode(*addr, *(addr+1));
 }
-EXPORT_SYMBOL_GPL(tw68_risc_program_dump);
 #endif
-
-/*
- * tw68_risc_stopper
- * 	Normally, the risc code generated for a buffer ends with a
- * 	JUMP instruction to direct the DMAP processor to the code for
- * 	the next buffer.  However, when there is no additional buffer
- * 	currently available, the code instead jumps to this routine.
- *
- * 	My first try for a "stopper" program was just a simple
- * 	"jump to self" instruction.  Unfortunately, this caused the
- * 	video FIFO to overflow.  My next attempt was to just disable
- * 	the DMAP processor.  Unfortunately, this caused the video
- * 	decoder to lose its synchronization.  The solution to this was to
- * 	add a "Sync-Odd" instruction, which "eats" all the video data
- * 	until the start of the next odd field.
- */
-int tw68_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc)
-{
-	__le32 *rp;
-	int rc;
-
-	rc = btcx_riscmem_alloc(pci, risc, 8*4);
-	if (rc < 0)
-		return rc;
-
-	/* write risc inststructions */
-	rp = risc->cpu;
-	*(rp++) = cpu_to_le32(RISC_SYNCO);
-	*(rp++) = 0;
-	*(rp++) = cpu_to_le32(RISC_JUMP);
-	*(rp++) = cpu_to_le32(risc->dma);
-	risc->jmp = risc->cpu;
-	return 0;
-}
