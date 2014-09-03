@@ -2295,6 +2295,7 @@ error:
 }
 
 int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
+				  struct btrfs_device *srcdev,
 				  struct btrfs_device **device_out)
 {
 	struct request_queue *q;
@@ -2307,23 +2308,36 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
 	int ret = 0;
 
 	*device_out = NULL;
-	if (fs_info->fs_devices->seeding)
+	if (fs_info->fs_devices->seeding) {
+		btrfs_err(fs_info, "the filesystem is a seed filesystem!");
 		return -EINVAL;
+	}
 
 	bdev = blkdev_get_by_path(device_path, FMODE_WRITE | FMODE_EXCL,
 				  fs_info->bdev_holder);
-	if (IS_ERR(bdev))
+	if (IS_ERR(bdev)) {
+		btrfs_err(fs_info, "target device %s is invalid!", device_path);
 		return PTR_ERR(bdev);
+	}
 
 	filemap_write_and_wait(bdev->bd_inode->i_mapping);
 
 	devices = &fs_info->fs_devices->devices;
 	list_for_each_entry(device, devices, dev_list) {
 		if (device->bdev == bdev) {
+			btrfs_err(fs_info, "target device is in the filesystem!");
 			ret = -EEXIST;
 			goto error;
 		}
 	}
+
+
+	if (i_size_read(bdev->bd_inode) < srcdev->total_bytes) {
+		btrfs_err(fs_info, "target device is smaller than source device!");
+		ret = -EINVAL;
+		goto error;
+	}
+
 
 	device = btrfs_alloc_device(NULL, &devid, NULL);
 	if (IS_ERR(device)) {
@@ -2348,8 +2362,9 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
 	device->io_width = root->sectorsize;
 	device->io_align = root->sectorsize;
 	device->sector_size = root->sectorsize;
-	device->total_bytes = i_size_read(bdev->bd_inode);
-	device->disk_total_bytes = device->total_bytes;
+	device->total_bytes = srcdev->total_bytes;
+	device->disk_total_bytes = srcdev->disk_total_bytes;
+	device->bytes_used = srcdev->bytes_used;
 	device->dev_root = fs_info->dev_root;
 	device->bdev = bdev;
 	device->in_fs_metadata = 1;
