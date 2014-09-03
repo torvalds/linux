@@ -2496,6 +2496,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 
 				if (new_dur > 0) {
 					/* add right after tmp */
+					roc->duration = new_dur;
 					list_add(&roc->list, &tmp->list);
 				} else {
 					list_add_tail(&roc->list,
