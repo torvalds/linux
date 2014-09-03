@@ -364,6 +364,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 		SET_IEEE80211_PERM_ADDR(hw, rtlefuse->dev_addr);
 	} else {
 		u8 rtlmac[] = { 0x00, 0xe0, 0x4c, 0x81, 0x92, 0x00 };
+
 		get_random_bytes((rtlmac + (ETH_ALEN - 1)), 1);
 		SET_IEEE80211_PERM_ADDR(hw, rtlmac);
 	}
@@ -553,6 +554,7 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	u8 rate_flag = info->control.rates[0].flags;
 	u8 sgi_40 = 0, sgi_20 = 0, bw_40 = 0;
+
 	tcb_desc->use_shortgi = false;
 
 	if (sta == NULL)
