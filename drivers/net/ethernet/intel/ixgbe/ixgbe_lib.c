@@ -696,23 +696,45 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	ixgbe_set_rss_queues(adapter);
 }
 
-static int ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
-				      int vectors)
+/**
+ * ixgbe_acquire_msix_vectors - acquire MSI-X vectors
+ * @adapter: board private structure
+ *
+ * Attempts to acquire a suitable range of MSI-X vector interrupts. Will
+ * return a negative error code if unable to acquire MSI-X vectors for any
+ * reason.
+ */
+static int ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter)
 {
-	int i, vector_threshold;
+	struct ixgbe_hw *hw = &adapter->hw;
+	int i, vectors, vector_threshold;
 
-	/* We'll want at least 2 (vector_threshold):
-	 * 1) TxQ[0] + RxQ[0] handler
-	 * 2) Other (Link Status Change, etc.)
+	/* We start by asking for one vector per queue pair */
+	vectors = max(adapter->num_rx_queues, adapter->num_tx_queues);
+
+	/* It is easy to be greedy for MSI-X vectors. However, it really
+	 * doesn't do much good if we have a lot more vectors than CPUs. We'll
+	 * be somewhat conservative and only ask for (roughly) the same number
+	 * of vectors as there are CPUs.
+	 */
+	vectors = min_t(int, vectors, num_online_cpus());
+
+	/* Some vectors are necessary for non-queue interrupts */
+	vectors += NON_Q_VECTORS;
+
+	/* Hardware can only support a maximum of hw.mac->max_msix_vectors.
+	 * With features such as RSS and VMDq, we can easily surpass the
+	 * number of Rx and Tx descriptor queues supported by our device.
+	 * Thus, we cap the maximum in the rare cases where the CPU count also
+	 * exceeds our vector limit
+	 */
+	vectors = min_t(int, vectors, hw->mac.max_msix_vectors);
+
+	/* We want a minimum of two MSI-X vectors for (1) a TxQ[0] + RxQ[0]
+	 * handler, and (2) an Other (Link Status Change, etc.) handler.
 	 */
 	vector_threshold = MIN_MSIX_COUNT;
 
-	/*
-	 * The more we get, the more we will assign to Tx/Rx Cleanup
-	 * for the separate queues...where Rx Cleanup >= Tx Cleanup.
-	 * Right now, we simply care about how many we'll get; we'll
-	 * set them up later while requesting irq's.
-	 */
 	adapter->msix_entries = kcalloc(vectors,
 					sizeof(struct msix_entry),
 					GFP_KERNEL);
@@ -1069,32 +1091,10 @@ static void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter)
  **/
 static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
-	int v_budget, err;
+	int err;
 
-	/*
-	 * It's easy to be greedy for MSI-X vectors, but it really
-	 * doesn't do us much good if we have a lot more vectors
-	 * than CPU's.  So let's be conservative and only ask for
-	 * (roughly) the same number of vectors as there are CPU's.
-	 * The default is to use pairs of vectors.
-	 */
-	v_budget = max(adapter->num_rx_queues, adapter->num_tx_queues);
-	v_budget = min_t(int, v_budget, num_online_cpus());
-	v_budget += NON_Q_VECTORS;
-
-	/*
-	 * At the same time, hardware can only support a maximum of
-	 * hw.mac->max_msix_vectors vectors.  With features
-	 * such as RSS and VMDq, we can easily surpass the number of Rx and Tx
-	 * descriptor queues supported by our device.  Thus, we cap it off in
-	 * those rare cases where the cpu count also exceeds our vector limit.
-	 */
-	v_budget = min_t(int, v_budget, hw->mac.max_msix_vectors);
-
-	/* A failure in MSI-X entry allocation isn't fatal, but it does
-	 * mean we disable MSI-X capabilities of the adapter. */
-	if (!ixgbe_acquire_msix_vectors(adapter, v_budget))
+	/* We will try to get MSI-X interrupts first */
+	if (!ixgbe_acquire_msix_vectors(adapter))
 		return;
 
 	/* At this point, we do not have MSI-X capabilities. We need to
