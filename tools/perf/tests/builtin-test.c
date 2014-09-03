@@ -158,12 +158,12 @@ static struct test {
 		.func = test__switch_tracking,
 	},
 	{
-		.desc = "Filter fds with revents mask in a pollfd array",
-		.func = test__perf_evlist__filter_pollfd,
+		.desc = "Filter fds with revents mask in a fdarray",
+		.func = test__fdarray__filter,
 	},
 	{
-		.desc = "Add fd to pollfd array, making it autogrow",
-		.func = test__perf_evlist__add_pollfd,
+		.desc = "Add fd to a fdarray, making it autogrow",
+		.func = test__fdarray__add,
 	},
 	{
 		.func = NULL,

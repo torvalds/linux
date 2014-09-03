@@ -920,7 +920,7 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 	signal(SIGTERM, sig_handler);
 
 	/* use pollfds -- need to add timerfd and stdin */
-	nr_fds = kvm->evlist->nr_fds;
+	nr_fds = kvm->evlist->pollfd.nr;
 
 	/* add timer fd */
 	if (perf_kvm__timerfd_create(kvm) < 0) {
@@ -941,7 +941,7 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 	if (fd_set_nonblock(fileno(stdin)) != 0)
 		goto out;
 
-	pollfds	 = kvm->evlist->pollfd;
+	pollfds	 = kvm->evlist->pollfd.entries;
 
 	/* everything is good - enable the events and process */
 	perf_evlist__enable(kvm->evlist);

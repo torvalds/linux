@@ -37,6 +37,7 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 		INIT_HLIST_HEAD(&evlist->heads[i]);
 	INIT_LIST_HEAD(&evlist->entries);
 	perf_evlist__set_maps(evlist, cpus, threads);
+	fdarray__init(&evlist->pollfd, 64);
 	evlist->workload.pid = -1;
 }
 
@@ -102,7 +103,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 void perf_evlist__exit(struct perf_evlist *evlist)
 {
 	zfree(&evlist->mmap);
-	zfree(&evlist->pollfd);
+	fdarray__exit(&evlist->pollfd);
 }
 
 void perf_evlist__delete(struct perf_evlist *evlist)
@@ -402,20 +403,6 @@ int perf_evlist__enable_event_idx(struct perf_evlist *evlist,
 		return perf_evlist__enable_event_thread(evlist, evsel, idx);
 }
 
-static int perf_evlist__grow_pollfd(struct perf_evlist *evlist, int hint)
-{
-	int nr_fds_alloc = evlist->nr_fds_alloc + hint;
-	size_t size = sizeof(struct pollfd) * nr_fds_alloc;
-	struct pollfd *pollfd = realloc(evlist->pollfd, size);
-
-	if (pollfd == NULL)
-		return -ENOMEM;
-
-	evlist->nr_fds_alloc = nr_fds_alloc;
-	evlist->pollfd	     = pollfd;
-	return 0;
-}
-
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 {
 	int nr_cpus = cpu_map__nr(evlist->cpus);
@@ -430,8 +417,8 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 			nfds += nr_cpus * nr_threads;
 	}
 
-	if (evlist->nr_fds_alloc - evlist->nr_fds < nfds &&
-	    perf_evlist__grow_pollfd(evlist, nfds) < 0)
+	if (fdarray__available_entries(&evlist->pollfd) < nfds &&
+	    fdarray__grow(&evlist->pollfd, nfds) < 0)
 		return -ENOMEM;
 
 	return 0;
@@ -439,45 +426,19 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 
 int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
 {
-	/*
-	 * XXX: 64 is arbitrary, just not to call realloc at each fd.
-	 *	Find a better autogrowing heuristic
-	 */
-	if (evlist->nr_fds == evlist->nr_fds_alloc &&
-	    perf_evlist__grow_pollfd(evlist, 64) < 0)
-		return -ENOMEM;
-
 	fcntl(fd, F_SETFL, O_NONBLOCK);
-	evlist->pollfd[evlist->nr_fds].fd = fd;
-	evlist->pollfd[evlist->nr_fds].events = POLLIN | POLLERR | POLLHUP;
-	evlist->nr_fds++;
-	return 0;
+
+	return fdarray__add(&evlist->pollfd, fd, POLLIN | POLLERR | POLLHUP);
 }
 
 int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mask)
 {
-	int fd, nr_fds = 0;
-
-	if (evlist->nr_fds == 0)
-		return 0;
-
-	for (fd = 0; fd < evlist->nr_fds; ++fd) {
-		if (evlist->pollfd[fd].revents & revents_and_mask)
-			continue;
-
-		if (fd != nr_fds)
-			evlist->pollfd[nr_fds] = evlist->pollfd[fd];
-
-		++nr_fds;
-	}
-
-	evlist->nr_fds = nr_fds;
-	return nr_fds;
+	return fdarray__filter(&evlist->pollfd, revents_and_mask);
 }
 
 int perf_evlist__poll(struct perf_evlist *evlist, int timeout)
 {
-	return poll(evlist->pollfd, evlist->nr_fds, timeout);
+	return fdarray__poll(&evlist->pollfd, timeout);
 }
 
 static void perf_evlist__id_hash(struct perf_evlist *evlist,
@@ -935,7 +896,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	if (evlist->mmap == NULL && perf_evlist__alloc_mmap(evlist) < 0)
 		return -ENOMEM;
 
-	if (evlist->pollfd == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
+	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
 		return -ENOMEM;
 
 	evlist->overwrite = overwrite;

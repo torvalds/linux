@@ -2,6 +2,7 @@
 #define __PERF_EVLIST_H 1
 
 #include <linux/list.h>
+#include <api/fd/array.h>
 #include <stdio.h>
 #include "../perf.h"
 #include "event.h"
@@ -29,8 +30,6 @@ struct perf_evlist {
 	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
 	int		 nr_entries;
 	int		 nr_groups;
-	int		 nr_fds;
-	int		 nr_fds_alloc;
 	int		 nr_mmaps;
 	size_t		 mmap_len;
 	int		 id_pos;
@@ -41,8 +40,8 @@ struct perf_evlist {
 		pid_t	pid;
 	} workload;
 	bool		 overwrite;
+	struct fdarray	 pollfd;
 	struct perf_mmap *mmap;
-	struct pollfd	 *pollfd;
 	struct thread_map *threads;
 	struct cpu_map	  *cpus;
 	struct perf_evsel *selected;
