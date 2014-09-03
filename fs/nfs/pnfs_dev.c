@@ -359,3 +359,32 @@ nfs4_deviceid_mark_client_invalid(struct nfs_client *clp)
 	rcu_read_unlock();
 }
 
+int
+nfs4_deviceid_getdevicelist(struct nfs_server *server,
+		const struct nfs_fh *fh)
+{
+	struct pnfs_devicelist *dlist;
+	struct nfs4_deviceid_node *d;
+	int error = 0, i;
+
+	dlist = kzalloc(sizeof(struct pnfs_devicelist), GFP_NOFS);
+	if (!dlist)
+		return -ENOMEM;
+
+	while (!dlist->eof) {
+		error = nfs4_proc_getdevicelist(server, fh, dlist);
+		if (error)
+			break;
+
+		for (i = 0; i < dlist->num_devs; i++) {
+			d = nfs4_find_get_deviceid(server, &dlist->dev_id[i],
+					NULL, GFP_NOFS);
+			if (d)
+				nfs4_put_deviceid_node(d);
+		}
+	}
+
+	kfree(dlist);
+	return error;
+}
+EXPORT_SYMBOL_GPL(nfs4_deviceid_getdevicelist);
