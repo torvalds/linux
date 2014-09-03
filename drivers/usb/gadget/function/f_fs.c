@@ -164,10 +164,9 @@ struct ffs_desc_helper {
 static int  __must_check ffs_epfiles_create(struct ffs_data *ffs);
 static void ffs_epfiles_destroy(struct ffs_epfile *epfiles, unsigned count);
 
-static struct inode *__must_check
+static struct dentry *
 ffs_sb_create_file(struct super_block *sb, const char *name, void *data,
-		   const struct file_operations *fops,
-		   struct dentry **dentry_p);
+		   const struct file_operations *fops);
 
 /* Devices management *******************************************************/
 
@@ -1096,10 +1095,9 @@ ffs_sb_make_inode(struct super_block *sb, void *data,
 }
 
 /* Create "regular" file */
-static struct inode *ffs_sb_create_file(struct super_block *sb,
+static struct dentry *ffs_sb_create_file(struct super_block *sb,
 					const char *name, void *data,
-					const struct file_operations *fops,
-					struct dentry **dentry_p)
+					const struct file_operations *fops)
 {
 	struct ffs_data	*ffs = sb->s_fs_info;
 	struct dentry	*dentry;
@@ -1118,10 +1116,7 @@ static struct inode *ffs_sb_create_file(struct super_block *sb,
 	}
 
 	d_add(dentry, inode);
-	if (dentry_p)
-		*dentry_p = dentry;
-
-	return inode;
+	return dentry;
 }
 
 /* Super block */
@@ -1166,7 +1161,7 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 
 	/* EP0 file */
 	if (unlikely(!ffs_sb_create_file(sb, "ep0", ffs,
-					 &ffs_ep0_operations, NULL)))
+					 &ffs_ep0_operations)))
 		return -ENOMEM;
 
 	return 0;
@@ -1535,9 +1530,10 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 		mutex_init(&epfile->mutex);
 		init_waitqueue_head(&epfile->wait);
 		sprintf(epfiles->name, "ep%u",  i);
-		if (!unlikely(ffs_sb_create_file(ffs->sb, epfiles->name, epfile,
-						 &ffs_epfile_operations,
-						 &epfile->dentry))) {
+		epfile->dentry = ffs_sb_create_file(ffs->sb, epfiles->name,
+						 epfile,
+						 &ffs_epfile_operations);
+		if (unlikely(!epfile->dentry)) {
 			ffs_epfiles_destroy(epfiles, i - 1);
 			return -ENOMEM;
 		}
