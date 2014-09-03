@@ -50,7 +50,7 @@ static void __btrfs_reset_dev_stats(struct btrfs_device *dev);
 static void btrfs_dev_stat_print_on_error(struct btrfs_device *dev);
 static void btrfs_dev_stat_print_on_load(struct btrfs_device *device);
 
-static DEFINE_MUTEX(uuid_mutex);
+DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
 
 static void lock_chunks(struct btrfs_root *root)
@@ -1867,6 +1867,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_device *next_device;
 
+	mutex_lock(&uuid_mutex);
 	WARN_ON(!tgtdev);
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	if (tgtdev->bdev) {
@@ -1886,6 +1887,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	call_rcu(&tgtdev->rcu, free_device);
 
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&uuid_mutex);
 }
 
 static int btrfs_find_device_by_path(struct btrfs_root *root, char *device_path,

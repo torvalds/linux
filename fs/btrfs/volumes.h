@@ -24,6 +24,8 @@
 #include <linux/btrfs.h>
 #include "async-thread.h"
 
+extern struct mutex uuid_mutex;
+
 #define BTRFS_STRIPE_LEN	(64 * 1024)
 
 struct buffer_head;

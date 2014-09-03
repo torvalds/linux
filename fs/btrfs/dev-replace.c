@@ -509,6 +509,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	ret = btrfs_commit_transaction(trans, root);
 	WARN_ON(ret);
 
+	mutex_lock(&uuid_mutex);
 	/* keep away write_all_supers() during the finishing procedure */
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	mutex_lock(&root->fs_info->chunk_mutex);
@@ -536,6 +537,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		btrfs_dev_replace_unlock(dev_replace);
 		mutex_unlock(&root->fs_info->chunk_mutex);
 		mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
+		mutex_unlock(&uuid_mutex);
 		if (tgt_device)
 			btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
@@ -591,6 +593,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	 */
 	mutex_unlock(&root->fs_info->chunk_mutex);
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&uuid_mutex);
 
 	/* write back the superblocks */
 	trans = btrfs_start_transaction(root, 0);
