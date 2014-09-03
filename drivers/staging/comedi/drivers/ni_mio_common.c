@@ -2610,7 +2610,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		interrupt_a_enable |= AI_FIFO_Interrupt_Enable;
 #endif
 
-		if (cmd->flags & TRIG_WAKE_EOS
+		if (cmd->flags & CMDF_WAKE_EOS
 		    || (devpriv->ai_cmd2 & AI_End_On_End_Of_Scan)) {
 			/* wake on end-of-scan */
 			devpriv->aimode = AIMODE_SCAN;
