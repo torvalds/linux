@@ -1276,7 +1276,7 @@ static bool viacam_serial_is_enabled(void)
 			VIACAM_SERIAL_CREG, &cbyte);
 	if ((cbyte & VIACAM_SERIAL_BIT) == 0)
 		return false; /* Not enabled */
-	if (override_serial == 0) {
+	if (!override_serial) {
 		printk(KERN_NOTICE "Via camera: serial port is enabled, " \
 				"refusing to load.\n");
 		printk(KERN_NOTICE "Specify override_serial=1 to force " \
