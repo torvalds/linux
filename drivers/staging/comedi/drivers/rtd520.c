@@ -399,15 +399,15 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,
 {
 	int divider;
 
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (*nanosec + base - 1) / base;
 		break;
 	}
@@ -808,26 +808,26 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 			if (cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 						      RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
 			if (cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
 						      RTD_MIN_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-						TRIG_ROUND_DOWN);
+						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		} else {
 			if (cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 						      RTD_MAX_SPEED)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
 			if (cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
 						      RTD_MIN_SPEED)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-						TRIG_ROUND_DOWN);
+						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		}
@@ -843,26 +843,26 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 			if (cfc_check_trigger_arg_min(&cmd->convert_arg,
 						      RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
 			if (cfc_check_trigger_arg_max(&cmd->convert_arg,
 						      RTD_MIN_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_DOWN);
+						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		} else {
 			if (cfc_check_trigger_arg_min(&cmd->convert_arg,
 						      RTD_MAX_SPEED)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
 			if (cfc_check_trigger_arg_max(&cmd->convert_arg,
 						      RTD_MIN_SPEED)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_DOWN);
+						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		}
@@ -1019,7 +1019,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:	/* periodic scanning */
 		timer = rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_NEAREST);
+					CMDF_ROUND_NEAREST);
 		/* set PACER clock */
 		writel(timer & 0xffffff, dev->mmio + LAS0_PCLK);
 
@@ -1037,7 +1037,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (cmd->chanlist_len > 1) {
 			/* only needed for multi-channel */
 			timer = rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_NEAREST);
+						CMDF_ROUND_NEAREST);
 			/* setup BURST clock */
 			writel(timer & 0x3ff, dev->mmio + LAS0_BCLK);
 		}
