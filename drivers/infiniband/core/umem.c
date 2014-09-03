@@ -105,6 +105,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	umem->length    = size;
 	umem->offset    = addr & ~PAGE_MASK;
 	umem->page_size = PAGE_SIZE;
+	umem->pid       = get_task_pid(current, PIDTYPE_PID);
 	/*
 	 * We ask for writable memory if any access flags other than
 	 * "remote read" are set.  "Local write" and "remote write"
@@ -198,6 +199,7 @@ out:
 	if (ret < 0) {
 		if (need_release)
 			__ib_umem_release(context->device, umem, 0);
+		put_pid(umem->pid);
 		kfree(umem);
 	} else
 		current->mm->pinned_vm = locked;
@@ -230,15 +232,19 @@ void ib_umem_release(struct ib_umem *umem)
 {
 	struct ib_ucontext *context = umem->context;
 	struct mm_struct *mm;
+	struct task_struct *task;
 	unsigned long diff;
 
 	__ib_umem_release(umem->context->device, umem, 1);
 
-	mm = get_task_mm(current);
-	if (!mm) {
-		kfree(umem);
-		return;
-	}
+	task = get_pid_task(umem->pid, PIDTYPE_PID);
+	put_pid(umem->pid);
+	if (!task)
+		goto out;
+	mm = get_task_mm(task);
+	put_task_struct(task);
+	if (!mm)
+		goto out;
 
 	diff = PAGE_ALIGN(umem->length + umem->offset) >> PAGE_SHIFT;
 
@@ -262,9 +268,10 @@ void ib_umem_release(struct ib_umem *umem)
 	} else
 		down_write(&mm->mmap_sem);
 
-	current->mm->pinned_vm -= diff;
+	mm->pinned_vm -= diff;
 	up_write(&mm->mmap_sem);
 	mmput(mm);
+out:
 	kfree(umem);
 }
 EXPORT_SYMBOL(ib_umem_release);
