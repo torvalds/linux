@@ -96,7 +96,8 @@
 	mmc@12550000 {
 		pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
 		pinctrl-names = "default";
-		vmmc-supply = <&ldo20_reg &buck8_reg>;
+		vmmc-supply = <&buck8_reg>;
+		vqmmc-supply = <&ldo20_reg>;
 		status = "okay";
 
 		num-slots = <1>;
