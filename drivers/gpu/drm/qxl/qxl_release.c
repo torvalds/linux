@@ -440,7 +440,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 
 	/* if only one object on the release its the release itself
 	   since these objects are pinned no need to reserve */
-	if (list_is_singular(&release->bos))
+	if (list_is_singular(&release->bos) || list_empty(&release->bos))
 		return;
 
 	bo = list_first_entry(&release->bos, struct ttm_validate_buffer, head)->bo;
