@@ -4054,10 +4054,13 @@ static int btrfs_add_system_chunk(struct btrfs_root *root,
 	u32 array_size;
 	u8 *ptr;
 
+	lock_chunks(root);
 	array_size = btrfs_super_sys_array_size(super_copy);
 	if (array_size + item_size + sizeof(disk_key)
-			> BTRFS_SYSTEM_CHUNK_ARRAY_SIZE)
+			> BTRFS_SYSTEM_CHUNK_ARRAY_SIZE) {
+		unlock_chunks(root);
 		return -EFBIG;
+	}
 
 	ptr = super_copy->sys_chunk_array + array_size;
 	btrfs_cpu_key_to_disk(&disk_key, key);
@@ -4066,6 +4069,8 @@ static int btrfs_add_system_chunk(struct btrfs_root *root,
 	memcpy(ptr, chunk, item_size);
 	item_size += sizeof(disk_key);
 	btrfs_set_super_sys_array_size(super_copy, array_size + item_size);
+	unlock_chunks(root);
+
 	return 0;
 }
 
