@@ -1806,7 +1806,7 @@ static int ccdc_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 	spin_lock_irqsave(&ccdc->lock, flags);
 	if (ccdc->state == ISP_PIPELINE_STREAM_CONTINUOUS && !ccdc->running &&
 	    ccdc->bt656)
-		restart = 1;
+		restart = true;
 	else
 		ccdc->underrun = 1;
 	spin_unlock_irqrestore(&ccdc->lock, flags);
