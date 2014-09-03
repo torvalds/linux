@@ -78,6 +78,7 @@ enum soc_type {
  * slightly across different exynos SOC's.
  * @triminfo_data: register containing 2 pont trimming data
  * @triminfo_ctrl: trim info controller register.
+ * @triminfo_ctrl_count: the number of trim info controller register.
  * @tmu_ctrl: TMU main controller register.
  * @test_mux_addr_shift: shift bits of test mux address.
  * @therm_trip_mode_shift: shift bits of tripping mode in tmu_ctrl register.
@@ -112,8 +113,8 @@ enum soc_type {
 struct exynos_tmu_registers {
 	u32	triminfo_data;
 
-	u32	triminfo_ctrl;
-	u32	triminfo_ctrl1;
+	u32	triminfo_ctrl[MAX_TRIMINFO_CTRL_REG];
+	u32	triminfo_ctrl_count;
 
 	u32	tmu_ctrl;
 	u32     test_mux_addr_shift;
@@ -200,6 +201,7 @@ struct exynos_tmu_registers {
  * @second_point_trim: temp value of the second point trimming
  * @default_temp_offset: default temperature offset in case of no trimming
  * @test_mux; information if SoC supports test MUX
+ * @triminfo_reload: reload value to read TRIMINFO register
  * @cal_type: calibration type for temperature
  * @freq_clip_table: Table representing frequency reduction percentage.
  * @freq_tab_count: Count of the above table as frequency reduction may
@@ -230,6 +232,7 @@ struct exynos_tmu_platform_data {
 	u8 second_point_trim;
 	u8 default_temp_offset;
 	u8 test_mux;
+	u8 triminfo_reload[MAX_TRIMINFO_CTRL_REG];
 
 	enum calibration_type cal_type;
 	enum soc_type type;
