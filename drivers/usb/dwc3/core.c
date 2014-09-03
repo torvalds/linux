@@ -603,9 +603,6 @@ static int dwc3_remove(struct platform_device *pdev)
 {
 	struct dwc3	*dwc = platform_get_drvdata(pdev);
 
-	usb_phy_set_suspend(dwc->usb2_phy, 1);
-	usb_phy_set_suspend(dwc->usb3_phy, 1);
-
 	dwc3_debugfs_exit(dwc);
 
 	switch (dwc->mode) {
@@ -626,6 +623,10 @@ static int dwc3_remove(struct platform_device *pdev)
 
 	dwc3_event_buffers_cleanup(dwc);
 	dwc3_free_event_buffers(dwc);
+
+	usb_phy_set_suspend(dwc->usb2_phy, 1);
+	usb_phy_set_suspend(dwc->usb3_phy, 1);
+
 	dwc3_core_exit(dwc);
 
 	pm_runtime_put_sync(&pdev->dev);
