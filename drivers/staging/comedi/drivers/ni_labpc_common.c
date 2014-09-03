@@ -397,21 +397,21 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 		base_period = I8254_OSC_BASE_2MHZ * devpriv->divisor_b0;
 
 		/*  set a0 for conversion frequency and b1 for scan frequency */
-		switch (cmd->flags & TRIG_ROUND_MASK) {
+		switch (cmd->flags & CMDF_ROUND_MASK) {
 		default:
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			devpriv->divisor_a0 =
 			    (convert_period + (base_period / 2)) / base_period;
 			devpriv->divisor_b1 =
 			    (scan_period + (base_period / 2)) / base_period;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			devpriv->divisor_a0 =
 			    (convert_period + (base_period - 1)) / base_period;
 			devpriv->divisor_b1 =
 			    (scan_period + (base_period - 1)) / base_period;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			devpriv->divisor_a0 = convert_period / base_period;
 			devpriv->divisor_b1 = scan_period / base_period;
 			break;
