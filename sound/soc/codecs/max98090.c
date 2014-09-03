@@ -1972,6 +1972,102 @@ static int max98090_dai_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
+static int max98090_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (!max98090->master && dai->active == 1)
+			queue_delayed_work(system_power_efficient_wq,
+					   &max98090->pll_det_enable_work,
+					   msecs_to_jiffies(10));
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (!max98090->master && dai->active == 1)
+			schedule_work(&max98090->pll_det_disable_work);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static void max98090_pll_det_enable_work(struct work_struct *work)
+{
+	struct max98090_priv *max98090 =
+		container_of(work, struct max98090_priv,
+			     pll_det_enable_work.work);
+	struct snd_soc_codec *codec = max98090->codec;
+	unsigned int status, mask;
+
+	/*
+	 * Clear status register in order to clear possibly already occurred
+	 * PLL unlock. If PLL hasn't still locked, the status will be set
+	 * again and PLL unlock interrupt will occur.
+	 * Note this will clear all status bits
+	 */
+	regmap_read(max98090->regmap, M98090_REG_DEVICE_STATUS, &status);
+
+	/*
+	 * Queue jack work in case jack state has just changed but handler
+	 * hasn't run yet
+	 */
+	regmap_read(max98090->regmap, M98090_REG_INTERRUPT_S, &mask);
+	status &= mask;
+	if (status & M98090_JDET_MASK)
+		queue_delayed_work(system_power_efficient_wq,
+				   &max98090->jack_work,
+				   msecs_to_jiffies(100));
+
+	/* Enable PLL unlock interrupt */
+	snd_soc_update_bits(codec, M98090_REG_INTERRUPT_S,
+			    M98090_IULK_MASK,
+			    1 << M98090_IULK_SHIFT);
+}
+
+static void max98090_pll_det_disable_work(struct work_struct *work)
+{
+	struct max98090_priv *max98090 =
+		container_of(work, struct max98090_priv, pll_det_disable_work);
+	struct snd_soc_codec *codec = max98090->codec;
+
+	cancel_delayed_work_sync(&max98090->pll_det_enable_work);
+
+	/* Disable PLL unlock interrupt */
+	snd_soc_update_bits(codec, M98090_REG_INTERRUPT_S,
+			    M98090_IULK_MASK, 0);
+}
+
+static void max98090_pll_work(struct work_struct *work)
+{
+	struct max98090_priv *max98090 =
+		container_of(work, struct max98090_priv, pll_work);
+	struct snd_soc_codec *codec = max98090->codec;
+
+	if (!snd_soc_codec_is_active(codec))
+		return;
+
+	dev_info(codec->dev, "PLL unlocked\n");
+
+	/* Toggle shutdown OFF then ON */
+	snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+			    M98090_SHDNN_MASK, 0);
+	msleep(10);
+	snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+			    M98090_SHDNN_MASK, M98090_SHDNN_MASK);
+
+	/* Give PLL time to lock */
+	msleep(10);
+}
+
 static void max98090_jack_work(struct work_struct *work)
 {
 	struct max98090_priv *max98090 = container_of(work,
@@ -2103,8 +2199,10 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 	if (active & M98090_SLD_MASK)
 		dev_dbg(codec->dev, "M98090_SLD_MASK\n");
 
-	if (active & M98090_ULK_MASK)
-		dev_err(codec->dev, "M98090_ULK_MASK\n");
+	if (active & M98090_ULK_MASK) {
+		dev_dbg(codec->dev, "M98090_ULK_MASK\n");
+		schedule_work(&max98090->pll_work);
+	}
 
 	if (active & M98090_JDET_MASK) {
 		dev_dbg(codec->dev, "M98090_JDET_MASK\n");
@@ -2177,6 +2275,7 @@ static struct snd_soc_dai_ops max98090_dai_ops = {
 	.set_tdm_slot = max98090_set_tdm_slot,
 	.hw_params = max98090_dai_hw_params,
 	.digital_mute = max98090_dai_digital_mute,
+	.trigger = max98090_dai_trigger,
 };
 
 static struct snd_soc_dai_driver max98090_dai[] = {
@@ -2258,6 +2357,11 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	max98090->jack_state = M98090_JACK_STATE_NO_HEADSET;
 
 	INIT_DELAYED_WORK(&max98090->jack_work, max98090_jack_work);
+	INIT_DELAYED_WORK(&max98090->pll_det_enable_work,
+			  max98090_pll_det_enable_work);
+	INIT_WORK(&max98090->pll_det_disable_work,
+		  max98090_pll_det_disable_work);
+	INIT_WORK(&max98090->pll_work, max98090_pll_work);
 
 	/* Enable jack detection */
 	snd_soc_write(codec, M98090_REG_JACK_DETECT,
@@ -2310,6 +2414,9 @@ static int max98090_remove(struct snd_soc_codec *codec)
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
 
 	cancel_delayed_work_sync(&max98090->jack_work);
+	cancel_delayed_work_sync(&max98090->pll_det_enable_work);
+	cancel_work_sync(&max98090->pll_det_disable_work);
+	cancel_work_sync(&max98090->pll_work);
 
 	return 0;
 }
