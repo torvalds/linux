@@ -348,6 +348,7 @@ int rk_fb_video_mode_from_timing(const struct display_timing *dt,
 	screen->lvds_format = dt->lvds_format;
 	screen->face = dt->face;
 	screen->color_mode = dt->color_mode;
+	screen->dsp_lut = dt->dsp_lut;
 
 	if (dt->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
 		screen->pin_dclk = 1;

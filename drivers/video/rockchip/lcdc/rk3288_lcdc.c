@@ -70,21 +70,26 @@ static int rk3288_lcdc_get_id(u32 phy_base)
 
 static int rk3288_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
 {
-	int i = 0;
+	int i,j;
 	int __iomem *c;
-	int v;
+	u32 v,r,g,b;
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
-							   struct
-							   lcdc_device,
-							   driver);
+					struct lcdc_device,driver);
 	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(0));
 	lcdc_cfg_done(lcdc_dev);
 	mdelay(25);
 	for (i = 0; i < 256; i++) {
 		v = dev_drv->cur_screen->dsp_lut[i];
-		c = lcdc_dev->dsp_lut_addr_base + i;
-		writel_relaxed(v, c);
-
+		c = lcdc_dev->dsp_lut_addr_base + (i << 2);
+		b = (v & 0xff) << 2;
+		g = (v & 0xff00) << 4;
+		r = (v & 0xff0000) << 6;
+		v = r + g + b;
+		for (j = 0; j < 4; j++) {
+			writel_relaxed(v, c);
+			v += (1 + (1 << 10) + (1 << 20)) ;
+			c++;
+		}
 	}
 	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(1));
 
@@ -2329,9 +2334,9 @@ static int rk3288_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	int i = 0;
+	int i, j;
 	int __iomem *c;
-	int v;
+	int v, r, g, b;
 
 	if (!dev_drv->suspend_flag)
 		return 0;
@@ -2350,8 +2355,16 @@ static int rk3288_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 			mdelay(25);
 			for (i = 0; i < 256; i++) {
 				v = dev_drv->cur_screen->dsp_lut[i];
-				c = lcdc_dev->dsp_lut_addr_base + i;
-				writel_relaxed(v, c);
+				c = lcdc_dev->dsp_lut_addr_base + (i << 2);
+				b = (v & 0xff) << 2;
+				g = (v & 0xff00) << 4;
+				r = (v & 0xff0000) << 6;
+				v = r + g + b;
+				for (j = 0; j < 4; j++) {
+					writel_relaxed(v, c);
+					v += (1 + (1 << 10) + (1 << 20)) ;
+					c++;
+				}
 			}
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
 				     v_DSP_LUT_EN(1));
@@ -2997,30 +3010,39 @@ static int rk3288_lcdc_get_win_id(struct rk_lcdc_driver *dev_drv,
 
 static int rk3288_set_dsp_lut(struct rk_lcdc_driver *dev_drv, int *lut)
 {
-	int i = 0;
+	int i,j;
 	int __iomem *c;
-	int v;
+	int v, r, g, b;
 	int ret = 0;
 
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(0));
 	lcdc_cfg_done(lcdc_dev);
-	msleep(25);
+	mdelay(25);
 	if (dev_drv->cur_screen->dsp_lut) {
 		for (i = 0; i < 256; i++) {
 			v = dev_drv->cur_screen->dsp_lut[i] = lut[i];
-			c = lcdc_dev->dsp_lut_addr_base + i;
-			writel_relaxed(v, c);
-
+			c = lcdc_dev->dsp_lut_addr_base + (i << 2);
+			b = (v & 0xff) << 2;
+			g = (v & 0xff00) << 4;
+			r = (v & 0xff0000) << 6;
+			v = r + g + b;
+			for (j = 0; j < 4; j++) {
+				writel_relaxed(v, c);
+				v += (1 + (1 << 10) + (1 << 20)) ;
+				c++;
+			}
 		}
 	} else {
 		dev_err(dev_drv->dev, "no buffer to backup lut data!\n");
 		ret = -1;
 	}
-	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(1));
-	lcdc_cfg_done(lcdc_dev);
-
+	
+	do{
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(1));
+		lcdc_cfg_done(lcdc_dev);
+	}while(!lcdc_read_bit(lcdc_dev,DSP_CTRL1,m_DSP_LUT_EN));
 	return ret;
 }
 
@@ -3728,7 +3750,6 @@ static int rk3288_lcdc_probe(struct platform_device *pdev)
 		return ret;
 	}
 	lcdc_dev->screen = dev_drv->screen0;
-	
 	dev_info(dev, "lcdc%d probe ok, iommu %s\n",
 		lcdc_dev->id, dev_drv->iommu_enabled ? "enabled" : "disabled");
 
