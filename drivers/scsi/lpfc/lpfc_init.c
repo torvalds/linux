@@ -306,10 +306,10 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 		dist = dist_char[prg->dist];
 
 	if ((prg->dist == 3) && (prg->num == 0))
-		sprintf(phba->OptionROMVersion, "%d.%d%d",
+		snprintf(phba->OptionROMVersion, 32, "%d.%d%d",
 			prg->ver, prg->rev, prg->lev);
 	else
-		sprintf(phba->OptionROMVersion, "%d.%d%d%c%d",
+		snprintf(phba->OptionROMVersion, 32, "%d.%d%d%c%d",
 			prg->ver, prg->rev, prg->lev,
 			dist, prg->num);
 	mempool_free(pmboxq, phba->mbox_mem_pool);
@@ -3177,9 +3177,11 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 		for (i = 0; i < scsi_xri_cnt; i++) {
 			list_remove_head(&scsi_sgl_list, psb,
 					 struct lpfc_scsi_buf, list);
-			pci_pool_free(phba->lpfc_scsi_dma_buf_pool, psb->data,
-				      psb->dma_handle);
-			kfree(psb);
+			if (psb) {
+				pci_pool_free(phba->lpfc_scsi_dma_buf_pool,
+					      psb->data, psb->dma_handle);
+				kfree(psb);
+			}
 		}
 		spin_lock_irq(&phba->scsi_buf_list_get_lock);
 		phba->sli4_hba.scsi_xri_cnt -= scsi_xri_cnt;
@@ -7424,7 +7426,8 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0523 Failed setup of fast-path EQ "
-					"(%d), rc = 0x%x\n", fcp_eqidx, rc);
+					"(%d), rc = 0x%x\n", fcp_eqidx,
+					(uint32_t)rc);
 			goto out_destroy_hba_eq;
 		}
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -7455,7 +7458,8 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0527 Failed setup of fast-path FCP "
-					"CQ (%d), rc = 0x%x\n", fcp_cqidx, rc);
+					"CQ (%d), rc = 0x%x\n", fcp_cqidx,
+					(uint32_t)rc);
 			goto out_destroy_fcp_cq;
 		}
 
@@ -7495,7 +7499,8 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0535 Failed setup of fast-path FCP "
-					"WQ (%d), rc = 0x%x\n", fcp_wqidx, rc);
+					"WQ (%d), rc = 0x%x\n", fcp_wqidx,
+					(uint32_t)rc);
 			goto out_destroy_fcp_wq;
 		}
 
@@ -7528,7 +7533,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0529 Failed setup of slow-path mailbox CQ: "
-				"rc = 0x%x\n", rc);
+				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy_fcp_wq;
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -7548,7 +7553,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0531 Failed setup of slow-path ELS CQ: "
-				"rc = 0x%x\n", rc);
+				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy_mbx_cq;
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -7592,7 +7597,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0537 Failed setup of slow-path ELS WQ: "
-				"rc = 0x%x\n", rc);
+				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy_mbx_wq;
 	}
 
@@ -7624,7 +7629,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0541 Failed setup of Receive Queue: "
-				"rc = 0x%x\n", rc);
+				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy_fcp_wq;
 	}
 
@@ -8815,7 +8820,8 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	/* Assign MSI-X vectors to interrupt handlers */
 	for (index = 0; index < vectors; index++) {
 		memset(&phba->sli4_hba.handler_name[index], 0, 16);
-		sprintf((char *)&phba->sli4_hba.handler_name[index],
+		snprintf((char *)&phba->sli4_hba.handler_name[index],
+			 LPFC_SLI4_HANDLER_NAME_SZ,
 			 LPFC_DRIVER_HANDLER_NAME"%d", index);
 
 		phba->sli4_hba.fcp_eq_hdl[index].idx = index;

@@ -2827,8 +2827,10 @@ diag_cmd_data_alloc(struct lpfc_hba *phba,
 		size -= cnt;
 	}
 
-	mlist->flag = i;
-	return mlist;
+	if (mlist) {
+		mlist->flag = i;
+		return mlist;
+	}
 out:
 	diag_cmd_data_free(phba, mlist);
 	return NULL;
@@ -4592,7 +4594,7 @@ sli_cfg_ext_error:
  * being reset) and com-plete the job, otherwise issue the mailbox command and
  * let our completion handler finish the command.
  **/
-static uint32_t
+static int
 lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	struct lpfc_vport *vport)
 {

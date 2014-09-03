@@ -1084,7 +1084,8 @@ stop_rr_fcf_flogi:
 	 * accessing it.
 	 */
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
-
+	if (!prsp)
+		goto out;
 	sp = prsp->virt + sizeof(uint32_t);
 
 	/* FLOGI completes successfully */
@@ -7521,6 +7522,8 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	vport->fc_myDID = irsp->un.ulpWord[4] & Mask_DID;
 	lpfc_vport_set_state(vport, FC_VPORT_ACTIVE);
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
+	if (!prsp)
+		goto out;
 	sp = prsp->virt + sizeof(uint32_t);
 	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
 	memcpy(&vport->fabric_portname, &sp->portName,
