@@ -57,7 +57,6 @@ qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 	struct qxl_device *qdev = node->minor->dev->dev_private;
 	struct qxl_bo *bo;
 
-	spin_lock(&qdev->release_lock);
 	list_for_each_entry(bo, &qdev->gem.objects, list) {
 		struct reservation_object_list *fobj;
 		int rel;
@@ -71,7 +70,6 @@ qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 			   (unsigned long)bo->gem_base.size,
 			   bo->pin_count, rel);
 	}
-	spin_unlock(&qdev->release_lock);
 	return 0;
 }
 
