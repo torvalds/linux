@@ -2147,7 +2147,6 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint16_t fcf_index, next_fcf_index;
 	struct lpfc_fcf_rec *fcf_rec = NULL;
 	uint16_t vlan_id;
-	uint32_t seed;
 	bool select_new_fcf;
 	int rc;
 
@@ -2384,9 +2383,6 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->fcf.fcf_flag |= FCF_AVAILABLE;
 		/* Setup initial running random FCF selection count */
 		phba->fcf.eligible_fcf_cnt = 1;
-		/* Seeding the random number generator for random selection */
-		seed = (uint32_t)(0xFFFFFFFF & jiffies);
-		prandom_seed(seed);
 	}
 	spin_unlock_irq(&phba->hbalock);
 	goto read_next_fcf;
