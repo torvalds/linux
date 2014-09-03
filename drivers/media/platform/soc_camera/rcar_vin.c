@@ -1502,7 +1502,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	} else {
 		priv->ici.nr = of_alias_get_id(pdev->dev.of_node, "vin");
 		priv->chip = (enum chip_id)match->data;
-	};
+	}
 
 	spin_lock_init(&priv->lock);
 	INIT_LIST_HEAD(&priv->capture);
