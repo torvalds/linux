@@ -53,16 +53,6 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 	return 0;
 }
 
-/*
- * Release the block device
- */
-void nfs4_blkdev_put(struct block_device *bdev)
-{
-	dprintk("%s for device %d:%d\n", __func__, MAJOR(bdev->bd_dev),
-			MINOR(bdev->bd_dev));
-	blkdev_put(bdev, FMODE_READ);
-}
-
 ssize_t bl_pipe_downcall(struct file *filp, const char __user *src,
 			 size_t mlen)
 {
@@ -92,12 +82,12 @@ void bl_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 /*
  * Decodes pnfs_block_deviceaddr4 which is XDR encoded in dev->dev_addr_buf.
  */
-struct pnfs_block_dev *
-nfs4_blk_decode_device(struct nfs_server *server,
-		       struct pnfs_device *dev)
+struct nfs4_deviceid_node *
+bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *dev,
+		gfp_t gfp_mask)
 {
 	struct pnfs_block_dev *rv;
-	struct block_device *bd = NULL;
+	struct block_device *bd;
 	struct bl_pipe_msg bl_pipe_msg;
 	struct rpc_pipe_msg *msg = &bl_pipe_msg.msg;
 	struct bl_msg_hdr bl_msg = {
@@ -117,11 +107,9 @@ nfs4_blk_decode_device(struct nfs_server *server,
 
 	bl_pipe_msg.bl_wq = &nn->bl_wq;
 	memset(msg, 0, sizeof(*msg));
-	msg->data = kzalloc(sizeof(bl_msg) + dev->mincount, GFP_NOFS);
-	if (!msg->data) {
-		rv = ERR_PTR(-ENOMEM);
+	msg->data = kzalloc(sizeof(bl_msg) + dev->mincount, gfp_mask);
+	if (!msg->data)
 		goto out;
-	}
 
 	memcpy(msg->data, &bl_msg, sizeof(bl_msg));
 	dataptr = (uint8_t *) msg->data;
@@ -140,7 +128,6 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	rc = rpc_queue_upcall(nn->bl_device_pipe, msg);
 	if (rc < 0) {
 		remove_wait_queue(&nn->bl_wq, &wq);
-		rv = ERR_PTR(rc);
 		goto out;
 	}
 
@@ -152,7 +139,6 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	if (reply->status != BL_DEVICE_REQUEST_PROC) {
 		printk(KERN_WARNING "%s failed to decode device: %d\n",
 			__func__, reply->status);
-		rv = ERR_PTR(-EINVAL);
 		goto out;
 	}
 
@@ -162,51 +148,40 @@ nfs4_blk_decode_device(struct nfs_server *server,
 		printk(KERN_WARNING "%s failed to open device %d:%d (%ld)\n",
 			__func__, reply->major, reply->minor,
 			PTR_ERR(bd));
-		rv = ERR_CAST(bd);
 		goto out;
 	}
 
-	rv = kzalloc(sizeof(*rv), GFP_NOFS);
-	if (!rv) {
-		rv = ERR_PTR(-ENOMEM);
+	rv = kzalloc(sizeof(*rv), gfp_mask);
+	if (!rv)
 		goto out;
-	}
 
-	rv->bm_mdev = bd;
-	memcpy(&rv->bm_mdevid, &dev->dev_id, sizeof(struct nfs4_deviceid));
-	rv->net = net;
+	nfs4_init_deviceid_node(&rv->d_node, server, &dev->dev_id);
+	rv->d_bdev = bd;
+
 	dprintk("%s Created device %s with bd_block_size %u\n",
 		__func__,
 		bd->bd_disk->disk_name,
 		bd->bd_block_size);
 
+	kfree(msg->data);
+	return &rv->d_node;
+
 out:
 	kfree(msg->data);
-	return rv;
+	return NULL;
 }
 
-/* Map deviceid returned by the server to constructed block_device */
-static struct block_device *translate_devid(struct pnfs_layout_hdr *lo,
-					    struct nfs4_deviceid *id)
+void
+bl_free_deviceid_node(struct nfs4_deviceid_node *d)
 {
-	struct block_device *rv = NULL;
-	struct block_mount_id *mid;
-	struct pnfs_block_dev *dev;
+	struct pnfs_block_dev *dev =
+		container_of(d, struct pnfs_block_dev, d_node);
+	struct net *net = d->nfs_client->cl_net;
 
-	dprintk("%s enter, lo=%p, id=%p\n", __func__, lo, id);
-	mid = BLK_ID(lo);
-	spin_lock(&mid->bm_lock);
-	list_for_each_entry(dev, &mid->bm_devlist, bm_node) {
-		if (memcmp(id->data, dev->bm_mdevid.data,
-			   NFS4_DEVICEID4_SIZE) == 0) {
-			rv = dev->bm_mdev;
-			goto out;
-		}
-	}
- out:
-	spin_unlock(&mid->bm_lock);
-	dprintk("%s returning %p\n", __func__, rv);
-	return rv;
+	blkdev_put(dev->d_bdev, FMODE_READ);
+	bl_dm_remove(net, dev->d_bdev->bd_dev);
+
+	kfree(dev);
 }
 
 /* Tracks info needed to ensure extents in layout obey constraints of spec */
@@ -309,15 +284,20 @@ nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 	 * recovery easier.
 	 */
 	for (i = 0; i < count; i++) {
+		struct nfs4_deviceid id;
+
 		be = kzalloc(sizeof(struct pnfs_block_extent), GFP_NOFS);
 		if (!be) {
 			status = -ENOMEM;
 			goto out_err;
 		}
-		memcpy(&be->be_devid, p, NFS4_DEVICEID4_SIZE);
+		memcpy(&id, p, NFS4_DEVICEID4_SIZE);
 		p += XDR_QUADLEN(NFS4_DEVICEID4_SIZE);
-		be->be_mdev = translate_devid(lo, &be->be_devid);
-		if (!be->be_mdev)
+
+		be->be_device =
+			nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode), &id,
+						lo->plh_lc_cred, gfp_flags);
+		if (!be->be_device)
 			goto out_err;
 
 		/* The next three values are read in as bytes,
@@ -364,12 +344,14 @@ nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 	return status;
 
  out_err:
+	nfs4_put_deviceid_node(be->be_device);
 	kfree(be);
  out_free_list:
 	while (!list_empty(&extents)) {
 		be = list_first_entry(&extents, struct pnfs_block_extent,
 				      be_list);
 		list_del(&be->be_list);
+		nfs4_put_deviceid_node(be->be_device);
 		kfree(be);
 	}
 	goto out;

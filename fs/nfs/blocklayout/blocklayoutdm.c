@@ -38,7 +38,7 @@
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
-static void dev_remove(struct net *net, dev_t dev)
+void bl_dm_remove(struct net *net, dev_t dev)
 {
 	struct bl_pipe_msg bl_pipe_msg;
 	struct rpc_pipe_msg *msg = &bl_pipe_msg.msg;
@@ -81,28 +81,4 @@ static void dev_remove(struct net *net, dev_t dev)
 
 out:
 	kfree(msg->data);
-}
-
-/*
- * Release meta device
- */
-static void nfs4_blk_metadev_release(struct pnfs_block_dev *bdev)
-{
-	dprintk("%s Releasing\n", __func__);
-	nfs4_blkdev_put(bdev->bm_mdev);
-	dev_remove(bdev->net, bdev->bm_mdev->bd_dev);
-}
-
-void bl_free_block_dev(struct pnfs_block_dev *bdev)
-{
-	if (bdev) {
-		if (bdev->bm_mdev) {
-			dprintk("%s Removing DM device: %d:%d\n",
-				__func__,
-				MAJOR(bdev->bm_mdev->bd_dev),
-				MINOR(bdev->bm_mdev->bd_dev));
-			nfs4_blk_metadev_release(bdev);
-		}
-		kfree(bdev);
-	}
 }

@@ -44,16 +44,9 @@
 #define PAGE_CACHE_SECTOR_SHIFT (PAGE_CACHE_SHIFT - SECTOR_SHIFT)
 #define SECTOR_SIZE (1 << SECTOR_SHIFT)
 
-struct block_mount_id {
-	spinlock_t			bm_lock;    /* protects list */
-	struct list_head		bm_devlist; /* holds pnfs_block_dev */
-};
-
 struct pnfs_block_dev {
-	struct list_head		bm_node;
-	struct nfs4_deviceid		bm_mdevid;    /* associated devid */
-	struct block_device		*bm_mdev;     /* meta device itself */
-	struct net			*net;
+	struct nfs4_deviceid_node	d_node;
+	struct block_device		*d_bdev;
 };
 
 enum exstate4 {
@@ -69,8 +62,7 @@ struct pnfs_block_extent {
 		struct rb_node	be_node;
 		struct list_head be_list;
 	};
-	struct nfs4_deviceid be_devid;	/* FIXME: could use device cache instead */
-	struct block_device *be_mdev;
+	struct nfs4_deviceid_node *be_device;
 	sector_t	be_f_offset;	/* the starting offset in the file */
 	sector_t	be_length;	/* the size of the extent */
 	sector_t	be_v_offset;	/* the starting offset in the volume */
@@ -86,8 +78,6 @@ struct pnfs_block_layout {
 	struct rb_root		bl_ext_ro;
 	spinlock_t		bl_ext_lock;   /* Protects list manipulation */
 };
-
-#define BLK_ID(lo) ((struct block_mount_id *)(NFS_SERVER(lo->plh_inode)->pnfs_ld_data))
 
 static inline struct pnfs_block_layout *
 BLK_LO2EXT(struct pnfs_layout_hdr *lo)
@@ -120,14 +110,15 @@ struct bl_msg_hdr {
 /* blocklayoutdev.c */
 ssize_t bl_pipe_downcall(struct file *, const char __user *, size_t);
 void bl_pipe_destroy_msg(struct rpc_pipe_msg *);
-void nfs4_blkdev_put(struct block_device *bdev);
-struct pnfs_block_dev *nfs4_blk_decode_device(struct nfs_server *server,
-						struct pnfs_device *dev);
 int nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 				struct nfs4_layoutget_res *lgr, gfp_t gfp_flags);
 
+struct nfs4_deviceid_node *bl_alloc_deviceid_node(struct nfs_server *server,
+		struct pnfs_device *pdev, gfp_t gfp_mask);
+void bl_free_deviceid_node(struct nfs4_deviceid_node *d);
+
 /* blocklayoutdm.c */
-void bl_free_block_dev(struct pnfs_block_dev *bdev);
+void bl_dm_remove(struct net *net, dev_t dev);
 
 /* extent_tree.c */
 int ext_tree_insert(struct pnfs_block_layout *bl,

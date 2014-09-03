@@ -71,7 +71,7 @@ ext_can_merge(struct pnfs_block_extent *be1, struct pnfs_block_extent *be2)
 {
 	if (be1->be_state != be2->be_state)
 		return false;
-	if (be1->be_mdev != be2->be_mdev)
+	if (be1->be_device != be2->be_device)
 		return false;
 
 	if (be1->be_f_offset + be1->be_length != be2->be_f_offset)
@@ -96,6 +96,7 @@ ext_try_to_merge_left(struct rb_root *root, struct pnfs_block_extent *be)
 	if (left && ext_can_merge(left, be)) {
 		left->be_length += be->be_length;
 		rb_erase(&be->be_node, root);
+		nfs4_put_deviceid_node(be->be_device);
 		kfree(be);
 		return left;
 	}
@@ -111,6 +112,7 @@ ext_try_to_merge_right(struct rb_root *root, struct pnfs_block_extent *be)
 	if (right && ext_can_merge(be, right)) {
 		be->be_length += right->be_length;
 		rb_erase(&right->be_node, root);
+		nfs4_put_deviceid_node(right->be_device);
 		kfree(right);
 	}
 
@@ -135,16 +137,14 @@ __ext_tree_insert(struct rb_root *root,
 					be->be_v_offset = new->be_v_offset;
 				be->be_length += new->be_length;
 				be = ext_try_to_merge_left(root, be);
-				kfree(new);
-				return;
+				goto free_new;
 			}
 			p = &(*p)->rb_left;
 		} else if (new->be_f_offset >= ext_f_end(be)) {
 			if (merge_ok && ext_can_merge(be, new)) {
 				be->be_length += new->be_length;
 				be = ext_try_to_merge_right(root, be);
-				kfree(new);
-				return;
+				goto free_new;
 			}
 			p = &(*p)->rb_right;
 		} else {
@@ -154,6 +154,10 @@ __ext_tree_insert(struct rb_root *root,
 
 	rb_link_node(&new->be_node, parent, p);
 	rb_insert_color(&new->be_node, root);
+	return;
+free_new:
+	nfs4_put_deviceid_node(new->be_device);
+	kfree(new);
 }
 
 static int
@@ -198,9 +202,7 @@ __ext_tree_remove(struct rb_root *root, sector_t start, sector_t end)
 			new->be_length = len2;
 			new->be_state = be->be_state;
 			new->be_tag = be->be_tag;
-			new->be_mdev = be->be_mdev;
-			memcpy(&new->be_devid, &be->be_devid,
-				sizeof(struct nfs4_deviceid));
+			new->be_device = nfs4_get_deviceid(be->be_device);
 
 			__ext_tree_insert(root, new, true);
 		} else {
@@ -221,6 +223,7 @@ __ext_tree_remove(struct rb_root *root, sector_t start, sector_t end)
 			struct pnfs_block_extent *next = ext_tree_next(be);
 
 			rb_erase(&be->be_node, root);
+			nfs4_put_deviceid_node(be->be_device);
 			kfree(be);
 			be = next;
 		}
@@ -265,6 +268,7 @@ retry:
 		__ext_tree_insert(root, new, true);
 	} else if (new->be_f_offset >= be->be_f_offset) {
 		if (ext_f_end(new) <= ext_f_end(be)) {
+			nfs4_put_deviceid_node(new->be_device);
 			kfree(new);
 		} else {
 			sector_t new_len = ext_f_end(new) - ext_f_end(be);
@@ -290,6 +294,7 @@ retry:
 		}
 
 		split->be_length = be->be_f_offset - split->be_f_offset;
+		split->be_device = nfs4_get_deviceid(new->be_device);
 		__ext_tree_insert(root, split, true);
 
 		new->be_f_offset += diff;
@@ -380,9 +385,7 @@ ext_tree_split(struct rb_root *root, struct pnfs_block_extent *be,
 	new->be_length = orig_len - be->be_length;
 	new->be_state = be->be_state;
 	new->be_tag = be->be_tag;
-
-	new->be_mdev = be->be_mdev;
-	memcpy(&new->be_devid, &be->be_devid, sizeof(struct nfs4_deviceid));
+	new->be_device = nfs4_get_deviceid(be->be_device);
 
 	dprintk("%s: got 0x%lx:0x%lx!\n",
 		__func__, be->be_f_offset, ext_f_end(be));
@@ -495,7 +498,7 @@ ext_tree_encode_commit(struct pnfs_block_layout *bl, struct xdr_stream *xdr)
 			break;
 		}
 
-		p = xdr_encode_opaque_fixed(p, be->be_devid.data,
+		p = xdr_encode_opaque_fixed(p, be->be_device->deviceid.data,
 				NFS4_DEVICEID4_SIZE);
 		p = xdr_encode_hyper(p, be->be_f_offset << SECTOR_SHIFT);
 		p = xdr_encode_hyper(p, be->be_length << SECTOR_SHIFT);

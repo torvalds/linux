@@ -119,6 +119,8 @@ static struct bio *bl_alloc_init_bio(int npg, sector_t isect,
 				     void (*end_io)(struct bio *, int err),
 				     struct parallel_io *par)
 {
+	struct pnfs_block_dev *dev =
+		container_of(be->be_device, struct pnfs_block_dev, d_node);
 	struct bio *bio;
 
 	npg = min(npg, BIO_MAX_PAGES);
@@ -131,7 +133,7 @@ static struct bio *bl_alloc_init_bio(int npg, sector_t isect,
 	if (bio) {
 		bio->bi_iter.bi_sector = isect - be->be_f_offset +
 			be->be_v_offset;
-		bio->bi_bdev = be->be_mdev;
+		bio->bi_bdev = dev->d_bdev;
 		bio->bi_end_io = end_io;
 		bio->bi_private = par;
 	}
@@ -515,96 +517,9 @@ bl_cleanup_layoutcommit(struct nfs4_layoutcommit_data *lcdata)
 	ext_tree_mark_committed(BLK_LO2EXT(lo), lcdata->res.status);
 }
 
-static void free_blk_mountid(struct block_mount_id *mid)
-{
-	if (mid) {
-		struct pnfs_block_dev *dev, *tmp;
-
-		/* No need to take bm_lock as we are last user freeing bm_devlist */
-		list_for_each_entry_safe(dev, tmp, &mid->bm_devlist, bm_node) {
-			list_del(&dev->bm_node);
-			bl_free_block_dev(dev);
-		}
-		kfree(mid);
-	}
-}
-
-/* This is mostly copied from the filelayout_get_device_info function.
- * It seems much of this should be at the generic pnfs level.
- */
-static struct pnfs_block_dev *
-nfs4_blk_get_deviceinfo(struct nfs_server *server, const struct nfs_fh *fh,
-			struct nfs4_deviceid *d_id)
-{
-	struct pnfs_device *dev;
-	struct pnfs_block_dev *rv;
-	u32 max_resp_sz;
-	int max_pages;
-	struct page **pages = NULL;
-	int i, rc;
-
-	/*
-	 * Use the session max response size as the basis for setting
-	 * GETDEVICEINFO's maxcount
-	 */
-	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
-	max_pages = nfs_page_array_len(0, max_resp_sz);
-	dprintk("%s max_resp_sz %u max_pages %d\n",
-		__func__, max_resp_sz, max_pages);
-
-	dev = kmalloc(sizeof(*dev), GFP_NOFS);
-	if (!dev) {
-		dprintk("%s kmalloc failed\n", __func__);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	pages = kcalloc(max_pages, sizeof(struct page *), GFP_NOFS);
-	if (pages == NULL) {
-		kfree(dev);
-		return ERR_PTR(-ENOMEM);
-	}
-	for (i = 0; i < max_pages; i++) {
-		pages[i] = alloc_page(GFP_NOFS);
-		if (!pages[i]) {
-			rv = ERR_PTR(-ENOMEM);
-			goto out_free;
-		}
-	}
-
-	memcpy(&dev->dev_id, d_id, sizeof(*d_id));
-	dev->layout_type = LAYOUT_BLOCK_VOLUME;
-	dev->pages = pages;
-	dev->pgbase = 0;
-	dev->pglen = PAGE_SIZE * max_pages;
-	dev->mincount = 0;
-	dev->maxcount = max_resp_sz - nfs41_maxgetdevinfo_overhead;
-
-	dprintk("%s: dev_id: %s\n", __func__, dev->dev_id.data);
-	rc = nfs4_proc_getdeviceinfo(server, dev, NULL);
-	dprintk("%s getdevice info returns %d\n", __func__, rc);
-	if (rc) {
-		rv = ERR_PTR(rc);
-		goto out_free;
-	}
-
-	rv = nfs4_blk_decode_device(server, dev);
- out_free:
-	for (i = 0; i < max_pages; i++)
-		__free_page(pages[i]);
-	kfree(pages);
-	kfree(dev);
-	return rv;
-}
-
 static int
 bl_set_layoutdriver(struct nfs_server *server, const struct nfs_fh *fh)
 {
-	struct block_mount_id *b_mt_id = NULL;
-	struct pnfs_devicelist *dlist = NULL;
-	struct pnfs_block_dev *bdev;
-	LIST_HEAD(block_disklist);
-	int status, i;
-
 	dprintk("%s enter\n", __func__);
 
 	if (server->pnfs_blksize == 0) {
@@ -617,60 +532,7 @@ bl_set_layoutdriver(struct nfs_server *server, const struct nfs_fh *fh)
 		return -EINVAL;
 	}
 
-	b_mt_id = kzalloc(sizeof(struct block_mount_id), GFP_NOFS);
-	if (!b_mt_id) {
-		status = -ENOMEM;
-		goto out_error;
-	}
-	/* Initialize nfs4 block layout mount id */
-	spin_lock_init(&b_mt_id->bm_lock);
-	INIT_LIST_HEAD(&b_mt_id->bm_devlist);
-
-	dlist = kmalloc(sizeof(struct pnfs_devicelist), GFP_NOFS);
-	if (!dlist) {
-		status = -ENOMEM;
-		goto out_error;
-	}
-	dlist->eof = 0;
-	while (!dlist->eof) {
-		status = nfs4_proc_getdevicelist(server, fh, dlist);
-		if (status)
-			goto out_error;
-		dprintk("%s GETDEVICELIST numdevs=%i, eof=%i\n",
-			__func__, dlist->num_devs, dlist->eof);
-		for (i = 0; i < dlist->num_devs; i++) {
-			bdev = nfs4_blk_get_deviceinfo(server, fh,
-						       &dlist->dev_id[i]);
-			if (IS_ERR(bdev)) {
-				status = PTR_ERR(bdev);
-				goto out_error;
-			}
-			spin_lock(&b_mt_id->bm_lock);
-			list_add(&bdev->bm_node, &b_mt_id->bm_devlist);
-			spin_unlock(&b_mt_id->bm_lock);
-		}
-	}
-	dprintk("%s SUCCESS\n", __func__);
-	server->pnfs_ld_data = b_mt_id;
-
- out_return:
-	kfree(dlist);
-	return status;
-
- out_error:
-	free_blk_mountid(b_mt_id);
-	goto out_return;
-}
-
-static int
-bl_clear_layoutdriver(struct nfs_server *server)
-{
-	struct block_mount_id *b_mt_id = server->pnfs_ld_data;
-
-	dprintk("%s enter\n", __func__);
-	free_blk_mountid(b_mt_id);
-	dprintk("%s RETURNS\n", __func__);
-	return 0;
+	return nfs4_deviceid_getdevicelist(server, fh);
 }
 
 static bool
@@ -811,7 +673,8 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.encode_layoutcommit		= bl_encode_layoutcommit,
 	.cleanup_layoutcommit		= bl_cleanup_layoutcommit,
 	.set_layoutdriver		= bl_set_layoutdriver,
-	.clear_layoutdriver		= bl_clear_layoutdriver,
+	.alloc_deviceid_node		= bl_alloc_deviceid_node,
+	.free_deviceid_node		= bl_free_deviceid_node,
 	.pg_read_ops			= &bl_pg_read_ops,
 	.pg_write_ops			= &bl_pg_write_ops,
 };
