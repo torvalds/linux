@@ -9098,7 +9098,12 @@ void intel_frontbuffer_flush(struct drm_device *dev,
 
 	intel_edp_psr_flush(dev, frontbuffer_bits);
 
-	if (IS_GEN8(dev))
+	/*
+	 * FIXME: Unconditional fbc flushing here is a rather gross hack and
+	 * needs to be reworked into a proper frontbuffer tracking scheme like
+	 * psr employs.
+	 */
+	if (IS_BROADWELL(dev))
 		gen8_fbc_sw_flush(dev, FBC_REND_CACHE_CLEAN);
 }
 
