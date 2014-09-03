@@ -95,7 +95,6 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	/* This can only be done after all function pointers are setup. */
@@ -422,7 +421,6 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	case e1000_82573:
 		return e1000e_get_phy_id(hw);
-		break;
 	case e1000_82574:
 	case e1000_82583:
 		ret_val = e1e_rphy(hw, MII_PHYSID1, &phy_id);
@@ -440,7 +438,6 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	return 0;
@@ -1458,7 +1455,6 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	if (ret_val)

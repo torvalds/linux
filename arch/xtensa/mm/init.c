@@ -191,7 +191,7 @@ int __init mem_reserve(unsigned long start, unsigned long end, int must_exist)
 		return -EINVAL;
 	}
 
-	if (it && start - it->start < bank_sz) {
+	if (it && start - it->start <= bank_sz) {
 		if (start == it->start) {
 			if (end - it->start < bank_sz) {
 				it->start = end;

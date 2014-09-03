@@ -918,11 +918,6 @@ static void cdns_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	/* N/A */
 }
 
-static void cdns_uart_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 #ifdef CONFIG_CONSOLE_POLL
 static int cdns_uart_poll_get_char(struct uart_port *port)
 {
@@ -974,7 +969,6 @@ static void cdns_uart_poll_put_char(struct uart_port *port, unsigned char c)
 static struct uart_ops cdns_uart_ops = {
 	.set_mctrl	= cdns_uart_set_mctrl,
 	.get_mctrl	= cdns_uart_get_mctrl,
-	.enable_ms	= cdns_uart_enable_ms,
 	.start_tx	= cdns_uart_start_tx,
 	.stop_tx	= cdns_uart_stop_tx,
 	.stop_rx	= cdns_uart_stop_rx,

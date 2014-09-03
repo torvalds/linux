@@ -81,8 +81,6 @@
 #define RTI800_9513A_CNTRL	0x0d
 #define RTI800_9513A_STATUS	0x0d
 
-#define RTI800_IOSIZE		0x10
-
 static const struct comedi_lrange range_rti800_ai_10_bipolar = {
 	4, {
 		BIP_RANGE(10),
@@ -281,7 +279,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], RTI800_IOSIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 

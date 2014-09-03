@@ -240,9 +240,9 @@ static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 	/* testing on r8a7790 shows that INDT does not show correct pin state
 	 * when configured as output, so use OUTDT in case of output pins */
 	if (gpio_rcar_read(gpio_to_priv(chip), INOUTSEL) & bit)
-		return (int)(gpio_rcar_read(gpio_to_priv(chip), OUTDT) & bit);
+		return !!(gpio_rcar_read(gpio_to_priv(chip), OUTDT) & bit);
 	else
-		return (int)(gpio_rcar_read(gpio_to_priv(chip), INDT) & bit);
+		return !!(gpio_rcar_read(gpio_to_priv(chip), INDT) & bit);
 }
 
 static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -284,6 +284,7 @@ static int gpio_rcar_irq_domain_map(struct irq_domain *h, unsigned int irq,
 
 static struct irq_domain_ops gpio_rcar_irq_domain_ops = {
 	.map	= gpio_rcar_irq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
 };
 
 struct gpio_rcar_info {
@@ -471,11 +472,8 @@ err0:
 static int gpio_rcar_remove(struct platform_device *pdev)
 {
 	struct gpio_rcar_priv *p = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&p->gpio_chip);
-	if (ret)
-		return ret;
+	gpiochip_remove(&p->gpio_chip);
 
 	irq_domain_remove(p->irq_domain);
 	pm_runtime_put(&pdev->dev);

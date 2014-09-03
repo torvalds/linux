@@ -24,60 +24,100 @@
 
 #include "priv.h"
 
+#include <core/client.h>
 #include <core/event.h>
-#include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 struct nv04_disp_priv {
 	struct nouveau_disp base;
 };
 
 static int
-nv04_disp_scanoutpos(struct nouveau_object *object, u32 mthd,
-		     void *data, u32 size)
+nv04_disp_scanoutpos(struct nouveau_object *object, struct nv04_disp_priv *priv,
+		     void *data, u32 size, int head)
 {
-	struct nv04_disp_priv *priv = (void *)object->engine;
-	struct nv04_display_scanoutpos *args = data;
-	const int head = (mthd & NV04_DISP_MTHD_HEAD);
+	const u32 hoff = head * 0x2000;
+	union {
+		struct nv04_disp_scanoutpos_v0 v0;
+	} *args = data;
 	u32 line;
+	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(object, "disp scanoutpos size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "disp scanoutpos vers %d\n", args->v0.version);
+		args->v0.vblanks = nv_rd32(priv, 0x680800 + hoff) & 0xffff;
+		args->v0.vtotal  = nv_rd32(priv, 0x680804 + hoff) & 0xffff;
+		args->v0.vblanke = args->v0.vtotal - 1;
 
-	args->vblanks = nv_rd32(priv, 0x680800 + (head * 0x2000)) & 0xffff;
-	args->vtotal  = nv_rd32(priv, 0x680804 + (head * 0x2000)) & 0xffff;
-	args->vblanke = args->vtotal - 1;
+		args->v0.hblanks = nv_rd32(priv, 0x680820 + hoff) & 0xffff;
+		args->v0.htotal  = nv_rd32(priv, 0x680824 + hoff) & 0xffff;
+		args->v0.hblanke = args->v0.htotal - 1;
 
-	args->hblanks = nv_rd32(priv, 0x680820 + (head * 0x2000)) & 0xffff;
-	args->htotal  = nv_rd32(priv, 0x680824 + (head * 0x2000)) & 0xffff;
-	args->hblanke = args->htotal - 1;
+		/*
+		 * If output is vga instead of digital then vtotal/htotal is
+		 * invalid so we have to give up and trigger the timestamping
+		 * fallback in the drm core.
+		 */
+		if (!args->v0.vtotal || !args->v0.htotal)
+			return -ENOTSUPP;
 
-	/*
-	 * If output is vga instead of digital then vtotal/htotal is invalid
-	 * so we have to give up and trigger the timestamping fallback in the
-	 * drm core.
-	 */
-	if (!args->vtotal || !args->htotal)
-		return -ENOTSUPP;
+		args->v0.time[0] = ktime_to_ns(ktime_get());
+		line = nv_rd32(priv, 0x600868 + hoff);
+		args->v0.time[1] = ktime_to_ns(ktime_get());
+		args->v0.hline = (line & 0xffff0000) >> 16;
+		args->v0.vline = (line & 0x0000ffff);
+	} else
+		return ret;
 
-	args->time[0] = ktime_to_ns(ktime_get());
-	line = nv_rd32(priv, 0x600868 + (head * 0x2000));
-	args->time[1] = ktime_to_ns(ktime_get());
-	args->hline = (line & 0xffff0000) >> 16;
-	args->vline = (line & 0x0000ffff);
 	return 0;
 }
 
-#define HEAD_MTHD(n) (n), (n) + 0x01
+static int
+nv04_disp_mthd(struct nouveau_object *object, u32 mthd, void *data, u32 size)
+{
+	union {
+		struct nv04_disp_mthd_v0 v0;
+	} *args = data;
+	struct nv04_disp_priv *priv = (void *)object->engine;
+	int head, ret;
 
-static struct nouveau_omthds
-nv04_disp_omthds[] = {
-	{ HEAD_MTHD(NV04_DISP_SCANOUTPOS), nv04_disp_scanoutpos },
-	{}
+	nv_ioctl(object, "disp mthd size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, true)) {
+		nv_ioctl(object, "disp mthd vers %d mthd %02x head %d\n",
+			 args->v0.version, args->v0.method, args->v0.head);
+		mthd = args->v0.method;
+		head = args->v0.head;
+	} else
+		return ret;
+
+	if (head < 0 || head >= 2)
+		return -ENXIO;
+
+	switch (mthd) {
+	case NV04_DISP_SCANOUTPOS:
+		return nv04_disp_scanoutpos(object, priv, data, size, head);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static struct nouveau_ofuncs
+nv04_disp_ofuncs = {
+	.ctor = _nouveau_object_ctor,
+	.dtor = nouveau_object_destroy,
+	.init = nouveau_object_init,
+	.fini = nouveau_object_fini,
+	.mthd = nv04_disp_mthd,
+	.ntfy = nouveau_disp_ntfy,
 };
 
 static struct nouveau_oclass
 nv04_disp_sclass[] = {
-	{ NV04_DISP_CLASS, &nouveau_object_ofuncs, nv04_disp_omthds },
+	{ NV04_DISP, &nv04_disp_ofuncs },
 	{},
 };
 
@@ -86,16 +126,25 @@ nv04_disp_sclass[] = {
  ******************************************************************************/
 
 static void
-nv04_disp_vblank_enable(struct nouveau_event *event, int type, int head)
+nv04_disp_vblank_init(struct nvkm_event *event, int type, int head)
 {
-	nv_wr32(event->priv, 0x600140 + (head * 0x2000) , 0x00000001);
+	struct nouveau_disp *disp = container_of(event, typeof(*disp), vblank);
+	nv_wr32(disp, 0x600140 + (head * 0x2000) , 0x00000001);
 }
 
 static void
-nv04_disp_vblank_disable(struct nouveau_event *event, int type, int head)
+nv04_disp_vblank_fini(struct nvkm_event *event, int type, int head)
 {
-	nv_wr32(event->priv, 0x600140 + (head * 0x2000) , 0x00000000);
+	struct nouveau_disp *disp = container_of(event, typeof(*disp), vblank);
+	nv_wr32(disp, 0x600140 + (head * 0x2000) , 0x00000000);
 }
+
+static const struct nvkm_event_func
+nv04_disp_vblank_func = {
+	.ctor = nouveau_disp_vblank_ctor,
+	.init = nv04_disp_vblank_init,
+	.fini = nv04_disp_vblank_fini,
+};
 
 static void
 nv04_disp_intr(struct nouveau_subdev *subdev)
@@ -106,12 +155,12 @@ nv04_disp_intr(struct nouveau_subdev *subdev)
 	u32 pvideo;
 
 	if (crtc0 & 0x00000001) {
-		nouveau_event_trigger(priv->base.vblank, 1, 0);
+		nouveau_disp_vblank(&priv->base, 0);
 		nv_wr32(priv, 0x600100, 0x00000001);
 	}
 
 	if (crtc1 & 0x00000001) {
-		nouveau_event_trigger(priv->base.vblank, 1, 1);
+		nouveau_disp_vblank(&priv->base, 1);
 		nv_wr32(priv, 0x602100, 0x00000001);
 	}
 
@@ -140,9 +189,6 @@ nv04_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	nv_engine(priv)->sclass = nv04_disp_sclass;
 	nv_subdev(priv)->intr = nv04_disp_intr;
-	priv->base.vblank->priv = priv;
-	priv->base.vblank->enable = nv04_disp_vblank_enable;
-	priv->base.vblank->disable = nv04_disp_vblank_disable;
 	return 0;
 }
 
@@ -155,4 +201,5 @@ nv04_disp_oclass = &(struct nouveau_disp_impl) {
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
+	.vblank = &nv04_disp_vblank_func,
 }.base;

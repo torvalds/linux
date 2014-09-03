@@ -108,6 +108,7 @@
 	exit_code_ipa0(0xB2, 0x17, "STETR"),	\
 	exit_code_ipa0(0xB2, 0x18, "PC"),	\
 	exit_code_ipa0(0xB2, 0x20, "SERVC"),	\
+	exit_code_ipa0(0xB2, 0x21, "IPTE"),	\
 	exit_code_ipa0(0xB2, 0x28, "PT"),	\
 	exit_code_ipa0(0xB2, 0x29, "ISKE"),	\
 	exit_code_ipa0(0xB2, 0x2a, "RRBE"),	\

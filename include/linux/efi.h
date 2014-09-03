@@ -20,6 +20,7 @@
 #include <linux/ioport.h>
 #include <linux/pfn.h>
 #include <linux/pstore.h>
+#include <linux/reboot.h>
 
 #include <asm/page.h>
 
@@ -521,6 +522,8 @@ typedef efi_status_t efi_query_capsule_caps_t(efi_capsule_header_t **capsules,
 					      int *reset_type);
 typedef efi_status_t efi_query_variable_store_t(u32 attributes, unsigned long size);
 
+void efi_native_runtime_setup(void);
+
 /*
  *  EFI Configuration Table and GUID definitions
  */
@@ -870,10 +873,12 @@ extern int __init efi_uart_console_only (void);
 extern void efi_initialize_iomem_resources(struct resource *code_resource,
 		struct resource *data_resource, struct resource *bss_resource);
 extern void efi_get_time(struct timespec *now);
-extern int efi_set_rtc_mmss(const struct timespec *now);
 extern void efi_reserve_boot_services(void);
 extern int efi_get_fdt_params(struct efi_fdt_params *params, int verbose);
 extern struct efi_memory_map memmap;
+
+extern int efi_reboot_quirk_mode;
+extern bool efi_poweroff_required(void);
 
 /* Iterate through an efi_memory_map */
 #define for_each_efi_memory_desc(m, md)					   \
@@ -916,7 +921,8 @@ extern int __init efi_setup_pcdp_console(char *);
 #define EFI_RUNTIME_SERVICES	3	/* Can we use runtime services? */
 #define EFI_MEMMAP		4	/* Can we use EFI memory map? */
 #define EFI_64BIT		5	/* Is the firmware 64-bit? */
-#define EFI_ARCH_1		6	/* First arch-specific bit */
+#define EFI_PARAVIRT		6	/* Access is via a paravirt interface */
+#define EFI_ARCH_1		7	/* First arch-specific bit */
 
 #ifdef CONFIG_EFI
 /*
@@ -926,11 +932,14 @@ static inline bool efi_enabled(int feature)
 {
 	return test_bit(feature, &efi.flags) != 0;
 }
+extern void efi_reboot(enum reboot_mode reboot_mode, const char *__unused);
 #else
 static inline bool efi_enabled(int feature)
 {
 	return false;
 }
+static inline void
+efi_reboot(enum reboot_mode reboot_mode, const char *__unused) {}
 #endif
 
 /*
@@ -1031,12 +1040,8 @@ struct efivar_operations {
 struct efivars {
 	/*
 	 * ->lock protects two things:
-	 * 1) ->list - adds, removals, reads, writes
-	 * 2) ops.[gs]et_variable() calls.
-	 * It must not be held when creating sysfs entries or calling kmalloc.
-	 * ops.get_next_variable() is only called from register_efivars()
-	 * or efivar_update_sysfs_entries(),
-	 * which is protected by the BKL, so that path is safe.
+	 * 1) efivarfs_list and efivars_sysfs_list
+	 * 2) ->ops calls
 	 */
 	spinlock_t lock;
 	struct kset *kset;
@@ -1151,6 +1156,9 @@ int efivars_sysfs_init(void);
 #ifdef CONFIG_EFI_RUNTIME_MAP
 int efi_runtime_map_init(struct kobject *);
 void efi_runtime_map_setup(void *, int, u32);
+int efi_get_runtime_map_size(void);
+int efi_get_runtime_map_desc_size(void);
+int efi_runtime_map_copy(void *buf, size_t bufsz);
 #else
 static inline int efi_runtime_map_init(struct kobject *kobj)
 {
@@ -1159,6 +1167,64 @@ static inline int efi_runtime_map_init(struct kobject *kobj)
 
 static inline void
 efi_runtime_map_setup(void *map, int nr_entries, u32 desc_size) {}
+
+static inline int efi_get_runtime_map_size(void)
+{
+	return 0;
+}
+
+static inline int efi_get_runtime_map_desc_size(void)
+{
+	return 0;
+}
+
+static inline int efi_runtime_map_copy(void *buf, size_t bufsz)
+{
+	return 0;
+}
+
 #endif
+
+/* prototypes shared between arch specific and generic stub code */
+
+#define pr_efi(sys_table, msg)     efi_printk(sys_table, "EFI stub: "msg)
+#define pr_efi_err(sys_table, msg) efi_printk(sys_table, "EFI stub: ERROR: "msg)
+
+void efi_printk(efi_system_table_t *sys_table_arg, char *str);
+
+void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
+	      unsigned long addr);
+
+char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
+			  efi_loaded_image_t *image, int *cmd_line_len);
+
+efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
+				efi_memory_desc_t **map,
+				unsigned long *map_size,
+				unsigned long *desc_size,
+				u32 *desc_ver,
+				unsigned long *key_ptr);
+
+efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
+			   unsigned long size, unsigned long align,
+			   unsigned long *addr);
+
+efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
+			    unsigned long size, unsigned long align,
+			    unsigned long *addr, unsigned long max);
+
+efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
+				 unsigned long *image_addr,
+				 unsigned long image_size,
+				 unsigned long alloc_size,
+				 unsigned long preferred_addr,
+				 unsigned long alignment);
+
+efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
+				  efi_loaded_image_t *image,
+				  char *cmd_line, char *option_string,
+				  unsigned long max_addr,
+				  unsigned long *load_addr,
+				  unsigned long *load_size);
 
 #endif /* _LINUX_EFI_H */

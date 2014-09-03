@@ -921,7 +921,6 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 			retval = -EFAULT;
 		}
 		goto exit;
-		break;
 	}
 	if (ctx->in_rid) {
 		struct ezusb_packet *ans = ctx->buf;

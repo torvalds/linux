@@ -561,3 +561,29 @@ acpi_ut_ptr_exit(u32 line_number,
 }
 
 #endif
+
+#ifdef ACPI_APPLICATION
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_log_error
+ *
+ * PARAMETERS:  format              - Printf format field
+ *              ...                 - Optional printf arguments
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print error message to the console, used by applications.
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE acpi_log_error(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	(void)acpi_ut_file_vprintf(ACPI_FILE_ERR, format, args);
+	va_end(args);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_log_error)
+#endif

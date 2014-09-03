@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __GDM_SDIO_H__
-#define __GDM_SDIO_H__
+#ifndef __GDM72XX_GDM_SDIO_H__
+#define __GDM72XX_GDM_SDIO_H__
 
 #include <linux/types.h>
 #include <linux/time.h>
@@ -60,4 +60,4 @@ struct sdiowm_dev {
 	struct work_struct	ws;
 };
 
-#endif /* __GDM_SDIO_H__ */
+#endif /* __GDM72XX_GDM_SDIO_H__ */

@@ -12,10 +12,7 @@ struct nvkm_output_dp {
 	struct nvbios_dpout info;
 	u8 version;
 
-	struct nouveau_eventh *irq;
-	struct nouveau_eventh *hpd;
-	struct work_struct work;
-	atomic_t pending;
+	struct nvkm_notify irq;
 	bool present;
 	u8 dpcd[16];
 

@@ -12,8 +12,11 @@
 
 #include <asm/mipsregs.h>
 
+#ifndef __ASSEMBLY__
+
 extern void _save_msa(struct task_struct *);
 extern void _restore_msa(struct task_struct *);
+extern void _init_msa_upper(void);
 
 static inline void enable_msa(void)
 {
@@ -112,10 +115,10 @@ static inline unsigned int read_msa_##name(void)		\
 	"	.set	push\n"					\
 	"	.set	noat\n"					\
 	"	.insn\n"					\
-	"	.word	#CFC_MSA_INSN | (" #cs " << 11)\n"	\
+	"	.word	%1 | (" #cs " << 11)\n"			\
 	"	move	%0, $1\n"				\
 	"	.set	pop\n"					\
-	: "=r"(reg));						\
+	: "=r"(reg) : "i"(CFC_MSA_INSN));			\
 	return reg;						\
 }								\
 								\
@@ -126,21 +129,12 @@ static inline void write_msa_##name(unsigned int val)		\
 	"	.set	noat\n"					\
 	"	move	$1, %0\n"				\
 	"	.insn\n"					\
-	"	.word	#CTC_MSA_INSN | (" #cs " << 6)\n"	\
+	"	.word	%1 | (" #cs " << 6)\n"			\
 	"	.set	pop\n"					\
-	: : "r"(val));						\
+	: : "r"(val), "i"(CTC_MSA_INSN));			\
 }
 
 #endif /* !TOOLCHAIN_SUPPORTS_MSA */
-
-#define MSA_IR		0
-#define MSA_CSR		1
-#define MSA_ACCESS	2
-#define MSA_SAVE	3
-#define MSA_MODIFY	4
-#define MSA_REQUEST	5
-#define MSA_MAP		6
-#define MSA_UNMAP	7
 
 __BUILD_MSA_CTL_REG(ir, 0)
 __BUILD_MSA_CTL_REG(csr, 1)
@@ -150,6 +144,17 @@ __BUILD_MSA_CTL_REG(modify, 4)
 __BUILD_MSA_CTL_REG(request, 5)
 __BUILD_MSA_CTL_REG(map, 6)
 __BUILD_MSA_CTL_REG(unmap, 7)
+
+#endif /* !__ASSEMBLY__ */
+
+#define MSA_IR		0
+#define MSA_CSR		1
+#define MSA_ACCESS	2
+#define MSA_SAVE	3
+#define MSA_MODIFY	4
+#define MSA_REQUEST	5
+#define MSA_MAP		6
+#define MSA_UNMAP	7
 
 /* MSA Implementation Register (MSAIR) */
 #define MSA_IR_REVB		0

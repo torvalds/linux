@@ -40,9 +40,9 @@
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
-#include <obd_ost.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
+#include "../include/obd_ost.h"
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
 
 extern struct list_head obd_types;
 spinlock_t obd_types_lock;
@@ -699,7 +699,7 @@ struct obd_export *class_conn2export(struct lustre_handle *conn)
 		return NULL;
 	}
 
-	CDEBUG(D_INFO, "looking for export cookie "LPX64"\n", conn->cookie);
+	CDEBUG(D_INFO, "looking for export cookie %#llx\n", conn->cookie);
 	export = class_handle2object(conn->cookie);
 	return export;
 }
@@ -842,7 +842,7 @@ struct obd_export *class_new_export(struct obd_device *obd,
 	INIT_LIST_HEAD(&export->exp_handle.h_link);
 	INIT_LIST_HEAD(&export->exp_hp_rpcs);
 	class_handle_hash(&export->exp_handle, &export_handle_ops);
-	export->exp_last_request_time = cfs_time_current_sec();
+	export->exp_last_request_time = get_seconds();
 	spin_lock_init(&export->exp_lock);
 	spin_lock_init(&export->exp_rpc_lock);
 	INIT_HLIST_NODE(&export->exp_uuid_hash);
@@ -1113,7 +1113,7 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 	conn->cookie = export->exp_handle.h_cookie;
 	class_export_put(export);
 
-	CDEBUG(D_IOCTL, "connect: client %s, cookie "LPX64"\n",
+	CDEBUG(D_IOCTL, "connect: client %s, cookie %#llx\n",
 	       cluuid->uuid, conn->cookie);
 	return 0;
 }
@@ -1190,7 +1190,7 @@ int class_disconnect(struct obd_export *export)
 		GOTO(no_disconn, already_disconnected);
 	}
 
-	CDEBUG(D_IOCTL, "disconnect: cookie "LPX64"\n",
+	CDEBUG(D_IOCTL, "disconnect: cookie %#llx\n",
 	       export->exp_handle.h_cookie);
 
 	if (!hlist_unhashed(&export->exp_nid_hash))
@@ -1493,7 +1493,7 @@ static void print_export_data(struct obd_export *exp, const char *status,
 	}
 	spin_unlock(&exp->exp_lock);
 
-	CDEBUG(D_HA, "%s: %s %p %s %s %d (%d %d %d) %d %d %d %d: %p %s "LPU64"\n",
+	CDEBUG(D_HA, "%s: %s %p %s %s %d (%d %d %d) %d %d %d %d: %p %s %llu\n",
 	       exp->exp_obd->obd_name, status, exp, exp->exp_client_uuid.uuid,
 	       obd_export_nid2str(exp), atomic_read(&exp->exp_refcount),
 	       atomic_read(&exp->exp_rpc_count),

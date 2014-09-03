@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
+#include <sys/syscall.h>
 #include "hostfs.h"
 #include <utime.h>
 
@@ -358,6 +359,33 @@ int rename_file(char *from, char *to)
 	if (err < 0)
 		return -errno;
 	return 0;
+}
+
+int rename2_file(char *from, char *to, unsigned int flags)
+{
+	int err;
+
+#ifndef SYS_renameat2
+#  ifdef __x86_64__
+#    define SYS_renameat2 316
+#  endif
+#  ifdef __i386__
+#    define SYS_renameat2 353
+#  endif
+#endif
+
+#ifdef SYS_renameat2
+	err = syscall(SYS_renameat2, AT_FDCWD, from, AT_FDCWD, to, flags);
+	if (err < 0) {
+		if (errno != ENOSYS)
+			return -errno;
+		else
+			return -EINVAL;
+	}
+	return 0;
+#else
+	return -EINVAL;
+#endif
 }
 
 int do_statfs(char *root, long *bsize_out, long long *blocks_out,

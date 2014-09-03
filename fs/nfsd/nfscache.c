@@ -221,7 +221,12 @@ static void
 hash_refile(struct svc_cacherep *rp)
 {
 	hlist_del_init(&rp->c_hash);
-	hlist_add_head(&rp->c_hash, cache_hash + hash_32(rp->c_xid, maskbits));
+	/*
+	 * No point in byte swapping c_xid since we're just using it to pick
+	 * a hash bucket.
+	 */
+	hlist_add_head(&rp->c_hash, cache_hash +
+			hash_32((__force u32)rp->c_xid, maskbits));
 }
 
 /*
@@ -356,7 +361,11 @@ nfsd_cache_search(struct svc_rqst *rqstp, __wsum csum)
 	struct hlist_head 	*rh;
 	unsigned int		entries = 0;
 
-	rh = &cache_hash[hash_32(rqstp->rq_xid, maskbits)];
+	/*
+	 * No point in byte swapping rq_xid since we're just using it to pick
+	 * a hash bucket.
+	 */
+	rh = &cache_hash[hash_32((__force u32)rqstp->rq_xid, maskbits)];
 	hlist_for_each_entry(rp, rh, c_hash) {
 		++entries;
 		if (nfsd_cache_match(rqstp, csum, rp)) {

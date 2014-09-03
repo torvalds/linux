@@ -27,29 +27,34 @@ struct qcom_cc {
 	struct clk *clks[];
 };
 
-int qcom_cc_probe(struct platform_device *pdev, const struct qcom_cc_desc *desc)
+struct regmap *
+qcom_cc_map(struct platform_device *pdev, const struct qcom_cc_desc *desc)
 {
 	void __iomem *base;
 	struct resource *res;
+	struct device *dev = &pdev->dev;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	return devm_regmap_init_mmio(dev, base, desc->config);
+}
+EXPORT_SYMBOL_GPL(qcom_cc_map);
+
+int qcom_cc_really_probe(struct platform_device *pdev,
+			 const struct qcom_cc_desc *desc, struct regmap *regmap)
+{
 	int i, ret;
 	struct device *dev = &pdev->dev;
 	struct clk *clk;
 	struct clk_onecell_data *data;
 	struct clk **clks;
-	struct regmap *regmap;
 	struct qcom_reset_controller *reset;
 	struct qcom_cc *cc;
 	size_t num_clks = desc->num_clks;
 	struct clk_regmap **rclks = desc->clks;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	regmap = devm_regmap_init_mmio(dev, base, desc->config);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
 
 	cc = devm_kzalloc(dev, sizeof(*cc) + sizeof(*clks) * num_clks,
 			  GFP_KERNEL);
@@ -90,6 +95,18 @@ int qcom_cc_probe(struct platform_device *pdev, const struct qcom_cc_desc *desc)
 		of_clk_del_provider(dev->of_node);
 
 	return ret;
+}
+EXPORT_SYMBOL_GPL(qcom_cc_really_probe);
+
+int qcom_cc_probe(struct platform_device *pdev, const struct qcom_cc_desc *desc)
+{
+	struct regmap *regmap;
+
+	regmap = qcom_cc_map(pdev, desc);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	return qcom_cc_really_probe(pdev, desc, regmap);
 }
 EXPORT_SYMBOL_GPL(qcom_cc_probe);
 

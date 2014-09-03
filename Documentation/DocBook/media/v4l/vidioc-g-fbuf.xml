@@ -152,13 +152,10 @@ a valid base address, so applications can find the corresponding Linux
 framebuffer device (see <xref linkend="osd" />).</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-pix-format;</entry>
+	    <entry>struct</entry>
 	    <entry><structfield>fmt</structfield></entry>
 	    <entry></entry>
-	    <entry>Layout of the frame buffer. The
-<structname>v4l2_pix_format</structname> structure is defined in <xref
-linkend="pixfmt" />, for clarification the fields and acceptable values
-	    are listed below:</entry>
+	    <entry>Layout of the frame buffer.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
@@ -276,9 +273,8 @@ see <xref linkend="colorspaces" />.</entry>
 	    <entry></entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>priv</structfield></entry>
-	    <entry>Reserved for additional information about custom
-(driver defined) formats. When not used drivers and applications must
-set this field to zero.</entry>
+	    <entry>Reserved. Drivers and applications must set this field to
+zero.</entry>
 	  </row>
 	</tbody>
       </tgroup>

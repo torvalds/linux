@@ -125,8 +125,9 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	return rc ? rc : SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
+static int __inject_sigp_stop(struct kvm_vcpu *dst_vcpu, int action)
 {
+	struct kvm_s390_local_interrupt *li = &dst_vcpu->arch.local_int;
 	struct kvm_s390_interrupt_info *inti;
 	int rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
@@ -135,7 +136,13 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 		return -ENOMEM;
 	inti->type = KVM_S390_SIGP_STOP;
 
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
+	if (li->action_bits & ACTION_STOP_ON_STOP) {
+		/* another SIGP STOP is pending */
+		kfree(inti);
+		rc = SIGP_CC_BUSY;
+		goto out;
+	}
 	if ((atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
 		kfree(inti);
 		if ((action & ACTION_STORE_ON_STOP) != 0)
@@ -144,19 +151,17 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 	}
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
-	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
 	li->action_bits |= action;
-	if (waitqueue_active(li->wq))
-		wake_up_interruptible(li->wq);
+	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
+	kvm_s390_vcpu_wakeup(dst_vcpu);
 out:
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 
 	return rc;
 }
 
 static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
 {
-	struct kvm_s390_local_interrupt *li;
 	struct kvm_vcpu *dst_vcpu = NULL;
 	int rc;
 
@@ -166,9 +171,8 @@ static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
 	dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
 	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
-	li = &dst_vcpu->arch.local_int;
 
-	rc = __inject_sigp_stop(li, action);
+	rc = __inject_sigp_stop(dst_vcpu, action);
 
 	VCPU_EVENT(vcpu, 4, "sent sigp stop to cpu %x", cpu_addr);
 
@@ -238,7 +242,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	if (!inti)
 		return SIGP_CC_BUSY;
 
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	/* cpu must be in stopped state */
 	if (!(atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
 		*reg &= 0xffffffff00000000UL;
@@ -253,13 +257,12 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
-	if (waitqueue_active(li->wq))
-		wake_up_interruptible(li->wq);
+	kvm_s390_vcpu_wakeup(dst_vcpu);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
 	VCPU_EVENT(vcpu, 4, "set prefix of cpu %02x to %x", cpu_addr, address);
 out_li:
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 	return rc;
 }
 
@@ -275,9 +278,9 @@ static int __sigp_store_status_at_addr(struct kvm_vcpu *vcpu, u16 cpu_id,
 	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
 
-	spin_lock_bh(&dst_vcpu->arch.local_int.lock);
+	spin_lock(&dst_vcpu->arch.local_int.lock);
 	flags = atomic_read(dst_vcpu->arch.local_int.cpuflags);
-	spin_unlock_bh(&dst_vcpu->arch.local_int.lock);
+	spin_unlock(&dst_vcpu->arch.local_int.lock);
 	if (!(flags & CPUSTAT_STOPPED)) {
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INCORRECT_STATE;
@@ -338,10 +341,10 @@ static int sigp_check_callable(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
 	li = &dst_vcpu->arch.local_int;
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	if (li->action_bits & ACTION_STOP_ON_STOP)
 		rc = SIGP_CC_BUSY;
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 
 	return rc;
 }
@@ -461,12 +464,7 @@ int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu)
 		dest_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
 		BUG_ON(dest_vcpu == NULL);
 
-		spin_lock_bh(&dest_vcpu->arch.local_int.lock);
-		if (waitqueue_active(&dest_vcpu->wq))
-			wake_up_interruptible(&dest_vcpu->wq);
-		dest_vcpu->preempted = true;
-		spin_unlock_bh(&dest_vcpu->arch.local_int.lock);
-
+		kvm_s390_vcpu_wakeup(dest_vcpu);
 		kvm_s390_set_psw_cc(vcpu, SIGP_CC_ORDER_CODE_ACCEPTED);
 		return 0;
 	}

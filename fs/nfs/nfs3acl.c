@@ -129,7 +129,10 @@ static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		.rpc_argp	= &args,
 		.rpc_resp	= &fattr,
 	};
-	int status;
+	int status = 0;
+
+	if (acl == NULL && (!S_ISDIR(inode->i_mode) || dfacl == NULL))
+		goto out;
 
 	status = -EOPNOTSUPP;
 	if (!nfs_server_capable(inode, NFS_CAP_ACLS))
@@ -256,7 +259,7 @@ nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
 	char *p = data + *result;
 
 	acl = get_acl(inode, type);
-	if (!acl)
+	if (IS_ERR_OR_NULL(acl))
 		return 0;
 
 	posix_acl_release(acl);

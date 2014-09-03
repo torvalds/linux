@@ -27,9 +27,9 @@
  * Author: Johann Lombardi <johann.lombardi@intel.com>
  */
 
-#include <lustre/lustre_idl.h>
-#include <obd.h>
-#include <md_object.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../include/obd.h"
+#include "../include/md_object.h"
 
 /**
  * Initialize new \a lma. Only fid is stored.

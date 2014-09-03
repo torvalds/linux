@@ -93,7 +93,7 @@ static void fdb_rcu_free(struct rcu_head *head)
 static void fdb_add_hw(struct net_bridge *br, const unsigned char *addr)
 {
 	int err;
-	struct net_bridge_port *p, *tmp;
+	struct net_bridge_port *p;
 
 	ASSERT_RTNL();
 
@@ -107,11 +107,9 @@ static void fdb_add_hw(struct net_bridge *br, const unsigned char *addr)
 
 	return;
 undo:
-	list_for_each_entry(tmp, &br->port_list, list) {
-		if (tmp == p)
-			break;
-		if (!br_promisc_port(tmp))
-			dev_uc_del(tmp->dev, addr);
+	list_for_each_entry_continue_reverse(p, &br->port_list, list) {
+		if (!br_promisc_port(p))
+			dev_uc_del(p->dev, addr);
 	}
 }
 
@@ -631,7 +629,7 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 	if (nla_put(skb, NDA_CACHEINFO, sizeof(ci), &ci))
 		goto nla_put_failure;
 
-	if (nla_put(skb, NDA_VLAN, sizeof(u16), &fdb->vlan_id))
+	if (fdb->vlan_id && nla_put(skb, NDA_VLAN, sizeof(u16), &fdb->vlan_id))
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
@@ -678,6 +676,7 @@ errout:
 int br_fdb_dump(struct sk_buff *skb,
 		struct netlink_callback *cb,
 		struct net_device *dev,
+		struct net_device *filter_dev,
 		int idx)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -692,6 +691,19 @@ int br_fdb_dump(struct sk_buff *skb,
 		hlist_for_each_entry_rcu(f, &br->hash[i], hlist) {
 			if (idx < cb->args[0])
 				goto skip;
+
+			if (filter_dev &&
+			    (!f->dst || f->dst->dev != filter_dev)) {
+				if (filter_dev != dev)
+					goto skip;
+				/* !f->dst is a speacial case for bridge
+				 * It means the MAC belongs to the bridge
+				 * Therefore need a little more filtering
+				 * we only want to dump the !f->dst case
+				 */
+				if (f->dst)
+					goto skip;
+			}
 
 			if (fdb_fill_info(skb, br, f,
 					  NETLINK_CB(cb->skb).portid,

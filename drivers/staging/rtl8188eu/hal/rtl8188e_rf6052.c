@@ -366,7 +366,7 @@ static void writeOFDMPowerReg88E(struct adapter *Adapter, u8 index, u32 *pValue)
 					writeVal = (writeVal > 8) ? (writeVal-8) : 0;
 				else
 					writeVal = (writeVal > 6) ? (writeVal-6) : 0;
-				rtw_write8(Adapter, (u32)(regoffset+i), (u8)writeVal);
+				usb_write8(Adapter, (u32)(regoffset+i), (u8)writeVal);
 			}
 		}
 	}

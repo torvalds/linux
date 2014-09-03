@@ -1340,12 +1340,11 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 	 */
 	if (range > 384) {
 		usb_audio_warn(state->chip,
-			       "Warning! Unlikely big volume range (=%u), "
-			       "cval->res is probably wrong.",
+			       "Warning! Unlikely big volume range (=%u), cval->res is probably wrong.",
 			       range);
-		usb_audio_warn(state->chip, "[%d] FU [%s] ch = %d, "
-			       "val = %d/%d/%d", cval->id,
-			       kctl->id.name, cval->channels,
+		usb_audio_warn(state->chip,
+			       "[%d] FU [%s] ch = %d, val = %d/%d/%d",
+			       cval->id, kctl->id.name, cval->channels,
 			       cval->min, cval->max, cval->res);
 	}
 

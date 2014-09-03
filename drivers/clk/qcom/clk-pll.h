@@ -60,6 +60,8 @@ struct pll_config {
 	u32 aux_output_mask;
 };
 
+void clk_pll_configure_sr(struct clk_pll *pll, struct regmap *regmap,
+		const struct pll_config *config, bool fsm_mode);
 void clk_pll_configure_sr_hpm_lp(struct clk_pll *pll, struct regmap *regmap,
 		const struct pll_config *config, bool fsm_mode);
 

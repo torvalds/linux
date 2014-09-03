@@ -2,9 +2,20 @@ menu "SoC Audio for Freescale CPUs"
 
 comment "Common SoC Audio options for Freescale CPUs:"
 
+config SND_SOC_FSL_ASRC
+	tristate "Asynchronous Sample Rate Converter (ASRC) module support"
+	select REGMAP_MMIO
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y if you want to add Asynchronous Sample Rate Converter (ASRC)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
 config SND_SOC_FSL_SAI
 	tristate "Synchronous Audio Interface (SAI) module support"
 	select REGMAP_MMIO
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y if you want to add Synchronous Audio Interface (SAI)
@@ -15,7 +26,7 @@ config SND_SOC_FSL_SAI
 config SND_SOC_FSL_SSI
 	tristate "Synchronous Serial Interface module support"
 	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
-	select SND_SOC_IMX_PCM_FIQ if SND_IMX_SOC != n && ARCH_MXC
+	select SND_SOC_IMX_PCM_FIQ if SND_IMX_SOC != n && (MXC_TZIC || MXC_AVIC)
 	select REGMAP_MMIO
 	help
 	  Say Y if you want to add Synchronous Serial Interface (SSI)
@@ -27,7 +38,7 @@ config SND_SOC_FSL_SPDIF
 	tristate "Sony/Philips Digital Interface module support"
 	select REGMAP_MMIO
 	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
-	select SND_SOC_IMX_PCM_FIQ if SND_IMX_SOC != n && ARCH_MXC
+	select SND_SOC_IMX_PCM_FIQ if SND_IMX_SOC != n && (MXC_TZIC || MXC_AVIC)
 	help
 	  Say Y if you want to add Sony/Philips Digital Interface (SPDIF)
 	  support for the Freescale CPUs.
@@ -37,7 +48,7 @@ config SND_SOC_FSL_SPDIF
 config SND_SOC_FSL_ESAI
 	tristate "Enhanced Serial Audio Interface (ESAI) module support"
 	select REGMAP_MMIO
-	select SND_SOC_FSL_UTILS
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
 	help
 	  Say Y if you want to add Enhanced Synchronous Audio Interface
 	  (ESAI) support for the Freescale CPUs.

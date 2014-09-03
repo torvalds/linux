@@ -38,14 +38,14 @@
 
 # include <linux/module.h>
 
-#include <linux/lustre_intent.h>
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_dlm.h>
-#include <lustre_fid.h> /* fid_res_name_eq() */
-#include <lustre_mdc.h>
-#include <lustre_net.h>
-#include <lustre_req_layout.h>
+#include "../include/linux/lustre_intent.h"
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_fid.h"	/* fid_res_name_eq() */
+#include "../include/lustre_mdc.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_req_layout.h"
 #include "mdc_internal.h"
 
 struct mdc_getattr_args {
@@ -860,7 +860,7 @@ resend:
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
-		req->rq_sent = cfs_time_current_sec() + resends;
+		req->rq_sent = get_seconds() + resends;
 	}
 
 	/* It is important to obtain rpc_lock first (if applicable), so that

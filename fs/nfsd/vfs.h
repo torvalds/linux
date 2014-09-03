@@ -74,9 +74,9 @@ struct raparms;
 __be32		nfsd_get_tmp_read_open(struct svc_rqst *, struct svc_fh *,
 				struct file **, struct raparms **);
 void		nfsd_put_tmp_read_open(struct file *, struct raparms *);
-int		nfsd_splice_read(struct svc_rqst *,
+__be32		nfsd_splice_read(struct svc_rqst *,
 				struct file *, loff_t, unsigned long *);
-int		nfsd_readv(struct file *, loff_t, struct kvec *, int,
+__be32		nfsd_readv(struct file *, loff_t, struct kvec *, int,
 				unsigned long *);
 __be32 		nfsd_read(struct svc_rqst *, struct svc_fh *,
 				loff_t, struct kvec *, int, unsigned long *);
@@ -85,8 +85,8 @@ __be32 		nfsd_write(struct svc_rqst *, struct svc_fh *,struct file *,
 __be32		nfsd_readlink(struct svc_rqst *, struct svc_fh *,
 				char *, int *);
 __be32		nfsd_symlink(struct svc_rqst *, struct svc_fh *,
-				char *name, int len, char *path, int plen,
-				struct svc_fh *res, struct iattr *);
+				char *name, int len, char *path,
+				struct svc_fh *res);
 __be32		nfsd_link(struct svc_rqst *, struct svc_fh *,
 				char *, int, struct svc_fh *);
 __be32		nfsd_rename(struct svc_rqst *,

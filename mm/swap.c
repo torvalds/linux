@@ -62,6 +62,7 @@ static void __page_cache_release(struct page *page)
 		del_page_from_lru_list(page, lruvec, page_off_lru(page));
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
+	mem_cgroup_uncharge(page);
 }
 
 static void __put_single_page(struct page *page)
@@ -501,7 +502,7 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
 		SetPageActive(page);
 		lru += LRU_ACTIVE;
 		add_page_to_lru_list(page, lruvec, lru);
-		trace_mm_lru_activate(page, page_to_pfn(page));
+		trace_mm_lru_activate(page);
 
 		__count_vm_event(PGACTIVATE);
 		update_page_reclaim_stat(lruvec, file, 1);
@@ -589,6 +590,9 @@ static void __lru_cache_activate_page(struct page *page)
  * inactive,unreferenced	->	inactive,referenced
  * inactive,referenced		->	active,unreferenced
  * active,unreferenced		->	active,referenced
+ *
+ * When a newly allocated page is not yet visible, so safe for non-atomic ops,
+ * __SetPageReferenced(page) may be substituted for mark_page_accessed(page).
  */
 void mark_page_accessed(struct page *page)
 {
@@ -613,17 +617,6 @@ void mark_page_accessed(struct page *page)
 	}
 }
 EXPORT_SYMBOL(mark_page_accessed);
-
-/*
- * Used to mark_page_accessed(page) that is not visible yet and when it is
- * still safe to use non-atomic ops
- */
-void init_page_accessed(struct page *page)
-{
-	if (!PageReferenced(page))
-		__SetPageReferenced(page);
-}
-EXPORT_SYMBOL(init_page_accessed);
 
 static void __lru_cache_add(struct page *page)
 {
@@ -693,6 +686,40 @@ void add_page_to_unevictable_list(struct page *page)
 	SetPageLRU(page);
 	add_page_to_lru_list(page, lruvec, LRU_UNEVICTABLE);
 	spin_unlock_irq(&zone->lru_lock);
+}
+
+/**
+ * lru_cache_add_active_or_unevictable
+ * @page:  the page to be added to LRU
+ * @vma:   vma in which page is mapped for determining reclaimability
+ *
+ * Place @page on the active or unevictable LRU list, depending on its
+ * evictability.  Note that if the page is not evictable, it goes
+ * directly back onto it's zone's unevictable list, it does NOT use a
+ * per cpu pagevec.
+ */
+void lru_cache_add_active_or_unevictable(struct page *page,
+					 struct vm_area_struct *vma)
+{
+	VM_BUG_ON_PAGE(PageLRU(page), page);
+
+	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
+		SetPageActive(page);
+		lru_cache_add(page);
+		return;
+	}
+
+	if (!TestSetPageMlocked(page)) {
+		/*
+		 * We use the irq-unsafe __mod_zone_page_stat because this
+		 * counter is not modified from interrupt context, and the pte
+		 * lock is held(spinlock), which implies preemption disabled.
+		 */
+		__mod_zone_page_state(page_zone(page), NR_MLOCK,
+				    hpage_nr_pages(page));
+		count_vm_event(UNEVICTABLE_PGMLOCKED);
+	}
+	add_page_to_unevictable_list(page);
 }
 
 /*
@@ -921,6 +948,7 @@ void release_pages(struct page **pages, int nr, bool cold)
 	if (zone)
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 
+	mem_cgroup_uncharge_list(&pages_to_free);
 	free_hot_cold_page_list(&pages_to_free, cold);
 }
 EXPORT_SYMBOL(release_pages);
@@ -996,7 +1024,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 	SetPageLRU(page);
 	add_page_to_lru_list(page, lruvec, lru);
 	update_page_reclaim_stat(lruvec, file, active);
-	trace_mm_lru_insertion(page, page_to_pfn(page), lru, trace_pagemap_flags(page));
+	trace_mm_lru_insertion(page, lru);
 }
 
 /*

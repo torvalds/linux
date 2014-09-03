@@ -157,7 +157,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 
 	gpiod_direction_input(desc);
 
-	ret = gpiod_lock_as_irq(desc);
+	ret = gpio_lock_as_irq(chip, pin);
 	if (ret) {
 		dev_err(chip->dev, "Failed to lock GPIO as interrupt\n");
 		goto fail_free_desc;
@@ -212,7 +212,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 fail_free_event:
 	kfree(event);
 fail_unlock_irq:
-	gpiod_unlock_as_irq(desc);
+	gpio_unlock_as_irq(chip, pin);
 fail_free_desc:
 	gpiochip_free_own_desc(desc);
 
@@ -221,7 +221,7 @@ fail_free_desc:
 
 /**
  * acpi_gpiochip_request_interrupts() - Register isr for gpio chip ACPI events
- * @acpi_gpio:      ACPI GPIO chip
+ * @chip:      GPIO chip
  *
  * ACPI5 platforms can use GPIO signaled ACPI events. These GPIO interrupts are
  * handled by ACPI event methods which need to be called from the GPIO
@@ -229,11 +229,21 @@ fail_free_desc:
  * gpio pins have acpi event methods and assigns interrupt handlers that calls
  * the acpi event methods for those pins.
  */
-static void acpi_gpiochip_request_interrupts(struct acpi_gpio_chip *acpi_gpio)
+void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 {
-	struct gpio_chip *chip = acpi_gpio->chip;
+	struct acpi_gpio_chip *acpi_gpio;
+	acpi_handle handle;
+	acpi_status status;
 
-	if (!chip->to_irq)
+	if (!chip->dev || !chip->to_irq)
+		return;
+
+	handle = ACPI_HANDLE(chip->dev);
+	if (!handle)
+		return;
+
+	status = acpi_get_data(handle, acpi_gpio_chip_dh, (void **)&acpi_gpio);
+	if (ACPI_FAILURE(status))
 		return;
 
 	INIT_LIST_HEAD(&acpi_gpio->events);
@@ -243,17 +253,27 @@ static void acpi_gpiochip_request_interrupts(struct acpi_gpio_chip *acpi_gpio)
 
 /**
  * acpi_gpiochip_free_interrupts() - Free GPIO ACPI event interrupts.
- * @acpi_gpio:      ACPI GPIO chip
+ * @chip:      GPIO chip
  *
  * Free interrupts associated with GPIO ACPI event method for the given
  * GPIO chip.
  */
-static void acpi_gpiochip_free_interrupts(struct acpi_gpio_chip *acpi_gpio)
+void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 {
+	struct acpi_gpio_chip *acpi_gpio;
 	struct acpi_gpio_event *event, *ep;
-	struct gpio_chip *chip = acpi_gpio->chip;
+	acpi_handle handle;
+	acpi_status status;
 
-	if (!chip->to_irq)
+	if (!chip->dev || !chip->to_irq)
+		return;
+
+	handle = ACPI_HANDLE(chip->dev);
+	if (!handle)
+		return;
+
+	status = acpi_get_data(handle, acpi_gpio_chip_dh, (void **)&acpi_gpio);
+	if (ACPI_FAILURE(status))
 		return;
 
 	list_for_each_entry_safe_reverse(event, ep, &acpi_gpio->events, node) {
@@ -263,7 +283,7 @@ static void acpi_gpiochip_free_interrupts(struct acpi_gpio_chip *acpi_gpio)
 		desc = gpiochip_get_desc(chip, event->pin);
 		if (WARN_ON(IS_ERR(desc)))
 			continue;
-		gpiod_unlock_as_irq(desc);
+		gpio_unlock_as_irq(chip, event->pin);
 		gpiochip_free_own_desc(desc);
 		list_del(&event->node);
 		kfree(event);
@@ -525,7 +545,6 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 		return;
 	}
 
-	acpi_gpiochip_request_interrupts(acpi_gpio);
 	acpi_gpiochip_request_regions(acpi_gpio);
 }
 
@@ -549,7 +568,6 @@ void acpi_gpiochip_remove(struct gpio_chip *chip)
 	}
 
 	acpi_gpiochip_free_regions(acpi_gpio);
-	acpi_gpiochip_free_interrupts(acpi_gpio);
 
 	acpi_detach_data(handle, acpi_gpio_chip_dh);
 	kfree(acpi_gpio);

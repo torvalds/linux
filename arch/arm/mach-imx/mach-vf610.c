@@ -20,7 +20,7 @@ static void __init vf610_init_machine(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char *vf610_dt_compat[] __initconst = {
+static const char * const vf610_dt_compat[] __initconst = {
 	"fsl,vf610",
 	NULL,
 };

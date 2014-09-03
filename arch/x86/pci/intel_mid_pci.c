@@ -208,25 +208,29 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 
 static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 {
-	u8 pin;
-	struct io_apic_irq_attr irq_attr;
+	int polarity;
 
-	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
+	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER)
+		polarity = 0; /* active high */
+	else
+		polarity = 1; /* active low */
 
 	/*
 	 * MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to
 	 * IOAPIC RTE entries, so we just enable RTE for the device.
 	 */
-	irq_attr.ioapic = mp_find_ioapic(dev->irq);
-	irq_attr.ioapic_pin = dev->irq;
-	irq_attr.trigger = 1; /* level */
-	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER)
-		irq_attr.polarity = 0; /* active high */
-	else
-		irq_attr.polarity = 1; /* active low */
-	io_apic_set_pci_routing(&dev->dev, dev->irq, &irq_attr);
+	if (mp_set_gsi_attr(dev->irq, 1, polarity, dev_to_node(&dev->dev)))
+		return -EBUSY;
+	if (mp_map_gsi_to_irq(dev->irq, IOAPIC_MAP_ALLOC) < 0)
+		return -EBUSY;
 
 	return 0;
+}
+
+static void intel_mid_pci_irq_disable(struct pci_dev *dev)
+{
+	if (!mp_should_keep_irq(&dev->dev) && dev->irq > 0)
+		mp_unmap_irq(dev->irq);
 }
 
 struct pci_ops intel_mid_pci_ops = {
@@ -245,6 +249,7 @@ int __init intel_mid_pci_init(void)
 	pr_info("Intel MID platform detected, using MID PCI ops\n");
 	pci_mmcfg_late_init();
 	pcibios_enable_irq = intel_mid_pci_irq_enable;
+	pcibios_disable_irq = intel_mid_pci_irq_disable;
 	pci_root_ops = intel_mid_pci_ops;
 	pci_soc_mode = 1;
 	/* Continue with standard init */

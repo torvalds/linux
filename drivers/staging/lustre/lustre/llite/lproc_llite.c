@@ -35,10 +35,10 @@
  */
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
-#include <lprocfs_status.h>
+#include "../include/lustre_lite.h"
+#include "../include/lprocfs_status.h"
 #include <linux/seq_file.h>
-#include <obd_support.h>
+#include "../include/obd_support.h"
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
@@ -82,7 +82,7 @@ static int ll_kbytestotal_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -105,7 +105,7 @@ static int ll_kbytesfree_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -128,7 +128,7 @@ static int ll_kbytesavail_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -145,7 +145,7 @@ static int ll_filestotal_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, LPU64"\n", osfs.os_files);
+		 rc = seq_printf(m, "%llu\n", osfs.os_files);
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filestotal);
@@ -161,7 +161,7 @@ static int ll_filesfree_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, LPU64"\n", osfs.os_ffree);
+		 rc = seq_printf(m, "%llu\n", osfs.os_ffree);
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filesfree);
@@ -811,38 +811,39 @@ static ssize_t ll_xattr_cache_seq_write(struct file *file, const char *buffer,
 LPROC_SEQ_FOPS(ll_xattr_cache);
 
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
-	{ "uuid",	  &ll_sb_uuid_fops,	  0, 0 },
+	{ "uuid",	  &ll_sb_uuid_fops,	  NULL, 0 },
 	//{ "mntpt_path",   ll_rd_path,	     0, 0 },
-	{ "fstype",       &ll_fstype_fops,	  0, 0 },
-	{ "site",	  &ll_site_stats_fops,    0, 0 },
-	{ "blocksize",    &ll_blksize_fops,	  0, 0 },
-	{ "kbytestotal",  &ll_kbytestotal_fops,   0, 0 },
-	{ "kbytesfree",   &ll_kbytesfree_fops,    0, 0 },
-	{ "kbytesavail",  &ll_kbytesavail_fops,   0, 0 },
-	{ "filestotal",   &ll_filestotal_fops,    0, 0 },
-	{ "filesfree",    &ll_filesfree_fops,	  0, 0 },
-	{ "client_type",  &ll_client_type_fops,   0, 0 },
+	{ "fstype",       &ll_fstype_fops,	  NULL, 0 },
+	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
+	{ "blocksize",    &ll_blksize_fops,	  NULL, 0 },
+	{ "kbytestotal",  &ll_kbytestotal_fops,   NULL, 0 },
+	{ "kbytesfree",   &ll_kbytesfree_fops,    NULL, 0 },
+	{ "kbytesavail",  &ll_kbytesavail_fops,   NULL, 0 },
+	{ "filestotal",   &ll_filestotal_fops,    NULL, 0 },
+	{ "filesfree",    &ll_filesfree_fops,	  NULL, 0 },
+	{ "client_type",  &ll_client_type_fops,   NULL, 0 },
 	//{ "filegroups",   lprocfs_rd_filegroups,  0, 0 },
-	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, 0 },
-	{ "max_read_ahead_per_file_mb", &ll_max_readahead_per_file_mb_fops, 0 },
-	{ "max_read_ahead_whole_mb", &ll_max_read_ahead_whole_mb_fops, 0 },
-	{ "max_cached_mb",    &ll_max_cached_mb_fops, 0 },
-	{ "checksum_pages",   &ll_checksum_fops, 0 },
-	{ "max_rw_chunk",     &ll_max_rw_chunk_fops, 0 },
-	{ "stats_track_pid",  &ll_track_pid_fops, 0 },
-	{ "stats_track_ppid", &ll_track_ppid_fops, 0 },
-	{ "stats_track_gid",  &ll_track_gid_fops, 0 },
-	{ "statahead_max",    &ll_statahead_max_fops, 0 },
-	{ "statahead_agl",    &ll_statahead_agl_fops, 0 },
-	{ "statahead_stats",  &ll_statahead_stats_fops, 0, 0 },
-	{ "lazystatfs",       &ll_lazystatfs_fops, 0 },
-	{ "max_easize",       &ll_max_easize_fops, 0, 0 },
-	{ "default_easize",   &ll_defult_easize_fops, 0, 0 },
-	{ "max_cookiesize",   &ll_max_cookiesize_fops, 0, 0 },
-	{ "default_cookiesize", &ll_defult_cookiesize_fops, 0, 0 },
-	{ "sbi_flags",	      &ll_sbi_flags_fops, 0, 0 },
-	{ "xattr_cache",      &ll_xattr_cache_fops, 0, 0 },
-	{ 0 }
+	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, NULL },
+	{ "max_read_ahead_per_file_mb", &ll_max_readahead_per_file_mb_fops,
+		NULL },
+	{ "max_read_ahead_whole_mb", &ll_max_read_ahead_whole_mb_fops, NULL },
+	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
+	{ "checksum_pages",   &ll_checksum_fops, NULL },
+	{ "max_rw_chunk",     &ll_max_rw_chunk_fops, NULL },
+	{ "stats_track_pid",  &ll_track_pid_fops, NULL },
+	{ "stats_track_ppid", &ll_track_ppid_fops, NULL },
+	{ "stats_track_gid",  &ll_track_gid_fops, NULL },
+	{ "statahead_max",    &ll_statahead_max_fops, NULL },
+	{ "statahead_agl",    &ll_statahead_agl_fops, NULL },
+	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
+	{ "lazystatfs",       &ll_lazystatfs_fops, NULL },
+	{ "max_easize",       &ll_max_easize_fops, NULL, 0 },
+	{ "default_easize",   &ll_defult_easize_fops, NULL, 0 },
+	{ "max_cookiesize",   &ll_max_cookiesize_fops, NULL, 0 },
+	{ "default_cookiesize", &ll_defult_cookiesize_fops, NULL, 0 },
+	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
+	{ "xattr_cache",      &ll_xattr_cache_fops, NULL, 0 },
+	{ NULL }
 };
 
 #define MAX_STRING_SIZE 128
@@ -909,7 +910,7 @@ void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count)
 		 sbi->ll_stats_track_id == current->pid)
 		lprocfs_counter_add(sbi->ll_stats, op, count);
 	else if (sbi->ll_stats_track_type == STATS_TRACK_PPID &&
-		 sbi->ll_stats_track_id == current->parent->pid)
+		 sbi->ll_stats_track_id == current->real_parent->pid)
 		lprocfs_counter_add(sbi->ll_stats, op, count);
 	else if (sbi->ll_stats_track_type == STATS_TRACK_GID &&
 		 sbi->ll_stats_track_id ==

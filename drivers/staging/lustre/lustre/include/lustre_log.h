@@ -56,12 +56,12 @@
  * @{
  */
 
-#include <linux/lustre_log.h>
+#include "linux/lustre_log.h"
 
-#include <obd_class.h>
-#include <obd_ost.h>
-#include <lustre/lustre_idl.h>
-#include <dt_object.h>
+#include "obd_class.h"
+#include "obd_ost.h"
+#include "lustre/lustre_idl.h"
+#include "dt_object.h"
 
 #define LOG_NAME_LIMIT(logname, name)		   \
 	snprintf(logname, sizeof(logname), "LOGS/%s", name)

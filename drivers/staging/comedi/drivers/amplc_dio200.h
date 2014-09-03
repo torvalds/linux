@@ -28,18 +28,6 @@
 #define DIO200_PCIE_IO_SIZE	0x4000
 
 /*
- * Register region.
- */
-enum dio200_regtype { no_regtype = 0, io_regtype, mmio_regtype };
-struct dio200_region {
-	union {
-		unsigned long iobase;		/* I/O base address */
-		unsigned char __iomem *membase;	/* mapped MMIO base address */
-	} u;
-	enum dio200_regtype regtype;
-};
-
-/*
  * Subdevice types.
  */
 enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254, sd_timer };
@@ -75,7 +63,6 @@ struct dio200_board {
  * Comedi device private data.
  */
 struct dio200_private {
-	struct dio200_region io;	/* Register region */
 	int intr_sd;
 };
 

@@ -29,7 +29,7 @@ module_param_named(modeset, cirrus_modeset, int, 0400);
 static struct drm_driver driver;
 
 /* only bind to the cirrus chip in qemu */
-static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
+static const struct pci_device_id pciidlist[] = {
 	{ PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5446, 0x1af4, 0x1100, 0,
 	  0, 0 },
 	{0,}
@@ -76,6 +76,7 @@ static void cirrus_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int cirrus_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -110,6 +111,7 @@ static int cirrus_pm_resume(struct device *dev)
 	drm_kms_helper_poll_enable(drm_dev);
 	return 0;
 }
+#endif
 
 static const struct file_operations cirrus_driver_fops = {
 	.owner = THIS_MODULE,

@@ -18,3 +18,5 @@ sonypi.txt
 	- info on Linux Sony Programmable I/O Device support.
 thinkpad-acpi.txt
 	- information on the (IBM and Lenovo) ThinkPad ACPI Extras driver.
+toshiba_haps.txt
+	- information on the Toshiba HDD Active Protection Sensor driver.

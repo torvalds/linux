@@ -114,5 +114,21 @@
 #define SFAB_SMPSS_S_RESET				97
 #define PRNG_RESET					98
 #define RIVA_RESET					99
+#define USB_HS3_RESET					100
+#define USB_HS4_RESET					101
+#define CE3_RESET					102
+#define PCIE_EXT_PCI_RESET				103
+#define PCIE_PHY_RESET					104
+#define PCIE_PCI_RESET					105
+#define PCIE_POR_RESET					106
+#define PCIE_HCLK_RESET					107
+#define PCIE_ACLK_RESET					108
+#define CE3_H_RESET					109
+#define SFAB_CE3_M_RESET				110
+#define SFAB_CE3_S_RESET				111
+#define SATA_RESET					112
+#define CE3_SLEEP_RESET					113
+#define GSS_SLP_RESET					114
+#define GSS_RESET					115
 
 #endif

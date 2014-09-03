@@ -42,6 +42,12 @@ menuconfig ACPI
 
 if ACPI
 
+config ACPI_LEGACY_TABLES_LOOKUP
+	bool
+
+config ARCH_MIGHT_HAVE_ACPI_PDC
+	bool
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
@@ -370,6 +376,7 @@ config ACPI_EXTLOG
 	tristate "Extended Error Log support"
 	depends on X86_MCE && X86_LOCAL_APIC
 	select UEFI_CPER
+	select RAS
 	default n
 	help
 	  Certain usages such as Predictive Failure Analysis (PFA) require
@@ -384,6 +391,7 @@ config ACPI_EXTLOG
 
 	  Enhanced MCA Logging allows firmware to provide additional error
 	  information to system software, synchronous with MCE or CMCI. This
-	  driver adds support for that functionality.
+	  driver adds support for that functionality with corresponding
+	  tracepoint which carries that information to userspace.
 
 endif	# ACPI

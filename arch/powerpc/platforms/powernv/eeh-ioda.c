@@ -187,10 +187,10 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
  */
 static int ioda_eeh_set_option(struct eeh_pe *pe, int option)
 {
-	s64 ret;
-	u32 pe_no;
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
+	int enable, ret = 0;
+	s64 rc;
 
 	/* Check on PE number */
 	if (pe->addr < 0 || pe->addr >= phb->ioda.total_pe) {
@@ -201,58 +201,185 @@ static int ioda_eeh_set_option(struct eeh_pe *pe, int option)
 		return -EINVAL;
 	}
 
-	pe_no = pe->addr;
 	switch (option) {
 	case EEH_OPT_DISABLE:
-		ret = -EEXIST;
-		break;
+		return -EPERM;
 	case EEH_OPT_ENABLE:
-		ret = 0;
-		break;
+		return 0;
 	case EEH_OPT_THAW_MMIO:
-		ret = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
-				OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO);
-		if (ret) {
-			pr_warning("%s: Failed to enable MMIO for "
-				   "PHB#%x-PE#%x, err=%lld\n",
-				__func__, hose->global_number, pe_no, ret);
-			return -EIO;
-		}
-
+		enable = OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO;
 		break;
 	case EEH_OPT_THAW_DMA:
-		ret = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
-				OPAL_EEH_ACTION_CLEAR_FREEZE_DMA);
-		if (ret) {
-			pr_warning("%s: Failed to enable DMA for "
-				   "PHB#%x-PE#%x, err=%lld\n",
-				__func__, hose->global_number, pe_no, ret);
-			return -EIO;
-		}
-
+		enable = OPAL_EEH_ACTION_CLEAR_FREEZE_DMA;
 		break;
 	default:
-		pr_warning("%s: Invalid option %d\n", __func__, option);
+		pr_warn("%s: Invalid option %d\n",
+			__func__, option);
 		return -EINVAL;
+	}
+
+	/* If PHB supports compound PE, to handle it */
+	if (phb->unfreeze_pe) {
+		ret = phb->unfreeze_pe(phb, pe->addr, enable);
+	} else {
+		rc = opal_pci_eeh_freeze_clear(phb->opal_id,
+					       pe->addr,
+					       enable);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld enable %d for PHB#%x-PE#%x\n",
+				__func__, rc, option, phb->hose->global_number,
+				pe->addr);
+			ret = -EIO;
+		}
 	}
 
 	return ret;
 }
 
-static void ioda_eeh_phb_diag(struct pci_controller *hose)
+static void ioda_eeh_phb_diag(struct eeh_pe *pe)
 {
-	struct pnv_phb *phb = hose->private_data;
+	struct pnv_phb *phb = pe->phb->private_data;
 	long rc;
 
-	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
+	rc = opal_pci_get_phb_diag_data2(phb->opal_id, pe->data,
 					 PNV_PCI_DIAG_BUF_SIZE);
+	if (rc != OPAL_SUCCESS)
+		pr_warn("%s: Failed to get diag-data for PHB#%x (%ld)\n",
+			__func__, pe->phb->global_number, rc);
+}
+
+static int ioda_eeh_get_phb_state(struct eeh_pe *pe)
+{
+	struct pnv_phb *phb = pe->phb->private_data;
+	u8 fstate;
+	__be16 pcierr;
+	s64 rc;
+	int result = 0;
+
+	rc = opal_pci_eeh_freeze_status(phb->opal_id,
+					pe->addr,
+					&fstate,
+					&pcierr,
+					NULL);
 	if (rc != OPAL_SUCCESS) {
-		pr_warning("%s: Failed to get diag-data for PHB#%x (%ld)\n",
-			    __func__, hose->global_number, rc);
-		return;
+		pr_warn("%s: Failure %lld getting PHB#%x state\n",
+			__func__, rc, phb->hose->global_number);
+		return EEH_STATE_NOT_SUPPORT;
 	}
 
-	pnv_pci_dump_phb_diag_data(hose, phb->diag.blob);
+	/*
+	 * Check PHB state. If the PHB is frozen for the
+	 * first time, to dump the PHB diag-data.
+	 */
+	if (be16_to_cpu(pcierr) != OPAL_EEH_PHB_ERROR) {
+		result = (EEH_STATE_MMIO_ACTIVE  |
+			  EEH_STATE_DMA_ACTIVE   |
+			  EEH_STATE_MMIO_ENABLED |
+			  EEH_STATE_DMA_ENABLED);
+	} else if (!(pe->state & EEH_PE_ISOLATED)) {
+		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		ioda_eeh_phb_diag(pe);
+	}
+
+	return result;
+}
+
+static int ioda_eeh_get_pe_state(struct eeh_pe *pe)
+{
+	struct pnv_phb *phb = pe->phb->private_data;
+	u8 fstate;
+	__be16 pcierr;
+	s64 rc;
+	int result;
+
+	/*
+	 * We don't clobber hardware frozen state until PE
+	 * reset is completed. In order to keep EEH core
+	 * moving forward, we have to return operational
+	 * state during PE reset.
+	 */
+	if (pe->state & EEH_PE_RESET) {
+		result = (EEH_STATE_MMIO_ACTIVE  |
+			  EEH_STATE_DMA_ACTIVE   |
+			  EEH_STATE_MMIO_ENABLED |
+			  EEH_STATE_DMA_ENABLED);
+		return result;
+	}
+
+	/*
+	 * Fetch PE state from hardware. If the PHB
+	 * supports compound PE, let it handle that.
+	 */
+	if (phb->get_pe_state) {
+		fstate = phb->get_pe_state(phb, pe->addr);
+	} else {
+		rc = opal_pci_eeh_freeze_status(phb->opal_id,
+						pe->addr,
+						&fstate,
+						&pcierr,
+						NULL);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld getting PHB#%x-PE%x state\n",
+				__func__, rc, phb->hose->global_number, pe->addr);
+			return EEH_STATE_NOT_SUPPORT;
+		}
+	}
+
+	/* Figure out state */
+	switch (fstate) {
+	case OPAL_EEH_STOPPED_NOT_FROZEN:
+		result = (EEH_STATE_MMIO_ACTIVE  |
+			  EEH_STATE_DMA_ACTIVE   |
+			  EEH_STATE_MMIO_ENABLED |
+			  EEH_STATE_DMA_ENABLED);
+		break;
+	case OPAL_EEH_STOPPED_MMIO_FREEZE:
+		result = (EEH_STATE_DMA_ACTIVE |
+			  EEH_STATE_DMA_ENABLED);
+		break;
+	case OPAL_EEH_STOPPED_DMA_FREEZE:
+		result = (EEH_STATE_MMIO_ACTIVE |
+			  EEH_STATE_MMIO_ENABLED);
+		break;
+	case OPAL_EEH_STOPPED_MMIO_DMA_FREEZE:
+		result = 0;
+		break;
+	case OPAL_EEH_STOPPED_RESET:
+		result = EEH_STATE_RESET_ACTIVE;
+		break;
+	case OPAL_EEH_STOPPED_TEMP_UNAVAIL:
+		result = EEH_STATE_UNAVAILABLE;
+		break;
+	case OPAL_EEH_STOPPED_PERM_UNAVAIL:
+		result = EEH_STATE_NOT_SUPPORT;
+		break;
+	default:
+		result = EEH_STATE_NOT_SUPPORT;
+		pr_warn("%s: Invalid PHB#%x-PE#%x state %x\n",
+			__func__, phb->hose->global_number,
+			pe->addr, fstate);
+	}
+
+	/*
+	 * If PHB supports compound PE, to freeze all
+	 * slave PEs for consistency.
+	 *
+	 * If the PE is switching to frozen state for the
+	 * first time, to dump the PHB diag-data.
+	 */
+	if (!(result & EEH_STATE_NOT_SUPPORT) &&
+	    !(result & EEH_STATE_UNAVAILABLE) &&
+	    !(result & EEH_STATE_MMIO_ACTIVE) &&
+	    !(result & EEH_STATE_DMA_ACTIVE)  &&
+	    !(pe->state & EEH_PE_ISOLATED)) {
+		if (phb->freeze_pe)
+			phb->freeze_pe(phb, pe->addr);
+
+		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		ioda_eeh_phb_diag(pe);
+	}
+
+	return result;
 }
 
 /**
@@ -265,118 +392,21 @@ static void ioda_eeh_phb_diag(struct pci_controller *hose)
  */
 static int ioda_eeh_get_state(struct eeh_pe *pe)
 {
-	s64 ret = 0;
-	u8 fstate;
-	__be16 pcierr;
-	u32 pe_no;
-	int result;
-	struct pci_controller *hose = pe->phb;
-	struct pnv_phb *phb = hose->private_data;
+	struct pnv_phb *phb = pe->phb->private_data;
 
-	/*
-	 * Sanity check on PE address. The PHB PE address should
-	 * be zero.
-	 */
-	if (pe->addr < 0 || pe->addr >= phb->ioda.total_pe) {
-		pr_err("%s: PE address %x out of range [0, %x] "
-		       "on PHB#%x\n",
-		       __func__, pe->addr, phb->ioda.total_pe,
-		       hose->global_number);
+	/* Sanity check on PE number. PHB PE should have 0 */
+	if (pe->addr < 0 ||
+	    pe->addr >= phb->ioda.total_pe) {
+		pr_warn("%s: PHB#%x-PE#%x out of range [0, %x]\n",
+			__func__, phb->hose->global_number,
+			pe->addr, phb->ioda.total_pe);
 		return EEH_STATE_NOT_SUPPORT;
 	}
 
-	/*
-	 * If we're in middle of PE reset, return normal
-	 * state to keep EEH core going. For PHB reset, we
-	 * still expect to have fenced PHB cleared with
-	 * PHB reset.
-	 */
-	if (!(pe->type & EEH_PE_PHB) &&
-	    (pe->state & EEH_PE_RESET)) {
-		result = (EEH_STATE_MMIO_ACTIVE |
-			  EEH_STATE_DMA_ACTIVE |
-			  EEH_STATE_MMIO_ENABLED |
-			  EEH_STATE_DMA_ENABLED);
-		return result;
-	}
+	if (pe->type & EEH_PE_PHB)
+		return ioda_eeh_get_phb_state(pe);
 
-	/* Retrieve PE status through OPAL */
-	pe_no = pe->addr;
-	ret = opal_pci_eeh_freeze_status(phb->opal_id, pe_no,
-			&fstate, &pcierr, NULL);
-	if (ret) {
-		pr_err("%s: Failed to get EEH status on "
-		       "PHB#%x-PE#%x\n, err=%lld\n",
-		       __func__, hose->global_number, pe_no, ret);
-		return EEH_STATE_NOT_SUPPORT;
-	}
-
-	/* Check PHB status */
-	if (pe->type & EEH_PE_PHB) {
-		result = 0;
-		result &= ~EEH_STATE_RESET_ACTIVE;
-
-		if (be16_to_cpu(pcierr) != OPAL_EEH_PHB_ERROR) {
-			result |= EEH_STATE_MMIO_ACTIVE;
-			result |= EEH_STATE_DMA_ACTIVE;
-			result |= EEH_STATE_MMIO_ENABLED;
-			result |= EEH_STATE_DMA_ENABLED;
-		} else if (!(pe->state & EEH_PE_ISOLATED)) {
-			eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
-			ioda_eeh_phb_diag(hose);
-		}
-
-		return result;
-	}
-
-	/* Parse result out */
-	result = 0;
-	switch (fstate) {
-	case OPAL_EEH_STOPPED_NOT_FROZEN:
-		result &= ~EEH_STATE_RESET_ACTIVE;
-		result |= EEH_STATE_MMIO_ACTIVE;
-		result |= EEH_STATE_DMA_ACTIVE;
-		result |= EEH_STATE_MMIO_ENABLED;
-		result |= EEH_STATE_DMA_ENABLED;
-		break;
-	case OPAL_EEH_STOPPED_MMIO_FREEZE:
-		result &= ~EEH_STATE_RESET_ACTIVE;
-		result |= EEH_STATE_DMA_ACTIVE;
-		result |= EEH_STATE_DMA_ENABLED;
-		break;
-	case OPAL_EEH_STOPPED_DMA_FREEZE:
-		result &= ~EEH_STATE_RESET_ACTIVE;
-		result |= EEH_STATE_MMIO_ACTIVE;
-		result |= EEH_STATE_MMIO_ENABLED;
-		break;
-	case OPAL_EEH_STOPPED_MMIO_DMA_FREEZE:
-		result &= ~EEH_STATE_RESET_ACTIVE;
-		break;
-	case OPAL_EEH_STOPPED_RESET:
-		result |= EEH_STATE_RESET_ACTIVE;
-		break;
-	case OPAL_EEH_STOPPED_TEMP_UNAVAIL:
-		result |= EEH_STATE_UNAVAILABLE;
-		break;
-	case OPAL_EEH_STOPPED_PERM_UNAVAIL:
-		result |= EEH_STATE_NOT_SUPPORT;
-		break;
-	default:
-		pr_warning("%s: Unexpected EEH status 0x%x "
-			   "on PHB#%x-PE#%x\n",
-			   __func__, fstate, hose->global_number, pe_no);
-	}
-
-	/* Dump PHB diag-data for frozen PE */
-	if (result != EEH_STATE_NOT_SUPPORT &&
-	    (result & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) !=
-	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE) &&
-	    !(pe->state & EEH_PE_ISOLATED)) {
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
-		ioda_eeh_phb_diag(hose);
-	}
-
-	return result;
+	return ioda_eeh_get_pe_state(pe);
 }
 
 static s64 ioda_eeh_phb_poll(struct pnv_phb *phb)
@@ -589,6 +619,24 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 }
 
 /**
+ * ioda_eeh_get_log - Retrieve error log
+ * @pe: frozen PE
+ * @severity: permanent or temporary error
+ * @drv_log: device driver log
+ * @len: length of device driver log
+ *
+ * Retrieve error log, which contains log from device driver
+ * and firmware.
+ */
+int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
+		     char *drv_log, unsigned long len)
+{
+	pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
+
+	return 0;
+}
+
+/**
  * ioda_eeh_configure_bridge - Configure the PCI bridges for the indicated PE
  * @pe: EEH PE
  *
@@ -605,18 +653,24 @@ static int ioda_eeh_configure_bridge(struct eeh_pe *pe)
 static void ioda_eeh_hub_diag_common(struct OpalIoP7IOCErrorData *data)
 {
 	/* GEM */
-	pr_info("  GEM XFIR:        %016llx\n", data->gemXfir);
-	pr_info("  GEM RFIR:        %016llx\n", data->gemRfir);
-	pr_info("  GEM RIRQFIR:     %016llx\n", data->gemRirqfir);
-	pr_info("  GEM Mask:        %016llx\n", data->gemMask);
-	pr_info("  GEM RWOF:        %016llx\n", data->gemRwof);
+	if (data->gemXfir || data->gemRfir ||
+	    data->gemRirqfir || data->gemMask || data->gemRwof)
+		pr_info("  GEM: %016llx %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->gemXfir),
+			be64_to_cpu(data->gemRfir),
+			be64_to_cpu(data->gemRirqfir),
+			be64_to_cpu(data->gemMask),
+			be64_to_cpu(data->gemRwof));
 
 	/* LEM */
-	pr_info("  LEM FIR:         %016llx\n", data->lemFir);
-	pr_info("  LEM Error Mask:  %016llx\n", data->lemErrMask);
-	pr_info("  LEM Action 0:    %016llx\n", data->lemAction0);
-	pr_info("  LEM Action 1:    %016llx\n", data->lemAction1);
-	pr_info("  LEM WOF:         %016llx\n", data->lemWof);
+	if (data->lemFir || data->lemErrMask ||
+	    data->lemAction0 || data->lemAction1 || data->lemWof)
+		pr_info("  LEM: %016llx %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->lemFir),
+			be64_to_cpu(data->lemErrMask),
+			be64_to_cpu(data->lemAction0),
+			be64_to_cpu(data->lemAction1),
+			be64_to_cpu(data->lemWof));
 }
 
 static void ioda_eeh_hub_diag(struct pci_controller *hose)
@@ -627,8 +681,8 @@ static void ioda_eeh_hub_diag(struct pci_controller *hose)
 
 	rc = opal_pci_get_hub_diag_data(phb->hub_id, data, sizeof(*data));
 	if (rc != OPAL_SUCCESS) {
-		pr_warning("%s: Failed to get HUB#%llx diag-data (%ld)\n",
-			   __func__, phb->hub_id, rc);
+		pr_warn("%s: Failed to get HUB#%llx diag-data (%ld)\n",
+			__func__, phb->hub_id, rc);
 		return;
 	}
 
@@ -636,24 +690,31 @@ static void ioda_eeh_hub_diag(struct pci_controller *hose)
 	case OPAL_P7IOC_DIAG_TYPE_RGC:
 		pr_info("P7IOC diag-data for RGC\n\n");
 		ioda_eeh_hub_diag_common(data);
-		pr_info("  RGC Status:      %016llx\n", data->rgc.rgcStatus);
-		pr_info("  RGC LDCP:        %016llx\n", data->rgc.rgcLdcp);
+		if (data->rgc.rgcStatus || data->rgc.rgcLdcp)
+			pr_info("  RGC: %016llx %016llx\n",
+				be64_to_cpu(data->rgc.rgcStatus),
+				be64_to_cpu(data->rgc.rgcLdcp));
 		break;
 	case OPAL_P7IOC_DIAG_TYPE_BI:
 		pr_info("P7IOC diag-data for BI %s\n\n",
 			data->bi.biDownbound ? "Downbound" : "Upbound");
 		ioda_eeh_hub_diag_common(data);
-		pr_info("  BI LDCP 0:       %016llx\n", data->bi.biLdcp0);
-		pr_info("  BI LDCP 1:       %016llx\n", data->bi.biLdcp1);
-		pr_info("  BI LDCP 2:       %016llx\n", data->bi.biLdcp2);
-		pr_info("  BI Fence Status: %016llx\n", data->bi.biFenceStatus);
+		if (data->bi.biLdcp0 || data->bi.biLdcp1 ||
+		    data->bi.biLdcp2 || data->bi.biFenceStatus)
+			pr_info("  BI:  %016llx %016llx %016llx %016llx\n",
+				be64_to_cpu(data->bi.biLdcp0),
+				be64_to_cpu(data->bi.biLdcp1),
+				be64_to_cpu(data->bi.biLdcp2),
+				be64_to_cpu(data->bi.biFenceStatus));
 		break;
 	case OPAL_P7IOC_DIAG_TYPE_CI:
-		pr_info("P7IOC diag-data for CI Port %d\\nn",
+		pr_info("P7IOC diag-data for CI Port %d\n\n",
 			data->ci.ciPort);
 		ioda_eeh_hub_diag_common(data);
-		pr_info("  CI Port Status:  %016llx\n", data->ci.ciPortStatus);
-		pr_info("  CI Port LDCP:    %016llx\n", data->ci.ciPortLdcp);
+		if (data->ci.ciPortStatus || data->ci.ciPortLdcp)
+			pr_info("  CI:  %016llx %016llx\n",
+				be64_to_cpu(data->ci.ciPortStatus),
+				be64_to_cpu(data->ci.ciPortLdcp));
 		break;
 	case OPAL_P7IOC_DIAG_TYPE_MISC:
 		pr_info("P7IOC diag-data for MISC\n\n");
@@ -664,30 +725,51 @@ static void ioda_eeh_hub_diag(struct pci_controller *hose)
 		ioda_eeh_hub_diag_common(data);
 		break;
 	default:
-		pr_warning("%s: Invalid type of HUB#%llx diag-data (%d)\n",
-			   __func__, phb->hub_id, data->type);
+		pr_warn("%s: Invalid type of HUB#%llx diag-data (%d)\n",
+			__func__, phb->hub_id, data->type);
 	}
 }
 
 static int ioda_eeh_get_pe(struct pci_controller *hose,
 			   u16 pe_no, struct eeh_pe **pe)
 {
-	struct eeh_pe *phb_pe, *dev_pe;
-	struct eeh_dev dev;
+	struct pnv_phb *phb = hose->private_data;
+	struct pnv_ioda_pe *pnv_pe;
+	struct eeh_pe *dev_pe;
+	struct eeh_dev edev;
 
-	/* Find the PHB PE */
-	phb_pe = eeh_phb_pe_get(hose);
-	if (!phb_pe)
-		return -EEXIST;
+	/*
+	 * If PHB supports compound PE, to fetch
+	 * the master PE because slave PE is invisible
+	 * to EEH core.
+	 */
+	if (phb->get_pe_state) {
+		pnv_pe = &phb->ioda.pe_array[pe_no];
+		if (pnv_pe->flags & PNV_IODA_PE_SLAVE) {
+			pnv_pe = pnv_pe->master;
+			WARN_ON(!pnv_pe ||
+				!(pnv_pe->flags & PNV_IODA_PE_MASTER));
+			pe_no = pnv_pe->pe_number;
+		}
+	}
 
 	/* Find the PE according to PE# */
-	memset(&dev, 0, sizeof(struct eeh_dev));
-	dev.phb = hose;
-	dev.pe_config_addr = pe_no;
-	dev_pe = eeh_pe_get(&dev);
-	if (!dev_pe) return -EEXIST;
+	memset(&edev, 0, sizeof(struct eeh_dev));
+	edev.phb = hose;
+	edev.pe_config_addr = pe_no;
+	dev_pe = eeh_pe_get(&edev);
+	if (!dev_pe)
+		return -EEXIST;
 
+	/*
+	 * At this point, we're sure the compound PE should
+	 * be put into frozen state.
+	 */
 	*pe = dev_pe;
+	if (phb->freeze_pe &&
+	    !(dev_pe->state & EEH_PE_ISOLATED))
+		phb->freeze_pe(phb, pe_no);
+
 	return 0;
 }
 
@@ -792,7 +874,8 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 					"detected, location: %s\n",
 					hose->global_number,
 					eeh_pe_loc_get(phb_pe));
-				ioda_eeh_phb_diag(hose);
+				ioda_eeh_phb_diag(phb_pe);
+				pnv_pci_dump_phb_diag_data(hose, phb_pe->data);
 				ret = EEH_NEXT_ERR_NONE;
 			}
 
@@ -812,7 +895,8 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 				opal_pci_eeh_freeze_clear(phb->opal_id, frozen_pe_no,
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 				ret = EEH_NEXT_ERR_NONE;
-			} else if ((*pe)->state & EEH_PE_ISOLATED) {
+			} else if ((*pe)->state & EEH_PE_ISOLATED ||
+				   eeh_pe_passed(*pe)) {
 				ret = EEH_NEXT_ERR_NONE;
 			} else {
 				pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
@@ -839,7 +923,7 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		    ret == EEH_NEXT_ERR_FENCED_PHB) &&
 		    !((*pe)->state & EEH_PE_ISOLATED)) {
 			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
-			ioda_eeh_phb_diag(hose);
+			ioda_eeh_phb_diag(*pe);
 		}
 
 		/*
@@ -885,6 +969,7 @@ struct pnv_eeh_ops ioda_eeh_ops = {
 	.set_option		= ioda_eeh_set_option,
 	.get_state		= ioda_eeh_get_state,
 	.reset			= ioda_eeh_reset,
+	.get_log		= ioda_eeh_get_log,
 	.configure_bridge	= ioda_eeh_configure_bridge,
 	.next_error		= ioda_eeh_next_error
 };

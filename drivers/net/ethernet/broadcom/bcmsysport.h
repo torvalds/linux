@@ -246,6 +246,15 @@ struct bcm_rsb {
 #define  MIB_RX_CNT_RST			(1 << 0)
 #define  MIB_RUNT_CNT_RST		(1 << 1)
 #define  MIB_TX_CNT_RST			(1 << 2)
+
+#define UMAC_MPD_CTRL			0x620
+#define  MPD_EN				(1 << 0)
+#define  MSEQ_LEN_SHIFT			16
+#define  MSEQ_LEN_MASK			0xff
+#define  PSW_EN				(1 << 27)
+
+#define UMAC_PSW_MS			0x624
+#define UMAC_PSW_LS			0x628
 #define UMAC_MDF_CTRL			0x650
 #define UMAC_MDF_ADDR			0x654
 
@@ -642,6 +651,7 @@ struct bcm_sysport_priv {
 	struct platform_device	*pdev;
 	int			irq0;
 	int			irq1;
+	int			wol_irq;
 
 	/* Transmit rings */
 	struct bcm_sysport_tx_ring tx_rings[TDMA_NUM_RINGS];
@@ -664,10 +674,12 @@ struct bcm_sysport_priv {
 	int			old_duplex;
 
 	/* Misc fields */
-	unsigned int		rx_csum_en:1;
+	unsigned int		rx_chk_en:1;
 	unsigned int		tsb_en:1;
 	unsigned int		crc_fwd:1;
 	u16			rev;
+	u32			wolopts;
+	unsigned int		wol_irq_disabled:1;
 
 	/* MIB related fields */
 	struct bcm_sysport_mib	mib;

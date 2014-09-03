@@ -289,8 +289,8 @@ void sctp_transport_route(struct sctp_transport *transport,
 		 */
 		if (asoc && (!asoc->peer.primary_path ||
 				(transport == asoc->peer.active_path)))
-			opt->pf->af->to_sk_saddr(&transport->saddr,
-						 asoc->base.sk);
+			opt->pf->to_sk_saddr(&transport->saddr,
+					     asoc->base.sk);
 	} else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
@@ -594,15 +594,16 @@ void sctp_transport_burst_reset(struct sctp_transport *t)
 }
 
 /* What is the next timeout value for this transport? */
-unsigned long sctp_transport_timeout(struct sctp_transport *t)
+unsigned long sctp_transport_timeout(struct sctp_transport *trans)
 {
-	unsigned long timeout;
-	timeout = t->rto + sctp_jitter(t->rto);
-	if ((t->state != SCTP_UNCONFIRMED) &&
-	    (t->state != SCTP_PF))
-		timeout += t->hbinterval;
-	timeout += jiffies;
-	return timeout;
+	/* RTO + timer slack +/- 50% of RTO */
+	unsigned long timeout = (trans->rto >> 1) + prandom_u32_max(trans->rto);
+
+	if (trans->state != SCTP_UNCONFIRMED &&
+	    trans->state != SCTP_PF)
+		timeout += trans->hbinterval;
+
+	return timeout + jiffies;
 }
 
 /* Reset transport variables to their initial values */

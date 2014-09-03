@@ -42,12 +42,12 @@
 # include <linux/init.h>
 # include <linux/utsname.h>
 
-#include <lustre_acl.h>
-#include <obd_class.h>
-#include <lustre_fid.h>
-#include <lprocfs_status.h>
-#include <lustre_param.h>
-#include <lustre_log.h>
+#include "../include/lustre_acl.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_fid.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_log.h"
 
 #include "mdc_internal.h"
 
@@ -136,7 +136,7 @@ static int send_getstatus(struct obd_import *imp, struct lu_fid *rootfid,
 
 	*rootfid = body->fid1;
 	CDEBUG(D_NET,
-	       "root fid="DFID", last_committed="LPU64"\n",
+	       "root fid="DFID", last_committed=%llu\n",
 	       PFID(rootfid),
 	       lustre_msg_get_last_committed(req->rq_repmsg));
 out:
@@ -397,7 +397,7 @@ static int mdc_xattr_common(struct obd_export *exp,const struct req_format *fmt,
 		rec->sx_suppgid2 = -1;
 		rec->sx_fid    = *fid;
 		rec->sx_valid  = valid | OBD_MD_FLCTIME;
-		rec->sx_time   = cfs_time_current_sec();
+		rec->sx_time   = get_seconds();
 		rec->sx_size   = output_size;
 		rec->sx_flags  = flags;
 
@@ -670,7 +670,7 @@ void mdc_replay_open(struct ptlrpc_request *req)
 		LASSERT(och->och_magic == OBD_CLIENT_HANDLE_MAGIC);
 
 		file_fh = &och->och_fh;
-		CDEBUG(D_HA, "updating handle from "LPX64" to "LPX64"\n",
+		CDEBUG(D_HA, "updating handle from %#llx to %#llx\n",
 		       file_fh->cookie, body->handle.cookie);
 		old = *file_fh;
 		*file_fh = body->handle;
@@ -1182,7 +1182,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	memcpy(key, KEY_FID2PATH, sizeof(KEY_FID2PATH));
 	memcpy(key + cfs_size_round(sizeof(KEY_FID2PATH)), gf, sizeof(*gf));
 
-	CDEBUG(D_IOCTL, "path get "DFID" from "LPU64" #%d\n",
+	CDEBUG(D_IOCTL, "path get "DFID" from %llu #%d\n",
 	       PFID(&gf->gf_fid), gf->gf_recno, gf->gf_linkno);
 
 	if (!fid_is_sane(&gf->gf_fid))
@@ -1200,7 +1200,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	else if (vallen > sizeof(*gf) + gf->gf_pathlen)
 		GOTO(out, rc = -EOVERFLOW);
 
-	CDEBUG(D_IOCTL, "path get "DFID" from "LPU64" #%d\n%s\n",
+	CDEBUG(D_IOCTL, "path get "DFID" from %llu #%d\n%s\n",
 	       PFID(&gf->gf_fid), gf->gf_recno, gf->gf_linkno, gf->gf_path);
 
 out:
@@ -1515,12 +1515,12 @@ static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 
 	if (rec->cr.cr_index < cs->cs_startrec) {
 		/* Skip entries earlier than what we are interested in */
-		CDEBUG(D_CHANGELOG, "rec="LPU64" start="LPU64"\n",
+		CDEBUG(D_CHANGELOG, "rec=%llu start=%llu\n",
 		       rec->cr.cr_index, cs->cs_startrec);
 		return 0;
 	}
 
-	CDEBUG(D_CHANGELOG, LPU64" %02d%-5s "LPU64" 0x%x t="DFID" p="DFID
+	CDEBUG(D_CHANGELOG, "%llu %02d%-5s %llu 0x%x t="DFID" p="DFID
 		" %.*s\n", rec->cr.cr_index, rec->cr.cr_type,
 		changelog_type2str(rec->cr.cr_type), rec->cr.cr_time,
 		rec->cr.cr_flags & CLF_FLAGMASK,
@@ -1547,7 +1547,7 @@ static int mdc_changelog_send_thread(void *csdata)
 	struct kuc_hdr *kuch;
 	int rc;
 
-	CDEBUG(D_CHANGELOG, "changelog to fp=%p start "LPU64"\n",
+	CDEBUG(D_CHANGELOG, "changelog to fp=%p start %llu\n",
 	       cs->cs_fp, cs->cs_startrec);
 
 	OBD_ALLOC(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
@@ -2423,7 +2423,7 @@ struct ldlm_valblock_ops inode_lvbo = {
 static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 {
 	struct client_obd *cli = &obd->u.cli;
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	OBD_ALLOC(cli->cl_rpc_lock, sizeof (*cli->cl_rpc_lock));
@@ -2566,7 +2566,7 @@ static int mdc_llog_finish(struct obd_device *obd, int count)
 static int mdc_process_config(struct obd_device *obd, obd_count len, void *buf)
 {
 	struct lustre_cfg *lcfg = buf;
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc = 0;
 
 	lprocfs_mdc_init_vars(&lvars);
@@ -2737,7 +2737,7 @@ struct md_ops mdc_md_ops = {
 int __init mdc_init(void)
 {
 	int rc;
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	lprocfs_mdc_init_vars(&lvars);
 
 	rc = class_register_type(&mdc_obd_ops, &mdc_md_ops, lvars.module_vars,

@@ -137,7 +137,7 @@ static int aesbs_cbc_encrypt(struct blkcipher_desc *desc,
 				dst += AES_BLOCK_SIZE;
 			} while (--blocks);
 		}
-		err = blkcipher_walk_done(desc, &walk, 0);
+		err = blkcipher_walk_done(desc, &walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	return err;
 }
@@ -158,7 +158,7 @@ static int aesbs_cbc_decrypt(struct blkcipher_desc *desc,
 		bsaes_cbc_encrypt(walk.src.virt.addr, walk.dst.virt.addr,
 				  walk.nbytes, &ctx->dec, walk.iv);
 		kernel_neon_end();
-		err = blkcipher_walk_done(desc, &walk, 0);
+		err = blkcipher_walk_done(desc, &walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	while (walk.nbytes) {
 		u32 blocks = walk.nbytes / AES_BLOCK_SIZE;
@@ -182,7 +182,7 @@ static int aesbs_cbc_decrypt(struct blkcipher_desc *desc,
 			dst += AES_BLOCK_SIZE;
 			src += AES_BLOCK_SIZE;
 		} while (--blocks);
-		err = blkcipher_walk_done(desc, &walk, 0);
+		err = blkcipher_walk_done(desc, &walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	return err;
 }
@@ -268,7 +268,7 @@ static int aesbs_xts_encrypt(struct blkcipher_desc *desc,
 		bsaes_xts_encrypt(walk.src.virt.addr, walk.dst.virt.addr,
 				  walk.nbytes, &ctx->enc, walk.iv);
 		kernel_neon_end();
-		err = blkcipher_walk_done(desc, &walk, 0);
+		err = blkcipher_walk_done(desc, &walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	return err;
 }
@@ -292,7 +292,7 @@ static int aesbs_xts_decrypt(struct blkcipher_desc *desc,
 		bsaes_xts_decrypt(walk.src.virt.addr, walk.dst.virt.addr,
 				  walk.nbytes, &ctx->dec, walk.iv);
 		kernel_neon_end();
-		err = blkcipher_walk_done(desc, &walk, 0);
+		err = blkcipher_walk_done(desc, &walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	return err;
 }

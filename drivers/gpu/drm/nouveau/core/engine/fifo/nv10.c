@@ -22,8 +22,9 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/os.h>
-#include <core/class.h>
+#include <core/client.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 #include <core/engctx.h>
 #include <core/ramht.h>
 
@@ -59,16 +60,23 @@ nv10_fifo_chan_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
+	union {
+		struct nv03_channel_dma_v0 v0;
+	} *args = data;
 	struct nv04_fifo_priv *priv = (void *)engine;
 	struct nv04_fifo_chan *chan;
-	struct nv03_channel_dma_class *args = data;
 	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(parent, "create channel dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create channel dma vers %d pushbuf %08x "
+				 "offset %016llx\n", args->v0.version,
+			 args->v0.pushbuf, args->v0.offset);
+	} else
+		return ret;
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0x800000,
-					  0x10000, args->pushbuf,
+					  0x10000, args->v0.pushbuf,
 					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
 					  (1ULL << NVDEV_ENGINE_SW) |
 					  (1ULL << NVDEV_ENGINE_GR), &chan);
@@ -76,13 +84,15 @@ nv10_fifo_chan_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	args->v0.chid = chan->base.chid;
+
 	nv_parent(chan)->object_attach = nv04_fifo_object_attach;
 	nv_parent(chan)->object_detach = nv04_fifo_object_detach;
 	nv_parent(chan)->context_attach = nv04_fifo_context_attach;
 	chan->ramfc = chan->base.chid * 32;
 
-	nv_wo32(priv->ramfc, chan->ramfc + 0x00, args->offset);
-	nv_wo32(priv->ramfc, chan->ramfc + 0x04, args->offset);
+	nv_wo32(priv->ramfc, chan->ramfc + 0x00, args->v0.offset);
+	nv_wo32(priv->ramfc, chan->ramfc + 0x04, args->v0.offset);
 	nv_wo32(priv->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
 	nv_wo32(priv->ramfc, chan->ramfc + 0x14,
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
@@ -100,13 +110,15 @@ nv10_fifo_ofuncs = {
 	.dtor = nv04_fifo_chan_dtor,
 	.init = nv04_fifo_chan_init,
 	.fini = nv04_fifo_chan_fini,
+	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
+	.ntfy = _nouveau_fifo_channel_ntfy
 };
 
 static struct nouveau_oclass
 nv10_fifo_sclass[] = {
-	{ NV10_CHANNEL_DMA_CLASS, &nv10_fifo_ofuncs },
+	{ NV10_CHANNEL_DMA, &nv10_fifo_ofuncs },
 	{}
 };
 

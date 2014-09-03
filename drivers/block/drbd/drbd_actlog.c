@@ -92,34 +92,26 @@ struct __packed al_transaction_on_disk {
 	__be32	context[AL_CONTEXT_PER_TRANSACTION];
 };
 
-struct update_odbm_work {
-	struct drbd_work w;
-	struct drbd_device *device;
-	unsigned int enr;
-};
-
-struct update_al_work {
-	struct drbd_work w;
-	struct drbd_device *device;
-	struct completion event;
-	int err;
-};
-
-
-void *drbd_md_get_buffer(struct drbd_device *device)
+void *drbd_md_get_buffer(struct drbd_device *device, const char *intent)
 {
 	int r;
 
 	wait_event(device->misc_wait,
-		   (r = atomic_cmpxchg(&device->md_io_in_use, 0, 1)) == 0 ||
+		   (r = atomic_cmpxchg(&device->md_io.in_use, 0, 1)) == 0 ||
 		   device->state.disk <= D_FAILED);
 
-	return r ? NULL : page_address(device->md_io_page);
+	if (r)
+		return NULL;
+
+	device->md_io.current_use = intent;
+	device->md_io.start_jif = jiffies;
+	device->md_io.submit_jif = device->md_io.start_jif - 1;
+	return page_address(device->md_io.page);
 }
 
 void drbd_md_put_buffer(struct drbd_device *device)
 {
-	if (atomic_dec_and_test(&device->md_io_in_use))
+	if (atomic_dec_and_test(&device->md_io.in_use))
 		wake_up(&device->misc_wait);
 }
 
@@ -145,10 +137,11 @@ void wait_until_done_or_force_detached(struct drbd_device *device, struct drbd_b
 
 static int _drbd_md_sync_page_io(struct drbd_device *device,
 				 struct drbd_backing_dev *bdev,
-				 struct page *page, sector_t sector,
-				 int rw, int size)
+				 sector_t sector, int rw)
 {
 	struct bio *bio;
+	/* we do all our meta data IO in aligned 4k blocks. */
+	const int size = 4096;
 	int err;
 
 	device->md_io.done = 0;
@@ -156,15 +149,15 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 
 	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &device->flags))
 		rw |= REQ_FUA | REQ_FLUSH;
-	rw |= REQ_SYNC;
+	rw |= REQ_SYNC | REQ_NOIDLE;
 
 	bio = bio_alloc_drbd(GFP_NOIO);
 	bio->bi_bdev = bdev->md_bdev;
 	bio->bi_iter.bi_sector = sector;
 	err = -EIO;
-	if (bio_add_page(bio, page, size, 0) != size)
+	if (bio_add_page(bio, device->md_io.page, size, 0) != size)
 		goto out;
-	bio->bi_private = &device->md_io;
+	bio->bi_private = device;
 	bio->bi_end_io = drbd_md_io_complete;
 	bio->bi_rw = rw;
 
@@ -179,7 +172,8 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	}
 
 	bio_get(bio); /* one bio_put() is in the completion handler */
-	atomic_inc(&device->md_io_in_use); /* drbd_md_put_buffer() is in the completion handler */
+	atomic_inc(&device->md_io.in_use); /* drbd_md_put_buffer() is in the completion handler */
+	device->md_io.submit_jif = jiffies;
 	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
 		bio_endio(bio, -EIO);
 	else
@@ -197,9 +191,7 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 			 sector_t sector, int rw)
 {
 	int err;
-	struct page *iop = device->md_io_page;
-
-	D_ASSERT(device, atomic_read(&device->md_io_in_use) == 1);
+	D_ASSERT(device, atomic_read(&device->md_io.in_use) == 1);
 
 	BUG_ON(!bdev->md_bdev);
 
@@ -214,8 +206,7 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 		     current->comm, current->pid, __func__,
 		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
 
-	/* we do all our meta data IO in aligned 4k blocks. */
-	err = _drbd_md_sync_page_io(device, bdev, iop, sector, rw, 4096);
+	err = _drbd_md_sync_page_io(device, bdev, sector, rw);
 	if (err) {
 		drbd_err(device, "drbd_md_sync_page_io(,%llus,%s) failed with error %d\n",
 		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ", err);
@@ -297,25 +288,11 @@ bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *
 	return need_transaction;
 }
 
-static int al_write_transaction(struct drbd_device *device, bool delegate);
+static int al_write_transaction(struct drbd_device *device);
 
-/* When called through generic_make_request(), we must delegate
- * activity log I/O to the worker thread: a further request
- * submitted via generic_make_request() within the same task
- * would be queued on current->bio_list, and would only start
- * after this function returns (see generic_make_request()).
- *
- * However, if we *are* the worker, we must not delegate to ourselves.
- */
-
-/*
- * @delegate:   delegate activity log I/O to the worker thread
- */
-void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate)
+void drbd_al_begin_io_commit(struct drbd_device *device)
 {
 	bool locked = false;
-
-	BUG_ON(delegate && current == first_peer_device(device)->connection->worker.task);
 
 	/* Serialize multiple transactions.
 	 * This uses test_and_set_bit, memory barrier is implicit.
@@ -335,7 +312,7 @@ void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate)
 			rcu_read_unlock();
 
 			if (write_al_updates)
-				al_write_transaction(device, delegate);
+				al_write_transaction(device);
 			spin_lock_irq(&device->al_lock);
 			/* FIXME
 			if (err)
@@ -352,12 +329,10 @@ void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate)
 /*
  * @delegate:   delegate activity log I/O to the worker thread
  */
-void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i, bool delegate)
+void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i)
 {
-	BUG_ON(delegate && current == first_peer_device(device)->connection->worker.task);
-
 	if (drbd_al_begin_io_prepare(device, i))
-		drbd_al_begin_io_commit(device, delegate);
+		drbd_al_begin_io_commit(device);
 }
 
 int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *i)
@@ -380,8 +355,19 @@ int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *
 	/* We want all necessary updates for a given request within the same transaction
 	 * We could first check how many updates are *actually* needed,
 	 * and use that instead of the worst-case nr_al_extents */
-	if (available_update_slots < nr_al_extents)
-		return -EWOULDBLOCK;
+	if (available_update_slots < nr_al_extents) {
+		/* Too many activity log extents are currently "hot".
+		 *
+		 * If we have accumulated pending changes already,
+		 * we made progress.
+		 *
+		 * If we cannot get even a single pending change through,
+		 * stop the fast path until we made some progress,
+		 * or requests to "cold" extents could be starved. */
+		if (!al->pending_changes)
+			__set_bit(__LC_STARVING, &device->act_log->flags);
+		return -ENOBUFS;
+	}
 
 	/* Is resync active in this area? */
 	for (enr = first; enr <= last; enr++) {
@@ -452,15 +438,6 @@ static unsigned int al_extent_to_bm_page(unsigned int al_enr)
 		 (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT));
 }
 
-static unsigned int rs_extent_to_bm_page(unsigned int rs_enr)
-{
-	return rs_enr >>
-		/* bit to page */
-		((PAGE_SHIFT + 3) -
-		/* resync extent number to bit */
-		 (BM_EXT_SHIFT - BM_BLOCK_SHIFT));
-}
-
 static sector_t al_tr_number_to_on_disk_sector(struct drbd_device *device)
 {
 	const unsigned int stripes = device->ldev->md.al_stripes;
@@ -479,8 +456,7 @@ static sector_t al_tr_number_to_on_disk_sector(struct drbd_device *device)
 	return device->ldev->md.md_offset + device->ldev->md.al_offset + t;
 }
 
-static int
-_al_write_transaction(struct drbd_device *device)
+int al_write_transaction(struct drbd_device *device)
 {
 	struct al_transaction_on_disk *buffer;
 	struct lc_element *e;
@@ -505,7 +481,8 @@ _al_write_transaction(struct drbd_device *device)
 		return -EIO;
 	}
 
-	buffer = drbd_md_get_buffer(device); /* protects md_io_buffer, al_tr_cycle, ... */
+	/* protects md_io_buffer, al_tr_cycle, ... */
+	buffer = drbd_md_get_buffer(device, __func__);
 	if (!buffer) {
 		drbd_err(device, "disk failed while waiting for md_io buffer\n");
 		put_ldev(device);
@@ -590,38 +567,6 @@ _al_write_transaction(struct drbd_device *device)
 	return err;
 }
 
-
-static int w_al_write_transaction(struct drbd_work *w, int unused)
-{
-	struct update_al_work *aw = container_of(w, struct update_al_work, w);
-	struct drbd_device *device = aw->device;
-	int err;
-
-	err = _al_write_transaction(device);
-	aw->err = err;
-	complete(&aw->event);
-
-	return err != -EIO ? err : 0;
-}
-
-/* Calls from worker context (see w_restart_disk_io()) need to write the
-   transaction directly. Others came through generic_make_request(),
-   those need to delegate it to the worker. */
-static int al_write_transaction(struct drbd_device *device, bool delegate)
-{
-	if (delegate) {
-		struct update_al_work al_work;
-		init_completion(&al_work.event);
-		al_work.w.cb = w_al_write_transaction;
-		al_work.device = device;
-		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
-				      &al_work.w);
-		wait_for_completion(&al_work.event);
-		return al_work.err;
-	} else
-		return _al_write_transaction(device);
-}
-
 static int _try_lc_del(struct drbd_device *device, struct lc_element *al_ext)
 {
 	int rv;
@@ -682,72 +627,56 @@ int drbd_initialize_al(struct drbd_device *device, void *buffer)
 	return 0;
 }
 
-static int w_update_odbm(struct drbd_work *w, int unused)
-{
-	struct update_odbm_work *udw = container_of(w, struct update_odbm_work, w);
-	struct drbd_device *device = udw->device;
-	struct sib_info sib = { .sib_reason = SIB_SYNC_PROGRESS, };
-
-	if (!get_ldev(device)) {
-		if (__ratelimit(&drbd_ratelimit_state))
-			drbd_warn(device, "Can not update on disk bitmap, local IO disabled.\n");
-		kfree(udw);
-		return 0;
-	}
-
-	drbd_bm_write_page(device, rs_extent_to_bm_page(udw->enr));
-	put_ldev(device);
-
-	kfree(udw);
-
-	if (drbd_bm_total_weight(device) <= device->rs_failed) {
-		switch (device->state.conn) {
-		case C_SYNC_SOURCE:  case C_SYNC_TARGET:
-		case C_PAUSED_SYNC_S: case C_PAUSED_SYNC_T:
-			drbd_resync_finished(device);
-		default:
-			/* nothing to do */
-			break;
-		}
-	}
-	drbd_bcast_event(device, &sib);
-
-	return 0;
-}
-
+static const char *drbd_change_sync_fname[] = {
+	[RECORD_RS_FAILED] = "drbd_rs_failed_io",
+	[SET_IN_SYNC] = "drbd_set_in_sync",
+	[SET_OUT_OF_SYNC] = "drbd_set_out_of_sync"
+};
 
 /* ATTENTION. The AL's extents are 4MB each, while the extents in the
  * resync LRU-cache are 16MB each.
  * The caller of this function has to hold an get_ldev() reference.
  *
+ * Adjusts the caching members ->rs_left (success) or ->rs_failed (!success),
+ * potentially pulling in (and recounting the corresponding bits)
+ * this resync extent into the resync extent lru cache.
+ *
+ * Returns whether all bits have been cleared for this resync extent,
+ * precisely: (rs_left <= rs_failed)
+ *
  * TODO will be obsoleted once we have a caching lru of the on disk bitmap
  */
-static void drbd_try_clear_on_disk_bm(struct drbd_device *device, sector_t sector,
-				      int count, int success)
+static bool update_rs_extent(struct drbd_device *device,
+		unsigned int enr, int count,
+		enum update_sync_bits_mode mode)
 {
 	struct lc_element *e;
-	struct update_odbm_work *udw;
-
-	unsigned int enr;
 
 	D_ASSERT(device, atomic_read(&device->local_cnt));
 
-	/* I simply assume that a sector/size pair never crosses
-	 * a 16 MB extent border. (Currently this is true...) */
-	enr = BM_SECT_TO_EXT(sector);
-
-	e = lc_get(device->resync, enr);
+	/* When setting out-of-sync bits,
+	 * we don't need it cached (lc_find).
+	 * But if it is present in the cache,
+	 * we should update the cached bit count.
+	 * Otherwise, that extent should be in the resync extent lru cache
+	 * already -- or we want to pull it in if necessary -- (lc_get),
+	 * then update and check rs_left and rs_failed. */
+	if (mode == SET_OUT_OF_SYNC)
+		e = lc_find(device->resync, enr);
+	else
+		e = lc_get(device->resync, enr);
 	if (e) {
 		struct bm_extent *ext = lc_entry(e, struct bm_extent, lce);
 		if (ext->lce.lc_number == enr) {
-			if (success)
+			if (mode == SET_IN_SYNC)
 				ext->rs_left -= count;
+			else if (mode == SET_OUT_OF_SYNC)
+				ext->rs_left += count;
 			else
 				ext->rs_failed += count;
 			if (ext->rs_left < ext->rs_failed) {
-				drbd_warn(device, "BAD! sector=%llus enr=%u rs_left=%d "
+				drbd_warn(device, "BAD! enr=%u rs_left=%d "
 				    "rs_failed=%d count=%d cstate=%s\n",
-				     (unsigned long long)sector,
 				     ext->lce.lc_number, ext->rs_left,
 				     ext->rs_failed, count,
 				     drbd_conn_str(device->state.conn));
@@ -781,34 +710,27 @@ static void drbd_try_clear_on_disk_bm(struct drbd_device *device, sector_t secto
 				     ext->lce.lc_number, ext->rs_failed);
 			}
 			ext->rs_left = rs_left;
-			ext->rs_failed = success ? 0 : count;
+			ext->rs_failed = (mode == RECORD_RS_FAILED) ? count : 0;
 			/* we don't keep a persistent log of the resync lru,
 			 * we can commit any change right away. */
 			lc_committed(device->resync);
 		}
-		lc_put(device->resync, &ext->lce);
+		if (mode != SET_OUT_OF_SYNC)
+			lc_put(device->resync, &ext->lce);
 		/* no race, we are within the al_lock! */
 
-		if (ext->rs_left == ext->rs_failed) {
+		if (ext->rs_left <= ext->rs_failed) {
 			ext->rs_failed = 0;
-
-			udw = kmalloc(sizeof(*udw), GFP_ATOMIC);
-			if (udw) {
-				udw->enr = ext->lce.lc_number;
-				udw->w.cb = w_update_odbm;
-				udw->device = device;
-				drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
-						      &udw->w);
-			} else {
-				drbd_warn(device, "Could not kmalloc an udw\n");
-			}
+			return true;
 		}
-	} else {
+	} else if (mode != SET_OUT_OF_SYNC) {
+		/* be quiet if lc_find() did not find it. */
 		drbd_err(device, "lc_get() failed! locked=%d/%d flags=%lu\n",
 		    device->resync_locked,
 		    device->resync->nr_elements,
 		    device->resync->flags);
 	}
+	return false;
 }
 
 void drbd_advance_rs_marks(struct drbd_device *device, unsigned long still_to_go)
@@ -827,6 +749,76 @@ void drbd_advance_rs_marks(struct drbd_device *device, unsigned long still_to_go
 	}
 }
 
+/* It is called lazy update, so don't do write-out too often. */
+static bool lazy_bitmap_update_due(struct drbd_device *device)
+{
+	return time_after(jiffies, device->rs_last_bcast + 2*HZ);
+}
+
+static void maybe_schedule_on_disk_bitmap_update(struct drbd_device *device, bool rs_done)
+{
+	if (rs_done)
+		set_bit(RS_DONE, &device->flags);
+		/* and also set RS_PROGRESS below */
+	else if (!lazy_bitmap_update_due(device))
+		return;
+
+	drbd_device_post_work(device, RS_PROGRESS);
+}
+
+static int update_sync_bits(struct drbd_device *device,
+		unsigned long sbnr, unsigned long ebnr,
+		enum update_sync_bits_mode mode)
+{
+	/*
+	 * We keep a count of set bits per resync-extent in the ->rs_left
+	 * caching member, so we need to loop and work within the resync extent
+	 * alignment. Typically this loop will execute exactly once.
+	 */
+	unsigned long flags;
+	unsigned long count = 0;
+	unsigned int cleared = 0;
+	while (sbnr <= ebnr) {
+		/* set temporary boundary bit number to last bit number within
+		 * the resync extent of the current start bit number,
+		 * but cap at provided end bit number */
+		unsigned long tbnr = min(ebnr, sbnr | BM_BLOCKS_PER_BM_EXT_MASK);
+		unsigned long c;
+
+		if (mode == RECORD_RS_FAILED)
+			/* Only called from drbd_rs_failed_io(), bits
+			 * supposedly still set.  Recount, maybe some
+			 * of the bits have been successfully cleared
+			 * by application IO meanwhile.
+			 */
+			c = drbd_bm_count_bits(device, sbnr, tbnr);
+		else if (mode == SET_IN_SYNC)
+			c = drbd_bm_clear_bits(device, sbnr, tbnr);
+		else /* if (mode == SET_OUT_OF_SYNC) */
+			c = drbd_bm_set_bits(device, sbnr, tbnr);
+
+		if (c) {
+			spin_lock_irqsave(&device->al_lock, flags);
+			cleared += update_rs_extent(device, BM_BIT_TO_EXT(sbnr), c, mode);
+			spin_unlock_irqrestore(&device->al_lock, flags);
+			count += c;
+		}
+		sbnr = tbnr + 1;
+	}
+	if (count) {
+		if (mode == SET_IN_SYNC) {
+			unsigned long still_to_go = drbd_bm_total_weight(device);
+			bool rs_is_done = (still_to_go <= device->rs_failed);
+			drbd_advance_rs_marks(device, still_to_go);
+			if (cleared || rs_is_done)
+				maybe_schedule_on_disk_bitmap_update(device, rs_is_done);
+		} else if (mode == RECORD_RS_FAILED)
+			device->rs_failed += count;
+		wake_up(&device->al_wait);
+	}
+	return count;
+}
+
 /* clear the bit corresponding to the piece of storage in question:
  * size byte of data starting from sector.  Only clear a bits of the affected
  * one ore more _aligned_ BM_BLOCK_SIZE blocks.
@@ -834,24 +826,28 @@ void drbd_advance_rs_marks(struct drbd_device *device, unsigned long still_to_go
  * called by worker on C_SYNC_TARGET and receiver on SyncSource.
  *
  */
-void __drbd_set_in_sync(struct drbd_device *device, sector_t sector, int size,
-		       const char *file, const unsigned int line)
+int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
+		enum update_sync_bits_mode mode,
+		const char *file, const unsigned int line)
 {
 	/* Is called from worker and receiver context _only_ */
 	unsigned long sbnr, ebnr, lbnr;
 	unsigned long count = 0;
 	sector_t esector, nr_sectors;
-	int wake_up = 0;
-	unsigned long flags;
+
+	/* This would be an empty REQ_FLUSH, be silent. */
+	if ((mode == SET_OUT_OF_SYNC) && size == 0)
+		return 0;
 
 	if (size <= 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_DISCARD_SIZE) {
-		drbd_err(device, "drbd_set_in_sync: sector=%llus size=%d nonsense!\n",
+		drbd_err(device, "%s: sector=%llus size=%d nonsense!\n",
+				drbd_change_sync_fname[mode],
 				(unsigned long long)sector, size);
-		return;
+		return 0;
 	}
 
 	if (!get_ldev(device))
-		return; /* no disk, no metadata, no bitmap to clear bits in */
+		return 0; /* no disk, no metadata, no bitmap to manipulate bits in */
 
 	nr_sectors = drbd_get_capacity(device->this_bdev);
 	esector = sector + (size >> 9) - 1;
@@ -863,97 +859,26 @@ void __drbd_set_in_sync(struct drbd_device *device, sector_t sector, int size,
 
 	lbnr = BM_SECT_TO_BIT(nr_sectors-1);
 
-	/* we clear it (in sync).
-	 * round up start sector, round down end sector.  we make sure we only
-	 * clear full, aligned, BM_BLOCK_SIZE (4K) blocks */
-	if (unlikely(esector < BM_SECT_PER_BIT-1))
-		goto out;
-	if (unlikely(esector == (nr_sectors-1)))
-		ebnr = lbnr;
-	else
-		ebnr = BM_SECT_TO_BIT(esector - (BM_SECT_PER_BIT-1));
-	sbnr = BM_SECT_TO_BIT(sector + BM_SECT_PER_BIT-1);
-
-	if (sbnr > ebnr)
-		goto out;
-
-	/*
-	 * ok, (capacity & 7) != 0 sometimes, but who cares...
-	 * we count rs_{total,left} in bits, not sectors.
-	 */
-	count = drbd_bm_clear_bits(device, sbnr, ebnr);
-	if (count) {
-		drbd_advance_rs_marks(device, drbd_bm_total_weight(device));
-		spin_lock_irqsave(&device->al_lock, flags);
-		drbd_try_clear_on_disk_bm(device, sector, count, true);
-		spin_unlock_irqrestore(&device->al_lock, flags);
-
-		/* just wake_up unconditional now, various lc_chaged(),
-		 * lc_put() in drbd_try_clear_on_disk_bm(). */
-		wake_up = 1;
-	}
-out:
-	put_ldev(device);
-	if (wake_up)
-		wake_up(&device->al_wait);
-}
-
-/*
- * this is intended to set one request worth of data out of sync.
- * affects at least 1 bit,
- * and at most 1+DRBD_MAX_BIO_SIZE/BM_BLOCK_SIZE bits.
- *
- * called by tl_clear and drbd_send_dblock (==drbd_make_request).
- * so this can be _any_ process.
- */
-int __drbd_set_out_of_sync(struct drbd_device *device, sector_t sector, int size,
-			    const char *file, const unsigned int line)
-{
-	unsigned long sbnr, ebnr, flags;
-	sector_t esector, nr_sectors;
-	unsigned int enr, count = 0;
-	struct lc_element *e;
-
-	/* this should be an empty REQ_FLUSH */
-	if (size == 0)
-		return 0;
-
-	if (size < 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_DISCARD_SIZE) {
-		drbd_err(device, "sector: %llus, size: %d\n",
-			(unsigned long long)sector, size);
-		return 0;
+	if (mode == SET_IN_SYNC) {
+		/* Round up start sector, round down end sector.  We make sure
+		 * we only clear full, aligned, BM_BLOCK_SIZE blocks. */
+		if (unlikely(esector < BM_SECT_PER_BIT-1))
+			goto out;
+		if (unlikely(esector == (nr_sectors-1)))
+			ebnr = lbnr;
+		else
+			ebnr = BM_SECT_TO_BIT(esector - (BM_SECT_PER_BIT-1));
+		sbnr = BM_SECT_TO_BIT(sector + BM_SECT_PER_BIT-1);
+	} else {
+		/* We set it out of sync, or record resync failure.
+		 * Should not round anything here. */
+		sbnr = BM_SECT_TO_BIT(sector);
+		ebnr = BM_SECT_TO_BIT(esector);
 	}
 
-	if (!get_ldev(device))
-		return 0; /* no disk, no metadata, no bitmap to set bits in */
-
-	nr_sectors = drbd_get_capacity(device->this_bdev);
-	esector = sector + (size >> 9) - 1;
-
-	if (!expect(sector < nr_sectors))
-		goto out;
-	if (!expect(esector < nr_sectors))
-		esector = nr_sectors - 1;
-
-	/* we set it out of sync,
-	 * we do not need to round anything here */
-	sbnr = BM_SECT_TO_BIT(sector);
-	ebnr = BM_SECT_TO_BIT(esector);
-
-	/* ok, (capacity & 7) != 0 sometimes, but who cares...
-	 * we count rs_{total,left} in bits, not sectors.  */
-	spin_lock_irqsave(&device->al_lock, flags);
-	count = drbd_bm_set_bits(device, sbnr, ebnr);
-
-	enr = BM_SECT_TO_EXT(sector);
-	e = lc_find(device->resync, enr);
-	if (e)
-		lc_entry(e, struct bm_extent, lce)->rs_left += count;
-	spin_unlock_irqrestore(&device->al_lock, flags);
-
+	count = update_sync_bits(device, sbnr, ebnr, mode);
 out:
 	put_ldev(device);
-
 	return count;
 }
 
@@ -1075,6 +1000,15 @@ int drbd_try_rs_begin_io(struct drbd_device *device, sector_t sector)
 	struct lc_element *e;
 	struct bm_extent *bm_ext;
 	int i;
+	bool throttle = drbd_rs_should_slow_down(device, sector, true);
+
+	/* If we need to throttle, a half-locked (only marked BME_NO_WRITES,
+	 * not yet BME_LOCKED) extent needs to be kicked out explicitly if we
+	 * need to throttle. There is at most one such half-locked extent,
+	 * which is remembered in resync_wenr. */
+
+	if (throttle && device->resync_wenr != enr)
+		return -EAGAIN;
 
 	spin_lock_irq(&device->al_lock);
 	if (device->resync_wenr != LC_FREE && device->resync_wenr != enr) {
@@ -1098,8 +1032,10 @@ int drbd_try_rs_begin_io(struct drbd_device *device, sector_t sector)
 			D_ASSERT(device, test_bit(BME_NO_WRITES, &bm_ext->flags));
 			clear_bit(BME_NO_WRITES, &bm_ext->flags);
 			device->resync_wenr = LC_FREE;
-			if (lc_put(device->resync, &bm_ext->lce) == 0)
+			if (lc_put(device->resync, &bm_ext->lce) == 0) {
+				bm_ext->flags = 0;
 				device->resync_locked--;
+			}
 			wake_up(&device->al_wait);
 		} else {
 			drbd_alert(device, "LOGIC BUG\n");
@@ -1161,8 +1097,20 @@ proceed:
 	return 0;
 
 try_again:
-	if (bm_ext)
-		device->resync_wenr = enr;
+	if (bm_ext) {
+		if (throttle) {
+			D_ASSERT(device, !test_bit(BME_LOCKED, &bm_ext->flags));
+			D_ASSERT(device, test_bit(BME_NO_WRITES, &bm_ext->flags));
+			clear_bit(BME_NO_WRITES, &bm_ext->flags);
+			device->resync_wenr = LC_FREE;
+			if (lc_put(device->resync, &bm_ext->lce) == 0) {
+				bm_ext->flags = 0;
+				device->resync_locked--;
+			}
+			wake_up(&device->al_wait);
+		} else
+			device->resync_wenr = enr;
+	}
 	spin_unlock_irq(&device->al_lock);
 	return -EAGAIN;
 }
@@ -1269,70 +1217,4 @@ int drbd_rs_del_all(struct drbd_device *device)
 	wake_up(&device->al_wait);
 
 	return 0;
-}
-
-/**
- * drbd_rs_failed_io() - Record information on a failure to resync the specified blocks
- * @device:	DRBD device.
- * @sector:	The sector number.
- * @size:	Size of failed IO operation, in byte.
- */
-void drbd_rs_failed_io(struct drbd_device *device, sector_t sector, int size)
-{
-	/* Is called from worker and receiver context _only_ */
-	unsigned long sbnr, ebnr, lbnr;
-	unsigned long count;
-	sector_t esector, nr_sectors;
-	int wake_up = 0;
-
-	if (size <= 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_DISCARD_SIZE) {
-		drbd_err(device, "drbd_rs_failed_io: sector=%llus size=%d nonsense!\n",
-				(unsigned long long)sector, size);
-		return;
-	}
-	nr_sectors = drbd_get_capacity(device->this_bdev);
-	esector = sector + (size >> 9) - 1;
-
-	if (!expect(sector < nr_sectors))
-		return;
-	if (!expect(esector < nr_sectors))
-		esector = nr_sectors - 1;
-
-	lbnr = BM_SECT_TO_BIT(nr_sectors-1);
-
-	/*
-	 * round up start sector, round down end sector.  we make sure we only
-	 * handle full, aligned, BM_BLOCK_SIZE (4K) blocks */
-	if (unlikely(esector < BM_SECT_PER_BIT-1))
-		return;
-	if (unlikely(esector == (nr_sectors-1)))
-		ebnr = lbnr;
-	else
-		ebnr = BM_SECT_TO_BIT(esector - (BM_SECT_PER_BIT-1));
-	sbnr = BM_SECT_TO_BIT(sector + BM_SECT_PER_BIT-1);
-
-	if (sbnr > ebnr)
-		return;
-
-	/*
-	 * ok, (capacity & 7) != 0 sometimes, but who cares...
-	 * we count rs_{total,left} in bits, not sectors.
-	 */
-	spin_lock_irq(&device->al_lock);
-	count = drbd_bm_count_bits(device, sbnr, ebnr);
-	if (count) {
-		device->rs_failed += count;
-
-		if (get_ldev(device)) {
-			drbd_try_clear_on_disk_bm(device, sector, count, false);
-			put_ldev(device);
-		}
-
-		/* just wake_up unconditional now, various lc_chaged(),
-		 * lc_put() in drbd_try_clear_on_disk_bm(). */
-		wake_up = 1;
-	}
-	spin_unlock_irq(&device->al_lock);
-	if (wake_up)
-		wake_up(&device->al_wait);
 }

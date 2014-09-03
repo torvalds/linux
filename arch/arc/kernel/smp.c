@@ -12,23 +12,15 @@
  *    -- Initial Write (Borrowed heavily from ARM)
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/profile.h>
-#include <linux/errno.h>
-#include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/cpu.h>
-#include <linux/smp.h>
 #include <linux/irq.h>
-#include <linux/delay.h>
 #include <linux/atomic.h>
-#include <linux/percpu.h>
 #include <linux/cpumask.h>
-#include <linux/spinlock_types.h>
 #include <linux/reboot.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
@@ -136,7 +128,7 @@ void start_kernel_secondary(void)
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
 	if (machine_desc->init_smp)
-		machine_desc->init_smp(smp_processor_id());
+		machine_desc->init_smp(cpu);
 
 	arc_local_timer_setup();
 
@@ -338,18 +330,11 @@ irqreturn_t do_IPI(int irq, void *dev_id)
  */
 static DEFINE_PER_CPU(int, ipi_dev);
 
-static struct irqaction arc_ipi_irq = {
-        .name    = "IPI Interrupt",
-        .flags   = IRQF_PERCPU,
-        .handler = do_IPI,
-};
-
 int smp_ipi_irq_setup(int cpu, int irq)
 {
-	if (!cpu)
-		return setup_irq(irq, &arc_ipi_irq);
-	else
-		arch_unmask_irq(irq);
+	int *dev = per_cpu_ptr(&ipi_dev, cpu);
+
+	arc_request_percpu_irq(irq, cpu, do_IPI, "IPI Interrupt", dev);
 
 	return 0;
 }

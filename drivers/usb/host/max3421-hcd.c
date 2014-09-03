@@ -102,6 +102,15 @@ enum scheduling_pass {
 	SCHED_PASS_DONE
 };
 
+/* Bit numbers for max3421_hcd->todo: */
+enum {
+	ENABLE_IRQ = 0,
+	RESET_HCD,
+	RESET_PORT,
+	CHECK_UNLINK,
+	IOPIN_UPDATE
+};
+
 struct max3421_dma_buf {
 	u8 data[2];
 };
@@ -146,11 +155,7 @@ struct max3421_hcd {
 	u8 hien;
 	u8 mode;
 	u8 iopins[2];
-	unsigned int do_enable_irq:1;
-	unsigned int do_reset_hcd:1;
-	unsigned int do_reset_port:1;
-	unsigned int do_check_unlink:1;
-	unsigned int do_iopin_update:1;
+	unsigned long todo;
 #ifdef DEBUG
 	unsigned long err_stat[16];
 #endif
@@ -1165,10 +1170,8 @@ max3421_irq_handler(int irq, void *dev_id)
 	if (max3421_hcd->spi_thread &&
 	    max3421_hcd->spi_thread->state != TASK_RUNNING)
 		wake_up_process(max3421_hcd->spi_thread);
-	if (!max3421_hcd->do_enable_irq) {
-		max3421_hcd->do_enable_irq = 1;
+	if (!test_and_set_bit(ENABLE_IRQ, &max3421_hcd->todo))
 		disable_irq_nosync(spi->irq);
-	}
 	return IRQ_HANDLED;
 }
 
@@ -1423,10 +1426,8 @@ max3421_spi_thread(void *dev_id)
 			spi_wr8(hcd, MAX3421_REG_HIEN, max3421_hcd->hien);
 
 			set_current_state(TASK_INTERRUPTIBLE);
-			if (max3421_hcd->do_enable_irq) {
-				max3421_hcd->do_enable_irq = 0;
+			if (test_and_clear_bit(ENABLE_IRQ, &max3421_hcd->todo))
 				enable_irq(spi->irq);
-			}
 			schedule();
 			__set_current_state(TASK_RUNNING);
 		}
@@ -1440,23 +1441,18 @@ max3421_spi_thread(void *dev_id)
 		else if (!max3421_hcd->curr_urb)
 			i_worked |= max3421_select_and_start_urb(hcd);
 
-		if (max3421_hcd->do_reset_hcd) {
+		if (test_and_clear_bit(RESET_HCD, &max3421_hcd->todo))
 			/* reset the HCD: */
-			max3421_hcd->do_reset_hcd = 0;
 			i_worked |= max3421_reset_hcd(hcd);
-		}
-		if (max3421_hcd->do_reset_port) {
+		if (test_and_clear_bit(RESET_PORT, &max3421_hcd->todo)) {
 			/* perform a USB bus reset: */
-			max3421_hcd->do_reset_port = 0;
 			spi_wr8(hcd, MAX3421_REG_HCTL,
 				BIT(MAX3421_HCTL_BUSRST_BIT));
 			i_worked = 1;
 		}
-		if (max3421_hcd->do_check_unlink) {
-			max3421_hcd->do_check_unlink = 0;
+		if (test_and_clear_bit(CHECK_UNLINK, &max3421_hcd->todo))
 			i_worked |= max3421_check_unlink(hcd);
-		}
-		if (max3421_hcd->do_iopin_update) {
+		if (test_and_clear_bit(IOPIN_UPDATE, &max3421_hcd->todo)) {
 			/*
 			 * IOPINS1/IOPINS2 do not auto-increment, so we can't
 			 * use spi_wr_buf().
@@ -1469,7 +1465,6 @@ max3421_spi_thread(void *dev_id)
 				spi_wr8(hcd, MAX3421_REG_IOPINS1 + i, val);
 				max3421_hcd->iopins[i] = val;
 			}
-			max3421_hcd->do_iopin_update = 0;
 			i_worked = 1;
 		}
 	}
@@ -1485,7 +1480,8 @@ max3421_reset_port(struct usb_hcd *hcd)
 
 	max3421_hcd->port_status &= ~(USB_PORT_STAT_ENABLE |
 				      USB_PORT_STAT_LOW_SPEED);
-	max3421_hcd->do_reset_port = 1;
+	max3421_hcd->port_status |= USB_PORT_STAT_RESET;
+	set_bit(RESET_PORT, &max3421_hcd->todo);
 	wake_up_process(max3421_hcd->spi_thread);
 	return 0;
 }
@@ -1498,7 +1494,7 @@ max3421_reset(struct usb_hcd *hcd)
 	hcd->self.sg_tablesize = 0;
 	hcd->speed = HCD_USB2;
 	hcd->self.root_hub->speed = USB_SPEED_FULL;
-	max3421_hcd->do_reset_hcd = 1;
+	set_bit(RESET_HCD, &max3421_hcd->todo);
 	wake_up_process(max3421_hcd->spi_thread);
 	return 0;
 }
@@ -1551,7 +1547,7 @@ max3421_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	max3421_ep = urb->ep->hcpriv;
 	if (!max3421_ep) {
 		/* gets freed in max3421_endpoint_disable: */
-		max3421_ep = kzalloc(sizeof(struct max3421_ep), mem_flags);
+		max3421_ep = kzalloc(sizeof(struct max3421_ep), GFP_ATOMIC);
 		if (!max3421_ep) {
 			retval = -ENOMEM;
 			goto out;
@@ -1590,7 +1586,7 @@ max3421_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	 */
 	retval = usb_hcd_check_unlink_urb(hcd, urb, status);
 	if (retval == 0) {
-		max3421_hcd->do_check_unlink = 1;
+		set_bit(CHECK_UNLINK, &max3421_hcd->todo);
 		wake_up_process(max3421_hcd->spi_thread);
 	}
 	spin_unlock_irqrestore(&max3421_hcd->lock, flags);
@@ -1690,7 +1686,7 @@ max3421_gpout_set_value(struct usb_hcd *hcd, u8 pin_number, u8 value)
 		max3421_hcd->iopins[idx] |=  mask;
 	else
 		max3421_hcd->iopins[idx] &= ~mask;
-	max3421_hcd->do_iopin_update = 1;
+	set_bit(IOPIN_UPDATE, &max3421_hcd->todo);
 	wake_up_process(max3421_hcd->spi_thread);
 }
 

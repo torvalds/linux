@@ -189,8 +189,7 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	dprintk("nfsd: nfsd_lookup(fh %s, %.*s)\n", SVCFH_fmt(fhp), len,name);
 
 	dparent = fhp->fh_dentry;
-	exp  = fhp->fh_export;
-	exp_get(exp);
+	exp = exp_get(fhp->fh_export);
 
 	/* Lookup the name, but don't follow links */
 	if (isdotent(name, len)) {
@@ -464,7 +463,7 @@ out_put_write_access:
 	if (size_change)
 		put_write_access(inode);
 	if (!err)
-		commit_metadata(fhp);
+		err = nfserrno(commit_metadata(fhp));
 out:
 	return err;
 }
@@ -820,7 +819,8 @@ static int nfsd_direct_splice_actor(struct pipe_inode_info *pipe,
 	return __splice_from_pipe(pipe, sd, nfsd_splice_actor);
 }
 
-__be32 nfsd_finish_read(struct file *file, unsigned long *count, int host_err)
+static __be32
+nfsd_finish_read(struct file *file, unsigned long *count, int host_err)
 {
 	if (host_err >= 0) {
 		nfsdstats.io_read += host_err;
@@ -831,7 +831,7 @@ __be32 nfsd_finish_read(struct file *file, unsigned long *count, int host_err)
 		return nfserrno(host_err);
 }
 
-int nfsd_splice_read(struct svc_rqst *rqstp,
+__be32 nfsd_splice_read(struct svc_rqst *rqstp,
 		     struct file *file, loff_t offset, unsigned long *count)
 {
 	struct splice_desc sd = {
@@ -847,7 +847,7 @@ int nfsd_splice_read(struct svc_rqst *rqstp,
 	return nfsd_finish_read(file, count, host_err);
 }
 
-int nfsd_readv(struct file *file, loff_t offset, struct kvec *vec, int vlen,
+__be32 nfsd_readv(struct file *file, loff_t offset, struct kvec *vec, int vlen,
 		unsigned long *count)
 {
 	mm_segment_t oldfs;
@@ -1121,7 +1121,8 @@ nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *resfhp,
 		iap->ia_valid &= ~(ATTR_UID|ATTR_GID);
 	if (iap->ia_valid)
 		return nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
-	return 0;
+	/* Callers expect file metadata to be committed here */
+	return nfserrno(commit_metadata(resfhp));
 }
 
 /* HPUX client sometimes creates a file in mode 000, and sets size to 0.
@@ -1253,9 +1254,10 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	err = nfsd_create_setattr(rqstp, resfhp, iap);
 
 	/*
-	 * nfsd_setattr already committed the child.  Transactional filesystems
-	 * had a chance to commit changes for both parent and child
-	 * simultaneously making the following commit_metadata a noop.
+	 * nfsd_create_setattr already committed the child.  Transactional
+	 * filesystems had a chance to commit changes for both parent and
+	 * child * simultaneously making the following commit_metadata a
+	 * noop.
 	 */
 	err2 = nfserrno(commit_metadata(fhp));
 	if (err2)
@@ -1426,7 +1428,8 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	err = nfsd_create_setattr(rqstp, resfhp, iap);
 
 	/*
-	 * nfsd_setattr already committed the child (and possibly also the parent).
+	 * nfsd_create_setattr already committed the child
+	 * (and possibly also the parent).
 	 */
 	if (!err)
 		err = nfserrno(commit_metadata(fhp));
@@ -1504,16 +1507,15 @@ out_nfserr:
 __be32
 nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				char *fname, int flen,
-				char *path,  int plen,
-				struct svc_fh *resfhp,
-				struct iattr *iap)
+				char *path,
+				struct svc_fh *resfhp)
 {
 	struct dentry	*dentry, *dnew;
 	__be32		err, cerr;
 	int		host_err;
 
 	err = nfserr_noent;
-	if (!flen || !plen)
+	if (!flen || path[0] == '\0')
 		goto out;
 	err = nfserr_exist;
 	if (isdotent(fname, flen))
@@ -1534,18 +1536,7 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (IS_ERR(dnew))
 		goto out_nfserr;
 
-	if (unlikely(path[plen] != 0)) {
-		char *path_alloced = kmalloc(plen+1, GFP_KERNEL);
-		if (path_alloced == NULL)
-			host_err = -ENOMEM;
-		else {
-			strncpy(path_alloced, path, plen);
-			path_alloced[plen] = 0;
-			host_err = vfs_symlink(dentry->d_inode, dnew, path_alloced);
-			kfree(path_alloced);
-		}
-	} else
-		host_err = vfs_symlink(dentry->d_inode, dnew, path);
+	host_err = vfs_symlink(dentry->d_inode, dnew, path);
 	err = nfserrno(host_err);
 	if (!err)
 		err = nfserrno(commit_metadata(fhp));
@@ -2093,8 +2084,7 @@ nfsd_racache_init(int cache_size)
 	if (raparm_hash[0].pb_head)
 		return 0;
 	nperbucket = DIV_ROUND_UP(cache_size, RAPARM_HASH_SIZE);
-	if (nperbucket < 2)
-		nperbucket = 2;
+	nperbucket = max(2, nperbucket);
 	cache_size = nperbucket * RAPARM_HASH_SIZE;
 
 	dprintk("nfsd: allocating %d readahead buffers.\n", cache_size);

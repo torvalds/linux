@@ -17,35 +17,50 @@ for applications. A key benefit of our solution is that it leverages
 the standard virtio framework for network, disk and console devices,
 though in our case the virtio framework is used across a PCIe bus.
 
+MIC PCIe card has a dma controller with 8 channels. These channels are
+shared between the host s/w and the card s/w. 0 to 3 are used by host
+and 4 to 7 by card. As the dma device doesn't show up as PCIe device,
+a virtual bus called mic bus is created and virtual dma devices are
+created on it by the host/card drivers. On host the channels are private
+and used only by the host driver to transfer data for the virtio devices.
+
 Here is a block diagram of the various components described above. The
 virtio backends are situated on the host rather than the card given better
 single threaded performance for the host compared to MIC, the ability of
 the host to initiate DMA's to/from the card using the MIC DMA engine and
 the fact that the virtio block storage backend can only be on the host.
 
-                              |
-       +----------+           |             +----------+
-       | Card OS  |           |             | Host OS  |
-       +----------+           |             +----------+
-                              |
-+-------+ +--------+ +------+ | +---------+  +--------+ +--------+
-| Virtio| |Virtio  | |Virtio| | |Virtio   |  |Virtio  | |Virtio  |
-| Net   | |Console | |Block | | |Net      |  |Console | |Block   |
-| Driver| |Driver  | |Driver| | |backend  |  |backend | |backend |
-+-------+ +--------+ +------+ | +---------+  +--------+ +--------+
-    |         |         |     |      |            |         |
-    |         |         |     |User  |            |         |
-    |         |         |     |------|------------|---------|-------
-    +-------------------+     |Kernel +--------------------------+
-              |               |       | Virtio over PCIe IOCTLs  |
-              |               |       +--------------------------+
-      +--------------+        |                   |
-      |Intel MIC     |        |            +---------------+
-      |Card Driver   |        |            |Intel MIC      |
-      +--------------+        |            |Host Driver    |
-              |               |            +---------------+
-              |               |                   |
-     +-------------------------------------------------------------+
-     |                                                             |
-     |                    PCIe Bus                                 |
-     +-------------------------------------------------------------+
+                                      |
+               +----------+           |             +----------+
+               | Card OS  |           |             | Host OS  |
+               +----------+           |             +----------+
+                                      |
+        +-------+ +--------+ +------+ | +---------+  +--------+ +--------+
+        | Virtio| |Virtio  | |Virtio| | |Virtio   |  |Virtio  | |Virtio  |
+        | Net   | |Console | |Block | | |Net      |  |Console | |Block   |
+        | Driver| |Driver  | |Driver| | |backend  |  |backend | |backend |
+        +-------+ +--------+ +------+ | +---------+  +--------+ +--------+
+            |         |         |     |      |            |         |
+            |         |         |     |User  |            |         |
+            |         |         |     |------|------------|---------|-------
+            +-------------------+     |Kernel +--------------------------+
+                      |               |       | Virtio over PCIe IOCTLs  |
+                      |               |       +--------------------------+
++-----------+         |               |                   |  +-----------+
+| MIC DMA   |         |               |                   |  | MIC DMA   |
+| Driver    |         |               |                   |  | Driver    |
++-----------+         |               |                   |  +-----------+
+      |               |               |                   |        |
++---------------+     |               |                   |  +----------------+
+|MIC virtual Bus|     |               |                   |  |MIC virtual Bus |
++---------------+     |               |                   |  +----------------+
+      |               |               |                   |              |
+      |   +--------------+            |            +---------------+     |
+      |   |Intel MIC     |            |            |Intel MIC      |     |
+      +---|Card Driver   |            |            |Host Driver    |     |
+          +--------------+            |            +---------------+-----+
+                      |               |                   |
+             +-------------------------------------------------------------+
+             |                                                             |
+             |                    PCIe Bus                                 |
+             +-------------------------------------------------------------+

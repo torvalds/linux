@@ -633,7 +633,6 @@ raw3270_reset_device_cb(struct raw3270_request *rq, void *data)
 	} else
 		raw3270_writesf_readpart(rp);
 	memset(&rp->init_reset, 0, sizeof(rp->init_reset));
-	memset(&rp->init_data, 0, sizeof(rp->init_data));
 }
 
 static int

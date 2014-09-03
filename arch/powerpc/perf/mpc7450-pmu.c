@@ -260,8 +260,9 @@ static const u32 pmcsel_mask[N_COUNTER] = {
 /*
  * Compute MMCR0/1/2 values for a set of events.
  */
-static int mpc7450_compute_mmcr(u64 event[], int n_ev,
-				unsigned int hwc[], unsigned long mmcr[])
+static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
+				unsigned long mmcr[],
+				struct perf_event *pevents[])
 {
 	u8 event_index[N_CLASSES][N_COUNTER];
 	int n_classevent[N_CLASSES];

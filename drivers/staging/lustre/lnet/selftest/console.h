@@ -44,10 +44,10 @@
 #define __LST_CONSOLE_H__
 
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-types.h>
-#include <linux/lnet/lnetst.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lnet.h"
+#include "../../include/linux/lnet/lib-types.h"
+#include "../../include/linux/lnet/lnetst.h"
 #include "selftest.h"
 #include "conrpc.h"
 
@@ -56,7 +56,7 @@ typedef struct lstcon_node {
 	int		  nd_ref;	 /* reference count */
 	int		  nd_state;       /* state of the node */
 	int		  nd_timeout;     /* session timeout */
-	cfs_time_t	   nd_stamp;       /* timestamp of last replied RPC */
+	unsigned long	   nd_stamp;       /* timestamp of last replied RPC */
 	struct lstcon_rpc    nd_ping;	/* ping rpc */
 } lstcon_node_t;				/*** node descriptor */
 

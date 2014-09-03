@@ -247,7 +247,7 @@ static struct plx_pci_card_info plx_pci_card_info_elcus = {
 	/* based on PLX9030 */
 };
 
-static DEFINE_PCI_DEVICE_TABLE(plx_pci_tbl) = {
+static const struct pci_device_id plx_pci_tbl[] = {
 	{
 		/* Adlink PCI-7841/cPCI-7841 */
 		ADLINK_PCI_VENDOR_ID, ADLINK_PCI_DEVICE_ID,

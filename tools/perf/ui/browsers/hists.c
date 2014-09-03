@@ -26,6 +26,7 @@ struct hist_browser {
 	struct map_symbol   *selection;
 	int		     print_seq;
 	bool		     show_dso;
+	bool		     show_headers;
 	float		     min_pcnt;
 	u64		     nr_non_filtered_entries;
 	u64		     nr_callchain_rows;
@@ -33,8 +34,7 @@ struct hist_browser {
 
 extern void hist_browser__init_hpp(void);
 
-static int hists__browser_title(struct hists *hists, char *bf, size_t size,
-				const char *ev_name);
+static int hists__browser_title(struct hists *hists, char *bf, size_t size);
 static void hist_browser__update_nr_entries(struct hist_browser *hb);
 
 static struct rb_node *hists__filter_entries(struct rb_node *nd,
@@ -57,11 +57,42 @@ static u32 hist_browser__nr_entries(struct hist_browser *hb)
 	return nr_entries + hb->nr_callchain_rows;
 }
 
-static void hist_browser__refresh_dimensions(struct hist_browser *browser)
+static void hist_browser__update_rows(struct hist_browser *hb)
 {
+	struct ui_browser *browser = &hb->b;
+	u16 header_offset = hb->show_headers ? 1 : 0, index_row;
+
+	browser->rows = browser->height - header_offset;
+	/*
+	 * Verify if we were at the last line and that line isn't
+	 * visibe because we now show the header line(s).
+	 */
+	index_row = browser->index - browser->top_idx;
+	if (index_row >= browser->rows)
+		browser->index -= index_row - browser->rows + 1;
+}
+
+static void hist_browser__refresh_dimensions(struct ui_browser *browser)
+{
+	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
+
 	/* 3 == +/- toggle symbol before actual hist_entry rendering */
-	browser->b.width = 3 + (hists__sort_list_width(browser->hists) +
-			     sizeof("[k]"));
+	browser->width = 3 + (hists__sort_list_width(hb->hists) + sizeof("[k]"));
+	/*
+ 	 * FIXME: Just keeping existing behaviour, but this really should be
+ 	 *	  before updating browser->width, as it will invalidate the
+ 	 *	  calculation above. Fix this and the fallout in another
+ 	 *	  changeset.
+ 	 */
+	ui_browser__refresh_dimensions(browser);
+	hist_browser__update_rows(hb);
+}
+
+static void hist_browser__gotorc(struct hist_browser *browser, int row, int column)
+{
+	u16 header_offset = browser->show_headers ? 1 : 0;
+
+	ui_browser__gotorc(&browser->b, row + header_offset, column);
 }
 
 static void hist_browser__reset(struct hist_browser *browser)
@@ -74,7 +105,7 @@ static void hist_browser__reset(struct hist_browser *browser)
 
 	hist_browser__update_nr_entries(browser);
 	browser->b.nr_entries = hist_browser__nr_entries(browser);
-	hist_browser__refresh_dimensions(browser);
+	hist_browser__refresh_dimensions(&browser->b);
 	ui_browser__reset_index(&browser->b);
 }
 
@@ -346,7 +377,7 @@ static void ui_browser__warn_lost_events(struct ui_browser *browser)
 		"Or reduce the sampling frequency.");
 }
 
-static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
+static int hist_browser__run(struct hist_browser *browser,
 			     struct hist_browser_timer *hbt)
 {
 	int key;
@@ -356,8 +387,7 @@ static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
 	browser->b.entries = &browser->hists->entries;
 	browser->b.nr_entries = hist_browser__nr_entries(browser);
 
-	hist_browser__refresh_dimensions(browser);
-	hists__browser_title(browser->hists, title, sizeof(title), ev_name);
+	hists__browser_title(browser->hists, title, sizeof(title));
 
 	if (ui_browser__show(&browser->b, title,
 			     "Press '?' for help on key bindings") < 0)
@@ -384,7 +414,7 @@ static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
 				ui_browser__warn_lost_events(&browser->b);
 			}
 
-			hists__browser_title(browser->hists, title, sizeof(title), ev_name);
+			hists__browser_title(browser->hists, title, sizeof(title));
 			ui_browser__show_title(&browser->b, title);
 			continue;
 		}
@@ -393,10 +423,10 @@ static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
 			struct hist_entry *h = rb_entry(browser->b.top,
 							struct hist_entry, rb_node);
 			ui_helpline__pop();
-			ui_helpline__fpush("%d: nr_ent=(%d,%d), height=%d, idx=%d, fve: idx=%d, row_off=%d, nrows=%d",
+			ui_helpline__fpush("%d: nr_ent=(%d,%d), rows=%d, idx=%d, fve: idx=%d, row_off=%d, nrows=%d",
 					   seq++, browser->b.nr_entries,
 					   browser->hists->nr_entries,
-					   browser->b.height,
+					   browser->b.rows,
 					   browser->b.index,
 					   browser->b.top_idx,
 					   h->row_offset, h->nr_rows);
@@ -409,6 +439,10 @@ static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
 		case 'E':
 			/* Expand the whole world. */
 			hist_browser__set_folding(browser, true);
+			break;
+		case 'H':
+			browser->show_headers = !browser->show_headers;
+			hist_browser__update_rows(browser);
 			break;
 		case K_ENTER:
 			if (hist_browser__toggle_fold(browser))
@@ -509,13 +543,13 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 			}
 
 			ui_browser__set_color(&browser->b, color);
-			ui_browser__gotorc(&browser->b, row, 0);
+			hist_browser__gotorc(browser, row, 0);
 			slsmg_write_nstring(" ", offset + extra_offset);
 			slsmg_printf("%c ", folded_sign);
 			slsmg_write_nstring(str, width);
 			free(alloc_str);
 
-			if (++row == browser->b.height)
+			if (++row == browser->b.rows)
 				goto out;
 do_next:
 			if (folded_sign == '+')
@@ -528,7 +562,7 @@ do_next:
 									 new_level, row, row_offset,
 									 is_current_entry);
 		}
-		if (row == browser->b.height)
+		if (row == browser->b.rows)
 			goto out;
 		node = next;
 	}
@@ -568,13 +602,13 @@ static int hist_browser__show_callchain_node(struct hist_browser *browser,
 
 		s = callchain_list__sym_name(chain, bf, sizeof(bf),
 					     browser->show_dso);
-		ui_browser__gotorc(&browser->b, row, 0);
+		hist_browser__gotorc(browser, row, 0);
 		ui_browser__set_color(&browser->b, color);
 		slsmg_write_nstring(" ", offset);
 		slsmg_printf("%c ", folded_sign);
 		slsmg_write_nstring(s, width - 2);
 
-		if (++row == browser->b.height)
+		if (++row == browser->b.rows)
 			goto out;
 	}
 
@@ -603,7 +637,7 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 		row += hist_browser__show_callchain_node(browser, node, level,
 							 row, row_offset,
 							 is_current_entry);
-		if (row == browser->b.height)
+		if (row == browser->b.rows)
 			break;
 	}
 
@@ -733,7 +767,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			.ptr		= &arg,
 		};
 
-		ui_browser__gotorc(&browser->b, row, 0);
+		hist_browser__gotorc(browser, row, 0);
 
 		perf_hpp__for_each_format(fmt) {
 			if (perf_hpp__should_skip(fmt))
@@ -777,7 +811,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 	} else
 		--row_offset;
 
-	if (folded_sign == '-' && row != browser->b.height) {
+	if (folded_sign == '-' && row != browser->b.rows) {
 		printed += hist_browser__show_callchain(browser, &entry->sorted_chain,
 							1, row, &row_offset,
 							&current_entry);
@@ -786,6 +820,56 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 	}
 
 	return printed;
+}
+
+static int advance_hpp_check(struct perf_hpp *hpp, int inc)
+{
+	advance_hpp(hpp, inc);
+	return hpp->size <= 0;
+}
+
+static int hists__scnprintf_headers(char *buf, size_t size, struct hists *hists)
+{
+	struct perf_hpp dummy_hpp = {
+		.buf    = buf,
+		.size   = size,
+	};
+	struct perf_hpp_fmt *fmt;
+	size_t ret = 0;
+
+	if (symbol_conf.use_callchain) {
+		ret = scnprintf(buf, size, "  ");
+		if (advance_hpp_check(&dummy_hpp, ret))
+			return ret;
+	}
+
+	perf_hpp__for_each_format(fmt) {
+		if (perf_hpp__should_skip(fmt))
+			continue;
+
+		/* We need to add the length of the columns header. */
+		perf_hpp__reset_width(fmt, hists);
+
+		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
+		if (advance_hpp_check(&dummy_hpp, ret))
+			break;
+
+		ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "  ");
+		if (advance_hpp_check(&dummy_hpp, ret))
+			break;
+	}
+
+	return ret;
+}
+
+static void hist_browser__show_headers(struct hist_browser *browser)
+{
+	char headers[1024];
+
+	hists__scnprintf_headers(headers, sizeof(headers), browser->hists);
+	ui_browser__gotorc(&browser->b, 0, 0);
+	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
+	slsmg_write_nstring(headers, browser->b.width + 1);
 }
 
 static void ui_browser__hists_init_top(struct ui_browser *browser)
@@ -801,8 +885,14 @@ static void ui_browser__hists_init_top(struct ui_browser *browser)
 static unsigned int hist_browser__refresh(struct ui_browser *browser)
 {
 	unsigned row = 0;
+	u16 header_offset = 0;
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
+
+	if (hb->show_headers) {
+		hist_browser__show_headers(hb);
+		header_offset = 1;
+	}
 
 	ui_browser__hists_init_top(browser);
 
@@ -818,11 +908,11 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 			continue;
 
 		row += hist_browser__show_entry(hb, h, row);
-		if (row == browser->height)
+		if (row == browser->rows)
 			break;
 	}
 
-	return row;
+	return row + header_offset;
 }
 
 static struct rb_node *hists__filter_entries(struct rb_node *nd,
@@ -1191,8 +1281,10 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 	if (browser) {
 		browser->hists = hists;
 		browser->b.refresh = hist_browser__refresh;
+		browser->b.refresh_dimensions = hist_browser__refresh_dimensions;
 		browser->b.seek = ui_browser__hists_seek;
 		browser->b.use_navkeypressed = true;
+		browser->show_headers = symbol_conf.show_hist_headers;
 	}
 
 	return browser;
@@ -1213,8 +1305,7 @@ static struct thread *hist_browser__selected_thread(struct hist_browser *browser
 	return browser->he_selection->thread;
 }
 
-static int hists__browser_title(struct hists *hists, char *bf, size_t size,
-				const char *ev_name)
+static int hists__browser_title(struct hists *hists, char *bf, size_t size)
 {
 	char unit;
 	int printed;
@@ -1223,6 +1314,7 @@ static int hists__browser_title(struct hists *hists, char *bf, size_t size,
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	u64 nr_events = hists->stats.total_period;
 	struct perf_evsel *evsel = hists_to_evsel(hists);
+	const char *ev_name = perf_evsel__name(evsel);
 	char buf[512];
 	size_t buflen = sizeof(buf);
 
@@ -1390,7 +1482,7 @@ static void hist_browser__update_nr_entries(struct hist_browser *hb)
 }
 
 static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
-				    const char *helpline, const char *ev_name,
+				    const char *helpline,
 				    bool left_exits,
 				    struct hist_browser_timer *hbt,
 				    float min_pcnt,
@@ -1422,6 +1514,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"d             Zoom into current DSO\n"				\
 	"E             Expand all callchains\n"				\
 	"F             Toggle percentage of filtered entries\n"		\
+	"H             Display column headers\n"			\
 
 	/* help messages are sorted by lexical order of the hotkey */
 	const char report_help[] = HIST_BROWSER_HELP_COMMON
@@ -1465,7 +1558,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 		nr_options = 0;
 
-		key = hist_browser__run(browser, ev_name, hbt);
+		key = hist_browser__run(browser, hbt);
 
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
@@ -1843,7 +1936,7 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 {
 	struct perf_evlist *evlist = menu->b.priv;
 	struct perf_evsel *pos;
-	const char *ev_name, *title = "Available samples";
+	const char *title = "Available samples";
 	int delay_secs = hbt ? hbt->refresh : 0;
 	int key;
 
@@ -1876,9 +1969,8 @@ browse_hists:
 			 */
 			if (hbt)
 				hbt->timer(hbt->arg);
-			ev_name = perf_evsel__name(pos);
 			key = perf_evsel__hists_browse(pos, nr_events, help,
-						       ev_name, true, hbt,
+						       true, hbt,
 						       menu->min_pcnt,
 						       menu->env);
 			ui_browser__show_title(&menu->b, title);
@@ -1982,10 +2074,9 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 single_entry:
 	if (nr_entries == 1) {
 		struct perf_evsel *first = perf_evlist__first(evlist);
-		const char *ev_name = perf_evsel__name(first);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,
-						ev_name, false, hbt, min_pcnt,
+						false, hbt, min_pcnt,
 						env);
 	}
 

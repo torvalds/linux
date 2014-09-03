@@ -76,11 +76,6 @@ static inline int _enter_critical_mutex(struct mutex *pmutex,
 	return ret;
 }
 
-static inline void rtw_list_delete(struct list_head *plist)
-{
-	list_del_init(plist);
-}
-
 static inline void _init_timer(struct timer_list *ptimer,
 			       struct  net_device *nic_hdl,
 			       void *pfunc, void *cntx)
@@ -95,21 +90,10 @@ static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
 	mod_timer(ptimer , (jiffies+(delay_time*HZ/1000)));
 }
 
-static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
-{
-	del_timer_sync(ptimer);
-	*bcancelled = true;/* true ==1; false==0 */
-}
-
 #define RTW_TIMER_HDL_ARGS void *FunctionContext
 #define RTW_TIMER_HDL_NAME(name) rtw_##name##_timer_hdl
 #define RTW_DECLARE_TIMER_HDL(name) \
 	void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
-
-static inline void _cancel_workitem_sync(struct work_struct *pwork)
-{
-	cancel_work_sync(pwork);
-}
 
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 {
@@ -119,9 +103,6 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3));
 }
 
-#ifndef BIT
-	#define BIT(x)	(1 << (x))
-#endif
 
 #define BIT0	0x00000001
 #define BIT1	0x00000002
@@ -163,137 +144,17 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 
 extern int RTW_STATUS_CODE(int error_code);
 
-/* flags used for rtw_update_mem_stat() */
-enum {
-	MEM_STAT_VIR_ALLOC_SUCCESS,
-	MEM_STAT_VIR_ALLOC_FAIL,
-	MEM_STAT_VIR_FREE,
-	MEM_STAT_PHY_ALLOC_SUCCESS,
-	MEM_STAT_PHY_ALLOC_FAIL,
-	MEM_STAT_PHY_FREE,
-	MEM_STAT_TX, /* used to distinguish TX/RX, asigned from caller */
-	MEM_STAT_TX_ALLOC_SUCCESS,
-	MEM_STAT_TX_ALLOC_FAIL,
-	MEM_STAT_TX_FREE,
-	MEM_STAT_RX, /* used to distinguish TX/RX, asigned from caller */
-	MEM_STAT_RX_ALLOC_SUCCESS,
-	MEM_STAT_RX_ALLOC_FAIL,
-	MEM_STAT_RX_FREE
-};
-
-extern unsigned char MCS_rate_2R[16];
-extern unsigned char MCS_rate_1R[16];
-extern unsigned char RTW_WPA_OUI[];
-extern unsigned char WPA_TKIP_CIPHER[4];
-extern unsigned char RSN_TKIP_CIPHER[4];
-
 #define rtw_update_mem_stat(flag, sz) do {} while (0)
-u8 *_rtw_zmalloc(u32 sz);
 u8 *_rtw_malloc(u32 sz);
-void _rtw_mfree(u8 *pbuf, u32 sz);
 #define rtw_malloc(sz)			_rtw_malloc((sz))
-#define rtw_zmalloc(sz)			_rtw_zmalloc((sz))
-#define rtw_mfree(pbuf, sz)		_rtw_mfree((pbuf), (sz))
 
 void *rtw_malloc2d(int h, int w, int size);
-void rtw_mfree2d(void *pbuf, int h, int w, int size);
-
-void _rtw_memcpy(void *dec, void *sour, u32 sz);
-void _rtw_memset(void *pbuf, int c, u32 sz);
-
-void _rtw_init_listhead(struct list_head *list);
-u32  rtw_is_list_empty(struct list_head *phead);
-void rtw_list_insert_head(struct list_head *plist, struct list_head *phead);
-void rtw_list_insert_tail(struct list_head *plist, struct list_head *phead);
-void rtw_list_delete(struct list_head *plist);
 
 u32  _rtw_down_sema(struct semaphore *sema);
 
 void _rtw_init_queue(struct __queue *pqueue);
-u32  _rtw_queue_empty(struct __queue *pqueue);
-u32  rtw_end_of_queue_search(struct list_head *queue,
-			     struct list_head *pelement);
 
-u32  rtw_systime_to_ms(u32 systime);
-u32  rtw_ms_to_systime(u32 ms);
 s32  rtw_get_passing_time_ms(u32 start);
-s32  rtw_get_time_interval_ms(u32 start, u32 end);
-
-void rtw_sleep_schedulable(int ms);
-
-u32  rtw_atoi(u8 *s);
-
-static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
-{
-	return del_timer_sync(ptimer);
-}
-
-static inline void thread_enter(char *name)
-{
-	allow_signal(SIGTERM);
-}
-
-static inline void flush_signals_thread(void)
-{
-	if (signal_pending(current))
-		flush_signals(current);
-}
-
-#define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0 : 1)) << 2)
-
-static inline u32 _RND4(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 2) + ((sz & 3) ? 1 : 0)) << 2;
-	return val;
-}
-
-static inline u32 _RND8(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 3) + ((sz & 7) ? 1 : 0)) << 3;
-	return val;
-}
-
-static inline u32 _RND128(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 7) + ((sz & 127) ? 1 : 0)) << 7;
-	return val;
-}
-
-static inline u32 _RND256(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 8) + ((sz & 255) ? 1 : 0)) << 8;
-	return val;
-}
-
-static inline u32 _RND512(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
-	return val;
-}
-
-static inline u32 bitshift(u32 bitmask)
-{
-	u32 i;
-
-	for (i = 0; i <= 31; i++)
-		if (((bitmask>>i) &  0x1) == 1)
-			break;
-	return i;
-}
-
-/*  limitation of path length */
-#define PATH_LENGTH_MAX PATH_MAX
 
 struct rtw_netdev_priv_indicator {
 	void *priv;
@@ -301,7 +162,6 @@ struct rtw_netdev_priv_indicator {
 };
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
 						    void *old_priv);
-struct net_device *rtw_alloc_etherdev(int sizeof_priv);
 
 #define rtw_netdev_priv(netdev)					\
 	(((struct rtw_netdev_priv_indicator *)netdev_priv(netdev))->priv)
@@ -319,50 +179,12 @@ void rtw_free_netdev(struct net_device *netdev);
 #define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)), (sig), 1)
 
 u64 rtw_modular64(u64 x, u64 y);
-u64 rtw_division64(u64 x, u64 y);
 
 /* Macros for handling unaligned memory accesses */
-
-#define RTW_GET_BE16(a) ((u16) (((a)[0] << 8) | (a)[1]))
-#define RTW_PUT_BE16(a, val)			\
-	do {					\
-		(a)[0] = ((u16) (val)) >> 8;	\
-		(a)[1] = ((u16) (val)) & 0xff;	\
-	} while (0)
-
-#define RTW_GET_LE16(a) ((u16) (((a)[1] << 8) | (a)[0]))
-#define RTW_PUT_LE16(a, val)			\
-	do {					\
-		(a)[1] = ((u16) (val)) >> 8;	\
-		(a)[0] = ((u16) (val)) & 0xff;	\
-	} while (0)
 
 #define RTW_GET_BE24(a) ((((u32) (a)[0]) << 16) | (((u32) (a)[1]) << 8) | \
 			 ((u32) (a)[2]))
 
-#define RTW_PUT_BE32(a, val)					\
-	do {							\
-		(a)[0] = (u8) ((((u32) (val)) >> 24) & 0xff);	\
-		(a)[1] = (u8) ((((u32) (val)) >> 16) & 0xff);	\
-		(a)[2] = (u8) ((((u32) (val)) >> 8) & 0xff);	\
-		(a)[3] = (u8) (((u32) (val)) & 0xff);		\
-	} while (0)
-
 void rtw_buf_free(u8 **buf, u32 *buf_len);
 void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len);
-
-struct rtw_cbuf {
-	u32 write;
-	u32 read;
-	u32 size;
-	void *bufs[0];
-};
-
-bool rtw_cbuf_full(struct rtw_cbuf *cbuf);
-bool rtw_cbuf_empty(struct rtw_cbuf *cbuf);
-bool rtw_cbuf_push(struct rtw_cbuf *cbuf, void *buf);
-void *rtw_cbuf_pop(struct rtw_cbuf *cbuf);
-struct rtw_cbuf *rtw_cbuf_alloc(u32 size);
-int wifirate2_ratetbl_inx(unsigned char rate);
-
 #endif

@@ -39,9 +39,9 @@
 # include <linux/module.h>
 # include <linux/kernel.h>
 
-#include <obd_class.h>
+#include "../include/obd_class.h"
 #include "mdc_internal.h"
-#include <lustre_fid.h>
+#include "../include/lustre_fid.h"
 
 /* mdc_setattr does its own semaphore handling */
 static int mdc_reint(struct ptlrpc_request *request,
@@ -273,7 +273,7 @@ rebuild:
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
-		req->rq_sent = cfs_time_current_sec() + resends;
+		req->rq_sent = get_seconds() + resends;
 	}
 	level = LUSTRE_IMP_FULL;
  resend:

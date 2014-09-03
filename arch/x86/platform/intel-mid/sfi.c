@@ -432,9 +432,8 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 	struct sfi_table_simple *sb;
 	struct sfi_device_table_entry *pentry;
 	struct devs_id *dev = NULL;
-	int num, i;
-	int ioapic;
-	struct io_apic_irq_attr irq_attr;
+	int num, i, ret;
+	int polarity;
 
 	sb = (struct sfi_table_simple *)table;
 	num = SFI_GET_NUM_ENTRIES(sb, struct sfi_device_table_entry);
@@ -448,35 +447,30 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 			 * devices, but they have separate RTE entry in IOAPIC
 			 * so we have to enable them one by one here
 			 */
-			ioapic = mp_find_ioapic(irq);
-			if (ioapic >= 0) {
-				irq_attr.ioapic = ioapic;
-				irq_attr.ioapic_pin = irq;
-				irq_attr.trigger = 1;
-				if (intel_mid_identify_cpu() ==
-						INTEL_MID_CPU_CHIP_TANGIER) {
-					if (!strncmp(pentry->name,
-							"r69001-ts-i2c", 13))
-						/* active low */
-						irq_attr.polarity = 1;
-					else if (!strncmp(pentry->name,
-							"synaptics_3202", 14))
-						/* active low */
-						irq_attr.polarity = 1;
-					else if (irq == 41)
-						/* fast_int_1 */
-						irq_attr.polarity = 1;
-					else
-						/* active high */
-						irq_attr.polarity = 0;
-				} else {
-					/* PNW and CLV go with active low */
-					irq_attr.polarity = 1;
-				}
-				io_apic_set_pci_routing(NULL, irq, &irq_attr);
+			if (intel_mid_identify_cpu() ==
+					INTEL_MID_CPU_CHIP_TANGIER) {
+				if (!strncmp(pentry->name, "r69001-ts-i2c", 13))
+					/* active low */
+					polarity = 1;
+				else if (!strncmp(pentry->name,
+						"synaptics_3202", 14))
+					/* active low */
+					polarity = 1;
+				else if (irq == 41)
+					/* fast_int_1 */
+					polarity = 1;
+				else
+					/* active high */
+					polarity = 0;
+			} else {
+				/* PNW and CLV go with active low */
+				polarity = 1;
 			}
-		} else {
-			irq = 0; /* No irq */
+
+			ret = mp_set_gsi_attr(irq, 1, polarity, NUMA_NO_NODE);
+			if (ret == 0)
+				ret = mp_map_gsi_to_irq(irq, IOAPIC_MAP_ALLOC);
+			WARN_ON(ret < 0);
 		}
 
 		dev = get_device_id(pentry->type, pentry->name);

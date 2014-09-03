@@ -567,8 +567,8 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 		pmlmeinfo = &pmlmeext->mlmext_info;
 
 		if ((is_client_associated_to_ap23a(padapter) == true) ||
-		    ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
-		    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
+		    ((pmlmeinfo->state & 0x03) == MSR_ADHOC) ||
+		    ((pmlmeinfo->state & 0x03) == MSR_AP)) {
 			/*  enable to rx data frame */
 			rtl8723au_write16(padapter, REG_RXFLTMAP2, 0xFFFF);
 
@@ -669,16 +669,16 @@ void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
 		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx \n",
 		   ulContent));*/
 		/* delay_ms(40); */
-		rtl8723au_write32(padapter, RWCAM, ulCommand);
+		rtl8723au_write32(padapter, REG_CAMCMD, ulCommand);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
 		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx \n",
 		   ulCommand));*/
 	}
 }
 
-void rtl8723a_cam_invalid_all(struct rtw_adapter *padapter)
+void rtl8723a_cam_invalidate_all(struct rtw_adapter *padapter)
 {
-	rtl8723au_write32(padapter, RWCAM, BIT(31) | BIT(30));
+	rtl8723au_write32(padapter, REG_CAMCMD, CAM_POLLINIG | BIT(30));
 }
 
 void rtl8723a_cam_write(struct rtw_adapter *padapter,
@@ -708,7 +708,7 @@ void rtl8723a_cam_write(struct rtw_adapter *padapter,
 
 		rtl8723au_write32(padapter, WCAMI, val);
 		cmd = CAM_POLLINIG | CAM_WRITE | (addr + j);
-		rtl8723au_write32(padapter, RWCAM, cmd);
+		rtl8723au_write32(padapter, REG_CAMCMD, cmd);
 
 		/* DBG_8723A("%s => cam write: %x, %x\n", __func__, cmd, val);*/
 	}
@@ -818,24 +818,6 @@ void rtl8723a_set_rxdma_agg_pg_th(struct rtw_adapter *padapter, u8 val)
 	rtl8723au_write8(padapter, REG_RXDMA_AGG_PG_TH, val);
 }
 
-void rtl8723a_set_nav_upper(struct rtw_adapter *padapter, u32 usNavUpper)
-{
-	if (usNavUpper > HAL_8723A_NAV_UPPER_UNIT * 0xFF) {
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
-			 ("The setting value (0x%08X us) of NAV_UPPER "
-			  "is larger than (%d * 0xFF)!!!\n",
-			  usNavUpper, HAL_8723A_NAV_UPPER_UNIT));
-		return;
-	}
-
-	/*  The value of ((usNavUpper + HAL_8723A_NAV_UPPER_UNIT - 1) /
-	    HAL_8723A_NAV_UPPER_UNIT) */
-	/*  is getting the upper integer. */
-	usNavUpper = (usNavUpper + HAL_8723A_NAV_UPPER_UNIT - 1) /
-		HAL_8723A_NAV_UPPER_UNIT;
-	rtl8723au_write8(padapter, REG_NAV_UPPER, (u8) usNavUpper);
-}
-
 void rtl8723a_set_initial_gain(struct rtw_adapter *padapter, u32 rx_gain)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
@@ -867,12 +849,10 @@ void rtl8723a_odm_support_ability_set(struct rtw_adapter *padapter, u32 val)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
-	if (val == DYNAMIC_ALL_FUNC_ENABLE) {
-		pHalData->dmpriv.DMFlag = pHalData->dmpriv.InitDMFlag;
+	if (val == DYNAMIC_ALL_FUNC_ENABLE)
 		pHalData->odmpriv.SupportAbility = pHalData->dmpriv.InitODMFlag;
-	} else {
+	else
 		pHalData->odmpriv.SupportAbility |= val;
-	}
 }
 
 void rtl8723a_odm_support_ability_clr(struct rtw_adapter *padapter, u32 val)

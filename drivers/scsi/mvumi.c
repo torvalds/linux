@@ -48,7 +48,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("jyli@marvell.com");
 MODULE_DESCRIPTION("Marvell UMI Driver");
 
-static DEFINE_PCI_DEVICE_TABLE(mvumi_pci_table) = {
+static const struct pci_device_id mvumi_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, PCI_DEVICE_ID_MARVELL_MV9143) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, PCI_DEVICE_ID_MARVELL_MV9580) },
 	{ 0 }
@@ -142,8 +142,8 @@ static struct mvumi_res *mvumi_alloc_mem_resource(struct mvumi_hba *mhba,
 
 	case RESOURCE_UNCACHED_MEMORY:
 		size = round_up(size, 8);
-		res->virt_addr = pci_alloc_consistent(mhba->pdev, size,
-							&res->bus_addr);
+		res->virt_addr = pci_zalloc_consistent(mhba->pdev, size,
+						       &res->bus_addr);
 		if (!res->virt_addr) {
 			dev_err(&mhba->pdev->dev,
 					"unable to allocate consistent mem,"
@@ -151,7 +151,6 @@ static struct mvumi_res *mvumi_alloc_mem_resource(struct mvumi_hba *mhba,
 			kfree(res);
 			return NULL;
 		}
-		memset(res->virt_addr, 0, size);
 		break;
 
 	default:
@@ -258,11 +257,9 @@ static int mvumi_internal_cmd_sgl(struct mvumi_hba *mhba, struct mvumi_cmd *cmd,
 	if (size == 0)
 		return 0;
 
-	virt_addr = pci_alloc_consistent(mhba->pdev, size, &phy_addr);
+	virt_addr = pci_zalloc_consistent(mhba->pdev, size, &phy_addr);
 	if (!virt_addr)
 		return -1;
-
-	memset(virt_addr, 0, size);
 
 	m_sg = (struct mvumi_sgl *) &cmd->frame->payload[0];
 	cmd->frame->sg_counts = 1;

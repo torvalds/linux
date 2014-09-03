@@ -1606,7 +1606,6 @@ int vpfe_video_init(struct vpfe_video_device *video, const char *name)
 	if (ret < 0)
 		return ret;
 
-	set_bit(V4L2_FL_USE_FH_PRIO, &video->video_dev.flags);
 	video_set_drvdata(&video->video_dev, video);
 
 	return 0;

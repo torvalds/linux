@@ -272,7 +272,8 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 
 	/* use this reason, ieee80211_reconfig will unblock it */
 	ieee80211_stop_queues_by_reason(hw, IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_SUSPEND);
+					IEEE80211_QUEUE_STOP_REASON_SUSPEND,
+					false);
 
 	/*
 	 * Stop all Rx during the reconfig. We don't want state changes
@@ -1187,18 +1188,12 @@ static int __init ieee80211_init(void)
 	if (ret)
 		goto err_minstrel;
 
-	ret = rc80211_pid_init();
-	if (ret)
-		goto err_pid;
-
 	ret = ieee80211_iface_init();
 	if (ret)
 		goto err_netdev;
 
 	return 0;
  err_netdev:
-	rc80211_pid_exit();
- err_pid:
 	rc80211_minstrel_ht_exit();
  err_minstrel:
 	rc80211_minstrel_exit();
@@ -1208,7 +1203,6 @@ static int __init ieee80211_init(void)
 
 static void __exit ieee80211_exit(void)
 {
-	rc80211_pid_exit();
 	rc80211_minstrel_ht_exit();
 	rc80211_minstrel_exit();
 

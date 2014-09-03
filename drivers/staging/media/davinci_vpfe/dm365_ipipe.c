@@ -1268,6 +1268,7 @@ static int ipipe_s_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 
 	for (i = 0; i < ARRAY_SIZE(ipipe_modules); i++) {
 		unsigned int bit = 1 << i;
+
 		if (cfg->flag & bit) {
 			const struct ipipe_module_if *module_if =
 						&ipipe_modules[i];
@@ -1310,6 +1311,7 @@ static int ipipe_g_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 
 	for (i = 1; i < ARRAY_SIZE(ipipe_modules); i++) {
 		unsigned int bit = 1 << i;
+
 		if (cfg->flag & bit) {
 			const struct ipipe_module_if *module_if =
 						&ipipe_modules[i];

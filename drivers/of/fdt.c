@@ -26,6 +26,54 @@
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
 
+/*
+ * of_fdt_limit_memory - limit the number of regions in the /memory node
+ * @limit: maximum entries
+ *
+ * Adjust the flattened device tree to have at most 'limit' number of
+ * memory entries in the /memory node. This function may be called
+ * any time after initial_boot_param is set.
+ */
+void of_fdt_limit_memory(int limit)
+{
+	int memory;
+	int len;
+	const void *val;
+	int nr_address_cells = OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
+	int nr_size_cells = OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
+	const uint32_t *addr_prop;
+	const uint32_t *size_prop;
+	int root_offset;
+	int cell_size;
+
+	root_offset = fdt_path_offset(initial_boot_params, "/");
+	if (root_offset < 0)
+		return;
+
+	addr_prop = fdt_getprop(initial_boot_params, root_offset,
+				"#address-cells", NULL);
+	if (addr_prop)
+		nr_address_cells = fdt32_to_cpu(*addr_prop);
+
+	size_prop = fdt_getprop(initial_boot_params, root_offset,
+				"#size-cells", NULL);
+	if (size_prop)
+		nr_size_cells = fdt32_to_cpu(*size_prop);
+
+	cell_size = sizeof(uint32_t)*(nr_address_cells + nr_size_cells);
+
+	memory = fdt_path_offset(initial_boot_params, "/memory");
+	if (memory > 0) {
+		val = fdt_getprop(initial_boot_params, memory, "reg", &len);
+		if (len > limit*cell_size) {
+			len = limit*cell_size;
+			pr_debug("Limiting number of entries to %d\n", limit);
+			fdt_setprop(initial_boot_params, memory, "reg", val,
+					len);
+		}
+	}
+}
+
 /**
  * of_fdt_is_compatible - Return true if given node from the given blob has
  * compat in its compatible list
@@ -405,7 +453,7 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
 		size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
-		if (base && size &&
+		if (size &&
 		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
 			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
@@ -875,24 +923,24 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 }
 
 #ifdef CONFIG_HAVE_MEMBLOCK
+#define MAX_PHYS_ADDR	((phys_addr_t)~0)
+
 void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	const u64 phys_offset = __pa(PAGE_OFFSET);
 	base &= PAGE_MASK;
 	size &= PAGE_MASK;
 
-	if (sizeof(phys_addr_t) < sizeof(u64)) {
-		if (base > ULONG_MAX) {
-			pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
-					base, base + size);
-			return;
-		}
+	if (base > MAX_PHYS_ADDR) {
+		pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
+				base, base + size);
+		return;
+	}
 
-		if (base + size > ULONG_MAX) {
-			pr_warning("Ignoring memory range 0x%lx - 0x%llx\n",
-					ULONG_MAX, base + size);
-			size = ULONG_MAX - base;
-		}
+	if (base + size > MAX_PHYS_ADDR) {
+		pr_warning("Ignoring memory range 0x%lx - 0x%llx\n",
+				ULONG_MAX, base + size);
+		size = MAX_PHYS_ADDR - base;
 	}
 
 	if (base + size < phys_offset) {
@@ -937,7 +985,7 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 }
 #endif
 
-bool __init early_init_dt_scan(void *params)
+bool __init early_init_dt_verify(void *params)
 {
 	if (!params)
 		return false;
@@ -951,6 +999,12 @@ bool __init early_init_dt_scan(void *params)
 		return false;
 	}
 
+	return true;
+}
+
+
+void __init early_init_dt_scan_nodes(void)
+{
 	/* Retrieve various information from the /chosen node */
 	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
 
@@ -959,7 +1013,17 @@ bool __init early_init_dt_scan(void *params)
 
 	/* Setup memory, calling early_init_dt_add_memory_arch */
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+}
 
+bool __init early_init_dt_scan(void *params)
+{
+	bool status;
+
+	status = early_init_dt_verify(params);
+	if (!status)
+		return false;
+
+	early_init_dt_scan_nodes();
 	return true;
 }
 

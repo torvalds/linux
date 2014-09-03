@@ -722,8 +722,8 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 	default:
 		devpriv->CntrlReg &= Control_CNT0;
 		devpriv->CntrlReg |= Control_SW;
-
-		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);	/*  reset any operations */
+		/* reset any operations */
+		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 		pci171x_start_pacer(dev, false);
 		outb(0, dev->iobase + PCI171x_CLRFIFO);
 		outb(0, dev->iobase + PCI171x_CLRINT);
@@ -1049,15 +1049,18 @@ static int pci171x_reset(struct comedi_device *dev)
 	struct pci1710_private *devpriv = dev->private;
 
 	outw(0x30, dev->iobase + PCI171x_CNTCTRL);
-	devpriv->CntrlReg = Control_SW | Control_CNT0;	/*  Software trigger, CNT0=external */
-	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);	/*  reset any operations */
+	/* Software trigger, CNT0=external */
+	devpriv->CntrlReg = Control_SW | Control_CNT0;
+	/* reset any operations */
+	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
 	pci171x_start_pacer(dev, false);
 	devpriv->da_ranges = 0;
 	if (this_board->n_aochan) {
-		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);	/*  set DACs to 0..5V */
-		outw(0, dev->iobase + PCI171x_DA1);	/*  set DA outputs to 0V */
+		/* set DACs to 0..5V */
+		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
+		outw(0, dev->iobase + PCI171x_DA1); /* set DA outputs to 0V */
 		devpriv->ao_data[0] = 0x0000;
 		if (this_board->n_aochan > 1) {
 			outw(0, dev->iobase + PCI171x_DA2);
@@ -1077,10 +1080,11 @@ static int pci171x_reset(struct comedi_device *dev)
 static int pci1720_reset(struct comedi_device *dev)
 {
 	struct pci1710_private *devpriv = dev->private;
-
-	outb(Syncont_SC0, dev->iobase + PCI1720_SYNCONT);	/*  set synchronous output mode */
+	/* set synchronous output mode */
+	outb(Syncont_SC0, dev->iobase + PCI1720_SYNCONT);
 	devpriv->da_ranges = 0xAA;
-	outb(devpriv->da_ranges, dev->iobase + PCI1720_RANGE);	/*  set all ranges to +/-5V */
+	/* set all ranges to +/-5V */
+	outb(devpriv->da_ranges, dev->iobase + PCI1720_RANGE);
 	outw(0x0800, dev->iobase + PCI1720_DA0);	/*  set outputs to 0V */
 	outw(0x0800, dev->iobase + PCI1720_DA1);
 	outw(0x0800, dev->iobase + PCI1720_DA2);

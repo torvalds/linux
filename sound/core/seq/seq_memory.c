@@ -101,9 +101,9 @@ int snd_seq_dump_var_event(const struct snd_seq_event *event,
 			len -= size;
 		}
 		return 0;
-	} if (! (event->data.ext.len & SNDRV_SEQ_EXT_CHAINED)) {
-		return func(private_data, event->data.ext.ptr, len);
 	}
+	if (!(event->data.ext.len & SNDRV_SEQ_EXT_CHAINED))
+		return func(private_data, event->data.ext.ptr, len);
 
 	cell = (struct snd_seq_event_cell *)event->data.ext.ptr;
 	for (; len > 0 && cell; cell = cell->next) {

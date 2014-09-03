@@ -41,8 +41,6 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/clock.h>
-#include <plat/pll.h>
 #include <plat/pm.h>
 #include <plat/watchdog-reset.h>
 
@@ -81,10 +79,6 @@ void __init s3c2410_map_io(void)
 	s3c24xx_gpiocfg_default.get_pull = s3c24xx_gpio_getpull_1up;
 
 	iotable_init(s3c2410_iodesc, ARRAY_SIZE(s3c2410_iodesc));
-}
-
-void __init_or_cpufreq s3c2410_setup_clocks(void)
-{
 }
 
 struct bus_type s3c2410_subsys = {

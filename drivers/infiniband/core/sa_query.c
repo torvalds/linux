@@ -1184,7 +1184,7 @@ static void ib_sa_add_one(struct ib_device *device)
 		sa_dev->port[i].agent =
 			ib_register_mad_agent(device, i + s, IB_QPT_GSI,
 					      NULL, 0, send_handler,
-					      recv_handler, sa_dev);
+					      recv_handler, sa_dev, 0);
 		if (IS_ERR(sa_dev->port[i].agent))
 			goto err;
 

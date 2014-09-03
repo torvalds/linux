@@ -232,7 +232,7 @@ static void as3935_event_work(struct work_struct *work)
 
 	switch (val) {
 	case AS3935_EVENT_INT:
-		iio_trigger_poll(st->trig, iio_get_time_ns());
+		iio_trigger_poll(st->trig);
 		break;
 	case AS3935_NOISE_INT:
 		dev_warn(&st->spi->dev, "noise level is too high");

@@ -446,7 +446,7 @@ static void bcap_stop_streaming(struct vb2_queue *vq)
 	while (!list_empty(&bcap_dev->dma_queue)) {
 		bcap_dev->cur_frm = list_entry(bcap_dev->dma_queue.next,
 						struct bcap_buffer, list);
-		list_del(&bcap_dev->cur_frm->list);
+		list_del_init(&bcap_dev->cur_frm->list);
 		vb2_buffer_done(&bcap_dev->cur_frm->vb, VB2_BUF_STATE_ERROR);
 	}
 }
@@ -533,7 +533,7 @@ static irqreturn_t bcap_isr(int irq, void *dev_id)
 		}
 		bcap_dev->cur_frm = list_entry(bcap_dev->dma_queue.next,
 				struct bcap_buffer, list);
-		list_del(&bcap_dev->cur_frm->list);
+		list_del_init(&bcap_dev->cur_frm->list);
 	} else {
 		/* clear error flag, we will get a new frame */
 		if (ppi->err)
@@ -583,7 +583,7 @@ static int bcap_streamon(struct file *file, void *priv,
 	bcap_dev->cur_frm = list_entry(bcap_dev->dma_queue.next,
 					struct bcap_buffer, list);
 	/* remove buffer from the dma queue */
-	list_del(&bcap_dev->cur_frm->list);
+	list_del_init(&bcap_dev->cur_frm->list);
 	addr = vb2_dma_contig_plane_dma_addr(&bcap_dev->cur_frm->vb, 0);
 	/* update DMA address */
 	ppi->ops->update_addr(ppi, (unsigned long)addr);
@@ -939,7 +939,7 @@ static int bcap_probe(struct platform_device *pdev)
 
 	bcap_dev->cfg = config;
 
-	bcap_dev->ppi = ppi_create_instance(config->ppi_info);
+	bcap_dev->ppi = ppi_create_instance(pdev, config->ppi_info);
 	if (!bcap_dev->ppi) {
 		v4l2_err(pdev->dev.driver, "Unable to create ppi\n");
 		ret = -ENODEV;
@@ -966,7 +966,6 @@ static int bcap_probe(struct platform_device *pdev)
 	vfd->ioctl_ops          = &bcap_ioctl_ops;
 	vfd->tvnorms            = 0;
 	vfd->v4l2_dev           = &bcap_dev->v4l2_dev;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	strncpy(vfd->name, CAPTURE_DRV_NAME, sizeof(vfd->name));
 	bcap_dev->video_dev     = vfd;
 

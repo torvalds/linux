@@ -16,6 +16,7 @@
 #include <linux/dma-buf.h>
 #include <drm/tegra_drm.h>
 
+#include "drm.h"
 #include "gem.h"
 
 static inline struct tegra_bo *host1x_to_tegra_bo(struct host1x_bo *bo)
@@ -126,7 +127,7 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 		goto err_mmap;
 
 	if (flags & DRM_TEGRA_GEM_CREATE_TILED)
-		bo->flags |= TEGRA_BO_TILED;
+		bo->tiling.mode = TEGRA_BO_TILING_MODE_TILED;
 
 	if (flags & DRM_TEGRA_GEM_CREATE_BOTTOM_UP)
 		bo->flags |= TEGRA_BO_BOTTOM_UP;
@@ -259,8 +260,10 @@ int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 			 struct drm_mode_create_dumb *args)
 {
 	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_bo *bo;
 
+	min_pitch = round_up(min_pitch, tegra->pitch_align);
 	if (args->pitch < min_pitch)
 		args->pitch = min_pitch;
 
@@ -420,7 +423,7 @@ struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
 				       int flags)
 {
 	return dma_buf_export(gem, &tegra_gem_prime_dmabuf_ops, gem->size,
-			      flags);
+			      flags, NULL);
 }
 
 struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,

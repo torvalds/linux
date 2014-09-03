@@ -628,9 +628,10 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE) +
 		xennet_count_skb_frag_slots(skb);
 	if (unlikely(slots > MAX_SKB_FRAGS + 1)) {
-		net_alert_ratelimited(
-			"xennet: skb rides the rocket: %d slots\n", slots);
-		goto drop;
+		net_dbg_ratelimited("xennet: skb rides the rocket: %d slots, %d bytes\n",
+				    slots, skb->len);
+		if (skb_linearize(skb))
+			goto drop;
 	}
 
 	spin_lock_irqsave(&queue->tx_lock, flags);
@@ -1196,22 +1197,6 @@ static void xennet_release_rx_bufs(struct netfront_queue *queue)
 	spin_unlock_bh(&queue->rx_lock);
 }
 
-static void xennet_uninit(struct net_device *dev)
-{
-	struct netfront_info *np = netdev_priv(dev);
-	unsigned int num_queues = dev->real_num_tx_queues;
-	struct netfront_queue *queue;
-	unsigned int i;
-
-	for (i = 0; i < num_queues; ++i) {
-		queue = &np->queues[i];
-		xennet_release_tx_bufs(queue);
-		xennet_release_rx_bufs(queue);
-		gnttab_free_grant_references(queue->gref_tx_head);
-		gnttab_free_grant_references(queue->gref_rx_head);
-	}
-}
-
 static netdev_features_t xennet_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
@@ -1313,7 +1298,6 @@ static void xennet_poll_controller(struct net_device *dev)
 
 static const struct net_device_ops xennet_netdev_ops = {
 	.ndo_open            = xennet_open,
-	.ndo_uninit          = xennet_uninit,
 	.ndo_stop            = xennet_close,
 	.ndo_start_xmit      = xennet_start_xmit,
 	.ndo_change_mtu	     = xennet_change_mtu,
@@ -1454,6 +1438,11 @@ static void xennet_disconnect_backend(struct netfront_info *info)
 		queue->tx_irq = queue->rx_irq = 0;
 
 		napi_synchronize(&queue->napi);
+
+		xennet_release_tx_bufs(queue);
+		xennet_release_rx_bufs(queue);
+		gnttab_free_grant_references(queue->gref_tx_head);
+		gnttab_free_grant_references(queue->gref_rx_head);
 
 		/* End access and free the pages */
 		xennet_end_access(queue->tx_ring_ref, queue->tx.sring);
@@ -1827,8 +1816,8 @@ static int xennet_create_queues(struct netfront_info *info,
 
 		ret = xennet_init_queue(queue);
 		if (ret < 0) {
-			dev_warn(&info->netdev->dev, "only created %d queues\n",
-				 num_queues);
+			dev_warn(&info->netdev->dev,
+				 "only created %d queues\n", i);
 			num_queues = i;
 			break;
 		}
@@ -2001,7 +1990,7 @@ abort_transaction_no_dev_fatal:
 	info->queues = NULL;
 	rtnl_lock();
 	netif_set_real_num_tx_queues(info->netdev, 0);
-	rtnl_lock();
+	rtnl_unlock();
  out:
 	return err;
 }
@@ -2010,10 +1999,7 @@ static int xennet_connect(struct net_device *dev)
 {
 	struct netfront_info *np = netdev_priv(dev);
 	unsigned int num_queues = 0;
-	int i, requeue_idx, err;
-	struct sk_buff *skb;
-	grant_ref_t ref;
-	struct xen_netif_rx_request *req;
+	int err;
 	unsigned int feature_rx_copy;
 	unsigned int j = 0;
 	struct netfront_queue *queue = NULL;
@@ -2040,47 +2026,8 @@ static int xennet_connect(struct net_device *dev)
 	netdev_update_features(dev);
 	rtnl_unlock();
 
-	/* By now, the queue structures have been set up */
-	for (j = 0; j < num_queues; ++j) {
-		queue = &np->queues[j];
-
-		/* Step 1: Discard all pending TX packet fragments. */
-		spin_lock_irq(&queue->tx_lock);
-		xennet_release_tx_bufs(queue);
-		spin_unlock_irq(&queue->tx_lock);
-
-		/* Step 2: Rebuild the RX buffer freelist and the RX ring itself. */
-		spin_lock_bh(&queue->rx_lock);
-
-		for (requeue_idx = 0, i = 0; i < NET_RX_RING_SIZE; i++) {
-			skb_frag_t *frag;
-			const struct page *page;
-			if (!queue->rx_skbs[i])
-				continue;
-
-			skb = queue->rx_skbs[requeue_idx] = xennet_get_rx_skb(queue, i);
-			ref = queue->grant_rx_ref[requeue_idx] = xennet_get_rx_ref(queue, i);
-			req = RING_GET_REQUEST(&queue->rx, requeue_idx);
-
-			frag = &skb_shinfo(skb)->frags[0];
-			page = skb_frag_page(frag);
-			gnttab_grant_foreign_access_ref(
-				ref, queue->info->xbdev->otherend_id,
-				pfn_to_mfn(page_to_pfn(page)),
-				0);
-			req->gref = ref;
-			req->id   = requeue_idx;
-
-			requeue_idx++;
-		}
-
-		queue->rx.req_prod_pvt = requeue_idx;
-
-		spin_unlock_bh(&queue->rx_lock);
-	}
-
 	/*
-	 * Step 3: All public and private state should now be sane.  Get
+	 * All public and private state should now be sane.  Get
 	 * ready to start sending and receiving packets and give the driver
 	 * domain a kick because we've probably just requeued some
 	 * packets.

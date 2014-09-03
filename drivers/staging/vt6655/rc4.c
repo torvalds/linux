@@ -82,6 +82,7 @@ void rc4_encrypt(PRC4Ext pRC4, unsigned char *pbyDest,
 		 unsigned char *pbySrc, unsigned int cbData_len)
 {
 	unsigned int ii;
+
 	for (ii = 0; ii < cbData_len; ii++)
 		pbyDest[ii] = (unsigned char)(pbySrc[ii] ^ rc4_byte(pRC4));
 }

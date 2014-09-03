@@ -168,7 +168,7 @@ static int zlib_compress_update(struct crypto_pcomp *tfm,
 	}
 
 	ret = req->avail_out - stream->avail_out;
-	pr_debug("avail_in %u, avail_out %u (consumed %u, produced %u)\n",
+	pr_debug("avail_in %lu, avail_out %lu (consumed %lu, produced %u)\n",
 		 stream->avail_in, stream->avail_out,
 		 req->avail_in - stream->avail_in, ret);
 	req->next_in = stream->next_in;
@@ -198,7 +198,7 @@ static int zlib_compress_final(struct crypto_pcomp *tfm,
 	}
 
 	ret = req->avail_out - stream->avail_out;
-	pr_debug("avail_in %u, avail_out %u (consumed %u, produced %u)\n",
+	pr_debug("avail_in %lu, avail_out %lu (consumed %lu, produced %u)\n",
 		 stream->avail_in, stream->avail_out,
 		 req->avail_in - stream->avail_in, ret);
 	req->next_in = stream->next_in;
@@ -283,7 +283,7 @@ static int zlib_decompress_update(struct crypto_pcomp *tfm,
 	}
 
 	ret = req->avail_out - stream->avail_out;
-	pr_debug("avail_in %u, avail_out %u (consumed %u, produced %u)\n",
+	pr_debug("avail_in %lu, avail_out %lu (consumed %lu, produced %u)\n",
 		 stream->avail_in, stream->avail_out,
 		 req->avail_in - stream->avail_in, ret);
 	req->next_in = stream->next_in;
@@ -331,7 +331,7 @@ static int zlib_decompress_final(struct crypto_pcomp *tfm,
 	}
 
 	ret = req->avail_out - stream->avail_out;
-	pr_debug("avail_in %u, avail_out %u (consumed %u, produced %u)\n",
+	pr_debug("avail_in %lu, avail_out %lu (consumed %lu, produced %u)\n",
 		 stream->avail_in, stream->avail_out,
 		 req->avail_in - stream->avail_in, ret);
 	req->next_in = stream->next_in;

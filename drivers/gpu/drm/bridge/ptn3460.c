@@ -328,7 +328,7 @@ int ptn3460_init(struct drm_device *dev, struct drm_encoder *encoder,
 	}
 	drm_connector_helper_add(&ptn_bridge->connector,
 			&ptn3460_connector_helper_funcs);
-	drm_sysfs_connector_add(&ptn_bridge->connector);
+	drm_connector_register(&ptn_bridge->connector);
 	drm_mode_connector_attach_encoder(&ptn_bridge->connector, encoder);
 
 	return 0;

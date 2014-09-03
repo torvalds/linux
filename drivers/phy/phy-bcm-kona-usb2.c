@@ -117,7 +117,7 @@ static int bcm_kona_usb2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, phy);
 
-	gphy = devm_phy_create(dev, &ops, NULL);
+	gphy = devm_phy_create(dev, NULL, &ops, NULL);
 	if (IS_ERR(gphy))
 		return PTR_ERR(gphy);
 

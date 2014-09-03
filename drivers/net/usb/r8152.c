@@ -59,6 +59,7 @@
 #define PLA_WDT6_CTRL		0xe428
 #define PLA_TCR0		0xe610
 #define PLA_TCR1		0xe612
+#define PLA_MTPS		0xe615
 #define PLA_TXFIFO_CTRL		0xe618
 #define PLA_RSTTALLY		0xe800
 #define PLA_CR			0xe813
@@ -180,6 +181,10 @@
 /* PLA_TCR1 */
 #define VERSION_MASK		0x7cf0
 
+/* PLA_MTPS */
+#define MTPS_JUMBO		(12 * 1024 / 64)
+#define MTPS_DEFAULT		(6 * 1024 / 64)
+
 /* PLA_RSTTALLY */
 #define TALLY_RESET		0x0001
 
@@ -282,7 +287,7 @@
 /* USB_DEV_STAT */
 #define STAT_SPEED_MASK		0x0006
 #define STAT_SPEED_HIGH		0x0000
-#define STAT_SPEED_FULL		0x0001
+#define STAT_SPEED_FULL		0x0002
 
 /* USB_TX_AGG */
 #define TX_AGG_MAX_THRESHOLD	0x03
@@ -440,8 +445,11 @@ enum rtl_register_content {
 #define BYTE_EN_START_MASK	0x0f
 #define BYTE_EN_END_MASK	0xf0
 
+#define RTL8153_MAX_PACKET	9216 /* 9K */
+#define RTL8153_MAX_MTU		(RTL8153_MAX_PACKET - VLAN_ETH_HLEN - VLAN_HLEN)
 #define RTL8152_RMS		(VLAN_ETH_FRAME_LEN + VLAN_HLEN)
-#define RTL8152_TX_TIMEOUT	(HZ)
+#define RTL8153_RMS		RTL8153_MAX_PACKET
+#define RTL8152_TX_TIMEOUT	(5 * HZ)
 
 /* rtl8152 flags */
 enum rtl8152_flags {
@@ -2292,9 +2300,8 @@ static void r8152b_exit_oob(struct r8152 *tp)
 	/* rx share fifo credit full threshold */
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RXFIFO_CTRL0, RXFIFO_THR1_NORMAL);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_DEV_STAT);
-	ocp_data &= STAT_SPEED_MASK;
-	if (ocp_data == STAT_SPEED_FULL) {
+	if (tp->udev->speed == USB_SPEED_FULL ||
+	    tp->udev->speed == USB_SPEED_LOW) {
 		/* rx share fifo credit near full threshold */
 		ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RXFIFO_CTRL1,
 				RXFIFO_THR2_FULL);
@@ -2522,7 +2529,8 @@ static void r8153_first_init(struct r8152 *tp)
 	ocp_data &= ~CPCR_RX_VLAN;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CPCR, ocp_data);
 
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, RTL8152_RMS);
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, RTL8153_RMS);
+	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_MTPS, MTPS_JUMBO);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TCR0);
 	ocp_data |= TCR0_AUTO_FIFO;
@@ -2572,7 +2580,7 @@ static void r8153_enter_oob(struct r8152 *tp)
 		mdelay(1);
 	}
 
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, RTL8152_RMS);
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, RTL8153_RMS);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TEREDO_CFG);
 	ocp_data &= ~TEREDO_WAKE_MASK;
@@ -3289,6 +3297,26 @@ out:
 	return res;
 }
 
+static int rtl8152_change_mtu(struct net_device *dev, int new_mtu)
+{
+	struct r8152 *tp = netdev_priv(dev);
+
+	switch (tp->version) {
+	case RTL_VER_01:
+	case RTL_VER_02:
+		return eth_change_mtu(dev, new_mtu);
+	default:
+		break;
+	}
+
+	if (new_mtu < 68 || new_mtu > RTL8153_MAX_MTU)
+		return -EINVAL;
+
+	dev->mtu = new_mtu;
+
+	return 0;
+}
+
 static const struct net_device_ops rtl8152_netdev_ops = {
 	.ndo_open		= rtl8152_open,
 	.ndo_stop		= rtl8152_close,
@@ -3297,8 +3325,7 @@ static const struct net_device_ops rtl8152_netdev_ops = {
 	.ndo_tx_timeout		= rtl8152_tx_timeout,
 	.ndo_set_rx_mode	= rtl8152_set_rx_mode,
 	.ndo_set_mac_address	= rtl8152_set_mac_address,
-
-	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_change_mtu		= rtl8152_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 

@@ -138,11 +138,11 @@ static const struct regmap_irq wm5102_irqs[ARIZONA_NUM_IRQ] = {
 		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ1_EINT1
 	},
 
-	[ARIZONA_IRQ_SPK_SHUTDOWN_WARN] = {
-		.reg_offset = 2, .mask = ARIZONA_SPK_SHUTDOWN_WARN_EINT1
+	[ARIZONA_IRQ_SPK_OVERHEAT_WARN] = {
+		.reg_offset = 2, .mask = ARIZONA_SPK_OVERHEAT_WARN_EINT1
 	},
-	[ARIZONA_IRQ_SPK_SHUTDOWN] = {
-		.reg_offset = 2, .mask = ARIZONA_SPK_SHUTDOWN_EINT1
+	[ARIZONA_IRQ_SPK_OVERHEAT] = {
+		.reg_offset = 2, .mask = ARIZONA_SPK_OVERHEAT_EINT1
 	},
 	[ARIZONA_IRQ_HPDET] = {
 		.reg_offset = 2, .mask = ARIZONA_HPDET_EINT1

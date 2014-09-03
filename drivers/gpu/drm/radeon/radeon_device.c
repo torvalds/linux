@@ -103,6 +103,31 @@ static const char radeon_family_name[][16] = {
 	"LAST",
 };
 
+#define RADEON_PX_QUIRK_DISABLE_PX  (1 << 0)
+#define RADEON_PX_QUIRK_LONG_WAKEUP (1 << 1)
+
+struct radeon_px_quirk {
+	u32 chip_vendor;
+	u32 chip_device;
+	u32 subsys_vendor;
+	u32 subsys_device;
+	u32 px_quirk_flags;
+};
+
+static struct radeon_px_quirk radeon_px_quirk_list[] = {
+	/* Acer aspire 5560g (CPU: AMD A4-3305M; GPU: AMD Radeon HD 6480g + 7470m)
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=74551
+	 */
+	{ PCI_VENDOR_ID_ATI, 0x6760, 0x1025, 0x0672, RADEON_PX_QUIRK_DISABLE_PX },
+	/* Asus K73TA laptop with AMD A6-3400M APU and Radeon 6550 GPU
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=51381
+	 */
+	{ PCI_VENDOR_ID_ATI, 0x6741, 0x1043, 0x108c, RADEON_PX_QUIRK_DISABLE_PX },
+	/* macbook pro 8.2 */
+	{ PCI_VENDOR_ID_ATI, 0x6741, PCI_VENDOR_ID_APPLE, 0x00e2, RADEON_PX_QUIRK_LONG_WAKEUP },
+	{ 0, 0, 0, 0, 0 },
+};
+
 bool radeon_is_px(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -110,6 +135,26 @@ bool radeon_is_px(struct drm_device *dev)
 	if (rdev->flags & RADEON_IS_PX)
 		return true;
 	return false;
+}
+
+static void radeon_device_handle_px_quirks(struct radeon_device *rdev)
+{
+	struct radeon_px_quirk *p = radeon_px_quirk_list;
+
+	/* Apply PX quirks */
+	while (p && p->chip_device != 0) {
+		if (rdev->pdev->vendor == p->chip_vendor &&
+		    rdev->pdev->device == p->chip_device &&
+		    rdev->pdev->subsystem_vendor == p->subsys_vendor &&
+		    rdev->pdev->subsystem_device == p->subsys_device) {
+			rdev->px_quirk_flags = p->px_quirk_flags;
+			break;
+		}
+		++p;
+	}
+
+	if (rdev->px_quirk_flags & RADEON_PX_QUIRK_DISABLE_PX)
+		rdev->flags &= ~RADEON_IS_PX;
 }
 
 /**
@@ -385,7 +430,8 @@ int radeon_wb_init(struct radeon_device *rdev)
 
 	if (rdev->wb.wb_obj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT, NULL, &rdev->wb.wb_obj);
+				     RADEON_GEM_DOMAIN_GTT, 0, NULL,
+				     &rdev->wb.wb_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
 			return r;
@@ -1056,58 +1102,51 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	if (!radeon_check_pot_argument(radeon_vm_size)) {
 		dev_warn(rdev->dev, "VM size (%d) must be a power of 2\n",
 			 radeon_vm_size);
-		radeon_vm_size = 4096;
+		radeon_vm_size = 4;
 	}
 
-	if (radeon_vm_size < 4) {
-		dev_warn(rdev->dev, "VM size (%d) to small, min is 4MB\n",
+	if (radeon_vm_size < 1) {
+		dev_warn(rdev->dev, "VM size (%d) to small, min is 1GB\n",
 			 radeon_vm_size);
-		radeon_vm_size = 4096;
+		radeon_vm_size = 4;
 	}
 
        /*
         * Max GPUVM size for Cayman, SI and CI are 40 bits.
         */
-	if (radeon_vm_size > 1024*1024) {
-		dev_warn(rdev->dev, "VM size (%d) to large, max is 1TB\n",
+	if (radeon_vm_size > 1024) {
+		dev_warn(rdev->dev, "VM size (%d) too large, max is 1TB\n",
 			 radeon_vm_size);
-		radeon_vm_size = 4096;
+		radeon_vm_size = 4;
 	}
 
 	/* defines number of bits in page table versus page directory,
 	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
 	 * page table and the remaining bits are in the page directory */
-	if (radeon_vm_block_size < 9) {
-		dev_warn(rdev->dev, "VM page table size (%d) to small\n",
+	if (radeon_vm_block_size == -1) {
+
+		/* Total bits covered by PD + PTs */
+		unsigned bits = ilog2(radeon_vm_size) + 17;
+
+		/* Make sure the PD is 4K in size up to 8GB address space.
+		   Above that split equal between PD and PTs */
+		if (radeon_vm_size <= 8)
+			radeon_vm_block_size = bits - 9;
+		else
+			radeon_vm_block_size = (bits + 3) / 2;
+
+	} else if (radeon_vm_block_size < 9) {
+		dev_warn(rdev->dev, "VM page table size (%d) too small\n",
 			 radeon_vm_block_size);
 		radeon_vm_block_size = 9;
 	}
 
 	if (radeon_vm_block_size > 24 ||
-	    radeon_vm_size < (1ull << radeon_vm_block_size)) {
-		dev_warn(rdev->dev, "VM page table size (%d) to large\n",
+	    (radeon_vm_size * 1024) < (1ull << radeon_vm_block_size)) {
+		dev_warn(rdev->dev, "VM page table size (%d) too large\n",
 			 radeon_vm_block_size);
 		radeon_vm_block_size = 9;
 	}
-}
-
-/**
- * radeon_switcheroo_quirk_long_wakeup - return true if longer d3 delay is
- * needed for waking up.
- *
- * @pdev: pci dev pointer
- */
-static bool radeon_switcheroo_quirk_long_wakeup(struct pci_dev *pdev)
-{
-
-	/* 6600m in a macbook pro */
-	if (pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE &&
-	    pdev->subsystem_device == 0x00e2) {
-		printk(KERN_INFO "radeon: quirking longer d3 wakeup delay\n");
-		return true;
-	}
-
-	return false;
 }
 
 /**
@@ -1122,6 +1161,7 @@ static bool radeon_switcheroo_quirk_long_wakeup(struct pci_dev *pdev)
 static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct radeon_device *rdev = dev->dev_private;
 
 	if (radeon_is_px(dev) && state == VGA_SWITCHEROO_OFF)
 		return;
@@ -1133,7 +1173,7 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		/* don't suspend or resume card normally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
-		if (d3_delay < 20 && radeon_switcheroo_quirk_long_wakeup(pdev))
+		if (d3_delay < 20 && (rdev->px_quirk_flags & RADEON_PX_QUIRK_LONG_WAKEUP))
 			dev->pdev->d3_delay = 20;
 
 		radeon_resume_kms(dev, true, true);
@@ -1238,7 +1278,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* Adjust VM size here.
 	 * Max GPUVM size for cayman+ is 40 bits.
 	 */
-	rdev->vm_manager.max_pfn = radeon_vm_size << 8;
+	rdev->vm_manager.max_pfn = radeon_vm_size << 18;
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
@@ -1336,6 +1376,9 @@ int radeon_device_init(struct radeon_device *rdev,
 	}
 	if (rdev->rio_mem == NULL)
 		DRM_ERROR("Unable to find PCI I/O BAR\n");
+
+	if (rdev->flags & RADEON_IS_PX)
+		radeon_device_handle_px_quirks(rdev);
 
 	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
 	/* this will fail for cards that aren't VGA class devices, just
@@ -1637,8 +1680,8 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 	radeon_save_bios_scratch_regs(rdev);
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
-	radeon_pm_suspend(rdev);
 	radeon_suspend(rdev);
+	radeon_hpd_fini(rdev);
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 		ring_sizes[i] = radeon_ring_backup(rdev, &rdev->ring[i],
@@ -1683,8 +1726,38 @@ retry:
 		}
 	}
 
-	radeon_pm_resume(rdev);
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+		/* do dpm late init */
+		r = radeon_pm_late_init(rdev);
+		if (r) {
+			rdev->pm.dpm_enabled = false;
+			DRM_ERROR("radeon_pm_late_init failed, disabling dpm\n");
+		}
+	} else {
+		/* resume old pm late */
+		radeon_pm_resume(rdev);
+	}
+
+	/* init dig PHYs, disp eng pll */
+	if (rdev->is_atom_bios) {
+		radeon_atom_encoder_init(rdev);
+		radeon_atom_disp_eng_pll_init(rdev);
+		/* turn on the BL */
+		if (rdev->mode_info.bl_encoder) {
+			u8 bl_level = radeon_get_backlight_level(rdev,
+								 rdev->mode_info.bl_encoder);
+			radeon_set_backlight_level(rdev, rdev->mode_info.bl_encoder,
+						   bl_level);
+		}
+	}
+	/* reset hpd state */
+	radeon_hpd_init(rdev);
+
 	drm_helper_resume_force_mode(rdev->ddev);
+
+	/* set the power state here in case we are a PX system or headless */
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
+		radeon_pm_compute_clocks(rdev);
 
 	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 	if (r) {

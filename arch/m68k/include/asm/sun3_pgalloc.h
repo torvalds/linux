@@ -12,10 +12,6 @@
 
 #include <asm/tlb.h>
 
-/* FIXME - when we get this compiling */
-/* erm, now that it's compiling, what do we do with it? */
-#define _KERNPG_TABLE 0
-
 extern const char bad_pmd_string[];
 
 #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); })

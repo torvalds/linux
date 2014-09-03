@@ -16,6 +16,8 @@
     GNU General Public License for more details.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "comedi_compat32.h"
 
 #include <linux/module.h>
@@ -206,8 +208,8 @@ struct comedi_device *comedi_dev_get_from_minor(unsigned minor)
 {
 	if (minor < COMEDI_NUM_BOARD_MINORS)
 		return comedi_dev_get_from_board_minor(minor);
-	else
-		return comedi_dev_get_from_subdevice_minor(minor);
+
+	return comedi_dev_get_from_subdevice_minor(minor);
 }
 EXPORT_SYMBOL_GPL(comedi_dev_get_from_minor);
 
@@ -266,7 +268,7 @@ static int resize_async_buffer(struct comedi_device *dev,
 		return retval;
 
 	if (s->buf_change) {
-		retval = s->buf_change(dev, s, new_size);
+		retval = s->buf_change(dev, s);
 		if (retval < 0)
 			return retval;
 	}
@@ -968,9 +970,6 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 	s = &dev->subdevices[bi.subdevice];
 
-	if (s->lock && s->lock != file)
-		return -EACCES;
-
 	async = s->async;
 
 	if (!async) {
@@ -997,7 +996,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		comedi_buf_read_free(s, bi.bytes_read);
 
 		if (comedi_is_subdevice_idle(s) &&
-		    async->buf_write_count == async->buf_read_count) {
+		    comedi_buf_n_bytes_ready(s) == 0) {
 			do_become_nonbusy(dev, s);
 		}
 	}
@@ -1076,11 +1075,10 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		/* by default we allow the insn since we don't have checks for
 		 * all possible cases yet */
 	default:
-		pr_warn("comedi: No check for data length of config insn id %i is implemented.\n",
+		pr_warn("No check for data length of config insn id %i is implemented\n",
 			data[0]);
-		pr_warn("comedi: Add a check to %s in %s.\n",
-			__func__, __FILE__);
-		pr_warn("comedi: Assuming n=%i is correct.\n", insn->n);
+		pr_warn("Add a check to %s in %s\n", __func__, __FILE__);
+		pr_warn("Assuming n=%i is correct\n", insn->n);
 		return 0;
 	}
 	return -EINVAL;
@@ -1229,10 +1227,9 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 				/* Most drivers ignore the base channel in
 				 * insn->chanspec.  Fix this here if
 				 * the subdevice has <= 32 channels.  */
-				unsigned int shift;
-				unsigned int orig_mask;
+				unsigned int orig_mask = data[0];
+				unsigned int shift = 0;
 
-				orig_mask = data[0];
 				if (s->n_chan <= 32) {
 					shift = CR_CHAN(insn->chanspec);
 					if (shift > 0) {
@@ -1240,8 +1237,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 						data[0] <<= shift;
 						data[1] <<= shift;
 					}
-				} else
-					shift = 0;
+				}
 				ret = s->insn_bits(dev, s, insn, data);
 				data[0] = orig_mask;
 				if (shift > 0)
@@ -1295,7 +1291,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 	if (copy_from_user(&insnlist, arg, sizeof(insnlist)))
 		return -EFAULT;
 
-	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
+	data = kmalloc_array(MAX_SAMPLES, sizeof(unsigned int), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;
@@ -1376,7 +1372,7 @@ static int do_insn_ioctl(struct comedi_device *dev,
 	unsigned int *data = NULL;
 	int ret = 0;
 
-	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
+	data = kmalloc_array(MAX_SAMPLES, sizeof(unsigned int), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;
@@ -1664,14 +1660,6 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
 		s->lock = file;
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 
-#if 0
-	if (ret < 0)
-		return ret;
-
-	if (s->lock_f)
-		ret = s->lock_f(dev, s);
-#endif
-
 	return ret;
 }
 
@@ -1706,14 +1694,8 @@ static int do_unlock_ioctl(struct comedi_device *dev, unsigned int arg,
 	if (s->lock && s->lock != file)
 		return -EACCES;
 
-	if (s->lock == file) {
-#if 0
-		if (s->unlock)
-			s->unlock(dev, s);
-#endif
-
+	if (s->lock == file)
 		s->lock = NULL;
-	}
 
 	return 0;
 }
@@ -1743,9 +1725,6 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 	s = &dev->subdevices[arg];
 	if (s->async == NULL)
 		return -EINVAL;
-
-	if (s->lock && s->lock != file)
-		return -EACCES;
 
 	if (!s->busy)
 		return 0;
@@ -1780,9 +1759,6 @@ static int do_poll_ioctl(struct comedi_device *dev, unsigned int arg,
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
 	s = &dev->subdevices[arg];
-
-	if (s->lock && s->lock != file)
-		return -EACCES;
 
 	if (!s->busy)
 		return 0;
@@ -2186,7 +2162,7 @@ out:
 }
 
 static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
-				loff_t *offset)
+			   loff_t *offset)
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
@@ -2230,10 +2206,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		n = nbytes;
 
 		m = comedi_buf_read_n_available(s);
-		/* printk("%d available\n",m); */
 		if (async->buf_read_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_read_ptr;
-		/* printk("%d contiguous\n",m); */
 		if (m < n)
 			n = m;
 
@@ -2303,8 +2277,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		new_s = comedi_read_subdevice(dev, minor);
 		if (dev->attached && old_detach_count == dev->detach_count &&
 		    s == new_s && new_s->async == async) {
-			if (become_nonbusy ||
-			    async->buf_read_count - async->buf_write_count == 0)
+			if (become_nonbusy || comedi_buf_n_bytes_ready(s) == 0)
 				do_become_nonbusy(dev, s);
 		}
 		mutex_unlock(&dev->mutex);
@@ -2411,12 +2384,6 @@ static const struct file_operations comedi_fops = {
 	.llseek = noop_llseek,
 };
 
-void comedi_error(const struct comedi_device *dev, const char *s)
-{
-	dev_err(dev->class_dev, "%s: %s\n", dev->driver->driver_name, s);
-}
-EXPORT_SYMBOL_GPL(comedi_error);
-
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
@@ -2460,7 +2427,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	struct device *csdev;
 	unsigned i;
 
-	dev = kzalloc(sizeof(struct comedi_device), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
 		return ERR_PTR(-ENOMEM);
 	comedi_device_init(dev);
@@ -2479,7 +2446,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
 		comedi_dev_put(dev);
-		pr_err("comedi: error: ran out of minor numbers for board device files.\n");
+		pr_err("ran out of minor numbers for board device files\n");
 		return ERR_PTR(-EBUSY);
 	}
 	dev->minor = i;
@@ -2532,7 +2499,7 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 	}
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	if (i == COMEDI_NUM_SUBDEVICE_MINORS) {
-		pr_err("comedi: error: ran out of minor numbers for subdevice files.\n");
+		pr_err("ran out of minor numbers for subdevice files\n");
 		return -EBUSY;
 	}
 	i += COMEDI_NUM_BOARD_MINORS;
@@ -2582,11 +2549,11 @@ static int __init comedi_init(void)
 	int i;
 	int retval;
 
-	pr_info("comedi: version " COMEDI_RELEASE " - http://www.comedi.org\n");
+	pr_info("version " COMEDI_RELEASE " - http://www.comedi.org\n");
 
 	if (comedi_num_legacy_minors < 0 ||
 	    comedi_num_legacy_minors > COMEDI_NUM_BOARD_MINORS) {
-		pr_err("comedi: error: invalid value for module parameter \"comedi_num_legacy_minors\".  Valid values are 0 through %i.\n",
+		pr_err("invalid value for module parameter \"comedi_num_legacy_minors\".  Valid values are 0 through %i.\n",
 		       COMEDI_NUM_BOARD_MINORS);
 		return -EINVAL;
 	}
@@ -2597,7 +2564,14 @@ static int __init comedi_init(void)
 		return -EIO;
 	cdev_init(&comedi_cdev, &comedi_fops);
 	comedi_cdev.owner = THIS_MODULE;
-	kobject_set_name(&comedi_cdev.kobj, "comedi");
+
+	retval = kobject_set_name(&comedi_cdev.kobj, "comedi");
+	if (retval) {
+		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
+					 COMEDI_NUM_MINORS);
+		return retval;
+	}
+
 	if (cdev_add(&comedi_cdev, MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS)) {
 		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 					 COMEDI_NUM_MINORS);
@@ -2605,7 +2579,7 @@ static int __init comedi_init(void)
 	}
 	comedi_class = class_create(THIS_MODULE, "comedi");
 	if (IS_ERR(comedi_class)) {
-		pr_err("comedi: failed to create class\n");
+		pr_err("failed to create class\n");
 		cdev_del(&comedi_cdev);
 		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 					 COMEDI_NUM_MINORS);
@@ -2628,10 +2602,9 @@ static int __init comedi_init(void)
 			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 						 COMEDI_NUM_MINORS);
 			return PTR_ERR(dev);
-		} else {
-			/* comedi_alloc_board_minor() locked the mutex */
-			mutex_unlock(&dev->mutex);
 		}
+		/* comedi_alloc_board_minor() locked the mutex */
+		mutex_unlock(&dev->mutex);
 	}
 
 	return 0;

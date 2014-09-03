@@ -22,26 +22,7 @@
  */
 #include <asm/pgtable-ppc64.h>
 #include <asm/bug.h>
-
-/*
- * Segment table
- */
-
-#define STE_ESID_V	0x80
-#define STE_ESID_KS	0x20
-#define STE_ESID_KP	0x10
-#define STE_ESID_N	0x08
-
-#define STE_VSID_SHIFT	12
-
-/* Location of cpu0's segment table */
-#define STAB0_PAGE	0x8
-#define STAB0_OFFSET	(STAB0_PAGE << 12)
-#define STAB0_PHYS_ADDR	(STAB0_OFFSET + PHYSICAL_START)
-
-#ifndef __ASSEMBLY__
-extern char initial_stab[];
-#endif /* ! __ASSEMBLY */
+#include <asm/processor.h>
 
 /*
  * SLB
@@ -369,10 +350,8 @@ extern void hpte_init_lpar(void);
 extern void hpte_init_beat(void);
 extern void hpte_init_beat_v3(void);
 
-extern void stabs_alloc(void);
 extern void slb_initialize(void);
 extern void slb_flush_and_rebolt(void);
-extern void stab_initialize(unsigned long stab);
 
 extern void slb_vmalloc_update(void);
 extern void slb_set_size(u16 size);
@@ -496,7 +475,7 @@ extern void slb_set_size(u16 size);
  */
 struct subpage_prot_table {
 	unsigned long maxaddr;	/* only addresses < this are protected */
-	unsigned int **protptrs[2];
+	unsigned int **protptrs[(TASK_SIZE_USER64 >> 43)];
 	unsigned int *low_prot[4];
 };
 

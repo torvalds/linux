@@ -10,10 +10,7 @@ struct nvkm_connector {
 	struct nvbios_connE info;
 	int index;
 
-	struct {
-		struct nouveau_eventh *event;
-		struct work_struct work;
-	} hpd;
+	struct nvkm_notify hpd;
 };
 
 #define nvkm_connector_create(p,e,c,b,i,d)                                     \

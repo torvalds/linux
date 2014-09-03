@@ -15,12 +15,9 @@ endif
 # that way we can complain to the user if the CPU is insufficient.
 #
 # The -m16 option is supported by GCC >= 4.9 and clang >= 3.5. For
-# older versions of GCC, we need to play evil and unreliable tricks to
-# attempt to ensure that our asm(".code16gcc") is first in the asm
-# output.
-CODE16GCC_CFLAGS := -m32 -include $(srctree)/arch/x86/boot/code16gcc.h \
-		    $(call cc-option, -fno-toplevel-reorder,\
-		      $(call cc-option, -fno-unit-at-a-time))
+# older versions of GCC, include an *assembly* header to make sure that
+# gcc doesn't play any games behind our back.
+CODE16GCC_CFLAGS := -m32 -Wa,$(srctree)/arch/x86/boot/code16gcc.h
 M16_CFLAGS	 := $(call cc-option, -m16, $(CODE16GCC_CFLAGS))
 
 REALMODE_CFLAGS	:= $(M16_CFLAGS) -g -Os -D__KERNEL__ \
@@ -186,6 +183,11 @@ archscripts: scripts_basic
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/x86/syscalls all
 
+archprepare:
+ifeq ($(CONFIG_KEXEC_FILE),y)
+	$(Q)$(MAKE) $(build)=arch/x86/purgatory arch/x86/purgatory/kexec-purgatory.c
+endif
+
 ###
 # Kernel objects
 
@@ -249,6 +251,7 @@ archclean:
 	$(Q)rm -rf $(objtree)/arch/x86_64
 	$(Q)$(MAKE) $(clean)=$(boot)
 	$(Q)$(MAKE) $(clean)=arch/x86/tools
+	$(Q)$(MAKE) $(clean)=arch/x86/purgatory
 
 PHONY += kvmconfig
 kvmconfig:

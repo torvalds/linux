@@ -6,6 +6,8 @@
  * Version 2.  See the file COPYING for more details.
  */
 
+#define pr_fmt(fmt)	"kexec: " fmt
+
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/string.h>
@@ -21,6 +23,13 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/debugreg.h>
+#include <asm/kexec-bzimage64.h>
+
+#ifdef CONFIG_KEXEC_FILE
+static struct kexec_file_ops *kexec_file_loaders[] = {
+		&kexec_bzImage64_ops,
+};
+#endif
 
 static void free_transition_pgtable(struct kimage *image)
 {
@@ -171,6 +180,45 @@ static void load_segments(void)
 		);
 }
 
+#ifdef CONFIG_KEXEC_FILE
+/* Update purgatory as needed after various image segments have been prepared */
+static int arch_update_purgatory(struct kimage *image)
+{
+	int ret = 0;
+
+	if (!image->file_mode)
+		return 0;
+
+	/* Setup copying of backup region */
+	if (image->type == KEXEC_TYPE_CRASH) {
+		ret = kexec_purgatory_get_set_symbol(image, "backup_dest",
+				&image->arch.backup_load_addr,
+				sizeof(image->arch.backup_load_addr), 0);
+		if (ret)
+			return ret;
+
+		ret = kexec_purgatory_get_set_symbol(image, "backup_src",
+				&image->arch.backup_src_start,
+				sizeof(image->arch.backup_src_start), 0);
+		if (ret)
+			return ret;
+
+		ret = kexec_purgatory_get_set_symbol(image, "backup_sz",
+				&image->arch.backup_src_sz,
+				sizeof(image->arch.backup_src_sz), 0);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+#else /* !CONFIG_KEXEC_FILE */
+static inline int arch_update_purgatory(struct kimage *image)
+{
+	return 0;
+}
+#endif /* CONFIG_KEXEC_FILE */
+
 int machine_kexec_prepare(struct kimage *image)
 {
 	unsigned long start_pgtable;
@@ -181,6 +229,11 @@ int machine_kexec_prepare(struct kimage *image)
 
 	/* Setup the identity mapped 64bit page table */
 	result = init_pgtable(image, start_pgtable);
+	if (result)
+		return result;
+
+	/* update purgatory as needed */
+	result = arch_update_purgatory(image);
 	if (result)
 		return result;
 
@@ -283,3 +336,200 @@ void arch_crash_save_vmcoreinfo(void)
 			      (unsigned long)&_text - __START_KERNEL);
 }
 
+/* arch-dependent functionality related to kexec file-based syscall */
+
+#ifdef CONFIG_KEXEC_FILE
+int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
+				  unsigned long buf_len)
+{
+	int i, ret = -ENOEXEC;
+	struct kexec_file_ops *fops;
+
+	for (i = 0; i < ARRAY_SIZE(kexec_file_loaders); i++) {
+		fops = kexec_file_loaders[i];
+		if (!fops || !fops->probe)
+			continue;
+
+		ret = fops->probe(buf, buf_len);
+		if (!ret) {
+			image->fops = fops;
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+void *arch_kexec_kernel_image_load(struct kimage *image)
+{
+	vfree(image->arch.elf_headers);
+	image->arch.elf_headers = NULL;
+
+	if (!image->fops || !image->fops->load)
+		return ERR_PTR(-ENOEXEC);
+
+	return image->fops->load(image, image->kernel_buf,
+				 image->kernel_buf_len, image->initrd_buf,
+				 image->initrd_buf_len, image->cmdline_buf,
+				 image->cmdline_buf_len);
+}
+
+int arch_kimage_file_post_load_cleanup(struct kimage *image)
+{
+	if (!image->fops || !image->fops->cleanup)
+		return 0;
+
+	return image->fops->cleanup(image->image_loader_data);
+}
+
+int arch_kexec_kernel_verify_sig(struct kimage *image, void *kernel,
+				 unsigned long kernel_len)
+{
+	if (!image->fops || !image->fops->verify_sig) {
+		pr_debug("kernel loader does not support signature verification.");
+		return -EKEYREJECTED;
+	}
+
+	return image->fops->verify_sig(kernel, kernel_len);
+}
+
+/*
+ * Apply purgatory relocations.
+ *
+ * ehdr: Pointer to elf headers
+ * sechdrs: Pointer to section headers.
+ * relsec: section index of SHT_RELA section.
+ *
+ * TODO: Some of the code belongs to generic code. Move that in kexec.c.
+ */
+int arch_kexec_apply_relocations_add(const Elf64_Ehdr *ehdr,
+				     Elf64_Shdr *sechdrs, unsigned int relsec)
+{
+	unsigned int i;
+	Elf64_Rela *rel;
+	Elf64_Sym *sym;
+	void *location;
+	Elf64_Shdr *section, *symtabsec;
+	unsigned long address, sec_base, value;
+	const char *strtab, *name, *shstrtab;
+
+	/*
+	 * ->sh_offset has been modified to keep the pointer to section
+	 * contents in memory
+	 */
+	rel = (void *)sechdrs[relsec].sh_offset;
+
+	/* Section to which relocations apply */
+	section = &sechdrs[sechdrs[relsec].sh_info];
+
+	pr_debug("Applying relocate section %u to %u\n", relsec,
+		 sechdrs[relsec].sh_info);
+
+	/* Associated symbol table */
+	symtabsec = &sechdrs[sechdrs[relsec].sh_link];
+
+	/* String table */
+	if (symtabsec->sh_link >= ehdr->e_shnum) {
+		/* Invalid strtab section number */
+		pr_err("Invalid string table section index %d\n",
+		       symtabsec->sh_link);
+		return -ENOEXEC;
+	}
+
+	strtab = (char *)sechdrs[symtabsec->sh_link].sh_offset;
+
+	/* section header string table */
+	shstrtab = (char *)sechdrs[ehdr->e_shstrndx].sh_offset;
+
+	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
+
+		/*
+		 * rel[i].r_offset contains byte offset from beginning
+		 * of section to the storage unit affected.
+		 *
+		 * This is location to update (->sh_offset). This is temporary
+		 * buffer where section is currently loaded. This will finally
+		 * be loaded to a different address later, pointed to by
+		 * ->sh_addr. kexec takes care of moving it
+		 *  (kexec_load_segment()).
+		 */
+		location = (void *)(section->sh_offset + rel[i].r_offset);
+
+		/* Final address of the location */
+		address = section->sh_addr + rel[i].r_offset;
+
+		/*
+		 * rel[i].r_info contains information about symbol table index
+		 * w.r.t which relocation must be made and type of relocation
+		 * to apply. ELF64_R_SYM() and ELF64_R_TYPE() macros get
+		 * these respectively.
+		 */
+		sym = (Elf64_Sym *)symtabsec->sh_offset +
+				ELF64_R_SYM(rel[i].r_info);
+
+		if (sym->st_name)
+			name = strtab + sym->st_name;
+		else
+			name = shstrtab + sechdrs[sym->st_shndx].sh_name;
+
+		pr_debug("Symbol: %s info: %02x shndx: %02x value=%llx size: %llx\n",
+			 name, sym->st_info, sym->st_shndx, sym->st_value,
+			 sym->st_size);
+
+		if (sym->st_shndx == SHN_UNDEF) {
+			pr_err("Undefined symbol: %s\n", name);
+			return -ENOEXEC;
+		}
+
+		if (sym->st_shndx == SHN_COMMON) {
+			pr_err("symbol '%s' in common section\n", name);
+			return -ENOEXEC;
+		}
+
+		if (sym->st_shndx == SHN_ABS)
+			sec_base = 0;
+		else if (sym->st_shndx >= ehdr->e_shnum) {
+			pr_err("Invalid section %d for symbol %s\n",
+			       sym->st_shndx, name);
+			return -ENOEXEC;
+		} else
+			sec_base = sechdrs[sym->st_shndx].sh_addr;
+
+		value = sym->st_value;
+		value += sec_base;
+		value += rel[i].r_addend;
+
+		switch (ELF64_R_TYPE(rel[i].r_info)) {
+		case R_X86_64_NONE:
+			break;
+		case R_X86_64_64:
+			*(u64 *)location = value;
+			break;
+		case R_X86_64_32:
+			*(u32 *)location = value;
+			if (value != *(u32 *)location)
+				goto overflow;
+			break;
+		case R_X86_64_32S:
+			*(s32 *)location = value;
+			if ((s64)value != *(s32 *)location)
+				goto overflow;
+			break;
+		case R_X86_64_PC32:
+			value -= (u64)address;
+			*(u32 *)location = value;
+			break;
+		default:
+			pr_err("Unknown rela relocation: %llu\n",
+			       ELF64_R_TYPE(rel[i].r_info));
+			return -ENOEXEC;
+		}
+	}
+	return 0;
+
+overflow:
+	pr_err("Overflow in relocation type %d value 0x%lx\n",
+	       (int)ELF64_R_TYPE(rel[i].r_info), value);
+	return -ENOEXEC;
+}
+#endif /* CONFIG_KEXEC_FILE */

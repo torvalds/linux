@@ -382,8 +382,6 @@ static ssize_t ahci_show_em_supported(struct device *dev,
  *	ahci_save_initial_config - Save and fixup initial config values
  *	@dev: target AHCI device
  *	@hpriv: host private area to store config values
- *	@force_port_map: force port map to a specified value
- *	@mask_port_map: mask out particular bits from port map
  *
  *	Some registers containing configuration info might be setup by
  *	BIOS and might be cleared on reset.  This function saves the
@@ -398,10 +396,7 @@ static ssize_t ahci_show_em_supported(struct device *dev,
  *	LOCKING:
  *	None.
  */
-void ahci_save_initial_config(struct device *dev,
-			      struct ahci_host_priv *hpriv,
-			      unsigned int force_port_map,
-			      unsigned int mask_port_map)
+void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 {
 	void __iomem *mmio = hpriv->mmio;
 	u32 cap, cap2, vers, port_map;
@@ -468,17 +463,17 @@ void ahci_save_initial_config(struct device *dev,
 		cap &= ~HOST_CAP_FBS;
 	}
 
-	if (force_port_map && port_map != force_port_map) {
+	if (hpriv->force_port_map && port_map != hpriv->force_port_map) {
 		dev_info(dev, "forcing port_map 0x%x -> 0x%x\n",
-			 port_map, force_port_map);
-		port_map = force_port_map;
+			 port_map, hpriv->force_port_map);
+		port_map = hpriv->force_port_map;
 	}
 
-	if (mask_port_map) {
+	if (hpriv->mask_port_map) {
 		dev_warn(dev, "masking port_map 0x%x -> 0x%x\n",
 			port_map,
-			port_map & mask_port_map);
-		port_map &= mask_port_map;
+			port_map & hpriv->mask_port_map);
+		port_map &= hpriv->mask_port_map;
 	}
 
 	/* cross check port_map and cap.n_ports */

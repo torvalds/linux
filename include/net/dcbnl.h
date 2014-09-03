@@ -81,8 +81,8 @@ struct dcbnl_rtnl_ops {
 	void (*setbcncfg)(struct net_device *, int, u32);
 	void (*getbcnrp)(struct net_device *, int, u8 *);
 	void (*setbcnrp)(struct net_device *, int, u8);
-	u8   (*setapp)(struct net_device *, u8, u16, u8);
-	u8   (*getapp)(struct net_device *, u8, u16);
+	int  (*setapp)(struct net_device *, u8, u16, u8);
+	int  (*getapp)(struct net_device *, u8, u16);
 	u8   (*getfeatcfg)(struct net_device *, int, u8 *);
 	u8   (*setfeatcfg)(struct net_device *, int, u8);
 

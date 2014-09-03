@@ -46,6 +46,7 @@
 #define DRV_NAME "tegra-ehci"
 
 static struct hc_driver __read_mostly tegra_ehci_hc_driver;
+static bool usb1_reset_attempted;
 
 struct tegra_ehci_soc_config {
 	bool has_hostpc;
@@ -59,6 +60,61 @@ struct tegra_ehci_hcd {
 	bool needs_double_reset;
 	enum tegra_usb_phy_port_speed port_speed;
 };
+
+/*
+ * The 1st USB controller contains some UTMI pad registers that are global for
+ * all the controllers on the chip. Those registers are also cleared when
+ * reset is asserted to the 1st controller. This means that the 1st controller
+ * can only be reset when no other controlled has finished probing. So we'll
+ * reset the 1st controller before doing any other setup on any of the
+ * controllers, and then never again.
+ *
+ * Since this is a PHY issue, the Tegra PHY driver should probably be doing
+ * the resetting of the USB controllers. But to keep compatibility with old
+ * device trees that don't have reset phandles in the PHYs, do it here.
+ * Those old DTs will be vulnerable to total USB breakage if the 1st EHCI
+ * device isn't the first one to finish probing, so warn them.
+ */
+static int tegra_reset_usb_controller(struct platform_device *pdev)
+{
+	struct device_node *phy_np;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct tegra_ehci_hcd *tegra =
+		(struct tegra_ehci_hcd *)hcd_to_ehci(hcd)->priv;
+
+	phy_np = of_parse_phandle(pdev->dev.of_node, "nvidia,phy", 0);
+	if (!phy_np)
+		return -ENOENT;
+
+	if (!usb1_reset_attempted) {
+		struct reset_control *usb1_reset;
+
+		usb1_reset = of_reset_control_get(phy_np, "usb");
+		if (IS_ERR(usb1_reset)) {
+			dev_warn(&pdev->dev,
+				 "can't get utmi-pads reset from the PHY\n");
+			dev_warn(&pdev->dev,
+				 "continuing, but please update your DT\n");
+		} else {
+			reset_control_assert(usb1_reset);
+			udelay(1);
+			reset_control_deassert(usb1_reset);
+		}
+
+		reset_control_put(usb1_reset);
+		usb1_reset_attempted = true;
+	}
+
+	if (!of_property_read_bool(phy_np, "nvidia,has-utmi-pad-registers")) {
+		reset_control_assert(tegra->rst);
+		udelay(1);
+		reset_control_deassert(tegra->rst);
+	}
+
+	of_node_put(phy_np);
+
+	return 0;
+}
 
 static int tegra_ehci_internal_port_reset(
 	struct ehci_hcd	*ehci,
@@ -326,7 +382,7 @@ static const struct tegra_ehci_soc_config tegra20_soc_config = {
 	.has_hostpc = false,
 };
 
-static struct of_device_id tegra_ehci_of_match[] = {
+static const struct of_device_id tegra_ehci_of_match[] = {
 	{ .compatible = "nvidia,tegra30-ehci", .data = &tegra30_soc_config },
 	{ .compatible = "nvidia,tegra20-ehci", .data = &tegra20_soc_config },
 	{ },
@@ -389,9 +445,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_hcd_create;
 
-	reset_control_assert(tegra->rst);
-	udelay(1);
-	reset_control_deassert(tegra->rst);
+	err = tegra_reset_usb_controller(pdev);
+	if (err)
+		goto cleanup_clk_en;
 
 	u_phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
 	if (IS_ERR(u_phy)) {
@@ -479,9 +535,10 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 
 	usb_phy_shutdown(hcd->phy);
 	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
 
 	clk_disable_unprepare(tegra->clk);
+
+	usb_put_hcd(hcd);
 
 	return 0;
 }

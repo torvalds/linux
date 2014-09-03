@@ -51,14 +51,14 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 /* class_put_type() */
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 #include <linux/list.h>
-#include <linux/libcfs/libcfs_hash.h> /* for cfs_hash stuff */
-#include <cl_object.h>
+#include "../../include/linux/libcfs/libcfs_hash.h"	/* for cfs_hash stuff */
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 static struct kmem_cache *cl_env_kmem;
@@ -295,8 +295,7 @@ int cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 		}
 	}
 	LU_OBJECT_HEADER(D_DLMTRACE, env, lu_object_top(top),
-			 "size: "LPU64" mtime: "LPU64" atime: "LPU64" "
-			 "ctime: "LPU64" blocks: "LPU64"\n",
+			 "size: %llu mtime: %llu atime: %llu ctime: %llu blocks: %llu\n",
 			 lvb->lvb_size, lvb->lvb_mtime, lvb->lvb_atime,
 			 lvb->lvb_ctime, lvb->lvb_blocks);
 	return result;

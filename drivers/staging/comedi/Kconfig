@@ -135,13 +135,14 @@ config COMEDI_PCL724
 	  support driver.
 
 	  Supported boards include:
-	    Advantech PCL-724    24 channels
-	    Advantech PCL-722    144 (or 96) channels
-	    Advantech PCL-731    48 channels
-	    ADlink ACL-7122      144 (or 96) channels
-	    ADlink ACL-7124      24 channels
-	    ADlink PET-48DIO     48 channels
-	    WinSystems PCM-IO48  48 channels (PC/104)
+	    Advantech PCL-724            24 channels
+	    Advantech PCL-722            144 (or 96) channels
+	    Advantech PCL-731            48 channels
+	    ADlink ACL-7122              144 (or 96) channels
+	    ADlink ACL-7124              24 channels
+	    ADlink PET-48DIO             48 channels
+	    WinSystems PCM-IO48          48 channels (PC/104)
+	    Diamond Systems ONYX-MM-DIO  48 channels (PC/104)
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl724.
@@ -172,6 +173,7 @@ config COMEDI_PCL730
 	  Advantech PCL-734             iso - 32 out
 	  Diamond Systems OPMM-1616-XT  iso - 16 in/16 out
 	  Diamond Systems PEARL-MM-P    iso - 16 out
+	  Diamond Systems IR104-PBF     iso - 20 in/20 out
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl730.
@@ -813,7 +815,7 @@ config COMEDI_AMPLC_PC236_PCI
 	  Enable support for Amplicon PCI236 DIO board.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called amplc_pc236.
+	  called amplc_pci236.
 
 config COMEDI_AMPLC_PC263_PCI
 	tristate "Amplicon PCI263 relay board support"
@@ -1012,8 +1014,6 @@ config COMEDI_NI_6527
 
 config COMEDI_NI_65XX
 	tristate "NI 65xx static dio PCI card support"
-	depends on HAS_DMA
-	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments 65xx static dio boards.
 	  Supported devices: National Instruments PCI-6509 (ni_65xx),
@@ -1037,8 +1037,6 @@ config COMEDI_NI_660X
 
 config COMEDI_NI_670X
 	tristate "NI 670x PCI card support"
-	depends on HAS_DMA
-	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments PCI-6703 and PCI-6704
 
@@ -1047,9 +1045,7 @@ config COMEDI_NI_670X
 
 config COMEDI_NI_LABPC_PCI
 	tristate "NI Lab-PC PCI-1200 support"
-	depends on HAS_DMA
 	select COMEDI_NI_LABPC
-	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments Lab-PC PCI-1200.
 

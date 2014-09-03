@@ -428,6 +428,15 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 1;
 }
 
+int kvm_pmu_check_pmc(struct kvm_vcpu *vcpu, unsigned pmc)
+{
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	bool fixed = pmc & (1u << 30);
+	pmc &= ~(3u << 30);
+	return (!fixed && pmc >= pmu->nr_arch_gp_counters) ||
+		(fixed && pmc >= pmu->nr_arch_fixed_counters);
+}
+
 int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;

@@ -675,11 +675,6 @@ You should also set these fields:
   video_device is initialized you *do* know which parent PCI device to use and
   so you set dev_device to the correct PCI device.
 
-- flags: optional. Set to V4L2_FL_USE_FH_PRIO if you want to let the framework
-  handle the VIDIOC_G/S_PRIORITY ioctls. This requires that you use struct
-  v4l2_fh. Eventually this flag will disappear once all drivers use the core
-  priority handling. But for now it has to be set explicitly.
-
 If you use v4l2_ioctl_ops, then you should set .unlocked_ioctl to video_ioctl2
 in your v4l2_file_operations struct.
 
@@ -909,8 +904,7 @@ struct v4l2_fh
 
 struct v4l2_fh provides a way to easily keep file handle specific data
 that is used by the V4L2 framework. New drivers must use struct v4l2_fh
-since it is also used to implement priority handling (VIDIOC_G/S_PRIORITY)
-if the video_device flag V4L2_FL_USE_FH_PRIO is also set.
+since it is also used to implement priority handling (VIDIOC_G/S_PRIORITY).
 
 The users of v4l2_fh (in the V4L2 framework, not the driver) know
 whether a driver uses v4l2_fh as its file->private_data pointer by

@@ -346,7 +346,8 @@ struct net_device *alloc_arcdev(const char *name)
 	struct net_device *dev;
 
 	dev = alloc_netdev(sizeof(struct arcnet_local),
-			   name && *name ? name : "arc%d", arcdev_setup);
+			   name && *name ? name : "arc%d", NET_NAME_UNKNOWN,
+			   arcdev_setup);
 	if(dev) {
 		struct arcnet_local *lp = netdev_priv(dev);
 		spin_lock_init(&lp->lock);

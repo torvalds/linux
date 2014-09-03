@@ -106,7 +106,7 @@ static inline struct audit_entry *audit_init_entry(u32 field_count)
 	if (unlikely(!entry))
 		return NULL;
 
-	fields = kzalloc(sizeof(*fields) * field_count, GFP_KERNEL);
+	fields = kcalloc(field_count, sizeof(*fields), GFP_KERNEL);
 	if (unlikely(!fields)) {
 		kfree(entry);
 		return NULL;
@@ -160,7 +160,7 @@ static __u32 *classes[AUDIT_SYSCALL_CLASSES];
 
 int __init audit_register_class(int class, unsigned *list)
 {
-	__u32 *p = kzalloc(AUDIT_BITMASK_SIZE * sizeof(__u32), GFP_KERNEL);
+	__u32 *p = kcalloc(AUDIT_BITMASK_SIZE, sizeof(__u32), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 	while (*list != ~0U) {

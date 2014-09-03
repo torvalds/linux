@@ -1,6 +1,5 @@
 #include <linux/export.h>
 #include <linux/lockref.h>
-#include <linux/mutex.h>
 
 #if USE_CMPXCHG_LOCKREF
 
@@ -29,7 +28,7 @@
 		if (likely(old.lock_count == prev.lock_count)) {		\
 			SUCCESS;						\
 		}								\
-		arch_mutex_cpu_relax();						\
+		cpu_relax_lowlatency();						\
 	}									\
 } while (0)
 

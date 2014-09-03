@@ -40,6 +40,12 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	drm_mode_config_init(drm);
 
+	err = tegra_drm_fb_prepare(drm);
+	if (err < 0)
+		return err;
+
+	drm_kms_helper_poll_init(drm);
+
 	err = host1x_device_init(device);
 	if (err < 0)
 		return err;
@@ -58,8 +64,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	err = tegra_drm_fb_init(drm);
 	if (err < 0)
 		return err;
-
-	drm_kms_helper_poll_init(drm);
 
 	return 0;
 }
@@ -128,6 +132,45 @@ host1x_bo_lookup(struct drm_device *drm, struct drm_file *file, u32 handle)
 	return &bo->base;
 }
 
+static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
+				       struct drm_tegra_reloc __user *src,
+				       struct drm_device *drm,
+				       struct drm_file *file)
+{
+	u32 cmdbuf, target;
+	int err;
+
+	err = get_user(cmdbuf, &src->cmdbuf.handle);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->cmdbuf.offset, &src->cmdbuf.offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(target, &src->target.handle);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->target.offset, &src->cmdbuf.offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->shift, &src->shift);
+	if (err < 0)
+		return err;
+
+	dest->cmdbuf.bo = host1x_bo_lookup(drm, file, cmdbuf);
+	if (!dest->cmdbuf.bo)
+		return -ENOENT;
+
+	dest->target.bo = host1x_bo_lookup(drm, file, target);
+	if (!dest->target.bo)
+		return -ENOENT;
+
+	return 0;
+}
+
 int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file)
@@ -180,26 +223,13 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		cmdbufs++;
 	}
 
-	if (copy_from_user(job->relocarray, relocs,
-			   sizeof(*relocs) * num_relocs)) {
-		err = -EFAULT;
-		goto fail;
-	}
-
+	/* copy and resolve relocations from submit */
 	while (num_relocs--) {
-		struct host1x_reloc *reloc = &job->relocarray[num_relocs];
-		struct host1x_bo *cmdbuf, *target;
-
-		cmdbuf = host1x_bo_lookup(drm, file, (u32)reloc->cmdbuf);
-		target = host1x_bo_lookup(drm, file, (u32)reloc->target);
-
-		reloc->cmdbuf = cmdbuf;
-		reloc->target = target;
-
-		if (!reloc->target || !reloc->cmdbuf) {
-			err = -ENOENT;
+		err = host1x_reloc_copy_from_user(&job->relocarray[num_relocs],
+						  &relocs[num_relocs], drm,
+						  file);
+		if (err < 0)
 			goto fail;
-		}
 	}
 
 	if (copy_from_user(job->waitchk, waitchks,
@@ -451,11 +481,151 @@ static int tegra_get_syncpt_base(struct drm_device *drm, void *data,
 
 	return 0;
 }
+
+static int tegra_gem_set_tiling(struct drm_device *drm, void *data,
+				struct drm_file *file)
+{
+	struct drm_tegra_gem_set_tiling *args = data;
+	enum tegra_bo_tiling_mode mode;
+	struct drm_gem_object *gem;
+	unsigned long value = 0;
+	struct tegra_bo *bo;
+
+	switch (args->mode) {
+	case DRM_TEGRA_GEM_TILING_MODE_PITCH:
+		mode = TEGRA_BO_TILING_MODE_PITCH;
+
+		if (args->value != 0)
+			return -EINVAL;
+
+		break;
+
+	case DRM_TEGRA_GEM_TILING_MODE_TILED:
+		mode = TEGRA_BO_TILING_MODE_TILED;
+
+		if (args->value != 0)
+			return -EINVAL;
+
+		break;
+
+	case DRM_TEGRA_GEM_TILING_MODE_BLOCK:
+		mode = TEGRA_BO_TILING_MODE_BLOCK;
+
+		if (args->value > 5)
+			return -EINVAL;
+
+		value = args->value;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	gem = drm_gem_object_lookup(drm, file, args->handle);
+	if (!gem)
+		return -ENOENT;
+
+	bo = to_tegra_bo(gem);
+
+	bo->tiling.mode = mode;
+	bo->tiling.value = value;
+
+	drm_gem_object_unreference(gem);
+
+	return 0;
+}
+
+static int tegra_gem_get_tiling(struct drm_device *drm, void *data,
+				struct drm_file *file)
+{
+	struct drm_tegra_gem_get_tiling *args = data;
+	struct drm_gem_object *gem;
+	struct tegra_bo *bo;
+	int err = 0;
+
+	gem = drm_gem_object_lookup(drm, file, args->handle);
+	if (!gem)
+		return -ENOENT;
+
+	bo = to_tegra_bo(gem);
+
+	switch (bo->tiling.mode) {
+	case TEGRA_BO_TILING_MODE_PITCH:
+		args->mode = DRM_TEGRA_GEM_TILING_MODE_PITCH;
+		args->value = 0;
+		break;
+
+	case TEGRA_BO_TILING_MODE_TILED:
+		args->mode = DRM_TEGRA_GEM_TILING_MODE_TILED;
+		args->value = 0;
+		break;
+
+	case TEGRA_BO_TILING_MODE_BLOCK:
+		args->mode = DRM_TEGRA_GEM_TILING_MODE_BLOCK;
+		args->value = bo->tiling.value;
+		break;
+
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+	drm_gem_object_unreference(gem);
+
+	return err;
+}
+
+static int tegra_gem_set_flags(struct drm_device *drm, void *data,
+			       struct drm_file *file)
+{
+	struct drm_tegra_gem_set_flags *args = data;
+	struct drm_gem_object *gem;
+	struct tegra_bo *bo;
+
+	if (args->flags & ~DRM_TEGRA_GEM_FLAGS)
+		return -EINVAL;
+
+	gem = drm_gem_object_lookup(drm, file, args->handle);
+	if (!gem)
+		return -ENOENT;
+
+	bo = to_tegra_bo(gem);
+	bo->flags = 0;
+
+	if (args->flags & DRM_TEGRA_GEM_BOTTOM_UP)
+		bo->flags |= TEGRA_BO_BOTTOM_UP;
+
+	drm_gem_object_unreference(gem);
+
+	return 0;
+}
+
+static int tegra_gem_get_flags(struct drm_device *drm, void *data,
+			       struct drm_file *file)
+{
+	struct drm_tegra_gem_get_flags *args = data;
+	struct drm_gem_object *gem;
+	struct tegra_bo *bo;
+
+	gem = drm_gem_object_lookup(drm, file, args->handle);
+	if (!gem)
+		return -ENOENT;
+
+	bo = to_tegra_bo(gem);
+	args->flags = 0;
+
+	if (bo->flags & TEGRA_BO_BOTTOM_UP)
+		args->flags |= DRM_TEGRA_GEM_BOTTOM_UP;
+
+	drm_gem_object_unreference(gem);
+
+	return 0;
+}
 #endif
 
 static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 #ifdef CONFIG_DRM_TEGRA_STAGING
-	DRM_IOCTL_DEF_DRV(TEGRA_GEM_CREATE, tegra_gem_create, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(TEGRA_GEM_CREATE, tegra_gem_create, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_MMAP, tegra_gem_mmap, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_SYNCPT_READ, tegra_syncpt_read, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_SYNCPT_INCR, tegra_syncpt_incr, DRM_UNLOCKED),
@@ -465,6 +635,10 @@ static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT, tegra_get_syncpt, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_SUBMIT, tegra_submit, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT_BASE, tegra_get_syncpt_base, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(TEGRA_GEM_SET_TILING, tegra_gem_set_tiling, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(TEGRA_GEM_GET_TILING, tegra_gem_get_tiling, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(TEGRA_GEM_SET_FLAGS, tegra_gem_set_flags, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(TEGRA_GEM_GET_FLAGS, tegra_gem_get_flags, DRM_UNLOCKED),
 #endif
 };
 

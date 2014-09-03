@@ -40,13 +40,10 @@ comedi_config /dev/comedi0 s526 0x2C0,0x3
 #include "../comedidev.h"
 #include <asm/byteorder.h>
 
-#define S526_SIZE 64
-
 #define S526_START_AI_CONV	0
 #define S526_AI_READ		0
 
 /* Ports */
-#define S526_IOSIZE 0x40
 #define S526_NUM_PORTS 27
 
 /* registers */
@@ -345,7 +342,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return insn->n;
@@ -557,7 +553,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], S526_IOSIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x40);
 	if (ret)
 		return ret;
 

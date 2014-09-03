@@ -103,16 +103,19 @@ static int usb_port_runtime_resume(struct device *dev)
 	msleep(hub_power_on_good_delay(hub));
 	if (udev && !retval) {
 		/*
-		 * Attempt to wait for usb hub port to be reconnected in order
-		 * to make the resume procedure successful.  The device may have
-		 * disconnected while the port was powered off, so ignore the
-		 * return status.
+		 * Our preference is to simply wait for the port to reconnect,
+		 * as that is the lowest latency method to restart the port.
+		 * However, there are cases where toggling port power results in
+		 * the host port and the device port getting out of sync causing
+		 * a link training live lock.  Upon timeout, flag the port as
+		 * needing warm reset recovery (to be performed later by
+		 * usb_port_resume() as requested via usb_wakeup_notification())
 		 */
-		retval = hub_port_debounce_be_connected(hub, port1);
-		if (retval < 0)
-			dev_dbg(&port_dev->dev, "can't get reconnection after setting port  power on, status %d\n",
-					retval);
-		retval = 0;
+		if (hub_port_debounce_be_connected(hub, port1) < 0) {
+			dev_dbg(&port_dev->dev, "reconnect timeout\n");
+			if (hub_is_superspeed(hdev))
+				set_bit(port1, hub->warm_reset_bits);
+		}
 
 		/* Force the child awake to revalidate after the power loss. */
 		if (!test_and_set_bit(port1, hub->child_usage_bits)) {

@@ -144,7 +144,7 @@ static void com20020pci_remove(struct pci_dev *pdev)
 	free_netdev(dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(com20020pci_id_table) = {
+static const struct pci_device_id com20020pci_id_table[] = {
 	{ 0x1571, 0xa001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0x1571, 0xa002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0x1571, 0xa003, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },

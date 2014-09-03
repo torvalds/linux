@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
+#include <asm/machdep.h>
 #include <asm/rtas.h>
 #include "pseries.h"
 
@@ -319,7 +320,7 @@ static ssize_t migrate_store(struct class *class, struct class_attribute *attr,
 	u64 streamid;
 	int rc;
 
-	rc = strict_strtoull(buf, 0, &streamid);
+	rc = kstrtou64(buf, 0, &streamid);
 	if (rc)
 		return rc;
 
@@ -362,4 +363,4 @@ static int __init mobility_sysfs_init(void)
 
 	return rc;
 }
-device_initcall(mobility_sysfs_init);
+machine_device_initcall(pseries, mobility_sysfs_init);

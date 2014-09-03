@@ -40,7 +40,7 @@
 #define VVP_INTERNAL_H
 
 
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "llite_internal.h"
 
 int	       vvp_io_init     (const struct lu_env *env,

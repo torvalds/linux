@@ -404,7 +404,7 @@ struct via82xx {
 #endif
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_via82xx_ids) = {
+static const struct pci_device_id snd_via82xx_ids[] = {
 	/* 0x1106, 0x3058 */
 	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C686_5), TYPE_CARD_VIA686, },	/* 686A */
 	/* 0x1106, 0x3059 */

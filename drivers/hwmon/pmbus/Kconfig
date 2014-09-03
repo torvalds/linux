@@ -20,8 +20,7 @@ config SENSORS_PMBUS
 	help
 	  If you say yes here you get hardware monitoring support for generic
 	  PMBus devices, including but not limited to ADP4000, BMR453, BMR454,
-	  MDT040, NCP4200, NCP4208, PDT003, PDT006, PDT012, UDT020, TPS40400,
-	  and TPS40422.
+	  MDT040, NCP4200, NCP4208, PDT003, PDT006, PDT012, UDT020, and TPS40400.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called pmbus.
@@ -86,6 +85,16 @@ config SENSORS_MAX8688
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max8688.
+
+config SENSORS_TPS40422
+	tristate "TI TPS40422"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  TPS40422.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tps40422.
 
 config SENSORS_UCD9000
 	tristate "TI UCD90120, UCD90124, UCD9090, UCD90910"

@@ -69,6 +69,7 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 
 	np->properties = proplist;
 	of_node_set_flag(np, OF_DYNAMIC);
+	of_node_init(np);
 
 	np->parent = derive_parent(path);
 	if (IS_ERR(np->parent)) {
@@ -445,13 +446,10 @@ static int proc_ppc64_create_ofdt(void)
 {
 	struct proc_dir_entry *ent;
 
-	if (!machine_is(pseries))
-		return 0;
-
 	ent = proc_create("powerpc/ofdt", S_IWUSR, NULL, &ofdt_fops);
 	if (ent)
 		proc_set_size(ent, 0);
 
 	return 0;
 }
-__initcall(proc_ppc64_create_ofdt);
+machine_device_initcall(pseries, proc_ppc64_create_ofdt);

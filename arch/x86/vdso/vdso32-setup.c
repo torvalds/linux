@@ -115,23 +115,6 @@ static __init int ia32_binfmt_init(void)
 	return 0;
 }
 __initcall(ia32_binfmt_init);
-#endif
-
-#else  /* CONFIG_X86_32 */
-
-struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
-{
-	return NULL;
-}
-
-int in_gate_area(struct mm_struct *mm, unsigned long addr)
-{
-	return 0;
-}
-
-int in_gate_area_no_mm(unsigned long addr)
-{
-	return 0;
-}
+#endif /* CONFIG_SYSCTL */
 
 #endif	/* CONFIG_X86_64 */

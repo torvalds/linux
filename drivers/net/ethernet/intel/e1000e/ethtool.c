@@ -1521,11 +1521,9 @@ static int e1000_setup_loopback_test(struct e1000_adapter *adapter)
 		switch (hw->mac.type) {
 		case e1000_80003es2lan:
 			return e1000_set_es2lan_mac_loopback(adapter);
-			break;
 		case e1000_82571:
 		case e1000_82572:
 			return e1000_set_82571_fiber_loopback(adapter);
-			break;
 		default:
 			rctl = er32(RCTL);
 			rctl |= E1000_RCTL_LBM_TCVR;

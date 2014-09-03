@@ -116,8 +116,9 @@
 };
 
 &fec {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_fec>;
+	pinctrl-1 = <&pinctrl_fec_sleep>;
 	phy-mode = "rmii";
 	status = "okay";
 };
@@ -300,6 +301,19 @@
 			>;
 		};
 
+		pinctrl_fec_sleep: fecgrp-sleep {
+			fsl,pins = <
+				MX6SL_PAD_FEC_MDC__GPIO4_IO23      0x3080
+				MX6SL_PAD_FEC_CRS_DV__GPIO4_IO25   0x3080
+				MX6SL_PAD_FEC_RXD0__GPIO4_IO17     0x3080
+				MX6SL_PAD_FEC_RXD1__GPIO4_IO18     0x3080
+				MX6SL_PAD_FEC_TX_EN__GPIO4_IO22    0x3080
+				MX6SL_PAD_FEC_TXD0__GPIO4_IO24     0x3080
+				MX6SL_PAD_FEC_TXD1__GPIO4_IO16     0x3080
+				MX6SL_PAD_FEC_REF_CLK__GPIO4_IO26  0x3080
+			>;
+		};
+
 		pinctrl_i2c1: i2c1grp {
 			fsl,pins = <
 				MX6SL_PAD_I2C1_SCL__I2C1_SCL	0x4001b8b1
@@ -475,7 +489,6 @@
 };
 
 &ssi2 {
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 

@@ -126,7 +126,11 @@ struct bnx2x_virtf {
 #define VF_CACHE_LINE		0x0010
 #define VF_CFG_VLAN		0x0020
 #define VF_CFG_STATS_COALESCE	0x0040
-
+#define VF_CFG_EXT_BULLETIN	0x0080
+	u8 link_cfg;		/* IFLA_VF_LINK_STATE_AUTO
+				 * IFLA_VF_LINK_STATE_ENABLE
+				 * IFLA_VF_LINK_STATE_DISABLE
+				 */
 	u8 state;
 #define VF_FREE		0	/* VF ready to be acquired holds no resc */
 #define VF_ACQUIRED	1	/* VF acquired, but not initialized */
@@ -295,22 +299,22 @@ struct bnx2x_vfdb {
 #define BP_VFDB(bp)		((bp)->vfdb)
 	/* vf array */
 	struct bnx2x_virtf	*vfs;
-#define BP_VF(bp, idx)		(&((bp)->vfdb->vfs[(idx)]))
-#define bnx2x_vf(bp, idx, var)	((bp)->vfdb->vfs[(idx)].var)
+#define BP_VF(bp, idx)		(&((bp)->vfdb->vfs[idx]))
+#define bnx2x_vf(bp, idx, var)	((bp)->vfdb->vfs[idx].var)
 
 	/* queue array - for all vfs */
 	struct bnx2x_vf_queue *vfqs;
 
 	/* vf HW contexts */
 	struct hw_dma		context[BNX2X_VF_CIDS/ILT_PAGE_CIDS];
-#define	BP_VF_CXT_PAGE(bp, i)	(&(bp)->vfdb->context[(i)])
+#define	BP_VF_CXT_PAGE(bp, i)	(&(bp)->vfdb->context[i])
 
 	/* SR-IOV information */
 	struct bnx2x_sriov	sriov;
 	struct hw_dma		mbx_dma;
 #define BP_VF_MBX_DMA(bp)	(&((bp)->vfdb->mbx_dma))
 	struct bnx2x_vf_mbx	mbxs[BNX2X_MAX_NUM_OF_VFS];
-#define BP_VF_MBX(bp, vfid)	(&((bp)->vfdb->mbxs[(vfid)]))
+#define BP_VF_MBX(bp, vfid)	(&((bp)->vfdb->mbxs[vfid]))
 
 	struct hw_dma		bulletin_dma;
 #define BP_VF_BULLETIN_DMA(bp)	(&((bp)->vfdb->bulletin_dma))
@@ -336,6 +340,9 @@ struct bnx2x_vfdb {
 	/* sp_rtnl synchronization */
 	struct mutex			event_mutex;
 	u64				event_occur;
+
+	/* bulletin board update synchronization */
+	struct mutex			bulletin_mutex;
 };
 
 /* queue access */
@@ -467,9 +474,10 @@ void bnx2x_vf_handle_flr_event(struct bnx2x *bp);
 
 bool bnx2x_tlv_supported(u16 tlvtype);
 
-u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
-			  struct pf_vf_bulletin_content *bulletin);
+u32 bnx2x_crc_vf_bulletin(struct pf_vf_bulletin_content *bulletin);
 int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf);
+void bnx2x_vf_bulletin_finalize(struct pf_vf_bulletin_content *bulletin,
+				bool support_long);
 
 enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp);
 
@@ -519,6 +527,11 @@ void bnx2x_iov_channel_down(struct bnx2x *bp);
 void bnx2x_iov_task(struct work_struct *work);
 
 void bnx2x_schedule_iov_task(struct bnx2x *bp, enum bnx2x_iov_flag flag);
+
+void bnx2x_iov_link_update(struct bnx2x *bp);
+int bnx2x_iov_link_update_vf(struct bnx2x *bp, int idx);
+
+int bnx2x_set_vf_link_state(struct net_device *dev, int vf, int link_state);
 
 #else /* CONFIG_BNX2X_SRIOV */
 
@@ -579,6 +592,14 @@ static inline void bnx2x_iov_channel_down(struct bnx2x *bp) {}
 
 static inline void bnx2x_iov_task(struct work_struct *work) {}
 static inline void bnx2x_schedule_iov_task(struct bnx2x *bp, enum bnx2x_iov_flag flag) {}
+static inline void bnx2x_iov_link_update(struct bnx2x *bp) {}
+static inline int bnx2x_iov_link_update_vf(struct bnx2x *bp, int idx) {return 0; }
+
+static inline int bnx2x_set_vf_link_state(struct net_device *dev, int vf,
+					  int link_state) {return 0; }
+struct pf_vf_bulletin_content;
+static inline void bnx2x_vf_bulletin_finalize(struct pf_vf_bulletin_content *bulletin,
+					      bool support_long) {}
 
 #endif /* CONFIG_BNX2X_SRIOV */
 #endif /* bnx2x_sriov.h */

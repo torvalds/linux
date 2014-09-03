@@ -511,19 +511,19 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 	int i, ratio, osr;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		paifa |= 0x8;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		paifa |= 0x0;
 		paifb |= WM8580_AIF_LENGTH_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		paifa |= 0x0;
 		paifb |= WM8580_AIF_LENGTH_24;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		paifa |= 0x0;
 		paifb |= WM8580_AIF_LENGTH_32;
 		break;

@@ -56,32 +56,26 @@ static int handle_noop(struct kvm_vcpu *vcpu)
 static int handle_stop(struct kvm_vcpu *vcpu)
 {
 	int rc = 0;
+	unsigned int action_bits;
 
 	vcpu->stat.exit_stop_request++;
-	spin_lock_bh(&vcpu->arch.local_int.lock);
-
 	trace_kvm_s390_stop_request(vcpu->arch.local_int.action_bits);
 
-	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
-		kvm_s390_vcpu_stop(vcpu);
-		vcpu->arch.local_int.action_bits &= ~ACTION_STOP_ON_STOP;
-		VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
-		rc = -EOPNOTSUPP;
-	}
+	action_bits = vcpu->arch.local_int.action_bits;
 
-	if (vcpu->arch.local_int.action_bits & ACTION_STORE_ON_STOP) {
-		vcpu->arch.local_int.action_bits &= ~ACTION_STORE_ON_STOP;
-		/* store status must be called unlocked. Since local_int.lock
-		 * only protects local_int.* and not guest memory we can give
-		 * up the lock here */
-		spin_unlock_bh(&vcpu->arch.local_int.lock);
+	if (!(action_bits & ACTION_STOP_ON_STOP))
+		return 0;
+
+	if (action_bits & ACTION_STORE_ON_STOP) {
 		rc = kvm_s390_vcpu_store_status(vcpu,
 						KVM_S390_STORE_STATUS_NOADDR);
-		if (rc >= 0)
-			rc = -EOPNOTSUPP;
-	} else
-		spin_unlock_bh(&vcpu->arch.local_int.lock);
-	return rc;
+		if (rc)
+			return rc;
+	}
+
+	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm))
+		kvm_s390_vcpu_stop(vcpu);
+	return -EOPNOTSUPP;
 }
 
 static int handle_validity(struct kvm_vcpu *vcpu)

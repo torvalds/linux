@@ -337,40 +337,64 @@ static void rtsx_pci_add_sg_tbl(struct rtsx_pcr *pcr,
 int rtsx_pci_transfer_data(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 		int num_sg, bool read, int timeout)
 {
-	struct completion trans_done;
-	u8 dir;
-	int err = 0, i, count;
-	long timeleft;
-	unsigned long flags;
-	struct scatterlist *sg;
-	enum dma_data_direction dma_dir;
-	u32 val;
-	dma_addr_t addr;
-	unsigned int len;
+	int err = 0, count;
 
 	dev_dbg(&(pcr->pci->dev), "--> %s: num_sg = %d\n", __func__, num_sg);
+	count = rtsx_pci_dma_map_sg(pcr, sglist, num_sg, read);
+	if (count < 1)
+		return -EINVAL;
+	dev_dbg(&(pcr->pci->dev), "DMA mapping count: %d\n", count);
 
-	/* don't transfer data during abort processing */
+	err = rtsx_pci_dma_transfer(pcr, sglist, count, read, timeout);
+
+	rtsx_pci_dma_unmap_sg(pcr, sglist, num_sg, read);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(rtsx_pci_transfer_data);
+
+int rtsx_pci_dma_map_sg(struct rtsx_pcr *pcr, struct scatterlist *sglist,
+		int num_sg, bool read)
+{
+	enum dma_data_direction dir = read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+
 	if (pcr->remove_pci)
 		return -EINVAL;
 
 	if ((sglist == NULL) || (num_sg <= 0))
 		return -EINVAL;
 
-	if (read) {
-		dir = DEVICE_TO_HOST;
-		dma_dir = DMA_FROM_DEVICE;
-	} else {
-		dir = HOST_TO_DEVICE;
-		dma_dir = DMA_TO_DEVICE;
-	}
+	return dma_map_sg(&(pcr->pci->dev), sglist, num_sg, dir);
+}
+EXPORT_SYMBOL_GPL(rtsx_pci_dma_map_sg);
 
-	count = dma_map_sg(&(pcr->pci->dev), sglist, num_sg, dma_dir);
-	if (count < 1) {
-		dev_err(&(pcr->pci->dev), "scatterlist map failed\n");
+void rtsx_pci_dma_unmap_sg(struct rtsx_pcr *pcr, struct scatterlist *sglist,
+		int num_sg, bool read)
+{
+	enum dma_data_direction dir = read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+
+	dma_unmap_sg(&(pcr->pci->dev), sglist, num_sg, dir);
+}
+EXPORT_SYMBOL_GPL(rtsx_pci_dma_unmap_sg);
+
+int rtsx_pci_dma_transfer(struct rtsx_pcr *pcr, struct scatterlist *sglist,
+		int count, bool read, int timeout)
+{
+	struct completion trans_done;
+	struct scatterlist *sg;
+	dma_addr_t addr;
+	long timeleft;
+	unsigned long flags;
+	unsigned int len;
+	int i, err = 0;
+	u32 val;
+	u8 dir = read ? DEVICE_TO_HOST : HOST_TO_DEVICE;
+
+	if (pcr->remove_pci)
+		return -ENODEV;
+
+	if ((sglist == NULL) || (count < 1))
 		return -EINVAL;
-	}
-	dev_dbg(&(pcr->pci->dev), "DMA mapping count: %d\n", count);
 
 	val = ((u32)(dir & 0x01) << 29) | TRIG_DMA | ADMA_MODE;
 	pcr->sgi = 0;
@@ -400,20 +424,16 @@ int rtsx_pci_transfer_data(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 	}
 
 	spin_lock_irqsave(&pcr->lock, flags);
-
 	if (pcr->trans_result == TRANS_RESULT_FAIL)
 		err = -EINVAL;
 	else if (pcr->trans_result == TRANS_NO_DEVICE)
 		err = -ENODEV;
-
 	spin_unlock_irqrestore(&pcr->lock, flags);
 
 out:
 	spin_lock_irqsave(&pcr->lock, flags);
 	pcr->done = NULL;
 	spin_unlock_irqrestore(&pcr->lock, flags);
-
-	dma_unmap_sg(&(pcr->pci->dev), sglist, num_sg, dma_dir);
 
 	if ((err < 0) && (err != -ENODEV))
 		rtsx_pci_stop_cmd(pcr);
@@ -423,7 +443,7 @@ out:
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(rtsx_pci_transfer_data);
+EXPORT_SYMBOL_GPL(rtsx_pci_dma_transfer);
 
 int rtsx_pci_read_ppbuf(struct rtsx_pcr *pcr, u8 *buf, int buf_len)
 {

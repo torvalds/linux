@@ -318,7 +318,6 @@ static int exynos5250_power_on(struct samsung_usb2_phy_instance *inst)
 
 		break;
 	}
-	inst->enabled = 1;
 	exynos5250_isol(inst, 0);
 
 	return 0;
@@ -331,7 +330,6 @@ static int exynos5250_power_off(struct samsung_usb2_phy_instance *inst)
 	u32 otg;
 	u32 hsic;
 
-	inst->enabled = 0;
 	exynos5250_isol(inst, 1);
 
 	switch (inst->cfg->id) {

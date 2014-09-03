@@ -33,7 +33,6 @@
 
 #include "ttype.h"
 
-/*---------------------  Export Definitions -------------------------*/
 /* bit type */
 #define BIT0	0x00000001
 #define BIT1	0x00000002
@@ -314,11 +313,5 @@ typedef union tagUWLAN_80211HDR {
 	WLAN_80211HDR_A3        sA3;
 	WLAN_80211HDR_A4        sA4;
 } UWLAN_80211HDR, *PUWLAN_80211HDR;
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 #endif /* __80211HDR_H__ */

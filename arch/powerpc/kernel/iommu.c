@@ -1037,7 +1037,7 @@ int iommu_tce_build(struct iommu_table *tbl, unsigned long entry,
 
 	/* if (unlikely(ret))
 		pr_err("iommu_tce: %s failed on hwaddr=%lx ioba=%lx kva=%lx ret=%d\n",
-			__func__, hwaddr, entry << IOMMU_PAGE_SHIFT(tbl),
+			__func__, hwaddr, entry << tbl->it_page_shift,
 				hwaddr, ret); */
 
 	return ret;
@@ -1056,7 +1056,7 @@ int iommu_put_tce_user_mode(struct iommu_table *tbl, unsigned long entry,
 			direction != DMA_TO_DEVICE, &page);
 	if (unlikely(ret != 1)) {
 		/* pr_err("iommu_tce: get_user_pages_fast failed tce=%lx ioba=%lx ret=%d\n",
-				tce, entry << IOMMU_PAGE_SHIFT(tbl), ret); */
+				tce, entry << tbl->it_page_shift, ret); */
 		return -EFAULT;
 	}
 	hwaddr = (unsigned long) page_address(page) + offset;
@@ -1120,37 +1120,41 @@ EXPORT_SYMBOL_GPL(iommu_release_ownership);
 int iommu_add_device(struct device *dev)
 {
 	struct iommu_table *tbl;
-	int ret = 0;
 
-	if (WARN_ON(dev->iommu_group)) {
-		pr_warn("iommu_tce: device %s is already in iommu group %d, skipping\n",
-				dev_name(dev),
-				iommu_group_id(dev->iommu_group));
+	/*
+	 * The sysfs entries should be populated before
+	 * binding IOMMU group. If sysfs entries isn't
+	 * ready, we simply bail.
+	 */
+	if (!device_is_registered(dev))
+		return -ENOENT;
+
+	if (dev->iommu_group) {
+		pr_debug("%s: Skipping device %s with iommu group %d\n",
+			 __func__, dev_name(dev),
+			 iommu_group_id(dev->iommu_group));
 		return -EBUSY;
 	}
 
 	tbl = get_iommu_table_base(dev);
 	if (!tbl || !tbl->it_group) {
-		pr_debug("iommu_tce: skipping device %s with no tbl\n",
-				dev_name(dev));
+		pr_debug("%s: Skipping device %s with no tbl\n",
+			 __func__, dev_name(dev));
 		return 0;
 	}
 
-	pr_debug("iommu_tce: adding %s to iommu group %d\n",
-			dev_name(dev), iommu_group_id(tbl->it_group));
+	pr_debug("%s: Adding %s to iommu group %d\n",
+		 __func__, dev_name(dev),
+		 iommu_group_id(tbl->it_group));
 
 	if (PAGE_SIZE < IOMMU_PAGE_SIZE(tbl)) {
-		pr_err("iommu_tce: unsupported iommu page size.");
-		pr_err("%s has not been added\n", dev_name(dev));
+		pr_err("%s: Invalid IOMMU page size %lx (%lx) on %s\n",
+		       __func__, IOMMU_PAGE_SIZE(tbl),
+		       PAGE_SIZE, dev_name(dev));
 		return -EINVAL;
 	}
 
-	ret = iommu_group_add_device(tbl->it_group, dev);
-	if (ret < 0)
-		pr_err("iommu_tce: %s has not been added, ret=%d\n",
-				dev_name(dev), ret);
-
-	return ret;
+	return iommu_group_add_device(tbl->it_group, dev);
 }
 EXPORT_SYMBOL_GPL(iommu_add_device);
 

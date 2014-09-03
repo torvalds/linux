@@ -1,4 +1,6 @@
 /* cfg80211 Interface for prism2_usb module */
+#include "hfa384x.h"
+#include "prism2mgmt.h"
 
 
 /* Prism2 channel/frequency/bitrate declarations */

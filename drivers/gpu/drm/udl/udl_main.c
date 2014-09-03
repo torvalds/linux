@@ -306,10 +306,23 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 
 	DRM_DEBUG("\n");
 	ret = udl_modeset_init(dev);
+	if (ret)
+		goto err;
 
 	ret = udl_fbdev_init(dev);
+	if (ret)
+		goto err;
+
+	ret = drm_vblank_init(dev, 1);
+	if (ret)
+		goto err_fb;
+
 	return 0;
+err_fb:
+	udl_fbdev_cleanup(dev);
 err:
+	if (udl->urbs.count)
+		udl_free_urb_list(dev);
 	kfree(udl);
 	DRM_ERROR("%d\n", ret);
 	return ret;
@@ -324,6 +337,8 @@ int udl_drop_usb(struct drm_device *dev)
 int udl_driver_unload(struct drm_device *dev)
 {
 	struct udl_device *udl = dev->dev_private;
+
+	drm_vblank_cleanup(dev);
 
 	if (udl->urbs.count)
 		udl_free_urb_list(dev);

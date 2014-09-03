@@ -209,12 +209,6 @@ static int unregister_from_lirc(struct igorplug *ir)
 	struct lirc_driver *d;
 	int devnum;
 
-	if (!ir) {
-		dev_err(&ir->usbdev->dev,
-			"%s: called with NULL device struct!\n", __func__);
-		return -EINVAL;
-	}
-
 	devnum = ir->devnum;
 	d = ir->d;
 

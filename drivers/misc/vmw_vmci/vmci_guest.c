@@ -748,7 +748,7 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 	/* The rest are managed resources and will be freed by PCI core */
 }
 
-static DEFINE_PCI_DEVICE_TABLE(vmci_ids) = {
+static const struct pci_device_id vmci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, PCI_DEVICE_ID_VMWARE_VMCI), },
 	{ 0 },
 };

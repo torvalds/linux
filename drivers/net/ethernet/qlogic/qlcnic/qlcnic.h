@@ -39,8 +39,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 60
-#define QLCNIC_LINUX_VERSIONID  "5.3.60"
+#define _QLCNIC_LINUX_SUBVERSION 61
+#define QLCNIC_LINUX_VERSIONID  "5.3.61"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -268,7 +268,7 @@ struct qlcnic_fdt {
 	u16	cksum;
 	u16	unused;
 	u8	model[16];
-	u16	mfg_id;
+	u8	mfg_id;
 	u16	id;
 	u8	flag;
 	u8	erase_cmd;
@@ -2360,6 +2360,19 @@ static inline u32 qlcnic_get_vnic_func_count(struct qlcnic_adapter *adapter)
 		return QLC_84XX_VNIC_COUNT;
 	else
 		return QLC_DEFAULT_VNIC_COUNT;
+}
+
+static inline void qlcnic_swap32_buffer(u32 *buffer, int count)
+{
+#if defined(__BIG_ENDIAN)
+	u32 *tmp = buffer;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		*tmp = swab32(*tmp);
+		tmp++;
+	}
+#endif
 }
 
 #ifdef CONFIG_QLCNIC_HWMON

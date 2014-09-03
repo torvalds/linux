@@ -1170,7 +1170,7 @@ static irqreturn_t mxs_lradc_handle_irq(int irq, void *data)
 		mxs_lradc_handle_touch(lradc);
 
 	if (iio_buffer_enabled(iio))
-		iio_trigger_poll(iio->trig, iio_get_time_ns());
+		iio_trigger_poll(iio->trig);
 	else if (reg & LRADC_CTRL1_LRADC_IRQ(0))
 		complete(&lradc->completion);
 

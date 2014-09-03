@@ -146,7 +146,7 @@
 #define DBG_8723A_LEVEL(_level, fmt, arg...)				\
 	do {								\
 		if (_level <= GlobalDebugLevel23A)				\
-			pr_info(DRIVER_PREFIX"ERROR " fmt, ##arg);\
+			pr_info(DRIVER_PREFIX fmt, ##arg);\
 	} while (0)
 
 #define DBG_8723A(...)							\

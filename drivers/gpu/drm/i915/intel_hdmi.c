@@ -367,6 +367,9 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	union hdmi_infoframe frame;
 	int ret;
 
+	/* Set user selected PAR to incoming mode's member */
+	adjusted_mode->picture_aspect_ratio = intel_hdmi->aspect_ratio;
+
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
 						       adjusted_mode);
 	if (ret < 0) {
@@ -879,7 +882,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc *crtc)
 	struct intel_encoder *encoder;
 	int count = 0, count_hdmi = 0;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return false;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
@@ -1124,6 +1127,23 @@ intel_hdmi_set_property(struct drm_connector *connector,
 		goto done;
 	}
 
+	if (property == connector->dev->mode_config.aspect_ratio_property) {
+		switch (val) {
+		case DRM_MODE_PICTURE_ASPECT_NONE:
+			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
+			break;
+		case DRM_MODE_PICTURE_ASPECT_4_3:
+			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_4_3;
+			break;
+		case DRM_MODE_PICTURE_ASPECT_16_9:
+			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
+			break;
+		default:
+			return -EINVAL;
+		}
+		goto done;
+	}
+
 	return -EINVAL;
 
 done:
@@ -1226,6 +1246,70 @@ static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW9(port), 0x00002000);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), DPIO_TX_OCALINIT_EN);
+	mutex_unlock(&dev_priv->dpio_lock);
+}
+
+static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(encoder->base.crtc);
+	enum dpio_channel ch = vlv_dport_to_channel(dport);
+	enum pipe pipe = intel_crtc->pipe;
+	u32 val;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	/* program left/right clock distribution */
+	if (pipe != PIPE_B) {
+		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW5_CH0);
+		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
+		if (ch == DPIO_CH0)
+			val |= CHV_BUFLEFTENA1_FORCE;
+		if (ch == DPIO_CH1)
+			val |= CHV_BUFRIGHTENA1_FORCE;
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW5_CH0, val);
+	} else {
+		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW1_CH1);
+		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
+		if (ch == DPIO_CH0)
+			val |= CHV_BUFLEFTENA2_FORCE;
+		if (ch == DPIO_CH1)
+			val |= CHV_BUFRIGHTENA2_FORCE;
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
+	}
+
+	/* program clock channel usage */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(ch));
+	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
+	if (pipe != PIPE_B)
+		val &= ~CHV_PCS_USEDCLKCHANNEL;
+	else
+		val |= CHV_PCS_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW8(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW8(ch));
+	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
+	if (pipe != PIPE_B)
+		val &= ~CHV_PCS_USEDCLKCHANNEL;
+	else
+		val |= CHV_PCS_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW8(ch), val);
+
+	/*
+	 * This a a bit weird since generally CL
+	 * matches the pipe, but here we need to
+	 * pick the CL based on the port.
+	 */
+	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW19(ch));
+	if (pipe != PIPE_B)
+		val &= ~CHV_CMN_USEDCLKCHANNEL;
+	else
+		val |= CHV_CMN_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW19(ch), val);
+
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
@@ -1416,11 +1500,22 @@ static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
 };
 
 static void
+intel_attach_aspect_ratio_property(struct drm_connector *connector)
+{
+	if (!drm_mode_create_aspect_ratio_property(connector->dev))
+		drm_object_attach_property(&connector->base,
+			connector->dev->mode_config.aspect_ratio_property,
+			DRM_MODE_PICTURE_ASPECT_NONE);
+}
+
+static void
 intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *connector)
 {
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 	intel_hdmi->color_range_auto = true;
+	intel_attach_aspect_ratio_property(connector);
+	intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
 
 void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
@@ -1467,7 +1562,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	if (IS_VALLEYVIEW(dev)) {
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		intel_hdmi->set_infoframes = vlv_set_infoframes;
-	} else if (!HAS_PCH_SPLIT(dev)) {
+	} else if (IS_G4X(dev)) {
 		intel_hdmi->write_infoframe = g4x_write_infoframe;
 		intel_hdmi->set_infoframes = g4x_set_infoframes;
 	} else if (HAS_DDI(dev)) {
@@ -1490,7 +1585,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_hdmi_add_properties(intel_hdmi, connector);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
 	 * 0xd.  Failure to do so will result in spurious interrupts being
@@ -1528,6 +1623,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 	intel_encoder->get_config = intel_hdmi_get_config;
 	if (IS_CHERRYVIEW(dev)) {
+		intel_encoder->pre_pll_enable = chv_hdmi_pre_pll_enable;
 		intel_encoder->pre_enable = chv_hdmi_pre_enable;
 		intel_encoder->enable = vlv_enable_hdmi;
 		intel_encoder->post_disable = chv_hdmi_post_disable;

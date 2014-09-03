@@ -56,12 +56,11 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include <lustre_dlm.h>
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
+#include "../include/lustre_dlm.h"
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
 #include <linux/list.h>
-
 #include "ldlm_internal.h"
 
 int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
@@ -261,9 +260,8 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 	int splitted = 0;
 	const struct ldlm_callback_suite null_cbs = { NULL };
 
-	CDEBUG(D_DLMTRACE, "flags %#llx owner "LPU64" pid %u mode %u start "
-	       LPU64" end "LPU64"\n", *flags,
-	       new->l_policy_data.l_flock.owner,
+	CDEBUG(D_DLMTRACE, "flags %#llx owner %llu pid %u mode %u start %llu end %llu\n",
+	       *flags, new->l_policy_data.l_flock.owner,
 	       new->l_policy_data.l_flock.pid, mode,
 	       req->l_policy_data.l_flock.start,
 	       req->l_policy_data.l_flock.end);

@@ -41,15 +41,17 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/videodev2.h>
+
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
-#include <mach/irqs.h>
-#include <mach/sh73a0.h>
-#include <mach/common.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <video/sh_mobile_lcdc.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "sh73a0.h"
 
 /*
  * external GPIO
@@ -603,6 +605,8 @@ static struct platform_device fsi_ak4648_device = {
 	.name	= "asoc-simple-card",
 	.dev	= {
 		.platform_data	= &fsi2_ak4648_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_ak4648_device.dev.coherent_dma_mask,
 	},
 };
 

@@ -2065,20 +2065,16 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 	int i, rx_queue_idx;
 
 	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx++) {
-		priv->rx_ring[rx_queue_idx] = pci_alloc_consistent(priv->pdev,
-					sizeof(*priv->rx_ring[rx_queue_idx]) *
-					priv->rxringcount,
-					&priv->rx_ring_dma[rx_queue_idx]);
-
+		priv->rx_ring[rx_queue_idx] =
+			pci_zalloc_consistent(priv->pdev,
+					      sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
+					      &priv->rx_ring_dma[rx_queue_idx]);
 		if (!priv->rx_ring[rx_queue_idx] ||
 		    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
 			RT_TRACE(COMP_ERR, "Cannot allocate RX ring\n");
 			return -ENOMEM;
 		}
 
-		memset(priv->rx_ring[rx_queue_idx], 0,
-		       sizeof(*priv->rx_ring[rx_queue_idx]) *
-		       priv->rxringcount);
 		priv->rx_idx[rx_queue_idx] = 0;
 
 		for (i = 0; i < priv->rxringcount; i++) {
@@ -2118,14 +2114,13 @@ static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
 	dma_addr_t dma;
 	int i;
 
-	ring = pci_alloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
+	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
 		RT_TRACE(COMP_ERR, "Cannot allocate TX ring (prio = %d)\n",
 			 prio);
 		return -ENOMEM;
 	}
 
-	memset(ring, 0, sizeof(*ring)*entries);
 	priv->tx_ring[prio].desc = ring;
 	priv->tx_ring[prio].dma = dma;
 	priv->tx_ring[prio].idx = 0;

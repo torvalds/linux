@@ -68,7 +68,7 @@ static int eseqiv_givencrypt(struct skcipher_givcrypt_request *req)
 	struct eseqiv_ctx *ctx = crypto_ablkcipher_ctx(geniv);
 	struct eseqiv_request_ctx *reqctx = skcipher_givcrypt_reqctx(req);
 	struct ablkcipher_request *subreq;
-	crypto_completion_t complete;
+	crypto_completion_t compl;
 	void *data;
 	struct scatterlist *osrc, *odst;
 	struct scatterlist *dst;
@@ -86,7 +86,7 @@ static int eseqiv_givencrypt(struct skcipher_givcrypt_request *req)
 	ablkcipher_request_set_tfm(subreq, skcipher_geniv_cipher(geniv));
 
 	giv = req->giv;
-	complete = req->creq.base.complete;
+	compl = req->creq.base.complete;
 	data = req->creq.base.data;
 
 	osrc = req->creq.src;
@@ -101,11 +101,11 @@ static int eseqiv_givencrypt(struct skcipher_givcrypt_request *req)
 	if (vsrc != giv + ivsize && vdst != giv + ivsize) {
 		giv = PTR_ALIGN((u8 *)reqctx->tail,
 				crypto_ablkcipher_alignmask(geniv) + 1);
-		complete = eseqiv_complete;
+		compl = eseqiv_complete;
 		data = req;
 	}
 
-	ablkcipher_request_set_callback(subreq, req->creq.base.flags, complete,
+	ablkcipher_request_set_callback(subreq, req->creq.base.flags, compl,
 					data);
 
 	sg_init_table(reqctx->src, 2);

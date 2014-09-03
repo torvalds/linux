@@ -1778,7 +1778,18 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 	unsigned long hash, flags = 0;
 	struct kretprobe_instance *ri;
 
-	/*TODO: consider to only swap the RA after the last pre_handler fired */
+	/*
+	 * To avoid deadlocks, prohibit return probing in NMI contexts,
+	 * just skip the probe and increase the (inexact) 'nmissed'
+	 * statistical counter, so that the user is informed that
+	 * something happened:
+	 */
+	if (unlikely(in_nmi())) {
+		rp->nmissed++;
+		return 0;
+	}
+
+	/* TODO: consider to only swap the RA after the last pre_handler fired */
 	hash = hash_ptr(current, KPROBE_HASH_BITS);
 	raw_spin_lock_irqsave(&rp->lock, flags);
 	if (!hlist_empty(&rp->free_instances)) {
@@ -2037,19 +2048,23 @@ static int __init populate_kprobe_blacklist(unsigned long *start,
 {
 	unsigned long *iter;
 	struct kprobe_blacklist_entry *ent;
-	unsigned long offset = 0, size = 0;
+	unsigned long entry, offset = 0, size = 0;
 
 	for (iter = start; iter < end; iter++) {
-		if (!kallsyms_lookup_size_offset(*iter, &size, &offset)) {
-			pr_err("Failed to find blacklist %p\n", (void *)*iter);
+		entry = arch_deref_entry_point((void *)*iter);
+
+		if (!kernel_text_address(entry) ||
+		    !kallsyms_lookup_size_offset(entry, &size, &offset)) {
+			pr_err("Failed to find blacklist at %p\n",
+				(void *)entry);
 			continue;
 		}
 
 		ent = kmalloc(sizeof(*ent), GFP_KERNEL);
 		if (!ent)
 			return -ENOMEM;
-		ent->start_addr = *iter;
-		ent->end_addr = *iter + size;
+		ent->start_addr = entry;
+		ent->end_addr = entry + size;
 		INIT_LIST_HEAD(&ent->list);
 		list_add_tail(&ent->list, &kprobe_blacklist);
 	}
