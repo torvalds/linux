@@ -828,6 +828,7 @@ int omap_gem_put_paddr(struct drm_gem_object *obj)
 				dev_err(obj->dev->dev,
 					"could not release unmap: %d\n", ret);
 			}
+			omap_obj->paddr = 0;
 			omap_obj->block = NULL;
 		}
 	}
