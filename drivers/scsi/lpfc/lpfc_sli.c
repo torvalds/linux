@@ -786,42 +786,6 @@ lpfc_cleanup_vports_rrqs(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 }
 
 /**
- * lpfc_cleanup_wt_rrqs - Remove all rrq's from the active list.
- * @phba: Pointer to HBA context object.
- *
- * Remove all rrqs from the phba->active_rrq_list and free them by
- * calling __lpfc_clr_active_rrq
- *
- **/
-void
-lpfc_cleanup_wt_rrqs(struct lpfc_hba *phba)
-{
-	struct lpfc_node_rrq *rrq;
-	struct lpfc_node_rrq *nextrrq;
-	unsigned long next_time;
-	unsigned long iflags;
-	LIST_HEAD(rrq_list);
-
-	if (phba->sli_rev != LPFC_SLI_REV4)
-		return;
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	phba->hba_flag &= ~HBA_RRQ_ACTIVE;
-	next_time = jiffies + msecs_to_jiffies(1000 * (phba->fc_ratov * 2));
-	list_splice_init(&phba->active_rrq_list, &rrq_list);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-
-	list_for_each_entry_safe(rrq, nextrrq, &rrq_list, list) {
-		list_del(&rrq->list);
-		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
-	}
-	if ((!list_empty(&phba->active_rrq_list)) &&
-	    (!(phba->pport->load_flag & FC_UNLOADING)))
-
-		mod_timer(&phba->rrq_tmr, next_time);
-}
-
-
-/**
  * lpfc_test_rrq_active - Test RRQ bit in xri_bitmap.
  * @phba: Pointer to HBA context object.
  * @ndlp: Targets nodelist pointer for this exchange.
