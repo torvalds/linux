@@ -1171,19 +1171,21 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 			  TU_TO_EXP_TIME(csa_ie.count * cbss->beacon_interval));
 }
 
-static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
-				       struct ieee80211_channel *channel,
-				       const u8 *country_ie, u8 country_ie_len,
-				       const u8 *pwr_constr_elem)
+static bool
+ieee80211_find_80211h_pwr_constr(struct ieee80211_sub_if_data *sdata,
+				 struct ieee80211_channel *channel,
+				 const u8 *country_ie, u8 country_ie_len,
+				 const u8 *pwr_constr_elem,
+				 int *chan_pwr, int *pwr_reduction)
 {
 	struct ieee80211_country_ie_triplet *triplet;
 	int chan = ieee80211_frequency_to_channel(channel->center_freq);
-	int i, chan_pwr, chan_increment, new_ap_level;
+	int i, chan_increment;
 	bool have_chan_pwr = false;
 
 	/* Invalid IE */
 	if (country_ie_len % 2 || country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
-		return 0;
+		return false;
 
 	triplet = (void *)(country_ie + 3);
 	country_ie_len -= 3;
@@ -1211,7 +1213,7 @@ static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 		for (i = 0; i < triplet->chans.num_channels; i++) {
 			if (first_channel + i * chan_increment == chan) {
 				have_chan_pwr = true;
-				chan_pwr = triplet->chans.max_power;
+				*chan_pwr = triplet->chans.max_power;
 				break;
 			}
 		}
@@ -1223,18 +1225,41 @@ static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 		country_ie_len -= 3;
 	}
 
-	if (!have_chan_pwr)
-		return 0;
+	if (have_chan_pwr)
+		*pwr_reduction = *pwr_constr_elem;
+	return have_chan_pwr;
+}
 
-	new_ap_level = max_t(int, 0, chan_pwr - *pwr_constr_elem);
+static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_channel *channel,
+				       struct ieee80211_mgmt *mgmt,
+				       const u8 *country_ie, u8 country_ie_len,
+				       const u8 *pwr_constr_ie)
+{
+	bool has_80211h_pwr = false;
+	int chan_pwr, pwr_reduction_80211h;
+	int new_ap_level;
 
-	if (sdata->ap_power_level == new_ap_level)
+	if (country_ie && pwr_constr_ie &&
+	    mgmt->u.probe_resp.capab_info &
+		cpu_to_le16(WLAN_CAPABILITY_SPECTRUM_MGMT)) {
+		has_80211h_pwr = ieee80211_find_80211h_pwr_constr(
+			sdata, channel, country_ie, country_ie_len,
+			pwr_constr_ie, &chan_pwr, &pwr_reduction_80211h);
+		new_ap_level = max_t(int, 0, chan_pwr - pwr_reduction_80211h);
+	}
+
+	if (!has_80211h_pwr)
 		return 0;
 
 	sdata_info(sdata,
 		   "Limiting TX power to %d (%d - %d) dBm as advertised by %pM\n",
-		   new_ap_level, chan_pwr, *pwr_constr_elem,
+		   new_ap_level, chan_pwr, pwr_reduction_80211h,
 		   sdata->u.mgd.bssid);
+
+	if (sdata->ap_power_level == new_ap_level)
+		return 0;
+
 	sdata->ap_power_level = new_ap_level;
 	if (__ieee80211_recalc_txpower(sdata))
 		return BSS_CHANGED_TXPOWER;
@@ -3204,13 +3229,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					    rx_status->band, true);
 	mutex_unlock(&local->sta_mtx);
 
-	if (elems.country_elem && elems.pwr_constr_elem &&
-	    mgmt->u.probe_resp.capab_info &
-				cpu_to_le16(WLAN_CAPABILITY_SPECTRUM_MGMT))
-		changed |= ieee80211_handle_pwr_constr(sdata, chan,
-						       elems.country_elem,
-						       elems.country_elem_len,
-						       elems.pwr_constr_elem);
+	changed |= ieee80211_handle_pwr_constr(sdata, chan, mgmt,
+					       elems.country_elem,
+					       elems.country_elem_len,
+					       elems.pwr_constr_elem);
 
 	ieee80211_bss_info_change_notify(sdata, changed);
 }
