@@ -41,6 +41,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/platform_data/i2c-designware.h>
 #include "i2c-designware-core.h"
 
 static struct i2c_algorithm i2c_dw_algo = {
@@ -122,6 +123,7 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	struct dw_i2c_dev *dev;
 	struct i2c_adapter *adap;
 	struct resource *mem;
+	struct dw_i2c_platform_data *pdata;
 	int irq, r;
 	u32 clk_freq;
 
@@ -182,6 +184,10 @@ static int dw_i2c_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Only 100kHz and 400kHz supported");
 			return -EINVAL;
 		}
+	} else {
+		pdata = dev_get_platdata(&pdev->dev);
+		if (pdata)
+			clk_freq = pdata->i2c_scl_freq;
 	}
 
 	dev->functionality =
