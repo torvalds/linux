@@ -615,8 +615,6 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	might_sleep_if(!genpd->dev_irq_safe);
-
 	stop_ok = genpd->gov ? genpd->gov->stop_ok : NULL;
 	if (stop_ok && !stop_ok(dev))
 		return -EBUSY;
@@ -660,8 +658,6 @@ static int pm_genpd_runtime_resume(struct device *dev)
 	genpd = dev_to_genpd(dev);
 	if (IS_ERR(genpd))
 		return -EINVAL;
-
-	might_sleep_if(!genpd->dev_irq_safe);
 
 	/* If power.irq_safe, the PM domain is never powered off. */
 	if (dev->power.irq_safe)
