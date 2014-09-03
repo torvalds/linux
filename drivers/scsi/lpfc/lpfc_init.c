@@ -649,7 +649,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
  *		0 - success
  *		Any other value - error
  **/
-int
+static int
 lpfc_hba_init_link(struct lpfc_hba *phba, uint32_t flag)
 {
 	return lpfc_hba_init_link_fc_topology(phba, phba->cfg_topology, flag);
@@ -750,7 +750,7 @@ lpfc_hba_init_link_fc_topology(struct lpfc_hba *phba, uint32_t fc_topology,
  *		0 - success
  *		Any other value - error
  **/
-int
+static int
 lpfc_hba_down_link(struct lpfc_hba *phba, uint32_t flag)
 {
 	LPFC_MBOXQ_t *pmb;
@@ -3550,7 +3550,7 @@ lpfc_fcf_redisc_wait_start_timer(struct lpfc_hba *phba)
  * list, and then worker thread shall be waked up for processing from the
  * worker thread context.
  **/
-void
+static void
 lpfc_sli4_fcf_redisc_wait_tmo(unsigned long ptr)
 {
 	struct lpfc_hba *phba = (struct lpfc_hba *)ptr;
