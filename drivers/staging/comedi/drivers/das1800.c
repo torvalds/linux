@@ -1088,9 +1088,9 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 	struct comedi_async *async = s->async;
 	const struct comedi_cmd *cmd = &async->cmd;
 
-	/* disable dma on TRIG_WAKE_EOS, or TRIG_RT
+	/* disable dma on TRIG_WAKE_EOS, or CMDF_PRIORITY
 	 * (because dma in handler is unsafe at hard real-time priority) */
-	if (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT))
+	if (cmd->flags & (TRIG_WAKE_EOS | CMDF_PRIORITY))
 		devpriv->irq_dma_bits &= ~DMA_ENABLED;
 	else
 		devpriv->irq_dma_bits |= devpriv->dma_bits;
