@@ -1312,7 +1312,7 @@ static void smiapp_power_off(struct smiapp_sensor *sensor)
 		clk_disable_unprepare(sensor->ext_clk);
 	usleep_range(5000, 5000);
 	regulator_disable(sensor->vana);
-	sensor->streaming = 0;
+	sensor->streaming = false;
 }
 
 static int smiapp_set_power(struct v4l2_subdev *subdev, int on)
@@ -1509,13 +1509,13 @@ static int smiapp_set_stream(struct v4l2_subdev *subdev, int enable)
 		return 0;
 
 	if (enable) {
-		sensor->streaming = 1;
+		sensor->streaming = true;
 		rval = smiapp_start_streaming(sensor);
 		if (rval < 0)
-			sensor->streaming = 0;
+			sensor->streaming = false;
 	} else {
 		rval = smiapp_stop_streaming(sensor);
-		sensor->streaming = 0;
+		sensor->streaming = false;
 	}
 
 	return rval;
