@@ -970,8 +970,7 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 						 rxdr->buffer_info[i].dma,
 						 E1000_RXBUFFER_2048,
 						 DMA_FROM_DEVICE);
-			if (rxdr->buffer_info[i].skb)
-				dev_kfree_skb(rxdr->buffer_info[i].skb);
+			kfree(rxdr->buffer_info[i].rxbuf.data);
 		}
 	}
 
@@ -1095,24 +1094,25 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 
 	for (i = 0; i < rxdr->count; i++) {
 		struct e1000_rx_desc *rx_desc = E1000_RX_DESC(*rxdr, i);
-		struct sk_buff *skb;
+		u8 *buf;
 
-		skb = alloc_skb(E1000_RXBUFFER_2048 + NET_IP_ALIGN, GFP_KERNEL);
-		if (!skb) {
+		buf = kzalloc(E1000_RXBUFFER_2048 + NET_SKB_PAD + NET_IP_ALIGN,
+			      GFP_KERNEL);
+		if (!buf) {
 			ret_val = 7;
 			goto err_nomem;
 		}
-		skb_reserve(skb, NET_IP_ALIGN);
-		rxdr->buffer_info[i].skb = skb;
+		rxdr->buffer_info[i].rxbuf.data = buf;
+
 		rxdr->buffer_info[i].dma =
-			dma_map_single(&pdev->dev, skb->data,
+			dma_map_single(&pdev->dev,
+				       buf + NET_SKB_PAD + NET_IP_ALIGN,
 				       E1000_RXBUFFER_2048, DMA_FROM_DEVICE);
 		if (dma_mapping_error(&pdev->dev, rxdr->buffer_info[i].dma)) {
 			ret_val = 8;
 			goto err_nomem;
 		}
 		rx_desc->buffer_addr = cpu_to_le64(rxdr->buffer_info[i].dma);
-		memset(skb->data, 0x00, skb->len);
 	}
 
 	return 0;
@@ -1385,13 +1385,13 @@ static void e1000_create_lbtest_frame(struct sk_buff *skb,
 	memset(&skb->data[frame_size / 2 + 12], 0xAF, 1);
 }
 
-static int e1000_check_lbtest_frame(struct sk_buff *skb,
+static int e1000_check_lbtest_frame(const unsigned char *data,
 				    unsigned int frame_size)
 {
 	frame_size &= ~1;
-	if (skb->data[3] == 0xFF) {
-		if (skb->data[frame_size / 2 + 10] == 0xBE &&
-		    skb->data[frame_size / 2 + 12] == 0xAF) {
+	if (*(data + 3) == 0xFF) {
+		if ((*(data + frame_size / 2 + 10) == 0xBE) &&
+		    (*(data + frame_size / 2 + 12) == 0xAF)) {
 			return 0;
 		}
 	}
@@ -1443,7 +1443,8 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 						DMA_FROM_DEVICE);
 
 			ret_val = e1000_check_lbtest_frame(
-					rxdr->buffer_info[l].skb,
+					rxdr->buffer_info[l].rxbuf.data +
+					NET_SKB_PAD + NET_IP_ALIGN,
 					1024);
 			if (!ret_val)
 				good_cnt++;
