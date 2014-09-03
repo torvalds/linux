@@ -98,7 +98,14 @@ found:
 	return 0;
 }
 
-static int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
+/*
+ * On bcm47xx we need access to the NVRAM very early, so we can't use mtd
+ * subsystem to access flash. We can't even use platform device / driver to
+ * store memory offset.
+ * To handle this we provide following symbol. It's supposed to be called as
+ * soon as we get info about flash device, before any NVRAM entry is needed.
+ */
+int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 {
 	void __iomem *iobase;
 	int err;
@@ -113,25 +120,6 @@ static int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 
 	return err;
 }
-
-#ifdef CONFIG_BCM47XX_SSB
-static int nvram_init_ssb(void)
-{
-	struct ssb_mipscore *mcore = &bcm47xx_bus.ssb.mipscore;
-	u32 base;
-	u32 lim;
-
-	if (mcore->pflash.present) {
-		base = mcore->pflash.window;
-		lim = mcore->pflash.window_size;
-	} else {
-		pr_err("Couldn't find supported flash memory\n");
-		return -ENXIO;
-	}
-
-	return bcm47xx_nvram_init_from_mem(base, lim);
-}
-#endif
 
 #ifdef CONFIG_BCM47XX_BCMA
 static int nvram_init_bcma(void)
@@ -168,7 +156,7 @@ static int nvram_init(void)
 	switch (bcm47xx_bus_type) {
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
-		return nvram_init_ssb();
+		break;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
 	case BCM47XX_BUS_TYPE_BCMA:

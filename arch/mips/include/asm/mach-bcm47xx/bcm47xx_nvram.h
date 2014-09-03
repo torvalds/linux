@@ -32,6 +32,7 @@ struct nvram_header {
 #define NVRAM_MAX_VALUE_LEN 255
 #define NVRAM_MAX_PARAM_LEN 64
 
+int bcm47xx_nvram_init_from_mem(u32 base, u32 lim);
 extern int bcm47xx_nvram_getenv(char *name, char *val, size_t val_len);
 
 static inline void bcm47xx_nvram_parse_macaddr(char *buf, u8 macaddr[6])
