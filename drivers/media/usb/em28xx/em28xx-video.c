@@ -721,7 +721,7 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 	struct em28xx_buffer    *buf = dev->usb_ctl.vid_buf;
 	struct em28xx_dmaqueue  *dmaq = &dev->vidq;
 	struct em28xx_v4l2      *v4l2 = dev->v4l2;
-	bool frame_end = 0;
+	bool frame_end = false;
 
 	/* Check for header */
 	/* NOTE: at least with bulk transfers, only the first packet
@@ -2308,7 +2308,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2->v4l2_dev.ctrl_handler = hdl;
 
 	if (dev->board.is_webcam)
-		v4l2->progressive = 1;
+		v4l2->progressive = true;
 
 	/*
 	 * Default format, used for tvp5150 or saa711x output formats

@@ -609,17 +609,17 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 static void em28xx_init_buttons(struct em28xx *dev)
 {
 	u8  i = 0, j = 0;
-	bool addr_new = 0;
+	bool addr_new = false;
 
 	dev->button_polling_interval = EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL;
 	while (dev->board.buttons[i].role >= 0 &&
 			 dev->board.buttons[i].role < EM28XX_NUM_BUTTON_ROLES) {
 		struct em28xx_button *button = &dev->board.buttons[i];
 		/* Check if polling address is already on the list */
-		addr_new = 1;
+		addr_new = true;
 		for (j = 0; j < dev->num_button_polling_addresses; j++) {
 			if (button->reg_r == dev->button_polling_addresses[j]) {
-				addr_new = 0;
+				addr_new = false;
 				break;
 			}
 		}
