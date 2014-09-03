@@ -19,7 +19,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_64BIT
-#define MCOUNT_INSN_SIZE  12
+#define MCOUNT_INSN_SIZE  18
 #else
 #define MCOUNT_INSN_SIZE  22
 #endif
