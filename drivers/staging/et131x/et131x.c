@@ -3793,6 +3793,7 @@ static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
 static irqreturn_t et131x_isr(int irq, void *dev_id)
 {
 	bool handled = true;
+	bool enable_interrupts = true;
 	struct net_device *netdev = (struct net_device *)dev_id;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct address_map __iomem *iomem = adapter->regs;
@@ -3802,6 +3803,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 
 	if (!netif_device_present(netdev)) {
 		handled = false;
+		enable_interrupts = false;
 		goto out;
 	}
 
@@ -3847,8 +3849,10 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 		status &= ~ET_INTR_WATCHDOG;
 	}
 
-	if (status & (ET_INTR_RXDMA_XFR_DONE | ET_INTR_TXDMA_ISR))
+	if (status & (ET_INTR_RXDMA_XFR_DONE | ET_INTR_TXDMA_ISR)) {
+		enable_interrupts = false;
 		napi_schedule(&adapter->napi);
+	}
 
 	status &= ~(ET_INTR_TXDMA_ISR | ET_INTR_RXDMA_XFR_DONE);
 
@@ -4001,16 +4005,10 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 		 */
 	}
 
-	if (!status) {
-		/* This interrupt has in some way been "handled" by
-		 * the ISR. Either it was a spurious Rx interrupt, or
-		 * it was a Tx interrupt that has been filtered by
-		 * the ISR.
-		 */
-		et131x_enable_interrupts(adapter);
-	}
-
 out:
+	if (enable_interrupts)
+		et131x_enable_interrupts(adapter);
+
 	return IRQ_RETVAL(handled);
 }
 
@@ -4257,7 +4255,7 @@ static void et131x_multicast(struct net_device *netdev)
 }
 
 /* et131x_tx - The handler to tx a packet on the device */
-static int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	int status = 0;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
