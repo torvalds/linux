@@ -1671,11 +1671,6 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (ret)
 		goto error_undo;
 
-	spin_lock(&root->fs_info->free_chunk_lock);
-	root->fs_info->free_chunk_space = device->total_bytes -
-		device->bytes_used;
-	spin_unlock(&root->fs_info->free_chunk_lock);
-
 	device->in_fs_metadata = 0;
 	btrfs_scrub_cancel_dev(root->fs_info, device);
 
