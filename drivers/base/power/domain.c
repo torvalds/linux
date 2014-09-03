@@ -25,10 +25,6 @@
 	__routine = genpd->dev_ops.callback; 			\
 	if (__routine) {					\
 		__ret = __routine(dev); 			\
-	} else {						\
-		__routine = dev_gpd_data(dev)->ops.callback;	\
-		if (__routine) 					\
-			__ret = __routine(dev);			\
 	}							\
 	__ret;							\
 })
@@ -1871,10 +1867,6 @@ static int pm_genpd_default_save_state(struct device *dev)
 {
 	int (*cb)(struct device *__dev);
 
-	cb = dev_gpd_data(dev)->ops.save_state;
-	if (cb)
-		return cb(dev);
-
 	if (dev->type && dev->type->pm)
 		cb = dev->type->pm->runtime_suspend;
 	else if (dev->class && dev->class->pm)
@@ -1898,10 +1890,6 @@ static int pm_genpd_default_restore_state(struct device *dev)
 {
 	int (*cb)(struct device *__dev);
 
-	cb = dev_gpd_data(dev)->ops.restore_state;
-	if (cb)
-		return cb(dev);
-
 	if (dev->type && dev->type->pm)
 		cb = dev->type->pm->runtime_resume;
 	else if (dev->class && dev->class->pm)
@@ -1916,109 +1904,6 @@ static int pm_genpd_default_restore_state(struct device *dev)
 
 	return cb ? cb(dev) : 0;
 }
-
-#ifdef CONFIG_PM_SLEEP
-
-/**
- * pm_genpd_default_suspend - Default "device suspend" for PM domians.
- * @dev: Device to handle.
- */
-static int pm_genpd_default_suspend(struct device *dev)
-{
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.suspend;
-
-	return cb ? cb(dev) : pm_generic_suspend(dev);
-}
-
-/**
- * pm_genpd_default_suspend_late - Default "late device suspend" for PM domians.
- * @dev: Device to handle.
- */
-static int pm_genpd_default_suspend_late(struct device *dev)
-{
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.suspend_late;
-
-	return cb ? cb(dev) : pm_generic_suspend_late(dev);
-}
-
-/**
- * pm_genpd_default_resume_early - Default "early device resume" for PM domians.
- * @dev: Device to handle.
- */
-static int pm_genpd_default_resume_early(struct device *dev)
-{
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.resume_early;
-
-	return cb ? cb(dev) : pm_generic_resume_early(dev);
-}
-
-/**
- * pm_genpd_default_resume - Default "device resume" for PM domians.
- * @dev: Device to handle.
- */
-static int pm_genpd_default_resume(struct device *dev)
-{
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.resume;
-
-	return cb ? cb(dev) : pm_generic_resume(dev);
-}
-
-/**
- * pm_genpd_default_freeze - Default "device freeze" for PM domians.
- * @dev: Device to handle.
- */
-static int pm_genpd_default_freeze(struct device *dev)
-{
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.freeze;
-
-	return cb ? cb(dev) : pm_generic_freeze(dev);
-}
-
-/**
- * pm_genpd_default_freeze_late - Default "late device freeze" for PM domians.
- * @dev: Device to handle.
- */
-static int pm_genpd_default_freeze_late(struct device *dev)
-{
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.freeze_late;
-
-	return cb ? cb(dev) : pm_generic_freeze_late(dev);
-}
-
-/**
- * pm_genpd_default_thaw_early - Default "early device thaw" for PM domians.
- * @dev: Device to handle.
- */
-static int pm_genpd_default_thaw_early(struct device *dev)
-{
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.thaw_early;
-
-	return cb ? cb(dev) : pm_generic_thaw_early(dev);
-}
-
-/**
- * pm_genpd_default_thaw - Default "device thaw" for PM domians.
- * @dev: Device to handle.
- */
-static int pm_genpd_default_thaw(struct device *dev)
-{
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.thaw;
-
-	return cb ? cb(dev) : pm_generic_thaw(dev);
-}
-
-#else /* !CONFIG_PM_SLEEP */
-
-#define pm_genpd_default_suspend	NULL
-#define pm_genpd_default_suspend_late	NULL
-#define pm_genpd_default_resume_early	NULL
-#define pm_genpd_default_resume		NULL
-#define pm_genpd_default_freeze		NULL
-#define pm_genpd_default_freeze_late	NULL
-#define pm_genpd_default_thaw_early	NULL
-#define pm_genpd_default_thaw		NULL
-
-#endif /* !CONFIG_PM_SLEEP */
 
 /**
  * pm_genpd_init - Initialize a generic I/O PM domain object.
@@ -2071,14 +1956,14 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.complete = pm_genpd_complete;
 	genpd->dev_ops.save_state = pm_genpd_default_save_state;
 	genpd->dev_ops.restore_state = pm_genpd_default_restore_state;
-	genpd->dev_ops.suspend = pm_genpd_default_suspend;
-	genpd->dev_ops.suspend_late = pm_genpd_default_suspend_late;
-	genpd->dev_ops.resume_early = pm_genpd_default_resume_early;
-	genpd->dev_ops.resume = pm_genpd_default_resume;
-	genpd->dev_ops.freeze = pm_genpd_default_freeze;
-	genpd->dev_ops.freeze_late = pm_genpd_default_freeze_late;
-	genpd->dev_ops.thaw_early = pm_genpd_default_thaw_early;
-	genpd->dev_ops.thaw = pm_genpd_default_thaw;
+	genpd->dev_ops.suspend = pm_generic_suspend;
+	genpd->dev_ops.suspend_late = pm_generic_suspend_late;
+	genpd->dev_ops.resume_early = pm_generic_resume_early;
+	genpd->dev_ops.resume = pm_generic_resume;
+	genpd->dev_ops.freeze = pm_generic_freeze;
+	genpd->dev_ops.freeze_late = pm_generic_freeze_late;
+	genpd->dev_ops.thaw_early = pm_generic_thaw_early;
+	genpd->dev_ops.thaw = pm_generic_thaw;
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
 	mutex_unlock(&gpd_list_lock);
