@@ -8753,6 +8753,37 @@ lpfc_sli_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 	return 0;
 }
 
+int
+lpfc_sli_calc_ring(struct lpfc_hba *phba, uint32_t ring_number,
+		    struct lpfc_iocbq *piocb)
+{
+	uint32_t idx;
+
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		if (piocb->iocb_flag &  (LPFC_IO_FCP | LPFC_USE_FCPWQIDX)) {
+			/*
+			 * fcp_wqidx should already be setup based on what
+			 * completion queue we want to use.
+			 */
+			if (!(phba->cfg_fof) ||
+			    (!(piocb->iocb_flag & LPFC_IO_FOF))) {
+				if (unlikely(!phba->sli4_hba.fcp_wq))
+					return LPFC_HBA_ERROR;
+				idx = lpfc_sli4_scmd_to_wqidx_distr(phba);
+				piocb->fcp_wqidx = idx;
+				ring_number = MAX_SLI3_CONFIGURED_RINGS + idx;
+			} else {
+				if (unlikely(!phba->sli4_hba.oas_wq))
+					return LPFC_HBA_ERROR;
+				idx = 0;
+				piocb->fcp_wqidx = idx;
+				ring_number =  LPFC_FCP_OAS_RING;
+			}
+		}
+	}
+	return ring_number;
+}
+
 /**
  * lpfc_sli_issue_iocb - Wrapper function for __lpfc_sli_issue_iocb
  * @phba: Pointer to HBA context object.
@@ -8778,61 +8809,42 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 	int rc, idx;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		if (piocb->iocb_flag &  LPFC_IO_FCP) {
-			if (!phba->cfg_fof || (!(piocb->iocb_flag &
-				LPFC_IO_OAS))) {
-				if (unlikely(!phba->sli4_hba.fcp_wq))
-					return IOCB_ERROR;
-				idx = lpfc_sli4_scmd_to_wqidx_distr(phba);
-				piocb->fcp_wqidx = idx;
-				ring_number = MAX_SLI3_CONFIGURED_RINGS + idx;
-			} else {
-				if (unlikely(!phba->sli4_hba.oas_wq))
-					return IOCB_ERROR;
-				idx = 0;
-				piocb->fcp_wqidx = 0;
-				ring_number =  LPFC_FCP_OAS_RING;
-			}
-			pring = &phba->sli.ring[ring_number];
-			spin_lock_irqsave(&pring->ring_lock, iflags);
-			rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb,
-				flag);
-			spin_unlock_irqrestore(&pring->ring_lock, iflags);
+		ring_number = lpfc_sli_calc_ring(phba, ring_number, piocb);
+		if (unlikely(ring_number == LPFC_HBA_ERROR))
+			return IOCB_ERROR;
+		idx = piocb->fcp_wqidx;
 
-			if (lpfc_fcp_look_ahead) {
-				fcp_eq_hdl = &phba->sli4_hba.fcp_eq_hdl[idx];
+		pring = &phba->sli.ring[ring_number];
+		spin_lock_irqsave(&pring->ring_lock, iflags);
+		rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
+		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
-				if (atomic_dec_and_test(&fcp_eq_hdl->
-					fcp_eq_in_use)) {
+		if (lpfc_fcp_look_ahead && (piocb->iocb_flag &  LPFC_IO_FCP)) {
+			fcp_eq_hdl = &phba->sli4_hba.fcp_eq_hdl[idx];
 
-					/* Get associated EQ with this index */
-					fpeq = phba->sli4_hba.hba_eq[idx];
+			if (atomic_dec_and_test(&fcp_eq_hdl->
+				fcp_eq_in_use)) {
 
-					/* Turn off interrupts from this EQ */
-					lpfc_sli4_eq_clr_intr(fpeq);
+				/* Get associated EQ with this index */
+				fpeq = phba->sli4_hba.hba_eq[idx];
 
-					/*
-					 * Process all the events on FCP EQ
-					 */
-					while ((eqe = lpfc_sli4_eq_get(fpeq))) {
-						lpfc_sli4_hba_handle_eqe(phba,
-							eqe, idx);
-						fpeq->EQ_processed++;
-					}
+				/* Turn off interrupts from this EQ */
+				lpfc_sli4_eq_clr_intr(fpeq);
 
-					/* Always clear and re-arm the EQ */
-					lpfc_sli4_eq_release(fpeq,
-						LPFC_QUEUE_REARM);
+				/*
+				 * Process all the events on FCP EQ
+				 */
+				while ((eqe = lpfc_sli4_eq_get(fpeq))) {
+					lpfc_sli4_hba_handle_eqe(phba,
+						eqe, idx);
+					fpeq->EQ_processed++;
 				}
-				atomic_inc(&fcp_eq_hdl->fcp_eq_in_use);
-			}
-		} else {
-			pring = &phba->sli.ring[ring_number];
-			spin_lock_irqsave(&pring->ring_lock, iflags);
-			rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb,
-				flag);
-			spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
+				/* Always clear and re-arm the EQ */
+				lpfc_sli4_eq_release(fpeq,
+					LPFC_QUEUE_REARM);
+			}
+			atomic_inc(&fcp_eq_hdl->fcp_eq_in_use);
 		}
 	} else {
 		/* For now, SLI2/3 will still use hbalock */
@@ -9715,6 +9727,7 @@ lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct lpfc_iocbq *abtsiocbp;
 	IOCB_t *icmd = NULL;
 	IOCB_t *iabt = NULL;
+	int ring_number;
 	int retval;
 	unsigned long iflags;
 
@@ -9755,6 +9768,8 @@ lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	abtsiocbp->fcp_wqidx = cmdiocb->fcp_wqidx;
 	if (cmdiocb->iocb_flag & LPFC_IO_FCP)
 		abtsiocbp->iocb_flag |= LPFC_USE_FCPWQIDX;
+	if (cmdiocb->iocb_flag & LPFC_IO_FOF)
+		abtsiocbp->iocb_flag |= LPFC_IO_FOF;
 
 	if (phba->link_state >= LPFC_LINK_UP)
 		iabt->ulpCommand = CMD_ABORT_XRI_CN;
@@ -9771,6 +9786,11 @@ lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			 abtsiocbp->iotag);
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
+		ring_number =
+			lpfc_sli_calc_ring(phba, pring->ringno, abtsiocbp);
+		if (unlikely(ring_number == LPFC_HBA_ERROR))
+			return 0;
+		pring = &phba->sli.ring[ring_number];
 		/* Note: both hbalock and ring_lock need to be set here */
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		retval = __lpfc_sli_issue_iocb(phba, pring->ringno,
@@ -10068,6 +10088,8 @@ lpfc_sli_abort_iocb(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		abtsiocb->fcp_wqidx = iocbq->fcp_wqidx;
 		if (iocbq->iocb_flag & LPFC_IO_FCP)
 			abtsiocb->iocb_flag |= LPFC_USE_FCPWQIDX;
+		if (iocbq->iocb_flag & LPFC_IO_FOF)
+			abtsiocb->iocb_flag |= LPFC_IO_FOF;
 
 		if (lpfc_is_link_up(phba))
 			abtsiocb->iocb.ulpCommand = CMD_ABORT_XRI_CN;
@@ -10167,6 +10189,8 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		abtsiocbq->fcp_wqidx = iocbq->fcp_wqidx;
 		if (iocbq->iocb_flag & LPFC_IO_FCP)
 			abtsiocbq->iocb_flag |= LPFC_USE_FCPWQIDX;
+		if (iocbq->iocb_flag & LPFC_IO_FOF)
+			abtsiocbq->iocb_flag |= LPFC_IO_FOF;
 
 		if (lpfc_is_link_up(phba))
 			abtsiocbq->iocb.ulpCommand = CMD_ABORT_XRI_CN;
