@@ -223,6 +223,7 @@ config INT340X_THERMAL
 	tristate "ACPI INT340X thermal drivers"
 	depends on X86 && ACPI
 	select THERMAL_GOV_USER_SPACE
+	select ACPI_THERMAL_REL
 	help
 	  Newer laptops and tablets that use ACPI may have thermal sensors and
 	  other devices with thermal control capabilities outside the core
@@ -236,6 +237,10 @@ config INT340X_THERMAL
 	  decisions. For example, the Intel Thermal Daemon can use this
 	  information to allow the user to select his laptop to run without
 	  turning on the fans.
+
+config ACPI_THERMAL_REL
+	tristate
+	depends on ACPI
 
 menu "Texas Instruments thermal drivers"
 source "drivers/thermal/ti-soc-thermal/Kconfig"
