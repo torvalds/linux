@@ -720,7 +720,6 @@ nfs_mark_request_dirty(struct nfs_page *req)
 	__set_page_dirty_nobuffers(req->wb_page);
 }
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 /*
  * nfs_page_search_commits_for_head_request_locked
  *
@@ -870,43 +869,6 @@ int nfs_write_need_commit(struct nfs_pgio_header *hdr)
 	return hdr->verf.committed != NFS_FILE_SYNC;
 }
 
-#else
-static struct nfs_page *
-nfs_page_search_commits_for_head_request_locked(struct nfs_inode *nfsi,
-						struct page *page)
-{
-	return NULL;
-}
-
-static void nfs_init_cinfo_from_inode(struct nfs_commit_info *cinfo,
-				      struct inode *inode)
-{
-}
-
-void nfs_init_cinfo(struct nfs_commit_info *cinfo,
-		    struct inode *inode,
-		    struct nfs_direct_req *dreq)
-{
-}
-
-void
-nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
-			struct nfs_commit_info *cinfo)
-{
-}
-
-static void
-nfs_clear_request_commit(struct nfs_page *req)
-{
-}
-
-int nfs_write_need_commit(struct nfs_pgio_header *hdr)
-{
-	return 0;
-}
-
-#endif
-
 static void nfs_write_completion(struct nfs_pgio_header *hdr)
 {
 	struct nfs_commit_info cinfo;
@@ -942,7 +904,6 @@ out:
 	hdr->release(hdr);
 }
 
-#if  IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 unsigned long
 nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
 {
@@ -998,19 +959,6 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst,
 	spin_unlock(cinfo->lock);
 	return ret;
 }
-
-#else
-unsigned long nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
-{
-	return 0;
-}
-
-int nfs_scan_commit(struct inode *inode, struct list_head *dst,
-		    struct nfs_commit_info *cinfo)
-{
-	return 0;
-}
-#endif
 
 /*
  * Search for an existing write request, and attempt to update
@@ -1404,7 +1352,6 @@ static int nfs_writeback_done(struct rpc_task *task,
 		return status;
 	nfs_add_stats(inode, NFSIOS_SERVERWRITTENBYTES, hdr->res.count);
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 	if (hdr->res.verf->committed < hdr->args.stable &&
 	    task->tk_status >= 0) {
 		/* We tried a write call, but the server did not
@@ -1426,7 +1373,6 @@ static int nfs_writeback_done(struct rpc_task *task,
 			complain = jiffies + 300 * HZ;
 		}
 	}
-#endif
 
 	/* Deal with the suid/sgid bit corner case */
 	if (nfs_should_remove_suid(inode))
@@ -1479,7 +1425,6 @@ static void nfs_writeback_result(struct rpc_task *task,
 }
 
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 static int nfs_commit_set_lock(struct nfs_inode *nfsi, int may_wait)
 {
 	int ret;
@@ -1803,12 +1748,6 @@ out_mark_dirty:
 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 	return ret;
 }
-#else
-static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
-{
-	return 0;
-}
-#endif
 
 int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
