@@ -1114,13 +1114,16 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		adapter->temp_dcb_cfg.pfc_mode_enable = false;
 		adapter->dcb_cfg.pfc_mode_enable = false;
 	}
+
 	adapter->dcb_cfg.num_tcs.pg_tcs = 1;
 	adapter->dcb_cfg.num_tcs.pfc_tcs = 1;
 
-	/* disable SR-IOV */
+	/* Disable SR-IOV support */
+	e_dev_warn("Disabling SR-IOV support\n");
 	ixgbe_disable_sriov(adapter);
 
-	/* disable RSS */
+	/* Disable RSS */
+	e_dev_warn("Disabling RSS support\n");
 	adapter->ring_feature[RING_F_RSS].limit = 1;
 
 	/* recalculate number of queues now that many features have been
