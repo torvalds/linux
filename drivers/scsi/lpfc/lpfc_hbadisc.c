@@ -150,6 +150,17 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 		/* If the WWPN of the rport and ndlp don't match, ignore it */
 		if (rport->port_name != wwn_to_u64(ndlp->nlp_portname.u.wwn)) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+				"6789 rport name %lx != node port name %lx",
+				(unsigned long)rport->port_name,
+				(unsigned long)wwn_to_u64(
+						ndlp->nlp_portname.u.wwn));
+			put_node = rdata->pnode != NULL;
+			put_rport = ndlp->rport != NULL;
+			rdata->pnode = NULL;
+			ndlp->rport = NULL;
+			if (put_node)
+				lpfc_nlp_put(ndlp);
 			put_device(&rport->dev);
 			return;
 		}
@@ -285,6 +296,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	if (ndlp->nlp_sid != NLP_NO_SID) {
 		warn_on = 1;
 		/* flush the target */
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
 				    ndlp->nlp_sid, 0, LPFC_CTX_TGT);
 	}
