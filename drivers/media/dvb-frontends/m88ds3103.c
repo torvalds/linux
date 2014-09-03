@@ -1063,16 +1063,16 @@ static int m88ds3103_set_voltage(struct dvb_frontend *fe,
 
 	switch (fe_sec_voltage) {
 	case SEC_VOLTAGE_18:
-		voltage_sel = 1;
-		voltage_dis = 0;
+		voltage_sel = true;
+		voltage_dis = false;
 		break;
 	case SEC_VOLTAGE_13:
-		voltage_sel = 0;
-		voltage_dis = 0;
+		voltage_sel = false;
+		voltage_dis = false;
 		break;
 	case SEC_VOLTAGE_OFF:
-		voltage_sel = 0;
-		voltage_dis = 1;
+		voltage_sel = false;
+		voltage_dis = true;
 		break;
 	default:
 		dev_dbg(&priv->i2c->dev, "%s: invalid fe_sec_voltage\n",
