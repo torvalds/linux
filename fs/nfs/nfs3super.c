@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <linux/nfs_fs.h>
 #include "internal.h"
+#include "nfs3_fs.h"
 #include "nfs.h"
 
 static struct nfs_subversion nfs_v3 = {
