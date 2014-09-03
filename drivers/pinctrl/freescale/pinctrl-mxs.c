@@ -21,7 +21,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-mxs.h"
 
 #define SUFFIX_LEN	4

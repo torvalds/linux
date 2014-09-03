@@ -28,7 +28,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/slab.h>
 
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-imx1.h"
 
 struct imx1_pinctrl {

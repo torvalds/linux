@@ -24,7 +24,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/slab.h>
 
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-imx.h"
 
 /* The bits in CONFIG cell defined in binding doc*/
