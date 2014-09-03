@@ -2206,15 +2206,15 @@ static int ni_ns_to_timer(const struct comedi_device *dev, unsigned nanosec,
 	struct ni_private *devpriv = dev->private;
 	int divider;
 
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (nanosec + devpriv->clock_ns / 2) / devpriv->clock_ns;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (nanosec) / devpriv->clock_ns;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (nanosec + devpriv->clock_ns - 1) / devpriv->clock_ns;
 		break;
 	}
@@ -2541,7 +2541,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		/* load SI */
 		timer = ni_ns_to_timer(dev, cmd->scan_begin_arg,
-				       TRIG_ROUND_NEAREST);
+				       CMDF_ROUND_NEAREST);
 		ni_stc_writel(dev, timer, AI_SI_Load_A_Registers);
 		ni_stc_writew(dev, AI_SI_Load, AI_Command_1_Register);
 		break;
@@ -2569,7 +2569,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			timer = 1;
 		else
 			timer = ni_ns_to_timer(dev, cmd->convert_arg,
-					       TRIG_ROUND_NEAREST);
+					       CMDF_ROUND_NEAREST);
 		/* 0,0 does not work */
 		ni_stc_writew(dev, 1, AI_SI2_Load_A_Register);
 		ni_stc_writew(dev, timer, AI_SI2_Load_B_Register);
@@ -3190,7 +3190,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ao_cmd2 &= ~AO_BC_Gate_Enable;
 		trigvar =
 		    ni_ns_to_timer(dev, cmd->scan_begin_arg,
-				   TRIG_ROUND_NEAREST);
+				   CMDF_ROUND_NEAREST);
 		ni_stc_writel(dev, 1, AO_UI_Load_A_Register);
 		ni_stc_writew(dev, AO_UI_Load, AO_Command_1_Register);
 		ni_stc_writel(dev, trigvar, AO_UI_Load_A_Register);
@@ -4187,15 +4187,15 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_PWM_OUTPUT:
 		switch (data[1]) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			up_count =
 			    (data[2] +
 			     devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			up_count = data[2] / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			up_count =
 			    (data[2] + devpriv->clock_ns -
 			     1) / devpriv->clock_ns;
@@ -4204,15 +4204,15 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 			return -EINVAL;
 		}
 		switch (data[3]) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			down_count =
 			    (data[4] +
 			     devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			down_count = data[4] / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			down_count =
 			    (data[4] + devpriv->clock_ns -
 			     1) / devpriv->clock_ns;
@@ -4251,15 +4251,15 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_PWM_OUTPUT:
 		switch (data[1]) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			up_count =
 			    (data[2] +
 			     devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			up_count = data[2] / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			up_count =
 			    (data[2] + devpriv->clock_ns -
 			     1) / devpriv->clock_ns;
@@ -4268,15 +4268,15 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 			return -EINVAL;
 		}
 		switch (data[3]) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			down_count =
 			    (data[4] +
 			     devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			down_count = data[4] / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			down_count =
 			    (data[4] + devpriv->clock_ns -
 			     1) / devpriv->clock_ns;
