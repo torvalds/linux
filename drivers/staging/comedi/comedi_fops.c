@@ -1532,7 +1532,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	ret = s->do_cmdtest(dev, s, &async->cmd);
 
-	if (async->cmd.flags & TRIG_BOGUS || ret) {
+	if (async->cmd.flags & CMDF_BOGUS || ret) {
 		dev_dbg(dev->class_dev, "test returned %d\n", ret);
 		cmd = async->cmd;
 		/* restore chanlist pointer before copying back */
