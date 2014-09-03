@@ -152,7 +152,7 @@ out:
 	return result;
 }
 
-static int init_defined_templates(void)
+static int __init init_defined_templates(void)
 {
 	int i = 0;
 	int result = 0;
@@ -178,7 +178,7 @@ struct ima_template_desc *ima_template_desc_current(void)
 	return ima_template;
 }
 
-int ima_init_template(void)
+int __init ima_init_template(void)
 {
 	int result;
 

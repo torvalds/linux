@@ -97,7 +97,7 @@ static int ima_kernel_read(struct file *file, loff_t offset,
 	return ret;
 }
 
-int ima_init_crypto(void)
+int __init ima_init_crypto(void)
 {
 	long rc;
 

@@ -107,8 +107,6 @@ void ima_print_digest(struct seq_file *m, u8 *digest, int size);
 struct ima_template_desc *ima_template_desc_current(void);
 int ima_init_template(void);
 
-int ima_init_template(void);
-
 /*
  * used to protect h_table and sha_table
  */
