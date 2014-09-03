@@ -1085,10 +1085,9 @@ static long dvb_demux_ioctl(struct file *file, unsigned int cmd,
 static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
-	struct dmxdev *dmxdev = dmxdevfilter->dev;
 	unsigned int mask = 0;
 
-	if ((!dmxdevfilter) || (dmxdev->exit))
+	if ((!dmxdevfilter) || dmxdevfilter->dev->exit)
 		return POLLERR;
 
 	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
