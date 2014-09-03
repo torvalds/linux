@@ -43,10 +43,10 @@
 	};
 
 	pinmux: pinmux@0,70000868 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinmux_default>;
+		pinctrl-names = "boot";
+		pinctrl-0 = <&pinmux_boot>;
 
-		pinmux_default: common {
+		pinmux_boot: common {
 			dap_mclk1_pw4 {
 				nvidia,pins = "dap_mclk1_pw4";
 				nvidia,function = "extperiph1";

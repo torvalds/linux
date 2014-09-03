@@ -31,10 +31,10 @@
 	};
 
 	pinmux: pinmux@0,70000868 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&state_default>;
+		pinctrl-names = "boot";
+		pinctrl-0 = <&state_boot>;
 
-		state_default: pinmux {
+		state_boot: pinmux {
 			clk_32k_out_pa0 {
 				nvidia,pins = "clk_32k_out_pa0";
 				nvidia,function = "soc";
