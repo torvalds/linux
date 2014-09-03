@@ -262,8 +262,10 @@ static u32 DISABLE_INVERT_PCLK_CIF1;
 		 1. rk3126 and rk3128 use different dts file.		 
 *v0.1.3:
 		 1. i2c 1 and wifi use the common io in rk3128,so just enable i2c1 in rk3126 dts file
+*v0.1.4:
+		 1. When cif was at work, the aclk is closed ,may cause bus abnormal ,so sleep 100ms before close aclk 
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x3)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x4)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -1237,6 +1239,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
         clk_set_rate(clk->cif_clk_out,clk_rate);
         clk->on = true;
     } else if (!on && clk->on) {
+    	msleep(100);
         clk_disable_unprepare(clk->aclk_cif);
     	clk_disable_unprepare(clk->hclk_cif);
     	clk_disable_unprepare(clk->cif_clk_in);
@@ -2656,6 +2659,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 		write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x0); 
     	spin_unlock_irqrestore(&pcdev->lock, flags);
 		flush_workqueue((pcdev->camera_wq));
+		msleep(100);
 	}
     /*must be reinit,or will be somthing wrong in irq process.*/
     if(enable == false) {
