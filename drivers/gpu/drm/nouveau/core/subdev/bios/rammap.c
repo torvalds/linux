@@ -79,7 +79,7 @@ nvbios_rammapEp(struct nouveau_bios *bios, int idx,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		struct nvbios_ramcfg *p)
 {
-	u32 data = nvbios_rammapEe(bios, idx, ver, hdr, cnt, len);
+	u32 data = nvbios_rammapEe(bios, idx, ver, hdr, cnt, len), temp;
 	memset(p, 0x00, sizeof(*p));
 	p->rammap_ver = *ver;
 	p->rammap_hdr = *hdr;
@@ -90,6 +90,18 @@ nvbios_rammapEp(struct nouveau_bios *bios, int idx,
 		p->rammap_11_08_01 = (nv_ro08(bios, data + 0x08) & 0x01) >> 0;
 		p->rammap_11_08_0c = (nv_ro08(bios, data + 0x08) & 0x0c) >> 2;
 		p->rammap_11_08_10 = (nv_ro08(bios, data + 0x08) & 0x10) >> 4;
+		temp = nv_ro32(bios, data + 0x09);
+		p->rammap_11_09_01ff = (temp & 0x000001ff) >> 0;
+		p->rammap_11_0a_03fe = (temp & 0x0003fe00) >> 9;
+		p->rammap_11_0a_0400 = (temp & 0x00040000) >> 18;
+		p->rammap_11_0a_0800 = (temp & 0x00080000) >> 19;
+		p->rammap_11_0b_01f0 = (temp & 0x01f00000) >> 20;
+		p->rammap_11_0b_0200 = (temp & 0x02000000) >> 25;
+		p->rammap_11_0b_0400 = (temp & 0x04000000) >> 26;
+		p->rammap_11_0b_0800 = (temp & 0x08000000) >> 27;
+		p->rammap_11_0d    =  nv_ro08(bios, data + 0x0d);
+		p->rammap_11_0e    =  nv_ro08(bios, data + 0x0e);
+		p->rammap_11_0f    =  nv_ro08(bios, data + 0x0f);
 		p->rammap_11_11_0c = (nv_ro08(bios, data + 0x11) & 0x0c) >> 2;
 		break;
 	default:

@@ -11,6 +11,17 @@ struct nvbios_ramcfg {
 	unsigned rammap_11_08_01:1;
 	unsigned rammap_11_08_0c:2;
 	unsigned rammap_11_08_10:1;
+	unsigned rammap_11_09_01ff:9;
+	unsigned rammap_11_0a_03fe:9;
+	unsigned rammap_11_0a_0400:1;
+	unsigned rammap_11_0a_0800:1;
+	unsigned rammap_11_0b_01f0:5;
+	unsigned rammap_11_0b_0200:1;
+	unsigned rammap_11_0b_0400:1;
+	unsigned rammap_11_0b_0800:1;
+	unsigned rammap_11_0d:8;
+	unsigned rammap_11_0e:8;
+	unsigned rammap_11_0f:8;
 	unsigned rammap_11_11_0c:2;
 
 	unsigned ramcfg_ver;
