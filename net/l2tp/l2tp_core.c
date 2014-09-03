@@ -148,7 +148,7 @@ do {									\
 		 atomic_read(&_t->ref_count));				\
 	l2tp_tunnel_inc_refcount_1(_t);					\
 } while (0)
-#define l2tp_tunnel_dec_refcount(_t)
+#define l2tp_tunnel_dec_refcount(_t)					\
 do {									\
 	pr_debug("l2tp_tunnel_dec_refcount: %s:%d %s: cnt=%d\n",	\
 		 __func__, __LINE__, (_t)->name,			\
