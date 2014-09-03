@@ -340,7 +340,7 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 			       result, name_len);
 		return -ENODEV;
 	}
-	((char *) mtd->name)[name_len] = '\0';
+	((char *)mtd->name)[name_len] = '\0';
 
 	/* Setup the MTD structure */
 	mtd->type = MTD_NANDFLASH;
