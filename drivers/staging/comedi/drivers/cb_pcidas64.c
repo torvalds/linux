@@ -1958,14 +1958,14 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 {
 	unsigned int divisor;
 
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_UP:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_UP:
 		divisor = (ns + TIMER_BASE - 1) / TIMER_BASE;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divisor = ns / TIMER_BASE;
 		break;
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		divisor = (ns + TIMER_BASE / 2) / TIMER_BASE;
 		break;
