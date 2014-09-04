@@ -36,15 +36,12 @@ struct af9033_dev {
 	bool ts_mode_serial;
 
 	fe_status_t fe_status;
-	u32 ber;
-	u32 ucb;
 	u64 post_bit_error_prev; /* for old read_ber we return (curr - prev) */
 	u64 post_bit_error;
 	u64 post_bit_count;
 	u64 error_block_count;
 	u64 total_block_count;
 	struct delayed_work stat_work;
-	unsigned long last_stat_check;
 };
 
 /* write multiple registers */
@@ -864,52 +861,6 @@ static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 	return 0;
 
-err:
-	dev_dbg(&dev->client->dev, "failed=%d\n", ret);
-
-	return ret;
-}
-
-static int af9033_update_ch_stat(struct af9033_dev *dev)
-{
-	int ret = 0;
-	u32 err_cnt, bit_cnt;
-	u16 abort_cnt;
-	u8 buf[7];
-
-	/* only update data every half second */
-	if (time_after(jiffies, dev->last_stat_check + msecs_to_jiffies(500))) {
-		ret = af9033_rd_regs(dev, 0x800032, buf, sizeof(buf));
-		if (ret < 0)
-			goto err;
-		/* in 8 byte packets? */
-		abort_cnt = (buf[1] << 8) + buf[0];
-		/* in bits */
-		err_cnt = (buf[4] << 16) + (buf[3] << 8) + buf[2];
-		/* in 8 byte packets? always(?) 0x2710 = 10000 */
-		bit_cnt = (buf[6] << 8) + buf[5];
-
-		if (bit_cnt < abort_cnt) {
-			abort_cnt = 1000;
-			dev->ber = 0xffffffff;
-		} else {
-			/*
-			 * 8 byte packets, that have not been rejected already
-			 */
-			bit_cnt -= (u32)abort_cnt;
-			if (bit_cnt == 0) {
-				dev->ber = 0xffffffff;
-			} else {
-				err_cnt -= (u32)abort_cnt * 8 * 8;
-				bit_cnt *= 8 * 8;
-				dev->ber = err_cnt * (0xffffffff / bit_cnt);
-			}
-		}
-		dev->ucb += abort_cnt;
-		dev->last_stat_check = jiffies;
-	}
-
-	return 0;
 err:
 	dev_dbg(&dev->client->dev, "failed=%d\n", ret);
 
