@@ -120,6 +120,17 @@ static void bcma_release_core_dev(struct device *dev)
 	kfree(core);
 }
 
+static bool bcma_is_core_needed_early(u16 core_id)
+{
+	switch (core_id) {
+	case BCMA_CORE_NS_NAND:
+	case BCMA_CORE_NS_QSPI:
+		return true;
+	}
+
+	return false;
+}
+
 static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 {
 	int err;
@@ -169,6 +180,10 @@ static int bcma_register_devices(struct bcma_bus *bus)
 		case BCMA_CORE_4706_MAC_GBIT_COMMON:
 			continue;
 		}
+
+		/* Early cores were already registered */
+		if (bcma_is_core_needed_early(core->id.id))
+			continue;
 
 		/* Only first GMAC core on BCM4706 is connected and working */
 		if (core->id.id == BCMA_CORE_4706_MAC_GBIT &&
@@ -250,6 +265,12 @@ int bcma_bus_register(struct bcma_bus *bus)
 	if (core) {
 		bus->drv_cc.core = core;
 		bcma_core_chipcommon_early_init(&bus->drv_cc);
+	}
+
+	/* Cores providing flash access go before SPROM init */
+	list_for_each_entry(core, &bus->cores, list) {
+		if (bcma_is_core_needed_early(core->id.id))
+			bcma_register_core(bus, core);
 	}
 
 	/* Try to get SPROM */
