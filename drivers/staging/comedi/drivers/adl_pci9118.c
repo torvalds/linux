@@ -1853,26 +1853,23 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
-	if (devpriv->usemux)
-		s->n_chan = devpriv->usemux;
-	else
-		s->n_chan = 16;
-
-	s->maxdata = board->ai_is_16bit ? 0xffff : 0x0fff;
-	s->range_table = board->is_hg ? &pci9118hg_ai_range
-				      : &pci9118_ai_range;
-	s->insn_read = pci9118_insn_read_ai;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
+	s->n_chan	= (devpriv->usemux) ? devpriv->usemux : 16;
+	s->maxdata	= board->ai_is_16bit ? 0xffff : 0x0fff;
+	s->range_table	= board->is_hg ? &pci9118hg_ai_range
+				       : &pci9118_ai_range;
+	s->insn_read	= pci9118_insn_read_ai;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->len_chanlist = PCI9118_CHANLEN;
-		s->do_cmdtest = pci9118_ai_cmdtest;
-		s->do_cmd = pci9118_ai_cmd;
-		s->cancel = pci9118_ai_cancel;
-		s->munge = pci9118_ai_munge;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= PCI9118_CHANLEN;
+		s->do_cmdtest	= pci9118_ai_cmdtest;
+		s->do_cmd	= pci9118_ai_cmd;
+		s->cancel	= pci9118_ai_cancel;
+		s->munge	= pci9118_ai_munge;
 	}
 
 	if (s->maxdata == 0xffff) {
