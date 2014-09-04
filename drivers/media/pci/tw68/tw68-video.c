@@ -348,7 +348,7 @@ int tw68_video_start_dma(struct tw68_dev *dev, struct tw68_buf *buf)
 	 *  a new address can be set.
 	 */
 	tw_clearl(TW68_DMAC, TW68_DMAP_EN);
-	tw_writel(TW68_DMAP_SA, cpu_to_le32(buf->dma));
+	tw_writel(TW68_DMAP_SA, buf->dma);
 	/* Clear any pending interrupts */
 	tw_writel(TW68_INTSTAT, dev->board_virqmask);
 	/* Enable the risc engine and the fifo */
