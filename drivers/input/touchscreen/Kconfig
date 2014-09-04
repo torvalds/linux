@@ -11,6 +11,12 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_ZET62XX
+	tristate "zet62xx touchscreen driver"
+	help
+		zet62xx touchscreen driver
+
+
 config TOUCHSCREEN_GT8XX
 	tristate "Goodix touch screen gt801X2 support for rockchip based platform"
 	help

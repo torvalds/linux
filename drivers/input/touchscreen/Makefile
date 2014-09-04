@@ -5,6 +5,7 @@
 # Each configuration option enables a list of files.
 
 wm97xx-ts-y := wm97xx-core.o
+obj-$(CONFIG_TOUCHSCREEN_ZET62XX)        += zet62xx/
 obj-$(CONFIG_TOUCHSCREEN_CT36X_TS)     += ct36x/
 obj-$(CONFIG_TOUCHSCREEN_GT8XX)		+= rk29_i2c_goodix.o
 obj-$(CONFIG_TOUCHSCREEN_88PM860X)	+= 88pm860x-ts.o
