@@ -512,7 +512,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
 
 	for (n = 0; n < insn->n; n++) {
-		outw(0, dev->iobase + PCI9118_SOFTTRG);	/* start conversion */
+		outl(0, dev->iobase + PCI9118_SOFTTRG);	/* start conversion */
 		udelay(2);
 
 		ret = comedi_timeout(dev, s, insn, pci9118_ai_eoc, 0);
@@ -527,7 +527,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 				 PCI9118_AD_DATA) & 0xffff) ^ 0x8000;
 		} else {
 			data[n] =
-			    (inw(dev->iobase + PCI9118_AD_DATA) >> 4) & 0xfff;
+			    (inl(dev->iobase + PCI9118_AD_DATA) >> 4) & 0xfff;
 		}
 	}
 
@@ -871,7 +871,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 		if (pci9118_decode_error_status(dev, s, int_adstat))
 			return;
 
-	sampl = inw(dev->iobase + PCI9118_AD_DATA);
+	sampl = inl(dev->iobase + PCI9118_AD_DATA);
 
 #ifdef PCI9118_PARANOIDCHECK
 	if (s->maxdata != 0xffff) {
@@ -999,7 +999,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 
 	outl(intcsr | 0x00ff0000, devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 
-	adstat = inw(dev->iobase + PCI9118_ADSTAT) & 0x1ff;
+	adstat = inl(dev->iobase + PCI9118_ADSTAT) & 0x1ff;
 
 	if (!devpriv->ai_do)
 		return IRQ_HANDLED;
