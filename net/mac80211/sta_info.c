@@ -1179,7 +1179,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	int size = sizeof(*nullfunc);
 	__le16 fc;
-	bool qos = test_sta_flag(sta, WLAN_STA_WME);
+	bool qos = sta->sta.wme;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
@@ -1834,7 +1834,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHORIZED);
 	if (test_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
-	if (test_sta_flag(sta, WLAN_STA_WME))
+	if (sta->sta.wme)
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_WME);
 	if (test_sta_flag(sta, WLAN_STA_MFP))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_MFP);

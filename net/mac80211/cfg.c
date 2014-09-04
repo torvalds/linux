@@ -1011,15 +1011,8 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 			clear_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE);
 	}
 
-	if (mask & BIT(NL80211_STA_FLAG_WME)) {
-		if (set & BIT(NL80211_STA_FLAG_WME)) {
-			set_sta_flag(sta, WLAN_STA_WME);
-			sta->sta.wme = true;
-		} else {
-			clear_sta_flag(sta, WLAN_STA_WME);
-			sta->sta.wme = false;
-		}
-	}
+	if (mask & BIT(NL80211_STA_FLAG_WME))
+		sta->sta.wme = set & BIT(NL80211_STA_FLAG_WME);
 
 	if (mask & BIT(NL80211_STA_FLAG_MFP)) {
 		if (set & BIT(NL80211_STA_FLAG_MFP))
@@ -3352,7 +3345,7 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	band = chanctx_conf->def.chan->band;
 	sta = sta_info_get_bss(sdata, peer);
 	if (sta) {
-		qos = test_sta_flag(sta, WLAN_STA_WME);
+		qos = sta->sta.wme;
 	} else {
 		rcu_read_unlock();
 		return -ENOLINK;
