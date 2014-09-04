@@ -1837,7 +1837,7 @@ static int xillybus_init_chrdev(struct xilly_endpoint *endpoint,
 
 	if (rc) {
 		dev_warn(endpoint->dev, "Failed to obtain major/minors");
-		goto error1;
+		return rc;
 	}
 
 	endpoint->major = major = MAJOR(dev);
@@ -1849,7 +1849,7 @@ static int xillybus_init_chrdev(struct xilly_endpoint *endpoint,
 		      endpoint->num_channels);
 	if (rc) {
 		dev_warn(endpoint->dev, "Failed to add cdev. Aborting.\n");
-		goto error2;
+		goto unregister_chrdev;
 	}
 
 	idt++;
@@ -1874,7 +1874,8 @@ static int xillybus_init_chrdev(struct xilly_endpoint *endpoint,
 			dev_warn(endpoint->dev,
 				 "Failed to create %s device. Aborting.\n",
 				 devname);
-			goto error3;
+			rc = -ENODEV;
+			goto unroll_device_create;
 		}
 	}
 
@@ -1882,15 +1883,14 @@ static int xillybus_init_chrdev(struct xilly_endpoint *endpoint,
 		 endpoint->num_channels);
 	return 0; /* succeed */
 
-error3:
+unroll_device_create:
 	devnum--; i--;
 	for (; devnum >= 0; devnum--, i--)
 		device_destroy(xillybus_class, MKDEV(major, i));
 
 	cdev_del(&endpoint->cdev);
-error2:
+unregister_chrdev:
 	unregister_chrdev_region(MKDEV(major, minor), endpoint->num_channels);
-error1:
 
 	return rc;
 }
