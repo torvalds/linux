@@ -124,7 +124,12 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode, int *err)
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
 		iinfo->i_crtime = current_fs_time(inode->i_sb);
-	insert_inode_hash(inode);
+	if (unlikely(insert_inode_locked(inode) < 0)) {
+		make_bad_inode(inode);
+		iput(inode);
+		*err = -EIO;
+		return NULL;
+	}
 	mark_inode_dirty(inode);
 
 	*err = 0;

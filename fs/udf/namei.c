@@ -559,6 +559,7 @@ static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 	fi = udf_add_entry(dir, dentry, &fibh, &cfi, &err);
 	if (unlikely(!fi)) {
 		inode_dec_link_count(inode);
+		unlock_new_inode(inode);
 		iput(inode);
 		return err;
 	}
@@ -572,6 +573,7 @@ static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 	if (fibh.sbh != fibh.ebh)
 		brelse(fibh.ebh);
 	brelse(fibh.sbh);
+	unlock_new_inode(inode);
 	d_instantiate(dentry, inode);
 
 	return 0;
@@ -619,6 +621,7 @@ static int udf_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 	mark_inode_dirty(inode);
 
 	d_tmpfile(dentry, inode);
+	unlock_new_inode(inode);
 	return 0;
 }
 
@@ -660,6 +663,7 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	fi = udf_add_entry(inode, NULL, &fibh, &cfi, &err);
 	if (!fi) {
 		inode_dec_link_count(inode);
+		unlock_new_inode(inode);
 		iput(inode);
 		goto out;
 	}
@@ -678,6 +682,7 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (!fi) {
 		clear_nlink(inode);
 		mark_inode_dirty(inode);
+		unlock_new_inode(inode);
 		iput(inode);
 		goto out;
 	}
@@ -689,6 +694,7 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	udf_write_fi(dir, &cfi, fi, &fibh, NULL, NULL);
 	inc_nlink(dir);
 	mark_inode_dirty(dir);
+	unlock_new_inode(inode);
 	d_instantiate(dentry, inode);
 	if (fibh.sbh != fibh.ebh)
 		brelse(fibh.ebh);
@@ -996,6 +1002,7 @@ out:
 out_no_entry:
 	up_write(&iinfo->i_data_sem);
 	inode_dec_link_count(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	goto out;
 }
