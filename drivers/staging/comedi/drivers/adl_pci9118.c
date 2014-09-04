@@ -131,8 +131,8 @@
 #define PCI9118_AI_CTRL_DMA		(1 << 0)  /* 1=enable DMA */
 #define PCI9118_DIO_REG			0x1c
 #define PCI9118_SOFTTRG_REG		0x20
+#define PCI9118_AI_CHANLIST_REG		0x24
 
-#define PCI9118_GAIN	0x24	/* W:   A/D gain/channel register */
 #define PCI9118_BURST	0x28	/* W:   A/D burst number register */
 #define PCI9118_SCANMOD	0x2c	/* W:   A/D auto scan mode */
 #define PCI9118_ADFUNC	0x30	/* W:   A/D function register */
@@ -438,7 +438,8 @@ static int setup_channel_list(struct comedi_device *dev,
 			gain = CR_RANGE(chanlist[0]);
 						/* get gain number */
 			scanquad |= ((gain & 0x03) << 8);
-			outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
+			outl(scanquad | ssh,
+			     dev->iobase + PCI9118_AI_CHANLIST_REG);
 			ssh = devpriv->softsshhold;
 		}
 	}
@@ -450,7 +451,7 @@ static int setup_channel_list(struct comedi_device *dev,
 #endif
 		gain = CR_RANGE(chanlist[i]);		/* get gain number */
 		scanquad |= ((gain & 0x03) << 8);
-		outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
+		outl(scanquad | ssh, dev->iobase + PCI9118_AI_CHANLIST_REG);
 	}
 
 	if (backadd) {		/* insert channels for fit onto 32bit DMA */
@@ -459,7 +460,8 @@ static int setup_channel_list(struct comedi_device *dev,
 							/* get channel number */
 			gain = CR_RANGE(chanlist[0]);	/* get gain number */
 			scanquad |= ((gain & 0x03) << 8);
-			outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
+			outl(scanquad | ssh,
+			     dev->iobase + PCI9118_AI_CHANLIST_REG);
 		}
 	}
 #ifdef PCI9118_PARANOIDCHECK
