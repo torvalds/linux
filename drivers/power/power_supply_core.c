@@ -218,12 +218,12 @@ static int power_supply_check_supplies(struct power_supply *psy)
 			break;
 
 		ret = power_supply_find_supply_from_node(np);
+		of_node_put(np);
+
 		if (ret) {
 			dev_dbg(psy->dev, "Failed to find supply, defer!\n");
-			of_node_put(np);
 			return -EPROBE_DEFER;
 		}
-		of_node_put(np);
 	} while (np);
 
 	/* Missing valid "power-supplies" entries */
