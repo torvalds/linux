@@ -107,8 +107,8 @@
  * PCI BAR2 Register map (dev->iobase)
  */
 #define PCI9118_TIMER_REG(x)		(0x00 + ((x) * 4))
+#define PCI9118_TIMER_CTRL_REG		0x0c
 
-#define PCI9118_CNTCTRL	0x0c	/* W:   8254 counter control */
 #define PCI9118_AD_DATA	0x10	/* R:   A/D data */
 #define PCI9118_DA1	0x10	/* W:   D/A registers */
 #define PCI9118_DA2	0x14
@@ -340,6 +340,17 @@ static void pci9118_timer_write(struct comedi_device *dev,
 {
 	outl(val & 0xff, dev->iobase + PCI9118_TIMER_REG(timer));
 	outl((val >> 8) & 0xff, dev->iobase + PCI9118_TIMER_REG(timer));
+}
+
+static void pci9118_timer_set_mode(struct comedi_device *dev,
+				   unsigned int timer, unsigned int mode)
+{
+	unsigned int val;
+
+	val = timer << 6;	/* select timer */
+	val |= 0x30;		/* load low then high byte */
+	val |= mode;		/* set timer mode and BCD|binary */
+	outl(val, dev->iobase + PCI9118_TIMER_CTRL_REG);
 }
 
 static int check_channel_list(struct comedi_device *dev,
@@ -610,7 +621,7 @@ static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 	devpriv->AdFunctionReg =
 	    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_AM;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
-	outl(0x30, dev->iobase + PCI9118_CNTCTRL);
+	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
 	pci9118_timer_write(dev, 0,
 			    devpriv->dmabuf_hw[1 - devpriv->dma_actbuf] >> 1);
 	devpriv->AdFunctionReg |= AdFunction_Start;
@@ -748,9 +759,8 @@ static void pci9118_start_pacer(struct comedi_device *dev, int mode)
 {
 	struct pci9118_private *devpriv = dev->private;
 
-	outl(0x74, dev->iobase + PCI9118_CNTCTRL);
-	outl(0xb4, dev->iobase + PCI9118_CNTCTRL);
-/* outl(0x30, dev->iobase + PCI9118_CNTCTRL); */
+	pci9118_timer_set_mode(dev, 1, I8254_MODE2);
+	pci9118_timer_set_mode(dev, 2, I8254_MODE2);
 	udelay(1);
 
 	if ((mode == 1) || (mode == 2) || (mode == 4)) {
@@ -1450,7 +1460,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		devpriv->AdFunctionReg =
 		    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_AM;
 		outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
-		outl(0x30, dev->iobase + PCI9118_CNTCTRL);
+		pci9118_timer_set_mode(dev, 0, I8254_MODE0);
 		pci9118_timer_write(dev, 0, devpriv->dmabuf_hw[0] >> 1);
 		devpriv->AdFunctionReg |= AdFunction_Start;
 		break;
@@ -1686,8 +1696,7 @@ static int pci9118_reset(struct comedi_device *dev)
 	inl(dev->iobase + PCI9118_INTCTRL);
 	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
 						/* disable interrupts source */
-	outl(0x30, dev->iobase + PCI9118_CNTCTRL);
-/* outl(0xb4, dev->iobase + PCI9118_CNTCTRL); */
+	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
 	pci9118_start_pacer(dev, 0);		/* stop 8254 counters */
 	devpriv->AdControlReg = 0;
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
