@@ -5,8 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,8 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,35 +61,58 @@
  *
  *****************************************************************************/
 
-#ifndef __IWL_MVM_TESTMODE_H__
-#define __IWL_MVM_TESTMODE_H__
+#ifndef __iwl_scd_h__
+#define __iwl_scd_h__
 
-/**
- * enum iwl_mvm_testmode_attrs - testmode attributes inside NL80211_ATTR_TESTDATA
- * @IWL_MVM_TM_ATTR_UNSPEC: (invalid attribute)
- * @IWL_MVM_TM_ATTR_CMD: sub command, see &enum iwl_mvm_testmode_commands (u32)
- * @IWL_MVM_TM_ATTR_NOA_DURATION: requested NoA duration (u32)
- * @IWL_MVM_TM_ATTR_BEACON_FILTER_STATE: beacon filter state (0 or 1, u32)
- */
-enum iwl_mvm_testmode_attrs {
-	IWL_MVM_TM_ATTR_UNSPEC,
-	IWL_MVM_TM_ATTR_CMD,
-	IWL_MVM_TM_ATTR_NOA_DURATION,
-	IWL_MVM_TM_ATTR_BEACON_FILTER_STATE,
+#include "iwl-trans.h"
+#include "iwl-io.h"
+#include "iwl-prph.h"
 
-	/* keep last */
-	NUM_IWL_MVM_TM_ATTRS,
-	IWL_MVM_TM_ATTR_MAX = NUM_IWL_MVM_TM_ATTRS - 1,
-};
 
-/**
- * enum iwl_mvm_testmode_commands - MVM testmode commands
- * @IWL_MVM_TM_CMD_SET_NOA: set NoA on GO vif for testing
- * @IWL_MVM_TM_CMD_SET_BEACON_FILTER: turn beacon filtering off/on
- */
-enum iwl_mvm_testmode_commands {
-	IWL_MVM_TM_CMD_SET_NOA,
-	IWL_MVM_TM_CMD_SET_BEACON_FILTER,
-};
+static inline void iwl_scd_txq_set_inactive(struct iwl_trans *trans,
+					    u16 txq_id)
+{
+	iwl_write_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id),
+		       (0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
+		       (1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+}
 
-#endif /* __IWL_MVM_TESTMODE_H__ */
+static inline void iwl_scd_txq_set_chain(struct iwl_trans *trans,
+					 u16 txq_id)
+{
+	iwl_set_bits_prph(trans, SCD_QUEUECHAIN_SEL, BIT(txq_id));
+}
+
+static inline void iwl_scd_txq_enable_agg(struct iwl_trans *trans,
+					  u16 txq_id)
+{
+	iwl_set_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+}
+
+static inline void iwl_scd_txq_disable_agg(struct iwl_trans *trans,
+					   u16 txq_id)
+{
+	iwl_clear_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+}
+
+static inline void iwl_scd_disable_agg(struct iwl_trans *trans)
+{
+	iwl_set_bits_prph(trans, SCD_AGGR_SEL, 0);
+}
+
+static inline void iwl_scd_activate_fifos(struct iwl_trans *trans)
+{
+	iwl_write_prph(trans, SCD_TXFACT, IWL_MASK(0, 7));
+}
+
+static inline void iwl_scd_deactivate_fifos(struct iwl_trans *trans)
+{
+	iwl_write_prph(trans, SCD_TXFACT, 0);
+}
+
+static inline void iwl_scd_enable_set_active(struct iwl_trans *trans,
+					     u32 value)
+{
+	iwl_write_prph(trans, SCD_EN_CTRL, value);
+}
+#endif

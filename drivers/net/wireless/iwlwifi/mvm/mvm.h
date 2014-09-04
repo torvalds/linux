@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,14 +104,6 @@
  * the stations, even if we didn't identify them on a new channel
  */
 #define IWL_MVM_CS_UNBLOCK_TX_TIMEOUT 3
-
-enum iwl_mvm_tx_fifo {
-	IWL_MVM_TX_FIFO_BK = 0,
-	IWL_MVM_TX_FIFO_BE,
-	IWL_MVM_TX_FIFO_VI,
-	IWL_MVM_TX_FIFO_VO,
-	IWL_MVM_TX_FIFO_MCAST = 5,
-};
 
 extern const struct ieee80211_ops iwl_mvm_hw_ops;
 
@@ -203,6 +197,7 @@ enum iwl_dbgfs_pm_mask {
 	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
 	MVM_DEBUGFS_PM_SNOOZE_ENABLE = BIT(8),
 	MVM_DEBUGFS_PM_UAPSD_MISBEHAVING = BIT(9),
+	MVM_DEBUGFS_PM_USE_PS_POLL = BIT(10),
 };
 
 struct iwl_dbgfs_pm {
@@ -215,6 +210,7 @@ struct iwl_dbgfs_pm {
 	u32 lprx_rssi_threshold;
 	bool snooze_ena;
 	bool uapsd_misbehaving;
+	bool use_ps_poll;
 	int mask;
 };
 
@@ -253,6 +249,7 @@ struct iwl_dbgfs_bf {
 enum iwl_mvm_smps_type_request {
 	IWL_MVM_SMPS_REQ_BT_COEX,
 	IWL_MVM_SMPS_REQ_TT,
+	IWL_MVM_SMPS_REQ_PROT,
 	NUM_IWL_MVM_SMPS_REQ,
 };
 
@@ -315,6 +312,9 @@ struct iwl_mvm_vif_bf_data {
  * @id: between 0 and 3
  * @color: to solve races upon MAC addition and removal
  * @ap_sta_id: the sta_id of the AP - valid only if VIF type is STA
+ * @bssid: BSSID for this (client) interface
+ * @associated: indicates that we're currently associated, used only for
+ *	managing the firmware state in iwl_mvm_bss_info_changed_station()
  * @uploaded: indicates the MAC context has been added to the device
  * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
  *	should get quota etc.
@@ -323,6 +323,7 @@ struct iwl_mvm_vif_bf_data {
  *	interface should get quota etc.
  * @low_latency: indicates that this interface is in low-latency mode
  *	(VMACLowLatencyMode)
+ * @ps_disabled: indicates that this interface requires PS to be disabled
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
  *  vifs: P2P_DEVICE, GO and AP.
@@ -335,11 +336,15 @@ struct iwl_mvm_vif {
 	u16 color;
 	u8 ap_sta_id;
 
+	u8 bssid[ETH_ALEN];
+	bool associated;
+
 	bool uploaded;
 	bool ap_ibss_active;
 	bool pm_enabled;
 	bool monitor_active;
 	bool low_latency;
+	bool ps_disabled;
 	struct iwl_mvm_vif_bf_data bf_data;
 
 	u32 ap_beacon_time;
@@ -512,6 +517,10 @@ enum {
 	D0I3_PENDING_WAKEUP,
 };
 
+#define IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE 0xff
+#define IWL_MVM_DEBUG_SET_TEMPERATURE_MIN -100
+#define IWL_MVM_DEBUG_SET_TEMPERATURE_MAX 200
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -553,9 +562,8 @@ struct iwl_mvm {
 
 	struct mvm_statistics_rx rx_stats;
 
-	unsigned long transport_queue_stop;
 	u8 queue_to_mac80211[IWL_MAX_HW_QUEUES];
-	atomic_t queue_stop_count[IWL_MAX_HW_QUEUES];
+	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
 
 	const char *nvm_file_name;
 	struct iwl_nvm_data *nvm_data;
@@ -694,6 +702,12 @@ struct iwl_mvm {
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;
 	s32 temperature;	/* Celsius */
+	/*
+	 * Debug option to set the NIC temperature. This option makes the
+	 * driver think this is the actual NIC temperature, and ignore the
+	 * real temperature that is received from the fw
+	 */
+	bool temperature_test;  /* Debug test temperature is enabled */
 
 #ifdef CONFIG_NL80211_TESTMODE
 	u32 noa_duration;
@@ -706,7 +720,7 @@ struct iwl_mvm {
 	u8 last_agg_queue;
 
 	/* Indicate if device power save is allowed */
-	bool ps_disabled;
+	u8 ps_disabled; /* u8 instead of bool to ease debugfs_create_* usage */
 
 	struct ieee80211_vif __rcu *csa_vif;
 	struct ieee80211_vif __rcu *csa_tx_blocked_vif;
@@ -714,6 +728,8 @@ struct iwl_mvm {
 
 	/* system time of last beacon (for AP/GO interface) */
 	u32 ap_last_beacon_gp2;
+
+	u8 low_latency_agg_frame_limit;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -878,7 +894,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			     bool force_assoc_off);
+			     bool force_assoc_off, const u8 *bssid_override);
 int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif);
@@ -968,6 +984,7 @@ int rs_pretty_print_rate(char *buf, const u32 rate);
 /* power management */
 int iwl_mvm_power_update_device(struct iwl_mvm *mvm);
 int iwl_mvm_power_update_mac(struct iwl_mvm *mvm);
+int iwl_mvm_power_update_ps(struct iwl_mvm *mvm);
 int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				 char *buf, int bufsz);
 

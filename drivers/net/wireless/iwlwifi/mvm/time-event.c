@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -348,6 +350,38 @@ unlock:
 	return 0;
 }
 
+static bool iwl_mvm_te_notif(struct iwl_notif_wait_data *notif_wait,
+			     struct iwl_rx_packet *pkt, void *data)
+{
+	struct iwl_mvm *mvm =
+		container_of(notif_wait, struct iwl_mvm, notif_wait);
+	struct iwl_mvm_time_event_data *te_data = data;
+	struct iwl_time_event_notif *resp;
+	int resp_len = iwl_rx_packet_payload_len(pkt);
+
+	if (WARN_ON(pkt->hdr.cmd != TIME_EVENT_NOTIFICATION))
+		return true;
+
+	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
+		IWL_ERR(mvm, "Invalid TIME_EVENT_NOTIFICATION response\n");
+		return true;
+	}
+
+	resp = (void *)pkt->data;
+
+	/* te_data->uid is already set in the TIME_EVENT_CMD response */
+	if (le32_to_cpu(resp->unique_id) != te_data->uid)
+		return false;
+
+	IWL_DEBUG_TE(mvm, "TIME_EVENT_NOTIFICATION response - UID = 0x%x\n",
+		     te_data->uid);
+	if (!resp->status)
+		IWL_ERR(mvm,
+			"TIME_EVENT_NOTIFICATION received but not executed\n");
+
+	return true;
+}
+
 static bool iwl_mvm_time_event_response(struct iwl_notif_wait_data *notif_wait,
 					struct iwl_rx_packet *pkt, void *data)
 {
@@ -441,10 +475,12 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     u32 duration, u32 min_duration,
-			     u32 max_delay)
+			     u32 max_delay, bool wait_for_notif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
+	const u8 te_notif_response[] = { TIME_EVENT_NOTIFICATION };
+	struct iwl_notification_wait wait_te_notif;
 	struct iwl_time_event_cmd time_cmd = {};
 
 	lockdep_assert_held(&mvm->mutex);
@@ -489,7 +525,28 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 				      TE_V2_NOTIF_HOST_EVENT_END |
 				      T2_V2_START_IMMEDIATELY);
 
-	iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
+	if (!wait_for_notif) {
+		iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
+		return;
+	}
+
+	/*
+	 * Create notification_wait for the TIME_EVENT_NOTIFICATION to use
+	 * right after we send the time event
+	 */
+	iwl_init_notification_wait(&mvm->notif_wait, &wait_te_notif,
+				   te_notif_response,
+				   ARRAY_SIZE(te_notif_response),
+				   iwl_mvm_te_notif, te_data);
+
+	/* If TE was sent OK - wait for the notification that started */
+	if (iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd)) {
+		IWL_ERR(mvm, "Failed to add TE to protect session\n");
+		iwl_remove_notification(&mvm->notif_wait, &wait_te_notif);
+	} else if (iwl_wait_notification(&mvm->notif_wait, &wait_te_notif,
+					 TU_TO_JIFFIES(max_delay))) {
+		IWL_ERR(mvm, "Failed to protect session until TE\n");
+	}
 }
 
 /*

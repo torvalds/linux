@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -491,10 +493,29 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 		.mvm = mvm,
 	};
 
+	/*
+	 * set temperature debug enabled - ignore FW temperature updates
+	 * and use the user set temperature.
+	 */
+	if (mvm->temperature_test) {
+		if (mvm->temperature < le32_to_cpu(common->temperature))
+			IWL_DEBUG_TEMP(mvm,
+				       "Ignoring FW temperature update that is greater than the debug set temperature (debug temp = %d, fw temp = %d)\n",
+				       mvm->temperature,
+				       le32_to_cpu(common->temperature));
+		/*
+		 * skip iwl_mvm_tt_handler since we are in
+		 * temperature debug mode and we are ignoring
+		 * the new temperature value
+		 */
+		goto update;
+	}
+
 	if (mvm->temperature != le32_to_cpu(common->temperature)) {
 		mvm->temperature = le32_to_cpu(common->temperature);
 		iwl_mvm_tt_handler(mvm);
 	}
+update:
 	iwl_mvm_update_rx_statistics(mvm, stats);
 
 	ieee80211_iterate_active_interfaces(mvm->hw,

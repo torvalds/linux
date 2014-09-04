@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -253,6 +255,70 @@ static ssize_t iwl_dbgfs_sram_write(struct iwl_mvm *mvm, char *buf,
 		mvm->dbgfs_sram_offset = 0;
 		mvm->dbgfs_sram_len = 0;
 	}
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_set_nic_temperature_read(struct file *file,
+						  char __user *user_buf,
+						  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	char buf[16];
+	int pos;
+
+	if (!mvm->temperature_test)
+		pos = scnprintf(buf , sizeof(buf), "disabled\n");
+	else
+		pos = scnprintf(buf , sizeof(buf), "%d\n", mvm->temperature);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+/*
+ * Set NIC Temperature
+ * Cause the driver to ignore the actual NIC temperature reported by the FW
+ * Enable: any value between IWL_MVM_DEBUG_SET_TEMPERATURE_MIN -
+ * IWL_MVM_DEBUG_SET_TEMPERATURE_MAX
+ * Disable: IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE
+ */
+static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
+						   char *buf, size_t count,
+						   loff_t *ppos)
+{
+	int temperature;
+
+	if (kstrtoint(buf, 10, &temperature))
+		return -EINVAL;
+	/* not a legal temperature */
+	if ((temperature > IWL_MVM_DEBUG_SET_TEMPERATURE_MAX &&
+	     temperature != IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE) ||
+	    temperature < IWL_MVM_DEBUG_SET_TEMPERATURE_MIN)
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	if (temperature == IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE) {
+		if (!mvm->temperature_test)
+			goto out;
+
+		mvm->temperature_test = false;
+		/* Since we can't read the temp while awake, just set
+		 * it to zero until we get the next RX stats from the
+		 * firmware.
+		 */
+		mvm->temperature = 0;
+	} else {
+		mvm->temperature_test = true;
+		mvm->temperature = temperature;
+	}
+	IWL_DEBUG_TEMP(mvm, "%sabling debug set temperature (temp = %d)\n",
+		       mvm->temperature_test ? "En" : "Dis" ,
+		       mvm->temperature);
+	/* handle the temperature change */
+	iwl_mvm_tt_handler(mvm);
+
+out:
+	mutex_unlock(&mvm->mutex);
 
 	return count;
 }
@@ -1296,6 +1362,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
 MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram, 64);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(set_nic_temperature, 64);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
@@ -1336,6 +1403,8 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(sta_drain, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir,
+			     S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_error_dump, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
@@ -1380,6 +1449,13 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 		goto err;
 #endif
 
+	if (!debugfs_create_u8("low_latency_agg_frame_limit", S_IRUSR | S_IWUSR,
+			       mvm->debugfs_dir,
+			       &mvm->low_latency_agg_frame_limit))
+		goto err;
+	if (!debugfs_create_u8("ps_disabled", S_IRUSR,
+			       mvm->debugfs_dir, &mvm->ps_disabled))
+		goto err;
 	if (!debugfs_create_blob("nvm_hw", S_IRUSR,
 				  mvm->debugfs_dir, &mvm->nvm_hw_blob))
 		goto err;

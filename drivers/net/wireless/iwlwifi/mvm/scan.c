@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -279,6 +281,7 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 {
 	bool global_bound = false;
 	enum ieee80211_band band;
+	u8 frag_passive_dwell = 0;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
@@ -288,12 +291,36 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 	if (!global_bound)
 		goto not_bound;
 
-	params->suspend_time = 100;
-	params->max_out_time = 600;
+	params->suspend_time = 30;
+	params->max_out_time = 170;
 
 	if (iwl_mvm_low_latency(mvm)) {
-		params->suspend_time = 250;
-		params->max_out_time = 250;
+		if (mvm->fw->ucode_capa.api[0] &
+		    IWL_UCODE_TLV_API_FRAGMENTED_SCAN) {
+			params->suspend_time = 105;
+			params->max_out_time = 70;
+			frag_passive_dwell = 20;
+		} else {
+			params->suspend_time = 120;
+			params->max_out_time = 120;
+		}
+	}
+
+	if (frag_passive_dwell && (mvm->fw->ucode_capa.api[0] &
+				   IWL_UCODE_TLV_API_FRAGMENTED_SCAN)) {
+		/*
+		 * P2P device scan should not be fragmented to avoid negative
+		 * impact on P2P device discovery. Configure max_out_time to be
+		 * equal to dwell time on passive channel. Take a longest
+		 * possible value, one that corresponds to 2GHz band
+		 */
+		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+			u32 passive_dwell =
+				iwl_mvm_get_passive_dwell(IEEE80211_BAND_2GHZ);
+			params->max_out_time = passive_dwell;
+		} else {
+			params->passive_fragmented = true;
+		}
 	}
 
 	if (flags & NL80211_SCAN_FLAG_LOW_PRIORITY)
@@ -302,7 +329,11 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 not_bound:
 
 	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
-		params->dwell[band].passive = iwl_mvm_get_passive_dwell(band);
+		if (params->passive_fragmented)
+			params->dwell[band].passive = frag_passive_dwell;
+		else
+			params->dwell[band].passive =
+				iwl_mvm_get_passive_dwell(band);
 		params->dwell[band].active = iwl_mvm_get_active_dwell(band,
 								      n_ssids);
 	}
@@ -1100,10 +1131,11 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 				       struct iwl_mvm_scan_params *params)
 {
 	memset(cmd, 0, ksize(cmd));
-	cmd->active_dwell = (u8)params->dwell[IEEE80211_BAND_2GHZ].active;
-	cmd->passive_dwell = (u8)params->dwell[IEEE80211_BAND_2GHZ].passive;
-	/* TODO: Use params; now fragmented isn't used. */
-	cmd->fragmented_dwell = 0;
+	cmd->active_dwell = params->dwell[IEEE80211_BAND_2GHZ].active;
+	cmd->passive_dwell = params->dwell[IEEE80211_BAND_2GHZ].passive;
+	if (params->passive_fragmented)
+		cmd->fragmented_dwell =
+				params->dwell[IEEE80211_BAND_2GHZ].passive;
 	cmd->rx_chain_select = iwl_mvm_scan_rx_chain(mvm);
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);

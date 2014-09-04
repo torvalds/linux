@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -415,6 +417,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		mvm->first_agg_queue = 12;
 	}
 	mvm->sf_state = SF_UNINIT;
+	mvm->low_latency_agg_frame_limit = 1;
 
 	mutex_init(&mvm->mutex);
 	mutex_init(&mvm->d0i3_suspend_mutex);
@@ -456,7 +459,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.command_names = iwl_mvm_cmd_strings;
 
 	trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
-	trans_cfg.cmd_fifo = IWL_MVM_CMD_FIFO;
+	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
 
 	snprintf(mvm->hw->wiphy->fw_version,
 		 sizeof(mvm->hw->wiphy->fw_version),
@@ -494,7 +497,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		goto out_free;
 
 	/*
-	 * Even if nvm exists in the nvm_file driver should read agin the nvm
+	 * Even if nvm exists in the nvm_file driver should read again the nvm
 	 * from the nic because there might be entries that exist in the OTP
 	 * and not in the file.
 	 * for nics with no_power_up_nic_in_init: rely completley on nvm_file
@@ -700,14 +703,13 @@ static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
 		return;
 
-	if (atomic_inc_return(&mvm->queue_stop_count[mq]) > 1) {
+	if (atomic_inc_return(&mvm->mac80211_queue_stop_count[mq]) > 1) {
 		IWL_DEBUG_TX_QUEUES(mvm,
 				    "queue %d (mac80211 %d) already stopped\n",
 				    queue, mq);
 		return;
 	}
 
-	set_bit(mq, &mvm->transport_queue_stop);
 	ieee80211_stop_queue(mvm->hw, mq);
 }
 
@@ -719,14 +721,12 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
 		return;
 
-	if (atomic_dec_return(&mvm->queue_stop_count[mq]) > 0) {
+	if (atomic_dec_return(&mvm->mac80211_queue_stop_count[mq]) > 0) {
 		IWL_DEBUG_TX_QUEUES(mvm,
-				    "queue %d (mac80211 %d) already awake\n",
+				    "queue %d (mac80211 %d) still stopped\n",
 				    queue, mq);
 		return;
 	}
-
-	clear_bit(mq, &mvm->transport_queue_stop);
 
 	ieee80211_wake_queue(mvm->hw, mq);
 }
