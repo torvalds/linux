@@ -233,7 +233,6 @@ struct boardtype {
 	int device_id;			/* PCI device ID of card */
 	int ai_maxdata;			/* resolution of A/D */
 	const struct comedi_lrange *rangelist_ai;	/* rangelist for A/D */
-	unsigned int ai_ns_min;		/* max sample speed of card v ns */
 	unsigned int ai_pacer_min;	/*
 					 * minimal pacer value
 					 * (c1*c2 or c1 in burst)
@@ -246,21 +245,18 @@ static const struct boardtype boardtypes[] = {
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118dg_hr,
-		.ai_ns_min	= 3000,
 		.ai_pacer_min	= 12,
 	}, {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118hg,
-		.ai_ns_min	= 3000,
 		.ai_pacer_min	= 12,
 	}, {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0xffff,
 		.rangelist_ai	= &range_pci9118dg_hr,
-		.ai_ns_min	= 10000,
 		.ai_pacer_min	= 40,
 	},
 };
@@ -341,6 +337,7 @@ struct pci9118_private {
 					 */
 	unsigned int ai_maskerr;	/* which warning was printed */
 	unsigned int ai_maskharderr;	/* on which error bits stops */
+	unsigned int ai_ns_min;
 };
 
 static int check_channel_list(struct comedi_device *dev,
@@ -709,20 +706,21 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 				  unsigned int chnsshfront)
 {
 	const struct boardtype *this_board = comedi_board(dev);
+	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	switch (mode) {
 	case 1:
 	case 4:
-		if (*tim2 < this_board->ai_ns_min)
-			*tim2 = this_board->ai_ns_min;
+		if (*tim2 < devpriv->ai_ns_min)
+			*tim2 = devpriv->ai_ns_min;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
 					  div1, div2,
 					  tim2, flags & CMDF_ROUND_NEAREST);
 		break;
 	case 2:
-		if (*tim2 < this_board->ai_ns_min)
-			*tim2 = this_board->ai_ns_min;
+		if (*tim2 < devpriv->ai_ns_min)
+			*tim2 = devpriv->ai_ns_min;
 		*div1 = *tim2 / I8254_OSC_BASE_4MHZ;
 						/* convert timer (burst) */
 		if (*div1 < this_board->ai_pacer_min)
@@ -1072,7 +1070,6 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
-	const struct boardtype *this_board = comedi_board(dev);
 	struct pci9118_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int flags;
@@ -1154,7 +1151,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER)
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 this_board->ai_ns_min);
+						 devpriv->ai_ns_min);
 
 	if (cmd->scan_begin_src == TRIG_EXT)
 		if (cmd->scan_begin_arg) {
@@ -1166,7 +1163,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW))
 		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 this_board->ai_ns_min);
+						 devpriv->ai_ns_min);
 
 	if (cmd->convert_src == TRIG_EXT)
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
@@ -1210,7 +1207,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 		if (cmd->scan_begin_src == TRIG_TIMER &&
 		    cmd->convert_src == TRIG_NOW) {
 			if (cmd->convert_arg == 0) {
-				arg = this_board->ai_ns_min *
+				arg = devpriv->ai_ns_min *
 				      (cmd->scan_end_arg + 2);
 			} else {
 				arg = cmd->convert_arg * cmd->chanlist_len;
@@ -1491,7 +1488,6 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 
 static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct boardtype *this_board = comedi_board(dev);
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int addchans = 0;
@@ -1569,8 +1565,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			devpriv->ai_add_front++;
 			devpriv->ai_add_back = 0;
 		}
-		if (cmd->convert_arg < this_board->ai_ns_min)
-			cmd->convert_arg = this_board->ai_ns_min;
+		if (cmd->convert_arg < devpriv->ai_ns_min)
+			cmd->convert_arg = devpriv->ai_ns_min;
 		addchans = devpriv->softsshdelay / cmd->convert_arg;
 		if (devpriv->softsshdelay % cmd->convert_arg)
 			addchans++;
@@ -1894,6 +1890,20 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 		s->do_cmd = pci9118_ai_cmd;
 		s->cancel = pci9118_ai_cancel;
 		s->munge = pci9118_ai_munge;
+	}
+
+	if (s->maxdata == 0xffff) {
+		/*
+		 * 16-bit samples are from an ADS7805 A/D converter.
+		 * Minimum sampling rate is 10us.
+		 */
+		devpriv->ai_ns_min = 10000;
+	} else {
+		/*
+		 * 12-bit samples are from an ADS7800 A/D converter.
+		 * Minimum sampling rate is 3us.
+		 */
+		devpriv->ai_ns_min = 3000;
 	}
 
 	s = &dev->subdevices[1];
