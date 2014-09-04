@@ -4395,7 +4395,7 @@ intel_dp_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
-	intel_dp_unset_edid(intel_attached_dp(connector));
+	kfree(intel_connector->detect_edid);
 
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
