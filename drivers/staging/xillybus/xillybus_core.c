@@ -172,9 +172,9 @@ irqreturn_t xillybus_isr(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	buf_size = i;
+	buf_size = i + 2;
 
-	for (i = 0; i <= buf_size; i += 2) { /* Scan through messages */
+	for (i = 0; i < buf_size; i += 2) { /* Scan through messages */
 		opcode = (buf[i] >> 24) & 0xff;
 
 		msg_dir = buf[i] & 1;
