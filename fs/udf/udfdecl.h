@@ -143,7 +143,6 @@ extern int udf_expand_file_adinicb(struct inode *);
 extern struct buffer_head *udf_expand_dir_adinicb(struct inode *, int *, int *);
 extern struct buffer_head *udf_bread(struct inode *, int, int, int *);
 extern int udf_setsize(struct inode *, loff_t);
-extern void udf_read_inode(struct inode *);
 extern void udf_evict_inode(struct inode *);
 extern int udf_write_inode(struct inode *, struct writeback_control *wbc);
 extern long udf_block_map(struct inode *, sector_t);
