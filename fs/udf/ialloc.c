@@ -95,6 +95,7 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode, int *err)
 	lvidiu = udf_sb_lvidiu(sb);
 	if (lvidiu) {
 		iinfo->i_unique = lvid_get_unique_id(sb);
+		inode->i_generation = iinfo->i_unique;
 		mutex_lock(&sbi->s_alloc_mutex);
 		if (S_ISDIR(mode))
 			le32_add_cpu(&lvidiu->numDirs, 1);
