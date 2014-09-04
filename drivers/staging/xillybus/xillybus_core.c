@@ -402,7 +402,7 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 		s->left_of_salami -= bytebufsize;
 		s->salami += bytebufsize;
 	}
-	return 0; /* Success */
+	return 0;
 }
 
 static int xilly_setupchannels(struct xilly_endpoint *ep,
@@ -668,7 +668,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 		return -ENODEV;
 	}
 
-	return 0; /* Success */
+	return 0;
 }
 
 static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
@@ -977,10 +977,11 @@ desperate:
 		}
 
 		/*
-		 * Formally speaking, we should block for data at this point.
-		 * But to keep the code cleaner, we'll just finish the loop,
-		 * make the unlikely check for data, and then block at the
-		 * usual place.
+		 * Reaching here means that we *do* have data in the buffer,
+		 * but the "partial" flag disallows returning less than
+		 * required. And we don't have as much. So loop again,
+		 * which is likely to end up blocking indefinitely until
+		 * enough data has arrived.
 		 */
 	}
 
@@ -1947,7 +1948,7 @@ static int xilly_quiesce(struct xilly_endpoint *endpoint)
 			"Failed to quiesce the device on exit.\n");
 		return -ENODEV;
 	}
-	return 0; /* Success */
+	return 0;
 }
 
 int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
