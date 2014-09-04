@@ -110,8 +110,8 @@
 #define PCI9118_TIMER_CTRL_REG		0x0c
 #define PCI9118_AI_FIFO_REG		0x10
 #define PCI9118_AO_REG(x)		(0x10 + ((x) * 4))
+#define PCI9118_AI_STATUS_REG		0x18
 
-#define PCI9118_ADSTAT	0x18	/* R:   A/D status register */
 #define PCI9118_ADCNTRL	0x18	/* W:   A/D control register */
 #define PCI9118_DI	0x1c	/* R:   digi input register */
 #define PCI9118_DO	0x1c	/* W:   digi output register */
@@ -171,7 +171,7 @@
 					 */
 #define AdFunction_Start	0x01	/* 1=trigger start, 0=trigger stop */
 
-/* bits from A/D status register (PCI9118_ADSTAT) */
+/* bits from A/D status register (PCI9118_AI_STATUS_REG) */
 #define AdStatus_nFull	0x100	/* 0=FIFO full (fatal), 1=not full */
 #define AdStatus_nHfull	0x080	/* 0=FIFO half full, 1=FIFO not half full */
 #define AdStatus_nEpty	0x040	/* 0=FIFO empty, 1=FIFO not empty */
@@ -500,7 +500,7 @@ static int pci9118_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inl(dev->iobase + PCI9118_ADSTAT);
+	status = inl(dev->iobase + PCI9118_AI_STATUS_REG);
 	if (status & AdStatus_ADrdy)
 		return 0;
 	return -EBUSY;
@@ -1003,7 +1003,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 
 	outl(intcsr | 0x00ff0000, devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 
-	adstat = inl(dev->iobase + PCI9118_ADSTAT) & 0x1ff;
+	adstat = inl(dev->iobase + PCI9118_AI_STATUS_REG) & 0x1ff;
 
 	if (!devpriv->ai_do)
 		return IRQ_HANDLED;
@@ -1660,10 +1660,9 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 	udelay(1);
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
-	inl(dev->iobase + PCI9118_ADSTAT);	/*
-						 * flush A/D and INT
-						 * status register
-						 */
+
+	/* clear A/D and INT status registers */
+	inl(dev->iobase + PCI9118_AI_STATUS_REG);
 	inl(dev->iobase + PCI9118_INTSRC);
 
 	devpriv->ai_act_scan = 0;
@@ -1721,8 +1720,9 @@ static int pci9118_reset(struct comedi_device *dev)
 	inl(dev->iobase + PCI9118_AI_FIFO_REG);
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
 	outl(0, dev->iobase + PCI9118_INTSRC);	/* remove INT requests */
-	inl(dev->iobase + PCI9118_ADSTAT);	/* flush A/D status register */
-	inl(dev->iobase + PCI9118_INTSRC);	/* flush INT requests */
+	/* clear A/D and INT status registers */
+	inl(dev->iobase + PCI9118_AI_STATUS_REG);
+	inl(dev->iobase + PCI9118_INTSRC);
 	devpriv->AdControlReg = 0;
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
 						/*
