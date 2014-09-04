@@ -161,9 +161,9 @@ static int  __power_supply_find_supply_from_node(struct device *dev,
 	struct device_node *np = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
 
-	/* return error breaks out of class_for_each_device loop */
+	/* returning non-zero breaks out of class_for_each_device loop */
 	if (epsy->of_node == np)
-		return -EINVAL;
+		return 1;
 
 	return 0;
 }
@@ -186,15 +186,19 @@ static int power_supply_find_supply_from_node(struct device_node *supply_node)
 		return -EPROBE_DEFER;
 
 	/*
-	 * We have to treat the return value as inverted, because if
-	 * we return error on not found, then it won't continue looking.
-	 * So we trick it by returning error on success to stop looking
-	 * once the matching device is found.
+	 * class_for_each_device() either returns its own errors or values
+	 * returned by __power_supply_find_supply_from_node().
+	 *
+	 * __power_supply_find_supply_from_node() will return 0 (no match)
+	 * or 1 (match).
+	 *
+	 * We return 0 if class_for_each_device() returned 1, -EPROBE_DEFER if
+	 * it returned 0, or error as returned by it.
 	 */
 	error = class_for_each_device(power_supply_class, NULL, supply_node,
 				       __power_supply_find_supply_from_node);
 
-	return error ? 0 : -EPROBE_DEFER;
+	return error ? (error == 1 ? 0 : error) : -EPROBE_DEFER;
 }
 
 static int power_supply_check_supplies(struct power_supply *psy)
