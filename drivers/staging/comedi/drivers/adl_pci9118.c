@@ -111,6 +111,15 @@
 #define PCI9118_AI_FIFO_REG		0x10
 #define PCI9118_AO_REG(x)		(0x10 + ((x) * 4))
 #define PCI9118_AI_STATUS_REG		0x18
+#define PCI9118_AI_STATUS_NFULL		(1 << 8)  /* 0=FIFO full (fatal) */
+#define PCI9118_AI_STATUS_NHFULL	(1 << 7)  /* 0=FIFO half full */
+#define PCI9118_AI_STATUS_NEPTY		(1 << 6)  /* 0=FIFO empty */
+#define PCI9118_AI_STATUS_ACMP		(1 << 5)  /* 1=about trigger complete */
+#define PCI9118_AI_STATUS_DTH		(1 << 4)  /* 1=ext. digital trigger */
+#define PCI9118_AI_STATUS_BOVER		(1 << 3)  /* 1=burst overrun (fatal) */
+#define PCI9118_AI_STATUS_ADOS		(1 << 2)  /* 1=A/D over speed (warn) */
+#define PCI9118_AI_STATUS_ADOR		(1 << 1)  /* 1=A/D overrun (fatal) */
+#define PCI9118_AI_STATUS_ADRDY		(1 << 0)  /* 1=A/D ready */
 
 #define PCI9118_ADCNTRL	0x18	/* W:   A/D control register */
 #define PCI9118_DI	0x1c	/* R:   digi input register */
@@ -170,17 +179,6 @@
 					 * 0=not about trigger
 					 */
 #define AdFunction_Start	0x01	/* 1=trigger start, 0=trigger stop */
-
-/* bits from A/D status register (PCI9118_AI_STATUS_REG) */
-#define AdStatus_nFull	0x100	/* 0=FIFO full (fatal), 1=not full */
-#define AdStatus_nHfull	0x080	/* 0=FIFO half full, 1=FIFO not half full */
-#define AdStatus_nEpty	0x040	/* 0=FIFO empty, 1=FIFO not empty */
-#define AdStatus_Acmp	0x020	/*  */
-#define AdStatus_DTH	0x010	/* 1=external digital trigger */
-#define AdStatus_Bover	0x008	/* 1=burst mode overrun (fatal) */
-#define AdStatus_ADOS	0x004	/* 1=A/D over speed (warning) */
-#define AdStatus_ADOR	0x002	/* 1=A/D overrun (fatal) */
-#define AdStatus_ADrdy	0x001	/* 1=A/D already ready, 0=not ready */
 
 /* bits for interrupt reason and control (PCI9118_INTSRC, PCI9118_INTCTRL) */
 /* 1=interrupt occur, enable source,  0=interrupt not occur, disable source */
@@ -501,7 +499,7 @@ static int pci9118_ai_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	status = inl(dev->iobase + PCI9118_AI_STATUS_REG);
-	if (status & AdStatus_ADrdy)
+	if (status & PCI9118_AI_STATUS_ADRDY)
 		return 0;
 	return -EBUSY;
 }
@@ -1009,7 +1007,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 
 	if (devpriv->ai12_startstop) {
-		if ((adstat & AdStatus_DTH) && (intsrc & Int_DTrg)) {
+		if ((adstat & PCI9118_AI_STATUS_DTH) && (intsrc & Int_DTrg)) {
 			/* start/stop of measure */
 			if (devpriv->ai12_startstop & START_AI_EXT) {
 				/* deactivate EXT trigger */
