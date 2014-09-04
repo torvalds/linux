@@ -105,14 +105,21 @@ ramfuc_nsec(struct ramfuc *ram, u32 nsec)
 	nouveau_memx_nsec(ram->memx, nsec);
 }
 
-#define ram_init(s,p)       ramfuc_init(&(s)->base, (p))
-#define ram_exec(s,e)       ramfuc_exec(&(s)->base, (e))
-#define ram_have(s,r)       ((s)->r_##r.addr[0] != 0x000000)
-#define ram_rd32(s,r)       ramfuc_rd32(&(s)->base, &(s)->r_##r)
-#define ram_wr32(s,r,d)     ramfuc_wr32(&(s)->base, &(s)->r_##r, (d))
-#define ram_nuke(s,r)       ramfuc_nuke(&(s)->base, &(s)->r_##r)
-#define ram_mask(s,r,m,d)   ramfuc_mask(&(s)->base, &(s)->r_##r, (m), (d))
-#define ram_wait(s,r,m,d,n) ramfuc_wait(&(s)->base, (r), (m), (d), (n))
-#define ram_nsec(s,n)       ramfuc_nsec(&(s)->base, (n))
+static inline void
+ramfuc_wait_vblank(struct ramfuc *ram)
+{
+	nouveau_memx_wait_vblank(ram->memx);
+}
+
+#define ram_init(s,p)        ramfuc_init(&(s)->base, (p))
+#define ram_exec(s,e)        ramfuc_exec(&(s)->base, (e))
+#define ram_have(s,r)        ((s)->r_##r.addr[0] != 0x000000)
+#define ram_rd32(s,r)        ramfuc_rd32(&(s)->base, &(s)->r_##r)
+#define ram_wr32(s,r,d)      ramfuc_wr32(&(s)->base, &(s)->r_##r, (d))
+#define ram_nuke(s,r)        ramfuc_nuke(&(s)->base, &(s)->r_##r)
+#define ram_mask(s,r,m,d)    ramfuc_mask(&(s)->base, &(s)->r_##r, (m), (d))
+#define ram_wait(s,r,m,d,n)  ramfuc_wait(&(s)->base, (r), (m), (d), (n))
+#define ram_nsec(s,n)        ramfuc_nsec(&(s)->base, (n))
+#define ram_wait_vblank(s)   ramfuc_wait_vblank(&(s)->base)
 
 #endif

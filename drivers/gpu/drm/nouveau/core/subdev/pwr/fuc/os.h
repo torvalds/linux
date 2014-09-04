@@ -24,6 +24,7 @@
 #define MEMX_WR32   2
 #define MEMX_WAIT   3
 #define MEMX_DELAY  4
+#define MEMX_VBLANK 5
 
 /* I2C_: message identifiers */
 #define I2C__MSG_RD08 0

@@ -43,12 +43,13 @@ process(PROC_MEMX, #memx_init, #memx_recv)
 */	.b32 func
 
 memx_func_head:
-handler(ENTER , 0x0001, 0x0000, #memx_func_enter)
+handler(ENTER , 0x0000, 0x0000, #memx_func_enter)
 memx_func_next:
 handler(LEAVE , 0x0000, 0x0000, #memx_func_leave)
 handler(WR32  , 0x0000, 0x0002, #memx_func_wr32)
 handler(WAIT  , 0x0004, 0x0000, #memx_func_wait)
 handler(DELAY , 0x0001, 0x0000, #memx_func_delay)
+handler(VBLANK, 0x0001, 0x0000, #memx_func_wait_vblank)
 memx_func_tail:
 
 .equ #memx_func_size #memx_func_next - #memx_func_head
@@ -67,7 +68,6 @@ memx_data_tail:
 //
 // $r15 - current (memx)
 // $r4  - packet length
-//	+00: bitmask of heads to wait for vblank on
 // $r3  - opcode desciption
 // $r0  - zero
 memx_func_enter:
@@ -77,9 +77,7 @@ memx_func_enter:
 		nv_iord($r6, NV_PPWR_OUTPUT)
 		and $r6 NV_PPWR_OUTPUT_FB_PAUSE
 		bra z #memx_func_enter_wait
-	//XXX: TODO
-	ld b32 $r6 D[$r1 + 0x00]
-	add b32 $r1 0x04
+
 	ret
 
 // description
@@ -96,6 +94,58 @@ memx_func_leave:
 		and $r6 NV_PPWR_OUTPUT_FB_PAUSE
 		bra nz #memx_func_leave_wait
 	ret
+
+#if NVKM_PPWR_CHIPSET < GF119
+// description
+//
+// $r15 - current (memx)
+// $r4  - packet length
+//	+00: head to wait for vblank on
+// $r3  - opcode desciption
+// $r0  - zero
+memx_func_wait_vblank:
+	ld b32 $r6 D[$r1 + 0x00]
+	cmp b32 $r6 0x0
+	bra z #memx_func_wait_vblank_head0
+	cmp b32 $r6 0x1
+	bra z #memx_func_wait_vblank_head1
+	bra #memx_func_wait_vblank_fini
+
+	memx_func_wait_vblank_head1:
+	movw $r7 0x20
+	bra #memx_func_wait_vblank_0
+
+	memx_func_wait_vblank_head0:
+	movw $r7 0x8
+
+	memx_func_wait_vblank_0:
+		nv_iord($r6, NV_PPWR_INPUT)
+		and $r6 $r7
+		bra nz #memx_func_wait_vblank_0
+
+	memx_func_wait_vblank_1:
+		nv_iord($r6, NV_PPWR_INPUT)
+		and $r6 $r7
+		bra z #memx_func_wait_vblank_1
+
+	memx_func_wait_vblank_fini:
+	add b32 $r1 0x4
+	ret
+
+#else
+
+// XXX: currently no-op
+//
+// $r15 - current (memx)
+// $r4  - packet length
+//	+00: head to wait for vblank on
+// $r3  - opcode desciption
+// $r0  - zero
+memx_func_wait_vblank:
+	add b32 $r1 0x4
+	ret
+
+#endif
 
 // description
 //
