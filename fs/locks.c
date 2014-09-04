@@ -326,17 +326,18 @@ static inline int flock_translate_cmd(int cmd) {
 }
 
 /* Fill in a file_lock structure with an appropriate FLOCK lock. */
-static int flock_make_lock(struct file *filp, struct file_lock **lock,
-		unsigned int cmd)
+static struct file_lock *
+flock_make_lock(struct file *filp, unsigned int cmd)
 {
 	struct file_lock *fl;
 	int type = flock_translate_cmd(cmd);
+
 	if (type < 0)
-		return type;
+		return ERR_PTR(type);
 	
 	fl = locks_alloc_lock();
 	if (fl == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	fl->fl_file = filp;
 	fl->fl_owner = filp;
@@ -345,8 +346,7 @@ static int flock_make_lock(struct file *filp, struct file_lock **lock,
 	fl->fl_type = type;
 	fl->fl_end = OFFSET_MAX;
 	
-	*lock = fl;
-	return 0;
+	return fl;
 }
 
 static int assign_type(struct file_lock *fl, long type)
@@ -1885,9 +1885,12 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	    !(f.file->f_mode & (FMODE_READ|FMODE_WRITE)))
 		goto out_putf;
 
-	error = flock_make_lock(f.file, &lock, cmd);
-	if (error)
+	lock = flock_make_lock(f.file, cmd);
+	if (IS_ERR(lock)) {
+		error = PTR_ERR(lock);
 		goto out_putf;
+	}
+
 	if (can_sleep)
 		lock->fl_flags |= FL_SLEEP;
 
