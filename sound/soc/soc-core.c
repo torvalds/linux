@@ -3810,8 +3810,10 @@ EXPORT_SYMBOL_GPL(snd_soc_register_card);
  */
 int snd_soc_unregister_card(struct snd_soc_card *card)
 {
-	if (card->instantiated)
+	if (card->instantiated) {
+		card->instantiated = false;
 		soc_cleanup_card_resources(card);
+	}
 	dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
 
 	return 0;
