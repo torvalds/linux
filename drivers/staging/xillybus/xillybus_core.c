@@ -1588,7 +1588,6 @@ unlock_wr:
 
 static int xillybus_release(struct inode *inode, struct file *filp)
 {
-	int rc;
 	unsigned long flags;
 	struct xilly_channel *channel = filp->private_data;
 
@@ -1599,13 +1598,7 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 		return -EIO;
 
 	if (filp->f_mode & FMODE_WRITE) {
-		rc = mutex_lock_interruptible(&channel->rd_mutex);
-
-		if (rc) {
-			dev_warn(channel->endpoint->dev,
-				 "Failed to close file. Hardware left in messy state.\n");
-			return rc;
-		}
+		mutex_lock(&channel->rd_mutex);
 
 		channel->rd_ref_count--;
 
@@ -1625,12 +1618,7 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 	}
 
 	if (filp->f_mode & FMODE_READ) {
-		rc = mutex_lock_interruptible(&channel->wr_mutex);
-		if (rc) {
-			dev_warn(channel->endpoint->dev,
-				 "Failed to close file. Hardware left in messy state.\n");
-			return rc;
-		}
+		mutex_lock(&channel->wr_mutex);
 
 		channel->wr_ref_count--;
 
