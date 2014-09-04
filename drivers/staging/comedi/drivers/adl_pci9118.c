@@ -135,37 +135,18 @@
 #define PCI9118_AI_BURST_NUM_REG	0x28
 #define PCI9118_AI_AUTOSCAN_MODE_REG	0x2c
 #define PCI9118_AI_CFG_REG		0x30
+#define PCI9118_AI_CFG_PDTRG		(1 << 7)  /* 1=positive trigger */
+#define PCI9118_AI_CFG_PETRG		(1 << 6)  /* 1=positive ext. trigger */
+#define PCI9118_AI_CFG_BSSH		(1 << 5)  /* 1=with sample & hold */
+#define PCI9118_AI_CFG_BM		(1 << 4)  /* 1=burst mode */
+#define PCI9118_AI_CFG_BS		(1 << 3)  /* 1=burst mode start */
+#define PCI9118_AI_CFG_PM		(1 << 2)  /* 1=post trigger */
+#define PCI9118_AI_CFG_AM		(1 << 1)  /* 1=about trigger */
+#define PCI9118_AI_CFG_START		(1 << 0)  /* 1=trigger start */
 
 #define PCI9118_DELFIFO	0x34	/* W:   A/D data FIFO reset */
 #define PCI9118_INTSRC	0x38	/* R:   interrupt reason register */
 #define PCI9118_INTCTRL	0x38	/* W:   interrupt control register */
-
-/* bits from A/D function register (PCI9118_AI_CFG_REG) */
-#define AdFunction_PDTrg	0x80	/*
-					 * 1=positive,
-					 * 0=negative digital trigger
-					 * (only positive is correct)
-					 */
-#define AdFunction_PETrg	0x40	/*
-					 * 1=positive,
-					 * 0=negative external trigger
-					 * (only positive is correct)
-					 */
-#define AdFunction_BSSH		0x20	/* 1=with sample&hold, 0=without */
-#define AdFunction_BM		0x10	/* 1=burst mode, 0=normal mode */
-#define AdFunction_BS		0x08	/*
-					 * 1=burst mode start,
-					 * 0=burst mode stop
-					 */
-#define AdFunction_PM		0x04	/*
-					 * 1=post trigger mode,
-					 * 0=not post trigger
-					 */
-#define AdFunction_AM		0x02	/*
-					 * 1=about trigger mode,
-					 * 0=not about trigger
-					 */
-#define AdFunction_Start	0x01	/* 1=trigger start, 0=trigger stop */
 
 /* bits for interrupt reason and control (PCI9118_INTSRC, PCI9118_INTCTRL) */
 /* 1=interrupt occur, enable source,  0=interrupt not occur, disable source */
@@ -503,7 +484,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	int n;
 
 	devpriv->AdControlReg = PCI9118_AI_CTRL_INT;
-	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
+	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 						/*
 						 * positive triggers, no S&H,
@@ -607,13 +588,13 @@ static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
 
-	devpriv->AdFunctionReg =
-	    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_AM;
+	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG |
+				 PCI9118_AI_CFG_AM;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
 	pci9118_timer_write(dev, 0,
 			    devpriv->dmabuf_hw[1 - devpriv->dma_actbuf] >> 1);
-	devpriv->AdFunctionReg |= AdFunction_Start;
+	devpriv->AdFunctionReg |= PCI9118_AI_CFG_START;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 }
 
@@ -769,7 +750,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 			devpriv->iobase_a + AMCC_OP_REG_MCSR);	/* stop DMA */
 	pci9118_exttrg_del(dev, EXTTRG_AI);
 	pci9118_start_pacer(dev, 0);	/* stop 8254 counters */
-	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
+	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 					/*
 					 * positive triggers, no S&H, no burst,
@@ -1432,28 +1413,31 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	case 2:
 		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR |
 					 PCI9118_AI_CTRL_DMA;
-		devpriv->AdFunctionReg =
-		    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_BM |
-		    AdFunction_BS;
+		devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG |
+					 PCI9118_AI_CFG_PETRG |
+					 PCI9118_AI_CFG_BM |
+					 PCI9118_AI_CFG_BS;
 		if (cmd->convert_src == TRIG_NOW && !devpriv->softsshdelay)
-			devpriv->AdFunctionReg |= AdFunction_BSSH;
+			devpriv->AdFunctionReg |= PCI9118_AI_CFG_BSSH;
 		outl(devpriv->ai_n_realscanlen,
 		     dev->iobase + PCI9118_AI_BURST_NUM_REG);
 		break;
 	case 3:
 		devpriv->AdControlReg |= PCI9118_AI_CTRL_EXTM |
 					 PCI9118_AI_CTRL_DMA;
-		devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
+		devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG |
+					 PCI9118_AI_CFG_PETRG;
 		break;
 	case 4:
 		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR |
 					 PCI9118_AI_CTRL_DMA;
-		devpriv->AdFunctionReg =
-		    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_AM;
+		devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG |
+					 PCI9118_AI_CFG_PETRG |
+					 PCI9118_AI_CFG_AM;
 		outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 		pci9118_timer_set_mode(dev, 0, I8254_MODE0);
 		pci9118_timer_write(dev, 0, devpriv->dmabuf_hw[0] >> 1);
-		devpriv->AdFunctionReg |= AdFunction_Start;
+		devpriv->AdFunctionReg |= PCI9118_AI_CFG_START;
 		break;
 	default:
 		dev_err(dev->class_dev, "%s mode number bug!\n", __func__);
@@ -1651,7 +1635,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					 * disable DMA
 					 */
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
-	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
+	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 					/*
 					 * positive triggers, no S&H, no burst,
 					 * burst stop, no post trigger,
@@ -1700,7 +1684,7 @@ static int pci9118_reset(struct comedi_device *dev)
 	/* reset scan queue */
 	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
-	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
+	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 						/*
 						 * positive triggers, no S&H,
