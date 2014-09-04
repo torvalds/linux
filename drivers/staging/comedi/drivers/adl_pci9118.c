@@ -129,9 +129,8 @@
 #define PCI9118_AI_CTRL_TMRTR		(1 << 2)  /* 1=8254 is trigger source */
 #define PCI9118_AI_CTRL_INT		(1 << 1)  /* 1=enable interrupt */
 #define PCI9118_AI_CTRL_DMA		(1 << 0)  /* 1=enable DMA */
+#define PCI9118_DIO_REG			0x1c
 
-#define PCI9118_DI	0x1c	/* R:   digi input register */
-#define PCI9118_DO	0x1c	/* W:   digi output register */
 #define PCI9118_SOFTTRG	0x20	/* W:   soft trigger for A/D */
 #define PCI9118_GAIN	0x24	/* W:   A/D gain/channel register */
 #define PCI9118_BURST	0x28	/* W:   A/D burst number register */
@@ -565,9 +564,15 @@ static int pci9118_insn_read_ao(struct comedi_device *dev,
 
 static int pci9118_insn_bits_di(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	data[1] = inl(dev->iobase + PCI9118_DI) & 0xf;
+	/*
+	 * The digital inputs and outputs share the read register.
+	 * bits [7:4] are the digital outputs
+	 * bits [3:0] are the digital inputs
+	 */
+	data[1] = inl(dev->iobase + PCI9118_DIO_REG) & 0xf;
 
 	return insn->n;
 }
@@ -577,8 +582,14 @@ static int pci9118_insn_bits_do(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
+	/*
+	 * The digital outputs are set with the same register that
+	 * the digital inputs and outputs are read from. But the
+	 * outputs are set with bits [3:0] so we can simply write
+	 * the s->state to set them.
+	 */
 	if (comedi_dio_update_state(s, data))
-		outl(s->state & 0x0f, dev->iobase + PCI9118_DO);
+		outl(s->state, dev->iobase + PCI9118_DIO_REG);
 
 	data[1] = s->state;
 
@@ -1695,7 +1706,7 @@ static int pci9118_reset(struct comedi_device *dev)
 	outl(devpriv->ao_data[0], dev->iobase + PCI9118_AO_REG(0));
 	outl(devpriv->ao_data[1], dev->iobase + PCI9118_AO_REG(1));
 
-	outl(0, dev->iobase + PCI9118_DO);	/* reset digi outs to L */
+	outl(0, dev->iobase + PCI9118_DIO_REG);	/* reset digi outs to L */
 	udelay(10);
 	inl(dev->iobase + PCI9118_AI_FIFO_REG);
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
