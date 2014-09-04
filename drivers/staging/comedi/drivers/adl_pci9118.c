@@ -231,7 +231,7 @@ static const struct comedi_lrange pci9118hg_ai_range = {
 struct boardtype {
 	const char *name;		/* board name */
 	int device_id;			/* PCI device ID of card */
-	int ai_maxdata;			/* resolution of A/D */
+	unsigned int ai_is_16bit:1;
 	unsigned int is_hg:1;
 };
 
@@ -239,16 +239,14 @@ static const struct boardtype boardtypes[] = {
 	{
 		.name		= "pci9118dg",
 		.device_id	= 0x80d9,
-		.ai_maxdata	= 0x0fff,
 	}, {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
-		.ai_maxdata	= 0x0fff,
 		.is_hg		= 1,
 	}, {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
-		.ai_maxdata	= 0xffff,
+		.ai_is_16bit	= 1,
 	},
 };
 
@@ -1871,7 +1869,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	else
 		s->n_chan = 16;
 
-	s->maxdata = this_board->ai_maxdata;
+	s->maxdata = this_board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table = this_board->is_hg ? &pci9118hg_ai_range
 					   : &pci9118_ai_range;
 	s->insn_read = pci9118_insn_read_ai;
