@@ -29,7 +29,7 @@ Charger Manager supports the following:
 	While the battery is being charged and the system is in suspend-to-RAM,
 	we may need to monitor the battery health by looking at the ambient or
 	battery temperature. We can accomplish this by waking up the system
-	periodically. However, such a method wakes up devices unncessary for
+	periodically. However, such a method wakes up devices unnecessarily for
 	monitoring the battery health and tasks, and user processes that are
 	supposed to be kept suspended. That, in turn, incurs unnecessary power
 	consumption and slow down charging process. Or even, such peak power
