@@ -18,8 +18,6 @@
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 
-struct device;
-
 /*
  * All voltages, currents, charges, energies, time and temperatures in uV,
  * µA, µAh, µWh, seconds and tenths of degree Celsius unless otherwise
@@ -175,6 +173,7 @@ union power_supply_propval {
 	const char *strval;
 };
 
+struct device;
 struct device_node;
 
 struct power_supply {
