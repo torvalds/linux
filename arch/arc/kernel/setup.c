@@ -24,6 +24,7 @@
 #include <asm/unwind.h>
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
+#include <asm/smp.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
@@ -306,10 +307,7 @@ void setup_processor(void)
 	arc_chk_ccms();
 
 	printk(arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
-
-#ifdef CONFIG_SMP
 	printk(arc_platform_smp_cpuinfo());
-#endif
 
 	arc_chk_fpu();
 }
@@ -360,11 +358,7 @@ void __init setup_arch(char **cmdline_p)
 		machine_desc->init_early();
 
 	setup_processor();
-
-#ifdef CONFIG_SMP
 	smp_init_cpus();
-#endif
-
 	setup_arch_memory();
 
 	/* copy flat DT out of .init and then unflatten it */
@@ -424,14 +418,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   (loops_per_jiffy / (5000 / HZ)) % 100);
 
 	seq_printf(m, arc_mmu_mumbojumbo(cpu_id, str, PAGE_SIZE));
-
 	seq_printf(m, arc_cache_mumbojumbo(cpu_id, str, PAGE_SIZE));
-
 	seq_printf(m, arc_extn_mumbojumbo(cpu_id, str, PAGE_SIZE));
-
-#ifdef CONFIG_SMP
 	seq_printf(m, arc_platform_smp_cpuinfo());
-#endif
 
 	free_page((unsigned long)str);
 done:

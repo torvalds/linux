@@ -71,7 +71,7 @@ MACHINE_START(ML509, "ml509")
 	.dt_compat	= ml509_compat,
 	.init_early	= plat_fpga_early_init,
 	.init_machine	= plat_fpga_populate_dev,
-#ifdef CONFIG_SMP
+#ifdef CONFIG_ISS_SMP_EXTN
 	.init_smp	= iss_model_init_smp,
 #endif
 MACHINE_END

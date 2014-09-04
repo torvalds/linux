@@ -8,7 +8,7 @@
 
 menuconfig ARC_PLAT_FPGA_LEGACY
 	bool "\"Legacy\" ARC FPGA dev Boards"
-	select ISS_SMP_EXTN if SMP
+	select ARC_HAS_COH_CACHES if SMP
 	help
 	  Support for ARC development boards, provided by Synopsys.
 	  These are based on FPGA or ISS. e.g.
