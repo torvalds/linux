@@ -384,6 +384,9 @@ int ast_bo_push_sysram(struct ast_bo *bo);
 int ast_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* ast post */
+void ast_enable_vga(struct drm_device *dev);
+void ast_enable_mmio(struct drm_device *dev);
+bool ast_is_vga_enabled(struct drm_device *dev);
 void ast_post_gpu(struct drm_device *dev);
 u32 ast_mindwm(struct ast_private *ast, u32 r);
 void ast_moutdwm(struct ast_private *ast, u32 r, u32 v);
