@@ -197,7 +197,7 @@
 
 #define PCI9118_HALF_FIFO_SZ	(1024 / 2)
 
-static const struct comedi_lrange range_pci9118dg_hr = {
+static const struct comedi_lrange pci9118_ai_range = {
 	8, {
 		BIP_RANGE(5),
 		BIP_RANGE(2.5),
@@ -210,7 +210,7 @@ static const struct comedi_lrange range_pci9118dg_hr = {
 	}
 };
 
-static const struct comedi_lrange range_pci9118hg = {
+static const struct comedi_lrange pci9118hg_ai_range = {
 	8, {
 		BIP_RANGE(5),
 		BIP_RANGE(0.5),
@@ -232,7 +232,7 @@ struct boardtype {
 	const char *name;		/* board name */
 	int device_id;			/* PCI device ID of card */
 	int ai_maxdata;			/* resolution of A/D */
-	const struct comedi_lrange *rangelist_ai;	/* rangelist for A/D */
+	unsigned int is_hg:1;
 };
 
 static const struct boardtype boardtypes[] = {
@@ -240,17 +240,15 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci9118dg",
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0x0fff,
-		.rangelist_ai	= &range_pci9118dg_hr,
 	}, {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0x0fff,
-		.rangelist_ai	= &range_pci9118hg,
+		.is_hg		= 1,
 	}, {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0xffff,
-		.rangelist_ai	= &range_pci9118dg_hr,
 	},
 };
 
@@ -1874,7 +1872,8 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 		s->n_chan = 16;
 
 	s->maxdata = this_board->ai_maxdata;
-	s->range_table = this_board->rangelist_ai;
+	s->range_table = this_board->is_hg ? &pci9118hg_ai_range
+					   : &pci9118_ai_range;
 	s->insn_read = pci9118_insn_read_ai;
 	if (dev->irq) {
 		dev->read_subdev = s;
