@@ -792,6 +792,9 @@ struct iwl_rate_info {
 	u8 ieee;	/* MAC header:  IWL_RATE_6M_IEEE, etc. */
 };
 
+void __iwl_mvm_mac_stop(struct iwl_mvm *mvm);
+int __iwl_mvm_mac_start(struct iwl_mvm *mvm);
+
 /******************
  * MVM Methods
  ******************/

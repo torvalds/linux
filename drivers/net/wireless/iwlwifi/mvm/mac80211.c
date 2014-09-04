@@ -815,12 +815,11 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	mvm->rx_ba_sessions = 0;
 }
 
-static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
+int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
-	mutex_lock(&mvm->mutex);
+	lockdep_assert_held(&mvm->mutex);
 
 	/* Clean up some internal and mac80211 state on restart */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
@@ -837,6 +836,16 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 		iwl_mvm_d0i3_enable_tx(mvm, NULL);
 	}
 
+	return ret;
+}
+
+static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = __iwl_mvm_mac_start(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -862,14 +871,9 @@ static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
 	mutex_unlock(&mvm->mutex);
 }
 
-static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
+void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-
-	flush_work(&mvm->d0i3_exit_work);
-	flush_work(&mvm->async_handlers_wk);
-
-	mutex_lock(&mvm->mutex);
+	lockdep_assert_held(&mvm->mutex);
 
 	/* disallow low power states when the FW is down */
 	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
@@ -891,7 +895,17 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	iwl_mvm_del_aux_sta(mvm);
 
 	mvm->ucode_loaded = false;
+}
 
+static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	flush_work(&mvm->d0i3_exit_work);
+	flush_work(&mvm->async_handlers_wk);
+
+	mutex_lock(&mvm->mutex);
+	__iwl_mvm_mac_stop(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	/*
