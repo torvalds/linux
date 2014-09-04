@@ -21,6 +21,7 @@
 #include <asm/div64.h>
 
 #include "clk-rcg.h"
+#include "common.h"
 
 static u32 ns_to_src(struct src_sel *s, u32 ns)
 {
@@ -360,26 +361,13 @@ clk_dyn_rcg_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	}
 }
 
-static const
-struct freq_tbl *find_freq(const struct freq_tbl *f, unsigned long rate)
-{
-	if (!f)
-		return NULL;
-
-	for (; f->freq; f++)
-		if (rate <= f->freq)
-			return f;
-
-	return NULL;
-}
-
 static long _freq_tbl_determine_rate(struct clk_hw *hw,
 		const struct freq_tbl *f, unsigned long rate,
 		unsigned long *p_rate, struct clk **p)
 {
 	unsigned long clk_flags;
 
-	f = find_freq(f, rate);
+	f = qcom_find_freq(f, rate);
 	if (!f)
 		return -EINVAL;
 
@@ -477,7 +465,7 @@ static int clk_rcg_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_rcg *rcg = to_clk_rcg(hw);
 	const struct freq_tbl *f;
 
-	f = find_freq(rcg->freq_tbl, rate);
+	f = qcom_find_freq(rcg->freq_tbl, rate);
 	if (!f)
 		return -EINVAL;
 
@@ -497,7 +485,7 @@ static int __clk_dyn_rcg_set_rate(struct clk_hw *hw, unsigned long rate)
 	struct clk_dyn_rcg *rcg = to_clk_dyn_rcg(hw);
 	const struct freq_tbl *f;
 
-	f = find_freq(rcg->freq_tbl, rate);
+	f = qcom_find_freq(rcg->freq_tbl, rate);
 	if (!f)
 		return -EINVAL;
 
