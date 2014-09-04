@@ -38,6 +38,7 @@ struct af9033_dev {
 	fe_status_t fe_status;
 	u32 ber;
 	u32 ucb;
+	u64 post_bit_error_prev; /* for old read_ber we return (curr - prev) */
 	u64 post_bit_error;
 	u64 post_bit_count;
 	u64 error_block_count;
@@ -918,13 +919,9 @@ err:
 static int af9033_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
-	int ret;
 
-	ret = af9033_update_ch_stat(dev);
-	if (ret < 0)
-		return ret;
-
-	*ber = dev->ber;
+	*ber = (dev->post_bit_error - dev->post_bit_error_prev);
+	dev->post_bit_error_prev = dev->post_bit_error;
 
 	return 0;
 }
