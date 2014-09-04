@@ -58,7 +58,7 @@ static bool __power_supply_is_supplied_by(struct power_supply *supplier,
 
 static int __power_supply_changed_work(struct device *dev, void *data)
 {
-	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *psy = data;
 	struct power_supply *pst = dev_get_drvdata(dev);
 
 	if (__power_supply_is_supplied_by(psy, pst)) {
@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(power_supply_changed);
 static int __power_supply_populate_supplied_from(struct device *dev,
 						 void *data)
 {
-	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *psy = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
 	struct device_node *np;
 	int i = 0;
@@ -158,7 +158,7 @@ static int power_supply_populate_supplied_from(struct power_supply *psy)
 static int  __power_supply_find_supply_from_node(struct device *dev,
 						 void *data)
 {
-	struct device_node *np = (struct device_node *)data;
+	struct device_node *np = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
 
 	/* return error breaks out of class_for_each_device loop */
@@ -257,7 +257,7 @@ static inline int power_supply_check_supplies(struct power_supply *psy)
 static int __power_supply_am_i_supplied(struct device *dev, void *data)
 {
 	union power_supply_propval ret = {0,};
-	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *psy = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
 
 	if (__power_supply_is_supplied_by(epsy, psy))
