@@ -76,6 +76,16 @@ memx_data_tail:
 // $r3  - opcode desciption
 // $r0  - zero
 memx_func_enter:
+#if NVKM_PPWR_CHIPSET == GT215
+	movw $r8 0x1610
+	nv_rd32($r7, $r8)
+	imm32($r6, 0xfffffffc)
+	and $r7 $r6
+	movw $r6 0x2
+	or $r7 $r6
+	nv_wr32($r8, $r7)
+#endif
+
 	mov $r6 NV_PPWR_OUTPUT_SET_FB_PAUSE
 	nv_iowr(NV_PPWR_OUTPUT_SET, $r6)
 	memx_func_enter_wait:
@@ -104,6 +114,15 @@ memx_func_leave:
 		nv_iord($r6, NV_PPWR_OUTPUT)
 		and $r6 NV_PPWR_OUTPUT_FB_PAUSE
 		bra nz #memx_func_leave_wait
+
+#if NVKM_PPWR_CHIPSET == GT215
+	movw $r8 0x1610
+	nv_rd32($r7, $r8)
+	imm32($r6, 0xffffffcc)
+	and $r7 $r6
+	nv_wr32($r8, $r7)
+#endif
+
 	ret
 
 #if NVKM_PPWR_CHIPSET < GF119
