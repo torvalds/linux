@@ -932,14 +932,8 @@ static int af9033_read_ber(struct dvb_frontend *fe, u32 *ber)
 static int af9033_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
-	int ret;
 
-	ret = af9033_update_ch_stat(dev);
-	if (ret < 0)
-		return ret;
-
-	*ucblocks = dev->ucb;
-
+	*ucblocks = dev->error_block_count;
 	return 0;
 }
 
