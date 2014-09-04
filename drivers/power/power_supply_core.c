@@ -226,6 +226,10 @@ static int power_supply_check_supplies(struct power_supply *psy)
 		of_node_put(np);
 	} while (np);
 
+	/* Missing valid "power-supplies" entries */
+	if (cnt == 1)
+		return 0;
+
 	/* All supplies found, allocate char ** array for filling */
 	psy->supplied_from = devm_kzalloc(psy->dev, sizeof(psy->supplied_from),
 					  GFP_KERNEL);
