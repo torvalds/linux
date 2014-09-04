@@ -16,9 +16,11 @@
 			rockchip,powerdown = <&gpio3 GPIO_B3 GPIO_ACTIVE_HIGH>;
 			pwdn_active = <ov2659_PWRDN_ACTIVE>;
 			#rockchip,power = <>;
-			#pwr_active = <>;
+			pwr_active = <PWR_ACTIVE_HIGH>;
 			#rockchip,reset = <>;
 			#rst_active = <>;
+			#rockchip,flash = <>;
+			#rockchip,af = <>;
 			mir = <0>;
 			flash_attach = <0>;
 			resolution = <ov2659_FULL_RESOLUTION>;
@@ -35,9 +37,11 @@
 			rockchip,powerdown = <&gpio3 GPIO_B3 GPIO_ACTIVE_HIGH>;
 			pwdn_active = <gc0329_PWRDN_ACTIVE>;
 			#rockchip,power = <>;
-			#pwr_active = <>;
+			pwr_active = <PWR_ACTIVE_HIGH>;
 			#rockchip,reset = <>;
 			#rst_active = <>;
+			#rockchip,flash = <>;
+			#rockchip,af = <>;
 			mir = <0>;
 			flash_attach = <0>;
 			resolution = <gc0329_FULL_RESOLUTION>;

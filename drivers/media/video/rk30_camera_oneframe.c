@@ -264,8 +264,10 @@ static u32 DISABLE_INVERT_PCLK_CIF1;
 		 1. i2c 1 and wifi use the common io in rk3128,so just enable i2c1 in rk3126 dts file
 *v0.1.4:
 		 1. When cif was at work, the aclk is closed ,may cause bus abnormal ,so sleep 100ms before close aclk 
+*v0.1.5:	
+           1. Improve the code to support all configuration.reset,af,flash...
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x4)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x5)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 

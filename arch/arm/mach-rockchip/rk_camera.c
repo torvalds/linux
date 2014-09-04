@@ -163,7 +163,7 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		u32	powerdown = INVALID_GPIO,power = INVALID_GPIO,reset = INVALID_GPIO;
 		u32 af = INVALID_GPIO,flash = INVALID_GPIO;
 
-		int pwr_active = INVALID_VALUE, rst_active = INVALID_VALUE, pwdn_active = INVALID_VALUE;
+		int pwr_active = 0, rst_active = 0, pwdn_active = 0;
 		int orientation = 0;
 		struct rkcamera_platform_data *new_camera; 
 		new_camera = kzalloc(sizeof(struct rkcamera_platform_data),GFP_KERNEL);
@@ -211,16 +211,16 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 				dprintk("%s:Get %s pwr_active failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "rockchip,reset", &reset)) {
-				printk("%s:Get %s rockchip,reset failed!\n",__func__, cp->name);				
+				dprintk("%s:Get %s rockchip,reset failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "rst_active", &rst_active)) {
 				dprintk("%s:Get %s rst_active failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "rockchip,af", &af)) {
-				printk("%s:Get %s rockchip,af failed!\n",__func__, cp->name);				
+				dprintk("%s:Get %s rockchip,af failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "rockchip,flash", &flash)) {
-				printk("%s:Get %s rockchip,flash failed!\n",__func__, cp->name);				
+				dprintk("%s:Get %s rockchip,flash failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "i2c_add", &i2c_add)) {
 			printk("%s:Get %s rockchip,i2c_add failed!\n",__func__, cp->name);				
@@ -341,13 +341,11 @@ debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE
     if (camera_power != INVALID_GPIO)  {
 		if (camera_io_init & RK29_CAM_POWERACTIVE_MASK) {
             if (on) {
-            	/*gpio_set_value(camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));*/
-				gpio_direction_output(camera_power,1);
+            	gpio_set_value(camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
 				dprintk("%s PowerPin=%d ..PinLevel = %x",res->dev_name, camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
     			msleep(10);
     		} else {
-    			/*gpio_set_value(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));*/
-				gpio_direction_output(camera_power,0);
+    			gpio_set_value(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
 				dprintk("%s PowerPin=%d ..PinLevel = %x",res->dev_name, camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
     		}
 		} else {
@@ -551,28 +549,25 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
 		dprintk("%s power pin(%d) init success(0x%x)" ,gpio_res->dev_name,camera_power,(((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
 
     }
-/*
+
     if (camera_reset != INVALID_GPIO) {
+		
+		camera_power = of_get_named_gpio_flags(of_node,"rockchip,reset",0,&flags);/*yzm*/
+		gpio_res->gpio_reset = camera_reset;/*yzm information back to the IO*/
         ret = gpio_request(camera_reset, "camera reset");
         if (ret) {
             io_requested_in_camera = false;
-            for (i=0; i<RK_CAM_NUM; i++) {
-                io_res = &rk_camera_platform_data.gpio_res[i];
-                if (io_res->gpio_init & RK29_CAM_RESETACTIVE_MASK) {
-                    if (io_res->gpio_reset == camera_reset)
-                        io_requested_in_camera = true;    
-                }
-            }
 
             if (io_requested_in_camera==false) {
-                i=0;
-                while (strstr(new_camera[i].dev_name,"end")==NULL) {
-                    io_res = &new_camera[i].io;
+				
+                new_camera = new_camera_head;
+                while (new_camera != NULL) {
+                    io_res = &new_camera->io;
                     if (io_res->gpio_init & RK29_CAM_RESETACTIVE_MASK) {
                         if (io_res->gpio_reset == camera_reset)
                             io_requested_in_camera = true;    
                     }
-                    i++;
+                    new_camera = new_camera->next_camera;
                 }
             }
             
@@ -583,13 +578,7 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
                 ret =0;
             }
         }
-
-        if (rk_camera_platform_data.iomux(camera_reset,dev) < 0) {
-            ret = -1;
-            eprintk("%s reset pin(%d) iomux init failed", gpio_res->dev_name,camera_reset);
-            goto _rk_sensor_io_init_end_;
-        }
-        
+       
 		gpio_res->gpio_init |= RK29_CAM_RESETACTIVE_MASK;
         gpio_set_value(camera_reset, ((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
         gpio_direction_output(camera_reset, ((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
@@ -597,7 +586,7 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
 		dprintk("%s reset pin(%d) init success(0x%x)" ,gpio_res->dev_name,camera_reset,((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
 
     }
-*/
+
 	if (camera_powerdown != INVALID_GPIO) {
 		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$/ camera_powerdown  = %x\n", camera_powerdown );
 
@@ -638,28 +627,25 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
 		dprintk("%s powerdown pin(%d) init success(0x%x)" ,gpio_res->dev_name,camera_powerdown,((camera_ioflag&RK29_CAM_POWERDNACTIVE_BITPOS)>>RK29_CAM_POWERDNACTIVE_BITPOS));
 
     }
-/*
+
 	if (camera_flash != INVALID_GPIO) {
+
+		camera_flash = of_get_named_gpio_flags(of_node,"rockchip,flash",0,&flags);/*yzm*/
+		gpio_res->gpio_flash = camera_flash;/*yzm information back to the IO*/
         ret = gpio_request(camera_flash, "camera flash");
         if (ret) {
             io_requested_in_camera = false;
-            for (i=0; i<RK_CAM_NUM; i++) {
-                io_res = &rk_camera_platform_data.gpio_res[i];
-                if (io_res->gpio_init & RK29_CAM_POWERDNACTIVE_MASK) {
-                    if (io_res->gpio_powerdown == camera_powerdown)
-                        io_requested_in_camera = true;    
-                }
-            }
 
             if (io_requested_in_camera==false) {
-                i=0;
-                while (strstr(new_camera[i].dev_name,"end")==NULL) {
-                    io_res = &new_camera[i].io;
+
+				new_camera = new_camera_head;
+                while (new_camera != NULL) {
+                    io_res = &new_camera->io;
                     if (io_res->gpio_init & RK29_CAM_POWERDNACTIVE_MASK) {
                         if (io_res->gpio_powerdown == camera_powerdown)
                             io_requested_in_camera = true;    
                     }
-                    i++;
+                    new_camera = new_camera->next_camera;
                 }
             }
             
@@ -671,9 +657,6 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
         }
 
 
-        if (rk_camera_platform_data.iomux(camera_flash,dev) < 0) {
-            printk("%s flash pin(%d) iomux init failed\n",gpio_res->dev_name,camera_flash);                            
-        }
         
 		gpio_res->gpio_init |= RK29_CAM_FLASHACTIVE_MASK;
         gpio_set_value(camera_flash, ((~camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));   //  falsh off 
@@ -683,28 +666,24 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
 
     }  
 
-
 	if (camera_af != INVALID_GPIO) {
+		
+		camera_af = of_get_named_gpio_flags(of_node,"rockchip,af",0,&flags);/*yzm*/
+		gpio_res->gpio_af = camera_af;/*yzm information back to the IO*/
 		ret = gpio_request(camera_af, "camera af");
 		if (ret) {
 			io_requested_in_camera = false;
-			for (i=0; i<RK_CAM_NUM; i++) {
-				io_res = &rk_camera_platform_data.gpio_res[i];
-				if (io_res->gpio_init & RK29_CAM_AFACTIVE_MASK) {
-					if (io_res->gpio_af == camera_af)
-						io_requested_in_camera = true;	  
-				}
-			}
 
 			if (io_requested_in_camera==false) {
-				i=0;
-				while (strstr(new_camera[i].dev_name,"end")==NULL) {
-					io_res = &new_camera[i].io;
+
+				new_camera = new_camera_head;
+				while (new_camera != NULL) {
+					io_res = &new_camera->io;
 					if (io_res->gpio_init & RK29_CAM_AFACTIVE_MASK) {
 						if (io_res->gpio_af == camera_af)
 							io_requested_in_camera = true;	  
 					}
-					i++;
+					new_camera = new_camera->next_camera;
 				}
 			}
 			
@@ -716,20 +695,12 @@ static int _rk_sensor_io_init_(struct rk29camera_gpio_res *gpio_res,struct devic
             }
 			
 		}
-
-
-		if (rk_camera_platform_data.iomux(camera_af,dev) < 0) {
-			 ret = -1;
-			eprintk("%s af pin(%d) iomux init failed\n",gpio_res->dev_name,camera_af); 	
-            goto _rk_sensor_io_init_end_;			
-		}
 		
 		gpio_res->gpio_init |= RK29_CAM_AFACTIVE_MASK;
 		//gpio_direction_output(camera_af, ((camera_ioflag&RK29_CAM_AFACTIVE_MASK)>>RK29_CAM_AFACTIVE_BITPOS));
 		dprintk("%s af pin(%d) init success",gpio_res->dev_name, camera_af);
 
 	}
-*/
 
 	
 _rk_sensor_io_init_end_:

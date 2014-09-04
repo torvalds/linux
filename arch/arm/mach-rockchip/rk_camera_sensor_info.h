@@ -225,6 +225,9 @@
 #define icatchov2720_I2C_ADDR       0x78  //zyt
 #define end_I2C_ADDR                INVALID_VALUE
 
+//Sensor power  active level define
+#define PWR_ACTIVE_HIGH                  0x01
+#define PWR_ACTIVE_LOW					 0x0
 
 //Sensor power down active level define
 #define ov7675_PWRDN_ACTIVE             0x01            
