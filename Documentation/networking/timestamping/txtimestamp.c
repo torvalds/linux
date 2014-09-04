@@ -192,7 +192,6 @@ static int recv_errmsg(int fd)
 	memset(&msg, 0, sizeof(msg));
 	memset(&entry, 0, sizeof(entry));
 	memset(ctrl, 0, sizeof(ctrl));
-	memset(data, 0, sizeof(data));
 
 	entry.iov_base = data;
 	entry.iov_len = cfg_payload_len;
