@@ -80,6 +80,17 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
+	rtc@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_int>;
+		#clock-cells = <0>;
+		clock-output-names = "xin32k";
+	};
+
 	act8846: act8846@5a {
 		compatible = "active-semi,act8846";
 		reg = <0x5a>;
@@ -181,11 +192,8 @@
 	status = "okay";
 	vmmc-supply = <&vcc_sd0>;
 
-	slot@0 {
-		reg = <0>;
-		bus-width = <4>;
-		disable-wp;
-	};
+	bus-width = <4>;
+	disable-wp;
 };
 
 &pinctrl {
@@ -196,6 +204,12 @@
 	act8846 {
 		act8846_dvs0_ctl: act8846-dvs0-ctl {
 			rockchip,pins = <RK_GPIO3 27 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+	};
+
+	hym8563 {
+		rtc_int: rtc-int {
+			rockchip,pins = <RK_GPIO0 0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
