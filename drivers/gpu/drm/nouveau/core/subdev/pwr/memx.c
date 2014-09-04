@@ -62,7 +62,6 @@ nouveau_memx_init(struct nouveau_pwr *ppwr, struct nouveau_memx **pmemx)
 		nv_wr32(ppwr, 0x10a580, 0x00000003);
 	} while (nv_rd32(ppwr, 0x10a580) != 0x00000003);
 	nv_wr32(ppwr, 0x10a1c0, 0x01000000 | memx->base);
-	nv_wr32(ppwr, 0x10a1c4, 0x00010000 | MEMX_ENTER);
 
 	return 0;
 }
@@ -78,7 +77,6 @@ nouveau_memx_fini(struct nouveau_memx **pmemx, bool exec)
 	memx_out(memx);
 
 	/* release data segment access */
-	nv_wr32(ppwr, 0x10a1c4, 0x00000000 | MEMX_LEAVE);
 	finish = nv_rd32(ppwr, 0x10a1c0) & 0x00ffffff;
 	nv_wr32(ppwr, 0x10a580, 0x00000000);
 
@@ -148,6 +146,24 @@ nouveau_memx_wait_vblank(struct nouveau_memx *memx)
 	nv_debug(memx->ppwr, "WAIT VBLANK HEAD%d\n", head_sync);
 	memx_cmd(memx, MEMX_VBLANK, 1, (u32[]){ head_sync });
 	memx_out(memx); /* fuc can't handle multiple */
+}
+
+void
+nouveau_memx_fb_disable(struct nouveau_memx *memx)
+{
+	struct nouveau_pwr *ppwr = memx->ppwr;
+
+	nv_debug(memx->ppwr, "   FB OFF\n");
+	nv_wr32(ppwr, 0x10a1c4, MEMX_FB_OFF);
+}
+
+void
+nouveau_memx_fb_enable(struct nouveau_memx *memx)
+{
+	struct nouveau_pwr *ppwr = memx->ppwr;
+
+	nv_debug(memx->ppwr, "   FB  ON\n");
+	nv_wr32(ppwr, 0x10a1c4, MEMX_FB_ON);
 }
 
 #endif

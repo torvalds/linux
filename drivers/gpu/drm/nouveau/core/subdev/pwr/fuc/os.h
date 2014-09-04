@@ -19,8 +19,8 @@
 #define MEMX_MSG_EXEC 1
 
 /* MEMX: script opcode definitions */
-#define MEMX_ENTER  0
-#define MEMX_LEAVE  1
+#define MEMX_FB_OFF 0
+#define MEMX_FB_ON  1
 #define MEMX_WR32   2
 #define MEMX_WAIT   3
 #define MEMX_DELAY  4

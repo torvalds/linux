@@ -998,6 +998,8 @@ nve0_ram_calc_xits(struct nouveau_fb *pfb, struct nouveau_ram_data *next)
 	if (ret)
 		return ret;
 
+	ram_fb_disable(fuc);
+
 	ram->mode = (next->freq > fuc->refpll.vco1.max_freq) ? 2 : 1;
 	ram->from = ram_rd32(fuc, 0x1373f4) & 0x0000000f;
 
@@ -1060,6 +1062,9 @@ nve0_ram_calc_xits(struct nouveau_fb *pfb, struct nouveau_ram_data *next)
 		ret = -ENOSYS;
 		break;
 	}
+
+	if (!ret)
+		ram_fb_enable(fuc);
 
 	return ret;
 }

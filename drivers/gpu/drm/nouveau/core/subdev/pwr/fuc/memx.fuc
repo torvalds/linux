@@ -43,9 +43,9 @@ process(PROC_MEMX, #memx_init, #memx_recv)
 */	.b32 func
 
 memx_func_head:
-handler(ENTER , 0x0000, 0x0000, #memx_func_enter)
+handler(FB_OFF, 0x0000, 0x0000, #memx_func_enter)
 memx_func_next:
-handler(LEAVE , 0x0000, 0x0000, #memx_func_leave)
+handler(FB_ON , 0x0000, 0x0000, #memx_func_leave)
 handler(WR32  , 0x0000, 0x0002, #memx_func_wr32)
 handler(WAIT  , 0x0004, 0x0000, #memx_func_wait)
 handler(DELAY , 0x0001, 0x0000, #memx_func_delay)
