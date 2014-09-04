@@ -78,7 +78,14 @@ static void power_supply_changed_work(struct work_struct *work)
 	dev_dbg(psy->dev, "%s\n", __func__);
 
 	spin_lock_irqsave(&psy->changed_lock, flags);
-	if (psy->changed) {
+	/*
+	 * Check 'changed' here to avoid issues due to race between
+	 * power_supply_changed() and this routine. In worst case
+	 * power_supply_changed() can be called again just before we take above
+	 * lock. During the first call of this routine we will mark 'changed' as
+	 * false and it will stay false for the next call as well.
+	 */
+	if (likely(psy->changed)) {
 		psy->changed = false;
 		spin_unlock_irqrestore(&psy->changed_lock, flags);
 		class_for_each_device(power_supply_class, NULL, psy,
@@ -89,12 +96,13 @@ static void power_supply_changed_work(struct work_struct *work)
 		kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
 		spin_lock_irqsave(&psy->changed_lock, flags);
 	}
+
 	/*
-	 * Dependent power supplies (e.g. battery) may have changed state
-	 * as a result of this event, so poll again and hold the
-	 * wakeup_source until all events are processed.
+	 * Hold the wakeup_source until all events are processed.
+	 * power_supply_changed() might have called again and have set 'changed'
+	 * to true.
 	 */
-	if (!psy->changed)
+	if (likely(!psy->changed))
 		pm_relax(psy->dev);
 	spin_unlock_irqrestore(&psy->changed_lock, flags);
 }
