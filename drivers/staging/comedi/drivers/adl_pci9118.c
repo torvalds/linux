@@ -233,10 +233,6 @@ struct boardtype {
 	int device_id;			/* PCI device ID of card */
 	int ai_maxdata;			/* resolution of A/D */
 	const struct comedi_lrange *rangelist_ai;	/* rangelist for A/D */
-	unsigned int ai_pacer_min;	/*
-					 * minimal pacer value
-					 * (c1*c2 or c1 in burst)
-					 */
 };
 
 static const struct boardtype boardtypes[] = {
@@ -245,19 +241,16 @@ static const struct boardtype boardtypes[] = {
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118dg_hr,
-		.ai_pacer_min	= 12,
 	}, {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118hg,
-		.ai_pacer_min	= 12,
 	}, {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
 		.ai_maxdata	= 0xffff,
 		.rangelist_ai	= &range_pci9118dg_hr,
-		.ai_pacer_min	= 40,
 	},
 };
 
@@ -705,9 +698,9 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 				  unsigned int *div1, unsigned int *div2,
 				  unsigned int chnsshfront)
 {
-	const struct boardtype *this_board = comedi_board(dev);
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int min_pacer;
 
 	switch (mode) {
 	case 1:
@@ -723,8 +716,9 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 			*tim2 = devpriv->ai_ns_min;
 		*div1 = *tim2 / I8254_OSC_BASE_4MHZ;
 						/* convert timer (burst) */
-		if (*div1 < this_board->ai_pacer_min)
-			*div1 = this_board->ai_pacer_min;
+		min_pacer = devpriv->ai_ns_min / I8254_OSC_BASE_4MHZ;
+		if (*div1 < min_pacer)
+			*div1 = min_pacer;
 		*div2 = *tim1 / I8254_OSC_BASE_4MHZ;	/* scan timer */
 		*div2 = *div2 / *div1;		/* major timer is c1*c2 */
 		if (*div2 < chans)
