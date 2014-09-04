@@ -161,6 +161,15 @@ static inline int update_sits_in_cursum(struct f2fs_summary_block *rs, int i)
 	return before;
 }
 
+static inline bool __has_cursum_space(struct f2fs_summary_block *sum, int size,
+								int type)
+{
+	if (type == NAT_JOURNAL)
+		return nats_in_cursum(sum) + size <= NAT_JOURNAL_ENTRIES;
+
+	return sits_in_cursum(sum) + size <= SIT_JOURNAL_ENTRIES;
+}
+
 /*
  * ioctl commands
  */
@@ -374,6 +383,8 @@ struct f2fs_sm_info {
 	struct list_head discard_list;		/* 4KB discard list */
 	int nr_discards;			/* # of discards in the list */
 	int max_discards;			/* max. discards to be issued */
+
+	struct list_head sit_entry_set;	/* sit entry set list */
 
 	unsigned int ipu_policy;	/* in-place-update policy */
 	unsigned int min_ipu_util;	/* in-place-update threshold */

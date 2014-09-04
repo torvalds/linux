@@ -237,6 +237,12 @@ struct curseg_info {
 	unsigned int next_segno;		/* preallocated segment */
 };
 
+struct sit_entry_set {
+	struct list_head set_list;	/* link with all sit sets */
+	unsigned int start_segno;	/* start segno of sits in set */
+	unsigned int entry_cnt;		/* the # of sit entries in set */
+};
+
 /*
  * inline functions
  */
