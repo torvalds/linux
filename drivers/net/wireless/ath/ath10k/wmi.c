@@ -2164,7 +2164,7 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 					      struct sk_buff *skb)
 {
 	struct wmi_service_ready_event *ev = (void *)skb->data;
-	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_BM_SIZE) = {};
+	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_MAX) = {};
 
 	if (skb->len < sizeof(*ev)) {
 		ath10k_warn(ar, "Service ready event was %d B but expected %zu B. Wrong firmware version?\n",
@@ -2241,7 +2241,7 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
 	int ret;
 	struct wmi_service_ready_event_10x *ev = (void *)skb->data;
-	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_BM_SIZE) = {};
+	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_MAX) = {};
 
 	if (skb->len < sizeof(*ev)) {
 		ath10k_warn(ar, "Service ready event was %d B but expected %zu B. Wrong firmware version?\n",

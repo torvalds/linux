@@ -109,6 +109,9 @@ enum wmi_service {
 	WMI_SERVICE_BURST,
 	WMI_SERVICE_SMART_ANTENNA_SW_SUPPORT,
 	WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT,
+
+	/* keep last */
+	WMI_SERVICE_MAX,
 };
 
 enum wmi_10x_service {
@@ -218,8 +221,6 @@ static inline char *wmi_service_name(int service_id)
 
 #undef SVCSTR
 }
-
-#define WMI_MAX_SERVICE 64
 
 #define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id) \
 	(__le32_to_cpu((wmi_svc_bmap)[(svc_id)/(sizeof(u32))]) & \
@@ -346,9 +347,6 @@ static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out)
 }
 
 #undef SVCMAP
-
-#define WMI_SERVICE_BM_SIZE \
-	((WMI_MAX_SERVICE + sizeof(u32) - 1)/sizeof(u32))
 
 /* 2 word representation of MAC addr */
 struct wmi_mac_addr {
@@ -1405,7 +1403,7 @@ struct wmi_service_ready_event {
 	__le32 phy_capability;
 	/* Maximum number of frag table entries that SW will populate less 1 */
 	__le32 max_frag_entry;
-	__le32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	__le32 wmi_service_bitmap[16];
 	__le32 num_rf_chains;
 	/*
 	 * The following field is only valid for service type
@@ -1444,7 +1442,7 @@ struct wmi_service_ready_event_10x {
 
 	/* Maximum number of frag table entries that SW will populate less 1 */
 	__le32 max_frag_entry;
-	__le32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	__le32 wmi_service_bitmap[16];
 	__le32 num_rf_chains;
 
 	/*

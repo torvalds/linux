@@ -208,7 +208,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 	if (len > buf_len)
 		len = buf_len;
 
-	for (i = 0; i < WMI_MAX_SERVICE; i++) {
+	for (i = 0; i < WMI_SERVICE_MAX; i++) {
 		enabled = test_bit(i, ar->debug.wmi_service_bitmap);
 		name = wmi_service_name(i);
 
