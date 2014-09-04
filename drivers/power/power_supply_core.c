@@ -265,10 +265,8 @@ static int __power_supply_am_i_supplied(struct device *dev, void *data)
 	struct power_supply *epsy = dev_get_drvdata(dev);
 
 	if (__power_supply_is_supplied_by(epsy, psy))
-		if (!epsy->get_property(epsy, POWER_SUPPLY_PROP_ONLINE, &ret)) {
-			if (ret.intval)
-				return ret.intval;
-		}
+		if (!epsy->get_property(epsy, POWER_SUPPLY_PROP_ONLINE, &ret))
+			return ret.intval;
 
 	return 0;
 }
@@ -293,12 +291,10 @@ static int __power_supply_is_system_supplied(struct device *dev, void *data)
 	unsigned int *count = data;
 
 	(*count)++;
-	if (psy->type != POWER_SUPPLY_TYPE_BATTERY) {
-		if (psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &ret))
-			return 0;
-		if (ret.intval)
+	if (psy->type != POWER_SUPPLY_TYPE_BATTERY)
+		if (!psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &ret))
 			return ret.intval;
-	}
+
 	return 0;
 }
 
