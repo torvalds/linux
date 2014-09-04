@@ -2933,13 +2933,17 @@ int stmmac_suspend(struct net_device *ndev)
 	else {
 		stmmac_set_mac(priv->ioaddr, false);
 		/* Disable clock in case of PWM is off */
-	if ((priv->plat) && (priv->plat->bsp_priv)) {
-		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
-		if ((bsp_priv) && (bsp_priv->gmac_clk_enable)) {
-			bsp_priv->gmac_clk_enable(false);
+		if ((priv->plat) && (priv->plat->bsp_priv)) {
+			struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
+			if (bsp_priv) {
+				if (bsp_priv->gmac_clk_enable) {
+					bsp_priv->gmac_clk_enable(false);
+				}
+				if (bsp_priv->phy_power_on) {
+					bsp_priv->phy_power_on(false);
+				}
+			}
 		}
-	}
-
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
@@ -2967,8 +2971,13 @@ int stmmac_resume(struct net_device *ndev)
 		/* enable the clk prevously disabled */
 		if ((priv->plat) && (priv->plat->bsp_priv)) {
 			struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
-			if ((bsp_priv) && (bsp_priv->gmac_clk_enable)) {
-				bsp_priv->gmac_clk_enable(true);
+			if (bsp_priv) {
+				if (bsp_priv->gmac_clk_enable) {
+					bsp_priv->gmac_clk_enable(true);
+				}
+				if (bsp_priv->phy_power_on) {
+					bsp_priv->phy_power_on(true);
+				}
 			}
 		}
 	}

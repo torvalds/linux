@@ -319,24 +319,6 @@ static int power_on_by_pmu(bool enable) {
 			}
 		}
 		regulator_put(ldo);
-		msleep(100);
-
-		if (enable) {
-			//reset
-			if (gpio_is_valid(bsp_priv->reset_io)) {
-				gpio_direction_output(bsp_priv->reset_io, bsp_priv->reset_io_level);
-				msleep(10);
-				gpio_direction_output(bsp_priv->reset_io, !bsp_priv->reset_io_level);
-			}
-
-			msleep(100);
-		} else {
-			//pull up reset
-			if (gpio_is_valid(bsp_priv->reset_io)) {
-				gpio_direction_output(bsp_priv->reset_io, !bsp_priv->reset_io_level);
-			}
-		}
-
 	}
 
 	return 0;
@@ -349,22 +331,10 @@ static int power_on_by_gpio(bool enable) {
 		if (gpio_is_valid(bsp_priv->power_io)) {
 			gpio_direction_output(bsp_priv->power_io, bsp_priv->power_io_level);
 		}
-
-		//reset
-		if (gpio_is_valid(bsp_priv->reset_io)) {
-			gpio_direction_output(bsp_priv->reset_io, bsp_priv->reset_io_level);
-			msleep(10);
-			gpio_direction_output(bsp_priv->reset_io, !bsp_priv->reset_io_level);
-		}
-		msleep(100);
 	} else {
 		//power off
 		if (gpio_is_valid(bsp_priv->power_io)) {
 			gpio_direction_output(bsp_priv->power_io, !bsp_priv->power_io_level);
-		}
-		//pull down reset
-		if (gpio_is_valid(bsp_priv->reset_io)) {
-			gpio_direction_output(bsp_priv->reset_io, !bsp_priv->reset_io_level);
 		}
 	}
 
@@ -374,13 +344,33 @@ static int power_on_by_gpio(bool enable) {
 static int phy_power_on(bool enable)
 {
 	struct bsp_priv *bsp_priv = &g_bsp_priv;
+	int ret = -1;
+
 	printk("%s: enable = %d \n", __func__, enable);
 
 	if (bsp_priv->power_ctrl_by_pmu) {
-		return power_on_by_pmu(enable);
+		ret = power_on_by_pmu(enable);
 	} else {
-		return power_on_by_gpio(enable);
+		ret =  power_on_by_gpio(enable);
 	}
+
+	if (enable) {
+		//reset
+		if (gpio_is_valid(bsp_priv->reset_io)) {
+			gpio_direction_output(bsp_priv->reset_io, bsp_priv->reset_io_level);
+			mdelay(5);
+			gpio_direction_output(bsp_priv->reset_io, !bsp_priv->reset_io_level);
+		}
+		mdelay(30);
+
+	} else {
+		//pull down reset
+		if (gpio_is_valid(bsp_priv->reset_io)) {
+			gpio_direction_output(bsp_priv->reset_io, bsp_priv->reset_io_level);
+		}
+	}
+
+	return ret;
 }
 
 int stmmc_pltfr_init(struct platform_device *pdev) {
