@@ -24,7 +24,7 @@ config ATH10K_DEBUG
 
 config ATH10K_DEBUGFS
 	bool "Atheros ath10k debugfs support"
-	depends on ATH10K
+	depends on ATH10K && DEBUG_FS
 	select RELAY
 	---help---
 	  Enabled debugfs support
