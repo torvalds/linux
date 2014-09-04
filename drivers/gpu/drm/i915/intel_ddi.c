@@ -424,7 +424,7 @@ intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 }
 
 #define LC_FREQ 2700
-#define LC_FREQ_2K (LC_FREQ * 2000)
+#define LC_FREQ_2K U64_C(LC_FREQ * 2000)
 
 #define P_MIN 2
 #define P_MAX 64
@@ -436,7 +436,11 @@ intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 #define VCO_MIN 2400
 #define VCO_MAX 4800
 
-#define ABS_DIFF(a, b) ((a > b) ? (a - b) : (b - a))
+#define abs_diff(a, b) ({			\
+	typeof(a) __a = (a);			\
+	typeof(b) __b = (b);			\
+	(void) (&__a == &__b);			\
+	__a > __b ? (__a - __b) : (__b - __a); })
 
 struct wrpll_rnp {
 	unsigned p, n2, r2;
@@ -546,9 +550,9 @@ static void wrpll_update_rnp(uint64_t freq2k, unsigned budget,
 	 */
 	a = freq2k * budget * p * r2;
 	b = freq2k * budget * best->p * best->r2;
-	diff = ABS_DIFF((freq2k * p * r2), (LC_FREQ_2K * n2));
-	diff_best = ABS_DIFF((freq2k * best->p * best->r2),
-			     (LC_FREQ_2K * best->n2));
+	diff = abs_diff(freq2k * p * r2, LC_FREQ_2K * n2);
+	diff_best = abs_diff(freq2k * best->p * best->r2,
+			     LC_FREQ_2K * best->n2);
 	c = 1000000 * diff;
 	d = 1000000 * diff_best;
 
