@@ -88,7 +88,8 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 				struct channel_t *ch);
 static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 				unsigned long arg);
-static int dgap_tty_digigeta(struct channel_t *ch, struct digi_t __user *retinfo);
+static int dgap_tty_digigeta(struct channel_t *ch,
+			     struct digi_t __user *retinfo);
 static int dgap_tty_digiseta(struct channel_t *ch, struct board_t *bd,
 			     struct un_t *un, struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
@@ -104,8 +105,9 @@ static void dgap_tty_flush_chars(struct tty_struct *tty);
 static void dgap_tty_flush_buffer(struct tty_struct *tty);
 static void dgap_tty_hangup(struct tty_struct *tty);
 static int dgap_wait_for_drain(struct tty_struct *tty);
-static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct un_t *un,
-			       unsigned int command, unsigned int __user *value);
+static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd,
+			       struct un_t *un, unsigned int command,
+			       unsigned int __user *value);
 static int dgap_get_modem_info(struct channel_t *ch,
 				unsigned int __user *value);
 static int dgap_tty_digisetcustombaud(struct channel_t *ch, struct board_t *bd,
@@ -3076,8 +3078,9 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
  *
  * Set modem signals, called by ld.
  */
-static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct un_t *un,
-			       unsigned int command, unsigned int __user *value)
+static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd,
+			       struct un_t *un, unsigned int command,
+			       unsigned int __user *value)
 {
 	int ret;
 	unsigned int arg;
@@ -3153,7 +3156,8 @@ static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct 
  *
  *
  */
-static int dgap_tty_digigeta(struct channel_t *ch, struct digi_t __user *retinfo)
+static int dgap_tty_digigeta(struct channel_t *ch,
+			     struct digi_t __user *retinfo)
 {
 	struct digi_t tmp;
 	ulong lock_flags;
