@@ -55,6 +55,17 @@
 #define		BTC_RATE_DISABLE			0
 #define		BTC_RATE_ENABLE				1
 
+/* single Antenna definition */
+#define		BTC_ANT_PATH_WIFI			0
+#define		BTC_ANT_PATH_BT				1
+#define		BTC_ANT_PATH_PTA			2
+/* dual Antenna definition */
+#define		BTC_ANT_WIFI_AT_MAIN			0
+#define		BTC_ANT_WIFI_AT_AUX			1
+/* coupler Antenna definition */
+#define		BTC_ANT_WIFI_AT_CPL_MAIN		0
+#define		BTC_ANT_WIFI_AT_CPL_AUX			1
+
 #define		BTC_ANT_PATH_WIFI			0
 #define		BTC_ANT_PATH_BT				1
 #define		BTC_ANT_PATH_PTA			2
@@ -164,6 +175,16 @@ extern u32 btc_dbg_type[];
 #define BTC_ANT_PATH_BT		1
 #define BTC_ANT_PATH_PTA	2
 
+#define	BTC_RSSI_HIGH(_rssi_)	\
+	((_rssi_ == BTC_RSSI_STATE_HIGH ||	\
+	  _rssi_ == BTC_RSSI_STATE_STAY_HIGH) ? true : false)
+#define	BTC_RSSI_MEDIUM(_rssi_)	\
+	((_rssi_ == BTC_RSSI_STATE_MEDIUM ||	\
+	  _rssi_ == BTC_RSSI_STATE_STAY_MEDIUM) ? true : false)
+#define	BTC_RSSI_LOW(_rssi_)	\
+	((_rssi_ == BTC_RSSI_STATE_LOW ||	\
+	  _rssi_ == BTC_RSSI_STATE_STAY_LOW) ? true : false)
+
 enum btc_power_save_type {
 	BTC_PS_WIFI_NATIVE = 0,
 	BTC_PS_LPS_ON = 1,
@@ -260,6 +281,7 @@ enum btc_get_type {
 	BTC_GET_U1_WIFI_CENTRAL_CHNL,
 	BTC_GET_U1_WIFI_HS_CHNL,
 	BTC_GET_U1_MAC_PHY_MODE,
+	BTC_GET_U1_AP_NUM,
 
 	/* for 1Ant */
 	BTC_GET_U1_LPS_MODE,
