@@ -133,8 +133,8 @@
 #define PCI9118_SOFTTRG_REG		0x20
 #define PCI9118_AI_CHANLIST_REG		0x24
 #define PCI9118_AI_BURST_NUM_REG	0x28
+#define PCI9118_AI_AUTOSCAN_MODE_REG	0x2c
 
-#define PCI9118_SCANMOD	0x2c	/* W:   A/D auto scan mode */
 #define PCI9118_ADFUNC	0x30	/* W:   A/D function register */
 #define PCI9118_DELFIFO	0x34	/* W:   A/D data FIFO reset */
 #define PCI9118_INTSRC	0x38	/* R:   interrupt reason register */
@@ -417,11 +417,10 @@ static int setup_channel_list(struct comedi_device *dev,
 
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 								/* setup mode */
-
-	outl(2, dev->iobase + PCI9118_SCANMOD);
-					/* gods know why this sequence! */
-	outl(0, dev->iobase + PCI9118_SCANMOD);
-	outl(1, dev->iobase + PCI9118_SCANMOD);
+	/* gods know why this sequence! */
+	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
+	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
+	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 
 #ifdef PCI9118_PARANOIDCHECK
 	devpriv->chanlistlen = n_chan;
@@ -468,7 +467,8 @@ static int setup_channel_list(struct comedi_device *dev,
 	devpriv->chanlist[n_chan ^ usedma] = devpriv->chanlist[0 ^ usedma];
 						/* for 32bit operations */
 #endif
-	outl(0, dev->iobase + PCI9118_SCANMOD);	/* close scan queue */
+	/* close scan queue */
+	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	/* udelay(100); important delay, or first sample will be crippled */
 
 	return 1;		/* we can serve this with scan logic */
@@ -784,8 +784,9 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 					 * disable INT and DMA
 					 */
 	outl(0, dev->iobase + PCI9118_AI_BURST_NUM_REG);
-	outl(1, dev->iobase + PCI9118_SCANMOD);
-	outl(2, dev->iobase + PCI9118_SCANMOD);	/* reset scan queue */
+	/* reset scan queue */
+	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
+	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
 
 	devpriv->ai_do = 0;
@@ -1696,8 +1697,9 @@ static int pci9118_reset(struct comedi_device *dev)
 						 * disable INT and DMA
 						 */
 	outl(0, dev->iobase + PCI9118_AI_BURST_NUM_REG);
-	outl(1, dev->iobase + PCI9118_SCANMOD);
-	outl(2, dev->iobase + PCI9118_SCANMOD);	/* reset scan queue */
+	/* reset scan queue */
+	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
+	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 						/*
