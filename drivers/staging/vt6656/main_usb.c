@@ -993,7 +993,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_TIMING_BEACON_ONLY;
 
-	priv->hw->rate_control_algorithm = "pid";
 	priv->hw->max_signal = 100;
 
 	SET_IEEE80211_DEV(priv->hw, &intf->dev);
