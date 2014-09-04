@@ -1637,6 +1637,12 @@ void sock_rfree(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_rfree);
 
+void sock_efree(struct sk_buff *skb)
+{
+	sock_put(skb->sk);
+}
+EXPORT_SYMBOL(sock_efree);
+
 void sock_edemux(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;

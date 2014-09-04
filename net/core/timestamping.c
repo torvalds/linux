@@ -36,10 +36,9 @@ void skb_clone_tx_timestamp(struct sk_buff *skb)
 {
 	struct phy_device *phydev;
 	struct sk_buff *clone;
-	struct sock *sk = skb->sk;
 	unsigned int type;
 
-	if (!sk)
+	if (!skb->sk)
 		return;
 
 	type = classify(skb);
@@ -48,16 +47,9 @@ void skb_clone_tx_timestamp(struct sk_buff *skb)
 
 	phydev = skb->dev->phydev;
 	if (likely(phydev->drv->txtstamp)) {
-		if (!atomic_inc_not_zero(&sk->sk_refcnt))
+		clone = skb_clone_sk(skb);
+		if (!clone)
 			return;
-
-		clone = skb_clone(skb, GFP_ATOMIC);
-		if (!clone) {
-			sock_put(sk);
-			return;
-		}
-
-		clone->sk = sk;
 		phydev->drv->txtstamp(phydev, clone, type);
 	}
 }
