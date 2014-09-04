@@ -435,9 +435,7 @@ static int psy_register_thermal(struct power_supply *psy)
 		if (psy->properties[i] == POWER_SUPPLY_PROP_TEMP) {
 			psy->tzd = thermal_zone_device_register(psy->name, 0, 0,
 					psy, &psy_tzd_ops, NULL, 0, 0);
-			if (IS_ERR(psy->tzd))
-				return PTR_ERR(psy->tzd);
-			break;
+			return PTR_ERR_OR_ZERO(psy->tzd);
 		}
 	}
 	return 0;
@@ -515,9 +513,7 @@ static int psy_register_cooler(struct power_supply *psy)
 			psy->tcd = thermal_cooling_device_register(
 							(char *)psy->name,
 							psy, &psy_tcd_ops);
-			if (IS_ERR(psy->tcd))
-				return PTR_ERR(psy->tcd);
-			break;
+			return PTR_ERR_OR_ZERO(psy->tcd);
 		}
 	}
 	return 0;
