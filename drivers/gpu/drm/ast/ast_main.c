@@ -359,10 +359,24 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 		ret = -EIO;
 		goto out_free;
 	}
-	ast->ioregs = pci_iomap(dev->pdev, 2, 0);
+
+	/*
+	 * If we don't have IO space at all, use MMIO now and
+	 * assume the chip has MMIO enabled by default (rev 0x20
+	 * and higher).
+	 */
+	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
+		DRM_INFO("platform has no IO space, trying MMIO\n");
+		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
+	}
+
+	/* "map" IO regs if the above hasn't done so already */
 	if (!ast->ioregs) {
-		ret = -EIO;
-		goto out_free;
+		ast->ioregs = pci_iomap(dev->pdev, 2, 0);
+		if (!ast->ioregs) {
+			ret = -EIO;
+			goto out_free;
+		}
 	}
 
 	ast_detect_chip(dev);
