@@ -73,19 +73,20 @@ static ssize_t power_supply_show_property(struct device *dev,
 	const ptrdiff_t off = attr - power_supply_attrs;
 	union power_supply_propval value;
 
-	if (off == POWER_SUPPLY_PROP_TYPE)
+	if (off == POWER_SUPPLY_PROP_TYPE) {
 		value.intval = psy->type;
-	else
+	} else {
 		ret = psy->get_property(psy, off, &value);
 
-	if (ret < 0) {
-		if (ret == -ENODATA)
-			dev_dbg(dev, "driver has no data for `%s' property\n",
-				attr->attr.name);
-		else if (ret != -ENODEV)
-			dev_err(dev, "driver failed to report `%s' property: %zd\n",
-				attr->attr.name, ret);
-		return ret;
+		if (ret < 0) {
+			if (ret == -ENODATA)
+				dev_dbg(dev, "driver has no data for `%s' property\n",
+					attr->attr.name);
+			else if (ret != -ENODEV)
+				dev_err(dev, "driver failed to report `%s' property: %zd\n",
+					attr->attr.name, ret);
+			return ret;
+		}
 	}
 
 	if (off == POWER_SUPPLY_PROP_STATUS)
