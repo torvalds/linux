@@ -66,10 +66,10 @@
  *   - MS-Windows drivers sometimes emit undocumented requests.
  */
 
-static bool rndis_multipacket_dl_disable;
-module_param(rndis_multipacket_dl_disable, bool, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(rndis_multipacket_dl_disable,
-	"Disable RNDIS Multi-packet support in DownLink");
+static unsigned int rndis_dl_max_pkt_per_xfer = 3;
+module_param(rndis_dl_max_pkt_per_xfer, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(rndis_dl_max_pkt_per_xfer,
+	"Maximum packets per transfer for DL aggregation");
 
 static unsigned int rndis_ul_max_pkt_per_xfer = 3;
 module_param(rndis_ul_max_pkt_per_xfer, uint, S_IRUGO | S_IWUSR);
@@ -477,7 +477,7 @@ static void rndis_command_complete(struct usb_ep *ep, struct usb_request *req)
 				__func__, buf->MaxTransferSize,
 				rndis->port.multi_pkt_xfer ? "enabled" :
 							    "disabled");
-		if (rndis_multipacket_dl_disable)
+		if (rndis_dl_max_pkt_per_xfer <= 1)
 			rndis->port.multi_pkt_xfer = 0;
 	}
 //	spin_unlock(&dev->lock);
@@ -881,6 +881,7 @@ rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	rndis->port.wrap = rndis_add_header;
 	rndis->port.unwrap = rndis_rm_hdr;
 	rndis->port.ul_max_pkts_per_xfer = rndis_ul_max_pkt_per_xfer;
+	rndis->port.dl_max_pkts_per_xfer = rndis_dl_max_pkt_per_xfer;
 
 	rndis->port.func.name = "rndis";
 	rndis->port.func.strings = rndis_strings;
