@@ -1108,8 +1108,28 @@ static void tracehook_report_syscall(struct pt_regs *regs,
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
+	unsigned int saved_syscallno = regs->syscallno;
+
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
+
+	if (IS_SKIP_SYSCALL(regs->syscallno)) {
+		/*
+		 * RESTRICTION: we can't modify a return value of user
+		 * issued syscall(-1) here. In order to ease this flavor,
+		 * we need to treat whatever value in x0 as a return value,
+		 * but this might result in a bogus value being returned.
+		 */
+		/*
+		 * NOTE: syscallno may also be set to -1 if fatal signal is
+		 * detected in tracehook_report_syscall_entry(), but since
+		 * a value set to x0 here is not used in this case, we may
+		 * neglect the case.
+		 */
+		if (!test_thread_flag(TIF_SYSCALL_TRACE) ||
+				(IS_SKIP_SYSCALL(saved_syscallno)))
+			regs->regs[0] = -ENOSYS;
+	}
 
 	audit_syscall_entry(syscall_get_arch(), regs->syscallno,
 		regs->orig_x0, regs->regs[1], regs->regs[2], regs->regs[3]);
