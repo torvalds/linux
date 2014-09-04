@@ -132,8 +132,8 @@
 #define PCI9118_DIO_REG			0x1c
 #define PCI9118_SOFTTRG_REG		0x20
 #define PCI9118_AI_CHANLIST_REG		0x24
+#define PCI9118_AI_BURST_NUM_REG	0x28
 
-#define PCI9118_BURST	0x28	/* W:   A/D burst number register */
 #define PCI9118_SCANMOD	0x2c	/* W:   A/D auto scan mode */
 #define PCI9118_ADFUNC	0x30	/* W:   A/D function register */
 #define PCI9118_DELFIFO	0x34	/* W:   A/D data FIFO reset */
@@ -783,7 +783,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 					 * internal trigger, soft trigger,
 					 * disable INT and DMA
 					 */
-	outl(0, dev->iobase + PCI9118_BURST);
+	outl(0, dev->iobase + PCI9118_AI_BURST_NUM_REG);
 	outl(1, dev->iobase + PCI9118_SCANMOD);
 	outl(2, dev->iobase + PCI9118_SCANMOD);	/* reset scan queue */
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
@@ -1436,7 +1436,8 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		    AdFunction_BS;
 		if (cmd->convert_src == TRIG_NOW && !devpriv->softsshdelay)
 			devpriv->AdFunctionReg |= AdFunction_BSSH;
-		outl(devpriv->ai_n_realscanlen, dev->iobase + PCI9118_BURST);
+		outl(devpriv->ai_n_realscanlen,
+		     dev->iobase + PCI9118_AI_BURST_NUM_REG);
 		break;
 	case 3:
 		devpriv->AdControlReg |= PCI9118_AI_CTRL_EXTM |
@@ -1694,7 +1695,7 @@ static int pci9118_reset(struct comedi_device *dev)
 						 * soft trigger,
 						 * disable INT and DMA
 						 */
-	outl(0, dev->iobase + PCI9118_BURST);
+	outl(0, dev->iobase + PCI9118_AI_BURST_NUM_REG);
 	outl(1, dev->iobase + PCI9118_SCANMOD);
 	outl(2, dev->iobase + PCI9118_SCANMOD);	/* reset scan queue */
 	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
