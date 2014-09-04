@@ -88,7 +88,6 @@ struct ideapad_private {
 	struct dentry *debug;
 	unsigned long cfg;
 	bool has_hw_rfkill_switch;
-	bool has_touchpad_control;
 };
 
 static bool no_bt_rfkill;
@@ -456,7 +455,7 @@ struct ideapad_rfk_data {
 	int type;
 };
 
-const const struct ideapad_rfk_data ideapad_rfk_data[] = {
+static const struct ideapad_rfk_data ideapad_rfk_data[] = {
 	{ "ideapad_wlan",    CFG_WIFI_BIT, VPCCMD_W_WIFI, RFKILL_TYPE_WLAN },
 	{ "ideapad_bluetooth", CFG_BT_BIT, VPCCMD_W_BT, RFKILL_TYPE_BLUETOOTH },
 	{ "ideapad_3g",        CFG_3G_BIT, VPCCMD_W_3G, RFKILL_TYPE_WWAN },
@@ -767,9 +766,6 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv)
 {
 	unsigned long value;
 
-	if (!priv->has_touchpad_control)
-		return;
-
 	/* Without reading from EC touchpad LED doesn't switch state */
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value)) {
 		/* Some IdeaPads don't really turn off touchpad - they only
@@ -833,29 +829,7 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
  * always results in 0 on these models, causing ideapad_laptop to wrongly
  * report all radios as hardware-blocked.
  */
-static struct dmi_system_id no_hw_rfkill_list[] = {
-	{
-		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 2"),
-		},
-	},
-	{}
-};
-
-/*
- * Some models don't offer touchpad ctrl through the ideapad interface, causing
- * ideapad_sync_touchpad_state to send wrong touchpad enable/disable events.
- */
-static struct dmi_system_id no_touchpad_ctrl_list[] = {
-	{
-		.ident = "Lenovo Yoga 1 series",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo IdeaPad Yoga"),
-		},
-	},
+static const struct dmi_system_id no_hw_rfkill_list[] = {
 	{
 		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
 		.matches = {
@@ -889,7 +863,6 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	priv->adev = adev;
 	priv->platform_device = pdev;
 	priv->has_hw_rfkill_switch = !dmi_check_system(no_hw_rfkill_list);
-	priv->has_touchpad_control = !dmi_check_system(no_touchpad_ctrl_list);
 
 	ret = ideapad_sysfs_init(priv);
 	if (ret)
