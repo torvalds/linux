@@ -138,7 +138,7 @@ static struct xilly_endpoint_hardware pci_hw = {
 };
 
 static int xilly_probe(struct pci_dev *pdev,
-				 const struct pci_device_id *ent)
+		       const struct pci_device_id *ent)
 {
 	struct xilly_endpoint *endpoint;
 	int rc;

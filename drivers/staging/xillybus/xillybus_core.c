@@ -146,9 +146,9 @@ irqreturn_t xillybus_isr(int irq, void *data)
 			malformed_message(ep, &buf[i]);
 			dev_warn(ep->dev,
 				 "Sending a NACK on counter %x (instead of %x) on entry %d\n",
-				((buf[i+1] >> 28) & 0xf),
-				ep->msg_counter,
-				i/2);
+				 ((buf[i+1] >> 28) & 0xf),
+				 ep->msg_counter,
+				 i/2);
 
 			if (++ep->failed_messages > 10) {
 				dev_err(ep->dev,
@@ -622,8 +622,8 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 	channel->wr_sleepy = 1;
 
 	iowrite32(1 |
-		   (3 << 24), /* Opcode 3 for channel 0 = Send IDT */
-		   endpoint->registers + fpga_buf_ctrl_reg);
+		  (3 << 24), /* Opcode 3 for channel 0 = Send IDT */
+		  endpoint->registers + fpga_buf_ctrl_reg);
 
 	t = wait_event_interruptible_timeout(channel->wr_wait,
 					     (!channel->wr_sleepy),
@@ -647,7 +647,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 	if (channel->wr_buffers[0]->end_offset != endpoint->idtlen) {
 		dev_err(endpoint->dev,
 			"IDT length mismatch (%d != %d). Aborting.\n",
-		       channel->wr_buffers[0]->end_offset, endpoint->idtlen);
+			channel->wr_buffers[0]->end_offset, endpoint->idtlen);
 		return -ENODEV;
 	}
 
@@ -785,8 +785,8 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 
 				iowrite32(1 | (channel->chan_num << 1) |
 					  (bufidx << 12),
-					   channel->endpoint->registers +
-					   fpga_buf_ctrl_reg);
+					  channel->endpoint->registers +
+					  fpga_buf_ctrl_reg);
 			}
 
 			if (rc) {
@@ -875,10 +875,10 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 					  fpga_buf_offset_reg);
 
 				iowrite32(1 | (channel->chan_num << 1) |
-					   (2 << 24) |  /* 2 = offset limit */
-					   (waiting_bufidx << 12),
-					   channel->endpoint->registers +
-					   fpga_buf_ctrl_reg);
+					  (2 << 24) |  /* 2 = offset limit */
+					  (waiting_bufidx << 12),
+					  channel->endpoint->registers +
+					  fpga_buf_ctrl_reg);
 
 				mutex_unlock(&channel->endpoint->
 					     register_mutex);
@@ -966,10 +966,10 @@ desperate:
 			 */
 
 			iowrite32(1 | (channel->chan_num << 1) |
-				   (3 << 24) |  /* Opcode 3, flush it all! */
-				   (waiting_bufidx << 12),
-				   channel->endpoint->registers +
-				   fpga_buf_ctrl_reg);
+				  (3 << 24) |  /* Opcode 3, flush it all! */
+				  (waiting_bufidx << 12),
+				  channel->endpoint->registers +
+				  fpga_buf_ctrl_reg);
 		}
 
 		/*
@@ -1088,9 +1088,9 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 			  channel->endpoint->registers + fpga_buf_offset_reg);
 
 		iowrite32((channel->chan_num << 1) | /* Channel ID */
-			   (2 << 24) |  /* Opcode 2, submit buffer */
-			   (bufidx << 12),
-			   channel->endpoint->registers + fpga_buf_ctrl_reg);
+			  (2 << 24) |  /* Opcode 2, submit buffer */
+			  (bufidx << 12),
+			  channel->endpoint->registers + fpga_buf_ctrl_reg);
 
 		mutex_unlock(&channel->endpoint->register_mutex);
 	} else if (bufidx == 0) {
@@ -1143,7 +1143,7 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 				 (!channel->rd_full),
 				 timeout) == 0) {
 			dev_warn(channel->endpoint->dev,
-				"Timed out while flushing. Output data may be lost.\n");
+				 "Timed out while flushing. Output data may be lost.\n");
 
 			rc = -ETIMEDOUT;
 			break;
@@ -1331,10 +1331,10 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 					  fpga_buf_offset_reg);
 
 				iowrite32((channel->chan_num << 1) |
-					   (2 << 24) |  /* 2 = submit buffer */
-					   (bufidx << 12),
-					   channel->endpoint->registers +
-					   fpga_buf_ctrl_reg);
+					  (2 << 24) |  /* 2 = submit buffer */
+					  (bufidx << 12),
+					  channel->endpoint->registers +
+					  fpga_buf_ctrl_reg);
 
 				mutex_unlock(&channel->endpoint->
 					     register_mutex);
@@ -1609,9 +1609,9 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 		if (channel->wr_ref_count == 0) {
 
 			iowrite32(1 | (channel->chan_num << 1) |
-				   (5 << 24),  /* Opcode 5, close channel */
-				   channel->endpoint->registers +
-				   fpga_buf_ctrl_reg);
+				  (5 << 24),  /* Opcode 5, close channel */
+				  channel->endpoint->registers +
+				  fpga_buf_ctrl_reg);
 
 			/*
 			 * This is crazily cautious: We make sure that not
@@ -1997,7 +1997,7 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	 * buffer size.
 	 */
 	iowrite32((u32) (endpoint->dma_using_dac & 0x0001),
-		   endpoint->registers + fpga_dma_control_reg);
+		  endpoint->registers + fpga_dma_control_reg);
 
 	t = wait_event_interruptible_timeout(endpoint->ep_wait,
 					     (endpoint->idtlen >= 0),
@@ -2009,7 +2009,7 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 
 	/* Enable DMA */
 	iowrite32((u32) (0x0002 | (endpoint->dma_using_dac & 0x0001)),
-		   endpoint->registers + fpga_dma_control_reg);
+		  endpoint->registers + fpga_dma_control_reg);
 
 	/* Bootstrap phase II: Allocate buffer for IDT and obtain it */
 	while (endpoint->idtlen >= idtbuffersize) {
