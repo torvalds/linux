@@ -96,15 +96,8 @@ static int __try_to_free_cp_buf(struct journal_head *jh)
 
 	if (jh->b_transaction == NULL && !buffer_locked(bh) &&
 	    !buffer_dirty(bh) && !buffer_write_io_error(bh)) {
-		/*
-		 * Get our reference so that bh cannot be freed before
-		 * we unlock it
-		 */
-		get_bh(bh);
 		JBUFFER_TRACE(jh, "remove from checkpoint list");
 		ret = __jbd2_journal_remove_checkpoint(jh) + 1;
-		BUFFER_TRACE(bh, "release");
-		__brelse(bh);
 	}
 	return ret;
 }
@@ -216,7 +209,7 @@ int jbd2_log_do_checkpoint(journal_t *journal)
 	struct buffer_head	*bh;
 	transaction_t		*transaction;
 	tid_t			this_tid;
-	int			result, batch_count = 0, done = 0;
+	int			result, batch_count = 0;
 
 	jbd_debug(1, "Start checkpoint\n");
 
@@ -291,11 +284,9 @@ restart:
 		if (!buffer_dirty(bh)) {
 			if (unlikely(buffer_write_io_error(bh)) && !result)
 				result = -EIO;
-			get_bh(bh);
 			BUFFER_TRACE(bh, "remove from checkpoint");
 			__jbd2_journal_remove_checkpoint(jh);
 			spin_unlock(&journal->j_list_lock);
-			__brelse(bh);
 			goto retry;
 		}
 		/*
@@ -338,12 +329,12 @@ restart2:
 	    transaction->t_tid != this_tid)
 		goto out;
 
-	while (!done && transaction->t_checkpoint_io_list) {
+	while (transaction->t_checkpoint_io_list) {
 		jh = transaction->t_checkpoint_io_list;
 		bh = jh2bh(jh);
-		get_bh(bh);
 		if (buffer_locked(bh)) {
 			spin_unlock(&journal->j_list_lock);
+			get_bh(bh);
 			wait_on_buffer(bh);
 			/* the journal_head may have gone by now */
 			BUFFER_TRACE(bh, "brelse");
@@ -359,8 +350,8 @@ restart2:
 		 * know that it has been written out and so we can
 		 * drop it from the list
 		 */
-		done = __jbd2_journal_remove_checkpoint(jh);
-		__brelse(bh);
+		if (__jbd2_journal_remove_checkpoint(jh))
+			break;
 	}
 out:
 	spin_unlock(&journal->j_list_lock);
