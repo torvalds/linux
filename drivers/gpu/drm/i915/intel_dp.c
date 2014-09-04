@@ -294,28 +294,101 @@ static enum pipe
 vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_crtc *crtc = intel_dig_port->base.base.crtc;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum port port = intel_dig_port->port;
-	enum pipe pipe;
+	struct intel_encoder *encoder;
+	unsigned int pipes = (1 << PIPE_A) | (1 << PIPE_B);
+	struct edp_power_seq power_seq;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	/* modeset should have pipe */
-	if (crtc)
-		return to_intel_crtc(crtc)->pipe;
+	if (intel_dp->pps_pipe != INVALID_PIPE)
+		return intel_dp->pps_pipe;
 
-	/* init time, try to find a pipe with this port selected */
+	/*
+	 * We don't have power sequencer currently.
+	 * Pick one that's not used by other ports.
+	 */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		struct intel_dp *tmp;
+
+		if (encoder->type != INTEL_OUTPUT_EDP)
+			continue;
+
+		tmp = enc_to_intel_dp(&encoder->base);
+
+		if (tmp->pps_pipe != INVALID_PIPE)
+			pipes &= ~(1 << tmp->pps_pipe);
+	}
+
+	/*
+	 * Didn't find one. This should not happen since there
+	 * are two power sequencers and up to two eDP ports.
+	 */
+	if (WARN_ON(pipes == 0))
+		return PIPE_A;
+
+	intel_dp->pps_pipe = ffs(pipes) - 1;
+
+	DRM_DEBUG_KMS("picked pipe %c power sequencer for port %c\n",
+		      pipe_name(intel_dp->pps_pipe),
+		      port_name(intel_dig_port->port));
+
+	/* init power sequencer on this pipe and port */
+	intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
+	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
+						      &power_seq);
+
+	return intel_dp->pps_pipe;
+}
+
+static enum pipe
+vlv_initial_power_sequencer_pipe(struct drm_i915_private *dev_priv,
+				 enum port port)
+{
+	enum pipe pipe;
+
 	for (pipe = PIPE_A; pipe <= PIPE_B; pipe++) {
 		u32 port_sel = I915_READ(VLV_PIPE_PP_ON_DELAYS(pipe)) &
 			PANEL_PORT_SELECT_MASK;
-		if (port_sel == PANEL_PORT_SELECT_VLV(port))
-			return pipe;
+
+		if (port_sel != PANEL_PORT_SELECT_VLV(port))
+			continue;
+
+		return pipe;
 	}
 
-	/* shrug */
-	return PIPE_A;
+	return INVALID_PIPE;
+}
+
+static void
+vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct edp_power_seq power_seq;
+	enum port port = intel_dig_port->port;
+
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	/* try to find a pipe with this port selected */
+	intel_dp->pps_pipe = vlv_initial_power_sequencer_pipe(dev_priv, port);
+
+	/* didn't find one? just let vlv_power_sequencer_pipe() pick one when needed */
+	if (intel_dp->pps_pipe == INVALID_PIPE) {
+		DRM_DEBUG_KMS("no initial power sequencer for port %c\n",
+			      port_name(port));
+		return;
+	}
+
+	DRM_DEBUG_KMS("initial power sequencer for port %c: pipe %c\n",
+		      port_name(port), pipe_name(intel_dp->pps_pipe));
+
+	intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
+	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
+						      &power_seq);
 }
 
 static u32 _pp_ctrl_reg(struct intel_dp *intel_dp)
@@ -2255,6 +2328,77 @@ static void g4x_pre_enable_dp(struct intel_encoder *encoder)
 	}
 }
 
+static void vlv_steal_power_sequencer(struct drm_device *dev,
+				      enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_encoder *encoder;
+
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		struct intel_dp *intel_dp;
+
+		if (encoder->type != INTEL_OUTPUT_EDP)
+			continue;
+
+		intel_dp = enc_to_intel_dp(&encoder->base);
+
+		if (intel_dp->pps_pipe != pipe)
+			continue;
+
+		DRM_DEBUG_KMS("stealing pipe %c power sequencer from port %c\n",
+			      pipe_name(pipe),
+			      port_name(dp_to_dig_port(intel_dp)->port));
+
+		/* make sure vdd is off before we steal it */
+		edp_panel_vdd_off_sync(intel_dp);
+
+		intel_dp->pps_pipe = INVALID_PIPE;
+	}
+}
+
+static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &intel_dig_port->base;
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct edp_power_seq power_seq;
+
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	if (intel_dp->pps_pipe == crtc->pipe)
+		return;
+
+	/*
+	 * If another power sequencer was being used on this
+	 * port previously make sure to turn off vdd there while
+	 * we still have control of it.
+	 */
+	if (intel_dp->pps_pipe != INVALID_PIPE)
+		edp_panel_vdd_off_sync(intel_dp);
+
+	/*
+	 * We may be stealing the power
+	 * sequencer from another port.
+	 */
+	vlv_steal_power_sequencer(dev, crtc->pipe);
+
+	/* now it's all ours */
+	intel_dp->pps_pipe = crtc->pipe;
+
+	DRM_DEBUG_KMS("initializing pipe %c power sequencer for port %c\n",
+		      pipe_name(intel_dp->pps_pipe), port_name(intel_dig_port->port));
+
+	/* init power sequencer on this pipe and port */
+	intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
+	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
+						      &power_seq);
+}
+
 static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -2264,7 +2408,6 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
-	struct edp_power_seq power_seq;
 	u32 val;
 
 	mutex_lock(&dev_priv->dpio_lock);
@@ -2283,11 +2426,8 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 
 	if (is_edp(intel_dp)) {
-		/* init power sequencer on this pipe and port */
 		mutex_lock(&dev_priv->pps_mutex);
-		intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
-		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
-							      &power_seq);
+		vlv_init_panel_power_sequencer(intel_dp);
 		mutex_unlock(&dev_priv->pps_mutex);
 	}
 
@@ -2332,7 +2472,6 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct edp_power_seq power_seq;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
 	enum dpio_channel ch = vlv_dport_to_channel(dport);
@@ -2378,11 +2517,8 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 
 	if (is_edp(intel_dp)) {
-		/* init power sequencer on this pipe and port */
 		mutex_lock(&dev_priv->pps_mutex);
-		intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
-		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
-							      &power_seq);
+		vlv_init_panel_power_sequencer(intel_dp);
 		mutex_unlock(&dev_priv->pps_mutex);
 	}
 
@@ -4755,6 +4891,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct edp_power_seq power_seq = { 0 };
 	int type;
 
+	intel_dp->pps_pipe = INVALID_PIPE;
+
 	/* intel_dp vfuncs */
 	if (IS_VALLEYVIEW(dev))
 		intel_dp->get_aux_clock_divider = vlv_get_aux_clock_divider;
@@ -4826,17 +4964,23 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	if (is_edp(intel_dp)) {
 		mutex_lock(&dev_priv->pps_mutex);
-		intel_dp_init_panel_power_timestamps(intel_dp);
-		intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
-		mutex_unlock(&dev_priv->pps_mutex);
+		if (IS_VALLEYVIEW(dev)) {
+			vlv_initial_power_sequencer_setup(intel_dp);
+		} else {
+			intel_dp_init_panel_power_timestamps(intel_dp);
+			intel_dp_init_panel_power_sequencer(dev, intel_dp,
+							    &power_seq);
+		}
 	}
+	mutex_unlock(&dev_priv->pps_mutex);
 
 	intel_dp_aux_init(intel_dp, intel_connector);
 
 	/* init MST on ports that can support it */
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		if (port == PORT_B || port == PORT_C || port == PORT_D) {
-			intel_dp_mst_encoder_init(intel_dig_port, intel_connector->base.base.id);
+			intel_dp_mst_encoder_init(intel_dig_port,
+						  intel_connector->base.base.id);
 		}
 	}
 

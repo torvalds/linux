@@ -570,6 +570,12 @@ struct intel_dp {
 
 	struct notifier_block edp_notifier;
 
+	/*
+	 * Pipe whose power sequencer is currently locked into
+	 * this port. Only relevant on VLV/CHV.
+	 */
+	enum pipe pps_pipe;
+
 	bool use_tps3;
 	bool can_mst; /* this port supports mst */
 	bool is_mst;
