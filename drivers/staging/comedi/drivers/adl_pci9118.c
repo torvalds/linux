@@ -233,7 +233,6 @@ struct boardtype {
 	int device_id;			/* PCI device ID of card */
 	int n_aichan;			/* num of A/D chans */
 	int n_aichand;			/* num of A/D chans in diff mode */
-	int n_aichanlist;		/* len of chanlist */
 	int ai_maxdata;			/* resolution of A/D */
 	const struct comedi_lrange *rangelist_ai;	/* rangelist for A/D */
 	unsigned int ai_ns_min;		/* max sample speed of card v ns */
@@ -249,7 +248,6 @@ static const struct boardtype boardtypes[] = {
 		.device_id	= 0x80d9,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
-		.n_aichanlist	= PCI9118_CHANLEN,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 3000,
@@ -259,7 +257,6 @@ static const struct boardtype boardtypes[] = {
 		.device_id	= 0x80d9,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
-		.n_aichanlist	= PCI9118_CHANLEN,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118hg,
 		.ai_ns_min	= 3000,
@@ -269,7 +266,6 @@ static const struct boardtype boardtypes[] = {
 		.device_id	= 0x80d9,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
-		.n_aichanlist	= PCI9118_CHANLEN,
 		.ai_maxdata	= 0xffff,
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 10000,
@@ -1902,7 +1898,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
-		s->len_chanlist = this_board->n_aichanlist;
+		s->len_chanlist = PCI9118_CHANLEN;
 		s->do_cmdtest = pci9118_ai_cmdtest;
 		s->do_cmd = pci9118_ai_cmd;
 		s->cancel = pci9118_ai_cancel;
