@@ -793,6 +793,7 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	struct intel_uncore_box *box;
 	struct intel_uncore_type *type;
 	int phys_id;
+	bool first_box = false;
 
 	phys_id = uncore_pcibus_to_physid[pdev->bus->number];
 	if (phys_id < 0)
@@ -827,9 +828,13 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	pci_set_drvdata(pdev, box);
 
 	raw_spin_lock(&uncore_box_lock);
+	if (list_empty(&pmu->box_list))
+		first_box = true;
 	list_add_tail(&box->list, &pmu->box_list);
 	raw_spin_unlock(&uncore_box_lock);
 
+	if (first_box)
+		uncore_pmu_register(pmu);
 	return 0;
 }
 
@@ -838,6 +843,7 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	struct intel_uncore_box *box = pci_get_drvdata(pdev);
 	struct intel_uncore_pmu *pmu;
 	int i, cpu, phys_id = uncore_pcibus_to_physid[pdev->bus->number];
+	bool last_box = false;
 
 	box = pci_get_drvdata(pdev);
 	if (!box) {
@@ -859,6 +865,8 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 
 	raw_spin_lock(&uncore_box_lock);
 	list_del(&box->list);
+	if (list_empty(&pmu->box_list))
+		last_box = true;
 	raw_spin_unlock(&uncore_box_lock);
 
 	for_each_possible_cpu(cpu) {
@@ -870,6 +878,9 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 
 	WARN_ON_ONCE(atomic_read(&box->refcnt) != 1);
 	kfree(box);
+
+	if (last_box)
+		perf_pmu_unregister(&pmu->pmu);
 }
 
 static int __init uncore_pci_init(void)
@@ -1215,14 +1226,6 @@ static int __init uncore_pmus_register(void)
 
 	for (i = 0; uncore_msr_uncores[i]; i++) {
 		type = uncore_msr_uncores[i];
-		for (j = 0; j < type->num_boxes; j++) {
-			pmu = &type->pmus[j];
-			uncore_pmu_register(pmu);
-		}
-	}
-
-	for (i = 0; uncore_pci_uncores[i]; i++) {
-		type = uncore_pci_uncores[i];
 		for (j = 0; j < type->num_boxes; j++) {
 			pmu = &type->pmus[j];
 			uncore_pmu_register(pmu);
