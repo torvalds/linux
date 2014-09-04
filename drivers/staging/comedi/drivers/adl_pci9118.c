@@ -1898,14 +1898,14 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->insn_write = pci9118_insn_write_ao;
 	s->insn_read = pci9118_insn_read_ao;
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->len_chanlist = 4;
-	s->range_table = &range_digital;
-	s->insn_bits = pci9118_insn_bits_di;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pci9118_insn_bits_di;
 
 	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
