@@ -121,6 +121,14 @@
 #define PCI9118_AI_STATUS_ADOR		(1 << 1)  /* 1=A/D overrun (fatal) */
 #define PCI9118_AI_STATUS_ADRDY		(1 << 0)  /* 1=A/D ready */
 #define PCI9118_AI_CTRL_REG		0x18
+#define PCI9118_AI_CTRL_UNIP		(1 << 7)  /* 1=unipolar */
+#define PCI9118_AI_CTRL_DIFF		(1 << 6)  /* 1=differential inputs */
+#define PCI9118_AI_CTRL_SOFTG		(1 << 5)  /* 1=8254 software gate */
+#define PCI9118_AI_CTRL_EXTG		(1 << 4)  /* 1=8254 TGIN(pin 46) gate */
+#define PCI9118_AI_CTRL_EXTM		(1 << 3)  /* 1=ext. trigger (pin 44) */
+#define PCI9118_AI_CTRL_TMRTR		(1 << 2)  /* 1=8254 is trigger source */
+#define PCI9118_AI_CTRL_INT		(1 << 1)  /* 1=enable interrupt */
+#define PCI9118_AI_CTRL_DMA		(1 << 0)  /* 1=enable DMA */
 
 #define PCI9118_DI	0x1c	/* R:   digi input register */
 #define PCI9118_DO	0x1c	/* W:   digi output register */
@@ -132,26 +140,6 @@
 #define PCI9118_DELFIFO	0x34	/* W:   A/D data FIFO reset */
 #define PCI9118_INTSRC	0x38	/* R:   interrupt reason register */
 #define PCI9118_INTCTRL	0x38	/* W:   interrupt control register */
-
-/* bits from A/D control register (PCI9118_AI_CTRL_REG) */
-#define AdControl_UniP	0x80	/* 1=bipolar, 0=unipolar */
-#define AdControl_Diff	0x40	/* 1=differential, 0= single end inputs */
-#define AdControl_SoftG	0x20	/* 1=8254 counter works, 0=counter stops */
-#define	AdControl_ExtG	0x10	/*
-				 * 1=8254 countrol controlled by TGIN(pin 46),
-				 * 0=controlled by SoftG
-				 */
-#define AdControl_ExtM	0x08	/*
-				 * 1=external hardware trigger (pin 44),
-				 * 0=internal trigger
-				 */
-#define AdControl_TmrTr	0x04	/*
-				 * 1=8254 is iternal trigger source,
-				 * 0=software trigger is source
-				 * (register PCI9118_SOFTTRG)
-				 */
-#define AdControl_Int	0x02	/* 1=enable INT, 0=disable */
-#define AdControl_Dma	0x01	/* 1=enable DMA, 0=disable */
 
 /* bits from A/D function register (PCI9118_ADFUNC) */
 #define AdFunction_PDTrg	0x80	/*
@@ -418,21 +406,15 @@ static int setup_channel_list(struct comedi_device *dev,
 
 	/* All is ok, so we can setup channel/range list */
 
-	if (!bipolar) {
-		devpriv->AdControlReg |= AdControl_UniP;
-							/* set unibipolar */
-	} else {
-		devpriv->AdControlReg &= ((~AdControl_UniP) & 0xff);
-							/* enable bipolar */
-	}
+	if (!bipolar)
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_UNIP;
+	else
+		devpriv->AdControlReg &= ~PCI9118_AI_CTRL_UNIP;
 
-	if (differencial) {
-		devpriv->AdControlReg |= AdControl_Diff;
-							/* enable diff inputs */
-	} else {
-		devpriv->AdControlReg &= ((~AdControl_Diff) & 0xff);
-						/* set single ended inputs */
-	}
+	if (differencial)
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_DIFF;
+	else
+		devpriv->AdControlReg &= ~PCI9118_AI_CTRL_DIFF;
 
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 								/* setup mode */
@@ -513,7 +495,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	int ret;
 	int n;
 
-	devpriv->AdControlReg = AdControl_Int & 0xff;
+	devpriv->AdControlReg = PCI9118_AI_CTRL_INT;
 	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 						/*
@@ -1055,7 +1037,7 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 	if (devpriv->ai_do != 3) {
 		pci9118_start_pacer(dev, devpriv->ai_do);
-		devpriv->AdControlReg |= AdControl_SoftG;
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_SOFTG;
 	}
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 
@@ -1373,13 +1355,13 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 
 	switch (devpriv->ai_do) {
 	case 1:
-		devpriv->AdControlReg |= AdControl_TmrTr;
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR;
 		break;
 	case 2:
 		dev_err(dev->class_dev, "%s mode 2 bug!\n", __func__);
 		return -EIO;
 	case 3:
-		devpriv->AdControlReg |= AdControl_ExtM;
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_EXTM;
 		break;
 	case 4:
 		dev_err(dev->class_dev, "%s mode 4 bug!\n", __func__);
@@ -1396,7 +1378,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 	if ((devpriv->ai_do == 1) || (devpriv->ai_do == 2))
 		devpriv->IntControlReg |= Int_Timer;
 
-	devpriv->AdControlReg |= AdControl_Int;
+	devpriv->AdControlReg |= PCI9118_AI_CTRL_INT;
 
 	outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) | 0x1f00,
 			devpriv->iobase_a + AMCC_OP_REG_INTCSR);
@@ -1407,7 +1389,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 		if (devpriv->ai_do != 3) {
 			pci9118_start_pacer(dev, devpriv->ai_do);
-			devpriv->AdControlReg |= AdControl_SoftG;
+			devpriv->AdControlReg |= PCI9118_AI_CTRL_SOFTG;
 		}
 		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
 	}
@@ -1425,12 +1407,12 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 
 	switch (devpriv->ai_do) {
 	case 1:
-		devpriv->AdControlReg |=
-		    ((AdControl_TmrTr | AdControl_Dma) & 0xff);
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR |
+					 PCI9118_AI_CTRL_DMA;
 		break;
 	case 2:
-		devpriv->AdControlReg |=
-		    ((AdControl_TmrTr | AdControl_Dma) & 0xff);
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR |
+					 PCI9118_AI_CTRL_DMA;
 		devpriv->AdFunctionReg =
 		    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_BM |
 		    AdFunction_BS;
@@ -1439,13 +1421,13 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		outl(devpriv->ai_n_realscanlen, dev->iobase + PCI9118_BURST);
 		break;
 	case 3:
-		devpriv->AdControlReg |=
-		    ((AdControl_ExtM | AdControl_Dma) & 0xff);
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_EXTM |
+					 PCI9118_AI_CTRL_DMA;
 		devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
 		break;
 	case 4:
-		devpriv->AdControlReg |=
-		    ((AdControl_TmrTr | AdControl_Dma) & 0xff);
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR |
+					 PCI9118_AI_CTRL_DMA;
 		devpriv->AdFunctionReg =
 		    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_AM;
 		outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
@@ -1471,7 +1453,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
 		if (devpriv->ai_do != 3) {
 			pci9118_start_pacer(dev, devpriv->ai_do);
-			devpriv->AdControlReg |= AdControl_SoftG;
+			devpriv->AdControlReg |= PCI9118_AI_CTRL_SOFTG;
 		}
 		outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 	}
