@@ -2232,17 +2232,23 @@ static int cpsw_probe(struct platform_device *pdev)
 	}
 
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
-		for (i = res->start; i <= res->end; i++) {
-			if (devm_request_irq(&pdev->dev, i, cpsw_interrupt, 0,
-					     dev_name(&pdev->dev), priv)) {
-				dev_err(priv->dev, "error attaching irq\n");
-				goto clean_ale_ret;
-			}
-			priv->irqs_table[k] = i;
-			priv->num_irqs = k + 1;
+		if (k >= ARRAY_SIZE(priv->irqs_table)) {
+			ret = -EINVAL;
+			goto clean_ale_ret;
 		}
+
+		ret = devm_request_irq(&pdev->dev, res->start, cpsw_interrupt,
+				       0, dev_name(&pdev->dev), priv);
+		if (ret < 0) {
+			dev_err(priv->dev, "error attaching irq (%d)\n", ret);
+			goto clean_ale_ret;
+		}
+
+		priv->irqs_table[k] = res->start;
 		k++;
 	}
+
+	priv->num_irqs = k;
 
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
