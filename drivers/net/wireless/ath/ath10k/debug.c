@@ -1132,20 +1132,25 @@ static const struct file_operations fops_dfs_stats = {
 
 int ath10k_debug_create(struct ath10k *ar)
 {
-	int ret;
-
 	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
-	if (!ar->debug.fw_crash_data) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!ar->debug.fw_crash_data)
+		return -ENOMEM;
 
+	return 0;
+}
+
+void ath10k_debug_destroy(struct ath10k *ar)
+{
+	vfree(ar->debug.fw_crash_data);
+	ar->debug.fw_crash_data = NULL;
+}
+
+int ath10k_debug_register(struct ath10k *ar)
+{
 	ar->debug.debugfs_phy = debugfs_create_dir("ath10k",
 						   ar->hw->wiphy->debugfsdir);
-	if (!ar->debug.debugfs_phy) {
-		ret = -ENOMEM;
-		goto err_free_fw_crash_data;
-	}
+	if (!ar->debug.debugfs_phy)
+		return -ENOMEM;
 
 	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,
 			  ath10k_debug_htt_stats_dwork);
@@ -1192,17 +1197,10 @@ int ath10k_debug_create(struct ath10k *ar)
 	}
 
 	return 0;
-
-err_free_fw_crash_data:
-	vfree(ar->debug.fw_crash_data);
-
-err:
-	return ret;
 }
 
-void ath10k_debug_destroy(struct ath10k *ar)
+void ath10k_debug_unregister(struct ath10k *ar)
 {
-	vfree(ar->debug.fw_crash_data);
 	cancel_delayed_work_sync(&ar->debug.htt_stats_dwork);
 }
 

@@ -977,7 +977,7 @@ static void ath10k_core_register_work(struct work_struct *work)
 		goto err_release_fw;
 	}
 
-	status = ath10k_debug_create(ar);
+	status = ath10k_debug_register(ar);
 	if (status) {
 		ath10k_err(ar, "unable to initialize debugfs\n");
 		goto err_unregister_mac;
@@ -1043,7 +1043,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 
 	ath10k_core_free_firmware_files(ar);
 
-	ath10k_debug_destroy(ar);
+	ath10k_debug_unregister(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
@@ -1051,6 +1051,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  const struct ath10k_hif_ops *hif_ops)
 {
 	struct ath10k *ar;
+	int ret;
 
 	ar = ath10k_mac_create(priv_size);
 	if (!ar)
@@ -1076,7 +1077,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	ar->workqueue = create_singlethread_workqueue("ath10k_wq");
 	if (!ar->workqueue)
-		goto err_wq;
+		goto err_free_mac;
 
 	mutex_init(&ar->conf_mutex);
 	spin_lock_init(&ar->data_lock);
@@ -1094,10 +1095,18 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	INIT_WORK(&ar->register_work, ath10k_core_register_work);
 	INIT_WORK(&ar->restart_work, ath10k_core_restart);
 
+	ret = ath10k_debug_create(ar);
+	if (ret)
+		goto err_free_wq;
+
 	return ar;
 
-err_wq:
+err_free_wq:
+	destroy_workqueue(ar->workqueue);
+
+err_free_mac:
 	ath10k_mac_destroy(ar);
+
 	return NULL;
 }
 EXPORT_SYMBOL(ath10k_core_create);
@@ -1107,6 +1116,7 @@ void ath10k_core_destroy(struct ath10k *ar)
 	flush_workqueue(ar->workqueue);
 	destroy_workqueue(ar->workqueue);
 
+	ath10k_debug_destroy(ar);
 	ath10k_mac_destroy(ar);
 }
 EXPORT_SYMBOL(ath10k_core_destroy);
