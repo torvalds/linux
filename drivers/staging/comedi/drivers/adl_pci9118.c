@@ -232,7 +232,6 @@ struct boardtype {
 	const char *name;		/* board name */
 	int device_id;			/* PCI device ID of card */
 	int n_aichan;			/* num of A/D chans */
-	int n_aichand;			/* num of A/D chans in diff mode */
 	int ai_maxdata;			/* resolution of A/D */
 	const struct comedi_lrange *rangelist_ai;	/* rangelist for A/D */
 	unsigned int ai_ns_min;		/* max sample speed of card v ns */
@@ -247,7 +246,6 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci9118dg",
 		.device_id	= 0x80d9,
 		.n_aichan	= 16,
-		.n_aichand	= 8,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 3000,
@@ -256,7 +254,6 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
 		.n_aichan	= 16,
-		.n_aichand	= 8,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118hg,
 		.ai_ns_min	= 3000,
@@ -265,7 +262,6 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
 		.n_aichan	= 16,
-		.n_aichand	= 8,
 		.ai_maxdata	= 0xffff,
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 10000,
@@ -355,7 +351,6 @@ static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
 			      unsigned int *chanlist, int frontadd, int backadd)
 {
-	const struct boardtype *this_board = comedi_board(dev);
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int i, differencial = 0, bipolar = 0;
 
@@ -389,7 +384,7 @@ static int check_channel_list(struct comedi_device *dev,
 				return 0;
 			}
 			if (!devpriv->usemux && differencial &&
-			    (CR_CHAN(chanlist[i]) >= this_board->n_aichand)) {
+			    (CR_CHAN(chanlist[i]) >= (s->n_chan / 2))) {
 				dev_err(dev->class_dev,
 					"AREF_DIFF is only available for the first 8 channels!\n");
 				return 0;
