@@ -3602,9 +3602,11 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 		if (dev_drv->ops->set_dsp_cabc)
 			dev_drv->ops->set_dsp_cabc(dev_drv, dev_drv->cabc_mode);
 		rk_fb_set_prmry_screen(screen);
+		rk_fb_get_prmry_screen(screen);
 	}
 	dev_drv->trsm_ops = rk_fb_trsm_ops_get(screen->type);
-	rk_fb_get_prmry_screen(screen);
+	if (dev_drv->prop != PRMRY)
+		rk_fb_get_prmry_screen(screen);
 
 	return 0;
 }
