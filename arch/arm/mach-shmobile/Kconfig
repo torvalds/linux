@@ -41,6 +41,10 @@ config ARCH_R8A7791
 	select RENESAS_IRQC
 	select SYS_SUPPORTS_SH_CMT
 
+config ARCH_R8A7794
+	bool "R-Car E2 (R8A77940)"
+	select ARCH_RCAR_GEN2
+
 comment "Renesas ARM SoCs Board Type"
 
 config MACH_GENMAI
