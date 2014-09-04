@@ -1814,6 +1814,18 @@ static int rk312x_lcdc_fps_mgr(struct rk_lcdc_driver *dev_drv, int fps,
 	return fps;
 }
 
+static int rk312x_lcdc_set_irq_to_cpu(struct rk_lcdc_driver *dev_drv,
+					    int enable)
+{
+       struct lcdc_device *lcdc_dev =
+                                container_of(dev_drv,struct lcdc_device,driver);
+       if (enable)
+               enable_irq(lcdc_dev->irq);
+       else
+               disable_irq(lcdc_dev->irq);
+       return 0;
+}
+
 static int rk312x_lcdc_poll_vblank(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev =
@@ -2097,6 +2109,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open_bcsh = rk312x_lcdc_open_bcsh,
 	.set_screen_scaler = rk312x_lcdc_set_scaler,
 	.set_hwc_lut = rk312x_lcdc_set_hwc_lut,
+	.set_irq_to_cpu = rk312x_lcdc_set_irq_to_cpu,
 };
 #if 0
 static const struct rk_lcdc_drvdata rk3036_lcdc_drvdata = {
