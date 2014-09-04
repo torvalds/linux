@@ -329,9 +329,9 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 	struct xilly_buffer *this_buffer = NULL; /* Init to silence warning */
 
 	if (buffers) { /* Not the message buffer */
-		this_buffer = devm_kzalloc(
-			dev, bufnum * sizeof(struct xilly_buffer),
-			GFP_KERNEL);
+		this_buffer = devm_kcalloc(dev, bufnum,
+					   sizeof(struct xilly_buffer),
+					   GFP_KERNEL);
 
 		if (!this_buffer)
 			return -ENOMEM;
@@ -434,13 +434,13 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 		.regdirection = 0x80000000,
 	};
 
-	channel = devm_kzalloc(dev, ep->num_channels *
+	channel = devm_kcalloc(dev, ep->num_channels,
 			       sizeof(struct xilly_channel), GFP_KERNEL);
 
 	if (!channel)
 		goto memfail;
 
-	ep->channels = devm_kzalloc(dev, (ep->num_channels + 1) *
+	ep->channels = devm_kcalloc(dev, ep->num_channels + 1,
 				    sizeof(struct xilly_channel *),
 				    GFP_KERNEL);
 
@@ -517,9 +517,9 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 			bytebufsize = channel->rd_buf_size = bufsize *
 				(1 << channel->log2_element_size);
 
-			buffers = devm_kzalloc(dev,
-				bufnum * sizeof(struct xilly_buffer *),
-				GFP_KERNEL);
+			buffers = devm_kcalloc(dev, bufnum,
+					       sizeof(struct xilly_buffer *),
+					       GFP_KERNEL);
 
 			if (!buffers)
 				goto memfail;
