@@ -696,15 +696,10 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 				    incr, R600_PTE_VALID);
 
 	if (ib.length_dw != 0) {
-		struct fence *fence;
-
 		radeon_asic_vm_pad_ib(rdev, &ib);
 
-		fence = reservation_object_get_excl(pd->tbo.resv);
-		radeon_semaphore_sync_to(ib.semaphore,
-					 (struct radeon_fence *)fence);
-
-		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
+		radeon_semaphore_sync_resv(ib.semaphore, pd->tbo.resv, false);
+		radeon_semaphore_sync_fence(ib.semaphore, vm->last_id_use);
 		WARN_ON(ib.length_dw > ndw);
 		r = radeon_ib_schedule(rdev, &ib, NULL, false);
 		if (r) {
@@ -829,11 +824,8 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 		struct radeon_bo *pt = vm->page_tables[pt_idx].bo;
 		unsigned nptes;
 		uint64_t pte;
-		struct fence *fence;
 
-		fence = reservation_object_get_excl(pt->tbo.resv);
-		radeon_semaphore_sync_to(ib->semaphore,
-					 (struct radeon_fence *)fence);
+		radeon_semaphore_sync_resv(ib->semaphore, pt->tbo.resv, false);
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
@@ -975,7 +967,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	radeon_asic_vm_pad_ib(rdev, &ib);
 	WARN_ON(ib.length_dw > ndw);
 
-	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
+	radeon_semaphore_sync_fence(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);

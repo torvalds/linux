@@ -255,16 +255,12 @@ static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
 
 	for (i = 0; i < p->nrelocs; i++) {
 		struct reservation_object *resv;
-		struct fence *fence;
 
 		if (!p->relocs[i].robj)
 			continue;
 
 		resv = p->relocs[i].robj->tbo.resv;
-		fence = reservation_object_get_excl(resv);
-
-		radeon_semaphore_sync_to(p->ib.semaphore,
-					 (struct radeon_fence *)fence);
+		radeon_semaphore_sync_resv(p->ib.semaphore, resv, false);
 	}
 }
 
@@ -569,7 +565,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		goto out;
 	}
 	radeon_cs_sync_rings(parser);
-	radeon_semaphore_sync_to(parser->ib.semaphore, vm->fence);
+	radeon_semaphore_sync_fence(parser->ib.semaphore, vm->fence);
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
