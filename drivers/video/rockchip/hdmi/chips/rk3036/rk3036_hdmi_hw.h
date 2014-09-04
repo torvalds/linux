@@ -63,13 +63,21 @@ enum {
 #define VIDEO_CONTRL2			0x02
 #define m_VIDEO_OUTPUT_FORMAT	(3 << 6)
 #define m_VIDEO_INPUT_BITS	(3 << 4)
+#define m_VIDEO_INPUT_CSP	(1 << 0)
 #define v_VIDEO_OUTPUT_FORMAT(n)(n << 6)
 #define v_VIDEO_INPUT_BITS(n)	(n << 4)
+#define v_VIDEO_INPUT_CSP(n)	(n << 0)
+
 enum {
 	VIDEO_INPUT_12BITS = 0,
 	VIDEO_INPUT_10BITS,
+	VIDEO_INPUT_REVERT,
 	VIDEO_INPUT_8BITS
 };
+#define VIDEO_CONTRL			0x03
+#define m_VIDEO_AUTO_CSC	(1 << 7)
+#define v_VIDEO_AUTO_CSC(n)	(n << 7)
+
 #define VIDEO_CONTRL3			0x04
 #define m_SOF			(1 << 3)
 #define m_CSC			(1 << 0)
