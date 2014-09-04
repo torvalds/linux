@@ -770,14 +770,11 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 			bytes_done += howmany;
 
 			if (bufferdone) {
-				channel->endpoint->ephw->
-					hw_sync_sgl_for_device
-					(
-						channel->endpoint,
-						channel->wr_buffers[bufidx]->
-						dma_addr,
-						channel->wr_buf_size,
-						DMA_FROM_DEVICE);
+				channel->endpoint->ephw->hw_sync_sgl_for_device(
+					channel->endpoint,
+					channel->wr_buffers[bufidx]->dma_addr,
+					channel->wr_buf_size,
+					DMA_FROM_DEVICE);
 
 				/*
 				 * Tell FPGA the buffer is done with. It's an
@@ -1031,7 +1028,9 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 
 	bufidx = channel->rd_host_buf_idx;
 
-	bufidx_minus1 = (bufidx == 0) ? channel->num_rd_buffers - 1 : bufidx-1;
+	bufidx_minus1 = (bufidx == 0) ?
+		channel->num_rd_buffers - 1 :
+		bufidx - 1;
 
 	end_offset_plus1 = channel->rd_host_buf_pos >>
 		channel->log2_element_size;
@@ -1320,13 +1319,11 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 			bytes_done += howmany;
 
 			if (bufferdone) {
-				channel->endpoint->ephw->
-					hw_sync_sgl_for_device(
-						channel->endpoint,
-						channel->rd_buffers[bufidx]->
-						dma_addr,
-						channel->rd_buf_size,
-						DMA_TO_DEVICE);
+				channel->endpoint->ephw->hw_sync_sgl_for_device(
+					channel->endpoint,
+					channel->rd_buffers[bufidx]->dma_addr,
+					channel->rd_buf_size,
+					DMA_TO_DEVICE);
 
 				mutex_lock(&channel->endpoint->register_mutex);
 
