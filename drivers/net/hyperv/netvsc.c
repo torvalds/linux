@@ -1054,10 +1054,8 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	struct net_device *ndev;
 
 	net_device = alloc_net_device(device);
-	if (!net_device) {
-		ret = -ENOMEM;
-		goto cleanup;
-	}
+	if (!net_device)
+		return -ENOMEM;
 
 	net_device->ring_size = ring_size;
 
