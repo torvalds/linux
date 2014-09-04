@@ -234,13 +234,13 @@ enum pci9118_boardid {
 	BOARD_PCI9118HR,
 };
 
-struct boardtype {
-	const char *name;		/* board name */
+struct pci9118_boardinfo {
+	const char *name;
 	unsigned int ai_is_16bit:1;
 	unsigned int is_hg:1;
 };
 
-static const struct boardtype boardtypes[] = {
+static const struct pci9118_boardinfo pci9118_boards[] = {
 	[BOARD_PCI9118DG] = {
 		.name		= "pci9118dg",
 	},
@@ -1766,7 +1766,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 				 int master, int ext_mux, int softsshdelay,
 				 int hw_err_mask)
 {
-	const struct boardtype *this_board = comedi_board(dev);
+	const struct pci9118_boardinfo *board = comedi_board(dev);
 	struct pci9118_private *devpriv = dev->private;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
@@ -1857,9 +1857,9 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	else
 		s->n_chan = 16;
 
-	s->maxdata = this_board->ai_is_16bit ? 0xffff : 0x0fff;
-	s->range_table = this_board->is_hg ? &pci9118hg_ai_range
-					   : &pci9118_ai_range;
+	s->maxdata = board->ai_is_16bit ? 0xffff : 0x0fff;
+	s->range_table = board->is_hg ? &pci9118hg_ai_range
+				      : &pci9118_ai_range;
 	s->insn_read = pci9118_insn_read_ai;
 	if (dev->irq) {
 		dev->read_subdev = s;
@@ -1950,11 +1950,11 @@ static int pci9118_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct boardtype *board = NULL;
+	const struct pci9118_boardinfo *board = NULL;
 	struct pci9118_private *devpriv;
 
-	if (context < ARRAY_SIZE(boardtypes))
-		board = &boardtypes[context];
+	if (context < ARRAY_SIZE(pci9118_boards))
+		board = &pci9118_boards[context];
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
@@ -2000,9 +2000,9 @@ static struct comedi_driver adl_pci9118_driver = {
 	.attach		= pci9118_attach,
 	.auto_attach	= pci9118_auto_attach,
 	.detach		= pci9118_detach,
-	.num_names	= ARRAY_SIZE(boardtypes),
-	.board_name	= &boardtypes[0].name,
-	.offset		= sizeof(struct boardtype),
+	.num_names	= ARRAY_SIZE(pci9118_boards),
+	.board_name	= &pci9118_boards[0].name,
+	.offset		= sizeof(struct pci9118_boardinfo),
 };
 
 static int adl_pci9118_pci_probe(struct pci_dev *dev,
