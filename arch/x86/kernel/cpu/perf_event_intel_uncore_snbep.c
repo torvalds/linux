@@ -139,7 +139,7 @@
 #define IVBEP_CB0_MSR_PMON_BOX_FILTER_OPC		(0x1ffULL << 52)
 #define IVBEP_CB0_MSR_PMON_BOX_FILTER_C6		(0x1ULL << 61)
 #define IVBEP_CB0_MSR_PMON_BOX_FILTER_NC		(0x1ULL << 62)
-#define IVBEP_CB0_MSR_PMON_BOX_FILTER_IOSC	(0x1ULL << 63)
+#define IVBEP_CB0_MSR_PMON_BOX_FILTER_ISOC	(0x1ULL << 63)
 
 /* IVBEP home agent */
 #define IVBEP_HA_PCI_PMON_CTL_Q_OCC_RST		(1 << 16)
@@ -1214,6 +1214,9 @@ static struct attribute *ivbep_uncore_cbox_formats_attr[] = {
 	&format_attr_filter_state2.attr,
 	&format_attr_filter_nid2.attr,
 	&format_attr_filter_opc2.attr,
+	&format_attr_filter_nc.attr,
+	&format_attr_filter_c6.attr,
+	&format_attr_filter_isoc.attr,
 	NULL,
 };
 
@@ -1350,8 +1353,12 @@ static u64 ivbep_cbox_filter_mask(int fields)
 		mask |= IVBEP_CB0_MSR_PMON_BOX_FILTER_STATE;
 	if (fields & 0x8)
 		mask |= IVBEP_CB0_MSR_PMON_BOX_FILTER_NID;
-	if (fields & 0x10)
+	if (fields & 0x10) {
 		mask |= IVBEP_CB0_MSR_PMON_BOX_FILTER_OPC;
+		mask |= IVBEP_CB0_MSR_PMON_BOX_FILTER_NC;
+		mask |= IVBEP_CB0_MSR_PMON_BOX_FILTER_C6;
+		mask |= IVBEP_CB0_MSR_PMON_BOX_FILTER_ISOC;
+	}
 
 	return mask;
 }
