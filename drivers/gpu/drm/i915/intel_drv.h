@@ -946,6 +946,7 @@ void intel_dp_mst_suspend(struct drm_device *dev);
 void intel_dp_mst_resume(struct drm_device *dev);
 int intel_dp_max_link_bw(struct intel_dp *intel_dp);
 void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
+void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv);
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
 void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);

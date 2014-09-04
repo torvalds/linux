@@ -6468,6 +6468,8 @@ static void vlv_display_power_well_disable(struct drm_i915_private *dev_priv,
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	vlv_set_power_well(dev_priv, power_well, false);
+
+	vlv_power_sequencer_reset(dev_priv);
 }
 
 static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
