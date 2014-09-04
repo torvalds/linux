@@ -676,6 +676,14 @@ static int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 		}
 	}
 
+	if (d->props->tuner_detach) {
+		ret = d->props->tuner_detach(adap);
+		if (ret < 0) {
+			dev_dbg(&d->udev->dev, "%s: tuner_detach() failed=%d\n",
+					__func__, ret);
+		}
+	}
+
 	if (d->props->frontend_detach) {
 		ret = d->props->frontend_detach(adap);
 		if (ret < 0) {

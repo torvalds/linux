@@ -257,6 +257,7 @@ struct dvb_usb_device_properties {
 	int (*frontend_attach) (struct dvb_usb_adapter *);
 	int (*frontend_detach)(struct dvb_usb_adapter *);
 	int (*tuner_attach) (struct dvb_usb_adapter *);
+	int (*tuner_detach)(struct dvb_usb_adapter *);
 	int (*frontend_ctrl) (struct dvb_frontend *, int);
 	int (*streaming_ctrl) (struct dvb_frontend *, int);
 	int (*init) (struct dvb_usb_device *);
