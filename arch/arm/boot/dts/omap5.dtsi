@@ -945,6 +945,15 @@
 				clock-names = "fck";
 			};
 
+			rfbi: encoder@58002000  {
+				compatible = "ti,omap5-rfbi";
+				reg = <0x58002000 0x100>;
+				status = "disabled";
+				ti,hwmods = "dss_rfbi";
+				clocks = <&dss_dss_clk>, <&l3_iclk_div>;
+				clock-names = "fck", "ick";
+			};
+
 			dsi1: encoder@58004000 {
 				compatible = "ti,omap5-dsi";
 				reg = <0x58004000 0x200>,
