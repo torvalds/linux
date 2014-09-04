@@ -231,7 +231,6 @@ static const struct comedi_lrange range_pci9118hg = {
 struct boardtype {
 	const char *name;		/* board name */
 	int device_id;			/* PCI device ID of card */
-	int n_aichan;			/* num of A/D chans */
 	int ai_maxdata;			/* resolution of A/D */
 	const struct comedi_lrange *rangelist_ai;	/* rangelist for A/D */
 	unsigned int ai_ns_min;		/* max sample speed of card v ns */
@@ -245,7 +244,6 @@ static const struct boardtype boardtypes[] = {
 	{
 		.name		= "pci9118dg",
 		.device_id	= 0x80d9,
-		.n_aichan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 3000,
@@ -253,7 +251,6 @@ static const struct boardtype boardtypes[] = {
 	}, {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
-		.n_aichan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118hg,
 		.ai_ns_min	= 3000,
@@ -261,7 +258,6 @@ static const struct boardtype boardtypes[] = {
 	}, {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
-		.n_aichan	= 16,
 		.ai_maxdata	= 0xffff,
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 10000,
@@ -1885,7 +1881,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	if (devpriv->usemux)
 		s->n_chan = devpriv->usemux;
 	else
-		s->n_chan = this_board->n_aichan;
+		s->n_chan = 16;
 
 	s->maxdata = this_board->ai_maxdata;
 	s->range_table = this_board->rangelist_ai;
