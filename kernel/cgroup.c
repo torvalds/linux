@@ -1035,6 +1035,11 @@ static void cgroup_get(struct cgroup *cgrp)
 	css_get(&cgrp->self);
 }
 
+static bool cgroup_tryget(struct cgroup *cgrp)
+{
+	return css_tryget(&cgrp->self);
+}
+
 static void cgroup_put(struct cgroup *cgrp)
 {
 	css_put(&cgrp->self);
@@ -1147,7 +1152,8 @@ static struct cgroup *cgroup_kn_lock_live(struct kernfs_node *kn)
 	 * protection against removal.  Ensure @cgrp stays accessible and
 	 * break the active_ref protection.
 	 */
-	cgroup_get(cgrp);
+	if (!cgroup_tryget(cgrp))
+		return NULL;
 	kernfs_break_active_protection(kn);
 
 	mutex_lock(&cgroup_mutex);
