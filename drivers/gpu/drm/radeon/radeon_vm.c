@@ -143,6 +143,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 	list[0].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
+	list[0].tv.shared = false;
 	list[0].tiling_flags = 0;
 	list[0].handle = 0;
 	list_add(&list[0].tv.head, head);
@@ -156,6 +157,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 		list[idx].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
+		list[idx].tv.shared = false;
 		list[idx].tiling_flags = 0;
 		list[idx].handle = 0;
 		list_add(&list[idx++].tv.head, head);
@@ -395,6 +397,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 
         memset(&tv, 0, sizeof(tv));
         tv.bo = &bo->tbo;
+	tv.shared = false;
 
         INIT_LIST_HEAD(&head);
         list_add(&tv.head, &head);

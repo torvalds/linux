@@ -183,6 +183,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
+		p->relocs[i].tv.shared = false;
 		p->relocs[i].handle = r->handle;
 
 		radeon_cs_buckets_add(&buckets, &p->relocs[i].tv.head,

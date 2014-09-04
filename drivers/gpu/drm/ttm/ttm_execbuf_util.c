@@ -119,8 +119,14 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			ret = -EBUSY;
 		}
 
-		if (!ret)
-			continue;
+		if (!ret) {
+			if (!entry->shared)
+				continue;
+
+			ret = reservation_object_reserve_shared(bo->resv);
+			if (!ret)
+				continue;
+		}
 
 		/* uh oh, we lost out, drop every reservation and try
 		 * to only reserve this buffer, then start over if
@@ -135,6 +141,9 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			ww_mutex_lock_slow(&bo->resv->lock, ticket);
 			ret = 0;
 		}
+
+		if (!ret && entry->shared)
+			ret = reservation_object_reserve_shared(bo->resv);
 
 		if (unlikely(ret != 0)) {
 			if (ret == -EINTR)
@@ -183,7 +192,10 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 
 	list_for_each_entry(entry, list, head) {
 		bo = entry->bo;
-		reservation_object_add_excl_fence(bo->resv, fence);
+		if (entry->shared)
+			reservation_object_add_shared_fence(bo->resv, fence);
+		else
+			reservation_object_add_excl_fence(bo->resv, fence);
 		ttm_bo_add_to_lru(bo);
 		__ttm_bo_unreserve(bo);
 	}

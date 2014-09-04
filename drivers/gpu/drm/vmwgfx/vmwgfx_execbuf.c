@@ -346,6 +346,7 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 		++sw_context->cur_val_buf;
 		val_buf = &vval_buf->base;
 		val_buf->bo = ttm_bo_reference(bo);
+		val_buf->shared = false;
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
 		vval_buf->validate_as_mob = validate_as_mob;
 	}
@@ -2670,9 +2671,11 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 	INIT_LIST_HEAD(&validate_list);
 
 	pinned_val.bo = ttm_bo_reference(dev_priv->pinned_bo);
+	pinned_val.shared = false;
 	list_add_tail(&pinned_val.head, &validate_list);
 
 	query_val.bo = ttm_bo_reference(dev_priv->dummy_query_bo);
+	query_val.shared = false;
 	list_add_tail(&query_val.head, &validate_list);
 
 	ret = ttm_eu_reserve_buffers(&ticket, &validate_list, false);
