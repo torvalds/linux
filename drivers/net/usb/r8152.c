@@ -992,32 +992,35 @@ static int rtl8152_set_mac_address(struct net_device *netdev, void *p)
 	return 0;
 }
 
-static inline void set_ethernet_addr(struct r8152 *tp)
+static int set_ethernet_addr(struct r8152 *tp)
 {
 	struct net_device *dev = tp->netdev;
+	struct sockaddr sa;
 	int ret;
-	u8 node_id[8] = {0};
 
 	if (tp->version == RTL_VER_01)
-		ret = pla_ocp_read(tp, PLA_IDR, sizeof(node_id), node_id);
+		ret = pla_ocp_read(tp, PLA_IDR, 8, sa.sa_data);
 	else
-		ret = pla_ocp_read(tp, PLA_BACKUP, sizeof(node_id), node_id);
+		ret = pla_ocp_read(tp, PLA_BACKUP, 8, sa.sa_data);
 
 	if (ret < 0) {
-		netif_notice(tp, probe, dev, "inet addr fail\n");
+		netif_err(tp, probe, dev, "Get ether addr fail\n");
+	} else if (!is_valid_ether_addr(sa.sa_data)) {
+		netif_err(tp, probe, dev, "Invalid ether addr %pM\n",
+			  sa.sa_data);
+		eth_hw_addr_random(dev);
+		ether_addr_copy(sa.sa_data, dev->dev_addr);
+		ret = rtl8152_set_mac_address(dev, &sa);
+		netif_info(tp, probe, dev, "Random ether addr %pM\n",
+			   sa.sa_data);
 	} else {
-		if (tp->version != RTL_VER_01) {
-			ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR,
-				       CRWECR_CONFIG);
-			pla_ocp_write(tp, PLA_IDR, BYTE_EN_SIX_BYTES,
-				      sizeof(node_id), node_id);
-			ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR,
-				       CRWECR_NORAML);
-		}
-
-		memcpy(dev->dev_addr, node_id, dev->addr_len);
-		memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
+		if (tp->version == RTL_VER_01)
+			ether_addr_copy(dev->dev_addr, sa.sa_data);
+		else
+			ret = rtl8152_set_mac_address(dev, &sa);
 	}
+
+	return ret;
 }
 
 static void read_bulk_callback(struct urb *urb)
