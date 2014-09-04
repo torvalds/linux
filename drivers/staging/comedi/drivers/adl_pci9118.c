@@ -234,7 +234,6 @@ struct boardtype {
 	int n_aichanlist;		/* len of chanlist */
 	int n_aochan;			/* num of D/A chans */
 	int ai_maxdata;			/* resolution of A/D */
-	int ao_maxdata;			/* resolution of D/A */
 	const struct comedi_lrange *rangelist_ai;	/* rangelist for A/D */
 	unsigned int ai_ns_min;		/* max sample speed of card v ns */
 	unsigned int ai_pacer_min;	/*
@@ -254,7 +253,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichanlist	= PCI9118_CHANLEN,
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
-		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 3000,
 		.ai_pacer_min	= 12,
@@ -267,7 +265,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichanlist	= PCI9118_CHANLEN,
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
-		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118hg,
 		.ai_ns_min	= 3000,
 		.ai_pacer_min	= 12,
@@ -280,7 +277,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichanlist	= PCI9118_CHANLEN,
 		.n_aochan	= 2,
 		.ai_maxdata	= 0xffff,
-		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 10000,
 		.ai_pacer_min	= 40,
@@ -1924,7 +1920,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = this_board->n_aochan;
-	s->maxdata = this_board->ao_maxdata;
+	s->maxdata = 0x0fff;
 	s->len_chanlist = this_board->n_aochan;
 	s->range_table = &range_bipolar10;
 	s->insn_write = pci9118_insn_write_ao;
