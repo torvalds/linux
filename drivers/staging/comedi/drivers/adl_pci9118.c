@@ -236,7 +236,6 @@ enum pci9118_boardid {
 
 struct boardtype {
 	const char *name;		/* board name */
-	int device_id;			/* PCI device ID of card */
 	unsigned int ai_is_16bit:1;
 	unsigned int is_hg:1;
 };
@@ -244,16 +243,13 @@ struct boardtype {
 static const struct boardtype boardtypes[] = {
 	[BOARD_PCI9118DG] = {
 		.name		= "pci9118dg",
-		.device_id	= 0x80d9,
 	},
 	[BOARD_PCI9118HG] = {
 		.name		= "pci9118hg",
-		.device_id	= 0x80d9,
 		.is_hg		= 1,
 	},
 	[BOARD_PCI9118HR] = {
 		.name		= "pci9118hr",
-		.device_id	= 0x80d9,
 		.ai_is_16bit	= 1,
 	},
 };
@@ -1743,7 +1739,6 @@ static int pci9118_reset(struct comedi_device *dev)
 static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 					struct comedi_devconfig *it)
 {
-	const struct boardtype *this_board = comedi_board(dev);
 	struct pci_dev *pcidev = NULL;
 	int bus = it->options[0];
 	int slot = it->options[1];
@@ -1751,7 +1746,7 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor != PCI_VENDOR_ID_AMCC)
 			continue;
-		if (pcidev->device != this_board->device_id)
+		if (pcidev->device != 0x80d9)
 			continue;
 		if (bus || slot) {
 			/* requested particular bus/slot */
