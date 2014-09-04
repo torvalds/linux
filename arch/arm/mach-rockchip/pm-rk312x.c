@@ -935,9 +935,9 @@ void PIE_FUNC(pwm_regulator_suspend)(void)
 		grf_writel(0x01000000, 0xb4);/*iomux  gpio0d2*/
 		gpio0_inout = readl_relaxed(RK_GPIO_VIRT(0) + 0x04);
 		gpio0_ddr = readl_relaxed(RK_GPIO_VIRT(0));
-		writel_relaxed(gpio0_inout | 0x08000000, RK_GPIO_VIRT(0) + 0x04);
+		writel_relaxed(gpio0_inout | 0x10000000, RK_GPIO_VIRT(0) + 0x04);
 		dsb();
-		writel_relaxed(gpio0_ddr | 0x08000000, RK_GPIO_VIRT(0));
+		writel_relaxed(gpio0_ddr | 0x10000000, RK_GPIO_VIRT(0));
 	}
 	cru_writel(0x1e000000 | clk_gates8, 0xf0);
 	sram_udelay(30);
@@ -952,13 +952,13 @@ void PIE_FUNC(pwm_regulator_resume)(void)
 	clk_gates8 = cru_readl(0xf0);
 	cru_writel(0x1e000000, 0xf0);
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM0)) {
+		grf_writel(0x00100010, 0xb4);/*iomux  gpio0d2*/
 		gpio0_inout = readl_relaxed(RK_GPIO_VIRT(0) + 0x04);
 		gpio0_ddr = readl_relaxed(RK_GPIO_VIRT(0));
 		writel_relaxed(gpio0_inout | 0x04000000, RK_GPIO_VIRT(0)
 			+ 0x04);
 		dsb();
 		writel_relaxed(gpio0_ddr &  ~0x04000000, RK_GPIO_VIRT(0));
-		grf_writel(0x00100010, 0xb4);/*iomux  gpio0d2*/
 	}
 
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM1)) {
@@ -972,13 +972,13 @@ void PIE_FUNC(pwm_regulator_resume)(void)
 	}
 
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM2)) {
+		grf_writel(0x01001000, 0xb4);/*iomux  gpio0d2*/
 		gpio0_inout = readl_relaxed(RK_GPIO_VIRT(0) + 0x04);
 		gpio0_ddr = readl_relaxed(RK_GPIO_VIRT(0));
-		writel_relaxed(gpio0_inout | 0x08000000, RK_GPIO_VIRT(0)
+		writel_relaxed(gpio0_inout | 0x10000000, RK_GPIO_VIRT(0)
 			+ 0x04);
 		dsb();
-		writel_relaxed(gpio0_ddr | ~0x08000000, RK_GPIO_VIRT(0));
-		grf_writel(0x01001000, 0xb4);/*iomux  gpio0d2*/
+		writel_relaxed(gpio0_ddr | ~0x10000000, RK_GPIO_VIRT(0));
 	}
 	cru_writel(0x1e000000 | clk_gates8, 0xf0);
 	sram_udelay(30);

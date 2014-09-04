@@ -1805,7 +1805,7 @@
 						"g_pclk_spi0",		"reserved",
 						"g_pclk_saradc",		"g_pclk_wdt";
 
-					rockchip,suspend-clkgating-setting = <0x8080 0x0000>;
+					rockchip,suspend-clkgating-setting = <0x8480 0x0000>;
 
 					#clock-cells = <1>;
 				};
