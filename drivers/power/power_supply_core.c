@@ -127,7 +127,7 @@ static int __power_supply_populate_supplied_from(struct device *dev,
 	do {
 		np = of_parse_phandle(psy->of_node, "power-supplies", i++);
 		if (!np)
-			continue;
+			break;
 
 		if (np == epsy->of_node) {
 			dev_info(psy->dev, "%s: Found supply : %s\n",
@@ -215,7 +215,7 @@ static int power_supply_check_supplies(struct power_supply *psy)
 
 		np = of_parse_phandle(psy->of_node, "power-supplies", cnt++);
 		if (!np)
-			continue;
+			break;
 
 		ret = power_supply_find_supply_from_node(np);
 		if (ret) {
