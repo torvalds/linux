@@ -251,17 +251,14 @@ int xl_init_io(void)
 
 void xl_program_b(int32_t i)
 {
-	return;
 }
 
 void xl_rdwr_b(int32_t i)
 {
-	return;
 }
 
 void xl_csi_b(int32_t i)
 {
-	return;
 }
 
 int xl_get_init_b(void)
@@ -276,17 +273,14 @@ int xl_get_done_b(void)
 
 static inline void byte0_out(unsigned char data)
 {
-	return;
 }
 
 static inline void byte1_out(unsigned char data)
 {
-	return;
 }
 
 static inline void xl_cclk_b(int32_t i)
 {
-	return;
 }
 
 /*
