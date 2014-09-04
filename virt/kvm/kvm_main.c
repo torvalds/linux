@@ -778,7 +778,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	base_gfn = mem->guest_phys_addr >> PAGE_SHIFT;
 	npages = mem->memory_size >> PAGE_SHIFT;
 
-	r = -EINVAL;
 	if (npages > KVM_MEM_MAX_NR_PAGES)
 		goto out;
 
@@ -792,7 +791,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	new.npages = npages;
 	new.flags = mem->flags;
 
-	r = -EINVAL;
 	if (npages) {
 		if (!old.npages)
 			change = KVM_MR_CREATE;
@@ -848,7 +846,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	}
 
 	if ((change == KVM_MR_DELETE) || (change == KVM_MR_MOVE)) {
-		r = -ENOMEM;
 		slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
 				GFP_KERNEL);
 		if (!slots)
