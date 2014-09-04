@@ -135,7 +135,7 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 				    sizeof(cmd), &cmd);
 }
 
-static int iwl_mvm_get_temp(struct iwl_mvm *mvm)
+int iwl_mvm_get_temp(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_temp_notif;
 	static const u8 temp_notif[] = { DTS_MEASUREMENT_NOTIFICATION };
