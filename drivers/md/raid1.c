@@ -1545,8 +1545,13 @@ static void close_sync(struct r1conf *conf)
 	mempool_destroy(conf->r1buf_pool);
 	conf->r1buf_pool = NULL;
 
+	spin_lock_irq(&conf->resync_lock);
 	conf->next_resync = 0;
 	conf->start_next_window = MaxSector;
+	conf->current_window_requests +=
+		conf->next_window_requests;
+	conf->next_window_requests = 0;
+	spin_unlock_irq(&conf->resync_lock);
 }
 
 static int raid1_spare_active(struct mddev *mddev)
