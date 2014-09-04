@@ -389,7 +389,7 @@ static bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
 		btcoexist->bt_info.reject_agg_pkt = *bool_tmp;
 		break;
 	case BTC_SET_BL_BT_CTRL_AGG_SIZE:
-		btcoexist->bt_info.b_bt_ctrl_buf_size = *bool_tmp;
+		btcoexist->bt_info.bt_ctrl_buf_size = *bool_tmp;
 		break;
 	case BTC_SET_BL_INC_SCAN_DEV_NUM:
 		btcoexist->bt_info.increase_scan_dev_num = *bool_tmp;
@@ -417,10 +417,10 @@ static bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
 	/*	rtlpriv->mlmepriv.scan_compensation = *u8_tmp;  */
 		break;
 	case BTC_SET_U1_1ANT_LPS:
-		btcoexist->bt_info.lps_1ant = *u8_tmp;
+		btcoexist->bt_info.lps_val = *u8_tmp;
 		break;
 	case BTC_SET_U1_1ANT_RPWM:
-		btcoexist->bt_info.rpwm_1ant = *u8_tmp;
+		btcoexist->bt_info.rpwm_val = *u8_tmp;
 		break;
 	/* the following are some action which will be triggered  */
 	case BTC_SET_ACT_LEAVE_LPS:
@@ -506,7 +506,7 @@ static void halbtc_write_1byte(void *bt_context, u32 reg_addr, u8 data)
 }
 
 static void halbtc_bitmask_write_1byte(void *bt_context, u32 reg_addr,
-				       u32 bit_mask, u8 data)
+				       u8 bit_mask, u8 data)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -654,7 +654,7 @@ bool exhalbtc_initlize_variables(struct rtl_priv *adapter)
 
 	btcoexist->cli_buf = &btc_dbg_buf[0];
 
-	btcoexist->bt_info.b_bt_ctrl_buf_size = false;
+	btcoexist->bt_info.bt_ctrl_buf_size = false;
 	btcoexist->bt_info.agg_buf_size = 5;
 
 	btcoexist->bt_info.increase_scan_dev_num = false;
@@ -786,10 +786,8 @@ void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action)
 }
 
 void exhalbtc_mediastatus_notify(struct btc_coexist *btcoexist,
-				 enum _RT_MEDIA_STATUS media_status)
+				 enum rt_media_status media_status)
 {
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	u8 status;
 
 	if (!halbtc_is_bt_coexist_available(btcoexist))
@@ -846,8 +844,6 @@ void exhalbtc_bt_info_notify(struct btc_coexist *btcoexist,
 
 void exhalbtc_stack_operation_notify(struct btc_coexist *btcoexist, u8 type)
 {
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	u8 stack_op_type;
 
 	if (!halbtc_is_bt_coexist_available(btcoexist))

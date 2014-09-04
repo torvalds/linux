@@ -56,11 +56,11 @@ void rtl8723ae_bt_coex_off_before_lps(struct ieee80211_hw *hw)
 	}
 }
 
-static enum _RT_MEDIA_STATUS mgnt_link_status_query(struct ieee80211_hw *hw)
+static enum rt_media_status mgnt_link_status_query(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	enum _RT_MEDIA_STATUS m_status = RT_MEDIA_DISCONNECT;
+	enum rt_media_status m_status = RT_MEDIA_DISCONNECT;
 
 	u8 bibss = (mac->opmode == NL80211_IFTYPE_ADHOC) ? 1 : 0;
 

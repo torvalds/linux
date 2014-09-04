@@ -102,7 +102,7 @@ void rtl_btc_connect_notify(struct rtl_priv *rtlpriv, u8 action)
 }
 
 void rtl_btc_mediastatus_notify(struct rtl_priv *rtlpriv,
-				enum _RT_MEDIA_STATUS mstatus)
+				enum rt_media_status mstatus)
 {
 	exhalbtc_mediastatus_notify(&gl_bt_coexist, mstatus);
 }
@@ -187,11 +187,11 @@ u8 rtl_get_hwpg_ant_num(struct rtl_priv *rtlpriv)
 	return num;
 }
 
-enum _RT_MEDIA_STATUS mgnt_link_status_query(struct ieee80211_hw *hw)
+enum rt_media_status mgnt_link_status_query(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	enum _RT_MEDIA_STATUS    m_status = RT_MEDIA_DISCONNECT;
+	enum rt_media_status    m_status = RT_MEDIA_DISCONNECT;
 
 	u8 bibss = (mac->opmode == NL80211_IFTYPE_ADHOC) ? 1 : 0;
 

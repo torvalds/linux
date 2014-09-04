@@ -37,7 +37,13 @@
 
 #include "halbtcoutsrc.h"
 
+#include "halbtc8192e2ant.h"
+#include "halbtc8723b1ant.h"
 #include "halbtc8723b2ant.h"
+#include "halbtc8821a2ant.h"
+#include "halbtc8821a1ant.h"
+
+#define GetDefaultAdapter(padapter)	padapter
 
 #define BIT0	0x00000001
 #define BIT1	0x00000002
