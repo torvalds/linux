@@ -63,35 +63,6 @@ void skb_clone_tx_timestamp(struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(skb_clone_tx_timestamp);
 
-void skb_complete_tx_timestamp(struct sk_buff *skb,
-			       struct skb_shared_hwtstamps *hwtstamps)
-{
-	struct sock *sk = skb->sk;
-	struct sock_exterr_skb *serr;
-	int err;
-
-	if (!hwtstamps) {
-		sock_put(sk);
-		kfree_skb(skb);
-		return;
-	}
-
-	*skb_hwtstamps(skb) = *hwtstamps;
-
-	serr = SKB_EXT_ERR(skb);
-	memset(serr, 0, sizeof(*serr));
-	serr->ee.ee_errno = ENOMSG;
-	serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
-	skb->sk = NULL;
-
-	err = sock_queue_err_skb(sk, skb);
-
-	sock_put(sk);
-	if (err)
-		kfree_skb(skb);
-}
-EXPORT_SYMBOL_GPL(skb_complete_tx_timestamp);
-
 bool skb_defer_rx_timestamp(struct sk_buff *skb)
 {
 	struct phy_device *phydev;

@@ -3511,32 +3511,12 @@ struct sk_buff *sock_dequeue_err_skb(struct sock *sk)
 }
 EXPORT_SYMBOL(sock_dequeue_err_skb);
 
-void __skb_tstamp_tx(struct sk_buff *orig_skb,
-		     struct skb_shared_hwtstamps *hwtstamps,
-		     struct sock *sk, int tstype)
+static void __skb_complete_tx_timestamp(struct sk_buff *skb,
+					struct sock *sk,
+					int tstype)
 {
 	struct sock_exterr_skb *serr;
-	struct sk_buff *skb;
 	int err;
-
-	if (!sk)
-		return;
-
-	if (hwtstamps) {
-		*skb_hwtstamps(orig_skb) =
-			*hwtstamps;
-	} else {
-		/*
-		 * no hardware time stamps available,
-		 * so keep the shared tx_flags and only
-		 * store software time stamp
-		 */
-		orig_skb->tstamp = ktime_get_real();
-	}
-
-	skb = skb_clone(orig_skb, GFP_ATOMIC);
-	if (!skb)
-		return;
 
 	serr = SKB_EXT_ERR(skb);
 	memset(serr, 0, sizeof(*serr));
@@ -3553,6 +3533,45 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 
 	if (err)
 		kfree_skb(skb);
+}
+
+void skb_complete_tx_timestamp(struct sk_buff *skb,
+			       struct skb_shared_hwtstamps *hwtstamps)
+{
+	struct sock *sk = skb->sk;
+
+	skb->sk = NULL;
+
+	if (hwtstamps) {
+		*skb_hwtstamps(skb) = *hwtstamps;
+		__skb_complete_tx_timestamp(skb, sk, SCM_TSTAMP_SND);
+	} else {
+		kfree_skb(skb);
+	}
+
+	sock_put(sk);
+}
+EXPORT_SYMBOL_GPL(skb_complete_tx_timestamp);
+
+void __skb_tstamp_tx(struct sk_buff *orig_skb,
+		     struct skb_shared_hwtstamps *hwtstamps,
+		     struct sock *sk, int tstype)
+{
+	struct sk_buff *skb;
+
+	if (!sk)
+		return;
+
+	if (hwtstamps)
+		*skb_hwtstamps(orig_skb) = *hwtstamps;
+	else
+		orig_skb->tstamp = ktime_get_real();
+
+	skb = skb_clone(orig_skb, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	__skb_complete_tx_timestamp(skb, sk, tstype);
 }
 EXPORT_SYMBOL_GPL(__skb_tstamp_tx);
 
