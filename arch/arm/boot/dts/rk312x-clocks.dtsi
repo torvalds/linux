@@ -155,6 +155,33 @@
 				#clock-cells = <0>;
 			};
 
+			hclk_vio_niu: hclk_vio_niu {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&hclk_vio_pre>;
+				clock-output-names = "hclk_vio_niu";
+				clock-div = <1>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
+
+			aclk_vio0_niu: aclk_vio0_niu {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&aclk_vio0_pre>;
+				clock-output-names = "aclk_vio0_niu";
+				clock-div = <1>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
+
+			aclk_vio1_niu: aclk_vio1_niu {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&aclk_vio1_pre>;
+				clock-output-names = "aclk_vio1_niu";
+				clock-div = <1>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
+
 		};
 
 		pd_cons {
@@ -1719,14 +1746,14 @@
 					compatible = "rockchip,rk3188-gate-clk";
 					reg = <0x00e8 0x4>;
 					clocks =
-						<&aclk_vio0_pre>,		<&hclk_vio_pre>,
+						<&aclk_vio0_niu>,		<&hclk_vio_niu>,
 						<&dummy>,		<&dummy>,
 
-						<&hclk_vio_pre>,		<&aclk_vio0_pre>,
+						<&hclk_vio_niu>,		<&aclk_vio0_niu>,
 						<&dummy>,		<&dummy>,
 
 						<&dummy>,		<&dummy>,
-						<&hclk_vio_pre>,			<&aclk_vio0_pre>,
+						<&hclk_vio_niu>,			<&aclk_vio0_niu>,
 
 						<&hclk_vio_pre>,		<&aclk_vio0_pre>,
 						<&dummy>,		<&dummy>;
@@ -1741,7 +1768,7 @@
 						"reserved",		"reserved",
 						"g_hclk_rga",		"g_aclk_rga",
 
-						"g_hclk_vio_bus",		"g_aclk_vio",
+						"hclk_vio_niu",		"aclk_vio0_niu",
 						"reserved",		"reserved";
 
 					rockchip,suspend-clkgating-setting = <0x0000 0x0000>;
@@ -1823,10 +1850,10 @@
 						<&dummy>,		<&dummy>,
 						<&pclk_pmu_pre>,		<&pclk_pmu_pre>,
 
-						<&dummy>,		<&hclk_vio_pre>,
-						<&hclk_vio_pre>,		<&hclk_vio_pre>,
+						<&dummy>,		<&hclk_vio_niu>,
+						<&hclk_vio_niu>,		<&hclk_vio_niu>,
 
-						<&aclk_vio1_pre>,		<&hclk_vio_pre>,
+						<&aclk_vio1_niu>,		<&hclk_vio_niu>,
 						<&aclk_vio1_pre>,		<&dummy>,
 
 						<&pclk_peri_pre>,		<&hclk_peri_pre>,
@@ -1840,7 +1867,7 @@
 						"g_pclk_mipi",		"g_hclk_iep",
 
 						"g_aclk_iep",		"g_hclk_ebc",
-						"g_aclk_vio1_niu",		"reserved",
+						"aclk_vio1_niu",		"reserved",
 
 						"g_pclk_sim_card",		"g_hclk_usb_peri",
 						"g_hclk_pe_arbi",		"g_aclk_peri_niu";

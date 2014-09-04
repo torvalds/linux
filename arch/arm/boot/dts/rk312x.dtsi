@@ -386,15 +386,15 @@
 				<&clk_gates4 1>,/*pclk_peri_axi_matrix*/
 
 				/*hclk_vio_pre*/
-				<&clk_gates6 12>,/*hclk_vio_niu*/
+				//<&clk_gates6 12>,/*hclk_vio_niu*/
 				//<&clk_gates6 1>,/*hclk_lcdc*/
 
 				/*aclk_vio0_pre*/
-				<&clk_gates6 13>,/*aclk_vio*/
+				//<&clk_gates6 13>,/*aclk_vio*/
 				//<&clk_gates6 0>,/*aclk_lcdc*/
 
 				/*aclk_vio1_pre*/
-				<&clk_gates9 10>,/*aclk_vio1_niu*/
+				//<&clk_gates9 10>,/*aclk_vio1_niu*/
 
 				/*UART*/
 				<&clk_gates1 12>,
