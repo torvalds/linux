@@ -208,10 +208,10 @@ unregister_red:
 
 static void thingm_remove_rgb(struct thingm_rgb *rgb)
 {
-	flush_work(&rgb->work);
 	led_classdev_unregister(&rgb->red.ldev);
 	led_classdev_unregister(&rgb->green.ldev);
 	led_classdev_unregister(&rgb->blue.ldev);
+	flush_work(&rgb->work);
 }
 
 static int thingm_probe(struct hid_device *hdev, const struct hid_device_id *id)
@@ -286,10 +286,10 @@ static void thingm_remove(struct hid_device *hdev)
 	struct thingm_device *tdev = hid_get_drvdata(hdev);
 	int i;
 
+	hid_hw_stop(hdev);
+
 	for (i = 0; i < tdev->fwinfo->numrgb; ++i)
 		thingm_remove_rgb(tdev->rgb + i);
-
-	hid_hw_stop(hdev);
 }
 
 static const struct hid_device_id thingm_table[] = {
