@@ -33,6 +33,7 @@ struct nft_nat {
 	enum nft_registers      sreg_proto_max:8;
 	enum nf_nat_manip_type  type:8;
 	u8			family;
+	u16			flags;
 };
 
 static void nft_nat_eval(const struct nft_expr *expr,
@@ -71,6 +72,8 @@ static void nft_nat_eval(const struct nft_expr *expr,
 		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
+	range.flags |= priv->flags;
+
 	data[NFT_REG_VERDICT].verdict =
 		nf_nat_setup_info(ct, &range, priv->type);
 }
@@ -82,6 +85,7 @@ static const struct nla_policy nft_nat_policy[NFTA_NAT_MAX + 1] = {
 	[NFTA_NAT_REG_ADDR_MAX]	 = { .type = NLA_U32 },
 	[NFTA_NAT_REG_PROTO_MIN] = { .type = NLA_U32 },
 	[NFTA_NAT_REG_PROTO_MAX] = { .type = NLA_U32 },
+	[NFTA_NAT_FLAGS]	 = { .type = NLA_U32 },
 };
 
 static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
@@ -149,6 +153,12 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	} else
 		priv->sreg_proto_max = priv->sreg_proto_min;
 
+	if (tb[NFTA_NAT_FLAGS]) {
+		priv->flags = ntohl(nla_get_be32(tb[NFTA_NAT_FLAGS]));
+		if (priv->flags & ~NF_NAT_RANGE_MASK)
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -183,6 +193,12 @@ static int nft_nat_dump(struct sk_buff *skb, const struct nft_expr *expr)
 				 htonl(priv->sreg_proto_max)))
 			goto nla_put_failure;
 	}
+
+	if (priv->flags != 0) {
+		if (nla_put_be32(skb, NFTA_NAT_FLAGS, htonl(priv->flags)))
+			goto nla_put_failure;
+	}
+
 	return 0;
 
 nla_put_failure:
