@@ -158,16 +158,22 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	/*
 	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
 	 * enabled, in that case, assume we have a SIL164 TMDS transmitter
+	 *
+	 * Don't make that assumption if we the chip wasn't enabled and
+	 * is at power-on reset, otherwise we'll incorrectly "detect" a
+	 * SIL164 when there is none.
 	 */
-	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
-	if (jreg & 0x80)
-		ast->tx_chip_type = AST_TX_SIL164;
+	if (!*need_post) {
+		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
+		if (jreg & 0x80)
+			ast->tx_chip_type = AST_TX_SIL164;
+	}
 
 	if ((ast->chip == AST2300) || (ast->chip == AST2400)) {
 		/*
 		 * On AST2300 and 2400, look the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
-		 * as "reserved" in the spec
+		 * as "reserved" in the spec)
 		 */
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
 		switch (jreg) {
