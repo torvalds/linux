@@ -1767,11 +1767,15 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 				 int hw_err_mask)
 {
 	const struct pci9118_boardinfo *board = comedi_board(dev);
-	struct pci9118_private *devpriv = dev->private;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci9118_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, pages, i;
 	u16 u16w;
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -1923,7 +1927,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 static int pci9118_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	struct pci9118_private *devpriv;
 	struct pci_dev *pcidev;
 	int ext_mux, disable_irq, master, softsshdelay, hw_err_mask;
 
@@ -1932,10 +1935,6 @@ static int pci9118_attach(struct comedi_device *dev,
 	disable_irq = ((it->options[3] & 2) != 0);
 	softsshdelay = it->options[4];
 	hw_err_mask = it->options[5];
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	pcidev = pci9118_find_pci(dev, it);
 	if (!pcidev)
@@ -1951,7 +1950,6 @@ static int pci9118_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct pci9118_boardinfo *board = NULL;
-	struct pci9118_private *devpriv;
 
 	if (context < ARRAY_SIZE(pci9118_boards))
 		board = &pci9118_boards[context];
@@ -1959,10 +1957,6 @@ static int pci9118_auto_attach(struct comedi_device *dev,
 		return -ENODEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	/*
 	 * Need to 'get' the PCI device to match the 'put' in pci9118_detach().
