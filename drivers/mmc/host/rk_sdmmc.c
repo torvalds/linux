@@ -3256,6 +3256,10 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->restrict_caps |= RESTRICT_CARD_TYPE_SDIO;	
 	if (of_find_property(host->dev->of_node, "supports-emmc", NULL))
 		mmc->restrict_caps |= RESTRICT_CARD_TYPE_EMMC;
+	/* Fixup for tSD */
+        if (of_find_property(host->dev->of_node, "supports-tSD", NULL))
+		mmc->restrict_caps |= RESTRICT_CARD_TYPE_TSD;
+
 
         /* We assume only low-level chip use gpio_cd */
         if (cpu_is_rk312x() &&
