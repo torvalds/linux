@@ -282,7 +282,7 @@ int recvframe_chkmic(struct rtw_adapter *adapter,
 	u32	datalen;
 	u8	miccode[8];
 	u8	bmic_err = false, brpt_micerror = true;
-	u8	*pframe, *payload,*pframemic;
+	u8	*pframe, *payload, *pframemic;
 	u8	*mickey;
 	/* u8	*iv, rxdata_key_idx = 0; */
 	struct	sta_info *stainfo;

@@ -623,7 +623,7 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 	struct arc4context mycontext;
 	int			curfragnum, length;
 	u32	prwskeylen;
-	u8	*pframe, *payload,*iv,*prwskey;
+	u8	*pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
 	struct	sta_info		*stainfo;
 	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
@@ -723,7 +723,7 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 	struct arc4context mycontext;
 	int	length;
 	u32	prwskeylen;
-	u8	*pframe, *payload,*iv,*prwskey;
+	u8	*pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
 	struct	sta_info		*stainfo;
 	struct	rx_pkt_attrib *prxattrib = &precvframe->attrib;
