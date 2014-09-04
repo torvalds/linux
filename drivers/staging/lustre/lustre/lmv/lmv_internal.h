@@ -93,7 +93,7 @@ static inline struct lmv_stripe_md *lmv_get_mea(struct ptlrpc_request *req)
 
 	if (mea->mea_count == 0)
 		return NULL;
-	if( mea->mea_magic != MEA_MAGIC_LAST_CHAR &&
+	if (mea->mea_magic != MEA_MAGIC_LAST_CHAR &&
 		mea->mea_magic != MEA_MAGIC_ALL_CHARS &&
 		mea->mea_magic != MEA_MAGIC_HASH_SEGMENT)
 		return NULL;
@@ -144,7 +144,7 @@ struct lmv_tgt_desc
 *lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 		struct lu_fid *fid);
 /* lproc_lmv.c */
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars)
