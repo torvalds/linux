@@ -87,7 +87,7 @@ struct fib_nh {
 	int			nh_saddr_genid;
 	struct rtable __rcu * __percpu *nh_pcpu_rth_output;
 	struct rtable __rcu	*nh_rth_input;
-	struct fnhe_hash_bucket	*nh_exceptions;
+	struct fnhe_hash_bucket	__rcu *nh_exceptions;
 };
 
 /*
