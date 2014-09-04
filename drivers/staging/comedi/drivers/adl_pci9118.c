@@ -143,8 +143,8 @@
 #define PCI9118_AI_CFG_PM		(1 << 2)  /* 1=post trigger */
 #define PCI9118_AI_CFG_AM		(1 << 1)  /* 1=about trigger */
 #define PCI9118_AI_CFG_START		(1 << 0)  /* 1=trigger start */
+#define PCI9118_FIFO_RESET_REG		0x34
 
-#define PCI9118_DELFIFO	0x34	/* W:   A/D data FIFO reset */
 #define PCI9118_INTSRC	0x38	/* R:   interrupt reason register */
 #define PCI9118_INTCTRL	0x38	/* W:   interrupt control register */
 
@@ -316,6 +316,12 @@ static void pci9118_timer_set_mode(struct comedi_device *dev,
 	val |= 0x30;		/* load low then high byte */
 	val |= mode;		/* set timer mode and BCD|binary */
 	outl(val, dev->iobase + PCI9118_TIMER_CTRL_REG);
+}
+
+static void pci9118_ai_reset_fifo(struct comedi_device *dev)
+{
+	/* writing any value resets the A/D FIFO */
+	outl(0, dev->iobase + PCI9118_FIFO_RESET_REG);
 }
 
 static int check_channel_list(struct comedi_device *dev,
@@ -497,14 +503,14 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0, 0, 0))
 		return -EINVAL;
 
-	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
+	pci9118_ai_reset_fifo(dev);
 
 	for (n = 0; n < insn->n; n++) {
 		pci9118_ai_start_conv(dev);
 
 		ret = comedi_timeout(dev, s, insn, pci9118_ai_eoc, 0);
 		if (ret) {
-			outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
+			pci9118_ai_reset_fifo(dev);
 			return ret;
 		}
 
@@ -515,7 +521,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 			data[n] = (val >> 4) & 0xfff;
 	}
 
-	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
+	pci9118_ai_reset_fifo(dev);
 	return n;
 
 }
@@ -768,7 +774,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	/* reset scan queue */
 	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
-	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
+	pci9118_ai_reset_fifo(dev);
 
 	devpriv->ai_do = 0;
 	devpriv->usedma = 0;
@@ -1643,7 +1649,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					 */
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 	udelay(1);
-	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
+	pci9118_ai_reset_fifo(dev);
 
 	/* clear A/D and INT status registers */
 	inl(dev->iobase + PCI9118_AI_STATUS_REG);
@@ -1703,7 +1709,7 @@ static int pci9118_reset(struct comedi_device *dev)
 	outl(0, dev->iobase + PCI9118_DIO_REG);	/* reset digi outs to L */
 	udelay(10);
 	inl(dev->iobase + PCI9118_AI_FIFO_REG);
-	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
+	pci9118_ai_reset_fifo(dev);
 	outl(0, dev->iobase + PCI9118_INTSRC);	/* remove INT requests */
 	/* clear A/D and INT status registers */
 	inl(dev->iobase + PCI9118_AI_STATUS_REG);
