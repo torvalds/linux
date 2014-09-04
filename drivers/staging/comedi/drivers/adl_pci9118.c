@@ -109,9 +109,8 @@
 #define PCI9118_TIMER_REG(x)		(0x00 + ((x) * 4))
 #define PCI9118_TIMER_CTRL_REG		0x0c
 #define PCI9118_AI_FIFO_REG		0x10
+#define PCI9118_AO_REG(x)		(0x10 + ((x) * 4))
 
-#define PCI9118_DA1	0x10	/* W:   D/A registers */
-#define PCI9118_DA2	0x14
 #define PCI9118_ADSTAT	0x18	/* R:   A/D status register */
 #define PCI9118_ADCNTRL	0x18	/* W:   A/D control register */
 #define PCI9118_DI	0x1c	/* R:   digi input register */
@@ -559,18 +558,12 @@ static int pci9118_insn_write_ao(struct comedi_device *dev,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci9118_private *devpriv = dev->private;
-	int n, chanreg, ch;
-
-	ch = CR_CHAN(insn->chanspec);
-	if (ch)
-		chanreg = PCI9118_DA2;
-	else
-		chanreg = PCI9118_DA1;
-
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int n;
 
 	for (n = 0; n < insn->n; n++) {
-		outl(data[n], dev->iobase + chanreg);
-		devpriv->ao_data[ch] = data[n];
+		outl(data[n], dev->iobase + PCI9118_AO_REG(chan));
+		devpriv->ao_data[chan] = data[n];
 	}
 
 	return n;
@@ -1717,11 +1710,12 @@ static int pci9118_reset(struct comedi_device *dev)
 						 * trigger stop
 						 */
 
+	/* reset analog outputs to 0V */
 	devpriv->ao_data[0] = 2047;
 	devpriv->ao_data[1] = 2047;
-	outl(devpriv->ao_data[0], dev->iobase + PCI9118_DA1);
-						/* reset A/D outs to 0V */
-	outl(devpriv->ao_data[1], dev->iobase + PCI9118_DA2);
+	outl(devpriv->ao_data[0], dev->iobase + PCI9118_AO_REG(0));
+	outl(devpriv->ao_data[1], dev->iobase + PCI9118_AO_REG(1));
+
 	outl(0, dev->iobase + PCI9118_DO);	/* reset digi outs to L */
 	udelay(10);
 	inl(dev->iobase + PCI9118_AI_FIFO_REG);
