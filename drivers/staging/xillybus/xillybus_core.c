@@ -407,8 +407,7 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 
 static int xilly_setupchannels(struct xilly_endpoint *ep,
 			       unsigned char *chandesc,
-			       int entries
-	)
+			       int entries)
 {
 	struct device *dev = ep->dev;
 	int i, entry, rc;
@@ -784,8 +783,8 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 				 * the channel-specific mutex.
 				 */
 
-				iowrite32(1 | (channel->chan_num << 1)
-					   | (bufidx << 12),
+				iowrite32(1 | (channel->chan_num << 1) |
+					  (bufidx << 12),
 					   channel->endpoint->registers +
 					   fpga_buf_ctrl_reg);
 			}
