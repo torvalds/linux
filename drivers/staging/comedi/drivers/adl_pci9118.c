@@ -144,11 +144,9 @@
 #define PCI9118_AI_CFG_AM		(1 << 1)  /* 1=about trigger */
 #define PCI9118_AI_CFG_START		(1 << 0)  /* 1=trigger start */
 #define PCI9118_FIFO_RESET_REG		0x34
+#define PCI9118_INT_CTRL_REG		0x38
 
-#define PCI9118_INTSRC	0x38	/* R:   interrupt reason register */
-#define PCI9118_INTCTRL	0x38	/* W:   interrupt control register */
-
-/* bits for interrupt reason and control (PCI9118_INTSRC, PCI9118_INTCTRL) */
+/* bits for interrupt reason and control (PCI9118_INT_CTRL_REG) */
 /* 1=interrupt occur, enable source,  0=interrupt not occur, disable source */
 #define Int_Timer	0x08	/* timer interrupt */
 #define Int_About	0x04	/* about trigger complete */
@@ -659,7 +657,7 @@ static int pci9118_exttrg_add(struct comedi_device *dev, unsigned char source)
 		return -1;				/* incorrect source */
 	devpriv->exttrg_users |= (1 << source);
 	devpriv->IntControlReg |= Int_DTrg;
-	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
+	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INT_CTRL_REG);
 	outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) | 0x1f00,
 					devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 							/* allow INT in AMCC */
@@ -680,7 +678,8 @@ static int pci9118_exttrg_del(struct comedi_device *dev, unsigned char source)
 					(~0x00001f00),
 					devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 						/* disable int in AMCC */
-		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
+		outl(devpriv->IntControlReg,
+		     dev->iobase + PCI9118_INT_CTRL_REG);
 	}
 	return 0;
 }
@@ -981,7 +980,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	intsrc = inl(dev->iobase + PCI9118_INTSRC) & 0xf;
+	intsrc = inl(dev->iobase + PCI9118_INT_CTRL_REG) & 0xf;
 	intcsr = inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 
 	if (!intsrc && !(intcsr & ANY_S593X_INT))
@@ -1039,7 +1038,7 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	devpriv->ai12_startstop &= ~START_AI_INT;
 	s->async->inttrig = NULL;
 
-	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
+	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INT_CTRL_REG);
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 	if (devpriv->ai_do != 3) {
 		pci9118_start_pacer(dev, devpriv->ai_do);
@@ -1391,13 +1390,15 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 							/* allow INT in AMCC */
 
 	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT))) {
-		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
+		outl(devpriv->IntControlReg,
+		     dev->iobase + PCI9118_INT_CTRL_REG);
 		outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 		if (devpriv->ai_do != 3) {
 			pci9118_start_pacer(dev, devpriv->ai_do);
 			devpriv->AdControlReg |= PCI9118_AI_CTRL_SOFTG;
 		}
-		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
+		outl(devpriv->IntControlReg,
+		     dev->iobase + PCI9118_INT_CTRL_REG);
 	}
 
 	return 0;
@@ -1460,7 +1461,8 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 
 	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT))) {
 		outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
-		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
+		outl(devpriv->IntControlReg,
+		     dev->iobase + PCI9118_INT_CTRL_REG);
 		if (devpriv->ai_do != 3) {
 			pci9118_start_pacer(dev, devpriv->ai_do);
 			devpriv->AdControlReg |= PCI9118_AI_CTRL_SOFTG;
@@ -1653,7 +1655,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* clear A/D and INT status registers */
 	inl(dev->iobase + PCI9118_AI_STATUS_REG);
-	inl(dev->iobase + PCI9118_INTSRC);
+	inl(dev->iobase + PCI9118_INT_CTRL_REG);
 
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_act_dmapos = 0;
@@ -1673,9 +1675,9 @@ static int pci9118_reset(struct comedi_device *dev)
 
 	devpriv->IntControlReg = 0;
 	devpriv->exttrg_users = 0;
-	inl(dev->iobase + PCI9118_INTCTRL);
-	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
-						/* disable interrupts source */
+	/* clear interrupts then disable all interrupt sources */
+	inl(dev->iobase + PCI9118_INT_CTRL_REG);
+	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INT_CTRL_REG);
 	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
 	pci9118_start_pacer(dev, 0);		/* stop 8254 counters */
 	devpriv->AdControlReg = 0;
@@ -1710,10 +1712,11 @@ static int pci9118_reset(struct comedi_device *dev)
 	udelay(10);
 	inl(dev->iobase + PCI9118_AI_FIFO_REG);
 	pci9118_ai_reset_fifo(dev);
-	outl(0, dev->iobase + PCI9118_INTSRC);	/* remove INT requests */
+	/* disable all interrupt sources */
+	outl(0, dev->iobase + PCI9118_INT_CTRL_REG);
 	/* clear A/D and INT status registers */
 	inl(dev->iobase + PCI9118_AI_STATUS_REG);
-	inl(dev->iobase + PCI9118_INTSRC);
+	inl(dev->iobase + PCI9118_INT_CTRL_REG);
 	devpriv->AdControlReg = 0;
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 						/*
