@@ -1448,12 +1448,6 @@ static int adau1373_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int adau1373_remove(struct snd_soc_codec *codec)
-{
-	adau1373_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int adau1373_resume(struct snd_soc_codec *codec)
 {
 	struct adau1373 *adau1373 = snd_soc_codec_get_drvdata(codec);
@@ -1488,7 +1482,6 @@ static const struct regmap_config adau1373_regmap_config = {
 
 static struct snd_soc_codec_driver adau1373_codec_driver = {
 	.probe =	adau1373_probe,
-	.remove =	adau1373_remove,
 	.resume =	adau1373_resume,
 	.set_bias_level = adau1373_set_bias_level,
 	.idle_bias_off = true,
