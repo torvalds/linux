@@ -78,7 +78,7 @@
 			status = "disabled";
 		};
 
-		dpaux@0,545c0000 {
+		dpaux: dpaux@0,545c0000 {
 			compatible = "nvidia,tegra124-dpaux";
 			reg = <0x0 0x545c0000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
@@ -272,7 +272,7 @@
 		status = "disabled";
 	};
 
-	pwm@0,7000a000 {
+	pwm: pwm@0,7000a000 {
 		compatible = "nvidia,tegra124-pwm", "nvidia,tegra20-pwm";
 		reg = <0x0 0x7000a000 0x0 0x100>;
 		#pwm-cells = <2>;

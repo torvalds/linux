@@ -36,7 +36,7 @@
 			nvidia,panel = <&panel>;
 		};
 
-		dpaux: dpaux@0,545c0000 {
+		dpaux@0,545c0000 {
 			vdd-supply = <&vdd_3v3_panel>;
 			status = "okay";
 		};
@@ -587,7 +587,7 @@
 		status = "okay";
 	};
 
-	pwm: pwm@0,7000a000 {
+	pwm@0,7000a000 {
 		status = "okay";
 	};
 
