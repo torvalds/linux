@@ -285,9 +285,10 @@ restart:
 			if (unlikely(buffer_write_io_error(bh)) && !result)
 				result = -EIO;
 			BUFFER_TRACE(bh, "remove from checkpoint");
-			__jbd2_journal_remove_checkpoint(jh);
-			spin_unlock(&journal->j_list_lock);
-			goto retry;
+			if (__jbd2_journal_remove_checkpoint(jh))
+				/* The transaction was released; we're done */
+				goto out;
+			continue;
 		}
 		/*
 		 * Important: we are about to write the buffer, and
