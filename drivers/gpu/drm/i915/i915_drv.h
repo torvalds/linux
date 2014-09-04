@@ -1527,6 +1527,9 @@ struct drm_i915_private {
 	/* LVDS info */
 	bool no_aux_handshake;
 
+	/* protects panel power sequencer state */
+	struct mutex pps_mutex;
+
 	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */

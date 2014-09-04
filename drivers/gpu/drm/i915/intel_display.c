@@ -12559,6 +12559,8 @@ static void intel_init_display(struct drm_device *dev)
 	}
 
 	intel_panel_init_backlight_funcs(dev);
+
+	mutex_init(&dev_priv->pps_mutex);
 }
 
 /*
