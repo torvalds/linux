@@ -120,10 +120,42 @@ static void bcma_release_core_dev(struct device *dev)
 	kfree(core);
 }
 
-static int bcma_register_cores(struct bcma_bus *bus)
+static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
+{
+	int err;
+
+	core->dev.release = bcma_release_core_dev;
+	core->dev.bus = &bcma_bus_type;
+	dev_set_name(&core->dev, "bcma%d:%d", bus->num, core->core_index);
+
+	switch (bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		core->dev.parent = &bus->host_pci->dev;
+		core->dma_dev = &bus->host_pci->dev;
+		core->irq = bus->host_pci->irq;
+		break;
+	case BCMA_HOSTTYPE_SOC:
+		core->dev.dma_mask = &core->dev.coherent_dma_mask;
+		core->dma_dev = &core->dev;
+		break;
+	case BCMA_HOSTTYPE_SDIO:
+		break;
+	}
+
+	err = device_register(&core->dev);
+	if (err) {
+		bcma_err(bus, "Could not register dev for core 0x%03X\n",
+			 core->id.id);
+		put_device(&core->dev);
+		return;
+	}
+	core->dev_registered = true;
+}
+
+static int bcma_register_devices(struct bcma_bus *bus)
 {
 	struct bcma_device *core;
-	int err, dev_id = 0;
+	int err;
 
 	list_for_each_entry(core, &bus->cores, list) {
 		/* We support that cores ourself */
@@ -143,34 +175,7 @@ static int bcma_register_cores(struct bcma_bus *bus)
 		    core->core_unit > 0)
 			continue;
 
-		core->dev.release = bcma_release_core_dev;
-		core->dev.bus = &bcma_bus_type;
-		dev_set_name(&core->dev, "bcma%d:%d", bus->num, dev_id);
-
-		switch (bus->hosttype) {
-		case BCMA_HOSTTYPE_PCI:
-			core->dev.parent = &bus->host_pci->dev;
-			core->dma_dev = &bus->host_pci->dev;
-			core->irq = bus->host_pci->irq;
-			break;
-		case BCMA_HOSTTYPE_SOC:
-			core->dev.dma_mask = &core->dev.coherent_dma_mask;
-			core->dma_dev = &core->dev;
-			break;
-		case BCMA_HOSTTYPE_SDIO:
-			break;
-		}
-
-		err = device_register(&core->dev);
-		if (err) {
-			bcma_err(bus,
-				 "Could not register dev for core 0x%03X\n",
-				 core->id.id);
-			put_device(&core->dev);
-			continue;
-		}
-		core->dev_registered = true;
-		dev_id++;
+		bcma_register_core(bus, core);
 	}
 
 #ifdef CONFIG_BCMA_DRIVER_MIPS
@@ -297,7 +302,7 @@ int bcma_bus_register(struct bcma_bus *bus)
 	}
 
 	/* Register found cores */
-	bcma_register_cores(bus);
+	bcma_register_devices(bus);
 
 	bcma_info(bus, "Bus registered\n");
 
