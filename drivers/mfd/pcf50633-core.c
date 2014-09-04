@@ -106,10 +106,7 @@ static ssize_t show_dump_regs(struct device *dev, struct device_attribute *attr,
 			} else
 				dump[n1] = pcf50633_reg_read(pcf, n + n1);
 
-		hex_dump_to_buffer(dump, sizeof(dump), 16, 1, buf1, 128, 0);
-		buf1 += strlen(buf1);
-		*buf1++ = '\n';
-		*buf1 = '\0';
+		buf1 += sprintf(buf1, "%*ph\n", (int)sizeof(dump), dump);
 	}
 
 	return buf1 - buf;
