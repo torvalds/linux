@@ -1403,7 +1403,7 @@ static struct page *get_current_sit_page(struct f2fs_sb_info *sbi,
 					unsigned int segno)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
-	unsigned int offset = SIT_BLOCK_OFFSET(sit_i, segno);
+	unsigned int offset = SIT_BLOCK_OFFSET(segno);
 	block_t blk_addr = sit_i->sit_base_addr + offset;
 
 	check_seg_range(sbi, segno);
@@ -1518,7 +1518,7 @@ to_sit_page:
 				page = NULL;
 			}
 
-			start = START_SEGNO(sit_i, segno);
+			start = START_SEGNO(segno);
 			end = start + SIT_ENTRY_PER_BLOCK - 1;
 
 			/* read sit block that will be updated */
