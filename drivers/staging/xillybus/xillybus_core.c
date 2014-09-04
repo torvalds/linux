@@ -2115,17 +2115,11 @@ EXPORT_SYMBOL(xillybus_endpoint_remove);
 
 static int __init xillybus_init(void)
 {
-	int rc = 0;
-
 	mutex_init(&ep_list_lock);
 
 	xillybus_class = class_create(THIS_MODULE, xillyname);
-	if (IS_ERR(xillybus_class)) {
-		rc = PTR_ERR(xillybus_class);
-		pr_warn("Failed to register class xillybus\n");
-
-		return rc;
-	}
+	if (IS_ERR(xillybus_class))
+		return PTR_ERR(xillybus_class);
 
 	xillybus_wq = alloc_workqueue(xillyname, 0, 0);
 	if (!xillybus_wq) {
