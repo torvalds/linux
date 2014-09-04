@@ -450,6 +450,9 @@ struct sta_info {
 	enum ieee80211_smps_mode known_smps_mode;
 	const struct ieee80211_cipher_scheme *cipher_scheme;
 
+	/* TDLS timeout data */
+	unsigned long last_tdls_pkt_time;
+
 	/* keep last! */
 	struct ieee80211_sta sta;
 };
