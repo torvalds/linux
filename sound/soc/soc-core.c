@@ -637,7 +637,7 @@ int snd_soc_suspend(struct device *dev)
 	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
 		/* If there are paths active then the CODEC will be held with
 		 * bias _ON and should not be suspended. */
-		if (!codec->suspended && codec->driver->suspend) {
+		if (!codec->suspended) {
 			switch (codec->dapm.bias_level) {
 			case SND_SOC_BIAS_STANDBY:
 				/*
@@ -651,8 +651,10 @@ int snd_soc_suspend(struct device *dev)
 						"ASoC: idle_bias_off CODEC on over suspend\n");
 					break;
 				}
+
 			case SND_SOC_BIAS_OFF:
-				codec->driver->suspend(codec);
+				if (codec->driver->suspend)
+					codec->driver->suspend(codec);
 				codec->suspended = 1;
 				codec->cache_sync = 1;
 				if (codec->component.regmap)
@@ -726,11 +728,12 @@ static void soc_resume_deferred(struct work_struct *work)
 		 * left with bias OFF or STANDBY and suspended so we must now
 		 * resume.  Otherwise the suspend was suppressed.
 		 */
-		if (codec->driver->resume && codec->suspended) {
+		if (codec->suspended) {
 			switch (codec->dapm.bias_level) {
 			case SND_SOC_BIAS_STANDBY:
 			case SND_SOC_BIAS_OFF:
-				codec->driver->resume(codec);
+				if (codec->driver->resume)
+					codec->driver->resume(codec);
 				codec->suspended = 0;
 				break;
 			default:
