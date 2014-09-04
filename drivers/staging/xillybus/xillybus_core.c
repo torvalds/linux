@@ -833,7 +833,7 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 			if (ready)
 				goto desperate;
 
-			bytes_done = -EAGAIN;
+			rc = -EAGAIN;
 			break;
 		}
 
@@ -994,6 +994,9 @@ desperate:
 
 	if (channel->endpoint->fatal_error)
 		return -EIO;
+
+	if (rc)
+		return rc;
 
 	return bytes_done;
 }
@@ -1386,7 +1389,7 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 		 */
 
 		if (filp->f_flags & O_NONBLOCK) {
-			bytes_done = -EAGAIN;
+			rc = -EAGAIN;
 			break;
 		}
 
@@ -1412,15 +1415,18 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 				   &channel->rd_workitem,
 				   XILLY_RX_TIMEOUT);
 
+	if (channel->endpoint->fatal_error)
+		return -EIO;
+
+	if (rc)
+		return rc;
+
 	if ((channel->rd_synchronous) && (bytes_done > 0)) {
 		rc = xillybus_myflush(filp->private_data, 0); /* No timeout */
 
 		if (rc && (rc != -EINTR))
 			return rc;
 	}
-
-	if (channel->endpoint->fatal_error)
-		return -EIO;
 
 	return bytes_done;
 }
