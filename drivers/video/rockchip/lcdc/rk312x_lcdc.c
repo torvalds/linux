@@ -1535,7 +1535,7 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		if (dev_drv->cur_screen->dsp_lut)
 			rk312x_lcdc_set_lut(dev_drv);
 		/*set hwc lut*/
-		rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
+		//rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
 
 		spin_lock(&lcdc_dev->reg_lock);
 
