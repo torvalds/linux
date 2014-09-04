@@ -26,6 +26,7 @@
 #include <linux/of.h>
 #include <linux/of_iommu.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 
 #include <asm/cacheflush.h>
 
@@ -1244,6 +1245,7 @@ static int omap_iommu_add_device(struct device *dev)
 {
 	struct omap_iommu_arch_data *arch_data;
 	struct device_node *np;
+	struct platform_device *pdev;
 
 	/*
 	 * Allocate the archdata iommu structure for DT-based devices.
@@ -1258,13 +1260,19 @@ static int omap_iommu_add_device(struct device *dev)
 	if (!np)
 		return 0;
 
+	pdev = of_find_device_by_node(np);
+	if (WARN_ON(!pdev)) {
+		of_node_put(np);
+		return -EINVAL;
+	}
+
 	arch_data = kzalloc(sizeof(*arch_data), GFP_KERNEL);
 	if (!arch_data) {
 		of_node_put(np);
 		return -ENOMEM;
 	}
 
-	arch_data->name = kstrdup(dev_name(dev), GFP_KERNEL);
+	arch_data->name = kstrdup(dev_name(&pdev->dev), GFP_KERNEL);
 	dev->archdata.iommu = arch_data;
 
 	of_node_put(np);
