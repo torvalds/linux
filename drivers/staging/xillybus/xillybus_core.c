@@ -568,8 +568,8 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 	return 0;
 }
 
-static void xilly_scan_idt(struct xilly_endpoint *endpoint,
-			   struct xilly_idt_handle *idt_handle)
+static int xilly_scan_idt(struct xilly_endpoint *endpoint,
+			  struct xilly_idt_handle *idt_handle)
 {
 	int count = 0;
 	unsigned char *idt = endpoint->channels[1]->wr_buffers[0]->addr;
@@ -593,23 +593,22 @@ static void xilly_scan_idt(struct xilly_endpoint *endpoint,
 	if (scan > end_of_idt) {
 		dev_err(endpoint->dev,
 			"IDT device name list overflow. Aborting.\n");
-		idt_handle->chandesc = NULL;
-		return;
+		return -ENODEV;
 	}
 	idt_handle->chandesc = scan;
 
 	len = endpoint->idtlen - (3 + ((int) (scan - idt)));
 
 	if (len & 0x03) {
-		idt_handle->chandesc = NULL;
-
 		dev_err(endpoint->dev,
 			"Corrupt IDT device name list. Aborting.\n");
+		return -ENODEV;
 	}
 
 	idt_handle->entries = len >> 2;
-
 	endpoint->num_channels = count;
+
+	return 0;
 }
 
 static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
@@ -2041,12 +2040,9 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	if (rc)
 		goto failed_idt;
 
-	xilly_scan_idt(endpoint, &idt_handle);
-
-	if (!idt_handle.chandesc) {
-		rc = -ENODEV;
+	rc = xilly_scan_idt(endpoint, &idt_handle);
+	if (rc)
 		goto failed_idt;
-	}
 
 	devres_close_group(dev, bootstrap_resources);
 
