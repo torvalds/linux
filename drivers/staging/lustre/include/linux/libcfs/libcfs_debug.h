@@ -265,9 +265,9 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 
 /* other external symbols that tracefile provides: */
 int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
-				   const char *usr_buffer, int usr_buffer_nob);
-int cfs_trace_copyout_string(char *usr_buffer, int usr_buffer_nob,
-				    const char *knl_buffer, char *append);
+		const char __user *usr_buffer, int usr_buffer_nob);
+int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
+		const char *knl_buffer, char *append);
 
 #define LIBCFS_DEBUG_FILE_PATH_DEFAULT "/tmp/lustre-log"
 
