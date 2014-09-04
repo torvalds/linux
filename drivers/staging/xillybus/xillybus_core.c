@@ -613,7 +613,6 @@ static int xilly_scan_idt(struct xilly_endpoint *endpoint,
 
 static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 {
-	int rc = 0;
 	struct xilly_channel *channel;
 	unsigned char *version;
 
@@ -635,8 +634,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 		if (endpoint->fatal_error)
 			return -EIO;
 
-		rc = -ENODEV;
-		return rc;
+		return -ENODEV;
 	}
 
 	endpoint->ephw->hw_sync_sgl_for_cpu(
@@ -649,15 +647,13 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 		dev_err(endpoint->dev,
 			"IDT length mismatch (%d != %d). Aborting.\n",
 		       channel->wr_buffers[0]->end_offset, endpoint->idtlen);
-		rc = -ENODEV;
-		return rc;
+		return -ENODEV;
 	}
 
 	if (crc32_le(~0, channel->wr_buffers[0]->addr,
 		     endpoint->idtlen+1) != 0) {
 		dev_err(endpoint->dev, "IDT failed CRC check. Aborting.\n");
-		rc = -ENODEV;
-		return rc;
+		return -ENODEV;
 	}
 
 	version = channel->wr_buffers[0]->addr;
@@ -667,8 +663,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 		dev_err(endpoint->dev,
 			"No support for IDT version 0x%02x. Maybe the xillybus driver needs an upgarde. Aborting.\n",
 		       (int) *version);
-		rc = -ENODEV;
-		return rc;
+		return -ENODEV;
 	}
 
 	return 0; /* Success */
@@ -696,11 +691,8 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 	deadline = jiffies + 1 + XILLY_RX_TIMEOUT;
 
 	rc = mutex_lock_interruptible(&channel->wr_mutex);
-
 	if (rc)
 		return rc;
-
-	rc = 0; /* Just to be clear about it. Compiler optimizes this out */
 
 	while (1) { /* Note that we may drop mutex within this loop */
 		int bytes_to_do = count - bytes_done;
@@ -1010,7 +1002,7 @@ desperate:
 
 static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 {
-	int rc = 0;
+	int rc;
 	unsigned long flags;
 
 	int end_offset_plus1;
@@ -1022,7 +1014,6 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 	if (channel->endpoint->fatal_error)
 		return -EIO;
 	rc = mutex_lock_interruptible(&channel->rd_mutex);
-
 	if (rc)
 		return rc;
 
@@ -1120,8 +1111,6 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 	 * If bufidx == channel->rd_fpga_buf_idx we're either empty or full.
 	 */
 
-	rc = 0;
-
 	while (1) { /* Loop waiting for draining of buffers */
 		spin_lock_irqsave(&channel->rd_spinlock, flags);
 
@@ -1217,11 +1206,8 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 		return -EIO;
 
 	rc = mutex_lock_interruptible(&channel->rd_mutex);
-
 	if (rc)
 		return rc;
-
-	rc = 0; /* Just to be clear about it. Compiler optimizes this out */
 
 	while (1) {
 		int bytes_to_do = count - bytes_done;
@@ -1840,7 +1826,6 @@ static int xillybus_init_chrdev(struct xilly_endpoint *endpoint,
 	rc = alloc_chrdev_region(&dev, 0, /* minor start */
 				 endpoint->num_channels,
 				 xillyname);
-
 	if (rc) {
 		dev_warn(endpoint->dev, "Failed to obtain major/minors");
 		return rc;
@@ -1965,7 +1950,7 @@ static int xilly_quiesce(struct xilly_endpoint *endpoint)
 
 int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 {
-	int rc = 0;
+	int rc;
 
 	void *bootstrap_resources;
 	int idtbuffersize = (1 << PAGE_SHIFT);
@@ -1999,7 +1984,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	endpoint->num_channels = 0;
 
 	rc = xilly_setupchannels(endpoint, bogus_idt, 1);
-
 	if (rc)
 		return rc;
 
@@ -2121,10 +2105,10 @@ static int __init xillybus_init(void)
 	xillybus_wq = alloc_workqueue(xillyname, 0, 0);
 	if (!xillybus_wq) {
 		class_destroy(xillybus_class);
-		rc = -ENOMEM;
+		return -ENOMEM;
 	}
 
-	return rc;
+	return 0;
 }
 
 static void __exit xillybus_exit(void)

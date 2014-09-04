@@ -106,9 +106,10 @@ static int xilly_map_single_of(struct xilly_endpoint *ep,
 	if (rc) {
 		dma_unmap_single(ep->dev, addr, size, direction);
 		kfree(this);
+		return rc;
 	}
 
-	return rc;
+	return 0;
 }
 
 static struct xilly_endpoint_hardware of_hw = {
@@ -129,7 +130,7 @@ static int xilly_drv_probe(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct xilly_endpoint *endpoint;
-	int rc = 0;
+	int rc;
 	int irq;
 	struct resource res;
 	struct xilly_endpoint_hardware *ephw = &of_hw;

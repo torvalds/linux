@@ -98,7 +98,7 @@ static int xilly_map_single_pci(struct xilly_endpoint *ep,
 	int pci_direction;
 	dma_addr_t addr;
 	struct xilly_mapping *this;
-	int rc = 0;
+	int rc;
 
 	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (!this)
@@ -121,13 +121,13 @@ static int xilly_map_single_pci(struct xilly_endpoint *ep,
 	*ret_dma_handle = addr;
 
 	rc = devm_add_action(ep->dev, xilly_pci_unmap, this);
-
 	if (rc) {
 		pci_unmap_single(ep->pdev, addr, size, pci_direction);
 		kfree(this);
+		return rc;
 	}
 
-	return rc;
+	return 0;
 }
 
 static struct xilly_endpoint_hardware pci_hw = {
@@ -141,7 +141,7 @@ static int xilly_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *ent)
 {
 	struct xilly_endpoint *endpoint;
-	int rc = 0;
+	int rc;
 
 	endpoint = xillybus_init_endpoint(pdev, &pdev->dev, &pci_hw);
 
@@ -151,7 +151,6 @@ static int xilly_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, endpoint);
 
 	rc = pcim_enable_device(pdev);
-
 	if (rc) {
 		dev_err(endpoint->dev,
 			"pcim_enable_device() failed. Aborting.\n");
@@ -187,7 +186,6 @@ static int xilly_probe(struct pci_dev *pdev,
 	}
 	rc = devm_request_irq(&pdev->dev, pdev->irq, xillybus_isr, 0,
 			      xillyname, endpoint);
-
 	if (rc) {
 		dev_err(endpoint->dev,
 			"Failed to register MSI handler. Aborting.\n");
