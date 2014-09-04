@@ -252,11 +252,11 @@
 		interrupt-names = "macirq";
 		clocks = <&clk_mac_ref>, <&clk_gates2 6>,
 			<&clk_gates2 7>, <&clk_gates2 4>,
-			<&clk_gates2 5>,
+			<&clk_gates2 5>, <&clk_gates10 10>,
 			<&clk_gates10 11>;
 		clock-names = "clk_mac", "mac_clk_rx",
 			"mac_clk_tx", "clk_mac_ref",
-			"clk_mac_refout",
+			"clk_mac_refout", "aclk_mac",
 			"pclk_mac";
 		phy-mode = "rgmii";
 		pinctrl-names = "default";
