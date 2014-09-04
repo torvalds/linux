@@ -502,18 +502,11 @@ static struct snd_soc_dai_driver ssm2602_dai = {
 	.symmetric_samplebits = 1,
 };
 
-static int ssm2602_suspend(struct snd_soc_codec *codec)
-{
-	ssm2602_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int ssm2602_resume(struct snd_soc_codec *codec)
 {
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 
 	regcache_sync(ssm2602->regmap);
-	ssm2602_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
@@ -586,27 +579,14 @@ static int ssm260x_codec_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	if (ret)
-		return ret;
-
-	ssm2602_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-/* remove everything here */
-static int ssm2602_remove(struct snd_soc_codec *codec)
-{
-	ssm2602_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
 	.probe =	ssm260x_codec_probe,
-	.remove =	ssm2602_remove,
-	.suspend =	ssm2602_suspend,
 	.resume =	ssm2602_resume,
 	.set_bias_level = ssm2602_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = ssm260x_snd_controls,
 	.num_controls = ARRAY_SIZE(ssm260x_snd_controls),
