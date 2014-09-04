@@ -615,6 +615,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 {
 	struct xilly_channel *channel;
 	unsigned char *version;
+	long t;
 
 	channel = endpoint->channels[1]; /* This should be generated ad-hoc */
 
@@ -624,11 +625,11 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 		   (3 << 24), /* Opcode 3 for channel 0 = Send IDT */
 		   endpoint->registers + fpga_buf_ctrl_reg);
 
-	wait_event_interruptible_timeout(channel->wr_wait,
-					 (!channel->wr_sleepy),
-					 XILLY_TIMEOUT);
+	t = wait_event_interruptible_timeout(channel->wr_wait,
+					     (!channel->wr_sleepy),
+					     XILLY_TIMEOUT);
 
-	if (channel->wr_sleepy) {
+	if (t <= 0) {
 		dev_err(endpoint->dev, "Failed to obtain IDT. Aborting.\n");
 
 		if (endpoint->fatal_error)
@@ -943,7 +944,7 @@ interrupted: /* Mutex is not held if got here */
 					(!channel->wr_sleepy),
 					left_to_sleep);
 
-			if (!channel->wr_sleepy)
+			if (left_to_sleep > 0) /* wr_sleepy deasserted */
 				continue;
 
 			if (left_to_sleep < 0) { /* Interrupt */
@@ -1379,10 +1380,8 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 			break;
 		}
 
-		wait_event_interruptible(channel->rd_wait,
-					 (!channel->rd_full));
-
-		if (channel->rd_full) {
+		if (wait_event_interruptible(channel->rd_wait,
+					     (!channel->rd_full))) {
 			mutex_unlock(&channel->rd_mutex);
 
 			if (channel->endpoint->fatal_error)
@@ -1931,16 +1930,17 @@ EXPORT_SYMBOL(xillybus_init_endpoint);
 
 static int xilly_quiesce(struct xilly_endpoint *endpoint)
 {
+	long t;
+
 	endpoint->idtlen = -1;
 
 	iowrite32((u32) (endpoint->dma_using_dac & 0x0001),
 		  endpoint->registers + fpga_dma_control_reg);
 
-	wait_event_interruptible_timeout(endpoint->ep_wait,
-					 (endpoint->idtlen >= 0),
-					 XILLY_TIMEOUT);
-
-	if (endpoint->idtlen < 0) {
+	t = wait_event_interruptible_timeout(endpoint->ep_wait,
+					     (endpoint->idtlen >= 0),
+					     XILLY_TIMEOUT);
+	if (t <= 0) {
 		dev_err(endpoint->dev,
 			"Failed to quiesce the device on exit.\n");
 		return -ENODEV;
@@ -1951,6 +1951,7 @@ static int xilly_quiesce(struct xilly_endpoint *endpoint)
 int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 {
 	int rc;
+	long t;
 
 	void *bootstrap_resources;
 	int idtbuffersize = (1 << PAGE_SHIFT);
@@ -1999,11 +2000,10 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	iowrite32((u32) (endpoint->dma_using_dac & 0x0001),
 		   endpoint->registers + fpga_dma_control_reg);
 
-	wait_event_interruptible_timeout(endpoint->ep_wait,
-					 (endpoint->idtlen >= 0),
-					 XILLY_TIMEOUT);
-
-	if (endpoint->idtlen < 0) {
+	t = wait_event_interruptible_timeout(endpoint->ep_wait,
+					     (endpoint->idtlen >= 0),
+					     XILLY_TIMEOUT);
+	if (t <= 0) {
 		dev_err(endpoint->dev, "No response from FPGA. Aborting.\n");
 		return -ENODEV;
 	}
