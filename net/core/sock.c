@@ -166,7 +166,7 @@ EXPORT_SYMBOL(sk_ns_capable);
 /**
  * sk_capable - Socket global capability test
  * @sk: Socket to use a capability on or through
- * @cap: The global capbility to use
+ * @cap: The global capability to use
  *
  * Test to see if the opener of the socket had when the socket was
  * created and the current process has the capability @cap in all user
@@ -183,7 +183,7 @@ EXPORT_SYMBOL(sk_capable);
  * @sk: Socket to use a capability on or through
  * @cap: The capability to use
  *
- * Test to see if the opener of the socket had when the socke was created
+ * Test to see if the opener of the socket had when the socket was created
  * and the current process has the capability @cap over the network namespace
  * the socket is a member of.
  */

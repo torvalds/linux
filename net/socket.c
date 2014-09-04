@@ -2601,7 +2601,7 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
  *
  *	This function is called by a protocol handler that wants to
  *	advertise its address family, and have it linked into the
- *	socket interface. The value ops->family coresponds to the
+ *	socket interface. The value ops->family corresponds to the
  *	socket system call protocol family.
  */
 int sock_register(const struct net_proto_family *ops)
