@@ -199,9 +199,9 @@ static int xilly_probe(struct pci_dev *pdev,
 	 * nobody and use 32 bits DMA addressing in any case.
 	 */
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		endpoint->dma_using_dac = 0;
-	else {
+	} else {
 		dev_err(endpoint->dev, "Failed to set DMA mask. Aborting.\n");
 		return -ENODEV;
 	}

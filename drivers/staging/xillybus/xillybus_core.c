@@ -141,7 +141,7 @@ irqreturn_t xillybus_isr(int irq, void *data)
 				      ep->msg_buf_size,
 				      DMA_FROM_DEVICE);
 
-	for (i = 0; i < buf_size; i += 2)
+	for (i = 0; i < buf_size; i += 2) {
 		if (((buf[i+1] >> 28) & 0xf) != ep->msg_counter) {
 			malformed_message(ep, &buf[i]);
 			dev_warn(ep->dev,
@@ -166,6 +166,7 @@ irqreturn_t xillybus_isr(int irq, void *data)
 			return IRQ_HANDLED;
 		} else if (buf[i] & (1 << 22)) /* Last message */
 			break;
+	}
 
 	if (i >= buf_size) {
 		dev_err(ep->dev, "Bad interrupt message. Stopping.\n");
@@ -1093,10 +1094,11 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 			   channel->endpoint->registers + fpga_buf_ctrl_reg);
 
 		mutex_unlock(&channel->endpoint->register_mutex);
-	} else if (bufidx == 0)
+	} else if (bufidx == 0) {
 		bufidx = channel->num_rd_buffers - 1;
-	else
+	} else {
 		bufidx--;
+	}
 
 	channel->rd_host_buf_pos = new_rd_host_buf_pos;
 
