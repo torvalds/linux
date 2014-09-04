@@ -1907,14 +1907,14 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->range_table = &range_digital;
 	s->insn_bits = pci9118_insn_bits_di;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->len_chanlist = 4;
-	s->range_table = &range_digital;
-	s->insn_bits = pci9118_insn_bits_do;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pci9118_insn_bits_do;
 
 	devpriv->ai_maskharderr = 0x10a;
 					/* default measure crash condition */
