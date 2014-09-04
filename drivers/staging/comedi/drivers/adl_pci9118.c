@@ -108,8 +108,8 @@
  */
 #define PCI9118_TIMER_REG(x)		(0x00 + ((x) * 4))
 #define PCI9118_TIMER_CTRL_REG		0x0c
+#define PCI9118_AI_FIFO_REG		0x10
 
-#define PCI9118_AD_DATA	0x10	/* R:   A/D data */
 #define PCI9118_DA1	0x10	/* W:   D/A registers */
 #define PCI9118_DA2	0x14
 #define PCI9118_ADSTAT	0x18	/* R:   A/D status register */
@@ -512,6 +512,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci9118_private *devpriv = dev->private;
+	unsigned int val;
 	int ret;
 	int n;
 
@@ -541,14 +542,11 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 			return ret;
 		}
 
-		if (s->maxdata == 0xffff) {
-			data[n] =
-			    (inl(dev->iobase +
-				 PCI9118_AD_DATA) & 0xffff) ^ 0x8000;
-		} else {
-			data[n] =
-			    (inl(dev->iobase + PCI9118_AD_DATA) >> 4) & 0xfff;
-		}
+		val = inl(dev->iobase + PCI9118_AI_FIFO_REG);
+		if (s->maxdata == 0xffff)
+			data[n] = (val & 0xffff) ^ 0x8000;
+		else
+			data[n] = (val >> 4) & 0xfff;
 	}
 
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
@@ -884,7 +882,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 		if (pci9118_decode_error_status(dev, s, int_adstat))
 			return;
 
-	sampl = inl(dev->iobase + PCI9118_AD_DATA);
+	sampl = inl(dev->iobase + PCI9118_AI_FIFO_REG);
 
 #ifdef PCI9118_PARANOIDCHECK
 	if (s->maxdata != 0xffff) {
@@ -1726,7 +1724,7 @@ static int pci9118_reset(struct comedi_device *dev)
 	outl(devpriv->ao_data[1], dev->iobase + PCI9118_DA2);
 	outl(0, dev->iobase + PCI9118_DO);	/* reset digi outs to L */
 	udelay(10);
-	inl(dev->iobase + PCI9118_AD_DATA);
+	inl(dev->iobase + PCI9118_AI_FIFO_REG);
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
 	outl(0, dev->iobase + PCI9118_INTSRC);	/* remove INT requests */
 	inl(dev->iobase + PCI9118_ADSTAT);	/* flush A/D status register */
