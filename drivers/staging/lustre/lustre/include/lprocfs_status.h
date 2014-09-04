@@ -611,7 +611,7 @@ extern int lprocfs_rd_atomic(struct seq_file *m, void *data);
 extern int lprocfs_wr_atomic(struct file *file, const char __user *buffer,
 			     unsigned long count, void *data);
 extern int lprocfs_rd_uint(struct seq_file *m, void *data);
-extern int lprocfs_wr_uint(struct file *file, const char *buffer,
+extern int lprocfs_wr_uint(struct file *file, const char __user *buffer,
 			   unsigned long count, void *data);
 extern int lprocfs_rd_uuid(struct seq_file *m, void *data);
 extern int lprocfs_rd_name(struct seq_file *m, void *data);
