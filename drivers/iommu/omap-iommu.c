@@ -1091,6 +1091,11 @@ omap_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
 	int ret = 0;
 
+	if (!arch_data || !arch_data->name) {
+		dev_err(dev, "device doesn't have an associated iommu\n");
+		return -EINVAL;
+	}
+
 	spin_lock(&omap_domain->lock);
 
 	/* only a single device is supported per domain for now */
