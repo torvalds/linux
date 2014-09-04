@@ -179,19 +179,6 @@ static int  __power_supply_find_supply_from_node(struct device *dev,
 static int power_supply_find_supply_from_node(struct device_node *supply_node)
 {
 	int error;
-	struct device *dev;
-	struct class_dev_iter iter;
-
-	/*
-	 * Use iterator to see if any other device is registered.
-	 * This is required since class_for_each_device returns 0
-	 * if there are no devices registered.
-	 */
-	class_dev_iter_init(&iter, power_supply_class, NULL, NULL);
-	dev = class_dev_iter_next(&iter);
-
-	if (!dev)
-		return -EPROBE_DEFER;
 
 	/*
 	 * class_for_each_device() either returns its own errors or values
