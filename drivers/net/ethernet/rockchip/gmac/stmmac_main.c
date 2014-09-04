@@ -50,6 +50,7 @@
 #include <linux/net_tstamp.h>
 #include "stmmac_ptp.h"
 #include "stmmac.h"
+#include "../eth_mac.h"
 
 #undef STMMAC_DEBUG
 /*#define STMMAC_DEBUG*/
@@ -1573,6 +1574,8 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 		priv->hw->mac->get_umac_addr((void __iomem *)
 					     priv->dev->base_addr,
 					     priv->dev->dev_addr, 0);
+		if (!is_valid_ether_addr(priv->dev->dev_addr))
+			eth_mac_idb(priv->dev->dev_addr);
 		if (!is_valid_ether_addr(priv->dev->dev_addr))
 			eth_hw_addr_random(priv->dev);
 	}
