@@ -1435,8 +1435,10 @@ reread:
 	read_unlock(&sbi->s_cred_lock);
 
 	link_count = le16_to_cpu(fe->fileLinkCount);
-	if (!link_count)
-		link_count = 1;
+	if (!link_count) {
+		ret = -ESTALE;
+		goto out;
+	}
 	set_nlink(inode, link_count);
 
 	inode->i_size = le64_to_cpu(fe->informationLength);
