@@ -599,7 +599,7 @@ static int __power_supply_register(struct device *parent,
 
 	power_supply_changed(psy);
 
-	goto success;
+	return 0;
 
 create_triggers_failed:
 	psy_unregister_cooler(psy);
@@ -612,7 +612,6 @@ wakeup_init_failed:
 check_supplies_failed:
 dev_set_name_failed:
 	put_device(dev);
-success:
 	return rc;
 }
 
