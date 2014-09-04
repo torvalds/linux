@@ -228,6 +228,12 @@ static const struct comedi_lrange pci9118hg_ai_range = {
 					 * of BIP/UNI ranges
 					 */
 
+enum pci9118_boardid {
+	BOARD_PCI9118DG,
+	BOARD_PCI9118HG,
+	BOARD_PCI9118HR,
+};
+
 struct boardtype {
 	const char *name;		/* board name */
 	int device_id;			/* PCI device ID of card */
@@ -236,14 +242,16 @@ struct boardtype {
 };
 
 static const struct boardtype boardtypes[] = {
-	{
+	[BOARD_PCI9118DG] = {
 		.name		= "pci9118dg",
 		.device_id	= 0x80d9,
-	}, {
+	},
+	[BOARD_PCI9118HG] = {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
 		.is_hg		= 1,
-	}, {
+	},
+	[BOARD_PCI9118HR] = {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
 		.ai_is_16bit	= 1,
@@ -1732,20 +1740,6 @@ static int pci9118_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
- * FIXME - this is pretty ineffective because all the supported board types
- * have the same device ID!
- */
-static const struct boardtype *pci9118_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(boardtypes); i++)
-		if (pcidev->device == boardtypes[i].device_id)
-			return &boardtypes[i];
-	return NULL;
-}
-
 static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 					struct comedi_devconfig *it)
 {
@@ -1959,22 +1953,23 @@ static int pci9118_attach(struct comedi_device *dev,
 }
 
 static int pci9118_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct boardtype *board = NULL;
 	struct pci9118_private *devpriv;
+
+	if (context < ARRAY_SIZE(boardtypes))
+		board = &boardtypes[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
 
-	dev->board_ptr = pci9118_find_boardinfo(pcidev);
-	if (dev->board_ptr == NULL) {
-		dev_err(dev->class_dev,
-			"adl_pci9118: cannot determine board type for pci %s\n",
-			pci_name(pcidev));
-		return -EINVAL;
-	}
 	/*
 	 * Need to 'get' the PCI device to match the 'put' in pci9118_detach().
 	 * (The 'put' also matches the implicit 'get' by pci9118_find_pci().)
@@ -2023,8 +2018,11 @@ static int adl_pci9118_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
+/* FIXME: All the supported board types have the same device ID! */
 static const struct pci_device_id adl_pci9118_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
+	{ PCI_VDEVICE(AMCC, 0x80d9), BOARD_PCI9118DG },
+/*	{ PCI_VDEVICE(AMCC, 0x80d9), BOARD_PCI9118HG }, */
+/*	{ PCI_VDEVICE(AMCC, 0x80d9), BOARD_PCI9118HR }, */
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci9118_pci_table);
