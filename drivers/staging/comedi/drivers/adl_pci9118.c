@@ -195,6 +195,8 @@
 
 #define EXTTRG_AI	0	/* ext trg is used by AI */
 
+#define PCI9118_HALF_FIFO_SZ	(1024 / 2)
+
 static const struct comedi_lrange range_pci9118dg_hr = {
 	8, {
 		BIP_RANGE(5),
@@ -239,8 +241,6 @@ struct boardtype {
 					 * minimal pacer value
 					 * (c1*c2 or c1 in burst)
 					 */
-	int half_fifo_size;		/* size of FIFO/2 */
-
 };
 
 static const struct boardtype boardtypes[] = {
@@ -254,7 +254,6 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 3000,
 		.ai_pacer_min	= 12,
-		.half_fifo_size	= 512,
 	}, {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
@@ -265,7 +264,6 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci9118hg,
 		.ai_ns_min	= 3000,
 		.ai_pacer_min	= 12,
-		.half_fifo_size	= 512,
 	}, {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
@@ -276,7 +274,6 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci9118dg_hr,
 		.ai_ns_min	= 10000,
 		.ai_pacer_min	= 40,
-		.half_fifo_size	= 512,
 	},
 };
 
@@ -1355,12 +1352,12 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 	devpriv->dmabuf_use_size[1] = dmalen1;
 
 #if 0
-	if (cmd->scan_end_arg < this_board->half_fifo_size) {
+	if (cmd->scan_end_arg < PCI9118_HALF_FIFO_SZ) {
 		devpriv->dmabuf_panic_size[0] =
-		    (this_board->half_fifo_size / cmd->scan_end_arg +
+		    (PCI9118_HALF_FIFO_SZ / cmd->scan_end_arg +
 		     1) * cmd->scan_end_arg * sizeof(short);
 		devpriv->dmabuf_panic_size[1] =
-		    (this_board->half_fifo_size / cmd->scan_end_arg +
+		    (PCI9118_HALF_FIFO_SZ / cmd->scan_end_arg +
 		     1) * cmd->scan_end_arg * sizeof(short);
 	} else {
 		devpriv->dmabuf_panic_size[0] =
