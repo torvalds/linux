@@ -145,13 +145,10 @@
 #define PCI9118_AI_CFG_START		(1 << 0)  /* 1=trigger start */
 #define PCI9118_FIFO_RESET_REG		0x34
 #define PCI9118_INT_CTRL_REG		0x38
-
-/* bits for interrupt reason and control (PCI9118_INT_CTRL_REG) */
-/* 1=interrupt occur, enable source,  0=interrupt not occur, disable source */
-#define Int_Timer	0x08	/* timer interrupt */
-#define Int_About	0x04	/* about trigger complete */
-#define Int_Hfull	0x02	/* A/D FIFO hlaf full */
-#define Int_DTrg	0x01	/* external digital trigger */
+#define PCI9118_INT_CTRL_TIMER		(1 << 3)  /* timer interrupt */
+#define PCI9118_INT_CTRL_ABOUT		(1 << 2)  /* about trigger complete */
+#define PCI9118_INT_CTRL_HFULL		(1 << 1)  /* A/D FIFO half full */
+#define PCI9118_INT_CTRL_DTRG		(1 << 0)  /* ext. digital trigger */
 
 #define START_AI_EXT	0x01	/* start measure on external trigger */
 #define STOP_AI_EXT	0x02	/* stop measure on external trigger */
@@ -656,7 +653,7 @@ static int pci9118_exttrg_add(struct comedi_device *dev, unsigned char source)
 	if (source > 3)
 		return -1;				/* incorrect source */
 	devpriv->exttrg_users |= (1 << source);
-	devpriv->IntControlReg |= Int_DTrg;
+	devpriv->IntControlReg |= PCI9118_INT_CTRL_DTRG;
 	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INT_CTRL_REG);
 	outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) | 0x1f00,
 					devpriv->iobase_a + AMCC_OP_REG_INTCSR);
@@ -672,7 +669,7 @@ static int pci9118_exttrg_del(struct comedi_device *dev, unsigned char source)
 		return -1;			/* incorrect source */
 	devpriv->exttrg_users &= ~(1 << source);
 	if (!devpriv->exttrg_users) {	/* shutdown ext trg intterrupts */
-		devpriv->IntControlReg &= ~Int_DTrg;
+		devpriv->IntControlReg &= ~PCI9118_INT_CTRL_DTRG;
 		if (!devpriv->IntControlReg)	/* all IRQ disabled */
 			outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) &
 					(~0x00001f00),
@@ -994,7 +991,8 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 
 	if (devpriv->ai12_startstop) {
-		if ((adstat & PCI9118_AI_STATUS_DTH) && (intsrc & Int_DTrg)) {
+		if ((adstat & PCI9118_AI_STATUS_DTH) &&
+		    (intsrc & PCI9118_INT_CTRL_DTRG)) {
 			/* start/stop of measure */
 			if (devpriv->ai12_startstop & START_AI_EXT) {
 				/* deactivate EXT trigger */
@@ -1381,7 +1379,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 						/* activate EXT trigger */
 
 	if ((devpriv->ai_do == 1) || (devpriv->ai_do == 2))
-		devpriv->IntControlReg |= Int_Timer;
+		devpriv->IntControlReg |= PCI9118_INT_CTRL_TIMER;
 
 	devpriv->AdControlReg |= PCI9118_AI_CTRL_INT;
 
