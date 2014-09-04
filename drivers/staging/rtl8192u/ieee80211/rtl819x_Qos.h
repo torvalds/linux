@@ -66,7 +66,7 @@ typedef u32 QOS_MODE, *PQOS_MODE;
 typedef	enum _ACK_POLICY{
 	eAckPlc0_ACK		= 0x00,
 	eAckPlc1_NoACK		= 0x01,
-}ACK_POLICY,*PACK_POLICY;
+} ACK_POLICY, *PACK_POLICY;
 
 #define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
 
@@ -276,7 +276,7 @@ typedef	union _AC_PARAM{
 typedef	enum _QOS_ELE_SUBTYPE{
 	QOSELE_TYPE_INFO	= 0x00,		// 0x00: Information element
 	QOSELE_TYPE_PARAM	= 0x01,		// 0x01: parameter element
-}QOS_ELE_SUBTYPE,*PQOS_ELE_SUBTYPE;
+} QOS_ELE_SUBTYPE, *PQOS_ELE_SUBTYPE;
 
 
 //
@@ -288,7 +288,7 @@ typedef	enum _DIRECTION_VALUE{
 	DIR_DOWN		= 1,		// 0x01	// DownLink
 	DIR_DIRECT		= 2,		// 0x10	// DirectLink
 	DIR_BI_DIR		= 3,		// 0x11	// Bi-Direction
-}DIRECTION_VALUE,*PDIRECTION_VALUE;
+} DIRECTION_VALUE, *PDIRECTION_VALUE;
 
 
 //
@@ -363,7 +363,7 @@ typedef	enum _ACM_METHOD{
 	eAcmWay0_SwAndHw		= 0,		// By SW and HW.
 	eAcmWay1_HW			= 1,		// By HW.
 	eAcmWay2_SW			= 2,		// By SW.
-}ACM_METHOD,*PACM_METHOD;
+} ACM_METHOD, *PACM_METHOD;
 
 
 typedef struct _ACM{

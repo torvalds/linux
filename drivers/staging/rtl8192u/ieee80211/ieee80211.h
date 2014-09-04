@@ -1211,7 +1211,7 @@ typedef union _frameqos {
 		u16 reserved:1;
 		u16 txop:8;
 	}field;
-}frameqos,*pframeqos;
+} frameqos, *pframeqos;
 
 /* SWEEP TABLE ENTRIES NUMBER*/
 #define MAX_SWEEP_TAB_ENTRIES		  42
@@ -1648,7 +1648,7 @@ typedef struct _bandwidth_autoswitch {
 	long	threshold_40Mhzto20Mhz;
 	bool bforced_tx20Mhz;
 	bool bautoswitch_enable;
-}bandwidth_autoswitch,*pbandwidth_autoswitch;
+} bandwidth_autoswitch, *pbandwidth_autoswitch;
 
 
 //added by amy for order
@@ -1745,7 +1745,7 @@ typedef struct _RT_POWER_SAVE_CONTROL {
 	//
 	bool				bLeisurePs;
 
-}RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
+} RT_POWER_SAVE_CONTROL, *PRT_POWER_SAVE_CONTROL;
 
 typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_SW BIT31
