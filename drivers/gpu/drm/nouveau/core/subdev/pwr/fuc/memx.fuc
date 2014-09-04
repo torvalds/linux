@@ -55,6 +55,11 @@ memx_func_tail:
 .equ #memx_func_size #memx_func_next - #memx_func_head
 .equ #memx_func_num (#memx_func_tail - #memx_func_head) / #memx_func_size
 
+memx_ts_start:
+.b32 0
+memx_ts_end:
+.b32 0
+
 memx_data_head:
 .skip 0x0800
 memx_data_tail:
@@ -78,6 +83,9 @@ memx_func_enter:
 		and $r6 NV_PPWR_OUTPUT_FB_PAUSE
 		bra z #memx_func_enter_wait
 
+	nv_iord($r6, NV_PPWR_TIMER_LOW)
+	st b32 D[$r0 + #memx_ts_start] $r6
+
 	ret
 
 // description
@@ -87,6 +95,9 @@ memx_func_enter:
 // $r3  - opcode desciption
 // $r0  - zero
 memx_func_leave:
+	nv_iord($r6, NV_PPWR_TIMER_LOW)
+	st b32 D[$r0 + #memx_ts_end] $r6
+
 	mov $r6 NV_PPWR_OUTPUT_CLR_FB_PAUSE
 	nv_iowr(NV_PPWR_OUTPUT_CLR, $r6)
 	memx_func_leave_wait:
@@ -210,6 +221,7 @@ memx_exec:
 	push $r13
 	mov b32 $r1 $r12
 	mov b32 $r2 $r11
+
 	memx_exec_next:
 		// fetch the packet header, and locate opcode info
 		ld b32 $r3 D[$r1]
@@ -226,6 +238,10 @@ memx_exec:
 		bra l #memx_exec_next
 
 	// send completion reply
+	ld b32 $r11 D[$r0 + #memx_ts_start]
+	ld b32 $r12 D[$r0 + #memx_ts_end]
+	sub b32 $r12 $r11
+	nv_iord($r11, NV_PPWR_INPUT)
 	pop $r13
 	pop $r14
 	call(send)

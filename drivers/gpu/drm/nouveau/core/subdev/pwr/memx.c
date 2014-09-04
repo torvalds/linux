@@ -86,6 +86,8 @@ nouveau_memx_fini(struct nouveau_memx **pmemx, bool exec)
 				 memx->base, finish);
 	}
 
+	nv_debug(memx->ppwr, "Exec took %uns, PPWR_IN %08x\n",
+		 reply[0], reply[1]);
 	kfree(memx);
 	return 0;
 }
