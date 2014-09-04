@@ -400,7 +400,18 @@ void ast_init_3rdtx(struct drm_device *dev)
 			if (ast->tx_chip_type == AST_TX_SIL164)
 				ast_init_dvo(dev);
 			else {
+				/*
+				 * Set DAC source to VGA mode in SCU2C via the P2A
+				 * bridge. First configure the P2U to target the SCU
+				 * in case it isn't at this stage.
+				 */
+				ast_write32(ast, 0xf004, 0x1e6e0000);
+				ast_write32(ast, 0xf000, 0x1);
+				/* Then unlock the SCU with the magic password */
 				ast_write32(ast, 0x12000, 0x1688a8a8);
+				ast_write32(ast, 0x12000, 0x1688a8a8);
+				ast_write32(ast, 0x12000, 0x1688a8a8);
+				/* Finally, clear bits [17:16] of SCU2c */
 				data = ast_read32(ast, 0x1202c);
 				data &= 0xfffcffff;
 				ast_write32(ast, 0, data);
