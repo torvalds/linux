@@ -1605,6 +1605,12 @@ enum nl80211_commands {
  *	association request. In addition, it must also set the RRM capability
  *	flag in the association request's Capability Info field.
  *
+ * @NL80211_ATTR_WIPHY_DYN_ACK: flag attribute used to enable ACK timeout
+ *	estimation algorithm (dynack). In order to activate dynack
+ *	%NL80211_FEATURE_ACKTO_ESTIMATION feature flag must be set by lower
+ *	drivers to indicate dynack capability. Dynack is automatically disabled
+ *	setting valid value for coverage class.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1948,6 +1954,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_TDLS_INITIATOR,
 
 	NL80211_ATTR_USE_RRM,
+
+	NL80211_ATTR_WIPHY_DYN_ACK,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3991,6 +3999,9 @@ enum nl80211_ap_sme_features {
  *	current tx power value into the TPC Report IE in the spectrum
  *	management TPC Report action frame, and in the Radio Measurement Link
  *	Measurement Report action frame.
+ * @NL80211_FEATURE_ACKTO_ESTIMATION: This driver supports dynamic ACK timeout
+ *	estimation (dynack). %NL80211_ATTR_WIPHY_DYN_ACK flag attribute is used
+ *	to enable dynack.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -4016,6 +4027,7 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_WFA_TPC_IE_IN_PROBES		= 1 << 20,
 	NL80211_FEATURE_QUIET				= 1 << 21,
 	NL80211_FEATURE_TX_POWER_INSERTION		= 1 << 22,
+	NL80211_FEATURE_ACKTO_ESTIMATION		= 1 << 23,
 };
 
 /**
