@@ -185,7 +185,6 @@ irqreturn_t xillybus_isr(int irq, void *data)
 
 		switch (opcode) {
 		case XILLYMSG_OPCODE_RELEASEBUF:
-
 			if ((msg_channel > ep->num_channels) ||
 			    (msg_channel == 0)) {
 				malformed_message(ep, &buf[i]);
@@ -333,7 +332,6 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 		this_buffer = devm_kcalloc(dev, bufnum,
 					   sizeof(struct xilly_buffer),
 					   GFP_KERNEL);
-
 		if (!this_buffer)
 			return -ENOMEM;
 	}
@@ -365,16 +363,15 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 				dev,
 				GFP_KERNEL | __GFP_DMA32 | __GFP_ZERO,
 				allocorder);
-
 			if (!s->salami)
 				return -ENOMEM;
+
 			s->left_of_salami = allocsize;
 		}
 
 		rc = ep->ephw->map_single(ep, s->salami,
 					  bytebufsize, s->direction,
 					  &dma_addr);
-
 		if (rc)
 			return rc;
 
@@ -436,14 +433,12 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 
 	channel = devm_kcalloc(dev, ep->num_channels,
 			       sizeof(struct xilly_channel), GFP_KERNEL);
-
 	if (!channel)
 		return -ENOMEM;
 
 	ep->channels = devm_kcalloc(dev, ep->num_channels + 1,
 				    sizeof(struct xilly_channel *),
 				    GFP_KERNEL);
-
 	if (!ep->channels)
 		return -ENOMEM;
 
@@ -520,7 +515,6 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 			buffers = devm_kcalloc(dev, bufnum,
 					       sizeof(struct xilly_buffer *),
 					       GFP_KERNEL);
-
 			if (!buffers)
 				return -ENOMEM;
 		} else {
@@ -867,7 +861,6 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 
 			if (channel->wr_synchronous ||
 			    (offsetlimit < (buf_elements - 1))) {
-
 				mutex_lock(&channel->endpoint->register_mutex);
 
 				iowrite32(offsetlimit,
@@ -883,7 +876,6 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 				mutex_unlock(&channel->endpoint->
 					     register_mutex);
 			}
-
 		}
 
 		/*
@@ -894,7 +886,6 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 
 		if (!channel->wr_allow_partial ||
 		    (no_time_left && (bytes_done == 0))) {
-
 			/*
 			 * This do-loop will run more than once if another
 			 * thread reasserted wr_sleepy before we got the mutex
@@ -1104,7 +1095,6 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 	if (timeout < 0)
 		goto done; /* Autoflush */
 
-
 	/*
 	 * bufidx is now the last buffer written to (or equal to
 	 * rd_fpga_buf_idx if buffer was never written to), and
@@ -1181,7 +1171,6 @@ static void xillybus_autoflush(struct work_struct *work)
 	int rc;
 
 	rc = xillybus_myflush(channel, -1);
-
 	if (rc == -EINTR)
 		dev_warn(channel->endpoint->dev,
 			 "Autoflush failed because work queue thread got a signal.\n");
@@ -1449,7 +1438,6 @@ static int xillybus_open(struct inode *inode, struct file *filp)
 	channel = endpoint->channels[1 + minor - endpoint->lowest_minor];
 	filp->private_data = channel;
 
-
 	/*
 	 * It gets complicated because:
 	 * 1. We don't want to take a mutex we don't have to
@@ -1509,7 +1497,6 @@ static int xillybus_open(struct inode *inode, struct file *filp)
 		rc = -EBUSY;
 		goto unlock;
 	}
-
 
 	if (filp->f_mode & FMODE_READ) {
 		if (channel->wr_ref_count == 0) { /* First open of file */
@@ -1587,7 +1574,6 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 		channel->rd_ref_count--;
 
 		if (channel->rd_ref_count == 0) {
-
 			/*
 			 * We rely on the kernel calling flush()
 			 * before we get here.
@@ -1607,7 +1593,6 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 		channel->wr_ref_count--;
 
 		if (channel->wr_ref_count == 0) {
-
 			iowrite32(1 | (channel->chan_num << 1) |
 				  (5 << 24),  /* Opcode 5, close channel */
 				  channel->endpoint->registers +
@@ -1672,6 +1657,7 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 
 	return 0;
 }
+
 static loff_t xillybus_llseek(struct file *filp, loff_t offset, int whence)
 {
 	struct xilly_channel *channel = filp->private_data;
@@ -1901,7 +1887,6 @@ static void xillybus_cleanup_chrdev(struct xilly_endpoint *endpoint)
 		 endpoint->num_channels);
 }
 
-
 struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
 					      struct device *dev,
 					      struct xilly_endpoint_hardware
@@ -2020,12 +2005,10 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	endpoint->num_channels = 1;
 
 	rc = xilly_setupchannels(endpoint, bogus_idt, 2);
-
 	if (rc)
 		goto failed_idt;
 
 	rc = xilly_obtain_idt(endpoint);
-
 	if (rc)
 		goto failed_idt;
 
@@ -2040,7 +2023,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	rc = xilly_setupchannels(endpoint,
 				 idt_handle.chandesc,
 				 idt_handle.entries);
-
 	if (rc)
 		goto failed_idt;
 
@@ -2054,7 +2036,6 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	mutex_unlock(&ep_list_lock);
 
 	rc = xillybus_init_chrdev(endpoint, idt_handle.idt);
-
 	if (rc)
 		goto failed_chrdevs;
 

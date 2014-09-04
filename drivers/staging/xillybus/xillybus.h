@@ -146,7 +146,6 @@ struct xilly_mapping {
 	int direction;
 };
 
-
 irqreturn_t xillybus_isr(int irq, void *data);
 
 struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
