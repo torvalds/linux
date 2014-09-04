@@ -1773,7 +1773,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	int ret, pages, i;
 	u16 u16w;
 
-	dev->board_name = this_board->name;
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
