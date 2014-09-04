@@ -1354,6 +1354,11 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 	return control;
 }
 
+/*
+ * Must be paired with edp_panel_vdd_off().
+ * Must hold pps_mutex around the whole on/off sequence.
+ * Can be nested with intel_edp_panel_vdd_{on,off}() calls.
+ */
 static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
@@ -1404,6 +1409,13 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	return need_to_disable;
 }
 
+/*
+ * Must be paired with intel_edp_panel_vdd_off() or
+ * intel_edp_panel_off().
+ * Nested calls to these functions are not allowed since
+ * we drop the lock. Caller must use some higher level
+ * locking to prevent nested calls from other threads.
+ */
 void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	bool vdd;
@@ -1482,6 +1494,11 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 	schedule_delayed_work(&intel_dp->panel_vdd_work, delay);
 }
 
+/*
+ * Must be paired with edp_panel_vdd_on().
+ * Must hold pps_mutex around the whole on/off sequence.
+ * Can be nested with intel_edp_panel_vdd_{on,off}() calls.
+ */
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 {
 	struct drm_i915_private *dev_priv =
@@ -1502,6 +1519,12 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 		edp_panel_vdd_schedule_off(intel_dp);
 }
 
+/*
+ * Must be paired with intel_edp_panel_vdd_on().
+ * Nested calls to these functions are not allowed since
+ * we drop the lock. Caller must use some higher level
+ * locking to prevent nested calls from other threads.
+ */
 static void intel_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 {
 	if (!is_edp(intel_dp))
@@ -4373,6 +4396,10 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+		/*
+		 * vdd might still be enabled do to the delayed vdd off.
+		 * Make sure vdd is actually turned off here.
+		 */
 		pps_lock(intel_dp);
 		edp_panel_vdd_off_sync(intel_dp);
 		pps_unlock(intel_dp);
@@ -4392,6 +4419,10 @@ static void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 	if (!is_edp(intel_dp))
 		return;
 
+	/*
+	 * vdd might still be enabled do to the delayed vdd off.
+	 * Make sure vdd is actually turned off here.
+	 */
 	pps_lock(intel_dp);
 	edp_panel_vdd_off_sync(intel_dp);
 	pps_unlock(intel_dp);
@@ -5095,6 +5126,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		drm_dp_aux_unregister(&intel_dp->aux);
 		if (is_edp(intel_dp)) {
 			cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+			/*
+			 * vdd might still be enabled do to the delayed vdd off.
+			 * Make sure vdd is actually turned off here.
+			 */
 			pps_lock(intel_dp);
 			edp_panel_vdd_off_sync(intel_dp);
 			pps_unlock(intel_dp);
