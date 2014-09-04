@@ -1720,13 +1720,13 @@ static loff_t xillybus_llseek(struct file *filp, loff_t offset, int whence)
 	mutex_lock(&channel->rd_mutex);
 
 	switch (whence) {
-	case 0:
+	case SEEK_SET:
 		pos = offset;
 		break;
-	case 1:
+	case SEEK_CUR:
 		pos += offset;
 		break;
-	case 2:
+	case SEEK_END:
 		pos = offset; /* Going to the end => to the beginning */
 		break;
 	default:
