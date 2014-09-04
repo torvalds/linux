@@ -130,8 +130,8 @@
 #define PCI9118_AI_CTRL_INT		(1 << 1)  /* 1=enable interrupt */
 #define PCI9118_AI_CTRL_DMA		(1 << 0)  /* 1=enable DMA */
 #define PCI9118_DIO_REG			0x1c
+#define PCI9118_SOFTTRG_REG		0x20
 
-#define PCI9118_SOFTTRG	0x20	/* W:   soft trigger for A/D */
 #define PCI9118_GAIN	0x24	/* W:   A/D gain/channel register */
 #define PCI9118_BURST	0x28	/* W:   A/D burst number register */
 #define PCI9118_SCANMOD	0x2c	/* W:   A/D auto scan mode */
@@ -485,6 +485,12 @@ static int pci9118_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
+static void pci9118_ai_start_conv(struct comedi_device *dev)
+{
+	/* writing any value triggers an A/D conversion */
+	outl(0, dev->iobase + PCI9118_SOFTTRG_REG);
+}
+
 static int pci9118_insn_read_ai(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -511,8 +517,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
 
 	for (n = 0; n < insn->n; n++) {
-		outl(0, dev->iobase + PCI9118_SOFTTRG);	/* start conversion */
-		udelay(2);
+		pci9118_ai_start_conv(dev);
 
 		ret = comedi_timeout(dev, s, insn, pci9118_ai_eoc, 0);
 		if (ret) {
