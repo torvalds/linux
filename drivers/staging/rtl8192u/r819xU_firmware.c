@@ -153,11 +153,10 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 			break;
 	}while(check_bootOk_time--);
 
-	if (!(CPU_status&CPU_GEN_BOOT_RDY)) {
+	if (!(CPU_status&CPU_GEN_BOOT_RDY))
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
-	} else {
+	else
 		RT_TRACE(COMP_FIRMWARE, "Download Firmware: Boot ready!\n");
-	}
 
 	return rt_status;
 
