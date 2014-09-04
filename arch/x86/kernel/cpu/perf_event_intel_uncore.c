@@ -883,6 +883,9 @@ static int __init uncore_pci_init(void)
 	case 62: /* Ivy Bridge-EP */
 		ret = ivbep_uncore_pci_init();
 		break;
+	case 63: /* Haswell-EP */
+		ret = hswep_uncore_pci_init();
+		break;
 	case 42: /* Sandy Bridge */
 		ret = snb_uncore_pci_init();
 		break;
@@ -1190,7 +1193,9 @@ static int __init uncore_cpu_init(void)
 	case 62: /* Ivy Bridge-EP */
 		ivbep_uncore_cpu_init();
 		break;
-
+	case 63: /* Haswell-EP */
+		hswep_uncore_cpu_init();
+		break;
 	default:
 		return 0;
 	}
