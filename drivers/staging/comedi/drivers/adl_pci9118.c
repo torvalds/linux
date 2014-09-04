@@ -120,8 +120,8 @@
 #define PCI9118_AI_STATUS_ADOS		(1 << 2)  /* 1=A/D over speed (warn) */
 #define PCI9118_AI_STATUS_ADOR		(1 << 1)  /* 1=A/D overrun (fatal) */
 #define PCI9118_AI_STATUS_ADRDY		(1 << 0)  /* 1=A/D ready */
+#define PCI9118_AI_CTRL_REG		0x18
 
-#define PCI9118_ADCNTRL	0x18	/* W:   A/D control register */
 #define PCI9118_DI	0x1c	/* R:   digi input register */
 #define PCI9118_DO	0x1c	/* W:   digi output register */
 #define PCI9118_SOFTTRG	0x20	/* W:   soft trigger for A/D */
@@ -133,7 +133,7 @@
 #define PCI9118_INTSRC	0x38	/* R:   interrupt reason register */
 #define PCI9118_INTCTRL	0x38	/* W:   interrupt control register */
 
-/* bits from A/D control register (PCI9118_ADCNTRL) */
+/* bits from A/D control register (PCI9118_AI_CTRL_REG) */
 #define AdControl_UniP	0x80	/* 1=bipolar, 0=unipolar */
 #define AdControl_Diff	0x40	/* 1=differential, 0= single end inputs */
 #define AdControl_SoftG	0x20	/* 1=8254 counter works, 0=counter stops */
@@ -434,7 +434,7 @@ static int setup_channel_list(struct comedi_device *dev,
 						/* set single ended inputs */
 	}
 
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
+	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 								/* setup mode */
 
 	outl(2, dev->iobase + PCI9118_SCANMOD);
@@ -777,7 +777,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 					 * no about trigger, trigger stop
 					 */
 	devpriv->AdControlReg = 0x00;
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
+	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 					/*
 					 * bipolar, S.E., use 8254, stop 8354,
 					 * internal trigger, soft trigger,
@@ -1018,7 +1018,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 				/* start pacer */
 				pci9118_start_pacer(dev, devpriv->ai_do);
 				outl(devpriv->AdControlReg,
-				     dev->iobase + PCI9118_ADCNTRL);
+				     dev->iobase + PCI9118_AI_CTRL_REG);
 			} else if (devpriv->ai12_startstop & STOP_AI_EXT) {
 				/* deactivate EXT trigger */
 				devpriv->ai12_startstop &= ~STOP_AI_EXT;
@@ -1057,7 +1057,7 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 		pci9118_start_pacer(dev, devpriv->ai_do);
 		devpriv->AdControlReg |= AdControl_SoftG;
 	}
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
+	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 
 	return 1;
 }
@@ -1473,7 +1473,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 			pci9118_start_pacer(dev, devpriv->ai_do);
 			devpriv->AdControlReg |= AdControl_SoftG;
 		}
-		outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
+		outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 	}
 
 	return 0;
@@ -1648,7 +1648,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					 * internal trigger, soft trigger,
 					 * disable DMA
 					 */
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
+	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
 					/*
 					 * positive triggers, no S&H, no burst,
@@ -1687,7 +1687,7 @@ static int pci9118_reset(struct comedi_device *dev)
 	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
 	pci9118_start_pacer(dev, 0);		/* stop 8254 counters */
 	devpriv->AdControlReg = 0;
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
+	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 						/*
 						 * bipolar, S.E., use 8254,
 						 * stop 8354, internal trigger,
@@ -1722,7 +1722,7 @@ static int pci9118_reset(struct comedi_device *dev)
 	inl(dev->iobase + PCI9118_AI_STATUS_REG);
 	inl(dev->iobase + PCI9118_INTSRC);
 	devpriv->AdControlReg = 0;
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
+	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 						/*
 						 * bipolar, S.E., use 8254,
 						 * stop 8354, internal trigger,
