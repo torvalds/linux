@@ -170,7 +170,7 @@ config CRYPTO_MCRYPTD
 	  algorithms for submitting jobs and flushing jobs in multi-buffer
 	  crypto algorithms.  Multi-buffer crypto algorithms are executed
 	  in the context of this kernel thread and drivers can post
-	  their crypto request asyncrhously and process by this daemon.
+	  their crypto request asynchronously to be processed by this daemon.
 
 config CRYPTO_AUTHENC
 	tristate "Authenc support"
