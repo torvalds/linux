@@ -2312,6 +2312,7 @@ struct rtl_btc_ops {
 	void (*btc_init_hal_vars) (struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config) (struct rtl_priv *rtlpriv);
 	void (*btc_ips_notify) (struct rtl_priv *rtlpriv, u8 type);
+	void (*btc_lps_notify)(struct rtl_priv *rtlpriv, u8 type);
 	void (*btc_scan_notify) (struct rtl_priv *rtlpriv, u8 scantype);
 	void (*btc_connect_notify) (struct rtl_priv *rtlpriv, u8 action);
 	void (*btc_mediastatus_notify) (struct rtl_priv *rtlpriv,
@@ -2323,6 +2324,8 @@ struct rtl_btc_ops {
 	bool (*btc_is_limited_dig) (struct rtl_priv *rtlpriv);
 	bool (*btc_is_disable_edca_turbo) (struct rtl_priv *rtlpriv);
 	bool (*btc_is_bt_disabled) (struct rtl_priv *rtlpriv);
+	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
+					  u8 pkt_type);
 };
 
 struct proxim {

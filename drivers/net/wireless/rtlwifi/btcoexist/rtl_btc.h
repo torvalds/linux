@@ -31,6 +31,7 @@ void rtl_btc_init_variables(struct rtl_priv *rtlpriv);
 void rtl_btc_init_hal_vars(struct rtl_priv *rtlpriv);
 void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv);
 void rtl_btc_ips_notify(struct rtl_priv *rtlpriv, u8 type);
+void rtl_btc_lps_notify(struct rtl_priv *rtlpriv, u8 type);
 void rtl_btc_scan_notify(struct rtl_priv *rtlpriv, u8 scantype);
 void rtl_btc_connect_notify(struct rtl_priv *rtlpriv, u8 action);
 void rtl_btc_mediastatus_notify(struct rtl_priv *rtlpriv,
@@ -41,6 +42,7 @@ void rtl_btc_btinfo_notify(struct rtl_priv *rtlpriv, u8 *tmpbuf, u8 length);
 bool rtl_btc_is_limited_dig(struct rtl_priv *rtlpriv);
 bool rtl_btc_is_disable_edca_turbo(struct rtl_priv *rtlpriv);
 bool rtl_btc_is_bt_disabled(struct rtl_priv *rtlpriv);
+void rtl_btc_special_packet_notify(struct rtl_priv *rtlpriv, u8 pkt_type);
 
 struct rtl_btc_ops *rtl_btc_get_ops_pointer(void);
 
