@@ -297,6 +297,27 @@ void __init rockchip_clk_register_branches(
 	}
 }
 
+void __init rockchip_clk_register_armclk(unsigned int lookup_id,
+			const char *name, const char **parent_names,
+			u8 num_parents,
+			const struct rockchip_cpuclk_reg_data *reg_data,
+			const struct rockchip_cpuclk_rate_table *rates,
+			int nrates)
+{
+	struct clk *clk;
+
+	clk = rockchip_clk_register_cpuclk(name, parent_names, num_parents,
+					   reg_data, rates, nrates, reg_base,
+					   &clk_lock);
+	if (IS_ERR(clk)) {
+		pr_err("%s: failed to register clock %s: %ld\n",
+		       __func__, name, PTR_ERR(clk));
+		return;
+	}
+
+	rockchip_clk_add_lookup(clk, lookup_id);
+}
+
 void __init rockchip_clk_protect_critical(const char *clocks[], int nclocks)
 {
 	int i;
