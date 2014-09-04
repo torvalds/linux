@@ -280,7 +280,7 @@
 						     "clk-pix-dvo",
 						     "clk-dvo",
 						     "clk-pix-hdmi",
-						     "",
+						     "clk-tmds-hdmi",
 						     "clk-ref-hdmiphy";
 						     };
 		};
