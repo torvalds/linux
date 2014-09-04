@@ -333,7 +333,9 @@ static int ext4_alloc_branch(handle_t *handle,
 			new_blocks[i] = ext4_mb_new_blocks(handle, ar, &err);
 		} else
 			ar->goal = new_blocks[i] = ext4_new_meta_blocks(handle,
-				    ar->inode, ar->goal, 0, NULL, &err);
+					ar->inode, ar->goal,
+					ar->flags & EXT4_MB_DELALLOC_RESERVED,
+					NULL, &err);
 		if (err) {
 			i--;
 			goto failed;
@@ -572,6 +574,8 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 	ar.logical = map->m_lblk;
 	if (S_ISREG(inode->i_mode))
 		ar.flags = EXT4_MB_HINT_DATA;
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
+		ar.flags |= EXT4_MB_DELALLOC_RESERVED;
 
 	ar.goal = ext4_find_goal(inode, map->m_lblk, partial);
 

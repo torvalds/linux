@@ -1933,6 +1933,8 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	ext4_lblk_t next;
 	int mb_flags = 0, unwritten;
 
+	if (gb_flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
+		mb_flags |= EXT4_MB_DELALLOC_RESERVED;
 	if (unlikely(ext4_ext_get_actual_len(newext) == 0)) {
 		EXT4_ERROR_INODE(inode, "ext4_ext_get_actual_len(newext) == 0");
 		return -EIO;
@@ -2054,7 +2056,7 @@ prepend:
 	 * We're gonna add a new leaf in the tree.
 	 */
 	if (gb_flags & EXT4_GET_BLOCKS_METADATA_NOFAIL)
-		mb_flags = EXT4_MB_USE_RESERVED;
+		mb_flags |= EXT4_MB_USE_RESERVED;
 	err = ext4_ext_create_new_leaf(handle, inode, mb_flags, gb_flags,
 				       ppath, newext);
 	if (err)
@@ -4438,6 +4440,8 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		ar.flags = 0;
 	if (flags & EXT4_GET_BLOCKS_NO_NORMALIZE)
 		ar.flags |= EXT4_MB_HINT_NOPREALLOC;
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
+		ar.flags |= EXT4_MB_DELALLOC_RESERVED;
 	newblock = ext4_mb_new_blocks(handle, &ar, &err);
 	if (!newblock)
 		goto out2;

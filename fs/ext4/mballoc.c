@@ -4415,9 +4415,12 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	 * EDQUOT check, as blocks and quotas have been already
 	 * reserved when data being copied into pagecache.
 	 */
-	if (ext4_test_inode_state(ar->inode, EXT4_STATE_DELALLOC_RESERVED))
+	if (ext4_test_inode_state(ar->inode, EXT4_STATE_DELALLOC_RESERVED)) {
+		WARN_ON((ar->flags & EXT4_MB_DELALLOC_RESERVED) == 0);
 		ar->flags |= EXT4_MB_DELALLOC_RESERVED;
-	else {
+	}
+
+	if ((ar->flags & EXT4_MB_DELALLOC_RESERVED) == 0) {
 		/* Without delayed allocation we need to verify
 		 * there is enough free blocks to do block allocation
 		 * and verify allocation doesn't exceed the quota limits.
@@ -4528,8 +4531,7 @@ out:
 	if (inquota && ar->len < inquota)
 		dquot_free_block(ar->inode, EXT4_C2B(sbi, inquota - ar->len));
 	if (!ar->len) {
-		if (!ext4_test_inode_state(ar->inode,
-					   EXT4_STATE_DELALLOC_RESERVED))
+		if ((ar->flags & EXT4_MB_DELALLOC_RESERVED) == 0)
 			/* release all the reserved blocks if non delalloc */
 			percpu_counter_sub(&sbi->s_dirtyclusters_counter,
 						reserv_clstrs);
