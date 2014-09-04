@@ -1008,9 +1008,6 @@ static void device_free_info(struct vnt_private *pDevice)
 {
 	struct net_device *dev = pDevice->dev;
 
-	if (!pDevice)
-		return;
-
 	ASSERT(pDevice);
 //2008-0714-01<Add>by chester
 	device_release_WPADEV(pDevice);
