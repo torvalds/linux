@@ -229,14 +229,8 @@ static const struct comedi_lrange range_pci9118hg = {
 struct boardtype {
 	const char *name;		/* board name */
 	int device_id;			/* PCI device ID of card */
-	int iorange_amcc;		/* iorange for own S5933 region */
-	int iorange_9118;		/* pass thru card region size */
 	int n_aichan;			/* num of A/D chans */
 	int n_aichand;			/* num of A/D chans in diff mode */
-	int mux_aichan;			/*
-					 * num of A/D chans with
-					 * external multiplexor
-					 */
 	int n_aichanlist;		/* len of chanlist */
 	int n_aochan;			/* num of D/A chans */
 	int ai_maxdata;			/* resolution of A/D */
@@ -256,11 +250,8 @@ static const struct boardtype boardtypes[] = {
 	{
 		.name		= "pci9118dg",
 		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
-		.mux_aichan	= 256,
 		.n_aichanlist	= PCI9118_CHANLEN,
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
@@ -273,11 +264,8 @@ static const struct boardtype boardtypes[] = {
 	}, {
 		.name		= "pci9118hg",
 		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
-		.mux_aichan	= 256,
 		.n_aichanlist	= PCI9118_CHANLEN,
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
@@ -290,11 +278,8 @@ static const struct boardtype boardtypes[] = {
 	}, {
 		.name		= "pci9118hr",
 		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
-		.mux_aichan	= 256,
 		.n_aichanlist	= PCI9118_CHANLEN,
 		.n_aochan	= 2,
 		.ai_maxdata	= 0xffff,
