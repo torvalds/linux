@@ -221,8 +221,8 @@ static int power_supply_check_supplies(struct power_supply *psy)
 		of_node_put(np);
 
 		if (ret) {
-			dev_dbg(psy->dev, "Failed to find supply, defer!\n");
-			return -EPROBE_DEFER;
+			dev_dbg(psy->dev, "Failed to find supply!\n");
+			return ret;
 		}
 	} while (np);
 
