@@ -66,6 +66,7 @@
  * with ptrace(PTRACE_SET_SYSCALL)
  */
 #define RET_SKIP_SYSCALL	-1
+#define RET_SKIP_SYSCALL_TRACE	-2
 #define IS_SKIP_SYSCALL(no)	((int)(no & 0xffffffff) == -1)
 
 #ifndef __ASSEMBLY__

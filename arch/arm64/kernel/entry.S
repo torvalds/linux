@@ -663,6 +663,8 @@ __sys_trace:
 	mov	x0, sp
 	bl	syscall_trace_enter
 	adr	lr, __sys_trace_return		// return address
+	cmp	w0, #RET_SKIP_SYSCALL_TRACE	// skip syscall and tracing?
+	b.eq	ret_to_user
 	cmp	w0, #RET_SKIP_SYSCALL		// skip syscall?
 	b.eq	__sys_trace_return_skipped
 	uxtw	scno, w0			// syscall number (possibly new)

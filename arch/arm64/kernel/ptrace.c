@@ -27,6 +27,7 @@
 #include <linux/smp.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
+#include <linux/seccomp.h>
 #include <linux/security.h>
 #include <linux/init.h>
 #include <linux/signal.h>
@@ -1109,6 +1110,10 @@ static void tracehook_report_syscall(struct pt_regs *regs,
 asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
 	unsigned int saved_syscallno = regs->syscallno;
+
+	/* Do the secure computing check first; failures should be fast. */
+	if (secure_computing(regs->syscallno) == -1)
+		return RET_SKIP_SYSCALL_TRACE;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
