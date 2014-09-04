@@ -438,14 +438,14 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 			       sizeof(struct xilly_channel), GFP_KERNEL);
 
 	if (!channel)
-		goto memfail;
+		return -ENOMEM;
 
 	ep->channels = devm_kcalloc(dev, ep->num_channels + 1,
 				    sizeof(struct xilly_channel *),
 				    GFP_KERNEL);
 
 	if (!ep->channels)
-		goto memfail;
+		return -ENOMEM;
 
 	ep->channels[0] = NULL; /* Channel 0 is message buf. */
 
@@ -522,7 +522,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 					       GFP_KERNEL);
 
 			if (!buffers)
-				goto memfail;
+				return -ENOMEM;
 		} else {
 			bytebufsize = bufsize << 2;
 		}
@@ -557,7 +557,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 		}
 
 		if (rc)
-			goto memfail;
+			return -ENOMEM;
 	}
 
 	if (!msg_buf_done) {
@@ -566,11 +566,6 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 		return -ENODEV;
 	}
 	return 0;
-
-memfail:
-	dev_err(ep->dev,
-		"Failed to assign DMA buffer memory. Aborting.\n");
-	return -ENOMEM;
 }
 
 static void xilly_scan_idt(struct xilly_endpoint *endpoint,
