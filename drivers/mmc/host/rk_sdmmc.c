@@ -2756,22 +2756,20 @@ host_put:
 
 static void dw_mci_cmd_interrupt(struct dw_mci *host, u32 status)
 {
-        u32 multi, unit;
+        u32 multi, unit = SZ_2M;
 
         if (!host->cmd_status)
 	    host->cmd_status = status;
 	    
-	if(!host->cmd)
+        if (!host->cmd)
 		goto cmd_exit;
 
-	if((MMC_STOP_TRANSMISSION != host->cmd->opcode))
-        {
-                unit = 2*1024*1024;
-                multi = mci_readl(host, BYTCNT)/unit;
-                multi += ((mci_readl(host, BYTCNT) % unit) ? 1 :0 );
-                multi = (multi > 0) ? multi : 1;
-                multi += (host->cmd->retries > 2)? 2 : host->cmd->retries;
-                mod_timer(&host->dto_timer, jiffies + msecs_to_jiffies(4500 * multi));//max wait 8s larger
+        if ((MMC_STOP_TRANSMISSION != host->cmd->opcode)) {
+                multi = (mci_readl(host, BYTCNT) / unit) +
+                        ((mci_readl(host, BYTCNT) % unit) ? 1 :0 ) +
+                        ((host->cmd->retries > 2) ? 2 : host->cmd->retries);
+                /* Max limit time: 8s for dto */
+                mod_timer(&host->dto_timer, jiffies + msecs_to_jiffies(4000 * multi));
         }
 
 cmd_exit:
