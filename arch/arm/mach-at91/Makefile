@@ -2,11 +2,12 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= irq.o gpio.o setup.o sysirq_mask.o
+obj-y		:= gpio.o setup.o sysirq_mask.o
 obj-m		:=
 obj-n		:=
 obj-		:=
 
+obj-$(CONFIG_OLD_IRQ_AT91)	+= irq.o
 obj-$(CONFIG_OLD_CLK_AT91)	+= clock.o
 obj-$(CONFIG_AT91_SAM9_ALT_RESET) += at91sam9_alt_reset.o
 obj-$(CONFIG_AT91_SAM9G45_RESET) += at91sam9g45_reset.o

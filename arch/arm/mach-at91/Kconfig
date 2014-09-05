@@ -28,6 +28,11 @@ config OLD_CLK_AT91
 	bool
 	default AT91_PMC_UNIT && AT91_USE_OLD_CLK
 
+config OLD_IRQ_AT91
+	bool
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
 config AT91_SAM9_ALT_RESET
 	bool
 	default !ARCH_AT91X40
@@ -45,18 +50,16 @@ config HAVE_AT91_SMD
 config SOC_AT91SAM9
 	bool
 	select AT91_SAM9_TIME
+	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
 
 config SOC_SAMA5
 	bool
 	select AT91_SAM9_TIME
+	select ATMEL_AIC5_IRQ
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
 	select USE_OF
 
 menu "Atmel AT91 System-on-Chip"
@@ -70,8 +73,7 @@ config ARCH_AT91X40
 	depends on !MMU
 	select CPU_ARM7TDMI
 	select ARCH_USES_GETTIMEOFFSET
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
+	select OLD_IRQ_AT91
 
 	help
 	  Select this if you are using one of Atmel's AT91X40 SoC.
@@ -108,11 +110,10 @@ endif
 if SOC_SAM_V4_V5
 config SOC_AT91RM9200
 	bool "AT91RM9200"
+	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
 	select CPU_ARM920T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_DBGU0
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
 	select HAVE_AT91_USB_CLK
 
 config SOC_AT91SAM9260
