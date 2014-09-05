@@ -1067,8 +1067,8 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 	if (ah->opmode == NL80211_IFTYPE_STATION) {
 		bool changed = (iter_data.primary_sta != ctx->primary_sta);
 
-		iter_data.beacons = true;
 		if (iter_data.primary_sta) {
+			iter_data.beacons = true;
 			ath9k_set_assoc_state(sc, iter_data.primary_sta,
 					      changed);
 			if (!ctx->primary_sta ||
