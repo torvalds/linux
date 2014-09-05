@@ -55,6 +55,7 @@ The full ID of peripheral types can be found below.
 	22	SSI Dual FIFO	(needs firmware ver >= 2)
 	23	Shared ASRC
 	24	SAI
+	25	HDMI Audio
 
 The third cell specifies the transfer priority as below.
 
