@@ -811,7 +811,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	/* allow 4 queues per channel context +
 	 * 1 cab queue + 1 offchannel tx queue
 	 */
-	hw->queues = 10;
+	hw->queues = ATH9K_NUM_TX_QUEUES;
 	/* last queue for offchannel */
 	hw->offchannel_tx_hw_queue = hw->queues - 1;
 	hw->max_rates = 4;

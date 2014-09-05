@@ -1104,6 +1104,20 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 	ath9k_ps_restore(sc);
 }
 
+static void ath9k_assign_hw_queues(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
+{
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++)
+		vif->hw_queue[i] = i;
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		vif->cab_queue = hw->queues - 2;
+	else
+		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
+}
+
 static int ath9k_add_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif)
 {
@@ -1112,7 +1126,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_node *an = &avp->mcast_node;
-	int i;
 
 	mutex_lock(&sc->mutex);
 
@@ -1135,12 +1148,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		avp->chanctx = sc->cur_chan;
 		list_add_tail(&avp->list, &avp->chanctx->vifs);
 	}
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		vif->hw_queue[i] = i;
-	if (vif->type == NL80211_IFTYPE_AP)
-		vif->cab_queue = hw->queues - 2;
-	else
-		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
+
+	ath9k_assign_hw_queues(hw, vif);
 
 	an->sc = sc;
 	an->sta = NULL;
@@ -1160,7 +1169,6 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
-	int i;
 
 	mutex_lock(&sc->mutex);
 
@@ -1180,14 +1188,7 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		vif->hw_queue[i] = i;
-
-	if (vif->type == NL80211_IFTYPE_AP)
-		vif->cab_queue = hw->queues - 2;
-	else
-		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
-
+	ath9k_assign_hw_queues(hw, vif);
 	ath9k_calculate_summary_state(sc, avp->chanctx);
 
 	mutex_unlock(&sc->mutex);
