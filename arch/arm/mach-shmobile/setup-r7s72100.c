@@ -53,6 +53,7 @@ static const char *r7s72100_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(R7S72100_DT, "Generic R7S72100 (Flattened Device Tree)")
 	.init_early	= shmobile_init_delay,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= r7s72100_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */
