@@ -1533,10 +1533,12 @@ static void smp_resume_cb(struct l2cap_chan *chan)
 	if (!smp)
 		return;
 
+	if (!test_bit(HCI_CONN_ENCRYPT, &hcon->flags))
+		return;
+
 	cancel_delayed_work(&smp->security_timer);
 
-	if (test_bit(HCI_CONN_ENCRYPT, &hcon->flags))
-		queue_work(hdev->workqueue, &smp->distribute_work);
+	queue_work(hdev->workqueue, &smp->distribute_work);
 }
 
 static void smp_ready_cb(struct l2cap_chan *chan)
