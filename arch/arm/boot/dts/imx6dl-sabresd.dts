@@ -16,6 +16,12 @@
 	compatible = "fsl,imx6dl-sabresd", "fsl,imx6dl";
 };
 
+&battery {
+	offset-charger = <1485>;
+	offset-discharger = <1464>;
+	offset-usb-charger = <1285>;
+};
+
 &iomuxc {
         epdc {
                 pinctrl_epdc_0: epdcgrp-0 {

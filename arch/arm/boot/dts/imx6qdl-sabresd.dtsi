@@ -21,6 +21,19 @@
 		mxcfb3 = &mxcfb4;
 	};
 
+	battery: max8903@0 {
+		compatible = "fsl,max8903-charger";
+		pinctrl-names = "default";
+		dok_input = <&gpio2 24 1>;
+		uok_input = <&gpio1 27 1>;
+		chg_input = <&gpio3 23 1>;
+		flt_input = <&gpio5 2 1>;
+		fsl,dcm_always_high;
+		fsl,dc_valid;
+		fsl,usb_valid;
+		status = "okay";
+	};
+
 	hannstar_cabc {
 		compatible = "hannstar,cabc";
 		lvds0 {

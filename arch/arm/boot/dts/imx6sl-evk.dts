@@ -16,6 +16,19 @@
 	model = "Freescale i.MX6 SoloLite EVK Board";
 	compatible = "fsl,imx6sl-evk", "fsl,imx6sl";
 
+	battery: max8903@0 {
+		compatible = "fsl,max8903-charger";
+		pinctrl-names = "default";
+		dok_input = <&gpio4 13 1>;
+		uok_input = <&gpio4 13 1>;
+		chg_input = <&gpio4 15 1>;
+		flt_input = <&gpio4 14 1>;
+		fsl,dcm_always_high;
+		fsl,dc_valid;
+		fsl,adc_disable;
+		status = "okay";
+	};
+
 	memory {
 		reg = <0x80000000 0x40000000>;
 	};
@@ -449,6 +462,9 @@
 				MX6SL_PAD_EPDC_PWRCTRL2__GPIO2_IO09 0x80000000
 				MX6SL_PAD_KEY_COL6__GPIO4_IO04    0x110b0
 				MX6SL_PAD_LCD_RESET__GPIO2_IO19   0x1b0b0
+				MX6SL_PAD_ECSPI2_MISO__GPIO4_IO14 0x17000
+				MX6SL_PAD_ECSPI2_MOSI__GPIO4_IO13 0x17000
+				MX6SL_PAD_ECSPI2_SS0__GPIO4_IO15  0x17000
 			>;
 		};
 
