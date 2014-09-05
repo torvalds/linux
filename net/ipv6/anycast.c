@@ -182,8 +182,6 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	rtnl_unlock();
 
 	sock_kfree_s(sk, pac, sizeof(*pac));
-	if (!dev)
-		return -ENODEV;
 	return 0;
 }
 
