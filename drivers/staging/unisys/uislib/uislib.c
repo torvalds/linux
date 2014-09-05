@@ -548,6 +548,7 @@ pause_device(CONTROLVM_MESSAGE *msg)
 	struct bus_info *bus;
 	struct device_info *dev;
 	struct guest_msgs cmd;
+	int retval = CONTROLVM_RESP_SUCCESS;
 
 	busNo = msg->cmd.deviceChangeState.busNo;
 	devNo = msg->cmd.deviceChangeState.devNo;
@@ -559,58 +560,53 @@ pause_device(CONTROLVM_MESSAGE *msg)
 			if (devNo >= bus->deviceCount) {
 				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: device(%d) >= deviceCount(%d).",
 				     devNo, bus->deviceCount);
-				read_unlock(&BusListLock);
-				return CONTROLVM_RESP_ERROR_DEVICE_INVALID;
-			}
-			/* make sure this device exists */
-			dev = bus->device[devNo];
-			if (!dev) {
-				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: device %d does not exist.",
-				     devNo);
-				read_unlock(&BusListLock);
-				return CONTROLVM_RESP_ERROR_ALREADY_DONE;
-			}
-			read_unlock(&BusListLock);
-			/* the msg is bound for virtpci; send
-			 * guest_msgs struct to callback
-			 */
-			if (!uuid_le_cmp(dev->channelTypeGuid,
-					UltraVhbaChannelProtocolGuid)) {
-				cmd.msgtype = GUEST_PAUSE_VHBA;
-				cmd.pause_vhba.chanptr = dev->chanptr;
-			} else
-			    if (!uuid_le_cmp(dev->channelTypeGuid,
-					    UltraVnicChannelProtocolGuid)) {
-				cmd.msgtype = GUEST_PAUSE_VNIC;
-				cmd.pause_vnic.chanptr = dev->chanptr;
+				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
-				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: unknown channelTypeGuid.\n");
-				return
-				    CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
-			}
-
-			if (!VirtControlChanFunc) {
-				LOGERR("CONTROLVM_DEVICE_CHANGESTATE Failed: virtpci callback not registered.");
-				return
-				    CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
-			}
-
-			if (!VirtControlChanFunc(&cmd)) {
-				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: virtpci GUEST_PAUSE_[VHBA||VNIC] returned error.");
-				return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
+				/* make sure this device exists */
+				dev = bus->device[devNo];
+				if (!dev) {
+					LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: device %d does not exist.",
+					     devNo);
+					retval =
+					  CONTROLVM_RESP_ERROR_ALREADY_DONE;
+				}
 			}
 			break;
 		}
 	}
-
 	if (!bus) {
 		LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: bus %d does not exist",
 		     busNo);
-		read_unlock(&BusListLock);
-		return CONTROLVM_RESP_ERROR_BUS_INVALID;
+		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
 	}
-
-	return CONTROLVM_RESP_SUCCESS;
+	read_unlock(&BusListLock);
+	if (retval == CONTROLVM_RESP_SUCCESS) {
+		/* the msg is bound for virtpci; send
+		 * guest_msgs struct to callback
+		 */
+		if (!uuid_le_cmp(dev->channelTypeGuid,
+				UltraVhbaChannelProtocolGuid)) {
+			cmd.msgtype = GUEST_PAUSE_VHBA;
+			cmd.pause_vhba.chanptr = dev->chanptr;
+		} else if (!uuid_le_cmp(dev->channelTypeGuid,
+					UltraVnicChannelProtocolGuid)) {
+			cmd.msgtype = GUEST_PAUSE_VNIC;
+			cmd.pause_vnic.chanptr = dev->chanptr;
+		} else {
+			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: unknown channelTypeGuid.\n");
+			return CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
+		}
+		if (!VirtControlChanFunc) {
+			LOGERR("CONTROLVM_DEVICE_CHANGESTATE Failed: virtpci callback not registered.");
+			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
+		}
+		if (!VirtControlChanFunc(&cmd)) {
+			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: virtpci GUEST_PAUSE_[VHBA||VNIC] returned error.");
+			return
+			  CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
+		}
+	}
+	return retval;
 }
 
 static int
