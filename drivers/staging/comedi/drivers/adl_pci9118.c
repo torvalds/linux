@@ -551,21 +551,6 @@ static int pci9118_insn_read_ao(struct comedi_device *dev,
 	return n;
 }
 
-static int pci9118_insn_bits_di(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
-{
-	/*
-	 * The digital inputs and outputs share the read register.
-	 * bits [7:4] are the digital outputs
-	 * bits [3:0] are the digital inputs
-	 */
-	data[1] = inl(dev->iobase + PCI9118_DIO_REG) & 0xf;
-
-	return insn->n;
-}
-
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -1648,6 +1633,21 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return ret;
 }
 
+static int pci9118_di_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
+{
+	/*
+	 * The digital inputs and outputs share the read register.
+	 * bits [7:4] are the digital outputs
+	 * bits [3:0] are the digital inputs
+	 */
+	data[1] = inl(dev->iobase + PCI9118_DIO_REG) & 0xf;
+
+	return insn->n;
+}
+
 static int pci9118_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -1895,7 +1895,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->n_chan	= 4;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_bits	= pci9118_insn_bits_di;
+	s->insn_bits	= pci9118_di_insn_bits;
 
 	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
