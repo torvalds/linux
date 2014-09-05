@@ -228,7 +228,7 @@ struct pci9118_private {
 	unsigned char chanlistlen;	/* number of scanlist */
 #endif
 	unsigned char ai_ctrl;
-	unsigned char IntControlReg;	/* Interrupt control register */
+	unsigned char int_ctrl;
 	unsigned char ai_cfg;
 	char ai_neverending;		/* we do unlimited AI */
 	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
@@ -590,8 +590,8 @@ static int pci9118_exttrg_add(struct comedi_device *dev, unsigned char source)
 	if (source > 3)
 		return -1;				/* incorrect source */
 	devpriv->exttrg_users |= (1 << source);
-	devpriv->IntControlReg |= PCI9118_INT_CTRL_DTRG;
-	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INT_CTRL_REG);
+	devpriv->int_ctrl |= PCI9118_INT_CTRL_DTRG;
+	outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
 	outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) | 0x1f00,
 					devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 							/* allow INT in AMCC */
@@ -606,14 +606,13 @@ static int pci9118_exttrg_del(struct comedi_device *dev, unsigned char source)
 		return -1;			/* incorrect source */
 	devpriv->exttrg_users &= ~(1 << source);
 	if (!devpriv->exttrg_users) {	/* shutdown ext trg intterrupts */
-		devpriv->IntControlReg &= ~PCI9118_INT_CTRL_DTRG;
-		if (!devpriv->IntControlReg)	/* all IRQ disabled */
+		devpriv->int_ctrl &= ~PCI9118_INT_CTRL_DTRG;
+		if (!devpriv->int_ctrl)	/* all IRQ disabled */
 			outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) &
 					(~0x00001f00),
 					devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 						/* disable int in AMCC */
-		outl(devpriv->IntControlReg,
-		     dev->iobase + PCI9118_INT_CTRL_REG);
+		outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
 	}
 	return 0;
 }
@@ -719,7 +718,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	devpriv->ai_neverending = 0;
 	devpriv->dma_actbuf = 0;
 
-	if (!devpriv->IntControlReg)
+	if (!devpriv->int_ctrl)
 		outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) | 0x1f00,
 					devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 							/* allow INT in AMCC */
@@ -973,7 +972,7 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	devpriv->ai12_startstop &= ~START_AI_INT;
 	s->async->inttrig = NULL;
 
-	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INT_CTRL_REG);
+	outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 	if (devpriv->ai_do != 3) {
 		pci9118_start_pacer(dev, devpriv->ai_do);
@@ -1316,7 +1315,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 						/* activate EXT trigger */
 
 	if ((devpriv->ai_do == 1) || (devpriv->ai_do == 2))
-		devpriv->IntControlReg |= PCI9118_INT_CTRL_TIMER;
+		devpriv->int_ctrl |= PCI9118_INT_CTRL_TIMER;
 
 	devpriv->ai_ctrl |= PCI9118_AI_CTRL_INT;
 
@@ -1325,15 +1324,13 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 							/* allow INT in AMCC */
 
 	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT))) {
-		outl(devpriv->IntControlReg,
-		     dev->iobase + PCI9118_INT_CTRL_REG);
+		outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
 		outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 		if (devpriv->ai_do != 3) {
 			pci9118_start_pacer(dev, devpriv->ai_do);
 			devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
 		}
-		outl(devpriv->IntControlReg,
-		     dev->iobase + PCI9118_INT_CTRL_REG);
+		outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
 	}
 
 	return 0;
@@ -1396,8 +1393,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 
 	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT))) {
 		outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-		outl(devpriv->IntControlReg,
-		     dev->iobase + PCI9118_INT_CTRL_REG);
+		outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
 		if (devpriv->ai_do != 3) {
 			pci9118_start_pacer(dev, devpriv->ai_do);
 			devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
