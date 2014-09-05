@@ -188,7 +188,7 @@ static void pnfs_generic_retry_commit(struct nfs_commit_info *cinfo, int idx)
 		bucket = &fl_cinfo->buckets[i];
 		if (list_empty(&bucket->committing))
 			continue;
-		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
+		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo, i);
 		spin_lock(cinfo->lock);
 		freeme = bucket->clseg;
 		bucket->clseg = NULL;
@@ -247,7 +247,7 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 			list_add(&data->pages, &list);
 			nreq++;
 		} else {
-			nfs_retry_commit(mds_pages, NULL, cinfo);
+			nfs_retry_commit(mds_pages, NULL, cinfo, 0);
 			pnfs_generic_retry_commit(cinfo, 0);
 			cinfo->completion_ops->error_cleanup(NFS_I(inode));
 			return -ENOMEM;

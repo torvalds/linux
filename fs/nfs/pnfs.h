@@ -137,7 +137,8 @@ struct pnfs_layoutdriver_type {
 	struct pnfs_ds_commit_info *(*get_ds_info) (struct inode *inode);
 	void (*mark_request_commit) (struct nfs_page *req,
 				     struct pnfs_layout_segment *lseg,
-				     struct nfs_commit_info *cinfo);
+				     struct nfs_commit_info *cinfo,
+				     u32 ds_commit_idx);
 	void (*clear_request_commit) (struct nfs_page *req,
 				      struct nfs_commit_info *cinfo);
 	int (*scan_commit_lists) (struct nfs_commit_info *cinfo,
@@ -389,14 +390,14 @@ pnfs_generic_mark_devid_invalid(struct nfs4_deviceid_node *node)
 
 static inline bool
 pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
-			 struct nfs_commit_info *cinfo)
+			 struct nfs_commit_info *cinfo, u32 ds_commit_idx)
 {
 	struct inode *inode = req->wb_context->dentry->d_inode;
 	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
 
 	if (lseg == NULL || ld->mark_request_commit == NULL)
 		return false;
-	ld->mark_request_commit(req, lseg, cinfo);
+	ld->mark_request_commit(req, lseg, cinfo, ds_commit_idx);
 	return true;
 }
 
@@ -574,7 +575,7 @@ pnfs_get_ds_info(struct inode *inode)
 
 static inline bool
 pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
-			 struct nfs_commit_info *cinfo)
+			 struct nfs_commit_info *cinfo, u32 ds_commit_idx)
 {
 	return false;
 }

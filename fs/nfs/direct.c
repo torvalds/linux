@@ -649,7 +649,7 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 		nfs_list_remove_request(req);
 		if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES) {
 			/* Note the rewrite will go through mds */
-			nfs_mark_request_commit(req, NULL, &cinfo);
+			nfs_mark_request_commit(req, NULL, &cinfo, 0);
 		} else
 			nfs_release_request(req);
 		nfs_unlock_and_release_request(req);
@@ -748,7 +748,8 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		nfs_list_remove_request(req);
 		if (request_commit) {
 			kref_get(&req->wb_kref);
-			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
+			nfs_mark_request_commit(req, hdr->lseg, &cinfo,
+				hdr->ds_commit_idx);
 		}
 		nfs_unlock_and_release_request(req);
 	}

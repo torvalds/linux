@@ -954,7 +954,8 @@ static u32 select_bucket_index(struct nfs4_filelayout_segment *fl, u32 j)
 static void
 filelayout_mark_request_commit(struct nfs_page *req,
 			       struct pnfs_layout_segment *lseg,
-			       struct nfs_commit_info *cinfo)
+			       struct nfs_commit_info *cinfo,
+			       u32 ds_commit_idx)
 
 {
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
