@@ -588,7 +588,11 @@ static void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags) &&
 	    (sc->cur_chan != ctx) && (ctx == &sc->offchannel.chan)) {
 		sc->sched.offchannel_pending = true;
+		if (chandef)
+			ctx->chandef = *chandef;
 		spin_unlock_bh(&sc->chan_lock);
+		ath_dbg(common, CHAN_CTX,
+			"Set offchannel_pending to true\n");
 		return;
 	}
 
