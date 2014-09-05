@@ -105,7 +105,7 @@ struct gpio_chip {
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 	/*
-	 * With CONFIG_GPIO_IRQCHIP we get an irqchip inside the gpiolib
+	 * With CONFIG_GPIOLIB_IRQCHIP we get an irqchip inside the gpiolib
 	 * to handle IRQs for most practical cases.
 	 */
 	struct irq_chip		*irqchip;
@@ -221,7 +221,7 @@ int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 		irq_flow_handler_t handler,
 		unsigned int type);
 
-#endif /* CONFIG_GPIO_IRQCHIP */
+#endif /* CONFIG_GPIOLIB_IRQCHIP */
 
 #else /* CONFIG_GPIOLIB */
 
