@@ -1654,63 +1654,30 @@ static int pci9118_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci9118_reset(struct comedi_device *dev)
+static void pci9118_reset(struct comedi_device *dev)
 {
-	struct pci9118_private *devpriv = dev->private;
+	/* reset analog input subsystem */
+	outl(0, dev->iobase + PCI9118_INT_CTRL_REG);
+	outl(0, dev->iobase + PCI9118_AI_CTRL_REG);
+	outl(0, dev->iobase + PCI9118_AI_CFG_REG);
+	pci9118_ai_reset_fifo(dev);
 
-	devpriv->IntControlReg = 0;
-	devpriv->exttrg_users = 0;
-	/* clear interrupts then disable all interrupt sources */
+	/* clear any pending interrupts and status */
 	inl(dev->iobase + PCI9118_INT_CTRL_REG);
-	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INT_CTRL_REG);
+	inl(dev->iobase + PCI9118_AI_STATUS_REG);
+
+	/* reset and stop counters */
 	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
-	pci9118_start_pacer(dev, 0);		/* stop 8254 counters */
-	devpriv->AdControlReg = 0;
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
-						/*
-						 * bipolar, S.E., use 8254,
-						 * stop 8354, internal trigger,
-						 * soft trigger,
-						 * disable INT and DMA
-						 */
+	pci9118_start_pacer(dev, 0);
+
+	/* reset DMA and scan queue */
 	outl(0, dev->iobase + PCI9118_AI_BURST_NUM_REG);
-	/* reset scan queue */
 	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
-	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
-	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
-						/*
-						 * positive triggers, no S&H,
-						 * no burst, burst stop,
-						 * no post trigger,
-						 * no about trigger,
-						 * trigger stop
-						 */
 
 	/* reset analog outputs to 0V */
 	outl(2047, dev->iobase + PCI9118_AO_REG(0));
 	outl(2047, dev->iobase + PCI9118_AO_REG(1));
-
-	udelay(10);
-	inl(dev->iobase + PCI9118_AI_FIFO_REG);
-	pci9118_ai_reset_fifo(dev);
-	/* disable all interrupt sources */
-	outl(0, dev->iobase + PCI9118_INT_CTRL_REG);
-	/* clear A/D and INT status registers */
-	inl(dev->iobase + PCI9118_AI_STATUS_REG);
-	inl(dev->iobase + PCI9118_INT_CTRL_REG);
-	devpriv->AdControlReg = 0;
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
-						/*
-						 * bipolar, S.E., use 8254,
-						 * stop 8354, internal trigger,
-						 * soft trigger,
-						 * disable INT and DMA
-						 */
-
-	devpriv->exttrg_users = 0;
-
-	return 0;
 }
 
 static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
