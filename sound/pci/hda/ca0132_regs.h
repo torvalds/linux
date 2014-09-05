@@ -20,7 +20,7 @@
  */
 
 #ifndef __CA0132_REGS_H
-#define __CA0312_REGS_H
+#define __CA0132_REGS_H
 
 #define DSP_CHIP_OFFSET                0x100000
 #define DSP_DBGCNTL_MODULE_OFFSET      0xE30

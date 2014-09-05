@@ -636,6 +636,26 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	dma_cookie_t cookie;
 	int ret;
 
+	/* First prepare and submit the DMA request(s), as this may fail */
+	if (rx) {
+		ier_bits |= IER_RDREQE | IER_RDMAE;
+		desc_rx = dmaengine_prep_slave_single(p->master->dma_rx,
+					p->rx_dma_addr, len, DMA_FROM_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_rx) {
+			ret = -EAGAIN;
+			goto no_dma_rx;
+		}
+
+		desc_rx->callback = sh_msiof_dma_complete;
+		desc_rx->callback_param = p;
+		cookie = dmaengine_submit(desc_rx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto no_dma_rx;
+		}
+	}
+
 	if (tx) {
 		ier_bits |= IER_TDREQE | IER_TDMAE;
 		dma_sync_single_for_device(p->master->dma_tx->device->dev,
@@ -643,17 +663,23 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 		desc_tx = dmaengine_prep_slave_single(p->master->dma_tx,
 					p->tx_dma_addr, len, DMA_TO_DEVICE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (!desc_tx)
-			return -EAGAIN;
-	}
+		if (!desc_tx) {
+			ret = -EAGAIN;
+			goto no_dma_tx;
+		}
 
-	if (rx) {
-		ier_bits |= IER_RDREQE | IER_RDMAE;
-		desc_rx = dmaengine_prep_slave_single(p->master->dma_rx,
-					p->rx_dma_addr, len, DMA_FROM_DEVICE,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (!desc_rx)
-			return -EAGAIN;
+		if (rx) {
+			/* No callback */
+			desc_tx->callback = NULL;
+		} else {
+			desc_tx->callback = sh_msiof_dma_complete;
+			desc_tx->callback_param = p;
+		}
+		cookie = dmaengine_submit(desc_tx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto no_dma_tx;
+		}
 	}
 
 	/* 1 stage FIFO watermarks for DMA */
@@ -666,37 +692,16 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 
 	reinit_completion(&p->done);
 
-	if (rx) {
-		desc_rx->callback = sh_msiof_dma_complete;
-		desc_rx->callback_param = p;
-		cookie = dmaengine_submit(desc_rx);
-		if (dma_submit_error(cookie)) {
-			ret = cookie;
-			goto stop_ier;
-		}
+	/* Now start DMA */
+	if (rx)
 		dma_async_issue_pending(p->master->dma_rx);
-	}
-
-	if (tx) {
-		if (rx) {
-			/* No callback */
-			desc_tx->callback = NULL;
-		} else {
-			desc_tx->callback = sh_msiof_dma_complete;
-			desc_tx->callback_param = p;
-		}
-		cookie = dmaengine_submit(desc_tx);
-		if (dma_submit_error(cookie)) {
-			ret = cookie;
-			goto stop_rx;
-		}
+	if (tx)
 		dma_async_issue_pending(p->master->dma_tx);
-	}
 
 	ret = sh_msiof_spi_start(p, rx);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to start hardware\n");
-		goto stop_tx;
+		goto stop_dma;
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
@@ -726,14 +731,14 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 stop_reset:
 	sh_msiof_reset_str(p);
 	sh_msiof_spi_stop(p, rx);
-stop_tx:
+stop_dma:
 	if (tx)
 		dmaengine_terminate_all(p->master->dma_tx);
-stop_rx:
+no_dma_tx:
 	if (rx)
 		dmaengine_terminate_all(p->master->dma_rx);
-stop_ier:
 	sh_msiof_write(p, IER, 0);
+no_dma_rx:
 	return ret;
 }
 

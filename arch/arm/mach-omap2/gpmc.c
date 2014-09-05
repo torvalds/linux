@@ -1207,8 +1207,7 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 		}
 	}
 
-	if ((p->wait_on_read || p->wait_on_write) &&
-	    (p->wait_pin > gpmc_nr_waitpins)) {
+	if (p->wait_pin > gpmc_nr_waitpins) {
 		pr_err("%s: invalid wait-pin (%d)\n", __func__, p->wait_pin);
 		return -EINVAL;
 	}
@@ -1288,8 +1287,8 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 		p->wait_on_write = of_property_read_bool(np,
 							 "gpmc,wait-on-write");
 		if (!p->wait_on_read && !p->wait_on_write)
-			pr_warn("%s: read/write wait monitoring not enabled!\n",
-				__func__);
+			pr_debug("%s: rd/wr wait monitoring not enabled!\n",
+				 __func__);
 	}
 }
 

@@ -790,13 +790,16 @@ static int __init create_log(char *log_name, int size)
 	if (unlikely(ret)) {
 		pr_err("failed to register misc device for log '%s'!\n",
 				log->misc.name);
-		goto out_free_log;
+		goto out_free_misc_name;
 	}
 
 	pr_info("created %luK log '%s'\n",
 		(unsigned long) log->size >> 10, log->misc.name);
 
 	return 0;
+
+out_free_misc_name:
+	kfree(log->misc.name);
 
 out_free_log:
 	kfree(log);

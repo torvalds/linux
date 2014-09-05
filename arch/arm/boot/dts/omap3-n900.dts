@@ -353,7 +353,7 @@
 	};
 
 	twl_power: power {
-		compatible = "ti,twl4030-power-n900";
+		compatible = "ti,twl4030-power-n900", "ti,twl4030-power-idle-osc-off";
 		ti,use_poweroff;
 	};
 };
