@@ -249,6 +249,7 @@ void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     bool update_barrier);
 int pnfs_choose_layoutget_stateid(nfs4_stateid *dst,
 				  struct pnfs_layout_hdr *lo,
+				  struct pnfs_layout_range *range,
 				  struct nfs4_state *open_state);
 int pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
