@@ -657,7 +657,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 	if (*version > 0x82) {
 		dev_err(endpoint->dev,
 			"No support for IDT version 0x%02x. Maybe the xillybus driver needs an upgarde. Aborting.\n",
-		       (int) *version);
+			*version);
 		return -ENODEV;
 	}
 
