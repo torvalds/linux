@@ -916,8 +916,6 @@ static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 		iter_data->naps++;
-		if (vif->bss_conf.enable_beacon)
-			iter_data->beacons = true;
 		break;
 	case NL80211_IFTYPE_STATION:
 		iter_data->nstations++;
@@ -1021,6 +1019,7 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_vif_iter_data iter_data;
+	struct ath_beacon_config *cur_conf;
 
 	ath_chanctx_check_active(sc, ctx);
 
@@ -1037,8 +1036,11 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 	ath_hw_setbssidmask(common);
 
 	if (iter_data.naps > 0) {
+		cur_conf = &ctx->beacon;
 		ath9k_hw_set_tsfadjust(ah, true);
 		ah->opmode = NL80211_IFTYPE_AP;
+		if (cur_conf->enable_beacon)
+			iter_data.beacons = true;
 	} else {
 		ath9k_hw_set_tsfadjust(ah, false);
 
@@ -1695,9 +1697,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
 	    (changed & BSS_CHANGED_BEACON_INT) ||
 	    (changed & BSS_CHANGED_BEACON_INFO)) {
+		ath9k_beacon_config(sc, vif, changed);
 		if (changed & BSS_CHANGED_BEACON_ENABLED)
 			ath9k_calculate_summary_state(sc, avp->chanctx);
-		ath9k_beacon_config(sc, vif, changed);
 	}
 
 	if ((avp->chanctx == sc->cur_chan) &&
