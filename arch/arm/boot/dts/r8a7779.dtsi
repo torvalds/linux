@@ -256,7 +256,7 @@
 	};
 
 	thermal@ffc48000 {
-		compatible = "renesas,rcar-thermal";
+		compatible = "renesas,thermal-r8a7779", "renesas,rcar-thermal";
 		reg = <0xffc48000 0x38>;
 	};
 
@@ -398,10 +398,10 @@
 		/* Gate clocks */
 		mstp0_clks: clocks@ffc80030 {
 			compatible = "renesas,r8a7779-mstp-clocks",
-			             "renesas,cpg-mstp-clocks";
+				     "renesas,cpg-mstp-clocks";
 			reg = <0xffc80030 4>;
 			clocks = <&cpg_clocks R8A7779_CLK_S>,
-			         <&cpg_clocks R8A7779_CLK_P>,
+				 <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_S>,
@@ -435,7 +435,7 @@
 		};
 		mstp1_clks: clocks@ffc80034 {
 			compatible = "renesas,r8a7779-mstp-clocks",
-			             "renesas,cpg-mstp-clocks";
+				     "renesas,cpg-mstp-clocks";
 			reg = <0xffc80034 4>, <0xffc80044 4>;
 			clocks = <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_P>,
@@ -464,7 +464,7 @@
 		};
 		mstp3_clks: clocks@ffc8003c {
 			compatible = "renesas,r8a7779-mstp-clocks",
-			             "renesas,cpg-mstp-clocks";
+				     "renesas,cpg-mstp-clocks";
 			reg = <0xffc8003c 4>;
 			clocks = <&s4_clk>, <&s4_clk>, <&s4_clk>, <&s4_clk>,
 				 <&s4_clk>, <&s4_clk>;
