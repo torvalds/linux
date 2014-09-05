@@ -3417,9 +3417,19 @@ void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
-	WARN_ON(wait_event_timeout(dev_priv->pending_flip_queue,
-				   !intel_crtc_has_pending_flip(crtc),
-				   60*HZ) == 0);
+	if (WARN_ON(wait_event_timeout(dev_priv->pending_flip_queue,
+				       !intel_crtc_has_pending_flip(crtc),
+				       60*HZ) == 0)) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		unsigned long flags;
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		if (intel_crtc->unpin_work) {
+			WARN_ONCE(1, "Removing stuck page flip\n");
+			page_flip_completed(intel_crtc);
+		}
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
 
 	if (crtc->primary->fb) {
 		mutex_lock(&dev->struct_mutex);
