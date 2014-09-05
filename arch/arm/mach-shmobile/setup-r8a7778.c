@@ -574,7 +574,7 @@ void __init r8a7778_init_irq_extpin(int irlm)
 
 void __init r8a7778_init_delay(void)
 {
-	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
+	shmobile_init_delay();
 }
 
 #ifdef CONFIG_USE_OF
