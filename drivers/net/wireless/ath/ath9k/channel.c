@@ -377,13 +377,13 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		    tsf_time - avp->periodic_noa_start > BIT(30))
 			avp->periodic_noa_duration = 0;
 
-		if (ctx->active && !avp->periodic_noa_duration) {
+		if (ctx->active) {
 			avp->periodic_noa_start = tsf_time;
 			avp->periodic_noa_duration =
 				TU_TO_USEC(cur_conf->beacon_interval) / 2 -
 				sc->sched.channel_switch_time;
 			noa_changed = true;
-		} else if (!ctx->active && avp->periodic_noa_duration) {
+		} else if (!ctx->active) {
 			avp->periodic_noa_duration = 0;
 			noa_changed = true;
 		}
