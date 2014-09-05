@@ -303,13 +303,13 @@ static phys_addr_t gart_iommu_iova_to_phys(struct iommu_domain *domain,
 	return pa;
 }
 
-static int gart_iommu_domain_has_cap(struct iommu_domain *domain,
-				     unsigned long cap)
+static bool gart_iommu_capable(enum iommu_cap cap)
 {
-	return 0;
+	return false;
 }
 
 static const struct iommu_ops gart_iommu_ops = {
+	.capable	= gart_iommu_capable,
 	.domain_init	= gart_iommu_domain_init,
 	.domain_destroy	= gart_iommu_domain_destroy,
 	.attach_dev	= gart_iommu_attach_dev,
@@ -317,7 +317,6 @@ static const struct iommu_ops gart_iommu_ops = {
 	.map		= gart_iommu_map,
 	.unmap		= gart_iommu_unmap,
 	.iova_to_phys	= gart_iommu_iova_to_phys,
-	.domain_has_cap	= gart_iommu_domain_has_cap,
 	.pgsize_bitmap	= GART_IOMMU_PGSIZES,
 };
 
