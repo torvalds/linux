@@ -1746,13 +1746,29 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 	unsigned short port = xs_get_srcport(transport);
 	unsigned short last;
 
+	/*
+	 * If we are asking for any ephemeral port (i.e. port == 0 &&
+	 * transport->xprt.resvport == 0), don't bind.  Let the local
+	 * port selection happen implicitly when the socket is used
+	 * (for example at connect time).
+	 *
+	 * This ensures that we can continue to establish TCP
+	 * connections even when all local ephemeral ports are already
+	 * a part of some TCP connection.  This makes no difference
+	 * for UDP sockets, but also doens't harm them.
+	 *
+	 * If we're asking for any reserved port (i.e. port == 0 &&
+	 * transport->xprt.resvport == 1) xs_get_srcport above will
+	 * ensure that port is non-zero and we will bind as needed.
+	 */
+	if (port == 0)
+		return 0;
+
 	memcpy(&myaddr, &transport->srcaddr, transport->xprt.addrlen);
 	do {
 		rpc_set_port((struct sockaddr *)&myaddr, port);
 		err = kernel_bind(sock, (struct sockaddr *)&myaddr,
 				transport->xprt.addrlen);
-		if (port == 0)
-			break;
 		if (err == 0) {
 			transport->srcport = port;
 			break;
