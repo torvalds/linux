@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
+#include <linux/kfifo.h>
 #include <linux/platform_device.h>
 #include <mach/am_regs.h>
 #include <linux/amlogic/amports/amstream.h>
@@ -95,12 +96,14 @@ static DEFINE_MUTEX(vh264_mutex);
 
 #define EXTEND_SAR                      0xff
 
-#define VF_POOL_SIZE        72
+#define VF_POOL_SIZE        64
 #define VF_BUF_NUM          24
 #define PUT_INTERVAL        (HZ/100)
 #define NO_DISP_WD_COUNT    (3 * HZ / PUT_INTERVAL)
 
-
+#define SWITCHING_STATE_OFF       0
+#define SWITCHING_STATE_ON_CMD3   1
+#define SWITCHING_STATE_ON_CMD1   2
 
 #define DEC_CONTROL_FLAG_FORCE_2997_1080P_INTERLACE 0x0001
 #define DEC_CONTROL_FLAG_FORCE_2500_576P_INTERLACE  0x0002
@@ -143,7 +146,6 @@ static void vh264_prot_init(void);
 static void vh264_local_init(void);
 static void vh264_put_timer_func(unsigned long arg);
 static void stream_switching_done(void);
-static int vh264_vfbuf_use(void);
 
 static const char vh264_dec_id[] = "vh264-dev";
 
@@ -161,13 +163,15 @@ static struct vframe_provider_s vh264_vf_prov;
 static u32 frame_buffer_size;
 static u32 frame_width, frame_height, frame_dur, frame_prog, frame_packing_type;
 static u32 last_mb_width, last_mb_height;
+
+static DECLARE_KFIFO(newframe_q, vframe_t *, VF_POOL_SIZE);
+static DECLARE_KFIFO(display_q, vframe_t *, VF_POOL_SIZE);
+static DECLARE_KFIFO(recycle_q, vframe_t *, VF_POOL_SIZE);
+
 static struct vframe_s vfpool[VF_POOL_SIZE];
-static u32 vfpool_idx[VF_POOL_SIZE];
 static s32 vfbuf_use[VF_BUF_NUM];
-static s32 fill_ptr, get_ptr, put_ptr;
-static int buffer_for_recycle[VF_BUF_NUM];
-static int buffer_for_recycle_rd, buffer_for_recycle_wr;
 static buffer_spec_t buffer_spec[VF_BUF_NUM];
+static vframe_t switching_fense_vf;
 
 static struct timer_list recycle_timer;
 static u32 stat;
@@ -204,11 +208,9 @@ static u32 max_refer_buf = 1;
 static u32 vh264_no_disp_wd_count;
 #endif
 static u32 vh264_running;
-static s32 vh264_stream_switching;
-static s32 vh264_stream_new;
+static s32 vh264_stream_switching_state;
 static s32 vh264_eos;
 static struct vframe_s *p_last_vf;
-static s32 last_ptr;
 static u32 wait_buffer_counter;
 static uint error_recovery_mode = 0;
 static uint error_recovery_mode_in = 3;
@@ -332,13 +334,7 @@ static int ge2d_canvas_dup(canvas_t *srcy ,canvas_t *srcu,canvas_t *des,
 
 static inline int fifo_level(void)
 {
-    int level = get_ptr - fill_ptr;
-
-    if (level < 0) {
-        level += VF_POOL_SIZE;
-    }
-
-    return level;
+    return VF_POOL_SIZE - kfifo_len(&newframe_q);
 }
 
 static void vdec_dfs(void)
@@ -395,66 +391,31 @@ void spec_set_canvas(buffer_spec_t *spec,
     return;
 }
 
-static inline void ptr_atomic_wrap_inc(u32 *ptr)
-{
-    u32 i = *ptr;
-
-    i++;
-
-    if (i >= VF_POOL_SIZE) {
-        i = 0;
-    }
-
-    *ptr = i;
-}
-
 static vframe_t *vh264_vf_peek(void* op_arg)
 {
-    if (get_ptr == fill_ptr) {
-        return NULL;
+    vframe_t *vf;
+
+    if (kfifo_peek(&display_q, &vf)) {
+        return vf;
     }
 
-    return &vfpool[get_ptr];
+    return NULL;
 }
 
 static vframe_t *vh264_vf_get(void* op_arg)
 {
     vframe_t *vf;
 
-    if (get_ptr == fill_ptr) {
-        return NULL;
+    if (kfifo_get(&display_q, &vf)) {
+        return vf;
     }
 
-    vf = &vfpool[get_ptr];
-
-    if (vfpool_idx[get_ptr] == -1) {
-        if (!vh264_stream_switching && !vh264_stream_new) {
-            while (vfpool_idx[get_ptr] == -1) {
-                /* discard the switching frame */
-                INCPTR(get_ptr);
-                if (likely(get_ptr == fill_ptr))
-                    return NULL;
-            }
-            vf = &vfpool[get_ptr];
-        }
-    }
-
-    INCPTR(get_ptr);
-
-
-    return vf;
+    return NULL;
 }
 
 static void vh264_vf_put(vframe_t *vf, void* op_arg)
 {
-    buffer_for_recycle[buffer_for_recycle_wr] = vf->index;
-    if (buffer_for_recycle_wr == VF_BUF_NUM-1) {
-        buffer_for_recycle_wr = 0;
-    } else {
-        buffer_for_recycle_wr++;
-    }
-
-    INCPTR(put_ptr);
+    kfifo_put(&recycle_q, (const vframe_t **)&vf);
 }
 
 static int vh264_event_cb(int type, void *data, void *private_data)
@@ -480,23 +441,15 @@ static int vh264_event_cb(int type, void *data, void *private_data)
 static int  vh264_vf_states(vframe_states_t *states, void* op_arg)
 {
     unsigned long flags;
-    int i;
     spin_lock_irqsave(&lock, flags);
+
     states->vf_pool_size = VF_POOL_SIZE;
-
-    i = put_ptr - fill_ptr;
-    if (i < 0) i += VF_POOL_SIZE;
-    states->buf_free_num = i;
-
-    i = buffer_for_recycle_wr - buffer_for_recycle_rd;
-    if (i < 0) i += VF_POOL_SIZE;
-    states->buf_recycle_num = i;
-
-    i = fill_ptr - get_ptr;
-    if (i < 0) i += VF_POOL_SIZE;
-    states->buf_avail_num = i;
+    states->buf_free_num = kfifo_len(&newframe_q);
+    states->buf_avail_num = kfifo_len(&display_q);
+    states->buf_recycle_num = kfifo_len(&recycle_q);
 
     spin_unlock_irqrestore(&lock, flags);
+
     return 0;
 }
 
@@ -578,10 +531,6 @@ static void vh264_set_params(void)
     unsigned int frame_mbs_only_flag;
     unsigned int chroma_format_idc, chroma444;
     unsigned int crop_infor, crop_bottom,crop_right;
-
-
-    buffer_for_recycle_rd = 0;
-    buffer_for_recycle_wr = 0;
 
     post_canvas = get_post_canvas();
 
@@ -961,14 +910,14 @@ static void vh264_isr(void)
 #endif
 
     if ((cpu_cmd & 0xff) == 1) {
-        if (vh264_running) {
-            if ((!vh264_stream_switching) && (!vh264_stream_new)) {
-                if (vh264_vfbuf_use()) {
-                    vh264_stream_new = 1;
-                    schedule_work(&stream_switching_work);
-                    return IRQ_HANDLED;
-                }
-            }
+        if (unlikely(vh264_running && (kfifo_len(&newframe_q) != VF_POOL_SIZE))) {
+            // a cmd 1 sent during decoding w/o getting a cmd 3.
+            // should not happen but the original code has such case, do the same process
+            vh264_stream_switching_state = SWITCHING_STATE_ON_CMD1;
+
+            printk("Enter switching mode cmd1.\n");
+            schedule_work(&stream_switching_work);
+            return IRQ_HANDLED;
         }
 
         vh264_set_params();
@@ -994,18 +943,11 @@ static void vh264_isr(void)
             status = READ_VREG(AV_SCRATCH_1 + i);
             buffer_index = status & 0x1f;
 
-            if ((p_last_vf != NULL) && (vfpool_idx[last_ptr] == buffer_index)) {
+            if ((p_last_vf != NULL) && (p_last_vf->index == buffer_index)) {
                 continue;
             }
 
             if (buffer_index >= VF_BUF_NUM) {
-                buffer_for_recycle[buffer_for_recycle_wr] = buffer_index;
-                if (buffer_for_recycle_wr == VF_BUF_NUM-1) {
-                    buffer_for_recycle_wr = 0;
-                } else {
-                    buffer_for_recycle_wr++;
-                }
-
                 continue;
             }
 
@@ -1025,9 +967,11 @@ static void vh264_isr(void)
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
             last_interlaced = prog_frame ? 0 : 1;
 #endif
-            vf = &vfpool[fill_ptr];
-            vfpool_idx[fill_ptr] = buffer_index;
-            vf->ratio_control = 0;
+            if (kfifo_get(&newframe_q, &vf) == 0) {
+                printk("fatal error, no available buffer slot.");
+                return IRQ_HANDLED;
+            }
+
             set_frame_info(vf);
 
             switch (i) {
@@ -1068,13 +1012,9 @@ static void vh264_isr(void)
             if (sync_outside == 0) {
                 if (h264_first_pts_ready == 0) {
                     if (pts_valid == 0) {
-                        buffer_for_recycle[buffer_for_recycle_wr] = buffer_index;
-
-                        if (buffer_for_recycle_wr == VF_BUF_NUM-1) {
-                            buffer_for_recycle_wr = 0;
-                        } else {
-                            buffer_for_recycle_wr++;
-                        }
+                        vfbuf_use[buffer_index]++;
+                        vf->index = buffer_index;
+                        kfifo_put(&recycle_q, (const vframe_t **)&vf);
                         continue;
                     }
 
@@ -1141,11 +1081,11 @@ static void vh264_isr(void)
             }
 
             if (timing_info_present_flag && frame_dur && use_idr_framerate) {
-            	  if(h264_first_valid_pts_ready == 0 && pts_valid)
+                if (h264_first_valid_pts_ready == 0 && pts_valid) {
             	  	h264_first_valid_pts_ready=1;
-		  else
+                } else {
             	  	pts_valid = pts_valid && idr_flag;  // if fixed frame rate, then use duration
-
+                }
             }
 
             if ((dec_control & DEC_CONTROL_FLAG_FORCE_2997_1080P_INTERLACE) &&
@@ -1192,10 +1132,11 @@ static void vh264_isr(void)
                 vfbuf_use[buffer_index]++;
 
                 p_last_vf = vf;
-                last_ptr = fill_ptr;
-                vf->ready_jiffies64=jiffies_64;
-                INCPTR(fill_ptr);
+
+                kfifo_put(&display_q, (const vframe_t **)&vf);
+
                 vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
+
             } else {
                 if (pic_struct_present && pic_struct == PIC_TOP_BOT) {
                     vf->type = VIDTYPE_INTERLACE_TOP;
@@ -1217,12 +1158,14 @@ static void vh264_isr(void)
                 vf->canvas0Addr = vf->canvas1Addr = spec2canvas(&buffer_spec[buffer_index]);
                 vfbuf_use[buffer_index]++;
                 vf->ready_jiffies64=jiffies_64;
-                INCPTR(fill_ptr);
 
-                vf = &vfpool[fill_ptr];
-                vfpool_idx[fill_ptr] = buffer_index;
+                kfifo_put(&display_q, (const vframe_t **)&vf);
 
-                vf->ratio_control = 0;
+                if (kfifo_get(&newframe_q, &vf) == 0) {
+                    printk("fatal error, no available buffer slot.");
+                    return IRQ_HANDLED;
+                }
+
                 set_frame_info(vf);
 
                 if (pic_struct_present && pic_struct == PIC_TOP_BOT) {
@@ -1246,10 +1189,10 @@ static void vh264_isr(void)
                 vfbuf_use[buffer_index]++;
 
                 p_last_vf = vf;
-                last_ptr = fill_ptr;
                 vf->ready_jiffies64=jiffies_64;
 
-                INCPTR(fill_ptr);
+                kfifo_put(&display_q, (const vframe_t **)&vf);
+
                 vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
             }
         }
@@ -1257,15 +1200,11 @@ static void vh264_isr(void)
         WRITE_VREG(AV_SCRATCH_0, 0);
     } else if ((cpu_cmd & 0xff) == 3) {
         vh264_running = 1;
-        // schedule stream switching delay work
-        if (vh264_vfbuf_use()) {
-            vh264_stream_switching = 1;
-            schedule_work(&stream_switching_work);
-        }
+        vh264_stream_switching_state = SWITCHING_STATE_ON_CMD3;
 
-        //do not clear AV_SCRATCH_0 to make ucode pending on finish of the command
-        //until stream_switching_done is called.
-        //WRITE_MPEG_REG(AV_SCRATCH_0, 0);
+        printk("Enter switching mode cmd3.\n");
+        schedule_work(&stream_switching_work);
+
     } else if ((cpu_cmd & 0xff) == 4) {
         vh264_running = 1;
         // reserved for slice group
@@ -1301,17 +1240,6 @@ static void vh264_isr(void)
 #endif
 }
 
-static int vh264_vfbuf_use(void)
-{
-    int i, j;
-    for (i=0, j=0; i<VF_BUF_NUM; i++) {
-        if (vfbuf_use[i] != 0) {
-            j++;
-        }
-    }
-    return j;
-}
-
 static void vh264_put_timer_func(unsigned long arg)
 {
     struct timer_list *timer = (struct timer_list *)arg;
@@ -1333,15 +1261,15 @@ static void vh264_put_timer_func(unsigned long arg)
     vh264_isr();
 #endif
 
-    if (vh264_stream_switching || vh264_stream_new) {
+    if (vh264_stream_switching_state != SWITCHING_STATE_OFF) {
         wait_buffer_counter = 0;
     } else {
         reg_val = READ_VREG(AV_SCRATCH_9);
         wait_buffer_status = reg_val & (1 << 31);
         wait_i_pass_frames = reg_val & 0xff;
         if (wait_buffer_status) {
-            if ((get_ptr == fill_ptr) &&
-                (buffer_for_recycle_rd == buffer_for_recycle_wr) &&
+            if (kfifo_is_empty(&display_q) &&
+                kfifo_is_empty(&recycle_q) &&
                 (state == RECEIVER_INACTIVE)) {
                 printk("$$$$$$decoder is waiting for buffer\n");
                 if (++wait_buffer_counter > 4) {
@@ -1395,33 +1323,28 @@ static void vh264_put_timer_func(unsigned long arg)
     }
 #endif
 
-    while ((buffer_for_recycle_rd != buffer_for_recycle_wr) &&
-        ((READ_VREG(AV_SCRATCH_7) == 0) || (READ_VREG(AV_SCRATCH_8) == 0))) {
-        int index = buffer_for_recycle[buffer_for_recycle_rd++];
-
-        if (buffer_for_recycle_rd == VF_BUF_NUM) {
-            buffer_for_recycle_rd = 0;
-        }
-
-        if ((index >= 0) && (index < VF_BUF_NUM)) {
-            if (--vfbuf_use[index] == 0) {
-                if (!vh264_stream_switching && !vh264_stream_new) {
+    while (!kfifo_is_empty(&recycle_q) &&
+           ((READ_VREG(AV_SCRATCH_7) == 0) || (READ_VREG(AV_SCRATCH_8) == 0))) {
+        vframe_t *vf;
+        if (kfifo_get(&recycle_q, &vf)) {
+            if ((vf->index >= 0) && (vf != &switching_fense_vf)) {
+                if (--vfbuf_use[vf->index] == 0) {
                     if (READ_VREG(AV_SCRATCH_7) == 0) {
-                        WRITE_VREG(AV_SCRATCH_7, index + 1);
-                    } else if (READ_VREG(AV_SCRATCH_8) == 0) {
-                        WRITE_VREG(AV_SCRATCH_8, index + 1);
-                    }
-                } else {
-                    if (vh264_vfbuf_use() == 0) {
-                        stream_switching_done();
-                        break;
+                        WRITE_VREG(AV_SCRATCH_7, vf->index + 1);
+                    } else {
+                        WRITE_VREG(AV_SCRATCH_8, vf->index + 1);
                     }
                 }
+
+                vf->index = VF_BUF_NUM;
+                kfifo_put(&newframe_q, (const vframe_t **)&vf);
             }
-        } else {
-            /* invalid */
-            printk("index %d\n", index);
         }
+    }
+
+    if ((vh264_stream_switching_state != SWITCHING_STATE_OFF) &&
+        (kfifo_len(&newframe_q) == VF_POOL_SIZE)) {
+        stream_switching_done();
     }
 
     timer->expires = jiffies + PUT_INTERVAL;
@@ -1544,8 +1467,6 @@ static void vh264_local_init(void)
 
     vh264_rotation = (((u32)vh264_amstream_dec_info.param) >> 16) & 0xffff;
 
-    fill_ptr = get_ptr = put_ptr = 0;
-
     frame_buffer_size = AVIL_DPB_BUFF_SIZE + buf_size - DEFAULT_MEM_SIZE;
     frame_prog = 0;
     frame_width = vh264_amstream_dec_info.width;
@@ -1569,9 +1490,6 @@ static void vh264_local_init(void)
         error_recovery_mode_in = 3;
     }
 
-    buffer_for_recycle_rd = 0;
-    buffer_for_recycle_wr = 0;
-
     if (!vh264_running) {
         last_mb_width = 0;
         last_mb_height = 0;
@@ -1581,10 +1499,15 @@ static void vh264_local_init(void)
         vfbuf_use[i] = 0;
     }
 
+    INIT_KFIFO(display_q);
+    INIT_KFIFO(recycle_q);
+    INIT_KFIFO(newframe_q);
+
     for (i = 0; i < VF_POOL_SIZE; i++) {
-        vfpool_idx[i] = VF_BUF_NUM;
+        const vframe_t *vf = &vfpool[i];
         vfpool[i].index = VF_BUF_NUM;
-        vfpool[i].bufWidth = 1920;
+		vfpool[i].bufWidth = 1920;
+        kfifo_put(&newframe_q, &vf);
     }
 
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
@@ -1600,7 +1523,6 @@ static void vh264_local_init(void)
     vh264_error_count = READ_VREG(AV_SCRATCH_D);
 
     p_last_vf = NULL;
-    last_ptr = VF_POOL_SIZE - 1;
     wait_buffer_counter = 0;
     vh264_no_disp_count = 0;
     fatal_error_flag = 0;
@@ -1611,7 +1533,6 @@ static void vh264_local_init(void)
 
     return;
 }
-
 
 static s32 vh264_init(void)
 {
@@ -1751,8 +1672,7 @@ static s32 vh264_init(void)
 
     stat |= STAT_TIMER_ARM;
 
-    vh264_stream_switching = 0;
-    vh264_stream_new = 0;
+    vh264_stream_switching_state = SWITCHING_STATE_OFF;
 
     stat |= STAT_VDEC_RUN;
     wmb();
@@ -1786,10 +1706,6 @@ static int vh264_stop(void)
     }
 
     if (stat & STAT_VF_HOOK) {
-        ulong flags;
-        spin_lock_irqsave(&lock, flags);
-        fill_ptr = get_ptr = put_ptr = 0;
-        spin_unlock_irqrestore(&lock, flags);
         vf_unreg_provider(&vh264_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }
@@ -1827,32 +1743,27 @@ static void error_do_work(struct work_struct *work)
 
 static void stream_switching_done(void)
 {
-    unsigned long flags;
+    int state = vh264_stream_switching_state;
 
-    spin_lock_irqsave(&lock, flags);
+    WRITE_VREG(AV_SCRATCH_7, 0);
+    WRITE_VREG(AV_SCRATCH_8, 0);
+    WRITE_VREG(AV_SCRATCH_9, 0);
 
-    if (vh264_stream_switching) {
-        vh264_stream_switching = 0;
-        spin_unlock_irqrestore(&lock, flags);
-
-        WRITE_VREG(AV_SCRATCH_7, 0);
-        WRITE_VREG(AV_SCRATCH_8, 0);
-        WRITE_VREG(AV_SCRATCH_9, 0);
-
-        WRITE_VREG(AV_SCRATCH_0, 0);
-    } else if (vh264_stream_new) {
-        vh264_stream_new = 0;
-        spin_unlock_irqrestore(&lock, flags);
-
-        WRITE_VREG(AV_SCRATCH_7, 0);
-        WRITE_VREG(AV_SCRATCH_8, 0);
-        WRITE_VREG(AV_SCRATCH_9, 0);
-
+    if (state == SWITCHING_STATE_ON_CMD1) {
         vh264_set_params();
-    } else {
-        spin_unlock_irqrestore(&lock, flags);
     }
+
+    vh264_stream_switching_state = SWITCHING_STATE_OFF;
+
+    wmb();
+
+    if (state == SWITCHING_STATE_ON_CMD3) {
+        WRITE_VREG(AV_SCRATCH_0, 0);
+    }
+
+    printk("Leaving switching mode.\n");
 }
+
 #if !defined(NV21)|| !defined(CONFIG_GE2D_KEEP_FRAME)
 static int canvas_dup(u8 *dst, ulong src_paddr, ulong size)
 {
@@ -1865,21 +1776,27 @@ static int canvas_dup(u8 *dst, ulong src_paddr, ulong size)
     return 0;
 }
 #endif
+
+/* construt a new frame as a copy of last frame so frame receiver can
+ * release all buffer resources to decoder.
+ */
 static void stream_switching_do(struct work_struct *work)
 {
-    vframe_t *vf_prev, *vf_curr;
     unsigned int buffer_index;
     bool do_copy = true;
     int mb_total_num, mb_width_num, mb_height_num;
+    vframe_t *vf;
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
     u32 y_index, u_index,src_index,des_index,y_desindex,u_dexindex;
     canvas_t csy,csu,cyd;
 #endif
-    mutex_lock(&vh264_mutex);
+
+    if ((!p_last_vf) || (vh264_stream_switching_state != SWITCHING_STATE_OFF)) {
+        return;
+    }
 
     if (atomic_read(&vh264_active)) {
-        unsigned long flags;
         ulong videoKeepBuf[3], videoKeepBufPhys[3];
 
         get_video_keep_buffer(videoKeepBuf, videoKeepBufPhys);
@@ -1892,22 +1809,10 @@ static void stream_switching_do(struct work_struct *work)
             do_copy = false;
         }
 #endif
-        spin_lock_irqsave(&lock, flags);
-
-        /* lock to make sure last_ptr is valid when vh264_stream_switching is 1 */
-        if (unlikely(!vh264_stream_switching) && unlikely(!vh264_stream_new)) {
-            /* a fast path when last frame of previous session is already recycled */
-            spin_unlock_irqrestore(&lock, flags);
-            mutex_unlock(&vh264_mutex);
-            return;
-        }
-
-        buffer_index = vfpool_idx[last_ptr];
+        buffer_index = p_last_vf->index;
         mb_total_num = mb_total;
         mb_width_num = mb_width;
         mb_height_num = mb_height;
-
-        spin_unlock_irqrestore(&lock, flags);
 
         /* construct a clone of the frame from last frame */
         if (do_copy) {
@@ -1925,9 +1830,9 @@ static void stream_switching_do(struct work_struct *work)
             canvas_read(u_index,&csu);
 
             canvas_config(0, videoKeepBufPhys[0], mb_width_num << 4, mb_height_num << 4,
-                          CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
+                              CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);//CANVAS_BLKMODE_32X32);
             canvas_config(1, videoKeepBufPhys[1], mb_width_num << 4, mb_height_num << 3,
-                          CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
+                              CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);//CANVAS_BLKMODE_32X32);
 
             y_desindex = 0;
             u_dexindex = 1;
@@ -1958,35 +1863,35 @@ static void stream_switching_do(struct work_struct *work)
 #endif
         }
 
-        /* lock again to make sure the insertion happens when vh264_stream_switching is true */
-        spin_lock_irqsave(&lock, flags);
-        if (unlikely(!vh264_stream_switching) && unlikely(!vh264_stream_new)) {
-            spin_unlock_irqrestore(&lock, flags);
-            mutex_unlock(&vh264_mutex);
-            return;
-        }
-
-        vf_prev = &vfpool[last_ptr];
-        vf_curr = &vfpool[fill_ptr];
-
-        *vf_curr = *vf_prev;
-        vf_curr->pts = 0;
-        vf_curr->duration = 1;
-        vf_curr->index = -1;
+        switching_fense_vf = *p_last_vf;
+        switching_fense_vf.duration = 1;
+        switching_fense_vf.index = -1;
         if (do_copy) {
-            vf_curr->canvas0Addr = vf_curr->canvas1Addr = 0x020100;
+#ifdef NV21
+            switching_fense_vf.canvas0Addr = 0x010100;
+#else
+            switching_fense_vf.canvas0Addr = 0x020100;
+#endif
         }
 
-        vfpool_idx[fill_ptr] = -1;
-        vf_curr->ready_jiffies64=jiffies_64;
-        INCPTR(fill_ptr);
 
-        spin_unlock_irqrestore(&lock, flags);
+        vf = &switching_fense_vf;
 
-        vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
+        if (vh264_stream_switching_state != SWITCHING_STATE_OFF) {
+            /* we only insert the fense frame when necessary,
+             * if all buffers are already recycled to decoder then it's not
+             * necessary to post fense frame. Such cases may happen when 
+             * receiver side generates its own buffer for final output, such
+             * as ppmgr and ionvideo. The frame buffer from provider will
+             * be recycled pretty fast. It could happen that all frames are 
+             * returned to decoder before a fense frame is ready from this delay work queue.
+             */
+            kfifo_put(&display_q, (const vframe_t **)&vf);
+            vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
+
+            printk("Switching fense frame post\n");
+        }
     }
-
-    mutex_unlock(&vh264_mutex);
 }
 
 static int amvdec_h264_probe(struct platform_device *pdev)
