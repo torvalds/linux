@@ -523,15 +523,9 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	*/
 	pci9118_ai_set_range_aref(dev, s, insn->chanspec);
 
+	/* set default config (disable burst and triggers) */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-						/*
-						 * positive triggers, no S&H,
-						 * no burst, burst stop,
-						 * no post trigger,
-						 * no about trigger,
-						 * trigger stop
-						 */
 
 	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0, 0, 0))
 		return -EINVAL;
@@ -714,20 +708,12 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 		pci9118_amcc_dma_ena(dev, false);
 	pci9118_exttrg_del(dev, EXTTRG_AI);
 	pci9118_start_pacer(dev, 0);	/* stop 8254 counters */
+	/* set default config (disable burst and triggers) */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-					/*
-					 * positive triggers, no S&H, no burst,
-					 * burst stop, no post trigger,
-					 * no about trigger, trigger stop
-					 */
+	/* reset acqusition control */
 	devpriv->ai_ctrl = 0;
 	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
-					/*
-					 * bipolar, S.E., use 8254, stop 8354,
-					 * internal trigger, soft trigger,
-					 * disable INT and DMA
-					 */
 	outl(0, dev->iobase + PCI9118_AI_BURST_NUM_REG);
 	/* reset scan queue */
 	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
@@ -1592,12 +1578,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	pci9118_start_pacer(dev, -1);	/* stop pacer */
 
+	/* set default config (disable burst and triggers) */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
-					/*
-					 * positive triggers, no S&H, no burst,
-					 * burst stop, no post trigger,
-					 * no about trigger, trigger stop
-					 */
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 	udelay(1);
 	pci9118_ai_reset_fifo(dev);
