@@ -39,17 +39,17 @@
 #include <linux/spinlock.h>
 #include "rk3036_codec.h"
 
-#define DEBUGOPEN 0
+static int debug = -1;
+module_param(debug, int, S_IRUGO|S_IWUSR);
 
-#if DEBUGOPEN
-#define dbg_codec(level, fmt, arg...) do {	\
-	if (debug >= level)					\
-		printk(fmt , ## arg); }				\
-	while (0)
+#define dbg_codec(level, fmt, arg...)		\
+	do {					\
+		if (debug >= level)		\
+			printk(fmt , ## arg);	\
+	} while (0)
 
-#else
-#define	dbg_codec(level, fmt, arg...)
-#endif
+#define DBG(fmt, ...) dbg_codec(0, fmt, ## __VA_ARGS__)
+
 
 #define INVALID_GPIO -1
 #define SPK_CTRL_OPEN	1
@@ -119,7 +119,7 @@ static inline unsigned int rk3036_read_reg_cache(struct snd_soc_codec *
 	if (rk3036_codec_register(codec, reg))
 		return  cache[reg];
 
-	dbg_codec(2, "%s : reg error!\n", __func__);
+	DBG("%s : reg error!\n", __func__);
 
 	return -EINVAL;
 }
@@ -134,7 +134,7 @@ static inline void rk3036_write_reg_cache(struct snd_soc_codec *
 		return;
 	}
 
-	dbg_codec(2, "%s : reg error!\n", __func__);
+	DBG("%s : reg error!\n", __func__);
 }
 
 static int rk3036_reset(struct snd_soc_codec *codec)
@@ -158,7 +158,7 @@ static int rk3036_hw_params(struct snd_pcm_substream *substream,
 	unsigned int dac_aif1 = 0, dac_aif2  = 0;
 
 	if (!rk3036) {
-		dbg_codec(2, "%s : rk3036 is NULL\n", __func__);
+		DBG("%s : rk3036 is NULL\n", __func__);
 		return -EINVAL;
 	}
 	dac_aif2 |= RK3036_CR05_FRAMEH_32BITS;
@@ -209,7 +209,7 @@ static int rk3036_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		fmt_ms |= RK3036_CR03_DIRECTION_IOUT|RK3036_CR03_I2SMODE_MASTER;
 		break;
 	default:
-		dbg_codec(2, "%s : set master mask failed!\n", __func__);
+		DBG("%s : set master mask failed!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -229,7 +229,7 @@ static int rk3036_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		dac_aif1 |= RK3036_CR04_MODE_LEFT;
 		break;
 	default:
-		dbg_codec(2, "%s : set format failed!\n", __func__);
+		DBG("%s : set format failed!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -251,7 +251,7 @@ static int rk3036_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		dac_aif2 |= RK3036_CR05_BCLKPOL_REVERSAL;
 		break;
 	default:
-		dbg_codec(2, "%s : set dai format failed!\n", __func__);
+		DBG("%s : set dai format failed!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -275,7 +275,7 @@ static int rk3036_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct rk3036_codec_priv *rk3036 = rk3036_priv;
 
 	if (!rk3036) {
-		dbg_codec(2, "%s : rk3036 is NULL\n", __func__);
+		DBG("%s : rk3036 is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -289,7 +289,7 @@ static int rk3036_digital_mute(struct snd_soc_dai *dai, int mute)
 	struct snd_soc_codec *codec = dai->codec;
 	unsigned int val;
 
-	printk("rk3036_digital_mute = %d\n", mute);
+	DBG("rk3036_digital_mute = %d\n", mute);
 	if (mute) {
 		val = snd_soc_read(codec, RK3036_CODEC_REG27);
 		if (val & (RK3036_CR27_HPOUTL_G_WORK
@@ -333,11 +333,11 @@ static int rk3036_codec_power_on(int wait_ms)
 											|RK3036_CR27_HPOUTR_POP_WORK) & 0x00));
 	mdelay(10);
 	snd_soc_write(codec, RK3036_CODEC_REG24, RK3036_CR24_DAC_SOURCE_STOP
-                                                                                        |RK3036_CR24_DAC_PRECHARGE
-                                                                                        |RK3036_CR24_DACL_REFV_STOP
-                                                                                        |RK3036_CR24_DACR_REFV_STOP
-                                                                                        |RK3036_CR24_VOUTL_ZEROD_STOP
-                                                                                        |RK3036_CR24_VOUTR_ZEROD_STOP);
+                                            |RK3036_CR24_DAC_PRECHARGE
+                                            |RK3036_CR24_DACL_REFV_STOP
+                                            |RK3036_CR24_DACR_REFV_STOP
+                                            |RK3036_CR24_VOUTL_ZEROD_STOP
+                                            |RK3036_CR24_VOUTR_ZEROD_STOP);
 
 	/* wait for capacitor charge finish. */
 	mdelay(wait_ms);
@@ -635,17 +635,17 @@ static unsigned int rk3036_codec_read(struct snd_soc_codec *
 	unsigned int value;
 
 	if (!rk3036_priv) {
-		dbg_codec(2, "%s : rk3036 is NULL\n", __func__);
+		DBG("%s : rk3036 is NULL\n", __func__);
 		return -EINVAL;
 	}
 
 	if (!rk3036_codec_register(codec, reg)) {
-		dbg_codec(2, "%s : reg error!\n", __func__);
+		DBG("%s : reg error!\n", __func__);
 		return -EINVAL;
 	}
 
 	value = readl_relaxed(rk3036_priv->regbase+reg);
-	dbg_codec(2, "%s : reg = 0x%x, val= 0x%x\n", __func__, reg, value);
+	DBG("%s : reg = 0x%x, val= 0x%x\n", __func__, reg, value);
 
 	return value;
 }
@@ -663,7 +663,7 @@ static int rk3036_hw_write(const struct i2c_client *
 		value = (unsigned int)buf[1];
 		writel(value, rk3036_priv->regbase+reg);
 	} else {
-		dbg_codec(2, "%s : i2c len error\n", __func__);
+		DBG("%s : i2c len error\n", __func__);
 	}
 
 	return  count;
@@ -675,10 +675,10 @@ static int rk3036_codec_write(struct snd_soc_codec *
 	int new_value = -1;
 
 	if (!rk3036_priv) {
-		dbg_codec(2, "%s : rk3036 is NULL\n", __func__);
+		DBG("%s : rk3036 is NULL\n", __func__);
 		return -EINVAL;
 	} else if (!rk3036_codec_register(codec, reg)) {
-		dbg_codec(2, "%s : reg error!\n", __func__);
+		DBG("%s : reg error!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -702,7 +702,7 @@ static void spk_ctrl_fun(int status)
 
 static void codec_delayedwork_fun(struct work_struct *work)
 {
-	dbg_codec(2, "codec_delayedwork_fun\n");
+	DBG("codec_delayedwork_fun\n");
 
 	/* codec start up. */
 	rk3036_codec_open_p();
@@ -716,7 +716,7 @@ static void spk_ctrl_delayedwork_fun(struct work_struct *work)
 {
 	if (rk3036_priv == NULL)
 		return;
-	dbg_codec(2, "spk_ctrl_delayedwork_fun\n");
+	DBG("spk_ctrl_delayedwork_fun\n");
 	spk_ctrl_fun(SPK_CTRL_OPEN);
 }
 
@@ -898,14 +898,14 @@ static int rk3036_probe(struct snd_soc_codec *codec)
 	return 0;
 
 err__:
-	dbg_codec(2, "%s err ret=%d\n", __func__, ret);
+	DBG("%s err ret=%d\n", __func__, ret);
 	return ret;
 }
 
 static int rk3036_remove(struct snd_soc_codec *codec)
 {
 	if (!rk3036_priv) {
-		dbg_codec(2, "%s : rk3036_priv is NULL\n", __func__);
+		DBG("%s : rk3036_priv is NULL\n", __func__);
 		return 0;
 	}
 
@@ -1038,7 +1038,7 @@ static int rk3036_platform_probe(struct platform_device *pdev)
 
 	rk3036 = devm_kzalloc(&pdev->dev, sizeof(*rk3036), GFP_KERNEL);
 	if (!rk3036) {
-		dbg_codec(2, "%s : rk3036 priv kzalloc failed!\n", __func__);
+		DBG("%s : rk3036 priv kzalloc failed!\n", __func__);
 		return -ENOMEM;
 	}
 	rk3036_priv = rk3036;
@@ -1046,14 +1046,14 @@ static int rk3036_platform_probe(struct platform_device *pdev)
 
 	rk3036->spk_ctl_gpio = of_get_named_gpio(rk3036_np, "spk_ctl_io", 0);
 	if (!gpio_is_valid(rk3036->spk_ctl_gpio)) {
-		dbg_codec(2, "invalid reset_gpio: %d\n", rk3036->spk_ctl_gpio);
+		DBG("invalid reset_gpio: %d\n", rk3036->spk_ctl_gpio);
 		ret = -ENOENT;
 		goto err__;
 	}
 
 	ret = devm_gpio_request(&pdev->dev, rk3036->spk_ctl_gpio, "spk_ctl");
 	if (ret < 0) {
-		dbg_codec(2, "rk3036_platform_probe spk_ctl_gpio fail\n");
+		DBG("rk3036_platform_probe spk_ctl_gpio fail\n");
 		goto err__;
 	}
 
