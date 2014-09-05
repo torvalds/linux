@@ -3732,7 +3732,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x12 &&
 	    intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED) {
 		intel_dp->use_tps3 = true;
-		DRM_DEBUG_KMS("Displayport TPS3 supported");
+		DRM_DEBUG_KMS("Displayport TPS3 supported\n");
 	} else
 		intel_dp->use_tps3 = false;
 
