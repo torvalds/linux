@@ -654,7 +654,7 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 		 */
 		bacpy(&hcon->dst, &smp->remote_irk->bdaddr);
 		hcon->dst_type = smp->remote_irk->addr_type;
-		l2cap_conn_update_id_addr(hcon);
+		queue_work(hdev->workqueue, &conn->id_addr_update_work);
 
 		/* When receiving an indentity resolving key for
 		 * a remote device that does not use a resolvable
