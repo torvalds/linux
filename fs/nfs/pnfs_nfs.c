@@ -18,20 +18,10 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS
 
-static void pnfs_generic_fenceme(struct inode *inode,
-				 struct pnfs_layout_hdr *lo)
-{
-	if (!test_and_clear_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
-		return;
-	pnfs_return_layout(inode);
-}
-
 void pnfs_generic_rw_release(void *data)
 {
 	struct nfs_pgio_header *hdr = data;
-	struct pnfs_layout_hdr *lo = hdr->lseg->pls_layout;
 
-	pnfs_generic_fenceme(lo->plh_inode, lo);
 	nfs_put_client(hdr->ds_clp);
 	hdr->mds_ops->rpc_release(data);
 }

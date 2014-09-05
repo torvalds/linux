@@ -200,7 +200,7 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
 		nfs4_mark_deviceid_unavailable(devid);
-		set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags);
+		pnfs_error_mark_layout_for_return(inode, lseg);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		/* fall through */
 	default:
