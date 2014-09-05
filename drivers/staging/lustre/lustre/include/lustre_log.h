@@ -57,7 +57,6 @@
  */
 
 #include "obd_class.h"
-#include "obd_ost.h"
 #include "lustre/lustre_idl.h"
 #include "dt_object.h"
 

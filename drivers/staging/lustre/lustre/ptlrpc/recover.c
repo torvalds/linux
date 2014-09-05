@@ -47,7 +47,6 @@
 #include "../include/lustre_import.h"
 #include "../include/lustre_export.h"
 #include "../include/obd.h"
-#include "../include/obd_ost.h"
 #include "../include/obd_class.h"
 #include <linux/list.h>
 

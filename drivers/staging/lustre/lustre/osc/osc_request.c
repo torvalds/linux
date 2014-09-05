@@ -43,7 +43,6 @@
 #include "../include/lustre_net.h"
 #include "../include/lustre/lustre_user.h"
 #include "../include/obd_cksum.h"
-#include "../include/obd_ost.h"
 
 #include "../include/lustre_ha.h"
 #include "../include/lprocfs_status.h"
@@ -53,6 +52,47 @@
 #include "../include/obd_class.h"
 #include "osc_internal.h"
 #include "osc_cl_internal.h"
+
+struct osc_brw_async_args {
+	struct obdo       *aa_oa;
+	int		aa_requested_nob;
+	int		aa_nio_count;
+	u32		aa_page_count;
+	int		aa_resends;
+	struct brw_page  **aa_ppga;
+	struct client_obd *aa_cli;
+	struct list_head	 aa_oaps;
+	struct list_head	 aa_exts;
+	struct obd_capa   *aa_ocapa;
+	struct cl_req     *aa_clerq;
+};
+
+struct osc_async_args {
+	struct obd_info   *aa_oi;
+};
+
+struct osc_setattr_args {
+	struct obdo	 *sa_oa;
+	obd_enqueue_update_f sa_upcall;
+	void		*sa_cookie;
+};
+
+struct osc_fsync_args {
+	struct obd_info     *fa_oi;
+	obd_enqueue_update_f fa_upcall;
+	void		*fa_cookie;
+};
+
+struct osc_enqueue_args {
+	struct obd_export	*oa_exp;
+	__u64		    *oa_flags;
+	obd_enqueue_update_f      oa_upcall;
+	void		     *oa_cookie;
+	struct ost_lvb	   *oa_lvb;
+	struct lustre_handle     *oa_lockh;
+	struct ldlm_enqueue_info *oa_ei;
+	unsigned int	      oa_agl:1;
+};
 
 static void osc_release_ppga(struct brw_page **ppga, u32 count);
 static int brw_interpret(const struct lu_env *env,
@@ -846,7 +886,7 @@ static int osc_shrink_grant_interpret(const struct lu_env *env,
 				      void *aa, int rc)
 {
 	struct client_obd *cli = &req->rq_import->imp_obd->u.cli;
-	struct obdo *oa = ((struct osc_grant_args *)aa)->aa_oa;
+	struct obdo *oa = ((struct osc_brw_async_args *)aa)->aa_oa;
 	struct ost_body *body;
 
 	if (rc != 0) {
@@ -2174,50 +2214,6 @@ static int osc_enqueue_interpret(const struct lu_env *env,
 	return rc;
 }
 
-void osc_update_enqueue(struct lustre_handle *lov_lockhp,
-			struct lov_oinfo *loi, __u64 flags,
-			struct ost_lvb *lvb, __u32 mode, int rc)
-{
-	struct ldlm_lock *lock = ldlm_handle2lock(lov_lockhp);
-
-	if (rc == ELDLM_OK) {
-		__u64 tmp;
-
-		LASSERT(lock != NULL);
-		loi->loi_lvb = *lvb;
-		tmp = loi->loi_lvb.lvb_size;
-		/* Extend KMS up to the end of this lock and no further
-		 * A lock on [x,y] means a KMS of up to y + 1 bytes! */
-		if (tmp > lock->l_policy_data.l_extent.end)
-			tmp = lock->l_policy_data.l_extent.end + 1;
-		if (tmp >= loi->loi_kms) {
-			LDLM_DEBUG(lock, "lock acquired, setting rss=%llu, kms=%llu",
-				   loi->loi_lvb.lvb_size, tmp);
-			loi_kms_set(loi, tmp);
-		} else {
-			LDLM_DEBUG(lock, "lock acquired, setting rss=%llu; leaving kms=%llu, end=%llu",
-				   loi->loi_lvb.lvb_size, loi->loi_kms,
-				   lock->l_policy_data.l_extent.end);
-		}
-		ldlm_lock_allow_match(lock);
-	} else if (rc == ELDLM_LOCK_ABORTED && (flags & LDLM_FL_HAS_INTENT)) {
-		LASSERT(lock != NULL);
-		loi->loi_lvb = *lvb;
-		ldlm_lock_allow_match(lock);
-		CDEBUG(D_INODE, "glimpsed, setting rss=%llu; leaving kms=%llu\n",
-		       loi->loi_lvb.lvb_size, loi->loi_kms);
-		rc = ELDLM_OK;
-	}
-
-	if (lock != NULL) {
-		if (rc != ELDLM_OK)
-			ldlm_lock_fail_match(lock);
-
-		LDLM_LOCK_PUT(lock);
-	}
-}
-EXPORT_SYMBOL(osc_update_enqueue);
-
 struct ptlrpc_request_set *PTLRPCD_SET = (void *)1;
 
 /* When enqueuing asynchronously, locks are not ordered, we can obtain a lock
@@ -2935,7 +2931,7 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	memcpy(tmp, val, vallen);
 
 	if (KEY_IS(KEY_GRANT_SHRINK)) {
-		struct osc_grant_args *aa;
+		struct osc_brw_async_args *aa;
 		struct obdo *oa;
 
 		CLASSERT(sizeof(*aa) <= sizeof(req->rq_async_args));

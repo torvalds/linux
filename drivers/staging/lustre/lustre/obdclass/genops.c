@@ -40,7 +40,6 @@
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
-#include "../include/obd_ost.h"
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
 
