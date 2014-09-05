@@ -904,14 +904,6 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 	return rc;
 }
 
-static int mgc_cancel(struct obd_export *exp, struct lov_stripe_md *md,
-		      __u32 mode, struct lustre_handle *lockh)
-{
-	ldlm_lock_decref(lockh, mode);
-
-	return 0;
-}
-
 static void mgc_notify_active(struct obd_device *unused)
 {
 	/* wakeup mgc_requeue_thread to requeue mgc lock */
@@ -1679,12 +1671,8 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 	mutex_unlock(&cld->cld_lock);
 
 	/* Now drop the lock so MGS can revoke it */
-	if (!rcl) {
-		rcl = mgc_cancel(mgc->u.cli.cl_mgc_mgsexp, NULL,
-				 LCK_CR, &lockh);
-		if (rcl)
-			CERROR("Can't drop cfg lock: %d\n", rcl);
-	}
+	if (!rcl)
+		ldlm_lock_decref(&lockh, LCK_CR);
 
 	return rc;
 }
@@ -1814,7 +1802,6 @@ struct obd_ops mgc_obd_ops = {
 	.o_connect      = client_connect_import,
 	.o_disconnect   = client_disconnect_export,
 	/* .o_enqueue      = mgc_enqueue, */
-	.o_cancel       = mgc_cancel,
 	/* .o_iocontrol    = mgc_iocontrol, */
 	.o_set_info_async = mgc_set_info_async,
 	.o_get_info       = mgc_get_info,
