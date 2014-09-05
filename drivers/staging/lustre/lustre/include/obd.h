@@ -1189,13 +1189,9 @@ struct obd_ops {
 			  struct lov_mds_md *disk_src, int disk_len);
 	int (*o_preallocate)(struct lustre_handle *, u32 *req, u64 *ids);
 	/* FIXME: add fid capability support for create & destroy! */
-	int (*o_precreate)(struct obd_export *exp);
 	int (*o_create)(const struct lu_env *env, struct obd_export *exp,
 			struct obdo *oa, struct lov_stripe_md **ea,
 			struct obd_trans_info *oti);
-	int (*o_create_async)(struct obd_export *exp,  struct obd_info *oinfo,
-			      struct lov_stripe_md **ea,
-			      struct obd_trans_info *oti);
 	int (*o_destroy)(const struct lu_env *env, struct obd_export *exp,
 			 struct obdo *oa, struct lov_stripe_md *ea,
 			 struct obd_trans_info *oti, struct obd_export *md_exp,
@@ -1209,28 +1205,8 @@ struct obd_ops {
 			 struct obd_info *oinfo);
 	int (*o_getattr_async)(struct obd_export *exp, struct obd_info *oinfo,
 			       struct ptlrpc_request_set *set);
-	int (*o_brw)(int rw, struct obd_export *exp, struct obd_info *oinfo,
-		     u32 oa_bufs, struct brw_page *pgarr,
-		     struct obd_trans_info *oti);
-	int (*o_merge_lvb)(struct obd_export *exp, struct lov_stripe_md *lsm,
-			   struct ost_lvb *lvb, int kms_only);
 	int (*o_adjust_kms)(struct obd_export *exp, struct lov_stripe_md *lsm,
 			    u64 size, int shrink);
-	int (*o_punch)(const struct lu_env *, struct obd_export *exp,
-		       struct obd_info *oinfo, struct obd_trans_info *oti,
-		       struct ptlrpc_request_set *rqset);
-	int (*o_sync)(const struct lu_env *env, struct obd_export *exp,
-		      struct obd_info *oinfo, u64 start, u64 end,
-		      struct ptlrpc_request_set *set);
-	int (*o_migrate)(struct lustre_handle *conn, struct lov_stripe_md *dst,
-			 struct lov_stripe_md *src, u64 start,
-			 u64 end, struct obd_trans_info *oti);
-	int (*o_copy)(struct lustre_handle *dstconn, struct lov_stripe_md *dst,
-		      struct lustre_handle *srconn, struct lov_stripe_md *src,
-		      u64 start, u64 end, struct obd_trans_info *);
-	int (*o_iterate)(struct lustre_handle *conn,
-			 int (*)(u64, u64, void *),
-			 u64 *startid, u64 seq, void *data);
 	int (*o_preprw)(const struct lu_env *env, int cmd,
 			struct obd_export *exp, struct obdo *oa, int objcount,
 			struct obd_ioobj *obj, struct niobuf_remote *remote,
@@ -1242,33 +1218,12 @@ struct obd_ops {
 			  struct niobuf_remote *remote, int pages,
 			  struct niobuf_local *local,
 			  struct obd_trans_info *oti, int rc);
-	int (*o_enqueue)(struct obd_export *, struct obd_info *oinfo,
-			 struct ldlm_enqueue_info *einfo,
-			 struct ptlrpc_request_set *rqset);
-	int (*o_change_cbdata)(struct obd_export *, struct lov_stripe_md *,
-			       ldlm_iterator_t it, void *data);
 	int (*o_find_cbdata)(struct obd_export *, struct lov_stripe_md *,
 			     ldlm_iterator_t it, void *data);
-	int (*o_cancel)(struct obd_export *, struct lov_stripe_md *md,
-			__u32 mode, struct lustre_handle *);
-	int (*o_cancel_unused)(struct obd_export *, struct lov_stripe_md *,
-			       ldlm_cancel_flags_t flags, void *opaque);
 	int (*o_init_export)(struct obd_export *exp);
 	int (*o_destroy_export)(struct obd_export *exp);
-	int (*o_extent_calc)(struct obd_export *, struct lov_stripe_md *,
-			     int cmd, u64 *);
-
-	/* llog related obd_methods */
-	int (*o_llog_init)(struct obd_device *obd, struct obd_llog_group *grp,
-			   struct obd_device *disk_obd, int *idx);
-	int (*o_llog_finish)(struct obd_device *obd, int count);
-	int (*o_llog_connect)(struct obd_export *, struct llogd_conn_body *);
 
 	/* metadata-only methods */
-	int (*o_pin)(struct obd_export *, const struct lu_fid *fid,
-		     struct obd_capa *, struct obd_client_handle *, int flag);
-	int (*o_unpin)(struct obd_export *, struct obd_client_handle *, int);
-
 	int (*o_import_event)(struct obd_device *, struct obd_import *,
 			      enum obd_import_event);
 
@@ -1283,8 +1238,6 @@ struct obd_ops {
 			    struct obd_quotactl *);
 	int (*o_quotactl)(struct obd_device *, struct obd_export *,
 			  struct obd_quotactl *);
-
-	int (*o_ping)(const struct lu_env *, struct obd_export *exp);
 
 	/* pools methods */
 	int (*o_pool_new)(struct obd_device *obd, char *poolname);

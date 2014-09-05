@@ -206,11 +206,6 @@ int llog_sync(struct llog_ctxt *ctxt, struct obd_export *exp, int flags);
 int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
 		struct llog_cookie *cookies, int flags);
 
-int obd_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
-		  struct obd_device *disk_obd, int *idx);
-
-int obd_llog_finish(struct obd_device *obd, int count);
-
 /* llog_ioctl.c */
 int llog_ioctl(const struct lu_env *env, struct llog_ctxt *ctxt, int cmd,
 	       struct obd_ioctl_data *data);
