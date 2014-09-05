@@ -294,6 +294,19 @@ struct pci9118_private {
 	unsigned int ai_ns_min;
 };
 
+static void pci9118_amcc_dma_ena(struct comedi_device *dev, bool enable)
+{
+	struct pci9118_private *devpriv = dev->private;
+	unsigned int mcsr;
+
+	mcsr = inl(devpriv->iobase_a + AMCC_OP_REG_MCSR);
+	if (enable)
+		mcsr |= RESET_A2P_FLAGS | A2P_HI_PRIORITY | EN_A2P_TRANSFERS;
+	else
+		mcsr &= ~EN_A2P_TRANSFERS;
+	outl(mcsr, devpriv->iobase_a + AMCC_OP_REG_MCSR);
+}
+
 static void pci9118_amcc_int_ena(struct comedi_device *dev, bool enable)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -692,9 +705,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 
 	if (devpriv->usedma)
-		outl(inl(devpriv->iobase_a + AMCC_OP_REG_MCSR) &
-			(~EN_A2P_TRANSFERS),
-			devpriv->iobase_a + AMCC_OP_REG_MCSR);	/* stop DMA */
+		pci9118_amcc_dma_ena(dev, false);
 	pci9118_exttrg_del(dev, EXTTRG_AI);
 	pci9118_start_pacer(dev, 0);	/* stop 8254 counters */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
@@ -1276,18 +1287,14 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 	}
 #endif
 
-	outl(inl(devpriv->iobase_a + AMCC_OP_REG_MCSR) & (~EN_A2P_TRANSFERS),
-			devpriv->iobase_a + AMCC_OP_REG_MCSR);	/* stop DMA */
+	pci9118_amcc_dma_ena(dev, false);
 	outl(devpriv->dmabuf_hw[0], devpriv->iobase_a + AMCC_OP_REG_MWAR);
 	outl(devpriv->dmabuf_use_size[0], devpriv->iobase_a + AMCC_OP_REG_MWTC);
 	/* init DMA transfer */
 	outl(0x00000000 | AINT_WRITE_COMPL,
 	     devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 /* outl(0x02000000|AINT_WRITE_COMPL, devpriv->iobase_a+AMCC_OP_REG_INTCSR); */
-
-	outl(inl(devpriv->iobase_a +
-		 AMCC_OP_REG_MCSR) | RESET_A2P_FLAGS | A2P_HI_PRIORITY |
-	     EN_A2P_TRANSFERS, devpriv->iobase_a + AMCC_OP_REG_MCSR);
+	pci9118_amcc_dma_ena(dev, true);
 	outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) | EN_A2P_TRANSFERS,
 			devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 						/* allow bus mastering */
