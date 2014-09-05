@@ -12,7 +12,7 @@ enum {
 	OUTPUT_DVI = 0,
 	OUTPUT_HDMI
 };
-
+//#define AUTO_DEFINE_CSC
 #ifdef RK616_USE_MCLK_12M
 #define HDMI_SYS_FREG_CLK        12000000
 #else
@@ -75,8 +75,11 @@ enum {
 	VIDEO_INPUT_8BITS
 };
 #define VIDEO_CONTRL			0x03
-#define m_VIDEO_AUTO_CSC	(1 << 7)
-#define v_VIDEO_AUTO_CSC(n)	(n << 7)
+#define m_VIDEO_AUTO_CSC	  (1 << 7)
+#define v_VIDEO_AUTO_CSC(n)	  (n << 7)
+#define m_VIDEO_C0_C2_EXCHANGE	  (1 << 0)
+#define v_VIDEO_C0_C2_EXCHANGE(n) (n << 0)
+
 
 #define VIDEO_CONTRL3			0x04
 #define m_SOF			(1 << 3)
@@ -113,6 +116,9 @@ enum {
 #define VIDEO_EXT_VBLANK		0x13
 #define VIDEO_EXT_VDELAY		0x14
 #define VIDEO_EXT_VDURATION		0x15
+
+#define VIDEO_CSC_COEF			0x18
+
 
 #define AUDIO_CTRL1			0x35
 enum {

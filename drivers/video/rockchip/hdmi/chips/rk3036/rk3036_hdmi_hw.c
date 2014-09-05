@@ -221,6 +221,52 @@ int rk3036_hdmi_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 	return ret;
 }
 
+static const char coeff_csc[][24] = {
+	/*YUV2RGB:709 HD mode*/
+	{
+	0x04, 0xa7, 0x00, 0x00, 0x07, 0x2c, 0x02, 0xf8,
+	0x04, 0xa7, 0x10, 0xda, 0x12, 0x22, 0x00, 0x4d,
+	0x04, 0xa7, 0x08, 0x74, 0x00, 0x00, 0x03, 0x21},
+};
+static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
+				        struct hdmi_video_para *vpara)
+{
+	int value;
+	const char *coeff = NULL;
+	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
+							struct rk_hdmi_device,
+							driver);
+	coeff = coeff_csc[0];
+	/* Enable or disalbe color space convert */
+	if (vpara->input_color != vpara->output_color) {
+#ifdef AUTO_DEFINE_CSC
+		value = v_SOF_DISABLE | v_CSC_DISABLE;
+		hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+		hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+			     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+			     v_VIDEO_AUTO_CSC(1) | v_VIDEO_C0_C2_EXCHANGE(1));
+#else
+		int i;
+		for (i = 0; i < 24; i++) {
+			hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
+		}
+
+		value = v_SOF_DISABLE | v_CSC_ENABLE;
+		hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+		hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+			     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+			     v_VIDEO_AUTO_CSC(0) | v_VIDEO_C0_C2_EXCHANGE(0));
+
+#endif
+	} else {
+		value = v_SOF_DISABLE;
+		hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+		hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL, m_VIDEO_AUTO_CSC, v_VIDEO_AUTO_CSC(0));
+	}
+
+	return 0;
+}
+
 static void rk3036_hdmi_config_avi(struct hdmi *hdmi_drv,
 				  	unsigned char vic, unsigned char output_color)
 {
@@ -270,7 +316,6 @@ static void rk3036_hdmi_config_avi(struct hdmi *hdmi_drv,
 static int rk3036_hdmi_config_video(struct hdmi *hdmi_drv,
 				   		struct hdmi_video_para *vpara)
 {
-	int value;
 	struct fb_videomode *mode;
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 						       struct rk_hdmi_device,
@@ -315,16 +360,7 @@ static int rk3036_hdmi_config_video(struct hdmi *hdmi_drv,
 	hdmi_writel(hdmi_dev, HDCP_CTRL, v_HDMI_DVI(vpara->output_mode));
 
 	/* Enable or disalbe color space convert */
-	if (vpara->input_color != vpara->output_color) {
-		value = v_SOF_DISABLE | v_CSC_ENABLE;
-		hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
-		hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL, m_VIDEO_AUTO_CSC, v_VIDEO_AUTO_CSC(1));
-	} else {
-		value = v_SOF_DISABLE;
-		hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
-		hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL, m_VIDEO_AUTO_CSC, v_VIDEO_AUTO_CSC(0));
-	}
-
+	rk3036_hdmi_video_csc(hdmi_drv, vpara);
 
 	/* Set ext video timing */
 #if 1
