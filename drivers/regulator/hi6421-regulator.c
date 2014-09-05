@@ -37,7 +37,7 @@ struct hi6421_regulator_pdata {
  * struct hi6421_regulator_info - hi6421 regulator information
  * @desc: regulator description
  * @mode_mask: ECO mode bitmask of LDOs; for BUCKs, this masks sleep
- * @eco_microamp: eco mode load upper limit (in mA), valid for LDOs only
+ * @eco_microamp: eco mode load upper limit (in uA), valid for LDOs only
  */
 struct hi6421_regulator_info {
 	struct regulator_desc	desc;
