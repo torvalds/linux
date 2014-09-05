@@ -41,7 +41,7 @@
 #include <sound/tlv.h>
 #include "rk312x_codec.h"
 
-static int debug = 0;
+static int debug = -1;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dbg_codec(level, fmt, arg...)		\
@@ -345,7 +345,7 @@ static unsigned int rk312x_codec_read(struct snd_soc_codec *codec,
 	unsigned int value;
 
 	if (!rk312x_priv) {
-		printk("%s : rk312x is NULL\n", __func__);
+		DBG("%s : rk312x is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -399,14 +399,14 @@ static int rk312x_codec_ctl_gpio(int gpio, int level)
 	if ((gpio & CODEC_SET_SPK) && rk312x_priv
 	    && rk312x_priv->spk_ctl_gpio != INVALID_GPIO) {
 		gpio_set_value(rk312x_priv->spk_ctl_gpio, level);
-		printk(KERN_INFO"%s set spk clt %d\n", __func__, level);
+		DBG(KERN_INFO"%s set spk clt %d\n", __func__, level);
 		msleep(rk312x_priv->spk_mute_delay);
 	}
 
 	if ((gpio & CODEC_SET_HP) && rk312x_priv
 	    && rk312x_priv->hp_ctl_gpio != INVALID_GPIO) {
 		gpio_set_value(rk312x_priv->hp_ctl_gpio, level);
-		printk(KERN_INFO"%s set hp clt %d\n", __func__, level);
+		DBG(KERN_INFO"%s set hp clt %d\n", __func__, level);
 		msleep(rk312x_priv->hp_mute_delay);
 	}
 
@@ -417,19 +417,19 @@ static int rk312x_codec_ctl_gpio(int gpio, int level)
 static int switch_to_spk(int enable)
 {
 	if (!rk312x_priv) {
-		printk(KERN_ERR"%s : rk312x is NULL\n", __func__);
+		DBG(KERN_ERR"%s : rk312x is NULL\n", __func__);
 		return -EINVAL;
 	}
 	if (enable) {
 		if (rk312x_priv->spk_hp_switch_gpio != INVALID_GPIO) {
 			gpio_set_value(rk312x_priv->spk_hp_switch_gpio, rk312x_priv->spk_io);
-			printk(KERN_INFO"%s switch to spk\n", __func__);
+			DBG(KERN_INFO"%s switch to spk\n", __func__);
 			msleep(rk312x_priv->spk_mute_delay);
 		}
 	} else {
 		if (rk312x_priv->spk_hp_switch_gpio != INVALID_GPIO) {
 			gpio_set_value(rk312x_priv->spk_hp_switch_gpio, !rk312x_priv->spk_io);
-			printk(KERN_INFO"%s switch to hp\n", __func__);
+			DBG(KERN_INFO"%s switch to hp\n", __func__);
 			msleep(rk312x_priv->hp_mute_delay);
 		}
 	}
@@ -2097,18 +2097,18 @@ static ssize_t gpio_store(struct kobject *kobj, struct kobj_attribute *attr,
 	case 'd':
 		if (rk312x->spk_ctl_gpio != INVALID_GPIO) {
 			gpio_set_value(rk312x->spk_ctl_gpio, !rk312x->spk_active_level);
-			printk(KERN_INFO"%s : spk gpio disable\n",__func__);
+			DBG(KERN_INFO"%s : spk gpio disable\n",__func__);
 		}
 
 		if (rk312x->hp_ctl_gpio != INVALID_GPIO) {
 			gpio_set_value(rk312x->hp_ctl_gpio, !rk312x->hp_active_level);
-			printk(KERN_INFO"%s : disable hp gpio \n",__func__);
+			DBG(KERN_INFO"%s : disable hp gpio \n",__func__);
 		}
 		break;
 	case 'e':
 		if (rk312x->spk_ctl_gpio != INVALID_GPIO) {
 			gpio_set_value(rk312x->spk_ctl_gpio, rk312x->spk_active_level);
-			printk(KERN_INFO"%s : spk gpio enable\n",__func__);
+			DBG(KERN_INFO"%s : spk gpio enable\n",__func__);
 		}
 
 		if (rk312x->hp_ctl_gpio != INVALID_GPIO) {
@@ -2117,7 +2117,7 @@ static ssize_t gpio_store(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 		break;
 	default:
-		printk(KERN_ERR"--rk312x codec %s-- unknown cmd\n", __func__);
+		DBG(KERN_ERR"--rk312x codec %s-- unknown cmd\n", __func__);
 		break;
 	}
 	return n;
@@ -2206,7 +2206,7 @@ static int rk312x_probe(struct snd_soc_codec *codec)
 		for (i = 0; i < ARRAY_SIZE(gpio_attrs); i++) {
 			ret = sysfs_create_file(gpio_kobj, &gpio_attrs[i].attr);
 			if (ret != 0) {
-				printk(KERN_ERR"create codec-spk-ctl sysfs %d error\n", i);
+				DBG(KERN_ERR"create codec-spk-ctl sysfs %d error\n", i);
 				/* return ret; */
 			}
 		}
@@ -2295,7 +2295,7 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 		/* ret = -ENOENT; */
 		/* goto err__; */
 	}
-	printk("%s : spk_hp_switch_gpio %d spk  active_level %d \n", __func__,
+	DBG("%s : spk_hp_switch_gpio %d spk  active_level %d \n", __func__,
 		rk312x->spk_hp_switch_gpio, rk312x->spk_io);
 
 	if(rk312x->spk_hp_switch_gpio != INVALID_GPIO) {
@@ -2317,7 +2317,7 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 		/* ret = -ENOENT; */
 		/* goto err__; */
 	}
-	printk("%s : hp_ctl_gpio %d active_level %d \n", __func__,
+	DBG("%s : hp_ctl_gpio %d active_level %d \n", __func__,
 		rk312x->hp_ctl_gpio, rk312x->hp_active_level);
 
 	if(rk312x->hp_ctl_gpio != INVALID_GPIO) {
@@ -2350,13 +2350,13 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 		}
 		gpio_direction_output(rk312x->spk_ctl_gpio, !rk312x->spk_active_level);
 	}
-	printk(KERN_INFO"%s : spk_ctl_gpio %d active_level %d \n", __func__,
+	DBG(KERN_INFO"%s : spk_ctl_gpio %d active_level %d \n", __func__,
 		rk312x->spk_ctl_gpio, rk312x->spk_active_level);
 
 	ret = of_property_read_u32(rk312x_np, "spk-mute-delay",
 				   &rk312x->spk_mute_delay);
 	if (ret < 0) {
-		printk(KERN_ERR "%s() Can not read property spk-mute-delay\n",
+		DBG(KERN_ERR "%s() Can not read property spk-mute-delay\n",
 			__func__);
 		rk312x->spk_mute_delay = 0;
 	}
@@ -2364,56 +2364,56 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(rk312x_np, "hp-mute-delay",
 				   &rk312x->hp_mute_delay);
 	if (ret < 0) {
-		printk(KERN_ERR"%s() Can not read property hp-mute-delay\n",
+		DBG(KERN_ERR"%s() Can not read property hp-mute-delay\n",
 		       __func__);
 		rk312x->hp_mute_delay = 0;
 	}
-	printk("spk mute delay %dms --- hp mute delay %dms\n",rk312x->spk_mute_delay,rk312x->hp_mute_delay);
+	DBG("spk mute delay %dms --- hp mute delay %dms\n",rk312x->spk_mute_delay,rk312x->hp_mute_delay);
 
 	ret = of_property_read_u32(rk312x_np, "rk312x_for_mid",
 				   &rk312x->rk312x_for_mid);
 	if (ret < 0) {
-		printk(KERN_ERR"%s() Can not read property rk312x_for_mid, default  for mid\n",
+		DBG(KERN_ERR"%s() Can not read property rk312x_for_mid, default  for mid\n",
 			__func__);
 		rk312x->rk312x_for_mid = 1;
 	}
 	ret = of_property_read_u32(rk312x_np, "is_rk3128",
 				   &rk312x->is_rk3128);
 	if (ret < 0) {
-		printk(KERN_ERR"%s() Can not read property is_rk3128, default rk3126\n",
+		DBG(KERN_ERR"%s() Can not read property is_rk3128, default rk3126\n",
 			__func__);
 		rk312x->is_rk3128 = 0;
 	}
 	ret = of_property_read_u32(rk312x_np, "spk_volume",
 				   &rk312x->spk_volume);
 	if (ret < 0) {
-		printk(KERN_ERR"%s() Can not read property spk_volume, default 25\n",
+		DBG(KERN_ERR"%s() Can not read property spk_volume, default 25\n",
 			__func__);
 		rk312x->spk_volume = 25;
 	}
 	ret = of_property_read_u32(rk312x_np, "hp_volume",
 				   &rk312x->hp_volume);
 	if (ret < 0) {
-		printk(KERN_ERR"%s() Can not read property hp_volume, default 25\n",
+		DBG(KERN_ERR"%s() Can not read property hp_volume, default 25\n",
 		       __func__);
 		rk312x->hp_volume = 25;
 	}
 	ret = of_property_read_u32(rk312x_np, "capture_volume",
         &rk312x->capture_volume);
 	if (ret < 0) {
-		printk(KERN_ERR"%s() Can not read property capture_volume, default 26\n",
+		DBG(KERN_ERR"%s() Can not read property capture_volume, default 26\n",
 			__func__);
 		rk312x->capture_volume = 26;
 	}
 	ret = of_property_read_u32(rk312x_np, "gpio_debug", &rk312x->gpio_debug);
 	if (ret < 0) {
-		printk(KERN_ERR"%s() Can not read property gpio_debug\n", __func__);
+		DBG(KERN_ERR"%s() Can not read property gpio_debug\n", __func__);
 		rk312x->gpio_debug = 0;
 	}
 	ret = of_property_read_u32(rk312x_np, "codec_hp_det", &rk312x->codec_hp_det);
 
 	if (ret < 0) {
-		printk(KERN_ERR"%s() Can not read property gpio_debug\n", __func__);
+		DBG(KERN_ERR"%s() Can not read property gpio_debug\n", __func__);
 		rk312x->codec_hp_det = 0;
 	}
 

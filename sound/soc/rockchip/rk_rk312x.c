@@ -25,7 +25,7 @@
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
-#if 1
+#if 0
 #define	DBG(x...)	pr_info("rk_rk312x" x)
 #else
 #define	DBG(x...)
