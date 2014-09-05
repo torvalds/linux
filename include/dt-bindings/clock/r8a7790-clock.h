@@ -26,6 +26,7 @@
 #define R8A7790_CLK_MSIOF0		0
 
 /* MSTP1 */
+#define R8A7790_CLK_JPU		6
 #define R8A7790_CLK_TMU1		11
 #define R8A7790_CLK_TMU3		21
 #define R8A7790_CLK_TMU2		22
