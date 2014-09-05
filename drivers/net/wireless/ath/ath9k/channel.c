@@ -601,7 +601,7 @@ static void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 
 	if (sc->next_chan == &sc->offchannel.chan) {
 		sc->sched.offchannel_duration =
-			TU_TO_USEC(sc->offchannel.duration) +
+			jiffies_to_usecs(sc->offchannel.duration) +
 			sc->sched.channel_switch_time;
 
 		if (chandef) {
@@ -688,7 +688,8 @@ void ath_offchannel_next(struct ath_softc *sc)
 	} else if (sc->offchannel.roc_vif) {
 		vif = sc->offchannel.roc_vif;
 		sc->offchannel.chan.txpower = vif->bss_conf.txpower;
-		sc->offchannel.duration = sc->offchannel.roc_duration;
+		sc->offchannel.duration =
+			msecs_to_jiffies(sc->offchannel.roc_duration);
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_START;
 		ath_chanctx_offchan_switch(sc, sc->offchannel.roc_chan);
 	} else {
@@ -959,8 +960,8 @@ static void ath_offchannel_channel_change(struct ath_softc *sc)
 			break;
 
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_WAIT;
-		mod_timer(&sc->offchannel.timer, jiffies +
-			  msecs_to_jiffies(sc->offchannel.duration));
+		mod_timer(&sc->offchannel.timer,
+			  jiffies + sc->offchannel.duration);
 		ieee80211_ready_on_channel(sc->hw);
 		break;
 	case ATH_OFFCHANNEL_ROC_DONE:
