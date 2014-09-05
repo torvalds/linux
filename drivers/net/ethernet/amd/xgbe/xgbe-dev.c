@@ -509,8 +509,8 @@ static void xgbe_enable_mac_interrupts(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE(pdata, MAC_IER, mac_ier);
 
 	/* Enable all counter interrupts */
-	XGMAC_IOWRITE_BITS(pdata, MMC_RIER, ALL_INTERRUPTS, 0xff);
-	XGMAC_IOWRITE_BITS(pdata, MMC_TIER, ALL_INTERRUPTS, 0xff);
+	XGMAC_IOWRITE_BITS(pdata, MMC_RIER, ALL_INTERRUPTS, 0xffffffff);
+	XGMAC_IOWRITE_BITS(pdata, MMC_TIER, ALL_INTERRUPTS, 0xffffffff);
 }
 
 static int xgbe_set_gmii_speed(struct xgbe_prv_data *pdata)
