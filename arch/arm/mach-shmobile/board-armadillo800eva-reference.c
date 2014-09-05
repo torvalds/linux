@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -170,7 +171,7 @@ static void __init eva_init(void)
 	l2x0_init(IOMEM(0xf0002000), 0x00400000, 0xc20f0fff);
 #endif
 
-	r8a7740_add_standard_devices_dt();
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	r8a7740_pm_init();
 }
