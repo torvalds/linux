@@ -282,8 +282,7 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 	smp = chan->data;
 
 	cancel_delayed_work_sync(&smp->security_timer);
-	if (test_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags))
-		schedule_delayed_work(&smp->security_timer, SMP_TIMEOUT);
+	schedule_delayed_work(&smp->security_timer, SMP_TIMEOUT);
 }
 
 static __u8 authreq_to_seclevel(__u8 authreq)
@@ -375,9 +374,6 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 	BUG_ON(!smp);
 
 	cancel_delayed_work_sync(&smp->security_timer);
-	/* In case the timeout freed the SMP context */
-	if (!chan->data)
-		return;
 
 	if (work_pending(&smp->distribute_work)) {
 		cancel_work_sync(&smp->distribute_work);
