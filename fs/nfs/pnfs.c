@@ -1479,6 +1479,61 @@ out_forget_reply:
 	goto out;
 }
 
+static void
+pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
+				struct list_head *tmp_list,
+				struct pnfs_layout_range *return_range)
+{
+	struct pnfs_layout_segment *lseg, *next;
+
+	dprintk("%s:Begin lo %p\n", __func__, lo);
+
+	if (list_empty(&lo->plh_segs))
+		return;
+
+	list_for_each_entry_safe(lseg, next, &lo->plh_segs, pls_list)
+		if (should_free_lseg(&lseg->pls_range, return_range)) {
+			dprintk("%s: marking lseg %p iomode %d "
+				"offset %llu length %llu\n", __func__,
+				lseg, lseg->pls_range.iomode,
+				lseg->pls_range.offset,
+				lseg->pls_range.length);
+			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
+			mark_lseg_invalid(lseg, tmp_list);
+		}
+}
+
+void pnfs_error_mark_layout_for_return(struct inode *inode,
+				       struct pnfs_layout_segment *lseg)
+{
+	struct pnfs_layout_hdr *lo = NFS_I(inode)->layout;
+	int iomode = pnfs_iomode_to_fail_bit(lseg->pls_range.iomode);
+	struct pnfs_layout_range range = {
+		.iomode = lseg->pls_range.iomode,
+		.offset = 0,
+		.length = NFS4_MAX_UINT64,
+	};
+	LIST_HEAD(free_me);
+
+	spin_lock(&inode->i_lock);
+	/* set failure bit so that pnfs path will be retried later */
+	pnfs_layout_set_fail_bit(lo, iomode);
+	set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags);
+	if (lo->plh_return_iomode == 0)
+		lo->plh_return_iomode = range.iomode;
+	else if (lo->plh_return_iomode != range.iomode)
+		lo->plh_return_iomode = IOMODE_ANY;
+	/*
+	 * mark all matching lsegs so that we are sure to have no live
+	 * segments at hand when sending layoutreturn. See pnfs_put_lseg()
+	 * for how it works.
+	 */
+	pnfs_mark_matching_lsegs_return(lo, &free_me, &range);
+	spin_unlock(&inode->i_lock);
+	pnfs_free_lseg_list(&free_me);
+}
+EXPORT_SYMBOL_GPL(pnfs_error_mark_layout_for_return);
+
 void
 pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 {
