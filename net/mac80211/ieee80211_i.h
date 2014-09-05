@@ -1917,7 +1917,7 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 			size_t extra_ies_len);
 int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, enum nl80211_tdls_operation oper);
-
+void ieee80211_tdls_peer_del_work(struct work_struct *wk);
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 
@@ -1928,4 +1928,3 @@ extern const struct ethtool_ops ieee80211_ethtool_ops;
 #endif
 
 #endif /* IEEE80211_I_H */
-void ieee80211_tdls_peer_del_work(struct work_struct *wk);
