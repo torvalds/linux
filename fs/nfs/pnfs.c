@@ -921,6 +921,11 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
 
 	status = nfs4_proc_layoutreturn(lrp);
 out:
+	if (status) {
+		spin_lock(&ino->i_lock);
+		clear_bit(NFS_LAYOUT_RETURN, &lo->plh_flags);
+		spin_unlock(&ino->i_lock);
+	}
 	dprintk("<-- %s status: %d\n", __func__, status);
 	return status;
 }
