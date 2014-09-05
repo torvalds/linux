@@ -294,6 +294,16 @@ struct pci9118_private {
 	unsigned int ai_ns_min;
 };
 
+static void pci9118_amcc_setup_dma(struct comedi_device *dev, unsigned int buf)
+{
+	struct pci9118_private *devpriv = dev->private;
+
+	/* set the master write address and transfer count */
+	outl(devpriv->dmabuf_hw[buf], devpriv->iobase_a + AMCC_OP_REG_MWAR);
+	outl(devpriv->dmabuf_use_size[buf],
+	     devpriv->iobase_a + AMCC_OP_REG_MWTC);
+}
+
 static void pci9118_amcc_dma_ena(struct comedi_device *dev, bool enable)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -880,10 +890,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 					 * double buffering
 					 */
 		next_dma_buf = 1 - devpriv->dma_actbuf;
-		outl(devpriv->dmabuf_hw[next_dma_buf],
-		     devpriv->iobase_a + AMCC_OP_REG_MWAR);
-		outl(devpriv->dmabuf_use_size[next_dma_buf],
-		     devpriv->iobase_a + AMCC_OP_REG_MWTC);
+		pci9118_amcc_setup_dma(dev, next_dma_buf);
 		devpriv->dmabuf_used_size[next_dma_buf] =
 		    devpriv->dmabuf_use_size[next_dma_buf];
 		if (devpriv->ai_do == 4)
@@ -906,13 +913,12 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 			s->async->events |= COMEDI_CB_EOA;
 	}
 
-	if (devpriv->dma_doublebuf) {	/* switch dma buffers */
+	if (devpriv->dma_doublebuf) {
+		/* switch dma buffers */
 		devpriv->dma_actbuf = 1 - devpriv->dma_actbuf;
-	} else {	/* restart DMA if is not used double buffering */
-		outl(devpriv->dmabuf_hw[0],
-		     devpriv->iobase_a + AMCC_OP_REG_MWAR);
-		outl(devpriv->dmabuf_use_size[0],
-		     devpriv->iobase_a + AMCC_OP_REG_MWTC);
+	} else {
+		/* restart DMA if is not used double buffering */
+		pci9118_amcc_setup_dma(dev, 0);
 		if (devpriv->ai_do == 4)
 			interrupt_pci9118_ai_mode4_switch(dev);
 	}
@@ -1288,8 +1294,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 #endif
 
 	pci9118_amcc_dma_ena(dev, false);
-	outl(devpriv->dmabuf_hw[0], devpriv->iobase_a + AMCC_OP_REG_MWAR);
-	outl(devpriv->dmabuf_use_size[0], devpriv->iobase_a + AMCC_OP_REG_MWTC);
+	pci9118_amcc_setup_dma(dev, 0);
 	/* init DMA transfer */
 	outl(0x00000000 | AINT_WRITE_COMPL,
 	     devpriv->iobase_a + AMCC_OP_REG_INTCSR);
