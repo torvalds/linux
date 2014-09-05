@@ -1706,7 +1706,6 @@ static int pci9118_reset(struct comedi_device *dev)
 	outl(devpriv->ao_data[0], dev->iobase + PCI9118_AO_REG(0));
 	outl(devpriv->ao_data[1], dev->iobase + PCI9118_AO_REG(1));
 
-	outl(0, dev->iobase + PCI9118_DIO_REG);	/* reset digi outs to L */
 	udelay(10);
 	inl(dev->iobase + PCI9118_AI_FIFO_REG);
 	pci9118_ai_reset_fifo(dev);
@@ -1906,6 +1905,9 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_bits	= pci9118_do_insn_bits;
+
+	/* get the current state of the digital outputs */
+	s->state = inl(dev->iobase + PCI9118_DIO_REG) >> 4;
 
 	devpriv->ai_maskharderr = 0x10a;
 					/* default measure crash condition */
