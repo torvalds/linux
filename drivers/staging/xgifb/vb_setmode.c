@@ -3895,8 +3895,7 @@ static struct XGI301C_Tap4TimingStruct const
 
 	if (tempax <= tempbx)
 		return &xgifb_tap4_timing[0];
-	else
-		Tap4TimingPtr = xgifb_ntsc_525_tap4_timing; /* NTSC */
+	Tap4TimingPtr = xgifb_ntsc_525_tap4_timing; /* NTSC */
 
 	if (pVBInfo->TVInfo & TVSetPAL)
 		Tap4TimingPtr = PALTap4Timing;
