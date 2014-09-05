@@ -50,6 +50,10 @@ static DEFINE_SPINLOCK(pnfs_spinlock);
  */
 static LIST_HEAD(pnfs_modules_tbl);
 
+static int
+pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
+		       enum pnfs_iomode iomode);
+
 /* Return the registered pnfs layout driver module matching given id */
 static struct pnfs_layoutdriver_type *
 find_pnfs_driver_locked(u32 id)
@@ -337,6 +341,29 @@ pnfs_layout_remove_lseg(struct pnfs_layout_hdr *lo,
 	rpc_wake_up(&NFS_SERVER(inode)->roc_rpcwaitq);
 }
 
+/* Return true if layoutreturn is needed */
+static bool
+pnfs_layout_need_return(struct pnfs_layout_hdr *lo,
+			struct pnfs_layout_segment *lseg,
+			nfs4_stateid *stateid, enum pnfs_iomode *iomode)
+{
+	struct pnfs_layout_segment *s;
+
+	if (!test_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags))
+		return false;
+
+	list_for_each_entry(s, &lo->plh_segs, pls_list)
+		if (test_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags))
+			return false;
+
+	*stateid = lo->plh_stateid;
+	*iomode = lo->plh_return_iomode;
+	/* decreased in pnfs_send_layoutreturn() */
+	lo->plh_block_lgets++;
+	lo->plh_return_iomode = 0;
+	return true;
+}
+
 void
 pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 {
@@ -352,11 +379,20 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 	lo = lseg->pls_layout;
 	inode = lo->plh_inode;
 	if (atomic_dec_and_lock(&lseg->pls_refcount, &inode->i_lock)) {
+		bool need_return;
+		nfs4_stateid stateid;
+		enum pnfs_iomode iomode;
+
 		pnfs_get_layout_hdr(lo);
 		pnfs_layout_remove_lseg(lo, lseg);
+		need_return = pnfs_layout_need_return(lo, lseg,
+						      &stateid, &iomode);
 		spin_unlock(&inode->i_lock);
 		pnfs_free_lseg(lseg);
-		pnfs_put_layout_hdr(lo);
+		if (need_return)
+			pnfs_send_layoutreturn(lo, stateid, iomode);
+		else
+			pnfs_put_layout_hdr(lo);
 	}
 }
 EXPORT_SYMBOL_GPL(pnfs_put_lseg);
