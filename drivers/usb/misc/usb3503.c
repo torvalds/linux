@@ -271,7 +271,7 @@ static int usb3503_probe(struct usb3503 *hub)
 					    "usb3503 intn");
 		if (err) {
 			dev_err(dev,
-				"unable to request GPIO %d as connect pin (%d)\n",
+				"unable to request GPIO %d as interrupt pin (%d)\n",
 				hub->gpio_intn, err);
 			return err;
 		}
