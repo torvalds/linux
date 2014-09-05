@@ -21,6 +21,118 @@
 #  include <mach/kgsl.h>
 #endif
 
+#define ANY_ID 0xff
+
+struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
+
+static const struct adreno_info gpulist[] = {
+	{
+		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),
+		.revn  = 305,
+		.name  = "A305",
+		.pm4fw = "a300_pm4.fw",
+		.pfpfw = "a300_pfp.fw",
+		.gmem  = SZ_256K,
+		.init  = a3xx_gpu_init,
+	}, {
+		.rev   = ADRENO_REV(3, 2, ANY_ID, ANY_ID),
+		.revn  = 320,
+		.name  = "A320",
+		.pm4fw = "a300_pm4.fw",
+		.pfpfw = "a300_pfp.fw",
+		.gmem  = SZ_512K,
+		.init  = a3xx_gpu_init,
+	}, {
+		.rev   = ADRENO_REV(3, 3, 0, ANY_ID),
+		.revn  = 330,
+		.name  = "A330",
+		.pm4fw = "a330_pm4.fw",
+		.pfpfw = "a330_pfp.fw",
+		.gmem  = SZ_1M,
+		.init  = a3xx_gpu_init,
+	},
+};
+
+MODULE_FIRMWARE("a300_pm4.fw");
+MODULE_FIRMWARE("a300_pfp.fw");
+MODULE_FIRMWARE("a330_pm4.fw");
+MODULE_FIRMWARE("a330_pfp.fw");
+
+static inline bool _rev_match(uint8_t entry, uint8_t id)
+{
+	return (entry == ANY_ID) || (entry == id);
+}
+
+const struct adreno_info *adreno_info(struct adreno_rev rev)
+{
+	int i;
+
+	/* identify gpu: */
+	for (i = 0; i < ARRAY_SIZE(gpulist); i++) {
+		const struct adreno_info *info = &gpulist[i];
+		if (_rev_match(info->rev.core, rev.core) &&
+				_rev_match(info->rev.major, rev.major) &&
+				_rev_match(info->rev.minor, rev.minor) &&
+				_rev_match(info->rev.patchid, rev.patchid))
+			return info;
+	}
+
+	return NULL;
+}
+
+struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct platform_device *pdev = priv->gpu_pdev;
+	struct adreno_platform_config *config;
+	struct adreno_rev rev;
+	const struct adreno_info *info;
+	struct msm_gpu *gpu = NULL;
+
+	if (!pdev) {
+		dev_err(dev->dev, "no adreno device\n");
+		return NULL;
+	}
+
+	config = pdev->dev.platform_data;
+	rev = config->rev;
+	info = adreno_info(config->rev);
+
+	if (!info) {
+		dev_warn(dev->dev, "Unknown GPU revision: %u.%u.%u.%u\n",
+				rev.core, rev.major, rev.minor, rev.patchid);
+		return NULL;
+	}
+
+	DBG("Found GPU: %u.%u.%u.%u",  rev.core, rev.major,
+			rev.minor, rev.patchid);
+
+	gpu = info->init(dev);
+	if (IS_ERR(gpu)) {
+		dev_warn(dev->dev, "failed to load adreno gpu\n");
+		gpu = NULL;
+		/* not fatal */
+	}
+
+	if (gpu) {
+		int ret;
+		mutex_lock(&dev->struct_mutex);
+		gpu->funcs->pm_resume(gpu);
+		mutex_unlock(&dev->struct_mutex);
+		ret = gpu->funcs->hw_init(gpu);
+		if (ret) {
+			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
+			gpu->funcs->destroy(gpu);
+			gpu = NULL;
+		} else {
+			/* give inactive pm a chance to kick in: */
+			msm_gpu_retire(gpu);
+		}
+	}
+
+	return gpu;
+}
+
 static void set_gpu_pdev(struct drm_device *dev,
 		struct platform_device *pdev)
 {

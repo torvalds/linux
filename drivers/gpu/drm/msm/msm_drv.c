@@ -315,39 +315,12 @@ static void load_gpu(struct drm_device *dev)
 {
 	static DEFINE_MUTEX(init_lock);
 	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_gpu *gpu;
 
 	mutex_lock(&init_lock);
 
-	if (priv->gpu)
-		goto out;
+	if (!priv->gpu)
+		priv->gpu = adreno_load_gpu(dev);
 
-	gpu = a3xx_gpu_init(dev);
-	if (IS_ERR(gpu)) {
-		dev_warn(dev->dev, "failed to load a3xx gpu\n");
-		gpu = NULL;
-		/* not fatal */
-	}
-
-	if (gpu) {
-		int ret;
-		mutex_lock(&dev->struct_mutex);
-		gpu->funcs->pm_resume(gpu);
-		mutex_unlock(&dev->struct_mutex);
-		ret = gpu->funcs->hw_init(gpu);
-		if (ret) {
-			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
-			gpu->funcs->destroy(gpu);
-			gpu = NULL;
-		} else {
-			/* give inactive pm a chance to kick in: */
-			msm_gpu_retire(gpu);
-		}
-	}
-
-	priv->gpu = gpu;
-
-out:
 	mutex_unlock(&init_lock);
 }
 

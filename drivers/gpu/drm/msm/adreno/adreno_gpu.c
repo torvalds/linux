@@ -19,46 +19,6 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 
-struct adreno_info {
-	struct adreno_rev rev;
-	uint32_t revn;
-	const char *name;
-	const char *pm4fw, *pfpfw;
-	uint32_t gmem;
-};
-
-#define ANY_ID 0xff
-
-static const struct adreno_info gpulist[] = {
-	{
-		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),
-		.revn  = 305,
-		.name  = "A305",
-		.pm4fw = "a300_pm4.fw",
-		.pfpfw = "a300_pfp.fw",
-		.gmem  = SZ_256K,
-	}, {
-		.rev   = ADRENO_REV(3, 2, ANY_ID, ANY_ID),
-		.revn  = 320,
-		.name  = "A320",
-		.pm4fw = "a300_pm4.fw",
-		.pfpfw = "a300_pfp.fw",
-		.gmem  = SZ_512K,
-	}, {
-		.rev   = ADRENO_REV(3, 3, 0, ANY_ID),
-		.revn  = 330,
-		.name  = "A330",
-		.pm4fw = "a330_pm4.fw",
-		.pfpfw = "a330_pfp.fw",
-		.gmem  = SZ_1M,
-	},
-};
-
-MODULE_FIRMWARE("a300_pm4.fw");
-MODULE_FIRMWARE("a300_pfp.fw");
-MODULE_FIRMWARE("a330_pm4.fw");
-MODULE_FIRMWARE("a330_pfp.fw");
-
 #define RB_SIZE    SZ_32K
 #define RB_BLKSIZE 16
 
@@ -304,42 +264,17 @@ static const char *iommu_ports[] = {
 		"gfx3d1_user", "gfx3d1_priv",
 };
 
-static inline bool _rev_match(uint8_t entry, uint8_t id)
-{
-	return (entry == ANY_ID) || (entry == id);
-}
-
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs,
 		struct adreno_rev rev)
 {
 	struct msm_mmu *mmu;
-	int i, ret;
-
-	/* identify gpu: */
-	for (i = 0; i < ARRAY_SIZE(gpulist); i++) {
-		const struct adreno_info *info = &gpulist[i];
-		if (_rev_match(info->rev.core, rev.core) &&
-				_rev_match(info->rev.major, rev.major) &&
-				_rev_match(info->rev.minor, rev.minor) &&
-				_rev_match(info->rev.patchid, rev.patchid)) {
-			gpu->info = info;
-			gpu->revn = info->revn;
-			break;
-		}
-	}
-
-	if (i == ARRAY_SIZE(gpulist)) {
-		dev_err(drm->dev, "Unknown GPU revision: %u.%u.%u.%u\n",
-				rev.core, rev.major, rev.minor, rev.patchid);
-		return -ENXIO;
-	}
-
-	DBG("Found GPU: %s (%u.%u.%u.%u)", gpu->info->name,
-			rev.core, rev.major, rev.minor, rev.patchid);
+	int ret;
 
 	gpu->funcs = funcs;
+	gpu->info = adreno_info(rev);
 	gpu->gmem = gpu->info->gmem;
+	gpu->revn = gpu->info->revn;
 	gpu->rev = rev;
 
 	ret = request_firmware(&gpu->pm4, gpu->info->pm4fw, drm->dev);

@@ -39,7 +39,16 @@ struct adreno_gpu_funcs {
 	struct msm_gpu_funcs base;
 };
 
-struct adreno_info;
+struct adreno_info {
+	struct adreno_rev rev;
+	uint32_t revn;
+	const char *name;
+	const char *pm4fw, *pfpfw;
+	uint32_t gmem;
+	struct msm_gpu *(*init)(struct drm_device *dev);
+};
+
+const struct adreno_info *adreno_info(struct adreno_rev rev);
 
 struct adreno_rbmemptrs {
 	volatile uint32_t rptr;
