@@ -1070,6 +1070,17 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 		wm_size = wm->max_wm;
 	if (wm_size <= 0)
 		wm_size = wm->default_wm;
+
+	/*
+	 * Bspec seems to indicate that the value shouldn't be lower than
+	 * 'burst size + 1'. Certainly 830 is quite unhappy with low values.
+	 * Lets go for 8 which is the burst size since certain platforms
+	 * already use a hardcoded 8 (which is what the spec says should be
+	 * done).
+	 */
+	if (wm_size <= 8)
+		wm_size = 8;
+
 	return wm_size;
 }
 
