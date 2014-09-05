@@ -241,10 +241,6 @@
 #define bfin_read_USB_APHY_CNTRL2()		bfin_read16(USB_APHY_CNTRL2)
 #define bfin_write_USB_APHY_CNTRL2(val)		bfin_write16(USB_APHY_CNTRL2, val)
 
-/* (PHY_TEST is for ADI usage only) */
-
-#define bfin_read_USB_PHY_TEST()		bfin_read16(USB_PHY_TEST)
-#define bfin_write_USB_PHY_TEST(val)		bfin_write16(USB_PHY_TEST, val)
 #define bfin_read_USB_PLLOSC_CTRL()		bfin_read16(USB_PLLOSC_CTRL)
 #define bfin_write_USB_PLLOSC_CTRL(val)		bfin_write16(USB_PLLOSC_CTRL, val)
 #define bfin_read_USB_SRP_CLKDIV()		bfin_read16(USB_SRP_CLKDIV)
