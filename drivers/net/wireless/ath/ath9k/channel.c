@@ -1166,6 +1166,30 @@ static void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
 	ath9k_update_p2p_ps_timer(sc, avp);
 }
 
+static u8 ath9k_get_ctwin(struct ath_softc *sc, struct ath_vif *avp)
+{
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
+	u8 switch_time, ctwin;
+
+	/*
+	 * Channel switch in multi-channel mode is deferred
+	 * by a quarter beacon interval when handling
+	 * ATH_CHANCTX_EVENT_BEACON_PREPARE, so the P2P-GO
+	 * interface is guaranteed to be discoverable
+	 * for that duration after a TBTT.
+	 */
+	switch_time = cur_conf->beacon_interval / 4;
+
+	ctwin = avp->vif->bss_conf.p2p_noa_attr.oppps_ctwindow;
+	if (ctwin && (ctwin < switch_time))
+		return ctwin;
+
+	if (switch_time < P2P_DEFAULT_CTWIN)
+		return 0;
+
+	return P2P_DEFAULT_CTWIN;
+}
+
 void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 			  struct sk_buff *skb)
 {
@@ -1198,6 +1222,8 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	memset(noa, 0, noa_len);
 
 	noa->index = avp->noa_index;
+	noa->oppps_ctwindow = ath9k_get_ctwin(sc, avp);
+
 	if (avp->periodic_noa_duration) {
 		u32 interval = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
 

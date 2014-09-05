@@ -572,6 +572,8 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 /* VIFs */
 /********/
 
+#define P2P_DEFAULT_CTWIN 10
+
 struct ath_vif {
 	struct list_head list;
 
