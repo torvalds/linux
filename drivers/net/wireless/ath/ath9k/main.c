@@ -224,6 +224,8 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long flags;
 
+	ath9k_calculate_summary_state(sc, sc->cur_chan);
+
 	if (ath_startrecv(sc) != 0) {
 		ath_err(common, "Unable to restart recv logic\n");
 		return false;
@@ -233,7 +235,6 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 			       sc->cur_chan->txpower, &sc->curtxpow);
 
 	clear_bit(ATH_OP_HW_RESET, &common->op_flags);
-	ath9k_calculate_summary_state(sc, sc->cur_chan);
 
 	if (!sc->cur_chan->offchannel && start) {
 		/* restore per chanctx TSF timer */
