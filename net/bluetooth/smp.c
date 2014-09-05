@@ -34,6 +34,7 @@
 #define SMP_TIMEOUT	msecs_to_jiffies(30000)
 
 #define AUTH_REQ_MASK   0x07
+#define KEY_DIST_MASK	0x07
 
 enum {
 	SMP_FLAG_TK_VALID,
@@ -703,7 +704,7 @@ static void smp_distribute_keys(struct smp_chan *smp)
 	rsp = (void *) &smp->prsp[1];
 
 	/* The responder sends its keys first */
-	if (hcon->out && (smp->remote_key_dist & 0x07))
+	if (hcon->out && (smp->remote_key_dist & KEY_DIST_MASK))
 		return;
 
 	req = (void *) &smp->preq[1];
@@ -789,7 +790,7 @@ static void smp_distribute_keys(struct smp_chan *smp)
 	}
 
 	/* If there are still keys to be received wait for them */
-	if ((smp->remote_key_dist & 0x07))
+	if (smp->remote_key_dist & KEY_DIST_MASK)
 		return;
 
 	set_bit(SMP_FLAG_COMPLETE, &smp->flags);
