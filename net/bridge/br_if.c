@@ -252,11 +252,11 @@ static void del_nbp(struct net_bridge_port *p)
 	br_fdb_delete_by_port(br, p, 1);
 	nbp_update_port_count(br);
 
+	netdev_upper_dev_unlink(dev, br->dev);
+
 	dev->priv_flags &= ~IFF_BRIDGE_PORT;
 
 	netdev_rx_handler_unregister(dev);
-
-	netdev_upper_dev_unlink(dev, br->dev);
 
 	br_multicast_del_port(p);
 
@@ -476,15 +476,15 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (err)
 		goto err3;
 
-	err = netdev_master_upper_dev_link(dev, br->dev);
+	err = netdev_rx_handler_register(dev, br_handle_frame, p);
 	if (err)
 		goto err4;
 
-	err = netdev_rx_handler_register(dev, br_handle_frame, p);
+	dev->priv_flags |= IFF_BRIDGE_PORT;
+
+	err = netdev_master_upper_dev_link(dev, br->dev);
 	if (err)
 		goto err5;
-
-	dev->priv_flags |= IFF_BRIDGE_PORT;
 
 	dev_disable_lro(dev);
 
@@ -520,7 +520,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	return 0;
 
 err5:
-	netdev_upper_dev_unlink(dev, br->dev);
+	dev->priv_flags &= ~IFF_BRIDGE_PORT;
+	netdev_rx_handler_unregister(dev);
 err4:
 	br_netpoll_disable(p);
 err3:
