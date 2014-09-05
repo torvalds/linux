@@ -19,6 +19,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
+#include <linux/mfd/syscon.h>
 
 #include <asm/proc-fns.h>
 
@@ -223,6 +224,7 @@ static const struct at91_pmc_caps sama5d3_caps = {
 };
 
 static struct at91_pmc *__init at91_pmc_init(struct device_node *np,
+					     struct regmap *regmap,
 					     void __iomem *regbase, int virq,
 					     const struct at91_pmc_caps *caps)
 {
@@ -238,7 +240,7 @@ static struct at91_pmc *__init at91_pmc_init(struct device_node *np,
 		return NULL;
 
 	spin_lock_init(&pmc->lock);
-	pmc->regbase = regbase;
+	pmc->regmap = regmap;
 	pmc->virq = virq;
 	pmc->caps = caps;
 
@@ -394,16 +396,18 @@ static void __init of_at91_pmc_setup(struct device_node *np,
 	void (*clk_setup)(struct device_node *, struct at91_pmc *);
 	const struct of_device_id *clk_id;
 	void __iomem *regbase = of_iomap(np, 0);
+	struct regmap *regmap;
 	int virq;
 
-	if (!regbase)
-		return;
+	regmap = syscon_node_to_regmap(np);
+	if (IS_ERR(regmap))
+		panic("Could not retrieve syscon regmap");
 
 	virq = irq_of_parse_and_map(np, 0);
 	if (!virq)
 		return;
 
-	pmc = at91_pmc_init(np, regbase, virq, caps);
+	pmc = at91_pmc_init(np, regmap, regbase, virq, caps);
 	if (!pmc)
 		return;
 	for_each_child_of_node(np, childnp) {

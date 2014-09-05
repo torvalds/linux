@@ -14,6 +14,7 @@
 
 #include <linux/io.h>
 #include <linux/irqdomain.h>
+#include <linux/regmap.h>
 #include <linux/spinlock.h>
 
 struct clk_range {
@@ -28,7 +29,7 @@ struct at91_pmc_caps {
 };
 
 struct at91_pmc {
-	void __iomem *regbase;
+	struct regmap *regmap;
 	int virq;
 	spinlock_t lock;
 	const struct at91_pmc_caps *caps;
@@ -48,12 +49,16 @@ static inline void pmc_unlock(struct at91_pmc *pmc)
 
 static inline u32 pmc_read(struct at91_pmc *pmc, int offset)
 {
-	return readl(pmc->regbase + offset);
+	unsigned int ret = 0;
+
+	regmap_read(pmc->regmap, offset, &ret);
+
+	return ret;
 }
 
 static inline void pmc_write(struct at91_pmc *pmc, int offset, u32 value)
 {
-	writel(value, pmc->regbase + offset);
+	regmap_write(pmc->regmap, offset, value);
 }
 
 int of_at91_get_clk_range(struct device_node *np, const char *propname,
