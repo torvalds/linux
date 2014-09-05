@@ -358,28 +358,29 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
            So we take average --- 60ps, (1.66ns/ 2) = 0.83(middle-value),TAKE 0.9
            0.9 / 60ps = 15 delayline
          */
-        if(cpu_is_rk3288()){
-                 ref = ((FREQ_REF_150MHZ + host->bus_hz - 1) / host->bus_hz);
-                 step = (15 * ref);
+        if (cpu_is_rk3288() && !(rockchip_get_cpu_version() > 0)) {
+                /* RK3288, non-eco */
+                ref = DIV_ROUND_UP(FREQ_REF_150MHZ, host->bus_hz);
+                step = (15 * ref);
 
-                 if(step > MAX_DELAY_LINE){
+                if (step > MAX_DELAY_LINE) {
                         step = MAX_DELAY_LINE;       
                         MMC_DBG_WARN_FUNC(host->mmc,
                                         "execute tuning: TOO LARGE STEP![%s]", mmc_hostname(host->mmc));
-                 }              
-                 MMC_DBG_INFO_FUNC(host->mmc,
+                }
+                MMC_DBG_INFO_FUNC(host->mmc,
                                 "execute tuning: SOC is RK3288, ref = %d, step = %d[%s]",
                                 ref, step, mmc_hostname(host->mmc));
                  
-        }else{              
-                 step = (15 * ((FREQ_REF_150MHZ / host->bus_hz) * 100)) / 100;
+        } else {
+                step = (15 * ((FREQ_REF_150MHZ / host->bus_hz) * 100)) / 100;
 
-                 if(step > MAX_DELAY_LINE){
+                if (step > MAX_DELAY_LINE) {
                         step = MAX_DELAY_LINE;
                         MMC_DBG_WARN_FUNC(host->mmc,
                                         "execute tuning: TOO LARGE STEP![%s]", mmc_hostname(host->mmc));
-                 }              
-                 MMC_DBG_INFO_FUNC(host->mmc,
+                }
+                MMC_DBG_INFO_FUNC(host->mmc,
                                 "execute tuning: SOC is UNKNOWN, step = %d[%s]",
                                 step, mmc_hostname(host->mmc));
         }
