@@ -21,7 +21,7 @@
 	aliases {
 		can0 = &can0;
 		can1 = &can1;
-		display = &display;
+		display = &display0;
 		ds1339 = &ds1339;
 		gpio5 = &gpio5;
 		lcdif = &lcdif;
@@ -309,10 +309,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&lcdif_24bit_pins_a &lcdif_sync_pins_a &tx28_lcdif_ctrl_pins>;
 	lcd-supply = <&reg_lcd>;
-	display = <&display>;
+	display = <&display0>;
 	status = "okay";
 
-	display: display@0 {
+	display0: display0 {
 		bits-per-pixel = <32>;
 		bus-width = <24>;
 		display-timings {
