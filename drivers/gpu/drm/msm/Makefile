@@ -4,6 +4,7 @@ ifeq (, $(findstring -W,$(EXTRA_CFLAGS)))
 endif
 
 msm-y := \
+	adreno/adreno_device.o \
 	adreno/adreno_gpu.o \
 	adreno/a3xx_gpu.o \
 	hdmi/hdmi.o \
