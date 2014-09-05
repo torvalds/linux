@@ -436,7 +436,7 @@ static int toshiba_illumination_available(struct toshiba_acpi_dev *dev)
 	if (ACPI_FAILURE(status) || out[0] == HCI_FAILURE) {
 		pr_err("ACPI call to query Illumination support failed\n");
 		return 0;
-	} else if (out[0] == HCI_NOT_SUPPORTED || out[1] != 1) {
+	} else if (out[0] == HCI_NOT_SUPPORTED) {
 		pr_info("Illumination device not available\n");
 		return 0;
 	}
