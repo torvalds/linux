@@ -100,6 +100,8 @@ static void clk_enable_unlock(unsigned long flags)
 
 static struct dentry *rootdir;
 static int inited = 0;
+static DEFINE_MUTEX(clk_debug_lock);
+static HLIST_HEAD(clk_debug_list);
 
 static struct hlist_head *all_lists[] = {
 	&clk_root_list,
@@ -300,28 +302,6 @@ out:
 	return ret;
 }
 
-/* caller must hold prepare_lock */
-static int clk_debug_create_subtree(struct clk *clk, struct dentry *pdentry)
-{
-	struct clk *child;
-	int ret = -EINVAL;;
-
-	if (!clk || !pdentry)
-		goto out;
-
-	ret = clk_debug_create_one(clk, pdentry);
-
-	if (ret)
-		goto out;
-
-	hlist_for_each_entry(child, &clk->children, child_node)
-		clk_debug_create_subtree(child, pdentry);
-
-	ret = 0;
-out:
-	return ret;
-}
-
 /**
  * clk_debug_register - add a clk node to the debugfs clk tree
  * @clk: the clk being added to the debugfs clk tree
@@ -329,20 +309,21 @@ out:
  * Dynamically adds a clk to the debugfs clk tree if debugfs has been
  * initialized.  Otherwise it bails out early since the debugfs clk tree
  * will be created lazily by clk_debug_init as part of a late_initcall.
- *
- * Caller must hold prepare_lock.  Only clk_init calls this function (so
- * far) so this is taken care.
  */
 static int clk_debug_register(struct clk *clk)
 {
 	int ret = 0;
 
+	mutex_lock(&clk_debug_lock);
+	hlist_add_head(&clk->debug_node, &clk_debug_list);
+
 	if (!inited)
-		goto out;
+		goto unlock;
 
-	ret = clk_debug_create_subtree(clk, rootdir);
+	ret = clk_debug_create_one(clk, rootdir);
+unlock:
+	mutex_unlock(&clk_debug_lock);
 
-out:
 	return ret;
 }
 
@@ -353,12 +334,18 @@ out:
  * Dynamically removes a clk and all it's children clk nodes from the
  * debugfs clk tree if clk->dentry points to debugfs created by
  * clk_debug_register in __clk_init.
- *
- * Caller must hold prepare_lock.
  */
 static void clk_debug_unregister(struct clk *clk)
 {
+	mutex_lock(&clk_debug_lock);
+	if (!clk->dentry)
+		goto out;
+
+	hlist_del_init(&clk->debug_node);
 	debugfs_remove_recursive(clk->dentry);
+	clk->dentry = NULL;
+out:
+	mutex_unlock(&clk_debug_lock);
 }
 
 struct dentry *clk_debugfs_add_file(struct clk *clk, char *name, umode_t mode,
@@ -415,17 +402,12 @@ static int __init clk_debug_init(void)
 	if (!d)
 		return -ENOMEM;
 
-	clk_prepare_lock();
-
-	hlist_for_each_entry(clk, &clk_root_list, child_node)
-		clk_debug_create_subtree(clk, rootdir);
-
-	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
-		clk_debug_create_subtree(clk, rootdir);
+	mutex_lock(&clk_debug_lock);
+	hlist_for_each_entry(clk, &clk_debug_list, debug_node)
+		clk_debug_create_one(clk, rootdir);
 
 	inited = 1;
-
-	clk_prepare_unlock();
+	mutex_unlock(&clk_debug_lock);
 
 	return 0;
 }
@@ -2087,14 +2069,16 @@ void clk_unregister(struct clk *clk)
 {
 	unsigned long flags;
 
-       if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
-               return;
+	if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
+		return;
+
+	clk_debug_unregister(clk);
 
 	clk_prepare_lock();
 
 	if (clk->ops == &clk_nodrv_ops) {
 		pr_err("%s: unregistered clock: %s\n", __func__, clk->name);
-		goto out;
+		return;
 	}
 	/*
 	 * Assign empty clock ops for consumers that might still hold
@@ -2113,16 +2097,13 @@ void clk_unregister(struct clk *clk)
 			clk_set_parent(child, NULL);
 	}
 
-	clk_debug_unregister(clk);
-
 	hlist_del_init(&clk->child_node);
 
 	if (clk->prepare_count)
 		pr_warn("%s: unregistering prepared clock: %s\n",
 					__func__, clk->name);
-
 	kref_put(&clk->ref, __clk_release);
-out:
+
 	clk_prepare_unlock();
 }
 EXPORT_SYMBOL_GPL(clk_unregister);
