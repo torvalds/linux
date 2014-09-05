@@ -12040,51 +12040,41 @@ intel_cursor_plane_disable(struct drm_plane *plane)
 }
 
 static int
-intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
-			  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-			  unsigned int crtc_w, unsigned int crtc_h,
-			  uint32_t src_x, uint32_t src_y,
-			  uint32_t src_w, uint32_t src_h)
+intel_check_cursor_plane(struct drm_plane *plane,
+			 struct intel_plane_state *state)
 {
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_rect *dest = &state->dst;
+	struct drm_rect *src = &state->src;
+	const struct drm_rect *clip = &state->clip;
+
+	return drm_plane_helper_check_update(plane, crtc, fb,
+					    src, dest, clip,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    true, true, &state->visible);
+}
+
+static int
+intel_commit_cursor_plane(struct drm_plane *plane,
+			  struct intel_plane_state *state)
+{
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
-	struct drm_rect dest = {
-		/* integer pixels */
-		.x1 = crtc_x,
-		.y1 = crtc_y,
-		.x2 = crtc_x + crtc_w,
-		.y2 = crtc_y + crtc_h,
-	};
-	struct drm_rect src = {
-		/* 16.16 fixed point */
-		.x1 = src_x,
-		.y1 = src_y,
-		.x2 = src_x + src_w,
-		.y2 = src_y + src_h,
-	};
-	const struct drm_rect clip = {
-		/* integer pixels */
-		.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0,
-		.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0,
-	};
-	bool visible;
-	int ret;
+	int crtc_w, crtc_h;
 
-	ret = drm_plane_helper_check_update(plane, crtc, fb,
-					    &src, &dest, &clip,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    true, true, &visible);
-	if (ret)
-		return ret;
-
-	crtc->cursor_x = crtc_x;
-	crtc->cursor_y = crtc_y;
+	crtc->cursor_x = state->orig_dst.x1;
+	crtc->cursor_y = state->orig_dst.y1;
 	if (fb != crtc->cursor->fb) {
+		crtc_w = drm_rect_width(&state->orig_dst);
+		crtc_h = drm_rect_height(&state->orig_dst);
 		return intel_crtc_cursor_set_obj(crtc, obj, crtc_w, crtc_h);
 	} else {
-		intel_crtc_update_cursor(crtc, visible);
+		intel_crtc_update_cursor(crtc, state->visible);
 
 		intel_frontbuffer_flip(crtc->dev,
 				       INTEL_FRONTBUFFER_CURSOR(intel_crtc->pipe));
@@ -12092,6 +12082,48 @@ intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		return 0;
 	}
 }
+
+static int
+intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
+			  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+			  unsigned int crtc_w, unsigned int crtc_h,
+			  uint32_t src_x, uint32_t src_y,
+			  uint32_t src_w, uint32_t src_h)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_plane_state state;
+	int ret;
+
+	state.crtc = crtc;
+	state.fb = fb;
+
+	/* sample coordinates in 16.16 fixed point */
+	state.src.x1 = src_x;
+	state.src.x2 = src_x + src_w;
+	state.src.y1 = src_y;
+	state.src.y2 = src_y + src_h;
+
+	/* integer pixels */
+	state.dst.x1 = crtc_x;
+	state.dst.x2 = crtc_x + crtc_w;
+	state.dst.y1 = crtc_y;
+	state.dst.y2 = crtc_y + crtc_h;
+
+	state.clip.x1 = 0;
+	state.clip.y1 = 0;
+	state.clip.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0;
+	state.clip.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0;
+
+	state.orig_src = state.src;
+	state.orig_dst = state.dst;
+
+	ret = intel_check_cursor_plane(plane, &state);
+	if (ret)
+		return ret;
+
+	return intel_commit_cursor_plane(plane, &state);
+}
+
 static const struct drm_plane_funcs intel_cursor_plane_funcs = {
 	.update_plane = intel_cursor_plane_update,
 	.disable_plane = intel_cursor_plane_disable,
