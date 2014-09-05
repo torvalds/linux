@@ -352,6 +352,9 @@ void gen8_fbc_sw_flush(struct drm_device *dev, u32 value)
 	if (!IS_GEN8(dev))
 		return;
 
+	if (!intel_fbc_enabled(dev))
+		return;
+
 	I915_WRITE(MSG_FBC_REND_STATE, value);
 }
 
