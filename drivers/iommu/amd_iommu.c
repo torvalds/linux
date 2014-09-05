@@ -3384,20 +3384,20 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 	return paddr;
 }
 
-static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
-				    unsigned long cap)
+static bool amd_iommu_capable(enum iommu_cap cap)
 {
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
-		return 1;
+		return true;
 	case IOMMU_CAP_INTR_REMAP:
-		return irq_remapping_enabled;
+		return (irq_remapping_enabled == 1);
 	}
 
-	return 0;
+	return false;
 }
 
 static const struct iommu_ops amd_iommu_ops = {
+	.capable = amd_iommu_capable,
 	.domain_init = amd_iommu_domain_init,
 	.domain_destroy = amd_iommu_domain_destroy,
 	.attach_dev = amd_iommu_attach_device,
@@ -3405,7 +3405,6 @@ static const struct iommu_ops amd_iommu_ops = {
 	.map = amd_iommu_map,
 	.unmap = amd_iommu_unmap,
 	.iova_to_phys = amd_iommu_iova_to_phys,
-	.domain_has_cap = amd_iommu_domain_has_cap,
 	.pgsize_bitmap	= AMD_IOMMU_PGSIZES,
 };
 
