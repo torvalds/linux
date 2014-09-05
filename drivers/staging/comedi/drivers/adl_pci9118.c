@@ -255,7 +255,6 @@ struct pci9118_private {
 						 * divisors for start of measure
 						 * on external start
 						 */
-	unsigned short ao_data[2];		/* data output buffer */
 	char dma_doublebuf;			/* use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	unsigned short *dmabuf_virt[2];		/*
@@ -523,32 +522,20 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 
 static int pci9118_insn_write_ao(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	struct pci9118_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	int n;
+	unsigned int val = s->readback[chan];
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		outl(data[n], dev->iobase + PCI9118_AO_REG(chan));
-		devpriv->ao_data[chan] = data[n];
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		outl(val, dev->iobase + PCI9118_AO_REG(chan));
 	}
+	s->readback[chan] = val;
 
-	return n;
-}
-
-static int pci9118_insn_read_ao(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct pci9118_private *devpriv = dev->private;
-	int n, chan;
-
-	chan = CR_CHAN(insn->chanspec);
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_data[chan];
-
-	return n;
+	return insn->n;
 }
 
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
@@ -1701,10 +1688,8 @@ static int pci9118_reset(struct comedi_device *dev)
 						 */
 
 	/* reset analog outputs to 0V */
-	devpriv->ao_data[0] = 2047;
-	devpriv->ao_data[1] = 2047;
-	outl(devpriv->ao_data[0], dev->iobase + PCI9118_AO_REG(0));
-	outl(devpriv->ao_data[1], dev->iobase + PCI9118_AO_REG(1));
+	outl(2047, dev->iobase + PCI9118_AO_REG(0));
+	outl(2047, dev->iobase + PCI9118_AO_REG(1));
 
 	udelay(10);
 	inl(dev->iobase + PCI9118_AI_FIFO_REG);
@@ -1886,7 +1871,15 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci9118_insn_write_ao;
-	s->insn_read	= pci9118_insn_read_ao;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
+
+	/* the analog outputs were reset to 0V, make the readback match */
+	for (i = 0; i < s->n_chan; i++)
+		s->readback[i] = 2047;
 
 	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
