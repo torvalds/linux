@@ -314,7 +314,6 @@ struct ath_rx {
 	bool discard_next;
 	u32 *rxlink;
 	u32 num_pkts;
-	unsigned int rxfilter;
 	struct list_head rxbuf;
 	struct ath_descdma rxdma;
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
@@ -350,6 +349,8 @@ struct ath_chanctx {
 	bool active;
 	bool assigned;
 	bool switch_after_beacon;
+
+	unsigned int rxfilter;
 };
 
 enum ath_chanctx_event {
