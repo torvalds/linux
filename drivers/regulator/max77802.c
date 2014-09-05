@@ -134,7 +134,7 @@ static int max77802_ldo_set_suspend_mode_logic1(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	max77802->opmode[rdev_get_id(rdev)] = val;
+	max77802->opmode[id] = val;
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask, val << shift);
 }
@@ -167,7 +167,7 @@ static int max77802_ldo_set_suspend_mode_logic2(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	max77802->opmode[rdev_get_id(rdev)] = val;
+	max77802->opmode[id] = val;
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask, val << shift);
 }
