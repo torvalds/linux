@@ -190,6 +190,7 @@ static const struct key_entry toshiba_acpi_keymap[] = {
 	{ KE_KEY, 0x101, { KEY_MUTE } },
 	{ KE_KEY, 0x102, { KEY_ZOOMOUT } },
 	{ KE_KEY, 0x103, { KEY_ZOOMIN } },
+	{ KE_KEY, 0x10f, { KEY_TAB } },
 	{ KE_KEY, 0x12c, { KEY_KBDILLUMTOGGLE } },
 	{ KE_KEY, 0x139, { KEY_ZOOMRESET } },
 	{ KE_KEY, 0x13b, { KEY_COFFEE } },
@@ -210,7 +211,11 @@ static const struct key_entry toshiba_acpi_keymap[] = {
 	{ KE_KEY, 0xb32, { KEY_NEXTSONG } },
 	{ KE_KEY, 0xb33, { KEY_PLAYPAUSE } },
 	{ KE_KEY, 0xb5a, { KEY_MEDIA } },
-	{ KE_IGNORE, 0x1430, { KEY_RESERVED } },
+	{ KE_IGNORE, 0x1430, { KEY_RESERVED } }, /* Wake from sleep */
+	{ KE_IGNORE, 0x1501, { KEY_RESERVED } }, /* Output changed */
+	{ KE_IGNORE, 0x1502, { KEY_RESERVED } }, /* HDMI plugged/unplugged */
+	{ KE_IGNORE, 0x1ABE, { KEY_RESERVED } }, /* Protection level set */
+	{ KE_IGNORE, 0x1ABF, { KEY_RESERVED } }, /* Protection level off */
 	{ KE_END, 0 },
 };
 
