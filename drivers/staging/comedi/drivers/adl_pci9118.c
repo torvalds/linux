@@ -489,66 +489,6 @@ static int setup_channel_list(struct comedi_device *dev,
 	return 1;		/* we can serve this with scan logic */
 }
 
-static int pci9118_ai_eoc(struct comedi_device *dev,
-			  struct comedi_subdevice *s,
-			  struct comedi_insn *insn,
-			  unsigned long context)
-{
-	unsigned int status;
-
-	status = inl(dev->iobase + PCI9118_AI_STATUS_REG);
-	if (status & PCI9118_AI_STATUS_ADRDY)
-		return 0;
-	return -EBUSY;
-}
-
-static void pci9118_ai_start_conv(struct comedi_device *dev)
-{
-	/* writing any value triggers an A/D conversion */
-	outl(0, dev->iobase + PCI9118_SOFTTRG_REG);
-}
-
-static int pci9118_insn_read_ai(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct pci9118_private *devpriv = dev->private;
-	unsigned int val;
-	int ret;
-	int n;
-
-       /*
-	* Configure analog input based on the chanspec.
-	* Acqusition is software controlled without interrupts.
-	*/
-	pci9118_ai_set_range_aref(dev, s, insn->chanspec);
-
-	/* set default config (disable burst and triggers) */
-	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
-	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-
-	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0, 0, 0))
-		return -EINVAL;
-
-	pci9118_ai_reset_fifo(dev);
-
-	for (n = 0; n < insn->n; n++) {
-		pci9118_ai_start_conv(dev);
-
-		ret = comedi_timeout(dev, s, insn, pci9118_ai_eoc, 0);
-		if (ret)
-			return ret;
-
-		val = inl(dev->iobase + PCI9118_AI_FIFO_REG);
-		if (s->maxdata == 0xffff)
-			data[n] = (val & 0xffff) ^ 0x8000;
-		else
-			data[n] = (val >> 4) & 0xfff;
-	}
-
-	return n;
-}
-
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -1600,6 +1540,67 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return ret;
 }
 
+static int pci9118_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned int status;
+
+	status = inl(dev->iobase + PCI9118_AI_STATUS_REG);
+	if (status & PCI9118_AI_STATUS_ADRDY)
+		return 0;
+	return -EBUSY;
+}
+
+static void pci9118_ai_start_conv(struct comedi_device *dev)
+{
+	/* writing any value triggers an A/D conversion */
+	outl(0, dev->iobase + PCI9118_SOFTTRG_REG);
+}
+
+static int pci9118_ai_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
+{
+	struct pci9118_private *devpriv = dev->private;
+	unsigned int val;
+	int ret;
+	int i;
+
+       /*
+	* Configure analog input based on the chanspec.
+	* Acqusition is software controlled without interrupts.
+	*/
+	pci9118_ai_set_range_aref(dev, s, insn->chanspec);
+
+	/* set default config (disable burst and triggers) */
+	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
+	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
+
+	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0, 0, 0))
+		return -EINVAL;
+
+	pci9118_ai_reset_fifo(dev);
+
+	for (i = 0; i < insn->n; i++) {
+		pci9118_ai_start_conv(dev);
+
+		ret = comedi_timeout(dev, s, insn, pci9118_ai_eoc, 0);
+		if (ret)
+			return ret;
+
+		val = inl(dev->iobase + PCI9118_AI_FIFO_REG);
+		if (s->maxdata == 0xffff)
+			data[i] = (val & 0xffff) ^ 0x8000;
+		else
+			data[i] = (val >> 4) & 0xfff;
+	}
+
+	return insn->n;
+}
+
 static int pci9118_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -1803,7 +1804,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->maxdata	= board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= board->is_hg ? &pci9118hg_ai_range
 				       : &pci9118_ai_range;
-	s->insn_read	= pci9118_insn_read_ai;
+	s->insn_read	= pci9118_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags	|= SDF_CMD_READ;
