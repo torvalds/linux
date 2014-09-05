@@ -857,16 +857,6 @@ static void omap_gpio_unmask_irq(struct irq_data *d)
 	spin_unlock_irqrestore(&bank->lock, flags);
 }
 
-static struct irq_chip gpio_irq_chip = {
-	.name		= "GPIO",
-	.irq_shutdown	= omap_gpio_irq_shutdown,
-	.irq_ack	= omap_gpio_ack_irq,
-	.irq_mask	= omap_gpio_mask_irq,
-	.irq_unmask	= omap_gpio_unmask_irq,
-	.irq_set_type	= omap_gpio_irq_type,
-	.irq_set_wake	= omap_gpio_wake_enable,
-};
-
 /*---------------------------------------------------------------------*/
 
 static int omap_mpuio_suspend_noirq(struct device *dev)
@@ -1088,7 +1078,7 @@ omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static int omap_gpio_chip_init(struct gpio_bank *bank)
+static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 {
 	int j;
 	static int gpio;
@@ -1137,7 +1127,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank)
 	}
 #endif
 
-	ret = gpiochip_irqchip_add(&bank->chip, &gpio_irq_chip,
+	ret = gpiochip_irqchip_add(&bank->chip, irqc,
 				   irq_base, omap_gpio_irq_handler,
 				   IRQ_TYPE_NONE);
 
@@ -1147,7 +1137,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank)
 		return -ENODEV;
 	}
 
-	gpiochip_set_chained_irqchip(&bank->chip, &gpio_irq_chip,
+	gpiochip_set_chained_irqchip(&bank->chip, irqc,
 				     bank->irq, omap_gpio_irq_handler);
 
 	for (j = 0; j < bank->width; j++) {
@@ -1172,6 +1162,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	const struct omap_gpio_platform_data *pdata;
 	struct resource *res;
 	struct gpio_bank *bank;
+	struct irq_chip *irqc;
 	int ret;
 
 	match = of_match_device(of_match_ptr(omap_gpio_match), dev);
@@ -1185,6 +1176,18 @@ static int omap_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "Memory alloc failed\n");
 		return -ENOMEM;
 	}
+
+	irqc = devm_kzalloc(dev, sizeof(*irqc), GFP_KERNEL);
+	if (!irqc)
+		return -ENOMEM;
+
+	irqc->irq_shutdown = omap_gpio_irq_shutdown,
+	irqc->irq_ack = omap_gpio_ack_irq,
+	irqc->irq_mask = omap_gpio_mask_irq,
+	irqc->irq_unmask = omap_gpio_unmask_irq,
+	irqc->irq_set_type = omap_gpio_irq_type,
+	irqc->irq_set_wake = omap_gpio_wake_enable,
+	irqc->name = dev_name(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (unlikely(!res)) {
@@ -1241,7 +1244,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 
 	omap_gpio_mod_init(bank);
 
-	ret = omap_gpio_chip_init(bank);
+	ret = omap_gpio_chip_init(bank, irqc);
 	if (ret)
 		return ret;
 
