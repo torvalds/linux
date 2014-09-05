@@ -698,7 +698,12 @@ struct tcp_skb_cb {
 	} header;	/* For incoming frames		*/
 	__u32		seq;		/* Starting sequence number	*/
 	__u32		end_seq;	/* SEQ + FIN + SYN + datalen	*/
-	__u32		when;		/* used to compute rtt's	*/
+	union {
+		/* used in output path */
+		__u32		when;	/* used to compute rtt's	*/
+		/* used in input path */
+		__u32		tcp_tw_isn; /* isn chosen by tcp_timewait_state_process() */
+	};
 	__u8		tcp_flags;	/* TCP header flags. (tcp[13])	*/
 
 	__u8		sacked;		/* State flags for SACK/FACK.	*/

@@ -5906,7 +5906,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	struct request_sock *req;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct dst_entry *dst = NULL;
-	__u32 isn = TCP_SKB_CB(skb)->when;
+	__u32 isn = TCP_SKB_CB(skb)->tcp_tw_isn;
 	bool want_cookie = false, fastopen;
 	struct flowi fl;
 	struct tcp_fastopen_cookie foc = { .len = -1 };
