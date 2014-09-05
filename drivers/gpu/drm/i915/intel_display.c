@@ -11807,62 +11807,36 @@ disable_unpin:
 }
 
 static int
-intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
-			     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-			     unsigned int crtc_w, unsigned int crtc_h,
-			     uint32_t src_x, uint32_t src_y,
-			     uint32_t src_w, uint32_t src_h)
+intel_check_primary_plane(struct drm_plane *plane,
+			  struct intel_plane_state *state)
 {
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_rect *dest = &state->dst;
+	struct drm_rect *src = &state->src;
+	const struct drm_rect *clip = &state->clip;
+
+	return drm_plane_helper_check_update(plane, crtc, fb,
+					    src, dest, clip,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    false, true, &state->visible);
+}
+
+static int
+intel_commit_primary_plane(struct drm_plane *plane,
+			   struct intel_plane_state *state)
+{
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
-	struct drm_rect dest = {
-		/* integer pixels */
-		.x1 = crtc_x,
-		.y1 = crtc_y,
-		.x2 = crtc_x + crtc_w,
-		.y2 = crtc_y + crtc_h,
-	};
-	struct drm_rect src = {
-		/* 16.16 fixed point */
-		.x1 = src_x,
-		.y1 = src_y,
-		.x2 = src_x + src_w,
-		.y2 = src_y + src_h,
-	};
-	const struct drm_rect clip = {
-		/* integer pixels */
-		.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0,
-		.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0,
-	};
-	const struct {
-		int crtc_x, crtc_y;
-		unsigned int crtc_w, crtc_h;
-		uint32_t src_x, src_y, src_w, src_h;
-	} orig = {
-		.crtc_x = crtc_x,
-		.crtc_y = crtc_y,
-		.crtc_w = crtc_w,
-		.crtc_h = crtc_h,
-		.src_x = src_x,
-		.src_y = src_y,
-		.src_w = src_w,
-		.src_h = src_h,
-	};
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	bool visible;
+	struct drm_rect *src = &state->src;
 	int ret;
-
-	ret = drm_plane_helper_check_update(plane, crtc, fb,
-					    &src, &dest, &clip,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true, &visible);
-
-	if (ret)
-		return ret;
 
 	/*
 	 * If the CRTC isn't enabled, we're just pinning the framebuffer,
@@ -11898,7 +11872,7 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * happens if userspace explicitly disables the plane by passing fb=0
 	 * because plane->fb still gets set and pinned.
 	 */
-	if (!visible) {
+	if (!state->visible) {
 		mutex_lock(&dev->struct_mutex);
 
 		/*
@@ -11945,7 +11919,7 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 				intel_disable_fbc(dev);
 			}
 		}
-		ret = intel_pipe_set_base(crtc, src.x1, src.y1, fb);
+		ret = intel_pipe_set_base(crtc, src->x1, src->y1, fb);
 		if (ret)
 			return ret;
 
@@ -11953,15 +11927,58 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 			intel_enable_primary_hw_plane(plane, crtc);
 	}
 
-	intel_plane->crtc_x = orig.crtc_x;
-	intel_plane->crtc_y = orig.crtc_y;
-	intel_plane->crtc_w = orig.crtc_w;
-	intel_plane->crtc_h = orig.crtc_h;
-	intel_plane->src_x = orig.src_x;
-	intel_plane->src_y = orig.src_y;
-	intel_plane->src_w = orig.src_w;
-	intel_plane->src_h = orig.src_h;
+	intel_plane->crtc_x = state->orig_dst.x1;
+	intel_plane->crtc_y = state->orig_dst.y1;
+	intel_plane->crtc_w = drm_rect_width(&state->orig_dst);
+	intel_plane->crtc_h = drm_rect_height(&state->orig_dst);
+	intel_plane->src_x = state->orig_src.x1;
+	intel_plane->src_y = state->orig_src.y1;
+	intel_plane->src_w = drm_rect_width(&state->orig_src);
+	intel_plane->src_h = drm_rect_height(&state->orig_src);
 	intel_plane->obj = obj;
+
+	return 0;
+}
+
+static int
+intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+			     unsigned int crtc_w, unsigned int crtc_h,
+			     uint32_t src_x, uint32_t src_y,
+			     uint32_t src_w, uint32_t src_h)
+{
+	struct intel_plane_state state;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int ret;
+
+	state.crtc = crtc;
+	state.fb = fb;
+
+	/* sample coordinates in 16.16 fixed point */
+	state.src.x1 = src_x;
+	state.src.x2 = src_x + src_w;
+	state.src.y1 = src_y;
+	state.src.y2 = src_y + src_h;
+
+	/* integer pixels */
+	state.dst.x1 = crtc_x;
+	state.dst.x2 = crtc_x + crtc_w;
+	state.dst.y1 = crtc_y;
+	state.dst.y2 = crtc_y + crtc_h;
+
+	state.clip.x1 = 0;
+	state.clip.y1 = 0;
+	state.clip.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0;
+	state.clip.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0;
+
+	state.orig_src = state.src;
+	state.orig_dst = state.dst;
+
+	ret = intel_check_primary_plane(plane, &state);
+	if (ret)
+		return ret;
+
+	intel_commit_primary_plane(plane, &state);
 
 	return 0;
 }
