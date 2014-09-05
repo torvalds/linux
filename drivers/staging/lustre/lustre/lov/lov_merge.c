@@ -109,33 +109,6 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	return rc;
 }
 
-/** Merge the lock value block(&lvb) attributes from each of the stripes in a
- * file into a single lvb. It is expected that the caller initializes the
- * current atime, mtime, ctime to avoid regressing a more uptodate time on
- * the local client.
- *
- * If \a kms_only is set then we do not consider the recently seen size (rss)
- * when updating the known minimum size (kms).  Even when merging RSS, we will
- * take the KMS value if it's larger.  This prevents getattr from stomping on
- * dirty cached pages which extend the file size. */
-int lov_merge_lvb(struct obd_export *exp,
-		  struct lov_stripe_md *lsm, struct ost_lvb *lvb, int kms_only)
-{
-	int   rc;
-	__u64 kms;
-
-	lov_stripe_lock(lsm);
-	rc = lov_merge_lvb_kms(lsm, lvb, &kms);
-	lov_stripe_unlock(lsm);
-	if (kms_only)
-		lvb->lvb_size = kms;
-
-	CDEBUG(D_INODE, "merged for ID "DOSTID" s=%llu m=%llu a=%llu c=%llu b=%llu\n",
-	       POSTID(&lsm->lsm_oi), lvb->lvb_size, lvb->lvb_mtime,
-	       lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
-	return rc;
-}
-
 /* Must be called under the lov_stripe_lock() */
 int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 		   u64 size, int shrink)
