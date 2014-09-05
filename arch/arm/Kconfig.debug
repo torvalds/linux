@@ -427,7 +427,7 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the serial port on MSM devices.
 
-		  ARCH                DEBUG_UART_PHYS   DEBUG_UART_BASE   #
+		  ARCH                DEBUG_UART_PHYS   DEBUG_UART_VIRT   #
 		  MSM7X00A, QSD8X50   0xa9a00000        0xe1000000        UART1
 		  MSM7X00A, QSD8X50   0xa9b00000        0xe1000000        UART2
 		  MSM7X00A, QSD8X50   0xa9c00000        0xe1000000        UART3
@@ -446,7 +446,8 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the serial port on Qualcomm devices.
 
-		  ARCH      DEBUG_UART_PHYS   DEBUG_UART_BASE
+		  ARCH      DEBUG_UART_PHYS   DEBUG_UART_VIRT
+		  APQ8064   0x16640000        0xf0040000
 		  APQ8084   0xf995e000        0xfa75e000
 		  MSM8X60   0x19c40000        0xf0040000
 		  MSM8960   0x16440000        0xf0040000
