@@ -975,34 +975,6 @@ void write_mii_word(struct net_device *netdev, int phy_id, int reg, int val)
 static int
 r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags);
 
-static inline void set_ethernet_addr(struct r8152 *tp)
-{
-	struct net_device *dev = tp->netdev;
-	int ret;
-	u8 node_id[8] = {0};
-
-	if (tp->version == RTL_VER_01)
-		ret = pla_ocp_read(tp, PLA_IDR, sizeof(node_id), node_id);
-	else
-		ret = pla_ocp_read(tp, PLA_BACKUP, sizeof(node_id), node_id);
-
-	if (ret < 0) {
-		netif_notice(tp, probe, dev, "inet addr fail\n");
-	} else {
-		if (tp->version != RTL_VER_01) {
-			ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR,
-				       CRWECR_CONFIG);
-			pla_ocp_write(tp, PLA_IDR, BYTE_EN_SIX_BYTES,
-				      sizeof(node_id), node_id);
-			ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR,
-				       CRWECR_NORAML);
-		}
-
-		memcpy(dev->dev_addr, node_id, dev->addr_len);
-		memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
-	}
-}
-
 static int rtl8152_set_mac_address(struct net_device *netdev, void *p)
 {
 	struct r8152 *tp = netdev_priv(netdev);
@@ -1018,6 +990,37 @@ static int rtl8152_set_mac_address(struct net_device *netdev, void *p)
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_NORAML);
 
 	return 0;
+}
+
+static int set_ethernet_addr(struct r8152 *tp)
+{
+	struct net_device *dev = tp->netdev;
+	struct sockaddr sa;
+	int ret;
+
+	if (tp->version == RTL_VER_01)
+		ret = pla_ocp_read(tp, PLA_IDR, 8, sa.sa_data);
+	else
+		ret = pla_ocp_read(tp, PLA_BACKUP, 8, sa.sa_data);
+
+	if (ret < 0) {
+		netif_err(tp, probe, dev, "Get ether addr fail\n");
+	} else if (!is_valid_ether_addr(sa.sa_data)) {
+		netif_err(tp, probe, dev, "Invalid ether addr %pM\n",
+			  sa.sa_data);
+		eth_hw_addr_random(dev);
+		ether_addr_copy(sa.sa_data, dev->dev_addr);
+		ret = rtl8152_set_mac_address(dev, &sa);
+		netif_info(tp, probe, dev, "Random ether addr %pM\n",
+			   sa.sa_data);
+	} else {
+		if (tp->version == RTL_VER_01)
+			ether_addr_copy(dev->dev_addr, sa.sa_data);
+		else
+			ret = rtl8152_set_mac_address(dev, &sa);
+	}
+
+	return ret;
 }
 
 static void read_bulk_callback(struct urb *urb)
