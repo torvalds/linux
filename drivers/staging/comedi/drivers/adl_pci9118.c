@@ -227,7 +227,7 @@ struct pci9118_private {
 							 */
 	unsigned char chanlistlen;	/* number of scanlist */
 #endif
-	unsigned char AdControlReg;	/* A/D control register */
+	unsigned char ai_ctrl;
 	unsigned char IntControlReg;	/* Interrupt control register */
 	unsigned char ai_cfg;
 	char ai_neverending;		/* we do unlimited AI */
@@ -326,12 +326,12 @@ static void pci9118_ai_set_range_aref(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(chanspec);
 	unsigned int aref = CR_AREF(chanspec);
 
-	devpriv->AdControlReg = 0;
+	devpriv->ai_ctrl = 0;
 	if (comedi_range_is_unipolar(s, range))
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_UNIP;
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_UNIP;
 	if (aref == AREF_DIFF)
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_DIFF;
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_DIFF;
+	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
 }
 
 static int check_channel_list(struct comedi_device *dev,
@@ -696,8 +696,8 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 					 * burst stop, no post trigger,
 					 * no about trigger, trigger stop
 					 */
-	devpriv->AdControlReg = 0x00;
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
+	devpriv->ai_ctrl = 0;
+	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
 					/*
 					 * bipolar, S.E., use 8254, stop 8354,
 					 * internal trigger, soft trigger,
@@ -939,7 +939,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 
 				/* start pacer */
 				pci9118_start_pacer(dev, devpriv->ai_do);
-				outl(devpriv->AdControlReg,
+				outl(devpriv->ai_ctrl,
 				     dev->iobase + PCI9118_AI_CTRL_REG);
 			} else if (devpriv->ai12_startstop & STOP_AI_EXT) {
 				/* deactivate EXT trigger */
@@ -977,9 +977,9 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 	if (devpriv->ai_do != 3) {
 		pci9118_start_pacer(dev, devpriv->ai_do);
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_SOFTG;
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
 	}
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
+	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
 
 	return 1;
 }
@@ -1295,13 +1295,13 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 
 	switch (devpriv->ai_do) {
 	case 1:
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR;
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
 		break;
 	case 2:
 		dev_err(dev->class_dev, "%s mode 2 bug!\n", __func__);
 		return -EIO;
 	case 3:
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_EXTM;
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_EXTM;
 		break;
 	case 4:
 		dev_err(dev->class_dev, "%s mode 4 bug!\n", __func__);
@@ -1318,7 +1318,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 	if ((devpriv->ai_do == 1) || (devpriv->ai_do == 2))
 		devpriv->IntControlReg |= PCI9118_INT_CTRL_TIMER;
 
-	devpriv->AdControlReg |= PCI9118_AI_CTRL_INT;
+	devpriv->ai_ctrl |= PCI9118_AI_CTRL_INT;
 
 	outl(inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR) | 0x1f00,
 			devpriv->iobase_a + AMCC_OP_REG_INTCSR);
@@ -1330,7 +1330,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 		if (devpriv->ai_do != 3) {
 			pci9118_start_pacer(dev, devpriv->ai_do);
-			devpriv->AdControlReg |= PCI9118_AI_CTRL_SOFTG;
+			devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
 		}
 		outl(devpriv->IntControlReg,
 		     dev->iobase + PCI9118_INT_CTRL_REG);
@@ -1349,12 +1349,12 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 
 	switch (devpriv->ai_do) {
 	case 1:
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR |
-					 PCI9118_AI_CTRL_DMA;
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR |
+				    PCI9118_AI_CTRL_DMA;
 		break;
 	case 2:
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR |
-					 PCI9118_AI_CTRL_DMA;
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR |
+				    PCI9118_AI_CTRL_DMA;
 		devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG |
 				  PCI9118_AI_CFG_PETRG |
 				  PCI9118_AI_CFG_BM |
@@ -1365,14 +1365,14 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		     dev->iobase + PCI9118_AI_BURST_NUM_REG);
 		break;
 	case 3:
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_EXTM |
-					 PCI9118_AI_CTRL_DMA;
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_EXTM |
+				    PCI9118_AI_CTRL_DMA;
 		devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG |
 				  PCI9118_AI_CFG_PETRG;
 		break;
 	case 4:
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_TMRTR |
-					 PCI9118_AI_CTRL_DMA;
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR |
+				    PCI9118_AI_CTRL_DMA;
 		devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG |
 				  PCI9118_AI_CFG_PETRG |
 				  PCI9118_AI_CFG_AM;
@@ -1400,9 +1400,9 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		     dev->iobase + PCI9118_INT_CTRL_REG);
 		if (devpriv->ai_do != 3) {
 			pci9118_start_pacer(dev, devpriv->ai_do);
-			devpriv->AdControlReg |= PCI9118_AI_CTRL_SOFTG;
+			devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
 		}
-		outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
+		outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
 	}
 
 	return 0;
