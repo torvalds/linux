@@ -41,6 +41,7 @@
 
 #include "common.h"
 #include "dma-register.h"
+#include "intc.h"
 #include "irqs.h"
 #include "pm-rmobile.h"
 #include "sh7372.h"
