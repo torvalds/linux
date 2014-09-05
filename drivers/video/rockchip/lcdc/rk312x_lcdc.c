@@ -1137,6 +1137,11 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				     v_INTERLACE_FIELD_POL(0) |
 				     v_WIN0_INTERLACE_EN(1) |
 				     v_WIN1_INTERLACE_EN(1));
+			mask = m_LF_INT_NUM;
+			val = v_LF_INT_NUM(screen->mode.vsync_len +
+			                   screen->mode.upper_margin +
+			                   screen->mode.yres/2);
+			lcdc_msk_reg(lcdc_dev, INT_STATUS, mask, val);
 		} else {
 			val = v_VSYNC(screen->mode.vsync_len) |
 			    v_VERPRD(screen->mode.vsync_len + upper_margin +
@@ -1160,6 +1165,11 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				     v_INTERLACE_FIELD_POL(0) |
 				     v_WIN0_INTERLACE_EN(0) |
 				     v_WIN1_INTERLACE_EN(0));
+			mask = m_LF_INT_NUM;
+			val = v_LF_INT_NUM(screen->mode.vsync_len +
+			                   screen->mode.upper_margin +
+			                   screen->mode.yres);
+			lcdc_msk_reg(lcdc_dev, INT_STATUS, mask, val);
 		}
 
 	}
