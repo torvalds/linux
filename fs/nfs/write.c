@@ -473,13 +473,18 @@ try_again:
 	do {
 		/*
 		 * Subrequests are always contiguous, non overlapping
-		 * and in order. If not, it's a programming error.
+		 * and in order - but may be repeated (mirrored writes).
 		 */
-		WARN_ON_ONCE(subreq->wb_offset !=
-		     (head->wb_offset + total_bytes));
-
-		/* keep track of how many bytes this group covers */
-		total_bytes += subreq->wb_bytes;
+		if (subreq->wb_offset == (head->wb_offset + total_bytes)) {
+			/* keep track of how many bytes this group covers */
+			total_bytes += subreq->wb_bytes;
+		} else if (WARN_ON_ONCE(subreq->wb_offset < head->wb_offset ||
+			    ((subreq->wb_offset + subreq->wb_bytes) >
+			     (head->wb_offset + total_bytes)))) {
+			nfs_page_group_unlock(head);
+			spin_unlock(&inode->i_lock);
+			return ERR_PTR(-EIO);
+		}
 
 		if (!nfs_lock_request(subreq)) {
 			/* releases page group bit lock and
