@@ -164,7 +164,7 @@ int ocrdma_query_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	struct ocrdma_av *av = ah->av;
 	struct ocrdma_grh *grh;
 	attr->ah_flags |= IB_AH_GRH;
-	if (ah->av->valid & Bit(1)) {
+	if (ah->av->valid & OCRDMA_AV_VALID) {
 		grh = (struct ocrdma_grh *)((u8 *)ah->av +
 				sizeof(struct ocrdma_eth_vlan));
 		attr->sl = be16_to_cpu(av->eth_hdr.vlan_tag) >> 13;
