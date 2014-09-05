@@ -515,6 +515,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 	struct intel_crtc *crtc;
 	int ret;
@@ -534,6 +535,8 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
 				   pipe, plane);
 		} else {
+			u32 addr;
+
 			if (atomic_read(&work->pending) < INTEL_FLIP_COMPLETE) {
 				seq_printf(m, "Flip queued on pipe %c (plane %c)\n",
 					   pipe, plane);
@@ -541,23 +544,35 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 				seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
 					   pipe, plane);
 			}
+			if (work->flip_queued_ring) {
+				seq_printf(m, "Flip queued on %s at seqno %u, next seqno %u [current breadcrumb %u], completed? %d\n",
+					   work->flip_queued_ring->name,
+					   work->flip_queued_seqno,
+					   dev_priv->next_seqno,
+					   work->flip_queued_ring->get_seqno(work->flip_queued_ring, true),
+					   i915_seqno_passed(work->flip_queued_ring->get_seqno(work->flip_queued_ring, true),
+							     work->flip_queued_seqno));
+			} else
+				seq_printf(m, "Flip not associated with any ring\n");
+			seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
+				   work->flip_queued_vblank,
+				   work->flip_ready_vblank,
+				   drm_vblank_count(dev, crtc->pipe));
 			if (work->enable_stall_check)
 				seq_puts(m, "Stall check enabled, ");
 			else
 				seq_puts(m, "Stall check waiting for page flip ioctl, ");
 			seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
 
-			if (work->old_fb_obj) {
-				struct drm_i915_gem_object *obj = work->old_fb_obj;
-				if (obj)
-					seq_printf(m, "Old framebuffer gtt_offset 0x%08lx\n",
-						   i915_gem_obj_ggtt_offset(obj));
-			}
+			if (INTEL_INFO(dev)->gen >= 4)
+				addr = I915_HI_DISPBASE(I915_READ(DSPSURF(crtc->plane)));
+			else
+				addr = I915_READ(DSPADDR(crtc->plane));
+			seq_printf(m, "Current scanout address 0x%08x\n", addr);
+
 			if (work->pending_flip_obj) {
-				struct drm_i915_gem_object *obj = work->pending_flip_obj;
-				if (obj)
-					seq_printf(m, "New framebuffer gtt_offset 0x%08lx\n",
-						   i915_gem_obj_ggtt_offset(obj));
+				seq_printf(m, "New framebuffer address 0x%08lx\n", (long)work->gtt_offset);
+				seq_printf(m, "MMIO update completed? %d\n",  addr == work->gtt_offset);
 			}
 		}
 		spin_unlock_irqrestore(&dev->event_lock, flags);
