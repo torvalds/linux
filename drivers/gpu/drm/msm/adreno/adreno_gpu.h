@@ -64,6 +64,9 @@ struct adreno_gpu {
 	uint32_t revn;  /* numeric revision name */
 	const struct adreno_gpu_funcs *funcs;
 
+	/* interesting register offsets to dump: */
+	const unsigned int *registers;
+
 	/* firmware: */
 	const struct firmware *pm4, *pfp;
 

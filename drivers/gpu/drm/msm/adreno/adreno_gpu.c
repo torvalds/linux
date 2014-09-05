@@ -212,6 +212,7 @@ void adreno_idle(struct msm_gpu *gpu)
 void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int i;
 
 	seq_printf(m, "revision: %d (%d.%d.%d.%d)\n",
 			adreno_gpu->info->revn, adreno_gpu->rev.core,
@@ -223,6 +224,23 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 	seq_printf(m, "rptr:     %d\n", adreno_gpu->memptrs->rptr);
 	seq_printf(m, "wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	seq_printf(m, "rb wptr:  %d\n", get_wptr(gpu->rb));
+
+	gpu->funcs->pm_resume(gpu);
+
+	/* dump these out in a form that can be parsed by demsm: */
+	seq_printf(m, "IO:region %s 00000000 00020000\n", gpu->name);
+	for (i = 0; adreno_gpu->registers[i] != ~0; i += 2) {
+		uint32_t start = adreno_gpu->registers[i];
+		uint32_t end   = adreno_gpu->registers[i+1];
+		uint32_t addr;
+
+		for (addr = start; addr <= end; addr++) {
+			uint32_t val = gpu_read(gpu, addr);
+			seq_printf(m, "IO:R %08x %08x\n", addr<<2, val);
+		}
+	}
+
+	gpu->funcs->pm_suspend(gpu);
 }
 #endif
 
@@ -230,6 +248,7 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 void adreno_dump(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int i;
 
 	printk("revision: %d (%d.%d.%d.%d)\n",
 			adreno_gpu->info->revn, adreno_gpu->rev.core,
@@ -242,6 +261,18 @@ void adreno_dump(struct msm_gpu *gpu)
 	printk("wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	printk("rb wptr:  %d\n", get_wptr(gpu->rb));
 
+	/* dump these out in a form that can be parsed by demsm: */
+	printk("IO:region %s 00000000 00020000\n", gpu->name);
+	for (i = 0; adreno_gpu->registers[i] != ~0; i += 2) {
+		uint32_t start = adreno_gpu->registers[i];
+		uint32_t end   = adreno_gpu->registers[i+1];
+		uint32_t addr;
+
+		for (addr = start; addr <= end; addr++) {
+			uint32_t val = gpu_read(gpu, addr);
+			printk("IO:R %08x %08x\n", addr<<2, val);
+		}
+	}
 }
 
 static uint32_t ring_freewords(struct msm_gpu *gpu)

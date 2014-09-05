@@ -385,58 +385,26 @@ static const unsigned int a3xx_registers[] = {
 	0x2750, 0x2756, 0x2760, 0x2760, 0x300c, 0x300e, 0x301c, 0x301d,
 	0x302a, 0x302a, 0x302c, 0x302d, 0x3030, 0x3031, 0x3034, 0x3036,
 	0x303c, 0x303c, 0x305e, 0x305f,
+	~0   /* sentinel */
 };
 
 #ifdef CONFIG_DEBUG_FS
 static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
-	int i;
-
-	adreno_show(gpu, m);
-
 	gpu->funcs->pm_resume(gpu);
-
 	seq_printf(m, "status:   %08x\n",
 			gpu_read(gpu, REG_A3XX_RBBM_STATUS));
-
-	/* dump these out in a form that can be parsed by demsm: */
-	seq_printf(m, "IO:region %s 00000000 00020000\n", gpu->name);
-	for (i = 0; i < ARRAY_SIZE(a3xx_registers); i += 2) {
-		uint32_t start = a3xx_registers[i];
-		uint32_t end   = a3xx_registers[i+1];
-		uint32_t addr;
-
-		for (addr = start; addr <= end; addr++) {
-			uint32_t val = gpu_read(gpu, addr);
-			seq_printf(m, "IO:R %08x %08x\n", addr<<2, val);
-		}
-	}
-
 	gpu->funcs->pm_suspend(gpu);
+	adreno_show(gpu, m);
 }
 #endif
 
 /* would be nice to not have to duplicate the _show() stuff with printk(): */
 static void a3xx_dump(struct msm_gpu *gpu)
 {
-	int i;
-
-	adreno_dump(gpu);
 	printk("status:   %08x\n",
 			gpu_read(gpu, REG_A3XX_RBBM_STATUS));
-
-	/* dump these out in a form that can be parsed by demsm: */
-	printk("IO:region %s 00000000 00020000\n", gpu->name);
-	for (i = 0; i < ARRAY_SIZE(a3xx_registers); i += 2) {
-		uint32_t start = a3xx_registers[i];
-		uint32_t end   = a3xx_registers[i+1];
-		uint32_t addr;
-
-		for (addr = start; addr <= end; addr++) {
-			uint32_t val = gpu_read(gpu, addr);
-			printk("IO:R %08x %08x\n", addr<<2, val);
-		}
-	}
+	adreno_dump(gpu);
 }
 
 static const struct adreno_gpu_funcs funcs = {
@@ -493,6 +461,8 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 
 	gpu->perfcntrs = perfcntrs;
 	gpu->num_perfcntrs = ARRAY_SIZE(perfcntrs);
+
+	adreno_gpu->registers = a3xx_registers;
 
 	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs);
 	if (ret)
