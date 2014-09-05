@@ -265,39 +265,50 @@ static const char *iommu_ports[] = {
 };
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
-		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs,
-		struct adreno_rev rev)
+		struct adreno_gpu *adreno_gpu, const struct adreno_gpu_funcs *funcs)
 {
+	struct adreno_platform_config *config = pdev->dev.platform_data;
+	struct msm_gpu *gpu = &adreno_gpu->base;
 	struct msm_mmu *mmu;
 	int ret;
 
-	gpu->funcs = funcs;
-	gpu->info = adreno_info(rev);
-	gpu->gmem = gpu->info->gmem;
-	gpu->revn = gpu->info->revn;
-	gpu->rev = rev;
+	adreno_gpu->funcs = funcs;
+	adreno_gpu->info = adreno_info(config->rev);
+	adreno_gpu->gmem = adreno_gpu->info->gmem;
+	adreno_gpu->revn = adreno_gpu->info->revn;
+	adreno_gpu->rev = config->rev;
 
-	ret = request_firmware(&gpu->pm4, gpu->info->pm4fw, drm->dev);
+	gpu->fast_rate = config->fast_rate;
+	gpu->slow_rate = config->slow_rate;
+	gpu->bus_freq  = config->bus_freq;
+#ifdef CONFIG_MSM_BUS_SCALING
+	gpu->bus_scale_table = config->bus_scale_table;
+#endif
+
+	DBG("fast_rate=%u, slow_rate=%u, bus_freq=%u",
+			gpu->fast_rate, gpu->slow_rate, gpu->bus_freq);
+
+	ret = request_firmware(&adreno_gpu->pm4, adreno_gpu->info->pm4fw, drm->dev);
 	if (ret) {
 		dev_err(drm->dev, "failed to load %s PM4 firmware: %d\n",
-				gpu->info->pm4fw, ret);
+				adreno_gpu->info->pm4fw, ret);
 		return ret;
 	}
 
-	ret = request_firmware(&gpu->pfp, gpu->info->pfpfw, drm->dev);
+	ret = request_firmware(&adreno_gpu->pfp, adreno_gpu->info->pfpfw, drm->dev);
 	if (ret) {
 		dev_err(drm->dev, "failed to load %s PFP firmware: %d\n",
-				gpu->info->pfpfw, ret);
+				adreno_gpu->info->pfpfw, ret);
 		return ret;
 	}
 
-	ret = msm_gpu_init(drm, pdev, &gpu->base, &funcs->base,
-			gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",
+	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
+			adreno_gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",
 			RB_SIZE);
 	if (ret)
 		return ret;
 
-	mmu = gpu->base.mmu;
+	mmu = gpu->mmu;
 	if (mmu) {
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
@@ -306,24 +317,24 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	}
 
 	mutex_lock(&drm->struct_mutex);
-	gpu->memptrs_bo = msm_gem_new(drm, sizeof(*gpu->memptrs),
+	adreno_gpu->memptrs_bo = msm_gem_new(drm, sizeof(*adreno_gpu->memptrs),
 			MSM_BO_UNCACHED);
 	mutex_unlock(&drm->struct_mutex);
-	if (IS_ERR(gpu->memptrs_bo)) {
-		ret = PTR_ERR(gpu->memptrs_bo);
-		gpu->memptrs_bo = NULL;
+	if (IS_ERR(adreno_gpu->memptrs_bo)) {
+		ret = PTR_ERR(adreno_gpu->memptrs_bo);
+		adreno_gpu->memptrs_bo = NULL;
 		dev_err(drm->dev, "could not allocate memptrs: %d\n", ret);
 		return ret;
 	}
 
-	gpu->memptrs = msm_gem_vaddr(gpu->memptrs_bo);
-	if (!gpu->memptrs) {
+	adreno_gpu->memptrs = msm_gem_vaddr(adreno_gpu->memptrs_bo);
+	if (!adreno_gpu->memptrs) {
 		dev_err(drm->dev, "could not vmap memptrs\n");
 		return -ENOMEM;
 	}
 
-	ret = msm_gem_get_iova(gpu->memptrs_bo, gpu->base.id,
-			&gpu->memptrs_iova);
+	ret = msm_gem_get_iova(adreno_gpu->memptrs_bo, gpu->id,
+			&adreno_gpu->memptrs_iova);
 	if (ret) {
 		dev_err(drm->dev, "could not map memptrs: %d\n", ret);
 		return ret;

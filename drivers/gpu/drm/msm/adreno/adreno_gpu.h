@@ -140,8 +140,7 @@ void adreno_dump(struct msm_gpu *gpu);
 void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords);
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
-		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs,
-		struct adreno_rev rev);
+		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs);
 void adreno_gpu_cleanup(struct adreno_gpu *gpu);
 
 

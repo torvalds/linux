@@ -35,10 +35,8 @@
 	 A3XX_INT0_CP_AHB_ERROR_HALT |     \
 	 A3XX_INT0_UCHE_OOB_ACCESS)
 
+extern bool hang_debug;
 
-static bool hang_debug = false;
-MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
-module_param_named(hang_debug, hang_debug, bool, 0600);
 static void a3xx_dump(struct msm_gpu *gpu);
 
 static void a3xx_me_init(struct msm_gpu *gpu)
@@ -474,7 +472,6 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 	struct msm_gpu *gpu;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
-	struct adreno_platform_config *config;
 	int ret;
 
 	if (!pdev) {
@@ -482,8 +479,6 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 		ret = -ENXIO;
 		goto fail;
 	}
-
-	config = pdev->dev.platform_data;
 
 	a3xx_gpu = kzalloc(sizeof(*a3xx_gpu), GFP_KERNEL);
 	if (!a3xx_gpu) {
@@ -496,20 +491,10 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 
 	a3xx_gpu->pdev = pdev;
 
-	gpu->fast_rate = config->fast_rate;
-	gpu->slow_rate = config->slow_rate;
-	gpu->bus_freq  = config->bus_freq;
-#ifdef CONFIG_MSM_BUS_SCALING
-	gpu->bus_scale_table = config->bus_scale_table;
-#endif
-
-	DBG("fast_rate=%u, slow_rate=%u, bus_freq=%u",
-			gpu->fast_rate, gpu->slow_rate, gpu->bus_freq);
-
 	gpu->perfcntrs = perfcntrs;
 	gpu->num_perfcntrs = ARRAY_SIZE(perfcntrs);
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, config->rev);
+	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs);
 	if (ret)
 		goto fail;
 
