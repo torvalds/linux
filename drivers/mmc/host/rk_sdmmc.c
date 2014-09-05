@@ -50,7 +50,7 @@
 #include <linux/regulator/rockchip_io_vol_domain.h>
 #include "../../clk/rockchip/clk-ops.h"
 
-#define RK_SDMMC_DRIVER_VERSION "Ver 1.12 2014-07-08"
+#define RK_SDMMC_DRIVER_VERSION "Ver 1.13 2014-09-05"
 
 /* Common flag combinations */
 #define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | \
@@ -672,27 +672,35 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 
 static int dw_mci_edmac_init(struct dw_mci *host)
 {
-        /* 1) request external dma channel, SHOULD decide chn in dts */
-        host->dms = (struct dw_mci_dma_slave *)kmalloc(sizeof(struct dw_mci_dma_slave),GFP_KERNEL);
+        /* Request external dma channel, SHOULD decide chn in dts */
+        host->dms = NULL;
+        host->dms = (struct dw_mci_dma_slave *)kmalloc
+                                (sizeof(struct dw_mci_dma_slave), GFP_KERNEL);
+        if (NULL == host->dms) {
+                dev_err(host->dev, "No enough memory to alloc dms.\n");
+                goto err_exit;
+        }
+
         host->dms->ch = dma_request_slave_channel(host->dev, "dw_mci");
-        if (!host->dms->ch){
+        if (!host->dms->ch) {
                 dev_err(host->dev, "Failed to get external DMA channel: channel id = %d\n",
                                 host->dms->ch->chan_id);
                 goto err_exit;
         }
 
-        /* anything? */
-
         return 0;
 
 err_exit:
-        return -ENODEV;
+        return -ENXIO;
 
 }
 
 static void dw_mci_edmac_exit(struct dw_mci *host)
 {
         dma_release_channel(host->dms->ch);
+        host->dms->ch = NULL;
+        kfree(host->dms);
+        host->dms = NULL;
 }
 
 static const struct dw_mci_dma_ops dw_mci_edmac_ops = {
@@ -3237,18 +3245,17 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->f_min = DW_MCI_FREQ_MIN;
 		mmc->f_max = DW_MCI_FREQ_MAX;
 		
-        printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__,__FUNCTION__,
-                mmc->f_min, mmc->f_max, mmc_hostname(mmc));    
+                printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__, __FUNCTION__,
+                        mmc->f_min, mmc->f_max, mmc_hostname(mmc));
 	} else {
 		mmc->f_min = freq[0];
 		mmc->f_max = freq[1];
 		
-        printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__,__FUNCTION__,
-                mmc->f_min, mmc->f_max,  mmc_hostname(mmc));    
+                printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__, __FUNCTION__,
+                        mmc->f_min, mmc->f_max,  mmc_hostname(mmc));
 	}
-	
-    if(strstr("mmc0",mmc_hostname(mmc)))
-        printk("Line%d..%s: The rk_sdmmc %s",__LINE__, __FUNCTION__,RK_SDMMC_DRIVER_VERSION);
+
+	printk("%s : Rockchip specific MHSC: %s\n", mmc_hostname(mmc), RK_SDMMC_DRIVER_VERSION);
         
 	if (of_find_property(host->dev->of_node, "supports-sd", NULL))
 		mmc->restrict_caps |= RESTRICT_CARD_TYPE_SD;	
