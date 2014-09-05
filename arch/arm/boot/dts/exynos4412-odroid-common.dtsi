@@ -192,8 +192,6 @@
 	};
 
 	i2c@13860000 {
-		pinctrl-0 = <&i2c0_bus>;
-		pinctrl-names = "default";
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <400000>;
 		status = "okay";
@@ -445,8 +443,6 @@
 	};
 
 	i2c@13870000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c1_bus>;
 		status = "okay";
 		max98090: max98090@10 {
 			compatible = "maxim,max98090";
