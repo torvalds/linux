@@ -347,18 +347,16 @@ enum {
 };
 
 struct flush_cmd {
-	struct flush_cmd *next;
 	struct completion wait;
+	struct llist_node llnode;
 	int ret;
 };
 
 struct flush_cmd_control {
 	struct task_struct *f2fs_issue_flush;	/* flush thread */
 	wait_queue_head_t flush_wait_queue;	/* waiting queue for wake-up */
-	struct flush_cmd *issue_list;		/* list for command issue */
-	struct flush_cmd *dispatch_list;	/* list for command dispatch */
-	spinlock_t issue_lock;			/* for issue list lock */
-	struct flush_cmd *issue_tail;		/* list tail of issue list */
+	struct llist_head issue_list;		/* list for command issue */
+	struct llist_node *dispatch_list;	/* list for command dispatch */
 };
 
 struct f2fs_sm_info {
