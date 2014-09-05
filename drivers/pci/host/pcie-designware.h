@@ -14,15 +14,6 @@
 #ifndef _PCIE_DESIGNWARE_H
 #define _PCIE_DESIGNWARE_H
 
-struct pcie_port_info {
-	u32		cfg0_size;
-	u32		cfg1_size;
-	u32		io_size;
-	u32		mem_size;
-	phys_addr_t	io_bus_addr;
-	phys_addr_t	mem_bus_addr;
-};
-
 /*
  * Maximum number of MSI IRQs can be 256 per controller. But keep
  * it 32 as of now. Probably we will never need more than 32. If needed,
@@ -38,18 +29,23 @@ struct pcie_port {
 	u64			cfg0_base;
 	u64			cfg0_mod_base;
 	void __iomem		*va_cfg0_base;
+	u32			cfg0_size;
 	u64			cfg1_base;
 	u64			cfg1_mod_base;
 	void __iomem		*va_cfg1_base;
+	u32			cfg1_size;
 	u64			io_base;
 	u64			io_mod_base;
+	phys_addr_t		io_bus_addr;
+	u32			io_size;
 	u64			mem_base;
 	u64			mem_mod_base;
+	phys_addr_t		mem_bus_addr;
+	u32			mem_size;
 	struct resource		cfg;
 	struct resource		io;
 	struct resource		mem;
 	struct resource		busn;
-	struct pcie_port_info	config;
 	int			irq;
 	u32			lanes;
 	struct pcie_host_ops	*ops;
