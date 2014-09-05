@@ -1,0 +1,219 @@
+#include "rk312x-sdk.dtsi"
+#include "lcd-box.dtsi"
+
+/ {
+	 compatible = "rockchip,rk3128";
+	wireless-wlan {
+		compatible = "wlan-platdata";
+
+		wifi_chip_type = "esp8089";
+		sdio_vref = <0>; //1800mv or 3300mv
+
+		//power_ctrl_by_pmu;
+		//power_pmu_regulator = "act_ldo3";
+		//power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+		//vref_ctrl_enable;
+		//vref_ctrl_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		//vref_pmu_regulator = "act_ldo3";
+		//vref_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+		WIFI,poweren_gpio = <&gpio0 GPIO_D6 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		//WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+
+		status = "okay";
+	};
+
+		wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+
+		//wifi-bt-power-toggle;
+
+		uart_rts_gpios = <&gpio1 GPIO_B3 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default","rts_gpio";
+		pinctrl-0 = <&uart1_rts>;
+		pinctrl-1 = <&uart1_rts_gpio>;
+
+		//BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+		BT,reset_gpio = <&gpio3 GPIO_C5 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio = <&gpio1 GPIO_B4 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 GPIO_C6 GPIO_ACTIVE_LOW>;
+
+        status = "okay";
+    };
+	usb_control {
+		compatible = "rockchip,rk3126-usb-control";
+		host_drv_gpio = <&gpio3 GPIO_C4 GPIO_ACTIVE_LOW>;
+		otg_drv_gpio = <&gpio3 GPIO_C1 GPIO_ACTIVE_LOW>;
+
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
+	};
+	 rockchip_suspend {
+                rockchip,ctrbits = <
+                        (0
+                        |RKPM_CTR_PWR_DMNS
+                        |RKPM_CTR_GTCLKS
+                        |RKPM_CTR_PLLS
+                        |RKPM_CTR_IDLESRAM_MD
+                        |RKPM_CTR_DDR
+                        |RKPM_CTR_VOLTS
+                        |RKPM_CTR_VOL_PWM1
+                        |RKPM_CTR_VOL_PWM2
+                        )
+                >;
+        };
+
+};
+
+
+	&clk_core_dvfs_table {
+		operating-points = <
+			/* KHz    uV */
+			/*408000 1250000
+			600000 1250000
+			696000 1250000
+			*/
+			816000 1250000
+			1008000 1250000
+			1200000 1320000
+			>;
+		status="okay";
+	};
+
+	&clk_gpu_dvfs_table {
+		operating-points = <
+			/* KHz    uV */
+			200000 1250000
+			300000 1250000
+			480000 1250000
+			>;
+		status="okay";
+	};
+
+	&clk_ddr_dvfs_table {
+		operating-points = <
+			/* KHz    uV */
+			200000 950000
+			300000 950000
+			400000 1000000
+			533000 1050000
+			>;
+
+		freq-table = <
+			/*status		freq(KHz)*/
+			SYS_STATUS_NORMAL	533000
+			SYS_STATUS_SUSPEND	200000
+			/*
+			SYS_STATUS_VIDEO_1080P  240000
+			SYS_STATUS_VIDEO_4K     400000
+			SYS_STATUS_PERFORMANCE  528000
+			SYS_STATUS_DUALVIEW	400000
+			SYS_STATUS_BOOST	324000
+			SYS_STATUS_ISP		533000
+			*/
+			>;
+		auto-freq-table = <
+			240000
+			324000
+			396000
+			528000
+			>;
+		auto-freq=<0>;
+		status="okay";
+	};
+
+	&pwm_regulator1 {
+		status = "okay";
+	};
+
+	&pwm_regulator2 {
+		status = "okay";
+	};
+
+	&pwm1 {
+		status = "okay";
+	};
+
+	&uart1{
+		status = "okay";
+		dma-names = "!tx", "!rx";
+	pinctrl-0 = <&uart1_xfer &uart1_cts>;
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&disp_timings {
+	native-mode = <&timing1>;
+};
+
+&rk_screen {
+	display-timings = <&disp_timings>;
+};
+
+&fb {
+	rockchip,disp-mode = <NO_DUAL>;
+};
+
+&lcdc {
+	status = "okay";
+	rockchip,fb-win-map = <FB0_WIN1_FB1_WIN0_FB2_WIN2>;
+};
+
+&hdmi {
+        status = "okay";
+};
+
+&tve {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&gmac {
+	//pmu_regulator = "act_ldo5";
+	//pmu_enable_level = <1>; //1->HIGH, 0->LOW
+	//power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
+	reset-gpio = <&gpio2 GPIO_D0 GPIO_ACTIVE_LOW>;
+	phy-mode = "rmii";
+	clock_in_out = "output";
+	tx_delay = <0x30>;
+	rx_delay = <0x10>;
+};
+
+&codec {
+	spk_ctl_io = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
+	spk-mute-delay = <200>;
+	hp-mute-delay = <100>;
+	rk312x_for_mid = <1>;
+	is_rk3128 = <0>;
+	spk_volume = <25>;
+	hp_volume = <25>;
+	capture_volume = <26>;
+	gpio_debug = <1>;
+	codec_hp_det = <0>;
+};
+
+&dwc_control_usb {
+	usb_uart {
+		status = "disabled";
+	};
+};
+
+&sdmmc {
+	clock-frequency = <37500000>;
+	clock-freq-min-max = <400000 37500000>;
+	supports-highspeed;
+	supports-sd;
+	broken-cd;
+	card-detect-delay = <200>;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	vmmc-supply = <&rk818_ldo9_reg>;
+	status = "disabled";
+};
