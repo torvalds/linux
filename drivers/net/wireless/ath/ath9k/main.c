@@ -1117,7 +1117,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	if (config_enabled(CONFIG_ATH9K_TX99)) {
-		if (sc->nvifs >= 1) {
+		if (sc->cur_chan->nvifs >= 1) {
 			mutex_unlock(&sc->mutex);
 			return -EOPNOTSUPP;
 		}
@@ -1125,7 +1125,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	}
 
 	ath_dbg(common, CONFIG, "Attach a VIF of type: %d\n", vif->type);
-	sc->nvifs++;
+	sc->cur_chan->nvifs++;
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
@@ -1207,7 +1207,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	ath9k_p2p_remove_vif(sc, vif);
 
-	sc->nvifs--;
+	sc->cur_chan->nvifs--;
 	sc->tx99_vif = NULL;
 	if (!ath9k_is_chanctx_enabled())
 		list_del(&avp->list);

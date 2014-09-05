@@ -350,6 +350,7 @@ struct ath_chanctx {
 	bool assigned;
 	bool switch_after_beacon;
 
+	short nvifs;
 	unsigned int rxfilter;
 };
 
@@ -963,7 +964,6 @@ struct ath_softc {
 	bool ps_enabled;
 	bool ps_idle;
 	short nbcnvifs;
-	short nvifs;
 	unsigned long ps_usecount;
 
 	struct ath_rx rx;
