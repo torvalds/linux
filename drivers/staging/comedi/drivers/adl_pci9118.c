@@ -483,7 +483,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	int ret;
 	int n;
 
-	devpriv->AdControlReg = PCI9118_AI_CTRL_INT;
+	devpriv->AdControlReg = 0;
 	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 						/*
