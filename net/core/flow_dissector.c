@@ -13,6 +13,7 @@
 #include <linux/if_pppox.h>
 #include <linux/ppp_defs.h>
 #include <net/flow_keys.h>
+#include <scsi/fc/fc_fcoe.h>
 
 /* copy saddr & daddr, possibly using 64bit load/store
  * Equivalent to :	flow->src = iph->saddr;
@@ -117,6 +118,13 @@ ipv6:
 		flow->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
 		nhoff += sizeof(struct ipv6hdr);
 
+		/* skip the flow label processing if skb is NULL.  The
+		 * assumption here is that if there is no skb we are not
+		 * looking for flow info as much as we are length.
+		 */
+		if (!skb)
+			break;
+
 		flow_label = ip6_flowlabel(iph);
 		if (flow_label) {
 			/* Awesome, IPv6 packet has a flow label so we can
@@ -165,6 +173,9 @@ ipv6:
 			return false;
 		}
 	}
+	case htons(ETH_P_FCOE):
+		flow->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
+		/* fall through */
 	default:
 		return false;
 	}
@@ -316,26 +327,18 @@ u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(__skb_tx_hash);
 
-/* __skb_get_poff() returns the offset to the payload as far as it could
- * be dissected. The main user is currently BPF, so that we can dynamically
- * truncate packets without needing to push actual payload to the user
- * space and can analyze headers only, instead.
- */
-u32 __skb_get_poff(const struct sk_buff *skb)
+u32 __skb_get_poff(const struct sk_buff *skb, void *data,
+		   const struct flow_keys *keys, int hlen)
 {
-	struct flow_keys keys;
-	u32 poff = 0;
+	u32 poff = keys->thoff;
 
-	if (!skb_flow_dissect(skb, &keys))
-		return 0;
-
-	poff += keys.thoff;
-	switch (keys.ip_proto) {
+	switch (keys->ip_proto) {
 	case IPPROTO_TCP: {
 		const struct tcphdr *tcph;
 		struct tcphdr _tcph;
 
-		tcph = skb_header_pointer(skb, poff, sizeof(_tcph), &_tcph);
+		tcph = __skb_header_pointer(skb, poff, sizeof(_tcph),
+					    data, hlen, &_tcph);
 		if (!tcph)
 			return poff;
 
@@ -367,6 +370,21 @@ u32 __skb_get_poff(const struct sk_buff *skb)
 	}
 
 	return poff;
+}
+
+/* skb_get_poff() returns the offset to the payload as far as it could
+ * be dissected. The main user is currently BPF, so that we can dynamically
+ * truncate packets without needing to push actual payload to the user
+ * space and can analyze headers only, instead.
+ */
+u32 skb_get_poff(const struct sk_buff *skb)
+{
+	struct flow_keys keys;
+
+	if (!skb_flow_dissect(skb, &keys))
+		return 0;
+
+	return __skb_get_poff(skb, skb->data, &keys, skb_headlen(skb));
 }
 
 static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)

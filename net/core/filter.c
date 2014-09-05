@@ -113,7 +113,7 @@ static unsigned int pkt_type_offset(void)
 
 static u64 __skb_get_pay_offset(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 {
-	return __skb_get_poff((struct sk_buff *)(unsigned long) ctx);
+	return skb_get_poff((struct sk_buff *)(unsigned long) ctx);
 }
 
 static u64 __skb_get_nlattr(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
