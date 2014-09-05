@@ -34,6 +34,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_rect.h>
 
 /**
  * _wait_for - magic (register) wait macro
@@ -236,6 +237,17 @@ typedef struct dpll {
 	int	m;
 	int	p;
 } intel_clock_t;
+
+struct intel_plane_state {
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+	struct drm_rect src;
+	struct drm_rect dst;
+	struct drm_rect clip;
+	struct drm_rect orig_src;
+	struct drm_rect orig_dst;
+	bool visible;
+};
 
 struct intel_plane_config {
 	bool tiled;
