@@ -142,6 +142,7 @@ static const char * const boards[] __initconst = {
 	"fsl,T1042QDS",
 	"fsl,T1040RDB",
 	"fsl,T1042RDB",
+	"fsl,T1042RDB_PI",
 	"keymile,kmcoge4",
 	NULL
 };
