@@ -19,6 +19,7 @@
 #define PLL_CPLL		3
 #define PLL_GPLL		4
 #define PLL_NPLL		5
+#define ARMCLK			6
 
 /* sclk gates (special clocks) */
 #define SCLK_GPU		64
