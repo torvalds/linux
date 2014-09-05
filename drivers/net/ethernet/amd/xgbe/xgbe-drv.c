@@ -126,7 +126,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 static int xgbe_poll(struct napi_struct *, int);
 static void xgbe_set_rx_mode(struct net_device *);
 
