@@ -29,7 +29,7 @@
 #define __VMWGFX_DRM_H__
 
 #ifndef __KERNEL__
-#include <drm.h>
+#include <drm/drm.h>
 #endif
 
 #define DRM_VMW_MAX_SURFACE_FACES 6
