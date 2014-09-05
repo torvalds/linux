@@ -142,7 +142,7 @@ static int lcd_load_custom_fonts(struct lcd *lcd_data)
 	u8 buf[LCD_BYTES_PER_FONT_CMD];
 	int count, i;
 
-	for (i = 0; i < sizeof(custom_fonts) / sizeof(struct custom_font) ; i++) {
+	for (i = 0; i < ARRAY_SIZE(custom_fonts); i++) {
 		buf[0] = LCD_COMMAND;
 		buf[1] = LCD_CUSTOM_CHAR;
 		buf[2] = custom_fonts[i].mapping;
@@ -604,6 +604,7 @@ static int __exit lcd_remove(struct i2c_client *client)
 
 static const struct of_device_id lcd_of_match[] = {
 	{ .compatible = "newhaven,nhd-0216k3z-nsw-bbw", },
+	{},
 };
 
 static const struct i2c_device_id lcd_id[] = {
