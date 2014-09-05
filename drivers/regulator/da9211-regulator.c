@@ -388,20 +388,6 @@ static int da9211_regulator_init(struct da9211 *chip)
 	return 0;
 }
 
-static const struct i2c_device_id da9211_i2c_id[] = {
-	{"da9211", DA9211},
-	{"da9213", DA9213},
-	{},
-};
-
-#ifdef CONFIG_OF
-static const struct of_device_id da9211_dt_ids[] = {
-	{ .compatible = "dlg,da9211", .data = &da9211_i2c_id[0] },
-	{ .compatible = "dlg,da9213", .data = &da9211_i2c_id[1] },
-	{},
-};
-#endif
-
 /*
  * I2C driver interface functions
  */
@@ -479,12 +465,27 @@ static int da9211_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
+static const struct i2c_device_id da9211_i2c_id[] = {
+	{"da9211", DA9211},
+	{"da9213", DA9213},
+	{},
+};
 MODULE_DEVICE_TABLE(i2c, da9211_i2c_id);
+
+#ifdef CONFIG_OF
+static const struct of_device_id da9211_dt_ids[] = {
+	{ .compatible = "dlg,da9211", .data = &da9211_i2c_id[0] },
+	{ .compatible = "dlg,da9213", .data = &da9211_i2c_id[1] },
+	{},
+};
+MODULE_DEVICE_TABLE(of, da9211_dt_ids);
+#endif
 
 static struct i2c_driver da9211_regulator_driver = {
 	.driver = {
 		.name = "da9211",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(da9211_dt_ids),
 	},
 	.probe = da9211_i2c_probe,
 	.id_table = da9211_i2c_id,
