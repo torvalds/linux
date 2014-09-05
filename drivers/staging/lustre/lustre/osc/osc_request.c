@@ -47,10 +47,10 @@
 
 #include "../include/lustre_ha.h"
 #include "../include/lprocfs_status.h"
-#include "../include/lustre_log.h"
 #include "../include/lustre_debug.h"
 #include "../include/lustre_param.h"
 #include "../include/lustre_fid.h"
+#include "../include/obd_class.h"
 #include "osc_internal.h"
 #include "osc_cl_internal.h"
 
@@ -2961,32 +2961,6 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	return 0;
 }
 
-
-static int osc_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
-			 struct obd_device *disk_obd, int *index)
-{
-	/* this code is not supposed to be used with LOD/OSP
-	 * to be removed soon */
-	LBUG();
-	return 0;
-}
-
-static int osc_llog_finish(struct obd_device *obd, int count)
-{
-	struct llog_ctxt *ctxt;
-
-	ctxt = llog_get_context(obd, LLOG_MDS_OST_ORIG_CTXT);
-	if (ctxt) {
-		llog_cat_close(NULL, ctxt->loc_handle);
-		llog_cleanup(NULL, ctxt);
-	}
-
-	ctxt = llog_get_context(obd, LLOG_SIZE_REPL_CTXT);
-	if (ctxt)
-		llog_cleanup(NULL, ctxt);
-	return 0;
-}
-
 static int osc_reconnect(const struct lu_env *env,
 			 struct obd_export *exp, struct obd_device *obd,
 			 struct obd_uuid *cluuid,
@@ -3016,21 +2990,7 @@ static int osc_reconnect(const struct lu_env *env,
 static int osc_disconnect(struct obd_export *exp)
 {
 	struct obd_device *obd = class_exp2obd(exp);
-	struct llog_ctxt  *ctxt;
 	int rc;
-
-	ctxt = llog_get_context(obd, LLOG_SIZE_REPL_CTXT);
-	if (ctxt) {
-		if (obd->u.cli.cl_conn_count == 1) {
-			/* Flush any remaining cancel messages out to the
-			 * target */
-			llog_sync(ctxt, exp, 0);
-		}
-		llog_ctxt_put(ctxt);
-	} else {
-		CDEBUG(D_HA, "No LLOG_SIZE_REPL_CTXT found in obd %p\n",
-		       obd);
-	}
 
 	rc = client_disconnect_export(exp);
 	/**
@@ -3254,9 +3214,6 @@ static int osc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		obd_cleanup_client_import(obd);
 		ptlrpc_lprocfs_unregister_obd(obd);
 		lprocfs_obd_cleanup(obd);
-		rc = obd_llog_finish(obd, 0);
-		if (rc != 0)
-			CERROR("failed to cleanup llogging subsystems\n");
 		break;
 		}
 	}
@@ -3337,8 +3294,6 @@ struct obd_ops osc_obd_ops = {
 	.o_get_info	     = osc_get_info,
 	.o_set_info_async       = osc_set_info_async,
 	.o_import_event	 = osc_import_event,
-	.o_llog_init	    = osc_llog_init,
-	.o_llog_finish	  = osc_llog_finish,
 	.o_process_config       = osc_process_config,
 	.o_quotactl	     = osc_quotactl,
 	.o_quotacheck	   = osc_quotacheck,
