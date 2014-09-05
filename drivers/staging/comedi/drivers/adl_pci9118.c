@@ -318,6 +318,22 @@ static void pci9118_ai_reset_fifo(struct comedi_device *dev)
 	outl(0, dev->iobase + PCI9118_FIFO_RESET_REG);
 }
 
+static void pci9118_ai_set_range_aref(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      unsigned int chanspec)
+{
+	struct pci9118_private *devpriv = dev->private;
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+
+	devpriv->AdControlReg = 0;
+	if (comedi_range_is_unipolar(s, range))
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_UNIP;
+	if (aref == AREF_DIFF)
+		devpriv->AdControlReg |= PCI9118_AI_CTRL_DIFF;
+	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
+}
+
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
 			      unsigned int *chanlist, int frontadd, int backadd)
@@ -371,33 +387,14 @@ static int setup_channel_list(struct comedi_device *dev,
 			      int backadd, int usedma)
 {
 	struct pci9118_private *devpriv = dev->private;
-	unsigned int i, differencial = 0, bipolar = 0;
 	unsigned int scanquad, gain, ssh = 0x00;
+	int i;
 
 	if (usedma == 1) {
 		rot = 8;
 		usedma = 0;
 	}
 
-	if (CR_AREF(chanlist[0]) == AREF_DIFF)
-		differencial = 1;	/* all input must be diff */
-	if (CR_RANGE(chanlist[0]) < PCI9118_BIPOLAR_RANGES)
-		bipolar = 1;	/* all input must be bipolar */
-
-	/* All is ok, so we can setup channel/range list */
-
-	if (!bipolar)
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_UNIP;
-	else
-		devpriv->AdControlReg &= ~PCI9118_AI_CTRL_UNIP;
-
-	if (differencial)
-		devpriv->AdControlReg |= PCI9118_AI_CTRL_DIFF;
-	else
-		devpriv->AdControlReg &= ~PCI9118_AI_CTRL_DIFF;
-
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
-								/* setup mode */
 	/* gods know why this sequence! */
 	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
@@ -483,7 +480,12 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	int ret;
 	int n;
 
-	devpriv->AdControlReg = 0;
+       /*
+	* Configure analog input based on the chanspec.
+	* Acqusition is software controlled without interrupts.
+	*/
+	pci9118_ai_set_range_aref(dev, s, insn->chanspec);
+
 	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_AI_CFG_REG);
 						/*
@@ -1515,6 +1517,16 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				cmd->chanlist, devpriv->ai_add_front,
 				devpriv->ai_add_back))
 		return -EINVAL;
+
+	/*
+	 * Configure analog input based on the first chanlist entry.
+	 * All entries are either unipolar or bipolar and single-ended
+	 * or differential.
+	 *
+	 * The acqusition control bits are enabled later.
+	 */
+	pci9118_ai_set_range_aref(dev, s, cmd->chanlist[0]);
+
 	if (!setup_channel_list(dev, s, cmd->chanlist_len,
 				cmd->chanlist, 0, devpriv->ai_add_front,
 				devpriv->ai_add_back, devpriv->usedma))
@@ -1570,12 +1582,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	pci9118_start_pacer(dev, -1);	/* stop pacer */
 
-	devpriv->AdControlReg = 0;	/*
-					 * bipolar, S.E., use 8254, stop 8354,
-					 * internal trigger, soft trigger,
-					 * disable DMA
-					 */
-	outl(devpriv->AdControlReg, dev->iobase + PCI9118_AI_CTRL_REG);
 	devpriv->AdFunctionReg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 					/*
 					 * positive triggers, no S&H, no burst,
