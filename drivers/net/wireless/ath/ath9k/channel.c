@@ -333,7 +333,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			break;
 		}
 
-		if (sc->sched.offchannel_pending) {
+		if (sc->sched.offchannel_pending && !sc->sched.wait_switch) {
 			sc->sched.offchannel_pending = false;
 			sc->next_chan = &sc->offchannel.chan;
 			sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_BEACON;
@@ -490,6 +490,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			"Move chanctx state to WAIT_FOR_TIMER (event SWITCH)\n");
 
 		sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_TIMER;
+		sc->sched.wait_switch = false;
 
 		tsf_time = TU_TO_USEC(cur_conf->beacon_interval) / 2;
 		if (sc->sched.beacon_miss >= 2) {
@@ -588,6 +589,7 @@ static void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags) &&
 	    (sc->cur_chan != ctx) && (ctx == &sc->offchannel.chan)) {
 		sc->sched.offchannel_pending = true;
+		sc->sched.wait_switch = true;
 		if (chandef)
 			ctx->chandef = *chandef;
 		spin_unlock_bh(&sc->chan_lock);

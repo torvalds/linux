@@ -378,6 +378,7 @@ enum ath_chanctx_state {
 struct ath_chanctx_sched {
 	bool beacon_pending;
 	bool offchannel_pending;
+	bool wait_switch;
 	enum ath_chanctx_state state;
 	u8 beacon_miss;
 
