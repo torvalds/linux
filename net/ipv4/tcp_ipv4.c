@@ -437,8 +437,9 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		skb = tcp_write_queue_head(sk);
 		BUG_ON(!skb);
 
-		remaining = icsk->icsk_rto - min(icsk->icsk_rto,
-				tcp_time_stamp - TCP_SKB_CB(skb)->when);
+		remaining = icsk->icsk_rto -
+			    min(icsk->icsk_rto,
+				tcp_time_stamp - tcp_skb_timestamp(skb));
 
 		if (remaining) {
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
