@@ -225,15 +225,9 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	unsigned long flags;
 
 	ath9k_calculate_summary_state(sc, sc->cur_chan);
-
-	if (ath_startrecv(sc) != 0) {
-		ath_err(common, "Unable to restart recv logic\n");
-		return false;
-	}
-
+	ath_startrecv(sc);
 	ath9k_cmn_update_txpow(ah, sc->curtxpow,
 			       sc->cur_chan->txpower, &sc->curtxpow);
-
 	clear_bit(ATH_OP_HW_RESET, &common->op_flags);
 
 	if (!sc->cur_chan->offchannel && start) {

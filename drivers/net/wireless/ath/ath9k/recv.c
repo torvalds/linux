@@ -433,14 +433,14 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 
 }
 
-int ath_startrecv(struct ath_softc *sc)
+void ath_startrecv(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_rxbuf *bf, *tbf;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		ath_edma_start_recv(sc);
-		return 0;
+		return;
 	}
 
 	if (list_empty(&sc->rx.rxbuf))
@@ -463,8 +463,6 @@ int ath_startrecv(struct ath_softc *sc)
 start_recv:
 	ath_opmode_init(sc);
 	ath9k_hw_startpcureceive(ah, sc->cur_chan->offchannel);
-
-	return 0;
 }
 
 static void ath_flushrecv(struct ath_softc *sc)
