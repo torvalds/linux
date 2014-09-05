@@ -488,6 +488,28 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 		struct clk_hw *gate_hw, const struct clk_ops *gate_ops,
 		unsigned long flags);
 
+/***
+ * struct clk_gpio_gate - gpio gated clock
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @gpiod:	gpio descriptor
+ *
+ * Clock with a gpio control for enabling and disabling the parent clock.
+ * Implements .enable, .disable and .is_enabled
+ */
+
+struct clk_gpio {
+	struct clk_hw	hw;
+	struct gpio_desc *gpiod;
+};
+
+extern const struct clk_ops clk_gpio_gate_ops;
+struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
+		const char *parent_name, struct gpio_desc *gpio,
+		unsigned long flags);
+
+void of_gpio_clk_gate_setup(struct device_node *node);
+
 /**
  * clk_register - allocate a new clock, register it and return an opaque cookie
  * @dev: device that is registering this clock
