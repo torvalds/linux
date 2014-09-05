@@ -542,10 +542,8 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 		pci9118_ai_start_conv(dev);
 
 		ret = comedi_timeout(dev, s, insn, pci9118_ai_eoc, 0);
-		if (ret) {
-			pci9118_ai_reset_fifo(dev);
+		if (ret)
 			return ret;
-		}
 
 		val = inl(dev->iobase + PCI9118_AI_FIFO_REG);
 		if (s->maxdata == 0xffff)
@@ -554,9 +552,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 			data[n] = (val >> 4) & 0xfff;
 	}
 
-	pci9118_ai_reset_fifo(dev);
 	return n;
-
 }
 
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
