@@ -1571,12 +1571,12 @@ static void cx8800_finidev(struct pci_dev *pci_dev)
 		cx88_ir_stop(core);
 
 	cx88_shutdown(core); /* FIXME */
-	pci_disable_device(pci_dev);
 
 	/* unregister stuff */
 
 	free_irq(pci_dev->irq, dev);
 	cx8800_unregister_video(dev);
+	pci_disable_device(pci_dev);
 
 	core->v4ldev = NULL;
 
