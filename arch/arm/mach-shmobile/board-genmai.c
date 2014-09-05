@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_eth.h>
+#include <linux/sh_timer.h>
 #include <linux/spi/rspi.h>
 #include <linux/spi/spi.h>
 
@@ -125,10 +126,21 @@ R7S72100_SCIF(7, 0xe800a800, gic_iid(249));
 					  &scif##index##_platform_data,	       \
 					  sizeof(scif##index##_platform_data))
 
+static struct resource mtu2_resources[] __initdata = {
+	DEFINE_RES_MEM(0xfcff0000, 0x400),
+	DEFINE_RES_IRQ_NAMED(gic_iid(139), "tgi0a"),
+};
+
+#define r7s72100_register_mtu2()					\
+	platform_device_register_resndata(&platform_bus, "sh-mtu2",	\
+					  -1, mtu2_resources,		\
+					  ARRAY_SIZE(mtu2_resources),	\
+					  NULL, 0)
+
 static void __init genmai_add_standard_devices(void)
 {
 	r7s72100_clock_init();
-	r7s72100_add_dt_devices();
+	r7s72100_register_mtu2();
 
 	platform_device_register_full(&ether_info);
 
