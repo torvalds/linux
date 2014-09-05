@@ -96,8 +96,14 @@
 
 			ramc0: ramc@ffffe400 {
 				compatible = "atmel,at91sam9g45-ddramc";
-				reg = <0xffffe400 0x200
-				       0xffffe600 0x200>;
+				reg = <0xffffe400 0x200>;
+				clocks = <&ddrck>;
+				clock-names = "ddrck";
+			};
+
+			ramc1: ramc@ffffe600 {
+				compatible = "atmel,at91sam9g45-ddramc";
+				reg = <0xffffe600 0x200>;
 				clocks = <&ddrck>;
 				clock-names = "ddrck";
 			};

@@ -170,6 +170,8 @@ static void __init cam60_add_device_nand(void)
 
 static void __init cam60_board_init(void)
 {
+	at91_register_devices();
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);

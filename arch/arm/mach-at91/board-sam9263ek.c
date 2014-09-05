@@ -50,7 +50,6 @@
 #include <mach/system_rev.h>
 
 #include "at91_aic.h"
-#include "at91_shdwc.h"
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
@@ -439,6 +438,8 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init ek_board_init(void)
 {
+	at91_register_devices();
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);

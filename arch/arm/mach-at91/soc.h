@@ -11,6 +11,7 @@ struct at91_init_soc {
 	void (*map_io)(void);
 	void (*ioremap_registers)(void);
 	void (*register_clocks)(void);
+	void (*register_devices)(void);
 	void (*init)(void);
 };
 

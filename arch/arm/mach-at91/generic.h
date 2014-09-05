@@ -37,6 +37,8 @@ extern int  __init at91_aic5_of_init(struct device_node *node,
 extern void __init at91_sysirq_mask_rtc(u32 rtc_base);
 extern void __init at91_sysirq_mask_rtt(u32 rtt_base);
 
+ /* Devices */
+extern void __init at91_register_devices(void);
 
  /* Timer */
 extern void at91rm9200_ioremap_st(u32 addr);
@@ -61,14 +63,6 @@ extern void at91_irq_resume(void);
 
 /* idle */
 extern void at91sam9_idle(void);
-
-/* reset */
-extern void at91_ioremap_rstc(u32 base_addr);
-extern void at91sam9_alt_restart(enum reboot_mode, const char *);
-extern void at91sam9g45_restart(enum reboot_mode, const char *);
-
-/* shutdown */
-extern void at91_ioremap_shdwc(u32 base_addr);
 
 /* Matrix */
 extern void at91_ioremap_matrix(u32 base_addr);
