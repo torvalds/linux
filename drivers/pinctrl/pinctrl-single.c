@@ -519,7 +519,7 @@ static const struct pinmux_ops pcs_pinmux_ops = {
 	.get_functions_count = pcs_get_functions_count,
 	.get_function_name = pcs_get_function_name,
 	.get_function_groups = pcs_get_function_groups,
-	.set_mux = pcs_sex_mux,
+	.set_mux = pcs_set_mux,
 	.gpio_request_enable = pcs_request_gpio,
 };
 
