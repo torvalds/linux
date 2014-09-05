@@ -716,6 +716,26 @@ static struct cpuidle_state avn_cstates[] = {
 	{
 		.enter = NULL }
 };
+static struct cpuidle_state knl_cstates[] = {
+	{
+		.name = "C1-KNL",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 1,
+		.target_residency = 2,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze },
+	{
+		.name = "C6-KNL",
+		.desc = "MWAIT 0x10",
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 120,
+		.target_residency = 500,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze },
+	{
+		.enter = NULL }
+};
 
 /**
  * intel_idle
@@ -890,6 +910,10 @@ static const struct idle_cpu idle_cpu_avn = {
 	.disable_promotion_to_c1e = true,
 };
 
+static const struct idle_cpu idle_cpu_knl = {
+	.state_table = knl_cstates,
+};
+
 #define ICPU(model, cpu) \
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (unsigned long)&cpu }
 
@@ -921,6 +945,7 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	ICPU(0x56, idle_cpu_bdw),
 	ICPU(0x4e, idle_cpu_skl),
 	ICPU(0x5e, idle_cpu_skl),
+	ICPU(0x57, idle_cpu_knl),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
