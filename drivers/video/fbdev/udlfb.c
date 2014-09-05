@@ -1528,11 +1528,8 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dev,
 	}
 
 	if (total_len > 5) {
-		pr_info("vendor descriptor length:%x data:%02x %02x %02x %02x" \
-			"%02x %02x %02x %02x %02x %02x %02x\n",
-			total_len, desc[0],
-			desc[1], desc[2], desc[3], desc[4], desc[5], desc[6],
-			desc[7], desc[8], desc[9], desc[10]);
+		pr_info("vendor descriptor length:%x data:%11ph\n", total_len,
+			desc);
 
 		if ((desc[0] != total_len) || /* descriptor length */
 		    (desc[1] != 0x5f) ||   /* vendor descriptor type */
