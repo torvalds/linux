@@ -520,24 +520,6 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 
 }
 
-static int pci9118_insn_write_ao(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = s->readback[chan];
-	int i;
-
-	for (i = 0; i < insn->n; i++) {
-		val = data[i];
-		outl(val, dev->iobase + PCI9118_AO_REG(chan));
-	}
-	s->readback[chan] = val;
-
-	return insn->n;
-}
-
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -1620,6 +1602,24 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return ret;
 }
 
+static int pci9118_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		outl(val, dev->iobase + PCI9118_AO_REG(chan));
+	}
+	s->readback[chan] = val;
+
+	return insn->n;
+}
+
 static int pci9118_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -1870,7 +1870,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_bipolar10;
-	s->insn_write	= pci9118_insn_write_ao;
+	s->insn_write	= pci9118_ao_insn_write;
 	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
