@@ -59,7 +59,7 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 		return 0;
 	}
 
-	return HAS_ALIASING_PPGTT(dev) ? 1 : 0;
+	return HAS_PPGTT(dev) ? 2 : HAS_ALIASING_PPGTT(dev) ? 1 : 0;
 }
 
 
