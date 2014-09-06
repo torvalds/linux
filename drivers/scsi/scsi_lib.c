@@ -588,10 +588,10 @@ static void scsi_free_sgtable(struct scsi_data_buffer *sdb, bool mq)
 	__sg_free_table(&sdb->table, SCSI_MAX_SG_SEGMENTS, mq, scsi_sg_free);
 }
 
-static int scsi_alloc_sgtable(struct scsi_data_buffer *sdb, int nents,
-			      gfp_t gfp_mask, bool mq)
+static int scsi_alloc_sgtable(struct scsi_data_buffer *sdb, int nents, bool mq)
 {
 	struct scatterlist *first_chunk = NULL;
+	gfp_t gfp_mask = mq ? GFP_NOIO : GFP_ATOMIC;
 	int ret;
 
 	BUG_ON(!nents);
@@ -1077,8 +1077,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	}
 }
 
-static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
-			     gfp_t gfp_mask)
+static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb)
 {
 	int count;
 
@@ -1086,7 +1085,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
 	 * If sg table allocation fails, requeue request later.
 	 */
 	if (unlikely(scsi_alloc_sgtable(sdb, req->nr_phys_segments,
-					gfp_mask, req->mq_ctx != NULL)))
+					req->mq_ctx != NULL)))
 		return BLKPREP_DEFER;
 
 	/* 
@@ -1111,7 +1110,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
  *		BLKPREP_DEFER if the failure is retryable
  *		BLKPREP_KILL if the failure is fatal
  */
-int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
+int scsi_init_io(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
 	struct request *rq = cmd->request;
@@ -1120,7 +1119,7 @@ int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 
 	BUG_ON(!rq->nr_phys_segments);
 
-	error = scsi_init_sgtable(rq, &cmd->sdb, gfp_mask);
+	error = scsi_init_sgtable(rq, &cmd->sdb);
 	if (error)
 		goto err_exit;
 
@@ -1136,8 +1135,7 @@ int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 			rq->next_rq->special = bidi_sdb;
 		}
 
-		error = scsi_init_sgtable(rq->next_rq, rq->next_rq->special,
-					  GFP_ATOMIC);
+		error = scsi_init_sgtable(rq->next_rq, rq->next_rq->special);
 		if (error)
 			goto err_exit;
 	}
@@ -1149,7 +1147,7 @@ int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 		BUG_ON(prot_sdb == NULL);
 		ivecs = blk_rq_count_integrity_sg(rq->q, rq->bio);
 
-		if (scsi_alloc_sgtable(prot_sdb, ivecs, gfp_mask, is_mq)) {
+		if (scsi_alloc_sgtable(prot_sdb, ivecs, is_mq)) {
 			error = BLKPREP_DEFER;
 			goto err_exit;
 		}
@@ -1218,7 +1216,7 @@ static int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 	 * submit a request without an attached bio.
 	 */
 	if (req->bio) {
-		int ret = scsi_init_io(cmd, GFP_ATOMIC);
+		int ret = scsi_init_io(cmd);
 		if (unlikely(ret))
 			return ret;
 	} else {

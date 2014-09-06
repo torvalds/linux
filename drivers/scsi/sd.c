@@ -786,7 +786,7 @@ static int sd_setup_discard_cmnd(struct scsi_cmnd *cmd)
 	 * amount of blocks described by the request.
 	 */
 	blk_add_request_payload(rq, page, len);
-	ret = scsi_init_io(cmd, GFP_ATOMIC);
+	ret = scsi_init_io(cmd);
 	rq->__data_len = nr_bytes;
 
 out:
@@ -880,7 +880,7 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	 * knows how much to actually write.
 	 */
 	rq->__data_len = sdp->sector_size;
-	ret = scsi_init_io(cmd, GFP_ATOMIC);
+	ret = scsi_init_io(cmd);
 	rq->__data_len = nr_bytes;
 	return ret;
 }
@@ -914,7 +914,7 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	int ret;
 	unsigned char protect;
 
-	ret = scsi_init_io(SCpnt, GFP_ATOMIC);
+	ret = scsi_init_io(SCpnt);
 	if (ret != BLKPREP_OK)
 		goto out;
 	SCpnt = rq->special;
