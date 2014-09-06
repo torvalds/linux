@@ -5185,36 +5185,6 @@ static void i9xx_crtc_off(struct drm_crtc *crtc)
 {
 }
 
-static void intel_crtc_update_sarea(struct drm_crtc *crtc,
-				    bool enabled)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_master_private *master_priv;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-
-	if (!dev->primary->master)
-		return;
-
-	master_priv = dev->primary->master->driver_priv;
-	if (!master_priv->sarea_priv)
-		return;
-
-	switch (pipe) {
-	case 0:
-		master_priv->sarea_priv->pipeA_w = enabled ? crtc->mode.hdisplay : 0;
-		master_priv->sarea_priv->pipeA_h = enabled ? crtc->mode.vdisplay : 0;
-		break;
-	case 1:
-		master_priv->sarea_priv->pipeB_w = enabled ? crtc->mode.hdisplay : 0;
-		master_priv->sarea_priv->pipeB_h = enabled ? crtc->mode.vdisplay : 0;
-		break;
-	default:
-		DRM_ERROR("Can't update pipe %c in SAREA\n", pipe_name(pipe));
-		break;
-	}
-}
-
 /* Master function to enable/disable CRTC and corresponding power wells */
 void intel_crtc_control(struct drm_crtc *crtc, bool enable)
 {
@@ -5258,8 +5228,6 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 		enable |= intel_encoder->connectors_active;
 
 	intel_crtc_control(crtc, enable);
-
-	intel_crtc_update_sarea(crtc, enable);
 }
 
 static void intel_crtc_disable(struct drm_crtc *crtc)
@@ -5274,7 +5242,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	WARN_ON(!crtc->enabled);
 
 	dev_priv->display.crtc_disable(crtc);
-	intel_crtc_update_sarea(crtc, false);
 	dev_priv->display.off(crtc);
 
 	if (crtc->primary->fb) {
@@ -8369,7 +8336,7 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 				     uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	unsigned old_width;

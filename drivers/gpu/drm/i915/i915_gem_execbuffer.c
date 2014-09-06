@@ -1020,6 +1020,47 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 	return 0;
 }
 
+static int
+i915_emit_box(struct intel_engine_cs *ring,
+	      struct drm_clip_rect *box,
+	      int DR1, int DR4)
+{
+	int ret;
+
+	if (box->y2 <= box->y1 || box->x2 <= box->x1 ||
+	    box->y2 <= 0 || box->x2 <= 0) {
+		DRM_ERROR("Bad box %d,%d..%d,%d\n",
+			  box->x1, box->y1, box->x2, box->y2);
+		return -EINVAL;
+	}
+
+	if (INTEL_INFO(ring->dev)->gen >= 4) {
+		ret = intel_ring_begin(ring, 4);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, GFX_OP_DRAWRECT_INFO_I965);
+		intel_ring_emit(ring, (box->x1 & 0xffff) | box->y1 << 16);
+		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
+		intel_ring_emit(ring, DR4);
+	} else {
+		ret = intel_ring_begin(ring, 6);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, GFX_OP_DRAWRECT_INFO);
+		intel_ring_emit(ring, DR1);
+		intel_ring_emit(ring, (box->x1 & 0xffff) | box->y1 << 16);
+		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
+		intel_ring_emit(ring, DR4);
+		intel_ring_emit(ring, 0);
+	}
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+
 int
 i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 			       struct intel_engine_cs *ring,
@@ -1148,7 +1189,7 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 	exec_len = args->batch_len;
 	if (cliprects) {
 		for (i = 0; i < args->num_cliprects; i++) {
-			ret = i915_emit_box(dev, &cliprects[i],
+			ret = i915_emit_box(ring, &cliprects[i],
 					    args->DR1, args->DR4);
 			if (ret)
 				goto error;

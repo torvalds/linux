@@ -589,14 +589,10 @@ static int init_ring_common(struct intel_engine_cs *ring)
 		goto out;
 	}
 
-	if (!drm_core_check_feature(ring->dev, DRIVER_MODESET))
-		i915_kernel_lost_context(ring->dev);
-	else {
-		ringbuf->head = I915_READ_HEAD(ring);
-		ringbuf->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-		ringbuf->space = intel_ring_space(ringbuf);
-		ringbuf->last_retired_head = -1;
-	}
+	ringbuf->head = I915_READ_HEAD(ring);
+	ringbuf->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
+	ringbuf->space = intel_ring_space(ringbuf);
+	ringbuf->last_retired_head = -1;
 
 	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));
 
@@ -1958,13 +1954,6 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 			break;
 		}
 
-		if (!drm_core_check_feature(dev, DRIVER_MODESET) &&
-		    dev->primary->master) {
-			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
-			if (master_priv->sarea_priv)
-				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
-		}
-
 		msleep(1);
 
 		if (dev_priv->mm.interruptible && signal_pending(current)) {
@@ -2453,91 +2442,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	}
 
 	return intel_init_ring_buffer(dev, ring);
-}
-
-int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
-	struct intel_ringbuffer *ringbuf = ring->buffer;
-	int ret;
-
-	if (ringbuf == NULL) {
-		ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
-		if (!ringbuf)
-			return -ENOMEM;
-		ring->buffer = ringbuf;
-	}
-
-	ring->name = "render ring";
-	ring->id = RCS;
-	ring->mmio_base = RENDER_RING_BASE;
-
-	if (INTEL_INFO(dev)->gen >= 6) {
-		/* non-kms not supported on gen6+ */
-		ret = -ENODEV;
-		goto err_ringbuf;
-	}
-
-	/* Note: gem is not supported on gen5/ilk without kms (the corresponding
-	 * gem_init ioctl returns with -ENODEV). Hence we do not need to set up
-	 * the special gen5 functions. */
-	ring->add_request = i9xx_add_request;
-	if (INTEL_INFO(dev)->gen < 4)
-		ring->flush = gen2_render_ring_flush;
-	else
-		ring->flush = gen4_render_ring_flush;
-	ring->get_seqno = ring_get_seqno;
-	ring->set_seqno = ring_set_seqno;
-	if (IS_GEN2(dev)) {
-		ring->irq_get = i8xx_ring_get_irq;
-		ring->irq_put = i8xx_ring_put_irq;
-	} else {
-		ring->irq_get = i9xx_ring_get_irq;
-		ring->irq_put = i9xx_ring_put_irq;
-	}
-	ring->irq_enable_mask = I915_USER_INTERRUPT;
-	ring->write_tail = ring_write_tail;
-	if (INTEL_INFO(dev)->gen >= 4)
-		ring->dispatch_execbuffer = i965_dispatch_execbuffer;
-	else if (IS_I830(dev) || IS_845G(dev))
-		ring->dispatch_execbuffer = i830_dispatch_execbuffer;
-	else
-		ring->dispatch_execbuffer = i915_dispatch_execbuffer;
-	ring->init = init_render_ring;
-	ring->cleanup = render_ring_cleanup;
-
-	ring->dev = dev;
-	INIT_LIST_HEAD(&ring->active_list);
-	INIT_LIST_HEAD(&ring->request_list);
-
-	ringbuf->size = size;
-	ringbuf->effective_size = ringbuf->size;
-	if (IS_I830(ring->dev) || IS_845G(ring->dev))
-		ringbuf->effective_size -= 2 * CACHELINE_BYTES;
-
-	ringbuf->virtual_start = ioremap_wc(start, size);
-	if (ringbuf->virtual_start == NULL) {
-		DRM_ERROR("can not ioremap virtual address for"
-			  " ring buffer\n");
-		ret = -ENOMEM;
-		goto err_ringbuf;
-	}
-
-	if (!I915_NEED_GFX_HWS(dev)) {
-		ret = init_phys_status_page(ring);
-		if (ret)
-			goto err_vstart;
-	}
-
-	return 0;
-
-err_vstart:
-	iounmap(ringbuf->virtual_start);
-err_ringbuf:
-	kfree(ringbuf);
-	ring->buffer = NULL;
-	return ret;
 }
 
 int intel_init_bsd_ring_buffer(struct drm_device *dev)

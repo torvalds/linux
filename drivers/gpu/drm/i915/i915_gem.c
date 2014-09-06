@@ -4664,7 +4664,6 @@ i915_gem_suspend(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_gem_evict_everything(dev);
 
-	i915_kernel_lost_context(dev);
 	i915_gem_stop_ringbuffers(dev);
 
 	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
@@ -4963,9 +4962,6 @@ int i915_gem_init(struct drm_device *dev)
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	/* Allow hardware batchbuffers unless told otherwise, but not for KMS. */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		dev_priv->dri1.allow_batchbuffer = 1;
 	return ret;
 }
 

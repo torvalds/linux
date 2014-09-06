@@ -448,7 +448,4 @@ static inline void i915_trace_irq_get(struct intel_engine_cs *ring, u32 seqno)
 		ring->trace_irq_seqno = seqno;
 }
 
-/* DRI warts */
-int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size);
-
 #endif /* _INTEL_RINGBUFFER_H_ */
