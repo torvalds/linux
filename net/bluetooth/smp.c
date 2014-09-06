@@ -1210,7 +1210,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
-	struct l2cap_chan *chan = conn->smp;
+	struct l2cap_chan *chan;
 	struct smp_chan *smp;
 	__u8 authreq;
 	int ret;
@@ -1220,6 +1220,8 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	/* This may be NULL if there's an unexpected disconnection */
 	if (!conn)
 		return 1;
+
+	chan = conn->smp;
 
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags))
 		return 1;
