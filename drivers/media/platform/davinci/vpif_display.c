@@ -196,8 +196,6 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	list_del(&common->cur_frm->list);
 	spin_unlock_irqrestore(&common->irqlock, flags);
-	/* Mark state of the current frame to active */
-	common->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 
 	addr = vb2_dma_contig_plane_dma_addr(&common->cur_frm->vb, 0);
 	common->set_addr((addr + common->ytop_off),
@@ -306,8 +304,6 @@ static void process_progressive_mode(struct common_obj *common)
 	/* Remove that buffer from the buffer queue */
 	list_del(&common->next_frm->list);
 	spin_unlock(&common->irqlock);
-	/* Mark status of the buffer as active */
-	common->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 
 	/* Set top and bottom field addrs in VPIF registers */
 	addr = vb2_dma_contig_plane_dma_addr(&common->next_frm->vb, 0);
