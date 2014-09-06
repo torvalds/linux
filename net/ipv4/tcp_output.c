@@ -1146,9 +1146,6 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len,
 
 	buff->ip_summed = skb->ip_summed;
 
-	/* Looks stupid, but our code really uses when of
-	 * skbs, which it never sent before. --ANK
-	 */
 	buff->tstamp = skb->tstamp;
 	tcp_fragment_tstamp(skb, buff);
 
