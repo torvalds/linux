@@ -204,7 +204,7 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 		pin_id = pin->pin;
 		pin_reg = &info->pin_regs[pin_id];
 
-		if (!(info->flags & ZERO_OFFSET_VALID) && !pin_reg->mux_reg) {
+		if (pin_reg->mux_reg == -1) {
 			dev_err(ipctl->dev, "Pin(%s) does not support mux function\n",
 				info->pins[pin_id].name);
 			return -EINVAL;
@@ -308,7 +308,7 @@ static int imx_pinconf_get(struct pinctrl_dev *pctldev,
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 
-	if (!(info->flags & ZERO_OFFSET_VALID) && !pin_reg->conf_reg) {
+	if (pin_reg->conf_reg == -1) {
 		dev_err(info->dev, "Pin(%s) does not support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
@@ -331,7 +331,7 @@ static int imx_pinconf_set(struct pinctrl_dev *pctldev,
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 	int i;
 
-	if (!(info->flags & ZERO_OFFSET_VALID) && !pin_reg->conf_reg) {
+	if (pin_reg->conf_reg == -1) {
 		dev_err(info->dev, "Pin(%s) does not support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
@@ -586,10 +586,11 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	if (!ipctl)
 		return -ENOMEM;
 
-	info->pin_regs = devm_kzalloc(&pdev->dev, sizeof(*info->pin_regs) *
+	info->pin_regs = devm_kmalloc(&pdev->dev, sizeof(*info->pin_regs) *
 				      info->npins, GFP_KERNEL);
 	if (!info->pin_regs)
 		return -ENOMEM;
+	memset(info->pin_regs, 0xff, sizeof(*info->pin_regs) * info->npins);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ipctl->base = devm_ioremap_resource(&pdev->dev, res);
