@@ -1067,7 +1067,7 @@ static u16 _rtl8821ae_mdio_read(struct rtl_priv *rtlpriv, u8 addr)
 	return ret;
 }
 
-void _rtl8821ae_mdio_write(struct rtl_priv *rtlpriv, u8 addr, u16 data)
+static void _rtl8821ae_mdio_write(struct rtl_priv *rtlpriv, u8 addr, u16 data)
 {
 	u8 tmp = 0, count = 0;
 
@@ -1103,7 +1103,7 @@ static u8 _rtl8821ae_dbi_read(struct rtl_priv *rtlpriv, u16 addr)
 	return ret;
 }
 
-void _rtl8821ae_dbi_write(struct rtl_priv *rtlpriv, u16 addr, u8 data)
+static void _rtl8821ae_dbi_write(struct rtl_priv *rtlpriv, u16 addr, u8 data)
 {
 	u8 tmp = 0, count = 0;
 	u16 wrtie_addr, remainder = addr % 4;
@@ -1327,7 +1327,7 @@ void _rtl8821ae_reset_pcie_interface_dma(struct ieee80211_hw *hw,
 #define MAC_ID_STATIC_FOR_BT_CLIENT_END				3
 // -----------------------------------------------------------
 
-void rtl8821ae_macid_initialize_mediastatus(struct ieee80211_hw *hw)
+static void rtl8821ae_macid_initialize_mediastatus(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8	media_rpt[4] = {RT_MEDIA_CONNECT, 1, \
