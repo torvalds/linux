@@ -148,8 +148,6 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	spin_lock_init(&vport->stats_lock);
-
 	return vport;
 }
 
@@ -268,14 +266,10 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 	 * netdev-stats can be directly read over netlink-ioctl.
 	 */
 
-	spin_lock_bh(&vport->stats_lock);
-
-	stats->rx_errors	= vport->err_stats.rx_errors;
-	stats->tx_errors	= vport->err_stats.tx_errors;
-	stats->tx_dropped	= vport->err_stats.tx_dropped;
-	stats->rx_dropped	= vport->err_stats.rx_dropped;
-
-	spin_unlock_bh(&vport->stats_lock);
+	stats->rx_errors  = atomic_long_read(&vport->err_stats.rx_errors);
+	stats->tx_errors  = atomic_long_read(&vport->err_stats.tx_errors);
+	stats->tx_dropped = atomic_long_read(&vport->err_stats.tx_dropped);
+	stats->rx_dropped = atomic_long_read(&vport->err_stats.rx_dropped);
 
 	for_each_possible_cpu(i) {
 		const struct pcpu_sw_netstats *percpu_stats;
@@ -495,27 +489,24 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 static void ovs_vport_record_error(struct vport *vport,
 				   enum vport_err_type err_type)
 {
-	spin_lock(&vport->stats_lock);
-
 	switch (err_type) {
 	case VPORT_E_RX_DROPPED:
-		vport->err_stats.rx_dropped++;
+		atomic_long_inc(&vport->err_stats.rx_dropped);
 		break;
 
 	case VPORT_E_RX_ERROR:
-		vport->err_stats.rx_errors++;
+		atomic_long_inc(&vport->err_stats.rx_errors);
 		break;
 
 	case VPORT_E_TX_DROPPED:
-		vport->err_stats.tx_dropped++;
+		atomic_long_inc(&vport->err_stats.tx_dropped);
 		break;
 
 	case VPORT_E_TX_ERROR:
-		vport->err_stats.tx_errors++;
+		atomic_long_inc(&vport->err_stats.tx_errors);
 		break;
 	}
 
-	spin_unlock(&vport->stats_lock);
 }
 
 static void free_vport_rcu(struct rcu_head *rcu)
