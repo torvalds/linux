@@ -469,8 +469,8 @@ int __init gb_tty_init(void)
 {
 	int retval;
 
-	gb_tty_driver = alloc_tty_driver(GB_NUM_MINORS);
-	if (!gb_tty_driver)
+	gb_tty_driver = tty_alloc_driver(GB_NUM_MINORS, 0);
+	if (IS_ERR(gb_tty_driver))
 		return -ENOMEM;
 
 	gb_tty_driver->driver_name = "gb";
