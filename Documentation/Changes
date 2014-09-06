@@ -167,17 +167,10 @@ later is recommended, due to some significant improvements).
 PCMCIAutils
 -----------
 
-PCMCIAutils replaces pcmcia-cs (see below). It properly sets up
+PCMCIAutils replaces pcmcia-cs. It properly sets up
 PCMCIA sockets at system startup and loads the appropriate modules
 for 16-bit PCMCIA devices if the kernel is modularized and the hotplug
 subsystem is used.
-
-Pcmcia-cs
----------
-
-PCMCIA (PC Card) support is now partially implemented in the main
-kernel source. The "pcmciautils" package (see above) replaces pcmcia-cs
-for newest kernels.
 
 Quota-tools
 -----------
@@ -340,10 +333,6 @@ o  <ftp://oss.sgi.com/projects/xfs/>
 Pcmciautils
 -----------
 o  <ftp://ftp.kernel.org/pub/linux/utils/kernel/pcmcia/>
-
-Pcmcia-cs
----------
-o  <http://pcmcia-cs.sourceforge.net/>
 
 Quota-tools
 ----------
