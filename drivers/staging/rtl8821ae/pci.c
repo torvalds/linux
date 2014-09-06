@@ -897,10 +897,10 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 
 			/* static bcn for roaming */
 			rtl_beacon_statistic(hw, skb);
-			rtl_p2p_info(hw, (void*)skb->data, skb->len);
+			rtl_p2p_info(hw, (void *)skb->data, skb->len);
 			/* for sw lps */
-			rtl_swlps_beacon(hw, (void*)skb->data, skb->len);
-			rtl_recognize_peer(hw, (void*)skb->data, skb->len);
+			rtl_swlps_beacon(hw, (void *)skb->data, skb->len);
+			rtl_recognize_peer(hw, (void *)skb->data, skb->len);
 			if ((rtlpriv->mac80211.opmode == NL80211_IFTYPE_AP) &&
 			    (rtlpriv->rtlhal.current_bandtype == BAND_ON_2_4G)&&
 			    (ieee80211_is_beacon(fc) ||

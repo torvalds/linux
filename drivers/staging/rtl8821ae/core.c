@@ -691,7 +691,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				rtlpriv->cfg->ops->linked_set_reg(hw);
 
 			rcu_read_lock();
-			sta = ieee80211_find_sta(vif, (u8*)bss_conf->bssid);
+			sta = ieee80211_find_sta(vif, (u8 *)bss_conf->bssid);
 
 			if (vif->type == NL80211_IFTYPE_STATION && sta)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
@@ -760,7 +760,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			 ("BSS_CHANGED_HT\n"));
 
 		rcu_read_lock();
-		sta = ieee80211_find_sta(vif, (u8*)bss_conf->bssid);
+		sta = ieee80211_find_sta(vif, (u8 *)bss_conf->bssid);
 		if (sta) {
 			if (sta->ht_cap.ampdu_density >
 			    mac->current_ampdu_density)
@@ -796,7 +796,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		rtlpriv->cfg->ops->set_network_type(hw, vif->type);
 
 		rcu_read_lock();
-		sta = ieee80211_find_sta(vif, (u8*)bss_conf->bssid);
+		sta = ieee80211_find_sta(vif, (u8 *)bss_conf->bssid);
 		if (!sta) {
 			rcu_read_unlock();
 			goto out;

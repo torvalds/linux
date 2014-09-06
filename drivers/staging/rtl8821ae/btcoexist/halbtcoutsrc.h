@@ -109,7 +109,7 @@ extern u32 btc_dbg_type[];
 	do { 							\
 		if(unlikely(btc_dbg_type[dbgtype] & dbgflag)) {	\
 			int __i;				\
-			u8* __ptr = (u8*)_Ptr;			\
+			u8 *__ptr = (u8 *)_Ptr;			\
 			printk printstr;			\
 			for( __i = 0; __i < 6; __i++ )		\
 				printk("%02X%s", __ptr[__i], (__i==5)?"":"-");\
@@ -121,7 +121,7 @@ extern u32 btc_dbg_type[];
 	do {								\
 		if(unlikely(btc_dbg_type[dbgtype] & dbgflag) )	{ 	\
 			int __i;					\
-			u8 *__ptr = (u8*)_hexdata;			\
+			u8 *__ptr = (u8 *)_hexdata;			\
 			printk(_titlestring);				\
 			for( __i = 0; __i < (int)_hexdatalen; __i++ ) {	\
 				printk("%02X%s", __ptr[__i], (((__i + 1) % 4) \

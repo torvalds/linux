@@ -182,7 +182,7 @@
 #define	GET_C2H_CMD_CONTINUE(__prxhdr)		\
 	LE_BITS_TO_4BYTE((__prxhdr), 31, 1)
 #define	GET_C2H_CMD_CONTENT(__prxhdr)		\
-	((u8*)(__prxhdr) + C2H_RX_CMD_HDR_LEN)
+	((u8 *)(__prxhdr) + C2H_RX_CMD_HDR_LEN)
 
 #define	GET_C2H_CMD_FEEDBACK_ELEMENT_ID(__pcmdfbhdr)	\
 	LE_BITS_TO_4BYTE((__pcmdfbhdr), 0, 8)

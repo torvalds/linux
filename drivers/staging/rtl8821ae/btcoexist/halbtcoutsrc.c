@@ -285,10 +285,10 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_mac *mac = rtl_mac(rtlpriv);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-	bool *bool_tmp = (bool*)out_buf;
-	int *s32_tmp = (int*)out_buf;
-	u32 *u32_tmp = (u32*)out_buf;
-	u8 *u8_tmp = (u8*)out_buf;
+	bool *bool_tmp = (bool *)out_buf;
+	int *s32_tmp = (int *)out_buf;
+	u32 *u32_tmp = (u32 *)out_buf;
+	u8 *u8_tmp = (u8 *)out_buf;
 	bool tmp = false;
 
 

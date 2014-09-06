@@ -203,7 +203,7 @@ enum dbgp_flag_e {
 		if(unlikely(((_comp) & rtlpriv->dbg.global_debugcomponents ) &&\
 			(_level <= rtlpriv->dbg.global_debuglevel )))	{ \
 			int __i;					\
-			u8*	ptr = (u8*)_hexdata;			\
+			u8 *ptr = (u8 *)_hexdata;			\
 			printk(KERN_DEBUG "%s: ", KBUILD_MODNAME);	\
 			printk(KERN_DEBUG "In process \"%s\" (pid %i):", \
 					current->comm, 	\

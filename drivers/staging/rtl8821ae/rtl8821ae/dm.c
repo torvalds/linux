@@ -2733,7 +2733,7 @@ void rtl8821ae_dm_dynamic_edcca(struct ieee80211_hw *hw)
 	bool b_fw_current_in_ps_mode = false;
 
 	rtlpriv->cfg->ops->get_hw_reg(hw,HW_VAR_FW_PSMODE_STATUS, \
-		(u8*)(&b_fw_current_in_ps_mode));
+		(u8 *)(&b_fw_current_in_ps_mode));
 	if (b_fw_current_in_ps_mode)
 		return;
 }
