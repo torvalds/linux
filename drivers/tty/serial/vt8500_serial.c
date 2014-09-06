@@ -101,12 +101,15 @@
 
 #define VT8500_HAS_SWRTSCTS_SWITCH	(1 << 1)
 
+#define VT8500_RECOMMENDED_CLK		12000000
+#define VT8500_OVERSAMPLING_DIVISOR	13
 #define VT8500_MAX_PORTS	6
 
 struct vt8500_port {
 	struct uart_port	uart;
 	char			name[16];
 	struct clk		*clk;
+	unsigned int		clk_predivisor;
 	unsigned int		ier;
 	unsigned int		vt8500_uart_flags;
 };
@@ -311,19 +314,24 @@ static void vt8500_break_ctl(struct uart_port *port, int break_ctl)
 
 static int vt8500_set_baud_rate(struct uart_port *port, unsigned int baud)
 {
+	struct vt8500_port *vt8500_port =
+			container_of(port, struct vt8500_port, uart);
 	unsigned long div;
 	unsigned int loops = 1000;
 
-	div = vt8500_read(port, VT8500_URDIV) & ~(0x3ff);
+	div = ((vt8500_port->clk_predivisor - 1) & 0xf) << 16;
+	div |= (uart_get_divisor(port, baud) - 1) & 0x3ff;
 
-	if (unlikely((baud < 900) || (baud > 921600)))
-		div |= 7;
-	else
-		div |= (921600 / baud) - 1;
+	/* Effective baud rate */
+	baud = port->uartclk / 16 / ((div & 0x3ff) + 1);
 
 	while ((vt8500_read(port, VT8500_URUSR) & (1 << 5)) && --loops)
 		cpu_relax();
+
 	vt8500_write(port, div, VT8500_URDIV);
+
+	/* Break signal timing depends on baud rate, update accordingly */
+	vt8500_write(port, mult_frac(baud, 4096, 1000000), VT8500_URBKR);
 
 	return baud;
 }
@@ -691,6 +699,10 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	}
 
 	vt8500_port->vt8500_uart_flags = *flags;
+	vt8500_port->clk_predivisor = DIV_ROUND_CLOSEST(
+					clk_get_rate(vt8500_port->clk),
+					VT8500_RECOMMENDED_CLK
+				      );
 	vt8500_port->uart.type = PORT_VT8500;
 	vt8500_port->uart.iotype = UPIO_MEM;
 	vt8500_port->uart.mapbase = mmres->start;
@@ -701,7 +713,10 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	vt8500_port->uart.dev = &pdev->dev;
 	vt8500_port->uart.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 
-	vt8500_port->uart.uartclk = clk_get_rate(vt8500_port->clk);
+	/* Serial core uses the magic "16" everywhere - adjust for it */
+	vt8500_port->uart.uartclk = 16 * clk_get_rate(vt8500_port->clk) /
+					vt8500_port->clk_predivisor /
+					VT8500_OVERSAMPLING_DIVISOR;
 
 	snprintf(vt8500_port->name, sizeof(vt8500_port->name),
 		 "VT8500 UART%d", pdev->id);
