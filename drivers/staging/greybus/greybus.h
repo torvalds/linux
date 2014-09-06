@@ -52,10 +52,7 @@ typedef void (*gbuf_complete_t)(struct gbuf *gbuf);
 
 struct gbuf {
 	struct kref kref;
-	void *hcpriv;
-
-	struct list_head anchor_list;
-	struct gbuf_anchor *anchor;	// FIXME do we need?
+	void *hdpriv;
 
 	struct greybus_device *gdev;
 	struct gdev_cport *cport;
@@ -65,8 +62,10 @@ struct gbuf {
 	u32 transfer_buffer_length;
 	u32 actual_length;
 
+#if 0
 	struct scatterlist *sg;		// FIXME do we need?
 	int num_sgs;
+#endif
 
 	void *context;
 	gbuf_complete_t complete;
@@ -92,6 +91,31 @@ struct gb_gpio_device;
 struct gb_sdio_host;
 struct gb_tty;
 struct gb_usb_device;
+struct greybus_host_device;
+
+/* Greybus "Host driver" structure, needed by a host controller driver to be
+ * able to handle both SVC control as well as "real" greybus messages
+ */
+struct greybus_host_driver {
+	size_t	hd_priv_size;
+
+	int (*start)(struct greybus_host_device *hd);
+	int (*alloc_gbuf)(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask);
+	void (*free_gbuf)(struct gbuf *gbuf);
+};
+
+struct greybus_host_device {
+	struct kref	kref;
+	const struct greybus_host_driver *driver;
+	unsigned long hd_priv_size;
+
+	/* Private data for the host driver */
+	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));
+};
+
+struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *host_driver,
+					      struct device *parent);
+
 
 /* Increase these values if needed */
 #define MAX_CPORTS_PER_MODULE	10
@@ -108,6 +132,8 @@ struct greybus_device {
 	struct gdev_cport *cport[MAX_CPORTS_PER_MODULE];
 	struct gdev_string *string[MAX_STRINGS_PER_MODULE];
 
+	struct greybus_host_device *hd;
+
 	struct gb_i2c_device *gb_i2c_dev;
 	struct gb_gpio_device *gb_gpio_dev;
 	struct gb_sdio_host *gb_sdio_host;
@@ -118,8 +144,13 @@ struct greybus_device {
 
 struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
 				struct gdev_cport *cport,
-				gfp_t mem_flags);
+				gbuf_complete_t complete,
+				unsigned int size,
+				gfp_t gfp_mask,
+				void *context);
 void greybus_free_gbuf(struct gbuf *gbuf);
+struct gbuf *greybus_get_gbuf(struct gbuf *gbuf);
+#define greybus_put_gbuf	greybus_free_gbuf
 
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t mem_flags);
 int greybus_kill_gbuf(struct gbuf *gbuf);

@@ -449,6 +449,22 @@ void greybus_remove_device(struct greybus_device *gdev)
 	// FIXME - device_remove(&gdev->dev);
 }
 
+struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver,
+					      struct device *parent)
+{
+	struct greybus_host_device *hd;
+
+	hd = kzalloc(sizeof(*hd) + driver->hd_priv_size, GFP_KERNEL);
+	if (!hd)
+		return NULL;
+
+	kref_init(&hd->kref);
+
+	return hd;
+}
+EXPORT_SYMBOL_GPL(greybus_create_hd);
+
+
 static int __init gb_init(void)
 {
 	int retval;
