@@ -228,10 +228,12 @@ static struct snd_soc_dai_link speyside_dai[] = {
 	},
 };
 
-static int speyside_wm9081_init(struct snd_soc_dapm_context *dapm)
+static int speyside_wm9081_init(struct snd_soc_component *component)
 {
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
 	/* At any time the WM9081 is active it will have this clock */
-	return snd_soc_codec_set_sysclk(dapm->codec, WM9081_SYSCLK_MCLK, 0,
+	return snd_soc_codec_set_sysclk(codec, WM9081_SYSCLK_MCLK, 0,
 					MCLK_AUDIO_RATE, 0);
 }
 
