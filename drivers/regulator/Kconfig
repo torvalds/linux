@@ -250,6 +250,12 @@ config REGULATOR_HI6421
 	  21 general purpose LDOs, 3 dedicated LDOs, and 5 BUCKs. All
 	  of them come with support to either ECO (idle) or sleep mode.
 
+config REGULATOR_ISL9305
+	tristate "Intersil ISL9305 regulator"
+	depends on I2C
+	help
+	  This driver supports ISL9305 voltage regulator chip.
+
 config REGULATOR_ISL6271A
 	tristate "Intersil ISL6271A Power regulator"
 	depends on I2C
