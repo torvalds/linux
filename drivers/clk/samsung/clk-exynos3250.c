@@ -266,6 +266,7 @@ PNAME(group_sclk_cam_blk_p)	= { "xxti", "xusbxti",
 				    "none", "none", "none",
 				    "none", "div_mpll_pre",
 				    "mout_epll_user", "mout_vpll",
+				    "none", "none", "none",
 				    "div_cam_blk_320", };
 PNAME(group_sclk_fimd0_p)	= { "xxti", "xusbxti",
 				    "m_bitclkhsdiv4_2l", "none",
