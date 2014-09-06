@@ -405,6 +405,7 @@ int mei_cl_disconnect(struct mei_cl *cl)
 			dev_err(&dev->pdev->dev, "failed to disconnect.\n");
 			goto free;
 		}
+		cl->timer_count = MEI_CONNECT_TIMEOUT;
 		mdelay(10); /* Wait for hardware disconnection ready */
 		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
 	} else {
@@ -511,6 +512,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 		cl->timer_count = MEI_CONNECT_TIMEOUT;
 		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
 	} else {
+		cl->state = MEI_FILE_INITIALIZING;
 		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 
