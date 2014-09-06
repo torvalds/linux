@@ -260,5 +260,10 @@ extern const u8 atmel_tc_divisors[5];
 #define     ATMEL_TC_LDRAS	(1 <<  5)	/* RA loading */
 #define     ATMEL_TC_LDRBS	(1 <<  6)	/* RB loading */
 #define     ATMEL_TC_ETRGS	(1 <<  7)	/* external trigger */
+#define     ATMEL_TC_ALL_IRQ	(ATMEL_TC_COVFS	| ATMEL_TC_LOVRS | \
+				 ATMEL_TC_CPAS | ATMEL_TC_CPBS | \
+				 ATMEL_TC_CPCS | ATMEL_TC_LDRAS | \
+				 ATMEL_TC_LDRBS | ATMEL_TC_ETRGS) \
+				 /* all IRQs */
 
 #endif

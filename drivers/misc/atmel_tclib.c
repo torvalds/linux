@@ -109,6 +109,7 @@ static int __init tc_probe(struct platform_device *pdev)
 	struct clk	*clk;
 	int		irq;
 	struct resource	*r;
+	unsigned int	i;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -157,11 +158,25 @@ static int __init tc_probe(struct platform_device *pdev)
 	if (tc->irq[2] < 0)
 		tc->irq[2] = irq;
 
+	for (i = 0; i < 3; i++)
+		writel(ATMEL_TC_ALL_IRQ, tc->regs + ATMEL_TC_REG(i, IDR));
+
 	spin_lock(&tc_list_lock);
 	list_add_tail(&tc->node, &tc_list);
 	spin_unlock(&tc_list_lock);
 
+	platform_set_drvdata(pdev, tc);
+
 	return 0;
+}
+
+static void tc_shutdown(struct platform_device *pdev)
+{
+	int i;
+	struct atmel_tc *tc = platform_get_drvdata(pdev);
+
+	for (i = 0; i < 3; i++)
+		writel(ATMEL_TC_ALL_IRQ, tc->regs + ATMEL_TC_REG(i, IDR));
 }
 
 static struct platform_driver tc_driver = {
@@ -169,6 +184,7 @@ static struct platform_driver tc_driver = {
 		.name	= "atmel_tcb",
 		.of_match_table	= of_match_ptr(atmel_tcb_dt_ids),
 	},
+	.shutdown = tc_shutdown,
 };
 
 static int __init tc_init(void)
