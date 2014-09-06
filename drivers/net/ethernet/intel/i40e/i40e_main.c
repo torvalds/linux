@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 0
-#define DRV_VERSION_BUILD 4
+#define DRV_VERSION_BUILD 11
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -5289,7 +5289,7 @@ static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
  **/
 static void i40e_vsi_link_event(struct i40e_vsi *vsi, bool link_up)
 {
-	if (!vsi)
+	if (!vsi || test_bit(__I40E_DOWN, &vsi->state))
 		return;
 
 	switch (vsi->type) {
@@ -5567,6 +5567,10 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	u16 opcode;
 	u32 oldval;
 	u32 val;
+
+	/* Do not run clean AQ when PF reset fails */
+	if (test_bit(__I40E_RESET_FAILED, &pf->state))
+		return;
 
 	/* check for error indications */
 	val = rd32(&pf->hw, pf->hw.aq.arq.len);
@@ -5973,19 +5977,20 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	ret = i40e_pf_reset(hw);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "PF reset failed, %d\n", ret);
-		goto end_core_reset;
+		set_bit(__I40E_RESET_FAILED, &pf->state);
+		goto clear_recovery;
 	}
 	pf->pfr_count++;
 
 	if (test_bit(__I40E_DOWN, &pf->state))
-		goto end_core_reset;
+		goto clear_recovery;
 	dev_dbg(&pf->pdev->dev, "Rebuilding internal switch\n");
 
 	/* rebuild the basics for the AdminQ, HMC, and initial HW switch */
 	ret = i40e_init_adminq(&pf->hw);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "Rebuild AdminQ failed, %d\n", ret);
-		goto end_core_reset;
+		goto clear_recovery;
 	}
 
 	/* re-verify the eeprom if we just had an EMP reset */
@@ -6103,6 +6108,8 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	i40e_send_version(pf);
 
 end_core_reset:
+	clear_bit(__I40E_RESET_FAILED, &pf->state);
+clear_recovery:
 	clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
 }
 
@@ -6148,9 +6155,9 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 				I40E_GL_MDET_TX_EVENT_SHIFT;
 		u8 queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK) >>
 				I40E_GL_MDET_TX_QUEUE_SHIFT;
-		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection event 0x%02x on TX queue %d pf number 0x%02x vf number 0x%02x\n",
-			 event, queue, pf_num, vf_num);
+		if (netif_msg_tx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event 0x%02x on TX queue %d pf number 0x%02x vf number 0x%02x\n",
+				 event, queue, pf_num, vf_num);
 		wr32(hw, I40E_GL_MDET_TX, 0xffffffff);
 		mdd_detected = true;
 	}
@@ -6162,9 +6169,9 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 				I40E_GL_MDET_RX_EVENT_SHIFT;
 		u8 queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK) >>
 				I40E_GL_MDET_RX_QUEUE_SHIFT;
-		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
-			 event, queue, func);
+		if (netif_msg_rx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
+				 event, queue, func);
 		wr32(hw, I40E_GL_MDET_RX, 0xffffffff);
 		mdd_detected = true;
 	}
@@ -6173,17 +6180,13 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		reg = rd32(hw, I40E_PF_MDET_TX);
 		if (reg & I40E_PF_MDET_TX_VALID_MASK) {
 			wr32(hw, I40E_PF_MDET_TX, 0xFFFF);
-			dev_info(&pf->pdev->dev,
-				 "MDD TX event is for this function 0x%08x, requesting PF reset.\n",
-				 reg);
+			dev_info(&pf->pdev->dev, "TX driver issue detected, PF reset issued\n");
 			pf_mdd_detected = true;
 		}
 		reg = rd32(hw, I40E_PF_MDET_RX);
 		if (reg & I40E_PF_MDET_RX_VALID_MASK) {
 			wr32(hw, I40E_PF_MDET_RX, 0xFFFF);
-			dev_info(&pf->pdev->dev,
-				 "MDD RX event is for this function 0x%08x, requesting PF reset.\n",
-				 reg);
+			dev_info(&pf->pdev->dev, "RX driver issue detected, PF reset issued\n");
 			pf_mdd_detected = true;
 		}
 		/* Queue belongs to the PF, initiate a reset */
@@ -6200,14 +6203,16 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		if (reg & I40E_VP_MDET_TX_VALID_MASK) {
 			wr32(hw, I40E_VP_MDET_TX(i), 0xFFFF);
 			vf->num_mdd_events++;
-			dev_info(&pf->pdev->dev, "MDD TX event on VF %d\n", i);
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
 		}
 
 		reg = rd32(hw, I40E_VP_MDET_RX(i));
 		if (reg & I40E_VP_MDET_RX_VALID_MASK) {
 			wr32(hw, I40E_VP_MDET_RX(i), 0xFFFF);
 			vf->num_mdd_events++;
-			dev_info(&pf->pdev->dev, "MDD RX event on VF %d\n", i);
+			dev_info(&pf->pdev->dev, "RX driver issue detected on VF %d\n",
+				 i);
 		}
 
 		if (vf->num_mdd_events > I40E_DEFAULT_NUM_MDD_EVENTS_ALLOWED) {
@@ -7469,7 +7474,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
-	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofck,
+	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofchk,
 #ifdef CONFIG_I40E_VXLAN
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
