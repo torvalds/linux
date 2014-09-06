@@ -257,9 +257,6 @@ static int br_afspec(struct net_bridge *br,
 			} else
 				err = br_vlan_add(br, vinfo->vid, vinfo->flags);
 
-			if (err)
-				break;
-
 			break;
 
 		case RTM_DELLINK:
