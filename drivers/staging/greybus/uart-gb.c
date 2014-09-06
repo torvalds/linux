@@ -23,10 +23,13 @@
 #include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/idr.h>
+#include <linux/fs.h>
+#include <linux/kdev_t.h>
 #include "greybus.h"
 
 #define GB_TTY_MAJOR	180	/* FIXME use a real number!!! */
 #define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
+#define GB_NAME		"ttyGB"
 
 struct gb_tty {
 	struct tty_port port;
@@ -467,16 +470,24 @@ static struct greybus_driver tty_gb_driver = {
 
 int __init gb_tty_init(void)
 {
-	int retval;
+	int retval = 0;
+	dev_t dev;
+
+	retval = alloc_chrdev_region(&dev, 0, GB_NUM_MINORS, GB_NAME);
+	if (retval)
+		return retval;
 
 	gb_tty_driver = tty_alloc_driver(GB_NUM_MINORS, 0);
-	if (IS_ERR(gb_tty_driver))
-		return -ENOMEM;
+	if (IS_ERR(gb_tty_driver)) {
+		retval = -ENOMEM;
+		goto fail_unregister_dev;
+	}
 
+	gb_tty_driver->owner = THIS_MODULE;
 	gb_tty_driver->driver_name = "gb";
-	gb_tty_driver->name = "ttyGB";
-	gb_tty_driver->major = GB_TTY_MAJOR;
-	gb_tty_driver->minor_start = 0;
+	gb_tty_driver->name = GB_NAME;
+	gb_tty_driver->major = MAJOR(dev);
+	gb_tty_driver->minor_start = MINOR(dev);
 	gb_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	gb_tty_driver->subtype = SERIAL_TYPE_NORMAL;
 	gb_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
@@ -485,24 +496,32 @@ int __init gb_tty_init(void)
 	tty_set_operations(gb_tty_driver, &gb_ops);
 
 	retval = tty_register_driver(gb_tty_driver);
-	if (retval) {
-		put_tty_driver(gb_tty_driver);
-		return retval;
-	}
+	if (retval)
+		goto fail_put_gb_tty;
 
 	retval = greybus_register(&tty_gb_driver);
-	if (retval) {
-		tty_unregister_driver(gb_tty_driver);
-		put_tty_driver(gb_tty_driver);
-	}
+	if (retval)
+		goto fail_unregister_gb_tty;
+
+	return 0;
+
+ fail_unregister_gb_tty:
+	tty_unregister_driver(gb_tty_driver);
+ fail_put_gb_tty:
+	put_tty_driver(gb_tty_driver);
+ fail_unregister_dev:
+	unregister_chrdev_region(dev, GB_NUM_MINORS);
 	return retval;
 }
 
 void __exit gb_tty_exit(void)
 {
+	int major = MAJOR(gb_tty_driver->major);
+	int minor = gb_tty_driver->minor_start;
 	greybus_deregister(&tty_gb_driver);
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
+	unregister_chrdev_region(MKDEV(major, minor), GB_NUM_MINORS);
 }
 
 #if 0
