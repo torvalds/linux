@@ -35,60 +35,31 @@ static LIST_HEAD(tc_list);
 /**
  * atmel_tc_alloc - allocate a specified TC block
  * @block: which block to allocate
- * @name: name to be associated with the iomem resource
  *
  * Caller allocates a block.  If it is available, a pointer to a
  * pre-initialized struct atmel_tc is returned. The caller can access
  * the registers directly through the "regs" field.
  */
-struct atmel_tc *atmel_tc_alloc(unsigned block, const char *name)
+struct atmel_tc *atmel_tc_alloc(unsigned block)
 {
 	struct atmel_tc		*tc;
 	struct platform_device	*pdev = NULL;
-	struct resource		*r;
-	size_t			size;
 
 	spin_lock(&tc_list_lock);
 	list_for_each_entry(tc, &tc_list, node) {
-		if (tc->pdev->dev.of_node) {
-			if (of_alias_get_id(tc->pdev->dev.of_node, "tcb")
-					== block) {
-				pdev = tc->pdev;
-				break;
-			}
-		} else if (tc->pdev->id == block) {
+		if (tc->allocated)
+			continue;
+
+		if ((tc->pdev->dev.of_node && tc->id == block) ||
+		    (tc->pdev->id == block)) {
 			pdev = tc->pdev;
+			tc->allocated = true;
 			break;
 		}
 	}
-
-	if (!pdev || tc->iomem)
-		goto fail;
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
-		goto fail;
-
-	size = resource_size(r);
-	r = request_mem_region(r->start, size, name);
-	if (!r)
-		goto fail;
-
-	tc->regs = ioremap(r->start, size);
-	if (!tc->regs)
-		goto fail_ioremap;
-
-	tc->iomem = r;
-
-out:
 	spin_unlock(&tc_list_lock);
-	return tc;
 
-fail_ioremap:
-	release_mem_region(r->start, size);
-fail:
-	tc = NULL;
-	goto out;
+	return pdev ? tc : NULL;
 }
 EXPORT_SYMBOL_GPL(atmel_tc_alloc);
 
@@ -96,19 +67,14 @@ EXPORT_SYMBOL_GPL(atmel_tc_alloc);
  * atmel_tc_free - release a specified TC block
  * @tc: Timer/counter block that was returned by atmel_tc_alloc()
  *
- * This reverses the effect of atmel_tc_alloc(), unmapping the I/O
- * registers, invalidating the resource returned by that routine and
- * making the TC available to other drivers.
+ * This reverses the effect of atmel_tc_alloc(), invalidating the resource
+ * returned by that routine and making the TC available to other drivers.
  */
 void atmel_tc_free(struct atmel_tc *tc)
 {
 	spin_lock(&tc_list_lock);
-	if (tc->regs) {
-		iounmap(tc->regs);
-		release_mem_region(tc->iomem->start, resource_size(tc->iomem));
-		tc->regs = NULL;
-		tc->iomem = NULL;
-	}
+	if (tc->allocated)
+		tc->allocated = false;
 	spin_unlock(&tc_list_lock);
 }
 EXPORT_SYMBOL_GPL(atmel_tc_free);
@@ -142,9 +108,7 @@ static int __init tc_probe(struct platform_device *pdev)
 	struct atmel_tc *tc;
 	struct clk	*clk;
 	int		irq;
-
-	if (!platform_get_resource(pdev, IORESOURCE_MEM, 0))
-		return -EINVAL;
+	struct resource	*r;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -160,12 +124,21 @@ static int __init tc_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	tc->regs = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(tc->regs))
+		return PTR_ERR(tc->regs);
+
 	/* Now take SoC information if available */
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(atmel_tcb_dt_ids, pdev->dev.of_node);
 		if (match)
 			tc->tcb_config = match->data;
+
+		tc->id = of_alias_get_id(tc->pdev->dev.of_node, "tcb");
+	} else {
+		tc->id = pdev->id;
 	}
 
 	tc->clk[0] = clk;

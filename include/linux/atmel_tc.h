@@ -44,12 +44,13 @@ struct atmel_tcb_config {
 /**
  * struct atmel_tc - information about a Timer/Counter Block
  * @pdev: physical device
- * @iomem: resource associated with the I/O register
  * @regs: mapping through which the I/O registers can be accessed
+ * @id: block id
  * @tcb_config: configuration data from SoC
  * @irq: irq for each of the three channels
  * @clk: internal clock source for each of the three channels
  * @node: list node, for tclib internal use
+ * @allocated: if already used, for tclib internal use
  *
  * On some platforms, each TC channel has its own clocks and IRQs,
  * while on others, all TC channels share the same clock and IRQ.
@@ -61,15 +62,16 @@ struct atmel_tcb_config {
  */
 struct atmel_tc {
 	struct platform_device	*pdev;
-	struct resource		*iomem;
 	void __iomem		*regs;
+	int                     id;
 	const struct atmel_tcb_config *tcb_config;
 	int			irq[3];
 	struct clk		*clk[3];
 	struct list_head	node;
+	bool			allocated;
 };
 
-extern struct atmel_tc *atmel_tc_alloc(unsigned block, const char *name);
+extern struct atmel_tc *atmel_tc_alloc(unsigned block);
 extern void atmel_tc_free(struct atmel_tc *tc);
 
 /* platform-specific ATMEL_TC_TIMER_CLOCKx divisors (0 means 32KiHz) */

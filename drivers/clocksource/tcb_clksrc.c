@@ -279,7 +279,7 @@ static int __init tcb_clksrc_init(void)
 	int i;
 	int ret;
 
-	tc = atmel_tc_alloc(CONFIG_ATMEL_TCB_CLKSRC_BLOCK, clksrc.name);
+	tc = atmel_tc_alloc(CONFIG_ATMEL_TCB_CLKSRC_BLOCK);
 	if (!tc) {
 		pr_debug("can't alloc TC for clocksource\n");
 		return -ENODEV;
