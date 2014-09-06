@@ -543,17 +543,6 @@ static void scsi_requeue_command(struct request_queue *q, struct scsi_cmnd *cmd)
 	put_device(&sdev->sdev_gendev);
 }
 
-void scsi_next_command(struct scsi_cmnd *cmd)
-{
-	struct scsi_device *sdev = cmd->device;
-	struct request_queue *q = sdev->request_queue;
-
-	scsi_put_command(cmd);
-	scsi_run_queue(q);
-
-	put_device(&sdev->sdev_gendev);
-}
-
 void scsi_run_host_queues(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev;
@@ -731,8 +720,6 @@ static bool scsi_end_request(struct request *req, int error,
 			kblockd_schedule_work(&sdev->requeue_work);
 		else
 			blk_mq_start_stopped_hw_queues(q, true);
-
-		put_device(&sdev->sdev_gendev);
 	} else {
 		unsigned long flags;
 
@@ -744,9 +731,12 @@ static bool scsi_end_request(struct request *req, int error,
 		spin_unlock_irqrestore(q->queue_lock, flags);
 
 		scsi_release_buffers(cmd);
-		scsi_next_command(cmd);
+
+		scsi_put_command(cmd);
+		scsi_run_queue(q);
 	}
 
+	put_device(&sdev->sdev_gendev);
 	return false;
 }
 
