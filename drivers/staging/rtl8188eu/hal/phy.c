@@ -24,6 +24,7 @@
 #include <rtw_iol.h>
 #include <rtl8188e_hal.h>
 #include <rf.h>
+#include <phy.h>
 
 #define MAX_PRECMD_CNT 16
 #define MAX_RFDEPENDCMD_CNT 16
