@@ -558,6 +558,33 @@ static struct console vt8500_console = {
 #define VT8500_CONSOLE	NULL
 #endif
 
+#ifdef CONFIG_CONSOLE_POLL
+static int vt8500_get_poll_char(struct uart_port *port)
+{
+	unsigned int status = vt8500_read(port, VT8500_URFIDX);
+
+	if (!(status & 0x1f00))
+		return NO_POLL_CHAR;
+
+	return vt8500_read(port, VT8500_RXFIFO) & 0xff;
+}
+
+static void vt8500_put_poll_char(struct uart_port *port, unsigned char c)
+{
+	unsigned int status, tmout = 10000;
+
+	do {
+		status = vt8500_read(port, VT8500_URFIDX);
+
+		if (--tmout == 0)
+			break;
+		udelay(1);
+	} while (status & 0x10);
+
+	vt8500_write(port, c, VT8500_TXFIFO);
+}
+#endif
+
 static struct uart_ops vt8500_uart_pops = {
 	.tx_empty	= vt8500_tx_empty,
 	.set_mctrl	= vt8500_set_mctrl,
@@ -575,6 +602,10 @@ static struct uart_ops vt8500_uart_pops = {
 	.request_port	= vt8500_request_port,
 	.config_port	= vt8500_config_port,
 	.verify_port	= vt8500_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	= vt8500_get_poll_char,
+	.poll_put_char	= vt8500_put_poll_char,
+#endif
 };
 
 static struct uart_driver vt8500_uart_driver = {
