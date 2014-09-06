@@ -762,10 +762,19 @@ static const struct div_data sun4i_ahb_data __initconst = {
 	.width	= 2,
 };
 
+static const struct clk_div_table sun4i_apb0_table[] __initconst = {
+	{ .val = 0, .div = 2 },
+	{ .val = 1, .div = 2 },
+	{ .val = 2, .div = 4 },
+	{ .val = 3, .div = 8 },
+	{ } /* sentinel */
+};
+
 static const struct div_data sun4i_apb0_data __initconst = {
 	.shift	= 8,
 	.pow	= 1,
 	.width	= 2,
+	.table	= sun4i_apb0_table,
 };
 
 static const struct div_data sun6i_a31_apb2_div_data __initconst = {
