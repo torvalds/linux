@@ -1972,7 +1972,7 @@ void udp_v4_early_demux(struct sk_buff *skb)
 		return;
 
 	skb->sk = sk;
-	skb->destructor = sock_edemux;
+	skb->destructor = sock_efree;
 	dst = sk->sk_rx_dst;
 
 	if (dst)
