@@ -291,6 +291,14 @@ static unsigned int vt8500_get_mctrl(struct uart_port *port)
 
 static void vt8500_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	unsigned int lcr = vt8500_read(port, VT8500_URLCR);
+
+	if (mctrl & TIOCM_RTS)
+		lcr |= VT8500_RTS;
+	else
+		lcr &= ~VT8500_RTS;
+
+	vt8500_write(port, lcr, VT8500_URLCR);
 }
 
 static void vt8500_break_ctl(struct uart_port *port, int break_ctl)
