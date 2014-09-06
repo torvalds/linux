@@ -1337,8 +1337,6 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 		}
 	}
 
-	pm860x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 
 out:
@@ -1354,7 +1352,6 @@ static int pm860x_remove(struct snd_soc_codec *codec)
 
 	for (i = 3; i >= 0; i--)
 		free_irq(pm860x->irq[i], pm860x);
-	pm860x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
