@@ -2337,14 +2337,9 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 		return -EIO;
 
 	error = -EIO;
-	if (!get_device(&dev->sdev_gendev))
-		goto out_put_autopm_host;
-
 	scmd = scsi_get_command(dev, GFP_KERNEL);
-	if (!scmd) {
-		put_device(&dev->sdev_gendev);
+	if (!scmd)
 		goto out_put_autopm_host;
-	}
 
 	blk_rq_init(NULL, &req);
 	scmd->request = &req;
@@ -2406,10 +2401,10 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 			     "waking up host to restart after TMF\n"));
 
 	wake_up(&shost->host_wait);
-
 	scsi_run_host_queues(shost);
 
-	scsi_next_command(scmd);
+	scsi_put_command(scmd);
+
 out_put_autopm_host:
 	scsi_autopm_put_host(shost);
 	return error;
