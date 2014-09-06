@@ -164,7 +164,7 @@ static const struct regulator_ops hi6421_buck345_ops;
  * emask - enable mask
  * odelay - off/on delay time in uS
  * ecomask - eco mode mask
- * ecoamp - eco mode load uppler limit in mA
+ * ecoamp - eco mode load uppler limit in uA
  */
 #define HI6421_LDO(_id, v_table, vreg, vmask, ereg, emask,		\
 		   odelay, ecomask, ecoamp)				\
@@ -200,7 +200,7 @@ static const struct regulator_ops hi6421_buck345_ops;
  * emask - enable mask
  * odelay - off/on delay time in uS
  * ecomask - eco mode mask
- * ecoamp - eco mode load uppler limit in mA
+ * ecoamp - eco mode load uppler limit in uA
  */
 #define HI6421_LDO_LINEAR(_id, _min_uV, n_volt, vstep, vreg, vmask,	\
 			  ereg, emask, odelay, ecomask, ecoamp)		\
@@ -237,7 +237,7 @@ static const struct regulator_ops hi6421_buck345_ops;
  * emask - enable mask
  * odelay - off/on delay time in uS
  * ecomask - eco mode mask
- * ecoamp - eco mode load uppler limit in mA
+ * ecoamp - eco mode load uppler limit in uA
  */
 #define HI6421_LDO_LINEAR_RANGE(_id, n_volt, volt_ranges, vreg, vmask,	\
 				ereg, emask, odelay, ecomask, ecoamp)	\
