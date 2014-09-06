@@ -230,11 +230,6 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	if (tps->dev->of_node)
 		pdata = tps65217_parse_dt(pdev);
 
-	if (!pdata) {
-		dev_err(&pdev->dev, "Platform data not found\n");
-		return -EINVAL;
-	}
-
 	if (tps65217_chip_id(tps) != TPS65217) {
 		dev_err(&pdev->dev, "Invalid tps chip version\n");
 		return -ENODEV;
@@ -245,7 +240,8 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < TPS65217_NUM_REGULATOR; i++) {
 		/* Register the regulators */
 		config.dev = tps->dev;
-		config.init_data = pdata->tps65217_init_data[i];
+		if (pdata)
+			config.init_data = pdata->tps65217_init_data[i];
 		config.driver_data = tps;
 		config.regmap = tps->regmap;
 		if (tps->dev->of_node)
