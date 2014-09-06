@@ -483,7 +483,6 @@ int __init gb_tty_init(void)
 		goto fail_unregister_dev;
 	}
 
-	gb_tty_driver->owner = THIS_MODULE;
 	gb_tty_driver->driver_name = "gb";
 	gb_tty_driver->name = GB_NAME;
 	gb_tty_driver->major = MAJOR(dev);
