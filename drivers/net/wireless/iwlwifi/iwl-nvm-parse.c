@@ -784,7 +784,8 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 
 		/* this doesn't matter - not used by FW */
 		rule->power_rule.max_antenna_gain = DBI_TO_MBI(6);
-		rule->power_rule.max_eirp = DBM_TO_MBM(20);
+		rule->power_rule.max_eirp =
+			DBM_TO_MBM(IWL_DEFAULT_MAX_TX_POWER);
 
 		rule->flags = iwl_nvm_get_regdom_bw_flags(nvm_chan, ch_idx,
 							  ch_flags, cfg);
