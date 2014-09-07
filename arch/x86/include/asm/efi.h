@@ -188,16 +188,6 @@ extern struct efi_config *efi_early;
 extern bool efi_reboot_required(void);
 
 #else
-/*
- * IF EFI is not configured, have the EFI calls return -ENOSYS.
- */
-#define efi_call0(_f)					(-ENOSYS)
-#define efi_call1(_f, _a1)				(-ENOSYS)
-#define efi_call2(_f, _a1, _a2)				(-ENOSYS)
-#define efi_call3(_f, _a1, _a2, _a3)			(-ENOSYS)
-#define efi_call4(_f, _a1, _a2, _a3, _a4)		(-ENOSYS)
-#define efi_call5(_f, _a1, _a2, _a3, _a4, _a5)		(-ENOSYS)
-#define efi_call6(_f, _a1, _a2, _a3, _a4, _a5, _a6)	(-ENOSYS)
 static inline void parse_efi_setup(u64 phys_addr, u32 data_len) {}
 static inline bool efi_reboot_required(void)
 {
