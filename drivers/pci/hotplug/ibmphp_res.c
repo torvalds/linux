@@ -1044,7 +1044,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 		/* found our range */
 		if (!res_prev) {
 			/* first time in the loop */
-			if ((res_cur->start != range->start) && ((len_tmp = res_cur->start - 1 - range->start) >= res->len)) {
+			len_tmp = res_cur->start - 1 - range->start;
+
+			if ((res_cur->start != range->start) && (len_tmp >= res->len)) {
 				debug ("len_tmp = %x\n", len_tmp);
 
 				if ((len_tmp < len_cur) || (len_cur == 0)) {
@@ -1084,7 +1086,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 		}
 		if (!res_cur->next) {
 			/* last device on the range */
-			if ((range->end != res_cur->end) && ((len_tmp = range->end - (res_cur->end + 1)) >= res->len)) {
+			len_tmp = range->end - (res_cur->end + 1);
+
+			if ((range->end != res_cur->end) && (len_tmp >= res->len)) {
 				debug ("len_tmp = %x\n", len_tmp);
 				if ((len_tmp < len_cur) || (len_cur == 0)) {
 
@@ -1123,8 +1127,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 		if (res_prev) {
 			if (res_prev->rangeno != res_cur->rangeno) {
 				/* 1st device on this range */
-				if ((res_cur->start != range->start) &&
-					((len_tmp = res_cur->start - 1 - range->start) >= res->len)) {
+				len_tmp = res_cur->start - 1 - range->start;
+
+				if ((res_cur->start != range->start) &&	(len_tmp >= res->len)) {
 					if ((len_tmp < len_cur) || (len_cur == 0)) {
 						if ((range->start % tmp_divide) == 0) {
 							/* just perfect, starting address is divisible by length */
