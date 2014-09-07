@@ -689,8 +689,10 @@ static int dt_index_page_build(const struct lu_env *env, union lu_page *lp,
 
 		if (nob < size) {
 			if (lip->lip_nr == 0)
-				GOTO(out, rc = -EINVAL);
-			GOTO(out, rc = 0);
+				rc = -EINVAL;
+			else
+				rc = 0;
+			goto out;
 		}
 
 		if ((ii->ii_flags & II_FL_NOHASH) == 0) {

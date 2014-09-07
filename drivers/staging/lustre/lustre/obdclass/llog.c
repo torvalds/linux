@@ -336,9 +336,10 @@ repeat:
 
 			if (rec->lrh_index == 0) {
 				/* probably another rec just got added? */
+				rc = 0;
 				if (index <= loghandle->lgh_last_idx)
-					GOTO(repeat, rc = 0);
-				GOTO(out, rc = 0); /* no more records */
+					goto repeat;
+				goto out; /* no more records */
 			}
 			if (rec->lrh_len == 0 ||
 			    rec->lrh_len > LLOG_CHUNK_SIZE) {
