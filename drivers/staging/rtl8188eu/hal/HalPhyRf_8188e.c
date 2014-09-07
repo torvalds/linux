@@ -713,22 +713,19 @@ static void pi_mode_switch(struct adapter *adapt, bool pi_mode)
 	phy_set_bb_reg(adapt, rFPGA0_XB_HSSIParameter1, bMaskDWord, mode);
 }
 
-static bool phy_SimularityCompare_8188E(
-		struct adapter *adapt,
-		s32 resulta[][8],
-		u8  c1,
-		u8  c2
-	)
+static bool simularity_compare(struct adapter *adapt, s32 resulta[][8],
+			       u8 c1, u8 c2)
 {
 	u32 i, j, diff, sim_bitmap, bound = 0;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 	u8 final_candidate[2] = {0xFF, 0xFF};	/* for path A and path B */
 	bool result = true;
 	bool is2t;
 	s32 tmp1 = 0, tmp2 = 0;
 
-	if ((dm_odm->RFType == ODM_2T2R) || (dm_odm->RFType == ODM_2T3R) || (dm_odm->RFType == ODM_2T4R))
+	if ((dm_odm->RFType == ODM_2T2R) || (dm_odm->RFType == ODM_2T3R) ||
+	    (dm_odm->RFType == ODM_2T4R))
 		is2t = true;
 	else
 		is2t = false;
@@ -737,8 +734,6 @@ static bool phy_SimularityCompare_8188E(
 		bound = 8;
 	else
 		bound = 4;
-
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("===> IQK:phy_SimularityCompare_8188E c1 %d c2 %d!!!\n", c1, c2));
 
 	sim_bitmap = 0;
 
@@ -761,10 +756,6 @@ static bool phy_SimularityCompare_8188E(
 		diff = (tmp1 > tmp2) ? (tmp1 - tmp2) : (tmp2 - tmp1);
 
 		if (diff > MAX_TOLERANCE) {
-			ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-				     ("IQK:phy_SimularityCompare_8188E differnece overflow index %d compare1 0x%x compare2 0x%x!!!\n",
-				     i, resulta[c1][i], resulta[c2][i]));
-
 			if ((i == 2 || i == 6) && !sim_bitmap) {
 				if (resulta[c1][i] + resulta[c1][i+1] == 0)
 					final_candidate[(i/4)] = c2;
@@ -777,8 +768,6 @@ static bool phy_SimularityCompare_8188E(
 			}
 		}
 	}
-
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQK:phy_SimularityCompare_8188E sim_bitmap   %d !!!\n", sim_bitmap));
 
 	if (sim_bitmap == 0) {
 		for (i = 0; i < (bound/4); i++) {
@@ -1090,7 +1079,7 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		phy_IQCalibrate_8188E(adapt, result, i, is2t);
 
 		if (i == 1) {
-			is12simular = phy_SimularityCompare_8188E(adapt, result, 0, 1);
+			is12simular = simularity_compare(adapt, result, 0, 1);
 			if (is12simular) {
 				final_candidate = 0;
 				ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQK: is12simular final_candidate is %x\n", final_candidate));
@@ -1099,14 +1088,14 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		}
 
 		if (i == 2) {
-			is13simular = phy_SimularityCompare_8188E(adapt, result, 0, 2);
+			is13simular = simularity_compare(adapt, result, 0, 2);
 			if (is13simular) {
 				final_candidate = 0;
 				ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQK: is13simular final_candidate is %x\n", final_candidate));
 
 				break;
 			}
-			is23simular = phy_SimularityCompare_8188E(adapt, result, 1, 2);
+			is23simular = simularity_compare(adapt, result, 1, 2);
 			if (is23simular) {
 				final_candidate = 1;
 				ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQK: is23simular final_candidate is %x\n", final_candidate));
