@@ -492,6 +492,17 @@ config ARCH_DMA_ADDR_T_64BIT
 config ARC_PLAT_NEEDS_PHYS_TO_DMA
 	bool
 
+config ARC_KVADDR_SIZE
+	int "Kernel Virtaul Address Space size (MB)"
+	range 0 512
+	default "256"
+	help
+	  The kernel address space is carved out of 256MB of translated address
+	  space for catering to vmalloc, modules, pkmap, fixmap. This however may
+	  not suffice vmalloc requirements of a 4K CPU EZChip system. So allow
+	  this to be stretched to 512 MB (by extending into the reserved
+	  kernel-user gutter)
+
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"
 	default y

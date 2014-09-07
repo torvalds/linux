@@ -217,7 +217,7 @@
 #define BITS_FOR_PTE	(PGDIR_SHIFT - PAGE_SHIFT)
 #define BITS_FOR_PGD	(32 - PGDIR_SHIFT)
 
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)	/* vaddr span, not PDG sz */
+#define PGDIR_SIZE	_BITUL(PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define	PTRS_PER_PTE	_BITUL(BITS_FOR_PTE)

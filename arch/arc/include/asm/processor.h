@@ -97,7 +97,7 @@ extern unsigned int get_wchan(struct task_struct *p);
 #endif /* !__ASSEMBLY__ */
 
 /*
- * System Memory Map on ARC
+ * Default System Memory Map on ARC
  *
  * ---------------------------- (lower 2G, Translated) -------------------------
  * 0x0000_0000		0x5FFF_FFFF	(user vaddr: TASK_SIZE)
@@ -109,18 +109,17 @@ extern unsigned int get_wchan(struct task_struct *p);
  * 0xC000_0000		0xFFFF_FFFF	(peripheral uncached space)
  * -----------------------------------------------------------------------------
  */
-#define VMALLOC_START	0x70000000
 
-/*
- * 1 PGDIR_SIZE each for fixmap/pkmap, 2 PGDIR_SIZE gutter
- * See asm/highmem.h for details
- */
-#define VMALLOC_SIZE	(PAGE_OFFSET - VMALLOC_START - PGDIR_SIZE * 4)
+#define TASK_SIZE	0x60000000
+
+#define VMALLOC_START	(PAGE_OFFSET - (CONFIG_ARC_KVADDR_SIZE << 20))
+
+/* 1 PGDIR_SIZE each for fixmap/pkmap, 2 PGDIR_SIZE gutter (see asm/highmem.h) */
+#define VMALLOC_SIZE	((CONFIG_ARC_KVADDR_SIZE << 20) - PGDIR_SIZE * 4)
+
 #define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
 
-#define USER_KERNEL_GUTTER    0x10000000
-
-#define TASK_SIZE	(VMALLOC_START - USER_KERNEL_GUTTER)
+#define USER_KERNEL_GUTTER    (VMALLOC_START - TASK_SIZE)
 
 #define STACK_TOP       TASK_SIZE
 #define STACK_TOP_MAX   STACK_TOP
