@@ -356,8 +356,10 @@ struct proc_dir_entry *lprocfs_register(const char *name,
 	struct proc_dir_entry *entry;
 
 	entry = proc_mkdir(name, parent);
-	if (entry == NULL)
-		GOTO(out, entry = ERR_PTR(-ENOMEM));
+	if (entry == NULL) {
+		entry = ERR_PTR(-ENOMEM);
+		goto out;
+	}
 
 	if (list != NULL) {
 		int rc = lprocfs_add_vars(entry, list, data);
@@ -1663,12 +1665,15 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 	 * entry already has been created */
 	if (old_stat != new_stat) {
 		exp->exp_nid_stats = old_stat;
-		GOTO(destroy_new, rc = -EALREADY);
+		rc = -EALREADY;
+		goto destroy_new;
 	}
 	/* not found - create */
 	OBD_ALLOC(buffer, LNET_NIDSTR_SIZE);
-	if (buffer == NULL)
-		GOTO(destroy_new, rc = -ENOMEM);
+	if (buffer == NULL) {
+		rc = -ENOMEM;
+		goto destroy_new;
+	}
 
 	memcpy(buffer, libcfs_nid2str(*nid), LNET_NIDSTR_SIZE);
 	new_stat->nid_proc = lprocfs_register(buffer,
@@ -1681,7 +1686,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 		       libcfs_nid2str(*nid));
 		rc = PTR_ERR(new_stat->nid_proc);
 		new_stat->nid_proc = NULL;
-		GOTO(destroy_new_ns, rc);
+		goto destroy_new_ns;
 	}
 
 	entry = lprocfs_add_simple(new_stat->nid_proc, "uuid",
@@ -1689,7 +1694,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 	if (IS_ERR(entry)) {
 		CWARN("Error adding the NID stats file\n");
 		rc = PTR_ERR(entry);
-		GOTO(destroy_new_ns, rc);
+		goto destroy_new_ns;
 	}
 
 	entry = lprocfs_add_simple(new_stat->nid_proc, "hash",
@@ -1697,7 +1702,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 	if (IS_ERR(entry)) {
 		CWARN("Error adding the hash file\n");
 		rc = PTR_ERR(entry);
-		GOTO(destroy_new_ns, rc);
+		goto destroy_new_ns;
 	}
 
 	exp->exp_nid_stats = new_stat;
