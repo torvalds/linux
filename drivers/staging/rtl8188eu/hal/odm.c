@@ -1241,7 +1241,7 @@ void odm_TXPowerTrackingCheckCE(struct odm_dm_struct *pDM_Odm)
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 1;
 		return;
 	} else {
-		odm_TXPowerTrackingCallback_ThermalMeter_8188E(Adapter);
+		rtl88eu_dm_txpower_tracking_callback_thermalmeter(Adapter);
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
 	}
 }

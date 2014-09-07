@@ -34,8 +34,7 @@ void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm,
 						       * swing index adjust
 						       */
 
-void odm_TXPowerTrackingCallback_ThermalMeter_8188E(struct adapter *Adapter);
-
+void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt);
 
 /* 1 7.	IQK */
 
