@@ -445,6 +445,16 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		if (err)
 			goto out;
 		size_change = 1;
+
+		/*
+		 * RFC5661, Section 18.30.4:
+		 *   Changing the size of a file with SETATTR indirectly
+		 *   changes the time_modify and change attributes.
+		 *
+		 * (and similar for the older RFCs)
+		 */
+		if (iap->ia_size != i_size_read(inode))
+			iap->ia_valid |= ATTR_MTIME;
 	}
 
 	iap->ia_valid |= ATTR_CTIME;
