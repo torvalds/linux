@@ -684,25 +684,16 @@ static void path_adda_on(struct adapter *adapt, u32 *adda_reg,
 		phy_set_bb_reg(adapt, adda_reg[i], bMaskDWord, path_on);
 }
 
-void
-_PHY_MACSettingCalibration(
-		struct adapter *adapt,
-		u32 *MACReg,
-		u32 *MACBackup
-	)
+static void mac_setting_calibration(struct adapter *adapt, u32 *mac_reg, u32 *backup)
 {
 	u32 i = 0;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("MAC settings for Calibration.\n"));
-
-	usb_write8(adapt, MACReg[i], 0x3F);
+	usb_write8(adapt, mac_reg[i], 0x3F);
 
 	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
-		usb_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
+		usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT3)));
 	}
-	usb_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
+	usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT5)));
 }
 
 void
@@ -906,7 +897,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 	}
 
 	/* MAC settings */
-	_PHY_MACSettingCalibration(adapt, IQK_MAC_REG, dm_odm->RFCalibrateInfo.IQK_MAC_backup);
+	mac_setting_calibration(adapt, IQK_MAC_REG, dm_odm->RFCalibrateInfo.IQK_MAC_backup);
 
 	/* Page B init */
 	/* AP or IQK */
