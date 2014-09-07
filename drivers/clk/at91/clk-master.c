@@ -19,6 +19,8 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #include "pmc.h"
 
@@ -44,7 +46,7 @@ struct clk_master_layout {
 
 struct clk_master {
 	struct clk_hw hw;
-	struct at91_pmc *pmc;
+	struct regmap *regmap;
 	unsigned int irq;
 	wait_queue_head_t wait;
 	const struct clk_master_layout *layout;
@@ -60,15 +62,24 @@ static irqreturn_t clk_master_irq_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+static inline bool clk_master_ready(struct regmap *regmap)
+{
+	unsigned int status;
+
+	regmap_read(regmap, AT91_PMC_SR, &status);
+
+	return status & AT91_PMC_MCKRDY ? 1 : 0;
+}
+
 static int clk_master_prepare(struct clk_hw *hw)
 {
 	struct clk_master *master = to_clk_master(hw);
-	struct at91_pmc *pmc = master->pmc;
 
-	while (!(pmc_read(pmc, AT91_PMC_SR) & AT91_PMC_MCKRDY)) {
+	while (!clk_master_ready(master->regmap)) {
 		enable_irq(master->irq);
 		wait_event(master->wait,
-			   pmc_read(pmc, AT91_PMC_SR) & AT91_PMC_MCKRDY);
+			   clk_master_ready(master->regmap));
 	}
 
 	return 0;
@@ -78,7 +89,7 @@ static int clk_master_is_prepared(struct clk_hw *hw)
 {
 	struct clk_master *master = to_clk_master(hw);
 
-	return !!(pmc_read(master->pmc, AT91_PMC_SR) & AT91_PMC_MCKRDY);
+	return clk_master_ready(master->regmap);
 }
 
 static unsigned long clk_master_recalc_rate(struct clk_hw *hw,
@@ -88,18 +99,16 @@ static unsigned long clk_master_recalc_rate(struct clk_hw *hw,
 	u8 div;
 	unsigned long rate = parent_rate;
 	struct clk_master *master = to_clk_master(hw);
-	struct at91_pmc *pmc = master->pmc;
 	const struct clk_master_layout *layout = master->layout;
 	const struct clk_master_characteristics *characteristics =
 						master->characteristics;
-	u32 tmp;
+	unsigned int mckr;
 
-	pmc_lock(pmc);
-	tmp = pmc_read(pmc, AT91_PMC_MCKR) & layout->mask;
-	pmc_unlock(pmc);
+	regmap_read(master->regmap, AT91_PMC_MCKR, &mckr);
+	mckr &= layout->mask;
 
-	pres = (tmp >> layout->pres_shift) & MASTER_PRES_MASK;
-	div = (tmp >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
+	pres = (mckr >> layout->pres_shift) & MASTER_PRES_MASK;
+	div = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
 
 	if (characteristics->have_div3_pres && pres == MASTER_PRES_MAX)
 		rate /= 3;
@@ -119,9 +128,11 @@ static unsigned long clk_master_recalc_rate(struct clk_hw *hw,
 static u8 clk_master_get_parent(struct clk_hw *hw)
 {
 	struct clk_master *master = to_clk_master(hw);
-	struct at91_pmc *pmc = master->pmc;
+	unsigned int mckr;
 
-	return pmc_read(pmc, AT91_PMC_MCKR) & AT91_PMC_CSS;
+	regmap_read(master->regmap, AT91_PMC_MCKR, &mckr);
+
+	return mckr & AT91_PMC_CSS;
 }
 
 static const struct clk_ops master_ops = {
@@ -132,7 +143,7 @@ static const struct clk_ops master_ops = {
 };
 
 static struct clk * __init
-at91_clk_register_master(struct at91_pmc *pmc, unsigned int irq,
+at91_clk_register_master(struct regmap *regmap, unsigned int irq,
 		const char *name, int num_parents,
 		const char **parent_names,
 		const struct clk_master_layout *layout,
@@ -143,7 +154,7 @@ at91_clk_register_master(struct at91_pmc *pmc, unsigned int irq,
 	struct clk *clk = NULL;
 	struct clk_init_data init;
 
-	if (!pmc || !irq || !name || !num_parents || !parent_names)
+	if (!name || !num_parents || !parent_names)
 		return ERR_PTR(-EINVAL);
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
@@ -159,7 +170,7 @@ at91_clk_register_master(struct at91_pmc *pmc, unsigned int irq,
 	master->hw.init = &init;
 	master->layout = layout;
 	master->characteristics = characteristics;
-	master->pmc = pmc;
+	master->regmap = regmap;
 	master->irq = irq;
 	init_waitqueue_head(&master->wait);
 	irq_set_status_flags(master->irq, IRQ_NOAUTOEN);
@@ -217,7 +228,7 @@ out_free_characteristics:
 }
 
 static void __init
-of_at91_clk_master_setup(struct device_node *np, struct at91_pmc *pmc,
+of_at91_clk_master_setup(struct device_node *np,
 			 const struct clk_master_layout *layout)
 {
 	struct clk *clk;
@@ -226,6 +237,7 @@ of_at91_clk_master_setup(struct device_node *np, struct at91_pmc *pmc,
 	const char *parent_names[MASTER_SOURCE_MAX];
 	const char *name = np->name;
 	struct clk_master_characteristics *characteristics;
+	struct regmap *regmap;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents <= 0 || num_parents > MASTER_SOURCE_MAX)
@@ -239,11 +251,15 @@ of_at91_clk_master_setup(struct device_node *np, struct at91_pmc *pmc,
 	if (!characteristics)
 		return;
 
+	regmap = syscon_node_to_regmap(of_get_parent(np));
+	if (IS_ERR(regmap))
+		return;
+
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq)
 		goto out_free_characteristics;
 
-	clk = at91_clk_register_master(pmc, irq, name, num_parents,
+	clk = at91_clk_register_master(regmap, irq, name, num_parents,
 				       parent_names, layout,
 				       characteristics);
 	if (IS_ERR(clk))
@@ -256,14 +272,16 @@ out_free_characteristics:
 	kfree(characteristics);
 }
 
-void __init of_at91rm9200_clk_master_setup(struct device_node *np,
-					   struct at91_pmc *pmc)
+static void __init of_at91rm9200_clk_master_setup(struct device_node *np)
 {
-	of_at91_clk_master_setup(np, pmc, &at91rm9200_master_layout);
+	of_at91_clk_master_setup(np, &at91rm9200_master_layout);
 }
+CLK_OF_DECLARE(at91rm9200_clk_master, "atmel,at91rm9200-clk-master",
+	       of_at91rm9200_clk_master_setup);
 
-void __init of_at91sam9x5_clk_master_setup(struct device_node *np,
-					   struct at91_pmc *pmc)
+static void __init of_at91sam9x5_clk_master_setup(struct device_node *np)
 {
-	of_at91_clk_master_setup(np, pmc, &at91sam9x5_master_layout);
+	of_at91_clk_master_setup(np, &at91sam9x5_master_layout);
 }
+CLK_OF_DECLARE(at91sam9x5_clk_master, "atmel,at91sam9x5-clk-master",
+	       of_at91sam9x5_clk_master_setup);
