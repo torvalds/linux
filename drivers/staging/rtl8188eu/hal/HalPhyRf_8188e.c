@@ -646,15 +646,13 @@ static void save_mac_registers(struct adapter *adapt, u32 *mac_reg,
 	backup[i] = usb_read32(adapt, mac_reg[i]);
 }
 
-static void reload_adda_reg(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
+static void reload_adda_reg(struct adapter *adapt, u32 *adda_reg,
+			    u32 *backup, u32 regiester_num)
 {
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Reload ADDA power saving parameters !\n"));
-	for (i = 0; i < RegiesterNum; i++)
-		phy_set_bb_reg(adapt, ADDAReg[i], bMaskDWord, ADDABackup[i]);
+	for (i = 0; i < regiester_num; i++)
+		phy_set_bb_reg(adapt, adda_reg[i], bMaskDWord, backup[i]);
 }
 
 static void
