@@ -2129,6 +2129,7 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 }
 
 void lov_stripe_lock(struct lov_stripe_md *md)
+		__acquires(&md->lsm_lock)
 {
 	LASSERT(md->lsm_lock_owner != current_pid());
 	spin_lock(&md->lsm_lock);
@@ -2138,6 +2139,7 @@ void lov_stripe_lock(struct lov_stripe_md *md)
 EXPORT_SYMBOL(lov_stripe_lock);
 
 void lov_stripe_unlock(struct lov_stripe_md *md)
+		__releases(&md->lsm_lock)
 {
 	LASSERT(md->lsm_lock_owner == current_pid());
 	md->lsm_lock_owner = 0;
