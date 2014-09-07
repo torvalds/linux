@@ -22,7 +22,8 @@
 
 struct ap_msg {
 	u8 *data;
-	int size;
+	size_t size;
+	struct greybus_host_device *hd;
 	struct list_head list;
 };
 
@@ -30,6 +31,21 @@ static LIST_HEAD(ap_msg_list);
 static spinlock_t ap_msg_list_lock;
 static struct task_struct *ap_thread;
 static wait_queue_head_t ap_wait;
+
+
+static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
+{
+	struct svc_msg *svc_msg;
+
+	// FIXME - validate message, right now we are trusting the size and data
+	// from the AP, what could go wrong?  :)
+	// for now, just cast the pointer and run away...
+
+	svc_msg = (struct svc_msg *)ap_msg->data;
+	return svc_msg;
+}
+
+
 
 static struct ap_msg *get_ap_msg(void)
 {
@@ -49,6 +65,7 @@ static struct ap_msg *get_ap_msg(void)
 static int ap_process_loop(void *data)
 {
 	struct ap_msg *ap_msg;
+	struct svc_msg *svc_msg;
 
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(ap_wait, kthread_should_stop());
@@ -61,7 +78,12 @@ static int ap_process_loop(void *data)
 		if (!ap_msg)
 			continue;
 
-		// FIXME - process the message
+		/* Turn the "raw" data into a real message */
+		svc_msg = convert_ap_message(ap_msg);
+		if (svc_msg) {
+			/* Pass the message to the host controller */
+			ap_msg->hd->driver->ap_msg(svc_msg, ap_msg->hd);
+		}
 
 		/* clean the message up */
 		kfree(ap_msg->data);
@@ -70,7 +92,7 @@ static int ap_process_loop(void *data)
 	return 0;
 }
 
-int gb_new_ap_msg(u8 *data, int size)
+int gb_new_ap_msg(u8 *data, int size, struct greybus_host_device *hd)
 {
 	struct ap_msg *ap_msg;
 	unsigned long flags;
@@ -96,6 +118,7 @@ int gb_new_ap_msg(u8 *data, int size)
 	}
 	memcpy(ap_msg->data, data, size);
 	ap_msg->size = size;
+	ap_msg->hd = hd;
 
 	spin_lock_irqsave(&ap_msg_list_lock, flags);
 	list_add(&ap_msg->list, &ap_msg_list);

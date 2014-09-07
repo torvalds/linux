@@ -92,6 +92,7 @@ struct gb_sdio_host;
 struct gb_tty;
 struct gb_usb_device;
 struct greybus_host_device;
+struct svc_msg;
 
 /* Greybus "Host driver" structure, needed by a host controller driver to be
  * able to handle both SVC control as well as "real" greybus messages
@@ -102,6 +103,7 @@ struct greybus_host_driver {
 	int (*start)(struct greybus_host_device *hd);
 	int (*alloc_gbuf)(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask);
 	void (*free_gbuf)(struct gbuf *gbuf);
+	void (*ap_msg)(struct svc_msg *svc_msg, struct greybus_host_device *hd);
 };
 
 struct greybus_host_device {
@@ -115,6 +117,7 @@ struct greybus_host_device {
 
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *host_driver,
 					      struct device *parent);
+void greybus_remove_hd(struct greybus_host_device *hd);
 
 
 /* Increase these values if needed */
@@ -213,7 +216,7 @@ const u8 *greybus_string(struct greybus_device *gdev, int id);
 
 /* Internal functions to gb module, move to internal .h file eventually. */
 
-int gb_new_ap_msg(u8 *data, int length);
+int gb_new_ap_msg(u8 *data, int length, struct greybus_host_device *hd);
 int gb_thread_init(void);
 void gb_thread_destroy(void);
 int gb_debugfs_init(void);

@@ -82,15 +82,30 @@ static void free_gbuf(struct gbuf *gbuf)
 }
 
 
+/* Main message loop for ap messages */
+/* Odds are, most of this logic can move to core.c someday, but as we only have
+ * one host controller driver for now, let's leave it here */
+static void ap_msg(struct svc_msg *svc_msg, struct greybus_host_device *hd)
+{
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
+
+	/* Look at the message to figure out what to do with it */
+
+
+}
+
+
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size = sizeof(struct es1_ap_dev),
 	.alloc_gbuf = alloc_gbuf,
 	.free_gbuf = free_gbuf,
+	.ap_msg = ap_msg,
 };
 
 
 void ap_in_callback(struct urb *urb)
 {
+	struct es1_ap_dev *es1 = urb->context;
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
 	int retval;
@@ -115,7 +130,7 @@ void ap_in_callback(struct urb *urb)
 	/* We have a message, create a new message structure, add it to the
 	 * list, and wake up our thread that will process the messages.
 	 */
-	gb_new_ap_msg(urb->transfer_buffer, urb->actual_length);
+	gb_new_ap_msg(urb->transfer_buffer, urb->actual_length, es1->hd);
 
 exit:
 	/* resubmit the urb to get more messages */
@@ -211,8 +226,7 @@ static void ap_disconnect(struct usb_interface *interface)
 	usb_put_dev(es1->usb_dev);
 	kfree(es1->ap_buffer);
 
-	// FIXME
-	//greybus_destroy_hd(es1->hd);
+	greybus_remove_hd(es1->hd);
 }
 
 static struct usb_driver es1_ap_driver = {

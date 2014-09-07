@@ -13,7 +13,6 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/kthread.h>
 #include <linux/device.h>
 
 #include "greybus.h"
@@ -449,6 +448,17 @@ void greybus_remove_device(struct greybus_device *gdev)
 	// FIXME - device_remove(&gdev->dev);
 }
 
+static DEFINE_MUTEX(hd_mutex);
+
+static void free_hd(struct kref *kref)
+{
+	struct greybus_host_device *hd;
+
+	hd = container_of(kref, struct greybus_host_device, kref);
+
+	kfree(hd);
+}
+
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver,
 					      struct device *parent)
 {
@@ -463,6 +473,12 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	return hd;
 }
 EXPORT_SYMBOL_GPL(greybus_create_hd);
+
+void greybus_remove_hd(struct greybus_host_device *hd)
+{
+	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
+}
+EXPORT_SYMBOL_GPL(greybus_remove_hd);
 
 
 static int __init gb_init(void)
