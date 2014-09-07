@@ -496,42 +496,24 @@ static u8 phy_path_a_rx_iqk(struct adapter *adapt, bool configPathB)
 	return result;
 }
 
-static u8 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
-phy_PathB_IQK_8188E(struct adapter *adapt)
+static u8 phy_path_b_iqk(struct adapter *adapt)
 {
 	u32 regeac, regeb4, regebc, regec4, regecc;
 	u8 result = 0x00;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Path B IQK!\n"));
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 
 	/* One shot, path B LOK & IQK */
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("One shot, path A LOK & IQK!\n"));
 	phy_set_bb_reg(adapt, rIQK_AGC_Cont, bMaskDWord, 0x00000002);
 	phy_set_bb_reg(adapt, rIQK_AGC_Cont, bMaskDWord, 0x00000000);
 
-	/*  delay x ms */
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("Delay %d ms for One shot, path B LOK & IQK.\n",
-		     IQK_DELAY_TIME_88E));
 	mdelay(IQK_DELAY_TIME_88E);
 
-	/*  Check failed */
 	regeac = phy_query_bb_reg(adapt, rRx_Power_After_IQK_A_2, bMaskDWord);
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("0xeac = 0x%x\n", regeac));
 	regeb4 = phy_query_bb_reg(adapt, rTx_Power_Before_IQK_B, bMaskDWord);
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("0xeb4 = 0x%x\n", regeb4));
 	regebc = phy_query_bb_reg(adapt, rTx_Power_After_IQK_B, bMaskDWord);
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("0xebc = 0x%x\n", regebc));
 	regec4 = phy_query_bb_reg(adapt, rRx_Power_Before_IQK_B_2, bMaskDWord);
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("0xec4 = 0x%x\n", regec4));
 	regecc = phy_query_bb_reg(adapt, rRx_Power_After_IQK_B_2, bMaskDWord);
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("0xecc = 0x%x\n", regecc));
 
 	if (!(regeac & BIT31) &&
 	    (((regeb4 & 0x03FF0000)>>16) != 0x142) &&
@@ -545,7 +527,8 @@ phy_PathB_IQK_8188E(struct adapter *adapt)
 	    (((regecc & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
 	else
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Path B Rx IQK fail!!\n"));
+		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION,
+			     ODM_DBG_LOUD,  ("Path B Rx IQK fail!!\n"));
 	return result;
 }
 
@@ -1004,7 +987,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 		_PHY_PathADDAOn(adapt, ADDA_REG, false, is2t);
 
 		for (i = 0; i < retryCount; i++) {
-			PathBOK = phy_PathB_IQK_8188E(adapt);
+			PathBOK = phy_path_b_iqk(adapt);
 			if (PathBOK == 0x03) {
 				ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Path B IQK Success!!\n"));
 				result[t][4] = (phy_query_bb_reg(adapt, rTx_Power_Before_IQK_B, bMaskDWord)&0x3FF0000)>>16;
