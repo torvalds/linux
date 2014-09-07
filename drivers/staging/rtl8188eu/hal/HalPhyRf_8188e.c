@@ -655,22 +655,15 @@ static void reload_adda_reg(struct adapter *adapt, u32 *adda_reg,
 		phy_set_bb_reg(adapt, adda_reg[i], bMaskDWord, backup[i]);
 }
 
-static void
-_PHY_ReloadMACRegisters(
-		struct adapter *adapt,
-		u32 *MACReg,
-		u32 *MACBackup
-	)
+static void reload_mac_registers(struct adapter *adapt,
+				 u32 *mac_reg, u32 *backup)
 {
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Reload MAC parameters !\n"));
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		usb_write8(adapt, MACReg[i], (u8)MACBackup[i]);
+		usb_write8(adapt, mac_reg[i], (u8)backup[i]);
 	}
-	usb_write32(adapt, MACReg[i], MACBackup[i]);
+	usb_write32(adapt, mac_reg[i], backup[i]);
 }
 
 void
@@ -1003,7 +996,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 		reload_adda_reg(adapt, ADDA_REG, dm_odm->RFCalibrateInfo.ADDA_backup, IQK_ADDA_REG_NUM);
 
 		/*  Reload MAC parameters */
-		_PHY_ReloadMACRegisters(adapt, IQK_MAC_REG, dm_odm->RFCalibrateInfo.IQK_MAC_backup);
+		reload_mac_registers(adapt, IQK_MAC_REG, dm_odm->RFCalibrateInfo.IQK_MAC_backup);
 
 		reload_adda_reg(adapt, IQK_BB_REG_92C, dm_odm->RFCalibrateInfo.IQK_BB_backup, IQK_BB_REG_NUM);
 
