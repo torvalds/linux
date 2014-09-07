@@ -1161,6 +1161,11 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 /* TDLS */
 int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_teardown_tdls_peers(struct iwl_mvm *mvm);
+void iwl_mvm_recalc_tdls_state(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       bool sta_added);
+void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 #ifdef CONFIG_IWLWIFI_DEBUGFS

@@ -1420,28 +1420,6 @@ static inline int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm,
 }
 #endif
 
-static void iwl_mvm_teardown_tdls_peers(struct iwl_mvm *mvm)
-{
-	struct ieee80211_sta *sta;
-	struct iwl_mvm_sta *mvmsta;
-	int i;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
-		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
-						lockdep_is_held(&mvm->mutex));
-		if (!sta || IS_ERR(sta) || !sta->tdls)
-			continue;
-
-		mvmsta = iwl_mvm_sta_from_mac80211(sta);
-		ieee80211_tdls_oper_request(mvmsta->vif, sta->addr,
-				NL80211_TDLS_TEARDOWN,
-				WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED,
-				GFP_KERNEL);
-	}
-}
-
 static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 					     struct ieee80211_vif *vif,
 					     struct ieee80211_bss_conf *bss_conf,
@@ -1970,48 +1948,6 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
-int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	struct ieee80211_sta *sta;
-	struct iwl_mvm_sta *mvmsta;
-	int count = 0;
-	int i;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
-		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
-						lockdep_is_held(&mvm->mutex));
-		if (!sta || IS_ERR(sta) || !sta->tdls)
-			continue;
-
-		if (vif) {
-			mvmsta = iwl_mvm_sta_from_mac80211(sta);
-			if (mvmsta->vif != vif)
-				continue;
-		}
-
-		count++;
-	}
-
-	return count;
-}
-
-static void iwl_mvm_recalc_tdls_state(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif,
-				      bool sta_added)
-{
-	int tdls_sta_cnt = iwl_mvm_tdls_sta_count(mvm, vif);
-
-	/*
-	 * Disable ps when the first TDLS sta is added and re-enable it
-	 * when the last TDLS sta is removed
-	 */
-	if ((tdls_sta_cnt == 1 && sta_added) ||
-	    (tdls_sta_cnt == 0 && !sta_added))
-		iwl_mvm_power_update_mac(mvm);
-}
-
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -2183,27 +2119,6 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_PREPARE_TX);
-}
-
-static void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
-						  struct ieee80211_vif *vif)
-{
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	u32 duration = 2 * vif->bss_conf.dtim_period * vif->bss_conf.beacon_int;
-
-	/*
-	 * iwl_mvm_protect_session() reads directly from the device
-	 * (the system time), so make sure it is available.
-	 */
-	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PROTECT_TDLS))
-		return;
-
-	mutex_lock(&mvm->mutex);
-	/* Protect the session to hear the TDLS setup response on the channel */
-	iwl_mvm_protect_session(mvm, vif, duration, duration, 100, true);
-	mutex_unlock(&mvm->mutex);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_TDLS);
 }
 
 static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
