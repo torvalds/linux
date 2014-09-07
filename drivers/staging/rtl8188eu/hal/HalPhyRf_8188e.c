@@ -704,18 +704,11 @@ static void path_a_standby(struct adapter *adapt)
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x80800000);
 }
 
-static void _PHY_PIModeSwitch(
-		struct adapter *adapt,
-		bool PIMode
-	)
+static void pi_mode_switch(struct adapter *adapt, bool pi_mode)
 {
 	u32 mode;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("BB Switch to %s mode!\n", (PIMode ? "PI" : "SI")));
-
-	mode = PIMode ? 0x01000100 : 0x01000000;
+	mode = pi_mode ? 0x01000100 : 0x01000000;
 	phy_set_bb_reg(adapt, rFPGA0_XA_HSSIParameter1, bMaskDWord, mode);
 	phy_set_bb_reg(adapt, rFPGA0_XB_HSSIParameter1, bMaskDWord, mode);
 }
@@ -870,7 +863,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 
 	if (!dm_odm->RFCalibrateInfo.bRfPiEnable) {
 		/*  Switch BB to PI mode to do IQ Calibration. */
-		_PHY_PIModeSwitch(adapt, true);
+		pi_mode_switch(adapt, true);
 	}
 
 	/* BB setting */
@@ -965,7 +958,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 	if (t != 0) {
 		if (!dm_odm->RFCalibrateInfo.bRfPiEnable) {
 			/*  Switch back BB to SI mode after finish IQ Calibration. */
-			_PHY_PIModeSwitch(adapt, false);
+			pi_mode_switch(adapt, false);
 		}
 
 		/*  Reload ADDA power saving parameters */
