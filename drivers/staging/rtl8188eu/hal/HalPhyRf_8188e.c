@@ -696,15 +696,8 @@ static void mac_setting_calibration(struct adapter *adapt, u32 *mac_reg, u32 *ba
 	usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT5)));
 }
 
-void
-_PHY_PathAStandBy(
-	struct adapter *adapt
-	)
+static void path_a_standby(struct adapter *adapt)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Path-A standby mode!\n"));
 
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x0);
 	phy_set_bb_reg(adapt, 0x840, bMaskDWord, 0x00010000);
@@ -939,7 +932,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 	}
 
 	if (is2t) {
-		_PHY_PathAStandBy(adapt);
+		path_a_standby(adapt);
 
 		/*  Turn Path B ADDA on */
 		path_adda_on(adapt, ADDA_REG, false, is2t);
