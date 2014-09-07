@@ -336,26 +336,6 @@ out:
 	return request;
 }
 
-static int rtas_msi_check_device(struct pci_dev *pdev, int nvec, int type)
-{
-	int quota, rc;
-
-	if (type == PCI_CAP_ID_MSIX)
-		rc = check_req_msix(pdev, nvec);
-	else
-		rc = check_req_msi(pdev, nvec);
-
-	if (rc)
-		return rc;
-
-	quota = msi_quota_for_device(pdev, nvec);
-
-	if (quota && quota < nvec)
-		return quota;
-
-	return 0;
-}
-
 static int check_msix_entries(struct pci_dev *pdev)
 {
 	struct msi_desc *entry;
@@ -397,15 +377,24 @@ static void rtas_hack_32bit_msi_gen2(struct pci_dev *pdev)
 static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 {
 	struct pci_dn *pdn;
-	int hwirq, virq, i, rc;
+	int hwirq, virq, i, quota, rc;
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	int nvec = nvec_in;
 	int use_32bit_msi_hack = 0;
 
-	pdn = pci_get_pdn(pdev);
-	if (!pdn)
-		return -ENODEV;
+	if (type == PCI_CAP_ID_MSIX)
+		rc = check_req_msix(pdev, nvec);
+	else
+		rc = check_req_msi(pdev, nvec);
+
+	if (rc)
+		return rc;
+
+	quota = msi_quota_for_device(pdev, nvec);
+
+	if (quota && quota < nvec)
+		return quota;
 
 	if (type == PCI_CAP_ID_MSIX && check_msix_entries(pdev))
 		return -EINVAL;
@@ -416,11 +405,13 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 	 */
 	if (type == PCI_CAP_ID_MSIX) {
 		int m = roundup_pow_of_two(nvec);
-		int quota = msi_quota_for_device(pdev, m);
+		quota = msi_quota_for_device(pdev, m);
 
 		if (quota >= m)
 			nvec = m;
 	}
+
+	pdn = pci_get_pdn(pdev);
 
 	/*
 	 * Try the new more explicit firmware interface, if that fails fall
@@ -526,7 +517,6 @@ static int rtas_msi_init(void)
 	WARN_ON(ppc_md.setup_msi_irqs);
 	ppc_md.setup_msi_irqs = rtas_setup_msi_irqs;
 	ppc_md.teardown_msi_irqs = rtas_teardown_msi_irqs;
-	ppc_md.msi_check_device = rtas_msi_check_device;
 
 	WARN_ON(ppc_md.pci_irq_fixup);
 	ppc_md.pci_irq_fixup = rtas_msi_pci_irq_fixup;

@@ -109,14 +109,6 @@ static int fsl_msi_init_allocator(struct fsl_msi *msi_data)
 	return 0;
 }
 
-static int fsl_msi_check_device(struct pci_dev *pdev, int nvec, int type)
-{
-	if (type == PCI_CAP_ID_MSIX)
-		pr_debug("fslmsi: MSI-X untested, trying anyway.\n");
-
-	return 0;
-}
-
 static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 {
 	struct msi_desc *entry;
@@ -172,6 +164,9 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	struct fsl_msi *msi_data;
+
+	if (type == PCI_CAP_ID_MSIX)
+		pr_debug("fslmsi: MSI-X untested, trying anyway.\n");
 
 	/*
 	 * If the PCI node has an fsl,msi property, then we need to use it
@@ -527,7 +522,6 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	if (!ppc_md.setup_msi_irqs) {
 		ppc_md.setup_msi_irqs = fsl_setup_msi_irqs;
 		ppc_md.teardown_msi_irqs = fsl_teardown_msi_irqs;
-		ppc_md.msi_check_device = fsl_msi_check_device;
 	} else if (ppc_md.setup_msi_irqs != fsl_setup_msi_irqs) {
 		dev_err(&dev->dev, "Different MSI driver already installed!\n");
 		err = -ENODEV;
