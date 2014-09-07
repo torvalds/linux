@@ -337,9 +337,9 @@ static int __init efi_runtime_init32(void)
 	}
 
 	/*
-	 * We will only need *early* access to the following two
-	 * EFI runtime services before set_virtual_address_map
-	 * is invoked.
+	 * We will only need *early* access to the SetVirtualAddressMap
+	 * EFI runtime service. All other runtime services will be called
+	 * via the virtual mapping.
 	 */
 	efi_phys.set_virtual_address_map =
 			(efi_set_virtual_address_map_t *)
@@ -361,9 +361,9 @@ static int __init efi_runtime_init64(void)
 	}
 
 	/*
-	 * We will only need *early* access to the following two
-	 * EFI runtime services before set_virtual_address_map
-	 * is invoked.
+	 * We will only need *early* access to the SetVirtualAddressMap
+	 * EFI runtime service. All other runtime services will be called
+	 * via the virtual mapping.
 	 */
 	efi_phys.set_virtual_address_map =
 			(efi_set_virtual_address_map_t *)
