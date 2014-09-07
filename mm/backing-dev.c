@@ -475,8 +475,17 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	int i;
 
 	/*
-	 * Splice our entries to the default_backing_dev_info, if this
-	 * bdi disappears
+	 * Splice our entries to the default_backing_dev_info.  This
+	 * condition shouldn't happen.  @wb must be empty at this point and
+	 * dirty inodes on it might cause other issues.  This workaround is
+	 * added by ce5f8e779519 ("writeback: splice dirty inode entries to
+	 * default bdi on bdi_destroy()") without root-causing the issue.
+	 *
+	 * http://lkml.kernel.org/g/1253038617-30204-11-git-send-email-jens.axboe@oracle.com
+	 * http://thread.gmane.org/gmane.linux.file-systems/35341/focus=35350
+	 *
+	 * We should probably add WARN_ON() to find out whether it still
+	 * happens and track it down if so.
 	 */
 	if (bdi_has_dirty_io(bdi)) {
 		struct bdi_writeback *dst = &default_backing_dev_info.wb;
