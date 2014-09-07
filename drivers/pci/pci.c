@@ -1003,12 +1003,19 @@ int pci_save_state(struct pci_dev *dev)
 	for (i = 0; i < 16; i++)
 		pci_read_config_dword(dev, i * 4, &dev->saved_config_space[i]);
 	dev->state_saved = true;
-	if ((i = pci_save_pcie_state(dev)) != 0)
+
+	i = pci_save_pcie_state(dev);
+	if (i != 0)
 		return i;
-	if ((i = pci_save_pcix_state(dev)) != 0)
+
+	i = pci_save_pcix_state(dev);
+	if (i != 0)
 		return i;
-	if ((i = pci_save_vc_state(dev)) != 0)
+
+	i = pci_save_vc_state(dev);
+	if (i != 0)
 		return i;
+
 	return 0;
 }
 EXPORT_SYMBOL(pci_save_state);

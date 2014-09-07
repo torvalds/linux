@@ -466,7 +466,8 @@ static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 	u8 m66_cap  = !!(slot_reg & MHZ66_CAP);
 	u8 pi, pcix_cap;
 
-	if ((retval = hpc_get_prog_int(slot, &pi)))
+	retval = hpc_get_prog_int(slot, &pi);
+	if (retval)
 		return retval;
 
 	switch (pi) {

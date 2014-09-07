@@ -1023,7 +1023,8 @@ static int enable_slot(struct hotplug_slot *hs)
 	debug("ENABLING SLOT........\n");
 	slot_cur = hs->private;
 
-	if ((rc = validate(slot_cur, ENABLE))) {
+	rc = validate(slot_cur, ENABLE);
+	if (rc) {
 		err("validate function failed\n");
 		goto error_nopower;
 	}
@@ -1335,17 +1336,20 @@ static int __init ibmphp_init(void)
 	for (i = 0; i < 16; i++)
 		irqs[i] = 0;
 
-	if ((rc = ibmphp_access_ebda()))
+	rc = ibmphp_access_ebda();
+	if (rc)
 		goto error;
 	debug("after ibmphp_access_ebda()\n");
 
-	if ((rc = ibmphp_rsrc_init()))
+	rc = ibmphp_rsrc_init();
+	if (rc)
 		goto error;
 	debug("AFTER Resource & EBDA INITIALIZATIONS\n");
 
 	max_slots = get_max_slots();
 
-	if ((rc = ibmphp_register_pci()))
+	rc = ibmphp_register_pci();
+	if (rc)
 		goto error;
 
 	if (init_ops()) {
@@ -1354,7 +1358,8 @@ static int __init ibmphp_init(void)
 	}
 
 	ibmphp_print_test();
-	if ((rc = ibmphp_hpc_start_poll_thread()))
+	rc = ibmphp_hpc_start_poll_thread();
+	if (rc)
 		goto error;
 
 exit:
