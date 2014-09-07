@@ -532,47 +532,40 @@ static u8 phy_path_b_iqk(struct adapter *adapt)
 	return result;
 }
 
-static void patha_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u8 final_candidate, bool txonly)
+static void patha_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8],
+			   u8 final_candidate, bool txonly)
 {
-	u32 Oldval_0, X, TX0_A, reg;
-	s32 Y, TX0_C;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("Path A IQ Calibration %s !\n",
-		     (iqkok) ? "Success" : "Failed"));
+	u32 oldval_0, x, tx0_a, reg;
+	s32 y, tx0_c;
 
 	if (final_candidate == 0xFF) {
 		return;
 	} else if (iqkok) {
-		Oldval_0 = (phy_query_bb_reg(adapt, rOFDM0_XATxIQImbalance, bMaskDWord) >> 22) & 0x3FF;
+		oldval_0 = (phy_query_bb_reg(adapt, rOFDM0_XATxIQImbalance, bMaskDWord) >> 22) & 0x3FF;
 
-		X = result[final_candidate][0];
-		if ((X & 0x00000200) != 0)
-			X = X | 0xFFFFFC00;
-		TX0_A = (X * Oldval_0) >> 8;
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-			     ("X = 0x%x, TX0_A = 0x%x, Oldval_0 0x%x\n",
-			     X, TX0_A, Oldval_0));
-		phy_set_bb_reg(adapt, rOFDM0_XATxIQImbalance, 0x3FF, TX0_A);
+		x = result[final_candidate][0];
+		if ((x & 0x00000200) != 0)
+			x = x | 0xFFFFFC00;
 
-		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(31), ((X * Oldval_0>>7) & 0x1));
+		tx0_a = (x * oldval_0) >> 8;
+		phy_set_bb_reg(adapt, rOFDM0_XATxIQImbalance, 0x3FF, tx0_a);
+		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(31),
+			       ((x * oldval_0>>7) & 0x1));
 
-		Y = result[final_candidate][1];
-		if ((Y & 0x00000200) != 0)
-			Y = Y | 0xFFFFFC00;
+		y = result[final_candidate][1];
+		if ((y & 0x00000200) != 0)
+			y = y | 0xFFFFFC00;
 
-		TX0_C = (Y * Oldval_0) >> 8;
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Y = 0x%x, TX = 0x%x\n", Y, TX0_C));
-		phy_set_bb_reg(adapt, rOFDM0_XCTxAFE, 0xF0000000, ((TX0_C&0x3C0)>>6));
-		phy_set_bb_reg(adapt, rOFDM0_XATxIQImbalance, 0x003F0000, (TX0_C&0x3F));
+		tx0_c = (y * oldval_0) >> 8;
+		phy_set_bb_reg(adapt, rOFDM0_XCTxAFE, 0xF0000000,
+			       ((tx0_c&0x3C0)>>6));
+		phy_set_bb_reg(adapt, rOFDM0_XATxIQImbalance, 0x003F0000,
+			       (tx0_c&0x3F));
+		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(29),
+			       ((y * oldval_0>>7) & 0x1));
 
-		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(29), ((Y * Oldval_0>>7) & 0x1));
-
-		if (txonly) {
-			ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("patha_fill_iqk only Tx OK\n"));
+		if (txonly)
 			return;
-		}
 
 		reg = result[final_candidate][2];
 		phy_set_bb_reg(adapt, rOFDM0_XARxIQImbalance, 0x3FF, reg);
