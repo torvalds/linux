@@ -83,18 +83,14 @@ void blk_queue_congestion_threshold(struct request_queue *q)
  * @bdev:	device
  *
  * Locates the passed device's request queue and returns the address of its
- * backing_dev_info
- *
- * Will return NULL if the request queue cannot be located.
+ * backing_dev_info.  This function can only be called if @bdev is opened
+ * and the return value is never NULL.
  */
 struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 {
-	struct backing_dev_info *ret = NULL;
 	struct request_queue *q = bdev_get_queue(bdev);
 
-	if (q)
-		ret = &q->backing_dev_info;
-	return ret;
+	return &q->backing_dev_info;
 }
 EXPORT_SYMBOL(blk_get_backing_dev_info);
 
