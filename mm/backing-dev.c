@@ -376,13 +376,7 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 	mod_delayed_work(bdi_wq, &bdi->wb.dwork, 0);
 	flush_delayed_work(&bdi->wb.dwork);
 	WARN_ON(!list_empty(&bdi->work_list));
-
-	/*
-	 * This shouldn't be necessary unless @bdi for some reason has
-	 * unflushed dirty IO after work_list is drained.  Do it anyway
-	 * just in case.
-	 */
-	cancel_delayed_work_sync(&bdi->wb.dwork);
+	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
 }
 
 /*
@@ -497,12 +491,7 @@ void bdi_destroy(struct backing_dev_info *bdi)
 
 	bdi_unregister(bdi);
 
-	/*
-	 * If bdi_unregister() had already been called earlier, the dwork
-	 * could still be pending because bdi_prune_sb() can race with the
-	 * bdi_wakeup_thread_delayed() calls from __mark_inode_dirty().
-	 */
-	cancel_delayed_work_sync(&bdi->wb.dwork);
+	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);
