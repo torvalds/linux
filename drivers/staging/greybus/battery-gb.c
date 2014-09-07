@@ -90,7 +90,6 @@ static int get_property(struct power_supply *b,
 	return 0;
 }
 
-
 // FIXME - verify this list, odds are some can be removed and others added.
 static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_TECHNOLOGY,
@@ -102,7 +101,7 @@ static enum power_supply_property battery_props[] = {
 };
 
 int gb_battery_probe(struct greybus_device *gdev,
-		 const struct greybus_module_id *id)
+		     const struct greybus_module_id *id)
 {
 	struct gb_battery *gb;
 	struct power_supply *b;

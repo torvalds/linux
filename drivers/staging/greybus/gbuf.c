@@ -18,7 +18,6 @@
 
 #include "greybus.h"
 
-
 /**
  * greybus_alloc_gbuf - allocate a greybus buffer
  *
@@ -85,7 +84,6 @@ void greybus_free_gbuf(struct gbuf *gbuf)
 {
 	/* drop the reference count and get out of here */
 	kref_put_mutex(&gbuf->kref, free_gbuf, &gbuf_mutex);
-
 }
 EXPORT_SYMBOL_GPL(greybus_free_gbuf);
 
@@ -98,8 +96,6 @@ struct gbuf *greybus_get_gbuf(struct gbuf *gbuf)
 }
 EXPORT_SYMBOL_GPL(greybus_get_gbuf);
 
-
-
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t mem_flags)
 {
 	return -ENOMEM;
@@ -109,6 +105,3 @@ int greybus_kill_gbuf(struct gbuf *gbuf)
 {
 	return -ENOMEM;
 }
-
-
-
