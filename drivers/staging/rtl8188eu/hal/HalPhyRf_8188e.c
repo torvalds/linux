@@ -347,7 +347,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 		/* Delta temperature is equal to or larger than 20 centigrade.*/
 		if (delta_iqk >= 8) {
 			dm_odm->RFCalibrateInfo.ThermalValue_IQK = thermal_val;
-			PHY_IQCalibrate_8188E(adapt, false);
+			rtl88eu_phy_iq_calibrate(adapt, false);
 		}
 		/* update thermal meter value */
 		if (dm_odm->RFCalibrateInfo.TxPowerTrackControl)
@@ -1048,17 +1048,18 @@ static void phy_lc_calibrate(struct adapter *adapt, bool is2t)
 	}
 }
 
-void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
+void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	s32 result[4][8];	/* last is final result */
-	u8 i, final_candidate, Indexforchannel;
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	s32 result[4][8];
+	u8 i, final, chn_index;
 	bool pathaok, pathbok;
-	s32 RegE94, RegE9C, RegEA4, RegEAC, RegEB4, RegEBC, RegEC4, RegECC;
+	s32 reg_e94, reg_e9c, reg_ea4, reg_eac, reg_eb4, reg_ebc, reg_ec4,
+	    reg_ecc;
 	bool is12simular, is13simular, is23simular;
 	bool singletone = false, carrier_sup = false;
-	u32 IQK_BB_REG_92C[IQK_BB_REG_NUM] = {
+	u32 iqk_bb_reg_92c[IQK_BB_REG_NUM] = {
 		rOFDM0_XARxIQImbalance, rOFDM0_XBRxIQImbalance,
 		rOFDM0_ECCAThreshold, rOFDM0_AGCRSSITable,
 		rOFDM0_XATxIQImbalance, rOFDM0_XBTxIQImbalance,
@@ -1071,16 +1072,16 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
 
-	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
 	if (singletone || carrier_sup)
 		return;
 
 	if (recovery) {
-		ODM_RT_TRACE(dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("PHY_IQCalibrate_8188E: Return due to recovery!\n"));
-		reload_adda_reg(adapt, IQK_BB_REG_92C, dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
+		ODM_RT_TRACE(dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD,
+			     ("phy_iq_calibrate: Return due to recovery!\n"));
+		reload_adda_reg(adapt, iqk_bb_reg_92c,
+				dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
 		return;
 	}
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("IQK:Start!!!\n"));
 
 	for (i = 0; i < 8; i++) {
 		result[0][i] = 0;
@@ -1091,7 +1092,7 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		else
 			result[3][i] = 0;
 	}
-	final_candidate = 0xff;
+	final = 0xff;
 	pathaok = false;
 	pathbok = false;
 	is12simular = false;
@@ -1104,8 +1105,7 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		if (i == 1) {
 			is12simular = simularity_compare(adapt, result, 0, 1);
 			if (is12simular) {
-				final_candidate = 0;
-				ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQK: is12simular final_candidate is %x\n", final_candidate));
+				final = 0;
 				break;
 			}
 		}
@@ -1113,83 +1113,70 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		if (i == 2) {
 			is13simular = simularity_compare(adapt, result, 0, 2);
 			if (is13simular) {
-				final_candidate = 0;
-				ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQK: is13simular final_candidate is %x\n", final_candidate));
-
+				final = 0;
 				break;
 			}
 			is23simular = simularity_compare(adapt, result, 1, 2);
-			if (is23simular) {
-				final_candidate = 1;
-				ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQK: is23simular final_candidate is %x\n", final_candidate));
-			} else {
-				final_candidate = 3;
-			}
+			if (is23simular)
+				final = 1;
+			else
+				final = 3;
 		}
 	}
 
 	for (i = 0; i < 4; i++) {
-		RegE94 = result[i][0];
-		RegE9C = result[i][1];
-		RegEA4 = result[i][2];
-		RegEAC = result[i][3];
-		RegEB4 = result[i][4];
-		RegEBC = result[i][5];
-		RegEC4 = result[i][6];
-		RegECC = result[i][7];
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-			     ("IQK: RegE94=%x RegE9C=%x RegEA4=%x RegEAC=%x RegEB4=%x RegEBC=%x RegEC4=%x RegECC=%x\n",
-			     RegE94, RegE9C, RegEA4, RegEAC, RegEB4, RegEBC, RegEC4, RegECC));
+		reg_e94 = result[i][0];
+		reg_e9c = result[i][1];
+		reg_ea4 = result[i][2];
+		reg_eac = result[i][3];
+		reg_eb4 = result[i][4];
+		reg_ebc = result[i][5];
+		reg_ec4 = result[i][6];
+		reg_ecc = result[i][7];
 	}
 
-	if (final_candidate != 0xff) {
-		RegE94 = result[final_candidate][0];
-		RegE9C = result[final_candidate][1];
-		RegEA4 = result[final_candidate][2];
-		RegEAC = result[final_candidate][3];
-		RegEB4 = result[final_candidate][4];
-		RegEBC = result[final_candidate][5];
-		dm_odm->RFCalibrateInfo.RegE94 = RegE94;
-		dm_odm->RFCalibrateInfo.RegE9C = RegE9C;
-		dm_odm->RFCalibrateInfo.RegEB4 = RegEB4;
-		dm_odm->RFCalibrateInfo.RegEBC = RegEBC;
-		RegEC4 = result[final_candidate][6];
-		RegECC = result[final_candidate][7];
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-			     ("IQK: final_candidate is %x\n", final_candidate));
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-			     ("IQK: RegE94=%x RegE9C=%x RegEA4=%x RegEAC=%x RegEB4=%x RegEBC=%x RegEC4=%x RegECC=%x\n",
-			     RegE94, RegE9C, RegEA4, RegEAC, RegEB4, RegEBC, RegEC4, RegECC));
+	if (final != 0xff) {
+		reg_e94 = result[final][0];
+		reg_e9c = result[final][1];
+		reg_ea4 = result[final][2];
+		reg_eac = result[final][3];
+		reg_eb4 = result[final][4];
+		reg_ebc = result[final][5];
+		dm_odm->RFCalibrateInfo.RegE94 = reg_e94;
+		dm_odm->RFCalibrateInfo.RegE9C = reg_e9c;
+		dm_odm->RFCalibrateInfo.RegEB4 = reg_eb4;
+		dm_odm->RFCalibrateInfo.RegEBC = reg_ebc;
+		reg_ec4 = result[final][6];
+		reg_ecc = result[final][7];
 		pathaok = true;
 		pathbok = true;
 	} else {
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("IQK: FAIL use default value\n"));
+		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
+			     ("IQK: FAIL use default value\n"));
 		dm_odm->RFCalibrateInfo.RegE94 = 0x100;
-		dm_odm->RFCalibrateInfo.RegEB4 = 0x100;	/* X default value */
+		dm_odm->RFCalibrateInfo.RegEB4 = 0x100;
 		dm_odm->RFCalibrateInfo.RegE9C = 0x0;
-		dm_odm->RFCalibrateInfo.RegEBC = 0x0;	/* Y default value */
+		dm_odm->RFCalibrateInfo.RegEBC = 0x0;
 	}
-	if (RegE94 != 0)
-		patha_fill_iqk(adapt, pathaok, result, final_candidate, (RegEA4 == 0));
+	if (reg_e94 != 0)
+		patha_fill_iqk(adapt, pathaok, result, final,
+			       (reg_ea4 == 0));
 	if (is2t) {
-		if (RegEB4 != 0)
-			pathb_fill_iqk(adapt, pathbok, result, final_candidate, (RegEC4 == 0));
+		if (reg_eb4 != 0)
+			pathb_fill_iqk(adapt, pathbok, result, final,
+				       (reg_ec4 == 0));
 	}
 
-	Indexforchannel = get_right_chnl_for_iqk(pHalData->CurrentChannel);
+	chn_index = get_right_chnl_for_iqk(hal_data->CurrentChannel);
 
-/* To Fix BSOD when final_candidate is 0xff */
-/* by sherry 20120321 */
-	if (final_candidate < 4) {
+	if (final < 4) {
 		for (i = 0; i < IQK_Matrix_REG_NUM; i++)
-			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[Indexforchannel].Value[0][i] = result[final_candidate][i];
-		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[Indexforchannel].bIQKDone = true;
+			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[chn_index].Value[0][i] = result[final][i];
+		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[chn_index].bIQKDone = true;
 	}
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("\nIQK OK Indexforchannel %d.\n", Indexforchannel));
 
-	save_adda_registers(adapt, IQK_BB_REG_92C, dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
-
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("IQK finished\n"));
+	save_adda_registers(adapt, iqk_bb_reg_92c,
+			    dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
 }
 
 void PHY_LCCalibrate_8188E(struct adapter *adapt)

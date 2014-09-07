@@ -35,10 +35,7 @@ void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm,
 						       */
 
 void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt);
-
-/* 1 7.	IQK */
-
-void PHY_IQCalibrate_8188E(struct adapter *Adapter, bool ReCovery);
+void rtl88eu_phy_iq_calibrate(struct adapter *adapter, bool recovery);
 
 /*  LC calibrate */
 void PHY_LCCalibrate_8188E(struct adapter *pAdapter);
