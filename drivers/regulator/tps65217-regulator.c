@@ -171,13 +171,13 @@ static const struct regulator_desc regulators[] = {
 
 #ifdef CONFIG_OF
 static struct of_regulator_match reg_matches[] = {
-	{ .name = "dcdc1", .driver_data = (void *)TPS65217_DCDC_1 },
-	{ .name = "dcdc2", .driver_data = (void *)TPS65217_DCDC_2 },
-	{ .name = "dcdc3", .driver_data = (void *)TPS65217_DCDC_3 },
-	{ .name = "ldo1", .driver_data = (void *)TPS65217_LDO_1 },
-	{ .name = "ldo2", .driver_data = (void *)TPS65217_LDO_2 },
-	{ .name = "ldo3", .driver_data = (void *)TPS65217_LDO_3 },
-	{ .name = "ldo4", .driver_data = (void *)TPS65217_LDO_4 },
+	{ .name = "dcdc1" },
+	{ .name = "dcdc2" },
+	{ .name = "dcdc3" },
+	{ .name = "ldo1"  },
+	{ .name = "ldo2"  },
+	{ .name = "ldo3"  },
+	{ .name = "ldo4"  },
 };
 
 static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
