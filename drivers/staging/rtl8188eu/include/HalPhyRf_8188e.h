@@ -27,12 +27,12 @@
 #define AVG_THERMAL_NUM_88E	4
 #define ODM_TARGET_CHNL_NUM_2G_5G	59
 
-void ODM_TxPwrTrackAdjust88E(struct odm_dm_struct *pDM_Odm,
-			     u8 Type,	/* 0 = OFDM, 1 = CCK */
-			     u8 *pDirection,/* 1 = +(incr) 2 = -(decr) */
-			     u32 *pOutWriteVal); /* Tx tracking CCK/OFDM BB
-						     * swing index adjust */
-
+void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm,
+				     u8 type, /* 0 = OFDM, 1 = CCK */
+				     u8 *dir, /* 1 = +(incr), 2 = -(decr) */
+				     u32 *out_write); /* Tx tracking CCK/OFDM BB
+						       * swing index adjust
+						       */
 
 void odm_TXPowerTrackingCallback_ThermalMeter_8188E(struct adapter *Adapter);
 

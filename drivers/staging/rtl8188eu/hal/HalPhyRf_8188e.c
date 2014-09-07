@@ -43,66 +43,49 @@ static u8 get_right_chnl_for_iqk(u8 chnl)
 	return 0;
 }
 
-/* 3 Tx Power Tracking */
-/*
- * Function:	ODM_TxPwrTrackAdjust88E()
- *
- * Overview:	88E we can not write 0xc80/c94/c4c/ 0xa2x. Instead of write TX agc.
- *				No matter OFDM & CCK use the same method.
- *
- * Revised History:
- *	When		Who		Remark
- *	04/23/2012	MHC		Create Version 0.
- *	04/23/2012	MHC		Adjust TX agc directly not throughput BB digital.
- *
- */
-void ODM_TxPwrTrackAdjust88E(struct odm_dm_struct *dm_odm, u8 Type,/*  0 = OFDM, 1 = CCK */
-	u8 *pDirection, 		/*  1 = +(increase) 2 = -(decrease) */
-	u32 *pOutWriteVal		/*  Tx tracking CCK/OFDM BB swing index adjust */
-	)
+void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
+				     u8 *direction, u32 *out_write_val)
 {
 	u8 pwr_value = 0;
 	/*  Tx power tracking BB swing table. */
-	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
-	if (Type == 0) {		/*  For OFDM afjust */
+	if (type == 0) { /* For OFDM adjust */
 		ODM_RT_TRACE(dm_odm, ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD,
 			     ("BbSwingIdxOfdm = %d BbSwingFlagOfdm=%d\n",
 			     dm_odm->BbSwingIdxOfdm, dm_odm->BbSwingFlagOfdm));
 
 		if (dm_odm->BbSwingIdxOfdm <= dm_odm->BbSwingIdxOfdmBase) {
-			*pDirection	= 1;
-			pwr_value		= (dm_odm->BbSwingIdxOfdmBase - dm_odm->BbSwingIdxOfdm);
+			*direction = 1;
+			pwr_value = (dm_odm->BbSwingIdxOfdmBase -
+				     dm_odm->BbSwingIdxOfdm);
 		} else {
-			*pDirection	= 2;
-			pwr_value		= (dm_odm->BbSwingIdxOfdm - dm_odm->BbSwingIdxOfdmBase);
+			*direction = 2;
+			pwr_value = (dm_odm->BbSwingIdxOfdm -
+				     dm_odm->BbSwingIdxOfdmBase);
 		}
 
-		ODM_RT_TRACE(dm_odm, ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD,
-			     ("BbSwingIdxOfdm = %d BbSwingFlagOfdm=%d\n",
-			     dm_odm->BbSwingIdxOfdm, dm_odm->BbSwingFlagOfdm));
-	} else if (Type == 1) {	/*  For CCK adjust. */
+	} else if (type == 1) { /* For CCK adjust. */
 		ODM_RT_TRACE(dm_odm, ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD,
 			     ("dm_odm->BbSwingIdxCck = %d dm_odm->BbSwingIdxCckBase = %d\n",
 			     dm_odm->BbSwingIdxCck, dm_odm->BbSwingIdxCckBase));
 
 		if (dm_odm->BbSwingIdxCck <= dm_odm->BbSwingIdxCckBase) {
-			*pDirection	= 1;
-			pwr_value		= (dm_odm->BbSwingIdxCckBase - dm_odm->BbSwingIdxCck);
+			*direction = 1;
+			pwr_value = (dm_odm->BbSwingIdxCckBase -
+				     dm_odm->BbSwingIdxCck);
 		} else {
-			*pDirection	= 2;
-			pwr_value		= (dm_odm->BbSwingIdxCck - dm_odm->BbSwingIdxCckBase);
+			*direction = 2;
+			pwr_value = (dm_odm->BbSwingIdxCck -
+				     dm_odm->BbSwingIdxCckBase);
 		}
+
 	}
 
-	/*  */
-	/*  2012/04/25 MH According to Ed/Luke.Lees estimate for EVM the max tx power tracking */
-	/*  need to be less than 6 power index for 88E. */
-	/*  */
-	if (pwr_value >= ODM_TXPWRTRACK_MAX_IDX_88E && *pDirection == 1)
+	if (pwr_value >= ODM_TXPWRTRACK_MAX_IDX_88E && *direction == 1)
 		pwr_value = ODM_TXPWRTRACK_MAX_IDX_88E;
 
-	*pOutWriteVal = pwr_value | (pwr_value<<8) | (pwr_value<<16) | (pwr_value<<24);
-}	/*  ODM_TxPwrTrackAdjust88E */
+	*out_write_val = pwr_value | (pwr_value<<8) | (pwr_value<<16) |
+			 (pwr_value<<24);
+}
 
 /*
  * Function:	odm_TxPwrTrackSetPwr88E()

@@ -101,7 +101,8 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 			ptr++;
 		}
 	}
-	ODM_TxPwrTrackAdjust88E(&hal_data->odmpriv, 1, &direction, &pwrtrac_value);
+	rtl88eu_dm_txpower_track_adjust(&hal_data->odmpriv, 1, &direction,
+				        &pwrtrac_value);
 
 	if (direction == 1) {
 		/*  Increase TX power */
@@ -297,7 +298,8 @@ void rtl88eu_phy_rf6052_set_ofdm_txpower(struct adapter *adapt,
 	getpowerbase88e(adapt, pwr_level_ofdm, pwr_level_bw20, pwr_level_bw40,
 			channel, &powerbase0[0], &powerbase1[0]);
 
-	ODM_TxPwrTrackAdjust88E(&hal_data->odmpriv, 0, &direction, &pwrtrac_value);
+	rtl88eu_dm_txpower_track_adjust(&hal_data->odmpriv, 0, &direction,
+					&pwrtrac_value);
 
 	for (index = 0; index < 6; index++) {
 		get_rx_power_val_by_reg(adapt, channel, index,
