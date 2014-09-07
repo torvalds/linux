@@ -500,8 +500,10 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	spin_unlock(&nrs->nrs_lock);
 
 	OBD_ALLOC(infos, num_pols * sizeof(*infos));
-	if (infos == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (infos == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 again:
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
@@ -640,26 +642,34 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 	char			       *token;
 	int				rc = 0;
 
-	if (count >= LPROCFS_NRS_WR_MAX_CMD)
-		GOTO(out, rc = -EINVAL);
+	if (count >= LPROCFS_NRS_WR_MAX_CMD) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	OBD_ALLOC(cmd, LPROCFS_NRS_WR_MAX_CMD);
-	if (cmd == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (cmd == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 	/**
 	 * strsep() modifies its argument, so keep a copy
 	 */
 	cmd_copy = cmd;
 
-	if (copy_from_user(cmd, buffer, count))
-		GOTO(out, rc = -EFAULT);
+	if (copy_from_user(cmd, buffer, count)) {
+		rc = -EFAULT;
+		goto out;
+	}
 
 	cmd[count] = '\0';
 
 	token = strsep(&cmd, " ");
 
-	if (strlen(token) > NRS_POL_NAME_MAX - 1)
-		GOTO(out, rc = -EINVAL);
+	if (strlen(token) > NRS_POL_NAME_MAX - 1) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	/**
 	 * No [reg|hp] token has been specified
@@ -674,13 +684,17 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 		queue = PTLRPC_NRS_QUEUE_REG;
 	else if (strcmp(cmd, "hp") == 0)
 		queue = PTLRPC_NRS_QUEUE_HP;
-	else
-		GOTO(out, rc = -EINVAL);
+	else {
+		rc = -EINVAL;
+		goto out;
+	}
 
 default_queue:
 
-	if (queue == PTLRPC_NRS_QUEUE_HP && !nrs_svc_has_hp(svc))
-		GOTO(out, rc = -ENODEV);
+	if (queue == PTLRPC_NRS_QUEUE_HP && !nrs_svc_has_hp(svc)) {
+		rc = -ENODEV;
+		goto out;
+	}
 	else if (queue == PTLRPC_NRS_QUEUE_BOTH && !nrs_svc_has_hp(svc))
 		queue = PTLRPC_NRS_QUEUE_REG;
 
@@ -1258,14 +1272,18 @@ int lprocfs_wr_import(struct file *file, const char *buffer,
 	if (kbuf == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(kbuf, buffer, count))
-		GOTO(out, count = -EFAULT);
+	if (copy_from_user(kbuf, buffer, count)) {
+		count = -EFAULT;
+		goto out;
+	}
 
 	kbuf[count] = 0;
 
 	/* only support connection=uuid::instance now */
-	if (strncmp(prefix, kbuf, prefix_len) != 0)
-		GOTO(out, count = -EINVAL);
+	if (strncmp(prefix, kbuf, prefix_len) != 0) {
+		count = -EINVAL;
+		goto out;
+	}
 
 	uuid = kbuf + prefix_len;
 	ptr = strstr(uuid, "::");

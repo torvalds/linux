@@ -578,7 +578,7 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	else {
 		rc = sptlrpc_req_get_ctx(request);
 		if (rc)
-			GOTO(out_free, rc);
+			goto out_free;
 	}
 
 	sptlrpc_req_set_flavor(request, opcode);
@@ -587,7 +587,7 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 				 lengths, bufs);
 	if (rc) {
 		LASSERT(!request->rq_pool);
-		GOTO(out_ctx, rc);
+		goto out_ctx;
 	}
 
 	lustre_msg_add_version(request->rq_reqmsg, version);
@@ -1585,7 +1585,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			continue;
 
 		if (req->rq_phase == RQ_PHASE_INTERPRET)
-			GOTO(interpret, req->rq_status);
+			goto interpret;
 
 		/*
 		 * Note that this also will start async reply unlink.
@@ -1604,7 +1604,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 				if (req->rq_status == 0)
 					req->rq_status = -EIO;
 				ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
-				GOTO(interpret, req->rq_status);
+				goto interpret;
 			} else {
 				continue;
 			}
@@ -1617,7 +1617,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			if (req->rq_status == 0)
 				req->rq_status = -EIO;
 			ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
-			GOTO(interpret, req->rq_status);
+			goto interpret;
 		}
 
 		/* ptlrpc_set_wait->l_wait_event sets lwi_allow_intr
@@ -1633,7 +1633,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 				     req->rq_wait_ctx)) {
 			req->rq_status = -EINTR;
 			ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
-			GOTO(interpret, req->rq_status);
+			goto interpret;
 		}
 
 		if (req->rq_phase == RQ_PHASE_RPC) {
@@ -1662,7 +1662,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					ptlrpc_rqphase_move(req,
 						RQ_PHASE_INTERPRET);
 					spin_unlock(&imp->imp_lock);
-					GOTO(interpret, req->rq_status);
+					goto interpret;
 				}
 				if (ptlrpc_no_resend(req) &&
 				    !req->rq_wait_ctx) {
@@ -1670,7 +1670,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					ptlrpc_rqphase_move(req,
 							    RQ_PHASE_INTERPRET);
 					spin_unlock(&imp->imp_lock);
-					GOTO(interpret, req->rq_status);
+					goto interpret;
 				}
 
 				list_del_init(&req->rq_list);
@@ -1780,7 +1780,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			 */
 			if (req->rq_bulk == NULL || req->rq_status < 0) {
 				ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
-				GOTO(interpret, req->rq_status);
+				goto interpret;
 			}
 
 			ptlrpc_rqphase_move(req, RQ_PHASE_BULK);
@@ -2491,7 +2491,7 @@ void ptlrpc_free_committed(struct obd_import *imp)
 		}
 		if (req->rq_import_generation < imp->imp_generation) {
 			DEBUG_REQ(D_RPCTRACE, req, "free request with old gen");
-			GOTO(free_req, 0);
+			goto free_req;
 		}
 
 		/* not yet committed */
@@ -2701,13 +2701,16 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 
 	if (!ptlrpc_client_replied(req)) {
 		CERROR("request replay timed out, restarting recovery\n");
-		GOTO(out, rc = -ETIMEDOUT);
+		rc = -ETIMEDOUT;
+		goto out;
 	}
 
 	if (lustre_msg_get_type(req->rq_repmsg) == PTL_RPC_MSG_ERR &&
 	    (lustre_msg_get_status(req->rq_repmsg) == -ENOTCONN ||
-	     lustre_msg_get_status(req->rq_repmsg) == -ENODEV))
-		GOTO(out, rc = lustre_msg_get_status(req->rq_repmsg));
+	     lustre_msg_get_status(req->rq_repmsg) == -ENODEV)) {
+		rc = lustre_msg_get_status(req->rq_repmsg);
+		goto out;
+	}
 
 	/** VBR: check version failure */
 	if (lustre_msg_get_status(req->rq_repmsg) == -EOVERFLOW) {
@@ -2742,7 +2745,8 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 			  "Reported transno %llu is bigger than the replayed one: %llu",
 			  req->rq_transno,
 			  lustre_msg_get_transno(req->rq_reqmsg));
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	DEBUG_REQ(D_HA, req, "got rep");

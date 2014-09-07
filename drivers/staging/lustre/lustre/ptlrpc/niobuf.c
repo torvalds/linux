@@ -537,13 +537,13 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	rc = sptlrpc_cli_wrap_request(request);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	/* bulk register should be done after wrap_request() */
 	if (request->rq_bulk != NULL) {
 		rc = ptlrpc_register_bulk(request);
 		if (rc != 0)
-			GOTO(out, rc);
+			goto out;
 	}
 
 	if (!noreply) {
@@ -560,7 +560,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 				request->rq_err = 1;
 				spin_unlock(&request->rq_lock);
 				request->rq_status = rc;
-				GOTO(cleanup_bulk, rc);
+				goto cleanup_bulk;
 			}
 		} else {
 			request->rq_repdata = NULL;
@@ -573,7 +573,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		if (rc != 0) {
 			CERROR("LNetMEAttach failed: %d\n", rc);
 			LASSERT(rc == -ENOMEM);
-			GOTO(cleanup_bulk, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto cleanup_bulk;
 		}
 	}
 
@@ -616,7 +617,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 			/* ...but the MD attach didn't succeed... */
 			request->rq_receiving_reply = 0;
 			spin_unlock(&request->rq_lock);
-			GOTO(cleanup_me, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto cleanup_me;
 		}
 
 		CDEBUG(D_NET, "Setup reply buffer: %u bytes, xid %llu, portal %u\n",
@@ -650,11 +652,11 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 			  request->rq_request_portal,
 			  request->rq_xid, 0);
 	if (rc == 0)
-		GOTO(out, rc);
+		goto out;
 
 	ptlrpc_req_finished(request);
 	if (noreply)
-		GOTO(out, rc);
+		goto out;
 
  cleanup_me:
 	/* MEUnlink is safe; the PUT didn't even get off the ground, and

@@ -52,7 +52,7 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 
 	conn = cfs_hash_lookup(conn_hash, &peer);
 	if (conn)
-		GOTO(out, conn);
+		goto out;
 
 	OBD_ALLOC_PTR(conn);
 	if (!conn)
