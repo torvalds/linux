@@ -215,12 +215,16 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 	if (IS_ERR(dchild_old))
 		return PTR_ERR(dchild_old);
 
-	if (!dchild_old->d_inode)
-		GOTO(put_old, err = -ENOENT);
+	if (!dchild_old->d_inode) {
+		err = -ENOENT;
+		goto put_old;
+	}
 
 	dchild_new = ll_lookup_one_len(newname, dir, strlen(newname));
-	if (IS_ERR(dchild_new))
-		GOTO(put_old, err = PTR_ERR(dchild_new));
+	if (IS_ERR(dchild_new)) {
+		err = PTR_ERR(dchild_new);
+		goto put_old;
+	}
 
 	err = ll_vfs_rename(dir->d_inode, dchild_old, mnt,
 			    dir->d_inode, dchild_new, mnt);
