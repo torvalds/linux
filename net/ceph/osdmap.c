@@ -671,25 +671,25 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	int i;
 
 	state = krealloc(map->osd_state, max*sizeof(*state), GFP_NOFS);
-	weight = krealloc(map->osd_weight, max*sizeof(*weight), GFP_NOFS);
-	addr = krealloc(map->osd_addr, max*sizeof(*addr), GFP_NOFS);
-	if (!state || !weight || !addr) {
-		kfree(state);
-		kfree(weight);
-		kfree(addr);
-
+	if (!state)
 		return -ENOMEM;
-	}
+	map->osd_state = state;
+
+	weight = krealloc(map->osd_weight, max*sizeof(*weight), GFP_NOFS);
+	if (!weight)
+		return -ENOMEM;
+	map->osd_weight = weight;
+
+	addr = krealloc(map->osd_addr, max*sizeof(*addr), GFP_NOFS);
+	if (!addr)
+		return -ENOMEM;
+	map->osd_addr = addr;
 
 	for (i = map->max_osd; i < max; i++) {
-		state[i] = 0;
-		weight[i] = CEPH_OSD_OUT;
-		memset(addr + i, 0, sizeof(*addr));
+		map->osd_state[i] = 0;
+		map->osd_weight[i] = CEPH_OSD_OUT;
+		memset(map->osd_addr + i, 0, sizeof(*map->osd_addr));
 	}
-
-	map->osd_state = state;
-	map->osd_weight = weight;
-	map->osd_addr = addr;
 
 	if (map->osd_primary_affinity) {
 		u32 *affinity;
@@ -698,11 +698,11 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 				    max*sizeof(*affinity), GFP_NOFS);
 		if (!affinity)
 			return -ENOMEM;
+		map->osd_primary_affinity = affinity;
 
 		for (i = map->max_osd; i < max; i++)
-			affinity[i] = CEPH_OSD_DEFAULT_PRIMARY_AFFINITY;
-
-		map->osd_primary_affinity = affinity;
+			map->osd_primary_affinity[i] =
+			    CEPH_OSD_DEFAULT_PRIMARY_AFFINITY;
 	}
 
 	map->max_osd = max;
