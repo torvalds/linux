@@ -21,7 +21,6 @@ r8188eu-y :=				\
 		hal/mac_cfg.o \
 		hal/bb_cfg.o \
 		hal/rf_cfg.o \
-		hal/HalPhyRf_8188e.o	\
 		hal/pwrseqcmd.o \
 		hal/pwrseq.o \
 		hal/Hal8188ERateAdaptive.o\
