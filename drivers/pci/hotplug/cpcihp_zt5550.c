@@ -182,9 +182,9 @@ static int zt5550_hc_enable_irq(void)
 {
 	u8 reg;
 
-	if (hc_dev == NULL) {
+	if (hc_dev == NULL)
 		return -ENODEV;
-	}
+
 	reg = readb(csr_int_mask);
 	reg = reg & ~ENUM_INT_MASK;
 	writeb(reg, csr_int_mask);
@@ -195,9 +195,8 @@ static int zt5550_hc_disable_irq(void)
 {
 	u8 reg;
 
-	if (hc_dev == NULL) {
+	if (hc_dev == NULL)
 		return -ENODEV;
-	}
 
 	reg = readb(csr_int_mask);
 	reg = reg | ENUM_INT_MASK;
@@ -210,9 +209,9 @@ static int zt5550_hc_init_one (struct pci_dev *pdev, const struct pci_device_id 
 	int status;
 
 	status = zt5550_hc_config(pdev);
-	if (status != 0) {
+	if (status != 0)
 		return status;
-	}
+
 	dbg("returned from zt5550_hc_config");
 
 	memset(&zt5550_hpc, 0, sizeof (struct cpci_hp_controller));

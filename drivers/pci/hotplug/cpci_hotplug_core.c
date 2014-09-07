@@ -467,9 +467,9 @@ check_slots(void)
 			    __func__, slot_name(slot), hs_csr);
 
 			if (!slot->extracting) {
-				if (update_latch_status(slot->hotplug_slot, 0)) {
+				if (update_latch_status(slot->hotplug_slot, 0))
 					warn("failure to update latch file");
-				}
+
 				slot->extracting = 1;
 				atomic_inc(&extracting);
 			}

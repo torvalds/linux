@@ -1199,9 +1199,8 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 
 	debug("DISABLING SLOT...\n");
 
-	if ((slot_cur == NULL) || (slot_cur->ctrl == NULL)) {
+	if ((slot_cur == NULL) || (slot_cur->ctrl == NULL))
 		return -ENODEV;
-	}
 
 	flag = slot_cur->flag;
 	slot_cur->flag = 1;
@@ -1355,9 +1354,8 @@ static int __init ibmphp_init(void)
 	}
 
 	ibmphp_print_test();
-	if ((rc = ibmphp_hpc_start_poll_thread())) {
+	if ((rc = ibmphp_hpc_start_poll_thread()))
 		goto error;
-	}
 
 exit:
 	return rc;
