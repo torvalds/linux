@@ -419,6 +419,7 @@ static void xonar_st_init_common(struct oxygen *chip)
 
 	data->generic.output_enable_bit = GPIO_ST_OUTPUT_ENABLE;
 	data->dacs = chip->model.dac_channels_mixer / 2;
+	data->h6 = chip->model.dac_channels_mixer > 2;
 	data->hp_gain_offset = 2*-18;
 
 	pcm1796_init(chip);
@@ -1142,8 +1143,18 @@ int get_xonar_pcm179x_model(struct oxygen *chip,
 		break;
 	case 0x85f4:
 		chip->model = model_xonar_st;
-		/* TODO: daughterboard support */
-		chip->model.shortname = "Xonar STX II";
+		oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_DB_MASK);
+		switch (oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_DB_MASK) {
+		default:
+			chip->model.shortname = "Xonar STX II";
+			break;
+		case GPIO_DB_H6:
+			chip->model.shortname = "Xonar STX II+H6";
+			chip->model.dac_channels_pcm = 8;
+			chip->model.dac_channels_mixer = 8;
+			chip->model.dac_mclks = OXYGEN_MCLKS(256, 128, 128);
+			break;
+		}
 		chip->model.init = xonar_stx_init;
 		chip->model.resume = xonar_stx_resume;
 		chip->model.set_dac_params = set_pcm1796_params;
