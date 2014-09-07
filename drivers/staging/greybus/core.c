@@ -210,7 +210,14 @@ static int gb_init_subdevs(struct greybus_device *gdev,
 	retval = gb_tty_probe(gdev, id);
 	if (retval)
 		goto error_tty;
+
+	retval = gb_battery_probe(gdev, id);
+	if (retval)
+		goto error_battery;
 	return 0;
+
+error_battery:
+	gb_tty_disconnect(gdev);
 
 error_tty:
 	gb_sdio_disconnect(gdev);
@@ -444,6 +451,7 @@ void greybus_remove_device(struct greybus_device *gdev)
 	gb_gpio_disconnect(gdev);
 	gb_sdio_disconnect(gdev);
 	gb_tty_disconnect(gdev);
+	gb_battery_disconnect(gdev);
 
 	// FIXME - device_remove(&gdev->dev);
 }

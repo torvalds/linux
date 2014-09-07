@@ -91,6 +91,7 @@ struct gb_gpio_device;
 struct gb_sdio_host;
 struct gb_tty;
 struct gb_usb_device;
+struct gb_battery;
 struct greybus_host_device;
 struct svc_msg;
 
@@ -142,6 +143,7 @@ struct greybus_device {
 	struct gb_sdio_host *gb_sdio_host;
 	struct gb_tty *gb_tty;
 	struct gb_usb_device *gb_usb_dev;
+	struct gb_battery *gb_battery;
 };
 #define to_greybus_device(d) container_of(d, struct greybus_device, dev)
 
@@ -237,6 +239,8 @@ int gb_sdio_probe(struct greybus_device *gdev, const struct greybus_module_id *i
 void gb_sdio_disconnect(struct greybus_device *gdev);
 int gb_tty_probe(struct greybus_device *gdev, const struct greybus_module_id *id);
 void gb_tty_disconnect(struct greybus_device *gdev);
+int gb_battery_probe(struct greybus_device *gdev, const struct greybus_module_id *id);
+void gb_battery_disconnect(struct greybus_device *gdev);
 
 int gb_tty_init(void);
 void gb_tty_exit(void);
