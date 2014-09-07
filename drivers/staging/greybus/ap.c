@@ -42,6 +42,12 @@ static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
 	// for now, just cast the pointer and run away...
 
 	svc_msg = (struct svc_msg *)ap_msg->data;
+
+	// FIXME - put in correct version numbers
+	if ((svc_msg->header.version_major != 0x00) &&
+	    (svc_msg->header.version_minor != 0x00))
+		return NULL;
+
 	return svc_msg;
 }
 
