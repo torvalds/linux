@@ -578,40 +578,38 @@ static void patha_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8],
 	}
 }
 
-static void pathb_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u8 final_candidate, bool txonly)
+static void pathb_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8],
+			   u8 final_candidate, bool txonly)
 {
-	u32 Oldval_1, X, TX1_A, reg;
-	s32 Y, TX1_C;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("Path B IQ Calibration %s !\n",
-		     (iqkok) ? "Success" : "Failed"));
+	u32 oldval_1, x, tx1_a, reg;
+	s32 y, tx1_c;
 
 	if (final_candidate == 0xFF) {
 		return;
 	} else if (iqkok) {
-		Oldval_1 = (phy_query_bb_reg(adapt, rOFDM0_XBTxIQImbalance, bMaskDWord) >> 22) & 0x3FF;
+		oldval_1 = (phy_query_bb_reg(adapt, rOFDM0_XBTxIQImbalance, bMaskDWord) >> 22) & 0x3FF;
 
-		X = result[final_candidate][4];
-		if ((X & 0x00000200) != 0)
-			X = X | 0xFFFFFC00;
-		TX1_A = (X * Oldval_1) >> 8;
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("X = 0x%x, TX1_A = 0x%x\n", X, TX1_A));
-		phy_set_bb_reg(adapt, rOFDM0_XBTxIQImbalance, 0x3FF, TX1_A);
+		x = result[final_candidate][4];
+		if ((x & 0x00000200) != 0)
+			x = x | 0xFFFFFC00;
+		tx1_a = (x * oldval_1) >> 8;
+		phy_set_bb_reg(adapt, rOFDM0_XBTxIQImbalance, 0x3FF, tx1_a);
 
-		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(27), ((X * Oldval_1>>7) & 0x1));
+		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(27),
+			       ((x * oldval_1>>7) & 0x1));
 
-		Y = result[final_candidate][5];
-		if ((Y & 0x00000200) != 0)
-			Y = Y | 0xFFFFFC00;
+		y = result[final_candidate][5];
+		if ((y & 0x00000200) != 0)
+			y = y | 0xFFFFFC00;
 
-		TX1_C = (Y * Oldval_1) >> 8;
-		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Y = 0x%x, TX1_C = 0x%x\n", Y, TX1_C));
-		phy_set_bb_reg(adapt, rOFDM0_XDTxAFE, 0xF0000000, ((TX1_C&0x3C0)>>6));
-		phy_set_bb_reg(adapt, rOFDM0_XBTxIQImbalance, 0x003F0000, (TX1_C&0x3F));
+		tx1_c = (y * oldval_1) >> 8;
 
-		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(25), ((Y * Oldval_1>>7) & 0x1));
+		phy_set_bb_reg(adapt, rOFDM0_XDTxAFE, 0xF0000000,
+			       ((tx1_c&0x3C0)>>6));
+		phy_set_bb_reg(adapt, rOFDM0_XBTxIQImbalance, 0x003F0000,
+			       (tx1_c&0x3F));
+		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(25),
+			       ((y * oldval_1>>7) & 0x1));
 
 		if (txonly)
 			return;
