@@ -1120,11 +1120,13 @@ static int snd_interval_step(struct snd_interval *i, unsigned int step)
 	n = i->min % step;
 	if (n != 0 || i->openmin) {
 		i->min += step - n;
+		i->openmin = 0;
 		changed = 1;
 	}
 	n = i->max % step;
 	if (n != 0 || i->openmax) {
 		i->max -= n;
+		i->openmax = 0;
 		changed = 1;
 	}
 	if (snd_interval_checkempty(i)) {
