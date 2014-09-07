@@ -677,7 +677,7 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
 	struct set_stakey_rsp *psetstakey_rsp = NULL;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	struct sta_info *sta = (struct sta_info*)psta;
+	struct sta_info *sta = (struct sta_info *)psta;
 	int res = _SUCCESS;
 
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
@@ -1493,7 +1493,7 @@ void rtw_setstaKey_cmdrsp_callback23a(struct rtw_adapter *padapter,
 	struct sta_info *psta;
 
 	pstapriv = &padapter->stapriv;
-	psetstakey_rsp = (struct set_stakey_rsp*) (pcmd->rsp);
+	psetstakey_rsp = (struct set_stakey_rsp *) (pcmd->rsp);
 	psta = rtw_get_stainfo23a(pstapriv, psetstakey_rsp->addr);
 
 	if (!psta) {
@@ -1518,7 +1518,7 @@ void rtw_setassocsta_cmdrsp_callback23a(struct rtw_adapter *padapter,
 	struct sta_info *psta;
 
 	passocsta_parm = (struct set_assocsta_parm *)(pcmd->parmbuf);
-	passocsta_rsp = (struct set_assocsta_rsp*) (pcmd->rsp);
+	passocsta_rsp = (struct set_assocsta_rsp *) (pcmd->rsp);
 	psta = rtw_get_stainfo23a(pstapriv, passocsta_parm->addr);
 
 	if (psta == NULL) {

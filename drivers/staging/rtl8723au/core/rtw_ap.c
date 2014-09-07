@@ -143,7 +143,7 @@ static void update_BCNTIM(struct rtw_adapter *padapter)
 		*dst_ie++ = 0;
 
 	if (tim_ielen == 4) {
-		*dst_ie++ = *(u8*)&tim_bitmap_le;
+		*dst_ie++ = *(u8 *)&tim_bitmap_le;
 	} else if (tim_ielen == 5) {
 		memcpy(dst_ie, &tim_bitmap_le, 2);
 		dst_ie+= 2;
@@ -463,7 +463,8 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 
 		psta->ieee8021x_blocked = 0;
 
-		memset((void*)&psta->sta_stats, 0, sizeof(struct stainfo_stats));
+		memset((void *)&psta->sta_stats, 0,
+		       sizeof(struct stainfo_stats));
 
 		/* prepare for add_RATid23a */
 		supportRateNum = rtw_get_rateset_len23a((u8*)&pcur_network->SupportedRates);
@@ -599,7 +600,7 @@ void update_sta_info23a_apmode23a(struct rtw_adapter *padapter, struct sta_info 
 
 	/* todo: init other variables */
 
-	memset((void*)&psta->sta_stats, 0, sizeof(struct stainfo_stats));
+	memset((void *)&psta->sta_stats, 0, sizeof(struct stainfo_stats));
 
 	spin_lock_bh(&psta->lock);
 	psta->state |= _FW_LINKED;
@@ -1021,7 +1022,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	pbss_network->Length = get_wlan_bssid_ex_sz(pbss_network);
 
 	/* issue beacon to start bss network */
-	start_bss_network(padapter, (u8*)pbss_network);
+	start_bss_network(padapter, (u8 *)pbss_network);
 
 	/* alloc sta_info for ap itself */
 	psta = rtw_get_stainfo23a(&padapter->stapriv, pbss_network->MacAddress);
@@ -1674,7 +1675,8 @@ u8 ap_free_sta23a(struct rtw_adapter *padapter, struct sta_info *psta, bool acti
 
 	/* clear cam entry / key */
 	/* clear_cam_entry23a(padapter, (psta->mac_id + 3)); */
-	rtw_clearstakey_cmd23a(padapter, (u8*)psta, (u8)(psta->mac_id + 3), true);
+	rtw_clearstakey_cmd23a(padapter, (u8 *)psta, (u8)(psta->mac_id + 3),
+			       true);
 
 	spin_lock_bh(&psta->lock);
 	psta->state &= ~_FW_LINKED;
@@ -1829,7 +1831,7 @@ void rtw_ap_restore_network(struct rtw_adapter *padapter)
 
 	set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
-	start_bss_network(padapter, (u8*)&mlmepriv->cur_network.network);
+	start_bss_network(padapter, (u8 *)&mlmepriv->cur_network.network);
 
 	if (padapter->securitypriv.dot11PrivacyAlgrthm ==
 	    WLAN_CIPHER_SUITE_TKIP ||

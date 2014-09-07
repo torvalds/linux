@@ -1256,7 +1256,7 @@ void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	struct sta_info *psta;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
-	struct stassoc_event *pstassoc = (struct stassoc_event*)pbuf;
+	struct stassoc_event *pstassoc = (struct stassoc_event *)pbuf;
 	struct wlan_network *cur_network = &pmlmepriv->cur_network;
 	struct wlan_network *ptarget_wlan;
 
@@ -2187,7 +2187,7 @@ bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 		pframe = rtw_set_ie23a(out_ie + out_len, WLAN_EID_HT_CAPABILITY,
 				    sizeof(struct ieee80211_ht_cap),
-				    (unsigned char*)&ht_capie, pout_len);
+				    (unsigned char *)&ht_capie, pout_len);
 
 		phtpriv->ht_option = true;
 

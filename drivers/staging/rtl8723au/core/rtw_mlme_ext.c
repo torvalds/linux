@@ -2436,7 +2436,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 		if (wps_ie && wps_ie[1] > 0) {
 			rtw_get_wps_attr_content23a(wps_ie, wps_ie[1],
 						    WPS_ATTR_SELECTED_REGISTRAR,
-						    (u8*)&sr);
+						    (u8 *)&sr);
 		}
 		if (sr != 0)
 			set_fwstate(pmlmepriv, WIFI_UNDER_WPS);
@@ -4763,7 +4763,7 @@ void report_survey_event23a(struct rtw_adapter *padapter,
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct survey_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_Survey);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -4814,7 +4814,7 @@ void report_surveydone_event23a(struct rtw_adapter *padapter)
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct surveydone_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_SurveyDone);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -4858,7 +4858,7 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct joinbss_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_JoinBss);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -4908,7 +4908,7 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct stadel_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_DelSTA);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -4962,7 +4962,7 @@ void report_add_sta_event23a(struct rtw_adapter *padapter,
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct stassoc_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_AddSTA);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
