@@ -14,6 +14,10 @@
 
 struct gb_battery {
 	struct power_supply bat;
+	// FIXME
+	// we will want to keep the battery stats in here as we will be getting
+	// updates from the SVC "on the fly" so we don't have to always go ask
+	// the battery for some information.  Hopefully...
 	struct greybus_device *gdev;
 };
 #define to_gb_battery(x) container_of(x, struct gb_battery, bat)
@@ -46,8 +50,6 @@ static int get_voltage(struct gb_battery *gb)
 	// FIXME!!!
 	return 0;
 }
-
-
 
 static int get_property(struct power_supply *b,
 			enum power_supply_property psp,
