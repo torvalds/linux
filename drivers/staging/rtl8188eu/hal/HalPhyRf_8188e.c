@@ -635,20 +635,15 @@ static void save_adda_registers(struct adapter *adapt, u32 *addareg,
 	}
 }
 
-static void _PHY_SaveMACRegisters(
-		struct adapter *adapt,
-		u32 *MACReg,
-		u32 *MACBackup
-	)
+static void save_mac_registers(struct adapter *adapt, u32 *mac_reg,
+			       u32 *backup)
 {
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Save MAC parameters.\n"));
+
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		MACBackup[i] = usb_read8(adapt, MACReg[i]);
+		backup[i] = usb_read8(adapt, mac_reg[i]);
 	}
-	MACBackup[i] = usb_read32(adapt, MACReg[i]);
+	backup[i] = usb_read32(adapt, mac_reg[i]);
 }
 
 static void reload_adda_reg(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
@@ -897,7 +892,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 
 		/*  Save ADDA parameters, turn Path A ADDA on */
 		save_adda_registers(adapt, ADDA_REG, dm_odm->RFCalibrateInfo.ADDA_backup, IQK_ADDA_REG_NUM);
-		_PHY_SaveMACRegisters(adapt, IQK_MAC_REG, dm_odm->RFCalibrateInfo.IQK_MAC_backup);
+		save_mac_registers(adapt, IQK_MAC_REG, dm_odm->RFCalibrateInfo.IQK_MAC_backup);
 		save_adda_registers(adapt, IQK_BB_REG_92C, dm_odm->RFCalibrateInfo.IQK_BB_backup, IQK_BB_REG_NUM);
 	}
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQ Calibration for %s for %d times\n", (is2t ? "2T2R" : "1T1R"), t));
