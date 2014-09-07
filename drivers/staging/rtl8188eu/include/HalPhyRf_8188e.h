@@ -38,7 +38,4 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt);
 void rtl88eu_phy_iq_calibrate(struct adapter *adapter, bool recovery);
 void rtl88eu_phy_lc_calibrate(struct adapter *adapter);
 
-/*  AP calibrate */
-void PHY_DigitalPredistortion_8188E(struct adapter *pAdapter);
-
 #endif	/*  #ifndef __HAL_PHY_RF_8188E_H__ */
