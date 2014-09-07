@@ -1207,38 +1207,3 @@ void rtl88eu_phy_lc_calibrate(struct adapter *adapt)
 
 	dm_odm->RFCalibrateInfo.bLCKInProgress = false;
 }
-
-static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2t)
-{
-	if (!adapt->hw_init_completed) {
-		u8 u1btmp;
-		u1btmp = usb_read8(adapt, REG_LEDCFG2) | BIT7;
-		usb_write8(adapt, REG_LEDCFG2, u1btmp);
-		phy_set_bb_reg(adapt, rFPGA0_XAB_RFParameter, BIT13, 0x01);
-	}
-
-	if (is2t) {	/* 92C */
-		if (main)
-			phy_set_bb_reg(adapt, rFPGA0_XB_RFInterfaceOE, BIT5|BIT6, 0x1);	/* 92C_Path_A */
-		else
-			phy_set_bb_reg(adapt, rFPGA0_XB_RFInterfaceOE, BIT5|BIT6, 0x2);	/* BT */
-	} else {			/* 88C */
-		if (main)
-			phy_set_bb_reg(adapt, rFPGA0_XA_RFInterfaceOE, BIT8|BIT9, 0x2);	/* Main */
-		else
-			phy_set_bb_reg(adapt, rFPGA0_XA_RFInterfaceOE, BIT8|BIT9, 0x1);	/* Aux */
-	}
-}
-
-void PHY_SetRFPathSwitch_8188E(struct adapter *adapt, bool main)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	if (dm_odm->RFType == ODM_2T2R) {
-		phy_setrfpathswitch_8188e(adapt, main, true);
-	} else {
-		/*  For 88C 1T1R */
-		phy_setrfpathswitch_8188e(adapt, main, false);
-	}
-}
