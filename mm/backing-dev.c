@@ -402,21 +402,15 @@ static void bdi_prune_sb(struct backing_dev_info *bdi)
 
 void bdi_unregister(struct backing_dev_info *bdi)
 {
-	struct device *dev = bdi->dev;
-
-	if (dev) {
+	if (bdi->dev) {
 		bdi_set_min_ratio(bdi, 0);
 		trace_writeback_bdi_unregister(bdi);
 		bdi_prune_sb(bdi);
 
 		bdi_wb_shutdown(bdi);
 		bdi_debug_unregister(bdi);
-
-		spin_lock_bh(&bdi->wb_lock);
+		device_unregister(bdi->dev);
 		bdi->dev = NULL;
-		spin_unlock_bh(&bdi->wb_lock);
-
-		device_unregister(dev);
 	}
 }
 EXPORT_SYMBOL(bdi_unregister);
