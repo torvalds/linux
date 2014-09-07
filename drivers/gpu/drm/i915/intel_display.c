@@ -10084,8 +10084,11 @@ free_work:
 out_hang:
 		intel_crtc_wait_for_pending_flips(crtc);
 		ret = intel_pipe_set_base(crtc, crtc->x, crtc->y, fb);
-		if (ret == 0 && event)
+		if (ret == 0 && event) {
+			spin_lock_irqsave(&dev->event_lock, flags);
 			drm_send_vblank_event(dev, pipe, event);
+			spin_unlock_irqrestore(&dev->event_lock, flags);
+		}
 	}
 	return ret;
 }
