@@ -87,21 +87,16 @@ void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
 			 (pwr_value<<24);
 }
 
-/*
- * Function:	odm_TxPwrTrackSetPwr88E()
- *
- * Overview:	88E change all channel tx power accordign to flag.
- *				OFDM & CCK are all different.
- */
-static void odm_TxPwrTrackSetPwr88E(struct odm_dm_struct *dm_odm)
+static void dm_txpwr_track_setpwr(struct odm_dm_struct *dm_odm)
 {
 	if (dm_odm->BbSwingFlagOfdm || dm_odm->BbSwingFlagCck) {
-		ODM_RT_TRACE(dm_odm, ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD, ("odm_TxPwrTrackSetPwr88E CH=%d\n", *(dm_odm->pChannel)));
+		ODM_RT_TRACE(dm_odm, ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD,
+			     ("dm_txpwr_track_setpwr CH=%d\n", *(dm_odm->pChannel)));
 		phy_set_tx_power_level(dm_odm->Adapter, *(dm_odm->pChannel));
 		dm_odm->BbSwingFlagOfdm = false;
-		dm_odm->BbSwingFlagCck	= false;
+		dm_odm->BbSwingFlagCck = false;
 	}
-}	/*  odm_TxPwrTrackSetPwr88E */
+}
 
 void
 odm_TXPowerTrackingCallback_ThermalMeter_8188E(
@@ -140,7 +135,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	/*  2012/04/25 MH Add for tx power tracking to set tx power in tx agc for 88E. */
-	odm_TxPwrTrackSetPwr88E(dm_odm);
+	dm_txpwr_track_setpwr(dm_odm);
 
 	dm_odm->RFCalibrateInfo.TXPowerTrackingCallbackCnt++; /* cosa add for debug */
 	dm_odm->RFCalibrateInfo.bTXPowerTrackingInit = true;
