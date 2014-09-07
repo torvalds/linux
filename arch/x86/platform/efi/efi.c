@@ -86,7 +86,7 @@ static efi_status_t __init phys_efi_set_virtual_address_map(
 {
 	efi_status_t status;
 
-	efi_call_phys_prelog();
+	efi_call_phys_prolog();
 	status = efi_call_phys(efi_phys.set_virtual_address_map,
 			       memory_map_size, descriptor_size,
 			       descriptor_version, virtual_map);
@@ -530,7 +530,7 @@ void __init runtime_code_page_mkexec(void)
 	}
 }
 
-void efi_memory_uc(u64 addr, unsigned long size)
+void __init efi_memory_uc(u64 addr, unsigned long size)
 {
 	unsigned long page_shift = 1UL << EFI_PAGE_SHIFT;
 	u64 npages;

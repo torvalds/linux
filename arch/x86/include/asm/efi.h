@@ -81,25 +81,25 @@ extern u64 asmlinkage efi_call(void *fp, ...);
  */
 #define __efi_call_virt(f, args...) efi_call_virt(f, args)
 
-extern void __iomem *efi_ioremap(unsigned long addr, unsigned long size,
-				 u32 type, u64 attribute);
+extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
+					u32 type, u64 attribute);
 
 #endif /* CONFIG_X86_32 */
 
 #define efi_in_nmi()	in_nmi()
 
 extern struct efi_scratch efi_scratch;
-extern void efi_set_executable(efi_memory_desc_t *md, bool executable);
-extern int efi_memblock_x86_reserve_range(void);
-extern void efi_call_phys_prelog(void);
-extern void efi_call_phys_epilog(void);
-extern void efi_unmap_memmap(void);
-extern void efi_memory_uc(u64 addr, unsigned long size);
+extern void __init efi_set_executable(efi_memory_desc_t *md, bool executable);
+extern int __init efi_memblock_x86_reserve_range(void);
+extern void __init efi_call_phys_prolog(void);
+extern void __init efi_call_phys_epilog(void);
+extern void __init efi_unmap_memmap(void);
+extern void __init efi_memory_uc(u64 addr, unsigned long size);
 extern void __init efi_map_region(efi_memory_desc_t *md);
 extern void __init efi_map_region_fixed(efi_memory_desc_t *md);
 extern void efi_sync_low_kernel_mappings(void);
-extern int efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages);
-extern void efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages);
+extern int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages);
+extern void __init efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages);
 extern void __init old_map_region(efi_memory_desc_t *md);
 extern void __init runtime_code_page_mkexec(void);
 extern void __init efi_runtime_mkexec(void);
