@@ -205,7 +205,8 @@ find_again:
 			wake_up_all(&entry->ue_waitq);
 			if (unlikely(rc == -EREMCHG)) {
 				put_entry(cache, entry);
-				GOTO(out, entry = ERR_PTR(rc));
+				entry = ERR_PTR(rc);
+				goto out;
 			}
 		}
 	}
@@ -232,14 +233,16 @@ find_again:
 			CERROR("acquire for key %llu: error %d\n",
 			       entry->ue_key, rc);
 			put_entry(cache, entry);
-			GOTO(out, entry = ERR_PTR(rc));
+			entry = ERR_PTR(rc);
+			goto out;
 		}
 	}
 
 	/* invalid means error, don't need to try again */
 	if (UC_CACHE_IS_INVALID(entry)) {
 		put_entry(cache, entry);
-		GOTO(out, entry = ERR_PTR(-EIDRM));
+		entry = ERR_PTR(-EIDRM);
+		goto out;
 	}
 
 	/* check expired
@@ -312,19 +315,22 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 	if (err) {
 		CDEBUG(D_OTHER, "%s: upcall for key %llu returned %d\n",
 		       cache->uc_name, entry->ue_key, err);
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	if (!UC_CACHE_IS_ACQUIRING(entry)) {
 		CDEBUG(D_RPCTRACE, "%s: found uptodate entry %p (key %llu)\n",
 		       cache->uc_name, entry, entry->ue_key);
-		GOTO(out, rc = 0);
+		rc = 0;
+		goto out;
 	}
 
 	if (UC_CACHE_IS_INVALID(entry) || UC_CACHE_IS_EXPIRED(entry)) {
 		CERROR("%s: found a stale entry %p (key %llu) in ioctl\n",
 		       cache->uc_name, entry, entry->ue_key);
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	spin_unlock(&cache->uc_lock);
@@ -332,7 +338,7 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 		rc = cache->uc_ops->parse_downcall(cache, entry, args);
 	spin_lock(&cache->uc_lock);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	entry->ue_expire = cfs_time_shift(cache->uc_entry_expire);
 	UC_CACHE_SET_VALID(entry);

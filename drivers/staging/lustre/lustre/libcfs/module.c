@@ -301,7 +301,8 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 	/* 'cmd' and permissions get checked in our arch-specific caller */
 	if (libcfs_ioctl_getdata(buf, buf + 800, (void *)arg)) {
 		CERROR("PORTALS ioctl: data error\n");
-		GOTO(out, err = -EINVAL);
+		err = -EINVAL;
+		goto out;
 	}
 	data = (struct libcfs_ioctl_data *)buf;
 
