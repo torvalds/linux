@@ -798,7 +798,7 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 
 	ctrl_dbg(ctrl, "%s: intr_loc = %x\n", __func__, intr_loc);
 
-	if(!shpchp_poll_mode) {
+	if (!shpchp_poll_mode) {
 		/*
 		 * Mask Global Interrupt Mask - see implementation
 		 * note on p. 139 of SHPC spec rev 1.0

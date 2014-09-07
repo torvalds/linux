@@ -595,7 +595,7 @@ static int shpchp_enable_slot (struct slot *p_slot)
 	ctrl_dbg(ctrl, "%s: p_slot->pwr_save %x\n", __func__, p_slot->pwr_save);
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 
-	if(((p_slot->ctrl->pci_dev->vendor == PCI_VENDOR_ID_AMD) ||
+	if (((p_slot->ctrl->pci_dev->vendor == PCI_VENDOR_ID_AMD) ||
 	    (p_slot->ctrl->pci_dev->device == PCI_DEVICE_ID_AMD_POGO_7458))
 	     && p_slot->ctrl->num_slots == 1) {
 		/* handle amd pogo errata; this must be done before enable  */

@@ -1143,7 +1143,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	/* We don't allow freq/mode changes if we find another adapter running
 	 * in another slot on this controller
 	 */
-	for(slot = ctrl->slot; slot; slot = slot->next) {
+	for (slot = ctrl->slot; slot; slot = slot->next) {
 		if (slot->device == (hp_slot + ctrl->slot_device_offset))
 			continue;
 		if (!slot->hotplug_slot || !slot->hotplug_slot->info)
@@ -1193,7 +1193,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 
 	reg16 = readw(ctrl->hpc_reg + NEXT_CURR_FREQ);
 	reg16 &= ~0x000F;
-	switch(adapter_speed) {
+	switch (adapter_speed) {
 		case(PCI_SPEED_133MHz_PCIX):
 			reg = 0x75;
 			reg16 |= 0xB;

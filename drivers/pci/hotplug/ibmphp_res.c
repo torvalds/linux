@@ -1335,7 +1335,7 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 				return -EINVAL;
 			}
 		}
-	}	/* end if(!res_cur) */
+	}	/* end if (!res_cur) */
 	return -EINVAL;
 }
 
