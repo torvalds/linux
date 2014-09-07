@@ -234,7 +234,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 		/* Delta temperature is equal to or larger than 20 centigrade.*/
 		if ((delta_lck >= 8)) {
 			dm_odm->RFCalibrateInfo.ThermalValue_LCK = thermal_val;
-			PHY_LCCalibrate_8188E(adapt);
+			rtl88eu_phy_lc_calibrate(adapt);
 		}
 
 		if (delta > 0 && dm_odm->RFCalibrateInfo.TxPowerTrackControl) {
@@ -1179,16 +1179,15 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 			    dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
 }
 
-void PHY_LCCalibrate_8188E(struct adapter *adapt)
+void rtl88eu_phy_lc_calibrate(struct adapter *adapt)
 {
 	bool singletone = false, carrier_sup = false;
 	u32 timeout = 2000, timecount = 0;
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
-	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
 	if (singletone || carrier_sup)
 		return;
 
@@ -1202,14 +1201,11 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 	if (dm_odm->RFType == ODM_2T2R) {
 		phy_lc_calibrate(adapt, true);
 	} else {
-		/*  For 88C 1T1R */
+		/* For 88C 1T1R */
 		phy_lc_calibrate(adapt, false);
 	}
 
 	dm_odm->RFCalibrateInfo.bLCKInProgress = false;
-
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-		     ("LCK:Finish!!!interface %d\n", dm_odm->InterfaceIndex));
 }
 
 static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2t)

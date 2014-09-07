@@ -701,7 +701,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 		}
 
 		ODM_TXPowerTrackingCheck(&haldata->odmpriv);
-		PHY_LCCalibrate_8188E(Adapter);
+		rtl88eu_phy_lc_calibrate(Adapter);
 
 		goto exit;
 	}
@@ -893,7 +893,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_PW_TRACK);
 		ODM_TXPowerTrackingCheck(&haldata->odmpriv);
 
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
-			PHY_LCCalibrate_8188E(Adapter);
+			rtl88eu_phy_lc_calibrate(Adapter);
 	}
 
 /* HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PABIAS); */
