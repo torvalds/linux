@@ -666,30 +666,22 @@ static void reload_mac_registers(struct adapter *adapt,
 	usb_write32(adapt, mac_reg[i], backup[i]);
 }
 
-void
-_PHY_PathADDAOn(
-		struct adapter *adapt,
-		u32 *ADDAReg,
-		bool isPathAOn,
-		bool is2t
-	)
+static void path_adda_on(struct adapter *adapt, u32 *adda_reg,
+			 bool is_path_a_on, bool is2t)
 {
-	u32 pathOn;
+	u32 path_on;
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("ADDA ON.\n"));
 
-	pathOn = isPathAOn ? 0x04db25a4 : 0x0b1b25a4;
+	path_on = is_path_a_on ? 0x04db25a4 : 0x0b1b25a4;
 	if (!is2t) {
-		pathOn = 0x0bdb25a0;
-		phy_set_bb_reg(adapt, ADDAReg[0], bMaskDWord, 0x0b1b25a0);
+		path_on = 0x0bdb25a0;
+		phy_set_bb_reg(adapt, adda_reg[0], bMaskDWord, 0x0b1b25a0);
 	} else {
-		phy_set_bb_reg(adapt, ADDAReg[0], bMaskDWord, pathOn);
+		phy_set_bb_reg(adapt, adda_reg[0], bMaskDWord, path_on);
 	}
 
 	for (i = 1; i < IQK_ADDA_REG_NUM; i++)
-		phy_set_bb_reg(adapt, ADDAReg[i], bMaskDWord, pathOn);
+		phy_set_bb_reg(adapt, adda_reg[i], bMaskDWord, path_on);
 }
 
 void
@@ -888,7 +880,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 	}
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("IQ Calibration for %s for %d times\n", (is2t ? "2T2R" : "1T1R"), t));
 
-	_PHY_PathADDAOn(adapt, ADDA_REG, true, is2t);
+	path_adda_on(adapt, ADDA_REG, true, is2t);
 	if (t == 0)
 		dm_odm->RFCalibrateInfo.bRfPiEnable = (u8)phy_query_bb_reg(adapt, rFPGA0_XA_HSSIParameter1, BIT(8));
 
@@ -959,7 +951,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 		_PHY_PathAStandBy(adapt);
 
 		/*  Turn Path B ADDA on */
-		_PHY_PathADDAOn(adapt, ADDA_REG, false, is2t);
+		path_adda_on(adapt, ADDA_REG, false, is2t);
 
 		for (i = 0; i < retryCount; i++) {
 			PathBOK = phy_path_b_iqk(adapt);

@@ -46,9 +46,6 @@ void PHY_LCCalibrate_8188E(struct adapter *pAdapter);
 /*  AP calibrate */
 void PHY_DigitalPredistortion_8188E(struct adapter *pAdapter);
 
-void _PHY_PathADDAOn(struct adapter *pAdapter, u32 *ADDAReg,
-		     bool isPathAOn, bool is2T);
-
 void _PHY_MACSettingCalibration(struct adapter *pAdapter, u32 *MACReg,
 				u32 *MACBackup);
 
