@@ -136,6 +136,7 @@ struct nve0_ram {
 	struct nouveau_ram base;
 	struct nve0_ramfuc fuc;
 
+	struct list_head cfg;
 	u32 parts;
 	u32 pmask;
 	u32 pnuts;
@@ -934,58 +935,24 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
  ******************************************************************************/
 
 static int
-nve0_ram_calc_data(struct nouveau_fb *pfb, u32 freq,
+nve0_ram_calc_data(struct nouveau_fb *pfb, u32 khz,
 		   struct nouveau_ram_data *data)
 {
-	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nve0_ram *ram = (void *)pfb->ram;
-	u8 strap, cnt, len;
+	struct nouveau_ram_data *cfg;
+	u32 mhz = khz / 1000;
 
-	/* lookup memory config data relevant to the target frequency */
-	ram->base.rammap.data = nvbios_rammapEm(bios, freq / 1000,
-					       &ram->base.rammap.version,
-					       &ram->base.rammap.size,
-					       &cnt, &len, &data->bios);
-	if (!ram->base.rammap.data || ram->base.rammap.version != 0x11 ||
-	     ram->base.rammap.size < 0x09) {
-		nv_error(pfb, "invalid/missing rammap entry\n");
-		return -EINVAL;
-	}
-
-	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(nv_subdev(pfb));
-	ram->base.ramcfg.data = nvbios_rammapSp(bios, ram->base.rammap.data,
-						ram->base.rammap.version,
-						ram->base.rammap.size,
-						cnt, len, strap,
-						&ram->base.ramcfg.version,
-						&ram->base.ramcfg.size,
-						&data->bios);
-	if (!ram->base.ramcfg.data || ram->base.ramcfg.version != 0x11 ||
-	     ram->base.ramcfg.size < 0x08) {
-		nv_error(pfb, "invalid/missing ramcfg entry\n");
-		return -EINVAL;
-	}
-
-	/* lookup memory timings, if bios says they're present */
-	if (data->bios.ramcfg_timing != 0xff) {
-		ram->base.timing.data =
-			nvbios_timingEp(bios, data->bios.ramcfg_timing,
-					&ram->base.timing.version,
-					&ram->base.timing.size, &cnt, &len,
-					&data->bios);
-		if (!ram->base.timing.data ||
-		     ram->base.timing.version != 0x20 ||
-		     ram->base.timing.size < 0x33) {
-			nv_error(pfb, "invalid/missing timing entry\n");
-			return -EINVAL;
+	list_for_each_entry(cfg, &ram->cfg, head) {
+		if (mhz >= cfg->bios.rammap_min &&
+		    mhz <= cfg->bios.rammap_max) {
+			*data = *cfg;
+			data->freq = khz;
+			return 0;
 		}
-	} else {
-		ram->base.timing.data = 0;
 	}
 
-	data->freq = freq;
-	return 0;
+	nv_error(ram, "ramcfg data for %dMHz not found\n", mhz);
+	return -EINVAL;
 }
 
 static int
@@ -1319,6 +1286,66 @@ nve0_ram_init(struct nouveau_object *object)
 }
 
 static int
+nve0_ram_ctor_data(struct nve0_ram *ram, u8 ramcfg, int i)
+{
+	struct nouveau_fb *pfb = (void *)nv_object(ram)->parent;
+	struct nouveau_bios *bios = nouveau_bios(pfb);
+	struct nouveau_ram_data *cfg;
+	u8  ver, hdr, cnt, len;
+	u32 data;
+	int ret;
+
+	if (!(cfg = kmalloc(sizeof(*cfg), GFP_KERNEL)))
+		return -ENOMEM;
+
+	/* memory config data for a range of target frequencies */
+	data = nvbios_rammapEp(bios, i, &ver, &hdr, &cnt, &len, &cfg->bios);
+	if (ret = -ENOENT, !data)
+		goto done;
+	if (ret = -ENOSYS, ver != 0x11 || hdr < 0x12)
+		goto done;
+
+	/* ... and a portion specific to the attached memory */
+	data = nvbios_rammapSp(bios, data, ver, hdr, cnt, len, ramcfg,
+			       &ver, &hdr, &cfg->bios);
+	if (ret = -EINVAL, !data)
+		goto done;
+	if (ret = -ENOSYS, ver != 0x11 || hdr < 0x0a)
+		goto done;
+
+	/* lookup memory timings, if bios says they're present */
+	if (cfg->bios.ramcfg_timing != 0xff) {
+		data = nvbios_timingEp(bios, cfg->bios.ramcfg_timing,
+				       &ver, &hdr, &cnt, &len,
+				       &cfg->bios);
+		if (ret = -EINVAL, !data)
+			goto done;
+		if (ret = -ENOSYS, ver != 0x20 || hdr < 0x33)
+			goto done;
+	}
+
+	list_add_tail(&cfg->head, &ram->cfg);
+	ret = 0;
+done:
+	if (ret)
+		kfree(cfg);
+	return ret;
+}
+
+static void
+nve0_ram_dtor(struct nouveau_object *object)
+{
+	struct nve0_ram *ram = (void *)object;
+	struct nouveau_ram_data *cfg, *tmp;
+
+	list_for_each_entry_safe(cfg, tmp, &ram->cfg, head) {
+		kfree(cfg);
+	}
+
+	nouveau_ram_destroy(&ram->base);
+}
+
+static int
 nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	      struct nouveau_oclass *oclass, void *data, u32 size,
 	      struct nouveau_object **pobject)
@@ -1329,12 +1356,15 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct dcb_gpio_func func;
 	struct nve0_ram *ram;
 	int ret, i;
+	u8  ramcfg = nvbios_ramcfg_index(nv_subdev(pfb));
 	u32 tmp;
 
 	ret = nvc0_ram_create(parent, engine, oclass, 0x022554, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;
+
+	INIT_LIST_HEAD(&ram->cfg);
 
 	switch (ram->base.type) {
 	case NV_MEM_TYPE_DDR3:
@@ -1367,7 +1397,16 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		}
 	}
 
-	// parse bios data for both pll's
+	/* parse ramcfg data for all possible target frequencies */
+	for (i = 0; !ret; i++) {
+		ret = nve0_ram_ctor_data(ram, ramcfg, i);
+		if (ret && ret != -ENOENT) {
+			nv_error(pfb, "failed to parse ramcfg data\n");
+			return ret;
+		}
+	}
+
+	/* parse bios data for both pll's */
 	ret = nvbios_pll_parse(bios, 0x0c, &ram->fuc.refpll);
 	if (ret) {
 		nv_error(pfb, "mclk refpll data not found\n");
@@ -1380,6 +1419,7 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 	}
 
+	/* lookup memory voltage gpios */
 	ret = gpio->find(gpio, 0, 0x18, DCB_GPIO_UNUSED, &func);
 	if (ret == 0) {
 		ram->fuc.r_gpioMV = ramfuc_reg(0x00d610 + (func.line * 0x04));
@@ -1488,7 +1528,7 @@ nve0_ram_oclass = {
 	.handle = 0,
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nve0_ram_ctor,
-		.dtor = _nouveau_ram_dtor,
+		.dtor = nve0_ram_dtor,
 		.init = nve0_ram_init,
 		.fini = _nouveau_ram_fini,
 	}

@@ -111,6 +111,7 @@ extern struct nouveau_oclass *gm107_fb_oclass;
 #include <subdev/bios/ramcfg.h>
 
 struct nouveau_ram_data {
+	struct list_head head;
 	struct nvbios_ramcfg bios;
 	u32 freq;
 };
