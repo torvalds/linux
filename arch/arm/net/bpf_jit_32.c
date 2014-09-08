@@ -933,7 +933,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 
 	set_memory_ro((unsigned long)header, header->pages);
 	fp->bpf_func = (void *)ctx.target;
-	fp->jited = 1;
+	fp->jited = true;
 out:
 	kfree(ctx.offsets);
 	return;

@@ -300,9 +300,9 @@ struct bpf_work_struct {
 };
 
 struct bpf_prog {
-	u32			pages;		/* Number of allocated pages */
-	u32			jited:1,	/* Is our filter JIT'ed? */
-				len:31;		/* Number of filter blocks */
+	u16			pages;		/* Number of allocated pages */
+	bool			jited;		/* Is our filter JIT'ed? */
+	u32			len;		/* Number of filter blocks */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	struct bpf_work_struct	*work;		/* Deferred free work struct */
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,

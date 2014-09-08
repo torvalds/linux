@@ -1417,7 +1417,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 		bpf_jit_dump(fp->len, alloc_size, 2, ctx.target);
 
 	fp->bpf_func = (void *)ctx.target;
-	fp->jited = 1;
+	fp->jited = true;
 
 out:
 	kfree(ctx.offsets);

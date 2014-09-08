@@ -955,7 +955,7 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		bpf_flush_icache(header, image + proglen);
 		set_memory_ro((unsigned long)header, header->pages);
 		prog->bpf_func = (void *)image;
-		prog->jited = 1;
+		prog->jited = true;
 	}
 out:
 	kfree(addrs);
