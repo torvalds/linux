@@ -679,11 +679,7 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	crtc->funcs = funcs;
 	crtc->invert_dimensions = false;
 
-	drm_modeset_lock_all(dev);
 	drm_modeset_lock_init(&crtc->mutex);
-	/* dropped by _unlock_all(): */
-	drm_modeset_lock(&crtc->mutex, config->acquire_ctx);
-
 	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
 	if (ret)
 		goto out;
@@ -701,7 +697,6 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 		cursor->possible_crtcs = 1 << drm_crtc_index(crtc);
 
  out:
-	drm_modeset_unlock_all(dev);
 
 	return ret;
 }
