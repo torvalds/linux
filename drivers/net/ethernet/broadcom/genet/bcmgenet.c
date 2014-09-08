@@ -1274,12 +1274,29 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_priv *priv,
 
 	while ((rxpktprocessed < rxpkttoprocess) &&
 	       (rxpktprocessed < budget)) {
+		cb = &priv->rx_cbs[priv->rx_read_ptr];
+		skb = cb->skb;
+
+		rxpktprocessed++;
+
+		priv->rx_read_ptr++;
+		priv->rx_read_ptr &= (priv->num_rx_bds - 1);
+
+		/* We do not have a backing SKB, so we do not have a
+		 * corresponding DMA mapping for this incoming packet since
+		 * bcmgenet_rx_refill always either has both skb and mapping or
+		 * none.
+		 */
+		if (unlikely(!skb)) {
+			dev->stats.rx_dropped++;
+			dev->stats.rx_errors++;
+			goto refill;
+		}
+
 		/* Unmap the packet contents such that we can use the
 		 * RSV from the 64 bytes descriptor when enabled and save
 		 * a 32-bits register read
 		 */
-		cb = &priv->rx_cbs[priv->rx_read_ptr];
-		skb = cb->skb;
 		dma_unmap_single(&dev->dev, dma_unmap_addr(cb, dma_addr),
 				 priv->rx_buf_len, DMA_FROM_DEVICE);
 
@@ -1306,18 +1323,6 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_priv *priv,
 			  "%s:p_ind=%d c_ind=%d read_ptr=%d len_stat=0x%08x\n",
 			  __func__, p_index, priv->rx_c_index,
 			  priv->rx_read_ptr, dma_length_status);
-
-		rxpktprocessed++;
-
-		priv->rx_read_ptr++;
-		priv->rx_read_ptr &= (priv->num_rx_bds - 1);
-
-		/* out of memory, just drop packets at the hardware level */
-		if (unlikely(!skb)) {
-			dev->stats.rx_dropped++;
-			dev->stats.rx_errors++;
-			goto refill;
-		}
 
 		if (unlikely(!(dma_flag & DMA_EOP) || !(dma_flag & DMA_SOP))) {
 			netif_err(priv, rx_status, dev,
