@@ -56,7 +56,7 @@ config PCI_HOST_GENERIC
 	  controller, such as the one emulated by kvmtool.
 
 config PCIE_SPEAR13XX
-	tristate "STMicroelectronics SPEAr PCIe controller"
+	bool "STMicroelectronics SPEAr PCIe controller"
 	depends on ARCH_SPEAR13XX
 	select PCIEPORTBUS
 	select PCIE_DW

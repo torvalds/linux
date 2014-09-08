@@ -4,6 +4,7 @@
 # for more details.
 #
 # Copyright (C) 2001 - 2005  Tensilica Inc.
+# Copyright (C) 2014 Cadence Design Systems Inc.
 #
 # This file is included by the global makefile so that you can add your own
 # architecture-specific flags and dependencies. Remember to do have actions
@@ -13,11 +14,7 @@
 # Core configuration.
 # (Use VAR=<xtensa_config> to use another default compiler.)
 
-variant-$(CONFIG_XTENSA_VARIANT_FSF)		:= fsf
-variant-$(CONFIG_XTENSA_VARIANT_DC232B)		:= dc232b
-variant-$(CONFIG_XTENSA_VARIANT_DC233C)		:= dc233c
-variant-$(CONFIG_XTENSA_VARIANT_S6000)		:= s6000
-variant-$(CONFIG_XTENSA_VARIANT_LINUX_CUSTOM)	:= custom
+variant-y := $(patsubst "%",%,$(CONFIG_XTENSA_VARIANT_NAME))
 
 VARIANT = $(variant-y)
 export VARIANT

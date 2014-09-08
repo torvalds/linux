@@ -134,9 +134,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return 0;
 out:
 	clear_nlink(inode);
-	unlock_new_inode(inode);
-	make_bad_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	alloc_nid_failed(sbi, ino);
 	return err;
 }
@@ -229,7 +227,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	f2fs_delete_entry(de, page, inode);
 	f2fs_unlock_op(sbi);
 
-	/* In order to evict this inode,  we set it dirty */
+	/* In order to evict this inode, we set it dirty */
 	mark_inode_dirty(inode);
 fail:
 	trace_f2fs_unlink_exit(inode, err);
@@ -267,9 +265,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	return err;
 out:
 	clear_nlink(inode);
-	unlock_new_inode(inode);
-	make_bad_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
 }
@@ -308,9 +304,7 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 out_fail:
 	clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
 	clear_nlink(inode);
-	unlock_new_inode(inode);
-	make_bad_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
 }
@@ -354,9 +348,7 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 	return 0;
 out:
 	clear_nlink(inode);
-	unlock_new_inode(inode);
-	make_bad_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
 }
@@ -688,9 +680,7 @@ release_out:
 out:
 	f2fs_unlock_op(sbi);
 	clear_nlink(inode);
-	unlock_new_inode(inode);
-	make_bad_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
 }
@@ -704,7 +694,6 @@ const struct inode_operations f2fs_dir_inode_operations = {
 	.mkdir		= f2fs_mkdir,
 	.rmdir		= f2fs_rmdir,
 	.mknod		= f2fs_mknod,
-	.rename		= f2fs_rename,
 	.rename2	= f2fs_rename2,
 	.tmpfile	= f2fs_tmpfile,
 	.getattr	= f2fs_getattr,

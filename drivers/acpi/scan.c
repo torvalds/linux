@@ -667,8 +667,14 @@ static ssize_t
 acpi_device_sun_show(struct device *dev, struct device_attribute *attr,
 		     char *buf) {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	acpi_status status;
+	unsigned long long sun;
 
-	return sprintf(buf, "%lu\n", acpi_dev->pnp.sun);
+	status = acpi_evaluate_integer(acpi_dev->handle, "_SUN", NULL, &sun);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	return sprintf(buf, "%llu\n", sun);
 }
 static DEVICE_ATTR(sun, 0444, acpi_device_sun_show, NULL);
 
@@ -690,7 +696,6 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 {
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
-	unsigned long long sun;
 	int result = 0;
 
 	/*
@@ -731,14 +736,10 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 	if (dev->pnp.unique_id)
 		result = device_create_file(&dev->dev, &dev_attr_uid);
 
-	status = acpi_evaluate_integer(dev->handle, "_SUN", NULL, &sun);
-	if (ACPI_SUCCESS(status)) {
-		dev->pnp.sun = (unsigned long)sun;
+	if (acpi_has_method(dev->handle, "_SUN")) {
 		result = device_create_file(&dev->dev, &dev_attr_sun);
 		if (result)
 			goto end;
-	} else {
-		dev->pnp.sun = (unsigned long)-1;
 	}
 
 	if (acpi_has_method(dev->handle, "_STA")) {
@@ -922,12 +923,17 @@ static void acpi_device_notify(acpi_handle handle, u32 event, void *data)
 	device->driver->ops.notify(device, event);
 }
 
-static acpi_status acpi_device_notify_fixed(void *data)
+static void acpi_device_notify_fixed(void *data)
 {
 	struct acpi_device *device = data;
 
 	/* Fixed hardware devices have no handles */
 	acpi_device_notify(NULL, ACPI_FIXED_HARDWARE_EVENT, device);
+}
+
+static acpi_status acpi_device_fixed_event(void *data)
+{
+	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_device_notify_fixed, data);
 	return AE_OK;
 }
 
@@ -938,12 +944,12 @@ static int acpi_device_install_notify_handler(struct acpi_device *device)
 	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON)
 		status =
 		    acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
-						     acpi_device_notify_fixed,
+						     acpi_device_fixed_event,
 						     device);
 	else if (device->device_type == ACPI_BUS_TYPE_SLEEP_BUTTON)
 		status =
 		    acpi_install_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
-						     acpi_device_notify_fixed,
+						     acpi_device_fixed_event,
 						     device);
 	else
 		status = acpi_install_notify_handler(device->handle,
@@ -960,10 +966,10 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 {
 	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
-						acpi_device_notify_fixed);
+						acpi_device_fixed_event);
 	else if (device->device_type == ACPI_BUS_TYPE_SLEEP_BUTTON)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
-						acpi_device_notify_fixed);
+						acpi_device_fixed_event);
 	else
 		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
 					   acpi_device_notify);
@@ -975,7 +981,7 @@ static int acpi_device_probe(struct device *dev)
 	struct acpi_driver *acpi_drv = to_acpi_driver(dev->driver);
 	int ret;
 
-	if (acpi_dev->handler)
+	if (acpi_dev->handler && !acpi_is_pnp_device(acpi_dev))
 		return -EINVAL;
 
 	if (!acpi_drv->ops.add)

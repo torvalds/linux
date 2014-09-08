@@ -309,6 +309,7 @@ static ssize_t set_convrate(struct device *dev, struct device_attribute *da,
 	data->conf |= (resol << DS1621_REG_CONFIG_RESOL_SHIFT);
 	i2c_smbus_write_byte_data(client, DS1621_REG_CONF, data->conf);
 	data->update_interval = ds1721_convrates[resol];
+	data->zbits = 7 - resol;
 	mutex_unlock(&data->update_lock);
 
 	return count;

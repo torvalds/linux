@@ -1096,8 +1096,10 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 		async_cow->end = cur_end;
 		INIT_LIST_HEAD(&async_cow->extents);
 
-		btrfs_init_work(&async_cow->work, async_cow_start,
-				async_cow_submit, async_cow_free);
+		btrfs_init_work(&async_cow->work,
+				btrfs_delalloc_helper,
+				async_cow_start, async_cow_submit,
+				async_cow_free);
 
 		nr_pages = (cur_end - start + PAGE_CACHE_SIZE) >>
 			PAGE_CACHE_SHIFT;
@@ -1881,7 +1883,8 @@ static int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
 
 	SetPageChecked(page);
 	page_cache_get(page);
-	btrfs_init_work(&fixup->work, btrfs_writepage_fixup_worker, NULL, NULL);
+	btrfs_init_work(&fixup->work, btrfs_fixup_helper,
+			btrfs_writepage_fixup_worker, NULL, NULL);
 	fixup->page = page;
 	btrfs_queue_work(root->fs_info->fixup_workers, &fixup->work);
 	return -EBUSY;
@@ -2822,7 +2825,8 @@ static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 	struct inode *inode = page->mapping->host;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ordered_extent *ordered_extent = NULL;
-	struct btrfs_workqueue *workers;
+	struct btrfs_workqueue *wq;
+	btrfs_work_func_t func;
 
 	trace_btrfs_writepage_end_io_hook(page, start, end, uptodate);
 
@@ -2831,13 +2835,17 @@ static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 					    end - start + 1, uptodate))
 		return 0;
 
-	btrfs_init_work(&ordered_extent->work, finish_ordered_fn, NULL, NULL);
+	if (btrfs_is_free_space_inode(inode)) {
+		wq = root->fs_info->endio_freespace_worker;
+		func = btrfs_freespace_write_helper;
+	} else {
+		wq = root->fs_info->endio_write_workers;
+		func = btrfs_endio_write_helper;
+	}
 
-	if (btrfs_is_free_space_inode(inode))
-		workers = root->fs_info->endio_freespace_worker;
-	else
-		workers = root->fs_info->endio_write_workers;
-	btrfs_queue_work(workers, &ordered_extent->work);
+	btrfs_init_work(&ordered_extent->work, func, finish_ordered_fn, NULL,
+			NULL);
+	btrfs_queue_work(wq, &ordered_extent->work);
 
 	return 0;
 }
@@ -4674,6 +4682,11 @@ static void evict_inode_truncate_pages(struct inode *inode)
 		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
 		remove_extent_mapping(map_tree, em);
 		free_extent_map(em);
+		if (need_resched()) {
+			write_unlock(&map_tree->lock);
+			cond_resched();
+			write_lock(&map_tree->lock);
+		}
 	}
 	write_unlock(&map_tree->lock);
 
@@ -4696,6 +4709,7 @@ static void evict_inode_truncate_pages(struct inode *inode)
 				 &cached_state, GFP_NOFS);
 		free_extent_state(state);
 
+		cond_resched();
 		spin_lock(&io_tree->lock);
 	}
 	spin_unlock(&io_tree->lock);
@@ -5181,6 +5195,42 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 			iput(inode);
 			inode = ERR_PTR(ret);
 		}
+		/*
+		 * If orphan cleanup did remove any orphans, it means the tree
+		 * was modified and therefore the commit root is not the same as
+		 * the current root anymore. This is a problem, because send
+		 * uses the commit root and therefore can see inode items that
+		 * don't exist in the current root anymore, and for example make
+		 * calls to btrfs_iget, which will do tree lookups based on the
+		 * current root and not on the commit root. Those lookups will
+		 * fail, returning a -ESTALE error, and making send fail with
+		 * that error. So make sure a send does not see any orphans we
+		 * have just removed, and that it will see the same inodes
+		 * regardless of whether a transaction commit happened before
+		 * it started (meaning that the commit root will be the same as
+		 * the current root) or not.
+		 */
+		if (sub_root->node != sub_root->commit_root) {
+			u64 sub_flags = btrfs_root_flags(&sub_root->root_item);
+
+			if (sub_flags & BTRFS_ROOT_SUBVOL_RDONLY) {
+				struct extent_buffer *eb;
+
+				/*
+				 * Assert we can't have races between dentry
+				 * lookup called through the snapshot creation
+				 * ioctl and the VFS.
+				 */
+				ASSERT(mutex_is_locked(&dir->i_mutex));
+
+				down_write(&root->fs_info->commit_root_sem);
+				eb = sub_root->commit_root;
+				sub_root->commit_root =
+					btrfs_root_node(sub_root);
+				up_write(&root->fs_info->commit_root_sem);
+				free_extent_buffer(eb);
+			}
+		}
 	}
 
 	return inode;
@@ -5604,6 +5654,13 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		btrfs_free_path(path);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	/*
+	 * O_TMPFILE, set link count to 0, so that after this point,
+	 * we fill in an inode item with the correct link count.
+	 */
+	if (!name)
+		set_nlink(inode, 0);
 
 	/*
 	 * we have to initialize this early, so we can reclaim the inode
@@ -6097,14 +6154,14 @@ out_fail:
 static int merge_extent_mapping(struct extent_map_tree *em_tree,
 				struct extent_map *existing,
 				struct extent_map *em,
-				u64 map_start, u64 map_len)
+				u64 map_start)
 {
 	u64 start_diff;
 
 	BUG_ON(map_start < em->start || map_start >= extent_map_end(em));
 	start_diff = map_start - em->start;
 	em->start = map_start;
-	em->len = map_len;
+	em->len = existing->start - em->start;
 	if (em->block_start < EXTENT_MAP_LAST_BYTE &&
 	    !test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 		em->block_start += start_diff;
@@ -6275,6 +6332,8 @@ next:
 			goto not_found;
 		if (start + len <= found_key.offset)
 			goto not_found;
+		if (start > found_key.offset)
+			goto next;
 		em->start = start;
 		em->orig_start = start;
 		em->len = found_key.offset - start;
@@ -6390,8 +6449,7 @@ insert:
 							 em->len);
 			if (existing) {
 				err = merge_extent_mapping(em_tree, existing,
-							   em, start,
-							   root->sectorsize);
+							   em, start);
 				free_extent_map(existing);
 				if (err) {
 					free_extent_map(em);
@@ -7158,7 +7216,8 @@ again:
 	if (!ret)
 		goto out_test;
 
-	btrfs_init_work(&ordered->work, finish_ordered_fn, NULL, NULL);
+	btrfs_init_work(&ordered->work, btrfs_endio_write_helper,
+			finish_ordered_fn, NULL, NULL);
 	btrfs_queue_work(root->fs_info->endio_write_workers,
 			 &ordered->work);
 out_test:
@@ -7306,10 +7365,8 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	map_length = orig_bio->bi_iter.bi_size;
 	ret = btrfs_map_block(root->fs_info, rw, start_sector << 9,
 			      &map_length, NULL, 0);
-	if (ret) {
-		bio_put(orig_bio);
+	if (ret)
 		return -EIO;
-	}
 
 	if (map_length >= orig_bio->bi_iter.bi_size) {
 		bio = orig_bio;
@@ -7326,6 +7383,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
 	if (!bio)
 		return -ENOMEM;
+
 	bio->bi_private = dip;
 	bio->bi_end_io = btrfs_end_dio_bio;
 	atomic_inc(&dip->pending_bios);
@@ -7534,7 +7592,8 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	count = iov_iter_count(iter);
 	if (test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
 		     &BTRFS_I(inode)->runtime_flags))
-		filemap_fdatawrite_range(inode->i_mapping, offset, count);
+		filemap_fdatawrite_range(inode->i_mapping, offset,
+					 offset + count - 1);
 
 	if (rw & WRITE) {
 		/*
@@ -8495,7 +8554,9 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 	work->inode = inode;
 	work->wait = wait;
 	work->delay_iput = delay_iput;
-	btrfs_init_work(&work->work, btrfs_run_delalloc_work, NULL, NULL);
+	WARN_ON_ONCE(!inode);
+	btrfs_init_work(&work->work, btrfs_flush_delalloc_helper,
+			btrfs_run_delalloc_work, NULL, NULL);
 
 	return work;
 }
@@ -8979,6 +9040,14 @@ static int btrfs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (ret)
 		goto out;
 
+	/*
+	 * We set number of links to 0 in btrfs_new_inode(), and here we set
+	 * it to 1 because d_tmpfile() will issue a warning if the count is 0,
+	 * through:
+	 *
+	 *    d_tmpfile() -> inode_dec_link_count() -> drop_nlink()
+	 */
+	set_nlink(inode, 1);
 	d_tmpfile(dentry, inode);
 	mark_inode_dirty(inode);
 

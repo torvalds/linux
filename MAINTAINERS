@@ -1277,9 +1277,15 @@ F:	drivers/scsi/arm/
 ARM/Rockchip SoC support
 M:	Heiko Stuebner <heiko@sntech.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-rockchip@lists.infradead.org
 S:	Maintained
+F:	arch/arm/boot/dts/rk3*
 F:	arch/arm/mach-rockchip/
+F:	drivers/clk/rockchip/
+F:	drivers/i2c/busses/i2c-rk3x.c
 F:	drivers/*/*rockchip*
+F:	drivers/*/*/*rockchip*
+F:	sound/soc/rockchip/
 
 ARM/SAMSUNG ARM ARCHITECTURES
 M:	Ben Dooks <ben-linux@fluff.org>
@@ -2065,7 +2071,7 @@ S:	Supported
 F:	drivers/scsi/bnx2i/
 
 BROADCOM KONA GPIO DRIVER
-M:	Markus Mayer <markus.mayer@linaro.org>
+M:	Ray Jui <rjui@broadcom.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Supported
 F:	drivers/gpio/gpio-bcm-kona.c
@@ -3120,6 +3126,17 @@ F:	drivers/gpu/host1x/
 F:	include/linux/host1x.h
 F:	include/uapi/drm/tegra_drm.h
 F:	Documentation/devicetree/bindings/gpu/nvidia,tegra20-host1x.txt
+
+DRM DRIVERS FOR RENESAS
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	dri-devel@lists.freedesktop.org
+L:	linux-sh@vger.kernel.org
+T:	git git://people.freedesktop.org/~airlied/linux
+S:	Supported
+F:	drivers/gpu/drm/rcar-du/
+F:	drivers/gpu/drm/shmobile/
+F:	include/linux/platform_data/rcar-du.h
+F:	include/linux/platform_data/shmob_drm.h
 
 DSBR100 USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
@@ -9545,6 +9562,14 @@ S:	Maintained
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
 
+USB OVER IP DRIVER
+M:	Valentina Manea <valentina.manea.m@gmail.com>
+M:	Shuah Khan <shuah.kh@samsung.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/usbip/
+F:	tools/usb/usbip/
+
 USB PEGASUS DRIVER
 M:	Petko Manolov <petkan@nucleusys.com>
 L:	linux-usb@vger.kernel.org
@@ -10045,9 +10070,9 @@ F:	Documentation/x86/
 F:	arch/x86/
 
 X86 PLATFORM DRIVERS
-M:	Matthew Garrett <matthew.garrett@nebula.com>
+M:	Darren Hart <dvhart@infradead.org>
 L:	platform-driver-x86@vger.kernel.org
-T:	git git://cavan.codon.org.uk/platform-drivers-x86.git
+T:	git git://git.infradead.org/users/dvhart/linux-platform-drivers-x86.git
 S:	Maintained
 F:	drivers/platform/x86/
 

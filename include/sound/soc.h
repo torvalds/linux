@@ -277,7 +277,7 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE | \
 		  SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK, \
 	.tlv.c = (snd_soc_bytes_tlv_callback), \
-	.info = snd_soc_info_bytes_ext, \
+	.info = snd_soc_bytes_info_ext, \
 	.private_value = (unsigned long)&(struct soc_bytes_ext) \
 		{.max = xcount, .get = xhandler_get, .put = xhandler_put, } }
 #define SOC_SINGLE_XR_SX(xname, xregbase, xregcount, xnbits, \

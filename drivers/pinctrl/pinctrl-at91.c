@@ -497,10 +497,10 @@ static struct at91_pinctrl_mux_ops at91sam9x5_ops = {
 static void at91_pin_dbg(const struct device *dev, const struct at91_pmx_pin *pin)
 {
 	if (pin->mux) {
-		dev_dbg(dev, "pio%c%d configured as periph%c with conf = 0x%lu\n",
+		dev_dbg(dev, "pio%c%d configured as periph%c with conf = 0x%lx\n",
 			pin->bank + 'A', pin->pin, pin->mux - 1 + 'A', pin->conf);
 	} else {
-		dev_dbg(dev, "pio%c%d configured as gpio with conf = 0x%lu\n",
+		dev_dbg(dev, "pio%c%d configured as gpio with conf = 0x%lx\n",
 			pin->bank + 'A', pin->pin, pin->conf);
 	}
 }

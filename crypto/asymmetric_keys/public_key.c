@@ -121,6 +121,7 @@ static int public_key_verify_signature_2(const struct key *key,
 struct asymmetric_key_subtype public_key_subtype = {
 	.owner			= THIS_MODULE,
 	.name			= "public_key",
+	.name_len		= sizeof("public_key") - 1,
 	.describe		= public_key_describe,
 	.destroy		= public_key_destroy,
 	.verify_signature	= public_key_verify_signature_2,

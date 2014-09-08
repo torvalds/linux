@@ -3272,7 +3272,7 @@ static inline int __dev_uc_sync(struct net_device *dev,
 }
 
 /**
- *  __dev_uc_unsync - Remove synchonized addresses from device
+ *  __dev_uc_unsync - Remove synchronized addresses from device
  *  @dev:  device to sync
  *  @unsync: function to call if address should be removed
  *
@@ -3316,7 +3316,7 @@ static inline int __dev_mc_sync(struct net_device *dev,
 }
 
 /**
- *  __dev_mc_unsync - Remove synchonized addresses from device
+ *  __dev_mc_unsync - Remove synchronized addresses from device
  *  @dev:  device to sync
  *  @unsync: function to call if address should be removed
  *

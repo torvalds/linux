@@ -68,6 +68,8 @@ static struct irqaction irq0  = {
 
 void __init setup_default_timer_irq(void)
 {
+	if (!nr_legacy_irqs())
+		return;
 	setup_irq(0, &irq0);
 }
 
