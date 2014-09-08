@@ -248,4 +248,12 @@ config PHY_STIH407_USB
 	  Enable this support to enable the picoPHY device used by USB2
 	  and USB3 controllers on STMicroelectronics STiH407 SoC families.
 
+config PHY_STIH41X_USB
+	tristate "STMicroelectronics USB2 PHY driver for STiH41x series"
+	depends on ARCH_STI
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB transceiver that is part of
+	  STMicroelectronics STiH41x SoC series.
+
 endmenu
