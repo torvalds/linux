@@ -267,7 +267,7 @@ struct bcma_device {
 	u8 core_unit;
 
 	u32 addr;
-	u32 addr1;
+	u32 addr_s[8];
 	u32 wrap;
 
 	void __iomem *io_addr;
