@@ -871,8 +871,6 @@ int i915_reset(struct drm_device *dev)
 		 */
 		if (INTEL_INFO(dev)->gen > 5)
 			intel_reset_gt_powersave(dev);
-
-		intel_hpd_init(dev);
 	} else {
 		mutex_unlock(&dev->struct_mutex);
 	}
