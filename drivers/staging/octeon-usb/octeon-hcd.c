@@ -1332,8 +1332,6 @@ static void __cvmx_usb_poll_rx_fifo(struct cvmx_usb_state *usb)
 		bytes -= 4;
 	}
 	CVMX_SYNCW;
-
-	return;
 }
 
 
@@ -1437,8 +1435,6 @@ static void __cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
 					union cvmx_usbcx_gintmsk,
 					nptxfempmsk, 0);
 	}
-
-	return;
 }
 
 
@@ -1490,8 +1486,6 @@ static void __cvmx_usb_fill_tx_fifo(struct cvmx_usb_state *usb, int channel)
 		fifo->head = 0;
 
 	__cvmx_usb_poll_tx_fifo(usb);
-
-	return;
 }
 
 /**
@@ -1640,7 +1634,6 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 
 	__cvmx_usb_write_csr32(usb, CVMX_USBCX_HCTSIZX(channel, usb->index),
 			       usbc_hctsiz.u32);
-	return;
 }
 
 
@@ -1987,7 +1980,6 @@ static void __cvmx_usb_start_channel(struct cvmx_usb_state *usb,
 			union cvmx_usbcx_hccharx, chena, 1);
 	if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
 		__cvmx_usb_fill_tx_fifo(usb, channel);
-	return;
 }
 
 
@@ -2116,7 +2108,6 @@ done:
 	}
 	USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
 			union cvmx_usbcx_gintmsk, sofmsk, need_sof);
-	return;
 }
 
 static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
