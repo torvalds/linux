@@ -251,6 +251,12 @@ uvc_function_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	if (le16_to_cpu(ctrl->wLength) > UVC_MAX_REQUEST_SIZE)
 		return -EINVAL;
 
+	/* Tell the complete callback to generate an event for the next request
+	 * that will be enqueued by UVCIOC_SEND_RESPONSE.
+	 */
+	uvc->event_setup_out = !(ctrl->bRequestType & USB_DIR_IN);
+	uvc->event_length = le16_to_cpu(ctrl->wLength);
+
 	memset(&v4l2_event, 0, sizeof(v4l2_event));
 	v4l2_event.type = UVC_EVENT_SETUP;
 	memcpy(&uvc_event->req, ctrl, sizeof(uvc_event->req));

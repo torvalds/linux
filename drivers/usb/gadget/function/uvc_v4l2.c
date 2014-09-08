@@ -271,25 +271,8 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	/* Events */
 	case VIDIOC_DQEVENT:
-	{
-		struct v4l2_event *event = arg;
-
-		ret = v4l2_event_dequeue(&handle->vfh, event,
+		return v4l2_event_dequeue(&handle->vfh, arg,
 					 file->f_flags & O_NONBLOCK);
-		if (ret == 0 && event->type == UVC_EVENT_SETUP) {
-			struct uvc_event *uvc_event = (void *)&event->u.data;
-
-			/* Tell the complete callback to generate an event for
-			 * the next request that will be enqueued by
-			 * uvc_event_write.
-			 */
-			uvc->event_setup_out =
-				!(uvc_event->req.bRequestType & USB_DIR_IN);
-			uvc->event_length = uvc_event->req.wLength;
-		}
-
-		return ret;
-	}
 
 	case VIDIOC_SUBSCRIBE_EVENT:
 	{
