@@ -1623,6 +1623,11 @@ struct radeon_pm {
 	/* internal thermal controller on rv6xx+ */
 	enum radeon_int_thermal_type int_thermal_type;
 	struct device	        *int_hwmon_dev;
+	/* fan control parameters */
+	bool                    no_fan;
+	u8                      fan_pulses_per_revolution;
+	u8                      fan_min_rpm;
+	u8                      fan_max_rpm;
 	/* dpm */
 	bool                    dpm_enabled;
 	struct radeon_dpm       dpm;

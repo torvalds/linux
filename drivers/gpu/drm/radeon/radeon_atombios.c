@@ -2248,6 +2248,14 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 
 	/* add the i2c bus for thermal/fan chip */
 	if (controller->ucType > 0) {
+		if (controller->ucFanParameters & ATOM_PP_FANPARAMETERS_NOFAN)
+			rdev->pm.no_fan = true;
+		rdev->pm.fan_pulses_per_revolution =
+			controller->ucFanParameters & ATOM_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK;
+		if (rdev->pm.fan_pulses_per_revolution) {
+			rdev->pm.fan_min_rpm = controller->ucFanMinRPM;
+			rdev->pm.fan_max_rpm = controller->ucFanMaxRPM;
+		}
 		if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
