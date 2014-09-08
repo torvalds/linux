@@ -74,10 +74,67 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream);
  *
  */
 
-DEFINE_RWLOCK(snd_pcm_link_rwlock);
-EXPORT_SYMBOL(snd_pcm_link_rwlock);
-
+static DEFINE_RWLOCK(snd_pcm_link_rwlock);
 static DECLARE_RWSEM(snd_pcm_link_rwsem);
+
+void snd_pcm_stream_lock(struct snd_pcm_substream *substream)
+{
+	if (substream->pcm->nonatomic) {
+		down_read(&snd_pcm_link_rwsem);
+		mutex_lock(&substream->self_group.mutex);
+	} else {
+		read_lock(&snd_pcm_link_rwlock);
+		spin_lock(&substream->self_group.lock);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_lock);
+
+void snd_pcm_stream_unlock(struct snd_pcm_substream *substream)
+{
+	if (substream->pcm->nonatomic) {
+		mutex_unlock(&substream->self_group.mutex);
+		up_read(&snd_pcm_link_rwsem);
+	} else {
+		spin_unlock(&substream->self_group.lock);
+		read_unlock(&snd_pcm_link_rwlock);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock);
+
+void snd_pcm_stream_lock_irq(struct snd_pcm_substream *substream)
+{
+	if (!substream->pcm->nonatomic)
+		local_irq_disable();
+	snd_pcm_stream_lock(substream);
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_lock_irq);
+
+void snd_pcm_stream_unlock_irq(struct snd_pcm_substream *substream)
+{
+	snd_pcm_stream_unlock(substream);
+	if (!substream->pcm->nonatomic)
+		local_irq_enable();
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock_irq);
+
+unsigned long _snd_pcm_stream_lock_irqsave(struct snd_pcm_substream *substream)
+{
+	unsigned long flags = 0;
+	if (!substream->pcm->nonatomic)
+		local_irq_save(flags);
+	snd_pcm_stream_lock(substream);
+	return flags;
+}
+EXPORT_SYMBOL_GPL(_snd_pcm_stream_lock_irqsave);
+
+void snd_pcm_stream_unlock_irqrestore(struct snd_pcm_substream *substream,
+				      unsigned long flags)
+{
+	snd_pcm_stream_unlock(substream);
+	if (!substream->pcm->nonatomic)
+		local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock_irqrestore);
 
 static inline mm_segment_t snd_enter_user(void)
 {
@@ -727,9 +784,14 @@ static int snd_pcm_action_group(struct action_ops *ops,
 	int res = 0;
 
 	snd_pcm_group_for_each_entry(s, substream) {
-		if (do_lock && s != substream)
-			spin_lock_nested(&s->self_group.lock,
-					 SINGLE_DEPTH_NESTING);
+		if (do_lock && s != substream) {
+			if (s->pcm->nonatomic)
+				mutex_lock_nested(&s->self_group.mutex,
+						  SINGLE_DEPTH_NESTING);
+			else
+				spin_lock_nested(&s->self_group.lock,
+						 SINGLE_DEPTH_NESTING);
+		}
 		res = ops->pre_action(s, state);
 		if (res < 0)
 			goto _unlock;
@@ -755,8 +817,12 @@ static int snd_pcm_action_group(struct action_ops *ops,
 	if (do_lock) {
 		/* unlock streams */
 		snd_pcm_group_for_each_entry(s1, substream) {
-			if (s1 != substream)
-				spin_unlock(&s1->self_group.lock);
+			if (s1 != substream) {
+				if (s->pcm->nonatomic)
+					mutex_unlock(&s1->self_group.mutex);
+				else
+					spin_unlock(&s1->self_group.lock);
+			}
 			if (s1 == s)	/* end */
 				break;
 		}
@@ -784,6 +850,27 @@ static int snd_pcm_action_single(struct action_ops *ops,
 	return res;
 }
 
+/* call in mutex-protected context */
+static int snd_pcm_action_mutex(struct action_ops *ops,
+				struct snd_pcm_substream *substream,
+				int state)
+{
+	int res;
+
+	if (snd_pcm_stream_linked(substream)) {
+		if (!mutex_trylock(&substream->group->mutex)) {
+			mutex_unlock(&substream->self_group.mutex);
+			mutex_lock(&substream->group->mutex);
+			mutex_lock(&substream->self_group.mutex);
+		}
+		res = snd_pcm_action_group(ops, substream, state, 1);
+		mutex_unlock(&substream->group->mutex);
+	} else {
+		res = snd_pcm_action_single(ops, substream, state);
+	}
+	return res;
+}
+
 /*
  *  Note: call with stream lock
  */
@@ -792,6 +879,9 @@ static int snd_pcm_action(struct action_ops *ops,
 			  int state)
 {
 	int res;
+
+	if (substream->pcm->nonatomic)
+		return snd_pcm_action_mutex(ops, substream, state);
 
 	if (snd_pcm_stream_linked(substream)) {
 		if (!spin_trylock(&substream->group->lock)) {
@@ -807,6 +897,29 @@ static int snd_pcm_action(struct action_ops *ops,
 	return res;
 }
 
+static int snd_pcm_action_lock_mutex(struct action_ops *ops,
+				     struct snd_pcm_substream *substream,
+				     int state)
+{
+	int res;
+
+	down_read(&snd_pcm_link_rwsem);
+	if (snd_pcm_stream_linked(substream)) {
+		mutex_lock(&substream->group->mutex);
+		mutex_lock_nested(&substream->self_group.mutex,
+				  SINGLE_DEPTH_NESTING);
+		res = snd_pcm_action_group(ops, substream, state, 1);
+		mutex_unlock(&substream->self_group.mutex);
+		mutex_unlock(&substream->group->mutex);
+	} else {
+		mutex_lock(&substream->self_group.mutex);
+		res = snd_pcm_action_single(ops, substream, state);
+		mutex_unlock(&substream->self_group.mutex);
+	}
+	up_read(&snd_pcm_link_rwsem);
+	return res;
+}
+
 /*
  *  Note: don't use any locks before
  */
@@ -815,6 +928,9 @@ static int snd_pcm_action_lock_irq(struct action_ops *ops,
 				   int state)
 {
 	int res;
+
+	if (substream->pcm->nonatomic)
+		return snd_pcm_action_lock_mutex(ops, substream, state);
 
 	read_lock_irq(&snd_pcm_link_rwlock);
 	if (snd_pcm_stream_linked(substream)) {
@@ -1634,7 +1750,8 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	down_write(&snd_pcm_link_rwsem);
 	write_lock_irq(&snd_pcm_link_rwlock);
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN ||
-	    substream->runtime->status->state != substream1->runtime->status->state) {
+	    substream->runtime->status->state != substream1->runtime->status->state ||
+	    substream->pcm->nonatomic != substream1->pcm->nonatomic) {
 		res = -EBADFD;
 		goto _end;
 	}
@@ -1646,6 +1763,7 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 		substream->group = group;
 		group = NULL;
 		spin_lock_init(&substream->group->lock);
+		mutex_init(&substream->group->mutex);
 		INIT_LIST_HEAD(&substream->group->substreams);
 		list_add_tail(&substream->link_list, &substream->group->substreams);
 		substream->group->count = 1;

@@ -35,7 +35,7 @@ invlpg instruction (or instructions _near_ it) show up high in
 profiles.  If you believe that individual invalidations being
 called too often, you can lower the tunable:
 
-	/sys/debug/kernel/x86/tlb_single_page_flush_ceiling
+	/sys/kernel/debug/x86/tlb_single_page_flush_ceiling
 
 This will cause us to do the global flush for more cases.
 Lowering it to 0 will disable the use of the individual flushes.

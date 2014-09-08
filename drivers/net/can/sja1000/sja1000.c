@@ -172,6 +172,35 @@ static void set_normal_mode(struct net_device *dev)
 	netdev_err(dev, "setting SJA1000 into normal mode failed!\n");
 }
 
+/*
+ * initialize SJA1000 chip:
+ *   - reset chip
+ *   - set output mode
+ *   - set baudrate
+ *   - enable interrupts
+ *   - start operating mode
+ */
+static void chipset_init(struct net_device *dev)
+{
+	struct sja1000_priv *priv = netdev_priv(dev);
+
+	/* set clock divider and output control register */
+	priv->write_reg(priv, SJA1000_CDR, priv->cdr | CDR_PELICAN);
+
+	/* set acceptance filter (accept all) */
+	priv->write_reg(priv, SJA1000_ACCC0, 0x00);
+	priv->write_reg(priv, SJA1000_ACCC1, 0x00);
+	priv->write_reg(priv, SJA1000_ACCC2, 0x00);
+	priv->write_reg(priv, SJA1000_ACCC3, 0x00);
+
+	priv->write_reg(priv, SJA1000_ACCM0, 0xFF);
+	priv->write_reg(priv, SJA1000_ACCM1, 0xFF);
+	priv->write_reg(priv, SJA1000_ACCM2, 0xFF);
+	priv->write_reg(priv, SJA1000_ACCM3, 0xFF);
+
+	priv->write_reg(priv, SJA1000_OCR, priv->ocr | OCR_MODE_NORMAL);
+}
+
 static void sja1000_start(struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
@@ -179,6 +208,10 @@ static void sja1000_start(struct net_device *dev)
 	/* leave reset mode */
 	if (priv->can.state != CAN_STATE_STOPPED)
 		set_reset_mode(dev);
+
+	/* Initialize chip if uninitialized at this stage */
+	if (!(priv->read_reg(priv, SJA1000_CDR) & CDR_PELICAN))
+		chipset_init(dev);
 
 	/* Clear error counters and error code capture */
 	priv->write_reg(priv, SJA1000_TXERR, 0x0);
@@ -234,35 +267,6 @@ static int sja1000_get_berr_counter(const struct net_device *dev,
 	bec->rxerr = priv->read_reg(priv, SJA1000_RXERR);
 
 	return 0;
-}
-
-/*
- * initialize SJA1000 chip:
- *   - reset chip
- *   - set output mode
- *   - set baudrate
- *   - enable interrupts
- *   - start operating mode
- */
-static void chipset_init(struct net_device *dev)
-{
-	struct sja1000_priv *priv = netdev_priv(dev);
-
-	/* set clock divider and output control register */
-	priv->write_reg(priv, SJA1000_CDR, priv->cdr | CDR_PELICAN);
-
-	/* set acceptance filter (accept all) */
-	priv->write_reg(priv, SJA1000_ACCC0, 0x00);
-	priv->write_reg(priv, SJA1000_ACCC1, 0x00);
-	priv->write_reg(priv, SJA1000_ACCC2, 0x00);
-	priv->write_reg(priv, SJA1000_ACCC3, 0x00);
-
-	priv->write_reg(priv, SJA1000_ACCM0, 0xFF);
-	priv->write_reg(priv, SJA1000_ACCM1, 0xFF);
-	priv->write_reg(priv, SJA1000_ACCM2, 0xFF);
-	priv->write_reg(priv, SJA1000_ACCM3, 0xFF);
-
-	priv->write_reg(priv, SJA1000_OCR, priv->ocr | OCR_MODE_NORMAL);
 }
 
 /*

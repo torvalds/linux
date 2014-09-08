@@ -1115,19 +1115,15 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, regs->syscallno);
 
-#ifdef CONFIG_AUDITSYSCALL
 	audit_syscall_entry(syscall_get_arch(), regs->syscallno,
 		regs->orig_x0, regs->regs[1], regs->regs[2], regs->regs[3]);
-#endif
 
 	return regs->syscallno;
 }
 
 asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 {
-#ifdef CONFIG_AUDITSYSCALL
 	audit_syscall_exit(regs);
-#endif
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_exit(regs, regs_return_value(regs));
