@@ -33,7 +33,7 @@
  *
  * Returns fuse value: 0 or 1
  */
-uint8_t cvmx_fuse_read_byte(int byte_addr)
+static uint8_t __init cvmx_fuse_read_byte(int byte_addr)
 {
 	union cvmx_mio_fus_rcmd read_cmd;
 
@@ -52,7 +52,8 @@ uint8_t cvmx_fuse_read_byte(int byte_addr)
  * as running early in u-boot static/global variables don't work when
  * running from flash.
  */
-const char *octeon_model_get_string_buffer(uint32_t chip_id, char *buffer)
+static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
+							 char *buffer)
 {
 	const char *family;
 	const char *core_model;
@@ -422,7 +423,7 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char *buffer)
  *
  * Returns Model string
  */
-const char *octeon_model_get_string(uint32_t chip_id)
+const char *__init octeon_model_get_string(uint32_t chip_id)
 {
 	static char buffer[32];
 	return octeon_model_get_string_buffer(chip_id, buffer);

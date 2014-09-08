@@ -451,6 +451,4 @@ static inline uint32_t cvmx_octeon_num_cores(void)
 	return cvmx_pop(ciu_fuse);
 }
 
-uint8_t cvmx_fuse_read_byte(int byte_addr);
-
 #endif /*  __CVMX_H__  */
