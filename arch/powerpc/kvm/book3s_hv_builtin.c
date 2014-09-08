@@ -101,7 +101,7 @@ struct kvm_rma_info *kvm_alloc_rma()
 	ri = kmalloc(sizeof(struct kvm_rma_info), GFP_KERNEL);
 	if (!ri)
 		return NULL;
-	page = cma_alloc(kvm_cma, kvm_rma_pages, get_order(kvm_rma_pages));
+	page = cma_alloc(kvm_cma, kvm_rma_pages, order_base_2(kvm_rma_pages));
 	if (!page)
 		goto err_out;
 	atomic_set(&ri->use_count, 1);
@@ -135,12 +135,12 @@ struct page *kvm_alloc_hpt(unsigned long nr_pages)
 {
 	unsigned long align_pages = HPT_ALIGN_PAGES;
 
-	VM_BUG_ON(get_order(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+	VM_BUG_ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
 
 	/* Old CPUs require HPT aligned on a multiple of its size */
 	if (!cpu_has_feature(CPU_FTR_ARCH_206))
 		align_pages = nr_pages;
-	return cma_alloc(kvm_cma, nr_pages, get_order(align_pages));
+	return cma_alloc(kvm_cma, nr_pages, order_base_2(align_pages));
 }
 EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
 

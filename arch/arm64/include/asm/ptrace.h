@@ -137,7 +137,7 @@ struct pt_regs {
 	(!((regs)->pstate & PSR_F_BIT))
 
 #define user_stack_pointer(regs) \
-	(!compat_user_mode(regs)) ? ((regs)->sp) : ((regs)->compat_sp)
+	(!compat_user_mode(regs) ? (regs)->sp : (regs)->compat_sp)
 
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {

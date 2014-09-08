@@ -1973,7 +1973,7 @@ static int qgroup_subtree_accounting(struct btrfs_trans_handle *trans,
 				   elem.seq, &roots);
 	btrfs_put_tree_mod_seq(fs_info, &elem);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	if (roots->nnodes != 1)
 		goto out;
@@ -2720,6 +2720,7 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 	memset(&fs_info->qgroup_rescan_work, 0,
 	       sizeof(fs_info->qgroup_rescan_work));
 	btrfs_init_work(&fs_info->qgroup_rescan_work,
+			btrfs_qgroup_rescan_helper,
 			btrfs_qgroup_rescan_worker, NULL, NULL);
 
 	if (ret) {

@@ -1378,31 +1378,45 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 {
 	struct qlc_83xx_fw_info *fw_info = adapter->ahw->fw_info;
 	const struct firmware *fw = fw_info->fw;
-	u32 dest, *p_cache;
+	u32 dest, *p_cache, *temp;
 	int i, ret = -EIO;
+	__le32 *temp_le;
 	u8 data[16];
 	size_t size;
 	u64 addr;
 
+	temp = kzalloc(fw->size, GFP_KERNEL);
+	if (!temp) {
+		release_firmware(fw);
+		fw_info->fw = NULL;
+		return -ENOMEM;
+	}
+
+	temp_le = (__le32 *)fw->data;
+
+	/* FW image in file is in little endian, swap the data to nullify
+	 * the effect of writel() operation on big endian platform.
+	 */
+	for (i = 0; i < fw->size / sizeof(u32); i++)
+		temp[i] = __le32_to_cpu(temp_le[i]);
+
 	dest = QLCRDX(adapter->ahw, QLCNIC_FW_IMAGE_ADDR);
 	size = (fw->size & ~0xF);
-	p_cache = (u32 *)fw->data;
+	p_cache = temp;
 	addr = (u64)dest;
 
 	ret = qlcnic_ms_mem_write128(adapter, addr,
 				     p_cache, size / 16);
 	if (ret) {
 		dev_err(&adapter->pdev->dev, "MS memory write failed\n");
-		release_firmware(fw);
-		fw_info->fw = NULL;
-		return -EIO;
+		goto exit;
 	}
 
 	/* alignment check */
 	if (fw->size & 0xF) {
 		addr = dest + size;
 		for (i = 0; i < (fw->size & 0xF); i++)
-			data[i] = fw->data[size + i];
+			data[i] = temp[size + i];
 		for (; i < 16; i++)
 			data[i] = 0;
 		ret = qlcnic_ms_mem_write128(adapter, addr,
@@ -1410,15 +1424,16 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 		if (ret) {
 			dev_err(&adapter->pdev->dev,
 				"MS memory write failed\n");
-			release_firmware(fw);
-			fw_info->fw = NULL;
-			return -EIO;
+			goto exit;
 		}
 	}
+
+exit:
 	release_firmware(fw);
 	fw_info->fw = NULL;
+	kfree(temp);
 
-	return 0;
+	return ret;
 }
 
 static void qlcnic_83xx_dump_pause_control_regs(struct qlcnic_adapter *adapter)
