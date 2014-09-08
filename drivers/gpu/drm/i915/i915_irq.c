@@ -3723,7 +3723,7 @@ void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
 
 	dev_priv->display_irqs_enabled = true;
 
-	if (dev_priv->dev->irq_enabled)
+	if (intel_irqs_enabled(dev_priv))
 		valleyview_display_irqs_install(dev_priv);
 }
 
@@ -3736,7 +3736,7 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 
 	dev_priv->display_irqs_enabled = false;
 
-	if (dev_priv->dev->irq_enabled)
+	if (intel_irqs_enabled(dev_priv))
 		valleyview_display_irqs_uninstall(dev_priv);
 }
 
