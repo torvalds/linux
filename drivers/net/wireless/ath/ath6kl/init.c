@@ -93,8 +93,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x433900,
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS,
+		.flags				= 0,
 
 		.fw = {
 			.dir		= AR6004_HW_1_0_FW_DIR,
@@ -114,8 +113,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x43d400,
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS,
+		.flags				= 0,
 		.fw = {
 			.dir		= AR6004_HW_1_1_FW_DIR,
 			.fw		= AR6004_HW_1_1_FIRMWARE_FILE,
@@ -134,8 +132,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x435c00,
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS,
+		.flags				= 0,
 
 		.fw = {
 			.dir		= AR6004_HW_1_2_FW_DIR,
@@ -152,19 +149,42 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_ext_data_addr		= 0x437000,
 		.reserved_ram_size		= 7168,
 		.board_addr			= 0x436400,
-		.refclk_hz                      = 40000000,
+		.refclk_hz                      = 0,
 		.uarttx_pin                     = 11,
-		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS |
-						  ATH6KL_HW_MAP_LP_ENDPOINT,
+		.flags				= 0,
 
 		.fw = {
 			.dir            = AR6004_HW_1_3_FW_DIR,
 			.fw             = AR6004_HW_1_3_FIRMWARE_FILE,
+			.tcmd	        = AR6004_HW_1_3_TCMD_FIRMWARE_FILE,
+			.utf		= AR6004_HW_1_3_UTF_FIRMWARE_FILE,
+			.testscript	= AR6004_HW_1_3_TESTSCRIPT_FILE,
 		},
 
 		.fw_board               = AR6004_HW_1_3_BOARD_DATA_FILE,
 		.fw_default_board       = AR6004_HW_1_3_DEFAULT_BOARD_DATA_FILE,
+	},
+	{
+		.id				= AR6004_HW_3_0_VERSION,
+		.name				= "ar6004 hw 3.0",
+		.dataset_patch_addr		= 0,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0,
+		.reserved_ram_size		= 7168,
+		.board_addr			= 0x436400,
+		.testscript_addr		= 0,
+		.flags				= 0,
+
+		.fw = {
+			.dir		= AR6004_HW_3_0_FW_DIR,
+			.fw		= AR6004_HW_3_0_FIRMWARE_FILE,
+			.tcmd	        = AR6004_HW_3_0_TCMD_FIRMWARE_FILE,
+			.utf		= AR6004_HW_3_0_UTF_FIRMWARE_FILE,
+			.testscript	= AR6004_HW_3_0_TESTSCRIPT_FILE,
+		},
+
+		.fw_board		= AR6004_HW_3_0_BOARD_DATA_FILE,
+		.fw_default_board	= AR6004_HW_3_0_DEFAULT_BOARD_DATA_FILE,
 	},
 };
 
@@ -601,7 +621,9 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	 * but possible in theory.
 	 */
 
-	if (ar->target_type == TARGET_TYPE_AR6003) {
+	if ((ar->target_type == TARGET_TYPE_AR6003) ||
+	    (ar->version.target_ver == AR6004_HW_1_3_VERSION) ||
+	    (ar->version.target_ver == AR6004_HW_3_0_VERSION)) {
 		param = ar->hw.board_ext_data_addr;
 		ram_reserved_size = ar->hw.reserved_ram_size;
 
@@ -629,9 +651,12 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		return status;
 
 	/* Configure target refclk_hz */
-	status = ath6kl_bmi_write_hi32(ar, hi_refclk_hz, ar->hw.refclk_hz);
-	if (status)
-		return status;
+	if (ar->hw.refclk_hz != 0) {
+		status = ath6kl_bmi_write_hi32(ar, hi_refclk_hz,
+					       ar->hw.refclk_hz);
+		if (status)
+			return status;
+	}
 
 	return 0;
 }
@@ -1112,6 +1137,12 @@ int ath6kl_init_fetch_firmwares(struct ath6kl *ar)
 	if (ret)
 		return ret;
 
+	ret = ath6kl_fetch_fw_apin(ar, ATH6KL_FW_API5_FILE);
+	if (ret == 0) {
+		ar->fw_api = 5;
+		goto out;
+	}
+
 	ret = ath6kl_fetch_fw_apin(ar, ATH6KL_FW_API4_FILE);
 	if (ret == 0) {
 		ar->fw_api = 4;
@@ -1161,11 +1192,19 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 		ath6kl_bmi_write_hi32(ar, hi_board_data,
 				      board_address);
 	} else {
-		ath6kl_bmi_read_hi32(ar, hi_board_data, &board_address);
+		ret = ath6kl_bmi_read_hi32(ar, hi_board_data, &board_address);
+		if (ret) {
+			ath6kl_err("Failed to get board file target address.\n");
+			return ret;
+		}
 	}
 
 	/* determine where in target ram to write extended board data */
-	ath6kl_bmi_read_hi32(ar, hi_board_ext_data, &board_ext_address);
+	ret = ath6kl_bmi_read_hi32(ar, hi_board_ext_data, &board_ext_address);
+	if (ret) {
+		ath6kl_err("Failed to get extended board file target address.\n");
+		return ret;
+	}
 
 	if (ar->target_type == TARGET_TYPE_AR6003 &&
 	    board_ext_address == 0) {
@@ -1187,7 +1226,6 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 	default:
 		WARN_ON(1);
 		return -EINVAL;
-		break;
 	}
 
 	if (board_ext_address &&
@@ -1230,7 +1268,13 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 	}
 
 	/* record the fact that Board Data IS initialized */
-	ath6kl_bmi_write_hi32(ar, hi_board_data_initialized, 1);
+	if ((ar->version.target_ver == AR6004_HW_1_3_VERSION) ||
+	    (ar->version.target_ver == AR6004_HW_3_0_VERSION))
+		param = board_data_size;
+	else
+		param = 1;
+
+	ath6kl_bmi_write_hi32(ar, hi_board_data_initialized, param);
 
 	return ret;
 }
@@ -1361,7 +1405,11 @@ static int ath6kl_upload_testscript(struct ath6kl *ar)
 	}
 
 	ath6kl_bmi_write_hi32(ar, hi_ota_testscript, address);
-	ath6kl_bmi_write_hi32(ar, hi_end_ram_reserve_sz, 4096);
+
+	if ((ar->version.target_ver != AR6004_HW_1_3_VERSION) &&
+	    (ar->version.target_ver != AR6004_HW_3_0_VERSION))
+		ath6kl_bmi_write_hi32(ar, hi_end_ram_reserve_sz, 4096);
+
 	ath6kl_bmi_write_hi32(ar, hi_test_apps_related, 1);
 
 	return 0;
@@ -1567,6 +1615,11 @@ static const struct fw_capa_str_map {
 	{ ATH6KL_FW_CAPABILITY_REGDOMAIN, "regdomain" },
 	{ ATH6KL_FW_CAPABILITY_SCHED_SCAN_V2, "sched-scan-v2" },
 	{ ATH6KL_FW_CAPABILITY_HEART_BEAT_POLL, "hb-poll" },
+	{ ATH6KL_FW_CAPABILITY_64BIT_RATES, "64bit-rates" },
+	{ ATH6KL_FW_CAPABILITY_AP_INACTIVITY_MINS, "ap-inactivity-mins" },
+	{ ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT, "map-lp-endpoint" },
+	{ ATH6KL_FW_CAPABILITY_RATETABLE_MCS15, "ratetable-mcs15" },
+	{ ATH6KL_FW_CAPABILITY_NO_IP_CHECKSUM, "no-ip-checksum" },
 };
 
 static const char *ath6kl_init_get_fw_capa_name(unsigned int id)

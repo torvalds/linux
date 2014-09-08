@@ -698,10 +698,6 @@ static void serial_m3110_pm(struct uart_port *port, unsigned int state,
 {
 }
 
-static void serial_m3110_enable_ms(struct uart_port *port)
-{
-}
-
 static struct uart_ops serial_m3110_ops = {
 	.tx_empty	= serial_m3110_tx_empty,
 	.set_mctrl	= serial_m3110_set_mctrl,
@@ -709,7 +705,6 @@ static struct uart_ops serial_m3110_ops = {
 	.stop_tx	= serial_m3110_stop_tx,
 	.start_tx	= serial_m3110_start_tx,
 	.stop_rx	= serial_m3110_stop_rx,
-	.enable_ms	= serial_m3110_enable_ms,
 	.break_ctl	= serial_m3110_break_ctl,
 	.startup	= serial_m3110_startup,
 	.shutdown	= serial_m3110_shutdown,

@@ -24,6 +24,7 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
+#include <linux/random.h>
 #include <linux/user.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
@@ -61,6 +62,7 @@
 #include <asm/diag.h>
 #include <asm/os_info.h>
 #include <asm/sclp.h>
+#include <asm/sysinfo.h>
 #include "entry.h"
 
 /*
@@ -501,6 +503,8 @@ static int kdump_mem_notifier(struct notifier_block *nb,
 {
 	struct memory_notify *arg = data;
 
+	if (action != MEM_GOING_OFFLINE)
+		return NOTIFY_OK;
 	if (arg->start_pfn < PFN_DOWN(resource_size(&crashk_res)))
 		return NOTIFY_BAD;
 	if (arg->start_pfn > PFN_DOWN(crashk_res.end))
@@ -764,6 +768,7 @@ static void __init setup_hwcaps(void)
 #endif
 
 	get_cpu_id(&cpu_id);
+	add_device_randomness(&cpu_id, sizeof(cpu_id));
 	switch (cpu_id.machine) {
 	case 0x9672:
 #if !defined(CONFIG_64BIT)
@@ -799,6 +804,19 @@ static void __init setup_hwcaps(void)
 		strcpy(elf_platform, "zEC12");
 		break;
 	}
+}
+
+/*
+ * Add system information as device randomness
+ */
+static void __init setup_randomness(void)
+{
+	struct sysinfo_3_2_2 *vmms;
+
+	vmms = (struct sysinfo_3_2_2 *) alloc_page(GFP_KERNEL);
+	if (vmms && stsi(vmms, 3, 2, 2) == 0 && vmms->count)
+		add_device_randomness(&vmms, vmms->count);
+	free_page((unsigned long) vmms);
 }
 
 /*
@@ -899,6 +917,9 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Setup zfcpdump support */
 	setup_zfcpdump();
+
+	/* Add system specific data to the random pool */
+	setup_randomness();
 }
 
 #ifdef CONFIG_32BIT

@@ -1802,13 +1802,7 @@ static int aty128_bl_update_status(struct backlight_device *bd)
 	return 0;
 }
 
-static int aty128_bl_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static const struct backlight_ops aty128_bl_data = {
-	.get_brightness	= aty128_bl_get_brightness,
 	.update_status	= aty128_bl_update_status,
 };
 

@@ -1344,19 +1344,23 @@ void mvs_dev_gone_notify(struct domain_device *dev)
 {
 	unsigned long flags = 0;
 	struct mvs_device *mvi_dev = dev->lldd_dev;
-	struct mvs_info *mvi = mvi_dev->mvi_info;
+	struct mvs_info *mvi;
+
+	if (!mvi_dev) {
+		mv_dprintk("found dev has gone.\n");
+		return;
+	}
+
+	mvi = mvi_dev->mvi_info;
 
 	spin_lock_irqsave(&mvi->lock, flags);
 
-	if (mvi_dev) {
-		mv_dprintk("found dev[%d:%x] is gone.\n",
-			mvi_dev->device_id, mvi_dev->dev_type);
-		mvs_release_task(mvi, dev);
-		mvs_free_reg_set(mvi, mvi_dev);
-		mvs_free_dev(mvi_dev);
-	} else {
-		mv_dprintk("found dev has gone.\n");
-	}
+	mv_dprintk("found dev[%d:%x] is gone.\n",
+		mvi_dev->device_id, mvi_dev->dev_type);
+	mvs_release_task(mvi, dev);
+	mvs_free_reg_set(mvi, mvi_dev);
+	mvs_free_dev(mvi_dev);
+
 	dev->lldd_dev = NULL;
 	mvi_dev->sas_device = NULL;
 

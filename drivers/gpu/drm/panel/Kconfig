@@ -5,7 +5,7 @@ config DRM_PANEL
 	  Panel registration and lookup framework.
 
 menu "Display Panels"
-	depends on DRM_PANEL
+	depends on DRM && DRM_PANEL
 
 config DRM_PANEL_SIMPLE
 	tristate "support for simple panels"
@@ -18,14 +18,11 @@ config DRM_PANEL_SIMPLE
 
 config DRM_PANEL_LD9040
 	tristate "LD9040 RGB/SPI panel"
-	depends on DRM && DRM_PANEL
-	depends on OF
-	select SPI
+	depends on OF && SPI
 	select VIDEOMODE_HELPERS
 
 config DRM_PANEL_S6E8AA0
 	tristate "S6E8AA0 DSI video mode panel"
-	depends on DRM && DRM_PANEL
 	depends on OF
 	select DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS

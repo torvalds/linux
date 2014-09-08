@@ -107,10 +107,10 @@ static int compat_chaninfo(struct file *file, unsigned long arg)
 	chaninfo = compat_alloc_user_space(sizeof(*chaninfo));
 
 	/* Copy chaninfo structure.  Ignore unused members. */
-	if (!access_ok(VERIFY_READ, chaninfo32, sizeof(*chaninfo32))
-	    || !access_ok(VERIFY_WRITE, chaninfo, sizeof(*chaninfo))) {
+	if (!access_ok(VERIFY_READ, chaninfo32, sizeof(*chaninfo32)) ||
+	    !access_ok(VERIFY_WRITE, chaninfo, sizeof(*chaninfo)))
 		return -EFAULT;
-	}
+
 	err = 0;
 	err |= __get_user(temp.uint, &chaninfo32->subdev);
 	err |= __put_user(temp.uint, &chaninfo->subdev);
@@ -141,10 +141,10 @@ static int compat_rangeinfo(struct file *file, unsigned long arg)
 	rangeinfo = compat_alloc_user_space(sizeof(*rangeinfo));
 
 	/* Copy rangeinfo structure. */
-	if (!access_ok(VERIFY_READ, rangeinfo32, sizeof(*rangeinfo32))
-	    || !access_ok(VERIFY_WRITE, rangeinfo, sizeof(*rangeinfo))) {
+	if (!access_ok(VERIFY_READ, rangeinfo32, sizeof(*rangeinfo32)) ||
+	    !access_ok(VERIFY_WRITE, rangeinfo, sizeof(*rangeinfo)))
 		return -EFAULT;
-	}
+
 	err = 0;
 	err |= __get_user(temp.uint, &rangeinfo32->range_type);
 	err |= __put_user(temp.uint, &rangeinfo->range_type);
@@ -168,10 +168,10 @@ static int get_compat_cmd(struct comedi_cmd __user *cmd,
 	} temp;
 
 	/* Copy cmd structure. */
-	if (!access_ok(VERIFY_READ, cmd32, sizeof(*cmd32))
-	    || !access_ok(VERIFY_WRITE, cmd, sizeof(*cmd))) {
+	if (!access_ok(VERIFY_READ, cmd32, sizeof(*cmd32)) ||
+	    !access_ok(VERIFY_WRITE, cmd, sizeof(*cmd)))
 		return -EFAULT;
-	}
+
 	err = 0;
 	err |= __get_user(temp.uint, &cmd32->subdev);
 	err |= __put_user(temp.uint, &cmd->subdev);
@@ -219,10 +219,10 @@ static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32,
 	/* Assume the pointer values are already valid. */
 	/* (Could use ptr_to_compat() to set them, but that wasn't implemented
 	 * until kernel version 2.6.11.) */
-	if (!access_ok(VERIFY_READ, cmd, sizeof(*cmd))
-	    || !access_ok(VERIFY_WRITE, cmd32, sizeof(*cmd32))) {
+	if (!access_ok(VERIFY_READ, cmd, sizeof(*cmd)) ||
+	    !access_ok(VERIFY_WRITE, cmd32, sizeof(*cmd32)))
 		return -EFAULT;
-	}
+
 	err = 0;
 	err |= __get_user(temp, &cmd->subdev);
 	err |= __put_user(temp, &cmd32->subdev);
@@ -311,8 +311,8 @@ static int get_compat_insn(struct comedi_insn __user *insn,
 
 	/* Copy insn structure.  Ignore the unused members. */
 	err = 0;
-	if (!access_ok(VERIFY_READ, insn32, sizeof(*insn32))
-	    || !access_ok(VERIFY_WRITE, insn, sizeof(*insn)))
+	if (!access_ok(VERIFY_READ, insn32, sizeof(*insn32)) ||
+	    !access_ok(VERIFY_WRITE, insn, sizeof(*insn)))
 		return -EFAULT;
 
 	err |= __get_user(temp.uint, &insn32->insn);

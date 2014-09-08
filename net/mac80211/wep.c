@@ -271,22 +271,6 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 	return ret;
 }
 
-
-static bool ieee80211_wep_is_weak_iv(struct sk_buff *skb,
-				     struct ieee80211_key *key)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	unsigned int hdrlen;
-	u8 *ivpos;
-	u32 iv;
-
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	ivpos = skb->data + hdrlen;
-	iv = (ivpos[0] << 16) | (ivpos[1] << 8) | ivpos[2];
-
-	return ieee80211_wep_weak_iv(iv, key->conf.keylen);
-}
-
 ieee80211_rx_result
 ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 {
@@ -301,16 +285,12 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
 		if (skb_linearize(rx->skb))
 			return RX_DROP_UNUSABLE;
-		if (rx->sta && ieee80211_wep_is_weak_iv(rx->skb, rx->key))
-			rx->sta->wep_weak_iv_count++;
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key))
 			return RX_DROP_UNUSABLE;
 	} else if (!(status->flag & RX_FLAG_IV_STRIPPED)) {
 		if (!pskb_may_pull(rx->skb, ieee80211_hdrlen(fc) +
 					    IEEE80211_WEP_IV_LEN))
 			return RX_DROP_UNUSABLE;
-		if (rx->sta && ieee80211_wep_is_weak_iv(rx->skb, rx->key))
-			rx->sta->wep_weak_iv_count++;
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
 		if (pskb_trim(rx->skb, rx->skb->len - IEEE80211_WEP_ICV_LEN))

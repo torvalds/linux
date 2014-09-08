@@ -22,6 +22,7 @@
 #include "dvb_math.h"
 #include <linux/firmware.h>
 #include <linux/i2c-mux.h>
+#include <linux/math64.h>
 
 #define M88DS3103_FIRMWARE "dvb-demod-m88ds3103.fw"
 #define M88DS3103_MCLK_KHZ 96000
@@ -34,6 +35,7 @@ struct m88ds3103_priv {
 	struct dvb_frontend fe;
 	fe_delivery_system_t delivery_system;
 	fe_status_t fe_status;
+	u32 ber;
 	bool warm; /* FW running */
 	struct i2c_adapter *i2c_adapter;
 };

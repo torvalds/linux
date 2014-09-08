@@ -1676,7 +1676,6 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		vc->vdev.ctrl_handler = &vc->hdl;
 		vc->vdev.lock = &dev->lock;
 		vc->vdev.v4l2_dev = &dev->v4l2_dev;
-		set_bit(V4L2_FL_USE_FH_PRIO, &vc->vdev.flags);
 		video_set_drvdata(&vc->vdev, vc);
 		if (video_nr == -1)
 			ret = video_register_device(&vc->vdev,

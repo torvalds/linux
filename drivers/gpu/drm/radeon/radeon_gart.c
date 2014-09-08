@@ -128,7 +128,7 @@ int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 	if (rdev->gart.robj == NULL) {
 		r = radeon_bo_create(rdev, rdev->gart.table_size,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				     NULL, &rdev->gart.robj);
+				     0, NULL, &rdev->gart.robj);
 		if (r) {
 			return r;
 		}
@@ -243,7 +243,8 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 			page_base = rdev->gart.pages_addr[p];
 			for (j = 0; j < (PAGE_SIZE / RADEON_GPU_PAGE_SIZE); j++, t++) {
 				if (rdev->gart.ptr) {
-					radeon_gart_set_page(rdev, t, page_base);
+					radeon_gart_set_page(rdev, t, page_base,
+							     RADEON_GART_PAGE_DUMMY);
 				}
 				page_base += RADEON_GPU_PAGE_SIZE;
 			}
@@ -261,13 +262,15 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
  * @pages: number of pages to bind
  * @pagelist: pages to bind
  * @dma_addr: DMA addresses of pages
+ * @flags: RADEON_GART_PAGE_* flags
  *
  * Binds the requested pages to the gart page table
  * (all asics).
  * Returns 0 for success, -EINVAL for failure.
  */
 int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
-		     int pages, struct page **pagelist, dma_addr_t *dma_addr)
+		     int pages, struct page **pagelist, dma_addr_t *dma_addr,
+		     uint32_t flags)
 {
 	unsigned t;
 	unsigned p;
@@ -287,7 +290,7 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 		if (rdev->gart.ptr) {
 			page_base = rdev->gart.pages_addr[p];
 			for (j = 0; j < (PAGE_SIZE / RADEON_GPU_PAGE_SIZE); j++, t++) {
-				radeon_gart_set_page(rdev, t, page_base);
+				radeon_gart_set_page(rdev, t, page_base, flags);
 				page_base += RADEON_GPU_PAGE_SIZE;
 			}
 		}
@@ -295,33 +298,6 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 	mb();
 	radeon_gart_tlb_flush(rdev);
 	return 0;
-}
-
-/**
- * radeon_gart_restore - bind all pages in the gart page table
- *
- * @rdev: radeon_device pointer
- *
- * Binds all pages in the gart page table (all asics).
- * Used to rebuild the gart table on device startup or resume.
- */
-void radeon_gart_restore(struct radeon_device *rdev)
-{
-	int i, j, t;
-	u64 page_base;
-
-	if (!rdev->gart.ptr) {
-		return;
-	}
-	for (i = 0, t = 0; i < rdev->gart.num_cpu_pages; i++) {
-		page_base = rdev->gart.pages_addr[i];
-		for (j = 0; j < (PAGE_SIZE / RADEON_GPU_PAGE_SIZE); j++, t++) {
-			radeon_gart_set_page(rdev, t, page_base);
-			page_base += RADEON_GPU_PAGE_SIZE;
-		}
-	}
-	mb();
-	radeon_gart_tlb_flush(rdev);
 }
 
 /**

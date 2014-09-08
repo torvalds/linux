@@ -27,8 +27,8 @@ static struct nouveau_oclass
 gk20a_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa040, &nouveau_object_ofuncs },
-	{ 0xa297, &nouveau_object_ofuncs },
-	{ 0xa0c0, &nouveau_object_ofuncs },
+	{ KEPLER_C, &nvc0_fermi_ofuncs, nvc0_graph_9097_omthds },
+	{ KEPLER_COMPUTE_A, &nouveau_object_ofuncs, nvc0_graph_90c0_omthds },
 	{}
 };
 
@@ -39,9 +39,10 @@ gk20a_graph_oclass = &(struct nvc0_graph_oclass) {
 		.ctor = nvc0_graph_ctor,
 		.dtor = nvc0_graph_dtor,
 		.init = nve4_graph_init,
-		.fini = nve4_graph_fini,
+		.fini = _nouveau_graph_fini,
 	},
 	.cclass = &gk20a_grctx_oclass,
 	.sclass = gk20a_graph_sclass,
 	.mmio = nve4_graph_pack_mmio,
+	.ppc_nr = 1,
 }.base;

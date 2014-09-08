@@ -43,7 +43,7 @@
 #define DEBUG_SUBSYSTEM S_LOG
 
 
-#include <lustre_log.h>
+#include "../include/lustre_log.h"
 
 static void print_llogd_body(struct llogd_body *d)
 {
@@ -56,7 +56,7 @@ static void print_llogd_body(struct llogd_body *d)
 	CDEBUG(D_OTHER, "\tlgd_index: %#x\n", d->lgd_index);
 	CDEBUG(D_OTHER, "\tlgd_saved_index: %#x\n", d->lgd_saved_index);
 	CDEBUG(D_OTHER, "\tlgd_len: %#x\n", d->lgd_len);
-	CDEBUG(D_OTHER, "\tlgd_cur_offset: "LPX64"\n", d->lgd_cur_offset);
+	CDEBUG(D_OTHER, "\tlgd_cur_offset: %#llx\n", d->lgd_cur_offset);
 }
 
 void lustre_swab_lu_fid(struct lu_fid *fid)
@@ -284,7 +284,7 @@ static void print_llog_hdr(struct llog_log_hdr *h)
 	CDEBUG(D_OTHER, "\tllh_hdr.lrh_index: %#x\n", h->llh_hdr.lrh_index);
 	CDEBUG(D_OTHER, "\tllh_hdr.lrh_len: %#x\n", h->llh_hdr.lrh_len);
 	CDEBUG(D_OTHER, "\tllh_hdr.lrh_type: %#x\n", h->llh_hdr.lrh_type);
-	CDEBUG(D_OTHER, "\tllh_timestamp: "LPX64"\n", h->llh_timestamp);
+	CDEBUG(D_OTHER, "\tllh_timestamp: %#llx\n", h->llh_timestamp);
 	CDEBUG(D_OTHER, "\tllh_count: %#x\n", h->llh_count);
 	CDEBUG(D_OTHER, "\tllh_bitmap_offset: %#x\n", h->llh_bitmap_offset);
 	CDEBUG(D_OTHER, "\tllh_flags: %#x\n", h->llh_flags);

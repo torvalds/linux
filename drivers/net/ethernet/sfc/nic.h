@@ -135,6 +135,13 @@ enum {
 /* Size and alignment of buffer table entries (same) */
 #define EFX_BUF_SIZE	EFX_PAGE_SIZE
 
+/* NIC-generic software stats */
+enum {
+	GENERIC_STAT_rx_noskb_drops,
+	GENERIC_STAT_rx_nodesc_trunc,
+	GENERIC_STAT_COUNT
+};
+
 /**
  * struct falcon_board_type - board operations and type information
  * @id: Board type id, as found in NVRAM
@@ -205,7 +212,7 @@ static inline bool falcon_spi_present(const struct falcon_spi_device *spi)
 }
 
 enum {
-	FALCON_STAT_tx_bytes,
+	FALCON_STAT_tx_bytes = GENERIC_STAT_COUNT,
 	FALCON_STAT_tx_packets,
 	FALCON_STAT_tx_pause,
 	FALCON_STAT_tx_control,
@@ -290,7 +297,7 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 }
 
 enum {
-	SIENA_STAT_tx_bytes,
+	SIENA_STAT_tx_bytes = GENERIC_STAT_COUNT,
 	SIENA_STAT_tx_good_bytes,
 	SIENA_STAT_tx_bad_bytes,
 	SIENA_STAT_tx_packets,
@@ -361,7 +368,7 @@ struct siena_nic_data {
 };
 
 enum {
-	EF10_STAT_tx_bytes,
+	EF10_STAT_tx_bytes = GENERIC_STAT_COUNT,
 	EF10_STAT_tx_packets,
 	EF10_STAT_tx_pause,
 	EF10_STAT_tx_control,

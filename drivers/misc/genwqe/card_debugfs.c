@@ -485,6 +485,13 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 		goto err1;
 	}
 
+	file = debugfs_create_u32("use_platform_recovery", 0666, root,
+				  &cd->use_platform_recovery);
+	if (!file) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
 	cd->debugfs_root = root;
 	return 0;
 err1:

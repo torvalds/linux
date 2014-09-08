@@ -67,7 +67,7 @@ static int mvebu_cpu_reset_map(struct device_node *np, int res_idx)
 	return 0;
 }
 
-int __init mvebu_cpu_reset_init(void)
+static int __init mvebu_cpu_reset_init(void)
 {
 	struct device_node *np;
 	int res_idx;

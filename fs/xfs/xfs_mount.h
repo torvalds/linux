@@ -166,6 +166,7 @@ typedef struct xfs_mount {
 						   on the next remount,rw */
 	int64_t			m_low_space[XFS_LOWSP_MAX];
 						/* low free space thresholds */
+	struct xfs_kobj		m_kobj;
 
 	struct workqueue_struct	*m_data_workqueue;
 	struct workqueue_struct	*m_unwritten_workqueue;

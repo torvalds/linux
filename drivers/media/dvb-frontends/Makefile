@@ -5,6 +5,11 @@
 ccflags-y += -I$(srctree)/drivers/media/dvb-core/
 ccflags-y += -I$(srctree)/drivers/media/tuners/
 
+# FIXME: RTL2832 SDR driver uses power management directly from USB IF driver
+ifdef CONFIG_DVB_RTL2832_SDR
+	ccflags-y += -I$(srctree)/drivers/media/usb/dvb-usb-v2
+endif
+
 stb0899-objs := stb0899_drv.o stb0899_algo.o
 stv0900-objs := stv0900_core.o stv0900_sw.o
 drxd-objs := drxd_firm.o drxd_hard.o
@@ -100,10 +105,12 @@ obj-$(CONFIG_DVB_STV0367) += stv0367.o
 obj-$(CONFIG_DVB_CXD2820R) += cxd2820r.o
 obj-$(CONFIG_DVB_DRXK) += drxk.o
 obj-$(CONFIG_DVB_TDA18271C2DD) += tda18271c2dd.o
+obj-$(CONFIG_DVB_SI2165) += si2165.o
 obj-$(CONFIG_DVB_A8293) += a8293.o
 obj-$(CONFIG_DVB_TDA10071) += tda10071.o
 obj-$(CONFIG_DVB_RTL2830) += rtl2830.o
 obj-$(CONFIG_DVB_RTL2832) += rtl2832.o
+obj-$(CONFIG_DVB_RTL2832_SDR) += rtl2832_sdr.o
 obj-$(CONFIG_DVB_M88RS2000) += m88rs2000.o
 obj-$(CONFIG_DVB_AF9033) += af9033.o
 

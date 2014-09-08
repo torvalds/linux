@@ -6,6 +6,9 @@ config HAVE_KVM
 config HAVE_KVM_IRQCHIP
        bool
 
+config HAVE_KVM_IRQFD
+       bool
+
 config HAVE_KVM_IRQ_ROUTING
        bool
 

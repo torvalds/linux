@@ -24,11 +24,7 @@
 #include <drv_types.h>
 
 struct sreset_priv {
-	struct mutex	silentreset_mutex;
-	u8	silent_reset_inprogress;
 	u8	Wifi_Error_Status;
-	unsigned long last_tx_time;
-	unsigned long last_tx_complete_time;
 };
 
 #include <rtl8188e_hal.h>
@@ -43,7 +39,6 @@ struct sreset_priv {
 #define		WIFI_IF_NOT_EXIST			BIT6
 
 void sreset_init_value(struct adapter *padapter);
-void sreset_reset_value(struct adapter *padapter);
 u8 sreset_get_wifi_status(struct adapter *padapter);
 void sreset_set_wifi_error_status(struct adapter *padapter, u32 status);
 

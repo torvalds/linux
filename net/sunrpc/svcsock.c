@@ -446,13 +446,41 @@ static void svc_write_space(struct sock *sk)
 	}
 }
 
+static int svc_tcp_has_wspace(struct svc_xprt *xprt)
+{
+	struct svc_sock *svsk =	container_of(xprt, struct svc_sock, sk_xprt);
+	struct svc_serv *serv = svsk->sk_xprt.xpt_server;
+	int required;
+
+	if (test_bit(XPT_LISTENER, &xprt->xpt_flags))
+		return 1;
+	required = atomic_read(&xprt->xpt_reserved) + serv->sv_max_mesg;
+	if (sk_stream_wspace(svsk->sk_sk) >= required ||
+	    (sk_stream_min_wspace(svsk->sk_sk) == 0 &&
+	     atomic_read(&xprt->xpt_reserved) == 0))
+		return 1;
+	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
+	return 0;
+}
+
 static void svc_tcp_write_space(struct sock *sk)
 {
+	struct svc_sock *svsk = (struct svc_sock *)(sk->sk_user_data);
 	struct socket *sock = sk->sk_socket;
 
-	if (sk_stream_is_writeable(sk) && sock)
+	if (!sk_stream_is_writeable(sk) || !sock)
+		return;
+	if (!svsk || svc_tcp_has_wspace(&svsk->sk_xprt))
 		clear_bit(SOCK_NOSPACE, &sock->flags);
 	svc_write_space(sk);
+}
+
+static void svc_tcp_adjust_wspace(struct svc_xprt *xprt)
+{
+	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
+
+	if (svc_tcp_has_wspace(xprt))
+		clear_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
 }
 
 /*
@@ -692,6 +720,7 @@ static struct svc_xprt_class svc_udp_class = {
 	.xcl_owner = THIS_MODULE,
 	.xcl_ops = &svc_udp_ops,
 	.xcl_max_payload = RPCSVC_MAXPAYLOAD_UDP,
+	.xcl_ident = XPRT_TRANSPORT_UDP,
 };
 
 static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
@@ -1197,23 +1226,6 @@ static void svc_tcp_prep_reply_hdr(struct svc_rqst *rqstp)
 	svc_putnl(resv, 0);
 }
 
-static int svc_tcp_has_wspace(struct svc_xprt *xprt)
-{
-	struct svc_sock *svsk =	container_of(xprt, struct svc_sock, sk_xprt);
-	struct svc_serv *serv = svsk->sk_xprt.xpt_server;
-	int required;
-
-	if (test_bit(XPT_LISTENER, &xprt->xpt_flags))
-		return 1;
-	required = atomic_read(&xprt->xpt_reserved) + serv->sv_max_mesg;
-	if (sk_stream_wspace(svsk->sk_sk) >= required ||
-	    (sk_stream_min_wspace(svsk->sk_sk) == 0 &&
-	     atomic_read(&xprt->xpt_reserved) == 0))
-		return 1;
-	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
-	return 0;
-}
-
 static struct svc_xprt *svc_tcp_create(struct svc_serv *serv,
 				       struct net *net,
 				       struct sockaddr *sa, int salen,
@@ -1285,6 +1297,7 @@ static struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_has_wspace = svc_tcp_has_wspace,
 	.xpo_accept = svc_tcp_accept,
 	.xpo_secure_port = svc_sock_secure_port,
+	.xpo_adjust_wspace = svc_tcp_adjust_wspace,
 };
 
 static struct svc_xprt_class svc_tcp_class = {
@@ -1292,6 +1305,7 @@ static struct svc_xprt_class svc_tcp_class = {
 	.xcl_owner = THIS_MODULE,
 	.xcl_ops = &svc_tcp_ops,
 	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
+	.xcl_ident = XPRT_TRANSPORT_TCP,
 };
 
 void svc_init_xprt_sock(void)

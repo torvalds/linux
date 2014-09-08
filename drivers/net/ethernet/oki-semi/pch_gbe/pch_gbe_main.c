@@ -2743,7 +2743,7 @@ static struct pch_gbe_privdata pch_gbe_minnow_privdata = {
 	.platform_init = pch_gbe_minnow_platform_init,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pch_gbe_pcidev_id) = {
+static const struct pci_device_id pch_gbe_pcidev_id[] = {
 	{.vendor = PCI_VENDOR_ID_INTEL,
 	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,
 	 .subvendor = PCI_VENDOR_ID_CIRCUITCO,

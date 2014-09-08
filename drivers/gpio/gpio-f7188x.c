@@ -317,13 +317,7 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 err_gpiochip:
 	for (i = i - 1; i >= 0; i--) {
 		struct f7188x_gpio_bank *bank = &data->bank[i];
-		int tmp;
-
-		tmp = gpiochip_remove(&bank->chip);
-		if (tmp < 0)
-			dev_err(&pdev->dev,
-				"Failed to remove gpiochip %d: %d\n",
-				i, tmp);
+		gpiochip_remove(&bank->chip);
 	}
 
 	return err;
@@ -331,20 +325,12 @@ err_gpiochip:
 
 static int f7188x_gpio_remove(struct platform_device *pdev)
 {
-	int err;
 	int i;
 	struct f7188x_gpio_data *data = platform_get_drvdata(pdev);
 
 	for (i = 0; i < data->nr_bank; i++) {
 		struct f7188x_gpio_bank *bank = &data->bank[i];
-
-		err = gpiochip_remove(&bank->chip);
-		if (err) {
-			dev_err(&pdev->dev,
-				"Failed to remove GPIO gpiochip %d: %d\n",
-				i, err);
-			return err;
-		}
+		gpiochip_remove(&bank->chip);
 	}
 
 	return 0;

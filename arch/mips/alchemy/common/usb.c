@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -387,10 +388,25 @@ static inline void au1200_usb_init(void)
 	udelay(1000);
 }
 
-static inline void au1000_usb_init(unsigned long rb, int reg)
+static inline int au1000_usb_init(unsigned long rb, int reg)
 {
 	void __iomem *base = (void __iomem *)KSEG1ADDR(rb + reg);
 	unsigned long r = __raw_readl(base);
+	struct clk *c;
+
+	/* 48MHz check. Don't init if no one can provide it */
+	c = clk_get(NULL, "usbh_clk");
+	if (IS_ERR(c))
+		return -ENODEV;
+	if (clk_round_rate(c, 48000000) != 48000000) {
+		clk_put(c);
+		return -ENODEV;
+	}
+	if (clk_set_rate(c, 48000000)) {
+		clk_put(c);
+		return -ENODEV;
+	}
+	clk_put(c);
 
 #if defined(__BIG_ENDIAN)
 	r |= USBHEN_BE;
@@ -400,6 +416,8 @@ static inline void au1000_usb_init(unsigned long rb, int reg)
 	__raw_writel(r, base);
 	wmb();
 	udelay(1000);
+
+	return 0;
 }
 
 
@@ -407,8 +425,15 @@ static inline void __au1xx0_ohci_control(int enable, unsigned long rb, int creg)
 {
 	void __iomem *base = (void __iomem *)KSEG1ADDR(rb);
 	unsigned long r = __raw_readl(base + creg);
+	struct clk *c = clk_get(NULL, "usbh_clk");
+
+	if (IS_ERR(c))
+		return;
 
 	if (enable) {
+		if (clk_prepare_enable(c))
+			goto out;
+
 		__raw_writel(r | USBHEN_CE, base + creg);
 		wmb();
 		udelay(1000);
@@ -423,7 +448,10 @@ static inline void __au1xx0_ohci_control(int enable, unsigned long rb, int creg)
 	} else {
 		__raw_writel(r & ~(USBHEN_CE | USBHEN_E), base + creg);
 		wmb();
+		clk_disable_unprepare(c);
 	}
+out:
+	clk_put(c);
 }
 
 static inline int au1000_usb_control(int block, int enable, unsigned long rb,
@@ -457,11 +485,11 @@ int alchemy_usb_control(int block, int enable)
 	case ALCHEMY_CPU_AU1500:
 	case ALCHEMY_CPU_AU1100:
 		ret = au1000_usb_control(block, enable,
-				AU1000_USB_OHCI_PHYS_ADDR, AU1000_OHCICFG);
+			AU1000_USB_OHCI_PHYS_ADDR, AU1000_OHCICFG);
 		break;
 	case ALCHEMY_CPU_AU1550:
 		ret = au1000_usb_control(block, enable,
-				AU1550_USB_OHCI_PHYS_ADDR, AU1550_OHCICFG);
+			AU1550_USB_OHCI_PHYS_ADDR, AU1550_OHCICFG);
 		break;
 	case ALCHEMY_CPU_AU1200:
 		ret = au1200_usb_control(block, enable);
@@ -569,14 +597,18 @@ static struct syscore_ops alchemy_usb_pm_ops = {
 
 static int __init alchemy_usb_init(void)
 {
+	int ret = 0;
+
 	switch (alchemy_get_cputype()) {
 	case ALCHEMY_CPU_AU1000:
 	case ALCHEMY_CPU_AU1500:
 	case ALCHEMY_CPU_AU1100:
-		au1000_usb_init(AU1000_USB_OHCI_PHYS_ADDR, AU1000_OHCICFG);
+		ret = au1000_usb_init(AU1000_USB_OHCI_PHYS_ADDR,
+				      AU1000_OHCICFG);
 		break;
 	case ALCHEMY_CPU_AU1550:
-		au1000_usb_init(AU1550_USB_OHCI_PHYS_ADDR, AU1550_OHCICFG);
+		ret = au1000_usb_init(AU1550_USB_OHCI_PHYS_ADDR,
+				      AU1550_OHCICFG);
 		break;
 	case ALCHEMY_CPU_AU1200:
 		au1200_usb_init();
@@ -586,8 +618,9 @@ static int __init alchemy_usb_init(void)
 		break;
 	}
 
-	register_syscore_ops(&alchemy_usb_pm_ops);
+	if (!ret)
+		register_syscore_ops(&alchemy_usb_pm_ops);
 
-	return 0;
+	return ret;
 }
 arch_initcall(alchemy_usb_init);

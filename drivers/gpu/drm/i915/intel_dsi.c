@@ -92,6 +92,9 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
+	/* DSI uses short packets for sync events, so clear mode flags for DSI */
+	adjusted_mode->flags = 0;
+
 	if (intel_dsi->dev.dev_ops->mode_fixup)
 		return intel_dsi->dev.dev_ops->mode_fixup(&intel_dsi->dev,
 							  mode, adjusted_mode);
@@ -152,6 +155,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		if (intel_dsi->dev.dev_ops->enable)
 			intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
 
+		wait_for_dsi_fifo_empty(intel_dsi);
+
 		/* assert ip_tg_enable signal */
 		temp = I915_READ(MIPI_PORT_CTRL(pipe)) & ~LANE_CONFIGURATION_MASK;
 		temp = temp | intel_dsi->port_bits;
@@ -177,6 +182,10 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	tmp |= DPLL_REFA_CLK_ENABLE_VLV;
 	I915_WRITE(DPLL(pipe), tmp);
 
+	/* update the hw state for DPLL */
+	intel_crtc->config.dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
+						DPLL_REFA_CLK_ENABLE_VLV;
+
 	tmp = I915_READ(DSPCLK_GATE_D);
 	tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
 	I915_WRITE(DSPCLK_GATE_D, tmp);
@@ -191,6 +200,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	if (intel_dsi->dev.dev_ops->send_otp_cmds)
 		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
+
+	wait_for_dsi_fifo_empty(intel_dsi);
 
 	/* Enable port in pre-enable phase itself because as per hw team
 	 * recommendation, port should be enabled befor plane & pipe */
@@ -232,6 +243,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	if (is_vid_mode(intel_dsi)) {
+		wait_for_dsi_fifo_empty(intel_dsi);
+
 		/* de-assert ip_tg_enable signal */
 		temp = I915_READ(MIPI_PORT_CTRL(pipe));
 		I915_WRITE(MIPI_PORT_CTRL(pipe), temp & ~DPI_ENABLE);
@@ -261,6 +274,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	 * some next enable sequence send turn on packet error is observed */
 	if (intel_dsi->dev.dev_ops->disable)
 		intel_dsi->dev.dev_ops->disable(&intel_dsi->dev);
+
+	wait_for_dsi_fifo_empty(intel_dsi);
 }
 
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
@@ -351,9 +366,21 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_config *pipe_config)
 {
+	u32 pclk;
 	DRM_DEBUG_KMS("\n");
 
-	/* XXX: read flags, set to adjusted_mode */
+	/*
+	 * DPLL_MD is not used in case of DSI, reading will get some default value
+	 * set dpll_md = 0
+	 */
+	pipe_config->dpll_hw_state.dpll_md = 0;
+
+	pclk = vlv_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
+	if (!pclk)
+		return;
+
+	pipe_config->adjusted_mode.crtc_clock = pclk;
+	pipe_config->port_clock = pclk;
 }
 
 static enum drm_mode_status
@@ -658,7 +685,7 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 };
 
-bool intel_dsi_init(struct drm_device *dev)
+void intel_dsi_init(struct drm_device *dev)
 {
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *intel_encoder;
@@ -674,28 +701,28 @@ bool intel_dsi_init(struct drm_device *dev)
 
 	/* There is no detection method for MIPI so rely on VBT */
 	if (!dev_priv->vbt.has_mipi)
-		return false;
-
-	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
-	if (!intel_dsi)
-		return false;
-
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
-	if (!intel_connector) {
-		kfree(intel_dsi);
-		return false;
-	}
-
-	intel_encoder = &intel_dsi->base;
-	encoder = &intel_encoder->base;
-	intel_dsi->attached_connector = intel_connector;
+		return;
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
 	} else {
 		DRM_ERROR("Unsupported Mipi device to reg base");
-		return false;
+		return;
 	}
+
+	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
+	if (!intel_dsi)
+		return;
+
+	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_dsi);
+		return;
+	}
+
+	intel_encoder = &intel_dsi->base;
+	encoder = &intel_encoder->base;
+	intel_dsi->attached_connector = intel_connector;
 
 	connector = &intel_connector->base;
 
@@ -743,7 +770,7 @@ bool intel_dsi_init(struct drm_device *dev)
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	fixed_mode = dsi->dev_ops->get_modes(&intel_dsi->dev);
 	if (!fixed_mode) {
@@ -754,12 +781,10 @@ bool intel_dsi_init(struct drm_device *dev)
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 
-	return true;
+	return;
 
 err:
 	drm_encoder_cleanup(&intel_encoder->base);
 	kfree(intel_dsi);
 	kfree(intel_connector);
-
-	return false;
 }

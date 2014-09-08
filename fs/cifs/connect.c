@@ -557,7 +557,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 		try_to_freeze();
 
 		if (server_unresponsive(server)) {
-			total_read = -EAGAIN;
+			total_read = -ECONNABORTED;
 			break;
 		}
 
@@ -571,7 +571,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
 			cifs_reconnect(server);
-			total_read = -EAGAIN;
+			total_read = -ECONNABORTED;
 			break;
 		} else if (length == -ERESTARTSYS ||
 			   length == -EAGAIN ||
@@ -588,7 +588,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 			cifs_dbg(FYI, "Received no data or error: expecting %d\n"
 				 "got %d", to_read, length);
 			cifs_reconnect(server);
-			total_read = -EAGAIN;
+			total_read = -ECONNABORTED;
 			break;
 		}
 	}
@@ -786,7 +786,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		cifs_dbg(VFS, "SMB response too long (%u bytes)\n", pdu_length);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
-		return -EAGAIN;
+		return -ECONNABORTED;
 	}
 
 	/* switch to large buffer if too big for a small one */

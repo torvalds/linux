@@ -853,8 +853,8 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose)
 		in = pcie->cfg_type0 + PEX_RC_INWIN_BASE;
 		for (i = 0; i < 4; i++) {
 			/* not enabled, skip */
-			if (!in_le32(&in[i].ar) & PEX_RCIWARn_EN)
-				 continue;
+			if (!(in_le32(&in[i].ar) & PEX_RCIWARn_EN))
+				continue;
 
 			if (get_immrbase() == in_le32(&in[i].tar))
 				return (u64)in_le32(&in[i].barh) << 32 |

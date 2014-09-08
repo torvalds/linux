@@ -3842,7 +3842,8 @@ static int sh73a0_pinmux_soc_init(struct sh_pfc *pfc)
 	cfg.init_data = &sh73a0_vccq_mc0_init_data;
 	cfg.driver_data = pfc;
 
-	data->vccq_mc0 = regulator_register(&sh73a0_vccq_mc0_desc, &cfg);
+	data->vccq_mc0 = devm_regulator_register(pfc->dev,
+						 &sh73a0_vccq_mc0_desc, &cfg);
 	if (IS_ERR(data->vccq_mc0)) {
 		ret = PTR_ERR(data->vccq_mc0);
 		dev_err(pfc->dev, "Failed to register VCCQ MC0 regulator: %d\n",
@@ -3855,16 +3856,8 @@ static int sh73a0_pinmux_soc_init(struct sh_pfc *pfc)
 	return 0;
 }
 
-static void sh73a0_pinmux_soc_exit(struct sh_pfc *pfc)
-{
-	struct sh73a0_pinmux_data *data = pfc->soc_data;
-
-	regulator_unregister(data->vccq_mc0);
-}
-
 static const struct sh_pfc_soc_operations sh73a0_pinmux_ops = {
 	.init = sh73a0_pinmux_soc_init,
-	.exit = sh73a0_pinmux_soc_exit,
 	.get_bias = sh73a0_pinmux_get_bias,
 	.set_bias = sh73a0_pinmux_set_bias,
 };

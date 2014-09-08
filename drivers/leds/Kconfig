@@ -32,14 +32,6 @@ config LEDS_88PM860X
 	  This option enables support for on-chip LED drivers found on Marvell
 	  Semiconductor 88PM8606 PMIC.
 
-config LEDS_ATMEL_PWM
-	tristate "LED Support using Atmel PWM outputs"
-	depends on LEDS_CLASS
-	depends on ATMEL_PWM
-	help
-	  This option enables support for LEDs driven using outputs
-	  of the dedicated PWM controller found on newer Atmel SOCs.
-
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
 	depends on LEDS_CLASS
@@ -142,6 +134,13 @@ config LEDS_SUNFIRE
 	help
 	  This option enables support for the Left, Middle, and Right
 	  LEDs on the I/O and CPU boards of SunFire UltraSPARC servers.
+
+config LEDS_IPAQ_MICRO
+	tristate "LED Support for the Compaq iPAQ h3xxx"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Choose this option if you want to use the notification LED on
+	  Compaq/HP iPAQ h3100 and h3600.
 
 config LEDS_HP6XX
 	tristate "LED Support for the HP Jornada 6xx"

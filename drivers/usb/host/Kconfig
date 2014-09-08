@@ -37,6 +37,14 @@ config USB_XHCI_MVEBU
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Marvell Armada 375/38x ARM SOCs.
 
+config USB_XHCI_RCAR
+	tristate "xHCI support for Renesas R-Car SoCs"
+	select USB_XHCI_PLATFORM
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	---help---
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in Renesas R-Car ARM SoCs.
+
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD

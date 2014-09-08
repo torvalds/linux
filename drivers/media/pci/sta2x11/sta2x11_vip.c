@@ -640,7 +640,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 	f->fmt.pix.sizeimage = f->fmt.pix.width * 2 * f->fmt.pix.height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.priv = 0;
 	return 0;
 }
 
@@ -1093,7 +1092,6 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	vip->video_dev = &video_dev_template;
 	vip->video_dev->v4l2_dev = &vip->v4l2_dev;
 	vip->video_dev->queue = &vip->vb_vidq;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vip->video_dev->flags);
 	video_set_drvdata(vip->video_dev, vip);
 
 	ret = video_register_device(vip->video_dev, VFL_TYPE_GRABBER, -1);

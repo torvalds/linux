@@ -3,6 +3,7 @@ NTC Thermistor hwmon sensors
 
 Requires node properties:
 - "compatible" value : one of
+	"epcos,b57330v2103"
 	"murata,ncp15wb473"
 	"murata,ncp18wb473"
 	"murata,ncp21wb473"

@@ -1,9 +1,10 @@
 /*
- * bnx2fc_els.c: Broadcom NetXtreme II Linux FCoE offload driver.
+ * bnx2fc_els.c: QLogic NetXtreme II Linux FCoE offload driver.
  * This file contains helper routines that handle ELS requests
  * and responses.
  *
  * Copyright (c) 2008 - 2013 Broadcom Corporation
+ * Copyright (c) 2014, QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

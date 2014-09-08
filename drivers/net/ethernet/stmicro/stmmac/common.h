@@ -368,34 +368,36 @@ struct stmmac_dma_ops {
 	void (*rx_watchdog) (void __iomem *ioaddr, u32 riwt);
 };
 
+struct mac_device_info;
+
 struct stmmac_ops {
 	/* MAC core initialization */
-	void (*core_init) (void __iomem *ioaddr, int mtu);
+	void (*core_init)(struct mac_device_info *hw, int mtu);
 	/* Enable and verify that the IPC module is supported */
-	int (*rx_ipc) (void __iomem *ioaddr);
+	int (*rx_ipc)(struct mac_device_info *hw);
 	/* Dump MAC registers */
-	void (*dump_regs) (void __iomem *ioaddr);
+	void (*dump_regs)(struct mac_device_info *hw);
 	/* Handle extra events on specific interrupts hw dependent */
-	int (*host_irq_status) (void __iomem *ioaddr,
-				struct stmmac_extra_stats *x);
+	int (*host_irq_status)(struct mac_device_info *hw,
+			       struct stmmac_extra_stats *x);
 	/* Multicast filter setting */
-	void (*set_filter) (struct net_device *dev, int id);
+	void (*set_filter)(struct mac_device_info *hw, struct net_device *dev);
 	/* Flow control setting */
-	void (*flow_ctrl) (void __iomem *ioaddr, unsigned int duplex,
-			   unsigned int fc, unsigned int pause_time);
+	void (*flow_ctrl)(struct mac_device_info *hw, unsigned int duplex,
+			  unsigned int fc, unsigned int pause_time);
 	/* Set power management mode (e.g. magic frame) */
-	void (*pmt) (void __iomem *ioaddr, unsigned long mode);
+	void (*pmt)(struct mac_device_info *hw, unsigned long mode);
 	/* Set/Get Unicast MAC addresses */
-	void (*set_umac_addr) (void __iomem *ioaddr, unsigned char *addr,
-			       unsigned int reg_n);
-	void (*get_umac_addr) (void __iomem *ioaddr, unsigned char *addr,
-			       unsigned int reg_n);
-	void (*set_eee_mode) (void __iomem *ioaddr);
-	void (*reset_eee_mode) (void __iomem *ioaddr);
-	void (*set_eee_timer) (void __iomem *ioaddr, int ls, int tw);
-	void (*set_eee_pls) (void __iomem *ioaddr, int link);
-	void (*ctrl_ane) (void __iomem *ioaddr, bool restart);
-	void (*get_adv) (void __iomem *ioaddr, struct rgmii_adv *adv);
+	void (*set_umac_addr)(struct mac_device_info *hw, unsigned char *addr,
+			      unsigned int reg_n);
+	void (*get_umac_addr)(struct mac_device_info *hw, unsigned char *addr,
+			      unsigned int reg_n);
+	void (*set_eee_mode)(struct mac_device_info *hw);
+	void (*reset_eee_mode)(struct mac_device_info *hw);
+	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
+	void (*set_eee_pls)(struct mac_device_info *hw, int link);
+	void (*ctrl_ane)(struct mac_device_info *hw, bool restart);
+	void (*get_adv)(struct mac_device_info *hw, struct rgmii_adv *adv);
 };
 
 struct stmmac_hwtimestamp {
@@ -439,9 +441,14 @@ struct mac_device_info {
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 	unsigned int synopsys_uid;
+	void __iomem *pcsr;     /* vpointer to device CSRs */
+	int multicast_filter_bins;
+	int unicast_filter_entries;
+	int mcast_bits_log2;
 };
 
-struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr);
+struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
+					int perfect_uc_entries);
 struct mac_device_info *dwmac100_setup(void __iomem *ioaddr);
 
 void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],

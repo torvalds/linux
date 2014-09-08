@@ -44,6 +44,7 @@ enum btrfs_qgroup_operation_type {
 	BTRFS_QGROUP_OPER_ADD_SHARED,
 	BTRFS_QGROUP_OPER_SUB_EXCL,
 	BTRFS_QGROUP_OPER_SUB_SHARED,
+	BTRFS_QGROUP_OPER_SUB_SUBTREE,
 };
 
 struct btrfs_qgroup_operation {

@@ -492,8 +492,9 @@ static ssize_t bonding_show_mii_status(struct device *d,
 				       char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	bool active = !!rcu_access_pointer(bond->curr_active_slave);
 
-	return sprintf(buf, "%s\n", bond->curr_active_slave ? "up" : "down");
+	return sprintf(buf, "%s\n", active ? "up" : "down");
 }
 static DEVICE_ATTR(mii_status, S_IRUGO, bonding_show_mii_status, NULL);
 

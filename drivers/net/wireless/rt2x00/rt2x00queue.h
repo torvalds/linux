@@ -353,6 +353,7 @@ struct txentry_desc {
  */
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
+	ENTRY_BCN_ENABLED,
 	ENTRY_OWNER_DEVICE_DATA,
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED,

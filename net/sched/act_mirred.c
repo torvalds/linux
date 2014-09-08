@@ -218,10 +218,12 @@ static int mirred_device_event(struct notifier_block *unused,
 
 	if (event == NETDEV_UNREGISTER)
 		list_for_each_entry(m, &mirred_list, tcfm_list) {
+			spin_lock_bh(&m->tcf_lock);
 			if (m->tcfm_dev == dev) {
 				dev_put(dev);
 				m->tcfm_dev = NULL;
 			}
+			spin_unlock_bh(&m->tcf_lock);
 		}
 
 	return NOTIFY_DONE;

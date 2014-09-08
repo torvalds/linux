@@ -75,6 +75,39 @@ nouveau_parent_sclass(struct nouveau_object *parent, u16 handle,
 }
 
 int
+nouveau_parent_lclass(struct nouveau_object *parent, u32 *lclass, int size)
+{
+	struct nouveau_sclass *sclass;
+	struct nouveau_engine *engine;
+	struct nouveau_oclass *oclass;
+	int nr = -1, i;
+	u64 mask;
+
+	sclass = nv_parent(parent)->sclass;
+	while (sclass) {
+		if (++nr < size)
+			lclass[nr] = sclass->oclass->handle & 0xffff;
+		sclass = sclass->sclass;
+	}
+
+	mask = nv_parent(parent)->engine;
+	while (i = __ffs64(mask), mask) {
+		engine = nouveau_engine(parent, i);
+		if (engine && (oclass = engine->sclass)) {
+			while (oclass->ofuncs) {
+				if (++nr < size)
+					lclass[nr] = oclass->handle & 0xffff;
+				oclass++;
+			}
+		}
+
+		mask &= ~(1ULL << i);
+	}
+
+	return nr + 1;
+}
+
+int
 nouveau_parent_create_(struct nouveau_object *parent,
 		       struct nouveau_object *engine,
 		       struct nouveau_oclass *oclass, u32 pclass,

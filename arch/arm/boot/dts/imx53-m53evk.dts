@@ -10,16 +10,11 @@
  */
 
 /dts-v1/;
-#include "imx53.dtsi"
+#include "imx53-m53.dtsi"
 
 / {
 	model = "DENX M53EVK";
 	compatible = "denx,imx53-m53evk", "fsl,imx53";
-
-	memory {
-		reg = <0x70000000 0x20000000>,
-		      <0xb0000000 0x20000000>;
-	};
 
 	display1: display@di1 {
 		compatible = "fsl,imx-parallel-display";
@@ -80,25 +75,6 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
-
-		reg_3p2v: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "3P2V";
-			regulator-min-microvolt = <3200000>;
-			regulator-max-microvolt = <3200000>;
-			regulator-always-on;
-		};
-
-
-		reg_backlight: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "lcd-supply";
-			regulator-min-microvolt = <3200000>;
-			regulator-max-microvolt = <3200000>;
-			regulator-always-on;
-		};
 
 		reg_usbh1_vbus: regulator@3 {
 			compatible = "regulator-fixed";
@@ -174,50 +150,6 @@
 	};
 };
 
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c2>;
-	clock-frequency = <400000>;
-	status = "okay";
-
-	stmpe610@41 {
-		compatible = "st,stmpe610";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x41>;
-		id = <0>;
-		blocks = <0x5>;
-		interrupts = <6 0x0>;
-		interrupt-parent = <&gpio7>;
-		irq-trigger = <0x1>;
-
-		stmpe_touchscreen {
-			compatible = "st,stmpe-ts";
-			reg = <0>;
-			st,sample-time = <4>;
-			st,mod-12b = <1>;
-			st,ref-sel = <0>;
-			st,adc-freq = <1>;
-			st,ave-ctrl = <3>;
-			st,touch-det-delay = <3>;
-			st,settling = <4>;
-			st,fraction-z = <7>;
-			st,i-drive = <1>;
-		};
-	};
-
-	eeprom: eeprom@50 {
-		compatible = "atmel,24c128";
-		reg = <0x50>;
-		pagesize = <32>;
-	};
-
-	rtc: rtc@68 {
-		compatible = "stm,m41t62";
-		reg = <0x68>;
-	};
-};
-
 &i2c3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
@@ -229,11 +161,8 @@
 	pinctrl-0 = <&pinctrl_hog>;
 
 	imx53-m53evk {
-		pinctrl_hog: hoggrp {
+		pinctrl_usb: usbgrp {
 			fsl,pins = <
-				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK	0x80000000
-				MX53_PAD_EIM_EB3__GPIO2_31		0x80000000
-				MX53_PAD_PATA_DA_0__GPIO7_6		0x80000000
 				MX53_PAD_GPIO_2__GPIO1_2		0x80000000
 				MX53_PAD_GPIO_3__USBOH3_USBH1_OC	0x80000000
 			>;
@@ -302,13 +231,6 @@
 			>;
 		};
 
-		pinctrl_i2c2: i2c2grp {
-			fsl,pins = <
-				MX53_PAD_EIM_D16__I2C2_SDA		0xc0000000
-				MX53_PAD_EIM_EB2__I2C2_SCL		0xc0000000
-			>;
-		};
-
 		pinctrl_i2c3: i2c3grp {
 			fsl,pins = <
 				MX53_PAD_GPIO_6__I2C3_SDA		0xc0000000
@@ -353,26 +275,6 @@
 			>;
 		};
 
-		pinctrl_nand: nandgrp {
-			fsl,pins = <
-				MX53_PAD_NANDF_WE_B__EMI_NANDF_WE_B	0x4
-				MX53_PAD_NANDF_RE_B__EMI_NANDF_RE_B	0x4
-				MX53_PAD_NANDF_CLE__EMI_NANDF_CLE	0x4
-				MX53_PAD_NANDF_ALE__EMI_NANDF_ALE	0x4
-				MX53_PAD_NANDF_WP_B__EMI_NANDF_WP_B	0xe0
-				MX53_PAD_NANDF_RB0__EMI_NANDF_RB_0	0xe0
-				MX53_PAD_NANDF_CS0__EMI_NANDF_CS_0	0x4
-				MX53_PAD_PATA_DATA0__EMI_NANDF_D_0	0xa4
-				MX53_PAD_PATA_DATA1__EMI_NANDF_D_1	0xa4
-				MX53_PAD_PATA_DATA2__EMI_NANDF_D_2	0xa4
-				MX53_PAD_PATA_DATA3__EMI_NANDF_D_3	0xa4
-				MX53_PAD_PATA_DATA4__EMI_NANDF_D_4	0xa4
-				MX53_PAD_PATA_DATA5__EMI_NANDF_D_5	0xa4
-				MX53_PAD_PATA_DATA6__EMI_NANDF_D_6	0xa4
-				MX53_PAD_PATA_DATA7__EMI_NANDF_D_7	0xa4
-			>;
-		};
-
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
 				MX53_PAD_DISP0_DAT8__PWM1_PWMO		0x5
@@ -408,14 +310,6 @@
 	remote-endpoint = <&display1_in>;
 };
 
-&nfc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_nand>;
-	nand-bus-width = <8>;
-	nand-ecc-mode = "hw";
-	status = "okay";
-};
-
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
@@ -427,7 +321,6 @@
 };
 
 &ssi2 {
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
@@ -450,6 +343,8 @@
 };
 
 &usbh1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb>;
 	vbus-supply = <&reg_usbh1_vbus>;
 	phy_type = "utmi";
 	status = "okay";

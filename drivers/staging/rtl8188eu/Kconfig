@@ -17,12 +17,4 @@ config 88EU_AP_MODE
 	will never be used as an AP, or the target system has limited memory,
 	"Y" should be selected.
 
-config 88EU_P2P
-	bool "Realtek RTL8188EU Peer-to-peer mode"
-	default y
-	---help---
-	This option enables peer-to-peer mode for the r8188eu driver. Unless you
-	know that peer-to-peer (P2P) mode will never be used, or the target system has
-	limited memory, "Y" should be selected.
-
 endif

@@ -1103,13 +1103,12 @@ static int _rtl8723ae_set_media_status(struct ieee80211_hw *hw,
 			 "Network type %d not supported!\n",
 			 type);
 		return 1;
-		break;
 
 	}
 
 	rtl_write_byte(rtlpriv, (MSR), bt_msr);
 	rtlpriv->cfg->ops->led_control(hw, ledaction);
-	if ((bt_msr & 0x03) == MSR_AP)
+	if ((bt_msr & MSR_MASK) == MSR_AP)
 		rtl_write_byte(rtlpriv, REG_BCNTCFG + 1, 0x00);
 	else
 		rtl_write_byte(rtlpriv, REG_BCNTCFG + 1, 0x66);

@@ -126,7 +126,6 @@ struct zr36050 {
 /* zr36050 mode register bits */
 
 #define ZR050_MO_COMP                0x80
-#define ZR050_MO_COMP                0x80
 #define ZR050_MO_ATP                 0x40
 #define ZR050_MO_PASS2               0x20
 #define ZR050_MO_TLM                 0x10

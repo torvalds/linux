@@ -260,4 +260,31 @@ wlcore_hw_lnk_low_prio(struct wl1271 *wl, u8 hlid,
 	return wl->ops->lnk_low_prio(wl, hlid, lnk);
 }
 
+static inline int
+wlcore_smart_config_start(struct wl1271 *wl, u32 group_bitmap)
+{
+	if (!wl->ops->smart_config_start)
+		return -EINVAL;
+
+	return wl->ops->smart_config_start(wl, group_bitmap);
+}
+
+static inline int
+wlcore_smart_config_stop(struct wl1271 *wl)
+{
+	if (!wl->ops->smart_config_stop)
+		return -EINVAL;
+
+	return wl->ops->smart_config_stop(wl);
+}
+
+static inline int
+wlcore_smart_config_set_group_key(struct wl1271 *wl, u16 group_id,
+				  u8 key_len, u8 *key)
+{
+	if (!wl->ops->smart_config_set_group_key)
+		return -EINVAL;
+
+	return wl->ops->smart_config_set_group_key(wl, group_id, key_len, key);
+}
 #endif

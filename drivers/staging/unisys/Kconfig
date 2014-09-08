@@ -3,7 +3,7 @@
 #
 menuconfig UNISYSSPAR
 	bool "Unisys SPAR driver support"
-	depends on X86_64 && BROKEN
+	depends on X86_64
 	---help---
 	Support for the Unisys SPAR drivers
 

@@ -695,7 +695,7 @@ ksocknal_lib_memory_pressure(ksock_conn_t *conn)
 	sched = conn->ksnc_scheduler;
 	spin_lock_bh(&sched->kss_lock);
 
-	if (!SOCK_TEST_NOSPACE(conn->ksnc_sock) &&
+	if (!test_bit(SOCK_NOSPACE, &conn->ksnc_sock->flags) &&
 	    !conn->ksnc_tx_ready) {
 		/* SOCK_NOSPACE is set when the socket fills
 		 * and cleared in the write_space callback

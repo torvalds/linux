@@ -233,13 +233,13 @@ static void __init sp804_of_init(struct device_node *np)
 	if (IS_ERR(clk1))
 		clk1 = NULL;
 
-	/* Get the 2nd clock if the timer has 2 timer clocks */
+	/* Get the 2nd clock if the timer has 3 timer clocks */
 	if (of_count_phandle_with_args(np, "clocks", "#clock-cells") == 3) {
 		clk2 = of_clk_get(np, 1);
 		if (IS_ERR(clk2)) {
 			pr_err("sp804: %s clock not found: %d\n", np->name,
 				(int)PTR_ERR(clk2));
-			goto err;
+			clk2 = NULL;
 		}
 	} else
 		clk2 = clk1;

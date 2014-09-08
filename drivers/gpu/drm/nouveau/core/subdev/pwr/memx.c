@@ -1,8 +1,7 @@
 #ifndef __NVKM_PWR_MEMX_H__
 #define __NVKM_PWR_MEMX_H__
 
-#include <subdev/pwr.h>
-#include <subdev/pwr/fuc/os.h>
+#include "priv.h"
 
 struct nouveau_memx {
 	struct nouveau_pwr *ppwr;

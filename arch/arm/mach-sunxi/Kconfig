@@ -4,7 +4,6 @@ menuconfig ARCH_SUNXI
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select PINCTRL
-	select PINCTRL_SUNXI
 	select SUN4I_TIMER
 
 if ARCH_SUNXI
@@ -34,5 +33,13 @@ config MACH_SUN7I
 	select ARM_PSCI
 	select HAVE_ARM_ARCH_TIMER
 	select SUN5I_HSTIMER
+
+config MACH_SUN8I
+	bool "Allwinner A23 (sun8i) SoCs support"
+	default ARCH_SUNXI
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_GIC
+	select MFD_SUN6I_PRCM
+	select RESET_CONTROLLER
 
 endif

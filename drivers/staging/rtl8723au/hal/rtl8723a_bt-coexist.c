@@ -14,7 +14,6 @@
  ******************************************************************************/
 #include <drv_types.h>
 #include <rtl8723a_hal.h>
-#include <rtw_ioctl_set.h>
 #include <usb_ops_linux.h>
 
 #define DIS_PS_RX_BCN
@@ -5871,8 +5870,8 @@ btdm_1AntUpdateHalRAMask(struct rtw_adapter *padapter, u32 mac_id, u32 filter)
 		mask = update_supported_rate23a(cur_network->SupportedRates,
 						supportRateNum);
 		mask |= (pmlmeinfo->HT_enable) ?
-			update_MSC_rate23a(&pmlmeinfo->HT_caps):0;
-		if (support_short_GI23a(padapter, &pmlmeinfo->HT_caps))
+			update_MSC_rate23a(&pmlmeinfo->ht_cap):0;
+		if (support_short_GI23a(padapter, &pmlmeinfo->ht_cap))
 			shortGIrate = true;
 		break;
 	case 1:/* for broadcast/multicast */

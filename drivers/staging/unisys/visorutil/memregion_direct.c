@@ -184,7 +184,7 @@ memregion_readwrite(BOOL is_write,
 {
 	if (offset + nbytes > memregion->nbytes) {
 		ERRDRV("memregion_readwrite offset out of range!!");
-		return -EFAULT;
+		return -EIO;
 	}
 	if (is_write)
 		memcpy_toio(memregion->mapped + offset, local, nbytes);

@@ -177,8 +177,7 @@ static int apci035_timer_config(struct comedi_device *dev,
 
 	/* Disable the hardware trigger */
 	ui_Command = ui_Command & 0xFFFFF89FUL;
-	if (data[4] == ADDIDATA_ENABLE) {
-
+	if (data[4] == 1) {
 		/* Set the hardware trigger level */
 		ui_Command = ui_Command | (data[5] << 5);
 	}
@@ -188,8 +187,7 @@ static int apci035_timer_config(struct comedi_device *dev,
 
 	/* Disable the hardware gate */
 	ui_Command = ui_Command & 0xFFFFF87FUL;
-	if (data[6] == ADDIDATA_ENABLE) {
-
+	if (data[6] == 1) {
 		/* Set the hardware gate level */
 		ui_Command = ui_Command | (data[7] << 7);
 	}
@@ -203,8 +201,7 @@ static int apci035_timer_config(struct comedi_device *dev,
 	/* Set the hardware output level */
 	ui_Command = ui_Command | (data[8] << 2);
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	if (data[9] == ADDIDATA_ENABLE) {
-
+	if (data[9] == 1) {
 		/* Set the reload value */
 		outl(data[11],
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 24);

@@ -4,6 +4,7 @@
  * (c) 2011 Manuel Lauss <manuel.lauss@googlemail.com>
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -31,16 +32,16 @@
 static void __init db1550_hw_setup(void)
 {
 	void __iomem *base;
+	unsigned long v;
 
 	/* complete SPI setup: link psc0_intclk to a 48MHz source,
 	 * and assign GPIO16 to PSC0_SYNC1 (SPI cs# line) as well as PSC1_SYNC
 	 * for AC97 on PB1550.
 	 */
-	base = (void __iomem *)SYS_CLKSRC;
-	__raw_writel(__raw_readl(base) | 0x000001e0, base);
-	base = (void __iomem *)SYS_PINFUNC;
-	__raw_writel(__raw_readl(base) | 1 | SYS_PF_PSC1_S1, base);
-	wmb();
+	v = alchemy_rdsys(AU1000_SYS_CLKSRC);
+	alchemy_wrsys(v | 0x000001e0, AU1000_SYS_CLKSRC);
+	v = alchemy_rdsys(AU1000_SYS_PINFUNC);
+	alchemy_wrsys(v | 1 | SYS_PF_PSC1_S1, AU1000_SYS_PINFUNC);
 
 	/* reset the AC97 codec now, the reset time in the psc-ac97 driver
 	 * is apparently too short although it's ridiculous as it is.
@@ -151,7 +152,7 @@ static void au1550_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 
 static int au1550_nand_device_ready(struct mtd_info *mtd)
 {
-	return __raw_readl((void __iomem *)MEM_STSTAT) & 1;
+	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }
 
 static struct mtd_partition db1550_nand_parts[] = {
@@ -217,7 +218,7 @@ static struct platform_device pb1550_nand_dev = {
 
 static void __init pb1550_nand_setup(void)
 {
-	int boot_swapboot = (au_readl(MEM_STSTAT) & (0x7 << 1)) |
+	int boot_swapboot = (alchemy_rdsmem(AU1000_MEM_STSTAT) & (0x7 << 1)) |
 			    ((bcsr_read(BCSR_STATUS) >> 6) & 0x1);
 
 	gpio_direction_input(206);	/* de-assert NAND CS# */
@@ -574,6 +575,7 @@ static void __init pb1550_devices(void)
 int __init db1550_dev_setup(void)
 {
 	int swapped, id;
+	struct clk *c;
 
 	id = (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) != BCSR_WHOAMI_DB1550);
 
@@ -581,6 +583,17 @@ int __init db1550_dev_setup(void)
 				ARRAY_SIZE(db1550_i2c_devs));
 	spi_register_board_info(db1550_spi_devs,
 				ARRAY_SIZE(db1550_i2c_devs));
+
+	c = clk_get(NULL, "psc0_intclk");
+	if (!IS_ERR(c)) {
+		clk_prepare_enable(c);
+		clk_put(c);
+	}
+	c = clk_get(NULL, "psc2_intclk");
+	if (!IS_ERR(c)) {
+		clk_prepare_enable(c);
+		clk_put(c);
+	}
 
 	/* Audio PSC clock is supplied by codecs (PSC1, 3) FIXME: platdata!! */
 	__raw_writel(PSC_SEL_CLK_SERCLK,

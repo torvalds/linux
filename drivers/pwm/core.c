@@ -606,6 +606,8 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	unsigned int best = 0;
 	struct pwm_lookup *p;
 	unsigned int match;
+	unsigned int period;
+	enum pwm_polarity polarity;
 
 	/* look up via DT first */
 	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node)
@@ -653,6 +655,8 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		if (match > best) {
 			chip = pwmchip_find_by_name(p->provider);
 			index = p->index;
+			period = p->period;
+			polarity = p->polarity;
 
 			if (match != 3)
 				best = match;
@@ -668,8 +672,8 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	if (IS_ERR(pwm))
 		return pwm;
 
-	pwm_set_period(pwm, p->period);
-	pwm_set_polarity(pwm, p->polarity);
+	pwm_set_period(pwm, period);
+	pwm_set_polarity(pwm, polarity);
 
 
 	return pwm;

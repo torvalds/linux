@@ -2204,7 +2204,7 @@ static int __init parport_ip32_init(void)
 {
 	pr_info(PPIP32 "SGI IP32 built-in parallel port driver v0.6\n");
 	this_port = parport_ip32_probe_port();
-	return IS_ERR(this_port) ? PTR_ERR(this_port) : 0;
+	return PTR_ERR_OR_ZERO(this_port);
 }
 
 /**

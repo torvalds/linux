@@ -157,6 +157,15 @@ receive_chars(struct uart_sunsab_port *up,
 	    (up->port.line == up->port.cons->index))
 		saw_console_brk = 1;
 
+	if (count == 0) {
+		if (unlikely(stat->sreg.isr1 & SAB82532_ISR1_BRK)) {
+			stat->sreg.isr0 &= ~(SAB82532_ISR0_PERR |
+					     SAB82532_ISR0_FERR);
+			up->port.icount.brk++;
+			uart_handle_break(&up->port);
+		}
+	}
+
 	for (i = 0; i < count; i++) {
 		unsigned char ch = buf[i], flag;
 
@@ -474,12 +483,6 @@ static void sunsab_stop_rx(struct uart_port *port)
 
 	up->interrupt_mask0 |= SAB82532_IMR0_TCD;
 	writeb(up->interrupt_mask1, &up->regs->w.imr0);
-}
-
-/* port->lock held by caller.  */
-static void sunsab_enable_ms(struct uart_port *port)
-{
-	/* For now we always receive these interrupts.  */
 }
 
 /* port->lock is not held.  */
@@ -810,7 +813,6 @@ static struct uart_ops sunsab_pops = {
 	.start_tx	= sunsab_start_tx,
 	.send_xchar	= sunsab_send_xchar,
 	.stop_rx	= sunsab_stop_rx,
-	.enable_ms	= sunsab_enable_ms,
 	.break_ctl	= sunsab_break_ctl,
 	.startup	= sunsab_startup,
 	.shutdown	= sunsab_shutdown,

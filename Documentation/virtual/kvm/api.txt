@@ -148,9 +148,9 @@ of banks, as set via the KVM_X86_SETUP_MCE ioctl.
 
 4.4 KVM_CHECK_EXTENSION
 
-Capability: basic
+Capability: basic, KVM_CAP_CHECK_EXTENSION_VM for vm ioctl
 Architectures: all
-Type: system ioctl
+Type: system ioctl, vm ioctl
 Parameters: extension identifier (KVM_CAP_*)
 Returns: 0 if unsupported; 1 (or some other positive integer) if supported
 
@@ -160,6 +160,9 @@ receives an integer that describes the extension availability.
 Generally 0 means no and 1 means yes, but some extensions may report
 additional information in the integer return value.
 
+Based on their initialization different VMs may have different capabilities.
+It is thus encouraged to use the vm ioctl to query for capabilities (available
+with KVM_CAP_CHECK_EXTENSION_VM on the vm fd)
 
 4.5 KVM_GET_VCPU_MMAP_SIZE
 
@@ -1892,7 +1895,8 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_PID               | 64
   PPC   | KVM_REG_PPC_ACOP              | 64
   PPC   | KVM_REG_PPC_VRSAVE            | 32
-  PPC   | KVM_REG_PPC_LPCR              | 64
+  PPC   | KVM_REG_PPC_LPCR              | 32
+  PPC   | KVM_REG_PPC_LPCR_64           | 64
   PPC   | KVM_REG_PPC_PPR               | 64
   PPC   | KVM_REG_PPC_ARCH_COMPAT       | 32
   PPC   | KVM_REG_PPC_DABRX             | 32
@@ -2677,8 +2681,8 @@ The 'data' member contains, in its first 'len' bytes, the value as it would
 appear if the VCPU performed a load or store of the appropriate width directly
 to the byte array.
 
-NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR,
-      KVM_EXIT_PAPR and KVM_EXIT_EPR the corresponding
+NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_PAPR and
+      KVM_EXIT_EPR the corresponding
 operations are complete (and guest state is consistent) only after userspace
 has re-entered the kernel with KVM_RUN.  The kernel side will first finish
 incomplete operations and then check for pending signals.  Userspace
@@ -2749,7 +2753,7 @@ Principles of Operation Book in the Chapter for Dynamic Address Translation
 			__u8  is_write;
 		} dcr;
 
-powerpc specific.
+Deprecated - was used for 440 KVM.
 
 		/* KVM_EXIT_OSI */
 		struct {
@@ -2931,8 +2935,8 @@ The fields in each entry are defined as follows:
          this function/index combination
 
 
-6. Capabilities that can be enabled
------------------------------------
+6. Capabilities that can be enabled on vCPUs
+--------------------------------------------
 
 There are certain capabilities that change the behavior of the virtual CPU or
 the virtual machine when enabled. To enable them, please see section 4.37.
@@ -3091,3 +3095,43 @@ Parameters: none
 
 This capability enables the in-kernel irqchip for s390. Please refer to
 "4.24 KVM_CREATE_IRQCHIP" for details.
+
+7. Capabilities that can be enabled on VMs
+------------------------------------------
+
+There are certain capabilities that change the behavior of the virtual
+machine when enabled. To enable them, please see section 4.37. Below
+you can find a list of capabilities and what their effect on the VM
+is when enabling them.
+
+The following information is provided along with the description:
+
+  Architectures: which instruction set architectures provide this ioctl.
+      x86 includes both i386 and x86_64.
+
+  Parameters: what parameters are accepted by the capability.
+
+  Returns: the return value.  General error numbers (EBADF, ENOMEM, EINVAL)
+      are not detailed, but errors with specific meanings are.
+
+
+7.1 KVM_CAP_PPC_ENABLE_HCALL
+
+Architectures: ppc
+Parameters: args[0] is the sPAPR hcall number
+	    args[1] is 0 to disable, 1 to enable in-kernel handling
+
+This capability controls whether individual sPAPR hypercalls (hcalls)
+get handled by the kernel or not.  Enabling or disabling in-kernel
+handling of an hcall is effective across the VM.  On creation, an
+initial set of hcalls are enabled for in-kernel handling, which
+consists of those hcalls for which in-kernel handlers were implemented
+before this capability was implemented.  If disabled, the kernel will
+not to attempt to handle the hcall, but will always exit to userspace
+to handle it.  Note that it may not make sense to enable some and
+disable others of a group of related hcalls, but KVM does not prevent
+userspace from doing that.
+
+If the hcall number specified is not one that has an in-kernel
+implementation, the KVM_ENABLE_CAP ioctl will fail with an EINVAL
+error.

@@ -29,6 +29,16 @@
 
 #define RTW_USB_BULKOUT_TIME	5000/* ms */
 
+#define REALTEK_USB_VENQT_READ		0xC0
+#define REALTEK_USB_VENQT_WRITE		0x40
+
+#define ALIGNMENT_UNIT			16
+#define MAX_VENDOR_REQ_CMD_SIZE	254	/* 8188cu SIE Support */
+#define MAX_USB_IO_CTL_SIZE	(MAX_VENDOR_REQ_CMD_SIZE + ALIGNMENT_UNIT)
+
+#define USB_HIGH_SPEED_BULK_SIZE	512
+#define USB_FULL_SPEED_BULK_SIZE	64
+
 #define _usbctrl_vendorreq_async_callback(urb, regs)	\
 	_usbctrl_vendorreq_async_callback(urb)
 #define usb_bulkout_zero_complete(purb, regs)		\
@@ -42,14 +52,36 @@
 #define usb_read_interrupt_complete(purb, regs)		\
 	usb_read_interrupt_complete(purb)
 
+static inline u8 rtw_usb_bulk_size_boundary(struct adapter *padapter,
+					    int buf_len)
+{
+	u8 rst = true;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+
+	if (pdvobjpriv->ishighspeed)
+		rst = (0 == (buf_len) % USB_HIGH_SPEED_BULK_SIZE) ?
+		      true : false;
+	else
+		rst = (0 == (buf_len) % USB_FULL_SPEED_BULK_SIZE) ?
+		      true : false;
+	return rst;
+}
+
 unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr);
 
-void usb_read_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem);
-void usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem);
+u8 usb_read8(struct adapter *adapter, u32 addr);
+u16 usb_read16(struct adapter *adapter, u32 addr);
+u32 usb_read32(struct adapter *adapter, u32 addr);
 
-void usb_read_port_cancel(struct intf_hdl *pintfhdl);
+u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+void usb_read_port_cancel(struct adapter *adapter);
 
-u32 usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem);
-void usb_write_port_cancel(struct intf_hdl *pintfhdl);
+int usb_write8(struct adapter *adapter, u32 addr, u8 val);
+int usb_write16(struct adapter *adapter, u32 addr, u16 val);
+int usb_write32(struct adapter *adapter, u32 addr, u32 val);
+int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata);
+
+u32 usb_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+void usb_write_port_cancel(struct adapter *adapter);
 
 #endif

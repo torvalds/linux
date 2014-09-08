@@ -67,7 +67,7 @@ static int __init tk_debug_sleep_time_init(void)
 }
 late_initcall(tk_debug_sleep_time_init);
 
-void tk_debug_account_sleep_time(struct timespec *t)
+void tk_debug_account_sleep_time(struct timespec64 *t)
 {
 	sleep_time_bin[fls(t->tv_sec)]++;
 }

@@ -127,10 +127,9 @@ enum {
 	BLK_MQ_RQ_QUEUE_ERROR	= 2,	/* end IO with error */
 
 	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
-	BLK_MQ_F_SHOULD_SORT	= 1 << 1,
-	BLK_MQ_F_TAG_SHARED	= 1 << 2,
-	BLK_MQ_F_SG_MERGE	= 1 << 3,
-	BLK_MQ_F_SYSFS_UP	= 1 << 4,
+	BLK_MQ_F_TAG_SHARED	= 1 << 1,
+	BLK_MQ_F_SG_MERGE	= 1 << 2,
+	BLK_MQ_F_SYSFS_UP	= 1 << 3,
 
 	BLK_MQ_S_STOPPED	= 0,
 	BLK_MQ_S_TAG_ACTIVE	= 1,

@@ -41,6 +41,15 @@
 /* Modified PL180 on Versatile Express platform */
 #define MCI_ARM_HWFCEN		(1 << 12)
 
+/* Modified on Qualcomm Integrations */
+#define MCI_QCOM_CLK_WIDEBUS_8	(BIT(10) | BIT(11))
+#define MCI_QCOM_CLK_FLOWENA	BIT(12)
+#define MCI_QCOM_CLK_INVERTOUT	BIT(13)
+
+/* select in latch data and command in */
+#define MCI_QCOM_CLK_SELECT_IN_FBCLK	BIT(15)
+#define MCI_QCOM_CLK_SELECT_IN_DDR_MODE	(BIT(14) | BIT(15))
+
 #define MMCIARGUMENT		0x008
 #define MMCICOMMAND		0x00c
 #define MCI_CPSM_RESPONSE	(1 << 6)
@@ -53,6 +62,14 @@
 #define MCI_ST_ENCMD_COMPL	(1 << 12)
 #define MCI_ST_NIEN		(1 << 13)
 #define MCI_ST_CE_ATACMD	(1 << 14)
+
+/* Modified on Qualcomm Integrations */
+#define MCI_QCOM_CSPM_DATCMD		BIT(12)
+#define MCI_QCOM_CSPM_MCIABORT		BIT(13)
+#define MCI_QCOM_CSPM_CCSENABLE		BIT(14)
+#define MCI_QCOM_CSPM_CCSDISABLE	BIT(15)
+#define MCI_QCOM_CSPM_AUTO_CMD19	BIT(16)
+#define MCI_QCOM_CSPM_AUTO_CMD21	BIT(21)
 
 #define MMCIRESPCMD		0x010
 #define MMCIRESPONSE0		0x014
@@ -191,6 +208,8 @@ struct mmci_host {
 	spinlock_t		lock;
 
 	unsigned int		mclk;
+	/* cached value of requested clk in set_ios */
+	unsigned int		clock_cache;
 	unsigned int		cclk;
 	u32			pwr_reg;
 	u32			pwr_reg_add;
@@ -210,6 +229,7 @@ struct mmci_host {
 	/* pio stuff */
 	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
+	int (*get_rx_fifocnt)(struct mmci_host *h, u32 status, int remain);
 
 #ifdef CONFIG_DMA_ENGINE
 	/* DMA stuff */

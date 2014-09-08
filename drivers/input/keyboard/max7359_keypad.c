@@ -203,12 +203,17 @@ static int max7359_probe(struct i2c_client *client,
 
 	dev_dbg(&client->dev, "keys FIFO is 0x%02x\n", ret);
 
-	keypad = kzalloc(sizeof(struct max7359_keypad), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!keypad || !input_dev) {
+	keypad = devm_kzalloc(&client->dev, sizeof(struct max7359_keypad),
+			      GFP_KERNEL);
+	if (!keypad) {
 		dev_err(&client->dev, "failed to allocate memory\n");
-		error = -ENOMEM;
-		goto failed_free_mem;
+		return -ENOMEM;
+	}
+
+	input_dev = devm_input_allocate_device(&client->dev);
+	if (!input_dev) {
+		dev_err(&client->dev, "failed to allocate input device\n");
+		return -ENOMEM;
 	}
 
 	keypad->client = client;
@@ -230,19 +235,20 @@ static int max7359_probe(struct i2c_client *client,
 
 	max7359_build_keycode(keypad, keymap_data);
 
-	error = request_threaded_irq(client->irq, NULL, max7359_interrupt,
-				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				     client->name, keypad);
+	error = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+					  max7359_interrupt,
+					  IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					  client->name, keypad);
 	if (error) {
 		dev_err(&client->dev, "failed to register interrupt\n");
-		goto failed_free_mem;
+		return error;
 	}
 
 	/* Register the input device */
 	error = input_register_device(input_dev);
 	if (error) {
 		dev_err(&client->dev, "failed to register input device\n");
-		goto failed_free_irq;
+		return error;
 	}
 
 	/* Initialize MAX7359 */
@@ -250,24 +256,6 @@ static int max7359_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, keypad);
 	device_init_wakeup(&client->dev, 1);
-
-	return 0;
-
-failed_free_irq:
-	free_irq(client->irq, keypad);
-failed_free_mem:
-	input_free_device(input_dev);
-	kfree(keypad);
-	return error;
-}
-
-static int max7359_remove(struct i2c_client *client)
-{
-	struct max7359_keypad *keypad = i2c_get_clientdata(client);
-
-	free_irq(client->irq, keypad);
-	input_unregister_device(keypad->input_dev);
-	kfree(keypad);
 
 	return 0;
 }
@@ -313,7 +301,6 @@ static struct i2c_driver max7359_i2c_driver = {
 		.pm   = &max7359_pm,
 	},
 	.probe		= max7359_probe,
-	.remove		= max7359_remove,
 	.id_table	= max7359_ids,
 };
 

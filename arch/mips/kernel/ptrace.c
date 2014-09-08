@@ -24,7 +24,6 @@
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/smp.h>
-#include <linux/user.h>
 #include <linux/security.h>
 #include <linux/tracehook.h>
 #include <linux/audit.h>
@@ -63,7 +62,7 @@ void ptrace_disable(struct task_struct *child)
  * for 32-bit kernels and for 32-bit processes on a 64-bit kernel.
  * Registers are sign extended to fill the available space.
  */
-int ptrace_getregs(struct task_struct *child, __s64 __user *data)
+int ptrace_getregs(struct task_struct *child, struct user_pt_regs __user *data)
 {
 	struct pt_regs *regs;
 	int i;
@@ -74,13 +73,13 @@ int ptrace_getregs(struct task_struct *child, __s64 __user *data)
 	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
-		__put_user((long)regs->regs[i], data + i);
-	__put_user((long)regs->lo, data + EF_LO - EF_R0);
-	__put_user((long)regs->hi, data + EF_HI - EF_R0);
-	__put_user((long)regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
-	__put_user((long)regs->cp0_badvaddr, data + EF_CP0_BADVADDR - EF_R0);
-	__put_user((long)regs->cp0_status, data + EF_CP0_STATUS - EF_R0);
-	__put_user((long)regs->cp0_cause, data + EF_CP0_CAUSE - EF_R0);
+		__put_user((long)regs->regs[i], (__s64 __user *)&data->regs[i]);
+	__put_user((long)regs->lo, (__s64 __user *)&data->lo);
+	__put_user((long)regs->hi, (__s64 __user *)&data->hi);
+	__put_user((long)regs->cp0_epc, (__s64 __user *)&data->cp0_epc);
+	__put_user((long)regs->cp0_badvaddr, (__s64 __user *)&data->cp0_badvaddr);
+	__put_user((long)regs->cp0_status, (__s64 __user *)&data->cp0_status);
+	__put_user((long)regs->cp0_cause, (__s64 __user *)&data->cp0_cause);
 
 	return 0;
 }
@@ -90,7 +89,7 @@ int ptrace_getregs(struct task_struct *child, __s64 __user *data)
  * the 64-bit format.  On a 32-bit kernel only the lower order half
  * (according to endianness) will be used.
  */
-int ptrace_setregs(struct task_struct *child, __s64 __user *data)
+int ptrace_setregs(struct task_struct *child, struct user_pt_regs __user *data)
 {
 	struct pt_regs *regs;
 	int i;
@@ -101,10 +100,10 @@ int ptrace_setregs(struct task_struct *child, __s64 __user *data)
 	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
-		__get_user(regs->regs[i], data + i);
-	__get_user(regs->lo, data + EF_LO - EF_R0);
-	__get_user(regs->hi, data + EF_HI - EF_R0);
-	__get_user(regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
+		__get_user(regs->regs[i], (__s64 __user *)&data->regs[i]);
+	__get_user(regs->lo, (__s64 __user *)&data->lo);
+	__get_user(regs->hi, (__s64 __user *)&data->hi);
+	__get_user(regs->cp0_epc, (__s64 __user *)&data->cp0_epc);
 
 	/* badvaddr, status, and cause may not be written.  */
 
@@ -129,7 +128,7 @@ int ptrace_getfpregs(struct task_struct *child, __u32 __user *data)
 	}
 
 	__put_user(child->thread.fpu.fcr31, data + 64);
-	__put_user(current_cpu_data.fpu_id, data + 65);
+	__put_user(boot_cpu_data.fpu_id, data + 65);
 
 	return 0;
 }
@@ -151,6 +150,7 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 	}
 
 	__get_user(child->thread.fpu.fcr31, data + 64);
+	child->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
 
 	/* FIR may not be written.  */
 
@@ -246,35 +246,159 @@ int ptrace_set_watch_regs(struct task_struct *child,
 
 /* regset get/set implementations */
 
-static int gpr_get(struct task_struct *target,
-		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+#if defined(CONFIG_32BIT) || defined(CONFIG_MIPS32_O32)
+
+static int gpr32_get(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     void *kbuf, void __user *ubuf)
 {
 	struct pt_regs *regs = task_pt_regs(target);
+	u32 uregs[ELF_NGREG] = {};
+	unsigned i;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   regs, 0, sizeof(*regs));
+	for (i = MIPS32_EF_R1; i <= MIPS32_EF_R31; i++) {
+		/* k0/k1 are copied as zero. */
+		if (i == MIPS32_EF_R26 || i == MIPS32_EF_R27)
+			continue;
+
+		uregs[i] = regs->regs[i - MIPS32_EF_R0];
+	}
+
+	uregs[MIPS32_EF_LO] = regs->lo;
+	uregs[MIPS32_EF_HI] = regs->hi;
+	uregs[MIPS32_EF_CP0_EPC] = regs->cp0_epc;
+	uregs[MIPS32_EF_CP0_BADVADDR] = regs->cp0_badvaddr;
+	uregs[MIPS32_EF_CP0_STATUS] = regs->cp0_status;
+	uregs[MIPS32_EF_CP0_CAUSE] = regs->cp0_cause;
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, uregs, 0,
+				   sizeof(uregs));
 }
 
-static int gpr_set(struct task_struct *target,
-		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   const void *kbuf, const void __user *ubuf)
+static int gpr32_set(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     const void *kbuf, const void __user *ubuf)
 {
-	struct pt_regs newregs;
-	int ret;
+	struct pt_regs *regs = task_pt_regs(target);
+	u32 uregs[ELF_NGREG];
+	unsigned start, num_regs, i;
+	int err;
 
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &newregs,
-				 0, sizeof(newregs));
-	if (ret)
-		return ret;
+	start = pos / sizeof(u32);
+	num_regs = count / sizeof(u32);
 
-	*task_pt_regs(target) = newregs;
+	if (start + num_regs > ELF_NGREG)
+		return -EIO;
+
+	err = user_regset_copyin(&pos, &count, &kbuf, &ubuf, uregs, 0,
+				 sizeof(uregs));
+	if (err)
+		return err;
+
+	for (i = start; i < num_regs; i++) {
+		/*
+		 * Cast all values to signed here so that if this is a 64-bit
+		 * kernel, the supplied 32-bit values will be sign extended.
+		 */
+		switch (i) {
+		case MIPS32_EF_R1 ... MIPS32_EF_R25:
+			/* k0/k1 are ignored. */
+		case MIPS32_EF_R28 ... MIPS32_EF_R31:
+			regs->regs[i - MIPS32_EF_R0] = (s32)uregs[i];
+			break;
+		case MIPS32_EF_LO:
+			regs->lo = (s32)uregs[i];
+			break;
+		case MIPS32_EF_HI:
+			regs->hi = (s32)uregs[i];
+			break;
+		case MIPS32_EF_CP0_EPC:
+			regs->cp0_epc = (s32)uregs[i];
+			break;
+		}
+	}
 
 	return 0;
 }
+
+#endif /* CONFIG_32BIT || CONFIG_MIPS32_O32 */
+
+#ifdef CONFIG_64BIT
+
+static int gpr64_get(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     void *kbuf, void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	u64 uregs[ELF_NGREG] = {};
+	unsigned i;
+
+	for (i = MIPS64_EF_R1; i <= MIPS64_EF_R31; i++) {
+		/* k0/k1 are copied as zero. */
+		if (i == MIPS64_EF_R26 || i == MIPS64_EF_R27)
+			continue;
+
+		uregs[i] = regs->regs[i - MIPS64_EF_R0];
+	}
+
+	uregs[MIPS64_EF_LO] = regs->lo;
+	uregs[MIPS64_EF_HI] = regs->hi;
+	uregs[MIPS64_EF_CP0_EPC] = regs->cp0_epc;
+	uregs[MIPS64_EF_CP0_BADVADDR] = regs->cp0_badvaddr;
+	uregs[MIPS64_EF_CP0_STATUS] = regs->cp0_status;
+	uregs[MIPS64_EF_CP0_CAUSE] = regs->cp0_cause;
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, uregs, 0,
+				   sizeof(uregs));
+}
+
+static int gpr64_set(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     const void *kbuf, const void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	u64 uregs[ELF_NGREG];
+	unsigned start, num_regs, i;
+	int err;
+
+	start = pos / sizeof(u64);
+	num_regs = count / sizeof(u64);
+
+	if (start + num_regs > ELF_NGREG)
+		return -EIO;
+
+	err = user_regset_copyin(&pos, &count, &kbuf, &ubuf, uregs, 0,
+				 sizeof(uregs));
+	if (err)
+		return err;
+
+	for (i = start; i < num_regs; i++) {
+		switch (i) {
+		case MIPS64_EF_R1 ... MIPS64_EF_R25:
+			/* k0/k1 are ignored. */
+		case MIPS64_EF_R28 ... MIPS64_EF_R31:
+			regs->regs[i - MIPS64_EF_R0] = uregs[i];
+			break;
+		case MIPS64_EF_LO:
+			regs->lo = uregs[i];
+			break;
+		case MIPS64_EF_HI:
+			regs->hi = uregs[i];
+			break;
+		case MIPS64_EF_CP0_EPC:
+			regs->cp0_epc = uregs[i];
+			break;
+		}
+	}
+
+	return 0;
+}
+
+#endif /* CONFIG_64BIT */
 
 static int fpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
@@ -337,14 +461,16 @@ enum mips_regset {
 	REGSET_FPR,
 };
 
+#if defined(CONFIG_32BIT) || defined(CONFIG_MIPS32_O32)
+
 static const struct user_regset mips_regsets[] = {
 	[REGSET_GPR] = {
 		.core_note_type	= NT_PRSTATUS,
 		.n		= ELF_NGREG,
 		.size		= sizeof(unsigned int),
 		.align		= sizeof(unsigned int),
-		.get		= gpr_get,
-		.set		= gpr_set,
+		.get		= gpr32_get,
+		.set		= gpr32_set,
 	},
 	[REGSET_FPR] = {
 		.core_note_type	= NT_PRFPREG,
@@ -364,14 +490,18 @@ static const struct user_regset_view user_mips_view = {
 	.n		= ARRAY_SIZE(mips_regsets),
 };
 
+#endif /* CONFIG_32BIT || CONFIG_MIPS32_O32 */
+
+#ifdef CONFIG_64BIT
+
 static const struct user_regset mips64_regsets[] = {
 	[REGSET_GPR] = {
 		.core_note_type	= NT_PRSTATUS,
 		.n		= ELF_NGREG,
 		.size		= sizeof(unsigned long),
 		.align		= sizeof(unsigned long),
-		.get		= gpr_get,
-		.set		= gpr_set,
+		.get		= gpr64_get,
+		.set		= gpr64_set,
 	},
 	[REGSET_FPR] = {
 		.core_note_type	= NT_PRFPREG,
@@ -384,25 +514,26 @@ static const struct user_regset mips64_regsets[] = {
 };
 
 static const struct user_regset_view user_mips64_view = {
-	.name		= "mips",
+	.name		= "mips64",
 	.e_machine	= ELF_ARCH,
 	.ei_osabi	= ELF_OSABI,
 	.regsets	= mips64_regsets,
-	.n		= ARRAY_SIZE(mips_regsets),
+	.n		= ARRAY_SIZE(mips64_regsets),
 };
+
+#endif /* CONFIG_64BIT */
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
 #ifdef CONFIG_32BIT
 	return &user_mips_view;
-#endif
-
+#else
 #ifdef CONFIG_MIPS32_O32
-		if (test_thread_flag(TIF_32BIT_REGS))
-			return &user_mips_view;
+	if (test_tsk_thread_flag(task, TIF_32BIT_REGS))
+		return &user_mips_view;
 #endif
-
 	return &user_mips64_view;
+#endif
 }
 
 long arch_ptrace(struct task_struct *child, long request,
@@ -480,7 +611,7 @@ long arch_ptrace(struct task_struct *child, long request,
 			break;
 		case FPC_EIR:
 			/* implementation / version register */
-			tmp = current_cpu_data.fpu_id;
+			tmp = boot_cpu_data.fpu_id;
 			break;
 		case DSP_BASE ... DSP_BASE + 5: {
 			dspreg_t *dregs;
@@ -565,7 +696,7 @@ long arch_ptrace(struct task_struct *child, long request,
 			break;
 #endif
 		case FPC_CSR:
-			child->thread.fpu.fcr31 = data;
+			child->thread.fpu.fcr31 = data & ~FPU_CSR_ALL_X;
 			break;
 		case DSP_BASE ... DSP_BASE + 5: {
 			dspreg_t *dregs;

@@ -217,6 +217,7 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->min_rate = 0xffff;
 	common->fsm_state = FSM_CARD_NOT_READY;
 	common->iface_down = true;
+	common->endpoint = EP_2GHZ_20MHZ;
 }
 
 /**
@@ -276,7 +277,6 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 {
 	struct rsi_radio_caps *radio_caps;
 	struct rsi_hw *adapter = common->priv;
-	struct ieee80211_hw *hw = adapter->hw;
 	u16 inx = 0;
 	u8 ii;
 	u8 radio_id = 0;
@@ -285,7 +285,6 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 		      0xf0, 0xf0, 0xf0, 0xf0,
 		      0xf0, 0xf0, 0xf0, 0xf0,
 		      0xf0, 0xf0, 0xf0, 0xf0};
-	struct ieee80211_conf *conf = &hw->conf;
 	struct sk_buff *skb;
 
 	rsi_dbg(INFO_ZONE, "%s: Sending rate symbol req frame\n", __func__);
@@ -307,28 +306,35 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	if (common->channel_width == BW_40MHZ) {
 		radio_caps->desc_word[7] |= cpu_to_le16(RSI_LMAC_CLOCK_80MHZ);
 		radio_caps->desc_word[7] |= cpu_to_le16(RSI_ENABLE_40MHZ);
-		if (common->channel_width) {
-			radio_caps->desc_word[5] =
-				cpu_to_le16(common->channel_width << 12);
-			radio_caps->desc_word[5] |= cpu_to_le16(FULL40M_ENABLE);
-		}
 
-		if (conf_is_ht40_minus(conf)) {
-			radio_caps->desc_word[5] = 0;
-			radio_caps->desc_word[5] |=
-				cpu_to_le16(LOWER_20_ENABLE);
-			radio_caps->desc_word[5] |=
-				cpu_to_le16(LOWER_20_ENABLE >> 12);
-		}
-
-		if (conf_is_ht40_plus(conf)) {
-			radio_caps->desc_word[5] = 0;
-			radio_caps->desc_word[5] |=
-				cpu_to_le16(UPPER_20_ENABLE);
-			radio_caps->desc_word[5] |=
-				cpu_to_le16(UPPER_20_ENABLE >> 12);
+		if (common->fsm_state == FSM_MAC_INIT_DONE) {
+			struct ieee80211_hw *hw = adapter->hw;
+			struct ieee80211_conf *conf = &hw->conf;
+			if (conf_is_ht40_plus(conf)) {
+				radio_caps->desc_word[5] =
+					cpu_to_le16(LOWER_20_ENABLE);
+				radio_caps->desc_word[5] |=
+					cpu_to_le16(LOWER_20_ENABLE >> 12);
+			} else if (conf_is_ht40_minus(conf)) {
+				radio_caps->desc_word[5] =
+					cpu_to_le16(UPPER_20_ENABLE);
+				radio_caps->desc_word[5] |=
+					cpu_to_le16(UPPER_20_ENABLE >> 12);
+			} else {
+				radio_caps->desc_word[5] =
+					cpu_to_le16(BW_40MHZ << 12);
+				radio_caps->desc_word[5] |=
+					cpu_to_le16(FULL40M_ENABLE);
+			}
 		}
 	}
+
+	radio_caps->sifs_tx_11n = cpu_to_le16(SIFS_TX_11N_VALUE);
+	radio_caps->sifs_tx_11b = cpu_to_le16(SIFS_TX_11B_VALUE);
+	radio_caps->slot_rx_11n = cpu_to_le16(SHORT_SLOT_VALUE);
+	radio_caps->ofdm_ack_tout = cpu_to_le16(OFDM_ACK_TOUT_VALUE);
+	radio_caps->cck_ack_tout = cpu_to_le16(CCK_ACK_TOUT_VALUE);
+	radio_caps->preamble_type = cpu_to_le16(LONG_PREAMBLE);
 
 	radio_caps->desc_word[7] |= cpu_to_le16(radio_id << 8);
 
@@ -588,7 +594,7 @@ static int rsi_program_bb_rf(struct rsi_common *common)
 
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(BBP_PROG_IN_TA);
-	mgmt_frame->desc_word[4] = cpu_to_le16(common->endpoint << 8);
+	mgmt_frame->desc_word[4] = cpu_to_le16(common->endpoint);
 
 	if (common->rf_reset) {
 		mgmt_frame->desc_word[7] =  cpu_to_le16(RF_RESET_ENABLE);
@@ -615,6 +621,9 @@ int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_vap_caps *vap_caps;
+	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_hw *hw = adapter->hw;
+	struct ieee80211_conf *conf = &hw->conf;
 	u16 vap_id = 0;
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending VAP capabilities frame\n", __func__);
@@ -644,13 +653,24 @@ int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
 	vap_caps->frag_threshold = cpu_to_le16(IEEE80211_MAX_FRAG_THRESHOLD);
 
 	vap_caps->rts_threshold = cpu_to_le16(common->rts_threshold);
-	vap_caps->default_mgmt_rate = 0;
-	if (conf_is_ht40(&common->priv->hw->conf)) {
-		vap_caps->default_ctrl_rate =
-				cpu_to_le32(RSI_RATE_6 | FULL40M_ENABLE << 16);
-	} else {
+	vap_caps->default_mgmt_rate = cpu_to_le32(RSI_RATE_6);
+
+	if (common->band == IEEE80211_BAND_5GHZ) {
 		vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_6);
+		if (conf_is_ht40(&common->priv->hw->conf)) {
+			vap_caps->default_ctrl_rate |=
+				cpu_to_le32(FULL40M_ENABLE << 16);
+		}
+	} else {
+		vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_1);
+		if (conf_is_ht40_minus(conf))
+			vap_caps->default_ctrl_rate |=
+				cpu_to_le32(UPPER_20_ENABLE << 16);
+		else if (conf_is_ht40_plus(conf))
+			vap_caps->default_ctrl_rate |=
+				cpu_to_le32(LOWER_20_ENABLE << 16);
 	}
+
 	vap_caps->default_data_rate = 0;
 	vap_caps->beacon_interval = cpu_to_le16(200);
 	vap_caps->dtim_period = cpu_to_le16(4);
@@ -827,6 +847,63 @@ static int rsi_send_reset_mac(struct rsi_common *common)
 }
 
 /**
+ * rsi_band_check() - This function programs the band
+ * @common: Pointer to the driver private structure.
+ *
+ * Return: 0 on success, corresponding error code on failure.
+ */
+int rsi_band_check(struct rsi_common *common)
+{
+	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_hw *hw = adapter->hw;
+	u8 prev_bw = common->channel_width;
+	u8 prev_ep = common->endpoint;
+	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
+	int status = 0;
+
+	if (common->band != curchan->band) {
+		common->rf_reset = 1;
+		common->band = curchan->band;
+	}
+
+	if ((hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT) ||
+	    (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20))
+		common->channel_width = BW_20MHZ;
+	else
+		common->channel_width = BW_40MHZ;
+
+	if (common->band == IEEE80211_BAND_2GHZ) {
+		if (common->channel_width)
+			common->endpoint = EP_2GHZ_40MHZ;
+		else
+			common->endpoint = EP_2GHZ_20MHZ;
+	} else {
+		if (common->channel_width)
+			common->endpoint = EP_5GHZ_40MHZ;
+		else
+			common->endpoint = EP_5GHZ_20MHZ;
+	}
+
+	if (common->endpoint != prev_ep) {
+		status = rsi_program_bb_rf(common);
+		if (status)
+			return status;
+	}
+
+	if (common->channel_width != prev_bw) {
+		status = rsi_load_bootup_params(common);
+		if (status)
+			return status;
+
+		status = rsi_load_radio_caps(common);
+		if (status)
+			return status;
+	}
+
+	return status;
+}
+
+/**
  * rsi_set_channel() - This function programs the channel.
  * @common: Pointer to the driver private structure.
  * @channel: Channel value to be set.
@@ -840,23 +917,6 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 
 	rsi_dbg(MGMT_TX_ZONE,
 		"%s: Sending scan req frame\n", __func__);
-
-	if (common->band == IEEE80211_BAND_5GHZ) {
-		if ((channel >= 36) && (channel <= 64))
-			channel = ((channel - 32) / 4);
-		else if ((channel > 64) && (channel <= 140))
-			channel = ((channel - 102) / 4) + 8;
-		else if (channel >= 149)
-			channel = ((channel - 151) / 4) + 18;
-		else
-			return -EINVAL;
-	} else {
-		if (channel > 14) {
-			rsi_dbg(ERR_ZONE, "%s: Invalid chno %d, band = %d\n",
-				__func__, channel, common->band);
-			return -EINVAL;
-		}
-	}
 
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
 	if (!skb) {
@@ -877,6 +937,7 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 					       (RSI_RF_TYPE << 4));
 
 	mgmt_frame->desc_word[5] = cpu_to_le16(0x01);
+	mgmt_frame->desc_word[6] = cpu_to_le16(0x12);
 
 	if (common->channel_width == BW_40MHZ)
 		mgmt_frame->desc_word[5] |= cpu_to_le16(0x1 << 8);
@@ -950,7 +1011,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	struct ieee80211_hw *hw = common->priv->hw;
 	u8 band = hw->conf.chandef.chan->band;
 	u8 num_supported_rates = 0;
-	u8 rate_offset = 0;
+	u8 rate_table_offset, rate_offset = 0;
 	u32 rate_bitmap = common->bitrate_mask[band];
 
 	u16 *selected_rates, min_rate;
@@ -986,14 +1047,19 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	if (common->channel_width == BW_40MHZ)
 		auto_rate->desc_word[7] |= cpu_to_le16(1);
 
-	if (band == IEEE80211_BAND_2GHZ)
-		min_rate = STD_RATE_01;
-	else
-		min_rate = STD_RATE_06;
+	if (band == IEEE80211_BAND_2GHZ) {
+		min_rate = RSI_RATE_1;
+		rate_table_offset = 0;
+	} else {
+		min_rate = RSI_RATE_6;
+		rate_table_offset = 4;
+	}
 
-	for (ii = 0, jj = 0; ii < ARRAY_SIZE(rsi_rates); ii++) {
+	for (ii = 0, jj = 0;
+	     ii < (ARRAY_SIZE(rsi_rates) - rate_table_offset); ii++) {
 		if (rate_bitmap & BIT(ii)) {
-			selected_rates[jj++] = (rsi_rates[ii].bitrate / 5);
+			selected_rates[jj++] =
+			(rsi_rates[ii + rate_table_offset].bitrate / 5);
 			rate_offset++;
 		}
 	}
@@ -1004,13 +1070,6 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 			selected_rates[jj++] = mcs[ii];
 		num_supported_rates += ARRAY_SIZE(mcs);
 		rate_offset += ARRAY_SIZE(mcs);
-	}
-
-	if (rate_offset < (RSI_TBL_SZ / 2) - 1) {
-		for (ii = jj; ii < (RSI_TBL_SZ / 2); ii++) {
-			selected_rates[jj++] = min_rate;
-			rate_offset++;
-		}
 	}
 
 	sort(selected_rates, jj, sizeof(u16), &rsi_compare, NULL);
@@ -1028,24 +1087,24 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 
 	/* loading HT rates in the bottom half of the auto rate table */
 	if (common->vif_info[0].is_ht) {
-		if (common->vif_info[0].sgi)
-			auto_rate->supported_rates[rate_offset++] =
-				cpu_to_le16(RSI_RATE_MCS7_SG);
-
 		for (ii = rate_offset, kk = ARRAY_SIZE(rsi_mcsrates) - 1;
 		     ii < rate_offset + 2 * ARRAY_SIZE(rsi_mcsrates); ii++) {
-			if (common->vif_info[0].sgi)
+			if (common->vif_info[0].sgi ||
+			    conf_is_ht40(&common->priv->hw->conf))
 				auto_rate->supported_rates[ii++] =
 					cpu_to_le16(rsi_mcsrates[kk] | BIT(9));
 			auto_rate->supported_rates[ii] =
 				cpu_to_le16(rsi_mcsrates[kk--]);
 		}
 
-		for (; ii < RSI_TBL_SZ; ii++) {
+		for (; ii < (RSI_TBL_SZ - 1); ii++) {
 			auto_rate->supported_rates[ii] =
 				cpu_to_le16(rsi_mcsrates[0]);
 		}
 	}
+
+	for (; ii < RSI_TBL_SZ; ii++)
+		auto_rate->supported_rates[ii] = cpu_to_le16(min_rate);
 
 	auto_rate->num_supported_rates = cpu_to_le16(num_supported_rates * 2);
 	auto_rate->moderate_rate_inx = cpu_to_le16(num_supported_rates / 2);
@@ -1141,6 +1200,49 @@ static int rsi_eeprom_read(struct rsi_common *common)
 }
 
 /**
+ * This function sends a frame to block/unblock
+ * data queues in the firmware
+ *
+ * @param common Pointer to the driver private structure.
+ * @param block event - block if true, unblock if false
+ * @return 0 on success, -1 on failure.
+ */
+int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
+{
+	struct rsi_mac_frame *mgmt_frame;
+	struct sk_buff *skb;
+
+	rsi_dbg(MGMT_TX_ZONE, "%s: Sending block/unblock frame\n", __func__);
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	mgmt_frame = (struct rsi_mac_frame *)skb->data;
+
+	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+	mgmt_frame->desc_word[1] = cpu_to_le16(BLOCK_HW_QUEUE);
+
+	if (block_event == true) {
+		rsi_dbg(INFO_ZONE, "blocking the data qs\n");
+		mgmt_frame->desc_word[4] = cpu_to_le16(0xf);
+	} else {
+		rsi_dbg(INFO_ZONE, "unblocking the data qs\n");
+		mgmt_frame->desc_word[5] = cpu_to_le16(0xf);
+	}
+
+	skb_put(skb, FRAME_DESC_SZ);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+
+}
+
+
+/**
  * rsi_handle_ta_confirm_type() - This function handles the confirm frames.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to received packet.
@@ -1164,7 +1266,7 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 				common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
 			}
 		} else {
-			rsi_dbg(ERR_ZONE,
+			rsi_dbg(INFO_ZONE,
 				"%s: Received bootup params cfm in %d state\n",
 				 __func__, common->fsm_state);
 			return 0;
@@ -1227,7 +1329,7 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 					__func__);
 			}
 		} else {
-			rsi_dbg(ERR_ZONE,
+			rsi_dbg(INFO_ZONE,
 				"%s: Received radio caps cfm in %d state\n",
 				 __func__, common->fsm_state);
 			return 0;
@@ -1245,7 +1347,10 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 				return rsi_mac80211_attach(common);
 			}
 		} else {
-			goto out;
+			rsi_dbg(INFO_ZONE,
+				"%s: Received bbb_rf cfm in %d state\n",
+				 __func__, common->fsm_state);
+			return 0;
 		}
 		break;
 

@@ -64,7 +64,7 @@ MODULE_PARM_DESC(thinkpad, "Force to enable Thinkpad's CLKRUN control.");
 module_param_array(mmap_valid, bool, NULL, 0444);
 MODULE_PARM_DESC(mmap_valid, "Support OSS mmap.");
 
-static DEFINE_PCI_DEVICE_TABLE(snd_cs46xx_ids) = {
+static const struct pci_device_id snd_cs46xx_ids[] = {
 	{ PCI_VDEVICE(CIRRUS, 0x6001), 0, },   /* CS4280 */
 	{ PCI_VDEVICE(CIRRUS, 0x6003), 0, },   /* CS4612 */
 	{ PCI_VDEVICE(CIRRUS, 0x6004), 0, },   /* CS4615 */

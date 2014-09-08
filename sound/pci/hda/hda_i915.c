@@ -28,8 +28,8 @@
  * Clock) to 24MHz BCLK: BCLK = CDCLK * M / N
  * The values will be lost when the display power well is disabled.
  */
-#define ICH6_REG_EM4			0x100c
-#define ICH6_REG_EM5			0x1010
+#define AZX_REG_EM4			0x100c
+#define AZX_REG_EM5			0x1010
 
 static int (*get_power)(void);
 static int (*put_power)(void);

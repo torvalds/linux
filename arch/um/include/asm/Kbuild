@@ -21,6 +21,7 @@ generic-y += param.h
 generic-y += pci.h
 generic-y += percpu.h
 generic-y += preempt.h
+generic-y += scatterlist.h
 generic-y += sections.h
 generic-y += switch_to.h
 generic-y += topology.h

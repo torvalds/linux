@@ -58,6 +58,7 @@
 #include <linux/in_route.h>
 #include <linux/route.h>
 #include <linux/skbuff.h>
+#include <linux/igmp.h>
 #include <net/net_namespace.h>
 #include <net/dst.h>
 #include <net/sock.h>
@@ -174,7 +175,9 @@ static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 
 	while (sk) {
 		delivered = 1;
-		if (iph->protocol != IPPROTO_ICMP || !icmp_filter(sk, skb)) {
+		if ((iph->protocol != IPPROTO_ICMP || !icmp_filter(sk, skb)) &&
+		    ip_mc_sf_allow(sk, iph->daddr, iph->saddr,
+				   skb->dev->ifindex)) {
 			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
 
 			/* Not releasing hash table! */
@@ -364,6 +367,8 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 	skb_put(skb, length);
 
 	skb->ip_summed = CHECKSUM_NONE;
+
+	sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
 
 	skb->transport_header = skb->network_header;
 	err = -EFAULT;
@@ -606,6 +611,8 @@ back_from_confirm:
 				      &rt, msg->msg_flags);
 
 	 else {
+		sock_tx_timestamp(sk, &ipc.tx_flags);
+
 		if (!ipc.addr)
 			ipc.addr = fl4.daddr;
 		lock_sock(sk);

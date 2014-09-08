@@ -1657,7 +1657,7 @@ csio_scsi_err_handler(struct csio_hw *hw, struct csio_ioreq *req)
 	case FW_SCSI_UNDER_FLOW_ERR:
 		csio_warn(hw,
 			  "Under-flow error,cmnd:0x%x expected"
-			  " len:0x%x resid:0x%x lun:0x%x ssn:0x%x\n",
+			  " len:0x%x resid:0x%x lun:0x%llx ssn:0x%x\n",
 			  cmnd->cmnd[0], scsi_bufflen(cmnd),
 			  scsi_get_resid(cmnd), cmnd->device->lun,
 			  rn->flowid);
@@ -1957,7 +1957,7 @@ csio_eh_abort_handler(struct scsi_cmnd *cmnd)
 
 	csio_dbg(hw,
 		 "Request to abort ioreq:%p cmd:%p cdb:%08llx"
-		 " ssni:0x%x lun:%d iq:0x%x\n",
+		 " ssni:0x%x lun:%llu iq:0x%x\n",
 		ioreq, cmnd, *((uint64_t *)cmnd->cmnd), rn->flowid,
 		cmnd->device->lun, csio_q_physiqid(hw, ioreq->iq_idx));
 
@@ -2015,13 +2015,13 @@ inval_scmnd:
 	/* FW successfully aborted the request */
 	if (host_byte(cmnd->result) == DID_REQUEUE) {
 		csio_info(hw,
-			"Aborted SCSI command to (%d:%d) serial#:0x%lx\n",
+			"Aborted SCSI command to (%d:%llu) serial#:0x%lx\n",
 			cmnd->device->id, cmnd->device->lun,
 			cmnd->serial_number);
 		return SUCCESS;
 	} else {
 		csio_info(hw,
-			"Failed to abort SCSI command, (%d:%d) serial#:0x%lx\n",
+			"Failed to abort SCSI command, (%d:%llu) serial#:0x%lx\n",
 			cmnd->device->id, cmnd->device->lun,
 			cmnd->serial_number);
 		return FAILED;
@@ -2100,13 +2100,13 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 	if (!rn)
 		goto fail;
 
-	csio_dbg(hw, "Request to reset LUN:%d (ssni:0x%x tgtid:%d)\n",
+	csio_dbg(hw, "Request to reset LUN:%llu (ssni:0x%x tgtid:%d)\n",
 		      cmnd->device->lun, rn->flowid, rn->scsi_id);
 
 	if (!csio_is_lnode_ready(ln)) {
 		csio_err(hw,
 			 "LUN reset cannot be issued on non-ready"
-			 " local node vnpi:0x%x (LUN:%d)\n",
+			 " local node vnpi:0x%x (LUN:%llu)\n",
 			 ln->vnp_flowid, cmnd->device->lun);
 		goto fail;
 	}
@@ -2126,7 +2126,7 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 	if (fc_remote_port_chkready(rn->rport)) {
 		csio_err(hw,
 			 "LUN reset cannot be issued on non-ready"
-			 " remote node ssni:0x%x (LUN:%d)\n",
+			 " remote node ssni:0x%x (LUN:%llu)\n",
 			 rn->flowid, cmnd->device->lun);
 		goto fail;
 	}
@@ -2168,7 +2168,7 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 	sld.level = CSIO_LEV_LUN;
 	sld.lnode = ioreq->lnode;
 	sld.rnode = ioreq->rnode;
-	sld.oslun = (uint64_t)cmnd->device->lun;
+	sld.oslun = cmnd->device->lun;
 
 	spin_lock_irqsave(&hw->lock, flags);
 	/* Kick off TM SM on the ioreq */
@@ -2190,7 +2190,7 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 
 	/* LUN reset timed-out */
 	if (((struct scsi_cmnd *)csio_scsi_cmnd(ioreq)) == cmnd) {
-		csio_err(hw, "LUN reset (%d:%d) timed out\n",
+		csio_err(hw, "LUN reset (%d:%llu) timed out\n",
 			 cmnd->device->id, cmnd->device->lun);
 
 		spin_lock_irq(&hw->lock);
@@ -2203,7 +2203,7 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 
 	/* LUN reset returned, check cached status */
 	if (cmnd->SCp.Status != FW_SUCCESS) {
-		csio_err(hw, "LUN reset failed (%d:%d), status: %d\n",
+		csio_err(hw, "LUN reset failed (%d:%llu), status: %d\n",
 			 cmnd->device->id, cmnd->device->lun, cmnd->SCp.Status);
 		goto fail;
 	}
@@ -2223,7 +2223,7 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 	/* Aborts may have timed out */
 	if (retval != 0) {
 		csio_err(hw,
-			 "Attempt to abort I/Os during LUN reset of %d"
+			 "Attempt to abort I/Os during LUN reset of %llu"
 			 " returned %d\n", cmnd->device->lun, retval);
 		/* Return I/Os back to active_q */
 		spin_lock_irq(&hw->lock);
@@ -2234,7 +2234,7 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 
 	CSIO_INC_STATS(rn, n_lun_rst);
 
-	csio_info(hw, "LUN reset occurred (%d:%d)\n",
+	csio_info(hw, "LUN reset occurred (%d:%llu)\n",
 		  cmnd->device->id, cmnd->device->lun);
 
 	return SUCCESS;

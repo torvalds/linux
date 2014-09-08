@@ -13,19 +13,32 @@
 #include <linux/suspend.h>
 #include <linux/err.h>
 #include <linux/pm_clock.h>
+#include <linux/pm_domain.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/console.h>
+
 #include <asm/io.h>
-#include <mach/common.h>
-#include <mach/pm-rcar.h>
-#include <mach/r8a7779.h>
+
+#include "common.h"
+#include "pm-rcar.h"
+#include "r8a7779.h"
 
 /* SYSC */
 #define SYSCIER 0x0c
 #define SYSCIMR 0x10
+
+struct r8a7779_pm_domain {
+	struct generic_pm_domain genpd;
+	struct rcar_sysc_ch ch;
+};
+
+static inline struct rcar_sysc_ch *to_r8a7779_ch(struct generic_pm_domain *d)
+{
+	return &container_of(d, struct r8a7779_pm_domain, genpd)->ch;
+}
 
 #if defined(CONFIG_PM) || defined(CONFIG_SMP)
 

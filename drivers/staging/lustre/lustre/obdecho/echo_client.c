@@ -35,18 +35,18 @@
  */
 
 #define DEBUG_SUBSYSTEM S_ECHO
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_debug.h>
-#include <lprocfs_status.h>
-#include <cl_object.h>
-#include <md_object.h>
-#include <lustre_fid.h>
-#include <lustre_acl.h>
-#include <lustre_net.h>
+#include "../include/obd.h"
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_debug.h"
+#include "../include/lprocfs_status.h"
+#include "../include/cl_object.h"
+#include "../include/md_object.h"
+#include "../include/lustre_fid.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_net.h"
 
 #include "echo_internal.h"
 
@@ -1228,7 +1228,7 @@ static int cl_echo_cancel0(struct lu_env *env, struct echo_device *ed,
 	spin_lock(&ec->ec_lock);
 	list_for_each (el, &ec->ec_locks) {
 		ecl = list_entry (el, struct echo_lock, el_chain);
-		CDEBUG(D_INFO, "ecl: %p, cookie: "LPX64"\n", ecl, ecl->el_cookie);
+		CDEBUG(D_INFO, "ecl: %p, cookie: %#llx\n", ecl, ecl->el_cookie);
 		found = (ecl->el_cookie == cookie);
 		if (found) {
 			if (atomic_dec_and_test(&ecl->el_refcount))
@@ -1430,7 +1430,7 @@ echo_copyin_lsm (struct echo_device *ed, struct lov_stripe_md *lsm,
 static inline void echo_md_build_name(struct lu_name *lname, char *name,
 				      __u64 id)
 {
-	sprintf(name, LPU64, id);
+	sprintf(name, "%llu", id);
 	lname->ln_name = name;
 	lname->ln_namelen = strlen(name);
 }
@@ -1540,7 +1540,7 @@ int echo_attr_get_complex(const struct lu_env *env, struct md_object *next,
 #endif
 out:
 	ma->ma_need = need;
-	CDEBUG(D_INODE, "after getattr rc = %d, ma_valid = "LPX64" ma_lmm=%p\n",
+	CDEBUG(D_INODE, "after getattr rc = %d, ma_valid = %#llx ma_lmm=%p\n",
 	       rc, ma->ma_valid, ma->ma_lmm);
 	return rc;
 }
@@ -2408,7 +2408,7 @@ static int echo_client_page_debug_check(struct lov_stripe_md *lsm,
 					addr + delta, OBD_ECHO_BLOCK_SIZE,
 					stripe_off, stripe_id);
 		if (rc2 != 0) {
-			CERROR ("Error in echo object "LPX64"\n", id);
+			CERROR ("Error in echo object %#llx\n", id);
 			rc = rc2;
 		}
 	}
@@ -2703,7 +2703,7 @@ echo_client_enqueue(struct obd_export *exp, struct obdo *oa,
 	rc = cl_echo_enqueue(eco, offset, end, mode, &ulh->cookie);
 	if (rc == 0) {
 		oa->o_valid |= OBD_MD_FLHANDLE;
-		CDEBUG(D_INFO, "Cookie is "LPX64"\n", ulh->cookie);
+		CDEBUG(D_INFO, "Cookie is %#llx\n", ulh->cookie);
 	}
 	echo_put_object(eco);
 	return rc;
@@ -2718,7 +2718,7 @@ echo_client_cancel(struct obd_export *exp, struct obdo *oa)
 	if ((oa->o_valid & OBD_MD_FLHANDLE) == 0)
 		return -EINVAL;
 
-	CDEBUG(D_INFO, "Cookie is "LPX64"\n", cookie);
+	CDEBUG(D_INFO, "Cookie is %#llx\n", cookie);
 	return cl_echo_cancel(ed, cookie);
 }
 
@@ -3084,7 +3084,7 @@ static int echo_client_disconnect(struct obd_export *exp)
 		rc = obd_cancel(ec->ec_exp, ecl->ecl_object->eco_lsm,
 				 ecl->ecl_mode, &ecl->ecl_lock_handle);
 
-		CDEBUG (D_INFO, "Cancel lock on object "LPX64" on disconnect "
+		CDEBUG (D_INFO, "Cancel lock on object %#llx on disconnect "
 			"(%d)\n", ecl->ecl_object->eco_id, rc);
 
 		echo_put_object (ecl->ecl_object);
@@ -3113,7 +3113,7 @@ static struct obd_ops echo_client_obd_ops = {
 
 int echo_client_init(void)
 {
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	lprocfs_echo_init_vars(&lvars);

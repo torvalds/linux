@@ -84,7 +84,6 @@ void ion_reserve(struct ion_platform_data *data);
 /**
  * ion_client_create() -  allocate a client and returns it
  * @dev:		the global ion device
- * @heap_type_mask:	mask of heaps this client can allocate from
  * @name:		used for debugging
  */
 struct ion_client *ion_client_create(struct ion_device *dev,

@@ -59,7 +59,7 @@ acts similar to /dev/rtc and reacts on free-fall interrupts received
 from the device. It supports blocking operations, poll/select and
 fasync operation modes. You must read 1 bytes from the device.  The
 result is number of free-fall interrupts since the last successful
-read (or 255 if number of interrupts would not fit). See the hpfall.c
+read (or 255 if number of interrupts would not fit). See the freefall.c
 file for an example on using the device.
 
 

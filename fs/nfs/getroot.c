@@ -112,7 +112,7 @@ struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh,
 	 * if the dentry tree reaches them; however if the dentry already
 	 * exists, we'll pick it up at this point and use it as the root
 	 */
-	ret = d_obtain_alias(inode);
+	ret = d_obtain_root(inode);
 	if (IS_ERR(ret)) {
 		dprintk("nfs_get_root: get root dentry failed\n");
 		goto out;

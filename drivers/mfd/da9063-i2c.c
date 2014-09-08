@@ -25,10 +25,10 @@
 #include <linux/mfd/da9063/pdata.h>
 #include <linux/mfd/da9063/registers.h>
 
-static const struct regmap_range da9063_readable_ranges[] = {
+static const struct regmap_range da9063_ad_readable_ranges[] = {
 	{
 		.range_min = DA9063_REG_PAGE_CON,
-		.range_max = DA9063_REG_SECOND_D,
+		.range_max = DA9063_AD_REG_SECOND_D,
 	}, {
 		.range_min = DA9063_REG_SEQ,
 		.range_max = DA9063_REG_ID_32_31,
@@ -37,14 +37,14 @@ static const struct regmap_range da9063_readable_ranges[] = {
 		.range_max = DA9063_REG_AUTO3_LOW,
 	}, {
 		.range_min = DA9063_REG_T_OFFSET,
-		.range_max = DA9063_REG_GP_ID_19,
+		.range_max = DA9063_AD_REG_GP_ID_19,
 	}, {
 		.range_min = DA9063_REG_CHIP_ID,
 		.range_max = DA9063_REG_CHIP_VARIANT,
 	},
 };
 
-static const struct regmap_range da9063_writeable_ranges[] = {
+static const struct regmap_range da9063_ad_writeable_ranges[] = {
 	{
 		.range_min = DA9063_REG_PAGE_CON,
 		.range_max = DA9063_REG_PAGE_CON,
@@ -53,7 +53,7 @@ static const struct regmap_range da9063_writeable_ranges[] = {
 		.range_max = DA9063_REG_VSYS_MON,
 	}, {
 		.range_min = DA9063_REG_COUNT_S,
-		.range_max = DA9063_REG_ALARM_Y,
+		.range_max = DA9063_AD_REG_ALARM_Y,
 	}, {
 		.range_min = DA9063_REG_SEQ,
 		.range_max = DA9063_REG_ID_32_31,
@@ -62,14 +62,14 @@ static const struct regmap_range da9063_writeable_ranges[] = {
 		.range_max = DA9063_REG_AUTO3_LOW,
 	}, {
 		.range_min = DA9063_REG_CONFIG_I,
-		.range_max = DA9063_REG_MON_REG_4,
+		.range_max = DA9063_AD_REG_MON_REG_4,
 	}, {
-		.range_min = DA9063_REG_GP_ID_0,
-		.range_max = DA9063_REG_GP_ID_19,
+		.range_min = DA9063_AD_REG_GP_ID_0,
+		.range_max = DA9063_AD_REG_GP_ID_19,
 	},
 };
 
-static const struct regmap_range da9063_volatile_ranges[] = {
+static const struct regmap_range da9063_ad_volatile_ranges[] = {
 	{
 		.range_min = DA9063_REG_STATUS_A,
 		.range_max = DA9063_REG_EVENT_D,
@@ -81,26 +81,104 @@ static const struct regmap_range da9063_volatile_ranges[] = {
 		.range_max = DA9063_REG_ADC_MAN,
 	}, {
 		.range_min = DA9063_REG_ADC_RES_L,
-		.range_max = DA9063_REG_SECOND_D,
+		.range_max = DA9063_AD_REG_SECOND_D,
 	}, {
-		.range_min = DA9063_REG_MON_REG_5,
-		.range_max = DA9063_REG_MON_REG_6,
+		.range_min = DA9063_AD_REG_MON_REG_5,
+		.range_max = DA9063_AD_REG_MON_REG_6,
 	},
 };
 
-static const struct regmap_access_table da9063_readable_table = {
-	.yes_ranges = da9063_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_readable_ranges),
+static const struct regmap_access_table da9063_ad_readable_table = {
+	.yes_ranges = da9063_ad_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063_ad_readable_ranges),
 };
 
-static const struct regmap_access_table da9063_writeable_table = {
-	.yes_ranges = da9063_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_writeable_ranges),
+static const struct regmap_access_table da9063_ad_writeable_table = {
+	.yes_ranges = da9063_ad_writeable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063_ad_writeable_ranges),
 };
 
-static const struct regmap_access_table da9063_volatile_table = {
-	.yes_ranges = da9063_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_volatile_ranges),
+static const struct regmap_access_table da9063_ad_volatile_table = {
+	.yes_ranges = da9063_ad_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063_ad_volatile_ranges),
+};
+
+static const struct regmap_range da9063_bb_readable_ranges[] = {
+	{
+		.range_min = DA9063_REG_PAGE_CON,
+		.range_max = DA9063_BB_REG_SECOND_D,
+	}, {
+		.range_min = DA9063_REG_SEQ,
+		.range_max = DA9063_REG_ID_32_31,
+	}, {
+		.range_min = DA9063_REG_SEQ_A,
+		.range_max = DA9063_REG_AUTO3_LOW,
+	}, {
+		.range_min = DA9063_REG_T_OFFSET,
+		.range_max = DA9063_BB_REG_GP_ID_19,
+	}, {
+		.range_min = DA9063_REG_CHIP_ID,
+		.range_max = DA9063_REG_CHIP_VARIANT,
+	},
+};
+
+static const struct regmap_range da9063_bb_writeable_ranges[] = {
+	{
+		.range_min = DA9063_REG_PAGE_CON,
+		.range_max = DA9063_REG_PAGE_CON,
+	}, {
+		.range_min = DA9063_REG_FAULT_LOG,
+		.range_max = DA9063_REG_VSYS_MON,
+	}, {
+		.range_min = DA9063_REG_COUNT_S,
+		.range_max = DA9063_BB_REG_ALARM_Y,
+	}, {
+		.range_min = DA9063_REG_SEQ,
+		.range_max = DA9063_REG_ID_32_31,
+	}, {
+		.range_min = DA9063_REG_SEQ_A,
+		.range_max = DA9063_REG_AUTO3_LOW,
+	}, {
+		.range_min = DA9063_REG_CONFIG_I,
+		.range_max = DA9063_BB_REG_MON_REG_4,
+	}, {
+		.range_min = DA9063_BB_REG_GP_ID_0,
+		.range_max = DA9063_BB_REG_GP_ID_19,
+	},
+};
+
+static const struct regmap_range da9063_bb_volatile_ranges[] = {
+	{
+		.range_min = DA9063_REG_STATUS_A,
+		.range_max = DA9063_REG_EVENT_D,
+	}, {
+		.range_min = DA9063_REG_CONTROL_F,
+		.range_max = DA9063_REG_CONTROL_F,
+	}, {
+		.range_min = DA9063_REG_ADC_MAN,
+		.range_max = DA9063_REG_ADC_MAN,
+	}, {
+		.range_min = DA9063_REG_ADC_RES_L,
+		.range_max = DA9063_BB_REG_SECOND_D,
+	}, {
+		.range_min = DA9063_BB_REG_MON_REG_5,
+		.range_max = DA9063_BB_REG_MON_REG_6,
+	},
+};
+
+static const struct regmap_access_table da9063_bb_readable_table = {
+	.yes_ranges = da9063_bb_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063_bb_readable_ranges),
+};
+
+static const struct regmap_access_table da9063_bb_writeable_table = {
+	.yes_ranges = da9063_bb_writeable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063_bb_writeable_ranges),
+};
+
+static const struct regmap_access_table da9063_bb_volatile_table = {
+	.yes_ranges = da9063_bb_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063_bb_volatile_ranges),
 };
 
 static const struct regmap_range_cfg da9063_range_cfg[] = {
@@ -123,10 +201,6 @@ static struct regmap_config da9063_regmap_config = {
 	.max_register = DA9063_REG_CHIP_VARIANT,
 
 	.cache_type = REGCACHE_RBTREE,
-
-	.rd_table = &da9063_readable_table,
-	.wr_table = &da9063_writeable_table,
-	.volatile_table = &da9063_volatile_table,
 };
 
 static int da9063_i2c_probe(struct i2c_client *i2c,
@@ -142,6 +216,16 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, da9063);
 	da9063->dev = &i2c->dev;
 	da9063->chip_irq = i2c->irq;
+
+	if (da9063->variant_code == PMIC_DA9063_AD) {
+		da9063_regmap_config.rd_table = &da9063_ad_readable_table;
+		da9063_regmap_config.wr_table = &da9063_ad_writeable_table;
+		da9063_regmap_config.volatile_table = &da9063_ad_volatile_table;
+	} else {
+		da9063_regmap_config.rd_table = &da9063_bb_readable_table;
+		da9063_regmap_config.wr_table = &da9063_bb_writeable_table;
+		da9063_regmap_config.volatile_table = &da9063_bb_volatile_table;
+	}
 
 	da9063->regmap = devm_regmap_init_i2c(i2c, &da9063_regmap_config);
 	if (IS_ERR(da9063->regmap)) {

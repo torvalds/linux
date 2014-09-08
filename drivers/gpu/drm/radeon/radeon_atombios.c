@@ -1963,7 +1963,7 @@ static const char *thermal_controller_names[] = {
 	"adm1032",
 	"adm1030",
 	"max6649",
-	"lm64",
+	"lm63", /* lm64 */
 	"f75375",
 	"asc7xxx",
 };
@@ -1974,7 +1974,7 @@ static const char *pp_lib_thermal_controller_names[] = {
 	"adm1032",
 	"adm1030",
 	"max6649",
-	"lm64",
+	"lm63", /* lm64 */
 	"f75375",
 	"RV6xx",
 	"RV770",
@@ -3236,6 +3236,41 @@ int radeon_atom_get_leakage_vddc_based_on_leakage_params(struct radeon_device *r
 	return 0;
 }
 
+union get_voltage_info {
+	struct  _GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2 in;
+	struct  _GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2 evv_out;
+};
+
+int radeon_atom_get_voltage_evv(struct radeon_device *rdev,
+				u16 virtual_voltage_id,
+				u16 *voltage)
+{
+	int index = GetIndexIntoMasterTable(COMMAND, GetVoltageInfo);
+	u32 entry_id;
+	u32 count = rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.count;
+	union get_voltage_info args;
+
+	for (entry_id = 0; entry_id < count; entry_id++) {
+		if (rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].v ==
+		    virtual_voltage_id)
+			break;
+	}
+
+	if (entry_id >= count)
+		return -EINVAL;
+
+	args.in.ucVoltageType = VOLTAGE_TYPE_VDDC;
+	args.in.ucVoltageMode = ATOM_GET_VOLTAGE_EVV_VOLTAGE;
+	args.in.ulSCLKFreq =
+		cpu_to_le32(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].clk);
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+	*voltage = le16_to_cpu(args.evv_out.usVoltageLevel);
+
+	return 0;
+}
+
 int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
 					  u16 voltage_level, u8 voltage_type,
 					  u32 *gpio_value, u32 *gpio_mask)
@@ -3395,6 +3430,50 @@ radeon_atom_is_voltage_gpio(struct radeon_device *rdev,
 
 	}
 	return false;
+}
+
+int radeon_atom_get_svi2_info(struct radeon_device *rdev,
+			      u8 voltage_type,
+			      u8 *svd_gpio_id, u8 *svc_gpio_id)
+{
+	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+	union voltage_object_info *voltage_info;
+	union voltage_object *voltage_object = NULL;
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		voltage_info = (union voltage_object_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+
+		switch (frev) {
+		case 3:
+			switch (crev) {
+			case 1:
+				voltage_object = (union voltage_object *)
+					atom_lookup_voltage_object_v3(&voltage_info->v3,
+								      voltage_type,
+								      VOLTAGE_OBJ_SVID2);
+				if (voltage_object) {
+					*svd_gpio_id = voltage_object->v3.asSVID2Obj.ucSVDGpioId;
+					*svc_gpio_id = voltage_object->v3.asSVID2Obj.ucSVCGpioId;
+				} else {
+					return -EINVAL;
+				}
+				break;
+			default:
+				DRM_ERROR("unknown voltage object table\n");
+				return -EINVAL;
+			}
+			break;
+		default:
+			DRM_ERROR("unknown voltage object table\n");
+			return -EINVAL;
+		}
+
+	}
+	return 0;
 }
 
 int radeon_atom_get_max_voltage(struct radeon_device *rdev,

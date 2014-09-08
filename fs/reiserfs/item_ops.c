@@ -54,7 +54,7 @@ static void sd_print_item(struct item_head *ih, char *item)
 	} else {
 		struct stat_data *sd = (struct stat_data *)item;
 
-		printk("\t0%-6o | %6Lu | %2u | %d | %s\n", sd_v2_mode(sd),
+		printk("\t0%-6o | %6llu | %2u | %d | %s\n", sd_v2_mode(sd),
 		       (unsigned long long)sd_v2_size(sd), sd_v2_nlink(sd),
 		       sd_v2_rdev(sd), print_time(sd_v2_mtime(sd)));
 	}
@@ -408,7 +408,7 @@ static void direntry_print_item(struct item_head *ih, char *item)
 			namebuf[namelen + 2] = 0;
 		}
 
-		printk("%d:  %-15s%-15d%-15d%-15Ld%-15Ld(%s)\n",
+		printk("%d:  %-15s%-15d%-15d%-15lld%-15lld(%s)\n",
 		       i, namebuf,
 		       deh_dir_id(deh), deh_objectid(deh),
 		       GET_HASH_VALUE(deh_offset(deh)),

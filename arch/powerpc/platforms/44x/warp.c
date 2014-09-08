@@ -25,6 +25,7 @@
 #include <asm/time.h>
 #include <asm/uic.h>
 #include <asm/ppc4xx.h>
+#include <asm/dma.h>
 
 
 static __initdata struct of_device_id warp_of_bus[] = {

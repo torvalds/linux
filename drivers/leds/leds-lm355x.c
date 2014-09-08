@@ -413,6 +413,12 @@ out:
 
 static DEVICE_ATTR(pattern, S_IWUSR, NULL, lm3556_indicator_pattern_store);
 
+static struct attribute *lm355x_indicator_attrs[] = {
+	&dev_attr_pattern.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(lm355x_indicator);
+
 static const struct regmap_config lm355x_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -501,25 +507,18 @@ static int lm355x_probe(struct i2c_client *client,
 	else
 		chip->cdev_indicator.max_brightness = 8;
 	chip->cdev_indicator.brightness_set = lm355x_indicator_brightness_set;
+	/* indicator pattern control only for LM3556 */
+	if (id->driver_data == CHIP_LM3556)
+		chip->cdev_indicator.groups = lm355x_indicator_groups;
 	err = led_classdev_register((struct device *)
 				    &client->dev, &chip->cdev_indicator);
 	if (err < 0)
 		goto err_create_indicator_file;
-	/* indicator pattern control only for LM3554 */
-	if (id->driver_data == CHIP_LM3556) {
-		err =
-		    device_create_file(chip->cdev_indicator.dev,
-				       &dev_attr_pattern);
-		if (err < 0)
-			goto err_create_pattern_file;
-	}
 
 	dev_info(&client->dev, "%s is initialized\n",
 		 lm355x_name[id->driver_data]);
 	return 0;
 
-err_create_pattern_file:
-	led_classdev_unregister(&chip->cdev_indicator);
 err_create_indicator_file:
 	led_classdev_unregister(&chip->cdev_torch);
 err_create_torch_file:
@@ -534,8 +533,6 @@ static int lm355x_remove(struct i2c_client *client)
 	struct lm355x_reg_data *preg = chip->regs;
 
 	regmap_write(chip->regmap, preg[REG_OPMODE].regno, 0);
-	if (chip->type == CHIP_LM3556)
-		device_remove_file(chip->cdev_indicator.dev, &dev_attr_pattern);
 	led_classdev_unregister(&chip->cdev_indicator);
 	flush_work(&chip->work_indicator);
 	led_classdev_unregister(&chip->cdev_torch);

@@ -135,4 +135,6 @@ int ocrdma_get_irq(struct ocrdma_dev *dev, struct ocrdma_eq *eq);
 
 int ocrdma_mbx_rdma_stats(struct ocrdma_dev *, bool reset);
 char *port_speed_string(struct ocrdma_dev *dev);
+void ocrdma_init_service_level(struct ocrdma_dev *);
+
 #endif				/* __OCRDMA_HW_H__ */

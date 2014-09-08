@@ -1261,19 +1261,11 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	else
 		return -EFAULT;
 
-	karg = kmalloc(data_size, GFP_KERNEL);
-	if (karg == NULL) {
-		printk(KERN_ERR MYNAM "%s::mpt_ioctl_iocinfo() @%d - no memory available!\n",
-				__FILE__, __LINE__);
-		return -ENOMEM;
-	}
-
-	if (copy_from_user(karg, uarg, data_size)) {
-		printk(KERN_ERR MYNAM "%s@%d::mptctl_getiocinfo - "
-			"Unable to read in mpt_ioctl_iocinfo struct @ %p\n",
-				__FILE__, __LINE__, uarg);
-		kfree(karg);
-		return -EFAULT;
+	karg = memdup_user(uarg, data_size);
+	if (IS_ERR(karg)) {
+		printk(KERN_ERR MYNAM "%s@%d::mpt_ioctl_iocinfo() - memdup_user returned error [%ld]\n",
+				__FILE__, __LINE__, PTR_ERR(karg));
+		return PTR_ERR(karg);
 	}
 
 	if (((iocnum = mpt_verify_adapter(karg->hdr.iocnum, &ioc)) < 0) ||

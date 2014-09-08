@@ -96,9 +96,8 @@ uisctrl_register_req_handler(int type, void *fptr,
 		return 0;
 	}
 	if (chipset_DriverInfo)
-		BusDeviceInfo_Init(chipset_DriverInfo,
-				   "chipset", "uislib",
-				   VERSION, NULL, __DATE__, __TIME__);
+		BusDeviceInfo_Init(chipset_DriverInfo, "chipset", "uislib",
+				   VERSION, NULL);
 
 	return 1;
 }
@@ -113,7 +112,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 							  channelBytes),
 				int (*Server_Channel_Init)
 				 (void *x, unsigned char *clientStr,
-				  U32 clientStrLen, U64 bytes),
+				  u32 clientStrLen, u64 bytes),
 				ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo)
 {
 	ReqHandlerInfo_t *pReqHandlerInfo;
@@ -149,10 +148,8 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 Away:
 	if (rc) {
 		if (chipset_DriverInfo)
-			BusDeviceInfo_Init(chipset_DriverInfo,
-					   "chipset", "uislib",
-					   VERSION, NULL,
-					   __DATE__, __TIME__);
+			BusDeviceInfo_Init(chipset_DriverInfo, "chipset",
+					   "uislib", VERSION, NULL);
 	} else
 		LOGERR("failed to register type %pUL.\n", &switchTypeGuid);
 
@@ -282,7 +279,7 @@ ReqHandlerAdd(uuid_le switchTypeGuid,
 	      unsigned long min_channel_bytes,
 	      int (*Server_Channel_Ok)(unsigned long channelBytes),
 	      int (*Server_Channel_Init)
-	       (void *x, unsigned char *clientStr, U32 clientStrLen, U64 bytes))
+	       (void *x, unsigned char *clientStr, u32 clientStrLen, u64 bytes))
 {
 	ReqHandlerInfo_t *rc = NULL;
 

@@ -279,6 +279,12 @@
 #define H_GET_24X7_DATA		0xF07C
 #define H_GET_PERF_COUNTER_INFO	0xF080
 
+/* Values for 2nd argument to H_SET_MODE */
+#define H_SET_MODE_RESOURCE_SET_CIABR		1
+#define H_SET_MODE_RESOURCE_SET_DAWR		2
+#define H_SET_MODE_RESOURCE_ADDR_TRANS_MODE	3
+#define H_SET_MODE_RESOURCE_LE			4
+
 #ifndef __ASSEMBLY__
 
 /**

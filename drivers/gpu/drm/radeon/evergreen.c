@@ -2424,7 +2424,6 @@ static int evergreen_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
-	radeon_gart_restore(rdev);
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
 				ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
@@ -2677,7 +2676,7 @@ void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *s
 		if (save->crtc_enabled[i]) {
 			if (ASIC_IS_DCE6(rdev)) {
 				tmp = RREG32(EVERGREEN_CRTC_BLANK_CONTROL + crtc_offsets[i]);
-				tmp |= EVERGREEN_CRTC_BLANK_DATA_EN;
+				tmp &= ~EVERGREEN_CRTC_BLANK_DATA_EN;
 				WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 				WREG32(EVERGREEN_CRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
 				WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
@@ -2870,7 +2869,7 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, 0);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	cp_me = 0xff;
 	WREG32(CP_ME_CNTL, cp_me);
@@ -2913,7 +2912,7 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	radeon_ring_write(ring, 0x00000010); /*  */
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	return 0;
 }
@@ -4023,7 +4022,8 @@ int sumo_rlc_init(struct radeon_device *rdev)
 		/* save restore block */
 		if (rdev->rlc.save_restore_obj == NULL) {
 			r = radeon_bo_create(rdev, dws * 4, PAGE_SIZE, true,
-					     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->rlc.save_restore_obj);
+					     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
+					     &rdev->rlc.save_restore_obj);
 			if (r) {
 				dev_warn(rdev->dev, "(%d) create RLC sr bo failed\n", r);
 				return r;
@@ -4101,7 +4101,8 @@ int sumo_rlc_init(struct radeon_device *rdev)
 
 		if (rdev->rlc.clear_state_obj == NULL) {
 			r = radeon_bo_create(rdev, dws * 4, PAGE_SIZE, true,
-					     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->rlc.clear_state_obj);
+					     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
+					     &rdev->rlc.clear_state_obj);
 			if (r) {
 				dev_warn(rdev->dev, "(%d) create RLC c bo failed\n", r);
 				sumo_rlc_fini(rdev);
@@ -4175,8 +4176,10 @@ int sumo_rlc_init(struct radeon_device *rdev)
 
 	if (rdev->rlc.cp_table_size) {
 		if (rdev->rlc.cp_table_obj == NULL) {
-			r = radeon_bo_create(rdev, rdev->rlc.cp_table_size, PAGE_SIZE, true,
-					     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->rlc.cp_table_obj);
+			r = radeon_bo_create(rdev, rdev->rlc.cp_table_size,
+					     PAGE_SIZE, true,
+					     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
+					     &rdev->rlc.cp_table_obj);
 			if (r) {
 				dev_warn(rdev->dev, "(%d) create RLC cp table bo failed\n", r);
 				sumo_rlc_fini(rdev);
@@ -4961,7 +4964,8 @@ restart_ih:
 		case 16: /* D5 page flip */
 		case 18: /* D6 page flip */
 			DRM_DEBUG("IH: D%d flip\n", ((src_id - 8) >> 1) + 1);
-			radeon_crtc_handle_flip(rdev, (src_id - 8) >> 1);
+			if (radeon_use_pflipirq > 0)
+				radeon_crtc_handle_flip(rdev, (src_id - 8) >> 1);
 			break;
 		case 42: /* HPD hotplug */
 			switch (src_data) {

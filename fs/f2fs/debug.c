@@ -32,7 +32,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	struct f2fs_stat_info *si = F2FS_STAT(sbi);
 	int i;
 
-	/* valid check of the segment numbers */
+	/* validation check of the segment numbers */
 	si->hit_ext = sbi->read_hit_ext;
 	si->total_ext = sbi->total_hit_ext;
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
@@ -152,7 +152,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	si->base_mem += NR_DIRTY_TYPE * f2fs_bitmap_size(TOTAL_SEGS(sbi));
 	si->base_mem += f2fs_bitmap_size(TOTAL_SECS(sbi));
 
-	/* buld nm */
+	/* build nm */
 	si->base_mem += sizeof(struct f2fs_nm_info);
 	si->base_mem += __bitmap_size(sbi, NAT_BITMAP);
 
@@ -167,7 +167,7 @@ get_cache:
 	si->cache_mem += npages << PAGE_CACHE_SHIFT;
 	npages = META_MAPPING(sbi)->nrpages;
 	si->cache_mem += npages << PAGE_CACHE_SHIFT;
-	si->cache_mem += sbi->n_orphans * sizeof(struct orphan_inode_entry);
+	si->cache_mem += sbi->n_orphans * sizeof(struct ino_entry);
 	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct dir_inode_entry);
 }
 
@@ -345,21 +345,14 @@ void __init f2fs_create_root_stats(void)
 
 	f2fs_debugfs_root = debugfs_create_dir("f2fs", NULL);
 	if (!f2fs_debugfs_root)
-		goto bail;
+		return;
 
 	file = debugfs_create_file("status", S_IRUGO, f2fs_debugfs_root,
 			NULL, &stat_fops);
-	if (!file)
-		goto free_debugfs_dir;
-
-	return;
-
-free_debugfs_dir:
-	debugfs_remove(f2fs_debugfs_root);
-
-bail:
-	f2fs_debugfs_root = NULL;
-	return;
+	if (!file) {
+		debugfs_remove(f2fs_debugfs_root);
+		f2fs_debugfs_root = NULL;
+	}
 }
 
 void f2fs_destroy_root_stats(void)

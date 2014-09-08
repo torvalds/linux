@@ -38,7 +38,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 int
 lnet_peer_tables_create(void)

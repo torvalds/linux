@@ -147,9 +147,9 @@ xfs_nfs_get_inode(
 		 * We don't use ESTALE directly down the chain to not
 		 * confuse applications using bulkstat that expect EINVAL.
 		 */
-		if (error == EINVAL || error == ENOENT)
-			error = ESTALE;
-		return ERR_PTR(-error);
+		if (error == -EINVAL || error == -ENOENT)
+			error = -ESTALE;
+		return ERR_PTR(error);
 	}
 
 	if (ip->i_d.di_gen != generation) {
@@ -217,7 +217,7 @@ xfs_fs_get_parent(
 
 	error = xfs_lookup(XFS_I(child->d_inode), &xfs_name_dotdot, &cip, NULL);
 	if (unlikely(error))
-		return ERR_PTR(-error);
+		return ERR_PTR(error);
 
 	return d_obtain_alias(VFS_I(cip));
 }
@@ -237,7 +237,7 @@ xfs_fs_nfs_commit_metadata(
 
 	if (!lsn)
 		return 0;
-	return -_xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
+	return _xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
 }
 
 const struct export_operations xfs_export_operations = {

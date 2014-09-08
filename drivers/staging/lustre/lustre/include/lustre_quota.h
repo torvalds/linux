@@ -32,11 +32,11 @@
  *
  */
 
-#include <linux/lustre_quota.h>
+#include "linux/lustre_quota.h"
 
-#include <dt_object.h>
-#include <lustre_fid.h>
-#include <lustre_dlm.h>
+#include "dt_object.h"
+#include "lustre_fid.h"
+#include "lustre_dlm.h"
 
 #ifndef MAX_IQ_TIME
 #define MAX_IQ_TIME  604800     /* (7*24*60*60) 1 week */

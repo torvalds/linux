@@ -63,17 +63,17 @@ static const uuid_le UltraVbusChannelProtocolGuid =
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 typedef struct _ULTRA_VBUS_HEADERINFO {
-	U32 structBytes;	/* size of this struct in bytes */
-	U32 deviceInfoStructBytes;	/* sizeof(ULTRA_VBUS_DEVICEINFO) */
-	U32 devInfoCount;	/* num of items in DevInfo member */
+	u32 structBytes;	/* size of this struct in bytes */
+	u32 deviceInfoStructBytes;	/* sizeof(ULTRA_VBUS_DEVICEINFO) */
+	u32 devInfoCount;	/* num of items in DevInfo member */
 	/* (this is the allocated size) */
-	U32 chpInfoByteOffset;	/* byte offset from beginning of this struct */
+	u32 chpInfoByteOffset;	/* byte offset from beginning of this struct */
 	/* to the the ChpInfo struct (below) */
-	U32 busInfoByteOffset;	/* byte offset from beginning of this struct */
+	u32 busInfoByteOffset;	/* byte offset from beginning of this struct */
 	/* to the the BusInfo struct (below) */
-	U32 devInfoByteOffset;	/* byte offset from beginning of this struct */
+	u32 devInfoByteOffset;	/* byte offset from beginning of this struct */
 	/* to the the DevInfo array (below) */
-	U8 reserved[104];
+	u8 reserved[104];
 } ULTRA_VBUS_HEADERINFO;
 
 typedef struct _ULTRA_VBUS_CHANNEL_PROTOCOL {
@@ -93,42 +93,6 @@ typedef struct _ULTRA_VBUS_CHANNEL_PROTOCOL {
 	(sizeof(ULTRA_VBUS_CHANNEL_PROTOCOL) + ((MAXDEVICES) * \
 						sizeof(ULTRA_VBUS_DEVICEINFO)))
 #define VBUS_CH_SIZE(MAXDEVICES) COVER(VBUS_CH_SIZE_EXACT(MAXDEVICES), 4096)
-
-static INLINE void
-ULTRA_VBUS_init_channel(ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *x,
-			int bytesAllocated)
-{
-	/* Please note that the memory at <x> does NOT necessarily have space
-	* for DevInfo structs allocated at the end, which is why we do NOT use
-	* <bytesAllocated> to clear. */
-	memset_io(x, 0, sizeof(ULTRA_VBUS_CHANNEL_PROTOCOL));
-	if (bytesAllocated < (int) sizeof(ULTRA_VBUS_CHANNEL_PROTOCOL))
-		return;
-	writel(ULTRA_VBUS_CHANNEL_PROTOCOL_VERSIONID,
-	       &x->ChannelHeader.VersionId);
-	writeq(ULTRA_VBUS_CHANNEL_PROTOCOL_SIGNATURE,
-	       &x->ChannelHeader.Signature);
-	writel(CHANNELSRV_READY, &x->ChannelHeader.SrvState);
-	writel(sizeof(x->ChannelHeader), &x->ChannelHeader.HeaderSize);
-	writeq(bytesAllocated, &x->ChannelHeader.Size);
-	memcpy_toio(&x->ChannelHeader.Type, &UltraVbusChannelProtocolGuid,
-		    sizeof(x->ChannelHeader.Type));
-	memcpy_toio(&x->ChannelHeader.ZoneGuid, &NULL_UUID_LE, sizeof(uuid_le));
-	writel(sizeof(ULTRA_VBUS_HEADERINFO), &x->HdrInfo.structBytes);
-	writel(sizeof(ULTRA_VBUS_HEADERINFO), &x->HdrInfo.chpInfoByteOffset);
-	writel(readl(&x->HdrInfo.chpInfoByteOffset) +
-	       sizeof(ULTRA_VBUS_DEVICEINFO),
-	       &x->HdrInfo.busInfoByteOffset);
-	writel(readl(&x->HdrInfo.busInfoByteOffset)
-	       + sizeof(ULTRA_VBUS_DEVICEINFO),
-	       &x->HdrInfo.devInfoByteOffset);
-	writel(sizeof(ULTRA_VBUS_DEVICEINFO),
-	       &x->HdrInfo.deviceInfoStructBytes);
-	bytesAllocated -= (sizeof(ULTRA_CHANNEL_PROTOCOL)
-			   + readl(&x->HdrInfo.devInfoByteOffset));
-	writel(bytesAllocated / readl(&x->HdrInfo.deviceInfoStructBytes),
-	       &x->HdrInfo.devInfoCount);
-}
 
 #pragma pack(pop)
 

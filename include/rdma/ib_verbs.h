@@ -1097,7 +1097,8 @@ struct ib_mr_attr {
 enum ib_mr_rereg_flags {
 	IB_MR_REREG_TRANS	= 1,
 	IB_MR_REREG_PD		= (1<<1),
-	IB_MR_REREG_ACCESS	= (1<<2)
+	IB_MR_REREG_ACCESS	= (1<<2),
+	IB_MR_REREG_SUPPORTED	= ((IB_MR_REREG_ACCESS << 1) - 1)
 };
 
 /**
@@ -1547,6 +1548,13 @@ struct ib_device {
 						  u64 virt_addr,
 						  int mr_access_flags,
 						  struct ib_udata *udata);
+	int			   (*rereg_user_mr)(struct ib_mr *mr,
+						    int flags,
+						    u64 start, u64 length,
+						    u64 virt_addr,
+						    int mr_access_flags,
+						    struct ib_pd *pd,
+						    struct ib_udata *udata);
 	int                        (*query_mr)(struct ib_mr *mr,
 					       struct ib_mr_attr *mr_attr);
 	int                        (*dereg_mr)(struct ib_mr *mr);

@@ -260,6 +260,9 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @wd_timeout: queue watchdog timeout (jiffies)
  * @reg_lock: protect hw register access
  * @cmd_in_flight: true when we have a host command in flight
+ * @fw_mon_phys: physical address of the buffer for the firmware monitor
+ * @fw_mon_page: points to the first page of the buffer for the firmware monitor
+ * @fw_mon_size: size of the buffer for the firmware monitor
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq rxq;
@@ -312,6 +315,10 @@ struct iwl_trans_pcie {
 	/*protect hw register */
 	spinlock_t reg_lock;
 	bool cmd_in_flight;
+
+	dma_addr_t fw_mon_phys;
+	struct page *fw_mon_page;
+	u32 fw_mon_size;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \

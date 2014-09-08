@@ -565,16 +565,16 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 
 	reg = snd_soc_read(codec, WM8961_AUDIO_INTERFACE_0);
 	reg &= ~WM8961_WL_MASK;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		reg |= 1 << WM8961_WL_SHIFT;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		reg |= 2 << WM8961_WL_SHIFT;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		reg |= 3 << WM8961_WL_SHIFT;
 		break;
 	default:

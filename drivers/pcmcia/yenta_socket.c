@@ -1352,7 +1352,7 @@ static const struct dev_pm_ops yenta_pm_ops = {
 		.driver_data	= CARDBUS_TYPE_##type,	\
 	}
 
-static DEFINE_PCI_DEVICE_TABLE(yenta_table) = {
+static const struct pci_device_id yenta_table[] = {
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1031, TI),
 
 	/*

@@ -33,7 +33,6 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_srp.h>
 #include "scsi_priv.h"
-#include "scsi_transport_srp_internal.h"
 
 struct srp_host_attrs {
 	atomic_t next_port_id;
@@ -473,7 +472,8 @@ static void __srp_start_tl_fail_timers(struct srp_rport *rport)
 	if (delay > 0)
 		queue_delayed_work(system_long_wq, &rport->reconnect_work,
 				   1UL * delay * HZ);
-	if (srp_rport_set_state(rport, SRP_RPORT_BLOCKED) == 0) {
+	if ((fast_io_fail_tmo >= 0 || dev_loss_tmo >= 0) &&
+	    srp_rport_set_state(rport, SRP_RPORT_BLOCKED) == 0) {
 		pr_debug("%s new state: %d\n", dev_name(&shost->shost_gendev),
 			 rport->state);
 		scsi_target_block(&shost->shost_gendev);
@@ -746,18 +746,6 @@ struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 		return ERR_PTR(ret);
 	}
 
-	if (shost->active_mode & MODE_TARGET &&
-	    ids->roles == SRP_RPORT_ROLE_INITIATOR) {
-		ret = srp_tgt_it_nexus_create(shost, (unsigned long)rport,
-					      rport->port_id);
-		if (ret) {
-			device_del(&rport->dev);
-			transport_destroy_device(&rport->dev);
-			put_device(&rport->dev);
-			return ERR_PTR(ret);
-		}
-	}
-
 	transport_add_device(&rport->dev);
 	transport_configure_device(&rport->dev);
 
@@ -774,11 +762,6 @@ EXPORT_SYMBOL_GPL(srp_rport_add);
 void srp_rport_del(struct srp_rport *rport)
 {
 	struct device *dev = &rport->dev;
-	struct Scsi_Host *shost = dev_to_shost(dev->parent);
-
-	if (shost->active_mode & MODE_TARGET &&
-	    rport->roles == SRP_RPORT_ROLE_INITIATOR)
-		srp_tgt_it_nexus_destroy(shost, (unsigned long)rport);
 
 	transport_remove_device(dev);
 	device_del(dev);

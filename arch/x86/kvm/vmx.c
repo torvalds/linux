@@ -8754,6 +8754,8 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	prepare_vmcs12(vcpu, vmcs12, exit_reason, exit_intr_info,
 		       exit_qualification);
 
+	vmx_load_vmcs01(vcpu);
+
 	if ((exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT)
 	    && nested_exit_intr_ack_set(vcpu)) {
 		int irq = kvm_cpu_get_interrupt(vcpu);
@@ -8768,8 +8770,6 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 				       vmcs12->vm_exit_intr_info,
 				       vmcs12->vm_exit_intr_error_code,
 				       KVM_ISA_VMX);
-
-	vmx_load_vmcs01(vcpu);
 
 	vm_entry_controls_init(vmx, vmcs_read32(VM_ENTRY_CONTROLS));
 	vm_exit_controls_init(vmx, vmcs_read32(VM_EXIT_CONTROLS));

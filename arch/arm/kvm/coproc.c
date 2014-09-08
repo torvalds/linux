@@ -44,6 +44,31 @@ static u32 cache_levels;
 /* CSSELR values; used to index KVM_REG_ARM_DEMUX_ID_CCSIDR */
 #define CSSELR_MAX 12
 
+/*
+ * kvm_vcpu_arch.cp15 holds cp15 registers as an array of u32, but some
+ * of cp15 registers can be viewed either as couple of two u32 registers
+ * or one u64 register. Current u64 register encoding is that least
+ * significant u32 word is followed by most significant u32 word.
+ */
+static inline void vcpu_cp15_reg64_set(struct kvm_vcpu *vcpu,
+				       const struct coproc_reg *r,
+				       u64 val)
+{
+	vcpu->arch.cp15[r->reg] = val & 0xffffffff;
+	vcpu->arch.cp15[r->reg + 1] = val >> 32;
+}
+
+static inline u64 vcpu_cp15_reg64_get(struct kvm_vcpu *vcpu,
+				      const struct coproc_reg *r)
+{
+	u64 val;
+
+	val = vcpu->arch.cp15[r->reg + 1];
+	val = val << 32;
+	val = val | vcpu->arch.cp15[r->reg];
+	return val;
+}
+
 int kvm_handle_cp10_id(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	kvm_inject_undefined(vcpu);
@@ -682,17 +707,23 @@ static struct coproc_reg invariant_cp15[] = {
 	{ CRn( 0), CRm( 0), Op1( 1), Op2( 7), is32, NULL, get_AIDR },
 };
 
+/*
+ * Reads a register value from a userspace address to a kernel
+ * variable. Make sure that register size matches sizeof(*__val).
+ */
 static int reg_from_user(void *val, const void __user *uaddr, u64 id)
 {
-	/* This Just Works because we are little endian. */
 	if (copy_from_user(val, uaddr, KVM_REG_SIZE(id)) != 0)
 		return -EFAULT;
 	return 0;
 }
 
+/*
+ * Writes a register value to a userspace address from a kernel variable.
+ * Make sure that register size matches sizeof(*__val).
+ */
 static int reg_to_user(void __user *uaddr, const void *val, u64 id)
 {
-	/* This Just Works because we are little endian. */
 	if (copy_to_user(uaddr, val, KVM_REG_SIZE(id)) != 0)
 		return -EFAULT;
 	return 0;
@@ -702,6 +733,7 @@ static int get_invariant_cp15(u64 id, void __user *uaddr)
 {
 	struct coproc_params params;
 	const struct coproc_reg *r;
+	int ret;
 
 	if (!index_to_params(id, &params))
 		return -ENOENT;
@@ -710,7 +742,15 @@ static int get_invariant_cp15(u64 id, void __user *uaddr)
 	if (!r)
 		return -ENOENT;
 
-	return reg_to_user(uaddr, &r->val, id);
+	ret = -ENOENT;
+	if (KVM_REG_SIZE(id) == 4) {
+		u32 val = r->val;
+
+		ret = reg_to_user(uaddr, &val, id);
+	} else if (KVM_REG_SIZE(id) == 8) {
+		ret = reg_to_user(uaddr, &r->val, id);
+	}
+	return ret;
 }
 
 static int set_invariant_cp15(u64 id, void __user *uaddr)
@@ -718,7 +758,7 @@ static int set_invariant_cp15(u64 id, void __user *uaddr)
 	struct coproc_params params;
 	const struct coproc_reg *r;
 	int err;
-	u64 val = 0; /* Make sure high bits are 0 for 32-bit regs */
+	u64 val;
 
 	if (!index_to_params(id, &params))
 		return -ENOENT;
@@ -726,7 +766,16 @@ static int set_invariant_cp15(u64 id, void __user *uaddr)
 	if (!r)
 		return -ENOENT;
 
-	err = reg_from_user(&val, uaddr, id);
+	err = -ENOENT;
+	if (KVM_REG_SIZE(id) == 4) {
+		u32 val32;
+
+		err = reg_from_user(&val32, uaddr, id);
+		if (!err)
+			val = val32;
+	} else if (KVM_REG_SIZE(id) == 8) {
+		err = reg_from_user(&val, uaddr, id);
+	}
 	if (err)
 		return err;
 
@@ -1004,6 +1053,7 @@ int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
 	const struct coproc_reg *r;
 	void __user *uaddr = (void __user *)(long)reg->addr;
+	int ret;
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_get(reg->id, uaddr);
@@ -1015,14 +1065,24 @@ int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if (!r)
 		return get_invariant_cp15(reg->id, uaddr);
 
-	/* Note: copies two regs if size is 64 bit. */
-	return reg_to_user(uaddr, &vcpu->arch.cp15[r->reg], reg->id);
+	ret = -ENOENT;
+	if (KVM_REG_SIZE(reg->id) == 8) {
+		u64 val;
+
+		val = vcpu_cp15_reg64_get(vcpu, r);
+		ret = reg_to_user(uaddr, &val, reg->id);
+	} else if (KVM_REG_SIZE(reg->id) == 4) {
+		ret = reg_to_user(uaddr, &vcpu->arch.cp15[r->reg], reg->id);
+	}
+
+	return ret;
 }
 
 int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
 	const struct coproc_reg *r;
 	void __user *uaddr = (void __user *)(long)reg->addr;
+	int ret;
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_set(reg->id, uaddr);
@@ -1034,8 +1094,18 @@ int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if (!r)
 		return set_invariant_cp15(reg->id, uaddr);
 
-	/* Note: copies two regs if size is 64 bit */
-	return reg_from_user(&vcpu->arch.cp15[r->reg], uaddr, reg->id);
+	ret = -ENOENT;
+	if (KVM_REG_SIZE(reg->id) == 8) {
+		u64 val;
+
+		ret = reg_from_user(&val, uaddr, reg->id);
+		if (!ret)
+			vcpu_cp15_reg64_set(vcpu, r, val);
+	} else if (KVM_REG_SIZE(reg->id) == 4) {
+		ret = reg_from_user(&vcpu->arch.cp15[r->reg], uaddr, reg->id);
+	}
+
+	return ret;
 }
 
 static unsigned int num_demux_regs(void)

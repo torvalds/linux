@@ -1008,14 +1008,9 @@ hardware timestamps to be used. Note: you may need to enable the generation
 of hardware timestamps with SIOCSHWTSTAMP (see related information from
 Documentation/networking/timestamping.txt).
 
-PACKET_TIMESTAMP accepts the same integer bit field as
-SO_TIMESTAMPING.  However, only the SOF_TIMESTAMPING_SYS_HARDWARE
-and SOF_TIMESTAMPING_RAW_HARDWARE values are recognized by
-PACKET_TIMESTAMP.  SOF_TIMESTAMPING_SYS_HARDWARE takes precedence over
-SOF_TIMESTAMPING_RAW_HARDWARE if both bits are set.
+PACKET_TIMESTAMP accepts the same integer bit field as SO_TIMESTAMPING:
 
-    int req = 0;
-    req |= SOF_TIMESTAMPING_SYS_HARDWARE;
+    int req = SOF_TIMESTAMPING_RAW_HARDWARE;
     setsockopt(fd, SOL_PACKET, PACKET_TIMESTAMP, (void *) &req, sizeof(req))
 
 For the mmap(2)ed ring buffers, such timestamps are stored in the
@@ -1023,14 +1018,13 @@ tpacket{,2,3}_hdr structure's tp_sec and tp_{n,u}sec members. To determine
 what kind of timestamp has been reported, the tp_status field is binary |'ed
 with the following possible bits ...
 
-    TP_STATUS_TS_SYS_HARDWARE
     TP_STATUS_TS_RAW_HARDWARE
     TP_STATUS_TS_SOFTWARE
 
 ... that are equivalent to its SOF_TIMESTAMPING_* counterparts. For the
-RX_RING, if none of those 3 are set (i.e. PACKET_TIMESTAMP is not set),
-then this means that a software fallback was invoked *within* PF_PACKET's
-processing code (less precise).
+RX_RING, if neither is set (i.e. PACKET_TIMESTAMP is not set), then a
+software fallback was invoked *within* PF_PACKET's processing code (less
+precise).
 
 Getting timestamps for the TX_RING works as follows: i) fill the ring frames,
 ii) call sendto() e.g. in blocking mode, iii) wait for status of relevant

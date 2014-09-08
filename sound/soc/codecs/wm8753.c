@@ -937,16 +937,16 @@ static int wm8753_pcm_hw_params(struct snd_pcm_substream *substream,
 	u16 srate = snd_soc_read(codec, WM8753_SRATE1) & 0x017f;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		voice |= 0x0004;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		voice |= 0x0008;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		voice |= 0x000c;
 		break;
 	}
@@ -1176,16 +1176,16 @@ static int wm8753_i2s_hw_params(struct snd_pcm_substream *substream,
 		coeff_div[coeff].usb);
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		hifi |= 0x0004;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		hifi |= 0x0008;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		hifi |= 0x000c;
 		break;
 	}

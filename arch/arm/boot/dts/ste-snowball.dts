@@ -116,7 +116,6 @@
 		msp2: msp@80117000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&msp2_default_mode>;
-			status = "okay";
 		};
 
 		msp3: msp@80125000 {
@@ -241,6 +240,40 @@
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c2_default_mode>;
 			pinctrl-1 = <&i2c2_sleep_mode>;
+			lsm303dlh@18 {
+				/* Accelerometer */
+				compatible = "st,lsm303dlh-accel";
+				st,drdy-int-pin = <1>;
+				reg = <0x18>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_snowball_mode>;
+			};
+			lsm303dlm@1e {
+				/* Magnetometer */
+				compatible = "st,lsm303dlm-magn";
+				reg = <0x1e>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&magneto_snowball_mode>;
+			};
+			l3g4200d@68 {
+				/* Gyroscope */
+				compatible = "st,l3g4200d-gyro";
+				st,drdy-int-pin = <2>;
+				reg = <0x68>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+			};
+			lsp001wm@5c {
+				/* Barometer/pressure sensor */
+				compatible = "st,lps001wp-press";
+				reg = <0x5c>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+			};
 		};
 
 		i2c@80110000 {
@@ -361,9 +394,7 @@
 			 * can be moved over to being controlled by respective device.
 			 */
 			pinctrl-names = "default";
-			pinctrl-0 = <&accel_snowball_mode>,
-				  <&magneto_snowball_mode>,
-				  <&gbf_snowball_mode>,
+			pinctrl-0 = <&gbf_snowball_mode>,
 				  <&wlan_snowball_mode>;
 
 			ethernet {

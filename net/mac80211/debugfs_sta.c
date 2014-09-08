@@ -124,7 +124,7 @@ static ssize_t sta_connected_time_read(struct file *file, char __user *userbuf,
 	long connected_time_secs;
 	char buf[100];
 	int res;
-	do_posix_clock_monotonic_gettime(&uptime);
+	ktime_get_ts(&uptime);
 	connected_time_secs = uptime.tv_sec - sta->last_connected;
 	time_to_tm(connected_time_secs, 0, &result);
 	result.tm_year -= 70;
@@ -587,7 +587,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD_COUNTER(tx_filtered, tx_filtered_count);
 	DEBUGFS_ADD_COUNTER(tx_retry_failed, tx_retry_failed);
 	DEBUGFS_ADD_COUNTER(tx_retry_count, tx_retry_count);
-	DEBUGFS_ADD_COUNTER(wep_weak_iv_count, wep_weak_iv_count);
 
 	if (sizeof(sta->driver_buffered_tids) == sizeof(u32))
 		debugfs_create_x32("driver_buffered_tids", 0400,

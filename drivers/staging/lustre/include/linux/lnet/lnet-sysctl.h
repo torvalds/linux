@@ -37,14 +37,12 @@
 
 #if defined(CONFIG_SYSCTL)
 
-
 #define CTL_KRANAL      201
 #define CTL_O2IBLND     205
 #define CTL_PTLLND      206
 #define CTL_QSWNAL      207
 #define CTL_SOCKLND     208
 #define CTL_GNILND      210
-
 
 #endif
 

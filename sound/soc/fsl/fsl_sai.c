@@ -106,7 +106,7 @@ irq_rx:
 	xcsr &= ~FSL_SAI_CSR_xF_MASK;
 
 	if (flags)
-		regmap_write(sai->regmap, FSL_SAI_TCSR, flags | xcsr);
+		regmap_write(sai->regmap, FSL_SAI_RCSR, flags | xcsr);
 
 out:
 	if (irq_none)
@@ -327,7 +327,7 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	u32 tcsr, rcsr;
+	u32 xcsr, count = 100;
 
 	/*
 	 * The transmitter bit clock and frame sync are to be
@@ -338,9 +338,6 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	regmap_update_bits(sai->regmap, FSL_SAI_RCR2, FSL_SAI_CR2_SYNC,
 			   FSL_SAI_CR2_SYNC);
 
-	regmap_read(sai->regmap, FSL_SAI_TCSR, &tcsr);
-	regmap_read(sai->regmap, FSL_SAI_RCSR, &rcsr);
-
 	/*
 	 * It is recommended that the transmitter is the last enabled
 	 * and the first disabled.
@@ -349,17 +346,16 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (!(tcsr & FSL_SAI_CSR_FRDE || rcsr & FSL_SAI_CSR_FRDE)) {
-			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
-					   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
-			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
-					   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
-		}
+		regmap_update_bits(sai->regmap, FSL_SAI_xCSR(tx),
+				   FSL_SAI_CSR_FRDE, FSL_SAI_CSR_FRDE);
+
+		regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
+				   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
+		regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
+				   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
 
 		regmap_update_bits(sai->regmap, FSL_SAI_xCSR(tx),
 				   FSL_SAI_CSR_xIE_MASK, FSL_SAI_FLAGS);
-		regmap_update_bits(sai->regmap, FSL_SAI_xCSR(tx),
-				   FSL_SAI_CSR_FRDE, FSL_SAI_CSR_FRDE);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -370,11 +366,24 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 				   FSL_SAI_CSR_xIE_MASK, 0);
 
 		/* Check if the opposite FRDE is also disabled */
-		if (!(tx ? rcsr & FSL_SAI_CSR_FRDE : tcsr & FSL_SAI_CSR_FRDE)) {
+		regmap_read(sai->regmap, FSL_SAI_xCSR(!tx), &xcsr);
+		if (!(xcsr & FSL_SAI_CSR_FRDE)) {
+			/* Disable both directions and reset their FIFOs */
 			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
 					   FSL_SAI_CSR_TERE, 0);
 			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
 					   FSL_SAI_CSR_TERE, 0);
+
+			/* TERE will remain set till the end of current frame */
+			do {
+				udelay(10);
+				regmap_read(sai->regmap, FSL_SAI_xCSR(tx), &xcsr);
+			} while (--count && xcsr & FSL_SAI_CSR_TERE);
+
+			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
+					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
+			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
+					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
 		}
 		break;
 	default:
@@ -446,12 +455,14 @@ static int fsl_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 static struct snd_soc_dai_driver fsl_sai_dai = {
 	.probe = fsl_sai_dai_probe,
 	.playback = {
+		.stream_name = "CPU-Playback",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_96000,
 		.formats = FSL_SAI_FORMATS,
 	},
 	.capture = {
+		.stream_name = "CPU-Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_96000,

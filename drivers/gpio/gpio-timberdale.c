@@ -307,7 +307,6 @@ static int timbgpio_probe(struct platform_device *pdev)
 
 static int timbgpio_remove(struct platform_device *pdev)
 {
-	int err;
 	struct timbgpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct timbgpio *tgpio = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
@@ -323,9 +322,7 @@ static int timbgpio_remove(struct platform_device *pdev)
 		irq_set_handler_data(irq, NULL);
 	}
 
-	err = gpiochip_remove(&tgpio->gpio);
-	if (err)
-		printk(KERN_ERR DRIVER_NAME": failed to remove gpio_chip\n");
+	gpiochip_remove(&tgpio->gpio);
 
 	return 0;
 }

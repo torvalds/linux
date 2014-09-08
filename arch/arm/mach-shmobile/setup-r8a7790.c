@@ -26,11 +26,14 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
-#include <mach/common.h>
-#include <mach/dma-register.h>
-#include <mach/irqs.h>
-#include <mach/r8a7790.h>
+
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "dma-register.h"
+#include "irqs.h"
+#include "r8a7790.h"
+#include "rcar-gen2.h"
 
 /* Audio-DMAC */
 #define AUDIO_DMAC_SLAVE(_id, _addr, t, r)			\
@@ -113,7 +116,7 @@ static struct resource r8a7790_audio_dmac_resources[] = {
 
 #define r8a7790_register_audio_dmac(id)				\
 	platform_device_register_resndata(			\
-		&platform_bus, "sh-dma-engine", id,		\
+		NULL, "sh-dma-engine", id,			\
 		&r8a7790_audio_dmac_resources[id * 3],	3,	\
 		&r8a7790_audio_dmac_platform_data,		\
 		sizeof(r8a7790_audio_dmac_platform_data))
@@ -149,7 +152,7 @@ R8A7790_GPIO(4);
 R8A7790_GPIO(5);
 
 #define r8a7790_register_gpio(idx)					\
-	platform_device_register_resndata(&platform_bus, "gpio_rcar", idx, \
+	platform_device_register_resndata(NULL, "gpio_rcar", idx,	\
 		r8a7790_gpio##idx##_resources,				\
 		ARRAY_SIZE(r8a7790_gpio##idx##_resources),		\
 		&r8a7790_gpio##idx##_platform_data,			\
@@ -227,7 +230,7 @@ R8A7790_HSCIF(8, 0xe62c0000, gic_spi(154)); /* HSCIF0 */
 R8A7790_HSCIF(9, 0xe62c8000, gic_spi(155)); /* HSCIF1 */
 
 #define r8a7790_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,  	       \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
@@ -246,7 +249,7 @@ static const struct resource irqc0_resources[] __initconst = {
 };
 
 #define r8a7790_register_irqc(idx)					\
-	platform_device_register_resndata(&platform_bus, "renesas_irqc", \
+	platform_device_register_resndata(NULL, "renesas_irqc",		\
 					  idx, irqc##idx##_resources,	\
 					  ARRAY_SIZE(irqc##idx##_resources), \
 					  &irqc##idx##_data,		\
@@ -273,7 +276,7 @@ static struct resource cmt0_resources[] = {
 };
 
 #define r8a7790_register_cmt(idx)					\
-	platform_device_register_resndata(&platform_bus, "sh-cmt-48-gen2", \
+	platform_device_register_resndata(NULL, "sh-cmt-48-gen2",	\
 					  idx, cmt##idx##_resources,	\
 					  ARRAY_SIZE(cmt##idx##_resources), \
 					  &cmt##idx##_platform_data,	\
@@ -307,13 +310,6 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_audio_dmac(1);
 }
 
-void __init r8a7790_init_early(void)
-{
-#ifndef CONFIG_ARM_ARCH_TIMER
-	shmobile_setup_delay(1300, 2, 4); /* Cortex-A15 @ 1300MHz */
-#endif
-}
-
 #ifdef CONFIG_USE_OF
 
 static const char * const r8a7790_boards_compat_dt[] __initconst = {
@@ -323,8 +319,10 @@ static const char * const r8a7790_boards_compat_dt[] __initconst = {
 
 DT_MACHINE_START(R8A7790_DT, "Generic R8A7790 (Flattened Device Tree)")
 	.smp		= smp_ops(r8a7790_smp_ops),
-	.init_early	= r8a7790_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_time	= rcar_gen2_timer_init,
+	.init_late	= shmobile_init_late,
+	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= r8a7790_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

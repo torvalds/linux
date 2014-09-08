@@ -209,7 +209,6 @@ typedef struct wlandevice {
 	/* queue for indications waiting for cmd completion */
 	/* Linux netdevice and support */
 	netdevice_t *netdev;	/* ptr to linux netdevice */
-	struct net_device_stats linux_stats;
 
 	/* Rx bottom half */
 	struct tasklet_struct rx_bh;

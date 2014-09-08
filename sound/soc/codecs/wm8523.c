@@ -163,16 +163,16 @@ static int wm8523_hw_params(struct snd_pcm_substream *substream,
 	aifctrl2 |= lrclk_ratios[i].value;
 
 	aifctrl1 &= ~WM8523_WL_MASK;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		aifctrl1 |= 0x8;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		aifctrl1 |= 0x10;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		aifctrl1 |= 0x18;
 		break;
 	}

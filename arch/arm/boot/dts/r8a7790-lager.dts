@@ -29,12 +29,12 @@
 
 	memory@40000000 {
 		device_type = "memory";
-		reg = <0 0x40000000 0 0x80000000>;
+		reg = <0 0x40000000 0 0x40000000>;
 	};
 
 	memory@180000000 {
 		device_type = "memory";
-		reg = <1 0x80000000 0 0x80000000>;
+		reg = <1 0x40000000 0 0xc0000000>;
 	};
 
 	lbsc {
@@ -204,6 +204,36 @@
 				 "msiof1_tx";
 		renesas,function = "msiof1";
 	};
+
+	iic1_pins: iic1 {
+		renesas,groups = "iic1";
+		renesas,function = "iic1";
+	};
+
+	iic2_pins: iic2 {
+		renesas,groups = "iic2";
+		renesas,function = "iic2";
+	};
+
+	iic3_pins: iic3 {
+		renesas,groups = "iic3";
+		renesas,function = "iic3";
+	};
+
+	usb0_pins: usb0 {
+		renesas,groups = "usb0";
+		renesas,function = "usb0";
+	};
+
+	usb1_pins: usb1 {
+		renesas,groups = "usb1";
+		renesas,function = "usb1";
+	};
+
+	usb2_pins: usb2 {
+		renesas,groups = "usb2";
+		renesas,function = "usb2";
+	};
 };
 
 &ether {
@@ -316,4 +346,58 @@
 	vqmmc-supply = <&vccq_sdhi2>;
 	cd-gpios = <&gpio3 22 GPIO_ACTIVE_LOW>;
 	status = "okay";
+};
+
+&cpu0 {
+	cpu0-supply = <&vdd_dvfs>;
+};
+
+&iic0	{
+	status = "ok";
+};
+
+&iic1	{
+	status = "ok";
+	pinctrl-0 = <&iic1_pins>;
+	pinctrl-names = "default";
+};
+
+&iic2	{
+	status = "ok";
+	pinctrl-0 = <&iic2_pins>;
+	pinctrl-names = "default";
+};
+
+&iic3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&iic3_pins>;
+	status = "okay";
+
+	vdd_dvfs: regulator@68 {
+		compatible = "diasemi,da9210";
+		reg = <0x68>;
+
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&pci0 {
+	status = "okay";
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+};
+
+&pci1 {
+	status = "okay";
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+};
+
+&pci2 {
+	status = "okay";
+	pinctrl-0 = <&usb2_pins>;
+	pinctrl-names = "default";
 };

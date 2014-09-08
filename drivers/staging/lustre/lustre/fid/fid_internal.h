@@ -40,16 +40,16 @@
 #ifndef __FID_INTERNAL_H
 #define __FID_INTERNAL_H
 
-#include <lustre/lustre_idl.h>
-#include <linux/libcfs/libcfs.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../../include/linux/libcfs/libcfs.h"
 
 /* Functions used internally in module. */
 int seq_client_alloc_super(struct lu_client_seq *seq,
 			   const struct lu_env *env);
 
-# ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 extern struct lprocfs_vars seq_client_proc_list[];
-# endif
+#endif
 
 extern struct proc_dir_entry *seq_type_proc_dir;
 

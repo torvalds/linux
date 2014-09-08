@@ -303,7 +303,10 @@ static ssize_t aat2870_reg_write_file(struct file *file,
 	while (*start == ' ')
 		start++;
 
-	addr = simple_strtoul(start, &start, 16);
+	ret = kstrtoul(start, 16, &addr);
+	if (ret)
+		return ret;
+
 	if (addr >= AAT2870_REG_NUM) {
 		dev_err(aat2870->dev, "Invalid address, 0x%lx\n", addr);
 		return -EINVAL;

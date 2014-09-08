@@ -152,21 +152,4 @@ ODM_PhyStatusQuery23a(
 	struct odm_packet_info *pPktinfo
 	);
 
-void ODM_MacStatusQuery23a(struct dm_odm_t *pDM_Odm,
-	u8 *pMacStatus,
-	u8 MacID,
-	bool bPacketMatchBSSID,
-	bool bPacketToSelf,
-	bool bPacketBeacon
-);
-
-int ODM_ConfigRFWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-				  enum RF_RADIO_PATH Content,
-				  enum RF_RADIO_PATH eRFPath);
-
-int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-				  enum odm_bb_config_type ConfigType);
-
-int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm);
-
 #endif

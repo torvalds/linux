@@ -36,11 +36,15 @@ struct pcie_port {
 	u8			root_bus_nr;
 	void __iomem		*dbi_base;
 	u64			cfg0_base;
+	u64			cfg0_mod_base;
 	void __iomem		*va_cfg0_base;
 	u64			cfg1_base;
+	u64			cfg1_mod_base;
 	void __iomem		*va_cfg1_base;
 	u64			io_base;
+	u64			io_mod_base;
 	u64			mem_base;
+	u64			mem_mod_base;
 	struct resource		cfg;
 	struct resource		io;
 	struct resource		mem;
@@ -61,8 +65,15 @@ struct pcie_host_ops {
 			u32 val, void __iomem *dbi_base);
 	int (*rd_own_conf)(struct pcie_port *pp, int where, int size, u32 *val);
 	int (*wr_own_conf)(struct pcie_port *pp, int where, int size, u32 val);
+	int (*rd_other_conf)(struct pcie_port *pp, struct pci_bus *bus,
+			unsigned int devfn, int where, int size, u32 *val);
+	int (*wr_other_conf)(struct pcie_port *pp, struct pci_bus *bus,
+			unsigned int devfn, int where, int size, u32 val);
 	int (*link_up)(struct pcie_port *pp);
 	void (*host_init)(struct pcie_port *pp);
+	void (*msi_set_irq)(struct pcie_port *pp, int irq);
+	void (*msi_clear_irq)(struct pcie_port *pp, int irq);
+	u32 (*get_msi_data)(struct pcie_port *pp);
 };
 
 int dw_pcie_cfg_read(void __iomem *addr, int where, int size, u32 *val);

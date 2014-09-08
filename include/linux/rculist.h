@@ -432,9 +432,9 @@ static inline void hlist_add_before_rcu(struct hlist_node *n,
 }
 
 /**
- * hlist_add_after_rcu
- * @prev: the existing element to add the new element after.
+ * hlist_add_behind_rcu
  * @n: the new element to add to the hash list.
+ * @prev: the existing element to add the new element after.
  *
  * Description:
  * Adds the specified element to the specified hlist
@@ -449,8 +449,8 @@ static inline void hlist_add_before_rcu(struct hlist_node *n,
  * hlist_for_each_entry_rcu(), used to prevent memory-consistency
  * problems on Alpha CPUs.
  */
-static inline void hlist_add_after_rcu(struct hlist_node *prev,
-				       struct hlist_node *n)
+static inline void hlist_add_behind_rcu(struct hlist_node *n,
+					struct hlist_node *prev)
 {
 	n->next = prev->next;
 	n->pprev = &prev->next;
