@@ -717,6 +717,14 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		symbols__delete(&dso->symbols[map->type]);
 
 	if (!syms_ss->symtab) {
+		/*
+		 * If the vmlinux is stripped, fail so we will fall back
+		 * to using kallsyms. The vmlinux runtime symbols aren't
+		 * of much use.
+		 */
+		if (dso->kernel)
+			goto out_elf_end;
+
 		syms_ss->symtab  = syms_ss->dynsym;
 		syms_ss->symshdr = syms_ss->dynshdr;
 	}
