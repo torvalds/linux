@@ -424,4 +424,8 @@ sys_call_table:
 	PTR	sys_kcmp
 	PTR	sys_finit_module
 	PTR	sys_getdents64
+	sys sys_ni_syscall	/* sys_sched_setattr */
+	sys sys_ni_syscall	/* sys_sched_getattr */		/* 5310 */
+	sys sys_ni_syscall	/* sys_renameat2 */
+	sys	sys_seccomp
 	.size	sys_call_table,.-sys_call_table

@@ -369,16 +369,22 @@
 #define __NR_process_vm_writev		(__NR_Linux + 346)
 #define __NR_kcmp			(__NR_Linux + 347)
 #define __NR_finit_module		(__NR_Linux + 348)
+/* Backporting seccomp, skip a few ...
+ * #define __NR_sched_setattr		(__NR_Linux + 349)
+ * #define __NR_sched_getattr		(__NR_Linux + 350)
+ * #define __NR_renameat2			(__NR_Linux + 351)
+ */
+#define __NR_seccomp			(__NR_Linux + 352)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		348
+#define __NR_Linux_syscalls		352
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		348
+#define __NR_O32_Linux_syscalls		352
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -695,16 +701,22 @@
 #define __NR_kcmp			(__NR_Linux + 306)
 #define __NR_finit_module		(__NR_Linux + 307)
 #define __NR_getdents64			(__NR_Linux + 308)
+/* Backporting seccomp, skip a few ...
+ * #define __NR_sched_setattr		(__NR_Linux + 309)
+ * #define __NR_sched_getattr		(__NR_Linux + 310)
+ * #define __NR_renameat2			(__NR_Linux + 311)
+ */
+#define __NR_seccomp			(__NR_Linux + 312)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		308
+#define __NR_Linux_syscalls		312
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		308
+#define __NR_64_Linux_syscalls		312
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -1025,15 +1037,21 @@
 #define __NR_process_vm_writev		(__NR_Linux + 310)
 #define __NR_kcmp			(__NR_Linux + 311)
 #define __NR_finit_module		(__NR_Linux + 312)
+/* Backporting seccomp, skip a few ...
+ * #define __NR_sched_setattr		(__NR_Linux + 313)
+ * #define __NR_sched_getattr		(__NR_Linux + 314)
+ * #define __NR_renameat2			(__NR_Linux + 315)
+ */
+#define __NR_seccomp			(__NR_Linux + 316)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		312
+#define __NR_Linux_syscalls		316
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		312
+#define __NR_N32_Linux_syscalls		316
 
 #endif /* _UAPI_ASM_UNISTD_H */

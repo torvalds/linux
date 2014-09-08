@@ -133,12 +133,7 @@ struct pt_regs {
 	(!((regs)->pstate & PSR_F_BIT))
 
 #define user_stack_pointer(regs) \
-	(!compat_user_mode(regs)) ? ((regs)->sp) : ((regs)->compat_sp)
-
-static inline unsigned long regs_return_value(struct pt_regs *regs)
-{
-	return regs->regs[0];
-}
+	(!compat_user_mode(regs) ? (regs)->sp : (regs)->compat_sp)
 
 /*
  * Are the current registers suitable for user mode? (used to maintain
