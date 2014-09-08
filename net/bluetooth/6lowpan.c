@@ -890,7 +890,7 @@ static void chan_resume_cb(struct l2cap_chan *chan)
 
 static long chan_get_sndtimeo_cb(struct l2cap_chan *chan)
 {
-	return msecs_to_jiffies(1000);
+	return L2CAP_CONN_TIMEOUT;
 }
 
 static const struct l2cap_ops bt_6lowpan_chan_ops = {
