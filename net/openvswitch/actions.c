@@ -551,21 +551,14 @@ static int set_sctp(struct sk_buff *skb,
 	return 0;
 }
 
-static int do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
+static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
 {
-	struct vport *vport;
+	struct vport *vport = ovs_vport_rcu(dp, out_port);
 
-	if (unlikely(!skb))
-		return -ENOMEM;
-
-	vport = ovs_vport_rcu(dp, out_port);
-	if (unlikely(!vport)) {
+	if (likely(vport))
+		ovs_vport_send(vport, skb);
+	else
 		kfree_skb(skb);
-		return -ENODEV;
-	}
-
-	ovs_vport_send(vport, skb);
-	return 0;
 }
 
 static int output_userspace(struct datapath *dp, struct sk_buff *skb,
@@ -768,8 +761,12 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 	     a = nla_next(a, &rem)) {
 		int err = 0;
 
-		if (prev_port != -1) {
-			do_output(dp, skb_clone(skb, GFP_ATOMIC), prev_port);
+		if (unlikely(prev_port != -1)) {
+			struct sk_buff *out_skb = skb_clone(skb, GFP_ATOMIC);
+
+			if (out_skb)
+				do_output(dp, out_skb, prev_port);
+
 			prev_port = -1;
 		}
 
