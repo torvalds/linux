@@ -174,7 +174,7 @@
 				status = "okay";
 
 				isl12057: isl12057@68 {
-					compatible = "isl,isl12057";
+					compatible = "isil,isl12057";
 					reg = <0x68>;
 				};
 
