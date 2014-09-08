@@ -5,11 +5,9 @@
  *
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
-#include <linux/moduleloader.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/filter.h>
-#include <linux/random.h>
 #include <linux/init.h>
 #include <asm/cacheflush.h>
 #include <asm/facility.h>
@@ -147,6 +145,12 @@ struct bpf_jit {
 	}						\
 	ret;						\
 })
+
+static void bpf_jit_fill_hole(void *area, unsigned int size)
+{
+	/* Fill whole space with illegal instructions */
+	memset(area, 0, size);
+}
 
 static void bpf_jit_prologue(struct bpf_jit *jit)
 {
@@ -780,38 +784,6 @@ out:
 	return -1;
 }
 
-/*
- * Note: for security reasons, bpf code will follow a randomly
- *	 sized amount of illegal instructions.
- */
-struct bpf_binary_header {
-	unsigned int pages;
-	u8 image[];
-};
-
-static struct bpf_binary_header *bpf_alloc_binary(unsigned int bpfsize,
-						  u8 **image_ptr)
-{
-	struct bpf_binary_header *header;
-	unsigned int sz, hole;
-
-	/* Most BPF filters are really small, but if some of them fill a page,
-	 * allow at least 128 extra bytes for illegal instructions.
-	 */
-	sz = round_up(bpfsize + sizeof(*header) + 128, PAGE_SIZE);
-	header = module_alloc(sz);
-	if (!header)
-		return NULL;
-	memset(header, 0, sz);
-	header->pages = sz / PAGE_SIZE;
-	hole = min(sz - (bpfsize + sizeof(*header)), PAGE_SIZE - sizeof(*header));
-	/* Insert random number of illegal instructions before BPF code
-	 * and make sure the first instruction starts at an even address.
-	 */
-	*image_ptr = &header->image[(prandom_u32() % hole) & -2];
-	return header;
-}
-
 void bpf_jit_compile(struct bpf_prog *fp)
 {
 	struct bpf_binary_header *header = NULL;
@@ -850,7 +822,8 @@ void bpf_jit_compile(struct bpf_prog *fp)
 			size = prg_len + lit_len;
 			if (size >= BPF_SIZE_MAX)
 				goto out;
-			header = bpf_alloc_binary(size, &jit.start);
+			header = bpf_jit_binary_alloc(size, &jit.start,
+						      2, bpf_jit_fill_hole);
 			if (!header)
 				goto out;
 			jit.prg = jit.mid = jit.start + prg_len;
@@ -884,7 +857,7 @@ void bpf_jit_free(struct bpf_prog *fp)
 		goto free_filter;
 
 	set_memory_rw(addr, header->pages);
-	module_free(NULL, header);
+	bpf_jit_binary_free(header);
 
 free_filter:
 	bpf_prog_unlock_free(fp);

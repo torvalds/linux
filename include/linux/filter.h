@@ -289,6 +289,11 @@ struct sock_fprog_kern {
 	struct sock_filter	*filter;
 };
 
+struct bpf_binary_header {
+	unsigned int pages;
+	u8 image[];
+};
+
 struct bpf_work_struct {
 	struct bpf_prog *prog;
 	struct work_struct work;
@@ -357,6 +362,14 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 				  gfp_t gfp_extra_flags);
 void __bpf_prog_free(struct bpf_prog *fp);
+
+typedef void (*bpf_jit_fill_hole_t)(void *area, unsigned int size);
+
+struct bpf_binary_header *
+bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
+		     unsigned int alignment,
+		     bpf_jit_fill_hole_t bpf_fill_ill_insns);
+void bpf_jit_binary_free(struct bpf_binary_header *hdr);
 
 static inline void bpf_prog_unlock_free(struct bpf_prog *fp)
 {
