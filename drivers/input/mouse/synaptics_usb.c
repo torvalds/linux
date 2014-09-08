@@ -402,6 +402,11 @@ static int synusb_probe(struct usb_interface *intf,
 		__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 	}
 
+	if (synusb->flags & SYNUSB_TOUCHSCREEN)
+		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+	else
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
+
 	__set_bit(BTN_LEFT, input_dev->keybit);
 	__set_bit(BTN_RIGHT, input_dev->keybit);
 	__set_bit(BTN_MIDDLE, input_dev->keybit);

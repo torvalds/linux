@@ -1615,6 +1615,7 @@ int elantech_init(struct psmouse *psmouse)
 			BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_MIDDLE) |
 			BIT_MASK(BTN_RIGHT);
 
+		__set_bit(INPUT_PROP_POINTER, tp_dev->propbit);
 		__set_bit(INPUT_PROP_POINTING_STICK, tp_dev->propbit);
 
 		error = input_register_device(etd->tp_dev);
