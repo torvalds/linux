@@ -187,6 +187,9 @@ config USB_F_UAC1
 config USB_F_UAC2
 	tristate
 
+config USB_F_UVC
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
