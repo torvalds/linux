@@ -264,6 +264,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	u32 mask, data;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
+	ram_fb_disable(fuc);
 	ram_wr32(fuc, 0x62c000, 0x0f0f0000);
 
 	/* MR1: turn termination on early, for some reason.. */
@@ -662,6 +663,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	if (next->bios.ramcfg_11_07_02)
 		nve0_ram_train(fuc, 0x80020000, 0x01000000);
 
+	ram_fb_enable(fuc);
 	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
 	if (next->bios.rammap_11_08_01)
@@ -691,6 +693,7 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 	u32 mask, data;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
+	ram_fb_disable(fuc);
 	ram_wr32(fuc, 0x62c000, 0x0f0f0000);
 
 	if (vc == 1 && ram_have(fuc, gpio2E)) {
@@ -913,6 +916,7 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x00000000);
 	ram_nsec(fuc, 1000);
 
+	ram_fb_enable(fuc);
 	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
 	if (next->bios.rammap_11_08_01)
@@ -959,8 +963,6 @@ nve0_ram_calc_xits(struct nouveau_fb *pfb, struct nouveau_ram_data *next)
 	ret = ram_init(fuc, pfb);
 	if (ret)
 		return ret;
-
-	ram_fb_disable(fuc);
 
 	ram->mode = (next->freq > fuc->refpll.vco1.max_freq) ? 2 : 1;
 	ram->from = ram_rd32(fuc, 0x1373f4) & 0x0000000f;
@@ -1024,9 +1026,6 @@ nve0_ram_calc_xits(struct nouveau_fb *pfb, struct nouveau_ram_data *next)
 		ret = -ENOSYS;
 		break;
 	}
-
-	if (!ret)
-		ram_fb_enable(fuc);
 
 	return ret;
 }
