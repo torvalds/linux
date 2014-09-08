@@ -48,6 +48,8 @@ static void arc_emac_adjust_link(struct net_device *ndev)
 	if (priv->speed != phy_dev->speed) {
 		priv->speed = phy_dev->speed;
 		state_changed = 1;
+		if (priv->set_mac_speed)
+			priv->set_mac_speed(priv, priv->speed);
 	}
 
 	if (priv->duplex != phy_dev->duplex) {

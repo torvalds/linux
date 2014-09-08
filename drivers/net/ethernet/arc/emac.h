@@ -123,9 +123,11 @@ struct buffer_state {
  * @speed:	PHY's last set speed.
  */
 struct arc_emac_priv {
-	/* Devices */
 	const char *drv_name;
 	const char *drv_version;
+	void (*set_mac_speed)(void *priv, unsigned int speed);
+
+	/* Devices */
 	struct device *dev;
 	struct phy_device *phy_dev;
 	struct mii_bus *bus;
