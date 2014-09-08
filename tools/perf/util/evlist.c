@@ -717,8 +717,6 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int idx,
 		evlist->mmap[idx].base = NULL;
 		return -1;
 	}
-
-	perf_evlist__add_pollfd(evlist, fd);
 	return 0;
 }
 
@@ -744,6 +742,8 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 			if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT, *output) != 0)
 				return -1;
 		}
+
+		perf_evlist__add_pollfd(evlist, fd);
 
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
 		    perf_evlist__id_add_fd(evlist, evsel, cpu, thread, fd) < 0)
