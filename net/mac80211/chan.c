@@ -541,6 +541,8 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 			continue;
 		if (rcu_access_pointer(sdata->vif.chanctx_conf) != conf)
 			continue;
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+			continue;
 
 		if (!compat)
 			compat = &sdata->vif.bss_conf.chandef;

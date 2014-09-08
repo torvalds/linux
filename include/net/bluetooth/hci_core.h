@@ -464,6 +464,8 @@ struct hci_conn_params {
 		HCI_AUTO_CONN_ALWAYS,
 		HCI_AUTO_CONN_LINK_LOSS,
 	} auto_connect;
+
+	struct hci_conn *conn;
 };
 
 extern struct list_head hci_dev_list;
