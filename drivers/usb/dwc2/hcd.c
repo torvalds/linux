@@ -2152,9 +2152,11 @@ void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
 
 	kfree(dwc2_urb);
 
-	spin_unlock(&hsotg->lock);
+	if (!hcd_giveback_urb_in_bh(dwc2_hsotg_to_hcd(hsotg)))
+		spin_unlock(&hsotg->lock);
 	usb_hcd_giveback_urb(dwc2_hsotg_to_hcd(hsotg), urb, status);
-	spin_lock(&hsotg->lock);
+	if (!hcd_giveback_urb_in_bh(dwc2_hsotg_to_hcd(hsotg)))
+		spin_lock(&hsotg->lock);
 }
 
 /*
@@ -2589,7 +2591,7 @@ static struct hc_driver dwc2_hc_driver = {
 	.hcd_priv_size = sizeof(struct wrapper_priv_data),
 
 	.irq = _dwc2_hcd_irq,
-	.flags = HCD_MEMORY | HCD_USB2,
+	.flags = HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	.start = _dwc2_hcd_start,
 	.stop = _dwc2_hcd_stop,
