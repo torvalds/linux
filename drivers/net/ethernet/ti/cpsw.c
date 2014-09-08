@@ -2396,7 +2396,6 @@ MODULE_DEVICE_TABLE(of, cpsw_of_mtable);
 static struct platform_driver cpsw_driver = {
 	.driver = {
 		.name	 = "cpsw",
-		.owner	 = THIS_MODULE,
 		.pm	 = &cpsw_pm_ops,
 		.of_match_table = cpsw_of_mtable,
 	},
