@@ -43,14 +43,6 @@
 
 #include "ramfuc.h"
 
-/* binary driver only executes this path if the condition (a) is true
- * for any configuration (combination of rammap+ramcfg+timing) that
- * can be reached on a given card.  for now, we will execute the branch
- * unconditionally in the hope that a "false everywhere" in the bios
- * tables doesn't actually mean "don't touch this".
- */
-#define NOTE00(a) 1
-
 struct nve0_ramfuc {
 	struct ramfuc base;
 
@@ -141,6 +133,7 @@ struct nve0_ram {
 	u32 pmask;
 	u32 pnuts;
 
+	struct nvbios_ramcfg diff;
 	int from;
 	int mode;
 	int N1, fN1, M1, P1;
@@ -481,7 +474,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f2e8, 0xffffffff, next->bios.timing[9]);
 
 	data = mask = 0x00000000;
-	if (NOTE00(ramcfg_08_20)) {
+	if (ram->diff.ramcfg_11_08_20) {
 		if (next->bios.ramcfg_11_08_20)
 			data |= 0x01000000;
 		mask |= 0x01000000;
@@ -489,11 +482,11 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f200, mask, data);
 
 	data = mask = 0x00000000;
-	if (NOTE00(ramcfg_02_03 != 0)) {
+	if (ram->diff.ramcfg_11_02_03) {
 		data |= next->bios.ramcfg_11_02_03 << 8;
 		mask |= 0x00000300;
 	}
-	if (NOTE00(ramcfg_01_10)) {
+	if (ram->diff.ramcfg_11_01_10) {
 		if (next->bios.ramcfg_11_01_10)
 			data |= 0x70000000;
 		mask |= 0x70000000;
@@ -501,11 +494,11 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f604, mask, data);
 
 	data = mask = 0x00000000;
-	if (NOTE00(timing_30_07 != 0)) {
+	if (ram->diff.timing_20_30_07) {
 		data |= next->bios.timing_20_30_07 << 28;
 		mask |= 0x70000000;
 	}
-	if (NOTE00(ramcfg_01_01)) {
+	if (ram->diff.ramcfg_11_01_01) {
 		if (next->bios.ramcfg_11_01_01)
 			data |= 0x00000100;
 		mask |= 0x00000100;
@@ -513,11 +506,11 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f614, mask, data);
 
 	data = mask = 0x00000000;
-	if (NOTE00(timing_30_07 != 0)) {
+	if (ram->diff.timing_20_30_07) {
 		data |= next->bios.timing_20_30_07 << 28;
 		mask |= 0x70000000;
 	}
-	if (NOTE00(ramcfg_01_02)) {
+	if (ram->diff.ramcfg_11_01_02) {
 		if (next->bios.ramcfg_11_01_02)
 			data |= 0x00000100;
 		mask |= 0x00000100;
@@ -551,11 +544,11 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_wr32(fuc, 0x10f870, 0x11111111 * next->bios.ramcfg_11_03_0f);
 
 	data = mask = 0x00000000;
-	if (NOTE00(ramcfg_02_03 != 0)) {
+	if (ram->diff.ramcfg_11_02_03) {
 		data |= next->bios.ramcfg_11_02_03;
 		mask |= 0x00000003;
 	}
-	if (NOTE00(ramcfg_01_10)) {
+	if (ram->diff.ramcfg_11_01_10) {
 		if (next->bios.ramcfg_11_01_10)
 			data |= 0x00000004;
 		mask |= 0x00000004;
@@ -1291,12 +1284,16 @@ nve0_ram_ctor_data(struct nve0_ram *ram, u8 ramcfg, int i)
 	struct nouveau_fb *pfb = (void *)nv_object(ram)->parent;
 	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nouveau_ram_data *cfg;
+	struct nvbios_ramcfg *d = &ram->diff;
+	struct nvbios_ramcfg *p, *n;
 	u8  ver, hdr, cnt, len;
 	u32 data;
 	int ret;
 
 	if (!(cfg = kmalloc(sizeof(*cfg), GFP_KERNEL)))
 		return -ENOMEM;
+	p = &list_last_entry(&ram->cfg, typeof(*cfg), head)->bios;
+	n = &cfg->bios;
 
 	/* memory config data for a range of target frequencies */
 	data = nvbios_rammapEp(bios, i, &ver, &hdr, &cnt, &len, &cfg->bios);
@@ -1325,7 +1322,15 @@ nve0_ram_ctor_data(struct nve0_ram *ram, u8 ramcfg, int i)
 	}
 
 	list_add_tail(&cfg->head, &ram->cfg);
-	ret = 0;
+	if (ret = 0, i == 0)
+		goto done;
+
+	d->ramcfg_11_01_01 |= p->ramcfg_11_01_01 != n->ramcfg_11_01_01;
+	d->ramcfg_11_01_02 |= p->ramcfg_11_01_02 != n->ramcfg_11_01_02;
+	d->ramcfg_11_01_10 |= p->ramcfg_11_01_10 != n->ramcfg_11_01_10;
+	d->ramcfg_11_02_03 |= p->ramcfg_11_02_03 != n->ramcfg_11_02_03;
+	d->ramcfg_11_08_20 |= p->ramcfg_11_08_20 != n->ramcfg_11_08_20;
+	d->timing_20_30_07 |= p->timing_20_30_07 != n->timing_20_30_07;
 done:
 	if (ret)
 		kfree(cfg);
@@ -1397,7 +1402,17 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		}
 	}
 
-	/* parse ramcfg data for all possible target frequencies */
+	/* parse bios data for all rammap table entries up-front, and
+	 * build information on whether certain fields differ between
+	 * any of the entries.
+	 *
+	 * the binary driver appears to completely ignore some fields
+	 * when all entries contain the same value.  at first, it was
+	 * hoped that these were mere optimisations and the bios init
+	 * tables had configured as per the values here, but there is
+	 * evidence now to suggest that this isn't the case and we do
+	 * need to treat this condition as a "don't touch" indicator.
+	 */
 	for (i = 0; !ret; i++) {
 		ret = nve0_ram_ctor_data(ram, ramcfg, i);
 		if (ret && ret != -ENOENT) {
