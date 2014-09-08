@@ -149,7 +149,7 @@ uvc_v4l2_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *b)
 	if (b->type != video->queue.queue.type)
 		return -EINVAL;
 
-	return uvc_alloc_buffers(&video->queue, b);
+	return uvcg_alloc_buffers(&video->queue, b);
 }
 
 static int
@@ -159,7 +159,7 @@ uvc_v4l2_querybuf(struct file *file, void *fh, struct v4l2_buffer *b)
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 	struct uvc_video *video = &uvc->video;
 
-	return uvc_query_buffer(&video->queue, b);
+	return uvcg_query_buffer(&video->queue, b);
 }
 
 static int
@@ -170,11 +170,11 @@ uvc_v4l2_qbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 	struct uvc_video *video = &uvc->video;
 	int ret;
 
-	ret = uvc_queue_buffer(&video->queue, b);
+	ret = uvcg_queue_buffer(&video->queue, b);
 	if (ret < 0)
 		return ret;
 
-	return uvc_video_pump(video);
+	return uvcg_video_pump(video);
 }
 
 static int
@@ -184,7 +184,7 @@ uvc_v4l2_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 	struct uvc_video *video = &uvc->video;
 
-	return uvc_dequeue_buffer(&video->queue, b, file->f_flags & O_NONBLOCK);
+	return uvcg_dequeue_buffer(&video->queue, b, file->f_flags & O_NONBLOCK);
 }
 
 static int
@@ -199,7 +199,7 @@ uvc_v4l2_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		return -EINVAL;
 
 	/* Enable UVC video. */
-	ret = uvc_video_enable(video, 1);
+	ret = uvcg_video_enable(video, 1);
 	if (ret < 0)
 		return ret;
 
@@ -223,7 +223,7 @@ uvc_v4l2_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (type != video->queue.queue.type)
 		return -EINVAL;
 
-	return uvc_video_enable(video, 0);
+	return uvcg_video_enable(video, 0);
 }
 
 static int
@@ -309,8 +309,8 @@ uvc_v4l2_release(struct file *file)
 
 	uvc_function_disconnect(uvc);
 
-	uvc_video_enable(video, 0);
-	uvc_free_buffers(&video->queue);
+	uvcg_video_enable(video, 0);
+	uvcg_free_buffers(&video->queue);
 
 	file->private_data = NULL;
 	v4l2_fh_del(&handle->vfh);
@@ -326,7 +326,7 @@ uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 
-	return uvc_queue_mmap(&uvc->video.queue, vma);
+	return uvcg_queue_mmap(&uvc->video.queue, vma);
 }
 
 static unsigned int
@@ -335,7 +335,7 @@ uvc_v4l2_poll(struct file *file, poll_table *wait)
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 
-	return uvc_queue_poll(&uvc->video.queue, file, wait);
+	return uvcg_queue_poll(&uvc->video.queue, file, wait);
 }
 
 #ifndef CONFIG_MMU
@@ -346,7 +346,7 @@ static unsigned long uvc_v4l2_get_unmapped_area(struct file *file,
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 
-	return uvc_queue_get_unmapped_area(&uvc->video.queue, pgoff);
+	return uvcg_queue_get_unmapped_area(&uvc->video.queue, pgoff);
 }
 #endif
 
@@ -358,7 +358,7 @@ static struct v4l2_file_operations uvc_v4l2_fops = {
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,
 #ifndef CONFIG_MMU
-	.get_unmapped_area = uvc_v4l2_get_unmapped_area,
+	.get_unmapped_area = uvcg_v4l2_get_unmapped_area,
 #endif
 };
 

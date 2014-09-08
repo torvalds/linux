@@ -85,7 +85,7 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 	if (buf->bytesused == video->queue.buf_used) {
 		video->queue.buf_used = 0;
 		buf->state = UVC_BUF_STATE_DONE;
-		uvc_queue_next_buffer(&video->queue, buf);
+		uvcg_queue_next_buffer(&video->queue, buf);
 		video->fid ^= UVC_STREAM_FID;
 
 		video->payload_size = 0;
@@ -118,7 +118,7 @@ uvc_video_encode_isoc(struct usb_request *req, struct uvc_video *video,
 	if (buf->bytesused == video->queue.buf_used) {
 		video->queue.buf_used = 0;
 		buf->state = UVC_BUF_STATE_DONE;
-		uvc_queue_next_buffer(&video->queue, buf);
+		uvcg_queue_next_buffer(&video->queue, buf);
 		video->fid ^= UVC_STREAM_FID;
 	}
 }
@@ -172,18 +172,18 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 
 	case -ESHUTDOWN:	/* disconnect from host. */
 		printk(KERN_DEBUG "VS request cancelled.\n");
-		uvc_queue_cancel(queue, 1);
+		uvcg_queue_cancel(queue, 1);
 		goto requeue;
 
 	default:
 		printk(KERN_INFO "VS request completed with status %d.\n",
 			req->status);
-		uvc_queue_cancel(queue, 0);
+		uvcg_queue_cancel(queue, 0);
 		goto requeue;
 	}
 
 	spin_lock_irqsave(&video->queue.irqlock, flags);
-	buf = uvc_queue_head(&video->queue);
+	buf = uvcg_queue_head(&video->queue);
 	if (buf == NULL) {
 		spin_unlock_irqrestore(&video->queue.irqlock, flags);
 		goto requeue;
@@ -195,7 +195,7 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		printk(KERN_INFO "Failed to queue request (%d).\n", ret);
 		usb_ep_set_halt(ep);
 		spin_unlock_irqrestore(&video->queue.irqlock, flags);
-		uvc_queue_cancel(queue, 0);
+		uvcg_queue_cancel(queue, 0);
 		goto requeue;
 	}
 	spin_unlock_irqrestore(&video->queue.irqlock, flags);
@@ -274,13 +274,13 @@ error:
  */
 
 /*
- * uvc_video_pump - Pump video data into the USB requests
+ * uvcg_video_pump - Pump video data into the USB requests
  *
  * This function fills the available USB requests (listed in req_free) with
  * video data from the queued buffers.
  */
 static int
-uvc_video_pump(struct uvc_video *video)
+uvcg_video_pump(struct uvc_video *video)
 {
 	struct uvc_video_queue *queue = &video->queue;
 	struct usb_request *req;
@@ -288,7 +288,7 @@ uvc_video_pump(struct uvc_video *video)
 	unsigned long flags;
 	int ret;
 
-	/* FIXME TODO Race between uvc_video_pump and requests completion
+	/* FIXME TODO Race between uvcg_video_pump and requests completion
 	 * handler ???
 	 */
 
@@ -310,7 +310,7 @@ uvc_video_pump(struct uvc_video *video)
 		 * request, protected by the video queue irqlock.
 		 */
 		spin_lock_irqsave(&video->queue.irqlock, flags);
-		buf = uvc_queue_head(&video->queue);
+		buf = uvcg_queue_head(&video->queue);
 		if (buf == NULL) {
 			spin_unlock_irqrestore(&video->queue.irqlock, flags);
 			break;
@@ -324,7 +324,7 @@ uvc_video_pump(struct uvc_video *video)
 			printk(KERN_INFO "Failed to queue request (%d)\n", ret);
 			usb_ep_set_halt(video->ep);
 			spin_unlock_irqrestore(&video->queue.irqlock, flags);
-			uvc_queue_cancel(queue, 0);
+			uvcg_queue_cancel(queue, 0);
 			break;
 		}
 		spin_unlock_irqrestore(&video->queue.irqlock, flags);
@@ -340,7 +340,7 @@ uvc_video_pump(struct uvc_video *video)
  * Enable or disable the video stream.
  */
 static int
-uvc_video_enable(struct uvc_video *video, int enable)
+uvcg_video_enable(struct uvc_video *video, int enable)
 {
 	unsigned int i;
 	int ret;
@@ -356,11 +356,11 @@ uvc_video_enable(struct uvc_video *video, int enable)
 			usb_ep_dequeue(video->ep, video->req[i]);
 
 		uvc_video_free_requests(video);
-		uvc_queue_enable(&video->queue, 0);
+		uvcg_queue_enable(&video->queue, 0);
 		return 0;
 	}
 
-	if ((ret = uvc_queue_enable(&video->queue, 1)) < 0)
+	if ((ret = uvcg_queue_enable(&video->queue, 1)) < 0)
 		return ret;
 
 	if ((ret = uvc_video_alloc_requests(video)) < 0)
@@ -372,14 +372,14 @@ uvc_video_enable(struct uvc_video *video, int enable)
 	} else
 		video->encode = uvc_video_encode_isoc;
 
-	return uvc_video_pump(video);
+	return uvcg_video_pump(video);
 }
 
 /*
  * Initialize the UVC video stream.
  */
 static int
-uvc_video_init(struct uvc_video *video)
+uvcg_video_init(struct uvc_video *video)
 {
 	INIT_LIST_HEAD(&video->req_free);
 	spin_lock_init(&video->req_lock);
@@ -391,7 +391,7 @@ uvc_video_init(struct uvc_video *video)
 	video->imagesize = 320 * 240 * 2;
 
 	/* Initialize the video buffers queue. */
-	uvc_queue_init(&video->queue, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	uvcg_queue_init(&video->queue, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	return 0;
 }
 
