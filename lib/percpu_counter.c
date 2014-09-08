@@ -112,7 +112,7 @@ s64 __percpu_counter_sum(struct percpu_counter *fbc)
 }
 EXPORT_SYMBOL(__percpu_counter_sum);
 
-int __percpu_counter_init(struct percpu_counter *fbc, s64 amount,
+int __percpu_counter_init(struct percpu_counter *fbc, s64 amount, gfp_t gfp,
 			  struct lock_class_key *key)
 {
 	unsigned long flags __maybe_unused;
@@ -120,7 +120,7 @@ int __percpu_counter_init(struct percpu_counter *fbc, s64 amount,
 	raw_spin_lock_init(&fbc->lock);
 	lockdep_set_class(&fbc->lock, key);
 	fbc->count = amount;
-	fbc->counters = alloc_percpu(s32);
+	fbc->counters = alloc_percpu_gfp(s32, gfp);
 	if (!fbc->counters)
 		return -ENOMEM;
 

@@ -40,7 +40,7 @@ int fprop_global_init(struct fprop_global *p)
 
 	p->period = 0;
 	/* Use 1 to avoid dealing with periods with 0 events... */
-	err = percpu_counter_init(&p->events, 1);
+	err = percpu_counter_init(&p->events, 1, GFP_KERNEL);
 	if (err)
 		return err;
 	seqcount_init(&p->sequence);
@@ -172,7 +172,7 @@ int fprop_local_init_percpu(struct fprop_local_percpu *pl)
 {
 	int err;
 
-	err = percpu_counter_init(&pl->events, 0);
+	err = percpu_counter_init(&pl->events, 0, GFP_KERNEL);
 	if (err)
 		return err;
 	pl->period = 0;

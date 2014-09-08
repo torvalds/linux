@@ -83,11 +83,11 @@ int prop_descriptor_init(struct prop_descriptor *pd, int shift)
 	pd->index = 0;
 	pd->pg[0].shift = shift;
 	mutex_init(&pd->mutex);
-	err = percpu_counter_init(&pd->pg[0].events, 0);
+	err = percpu_counter_init(&pd->pg[0].events, 0, GFP_KERNEL);
 	if (err)
 		goto out;
 
-	err = percpu_counter_init(&pd->pg[1].events, 0);
+	err = percpu_counter_init(&pd->pg[1].events, 0, GFP_KERNEL);
 	if (err)
 		percpu_counter_destroy(&pd->pg[0].events);
 
@@ -193,7 +193,7 @@ int prop_local_init_percpu(struct prop_local_percpu *pl)
 	raw_spin_lock_init(&pl->lock);
 	pl->shift = 0;
 	pl->period = 0;
-	return percpu_counter_init(&pl->events, 0);
+	return percpu_counter_init(&pl->events, 0, GFP_KERNEL);
 }
 
 void prop_local_destroy_percpu(struct prop_local_percpu *pl)
