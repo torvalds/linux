@@ -562,6 +562,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct uvc_device *uvc = to_uvc(f);
+	struct usb_string *us;
 	unsigned int max_packet_mult;
 	unsigned int max_packet_size;
 	struct usb_ep *ep;
@@ -637,22 +638,17 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc_hs_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 	uvc_ss_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 
-	/* String descriptors are global, we only need to allocate string IDs
-	 * for the first UVC function. UVC functions beyond the first (if any)
-	 * will reuse the same IDs.
-	 */
-	if (uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id == 0) {
-		ret = usb_string_ids_tab(c->cdev, uvc_en_us_strings);
-		if (ret)
-			goto error;
-		uvc_iad.iFunction =
-			uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id;
-		uvc_control_intf.iInterface =
-			uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id;
-		ret = uvc_en_us_strings[UVC_STRING_STREAMING_IDX].id;
-		uvc_streaming_intf_alt0.iInterface = ret;
-		uvc_streaming_intf_alt1.iInterface = ret;
+	us = usb_gstrings_attach(cdev, uvc_function_strings,
+				 ARRAY_SIZE(uvc_en_us_strings));
+	if (IS_ERR(us)) {
+		ret = PTR_ERR(us);
+		goto error;
 	}
+	uvc_iad.iFunction = us[UVC_STRING_CONTROL_IDX].id;
+	uvc_control_intf.iInterface = us[UVC_STRING_CONTROL_IDX].id;
+	ret = us[UVC_STRING_STREAMING_IDX].id;
+	uvc_streaming_intf_alt0.iInterface = ret;
+	uvc_streaming_intf_alt1.iInterface = ret;
 
 	/* Allocate interface IDs. */
 	if ((ret = usb_interface_id(c, f)) < 0)
@@ -771,7 +767,6 @@ static void uvc_unbind(struct usb_configuration *c, struct usb_function *f)
 	uvc->control_ep->driver_data = NULL;
 	uvc->video.ep->driver_data = NULL;
 
-	uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id = 0;
 	usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
 	kfree(uvc->control_buf);
 
@@ -798,7 +793,6 @@ struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 
 	/* Register the function. */
 	uvc->func.name = "uvc";
-	uvc->func.strings = uvc_function_strings;
 	uvc->func.bind = uvc_function_bind;
 	uvc->func.unbind = uvc_unbind;
 	uvc->func.get_alt = uvc_function_get_alt;
