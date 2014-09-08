@@ -1608,6 +1608,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	    (auth & SMP_AUTH_BONDING))
 		return SMP_PAIRING_NOTSUPP;
 
+	if (test_bit(HCI_SC_ONLY, &hdev->dev_flags) && !(auth & SMP_AUTH_SC))
+		return SMP_AUTH_REQUIREMENTS;
+
 	smp->preq[0] = SMP_CMD_PAIRING_REQ;
 	memcpy(&smp->preq[1], req, sizeof(*req));
 	skb_pull(skb, sizeof(*req));
@@ -1751,6 +1754,9 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 		return SMP_ENC_KEY_SIZE;
 
 	auth = rsp->auth_req & AUTH_REQ_MASK(hdev);
+
+	if (test_bit(HCI_SC_ONLY, &hdev->dev_flags) && !(auth & SMP_AUTH_SC))
+		return SMP_AUTH_REQUIREMENTS;
 
 	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&smp->prsp[1], rsp, sizeof(*rsp));
@@ -2007,6 +2013,9 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		return SMP_CMD_NOTSUPP;
 
 	auth = rp->auth_req & AUTH_REQ_MASK(hdev);
+
+	if (test_bit(HCI_SC_ONLY, &hdev->dev_flags) && !(auth & SMP_AUTH_SC))
+		return SMP_AUTH_REQUIREMENTS;
 
 	if (hcon->io_capability == HCI_IO_NO_INPUT_OUTPUT)
 		sec_level = BT_SECURITY_MEDIUM;
