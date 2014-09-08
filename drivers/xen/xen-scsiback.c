@@ -1885,13 +1885,14 @@ scsiback_make_tpg(struct se_wwn *wwn,
 			struct scsiback_tport, tport_wwn);
 
 	struct scsiback_tpg *tpg;
-	unsigned long tpgt;
+	u16 tpgt;
 	int ret;
 
 	if (strstr(name, "tpgt_") != name)
 		return ERR_PTR(-EINVAL);
-	if (kstrtoul(name + 5, 10, &tpgt) || tpgt > UINT_MAX)
-		return ERR_PTR(-EINVAL);
+	ret = kstrtou16(name + 5, 10, &tpgt);
+	if (ret)
+		return ERR_PTR(ret);
 
 	tpg = kzalloc(sizeof(struct scsiback_tpg), GFP_KERNEL);
 	if (!tpg)
