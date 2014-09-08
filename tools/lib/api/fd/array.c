@@ -13,21 +13,31 @@
 void fdarray__init(struct fdarray *fda, int nr_autogrow)
 {
 	fda->entries	 = NULL;
+	fda->priv	 = NULL;
 	fda->nr		 = fda->nr_alloc = 0;
 	fda->nr_autogrow = nr_autogrow;
 }
 
 int fdarray__grow(struct fdarray *fda, int nr)
 {
+	void *priv;
 	int nr_alloc = fda->nr_alloc + nr;
+	size_t psize = sizeof(fda->priv[0]) * nr_alloc;
 	size_t size  = sizeof(struct pollfd) * nr_alloc;
 	struct pollfd *entries = realloc(fda->entries, size);
 
 	if (entries == NULL)
 		return -ENOMEM;
 
+	priv = realloc(fda->priv, psize);
+	if (priv == NULL) {
+		free(entries);
+		return -ENOMEM;
+	}
+
 	fda->nr_alloc = nr_alloc;
 	fda->entries  = entries;
+	fda->priv     = priv;
 	return 0;
 }
 
@@ -50,6 +60,7 @@ struct fdarray *fdarray__new(int nr_alloc, int nr_autogrow)
 void fdarray__exit(struct fdarray *fda)
 {
 	free(fda->entries);
+	free(fda->priv);
 	fdarray__init(fda, 0);
 }
 
@@ -61,6 +72,8 @@ void fdarray__delete(struct fdarray *fda)
 
 int fdarray__add(struct fdarray *fda, int fd, short revents)
 {
+	int pos = fda->nr;
+
 	if (fda->nr == fda->nr_alloc &&
 	    fdarray__grow(fda, fda->nr_autogrow) < 0)
 		return -ENOMEM;
@@ -68,10 +81,11 @@ int fdarray__add(struct fdarray *fda, int fd, short revents)
 	fda->entries[fda->nr].fd     = fd;
 	fda->entries[fda->nr].events = revents;
 	fda->nr++;
-	return 0;
+	return pos;
 }
 
-int fdarray__filter(struct fdarray *fda, short revents)
+int fdarray__filter(struct fdarray *fda, short revents,
+		    void (*entry_destructor)(struct fdarray *fda, int fd))
 {
 	int fd, nr = 0;
 
@@ -79,11 +93,17 @@ int fdarray__filter(struct fdarray *fda, short revents)
 		return 0;
 
 	for (fd = 0; fd < fda->nr; ++fd) {
-		if (fda->entries[fd].revents & revents)
-			continue;
+		if (fda->entries[fd].revents & revents) {
+			if (entry_destructor)
+				entry_destructor(fda, fd);
 
-		if (fd != nr)
+			continue;
+		}
+
+		if (fd != nr) {
 			fda->entries[nr] = fda->entries[fd];
+			fda->priv[nr]	 = fda->priv[fd];
+		}
 
 		++nr;
 	}

@@ -36,7 +36,7 @@ int test__fdarray__filter(void)
 	}
 
 	fdarray__init_revents(fda, POLLIN);
-	nr_fds = fdarray__filter(fda, POLLHUP);
+	nr_fds = fdarray__filter(fda, POLLHUP, NULL);
 	if (nr_fds != fda->nr_alloc) {
 		pr_debug("\nfdarray__filter()=%d != %d shouldn't have filtered anything",
 			 nr_fds, fda->nr_alloc);
@@ -44,7 +44,7 @@ int test__fdarray__filter(void)
 	}
 
 	fdarray__init_revents(fda, POLLHUP);
-	nr_fds = fdarray__filter(fda, POLLHUP);
+	nr_fds = fdarray__filter(fda, POLLHUP, NULL);
 	if (nr_fds != 0) {
 		pr_debug("\nfdarray__filter()=%d != %d, should have filtered all fds",
 			 nr_fds, fda->nr_alloc);
@@ -57,7 +57,7 @@ int test__fdarray__filter(void)
 
 	pr_debug("\nfiltering all but fda->entries[2]:");
 	fdarray__fprintf_prefix(fda, "before", stderr);
-	nr_fds = fdarray__filter(fda, POLLHUP);
+	nr_fds = fdarray__filter(fda, POLLHUP, NULL);
 	fdarray__fprintf_prefix(fda, " after", stderr);
 	if (nr_fds != 1) {
 		pr_debug("\nfdarray__filter()=%d != 1, should have left just one event", nr_fds);
@@ -78,7 +78,7 @@ int test__fdarray__filter(void)
 
 	pr_debug("\nfiltering all but (fda->entries[0], fda->entries[3]):");
 	fdarray__fprintf_prefix(fda, "before", stderr);
-	nr_fds = fdarray__filter(fda, POLLHUP);
+	nr_fds = fdarray__filter(fda, POLLHUP, NULL);
 	fdarray__fprintf_prefix(fda, " after", stderr);
 	if (nr_fds != 2) {
 		pr_debug("\nfdarray__filter()=%d != 2, should have left just two events",

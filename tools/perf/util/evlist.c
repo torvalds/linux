@@ -435,7 +435,7 @@ int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
 
 int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mask)
 {
-	return fdarray__filter(&evlist->pollfd, revents_and_mask);
+	return fdarray__filter(&evlist->pollfd, revents_and_mask, NULL);
 }
 
 int perf_evlist__poll(struct perf_evlist *evlist, int timeout)
