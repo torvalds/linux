@@ -496,11 +496,10 @@ static int oz_send_next_queued_frame(struct oz_pd *pd, int more_data)
 			oz_dbg(TX_FRAMES, "Sending ISOC Frame, nb_isoc= %d\n",
 			       pd->nb_queued_isoc_frames);
 			return 0;
-		} else {
-			kfree_skb(skb);
-			oz_dbg(TX_FRAMES, "Dropping ISOC Frame>\n");
-			return -1;
 		}
+		kfree_skb(skb);
+		oz_dbg(TX_FRAMES, "Dropping ISOC Frame>\n");
+		return -1;
 	}
 
 	pd->last_sent_frame = e;
@@ -813,8 +812,7 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len)
 			atomic_inc(&g_submitted_isoc);
 			if (dev_queue_xmit(skb) < 0)
 				return -1;
-			else
-				return 0;
+			return 0;
 		}
 
 out:	kfree_skb(skb);

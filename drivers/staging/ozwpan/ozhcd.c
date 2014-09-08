@@ -1010,10 +1010,9 @@ void oz_hcd_data_ind(void *hport, u8 endpoint, const u8 *data, int data_len)
 			urb->actual_length = copy_len;
 			oz_complete_urb(port->ozhcd->hcd, urb, 0);
 			return;
-		} else {
-			oz_dbg(ON, "buffering frame as URB is not available\n");
-			oz_hcd_buffer_data(ep, data, data_len);
 		}
+		oz_dbg(ON, "buffering frame as URB is not available\n");
+		oz_hcd_buffer_data(ep, data, data_len);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		oz_hcd_buffer_data(ep, data, data_len);
@@ -1903,8 +1902,7 @@ static int oz_hcd_hub_status_data(struct usb_hcd *hcd, char *buf)
 	spin_unlock_bh(&ozhcd->hcd_lock);
 	if (buf[0] != 0 || buf[1] != 0)
 		return 2;
-	else
-		return 0;
+	return 0;
 }
 
 /*
