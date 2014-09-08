@@ -761,6 +761,14 @@ config USB_HCD_SSB
 
 	  If unsure, say N.
 
+config USB_HCD_ST
+	tristate "ST USB driver for ST SoC Series"
+	depends on ARCH_STI && OF
+	select GENERIC_PHY
+	help
+	  Enable support for the on-chip OHCI & EHCI controller found on
+	  STMicroelectronics consumer electronics SoC's.
+
 config USB_HCD_TEST_MODE
 	bool "HCD test mode support"
 	---help---
