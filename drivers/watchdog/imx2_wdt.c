@@ -52,6 +52,8 @@
 #define IMX2_WDT_WRSR		0x04		/* Reset Status Register */
 #define IMX2_WDT_WRSR_TOUT	(1 << 1)	/* -> Reset due to Timeout */
 
+#define IMX2_WDT_WMCR		0x08		/* Misc Register */
+
 #define IMX2_WDT_MAX_TIME	128
 #define IMX2_WDT_DEFAULT_TIME	60		/* in seconds */
 
@@ -273,6 +275,13 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	setup_timer(&wdev->timer, imx2_wdt_timer_ping, (unsigned long)wdog);
 
 	imx2_wdt_ping_if_active(wdog);
+
+	/*
+	 * Disable the watchdog power down counter at boot. Otherwise the power
+	 * down counter will pull down the #WDOG interrupt line for one clock
+	 * cycle.
+	 */
+	regmap_write(wdev->regmap, IMX2_WDT_WMCR, 0);
 
 	ret = watchdog_register_device(wdog);
 	if (ret) {
