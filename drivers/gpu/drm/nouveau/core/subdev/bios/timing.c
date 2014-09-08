@@ -89,6 +89,8 @@ nvbios_timingEp(struct nouveau_bios *bios, int idx,
 		struct nvbios_ramcfg *p)
 {
 	u16 data = nvbios_timingEe(bios, idx, ver, hdr, cnt, len), temp;
+	p->timing_ver = *ver;
+	p->timing_hdr = *hdr;
 	switch (!!data * *ver) {
 	case 0x20:
 		p->timing[0] = nv_ro32(bios, data + 0x00);

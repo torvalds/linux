@@ -4,11 +4,18 @@
 struct nouveau_bios;
 
 struct nvbios_ramcfg {
+	unsigned rammap_ver;
+	unsigned rammap_hdr;
+	unsigned rammap_min;
+	unsigned rammap_max;
 	unsigned rammap_11_08_01:1;
 	unsigned rammap_11_08_0c:2;
 	unsigned rammap_11_08_10:1;
 	unsigned rammap_11_11_0c:2;
 
+	unsigned ramcfg_ver;
+	unsigned ramcfg_hdr;
+	unsigned ramcfg_timing;
 	unsigned ramcfg_11_01_01:1;
 	unsigned ramcfg_11_01_02:1;
 	unsigned ramcfg_11_01_04:1;
@@ -43,6 +50,8 @@ struct nvbios_ramcfg {
 	unsigned ramcfg_11_08_20:1;
 	unsigned ramcfg_11_09:8;
 
+	unsigned timing_ver;
+	unsigned timing_hdr;
 	unsigned timing[11];
 	unsigned timing_20_2e_03:2;
 	unsigned timing_20_2e_30:2;

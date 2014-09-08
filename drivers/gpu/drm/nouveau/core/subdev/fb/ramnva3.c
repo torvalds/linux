@@ -79,6 +79,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nva3_ram *ram = (void *)pfb->ram;
 	struct nva3_ramfuc *fuc = &ram->fuc;
 	struct nva3_clock_info mclk;
+	struct nvbios_ramcfg cfg;
 	u8  ver, cnt, len, strap;
 	u32 data;
 	struct {
@@ -91,7 +92,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 
 	/* lookup memory config data relevant to the target frequency */
 	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
-				     &cnt, &ramcfg.size);
+				     &cnt, &ramcfg.size, &cfg);
 	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
 		return -EINVAL;

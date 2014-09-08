@@ -942,7 +942,7 @@ nve0_ram_calc_data(struct nouveau_fb *pfb, u32 freq,
 	u8 strap, cnt, len;
 
 	/* lookup memory config data relevant to the target frequency */
-	ram->base.rammap.data = nvbios_rammapEp(bios, freq / 1000,
+	ram->base.rammap.data = nvbios_rammapEm(bios, freq / 1000,
 					       &ram->base.rammap.version,
 					       &ram->base.rammap.size,
 					       &cnt, &len, &data->bios);
@@ -968,12 +968,12 @@ nve0_ram_calc_data(struct nouveau_fb *pfb, u32 freq,
 	}
 
 	/* lookup memory timings, if bios says they're present */
-	strap = nv_ro08(bios, ram->base.ramcfg.data + 0x00);
-	if (strap != 0xff) {
+	if (data->bios.ramcfg_timing != 0xff) {
 		ram->base.timing.data =
-			nvbios_timingEp(bios, strap, &ram->base.timing.version,
-				       &ram->base.timing.size, &cnt, &len,
-				       &data->bios);
+			nvbios_timingEp(bios, data->bios.ramcfg_timing,
+					&ram->base.timing.version,
+					&ram->base.timing.size, &cnt, &len,
+					&data->bios);
 		if (!ram->base.timing.data ||
 		     ram->base.timing.version != 0x20 ||
 		     ram->base.timing.size < 0x33) {

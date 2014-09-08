@@ -75,28 +75,18 @@ nvbios_rammapEe(struct nouveau_bios *bios, int idx,
 }
 
 u32
-nvbios_rammapEm(struct nouveau_bios *bios, u16 khz,
-		u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
-{
-	int idx = 0;
-	u32 data;
-	while ((data = nvbios_rammapEe(bios, idx++, ver, hdr, cnt, len))) {
-		if (khz >= nv_ro16(bios, data + 0x00) &&
-		    khz <= nv_ro16(bios, data + 0x02))
-			break;
-	}
-	return data;
-}
-
-u32
-nvbios_rammapEp(struct nouveau_bios *bios, u16 khz,
+nvbios_rammapEp(struct nouveau_bios *bios, int idx,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		struct nvbios_ramcfg *p)
 {
-	u32 data = nvbios_rammapEm(bios, khz, ver, hdr, cnt, len);
+	u32 data = nvbios_rammapEe(bios, idx, ver, hdr, cnt, len);
 	memset(p, 0x00, sizeof(*p));
+	p->rammap_ver = *ver;
+	p->rammap_hdr = *hdr;
 	switch (!!data * *ver) {
 	case 0x11:
+		p->rammap_min      =  nv_ro16(bios, data + 0x00);
+		p->rammap_max      =  nv_ro16(bios, data + 0x02);
 		p->rammap_11_08_01 = (nv_ro08(bios, data + 0x08) & 0x01) >> 0;
 		p->rammap_11_08_0c = (nv_ro08(bios, data + 0x08) & 0x0c) >> 2;
 		p->rammap_11_08_10 = (nv_ro08(bios, data + 0x08) & 0x10) >> 4;
@@ -105,6 +95,20 @@ nvbios_rammapEp(struct nouveau_bios *bios, u16 khz,
 	default:
 		data = 0;
 		break;
+	}
+	return data;
+}
+
+u32
+nvbios_rammapEm(struct nouveau_bios *bios, u16 mhz,
+		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+		struct nvbios_ramcfg *info)
+{
+	int idx = 0;
+	u32 data;
+	while ((data = nvbios_rammapEp(bios, idx++, ver, hdr, cnt, len, info))) {
+		if (mhz >= info->rammap_min && mhz <= info->rammap_max)
+			break;
 	}
 	return data;
 }
@@ -129,8 +133,11 @@ nvbios_rammapSp(struct nouveau_bios *bios, u32 data,
 		u8 *ver, u8 *hdr, struct nvbios_ramcfg *p)
 {
 	data = nvbios_rammapSe(bios, data, ever, ehdr, ecnt, elen, idx, ver, hdr);
+	p->ramcfg_ver = *ver;
+	p->ramcfg_hdr = *hdr;
 	switch (!!data * *ver) {
 	case 0x11:
+		p->ramcfg_timing   =  nv_ro08(bios, data + 0x00);
 		p->ramcfg_11_01_01 = (nv_ro08(bios, data + 0x01) & 0x01) >> 0;
 		p->ramcfg_11_01_02 = (nv_ro08(bios, data + 0x01) & 0x02) >> 1;
 		p->ramcfg_11_01_04 = (nv_ro08(bios, data + 0x01) & 0x04) >> 2;
