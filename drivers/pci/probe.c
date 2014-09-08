@@ -1292,8 +1292,13 @@ bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
 	    *l == 0x0000ffff || *l == 0xffff0000)
 		return false;
 
-	/* Configuration request Retry Status */
-	while (*l == 0xffff0001) {
+	/*
+	 * Configuration Request Retry Status.  Some root ports return the
+	 * actual device ID instead of the synthetic ID (0xFFFF) required
+	 * by the PCIe spec.  Ignore the device ID and only check for
+	 * (vendor id == 1).
+	 */
+	while ((*l & 0xffff) == 0x0001) {
 		if (!crs_timeout)
 			return false;
 
