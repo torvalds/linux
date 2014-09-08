@@ -1866,7 +1866,7 @@ EXPORT_SYMBOL(sock_alloc_send_skb);
  * skb_page_frag_refill - check that a page_frag contains enough room
  * @sz: minimum size of the fragment we want to get
  * @pfrag: pointer to page_frag
- * @prio: priority for memory allocation
+ * @gfp: priority for memory allocation
  *
  * Note: While this allocator tries to use high order pages, there is
  * no guarantee that allocations succeed. Therefore, @sz MUST be
