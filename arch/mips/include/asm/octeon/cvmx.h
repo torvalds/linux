@@ -451,25 +451,7 @@ static inline uint32_t cvmx_octeon_num_cores(void)
 	return cvmx_pop(ciu_fuse);
 }
 
-/**
- * Read a byte of fuse data
- * @byte_addr:	 address to read
- *
- * Returns fuse value: 0 or 1
- */
-static uint8_t cvmx_fuse_read_byte(int byte_addr)
-{
-	union cvmx_mio_fus_rcmd read_cmd;
-
-	read_cmd.u64 = 0;
-	read_cmd.s.addr = byte_addr;
-	read_cmd.s.pend = 1;
-	cvmx_write_csr(CVMX_MIO_FUS_RCMD, read_cmd.u64);
-	while ((read_cmd.u64 = cvmx_read_csr(CVMX_MIO_FUS_RCMD))
-	       && read_cmd.s.pend)
-		;
-	return read_cmd.s.dat;
-}
+uint8_t cvmx_fuse_read_byte(int byte_addr);
 
 /**
  * Read a single fuse bit
