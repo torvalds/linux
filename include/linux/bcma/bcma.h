@@ -335,6 +335,7 @@ struct bcma_bus {
 	u8 num;
 
 	struct bcma_drv_cc drv_cc;
+	struct bcma_drv_cc_b drv_cc_b;
 	struct bcma_drv_pci drv_pci[2];
 	struct bcma_drv_pcie2 drv_pcie2;
 	struct bcma_drv_mips drv_mips;

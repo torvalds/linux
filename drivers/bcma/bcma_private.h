@@ -50,6 +50,10 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
 extern struct platform_device bcma_pflash_dev;
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
 
+/* driver_chipcommon_b.c */
+int bcma_core_chipcommon_b_init(struct bcma_drv_cc_b *ccb);
+void bcma_core_chipcommon_b_free(struct bcma_drv_cc_b *ccb);
+
 /* driver_chipcommon_pmu.c */
 u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc);
 u32 bcma_pmu_get_cpu_clock(struct bcma_drv_cc *cc);

@@ -314,6 +314,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		/* Some specific cores don't need wrappers */
 		switch (core->id.id) {
 		case BCMA_CORE_4706_MAC_GBIT_COMMON:
+		case BCMA_CORE_NS_CHIPCOMMON_B:
 		/* Not used yet: case BCMA_CORE_OOB_ROUTER: */
 			break;
 		default:

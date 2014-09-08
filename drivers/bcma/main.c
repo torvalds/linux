@@ -173,6 +173,7 @@ static int bcma_register_devices(struct bcma_bus *bus)
 		switch (core->id.id) {
 		case BCMA_CORE_4706_CHIPCOMMON:
 		case BCMA_CORE_CHIPCOMMON:
+		case BCMA_CORE_NS_CHIPCOMMON_B:
 		case BCMA_CORE_PCI:
 		case BCMA_CORE_PCIE:
 		case BCMA_CORE_PCIE2:
@@ -287,6 +288,13 @@ int bcma_bus_register(struct bcma_bus *bus)
 		bcma_core_chipcommon_init(&bus->drv_cc);
 	}
 
+	/* Init CC core */
+	core = bcma_find_core(bus, BCMA_CORE_NS_CHIPCOMMON_B);
+	if (core) {
+		bus->drv_cc_b.core = core;
+		bcma_core_chipcommon_b_init(&bus->drv_cc_b);
+	}
+
 	/* Init MIPS core */
 	core = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
 	if (core) {
@@ -340,6 +348,8 @@ void bcma_bus_unregister(struct bcma_bus *bus)
 		bcma_err(bus, "Some GPIOs are still in use.\n");
 	else if (err)
 		bcma_err(bus, "Can not unregister GPIO driver: %i\n", err);
+
+	bcma_core_chipcommon_b_free(&bus->drv_cc_b);
 
 	cores[0] = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
 	cores[1] = bcma_find_core(bus, BCMA_CORE_PCIE);
