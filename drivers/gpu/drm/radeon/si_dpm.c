@@ -5817,8 +5817,33 @@ void si_dpm_setup_asic(struct radeon_device *rdev)
 	si_enable_acpi_power_management(rdev);
 }
 
-static int si_set_thermal_temperature_range(struct radeon_device *rdev,
-					int min_temp, int max_temp)
+static int si_thermal_enable_alert(struct radeon_device *rdev,
+				   bool enable)
+{
+	u32 thermal_int = RREG32(CG_THERMAL_INT);
+
+	if (enable) {
+		PPSMC_Result result;
+
+		thermal_int |= THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW;
+		rdev->irq.dpm_thermal = true;
+		result = si_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
+		if (result != PPSMC_Result_OK) {
+			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
+			return -EINVAL;
+		}
+	} else {
+		thermal_int &= ~(THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW);
+		rdev->irq.dpm_thermal = false;
+	}
+
+	WREG32(CG_THERMAL_INT, thermal_int);
+
+	return 0;
+}
+
+static int si_thermal_set_temperature_range(struct radeon_device *rdev,
+					    int min_temp, int max_temp)
 {
 	int low_temp = 0 * 1000;
 	int high_temp = 255 * 1000;
@@ -5959,26 +5984,32 @@ int si_dpm_enable(struct radeon_device *rdev)
 	return 0;
 }
 
+static int si_set_temperature_range(struct radeon_device *rdev)
+{
+	int ret;
+
+	ret = si_thermal_enable_alert(rdev, false);
+	if (ret)
+		return ret;
+	ret = si_thermal_set_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+	if (ret)
+		return ret;
+	ret = si_thermal_enable_alert(rdev, true);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 int si_dpm_late_enable(struct radeon_device *rdev)
 {
 	int ret;
 
-	if (rdev->irq.installed &&
-	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		PPSMC_Result result;
+	ret = si_set_temperature_range(rdev);
+	if (ret)
+		return ret;
 
-		ret = si_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-		result = si_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-	}
-
-	return 0;
+	return ret;
 }
 
 void si_dpm_disable(struct radeon_device *rdev)
