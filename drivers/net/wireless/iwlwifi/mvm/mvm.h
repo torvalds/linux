@@ -709,6 +709,8 @@ struct iwl_mvm {
 	 */
 	bool temperature_test;  /* Debug test temperature is enabled */
 
+	struct iwl_time_quota_cmd last_quota_cmd;
+
 #ifdef CONFIG_NL80211_TESTMODE
 	u32 noa_duration;
 	struct ieee80211_vif *noa_vif;
