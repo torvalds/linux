@@ -84,7 +84,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	int offset = 0;
 
 	err = copy_from_user(&hdr, (void *)arg, sizeof(hdr));
-	if ( err )
+	if (err)
 		return err;
 
 	if (hdr.ioc_version != OBD_IOCTL_VERSION) {
@@ -118,7 +118,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	data = (struct obd_ioctl_data *)*buf;
 
 	err = copy_from_user(*buf, (void *)arg, hdr.ioc_len);
-	if ( err ) {
+	if (err) {
 		OBD_FREE_LARGE(*buf, hdr.ioc_len);
 		return err;
 	}

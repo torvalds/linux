@@ -161,35 +161,35 @@ int obdo_cmp_md(struct obdo *dst, struct obdo *src, u32 compare)
 {
 	int res = 0;
 
-	if ( compare & OBD_MD_FLATIME )
+	if (compare & OBD_MD_FLATIME)
 		res = (res || (dst->o_atime != src->o_atime));
-	if ( compare & OBD_MD_FLMTIME )
+	if (compare & OBD_MD_FLMTIME)
 		res = (res || (dst->o_mtime != src->o_mtime));
-	if ( compare & OBD_MD_FLCTIME )
+	if (compare & OBD_MD_FLCTIME)
 		res = (res || (dst->o_ctime != src->o_ctime));
-	if ( compare & OBD_MD_FLSIZE )
+	if (compare & OBD_MD_FLSIZE)
 		res = (res || (dst->o_size != src->o_size));
-	if ( compare & OBD_MD_FLBLOCKS ) /* allocation of space */
+	if (compare & OBD_MD_FLBLOCKS) /* allocation of space */
 		res = (res || (dst->o_blocks != src->o_blocks));
-	if ( compare & OBD_MD_FLBLKSZ )
+	if (compare & OBD_MD_FLBLKSZ)
 		res = (res || (dst->o_blksize != src->o_blksize));
-	if ( compare & OBD_MD_FLTYPE )
+	if (compare & OBD_MD_FLTYPE)
 		res = (res || (((dst->o_mode ^ src->o_mode) & S_IFMT) != 0));
-	if ( compare & OBD_MD_FLMODE )
+	if (compare & OBD_MD_FLMODE)
 		res = (res || (((dst->o_mode ^ src->o_mode) & ~S_IFMT) != 0));
-	if ( compare & OBD_MD_FLUID )
+	if (compare & OBD_MD_FLUID)
 		res = (res || (dst->o_uid != src->o_uid));
-	if ( compare & OBD_MD_FLGID )
+	if (compare & OBD_MD_FLGID)
 		res = (res || (dst->o_gid != src->o_gid));
-	if ( compare & OBD_MD_FLFLAGS )
+	if (compare & OBD_MD_FLFLAGS)
 		res = (res || (dst->o_flags != src->o_flags));
-	if ( compare & OBD_MD_FLNLINK )
+	if (compare & OBD_MD_FLNLINK)
 		res = (res || (dst->o_nlink != src->o_nlink));
-	if ( compare & OBD_MD_FLFID ) {
+	if (compare & OBD_MD_FLFID) {
 		res = (res || (dst->o_parent_seq != src->o_parent_seq));
 		res = (res || (dst->o_parent_ver != src->o_parent_ver));
 	}
-	if ( compare & OBD_MD_FLGENER )
+	if (compare & OBD_MD_FLGENER)
 		res = (res || (dst->o_parent_oid != src->o_parent_oid));
 	/* XXX Don't know if these should be included here - wasn't previously
 	if ( compare & OBD_MD_FLINLINE )
