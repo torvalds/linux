@@ -34,6 +34,9 @@
 #include "prm3xxx.h"
 #include "prm33xx.h"
 #include "prm44xx.h"
+#include "prm54xx.h"
+#include "prm7xx.h"
+#include "prcm43xx.h"
 #include "common.h"
 #include "clock.h"
 #include "cm.h"
@@ -661,11 +664,35 @@ static struct omap_prcm_init_data am3_prm_data __initdata = {
 };
 #endif
 
-#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
-	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM43XX)
+#ifdef CONFIG_ARCH_OMAP4
 static struct omap_prcm_init_data omap4_prm_data __initdata = {
 	.index = TI_CLKM_PRM,
 	.init = omap44xx_prm_init,
+	.device_inst_offset = OMAP4430_PRM_DEVICE_INST,
+};
+#endif
+
+#ifdef CONFIG_SOC_OMAP5
+static struct omap_prcm_init_data omap5_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap44xx_prm_init,
+	.device_inst_offset = OMAP54XX_PRM_DEVICE_INST,
+};
+#endif
+
+#ifdef CONFIG_SOC_DRA7XX
+static struct omap_prcm_init_data dra7_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap44xx_prm_init,
+	.device_inst_offset = DRA7XX_PRM_DEVICE_INST,
+};
+#endif
+
+#ifdef CONFIG_SOC_AM43XX
+static struct omap_prcm_init_data am4_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap44xx_prm_init,
+	.device_inst_offset = AM43XX_PRM_DEVICE_INST,
 };
 #endif
 
@@ -680,7 +707,7 @@ static const struct of_device_id omap_prcm_dt_match_table[] __initconst = {
 	{ .compatible = "ti,am3-prcm", .data = &am3_prm_data },
 #endif
 #ifdef CONFIG_SOC_AM43XX
-	{ .compatible = "ti,am4-prcm", .data = &omap4_prm_data },
+	{ .compatible = "ti,am4-prcm", .data = &am4_prm_data },
 #endif
 #ifdef CONFIG_SOC_TI81XX
 	{ .compatible = "ti,dm814-prcm", .data = &am3_prm_data },
@@ -697,11 +724,11 @@ static const struct of_device_id omap_prcm_dt_match_table[] __initconst = {
 	{ .compatible = "ti,omap4-scrm", .data = &scrm_data },
 #endif
 #ifdef CONFIG_SOC_OMAP5
-	{ .compatible = "ti,omap5-prm", .data = &omap4_prm_data },
+	{ .compatible = "ti,omap5-prm", .data = &omap5_prm_data },
 	{ .compatible = "ti,omap5-scrm", .data = &scrm_data },
 #endif
 #ifdef CONFIG_SOC_DRA7XX
-	{ .compatible = "ti,dra7-prm", .data = &omap4_prm_data },
+	{ .compatible = "ti,dra7-prm", .data = &dra7_prm_data },
 #endif
 	{ }
 };

@@ -713,6 +713,8 @@ int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 	if (!soc_is_dra7xx())
 		prm_features |= PRM_HAS_VOLTAGE;
 
+	omap4_prminst_set_prm_dev_inst(data->device_inst_offset);
+
 	return prm_register(&omap44xx_prm_ll_data);
 }
 
