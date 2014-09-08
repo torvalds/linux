@@ -56,6 +56,7 @@
 #include "omap4-sar-layout.h"
 #include "pm.h"
 #include "prcm_mpu44xx.h"
+#include "prcm_mpu54xx.h"
 #include "prminst44xx.h"
 #include "prcm44xx.h"
 #include "prm44xx.h"
@@ -68,7 +69,6 @@ struct omap4_cpu_pm_info {
 	void __iomem *scu_sar_addr;
 	void __iomem *wkup_sar_addr;
 	void __iomem *l2x0_sar_addr;
-	void (*secondary_startup)(void);
 };
 
 /**
@@ -76,6 +76,7 @@ struct omap4_cpu_pm_info {
  * @finish_suspend:	CPU suspend finisher function pointer
  * @resume:		CPU resume function pointer
  * @scu_prepare:	CPU Snoop Control program function pointer
+ * @hotplug_restart:	CPU restart function pointer
  *
  * Structure holds functions pointer for CPU low power operations like
  * suspend, resume and scu programming.
@@ -84,11 +85,13 @@ struct cpu_pm_ops {
 	int (*finish_suspend)(unsigned long cpu_state);
 	void (*resume)(void);
 	void (*scu_prepare)(unsigned int cpu_id, unsigned int cpu_state);
+	void (*hotplug_restart)(void);
 };
 
 static DEFINE_PER_CPU(struct omap4_cpu_pm_info, omap4_pm_info);
 static struct powerdomain *mpuss_pd;
 static void __iomem *sar_base;
+static u32 cpu_context_offset;
 
 static int default_finish_suspend(unsigned long cpu_state)
 {
@@ -106,6 +109,7 @@ struct cpu_pm_ops omap_pm_ops = {
 	.finish_suspend		= default_finish_suspend,
 	.resume			= dummy_cpu_resume,
 	.scu_prepare		= dummy_scu_prepare,
+	.hotplug_restart	= dummy_cpu_resume,
 };
 
 /*
@@ -116,7 +120,8 @@ static inline void set_cpu_wakeup_addr(unsigned int cpu_id, u32 addr)
 {
 	struct omap4_cpu_pm_info *pm_info = &per_cpu(omap4_pm_info, cpu_id);
 
-	writel_relaxed(addr, pm_info->wkup_sar_addr);
+	if (pm_info->wkup_sar_addr)
+		writel_relaxed(addr, pm_info->wkup_sar_addr);
 }
 
 /*
@@ -141,7 +146,8 @@ static void scu_pwrst_prepare(unsigned int cpu_id, unsigned int cpu_state)
 		break;
 	}
 
-	writel_relaxed(scu_pwr_st, pm_info->scu_sar_addr);
+	if (pm_info->scu_sar_addr)
+		writel_relaxed(scu_pwr_st, pm_info->scu_sar_addr);
 }
 
 /* Helper functions for MPUSS OSWR */
@@ -161,14 +167,14 @@ static inline void cpu_clear_prev_logic_pwrst(unsigned int cpu_id)
 
 	if (cpu_id) {
 		reg = omap4_prcm_mpu_read_inst_reg(OMAP4430_PRCM_MPU_CPU1_INST,
-					OMAP4_RM_CPU1_CPU1_CONTEXT_OFFSET);
+					cpu_context_offset);
 		omap4_prcm_mpu_write_inst_reg(reg, OMAP4430_PRCM_MPU_CPU1_INST,
-					OMAP4_RM_CPU1_CPU1_CONTEXT_OFFSET);
+					cpu_context_offset);
 	} else {
 		reg = omap4_prcm_mpu_read_inst_reg(OMAP4430_PRCM_MPU_CPU0_INST,
-					OMAP4_RM_CPU0_CPU0_CONTEXT_OFFSET);
+					cpu_context_offset);
 		omap4_prcm_mpu_write_inst_reg(reg, OMAP4430_PRCM_MPU_CPU0_INST,
-					OMAP4_RM_CPU0_CPU0_CONTEXT_OFFSET);
+					cpu_context_offset);
 	}
 }
 
@@ -179,7 +185,8 @@ static void l2x0_pwrst_prepare(unsigned int cpu_id, unsigned int save_state)
 {
 	struct omap4_cpu_pm_info *pm_info = &per_cpu(omap4_pm_info, cpu_id);
 
-	writel_relaxed(save_state, pm_info->l2x0_sar_addr);
+	if (pm_info->l2x0_sar_addr)
+		writel_relaxed(save_state, pm_info->l2x0_sar_addr);
 }
 
 /*
@@ -189,10 +196,14 @@ static void l2x0_pwrst_prepare(unsigned int cpu_id, unsigned int save_state)
 #ifdef CONFIG_CACHE_L2X0
 static void __init save_l2x0_context(void)
 {
-	writel_relaxed(l2x0_saved_regs.aux_ctrl,
-		     sar_base + L2X0_AUXCTRL_OFFSET);
-	writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
-		     sar_base + L2X0_PREFETCH_CTRL_OFFSET);
+	void __iomem *l2x0_base = omap4_get_l2cache_base();
+
+	if (l2x0_base && sar_base) {
+		writel_relaxed(l2x0_saved_regs.aux_ctrl,
+			       sar_base + L2X0_AUXCTRL_OFFSET);
+		writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
+			       sar_base + L2X0_PREFETCH_CTRL_OFFSET);
+	}
 }
 #else
 static void __init save_l2x0_context(void)
@@ -231,6 +242,10 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 		save_state = 1;
 		break;
 	case PWRDM_POWER_RET:
+		if (IS_PM44XX_ERRATUM(PM_OMAP4_CPU_OSWR_DISABLE)) {
+			save_state = 0;
+			break;
+		}
 	default:
 		/*
 		 * CPUx CSWR is invalid hardware state. Also CPUx OSWR
@@ -307,7 +322,7 @@ int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 
 	pwrdm_clear_all_prev_pwrst(pm_info->pwrdm);
 	pwrdm_set_next_pwrst(pm_info->pwrdm, power_state);
-	set_cpu_wakeup_addr(cpu, virt_to_phys(pm_info->secondary_startup));
+	set_cpu_wakeup_addr(cpu, virt_to_phys(omap_pm_ops.hotplug_restart));
 	omap_pm_ops.scu_prepare(cpu, power_state);
 
 	/*
@@ -323,6 +338,21 @@ int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 
 
 /*
+ * Enable Mercury Fast HG retention mode by default.
+ */
+static void enable_mercury_retention_mode(void)
+{
+	u32 reg;
+
+	reg = omap4_prcm_mpu_read_inst_reg(OMAP54XX_PRCM_MPU_DEVICE_INST,
+				  OMAP54XX_PRCM_MPU_PRM_PSCON_COUNT_OFFSET);
+	/* Enable HG_EN, HG_RAMPUP = fast mode */
+	reg |= BIT(24) | BIT(25);
+	omap4_prcm_mpu_write_inst_reg(reg, OMAP54XX_PRCM_MPU_DEVICE_INST,
+				      OMAP54XX_PRCM_MPU_PRM_PSCON_COUNT_OFFSET);
+}
+
+/*
  * Initialise OMAP4 MPUSS
  */
 int __init omap4_mpuss_init(void)
@@ -334,13 +364,17 @@ int __init omap4_mpuss_init(void)
 		return -ENODEV;
 	}
 
-	sar_base = omap4_get_sar_ram_base();
+	if (cpu_is_omap44xx())
+		sar_base = omap4_get_sar_ram_base();
 
 	/* Initilaise per CPU PM information */
 	pm_info = &per_cpu(omap4_pm_info, 0x0);
-	pm_info->scu_sar_addr = sar_base + SCU_OFFSET0;
-	pm_info->wkup_sar_addr = sar_base + CPU0_WAKEUP_NS_PA_ADDR_OFFSET;
-	pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET0;
+	if (sar_base) {
+		pm_info->scu_sar_addr = sar_base + SCU_OFFSET0;
+		pm_info->wkup_sar_addr = sar_base +
+					CPU0_WAKEUP_NS_PA_ADDR_OFFSET;
+		pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET0;
+	}
 	pm_info->pwrdm = pwrdm_lookup("cpu0_pwrdm");
 	if (!pm_info->pwrdm) {
 		pr_err("Lookup failed for CPU0 pwrdm\n");
@@ -355,13 +389,12 @@ int __init omap4_mpuss_init(void)
 	pwrdm_set_next_pwrst(pm_info->pwrdm, PWRDM_POWER_ON);
 
 	pm_info = &per_cpu(omap4_pm_info, 0x1);
-	pm_info->scu_sar_addr = sar_base + SCU_OFFSET1;
-	pm_info->wkup_sar_addr = sar_base + CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
-	pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET1;
-	if (cpu_is_omap446x())
-		pm_info->secondary_startup = omap4460_secondary_startup;
-	else
-		pm_info->secondary_startup = omap4_secondary_startup;
+	if (sar_base) {
+		pm_info->scu_sar_addr = sar_base + SCU_OFFSET1;
+		pm_info->wkup_sar_addr = sar_base +
+					CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
+		pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET1;
+	}
 
 	pm_info->pwrdm = pwrdm_lookup("cpu1_pwrdm");
 	if (!pm_info->pwrdm) {
@@ -384,19 +417,26 @@ int __init omap4_mpuss_init(void)
 	pwrdm_clear_all_prev_pwrst(mpuss_pd);
 	mpuss_clear_prev_logic_pwrst();
 
-	/* Save device type on scratchpad for low level code to use */
-	if (omap_type() != OMAP2_DEVICE_TYPE_GP)
-		writel_relaxed(1, sar_base + OMAP_TYPE_OFFSET);
-	else
-		writel_relaxed(0, sar_base + OMAP_TYPE_OFFSET);
-
-	save_l2x0_context();
+	if (sar_base) {
+		/* Save device type on scratchpad for low level code to use */
+		writel_relaxed((omap_type() != OMAP2_DEVICE_TYPE_GP) ? 1 : 0,
+			       sar_base + OMAP_TYPE_OFFSET);
+		save_l2x0_context();
+	}
 
 	if (cpu_is_omap44xx()) {
 		omap_pm_ops.finish_suspend = omap4_finish_suspend;
 		omap_pm_ops.resume = omap4_cpu_resume;
 		omap_pm_ops.scu_prepare = scu_pwrst_prepare;
+		omap_pm_ops.hotplug_restart = omap4_secondary_startup;
+		cpu_context_offset = OMAP4_RM_CPU0_CPU0_CONTEXT_OFFSET;
+	} else if (soc_is_omap54xx() || soc_is_dra7xx()) {
+		cpu_context_offset = OMAP54XX_RM_CPU0_CPU0_CONTEXT_OFFSET;
+		enable_mercury_retention_mode();
 	}
+
+	if (cpu_is_omap446x())
+		omap_pm_ops.hotplug_restart = omap4460_secondary_startup;
 
 	return 0;
 }
