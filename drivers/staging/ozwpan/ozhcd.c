@@ -1315,8 +1315,8 @@ static int oz_build_endpoints_for_config(struct usb_hcd *hcd,
 	if (num_iface) {
 		struct oz_interface *iface;
 
-		iface = kmalloc(num_iface*sizeof(struct oz_interface),
-				mem_flags | __GFP_ZERO);
+		iface = kmalloc_array(num_iface, sizeof(struct oz_interface),
+					mem_flags | __GFP_ZERO);
 		if (!iface)
 			return -ENOMEM;
 		spin_lock_bh(&ozhcd->hcd_lock);
