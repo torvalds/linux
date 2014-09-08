@@ -1787,8 +1787,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 	u8 value;
-	u8 i2c_init[9] =
-		{0x80, sd->i2c_addr, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03};
+	u8 i2c_init[9] = {
+		0x80, sd->i2c_addr, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03
+	};
 
 	for (i = 0; i < ARRAY_SIZE(bridge_init); i++) {
 		value = bridge_init[i][1];
@@ -2242,8 +2243,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum, is_jpeg;
-	static const u8 frame_header[] =
-		{0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
+	static const u8 frame_header[] = {
+		0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96
+	};
 
 	is_jpeg = (sd->fmt & 0x03) == 0;
 	if (len >= 64 && memcmp(data, frame_header, 6) == 0) {
