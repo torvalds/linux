@@ -174,6 +174,7 @@ int oz_queue_elt_info(struct oz_elt_buf *buf, u8 isoc, u8 id,
 			== OZ_USB_ENDPOINT_DATA) &&
 			(body->format == OZ_DATA_F_ISOC_FIXED)) {
 			u8 unit_count = body->frame_number;
+
 			body->frame_number = st->frame_number;
 			st->frame_number += unit_count;
 		}

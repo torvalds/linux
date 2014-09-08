@@ -263,6 +263,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case OZ_IOCTL_GET_PD_LIST: {
 			struct oz_pd_list list;
+
 			oz_dbg(ON, "OZ_IOCTL_GET_PD_LIST\n");
 			memset(&list, 0, sizeof(list));
 			list.count = oz_get_pd_list(list.addr, OZ_MAX_PDS);
@@ -273,6 +274,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case OZ_IOCTL_SET_ACTIVE_PD: {
 			u8 addr[ETH_ALEN];
+
 			oz_dbg(ON, "OZ_IOCTL_SET_ACTIVE_PD\n");
 			if (copy_from_user(addr, (void __user *)arg, ETH_ALEN))
 				return -EFAULT;
@@ -281,6 +283,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case OZ_IOCTL_GET_ACTIVE_PD: {
 			u8 addr[ETH_ALEN];
+
 			oz_dbg(ON, "OZ_IOCTL_GET_ACTIVE_PD\n");
 			spin_lock_bh(&g_cdev.lock);
 			ether_addr_copy(addr, g_cdev.active_addr);
@@ -292,6 +295,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 	case OZ_IOCTL_ADD_BINDING:
 	case OZ_IOCTL_REMOVE_BINDING: {
 			struct oz_binding_info b;
+
 			if (copy_from_user(&b, (void __user *)arg,
 				sizeof(struct oz_binding_info))) {
 				return -EFAULT;
@@ -320,6 +324,7 @@ static unsigned int oz_cdev_poll(struct file *filp, poll_table *wait)
 	spin_lock_bh(&dev->lock);
 	if (dev->active_pd) {
 		struct oz_serial_ctx *ctx = oz_cdev_claim_ctx(dev->active_pd);
+
 		if (ctx) {
 			if (ctx->rd_in != ctx->rd_out)
 				ret |= POLLIN | POLLRDNORM;

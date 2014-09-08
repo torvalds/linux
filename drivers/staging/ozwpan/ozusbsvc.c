@@ -128,6 +128,7 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 	if (usb_ctx) {
 		struct timespec ts, now;
+
 		getnstimeofday(&ts);
 		oz_dbg(ON, "USB service stopping...\n");
 		usb_ctx->stopped = 1;
@@ -235,6 +236,7 @@ int oz_usb_stream_delete(void *hpd, u8 ep_num)
 
 	if (usb_ctx) {
 		struct oz_pd *pd = usb_ctx->pd;
+
 		if (pd) {
 			oz_dbg(ON, "%s: (0x%x)\n", __func__, ep_num);
 			if (pd->mode & OZ_F_ISOC_NO_ELTS) {

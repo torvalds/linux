@@ -213,6 +213,7 @@ int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
 		case USB_REQ_SET_INTERFACE: {
 				u8 if_num = (u8)windex;
 				u8 alt = (u8)wvalue;
+
 				rc = oz_usb_set_interface_req(hpd, req_id,
 					if_num, alt);
 			}
@@ -254,6 +255,7 @@ int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 	if (pd->mode & OZ_F_ISOC_NO_ELTS) {
 		for (i = 0; i < urb->number_of_packets; i++) {
 			u8 *data;
+
 			desc = &urb->iso_frame_desc[i];
 			data = ((u8 *)urb->transfer_buffer)+desc->offset;
 			oz_send_isoc_unit(pd, ep_num, data, desc->length);
@@ -271,6 +273,7 @@ int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 		int unit_count;
 		int unit_size;
 		int rem;
+
 		if (ei == NULL)
 			return -1;
 		rem = MAX_ISOC_FIXED_DATA;
@@ -340,6 +343,7 @@ static void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
 			u8 *data = body->data;
 			int count;
 			int i;
+
 			if (!unit_size)
 				break;
 			count = data_len/unit_size;

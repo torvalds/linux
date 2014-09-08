@@ -179,6 +179,7 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 	} else {
 		struct oz_pd *pd2 = NULL;
 		struct list_head *e;
+
 		pd = oz_pd_alloc(pd_addr);
 		if (pd == NULL)
 			return NULL;
@@ -262,6 +263,7 @@ done:
 		u16 start_apps = new_apps & ~pd->total_apps & ~0x1;
 		u16 stop_apps = pd->total_apps & ~new_apps & ~0x1;
 		u16 resume_apps = new_apps & pd->paused_apps  & ~0x1;
+
 		spin_unlock_bh(&g_polling_lock);
 		oz_pd_set_state(pd, OZ_PD_S_CONNECTED);
 		oz_dbg(ON, "new_apps=0x%x total_apps=0x%x paused_apps=0x%x\n",
@@ -383,6 +385,7 @@ static void oz_rx_frame(struct sk_buff *skb)
 		if ((oz_hdr->control & OZ_F_ACK_REQUESTED) &&
 				(pd->state == OZ_PD_S_CONNECTED)) {
 			int backlog = pd->nb_queued_frames;
+
 			pd->trigger_pkt_num = pkt_num;
 			/* Send queued frames */
 			oz_send_queued_frames(pd, backlog);
@@ -781,6 +784,7 @@ int oz_protocol_init(char *devs)
 		oz_binding_add(NULL);
 	} else {
 		char d[32];
+
 		while (*devs) {
 			devs = oz_get_next_device_name(devs, d, sizeof(d));
 			if (d[0])
