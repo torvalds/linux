@@ -86,9 +86,8 @@ fail:
 static void mac802154_rx_worker(struct work_struct *work)
 {
 	struct rx_work *rw = container_of(work, struct rx_work, work);
-	struct sk_buff *skb = rw->skb;
 
-	mac802154_subif_rx(rw->dev, skb, rw->lqi);
+	mac802154_subif_rx(rw->dev, rw->skb, rw->lqi);
 	kfree(rw);
 }
 
@@ -101,7 +100,7 @@ ieee802154_rx_irqsafe(struct ieee802154_dev *dev, struct sk_buff *skb, u8 lqi)
 	if (!skb)
 		return;
 
-	work = kzalloc(sizeof(struct rx_work), GFP_ATOMIC);
+	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
 		return;
 

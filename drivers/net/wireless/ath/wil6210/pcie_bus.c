@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -218,12 +218,13 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 static void wil_pcie_remove(struct pci_dev *pdev)
 {
 	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+	void __iomem *csr = wil->csr;
 
 	wil6210_debugfs_remove(wil);
 	wil_if_pcie_disable(wil);
 	wil_if_remove(wil);
 	wil_if_free(wil);
-	pci_iounmap(pdev, wil->csr);
+	pci_iounmap(pdev, csr);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
 }
@@ -242,6 +243,8 @@ static const struct pci_device_id wil6210_pcie_ids[] = {
 	{ PCI_DEVICE(0x1ae9, 0x0301),
 	  .driver_data = (kernel_ulong_t)&wil_board_marlon },
 	{ PCI_DEVICE(0x1ae9, 0x0310),
+	  .driver_data = (kernel_ulong_t)&wil_board_sparrow },
+	{ PCI_DEVICE(0x1ae9, 0x0302), /* same as above, firmware broken */
 	  .driver_data = (kernel_ulong_t)&wil_board_sparrow },
 	{ /* end: all zeroes */	},
 };

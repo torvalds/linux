@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -314,14 +316,26 @@ static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 {
 	u32 duration = mvm->thermal_throttle.params->ct_kill_duration;
 
+	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
+		return;
+
 	IWL_ERR(mvm, "Enter CT Kill\n");
 	iwl_mvm_set_hw_ctkill_state(mvm, true);
-	schedule_delayed_work(&mvm->thermal_throttle.ct_kill_exit,
-			      round_jiffies_relative(duration * HZ));
+
+	/* Don't schedule an exit work if we're in test mode, since
+	 * the temperature will not change unless we manually set it
+	 * again (or disable testing).
+	 */
+	if (!mvm->temperature_test)
+		schedule_delayed_work(&mvm->thermal_throttle.ct_kill_exit,
+				      round_jiffies_relative(duration * HZ));
 }
 
 static void iwl_mvm_exit_ctkill(struct iwl_mvm *mvm)
 {
+	if (!test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
+		return;
+
 	IWL_ERR(mvm, "Exit CT Kill\n");
 	iwl_mvm_set_hw_ctkill_state(mvm, false);
 }
@@ -441,6 +455,12 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 
 	if (params->support_ct_kill && temperature >= params->ct_kill_entry) {
 		iwl_mvm_enter_ctkill(mvm);
+		return;
+	}
+
+	if (params->support_ct_kill &&
+	    temperature <= tt->params->ct_kill_exit) {
+		iwl_mvm_exit_ctkill(mvm);
 		return;
 	}
 

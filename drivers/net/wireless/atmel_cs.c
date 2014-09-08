@@ -66,18 +66,18 @@ static void atmel_release(struct pcmcia_device *link);
 
 static void atmel_detach(struct pcmcia_device *p_dev);
 
-typedef struct local_info_t {
+struct local_info {
 	struct net_device *eth_dev;
-} local_info_t;
+};
 
 static int atmel_probe(struct pcmcia_device *p_dev)
 {
-	local_info_t *local;
+	struct local_info *local;
 
 	dev_dbg(&p_dev->dev, "atmel_attach()\n");
 
 	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(*local), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
 
@@ -117,7 +117,7 @@ static int atmel_config_check(struct pcmcia_device *p_dev, void *priv_data)
 
 static int atmel_config(struct pcmcia_device *link)
 {
-	local_info_t *dev;
+	struct local_info *dev;
 	int ret;
 	const struct pcmcia_device_id *did;
 
@@ -141,14 +141,14 @@ static int atmel_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	((local_info_t*)link->priv)->eth_dev =
+	((struct local_info *)link->priv)->eth_dev =
 		init_atmel_card(link->irq,
 				link->resource[0]->start,
 				did ? did->driver_info : ATMEL_FW_TYPE_NONE,
 				&link->dev,
 				card_present,
 				link);
-	if (!((local_info_t*)link->priv)->eth_dev)
+	if (!((struct local_info *)link->priv)->eth_dev)
 			goto failed;
 
 
@@ -161,20 +161,20 @@ static int atmel_config(struct pcmcia_device *link)
 
 static void atmel_release(struct pcmcia_device *link)
 {
-	struct net_device *dev = ((local_info_t*)link->priv)->eth_dev;
+	struct net_device *dev = ((struct local_info *)link->priv)->eth_dev;
 
 	dev_dbg(&link->dev, "atmel_release\n");
 
 	if (dev)
 		stop_atmel_card(dev);
-	((local_info_t*)link->priv)->eth_dev = NULL;
+	((struct local_info *)link->priv)->eth_dev = NULL;
 
 	pcmcia_disable_device(link);
 }
 
 static int atmel_suspend(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info *local = link->priv;
 
 	netif_device_detach(local->eth_dev);
 
@@ -183,7 +183,7 @@ static int atmel_suspend(struct pcmcia_device *link)
 
 static int atmel_resume(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info *local = link->priv;
 
 	atmel_open(local->eth_dev);
 	netif_device_attach(local->eth_dev);

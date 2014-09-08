@@ -1423,7 +1423,7 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 		break;
 	}
 
-	if (rxs->rate_idx >= 0 && rs->rs_rate ==
+	if (rs->rs_rate ==
 	    ah->sbands[ah->curchan->band].bitrates[rxs->rate_idx].hw_value_short)
 		rxs->flag |= RX_FLAG_SHORTPRE;
 

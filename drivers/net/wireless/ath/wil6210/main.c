@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,6 +24,9 @@
 static bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_recovery, " disable FW error recovery");
+
+#define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
+#define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
 
 /*
  * Due to a hardware issue,
@@ -309,7 +312,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	destroy_workqueue(wil->wmi_wq);
 }
 
-static void wil_target_reset(struct wil6210_priv *wil)
+static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
 	u32 hw_state;
@@ -327,6 +330,8 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	/* register clear = read, AND with inverted, write */
 #define C(a, v) W(a, R(a) & ~v)
 
+	wmb(); /* If host reorder writes here -> race in NIC */
+	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	wil->hw_version = R(RGF_USER_FW_REV_ID);
 	rev_id = wil->hw_version & 0xff;
 
@@ -343,8 +348,9 @@ static void wil_target_reset(struct wil6210_priv *wil)
 		wmb(); /* order is important here */
 	}
 
-	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	W(RGF_USER_USER_CPU_0, BIT(1)); /* user_cpu_man_rst */
+	wmb(); /* If host reorder writes here -> race in NIC */
+	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	wmb(); /* order is important here */
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
@@ -385,14 +391,14 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 	wmb(); /* order is important here */
 
-	/* wait until device ready */
+	/* wait until device ready. typical time is 200..250 msec */
 	do {
-		msleep(1);
+		msleep(RST_DELAY);
 		hw_state = R(RGF_USER_HW_MACHINE_STATE);
-		if (delay++ > 100) {
+		if (delay++ > RST_COUNT) {
 			wil_err(wil, "Reset not completed, hw_state 0x%08x\n",
 				hw_state);
-			return;
+			return -ETIME;
 		}
 	} while (hw_state != HW_MACHINE_BOOT_DONE);
 
@@ -403,7 +409,8 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 	wmb(); /* order is important here */
 
-	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay);
+	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
+	return 0;
 
 #undef R
 #undef W
@@ -468,10 +475,11 @@ int wil_reset(struct wil6210_priv *wil)
 	flush_workqueue(wil->wmi_wq_conn);
 	flush_workqueue(wil->wmi_wq);
 
-	/* TODO: put MAC in reset */
-	wil_target_reset(wil);
-
+	rc = wil_target_reset(wil);
 	wil_rx_fini(wil);
+	if (rc)
+		return rc;
+
 
 	/* init after reset */
 	wil->pending_connect_cid = -1;

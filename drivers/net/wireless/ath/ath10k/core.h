@@ -22,6 +22,8 @@
 #include <linux/if_ether.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/uuid.h>
+#include <linux/time.h>
 
 #include "htt.h"
 #include "htc.h"
@@ -31,6 +33,7 @@
 #include "../ath.h"
 #include "../regd.h"
 #include "../dfs_pattern_detector.h"
+#include "spectral.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -237,6 +240,7 @@ struct ath10k_vif {
 
 	bool is_started;
 	bool is_up;
+	bool spectral_enabled;
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 
@@ -276,11 +280,20 @@ struct ath10k_vif_iter {
 	struct ath10k_vif *arvif;
 };
 
+/* used for crash-dump storage, protected by data-lock */
+struct ath10k_fw_crash_data {
+	bool crashed_since_read;
+
+	uuid_le uuid;
+	struct timespec timestamp;
+	__le32 registers[REG_DUMP_COUNT_QCA988X];
+};
+
 struct ath10k_debug {
 	struct dentry *debugfs_phy;
 
 	struct ath10k_target_stats target_stats;
-	u32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	DECLARE_BITMAP(wmi_service_bitmap, WMI_SERVICE_BM_SIZE);
 
 	struct completion event_stats_compl;
 
@@ -293,6 +306,8 @@ struct ath10k_debug {
 
 	u8 htt_max_amsdu;
 	u8 htt_max_ampdu;
+
+	struct ath10k_fw_crash_data *fw_crash_data;
 };
 
 enum ath10k_state {
@@ -330,6 +345,11 @@ enum ath10k_fw_features {
 	/* Firmware does not support P2P */
 	ATH10K_FW_FEATURE_NO_P2P = 3,
 
+	/* Firmware 10.2 feature bit. The ATH10K_FW_FEATURE_WMI_10X feature bit
+	 * is required to be set as well.
+	 */
+	ATH10K_FW_FEATURE_WMI_10_2 = 4,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -337,9 +357,31 @@ enum ath10k_fw_features {
 enum ath10k_dev_flags {
 	/* Indicates that ath10k device is during CAC phase of DFS */
 	ATH10K_CAC_RUNNING,
-	ATH10K_FLAG_FIRST_BOOT_DONE,
 	ATH10K_FLAG_CORE_REGISTERED,
 };
+
+enum ath10k_scan_state {
+	ATH10K_SCAN_IDLE,
+	ATH10K_SCAN_STARTING,
+	ATH10K_SCAN_RUNNING,
+	ATH10K_SCAN_ABORTING,
+};
+
+static inline const char *ath10k_scan_state_str(enum ath10k_scan_state state)
+{
+	switch (state) {
+	case ATH10K_SCAN_IDLE:
+		return "idle";
+	case ATH10K_SCAN_STARTING:
+		return "starting";
+	case ATH10K_SCAN_RUNNING:
+		return "running";
+	case ATH10K_SCAN_ABORTING:
+		return "aborting";
+	}
+
+	return "unknown";
+}
 
 struct ath10k {
 	struct ath_common ath_common;
@@ -368,7 +410,6 @@ struct ath10k {
 	bool p2p;
 
 	struct {
-		void *priv;
 		const struct ath10k_hif_ops *ops;
 	} hif;
 
@@ -410,10 +451,9 @@ struct ath10k {
 		struct completion started;
 		struct completion completed;
 		struct completion on_channel;
-		struct timer_list timeout;
+		struct delayed_work timeout;
+		enum ath10k_scan_state state;
 		bool is_roc;
-		bool in_progress;
-		bool aborting;
 		int vdev_id;
 		int roc_freq;
 	} scan;
@@ -494,9 +534,21 @@ struct ath10k {
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
 #endif
+
+	struct {
+		/* relay(fs) channel for spectral scan */
+		struct rchan *rfs_chan_spec_scan;
+
+		/* spectral_mode and spec_config are protected by conf_mutex */
+		enum ath10k_spectral_mode mode;
+		struct ath10k_spec_scan config;
+	} spectral;
+
+	/* must be last */
+	u8 drv_priv[0] __aligned(sizeof(void *));
 };
 
-struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
+struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
 

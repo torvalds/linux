@@ -457,6 +457,7 @@ enum {
 #define B43_MACCTL_RADIOLOCK		0x00080000	/* Radio lock */
 #define B43_MACCTL_BEACPROMISC		0x00100000	/* Beacon Promiscuous */
 #define B43_MACCTL_KEEP_BADPLCP		0x00200000	/* Keep frames with bad PLCP */
+#define B43_MACCTL_PHY_LOCK		0x00200000
 #define B43_MACCTL_KEEP_CTL		0x00400000	/* Keep control frames */
 #define B43_MACCTL_KEEP_BAD		0x00800000	/* Keep bad frames (FCS) */
 #define B43_MACCTL_PROMISC		0x01000000	/* Promiscuous mode */
@@ -791,6 +792,13 @@ struct b43_firmware {
 	bool pcm_request_failed;
 };
 
+enum b43_band {
+	B43_BAND_2G = 0,
+	B43_BAND_5G_LO = 1,
+	B43_BAND_5G_MI = 2,
+	B43_BAND_5G_HI = 3,
+};
+
 /* Device (802.11 core) initialization status. */
 enum {
 	B43_STAT_UNINIT = 0,	/* Uninitialized. */
@@ -1010,6 +1018,16 @@ static inline u16 b43_read16(struct b43_wldev *dev, u16 offset)
 static inline void b43_write16(struct b43_wldev *dev, u16 offset, u16 value)
 {
 	dev->dev->write16(dev->dev, offset, value);
+}
+
+/* To optimize this check for flush_writes on BCM47XX_BCMA only. */
+static inline void b43_write16f(struct b43_wldev *dev, u16 offset, u16 value)
+{
+	b43_write16(dev, offset, value);
+#if defined(CONFIG_BCM47XX_BCMA)
+	if (dev->dev->flush_writes)
+		b43_read16(dev, offset);
+#endif
 }
 
 static inline void b43_maskset16(struct b43_wldev *dev, u16 offset, u16 mask,

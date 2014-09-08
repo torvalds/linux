@@ -625,6 +625,9 @@ struct l2cap_conn {
 
 	struct delayed_work	info_timer;
 
+	int			disconn_err;
+	struct work_struct	disconn_work;
+
 	struct sk_buff		*rx_skb;
 	__u32			rx_len;
 	__u8			tx_ident;
@@ -635,8 +638,7 @@ struct l2cap_conn {
 
 	__u8			disc_reason;
 
-	struct delayed_work	security_timer;
-	struct smp_chan		*smp_chan;
+	struct l2cap_chan	*smp;
 
 	struct list_head	chan_l;
 	struct mutex		chan_lock;
@@ -708,6 +710,7 @@ enum {
 	FLAG_EFS_ENABLE,
 	FLAG_DEFER_SETUP,
 	FLAG_LE_CONN_REQ_SENT,
+	FLAG_PENDING_SECURITY,
 };
 
 enum {
@@ -837,7 +840,23 @@ static inline struct l2cap_chan *l2cap_chan_no_new_connection(struct l2cap_chan 
 	return NULL;
 }
 
+static inline int l2cap_chan_no_recv(struct l2cap_chan *chan, struct sk_buff *skb)
+{
+	return -ENOSYS;
+}
+
+static inline struct sk_buff *l2cap_chan_no_alloc_skb(struct l2cap_chan *chan,
+						      unsigned long hdr_len,
+						      unsigned long len, int nb)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
 static inline void l2cap_chan_no_teardown(struct l2cap_chan *chan, int err)
+{
+}
+
+static inline void l2cap_chan_no_close(struct l2cap_chan *chan)
 {
 }
 
@@ -845,7 +864,16 @@ static inline void l2cap_chan_no_ready(struct l2cap_chan *chan)
 {
 }
 
+static inline void l2cap_chan_no_state_change(struct l2cap_chan *chan,
+					      int state, int err)
+{
+}
+
 static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
+{
+}
+
+static inline void l2cap_chan_no_suspend(struct l2cap_chan *chan)
 {
 }
 
@@ -918,6 +946,7 @@ void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 		       u8 status);
 void __l2cap_physical_cfm(struct l2cap_chan *chan, int result);
 
+void l2cap_conn_shutdown(struct l2cap_conn *conn, int err);
 void l2cap_conn_get(struct l2cap_conn *conn);
 void l2cap_conn_put(struct l2cap_conn *conn);
 

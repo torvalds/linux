@@ -1071,22 +1071,10 @@ static unsigned int b43_phy_ht_op_get_default_chan(struct b43_wldev *dev)
  * R/W ops.
  **************************************************/
 
-static u16 b43_phy_ht_op_read(struct b43_wldev *dev, u16 reg)
-{
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	return b43_read16(dev, B43_MMIO_PHY_DATA);
-}
-
-static void b43_phy_ht_op_write(struct b43_wldev *dev, u16 reg, u16 value)
-{
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	b43_write16(dev, B43_MMIO_PHY_DATA, value);
-}
-
 static void b43_phy_ht_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
 				 u16 set)
 {
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_PHY_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_PHY_DATA,
 		    (b43_read16(dev, B43_MMIO_PHY_DATA) & mask) | set);
 }
@@ -1096,14 +1084,14 @@ static u16 b43_phy_ht_op_radio_read(struct b43_wldev *dev, u16 reg)
 	/* HT-PHY needs 0x200 for read access */
 	reg |= 0x200;
 
-	b43_write16(dev, B43_MMIO_RADIO24_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, reg);
 	return b43_read16(dev, B43_MMIO_RADIO24_DATA);
 }
 
 static void b43_phy_ht_op_radio_write(struct b43_wldev *dev, u16 reg,
 				      u16 value)
 {
-	b43_write16(dev, B43_MMIO_RADIO24_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_RADIO24_DATA, value);
 }
 
@@ -1126,8 +1114,6 @@ const struct b43_phy_operations b43_phyops_ht = {
 	.free			= b43_phy_ht_op_free,
 	.prepare_structs	= b43_phy_ht_op_prepare_structs,
 	.init			= b43_phy_ht_op_init,
-	.phy_read		= b43_phy_ht_op_read,
-	.phy_write		= b43_phy_ht_op_write,
 	.phy_maskset		= b43_phy_ht_op_maskset,
 	.radio_read		= b43_phy_ht_op_radio_read,
 	.radio_write		= b43_phy_ht_op_radio_write,

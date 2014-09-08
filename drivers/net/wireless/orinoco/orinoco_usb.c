@@ -1605,10 +1605,7 @@ static int ezusb_probe(struct usb_interface *interface,
 	for (i = 0; i < iface_desc->bNumEndpoints; ++i) {
 		ep = &interface->altsetting[0].endpoint[i].desc;
 
-		if (((ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-		     == USB_DIR_IN) &&
-		    ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-		     == USB_ENDPOINT_XFER_BULK)) {
+		if (usb_endpoint_is_bulk_in(ep)) {
 			/* we found a bulk in endpoint */
 			if (upriv->read_urb != NULL) {
 				pr_warning("Found a second bulk in ep, ignored");
@@ -1636,10 +1633,7 @@ static int ezusb_probe(struct usb_interface *interface,
 			}
 		}
 
-		if (((ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-		     == USB_DIR_OUT) &&
-		    ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-		     == USB_ENDPOINT_XFER_BULK)) {
+		if (usb_endpoint_is_bulk_out(ep)) {
 			/* we found a bulk out endpoint */
 			if (upriv->bap_buf != NULL) {
 				pr_warning("Found a second bulk out ep, ignored");

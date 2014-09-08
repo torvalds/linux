@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/moduleparam.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 
@@ -21,6 +22,10 @@
 #include "txrx.h"
 #include "wmi.h"
 #include "trace.h"
+
+static uint max_assoc_sta = 1;
+module_param(max_assoc_sta, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_assoc_sta, " Max number of stations associated to the AP");
 
 /**
  * WMI event receiving - theory of operations
@@ -346,11 +351,11 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 				    rx_mgmt_frame->bssid);
 			cfg80211_put_bss(wiphy, bss);
 		} else {
-			wil_err(wil, "cfg80211_inform_bss() failed\n");
+			wil_err(wil, "cfg80211_inform_bss_frame() failed\n");
 		}
 	} else {
 		cfg80211_rx_mgmt(wil->wdev, freq, signal,
-				 (void *)rx_mgmt_frame, d_len, 0, GFP_KERNEL);
+				 (void *)rx_mgmt_frame, d_len, 0);
 	}
 }
 
@@ -480,33 +485,6 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, evt->bssid);
 	mutex_unlock(&wil->mutex);
-}
-
-static void wmi_evt_notify(struct wil6210_priv *wil, int id, void *d, int len)
-{
-	struct wmi_notify_req_done_event *evt = d;
-
-	if (len < sizeof(*evt)) {
-		wil_err(wil, "Short NOTIFY event\n");
-		return;
-	}
-
-	wil->stats.tsf = le64_to_cpu(evt->tsf);
-	wil->stats.snr = le32_to_cpu(evt->snr_val);
-	wil->stats.bf_mcs = le16_to_cpu(evt->bf_mcs);
-	wil->stats.my_rx_sector = le16_to_cpu(evt->my_rx_sector);
-	wil->stats.my_tx_sector = le16_to_cpu(evt->my_tx_sector);
-	wil->stats.peer_rx_sector = le16_to_cpu(evt->other_rx_sector);
-	wil->stats.peer_tx_sector = le16_to_cpu(evt->other_tx_sector);
-	wil_dbg_wmi(wil, "Link status, MCS %d TSF 0x%016llx\n"
-		    "BF status 0x%08x SNR 0x%08x SQI %d%%\n"
-		    "Tx Tpt %d goodput %d Rx goodput %d\n"
-		    "Sectors(rx:tx) my %d:%d peer %d:%d\n",
-		    wil->stats.bf_mcs, wil->stats.tsf, evt->status,
-		    wil->stats.snr, evt->sqi, le32_to_cpu(evt->tx_tpt),
-		    le32_to_cpu(evt->tx_goodput), le32_to_cpu(evt->rx_goodput),
-		    wil->stats.my_rx_sector, wil->stats.my_tx_sector,
-		    wil->stats.peer_rx_sector, wil->stats.peer_tx_sector);
 }
 
 /*
@@ -651,7 +629,6 @@ static const struct {
 	{WMI_SCAN_COMPLETE_EVENTID,	wmi_evt_scan_complete},
 	{WMI_CONNECT_EVENTID,		wmi_evt_connect},
 	{WMI_DISCONNECT_EVENTID,	wmi_evt_disconnect},
-	{WMI_NOTIFY_REQ_DONE_EVENTID,	wmi_evt_notify},
 	{WMI_EAPOL_RX_EVENTID,		wmi_evt_eapol_rx},
 	{WMI_DATA_PORT_OPEN_EVENTID,	wmi_evt_linkup},
 	{WMI_WBE_LINKDOWN_EVENTID,	wmi_evt_linkdown},
@@ -822,7 +799,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
 		.channel = chan - 1,
-		.pcp_max_assoc_sta = WIL6210_MAX_CID,
+		.pcp_max_assoc_sta = max_assoc_sta,
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;
@@ -831,6 +808,14 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 
 	if (!wil->secure_pcp)
 		cmd.disable_sec = 1;
+
+	if ((cmd.pcp_max_assoc_sta > WIL6210_MAX_CID) ||
+	    (cmd.pcp_max_assoc_sta <= 0)) {
+		wil_info(wil,
+			 "Requested connection limit %u, valid values are 1 - %d. Setting to %d\n",
+			 max_assoc_sta, WIL6210_MAX_CID, WIL6210_MAX_CID);
+		cmd.pcp_max_assoc_sta = WIL6210_MAX_CID;
+	}
 
 	/*
 	 * Processing time may be huge, in case of secure AP it takes about

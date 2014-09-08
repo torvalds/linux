@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,12 +22,28 @@
 #include <linux/power_supply.h>
 
 #include "wil6210.h"
+#include "wmi.h"
 #include "txrx.h"
 
 /* Nasty hack. Better have per device instances */
 static u32 mem_addr;
 static u32 dbg_txdesc_index;
 static u32 dbg_vring_index; /* 24+ for Rx, 0..23 for Tx */
+
+enum dbg_off_type {
+	doff_u32 = 0,
+	doff_x32 = 1,
+	doff_ulong = 2,
+	doff_io32 = 3,
+};
+
+/* offset to "wil" */
+struct dbg_off {
+	const char *name;
+	umode_t mode;
+	ulong off;
+	enum dbg_off_type type;
+};
 
 static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 			    const char *name, struct vring *vring,
@@ -244,9 +260,9 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_iomem_x32, wil_debugfs_iomem_x32_get,
 static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
 						   umode_t mode,
 						   struct dentry *parent,
-						   void __iomem *value)
+						   void *value)
 {
-	return debugfs_create_file(name, mode, parent, (void * __force)value,
+	return debugfs_create_file(name, mode, parent, value,
 				   &fops_iomem_x32);
 }
 
@@ -270,6 +286,59 @@ static struct dentry *wil_debugfs_create_ulong(const char *name, umode_t mode,
 	return debugfs_create_file(name, mode, parent, value, &wil_fops_ulong);
 }
 
+/**
+ * wil6210_debugfs_init_offset - create set of debugfs files
+ * @wil - driver's context, used for printing
+ * @dbg - directory on the debugfs, where files will be created
+ * @base - base address used in address calculation
+ * @tbl - table with file descriptions. Should be terminated with empty element.
+ *
+ * Creates files accordingly to the @tbl.
+ */
+static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
+					struct dentry *dbg, void *base,
+					const struct dbg_off * const tbl)
+{
+	int i;
+
+	for (i = 0; tbl[i].name; i++) {
+		struct dentry *f = NULL;
+
+		switch (tbl[i].type) {
+		case doff_u32:
+			f = debugfs_create_u32(tbl[i].name, tbl[i].mode, dbg,
+					       base + tbl[i].off);
+			break;
+		case doff_x32:
+			f = debugfs_create_x32(tbl[i].name, tbl[i].mode, dbg,
+					       base + tbl[i].off);
+			break;
+		case doff_ulong:
+			f = wil_debugfs_create_ulong(tbl[i].name, tbl[i].mode,
+						     dbg, base + tbl[i].off);
+			break;
+		case doff_io32:
+			f = wil_debugfs_create_iomem_x32(tbl[i].name,
+							 tbl[i].mode, dbg,
+							 base + tbl[i].off);
+			break;
+		}
+		if (IS_ERR_OR_NULL(f))
+			wil_err(wil, "Create file \"%s\": err %ld\n",
+				tbl[i].name, PTR_ERR(f));
+	}
+}
+
+static const struct dbg_off isr_off[] = {
+	{"ICC", S_IRUGO | S_IWUSR, offsetof(struct RGF_ICR, ICC), doff_io32},
+	{"ICR", S_IRUGO | S_IWUSR, offsetof(struct RGF_ICR, ICR), doff_io32},
+	{"ICM", S_IRUGO | S_IWUSR, offsetof(struct RGF_ICR, ICM), doff_io32},
+	{"ICS",		  S_IWUSR, offsetof(struct RGF_ICR, ICS), doff_io32},
+	{"IMV", S_IRUGO | S_IWUSR, offsetof(struct RGF_ICR, IMV), doff_io32},
+	{"IMS",		  S_IWUSR, offsetof(struct RGF_ICR, IMS), doff_io32},
+	{"IMC",		  S_IWUSR, offsetof(struct RGF_ICR, IMC), doff_io32},
+	{},
+};
 static int wil6210_debugfs_create_ISR(struct wil6210_priv *wil,
 				      const char *name,
 				      struct dentry *parent, u32 off)
@@ -279,23 +348,18 @@ static int wil6210_debugfs_create_ISR(struct wil6210_priv *wil,
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	wil_debugfs_create_iomem_x32("ICC", S_IRUGO | S_IWUSR, d,
-				     wil->csr + off);
-	wil_debugfs_create_iomem_x32("ICR", S_IRUGO | S_IWUSR, d,
-				     wil->csr + off + 4);
-	wil_debugfs_create_iomem_x32("ICM", S_IRUGO | S_IWUSR, d,
-				     wil->csr + off + 8);
-	wil_debugfs_create_iomem_x32("ICS", S_IWUSR, d,
-				     wil->csr + off + 12);
-	wil_debugfs_create_iomem_x32("IMV", S_IRUGO | S_IWUSR, d,
-				     wil->csr + off + 16);
-	wil_debugfs_create_iomem_x32("IMS", S_IWUSR, d,
-				     wil->csr + off + 20);
-	wil_debugfs_create_iomem_x32("IMC", S_IWUSR, d,
-				     wil->csr + off + 24);
+	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr + off,
+				    isr_off);
 
 	return 0;
 }
+
+static const struct dbg_off pseudo_isr_off[] = {
+	{"CAUSE",   S_IRUGO, HOSTADDR(RGF_DMA_PSEUDO_CAUSE), doff_io32},
+	{"MASK_SW", S_IRUGO, HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW), doff_io32},
+	{"MASK_FW", S_IRUGO, HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_FW), doff_io32},
+	{},
+};
 
 static int wil6210_debugfs_create_pseudo_ISR(struct wil6210_priv *wil,
 					     struct dentry *parent)
@@ -305,15 +369,18 @@ static int wil6210_debugfs_create_pseudo_ISR(struct wil6210_priv *wil,
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	wil_debugfs_create_iomem_x32("CAUSE", S_IRUGO, d, wil->csr +
-				     HOSTADDR(RGF_DMA_PSEUDO_CAUSE));
-	wil_debugfs_create_iomem_x32("MASK_SW", S_IRUGO, d, wil->csr +
-				     HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW));
-	wil_debugfs_create_iomem_x32("MASK_FW", S_IRUGO, d, wil->csr +
-				     HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_FW));
+	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
+				    pseudo_isr_off);
 
 	return 0;
 }
+
+static const struct dbg_off itr_cnt_off[] = {
+	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_TRSH), doff_io32},
+	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_DATA), doff_io32},
+	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_CRL), doff_io32},
+	{},
+};
 
 static int wil6210_debugfs_create_ITR_CNT(struct wil6210_priv *wil,
 					  struct dentry *parent)
@@ -323,12 +390,8 @@ static int wil6210_debugfs_create_ITR_CNT(struct wil6210_priv *wil,
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	wil_debugfs_create_iomem_x32("TRSH", S_IRUGO | S_IWUSR, d, wil->csr +
-				     HOSTADDR(RGF_DMA_ITR_CNT_TRSH));
-	wil_debugfs_create_iomem_x32("DATA", S_IRUGO | S_IWUSR, d, wil->csr +
-				     HOSTADDR(RGF_DMA_ITR_CNT_DATA));
-	wil_debugfs_create_iomem_x32("CTL", S_IRUGO | S_IWUSR, d, wil->csr +
-				     HOSTADDR(RGF_DMA_ITR_CNT_CRL));
+	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
+				    itr_cnt_off);
 
 	return 0;
 }
@@ -666,16 +729,79 @@ static const struct file_operations fops_txdesc = {
 };
 
 /*---------beamforming------------*/
+static char *wil_bfstatus_str(u32 status)
+{
+	switch (status) {
+	case 0:
+		return "Failed";
+	case 1:
+		return "OK";
+	case 2:
+		return "Retrying";
+	default:
+		return "??";
+	}
+}
+
+static bool is_all_zeros(void * const x_, size_t sz)
+{
+	/* if reply is all-0, ignore this CID */
+	u32 *x = x_;
+	int n;
+
+	for (n = 0; n < sz / sizeof(*x); n++)
+		if (x[n])
+			return false;
+
+	return true;
+}
+
 static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 {
+	int rc;
+	int i;
 	struct wil6210_priv *wil = s->private;
-	seq_printf(s,
-		   "TSF : 0x%016llx\n"
-		   "TxMCS : %d\n"
-		   "Sectors(rx:tx) my %2d:%2d peer %2d:%2d\n",
-		   wil->stats.tsf, wil->stats.bf_mcs,
-		   wil->stats.my_rx_sector, wil->stats.my_tx_sector,
-		   wil->stats.peer_rx_sector, wil->stats.peer_tx_sector);
+	struct wmi_notify_req_cmd cmd = {
+		.interval_usec = 0,
+	};
+	struct {
+		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_notify_req_done_event evt;
+	} __packed reply;
+
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		u32 status;
+
+		cmd.cid = i;
+		rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, &cmd, sizeof(cmd),
+			      WMI_NOTIFY_REQ_DONE_EVENTID, &reply,
+			      sizeof(reply), 20);
+		/* if reply is all-0, ignore this CID */
+		if (rc || is_all_zeros(&reply.evt, sizeof(reply.evt)))
+			continue;
+
+		status = le32_to_cpu(reply.evt.status);
+		seq_printf(s, "CID %d {\n"
+			   "  TSF = 0x%016llx\n"
+			   "  TxMCS = %2d TxTpt = %4d\n"
+			   "  SQI = %4d\n"
+			   "  Status = 0x%08x %s\n"
+			   "  Sectors(rx:tx) my %2d:%2d peer %2d:%2d\n"
+			   "  Goodput(rx:tx) %4d:%4d\n"
+			   "}\n",
+			   i,
+			   le64_to_cpu(reply.evt.tsf),
+			   le16_to_cpu(reply.evt.bf_mcs),
+			   le32_to_cpu(reply.evt.tx_tpt),
+			   reply.evt.sqi,
+			   status, wil_bfstatus_str(status),
+			   le16_to_cpu(reply.evt.my_rx_sector),
+			   le16_to_cpu(reply.evt.my_tx_sector),
+			   le16_to_cpu(reply.evt.other_rx_sector),
+			   le16_to_cpu(reply.evt.other_tx_sector),
+			   le32_to_cpu(reply.evt.rx_goodput),
+			   le32_to_cpu(reply.evt.tx_goodput));
+	}
 	return 0;
 }
 
@@ -985,6 +1111,87 @@ static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 	}
 }
 
+/* misc files */
+static const struct {
+	const char *name;
+	umode_t mode;
+	const struct file_operations *fops;
+} dbg_files[] = {
+	{"mbox",	S_IRUGO,		&fops_mbox},
+	{"vrings",	S_IRUGO,		&fops_vring},
+	{"stations",	S_IRUGO,		&fops_sta},
+	{"desc",	S_IRUGO,		&fops_txdesc},
+	{"bf",		S_IRUGO,		&fops_bf},
+	{"ssid",	S_IRUGO | S_IWUSR,	&fops_ssid},
+	{"mem_val",	S_IRUGO,		&fops_memread},
+	{"reset",		  S_IWUSR,	&fops_reset},
+	{"rxon",		  S_IWUSR,	&fops_rxon},
+	{"tx_mgmt",		  S_IWUSR,	&fops_txmgmt},
+	{"wmi_send",		  S_IWUSR,	&fops_wmi},
+	{"temp",	S_IRUGO,		&fops_temp},
+	{"freq",	S_IRUGO,		&fops_freq},
+	{"link",	S_IRUGO,		&fops_link},
+	{"info",	S_IRUGO,		&fops_info},
+};
+
+static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
+				       struct dentry *dbg)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dbg_files); i++)
+		debugfs_create_file(dbg_files[i].name, dbg_files[i].mode, dbg,
+				    wil, dbg_files[i].fops);
+}
+
+/* interrupt control blocks */
+static const struct {
+	const char *name;
+	u32 icr_off;
+} dbg_icr[] = {
+	{"USER_ICR",		HOSTADDR(RGF_USER_USER_ICR)},
+	{"DMA_EP_TX_ICR",	HOSTADDR(RGF_DMA_EP_TX_ICR)},
+	{"DMA_EP_RX_ICR",	HOSTADDR(RGF_DMA_EP_RX_ICR)},
+	{"DMA_EP_MISC_ICR",	HOSTADDR(RGF_DMA_EP_MISC_ICR)},
+};
+
+static void wil6210_debugfs_init_isr(struct wil6210_priv *wil,
+				     struct dentry *dbg)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dbg_icr); i++)
+		wil6210_debugfs_create_ISR(wil, dbg_icr[i].name, dbg,
+					   dbg_icr[i].icr_off);
+}
+
+#define WIL_FIELD(name, mode, type) { __stringify(name), mode, \
+	offsetof(struct wil6210_priv, name), type}
+
+/* fields in struct wil6210_priv */
+static const struct dbg_off dbg_wil_off[] = {
+	WIL_FIELD(secure_pcp,	S_IRUGO | S_IWUSR,	doff_u32),
+	WIL_FIELD(status,	S_IRUGO | S_IWUSR,	doff_ulong),
+	WIL_FIELD(fw_version,	S_IRUGO,		doff_u32),
+	WIL_FIELD(hw_version,	S_IRUGO,		doff_x32),
+	{},
+};
+
+static const struct dbg_off dbg_wil_regs[] = {
+	{"RGF_MAC_MTRL_COUNTER_0", S_IRUGO, HOSTADDR(RGF_MAC_MTRL_COUNTER_0),
+		doff_io32},
+	{"RGF_USER_USAGE_1", S_IRUGO, HOSTADDR(RGF_USER_USAGE_1), doff_io32},
+	{},
+};
+
+/* static parameters */
+static const struct dbg_off dbg_statics[] = {
+	{"desc_index",	S_IRUGO | S_IWUSR, (ulong)&dbg_txdesc_index, doff_u32},
+	{"vring_index",	S_IRUGO | S_IWUSR, (ulong)&dbg_vring_index, doff_u32},
+	{"mem_addr",	S_IRUGO | S_IWUSR, (ulong)&mem_addr, doff_u32},
+	{},
+};
+
 int wil6210_debugfs_init(struct wil6210_priv *wil)
 {
 	struct dentry *dbg = wil->debug = debugfs_create_dir(WIL_NAME,
@@ -993,51 +1200,17 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	if (IS_ERR_OR_NULL(dbg))
 		return -ENODEV;
 
-	debugfs_create_file("mbox", S_IRUGO, dbg, wil, &fops_mbox);
-	debugfs_create_file("vrings", S_IRUGO, dbg, wil, &fops_vring);
-	debugfs_create_file("stations", S_IRUGO, dbg, wil, &fops_sta);
-	debugfs_create_file("desc", S_IRUGO, dbg, wil, &fops_txdesc);
-	debugfs_create_u32("desc_index", S_IRUGO | S_IWUSR, dbg,
-			   &dbg_txdesc_index);
-	debugfs_create_u32("vring_index", S_IRUGO | S_IWUSR, dbg,
-			   &dbg_vring_index);
-
-	debugfs_create_file("bf", S_IRUGO, dbg, wil, &fops_bf);
-	debugfs_create_file("ssid", S_IRUGO | S_IWUSR, dbg, wil, &fops_ssid);
-	debugfs_create_u32("secure_pcp", S_IRUGO | S_IWUSR, dbg,
-			   &wil->secure_pcp);
-	wil_debugfs_create_ulong("status", S_IRUGO | S_IWUSR, dbg,
-				 &wil->status);
-	debugfs_create_u32("fw_version", S_IRUGO, dbg, &wil->fw_version);
-	debugfs_create_x32("hw_version", S_IRUGO, dbg, &wil->hw_version);
-
-	wil6210_debugfs_create_ISR(wil, "USER_ICR", dbg,
-				   HOSTADDR(RGF_USER_USER_ICR));
-	wil6210_debugfs_create_ISR(wil, "DMA_EP_TX_ICR", dbg,
-				   HOSTADDR(RGF_DMA_EP_TX_ICR));
-	wil6210_debugfs_create_ISR(wil, "DMA_EP_RX_ICR", dbg,
-				   HOSTADDR(RGF_DMA_EP_RX_ICR));
-	wil6210_debugfs_create_ISR(wil, "DMA_EP_MISC_ICR", dbg,
-				   HOSTADDR(RGF_DMA_EP_MISC_ICR));
-	wil6210_debugfs_create_pseudo_ISR(wil, dbg);
-	wil6210_debugfs_create_ITR_CNT(wil, dbg);
-
-	wil_debugfs_create_iomem_x32("RGF_USER_USAGE_1", S_IRUGO, dbg,
-				     wil->csr +
-				     HOSTADDR(RGF_USER_USAGE_1));
-	debugfs_create_u32("mem_addr", S_IRUGO | S_IWUSR, dbg, &mem_addr);
-	debugfs_create_file("mem_val", S_IRUGO, dbg, wil, &fops_memread);
-
-	debugfs_create_file("reset", S_IWUSR, dbg, wil, &fops_reset);
-	debugfs_create_file("rxon", S_IWUSR, dbg, wil, &fops_rxon);
-	debugfs_create_file("tx_mgmt", S_IWUSR, dbg, wil, &fops_txmgmt);
-	debugfs_create_file("wmi_send", S_IWUSR, dbg, wil, &fops_wmi);
-	debugfs_create_file("temp", S_IRUGO, dbg, wil, &fops_temp);
-	debugfs_create_file("freq", S_IRUGO, dbg, wil, &fops_freq);
-	debugfs_create_file("link", S_IRUGO, dbg, wil, &fops_link);
-	debugfs_create_file("info", S_IRUGO, dbg, wil, &fops_info);
-
+	wil6210_debugfs_init_files(wil, dbg);
+	wil6210_debugfs_init_isr(wil, dbg);
 	wil6210_debugfs_init_blobs(wil, dbg);
+	wil6210_debugfs_init_offset(wil, dbg, wil, dbg_wil_off);
+	wil6210_debugfs_init_offset(wil, dbg, (void * __force)wil->csr,
+				    dbg_wil_regs);
+	wil6210_debugfs_init_offset(wil, dbg, NULL, dbg_statics);
+
+	wil6210_debugfs_create_pseudo_ISR(wil, dbg);
+
+	wil6210_debugfs_create_ITR_CNT(wil, dbg);
 
 	return 0;
 }

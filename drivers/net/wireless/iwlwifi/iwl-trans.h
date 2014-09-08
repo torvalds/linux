@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -401,6 +403,14 @@ struct iwl_trans_dump_data {
 
 struct iwl_trans;
 
+struct iwl_trans_txq_scd_cfg {
+	u8 fifo;
+	s8 sta_id;
+	u8 tid;
+	bool aggregate;
+	int frame_limit;
+};
+
 /**
  * struct iwl_trans_ops - transport specific operations
  *
@@ -437,7 +447,9 @@ struct iwl_trans;
  *	Must be atomic
  * @txq_enable: setup a queue. To setup an AC queue, use the
  *	iwl_trans_ac_txq_enable wrapper. fw_alive must have been called before
- *	this one. The op_mode must not configure the HCMD queue. May sleep.
+ *	this one. The op_mode must not configure the HCMD queue. The scheduler
+ *	configuration may be %NULL, in which case the hardware will not be
+ *	configured. May sleep.
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
  * @wait_tx_queue_empty: wait until tx queues are empty. May sleep.
@@ -492,9 +504,10 @@ struct iwl_trans_ops {
 	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
 			struct sk_buff_head *skbs);
 
-	void (*txq_enable)(struct iwl_trans *trans, int queue, int fifo,
-			   int sta_id, int tid, int frame_limit, u16 ssn);
-	void (*txq_disable)(struct iwl_trans *trans, int queue);
+	void (*txq_enable)(struct iwl_trans *trans, int queue, u16 ssn,
+			   const struct iwl_trans_txq_scd_cfg *cfg);
+	void (*txq_disable)(struct iwl_trans *trans, int queue,
+			    bool configure_scd);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
@@ -766,29 +779,57 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
 	trans->ops->reclaim(trans, queue, ssn, skbs);
 }
 
-static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue)
+static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue,
+					 bool configure_scd)
 {
-	trans->ops->txq_disable(trans, queue);
+	trans->ops->txq_disable(trans, queue, configure_scd);
 }
 
-static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
-					int fifo, int sta_id, int tid,
-					int frame_limit, u16 ssn)
+static inline void
+iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
+			 const struct iwl_trans_txq_scd_cfg *cfg)
 {
 	might_sleep();
 
 	if (unlikely((trans->state != IWL_TRANS_FW_ALIVE)))
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
-	trans->ops->txq_enable(trans, queue, fifo, sta_id, tid,
-				 frame_limit, ssn);
+	trans->ops->txq_enable(trans, queue, ssn, cfg);
+}
+
+static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
+					int fifo, int sta_id, int tid,
+					int frame_limit, u16 ssn)
+{
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = fifo,
+		.sta_id = sta_id,
+		.tid = tid,
+		.frame_limit = frame_limit,
+		.aggregate = sta_id >= 0,
+	};
+
+	iwl_trans_txq_enable_cfg(trans, queue, ssn, &cfg);
 }
 
 static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,
 					   int fifo)
 {
-	iwl_trans_txq_enable(trans, queue, fifo, -1,
-			     IWL_MAX_TID_COUNT, IWL_FRAME_LIMIT, 0);
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = fifo,
+		.sta_id = -1,
+		.tid = IWL_MAX_TID_COUNT,
+		.frame_limit = IWL_FRAME_LIMIT,
+		.aggregate = false,
+	};
+
+	iwl_trans_txq_enable_cfg(trans, queue, 0, &cfg);
+}
+
+static inline void
+iwl_trans_txq_enable_no_scd(struct iwl_trans *trans, int queue, u16 ssn)
+{
+	iwl_trans_txq_enable_cfg(trans, queue, ssn, NULL);
 }
 
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans,

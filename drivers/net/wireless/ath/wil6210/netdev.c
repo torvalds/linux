@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -168,11 +168,15 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 void wil_if_free(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
+
 	if (!ndev)
 		return;
 
-	free_netdev(ndev);
 	wil_priv_deinit(wil);
+
+	wil_to_ndev(wil) = NULL;
+	free_netdev(ndev);
+
 	wil_wdev_free(wil);
 }
 

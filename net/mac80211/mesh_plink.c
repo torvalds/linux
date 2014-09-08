@@ -431,13 +431,11 @@ __mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *hw_addr)
 		return NULL;
 
 	sta->plink_state = NL80211_PLINK_LISTEN;
+	sta->sta.wme = true;
 
 	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
 	sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
-
-	set_sta_flag(sta, WLAN_STA_WME);
-	sta->sta.wme = true;
 
 	return sta;
 }
@@ -1004,7 +1002,6 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 	enum ieee80211_self_protected_actioncode ftype;
 	u32 changed = 0;
 	u8 ie_len = elems->peering_len;
-	__le16 _plid, _llid;
 	u16 plid, llid = 0;
 
 	if (!elems->peering) {
@@ -1039,13 +1036,10 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 	/* Note the lines below are correct, the llid in the frame is the plid
 	 * from the point of view of this host.
 	 */
-	memcpy(&_plid, PLINK_GET_LLID(elems->peering), sizeof(__le16));
-	plid = le16_to_cpu(_plid);
+	plid = get_unaligned_le16(PLINK_GET_LLID(elems->peering));
 	if (ftype == WLAN_SP_MESH_PEERING_CONFIRM ||
-	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len == 8)) {
-		memcpy(&_llid, PLINK_GET_PLID(elems->peering), sizeof(__le16));
-		llid = le16_to_cpu(_llid);
-	}
+	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len == 8))
+		llid = get_unaligned_le16(PLINK_GET_PLID(elems->peering));
 
 	/* WARNING: Only for sta pointer, is dropped & re-acquired */
 	rcu_read_lock();

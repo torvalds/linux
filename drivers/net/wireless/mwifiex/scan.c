@@ -1719,7 +1719,8 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 
 		if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
 			bss = cfg80211_inform_bss(priv->wdev->wiphy,
-					    chan, bssid, timestamp,
+					    chan, CFG80211_BSS_FTYPE_UNKNOWN,
+					    bssid, timestamp,
 					    cap_info_bitmap, beacon_period,
 					    ie_buf, ie_len, rssi, GFP_KERNEL);
 			bss_priv = (struct mwifiex_bss_priv *)bss->priv;

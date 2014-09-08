@@ -772,16 +772,16 @@ static inline void chan_ready_cb(struct l2cap_chan *chan)
 	ifup(dev->netdev);
 }
 
-static inline struct l2cap_chan *chan_new_conn_cb(struct l2cap_chan *chan)
+static inline struct l2cap_chan *chan_new_conn_cb(struct l2cap_chan *pchan)
 {
-	struct l2cap_chan *pchan;
+	struct l2cap_chan *chan;
 
-	pchan = chan_open(chan);
-	pchan->ops = chan->ops;
+	chan = chan_open(pchan);
+	chan->ops = pchan->ops;
 
 	BT_DBG("chan %p pchan %p", chan, pchan);
 
-	return pchan;
+	return chan;
 }
 
 static void delete_netdev(struct work_struct *work)

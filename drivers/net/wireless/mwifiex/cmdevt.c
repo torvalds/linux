@@ -1470,7 +1470,7 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 	struct host_cmd_ds_get_hw_spec *hw_spec = &resp->params.hw_spec;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ie_types_header *tlv;
-	struct hw_spec_fw_api_rev *api_rev;
+	struct hw_spec_api_rev *api_rev;
 	u16 resp_size, api_id;
 	int i, left_len, parsed_len = 0;
 
@@ -1508,7 +1508,6 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 	}
 
 	adapter->fw_release_number = le32_to_cpu(hw_spec->fw_release_number);
-	adapter->fw_api_ver = (adapter->fw_release_number >> 16) & 0xff;
 	adapter->number_of_antenna = le16_to_cpu(hw_spec->number_of_antenna);
 
 	if (le32_to_cpu(hw_spec->dot_11ac_dev_cap)) {
@@ -1538,23 +1537,30 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 		while (left_len > sizeof(struct mwifiex_ie_types_header)) {
 			tlv = (void *)&hw_spec->tlvs + parsed_len;
 			switch (le16_to_cpu(tlv->type)) {
-			case TLV_TYPE_FW_API_REV:
-				api_rev = (struct hw_spec_fw_api_rev *)tlv;
+			case TLV_TYPE_API_REV:
+				api_rev = (struct hw_spec_api_rev *)tlv;
 				api_id = le16_to_cpu(api_rev->api_id);
 				switch (api_id) {
 				case KEY_API_VER_ID:
-					adapter->fw_key_api_major_ver =
+					adapter->key_api_major_ver =
 							api_rev->major_ver;
-					adapter->fw_key_api_minor_ver =
+					adapter->key_api_minor_ver =
 							api_rev->minor_ver;
 					dev_dbg(adapter->dev,
-						"fw_key_api v%d.%d\n",
-						adapter->fw_key_api_major_ver,
-						adapter->fw_key_api_minor_ver);
+						"key_api v%d.%d\n",
+						adapter->key_api_major_ver,
+						adapter->key_api_minor_ver);
+					break;
+				case FW_API_VER_ID:
+					adapter->fw_api_ver =
+							api_rev->major_ver;
+					dev_dbg(adapter->dev,
+						"Firmware api version %d\n",
+						adapter->fw_api_ver);
 					break;
 				default:
 					dev_warn(adapter->dev,
-						 "Unknown FW api_id: %d\n",
+						 "Unknown api_id: %d\n",
 						 api_id);
 					break;
 				}
@@ -1567,7 +1573,8 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 			}
 			parsed_len += le16_to_cpu(tlv->len) +
 				      sizeof(struct mwifiex_ie_types_header);
-			left_len -= parsed_len;
+			left_len -= le16_to_cpu(tlv->len) +
+				      sizeof(struct mwifiex_ie_types_header);
 		}
 	}
 

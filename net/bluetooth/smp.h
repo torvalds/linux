@@ -126,14 +126,12 @@ enum {
 /* SMP Commands */
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
-int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb);
-int smp_distribute_keys(struct l2cap_conn *conn);
 int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
-void smp_chan_destroy(struct l2cap_conn *conn);
+bool smp_irk_matches(struct hci_dev *hdev, u8 irk[16], bdaddr_t *bdaddr);
+int smp_generate_rpa(struct hci_dev *hdev, u8 irk[16], bdaddr_t *rpa);
 
-bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
-		     bdaddr_t *bdaddr);
-int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa);
+int smp_register(struct hci_dev *hdev);
+void smp_unregister(struct hci_dev *hdev);
 
 #endif /* __SMP_H */

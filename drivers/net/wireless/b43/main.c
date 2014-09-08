@@ -4466,10 +4466,10 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 	if (core_rev == 40 || core_rev == 42) {
 		radio_manuf = 0x17F;
 
-		b43_write16(dev, B43_MMIO_RADIO24_CONTROL, 0);
+		b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, 0);
 		radio_rev = b43_read16(dev, B43_MMIO_RADIO24_DATA);
 
-		b43_write16(dev, B43_MMIO_RADIO24_CONTROL, 1);
+		b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, 1);
 		radio_id = b43_read16(dev, B43_MMIO_RADIO24_DATA);
 
 		radio_ver = 0; /* Is there version somewhere? */
@@ -4477,7 +4477,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		u16 radio24[3];
 
 		for (tmp = 0; tmp < 3; tmp++) {
-			b43_write16(dev, B43_MMIO_RADIO24_CONTROL, tmp);
+			b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, tmp);
 			radio24[tmp] = b43_read16(dev, B43_MMIO_RADIO24_DATA);
 		}
 
@@ -4494,13 +4494,12 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 			else
 				tmp = 0x5205017F;
 		} else {
-			b43_write16(dev, B43_MMIO_RADIO_CONTROL,
-				    B43_RADIOCTL_ID);
+			b43_write16f(dev, B43_MMIO_RADIO_CONTROL,
+				     B43_RADIOCTL_ID);
 			tmp = b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
-			b43_write16(dev, B43_MMIO_RADIO_CONTROL,
-				    B43_RADIOCTL_ID);
-			tmp |= (u32)b43_read16(dev, B43_MMIO_RADIO_DATA_HIGH)
-				<< 16;
+			b43_write16f(dev, B43_MMIO_RADIO_CONTROL,
+				     B43_RADIOCTL_ID);
+			tmp |= b43_read16(dev, B43_MMIO_RADIO_DATA_HIGH) << 16;
 		}
 		radio_manuf = (tmp & 0x00000FFF);
 		radio_id = (tmp & 0x0FFFF000) >> 12;

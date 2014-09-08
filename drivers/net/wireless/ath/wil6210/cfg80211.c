@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -311,8 +311,10 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
 			cmd.cmd.num_channels * sizeof(cmd.cmd.channel_list[0]));
 
-	if (rc)
+	if (rc) {
+		del_timer_sync(&wil->scan_timer);
 		wil->scan_request = NULL;
+	}
 
 	return rc;
 }

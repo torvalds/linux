@@ -833,7 +833,7 @@ struct mwifiex_adapter {
 	struct semaphore *card_sem;
 	bool ext_scan;
 	u8 fw_api_ver;
-	u8 fw_key_api_major_ver, fw_key_api_minor_ver;
+	u8 key_api_major_ver, key_api_minor_ver;
 	struct work_struct iface_work;
 	unsigned long iface_work_flags;
 	struct memory_type_mapping *mem_type_mapping_tbl;

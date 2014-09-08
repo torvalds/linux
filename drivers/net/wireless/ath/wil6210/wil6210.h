@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -132,6 +132,9 @@ struct RGF_ICR {
 
 #define RGF_HP_CTRL			(0x88265c)
 #define RGF_PCIE_LOS_COUNTER_CTL	(0x882dc4)
+
+/* MAC timer, usec, for packet lifetime */
+#define RGF_MAC_MTRL_COUNTER_0		(0x886aa8)
 
 /* popular locations */
 #define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)
@@ -327,17 +330,6 @@ struct wil_tid_ampdu_rx {
 	bool first_time; /* is it 1-st time this buffer used? */
 };
 
-struct wil6210_stats {
-	u64 tsf;
-	u32 snr;
-	u16 last_mcs_rx;
-	u16 bf_mcs; /* last BF, used for Tx */
-	u16 my_rx_sector;
-	u16 my_tx_sector;
-	u16 peer_rx_sector;
-	u16 peer_tx_sector;
-};
-
 enum wil_sta_status {
 	wil_sta_unused = 0,
 	wil_sta_conn_pending = 1,
@@ -430,7 +422,6 @@ struct wil6210_priv {
 
 	struct mutex mutex; /* for wil6210_priv access in wil_{up|down} */
 	/* statistics */
-	struct wil6210_stats stats;
 	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
