@@ -2056,11 +2056,12 @@ static const struct xenbus_device_id scsiback_ids[] = {
 	{ "" }
 };
 
-static DEFINE_XENBUS_DRIVER(scsiback, ,
+static struct xenbus_driver scsiback_driver = {
+	.ids			= scsiback_ids,
 	.probe			= scsiback_probe,
 	.remove			= scsiback_remove,
 	.otherend_changed	= scsiback_frontend_changed
-);
+};
 
 static void scsiback_init_pend(void *p)
 {

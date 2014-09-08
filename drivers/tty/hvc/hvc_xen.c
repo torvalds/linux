@@ -347,8 +347,6 @@ static int xen_console_remove(struct xencons_info *info)
 }
 
 #ifdef CONFIG_HVC_XEN_FRONTEND
-static struct xenbus_driver xencons_driver;
-
 static int xencons_remove(struct xenbus_device *dev)
 {
 	return xen_console_remove(dev_get_drvdata(&dev->dev));
@@ -502,13 +500,14 @@ static const struct xenbus_device_id xencons_ids[] = {
 	{ "" }
 };
 
-
-static DEFINE_XENBUS_DRIVER(xencons, "xenconsole",
+static struct xenbus_driver xencons_driver = {
+	.name = "xenconsole",
+	.ids = xencons_ids,
 	.probe = xencons_probe,
 	.remove = xencons_remove,
 	.resume = xencons_resume,
 	.otherend_changed = xencons_backend_changed,
-);
+};
 #endif /* CONFIG_HVC_XEN_FRONTEND */
 
 static int __init xen_hvc_init(void)

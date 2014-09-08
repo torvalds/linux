@@ -998,11 +998,12 @@ static const struct xenbus_device_id scsifront_ids[] = {
 	{ "" }
 };
 
-static DEFINE_XENBUS_DRIVER(scsifront, ,
+static struct xenbus_driver scsifront_driver = {
+	.ids			= scsifront_ids,
 	.probe			= scsifront_probe,
 	.remove			= scsifront_remove,
 	.otherend_changed	= scsifront_backend_changed,
-);
+};
 
 static int __init scsifront_init(void)
 {
