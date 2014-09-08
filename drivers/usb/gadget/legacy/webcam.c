@@ -29,6 +29,25 @@
 #include "f_uvc.c"
 
 USB_GADGET_COMPOSITE_OPTIONS();
+
+/*-------------------------------------------------------------------------*/
+
+/* module parameters specific to the Video streaming endpoint */
+static unsigned int streaming_interval = 1;
+module_param(streaming_interval, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(streaming_interval, "1 - 16");
+
+static unsigned int streaming_maxpacket = 1024;
+module_param(streaming_maxpacket, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(streaming_maxpacket, "1 - 1023 (FS), 1 - 3072 (hs/ss)");
+
+static unsigned int streaming_maxburst;
+module_param(streaming_maxburst, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(streaming_maxburst, "0 - 15 (ss only)");
+
+static unsigned int trace;
+module_param(trace, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(trace, "Trace level bitmask");
 /* --------------------------------------------------------------------------
  * Device descriptor
  */
@@ -326,9 +345,11 @@ static const struct uvc_descriptor_header * const uvc_ss_streaming_cls[] = {
 static int __init
 webcam_config_bind(struct usb_configuration *c)
 {
-	return uvc_bind_config(c, uvc_fs_control_cls, uvc_ss_control_cls,
-		uvc_fs_streaming_cls, uvc_hs_streaming_cls,
-		uvc_ss_streaming_cls);
+	return uvc_bind_config(c, uvc_fs_control_cls,
+		uvc_ss_control_cls, uvc_fs_streaming_cls,
+		uvc_hs_streaming_cls, uvc_ss_streaming_cls,
+		streaming_interval, streaming_maxpacket,
+		streaming_maxburst, trace);
 }
 
 static struct usb_configuration webcam_config_driver = {

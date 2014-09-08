@@ -29,21 +29,9 @@
 #include "uvc.h"
 
 unsigned int uvc_gadget_trace_param;
-
-/*-------------------------------------------------------------------------*/
-
-/* module parameters specific to the Video streaming endpoint */
-static unsigned int streaming_interval = 1;
-module_param(streaming_interval, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(streaming_interval, "1 - 16");
-
-static unsigned int streaming_maxpacket = 1024;
-module_param(streaming_maxpacket, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(streaming_maxpacket, "1 - 1023 (FS), 1 - 3072 (hs/ss)");
-
+static unsigned int streaming_interval;
+static unsigned int streaming_maxpacket;
 static unsigned int streaming_maxburst;
-module_param(streaming_maxburst, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(streaming_maxburst, "0 - 15 (ss only)");
 
 /* --------------------------------------------------------------------------
  * Function descriptors
@@ -756,7 +744,9 @@ uvc_bind_config(struct usb_configuration *c,
 		const struct uvc_descriptor_header * const *ss_control,
 		const struct uvc_descriptor_header * const *fs_streaming,
 		const struct uvc_descriptor_header * const *hs_streaming,
-		const struct uvc_descriptor_header * const *ss_streaming)
+		const struct uvc_descriptor_header * const *ss_streaming,
+		unsigned int stream_interv, unsigned int stream_maxpkt,
+		unsigned int stream_maxburst, unsigned int trace)
 {
 	struct uvc_device *uvc;
 	int ret = 0;
@@ -794,6 +784,10 @@ uvc_bind_config(struct usb_configuration *c,
 	    ss_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
 		goto error;
 
+	streaming_interval = stream_interv;
+	streaming_maxpacket = stream_maxpkt;
+	streaming_maxburst = stream_maxburst;
+	uvc_gadget_trace_param = trace;
 	uvc->desc.fs_control = fs_control;
 	uvc->desc.ss_control = ss_control;
 	uvc->desc.fs_streaming = fs_streaming;
@@ -838,6 +832,4 @@ error:
 	return ret;
 }
 
-module_param_named(trace, uvc_gadget_trace_param, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(trace, "Trace level bitmask");
 
