@@ -31,7 +31,7 @@
 #include <linux/types.h>
 
 #define AP_DEVICES 64		/* Number of AP devices. */
-#define AP_DOMAINS 16		/* Number of AP domains. */
+#define AP_DOMAINS 256		/* Number of AP domains. */
 #define AP_MAX_RESET 90		/* Maximum number of resets. */
 #define AP_RESET_TIMEOUT (HZ*0.7)	/* Time in ticks for reset timeouts. */
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
@@ -45,9 +45,9 @@ extern int ap_domain_index;
  */
 typedef unsigned int ap_qid_t;
 
-#define AP_MKQID(_device,_queue) (((_device) & 63) << 8 | ((_queue) & 15))
+#define AP_MKQID(_device, _queue) (((_device) & 63) << 8 | ((_queue) & 255))
 #define AP_QID_DEVICE(_qid) (((_qid) >> 8) & 63)
-#define AP_QID_QUEUE(_qid) ((_qid) & 15)
+#define AP_QID_QUEUE(_qid) ((_qid) & 255)
 
 /**
  * structy ap_queue_status - Holds the AP queue status.
