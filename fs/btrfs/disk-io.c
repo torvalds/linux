@@ -1704,10 +1704,6 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	return ret;
 }
 
-/*
- * If this fails, caller must call bdi_destroy() to get rid of the
- * bdi again.
- */
 static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
 	int err;
