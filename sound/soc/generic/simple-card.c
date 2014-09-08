@@ -116,7 +116,6 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 			      int *args_count)
 {
 	struct of_phandle_args args;
-	struct device_node *node;
 	struct clk *clk;
 	u32 val;
 	int ret;
@@ -162,7 +161,7 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	} else if (!of_property_read_u32(np, "system-clock-frequency", &val)) {
 		dai->sysclk = val;
 	} else {
-		clk = of_clk_get(node, 0);
+		clk = of_clk_get(args.np, 0);
 		if (!IS_ERR(clk))
 			dai->sysclk = clk_get_rate(clk);
 	}
