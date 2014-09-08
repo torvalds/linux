@@ -23,8 +23,10 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
 
+#include "f_uvc.h"
 #include "uvc.h"
 #include "uvc_queue.h"
+#include "uvc_video.h"
 
 /* --------------------------------------------------------------------------
  * Requests handling
@@ -259,7 +261,7 @@ uvc_v4l2_ioctl_default(struct file *file, void *fh, bool valid_prio,
 	}
 }
 
-static const struct v4l2_ioctl_ops uvc_v4l2_ioctl_ops = {
+const struct v4l2_ioctl_ops uvc_v4l2_ioctl_ops = {
 	.vidioc_querycap = uvc_v4l2_querycap,
 	.vidioc_g_fmt_vid_out = uvc_v4l2_get_format,
 	.vidioc_s_fmt_vid_out = uvc_v4l2_set_format,
@@ -350,7 +352,7 @@ static unsigned long uvc_v4l2_get_unmapped_area(struct file *file,
 }
 #endif
 
-static struct v4l2_file_operations uvc_v4l2_fops = {
+struct v4l2_file_operations uvc_v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uvc_v4l2_open,
 	.release	= uvc_v4l2_release,

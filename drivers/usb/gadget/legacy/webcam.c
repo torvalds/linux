@@ -12,9 +12,8 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/usb/video.h>
-
-#include "f_uvc.h"
 
 /*
  * Kbuild is not very cooperative with respect to linking separately
@@ -23,9 +22,6 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#include "uvc_queue.c"
-#include "uvc_video.c"
-#include "uvc_v4l2.c"
 #include "f_uvc.c"
 
 USB_GADGET_COMPOSITE_OPTIONS();

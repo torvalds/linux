@@ -53,6 +53,7 @@ struct uvc_event
 #ifdef __KERNEL__
 
 #include <linux/usb.h>	/* For usb_endpoint_* */
+#include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/videodev2.h>
 #include <linux/version.h>

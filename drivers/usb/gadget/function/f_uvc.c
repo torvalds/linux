@@ -27,6 +27,8 @@
 #include <media/v4l2-event.h>
 
 #include "uvc.h"
+#include "uvc_v4l2.h"
+#include "uvc_video.h"
 
 unsigned int uvc_gadget_trace_param;
 static unsigned int streaming_interval;

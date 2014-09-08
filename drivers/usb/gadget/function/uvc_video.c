@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/video.h>
 
 #include <media/v4l2-dev.h>
 
@@ -279,8 +280,7 @@ error:
  * This function fills the available USB requests (listed in req_free) with
  * video data from the queued buffers.
  */
-static int
-uvcg_video_pump(struct uvc_video *video)
+int uvcg_video_pump(struct uvc_video *video)
 {
 	struct uvc_video_queue *queue = &video->queue;
 	struct usb_request *req;
@@ -339,8 +339,7 @@ uvcg_video_pump(struct uvc_video *video)
 /*
  * Enable or disable the video stream.
  */
-static int
-uvcg_video_enable(struct uvc_video *video, int enable)
+int uvcg_video_enable(struct uvc_video *video, int enable)
 {
 	unsigned int i;
 	int ret;
@@ -378,8 +377,7 @@ uvcg_video_enable(struct uvc_video *video, int enable)
 /*
  * Initialize the UVC video stream.
  */
-static int
-uvcg_video_init(struct uvc_video *video)
+int uvcg_video_init(struct uvc_video *video)
 {
 	INIT_LIST_HEAD(&video->req_free);
 	spin_lock_init(&video->req_lock);

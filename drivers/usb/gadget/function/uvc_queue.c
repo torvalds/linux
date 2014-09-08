@@ -126,8 +126,7 @@ static struct vb2_ops uvc_queue_qops = {
 	.wait_finish = uvc_wait_finish,
 };
 
-static int uvcg_queue_init(struct uvc_video_queue *queue,
-			   enum v4l2_buf_type type)
+int uvcg_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type)
 {
 	int ret;
 
@@ -154,7 +153,7 @@ static int uvcg_queue_init(struct uvc_video_queue *queue,
 /*
  * Free the video buffers.
  */
-static void uvcg_free_buffers(struct uvc_video_queue *queue)
+void uvcg_free_buffers(struct uvc_video_queue *queue)
 {
 	mutex_lock(&queue->mutex);
 	vb2_queue_release(&queue->queue);
@@ -164,7 +163,7 @@ static void uvcg_free_buffers(struct uvc_video_queue *queue)
 /*
  * Allocate the video buffers.
  */
-static int uvcg_alloc_buffers(struct uvc_video_queue *queue,
+int uvcg_alloc_buffers(struct uvc_video_queue *queue,
 			      struct v4l2_requestbuffers *rb)
 {
 	int ret;
@@ -176,8 +175,7 @@ static int uvcg_alloc_buffers(struct uvc_video_queue *queue,
 	return ret ? ret : rb->count;
 }
 
-static int uvcg_query_buffer(struct uvc_video_queue *queue,
-			     struct v4l2_buffer *buf)
+int uvcg_query_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 {
 	int ret;
 
@@ -188,8 +186,7 @@ static int uvcg_query_buffer(struct uvc_video_queue *queue,
 	return ret;
 }
 
-static int uvcg_queue_buffer(struct uvc_video_queue *queue,
-			     struct v4l2_buffer *buf)
+int uvcg_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 {
 	unsigned long flags;
 	int ret;
@@ -213,8 +210,8 @@ done:
  * Dequeue a video buffer. If nonblocking is false, block until a buffer is
  * available.
  */
-static int uvcg_dequeue_buffer(struct uvc_video_queue *queue,
-			       struct v4l2_buffer *buf, int nonblocking)
+int uvcg_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
+			int nonblocking)
 {
 	int ret;
 
@@ -231,8 +228,8 @@ static int uvcg_dequeue_buffer(struct uvc_video_queue *queue,
  * This function implements video queue polling and is intended to be used by
  * the device poll handler.
  */
-static unsigned int uvcg_queue_poll(struct uvc_video_queue *queue,
-				    struct file *file, poll_table *wait)
+unsigned int uvcg_queue_poll(struct uvc_video_queue *queue, struct file *file,
+			     poll_table *wait)
 {
 	unsigned int ret;
 
@@ -243,8 +240,7 @@ static unsigned int uvcg_queue_poll(struct uvc_video_queue *queue,
 	return ret;
 }
 
-static int uvcg_queue_mmap(struct uvc_video_queue *queue,
-			   struct vm_area_struct *vma)
+int uvcg_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
 {
 	int ret;
 
@@ -261,9 +257,8 @@ static int uvcg_queue_mmap(struct uvc_video_queue *queue,
  *
  * NO-MMU arch need this function to make mmap() work correctly.
  */
-static unsigned long uvcg_queue_get_unmapped_area(
-				struct uvc_video_queue *queue,
-				unsigned long pgoff)
+unsigned long uvcg_queue_get_unmapped_area(struct uvc_video_queue *queue,
+					   unsigned long pgoff)
 {
 	unsigned long ret;
 
@@ -286,7 +281,7 @@ static unsigned long uvcg_queue_get_unmapped_area(
  * This function acquires the irq spinlock and can be called from interrupt
  * context.
  */
-static void uvcg_queue_cancel(struct uvc_video_queue *queue, int disconnect)
+void uvcg_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 {
 	struct uvc_buffer *buf;
 	unsigned long flags;
@@ -327,7 +322,7 @@ static void uvcg_queue_cancel(struct uvc_video_queue *queue, int disconnect)
  * This function can't be called from interrupt context. Use
  * uvcg_queue_cancel() instead.
  */
-static int uvcg_queue_enable(struct uvc_video_queue *queue, int enable)
+int uvcg_queue_enable(struct uvc_video_queue *queue, int enable)
 {
 	unsigned long flags;
 	int ret = 0;
@@ -364,8 +359,8 @@ done:
 }
 
 /* called with &queue_irqlock held.. */
-static struct uvc_buffer *uvcg_queue_next_buffer(struct uvc_video_queue *queue,
-						 struct uvc_buffer *buf)
+struct uvc_buffer *uvcg_queue_next_buffer(struct uvc_video_queue *queue,
+					  struct uvc_buffer *buf)
 {
 	struct uvc_buffer *nextbuf;
 
@@ -393,7 +388,7 @@ static struct uvc_buffer *uvcg_queue_next_buffer(struct uvc_video_queue *queue,
 	return nextbuf;
 }
 
-static struct uvc_buffer *uvcg_queue_head(struct uvc_video_queue *queue)
+struct uvc_buffer *uvcg_queue_head(struct uvc_video_queue *queue)
 {
 	struct uvc_buffer *buf = NULL;
 

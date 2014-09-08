@@ -16,6 +16,14 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/video.h>
 
+#include "uvc.h"
+
+void uvc_function_setup_continue(struct uvc_device *uvc);
+
+void uvc_function_connect(struct uvc_device *uvc);
+
+void uvc_function_disconnect(struct uvc_device *uvc);
+
 int uvc_bind_config(struct usb_configuration *c,
 		    const struct uvc_descriptor_header * const *fs_control,
 		    const struct uvc_descriptor_header * const *hs_control,
