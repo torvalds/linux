@@ -33,11 +33,6 @@
 #include "u_uvc.h"
 
 unsigned int uvc_gadget_trace_param;
-#ifdef USBF_UVC_INCLUDED
-static unsigned int streaming_interval;
-static unsigned int streaming_maxpacket;
-static unsigned int streaming_maxburst;
-#endif
 
 /* --------------------------------------------------------------------------
  * Function descriptors
@@ -202,15 +197,11 @@ static const struct usb_descriptor_header * const uvc_ss_streaming[] = {
 	NULL,
 };
 
-#ifndef USBF_UVC_INCLUDED
-
 void uvc_set_trace_param(unsigned int trace)
 {
 	uvc_gadget_trace_param = trace;
 }
 EXPORT_SYMBOL(uvc_set_trace_param);
-
-#endif
 
 /* --------------------------------------------------------------------------
  * Control requests
@@ -566,30 +557,6 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	return hdr;
 }
 
-#ifdef USBF_UVC_INCLUDED
-static void
-uvc_function_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct usb_composite_dev *cdev = c->cdev;
-	struct uvc_device *uvc = to_uvc(f);
-
-	INFO(cdev, "uvc_function_unbind\n");
-
-	video_unregister_device(uvc->vdev);
-	v4l2_device_unregister(&uvc->v4l2_dev);
-	uvc->control_ep->driver_data = NULL;
-	uvc->video.ep->driver_data = NULL;
-
-	uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id = 0;
-	usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
-	kfree(uvc->control_buf);
-
-	usb_free_all_descriptors(f);
-
-	kfree(uvc);
-}
-#endif
-
 static int
 uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 {
@@ -598,51 +565,11 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	unsigned int max_packet_mult;
 	unsigned int max_packet_size;
 	struct usb_ep *ep;
-#ifndef USBF_UVC_INCLUDED
 	struct f_uvc_opts *opts;
-#endif
 	int ret = -EINVAL;
 
 	INFO(cdev, "uvc_function_bind\n");
 
-#ifdef USBF_UVC_INCLUDED
-	/* Sanity check the streaming endpoint module parameters.
-	 */
-	streaming_interval = clamp(streaming_interval, 1U, 16U);
-	streaming_maxpacket = clamp(streaming_maxpacket, 1U, 3072U);
-	streaming_maxburst = min(streaming_maxburst, 15U);
-
-	/* Fill in the FS/HS/SS Video Streaming specific descriptors from the
-	 * module parameters.
-	 *
-	 * NOTE: We assume that the user knows what they are doing and won't
-	 * give parameters that their UDC doesn't support.
-	 */
-	if (streaming_maxpacket <= 1024) {
-		max_packet_mult = 1;
-		max_packet_size = streaming_maxpacket;
-	} else if (streaming_maxpacket <= 2048) {
-		max_packet_mult = 2;
-		max_packet_size = streaming_maxpacket / 2;
-	} else {
-		max_packet_mult = 3;
-		max_packet_size = streaming_maxpacket / 3;
-	}
-
-	uvc_fs_streaming_ep.wMaxPacketSize = min(streaming_maxpacket, 1023U);
-	uvc_fs_streaming_ep.bInterval = streaming_interval;
-
-	uvc_hs_streaming_ep.wMaxPacketSize = max_packet_size;
-	uvc_hs_streaming_ep.wMaxPacketSize |= ((max_packet_mult - 1) << 11);
-	uvc_hs_streaming_ep.bInterval = streaming_interval;
-
-	uvc_ss_streaming_ep.wMaxPacketSize = max_packet_size;
-	uvc_ss_streaming_ep.bInterval = streaming_interval;
-	uvc_ss_streaming_comp.bmAttributes = max_packet_mult - 1;
-	uvc_ss_streaming_comp.bMaxBurst = streaming_maxburst;
-	uvc_ss_streaming_comp.wBytesPerInterval =
-		max_packet_size * max_packet_mult * streaming_maxburst;
-#else
 	opts = to_f_uvc_opts(f->fi);
 	/* Sanity check the streaming endpoint module parameters.
 	 */
@@ -681,7 +608,6 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc_ss_streaming_comp.bMaxBurst = opts->streaming_maxburst;
 	uvc_ss_streaming_comp.wBytesPerInterval =
 		max_packet_size * max_packet_mult * opts->streaming_maxburst;
-#endif
 
 	/* Allocate endpoints. */
 	ep = usb_ep_autoconfig(cdev->gadget, &uvc_control_ep);
@@ -807,96 +733,6 @@ error:
  * USB gadget function
  */
 
-#ifdef USBF_UVC_INCLUDED
-/**
- * uvc_bind_config - add a UVC function to a configuration
- * @c: the configuration to support the UVC instance
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- *
- * Caller must have called @uvc_setup(). Caller is also responsible for
- * calling @uvc_cleanup() before module unload.
- */
-int __init
-uvc_bind_config(struct usb_configuration *c,
-		const struct uvc_descriptor_header * const *fs_control,
-		const struct uvc_descriptor_header * const *ss_control,
-		const struct uvc_descriptor_header * const *fs_streaming,
-		const struct uvc_descriptor_header * const *hs_streaming,
-		const struct uvc_descriptor_header * const *ss_streaming,
-		unsigned int stream_interv, unsigned int stream_maxpkt,
-		unsigned int stream_maxburst, unsigned int trace)
-{
-	struct uvc_device *uvc;
-	int ret = 0;
-
-	/* TODO Check if the USB device controller supports the required
-	 * features.
-	 */
-	if (!gadget_is_dualspeed(c->cdev->gadget))
-		return -EINVAL;
-
-	uvc = kzalloc(sizeof(*uvc), GFP_KERNEL);
-	if (uvc == NULL)
-		return -ENOMEM;
-
-	uvc->state = UVC_STATE_DISCONNECTED;
-
-	/* Validate the descriptors. */
-	if (fs_control == NULL || fs_control[0] == NULL ||
-	    fs_control[0]->bDescriptorSubType != UVC_VC_HEADER)
-		goto error;
-
-	if (ss_control == NULL || ss_control[0] == NULL ||
-	    ss_control[0]->bDescriptorSubType != UVC_VC_HEADER)
-		goto error;
-
-	if (fs_streaming == NULL || fs_streaming[0] == NULL ||
-	    fs_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
-		goto error;
-
-	if (hs_streaming == NULL || hs_streaming[0] == NULL ||
-	    hs_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
-		goto error;
-
-	if (ss_streaming == NULL || ss_streaming[0] == NULL ||
-	    ss_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
-		goto error;
-
-	streaming_interval = stream_interv;
-	streaming_maxpacket = stream_maxpkt;
-	streaming_maxburst = stream_maxburst;
-	uvc_gadget_trace_param = trace;
-	uvc->desc.fs_control = fs_control;
-	uvc->desc.ss_control = ss_control;
-	uvc->desc.fs_streaming = fs_streaming;
-	uvc->desc.hs_streaming = hs_streaming;
-	uvc->desc.ss_streaming = ss_streaming;
-
-	/* Register the function. */
-	uvc->func.name = "uvc";
-	uvc->func.strings = uvc_function_strings;
-	uvc->func.bind = uvc_function_bind;
-	uvc->func.unbind = uvc_function_unbind;
-	uvc->func.get_alt = uvc_function_get_alt;
-	uvc->func.set_alt = uvc_function_set_alt;
-	uvc->func.disable = uvc_function_disable;
-	uvc->func.setup = uvc_function_setup;
-
-	ret = usb_add_function(c, &uvc->func);
-	if (ret)
-		kfree(uvc);
-
-	return ret;
-
-error:
-	kfree(uvc);
-	return ret;
-}
-
-#else
-
 static void uvc_free_inst(struct usb_function_instance *f)
 {
 	struct f_uvc_opts *opts = to_f_uvc_opts(f);
@@ -977,5 +813,3 @@ struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 DECLARE_USB_FUNCTION_INIT(uvc, uvc_alloc_inst, uvc_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Laurent Pinchart");
-
-#endif

@@ -24,16 +24,5 @@ void uvc_function_connect(struct uvc_device *uvc);
 
 void uvc_function_disconnect(struct uvc_device *uvc);
 
-int uvc_bind_config(struct usb_configuration *c,
-		    const struct uvc_descriptor_header * const *fs_control,
-		    const struct uvc_descriptor_header * const *hs_control,
-		    const struct uvc_descriptor_header * const *fs_streaming,
-		    const struct uvc_descriptor_header * const *hs_streaming,
-		    const struct uvc_descriptor_header * const *ss_streaming,
-		    unsigned int streaming_interval_webcam,
-		    unsigned int streaming_maxpacket_webcam,
-		    unsigned int streaming_maxburst_webcam,
-		    unsigned int uvc_gadget_trace_webcam);
-
 #endif /* _F_UVC_H_ */
 
