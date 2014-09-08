@@ -310,11 +310,6 @@ static inline void slot_queue_add(struct sfq_slot *slot, struct sk_buff *skb)
 	slot->skblist_prev = skb;
 }
 
-#define	slot_queue_walk(slot, skb)		\
-	for (skb = slot->skblist_next;		\
-	     skb != (struct sk_buff *)slot;	\
-	     skb = skb->next)
-
 static unsigned int sfq_drop(struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
