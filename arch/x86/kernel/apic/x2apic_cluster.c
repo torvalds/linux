@@ -43,6 +43,7 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 	 * and be sure it's manipulated with irq off.
 	 */
 	ipi_mask_ptr = this_cpu_cpumask_var_ptr(ipi_mask);
+	cpumask_copy(ipi_mask_ptr, mask);
 
 	/*
 	 * The idea is to send one IPI per cluster.
