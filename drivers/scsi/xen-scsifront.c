@@ -359,7 +359,7 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 		}
 		seg_grants = vscsiif_grants_sg(data_grants);
 		shadow->sg = kcalloc(data_grants,
-			sizeof(struct scsiif_request_segment), GFP_NOIO);
+			sizeof(struct scsiif_request_segment), GFP_ATOMIC);
 		if (!shadow->sg)
 			return -ENOMEM;
 	}
