@@ -230,7 +230,7 @@
 	};
 
 	mtu2: timer@fcff0000 {
-		compatible = "renesas,mtu2";
+		compatible = "renesas,mtu2-r7s72100", "renesas,mtu2";
 		reg = <0xfcff0000 0x400>;
 		interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "tgi0a";
