@@ -69,6 +69,7 @@ STMicroelectronics stih4xx platforms
   - clock-names: names of the clocks listed in clocks property in the same
     order.
   - hdmi,hpd-gpio: gpio id to detect if an hdmi cable is plugged or not.
+  - ddc: phandle of an I2C controller used for DDC EDID probing
 
 sti-hda:
   Required properties:

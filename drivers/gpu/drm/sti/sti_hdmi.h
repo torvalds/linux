@@ -62,6 +62,7 @@ struct sti_hdmi {
 	wait_queue_head_t wait_event;
 	bool event_received;
 	struct reset_control *reset;
+	struct i2c_adapter *ddc_adapt;
 };
 
 u32 hdmi_read(struct sti_hdmi *hdmi, int offset);
