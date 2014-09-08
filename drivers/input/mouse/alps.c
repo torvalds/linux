@@ -2373,6 +2373,9 @@ int alps_init(struct psmouse *psmouse)
 	dev2->keybit[BIT_WORD(BTN_LEFT)] =
 		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
 
+	if (priv->flags & ALPS_DUALPOINT)
+		__set_bit(INPUT_PROP_POINTING_STICK, dev2->propbit);
+
 	if (input_register_device(priv->dev2))
 		goto init_fail;
 
