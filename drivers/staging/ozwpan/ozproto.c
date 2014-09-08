@@ -112,7 +112,6 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 	}
 	oz_dbg(ON, "TX: OZ_ELT_CONNECT_RSP %d", status);
 	dev_queue_xmit(skb);
-	return;
 }
 
 /*
