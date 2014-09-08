@@ -155,7 +155,7 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
 	OUT_RING(ring, submit->fence);
 
-	if (adreno_is_a3xx(adreno_gpu)) {
+	if (adreno_is_a3xx(adreno_gpu) || adreno_is_a4xx(adreno_gpu)) {
 		/* Flush HLSQ lazy updates to make sure there is nothing
 		 * pending for indirect loads after the timestamp has
 		 * passed:

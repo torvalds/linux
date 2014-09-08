@@ -212,6 +212,16 @@ static inline bool adreno_is_a330v2(struct adreno_gpu *gpu)
 	return adreno_is_a330(gpu) && (gpu->rev.patchid > 0);
 }
 
+static inline bool adreno_is_a4xx(struct adreno_gpu *gpu)
+{
+	return (gpu->revn >= 400) && (gpu->revn < 500);
+}
+
+static inline int adreno_is_a420(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 420;
+}
+
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 int adreno_hw_init(struct msm_gpu *gpu);
 uint32_t adreno_last_fence(struct msm_gpu *gpu);
