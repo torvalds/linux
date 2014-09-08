@@ -414,7 +414,9 @@ uvc_register_video(struct uvc_device *uvc)
 
 	video->v4l2_dev = &uvc->v4l2_dev;
 	video->fops = &uvc_v4l2_fops;
+	video->ioctl_ops = &uvc_v4l2_ioctl_ops;
 	video->release = video_device_release;
+	video->vfl_dir = VFL_DIR_TX;
 	strlcpy(video->name, cdev->gadget->name, sizeof(video->name));
 
 	uvc->vdev = video;
