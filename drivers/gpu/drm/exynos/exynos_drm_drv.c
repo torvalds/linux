@@ -136,14 +136,14 @@ static int exynos_drm_unload(struct drm_device *dev)
 	exynos_drm_device_subdrv_remove(dev);
 
 	exynos_drm_fbdev_fini(dev);
-	drm_vblank_cleanup(dev);
 	drm_kms_helper_poll_fini(dev);
-	drm_mode_config_cleanup(dev);
-
-	drm_release_iommu_mapping(dev);
-	kfree(dev->dev_private);
 
 	component_unbind_all(dev->dev, dev);
+	drm_vblank_cleanup(dev);
+	drm_mode_config_cleanup(dev);
+	drm_release_iommu_mapping(dev);
+
+	kfree(dev->dev_private);
 	dev->dev_private = NULL;
 
 	return 0;
