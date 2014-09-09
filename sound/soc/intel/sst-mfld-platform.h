@@ -166,7 +166,7 @@ struct sst_algo_int_control_v2 {
 struct sst_data {
 	struct platform_device *pdev;
 	struct sst_platform_data *pdata;
-	char *byte_stream;
+	struct snd_sst_bytes_v2 *byte_stream;
 	struct mutex lock;
 };
 int sst_register_dsp(struct sst_device *sst);

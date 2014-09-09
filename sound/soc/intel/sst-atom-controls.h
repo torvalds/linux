@@ -309,4 +309,134 @@ enum sst_swm_state {
 	SST_SWM_ON = 3,
 };
 
+#define SST_FILL_LOCATION_IDS(dst, cell_idx, pipe_id)		do {	\
+		dst.location_id.p.cell_nbr_idx = (cell_idx);		\
+		dst.location_id.p.path_id = (pipe_id);			\
+	} while (0)
+#define SST_FILL_LOCATION_ID(dst, loc_id)				(\
+	dst.location_id.f = (loc_id))
+#define SST_FILL_MODULE_ID(dst, mod_id)					(\
+	dst.module_id = (mod_id))
+
+#define SST_FILL_DESTINATION1(dst, id)				do {	\
+		SST_FILL_LOCATION_ID(dst, (id) & 0xFFFF);		\
+		SST_FILL_MODULE_ID(dst, ((id) & 0xFFFF0000) >> 16);	\
+	} while (0)
+#define SST_FILL_DESTINATION2(dst, loc_id, mod_id)		do {	\
+		SST_FILL_LOCATION_ID(dst, loc_id);			\
+		SST_FILL_MODULE_ID(dst, mod_id);			\
+	} while (0)
+#define SST_FILL_DESTINATION3(dst, cell_idx, path_id, mod_id)	do {	\
+		SST_FILL_LOCATION_IDS(dst, cell_idx, path_id);		\
+		SST_FILL_MODULE_ID(dst, mod_id);			\
+	} while (0)
+
+#define SST_FILL_DESTINATION(level, dst, ...)				\
+	SST_FILL_DESTINATION##level(dst, __VA_ARGS__)
+#define SST_FILL_DEFAULT_DESTINATION(dst)				\
+	SST_FILL_DESTINATION(2, dst, SST_DEFAULT_LOCATION_ID, SST_DEFAULT_MODULE_ID)
+
+struct sst_destination_id {
+	union sst_location_id {
+		struct {
+			u8 cell_nbr_idx;	/* module index */
+			u8 path_id;		/* pipe_id */
+		} __packed	p;		/* part */
+		u16		f;		/* full */
+	} __packed location_id;
+	u16	   module_id;
+} __packed;
+struct sst_dsp_header {
+	struct sst_destination_id dst;
+	u16 command_id;
+	u16 length;
+} __packed;
+
+/*
+ *
+ * Common Commands
+ *
+ */
+struct sst_cmd_generic {
+	struct sst_dsp_header header;
+} __packed;
+struct sst_cmd_set_params {
+	struct sst_destination_id dst;
+	u16 command_id;
+	char params[0];
+} __packed;
+#define SST_CONTROL_NAME(xpname, xmname, xinstance, xtype) \
+	xpname " " xmname " " #xinstance " " xtype
+
+#define SST_COMBO_CONTROL_NAME(xpname, xmname, xinstance, xtype, xsubmodule) \
+	xpname " " xmname " " #xinstance " " xtype " " xsubmodule
+enum sst_algo_kcontrol_type {
+	SST_ALGO_PARAMS,
+	SST_ALGO_BYPASS,
+};
+
+struct sst_algo_control {
+	enum sst_algo_kcontrol_type type;
+	int max;
+	u16 module_id;
+	u16 pipe_id;
+	u16 task_id;
+	u16 cmd_id;
+	bool bypass;
+	unsigned char *params;
+	struct snd_soc_dapm_widget *w;
+};
+
+/* size of the control = size of params + size of length field */
+#define SST_ALGO_CTL_VALUE(xcount, xtype, xpipe, xmod, xtask, xcmd)			\
+	(struct sst_algo_control){							\
+		.max = xcount + sizeof(u16), .type = xtype, .module_id = xmod,			\
+		.pipe_id = xpipe, .task_id = xtask, .cmd_id = xcmd,			\
+	}
+
+#define SST_ALGO_KCONTROL(xname, xcount, xmod, xpipe,					\
+			  xtask, xcmd, xtype, xinfo, xget, xput)			\
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,						\
+	.name =  xname,									\
+	.info = xinfo, .get = xget, .put = xput,					\
+	.private_value = (unsigned long)&						\
+			SST_ALGO_CTL_VALUE(xcount, xtype, xpipe,			\
+					   xmod, xtask, xcmd),				\
+}
+
+#define SST_ALGO_KCONTROL_BYTES(xpname, xmname, xcount, xmod,				\
+				xpipe, xinstance, xtask, xcmd)				\
+	SST_ALGO_KCONTROL(SST_CONTROL_NAME(xpname, xmname, xinstance, "params"),	\
+			  xcount, xmod, xpipe, xtask, xcmd, SST_ALGO_PARAMS,		\
+			  sst_algo_bytes_ctl_info,					\
+			  sst_algo_control_get, sst_algo_control_set)
+
+#define SST_ALGO_KCONTROL_BOOL(xpname, xmname, xmod, xpipe, xinstance, xtask)		\
+	SST_ALGO_KCONTROL(SST_CONTROL_NAME(xpname, xmname, xinstance, "bypass"),	\
+			  0, xmod, xpipe, xtask, 0, SST_ALGO_BYPASS,			\
+			  snd_soc_info_bool_ext,					\
+			  sst_algo_control_get, sst_algo_control_set)
+
+#define SST_ALGO_BYPASS_PARAMS(xpname, xmname, xcount, xmod, xpipe,			\
+				xinstance, xtask, xcmd)					\
+	SST_ALGO_KCONTROL_BOOL(xpname, xmname, xmod, xpipe, xinstance, xtask),		\
+	SST_ALGO_KCONTROL_BYTES(xpname, xmname, xcount, xmod, xpipe, xinstance, xtask, xcmd)
+
+#define SST_COMBO_ALGO_KCONTROL_BYTES(xpname, xmname, xsubmod, xcount, xmod,		\
+				      xpipe, xinstance, xtask, xcmd)			\
+	SST_ALGO_KCONTROL(SST_COMBO_CONTROL_NAME(xpname, xmname, xinstance, "params",	\
+						 xsubmod),				\
+			  xcount, xmod, xpipe, xtask, xcmd, SST_ALGO_PARAMS,		\
+			  sst_algo_bytes_ctl_info,					\
+			  sst_algo_control_get, sst_algo_control_set)
+
+
+struct sst_enum {
+	bool tx;
+	unsigned short reg;
+	unsigned int max;
+	const char * const *texts;
+	struct snd_soc_dapm_widget *w;
+};
+
 #endif
