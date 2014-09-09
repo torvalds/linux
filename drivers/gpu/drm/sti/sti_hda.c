@@ -730,16 +730,16 @@ static int sti_hda_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	hda->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR(hda->regs))
-		return PTR_ERR(hda->regs);
+	if (!hda->regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 			"video-dacs-ctrl");
 	if (res) {
 		hda->video_dacs_ctrl = devm_ioremap_nocache(dev, res->start,
 				resource_size(res));
-		if (IS_ERR(hda->video_dacs_ctrl))
-			return PTR_ERR(hda->video_dacs_ctrl);
+		if (!hda->video_dacs_ctrl)
+			return -ENOMEM;
 	} else {
 		/* If no existing video-dacs-ctrl resource continue the probe */
 		DRM_DEBUG_DRIVER("No video-dacs-ctrl resource\n");
@@ -770,7 +770,7 @@ static int sti_hda_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id hda_of_match[] = {
+static const struct of_device_id hda_of_match[] = {
 	{ .compatible = "st,stih416-hda", },
 	{ .compatible = "st,stih407-hda", },
 	{ /* end node */ }

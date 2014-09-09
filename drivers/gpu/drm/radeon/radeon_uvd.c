@@ -646,7 +646,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 		ib.ptr[i] = PACKET2(0);
 	ib.length_dw = 16;
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r)
 		goto err;
 	ttm_eu_fence_buffer_objects(&ticket, &head, ib.fence);

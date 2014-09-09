@@ -373,10 +373,6 @@ ENTRY(__boot_cpu_mode)
 	.long	0
 	.popsection
 
-	.align	3
-2:	.quad	.
-	.quad	PAGE_OFFSET
-
 #ifdef CONFIG_SMP
 	.align	3
 1:	.quad	.

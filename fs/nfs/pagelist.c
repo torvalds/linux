@@ -116,7 +116,7 @@ __nfs_iocounter_wait(struct nfs_io_counter *c)
 		if (atomic_read(&c->io_count) == 0)
 			break;
 		ret = nfs_wait_bit_killable(&q.key);
-	} while (atomic_read(&c->io_count) != 0);
+	} while (atomic_read(&c->io_count) != 0 && !ret);
 	finish_wait(wq, &q.wait);
 	return ret;
 }
@@ -139,26 +139,49 @@ nfs_iocounter_wait(struct nfs_io_counter *c)
 /*
  * nfs_page_group_lock - lock the head of the page group
  * @req - request in group that is to be locked
+ * @nonblock - if true don't block waiting for lock
  *
  * this lock must be held if modifying the page group list
  *
- * returns result from wait_on_bit_lock: 0 on success, < 0 on error
+ * return 0 on success, < 0 on error: -EDELAY if nonblocking or the
+ * result from wait_on_bit_lock
+ *
+ * NOTE: calling with nonblock=false should always have set the
+ *       lock bit (see fs/buffer.c and other uses of wait_on_bit_lock
+ *       with TASK_UNINTERRUPTIBLE), so there is no need to check the result.
  */
 int
-nfs_page_group_lock(struct nfs_page *req, bool wait)
+nfs_page_group_lock(struct nfs_page *req, bool nonblock)
 {
 	struct nfs_page *head = req->wb_head;
-	int ret;
 
 	WARN_ON_ONCE(head != head->wb_head);
 
-	do {
-		ret = wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
-			TASK_UNINTERRUPTIBLE);
-	} while (wait && ret != 0);
+	if (!test_and_set_bit(PG_HEADLOCK, &head->wb_flags))
+		return 0;
 
-	WARN_ON_ONCE(ret > 0);
-	return ret;
+	if (!nonblock)
+		return wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
+				TASK_UNINTERRUPTIBLE);
+
+	return -EAGAIN;
+}
+
+/*
+ * nfs_page_group_lock_wait - wait for the lock to clear, but don't grab it
+ * @req - a request in the group
+ *
+ * This is a blocking call to wait for the group lock to be cleared.
+ */
+void
+nfs_page_group_lock_wait(struct nfs_page *req)
+{
+	struct nfs_page *head = req->wb_head;
+
+	WARN_ON_ONCE(head != head->wb_head);
+
+	wait_on_bit(&head->wb_flags, PG_HEADLOCK,
+		TASK_UNINTERRUPTIBLE);
 }
 
 /*
@@ -219,7 +242,7 @@ bool nfs_page_group_sync_on_bit(struct nfs_page *req, unsigned int bit)
 {
 	bool ret;
 
-	nfs_page_group_lock(req, true);
+	nfs_page_group_lock(req, false);
 	ret = nfs_page_group_sync_on_bit_locked(req, bit);
 	nfs_page_group_unlock(req);
 
@@ -701,10 +724,11 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		     struct nfs_pgio_header *hdr)
 {
 	struct nfs_page		*req;
-	struct page		**pages;
+	struct page		**pages,
+				*last_page;
 	struct list_head *head = &desc->pg_list;
 	struct nfs_commit_info cinfo;
-	unsigned int pagecount;
+	unsigned int pagecount, pageused;
 
 	pagecount = nfs_page_array_len(desc->pg_base, desc->pg_count);
 	if (!nfs_pgarray_set(&hdr->page_array, pagecount))
@@ -712,12 +736,23 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 
 	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
 	pages = hdr->page_array.pagevec;
+	last_page = NULL;
+	pageused = 0;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &hdr->pages);
-		*pages++ = req->wb_page;
+
+		if (WARN_ON_ONCE(pageused >= pagecount))
+			return nfs_pgio_error(desc, hdr);
+
+		if (!last_page || last_page != req->wb_page) {
+			*pages++ = last_page = req->wb_page;
+			pageused++;
+		}
 	}
+	if (WARN_ON_ONCE(pageused != pagecount))
+		return nfs_pgio_error(desc, hdr);
 
 	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
 	    (desc->pg_moreio || nfs_reqs_to_commit(&cinfo)))
@@ -788,6 +823,14 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 			return false;
 		if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
 			return false;
+		if (req->wb_page == prev->wb_page) {
+			if (req->wb_pgbase != prev->wb_pgbase + prev->wb_bytes)
+				return false;
+		} else {
+			if (req->wb_pgbase != 0 ||
+			    prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
+				return false;
+		}
 	}
 	size = pgio->pg_ops->pg_test(pgio, prev, req);
 	WARN_ON_ONCE(size > req->wb_bytes);
@@ -858,13 +901,8 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 	struct nfs_page *subreq;
 	unsigned int bytes_left = 0;
 	unsigned int offset, pgbase;
-	int ret;
 
-	ret = nfs_page_group_lock(req, false);
-	if (ret < 0) {
-		desc->pg_error = ret;
-		return 0;
-	}
+	nfs_page_group_lock(req, false);
 
 	subreq = req;
 	bytes_left = subreq->wb_bytes;
@@ -886,11 +924,7 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			if (desc->pg_recoalesce)
 				return 0;
 			/* retry add_request for this subreq */
-			ret = nfs_page_group_lock(req, false);
-			if (ret < 0) {
-				desc->pg_error = ret;
-				return 0;
-			}
+			nfs_page_group_lock(req, false);
 			continue;
 		}
 
