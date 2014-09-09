@@ -800,168 +800,6 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	return 1;
 }
 
-static int pci9118_ai_cmdtest(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_cmd *cmd)
-{
-	struct pci9118_private *devpriv = dev->private;
-	int err = 0;
-	unsigned int flags;
-	unsigned int arg;
-	unsigned int divisor1 = 0, divisor2 = 0;
-
-	/* Step 1 : check if triggers are trivially valid */
-
-	err |= cfc_check_trigger_src(&cmd->start_src,
-					TRIG_NOW | TRIG_EXT | TRIG_INT);
-
-	flags = TRIG_FOLLOW;
-	if (devpriv->master)
-		flags |= TRIG_TIMER | TRIG_EXT;
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, flags);
-
-	flags = TRIG_TIMER | TRIG_EXT;
-	if (devpriv->master)
-		flags |= TRIG_NOW;
-	err |= cfc_check_trigger_src(&cmd->convert_src, flags);
-
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src,
-					TRIG_COUNT | TRIG_NONE | TRIG_EXT);
-
-	if (err)
-		return 1;
-
-	/* Step 2a : make sure trigger sources are unique */
-
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
-
-	/* Step 2b : and mutually compatible */
-
-	if (cmd->start_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT)
-		err |= -EINVAL;
-
-	if (cmd->start_src == TRIG_INT && cmd->scan_begin_src == TRIG_INT)
-		err |= -EINVAL;
-
-	if ((cmd->scan_begin_src & (TRIG_TIMER | TRIG_EXT)) &&
-	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_NOW))))
-		err |= -EINVAL;
-
-	if ((cmd->scan_begin_src == TRIG_FOLLOW) &&
-	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_EXT))))
-		err |= -EINVAL;
-
-	if (cmd->stop_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT)
-		err |= -EINVAL;
-
-	if (err)
-		return 2;
-
-	/* Step 3: check if arguments are trivially valid */
-
-	switch (cmd->start_src) {
-	case TRIG_NOW:
-	case TRIG_EXT:
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-		break;
-	case TRIG_INT:
-		/* start_arg is the internal trigger (any value) */
-		break;
-	}
-
-	if (cmd->scan_begin_src & (TRIG_FOLLOW | TRIG_EXT))
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-
-	if ((cmd->scan_begin_src == TRIG_TIMER) &&
-	    (cmd->convert_src == TRIG_TIMER) && (cmd->scan_end_arg == 1)) {
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		cmd->convert_arg = cmd->scan_begin_arg;
-		cmd->scan_begin_arg = 0;
-	}
-
-	if (cmd->scan_begin_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 devpriv->ai_ns_min);
-
-	if (cmd->scan_begin_src == TRIG_EXT)
-		if (cmd->scan_begin_arg) {
-			cmd->scan_begin_arg = 0;
-			err |= -EINVAL;
-			err |= cfc_check_trigger_arg_max(&cmd->scan_end_arg,
-							 65535);
-		}
-
-	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW))
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 devpriv->ai_ns_min);
-
-	if (cmd->convert_src == TRIG_EXT)
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-
-	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-
-	err |= cfc_check_trigger_arg_min(&cmd->scan_end_arg,
-					 cmd->chanlist_len);
-
-	if ((cmd->scan_end_arg % cmd->chanlist_len)) {
-		cmd->scan_end_arg =
-		    cmd->chanlist_len * (cmd->scan_end_arg / cmd->chanlist_len);
-		err |= -EINVAL;
-	}
-
-	if (err)
-		return 3;
-
-	/* step 4: fix up any arguments */
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		arg = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
-					  &divisor1, &divisor2,
-					  &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
-	}
-
-	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW)) {
-		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
-					  &divisor1, &divisor2,
-					  &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
-
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-		    cmd->convert_src == TRIG_NOW) {
-			if (cmd->convert_arg == 0) {
-				arg = devpriv->ai_ns_min *
-				      (cmd->scan_end_arg + 2);
-			} else {
-				arg = cmd->convert_arg * cmd->chanlist_len;
-			}
-			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-							 arg);
-		}
-	}
-
-	if (err)
-		return 4;
-
-	if (cmd->chanlist)
-		if (!check_channel_list(dev, s, cmd->chanlist_len,
-					cmd->chanlist, 0, 0))
-			return 5;	/* incorrect channels list */
-
-	return 0;
-}
-
 static int Compute_and_setup_dma(struct comedi_device *dev,
 				 struct comedi_subdevice *s)
 {
@@ -1309,6 +1147,168 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* enable external trigger for command start/stop */
 	if (cmd->start_src == TRIG_EXT || cmd->stop_src == TRIG_EXT)
 		pci9118_exttrg_enable(dev, true);
+
+	return 0;
+}
+
+static int pci9118_ai_cmdtest(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_cmd *cmd)
+{
+	struct pci9118_private *devpriv = dev->private;
+	int err = 0;
+	unsigned int flags;
+	unsigned int arg;
+	unsigned int divisor1 = 0, divisor2 = 0;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src,
+					TRIG_NOW | TRIG_EXT | TRIG_INT);
+
+	flags = TRIG_FOLLOW;
+	if (devpriv->master)
+		flags |= TRIG_TIMER | TRIG_EXT;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, flags);
+
+	flags = TRIG_TIMER | TRIG_EXT;
+	if (devpriv->master)
+		flags |= TRIG_NOW;
+	err |= cfc_check_trigger_src(&cmd->convert_src, flags);
+
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src,
+					TRIG_COUNT | TRIG_NONE | TRIG_EXT);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (cmd->start_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT)
+		err |= -EINVAL;
+
+	if (cmd->start_src == TRIG_INT && cmd->scan_begin_src == TRIG_INT)
+		err |= -EINVAL;
+
+	if ((cmd->scan_begin_src & (TRIG_TIMER | TRIG_EXT)) &&
+	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_NOW))))
+		err |= -EINVAL;
+
+	if ((cmd->scan_begin_src == TRIG_FOLLOW) &&
+	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_EXT))))
+		err |= -EINVAL;
+
+	if (cmd->stop_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT)
+		err |= -EINVAL;
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+	case TRIG_EXT:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_INT:
+		/* start_arg is the internal trigger (any value) */
+		break;
+	}
+
+	if (cmd->scan_begin_src & (TRIG_FOLLOW | TRIG_EXT))
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+
+	if ((cmd->scan_begin_src == TRIG_TIMER) &&
+	    (cmd->convert_src == TRIG_TIMER) && (cmd->scan_end_arg == 1)) {
+		cmd->scan_begin_src = TRIG_FOLLOW;
+		cmd->convert_arg = cmd->scan_begin_arg;
+		cmd->scan_begin_arg = 0;
+	}
+
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 devpriv->ai_ns_min);
+
+	if (cmd->scan_begin_src == TRIG_EXT)
+		if (cmd->scan_begin_arg) {
+			cmd->scan_begin_arg = 0;
+			err |= -EINVAL;
+			err |= cfc_check_trigger_arg_max(&cmd->scan_end_arg,
+							 65535);
+		}
+
+	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW))
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 devpriv->ai_ns_min);
+
+	if (cmd->convert_src == TRIG_EXT)
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+
+	err |= cfc_check_trigger_arg_min(&cmd->scan_end_arg,
+					 cmd->chanlist_len);
+
+	if ((cmd->scan_end_arg % cmd->chanlist_len)) {
+		cmd->scan_end_arg =
+		    cmd->chanlist_len * (cmd->scan_end_arg / cmd->chanlist_len);
+		err |= -EINVAL;
+	}
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		arg = cmd->scan_begin_arg;
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
+					  &divisor1, &divisor2,
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+	}
+
+	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW)) {
+		arg = cmd->convert_arg;
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
+					  &divisor1, &divisor2,
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+
+		if (cmd->scan_begin_src == TRIG_TIMER &&
+		    cmd->convert_src == TRIG_NOW) {
+			if (cmd->convert_arg == 0) {
+				arg = devpriv->ai_ns_min *
+				      (cmd->scan_end_arg + 2);
+			} else {
+				arg = cmd->convert_arg * cmd->chanlist_len;
+			}
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 arg);
+		}
+	}
+
+	if (err)
+		return 4;
+
+	if (cmd->chanlist)
+		if (!check_channel_list(dev, s, cmd->chanlist_len,
+					cmd->chanlist, 0, 0))
+			return 5;	/* incorrect channels list */
 
 	return 0;
 }
