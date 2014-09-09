@@ -424,20 +424,24 @@ xfs_rtfind_forw(
 }
 
 /*
- * Read and modify the summary information for a given extent size,
+ * Read and/or modify the summary information for a given extent size,
  * bitmap block combination.
  * Keeps track of a current summary block, so we don't keep reading
  * it from the buffer cache.
+ *
+ * Summary information is returned in *sum if specified.
+ * If no delta is specified, returns summary only.
  */
 int
-xfs_rtmodify_summary(
-	xfs_mount_t	*mp,		/* file system mount point */
+xfs_rtmodify_summary_int(
+	xfs_mount_t	*mp,		/* file system mount structure */
 	xfs_trans_t	*tp,		/* transaction pointer */
 	int		log,		/* log2 of extent size */
 	xfs_rtblock_t	bbno,		/* bitmap block number */
 	int		delta,		/* change to make to summary info */
 	xfs_buf_t	**rbpp,		/* in/out: summary block buffer */
-	xfs_fsblock_t	*rsb)		/* in/out: summary block number */
+	xfs_fsblock_t	*rsb,		/* in/out: summary block number */
+	xfs_suminfo_t	*sum)		/* out: summary info for this block */
 {
 	xfs_buf_t	*bp;		/* buffer for the summary block */
 	int		error;		/* error value */
@@ -456,7 +460,7 @@ xfs_rtmodify_summary(
 	/*
 	 * If we have an old buffer, and the block number matches, use that.
 	 */
-	if (rbpp && *rbpp && *rsb == sb)
+	if (*rbpp && *rsb == sb)
 		bp = *rbpp;
 	/*
 	 * Otherwise we have to get the buffer.
@@ -465,7 +469,7 @@ xfs_rtmodify_summary(
 		/*
 		 * If there was an old one, get rid of it first.
 		 */
-		if (rbpp && *rbpp)
+		if (*rbpp)
 			xfs_trans_brelse(tp, *rbpp);
 		error = xfs_rtbuf_get(mp, tp, sb, 1, &bp);
 		if (error) {
@@ -474,19 +478,36 @@ xfs_rtmodify_summary(
 		/*
 		 * Remember this buffer and block for the next call.
 		 */
-		if (rbpp) {
-			*rbpp = bp;
-			*rsb = sb;
-		}
+		*rbpp = bp;
+		*rsb = sb;
 	}
 	/*
-	 * Point to the summary information, modify and log it.
+	 * Point to the summary information, modify/log it, and/or copy it out.
 	 */
 	sp = XFS_SUMPTR(mp, bp, so);
-	*sp += delta;
-	xfs_trans_log_buf(tp, bp, (uint)((char *)sp - (char *)bp->b_addr),
-		(uint)((char *)sp - (char *)bp->b_addr + sizeof(*sp) - 1));
+	if (delta) {
+		uint first = (uint)((char *)sp - (char *)bp->b_addr);
+
+		*sp += delta;
+		xfs_trans_log_buf(tp, bp, first, first + sizeof(*sp) - 1);
+	}
+	if (sum)
+		*sum = *sp;
 	return 0;
+}
+
+int
+xfs_rtmodify_summary(
+	xfs_mount_t	*mp,		/* file system mount structure */
+	xfs_trans_t	*tp,		/* transaction pointer */
+	int		log,		/* log2 of extent size */
+	xfs_rtblock_t	bbno,		/* bitmap block number */
+	int		delta,		/* change to make to summary info */
+	xfs_buf_t	**rbpp,		/* in/out: summary block buffer */
+	xfs_fsblock_t	*rsb)		/* in/out: summary block number */
+{
+	return xfs_rtmodify_summary_int(mp, tp, log, bbno,
+					delta, rbpp, rsb, NULL);
 }
 
 /*
