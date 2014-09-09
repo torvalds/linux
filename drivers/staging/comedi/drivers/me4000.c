@@ -471,7 +471,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *subdevice,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	const struct me4000_board *thisboard = comedi_board(dev);
+	const struct me4000_board *thisboard = dev->board_ptr;
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
@@ -599,7 +599,7 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_cmd *cmd)
 {
-	const struct me4000_board *board = comedi_board(dev);
+	const struct me4000_board *board = dev->board_ptr;
 	unsigned int max_diff_chan = board->ai_diff_nchan;
 	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
 	int i;
