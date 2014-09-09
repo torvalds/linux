@@ -557,7 +557,7 @@ static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 havetype:
 	dev->board_ptr = boardtypes + type;
-	board = comedi_board(dev);
+	board = dev->board_ptr;
 
 	n_ai_chans = probe_number_of_ai_chans(dev);
 
