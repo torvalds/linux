@@ -1483,7 +1483,7 @@ static ssize_t f_ss_opts_int_interval_store(struct f_ss_opts *opts,
 				       const char *page, size_t len)
 {
 	int ret;
-	u8 num;
+	u32 num;
 
 	mutex_lock(&opts->lock);
 	if (opts->refcnt) {
@@ -1491,7 +1491,7 @@ static ssize_t f_ss_opts_int_interval_store(struct f_ss_opts *opts,
 		goto end;
 	}
 
-	ret = kstrtou8(page, 0, &num);
+	ret = kstrtou32(page, 0, &num);
 	if (ret)
 		goto end;
 
