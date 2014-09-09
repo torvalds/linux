@@ -58,7 +58,6 @@ static const struct sh_mobile_sdhi_of_data of_rcar_gen2_compatible = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE |
 			  TMIO_MMC_CLK_ACTUAL,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
-	.capabilities2	= MMC_CAP2_NO_MULTI_READ,
 	.dma_rx_offset	= 0x2000,
 };
 
@@ -139,6 +138,24 @@ static int sh_mobile_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 	return 0;
 }
 
+static int sh_mobile_sdhi_multi_io_quirk(struct mmc_card *card,
+					 unsigned int direction, int blk_size)
+{
+	/*
+	 * In Renesas controllers, when performing a
+	 * multiple block read of one or two blocks,
+	 * depending on the timing with which the
+	 * response register is read, the response
+	 * value may not be read properly.
+	 * Use single block read for this HW bug
+	 */
+	if ((direction == MMC_DATA_READ) &&
+	    blk_size == 2)
+		return 1;
+
+	return blk_size;
+}
+
 static void sh_mobile_sdhi_cd_wakeup(const struct platform_device *pdev)
 {
 	mmc_detect_change(platform_get_drvdata(pdev), msecs_to_jiffies(100));
@@ -194,6 +211,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
 	mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
+	mmc_data->multi_io_quirk = sh_mobile_sdhi_multi_io_quirk;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
