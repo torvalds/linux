@@ -1085,89 +1085,11 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
-				  struct comedi_subdevice *s)
-{
-	struct pci9118_private *devpriv = dev->private;
-
-	switch (devpriv->ai_do) {
-	case 1:
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
-		break;
-	case 2:
-		dev_err(dev->class_dev, "%s mode 2 bug!\n", __func__);
-		return -EIO;
-	case 3:
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_EXTM;
-		break;
-	case 4:
-		dev_err(dev->class_dev, "%s mode 4 bug!\n", __func__);
-		return -EIO;
-	default:
-		dev_err(dev->class_dev, "%s mode number bug!\n", __func__);
-		return -EIO;
-	}
-
-	if ((devpriv->ai_do == 1) || (devpriv->ai_do == 2))
-		devpriv->int_ctrl |= PCI9118_INT_CTRL_TIMER;
-
-	devpriv->ai_ctrl |= PCI9118_AI_CTRL_INT;
-
-	pci9118_amcc_int_ena(dev, true);
-
-	return 0;
-}
-
-static int pci9118_ai_docmd_dma(struct comedi_device *dev,
-				struct comedi_subdevice *s)
-{
-	struct pci9118_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[0];
-
-	Compute_and_setup_dma(dev, s);
-
-	switch (devpriv->ai_do) {
-	case 1:
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
-		break;
-	case 2:
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
-		devpriv->ai_cfg |= PCI9118_AI_CFG_BM |
-				   PCI9118_AI_CFG_BS;
-		if (cmd->convert_src == TRIG_NOW && !devpriv->softsshdelay)
-			devpriv->ai_cfg |= PCI9118_AI_CFG_BSSH;
-		outl(devpriv->ai_n_realscanlen,
-		     dev->iobase + PCI9118_AI_BURST_NUM_REG);
-		break;
-	case 3:
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_EXTM;
-		break;
-	case 4:
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
-		devpriv->ai_cfg |= PCI9118_AI_CFG_AM;
-		outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-		pci9118_timer_set_mode(dev, 0, I8254_MODE0);
-		pci9118_timer_write(dev, 0, dmabuf->hw >> 1);
-		devpriv->ai_cfg |= PCI9118_AI_CFG_START;
-		break;
-	default:
-		dev_err(dev->class_dev, "%s mode number bug!\n", __func__);
-		return -EIO;
-	}
-
-	outl(0x02000000 | AINT_WRITE_COMPL,
-	     devpriv->iobase_a + AMCC_OP_REG_INTCSR);
-
-	return 0;
-}
-
 static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int addchans = 0;
-	int ret = 0;
 
 	devpriv->ai12_startstop = 0;
 	devpriv->ai_flags = cmd->flags;
@@ -1275,6 +1197,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			     devpriv->ai_add_front, devpriv->ai_add_back);
 
 	/* Determine acqusition mode and calculate timing */
+	devpriv->ai_do = 0;
 	if (cmd->scan_begin_src != TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
 		/* cascaded timers 1 and 2 are used for convert timing */
@@ -1282,12 +1205,30 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			devpriv->ai_do = 4;
 		else
 			devpriv->ai_do = 1;
+
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
 					  &devpriv->ai_divisor1,
 					  &devpriv->ai_divisor2,
 					  &cmd->convert_arg,
 					  devpriv->ai_flags &
 					  CMDF_ROUND_NEAREST);
+
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
+
+		if (!devpriv->usedma) {
+			devpriv->ai_ctrl |= PCI9118_AI_CTRL_INT;
+			devpriv->int_ctrl |= PCI9118_INT_CTRL_TIMER;
+		}
+
+		if (cmd->scan_begin_src == TRIG_EXT) {
+			struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[0];
+
+			devpriv->ai_cfg |= PCI9118_AI_CFG_AM;
+			outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
+			pci9118_timer_set_mode(dev, 0, I8254_MODE0);
+			pci9118_timer_write(dev, 0, dmabuf->hw >> 1);
+			devpriv->ai_cfg |= PCI9118_AI_CFG_START;
+		}
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -1300,6 +1241,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		/* double timed action */
 		devpriv->ai_do = 2;
+
 		pci9118_calc_divisors(dev, s,
 				      &cmd->scan_begin_arg, &cmd->convert_arg,
 				      devpriv->ai_flags,
@@ -1307,12 +1249,27 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				      &devpriv->ai_divisor1,
 				      &devpriv->ai_divisor2,
 				      devpriv->ai_add_front);
+
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
+		devpriv->ai_cfg |= PCI9118_AI_CFG_BM | PCI9118_AI_CFG_BS;
+		if (cmd->convert_src == TRIG_NOW && !devpriv->softsshdelay)
+			devpriv->ai_cfg |= PCI9118_AI_CFG_BSSH;
+		outl(devpriv->ai_n_realscanlen,
+		     dev->iobase + PCI9118_AI_BURST_NUM_REG);
 	}
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW &&
 	    cmd->convert_src == TRIG_EXT) {
 		/* external trigger conversion */
 		devpriv->ai_do = 3;
+
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_EXTM;
+	}
+
+	if (devpriv->ai_do == 0) {
+		dev_err(dev->class_dev,
+			"Unable to determine acqusition mode! BUG in (*do_cmdtest)?\n");
+		return -EINVAL;
 	}
 
 	if (devpriv->usedma)
@@ -1334,12 +1291,14 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_act_dmapos = 0;
 	s->async->cur_chan = 0;
 
-	if (devpriv->usedma)
-		ret = pci9118_ai_docmd_dma(dev, s);
-	else
-		ret = pci9118_ai_docmd_sampl(dev, s);
-	if (ret)
-		return ret;
+	if (devpriv->usedma) {
+		Compute_and_setup_dma(dev, s);
+
+		outl(0x02000000 | AINT_WRITE_COMPL,
+		     devpriv->iobase_a + AMCC_OP_REG_INTCSR);
+	} else {
+		pci9118_amcc_int_ena(dev, true);
+	}
 
 	/* start async command now or wait for internal trigger */
 	if (cmd->start_src == TRIG_NOW)
