@@ -2992,6 +2992,7 @@ static ssize_t mxt_debug_v2_enable_store(struct device *dev,
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
 	u8 i;
+	ssize_t ret;
 
 	if (kstrtou8(buf, 0, &i) == 0 && i < 2) {
 		if (i == 1)
@@ -2999,11 +3000,13 @@ static ssize_t mxt_debug_v2_enable_store(struct device *dev,
 		else
 			mxt_debug_msg_disable(data);
 
-		return count;
+		ret = count;
 	} else {
 		dev_dbg(dev, "debug_enabled write error\n");
-		return -EINVAL;
+		ret = -EINVAL;
 	}
+
+	return ret;
 }
 
 static ssize_t mxt_debug_enable_store(struct device *dev,
@@ -3011,16 +3014,19 @@ static ssize_t mxt_debug_enable_store(struct device *dev,
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
 	u8 i;
+	ssize_t ret;
 
 	if (kstrtou8(buf, 0, &i) == 0 && i < 2) {
 		data->debug_enabled = (i == 1);
 
 		dev_dbg(dev, "%s\n", i ? "debug enabled" : "debug disabled");
-		return count;
+		ret = count;
 	} else {
 		dev_dbg(dev, "debug_enabled write error\n");
-		return -EINVAL;
+		ret = -EINVAL;
 	}
+
+	return ret;
 }
 
 static int mxt_check_mem_access_params(struct mxt_data *data, loff_t off,
