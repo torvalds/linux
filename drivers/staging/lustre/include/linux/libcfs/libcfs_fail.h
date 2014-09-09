@@ -156,8 +156,8 @@ static inline void cfs_race(__u32 id)
 
 			cfs_race_state = 0;
 			CERROR("cfs_race id %x sleeping\n", id);
-			cfs_wait_event_interruptible(cfs_race_waitq,
-						     cfs_race_state != 0, rc);
+			rc = wait_event_interruptible(cfs_race_waitq,
+						      cfs_race_state != 0);
 			CERROR("cfs_fail_race id %x awake, rc=%d\n", id, rc);
 		} else {
 			CERROR("cfs_fail_race id %x waking\n", id);

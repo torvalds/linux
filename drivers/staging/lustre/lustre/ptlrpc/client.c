@@ -2041,8 +2041,6 @@ int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 	struct ptlrpc_request *req;
 	int		    deadline;
 
-	SIGNAL_MASK_ASSERT(); /* XXX BUG 1511 */
-
 	list_for_each(tmp, &set->set_requests) {
 		req = list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 

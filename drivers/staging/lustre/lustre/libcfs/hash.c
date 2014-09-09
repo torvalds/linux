@@ -2092,8 +2092,7 @@ int cfs_hash_debug_str(struct cfs_hash *hs, struct seq_file *m)
 			maxdepb = ffz(~maxdep);
 		}
 		total += bd.bd_bucket->hsb_count;
-		dist[min(__cfs_fls(bd.bd_bucket->hsb_count/max(theta,
-							       1)), 7)]++;
+		dist[min(fls(bd.bd_bucket->hsb_count / max(theta, 1)), 7)]++;
 		cfs_hash_bd_unlock(hs, &bd, 0);
 	}
 

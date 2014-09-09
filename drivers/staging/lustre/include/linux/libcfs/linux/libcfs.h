@@ -86,7 +86,6 @@
 #include "linux-cpu.h"
 #include "linux-time.h"
 #include "linux-mem.h"
-#include "portals_compat25.h"
 
 
 #define LUSTRE_TRACE_SIZE (THREAD_SIZE >> 5)
