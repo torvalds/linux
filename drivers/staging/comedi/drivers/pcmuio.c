@@ -416,13 +416,6 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 	unsigned int pol_bits = 0;
 	int i;
 
-	if (!chip->continuous && chip->stop_count == 0) {
-		/* An empty acquisition! */
-		s->async->events |= COMEDI_CB_EOA;
-		chip->active = 0;
-		return 1;
-	}
-
 	chip->enabled_mask = 0;
 	chip->active = 1;
 	if (cmd->chanlist) {
@@ -564,16 +557,10 @@ static int pcmuio_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		/* any count allowed */
-		break;
-	case TRIG_NONE:
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-		break;
-	default:
-		break;
-	}
 
 	if (err)
 		return 3;
