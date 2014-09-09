@@ -420,8 +420,7 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason)
 			     &reason);
 
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags);
-	mgmt_auth_failed(hcon->hdev, &hcon->dst, hcon->type, hcon->dst_type,
-			 HCI_ERROR_AUTH_FAILURE);
+	mgmt_auth_failed(hcon, HCI_ERROR_AUTH_FAILURE);
 
 	if (chan->data)
 		smp_chan_destroy(conn);

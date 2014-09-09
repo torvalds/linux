@@ -6485,16 +6485,23 @@ int mgmt_user_passkey_notify(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	return mgmt_event(MGMT_EV_PASSKEY_NOTIFY, hdev, &ev, sizeof(ev), NULL);
 }
 
-void mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-		      u8 addr_type, u8 status)
+void mgmt_auth_failed(struct hci_conn *conn, u8 hci_status)
 {
 	struct mgmt_ev_auth_failed ev;
+	struct pending_cmd *cmd;
+	u8 status = mgmt_status(hci_status);
 
-	bacpy(&ev.addr.bdaddr, bdaddr);
-	ev.addr.type = link_to_bdaddr(link_type, addr_type);
-	ev.status = mgmt_status(status);
+	bacpy(&ev.addr.bdaddr, &conn->dst);
+	ev.addr.type = link_to_bdaddr(conn->type, conn->dst_type);
+	ev.status = status;
 
-	mgmt_event(MGMT_EV_AUTH_FAILED, hdev, &ev, sizeof(ev), NULL);
+	cmd = find_pairing(conn);
+
+	mgmt_event(MGMT_EV_AUTH_FAILED, conn->hdev, &ev, sizeof(ev),
+		    cmd ? cmd->sk : NULL);
+
+	if (cmd)
+		pairing_complete(cmd, status);
 }
 
 void mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
