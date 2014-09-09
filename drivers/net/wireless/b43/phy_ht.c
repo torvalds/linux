@@ -89,6 +89,50 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 	udelay(300);
 }
 
+/* Calibrate resistors in LPF of PLL? */
+static void b43_radio_2059_rcal(struct b43_wldev *dev)
+{
+	b43_radio_set(dev, R2059_C3 | 0x4, 0x1);
+	usleep_range(10, 20);
+	b43_radio_set(dev, R2059_C3 | 0x0BF, 0x1);
+	b43_radio_maskset(dev, R2059_C3 | 0x19B, 0x3, 0x2);
+
+	b43_radio_set(dev, R2059_C3 | 0x4, 0x2);
+	usleep_range(100, 200);
+	b43_radio_mask(dev, R2059_C3 | 0x4, ~0x2);
+
+	if (!b43_radio_wait_value(dev, R2059_C3 | 0x145, 1, 1, 100,
+				  1000000))
+		b43err(dev->wl, "Radio 0x2059 rcal timeout\n");
+
+	b43_radio_mask(dev, R2059_C3 | 0x4, ~0x1);
+	b43_radio_set(dev, 0xa, 0x60);
+}
+
+/* Calibrate the internal RC oscillator? */
+static void b43_radio_2057_rccal(struct b43_wldev *dev)
+{
+	const u16 radio_values[3][2] = {
+		{ 0x61, 0xE9 }, { 0x69, 0xD5 }, { 0x73, 0x99 },
+	};
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		b43_radio_write(dev, 0x17F, radio_values[i][0]);
+		b43_radio_write(dev, 0x13D, 0x6E);
+		b43_radio_write(dev, 0x13E, radio_values[i][1]);
+		b43_radio_write(dev, 0x13C, 0x55);
+
+		if (!b43_radio_wait_value(dev, 0x140, 2, 2,
+					  500, 5000000))
+			b43err(dev->wl, "Radio 0x2059 rccal timeout\n");
+
+		b43_radio_write(dev, 0x13C, 0x15);
+	}
+
+	b43_radio_mask(dev, 0x17F, ~0x1);
+}
+
 static void b43_radio_2059_init_pre(struct b43_wldev *dev)
 {
 	b43_phy_mask(dev, B43_PHY_HT_RF_CTL_CMD, ~B43_PHY_HT_RF_CTL_CMD_CHIP0_PU);
@@ -100,10 +144,7 @@ static void b43_radio_2059_init_pre(struct b43_wldev *dev)
 static void b43_radio_2059_init(struct b43_wldev *dev)
 {
 	const u16 routing[] = { R2059_C1, R2059_C2, R2059_C3 };
-	const u16 radio_values[3][2] = {
-		{ 0x61, 0xE9 }, { 0x69, 0xD5 }, { 0x73, 0x99 },
-	};
-	u16 i, j;
+	int i;
 
 	/* Prepare (reset?) radio */
 	b43_radio_2059_init_pre(dev);
@@ -121,48 +162,8 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
 	b43_radio_mask(dev, 0xc0, ~0x0080);
 
 	if (1) { /* FIXME */
-		b43_radio_set(dev, R2059_C3 | 0x4, 0x1);
-		udelay(10);
-		b43_radio_set(dev, R2059_C3 | 0x0BF, 0x1);
-		b43_radio_maskset(dev, R2059_C3 | 0x19B, 0x3, 0x2);
-
-		b43_radio_set(dev, R2059_C3 | 0x4, 0x2);
-		udelay(100);
-		b43_radio_mask(dev, R2059_C3 | 0x4, ~0x2);
-
-		for (i = 0; i < 10000; i++) {
-			if (b43_radio_read(dev, R2059_C3 | 0x145) & 1) {
-				i = 0;
-				break;
-			}
-			udelay(100);
-		}
-		if (i)
-			b43err(dev->wl, "radio 0x945 timeout\n");
-
-		b43_radio_mask(dev, R2059_C3 | 0x4, ~0x1);
-		b43_radio_set(dev, 0xa, 0x60);
-
-		for (i = 0; i < 3; i++) {
-			b43_radio_write(dev, 0x17F, radio_values[i][0]);
-			b43_radio_write(dev, 0x13D, 0x6E);
-			b43_radio_write(dev, 0x13E, radio_values[i][1]);
-			b43_radio_write(dev, 0x13C, 0x55);
-
-			for (j = 0; j < 10000; j++) {
-				if (b43_radio_read(dev, 0x140) & 2) {
-					j = 0;
-					break;
-				}
-				udelay(500);
-			}
-			if (j)
-				b43err(dev->wl, "radio 0x140 timeout\n");
-
-			b43_radio_write(dev, 0x13C, 0x15);
-		}
-
-		b43_radio_mask(dev, 0x17F, ~0x1);
+		b43_radio_2059_rcal(dev);
+		b43_radio_2057_rccal(dev);
 	}
 
 	b43_radio_mask(dev, 0x11, ~0x0008);
