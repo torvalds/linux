@@ -1508,9 +1508,6 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 	    container_of(work, dwc_otg_pcd_t, check_vbus_work.work);
 	struct dwc_otg_device *otg_dev = _pcd->otg_dev;
 	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
-	unsigned long flags;
-
-	local_irq_save(flags);
 
 	if (!pldata->get_status(USB_STATUS_ID)) {
 		/* id low, host mode */
@@ -1597,8 +1594,6 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 	}
 
 	schedule_delayed_work(&_pcd->check_vbus_work, HZ);
-	local_irq_restore(flags);
-
 	return;
 
 connect:
@@ -1612,7 +1607,6 @@ connect:
 
 	schedule_delayed_work(&_pcd->reconnect, 8);	/* delay 8 jiffies */
 	schedule_delayed_work(&_pcd->check_vbus_work, (HZ << 2));
-	local_irq_restore(flags);
 
 	return;
 }
