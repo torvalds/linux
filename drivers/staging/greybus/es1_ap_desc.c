@@ -1,3 +1,4 @@
+/* ES1 AP Bridge Chip USB descriptor definitions */
 
 static const u8 es1_dev_descriptor[] = {
 	0x12,		/* __u8   bLength */
@@ -45,19 +46,25 @@ static const u8 es1_config_descriptor[] = {
 	0xff,		/*  __u8  if_bInterfaceProtocol; Vendor-specific */
 	0x00,		/*  __u8  if_iInterface; */
 
-	/* two endpoints */
+	/* three endpoints */
 	0x07,		/*  __u8   ep_bLength; */
 	0x05,		/*  __u8   ep_bDescriptorType; Endpoint */
 	0x81,		/*  __u8   ep_bEndpointAddress; IN Endpoint 1 */
+	0x03,		/*  __u8   ep_bmAttributes; Bulk */
+	0x00, 0x04,	/*  __le16 ep_wMaxPacketSize; 1024 */
+	0x00		/*  __u8   ep_bInterval; */
+
+	0x07,		/*  __u8   ep_bLength; */
+	0x05,		/*  __u8   ep_bDescriptorType; Endpoint */
+	0x82,		/*  __u8   ep_bEndpointAddress; IN Endpoint 2 */
 	0x02,		/*  __u8   ep_bmAttributes; Bulk */
-	0x40, 0x00,	/*  __le16 ep_wMaxPacketSize; 64??? */
+	0x00, 0x04,	/*  __le16 ep_wMaxPacketSize; 1024 */
 	0x00		/*  __u8   ep_bInterval; */
 
 	0x07,		/*  __u8   ep_bLength; */
 	0x05,		/*  __u8   ep_bDescriptorType; Endpoint */
 	0x02,		/*  __u8   ep_bEndpointAddress; Out Endpoint 2 */
 	0x02,		/*  __u8   ep_bmAttributes; Bulk */
-	0x40, 0x00,	/*  __le16 ep_wMaxPacketSize; 64??? */
+	0x00, 0x04,	/*  __le16 ep_wMaxPacketSize; 1024 */
 	0x00		/*  __u8   ep_bInterval; */
-
 };
