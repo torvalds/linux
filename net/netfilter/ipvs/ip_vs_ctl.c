@@ -779,6 +779,12 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	struct ip_vs_scheduler *sched;
 	int conn_flags;
 
+	/* We cannot modify an address and change the address family */
+	BUG_ON(!add && udest->af != dest->af);
+
+	if (add && udest->af != svc->af)
+		ipvs->mixed_address_family_dests++;
+
 	/* set the weight and the flags */
 	atomic_set(&dest->weight, udest->weight);
 	conn_flags = udest->conn_flags & IP_VS_CONN_F_DEST_MASK;
@@ -1060,6 +1066,9 @@ static void __ip_vs_unlink_dest(struct ip_vs_service *svc,
 	 */
 	list_del_rcu(&dest->n_list);
 	svc->num_dests--;
+
+	if (dest->af != svc->af)
+		net_ipvs(svc->net)->mixed_address_family_dests--;
 
 	if (svcupd) {
 		struct ip_vs_scheduler *sched;
@@ -3254,6 +3263,12 @@ static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
 	if (!(attrs[IPVS_DAEMON_ATTR_STATE] &&
 	      attrs[IPVS_DAEMON_ATTR_MCAST_IFN] &&
 	      attrs[IPVS_DAEMON_ATTR_SYNC_ID]))
+		return -EINVAL;
+
+	/* The synchronization protocol is incompatible with mixed family
+	 * services
+	 */
+	if (net_ipvs(net)->mixed_address_family_dests > 0)
 		return -EINVAL;
 
 	return start_sync_thread(net,
