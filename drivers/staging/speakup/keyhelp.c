@@ -127,7 +127,8 @@ static int help_init(void)
 	char start = SPACE;
 	int i;
 	int num_funcs = MSG_FUNCNAMES_END - MSG_FUNCNAMES_START + 1;
-state_tbl = spk_our_keys[0]+SHIFT_TBL_SIZE+2;
+
+	state_tbl = spk_our_keys[0]+SHIFT_TBL_SIZE+2;
 	for (i = 0; i < num_funcs; i++) {
 		char *cur_funcname = spk_msg_get(MSG_FUNCNAMES_START + i);
 		if (start == *cur_funcname)
