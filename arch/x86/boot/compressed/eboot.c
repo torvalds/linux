@@ -323,8 +323,10 @@ __setup_efi_pci32(efi_pci_io_protocol_32 *pci, struct pci_setup_rom **__rom)
 	size = pci->romsize + sizeof(*rom);
 
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, size, &rom);
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table, "Failed to alloc mem for rom\n");
 		return status;
+	}
 
 	memset(rom, 0, sizeof(*rom));
 
@@ -337,14 +339,18 @@ __setup_efi_pci32(efi_pci_io_protocol_32 *pci, struct pci_setup_rom **__rom)
 	status = efi_early->call(pci->pci.read, pci, EfiPciIoWidthUint16,
 				 PCI_VENDOR_ID, 1, &(rom->vendor));
 
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table, "Failed to read rom->vendor\n");
 		goto free_struct;
+	}
 
 	status = efi_early->call(pci->pci.read, pci, EfiPciIoWidthUint16,
 				 PCI_DEVICE_ID, 1, &(rom->devid));
 
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table, "Failed to read rom->devid\n");
 		goto free_struct;
+	}
 
 	status = efi_early->call(pci->get_location, pci, &(rom->segment),
 				 &(rom->bus), &(rom->device), &(rom->function));
@@ -427,8 +433,10 @@ __setup_efi_pci64(efi_pci_io_protocol_64 *pci, struct pci_setup_rom **__rom)
 	size = pci->romsize + sizeof(*rom);
 
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, size, &rom);
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table, "Failed to alloc mem for rom\n");
 		return status;
+	}
 
 	rom->data.type = SETUP_PCI;
 	rom->data.len = size - sizeof(struct setup_data);
@@ -439,14 +447,18 @@ __setup_efi_pci64(efi_pci_io_protocol_64 *pci, struct pci_setup_rom **__rom)
 	status = efi_early->call(pci->pci.read, pci, EfiPciIoWidthUint16,
 				 PCI_VENDOR_ID, 1, &(rom->vendor));
 
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table, "Failed to read rom->vendor\n");
 		goto free_struct;
+	}
 
 	status = efi_early->call(pci->pci.read, pci, EfiPciIoWidthUint16,
 				 PCI_DEVICE_ID, 1, &(rom->devid));
 
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table, "Failed to read rom->devid\n");
 		goto free_struct;
+	}
 
 	status = efi_early->call(pci->get_location, pci, &(rom->segment),
 				 &(rom->bus), &(rom->device), &(rom->function));
@@ -526,8 +538,10 @@ static efi_status_t setup_efi_pci(struct boot_params *params)
 					EFI_LOADER_DATA,
 					size, (void **)&pci_handle);
 
-		if (status != EFI_SUCCESS)
+		if (status != EFI_SUCCESS) {
+			efi_printk(sys_table, "Failed to alloc mem for pci_handle\n");
 			return status;
+		}
 
 		status = efi_call_early(locate_handle,
 					EFI_LOCATE_BY_PROTOCOL, &pci_proto,
