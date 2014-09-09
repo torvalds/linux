@@ -234,24 +234,16 @@ static void __init omap_init_irq(u32 base, struct device_node *node)
 static asmlinkage void __exception_irq_entry
 omap_intc_handle_irq(struct pt_regs *regs)
 {
-	u32 irqnr;
+	u32 irqnr = 0;
 	int handled_irq = 0;
+	int i;
 
 	do {
-		irqnr = intc_readl(INTC_PENDING_IRQ0);
-		if (irqnr)
-			goto out;
-
-		irqnr = intc_readl(INTC_PENDING_IRQ1);
-		if (irqnr)
-			goto out;
-
-		irqnr = intc_readl(INTC_PENDING_IRQ2);
-#if IS_ENABLED(CONFIG_SOC_TI81XX) || IS_ENABLED(CONFIG_SOC_AM33XX)
-		if (irqnr)
-			goto out;
-		irqnr = intc_readl(INTC_PENDING_IRQ3);
-#endif
+		for (i = 0; i < omap_nr_pending; i++) {
+			irqnr = intc_readl(INTC_PENDING_IRQ0 + (0x20 * i));
+			if (irqnr)
+				goto out;
+		}
 
 out:
 		if (!irqnr)
