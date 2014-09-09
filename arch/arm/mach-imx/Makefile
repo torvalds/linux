@@ -58,7 +58,6 @@ obj-$(CONFIG_MACH_MX27ADS) += mach-mx27ads.o
 obj-$(CONFIG_MACH_MX27_3DS) += mach-mx27_3ds.o
 obj-$(CONFIG_MACH_IMX27_VISSTRIM_M10) += mach-imx27_visstrim_m10.o
 obj-$(CONFIG_MACH_PCA100) += mach-pca100.o
-obj-$(CONFIG_MACH_MXT_TD60) += mach-mxt_td60.o
 obj-$(CONFIG_MACH_IMX27_DT) += imx27-dt.o
 
 # i.MX31 based machines
