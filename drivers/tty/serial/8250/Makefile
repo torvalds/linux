@@ -21,3 +21,4 @@ obj-$(CONFIG_SERIAL_8250_FSL)		+= 8250_fsl.o
 obj-$(CONFIG_SERIAL_8250_DW)		+= 8250_dw.o
 obj-$(CONFIG_SERIAL_8250_EM)		+= 8250_em.o
 obj-$(CONFIG_SERIAL_8250_FINTEK)	+= 8250_fintek.o
+obj-$(CONFIG_SERIAL_8250_MT6577)	+= 8250_mtk.o
