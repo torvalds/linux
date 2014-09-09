@@ -691,6 +691,10 @@ static int dw_mci_edmac_init(struct dw_mci *host)
         return 0;
 
 err_exit:
+        if (NULL != host->dms) {
+                kfree(host->dms);
+                host->dms = NULL;
+        }
         return -ENXIO;
 
 }
@@ -699,8 +703,11 @@ static void dw_mci_edmac_exit(struct dw_mci *host)
 {
         dma_release_channel(host->dms->ch);
         host->dms->ch = NULL;
-        kfree(host->dms);
-        host->dms = NULL;
+
+        if (NULL != host->dms) {
+                kfree(host->dms);
+                host->dms = NULL;
+        }
 }
 
 static const struct dw_mci_dma_ops dw_mci_edmac_ops = {
