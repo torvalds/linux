@@ -1328,8 +1328,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * channel manipulation without timers effect
 	 */
 	if (((cmd->scan_begin_src == TRIG_FOLLOW) ||
-		(cmd->scan_begin_src == TRIG_EXT) ||
-		(cmd->scan_begin_src == TRIG_INT)) &&
+		(cmd->scan_begin_src == TRIG_EXT)) &&
 		(cmd->convert_src == TRIG_TIMER)) {
 					/* both timer is used for one time */
 		if (cmd->scan_begin_src == TRIG_EXT)
