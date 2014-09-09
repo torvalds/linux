@@ -170,7 +170,7 @@ static void rk_lcdc_read_reg_defalut_cfg(struct lcdc_device
 	u32 value = 0;
 
 	spin_lock(&lcdc_dev->reg_lock);
-	for (reg = 0; reg < 0xdc; reg += 4)
+	for (reg = 0; reg < 0xe0; reg += 4)
 		value = lcdc_readl(lcdc_dev, reg);
 
 	spin_unlock(&lcdc_dev->reg_lock);
@@ -372,7 +372,7 @@ static int rk3036_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 
 static void rk3036_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
-	memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0xdc);
+	memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0xe0);
 }
 
 static void rk3036_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
