@@ -171,9 +171,9 @@ static bool cs42l56_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS42L56_INT_STATUS:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -1175,11 +1175,8 @@ static int cs42l56_probe(struct snd_soc_codec *codec)
 
 static int cs42l56_remove(struct snd_soc_codec *codec)
 {
-	struct cs42l56_private *cs42l56 = snd_soc_codec_get_drvdata(codec);
-
 	cs42l56_free_beep(codec);
 	cs42l56_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	regulator_bulk_free(ARRAY_SIZE(cs42l56->supplies), cs42l56->supplies);
 
 	return 0;
 }
