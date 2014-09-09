@@ -1511,11 +1511,8 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 static int da732x_probe(struct snd_soc_codec *codec)
 {
 	struct da732x_priv *da732x = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	da732x->codec = codec;
-
-	dapm->idle_bias_off = false;
 
 	da732x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
