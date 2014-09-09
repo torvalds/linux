@@ -393,7 +393,7 @@ static void
 pci224_ao_set_data(struct comedi_device *dev, int chan, int range,
 		   unsigned int data)
 {
-	const struct pci224_board *thisboard = comedi_board(dev);
+	const struct pci224_board *thisboard = dev->board_ptr;
 	struct pci224_private *devpriv = dev->private;
 	unsigned short mangled;
 
@@ -645,7 +645,7 @@ static int pci224_ao_check_chanlist(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_cmd *cmd)
 {
-	const struct pci224_board *thisboard = comedi_board(dev);
+	const struct pci224_board *thisboard = dev->board_ptr;
 	unsigned int range_check_0;
 	unsigned int chan_mask = 0;
 	int i;
@@ -859,7 +859,7 @@ static void pci224_ao_start_pacer(struct comedi_device *dev,
 
 static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct pci224_board *thisboard = comedi_board(dev);
+	const struct pci224_board *thisboard = dev->board_ptr;
 	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int range;
@@ -951,7 +951,7 @@ static void
 pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 		void *data, unsigned int num_bytes, unsigned int chan_index)
 {
-	const struct pci224_board *thisboard = comedi_board(dev);
+	const struct pci224_board *thisboard = dev->board_ptr;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
