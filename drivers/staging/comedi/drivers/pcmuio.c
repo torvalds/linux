@@ -494,16 +494,7 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	spin_lock_irqsave(&chip->spinlock, flags);
 	chip->active = 1;
 
-	/* Set up end of acquisition. */
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		chip->stop_count = cmd->stop_arg;
-		break;
-	default:
-		/* TRIG_NONE */
-		chip->stop_count = 0;
-		break;
-	}
+	chip->stop_count = cmd->stop_arg;
 
 	/* Set up start of acquisition. */
 	if (cmd->start_src == TRIG_INT)
