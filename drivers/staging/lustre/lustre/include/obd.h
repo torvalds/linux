@@ -589,13 +589,11 @@ enum placement_policy {
 	PLACEMENT_MAX_POLICY
 };
 
-typedef enum placement_policy placement_policy_t;
-
 struct lmv_obd {
 	int			refcount;
 	struct lu_client_fld	lmv_fld;
 	spinlock_t		lmv_lock;
-	placement_policy_t	lmv_placement;
+	enum placement_policy	lmv_placement;
 	struct lmv_desc		desc;
 	struct obd_uuid		cluuid;
 	struct obd_export	*exp;
@@ -1086,16 +1084,14 @@ enum op_cli_flags {
 
 struct md_enqueue_info;
 /* metadata stat-ahead */
-typedef int (* md_enqueue_cb_t)(struct ptlrpc_request *req,
-				struct md_enqueue_info *minfo,
-				int rc);
 
 struct md_enqueue_info {
 	struct md_op_data       mi_data;
 	struct lookup_intent    mi_it;
 	struct lustre_handle    mi_lockh;
 	struct inode	   *mi_dir;
-	md_enqueue_cb_t	 mi_cb;
+	int (*mi_cb)(struct ptlrpc_request *req,
+		struct md_enqueue_info *minfo, int rc);
 	__u64		   mi_cbdata;
 	unsigned int	    mi_generation;
 };

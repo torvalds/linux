@@ -1189,7 +1189,7 @@ static int lmv_nid_policy(struct lmv_obd *lmv)
 }
 
 static int lmv_choose_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
-			  placement_policy_t placement)
+			  enum placement_policy placement)
 {
 	switch (placement) {
 	case PLACEMENT_CHAR_POLICY:
