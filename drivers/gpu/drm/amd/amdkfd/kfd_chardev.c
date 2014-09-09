@@ -519,31 +519,57 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 					void *data)
 {
-	return -ENODEV;
+	struct kfd_ioctl_create_event_args *args = data;
+	int err;
+
+	err = kfd_event_create(filp, p, args->event_type,
+				args->auto_reset != 0, args->node_id,
+				&args->event_id, &args->event_trigger_data,
+				&args->event_page_offset,
+				&args->event_slot_index);
+
+	return err;
 }
 
 static int kfd_ioctl_destroy_event(struct file *filp, struct kfd_process *p,
 					void *data)
 {
-	return -ENODEV;
+	struct kfd_ioctl_destroy_event_args *args = data;
+
+	return kfd_event_destroy(p, args->event_id);
 }
 
 static int kfd_ioctl_set_event(struct file *filp, struct kfd_process *p,
 				void *data)
 {
-	return -ENODEV;
+	struct kfd_ioctl_set_event_args *args = data;
+
+	return kfd_set_event(p, args->event_id);
 }
 
 static int kfd_ioctl_reset_event(struct file *filp, struct kfd_process *p,
 				void *data)
 {
-	return -ENODEV;
+	struct kfd_ioctl_reset_event_args *args = data;
+
+	return kfd_reset_event(p, args->event_id);
 }
 
 static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
 				void *data)
 {
-	return -ENODEV;
+	struct kfd_ioctl_wait_events_args *args = data;
+	enum kfd_event_wait_result wait_result;
+	int err;
+
+	err = kfd_wait_on_events(p, args->num_events,
+			(void __user *)args->events_ptr,
+			(args->wait_for_all != 0),
+			args->timeout, &wait_result);
+
+	args->wait_result = wait_result;
+
+	return err;
 }
 
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
