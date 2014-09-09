@@ -294,7 +294,7 @@ MODULE_PARM_DESC(legacy_invert_outputs,
 
 static unsigned int ni_65xx_num_ports(struct comedi_device *dev)
 {
-	const struct ni_65xx_board *board = comedi_board(dev);
+	const struct ni_65xx_board *board = dev->board_ptr;
 
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
