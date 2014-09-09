@@ -491,6 +491,24 @@
 			>;
 		};
 
+		pinctrl_uart3_1: uart3grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_CLK__UART3_RX_DATA	0x1b0b1
+				MX6QDL_PAD_SD4_CMD__UART3_TX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D30__UART3_CTS_B		0x1b0b1
+				MX6QDL_PAD_EIM_EB3__UART3_RTS_B		0x1b0b1
+			>;
+		};
+
+		pinctrl_uart3dte_1: uart3dtegrp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_CLK__UART3_TX_DATA	0x1b0b1
+				MX6QDL_PAD_SD4_CMD__UART3_RX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D30__UART3_RTS_B		0x1b0b1
+				MX6QDL_PAD_EIM_EB3__UART3_CTS_B		0x1b0b1
+			>;
+		};
+
 		pinctrl_uart4: uart4grp {
 			fsl,pins = <
 				MX6QDL_PAD_KEY_COL0__UART4_TX_DATA	0x1b0b1
@@ -659,6 +677,18 @@
 	assigned-clock-rates = <0>;
 	fsl,mode = "i2s-master";
 	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3_1>;
+	pinctrl-assert-gpios = <&max7310_b 4 GPIO_ACTIVE_HIGH>, /* CTS */
+			       <&max7310_c 3 GPIO_ACTIVE_HIGH>; /* RXD and TXD */
+	fsl,uart-has-rtscts;
+	status = "okay";
+	/* for DTE mode, add below change */
+	/* fsl,dte-mode; */
+	/* pinctrl-0 = <&pinctrl_uart3dte_1>; */
 };
 
 &uart4 {
