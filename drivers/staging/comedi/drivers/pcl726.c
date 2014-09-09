@@ -274,7 +274,7 @@ static int pcl726_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	const struct pcl726_board *board = comedi_board(dev);
+	const struct pcl726_board *board = dev->board_ptr;
 	unsigned int val;
 
 	if (board->is_pcl727) {
@@ -295,7 +295,7 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	const struct pcl726_board *board = comedi_board(dev);
+	const struct pcl726_board *board = dev->board_ptr;
 	unsigned long io = dev->iobase;
 	unsigned int mask;
 
@@ -322,7 +322,7 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 static int pcl726_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it)
 {
-	const struct pcl726_board *board = comedi_board(dev);
+	const struct pcl726_board *board = dev->board_ptr;
 	struct pcl726_private *devpriv;
 	struct comedi_subdevice *s;
 	int subdev;
