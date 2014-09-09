@@ -62,6 +62,7 @@ static unsigned int card_alloc;
  */
 static void vxpocket_release(struct pcmcia_device *link)
 {
+	free_irq(link->irq, link->priv);
 	pcmcia_disable_device(link);
 }
 
@@ -227,11 +228,13 @@ static int vxpocket_config(struct pcmcia_device *link)
 
 	ret = pcmcia_request_io(link);
 	if (ret)
-		goto failed;
+		goto failed_preirq;
 
-	ret = pcmcia_request_irq(link, snd_vx_irq_handler);
+	ret = request_threaded_irq(link->irq, snd_vx_irq_handler,
+				   snd_vx_threaded_irq_handler,
+				   IRQF_SHARED, link->devname, link->priv);
 	if (ret)
-		goto failed;
+		goto failed_preirq;
 
 	ret = pcmcia_enable_device(link);
 	if (ret)
@@ -245,7 +248,9 @@ static int vxpocket_config(struct pcmcia_device *link)
 
 	return 0;
 
-failed:
+ failed:
+	free_irq(link->irq, link->priv);
+failed_preirq:
 	pcmcia_disable_device(link);
 	return -ENODEV;
 }
