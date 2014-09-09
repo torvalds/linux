@@ -322,11 +322,6 @@ static int __init intc_of_init(struct device_node *node,
 
 IRQCHIP_DECLARE(omap_intc, "ti,omap2-intc", intc_of_init);
 
-void __init omap_intc_of_init(void)
-{
-	of_irq_init(&irqchip_of_match_omap_intc);
-}
-
 asmlinkage void __exception_irq_entry omap3_intc_handle_irq(struct pt_regs *regs)
 {
 	omap_intc_handle_irq(regs);
