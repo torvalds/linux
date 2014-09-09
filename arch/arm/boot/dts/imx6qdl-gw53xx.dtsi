@@ -9,6 +9,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	/* these are used by bootloader for disabling nodes */
 	aliases {
@@ -38,20 +40,20 @@
 
 		led0: user1 {
 			label = "user1";
-			gpios = <&gpio4 6 0>; /* 102 -> MX6_PANLEDG */
+			gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>; /* MX6_PANLEDG */
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 
 		led1: user2 {
 			label = "user2";
-			gpios = <&gpio4 7 0>; /* 103 -> MX6_PANLEDR */
+			gpios = <&gpio4 7 GPIO_ACTIVE_HIGH>; /* MX6_PANLEDR */
 			default-state = "off";
 		};
 
 		led2: user3 {
 			label = "user3";
-			gpios = <&gpio4 15 1>; /* 111 -> MX6_LOCLED# */
+			gpios = <&gpio4 15 GPIO_ACTIVE_LOW>; /* MX6_LOCLED# */
 			default-state = "off";
 		};
 	};
@@ -62,7 +64,7 @@
 
 	pps {
 		compatible = "pps-gpio";
-		gpios = <&gpio1 26 0>;
+		gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -114,7 +116,7 @@
 			regulator-name = "usb_otg_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio3 22 0>;
+			gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -150,7 +152,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
-	phy-reset-gpios = <&gpio1 30 0>;
+	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -233,8 +235,8 @@
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <11 2>; /* gpio1_11 active low */
-		wakeup-gpios = <&gpio1 11 0>;
+		interrupts = <11 2>;
+		wakeup-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -418,7 +420,7 @@
 };
 
 &pcie {
-	reset-gpio = <&gpio1 29 0>;
+	reset-gpio = <&gpio1 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	eth1: sky2@8 { /* MAC/PHY on bus 8 */
@@ -470,7 +472,7 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	cd-gpios = <&gpio7 0 0>;
+	cd-gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
 };
