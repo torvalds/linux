@@ -209,8 +209,8 @@ static void dio200_stop_intr(struct comedi_device *dev,
 		dio200_write8(dev, subpriv->ofs, 0);
 }
 
-static int dio200_start_intr(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
+static void dio200_start_intr(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
 	const struct dio200_board *board = comedi_board(dev);
 	struct dio200_subdev_intr *subpriv = s->private;
@@ -229,8 +229,6 @@ static int dio200_start_intr(struct comedi_device *dev,
 	subpriv->enabled_isns = isn_bits;
 	if (board->has_int_sce)
 		dio200_write8(dev, subpriv->ofs, isn_bits);
-
-	return 0;
 }
 
 static int dio200_inttrig_start_intr(struct comedi_device *dev,
@@ -240,7 +238,6 @@ static int dio200_inttrig_start_intr(struct comedi_device *dev,
 	struct dio200_subdev_intr *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
-	int event = 0;
 
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
@@ -248,12 +245,9 @@ static int dio200_inttrig_start_intr(struct comedi_device *dev,
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 	s->async->inttrig = NULL;
 	if (subpriv->active)
-		event = dio200_start_intr(dev, s);
+		dio200_start_intr(dev, s);
 
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
-
-	if (event)
-		comedi_event(dev, s);
 
 	return 1;
 }
@@ -438,7 +432,6 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
-	int event = 0;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 
@@ -448,12 +441,9 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = dio200_inttrig_start_intr;
 	else	/* TRIG_NOW */
-		event = dio200_start_intr(dev, s);
+		dio200_start_intr(dev, s);
 
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
-
-	if (event)
-		comedi_event(dev, s);
 
 	return 0;
 }
