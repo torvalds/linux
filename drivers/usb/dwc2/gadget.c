@@ -192,6 +192,8 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
 	for (ep = 1; ep <= 15; ep++) {
 		val = addr;
 		val |= size << FIFOSIZE_DEPTH_SHIFT;
+		WARN_ONCE(addr + size > hsotg->fifo_mem,
+			  "insufficient fifo memory");
 		addr += size;
 
 		writel(val, hsotg->regs + DPTXFSIZN(ep));
@@ -3029,19 +3031,22 @@ static void s3c_hsotg_initep(struct s3c_hsotg *hsotg,
  */
 static void s3c_hsotg_hw_cfg(struct s3c_hsotg *hsotg)
 {
-	u32 cfg2, cfg4;
+	u32 cfg2, cfg3, cfg4;
 	/* check hardware configuration */
 
 	cfg2 = readl(hsotg->regs + 0x48);
 	hsotg->num_of_eps = (cfg2 >> 10) & 0xF;
 
-	dev_info(hsotg->dev, "EPs:%d\n", hsotg->num_of_eps);
+	cfg3 = readl(hsotg->regs + 0x4C);
+	hsotg->fifo_mem = (cfg3 >> 16);
 
 	cfg4 = readl(hsotg->regs + 0x50);
 	hsotg->dedicated_fifos = (cfg4 >> 25) & 1;
 
-	dev_info(hsotg->dev, "%s fifos\n",
-		 hsotg->dedicated_fifos ? "dedicated" : "shared");
+	dev_info(hsotg->dev, "EPs: %d, %s fifos, %d entries in SPRAM\n",
+		 hsotg->num_of_eps,
+		 hsotg->dedicated_fifos ? "dedicated" : "shared",
+		 hsotg->fifo_mem);
 }
 
 /**
@@ -3485,8 +3490,8 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	s3c_hsotg_phy_enable(hsotg);
 
 	s3c_hsotg_corereset(hsotg);
-	s3c_hsotg_init(hsotg);
 	s3c_hsotg_hw_cfg(hsotg);
+	s3c_hsotg_init(hsotg);
 
 	ret = devm_request_irq(&pdev->dev, hsotg->irq, s3c_hsotg_irq, 0,
 				dev_name(dev), hsotg);
