@@ -311,18 +311,14 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 	}
 	radeon_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
-		unsigned lpfn = 0;
-
 		/* force to pin into visible video ram */
-		if (bo->placements[i].flags & TTM_PL_FLAG_VRAM)
-			lpfn = bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+		if ((bo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
+		    (!max_offset || max_offset > bo->rdev->mc.visible_vram_size))
+			bo->placements[i].lpfn =
+				bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
 		else
-			lpfn = bo->rdev->mc.gtt_size >> PAGE_SHIFT; /* ??? */
+			bo->placements[i].lpfn = max_offset >> PAGE_SHIFT;
 
-		if (max_offset)
-			lpfn = min (lpfn, (unsigned)(max_offset >> PAGE_SHIFT));
-
-		bo->placements[i].lpfn = lpfn;
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
 
