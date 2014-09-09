@@ -923,6 +923,11 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		err |= -EINVAL;
 	}
 
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
 	if (err)
 		return 3;
 
@@ -1026,13 +1031,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
-			err++;
-		}
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg == 0) {
-			dev_err(dev->class_dev, "Invalid stop arg\n");
-			cmd->stop_arg = 1;
 			err++;
 		}
 	}
