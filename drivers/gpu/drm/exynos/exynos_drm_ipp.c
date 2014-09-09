@@ -1605,11 +1605,11 @@ err:
 
 static void ipp_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 {
-	struct exynos_drm_ippdrv *ippdrv;
+	struct exynos_drm_ippdrv *ippdrv, *t;
 	struct ipp_context *ctx = get_ipp_context(dev);
 
 	/* get ipp driver entry */
-	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
+	list_for_each_entry_safe(ippdrv, t, &exynos_drm_ippdrv_list, drv_list) {
 		if (is_drm_iommu_supported(drm_dev))
 			drm_iommu_detach_device(drm_dev, ippdrv->dev);
 
