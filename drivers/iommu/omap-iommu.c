@@ -893,19 +893,11 @@ static struct omap_iommu *omap_iommu_attach(const char *name, u32 *iopgd)
 		goto err_enable;
 	flush_iotlb_all(obj);
 
-	if (!try_module_get(obj->owner)) {
-		err = -ENODEV;
-		goto err_module;
-	}
-
 	spin_unlock(&obj->iommu_lock);
 
 	dev_dbg(obj->dev, "%s: %s\n", __func__, obj->name);
 	return obj;
 
-err_module:
-	if (obj->refcount == 1)
-		iommu_disable(obj);
 err_enable:
 	obj->refcount--;
 	spin_unlock(&obj->iommu_lock);
@@ -925,8 +917,6 @@ static void omap_iommu_detach(struct omap_iommu *obj)
 
 	if (--obj->refcount == 0)
 		iommu_disable(obj);
-
-	module_put(obj->owner);
 
 	obj->iopgd = NULL;
 
