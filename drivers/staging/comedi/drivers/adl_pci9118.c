@@ -49,9 +49,7 @@
  *	 card will be used.
  * [2] - 0= standard 8 DIFF/16 SE channels configuration
  *	 n = external multiplexer connected, 1 <= n <= 256
- * [3] - 0=autoselect DMA or EOC interrupts operation
- *	 1 = disable DMA mode
- *	 3 = disable DMA and INT, only insn interface will work
+ * [3] - ignored
  * [4] - sample&hold signal - card can generate signal for external S&H board
  *	 0 = use SSHO(pin 45) signal is generated in onboard hardware S&H logic
  *	 0 != use ADCHN7(pin 23) signal is generated from driver, number say how
@@ -1748,8 +1746,8 @@ static void pci9118_free_dma(struct comedi_device *dev)
 			   devpriv->dmabuf_pages[1]);
 }
 
-static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
-				 int master, int ext_mux, int softsshdelay,
+static int pci9118_common_attach(struct comedi_device *dev,
+				 int ext_mux, int softsshdelay,
 				 int hw_err_mask)
 {
 	const struct pci9118_boardinfo *board = comedi_board(dev);
@@ -1767,22 +1765,20 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	if (master)
-		pci_set_master(pcidev);
+	pci_set_master(pcidev);
 
 	devpriv->iobase_a = pci_resource_start(pcidev, 0);
 	dev->iobase = pci_resource_start(pcidev, 2);
 
 	pci9118_reset(dev);
 
-	if (!disable_irq && pcidev->irq) {
+	if (pcidev->irq) {
 		ret = request_irq(pcidev->irq, pci9118_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
 		if (ret == 0) {
 			dev->irq = pcidev->irq;
 
-			if (master)
-				pci9118_alloc_dma(dev);
+			pci9118_alloc_dma(dev);
 		}
 	}
 
@@ -1900,11 +1896,9 @@ static int pci9118_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev;
-	int ext_mux, disable_irq, master, softsshdelay, hw_err_mask;
+	int ext_mux, softsshdelay, hw_err_mask;
 
 	ext_mux = it->options[2];
-	master = ((it->options[3] & 1) == 0);
-	disable_irq = ((it->options[3] & 2) != 0);
 	softsshdelay = it->options[4];
 	hw_err_mask = it->options[5];
 
@@ -1913,8 +1907,7 @@ static int pci9118_attach(struct comedi_device *dev,
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	return pci9118_common_attach(dev, disable_irq, master, ext_mux,
-				     softsshdelay, hw_err_mask);
+	return pci9118_common_attach(dev, ext_mux, softsshdelay, hw_err_mask);
 }
 
 static int pci9118_auto_attach(struct comedi_device *dev,
@@ -1935,9 +1928,8 @@ static int pci9118_auto_attach(struct comedi_device *dev,
 	 * (The 'put' also matches the implicit 'get' by pci9118_find_pci().)
 	 */
 	pci_dev_get(pcidev);
-	/* Don't disable irq, use bus master, no external mux,
-	 * no sample-hold delay, no error mask. */
-	return pci9118_common_attach(dev, 0, 1, 0, 0, 0);
+	/* no external mux, no sample-hold delay, no error mask. */
+	return pci9118_common_attach(dev, 0, 0, 0);
 }
 
 static void pci9118_detach(struct comedi_device *dev)
