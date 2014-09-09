@@ -222,46 +222,122 @@ int rk3036_hdmi_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 }
 
 static const char coeff_csc[][24] = {
-	/*YUV2RGB:709 HD mode*/
+	/*YUV2RGB:601 SD mode(Y[16:235],UV[16:240],RGB[0:255]):
+	    R = 1.164*Y +1.596*V - 204
+	    G = 1.164*Y - 0.391*U - 0.813*V + 154
+	    B = 1.164*Y + 2.018*U - 258*/
+	{
+	0x04, 0xa7, 0x00, 0x00, 0x06, 0x62, 0x02, 0xcc,
+	0x04, 0xa7, 0x11, 0x90, 0x13, 0x40, 0x00, 0x9a,
+	0x04, 0xa7, 0x08, 0x12, 0x00, 0x00, 0x03, 0x02},
+
+	/*YUV2RGB:601 SD mode(YUV[0:255],RGB[0:255]):
+	    R = Y + 1.402*V - 248
+	    G = Y - 0.344*U - 0.714*V + 135
+	    B = Y + 1.772*U - 227*/
+	{
+	0x04, 0x00, 0x00, 0x00, 0x05, 0x9b, 0x02, 0xf8,
+	0x04, 0x00, 0x11, 0x60, 0x12, 0xdb, 0x00, 0x87,
+	0x04, 0x00, 0x07, 0x16, 0x00, 0x00, 0x02, 0xe3},
+	/*YUV2RGB:709 HD mode(Y[16:235],UV[16:240],RGB[0:255]):
+	    R = 1.164*Y +1.793*V - 248
+	    G = 1.164*Y - 0.213*U - 0.534*V + 77
+	    B = 1.164*Y + 2.115*U - 289*/
 	{
 	0x04, 0xa7, 0x00, 0x00, 0x07, 0x2c, 0x02, 0xf8,
 	0x04, 0xa7, 0x10, 0xda, 0x12, 0x22, 0x00, 0x4d,
 	0x04, 0xa7, 0x08, 0x74, 0x00, 0x00, 0x03, 0x21},
+	/*RGB2YUV:601 SD mode:
+	    Cb = -0.291G  - 0.148R + 0.439B + 128
+	    Y   = 0.504G   + 0.257R + 0.098B + 16
+	    Cr  = -0.368G + 0.439R - 0.071B + 128*/
+	{
+	0x11, 0x29, 0x10, 0x97, 0x01, 0xc1, 0x00, 0x80,
+	0x02, 0x04, 0x01, 0x07, 0x00, 0x64, 0x00, 0x10,
+	0x11, 0x78, 0x01, 0xc1, 0x10, 0x48, 0x00, 0x80},
+
+	/*RGB2YUV:709 HD mode:
+	    Cb = - 0.338G - 0.101R +  0.439B + 128
+	    Y  =    0.614G + 0.183R +  0.062B + 16
+	    Cr = - 0.399G + 0.439R  -  0.040B + 128*/
+	{
+	0x11, 0x5a, 0x10, 0x67, 0x01, 0xc1, 0x00, 0x80,
+	0x02, 0x74, 0x00, 0xbb, 0x00, 0x3f, 0x00, 0x10,
+	0x11, 0x98, 0x01, 0xc1, 0x10, 0x28, 0x00, 0x80},
+	/*RGB[0:255]2RGB[16:235]:
+	R' = R x (235-16)/255 + 16;
+	G' = G x (235-16)/255 + 16;
+	B' = B x (235-16)/255 + 16;*/
+	{
+	0x00, 0x00, 0x03, 0x6F, 0x00, 0x00, 0x00, 0x10,
+	0x03, 0x6F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
+	0x00, 0x00, 0x00, 0x00, 0x03, 0x6F, 0x00, 0x10},
 };
 static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
 				        struct hdmi_video_para *vpara)
 {
-	int value;
+	int value,i;
 	const char *coeff = NULL;
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 							struct rk_hdmi_device,
 							driver);
-	coeff = coeff_csc[0];
 	/* Enable or disalbe color space convert */
+	printk("rk3036_hdmi_video_csc:input_color=%d,output_color=%d\n",vpara->input_color,vpara->output_color);
 	if (vpara->input_color != vpara->output_color) {
+		if(vpara->input_color == VIDEO_INPUT_COLOR_RGB) {/*rgb2yuv*/
+			coeff = coeff_csc[3];
+			for (i = 0; i < 24; i++) {
+				hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
+			}
+
+			value = v_SOF_DISABLE | v_CSC_ENABLE;
+			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+				     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+				     v_VIDEO_AUTO_CSC(0) | v_VIDEO_C0_C2_EXCHANGE(0));
+		} else {/*yuv2rgb*/
 #ifdef AUTO_DEFINE_CSC
-		value = v_SOF_DISABLE | v_CSC_DISABLE;
-		hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
-		hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
-			     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
-			     v_VIDEO_AUTO_CSC(1) | v_VIDEO_C0_C2_EXCHANGE(1));
+			value = v_SOF_DISABLE | v_CSC_DISABLE;
+			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+				     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+				     v_VIDEO_AUTO_CSC(1) | v_VIDEO_C0_C2_EXCHANGE(1));
 #else
-		int i;
-		for (i = 0; i < 24; i++) {
-			hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
-		}
+			if(hdmi_drv->lcdc->cur_screen->mode.xres <= 576)/*x <= 576,REC-601*/ {
+				coeff = coeff_csc[0];
+				printk("xres<=576,xres=%d\n",hdmi_drv->lcdc->cur_screen->mode.xres);
+			} else/*x > 576,REC-709*/{
+				coeff = coeff_csc[2];
+				printk("xres>576,xres=%d\n",hdmi_drv->lcdc->cur_screen->mode.xres);
+			}
+			for (i = 0; i < 24; i++) {
+				hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
+			}
 
-		value = v_SOF_DISABLE | v_CSC_ENABLE;
-		hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
-		hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
-			     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
-			     v_VIDEO_AUTO_CSC(0) | v_VIDEO_C0_C2_EXCHANGE(0));
-
+			value = v_SOF_DISABLE | v_CSC_ENABLE;
+			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+				     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+				     v_VIDEO_AUTO_CSC(0) | v_VIDEO_C0_C2_EXCHANGE(0));
 #endif
+		}
 	} else {
-		value = v_SOF_DISABLE;
-		hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
-		hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL, m_VIDEO_AUTO_CSC, v_VIDEO_AUTO_CSC(0));
+		if(vpara->input_color == VIDEO_INPUT_COLOR_RGB) {/*rgb[0:255]->rbg[16:235]*/	
+			coeff = coeff_csc[4];
+			for (i = 0; i < 24; i++) {
+				hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
+			}
+
+			value = v_SOF_DISABLE | v_CSC_ENABLE;
+			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+				     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+				     v_VIDEO_AUTO_CSC(0) | v_VIDEO_C0_C2_EXCHANGE(1));
+		} else {
+			value = v_SOF_DISABLE;
+			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL, m_VIDEO_AUTO_CSC, v_VIDEO_AUTO_CSC(0));
+		}
 	}
 
 	return 0;
