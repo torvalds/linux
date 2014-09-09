@@ -4132,41 +4132,13 @@ xlog_do_recovery_pass(
 	}
 
 	memset(rhash, 0, sizeof(rhash));
-	if (tail_blk <= head_blk) {
-		for (blk_no = tail_blk; blk_no < head_blk; ) {
-			error = xlog_bread(log, blk_no, hblks, hbp, &offset);
-			if (error)
-				goto bread_err2;
-
-			rhead = (xlog_rec_header_t *)offset;
-			error = xlog_valid_rec_header(log, rhead, blk_no);
-			if (error)
-				goto bread_err2;
-
-			/* blocks in data section */
-			bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
-			error = xlog_bread(log, blk_no + hblks, bblks, dbp,
-					   &offset);
-			if (error)
-				goto bread_err2;
-
-			error = xlog_unpack_data(rhead, offset, log);
-			if (error)
-				goto bread_err2;
-
-			error = xlog_recover_process_data(log,
-						rhash, rhead, offset, pass);
-			if (error)
-				goto bread_err2;
-			blk_no += bblks + hblks;
-		}
-	} else {
+	blk_no = tail_blk;
+	if (tail_blk > head_blk) {
 		/*
 		 * Perform recovery around the end of the physical log.
 		 * When the head is not on the same cycle number as the tail,
-		 * we can't do a sequential recovery as above.
+		 * we can't do a sequential recovery.
 		 */
-		blk_no = tail_blk;
 		while (blk_no < log->l_logBBsize) {
 			/*
 			 * Check for header wrapping around physical end-of-log
@@ -4280,34 +4252,35 @@ xlog_do_recovery_pass(
 
 		ASSERT(blk_no >= log->l_logBBsize);
 		blk_no -= log->l_logBBsize;
+	}
 
-		/* read first part of physical log */
-		while (blk_no < head_blk) {
-			error = xlog_bread(log, blk_no, hblks, hbp, &offset);
-			if (error)
-				goto bread_err2;
+	/* read first part of physical log */
+	while (blk_no < head_blk) {
+		error = xlog_bread(log, blk_no, hblks, hbp, &offset);
+		if (error)
+			goto bread_err2;
 
-			rhead = (xlog_rec_header_t *)offset;
-			error = xlog_valid_rec_header(log, rhead, blk_no);
-			if (error)
-				goto bread_err2;
+		rhead = (xlog_rec_header_t *)offset;
+		error = xlog_valid_rec_header(log, rhead, blk_no);
+		if (error)
+			goto bread_err2;
 
-			bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
-			error = xlog_bread(log, blk_no+hblks, bblks, dbp,
-					   &offset);
-			if (error)
-				goto bread_err2;
+		/* blocks in data section */
+		bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
+		error = xlog_bread(log, blk_no+hblks, bblks, dbp,
+				   &offset);
+		if (error)
+			goto bread_err2;
 
-			error = xlog_unpack_data(rhead, offset, log);
-			if (error)
-				goto bread_err2;
+		error = xlog_unpack_data(rhead, offset, log);
+		if (error)
+			goto bread_err2;
 
-			error = xlog_recover_process_data(log, rhash,
-							rhead, offset, pass);
-			if (error)
-				goto bread_err2;
-			blk_no += bblks + hblks;
-		}
+		error = xlog_recover_process_data(log, rhash,
+						rhead, offset, pass);
+		if (error)
+			goto bread_err2;
+		blk_no += bblks + hblks;
 	}
 
  bread_err2:
