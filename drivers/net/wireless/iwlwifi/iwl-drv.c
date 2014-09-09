@@ -1363,7 +1363,7 @@ MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)")
 module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
-		 "specify antenna coupling in dB (defualt: 0 dB)");
+		 "specify antenna coupling in dB (default: 0 dB)");
 
 module_param_named(wd_disable, iwlwifi_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
