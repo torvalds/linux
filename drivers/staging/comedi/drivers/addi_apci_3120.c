@@ -44,7 +44,7 @@ static const struct addi_board apci3120_boardtypes[] = {
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
