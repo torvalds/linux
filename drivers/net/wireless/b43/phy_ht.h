@@ -81,7 +81,9 @@
 #define B43_PHY_HT_RF_SEQ_STATUS		B43_PHY_EXTG(0x004)
 /* Values for the status are the same as for the trigger */
 
-#define B43_PHY_HT_RF_CTL1			B43_PHY_EXTG(0x010)
+#define B43_PHY_HT_RF_CTL_CMD			0x810
+#define  B43_PHY_HT_RF_CTL_CMD_FORCE		0x0001
+#define  B43_PHY_HT_RF_CTL_CMD_CHIP0_PU		0x0002
 
 #define B43_PHY_HT_RF_CTL_INT_C1		B43_PHY_EXTG(0x04c)
 #define B43_PHY_HT_RF_CTL_INT_C2		B43_PHY_EXTG(0x06c)
