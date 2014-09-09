@@ -120,6 +120,8 @@
 #define PCI9118_DIO_REG			0x1c
 #define PCI9118_SOFTTRG_REG		0x20
 #define PCI9118_AI_CHANLIST_REG		0x24
+#define PCI9118_AI_CHANLIST_RANGE(x)	(((x) & 0x3) << 8)
+#define PCI9118_AI_CHANLIST_CHAN(x)	((x) << 0)
 #define PCI9118_AI_BURST_NUM_REG	0x28
 #define PCI9118_AI_AUTOSCAN_MODE_REG	0x2c
 #define PCI9118_AI_CFG_REG		0x30
@@ -375,9 +377,11 @@ static void pci9118_set_chanlist(struct comedi_device *dev,
 				 int frontadd, int backadd)
 {
 	struct pci9118_private *devpriv = dev->private;
+	unsigned int chan0 = CR_CHAN(chanlist[0]);
 	unsigned int range0 = CR_RANGE(chanlist[0]);
 	unsigned int aref0 = CR_AREF(chanlist[0]);
-	unsigned int scanquad, gain, ssh = 0x00;
+	unsigned int ssh = 0x00;
+	unsigned int val;
 	int i;
 
 	/*
@@ -397,37 +401,33 @@ static void pci9118_set_chanlist(struct comedi_device *dev,
 	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 
-	if (frontadd) {		/* insert channels for S&H */
+	/* insert channels for S&H */
+	if (frontadd) {
+		val = PCI9118_AI_CHANLIST_CHAN(chan0) |
+		      PCI9118_AI_CHANLIST_RANGE(range0);
 		ssh = devpriv->softsshsample;
 		for (i = 0; i < frontadd; i++) {
-						/* store range list to card */
-			scanquad = CR_CHAN(chanlist[0]);
-						/* get channel number; */
-			gain = CR_RANGE(chanlist[0]);
-						/* get gain number */
-			scanquad |= ((gain & 0x03) << 8);
-			outl(scanquad | ssh,
-			     dev->iobase + PCI9118_AI_CHANLIST_REG);
+			outl(val | ssh, dev->iobase + PCI9118_AI_CHANLIST_REG);
 			ssh = devpriv->softsshhold;
 		}
 	}
 
-	for (i = 0; i < n_chan; i++) {	/* store range list to card */
-		scanquad = CR_CHAN(chanlist[i]);	/* get channel number */
-		gain = CR_RANGE(chanlist[i]);		/* get gain number */
-		scanquad |= ((gain & 0x03) << 8);
-		outl(scanquad | ssh, dev->iobase + PCI9118_AI_CHANLIST_REG);
+	/* store chanlist */
+	for (i = 0; i < n_chan; i++) {
+		unsigned int chan = CR_CHAN(chanlist[i]);
+		unsigned int range = CR_RANGE(chanlist[i]);
+
+		val = PCI9118_AI_CHANLIST_CHAN(chan) |
+		      PCI9118_AI_CHANLIST_RANGE(range);
+		outl(val | ssh, dev->iobase + PCI9118_AI_CHANLIST_REG);
 	}
 
-	if (backadd) {		/* insert channels for fit onto 32bit DMA */
-		for (i = 0; i < backadd; i++) {	/* store range list to card */
-			scanquad = CR_CHAN(chanlist[0]);
-							/* get channel number */
-			gain = CR_RANGE(chanlist[0]);	/* get gain number */
-			scanquad |= ((gain & 0x03) << 8);
-			outl(scanquad | ssh,
-			     dev->iobase + PCI9118_AI_CHANLIST_REG);
-		}
+	/* insert channels to fit onto 32bit DMA */
+	if (backadd) {
+		val = PCI9118_AI_CHANLIST_CHAN(chan0) |
+		      PCI9118_AI_CHANLIST_RANGE(range0);
+		for (i = 0; i < backadd; i++)
+			outl(val | ssh, dev->iobase + PCI9118_AI_CHANLIST_REG);
 	}
 	/* close scan queue */
 	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
