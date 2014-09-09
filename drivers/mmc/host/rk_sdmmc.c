@@ -701,10 +701,11 @@ err_exit:
 
 static void dw_mci_edmac_exit(struct dw_mci *host)
 {
-        dma_release_channel(host->dms->ch);
-        host->dms->ch = NULL;
-
         if (NULL != host->dms) {
+                if (NULL != host->dms->ch) {
+                        dma_release_channel(host->dms->ch);
+                        host->dms->ch = NULL;
+                }
                 kfree(host->dms);
                 host->dms = NULL;
         }
@@ -1696,6 +1697,8 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 	u32 int_mask;
 	u32 sdio_int;
 
+        spin_lock_bh(&host->lock);
+
 	/* Enable/disable Slot Specific SDIO interrupt */
 	int_mask = mci_readl(host, INTMASK);
 
@@ -1719,6 +1722,8 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 		mci_writel(host, INTMASK,
 			   (int_mask & ~sdio_int));
 	}
+
+	spin_unlock_bh(&host->lock);
 }
 
 #ifdef CONFIG_MMC_DW_ROCKCHIP_SWITCH_VOLTAGE
