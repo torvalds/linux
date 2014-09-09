@@ -395,8 +395,17 @@ struct greybus_device *greybus_new_module(struct device *parent,
 	size -= sizeof(manifest->header);
 	data += sizeof(manifest->header);
 	while (size > 0) {
+		if (size < sizeof(desc->header)) {
+			dev_err(parent, "remaining size %d too small\n", size);
+			goto error;
+		}
 		desc = (struct greybus_descriptor *)data;
 		desc_size = le16_to_cpu(desc->header.size);
+		if (size < desc_size) {
+			dev_err(parent, "descriptor size %d too big\n",
+				desc_size);
+			goto error;
+		}
 
 		switch (le16_to_cpu(desc->header.type)) {
 		case GREYBUS_TYPE_FUNCTION:
