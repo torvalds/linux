@@ -1687,13 +1687,15 @@ static int __bond_release_one(struct net_device *bond_dev,
 	 * for this slave anymore.
 	 */
 	netdev_rx_handler_unregister(slave_dev);
-	write_lock_bh(&bond->lock);
 
-	/* Inform AD package of unbinding of slave. */
-	if (BOND_MODE(bond) == BOND_MODE_8023AD)
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+		/* Sync against bond_3ad_rx_indication and
+		 * bond_3ad_state_machine_handler
+		 */
+		write_lock_bh(&bond->curr_slave_lock);
 		bond_3ad_unbind_slave(slave);
-
-	write_unlock_bh(&bond->lock);
+		write_unlock_bh(&bond->curr_slave_lock);
+	}
 
 	netdev_info(bond_dev, "Releasing %s interface %s\n",
 		    bond_is_active_slave(slave) ? "active" : "backup",
