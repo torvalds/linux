@@ -800,6 +800,10 @@ struct obd_llog_group {
 #define OBD_DEVICE_MAGIC	0XAB5CD6EF
 #define OBD_DEV_BY_DEVNAME      0xffffd0de
 
+struct lvfs_run_ctxt {
+	struct dt_device *dt;
+};
+
 struct obd_device {
 	struct obd_type	*obd_type;
 	__u32		   obd_magic;

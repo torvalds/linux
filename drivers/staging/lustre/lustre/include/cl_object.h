@@ -98,7 +98,7 @@
  * super-class definitions.
  */
 #include "lu_object.h"
-#include "lvfs.h"
+#include "linux/lustre_compat25.h"
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
 
