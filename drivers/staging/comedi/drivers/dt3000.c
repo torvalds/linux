@@ -405,7 +405,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 static int dt3k_ai_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct dt3k_boardtype *this_board = comedi_board(dev);
+	const struct dt3k_boardtype *this_board = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
