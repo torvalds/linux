@@ -96,16 +96,9 @@ static bool apci2032_int_start(struct comedi_device *dev,
 
 	subpriv->enabled_isns = enabled_isns;
 	subpriv->stop_count = cmd->stop_arg;
-	if (cmd->stop_src == TRIG_COUNT && subpriv->stop_count == 0) {
-		/* An empty acquisition! */
-		s->async->events |= COMEDI_CB_EOA;
-		subpriv->active = false;
-		do_event = true;
-	} else {
-		subpriv->active = true;
-		outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
-		do_event = false;
-	}
+	subpriv->active = true;
+	outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
+	do_event = false;
 
 	return do_event;
 }
@@ -141,7 +134,9 @@ static int apci2032_int_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	if (cmd->stop_src == TRIG_NONE)
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
