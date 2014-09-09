@@ -937,6 +937,8 @@ static enum drm_connector_status exynos_dp_detect(
 
 static void exynos_dp_connector_destroy(struct drm_connector *connector)
 {
+	drm_connector_unregister(connector);
+	drm_connector_cleanup(connector);
 }
 
 static struct drm_connector_funcs exynos_dp_connector_funcs = {
@@ -1358,8 +1360,8 @@ static void exynos_dp_unbind(struct device *dev, struct device *master,
 
 	exynos_dp_dpms(display, DRM_MODE_DPMS_OFF);
 
+	exynos_dp_connector_destroy(&dp->connector);
 	encoder->funcs->destroy(encoder);
-	drm_connector_cleanup(&dp->connector);
 }
 
 static const struct component_ops exynos_dp_ops = {
