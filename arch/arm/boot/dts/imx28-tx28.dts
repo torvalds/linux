@@ -27,6 +27,7 @@
 		lcdif = &lcdif;
 		lcdif_23bit_pins = &tx28_lcdif_23bit_pins;
 		lcdif_24bit_pins = &lcdif_24bit_pins_a;
+		reg_can_xcvr = &reg_can_xcvr;
 		spi_gpio = &spi_gpio;
 		spi_mxs = &ssp3;
 		stk5led = &user_led;
