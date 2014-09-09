@@ -24,8 +24,6 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
-#include <linux/bootmem.h>
-#include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/bootinfo.h>
 #include <asm/mc146818-time.h>

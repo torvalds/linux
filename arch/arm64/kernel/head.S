@@ -38,11 +38,11 @@
 
 #define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 
-#if (TEXT_OFFSET & 0xf) != 0
-#error TEXT_OFFSET must be at least 16B aligned
-#elif (PAGE_OFFSET & 0xfffff) != 0
+#if (TEXT_OFFSET & 0xfff) != 0
+#error TEXT_OFFSET must be at least 4KB aligned
+#elif (PAGE_OFFSET & 0x1fffff) != 0
 #error PAGE_OFFSET must be at least 2MB aligned
-#elif TEXT_OFFSET > 0xfffff
+#elif TEXT_OFFSET > 0x1fffff
 #error TEXT_OFFSET must be less than 2MB
 #endif
 

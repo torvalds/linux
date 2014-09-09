@@ -3483,7 +3483,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	u32 mc_shared_chmap, mc_arb_ramcfg;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
-	int i, j, k;
+	int i, j;
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
@@ -3544,6 +3544,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 			   (rdev->pdev->device == 0x130B) ||
 			   (rdev->pdev->device == 0x130E) ||
 			   (rdev->pdev->device == 0x1315) ||
+			   (rdev->pdev->device == 0x1318) ||
 			   (rdev->pdev->device == 0x131B)) {
 			rdev->config.cik.max_cu_per_sh = 4;
 			rdev->config.cik.max_backends_per_se = 1;
@@ -3672,12 +3673,11 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		     rdev->config.cik.max_sh_per_se,
 		     rdev->config.cik.max_backends_per_se);
 
+	rdev->config.cik.active_cus = 0;
 	for (i = 0; i < rdev->config.cik.max_shader_engines; i++) {
 		for (j = 0; j < rdev->config.cik.max_sh_per_se; j++) {
-			for (k = 0; k < rdev->config.cik.max_cu_per_sh; k++) {
-				rdev->config.cik.active_cus +=
-					hweight32(cik_get_cu_active_bitmap(rdev, i, j));
-			}
+			rdev->config.cik.active_cus +=
+				hweight32(cik_get_cu_active_bitmap(rdev, i, j));
 		}
 	}
 
@@ -3801,7 +3801,7 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
 	radeon_ring_write(ring, ((scratch - PACKET3_SET_UCONFIG_REG_START) >> 2));
 	radeon_ring_write(ring, 0xDEADBEEF);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
@@ -3920,6 +3920,17 @@ void cik_fence_compute_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, 0);
 }
 
+/**
+ * cik_semaphore_ring_emit - emit a semaphore on the CP ring
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon ring buffer object
+ * @semaphore: radeon semaphore object
+ * @emit_wait: Is this a sempahore wait?
+ *
+ * Emits a semaphore signal/wait packet to the CP ring and prevents the PFP
+ * from running ahead of semaphore waits.
+ */
 bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 			     struct radeon_ring *ring,
 			     struct radeon_semaphore *semaphore,
@@ -3931,6 +3942,12 @@ bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
 	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
+
+	if (emit_wait && ring->idx == RADEON_RING_TYPE_GFX_INDEX) {
+		/* Prevent the PFP from running ahead of the semaphore wait */
+		radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
+		radeon_ring_write(ring, 0x0);
+	}
 
 	return true;
 }
@@ -4004,7 +4021,7 @@ int cik_copy_cpdma(struct radeon_device *rdev,
 		return r;
 	}
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 	radeon_semaphore_free(rdev, &sem, *fence);
 
 	return r;
@@ -4103,7 +4120,7 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START) >> 2);
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);
@@ -4324,7 +4341,7 @@ static int cik_cp_gfx_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	radeon_ring_write(ring, 0x00000010); /* VGT_OUT_DEALLOC_CNTL */
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	return 0;
 }
@@ -5958,14 +5975,14 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 
 	/* update SH_MEM_* regs */
 	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
 				 WRITE_DATA_DST_SEL(0)));
 	radeon_ring_write(ring, SRBM_GFX_CNTL >> 2);
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, VMID(vm->id));
 
 	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 6));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
 				 WRITE_DATA_DST_SEL(0)));
 	radeon_ring_write(ring, SH_MEM_BASES >> 2);
 	radeon_ring_write(ring, 0);
@@ -5976,7 +5993,7 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	radeon_ring_write(ring, 0); /* SH_MEM_APE1_LIMIT */
 
 	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
 				 WRITE_DATA_DST_SEL(0)));
 	radeon_ring_write(ring, SRBM_GFX_CNTL >> 2);
 	radeon_ring_write(ring, 0);
@@ -5987,7 +6004,7 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 
 	/* bits 0-15 are the VM contexts0-15 */
 	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
 				 WRITE_DATA_DST_SEL(0)));
 	radeon_ring_write(ring, VM_INVALIDATE_REQUEST >> 2);
 	radeon_ring_write(ring, 0);

@@ -662,7 +662,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		}
 		if (e->num_vcs && vc >= e->num_vcs) {
 			dev_warn(ccn->dev, "Invalid vc %d for node/XP %d!\n",
-					port, node_xp);
+					vc, node_xp);
 			return -EINVAL;
 		}
 		valid = 1;

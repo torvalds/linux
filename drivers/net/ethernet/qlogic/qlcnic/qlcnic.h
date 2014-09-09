@@ -268,7 +268,7 @@ struct qlcnic_fdt {
 	u16	cksum;
 	u16	unused;
 	u8	model[16];
-	u16	mfg_id;
+	u8	mfg_id;
 	u16	id;
 	u8	flag;
 	u8	erase_cmd;
@@ -2360,6 +2360,19 @@ static inline u32 qlcnic_get_vnic_func_count(struct qlcnic_adapter *adapter)
 		return QLC_84XX_VNIC_COUNT;
 	else
 		return QLC_DEFAULT_VNIC_COUNT;
+}
+
+static inline void qlcnic_swap32_buffer(u32 *buffer, int count)
+{
+#if defined(__BIG_ENDIAN)
+	u32 *tmp = buffer;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		*tmp = swab32(*tmp);
+		tmp++;
+	}
+#endif
 }
 
 #ifdef CONFIG_QLCNIC_HWMON

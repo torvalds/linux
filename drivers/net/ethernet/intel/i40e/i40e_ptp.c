@@ -247,7 +247,7 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 	u32 prttsyn_stat;
 	int n;
 
-	if (pf->flags & I40E_FLAG_PTP)
+	if (!(pf->flags & I40E_FLAG_PTP))
 		return;
 
 	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
