@@ -1143,7 +1143,7 @@ static long rxrpc_read(const struct key *key,
 		if (copy_to_user(xdr, (s), _l) != 0)			\
 			goto fault;					\
 		if (_l & 3 &&						\
-		    copy_to_user((u8 *)xdr + _l, &zero, 4 - (_l & 3)) != 0) \
+		    copy_to_user((u8 __user *)xdr + _l, &zero, 4 - (_l & 3)) != 0) \
 			goto fault;					\
 		xdr += (_l + 3) >> 2;					\
 	} while(0)
