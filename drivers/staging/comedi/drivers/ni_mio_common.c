@@ -1186,7 +1186,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 static int ni_ao_fifo_half_empty(struct comedi_device *dev,
 				 struct comedi_subdevice *s)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	int n;
 
 	n = comedi_buf_read_n_available(s);
@@ -1209,7 +1209,7 @@ static int ni_ao_fifo_half_empty(struct comedi_device *dev,
 static int ni_ao_prep_fifo(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	int n;
 
@@ -1296,7 +1296,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 
 static void ni_handle_fifo_half_full(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct comedi_subdevice *s = dev->read_subdev;
 	int n;
 
@@ -1881,7 +1881,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 					      unsigned int n_chan,
 					      unsigned int *list)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	unsigned int chan, range, aref;
 	unsigned int i;
@@ -1988,7 +1988,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     unsigned int n_chan, unsigned int *list)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	unsigned int offset = (s->maxdata + 1) >> 1;
 	unsigned int chan, range, aref;
@@ -2231,7 +2231,7 @@ static unsigned ni_timer_to_ns(const struct comedi_device *dev, int timer)
 static unsigned ni_min_ai_scan_period_ns(struct comedi_device *dev,
 					 unsigned num_channels)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 
 	/* simultaneously-sampled inputs */
@@ -2245,7 +2245,7 @@ static unsigned ni_min_ai_scan_period_ns(struct comedi_device *dev,
 static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
@@ -2979,7 +2979,7 @@ static int ni_ao_insn_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 
 	switch (data[0]) {
@@ -3080,7 +3080,7 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 
 static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	const struct comedi_cmd *cmd = &s->async->cmd;
 	int bits;
@@ -3281,7 +3281,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
@@ -4369,7 +4369,7 @@ static struct caldac_struct caldacs[] = {
 
 static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	unsigned int loadbit = 0, bits = 0, bit, bitstring = 0;
 	int i;
@@ -4427,7 +4427,7 @@ static int ni_calib_insn_read(struct comedi_device *dev,
 
 static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	int i, j;
 	int n_dacs;
@@ -5397,7 +5397,7 @@ static int ni_alloc_private(struct comedi_device *dev)
 static int ni_E_init(struct comedi_device *dev,
 		     unsigned interrupt_pin, unsigned irq_polarity)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
