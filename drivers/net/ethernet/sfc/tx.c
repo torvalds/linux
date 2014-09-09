@@ -78,7 +78,7 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	if (buffer->flags & EFX_TX_BUF_SKB) {
 		(*pkts_compl)++;
 		(*bytes_compl) += buffer->skb->len;
-		dev_kfree_skb_any((struct sk_buff *) buffer->skb);
+		dev_consume_skb_any((struct sk_buff *)buffer->skb);
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
 			   "TX queue %d transmission id %x complete\n",
 			   tx_queue->queue, tx_queue->read_count);
