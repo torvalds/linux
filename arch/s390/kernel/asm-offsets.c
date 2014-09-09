@@ -34,7 +34,6 @@ int main(void)
 	DEFINE(__THREAD_per_paid, offsetof(struct task_struct, thread.per_event.paid));
 	BLANK();
 	DEFINE(__TI_task, offsetof(struct thread_info, task));
-	DEFINE(__TI_domain, offsetof(struct thread_info, exec_domain));
 	DEFINE(__TI_flags, offsetof(struct thread_info, flags));
 	DEFINE(__TI_sysc_table, offsetof(struct thread_info, sys_call_table));
 	DEFINE(__TI_cpu, offsetof(struct thread_info, cpu));
