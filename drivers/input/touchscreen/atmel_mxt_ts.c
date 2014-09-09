@@ -1796,7 +1796,6 @@ static void mxt_free_input_device(struct mxt_data *data)
 static void mxt_free_object_table(struct mxt_data *data)
 {
 	mxt_debug_msg_remove(data);
-	mxt_free_input_device(data);
 
 	data->object_table = NULL;
 	data->info = NULL;
@@ -2786,11 +2785,13 @@ static int mxt_load_fw(struct device *dev)
 		ret = mxt_lookup_bootloader_address(data, 0);
 		if (ret)
 			goto release_firmware;
+
+		mxt_free_input_device(data);
+		mxt_free_object_table(data);
 	} else {
 		enable_irq(data->irq);
 	}
 
-	mxt_free_object_table(data);
 	reinit_completion(&data->bl_completion);
 
 	ret = mxt_check_bootloader(data, MXT_WAITING_BOOTLOAD_CMD, false);
@@ -3309,15 +3310,11 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	disable_irq(data->irq);
 
-	error = mxt_initialize(data);
-	if (error)
-		goto err_free_irq;
-
 	error = sysfs_create_group(&client->dev.kobj, &mxt_attr_group);
 	if (error) {
 		dev_err(&client->dev, "Failure %d creating sysfs group\n",
 			error);
-		goto err_free_object;
+		goto err_free_irq;
 	}
 
 	sysfs_bin_attr_init(&data->mem_access_attr);
@@ -3334,12 +3331,17 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto err_remove_sysfs_group;
 	}
 
+	error = mxt_initialize(data);
+	if (error)
+		goto err_remove_mem_access;
+
 	return 0;
 
+err_remove_mem_access:
+	sysfs_remove_bin_file(&client->dev.kobj, &data->mem_access_attr);
+	data->mem_access_attr.attr.name = NULL;
 err_remove_sysfs_group:
 	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
-err_free_object:
-	mxt_free_object_table(data);
 err_free_irq:
 	free_irq(client->irq, data);
 err_free_mem:
@@ -3359,6 +3361,7 @@ static int mxt_remove(struct i2c_client *client)
 	free_irq(data->irq, data);
 	regulator_put(data->reg_avdd);
 	regulator_put(data->reg_vdd);
+	mxt_free_input_device(data);
 	mxt_free_object_table(data);
 	kfree(data);
 
