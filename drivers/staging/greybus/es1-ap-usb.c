@@ -441,6 +441,7 @@ static void ap_disconnect(struct usb_interface *interface)
 
 	/* Tear down everything! */
 	usb_kill_urb(es1->svc_urb);
+	usb_free_urb(es1->svc_urb);
 	usb_put_dev(es1->usb_dev);
 	kfree(es1->svc_buffer);
 	greybus_remove_hd(es1->hd);
