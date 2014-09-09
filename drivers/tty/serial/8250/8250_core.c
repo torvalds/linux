@@ -37,6 +37,7 @@
 #include <linux/nmi.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_SPARC
 #include <linux/sunserialcore.h>
 #endif
