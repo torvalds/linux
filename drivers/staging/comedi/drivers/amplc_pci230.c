@@ -543,7 +543,7 @@ static const struct comedi_lrange pci230_ao_range = {
 
 static unsigned short pci230_ai_read(struct comedi_device *dev)
 {
-	const struct pci230_board *thisboard = comedi_board(dev);
+	const struct pci230_board *thisboard = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	unsigned short data;
 
@@ -565,7 +565,7 @@ static unsigned short pci230_ai_read(struct comedi_device *dev)
 static unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
 					     unsigned short datum)
 {
-	const struct pci230_board *thisboard = comedi_board(dev);
+	const struct pci230_board *thisboard = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 
 	/*
@@ -894,7 +894,7 @@ static int pci230_ao_check_chanlist(struct comedi_device *dev,
 static int pci230_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct pci230_board *thisboard = comedi_board(dev);
+	const struct pci230_board *thisboard = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
@@ -1556,7 +1556,7 @@ static int pci230_ai_check_chanlist(struct comedi_device *dev,
 static int pci230_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct pci230_board *thisboard = comedi_board(dev);
+	const struct pci230_board *thisboard = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
@@ -2487,7 +2487,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 			"amplc_pci230: BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	thisboard = comedi_board(dev);
+	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
 	rc = comedi_pci_enable(dev);
