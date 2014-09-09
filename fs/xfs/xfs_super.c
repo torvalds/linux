@@ -47,6 +47,7 @@
 #include "xfs_dinode.h"
 #include "xfs_filestream.h"
 #include "xfs_quota.h"
+#include "xfs_sysfs.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -61,7 +62,11 @@
 static const struct super_operations xfs_super_operations;
 static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
-struct kset *xfs_kset;
+
+struct kset *xfs_kset;			/* top-level xfs sysfs dir */
+#ifdef DEBUG
+static struct xfs_kobj xfs_dbg_kobj;	/* global debug sysfs attrs */
+#endif
 
 #define MNTOPT_LOGBUFS	"logbufs"	/* number of XFS log buffers */
 #define MNTOPT_LOGBSIZE	"logbsize"	/* size of XFS log buffers */
@@ -1769,9 +1774,16 @@ init_xfs_fs(void)
 		goto out_sysctl_unregister;;
 	}
 
-	error = xfs_qm_init();
+#ifdef DEBUG
+	xfs_dbg_kobj.kobject.kset = xfs_kset;
+	error = xfs_sysfs_init(&xfs_dbg_kobj, &xfs_dbg_ktype, NULL, "debug");
 	if (error)
 		goto out_kset_unregister;
+#endif
+
+	error = xfs_qm_init();
+	if (error)
+		goto out_remove_kobj;
 
 	error = register_filesystem(&xfs_fs_type);
 	if (error)
@@ -1780,7 +1792,11 @@ init_xfs_fs(void)
 
  out_qm_exit:
 	xfs_qm_exit();
+ out_remove_kobj:
+#ifdef DEBUG
+	xfs_sysfs_del(&xfs_dbg_kobj);
  out_kset_unregister:
+#endif
 	kset_unregister(xfs_kset);
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
@@ -1803,6 +1819,9 @@ exit_xfs_fs(void)
 {
 	xfs_qm_exit();
 	unregister_filesystem(&xfs_fs_type);
+#ifdef DEBUG
+	xfs_sysfs_del(&xfs_dbg_kobj);
+#endif
 	kset_unregister(xfs_kset);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
