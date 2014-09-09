@@ -91,6 +91,24 @@
 		status = "disabled";
 	};
 
+	usb_otg: usb@10180000 {
+		compatible = "rockchip,rk3066-usb", "snps,dwc2";
+		reg = <0x10180000 0x40000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_OTG0>;
+		clock-names = "otg";
+		status = "disabled";
+	};
+
+	usb_host: usb@101c0000 {
+		compatible = "snps,dwc2";
+		reg = <0x101c0000 0x40000>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_OTG1>;
+		clock-names = "otg";
+		status = "disabled";
+	};
+
 	mmc0: dwmmc@10214000 {
 		compatible = "rockchip,rk2928-dw-mshc";
 		reg = <0x10214000 0x1000>;
