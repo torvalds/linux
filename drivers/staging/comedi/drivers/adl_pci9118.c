@@ -1145,10 +1145,8 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	case 2:
 		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR |
 				    PCI9118_AI_CTRL_DMA;
-		devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG |
-				  PCI9118_AI_CFG_PETRG |
-				  PCI9118_AI_CFG_BM |
-				  PCI9118_AI_CFG_BS;
+		devpriv->ai_cfg |= PCI9118_AI_CFG_BM |
+				   PCI9118_AI_CFG_BS;
 		if (cmd->convert_src == TRIG_NOW && !devpriv->softsshdelay)
 			devpriv->ai_cfg |= PCI9118_AI_CFG_BSSH;
 		outl(devpriv->ai_n_realscanlen,
@@ -1157,15 +1155,11 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	case 3:
 		devpriv->ai_ctrl |= PCI9118_AI_CTRL_EXTM |
 				    PCI9118_AI_CTRL_DMA;
-		devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG |
-				  PCI9118_AI_CFG_PETRG;
 		break;
 	case 4:
 		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR |
 				    PCI9118_AI_CTRL_DMA;
-		devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG |
-				  PCI9118_AI_CFG_PETRG |
-				  PCI9118_AI_CFG_AM;
+		devpriv->ai_cfg |= PCI9118_AI_CFG_AM;
 		outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 		pci9118_timer_set_mode(dev, 0, I8254_MODE0);
 		pci9118_timer_write(dev, 0, dmabuf->hw >> 1);
