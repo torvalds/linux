@@ -70,6 +70,7 @@ static struct omap_irq_bank {
 
 static struct irq_domain *domain;
 static void __iomem *omap_irq_base;
+static int omap_nr_irqs = 96;
 
 /* Structure to save interrupt controller context */
 struct omap3_intc_regs {
@@ -169,6 +170,8 @@ static void __init omap_init_irq(u32 base, int nr_irqs,
 	omap_irq_base = ioremap(base, SZ_4K);
 	if (WARN_ON(!omap_irq_base))
 		return;
+
+	omap_nr_irqs = nr_irqs;
 
 	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
 	if (irq_base < 0) {
