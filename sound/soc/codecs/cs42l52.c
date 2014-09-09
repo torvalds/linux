@@ -946,20 +946,6 @@ static struct snd_soc_dai_driver cs42l52_dai = {
 		.ops = &cs42l52_ops,
 };
 
-static int cs42l52_suspend(struct snd_soc_codec *codec)
-{
-	cs42l52_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int cs42l52_resume(struct snd_soc_codec *codec)
-{
-	cs42l52_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
 static int beep_rates[] = {
 	261, 522, 585, 667, 706, 774, 889, 1000,
 	1043, 1200, 1333, 1412, 1600, 1714, 2000, 2182
@@ -1104,8 +1090,6 @@ static int cs42l52_probe(struct snd_soc_codec *codec)
 
 	cs42l52_init_beep(codec);
 
-	cs42l52_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	cs42l52->sysclk = CS42L52_DEFAULT_CLK;
 	cs42l52->config.format = CS42L52_DEFAULT_FORMAT;
 
@@ -1115,7 +1099,6 @@ static int cs42l52_probe(struct snd_soc_codec *codec)
 static int cs42l52_remove(struct snd_soc_codec *codec)
 {
 	cs42l52_free_beep(codec);
-	cs42l52_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1123,9 +1106,8 @@ static int cs42l52_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_cs42l52 = {
 	.probe = cs42l52_probe,
 	.remove = cs42l52_remove,
-	.suspend = cs42l52_suspend,
-	.resume = cs42l52_resume,
 	.set_bias_level = cs42l52_set_bias_level,
+	.suspend_bias_off = true,
 
 	.dapm_widgets = cs42l52_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(cs42l52_dapm_widgets),
