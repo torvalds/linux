@@ -87,9 +87,10 @@ ifeq ($(CONFIG_PM),y)
 obj-$(CONFIG_ARCH_OMAP2)		+= pm24xx.o
 obj-$(CONFIG_ARCH_OMAP2)		+= sleep24xx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= pm34xx.o sleep34xx.o
-obj-$(CONFIG_ARCH_OMAP4)		+= pm44xx.o omap-mpuss-lowpower.o
-obj-$(CONFIG_SOC_OMAP5)			+= omap-mpuss-lowpower.o
-obj-$(CONFIG_SOC_DRA7XX)		+= omap-mpuss-lowpower.o
+omap-4-5-pm-common			=  pm44xx.o omap-mpuss-lowpower.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(omap-4-5-pm-common)
+obj-$(CONFIG_SOC_OMAP5)			+= $(omap-4-5-pm-common)
+obj-$(CONFIG_SOC_DRA7XX)		+= $(omap-4-5-pm-common)
 obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
 
 obj-$(CONFIG_POWER_AVS_OMAP)		+= sr_device.o
@@ -102,7 +103,10 @@ endif
 
 ifeq ($(CONFIG_CPU_IDLE),y)
 obj-$(CONFIG_ARCH_OMAP3)                += cpuidle34xx.o
-obj-$(CONFIG_ARCH_OMAP4)                += cpuidle44xx.o
+omap-4-5-idle-common			=  cpuidle44xx.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(omap-4-5-idle-common)
+obj-$(CONFIG_SOC_OMAP5)			+= $(omap-4-5-idle-common)
+obj-$(CONFIG_SOC_DRA7XX)		+= $(omap-4-5-idle-common)
 endif
 
 # PRCM
