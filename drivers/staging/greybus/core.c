@@ -354,10 +354,8 @@ struct greybus_device *greybus_new_module(struct device *parent,
 {
 	struct greybus_device *gdev;
 	struct greybus_manifest *manifest;
-	struct greybus_descriptor *desc;
 	int retval;
 	int overall_size;
-	int desc_size;
 	u8 version_major;
 	u8 version_minor;
 
@@ -395,6 +393,10 @@ struct greybus_device *greybus_new_module(struct device *parent,
 	size -= sizeof(manifest->header);
 	data += sizeof(manifest->header);
 	while (size > 0) {
+		struct greybus_descriptor *desc;
+		u16 desc_size;
+		size_t data_size;
+
 		if (size < sizeof(desc->header)) {
 			dev_err(parent, "remaining size %d too small\n", size);
 			goto error;
@@ -406,26 +408,27 @@ struct greybus_device *greybus_new_module(struct device *parent,
 				desc_size);
 			goto error;
 		}
+		data_size = (size_t)desc_size - sizeof(desc->header);
 
 		switch (le16_to_cpu(desc->header.type)) {
 		case GREYBUS_TYPE_FUNCTION:
-			retval = create_function(gdev, desc, desc_size);
+			retval = create_function(gdev, desc, data_size);
 			break;
 
 		case GREYBUS_TYPE_MODULE_ID:
-			retval = create_module_id(gdev, desc, desc_size);
+			retval = create_module_id(gdev, desc, data_size);
 			break;
 
 		case GREYBUS_TYPE_SERIAL_NUMBER:
-			retval = create_serial_number(gdev, desc, desc_size);
+			retval = create_serial_number(gdev, desc, data_size);
 			break;
 
 		case GREYBUS_TYPE_STRING:
-			retval = create_string(gdev, desc, desc_size);
+			retval = create_string(gdev, desc, data_size);
 			break;
 
 		case GREYBUS_TYPE_CPORT:
-			retval = create_cport(gdev, desc, desc_size);
+			retval = create_cport(gdev, desc, data_size);
 			break;
 
 		case GREYBUS_TYPE_INVALID:
