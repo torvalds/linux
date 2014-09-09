@@ -92,7 +92,7 @@ config ARM_EXYNOS_CPU_FREQ_BOOST_SW
 
 config ARM_HIGHBANK_CPUFREQ
 	tristate "Calxeda Highbank-based"
-	depends on ARCH_HIGHBANK && GENERIC_CPUFREQ_CPU0 && REGULATOR
+	depends on ARCH_HIGHBANK && CPUFREQ_DT && REGULATOR
 	default m
 	help
 	  This adds the CPUFreq driver for Calxeda Highbank SoC

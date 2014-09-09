@@ -4,7 +4,7 @@
  * Copyright (C) 2014 Linaro.
  * Viresh Kumar <viresh.kumar@linaro.org>
  *
- * The OPP code in function cpu0_set_target() is reused from
+ * The OPP code in function set_target() is reused from
  * drivers/cpufreq/omap-cpufreq.c
  *
  * This program is free software; you can redistribute it and/or modify
@@ -35,7 +35,7 @@ struct private_data {
 	unsigned int voltage_tolerance; /* in percentage */
 };
 
-static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
+static int set_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	struct dev_pm_opp *opp;
 	struct cpufreq_frequency_table *freq_table = policy->freq_table;
@@ -176,7 +176,7 @@ try_again:
 	return ret;
 }
 
-static int cpu0_cpufreq_init(struct cpufreq_policy *policy)
+static int cpufreq_init(struct cpufreq_policy *policy)
 {
 	struct cpufreq_frequency_table *freq_table;
 	struct thermal_cooling_device *cdev;
@@ -287,7 +287,7 @@ out_put_reg_clk:
 	return ret;
 }
 
-static int cpu0_cpufreq_exit(struct cpufreq_policy *policy)
+static int cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct private_data *priv = policy->driver_data;
 
@@ -301,18 +301,18 @@ static int cpu0_cpufreq_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct cpufreq_driver cpu0_cpufreq_driver = {
+static struct cpufreq_driver dt_cpufreq_driver = {
 	.flags = CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify = cpufreq_generic_frequency_table_verify,
-	.target_index = cpu0_set_target,
+	.target_index = set_target,
 	.get = cpufreq_generic_get,
-	.init = cpu0_cpufreq_init,
-	.exit = cpu0_cpufreq_exit,
-	.name = "generic_cpu0",
+	.init = cpufreq_init,
+	.exit = cpufreq_exit,
+	.name = "cpufreq-dt",
 	.attr = cpufreq_generic_attr,
 };
 
-static int cpu0_cpufreq_probe(struct platform_device *pdev)
+static int dt_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device *cpu_dev;
 	struct regulator *cpu_reg;
@@ -334,30 +334,30 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 	if (!IS_ERR(cpu_reg))
 		regulator_put(cpu_reg);
 
-	ret = cpufreq_register_driver(&cpu0_cpufreq_driver);
+	ret = cpufreq_register_driver(&dt_cpufreq_driver);
 	if (ret)
 		dev_err(cpu_dev, "failed register driver: %d\n", ret);
 
 	return ret;
 }
 
-static int cpu0_cpufreq_remove(struct platform_device *pdev)
+static int dt_cpufreq_remove(struct platform_device *pdev)
 {
-	cpufreq_unregister_driver(&cpu0_cpufreq_driver);
+	cpufreq_unregister_driver(&dt_cpufreq_driver);
 	return 0;
 }
 
-static struct platform_driver cpu0_cpufreq_platdrv = {
+static struct platform_driver dt_cpufreq_platdrv = {
 	.driver = {
-		.name	= "cpufreq-cpu0",
+		.name	= "cpufreq-dt",
 		.owner	= THIS_MODULE,
 	},
-	.probe		= cpu0_cpufreq_probe,
-	.remove		= cpu0_cpufreq_remove,
+	.probe		= dt_cpufreq_probe,
+	.remove		= dt_cpufreq_remove,
 };
-module_platform_driver(cpu0_cpufreq_platdrv);
+module_platform_driver(dt_cpufreq_platdrv);
 
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
 MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
-MODULE_DESCRIPTION("Generic CPU0 cpufreq driver");
+MODULE_DESCRIPTION("Generic cpufreq driver");
 MODULE_LICENSE("GPL");
