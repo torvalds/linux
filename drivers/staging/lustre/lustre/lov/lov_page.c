@@ -180,15 +180,19 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	cl_page_slice_add(page, &lpg->lps_cl, obj, &lov_page_ops);
 
 	sub = lov_sub_get(env, lio, stripe);
-	if (IS_ERR(sub))
-		GOTO(out, rc = PTR_ERR(sub));
+	if (IS_ERR(sub)) {
+		rc = PTR_ERR(sub);
+		goto out;
+	}
 
 	subobj = lovsub2cl(r0->lo_sub[stripe]);
 	subpage = cl_page_find_sub(sub->sub_env, subobj,
 				   cl_index(subobj, suboff), vmpage, page);
 	lov_sub_put(sub);
-	if (IS_ERR(subpage))
-		GOTO(out, rc = PTR_ERR(subpage));
+	if (IS_ERR(subpage)) {
+		rc = PTR_ERR(subpage);
+		goto out;
+	}
 
 	if (likely(subpage->cp_parent == page)) {
 		lu_ref_add(&subpage->cp_reference, "lov", page);

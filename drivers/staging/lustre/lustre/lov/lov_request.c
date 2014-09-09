@@ -167,14 +167,20 @@ int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 
 	tgt = lov->lov_tgts[ost_idx];
 
-	if (unlikely(tgt == NULL))
-		GOTO(out, rc = 0);
+	if (unlikely(tgt == NULL)) {
+		rc = 0;
+		goto out;
+	}
 
-	if (likely(tgt->ltd_active))
-		GOTO(out, rc = 1);
+	if (likely(tgt->ltd_active)) {
+		rc = 1;
+		goto out;
+	}
 
-	if (tgt->ltd_exp && class_exp2cliimp(tgt->ltd_exp)->imp_connect_tried)
-		GOTO(out, rc = 0);
+	if (tgt->ltd_exp && class_exp2cliimp(tgt->ltd_exp)->imp_connect_tried) {
+		rc = 0;
+		goto out;
+	}
 
 	mutex_unlock(&lov->lov_lock);
 
@@ -209,8 +215,10 @@ static int common_attr_done(struct lov_request_set *set)
 		return -EIO;
 
 	OBDO_ALLOC(tmp_oa);
-	if (tmp_oa == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (tmp_oa == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
@@ -232,7 +240,8 @@ static int common_attr_done(struct lov_request_set *set)
 		/* When we take attributes of some epoch, we require all the
 		 * ost to be active. */
 		CERROR("Not all the stripes had valid attrs\n");
-		GOTO(out, rc = -EIO);
+		rc = -EIO;
+		goto out;
 	}
 
 	tmp_oa->o_oi = set->set_oi->oi_oa->o_oi;
@@ -292,15 +301,19 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 		loi = oinfo->oi_md->lsm_oinfo[i];
 		if (!lov_check_and_wait_active(lov, loi->loi_ost_idx)) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", loi->loi_ost_idx);
-			if (oinfo->oi_oa->o_valid & OBD_MD_FLEPOCH)
+			if (oinfo->oi_oa->o_valid & OBD_MD_FLEPOCH) {
 				/* SOM requires all the OSTs to be active. */
-				GOTO(out_set, rc = -EIO);
+				rc = -EIO;
+				goto out_set;
+			}
 			continue;
 		}
 
 		OBD_ALLOC(req, sizeof(*req));
-		if (req == NULL)
-			GOTO(out_set, rc = -ENOMEM);
+		if (req == NULL) {
+			rc = -ENOMEM;
+			goto out_set;
+		}
 
 		req->rq_stripe = i;
 		req->rq_idx = loi->loi_ost_idx;
@@ -308,7 +321,8 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 		OBDO_ALLOC(req->rq_oi.oi_oa);
 		if (req->rq_oi.oi_oa == NULL) {
 			OBD_FREE(req, sizeof(*req));
-			GOTO(out_set, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto out_set;
 		}
 		memcpy(req->rq_oi.oi_oa, oinfo->oi_oa,
 		       sizeof(*req->rq_oi.oi_oa));
@@ -318,8 +332,10 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 
 		lov_set_add_req(req, set);
 	}
-	if (!set->set_count)
-		GOTO(out_set, rc = -EIO);
+	if (!set->set_count) {
+		rc = -EIO;
+		goto out_set;
+	}
 	*reqset = set;
 	return rc;
 out_set:
@@ -374,8 +390,10 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 		}
 
 		OBD_ALLOC(req, sizeof(*req));
-		if (req == NULL)
-			GOTO(out_set, rc = -ENOMEM);
+		if (req == NULL) {
+			rc = -ENOMEM;
+			goto out_set;
+		}
 
 		req->rq_stripe = i;
 		req->rq_idx = loi->loi_ost_idx;
@@ -383,14 +401,17 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 		OBDO_ALLOC(req->rq_oi.oi_oa);
 		if (req->rq_oi.oi_oa == NULL) {
 			OBD_FREE(req, sizeof(*req));
-			GOTO(out_set, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto out_set;
 		}
 		memcpy(req->rq_oi.oi_oa, src_oa, sizeof(*req->rq_oi.oi_oa));
 		req->rq_oi.oi_oa->o_oi = loi->loi_oi;
 		lov_set_add_req(req, set);
 	}
-	if (!set->set_count)
-		GOTO(out_set, rc = -EIO);
+	if (!set->set_count) {
+		rc = -EIO;
+		goto out_set;
+	}
 	*reqset = set;
 	return rc;
 out_set:
@@ -482,15 +503,18 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 		}
 
 		OBD_ALLOC(req, sizeof(*req));
-		if (req == NULL)
-			GOTO(out_set, rc = -ENOMEM);
+		if (req == NULL) {
+			rc = -ENOMEM;
+			goto out_set;
+		}
 		req->rq_stripe = i;
 		req->rq_idx = loi->loi_ost_idx;
 
 		OBDO_ALLOC(req->rq_oi.oi_oa);
 		if (req->rq_oi.oi_oa == NULL) {
 			OBD_FREE(req, sizeof(*req));
-			GOTO(out_set, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto out_set;
 		}
 		memcpy(req->rq_oi.oi_oa, oinfo->oi_oa,
 		       sizeof(*req->rq_oi.oi_oa));
@@ -513,8 +537,10 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 		}
 		lov_set_add_req(req, set);
 	}
-	if (!set->set_count)
-		GOTO(out_set, rc = -EIO);
+	if (!set->set_count) {
+		rc = -EIO;
+		goto out_set;
+	}
 	*reqset = set;
 	return rc;
 out_set:
@@ -646,12 +672,12 @@ static int cb_statfs_update(void *cookie, int rc)
 	   lovset->set_exp is not initialized. */
 	lov_update_set(set, lovreq, rc);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	obd_getref(lovobd);
 	tgt = lov->lov_tgts[lovreq->rq_idx];
 	if (!tgt || !tgt->ltd_active)
-		GOTO(out_update, rc);
+		goto out_update;
 
 	tgtobd = class_exp2obd(tgt->ltd_exp);
 	spin_lock(&tgtobd->obd_osfs_lock);
@@ -708,13 +734,16 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 		}
 
 		OBD_ALLOC(req, sizeof(*req));
-		if (req == NULL)
-			GOTO(out_set, rc = -ENOMEM);
+		if (req == NULL) {
+			rc = -ENOMEM;
+			goto out_set;
+		}
 
 		OBD_ALLOC(req->rq_oi.oi_osfs, sizeof(*req->rq_oi.oi_osfs));
 		if (req->rq_oi.oi_osfs == NULL) {
 			OBD_FREE(req, sizeof(*req));
-			GOTO(out_set, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto out_set;
 		}
 
 		req->rq_idx = i;
@@ -723,8 +752,10 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 
 		lov_set_add_req(req, set);
 	}
-	if (!set->set_count)
-		GOTO(out_set, rc = -EIO);
+	if (!set->set_count) {
+		rc = -EIO;
+		goto out_set;
+	}
 	*reqset = set;
 	return rc;
 out_set:
