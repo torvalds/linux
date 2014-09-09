@@ -8804,12 +8804,6 @@ M:	Arnaud Patard <arnaud.patard@rtp-net.org>
 S:	Odd Fixes
 F:	drivers/staging/xgifb/
 
-STAGING - XILLYBUS DRIVER
-M:	Eli Billauer <eli.billauer@gmail.com>
-L:	devel@driverdev.osuosl.org
-S:	Supported
-F:	drivers/staging/xillybus/
-
 STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
@@ -10217,6 +10211,12 @@ M:	Peter Korsgaard <jacmet@sunsite.dk>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/uartlite.c
+
+XILLYBUS DRIVER
+M:	Eli Billauer <eli.billauer@gmail.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	drivers/char/xillybus/
 
 XTENSA XTFPGA PLATFORM SUPPORT
 M:	Max Filippov <jcmvbkbc@gmail.com>
