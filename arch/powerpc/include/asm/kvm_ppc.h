@@ -38,6 +38,12 @@
 #include <asm/paca.h>
 #endif
 
+/*
+ * KVMPPC_INST_SW_BREAKPOINT is debug Instruction
+ * for supporting software breakpoint.
+ */
+#define KVMPPC_INST_SW_BREAKPOINT	0x00dddd00
+
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
 	EMULATE_DO_MMIO,      /* kvm_run filled with MMIO request */

@@ -274,6 +274,21 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		}
 		break;
 
+	case 0:
+		/*
+		 * Instruction with primary opcode 0. Based on PowerISA
+		 * these are illegal instructions.
+		 */
+		if (inst == KVMPPC_INST_SW_BREAKPOINT) {
+			run->exit_reason = KVM_EXIT_DEBUG;
+			run->debug.arch.address = kvmppc_get_pc(vcpu);
+			emulated = EMULATE_EXIT_USER;
+			advance = 0;
+		} else
+			emulated = EMULATE_FAIL;
+
+		break;
+
 	default:
 		emulated = EMULATE_FAIL;
 	}
