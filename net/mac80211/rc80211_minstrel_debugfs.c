@@ -72,6 +72,7 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 			"this succ/attempt   success    attempts\n");
 	for (i = 0; i < mi->n_rates; i++) {
 		struct minstrel_rate *mr = &mi->r[i];
+		struct minstrel_rate_stats *mrs = &mi->r[i].stats;
 
 		*(p++) = (i == mi->max_tp_rate[0]) ? 'A' : ' ';
 		*(p++) = (i == mi->max_tp_rate[1]) ? 'B' : ' ';
@@ -81,24 +82,24 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		p += sprintf(p, "%3u%s", mr->bitrate / 2,
 				(mr->bitrate & 1 ? ".5" : "  "));
 
-		tp = MINSTREL_TRUNC(mr->cur_tp / 10);
-		prob = MINSTREL_TRUNC(mr->cur_prob * 1000);
-		eprob = MINSTREL_TRUNC(mr->probability * 1000);
+		tp = MINSTREL_TRUNC(mrs->cur_tp / 10);
+		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
+		eprob = MINSTREL_TRUNC(mrs->probability * 1000);
 
 		p += sprintf(p, "  %6u.%1u   %6u.%1u   %6u.%1u        "
 				"   %3u(%3u)  %8llu    %8llu\n",
 				tp / 10, tp % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,
-				mr->last_success,
-				mr->last_attempts,
-				(unsigned long long)mr->succ_hist,
-				(unsigned long long)mr->att_hist);
+				mrs->last_success,
+				mrs->last_attempts,
+				(unsigned long long)mrs->succ_hist,
+				(unsigned long long)mrs->att_hist);
 	}
 	p += sprintf(p, "\nTotal packet count::    ideal %d      "
 			"lookaround %d\n\n",
-			mi->packet_count - mi->sample_count,
-			mi->sample_count);
+			mi->total_packets - mi->sample_packets,
+			mi->sample_packets);
 	ms->len = p - ms->buf;
 
 	return 0;

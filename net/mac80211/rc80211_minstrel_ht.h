@@ -26,28 +26,6 @@ struct mcs_group {
 
 extern const struct mcs_group minstrel_mcs_groups[];
 
-struct minstrel_rate_stats {
-	/* current / last sampling period attempts/success counters */
-	unsigned int attempts, last_attempts;
-	unsigned int success, last_success;
-
-	/* total attempts/success counters */
-	u64 att_hist, succ_hist;
-
-	/* current throughput */
-	unsigned int cur_tp;
-
-	/* packet delivery probabilities */
-	unsigned int cur_prob, probability;
-
-	/* maximum retry counts */
-	unsigned int retry_count;
-	unsigned int retry_count_rtscts;
-
-	bool retry_updated;
-	u8 sample_skipped;
-};
-
 struct minstrel_mcs_group_data {
 	u8 index;
 	u8 column;
