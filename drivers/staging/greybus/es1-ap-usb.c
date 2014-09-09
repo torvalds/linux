@@ -24,11 +24,12 @@ struct es1_ap_dev {
 	struct usb_interface *usb_intf;
 	struct greybus_host_device *hd;
 
-	__u8 ap_comm_endpoint;		/* endpoint to talk to the AP */
-	__u8 ap_in_endpoint;		/* bulk in for CPort data */
-	__u8 ap_out_endpoint;		/* bulk out for CPort data */
-	u8 *ap_buffer;
-
+	__u8 control_endpoint;		/* endpoint to send data to SVC */
+	__u8 svc_endpoint;		/* endpoint for SVC data */
+	__u8 cport_in_endpoint;		/* bulk in for CPort data */
+	__u8 cport_out_endpoint;	/* bulk out for CPort data */
+	u8 *svc_buffer;			/* buffer for SVC messages coming in */
+	struct urb *svc_urb;		/* urb for SVC messages coming in */
 };
 
 static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
@@ -245,8 +246,8 @@ static struct greybus_host_driver es1_driver = {
 	.ap_msg = ap_msg,
 };
 
-
-void ap_in_callback(struct urb *urb)
+/* Callback for when we get a SVC message */
+static void svc_callback(struct urb *urb)
 {
 	struct es1_ap_dev *es1 = urb->context;
 	struct device *dev = &urb->dev->dev;
@@ -282,7 +283,7 @@ exit:
 		dev_err(dev, "Can not submit urb for AP data: %d\n", retval);
 }
 
-void ap_out_callback(struct urb *urb)
+void cport_in_callback(struct urb *urb)
 {
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
@@ -304,12 +305,45 @@ void ap_out_callback(struct urb *urb)
 		goto exit;
 	}
 
-	// FIXME - queue up next AP message to send???
+	// FIXME - handle the CPort in data
 exit:
 	return;
 }
 
+void cport_out_callback(struct urb *urb)
+{
+	struct device *dev = &urb->dev->dev;
+	int status = urb->status;
 
+	switch (status) {
+	case 0:
+		break;
+	case -EOVERFLOW:
+		dev_err(dev, "%s: overflow actual length is %d\n",
+			__func__, urb->actual_length);
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+	case -EILSEQ:
+		/* device is gone, stop sending */
+		return;
+	default:
+		dev_err(dev, "%s: unknown status %d\n", __func__, status);
+		goto exit;
+	}
+
+	// FIXME - handle the CPort out data callback
+exit:
+	return;
+}
+
+/*
+ * The ES1 USB Bridge device contains 4 endpoints
+ * 1 Control - usual USB stuff + AP -> SVC messages
+ * 1 Interrupt IN - SVC -> AP messages
+ * 1 Bulk IN - CPort data in
+ * 1 Bulk OUT - CPorta data out
+ */
 static int ap_probe(struct usb_interface *interface,
 		    const struct usb_device_id *id)
 {
@@ -318,7 +352,13 @@ static int ap_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
+	bool int_in_found = false;
+	bool bulk_in_found = false;
+	bool bulk_out_found = false;
+	int retval = -ENOMEM;
 	int i;
+	int buffer_size = 0;
+	u8 svc_interval = 0;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
@@ -328,34 +368,69 @@ static int ap_probe(struct usb_interface *interface,
 
 	es1 = hd_to_es1(hd);
 	es1->hd = hd;
+	es1->usb_intf = interface;
+	es1->usb_dev = udev;
+	usb_set_intfdata(interface, es1);
 
 	/* Control endpoint is the pipe to talk to this AP, so save it off */
 	endpoint = &udev->ep0.desc;
-	es1->ap_comm_endpoint = endpoint->bEndpointAddress;
+	es1->control_endpoint = endpoint->bEndpointAddress;
 
-	// FIXME
-	// figure out endpoint for talking to the AP.
+	/* find all 3 of our endpoints */
 	iface_desc = interface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		if (usb_endpoint_is_bulk_in(endpoint)) {
-			es1->ap_in_endpoint = endpoint->bEndpointAddress;
+		if (usb_endpoint_is_int_in(endpoint)) {
+			es1->svc_endpoint = endpoint->bEndpointAddress;
+			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
+			svc_interval = endpoint->bInterval;
+			int_in_found = true;
+		} else if (usb_endpoint_is_bulk_in(endpoint)) {
+			es1->cport_in_endpoint = endpoint->bEndpointAddress;
+			bulk_in_found = true;
+		} else if (usb_endpoint_is_bulk_out(endpoint)) {
+			es1->cport_out_endpoint = endpoint->bEndpointAddress;
+			bulk_out_found = true;
+		} else {
+			dev_err(&udev->dev,
+				"Unknown endpoint type found, address %x\n",
+				endpoint->bEndpointAddress);
 		}
-		if (usb_endpoint_is_bulk_out(endpoint)) {
-			es1->ap_out_endpoint = endpoint->bEndpointAddress;
-		}
-		// FIXME - properly exit once found the AP endpoint
-		// FIXME - set up cport endpoints
+	}
+	if ((int_in_found == false) ||
+	    (bulk_in_found == false) ||
+	    (bulk_out_found == false)) {
+		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
+		goto error;
 	}
 
-	// FIXME - allocate buffer
-	// FIXME = start up talking, then create the gb "devices" based on what the AP tells us.
+	/* Create our buffer and URB to get SVC messages, and start it up */
+	es1->svc_buffer = kmalloc(buffer_size, GFP_KERNEL);
+	if (!es1->svc_buffer)
+		goto error;
 
-	es1->usb_intf = interface;
-	es1->usb_dev = udev;
-	usb_set_intfdata(interface, es1);
+	es1->svc_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!es1->svc_urb)
+		goto error_urb;
+
+	usb_fill_int_urb(es1->svc_urb, udev,
+			 usb_rcvintpipe(udev, es1->svc_endpoint),
+			 es1->svc_buffer, buffer_size, svc_callback,
+			 es1, svc_interval);
+	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
+	if (retval)
+		goto error_submit_urb;
+
 	return 0;
+
+error_submit_urb:
+	usb_free_urb(es1->svc_urb);
+error_urb:
+	kfree(es1->svc_buffer);
+error:
+	greybus_remove_hd(es1->hd);
+	return retval;
 }
 
 static void ap_disconnect(struct usb_interface *interface)
@@ -365,11 +440,11 @@ static void ap_disconnect(struct usb_interface *interface)
 	es1 = usb_get_intfdata(interface);
 
 	/* Tear down everything! */
-
+	usb_kill_urb(es1->svc_urb);
 	usb_put_dev(es1->usb_dev);
-	kfree(es1->ap_buffer);
-
+	kfree(es1->svc_buffer);
 	greybus_remove_hd(es1->hd);
+	usb_set_intfdata(interface, NULL);
 }
 
 static struct usb_driver es1_ap_driver = {
