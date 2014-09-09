@@ -708,7 +708,7 @@ out:
 
 static bool bond_should_change_active(struct bonding *bond)
 {
-	struct slave *prim = bond->primary_slave;
+	struct slave *prim = rtnl_dereference(bond->primary_slave);
 	struct slave *curr = bond_deref_active_protected(bond);
 
 	if (!prim || !curr || curr->link != BOND_LINK_UP)
@@ -732,13 +732,14 @@ static bool bond_should_change_active(struct bonding *bond)
  */
 static struct slave *bond_find_best_slave(struct bonding *bond)
 {
-	struct slave *slave, *bestslave = NULL;
+	struct slave *slave, *bestslave = NULL, *primary;
 	struct list_head *iter;
 	int mintime = bond->params.updelay;
 
-	if (bond->primary_slave && bond->primary_slave->link == BOND_LINK_UP &&
+	primary = rtnl_dereference(bond->primary_slave);
+	if (primary && primary->link == BOND_LINK_UP &&
 	    bond_should_change_active(bond))
-		return bond->primary_slave;
+		return primary;
 
 	bond_for_each_slave(bond, slave, iter) {
 		if (slave->link == BOND_LINK_UP)
@@ -1482,7 +1483,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	if (bond_uses_primary(bond) && bond->params.primary[0]) {
 		/* if there is a primary slave, remember it */
 		if (strcmp(bond->params.primary, new_slave->dev->name) == 0) {
-			bond->primary_slave = new_slave;
+			rcu_assign_pointer(bond->primary_slave, new_slave);
 			bond->force_primary = true;
 		}
 	}
@@ -1596,8 +1597,8 @@ err_detach:
 		bond_hw_addr_flush(bond_dev, slave_dev);
 
 	vlan_vids_del_by_dev(slave_dev, bond_dev);
-	if (bond->primary_slave == new_slave)
-		bond->primary_slave = NULL;
+	if (rcu_access_pointer(bond->primary_slave) == new_slave)
+		RCU_INIT_POINTER(bond->primary_slave, NULL);
 	if (rcu_access_pointer(bond->curr_active_slave) == new_slave) {
 		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);
@@ -1606,6 +1607,8 @@ err_detach:
 		write_unlock_bh(&bond->curr_slave_lock);
 		unblock_netpoll_tx();
 	}
+	/* either primary_slave or curr_active_slave might've changed */
+	synchronize_rcu();
 	slave_disable_netpoll(new_slave);
 
 err_close:
@@ -1714,8 +1717,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 				    bond_dev->name, slave_dev->name);
 	}
 
-	if (bond->primary_slave == slave)
-		bond->primary_slave = NULL;
+	if (rtnl_dereference(bond->primary_slave) == slave)
+		RCU_INIT_POINTER(bond->primary_slave, NULL);
 
 	if (oldcurrent == slave) {
 		write_lock_bh(&bond->curr_slave_lock);
@@ -1976,7 +1979,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 static void bond_miimon_commit(struct bonding *bond)
 {
 	struct list_head *iter;
-	struct slave *slave;
+	struct slave *slave, *primary;
 
 	bond_for_each_slave(bond, slave, iter) {
 		switch (slave->new_link) {
@@ -1987,13 +1990,14 @@ static void bond_miimon_commit(struct bonding *bond)
 			slave->link = BOND_LINK_UP;
 			slave->last_link_up = jiffies;
 
+			primary = rtnl_dereference(bond->primary_slave);
 			if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 				/* prevent it from being the active one */
 				bond_set_backup_slave(slave);
 			} else if (BOND_MODE(bond) != BOND_MODE_ACTIVEBACKUP) {
 				/* make it immediately active */
 				bond_set_active_slave(slave);
-			} else if (slave != bond->primary_slave) {
+			} else if (slave != primary) {
 				/* prevent it from being the active one */
 				bond_set_backup_slave(slave);
 			}
@@ -2011,8 +2015,7 @@ static void bond_miimon_commit(struct bonding *bond)
 				bond_alb_handle_link_change(bond, slave,
 							    BOND_LINK_UP);
 
-			if (!bond->curr_active_slave ||
-			    (slave == bond->primary_slave))
+			if (!bond->curr_active_slave || slave == primary)
 				goto do_failover;
 
 			continue;
@@ -2633,7 +2636,7 @@ static void bond_ab_arp_commit(struct bonding *bond)
 					    slave->dev->name);
 
 				if (!rtnl_dereference(bond->curr_active_slave) ||
-				    (slave == bond->primary_slave))
+				    slave == rtnl_dereference(bond->primary_slave))
 					goto do_failover;
 
 			}
@@ -2860,7 +2863,7 @@ static int bond_master_netdev_event(unsigned long event,
 static int bond_slave_netdev_event(unsigned long event,
 				   struct net_device *slave_dev)
 {
-	struct slave *slave = bond_slave_get_rtnl(slave_dev);
+	struct slave *slave = bond_slave_get_rtnl(slave_dev), *primary;
 	struct bonding *bond;
 	struct net_device *bond_dev;
 	u32 old_speed;
@@ -2874,6 +2877,7 @@ static int bond_slave_netdev_event(unsigned long event,
 		return NOTIFY_DONE;
 	bond_dev = slave->bond->dev;
 	bond = slave->bond;
+	primary = rtnl_dereference(bond->primary_slave);
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -2921,18 +2925,18 @@ static int bond_slave_netdev_event(unsigned long event,
 		    !bond->params.primary[0])
 			break;
 
-		if (slave == bond->primary_slave) {
+		if (slave == primary) {
 			/* slave's name changed - he's no longer primary */
-			bond->primary_slave = NULL;
+			RCU_INIT_POINTER(bond->primary_slave, NULL);
 		} else if (!strcmp(slave_dev->name, bond->params.primary)) {
 			/* we have a new primary slave */
-			bond->primary_slave = slave;
+			rcu_assign_pointer(bond->primary_slave, slave);
 		} else { /* we didn't change primary - exit */
 			break;
 		}
 
 		netdev_info(bond->dev, "Primary slave changed to %s, reselecting active slave\n",
-			    bond->primary_slave ? slave_dev->name : "none");
+			    primary ? slave_dev->name : "none");
 
 		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);

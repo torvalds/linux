@@ -66,7 +66,7 @@ static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
 	const struct bond_opt_value *optval;
-	struct slave *curr;
+	struct slave *curr, *primary;
 	int i;
 
 	curr = rcu_dereference(bond->curr_active_slave);
@@ -92,10 +92,10 @@ static void bond_info_show_master(struct seq_file *seq)
 	}
 
 	if (bond_uses_primary(bond)) {
+		primary = rcu_dereference(bond->primary_slave);
 		seq_printf(seq, "Primary Slave: %s",
-			   (bond->primary_slave) ?
-			   bond->primary_slave->dev->name : "None");
-		if (bond->primary_slave) {
+			   primary ? primary->dev->name : "None");
+		if (primary) {
 			optval = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
 						  bond->params.primary_reselect);
 			seq_printf(seq, " (primary_reselect %s)",

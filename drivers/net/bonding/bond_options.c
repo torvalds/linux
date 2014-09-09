@@ -1090,7 +1090,7 @@ static int bond_option_primary_set(struct bonding *bond,
 	/* check to see if we are clearing primary */
 	if (!strlen(primary)) {
 		netdev_info(bond->dev, "Setting primary slave to None\n");
-		bond->primary_slave = NULL;
+		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		memset(bond->params.primary, 0, sizeof(bond->params.primary));
 		bond_select_active_slave(bond);
 		goto out;
@@ -1100,16 +1100,16 @@ static int bond_option_primary_set(struct bonding *bond,
 		if (strncmp(slave->dev->name, primary, IFNAMSIZ) == 0) {
 			netdev_info(bond->dev, "Setting %s as primary slave\n",
 				    slave->dev->name);
-			bond->primary_slave = slave;
+			rcu_assign_pointer(bond->primary_slave, slave);
 			strcpy(bond->params.primary, slave->dev->name);
 			bond_select_active_slave(bond);
 			goto out;
 		}
 	}
 
-	if (bond->primary_slave) {
+	if (rtnl_dereference(bond->primary_slave)) {
 		netdev_info(bond->dev, "Setting primary slave to None\n");
-		bond->primary_slave = NULL;
+		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		bond_select_active_slave(bond);
 	}
 	strncpy(bond->params.primary, primary, IFNAMSIZ);

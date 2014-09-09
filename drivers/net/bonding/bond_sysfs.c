@@ -425,11 +425,15 @@ static ssize_t bonding_show_primary(struct device *d,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	int count = 0;
 	struct bonding *bond = to_bond(d);
+	struct slave *primary;
+	int count = 0;
 
-	if (bond->primary_slave)
-		count = sprintf(buf, "%s\n", bond->primary_slave->dev->name);
+	rcu_read_lock();
+	primary = rcu_dereference(bond->primary_slave);
+	if (primary)
+		count = sprintf(buf, "%s\n", primary->dev->name);
+	rcu_read_unlock();
 
 	return count;
 }
