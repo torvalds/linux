@@ -127,7 +127,7 @@ struct dio200_subdev_intr {
 static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 
 	if (board->is_pcie)
 		offset <<= 3;
@@ -140,7 +140,7 @@ static unsigned char dio200_read8(struct comedi_device *dev,
 static void dio200_write8(struct comedi_device *dev,
 			  unsigned int offset, unsigned char val)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 
 	if (board->is_pcie)
 		offset <<= 3;
@@ -154,7 +154,7 @@ static void dio200_write8(struct comedi_device *dev,
 static unsigned int dio200_read32(struct comedi_device *dev,
 				  unsigned int offset)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 
 	if (board->is_pcie)
 		offset <<= 3;
@@ -167,7 +167,7 @@ static unsigned int dio200_read32(struct comedi_device *dev,
 static void dio200_write32(struct comedi_device *dev,
 			   unsigned int offset, unsigned int val)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 
 	if (board->is_pcie)
 		offset <<= 3;
@@ -183,7 +183,7 @@ static int dio200_subdev_intr_insn_bits(struct comedi_device *dev,
 					struct comedi_insn *insn,
 					unsigned int *data)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv = s->private;
 
 	if (board->has_int_sce) {
@@ -200,7 +200,7 @@ static int dio200_subdev_intr_insn_bits(struct comedi_device *dev,
 static void dio200_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv = s->private;
 
 	subpriv->active = false;
@@ -212,7 +212,7 @@ static void dio200_stop_intr(struct comedi_device *dev,
 static void dio200_start_intr(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int n;
@@ -292,7 +292,7 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 static int dio200_handle_read_intr(struct comedi_device *dev,
 				   struct comedi_subdevice *s)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned triggered;
 	unsigned intstat;
@@ -453,7 +453,7 @@ static int dio200_subdev_intr_init(struct comedi_device *dev,
 				   unsigned int offset,
 				   unsigned valid_isns)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv;
 
 	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
@@ -598,7 +598,7 @@ static int dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 					   unsigned int counter_number,
 					   unsigned int gate_src)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned char byte;
 
@@ -620,7 +620,7 @@ static int dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
 					   struct comedi_subdevice *s,
 					   unsigned int counter_number)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv = s->private;
 
 	if (!board->has_clk_gat_sce)
@@ -636,7 +636,7 @@ static int dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 					    unsigned int counter_number,
 					    unsigned int clock_src)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned char byte;
 
@@ -659,7 +659,7 @@ static int dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
 					    unsigned int counter_number,
 					    unsigned int *period_ns)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned clock_src;
 
@@ -732,7 +732,7 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned int offset)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv;
 	unsigned int chan;
 
@@ -953,7 +953,7 @@ EXPORT_SYMBOL_GPL(amplc_dio200_set_enhance);
 int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			       unsigned long req_irq_flags)
 {
-	const struct dio200_board *board = comedi_board(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	unsigned int n;
 	int ret;
