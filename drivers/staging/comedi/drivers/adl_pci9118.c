@@ -520,27 +520,18 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 				  unsigned int *div1, unsigned int *div2,
 				  unsigned int chnsshfront)
 {
-	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int min_pacer;
 
 	switch (mode) {
 	case 1:
 	case 4:
-		if (*tim2 < devpriv->ai_ns_min)
-			*tim2 = devpriv->ai_ns_min;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
 					  div1, div2,
 					  tim2, flags & CMDF_ROUND_NEAREST);
 		break;
 	case 2:
-		if (*tim2 < devpriv->ai_ns_min)
-			*tim2 = devpriv->ai_ns_min;
 		*div1 = *tim2 / I8254_OSC_BASE_4MHZ;
 						/* convert timer (burst) */
-		min_pacer = devpriv->ai_ns_min / I8254_OSC_BASE_4MHZ;
-		if (*div1 < min_pacer)
-			*div1 = min_pacer;
 		*div2 = *tim1 / I8254_OSC_BASE_4MHZ;	/* scan timer */
 		*div2 = *div2 / *div1;		/* major timer is c1*c2 */
 		if (*div2 < chans)
