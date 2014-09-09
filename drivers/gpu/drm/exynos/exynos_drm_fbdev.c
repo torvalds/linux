@@ -354,9 +354,6 @@ void exynos_drm_fbdev_fini(struct drm_device *dev)
 
 	fbdev = to_exynos_fbdev(private->fb_helper);
 
-	if (fbdev->exynos_gem_obj)
-		exynos_drm_gem_destroy(fbdev->exynos_gem_obj);
-
 	exynos_drm_fbdev_destroy(dev, private->fb_helper);
 	kfree(fbdev);
 	private->fb_helper = NULL;
