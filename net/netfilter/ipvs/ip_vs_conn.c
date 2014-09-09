@@ -854,7 +854,7 @@ void ip_vs_conn_expire_now(struct ip_vs_conn *cp)
  *	Create a new connection entry and hash it into the ip_vs_conn_tab
  */
 struct ip_vs_conn *
-ip_vs_conn_new(const struct ip_vs_conn_param *p,
+ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 	       const union nf_inet_addr *daddr, __be16 dport, unsigned int flags,
 	       struct ip_vs_dest *dest, __u32 fwmark)
 {
@@ -873,6 +873,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	setup_timer(&cp->timer, ip_vs_conn_expire, (unsigned long)cp);
 	ip_vs_conn_net_set(cp, p->net);
 	cp->af		   = p->af;
+	cp->daf		   = dest_af;
 	cp->protocol	   = p->protocol;
 	ip_vs_addr_set(p->af, &cp->caddr, p->caddr);
 	cp->cport	   = p->cport;
@@ -880,7 +881,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	ip_vs_addr_set(p->protocol == IPPROTO_IP ? AF_UNSPEC : p->af,
 		       &cp->vaddr, p->vaddr);
 	cp->vport	   = p->vport;
-	ip_vs_addr_set(p->af, &cp->daddr, daddr);
+	ip_vs_addr_set(cp->daf, &cp->daddr, daddr);
 	cp->dport          = dport;
 	cp->flags	   = flags;
 	cp->fwmark         = fwmark;
