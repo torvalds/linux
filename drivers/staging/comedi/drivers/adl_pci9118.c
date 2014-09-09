@@ -707,7 +707,6 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 				 sampl & 0x000f,
 				 devpriv->chanlist[s->async->cur_chan]);
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			cfc_handle_events(dev, s);
 			return;
 		}
 	}
@@ -724,8 +723,6 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 				s->async->events |= COMEDI_CB_EOA;
 		}
 	}
-
-	cfc_handle_events(dev, s);
 }
 
 static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
@@ -775,8 +772,6 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		if (devpriv->ai_do == 4)
 			interrupt_pci9118_ai_mode4_switch(dev);
 	}
-
-	cfc_handle_events(dev, s);
 }
 
 static irqreturn_t pci9118_interrupt(int irq, void *d)
@@ -802,15 +797,13 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 	if (intcsr & MASTER_ABORT_INT) {
 		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
-		return IRQ_HANDLED;
+		goto interrupt_exit;
 	}
 
 	if (intcsr & TARGET_ABORT_INT) {
 		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
-		return IRQ_HANDLED;
+		goto interrupt_exit;
 	}
 
 	adstat = inl(dev->iobase + PCI9118_AI_STATUS_REG);
@@ -818,27 +811,23 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 		dev_err(dev->class_dev,
 			"A/D FIFO Full status (Fatal Error!)\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-		cfc_handle_events(dev, s);
-		return IRQ_HANDLED;
+		goto interrupt_exit;
 	}
 	if (adstat & PCI9118_AI_STATUS_BOVER) {
 		dev_err(dev->class_dev,
 			"A/D Burst Mode Overrun Status (Fatal Error!)\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-		cfc_handle_events(dev, s);
-		return IRQ_HANDLED;
+		goto interrupt_exit;
 	}
 	if (adstat & PCI9118_AI_STATUS_ADOS) {
 		dev_err(dev->class_dev, "A/D Over Speed Status (Warning!)\n");
 		s->async->events |= COMEDI_CB_ERROR;
-		cfc_handle_events(dev, s);
-		return IRQ_HANDLED;
+		goto interrupt_exit;
 	}
 	if (adstat & PCI9118_AI_STATUS_ADOR) {
 		dev_err(dev->class_dev, "A/D Overrun Status (Fatal Error!)\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-		cfc_handle_events(dev, s);
-		return IRQ_HANDLED;
+		goto interrupt_exit;
 	}
 
 	if (!devpriv->ai_do)
@@ -874,6 +863,8 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 	else
 		interrupt_pci9118_ai_onesample(dev, s);
 
+interrupt_exit:
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
