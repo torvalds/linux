@@ -234,21 +234,6 @@ static void __init omap_init_irq(u32 base, int nr_irqs,
 		omap_alloc_gc(omap_irq_base + j, j + irq_base, 32);
 }
 
-void __init omap2_init_irq(void)
-{
-	omap_init_irq(OMAP24XX_IC_BASE, 96, NULL);
-}
-
-void __init omap3_init_irq(void)
-{
-	omap_init_irq(OMAP34XX_IC_BASE, 96, NULL);
-}
-
-void __init ti81xx_init_irq(void)
-{
-	omap_init_irq(OMAP34XX_IC_BASE, 128, NULL);
-}
-
 static inline void omap_intc_handle_irq(struct pt_regs *regs)
 {
 	u32 irqnr;
@@ -294,6 +279,21 @@ out:
 asmlinkage void __exception_irq_entry omap2_intc_handle_irq(struct pt_regs *regs)
 {
 	omap_intc_handle_irq(regs);
+}
+
+void __init omap2_init_irq(void)
+{
+	omap_init_irq(OMAP24XX_IC_BASE, 96, NULL);
+}
+
+void __init omap3_init_irq(void)
+{
+	omap_init_irq(OMAP34XX_IC_BASE, 96, NULL);
+}
+
+void __init ti81xx_init_irq(void)
+{
+	omap_init_irq(OMAP34XX_IC_BASE, 128, NULL);
 }
 
 static int __init intc_of_init(struct device_node *node,
