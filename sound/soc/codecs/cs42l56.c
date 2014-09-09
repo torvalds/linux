@@ -1016,20 +1016,6 @@ static struct snd_soc_dai_driver cs42l56_dai = {
 		.ops = &cs42l56_ops,
 };
 
-static int cs42l56_suspend(struct snd_soc_codec *codec)
-{
-	cs42l56_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int cs42l56_resume(struct snd_soc_codec *codec)
-{
-	cs42l56_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
 static int beep_freq[] = {
 	261, 522, 585, 667, 706, 774, 889, 1000,
 	1043, 1200, 1333, 1412, 1600, 1714, 2000, 2182
@@ -1168,15 +1154,12 @@ static int cs42l56_probe(struct snd_soc_codec *codec)
 {
 	cs42l56_init_beep(codec);
 
-	cs42l56_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
 static int cs42l56_remove(struct snd_soc_codec *codec)
 {
 	cs42l56_free_beep(codec);
-	cs42l56_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1184,9 +1167,8 @@ static int cs42l56_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_cs42l56 = {
 	.probe = cs42l56_probe,
 	.remove = cs42l56_remove,
-	.suspend = cs42l56_suspend,
-	.resume = cs42l56_resume,
 	.set_bias_level = cs42l56_set_bias_level,
+	.suspend_bias_off = true,
 
 	.dapm_widgets = cs42l56_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(cs42l56_dapm_widgets),
