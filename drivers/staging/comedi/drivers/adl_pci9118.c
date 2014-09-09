@@ -1775,8 +1775,16 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 
 	pci9118_reset(dev);
 
-	if (master)
-		pci9118_alloc_dma(dev);
+	if (!disable_irq && pcidev->irq) {
+		ret = request_irq(pcidev->irq, pci9118_interrupt, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (ret == 0) {
+			dev->irq = pcidev->irq;
+
+			if (master)
+				pci9118_alloc_dma(dev);
+		}
+	}
 
 	if (ext_mux > 0) {
 		if (ext_mux > 256)
@@ -1803,13 +1811,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	pci_read_config_word(pcidev, PCI_COMMAND, &u16w);
 	pci_write_config_word(pcidev, PCI_COMMAND, u16w | 64);
 				/* Enable parity check for parity error */
-
-	if (!disable_irq && pcidev->irq) {
-		ret = request_irq(pcidev->irq, pci9118_interrupt, IRQF_SHARED,
-				  dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = pcidev->irq;
-	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
