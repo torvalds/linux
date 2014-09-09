@@ -1157,7 +1157,7 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 		if (pmt_cmd_id != 1 && pmt_cmd_id != 4)
 			dev_err(fdtv->device,
 				"invalid pmt_cmd_id %d\n", pmt_cmd_id);
-		if (program_info_length > sizeof(c->operand) - write_pos) {
+		if (program_info_length > sizeof(c->operand) - 4 - write_pos) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1184,7 +1184,8 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 				dev_err(fdtv->device, "invalid pmt_cmd_id %d "
 					"at stream level\n", pmt_cmd_id);
 
-			if (es_info_length > sizeof(c->operand) - write_pos) {
+			if (es_info_length > sizeof(c->operand) - 4 -
+					     write_pos) {
 				ret = -EINVAL;
 				goto out;
 			}
