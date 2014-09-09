@@ -773,6 +773,19 @@ interrupt_exit:
 	return IRQ_HANDLED;
 }
 
+static void pci9118_ai_cmd_start(struct comedi_device *dev)
+{
+	struct pci9118_private *devpriv = dev->private;
+
+	outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
+	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
+	if (devpriv->ai_do != 3) {
+		pci9118_start_pacer(dev, devpriv->ai_do);
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
+	}
+	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
+}
+
 static int pci9118_ai_inttrig(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int trig_num)
@@ -786,13 +799,7 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	devpriv->ai12_startstop &= ~START_AI_INT;
 	s->async->inttrig = NULL;
 
-	outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
-	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-	if (devpriv->ai_do != 3) {
-		pci9118_start_pacer(dev, devpriv->ai_do);
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
-	}
-	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
+	pci9118_ai_cmd_start(dev);
 
 	return 1;
 }
@@ -1115,15 +1122,8 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 
 	pci9118_amcc_int_ena(dev, true);
 
-	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT))) {
-		outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
-		outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-		if (devpriv->ai_do != 3) {
-			pci9118_start_pacer(dev, devpriv->ai_do);
-			devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
-		}
-		outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
-	}
+	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT)))
+		pci9118_ai_cmd_start(dev);
 
 	return 0;
 }
@@ -1172,15 +1172,8 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	outl(0x02000000 | AINT_WRITE_COMPL,
 	     devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 
-	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT))) {
-		outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-		outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
-		if (devpriv->ai_do != 3) {
-			pci9118_start_pacer(dev, devpriv->ai_do);
-			devpriv->ai_ctrl |= PCI9118_AI_CTRL_SOFTG;
-		}
-		outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
-	}
+	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT)))
+		pci9118_ai_cmd_start(dev);
 
 	return 0;
 }
