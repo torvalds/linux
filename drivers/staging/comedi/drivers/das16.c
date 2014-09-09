@@ -692,7 +692,9 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
 						 board->ai_speed);
 
-	if (cmd->stop_src == TRIG_NONE)
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
