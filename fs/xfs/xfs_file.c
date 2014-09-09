@@ -1322,16 +1322,16 @@ STATIC loff_t
 xfs_file_llseek(
 	struct file	*file,
 	loff_t		offset,
-	int		origin)
+	int		whence)
 {
-	switch (origin) {
+	switch (whence) {
 	case SEEK_END:
 	case SEEK_CUR:
 	case SEEK_SET:
-		return generic_file_llseek(file, offset, origin);
+		return generic_file_llseek(file, offset, whence);
 	case SEEK_HOLE:
 	case SEEK_DATA:
-		return xfs_seek_hole_data(file, offset, origin);
+		return xfs_seek_hole_data(file, offset, whence);
 	default:
 		return -EINVAL;
 	}
