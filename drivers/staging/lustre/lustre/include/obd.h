@@ -1109,7 +1109,7 @@ struct obd_ops {
 				struct ptlrpc_request_set *set);
 	int (*o_attach)(struct obd_device *dev, u32 len, void *data);
 	int (*o_detach)(struct obd_device *dev);
-	int (*o_setup) (struct obd_device *dev, struct lustre_cfg *cfg);
+	int (*o_setup)(struct obd_device *dev, struct lustre_cfg *cfg);
 	int (*o_precleanup)(struct obd_device *dev,
 			    enum obd_cleanup_stage cleanup_stage);
 	int (*o_cleanup)(struct obd_device *dev);
@@ -1199,7 +1199,7 @@ struct obd_ops {
 			enum obd_notify_event ev, void *data);
 
 	int (*o_health_check)(const struct lu_env *env, struct obd_device *);
-	struct obd_uuid *(*o_get_uuid) (struct obd_export *exp);
+	struct obd_uuid *(*o_get_uuid)(struct obd_export *exp);
 
 	/* quota methods */
 	int (*o_quotacheck)(struct obd_device *, struct obd_export *,
@@ -1369,9 +1369,9 @@ struct lsm_operations {
 				    u64 *);
 	void (*lsm_stripe_by_offset)(struct lov_stripe_md *, int *, u64 *,
 				     u64 *);
-	int (*lsm_lmm_verify) (struct lov_mds_md *lmm, int lmm_bytes,
+	int (*lsm_lmm_verify)(struct lov_mds_md *lmm, int lmm_bytes,
 			       __u16 *stripe_count);
-	int (*lsm_unpackmd) (struct lov_obd *lov, struct lov_stripe_md *lsm,
+	int (*lsm_unpackmd)(struct lov_obd *lov, struct lov_stripe_md *lsm,
 			     struct lov_mds_md *lmm);
 };
 
