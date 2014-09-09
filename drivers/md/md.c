@@ -5307,7 +5307,7 @@ static int md_set_readonly(struct mddev *mddev, struct block_device *bdev)
 	mddev_lock_nointr(mddev);
 
 	mutex_lock(&mddev->open_mutex);
-	if (atomic_read(&mddev->openers) > !!bdev ||
+	if ((mddev->pers && atomic_read(&mddev->openers) > !!bdev) ||
 	    mddev->sync_thread ||
 	    (bdev && !test_bit(MD_STILL_CLOSED, &mddev->flags))) {
 		printk("md: %s still in use.\n",mdname(mddev));
@@ -5362,7 +5362,7 @@ static int do_md_stop(struct mddev * mddev, int mode,
 	mddev_lock_nointr(mddev);
 
 	mutex_lock(&mddev->open_mutex);
-	if (atomic_read(&mddev->openers) > !!bdev ||
+	if ((mddev->pers && atomic_read(&mddev->openers) > !!bdev) ||
 	    mddev->sysfs_active ||
 	    mddev->sync_thread ||
 	    (bdev && !test_bit(MD_STILL_CLOSED, &mddev->flags))) {
@@ -6454,7 +6454,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 		 * and writes
 		 */
 		mutex_lock(&mddev->open_mutex);
-		if (atomic_read(&mddev->openers) > 1) {
+		if (mddev->pers && atomic_read(&mddev->openers) > 1) {
 			mutex_unlock(&mddev->open_mutex);
 			err = -EBUSY;
 			goto abort;
