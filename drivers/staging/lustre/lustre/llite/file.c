@@ -1013,10 +1013,10 @@ int ll_merge_lvb(const struct lu_env *env, struct inode *inode)
 	LTIME_S(inode->i_ctime) = lli->lli_lvb.lvb_ctime;
 
 	lvb.lvb_size = i_size_read(inode);
-        lvb.lvb_blocks = inode->i_blocks;
-        lvb.lvb_mtime = LTIME_S(inode->i_mtime);
-        lvb.lvb_atime = LTIME_S(inode->i_atime);
-        lvb.lvb_ctime = LTIME_S(inode->i_ctime);
+	lvb.lvb_blocks = inode->i_blocks;
+	lvb.lvb_mtime = LTIME_S(inode->i_mtime);
+	lvb.lvb_atime = LTIME_S(inode->i_atime);
+	lvb.lvb_ctime = LTIME_S(inode->i_ctime);
 
 	cl_object_attr_lock(obj);
 	rc = cl_object_attr_get(env, obj, attr);
