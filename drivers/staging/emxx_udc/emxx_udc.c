@@ -92,6 +92,7 @@ static inline void _nbu2ss_writel(void *address, u32 udata)
 static inline void _nbu2ss_bitset(void *address, u32 udata)
 {
 	u32	reg_dt = __raw_readl(address) | (udata);
+
 	__raw_writel(reg_dt, address);
 }
 
@@ -100,6 +101,7 @@ static inline void _nbu2ss_bitset(void *address, u32 udata)
 static inline void _nbu2ss_bitclr(void *address, u32 udata)
 {
 	u32	reg_dt = __raw_readl(address) & ~(udata);
+
 	__raw_writel(reg_dt, address);
 }
 
