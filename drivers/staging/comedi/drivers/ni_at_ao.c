@@ -319,7 +319,7 @@ static void atao_reset(struct comedi_device *dev)
 
 static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct atao_board *board = comedi_board(dev);
+	const struct atao_board *board = dev->board_ptr;
 	struct atao_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
