@@ -660,35 +660,6 @@ struct niobuf_local {
 #define LUSTRE_MGS_OBDNAME "MGS"
 #define LUSTRE_MGC_OBDNAME "MGC"
 
-static inline int is_osp_on_mdt(char *name)
-{
-	char   *ptr;
-
-	ptr = strrchr(name, '-');
-	if (ptr == NULL) {
-		CERROR("%s is not a obdname\n", name);
-		return 0;
-	}
-
-	/* 1.8 OSC/OSP name on MDT is fsname-OSTxxxx-osc */
-	if (strncmp(ptr + 1, "osc", 3) == 0)
-		return 1;
-
-	if (strncmp(ptr + 1, "MDT", 3) != 0)
-		return 0;
-
-	while (*(--ptr) != '-' && ptr != name);
-
-	if (ptr == name)
-		return 0;
-
-	if (strncmp(ptr + 1, LUSTRE_OSP_NAME, strlen(LUSTRE_OSP_NAME)) != 0 &&
-	    strncmp(ptr + 1, LUSTRE_OSC_NAME, strlen(LUSTRE_OSC_NAME)) != 0)
-		return 0;
-
-	return 1;
-}
-
 /* Don't conflict with on-wire flags OBD_BRW_WRITE, etc */
 #define N_LOCAL_TEMP_PAGE 0x10000000
 
