@@ -206,12 +206,14 @@ static const struct pci9118_boardinfo pci9118_boards[] = {
 
 struct pci9118_private {
 	unsigned long iobase_a;	/* base+size for AMCC chip */
-	unsigned int master;	/* master capable */
-	unsigned int usemux;	/* we want to use external multiplexor! */
+	unsigned int master:1;
+	unsigned int dma_doublebuf:1;
+	unsigned int ai_neverending:1;
+	unsigned int usedma:1;
+	unsigned int usemux:1;
 	unsigned char ai_ctrl;
 	unsigned char int_ctrl;
 	unsigned char ai_cfg;
-	char ai_neverending;		/* we do unlimited AI */
 	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
 	unsigned int ai_act_scan;	/* how many scans we finished */
 	unsigned int ai_n_realscanlen;	/*
@@ -236,7 +238,6 @@ struct pci9118_private {
 						 * divisors for start of measure
 						 * on external start
 						 */
-	char dma_doublebuf;			/* use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	unsigned short *dmabuf_virt[2];		/*
 						 * pointers to begin of
@@ -256,7 +257,6 @@ struct pci9118_private {
 						 * bit field of external trigger
 						 * users(0-AI, 1-AO, 2-DI, 3-DO)
 						 */
-	unsigned char usedma;		/* =1 use DMA transfer and not INT */
 	int softsshdelay;		/*
 					 * >0 use software S&H,
 					 * numer is requested delay in ns
@@ -1694,7 +1694,7 @@ static int pci9118_common_attach(struct comedi_device *dev,
 		if (softsshdelay > 0)
 			if (ext_mux > 128)
 				ext_mux = 128;
-		devpriv->usemux = ext_mux;
+		devpriv->usemux = 1;
 	} else {
 		devpriv->usemux = 0;
 	}
@@ -1722,7 +1722,7 @@ static int pci9118_common_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
-	s->n_chan	= (devpriv->usemux) ? devpriv->usemux : 16;
+	s->n_chan	= (devpriv->usemux) ? ext_mux : 16;
 	s->maxdata	= board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= board->is_hg ? &pci9118hg_ai_range
 				       : &pci9118_ai_range;
