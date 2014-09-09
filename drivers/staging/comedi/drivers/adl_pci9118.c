@@ -251,7 +251,6 @@ struct pci9118_private {
 						 * for transfer
 						 */
 	unsigned int dmabuf_used_size[2];	/* which size was truly used */
-	unsigned int dmabuf_panic_size[2];
 	int dmabuf_pages[2];			/* number of pages in buffer */
 	unsigned char exttrg_users;		/*
 						 * bit field of external trigger
@@ -1121,22 +1120,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 	devpriv->dma_actbuf = 0;
 	devpriv->dmabuf_use_size[0] = dmalen0;
 	devpriv->dmabuf_use_size[1] = dmalen1;
-
-#if 0
-	if (cmd->scan_end_arg < PCI9118_HALF_FIFO_SZ) {
-		devpriv->dmabuf_panic_size[0] =
-		    (PCI9118_HALF_FIFO_SZ / cmd->scan_end_arg +
-		     1) * cmd->scan_end_arg * sizeof(short);
-		devpriv->dmabuf_panic_size[1] =
-		    (PCI9118_HALF_FIFO_SZ / cmd->scan_end_arg +
-		     1) * cmd->scan_end_arg * sizeof(short);
-	} else {
-		devpriv->dmabuf_panic_size[0] =
-		    (cmd->scan_end_arg << 1) % devpriv->dmabuf_size[0];
-		devpriv->dmabuf_panic_size[1] =
-		    (cmd->scan_end_arg << 1) % devpriv->dmabuf_size[1];
-	}
-#endif
 
 	pci9118_amcc_dma_ena(dev, false);
 	pci9118_amcc_setup_dma(dev, 0);
