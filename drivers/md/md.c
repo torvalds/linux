@@ -766,14 +766,7 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 void md_super_wait(struct mddev *mddev)
 {
 	/* wait for all superblock writes that were scheduled to complete */
-	DEFINE_WAIT(wq);
-	for(;;) {
-		prepare_to_wait(&mddev->sb_wait, &wq, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&mddev->pending_writes)==0)
-			break;
-		schedule();
-	}
-	finish_wait(&mddev->sb_wait, &wq);
+	wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
 }
 
 int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
