@@ -166,7 +166,11 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 
 #define IEEE80211_MAX_MESH_ID_LEN	32
 
+#define IEEE80211_FIRST_TSPEC_TSID	8
 #define IEEE80211_NUM_TIDS		16
+
+/* number of user priorities 802.11 uses */
+#define IEEE80211_NUM_UPS		8
 
 #define IEEE80211_QOS_CTL_LEN		2
 /* 1d tag mask */
