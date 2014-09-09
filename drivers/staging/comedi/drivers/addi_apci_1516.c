@@ -102,7 +102,7 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 
 static int apci1516_reset(struct comedi_device *dev)
 {
-	const struct apci1516_boardinfo *this_board = comedi_board(dev);
+	const struct apci1516_boardinfo *this_board = dev->board_ptr;
 	struct apci1516_private *devpriv = dev->private;
 
 	if (!this_board->has_wdog)
