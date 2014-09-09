@@ -135,7 +135,6 @@
 		#size-cells = <0>;
 
 		rockchip,grf = <&grf>;
-		rockchip,bus-index = <0>;
 
 		clock-names = "i2c";
 		clocks = <&cru PCLK_I2C0>;
