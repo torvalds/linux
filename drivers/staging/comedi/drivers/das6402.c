@@ -434,7 +434,7 @@ static void das6402_reset(struct comedi_device *dev)
 static int das6402_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	const struct das6402_boardinfo *board = comedi_board(dev);
+	const struct das6402_boardinfo *board = dev->board_ptr;
 	struct das6402_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
