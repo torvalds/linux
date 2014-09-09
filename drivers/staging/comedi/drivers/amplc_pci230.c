@@ -1354,11 +1354,7 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			return -EBUSY;
 	}
 
-	/* Get number of scans required. */
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ao_scan_count = cmd->stop_arg;
-	else	/* TRIG_NONE, user calls cancel */
-		devpriv->ao_scan_count = 0;
+	devpriv->ao_scan_count = cmd->stop_arg;
 
 	/*
 	 * Set range - see analogue output range table; 0 => unipolar 10V,
