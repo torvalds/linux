@@ -738,7 +738,7 @@ static int check_single_ended(unsigned int port)
 static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
-	const struct pcl818_board *board = comedi_board(dev);
+	const struct pcl818_board *board = dev->board_ptr;
 	struct pcl818_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
@@ -980,7 +980,7 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 
 static void pcl818_reset(struct comedi_device *dev)
 {
-	const struct pcl818_board *board = comedi_board(dev);
+	const struct pcl818_board *board = dev->board_ptr;
 	unsigned long timer_base = dev->iobase + PCL818_TIMER_BASE;
 	unsigned int chan;
 
@@ -1018,7 +1018,7 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_devconfig *it)
 {
-	const struct pcl818_board *board = comedi_board(dev);
+	const struct pcl818_board *board = dev->board_ptr;
 
 	/* default to the range table from the boardinfo */
 	s->range_table = board->ai_range_type;
@@ -1067,7 +1067,7 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcl818_board *board = comedi_board(dev);
+	const struct pcl818_board *board = dev->board_ptr;
 	struct pcl818_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
