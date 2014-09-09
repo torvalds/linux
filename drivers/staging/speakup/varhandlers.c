@@ -112,7 +112,6 @@ void speakup_register_var(struct var_t *var)
 	default:
 		break;
 	}
-	return;
 }
 
 void speakup_unregister_var(enum var_id_t var_id)

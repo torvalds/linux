@@ -1940,7 +1940,6 @@ static void speakup_goto(struct vc_data *vc)
 	}
 	synth_printf("%s\n", spk_msg_get(MSG_GOTO));
 	spk_special_handler = handle_goto;
-	return;
 }
 
 static void speakup_help(struct vc_data *vc)
