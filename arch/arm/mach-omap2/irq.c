@@ -70,6 +70,7 @@ static struct omap_intc_regs intc_context;
 
 static struct irq_domain *domain;
 static void __iomem *omap_irq_base;
+static int omap_nr_pending = 3;
 static int omap_nr_irqs = 96;
 
 /* INTC bank register get/set */
@@ -276,6 +277,7 @@ out:
 void __init omap2_init_irq(void)
 {
 	omap_nr_irqs = 96;
+	omap_nr_pending = 3;
 	omap_init_irq(OMAP24XX_IC_BASE, NULL);
 	set_handle_irq(omap_intc_handle_irq);
 }
@@ -283,6 +285,7 @@ void __init omap2_init_irq(void)
 void __init omap3_init_irq(void)
 {
 	omap_nr_irqs = 96;
+	omap_nr_pending = 3;
 	omap_init_irq(OMAP34XX_IC_BASE, NULL);
 	set_handle_irq(omap_intc_handle_irq);
 }
@@ -290,6 +293,7 @@ void __init omap3_init_irq(void)
 void __init ti81xx_init_irq(void)
 {
 	omap_nr_irqs = 96;
+	omap_nr_pending = 4;
 	omap_init_irq(OMAP34XX_IC_BASE, NULL);
 	set_handle_irq(omap_intc_handle_irq);
 }
@@ -299,6 +303,7 @@ static int __init intc_of_init(struct device_node *node,
 {
 	struct resource res;
 
+	omap_nr_pending = 3;
 	omap_nr_irqs = 96;
 
 	if (WARN_ON(!node))
@@ -309,8 +314,10 @@ static int __init intc_of_init(struct device_node *node,
 		return -EINVAL;
 	}
 
-	if (of_device_is_compatible(node, "ti,am33xx-intc"))
+	if (of_device_is_compatible(node, "ti,am33xx-intc")) {
 		omap_nr_irqs = 128;
+		omap_nr_pending = 4;
+	}
 
 	omap_init_irq(res.start, of_node_get(node));
 
