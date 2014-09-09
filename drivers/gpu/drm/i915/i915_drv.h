@@ -2368,6 +2368,12 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
+unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
+			      long target,
+			      unsigned flags);
+#define I915_SHRINK_PURGEABLE 0x1
+#define I915_SHRINK_UNBOUND 0x2
+#define I915_SHRINK_BOUND 0x4
 void *i915_gem_object_alloc(struct drm_device *dev);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
