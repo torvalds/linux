@@ -393,6 +393,23 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			EMIT1_off32(add_1reg(0xB8, dst_reg), imm32);
 			break;
 
+		case BPF_LD | BPF_IMM | BPF_DW:
+			if (insn[1].code != 0 || insn[1].src_reg != 0 ||
+			    insn[1].dst_reg != 0 || insn[1].off != 0) {
+				/* verifier must catch invalid insns */
+				pr_err("invalid BPF_LD_IMM64 insn\n");
+				return -EINVAL;
+			}
+
+			/* movabsq %rax, imm64 */
+			EMIT2(add_1mod(0x48, dst_reg), add_1reg(0xB8, dst_reg));
+			EMIT(insn[0].imm, 4);
+			EMIT(insn[1].imm, 4);
+
+			insn++;
+			i++;
+			break;
+
 			/* dst %= src, dst /= src, dst %= imm32, dst /= imm32 */
 		case BPF_ALU | BPF_MOD | BPF_X:
 		case BPF_ALU | BPF_DIV | BPF_X:
