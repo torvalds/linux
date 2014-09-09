@@ -426,6 +426,7 @@ int fld_client_rpc(struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 	req->rq_request_portal = FLD_REQUEST_PORTAL;
+	req->rq_reply_portal = MDC_REPLY_PORTAL;
 	ptlrpc_at_set_req_timeout(req);
 
 	if (fld_op == FLD_LOOKUP &&

@@ -128,7 +128,7 @@
 //#define PTLBD_BULK_PORTAL	      21
 #define MDS_SETATTR_PORTAL	     22
 #define MDS_READPAGE_PORTAL	    23
-#define MDS_MDS_PORTAL		 24
+#define OUT_PORTAL		    24
 
 #define MGC_REPLY_PORTAL	       25
 #define MGS_REQUEST_PORTAL	     26
