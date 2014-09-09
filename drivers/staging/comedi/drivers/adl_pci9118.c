@@ -143,8 +143,6 @@
 #define START_AI_INT	0x04	/* start measure on internal trigger */
 #define STOP_AI_INT	0x08	/* stop measure on internal trigger */
 
-#define EXTTRG_AI	0	/* ext trg is used by AI */
-
 #define PCI9118_HALF_FIFO_SZ	(1024 / 2)
 
 static const struct comedi_lrange pci9118_ai_range = {
@@ -248,10 +246,6 @@ struct pci9118_private {
 						 */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	struct pci9118_dmabuf dmabuf[2];
-	unsigned char exttrg_users;		/*
-						 * bit field of external trigger
-						 * users(0-AI, 1-AO, 2-DI, 3-DO)
-						 */
 	int softsshdelay;		/*
 					 * >0 use software S&H,
 					 * numer is requested delay in ns
@@ -512,33 +506,23 @@ static int move_block_from_dma(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci9118_exttrg_add(struct comedi_device *dev, unsigned char source)
+static void pci9118_exttrg_add(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
 
-	if (source > 3)
-		return -1;				/* incorrect source */
-	devpriv->exttrg_users |= (1 << source);
 	devpriv->int_ctrl |= PCI9118_INT_CTRL_DTRG;
 	outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
 	pci9118_amcc_int_ena(dev, true);
-	return 0;
 }
 
-static int pci9118_exttrg_del(struct comedi_device *dev, unsigned char source)
+static void pci9118_exttrg_del(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
 
-	if (source > 3)
-		return -1;			/* incorrect source */
-	devpriv->exttrg_users &= ~(1 << source);
-	if (!devpriv->exttrg_users) {	/* shutdown ext trg intterrupts */
-		devpriv->int_ctrl &= ~PCI9118_INT_CTRL_DTRG;
-		if (!devpriv->int_ctrl)
-			pci9118_amcc_int_ena(dev, false);
-		outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
-	}
-	return 0;
+	devpriv->int_ctrl &= ~PCI9118_INT_CTRL_DTRG;
+	if (!devpriv->int_ctrl)
+		pci9118_amcc_int_ena(dev, false);
+	outl(devpriv->int_ctrl, dev->iobase + PCI9118_INT_CTRL_REG);
 }
 
 static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
@@ -608,7 +592,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 
 	if (devpriv->usedma)
 		pci9118_amcc_dma_ena(dev, false);
-	pci9118_exttrg_del(dev, EXTTRG_AI);
+	pci9118_exttrg_del(dev);
 	pci9118_start_pacer(dev, 0);	/* stop 8254 counters */
 	/* set default config (disable burst and triggers) */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
@@ -794,7 +778,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 				/* deactivate EXT trigger */
 				devpriv->ai12_startstop &= ~START_AI_EXT;
 				if (!(devpriv->ai12_startstop & STOP_AI_EXT))
-					pci9118_exttrg_del(dev, EXTTRG_AI);
+					pci9118_exttrg_del(dev);
 
 				/* start pacer */
 				pci9118_start_pacer(dev, devpriv->ai_do);
@@ -803,7 +787,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 			} else if (devpriv->ai12_startstop & STOP_AI_EXT) {
 				/* deactivate EXT trigger */
 				devpriv->ai12_startstop &= ~STOP_AI_EXT;
-				pci9118_exttrg_del(dev, EXTTRG_AI);
+				pci9118_exttrg_del(dev);
 
 				/* on next interrupt measure will stop */
 				devpriv->ai_neverending = 0;
@@ -1154,7 +1138,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 	}
 
 	if (devpriv->ai12_startstop)
-		pci9118_exttrg_add(dev, EXTTRG_AI);
+		pci9118_exttrg_add(dev);
 						/* activate EXT trigger */
 
 	if ((devpriv->ai_do == 1) || (devpriv->ai_do == 2))
@@ -1226,7 +1210,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	}
 
 	if (devpriv->ai12_startstop) {
-		pci9118_exttrg_add(dev, EXTTRG_AI);
+		pci9118_exttrg_add(dev);
 						/* activate EXT trigger */
 	}
 
