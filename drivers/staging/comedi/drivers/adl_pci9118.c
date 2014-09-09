@@ -251,7 +251,6 @@ struct pci9118_private {
 						 * which size we may now use
 						 * for transfer
 						 */
-	unsigned int dmabuf_used_size[2];	/* which size was truly used */
 	int dmabuf_pages[2];			/* number of pages in buffer */
 	unsigned char exttrg_users;		/*
 						 * bit field of external trigger
@@ -701,8 +700,6 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 					 */
 		next_dma_buf = 1 - devpriv->dma_actbuf;
 		pci9118_amcc_setup_dma(dev, next_dma_buf);
-		devpriv->dmabuf_used_size[next_dma_buf] =
-		    devpriv->dmabuf_use_size[next_dma_buf];
 		if (devpriv->ai_do == 4)
 			interrupt_pci9118_ai_mode4_switch(dev);
 	}
