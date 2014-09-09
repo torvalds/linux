@@ -217,7 +217,7 @@ static int das08_ai_eoc(struct comedi_device *dev,
 static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	struct das08_private_struct *devpriv = dev->private;
 	int n;
 	int chan;
@@ -337,7 +337,7 @@ static int das08jr_do_wbits(struct comedi_device *dev,
 static void das08_ao_set_data(struct comedi_device *dev,
 			      unsigned int chan, unsigned int data)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	unsigned char lsb;
 	unsigned char msb;
 
@@ -376,7 +376,7 @@ static int das08_ao_insn_write(struct comedi_device *dev,
 
 static void i8254_initialize(struct comedi_device *dev)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
 	unsigned int mode = I8254_MODE0 | I8254_BINARY;
 	int i;
@@ -389,7 +389,7 @@ static int das08_counter_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
 	int chan = insn->chanspec;
 
@@ -401,7 +401,7 @@ static int das08_counter_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
 	int chan = insn->chanspec;
 
@@ -413,7 +413,7 @@ static int das08_counter_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
 	int chan = insn->chanspec;
 
@@ -432,7 +432,7 @@ static int das08_counter_config(struct comedi_device *dev,
 
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	struct das08_private_struct *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
