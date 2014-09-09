@@ -727,7 +727,6 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 					   struct comedi_subdevice *s,
 					   unsigned short int_adstat,
-					   unsigned int int_amcc,
 					   unsigned short int_daq)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -773,26 +772,12 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     unsigned short int_adstat,
-				     unsigned int int_amcc,
 				     unsigned short int_daq)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int next_dma_buf, samplesinbuf, sampls, m;
 
-	if (int_amcc & MASTER_ABORT_INT) {
-		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
-		return;
-	}
-
-	if (int_amcc & TARGET_ABORT_INT) {
-		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
-		return;
-	}
 	if (int_adstat & devpriv->ai_maskerr)
 					/* if (int_adstat & 0x106) */
 		if (pci9118_decode_error_status(dev, s, int_adstat))
@@ -862,6 +847,20 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 
 	outl(intcsr | 0x00ff0000, devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 
+	if (intcsr & MASTER_ABORT_INT) {
+		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		cfc_handle_events(dev, s);
+		return IRQ_HANDLED;
+	}
+
+	if (intcsr & TARGET_ABORT_INT) {
+		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		cfc_handle_events(dev, s);
+		return IRQ_HANDLED;
+	}
+
 	adstat = inl(dev->iobase + PCI9118_AI_STATUS_REG) & 0x1ff;
 
 	if (!devpriv->ai_do)
@@ -893,9 +892,9 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 	}
 
 	if (devpriv->usedma)
-		interrupt_pci9118_ai_dma(dev, s, adstat, intcsr, intsrc);
+		interrupt_pci9118_ai_dma(dev, s, adstat, intsrc);
 	else
-		interrupt_pci9118_ai_onesample(dev, s, adstat, intcsr, intsrc);
+		interrupt_pci9118_ai_onesample(dev, s, adstat, intsrc);
 
 	return IRQ_HANDLED;
 }
