@@ -57,10 +57,6 @@
  * for each bank.. when in doubt, consult the TRM.
  */
 
-static struct irq_domain *domain;
-static void __iomem *omap_irq_base;
-static int omap_nr_irqs = 96;
-
 /* Structure to save interrupt controller context */
 struct omap_intc_regs {
 	u32 sysconfig;
@@ -70,6 +66,11 @@ struct omap_intc_regs {
 	u32 ilr[INTCPS_NR_ILR_REGS];
 	u32 mir[INTCPS_NR_MIR_REGS];
 };
+static struct omap_intc_regs intc_context;
+
+static struct irq_domain *domain;
+static void __iomem *omap_irq_base;
+static int omap_nr_irqs = 96;
 
 /* INTC bank register get/set */
 static void intc_writel(u32 reg, u32 val)
@@ -80,6 +81,61 @@ static void intc_writel(u32 reg, u32 val)
 static u32 intc_readl(u32 reg)
 {
 	return readl_relaxed(omap_irq_base + reg);
+}
+
+void omap_intc_save_context(void)
+{
+	int i;
+
+	intc_context.sysconfig =
+		intc_readl(INTC_SYSCONFIG);
+	intc_context.protection =
+		intc_readl(INTC_PROTECTION);
+	intc_context.idle =
+		intc_readl(INTC_IDLE);
+	intc_context.threshold =
+		intc_readl(INTC_THRESHOLD);
+
+	for (i = 0; i < omap_nr_irqs; i++)
+		intc_context.ilr[i] =
+			intc_readl((INTC_ILR0 + 0x4 * i));
+	for (i = 0; i < INTCPS_NR_MIR_REGS; i++)
+		intc_context.mir[i] =
+			intc_readl(INTC_MIR0 + (0x20 * i));
+}
+
+void omap_intc_restore_context(void)
+{
+	int i;
+
+	intc_writel(INTC_SYSCONFIG, intc_context.sysconfig);
+	intc_writel(INTC_PROTECTION, intc_context.protection);
+	intc_writel(INTC_IDLE, intc_context.idle);
+	intc_writel(INTC_THRESHOLD, intc_context.threshold);
+
+	for (i = 0; i < omap_nr_irqs; i++)
+		intc_writel(INTC_ILR0 + 0x4 * i,
+				intc_context.ilr[i]);
+
+	for (i = 0; i < INTCPS_NR_MIR_REGS; i++)
+		intc_writel(INTC_MIR0 + 0x20 * i,
+			intc_context.mir[i]);
+	/* MIRs are saved and restore with other PRCM registers */
+}
+
+void omap3_intc_prepare_idle(void)
+{
+	/*
+	 * Disable autoidle as it can stall interrupt controller,
+	 * cf. errata ID i540 for 3430 (all revisions up to 3.1.x)
+	 */
+	intc_writel(INTC_SYSCONFIG, 0);
+}
+
+void omap3_intc_resume_idle(void)
+{
+	/* Re-enable autoidle */
+	intc_writel(INTC_SYSCONFIG, 1);
 }
 
 /* XXX: FIQ and additional INTC support (only MPU at the moment) */
@@ -123,6 +179,12 @@ int omap_irq_pending(void)
 					((irq >> 5) << 5)))
 			return 1;
 	return 0;
+}
+
+void omap3_intc_suspend(void)
+{
+	/* A pending interrupt would prevent OMAP from entering suspend */
+	omap_ack_irq(NULL);
 }
 
 static __init void
@@ -263,69 +325,6 @@ static const struct of_device_id irq_match[] __initconst = {
 void __init omap_intc_of_init(void)
 {
 	of_irq_init(irq_match);
-}
-
-static struct omap_intc_regs intc_context;
-
-void omap_intc_save_context(void)
-{
-	int i;
-
-	intc_context.sysconfig =
-		intc_readl(INTC_SYSCONFIG);
-	intc_context.protection =
-		intc_readl(INTC_PROTECTION);
-	intc_context.idle =
-		intc_readl(INTC_IDLE);
-	intc_context.threshold =
-		intc_readl(INTC_THRESHOLD);
-
-	for (i = 0; i < omap_nr_irqs; i++)
-		intc_context.ilr[i] =
-			intc_readl((INTC_ILR0 + 0x4 * i));
-	for (i = 0; i < INTCPS_NR_MIR_REGS; i++)
-		intc_context.mir[i] =
-			intc_readl(INTC_MIR0 + (0x20 * i));
-}
-
-void omap_intc_restore_context(void)
-{
-	int i;
-
-	intc_writel(INTC_SYSCONFIG, intc_context.sysconfig);
-	intc_writel(INTC_PROTECTION, intc_context.protection);
-	intc_writel(INTC_IDLE, intc_context.idle);
-	intc_writel(INTC_THRESHOLD, intc_context.threshold);
-
-	for (i = 0; i < omap_nr_irqs; i++)
-		intc_writel(INTC_ILR0 + 0x4 * i,
-				intc_context.ilr[i]);
-
-	for (i = 0; i < INTCPS_NR_MIR_REGS; i++)
-		intc_writel(INTC_MIR0 + 0x20 * i,
-			intc_context.mir[i]);
-	/* MIRs are saved and restore with other PRCM registers */
-}
-
-void omap3_intc_suspend(void)
-{
-	/* A pending interrupt would prevent OMAP from entering suspend */
-	omap_ack_irq(NULL);
-}
-
-void omap3_intc_prepare_idle(void)
-{
-	/*
-	 * Disable autoidle as it can stall interrupt controller,
-	 * cf. errata ID i540 for 3430 (all revisions up to 3.1.x)
-	 */
-	intc_writel(INTC_SYSCONFIG, 0);
-}
-
-void omap3_intc_resume_idle(void)
-{
-	/* Re-enable autoidle */
-	intc_writel(INTC_SYSCONFIG, 1);
 }
 
 asmlinkage void __exception_irq_entry omap3_intc_handle_irq(struct pt_regs *regs)
