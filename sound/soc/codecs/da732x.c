@@ -35,7 +35,6 @@
 
 struct da732x_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
 
 	unsigned int sysclk;
 	bool pll_en;
@@ -1511,8 +1510,6 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 static int da732x_probe(struct snd_soc_codec *codec)
 {
 	struct da732x_priv *da732x = snd_soc_codec_get_drvdata(codec);
-
-	da732x->codec = codec;
 
 	da732x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
