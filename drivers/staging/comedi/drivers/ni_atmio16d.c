@@ -602,7 +602,7 @@ static int atmio16d_dio_insn_config(struct comedi_device *dev,
 static int atmio16d_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
-	const struct atmio16_board_t *board = comedi_board(dev);
+	const struct atmio16_board_t *board = dev->board_ptr;
 	struct atmio16d_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
