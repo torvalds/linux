@@ -39,6 +39,7 @@ static unsigned char last_char;
 static inline u_char get_last_char(void)
 {
 	u_char avail = inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR;
+
 	if (avail)
 		last_char = inb_p(speakup_info.port_tts + UART_RX);
 	return last_char;

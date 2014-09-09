@@ -174,6 +174,7 @@ static inline bool synth_full(void)
 static void spk_out(const char ch)
 {
 	int timeout = SPK_XMITR_TIMEOUT;
+
 	while (!synth_writable()) {
 		if (!--timeout)
 			break;
@@ -246,6 +247,7 @@ static void do_catch_up(struct spk_synth *synth)
 static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
+
 	while ((ch = (u_char)*buf)) {
 		if (synth_full())
 			return buf;
@@ -267,6 +269,7 @@ static void synth_flush(struct spk_synth *synth)
 static char synth_read_tts(void)
 {
 	u_char ch;
+
 	while (!synth_readable())
 		cpu_relax();
 	ch = synth_status & 0x7f;
@@ -283,6 +286,7 @@ static struct synth_settings *synth_interrogate(struct spk_synth *synth)
 	static char buf[sizeof(struct synth_settings) + 1];
 	int total, i;
 	static struct synth_settings status;
+
 	synth_immediate(synth, "\x18\x01?");
 	for (total = 0, i = 0; i < 50; i++) {
 		buf[total] = synth_read_tts();
@@ -324,6 +328,7 @@ static int synth_probe(struct spk_synth *synth)
 		unsigned int port_val = 0;
 	int i = 0;
 	struct synth_settings *sp;
+
 	pr_info("Probing for DoubleTalk.\n");
 	if (port_forced) {
 		speakup_info.port_tts = port_forced;

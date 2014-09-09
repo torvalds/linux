@@ -232,6 +232,7 @@ static ssize_t keymap_show(struct kobject *kobj, struct kobj_attribute *attr,
 	u_char *cp1;
 	u_char ch;
 	unsigned long flags;
+
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	cp1 = spk_key_buf + SHIFT_TBL_SIZE;
 	num_keys = (int)(*cp1);

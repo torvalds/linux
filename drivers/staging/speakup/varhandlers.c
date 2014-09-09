@@ -117,6 +117,7 @@ void speakup_register_var(struct var_t *var)
 void speakup_unregister_var(enum var_id_t var_id)
 {
 	struct st_var_header *p_header;
+
 	BUG_ON(var_id < 0 || var_id >= MAXVARS);
 	p_header = var_ptrs[var_id];
 	p_header->data = NULL;
@@ -125,6 +126,7 @@ void speakup_unregister_var(enum var_id_t var_id)
 struct st_var_header *spk_get_var_header(enum var_id_t var_id)
 {
 	struct st_var_header *p_header;
+
 	if (var_id < 0 || var_id >= MAXVARS)
 		return NULL;
 	p_header = var_ptrs[var_id];
@@ -271,6 +273,7 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 {
 	u_char *cp;
 	short mask = spk_punc_info[which].mask;
+
 	if (how&1) {
 		for (cp = (u_char *)spk_punc_info[3].value; *cp; cp++)
 			spk_chartab[*cp] &= ~mask;
@@ -307,6 +310,7 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 char *spk_strlwr(char *s)
 {
 	char *p;
+
 	if (s == NULL)
 		return NULL;
 
@@ -318,6 +322,7 @@ char *spk_strlwr(char *s)
 char *spk_s2uchar(char *start, char *dest)
 {
 	int val = 0;
+
 	val = simple_strtoul(skip_spaces(start), &start, 10);
 	if (*start == ',')
 		start++;
