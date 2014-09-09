@@ -441,13 +441,9 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	int event = 0;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	subpriv->active = true;
 
-	/* Set up end of acquisition. */
-	if (cmd->stop_src == TRIG_COUNT)
-		subpriv->stopcount = cmd->stop_arg;
-	else	/* TRIG_NONE */
-		subpriv->stopcount = 0;
+	subpriv->active = true;
+	subpriv->stopcount = cmd->stop_arg;
 
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = dio200_inttrig_start_intr;
