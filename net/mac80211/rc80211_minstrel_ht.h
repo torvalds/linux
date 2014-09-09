@@ -33,10 +33,9 @@ struct minstrel_mcs_group_data {
 	/* bitfield of supported MCS rates of this group */
 	u8 supported;
 
-	/* selected primary rates */
-	unsigned int max_tp_rate;
-	unsigned int max_tp_rate2;
-	unsigned int max_prob_rate;
+	/* sorted rate set within a MCS group*/
+	u8 max_group_tp_rate[MAX_THR_RATES];
+	u8 max_group_prob_rate;
 
 	/* MCS rate statistics */
 	struct minstrel_rate_stats rates[MCS_GROUP_RATES];
@@ -52,15 +51,9 @@ struct minstrel_ht_sta {
 	/* ampdu length (EWMA) */
 	unsigned int avg_ampdu_len;
 
-	/* best throughput rate */
-	unsigned int max_tp_rate;
-
-	/* second best throughput rate */
-	unsigned int max_tp_rate2;
-
-	/* best probability rate */
-	unsigned int max_prob_rate;
-	unsigned int max_prob_streams;
+	/* overall sorted rate set */
+	u8 max_tp_rate[MAX_THR_RATES];
+	u8 max_prob_rate;
 
 	/* time of last status update */
 	unsigned long stats_update;
