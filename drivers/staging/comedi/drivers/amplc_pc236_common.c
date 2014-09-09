@@ -29,7 +29,7 @@
 
 static void pc236_intr_update(struct comedi_device *dev, bool enable)
 {
-	const struct pc236_board *thisboard = comedi_board(dev);
+	const struct pc236_board *thisboard = dev->board_ptr;
 	struct pc236_private *devpriv = dev->private;
 	unsigned long flags;
 
@@ -49,7 +49,7 @@ static void pc236_intr_update(struct comedi_device *dev, bool enable)
  */
 static bool pc236_intr_check(struct comedi_device *dev)
 {
-	const struct pc236_board *thisboard = comedi_board(dev);
+	const struct pc236_board *thisboard = dev->board_ptr;
 	struct pc236_private *devpriv = dev->private;
 	bool retval = false;
 	unsigned long flags;
