@@ -360,10 +360,8 @@ static void mxt_debug_msg_enable(struct mxt_data *data)
 
 	data->debug_msg_data = kcalloc(DEBUG_MSG_MAX,
 				data->T5_msg_size, GFP_KERNEL);
-	if (!data->debug_msg_data) {
-		dev_err(&data->client->dev, "Failed to allocate buffer\n");
+	if (!data->debug_msg_data)
 		return;
-	}
 
 	data->debug_v2_enabled = true;
 	mutex_unlock(&data->debug_msg_lock);
