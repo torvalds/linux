@@ -991,7 +991,7 @@ int ll_inode_getattr(struct inode *inode, struct obdo *obdo,
 		CDEBUG(D_INODE, "objid "DOSTID" size %llu, blocks %llu,"
 		       " blksize %lu\n", POSTID(oi), i_size_read(inode),
 		       (unsigned long long)inode->i_blocks,
-		       (unsigned long)ll_inode_blksize(inode));
+		       1UL << inode->i_blkbits);
 	}
 	ccc_inode_lsm_put(inode, lsm);
 	return rc;

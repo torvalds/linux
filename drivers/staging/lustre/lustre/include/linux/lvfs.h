@@ -46,7 +46,6 @@
 #endif
 
 #include "lustre_compat25.h"
-#include "lustre_common.h"
 #include "lvfs_linux.h"
 
 #define LLOG_LVFS
