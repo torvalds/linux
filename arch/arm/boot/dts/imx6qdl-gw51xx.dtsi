@@ -12,8 +12,6 @@
 / {
 	/* these are used by bootloader for disabling nodes */
 	aliases {
-		can0 = &can1;
-		ethernet0 = &fec;
 		led0 = &led0;
 		led1 = &led1;
 		nand = &gpmi;

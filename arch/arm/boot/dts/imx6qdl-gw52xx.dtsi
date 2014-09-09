@@ -12,7 +12,6 @@
 / {
 	/* these are used by bootloader for disabling nodes */
 	aliases {
-		ethernet0 = &fec;
 		led0 = &led0;
 		led1 = &led1;
 		led2 = &led2;
@@ -20,7 +19,6 @@
 		ssi0 = &ssi1;
 		usb0 = &usbh1;
 		usb1 = &usbotg;
-		usdhc2 = &usdhc3;
 	};
 
 	chosen {

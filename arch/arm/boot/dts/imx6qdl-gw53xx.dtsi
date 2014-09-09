@@ -12,18 +12,14 @@
 / {
 	/* these are used by bootloader for disabling nodes */
 	aliases {
-		can0 = &can1;
-		ethernet0 = &fec;
 		ethernet1 = &eth1;
 		led0 = &led0;
 		led1 = &led1;
 		led2 = &led2;
 		nand = &gpmi;
-		sky2 = &eth1;
 		ssi0 = &ssi1;
 		usb0 = &usbh1;
 		usb1 = &usbotg;
-		usdhc2 = &usdhc3;
 	};
 
 	chosen {
