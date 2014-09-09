@@ -432,6 +432,24 @@
 			>;
 		};
 
+		pinctrl_uart5_1: uart5grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL1__UART5_TX_DATA	0x1b0b1
+				MX6QDL_PAD_KEY_ROW1__UART5_RX_DATA	0x1b0b1
+				MX6QDL_PAD_KEY_COL4__UART5_RTS_B	0x1b0b1
+				MX6QDL_PAD_KEY_ROW4__UART5_CTS_B	0x1b0b1
+			>;
+		};
+
+		pinctrl_uart5dte_1: uart5dtegrp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_ROW1__UART5_TX_DATA	0x1b0b1
+				MX6QDL_PAD_KEY_COL1__UART5_RX_DATA	0x1b0b1
+				MX6QDL_PAD_KEY_ROW4__UART5_RTS_B	0x1b0b1
+				MX6QDL_PAD_KEY_COL4__UART5_CTS_B	0x1b0b1
+			>;
+		};
+
 		pinctrl_usbotg: usbotggrp {
 			fsl,pins = <
 				MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID	0x17059
