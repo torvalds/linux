@@ -5,6 +5,7 @@
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/mmc/card.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -142,6 +143,8 @@ struct tmio_mmc_data {
 	/* clock management callbacks */
 	int (*clk_enable)(struct platform_device *pdev, unsigned int *f);
 	void (*clk_disable)(struct platform_device *pdev);
+	int (*multi_io_quirk)(struct mmc_card *card,
+			      unsigned int direction, int blk_size);
 };
 
 /*

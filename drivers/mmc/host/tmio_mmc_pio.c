@@ -970,12 +970,25 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 	return ret;
 }
 
+static int tmio_multi_io_quirk(struct mmc_card *card,
+			       unsigned int direction, int blk_size)
+{
+	struct tmio_mmc_host *host = mmc_priv(card->host);
+	struct tmio_mmc_data *pdata = host->pdata;
+
+	if (pdata->multi_io_quirk)
+		return pdata->multi_io_quirk(card, direction, blk_size);
+
+	return blk_size;
+}
+
 static const struct mmc_host_ops tmio_mmc_ops = {
 	.request	= tmio_mmc_request,
 	.set_ios	= tmio_mmc_set_ios,
 	.get_ro         = tmio_mmc_get_ro,
 	.get_cd		= mmc_gpio_get_cd,
 	.enable_sdio_irq = tmio_mmc_enable_sdio_irq,
+	.multi_io_quirk	= tmio_multi_io_quirk,
 };
 
 static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
