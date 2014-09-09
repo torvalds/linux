@@ -681,7 +681,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_cmd *cmd)
 {
-	const struct dt282x_board *board = comedi_board(dev);
+	const struct dt282x_board *board = dev->board_ptr;
 	struct dt282x_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
@@ -1149,7 +1149,7 @@ static int dt282x_initialize(struct comedi_device *dev)
  */
 static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct dt282x_board *board = comedi_board(dev);
+	const struct dt282x_board *board = dev->board_ptr;
 	struct dt282x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
