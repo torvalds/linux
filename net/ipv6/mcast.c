@@ -64,15 +64,6 @@
 
 #include <net/ip6_checksum.h>
 
-/* Set to 3 to get tracing... */
-#define MCAST_DEBUG 2
-
-#if MCAST_DEBUG >= 3
-#define MDBG(x) printk x
-#else
-#define MDBG(x)
-#endif
-
 /* Ensure that we have struct in6_addr aligned on 32bit word. */
 static void *__mld2_query_bugs[] __attribute__((__unused__)) = {
 	BUILD_BUG_ON_NULL(offsetof(struct mld2_query, mld2q_srcs) % 4),
