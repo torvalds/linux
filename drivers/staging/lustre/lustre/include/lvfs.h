@@ -42,6 +42,4 @@
 #include "../../include/linux/libcfs/libcfs.h"
 #include "linux/lvfs.h"
 
-#include "../../include/linux/libcfs/lucache.h"
-
 #endif
