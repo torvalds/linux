@@ -1521,7 +1521,7 @@ static void pci9118_free_dma(struct comedi_device *dev)
 static int pci9118_common_attach(struct comedi_device *dev,
 				 int ext_mux, int softsshdelay)
 {
-	const struct pci9118_boardinfo *board = comedi_board(dev);
+	const struct pci9118_boardinfo *board = dev->board_ptr;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci9118_private *devpriv;
 	struct comedi_subdevice *s;
