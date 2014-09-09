@@ -473,8 +473,6 @@ static void _nbu2ss_ep_in_end(
 
 		_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, EPn_AUTO);
 	}
-
-	return;
 }
 
 #ifdef USE_DMA
@@ -1398,8 +1396,6 @@ static void _nbu2ss_set_endpoint_stall(
 			}
 		}
 	}
-
-	return;
 }
 
 
@@ -2047,8 +2043,6 @@ static inline void _nbu2ss_epn_out_int(
 	result = _nbu2ss_epn_out_transfer(udc, ep, req);
 	if (result <= 0)
 		_nbu2ss_ep_done(ep, req, result);
-
-	return;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2086,8 +2080,6 @@ static inline void _nbu2ss_epn_in_dma_int(
 			_nbu2ss_epn_in_int(udc, ep, req);
 		}
 	}
-
-	return;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2208,8 +2200,6 @@ static void _nbu2ss_ep0_enable(struct nbu2ss_udc *udc)
 {
 	_nbu2ss_bitset(&udc->p_regs->EP0_CONTROL, (EP0_AUTO | EP0_BCLR));
 	_nbu2ss_writel(&udc->p_regs->EP0_INT_ENA, EP0_INT_EN_BIT);
-
-	return;
 }
 
 #if 0
@@ -2222,8 +2212,6 @@ static void _nbu2ss_ep0_disable(struct nbu2ss_udc *udc)
 			, (EP0_BCLR | EP0_INAK | EP0_ONAK | EP0_BCLR));
 
 	_nbu2ss_bitclr(&udc->p_regs->EP0_CONTROL, EP0_AUTO);
-
-	return;
 }
 #endif
 
@@ -2481,8 +2469,6 @@ static inline void _nbu2ss_check_vbus(struct nbu2ss_udc *udc)
 				_nbu2ss_pullup(udc, 1);
 		}
 	}
-
-	return;
 }
 
 /*-------------------------------------------------------------------------*/
