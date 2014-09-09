@@ -281,7 +281,7 @@ out:
 
 static unsigned int __init sclp_con_check_linemode(struct init_sccb *sccb)
 {
-	if (!(sccb->sclp_send_mask & (EVTYP_OPCMD_MASK | EVTYP_PMSGCMD_MASK)))
+	if (!(sccb->sclp_send_mask & EVTYP_OPCMD_MASK))
 		return 0;
 	if (!(sccb->sclp_receive_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
 		return 0;

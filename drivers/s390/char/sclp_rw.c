@@ -33,7 +33,7 @@ static void sclp_rw_pm_event(struct sclp_register *reg,
 
 /* Event type structure for write message and write priority message */
 static struct sclp_register sclp_rw_event = {
-	.send_mask = EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK,
+	.send_mask = EVTYP_MSG_MASK,
 	.pm_event_fn = sclp_rw_pm_event,
 };
 
@@ -456,14 +456,9 @@ sclp_emit_buffer(struct sclp_buffer *buffer,
 		return -EIO;
 
 	sccb = buffer->sccb;
-	if (sclp_rw_event.sclp_receive_mask & EVTYP_MSG_MASK)
-		/* Use normal write message */
-		sccb->msg_buf.header.type = EVTYP_MSG;
-	else if (sclp_rw_event.sclp_receive_mask & EVTYP_PMSGCMD_MASK)
-		/* Use write priority message */
-		sccb->msg_buf.header.type = EVTYP_PMSGCMD;
-	else
-		return -EOPNOTSUPP;
+	/* Use normal write message */
+	sccb->msg_buf.header.type = EVTYP_MSG;
+
 	buffer->request.command = SCLP_CMDW_WRITE_EVENT_DATA;
 	buffer->request.status = SCLP_REQ_FILLED;
 	buffer->request.callback = sclp_writedata_callback;
