@@ -1090,16 +1090,6 @@ static inline int obd_destroy_export(struct obd_export *exp)
 	return 0;
 }
 
-static inline struct dentry *
-obd_lvfs_fid2dentry(struct obd_export *exp, struct ost_id *oi, __u32 gen)
-{
-	struct lvfs_run_ctxt *ctxt = &exp->exp_obd->obd_lvfs_ctxt;
-	LASSERT(exp->exp_obd);
-
-	return ctxt->cb_ops.l_fid2dentry(ostid_id(oi), gen, ostid_seq(oi),
-					 exp->exp_obd);
-}
-
 /* @max_age is the oldest time in jiffies that we accept using a cached data.
  * If the cache is older than @max_age we will get a new value from the
  * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness. */

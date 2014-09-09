@@ -39,17 +39,9 @@
 #ifndef __LVFS_H__
 #define __LVFS_H__
 
-#define LL_FID_NAMELEN (16 + 1 + 8 + 1)
-
 #include "../../include/linux/libcfs/libcfs.h"
 #include "linux/lvfs.h"
 
 #include "../../include/linux/libcfs/lucache.h"
 
-
-/* lvfs_linux.c */
-void push_ctxt(struct lvfs_run_ctxt *save, struct lvfs_run_ctxt *new_ctx,
-	       struct lvfs_ucred *cred);
-void pop_ctxt(struct lvfs_run_ctxt *saved, struct lvfs_run_ctxt *new_ctx,
-	      struct lvfs_ucred *cred);
 #endif

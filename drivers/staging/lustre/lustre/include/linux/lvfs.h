@@ -50,86 +50,8 @@
 #include <linux/sched.h>
 #include "lustre_compat25.h"
 
-#define LLOG_LVFS
-
-/* simple.c */
-
-struct lvfs_ucred {
-	kuid_t		luc_uid;
-	kgid_t		luc_gid;
-	kuid_t		luc_fsuid;
-	kgid_t		luc_fsgid;
-	kernel_cap_t	luc_cap;
-	__u32		   luc_umask;
-	struct group_info      *luc_ginfo;
-	struct md_identity     *luc_identity;
-};
-
-struct lvfs_callback_ops {
-	struct dentry *(*l_fid2dentry)(__u64 id_ino, __u32 gen, __u64 gr, void *data);
-};
-
-#define OBD_RUN_CTXT_MAGIC      0xC0FFEEAA
-#define OBD_CTXT_DEBUG	  /* development-only debugging */
 struct lvfs_run_ctxt {
-	struct vfsmount	 *pwdmnt;
-	struct dentry	   *pwd;
-	mm_segment_t	     fs;
-	struct lvfs_ucred	luc;
-	int		      ngroups;
-	struct lvfs_callback_ops cb_ops;
-	struct group_info       *group_info;
 	struct dt_device	*dt;
-#ifdef OBD_CTXT_DEBUG
-	__u32		    magic;
-#endif
 };
-
-#ifdef OBD_CTXT_DEBUG
-#define OBD_SET_CTXT_MAGIC(ctxt) (ctxt)->magic = OBD_RUN_CTXT_MAGIC
-#else
-#define OBD_SET_CTXT_MAGIC(ctxt) do {} while (0)
-#endif
-
-
-int lustre_rename(struct dentry *dir, struct vfsmount *mnt, char *oldname,
-		  char *newname);
-
-static inline void l_dput(struct dentry *de)
-{
-	if (!de || IS_ERR(de))
-		return;
-	//shrink_dcache_parent(de);
-	LASSERT(d_count(de) > 0);
-	dput(de);
-}
-
-/* We need to hold the inode semaphore over the dcache lookup itself, or we
- * run the risk of entering the filesystem lookup path concurrently on SMP
- * systems, and instantiating two inodes for the same entry.  We still
- * protect against concurrent addition/removal races with the DLM locking.
- */
-static inline struct dentry *ll_lookup_one_len(const char *fid_name,
-					       struct dentry *dparent,
-					       int fid_namelen)
-{
-	struct dentry *dchild;
-
-	mutex_lock(&dparent->d_inode->i_mutex);
-	dchild = lookup_one_len(fid_name, dparent, fid_namelen);
-	mutex_unlock(&dparent->d_inode->i_mutex);
-
-	if (IS_ERR(dchild) || dchild->d_inode == NULL)
-		return dchild;
-
-	if (is_bad_inode(dchild->d_inode)) {
-		CERROR("bad inode returned %lu/%u\n",
-		       dchild->d_inode->i_ino, dchild->d_inode->i_generation);
-		dput(dchild);
-		dchild = ERR_PTR(-ENOENT);
-	}
-	return dchild;
-}
-
 
 #endif
