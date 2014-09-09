@@ -93,19 +93,6 @@ void kvm_clear_hyp_idmap(void);
 #define	kvm_set_pte(ptep, pte)		set_pte(ptep, pte)
 #define	kvm_set_pmd(pmdp, pmd)		set_pmd(pmdp, pmd)
 
-static inline bool kvm_is_write_fault(unsigned long esr)
-{
-	unsigned long esr_ec = esr >> ESR_EL2_EC_SHIFT;
-
-	if (esr_ec == ESR_EL2_EC_IABT)
-		return false;
-
-	if ((esr & ESR_EL2_ISV) && !(esr & ESR_EL2_WNR))
-		return false;
-
-	return true;
-}
-
 static inline void kvm_clean_pgd(pgd_t *pgd) {}
 static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}
 static inline void kvm_clean_pte(pte_t *pte) {}
