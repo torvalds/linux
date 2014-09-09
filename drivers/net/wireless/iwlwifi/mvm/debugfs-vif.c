@@ -74,8 +74,7 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 
 	switch (param) {
 	case MVM_DEBUGFS_PM_KEEP_ALIVE: {
-		struct ieee80211_hw *hw = mvm->hw;
-		int dtimper = hw->conf.ps_dtim_period ?: 1;
+		int dtimper = vif->bss_conf.dtim_period ?: 1;
 		int dtimper_msec = dtimper * vif->bss_conf.beacon_int;
 
 		IWL_DEBUG_POWER(mvm, "debugfs: set keep_alive= %d sec\n", val);
