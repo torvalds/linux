@@ -722,6 +722,8 @@ static const struct regmap_config fsl_asrc_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+#include "fsl_asrc_m2m.c"
+
 /**
  * Initialize ASRC registers with a default configurations
  */
@@ -922,6 +924,12 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = fsl_asrc_m2m_init(asrc_priv);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to init m2m device %d\n", ret);
+		return ret;
+	}
+
 	dev_info(&pdev->dev, "driver registered\n");
 
 	return 0;
@@ -959,6 +967,8 @@ static int fsl_asrc_runtime_suspend(struct device *dev)
 static int fsl_asrc_suspend(struct device *dev)
 {
 	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
+
+	fsl_asrc_m2m_suspend(asrc_priv);
 
 	regcache_cache_only(asrc_priv->regmap, true);
 	regcache_mark_dirty(asrc_priv->regmap);
@@ -1002,6 +1012,7 @@ MODULE_DEVICE_TABLE(of, fsl_asrc_ids);
 
 static struct platform_driver fsl_asrc_driver = {
 	.probe = fsl_asrc_probe,
+	.remove = fsl_asrc_m2m_remove,
 	.driver = {
 		.name = "fsl-asrc",
 		.of_match_table = fsl_asrc_ids,
