@@ -321,7 +321,7 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	/* int i; */
-	const struct dt2811_board *board = comedi_board(dev);
+	const struct dt2811_board *board = dev->board_ptr;
 	struct dt2811_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
