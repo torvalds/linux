@@ -255,7 +255,6 @@
 				reg = <0x2c14 0x14>;
 				clocks = <&chip CLKID_CFG>;
 				clock-names = "timer";
-				status = "disabled";
 			};
 
 			timer2: timer@2c28 {
