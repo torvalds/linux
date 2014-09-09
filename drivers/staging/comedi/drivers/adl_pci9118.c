@@ -1705,6 +1705,49 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 	return NULL;
 }
 
+static void pci9118_alloc_dma(struct comedi_device *dev)
+{
+	struct pci9118_private *devpriv = dev->private;
+	int pages;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		for (pages = 4; pages >= 0; pages--) {
+			devpriv->dmabuf_virt[i] =
+				(unsigned short *)__get_free_pages(GFP_KERNEL,
+								   pages);
+			if (devpriv->dmabuf_virt[i])
+				break;
+		}
+		if (devpriv->dmabuf_virt[i]) {
+			devpriv->dmabuf_pages[i] = pages;
+			devpriv->dmabuf_size[i] = PAGE_SIZE * pages;
+			devpriv->dmabuf_hw[i] = virt_to_bus((void *)
+						devpriv->dmabuf_virt[i]);
+		}
+	}
+
+	if (devpriv->dmabuf_virt[0])
+		devpriv->master = 1;
+	if (devpriv->dmabuf_virt[1])
+		devpriv->dma_doublebuf = 1;
+}
+
+static void pci9118_free_dma(struct comedi_device *dev)
+{
+	struct pci9118_private *devpriv = dev->private;
+
+	if (!devpriv)
+		return;
+
+	if (devpriv->dmabuf_virt[0])
+		free_pages((unsigned long)devpriv->dmabuf_virt[0],
+			   devpriv->dmabuf_pages[0]);
+	if (devpriv->dmabuf_virt[1])
+		free_pages((unsigned long)devpriv->dmabuf_virt[1],
+			   devpriv->dmabuf_pages[1]);
+}
+
 static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 				 int master, int ext_mux, int softsshdelay,
 				 int hw_err_mask)
@@ -1713,7 +1756,8 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci9118_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, pages, i;
+	int ret;
+	int i;
 	u16 u16w;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -1731,33 +1775,8 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 
 	pci9118_reset(dev);
 
-	if (master) {		/* alloc DMA buffers */
-		devpriv->dma_doublebuf = 0;
-		for (i = 0; i < 2; i++) {
-			for (pages = 4; pages >= 0; pages--) {
-				devpriv->dmabuf_virt[i] =
-				    (unsigned short *)
-				    __get_free_pages(GFP_KERNEL, pages);
-				if (devpriv->dmabuf_virt[i])
-					break;
-			}
-			if (devpriv->dmabuf_virt[i]) {
-				devpriv->dmabuf_pages[i] = pages;
-				devpriv->dmabuf_size[i] = PAGE_SIZE * pages;
-				devpriv->dmabuf_hw[i] =
-				    virt_to_bus((void *)
-						devpriv->dmabuf_virt[i]);
-			}
-		}
-		if (!devpriv->dmabuf_virt[0]) {
-			dev_warn(dev->class_dev,
-				 "Can't allocate DMA buffer, DMA disabled!\n");
-			master = 0;
-		}
-		if (devpriv->dmabuf_virt[1])
-			devpriv->dma_doublebuf = 1;
-	}
-	devpriv->master = master;
+	if (master)
+		pci9118_alloc_dma(dev);
 
 	if (ext_mux > 0) {
 		if (ext_mux > 256)
@@ -1923,19 +1942,11 @@ static int pci9118_auto_attach(struct comedi_device *dev,
 static void pci9118_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct pci9118_private *devpriv = dev->private;
 
 	if (dev->iobase)
 		pci9118_reset(dev);
 	comedi_pci_detach(dev);
-	if (devpriv) {
-		if (devpriv->dmabuf_virt[0])
-			free_pages((unsigned long)devpriv->dmabuf_virt[0],
-				   devpriv->dmabuf_pages[0]);
-		if (devpriv->dmabuf_virt[1])
-			free_pages((unsigned long)devpriv->dmabuf_virt[1],
-				   devpriv->dmabuf_pages[1]);
-	}
+	pci9118_free_dma(dev);
 	if (pcidev)
 		pci_dev_put(pcidev);
 }
