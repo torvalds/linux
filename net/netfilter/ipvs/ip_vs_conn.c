@@ -616,7 +616,13 @@ void ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	struct ip_vs_dest *dest;
 
 	rcu_read_lock();
-	dest = ip_vs_find_dest(ip_vs_conn_net(cp), cp->af, &cp->daddr,
+
+	/* This function is only invoked by the synchronization code. We do
+	 * not currently support heterogeneous pools with synchronization,
+	 * so we can make the assumption that the svc_af is the same as the
+	 * dest_af
+	 */
+	dest = ip_vs_find_dest(ip_vs_conn_net(cp), cp->af, cp->af, &cp->daddr,
 			       cp->dport, &cp->vaddr, cp->vport,
 			       cp->protocol, cp->fwmark, cp->flags);
 	if (dest) {

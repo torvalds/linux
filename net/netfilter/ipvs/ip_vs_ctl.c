@@ -574,8 +574,8 @@ bool ip_vs_has_real_service(struct net *net, int af, __u16 protocol,
  * Called under RCU lock.
  */
 static struct ip_vs_dest *
-ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
-		  __be16 dport)
+ip_vs_lookup_dest(struct ip_vs_service *svc, int dest_af,
+		  const union nf_inet_addr *daddr, __be16 dport)
 {
 	struct ip_vs_dest *dest;
 
@@ -583,9 +583,9 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 	 * Find the destination for the given service
 	 */
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
-		if ((dest->af == svc->af)
-		    && ip_vs_addr_equal(svc->af, &dest->addr, daddr)
-		    && (dest->port == dport)) {
+		if ((dest->af == dest_af) &&
+		    ip_vs_addr_equal(dest_af, &dest->addr, daddr) &&
+		    (dest->port == dport)) {
 			/* HIT */
 			return dest;
 		}
@@ -602,7 +602,7 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
  * on the backup.
  * Called under RCU lock, no refcnt is returned.
  */
-struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
+struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int svc_af, int dest_af,
 				   const union nf_inet_addr *daddr,
 				   __be16 dport,
 				   const union nf_inet_addr *vaddr,
@@ -613,14 +613,14 @@ struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 	struct ip_vs_service *svc;
 	__be16 port = dport;
 
-	svc = ip_vs_service_find(net, af, fwmark, protocol, vaddr, vport);
+	svc = ip_vs_service_find(net, svc_af, fwmark, protocol, vaddr, vport);
 	if (!svc)
 		return NULL;
 	if (fwmark && (flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ)
 		port = 0;
-	dest = ip_vs_lookup_dest(svc, daddr, port);
+	dest = ip_vs_lookup_dest(svc, dest_af, daddr, port);
 	if (!dest)
-		dest = ip_vs_lookup_dest(svc, daddr, port ^ dport);
+		dest = ip_vs_lookup_dest(svc, dest_af, daddr, port ^ dport);
 	return dest;
 }
 
@@ -938,7 +938,7 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	/* We use function that requires RCU lock */
 	rcu_read_lock();
-	dest = ip_vs_lookup_dest(svc, &daddr, dport);
+	dest = ip_vs_lookup_dest(svc, udest->af, &daddr, dport);
 	rcu_read_unlock();
 
 	if (dest != NULL) {
@@ -1002,7 +1002,7 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	/* We use function that requires RCU lock */
 	rcu_read_lock();
-	dest = ip_vs_lookup_dest(svc, &daddr, dport);
+	dest = ip_vs_lookup_dest(svc, udest->af, &daddr, dport);
 	rcu_read_unlock();
 
 	if (dest == NULL) {
@@ -1084,7 +1084,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	/* We use function that requires RCU lock */
 	rcu_read_lock();
-	dest = ip_vs_lookup_dest(svc, &udest->addr, dport);
+	dest = ip_vs_lookup_dest(svc, udest->af, &udest->addr, dport);
 	rcu_read_unlock();
 
 	if (dest == NULL) {

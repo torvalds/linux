@@ -1399,8 +1399,9 @@ void ip_vs_unregister_nl_ioctl(void);
 int ip_vs_control_init(void);
 void ip_vs_control_cleanup(void);
 struct ip_vs_dest *
-ip_vs_find_dest(struct net *net, int af, const union nf_inet_addr *daddr,
-		__be16 dport, const union nf_inet_addr *vaddr, __be16 vport,
+ip_vs_find_dest(struct net *net, int svc_af, int dest_af,
+		const union nf_inet_addr *daddr, __be16 dport,
+		const union nf_inet_addr *vaddr, __be16 vport,
 		__u16 protocol, __u32 fwmark, __u32 flags);
 void ip_vs_try_bind_dest(struct ip_vs_conn *cp);
 
