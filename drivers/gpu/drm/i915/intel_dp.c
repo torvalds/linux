@@ -1068,23 +1068,15 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			bpp = dev_priv->vbt.edp_bpp;
 		}
 
-		if (IS_BROADWELL(dev)) {
-			/* Yes, it's an ugly hack. */
-			min_lane_count = max_lane_count;
-			DRM_DEBUG_KMS("forcing lane count to max (%u) on BDW\n",
-				      min_lane_count);
-		} else if (dev_priv->vbt.edp_lanes) {
-			min_lane_count = min(dev_priv->vbt.edp_lanes,
-					     max_lane_count);
-			DRM_DEBUG_KMS("using min %u lanes per VBT\n",
-				      min_lane_count);
-		}
-
-		if (dev_priv->vbt.edp_rate) {
-			min_clock = min(dev_priv->vbt.edp_rate >> 3, max_clock);
-			DRM_DEBUG_KMS("using min %02x link bw per VBT\n",
-				      bws[min_clock]);
-		}
+		/*
+		 * Use the maximum clock and number of lanes the eDP panel
+		 * advertizes being capable of. The panels are generally
+		 * designed to support only a single clock and lane
+		 * configuration, and typically these values correspond to the
+		 * native resolution of the panel.
+		 */
+		min_lane_count = max_lane_count;
+		min_clock = max_clock;
 	}
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
