@@ -460,7 +460,7 @@ xfs_rtmodify_summary_int(
 	/*
 	 * If we have an old buffer, and the block number matches, use that.
 	 */
-	if (rbpp && *rbpp && *rsb == sb)
+	if (*rbpp && *rsb == sb)
 		bp = *rbpp;
 	/*
 	 * Otherwise we have to get the buffer.
@@ -469,7 +469,7 @@ xfs_rtmodify_summary_int(
 		/*
 		 * If there was an old one, get rid of it first.
 		 */
-		if (rbpp && *rbpp)
+		if (*rbpp)
 			xfs_trans_brelse(tp, *rbpp);
 		error = xfs_rtbuf_get(mp, tp, sb, 1, &bp);
 		if (error) {
@@ -478,10 +478,8 @@ xfs_rtmodify_summary_int(
 		/*
 		 * Remember this buffer and block for the next call.
 		 */
-		if (rbpp) {
-			*rbpp = bp;
-			*rsb = sb;
-		}
+		*rbpp = bp;
+		*rsb = sb;
 	}
 	/*
 	 * Point to the summary information, modify/log it, and/or copy it out.
@@ -493,14 +491,8 @@ xfs_rtmodify_summary_int(
 		*sp += delta;
 		xfs_trans_log_buf(tp, bp, first, first + sizeof(*sp) - 1);
 	}
-	if (sum) {
-		/*
-		 * Drop the buffer if we're not asked to remember it.
-		 */
-		if (!rbpp)
-			xfs_trans_brelse(tp, bp);
+	if (sum)
 		*sum = *sp;
-	}
 	return 0;
 }
 
