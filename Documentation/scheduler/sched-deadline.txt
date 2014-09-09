@@ -15,6 +15,7 @@ CONTENTS
  5. Tasks CPU affinity
    5.1 SCHED_DEADLINE and cpusets HOWTO
  6. Future plans
+ A. Test suite
 
 
 0. WARNING
@@ -345,3 +346,54 @@ CONTENTS
  throttling patches [https://lkml.org/lkml/2010/2/23/239] but we still are in
  the preliminary phases of the merge and we really seek feedback that would
  help us decide on the direction it should take.
+
+Appendix A. Test suite
+======================
+
+ The SCHED_DEADLINE policy can be easily tested using two applications that
+ are part of a wider Linux Scheduler validation suite. The suite is
+ available as a GitHub repository: https://github.com/scheduler-tools.
+
+ The first testing application is called rt-app and can be used to
+ start multiple threads with specific parameters. rt-app supports
+ SCHED_{OTHER,FIFO,RR,DEADLINE} scheduling policies and their related
+ parameters (e.g., niceness, priority, runtime/deadline/period). rt-app
+ is a valuable tool, as it can be used to synthetically recreate certain
+ workloads (maybe mimicking real use-cases) and evaluate how the scheduler
+ behaves under such workloads. In this way, results are easily reproducible.
+ rt-app is available at: https://github.com/scheduler-tools/rt-app.
+
+ Thread parameters can be specified from the command line, with something like
+ this:
+
+  # rt-app -t 100000:10000:d -t 150000:20000:f:10 -D5
+
+ The above creates 2 threads. The first one, scheduled by SCHED_DEADLINE,
+ executes for 10ms every 100ms. The second one, scheduled at SCHED_FIFO
+ priority 10, executes for 20ms every 150ms. The test will run for a total
+ of 5 seconds.
+
+ More interestingly, configurations can be described with a json file that
+ can be passed as input to rt-app with something like this:
+
+  # rt-app my_config.json
+
+ The parameters that can be specified with the second method are a superset
+ of the command line options. Please refer to rt-app documentation for more
+ details (<rt-app-sources>/doc/*.json).
+
+ The second testing application is a modification of schedtool, called
+ schedtool-dl, which can be used to setup SCHED_DEADLINE parameters for a
+ certain pid/application. schedtool-dl is available at:
+ https://github.com/scheduler-tools/schedtool-dl.git.
+
+ The usage is straightforward:
+
+  # schedtool -E -t 10000000:100000000 -e ./my_cpuhog_app
+
+ With this, my_cpuhog_app is put to run inside a SCHED_DEADLINE reservation
+ of 10ms every 100ms (note that parameters are expressed in microseconds).
+ You can also use schedtool to create a reservation for an already running
+ application, given that you know its pid:
+
+  # schedtool -E -t 10000000:100000000 my_app_pid
