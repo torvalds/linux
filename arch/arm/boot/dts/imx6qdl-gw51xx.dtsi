@@ -143,11 +143,6 @@
 		#gpio-cells = <2>;
 	};
 
-	hwmon: gsc@29 {
-		compatible = "gw,gsp";
-		reg = <0x29>;
-	};
-
 	rtc: ds1672@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
@@ -159,53 +154,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
-
-	pmic: ltc3676@3c {
-		compatible = "lltc,ltc3676";
-		reg = <0x3c>;
-
-		regulators {
-			sw1_reg: ltc3676__sw1 {
-				regulator-min-microvolt = <1175000>;
-				regulator-max-microvolt = <1175000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			sw2_reg: ltc3676__sw2 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			sw3_reg: ltc3676__sw3 {
-				regulator-min-microvolt = <1175000>;
-				regulator-max-microvolt = <1175000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			sw4_reg: ltc3676__sw4 {
-				regulator-min-microvolt = <1500000>;
-				regulator-max-microvolt = <1500000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			ldo2_reg: ltc3676__ldo2 {
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2500000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			ldo4_reg: ltc3676__ldo4 {
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-			};
-		};
-	};
 };
 
 &i2c3 {
@@ -213,11 +161,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
-
-	videoin: adv7180@20 {
-		compatible = "adi,adv7180";
-		reg = <0x20>;
-	};
 };
 
 &iomuxc {

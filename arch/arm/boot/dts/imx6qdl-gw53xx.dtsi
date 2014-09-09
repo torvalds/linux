@@ -206,11 +206,6 @@
 		#gpio-cells = <2>;
 	};
 
-	hwmon: gsc@29 {
-		compatible = "gw,gsp";
-		reg = <0x29>;
-	};
-
 	rtc: ds1672@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
@@ -222,77 +217,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
-
-	pciclkgen: si53156@6b {
-		compatible = "sil,si53156";
-		reg = <0x6b>;
-	};
-
-	pciswitch: pex8606@3f {
-		compatible = "plx,pex8606";
-		reg = <0x3f>;
-	};
-
-	pmic: ltc3676@3c {
-		compatible = "lltc,ltc3676";
-		reg = <0x3c>;
-
-		regulators {
-			/* VDD_SOC */
-			sw1_reg: ltc3676__sw1 {
-				regulator-min-microvolt = <1175000>;
-				regulator-max-microvolt = <1175000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			/* VDD_1P8 */
-			sw2_reg: ltc3676__sw2 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			/* VDD_ARM */
-			sw3_reg: ltc3676__sw3 {
-				regulator-min-microvolt = <1175000>;
-				regulator-max-microvolt = <1175000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			/* VDD_DDR */
-			sw4_reg: ltc3676__sw4 {
-				regulator-min-microvolt = <1500000>;
-				regulator-max-microvolt = <1500000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			/* VDD_2P5 */
-			ldo2_reg: ltc3676__ldo2 {
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2500000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			/* VDD_1P8 */
-			ldo3_reg: ltc3676__ldo3 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			/* VDD_HIGH */
-			ldo4_reg: ltc3676__ldo4 {
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-			};
-		};
-	};
 };
 
 &i2c3 {
@@ -300,11 +224,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
-
-	accelerometer: fxos8700@1e {
-		compatible = "fsl,fxos8700";
-		reg = <0x1e>;
-	};
 
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
@@ -314,27 +233,12 @@
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
-	hdmiin: adv7611@4c {
-		compatible = "adi,adv7611";
-		reg = <0x4c>;
-	};
-
 	touchscreen: egalax_ts@04 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <11 2>; /* gpio1_11 active low */
 		wakeup-gpios = <&gpio1 11 0>;
-	};
-
-	videoout: adv7393@2a {
-		compatible = "adi,adv7393";
-		reg = <0x2a>;
-	};
-
-	videoin: adv7180@20 {
-		compatible = "adi,adv7180";
-		reg = <0x20>;
 	};
 };
 

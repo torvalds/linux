@@ -199,11 +199,6 @@
 		#gpio-cells = <2>;
 	};
 
-	hwmon: gsc@29 {
-		compatible = "gw,gsp";
-		reg = <0x29>;
-	};
-
 	rtc: ds1672@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
@@ -314,16 +309,6 @@
 			};
 		};
 	};
-
-	pciswitch: pex8609@3f {
-		compatible = "plx,pex8609";
-		reg = <0x3f>;
-	};
-
-	pciclkgen: si52147@6b {
-		compatible = "sil,si52147";
-		reg = <0x6b>;
-	};
 };
 
 &i2c3 {
@@ -345,27 +330,12 @@
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
-	hdmiin: adv7611@4c {
-		compatible = "adi,adv7611";
-		reg = <0x4c>;
-	};
-
 	touchscreen: egalax_ts@04 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio7>;
 		interrupts = <12 2>; /* gpio7_12 active low */
 		wakeup-gpios = <&gpio7 12 0>;
-	};
-
-	videoout: adv7393@2a {
-		compatible = "adi,adv7393";
-		reg = <0x2a>;
-	};
-
-	videoin: adv7180@20 {
-		compatible = "adi,adv7180";
-		reg = <0x20>;
 	};
 };
 
