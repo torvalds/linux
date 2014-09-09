@@ -972,7 +972,7 @@ static struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp)
 	int err;
 
 	fp->bpf_func = NULL;
-	fp->jited = 0;
+	fp->jited = false;
 
 	err = bpf_check_classic(fp->insns, fp->len);
 	if (err) {

@@ -20,9 +20,12 @@
  * Andi Kleen - Fix a few bad bugs and races.
  * Kris Katterjohn - Added many additional checks in bpf_check_classic()
  */
+
 #include <linux/filter.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
+#include <linux/random.h>
+#include <linux/moduleloader.h>
 #include <asm/unaligned.h>
 
 /* Registers */
@@ -124,6 +127,42 @@ void __bpf_prog_free(struct bpf_prog *fp)
 	vfree(fp);
 }
 EXPORT_SYMBOL_GPL(__bpf_prog_free);
+
+struct bpf_binary_header *
+bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
+		     unsigned int alignment,
+		     bpf_jit_fill_hole_t bpf_fill_ill_insns)
+{
+	struct bpf_binary_header *hdr;
+	unsigned int size, hole, start;
+
+	/* Most of BPF filters are really small, but if some of them
+	 * fill a page, allow at least 128 extra bytes to insert a
+	 * random section of illegal instructions.
+	 */
+	size = round_up(proglen + sizeof(*hdr) + 128, PAGE_SIZE);
+	hdr = module_alloc(size);
+	if (hdr == NULL)
+		return NULL;
+
+	/* Fill space with illegal/arch-dep instructions. */
+	bpf_fill_ill_insns(hdr, size);
+
+	hdr->pages = size / PAGE_SIZE;
+	hole = min_t(unsigned int, size - (proglen + sizeof(*hdr)),
+		     PAGE_SIZE - sizeof(*hdr));
+	start = (prandom_u32() % hole) & ~(alignment - 1);
+
+	/* Leave a random number of instructions before BPF code. */
+	*image_ptr = &hdr->image[start];
+
+	return hdr;
+}
+
+void bpf_jit_binary_free(struct bpf_binary_header *hdr)
+{
+	module_free(NULL, hdr);
+}
 
 /* Base function for offset calculation. Needs to go into .text section,
  * therefore keeping it non-static as well; will also be used by JITs

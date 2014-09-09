@@ -8,12 +8,10 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  */
-#include <linux/moduleloader.h>
-#include <asm/cacheflush.h>
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
-#include <linux/random.h>
+#include <asm/cacheflush.h>
 
 int bpf_jit_enable __read_mostly;
 
@@ -109,39 +107,6 @@ static inline void bpf_flush_icache(void *start, void *end)
 #define CHOOSE_LOAD_FUNC(K, func) \
 	((int)K < 0 ? ((int)K >= SKF_LL_OFF ? func##_negative_offset : func) : func##_positive_offset)
 
-struct bpf_binary_header {
-	unsigned int	pages;
-	/* Note : for security reasons, bpf code will follow a randomly
-	 * sized amount of int3 instructions
-	 */
-	u8		image[];
-};
-
-static struct bpf_binary_header *bpf_alloc_binary(unsigned int proglen,
-						  u8 **image_ptr)
-{
-	unsigned int sz, hole;
-	struct bpf_binary_header *header;
-
-	/* Most of BPF filters are really small,
-	 * but if some of them fill a page, allow at least
-	 * 128 extra bytes to insert a random section of int3
-	 */
-	sz = round_up(proglen + sizeof(*header) + 128, PAGE_SIZE);
-	header = module_alloc(sz);
-	if (!header)
-		return NULL;
-
-	memset(header, 0xcc, sz); /* fill whole space with int3 instructions */
-
-	header->pages = sz / PAGE_SIZE;
-	hole = min(sz - (proglen + sizeof(*header)), PAGE_SIZE - sizeof(*header));
-
-	/* insert a random number of int3 instructions before BPF code */
-	*image_ptr = &header->image[prandom_u32() % hole];
-	return header;
-}
-
 /* pick a register outside of BPF range for JIT internal work */
 #define AUX_REG (MAX_BPF_REG + 1)
 
@@ -204,6 +169,12 @@ static inline u8 add_1reg(u8 byte, u32 dst_reg)
 static inline u8 add_2reg(u8 byte, u32 dst_reg, u32 src_reg)
 {
 	return byte + reg2hex[dst_reg] + (reg2hex[src_reg] << 3);
+}
+
+static void jit_fill_hole(void *area, unsigned int size)
+{
+	/* fill whole space with int3 instructions */
+	memset(area, 0xcc, size);
 }
 
 struct jit_context {
@@ -959,7 +930,7 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		if (proglen <= 0) {
 			image = NULL;
 			if (header)
-				module_free(NULL, header);
+				bpf_jit_binary_free(header);
 			goto out;
 		}
 		if (image) {
@@ -969,7 +940,8 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 			break;
 		}
 		if (proglen == oldproglen) {
-			header = bpf_alloc_binary(proglen, &image);
+			header = bpf_jit_binary_alloc(proglen, &image,
+						      1, jit_fill_hole);
 			if (!header)
 				goto out;
 		}
@@ -983,7 +955,7 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		bpf_flush_icache(header, image + proglen);
 		set_memory_ro((unsigned long)header, header->pages);
 		prog->bpf_func = (void *)image;
-		prog->jited = 1;
+		prog->jited = true;
 	}
 out:
 	kfree(addrs);
@@ -998,7 +970,7 @@ void bpf_jit_free(struct bpf_prog *fp)
 		goto free_filter;
 
 	set_memory_rw(addr, header->pages);
-	module_free(NULL, header);
+	bpf_jit_binary_free(header);
 
 free_filter:
 	bpf_prog_unlock_free(fp);
