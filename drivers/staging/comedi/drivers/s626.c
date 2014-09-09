@@ -2102,16 +2102,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	}
 
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		/* data arrives as one packet */
-		devpriv->ai_sample_count = cmd->stop_arg;
-		break;
-	case TRIG_NONE:
-		/* continuous acquisition */
-		devpriv->ai_sample_count = 1;
-		break;
-	}
+	devpriv->ai_sample_count = cmd->stop_arg;
 
 	s626_reset_adc(dev, ppl);
 
