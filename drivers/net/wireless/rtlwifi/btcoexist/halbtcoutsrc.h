@@ -359,7 +359,7 @@ typedef u16 (*bfp_btc_r2)(void *btc_context, u32 reg_addr);
 
 typedef u32 (*bfp_btc_r4)(void *btc_context, u32 reg_addr);
 
-typedef void (*bfp_btc_w1)(void *btc_context, u32 reg_addr, u8 data);
+typedef void (*bfp_btc_w1)(void *btc_context, u32 reg_addr, u32 data);
 
 typedef void (*bfp_btc_w1_bit_mak)(void *btc_context, u32 reg_addr,
 				   u8 bit_mask, u8 data1b);
