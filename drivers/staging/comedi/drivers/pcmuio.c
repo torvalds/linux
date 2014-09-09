@@ -279,7 +279,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 
 static void pcmuio_reset(struct comedi_device *dev)
 {
-	const struct pcmuio_board *board = comedi_board(dev);
+	const struct pcmuio_board *board = dev->board_ptr;
 	int asic;
 
 	for (asic = 0; asic < board->num_asics; ++asic) {
@@ -587,7 +587,7 @@ static int pcmuio_cmdtest(struct comedi_device *dev,
 
 static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcmuio_board *board = comedi_board(dev);
+	const struct pcmuio_board *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	struct pcmuio_private *devpriv;
 	int ret;
