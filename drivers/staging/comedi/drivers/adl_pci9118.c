@@ -204,6 +204,14 @@ static const struct pci9118_boardinfo pci9118_boards[] = {
 	},
 };
 
+struct pci9118_dmabuf {
+	unsigned short *virt;	/* virtual address of buffer */
+	unsigned long hw;	/* hardware (bus) address of buffer */
+	unsigned int size;	/* size of dma buffer in bytes */
+	unsigned int use_size;	/* which size we may now use for transfer */
+	int pages;		/* number of pages in buffer */
+};
+
 struct pci9118_private {
 	unsigned long iobase_a;	/* base+size for AMCC chip */
 	unsigned int master:1;
@@ -239,19 +247,7 @@ struct pci9118_private {
 						 * on external start
 						 */
 	unsigned int dma_actbuf;		/* which buffer is used now */
-	unsigned short *dmabuf_virt[2];		/*
-						 * pointers to begin of
-						 * DMA buffer
-						 */
-	unsigned long dmabuf_hw[2];		/* hw address of DMA buff */
-	unsigned int dmabuf_size[2];		/*
-						 * size of dma buffer in bytes
-						 */
-	unsigned int dmabuf_use_size[2];	/*
-						 * which size we may now use
-						 * for transfer
-						 */
-	int dmabuf_pages[2];			/* number of pages in buffer */
+	struct pci9118_dmabuf dmabuf[2];
 	unsigned char exttrg_users;		/*
 						 * bit field of external trigger
 						 * users(0-AI, 1-AO, 2-DI, 3-DO)
@@ -274,11 +270,11 @@ struct pci9118_private {
 static void pci9118_amcc_setup_dma(struct comedi_device *dev, unsigned int buf)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[buf];
 
 	/* set the master write address and transfer count */
-	outl(devpriv->dmabuf_hw[buf], devpriv->iobase_a + AMCC_OP_REG_MWAR);
-	outl(devpriv->dmabuf_use_size[buf],
-	     devpriv->iobase_a + AMCC_OP_REG_MWTC);
+	outl(dmabuf->hw, devpriv->iobase_a + AMCC_OP_REG_MWAR);
+	outl(dmabuf->use_size, devpriv->iobase_a + AMCC_OP_REG_MWTC);
 }
 
 static void pci9118_amcc_dma_ena(struct comedi_device *dev, bool enable)
@@ -456,13 +452,15 @@ static int setup_channel_list(struct comedi_device *dev,
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct pci9118_dmabuf *dmabuf;
+
+	dmabuf = &devpriv->dmabuf[1 - devpriv->dma_actbuf];
 
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG |
 			  PCI9118_AI_CFG_AM;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
-	pci9118_timer_write(dev, 0,
-			    devpriv->dmabuf_hw[1 - devpriv->dma_actbuf] >> 1);
+	pci9118_timer_write(dev, 0, dmabuf->hw >> 1);
 	devpriv->ai_cfg |= PCI9118_AI_CFG_START;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 }
@@ -689,10 +687,10 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[devpriv->dma_actbuf];
 	unsigned int next_dma_buf, samplesinbuf, sampls, m;
 
-	samplesinbuf = devpriv->dmabuf_use_size[devpriv->dma_actbuf] >> 1;
-					/* number of received real samples */
+	samplesinbuf = dmabuf->use_size >> 1;	/* number of received samples */
 
 	if (devpriv->dma_doublebuf) {	/*
 					 * switch DMA buffers if is used
@@ -708,9 +706,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		/* how many samples is to end of buffer */
 		m = s->async->prealloc_bufsz >> 1;
 		sampls = m;
-		move_block_from_dma(dev, s,
-				    devpriv->dmabuf_virt[devpriv->dma_actbuf],
-				    samplesinbuf);
+		move_block_from_dma(dev, s, dmabuf->virt, samplesinbuf);
 		m = m - sampls;		/* m=how many samples was transferred */
 	}
 
@@ -1016,10 +1012,12 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	struct pci9118_dmabuf *dmabuf0 = &devpriv->dmabuf[0];
+	struct pci9118_dmabuf *dmabuf1 = &devpriv->dmabuf[1];
 	unsigned int dmalen0, dmalen1, i;
 
-	dmalen0 = devpriv->dmabuf_size[0];
-	dmalen1 = devpriv->dmabuf_size[1];
+	dmalen0 = dmabuf0->size;
+	dmalen1 = dmabuf1->size;
 	/* isn't output buff smaller that our DMA buff? */
 	if (dmalen0 > s->async->prealloc_bufsz) {
 		/* align to 32bit down */
@@ -1115,8 +1113,8 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 
 	/* these DMA buffer size will be used */
 	devpriv->dma_actbuf = 0;
-	devpriv->dmabuf_use_size[0] = dmalen0;
-	devpriv->dmabuf_use_size[1] = dmalen1;
+	dmabuf0->use_size = dmalen0;
+	dmabuf1->use_size = dmalen1;
 
 	pci9118_amcc_dma_ena(dev, false);
 	pci9118_amcc_setup_dma(dev, 0);
@@ -1184,6 +1182,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[0];
 
 	Compute_and_setup_dma(dev, s);
 
@@ -1218,7 +1217,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 				  PCI9118_AI_CFG_AM;
 		outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 		pci9118_timer_set_mode(dev, 0, I8254_MODE0);
-		pci9118_timer_write(dev, 0, devpriv->dmabuf_hw[0] >> 1);
+		pci9118_timer_write(dev, 0, dmabuf->hw >> 1);
 		devpriv->ai_cfg |= PCI9118_AI_CFG_START;
 		break;
 	default:
@@ -1610,44 +1609,45 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 static void pci9118_alloc_dma(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct pci9118_dmabuf *dmabuf;
 	int pages;
 	int i;
 
 	for (i = 0; i < 2; i++) {
+		dmabuf = &devpriv->dmabuf[i];
 		for (pages = 4; pages >= 0; pages--) {
-			devpriv->dmabuf_virt[i] =
-				(unsigned short *)__get_free_pages(GFP_KERNEL,
-								   pages);
-			if (devpriv->dmabuf_virt[i])
+			dmabuf->virt = (unsigned short *)
+					__get_free_pages(GFP_KERNEL, pages);
+			if (dmabuf->virt)
 				break;
 		}
-		if (devpriv->dmabuf_virt[i]) {
-			devpriv->dmabuf_pages[i] = pages;
-			devpriv->dmabuf_size[i] = PAGE_SIZE * pages;
-			devpriv->dmabuf_hw[i] = virt_to_bus((void *)
-						devpriv->dmabuf_virt[i]);
+		if (dmabuf->virt) {
+			dmabuf->pages = pages;
+			dmabuf->size = PAGE_SIZE * pages;
+			dmabuf->hw = virt_to_bus((void *)dmabuf->virt);
+
+			if (i == 0)
+				devpriv->master = 1;
+			if (i == 1)
+				devpriv->dma_doublebuf = 1;
 		}
 	}
-
-	if (devpriv->dmabuf_virt[0])
-		devpriv->master = 1;
-	if (devpriv->dmabuf_virt[1])
-		devpriv->dma_doublebuf = 1;
 }
 
 static void pci9118_free_dma(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct pci9118_dmabuf *dmabuf;
+	int i;
 
 	if (!devpriv)
 		return;
 
-	if (devpriv->dmabuf_virt[0])
-		free_pages((unsigned long)devpriv->dmabuf_virt[0],
-			   devpriv->dmabuf_pages[0]);
-	if (devpriv->dmabuf_virt[1])
-		free_pages((unsigned long)devpriv->dmabuf_virt[1],
-			   devpriv->dmabuf_pages[1]);
+	for (i = 0; i < 2; i++) {
+		dmabuf = &devpriv->dmabuf[i];
+		if (dmabuf->virt)
+			free_pages((unsigned long)dmabuf->virt, dmabuf->pages);
+	}
 }
 
 static int pci9118_common_attach(struct comedi_device *dev,
