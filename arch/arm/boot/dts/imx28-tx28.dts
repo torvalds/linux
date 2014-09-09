@@ -27,6 +27,8 @@
 		lcdif = &lcdif;
 		lcdif_23bit_pins = &tx28_lcdif_23bit_pins;
 		lcdif_24bit_pins = &lcdif_24bit_pins_a;
+		spi_gpio = &spi_gpio;
+		spi_mxs = &ssp3;
 		stk5led = &user_led;
 		usbotg = &usb0;
 	};
@@ -202,6 +204,44 @@
 		debounce-delay-ms = <100>;
 		col-scan-delay-us = <5000>;
 		linux,no-autorepeat;
+	};
+
+	spi_gpio: spi-gpio {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tx28_spi_gpio_pins>;
+
+		gpio-sck = <&gpio2 24 GPIO_ACTIVE_HIGH>;
+		gpio-mosi = <&gpio2 25 GPIO_ACTIVE_HIGH>;
+		gpio-miso = <&gpio2 26 GPIO_ACTIVE_HIGH>;
+		num-chipselects = <3>;
+		cs-gpios = <
+			&gpio2 27 GPIO_ACTIVE_LOW
+			&gpio3 8 GPIO_ACTIVE_LOW
+			&gpio3 9 GPIO_ACTIVE_LOW
+		>;
+		/* enable this and disable ssp3 below, if you need full duplex SPI transfer */
+		status = "disabled";
+
+		spi@0 {
+			compatible = "spidev";
+			reg = <0>;
+			spi-max-frequency = <57600000>;
+		};
+
+		spi@1 {
+			compatible = "spidev";
+			reg = <1>;
+			spi-max-frequency = <57600000>;
+		};
+
+		spi@2 {
+			compatible = "spidev";
+			reg = <2>;
+			spi-max-frequency = <57600000>;
+		};
 	};
 };
 
@@ -554,6 +594,20 @@
 			MX28_PAD_PWM3__GPIO_3_28
 		>;
 		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_spi_gpio_pins: spi-gpiogrp {
+		fsl,pinmux-ids = <
+			MX28_PAD_AUART2_RX__GPIO_3_8
+			MX28_PAD_AUART2_TX__GPIO_3_9
+			MX28_PAD_SSP3_SCK__GPIO_2_24
+			MX28_PAD_SSP3_MOSI__GPIO_2_25
+			MX28_PAD_SSP3_MISO__GPIO_2_26
+			MX28_PAD_SSP3_SS0__GPIO_2_27
+		>;
+		fsl,drive-strength = <MXS_DRIVE_8mA>;
 		fsl,voltage = <MXS_VOLTAGE_HIGH>;
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
