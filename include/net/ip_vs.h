@@ -648,6 +648,9 @@ struct ip_vs_dest_user_kern {
 	/* thresholds for active connections */
 	u32			u_threshold;	/* upper threshold */
 	u32			l_threshold;	/* lower threshold */
+
+	/* Address family of addr */
+	u16			af;
 };
 
 
