@@ -132,7 +132,6 @@ struct pcmuio_asic {
 	unsigned int enabled_mask;
 	unsigned int stop_count;
 	unsigned int active:1;
-	unsigned int continuous:1;
 };
 
 struct pcmuio_private {
@@ -349,8 +348,7 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	}
 
 	/* Check for end of acquisition. */
-	if (!chip->continuous) {
-		/* stop_src == TRIG_COUNT */
+	if (cmd->stop_src == TRIG_COUNT) {
 		if (chip->stop_count > 0) {
 			chip->stop_count--;
 			if (chip->stop_count == 0) {
@@ -499,12 +497,10 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Set up end of acquisition. */
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		chip->continuous = 0;
 		chip->stop_count = cmd->stop_arg;
 		break;
 	default:
 		/* TRIG_NONE */
-		chip->continuous = 1;
 		chip->stop_count = 0;
 		break;
 	}
