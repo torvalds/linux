@@ -160,8 +160,7 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
 	/* Prepare (reset?) radio */
 	b43_radio_2059_init_pre(dev);
 
-	b43_radio_write(dev, R2059_ALL | 0x51, 0x0070);
-	b43_radio_write(dev, R2059_ALL | 0x5a, 0x0003);
+	r2059_upload_inittabs(dev);
 
 	for (i = 0; i < ARRAY_SIZE(routing); i++)
 		b43_radio_set(dev, routing[i] | 0x146, 0x3);

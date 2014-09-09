@@ -25,6 +25,13 @@
 #include "b43.h"
 #include "radio_2059.h"
 
+/* Extracted from MMIO dump of 6.30.223.141 */
+static u16 r2059_phy_rev1_init[][2] = {
+	{ 0x051, 0x70 }, { 0x05a, 0x03 }, { 0x079, 0x01 }, { 0x082, 0x70 },
+	{ 0x083, 0x00 }, { 0x084, 0x70 }, { 0x09a, 0x7f }, { 0x0b6, 0x10 },
+	{ 0x188, 0x05 },
+};
+
 #define RADIOREGS(r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, \
 		  r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, \
 		  r20) \
@@ -138,6 +145,26 @@ static const struct b43_phy_ht_channeltab_e_radio2059 b43_phy_ht_channeltab_radi
 	PHYREGS(0x03e1, 0x03dd, 0x03d9, 0x0420, 0x0424, 0x0429),
   },
 };
+
+void r2059_upload_inittabs(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	u16 *table = NULL;
+	u16 size, i;
+
+	switch (phy->rev) {
+	case 1:
+		table = r2059_phy_rev1_init[0];
+		size = ARRAY_SIZE(r2059_phy_rev1_init);
+		break;
+	default:
+		B43_WARN_ON(1);
+		return;
+	}
+
+	for (i = 0; i < size; i++, table += 2)
+		b43_radio_write(dev, R2059_ALL | table[0], table[1]);
+}
 
 const struct b43_phy_ht_channeltab_e_radio2059
 *b43_phy_ht_get_channeltab_e_r2059(struct b43_wldev *dev, u16 freq)
