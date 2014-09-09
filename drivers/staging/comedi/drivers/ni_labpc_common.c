@@ -156,7 +156,7 @@ static void labpc_ai_set_chan_and_gain(struct comedi_device *dev,
 				       unsigned int range,
 				       unsigned int aref)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	struct labpc_private *devpriv = dev->private;
 
 	if (board->is_labpc1200) {
@@ -186,7 +186,7 @@ static void labpc_setup_cmd6_reg(struct comedi_device *dev,
 				 unsigned int aref,
 				 bool ena_intr)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	struct labpc_private *devpriv = dev->private;
 
 	if (!board->is_labpc1200)
@@ -544,7 +544,7 @@ static int labpc_ai_check_chanlist(struct comedi_device *dev,
 static int labpc_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	int err = 0;
 	int tmp, tmp2;
 	unsigned int stop_mask;
@@ -652,7 +652,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 
 static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -846,7 +846,7 @@ static void labpc_drain_dregs(struct comedi_device *dev)
 static irqreturn_t labpc_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
@@ -923,7 +923,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	struct labpc_private *devpriv = dev->private;
 	int channel, range;
 	unsigned long flags;
@@ -1248,7 +1248,7 @@ static int labpc_eeprom_insn_read(struct comedi_device *dev,
 int labpc_common_attach(struct comedi_device *dev,
 			unsigned int irq, unsigned long isr_flags)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
