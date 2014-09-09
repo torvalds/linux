@@ -217,28 +217,20 @@ static int dio200_start_intr(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int n;
 	unsigned isn_bits;
-	int retval = 0;
 
-	if (cmd->stop_src == TRIG_COUNT && subpriv->stopcount == 0) {
-		/* An empty acquisition! */
-		s->async->events |= COMEDI_CB_EOA;
-		subpriv->active = false;
-		retval = 1;
-	} else {
-		/* Determine interrupt sources to enable. */
-		isn_bits = 0;
-		if (cmd->chanlist) {
-			for (n = 0; n < cmd->chanlist_len; n++)
-				isn_bits |= (1U << CR_CHAN(cmd->chanlist[n]));
-		}
-		isn_bits &= subpriv->valid_isns;
-		/* Enable interrupt sources. */
-		subpriv->enabled_isns = isn_bits;
-		if (board->has_int_sce)
-			dio200_write8(dev, subpriv->ofs, isn_bits);
+	/* Determine interrupt sources to enable. */
+	isn_bits = 0;
+	if (cmd->chanlist) {
+		for (n = 0; n < cmd->chanlist_len; n++)
+			isn_bits |= (1U << CR_CHAN(cmd->chanlist[n]));
 	}
+	isn_bits &= subpriv->valid_isns;
+	/* Enable interrupt sources. */
+	subpriv->enabled_isns = isn_bits;
+	if (board->has_int_sce)
+		dio200_write8(dev, subpriv->ofs, isn_bits);
 
-	return retval;
+	return 0;
 }
 
 static int dio200_inttrig_start_intr(struct comedi_device *dev,
@@ -425,16 +417,10 @@ static int dio200_subdev_intr_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		/* any count allowed */
-		break;
-	case TRIG_NONE:
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-		break;
-	default:
-		break;
-	}
 
 	if (err)
 		return 3;
