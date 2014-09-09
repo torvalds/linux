@@ -817,7 +817,7 @@ static int pci1760_reset(struct comedi_device *dev)
 */
 static int pci_dio_reset(struct comedi_device *dev)
 {
-	const struct dio_boardtype *this_board = comedi_board(dev);
+	const struct dio_boardtype *this_board = dev->board_ptr;
 
 	switch (this_board->cardtype) {
 	case TYPE_PCI1730:
@@ -975,7 +975,7 @@ static int pci_dio_add_di(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  const struct diosubd_data *d)
 {
-	const struct dio_boardtype *this_board = comedi_board(dev);
+	const struct dio_boardtype *this_board = dev->board_ptr;
 
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | d->specflags;
@@ -1005,7 +1005,7 @@ static int pci_dio_add_do(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  const struct diosubd_data *d)
 {
-	const struct dio_boardtype *this_board = comedi_board(dev);
+	const struct dio_boardtype *this_board = dev->board_ptr;
 
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
