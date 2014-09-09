@@ -513,7 +513,7 @@ static void pci9118_exttrg_enable(struct comedi_device *dev, bool enable)
 		pci9118_amcc_int_ena(dev, false);
 }
 
-static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
+static void pci9118_calc_divisors(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned int *tim1, unsigned int *tim2,
 				  unsigned int flags, int chans,
@@ -522,32 +522,21 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	switch (mode) {
-	case 1:
-	case 4:
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
-					  div1, div2,
-					  tim2, flags & CMDF_ROUND_NEAREST);
-		break;
-	case 2:
-		*div1 = *tim2 / I8254_OSC_BASE_4MHZ;
-						/* convert timer (burst) */
-		*div2 = *tim1 / I8254_OSC_BASE_4MHZ;	/* scan timer */
-		*div2 = *div2 / *div1;		/* major timer is c1*c2 */
-		if (*div2 < chans)
-			*div2 = chans;
+	*div1 = *tim2 / I8254_OSC_BASE_4MHZ;	/* convert timer (burst) */
+	*div2 = *tim1 / I8254_OSC_BASE_4MHZ;	/* scan timer */
+	*div2 = *div2 / *div1;			/* major timer is c1*c2 */
+	if (*div2 < chans)
+		*div2 = chans;
 
-		*tim2 = *div1 * I8254_OSC_BASE_4MHZ;	/* real convert timer */
+	*tim2 = *div1 * I8254_OSC_BASE_4MHZ;	/* real convert timer */
 
-		if (cmd->convert_src == TRIG_NOW && !chnsshfront) {
-			/* use BSSH signal */
-			if (*div2 < (chans + 2))
-				*div2 = chans + 2;
-		}
-
-		*tim1 = *div1 * *div2 * I8254_OSC_BASE_4MHZ;
-		break;
+	if (cmd->convert_src == TRIG_NOW && !chnsshfront) {
+		/* use BSSH signal */
+		if (*div2 < (chans + 2))
+			*div2 = chans + 2;
 	}
+
+	*tim1 = *div1 * *div2 * I8254_OSC_BASE_4MHZ;
 }
 
 static void pci9118_start_pacer(struct comedi_device *dev, int mode)
@@ -1322,40 +1311,33 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	pci9118_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist,
 			     devpriv->ai_add_front, devpriv->ai_add_back);
 
-	/* compute timers settings */
-	/*
-	 * simplest way, fr=4Mhz/(tim1*tim2),
-	 * channel manipulation without timers effect
-	 */
-	if (((cmd->scan_begin_src == TRIG_FOLLOW) ||
-		(cmd->scan_begin_src == TRIG_EXT)) &&
-		(cmd->convert_src == TRIG_TIMER)) {
-					/* both timer is used for one time */
+	/* Determine acqusition mode and calculate timing */
+	if (cmd->scan_begin_src != TRIG_TIMER &&
+	    cmd->convert_src == TRIG_TIMER) {
+		/* cascaded timers 1 and 2 are used for convert timing */
 		if (cmd->scan_begin_src == TRIG_EXT)
 			devpriv->ai_do = 4;
 		else
 			devpriv->ai_do = 1;
-		pci9118_calc_divisors(devpriv->ai_do, dev, s,
-				      &cmd->scan_begin_arg, &cmd->convert_arg,
-				      devpriv->ai_flags,
-				      devpriv->ai_n_realscanlen,
-				      &devpriv->ai_divisor1,
-				      &devpriv->ai_divisor2,
-				      devpriv->ai_add_front);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
+					  &devpriv->ai_divisor1,
+					  &devpriv->ai_divisor2,
+					  &cmd->convert_arg,
+					  devpriv->ai_flags &
+					  CMDF_ROUND_NEAREST);
 	}
 
-	if ((cmd->scan_begin_src == TRIG_TIMER) &&
-		((cmd->convert_src == TRIG_TIMER) ||
-		(cmd->convert_src == TRIG_NOW))) {
-						/* double timed action */
+	if (cmd->scan_begin_src == TRIG_TIMER &&
+	    cmd->convert_src != TRIG_EXT) {
 		if (!devpriv->usedma) {
 			dev_err(dev->class_dev,
 				"cmd->scan_begin_src=TRIG_TIMER works only with bus mastering!\n");
 			return -EIO;
 		}
 
+		/* double timed action */
 		devpriv->ai_do = 2;
-		pci9118_calc_divisors(devpriv->ai_do, dev, s,
+		pci9118_calc_divisors(dev, s,
 				      &cmd->scan_begin_arg, &cmd->convert_arg,
 				      devpriv->ai_flags,
 				      devpriv->ai_n_realscanlen,
@@ -1364,8 +1346,9 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				      devpriv->ai_add_front);
 	}
 
-	if ((cmd->scan_begin_src == TRIG_FOLLOW)
-	    && (cmd->convert_src == TRIG_EXT)) {
+	if (cmd->scan_begin_src == TRIG_FOLLOW &&
+	    cmd->convert_src == TRIG_EXT) {
+		/* external trigger conversion */
 		devpriv->ai_do = 3;
 	}
 
