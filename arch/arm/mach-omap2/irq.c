@@ -62,7 +62,7 @@ static void __iomem *omap_irq_base;
 static int omap_nr_irqs = 96;
 
 /* Structure to save interrupt controller context */
-struct omap3_intc_regs {
+struct omap_intc_regs {
 	u32 sysconfig;
 	u32 protection;
 	u32 idle;
@@ -266,7 +266,7 @@ void __init omap_intc_of_init(void)
 }
 
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX)
-static struct omap3_intc_regs intc_context;
+static struct omap_intc_regs intc_context;
 
 void omap_intc_save_context(void)
 {
