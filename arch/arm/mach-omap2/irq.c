@@ -26,6 +26,7 @@
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
+#include "../../drivers/irqchip/irqchip.h"
 
 /* selected INTC register offsets */
 
@@ -319,14 +320,11 @@ static int __init intc_of_init(struct device_node *node,
 	return 0;
 }
 
-static const struct of_device_id irq_match[] __initconst = {
-	{ .compatible = "ti,omap2-intc", .data = intc_of_init, },
-	{ }
-};
+IRQCHIP_DECLARE(omap_intc, "ti,omap2-intc", intc_of_init);
 
 void __init omap_intc_of_init(void)
 {
-	of_irq_init(irq_match);
+	of_irq_init(&irqchip_of_match_omap_intc);
 }
 
 asmlinkage void __exception_irq_entry omap3_intc_handle_irq(struct pt_regs *regs)
