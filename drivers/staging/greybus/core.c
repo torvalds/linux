@@ -440,6 +440,7 @@ struct greybus_device *greybus_new_module(struct device *parent,
 
 	return gdev;
 error:
+	put_device(&gdev->dev);
 	greybus_module_release(&gdev->dev);
 	return NULL;
 }
