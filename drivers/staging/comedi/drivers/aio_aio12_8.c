@@ -178,7 +178,7 @@ static const struct comedi_lrange range_aio_aio12_8 = {
 static int aio_aio12_8_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
-	const struct aio12_8_boardtype *board = comedi_board(dev);
+	const struct aio12_8_boardtype *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	int ret;
 
