@@ -1739,7 +1739,7 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 		return;
 
 	if (changes & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_HT |
-		       BSS_CHANGED_BANDWIDTH) &&
+		       BSS_CHANGED_BANDWIDTH | BSS_CHANGED_QOS) &&
 	    iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL))
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
