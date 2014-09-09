@@ -55,11 +55,7 @@
  *	 0 != use ADCHN7(pin 23) signal is generated from driver, number say how
  *		long delay is requested in ns and sign polarity of the hold
  *		(in this case external multiplexor can serve only 128 channels)
- * [5] - 0=stop measure on all hardware errors
- *	 2 | = ignore ADOR - A/D Overrun status
- *	 8|=ignore Bover - A/D Burst Mode Overrun status
- *	 256|=ignore nFull - A/D FIFO Full status
- *
+ * [5] - ignored
  */
 
 /*
@@ -1747,8 +1743,7 @@ static void pci9118_free_dma(struct comedi_device *dev)
 }
 
 static int pci9118_common_attach(struct comedi_device *dev,
-				 int ext_mux, int softsshdelay,
-				 int hw_err_mask)
+				 int ext_mux, int softsshdelay)
 {
 	const struct pci9118_boardinfo *board = comedi_board(dev);
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -1885,9 +1880,6 @@ static int pci9118_common_attach(struct comedi_device *dev,
 	s->state = inl(dev->iobase + PCI9118_DIO_REG) >> 4;
 
 	devpriv->ai_maskharderr = 0x10a;
-					/* default measure crash condition */
-	if (hw_err_mask)		/* disable some requested */
-		devpriv->ai_maskharderr &= ~hw_err_mask;
 
 	return 0;
 }
@@ -1896,18 +1888,17 @@ static int pci9118_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev;
-	int ext_mux, softsshdelay, hw_err_mask;
+	int ext_mux, softsshdelay;
 
 	ext_mux = it->options[2];
 	softsshdelay = it->options[4];
-	hw_err_mask = it->options[5];
 
 	pcidev = pci9118_find_pci(dev, it);
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	return pci9118_common_attach(dev, ext_mux, softsshdelay, hw_err_mask);
+	return pci9118_common_attach(dev, ext_mux, softsshdelay);
 }
 
 static int pci9118_auto_attach(struct comedi_device *dev,
@@ -1928,8 +1919,8 @@ static int pci9118_auto_attach(struct comedi_device *dev,
 	 * (The 'put' also matches the implicit 'get' by pci9118_find_pci().)
 	 */
 	pci_dev_get(pcidev);
-	/* no external mux, no sample-hold delay, no error mask. */
-	return pci9118_common_attach(dev, 0, 0, 0);
+	/* no external mux, no sample-hold delay */
+	return pci9118_common_attach(dev, 0, 0);
 }
 
 static void pci9118_detach(struct comedi_device *dev)
