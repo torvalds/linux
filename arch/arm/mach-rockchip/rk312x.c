@@ -80,6 +80,21 @@ static struct map_desc rk312x_io_desc[] __initdata = {
 	RK_DEVICE(RK_GIC_VIRT + RK312X_GIC_DIST_SIZE, RK312X_GIC_CPU_PHYS, RK312X_GIC_CPU_SIZE),
 	RK_DEVICE(RK312X_IMEM_VIRT, RK312X_IMEM_PHYS, RK312X_IMEM_SIZE),
 };
+
+static void __init rk312x_boot_mode_init(void)
+{
+	u32 flag = readl_relaxed(RK_PMU_VIRT + RK312X_PMU_SYS_REG0);
+	u32 mode = readl_relaxed(RK_PMU_VIRT + RK312X_PMU_SYS_REG1);
+	u32 rst_st = readl_relaxed(RK_CRU_VIRT + RK312X_CRU_GLB_RST_ST);
+
+	if (flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER))
+		mode = BOOT_MODE_RECOVERY;
+	if (rst_st & ((1 << 2) | (1 << 3)))
+		mode = BOOT_MODE_WATCHDOG;
+
+	rockchip_boot_mode_init(flag, mode);
+}
+
 static void usb_uart_init(void)
 {
 #ifdef CONFIG_RK_USB_UART
@@ -127,6 +142,7 @@ static void __init rk312x_dt_map_io(void)
 	writel_relaxed(0x80000000, RK_CRU_VIRT + RK312X_CRU_MISC_CON);
 	dsb();
 
+	rk312x_boot_mode_init();
 }
 
 static void __init rk3126_dt_map_io(void)
