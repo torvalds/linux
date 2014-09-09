@@ -207,8 +207,7 @@ omap_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 				IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static void __init omap_init_irq(u32 base, int nr_irqs,
-				 struct device_node *node)
+static void __init omap_init_irq(u32 base, struct device_node *node)
 {
 	int j, irq_base;
 
@@ -216,15 +215,13 @@ static void __init omap_init_irq(u32 base, int nr_irqs,
 	if (WARN_ON(!omap_irq_base))
 		return;
 
-	omap_nr_irqs = nr_irqs;
-
-	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
+	irq_base = irq_alloc_descs(-1, 0, omap_nr_irqs, 0);
 	if (irq_base < 0) {
 		pr_warn("Couldn't allocate IRQ numbers\n");
 		irq_base = 0;
 	}
 
-	domain = irq_domain_add_legacy(node, nr_irqs, irq_base, 0,
+	domain = irq_domain_add_legacy(node, omap_nr_irqs, irq_base, 0,
 			&irq_domain_simple_ops, NULL);
 
 	omap_irq_soft_reset();
@@ -278,19 +275,22 @@ out:
 
 void __init omap2_init_irq(void)
 {
-	omap_init_irq(OMAP24XX_IC_BASE, 96, NULL);
+	omap_nr_irqs = 96;
+	omap_init_irq(OMAP24XX_IC_BASE, NULL);
 	set_handle_irq(omap_intc_handle_irq);
 }
 
 void __init omap3_init_irq(void)
 {
-	omap_init_irq(OMAP34XX_IC_BASE, 96, NULL);
+	omap_nr_irqs = 96;
+	omap_init_irq(OMAP34XX_IC_BASE, NULL);
 	set_handle_irq(omap_intc_handle_irq);
 }
 
 void __init ti81xx_init_irq(void)
 {
-	omap_init_irq(OMAP34XX_IC_BASE, 128, NULL);
+	omap_nr_irqs = 96;
+	omap_init_irq(OMAP34XX_IC_BASE, NULL);
 	set_handle_irq(omap_intc_handle_irq);
 }
 
@@ -298,7 +298,8 @@ static int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent)
 {
 	struct resource res;
-	u32 nr_irq = 96;
+
+	omap_nr_irqs = 96;
 
 	if (WARN_ON(!node))
 		return -ENODEV;
@@ -309,9 +310,9 @@ static int __init intc_of_init(struct device_node *node,
 	}
 
 	if (of_device_is_compatible(node, "ti,am33xx-intc"))
-		nr_irq = 128;
+		omap_nr_irqs = 128;
 
-	omap_init_irq(res.start, nr_irq, of_node_get(node));
+	omap_init_irq(res.start, of_node_get(node));
 
 	set_handle_irq(omap_intc_handle_irq);
 
