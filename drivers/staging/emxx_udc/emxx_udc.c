@@ -3220,20 +3220,20 @@ static const struct usb_gadget_ops nbu2ss_gadget_ops = {
 	.ioctl			= nbu2ss_gad_ioctl,
 };
 
-static char g_ep0_name[] = "ep0";
-static char g_ep1_name[] = "ep1-bulk";
-static char g_ep2_name[] = "ep2-bulk";
-static char g_ep3_name[] = "ep3in-int";
-static char g_ep4_name[] = "ep4-iso";
-static char g_ep5_name[] = "ep5-iso";
-static char g_ep6_name[] = "ep6-bulk";
-static char g_ep7_name[] = "ep7-bulk";
-static char g_ep8_name[] = "ep8in-int";
-static char g_ep9_name[] = "ep9-iso";
-static char g_epa_name[] = "epa-iso";
-static char g_epb_name[] = "epb-bulk";
-static char g_epc_name[] = "epc-nulk";
-static char g_epd_name[] = "epdin-int";
+static const char g_ep0_name[] = "ep0";
+static const char g_ep1_name[] = "ep1-bulk";
+static const char g_ep2_name[] = "ep2-bulk";
+static const char g_ep3_name[] = "ep3in-int";
+static const char g_ep4_name[] = "ep4-iso";
+static const char g_ep5_name[] = "ep5-iso";
+static const char g_ep6_name[] = "ep6-bulk";
+static const char g_ep7_name[] = "ep7-bulk";
+static const char g_ep8_name[] = "ep8in-int";
+static const char g_ep9_name[] = "ep9-iso";
+static const char g_epa_name[] = "epa-iso";
+static const char g_epb_name[] = "epb-bulk";
+static const char g_epc_name[] = "epc-nulk";
+static const char g_epd_name[] = "epdin-int";
 
 static char *gp_ep_name[NUM_ENDPOINTS] = {
 	g_ep0_name,
