@@ -488,11 +488,7 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	spin_lock_irqsave(&devpriv->spinlock, flags);
 	devpriv->active = 1;
 
-	/* Set up end of acquisition. */
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->stop_count = cmd->stop_arg;
-	else	/* TRIG_NONE */
-		devpriv->stop_count = 0;
+	devpriv->stop_count = cmd->stop_arg;
 
 	/* Set up start of acquisition. */
 	if (cmd->start_src == TRIG_INT)
