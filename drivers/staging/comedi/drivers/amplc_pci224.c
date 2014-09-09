@@ -494,21 +494,16 @@ static void pci224_ao_start(struct comedi_device *dev,
 	unsigned long flags;
 
 	set_bit(AO_CMD_STARTED, &devpriv->state);
-	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_stop_count == 0) {
-		/* An empty acquisition! */
-		s->async->events |= COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
-	} else {
-		/* Enable interrupts. */
-		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
-		if (cmd->stop_src == TRIG_EXT)
-			devpriv->intsce = PCI224_INTR_EXT | PCI224_INTR_DAC;
-		else
-			devpriv->intsce = PCI224_INTR_DAC;
 
-		outb(devpriv->intsce, devpriv->iobase1 + PCI224_INT_SCE);
-		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-	}
+	/* Enable interrupts. */
+	spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+	if (cmd->stop_src == TRIG_EXT)
+		devpriv->intsce = PCI224_INTR_EXT | PCI224_INTR_DAC;
+	else
+		devpriv->intsce = PCI224_INTR_DAC;
+
+	outb(devpriv->intsce, devpriv->iobase1 + PCI224_INT_SCE);
+	spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 }
 
 /*
@@ -782,7 +777,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		/* Any count allowed. */
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
