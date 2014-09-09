@@ -12,7 +12,7 @@
 
 #pragma pack(push, 1)
 
-struct greybus_descriptor_block_header {
+struct greybus_manifest_header {
 	__le16	size;
 	__u8	version_major;
 	__u8	version_minor;

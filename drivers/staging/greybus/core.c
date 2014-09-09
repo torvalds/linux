@@ -344,16 +344,16 @@ static int create_cport(struct greybus_device *gdev,
 }
 
 /**
- * greybus_new_device:
+ * greybus_new_module:
  *
- * Pass in a buffer that _should_ be a set of greybus descriptor fields and spit
- * out a greybus device structure.
+ * Pass in a buffer that _should_ contain a Greybus module manifest
+ * and spit out a greybus device structure.
  */
-struct greybus_device *greybus_new_device(struct device *parent,
+struct greybus_device *greybus_new_module(struct device *parent,
 					  int module_number, u8 *data, int size)
 {
 	struct greybus_device *gdev;
-	struct greybus_descriptor_block_header *block;
+	struct greybus_manifest_header *header;
 	struct greybus_descriptor *desc;
 	int retval;
 	int overall_size;
@@ -361,8 +361,8 @@ struct greybus_device *greybus_new_device(struct device *parent,
 	u8 version_major;
 	u8 version_minor;
 
-	/* we have to have at _least_ the block header */
-	if (size <= sizeof(struct greybus_descriptor_block_header))
+	/* we have to have at _least_ the manifest header */
+	if (size <= sizeof(struct greybus_manifest_header))
 		return NULL;
 
 	gdev = kzalloc(sizeof(*gdev), GFP_KERNEL);
@@ -379,21 +379,21 @@ struct greybus_device *greybus_new_device(struct device *parent,
 	device_initialize(&gdev->dev);
 	dev_set_name(&gdev->dev, "%d", module_number);
 
-	block = (struct greybus_descriptor_block_header *)data;
-	overall_size = le16_to_cpu(block->size);
+	header = (struct greybus_manifest_header *)data;
+	overall_size = le16_to_cpu(header->size);
 	if (overall_size != size) {
-		dev_err(parent, "size != block header size, %d != %d\n", size,
-			overall_size);
+		dev_err(parent, "size != manifest header size, %d != %d\n",
+			size, overall_size);
 		goto error;
 	}
 
-	version_major = block->version_major;
-	version_minor = block->version_minor;
+	version_major = header->version_major;
+	version_minor = header->version_minor;
 
 	// FIXME - check version major/minor here!
 
-	size -= sizeof(struct greybus_descriptor_block_header);
-	data += sizeof(struct greybus_descriptor_block_header);
+	size -= sizeof(struct greybus_manifest_header);
+	data += sizeof(struct greybus_manifest_header);
 	while (size > 0) {
 		desc = (struct greybus_descriptor *)data;
 		desc_size = le16_to_cpu(desc->header.size);

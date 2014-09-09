@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include "greybus_id.h"
-#include "greybus_desc.h"
+#include "greybus_manifest.h"
 
 
 #define GREYBUS_DEVICE_ID_MATCH_DEVICE \
@@ -209,7 +209,7 @@ void greybus_deregister(struct greybus_driver *driver);
 
 int greybus_disabled(void);
 
-struct greybus_device *greybus_new_device(struct device *parent,
+struct greybus_device *greybus_new_module(struct device *parent,
 					  int module_number, u8 *data,
 					  int size);
 void greybus_remove_device(struct greybus_device *gdev);
