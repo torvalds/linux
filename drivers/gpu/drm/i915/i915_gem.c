@@ -2956,6 +2956,9 @@ int i915_vma_unbind(struct i915_vma *vma)
 	 * cause memory corruption through use-after-free.
 	 */
 
+	/* Throw away the active reference before moving to the unbound list */
+	i915_gem_object_retire(obj);
+
 	if (i915_is_ggtt(vma->vm)) {
 		i915_gem_object_finish_gtt(obj);
 
