@@ -1501,19 +1501,20 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 	/* end of scan occurs */
 	async->events |= COMEDI_CB_EOS;
 
-	if (cmd->stop_src == TRIG_COUNT)
+	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ai_sample_count--;
-	if (devpriv->ai_sample_count <= 0) {
-		devpriv->ai_cmd_running = 0;
+		if (devpriv->ai_sample_count <= 0) {
+			devpriv->ai_cmd_running = 0;
 
-		/* Stop RPS program */
-		s626_mc_disable(dev, S626_MC1_ERPS1, S626_P_MC1);
+			/* Stop RPS program */
+			s626_mc_disable(dev, S626_MC1_ERPS1, S626_P_MC1);
 
-		/* send end of acquisition */
-		async->events |= COMEDI_CB_EOA;
+			/* send end of acquisition */
+			async->events |= COMEDI_CB_EOA;
 
-		/* disable master interrupt */
-		finished = true;
+			/* disable master interrupt */
+			finished = true;
+		}
 	}
 
 	if (devpriv->ai_cmd_running && cmd->scan_begin_src == TRIG_EXT)
