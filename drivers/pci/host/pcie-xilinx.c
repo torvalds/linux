@@ -359,8 +359,8 @@ static int xilinx_pcie_msi_setup_irq(struct msi_chip *chip,
 	phys_addr_t msg_addr;
 
 	hwirq = xilinx_pcie_assign_msi(port);
-	if (irq < 0)
-		return irq;
+	if (hwirq < 0)
+		return hwirq;
 
 	irq = irq_create_mapping(port->irq_domain, hwirq);
 	if (!irq)
