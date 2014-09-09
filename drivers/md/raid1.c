@@ -540,11 +540,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	has_nonrot_disk = 0;
 	choose_next_idle = 0;
 
-	if (conf->mddev->recovery_cp < MaxSector &&
-	    (this_sector + sectors >= conf->next_resync))
-		choose_first = 1;
-	else
-		choose_first = 0;
+	choose_first = (conf->mddev->recovery_cp < this_sector + sectors);
 
 	for (disk = 0 ; disk < conf->raid_disks * 2 ; disk++) {
 		sector_t dist;
