@@ -387,17 +387,12 @@ static int check_channel_list(struct comedi_device *dev,
 
 static int setup_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
-			      unsigned int *chanlist, int rot, int frontadd,
-			      int backadd, int usedma)
+			      unsigned int *chanlist, int frontadd,
+			      int backadd)
 {
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int scanquad, gain, ssh = 0x00;
 	int i;
-
-	if (usedma == 1) {
-		rot = 8;
-		usedma = 0;
-	}
 
 	/* gods know why this sequence! */
 	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
@@ -1343,8 +1338,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	pci9118_ai_set_range_aref(dev, s, cmd->chanlist[0]);
 
 	if (!setup_channel_list(dev, s, cmd->chanlist_len,
-				cmd->chanlist, 0, devpriv->ai_add_front,
-				devpriv->ai_add_back, devpriv->usedma))
+				cmd->chanlist, devpriv->ai_add_front,
+				devpriv->ai_add_back))
 		return -EINVAL;
 
 	/* compute timers settings */
@@ -1458,7 +1453,7 @@ static int pci9118_ai_insn_read(struct comedi_device *dev,
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 
-	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0, 0, 0))
+	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0))
 		return -EINVAL;
 
 	pci9118_ai_reset_fifo(dev);
