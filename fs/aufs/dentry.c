@@ -1042,7 +1042,7 @@ static int aufs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	di_downgrade_lock(dentry, AuLock_IR);
 
 	err = -EINVAL;
-	if (!(flags & LOOKUP_OPEN)
+	if (!(flags & (LOOKUP_OPEN | LOOKUP_EMPTY))
 	    && inode
 	    && (IS_DEADDIR(inode) || !inode->i_nlink))
 		goto out_inval;
