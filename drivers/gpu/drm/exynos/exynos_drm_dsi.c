@@ -1441,6 +1441,9 @@ exynos_dsi_detect(struct drm_connector *connector, bool force)
 
 static void exynos_dsi_connector_destroy(struct drm_connector *connector)
 {
+	drm_connector_unregister(connector);
+	drm_connector_cleanup(connector);
+	connector->dev = NULL;
 }
 
 static struct drm_connector_funcs exynos_dsi_connector_funcs = {
@@ -1661,10 +1664,10 @@ static void exynos_dsi_unbind(struct device *dev, struct device *master,
 
 	exynos_dsi_dpms(&exynos_dsi_display, DRM_MODE_DPMS_OFF);
 
-	mipi_dsi_host_unregister(&dsi->dsi_host);
-
+	exynos_dsi_connector_destroy(&dsi->connector);
 	encoder->funcs->destroy(encoder);
-	drm_connector_cleanup(&dsi->connector);
+
+	mipi_dsi_host_unregister(&dsi->dsi_host);
 }
 
 static const struct component_ops exynos_dsi_component_ops = {
