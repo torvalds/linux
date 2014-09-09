@@ -142,7 +142,6 @@
 
 #define START_AI_EXT	0x01	/* start measure on external trigger */
 #define STOP_AI_EXT	0x02	/* stop measure on external trigger */
-#define START_AI_INT	0x04	/* start measure on internal trigger */
 #define STOP_AI_INT	0x08	/* stop measure on internal trigger */
 
 #define PCI9118_HALF_FIFO_SZ	(1024 / 2)
@@ -790,15 +789,12 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int trig_num)
 {
-	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
-	devpriv->ai12_startstop &= ~START_AI_INT;
 	s->async->inttrig = NULL;
-
 	pci9118_ai_cmd_start(dev);
 
 	return 1;
@@ -1112,18 +1108,12 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	if (devpriv->ai12_startstop)
-		pci9118_exttrg_enable(dev, true);
-
 	if ((devpriv->ai_do == 1) || (devpriv->ai_do == 2))
 		devpriv->int_ctrl |= PCI9118_INT_CTRL_TIMER;
 
 	devpriv->ai_ctrl |= PCI9118_AI_CTRL_INT;
 
 	pci9118_amcc_int_ena(dev, true);
-
-	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT)))
-		pci9118_ai_cmd_start(dev);
 
 	return 0;
 }
@@ -1166,14 +1156,8 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	if (devpriv->ai12_startstop)
-		pci9118_exttrg_enable(dev, true);
-
 	outl(0x02000000 | AINT_WRITE_COMPL,
 	     devpriv->iobase_a + AMCC_OP_REG_INTCSR);
-
-	if (!(devpriv->ai12_startstop & (START_AI_EXT | START_AI_INT)))
-		pci9118_ai_cmd_start(dev);
 
 	return 0;
 }
@@ -1196,10 +1180,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->stop_src == TRIG_EXT) {
 		devpriv->ai_neverending = 1;
 		devpriv->ai12_startstop |= STOP_AI_EXT;
-	}
-	if (cmd->start_src == TRIG_INT) {
-		devpriv->ai12_startstop |= START_AI_INT;
-		s->async->inttrig = pci9118_ai_inttrig;
 	}
 	if (cmd->stop_src == TRIG_NONE)
 		devpriv->ai_neverending = 1;
@@ -1358,8 +1338,20 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ret = pci9118_ai_docmd_dma(dev, s);
 	else
 		ret = pci9118_ai_docmd_sampl(dev, s);
+	if (ret)
+		return ret;
 
-	return ret;
+	/* start async command now or wait for internal trigger */
+	if (cmd->start_src == TRIG_NOW)
+		pci9118_ai_cmd_start(dev);
+	else if (cmd->start_src == TRIG_INT)
+		s->async->inttrig = pci9118_ai_inttrig;
+
+	/* enable external trigger for command start/stop */
+	if (cmd->start_src == TRIG_EXT || cmd->stop_src == TRIG_EXT)
+		pci9118_exttrg_enable(dev, true);
+
+	return 0;
 }
 
 static int pci9118_ai_eoc(struct comedi_device *dev,
