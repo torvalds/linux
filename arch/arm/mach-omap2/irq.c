@@ -234,7 +234,8 @@ static void __init omap_init_irq(u32 base, int nr_irqs,
 		omap_alloc_gc(omap_irq_base + j, j + irq_base, 32);
 }
 
-static inline void omap_intc_handle_irq(struct pt_regs *regs)
+static asmlinkage void __exception_irq_entry
+omap_intc_handle_irq(struct pt_regs *regs)
 {
 	u32 irqnr;
 	int handled_irq = 0;
@@ -276,27 +277,22 @@ out:
 		omap_ack_irq(NULL);
 }
 
-asmlinkage void __exception_irq_entry omap2_intc_handle_irq(struct pt_regs *regs)
-{
-	omap_intc_handle_irq(regs);
-}
-
 void __init omap2_init_irq(void)
 {
 	omap_init_irq(OMAP24XX_IC_BASE, 96, NULL);
-	set_handle_irq(omap2_intc_handle_irq);
+	set_handle_irq(omap_intc_handle_irq);
 }
 
 void __init omap3_init_irq(void)
 {
 	omap_init_irq(OMAP34XX_IC_BASE, 96, NULL);
-	set_handle_irq(omap2_intc_handle_irq);
+	set_handle_irq(omap_intc_handle_irq);
 }
 
 void __init ti81xx_init_irq(void)
 {
 	omap_init_irq(OMAP34XX_IC_BASE, 128, NULL);
-	set_handle_irq(omap2_intc_handle_irq);
+	set_handle_irq(omap_intc_handle_irq);
 }
 
 static int __init intc_of_init(struct device_node *node,
@@ -318,7 +314,7 @@ static int __init intc_of_init(struct device_node *node,
 
 	omap_init_irq(res.start, nr_irq, of_node_get(node));
 
-	set_handle_irq(omap2_intc_handle_irq);
+	set_handle_irq(omap_intc_handle_irq);
 
 	return 0;
 }
