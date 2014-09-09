@@ -406,8 +406,8 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 }
 
 /* devpriv->spinlock is already locked */
-static int pcmmio_start_intr(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
+static void pcmmio_start_intr(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -434,8 +434,6 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 	/* set polarity and enable interrupts */
 	pcmmio_dio_write(dev, pol_bits, PCMMIO_PAGE_POL, 0);
 	pcmmio_dio_write(dev, bits, PCMMIO_PAGE_ENAB, 0);
-
-	return 0;
 }
 
 static int pcmmio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -458,7 +456,6 @@ static int pcmmio_inttrig_start_intr(struct comedi_device *dev,
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
-	int event = 0;
 
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
@@ -466,11 +463,8 @@ static int pcmmio_inttrig_start_intr(struct comedi_device *dev,
 	spin_lock_irqsave(&devpriv->spinlock, flags);
 	s->async->inttrig = NULL;
 	if (devpriv->active)
-		event = pcmmio_start_intr(dev, s);
+		pcmmio_start_intr(dev, s);
 	spin_unlock_irqrestore(&devpriv->spinlock, flags);
-
-	if (event)
-		comedi_event(dev, s);
 
 	return 1;
 }
@@ -483,7 +477,6 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
-	int event = 0;
 
 	spin_lock_irqsave(&devpriv->spinlock, flags);
 	devpriv->active = 1;
@@ -494,12 +487,9 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = pcmmio_inttrig_start_intr;
 	else	/* TRIG_NOW */
-		event = pcmmio_start_intr(dev, s);
+		pcmmio_start_intr(dev, s);
 
 	spin_unlock_irqrestore(&devpriv->spinlock, flags);
-
-	if (event)
-		comedi_event(dev, s);
 
 	return 0;
 }
