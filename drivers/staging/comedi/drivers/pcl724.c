@@ -98,7 +98,7 @@ static int pcl724_8255mapped_io(struct comedi_device *dev,
 static int pcl724_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it)
 {
-	const struct pcl724_board *board = comedi_board(dev);
+	const struct pcl724_board *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
