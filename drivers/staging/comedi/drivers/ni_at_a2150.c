@@ -287,7 +287,7 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    unsigned int flags)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard = dev->board_ptr;
 	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -436,7 +436,7 @@ static int a2150_ai_check_chanlist(struct comedi_device *dev,
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
@@ -710,7 +710,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENODEV;
 
 	dev->board_ptr = a2150_boards + i;
-	thisboard = comedi_board(dev);
+	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
 	if ((irq >= 3 && irq <= 7) || (irq >= 9 && irq <= 12) ||
