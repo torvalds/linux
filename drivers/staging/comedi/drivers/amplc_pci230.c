@@ -1679,7 +1679,9 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_NONE)
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_EXT) {
@@ -1908,13 +1910,6 @@ static void pci230_ai_start(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 
 	devpriv->ai_cmd_started = true;
-	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_scan_count == 0) {
-		/* An empty acquisition! */
-		async->events |= COMEDI_CB_EOA;
-		pci230_ai_stop(dev, s);
-		comedi_event(dev, s);
-		return;
-	}
 
 	/* Enable ADC FIFO trigger level interrupt. */
 	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
