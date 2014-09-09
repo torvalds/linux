@@ -45,8 +45,10 @@
 #error Do not #include this file directly. #include <lvfs.h> instead
 #endif
 
+#include <linux/kernel.h>
+#include <linux/fs.h>
+#include <linux/sched.h>
 #include "lustre_compat25.h"
-#include "lvfs_linux.h"
 
 #define LLOG_LVFS
 
