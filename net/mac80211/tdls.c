@@ -412,6 +412,9 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 	tf->ether_type = cpu_to_be16(ETH_P_TDLS);
 	tf->payload_type = WLAN_TDLS_SNAP_RFTYPE;
 
+	/* network header is after the ethernet header */
+	skb_set_network_header(skb, ETH_HLEN);
+
 	switch (action_code) {
 	case WLAN_TDLS_SETUP_REQUEST:
 		tf->category = WLAN_CATEGORY_TDLS;
