@@ -63,7 +63,7 @@ config VIDEO_SH_MOBILE_CEU
 config VIDEO_OMAP1
 	tristate "OMAP1 Camera Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA
-	depends on ARCH_OMAP1 || COMPILE_TEST
+	depends on ARCH_OMAP1
 	depends on HAS_DMA
 	select VIDEOBUF_DMA_CONTIG
 	select VIDEOBUF_DMA_SG
