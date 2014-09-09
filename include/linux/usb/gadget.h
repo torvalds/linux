@@ -817,6 +817,8 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
  *	Called in a context that permits sleeping.
  * @suspend: Invoked on USB suspend.  May be called in_interrupt.
  * @resume: Invoked on USB resume.  May be called in_interrupt.
+ * @reset: Invoked on USB bus reset. It is mandatory for all gadget drivers
+ *	and should be called in_interrupt.
  * @driver: Driver model state for this driver.
  *
  * Devices are disabled till a gadget driver successfully bind()s, which
@@ -874,6 +876,7 @@ struct usb_gadget_driver {
 	void			(*disconnect)(struct usb_gadget *);
 	void			(*suspend)(struct usb_gadget *);
 	void			(*resume)(struct usb_gadget *);
+	void			(*reset)(struct usb_gadget *);
 
 	/* FIXME support safe rmmod */
 	struct device_driver	driver;
