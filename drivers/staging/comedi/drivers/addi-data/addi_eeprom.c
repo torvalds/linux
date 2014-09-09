@@ -179,7 +179,7 @@ static void addi_eeprom_read_di_info(struct comedi_device *dev,
 				     unsigned long iobase,
 				     unsigned short addr)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
@@ -200,7 +200,7 @@ static void addi_eeprom_read_do_info(struct comedi_device *dev,
 				     unsigned long iobase,
 				     unsigned short addr)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
@@ -218,7 +218,7 @@ static void addi_eeprom_read_timer_info(struct comedi_device *dev,
 {
 	struct addi_private *devpriv = dev->private;
 #if 0
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	char *type = this_board->pc_EepromChip;
 	unsigned short offset = 0;
 	unsigned short ntimers;
@@ -259,7 +259,7 @@ static void addi_eeprom_read_ao_info(struct comedi_device *dev,
 				     unsigned long iobase,
 				     unsigned short addr)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
@@ -278,7 +278,7 @@ static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 				     unsigned long iobase,
 				     unsigned short addr)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	char *type = this_board->pc_EepromChip;
 	unsigned short offset;
@@ -315,7 +315,7 @@ static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 static void addi_eeprom_read_info(struct comedi_device *dev,
 				  unsigned long iobase)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	char *type = this_board->pc_EepromChip;
 	unsigned short size;
 	unsigned char nfuncs;
