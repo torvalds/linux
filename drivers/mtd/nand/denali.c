@@ -178,7 +178,7 @@ static void reset_bank(struct denali_nand_info *denali)
 /* Reset the flash controller */
 static uint16_t denali_nand_reset(struct denali_nand_info *denali)
 {
-	uint32_t i;
+	int i;
 
 	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
 		       __FILE__, __LINE__, __func__);
@@ -499,7 +499,8 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 {
 	uint16_t status = PASS;
 	uint32_t id_bytes[8], addr;
-	uint8_t i, maf_id, device_id;
+	uint8_t maf_id, device_id;
+	int i;
 
 	dev_dbg(denali->dev,
 			"%s, Line %d, Function: %s\n",
@@ -830,7 +831,8 @@ static int write_data_to_flash_mem(struct denali_nand_info *denali,
 							const uint8_t *buf,
 							int len)
 {
-	uint32_t i, *buf32;
+	uint32_t *buf32;
+	int i;
 
 	/*
 	 * verify that the len is a multiple of 4.
@@ -850,7 +852,8 @@ static int read_data_from_flash_mem(struct denali_nand_info *denali,
 								uint8_t *buf,
 								int len)
 {
-	uint32_t i, *buf32;
+	uint32_t *buf32;
+	int i;
 
 	/*
 	 * we assume that len will be a multiple of 4, if not it would be nice
