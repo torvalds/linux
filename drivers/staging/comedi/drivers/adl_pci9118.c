@@ -322,22 +322,6 @@ static void pci9118_ai_reset_fifo(struct comedi_device *dev)
 	outl(0, dev->iobase + PCI9118_FIFO_RESET_REG);
 }
 
-static void pci9118_ai_set_range_aref(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      unsigned int chanspec)
-{
-	struct pci9118_private *devpriv = dev->private;
-	unsigned int range = CR_RANGE(chanspec);
-	unsigned int aref = CR_AREF(chanspec);
-
-	devpriv->ai_ctrl = 0;
-	if (comedi_range_is_unipolar(s, range))
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_UNIP;
-	if (aref == AREF_DIFF)
-		devpriv->ai_ctrl |= PCI9118_AI_CTRL_DIFF;
-	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
-}
-
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
 			      unsigned int *chanlist, int frontadd, int backadd)
@@ -391,8 +375,22 @@ static void pci9118_set_chanlist(struct comedi_device *dev,
 				 int frontadd, int backadd)
 {
 	struct pci9118_private *devpriv = dev->private;
+	unsigned int range0 = CR_RANGE(chanlist[0]);
+	unsigned int aref0 = CR_AREF(chanlist[0]);
 	unsigned int scanquad, gain, ssh = 0x00;
 	int i;
+
+	/*
+	 * Configure analog input based on the first chanlist entry.
+	 * All entries are either unipolar or bipolar and single-ended
+	 * or differential.
+	 */
+	devpriv->ai_ctrl = 0;
+	if (comedi_range_is_unipolar(s, range0))
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_UNIP;
+	if (aref0 == AREF_DIFF)
+		devpriv->ai_ctrl |= PCI9118_AI_CTRL_DIFF;
+	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
 
 	/* gods know why this sequence! */
 	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
@@ -1327,14 +1325,9 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EINVAL;
 
 	/*
-	 * Configure analog input based on the first chanlist entry.
-	 * All entries are either unipolar or bipolar and single-ended
-	 * or differential.
-	 *
+	 * Configure analog input and load the chanlist.
 	 * The acqusition control bits are enabled later.
 	 */
-	pci9118_ai_set_range_aref(dev, s, cmd->chanlist[0]);
-
 	pci9118_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist,
 			     devpriv->ai_add_front, devpriv->ai_add_back);
 
@@ -1443,13 +1436,11 @@ static int pci9118_ai_insn_read(struct comedi_device *dev,
 	* Configure analog input based on the chanspec.
 	* Acqusition is software controlled without interrupts.
 	*/
-	pci9118_ai_set_range_aref(dev, s, insn->chanspec);
+	pci9118_set_chanlist(dev, s, 1, &insn->chanspec, 0, 0);
 
 	/* set default config (disable burst and triggers) */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-
-	pci9118_set_chanlist(dev, s, 1, &insn->chanspec, 0, 0);
 
 	pci9118_ai_reset_fifo(dev);
 
