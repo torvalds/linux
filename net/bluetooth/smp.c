@@ -1324,6 +1324,8 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 	SMP_DISALLOW_CMD(smp, SMP_CMD_MASTER_IDENT);
 	if (smp->remote_key_dist & SMP_DIST_ID_KEY)
 		SMP_ALLOW_CMD(smp, SMP_CMD_IDENT_INFO);
+	else if (smp->remote_key_dist & SMP_DIST_SIGN)
+		SMP_ALLOW_CMD(smp, SMP_CMD_SIGN_INFO);
 
 	skb_pull(skb, sizeof(*rp));
 
