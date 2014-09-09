@@ -449,12 +449,11 @@ static int setup_channel_list(struct comedi_device *dev,
 	return 1;		/* we can serve this with scan logic */
 }
 
-static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
+static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev,
+					      unsigned int next_buf)
 {
 	struct pci9118_private *devpriv = dev->private;
-	struct pci9118_dmabuf *dmabuf;
-
-	dmabuf = &devpriv->dmabuf[1 - devpriv->dma_actbuf];
+	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[next_buf];
 
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG |
 			  PCI9118_AI_CFG_AM;
@@ -700,7 +699,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		next_dma_buf = 1 - devpriv->dma_actbuf;
 		pci9118_amcc_setup_dma(dev, next_dma_buf);
 		if (devpriv->ai_do == 4)
-			interrupt_pci9118_ai_mode4_switch(dev);
+			interrupt_pci9118_ai_mode4_switch(dev, next_dma_buf);
 	}
 
 	if (samplesinbuf) {
@@ -724,7 +723,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		/* restart DMA if is not used double buffering */
 		pci9118_amcc_setup_dma(dev, 0);
 		if (devpriv->ai_do == 4)
-			interrupt_pci9118_ai_mode4_switch(dev);
+			interrupt_pci9118_ai_mode4_switch(dev, 0);
 	}
 }
 
