@@ -85,12 +85,6 @@
 #include "8253.h"
 #include "comedi_fc.h"
 
-/* paranoid checks are broken */
-#undef PCI9118_PARANOIDCHECK	/*
-				 * if defined, then is used code which control
-				 * correct channel number on every 12 bit sample
-				 */
-
 #define IORANGE_9118	64	/* I hope */
 #define PCI9118_CHANLEN	255	/*
 				 * len of chanlist, some source say 256,
@@ -214,13 +208,6 @@ struct pci9118_private {
 	unsigned long iobase_a;	/* base+size for AMCC chip */
 	unsigned int master;	/* master capable */
 	unsigned int usemux;	/* we want to use external multiplexor! */
-#ifdef PCI9118_PARANOIDCHECK
-	unsigned short chanlist[PCI9118_CHANLEN + 1];	/*
-							 * list of
-							 * scanned channel
-							 */
-	unsigned char chanlistlen;	/* number of scanlist */
-#endif
 	unsigned char ai_ctrl;
 	unsigned char int_ctrl;
 	unsigned char ai_cfg;
@@ -429,12 +416,6 @@ static int setup_channel_list(struct comedi_device *dev,
 	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 
-#ifdef PCI9118_PARANOIDCHECK
-	devpriv->chanlistlen = n_chan;
-	for (i = 0; i < (PCI9118_CHANLEN + 1); i++)
-		devpriv->chanlist[i] = 0x55aa;
-#endif
-
 	if (frontadd) {		/* insert channels for S&H */
 		ssh = devpriv->softsshsample;
 		for (i = 0; i < frontadd; i++) {
@@ -452,9 +433,6 @@ static int setup_channel_list(struct comedi_device *dev,
 
 	for (i = 0; i < n_chan; i++) {	/* store range list to card */
 		scanquad = CR_CHAN(chanlist[i]);	/* get channel number */
-#ifdef PCI9118_PARANOIDCHECK
-		devpriv->chanlist[i ^ usedma] = (scanquad & 0xf) << rot;
-#endif
 		gain = CR_RANGE(chanlist[i]);		/* get gain number */
 		scanquad |= ((gain & 0x03) << 8);
 		outl(scanquad | ssh, dev->iobase + PCI9118_AI_CHANLIST_REG);
@@ -470,10 +448,6 @@ static int setup_channel_list(struct comedi_device *dev,
 			     dev->iobase + PCI9118_AI_CHANLIST_REG);
 		}
 	}
-#ifdef PCI9118_PARANOIDCHECK
-	devpriv->chanlist[n_chan ^ usedma] = devpriv->chanlist[0 ^ usedma];
-						/* for 32bit operations */
-#endif
 	/* close scan queue */
 	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	/* udelay(100); important delay, or first sample will be crippled */
@@ -698,19 +672,6 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 
 	sampl = inl(dev->iobase + PCI9118_AI_FIFO_REG);
 
-#ifdef PCI9118_PARANOIDCHECK
-	if (s->maxdata != 0xffff) {
-		if ((sampl & 0x000f) != devpriv->chanlist[s->async->cur_chan]) {
-							/* data dropout! */
-			dev_info(dev->class_dev,
-				 "A/D  SAMPL - data dropout: received channel %d, expected %d!\n",
-				 sampl & 0x000f,
-				 devpriv->chanlist[s->async->cur_chan]);
-			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			return;
-		}
-	}
-#endif
 	cfc_write_to_buffer(s, sampl);
 	s->async->cur_chan++;
 	if (s->async->cur_chan >= cmd->scan_end_arg) {
