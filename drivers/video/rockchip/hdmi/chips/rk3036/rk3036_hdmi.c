@@ -539,5 +539,5 @@ static void __exit rk3036_hdmi_exit(void)
 	platform_driver_unregister(&rk3036_hdmi_driver);
 }
 
-device_initcall_sync(rk3036_hdmi_init);
+module_init(rk3036_hdmi_init);
 module_exit(rk3036_hdmi_exit);
