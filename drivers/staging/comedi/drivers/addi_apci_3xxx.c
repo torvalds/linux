@@ -472,7 +472,7 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 				   unsigned int *ns, unsigned int flags)
 {
-	const struct apci3xxx_boardinfo *board = comedi_board(dev);
+	const struct apci3xxx_boardinfo *board = dev->board_ptr;
 	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int base;
 	unsigned int timer;
@@ -523,7 +523,7 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_cmd *cmd)
 {
-	const struct apci3xxx_boardinfo *board = comedi_board(dev);
+	const struct apci3xxx_boardinfo *board = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
