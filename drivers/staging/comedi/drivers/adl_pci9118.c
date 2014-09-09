@@ -725,17 +725,11 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 }
 
 static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   unsigned short int_adstat,
-					   unsigned short int_daq)
+					   struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short sampl;
-
-	if (int_adstat & devpriv->ai_maskerr)
-		if (pci9118_decode_error_status(dev, s, int_adstat))
-			return;
 
 	sampl = inl(dev->iobase + PCI9118_AI_FIFO_REG);
 
@@ -770,18 +764,11 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 }
 
 static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     unsigned short int_adstat,
-				     unsigned short int_daq)
+				     struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int next_dma_buf, samplesinbuf, sampls, m;
-
-	if (int_adstat & devpriv->ai_maskerr)
-					/* if (int_adstat & 0x106) */
-		if (pci9118_decode_error_status(dev, s, int_adstat))
-			return;
 
 	samplesinbuf = devpriv->dmabuf_use_size[devpriv->dma_actbuf] >> 1;
 					/* number of received real samples */
@@ -862,6 +849,9 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 	}
 
 	adstat = inl(dev->iobase + PCI9118_AI_STATUS_REG) & 0x1ff;
+	if (adstat & devpriv->ai_maskerr)
+		if (pci9118_decode_error_status(dev, s, adstat))
+			return IRQ_HANDLED;
 
 	if (!devpriv->ai_do)
 		return IRQ_HANDLED;
@@ -892,9 +882,9 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 	}
 
 	if (devpriv->usedma)
-		interrupt_pci9118_ai_dma(dev, s, adstat, intsrc);
+		interrupt_pci9118_ai_dma(dev, s);
 	else
-		interrupt_pci9118_ai_onesample(dev, s, adstat, intsrc);
+		interrupt_pci9118_ai_onesample(dev, s);
 
 	return IRQ_HANDLED;
 }
