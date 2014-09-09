@@ -156,7 +156,7 @@ flush:
 	return NULL;
 }
 
-int udp6_gro_complete(struct sk_buff *skb, int nhoff)
+static int udp6_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	struct udphdr *uh = (struct udphdr *)(skb->data + nhoff);
