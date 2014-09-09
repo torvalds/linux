@@ -385,10 +385,10 @@ static int check_channel_list(struct comedi_device *dev,
 	return 1;
 }
 
-static int setup_channel_list(struct comedi_device *dev,
-			      struct comedi_subdevice *s, int n_chan,
-			      unsigned int *chanlist, int frontadd,
-			      int backadd)
+static void pci9118_set_chanlist(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 int n_chan, unsigned int *chanlist,
+				 int frontadd, int backadd)
 {
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int scanquad, gain, ssh = 0x00;
@@ -434,8 +434,6 @@ static int setup_channel_list(struct comedi_device *dev,
 	/* close scan queue */
 	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	/* udelay(100); important delay, or first sample will be crippled */
-
-	return 1;		/* we can serve this with scan logic */
 }
 
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev,
@@ -1337,10 +1335,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 	pci9118_ai_set_range_aref(dev, s, cmd->chanlist[0]);
 
-	if (!setup_channel_list(dev, s, cmd->chanlist_len,
-				cmd->chanlist, devpriv->ai_add_front,
-				devpriv->ai_add_back))
-		return -EINVAL;
+	pci9118_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist,
+			     devpriv->ai_add_front, devpriv->ai_add_back);
 
 	/* compute timers settings */
 	/*
@@ -1453,8 +1449,7 @@ static int pci9118_ai_insn_read(struct comedi_device *dev,
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 
-	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0))
-		return -EINVAL;
+	pci9118_set_chanlist(dev, s, 1, &insn->chanspec, 0, 0);
 
 	pci9118_ai_reset_fifo(dev);
 
