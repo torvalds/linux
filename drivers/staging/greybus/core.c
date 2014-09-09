@@ -398,7 +398,7 @@ struct greybus_device *greybus_new_module(struct device *parent,
 		desc = (struct greybus_descriptor *)data;
 		desc_size = le16_to_cpu(desc->header.size);
 
-		switch (desc->header.type) {
+		switch (le16_to_cpu(desc->header.type)) {
 		case GREYBUS_TYPE_FUNCTION:
 			retval = create_function(gdev, desc, desc_size);
 			break;
