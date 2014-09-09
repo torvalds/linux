@@ -459,7 +459,7 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 
 static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcl711_board *board = comedi_board(dev);
+	const struct pcl711_board *board = dev->board_ptr;
 	struct pcl711_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
