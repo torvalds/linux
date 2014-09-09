@@ -62,7 +62,6 @@ struct lu_target;
 struct l_wait_info;
 #include "lustre_ha.h"
 #include "lustre_net.h"
-#include "lvfs.h"
 
 #define LI_POISON 0x5a5a5a5a
 #if BITS_PER_LONG > 32

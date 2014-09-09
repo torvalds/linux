@@ -853,7 +853,6 @@ struct obd_device {
 	spinlock_t		obd_dev_lock; /* protect OBD bitfield above */
 	struct mutex		obd_dev_mutex;
 	__u64			obd_last_committed;
-	struct fsfilt_operations *obd_fsops;
 	spinlock_t		obd_osfs_lock;
 	struct obd_statfs	obd_osfs;       /* locked by obd_osfs_lock */
 	__u64			obd_osfs_age;

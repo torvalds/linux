@@ -44,8 +44,6 @@
 #include "../lvfs.h"
 
 struct lvfs_run_ctxt;
-struct file *l_dentry_open(struct lvfs_run_ctxt *, struct dentry *,
-			     int flags);
 
 struct l_linux_dirent {
 	struct list_head      lld_list;

@@ -1014,6 +1014,43 @@ void lprocfs_free_per_client_stats(struct obd_device *obd)
 }
 EXPORT_SYMBOL(lprocfs_free_per_client_stats);
 
+int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
+{
+	struct lprocfs_counter  *cntr;
+	unsigned int            percpusize;
+	int                     rc = -ENOMEM;
+	unsigned long           flags = 0;
+	int                     i;
+
+	LASSERT(stats->ls_percpu[cpuid] == NULL);
+	LASSERT((stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) == 0);
+
+	percpusize = lprocfs_stats_counter_size(stats);
+	LIBCFS_ALLOC_ATOMIC(stats->ls_percpu[cpuid], percpusize);
+	if (stats->ls_percpu[cpuid] != NULL) {
+		rc = 0;
+		if (unlikely(stats->ls_biggest_alloc_num <= cpuid)) {
+			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
+				spin_lock_irqsave(&stats->ls_lock, flags);
+			else
+				spin_lock(&stats->ls_lock);
+			if (stats->ls_biggest_alloc_num <= cpuid)
+				stats->ls_biggest_alloc_num = cpuid + 1;
+			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
+				spin_unlock_irqrestore(&stats->ls_lock, flags);
+			else
+				spin_unlock(&stats->ls_lock);
+		}
+		/* initialize the ls_percpu[cpuid] non-zero counter */
+		for (i = 0; i < stats->ls_num; ++i) {
+			cntr = lprocfs_stats_counter_get(stats, cpuid, i);
+			cntr->lc_min = LC_MIN_INIT;
+		}
+	}
+	return rc;
+}
+EXPORT_SYMBOL(lprocfs_stats_alloc_one);
+
 struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 					  enum lprocfs_stats_flags flags)
 {
@@ -1739,6 +1776,48 @@ int lprocfs_exp_cleanup(struct obd_export *exp)
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_exp_cleanup);
+
+__s64 lprocfs_read_helper(struct lprocfs_counter *lc,
+			  struct lprocfs_counter_header *header,
+			  enum lprocfs_stats_flags flags,
+			  enum lprocfs_fields_flags field)
+{
+	__s64 ret = 0;
+
+	if (lc == NULL || header == NULL)
+		return 0;
+
+	switch (field) {
+	case LPROCFS_FIELDS_FLAGS_CONFIG:
+		ret = header->lc_config;
+		break;
+	case LPROCFS_FIELDS_FLAGS_SUM:
+		ret = lc->lc_sum;
+		if ((flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)
+			ret += lc->lc_sum_irq;
+		break;
+	case LPROCFS_FIELDS_FLAGS_MIN:
+		ret = lc->lc_min;
+		break;
+	case LPROCFS_FIELDS_FLAGS_MAX:
+		ret = lc->lc_max;
+		break;
+	case LPROCFS_FIELDS_FLAGS_AVG:
+		ret = (lc->lc_max - lc->lc_min) / 2;
+		break;
+	case LPROCFS_FIELDS_FLAGS_SUMSQUARE:
+		ret = lc->lc_sumsquare;
+		break;
+	case LPROCFS_FIELDS_FLAGS_COUNT:
+		ret = lc->lc_count;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(lprocfs_read_helper);
 
 int lprocfs_write_helper(const char *buffer, unsigned long count,
 			 int *val)
