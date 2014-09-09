@@ -437,7 +437,7 @@ static int rtd_ns_to_timer(unsigned int *ns, unsigned int flags)
 static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 					    unsigned int chanspec, int index)
 {
-	const struct rtd_boardinfo *board = comedi_board(dev);
+	const struct rtd_boardinfo *board = dev->board_ptr;
 	struct rtd_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(chanspec);
 	unsigned int range = CR_RANGE(chanspec);
