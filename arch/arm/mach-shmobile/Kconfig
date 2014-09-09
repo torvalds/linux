@@ -26,6 +26,11 @@ config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
 	select SYS_SUPPORTS_SH_MTU2
 
+config ARCH_R8A7740
+	bool "R-Mobile A1 (R8A77400)"
+	select ARCH_RMOBILE
+	select RENESAS_INTC_IRQPIN
+
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
 	select RENESAS_INTC_IRQPIN
@@ -182,21 +187,6 @@ config MACH_ARMADILLO800EVA
 	select SMSC_PHY if SH_ETH
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
-
-config MACH_ARMADILLO800EVA_REFERENCE
-	bool "Armadillo-800 EVA board - Reference Device Tree Implementation"
-	depends on ARCH_R8A7740
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SMSC_PHY if SH_ETH
-	select SND_SOC_WM8978 if SND_SIMPLE_CARD
-	select USE_OF
-	---help---
-	   Use reference implementation of Armadillo800 EVA board support
-	   which makes greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
 
 config MACH_BOCKW
 	bool "BOCK-W platform"
