@@ -283,8 +283,6 @@ struct pci9118_private {
 					 * polarity of S&H signal
 					 * in hold state
 					 */
-	unsigned int ai_maskerr;	/* which warning was printed */
-	unsigned int ai_maskharderr;	/* on which error bits stops */
 	unsigned int ai_ns_min;
 };
 
@@ -671,39 +669,6 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static char pci9118_decode_error_status(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					unsigned char m)
-{
-	struct pci9118_private *devpriv = dev->private;
-
-	if (m & 0x100) {
-		dev_err(dev->class_dev,
-			"A/D FIFO Full status (Fatal Error!)\n");
-		devpriv->ai_maskerr &= ~0x100L;
-	}
-	if (m & 0x008) {
-		dev_err(dev->class_dev,
-			"A/D Burst Mode Overrun Status (Fatal Error!)\n");
-		devpriv->ai_maskerr &= ~0x008L;
-	}
-	if (m & 0x004) {
-		dev_err(dev->class_dev, "A/D Over Speed Status (Warning!)\n");
-		devpriv->ai_maskerr &= ~0x004L;
-	}
-	if (m & 0x002) {
-		dev_err(dev->class_dev, "A/D Overrun Status (Fatal Error!)\n");
-		devpriv->ai_maskerr &= ~0x002L;
-	}
-	if (m & devpriv->ai_maskharderr) {
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
-		return 1;
-	}
-
-	return 0;
-}
-
 static void pci9118_ai_munge(struct comedi_device *dev,
 			     struct comedi_subdevice *s, void *data,
 			     unsigned int num_bytes,
@@ -848,10 +813,33 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	adstat = inl(dev->iobase + PCI9118_AI_STATUS_REG) & 0x1ff;
-	if (adstat & devpriv->ai_maskerr)
-		if (pci9118_decode_error_status(dev, s, adstat))
-			return IRQ_HANDLED;
+	adstat = inl(dev->iobase + PCI9118_AI_STATUS_REG);
+	if ((adstat & PCI9118_AI_STATUS_NFULL) == 0) {
+		dev_err(dev->class_dev,
+			"A/D FIFO Full status (Fatal Error!)\n");
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
+		cfc_handle_events(dev, s);
+		return IRQ_HANDLED;
+	}
+	if (adstat & PCI9118_AI_STATUS_BOVER) {
+		dev_err(dev->class_dev,
+			"A/D Burst Mode Overrun Status (Fatal Error!)\n");
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
+		cfc_handle_events(dev, s);
+		return IRQ_HANDLED;
+	}
+	if (adstat & PCI9118_AI_STATUS_ADOS) {
+		dev_err(dev->class_dev, "A/D Over Speed Status (Warning!)\n");
+		s->async->events |= COMEDI_CB_ERROR;
+		cfc_handle_events(dev, s);
+		return IRQ_HANDLED;
+	}
+	if (adstat & PCI9118_AI_STATUS_ADOR) {
+		dev_err(dev->class_dev, "A/D Overrun Status (Fatal Error!)\n");
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
+		cfc_handle_events(dev, s);
+		return IRQ_HANDLED;
+	}
 
 	if (!devpriv->ai_do)
 		return IRQ_HANDLED;
@@ -1338,7 +1326,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_add_front = 0;
 	devpriv->ai_add_back = 0;
-	devpriv->ai_maskerr = 0x10e;
 
 	/* prepare for start/stop conditions */
 	if (cmd->start_src == TRIG_EXT)
@@ -1867,8 +1854,6 @@ static int pci9118_common_attach(struct comedi_device *dev,
 
 	/* get the current state of the digital outputs */
 	s->state = inl(dev->iobase + PCI9118_DIO_REG) >> 4;
-
-	devpriv->ai_maskharderr = 0x10a;
 
 	return 0;
 }
