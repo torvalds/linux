@@ -203,6 +203,8 @@ enum regulator_type {
  *
  * @name: Identifying name for the regulator.
  * @supply_name: Identifying the regulator supply
+ * @of_match: Name used to identify regulator in DT.
+ * @regulators_node: Name of node containing regulator definitions in DT.
  * @id: Numerical identifier for the regulator.
  * @ops: Regulator operations table.
  * @irq: Interrupt number for the regulator.
@@ -242,6 +244,8 @@ enum regulator_type {
 struct regulator_desc {
 	const char *name;
 	const char *supply_name;
+	const char *of_match;
+	const char *regulators_node;
 	int id;
 	bool continuous_voltage_range;
 	unsigned n_voltages;
