@@ -702,7 +702,7 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 		}
 		else{
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_tkip_encrypt23a: stainfo == NULL!!!\n"));
-		                DBG_8723A("%s, psta == NUL\n", __func__);
+			DBG_8723A("%s, psta == NUL\n", __func__);
 			res = _FAIL;
 		}
 
@@ -1071,12 +1071,8 @@ static void construct_mic_header1(u8 *mic_header1, int header_length, u8 *mpdu)
 /* Builds the last MIC header block from        */
 /* header fields.                               */
 /************************************************/
-static void construct_mic_header2(
-		        u8 *mic_header2,
-		        u8 *mpdu,
-		        int a4_exists,
-		        int qc_exists
-		      )
+static void construct_mic_header2(u8 *mic_header2, u8 *mpdu, int a4_exists,
+				  int qc_exists)
 {
 	int i;
 

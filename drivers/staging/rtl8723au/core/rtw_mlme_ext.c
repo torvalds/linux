@@ -625,7 +625,7 @@ _mgt_dispatcher23a(struct rtw_adapter *padapter, struct mlme_handler *ptable,
 			return;
 
 		ptable->func(padapter, precv_frame);
-        }
+	}
 }
 
 void mgt_dispatcher23a(struct rtw_adapter *padapter,
@@ -1949,7 +1949,7 @@ OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	reason = le16_to_cpu(mgmt->u.disassoc.reason_code);
 
-        DBG_8723A("%s Reason code(%d)\n", __func__, reason);
+	DBG_8723A("%s Reason code(%d)\n", __func__, reason);
 
 #ifdef CONFIG_8723AU_AP_MODE
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
@@ -5564,7 +5564,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	struct ieee80211_ht_operation *pht_info;
 	u32 i;
 	u8 *p;
-        /* u32	initialgain; */
+	/* u32	initialgain; */
 	/* u32	acparm; */
 
 	/* check already connecting to AP or not */

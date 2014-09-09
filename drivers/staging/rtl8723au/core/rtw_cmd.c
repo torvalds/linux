@@ -717,11 +717,11 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
 
 	if (unicast_key == true) {
 		memcpy(&psetstakey_para->key, &sta->dot118021x_UncstKey, 16);
-        } else {
+	} else {
 		int idx = psecuritypriv->dot118021XGrpKeyid;
 		memcpy(&psetstakey_para->key,
 		       &psecuritypriv->dot118021XGrpKey[idx].skey, 16);
-        }
+	}
 
 	/* jeff: set this because at least sw key is ready */
 	padapter->securitypriv.busetkipkey = 1;

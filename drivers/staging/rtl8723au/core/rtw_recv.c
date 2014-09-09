@@ -577,7 +577,7 @@ static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 				 ("########portctrl:psta->ieee8021x_blocked =="
 				  "1\n"));
 
-		        if (ether_type == eapol_type) {
+			if (ether_type == eapol_type) {
 				prtnframe = precv_frame;
 			} else {
 				/* free this frame */
@@ -1170,7 +1170,7 @@ static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 
 				if (psta->sleepq_len>0)
 					pxmitframe->attrib.mdata = 1;
-                                else
+				else
 					pxmitframe->attrib.mdata = 0;
 
 				pxmitframe->attrib.triggered = 1;
@@ -1891,7 +1891,7 @@ int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_num)
 }
 
 static int enqueue_reorder_recvframe23a(struct recv_reorder_ctrl *preorder_ctrl,
-				        struct recv_frame *prframe)
+					struct recv_frame *prframe)
 {
 	struct rx_pkt_attrib *pattrib = &prframe->attrib;
 	struct rtw_queue *ppending_recvframe_queue;
@@ -1975,7 +1975,7 @@ int recv_indicatepkts_in_order(struct rtw_adapter *padapter,
 		}
 
 		prframe = container_of(plist, struct recv_frame, list);
-	        pattrib = &prframe->attrib;
+		pattrib = &prframe->attrib;
 		preorder_ctrl->indicate_seq = pattrib->seq_num;
 	}
 
@@ -2125,7 +2125,7 @@ int recv_indicatepkt_reorder(struct rtw_adapter *padapter,
 
 _err_exit:
 
-        spin_unlock_bh(&ppending_recvframe_queue->lock);
+	spin_unlock_bh(&ppending_recvframe_queue->lock);
 	return _FAIL;
 }
 

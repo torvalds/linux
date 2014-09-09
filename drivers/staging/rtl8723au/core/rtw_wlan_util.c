@@ -352,7 +352,7 @@ static void set_bwmode(struct rtw_adapter *padapter, unsigned short bwmode,
 }
 
 void set_channel_bwmode23a(struct rtw_adapter *padapter, unsigned char channel,
-		        unsigned char channel_offset, unsigned short bwmode)
+			   unsigned char channel_offset, unsigned short bwmode)
 {
 	u8 center_ch;
 

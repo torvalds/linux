@@ -159,7 +159,7 @@ rtw_find_network23a(struct rtw_queue *scanned_queue, u8 *addr)
 			break;
 
 		plist = plist->next;
-        }
+	}
 
 	if (plist == phead)
 		pnetwork = NULL;
@@ -556,7 +556,7 @@ static int rtw_is_desired_network(struct rtw_adapter *adapter,
 		/* for  correct flow of 8021X  to do.... */
 		if (desired_encmode == Ndis802_11EncryptionDisabled &&
 		    privacy != 0)
-	            bselected = false;
+			bselected = false;
 	}
 
 	if (desired_encmode != Ndis802_11EncryptionDisabled && privacy == 0) {
@@ -637,7 +637,7 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 
 	/*  lock pmlmepriv->lock when you accessing network_q */
 	if (!check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
-	        if (pnetwork->Ssid.ssid[0] == 0)
+		if (pnetwork->Ssid.ssid[0] == 0)
 			pnetwork->Ssid.ssid_len = 0;
 
 		rtw_add_network(adapter, pnetwork);
@@ -743,7 +743,7 @@ static void free_scanqueue(struct mlme_priv *pmlmepriv)
 		pnetwork = container_of(plist, struct wlan_network, list);
 		pnetwork->fixed = false;
 		_rtw_free_network23a(pmlmepriv, pnetwork);
-        }
+	}
 
 	spin_unlock_bh(&scan_queue->lock);
 }
@@ -855,7 +855,7 @@ void rtw_indicate_disconnect23a(struct rtw_adapter *padapter)
 
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING|WIFI_UNDER_WPS);
 
-        /* DBG_8723A("clear wps when %s\n", __func__); */
+	/* DBG_8723A("clear wps when %s\n", __func__); */
 
 	if (padapter->mlmepriv.to_roaming > 0)
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
@@ -1351,7 +1351,7 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	DBG_8723A("%s(mac_id=%d)=" MAC_FMT "\n", __func__, mac_id,
 		  MAC_ARG(pstadel->macaddr));
 
-        if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		return;
 
 	mlmeext_sta_del_event_callback23a(adapter);
