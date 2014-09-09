@@ -62,6 +62,7 @@
 
 #include <linux/export.h>
 #include <linux/moduleparam.h>
+#include <linux/vmalloc.h>
 
 #include <linux/seq_file.h>
 #include <linux/list.h>
