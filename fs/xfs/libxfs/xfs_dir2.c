@@ -535,21 +535,16 @@ out_free:
 
 /*
  * See if this entry can be added to the directory without allocating space.
- * First checks that the caller couldn't reserve enough space (resblks = 0).
  */
 int
 xfs_dir_canenter(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*dp,
-	struct xfs_name	*name,		/* name of entry to add */
-	uint		resblks)
+	struct xfs_name	*name)		/* name of entry to add */
 {
 	struct xfs_da_args *args;
 	int		rval;
 	int		v;		/* type-checking value */
-
-	if (resblks)
-		return 0;
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
 
