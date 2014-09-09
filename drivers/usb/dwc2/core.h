@@ -139,6 +139,7 @@ struct s3c_hsotg_ep {
 	unsigned int            last_load;
 	unsigned int            fifo_load;
 	unsigned short          fifo_size;
+	unsigned short		fifo_index;
 
 	unsigned char           dir_in;
 	unsigned char           index;
@@ -197,6 +198,7 @@ struct s3c_hsotg {
 	int			fifo_mem;
 	unsigned int            dedicated_fifos:1;
 	unsigned char           num_of_eps;
+	u32			fifo_map;
 
 	struct dentry           *debug_root;
 	struct dentry           *debug_file;
