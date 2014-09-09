@@ -327,7 +327,7 @@ static int pci171x_ai_dropout(struct comedi_device *dev,
 			      unsigned int chan,
 			      unsigned int val)
 {
-	const struct boardtype *board = comedi_board(dev);
+	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 
 	if (board->cardtype != TYPE_PCI1713) {
@@ -413,7 +413,7 @@ static void setup_channel_list(struct comedi_device *dev,
 			       unsigned int *chanlist, unsigned int n_chan,
 			       unsigned int seglen)
 {
-	const struct boardtype *this_board = comedi_board(dev);
+	const struct boardtype *this_board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 	unsigned int i, range, chanprog;
 
@@ -715,7 +715,7 @@ static int pci1720_insn_write_ao(struct comedi_device *dev,
 static int pci171x_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	const struct boardtype *this_board = comedi_board(dev);
+	const struct boardtype *this_board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 
 	switch (this_board->cardtype) {
@@ -828,7 +828,7 @@ static int move_block_from_fifo(struct comedi_device *dev,
 static void pci1710_handle_fifo(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
-	const struct boardtype *this_board = comedi_board(dev);
+	const struct boardtype *this_board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int m, samplesinbuf;
@@ -968,7 +968,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
-	const struct boardtype *this_board = comedi_board(dev);
+	const struct boardtype *this_board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
@@ -1045,7 +1045,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 */
 static int pci171x_reset(struct comedi_device *dev)
 {
-	const struct boardtype *this_board = comedi_board(dev);
+	const struct boardtype *this_board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 
 	outw(0x30, dev->iobase + PCI171x_CNTCTRL);
@@ -1102,7 +1102,7 @@ static int pci1720_reset(struct comedi_device *dev)
 */
 static int pci1710_reset(struct comedi_device *dev)
 {
-	const struct boardtype *this_board = comedi_board(dev);
+	const struct boardtype *this_board = dev->board_ptr;
 
 	switch (this_board->cardtype) {
 	case TYPE_PCI1720:
