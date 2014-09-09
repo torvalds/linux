@@ -46,8 +46,6 @@
 #define INTC_PENDING_IRQ3	0x00f8
 #define INTC_ILR0		0x0100
 
-#define OMAP2_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE)
-#define OMAP3_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE)
 #define ACTIVEIRQ_MASK		0x7f	/* omap2/3 active interrupt bits */
 #define INTCPS_NR_ILR_REGS	128
 #define INTCPS_NR_MIR_REGS	3
@@ -188,7 +186,7 @@ void __init ti81xx_init_irq(void)
 	omap_init_irq(OMAP34XX_IC_BASE, 128, NULL);
 }
 
-static inline void omap_intc_handle_irq(void __iomem *base_addr, struct pt_regs *regs)
+static inline void omap_intc_handle_irq(struct pt_regs *regs)
 {
 	u32 irqnr;
 	int handled_irq = 0;
@@ -232,8 +230,7 @@ out:
 
 asmlinkage void __exception_irq_entry omap2_intc_handle_irq(struct pt_regs *regs)
 {
-	void __iomem *base_addr = OMAP2_IRQ_BASE;
-	omap_intc_handle_irq(base_addr, regs);
+	omap_intc_handle_irq(regs);
 }
 
 int __init intc_of_init(struct device_node *node,
@@ -334,7 +331,6 @@ void omap3_intc_resume_idle(void)
 
 asmlinkage void __exception_irq_entry omap3_intc_handle_irq(struct pt_regs *regs)
 {
-	void __iomem *base_addr = OMAP3_IRQ_BASE;
-	omap_intc_handle_irq(base_addr, regs);
+	omap_intc_handle_irq(regs);
 }
 #endif /* CONFIG_ARCH_OMAP3 */
