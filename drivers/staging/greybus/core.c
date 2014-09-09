@@ -353,7 +353,7 @@ struct greybus_device *greybus_new_module(struct device *parent,
 					  int module_number, u8 *data, int size)
 {
 	struct greybus_device *gdev;
-	struct greybus_manifest_header *header;
+	struct greybus_manifest *manifest;
 	struct greybus_descriptor *desc;
 	int retval;
 	int overall_size;
@@ -362,7 +362,7 @@ struct greybus_device *greybus_new_module(struct device *parent,
 	u8 version_minor;
 
 	/* we have to have at _least_ the manifest header */
-	if (size <= sizeof(struct greybus_manifest_header))
+	if (size <= sizeof(manifest->header))
 		return NULL;
 
 	gdev = kzalloc(sizeof(*gdev), GFP_KERNEL);
@@ -379,21 +379,21 @@ struct greybus_device *greybus_new_module(struct device *parent,
 	device_initialize(&gdev->dev);
 	dev_set_name(&gdev->dev, "%d", module_number);
 
-	header = (struct greybus_manifest_header *)data;
-	overall_size = le16_to_cpu(header->size);
+	manifest = (struct greybus_manifest *)data;
+	overall_size = le16_to_cpu(manifest->header.size);
 	if (overall_size != size) {
 		dev_err(parent, "size != manifest header size, %d != %d\n",
 			size, overall_size);
 		goto error;
 	}
 
-	version_major = header->version_major;
-	version_minor = header->version_minor;
+	version_major = manifest->header.version_major;
+	version_minor = manifest->header.version_minor;
 
 	// FIXME - check version major/minor here!
 
-	size -= sizeof(struct greybus_manifest_header);
-	data += sizeof(struct greybus_manifest_header);
+	size -= sizeof(manifest->header);
+	data += sizeof(manifest->header);
 	while (size > 0) {
 		desc = (struct greybus_descriptor *)data;
 		desc_size = le16_to_cpu(desc->header.size);

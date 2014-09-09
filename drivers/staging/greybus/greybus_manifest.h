@@ -94,6 +94,11 @@ struct greybus_descriptor {
 	};
 };
 
+struct greybus_manifest {
+	struct greybus_manifest_header		header;
+	struct greybus_descriptor		descriptors[0];
+};
+
 #pragma pack(pop)
 
 #endif /* __GREYBUS_DESC_H */
