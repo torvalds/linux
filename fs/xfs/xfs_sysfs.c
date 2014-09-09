@@ -54,7 +54,38 @@ struct kobj_type xfs_mp_ktype = {
 #ifdef DEBUG
 /* debug */
 
+STATIC ssize_t
+log_recovery_delay_store(
+	const char	*buf,
+	size_t		count,
+	void		*data)
+{
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < 0 || val > 60)
+		return -EINVAL;
+
+	xfs_globals.log_recovery_delay = val;
+
+	return count;
+}
+
+STATIC ssize_t
+log_recovery_delay_show(
+	char	*buf,
+	void	*data)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.log_recovery_delay);
+}
+XFS_SYSFS_ATTR_RW(log_recovery_delay);
+
 static struct attribute *xfs_dbg_attrs[] = {
+	ATTR_LIST(log_recovery_delay),
 	NULL,
 };
 

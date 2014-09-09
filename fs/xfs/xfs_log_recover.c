@@ -4509,6 +4509,18 @@ xlog_recover(
 			return -EINVAL;
 		}
 
+		/*
+		 * Delay log recovery if the debug hook is set. This is debug
+		 * instrumention to coordinate simulation of I/O failures with
+		 * log recovery.
+		 */
+		if (xfs_globals.log_recovery_delay) {
+			xfs_notice(log->l_mp,
+				"Delaying log recovery for %d seconds.",
+				xfs_globals.log_recovery_delay);
+			msleep(xfs_globals.log_recovery_delay * 1000);
+		}
+
 		xfs_notice(log->l_mp, "Starting recovery (logdev: %s)",
 				log->l_mp->m_logname ? log->l_mp->m_logname
 						     : "internal");
