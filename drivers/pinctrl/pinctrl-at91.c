@@ -1605,7 +1605,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	/* now it may re-trigger */
 }
 
-static int at91_gpio_of_irq_setup(struct device_node *node,
+static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 				  struct at91_gpio_chip *at91_gpio)
 {
 	struct at91_gpio_chip   *prev = NULL;
@@ -1630,9 +1630,11 @@ static int at91_gpio_of_irq_setup(struct device_node *node,
 				   0,
 				   handle_edge_irq,
 				   IRQ_TYPE_EDGE_BOTH);
-	if (ret)
-		panic("at91_gpio.%d: couldn't allocate irq domain (DT).\n",
+	if (ret) {
+		dev_err(&pdev->dev, "at91_gpio.%d: Couldn't add irqchip to gpiochip.\n",
 			at91_gpio->pioc_idx);
+		return ret;
+	}
 
 	/* Setup chained handler */
 	if (at91_gpio->pioc_idx)
@@ -1800,12 +1802,16 @@ static int at91_gpio_probe(struct platform_device *pdev)
 
 	at91_gpio_probe_fixup();
 
-	at91_gpio_of_irq_setup(np, at91_chip);
+	ret = at91_gpio_of_irq_setup(pdev, at91_chip);
+	if (ret)
+		goto irq_setup_err;
 
 	dev_info(&pdev->dev, "at address %p\n", at91_chip->regbase);
 
 	return 0;
 
+irq_setup_err:
+	gpiochip_remove(chip);
 gpiochip_add_err:
 	clk_disable(at91_chip->clock);
 clk_enable_err:
