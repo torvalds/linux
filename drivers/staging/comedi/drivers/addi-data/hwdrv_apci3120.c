@@ -1008,6 +1008,7 @@ static int apci3120_cyclic_ai(int mode,
 	} else {
 		/* If DMA Enabled */
 		unsigned int scan_bytes = cmd->scan_end_arg * sizeof(short);
+
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
 
 		/* Disables the EOC, EOS interrupt  */
