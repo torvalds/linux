@@ -55,6 +55,10 @@
  */
 #define DRM_REDUNDANT_VBLIRQ_THRESH_NS 1000000
 
+static bool
+drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
+			  struct timeval *tvblank, unsigned flags);
+
 /**
  * drm_update_vblank_count - update the master vblank counter
  * @dev: DRM device
@@ -74,7 +78,8 @@
 static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
-	u32 cur_vblank, diff, tslot, rc;
+	u32 cur_vblank, diff, tslot;
+	bool rc;
 	struct timeval t_vblank;
 
 	/*
@@ -132,7 +137,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 	u32 vblcount;
 	s64 diff_ns;
-	int vblrc;
+	bool vblrc;
 	struct timeval tvblank;
 	int count = DRM_TIMESTAMP_MAXRETRIES;
 
@@ -156,7 +161,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	 * vblank interrupt is disabled.
 	 */
 	if (!vblank->enabled &&
-	    drm_get_last_vbltimestamp(dev, crtc, &tvblank, 0) > 0) {
+	    drm_get_last_vbltimestamp(dev, crtc, &tvblank, 0)) {
 		drm_update_vblank_count(dev, crtc);
 		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 		return;
@@ -204,7 +209,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	 * available. In that case we can't account for this and just
 	 * hope for the best.
 	 */
-	if ((vblrc > 0) && (abs64(diff_ns) > 1000000)) {
+	if (vblrc && (abs64(diff_ns) > 1000000)) {
 		/* Store new timestamp in ringbuffer. */
 		vblanktimestamp(dev, crtc, vblcount + 1) = tvblank;
 
@@ -781,10 +786,11 @@ static struct timeval get_drm_timestamp(void)
  * call, i.e., it isn't very precisely locked to the true vblank.
  *
  * Returns:
- * Non-zero if timestamp is considered to be very precise, zero otherwise.
+ * True if timestamp is considered to be very precise, false otherwise.
  */
-u32 drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
-			      struct timeval *tvblank, unsigned flags)
+static bool
+drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
+			  struct timeval *tvblank, unsigned flags)
 {
 	int ret;
 
@@ -796,7 +802,7 @@ u32 drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
 		ret = dev->driver->get_vblank_timestamp(dev, crtc, &max_error,
 							tvblank, flags);
 		if (ret > 0)
-			return (u32) ret;
+			return true;
 	}
 
 	/* GPU high precision timestamp query unsupported or failed.
@@ -804,9 +810,8 @@ u32 drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
 	 */
 	*tvblank = get_drm_timestamp();
 
-	return 0;
+	return false;
 }
-EXPORT_SYMBOL(drm_get_last_vbltimestamp);
 
 /**
  * drm_vblank_count - retrieve "cooked" vblank counter value
