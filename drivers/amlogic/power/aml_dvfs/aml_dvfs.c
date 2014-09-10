@@ -412,7 +412,7 @@ static int aml_dvfs_probe(struct platform_device *pdev)
         }
         err = of_property_read_bool(child, "change-frequent-only");
         if (err) {
-            aml_dummy_dvfs_driver.id_mask = id;
+            aml_dummy_dvfs_driver.id_mask = master->id;
             aml_dvfs_register_driver(&aml_dummy_dvfs_driver); 
         }
     }
