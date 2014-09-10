@@ -986,6 +986,15 @@ static int i915_pm_freeze(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
+static int i915_pm_freeze_late(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+
+	return intel_suspend_complete(dev_priv);
+}
+
 static int i915_pm_thaw_early(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -1570,6 +1579,7 @@ static const struct dev_pm_ops i915_pm_ops = {
 	.resume_early = i915_pm_resume_early,
 	.resume = i915_pm_resume,
 	.freeze = i915_pm_freeze,
+	.freeze_late = i915_pm_freeze_late,
 	.thaw_early = i915_pm_thaw_early,
 	.thaw = i915_pm_thaw,
 	.poweroff = i915_pm_poweroff,
