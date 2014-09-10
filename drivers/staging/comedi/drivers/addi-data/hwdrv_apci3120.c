@@ -1217,8 +1217,8 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW)
 		return apci3120_cyclic_ai(1, dev, s);
-	else	/* TRIG_TIMER */
-		return apci3120_cyclic_ai(2, dev, s);
+	/* TRIG_TIMER */
+	return apci3120_cyclic_ai(2, dev, s);
 }
 
 /*
