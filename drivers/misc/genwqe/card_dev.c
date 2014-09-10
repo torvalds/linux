@@ -516,6 +516,7 @@ static int do_flash_update(struct genwqe_file *cfile,
 	u32 crc;
 	u8 cmdopts;
 	struct genwqe_dev *cd = cfile->cd;
+	struct file *filp = cfile->filp;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if ((load->size & 0x3) != 0)
@@ -610,7 +611,7 @@ static int do_flash_update(struct genwqe_file *cfile,
 		/* For Genwqe5 we get back the calculated CRC */
 		*(u64 *)&req->asv[0] = 0ULL;			/* 0x80 */
 
-		rc = __genwqe_execute_raw_ddcb(cd, req);
+		rc = __genwqe_execute_raw_ddcb(cd, req, filp->f_flags);
 
 		load->retc = req->retc;
 		load->attn = req->attn;
@@ -650,6 +651,7 @@ static int do_flash_read(struct genwqe_file *cfile,
 	u8 *xbuf;
 	u8 cmdopts;
 	struct genwqe_dev *cd = cfile->cd;
+	struct file *filp = cfile->filp;
 	struct pci_dev *pci_dev = cd->pci_dev;
 	struct genwqe_ddcb_cmd *cmd;
 
@@ -727,7 +729,7 @@ static int do_flash_read(struct genwqe_file *cfile,
 		/* we only get back the calculated CRC */
 		*(u64 *)&cmd->asv[0] = 0ULL;	/* 0x80 */
 
-		rc = __genwqe_execute_raw_ddcb(cd, cmd);
+		rc = __genwqe_execute_raw_ddcb(cd, cmd, filp->f_flags);
 
 		load->retc = cmd->retc;
 		load->attn = cmd->attn;
@@ -988,13 +990,14 @@ static int genwqe_execute_ddcb(struct genwqe_file *cfile,
 {
 	int rc;
 	struct genwqe_dev *cd = cfile->cd;
+	struct file *filp = cfile->filp;
 	struct ddcb_requ *req = container_of(cmd, struct ddcb_requ, cmd);
 
 	rc = ddcb_cmd_fixups(cfile, req);
 	if (rc != 0)
 		return rc;
 
-	rc = __genwqe_execute_raw_ddcb(cd, cmd);
+	rc = __genwqe_execute_raw_ddcb(cd, cmd, filp->f_flags);
 	ddcb_cmd_cleanup(cfile, req);
 	return rc;
 }
@@ -1006,6 +1009,7 @@ static int do_execute_ddcb(struct genwqe_file *cfile,
 	struct genwqe_ddcb_cmd *cmd;
 	struct ddcb_requ *req;
 	struct genwqe_dev *cd = cfile->cd;
+	struct file *filp = cfile->filp;
 
 	cmd = ddcb_requ_alloc();
 	if (cmd == NULL)
@@ -1021,7 +1025,7 @@ static int do_execute_ddcb(struct genwqe_file *cfile,
 	if (!raw)
 		rc = genwqe_execute_ddcb(cfile, cmd);
 	else
-		rc = __genwqe_execute_raw_ddcb(cd, cmd);
+		rc = __genwqe_execute_raw_ddcb(cd, cmd, filp->f_flags);
 
 	/* Copy back only the modifed fields. Do not copy ASIV
 	   back since the copy got modified by the driver. */

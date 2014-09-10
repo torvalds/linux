@@ -448,8 +448,10 @@ static int genwqe_check_ddcb_queue(struct genwqe_dev *cd,
 		queue->ddcbs_completed++;
 		queue->ddcbs_in_flight--;
 
-		/* wake up process waiting for this DDCB */
+		/* wake up process waiting for this DDCB, and
+                   processes on the busy queue */
 		wake_up_interruptible(&queue->ddcb_waitqs[queue->ddcb_act]);
+		wake_up_interruptible(&queue->busy_waitq);
 
 pick_next_one:
 		queue->ddcb_act = (queue->ddcb_act + 1) % queue->ddcb_max;
@@ -745,14 +747,16 @@ int genwqe_init_debug_data(struct genwqe_dev *cd, struct genwqe_debug_data *d)
 
 /**
  * __genwqe_enqueue_ddcb() - Enqueue a DDCB
- * @cd:          pointer to genwqe device descriptor
- * @req:         pointer to DDCB execution request
+ * @cd:         pointer to genwqe device descriptor
+ * @req:        pointer to DDCB execution request
+ * @f_flags:    file mode: blocking, non-blocking
  *
  * Return: 0 if enqueuing succeeded
  *         -EIO if card is unusable/PCIe problems
  *         -EBUSY if enqueuing failed
  */
-int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
+int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
+			  unsigned int f_flags)
 {
 	struct ddcb *pddcb;
 	unsigned long flags;
@@ -760,6 +764,7 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 	struct pci_dev *pci_dev = cd->pci_dev;
 	u16 icrc;
 
+ retry:
 	if (cd->card_state != GENWQE_CARD_USED) {
 		printk_ratelimited(KERN_ERR
 			"%s %s: [%s] Card is unusable/PCIe problem Req#%d\n",
@@ -785,9 +790,24 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 
 	pddcb = get_next_ddcb(cd, queue, &req->num);	/* get ptr and num */
 	if (pddcb == NULL) {
+		int rc;
+
 		spin_unlock_irqrestore(&queue->ddcb_lock, flags);
-		queue->busy++;
-		return -EBUSY;
+
+		if (f_flags & O_NONBLOCK) {
+			queue->return_on_busy++;
+			return -EBUSY;
+		}
+
+		queue->wait_on_busy++;
+		rc = wait_event_interruptible(queue->busy_waitq,
+					      queue_free_ddcbs(queue) != 0);
+		dev_dbg(&pci_dev->dev, "[%s] waiting for free DDCB: rc=%d\n",
+			__func__, rc);
+		if (rc == -ERESTARTSYS)
+			return rc;  /* interrupted by a signal */
+
+		goto retry;
 	}
 
 	if (queue->ddcb_req[req->num] != NULL) {
@@ -890,9 +910,11 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
  * __genwqe_execute_raw_ddcb() - Setup and execute DDCB
  * @cd:         pointer to genwqe device descriptor
  * @req:        user provided DDCB request
+ * @f_flags:    file mode: blocking, non-blocking
  */
 int __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
-			     struct genwqe_ddcb_cmd *cmd)
+			      struct genwqe_ddcb_cmd *cmd,
+			      unsigned int f_flags)
 {
 	int rc = 0;
 	struct pci_dev *pci_dev = cd->pci_dev;
@@ -908,7 +930,7 @@ int __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
 			__func__, cmd->asiv_length);
 		return -EINVAL;
 	}
-	rc = __genwqe_enqueue_ddcb(cd, req);
+	rc = __genwqe_enqueue_ddcb(cd, req, f_flags);
 	if (rc != 0)
 		return rc;
 
@@ -1014,7 +1036,8 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 	queue->ddcbs_in_flight = 0;  /* statistics */
 	queue->ddcbs_max_in_flight = 0;
 	queue->ddcbs_completed = 0;
-	queue->busy = 0;
+	queue->return_on_busy = 0;
+	queue->wait_on_busy = 0;
 
 	queue->ddcb_seq	  = 0x100; /* start sequence number */
 	queue->ddcb_max	  = genwqe_ddcb_max; /* module parameter */
@@ -1054,7 +1077,7 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 	queue->ddcb_next = 0;	/* queue is empty */
 
 	spin_lock_init(&queue->ddcb_lock);
-	init_waitqueue_head(&queue->ddcb_waitq);
+	init_waitqueue_head(&queue->busy_waitq);
 
 	val64 = ((u64)(queue->ddcb_max - 1) <<  8); /* lastptr */
 	__genwqe_writeq(cd, queue->IO_QUEUE_CONFIG,  0x07);  /* iCRC/vCRC */
@@ -1302,6 +1325,7 @@ static int queue_wake_up_all(struct genwqe_dev *cd)
 	for (i = 0; i < queue->ddcb_max; i++)
 		wake_up_interruptible(&queue->ddcb_waitqs[queue->ddcb_act]);
 
+	wake_up_interruptible(&queue->busy_waitq);
 	spin_unlock_irqrestore(&queue->ddcb_lock, flags);
 
 	return 0;

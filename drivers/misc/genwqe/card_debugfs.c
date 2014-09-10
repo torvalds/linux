@@ -244,14 +244,16 @@ static int genwqe_ddcb_info_show(struct seq_file *s, void *unused)
 		   "  ddcbs_in_flight:     %u\n"
 		   "  ddcbs_max_in_flight: %u\n"
 		   "  ddcbs_completed:     %u\n"
-		   "  busy:                %u\n"
+		   "  return_on_busy:      %u\n"
+		   "  wait_on_busy:        %u\n"
 		   "  irqs_processed:      %u\n",
 		   queue->ddcb_max, (long long)queue->ddcb_daddr,
 		   (long long)queue->ddcb_daddr +
 		   (queue->ddcb_max * DDCB_LENGTH),
 		   (long long)queue->ddcb_vaddr, queue->ddcbs_in_flight,
 		   queue->ddcbs_max_in_flight, queue->ddcbs_completed,
-		   queue->busy, cd->irqs_processed);
+		   queue->return_on_busy, queue->wait_on_busy,
+		   cd->irqs_processed);
 
 	/* Hardware State */
 	seq_printf(s, "  0x%08x 0x%016llx IO_QUEUE_CONFIG\n"

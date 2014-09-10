@@ -201,7 +201,8 @@ static inline void genwqe_mapping_init(struct dma_mapping *m,
  * @ddcb_seq:          Sequence number of last DDCB
  * @ddcbs_in_flight:   Currently enqueued DDCBs
  * @ddcbs_completed:   Number of already completed DDCBs
- * @busy:              Number of -EBUSY returns
+ * @return_on_busy:    Number of -EBUSY returns on full queue
+ * @wait_on_busy:      Number of waits on full queue
  * @ddcb_daddr:        DMA address of first DDCB in the queue
  * @ddcb_vaddr:        Kernel virtual address of first DDCB in the queue
  * @ddcb_req:          Associated requests (one per DDCB)
@@ -218,7 +219,8 @@ struct ddcb_queue {
 	unsigned int ddcbs_in_flight;	/* number of ddcbs in processing */
 	unsigned int ddcbs_completed;
 	unsigned int ddcbs_max_in_flight;
-	unsigned int busy;		/* how many times -EBUSY? */
+	unsigned int return_on_busy;    /* how many times -EBUSY? */
+	unsigned int wait_on_busy;
 
 	dma_addr_t ddcb_daddr;		/* DMA address */
 	struct ddcb *ddcb_vaddr;	/* kernel virtual addr for DDCBs */
@@ -226,7 +228,7 @@ struct ddcb_queue {
 	wait_queue_head_t *ddcb_waitqs; /* waitqueue per ddcb */
 
 	spinlock_t ddcb_lock;		/* exclusive access to queue */
-	wait_queue_head_t ddcb_waitq;	/* wait for ddcb processing */
+	wait_queue_head_t busy_waitq;   /* wait for ddcb processing */
 
 	/* registers or the respective queue to be used */
 	u32 IO_QUEUE_CONFIG;
@@ -508,7 +510,7 @@ static inline bool dma_mapping_used(struct dma_mapping *m)
  * buildup and teardown.
  */
 int  __genwqe_execute_ddcb(struct genwqe_dev *cd,
-			   struct genwqe_ddcb_cmd *cmd);
+			   struct genwqe_ddcb_cmd *cmd, unsigned int f_flags);
 
 /**
  * __genwqe_execute_raw_ddcb() - Execute DDCB request without addr translation
@@ -520,9 +522,12 @@ int  __genwqe_execute_ddcb(struct genwqe_dev *cd,
  * modification.
  */
 int  __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
-			       struct genwqe_ddcb_cmd *cmd);
+			       struct genwqe_ddcb_cmd *cmd,
+			       unsigned int f_flags);
+int  __genwqe_enqueue_ddcb(struct genwqe_dev *cd,
+			   struct ddcb_requ *req,
+			   unsigned int f_flags);
 
-int  __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req);
 int  __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req);
 int  __genwqe_purge_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req);
 
