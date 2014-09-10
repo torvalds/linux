@@ -2779,6 +2779,45 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	return pending;
 }
 
+static void intel_update_pipe_size(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct drm_display_mode *adjusted_mode;
+
+	if (!i915.fastboot)
+		return;
+
+	/*
+	 * Update pipe size and adjust fitter if needed: the reason for this is
+	 * that in compute_mode_changes we check the native mode (not the pfit
+	 * mode) to see if we can flip rather than do a full mode set. In the
+	 * fastboot case, we'll flip, but if we don't update the pipesrc and
+	 * pfit state, we'll end up with a big fb scanned out into the wrong
+	 * sized surface.
+	 *
+	 * To fix this properly, we need to hoist the checks up into
+	 * compute_mode_changes (or above), check the actual pfit state and
+	 * whether the platform allows pfit disable with pipe active, and only
+	 * then update the pipesrc and pfit state, even on the flip path.
+	 */
+
+	adjusted_mode = &crtc->config.adjusted_mode;
+
+	I915_WRITE(PIPESRC(crtc->pipe),
+		   ((adjusted_mode->crtc_hdisplay - 1) << 16) |
+		   (adjusted_mode->crtc_vdisplay - 1));
+	if (!crtc->config.pch_pfit.enabled &&
+	    (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_LVDS) ||
+	     intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP))) {
+		I915_WRITE(PF_CTL(crtc->pipe), 0);
+		I915_WRITE(PF_WIN_POS(crtc->pipe), 0);
+		I915_WRITE(PF_WIN_SZ(crtc->pipe), 0);
+	}
+	crtc->config.pipe_src_w = adjusted_mode->crtc_hdisplay;
+	crtc->config.pipe_src_h = adjusted_mode->crtc_vdisplay;
+}
+
 static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *fb)
@@ -2821,36 +2860,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	/*
-	 * Update pipe size and adjust fitter if needed: the reason for this is
-	 * that in compute_mode_changes we check the native mode (not the pfit
-	 * mode) to see if we can flip rather than do a full mode set. In the
-	 * fastboot case, we'll flip, but if we don't update the pipesrc and
-	 * pfit state, we'll end up with a big fb scanned out into the wrong
-	 * sized surface.
-	 *
-	 * To fix this properly, we need to hoist the checks up into
-	 * compute_mode_changes (or above), check the actual pfit state and
-	 * whether the platform allows pfit disable with pipe active, and only
-	 * then update the pipesrc and pfit state, even on the flip path.
-	 */
-	if (i915.fastboot) {
-		const struct drm_display_mode *adjusted_mode =
-			&intel_crtc->config.adjusted_mode;
-
-		I915_WRITE(PIPESRC(intel_crtc->pipe),
-			   ((adjusted_mode->crtc_hdisplay - 1) << 16) |
-			   (adjusted_mode->crtc_vdisplay - 1));
-		if (!intel_crtc->config.pch_pfit.enabled &&
-		    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) ||
-		     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
-			I915_WRITE(PF_CTL(intel_crtc->pipe), 0);
-			I915_WRITE(PF_WIN_POS(intel_crtc->pipe), 0);
-			I915_WRITE(PF_WIN_SZ(intel_crtc->pipe), 0);
-		}
-		intel_crtc->config.pipe_src_w = adjusted_mode->crtc_hdisplay;
-		intel_crtc->config.pipe_src_h = adjusted_mode->crtc_vdisplay;
-	}
+	intel_update_pipe_size(intel_crtc);
 
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
 
