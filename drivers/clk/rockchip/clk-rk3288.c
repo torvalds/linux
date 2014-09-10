@@ -683,6 +683,7 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 static const char *rk3288_critical_clocks[] __initconst = {
 	"aclk_cpu",
 	"aclk_peri",
+	"hclk_peri",
 };
 
 static void __init rk3288_clk_init(struct device_node *np)
