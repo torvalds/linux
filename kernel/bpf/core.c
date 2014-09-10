@@ -128,6 +128,7 @@ void __bpf_prog_free(struct bpf_prog *fp)
 }
 EXPORT_SYMBOL_GPL(__bpf_prog_free);
 
+#ifdef CONFIG_BPF_JIT
 struct bpf_binary_header *
 bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 		     unsigned int alignment,
@@ -163,6 +164,7 @@ void bpf_jit_binary_free(struct bpf_binary_header *hdr)
 {
 	module_free(NULL, hdr);
 }
+#endif /* CONFIG_BPF_JIT */
 
 /* Base function for offset calculation. Needs to go into .text section,
  * therefore keeping it non-static as well; will also be used by JITs
