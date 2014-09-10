@@ -384,7 +384,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, vcc, vcc->dev);
 	old = xchg(&entry->vccs->xoff, 1);	/* assume XOFF ... */
 	if (old) {
-		pr_warning("XOFF->XOFF transition\n");
+		pr_warn("XOFF->XOFF transition\n");
 		goto out_release_neigh;
 	}
 	dev->stats.tx_packets++;
@@ -447,7 +447,7 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 	struct rtable *rt;
 
 	if (vcc->push != clip_push) {
-		pr_warning("non-CLIP VCC\n");
+		pr_warn("non-CLIP VCC\n");
 		return -EBADF;
 	}
 	clip_vcc = CLIP_VCC(vcc);
