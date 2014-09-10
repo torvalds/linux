@@ -197,6 +197,7 @@ struct uart_port {
 #define UPSTAT_CTS_ENABLE	((__force upstat_t) (1 << 0))
 #define UPSTAT_DCD_ENABLE	((__force upstat_t) (1 << 1))
 
+	int			hw_stopped;		/* sw-assisted CTS flow state */
 	unsigned int		mctrl;			/* current modem ctrl settings */
 	unsigned int		timeout;		/* character-based timeout */
 	unsigned int		type;			/* port type */
@@ -357,7 +358,7 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 static inline int uart_tx_stopped(struct uart_port *port)
 {
 	struct tty_struct *tty = port->state->port.tty;
-	if(tty->stopped || tty->hw_stopped)
+	if (tty->stopped || port->hw_stopped)
 		return 1;
 	return 0;
 }

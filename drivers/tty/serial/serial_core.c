@@ -95,7 +95,7 @@ static void __uart_start(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
 
-	if (!tty->stopped && !tty->hw_stopped)
+	if (!uart_tx_stopped(port))
 		port->ops->start_tx(port);
 }
 
@@ -181,10 +181,11 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		}
 
 		spin_lock_irq(&uport->lock);
-		if (uart_cts_enabled(uport)) {
-			if (!(uport->ops->get_mctrl(uport) & TIOCM_CTS))
-				tty->hw_stopped = 1;
-		}
+		if (uart_cts_enabled(uport) &&
+		    !(uport->ops->get_mctrl(uport) & TIOCM_CTS))
+			uport->hw_stopped = 1;
+		else
+			uport->hw_stopped = 0;
 		spin_unlock_irq(&uport->lock);
 	}
 
@@ -949,7 +950,7 @@ static int uart_get_lsr_info(struct tty_struct *tty,
 	 */
 	if (uport->x_char ||
 	    ((uart_circ_chars_pending(&state->xmit) > 0) &&
-	     !tty->stopped && !tty->hw_stopped))
+	     !uart_tx_stopped(uport)))
 		result &= ~TIOCSER_TEMT;
 
 	return put_user(result, value);
@@ -1295,7 +1296,7 @@ static void uart_set_termios(struct tty_struct *tty,
 
 	/*
 	 * If the port is doing h/w assisted flow control, do nothing.
-	 * We assume that tty->hw_stopped has never been set.
+	 * We assume that port->hw_stopped has never been set.
 	 */
 	if (uport->flags & UPF_HARD_FLOW)
 		return;
@@ -1303,7 +1304,7 @@ static void uart_set_termios(struct tty_struct *tty,
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) && !(cflag & CRTSCTS)) {
 		spin_lock_irqsave(&uport->lock, flags);
-		tty->hw_stopped = 0;
+		uport->hw_stopped = 0;
 		__uart_start(tty);
 		spin_unlock_irqrestore(&uport->lock, flags);
 	}
@@ -1311,7 +1312,7 @@ static void uart_set_termios(struct tty_struct *tty,
 	else if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
 		spin_lock_irqsave(&uport->lock, flags);
 		if (!(uport->ops->get_mctrl(uport) & TIOCM_CTS)) {
-			tty->hw_stopped = 1;
+			uport->hw_stopped = 1;
 			uport->ops->stop_tx(uport);
 		}
 		spin_unlock_irqrestore(&uport->lock, flags);
@@ -2788,23 +2789,20 @@ EXPORT_SYMBOL_GPL(uart_handle_dcd_change);
  */
 void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 {
-	struct tty_port *port = &uport->state->port;
-	struct tty_struct *tty = port->tty;
-
 	lockdep_assert_held_once(&uport->lock);
 
 	uport->icount.cts++;
 
 	if (uart_cts_enabled(uport)) {
-		if (tty->hw_stopped) {
+		if (uport->hw_stopped) {
 			if (status) {
-				tty->hw_stopped = 0;
+				uport->hw_stopped = 0;
 				uport->ops->start_tx(uport);
 				uart_write_wakeup(uport);
 			}
 		} else {
 			if (!status) {
-				tty->hw_stopped = 1;
+				uport->hw_stopped = 1;
 				uport->ops->stop_tx(uport);
 			}
 		}
