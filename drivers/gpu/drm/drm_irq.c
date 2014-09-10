@@ -1005,9 +1005,11 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 
 	/* Last user schedules interrupt disable */
 	if (atomic_dec_and_test(&vblank->refcount)) {
-		if (dev->vblank_disable_immediate || drm_vblank_offdelay < 0)
+		if (drm_vblank_offdelay == 0)
+			return;
+		else if (dev->vblank_disable_immediate || drm_vblank_offdelay < 0)
 			vblank_disable_fn((unsigned long)vblank);
-		else if (drm_vblank_offdelay > 0)
+		else
 			mod_timer(&vblank->disable_timer,
 				  jiffies + ((drm_vblank_offdelay * HZ)/1000));
 	}
