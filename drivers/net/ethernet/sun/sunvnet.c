@@ -534,7 +534,7 @@ static void vnet_event(void *arg, int event)
 	}
 
 	if (unlikely(event != LDC_EVENT_DATA_READY)) {
-		pr_warning("Unexpected LDC event %d\n", event);
+		pr_warn("Unexpected LDC event %d\n", event);
 		spin_unlock_irqrestore(&vio->lock, flags);
 		return;
 	}

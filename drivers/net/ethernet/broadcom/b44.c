@@ -427,7 +427,7 @@ static void b44_wap54g10_workaround(struct b44 *bp)
 	}
 	return;
 error:
-	pr_warning("PHY: cannot reset MII transceiver isolate bit\n");
+	pr_warn("PHY: cannot reset MII transceiver isolate bit\n");
 }
 #else
 static inline void b44_wap54g10_workaround(struct b44 *bp)

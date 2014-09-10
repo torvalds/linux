@@ -956,7 +956,7 @@ static int tile_net_open_aux(struct net_device *dev)
 	 */
 	if (hv_dev_pwrite(priv->hv_devhdl, 0, (HV_VirtAddr)&dummy,
 			  sizeof(dummy), NETIO_IPP_START_SHIM_OFF) < 0) {
-		pr_warning("Failed to start LIPP/LEPP.\n");
+		pr_warn("Failed to start LIPP/LEPP\n");
 		return -EIO;
 	}
 
@@ -2399,8 +2399,7 @@ static int __init network_cpus_setup(char *str)
 {
 	int rc = cpulist_parse_crop(str, &network_cpus_map);
 	if (rc != 0) {
-		pr_warning("network_cpus=%s: malformed cpu list\n",
-		       str);
+		pr_warn("network_cpus=%s: malformed cpu list\n", str);
 	} else {
 
 		/* Remove dedicated cpus. */
@@ -2409,8 +2408,7 @@ static int __init network_cpus_setup(char *str)
 
 
 		if (cpumask_empty(&network_cpus_map)) {
-			pr_warning("Ignoring network_cpus='%s'.\n",
-			       str);
+			pr_warn("Ignoring network_cpus='%s'\n", str);
 		} else {
 			char buf[1024];
 			cpulist_scnprintf(buf, sizeof(buf), &network_cpus_map);
