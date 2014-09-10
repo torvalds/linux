@@ -266,8 +266,9 @@ struct tty_struct {
 		      flow_stopped:1,
 		      unused:62;
 	int hw_stopped;
-	int packet;
-	unsigned char ctrl_status;	/* ctrl_lock */
+	unsigned long ctrl_status:8,	/* ctrl_lock */
+		      packet:1,
+		      unused_ctrl:55;
 	unsigned int receive_room;	/* Bytes free for queue */
 	int flow_change;
 
