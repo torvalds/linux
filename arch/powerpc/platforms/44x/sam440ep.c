@@ -29,7 +29,7 @@
 #include <asm/ppc4xx.h>
 #include <linux/i2c.h>
 
-static __initdata struct of_device_id sam440ep_of_bus[] = {
+static const struct of_device_id sam440ep_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },

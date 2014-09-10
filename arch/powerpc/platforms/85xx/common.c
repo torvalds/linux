@@ -14,7 +14,7 @@
 
 #include "mpc85xx.h"
 
-static struct of_device_id __initdata mpc85xx_common_ids[] = {
+static const struct of_device_id mpc85xx_common_ids[] __initconst = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .compatible = "simple-bus", },

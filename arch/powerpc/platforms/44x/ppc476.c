@@ -38,7 +38,7 @@
 #include <linux/pci.h>
 #include <linux/i2c.h>
 
-static struct of_device_id ppc47x_of_bus[] __initdata = {
+static const struct of_device_id ppc47x_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,plb6", },
 	{ .compatible = "ibm,opb", },

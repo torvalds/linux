@@ -119,12 +119,12 @@
 
 
 /* MPC5200 device tree match tables */
-static struct of_device_id mpc52xx_pic_ids[] __initdata = {
+static const struct of_device_id mpc52xx_pic_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-pic", },
 	{ .compatible = "mpc5200-pic", },
 	{}
 };
-static struct of_device_id mpc52xx_sdma_ids[] __initdata = {
+static const struct of_device_id mpc52xx_sdma_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-bestcomm", },
 	{ .compatible = "mpc5200-bestcomm", },
 	{}

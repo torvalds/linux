@@ -564,7 +564,7 @@ static int mpc52xx_lpbfifo_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc52xx_lpbfifo_match[] = {
+static const struct of_device_id mpc52xx_lpbfifo_match[] = {
 	{ .compatible = "fsl,mpc5200-lpbfifo", },
 	{},
 };
