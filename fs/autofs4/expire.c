@@ -255,12 +255,6 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 			struct autofs_info *ino = autofs4_dentry_ino(p);
 			unsigned int ino_count = atomic_read(&ino->count);
 
-			/*
-			 * Clean stale dentries below that have not been
-			 * invalidated after a mount fail during lookup
-			 */
-			d_invalidate(p);
-
 			/* allow for dget above and top is already dgot */
 			if (p == top)
 				ino_count += 2;
