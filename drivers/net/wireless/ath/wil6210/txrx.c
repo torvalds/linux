@@ -143,6 +143,18 @@ static void wil_vring_free(struct wil6210_priv *wil, struct vring *vring,
 	struct device *dev = wil_to_dev(wil);
 	size_t sz = vring->size * sizeof(vring->va[0]);
 
+	if (tx) {
+		int vring_index = vring - wil->vring_tx;
+
+		wil_dbg_misc(wil, "free Tx vring %d [%d] 0x%p:%pad 0x%p\n",
+			     vring_index, vring->size, vring->va,
+			     &vring->pa, vring->ctx);
+	} else {
+		wil_dbg_misc(wil, "free Rx vring [%d] 0x%p:%pad 0x%p\n",
+			     vring->size, vring->va,
+			     &vring->pa, vring->ctx);
+	}
+
 	while (!wil_vring_is_empty(vring)) {
 		dma_addr_t pa;
 		u16 dmalen;
