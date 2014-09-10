@@ -27,7 +27,7 @@
 #define gic_of_init		NULL
 #endif
 
-static struct of_device_id omap_dt_match_table[] __initdata = {
+static const struct of_device_id omap_dt_match_table[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "ti,omap-infra", },
 	{ }
