@@ -73,6 +73,8 @@ static const struct regulator_ops isl9305_ops = {
 static const struct regulator_desc isl9305_regulators[] = {
 	[ISL9305_DCD1] = {
 		.name =		"DCD1",
+		.of_match =	of_match_ptr("dcd1"),
+		.regulators_node = of_match_ptr("regulators"),
 		.n_voltages =	0x70,
 		.min_uV =	825000,
 		.uV_step =	25000,
@@ -85,6 +87,8 @@ static const struct regulator_desc isl9305_regulators[] = {
 	},
 	[ISL9305_DCD2] = {
 		.name =		"DCD2",
+		.of_match =	of_match_ptr("dcd2"),
+		.regulators_node = of_match_ptr("regulators"),
 		.n_voltages =	0x70,
 		.min_uV =	825000,
 		.uV_step =	25000,
@@ -97,6 +101,8 @@ static const struct regulator_desc isl9305_regulators[] = {
 	},
 	[ISL9305_LDO1] = {
 		.name =		"LDO1",
+		.of_match =	of_match_ptr("ldo1"),
+		.regulators_node = of_match_ptr("regulators"),
 		.n_voltages =	0x37,
 		.min_uV =	900000,
 		.uV_step =	50000,
@@ -109,6 +115,8 @@ static const struct regulator_desc isl9305_regulators[] = {
 	},
 	[ISL9305_LDO2] = {
 		.name =		"LDO2",
+		.of_match =	of_match_ptr("ldo2"),
+		.regulators_node = of_match_ptr("regulators"),
 		.n_voltages =	0x37,
 		.min_uV =	900000,
 		.uV_step =	50000,
@@ -120,45 +128,6 @@ static const struct regulator_desc isl9305_regulators[] = {
 		.ops =		&isl9305_ops,
 	},
 };
-
-#ifdef CONFIG_OF
-static struct of_regulator_match isl9305_reg_matches[] = {
-	[ISL9305_DCD1] = { .name = "dcd1" },
-	[ISL9305_DCD2] = { .name = "dcd2" },
-	[ISL9305_LDO1] = { .name = "ldo1" },
-	[ISL9305_LDO2] = { .name = "ldo2" },
-};
-
-static struct of_regulator_match *isl9305_parse_dt(struct i2c_client *i2c)
-{
-	struct device_node *node = i2c->dev.of_node;
-	struct of_regulator_match *matches;
-	struct device_node *regs;
-	int count;
-
-	regs = of_get_child_by_name(node, "regulators");
-	if (!regs)
-		return NULL;
-
-	matches = devm_kmemdup(&i2c->dev, isl9305_reg_matches,
-			       sizeof(isl9305_reg_matches), GFP_KERNEL);
-	if (!matches)
-		return NULL;
-
-	count = of_regulator_match(&i2c->dev, regs, matches,
-				   ARRAY_SIZE(isl9305_reg_matches));
-	of_node_put(regs);
-	if ((count < 0) || (count > ARRAY_SIZE(isl9305_reg_matches)))
-		return NULL;
-
-	return matches;
-}
-#else
-static struct of_regulator_match *isl9305_parse_dt(struct i2c_client *i2c)
-{
-	return NULL;
-}
-#endif
 
 static const struct regmap_config isl9305_regmap = {
 	.reg_bits = 8,
@@ -173,12 +142,9 @@ static int isl9305_i2c_probe(struct i2c_client *i2c,
 {
 	struct regulator_config config = { };
 	struct isl9305_pdata *pdata = i2c->dev.platform_data;
-	struct of_regulator_match *of_matches;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
 	int i, ret;
-
-	of_matches = isl9305_parse_dt(i2c);
 
 	regmap = devm_regmap_init_i2c(i2c, &isl9305_regmap);
 	if (IS_ERR(regmap)) {
@@ -190,16 +156,10 @@ static int isl9305_i2c_probe(struct i2c_client *i2c,
 	config.dev = &i2c->dev;
 
 	for (i = 0; i < ARRAY_SIZE(isl9305_regulators); i++) {
-		config.of_node = NULL;
-		config.init_data = NULL;
-
-		if (of_matches) {
-			config.init_data = of_matches[i].init_data;
-			config.of_node = of_matches[i].of_node;
-		}
-
-		if (!config.init_data && pdata)
+		if (pdata)
 			config.init_data = pdata->init_data[i];
+		else
+			config.init_data = NULL;
 
 		rdev = devm_regulator_register(&i2c->dev,
 					       &isl9305_regulators[i],
