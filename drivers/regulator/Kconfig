@@ -253,6 +253,7 @@ config REGULATOR_HI6421
 config REGULATOR_ISL9305
 	tristate "Intersil ISL9305 regulator"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  This driver supports ISL9305 voltage regulator chip.
 
