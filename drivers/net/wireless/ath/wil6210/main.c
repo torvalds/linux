@@ -20,6 +20,10 @@
 
 #include "wil6210.h"
 #include "txrx.h"
+#include "wmi.h"
+
+#define WAIT_FOR_DISCONNECT_TIMEOUT_MS 2000
+#define WAIT_FOR_DISCONNECT_INTERVAL_MS 10
 
 static bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
@@ -631,6 +635,9 @@ int wil_up(struct wil6210_priv *wil)
 
 static int __wil_down(struct wil6210_priv *wil)
 {
+	int iter = WAIT_FOR_DISCONNECT_TIMEOUT_MS /
+			WAIT_FOR_DISCONNECT_INTERVAL_MS;
+
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
 	if (wil->platform_ops.bus_request)
@@ -648,7 +655,24 @@ static int __wil_down(struct wil6210_priv *wil)
 		wil->scan_request = NULL;
 	}
 
-	wil6210_disconnect(wil, NULL);
+	if (test_bit(wil_status_fwconnected, &wil->status) ||
+	    test_bit(wil_status_fwconnecting, &wil->status))
+		wmi_send(wil, WMI_DISCONNECT_CMDID, NULL, 0);
+
+	/* make sure wil is idle (not connected) */
+	mutex_unlock(&wil->mutex);
+	while (iter--) {
+		int idle = !test_bit(wil_status_fwconnected, &wil->status) &&
+			   !test_bit(wil_status_fwconnecting, &wil->status);
+		if (idle)
+			break;
+		msleep(WAIT_FOR_DISCONNECT_INTERVAL_MS);
+	}
+	mutex_lock(&wil->mutex);
+
+	if (!iter)
+		wil_err(wil, "timeout waiting for idle FW/HW\n");
+
 	wil_rx_fini(wil);
 
 	return 0;

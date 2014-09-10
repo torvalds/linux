@@ -233,8 +233,8 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	wil6210_debugfs_remove(wil);
-	wil_if_pcie_disable(wil);
 	wil_if_remove(wil);
+	wil_if_pcie_disable(wil);
 	if (wil->platform_ops.uninit)
 		wil->platform_ops.uninit(wil->platform_handle);
 	wil_if_free(wil);
