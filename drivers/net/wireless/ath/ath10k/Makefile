@@ -11,6 +11,7 @@ ath10k_core-y += mac.o \
 		 bmi.o
 
 ath10k_core-$(CONFIG_ATH10K_DEBUGFS) += spectral.o
+ath10k_core-$(CONFIG_NL80211_TESTMODE) += testmode.o
 ath10k_core-$(CONFIG_ATH10K_TRACING) += trace.o
 
 obj-$(CONFIG_ATH10K_PCI) += ath10k_pci.o

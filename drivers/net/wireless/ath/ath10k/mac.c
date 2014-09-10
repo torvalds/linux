@@ -26,6 +26,7 @@
 #include "wmi.h"
 #include "htt.h"
 #include "txrx.h"
+#include "testmode.h"
 
 /**********/
 /* Crypto */
@@ -2480,6 +2481,9 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		WARN_ON(1);
 		ret = -EINVAL;
 		goto err;
+	case ATH10K_STATE_UTF:
+		ret = -EBUSY;
+		goto err;
 	}
 
 	ret = ath10k_hif_power_up(ar);
@@ -2488,7 +2492,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto err_off;
 	}
 
-	ret = ath10k_core_start(ar);
+	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL);
 	if (ret) {
 		ath10k_err(ar, "Could not init core: %d\n", ret);
 		goto err_power_down;
@@ -4456,6 +4460,9 @@ static const struct ieee80211_ops ath10k_ops = {
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.get_tsf			= ath10k_get_tsf,
 	.ampdu_action			= ath10k_ampdu_action,
+
+	CFG80211_TESTMODE_CMD(ath10k_tm_cmd)
+
 #ifdef CONFIG_PM
 	.suspend			= ath10k_suspend,
 	.resume				= ath10k_resume,
