@@ -19,8 +19,6 @@
 #include "rcar-gen2.h"
 #include <asm/mach/arch.h>
 
-#ifdef CONFIG_USE_OF
-
 static const char * const r8a7794_boards_compat_dt[] __initconst = {
 	"renesas,r8a7794",
 	NULL,
@@ -32,4 +30,3 @@ DT_MACHINE_START(R8A7794_DT, "Generic R8A7794 (Flattened Device Tree)")
 	.init_time	= rcar_gen2_timer_init,
 	.dt_compat	= r8a7794_boards_compat_dt,
 MACHINE_END
-#endif /* CONFIG_USE_OF */
