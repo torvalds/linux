@@ -13,8 +13,9 @@
 
 #include <linux/smp.h>
 #include <linux/irq.h>
-#include <plat/irq.h>
 #include <plat/smp.h>
+
+#define IDU_INTERRUPT_0 16
 
 static char smp_cpuinfo_buf[128];
 

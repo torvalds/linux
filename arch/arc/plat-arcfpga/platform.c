@@ -8,27 +8,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/types.h>
 #include <linux/init.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/io.h>
-#include <linux/console.h>
-#include <asm/setup.h>
-#include <asm/clk.h>
 #include <asm/mach_desc.h>
-#include <plat/memmap.h>
 #include <plat/smp.h>
-#include <plat/irq.h>
-
-static void __init plat_fpga_early_init(void)
-{
-	pr_info("[plat-arcfpga]: registering early dev resources\n");
-
-#ifdef CONFIG_ISS_SMP_EXTN
-	iss_model_init_early_smp();
-#endif
-}
 
 /*----------------------- Machine Descriptions ------------------------------
  *
@@ -46,8 +28,8 @@ static const char *legacy_fpga_compat[] __initconst = {
 
 MACHINE_START(LEGACY_FPGA, "legacy_fpga")
 	.dt_compat	= legacy_fpga_compat,
-	.init_early	= plat_fpga_early_init,
 #ifdef CONFIG_ISS_SMP_EXTN
+	.init_early	= iss_model_init_early_smp,
 	.init_smp	= iss_model_init_smp,
 #endif
 MACHINE_END
