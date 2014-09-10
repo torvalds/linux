@@ -1321,8 +1321,6 @@ struct drm_local_map *drm_legacy_getsarea(struct drm_device *dev);
 int drm_legacy_addbufs_agp(struct drm_device *d, struct drm_buf_desc *req);
 int drm_legacy_addbufs_pci(struct drm_device *d, struct drm_buf_desc *req);
 
-void drm_legacy_vma_flush(struct drm_device *d);
-
 void drm_legacy_idlelock_take(struct drm_lock_data *lock);
 void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 
