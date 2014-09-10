@@ -230,6 +230,7 @@ struct iwl_pwr_tx_backoff {
  * @max_data_size: The maximal length of the fw data section
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
+ * @non_shared_ant: the antenna that is for WiFi only
  * @nvm_ver: NVM version
  * @nvm_calib_ver: NVM calibration version
  * @lib: pointer to the lib ops
@@ -262,6 +263,7 @@ struct iwl_cfg {
 	const u32 max_inst_size;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
+	u8   non_shared_ant;
 	bool bt_shared_single_ant;
 	u16  nvm_ver;
 	u16  nvm_calib_ver;

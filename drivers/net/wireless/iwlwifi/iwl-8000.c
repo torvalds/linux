@@ -116,7 +116,8 @@ static const struct iwl_ht_params iwl8000_ht_params = {
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.base_params = &iwl8000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000
+	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,	\
+	.non_shared_ant = ANT_A
 
 const struct iwl_cfg iwl8260_2n_cfg = {
 	.name = "Intel(R) Dual Band Wireless N 8260",
