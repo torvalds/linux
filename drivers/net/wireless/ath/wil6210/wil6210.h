@@ -21,9 +21,13 @@
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
 #include <linux/timex.h>
+#include "wil_platform.h"
+
 
 #define WIL_NAME "wil6210"
 #define WIL_FW_NAME "wil6210.fw"
+
+#define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
 struct wil_board {
 	int board;
@@ -437,6 +441,9 @@ struct wil6210_priv {
 	/* debugfs */
 	struct dentry *debug;
 	struct debugfs_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
+
+	void *platform_handle;
+	struct wil_platform_ops platform_ops;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)

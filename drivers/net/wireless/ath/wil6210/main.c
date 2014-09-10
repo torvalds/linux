@@ -603,6 +603,10 @@ static int __wil_up(struct wil6210_priv *wil)
 	napi_enable(&wil->napi_tx);
 	set_bit(wil_status_napi_en, &wil->status);
 
+	if (wil->platform_ops.bus_request)
+		wil->platform_ops.bus_request(wil->platform_handle,
+					      WIL_MAX_BUS_REQUEST_KBPS);
+
 	return 0;
 }
 
@@ -620,6 +624,9 @@ int wil_up(struct wil6210_priv *wil)
 static int __wil_down(struct wil6210_priv *wil)
 {
 	WARN_ON(!mutex_is_locked(&wil->mutex));
+
+	if (wil->platform_ops.bus_request)
+		wil->platform_ops.bus_request(wil->platform_handle, 0);
 
 	clear_bit(wil_status_napi_en, &wil->status);
 	napi_disable(&wil->napi_rx);

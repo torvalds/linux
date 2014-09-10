@@ -180,6 +180,10 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	wil->board = board;
 
 	wil6210_clear_irq(wil);
+
+	wil->platform_handle =
+			wil_platform_init(&pdev->dev, &wil->platform_ops);
+
 	/* FW should raise IRQ when ready */
 	rc = wil_if_pcie_enable(wil);
 	if (rc) {
@@ -204,6 +208,8 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  bus_disable:
 	wil_if_pcie_disable(wil);
  if_free:
+	if (wil->platform_ops.uninit)
+		wil->platform_ops.uninit(wil->platform_handle);
 	wil_if_free(wil);
  err_iounmap:
 	pci_iounmap(pdev, csr);
@@ -223,6 +229,8 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	wil6210_debugfs_remove(wil);
 	wil_if_pcie_disable(wil);
 	wil_if_remove(wil);
+	if (wil->platform_ops.uninit)
+		wil->platform_ops.uninit(wil->platform_handle);
 	wil_if_free(wil);
 	pci_iounmap(pdev, csr);
 	pci_release_region(pdev, 0);
