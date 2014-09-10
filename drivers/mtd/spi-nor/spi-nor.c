@@ -165,48 +165,51 @@ static inline int set_4byte(struct spi_nor *nor, u32 jedec_id, int enable)
 		return nor->write_reg(nor, SPINOR_OP_BRWR, nor->cmd_buf, 1, 0);
 	}
 }
+static inline int spi_nor_sr_ready(struct spi_nor *nor)
+{
+	int sr = read_sr(nor);
+	if (sr < 0)
+		return sr;
+	else
+		return !(sr & SR_WIP);
+}
+
+static inline int spi_nor_fsr_ready(struct spi_nor *nor)
+{
+	int fsr = read_fsr(nor);
+	if (fsr < 0)
+		return fsr;
+	else
+		return fsr & FSR_READY;
+}
+
+static int spi_nor_ready(struct spi_nor *nor)
+{
+	int sr, fsr;
+	sr = spi_nor_sr_ready(nor);
+	if (sr < 0)
+		return sr;
+	fsr = nor->flags & SNOR_F_USE_FSR ? spi_nor_fsr_ready(nor) : 1;
+	if (fsr < 0)
+		return fsr;
+	return sr && fsr;
+}
 
 static int spi_nor_wait_till_ready(struct spi_nor *nor)
 {
 	unsigned long deadline;
-	int sr;
+	int ret;
 
 	deadline = jiffies + MAX_READY_WAIT_JIFFIES;
 
 	do {
 		cond_resched();
 
-		sr = read_sr(nor);
-		if (sr < 0)
-			break;
-		else if (!(sr & SR_WIP))
+		ret = spi_nor_ready(nor);
+		if (ret < 0)
+			return ret;
+		if (ret)
 			return 0;
-	} while (!time_after_eq(jiffies, deadline));
-
-	return -ETIMEDOUT;
-}
-
-static int spi_nor_wait_till_fsr_ready(struct spi_nor *nor)
-{
-	unsigned long deadline;
-	int sr;
-	int fsr;
-
-	deadline = jiffies + MAX_READY_WAIT_JIFFIES;
-
-	do {
-		cond_resched();
-
-		sr = read_sr(nor);
-		if (sr < 0) {
-			break;
-		} else if (!(sr & SR_WIP)) {
-			fsr = read_fsr(nor);
-			if (fsr < 0)
-				break;
-			if (fsr & FSR_READY)
-				return 0;
-		}
 	} while (!time_after_eq(jiffies, deadline));
 
 	return -ETIMEDOUT;
@@ -986,9 +989,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	else
 		mtd->_write = spi_nor_write;
 
-	if ((info->flags & USE_FSR) &&
-	    nor->wait_till_ready == spi_nor_wait_till_ready)
-		nor->wait_till_ready = spi_nor_wait_till_fsr_ready;
+	if (info->flags & USE_FSR)
+		nor->flags |= SNOR_F_USE_FSR;
 
 #ifdef CONFIG_MTD_SPI_NOR_USE_4K_SECTORS
 	/* prefer "small sector" erase if possible */
