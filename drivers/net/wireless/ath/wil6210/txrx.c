@@ -52,6 +52,7 @@ static inline int wil_vring_is_full(struct vring *vring)
 {
 	return wil_vring_next_tail(vring) == vring->swhead;
 }
+
 /*
  * Available space in Tx Vring
  */
@@ -110,7 +111,8 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	 * we can use any
 	 */
 	for (i = 0; i < vring->size; i++) {
-		volatile struct vring_tx_desc *_d = &(vring->va[i].tx);
+		volatile struct vring_tx_desc *_d = &vring->va[i].tx;
+
 		_d->dma.status = TX_DMA_STATUS_DU;
 	}
 
@@ -125,6 +127,7 @@ static void wil_txdesc_unmap(struct device *dev, struct vring_tx_desc *d,
 {
 	dma_addr_t pa = wil_desc_addr(&d->dma.addr);
 	u16 dmalen = le16_to_cpu(d->dma.length);
+
 	switch (ctx->mapped_as) {
 	case wil_mapped_as_single:
 		dma_unmap_single(dev, pa, dmalen, DMA_TO_DEVICE);
@@ -203,11 +206,12 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 	struct device *dev = wil_to_dev(wil);
 	unsigned int sz = RX_BUF_LEN;
 	struct vring_rx_desc dd, *d = &dd;
-	volatile struct vring_rx_desc *_d = &(vring->va[i].rx);
+	volatile struct vring_rx_desc *_d = &vring->va[i].rx;
 	dma_addr_t pa;
 
 	/* TODO align */
 	struct sk_buff *skb = dev_alloc_skb(sz + headroom);
+
 	if (unlikely(!skb))
 		return -ENOMEM;
 
@@ -286,9 +290,11 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 			 */
 			int len = min_t(int, 8 + sizeof(phy_data),
 					wil_rxdesc_phy_length(d));
+
 			if (len > 8) {
 				void *p = skb_tail_pointer(skb);
 				void *pa = PTR_ALIGN(p, 8);
+
 				if (skb_tailroom(skb) >= len + (pa - p)) {
 					phy_length = len - 8;
 					memcpy(phy_data, pa, phy_length);
@@ -384,13 +390,12 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	int cid;
 	struct wil_net_stats *stats;
 
-
 	BUILD_BUG_ON(sizeof(struct vring_rx_desc) > sizeof(skb->cb));
 
 	if (wil_vring_is_empty(vring))
 		return NULL;
 
-	_d = &(vring->va[vring->swhead].rx);
+	_d = &vring->va[vring->swhead].rx;
 	if (!(_d->dma.status & RX_DMA_STATUS_DU)) {
 		/* it is not error, we just reached end of Rx done area */
 		return NULL;
@@ -544,7 +549,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 			[GRO_NORMAL]		= "GRO_NORMAL",
 			[GRO_DROP]		= "GRO_DROP",
 		};
-		wil_dbg_txrx(wil, "Rx complete %d bytes => %s,\n",
+		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
 			     len, gro_res_str[rc]);
 	}
 }
@@ -585,7 +590,6 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 			else
 				wil_netif_rx_any(skb, ndev);
 		}
-
 	}
 	wil_rx_refill(wil, v->size);
 }
@@ -733,6 +737,7 @@ static struct vring *wil_find_tx_vring(struct wil6210_priv *wil,
 	for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++) {
 		if (wil->vring2cid_tid[i][0] == cid) {
 			struct vring *v = &wil->vring_tx[i];
+
 			wil_dbg_txrx(wil, "%s(%pM) -> [%d]\n",
 				     __func__, eth->h_dest, i);
 			if (v->va) {
@@ -752,6 +757,7 @@ static void wil_set_da_for_vring(struct wil6210_priv *wil,
 {
 	struct ethhdr *eth = (void *)skb->data;
 	int cid = wil->vring2cid_tid[vring_index][0];
+
 	memcpy(eth->h_dest, wil->sta[cid].addr, ETH_ALEN);
 }
 
@@ -762,7 +768,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
  * duplicate skb and send it to other active vrings
  */
 static struct vring *wil_tx_bcast(struct wil6210_priv *wil,
-				       struct sk_buff *skb)
+				  struct sk_buff *skb)
 {
 	struct vring *v, *v2;
 	struct sk_buff *skb2;
@@ -845,8 +851,8 @@ void wil_tx_desc_set_nr_frags(struct vring_tx_desc *d, int nr_frags)
 }
 
 static int wil_tx_desc_offload_cksum_set(struct wil6210_priv *wil,
-				struct vring_tx_desc *d,
-				struct sk_buff *skb)
+					 struct vring_tx_desc *d,
+					 struct sk_buff *skb)
 {
 	int protocol;
 
@@ -914,10 +920,9 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 			1 + nr_frags);
 		return -ENOMEM;
 	}
-	_d = &(vring->va[i].tx);
+	_d = &vring->va[i].tx;
 
-	pa = dma_map_single(dev, skb->data,
-			skb_headlen(skb), DMA_TO_DEVICE);
+	pa = dma_map_single(dev, skb->data, skb_headlen(skb), DMA_TO_DEVICE);
 
 	wil_dbg_txrx(wil, "Tx skb %d bytes 0x%p -> %pad\n", skb_headlen(skb),
 		     skb->data, &pa);
@@ -946,10 +951,11 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		const struct skb_frag_struct *frag =
 				&skb_shinfo(skb)->frags[f];
 		int len = skb_frag_size(frag);
+
 		i = (swhead + f + 1) % vring->size;
-		_d = &(vring->va[i].tx);
+		_d = &vring->va[i].tx;
 		pa = skb_frag_dma_map(dev, frag, 0, skb_frag_size(frag),
-				DMA_TO_DEVICE);
+				      DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev, pa)))
 			goto dma_error;
 		vring->ctx[i].mapped_as = wil_mapped_as_page;
@@ -994,7 +1000,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 		i = (swhead + f) % vring->size;
 		ctx = &vring->ctx[i];
-		_d = &(vring->va[i].tx);
+		_d = &vring->va[i].tx;
 		*d = *_d;
 		_d->dma.status = TX_DMA_STATUS_DU;
 		wil_txdesc_unmap(dev, d, ctx);
@@ -1007,7 +1013,6 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	return -EINVAL;
 }
-
 
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -1036,15 +1041,15 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	pr_once_fw = false;
 
 	/* find vring */
-	if (is_unicast_ether_addr(eth->h_dest)) {
+	if (is_unicast_ether_addr(eth->h_dest))
 		vring = wil_find_tx_vring(wil, skb);
-	} else {
+	else
 		vring = wil_tx_bcast(wil, skb);
-	}
 	if (!vring) {
 		wil_dbg_txrx(wil, "No Tx VRING found for %pM\n", eth->h_dest);
 		goto drop;
 	}
+
 	/* set up vring entry */
 	rc = wil_tx_vring(wil, vring, skb);
 

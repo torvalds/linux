@@ -296,6 +296,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	n = min(request->n_channels, 4U);
 	for (i = 0; i < n; i++) {
 		int ch = request->channels[i]->hw_value;
+
 		if (ch == 0) {
 			wil_err(wil,
 				"Scan requested for unknown frequency %dMhz\n",
@@ -713,7 +714,6 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (rc)
 		goto out;
 
-
 	netif_carrier_on(ndev);
 
 out:
@@ -804,7 +804,7 @@ struct wireless_dev *wil_cfg80211_init(struct device *dev)
 	int rc = 0;
 	struct wireless_dev *wdev;
 
-	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
+	wdev = kzalloc(sizeof(*wdev), GFP_KERNEL);
 	if (!wdev)
 		return ERR_PTR(-ENOMEM);
 

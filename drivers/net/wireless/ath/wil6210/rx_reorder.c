@@ -183,6 +183,7 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn)
 {
 	struct wil_tid_ampdu_rx *r = kzalloc(sizeof(*r), GFP_KERNEL);
+
 	if (!r)
 		return NULL;
 

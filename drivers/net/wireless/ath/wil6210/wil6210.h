@@ -164,6 +164,7 @@ struct fw_map {
 	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
 	const char *name; /* for debugfs */
 };
+
 /* array size should be in sync with actual definition in the wmi.c */
 extern const struct fw_map fw_mapping[7];
 

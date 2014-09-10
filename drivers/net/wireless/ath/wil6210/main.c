@@ -71,6 +71,7 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 	struct wil_sta_info *sta = &wil->sta[cid];
+
 	wil_dbg_misc(wil, "%s(CID %d, status %d)\n", __func__, cid,
 		     sta->status);
 
@@ -227,6 +228,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 static int wil_find_free_vring(struct wil6210_priv *wil)
 {
 	int i;
+
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		if (!wil->vring_tx[i].va)
 			return i;
@@ -391,7 +393,6 @@ static int wil_target_reset(struct wil6210_priv *wil)
 			W(RGF_PCIE_LOS_COUNTER_CTL, BIT(6) | BIT(8));
 			W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
 		}
-
 	}
 
 	/* TODO: check order here!!! Erez code is different */
@@ -436,6 +437,7 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 {
 	ulong to = msecs_to_jiffies(1000);
 	ulong left = wait_for_completion_timeout(&wil->wmi_ready, to);
+
 	if (0 == left) {
 		wil_err(wil, "Firmware not ready\n");
 		return -ETIME;
@@ -461,9 +463,8 @@ int wil_reset(struct wil6210_priv *wil)
 	wil6210_disconnect(wil, NULL);
 
 	wil->status = 0; /* prevent NAPI from being scheduled */
-	if (test_bit(wil_status_napi_en, &wil->status)) {
+	if (test_bit(wil_status_napi_en, &wil->status))
 		napi_synchronize(&wil->napi_rx);
-	}
 
 	if (wil->scan_request) {
 		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
