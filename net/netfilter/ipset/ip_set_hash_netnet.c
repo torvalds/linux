@@ -203,7 +203,7 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 			flags |= (IPSET_FLAG_NOMATCH << 16);
 	}
 
-	if (adt == IPSET_TEST || !(tb[IPSET_ATTR_IP_TO] &&
+	if (adt == IPSET_TEST || !(tb[IPSET_ATTR_IP_TO] ||
 				   tb[IPSET_ATTR_IP2_TO])) {
 		e.ip[0] = htonl(ip & ip_set_hostmask(e.cidr[0]));
 		e.ip[1] = htonl(ip2_from & ip_set_hostmask(e.cidr[1]));
@@ -219,9 +219,10 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 			return ret;
 		if (ip_to < ip)
 			swap(ip, ip_to);
-		if (ip + UINT_MAX == ip_to)
+		if (unlikely(ip + UINT_MAX == ip_to))
 			return -IPSET_ERR_HASH_RANGE;
-	}
+	} else
+		ip_set_mask_from_to(ip, ip_to, e.cidr[0]);
 
 	ip2_to = ip2_from;
 	if (tb[IPSET_ATTR_IP2_TO]) {
@@ -230,10 +231,10 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 			return ret;
 		if (ip2_to < ip2_from)
 			swap(ip2_from, ip2_to);
-		if (ip2_from + UINT_MAX == ip2_to)
+		if (unlikely(ip2_from + UINT_MAX == ip2_to))
 			return -IPSET_ERR_HASH_RANGE;
-
-	}
+	} else
+		ip_set_mask_from_to(ip2_from, ip2_to, e.cidr[1]);
 
 	if (retried)
 		ip = ntohl(h->next.ip[0]);

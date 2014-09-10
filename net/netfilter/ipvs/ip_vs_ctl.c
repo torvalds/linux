@@ -2179,28 +2179,40 @@ static int ip_vs_set_timeout(struct net *net, struct ip_vs_timeout_user *u)
 	return 0;
 }
 
+#define CMDID(cmd)		(cmd - IP_VS_BASE_CTL)
 
-#define SET_CMDID(cmd)		(cmd - IP_VS_BASE_CTL)
-#define SERVICE_ARG_LEN		(sizeof(struct ip_vs_service_user))
-#define SVCDEST_ARG_LEN		(sizeof(struct ip_vs_service_user) +	\
-				 sizeof(struct ip_vs_dest_user))
-#define TIMEOUT_ARG_LEN		(sizeof(struct ip_vs_timeout_user))
-#define DAEMON_ARG_LEN		(sizeof(struct ip_vs_daemon_user))
-#define MAX_ARG_LEN		SVCDEST_ARG_LEN
-
-static const unsigned char set_arglen[SET_CMDID(IP_VS_SO_SET_MAX)+1] = {
-	[SET_CMDID(IP_VS_SO_SET_ADD)]		= SERVICE_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_EDIT)]		= SERVICE_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_DEL)]		= SERVICE_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_FLUSH)]		= 0,
-	[SET_CMDID(IP_VS_SO_SET_ADDDEST)]	= SVCDEST_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_DELDEST)]	= SVCDEST_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_EDITDEST)]	= SVCDEST_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_TIMEOUT)]	= TIMEOUT_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_STARTDAEMON)]	= DAEMON_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_STOPDAEMON)]	= DAEMON_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_ZERO)]		= SERVICE_ARG_LEN,
+struct ip_vs_svcdest_user {
+	struct ip_vs_service_user	s;
+	struct ip_vs_dest_user		d;
 };
+
+static const unsigned char set_arglen[CMDID(IP_VS_SO_SET_MAX) + 1] = {
+	[CMDID(IP_VS_SO_SET_ADD)]         = sizeof(struct ip_vs_service_user),
+	[CMDID(IP_VS_SO_SET_EDIT)]        = sizeof(struct ip_vs_service_user),
+	[CMDID(IP_VS_SO_SET_DEL)]         = sizeof(struct ip_vs_service_user),
+	[CMDID(IP_VS_SO_SET_ADDDEST)]     = sizeof(struct ip_vs_svcdest_user),
+	[CMDID(IP_VS_SO_SET_DELDEST)]     = sizeof(struct ip_vs_svcdest_user),
+	[CMDID(IP_VS_SO_SET_EDITDEST)]    = sizeof(struct ip_vs_svcdest_user),
+	[CMDID(IP_VS_SO_SET_TIMEOUT)]     = sizeof(struct ip_vs_timeout_user),
+	[CMDID(IP_VS_SO_SET_STARTDAEMON)] = sizeof(struct ip_vs_daemon_user),
+	[CMDID(IP_VS_SO_SET_STOPDAEMON)]  = sizeof(struct ip_vs_daemon_user),
+	[CMDID(IP_VS_SO_SET_ZERO)]        = sizeof(struct ip_vs_service_user),
+};
+
+union ip_vs_set_arglen {
+	struct ip_vs_service_user	field_IP_VS_SO_SET_ADD;
+	struct ip_vs_service_user	field_IP_VS_SO_SET_EDIT;
+	struct ip_vs_service_user	field_IP_VS_SO_SET_DEL;
+	struct ip_vs_svcdest_user	field_IP_VS_SO_SET_ADDDEST;
+	struct ip_vs_svcdest_user	field_IP_VS_SO_SET_DELDEST;
+	struct ip_vs_svcdest_user	field_IP_VS_SO_SET_EDITDEST;
+	struct ip_vs_timeout_user	field_IP_VS_SO_SET_TIMEOUT;
+	struct ip_vs_daemon_user	field_IP_VS_SO_SET_STARTDAEMON;
+	struct ip_vs_daemon_user	field_IP_VS_SO_SET_STOPDAEMON;
+	struct ip_vs_service_user	field_IP_VS_SO_SET_ZERO;
+};
+
+#define MAX_SET_ARGLEN	sizeof(union ip_vs_set_arglen)
 
 static void ip_vs_copy_usvc_compat(struct ip_vs_service_user_kern *usvc,
 				  struct ip_vs_service_user *usvc_compat)
@@ -2239,7 +2251,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 {
 	struct net *net = sock_net(sk);
 	int ret;
-	unsigned char arg[MAX_ARG_LEN];
+	unsigned char arg[MAX_SET_ARGLEN];
 	struct ip_vs_service_user *usvc_compat;
 	struct ip_vs_service_user_kern usvc;
 	struct ip_vs_service *svc;
@@ -2247,16 +2259,15 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	struct ip_vs_dest_user_kern udest;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
+	BUILD_BUG_ON(sizeof(arg) > 255);
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (cmd < IP_VS_BASE_CTL || cmd > IP_VS_SO_SET_MAX)
 		return -EINVAL;
-	if (len < 0 || len >  MAX_ARG_LEN)
-		return -EINVAL;
-	if (len != set_arglen[SET_CMDID(cmd)]) {
-		pr_err("set_ctl: len %u != %u\n",
-		       len, set_arglen[SET_CMDID(cmd)]);
+	if (len != set_arglen[CMDID(cmd)]) {
+		IP_VS_DBG(1, "set_ctl: len %u != %u\n",
+			  len, set_arglen[CMDID(cmd)]);
 		return -EINVAL;
 	}
 
@@ -2512,50 +2523,50 @@ __ip_vs_get_timeouts(struct net *net, struct ip_vs_timeout_user *u)
 #endif
 }
 
-
-#define GET_CMDID(cmd)		(cmd - IP_VS_BASE_CTL)
-#define GET_INFO_ARG_LEN	(sizeof(struct ip_vs_getinfo))
-#define GET_SERVICES_ARG_LEN	(sizeof(struct ip_vs_get_services))
-#define GET_SERVICE_ARG_LEN	(sizeof(struct ip_vs_service_entry))
-#define GET_DESTS_ARG_LEN	(sizeof(struct ip_vs_get_dests))
-#define GET_TIMEOUT_ARG_LEN	(sizeof(struct ip_vs_timeout_user))
-#define GET_DAEMON_ARG_LEN	(sizeof(struct ip_vs_daemon_user) * 2)
-
-static const unsigned char get_arglen[GET_CMDID(IP_VS_SO_GET_MAX)+1] = {
-	[GET_CMDID(IP_VS_SO_GET_VERSION)]	= 64,
-	[GET_CMDID(IP_VS_SO_GET_INFO)]		= GET_INFO_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_SERVICES)]	= GET_SERVICES_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_SERVICE)]	= GET_SERVICE_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_DESTS)]		= GET_DESTS_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_TIMEOUT)]	= GET_TIMEOUT_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_DAEMON)]	= GET_DAEMON_ARG_LEN,
+static const unsigned char get_arglen[CMDID(IP_VS_SO_GET_MAX) + 1] = {
+	[CMDID(IP_VS_SO_GET_VERSION)]  = 64,
+	[CMDID(IP_VS_SO_GET_INFO)]     = sizeof(struct ip_vs_getinfo),
+	[CMDID(IP_VS_SO_GET_SERVICES)] = sizeof(struct ip_vs_get_services),
+	[CMDID(IP_VS_SO_GET_SERVICE)]  = sizeof(struct ip_vs_service_entry),
+	[CMDID(IP_VS_SO_GET_DESTS)]    = sizeof(struct ip_vs_get_dests),
+	[CMDID(IP_VS_SO_GET_TIMEOUT)]  = sizeof(struct ip_vs_timeout_user),
+	[CMDID(IP_VS_SO_GET_DAEMON)]   = 2 * sizeof(struct ip_vs_daemon_user),
 };
+
+union ip_vs_get_arglen {
+	char				field_IP_VS_SO_GET_VERSION[64];
+	struct ip_vs_getinfo		field_IP_VS_SO_GET_INFO;
+	struct ip_vs_get_services	field_IP_VS_SO_GET_SERVICES;
+	struct ip_vs_service_entry	field_IP_VS_SO_GET_SERVICE;
+	struct ip_vs_get_dests		field_IP_VS_SO_GET_DESTS;
+	struct ip_vs_timeout_user	field_IP_VS_SO_GET_TIMEOUT;
+	struct ip_vs_daemon_user	field_IP_VS_SO_GET_DAEMON[2];
+};
+
+#define MAX_GET_ARGLEN	sizeof(union ip_vs_get_arglen)
 
 static int
 do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 {
-	unsigned char arg[128];
+	unsigned char arg[MAX_GET_ARGLEN];
 	int ret = 0;
 	unsigned int copylen;
 	struct net *net = sock_net(sk);
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	BUG_ON(!net);
+	BUILD_BUG_ON(sizeof(arg) > 255);
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (cmd < IP_VS_BASE_CTL || cmd > IP_VS_SO_GET_MAX)
 		return -EINVAL;
 
-	if (*len < get_arglen[GET_CMDID(cmd)]) {
-		pr_err("get_ctl: len %u < %u\n",
-		       *len, get_arglen[GET_CMDID(cmd)]);
+	copylen = get_arglen[CMDID(cmd)];
+	if (*len < (int) copylen) {
+		IP_VS_DBG(1, "get_ctl: len %d < %u\n", *len, copylen);
 		return -EINVAL;
 	}
-
-	copylen = get_arglen[GET_CMDID(cmd)];
-	if (copylen > 128)
-		return -EINVAL;
 
 	if (copy_from_user(arg, user, copylen) != 0)
 		return -EFAULT;

@@ -14,6 +14,10 @@
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
+#include <linux/in.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/smp.h>
 #include <net/dst.h>
 #include <net/sock.h>
 #include <net/tcp_states.h> /* for TCP_TIME_WAIT */
@@ -124,6 +128,43 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		dest->data[0] = skb->secmark;
 		break;
 #endif
+	case NFT_META_PKTTYPE:
+		if (skb->pkt_type != PACKET_LOOPBACK) {
+			dest->data[0] = skb->pkt_type;
+			break;
+		}
+
+		switch (pkt->ops->pf) {
+		case NFPROTO_IPV4:
+			if (ipv4_is_multicast(ip_hdr(skb)->daddr))
+				dest->data[0] = PACKET_MULTICAST;
+			else
+				dest->data[0] = PACKET_BROADCAST;
+			break;
+		case NFPROTO_IPV6:
+			if (ipv6_hdr(skb)->daddr.s6_addr[0] == 0xFF)
+				dest->data[0] = PACKET_MULTICAST;
+			else
+				dest->data[0] = PACKET_BROADCAST;
+			break;
+		default:
+			WARN_ON(1);
+			goto err;
+		}
+		break;
+	case NFT_META_CPU:
+		dest->data[0] = smp_processor_id();
+		break;
+	case NFT_META_IIFGROUP:
+		if (in == NULL)
+			goto err;
+		dest->data[0] = in->group;
+		break;
+	case NFT_META_OIFGROUP:
+		if (out == NULL)
+			goto err;
+		dest->data[0] = out->group;
+		break;
 	default:
 		WARN_ON(1);
 		goto err;
@@ -195,6 +236,10 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 #ifdef CONFIG_NETWORK_SECMARK
 	case NFT_META_SECMARK:
 #endif
+	case NFT_META_PKTTYPE:
+	case NFT_META_CPU:
+	case NFT_META_IIFGROUP:
+	case NFT_META_OIFGROUP:
 		break;
 	default:
 		return -EOPNOTSUPP;

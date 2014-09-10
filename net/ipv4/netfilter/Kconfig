@@ -232,8 +232,21 @@ config IP_NF_NAT
 
 if IP_NF_NAT
 
+config NF_NAT_MASQUERADE_IPV4
+	tristate "IPv4 masquerade support"
+	help
+	This is the kernel functionality to provide NAT in the masquerade
+	flavour (automatic source address selection).
+
+config NFT_MASQ_IPV4
+	tristate "IPv4 masquerading support for nf_tables"
+	depends on NF_TABLES_IPV4
+	depends on NFT_MASQ
+	select NF_NAT_MASQUERADE_IPV4
+
 config IP_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
+	select NF_NAT_MASQUERADE_IPV4
 	default m if NETFILTER_ADVANCED=n
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are

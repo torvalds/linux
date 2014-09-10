@@ -24,144 +24,53 @@
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/ipv6.h>
 
-/*
- * IPv6 NAT chains
- */
-
-static unsigned int nf_nat_ipv6_fn(const struct nf_hook_ops *ops,
-			      struct sk_buff *skb,
-			      const struct net_device *in,
-			      const struct net_device *out,
-			      int (*okfn)(struct sk_buff *))
+static unsigned int nft_nat_do_chain(const struct nf_hook_ops *ops,
+				     struct sk_buff *skb,
+				     const struct net_device *in,
+				     const struct net_device *out,
+				     struct nf_conn *ct)
 {
-	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct nf_conn_nat *nat;
-	enum nf_nat_manip_type maniptype = HOOK2MANIP(ops->hooknum);
-	__be16 frag_off;
-	int hdrlen;
-	u8 nexthdr;
 	struct nft_pktinfo pkt;
-	unsigned int ret;
 
-	if (ct == NULL || nf_ct_is_untracked(ct))
-		return NF_ACCEPT;
+	nft_set_pktinfo_ipv6(&pkt, ops, skb, in, out);
 
-	nat = nf_ct_nat_ext_add(ct);
-	if (nat == NULL)
-		return NF_ACCEPT;
-
-	switch (ctinfo) {
-	case IP_CT_RELATED:
-	case IP_CT_RELATED + IP_CT_IS_REPLY:
-		nexthdr = ipv6_hdr(skb)->nexthdr;
-		hdrlen = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr),
-					  &nexthdr, &frag_off);
-
-		if (hdrlen >= 0 && nexthdr == IPPROTO_ICMPV6) {
-			if (!nf_nat_icmpv6_reply_translation(skb, ct, ctinfo,
-							   ops->hooknum,
-							   hdrlen))
-				return NF_DROP;
-			else
-				return NF_ACCEPT;
-		}
-		/* Fall through */
-	case IP_CT_NEW:
-		if (nf_nat_initialized(ct, maniptype))
-			break;
-
-		nft_set_pktinfo_ipv6(&pkt, ops, skb, in, out);
-
-		ret = nft_do_chain(&pkt, ops);
-		if (ret != NF_ACCEPT)
-			return ret;
-		if (!nf_nat_initialized(ct, maniptype)) {
-			ret = nf_nat_alloc_null_binding(ct, ops->hooknum);
-			if (ret != NF_ACCEPT)
-				return ret;
-		}
-	default:
-		break;
-	}
-
-	return nf_nat_packet(ct, ctinfo, ops->hooknum, skb);
+	return nft_do_chain(&pkt, ops);
 }
 
-static unsigned int nf_nat_ipv6_prerouting(const struct nf_hook_ops *ops,
-				      struct sk_buff *skb,
-				      const struct net_device *in,
-				      const struct net_device *out,
-				      int (*okfn)(struct sk_buff *))
+static unsigned int nft_nat_ipv6_fn(const struct nf_hook_ops *ops,
+				    struct sk_buff *skb,
+				    const struct net_device *in,
+				    const struct net_device *out,
+				    int (*okfn)(struct sk_buff *))
 {
-	struct in6_addr daddr = ipv6_hdr(skb)->daddr;
-	unsigned int ret;
-
-	ret = nf_nat_ipv6_fn(ops, skb, in, out, okfn);
-	if (ret != NF_DROP && ret != NF_STOLEN &&
-	    ipv6_addr_cmp(&daddr, &ipv6_hdr(skb)->daddr))
-		skb_dst_drop(skb);
-
-	return ret;
+	return nf_nat_ipv6_fn(ops, skb, in, out, nft_nat_do_chain);
 }
 
-static unsigned int nf_nat_ipv6_postrouting(const struct nf_hook_ops *ops,
-				       struct sk_buff *skb,
-				       const struct net_device *in,
-				       const struct net_device *out,
-				       int (*okfn)(struct sk_buff *))
+static unsigned int nft_nat_ipv6_in(const struct nf_hook_ops *ops,
+				    struct sk_buff *skb,
+				    const struct net_device *in,
+				    const struct net_device *out,
+				    int (*okfn)(struct sk_buff *))
 {
-	enum ip_conntrack_info ctinfo __maybe_unused;
-	const struct nf_conn *ct __maybe_unused;
-	unsigned int ret;
-
-	ret = nf_nat_ipv6_fn(ops, skb, in, out, okfn);
-#ifdef CONFIG_XFRM
-	if (ret != NF_DROP && ret != NF_STOLEN &&
-	    !(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
-	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
-		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-
-		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.src.u3,
-				      &ct->tuplehash[!dir].tuple.dst.u3) ||
-		    (ct->tuplehash[dir].tuple.src.u.all !=
-		     ct->tuplehash[!dir].tuple.dst.u.all))
-			if (nf_xfrm_me_harder(skb, AF_INET6) < 0)
-				ret = NF_DROP;
-	}
-#endif
-	return ret;
+	return nf_nat_ipv6_in(ops, skb, in, out, nft_nat_do_chain);
 }
 
-static unsigned int nf_nat_ipv6_output(const struct nf_hook_ops *ops,
-				  struct sk_buff *skb,
-				  const struct net_device *in,
-				  const struct net_device *out,
-				  int (*okfn)(struct sk_buff *))
+static unsigned int nft_nat_ipv6_out(const struct nf_hook_ops *ops,
+				     struct sk_buff *skb,
+				     const struct net_device *in,
+				     const struct net_device *out,
+				     int (*okfn)(struct sk_buff *))
 {
-	enum ip_conntrack_info ctinfo;
-	const struct nf_conn *ct;
-	unsigned int ret;
+	return nf_nat_ipv6_out(ops, skb, in, out, nft_nat_do_chain);
+}
 
-	ret = nf_nat_ipv6_fn(ops, skb, in, out, okfn);
-	if (ret != NF_DROP && ret != NF_STOLEN &&
-	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
-		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-
-		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.dst.u3,
-				      &ct->tuplehash[!dir].tuple.src.u3)) {
-			if (ip6_route_me_harder(skb))
-				ret = NF_DROP;
-		}
-#ifdef CONFIG_XFRM
-		else if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
-			 ct->tuplehash[dir].tuple.dst.u.all !=
-			 ct->tuplehash[!dir].tuple.src.u.all)
-			if (nf_xfrm_me_harder(skb, AF_INET6))
-				ret = NF_DROP;
-#endif
-	}
-	return ret;
+static unsigned int nft_nat_ipv6_local_fn(const struct nf_hook_ops *ops,
+					  struct sk_buff *skb,
+					  const struct net_device *in,
+					  const struct net_device *out,
+					  int (*okfn)(struct sk_buff *))
+{
+	return nf_nat_ipv6_local_fn(ops, skb, in, out, nft_nat_do_chain);
 }
 
 static const struct nf_chain_type nft_chain_nat_ipv6 = {
@@ -174,10 +83,10 @@ static const struct nf_chain_type nft_chain_nat_ipv6 = {
 			  (1 << NF_INET_LOCAL_OUT) |
 			  (1 << NF_INET_LOCAL_IN),
 	.hooks		= {
-		[NF_INET_PRE_ROUTING]	= nf_nat_ipv6_prerouting,
-		[NF_INET_POST_ROUTING]	= nf_nat_ipv6_postrouting,
-		[NF_INET_LOCAL_OUT]	= nf_nat_ipv6_output,
-		[NF_INET_LOCAL_IN]	= nf_nat_ipv6_fn,
+		[NF_INET_PRE_ROUTING]	= nft_nat_ipv6_in,
+		[NF_INET_POST_ROUTING]	= nft_nat_ipv6_out,
+		[NF_INET_LOCAL_OUT]	= nft_nat_ipv6_local_fn,
+		[NF_INET_LOCAL_IN]	= nft_nat_ipv6_fn,
 	},
 };
 

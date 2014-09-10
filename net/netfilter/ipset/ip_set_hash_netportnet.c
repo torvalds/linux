@@ -257,7 +257,8 @@ hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 			swap(ip, ip_to);
 		if (unlikely(ip + UINT_MAX == ip_to))
 			return -IPSET_ERR_HASH_RANGE;
-	}
+	} else
+		ip_set_mask_from_to(ip, ip_to, e.cidr[0]);
 
 	port_to = port = ntohs(e.port);
 	if (tb[IPSET_ATTR_PORT_TO]) {
@@ -275,7 +276,8 @@ hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 			swap(ip2_from, ip2_to);
 		if (unlikely(ip2_from + UINT_MAX == ip2_to))
 			return -IPSET_ERR_HASH_RANGE;
-	}
+	} else
+		ip_set_mask_from_to(ip2_from, ip2_to, e.cidr[1]);
 
 	if (retried)
 		ip = ntohl(h->next.ip[0]);
