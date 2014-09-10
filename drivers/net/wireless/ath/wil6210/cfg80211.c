@@ -379,22 +379,22 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 				sme->ie_len);
 			goto out;
 		}
-		/*
-		 * For secure assoc, send:
-		 * (1) WMI_DELETE_CIPHER_KEY_CMD
-		 * (2) WMI_SET_APPIE_CMD
-		 */
+		/* For secure assoc, send WMI_DELETE_CIPHER_KEY_CMD */
 		rc = wmi_del_cipher_key(wil, 0, bss->bssid);
 		if (rc) {
 			wil_err(wil, "WMI_DELETE_CIPHER_KEY_CMD failed\n");
 			goto out;
 		}
-		/* WMI_SET_APPIE_CMD */
-		rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_REQ, sme->ie_len, sme->ie);
-		if (rc) {
-			wil_err(wil, "WMI_SET_APPIE_CMD failed\n");
-			goto out;
-		}
+	}
+
+	/* WMI_SET_APPIE_CMD. ie may contain rsn info as well as other info
+	 * elements. Send it also in case it's empty, to erase previously set
+	 * ies in FW.
+	 */
+	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_REQ, sme->ie_len, sme->ie);
+	if (rc) {
+		wil_err(wil, "WMI_SET_APPIE_CMD failed\n");
+		goto out;
 	}
 
 	/* WMI_CONNECT_CMD */

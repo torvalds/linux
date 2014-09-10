@@ -972,6 +972,8 @@ int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie)
 
 	if (!cmd)
 		return -ENOMEM;
+	if (!ie)
+		ie_len = 0;
 
 	cmd->mgmt_frm_type = type;
 	/* BUG: FW API define ieLen as u8. Will fix FW */
