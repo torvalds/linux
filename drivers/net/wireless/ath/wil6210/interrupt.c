@@ -538,12 +538,7 @@ int wil6210_init_irq(struct wil6210_priv *wil, int irq)
 					  wil6210_thread_irq,
 					  wil->n_msi ? 0 : IRQF_SHARED,
 					  WIL_NAME, wil);
-	if (rc)
-		return rc;
-
-	wil6210_enable_irq(wil);
-
-	return 0;
+	return rc;
 }
 
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq)
