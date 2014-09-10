@@ -546,13 +546,25 @@ static int nfs_launder_page(struct page *page)
 static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 						sector_t *span)
 {
+	int ret;
+	struct rpc_clnt *clnt = NFS_CLIENT(file->f_mapping->host);
+
 	*span = sis->pages;
-	return xs_swapper(NFS_CLIENT(file->f_mapping->host)->cl_xprt, 1);
+
+	rcu_read_lock();
+	ret = xs_swapper(rcu_dereference(clnt->cl_xprt), 1);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static void nfs_swap_deactivate(struct file *file)
 {
-	xs_swapper(NFS_CLIENT(file->f_mapping->host)->cl_xprt, 0);
+	struct rpc_clnt *clnt = NFS_CLIENT(file->f_mapping->host);
+
+	rcu_read_lock();
+	xs_swapper(rcu_dereference(clnt->cl_xprt), 0);
+	rcu_read_unlock();
 }
 #endif
 
