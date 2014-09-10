@@ -5,7 +5,7 @@
  *
  * Author: Frank Haverkamp <haver@linux.vnet.ibm.com>
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
- * Author: Michael Jung <mijung@de.ibm.com>
+ * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -45,7 +45,7 @@
 MODULE_AUTHOR("Frank Haverkamp <haver@linux.vnet.ibm.com>");
 MODULE_AUTHOR("Michael Ruettger <michael@ibmra.de>");
 MODULE_AUTHOR("Joerg-Stephan Vogt <jsvogt@de.ibm.com>");
-MODULE_AUTHOR("Michal Jung <mijung@de.ibm.com>");
+MODULE_AUTHOR("Michael Jung <mijung@gmx.net>");
 
 MODULE_DESCRIPTION("GenWQE Card");
 MODULE_VERSION(DRV_VERSION);
