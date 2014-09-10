@@ -301,12 +301,16 @@ int wil_priv_init(struct wil6210_priv *wil)
 
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
 {
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	del_timer_sync(&wil->connect_timer);
 	_wil6210_disconnect(wil, bssid);
 }
 
 void wil_priv_deinit(struct wil6210_priv *wil)
 {
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	del_timer_sync(&wil->scan_timer);
 	cancel_work_sync(&wil->disconnect_worker);
 	cancel_work_sync(&wil->fw_error_worker);
@@ -456,6 +460,8 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 int wil_reset(struct wil6210_priv *wil)
 {
 	int rc;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
@@ -614,6 +620,8 @@ int wil_up(struct wil6210_priv *wil)
 {
 	int rc;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	mutex_lock(&wil->mutex);
 	rc = __wil_up(wil);
 	mutex_unlock(&wil->mutex);
@@ -649,6 +657,8 @@ static int __wil_down(struct wil6210_priv *wil)
 int wil_down(struct wil6210_priv *wil)
 {
 	int rc;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	mutex_lock(&wil->mutex);
 	rc = __wil_down(wil);

@@ -782,8 +782,8 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 	 */
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
-	dev_warn(wiphy_dev(wiphy), "%s : flags = 0x%08x\n",
-		 __func__, wiphy->flags);
+	dev_dbg(wiphy_dev(wiphy), "%s : flags = 0x%08x\n",
+		__func__, wiphy->flags);
 	wiphy->probe_resp_offload =
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
@@ -803,6 +803,8 @@ struct wireless_dev *wil_cfg80211_init(struct device *dev)
 {
 	int rc = 0;
 	struct wireless_dev *wdev;
+
+	dev_dbg(dev, "%s()\n", __func__);
 
 	wdev = kzalloc(sizeof(*wdev), GFP_KERNEL);
 	if (!wdev)
@@ -835,6 +837,8 @@ out:
 void wil_wdev_free(struct wil6210_priv *wil)
 {
 	struct wireless_dev *wdev = wil_to_wdev(wil);
+
+	dev_dbg(wil_to_dev(wil), "%s()\n", __func__);
 
 	if (!wdev)
 		return;

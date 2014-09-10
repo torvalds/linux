@@ -87,6 +87,8 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	size_t sz = vring->size * sizeof(vring->va[0]);
 	uint i;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	BUILD_BUG_ON(sizeof(vring->va[0]) != 32);
 
 	vring->swhead = 0;
@@ -599,6 +601,8 @@ int wil_rx_init(struct wil6210_priv *wil)
 	struct vring *vring = &wil->vring_rx;
 	int rc;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	if (vring->va) {
 		wil_err(wil, "Rx ring already allocated\n");
 		return -EINVAL;
@@ -627,6 +631,8 @@ int wil_rx_init(struct wil6210_priv *wil)
 void wil_rx_fini(struct wil6210_priv *wil)
 {
 	struct vring *vring = &wil->vring_rx;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	if (vring->va)
 		wil_vring_free(wil, vring, 0);
@@ -661,6 +667,8 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	} __packed reply;
 	struct vring *vring = &wil->vring_tx[id];
 	struct vring_tx_data *txdata = &wil->vring_tx_data[id];
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	if (vring->va) {
 		wil_err(wil, "Tx ring [%d] already allocated\n", id);
@@ -710,6 +718,8 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 
 	if (!vring->va)
 		return;
+
+	wil_dbg_misc(wil, "%s() id=%d\n", __func__, id);
 
 	/* make sure NAPI won't touch this vring */
 	wil->vring_tx_data[id].enabled = 0;

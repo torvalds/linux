@@ -528,6 +528,9 @@ void wil6210_clear_irq(struct wil6210_priv *wil)
 int wil6210_init_irq(struct wil6210_priv *wil, int irq)
 {
 	int rc;
+
+	wil_dbg_misc(wil, "%s() n_msi=%d\n", __func__, wil->n_msi);
+
 	if (wil->n_msi == 3)
 		rc = wil6210_request_3msi(wil, irq);
 	else
@@ -545,6 +548,8 @@ int wil6210_init_irq(struct wil6210_priv *wil, int irq)
 
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq)
 {
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	wil6210_disable_irq(wil);
 	free_irq(irq, wil);
 	if (wil->n_msi == 3) {

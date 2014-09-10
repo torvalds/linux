@@ -41,6 +41,8 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	 */
 	int msi_only = pdev->msi_enabled;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	pdev->msi_enabled = 0;
 
 	pci_set_master(pdev);
@@ -106,6 +108,8 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 static int wil_if_pcie_disable(struct wil6210_priv *wil)
 {
 	struct pci_dev *pdev = wil->pdev;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	pci_clear_master(pdev);
 	/* disable and release IRQ */
@@ -225,6 +229,8 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 {
 	struct wil6210_priv *wil = pci_get_drvdata(pdev);
 	void __iomem *csr = wil->csr;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	wil6210_debugfs_remove(wil);
 	wil_if_pcie_disable(wil);
