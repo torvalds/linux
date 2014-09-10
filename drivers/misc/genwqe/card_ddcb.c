@@ -1251,10 +1251,8 @@ int genwqe_setup_service_layer(struct genwqe_dev *cd)
 	}
 
 	rc = genwqe_set_interrupt_capability(cd, GENWQE_MSI_IRQS);
-	if (rc) {
-		rc = -ENODEV;
+	if (rc)
 		goto stop_kthread;
-	}
 
 	/*
 	 * We must have all wait-queues initialized when we enable the
