@@ -308,7 +308,7 @@ static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
 	int i;
 
 	for (i = 0; tbl[i].name; i++) {
-		struct dentry *f = NULL;
+		struct dentry *f;
 
 		switch (tbl[i].type) {
 		case doff_u32:
@@ -328,6 +328,8 @@ static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
 							 tbl[i].mode, dbg,
 							 base + tbl[i].off);
 			break;
+		default:
+			f = ERR_PTR(-EINVAL);
 		}
 		if (IS_ERR_OR_NULL(f))
 			wil_err(wil, "Create file \"%s\": err %ld\n",
