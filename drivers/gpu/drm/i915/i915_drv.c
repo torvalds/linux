@@ -640,9 +640,9 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 		return -ENODEV;
 	}
 
-	if (state.event == PM_EVENT_PRETHAW)
-		return 0;
-
+	if (WARN_ON_ONCE(state.event != PM_EVENT_SUSPEND &&
+			 state.event != PM_EVENT_FREEZE))
+		return -EINVAL;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
