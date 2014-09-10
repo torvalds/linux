@@ -259,29 +259,6 @@ void ipu_plane_disable(struct ipu_plane *ipu_plane)
 		ipu_dp_disable(ipu_plane->ipu);
 }
 
-static void ipu_plane_dpms(struct ipu_plane *ipu_plane, int mode)
-{
-	bool enable;
-
-	DRM_DEBUG_KMS("mode = %d", mode);
-
-	enable = (mode == DRM_MODE_DPMS_ON);
-
-	if (enable == ipu_plane->enabled)
-		return;
-
-	if (enable) {
-		ipu_plane_enable(ipu_plane);
-	} else {
-		ipu_plane_disable(ipu_plane);
-
-		ipu_idmac_put(ipu_plane->ipu_ch);
-		ipu_dmfc_put(ipu_plane->dmfc);
-		if (ipu_plane->dp)
-			ipu_dp_put(ipu_plane->dp);
-	}
-}
-
 /*
  * drm_plane API
  */
@@ -315,7 +292,8 @@ static int ipu_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 				plane->crtc, crtc);
 	plane->crtc = crtc;
 
-	ipu_plane_dpms(ipu_plane, DRM_MODE_DPMS_ON);
+	if (!ipu_plane->enabled)
+		ipu_plane_enable(ipu_plane);
 
 	return 0;
 }
@@ -326,7 +304,8 @@ static int ipu_disable_plane(struct drm_plane *plane)
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	ipu_plane_dpms(ipu_plane, DRM_MODE_DPMS_OFF);
+	if (ipu_plane->enabled)
+		ipu_plane_disable(ipu_plane);
 
 	ipu_plane_put_resources(ipu_plane);
 
