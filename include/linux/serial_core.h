@@ -112,6 +112,7 @@ struct uart_icount {
 };
 
 typedef unsigned int __bitwise__ upf_t;
+typedef unsigned int __bitwise__ upstat_t;
 
 struct uart_port {
 	spinlock_t		lock;			/* port lock */
@@ -189,6 +190,12 @@ struct uart_port {
 
 #define UPF_CHANGE_MASK		((__force upf_t) (0x17fff))
 #define UPF_USR_MASK		((__force upf_t) (UPF_SPD_MASK|UPF_LOW_LATENCY))
+
+	/* status must be updated while holding port lock */
+	upstat_t		status;
+
+#define UPSTAT_CTS_ENABLE	((__force upstat_t) (1 << 0))
+#define UPSTAT_DCD_ENABLE	((__force upstat_t) (1 << 1))
 
 	unsigned int		mctrl;			/* current modem ctrl settings */
 	unsigned int		timeout;		/* character-based timeout */
@@ -353,6 +360,11 @@ static inline int uart_tx_stopped(struct uart_port *port)
 	if(tty->stopped || tty->hw_stopped)
 		return 1;
 	return 0;
+}
+
+static inline bool uart_cts_enabled(struct uart_port *uport)
+{
+	return uport->status & UPSTAT_CTS_ENABLE;
 }
 
 /*

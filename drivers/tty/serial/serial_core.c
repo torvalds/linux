@@ -59,6 +59,11 @@ static void uart_change_pm(struct uart_state *state,
 
 static void uart_port_shutdown(struct tty_port *port);
 
+static int uart_dcd_enabled(struct uart_port *uport)
+{
+	return uport->status & UPSTAT_DCD_ENABLE;
+}
+
 /*
  * This routine is used by the interrupt handler to schedule processing in
  * the software interrupt portion of the driver.
@@ -130,7 +135,6 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		int init_hw)
 {
 	struct uart_port *uport = state->uart_port;
-	struct tty_port *port = &state->port;
 	unsigned long page;
 	int retval = 0;
 
@@ -176,12 +180,12 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 				uart_set_mctrl(uport, TIOCM_RTS | TIOCM_DTR);
 		}
 
-		if (tty_port_cts_enabled(port)) {
-			spin_lock_irq(&uport->lock);
+		spin_lock_irq(&uport->lock);
+		if (uart_cts_enabled(uport)) {
 			if (!(uport->ops->get_mctrl(uport) & TIOCM_CTS))
 				tty->hw_stopped = 1;
-			spin_unlock_irq(&uport->lock);
 		}
+		spin_unlock_irq(&uport->lock);
 	}
 
 	/*
@@ -435,7 +439,6 @@ EXPORT_SYMBOL(uart_get_divisor);
 static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 					struct ktermios *old_termios)
 {
-	struct tty_port *port = &state->port;
 	struct uart_port *uport = state->uart_port;
 	struct ktermios *termios;
 
@@ -450,17 +453,19 @@ static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 	uport->ops->set_termios(uport, termios, old_termios);
 
 	/*
-	 * Set flags based on termios cflag
+	 * Set modem status enables based on termios cflag
 	 */
+	spin_lock_irq(&uport->lock);
 	if (termios->c_cflag & CRTSCTS)
-		set_bit(ASYNCB_CTS_FLOW, &port->flags);
+		uport->status |= UPSTAT_CTS_ENABLE;
 	else
-		clear_bit(ASYNCB_CTS_FLOW, &port->flags);
+		uport->status &= ~UPSTAT_CTS_ENABLE;
 
 	if (termios->c_cflag & CLOCAL)
-		clear_bit(ASYNCB_CHECK_CD, &port->flags);
+		uport->status &= ~UPSTAT_DCD_ENABLE;
 	else
-		set_bit(ASYNCB_CHECK_CD, &port->flags);
+		uport->status |= UPSTAT_DCD_ENABLE;
+	spin_unlock_irq(&uport->lock);
 }
 
 static inline int __uart_put_char(struct uart_port *port,
@@ -2765,7 +2770,7 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 
 	uport->icount.dcd++;
 
-	if (port->flags & ASYNC_CHECK_CD) {
+	if (uart_dcd_enabled(uport)) {
 		if (status)
 			wake_up_interruptible(&port->open_wait);
 		else if (tty)
@@ -2790,7 +2795,7 @@ void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 
 	uport->icount.cts++;
 
-	if (tty_port_cts_enabled(port)) {
+	if (uart_cts_enabled(uport)) {
 		if (tty->hw_stopped) {
 			if (status) {
 				tty->hw_stopped = 0;
