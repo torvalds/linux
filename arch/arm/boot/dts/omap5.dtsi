@@ -104,8 +104,9 @@
 	soc {
 		compatible = "ti,omap-infra";
 		mpu {
-			compatible = "ti,omap5-mpu";
+			compatible = "ti,omap4-mpu";
 			ti,hwmods = "mpu";
+			sram = <&ocmcram>;
 		};
 	};
 

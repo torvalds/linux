@@ -25,6 +25,7 @@
 #include <linux/irqchip/irq-crossbar.h>
 #include <linux/of_address.h>
 #include <linux/reboot.h>
+#include <linux/genalloc.h>
 
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
@@ -71,6 +72,26 @@ void omap_bus_sync(void)
 }
 EXPORT_SYMBOL(omap_bus_sync);
 
+static int __init omap4_sram_init(void)
+{
+	struct device_node *np;
+	struct gen_pool *sram_pool;
+
+	np = of_find_compatible_node(NULL, NULL, "ti,omap4-mpu");
+	if (!np)
+		pr_warn("%s:Unable to allocate sram needed to handle errata I688\n",
+			__func__);
+	sram_pool = of_get_named_gen_pool(np, "sram", 0);
+	if (!sram_pool)
+		pr_warn("%s:Unable to get sram pool needed to handle errata I688\n",
+			__func__);
+	else
+		sram_sync = (void *)gen_pool_alloc(sram_pool, PAGE_SIZE);
+
+	return 0;
+}
+omap_arch_initcall(omap4_sram_init);
+
 /* Steal one page physical memory for barrier implementation */
 int __init omap_barrier_reserve_memblock(void)
 {
@@ -91,7 +112,6 @@ void __init omap_barriers_init(void)
 	dram_io_desc[0].type = MT_MEMORY_RW_SO;
 	iotable_init(dram_io_desc, ARRAY_SIZE(dram_io_desc));
 	dram_sync = (void __iomem *) dram_io_desc[0].virtual;
-	sram_sync = (void __iomem *) OMAP4_SRAM_VA;
 
 	pr_info("OMAP4: Map 0x%08llx to 0x%08lx for dram barrier\n",
 		(long long) paddr, dram_io_desc[0].virtual);
