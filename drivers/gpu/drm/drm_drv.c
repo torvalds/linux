@@ -39,16 +39,6 @@
 unsigned int drm_debug = 0;	/* 1 to enable debug output */
 EXPORT_SYMBOL(drm_debug);
 
-int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
-
-unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
-
-/*
- * Default to use monotonic timestamps for wait-for-vblank and page-flip
- * complete events.
- */
-unsigned int drm_timestamp_monotonic = 1;
-
 MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
@@ -58,9 +48,6 @@ MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
 MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
 
 module_param_named(debug, drm_debug, int, 0600);
-module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
-module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
-module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;

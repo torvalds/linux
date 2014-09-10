@@ -34,6 +34,7 @@
 
 #include <drm/drmP.h>
 #include "drm_trace.h"
+#include "drm_internal.h"
 
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/slab.h>
@@ -58,6 +59,20 @@
 static bool
 drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
 			  struct timeval *tvblank, unsigned flags);
+
+static unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
+
+/*
+ * Default to use monotonic timestamps for wait-for-vblank and page-flip
+ * complete events.
+ */
+unsigned int drm_timestamp_monotonic = 1;
+
+static int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
+
+module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
+module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
+module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
 /**
  * drm_update_vblank_count - update the master vblank counter

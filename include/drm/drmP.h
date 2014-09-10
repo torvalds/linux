@@ -1207,10 +1207,6 @@ extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 
-extern int drm_vblank_offdelay;
-extern unsigned int drm_timestamp_precision;
-extern unsigned int drm_timestamp_monotonic;
-
 extern struct class *drm_class;
 
 				/* Debugfs support */
