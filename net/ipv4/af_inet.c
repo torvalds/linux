@@ -1666,6 +1666,8 @@ static const struct net_offload ipip_offload = {
 	.callbacks = {
 		.gso_send_check = inet_gso_send_check,
 		.gso_segment	= inet_gso_segment,
+		.gro_receive	= inet_gro_receive,
+		.gro_complete	= inet_gro_complete,
 	},
 };
 
