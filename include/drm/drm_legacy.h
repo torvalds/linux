@@ -55,4 +55,7 @@ int drm_legacy_addbufs_pci(struct drm_device *d, struct drm_buf_desc *req);
 void drm_legacy_idlelock_take(struct drm_lock_data *lock);
 void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 
+/* drm_pci.c dma alloc wrappers */
+void __drm_legacy_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
+
 #endif /* __DRM_DRM_LEGACY_H__ */
