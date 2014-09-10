@@ -87,6 +87,8 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 	drm_vblank_cleanup(drm);
 	drm_mode_config_cleanup(drm);
 
+	platform_set_drvdata(drm->platformdev, NULL);
+
 	return 0;
 }
 
@@ -648,6 +650,36 @@ static int imx_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int imx_drm_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	/* The drm_dev is NULL before .load hook is called */
+	if (drm_dev == NULL)
+		return 0;
+
+	drm_kms_helper_poll_disable(drm_dev);
+
+	return 0;
+}
+
+static int imx_drm_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	if (drm_dev == NULL)
+		return 0;
+
+	drm_helper_resume_force_mode(drm_dev);
+	drm_kms_helper_poll_enable(drm_dev);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(imx_drm_pm_ops, imx_drm_suspend, imx_drm_resume);
+
 static const struct of_device_id imx_drm_dt_ids[] = {
 	{ .compatible = "fsl,imx-display-subsystem", },
 	{ /* sentinel */ },
@@ -660,6 +692,7 @@ static struct platform_driver imx_drm_pdrv = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "imx-drm",
+		.pm	= &imx_drm_pm_ops,
 		.of_match_table = imx_drm_dt_ids,
 	},
 };
