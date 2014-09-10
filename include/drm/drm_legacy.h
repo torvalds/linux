@@ -58,4 +58,19 @@ void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 /* drm_pci.c dma alloc wrappers */
 void __drm_legacy_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 
+/* drm_memory.c */
+void drm_legacy_ioremap(struct drm_local_map *map, struct drm_device *dev);
+void drm_legacy_ioremap_wc(struct drm_local_map *map, struct drm_device *dev);
+void drm_legacy_ioremapfree(struct drm_local_map *map, struct drm_device *dev);
+
+static __inline__ struct drm_local_map *drm_legacy_findmap(struct drm_device *dev,
+							   unsigned int token)
+{
+	struct drm_map_list *_entry;
+	list_for_each_entry(_entry, &dev->maplist, head)
+	    if (_entry->user_token == token)
+		return _entry->map;
+	return NULL;
+}
+
 #endif /* __DRM_DRM_LEGACY_H__ */
