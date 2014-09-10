@@ -213,9 +213,9 @@ static void genwqe_remove_mappings(struct genwqe_file *cfile)
 		 * GENWQE_MAPPING_SGL_TEMP should be removed by tidy up code.
 		 */
 		dev_err(&pci_dev->dev,
-			"[%s] %d. cleanup mapping: u_vaddr=%p "
-			"u_kaddr=%016lx dma_addr=%lx\n", __func__, i++,
-			dma_map->u_vaddr, (unsigned long)dma_map->k_vaddr,
+			"[%s] %d. cleanup mapping: u_vaddr=%p u_kaddr=%016lx dma_addr=%lx\n",
+			__func__, i++, dma_map->u_vaddr,
+			(unsigned long)dma_map->k_vaddr,
 			(unsigned long)dma_map->dma_addr);
 
 		if (dma_map->type == GENWQE_MAPPING_RAW) {
@@ -346,6 +346,7 @@ static int genwqe_open(struct inode *inode, struct file *filp)
 static int genwqe_fasync(int fd, struct file *filp, int mode)
 {
 	struct genwqe_file *cdev = (struct genwqe_file *)filp->private_data;
+
 	return fasync_helper(fd, filp, mode, &cdev->async_queue);
 }
 

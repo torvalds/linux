@@ -185,8 +185,7 @@ static void print_ddcb_info(struct genwqe_dev *cd, struct ddcb_queue *queue)
 	pddcb = queue->ddcb_vaddr;
 	for (i = 0; i < queue->ddcb_max; i++) {
 		dev_err(&pci_dev->dev,
-			"  %c %-3d: RETC=%03x SEQ=%04x "
-			"HSI=%02X SHI=%02x PRIV=%06llx CMD=%03x\n",
+			"  %c %-3d: RETC=%03x SEQ=%04x HSI=%02X SHI=%02x PRIV=%06llx CMD=%03x\n",
 			i == queue->ddcb_act ? '>' : ' ',
 			i,
 			be16_to_cpu(pddcb->retc_16),
@@ -214,6 +213,7 @@ struct genwqe_ddcb_cmd *ddcb_requ_alloc(void)
 void ddcb_requ_free(struct genwqe_ddcb_cmd *cmd)
 {
 	struct ddcb_requ *req = container_of(cmd, struct ddcb_requ, cmd);
+
 	kfree(req);
 }
 
@@ -306,7 +306,7 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 
 		new = (old | DDCB_NEXT_BE32);
 
-		wmb();
+		wmb();		/* need to ensure write ordering */
 		icrc_hsi_shi = cmpxchg(&prev_ddcb->icrc_hsi_shi_32, old, new);
 
 		if (icrc_hsi_shi == old)
@@ -317,7 +317,7 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 	ddcb_mark_tapped(pddcb);
 	num = (u64)ddcb_no << 8;
 
-	wmb();
+	wmb();			/* need to ensure write ordering */
 	__genwqe_writeq(cd, queue->IO_QUEUE_OFFSET, num); /* start queue */
 
 	return RET_DDCB_TAPPED;
@@ -416,9 +416,7 @@ static int genwqe_check_ddcb_queue(struct genwqe_dev *cd,
 			status  = __genwqe_readq(cd, queue->IO_QUEUE_STATUS);
 
 			dev_err(&pci_dev->dev,
-				"[%s] SEQN=%04x HSI=%02x RETC=%03x "
-				" Q_ERRCNTS=%016llx Q_STATUS=%016llx\n"
-				" DDCB_DMA_ADDR=%016llx\n",
+				"[%s] SEQN=%04x HSI=%02x RETC=%03x Q_ERRCNTS=%016llx Q_STATUS=%016llx DDCB_DMA_ADDR=%016llx\n",
 				__func__, be16_to_cpu(pddcb->seqnum_16),
 				pddcb->hsi, retc_16, errcnts, status,
 				queue->ddcb_daddr + ddcb_offs);
@@ -439,8 +437,7 @@ static int genwqe_check_ddcb_queue(struct genwqe_dev *cd,
 		vcrc_16 = be16_to_cpu(pddcb->vcrc_16);
 		if (vcrc != vcrc_16) {
 			printk_ratelimited(KERN_ERR
-				"%s %s: err: wrong VCRC pre=%02x vcrc_len=%d "
-				"bytes vcrc_data=%04x is not vcrc_card=%04x\n",
+				"%s %s: err: wrong VCRC pre=%02x vcrc_len=%d bytes vcrc_data=%04x is not vcrc_card=%04x\n",
 				GENWQE_DEVNAME, dev_name(&pci_dev->dev),
 				pddcb->pre, VCRC_LENGTH(req->cmd.asv_length),
 				vcrc, vcrc_16);
@@ -717,8 +714,7 @@ go_home:
 	genwqe_hexdump(pci_dev, pddcb, sizeof(*pddcb));
 
 	dev_err(&pci_dev->dev,
-		"[%s] err: DDCB#%d not purged and not completed "
-		"after %d seconds QSTAT=%016llx!!\n",
+		"[%s] err: DDCB#%d not purged and not completed after %d seconds QSTAT=%016llx!!\n",
 		__func__, req->num, genwqe_ddcb_software_timeout,
 		queue_status);
 
@@ -1344,8 +1340,8 @@ int genwqe_finish_queue(struct genwqe_dev *cd)
 			break;
 
 		dev_dbg(&pci_dev->dev,
-			"  DEBUG [%d/%d] waiting for queue to get empty: "
-			"%d requests!\n", i, waitmax, in_flight);
+			"  DEBUG [%d/%d] waiting for queue to get empty: %d requests!\n",
+			i, waitmax, in_flight);
 
 		/*
 		 * Severe severe error situation: The card itself has

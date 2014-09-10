@@ -388,8 +388,9 @@ static int genwqe_ffdc_buffs_alloc(struct genwqe_dev *cd)
 
 		/* currently support only the debug units mentioned here */
 		cd->ffdc[type].entries = e;
-		cd->ffdc[type].regs = kmalloc(e * sizeof(struct genwqe_reg),
-					      GFP_KERNEL);
+		cd->ffdc[type].regs =
+			kmalloc_array(e, sizeof(struct genwqe_reg),
+				      GFP_KERNEL);
 		/*
 		 * regs == NULL is ok, the using code treats this as no regs,
 		 * Printing warning is ok in this case.
@@ -728,8 +729,8 @@ static u64 genwqe_fir_checking(struct genwqe_dev *cd)
 				__genwqe_writeq(cd, sfir_addr, sfir);
 
 				dev_dbg(&pci_dev->dev,
-					"[HM] Clearing  2ndary FIR 0x%08x "
-					"with 0x%016llx\n", sfir_addr, sfir);
+					"[HM] Clearing  2ndary FIR 0x%08x with 0x%016llx\n",
+					sfir_addr, sfir);
 
 				/*
 				 * note, these cannot be error-Firs
@@ -745,9 +746,8 @@ static u64 genwqe_fir_checking(struct genwqe_dev *cd)
 				__genwqe_writeq(cd, fir_clr_addr, mask);
 
 				dev_dbg(&pci_dev->dev,
-					"[HM] Clearing primary FIR 0x%08x "
-					"with 0x%016llx\n", fir_clr_addr,
-					mask);
+					"[HM] Clearing primary FIR 0x%08x with 0x%016llx\n",
+					fir_clr_addr, mask);
 			}
 		}
 	}
@@ -1209,8 +1209,8 @@ static int genwqe_probe(struct pci_dev *pci_dev,
 		err = genwqe_health_check_start(cd);
 		if (err < 0) {
 			dev_err(&pci_dev->dev,
-				"err: cannot start health checking! "
-				"(err=%d)\n", err);
+				"err: cannot start health checking! (err=%d)\n",
+				err);
 			goto out_stop_services;
 		}
 	}
