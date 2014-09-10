@@ -1537,16 +1537,6 @@ struct ieee80211_tx_control {
  * @IEEE80211_HW_MFP_CAPABLE:
  *	Hardware supports management frame protection (MFP, IEEE 802.11w).
  *
- * @IEEE80211_HW_SUPPORTS_STATIC_SMPS:
- *	Hardware supports static spatial multiplexing powersave,
- *	ie. can turn off all but one chain even on HT connections
- *	that should be using more chains.
- *
- * @IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS:
- *	Hardware supports dynamic spatial multiplexing powersave,
- *	ie. can turn off all but one chain and then wake the rest
- *	up as required after, for example, rts/cts handshake.
- *
  * @IEEE80211_HW_SUPPORTS_UAPSD:
  *	Hardware supports Unscheduled Automatic Power Save Delivery
  *	(U-APSD) in managed mode. The mode is configured with
@@ -1632,8 +1622,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<12,
 	IEEE80211_HW_MFP_CAPABLE			= 1<<13,
 	IEEE80211_HW_WANT_MONITOR_VIF			= 1<<14,
-	IEEE80211_HW_SUPPORTS_STATIC_SMPS		= 1<<15,
-	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
+	/* free slots */
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
