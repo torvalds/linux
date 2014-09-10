@@ -148,8 +148,15 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	 * has been ticking all along until this time. This makes the
 	 * count account for the entire time between drm_vblank_on() and
 	 * drm_vblank_off().
+	 *
+	 * But only do this if precise vblank timestamps are available.
+	 * Otherwise we might read a totally bogus timestamp since drivers
+	 * lacking precise timestamp support rely upon sampling the system clock
+	 * at vblank interrupt time. Which obviously won't work out well if the
+	 * vblank interrupt is disabled.
 	 */
-	if (!vblank->enabled) {
+	if (!vblank->enabled &&
+	    drm_get_last_vbltimestamp(dev, crtc, &tvblank, 0) > 0) {
 		drm_update_vblank_count(dev, crtc);
 		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 		return;
