@@ -2695,16 +2695,6 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	session->s_state = CEPH_MDS_SESSION_RECONNECTING;
 	session->s_seq = 0;
 
-	ceph_con_close(&session->s_con);
-	ceph_con_open(&session->s_con,
-		      CEPH_ENTITY_TYPE_MDS, mds,
-		      ceph_mdsmap_get_addr(mdsc->mdsmap, mds));
-
-	/* replay unsafe requests */
-	replay_unsafe_requests(mdsc, session);
-
-	down_read(&mdsc->snap_rwsem);
-
 	dout("session %p state %s\n", session,
 	     session_state_name(session->s_state));
 
@@ -2722,6 +2712,19 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	/* drop old cap expires; we're about to reestablish that state */
 	discard_cap_releases(mdsc, session);
 	spin_unlock(&session->s_cap_lock);
+
+	/* trim unused caps to reduce MDS's cache rejoin time */
+	shrink_dcache_parent(mdsc->fsc->sb->s_root);
+
+	ceph_con_close(&session->s_con);
+	ceph_con_open(&session->s_con,
+		      CEPH_ENTITY_TYPE_MDS, mds,
+		      ceph_mdsmap_get_addr(mdsc->mdsmap, mds));
+
+	/* replay unsafe requests */
+	replay_unsafe_requests(mdsc, session);
+
+	down_read(&mdsc->snap_rwsem);
 
 	/* traverse this session's caps */
 	s_nr_caps = session->s_nr_caps;
