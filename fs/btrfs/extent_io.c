@@ -4169,19 +4169,6 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 	return NULL;
 }
 
-static noinline int count_ext_ref(u64 inum, u64 offset, u64 root_id, void *ctx)
-{
-	unsigned long cnt = *((unsigned long *)ctx);
-
-	cnt++;
-	*((unsigned long *)ctx) = cnt;
-
-	/* Now we're sure that the extent is shared. */
-	if (cnt > 1)
-		return 1;
-	return 0;
-}
-
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len, get_extent_t *get_extent)
 {
@@ -4198,6 +4185,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	struct extent_map *em = NULL;
 	struct extent_state *cached_state = NULL;
 	struct btrfs_path *path;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int end = 0;
 	u64 em_start = 0;
 	u64 em_len = 0;
@@ -4218,8 +4206,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 * lookup the last file extent.  We're not using i_size here
 	 * because there might be preallocation past i_size
 	 */
-	ret = btrfs_lookup_file_extent(NULL, BTRFS_I(inode)->root,
-				       path, btrfs_ino(inode), -1, 0);
+	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(inode), -1,
+				       0);
 	if (ret < 0) {
 		btrfs_free_path(path);
 		return ret;
@@ -4312,25 +4300,27 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		} else if (em->block_start == EXTENT_MAP_DELALLOC) {
 			flags |= (FIEMAP_EXTENT_DELALLOC |
 				  FIEMAP_EXTENT_UNKNOWN);
-		} else {
-			unsigned long ref_cnt = 0;
+		} else if (fieinfo->fi_extents_max) {
+			u64 bytenr = em->block_start -
+				(em->start - em->orig_start);
 
 			disko = em->block_start + offset_in_extent;
 
 			/*
 			 * As btrfs supports shared space, this information
 			 * can be exported to userspace tools via
-			 * flag FIEMAP_EXTENT_SHARED.
+			 * flag FIEMAP_EXTENT_SHARED.  If fi_extents_max == 0
+			 * then we're just getting a count and we can skip the
+			 * lookup stuff.
 			 */
-			ret = iterate_inodes_from_logical(
-					em->block_start,
-					BTRFS_I(inode)->root->fs_info,
-					path, count_ext_ref, &ref_cnt);
-			if (ret < 0 && ret != -ENOENT)
+			ret = btrfs_check_shared(NULL, root->fs_info,
+						 root->objectid,
+						 btrfs_ino(inode), bytenr);
+			if (ret < 0)
 				goto out_free;
-
-			if (ref_cnt > 1)
+			if (ret)
 				flags |= FIEMAP_EXTENT_SHARED;
+			ret = 0;
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;
