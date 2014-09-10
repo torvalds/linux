@@ -1309,7 +1309,6 @@ extern int drm_pci_set_unique(struct drm_device *dev,
 			      struct drm_unique *u);
 
 			       /* sysfs support (drm_sysfs.c) */
-struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);
 extern void drm_sysfs_destroy(void);
 extern struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
