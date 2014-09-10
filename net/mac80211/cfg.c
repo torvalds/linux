@@ -683,8 +683,19 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (old)
 		return -EALREADY;
 
-	/* TODO: make hostapd tell us what it wants */
-	sdata->smps_mode = IEEE80211_SMPS_OFF;
+	switch (params->smps_mode) {
+	case NL80211_SMPS_OFF:
+		sdata->smps_mode = IEEE80211_SMPS_OFF;
+		break;
+	case NL80211_SMPS_STATIC:
+		sdata->smps_mode = IEEE80211_SMPS_STATIC;
+		break;
+	case NL80211_SMPS_DYNAMIC:
+		sdata->smps_mode = IEEE80211_SMPS_DYNAMIC;
+		break;
+	default:
+		return -EINVAL;
+	}
 	sdata->needed_rx_chains = sdata->local->rx_chains;
 
 	mutex_lock(&local->mtx);
