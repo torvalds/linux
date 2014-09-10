@@ -3897,6 +3897,10 @@ static int get_flash_params(struct adapter *adap)
 	adap->params.sf_size = 1 << info;
 	adap->params.sf_fw_start =
 		t4_read_reg(adap, CIM_BOOT_CFG) & BOOTADDR_MASK;
+
+	if (adap->params.sf_size < FLASH_MIN_SIZE)
+		dev_warn(adap->pdev_dev, "WARNING!!! FLASH size %#x < %#x!!!\n",
+			 adap->params.sf_size, FLASH_MIN_SIZE);
 	return 0;
 }
 

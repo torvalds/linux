@@ -206,6 +206,12 @@ enum {
 	FLASH_CFG_START = FLASH_START(FLASH_CFG_START_SEC),
 	FLASH_CFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CFG_NSECS),
 
+	/* We don't support FLASH devices which can't support the full
+	 * standard set of sections which we need for normal
+	 * operations.
+	 */
+	FLASH_MIN_SIZE = FLASH_CFG_START + FLASH_CFG_MAX_SIZE,
+
 	FLASH_FPGA_CFG_START_SEC = 15,
 	FLASH_FPGA_CFG_START = FLASH_START(FLASH_FPGA_CFG_START_SEC),
 
