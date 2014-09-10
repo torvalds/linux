@@ -160,8 +160,8 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_ssid_ie *cmd_ssid,
 static u16 iwl_mvm_get_active_dwell(enum ieee80211_band band, int n_ssids)
 {
 	if (band == IEEE80211_BAND_2GHZ)
-		return 30  + 3 * (n_ssids + 1);
-	return 20  + 2 * (n_ssids + 1);
+		return 20  + 3 * (n_ssids + 1);
+	return 10  + 2 * (n_ssids + 1);
 }
 
 static u16 iwl_mvm_get_passive_dwell(enum ieee80211_band band)
