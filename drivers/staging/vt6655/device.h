@@ -333,10 +333,6 @@ typedef struct __device_opt {
 struct vnt_private {
 	struct pci_dev *pcid;
 
-#ifdef CONFIG_PM
-	u32                         pci_state[16];
-#endif
-
 // netdev
 	struct net_device *dev;
 	struct net_device_stats     stats;
