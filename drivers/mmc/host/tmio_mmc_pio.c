@@ -376,6 +376,40 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command
 	return 0;
 }
 
+static void tmio_mmc_transfer_data(struct tmio_mmc_host *host,
+				   unsigned short *buf,
+				   unsigned int count)
+{
+	int is_read = host->data->flags & MMC_DATA_READ;
+	u8  *buf8;
+
+	/*
+	 * Transfer the data
+	 */
+	if (is_read)
+		sd_ctrl_read16_rep(host, CTL_SD_DATA_PORT, buf, count >> 1);
+	else
+		sd_ctrl_write16_rep(host, CTL_SD_DATA_PORT, buf, count >> 1);
+
+	/* if count was even number */
+	if (!(count & 0x1))
+		return;
+
+	/* if count was odd number */
+	buf8 = (u8 *)(buf + (count >> 1));
+
+	/*
+	 * FIXME
+	 *
+	 * driver and this function are assuming that
+	 * it is used as little endian
+	 */
+	if (is_read)
+		*buf8 = sd_ctrl_read16(host, CTL_SD_DATA_PORT) & 0xff;
+	else
+		sd_ctrl_write16(host, CTL_SD_DATA_PORT, *buf8);
+}
+
 /*
  * This chip always returns (at least?) as much data as you ask for.
  * I'm unsure what happens if you ask for less than a block. This should be
@@ -408,10 +442,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 		 count, host->sg_off, data->flags);
 
 	/* Transfer the data */
-	if (data->flags & MMC_DATA_READ)
-		sd_ctrl_read16_rep(host, CTL_SD_DATA_PORT, buf, count >> 1);
-	else
-		sd_ctrl_write16_rep(host, CTL_SD_DATA_PORT, buf, count >> 1);
+	tmio_mmc_transfer_data(host, buf, count);
 
 	host->sg_off += count;
 
