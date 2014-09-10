@@ -107,7 +107,7 @@ static struct irq_chip arcv2_irq_chip = {
 static int arcv2_irq_map(struct irq_domain *d, unsigned int irq,
 			 irq_hw_number_t hw)
 {
-	if (irq == TIMER0_IRQ)
+	if (irq == TIMER0_IRQ || irq == IPI_IRQ)
 		irq_set_chip_and_handler(irq, &arcv2_irq_chip, handle_percpu_irq);
 	else
 		irq_set_chip_and_handler(irq, &arcv2_irq_chip, handle_level_irq);

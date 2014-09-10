@@ -15,6 +15,7 @@ obj-$(CONFIG_ISA_ARCV2)			+= entry-arcv2.o intc-arcv2.o
 
 obj-$(CONFIG_MODULES)			+= arcksyms.o module.o
 obj-$(CONFIG_SMP) 			+= smp.o
+obj-$(CONFIG_ARC_MCIP)			+= mcip.o
 obj-$(CONFIG_ARC_DW2_UNWIND)		+= unwind.o
 obj-$(CONFIG_KPROBES)      		+= kprobes.o
 obj-$(CONFIG_ARC_EMUL_UNALIGNED) 	+= unaligned.o

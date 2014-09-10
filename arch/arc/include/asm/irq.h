@@ -19,6 +19,7 @@
 #else
 #define TIMER0_IRQ      16
 #define TIMER1_IRQ      17
+#define IPI_IRQ         19
 #endif
 
 #include <linux/interrupt.h>

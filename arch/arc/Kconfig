@@ -160,12 +160,12 @@ config CPU_BIG_ENDIAN
 	  Build kernel for Big Endian Mode of ARC CPU
 
 config SMP
-	bool "Symmetric Multi-Processing (Incomplete)"
+	bool "Symmetric Multi-Processing"
 	default n
+	select ARC_HAS_COH_CACHES if ISA_ARCV2
+	select ARC_MCIP if ISA_ARCV2
 	help
-	  This enables support for systems with more than one CPU. If you have
-	  a system with only one CPU, say N. If you have a system with more
-	  than one CPU, say Y.
+	  This enables support for systems with more than one CPU.
 
 if SMP
 
@@ -175,13 +175,20 @@ config ARC_HAS_COH_CACHES
 config ARC_HAS_REENTRANT_IRQ_LV2
 	def_bool n
 
-endif	#SMP
+config ARC_MCIP
+	bool "ARConnect Multicore IP (MCIP) Support "
+	depends on ISA_ARCV2
+	help
+	  This IP block enables SMP in ARC-HS38 cores.
+	  It provides for cross-core interrupts, multi-core debug
+	  hardware semaphores, shared memory,....
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
-	depends on SMP
-	default "2"
+	default "4"
+
+endif	#SMP
 
 menuconfig ARC_CACHE
 	bool "Enable Cache Support"
