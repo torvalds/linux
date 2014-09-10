@@ -845,10 +845,12 @@ static void raise_barrier(struct r1conf *conf)
 	 * C: next_resync + RESYNC_SECTORS > start_next_window, meaning
 	 *    next resync will reach to the window which normal bios are
 	 *    handling.
+	 * D: while there are any active requests in the current window.
 	 */
 	wait_event_lock_irq(conf->wait_barrier,
 			    !conf->array_frozen &&
 			    conf->barrier < RESYNC_DEPTH &&
+			    conf->current_window_requests == 0 &&
 			    (conf->start_next_window >=
 			     conf->next_resync + RESYNC_SECTORS),
 			    conf->resync_lock);
@@ -915,8 +917,8 @@ static sector_t wait_barrier(struct r1conf *conf, struct bio *bio)
 	}
 
 	if (bio && bio_data_dir(bio) == WRITE) {
-		if (conf->next_resync + NEXT_NORMALIO_DISTANCE
-		    <= bio->bi_iter.bi_sector) {
+		if (bio->bi_iter.bi_sector >=
+		    conf->next_resync) {
 			if (conf->start_next_window == MaxSector)
 				conf->start_next_window =
 					conf->next_resync +
