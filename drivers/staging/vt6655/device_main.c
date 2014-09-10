@@ -264,7 +264,6 @@ static void vt6655_init_info(struct pci_dev *pcid,
 static void device_free_info(struct vnt_private *pDevice);
 static bool device_get_pci_info(struct vnt_private *, struct pci_dev *pcid);
 static void device_print_info(struct vnt_private *pDevice);
-static struct net_device_stats *device_get_stats(struct net_device *dev);
 static void device_init_diversity_timer(struct vnt_private *pDevice);
 static int  device_open(struct net_device *dev);
 static int  device_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -807,7 +806,6 @@ static const struct net_device_ops device_netdev_ops = {
 	.ndo_open               = device_open,
 	.ndo_stop               = device_close,
 	.ndo_do_ioctl           = device_ioctl,
-	.ndo_get_stats          = device_get_stats,
 	.ndo_start_xmit         = device_xmit,
 	.ndo_set_rx_mode	= device_set_multi,
 };
@@ -1406,7 +1404,7 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 	unsigned char byTsr1;
 	unsigned int	uFrameSize, uFIFOHeaderSize;
 	PSTxBufHead              pTxBufHead;
-	struct net_device_stats *pStats = &pDevice->stats;
+	struct net_device_stats *pStats = &pDevice->dev->stats;
 	struct sk_buff *skb;
 	unsigned int	uNodeIndex;
 	PSMgmtObject             pMgmt = pDevice->pMgmt;
@@ -2585,13 +2583,6 @@ static void device_set_multi(struct net_device *dev) {
 
 	VNSvOutPortB(pDevice->PortOffset + MAC_REG_RCR, pDevice->byRxMode);
 	pr_debug("pDevice->byRxMode = %x\n", pDevice->byRxMode);
-}
-
-static struct net_device_stats *device_get_stats(struct net_device *dev)
-{
-	struct vnt_private *pDevice = netdev_priv(dev);
-
-	return &pDevice->stats;
 }
 
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

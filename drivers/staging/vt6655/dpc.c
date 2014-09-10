@@ -274,7 +274,7 @@ device_receive_frame(
 )
 {
 	PDEVICE_RD_INFO  pRDInfo = pCurrRD->pRDInfo;
-	struct net_device_stats *pStats = &pDevice->stats;
+	struct net_device_stats *pStats = &pDevice->dev->stats;
 	struct sk_buff *skb;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PSRxMgmtPacket  pRxPacket = &(pDevice->pMgmt->sRxPacket);
