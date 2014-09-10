@@ -422,7 +422,7 @@ static void ieee80211_key_free_common(struct ieee80211_key *key)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
 	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
-	kfree(key);
+	kzfree(key);
 }
 
 static void __ieee80211_key_destroy(struct ieee80211_key *key,
