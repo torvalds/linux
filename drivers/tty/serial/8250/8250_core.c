@@ -1390,7 +1390,7 @@ static void serial8250_stop_rx(struct uart_port *port)
 
 	serial8250_rpm_get(up);
 
-	up->ier &= ~UART_IER_RLSI;
+	up->ier &= ~(UART_IER_RLSI | UART_IER_RDI);
 	up->port.read_status_mask &= ~UART_LSR_DR;
 	serial_port_out(port, UART_IER, up->ier);
 
