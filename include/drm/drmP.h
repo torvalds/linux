@@ -1097,25 +1097,9 @@ extern int drm_mmap(struct file *filp, struct vm_area_struct *vma);
 extern void drm_vm_open_locked(struct drm_device *dev, struct vm_area_struct *vma);
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
-				/* Misc. IOCTL support (drm_ioctl.h) */
-extern int drm_getunique(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int drm_setunique(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int drm_getmap(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_getclient(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int drm_getstats(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-extern int drm_getcap(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_setclientcap(struct drm_device *dev, void *data,
-			    struct drm_file *file_priv);
-extern int drm_setversion(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
-extern int drm_noop(struct drm_device *dev, void *data,
-		    struct drm_file *file_priv);
+/* Misc. IOCTL support (drm_ioctl.c) */
+int drm_noop(struct drm_device *dev, void *data,
+	     struct drm_file *file_priv);
 
 /* Cache management (drm_cache.c) */
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
