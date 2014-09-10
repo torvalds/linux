@@ -773,7 +773,6 @@ static void ti_set_termios(struct tty_struct *tty,
 			config->wFlags |= TI_UART_ENABLE_RTS_IN;
 		config->wFlags |= TI_UART_ENABLE_CTS_OUT;
 	} else {
-		tty->hw_stopped = 0;
 		ti_restart_read(tport, tty);
 	}
 
@@ -1291,12 +1290,8 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 	/* handle CTS flow control */
 	tty = tty_port_tty_get(&tport->tp_port->port);
 	if (tty && C_CRTSCTS(tty)) {
-		if (msr & TI_MSR_CTS) {
-			tty->hw_stopped = 0;
+		if (msr & TI_MSR_CTS)
 			tty_wakeup(tty);
-		} else {
-			tty->hw_stopped = 1;
-		}
 	}
 	tty_kref_put(tty);
 }
