@@ -1320,11 +1320,14 @@ static void genwqe_err_resume(struct pci_dev *pci_dev)
 
 static int genwqe_sriov_configure(struct pci_dev *dev, int numvfs)
 {
+	int rc;
 	struct genwqe_dev *cd = dev_get_drvdata(&dev->dev);
 
 	if (numvfs > 0) {
 		genwqe_setup_vf_jtimer(cd);
-		pci_enable_sriov(dev, numvfs);
+		rc = pci_enable_sriov(dev, numvfs);
+		if (rc < 0)
+			return rc;
 		return numvfs;
 	}
 	if (numvfs == 0) {
