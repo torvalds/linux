@@ -306,7 +306,7 @@ struct genwqe_dev {
 	struct pci_dev *pci_dev;	/* PCI device */
 	void __iomem *mmio;		/* BAR-0 MMIO start */
 	unsigned long mmio_len;
-	u16 num_vfs;
+	int num_vfs;
 	u32 vf_jobtimeout_msec[GENWQE_MAX_VFS];
 	int is_privileged;		/* access to all regs possible */
 

@@ -346,8 +346,13 @@ static bool genwqe_setup_vf_jtimer(struct genwqe_dev *cd)
 	unsigned int vf;
 	u32 T = genwqe_T_psec(cd);
 	u64 x;
+	int totalvfs;
 
-	for (vf = 0; vf < pci_sriov_get_totalvfs(pci_dev); vf++) {
+	totalvfs = pci_sriov_get_totalvfs(pci_dev);
+	if (totalvfs <= 0)
+		return false;
+
+	for (vf = 0; vf < totalvfs; vf++) {
 
 		if (cd->vf_jobtimeout_msec[vf] == 0)
 			continue;
@@ -1125,6 +1130,8 @@ static int genwqe_pci_setup(struct genwqe_dev *cd)
 	}
 
 	cd->num_vfs = pci_sriov_get_totalvfs(pci_dev);
+	if (cd->num_vfs < 0)
+		cd->num_vfs = 0;
 
 	err = genwqe_read_ids(cd);
 	if (err)
