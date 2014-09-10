@@ -353,13 +353,12 @@
 				};
 
 				ldo8_reg: ldo8 {
-					/* VDD_3v0: Does not go anywhere */
+					/* VDD_3V_GP: act led/serial console */
 					regulator-name = "ldo8";
 					regulator-min-microvolt = <3000000>;
 					regulator-max-microvolt = <3000000>;
+					regulator-always-on;
 					regulator-boot-on;
-					/* Unused */
-					status = "disabled";
 				};
 
 				ldo9_reg: ldo9 {
