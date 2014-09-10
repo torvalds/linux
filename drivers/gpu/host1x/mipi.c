@@ -208,7 +208,9 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 		tegra_mipi_writel(device->mipi, value, modules[i].reg);
 	}
 
-	tegra_mipi_writel(device->mipi, MIPI_CAL_CTRL_START, MIPI_CAL_CTRL);
+	value = tegra_mipi_readl(device->mipi, MIPI_CAL_CTRL);
+	value |= MIPI_CAL_CTRL_START;
+	tegra_mipi_writel(device->mipi, value, MIPI_CAL_CTRL);
 
 	err = tegra_mipi_wait(device->mipi);
 
