@@ -161,6 +161,23 @@ struct drm_local_map *drm_legacy_getsarea(struct drm_device *dev);
 int drm_legacy_addbufs_agp(struct drm_device *d, struct drm_buf_desc *req);
 int drm_legacy_addbufs_pci(struct drm_device *d, struct drm_buf_desc *req);
 
+/**
+ * Test that the hardware lock is held by the caller, returning otherwise.
+ *
+ * \param dev DRM device.
+ * \param filp file pointer of the caller.
+ */
+#define LOCK_TEST_WITH_RETURN( dev, _file_priv )				\
+do {										\
+	if (!_DRM_LOCK_IS_HELD(_file_priv->master->lock.hw_lock->lock) ||	\
+	    _file_priv->master->lock.file_priv != _file_priv)	{		\
+		DRM_ERROR( "%s called without lock held, held  %d owner %p %p\n",\
+			   __func__, _DRM_LOCK_IS_HELD(_file_priv->master->lock.hw_lock->lock),\
+			   _file_priv->master->lock.file_priv, _file_priv);	\
+		return -EINVAL;							\
+	}									\
+} while (0)
+
 void drm_legacy_idlelock_take(struct drm_lock_data *lock);
 void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 
