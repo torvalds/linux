@@ -1044,10 +1044,6 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	pm_runtime_enable(&sdev->sdev_gendev);
 	scsi_autopm_put_target(starget);
 
-	/* The following call will keep sdev active indefinitely, until
-	 * its driver does a corresponding scsi_autopm_pm_device().  Only
-	 * drivers supporting autosuspend will do this.
-	 */
 	scsi_autopm_get_device(sdev);
 
 	error = device_add(&sdev->sdev_gendev);
@@ -1085,6 +1081,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		}
 	}
 
+	scsi_autopm_put_device(sdev);
 	return error;
 }
 
