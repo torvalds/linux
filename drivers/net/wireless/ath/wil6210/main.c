@@ -95,9 +95,16 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 	}
 
 	for (i = 0; i < WIL_STA_TID_NUM; i++) {
-		struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+		struct wil_tid_ampdu_rx *r;
+		unsigned long flags;
+
+		spin_lock_irqsave(&sta->tid_rx_lock, flags);
+
+		r = sta->tid_rx[i];
 		sta->tid_rx[i] = NULL;
 		wil_tid_ampdu_rx_free(wil, r);
+
+		spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
 	}
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
 		if (wil->vring2cid_tid[i][0] == cid)
@@ -267,9 +274,13 @@ static void wil_connect_worker(struct work_struct *work)
 
 int wil_priv_init(struct wil6210_priv *wil)
 {
+	uint i;
+
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	memset(wil->sta, 0, sizeof(wil->sta));
+	for (i = 0; i < WIL6210_MAX_CID; i++)
+		spin_lock_init(&wil->sta[i].tid_rx_lock);
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->wmi_mutex);

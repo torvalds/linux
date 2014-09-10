@@ -318,18 +318,12 @@ struct pci_dev;
  * @timeout: reset timer value (in TUs).
  * @dialog_token: dialog token for aggregation session
  * @rcu_head: RCU head used for freeing this struct
- * @reorder_lock: serializes access to reorder buffer, see below.
  *
  * This structure's lifetime is managed by RCU, assignments to
  * the array holding it must hold the aggregation mutex.
  *
- * The @reorder_lock is used to protect the members of this
- * struct, except for @timeout, @buf_size and @dialog_token,
- * which are constant across the lifetime of the struct (the
- * dialog token being used only for debugging).
  */
 struct wil_tid_ampdu_rx {
-	spinlock_t reorder_lock; /* see above */
 	struct sk_buff **reorder_buf;
 	unsigned long *reorder_time;
 	struct timer_list session_timer;
@@ -378,6 +372,7 @@ struct wil_sta_info {
 	bool data_port_open; /* can send any data, not only EAPOL */
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
+	spinlock_t tid_rx_lock; /* guarding tid_rx array */
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 };

@@ -613,9 +613,17 @@ static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
 
 	wil_dbg_wmi(wil, "BACK for CID %d %pM\n", cid, sta->addr);
 	for (i = 0; i < WIL_STA_TID_NUM; i++) {
-		struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+		struct wil_tid_ampdu_rx *r;
+		unsigned long flags;
+
+		spin_lock_irqsave(&sta->tid_rx_lock, flags);
+
+		r = sta->tid_rx[i];
 		sta->tid_rx[i] = NULL;
 		wil_tid_ampdu_rx_free(wil, r);
+
+		spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
+
 		if ((evt->status == WMI_BA_AGREED) && evt->agg_wsize)
 			sta->tid_rx[i] = wil_tid_ampdu_rx_alloc(wil,
 						evt->agg_wsize, 0);

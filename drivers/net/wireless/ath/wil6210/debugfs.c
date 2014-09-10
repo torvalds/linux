@@ -1059,6 +1059,7 @@ static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 	int i, tid;
+	unsigned long flags;
 
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
@@ -1079,6 +1080,7 @@ static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 			   (p->data_port_open ? " data_port_open" : ""));
 
 		if (p->status == wil_sta_connected) {
+			spin_lock_irqsave(&p->tid_rx_lock, flags);
 			for (tid = 0; tid < WIL_STA_TID_NUM; tid++) {
 				struct wil_tid_ampdu_rx *r = p->tid_rx[tid];
 
@@ -1087,6 +1089,7 @@ static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 					wil_print_rxtid(s, r);
 				}
 			}
+			spin_unlock_irqrestore(&p->tid_rx_lock, flags);
 		}
 	}
 
