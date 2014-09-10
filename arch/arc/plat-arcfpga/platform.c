@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/console.h>
-#include <linux/of_platform.h>
 #include <asm/setup.h>
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
@@ -29,15 +28,6 @@ static void __init plat_fpga_early_init(void)
 #ifdef CONFIG_ISS_SMP_EXTN
 	iss_model_init_early_smp();
 #endif
-}
-
-static void __init plat_fpga_populate_dev(void)
-{
-	/*
-	 * Traverses flattened DeviceTree - registering platform devices
-	 * (if any) complete with their resources
-	 */
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 /*----------------------- Machine Descriptions ------------------------------
@@ -57,7 +47,6 @@ static const char *legacy_fpga_compat[] __initconst = {
 MACHINE_START(LEGACY_FPGA, "legacy_fpga")
 	.dt_compat	= legacy_fpga_compat,
 	.init_early	= plat_fpga_early_init,
-	.init_machine	= plat_fpga_populate_dev,
 #ifdef CONFIG_ISS_SMP_EXTN
 	.init_smp	= iss_model_init_smp,
 #endif
@@ -71,5 +60,4 @@ static const char *simulation_compat[] __initconst = {
 
 MACHINE_START(SIMULATION, "simulation")
 	.dt_compat	= simulation_compat,
-	.init_machine	= plat_fpga_populate_dev,
 MACHINE_END
