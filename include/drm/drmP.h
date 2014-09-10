@@ -1309,21 +1309,6 @@ extern int drm_pci_set_unique(struct drm_device *dev,
 			      struct drm_master *master,
 			      struct drm_unique *u);
 
-				/* Legacy Support */
-
-int drm_legacy_addmap(struct drm_device *d, resource_size_t offset,
-		      unsigned int size, enum drm_map_type type,
-		      enum drm_map_flags flags, struct drm_local_map **map_p);
-int drm_legacy_rmmap(struct drm_device *d, struct drm_local_map *map);
-int drm_legacy_rmmap_locked(struct drm_device *d, struct drm_local_map *map);
-struct drm_local_map *drm_legacy_getsarea(struct drm_device *dev);
-
-int drm_legacy_addbufs_agp(struct drm_device *d, struct drm_buf_desc *req);
-int drm_legacy_addbufs_pci(struct drm_device *d, struct drm_buf_desc *req);
-
-void drm_legacy_idlelock_take(struct drm_lock_data *lock);
-void drm_legacy_idlelock_release(struct drm_lock_data *lock);
-
 			       /* sysfs support (drm_sysfs.c) */
 struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);

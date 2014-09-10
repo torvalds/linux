@@ -29,6 +29,7 @@
  * drivers use them, and removing them are API breaks.
  */
 #include <linux/list.h>
+#include <drm/drm_legacy.h>
 
 struct agp_memory;
 struct drm_device;
