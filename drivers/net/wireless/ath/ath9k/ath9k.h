@@ -380,6 +380,7 @@ struct ath_chanctx_sched {
 	bool offchannel_pending;
 	bool wait_switch;
 	bool force_noa_update;
+	bool extend_absence;
 	enum ath_chanctx_state state;
 	u8 beacon_miss;
 
