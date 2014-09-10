@@ -55,12 +55,7 @@
 #include <linux/proc_fs.h>
 #include <linux/inetdevice.h>
 #include <linux/reboot.h>
-#ifdef SIOCETHTOOL
-#define DEVICE_ETHTOOL_IOCTL_SUPPORT
 #include <linux/ethtool.h>
-#else
-#undef DEVICE_ETHTOOL_IOCTL_SUPPORT
-#endif
 /* Include Wireless Extension definition and check version - Jean II */
 #include <linux/wireless.h>
 #include <net/iw_handler.h>	// New driver API
