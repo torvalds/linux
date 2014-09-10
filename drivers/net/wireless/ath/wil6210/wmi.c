@@ -300,7 +300,7 @@ static void wmi_evt_fw_ready(struct wil6210_priv *wil, int id, void *d,
 	wil_dbg_wmi(wil, "WMI: got FW ready event\n");
 
 	set_bit(wil_status_fwready, &wil->status);
-	/* reuse wmi_ready for the firmware ready indication */
+	/* let the reset sequence continue */
 	complete(&wil->wmi_ready);
 }
 
@@ -764,8 +764,8 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,
 	wil->reply_id = reply_id;
 	wil->reply_buf = reply;
 	wil->reply_size = reply_size;
-	remain = wait_for_completion_timeout(&wil->wmi_ready,
-			msecs_to_jiffies(to_msec));
+	remain = wait_for_completion_timeout(&wil->wmi_call,
+					     msecs_to_jiffies(to_msec));
 	if (0 == remain) {
 		wil_err(wil, "wmi_call(0x%04x->0x%04x) timeout %d msec\n",
 			cmdid, reply_id, to_msec);
@@ -1160,7 +1160,7 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 						     len - sizeof(*wmi));
 			}
 			wil_dbg_wmi(wil, "Complete WMI 0x%04x\n", id);
-			complete(&wil->wmi_ready);
+			complete(&wil->wmi_call);
 			return;
 		}
 		/* unsolicited event */

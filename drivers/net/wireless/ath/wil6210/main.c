@@ -286,6 +286,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	mutex_init(&wil->wmi_mutex);
 
 	init_completion(&wil->wmi_ready);
+	init_completion(&wil->wmi_call);
 
 	wil->pending_connect_cid = -1;
 	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
@@ -536,6 +537,7 @@ int wil_reset(struct wil6210_priv *wil)
 	/* init after reset */
 	wil->pending_connect_cid = -1;
 	reinit_completion(&wil->wmi_ready);
+	reinit_completion(&wil->wmi_call);
 
 	wil6210_enable_irq(wil);
 

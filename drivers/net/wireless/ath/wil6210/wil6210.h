@@ -399,6 +399,7 @@ struct wil6210_priv {
 	struct mutex wmi_mutex;
 	struct wil6210_mbox_ctl mbox_ctl;
 	struct completion wmi_ready;
+	struct completion wmi_call;
 	u16 wmi_seq;
 	u16 reply_id; /**< wait for this WMI event */
 	void *reply_buf;
