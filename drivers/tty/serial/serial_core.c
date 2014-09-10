@@ -1249,7 +1249,6 @@ static void uart_set_termios(struct tty_struct *tty,
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *uport = state->uart_port;
-	unsigned long flags;
 	unsigned int cflag = tty->termios.c_cflag;
 	unsigned int iflag_mask = IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK;
 	bool sw_changed = false;
@@ -1303,19 +1302,19 @@ static void uart_set_termios(struct tty_struct *tty,
 
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) && !(cflag & CRTSCTS)) {
-		spin_lock_irqsave(&uport->lock, flags);
+		spin_lock_irq(&uport->lock);
 		uport->hw_stopped = 0;
 		__uart_start(tty);
-		spin_unlock_irqrestore(&uport->lock, flags);
+		spin_unlock_irq(&uport->lock);
 	}
 	/* Handle turning on CRTSCTS */
 	else if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
-		spin_lock_irqsave(&uport->lock, flags);
+		spin_lock_irq(&uport->lock);
 		if (!(uport->ops->get_mctrl(uport) & TIOCM_CTS)) {
 			uport->hw_stopped = 1;
 			uport->ops->stop_tx(uport);
 		}
-		spin_unlock_irqrestore(&uport->lock, flags);
+		spin_unlock_irq(&uport->lock);
 	}
 }
 
