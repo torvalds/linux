@@ -2253,7 +2253,7 @@ static void __cvmx_usb_perform_complete(
 			/* Increment to the next location in our packet array */
 			transaction->iso_packets++;
 			transaction->stage = CVMX_USB_STAGE_NON_CONTROL;
-			goto done;
+			return;
 		}
 	}
 
@@ -2266,8 +2266,6 @@ static void __cvmx_usb_perform_complete(
 					 transaction->actual_bytes,
 					 transaction->urb);
 	kfree(transaction);
-done:
-	return;
 }
 
 
