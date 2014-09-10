@@ -206,7 +206,7 @@ static int finish_unfinished(struct super_block *s)
 #ifdef CONFIG_QUOTA
 	int i;
 	int ms_active_set;
-	int quota_enabled[MAXQUOTAS];
+	int quota_enabled[REISERFS_MAXQUOTAS];
 #endif
 
 	/* compose key to look for "save" links */
@@ -227,7 +227,7 @@ static int finish_unfinished(struct super_block *s)
 		s->s_flags |= MS_ACTIVE;
 	}
 	/* Turn on quotas so that they are updated correctly */
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < REISERFS_MAXQUOTAS; i++) {
 		quota_enabled[i] = 1;
 		if (REISERFS_SB(s)->s_qf_names[i]) {
 			int ret;
@@ -370,7 +370,7 @@ static int finish_unfinished(struct super_block *s)
 #ifdef CONFIG_QUOTA
 	/* Turn quotas off */
 	reiserfs_write_unlock(s);
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < REISERFS_MAXQUOTAS; i++) {
 		if (sb_dqopt(s)->files[i] && quota_enabled[i])
 			dquot_quota_off(s, i);
 	}
@@ -1360,7 +1360,7 @@ static void handle_quota_files(struct super_block *s, char **qf_names,
 {
 	int i;
 
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < REISERFS_MAXQUOTAS; i++) {
 		if (qf_names[i] != REISERFS_SB(s)->s_qf_names[i])
 			kfree(REISERFS_SB(s)->s_qf_names[i]);
 		REISERFS_SB(s)->s_qf_names[i] = qf_names[i];
@@ -1381,7 +1381,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	struct reiserfs_journal *journal = SB_JOURNAL(s);
 	char *new_opts = kstrdup(arg, GFP_KERNEL);
 	int err;
-	char *qf_names[MAXQUOTAS];
+	char *qf_names[REISERFS_MAXQUOTAS];
 	unsigned int qfmt = 0;
 #ifdef CONFIG_QUOTA
 	int i;
@@ -1400,7 +1400,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	    (s, arg, &mount_options, &blocks, NULL, &commit_max_age,
 	    qf_names, &qfmt)) {
 #ifdef CONFIG_QUOTA
-		for (i = 0; i < MAXQUOTAS; i++)
+		for (i = 0; i < REISERFS_MAXQUOTAS; i++)
 			if (qf_names[i] != REISERFS_SB(s)->s_qf_names[i])
 				kfree(qf_names[i]);
 #endif
@@ -1844,7 +1844,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	char *jdev_name;
 	struct reiserfs_sb_info *sbi;
 	int errval = -EINVAL;
-	char *qf_names[MAXQUOTAS] = {};
+	char *qf_names[REISERFS_MAXQUOTAS] = {};
 	unsigned int qfmt = 0;
 
 	save_mount_options(s, data);
@@ -2169,7 +2169,7 @@ error_unlocked:
 #ifdef CONFIG_QUOTA
 	{
 		int j;
-		for (j = 0; j < MAXQUOTAS; j++)
+		for (j = 0; j < REISERFS_MAXQUOTAS; j++)
 			kfree(qf_names[j]);
 	}
 #endif
