@@ -530,7 +530,7 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	struct smb2_sess_setup_rsp *rsp = NULL;
 	struct kvec iov[2];
 	int rc = 0;
-	int resp_buftype;
+	int resp_buftype = CIFS_NO_BUFFER;
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
 	struct TCP_Server_Info *server = ses->server;
 	u16 blob_length = 0;
@@ -1403,8 +1403,7 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 	rsp = (struct smb2_close_rsp *)iov[0].iov_base;
 
 	if (rc != 0) {
-		if (tcon)
-			cifs_stats_fail_inc(tcon, SMB2_CLOSE_HE);
+		cifs_stats_fail_inc(tcon, SMB2_CLOSE_HE);
 		goto close_exit;
 	}
 
@@ -1533,7 +1532,7 @@ SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
 			  FILE_ALL_INFORMATION,
-			  sizeof(struct smb2_file_all_info) + MAX_NAME * 2,
+			  sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
 			  sizeof(struct smb2_file_all_info), data);
 }
 
