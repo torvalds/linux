@@ -2985,7 +2985,22 @@ void b43_mac_switch_freq(struct b43_wldev *dev, u8 spurmode)
 {
 	u16 chip_id = dev->dev->chip_id;
 
-	if (chip_id == BCMA_CHIP_ID_BCM43131 ||
+	if (chip_id == BCMA_CHIP_ID_BCM4331) {
+		switch (spurmode) {
+		case 2: /* 168 Mhz: 2^26/168 = 0x61862 */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x1862);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x6);
+			break;
+		case 1: /* 164 Mhz: 2^26/164 = 0x63e70 */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x3e70);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x6);
+			break;
+		default: /* 160 Mhz: 2^26/160 = 0x66666 */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x6666);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x6);
+			break;
+		}
+	} else if (chip_id == BCMA_CHIP_ID_BCM43131 ||
 	    chip_id == BCMA_CHIP_ID_BCM43217 ||
 	    chip_id == BCMA_CHIP_ID_BCM43222 ||
 	    chip_id == BCMA_CHIP_ID_BCM43224 ||
