@@ -1635,6 +1635,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_ADMITTED_TIME: admitted time in units of 32 microseconds
  *	(per second) (u16 attribute)
  *
+ * @NL80211_ATTR_SMPS_MODE: SMPS mode to use (ap mode). see
+ *	&enum nl80211_smps_mode.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1984,6 +1987,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_TSID,
 	NL80211_ATTR_USER_PRIO,
 	NL80211_ATTR_ADMITTED_TIME,
+
+	NL80211_ATTR_SMPS_MODE,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -4030,6 +4035,13 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_ACKTO_ESTIMATION: This driver supports dynamic ACK timeout
  *	estimation (dynack). %NL80211_ATTR_WIPHY_DYN_ACK flag attribute is used
  *	to enable dynack.
+ * @NL80211_FEATURE_STATIC_SMPS: Device supports static spatial
+ *	multiplexing powersave, ie. can turn off all but one chain
+ *	even on HT connections that should be using more chains.
+ * @NL80211_FEATURE_DYNAMIC_SMPS: Device supports dynamic spatial
+ *	multiplexing powersave, ie. can turn off all but one chain
+ *	and then wake the rest up as required after, for example,
+ *	rts/cts handshake.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -4056,6 +4068,8 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_QUIET				= 1 << 21,
 	NL80211_FEATURE_TX_POWER_INSERTION		= 1 << 22,
 	NL80211_FEATURE_ACKTO_ESTIMATION		= 1 << 23,
+	NL80211_FEATURE_STATIC_SMPS			= 1 << 24,
+	NL80211_FEATURE_DYNAMIC_SMPS			= 1 << 25,
 };
 
 /**
@@ -4127,6 +4141,25 @@ enum nl80211_scan_flags {
 enum nl80211_acl_policy {
 	NL80211_ACL_POLICY_ACCEPT_UNLESS_LISTED,
 	NL80211_ACL_POLICY_DENY_UNLESS_LISTED,
+};
+
+/**
+ * enum nl80211_smps_mode - SMPS mode
+ *
+ * Requested SMPS mode (for AP mode)
+ *
+ * @NL80211_SMPS_OFF: SMPS off (use all antennas).
+ * @NL80211_SMPS_STATIC: static SMPS (use a single antenna)
+ * @NL80211_SMPS_DYNAMIC: dynamic smps (start with a single antenna and
+ *	turn on other antennas after CTS/RTS).
+ */
+enum nl80211_smps_mode {
+	NL80211_SMPS_OFF,
+	NL80211_SMPS_STATIC,
+	NL80211_SMPS_DYNAMIC,
+
+	__NL80211_SMPS_AFTER_LAST,
+	NL80211_SMPS_MAX = __NL80211_SMPS_AFTER_LAST - 1
 };
 
 /**
