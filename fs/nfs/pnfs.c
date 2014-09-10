@@ -594,6 +594,9 @@ pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
 		dprintk("%s freeing layout for inode %lu\n", __func__,
 			lo->plh_inode->i_ino);
 		inode = lo->plh_inode;
+
+		pnfs_layoutcommit_inode(inode, false);
+
 		spin_lock(&inode->i_lock);
 		list_del_init(&lo->plh_bulk_destroy);
 		lo->plh_block_lgets++; /* permanently block new LAYOUTGETs */
