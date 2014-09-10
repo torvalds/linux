@@ -908,8 +908,7 @@ void no_tty(void)
  *	stop_tty	-	propagate flow control
  *	@tty: tty to stop
  *
- *	Perform flow control to the driver. For PTY/TTY pairs we
- *	must also propagate the TIOCKPKT status. May be called
+ *	Perform flow control to the driver. May be called
  *	on an already stopped device and will not re-call the driver
  *	method.
  *
@@ -919,24 +918,14 @@ void no_tty(void)
  *	but not always.
  *
  *	Locking:
- *		ctrl_lock
  *		flow_lock
  */
 
 void __stop_tty(struct tty_struct *tty)
 {
-	unsigned long flags;
-
 	if (tty->stopped)
 		return;
 	tty->stopped = 1;
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
-	if (tty->link && tty->link->packet) {
-		tty->ctrl_status &= ~TIOCPKT_START;
-		tty->ctrl_status |= TIOCPKT_STOP;
-		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
-	}
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	if (tty->ops->stop)
 		(tty->ops->stop)(tty);
 }
@@ -955,33 +944,21 @@ EXPORT_SYMBOL(stop_tty);
  *	start_tty	-	propagate flow control
  *	@tty: tty to start
  *
- *	Start a tty that has been stopped if at all possible. Perform
- *	any necessary wakeups and propagate the TIOCPKT status. If this
- *	is the tty was previous stopped and is being started then the
- *	driver start method is invoked and the line discipline woken.
+ *	Start a tty that has been stopped if at all possible. If this
+ *	tty was previous stopped and is now being started, the driver
+ *	start method is invoked and the line discipline woken.
  *
  *	Locking:
- *		ctrl_lock
  *		flow_lock
  */
 
 void __start_tty(struct tty_struct *tty)
 {
-	unsigned long flags;
-
 	if (!tty->stopped || tty->flow_stopped)
 		return;
 	tty->stopped = 0;
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
-	if (tty->link && tty->link->packet) {
-		tty->ctrl_status &= ~TIOCPKT_STOP;
-		tty->ctrl_status |= TIOCPKT_START;
-		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
-	}
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	if (tty->ops->start)
 		(tty->ops->start)(tty);
-	/* If we have a running line discipline it may need kicking */
 	tty_wakeup(tty);
 }
 

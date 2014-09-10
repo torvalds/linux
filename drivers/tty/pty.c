@@ -24,6 +24,7 @@
 #include <linux/devpts_fs.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#include <linux/poll.h>
 
 
 #ifdef CONFIG_UNIX98_PTYS
@@ -313,6 +314,42 @@ done:
 }
 
 /**
+ *	pty_start - start() handler
+ *	pty_stop  - stop() handler
+ *	@tty: tty being flow-controlled
+ *
+ *	Propagates the TIOCPKT status to the master pty.
+ *
+ *	NB: only the master pty can be in packet mode so only the slave
+ *	    needs start()/stop() handlers
+ */
+static void pty_start(struct tty_struct *tty)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	if (tty->link && tty->link->packet) {
+		tty->ctrl_status &= ~TIOCPKT_STOP;
+		tty->ctrl_status |= TIOCPKT_START;
+		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
+	}
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+}
+
+static void pty_stop(struct tty_struct *tty)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	if (tty->link && tty->link->packet) {
+		tty->ctrl_status &= ~TIOCPKT_START;
+		tty->ctrl_status |= TIOCPKT_STOP;
+		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
+	}
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+}
+
+/**
  *	pty_common_install		-	set up the pty pair
  *	@driver: the pty driver
  *	@tty: the tty being instantiated
@@ -471,6 +508,8 @@ static const struct tty_operations slave_pty_ops_bsd = {
 	.set_termios = pty_set_termios,
 	.cleanup = pty_cleanup,
 	.resize = pty_resize,
+	.start = pty_start,
+	.stop = pty_stop,
 	.remove = pty_remove
 };
 
@@ -646,6 +685,8 @@ static const struct tty_operations pty_unix98_ops = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
+	.start = pty_start,
+	.stop = pty_stop,
 	.shutdown = pty_unix98_shutdown,
 	.cleanup = pty_cleanup,
 };
