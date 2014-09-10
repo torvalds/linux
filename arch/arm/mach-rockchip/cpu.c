@@ -23,6 +23,8 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr, char
 		type = "rk30xx";
 	else if (cpu_is_rk2928())
 		type = "rk2928";
+	else if (cpu_is_rk312x())
+		type = "rk312x";
 	else
 		type = "";
 
@@ -65,6 +67,10 @@ static ssize_t soc_show(struct device *dev, struct device_attribute *attr, char 
 		soc = "rk3068";
 	else if (soc_is_rk3000())
 		soc = "rk3000";
+	else if (soc_is_rk3126())
+		soc = "rk3126";
+	else if (soc_is_rk3128())
+		soc = "rk3128";
 	else
 		soc = "";
 
