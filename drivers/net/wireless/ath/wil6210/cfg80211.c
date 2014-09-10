@@ -319,6 +319,22 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	return rc;
 }
 
+static void wil_print_connect_params(struct wil6210_priv *wil,
+				     struct cfg80211_connect_params *sme)
+{
+	wil_info(wil, "Connecting to:\n");
+	if (sme->channel) {
+		wil_info(wil, "  Channel: %d freq %d\n",
+			 sme->channel->hw_value, sme->channel->center_freq);
+	}
+	if (sme->bssid)
+		wil_info(wil, "  BSSID: %pM\n", sme->bssid);
+	if (sme->ssid)
+		print_hex_dump(KERN_INFO, "  SSID: ", DUMP_PREFIX_OFFSET,
+			       16, 1, sme->ssid, sme->ssid_len, true);
+	wil_info(wil, "  Privacy: %s\n", sme->privacy ? "secure" : "open");
+}
+
 static int wil_cfg80211_connect(struct wiphy *wiphy,
 				struct net_device *ndev,
 				struct cfg80211_connect_params *sme)
@@ -334,6 +350,8 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	if (test_bit(wil_status_fwconnecting, &wil->status) ||
 	    test_bit(wil_status_fwconnected, &wil->status))
 		return -EALREADY;
+
+	wil_print_connect_params(wil, sme);
 
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
 			       sme->ssid, sme->ssid_len,
