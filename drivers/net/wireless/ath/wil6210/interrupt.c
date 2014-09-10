@@ -135,7 +135,7 @@ static void wil6210_unmask_irq_pseudo(struct wil6210_priv *wil)
 		  HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW));
 }
 
-void wil6210_disable_irq(struct wil6210_priv *wil)
+void wil_mask_irq(struct wil6210_priv *wil)
 {
 	wil_dbg_irq(wil, "%s()\n", __func__);
 
@@ -145,7 +145,7 @@ void wil6210_disable_irq(struct wil6210_priv *wil)
 	wil6210_mask_irq_pseudo(wil);
 }
 
-void wil6210_enable_irq(struct wil6210_priv *wil)
+void wil_unmask_irq(struct wil6210_priv *wil)
 {
 	wil_dbg_irq(wil, "%s()\n", __func__);
 
@@ -546,7 +546,7 @@ void wil6210_fini_irq(struct wil6210_priv *wil, int irq)
 {
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
-	wil6210_disable_irq(wil);
+	wil_mask_irq(wil);
 	free_irq(irq, wil);
 	if (wil->n_msi == 3) {
 		free_irq(irq + 1, wil);

@@ -496,7 +496,7 @@ int wil_reset(struct wil6210_priv *wil)
 		wil->scan_request = NULL;
 	}
 
-	wil6210_disable_irq(wil);
+	wil_mask_irq(wil);
 
 	wmi_event_flush(wil);
 
@@ -539,7 +539,7 @@ int wil_reset(struct wil6210_priv *wil)
 	reinit_completion(&wil->wmi_ready);
 	reinit_completion(&wil->wmi_call);
 
-	wil6210_enable_irq(wil);
+	wil_unmask_irq(wil);
 
 	/* we just started MAC, wait for FW ready */
 	rc = wil_wait_for_fw_ready(wil);
