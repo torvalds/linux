@@ -36,7 +36,7 @@
 #define FW_8192C_POLLING_DELAY		5
 
 struct rtl92c_firmware_header {
-	u16 signature;
+	__le16 signature;
 	u8 category;
 	u8 function;
 	u16 version;
