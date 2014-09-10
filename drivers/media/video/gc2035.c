@@ -1259,6 +1259,8 @@ static int sensor_s_fmt_cb_th(struct i2c_client *client,struct v4l2_mbus_framefm
 */
 static int sensor_s_fmt_cb_bh (struct i2c_client *client,struct v4l2_mbus_framefmt *mf, bool capture)
 {
+	/* add delay for rk312x*/
+	msleep(300); 
 	return 0;
 }
 static int sensor_softrest_usr_cb(struct i2c_client *client,struct rk_sensor_reg *series)
