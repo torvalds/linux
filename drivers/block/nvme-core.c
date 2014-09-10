@@ -1853,6 +1853,35 @@ static int nvme_getgeo(struct block_device *bd, struct hd_geometry *geo)
 	return 0;
 }
 
+static int nvme_revalidate_disk(struct gendisk *disk)
+{
+	struct nvme_ns *ns = disk->private_data;
+	struct nvme_dev *dev = ns->dev;
+	struct nvme_id_ns *id;
+	dma_addr_t dma_addr;
+	int lbaf;
+
+	id = dma_alloc_coherent(&dev->pci_dev->dev, 4096, &dma_addr,
+								GFP_KERNEL);
+	if (!id) {
+		dev_warn(&dev->pci_dev->dev, "%s: Memory alocation failure\n",
+								__func__);
+		return 0;
+	}
+
+	if (nvme_identify(dev, ns->ns_id, 0, dma_addr))
+		goto free;
+
+	lbaf = id->flbas & 0xf;
+	ns->lba_shift = id->lbaf[lbaf].ds;
+
+	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
+	set_capacity(disk, le64_to_cpup(&id->nsze) << (ns->lba_shift - 9));
+ free:
+	dma_free_coherent(&dev->pci_dev->dev, 4096, id, dma_addr);
+	return 0;
+}
+
 static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
@@ -1860,6 +1889,7 @@ static const struct block_device_operations nvme_fops = {
 	.open		= nvme_open,
 	.release	= nvme_release,
 	.getgeo		= nvme_getgeo,
+	.revalidate_disk= nvme_revalidate_disk,
 };
 
 static void nvme_resubmit_iods(struct nvme_queue *nvmeq)
