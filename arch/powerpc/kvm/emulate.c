@@ -219,7 +219,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* this default type might be overwritten by subcategories */
 	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
 
-	emulated = kvmppc_get_last_inst(vcpu, false, &inst);
+	emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &inst);
 	if (emulated != EMULATE_DONE)
 		return emulated;
 

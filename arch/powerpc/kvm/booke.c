@@ -992,12 +992,12 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOKE_INTERRUPT_DATA_STORAGE:
 	case BOOKE_INTERRUPT_DTLB_MISS:
 	case BOOKE_INTERRUPT_HV_PRIV:
-		emulated = kvmppc_get_last_inst(vcpu, false, &last_inst);
+		emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
 		break;
 	case BOOKE_INTERRUPT_PROGRAM:
 		/* SW breakpoints arrive as illegal instructions on HV */
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
-			emulated = kvmppc_get_last_inst(vcpu, false, &last_inst);
+			emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
 		break;
 	default:
 		break;
