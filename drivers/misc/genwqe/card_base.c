@@ -48,7 +48,7 @@ MODULE_AUTHOR("Joerg-Stephan Vogt <jsvogt@de.ibm.com>");
 MODULE_AUTHOR("Michal Jung <mijung@de.ibm.com>");
 
 MODULE_DESCRIPTION("GenWQE Card");
-MODULE_VERSION(DRV_VERS_STRING);
+MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
 static char genwqe_driver_name[] = GENWQE_DEVNAME;

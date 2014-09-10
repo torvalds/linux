@@ -91,13 +91,6 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(type);
 
-static ssize_t driver_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	return sprintf(buf, "%s\n", DRV_VERS_STRING);
-}
-static DEVICE_ATTR_RO(driver);
-
 static ssize_t tempsens_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -256,7 +249,6 @@ static struct attribute *genwqe_attributes[] = {
 	&dev_attr_next_bitstream.attr,
 	&dev_attr_curr_bitstream.attr,
 	&dev_attr_base_clock.attr,
-	&dev_attr_driver.attr,
 	&dev_attr_type.attr,
 	&dev_attr_version.attr,
 	&dev_attr_appid.attr,
@@ -268,7 +260,6 @@ static struct attribute *genwqe_attributes[] = {
 };
 
 static struct attribute *genwqe_normal_attributes[] = {
-	&dev_attr_driver.attr,
 	&dev_attr_type.attr,
 	&dev_attr_version.attr,
 	&dev_attr_appid.attr,

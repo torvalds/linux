@@ -36,7 +36,7 @@
 #include <asm/byteorder.h>
 #include <linux/genwqe/genwqe_card.h>
 
-#define DRV_VERS_STRING		"2.0.21"
+#define DRV_VERSION		"2.0.25"
 
 /*
  * Static minor number assignement, until we decide/implement

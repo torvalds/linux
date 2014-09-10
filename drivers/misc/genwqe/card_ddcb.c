@@ -740,7 +740,7 @@ int genwqe_init_debug_data(struct genwqe_dev *cd, struct genwqe_debug_data *d)
 	}
 
 	len  = sizeof(d->driver_version);
-	snprintf(d->driver_version, len, "%s", DRV_VERS_STRING);
+	snprintf(d->driver_version, len, "%s", DRV_VERSION);
 	d->slu_unitcfg = cd->slu_unitcfg;
 	d->app_unitcfg = cd->app_unitcfg;
 	return 0;

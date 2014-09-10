@@ -323,7 +323,7 @@ static int genwqe_info_show(struct seq_file *s, void *unused)
 		   "    Base Clock      : %u MHz\n"
 		   "    Arch/SVN Release: %u/%llx\n"
 		   "    Bitstream       : %llx\n",
-		   GENWQE_DEVNAME, DRV_VERS_STRING, dev_name(&pci_dev->dev),
+		   GENWQE_DEVNAME, DRV_VERSION, dev_name(&pci_dev->dev),
 		   genwqe_is_privileged(cd) ?
 		   "Physical" : "Virtual or no SR-IOV",
 		   cd->card_idx, slu_id, app_id,
