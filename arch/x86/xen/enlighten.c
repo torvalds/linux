@@ -1463,6 +1463,7 @@ static void __ref xen_setup_gdt(int cpu)
 	pv_cpu_ops.load_gdt = xen_load_gdt;
 }
 
+#ifdef CONFIG_XEN_PVH
 /*
  * A PV guest starts with default flags that are not set for PVH, set them
  * here asap.
@@ -1508,12 +1509,15 @@ static void __init xen_pvh_early_guest_init(void)
 		return;
 
 	xen_have_vector_callback = 1;
+
+	xen_pvh_early_cpu_init(0, false);
 	xen_pvh_set_cr_flags(0);
 
 #ifdef CONFIG_X86_32
 	BUG(); /* PVH: Implement proper support. */
 #endif
 }
+#endif    /* CONFIG_XEN_PVH */
 
 /* First C function to be called on Xen boot */
 asmlinkage __visible void __init xen_start_kernel(void)
@@ -1528,7 +1532,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_domain_type = XEN_PV_DOMAIN;
 
 	xen_setup_features();
+#ifdef CONFIG_XEN_PVH
 	xen_pvh_early_guest_init();
+#endif
 	xen_setup_machphys_mapping();
 
 	/* Install Xen paravirt ops */

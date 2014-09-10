@@ -47,6 +47,41 @@ ENTRY(startup_xen)
 
 	__FINIT
 
+#ifdef CONFIG_XEN_PVH
+/*
+ * xen_pvh_early_cpu_init() - early PVH VCPU initialization
+ * @cpu:   this cpu number (%rdi)
+ * @entry: true if this is a secondary vcpu coming up on this entry
+ *         point, false if this is the boot CPU being initialized for
+ *         the first time (%rsi)
+ *
+ * Note: This is called as a function on the boot CPU, and is the entry point
+ *       on the secondary CPU.
+ */
+ENTRY(xen_pvh_early_cpu_init)
+	mov     %rsi, %r11
+
+	/* Gather features to see if NX implemented. */
+	mov     $0x80000001, %eax
+	cpuid
+	mov     %edx, %esi
+
+	mov     $MSR_EFER, %ecx
+	rdmsr
+	bts     $_EFER_SCE, %eax
+
+	bt      $20, %esi
+	jnc     1f      	/* No NX, skip setting it */
+	bts     $_EFER_NX, %eax
+1:	wrmsr
+#ifdef CONFIG_SMP
+	cmp     $0, %r11b
+	jne     cpu_bringup_and_idle
+#endif
+	ret
+
+#endif /* CONFIG_XEN_PVH */
+
 .pushsection .text
 	.balign PAGE_SIZE
 ENTRY(hypercall_page)

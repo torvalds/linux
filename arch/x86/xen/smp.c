@@ -37,6 +37,7 @@
 #include <xen/hvc-console.h>
 #include "xen-ops.h"
 #include "mmu.h"
+#include "smp.h"
 
 cpumask_var_t xen_cpu_initialized_map;
 
@@ -99,10 +100,14 @@ static void cpu_bringup(void)
 	wmb();			/* make sure everything is out */
 }
 
-/* Note: cpu parameter is only relevant for PVH */
-static void cpu_bringup_and_idle(int cpu)
+/*
+ * Note: cpu parameter is only relevant for PVH. The reason for passing it
+ * is we can't do smp_processor_id until the percpu segments are loaded, for
+ * which we need the cpu number! So we pass it in rdi as first parameter.
+ */
+asmlinkage __visible void cpu_bringup_and_idle(int cpu)
 {
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_XEN_PVH
 	if (xen_feature(XENFEAT_auto_translated_physmap) &&
 	    xen_feature(XENFEAT_supervisor_mode_kernel))
 		xen_pvh_secondary_vcpu_init(cpu);
@@ -374,11 +379,10 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->user_regs.fs = __KERNEL_PERCPU;
 	ctxt->user_regs.gs = __KERNEL_STACK_CANARY;
 #endif
-	ctxt->user_regs.eip = (unsigned long)cpu_bringup_and_idle;
-
 	memset(&ctxt->fpu_ctxt, 0, sizeof(ctxt->fpu_ctxt));
 
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		ctxt->user_regs.eip = (unsigned long)cpu_bringup_and_idle;
 		ctxt->flags = VGCF_IN_KERNEL;
 		ctxt->user_regs.eflags = 0x1000; /* IOPL_RING1 */
 		ctxt->user_regs.ds = __USER_DS;
@@ -413,15 +417,18 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 					(unsigned long)xen_failsafe_callback;
 		ctxt->user_regs.cs = __KERNEL_CS;
 		per_cpu(xen_cr3, cpu) = __pa(swapper_pg_dir);
-#ifdef CONFIG_X86_32
 	}
-#else
-	} else
-		/* N.B. The user_regs.eip (cpu_bringup_and_idle) is called with
-		 * %rdi having the cpu number - which means are passing in
-		 * as the first parameter the cpu. Subtle!
+#ifdef CONFIG_XEN_PVH
+	else {
+		/*
+		 * The vcpu comes on kernel page tables which have the NX pte
+		 * bit set. This means before DS/SS is touched, NX in
+		 * EFER must be set. Hence the following assembly glue code.
 		 */
+		ctxt->user_regs.eip = (unsigned long)xen_pvh_early_cpu_init;
 		ctxt->user_regs.rdi = cpu;
+		ctxt->user_regs.rsi = true;  /* entry == true */
+	}
 #endif
 	ctxt->user_regs.esp = idle->thread.sp0 - sizeof(struct pt_regs);
 	ctxt->ctrlreg[3] = xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
