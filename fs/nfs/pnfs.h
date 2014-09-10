@@ -72,6 +72,7 @@ enum layoutdriver_policy_flags {
 	/* Should the pNFS client commit and return the layout upon a setattr */
 	PNFS_LAYOUTRET_ON_SETATTR	= 1 << 0,
 	PNFS_LAYOUTRET_ON_ERROR		= 1 << 1,
+	PNFS_READ_WHOLE_PAGE		= 1 << 2,
 };
 
 struct nfs4_deviceid_node;
@@ -370,6 +371,14 @@ pnfs_ld_layoutret_on_setattr(struct inode *inode)
 }
 
 static inline bool
+pnfs_ld_read_whole_page(struct inode *inode)
+{
+	if (!pnfs_enabled_sb(NFS_SERVER(inode)))
+		return false;
+	return NFS_SERVER(inode)->pnfs_curr_ld->flags & PNFS_READ_WHOLE_PAGE;
+}
+
+static inline bool
 pnfs_layoutcommit_outstanding(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -440,6 +449,12 @@ static inline int pnfs_commit_and_return_layout(struct inode *inode)
 
 static inline bool
 pnfs_ld_layoutret_on_setattr(struct inode *inode)
+{
+	return false;
+}
+
+static inline bool
+pnfs_ld_read_whole_page(struct inode *inode)
 {
 	return false;
 }
