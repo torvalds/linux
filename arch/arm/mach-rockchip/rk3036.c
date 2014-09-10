@@ -57,6 +57,7 @@ static struct map_desc rk3036_io_desc[] __initdata = {
 	RK3036_DEVICE(GRF),
 	RK3036_DEVICE(ROM),
 	RK3036_DEVICE(EFUSE),
+	RK3036_DEVICE(CPU_AXI_BUS),
 	RK_DEVICE(RK_DDR_VIRT, RK3036_DDR_PCTL_PHYS, RK3036_DDR_PCTL_SIZE),
 	RK_DEVICE(RK_DDR_VIRT + RK3036_DDR_PCTL_SIZE, RK3036_DDR_PHY_PHYS,
 		  RK3036_DDR_PHY_SIZE),
@@ -448,6 +449,122 @@ static void pm_plls_resume(void)
 		<< 16), RK3036_CRU_MODE_CON);
 }
 
+#include "ddr_rk3036.c"
+#include "pm-pie.c"
+
+char PIE_DATA(sram_stack)[1024];
+EXPORT_PIE_SYMBOL(DATA(sram_stack));
+
+static int __init rk3036_pie_init(void)
+{
+	int err;
+
+	if (!cpu_is_rk3036())
+		return 0;
+
+	err = rockchip_pie_init();
+	if (err)
+		return err;
+
+	rockchip_pie_chunk = pie_load_sections(rockchip_sram_pool, rk3036);
+	if (IS_ERR(rockchip_pie_chunk)) {
+		err = PTR_ERR(rockchip_pie_chunk);
+		pr_err("%s: failed to load section %d\n", __func__, err);
+		rockchip_pie_chunk = NULL;
+		return err;
+	}
+
+	rockchip_sram_virt = kern_to_pie(rockchip_pie_chunk
+		, &__pie_common_start[0]);
+	rockchip_sram_stack = kern_to_pie(rockchip_pie_chunk
+		, (char *)DATA(sram_stack) + sizeof(DATA(sram_stack)));
+
+	return 0;
+}
+arch_initcall(rk3036_pie_init);
+
+static void reg_pread(void)
+{
+	volatile u32 n;
+	int i;
+
+	volatile u32 *temp = (volatile unsigned int *)rockchip_sram_virt;
+
+	flush_cache_all();
+	outer_flush_all();
+	local_flush_tlb_all();
+
+	for (i = 0; i < 2; i++) {
+		n = temp[1024 * i];
+		barrier();
+	}
+
+	n = readl_relaxed(RK_GPIO_VIRT(0));
+	n = readl_relaxed(RK_GPIO_VIRT(1));
+	n = readl_relaxed(RK_GPIO_VIRT(2));
+
+	n = readl_relaxed(RK_DEBUG_UART_VIRT);
+	n = readl_relaxed(RK_CPU_AXI_BUS_VIRT);
+	n = readl_relaxed(RK_DDR_VIRT);
+	n = readl_relaxed(RK_GRF_VIRT);
+	n = readl_relaxed(RK_CRU_VIRT);
+}
+
+#define RK3036_CRU_UNGATING_OPS(id) cru_writel(\
+	CRU_W_MSK_SETBITS(0,  (id), 0x1), RK3036_CRU_UART_GATE)
+#define RK3036_CRU_GATING_OPS(id) cru_writel(\
+	CRU_W_MSK_SETBITS(1, (id), 0x1), RK3036_CRU_UART_GATE)
+
+static inline void  uart_printch(char bbyte)
+{
+	u32 reg_save;
+	u32 u_clk_id = (RK3036_CLKGATE_UART0_SRC + CONFIG_RK_DEBUG_UART * 2);
+	u32 u_pclk_id = (RK3036_CLKGATE_UART0_PCLK + CONFIG_RK_DEBUG_UART * 2);
+
+	reg_save = cru_readl(RK3036_CRU_UART_GATE);
+	RK3036_CRU_UNGATING_OPS(u_clk_id);
+	RK3036_CRU_UNGATING_OPS(u_pclk_id);
+	rkpm_udelay(1);
+
+
+write_uart:
+	writel_relaxed(bbyte, RK_DEBUG_UART_VIRT);
+	dsb();
+
+	while (!(readl_relaxed(RK_DEBUG_UART_VIRT + 0x14) & 0x40))
+		barrier();
+
+	if (bbyte == '\n') {
+		bbyte = '\r';
+		goto write_uart;
+	}
+
+	cru_writel(reg_save | CRU_W_MSK(u_clk_id
+		, 0x1), RK3036_CRU_UART_GATE);
+	cru_writel(reg_save | CRU_W_MSK(u_pclk_id
+		, 0x1), RK3036_CRU_UART_GATE);
+
+
+	if (0) {
+write_uart1:
+		writel_relaxed(bbyte, RK_DEBUG_UART_VIRT);
+		dsb();
+
+		while (!(readl_relaxed(RK_DEBUG_UART_VIRT + 0x14) & 0x40))
+			barrier();
+	if (bbyte == '\n') {
+		bbyte = '\r';
+		goto write_uart1;
+		}
+	}
+}
+
+
+void PIE_FUNC(sram_printch)(char byte)
+{
+	uart_printch(byte);
+}
+
 static void __init rk3036_suspend_init(void)
 {
 	struct device_node *parent;
@@ -472,17 +589,33 @@ static void __init rk3036_suspend_init(void)
 
 	clks_gating_suspend_init();
 	rkpm_set_ops_plls(pm_plls_suspend, pm_plls_resume);
+
+	rkpm_set_ops_regs_pread(reg_pread);
+	rkpm_set_sram_ops_ddr(fn_to_pie(rockchip_pie_chunk
+		, &FUNC(ddr_suspend))
+		, fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_resume)));
+
 	rkpm_set_ops_prepare_finish(rk3036_pm_dump_inten
 		, rk3036_pm_dump_irq);
+
+	rkpm_set_sram_ops_printch(fn_to_pie(rockchip_pie_chunk
+		, &FUNC(sram_printch)));
 	rkpm_set_ops_printch(rk3036_ddr_printch);
-	rockchip_suspend_init();
 }
 #endif
+
+static void __init rk3036_init_suspend(void)
+{
+	pr_info("%s\n", __func__);
+	rockchip_suspend_init();
+	rkpm_pie_init();
+	rk3036_suspend_init();
+}
 
 static void __init rk3036_init_late(void)
 {
 #ifdef CONFIG_PM
-	rk3036_suspend_init();
+	rk3036_init_suspend();
 #endif
 }
 

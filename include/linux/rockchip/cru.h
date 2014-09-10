@@ -181,6 +181,11 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 #define RK3036_CRU_SOFTRSTS_CON_CNT	(9)
 #define RK3036_CRU_SOFTRSTS_CON(i)	(RK3036_CRU_SOFTRST_CON + ((i) * 4))
 
+/*******************CRU GATING*********************/
+#define RK3036_CRU_UART_GATE                0xd4
+#define RK3036_CLKGATE_UART0_SRC        8
+#define RK3036_CLKGATE_UART0_PCLK      9
+
 #define RK312X_PLL_CONS(id, i)		((id) * 0x10 + ((i) * 4))
 
 #define RK312X_CRU_GLB_SRST_FST_VALUE 0x00100

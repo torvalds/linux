@@ -1208,7 +1208,7 @@
 						"clk_uart2_div",	"uart2_frac",
 						"reserved",	"reserved";
 
-					 rockchip,suspend-clkgating-setting=<0xf087 0xf087>;
+					 rockchip,suspend-clkgating-setting=<0xc08f 0xc08f>;
 					#clock-cells = <1>;
 				};
 
