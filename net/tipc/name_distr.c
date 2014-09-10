@@ -284,8 +284,7 @@ static void named_purge_publ(struct publication *publ)
  * tipc_nametbl_lock must be held.
  * Returns the publication item if successful, otherwise NULL.
  */
-struct publication *tipc_update_nametbl(struct distr_item *i, u32 node,
-					u32 dtype)
+static bool tipc_update_nametbl(struct distr_item *i, u32 node, u32 dtype)
 {
 	struct publication *publ = NULL;
 
@@ -298,6 +297,7 @@ struct publication *tipc_update_nametbl(struct distr_item *i, u32 node,
 			tipc_nodesub_subscribe(&publ->subscr, node, publ,
 					       (net_ev_handler)
 					       named_purge_publ);
+			return true;
 		}
 	} else if (dtype == WITHDRAWAL) {
 		publ = tipc_nametbl_remove_publ(ntohl(i->type), ntohl(i->lower),
@@ -306,11 +306,12 @@ struct publication *tipc_update_nametbl(struct distr_item *i, u32 node,
 		if (publ) {
 			tipc_nodesub_unsubscribe(&publ->subscr);
 			kfree(publ);
+			return true;
 		}
 	} else {
 		pr_warn("Unrecognized name table message received\n");
 	}
-	return publ;
+	return false;
 }
 
 /**
