@@ -1170,6 +1170,11 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	u32 stride_32bit_2;
 	u16 uv_x_off, uv_y_off, uv_y_act;
 	u8 is_pic_yuv = 0;
+#ifdef CONFIG_ROCKCHIP_IOMMU
+	ion_phys_addr_t phy_addr;
+	size_t len = 0;
+	int ret = 0;
+#endif
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (win_id < 0)
@@ -1282,16 +1287,40 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 
 	dev_drv->ops->pan_display(dev_drv, win_id);
 	if (rk_fb->disp_mode == DUAL) {
-		if (extend_win->state && (hdmi_switch_complete)) {
+		if (extend_win->state &&
+		    (hdmi_switch_complete & (1 << extend_win_id))) {
 			extend_win->area[0].y_offset = win->area[0].y_offset;
 			if (extend_dev_drv->rotate_mode > X_Y_MIRROR) {
 				rk_fb_rotate(extend_info, info,
 						win->area[0].y_offset);
 			} else {
+#ifdef CONFIG_ROCKCHIP_IOMMU
+				if (extend_dev_drv->iommu_enabled) {
+					ret = ion_map_iommu(extend_dev_drv->dev,
+							    rk_fb->ion_client,
+							    win->area[0].ion_hdl,
+							    (unsigned long *)&phy_addr,
+							    (unsigned long *)&len);
+					if (ret < 0) {
+						dev_err(extend_dev_drv->dev, "ion map to get phy addr failed\n");
+						ion_free(rk_fb->ion_client, win->area[0].ion_hdl);
+						return -ENOMEM;
+					}
+					extend_win->area[0].smem_start = phy_addr;
+					extend_win->area[0].cbr_start =
+							win->area[0].cbr_start;
+				} else {
+					extend_win->area[0].smem_start =
+							win->area[0].smem_start;
+					extend_win->area[0].cbr_start =
+							win->area[0].cbr_start;
+				}
+#else
 				extend_win->area[0].smem_start =
 						win->area[0].smem_start;
 				extend_win->area[0].cbr_start =
 						win->area[0].cbr_start;
+#endif
 			}
 			extend_dev_drv->ops->pan_display(extend_dev_drv,
 							 extend_win_id);
@@ -1402,6 +1431,9 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 	int i, index_buf;
 	struct rk_fb_reg_area_data *area_data;
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	struct rk_lcdc_driver *ext_dev_drv = rk_get_extend_lcdc_drv();
+#endif
 
 	for (i = 0; i < reg_win_data->area_num; i++) {
 		area_data = &reg_win_data->reg_area_data[i];
@@ -1411,6 +1443,12 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 			ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client,
 					area_data->ion_handle);
 			freed_addr[freed_index++] = area_data->smem_start;
+		}
+		if (rk_fb->disp_mode == DUAL && hdmi_switch_complete == 0xff) {
+			if (ext_dev_drv->iommu_enabled)
+				ion_unmap_iommu(ext_dev_drv->dev,
+						rk_fb->ion_client,
+						area_data->ion_handle);
 		}
 #endif
 		if (area_data->ion_handle != NULL) {
@@ -1461,8 +1499,10 @@ static void rk_fb_update_driver(struct rk_lcdc_driver *dev_drv,
 		win->g_alpha_val = reg_win_data->g_alpha_val;
 		for (i = 0; i < RK_WIN_MAX_AREA; i++) {
 			if (reg_win_data->reg_area_data[i].smem_start > 0) {
+				win->area[i].ion_hdl =
+					reg_win_data->reg_area_data[i].ion_handle;
 				win->area[i].smem_start =
-				    reg_win_data->reg_area_data[i].smem_start;
+					reg_win_data->reg_area_data[i].smem_start;
                                 if (inf->disp_mode == DUAL) {
 				        win->area[i].xpos =
 				                reg_win_data->reg_area_data[i].xpos;
@@ -1529,10 +1569,14 @@ static int rk_fb_update_hdmi_win(struct rk_lcdc_win *ext_win,
         struct rk_lcdc_win *last_win;
         bool is_yuv = false;
         static u8 fb_index = 0;
-
+#ifdef CONFIG_ROCKCHIP_IOMMU
+	ion_phys_addr_t phy_addr;
+	size_t len = 0;
+	int ret = 0;
+#endif
         if ((rk_fb->disp_mode != DUAL) ||
                 (hdmi_get_hotplug() != HDMI_HPD_ACTIVED) ||
-                (!hdmi_switch_complete)) {
+                (hdmi_switch_complete != 0xff)) {
                 printk(KERN_INFO "%s: hdmi is disconnect!\n", __func__);
                 return -1;
         }
@@ -1611,7 +1655,25 @@ static int rk_fb_update_hdmi_win(struct rk_lcdc_win *ext_win,
                 y_stride = ALIGN_N_TIMES(vir_width_bit, 32) / 8;
                 ext_win->area[0].y_vir_stride = y_stride >> 2;
 	} else {
+#ifdef CONFIG_ROCKCHIP_IOMMU
+		if (ext_dev_drv->iommu_enabled) {
+			ret = ion_map_iommu(ext_dev_drv->dev,
+					    rk_fb->ion_client,
+					    win->area[0].ion_hdl,
+					    (unsigned long *)&phy_addr,
+					    (unsigned long *)&len);
+			if (ret < 0) {
+				dev_err(ext_dev_drv->dev, "ion map to get phy addr failed\n");
+				ion_free(rk_fb->ion_client, win->area[0].ion_hdl);
+				return -ENOMEM;
+			}
+			ext_win->area[0].smem_start = phy_addr;
+		} else {
+			ext_win->area[0].smem_start = win->area[0].smem_start;
+		}
+#else
 	        ext_win->area[0].smem_start = win->area[0].smem_start;
+#endif
                 ext_win->area[0].y_offset = win->area[0].y_offset;
                 ext_win->area[0].xact = win->area[0].xact;
                 ext_win->area[0].yact = win->area[0].yact;
@@ -1691,7 +1753,17 @@ static int rk_fb_update_hdmi_win(struct rk_lcdc_win *ext_win,
 	        ext_win->area[0].c_offset = win->area[0].c_offset;
         } else {
 	        ext_win->area[0].uv_vir_stride = win->area[0].uv_vir_stride;
+#ifdef CONFIG_ROCKCHIP_IOMMU
+		if (ext_dev_drv->iommu_enabled)
+			ext_win->area[0].cbr_start =
+				ext_win->area[0].smem_start +
+                                ext_win->area[0].y_offset +
+                                ext_win->area[0].xvir * ext_win->area[0].yvir;
+		else
+			ext_win->area[0].cbr_start = win->area[0].cbr_start;
+#else
 	        ext_win->area[0].cbr_start = win->area[0].cbr_start;
+#endif
 	        ext_win->area[0].c_offset = win->area[0].c_offset;
         }
 
@@ -1762,7 +1834,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 
 	if ((rk_fb->disp_mode == DUAL)
 	    && (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
-	    && hdmi_switch_complete) {
+	    && (hdmi_switch_complete == 0xff)) {
                 ext_dev_drv = rk_get_extend_lcdc_drv();
                 if (!ext_dev_drv) {
                         printk(KERN_ERR "hdmi lcdc driver not found!\n");
@@ -2898,7 +2970,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->g_alpha_val = 0;
 
 	if (rk_fb->disp_mode == DUAL) {
-		if (extend_win->state && (hdmi_switch_complete)) {
+		if (extend_win->state && (hdmi_switch_complete == 0xff)) {
 			if (info != extend_info) {
 				if (win->area[0].xact < win->area[0].yact) {
 					extend_win->area[0].xact =
@@ -3282,19 +3354,25 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				}
 			}
 			if (dev_drv->win[win_id]->logicalstate) {
-				dev_drv->ops->open(dev_drv, win_id, 1);
+				if (!dev_drv->win[win_id]->state)
+					dev_drv->ops->open(dev_drv, win_id, 1);
 				if (!load_screen) {
 					dev_drv->ops->load_screen(dev_drv, 1);
 					load_screen = 1;
 				}
 				info->var.activate |= FB_ACTIVATE_FORCE;
 				info->fbops->fb_set_par(info);
-				info->fbops->fb_pan_display(&info->var, info);
+				hdmi_switch_complete |= (1 << win_id);
+				if (rk_fb->disp_mode == DUAL)
+					pmy_info->fbops->fb_pan_display(&pmy_info->var,
+									pmy_info);
+				else
+					info->fbops->fb_pan_display(&info->var, info);
 			}
 		}
 	}
 
-	hdmi_switch_complete = 1;
+	hdmi_switch_complete = 0xff;
 	if (rk_fb->disp_mode == ONE_DUAL) {
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 1);
@@ -3765,22 +3843,15 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	if (dev_drv->prop == PRMRY) {
 		struct fb_info *main_fbi = rk_fb->fb[0];
 		main_fbi->fbops->fb_open(main_fbi, 1);
-/*
+
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
-			mmu_dev =
-			    rk_fb_get_sysmmu_device_by_compatible(dev_drv->mmu_dts_name);
-			if (mmu_dev) {
-				rk_fb_platform_set_sysmmu(mmu_dev, dev_drv->dev);
+			if (dev_drv->mmu_dev)
 				rockchip_iovmm_set_fault_handler(dev_drv->dev,
-								  rk_fb_sysmmu_fault_handler);
-				rockchip_iovmm_activate(dev_drv->dev);
-			} else
-				dev_err(dev_drv->dev,
-					"failed to get rockchip iommu device\n");
+						rk_fb_sysmmu_fault_handler);
 		}
 #endif
-*/
+
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		if (support_uboot_display()) {
 			if (dev_drv->iommu_enabled) {
