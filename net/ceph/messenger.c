@@ -1937,11 +1937,11 @@ static int process_banner(struct ceph_connection *con)
 		   sizeof(con->peer_addr)) != 0 &&
 	    !(addr_is_blank(&con->actual_peer_addr.in_addr) &&
 	      con->actual_peer_addr.nonce == con->peer_addr.nonce)) {
-		pr_warning("wrong peer, want %s/%d, got %s/%d\n",
-			   ceph_pr_addr(&con->peer_addr.in_addr),
-			   (int)le32_to_cpu(con->peer_addr.nonce),
-			   ceph_pr_addr(&con->actual_peer_addr.in_addr),
-			   (int)le32_to_cpu(con->actual_peer_addr.nonce));
+		pr_warn("wrong peer, want %s/%d, got %s/%d\n",
+			ceph_pr_addr(&con->peer_addr.in_addr),
+			(int)le32_to_cpu(con->peer_addr.nonce),
+			ceph_pr_addr(&con->actual_peer_addr.in_addr),
+			(int)le32_to_cpu(con->actual_peer_addr.nonce));
 		con->error_msg = "wrong peer at address";
 		return -1;
 	}
@@ -2302,7 +2302,7 @@ static int read_partial_message(struct ceph_connection *con)
 
 		BUG_ON(!con->in_msg ^ skip);
 		if (con->in_msg && data_len > con->in_msg->data_length) {
-			pr_warning("%s skipping long message (%u > %zd)\n",
+			pr_warn("%s skipping long message (%u > %zd)\n",
 				__func__, data_len, con->in_msg->data_length);
 			ceph_msg_put(con->in_msg);
 			con->in_msg = NULL;
@@ -2712,7 +2712,7 @@ static bool con_sock_closed(struct ceph_connection *con)
 	CASE(OPEN);
 	CASE(STANDBY);
 	default:
-		pr_warning("%s con %p unrecognized state %lu\n",
+		pr_warn("%s con %p unrecognized state %lu\n",
 			__func__, con, con->state);
 		con->error_msg = "unrecognized con state";
 		BUG();
@@ -2828,8 +2828,8 @@ static void con_work(struct work_struct *work)
  */
 static void con_fault(struct ceph_connection *con)
 {
-	pr_warning("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
-	       ceph_pr_addr(&con->peer_addr.in_addr), con->error_msg);
+	pr_warn("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
+		ceph_pr_addr(&con->peer_addr.in_addr), con->error_msg);
 	dout("fault %p state %lu to peer %s\n",
 	     con, con->state, ceph_pr_addr(&con->peer_addr.in_addr));
 

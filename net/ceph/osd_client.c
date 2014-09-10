@@ -1819,8 +1819,8 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	}
 	bytes = le32_to_cpu(msg->hdr.data_len);
 	if (payload_len != bytes) {
-		pr_warning("sum of op payload lens %d != data_len %d",
-			   payload_len, bytes);
+		pr_warn("sum of op payload lens %d != data_len %d\n",
+			payload_len, bytes);
 		goto bad_put;
 	}
 
@@ -2842,10 +2842,10 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	ceph_msg_revoke_incoming(req->r_reply);
 
 	if (front_len > req->r_reply->front_alloc_len) {
-		pr_warning("get_reply front %d > preallocated %d (%u#%llu)\n",
-			   front_len, req->r_reply->front_alloc_len,
-			   (unsigned int)con->peer_name.type,
-			   le64_to_cpu(con->peer_name.num));
+		pr_warn("get_reply front %d > preallocated %d (%u#%llu)\n",
+			front_len, req->r_reply->front_alloc_len,
+			(unsigned int)con->peer_name.type,
+			le64_to_cpu(con->peer_name.num));
 		m = ceph_msg_new(CEPH_MSG_OSD_OPREPLY, front_len, GFP_NOFS,
 				 false);
 		if (!m)
@@ -2868,8 +2868,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 			if (osd_data->pages &&
 				unlikely(osd_data->length < data_len)) {
 
-				pr_warning("tid %lld reply has %d bytes "
-					"we had only %llu bytes ready\n",
+				pr_warn("tid %lld reply has %d bytes we had only %llu bytes ready\n",
 					tid, data_len, osd_data->length);
 				*skip = 1;
 				ceph_msg_put(m);
