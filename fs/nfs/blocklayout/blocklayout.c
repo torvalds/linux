@@ -470,6 +470,35 @@ static struct pnfs_layout_segment *bl_alloc_lseg(struct pnfs_layout_hdr *lo,
 }
 
 static void
+bl_return_range(struct pnfs_layout_hdr *lo,
+		struct pnfs_layout_range *range)
+{
+	struct pnfs_block_layout *bl = BLK_LO2EXT(lo);
+	sector_t offset = range->offset >> SECTOR_SHIFT, end;
+	int err;
+
+	if (range->offset % 8) {
+		dprintk("%s: offset %lld not block size aligned\n",
+			__func__, range->offset);
+		return;
+	}
+
+	if (range->length != NFS4_MAX_UINT64) {
+		if (range->length % 8) {
+			dprintk("%s: length %lld not block size aligned\n",
+				__func__, range->length);
+			return;
+		}
+
+		end = offset + (range->length >> SECTOR_SHIFT);
+	} else {
+		end = round_down(NFS4_MAX_UINT64, PAGE_SIZE);
+	}
+
+	err = ext_tree_remove(bl, range->iomode & IOMODE_RW, offset, end);
+}
+
+static void
 bl_encode_layoutcommit(struct pnfs_layout_hdr *lo, struct xdr_stream *xdr,
 		       const struct nfs4_layoutcommit_args *arg)
 {
@@ -777,6 +806,7 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.free_layout_hdr		= bl_free_layout_hdr,
 	.alloc_lseg			= bl_alloc_lseg,
 	.free_lseg			= bl_free_lseg,
+	.return_range			= bl_return_range,
 	.encode_layoutcommit		= bl_encode_layoutcommit,
 	.cleanup_layoutcommit		= bl_cleanup_layoutcommit,
 	.set_layoutdriver		= bl_set_layoutdriver,
