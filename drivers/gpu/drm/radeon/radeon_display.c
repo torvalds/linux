@@ -1917,7 +1917,7 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 
 	/* In vblank? */
 	if (in_vbl)
-		ret |= DRM_SCANOUTPOS_INVBL;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
 
 	/* Is vpos outside nominal vblank area, but less than
 	 * 1/100 of a frame height away from start of vblank?

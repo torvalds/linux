@@ -111,7 +111,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	if (etime) *etime = ns_to_ktime(args.time[1]);
 
 	if (*vpos < 0)
-		ret |= DRM_SCANOUTPOS_INVBL;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
 	return ret;
 }
 
