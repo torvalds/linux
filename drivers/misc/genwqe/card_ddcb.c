@@ -390,8 +390,9 @@ static int genwqe_check_ddcb_queue(struct genwqe_dev *cd,
 		    0x00000000)
 			goto go_home; /* not completed, continue waiting */
 
-		/* Note: DDCB could be purged */
+		wmb();  /*  Add sync to decouple prev. read operations */
 
+		/* Note: DDCB could be purged */
 		req = queue->ddcb_req[queue->ddcb_act];
 		if (req == NULL) {
 			/* this occurs if DDCB is purged, not an error */
