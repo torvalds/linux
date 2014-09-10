@@ -597,16 +597,18 @@ static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
 		return;
 	}
 
+	mutex_lock(&wil->mutex);
+
 	cid = wil->vring2cid_tid[evt->ringid][0];
 	if (cid >= WIL6210_MAX_CID) {
 		wil_err(wil, "invalid CID %d for vring %d\n", cid, evt->ringid);
-		return;
+		goto out;
 	}
 
 	sta = &wil->sta[cid];
 	if (sta->status == wil_sta_unused) {
 		wil_err(wil, "CID %d unused\n", cid);
-		return;
+		goto out;
 	}
 
 	wil_dbg_wmi(wil, "BACK for CID %d %pM\n", cid, sta->addr);
@@ -618,6 +620,9 @@ static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
 			sta->tid_rx[i] = wil_tid_ampdu_rx_alloc(wil,
 						evt->agg_wsize, 0);
 	}
+
+out:
+	mutex_unlock(&wil->mutex);
 }
 
 static const struct {
