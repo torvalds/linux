@@ -660,7 +660,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 	unsigned n;
 
 	if (!test_bit(wil_status_reset_done, &wil->status)) {
-		wil_err(wil, "Reset not completed\n");
+		wil_err(wil, "Reset in progress. Cannot handle WMI event\n");
 		return;
 	}
 
