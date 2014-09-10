@@ -522,6 +522,7 @@ void wil6210_clear_irq(struct wil6210_priv *wil)
 		    offsetof(struct RGF_ICR, ICR));
 	wil_clear32(wil->csr + HOSTADDR(RGF_DMA_EP_MISC_ICR) +
 		    offsetof(struct RGF_ICR, ICR));
+	wmb(); /* make sure write completed */
 }
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq)

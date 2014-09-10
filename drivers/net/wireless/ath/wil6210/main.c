@@ -25,6 +25,10 @@ static bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_recovery, " disable FW error recovery");
 
+static bool no_fw_load = true;
+module_param(no_fw_load, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(no_fw_load, " do not download FW, use one in on-card flash.");
+
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
 
@@ -312,6 +316,28 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	destroy_workqueue(wil->wmi_wq);
 }
 
+/* target operations */
+/* register read */
+#define R(a) ioread32(wil->csr + HOSTADDR(a))
+/* register write. wmb() to make sure it is completed */
+#define W(a, v) do { iowrite32(v, wil->csr + HOSTADDR(a)); wmb(); } while (0)
+/* register set = read, OR, write */
+#define S(a, v) W(a, R(a) | v)
+/* register clear = read, AND with inverted, write */
+#define C(a, v) W(a, R(a) & ~v)
+
+static inline void wil_halt_cpu(struct wil6210_priv *wil)
+{
+	W(RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
+	W(RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
+}
+
+static inline void wil_release_cpu(struct wil6210_priv *wil)
+{
+	/* Start CPU */
+	W(RGF_USER_USER_CPU_0, 1);
+}
+
 static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
@@ -321,60 +347,41 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->board->name);
 
-	/* register read */
-#define R(a) ioread32(wil->csr + HOSTADDR(a))
-	/* register write */
-#define W(a, v) iowrite32(v, wil->csr + HOSTADDR(a))
-	/* register set = read, OR, write */
-#define S(a, v) W(a, R(a) | v)
-	/* register clear = read, AND with inverted, write */
-#define C(a, v) W(a, R(a) & ~v)
-
-	wmb(); /* If host reorder writes here -> race in NIC */
-	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	wil->hw_version = R(RGF_USER_FW_REV_ID);
 	rev_id = wil->hw_version & 0xff;
 
 	/* Clear MAC link up */
 	S(RGF_HP_CTRL, BIT(15));
-	/* hpal_perst_from_pad_src_n_mask */
-	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT(6));
-	/* car_perst_rst_src_n_mask */
-	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT(7));
-	wmb(); /* order is important here */
+	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_HPAL_PERST_FROM_PAD);
+	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
+
+	wil_halt_cpu(wil);
+	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_CAR_AHB_SW_SEL); /* 40 MHz */
 
 	if (is_sparrow) {
 		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
-		wmb(); /* order is important here */
+		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
 	}
-
-	W(RGF_USER_USER_CPU_0, BIT(1)); /* user_cpu_man_rst */
-	wmb(); /* If host reorder writes here -> race in NIC */
-	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
-	wmb(); /* order is important here */
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, is_sparrow ? 0x000000B0 : 0x00000170);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FC00);
-	wmb(); /* order is important here */
+	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, is_sparrow ? 0x000000f0 : 0x00000170);
+	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
 
 	if (is_sparrow) {
 		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
-		wmb(); /* order is important here */
+		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
 	}
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
-	wmb(); /* order is important here */
 
 	if (is_sparrow) {
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000003);
 		/* reset A2 PCIE AHB */
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
-
 	} else {
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000001);
 		if (rev_id == 1) {
@@ -389,7 +396,6 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	/* TODO: check order here!!! Erez code is different */
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
-	wmb(); /* order is important here */
 
 	/* wait until device ready. typical time is 200..250 msec */
 	do {
@@ -407,16 +413,15 @@ static int wil_target_reset(struct wil6210_priv *wil)
 		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
 
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
-	wmb(); /* order is important here */
 
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
+}
 
 #undef R
 #undef W
 #undef S
 #undef C
-}
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 {
@@ -480,12 +485,36 @@ int wil_reset(struct wil6210_priv *wil)
 	if (rc)
 		return rc;
 
+	if (!no_fw_load) {
+		wil_info(wil, "Use firmware <%s>\n", WIL_FW_NAME);
+		wil_halt_cpu(wil);
+		/* Loading f/w from the file */
+		rc = wil_request_firmware(wil, WIL_FW_NAME);
+		if (rc)
+			return rc;
+
+		/* clear any interrupts which on-card-firmware may have set */
+		wil6210_clear_irq(wil);
+		{ /* CAF_ICR - clear and mask */
+			u32 a = HOSTADDR(RGF_CAF_ICR) +
+				offsetof(struct RGF_ICR, ICR);
+			u32 m = HOSTADDR(RGF_CAF_ICR) +
+				offsetof(struct RGF_ICR, IMV);
+			u32 icr = ioread32(wil->csr + a);
+
+			iowrite32(icr, wil->csr + a); /* W1C */
+			iowrite32(~0, wil->csr + m);
+			wmb(); /* wait for completion */
+		}
+		wil_release_cpu(wil);
+	} else {
+		wil_info(wil, "Use firmware from on-card flash\n");
+	}
 
 	/* init after reset */
 	wil->pending_connect_cid = -1;
 	reinit_completion(&wil->wmi_ready);
 
-	/* TODO: release MAC reset */
 	wil6210_enable_irq(wil);
 
 	/* we just started MAC, wait for FW ready */

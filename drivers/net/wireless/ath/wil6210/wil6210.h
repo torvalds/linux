@@ -23,6 +23,7 @@
 #include <linux/timex.h>
 
 #define WIL_NAME "wil6210"
+#define WIL_FW_NAME "wil6210.fw"
 
 struct wil_board {
 	int board;
@@ -86,22 +87,29 @@ struct RGF_ICR {
 
 /* registers - FW addresses */
 #define RGF_USER_USAGE_1		(0x880004)
+#define RGF_USER_USAGE_6		(0x880018)
 #define RGF_USER_HW_MACHINE_STATE	(0x8801dc)
 	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
+	#define BIT_USER_USER_CPU_MAN_RST	BIT(1) /* user_cpu_man_rst */
 #define RGF_USER_MAC_CPU_0		(0x8801fc)
+	#define BIT_USER_MAC_CPU_MAN_RST	BIT(1) /* mac_cpu_man_rst */
 #define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
 #define RGF_USER_FW_REV_ID		(0x880a8c) /* chip revision */
 #define RGF_USER_CLKS_CTL_0		(0x880abc)
+	#define BIT_USER_CLKS_CAR_AHB_SW_SEL	BIT(1) /* ref clk/PLL */
 	#define BIT_USER_CLKS_RST_PWGD	BIT(11) /* reset on "power good" */
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_0	(0x880b04)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_1	(0x880b08)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_2	(0x880b0c)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_3	(0x880b10)
 #define RGF_USER_CLKS_CTL_SW_RST_MASK_0	(0x880b14)
+	#define BIT_HPAL_PERST_FROM_PAD	BIT(6)
+	#define BIT_CAR_PERST_RST	BIT(7)
 #define RGF_USER_USER_ICR		(0x880b4c) /* struct RGF_ICR */
 	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
 #define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0	(0x880c18)
+#define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1	(0x880c2c)
 
 #define RGF_DMA_EP_TX_ICR		(0x881bb4) /* struct RGF_ICR */
 	#define BIT_DMA_EP_TX_ICR_TX_DONE	BIT(0)
@@ -135,6 +143,8 @@ struct RGF_ICR {
 
 /* MAC timer, usec, for packet lifetime */
 #define RGF_MAC_MTRL_COUNTER_0		(0x886aa8)
+
+#define RGF_CAF_ICR			(0x88946c) /* struct RGF_ICR */
 
 /* popular locations */
 #define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)
@@ -435,6 +445,7 @@ struct wil6210_priv {
 #define wdev_to_wil(w) (struct wil6210_priv *)(wdev_priv(w))
 #define wil_to_ndev(i) (wil_to_wdev(i)->netdev)
 #define ndev_to_wil(n) (wdev_to_wil(n->ieee80211_ptr))
+#define wil_to_pcie_dev(i) (&i->pdev->dev)
 
 int wil_dbg_trace(struct wil6210_priv *wil, const char *fmt, ...);
 int wil_err(struct wil6210_priv *wil, const char *fmt, ...);
@@ -547,4 +558,5 @@ void wil6210_unmask_irq_rx(struct wil6210_priv *wil);
 
 int wil_iftype_nl2wmi(enum nl80211_iftype type);
 
+int wil_request_firmware(struct wil6210_priv *wil, const char *name);
 #endif /* __WIL6210_H__ */
