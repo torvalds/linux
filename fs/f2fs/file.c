@@ -139,6 +139,7 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	struct inode *inode = file->f_mapping->host;
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	nid_t ino = inode->i_ino;
 	int ret = 0;
 	bool need_cp = false;
 	struct writeback_control wbc = {
@@ -168,9 +169,9 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * if there is no written data, don't waste time to write recovery info.
 	 */
 	if (!is_inode_flag_set(fi, FI_APPEND_WRITE) &&
-		!exist_written_data(sbi, inode->i_ino, APPEND_INO)) {
+			!exist_written_data(sbi, ino, APPEND_INO)) {
 		if (is_inode_flag_set(fi, FI_UPDATE_WRITE) ||
-			exist_written_data(sbi, inode->i_ino, UPDATE_INO))
+				exist_written_data(sbi, ino, UPDATE_INO))
 			goto flush_out;
 		goto out;
 	}
@@ -208,23 +209,23 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		}
 	} else {
 		/* if there is no written node page, write its inode page */
-		while (!sync_node_pages(sbi, inode->i_ino, &wbc)) {
-			if (fsync_mark_done(sbi, inode->i_ino))
+		while (!sync_node_pages(sbi, ino, &wbc)) {
+			if (fsync_mark_done(sbi, ino))
 				goto out;
 			mark_inode_dirty_sync(inode);
 			ret = f2fs_write_inode(inode, NULL);
 			if (ret)
 				goto out;
 		}
-		ret = wait_on_node_pages_writeback(sbi, inode->i_ino);
+		ret = wait_on_node_pages_writeback(sbi, ino);
 		if (ret)
 			goto out;
 
 		/* once recovery info is written, don't need to tack this */
-		remove_dirty_inode(sbi, inode->i_ino, APPEND_INO);
+		remove_dirty_inode(sbi, ino, APPEND_INO);
 		clear_inode_flag(fi, FI_APPEND_WRITE);
 flush_out:
-		remove_dirty_inode(sbi, inode->i_ino, UPDATE_INO);
+		remove_dirty_inode(sbi, ino, UPDATE_INO);
 		clear_inode_flag(fi, FI_UPDATE_WRITE);
 		ret = f2fs_issue_flush(F2FS_I_SB(inode));
 	}
