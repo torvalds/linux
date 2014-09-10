@@ -3998,13 +3998,17 @@ int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 	}
 
 	port = (rqp->sched_queue >> 6 & 1) + 1;
-	smac_index = cmd->qp_context.pri_path.grh_mylmc;
-	err = mac_find_smac_ix_in_slave(dev, slave, port,
-					smac_index, &mac);
-	if (err) {
-		mlx4_err(dev, "Failed to update qpn 0x%x, MAC is invalid. smac_ix: %d\n",
-			 qpn, smac_index);
-		goto err_mac;
+
+	if (pri_addr_path_mask & (1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX)) {
+		smac_index = cmd->qp_context.pri_path.grh_mylmc;
+		err = mac_find_smac_ix_in_slave(dev, slave, port,
+						smac_index, &mac);
+
+		if (err) {
+			mlx4_err(dev, "Failed to update qpn 0x%x, MAC is invalid. smac_ix: %d\n",
+				 qpn, smac_index);
+			goto err_mac;
+		}
 	}
 
 	err = mlx4_cmd(dev, inbox->dma,
