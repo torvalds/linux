@@ -30,8 +30,6 @@
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
-int running_on_hw = 1;	/* vs. on ISS */
-
 /* Part of U-boot ABI: see head.S */
 int __initdata uboot_tag;
 char __initdata *uboot_arg;
