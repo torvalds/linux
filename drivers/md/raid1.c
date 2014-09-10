@@ -827,7 +827,7 @@ static void flush_pending_writes(struct r1conf *conf)
  *    there is no normal IO happeing.  It must arrange to call
  *    lower_barrier when the particular background IO completes.
  */
-static void raise_barrier(struct r1conf *conf)
+static void raise_barrier(struct r1conf *conf, sector_t sector_nr)
 {
 	spin_lock_irq(&conf->resync_lock);
 
@@ -837,6 +837,7 @@ static void raise_barrier(struct r1conf *conf)
 
 	/* block any new IO from starting */
 	conf->barrier++;
+	conf->next_resync = sector_nr;
 
 	/* For these conditions we must wait:
 	 * A: while the array is in frozen state
@@ -2543,9 +2544,8 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 
 	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
 	r1_bio = mempool_alloc(conf->r1buf_pool, GFP_NOIO);
-	raise_barrier(conf);
 
-	conf->next_resync = sector_nr;
+	raise_barrier(conf, sector_nr);
 
 	rcu_read_lock();
 	/*
