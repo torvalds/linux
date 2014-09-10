@@ -386,6 +386,7 @@ struct f2fs_sm_info {
 
 	unsigned int ipu_policy;	/* in-place-update policy */
 	unsigned int min_ipu_util;	/* in-place-update threshold */
+	unsigned int min_fsync_blocks;	/* threshold for fsync */
 
 	/* for flush command control */
 	struct flush_cmd_control *cmd_control_info;

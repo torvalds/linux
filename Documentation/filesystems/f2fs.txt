@@ -194,12 +194,19 @@ Files in /sys/fs/f2fs/<devname>
                               updates in f2fs. There are five policies:
                                0: F2FS_IPU_FORCE, 1: F2FS_IPU_SSR,
                                2: F2FS_IPU_UTIL,  3: F2FS_IPU_SSR_UTIL,
-                               4: F2FS_IPU_DISABLE.
+                               4: F2FS_IPU_FSYNC, 5: F2FS_IPU_DISABLE.
 
  min_ipu_util                 This parameter controls the threshold to trigger
                               in-place-updates. The number indicates percentage
                               of the filesystem utilization, and used by
                               F2FS_IPU_UTIL and F2FS_IPU_SSR_UTIL policies.
+
+ min_fsync_blocks             This parameter controls the threshold to trigger
+                              in-place-updates when F2FS_IPU_FSYNC mode is set.
+			      The number indicates the number of dirty pages
+			      when fsync needs to flush on its call path. If
+			      the number is less than this value, it triggers
+			      in-place-updates.
 
  max_victim_search	      This parameter controls the number of trials to
 			      find a victim segment when conducting SSR and

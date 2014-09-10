@@ -472,15 +472,20 @@ static inline int utilization(struct f2fs_sb_info *sbi)
  * F2FS_IPU_UTIL - if FS utilization is over threashold,
  * F2FS_IPU_SSR_UTIL - if SSR mode is activated and FS utilization is over
  *                     threashold,
+ * F2FS_IPU_FSYNC - activated in fsync path only for high performance flash
+ *                     storages. IPU will be triggered only if the # of dirty
+ *                     pages over min_fsync_blocks.
  * F2FS_IPUT_DISABLE - disable IPU. (=default option)
  */
 #define DEF_MIN_IPU_UTIL	70
+#define DEF_MIN_FSYNC_BLOCKS	8
 
 enum {
 	F2FS_IPU_FORCE,
 	F2FS_IPU_SSR,
 	F2FS_IPU_UTIL,
 	F2FS_IPU_SSR_UTIL,
+	F2FS_IPU_FSYNC,
 	F2FS_IPU_DISABLE,
 };
 
@@ -491,10 +496,6 @@ static inline bool need_inplace_update(struct inode *inode)
 	/* IPU can be done only for the user data */
 	if (S_ISDIR(inode->i_mode))
 		return false;
-
-	/* this is only set during fdatasync */
-	if (is_inode_flag_set(F2FS_I(inode), FI_NEED_IPU))
-		return true;
 
 	switch (SM_I(sbi)->ipu_policy) {
 	case F2FS_IPU_FORCE:
@@ -509,6 +510,11 @@ static inline bool need_inplace_update(struct inode *inode)
 		break;
 	case F2FS_IPU_SSR_UTIL:
 		if (need_SSR(sbi) && utilization(sbi) > SM_I(sbi)->min_ipu_util)
+			return true;
+		break;
+	case F2FS_IPU_FSYNC:
+		/* this is only set during fdatasync */
+		if (is_inode_flag_set(F2FS_I(inode), FI_NEED_IPU))
 			return true;
 		break;
 	case F2FS_IPU_DISABLE:
