@@ -309,7 +309,7 @@ nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 	 * recovery easier.
 	 */
 	for (i = 0; i < count; i++) {
-		be = bl_alloc_extent();
+		be = kzalloc(sizeof(struct pnfs_block_extent), GFP_NOFS);
 		if (!be) {
 			status = -ENOMEM;
 			goto out_err;
@@ -330,13 +330,11 @@ nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 		if (decode_sector_number(&p, &be->be_v_offset) < 0)
 			goto out_err;
 		be->be_state = be32_to_cpup(p++);
-		if (be->be_state == PNFS_BLOCK_INVALID_DATA)
-			be->be_inval = &bl->bl_inval;
 		if (verify_extent(be, &lv)) {
 			dprintk("%s verify failed\n", __func__);
 			goto out_err;
 		}
-		list_add_tail(&be->be_node, &extents);
+		list_add_tail(&be->be_list, &extents);
 	}
 	if (lgr->range.offset + lgr->range.length !=
 			lv.start << SECTOR_SHIFT) {
@@ -352,21 +350,13 @@ nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 	/* Extents decoded properly, now try to merge them in to
 	 * existing layout extents.
 	 */
-	spin_lock(&bl->bl_ext_lock);
-	list_for_each_entry_safe(be, save, &extents, be_node) {
-		list_del(&be->be_node);
-		status = bl_add_merge_extent(bl, be);
-		if (status) {
-			spin_unlock(&bl->bl_ext_lock);
-			/* This is a fairly catastrophic error, as the
-			 * entire layout extent lists are now corrupted.
-			 * We should have some way to distinguish this.
-			 */
-			be = NULL;
-			goto out_err;
-		}
+	list_for_each_entry_safe(be, save, &extents, be_list) {
+		list_del(&be->be_list);
+
+		status = ext_tree_insert(bl, be);
+		if (status)
+			goto out_free_list;
 	}
-	spin_unlock(&bl->bl_ext_lock);
 	status = 0;
  out:
 	__free_page(scratch);
@@ -374,12 +364,13 @@ nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 	return status;
 
  out_err:
-	bl_put_extent(be);
+	kfree(be);
+ out_free_list:
 	while (!list_empty(&extents)) {
 		be = list_first_entry(&extents, struct pnfs_block_extent,
-				      be_node);
-		list_del(&be->be_node);
-		bl_put_extent(be);
+				      be_list);
+		list_del(&be->be_list);
+		kfree(be);
 	}
 	goto out;
 }
