@@ -565,8 +565,8 @@ retry:
 		 set->name, orig->htable_bits, htable_bits, orig);
 	if (!htable_bits) {
 		/* In case we have plenty of memory :-) */
-		pr_warning("Cannot increase the hashsize of set %s further\n",
-			   set->name);
+		pr_warn("Cannot increase the hashsize of set %s further\n",
+			set->name);
 		return -IPSET_ERR_HASH_FULL;
 	}
 	t = ip_set_alloc(sizeof(*t)
@@ -651,8 +651,8 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	if (h->elements >= h->maxelem) {
 		if (net_ratelimit())
-			pr_warning("Set %s is full, maxelem %u reached\n",
-				   set->name, h->maxelem);
+			pr_warn("Set %s is full, maxelem %u reached\n",
+				set->name, h->maxelem);
 		return -IPSET_ERR_HASH_FULL;
 	}
 
@@ -998,8 +998,8 @@ mtype_list(const struct ip_set *set,
 nla_put_failure:
 	nlmsg_trim(skb, incomplete);
 	if (unlikely(first == cb->args[IPSET_CB_ARG0])) {
-		pr_warning("Can't list set %s: one bucket does not fit into "
-			   "a message. Please report it!\n", set->name);
+		pr_warn("Can't list set %s: one bucket does not fit into a message. Please report it!\n",
+			set->name);
 		cb->args[IPSET_CB_ARG0] = 0;
 		return -EMSGSIZE;
 	}

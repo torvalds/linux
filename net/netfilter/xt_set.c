@@ -84,13 +84,12 @@ set_match_v0_checkentry(const struct xt_mtchk_param *par)
 	index = ip_set_nfnl_get_byindex(par->net, info->match_set.index);
 
 	if (index == IPSET_INVALID_ID) {
-		pr_warning("Cannot find set identified by id %u to match\n",
-			   info->match_set.index);
+		pr_warn("Cannot find set identified by id %u to match\n",
+			info->match_set.index);
 		return -ENOENT;
 	}
 	if (info->match_set.u.flags[IPSET_DIM_MAX-1] != 0) {
-		pr_warning("Protocol error: set match dimension "
-			   "is over the limit!\n");
+		pr_warn("Protocol error: set match dimension is over the limit!\n");
 		ip_set_nfnl_put(par->net, info->match_set.index);
 		return -ERANGE;
 	}
@@ -134,13 +133,12 @@ set_match_v1_checkentry(const struct xt_mtchk_param *par)
 	index = ip_set_nfnl_get_byindex(par->net, info->match_set.index);
 
 	if (index == IPSET_INVALID_ID) {
-		pr_warning("Cannot find set identified by id %u to match\n",
-			   info->match_set.index);
+		pr_warn("Cannot find set identified by id %u to match\n",
+			info->match_set.index);
 		return -ENOENT;
 	}
 	if (info->match_set.dim > IPSET_DIM_MAX) {
-		pr_warning("Protocol error: set match dimension "
-			   "is over the limit!\n");
+		pr_warn("Protocol error: set match dimension is over the limit!\n");
 		ip_set_nfnl_put(par->net, info->match_set.index);
 		return -ERANGE;
 	}
@@ -230,8 +228,8 @@ set_target_v0_checkentry(const struct xt_tgchk_param *par)
 	if (info->add_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->add_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_warning("Cannot find add_set index %u as target\n",
-				   info->add_set.index);
+			pr_warn("Cannot find add_set index %u as target\n",
+				info->add_set.index);
 			return -ENOENT;
 		}
 	}
@@ -239,8 +237,8 @@ set_target_v0_checkentry(const struct xt_tgchk_param *par)
 	if (info->del_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->del_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_warning("Cannot find del_set index %u as target\n",
-				   info->del_set.index);
+			pr_warn("Cannot find del_set index %u as target\n",
+				info->del_set.index);
 			if (info->add_set.index != IPSET_INVALID_ID)
 				ip_set_nfnl_put(par->net, info->add_set.index);
 			return -ENOENT;
@@ -248,8 +246,7 @@ set_target_v0_checkentry(const struct xt_tgchk_param *par)
 	}
 	if (info->add_set.u.flags[IPSET_DIM_MAX-1] != 0 ||
 	    info->del_set.u.flags[IPSET_DIM_MAX-1] != 0) {
-		pr_warning("Protocol error: SET target dimension "
-			   "is over the limit!\n");
+		pr_warn("Protocol error: SET target dimension is over the limit!\n");
 		if (info->add_set.index != IPSET_INVALID_ID)
 			ip_set_nfnl_put(par->net, info->add_set.index);
 		if (info->del_set.index != IPSET_INVALID_ID)
@@ -303,8 +300,8 @@ set_target_v1_checkentry(const struct xt_tgchk_param *par)
 	if (info->add_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->add_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_warning("Cannot find add_set index %u as target\n",
-				   info->add_set.index);
+			pr_warn("Cannot find add_set index %u as target\n",
+				info->add_set.index);
 			return -ENOENT;
 		}
 	}
@@ -312,8 +309,8 @@ set_target_v1_checkentry(const struct xt_tgchk_param *par)
 	if (info->del_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->del_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_warning("Cannot find del_set index %u as target\n",
-				   info->del_set.index);
+			pr_warn("Cannot find del_set index %u as target\n",
+				info->del_set.index);
 			if (info->add_set.index != IPSET_INVALID_ID)
 				ip_set_nfnl_put(par->net, info->add_set.index);
 			return -ENOENT;
@@ -321,8 +318,7 @@ set_target_v1_checkentry(const struct xt_tgchk_param *par)
 	}
 	if (info->add_set.dim > IPSET_DIM_MAX ||
 	    info->del_set.dim > IPSET_DIM_MAX) {
-		pr_warning("Protocol error: SET target dimension "
-			   "is over the limit!\n");
+		pr_warn("Protocol error: SET target dimension is over the limit!\n");
 		if (info->add_set.index != IPSET_INVALID_ID)
 			ip_set_nfnl_put(par->net, info->add_set.index);
 		if (info->del_set.index != IPSET_INVALID_ID)
