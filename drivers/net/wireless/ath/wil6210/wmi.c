@@ -1128,6 +1128,9 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 		struct wil6210_mbox_hdr_wmi *wmi = (void *)(&hdr[1]);
 		void *evt_data = (void *)(&wmi[1]);
 		u16 id = le16_to_cpu(wmi->id);
+
+		wil_dbg_wmi(wil, "Handle WMI 0x%04x (reply_id 0x%04x)\n",
+			    id, wil->reply_id);
 		/* check if someone waits for this event */
 		if (wil->reply_id && wil->reply_id == id) {
 			if (wil->reply_buf) {
@@ -1184,9 +1187,11 @@ void wmi_event_worker(struct work_struct *work)
 	struct pending_wmi_event *evt;
 	struct list_head *lh;
 
+	wil_dbg_wmi(wil, "Start %s\n", __func__);
 	while ((lh = next_wmi_ev(wil)) != NULL) {
 		evt = list_entry(lh, struct pending_wmi_event, list);
 		wmi_event_handle(wil, &evt->event.hdr);
 		kfree(evt);
 	}
+	wil_dbg_wmi(wil, "Finished %s\n", __func__);
 }
