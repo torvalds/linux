@@ -17,6 +17,7 @@
 #include <linux/etherdevice.h>
 
 #include "wil6210.h"
+#include "txrx.h"
 
 static int wil_open(struct net_device *ndev)
 {
@@ -40,8 +41,10 @@ static int wil_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	if (new_mtu < 68 || new_mtu > IEEE80211_MAX_DATA_LEN_DMG)
+	if (new_mtu < 68 || new_mtu > (TX_BUF_LEN - ETH_HLEN)) {
+		wil_err(wil, "invalid MTU %d\n", new_mtu);
 		return -EINVAL;
+	}
 
 	wil_dbg_misc(wil, "change MTU %d -> %d\n", ndev->mtu, new_mtu);
 	ndev->mtu = new_mtu;
