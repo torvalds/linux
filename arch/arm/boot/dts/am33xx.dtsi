@@ -726,9 +726,8 @@
 		};
 
 		ocmcram: ocmcram@40300000 {
-			compatible = "ti,am3352-ocmcram";
-			reg = <0x40300000 0x10000>;
-			ti,hwmods = "ocmcram";
+			compatible = "mmio-sram";
+			reg = <0x40300000 0x10000>; /* 64k */
 		};
 
 		wkup_m3: wkup_m3@44d00000 {
