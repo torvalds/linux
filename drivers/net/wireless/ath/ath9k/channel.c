@@ -588,10 +588,15 @@ static void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 
 	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags) &&
 	    (sc->cur_chan != ctx) && (ctx == &sc->offchannel.chan)) {
-		sc->sched.offchannel_pending = true;
-		sc->sched.wait_switch = true;
 		if (chandef)
 			ctx->chandef = *chandef;
+
+		sc->sched.offchannel_pending = true;
+		sc->sched.wait_switch = true;
+		sc->sched.offchannel_duration =
+			jiffies_to_usecs(sc->offchannel.duration) +
+			sc->sched.channel_switch_time;
+
 		spin_unlock_bh(&sc->chan_lock);
 		ath_dbg(common, CHAN_CTX,
 			"Set offchannel_pending to true\n");
