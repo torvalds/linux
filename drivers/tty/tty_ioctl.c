@@ -1164,17 +1164,21 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 			spin_unlock_irq(&tty->flow_lock);
 			break;
 		case TCIOFF:
+			down_read(&tty->termios_rwsem);
 			if (STOP_CHAR(tty) != __DISABLED_CHAR)
-				return tty_send_xchar(tty, STOP_CHAR(tty));
+				retval = tty_send_xchar(tty, STOP_CHAR(tty));
+			up_read(&tty->termios_rwsem);
 			break;
 		case TCION:
+			down_read(&tty->termios_rwsem);
 			if (START_CHAR(tty) != __DISABLED_CHAR)
-				return tty_send_xchar(tty, START_CHAR(tty));
+				retval = tty_send_xchar(tty, START_CHAR(tty));
+			up_read(&tty->termios_rwsem);
 			break;
 		default:
 			return -EINVAL;
 		}
-		return 0;
+		return retval;
 	case TCFLSH:
 		retval = tty_check_change(tty);
 		if (retval)
