@@ -36,6 +36,11 @@ const char *get_system_type(void)
 	return soc_info.sys_type;
 }
 
+int ltq_soc_type(void)
+{
+	return soc_info.type;
+}
+
 void prom_free_prom_memory(void)
 {
 }
