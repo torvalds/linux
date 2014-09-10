@@ -122,8 +122,9 @@ static irqreturn_t bfin_serial_mctrl_cts_int(int irq, void *dev_id)
 		if (!status)
 			uport->hw_stopped = 1;
 	}
-#endif
+#else
 	uart_handle_cts_change(uport, status & TIOCM_CTS);
+#endif
 
 	return IRQ_HANDLED;
 }
