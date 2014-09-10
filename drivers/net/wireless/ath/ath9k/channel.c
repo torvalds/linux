@@ -1065,7 +1065,10 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 	sc->cur_chan = sc->next_chan;
 	sc->cur_chan->stopped = false;
 	sc->next_chan = NULL;
-	sc->sched.offchannel_duration = 0;
+
+	if (!sc->sched.offchannel_pending)
+		sc->sched.offchannel_duration = 0;
+
 	if (sc->sched.state != ATH_CHANCTX_STATE_FORCE_ACTIVE)
 		sc->sched.state = ATH_CHANCTX_STATE_IDLE;
 
