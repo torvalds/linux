@@ -1429,6 +1429,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 	bool "Cadence UART console support"
 	depends on SERIAL_XILINX_PS_UART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Cadence UART port to be the system console.
 

@@ -921,6 +921,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	earlycon=	[KNL] Output early console device and options.
 
+		cdns,<addr>
+			Start an early, polled-mode console on a cadence serial
+			port at the specified address. The cadence serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]

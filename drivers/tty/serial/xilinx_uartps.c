@@ -1051,6 +1051,25 @@ static void cdns_uart_console_putchar(struct uart_port *port, int ch)
 	cdns_uart_writel(ch, CDNS_UART_FIFO_OFFSET);
 }
 
+static void cdns_early_write(struct console *con, const char *s, unsigned n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, cdns_uart_console_putchar);
+}
+
+static int __init cdns_early_console_setup(struct earlycon_device *device,
+					   const char *opt)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = cdns_early_write;
+
+	return 0;
+}
+EARLYCON_DECLARE(cdns, cdns_early_console_setup);
+
 /**
  * cdns_uart_console_write - perform write operation
  * @co: Console handle
