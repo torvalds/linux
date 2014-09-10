@@ -1099,6 +1099,9 @@ static int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
 {
 	int ret = 0;
 
+	if (end >= adapter->params.sf_nsec)
+		return -EINVAL;
+
 	while (start <= end) {
 		if ((ret = sf1_write(adapter, 1, 0, 1, SF_WR_ENABLE)) != 0 ||
 		    (ret = sf1_write(adapter, 4, 0, 1,
