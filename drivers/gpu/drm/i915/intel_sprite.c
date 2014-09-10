@@ -1038,21 +1038,24 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	primary_enabled = !drm_rect_equals(dst, clip) || colorkey_enabled(intel_plane);
 	WARN_ON(!primary_enabled && !state->visible && intel_crtc->active);
 
-	mutex_lock(&dev->struct_mutex);
 
-	/* Note that this will apply the VT-d workaround for scanouts,
-	 * which is more restrictive than required for sprites. (The
-	 * primary plane requires 256KiB alignment with 64 PTE padding,
-	 * the sprite planes only require 128KiB alignment and 32 PTE padding.
-	 */
-	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
+	if (old_obj != obj) {
+		mutex_lock(&dev->struct_mutex);
 
-	i915_gem_track_fb(old_obj, obj,
-			  INTEL_FRONTBUFFER_SPRITE(pipe));
-	mutex_unlock(&dev->struct_mutex);
-
-	if (ret)
-		return ret;
+		/* Note that this will apply the VT-d workaround for scanouts,
+		 * which is more restrictive than required for sprites. (The
+		 * primary plane requires 256KiB alignment with 64 PTE padding,
+		 * the sprite planes only require 128KiB alignment and 32 PTE
+		 * padding.
+		 */
+		ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
+		if (ret == 0)
+			i915_gem_track_fb(old_obj, obj,
+					  INTEL_FRONTBUFFER_SPRITE(pipe));
+		mutex_unlock(&dev->struct_mutex);
+		if (ret)
+			return ret;
+	}
 
 	intel_plane->crtc_x = state->orig_dst.x1;
 	intel_plane->crtc_y = state->orig_dst.y1;
@@ -1099,14 +1102,15 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	}
 
 	/* Unpin old obj after new one is active to avoid ugliness */
-	if (old_obj) {
+	if (old_obj && old_obj != obj) {
+
 		/*
 		 * It's fairly common to simply update the position of
 		 * an existing object.  In that case, we don't need to
 		 * wait for vblank to avoid ugliness, we only need to
 		 * do the pin & ref bookkeeping.
 		 */
-		if (old_obj != obj && intel_crtc->active)
+		if (intel_crtc->active)
 			intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 		mutex_lock(&dev->struct_mutex);
