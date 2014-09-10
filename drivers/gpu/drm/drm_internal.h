@@ -25,6 +25,7 @@
 extern unsigned int drm_timestamp_monotonic;
 
 /* drm_fops.c */
+extern struct mutex drm_global_mutex;
 int drm_lastclose(struct drm_device *dev);
 
 /* drm_pci.c */

@@ -43,7 +43,6 @@
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
-EXPORT_SYMBOL(drm_global_mutex);
 
 static int drm_open_helper(struct file *filp, struct drm_minor *minor);
 
