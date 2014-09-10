@@ -1694,11 +1694,11 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
-	unsigned long flags;
+	//unsigned long flags;
 	u32 int_mask;
 	u32 sdio_int;
 
-        spin_lock_irqsave(&host->lock, flags);
+        //spin_lock_irqsave(&host->lock, flags);
 
 	/* Enable/disable Slot Specific SDIO interrupt */
 	int_mask = mci_readl(host, INTMASK);
@@ -1724,7 +1724,7 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 			   (int_mask & ~sdio_int));
 	}
 
-	spin_unlock_irqrestore(&host->lock, flags);
+	//spin_unlock_irqrestore(&host->lock, flags);
 }
 
 #ifdef CONFIG_MMC_DW_ROCKCHIP_SWITCH_VOLTAGE
