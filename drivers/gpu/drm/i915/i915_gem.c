@@ -3384,46 +3384,6 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 	return true;
 }
 
-static void i915_gem_verify_gtt(struct drm_device *dev)
-{
-#if WATCH_GTT
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj;
-	int err = 0;
-
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, global_list) {
-		if (obj->gtt_space == NULL) {
-			printk(KERN_ERR "object found on GTT list with no space reserved\n");
-			err++;
-			continue;
-		}
-
-		if (obj->cache_level != obj->gtt_space->color) {
-			printk(KERN_ERR "object reserved space [%08lx, %08lx] with wrong color, cache_level=%x, color=%lx\n",
-			       i915_gem_obj_ggtt_offset(obj),
-			       i915_gem_obj_ggtt_offset(obj) + i915_gem_obj_ggtt_size(obj),
-			       obj->cache_level,
-			       obj->gtt_space->color);
-			err++;
-			continue;
-		}
-
-		if (!i915_gem_valid_gtt_space(dev,
-					      obj->gtt_space,
-					      obj->cache_level)) {
-			printk(KERN_ERR "invalid GTT space found at [%08lx, %08lx] - color=%x\n",
-			       i915_gem_obj_ggtt_offset(obj),
-			       i915_gem_obj_ggtt_offset(obj) + i915_gem_obj_ggtt_size(obj),
-			       obj->cache_level);
-			err++;
-			continue;
-		}
-	}
-
-	WARN_ON(err);
-#endif
-}
-
 /**
  * Finds free space in the GTT aperture and binds the object there.
  */
@@ -3532,7 +3492,6 @@ search_free:
 	vma->bind_vma(vma, obj->cache_level,
 		      flags & (PIN_MAPPABLE | PIN_GLOBAL) ? GLOBAL_BIND : 0);
 
-	i915_gem_verify_gtt(dev);
 	return vma;
 
 err_remove_node:
@@ -3769,7 +3728,6 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 						    old_write_domain);
 	}
 
-	i915_gem_verify_gtt(dev);
 	return 0;
 }
 
