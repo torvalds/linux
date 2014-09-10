@@ -1333,7 +1333,6 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
 	init_waitqueue_head(&nvmeq->sq_full);
-	init_waitqueue_entry(&nvmeq->sq_cong_wait, nvme_thread);
 	bio_list_init(&nvmeq->sq_cong);
 	INIT_LIST_HEAD(&nvmeq->iod_bio);
 	nvmeq->q_db = &dev->dbs[qid * 2 * dev->db_stride];
@@ -1373,6 +1372,8 @@ static void nvme_init_queue(struct nvme_queue *nvmeq, u16 qid)
 	struct nvme_dev *dev = nvmeq->dev;
 	unsigned extra = nvme_queue_extra(nvmeq->q_depth);
 
+	spin_lock_irq(&nvmeq->q_lock);
+	init_waitqueue_entry(&nvmeq->sq_cong_wait, nvme_thread);
 	nvmeq->sq_tail = 0;
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
@@ -1382,6 +1383,7 @@ static void nvme_init_queue(struct nvme_queue *nvmeq, u16 qid)
 	nvme_cancel_ios(nvmeq, false);
 	nvmeq->q_suspended = 0;
 	dev->online_queues++;
+	spin_unlock_irq(&nvmeq->q_lock);
 }
 
 static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
@@ -1401,10 +1403,7 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 	if (result < 0)
 		goto release_sq;
 
-	spin_lock_irq(&nvmeq->q_lock);
 	nvme_init_queue(nvmeq, qid);
-	spin_unlock_irq(&nvmeq->q_lock);
-
 	return result;
 
  release_sq:
@@ -1543,9 +1542,6 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	if (result)
 		return result;
 
-	spin_lock_irq(&nvmeq->q_lock);
-	nvme_init_queue(nvmeq, 0);
-	spin_unlock_irq(&nvmeq->q_lock);
 	return result;
 }
 
@@ -2762,6 +2758,7 @@ static int nvme_dev_start(struct nvme_dev *dev)
 		result = nvme_thread ? PTR_ERR(nvme_thread) : -EINTR;
 		goto disable;
 	}
+	nvme_init_queue(raw_nvmeq(dev, 0), 0);
 
 	result = nvme_setup_io_queues(dev);
 	if (result)
