@@ -1052,8 +1052,6 @@ extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 
-extern struct class *drm_class;
-
 				/* Debugfs support */
 #if defined(CONFIG_DEBUG_FS)
 extern int drm_debugfs_init(struct drm_minor *minor, int minor_id,
