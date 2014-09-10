@@ -254,17 +254,24 @@ static void update_ftrace_function(void)
 	ftrace_func_t func;
 
 	/*
+	 * Prepare the ftrace_ops that the arch callback will use.
+	 * If there's only one ftrace_ops registered, the ftrace_ops_list
+	 * will point to the ops we want.
+	 */
+	set_function_trace_op = ftrace_ops_list;
+
+	/* If there's no ftrace_ops registered, just call the stub function */
+	if (ftrace_ops_list == &ftrace_list_end) {
+		func = ftrace_stub;
+
+	/*
 	 * If we are at the end of the list and this ops is
 	 * recursion safe and not dynamic and the arch supports passing ops,
 	 * then have the mcount trampoline call the function directly.
 	 */
-	if (ftrace_ops_list == &ftrace_list_end ||
-	    (ftrace_ops_list->next == &ftrace_list_end)) {
-
-		/* Set the ftrace_ops that the arch callback uses */
-		set_function_trace_op = ftrace_ops_list;
-
+	} else if (ftrace_ops_list->next == &ftrace_list_end) {
 		func = ftrace_ops_get_func(ftrace_ops_list);
+
 	} else {
 		/* Just use the default ftrace_ops */
 		set_function_trace_op = &ftrace_list_end;
