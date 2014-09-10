@@ -143,14 +143,6 @@ int drm_err(const char *func, const char *format, ...);
 #define DRIVER_RENDER      0x8000
 
 /***********************************************************************/
-/** \name Begin the DRM... */
-/*@{*/
-
-#define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
-
-/*@}*/
-
-/***********************************************************************/
 /** \name Macros to make printk easier */
 /*@{*/
 

@@ -90,6 +90,8 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 }
 EXPORT_SYMBOL(drm_ut_debug_printk);
 
+#define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
+
 struct drm_master *drm_master_create(struct drm_minor *minor)
 {
 	struct drm_master *master;
