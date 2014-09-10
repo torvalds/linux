@@ -99,30 +99,11 @@ static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
 	return 0;
 }
 
-static void berlin_pinctrl_dt_free_map(struct pinctrl_dev *pctrl_dev,
-				       struct pinctrl_map *map,
-				       unsigned nmaps)
-{
-	int i;
-
-	for (i = 0; i < nmaps; i++) {
-		if (map[i].type == PIN_MAP_TYPE_MUX_GROUP) {
-			kfree(map[i].data.mux.group);
-
-			/* a function can be applied to multiple groups */
-			if (i == 0)
-				kfree(map[i].data.mux.function);
-		}
-	}
-
-	kfree(map);
-}
-
 static const struct pinctrl_ops berlin_pinctrl_ops = {
 	.get_groups_count	= &berlin_pinctrl_get_group_count,
 	.get_group_name		= &berlin_pinctrl_get_group_name,
 	.dt_node_to_map		= &berlin_pinctrl_dt_node_to_map,
-	.dt_free_map		= &berlin_pinctrl_dt_free_map,
+	.dt_free_map		= &pinctrl_utils_dt_free_map,
 };
 
 static int berlin_pinmux_get_functions_count(struct pinctrl_dev *pctrl_dev)
