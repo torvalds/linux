@@ -2912,7 +2912,6 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 
 static const struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0xb000, 0),	/* PE10K FPGA */
-	CH_DEVICE(0x4800, 0),	/* T440-dbg */
 	CH_DEVICE(0x4801, 0),	/* T420-cr */
 	CH_DEVICE(0x4802, 0),	/* T422-cr */
 	CH_DEVICE(0x4803, 0),	/* T440-cr */
@@ -2934,7 +2933,6 @@ static const struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0x4880, 6),
 	CH_DEVICE(0x4880, 7),
 	CH_DEVICE(0x4880, 8),
-	CH_DEVICE(0x5800, 0),	/* T580-dbg */
 	CH_DEVICE(0x5801, 0),	/* T520-cr */
 	CH_DEVICE(0x5802, 0),	/* T522-cr */
 	CH_DEVICE(0x5803, 0),	/* T540-cr */
@@ -2962,6 +2960,7 @@ static const struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0x5883, 0),
 	CH_DEVICE(0x5884, 0),
 	CH_DEVICE(0x5885, 0),
+	CH_DEVICE(0x5886, 0),
 	{ 0, }
 };
 
