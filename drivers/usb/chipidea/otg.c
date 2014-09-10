@@ -57,22 +57,27 @@ enum ci_role ci_otg_role(struct ci_hdrc *ci)
 	return role;
 }
 
-#define CI_VBUS_CONNECT_TIMEOUT_MS 500
+/*
+ * Handling vbus glitch
+ * We only need to consider glitch for without usb connection,
+ * With usb connection, we consider it as real disconnection.
+ *
+ * If the vbus can't be kept above B session valid for timeout value,
+ * we think it is a vbus glitch, otherwise it's a valid vbus.
+ */
+#define CI_VBUS_CONNECT_TIMEOUT_MS 300
 static int ci_is_vbus_glitch(struct ci_hdrc *ci)
 {
-	/*
-	 * Handling vbus glitch
-	 *
-	 * We only need to consider glitch for without usb connection,
-	 * With usb connection, we consider it as real disconnection.
-	 *
-	 * If the vbus can't higher than AVV in timeout value, we think
-	 * it is a vbus glitch
-	 */
-	if (hw_wait_reg(ci, OP_OTGSC, OTGSC_AVV, OTGSC_AVV,
-			CI_VBUS_CONNECT_TIMEOUT_MS)) {
-		dev_warn(ci->dev, "there is a vbus glitch\n");
-		return 1;
+	int i;
+
+	for (i = 0; i < CI_VBUS_CONNECT_TIMEOUT_MS/20; i++) {
+		if (hw_read_otgsc(ci, OTGSC_AVV)) {
+			return 0;
+		} else if (!hw_read_otgsc(ci, OTGSC_BSV)) {
+			dev_warn(ci->dev, "there is a vbus glitch\n");
+			return 1;
+		}
+		msleep(20);
 	}
 
 	return 0;
@@ -141,8 +146,7 @@ static void ci_handle_vbus_glitch(struct ci_hdrc *ci)
 			valid_vbus_change = true;
 		}
 	} else {
-		if (ci->vbus_active || (ci_otg_is_fsm_mode(ci) &&
-						ci->fsm.b_sess_vld))
+		if (ci->vbus_active && !ci_otg_is_fsm_mode(ci))
 			valid_vbus_change = true;
 	}
 
