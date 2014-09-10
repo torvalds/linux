@@ -1084,7 +1084,6 @@ extern long drm_ioctl(struct file *filp,
 		      unsigned int cmd, unsigned long arg);
 extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
-extern int drm_lastclose(struct drm_device *dev);
 extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
 				/* Device support (drm_fops.h) */
@@ -1096,14 +1095,10 @@ extern int drm_release(struct inode *inode, struct file *filp);
 
 				/* Mapping support (drm_vm.h) */
 extern int drm_mmap(struct file *filp, struct vm_area_struct *vma);
-extern int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma);
 extern void drm_vm_open_locked(struct drm_device *dev, struct vm_area_struct *vma);
-extern void drm_vm_close_locked(struct drm_device *dev, struct vm_area_struct *vma);
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Misc. IOCTL support (drm_ioctl.h) */
-extern int drm_irq_by_busid(struct drm_device *dev, void *data,
-			    struct drm_file *file_priv);
 extern int drm_getunique(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int drm_setunique(struct drm_device *dev, void *data,
@@ -1123,13 +1118,6 @@ extern int drm_setversion(struct drm_device *dev, void *data,
 extern int drm_noop(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
 
-				/* Authentication IOCTL support (drm_auth.h) */
-extern int drm_getmagic(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-extern int drm_authmagic(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int drm_remove_magic(struct drm_master *master, drm_magic_t magic);
-
 /* Cache management (drm_cache.c) */
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
 void drm_clflush_sg(struct sg_table *st);
@@ -1141,8 +1129,6 @@ void drm_clflush_virt_range(void *addr, unsigned long length);
  */
 
 				/* IRQ support (drm_irq.h) */
-extern int drm_control(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
 extern int drm_irq_install(struct drm_device *dev, int irq);
 extern int drm_irq_uninstall(struct drm_device *dev);
 
@@ -1256,15 +1242,6 @@ static inline void drm_debugfs_connector_remove(struct drm_connector *connector)
 
 #endif
 
-				/* Info file support */
-extern int drm_name_info(struct seq_file *m, void *data);
-extern int drm_vm_info(struct seq_file *m, void *data);
-extern int drm_bufs_info(struct seq_file *m, void *data);
-extern int drm_vblank_info(struct seq_file *m, void *data);
-extern int drm_clients_info(struct seq_file *m, void* data);
-extern int drm_gem_name_info(struct seq_file *m, void *data);
-
-
 extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 		struct drm_gem_object *obj, int flags);
 extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
@@ -1276,11 +1253,6 @@ extern int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 		struct drm_file *file_priv, int prime_fd, uint32_t *handle);
 extern void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
 
-extern int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
-					struct drm_file *file_priv);
-extern int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
-					struct drm_file *file_priv);
-
 extern int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 					    dma_addr_t *addrs, int max_pages);
 extern struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages);
@@ -1290,31 +1262,15 @@ int drm_gem_dumb_destroy(struct drm_file *file,
 			 struct drm_device *dev,
 			 uint32_t handle);
 
-void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv);
-void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv);
-void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
-
-extern int drm_vma_info(struct seq_file *m, void *data);
-
 
 extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
 				       size_t align);
 extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
-extern int drm_pci_set_unique(struct drm_device *dev,
-			      struct drm_master *master,
-			      struct drm_unique *u);
 
 			       /* sysfs support (drm_sysfs.c) */
-extern struct class *drm_sysfs_create(struct module *owner, char *name);
-extern void drm_sysfs_destroy(void);
-extern struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
 extern void drm_sysfs_hotplug_event(struct drm_device *dev);
-extern int drm_sysfs_connector_add(struct drm_connector *connector);
-extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 
 /* Graphics Execution Manager library functions (drm_gem.c) */
-int drm_gem_init(struct drm_device *dev);
-void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_release(struct drm_gem_object *obj);
 void drm_gem_object_free(struct kref *kref);
 int drm_gem_object_init(struct drm_device *dev,
@@ -1353,9 +1309,6 @@ drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 	}
 }
 
-int drm_gem_handle_create_tail(struct drm_file *file_priv,
-			       struct drm_gem_object *obj,
-			       u32 *handlep);
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
 			  u32 *handlep);
@@ -1373,14 +1326,6 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 struct drm_gem_object *drm_gem_object_lookup(struct drm_device *dev,
 					     struct drm_file *filp,
 					     u32 handle);
-int drm_gem_close_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-int drm_gem_flink_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-int drm_gem_open_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-void drm_gem_open(struct drm_device *dev, struct drm_file *file_private);
-void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
 
 extern void drm_core_ioremap(struct drm_local_map *map, struct drm_device *dev);
 extern void drm_core_ioremap_wc(struct drm_local_map *map, struct drm_device *dev);

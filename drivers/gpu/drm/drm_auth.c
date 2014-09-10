@@ -34,6 +34,7 @@
  */
 
 #include <drm/drmP.h>
+#include "drm_internal.h"
 
 struct drm_magic_entry {
 	struct list_head head;
