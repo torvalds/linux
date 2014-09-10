@@ -1598,8 +1598,6 @@ static void apci3120_interrupt(int irq, void *d)
 		}
 
 	}
-
-	return;
 }
 
 /*
