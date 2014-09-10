@@ -309,9 +309,23 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 			     request->channels[i]->center_freq);
 	}
 
+	if (request->ie_len)
+		print_hex_dump_bytes("Scan IE ", DUMP_PREFIX_OFFSET,
+				     request->ie, request->ie_len);
+	else
+		wil_dbg_misc(wil, "Scan has no IE's\n");
+
+	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_REQ, request->ie_len,
+			request->ie);
+	if (rc) {
+		wil_err(wil, "Aborting scan, set_ie failed: %d\n", rc);
+		goto out;
+	}
+
 	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
 			cmd.cmd.num_channels * sizeof(cmd.cmd.channel_list[0]));
 
+out:
 	if (rc) {
 		del_timer_sync(&wil->scan_timer);
 		wil->scan_request = NULL;
@@ -813,6 +827,7 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 {
 	/* TODO: set real value */
 	wiphy->max_scan_ssids = 10;
+	wiphy->max_scan_ie_len = WMI_MAX_IE_LEN;
 	wiphy->max_num_pmkids = 0 /* TODO: */;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_AP) |
