@@ -310,7 +310,6 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 	struct ath_chanctx *ctx;
 	u32 tsf_time;
 	u32 beacon_int;
-	bool noa_changed = false;
 
 	if (vif)
 		avp = (struct ath_vif *) vif->drv_priv;
@@ -372,22 +371,6 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		sc->sched.switch_start_time = tsf_time;
 		sc->cur_chan->last_beacon = sc->sched.next_tbtt;
 
-		/* Prevent wrap-around issues */
-		if (avp->periodic_noa_duration &&
-		    tsf_time - avp->periodic_noa_start > BIT(30))
-			avp->periodic_noa_duration = 0;
-
-		if (ctx->active) {
-			avp->periodic_noa_start = tsf_time;
-			avp->periodic_noa_duration =
-				TU_TO_USEC(cur_conf->beacon_interval) / 2 -
-				sc->sched.channel_switch_time;
-			noa_changed = true;
-		} else if (!ctx->active) {
-			avp->periodic_noa_duration = 0;
-			noa_changed = true;
-		}
-
 		/* If at least two consecutive beacons were missed on the STA
 		 * chanctx, stay on the STA channel for one extra beacon period,
 		 * to resync the timer properly.
@@ -395,21 +378,65 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		if (ctx->active && sc->sched.beacon_miss >= 2)
 			sc->sched.offchannel_duration = 3 * beacon_int / 2;
 
-		if (sc->sched.offchannel_duration) {
-			noa_changed = true;
+		/*
+		 * If an offchannel switch is scheduled to happen after
+		 * a beacon transmission, update the NoA with one-shot
+		 * values and increment the index.
+		 */
+		if (sc->next_chan == &sc->offchannel.chan) {
+			avp->noa_index++;
 			avp->offchannel_start = tsf_time;
-			avp->offchannel_duration =
-				sc->sched.offchannel_duration;
+			avp->offchannel_duration = sc->sched.offchannel_duration;
+
+			ath_dbg(common, CHAN_CTX,
+				"offchannel noa_duration: %d, noa_start: %d, noa_index: %d\n",
+				avp->offchannel_duration,
+				avp->offchannel_start,
+				avp->noa_index);
+
+			/*
+			 * When multiple contexts are active, the NoA
+			 * has to be recalculated and advertised after
+			 * an offchannel operation.
+			 */
+			if (ctx->active && avp->noa_duration)
+				avp->noa_duration = 0;
+
+			break;
 		}
 
-		if (noa_changed)
-			avp->noa_index++;
+		/* Prevent wrap-around issues */
+		if (avp->noa_duration && tsf_time - avp->noa_start > BIT(30))
+			avp->noa_duration = 0;
 
-		ath_dbg(common, CHAN_CTX,
-			"periodic_noa_duration: %d, periodic_noa_start: %d, noa_index: %d\n",
-			avp->periodic_noa_duration,
-			avp->periodic_noa_start,
-			avp->noa_index);
+		/*
+		 * If multiple contexts are active, start periodic
+		 * NoA and increment the index for the first
+		 * announcement.
+		 */
+		if (ctx->active &&
+		    (!avp->noa_duration || sc->sched.force_noa_update)) {
+			avp->noa_index++;
+			avp->noa_start = tsf_time;
+			avp->noa_duration =
+				TU_TO_USEC(cur_conf->beacon_interval) / 2 -
+				sc->sched.channel_switch_time;
+
+			if (test_bit(ATH_OP_SCANNING, &common->op_flags))
+				avp->periodic_noa = false;
+			else
+				avp->periodic_noa = true;
+
+			ath_dbg(common, CHAN_CTX,
+				"noa_duration: %d, noa_start: %d, noa_index: %d, periodic: %d\n",
+				avp->noa_duration,
+				avp->noa_start,
+				avp->noa_index,
+				avp->periodic_noa);
+		}
+
+		if (ctx->active && sc->sched.force_noa_update)
+			sc->sched.force_noa_update = false;
 
 		break;
 	case ATH_CHANCTX_EVENT_BEACON_SENT:
@@ -736,6 +763,10 @@ void ath_scan_complete(struct ath_softc *sc, bool abort)
 	sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
 	ieee80211_scan_completed(sc->hw, abort);
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
+	spin_lock_bh(&sc->chan_lock);
+	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+		sc->sched.force_noa_update = true;
+	spin_unlock_bh(&sc->chan_lock);
 	ath_offchannel_next(sc);
 	ath9k_ps_restore(sc);
 }
@@ -1218,10 +1249,10 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	int noa_len, noa_desc, i = 0;
 	u8 *hdr;
 
-	if (!avp->offchannel_duration && !avp->periodic_noa_duration)
+	if (!avp->offchannel_duration && !avp->noa_duration)
 		return;
 
-	noa_desc = !!avp->offchannel_duration + !!avp->periodic_noa_duration;
+	noa_desc = !!avp->offchannel_duration + !!avp->noa_duration;
 	noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc) * noa_desc;
 
 	hdr = skb_put(skb, sizeof(noa_ie_hdr));
@@ -1235,13 +1266,17 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	noa->index = avp->noa_index;
 	noa->oppps_ctwindow = ath9k_get_ctwin(sc, avp);
 
-	if (avp->periodic_noa_duration) {
-		u32 interval = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
+	if (avp->noa_duration) {
+		if (avp->periodic_noa) {
+			u32 interval = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
+			noa->desc[i].count = 255;
+			noa->desc[i].interval = cpu_to_le32(interval);
+		} else {
+			noa->desc[i].count = 1;
+		}
 
-		noa->desc[i].count = 255;
-		noa->desc[i].start_time = cpu_to_le32(avp->periodic_noa_start);
-		noa->desc[i].duration = cpu_to_le32(avp->periodic_noa_duration);
-		noa->desc[i].interval = cpu_to_le32(interval);
+		noa->desc[i].start_time = cpu_to_le32(avp->noa_start);
+		noa->desc[i].duration = cpu_to_le32(avp->noa_duration);
 		i++;
 	}
 

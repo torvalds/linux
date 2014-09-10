@@ -379,6 +379,7 @@ struct ath_chanctx_sched {
 	bool beacon_pending;
 	bool offchannel_pending;
 	bool wait_switch;
+	bool force_noa_update;
 	enum ath_chanctx_state state;
 	u8 beacon_miss;
 
@@ -595,8 +596,10 @@ struct ath_vif {
 	u32 offchannel_start;
 	u32 offchannel_duration;
 
-	u32 periodic_noa_start;
-	u32 periodic_noa_duration;
+	/* These are used for both periodic and one-shot */
+	u32 noa_start;
+	u32 noa_duration;
+	bool periodic_noa;
 };
 
 struct ath9k_vif_iter_data {
