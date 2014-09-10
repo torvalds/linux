@@ -262,8 +262,9 @@ struct tty_struct {
 	unsigned long flags;
 	int count;
 	struct winsize winsize;		/* winsize_mutex */
-	int stopped;			/* flow_lock */
-	int flow_stopped;
+	unsigned long stopped:1,	/* flow_lock */
+		      flow_stopped:1,
+		      unused:62;
 	int hw_stopped;
 	int packet;
 	unsigned char ctrl_status;	/* ctrl_lock */
