@@ -3850,8 +3850,20 @@ int t4_wait_dev_ready(struct adapter *adap)
 	return t4_read_reg(adap, PL_WHOAMI) != 0xffffffff ? 0 : -EIO;
 }
 
+struct flash_desc {
+	u32 vendor_and_model_id;
+	u32 size_mb;
+};
+
 static int get_flash_params(struct adapter *adap)
 {
+	/* Table for non-Numonix supported flash parts.  Numonix parts are left
+	 * to the preexisting code.  All flash parts have 64KB sectors.
+	 */
+	static struct flash_desc supported_flash[] = {
+		{ 0x150201, 4 << 20 },       /* Spansion 4MB S25FL032P */
+	};
+
 	int ret;
 	u32 info;
 
@@ -3861,6 +3873,14 @@ static int get_flash_params(struct adapter *adap)
 	t4_write_reg(adap, SF_OP, 0);                    /* unlock SF */
 	if (ret)
 		return ret;
+
+	for (ret = 0; ret < ARRAY_SIZE(supported_flash); ++ret)
+		if (supported_flash[ret].vendor_and_model_id == info) {
+			adap->params.sf_size = supported_flash[ret].size_mb;
+			adap->params.sf_nsec =
+				adap->params.sf_size / SF_SEC_SIZE;
+			return 0;
+		}
 
 	if ((info & 0xff) != 0x20)             /* not a Numonix flash */
 		return -EINVAL;
