@@ -35,10 +35,6 @@
 #define MAX_MSI_HOST_IRQS		8
 #define MAX_LEGACY_HOST_IRQS		4
 
-/* RC mode settings masks */
-#define PCIE_RC_MODE		BIT(2)
-#define PCIE_MODE_MASK		(BIT(1) | BIT(2))
-
 /* DEV_STAT_CTRL */
 #define PCIE_CAP_BASE		0x70
 
@@ -355,7 +351,6 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	void __iomem *reg_p;
 	struct phy *phy;
 	int ret = 0;
-	u32 val;
 
 	ks_pcie = devm_kzalloc(&pdev->dev, sizeof(*ks_pcie),
 				GFP_KERNEL);
@@ -365,18 +360,6 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	}
 	pp = &ks_pcie->pp;
 
-	/* index 2 is the devcfg register for RC mode settings */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	reg_p = devm_ioremap_resource(dev, res);
-	if (IS_ERR(reg_p))
-		return PTR_ERR(reg_p);
-
-	/* enable RC mode in devcfg */
-	val = readl(reg_p);
-	val &= ~PCIE_MODE_MASK;
-	val |= PCIE_RC_MODE;
-	writel(val, reg_p);
-
 	/* initialize SerDes Phy if present */
 	phy = devm_phy_get(dev, "pcie-phy");
 	if (!IS_ERR_OR_NULL(phy)) {
@@ -385,8 +368,8 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	/* index 3 is to read PCI DEVICE_ID */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	/* index 2 is to read PCI DEVICE_ID */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	reg_p = devm_ioremap_resource(dev, res);
 	if (IS_ERR(reg_p))
 		return PTR_ERR(reg_p);

@@ -13,9 +13,7 @@ Required Properties:-
 
 compatibility: "ti,keystone-pcie"
 reg:	index 1 is the base address and length of DW application registers.
-	index 2 is the base address and length of PCI mode configuration
-	register.
-	index 3 is the base address and length of PCI device ID register.
+	index 2 is the base address and length of PCI device ID register.
 
 pcie_msi_intc : Interrupt controller device node for MSI IRQ chip
 	interrupt-cells: should be set to 1
