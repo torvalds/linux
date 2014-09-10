@@ -419,7 +419,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			avp->noa_index++;
 			avp->noa_start = tsf_time;
 			avp->noa_duration =
-				TU_TO_USEC(cur_conf->beacon_interval) / 2 -
+				TU_TO_USEC(cur_conf->beacon_interval) / 2 +
 				sc->sched.channel_switch_time;
 
 			if (test_bit(ATH_OP_SCANNING, &common->op_flags))
