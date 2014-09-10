@@ -89,7 +89,7 @@ static irqreturn_t adf_msix_isr_bundle(int irq, void *bank_ptr)
 	struct adf_etr_bank_data *bank = bank_ptr;
 
 	WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr, bank->bank_number, 0);
-	tasklet_hi_schedule(&bank->resp_hanlder);
+	tasklet_hi_schedule(&bank->resp_handler);
 	return IRQ_HANDLED;
 }
 
@@ -217,7 +217,7 @@ static int adf_setup_bh(struct adf_accel_dev *accel_dev)
 	int i;
 
 	for (i = 0; i < hw_data->num_banks; i++)
-		tasklet_init(&priv_data->banks[i].resp_hanlder,
+		tasklet_init(&priv_data->banks[i].resp_handler,
 			     adf_response_handler,
 			     (unsigned long)&priv_data->banks[i]);
 	return 0;
@@ -230,8 +230,8 @@ static void adf_cleanup_bh(struct adf_accel_dev *accel_dev)
 	int i;
 
 	for (i = 0; i < hw_data->num_banks; i++) {
-		tasklet_disable(&priv_data->banks[i].resp_hanlder);
-		tasklet_kill(&priv_data->banks[i].resp_hanlder);
+		tasklet_disable(&priv_data->banks[i].resp_handler);
+		tasklet_kill(&priv_data->banks[i].resp_handler);
 	}
 }
 
