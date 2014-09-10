@@ -912,35 +912,6 @@ static int set_ltchars(struct tty_struct *tty, struct ltchars __user *ltchars)
 #endif
 
 /**
- *	send_prio_char		-	send priority character
- *
- *	Send a high priority character to the tty even if stopped
- *
- *	Locking: none for xchar method, write ordering for write method.
- */
-
-static int send_prio_char(struct tty_struct *tty, char ch)
-{
-	int	was_stopped = tty->stopped;
-
-	if (tty->ops->send_xchar) {
-		tty->ops->send_xchar(tty, ch);
-		return 0;
-	}
-
-	if (tty_write_lock(tty, 0) < 0)
-		return -ERESTARTSYS;
-
-	if (was_stopped)
-		start_tty(tty);
-	tty->ops->write(tty, &ch, 1);
-	if (was_stopped)
-		stop_tty(tty);
-	tty_write_unlock(tty);
-	return 0;
-}
-
-/**
  *	tty_change_softcar	-	carrier change ioctl helper
  *	@tty: tty to update
  *	@arg: enable/disable CLOCAL
@@ -1194,11 +1165,11 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 			break;
 		case TCIOFF:
 			if (STOP_CHAR(tty) != __DISABLED_CHAR)
-				return send_prio_char(tty, STOP_CHAR(tty));
+				return tty_send_xchar(tty, STOP_CHAR(tty));
 			break;
 		case TCION:
 			if (START_CHAR(tty) != __DISABLED_CHAR)
-				return send_prio_char(tty, START_CHAR(tty));
+				return tty_send_xchar(tty, START_CHAR(tty));
 			break;
 		default:
 			return -EINVAL;

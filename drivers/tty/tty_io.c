@@ -1023,14 +1023,14 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 	return i;
 }
 
-void tty_write_unlock(struct tty_struct *tty)
+static void tty_write_unlock(struct tty_struct *tty)
 	__releases(&tty->atomic_write_lock)
 {
 	mutex_unlock(&tty->atomic_write_lock);
 	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
 }
 
-int tty_write_lock(struct tty_struct *tty, int ndelay)
+static int tty_write_lock(struct tty_struct *tty, int ndelay)
 	__acquires(&tty->atomic_write_lock)
 {
 	if (!mutex_trylock(&tty->atomic_write_lock)) {
@@ -1215,6 +1215,35 @@ ssize_t redirected_tty_write(struct file *file, const char __user *buf,
 		return res;
 	}
 	return tty_write(file, buf, count, ppos);
+}
+
+/**
+ *	tty_send_xchar	-	send priority character
+ *
+ *	Send a high priority character to the tty even if stopped
+ *
+ *	Locking: none for xchar method, write ordering for write method.
+ */
+
+int tty_send_xchar(struct tty_struct *tty, char ch)
+{
+	int	was_stopped = tty->stopped;
+
+	if (tty->ops->send_xchar) {
+		tty->ops->send_xchar(tty, ch);
+		return 0;
+	}
+
+	if (tty_write_lock(tty, 0) < 0)
+		return -ERESTARTSYS;
+
+	if (was_stopped)
+		start_tty(tty);
+	tty->ops->write(tty, &ch, 1);
+	if (was_stopped)
+		stop_tty(tty);
+	tty_write_unlock(tty);
+	return 0;
 }
 
 static char ptychar[] = "pqrstuvwxyzabcde";
