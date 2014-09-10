@@ -72,6 +72,7 @@
 #define MIPI_CAL_BIAS_PAD_E_VCLAMP_REF	(1 << 0)
 
 #define MIPI_CAL_BIAS_PAD_CFG1		0x17
+#define MIPI_CAL_BIAS_PAD_DRV_DN_REF(x) (((x) & 0x7) << 16)
 
 #define MIPI_CAL_BIAS_PAD_CFG2		0x18
 #define MIPI_CAL_BIAS_PAD_PDVREG	(1 << 1)
@@ -202,6 +203,9 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 	value &= ~MIPI_CAL_BIAS_PAD_PDVCLAMP;
 	value |= MIPI_CAL_BIAS_PAD_E_VCLAMP_REF;
 	tegra_mipi_writel(device->mipi, value, MIPI_CAL_BIAS_PAD_CFG0);
+
+	tegra_mipi_writel(device->mipi, MIPI_CAL_BIAS_PAD_DRV_DN_REF(2),
+			  MIPI_CAL_BIAS_PAD_CFG1);
 
 	value = tegra_mipi_readl(device->mipi, MIPI_CAL_BIAS_PAD_CFG2);
 	value &= ~MIPI_CAL_BIAS_PAD_PDVREG;
