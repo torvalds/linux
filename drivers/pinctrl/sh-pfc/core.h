@@ -33,7 +33,6 @@ struct sh_pfc_pin_range {
 struct sh_pfc {
 	struct device *dev;
 	const struct sh_pfc_soc_info *info;
-	void *soc_data;
 	spinlock_t lock;
 
 	unsigned int num_windows;

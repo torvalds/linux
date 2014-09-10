@@ -3824,34 +3824,23 @@ static void sh73a0_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
  * SoC information
  */
 
-struct sh73a0_pinmux_data {
-	struct regulator_dev *vccq_mc0;
-};
-
 static int sh73a0_pinmux_soc_init(struct sh_pfc *pfc)
 {
-	struct sh73a0_pinmux_data *data;
 	struct regulator_config cfg = { };
+	struct regulator_dev *vccq;
 	int ret;
-
-	data = devm_kzalloc(pfc->dev, sizeof(*data), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
 
 	cfg.dev = pfc->dev;
 	cfg.init_data = &sh73a0_vccq_mc0_init_data;
 	cfg.driver_data = pfc;
 
-	data->vccq_mc0 = devm_regulator_register(pfc->dev,
-						 &sh73a0_vccq_mc0_desc, &cfg);
-	if (IS_ERR(data->vccq_mc0)) {
-		ret = PTR_ERR(data->vccq_mc0);
+	vccq = devm_regulator_register(pfc->dev, &sh73a0_vccq_mc0_desc, &cfg);
+	if (IS_ERR(vccq)) {
+		ret = PTR_ERR(vccq);
 		dev_err(pfc->dev, "Failed to register VCCQ MC0 regulator: %d\n",
 			ret);
 		return ret;
 	}
-
-	pfc->soc_data = data;
 
 	return 0;
 }
