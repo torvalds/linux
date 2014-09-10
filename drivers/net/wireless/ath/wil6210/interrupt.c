@@ -506,7 +506,8 @@ free0:
 
 	return rc;
 }
-/* can't use wil_ioread32_and_clear because ICC value is not ser yet */
+
+/* can't use wil_ioread32_and_clear because ICC value is not set yet */
 static inline void wil_clear32(void __iomem *addr)
 {
 	u32 x = ioread32(addr);
