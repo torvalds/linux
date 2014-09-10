@@ -377,6 +377,7 @@ enum iwl_trans_status {
  *	if unset 4k will be the RX buffer size
  * @bc_table_dword: set to true if the BC table expects the byte count to be
  *	in DWORD (as opposed to bytes)
+ * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @queue_watchdog_timeout: time (in ms) after which queues
  *	are considered stuck and will trigger device restart
  * @command_names: array of command names, must be 256 entries
@@ -392,6 +393,7 @@ struct iwl_trans_config {
 
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
+	bool scd_set_active;
 	unsigned int queue_watchdog_timeout;
 	const char *const *command_names;
 };
