@@ -2394,6 +2394,7 @@ EXPORT_SYMBOL(rk_get_real_fps);
 #ifdef CONFIG_ROCKCHIP_IOMMU
 #define ION_MAX 10
 static struct ion_handle *ion_hanle[ION_MAX];
+static struct ion_handle *ion_hwc[1];
 #endif
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		       unsigned long arg)
@@ -2428,6 +2429,51 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	}
 
 	switch (cmd) {
+	case RK_FBIOSET_HWC_ADDR:
+	{
+		u32 hwc_phy[1];
+		if (copy_from_user(hwc_phy, argp, 4))
+			return -EFAULT;
+		if (!dev_drv->iommu_enabled) {
+			fix->smem_start = hwc_phy[0];
+		} else {
+			int usr_fd;
+			struct ion_handle *hdl;
+			ion_phys_addr_t phy_addr;
+			size_t len;
+
+			usr_fd = hwc_phy[0];
+			if (!usr_fd) {
+				fix->smem_start = 0;
+				fix->mmio_start = 0;
+				break;
+			}
+
+			if (ion_hwc[0] != 0) {
+				ion_free(rk_fb->ion_client, ion_hwc[0]);
+				ion_hwc[0] = 0;
+			}
+
+			hdl = ion_import_dma_buf(rk_fb->ion_client, usr_fd);
+			if (IS_ERR(hdl)) {
+				dev_err(info->dev, "failed to get hwc ion handle:%ld\n",
+					PTR_ERR(hdl));
+				return -EFAULT;
+			}
+
+			ret = ion_map_iommu(dev_drv->dev, rk_fb->ion_client, hdl,
+						(unsigned long *)&phy_addr,
+						(unsigned long *)&len);
+			if (ret < 0) {
+				dev_err(info->dev, "ion map to get hwc phy addr failed");
+				ion_free(rk_fb->ion_client, hdl);
+				return -ENOMEM;
+			}
+			fix->smem_start = phy_addr;
+			ion_hwc[0] = hdl;
+		}
+		break;
+	}
 	case RK_FBIOSET_YUV_ADDR:
 		{
 			u32 yuv_phy[2];
