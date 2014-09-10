@@ -730,21 +730,14 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	mutex_lock(&wil->mutex);
 
-	rc = wil_reset(wil);
-	if (rc)
-		goto out;
-
-	/* Rx VRING. */
-	rc = wil_rx_init(wil);
+	__wil_down(wil);
+	rc = __wil_up(wil);
 	if (rc)
 		goto out;
 
 	rc = wmi_set_ssid(wil, info->ssid_len, info->ssid);
 	if (rc)
 		goto out;
-
-	/* MAC address - pre-requisite for other commands */
-	wmi_set_mac_address(wil, ndev->dev_addr);
 
 	/* IE's */
 	/* bcon 'head IE's are not relevant for 60g band */
@@ -777,7 +770,7 @@ out:
 static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 				struct net_device *ndev)
 {
-	int rc = 0;
+	int rc, rc1;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
@@ -786,8 +779,12 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 
 	rc = wmi_pcp_stop(wil);
 
+	__wil_down(wil);
+	rc1 = __wil_up(wil);
+
 	mutex_unlock(&wil->mutex);
-	return rc;
+
+	return min(rc, rc1);
 }
 
 static int wil_cfg80211_del_station(struct wiphy *wiphy,

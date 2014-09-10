@@ -221,10 +221,8 @@ static void wil_fw_error_worker(struct work_struct *work)
 	case NL80211_IFTYPE_MONITOR:
 		wil_info(wil, "fw error recovery started (try %d)...\n",
 			 wil->recovery_count);
-		wil_reset(wil);
-
-		/* need to re-allocate Rx ring after reset */
-		wil_rx_init(wil);
+		__wil_down(wil);
+		__wil_up(wil);
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
@@ -480,13 +478,12 @@ int wil_reset(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
+	WARN_ON(test_bit(wil_status_napi_en, &wil->status));
 
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL);
 
 	wil->status = 0; /* prevent NAPI from being scheduled */
-	if (test_bit(wil_status_napi_en, &wil->status))
-		napi_synchronize(&wil->napi_rx);
 
 	if (wil->scan_request) {
 		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
@@ -575,7 +572,7 @@ void wil_link_off(struct wil6210_priv *wil)
 	netif_carrier_off(ndev);
 }
 
-static int __wil_up(struct wil6210_priv *wil)
+int __wil_up(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
@@ -621,7 +618,7 @@ static int __wil_up(struct wil6210_priv *wil)
 	/* MAC address - pre-requisite for other commands */
 	wmi_set_mac_address(wil, ndev->dev_addr);
 
-
+	wil_dbg_misc(wil, "NAPI enable\n");
 	napi_enable(&wil->napi_rx);
 	napi_enable(&wil->napi_tx);
 	set_bit(wil_status_napi_en, &wil->status);
@@ -646,7 +643,7 @@ int wil_up(struct wil6210_priv *wil)
 	return rc;
 }
 
-static int __wil_down(struct wil6210_priv *wil)
+int __wil_down(struct wil6210_priv *wil)
 {
 	int iter = WAIT_FOR_DISCONNECT_TIMEOUT_MS /
 			WAIT_FOR_DISCONNECT_INTERVAL_MS;
@@ -656,9 +653,13 @@ static int __wil_down(struct wil6210_priv *wil)
 	if (wil->platform_ops.bus_request)
 		wil->platform_ops.bus_request(wil->platform_handle, 0);
 
-	clear_bit(wil_status_napi_en, &wil->status);
-	napi_disable(&wil->napi_rx);
-	napi_disable(&wil->napi_tx);
+	wil_disable_irq(wil);
+	if (test_and_clear_bit(wil_status_napi_en, &wil->status)) {
+		napi_disable(&wil->napi_rx);
+		napi_disable(&wil->napi_tx);
+		wil_dbg_misc(wil, "NAPI disable\n");
+	}
+	wil_enable_irq(wil);
 
 	if (wil->scan_request) {
 		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",

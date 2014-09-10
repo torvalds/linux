@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/moduleparam.h>
+#include <linux/interrupt.h>
 
 #include "wil6210.h"
 
@@ -29,6 +30,28 @@ MODULE_PARM_DESC(use_msi,
 static bool debug_fw; /* = false; */
 module_param(debug_fw, bool, S_IRUGO);
 MODULE_PARM_DESC(debug_fw, " load driver if FW not ready. For FW debug");
+
+void wil_disable_irq(struct wil6210_priv *wil)
+{
+	int irq = wil->pdev->irq;
+
+	disable_irq(irq);
+	if (wil->n_msi == 3) {
+		disable_irq(irq + 1);
+		disable_irq(irq + 2);
+	}
+}
+
+void wil_enable_irq(struct wil6210_priv *wil)
+{
+	int irq = wil->pdev->irq;
+
+	enable_irq(irq);
+	if (wil->n_msi == 3) {
+		enable_irq(irq + 1);
+		enable_irq(irq + 2);
+	}
+}
 
 /* Bus ops */
 static int wil_if_pcie_enable(struct wil6210_priv *wil)

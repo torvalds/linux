@@ -196,8 +196,13 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 		wil_dbg_irq(wil, "RX done\n");
 		isr &= ~BIT_DMA_EP_RX_ICR_RX_DONE;
 		if (test_bit(wil_status_reset_done, &wil->status)) {
-			wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
-			napi_schedule(&wil->napi_rx);
+			if (test_bit(wil_status_napi_en, &wil->status)) {
+				wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
+				napi_schedule(&wil->napi_rx);
+			} else {
+				wil_err(wil, "Got Rx interrupt while "
+					"stopping interface\n");
+			}
 		} else {
 			wil_err(wil, "Got Rx interrupt while in reset\n");
 		}
