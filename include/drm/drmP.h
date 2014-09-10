@@ -461,24 +461,6 @@ struct drm_map_list {
 	struct drm_master *master;
 };
 
-/* location of GART table */
-#define DRM_ATI_GART_MAIN 1
-#define DRM_ATI_GART_FB   2
-
-#define DRM_ATI_GART_PCI 1
-#define DRM_ATI_GART_PCIE 2
-#define DRM_ATI_GART_IGP 3
-
-struct drm_ati_pcigart_info {
-	int gart_table_location;
-	int gart_reg_if;
-	void *addr;
-	dma_addr_t bus_addr;
-	dma_addr_t table_mask;
-	struct drm_dma_handle *table_handle;
-	struct drm_local_map mapping;
-	int table_size;
-};
 
 /**
  * This structure defines the drm_mm memory object, which will be used by the
@@ -1324,11 +1306,6 @@ extern int drm_sg_alloc(struct drm_device *dev, void *data,
 extern int drm_sg_free(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 
-			       /* ATI PCIGART support (ati_pcigart.h) */
-extern int drm_ati_pcigart_init(struct drm_device *dev,
-				struct drm_ati_pcigart_info * gart_info);
-extern int drm_ati_pcigart_cleanup(struct drm_device *dev,
-				   struct drm_ati_pcigart_info * gart_info);
 
 extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
 				       size_t align);

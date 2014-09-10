@@ -35,6 +35,7 @@
 #ifndef __R128_DRV_H__
 #define __R128_DRV_H__
 
+#include <drm/ati_pcigart.h>
 /* General customization:
  */
 #define DRIVER_AUTHOR		"Gareth Hughes, VA Linux Systems Inc."
