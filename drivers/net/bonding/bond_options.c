@@ -955,14 +955,7 @@ static int _bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 
 static int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 {
-	int ret;
-
-	/* not to race with bond_arp_rcv */
-	write_lock_bh(&bond->lock);
-	ret = _bond_option_arp_ip_target_add(bond, target);
-	write_unlock_bh(&bond->lock);
-
-	return ret;
+	return _bond_option_arp_ip_target_add(bond, target);
 }
 
 static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
@@ -991,9 +984,6 @@ static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 
 	netdev_info(bond->dev, "Removing ARP target %pI4\n", &target);
 
-	/* not to race with bond_arp_rcv */
-	write_lock_bh(&bond->lock);
-
 	bond_for_each_slave(bond, slave, iter) {
 		targets_rx = slave->target_last_arp_rx;
 		for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
@@ -1004,8 +994,6 @@ static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 		targets[i] = targets[i+1];
 	targets[i] = 0;
 
-	write_unlock_bh(&bond->lock);
-
 	return 0;
 }
 
@@ -1013,11 +1001,8 @@ void bond_option_arp_ip_targets_clear(struct bonding *bond)
 {
 	int i;
 
-	/* not to race with bond_arp_rcv */
-	write_lock_bh(&bond->lock);
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
 		_bond_options_arp_ip_target_set(bond, i, 0, 0);
-	write_unlock_bh(&bond->lock);
 }
 
 static int bond_option_arp_ip_targets_set(struct bonding *bond,
@@ -1081,7 +1066,6 @@ static int bond_option_primary_set(struct bonding *bond,
 	struct slave *slave;
 
 	block_netpoll_tx();
-	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
 	p = strchr(primary, '\n');
@@ -1090,7 +1074,7 @@ static int bond_option_primary_set(struct bonding *bond,
 	/* check to see if we are clearing primary */
 	if (!strlen(primary)) {
 		netdev_info(bond->dev, "Setting primary slave to None\n");
-		bond->primary_slave = NULL;
+		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		memset(bond->params.primary, 0, sizeof(bond->params.primary));
 		bond_select_active_slave(bond);
 		goto out;
@@ -1100,16 +1084,16 @@ static int bond_option_primary_set(struct bonding *bond,
 		if (strncmp(slave->dev->name, primary, IFNAMSIZ) == 0) {
 			netdev_info(bond->dev, "Setting %s as primary slave\n",
 				    slave->dev->name);
-			bond->primary_slave = slave;
+			rcu_assign_pointer(bond->primary_slave, slave);
 			strcpy(bond->params.primary, slave->dev->name);
 			bond_select_active_slave(bond);
 			goto out;
 		}
 	}
 
-	if (bond->primary_slave) {
+	if (rtnl_dereference(bond->primary_slave)) {
 		netdev_info(bond->dev, "Setting primary slave to None\n");
-		bond->primary_slave = NULL;
+		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		bond_select_active_slave(bond);
 	}
 	strncpy(bond->params.primary, primary, IFNAMSIZ);
@@ -1120,7 +1104,6 @@ static int bond_option_primary_set(struct bonding *bond,
 
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
 	unblock_netpoll_tx();
 
 	return 0;

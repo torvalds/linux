@@ -2057,7 +2057,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	struct port *port;
 	bool should_notify_rtnl = BOND_SLAVE_NOTIFY_LATER;
 
-	read_lock(&bond->lock);
+	read_lock(&bond->curr_slave_lock);
 	rcu_read_lock();
 
 	/* check if there are any slaves */
@@ -2120,7 +2120,7 @@ re_arm:
 		}
 	}
 	rcu_read_unlock();
-	read_unlock(&bond->lock);
+	read_unlock(&bond->curr_slave_lock);
 
 	if (should_notify_rtnl && rtnl_trylock()) {
 		bond_slave_state_notify(bond);
@@ -2395,7 +2395,6 @@ int __bond_3ad_get_active_agg_info(struct bonding *bond,
 	return 0;
 }
 
-/* Wrapper used to hold bond->lock so no slave manipulation can occur */
 int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 {
 	int ret;
@@ -2487,9 +2486,9 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 	if (!lacpdu)
 		return ret;
 
-	read_lock(&bond->lock);
+	read_lock(&bond->curr_slave_lock);
 	ret = bond_3ad_rx_indication(lacpdu, slave, skb->len);
-	read_unlock(&bond->lock);
+	read_unlock(&bond->curr_slave_lock);
 	return ret;
 }
 
