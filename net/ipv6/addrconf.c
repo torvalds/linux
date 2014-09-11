@@ -2844,6 +2844,9 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 		if (dev->flags & IFF_SLAVE)
 			break;
 
+		if (idev && idev->cnf.disable_ipv6)
+			break;
+
 		if (event == NETDEV_UP) {
 			if (!addrconf_qdisc_ok(dev)) {
 				/* device is not ready yet. */
