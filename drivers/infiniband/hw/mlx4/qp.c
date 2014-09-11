@@ -964,9 +964,10 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 				   MLX4_QP_STATE_RST, NULL, 0, 0, &qp->mqp))
 			pr_warn("modify QP %06x to RESET failed.\n",
 			       qp->mqp.qpn);
-		if (qp->pri.smac) {
+		if (qp->pri.smac || (!qp->pri.smac && qp->pri.smac_port)) {
 			mlx4_unregister_mac(dev->dev, qp->pri.smac_port, qp->pri.smac);
 			qp->pri.smac = 0;
+			qp->pri.smac_port = 0;
 		}
 		if (qp->alt.smac) {
 			mlx4_unregister_mac(dev->dev, qp->alt.smac_port, qp->alt.smac);
@@ -1325,7 +1326,8 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
 		 * If one was already assigned, but the new mac differs,
 		 * unregister the old one and register the new one.
 		*/
-		if (!smac_info->smac || smac_info->smac != smac) {
+		if ((!smac_info->smac && !smac_info->smac_port) ||
+		    smac_info->smac != smac) {
 			/* register candidate now, unreg if needed, after success */
 			smac_index = mlx4_register_mac(dev->dev, port, smac);
 			if (smac_index >= 0) {
@@ -1396,7 +1398,7 @@ static int handle_eth_ud_smac_index(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *
 	u64_mac = atomic64_read(&dev->iboe.mac[qp->port - 1]);
 
 	context->pri_path.sched_queue = MLX4_IB_DEFAULT_SCHED_QUEUE | ((qp->port - 1) << 6);
-	if (!qp->pri.smac) {
+	if (!qp->pri.smac && !qp->pri.smac_port) {
 		smac_index = mlx4_register_mac(dev->dev, qp->port, u64_mac);
 		if (smac_index >= 0) {
 			qp->pri.candidate_smac_index = smac_index;
@@ -1778,9 +1780,10 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			if (qp->flags & MLX4_IB_QP_NETIF)
 				mlx4_ib_steer_qp_reg(dev, qp, 0);
 		}
-		if (qp->pri.smac) {
+		if (qp->pri.smac || (!qp->pri.smac && qp->pri.smac_port)) {
 			mlx4_unregister_mac(dev->dev, qp->pri.smac_port, qp->pri.smac);
 			qp->pri.smac = 0;
+			qp->pri.smac_port = 0;
 		}
 		if (qp->alt.smac) {
 			mlx4_unregister_mac(dev->dev, qp->alt.smac_port, qp->alt.smac);
@@ -1804,11 +1807,12 @@ out:
 	if (err && steer_qp)
 		mlx4_ib_steer_qp_reg(dev, qp, 0);
 	kfree(context);
-	if (qp->pri.candidate_smac) {
+	if (qp->pri.candidate_smac ||
+	    (!qp->pri.candidate_smac && qp->pri.candidate_smac_port)) {
 		if (err) {
 			mlx4_unregister_mac(dev->dev, qp->pri.candidate_smac_port, qp->pri.candidate_smac);
 		} else {
-			if (qp->pri.smac)
+			if (qp->pri.smac || (!qp->pri.smac && qp->pri.smac_port))
 				mlx4_unregister_mac(dev->dev, qp->pri.smac_port, qp->pri.smac);
 			qp->pri.smac = qp->pri.candidate_smac;
 			qp->pri.smac_index = qp->pri.candidate_smac_index;
