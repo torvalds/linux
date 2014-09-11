@@ -959,7 +959,11 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	memcpy(&smp->preq[1], req, sizeof(*req));
 	skb_pull(skb, sizeof(*req));
 
-	sec_level = authreq_to_seclevel(auth);
+	if (conn->hcon->io_capability == 0x03)
+		sec_level = BT_SECURITY_MEDIUM;
+	else
+		sec_level = authreq_to_seclevel(auth);
+
 	if (sec_level > conn->hcon->pending_sec_level)
 		conn->hcon->pending_sec_level = sec_level;
 
@@ -1165,7 +1169,11 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	auth = rp->auth_req & AUTH_REQ_MASK;
 
-	sec_level = authreq_to_seclevel(auth);
+	if (hcon->io_capability == 0x03)
+		sec_level = BT_SECURITY_MEDIUM;
+	else
+		sec_level = authreq_to_seclevel(auth);
+
 	if (smp_sufficient_security(hcon, sec_level))
 		return 0;
 
