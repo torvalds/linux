@@ -4924,7 +4924,7 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 		ret = image_id ? 0 : -ENOMEM;
 		if (!ret)
 			rbd_dev->image_format = 1;
-	} else if (ret > sizeof (__le32)) {
+	} else if (ret >= 0) {
 		void *p = response;
 
 		image_id = ceph_extract_encoded_string(&p, p + ret,
@@ -4932,8 +4932,6 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 		ret = PTR_ERR_OR_ZERO(image_id);
 		if (!ret)
 			rbd_dev->image_format = 2;
-	} else {
-		ret = -EINVAL;
 	}
 
 	if (!ret) {
