@@ -353,7 +353,6 @@ struct tx_desc {
 /* TCB (Transmit Control Block: Host Side) */
 struct tcb {
 	struct tcb *next;	/* Next entry in ring */
-	u32 flags;		/* Our flags for the packet */
 	u32 count;		/* Used to spot stuck/lost packets */
 	u32 stale;		/* Used to spot stuck/lost packets */
 	struct sk_buff *skb;	/* Network skb we are tied to */
@@ -2854,7 +2853,6 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 {
 	int status;
 	struct tcb *tcb;
-	u16 *shbufva;
 	unsigned long flags;
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
@@ -2880,17 +2878,6 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->tcb_ready_qlock, flags);
 
 	tcb->skb = skb;
-
-	if (skb->data != NULL && skb_headlen(skb) >= 6) {
-		shbufva = (u16 *) skb->data;
-
-		if ((shbufva[0] == 0xffff) &&
-		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff))
-			tcb->flags |= FMP_DEST_BROAD;
-		else if ((shbufva[0] & 0x3) == 0x0001)
-			tcb->flags |=  FMP_DEST_MULTI;
-	}
-
 	tcb->next = NULL;
 
 	/* Call the NIC specific send handler. */
@@ -4256,9 +4243,8 @@ static void et131x_tx_timeout(struct net_device *netdev)
 					       flags);
 
 			dev_warn(&adapter->pdev->dev,
-				 "Send stuck - reset. tcb->WrIndex %x, flags 0x%08x\n",
-				 tcb->index,
-				 tcb->flags);
+				 "Send stuck - reset. tcb->WrIndex %x\n",
+				 tcb->index);
 
 			adapter->netdev->stats.tx_errors++;
 
