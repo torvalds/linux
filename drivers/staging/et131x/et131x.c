@@ -2372,8 +2372,6 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	struct rx_status_block *status;
 	struct pkt_stat_desc *psr;
 	struct rfd *rfd;
-	u32 i;
-	u8 *buf;
 	unsigned long flags;
 	struct list_head *element;
 	u8 ring_index;
@@ -2453,60 +2451,12 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	 */
 	if (len < (NIC_MIN_PACKET_SIZE + 4)) {
 		adapter->stats.rx_other_errs++;
-		len = 0;
-	}
-
-	if (len == 0) {
 		rfd->len = 0;
 		goto out;
 	}
 
-	/* Determine if this is a multicast packet coming in */
-	if ((word0 & ALCATEL_MULTICAST_PKT) &&
-	    !(word0 & ALCATEL_BROADCAST_PKT)) {
-		/* Promiscuous mode and Multicast mode are not mutually
-		 * exclusive as was first thought. I guess Promiscuous is just
-		 * considered a super-set of the other filters. Generally filter
-		 * is 0x2b when in promiscuous mode.
-		 */
-		if ((adapter->packet_filter & ET131X_PACKET_TYPE_MULTICAST)
-		   && !(adapter->packet_filter & ET131X_PACKET_TYPE_PROMISCUOUS)
-		   && !(adapter->packet_filter &
-					ET131X_PACKET_TYPE_ALL_MULTICAST)) {
-			buf = fbr->virt[buff_index];
-
-			/* Loop through our list to see if the destination
-			 * address of this packet matches one in our list.
-			 */
-			for (i = 0; i < adapter->multicast_addr_count; i++) {
-				if (buf[0] == adapter->multicast_list[i][0]
-				 && buf[1] == adapter->multicast_list[i][1]
-				 && buf[2] == adapter->multicast_list[i][2]
-				 && buf[3] == adapter->multicast_list[i][3]
-				 && buf[4] == adapter->multicast_list[i][4]
-				 && buf[5] == adapter->multicast_list[i][5]) {
-					break;
-				}
-			}
-
-			/* If our index is equal to the number of Multicast
-			 * address we have, then this means we did not find this
-			 * packet's matching address in our list. Set the len to
-			 * zero, so we free our RFD when we return from this
-			 * function.
-			 */
-			if (i == adapter->multicast_addr_count)
-				len = 0;
-		}
-
-		if (len > 0)
-			adapter->stats.multicast_pkts_rcvd++;
-	}
-
-	if (!len) {
-		rfd->len = 0;
-		goto out;
-	}
+	if ((word0 & ALCATEL_MULTICAST_PKT) && !(word0 & ALCATEL_BROADCAST_PKT))
+		adapter->stats.multicast_pkts_rcvd++;
 
 	rfd->len = len;
 
