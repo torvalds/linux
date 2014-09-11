@@ -94,7 +94,7 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_tbl_get_from_tag);
 /**
  * snd_hda_jack_tbl_new - create a jack-table entry for the given NID
  */
-struct hda_jack_tbl *
+static struct hda_jack_tbl *
 snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hda_jack_tbl *jack = snd_hda_jack_tbl_get(codec, nid);
@@ -108,7 +108,6 @@ snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid)
 	jack->tag = codec->jacktbl.used;
 	return jack;
 }
-EXPORT_SYMBOL_GPL(snd_hda_jack_tbl_new);
 
 void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 {
