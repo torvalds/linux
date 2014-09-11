@@ -1424,6 +1424,12 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	int steer_qp = 0;
 	int err = -EINVAL;
 
+	/* APM is not supported under RoCE */
+	if (attr_mask & IB_QP_ALT_PATH &&
+	    rdma_port_get_link_layer(&dev->ib_dev, qp->port) ==
+	    IB_LINK_LAYER_ETHERNET)
+		return -ENOTSUPP;
+
 	context = kzalloc(sizeof *context, GFP_KERNEL);
 	if (!context)
 		return -ENOMEM;
