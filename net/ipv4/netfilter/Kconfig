@@ -61,16 +61,6 @@ config NFT_CHAIN_ROUTE_IPV4
 	  fields such as the source, destination, type of service and
 	  the packet mark.
 
-config NFT_CHAIN_NAT_IPV4
-	depends on NF_TABLES_IPV4
-	depends on NF_NAT_IPV4 && NFT_NAT
-	tristate "IPv4 nf_tables nat chain support"
-	help
-	  This option enables the "nat" chain for IPv4 in nf_tables. This
-	  chain type is used to perform Network Address Translation (NAT)
-	  packet transformations such as the source, destination address and
-	  source and destination ports.
-
 config NFT_REJECT_IPV4
 	depends on NF_TABLES_IPV4
 	default NFT_REJECT
@@ -93,6 +83,15 @@ config NF_NAT_IPV4
 	  controlled by iptables or nft.
 
 if NF_NAT_IPV4
+
+config NFT_CHAIN_NAT_IPV4
+	depends on NF_TABLES_IPV4
+	tristate "IPv4 nf_tables nat chain support"
+	help
+	  This option enables the "nat" chain for IPv4 in nf_tables. This
+	  chain type is used to perform Network Address Translation (NAT)
+	  packet transformations such as the source, destination address and
+	  source and destination ports.
 
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support"
