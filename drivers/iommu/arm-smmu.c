@@ -2011,7 +2011,7 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id arm_smmu_of_match[] = {
+static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,smmu-v1", },
 	{ .compatible = "arm,smmu-v2", },
 	{ .compatible = "arm,mmu-400", },
