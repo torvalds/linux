@@ -28,32 +28,6 @@
 #define RK808_BUCK4_VSEL_MASK	0xf
 #define RK808_LDO_VSEL_MASK	0x1f
 
-static const int buck_set_vol_base_addr[] = {
-	RK808_BUCK1_ON_VSEL_REG,
-	RK808_BUCK2_ON_VSEL_REG,
-	RK808_BUCK3_CONFIG_REG,
-	RK808_BUCK4_ON_VSEL_REG,
-};
-
-static const int buck_contr_base_addr[] = {
-	RK808_BUCK1_CONFIG_REG,
-	RK808_BUCK2_CONFIG_REG,
-	RK808_BUCK3_CONFIG_REG,
-	RK808_BUCK4_CONFIG_REG,
-};
-
-static const int ldo_set_vol_base_addr[] = {
-	RK808_LDO1_ON_VSEL_REG,
-	RK808_LDO2_ON_VSEL_REG,
-	RK808_LDO3_ON_VSEL_REG,
-	RK808_LDO4_ON_VSEL_REG,
-	RK808_LDO5_ON_VSEL_REG,
-	RK808_LDO6_ON_VSEL_REG,
-	RK808_LDO7_ON_VSEL_REG,
-	RK808_LDO8_ON_VSEL_REG,
-};
-
-/* rk808 voltage number */
 static const struct regulator_linear_range rk808_buck_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0, 63, 12500),
 };
