@@ -281,8 +281,9 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	if (!reg_np)
 		return -ENXIO;
 
-	ret = of_regulator_match(&client->dev, reg_np, rk808_reg_matches,
+	ret = of_regulator_match(&pdev->dev, reg_np, rk808_reg_matches,
 				 RK808_NUM_REGULATORS);
+	of_node_put(reg_np);
 	if (ret < 0)
 		return ret;
 
