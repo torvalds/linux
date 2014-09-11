@@ -114,13 +114,10 @@ bl_submit_bio(int rw, struct bio *bio)
 	return NULL;
 }
 
-static struct bio *bl_alloc_init_bio(int npg, sector_t isect,
-				     struct pnfs_block_extent *be,
-				     void (*end_io)(struct bio *, int err),
-				     struct parallel_io *par)
+static struct bio *
+bl_alloc_init_bio(int npg, struct block_device *bdev, sector_t disk_sector,
+		void (*end_io)(struct bio *, int err), struct parallel_io *par)
 {
-	struct pnfs_block_dev *dev =
-		container_of(be->be_device, struct pnfs_block_dev, d_node);
 	struct bio *bio;
 
 	npg = min(npg, BIO_MAX_PAGES);
@@ -131,32 +128,55 @@ static struct bio *bl_alloc_init_bio(int npg, sector_t isect,
 	}
 
 	if (bio) {
-		bio->bi_iter.bi_sector = isect - be->be_f_offset +
-			be->be_v_offset;
-		bio->bi_bdev = dev->d_bdev;
+		bio->bi_iter.bi_sector = disk_sector;
+		bio->bi_bdev = bdev;
 		bio->bi_end_io = end_io;
 		bio->bi_private = par;
 	}
 	return bio;
 }
 
-static struct bio *do_add_page_to_bio(struct bio *bio, int npg, int rw,
-				      sector_t isect, struct page *page,
-				      struct pnfs_block_extent *be,
-				      void (*end_io)(struct bio *, int err),
-				      struct parallel_io *par,
-				      unsigned int offset, int len)
+static struct bio *
+do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
+		struct page *page, struct pnfs_block_dev_map *map,
+		struct pnfs_block_extent *be,
+		void (*end_io)(struct bio *, int err),
+		struct parallel_io *par, unsigned int offset, int *len)
 {
-	isect = isect + (offset >> SECTOR_SHIFT);
+	struct pnfs_block_dev *dev =
+		container_of(be->be_device, struct pnfs_block_dev, node);
+	u64 disk_addr, end;
+
 	dprintk("%s: npg %d rw %d isect %llu offset %u len %d\n", __func__,
-		npg, rw, (unsigned long long)isect, offset, len);
+		npg, rw, (unsigned long long)isect, offset, *len);
+
+	/* translate to device offset */
+	isect += be->be_v_offset;
+	isect -= be->be_f_offset;
+
+	/* translate to physical disk offset */
+	disk_addr = (u64)isect << SECTOR_SHIFT;
+	if (disk_addr < map->start || disk_addr >= map->start + map->len) {
+		if (!dev->map(dev, disk_addr, map))
+			return ERR_PTR(-EIO);
+		bio = bl_submit_bio(rw, bio);
+	}
+	disk_addr += map->disk_offset;
+	disk_addr -= map->start;
+
+	/* limit length to what the device mapping allows */
+	end = disk_addr + *len;
+	if (end >= map->start + map->len)
+		*len = map->start + map->len - disk_addr;
+
 retry:
 	if (!bio) {
-		bio = bl_alloc_init_bio(npg, isect, be, end_io, par);
+		bio = bl_alloc_init_bio(npg, map->bdev,
+				disk_addr >> SECTOR_SHIFT, end_io, par);
 		if (!bio)
 			return ERR_PTR(-ENOMEM);
 	}
-	if (bio_add_page(bio, page, len, offset) < len) {
+	if (bio_add_page(bio, page, *len, offset) < *len) {
 		bio = bl_submit_bio(rw, bio);
 		goto retry;
 	}
@@ -203,6 +223,7 @@ static enum pnfs_try_status
 bl_read_pagelist(struct nfs_pgio_header *header)
 {
 	struct pnfs_block_layout *bl = BLK_LSEG2EXT(header->lseg);
+	struct pnfs_block_dev_map map = { .start = NFS4_MAX_UINT64 };
 	struct bio *bio = NULL;
 	struct pnfs_block_extent be;
 	sector_t isect, extent_length = 0;
@@ -248,28 +269,29 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 				pg_len = PAGE_CACHE_SIZE - pg_offset;
 			else
 				pg_len = bytes_left;
-
-			f_offset += pg_len;
-			bytes_left -= pg_len;
-			isect += (pg_offset >> SECTOR_SHIFT);
-			extent_length -= (pg_offset >> SECTOR_SHIFT);
 		} else {
 			BUG_ON(pg_offset != 0);
 			pg_len = PAGE_CACHE_SIZE;
 		}
+
+		isect += (pg_offset >> SECTOR_SHIFT);
+		extent_length -= (pg_offset >> SECTOR_SHIFT);
 
 		if (is_hole(&be)) {
 			bio = bl_submit_bio(READ, bio);
 			/* Fill hole w/ zeroes w/o accessing device */
 			dprintk("%s Zeroing page for hole\n", __func__);
 			zero_user_segment(pages[i], pg_offset, pg_len);
+
+			/* invalidate map */
+			map.start = NFS4_MAX_UINT64;
 		} else {
 			bio = do_add_page_to_bio(bio,
 						 header->page_array.npages - i,
 						 READ,
-						 isect, pages[i], &be,
+						 isect, pages[i], &map, &be,
 						 bl_end_io_read, par,
-						 pg_offset, pg_len);
+						 pg_offset, &pg_len);
 			if (IS_ERR(bio)) {
 				header->pnfs_error = PTR_ERR(bio);
 				bio = NULL;
@@ -278,6 +300,8 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 		}
 		isect += (pg_len >> SECTOR_SHIFT);
 		extent_length -= (pg_len >> SECTOR_SHIFT);
+		f_offset += pg_len;
+		bytes_left -= pg_len;
 	}
 	if ((isect << SECTOR_SHIFT) >= header->inode->i_size) {
 		header->res.eof = 1;
@@ -346,6 +370,7 @@ static enum pnfs_try_status
 bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 {
 	struct pnfs_block_layout *bl = BLK_LSEG2EXT(header->lseg);
+	struct pnfs_block_dev_map map = { .start = NFS4_MAX_UINT64 };
 	struct bio *bio = NULL;
 	struct pnfs_block_extent be;
 	sector_t isect, extent_length = 0;
@@ -354,6 +379,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	size_t count = header->args.count;
 	struct page **pages = header->args.pages;
 	int pg_index = pg_index = header->args.pgbase >> PAGE_CACHE_SHIFT;
+	unsigned int pg_len;
 	struct blk_plug plug;
 	int i;
 
@@ -387,19 +413,21 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 			extent_length = be.be_length - (isect - be.be_f_offset);
 		}
 
+		pg_len = PAGE_CACHE_SIZE;
 		bio = do_add_page_to_bio(bio, header->page_array.npages - i,
-					 WRITE, isect, pages[i], &be,
+					 WRITE, isect, pages[i], &map, &be,
 					 bl_end_io_write, par,
-					 0, PAGE_CACHE_SIZE);
+					 0, &pg_len);
 		if (IS_ERR(bio)) {
 			header->pnfs_error = PTR_ERR(bio);
 			bio = NULL;
 			goto out;
 		}
-		offset += PAGE_CACHE_SIZE;
-		count -= PAGE_CACHE_SIZE;
-		isect += PAGE_CACHE_SECTORS;
-		extent_length -= PAGE_CACHE_SECTORS;
+
+		offset += pg_len;
+		count -= pg_len;
+		isect += (pg_len >> SECTOR_SHIFT);
+		extent_length -= (pg_len >> SECTOR_SHIFT);
 	}
 
 	header->res.count = header->args.count;

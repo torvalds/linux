@@ -34,94 +34,53 @@
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
-static void bl_dm_remove(struct net *net, dev_t dev)
+static void
+nfs4_encode_simple(__be32 *p, struct pnfs_block_volume *b)
 {
-	struct bl_pipe_msg bl_pipe_msg;
-	struct rpc_pipe_msg *msg = &bl_pipe_msg.msg;
-	struct bl_dev_msg bl_umount_request;
-	struct bl_msg_hdr bl_msg = {
-		.type = BL_DEVICE_UMOUNT,
-		.totallen = sizeof(bl_umount_request),
-	};
-	uint8_t *dataptr;
-	DECLARE_WAITQUEUE(wq, current);
-	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	int i;
 
-	dprintk("Entering %s\n", __func__);
-
-	bl_pipe_msg.bl_wq = &nn->bl_wq;
-	memset(msg, 0, sizeof(*msg));
-	msg->len = sizeof(bl_msg) + bl_msg.totallen;
-	msg->data = kzalloc(msg->len, GFP_NOFS);
-	if (!msg->data)
-		goto out;
-
-	memset(&bl_umount_request, 0, sizeof(bl_umount_request));
-	bl_umount_request.major = MAJOR(dev);
-	bl_umount_request.minor = MINOR(dev);
-
-	memcpy(msg->data, &bl_msg, sizeof(bl_msg));
-	dataptr = (uint8_t *) msg->data;
-	memcpy(&dataptr[sizeof(bl_msg)], &bl_umount_request, sizeof(bl_umount_request));
-
-	add_wait_queue(&nn->bl_wq, &wq);
-	if (rpc_queue_upcall(nn->bl_device_pipe, msg) < 0) {
-		remove_wait_queue(&nn->bl_wq, &wq);
-		goto out;
+	*p++ = cpu_to_be32(1);
+	*p++ = cpu_to_be32(b->type);
+	*p++ = cpu_to_be32(b->simple.nr_sigs);
+	for (i = 0; i < b->simple.nr_sigs; i++) {
+		p = xdr_encode_hyper(p, b->simple.sigs[i].offset);
+		p = xdr_encode_opaque(p, b->simple.sigs[i].sig,
+					 b->simple.sigs[i].sig_len);
 	}
-
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule();
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&nn->bl_wq, &wq);
-
-out:
-	kfree(msg->data);
 }
 
-/*
- * Decodes pnfs_block_deviceaddr4 which is XDR encoded in dev->dev_addr_buf.
- */
-struct nfs4_deviceid_node *
-bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *dev,
+dev_t
+bl_resolve_deviceid(struct nfs_server *server, struct pnfs_block_volume *b,
 		gfp_t gfp_mask)
 {
-	struct pnfs_block_dev *rv;
-	struct block_device *bd;
-	struct bl_pipe_msg bl_pipe_msg;
-	struct rpc_pipe_msg *msg = &bl_pipe_msg.msg;
-	struct bl_msg_hdr bl_msg = {
-		.type = BL_DEVICE_MOUNT,
-		.totallen = dev->mincount,
-	};
-	uint8_t *dataptr;
-	DECLARE_WAITQUEUE(wq, current);
-	int offset, len, i, rc;
 	struct net *net = server->nfs_client->cl_net;
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 	struct bl_dev_msg *reply = &nn->bl_mount_reply;
+	struct bl_pipe_msg bl_pipe_msg;
+	struct rpc_pipe_msg *msg = &bl_pipe_msg.msg;
+	struct bl_msg_hdr *bl_msg;
+	DECLARE_WAITQUEUE(wq, current);
+	dev_t dev = 0;
+	int rc;
 
 	dprintk("%s CREATING PIPEFS MESSAGE\n", __func__);
-	dprintk("%s: deviceid: %s, mincount: %d\n", __func__, dev->dev_id.data,
-		dev->mincount);
 
 	bl_pipe_msg.bl_wq = &nn->bl_wq;
+
+	b->simple.len += 4;	/* single volume */
+	if (b->simple.len > PAGE_SIZE)
+		return -EIO;
+
 	memset(msg, 0, sizeof(*msg));
-	msg->data = kzalloc(sizeof(bl_msg) + dev->mincount, gfp_mask);
+	msg->len = sizeof(*bl_msg) + b->simple.len;
+	msg->data = kzalloc(msg->len, gfp_mask);
 	if (!msg->data)
 		goto out;
 
-	memcpy(msg->data, &bl_msg, sizeof(bl_msg));
-	dataptr = (uint8_t *) msg->data;
-	len = dev->mincount;
-	offset = sizeof(bl_msg);
-	for (i = 0; len > 0; i++) {
-		memcpy(&dataptr[offset], page_address(dev->pages[i]),
-				len < PAGE_CACHE_SIZE ? len : PAGE_CACHE_SIZE);
-		len -= PAGE_CACHE_SIZE;
-		offset += PAGE_CACHE_SIZE;
-	}
-	msg->len = sizeof(bl_msg) + dev->mincount;
+	bl_msg = msg->data;
+	bl_msg->type = BL_DEVICE_MOUNT,
+	bl_msg->totallen = b->simple.len;
+	nfs4_encode_simple(msg->data + sizeof(*bl_msg), b);
 
 	dprintk("%s CALLING USERSPACE DAEMON\n", __func__);
 	add_wait_queue(&nn->bl_wq, &wq);
@@ -142,46 +101,10 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *dev,
 		goto out;
 	}
 
-	bd = blkdev_get_by_dev(MKDEV(reply->major, reply->minor),
-			       FMODE_READ, NULL);
-	if (IS_ERR(bd)) {
-		printk(KERN_WARNING "%s failed to open device %d:%d (%ld)\n",
-			__func__, reply->major, reply->minor,
-			PTR_ERR(bd));
-		goto out;
-	}
-
-	rv = kzalloc(sizeof(*rv), gfp_mask);
-	if (!rv)
-		goto out;
-
-	nfs4_init_deviceid_node(&rv->d_node, server, &dev->dev_id);
-	rv->d_bdev = bd;
-
-	dprintk("%s Created device %s with bd_block_size %u\n",
-		__func__,
-		bd->bd_disk->disk_name,
-		bd->bd_block_size);
-
-	kfree(msg->data);
-	return &rv->d_node;
-
+	dev = MKDEV(reply->major, reply->minor);
 out:
 	kfree(msg->data);
-	return NULL;
-}
-
-void
-bl_free_deviceid_node(struct nfs4_deviceid_node *d)
-{
-	struct pnfs_block_dev *dev =
-		container_of(d, struct pnfs_block_dev, d_node);
-	struct net *net = d->nfs_client->cl_net;
-
-	blkdev_put(dev->d_bdev, FMODE_READ);
-	bl_dm_remove(net, dev->d_bdev->bd_dev);
-
-	kfree(dev);
+	return dev;
 }
 
 static ssize_t bl_pipe_downcall(struct file *filp, const char __user *src,
