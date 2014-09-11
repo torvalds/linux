@@ -84,6 +84,22 @@ memx_func_enter:
 	movw $r6 0x2
 	or $r7 $r6
 	nv_wr32($r8, $r7)
+#else
+	movw $r6 0x001620
+	imm32($r7, ~0x00000aa2);
+	nv_rd32($r8, $r6)
+	and $r8 $r7
+	nv_wr32($r6, $r8)
+
+	imm32($r7, ~0x00000001)
+	nv_rd32($r8, $r6)
+	and $r8 $r7
+	nv_wr32($r6, $r8)
+
+	movw $r6 0x0026f0
+	nv_rd32($r8, $r6)
+	and $r8 $r7
+	nv_wr32($r6, $r8)
 #endif
 
 	mov $r6 NV_PPWR_OUTPUT_SET_FB_PAUSE
@@ -95,7 +111,6 @@ memx_func_enter:
 
 	nv_iord($r6, NV_PPWR_TIMER_LOW)
 	st b32 D[$r0 + #memx_ts_start] $r6
-
 	ret
 
 // description
@@ -121,8 +136,23 @@ memx_func_leave:
 	imm32($r6, 0xffffffcc)
 	and $r7 $r6
 	nv_wr32($r8, $r7)
-#endif
+#else
+	movw $r6 0x0026f0
+	imm32($r7, 0x00000001)
+	nv_rd32($r8, $r6)
+	or $r8 $r7
+	nv_wr32($r6, $r8)
 
+	movw $r6 0x001620
+	nv_rd32($r8, $r6)
+	or $r8 $r7
+	nv_wr32($r6, $r8)
+
+	imm32($r7, 0x00000aa2);
+	nv_rd32($r8, $r6)
+	or $r8 $r7
+	nv_wr32($r6, $r8)
+#endif
 	ret
 
 #if NVKM_PPWR_CHIPSET < GF119
