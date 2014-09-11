@@ -2438,6 +2438,12 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 	}
 
+	/* We should disregard the current RPA and generate a new one
+	 * whenever the encryption procedure fails.
+	 */
+	if (ev->status && conn->type == LE_LINK)
+		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 
 	if (ev->status && conn->state == BT_CONNECTED) {
