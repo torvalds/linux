@@ -1853,9 +1853,12 @@ static void drbd_ldev_destroy(struct drbd_device *device)
 	device->resync = NULL;
 	lc_destroy(device->act_log);
 	device->act_log = NULL;
-	__no_warn(local,
-		drbd_free_ldev(device->ldev);
-		device->ldev = NULL;);
+
+	__acquire(local);
+	drbd_free_ldev(device->ldev);
+	device->ldev = NULL;
+	__release(local);
+
 	clear_bit(GOING_DISKLESS, &device->flags);
 	wake_up(&device->misc_wait);
 }
