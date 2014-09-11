@@ -1675,14 +1675,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 	 */
 	netdev_rx_handler_unregister(slave_dev);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
-		/* Sync against bond_3ad_rx_indication and
-		 * bond_3ad_state_machine_handler
-		 */
-		spin_lock_bh(&bond->mode_lock);
+	if (BOND_MODE(bond) == BOND_MODE_8023AD)
 		bond_3ad_unbind_slave(slave);
-		spin_unlock_bh(&bond->mode_lock);
-	}
 
 	netdev_info(bond_dev, "Releasing %s interface %s\n",
 		    bond_is_active_slave(slave) ? "active" : "backup",
