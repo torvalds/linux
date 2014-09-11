@@ -50,6 +50,13 @@
 		};
 
 		internal-regs {
+			pinctrl {
+				fan_pins: fan-pins {
+					marvell,pins = "mpp8";
+					marvell,function = "gpio";
+				};
+			};
+
 			serial@12000 {
 				status = "okay";
 			};
@@ -108,6 +115,14 @@
 					linux,code = <KEY_POWER>;
 					gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 				};
+			};
+
+			gpio-fan {
+				compatible = "gpio-fan";
+				gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+				gpio-fan,speed-map = <0 0 3000 1>;
+				pinctrl-0 = <&fan_pins>;
+				pinctrl-names = "default";
 			};
 
 			nand@d0000 {
