@@ -196,7 +196,9 @@ extern int kdb_main_loop(kdb_reason_t, kdb_reason_t,
 
 /* Miscellaneous functions and data areas */
 extern int kdb_grepping_flag;
+#define KDB_GREPPING_FLAG_SEARCH 0x8000
 extern char kdb_grep_string[];
+#define KDB_GREP_STRLEN 256
 extern int kdb_grep_leading;
 extern int kdb_grep_trailing;
 extern char *kdb_cmds[];

@@ -50,8 +50,7 @@
 static int kdb_cmd_enabled = CONFIG_KDB_DEFAULT_ENABLE;
 module_param_named(cmd_enable, kdb_cmd_enabled, int, 0600);
 
-#define GREP_LEN 256
-char kdb_grep_string[GREP_LEN];
+char kdb_grep_string[KDB_GREP_STRLEN];
 int kdb_grepping_flag;
 EXPORT_SYMBOL(kdb_grepping_flag);
 int kdb_grep_leading;
@@ -870,7 +869,7 @@ static void parse_grep(const char *str)
 	len = strlen(cp);
 	if (!len)
 		return;
-	if (len >= GREP_LEN) {
+	if (len >= KDB_GREP_STRLEN) {
 		kdb_printf("search string too long\n");
 		return;
 	}
@@ -1280,6 +1279,8 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		kdb_nextline = 1;
 		KDB_STATE_CLEAR(SUPPRESS);
 		kdb_grepping_flag = 0;
+		/* ensure the old search does not leak into '/' commands */
+		kdb_grep_string[0] = '\0';
 
 		cmdbuf = cmd_cur;
 		*cmdbuf = '\0';
