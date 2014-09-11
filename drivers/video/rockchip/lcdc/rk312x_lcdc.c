@@ -634,6 +634,8 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	lcdc_cfg_done(lcdc_dev);
 	if (dev_drv->iommu_enabled)	/* disable win0 to workaround iommu pagefault */
 		lcdc_layer_enable(lcdc_dev, 0, 0);
+	if ((dev_drv->ops->open_bcsh)&&(dev_drv->output_color == COLOR_YCBCR))
+		dev_drv->ops->open_bcsh(dev_drv,1);
 	lcdc_dev->pre_init = true;
 
 	return 0;
