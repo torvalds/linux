@@ -119,7 +119,6 @@ static inline void tlb_init_slave(struct slave *slave)
 	SLAVE_TLB_INFO(slave).head = TLB_NULL_INDEX;
 }
 
-/* Caller must hold bond lock for read, BH disabled */
 static void __tlb_clear_slave(struct bonding *bond, struct slave *slave,
 			 int save_load)
 {
@@ -142,7 +141,6 @@ static void __tlb_clear_slave(struct bonding *bond, struct slave *slave,
 	tlb_init_slave(slave);
 }
 
-/* Caller must hold bond lock for read */
 static void tlb_clear_slave(struct bonding *bond, struct slave *slave,
 			 int save_load)
 {
@@ -199,7 +197,6 @@ static long long compute_gap(struct slave *slave)
 	       (s64) (SLAVE_TLB_INFO(slave).load << 3); /* Bytes to bits */
 }
 
-/* Caller must hold bond lock for read */
 static struct slave *tlb_get_least_loaded_slave(struct bonding *bond)
 {
 	struct slave *slave, *least_loaded;
@@ -337,7 +334,6 @@ out:
 	return RX_HANDLER_ANOTHER;
 }
 
-/* Caller must hold bond lock for read */
 static struct slave *rlb_next_rx_slave(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
@@ -370,7 +366,7 @@ static struct slave *rlb_next_rx_slave(struct bonding *bond)
 	return rx_slave;
 }
 
-/* Caller must hold rcu_read_lock() for read */
+/* Caller must hold rcu_read_lock() */
 static struct slave *__rlb_next_rx_slave(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
@@ -749,7 +745,6 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 	return tx_slave;
 }
 
-/* Caller must hold bond lock for read */
 static void rlb_rebalance(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
@@ -1677,7 +1672,6 @@ void bond_alb_deinit_slave(struct bonding *bond, struct slave *slave)
 
 }
 
-/* Caller must hold bond lock for read */
 void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char link)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));

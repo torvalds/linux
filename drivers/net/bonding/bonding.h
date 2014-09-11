@@ -195,6 +195,12 @@ struct bonding {
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
 	int     (*recv_probe)(const struct sk_buff *, struct bonding *,
 			      struct slave *);
+	/* mode_lock is used for mode-specific locking needs, currently used by:
+	 * 3ad mode (4) - protect against running bond_3ad_unbind_slave() and
+	 *                bond_3ad_state_machine_handler() concurrently.
+	 * TLB mode (5) - to sync the use and modifications of its hash table
+	 * ALB mode (6) - to sync the use and modifications of its hash table
+	 */
 	spinlock_t mode_lock;
 	u8	 send_peer_notif;
 	u8       igmp_retrans;

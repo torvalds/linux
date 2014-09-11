@@ -1629,7 +1629,7 @@ err_undo_flags:
 /*
  * Try to release the slave device <slave> from the bond device <master>
  * It is legal to access curr_active_slave without a lock because all the function
- * is write-locked. If "all" is true it means that the function is being called
+ * is RTNL-locked. If "all" is true it means that the function is being called
  * while destroying a bond interface and all slaves are being released.
  *
  * The rules for slave state should be:
@@ -2494,7 +2494,7 @@ re_arm:
  * place for the slave.  Returns 0 if no changes are found, >0 if changes
  * to link states must be committed.
  *
- * Called with rcu_read_lock hold.
+ * Called with rcu_read_lock held.
  */
 static int bond_ab_arp_inspect(struct bonding *bond)
 {
@@ -2642,7 +2642,7 @@ do_failover:
 /*
  * Send ARP probes for active-backup mode ARP monitor.
  *
- * Called with rcu_read_lock hold.
+ * Called with rcu_read_lock held.
  */
 static bool bond_ab_arp_probe(struct bonding *bond)
 {
