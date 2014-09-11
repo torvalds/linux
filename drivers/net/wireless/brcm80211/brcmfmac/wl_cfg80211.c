@@ -497,8 +497,11 @@ brcmf_configure_arp_offload(struct brcmf_if *ifp, bool enable)
 static void
 brcmf_cfg80211_update_proto_addr_mode(struct wireless_dev *wdev)
 {
-	struct net_device *ndev = wdev->netdev;
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_if *ifp;
+
+	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
+	ifp = vif->ifp;
 
 	if ((wdev->iftype == NL80211_IFTYPE_ADHOC) ||
 	    (wdev->iftype == NL80211_IFTYPE_AP) ||
