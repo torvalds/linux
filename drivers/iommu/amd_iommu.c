@@ -1393,6 +1393,9 @@ static int iommu_map_page(struct protection_domain *dom,
 	count     = PAGE_SIZE_PTE_COUNT(page_size);
 	pte       = alloc_pte(dom, bus_addr, page_size, NULL, GFP_KERNEL);
 
+	if (!pte)
+		return -ENOMEM;
+
 	for (i = 0; i < count; ++i)
 		if (IOMMU_PTE_PRESENT(pte[i]))
 			return -EBUSY;
