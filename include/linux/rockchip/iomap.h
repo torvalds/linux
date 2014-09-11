@@ -17,6 +17,7 @@
 #define RK_DEBUG_UART_VIRT              RK_IO_ADDRESS(0x00060000)
 #define RK_CPU_AXI_BUS_VIRT             RK_IO_ADDRESS(0x00070000)
 #define RK_TIMER_VIRT                   RK_IO_ADDRESS(0x00080000)
+#define RK_PWM_VIRT			RK_IO_ADDRESS(0x00088000)
 #define RK_GIC_VIRT                     RK_IO_ADDRESS(0x00090000)
 #define RK_BOOTRAM_VIRT                 RK_IO_ADDRESS(0x000a0000)
 #define RK_DDR_VIRT                     RK_IO_ADDRESS(0x000d0000)
@@ -177,5 +178,7 @@
 #define RK312X_EFUSE_SIZE               RK3036_EFUSE_SIZE
 #define RK312X_PMU_PHYS			0x100a0000
 #define RK312X_PMU_SIZE			SZ_64K
+#define RK312X_PWM_PHYS			0x20050000
+#define RK312X_PWM_SIZE			SZ_16K
 
 #endif
