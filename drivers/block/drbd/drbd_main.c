@@ -1622,13 +1622,13 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 	struct drbd_socket *sock;
 	struct p_data *p;
 	unsigned int dp_flags = 0;
-	int dgs;
+	int digest_size;
 	int err;
 
 	sock = &peer_device->connection->data;
 	p = drbd_prepare_command(peer_device, sock);
-	dgs = peer_device->connection->integrity_tfm ?
-	      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
+	digest_size = peer_device->connection->integrity_tfm ?
+		      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
 
 	if (!p)
 		return -EIO;
@@ -1659,9 +1659,9 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 
 	/* our digest is still only over the payload.
 	 * TRIM does not carry any payload. */
-	if (dgs)
+	if (digest_size)
 		drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, p + 1);
-	err = __send_command(peer_device->connection, device->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
+	err = __send_command(peer_device->connection, device->vnr, sock, P_DATA, sizeof(*p) + digest_size, NULL, req->i.size);
 	if (!err) {
 		/* For protocol A, we have to memcpy the payload into
 		 * socket buffers, as we may complete right away
@@ -1674,23 +1674,23 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 		 * out ok after sending on this side, but does not fit on the
 		 * receiving side, we sure have detected corruption elsewhere.
 		 */
-		if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)) || dgs)
+		if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)) || digest_size)
 			err = _drbd_send_bio(peer_device, req->master_bio);
 		else
 			err = _drbd_send_zc_bio(peer_device, req->master_bio);
 
 		/* double check digest, sometimes buffers have been modified in flight. */
-		if (dgs > 0 && dgs <= 64) {
+		if (digest_size > 0 && digest_size <= 64) {
 			/* 64 byte, 512 bit, is the largest digest size
 			 * currently supported in kernel crypto. */
 			unsigned char digest[64];
 			drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, digest);
-			if (memcmp(p + 1, digest, dgs)) {
+			if (memcmp(p + 1, digest, digest_size)) {
 				drbd_warn(device,
 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
 					(unsigned long long)req->i.sector, req->i.size);
 			}
-		} /* else if (dgs > 64) {
+		} /* else if (digest_size > 64) {
 		     ... Be noisy about digest too large ...
 		} */
 	}
@@ -1711,13 +1711,13 @@ int drbd_send_block(struct drbd_peer_device *peer_device, enum drbd_packet cmd,
 	struct drbd_socket *sock;
 	struct p_data *p;
 	int err;
-	int dgs;
+	int digest_size;
 
 	sock = &peer_device->connection->data;
 	p = drbd_prepare_command(peer_device, sock);
 
-	dgs = peer_device->connection->integrity_tfm ?
-	      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
+	digest_size = peer_device->connection->integrity_tfm ?
+		      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
 
 	if (!p)
 		return -EIO;
@@ -1725,9 +1725,9 @@ int drbd_send_block(struct drbd_peer_device *peer_device, enum drbd_packet cmd,
 	p->block_id = peer_req->block_id;
 	p->seq_num = 0;  /* unused */
 	p->dp_flags = 0;
-	if (dgs)
+	if (digest_size)
 		drbd_csum_ee(peer_device->connection->integrity_tfm, peer_req, p + 1);
-	err = __send_command(peer_device->connection, device->vnr, sock, cmd, sizeof(*p) + dgs, NULL, peer_req->i.size);
+	err = __send_command(peer_device->connection, device->vnr, sock, cmd, sizeof(*p) + digest_size, NULL, peer_req->i.size);
 	if (!err)
 		err = _drbd_send_zc_ee(peer_device, peer_req);
 	mutex_unlock(&sock->mutex);  /* locked by drbd_prepare_command() */

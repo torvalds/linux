@@ -2109,7 +2109,7 @@ static inline bool is_sync_state(enum drbd_conns connection_state)
 
 static inline void put_ldev(struct drbd_device *device)
 {
-	enum drbd_disk_state ds = device->state.disk;
+	enum drbd_disk_state disk_state = device->state.disk;
 	/* We must check the state *before* the atomic_dec becomes visible,
 	 * or we have a theoretical race where someone hitting zero,
 	 * while state still D_FAILED, will then see D_DISKLESS in the
@@ -2122,10 +2122,10 @@ static inline void put_ldev(struct drbd_device *device)
 	__release(local);
 	D_ASSERT(device, i >= 0);
 	if (i == 0) {
-		if (ds == D_DISKLESS)
+		if (disk_state == D_DISKLESS)
 			/* even internal references gone, safe to destroy */
 			drbd_device_post_work(device, DESTROY_DISK);
-		if (ds == D_FAILED)
+		if (disk_state == D_FAILED)
 			/* all application IO references gone. */
 			if (!test_and_set_bit(GOING_DISKLESS, &device->flags))
 				drbd_device_post_work(device, GO_DISKLESS);
