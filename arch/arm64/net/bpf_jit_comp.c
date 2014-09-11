@@ -651,8 +651,10 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 	build_prologue(&ctx);
 
 	ctx.body_offset = ctx.idx;
-	if (build_body(&ctx))
+	if (build_body(&ctx)) {
+		module_free(NULL, ctx.image);
 		goto out;
+	}
 
 	build_epilogue(&ctx);
 
