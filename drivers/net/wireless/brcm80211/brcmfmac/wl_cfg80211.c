@@ -5143,6 +5143,7 @@ static int brcmf_enable_bw40_2g(struct brcmf_cfg80211_info *cfg)
 
 		ch.band = BRCMU_CHAN_BAND_2G;
 		ch.bw = BRCMU_CHAN_BW_40;
+		ch.sb = BRCMU_CHAN_SB_NONE;
 		ch.chnum = 0;
 		cfg->d11inf.encchspec(&ch);
 
@@ -5176,6 +5177,7 @@ static int brcmf_enable_bw40_2g(struct brcmf_cfg80211_info *cfg)
 
 			brcmf_update_bw40_channel_flag(&band->channels[j], &ch);
 		}
+		kfree(pbuf);
 	}
 	return err;
 }
