@@ -4297,18 +4297,8 @@ static int bond_init(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct bond_net *bn = net_generic(dev_net(bond_dev), bond_net_id);
-	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 
 	netdev_dbg(bond_dev, "Begin bond_init\n");
-
-	/*
-	 * Initialize locks that may be required during
-	 * en/deslave operations.  All of the bond_open work
-	 * (of which this is part) should really be moved to
-	 * a phase prior to dev_open
-	 */
-	spin_lock_init(&(bond_info->tx_hashtbl_lock));
-	spin_lock_init(&(bond_info->rx_hashtbl_lock));
 
 	bond->wq = create_singlethread_workqueue(bond_dev->name);
 	if (!bond->wq)
