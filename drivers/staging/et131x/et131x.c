@@ -4002,17 +4002,9 @@ static struct net_device_stats *et131x_stats(struct net_device *netdev)
 	stats->rx_length_errors = devstat->rx_length_errs;
 	stats->rx_over_errors = devstat->rx_overflows;
 	stats->rx_crc_errors = devstat->rx_crc_errs;
+	stats->rx_dropped = devstat->rcvd_pkts_dropped;
 
-	/* NOTE: These stats don't have corresponding values in CE_STATS,
-	 * so we're going to have to update these directly from within the
-	 * TX/RX code
-	 */
-	/* stats->rx_bytes            = 20; devstat->; */
-	/* stats->tx_bytes            = 20;  devstat->; */
-	/* stats->rx_dropped          = devstat->; */
-	/* stats->tx_dropped          = devstat->; */
-
-	/*  NOTE: Not used, can't find analogous statistics */
+	/* NOTE: Not used, can't find analogous statistics */
 	/* stats->rx_frame_errors     = devstat->; */
 	/* stats->rx_fifo_errors      = devstat->; */
 	/* stats->rx_missed_errors    = devstat->; */
