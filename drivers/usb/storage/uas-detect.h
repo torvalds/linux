@@ -73,8 +73,8 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	 * broken on the ASM1051, use the number of streams to differentiate.
 	 * New ASM1053-s also support 32 streams, but have a different prod-id.
 	 */
-	if (udev->descriptor.idVendor == 0x174c &&
-			udev->descriptor.idProduct == 0x55aa) {
+	if (le16_to_cpu(udev->descriptor.idVendor) == 0x174c &&
+			le16_to_cpu(udev->descriptor.idProduct) == 0x55aa) {
 		if (udev->speed < USB_SPEED_SUPER) {
 			/* No streams info, assume ASM1051 */
 			flags |= US_FL_IGNORE_UAS;
