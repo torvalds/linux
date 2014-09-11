@@ -2476,20 +2476,16 @@ err_free:
 int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 			 struct slave *slave)
 {
-	int ret = RX_HANDLER_ANOTHER;
 	struct lacpdu *lacpdu, _lacpdu;
 
 	if (skb->protocol != PKT_TYPE_LACPDU)
-		return ret;
+		return RX_HANDLER_ANOTHER;
 
 	lacpdu = skb_header_pointer(skb, 0, sizeof(_lacpdu), &_lacpdu);
 	if (!lacpdu)
-		return ret;
+		return RX_HANDLER_ANOTHER;
 
-	read_lock(&bond->curr_slave_lock);
-	ret = bond_3ad_rx_indication(lacpdu, slave, skb->len);
-	read_unlock(&bond->curr_slave_lock);
-	return ret;
+	return bond_3ad_rx_indication(lacpdu, slave, skb->len);
 }
 
 /**
