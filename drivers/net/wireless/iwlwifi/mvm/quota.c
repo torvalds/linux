@@ -309,16 +309,15 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			  "zero quota on binding %d\n", i);
 	}
 
-	if (send) {
-		err = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0,
-					   sizeof(cmd), &cmd);
-	} else {
+	if (!send) {
 		/* don't send a practically unchanged command, the firmware has
 		 * to re-initialize a lot of state and that can have an adverse
 		 * impact on it
 		 */
-		err = 0;
+		return 0;
 	}
+
+	err = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0, sizeof(cmd), &cmd);
 
 	if (err)
 		IWL_ERR(mvm, "Failed to send quota: %d\n", err);
