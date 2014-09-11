@@ -4137,10 +4137,8 @@ static void et131x_multicast(struct net_device *netdev)
 	else
 		adapter->packet_filter &= ~ET131X_PACKET_TYPE_PROMISCUOUS;
 
-	if (netdev->flags & IFF_ALLMULTI)
-		adapter->packet_filter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
-
-	if (netdev_mc_count(netdev) > NIC_MAX_MCAST_LIST)
+	if ((netdev->flags & IFF_ALLMULTI) ||
+	    (netdev_mc_count(netdev) > NIC_MAX_MCAST_LIST))
 		adapter->packet_filter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
 
 	if (netdev_mc_count(netdev) < 1) {
