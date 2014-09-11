@@ -532,7 +532,7 @@ bl_set_layoutdriver(struct nfs_server *server, const struct nfs_fh *fh)
 		return -EINVAL;
 	}
 
-	return nfs4_deviceid_getdevicelist(server, fh);
+	return 0;
 }
 
 static bool
