@@ -144,7 +144,12 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 
 	for (i = 0; i < c; ++i) {
 		rbo->placements[i].fpfn = 0;
-		rbo->placements[i].lpfn = 0;
+		if ((rbo->flags & RADEON_GEM_CPU_ACCESS) &&
+		    (rbo->placements[i].flags & TTM_PL_FLAG_VRAM))
+			rbo->placements[i].lpfn =
+				rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+		else
+			rbo->placements[i].lpfn = 0;
 	}
 
 	/*
@@ -152,7 +157,9 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	 * improve fragmentation quality.
 	 * 512kb was measured as the most optimal number.
 	 */
-	if (rbo->tbo.mem.size > 512 * 1024) {
+	if (!((rbo->flags & RADEON_GEM_CPU_ACCESS) &&
+	      (rbo->placements[i].flags & TTM_PL_FLAG_VRAM)) &&
+	    rbo->tbo.mem.size > 512 * 1024) {
 		for (i = 0; i < c; i++) {
 			rbo->placements[i].flags |= TTM_PL_FLAG_TOPDOWN;
 		}
@@ -304,18 +311,15 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 	}
 	radeon_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
-		unsigned lpfn = 0;
-
 		/* force to pin into visible video ram */
-		if (bo->placements[i].flags & TTM_PL_FLAG_VRAM)
-			lpfn = bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+		if ((bo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
+		    !(bo->flags & RADEON_GEM_NO_CPU_ACCESS) &&
+		    (!max_offset || max_offset > bo->rdev->mc.visible_vram_size))
+			bo->placements[i].lpfn =
+				bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
 		else
-			lpfn = bo->rdev->mc.gtt_size >> PAGE_SHIFT; /* ??? */
+			bo->placements[i].lpfn = max_offset >> PAGE_SHIFT;
 
-		if (max_offset)
-			lpfn = min (lpfn, (unsigned)(max_offset >> PAGE_SHIFT));
-
-		bo->placements[i].lpfn = lpfn;
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
 
