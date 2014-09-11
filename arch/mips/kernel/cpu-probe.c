@@ -1317,6 +1317,8 @@ void cpu_probe(void)
 				    MIPS_CPU_ISA_M64R1 | MIPS_CPU_ISA_M64R2)) {
 			if (c->fpu_id & MIPS_FPIR_3D)
 				c->ases |= MIPS_ASE_MIPS3D;
+			if (c->fpu_id & MIPS_FPIR_FREP)
+				c->options |= MIPS_CPU_FRE;
 		}
 	}
 
