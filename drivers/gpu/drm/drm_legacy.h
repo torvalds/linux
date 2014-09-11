@@ -100,4 +100,11 @@ void drm_legacy_free_buffer(struct drm_device *dev,
 void drm_legacy_reclaim_buffers(struct drm_device *dev,
 				struct drm_file *filp);
 
+/* Scatter Gather Support */
+void drm_legacy_sg_cleanup(struct drm_device *dev);
+int drm_legacy_sg_alloc(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int drm_legacy_sg_free(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv);
+
 #endif /* __DRM_LEGACY_H__ */

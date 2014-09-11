@@ -1300,13 +1300,6 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 
 extern int drm_vma_info(struct seq_file *m, void *data);
 
-				/* Scatter Gather Support (drm_scatter.h) */
-extern void drm_legacy_sg_cleanup(struct drm_device *dev);
-extern int drm_sg_alloc(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-extern int drm_sg_free(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-
 
 extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
 				       size_t align);
