@@ -462,6 +462,20 @@ static int psmouse_poll(struct psmouse *psmouse)
 			   PSMOUSE_CMD_POLL | (psmouse->pktsize << 8));
 }
 
+/*
+ * psmouse_matches_pnp_id - check if psmouse matches one of the passed in ids.
+ */
+bool psmouse_matches_pnp_id(struct psmouse *psmouse, const char * const ids[])
+{
+	int i;
+
+	if (!strncmp(psmouse->ps2dev.serio->firmware_id, "PNP:", 4))
+		for (i = 0; ids[i]; i++)
+			if (strstr(psmouse->ps2dev.serio->firmware_id, ids[i]))
+				return true;
+
+	return false;
+}
 
 /*
  * Genius NetMouse magic init.
