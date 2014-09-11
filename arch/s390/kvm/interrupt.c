@@ -28,7 +28,7 @@
 #define IOINT_AI_MASK 0x04000000
 #define PFAULT_INIT 0x0600
 
-static int deliver_ckc_interrupt(struct kvm_vcpu *vcpu);
+static int __must_check deliver_ckc_interrupt(struct kvm_vcpu *vcpu);
 
 static int is_ioint(u64 type)
 {
@@ -77,7 +77,7 @@ static u64 int_word_to_isc_bits(u32 int_word)
 	return (0x80 >> isc) << 24;
 }
 
-static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
+static int __must_check __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 				      struct kvm_s390_interrupt_info *inti)
 {
 	switch (inti->type) {
@@ -86,6 +86,7 @@ static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 			return 0;
 		if (vcpu->arch.sie_block->gcr[0] & 0x2000ul)
 			return 1;
+		return 0;
 	case KVM_S390_INT_EMERGENCY:
 		if (psw_extint_disabled(vcpu))
 			return 0;
@@ -225,7 +226,7 @@ static u16 get_ilc(struct kvm_vcpu *vcpu)
 	}
 }
 
-static int __deliver_prog_irq(struct kvm_vcpu *vcpu,
+static int __must_check __deliver_prog_irq(struct kvm_vcpu *vcpu,
 			      struct kvm_s390_pgm_info *pgm_info)
 {
 	int rc = 0;
@@ -307,7 +308,7 @@ static int __deliver_prog_irq(struct kvm_vcpu *vcpu,
 	return rc;
 }
 
-static int __do_deliver_interrupt(struct kvm_vcpu *vcpu,
+static int __must_check __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 				   struct kvm_s390_interrupt_info *inti)
 {
 	const unsigned short table[] = { 2, 4, 4, 6 };
@@ -508,7 +509,7 @@ static int __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 	return rc;
 }
 
-static int deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
+static int __must_check deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 {
 	int rc;
 
@@ -657,7 +658,7 @@ void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu)
 			  &vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].ctrl);
 }
 
-int kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
+int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
@@ -1351,7 +1352,6 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 		r = enqueue_floating_irq(dev, attr);
 		break;
 	case KVM_DEV_FLIC_CLEAR_IRQS:
-		r = 0;
 		kvm_s390_clear_float_irqs(dev->kvm);
 		break;
 	case KVM_DEV_FLIC_APF_ENABLE:

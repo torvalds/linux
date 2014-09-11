@@ -392,6 +392,22 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	return r;
 }
 
+static int kvm_s390_crypto_init(struct kvm *kvm)
+{
+	if (!test_vfacility(76))
+		return 0;
+
+	kvm->arch.crypto.crycb = kzalloc(sizeof(*kvm->arch.crypto.crycb),
+					 GFP_KERNEL | GFP_DMA);
+	if (!kvm->arch.crypto.crycb)
+		return -ENOMEM;
+
+	kvm->arch.crypto.crycbd = (__u32) (unsigned long) kvm->arch.crypto.crycb |
+				  CRYCB_FORMAT1;
+
+	return 0;
+}
+
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	int rc;
@@ -429,6 +445,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (!kvm->arch.dbf)
 		goto out_nodbf;
 
+	if (kvm_s390_crypto_init(kvm) < 0)
+		goto out_crypto;
+
 	spin_lock_init(&kvm->arch.float_int.lock);
 	INIT_LIST_HEAD(&kvm->arch.float_int.list);
 	init_waitqueue_head(&kvm->arch.ipte_wq);
@@ -439,7 +458,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (type & KVM_VM_S390_UCONTROL) {
 		kvm->arch.gmap = NULL;
 	} else {
-		kvm->arch.gmap = gmap_alloc(current->mm, -1UL);
+		kvm->arch.gmap = gmap_alloc(current->mm, (1UL << 44) - 1);
 		if (!kvm->arch.gmap)
 			goto out_nogmap;
 		kvm->arch.gmap->private = kvm;
@@ -453,6 +472,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	return 0;
 out_nogmap:
+	kfree(kvm->arch.crypto.crycb);
+out_crypto:
 	debug_unregister(kvm->arch.dbf);
 out_nodbf:
 	free_page((unsigned long)(kvm->arch.sca));
@@ -507,6 +528,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_free_vcpus(kvm);
 	free_page((unsigned long)(kvm->arch.sca));
 	debug_unregister(kvm->arch.dbf);
+	kfree(kvm->arch.crypto.crycb);
 	if (!kvm_is_ucontrol(kvm))
 		gmap_free(kvm->arch.gmap);
 	kvm_s390_destroy_adapters(kvm);
@@ -588,6 +610,14 @@ int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
+{
+	if (!test_vfacility(76))
+		return;
+
+	vcpu->arch.sie_block->crycbd = vcpu->kvm->arch.crypto.crycbd;
+}
+
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu)
 {
 	free_page(vcpu->arch.sie_block->cbrlo);
@@ -634,6 +664,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
 	get_cpu_id(&vcpu->arch.cpu_id);
 	vcpu->arch.cpu_id.version = 0xff;
+
+	kvm_s390_vcpu_crypto_setup(vcpu);
+
 	return rc;
 }
 
