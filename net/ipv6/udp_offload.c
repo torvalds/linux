@@ -138,7 +138,7 @@ static struct sk_buff **udp6_gro_receive(struct sk_buff **head,
 		goto flush;
 
 	/* Don't bother verifying checksum if we're going to flush anyway. */
-	if (!NAPI_GRO_CB(skb)->flush)
+	if (NAPI_GRO_CB(skb)->flush)
 		goto skip;
 
 	if (skb_gro_checksum_validate_zero_check(skb, IPPROTO_UDP, uh->check,
