@@ -556,9 +556,8 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 	}
 
 	err = -EADDRNOTAVAIL;
-	/*
-	 * changes to the ipv6_mc_list require the socket lock and
-	 * a read lock on ip6_sk_mc_lock. We have the socket lock,
+	/* changes to the ipv6_mc_list require the socket lock and
+	 * rtnl lock. We have the socket lock and rcu read lock,
 	 * so reading the list is safe.
 	 */
 
@@ -582,9 +581,8 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 	    copy_to_user(optval, gsf, GROUP_FILTER_SIZE(0))) {
 		return -EFAULT;
 	}
-	/* changes to psl require the socket lock, a read lock on
-	 * on ipv6_sk_mc_lock and a write lock on pmc->sflock. We
-	 * have the socket lock, so reading here is safe.
+	/* changes to psl require the socket lock, and a write lock
+	 * on pmc->sflock. We have the socket lock so reading here is safe.
 	 */
 	for (i = 0; i < copycount; i++) {
 		struct sockaddr_in6 *psin6;
@@ -2350,7 +2348,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 {
 	int err;
 
-	/* callers have the socket lock and a write lock on ipv6_sk_mc_lock,
+	/* callers have the socket lock and rtnl lock
 	 * so no other readers or writers of iml or its sflist
 	 */
 	if (!iml->sflist) {
