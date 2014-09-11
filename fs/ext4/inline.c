@@ -594,6 +594,7 @@ retry:
 	if (ret) {
 		unlock_page(page);
 		page_cache_release(page);
+		page = NULL;
 		ext4_orphan_add(handle, inode);
 		up_write(&EXT4_I(inode)->xattr_sem);
 		sem_held = 0;
@@ -613,7 +614,8 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
-	block_commit_write(page, from, to);
+	if (page)
+		block_commit_write(page, from, to);
 out:
 	if (page) {
 		unlock_page(page);
