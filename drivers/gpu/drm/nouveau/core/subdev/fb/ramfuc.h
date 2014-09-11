@@ -112,15 +112,15 @@ ramfuc_wait_vblank(struct ramfuc *ram)
 }
 
 static inline void
-ramfuc_fb_disable(struct ramfuc *ram)
+ramfuc_block(struct ramfuc *ram)
 {
-	nouveau_memx_fb_disable(ram->memx);
+	nouveau_memx_block(ram->memx);
 }
 
 static inline void
-ramfuc_fb_enable(struct ramfuc *ram)
+ramfuc_unblock(struct ramfuc *ram)
 {
-	nouveau_memx_fb_enable(ram->memx);
+	nouveau_memx_unblock(ram->memx);
 }
 
 #define ram_init(s,p)        ramfuc_init(&(s)->base, (p))
@@ -133,7 +133,7 @@ ramfuc_fb_enable(struct ramfuc *ram)
 #define ram_wait(s,r,m,d,n)  ramfuc_wait(&(s)->base, (r), (m), (d), (n))
 #define ram_nsec(s,n)        ramfuc_nsec(&(s)->base, (n))
 #define ram_wait_vblank(s)   ramfuc_wait_vblank(&(s)->base)
-#define ram_fb_disable(s)    ramfuc_fb_disable(&(s)->base)
-#define ram_fb_enable(s)     ramfuc_fb_enable(&(s)->base)
+#define ram_block(s)         ramfuc_block(&(s)->base)
+#define ram_unblock(s)       ramfuc_unblock(&(s)->base)
 
 #endif

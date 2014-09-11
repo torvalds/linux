@@ -151,21 +151,21 @@ nouveau_memx_wait_vblank(struct nouveau_memx *memx)
 }
 
 void
-nouveau_memx_fb_disable(struct nouveau_memx *memx)
+nouveau_memx_block(struct nouveau_memx *memx)
 {
 	struct nouveau_pwr *ppwr = memx->ppwr;
 
-	nv_debug(memx->ppwr, "   FB OFF\n");
-	nv_wr32(ppwr, 0x10a1c4, MEMX_FB_OFF);
+	nv_debug(memx->ppwr, "   HOST BLOCKED\n");
+	nv_wr32(ppwr, 0x10a1c4, MEMX_ENTER);
 }
 
 void
-nouveau_memx_fb_enable(struct nouveau_memx *memx)
+nouveau_memx_unblock(struct nouveau_memx *memx)
 {
 	struct nouveau_pwr *ppwr = memx->ppwr;
 
-	nv_debug(memx->ppwr, "   FB  ON\n");
-	nv_wr32(ppwr, 0x10a1c4, MEMX_FB_ON);
+	nv_debug(memx->ppwr, "   HOST UNBLOCKED\n");
+	nv_wr32(ppwr, 0x10a1c4, MEMX_LEAVE);
 }
 
 #endif
