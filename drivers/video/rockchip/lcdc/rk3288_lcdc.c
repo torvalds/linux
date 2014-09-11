@@ -1306,6 +1306,7 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	if ((open) && (!lcdc_dev->atv_layer_cnt)) {
 		rockchip_set_system_status(sys_status);
 		rk3288_lcdc_pre_init(dev_drv);
+		rk3288_lcdc_clk_enable(lcdc_dev);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (!dev_drv->mmu_dev) {
@@ -1314,16 +1315,16 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 				if (dev_drv->mmu_dev) {
 					rk_fb_platform_set_sysmmu(dev_drv->mmu_dev,
 					                          dev_drv->dev);
-                                        rockchip_iovmm_activate(dev_drv->dev);
                                 } else {
 					dev_err(dev_drv->dev,
 						"failed to get rockchip iommu device\n");
 					return -1;
 				}
 			}
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_activate(dev_drv->dev);
 		}
 #endif
-		rk3288_lcdc_clk_enable(lcdc_dev);
 		rk3288_lcdc_reg_restore(lcdc_dev);
 		if (dev_drv->iommu_enabled)
 			rk3288_lcdc_mmu_en(dev_drv);
