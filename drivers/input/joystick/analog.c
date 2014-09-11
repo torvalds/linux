@@ -36,12 +36,17 @@
 #include <linux/gameport.h>
 #include <linux/jiffies.h>
 #include <linux/timex.h>
+#include <linux/timekeeping.h>
 
 #define DRIVER_DESC	"Analog joystick and gamepad driver"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+
+static bool use_ktime = true;
+module_param(use_ktime, bool, 0400);
+MODULE_PARM_DESC(use_ktime, "Use ktime for measuring I/O speed");
 
 /*
  * Option parsing.
@@ -171,6 +176,25 @@ static unsigned long analog_faketime = 0;
 #warning Precise timer not defined for this architecture.
 #endif
 
+static inline u64 get_time(void)
+{
+	if (use_ktime) {
+		return ktime_get_ns();
+	} else {
+		unsigned int x;
+		GET_TIME(x);
+		return x;
+	}
+}
+
+static inline unsigned int delta(u64 x, u64 y)
+{
+	if (use_ktime)
+		return y - x;
+	else
+		return DELTA((unsigned int)x, (unsigned int)y);
+}
+
 /*
  * analog_decode() decodes analog joystick data and reports input events.
  */
@@ -226,7 +250,8 @@ static void analog_decode(struct analog *analog, int *axes, int *initial, int bu
 static int analog_cooked_read(struct analog_port *port)
 {
 	struct gameport *gameport = port->gameport;
-	unsigned int time[4], start, loop, now, loopout, timeout;
+	u64 time[4], start, loop, now;
+	unsigned int loopout, timeout;
 	unsigned char data[4], this, last;
 	unsigned long flags;
 	int i, j;
@@ -236,7 +261,7 @@ static int analog_cooked_read(struct analog_port *port)
 
 	local_irq_save(flags);
 	gameport_trigger(gameport);
-	GET_TIME(now);
+	now = get_time();
 	local_irq_restore(flags);
 
 	start = now;
@@ -249,16 +274,16 @@ static int analog_cooked_read(struct analog_port *port)
 
 		local_irq_disable();
 		this = gameport_read(gameport) & port->mask;
-		GET_TIME(now);
+		now = get_time();
 		local_irq_restore(flags);
 
-		if ((last ^ this) && (DELTA(loop, now) < loopout)) {
+		if ((last ^ this) && (delta(loop, now) < loopout)) {
 			data[i] = last ^ this;
 			time[i] = now;
 			i++;
 		}
 
-	} while (this && (i < 4) && (DELTA(start, now) < timeout));
+	} while (this && (i < 4) && (delta(start, now) < timeout));
 
 	this <<= 4;
 
@@ -266,7 +291,7 @@ static int analog_cooked_read(struct analog_port *port)
 		this |= data[i];
 		for (j = 0; j < 4; j++)
 			if (data[i] & (1 << j))
-				port->axes[j] = (DELTA(start, time[i]) << ANALOG_FUZZ_BITS) / port->loop;
+				port->axes[j] = (delta(start, time[i]) << ANALOG_FUZZ_BITS) / port->loop;
 	}
 
 	return -(this != port->mask);
@@ -365,31 +390,39 @@ static void analog_close(struct input_dev *dev)
 static void analog_calibrate_timer(struct analog_port *port)
 {
 	struct gameport *gameport = port->gameport;
-	unsigned int i, t, tx, t1, t2, t3;
+	unsigned int i, t, tx;
+	u64 t1, t2, t3;
 	unsigned long flags;
 
-	local_irq_save(flags);
-	GET_TIME(t1);
+	if (use_ktime) {
+		port->speed = 1000000;
+	} else {
+		local_irq_save(flags);
+		t1 = get_time();
 #ifdef FAKE_TIME
-	analog_faketime += 830;
+		analog_faketime += 830;
 #endif
-	mdelay(1);
-	GET_TIME(t2);
-	GET_TIME(t3);
-	local_irq_restore(flags);
+		mdelay(1);
+		t2 = get_time();
+		t3 = get_time();
+		local_irq_restore(flags);
 
-	port->speed = DELTA(t1, t2) - DELTA(t2, t3);
+		port->speed = delta(t1, t2) - delta(t2, t3);
+	}
 
 	tx = ~0;
 
 	for (i = 0; i < 50; i++) {
 		local_irq_save(flags);
-		GET_TIME(t1);
-		for (t = 0; t < 50; t++) { gameport_read(gameport); GET_TIME(t2); }
-		GET_TIME(t3);
+		t1 = get_time();
+		for (t = 0; t < 50; t++) {
+			gameport_read(gameport);
+			t2 = get_time();
+		}
+		t3 = get_time();
 		local_irq_restore(flags);
 		udelay(i);
-		t = DELTA(t1, t2) - DELTA(t2, t3);
+		t = delta(t1, t2) - delta(t2, t3);
 		if (t < tx) tx = t;
 	}
 
