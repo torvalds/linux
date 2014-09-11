@@ -18,6 +18,8 @@
 
 #include "greybus.h"
 
+#include "kernel_ver.h"
+
 /* Function fields */
 #define greybus_function_attr(field)					\
 static ssize_t function_##field##_show(struct device *dev,		\

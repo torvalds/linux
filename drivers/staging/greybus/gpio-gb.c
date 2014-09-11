@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/gpio/driver.h>
+#include <linux/gpio.h>
 #include "greybus.h"
 
 struct gb_gpio_device {
@@ -90,10 +90,11 @@ int gb_gpio_probe(struct greybus_device *gdev,
 void gb_gpio_disconnect(struct greybus_device *gdev)
 {
 	struct gb_gpio_device *gb_gpio_dev;
+	int retval;
 
 	gb_gpio_dev = gdev->gb_gpio_dev;
 
-	gpiochip_remove(&gb_gpio_dev->chip);
+	retval = gpiochip_remove(&gb_gpio_dev->chip);
 	kfree(gb_gpio_dev);
 }
 
