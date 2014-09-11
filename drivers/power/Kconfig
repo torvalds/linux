@@ -392,6 +392,11 @@ config CHARGER_MAX8998
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX8998/LP3974 PMICs.
 
+config BATTERY_RK30_ADC_FAC
+        tristate "RK30 ADC Battery Factory"
+        help
+          Say Y to enable support for the battery on the RK30.
+
 config CHARGER_BQ2415X
 	tristate "TI BQ2415x battery charger driver"
 	depends on I2C
