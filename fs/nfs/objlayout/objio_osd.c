@@ -93,7 +93,7 @@ objio_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 	struct osd_dev *od;
 	struct osd_dev_info odi;
 	bool retry_flag = true;
-	u32 *p;
+	__be32 *p;
 	int err;
 
 	deviceaddr = kzalloc(sizeof(*deviceaddr), gfp_flags);
