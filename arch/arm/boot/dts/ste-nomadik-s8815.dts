@@ -65,6 +65,13 @@
 		};
 	};
 
+	/* Configure card detect for the uSD slot */
+	amba {
+		mmcsd: sdi@101f6000 {
+			cd-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	/* Custom board node with GPIO pins to active etc */
 	usb-s8815 {
 		/* This will bias the MMC/SD card detect line */
