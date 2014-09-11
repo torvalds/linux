@@ -1279,8 +1279,13 @@ M:	Heiko Stuebner <heiko@sntech.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
+F:	arch/arm/boot/dts/rk3*
 F:	arch/arm/mach-rockchip/
+F:	drivers/clk/rockchip/
+F:	drivers/i2c/busses/i2c-rk3x.c
 F:	drivers/*/*rockchip*
+F:	drivers/*/*/*rockchip*
+F:	sound/soc/rockchip/
 
 ARM/SAMSUNG ARM ARCHITECTURES
 M:	Ben Dooks <ben-linux@fluff.org>
@@ -9556,6 +9561,14 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
+
+USB OVER IP DRIVER
+M:	Valentina Manea <valentina.manea.m@gmail.com>
+M:	Shuah Khan <shuah.kh@samsung.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/usbip/
+F:	tools/usb/usbip/
 
 USB PEGASUS DRIVER
 M:	Petko Manolov <petkan@nucleusys.com>

@@ -25,9 +25,11 @@
 #include <asm/debugreg.h>
 #include <asm/kexec-bzimage64.h>
 
+#ifdef CONFIG_KEXEC_FILE
 static struct kexec_file_ops *kexec_file_loaders[] = {
 		&kexec_bzImage64_ops,
 };
+#endif
 
 static void free_transition_pgtable(struct kimage *image)
 {
@@ -178,6 +180,7 @@ static void load_segments(void)
 		);
 }
 
+#ifdef CONFIG_KEXEC_FILE
 /* Update purgatory as needed after various image segments have been prepared */
 static int arch_update_purgatory(struct kimage *image)
 {
@@ -209,6 +212,12 @@ static int arch_update_purgatory(struct kimage *image)
 
 	return ret;
 }
+#else /* !CONFIG_KEXEC_FILE */
+static inline int arch_update_purgatory(struct kimage *image)
+{
+	return 0;
+}
+#endif /* CONFIG_KEXEC_FILE */
 
 int machine_kexec_prepare(struct kimage *image)
 {
@@ -329,6 +338,7 @@ void arch_crash_save_vmcoreinfo(void)
 
 /* arch-dependent functionality related to kexec file-based syscall */
 
+#ifdef CONFIG_KEXEC_FILE
 int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
 				  unsigned long buf_len)
 {
@@ -522,3 +532,4 @@ overflow:
 	       (int)ELF64_R_TYPE(rel[i].r_info), value);
 	return -ENOEXEC;
 }
+#endif /* CONFIG_KEXEC_FILE */

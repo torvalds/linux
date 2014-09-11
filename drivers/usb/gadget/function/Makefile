@@ -2,8 +2,8 @@
 # USB peripheral controller drivers
 #
 
-ccflags-y			:= -I$(PWD)/drivers/usb/gadget/
-ccflags-y			+= -I$(PWD)/drivers/usb/gadget/udc/
+ccflags-y			:= -Idrivers/usb/gadget/
+ccflags-y			+= -Idrivers/usb/gadget/udc/
 
 # USB Functions
 usb_f_acm-y			:= f_acm.o

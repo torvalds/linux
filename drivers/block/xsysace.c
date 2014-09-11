@@ -1203,7 +1203,6 @@ static struct platform_driver ace_platform_driver = {
 	.probe = ace_probe,
 	.remove = ace_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "xsysace",
 		.of_match_table = ace_of_match,
 	},

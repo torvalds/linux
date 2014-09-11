@@ -2880,6 +2880,9 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 			ep_index, ep->stopped_stream, ep->stopped_td,
 			&deq_state);
 
+	if (!deq_state.new_deq_ptr || !deq_state.new_deq_seg)
+		return;
+
 	/* HW with the reset endpoint quirk will use the saved dequeue state to
 	 * issue a configure endpoint command later.
 	 */

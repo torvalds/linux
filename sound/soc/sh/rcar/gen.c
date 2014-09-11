@@ -247,7 +247,7 @@ rsnd_gen2_dma_addr(struct rsnd_priv *priv,
 	};
 
 	/* it shouldn't happen */
-	if (use_dvc & !use_src)
+	if (use_dvc && !use_src)
 		dev_err(dev, "DVC is selected without SRC\n");
 
 	/* use SSIU or SSI ? */
