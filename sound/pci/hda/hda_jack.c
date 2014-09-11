@@ -214,29 +214,39 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_detect_state);
 
 /**
  * snd_hda_jack_detect_enable - enable the jack-detection
+ *
+ * In the case of error, the return value will be a pointer embedded with
+ * errno.  Check and handle the return value appropriately with standard
+ * macros such as @IS_ERR() and @PTR_ERR().
  */
-int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
-					hda_jack_callback cb)
+struct hda_jack_tbl *
+snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
+				    hda_jack_callback cb)
 {
 	struct hda_jack_tbl *jack = snd_hda_jack_tbl_new(codec, nid);
+	int err;
+
 	if (!jack)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	if (jack->jack_detect)
-		return 0; /* already registered */
+		return jack; /* already registered */
 	jack->jack_detect = 1;
 	if (cb)
 		jack->callback = cb;
 	if (codec->jackpoll_interval > 0)
-		return 0; /* No unsol if we're polling instead */
-	return snd_hda_codec_write_cache(codec, nid, 0,
+		return jack; /* No unsol if we're polling instead */
+	err = snd_hda_codec_write_cache(codec, nid, 0,
 					 AC_VERB_SET_UNSOLICITED_ENABLE,
 					 AC_USRSP_EN | jack->tag);
+	if (err < 0)
+		return ERR_PTR(err);
+	return jack;
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_detect_enable_callback);
 
 int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid)
 {
-	return snd_hda_jack_detect_enable_callback(codec, nid, NULL);
+	return PTR_ERR_OR_ZERO(snd_hda_jack_detect_enable_callback(codec, nid, NULL));
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_detect_enable);
 

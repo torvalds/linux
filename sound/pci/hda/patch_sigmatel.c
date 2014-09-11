@@ -3019,10 +3019,9 @@ static void stac92hd71bxx_fixup_hp_m4(struct hda_codec *codec,
 	/* Enable VREF power saving on GPIO1 detect */
 	snd_hda_codec_write_cache(codec, codec->afg, 0,
 				  AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
-	snd_hda_jack_detect_enable_callback(codec, codec->afg,
-					    stac_vref_event);
-	jack = snd_hda_jack_tbl_get(codec, codec->afg);
-	if (jack)
+	jack = snd_hda_jack_detect_enable_callback(codec, codec->afg,
+						   stac_vref_event);
+	if (!IS_ERR(jack))
 		jack->private_data = 0x02;
 
 	spec->gpio_mask |= 0x02;
@@ -4042,10 +4041,9 @@ static void stac9205_fixup_dell_m43(struct hda_codec *codec,
 		/* Enable unsol response for GPIO4/Dock HP connection */
 		snd_hda_codec_write_cache(codec, codec->afg, 0,
 			AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x10);
-		snd_hda_jack_detect_enable_callback(codec, codec->afg,
-						    stac_vref_event);
-		jack = snd_hda_jack_tbl_get(codec, codec->afg);
-		if (jack)
+		jack = snd_hda_jack_detect_enable_callback(codec, codec->afg,
+							   stac_vref_event);
+		if (!IS_ERR(jack))
 			jack->private_data = 0x01;
 
 		spec->gpio_dir = 0x0b;

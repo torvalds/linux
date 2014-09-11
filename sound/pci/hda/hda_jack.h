@@ -47,8 +47,9 @@ void snd_hda_jack_tbl_clear(struct hda_codec *codec);
 void snd_hda_jack_set_dirty_all(struct hda_codec *codec);
 
 int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid);
-int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
-					hda_jack_callback cb);
+struct hda_jack_tbl *
+snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
+				    hda_jack_callback cb);
 
 int snd_hda_jack_set_gating_jack(struct hda_codec *codec, hda_nid_t gated_nid,
 				 hda_nid_t gating_nid);
