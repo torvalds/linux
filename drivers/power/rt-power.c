@@ -58,135 +58,164 @@ static int rtpower_set_charger(struct rt_power_info *pi)
 
 	chg_psy = power_supply_get_by_name("rt-charger");
 	if (chg_psy) {
-		rc = chg_psy->get_property(chg_psy, POWER_SUPPLY_PROP_ONLINE, &pval);
+		rc = chg_psy->get_property(chg_psy, POWER_SUPPLY_PROP_ONLINE,
+					   &pval);
 		if (rc < 0)
 			dev_err(pi->dev, "get chg online prop fail\n");
 		else
 			is_chg_on = pval.intval;
 		if (pi->ac_online) {
 			pval.intval = pi->acchg_icc;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CURRENT_AVG,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CURRENT_AVG,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set acchg aicr fail\n");
 			pval.intval = 500;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CURRENT_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CURRENT_NOW,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set acchg icc fail\n");
 			pval.intval = POWER_SUPPLY_TYPE_MAINS;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CHARGE_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CHARGE_NOW,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set charge cable fail\n");
 			if (!is_chg_on) {
 				pval.intval = pi->chg_volt;
-				rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,\
+				rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_VOLTAGE_NOW,
 					&pval);
 				if (rc < 0)
-					dev_err(pi->dev, "set chg voltage fail\n");
+					dev_err(pi->dev,
+						"set chg voltage fail\n");
 				pval.intval = 1;
-				rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_ONLINE,\
+				rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_ONLINE,
 					&pval);
 				if (rc < 0)
-					dev_err(pi->dev, "set charger online fail\n");
+					dev_err(pi->dev,
+						"set charger online fail\n");
 			}
 			pval.intval = 1;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_PRESENT,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_PRESENT,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set charger present fail\n");
 		} else if (pi->usbta_online) {
 			pval.intval = pi->usbtachg_icc;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CURRENT_AVG,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CURRENT_AVG,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set usbtachg aicr fail\n");
 			pval.intval = 500;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CURRENT_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CURRENT_NOW,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set usbtachg icc fail\n");
 			pval.intval = POWER_SUPPLY_TYPE_USB_DCP;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CHARGE_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CHARGE_NOW,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set charge cable fail\n");
 			if (!is_chg_on) {
 				pval.intval = pi->chg_volt;
-				rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,\
-					&pval);
+				rc = chg_psy->set_property(chg_psy,
+						POWER_SUPPLY_PROP_VOLTAGE_NOW,
+						&pval);
 				if (rc < 0)
-					dev_err(pi->dev, "set chg voltage fail\n");
+					dev_err(pi->dev,
+						"set chg voltage fail\n");
 				pval.intval = 1;
-				rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_ONLINE,\
-					&pval);
+				rc = chg_psy->set_property(chg_psy,
+						POWER_SUPPLY_PROP_ONLINE,
+						&pval);
 				if (rc < 0)
-					dev_err(pi->dev, "set charger online fail\n");
+					dev_err(pi->dev,
+						"set charger online fail\n");
 			}
 			pval.intval = 1;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_PRESENT,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+						POWER_SUPPLY_PROP_PRESENT,
+						&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set charger present fail\n");
 		} else if (pi->usb_online) {
 			pval.intval = pi->usbchg_icc;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CURRENT_AVG,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CURRENT_AVG,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set usbchg aicr fail\n");
 			pval.intval = 500;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CURRENT_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CURRENT_NOW,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set usbchg icc fail\n");
 			pval.intval = POWER_SUPPLY_TYPE_USB;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CHARGE_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CHARGE_NOW,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set charge cable fail\n");
 			if (!is_chg_on) {
 				pval.intval = pi->chg_volt;
-				rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,\
-					&pval);
+				rc = chg_psy->set_property(chg_psy,
+						POWER_SUPPLY_PROP_VOLTAGE_NOW,
+						&pval);
 				if (rc < 0)
-					dev_err(pi->dev, "set chg voltage fail\n");
+					dev_err(pi->dev,
+						"set chg voltage fail\n");
 				pval.intval = 1;
-				rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_ONLINE,\
-					&pval);
+				rc = chg_psy->set_property(chg_psy,
+						POWER_SUPPLY_PROP_ONLINE,
+						&pval);
 				if (rc < 0)
-					dev_err(pi->dev, "set charger online fail\n");
+					dev_err(pi->dev,
+						"set charger online fail\n");
 			}
 			pval.intval = 1;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_PRESENT,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+						   POWER_SUPPLY_PROP_PRESENT,
+						   &pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set charger present fail\n");
-
 		} else {
 			pval.intval = 0;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_ONLINE,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+						   POWER_SUPPLY_PROP_ONLINE,
+						   &pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set charger online fail\n");
 			pval.intval = 0;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CHARGE_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+						   POWER_SUPPLY_PROP_CHARGE_NOW,
+						   &pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set charge cable fail\n");
 			pval.intval = pi->chg_volt;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_VOLTAGE_NOW,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set chg voltage fail\n");
 			pval.intval = 500;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CURRENT_AVG,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CURRENT_AVG,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set chg aicr fail\n");
 			pval.intval = 500;
-			rc = chg_psy->set_property(chg_psy, POWER_SUPPLY_PROP_CURRENT_NOW,\
-				&pval);
+			rc = chg_psy->set_property(chg_psy,
+					POWER_SUPPLY_PROP_CURRENT_NOW,
+					&pval);
 			if (rc < 0)
 				dev_err(pi->dev, "set chg icc fail\n");
 		}
@@ -198,8 +227,9 @@ static int rtpower_set_charger(struct rt_power_info *pi)
 	return rc;
 }
 
-static int rtpower_get_property(struct power_supply *psy, enum power_supply_property psp, \
-			union power_supply_propval *val)
+static int rtpower_get_property(struct power_supply *psy,
+				enum power_supply_property psp,
+				union power_supply_propval *val)
 {
 	struct rt_power_info *pi = dev_get_drvdata(psy->dev->parent);
 	int rc = 0;
@@ -207,7 +237,8 @@ static int rtpower_get_property(struct power_supply *psy, enum power_supply_prop
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		if (psy->type == POWER_SUPPLY_TYPE_MAINS)
-			val->intval = (pi->ac_online || pi->usbta_online)?1 : 0;
+			val->intval = (pi->ac_online
+				       || pi->usbta_online) ? 1 : 0;
 		else if (psy->type == POWER_SUPPLY_TYPE_USB)
 			val->intval = pi->usb_online;
 		else
@@ -220,7 +251,8 @@ static int rtpower_get_property(struct power_supply *psy, enum power_supply_prop
 	return rc;
 }
 
-static int rtpower_set_property(struct power_supply *psy, enum power_supply_property psp, \
+static int rtpower_set_property(struct power_supply *psy,
+				enum power_supply_property psp,
 				const union power_supply_propval *val)
 {
 	struct rt_power_info *pi = dev_get_drvdata(psy->dev->parent);
@@ -239,13 +271,16 @@ static int rtpower_set_property(struct power_supply *psy, enum power_supply_prop
 				if (val->intval) {
 					pi->usbcnt = 0;
 					wake_lock(&pi->usbdet_wakelock);
-					schedule_delayed_work(&pi->usbdet_work, 1*HZ);
+					schedule_delayed_work(&pi->usbdet_work,
+							      1 * HZ);
 				} else {
 					pi->usbcnt = RT_USBCNT_MAX;
-					schedule_delayed_work(&pi->usbdet_work, 0);
+					schedule_delayed_work(&pi->usbdet_work,
+							      0);
 					if (pi->usbta_online) {
 						pi->usbta_online = 0;
-						power_supply_changed(&pi->ac_psy);
+						power_supply_changed
+						    (&pi->ac_psy);
 					}
 				}
 				rc = rtpower_set_charger(pi);

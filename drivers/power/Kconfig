@@ -71,21 +71,6 @@ config CHARGER_RT5025
 	help
 	  Enable RT5025 Charger driver.
 
-config RT_POWER
-	bool "RT5025 PMIC cable report"
-	depends on CHARGER_RT5025
-	default n
-	help
-	  Enable AC/USB report.
-
-config RT_SUPPORT_ACUSB_DUALIN
-	bool "RT AC/USB Dualin Option"
-	depends on RT_POWER
-	default n
-	help
-	  Say Y here to enable dualin, otherwise
-	  N is just singlein.
-
 config BATTERY_RT5025
 	bool "RT5025 PMIC ADC Type gauge driver"
 	depends on MFD_RT5025
@@ -100,6 +85,34 @@ config RT_JEITA_REMOVE
 	help
 	  Say Y here to remove Jeita function.
 
+config CHARGER_RT5036
+	bool "RT5036 charger support"
+	depends on MFD_RT5036
+	default n
+	help
+	  Say Y here to enable support for RT5036 chip charger subdevice.
+
+config RT_POWER
+	bool "RT PMIC cable report"
+	depends on CHARGER_RT5036 || CHARGER_RT5025
+	default n
+	help
+	  Enable AC/USB report.
+
+config RT_SUPPORT_ACUSB_DUALIN
+	bool "RT AC/USB Dualin Option"
+	depends on RT_POWER
+	default n
+	help
+	  Say Y here to enable dualin, otherwise
+	  N is just singlein.
+
+config RT_BATTERY
+	bool "RT Test Battery"
+	depends on CHARGER_RT5036
+	default n
+	help
+	  Enable Test Battery report.
 
 config BATTERY_RICOH619
 	tristate "Ricoh RC5T619 PMIC battery driver"

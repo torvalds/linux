@@ -1,6 +1,6 @@
 /*
- *  include/linux/power/rt-power.h
- *  Include header file for Richtek Richtek Power Driver
+ *  include/linux/power/rt-battery.h
+ *  Include header file for Richtek Richtek Battery Driver
  *
  *  Copyright (C) 2014 Richtek Technology Corp.
  *  cy_huang <cy_huang@richtek.com>
@@ -11,17 +11,9 @@
  * of the License, or (at your option) any later version.
  */
 
-#ifndef __LINUX_RT_POWER_H
-#define __LINUX_RT_POWER_H
+#ifndef __LINUX_RT_BATTERY_H
+#define __LINUX_RT_BATTERY_H
 
-#define RT_AC_NAME	"rt-ac"
-#define RT_USB_NAME	"rt-usb"
+#define RT_BATT_NAME	"rt-battery"
 
-struct rt_power_data {
-	int chg_volt;
-	int acchg_icc;
-	int usbtachg_icc;
-	int usbchg_icc;
-};
-#endif /* #ifndef __LINUX_RT_POWER_H */
-
+#endif /* #ifndef __LINUX_RT_BATTERY_H */
