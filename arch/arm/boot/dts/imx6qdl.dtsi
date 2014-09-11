@@ -407,8 +407,9 @@
 				reg = <0x02098000 0x4000>;
 				interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6QDL_CLK_GPT_IPG>,
-					 <&clks IMX6QDL_CLK_GPT_IPG_PER>;
-				clock-names = "ipg", "per";
+					 <&clks IMX6QDL_CLK_GPT_IPG_PER>,
+					 <&clks IMX6QDL_CLK_GPT_3M>;
+				clock-names = "ipg", "per", "osc_per";
 			};
 
 			gpio1: gpio@0209c000 {
