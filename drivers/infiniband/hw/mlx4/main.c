@@ -1645,6 +1645,10 @@ static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
 
 	atomic64_set(&ibdev->iboe.mac[port - 1], new_smac);
 
+	/* no need for update QP1 and mac registration in non-SRIOV */
+	if (!mlx4_is_mfunc(ibdev->dev))
+		return;
+
 	mutex_lock(&ibdev->qp1_proxy_lock[port - 1]);
 	qp = ibdev->qp1_proxy[port - 1];
 	if (qp) {
