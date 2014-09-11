@@ -437,6 +437,22 @@ static int soc_camera_prepare_buf(struct file *file, void *priv,
 		return vb2_prepare_buf(&icd->vb2_vidq, b);
 }
 
+static int soc_camera_expbuf(struct file *file, void *priv,
+			     struct v4l2_exportbuffer *p)
+{
+	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
+	if (icd->streamer != file)
+		return -EBUSY;
+
+	/* videobuf2 only */
+	if (ici->ops->init_videobuf)
+		return -EINVAL;
+	else
+		return vb2_expbuf(&icd->vb2_vidq, p);
+}
+
 /* Always entered with .host_lock held */
 static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 {
@@ -2083,6 +2099,7 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_dqbuf		 = soc_camera_dqbuf,
 	.vidioc_create_bufs	 = soc_camera_create_bufs,
 	.vidioc_prepare_buf	 = soc_camera_prepare_buf,
+	.vidioc_expbuf		 = soc_camera_expbuf,
 	.vidioc_streamon	 = soc_camera_streamon,
 	.vidioc_streamoff	 = soc_camera_streamoff,
 	.vidioc_cropcap		 = soc_camera_cropcap,
