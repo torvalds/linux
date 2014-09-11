@@ -205,23 +205,30 @@ static int rt5025_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int rt5025_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
+static int rt5025_i2c_suspend(struct device *dev)
 {
-	struct rt5025_chip *chip = i2c_get_clientdata(client);
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct rt5025_chip *chip = i2c_get_clientdata(i2c);
 
+	RTINFO("\n");
 	chip->suspend = 1;
-	RTINFO("\n");
 	return 0;
 }
 
-static int rt5025_i2c_resume(struct i2c_client *client)
+static int rt5025_i2c_resume(struct device *dev)
 {
-	struct rt5025_chip *chip = i2c_get_clientdata(client);
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct rt5025_chip *chip = i2c_get_clientdata(i2c);
 
-	chip->suspend = 0;
 	RTINFO("\n");
+	chip->suspend = 0;
 	return 0;
 }
+
+static const struct dev_pm_ops rt5025_pm_ops = {
+	.suspend = rt5025_i2c_suspend,
+	.resume =  rt5025_i2c_resume,
+};
 
 static const struct i2c_device_id rt5025_id_table[] = {
 	{ RT5025_DEV_NAME, 0 },
@@ -238,12 +245,11 @@ static struct i2c_driver rt5025_i2c_driver = {
 	.driver	= {
 		.name	= RT5025_DEV_NAME,
 		.owner	= THIS_MODULE,
+		 .pm = &rt5025_pm_ops,
 		.of_match_table = rt_match_table,
 	},
 	.probe		= rt5025_i2c_probe,
 	.remove		= rt5025_i2c_remove,
-	.suspend	= rt5025_i2c_suspend,
-	.resume		= rt5025_i2c_resume,
 	.id_table	= rt5025_id_table,
 };
 

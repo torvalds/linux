@@ -64,7 +64,7 @@ enum {
 #define m_VIDEO_OUTPUT_FORMAT	(3 << 6)
 #define m_VIDEO_INPUT_BITS	(3 << 4)
 #define m_VIDEO_INPUT_CSP	(1 << 0)
-#define v_VIDEO_OUTPUT_FORMAT(n)(n << 6)
+#define v_VIDEO_OUTPUT_FORMAT(n) (((n)&0x3) << 6)
 #define v_VIDEO_INPUT_BITS(n)	(n << 4)
 #define v_VIDEO_INPUT_CSP(n)	(n << 0)
 

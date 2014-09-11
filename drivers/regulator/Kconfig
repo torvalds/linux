@@ -269,6 +269,12 @@ config REGULATOR_RT5025
 	help
 	  This driver supports voltage regulator in RT5025 PMIC chips.
 
+config REGULATOR_RT5036
+	bool "RT5036 regulator support"
+	depends on MFD_RT5036
+	help
+	  This driver support voltage regulator in Richtek RT5036.
+
 config ROCKCHIP_PWM_REGULATOR
 	tristate "rockchip pwm voltage regulator for discrete dcdc or ldo"
 	help

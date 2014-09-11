@@ -69,5 +69,6 @@ obj-$(CONFIG_SND_RK_SOC_RK3026) += snd-soc-rk3026.o
 obj-$(CONFIG_SND_RK_SOC_RK3190) += snd-soc-rk3190.o
 obj-$(CONFIG_SND_RK_SOC_RT5512) += snd-soc-rt5512.o
 obj-$(CONFIG_SND_RK_SOC_CX2070X) += snd-soc-cx2070x.o
+obj-$(CONFIG_SND_RK_SOC_CARD_SPDIF) += snd-soc-hdmi-spdif.o
 obj-$(CONFIG_SND_RK_SOC_HDMI_I2S) += snd-soc-hdmi-i2s.o
 obj-$(CONFIG_SND_RK_SOC_HDMI_SPDIF) += snd-soc-hdmi-spdif.o

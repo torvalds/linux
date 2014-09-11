@@ -63,3 +63,5 @@ obj-$(CONFIG_BATTERY_RK818)     += rk818_battery.o
 obj-$(CONFIG_CHARGER_RT5025)	+= rt5025-charger.o
 obj-$(CONFIG_RT_POWER)		+= rt-power.o
 obj-$(CONFIG_BATTERY_RT5025)	+= rt5025-battery.o
+obj-$(CONFIG_CHARGER_RT5036)	+= rt5036-charger.o
+obj-$(CONFIG_RT_BATTERY)	+= rt-battery.o

@@ -33,6 +33,14 @@ choice
 endchoice
 endif #SND_RK_SOC && RK_HDMI
 
+config SND_RK_SOC_CARD_SPDIF
+	tristate "SoC spdif card support for rockchip"
+	depends on !SND_RK_SOC_HDMI_SPDIF
+		select SND_RK_SOC_SPDIF
+		select SND_SOC_HDMI_SPDIF
+
+
+
 config SND_RK_SOC_AK4396
 	tristate "SoC I2S Audio support for rockchip - AK4396"
 	depends on SND_RK_SOC

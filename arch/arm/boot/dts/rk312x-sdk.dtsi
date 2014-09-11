@@ -172,7 +172,12 @@
 	rt5025: rt5025@35 {
 			compatible = "rt,rt5025";
 			reg = <0x35>;
-			status = "okay";
+			status = "disabled";
+	};
+	rt5036: rt5036@38 {
+			compatible = "rt,rt5036";
+			reg = <0x38>;
+			status = "disabled";
 	};
 };
 
@@ -303,6 +308,136 @@
 				compatible = "rt,rt5025-irq";
 				rt,irq-gpio = <&gpio1 GPIO_B1 GPIO_ACTIVE_HIGH>;
 	};
+};
+
+/include/ "rt5036.dtsi"
+&rt5036 {
+
+			rt5036_dcdc1: regulator_0 {
+				regulator-name = "vdd_arm";
+				regulator-min-microvolt = < 800000>;
+				regulator-max-microvolt = <3300000>;
+				qcom,comsumer-supplies = "vdd_arm", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+				rt,standby_vol = <950000>; 
+			};
+
+			rt5036_dcdc2: regulator_1 {
+				regulator-name = "vdd_logic";
+				regulator-min-microvolt = < 800000>;
+				regulator-max-microvolt = <3300000>;
+				qcom,comsumer-supplies = "vdd_logic", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+				rt,standby_vol = <950000>; 
+			};
+
+			rt5036_dcdc3: regulator_2 {
+				regulator-name = "rt5036-dcdc3";
+				regulator-min-microvolt = < 800000>;
+				regulator-max-microvolt = <3300000>;
+				qcom,comsumer-supplies = "rt5036-dcdc3", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+				rt,standby_vol = <2800000>; 
+			};
+
+			rt5036_dcdc4: regulator_3 {
+				regulator-name = "rt5036-dcdc4";
+				regulator-min-microvolt = < 800000>;
+				regulator-max-microvolt = <3300000>;
+				qcom,comsumer-supplies = "rt5036-dcdc4", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+				rt,standby_vol = <1200000>; 
+			};
+
+			rt5036_ldo1: regulator_4 {
+				regulator-name = "rt5036-ldo1";
+				regulator-min-microvolt = < 3000000>;
+				regulator-max-microvolt = <3000000>;
+				qcom,comsumer-supplies = "rt5036-ldo1", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+				rt,standby_vol = <3000000>; 
+			};
+
+			rt5036_ldo2: regulator_5 {
+				regulator-name = "rt5036-ldo2";
+				regulator-min-microvolt = < 1100000>;
+				regulator-max-microvolt = <1100000>;
+				qcom,comsumer-supplies = "rt5036-ldo2", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+				rt,standby_vol = <1100000>; 
+			};
+
+			rt5036_ldo3: regulator_6 {
+				regulator-name = "rt5036-ldo3";
+				regulator-min-microvolt = < 1800000>;
+				regulator-max-microvolt = <1800000>;
+				qcom,comsumer-supplies = "rt5036-ldo3", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+				rt,standby_vol = <1800000>; 
+			};
+
+			rt5036_ldo4: regulator_7 {
+				regulator-name = "rt5036-ldo4";
+				regulator-min-microvolt = < 1800000>;
+				regulator-max-microvolt = <1800000>;
+				qcom,comsumer-supplies = "rt5036-ldo4", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+				rt,standby_vol = <1800000>; 
+			};
+
+			rt5036_ldo5: regulator_8 {
+				regulator-name = "rt5036-ldo5";
+				qcom,comsumer-supplies = "rt5036-ldo5", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+			};
+
+			rt5036_ldo6: regulator_9 {
+				regulator-name = "rt5036-ldo6";
+				qcom,comsumer-supplies = "rt5036-ldo6", "";
+				regulator-always-on;
+				regulator-boot-on;
+				rt,standby_enabled;
+			};
+
+			rt5036-irq {
+				compatible = "rt,rt5036-irq";
+				rt,irq-gpio = <&gpio1 GPIO_B1 GPIO_ACTIVE_HIGH>;
+			};
+
+			rt5036-charger {
+				compatible = "rt,rt5036-charger";
+				rt,te_en;
+				rt,iprec = <0x2>;
+				rt,ieoc = <0x3>;
+				rt,vprec = <0xA>;
+				rt,batlv = <0x4>;
+				rt,vrechg = <1>;
+				rt,chg_volt = <4200>;
+				rt,otg_volt = <5025>;
+				rt,acchg_icc = <2000>;
+				rt,usbtachg_icc = <2000>;
+				rt,usbchg_icc = <900>;
+				/*rt,acdet_gpio = <&gpio1 GPIO_B1 GPIO_ACTIVE_HIGH>;*/
+				/*rt,usbdet_gpio = <&gpio1 GPIO_B1 GPIO_ACTIVE_HIGH>;*/
+			};
 };
 
 /include/ "rk818.dtsi"
@@ -483,11 +618,11 @@
 &clk_core_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
-		408000 1250000
-		600000 1250000
-		696000 1250000
-		816000 1250000
-		1008000 1250000
+		408000 1300000
+		600000 1300000
+		696000 1300000
+		816000 1300000
+		1008000 1300000
 		>;
 	status="okay";
 };

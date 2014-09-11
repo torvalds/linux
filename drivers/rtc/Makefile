@@ -129,6 +129,7 @@ obj-$(CONFIG_RTC_DRV_VT8500)	+= rtc-vt8500.o
 obj-$(CONFIG_RTC_DRV_WM831X)	+= rtc-wm831x.o
 obj-$(CONFIG_RK808_RTC)  += rtc-rk808.o
 obj-$(CONFIG_RK818_RTC)  += rtc-rk818.o
+obj-$(CONFIG_RTC_RT5036)	+= rtc-rt5036.o
 obj-$(CONFIG_RTC_DRV_WM8350)	+= rtc-wm8350.o
 obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
 obj-$(CONFIG_RTC_DRV_RC5T619)	+= rtc-ricoh619.o

@@ -1108,9 +1108,19 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
                            mmcblk0: retrying using single block read
                            mmcblk0: error -110 sending status command, retrying
 
-                           How to: If eMMC HW version < 4.51, or > 4.51 but no caps2-mmc-hs200 support in dts
-                                   Please set dts emmc clk to 100M or 150M, I will workaround it!
+                           We assume all eMMC in RK platform with 3.10 kernel, at least version 4.5
                          */
+                        if ((div == 0) &&
+                                (host->mmc->caps & (MMC_CAP_1_8V_DDR | MMC_CAP_1_2V_DDR)) &&
+                                !(host->mmc->caps & MMC_CAP2_HS200)) {
+                                /*  Fixup DDR MMC */
+                                div = 1;
+                                host->set_div = div;
+                                host->bus_hz = host->set_speed * 2;
+                                MMC_DBG_BOOT_FUNC(host->mmc,
+                                        "dw_mci_setup_bus: workaround div = %d, host->bus_hz = %d [%s]",
+                                        div, host->bus_hz, mmc_hostname(host->mmc));
+                        }
 
 	                if (host->verid < DW_MMC_240A)
 	                        clk_set_rate(host->clk_mmc,(host->bus_hz));

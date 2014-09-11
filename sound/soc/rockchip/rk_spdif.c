@@ -187,6 +187,7 @@ static int spdif_set_syclk(struct snd_soc_dai *
 	RK_SPDIF_DBG("Entered %s sysclk=%d\n", __func__, freq);
 
 	spdif->clk_rate = freq;
+	clk_set_rate(spdif->clk, freq);
 
 	return 0;
 }

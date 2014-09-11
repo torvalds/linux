@@ -60,6 +60,11 @@ obj-$(CONFIG_MISC_RT5025)	+= rt5025-misc.o
 obj-$(CONFIG_IRQ_RT5025)	+= rt5025-irq.o
 obj-$(CONFIG_DEBUG_RT5025)	+= rt5025-debug.o
 
+obj-$(CONFIG_MFD_RT5036)	+= rt5036-i2c.o rt5036-core.o
+obj-$(CONFIG_MISC_RT5036)	+= rt5036-misc.o
+obj-$(CONFIG_IRQ_RT5036)	+= rt5036-irq.o
+obj-$(CONFIG_DEBUG_RT5036)	+= rt5036-debug.o
+
 obj-$(CONFIG_TPS6105X)		+= tps6105x.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o
 obj-$(CONFIG_TPS6507X)		+= tps6507x.o

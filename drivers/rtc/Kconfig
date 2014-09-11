@@ -435,6 +435,13 @@ config  RK818_RTC
 	help
 		enable rk818 rtc for system
 
+config RTC_RT5036
+	bool "RT5036 RTC driver support"
+	depends on MFD_RT5036
+	default n
+	help
+	  Say Y here if you want to support Richtek RT5036 RTC.
+
 config RTC_DRV_TPS80031
 	tristate "TI TPS80031/TPS80032 RTC driver"
 	depends on MFD_TPS80031

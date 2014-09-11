@@ -1,6 +1,6 @@
 /*
- *  include/linux/power/rt-power.h
- *  Include header file for Richtek Richtek Power Driver
+ *  include/linux/mfd/rt5036/rt5036-irq.h
+ *  Include header file for Richtek RT5036 irq option driver
  *
  *  Copyright (C) 2014 Richtek Technology Corp.
  *  cy_huang <cy_huang@richtek.com>
@@ -11,17 +11,9 @@
  * of the License, or (at your option) any later version.
  */
 
-#ifndef __LINUX_RT_POWER_H
-#define __LINUX_RT_POWER_H
+#ifndef _LINUX_MFD_RT5036_IRQ_H
+#define _LINUX_MFD_RT5036_IRQ_H
 
-#define RT_AC_NAME	"rt-ac"
-#define RT_USB_NAME	"rt-usb"
+#define RT5036_IRQPREZ_MASK 0x80
 
-struct rt_power_data {
-	int chg_volt;
-	int acchg_icc;
-	int usbtachg_icc;
-	int usbchg_icc;
-};
-#endif /* #ifndef __LINUX_RT_POWER_H */
-
+#endif /* #ifndef _LINUX_MFD_RT5036_IRQ_H */
