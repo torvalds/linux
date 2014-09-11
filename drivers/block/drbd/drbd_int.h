@@ -1483,7 +1483,7 @@ extern int drbd_khelper(struct drbd_device *device, char *cmd);
 
 /* drbd_worker.c */
 /* bi_end_io handlers */
-extern void drbd_md_io_complete(struct bio *bio, int error);
+extern void drbd_md_endio(struct bio *bio, int error);
 extern void drbd_peer_request_endio(struct bio *bio, int error);
 extern void drbd_request_endio(struct bio *bio, int error);
 extern int drbd_worker(struct drbd_thread *thi);

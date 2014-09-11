@@ -43,10 +43,10 @@ static int make_ov_request(struct drbd_device *, int);
 static int make_resync_request(struct drbd_device *, int);
 
 /* endio handlers:
- *   drbd_md_io_complete (defined here)
+ *   drbd_md_endio (defined here)
  *   drbd_request_endio (defined here)
  *   drbd_peer_request_endio (defined here)
- *   bm_async_io_complete (defined in drbd_bitmap.c)
+ *   drbd_bm_endio (defined in drbd_bitmap.c)
  *
  * For all these callbacks, note the following:
  * The callbacks will be called in irq context by the IDE drivers,
@@ -65,7 +65,7 @@ rwlock_t global_state_lock;
 /* used for synchronous meta data and bitmap IO
  * submitted by drbd_md_sync_page_io()
  */
-void drbd_md_io_complete(struct bio *bio, int error)
+void drbd_md_endio(struct bio *bio, int error)
 {
 	struct drbd_device *device;
 
