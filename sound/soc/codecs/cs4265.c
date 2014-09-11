@@ -458,12 +458,12 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 		if (params_width(params) == 16) {
 			snd_soc_update_bits(codec, CS4265_DAC_CTL,
 				CS4265_DAC_CTL_DIF, (1 << 5));
-			snd_soc_update_bits(codec, CS4265_ADC_CTL,
+			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
 				CS4265_SPDIF_CTL2_DIF, (1 << 7));
 		} else {
 			snd_soc_update_bits(codec, CS4265_DAC_CTL,
 				CS4265_DAC_CTL_DIF, (3 << 5));
-			snd_soc_update_bits(codec, CS4265_ADC_CTL,
+			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
 				CS4265_SPDIF_CTL2_DIF, (1 << 7));
 		}
 		break;
@@ -472,7 +472,7 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 			CS4265_DAC_CTL_DIF, 0);
 		snd_soc_update_bits(codec, CS4265_ADC_CTL,
 			CS4265_ADC_DIF, 0);
-		snd_soc_update_bits(codec, CS4265_ADC_CTL,
+		snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
 			CS4265_SPDIF_CTL2_DIF, (1 << 6));
 
 		break;
