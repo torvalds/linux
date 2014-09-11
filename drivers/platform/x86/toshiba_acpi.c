@@ -1343,12 +1343,18 @@ static ssize_t toshiba_touchpad_store(struct device *dev,
 {
 	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
 	int state;
+	int ret;
 
 	/* Set the TouchPad on/off, 0 - Disable | 1 - Enable */
-	if (sscanf(buf, "%i", &state) == 1 && (state == 0 || state == 1)) {
-		if (toshiba_touchpad_set(toshiba, state) < 0)
-			return -EIO;
-	}
+	ret = kstrtoint(buf, 0, &state);
+	if (ret)
+		return ret;
+	if (state != 0 && state != 1)
+		return -EINVAL;
+
+	ret = toshiba_touchpad_set(toshiba, state);
+	if (ret)
+		return ret;
 
 	return count;
 }
