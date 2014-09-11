@@ -2926,51 +2926,6 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 	return 0;
 }
 
-/* et131x_send_packets - This function is called by the OS to send packets */
-static int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
-{
-	int status = 0;
-	struct et131x_adapter *adapter = netdev_priv(netdev);
-	struct tx_ring *tx_ring = &adapter->tx_ring;
-
-	/* Send these packets
-	 *
-	 * NOTE: The Linux Tx entry point is only given one packet at a time
-	 * to Tx, so the PacketCount and it's array used makes no sense here
-	 */
-
-	/* TCB is not available */
-	if (tx_ring->used >= NUM_TCB) {
-		/* NOTE: If there's an error on send, no need to queue the
-		 * packet under Linux; if we just send an error up to the
-		 * netif layer, it will resend the skb to us.
-		 */
-		status = -ENOMEM;
-	} else {
-		/* We need to see if the link is up; if it's not, make the
-		 * netif layer think we're good and drop the packet
-		 */
-		if ((adapter->flags & FMP_ADAPTER_FAIL_SEND_MASK) ||
-		    !netif_carrier_ok(netdev)) {
-			dev_kfree_skb_any(skb);
-			skb = NULL;
-
-			adapter->netdev->stats.tx_dropped++;
-		} else {
-			status = send_packet(skb, adapter);
-			if (status != 0 && status != -ENOMEM) {
-				/* On any other error, make netif think we're
-				 * OK and drop the packet
-				 */
-				dev_kfree_skb_any(skb);
-				skb = NULL;
-				adapter->netdev->stats.tx_dropped++;
-			}
-		}
-	}
-	return status;
-}
-
 /* free_send_packet - Recycle a struct tcb
  * @adapter: pointer to our adapter
  * @tcb: pointer to struct tcb
@@ -4268,8 +4223,35 @@ static netdev_tx_t et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 	/* Save the timestamp for the TX timeout watchdog */
 	netdev->trans_start = jiffies;
 
-	/* Call the device-specific data Tx routine */
-	status = et131x_send_packets(skb, netdev);
+	/* TCB is not available */
+	if (tx_ring->used >= NUM_TCB) {
+		/* NOTE: If there's an error on send, no need to queue the
+		 * packet under Linux; if we just send an error up to the
+		 * netif layer, it will resend the skb to us.
+		 */
+		status = -ENOMEM;
+	} else {
+		/* We need to see if the link is up; if it's not, make the
+		 * netif layer think we're good and drop the packet
+		 */
+		if ((adapter->flags & FMP_ADAPTER_FAIL_SEND_MASK) ||
+		    !netif_carrier_ok(netdev)) {
+			dev_kfree_skb_any(skb);
+			skb = NULL;
+
+			adapter->netdev->stats.tx_dropped++;
+		} else {
+			status = send_packet(skb, adapter);
+			if (status != 0 && status != -ENOMEM) {
+				/* On any other error, make netif think we're
+				 * OK and drop the packet
+				 */
+				dev_kfree_skb_any(skb);
+				skb = NULL;
+				adapter->netdev->stats.tx_dropped++;
+			}
+		}
+	}
 
 	/* Check status and manage the netif queue if necessary */
 	if (status != 0) {
