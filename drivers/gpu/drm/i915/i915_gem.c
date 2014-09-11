@@ -3351,17 +3351,20 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-static bool i915_gem_valid_gtt_space(struct drm_device *dev,
-				     struct drm_mm_node *gtt_space,
+static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 				     unsigned long cache_level)
 {
+	struct drm_mm_node *gtt_space = &vma->node;
 	struct drm_mm_node *other;
 
-	/* On non-LLC machines we have to be careful when putting differing
-	 * types of snoopable memory together to avoid the prefetcher
-	 * crossing memory domains and dying.
+	/*
+	 * On some machines we have to be careful when putting differing types
+	 * of snoopable memory together to avoid the prefetcher crossing memory
+	 * domains and dying. During vm initialisation, we decide whether or not
+	 * these constraints apply and set the drm_mm.color_adjust
+	 * appropriately.
 	 */
-	if (HAS_LLC(dev))
+	if (vma->vm->mm.color_adjust == NULL)
 		return true;
 
 	if (!drm_mm_node_allocated(gtt_space))
@@ -3499,8 +3502,7 @@ search_free:
 
 		goto err_free_vma;
 	}
-	if (WARN_ON(!i915_gem_valid_gtt_space(dev, &vma->node,
-					      obj->cache_level))) {
+	if (WARN_ON(!i915_gem_valid_gtt_space(vma, obj->cache_level))) {
 		ret = -EINVAL;
 		goto err_remove_node;
 	}
@@ -3710,7 +3712,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	}
 
 	list_for_each_entry_safe(vma, next, &obj->vma_list, vma_link) {
-		if (!i915_gem_valid_gtt_space(dev, &vma->node, cache_level)) {
+		if (!i915_gem_valid_gtt_space(vma, cache_level)) {
 			ret = i915_vma_unbind(vma);
 			if (ret)
 				return ret;
