@@ -1994,22 +1994,13 @@ static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *
 	return !list_empty(work_list);
 }
 
-static bool dequeue_work_item(struct drbd_work_queue *queue, struct list_head *work_list)
-{
-	spin_lock_irq(&queue->q_lock);
-	if (!list_empty(&queue->q))
-		list_move(queue->q.next, work_list);
-	spin_unlock_irq(&queue->q_lock);
-	return !list_empty(work_list);
-}
-
 static void wait_for_work(struct drbd_connection *connection, struct list_head *work_list)
 {
 	DEFINE_WAIT(wait);
 	struct net_conf *nc;
 	int uncork, cork;
 
-	dequeue_work_item(&connection->sender_work, work_list);
+	dequeue_work_batch(&connection->sender_work, work_list);
 	if (!list_empty(work_list))
 		return;
 

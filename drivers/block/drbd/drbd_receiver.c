@@ -5561,6 +5561,7 @@ int drbd_asender(struct drbd_thread *thi)
 		 * rv <  expected: "woken" by signal during receive
 		 * rv == 0	 : "connection shut down by peer"
 		 */
+received_more:
 		if (likely(rv > 0)) {
 			received += rv;
 			buf	 += rv;
@@ -5636,6 +5637,11 @@ int drbd_asender(struct drbd_thread *thi)
 			expect	 = header_size;
 			cmd	 = NULL;
 		}
+		if (test_bit(SEND_PING, &connection->flags))
+			continue;
+		rv = drbd_recv_short(connection->meta.socket, buf, expect-received, MSG_DONTWAIT);
+		if (rv > 0)
+			goto received_more;
 	}
 
 	if (0) {
