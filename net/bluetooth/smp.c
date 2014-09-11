@@ -1114,7 +1114,7 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	if (!key)
 		return false;
 
-	if (sec_level > BT_SECURITY_MEDIUM && !key->authenticated)
+	if (smp_ltk_sec_level(key) < sec_level)
 		return false;
 
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))

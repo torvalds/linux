@@ -4506,10 +4506,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	memcpy(cp.ltk, ltk->val, sizeof(ltk->val));
 	cp.handle = cpu_to_le16(conn->handle);
 
-	if (ltk->authenticated)
-		conn->pending_sec_level = BT_SECURITY_HIGH;
-	else
-		conn->pending_sec_level = BT_SECURITY_MEDIUM;
+	conn->pending_sec_level = smp_ltk_sec_level(ltk);
 
 	conn->enc_key_size = ltk->enc_size;
 
