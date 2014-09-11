@@ -143,6 +143,14 @@
 #define GAB_CTL				0x24000
 #define   GAB_CTL_CONT_AFTER_PAGEFAULT	(1<<8)
 
+#define GEN7_BIOS_RESERVED		0x1082C0
+#define GEN7_BIOS_RESERVED_1M		(0 << 5)
+#define GEN7_BIOS_RESERVED_256K		(1 << 5)
+#define GEN8_BIOS_RESERVED_SHIFT       7
+#define GEN7_BIOS_RESERVED_MASK        0x1
+#define GEN8_BIOS_RESERVED_MASK        0x3
+
+
 /* VGA stuff */
 
 #define VGA_ST01_MDA 0x3ba
