@@ -113,8 +113,6 @@ struct bl_msg_hdr {
 /* blocklayoutdev.c */
 ssize_t bl_pipe_downcall(struct file *, const char __user *, size_t);
 void bl_pipe_destroy_msg(struct rpc_pipe_msg *);
-int nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
-				struct nfs4_layoutget_res *lgr, gfp_t gfp_flags);
 
 struct nfs4_deviceid_node *bl_alloc_deviceid_node(struct nfs_server *server,
 		struct pnfs_device *pdev, gfp_t gfp_mask);
