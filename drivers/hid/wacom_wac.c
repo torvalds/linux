@@ -1990,6 +1990,9 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 	input_set_abs_params(input_dev, ABS_X, 0, 1, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, 1, 0, 0);
 
+	/* kept for making udev and libwacom accepting the pad */
+	__set_bit(BTN_STYLUS, input_dev->keybit);
+
 	switch (features->type) {
 	case GRAPHIRE_BT:
 		__set_bit(BTN_0, input_dev->keybit);

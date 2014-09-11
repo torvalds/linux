@@ -1035,7 +1035,7 @@ static struct input_dev *wacom_allocate_input(struct wacom *wacom)
 	input_dev->uniq = hdev->uniq;
 	input_dev->id.bustype = hdev->bus;
 	input_dev->id.vendor  = hdev->vendor;
-	input_dev->id.product = hdev->product;
+	input_dev->id.product = wacom_wac->pid ? wacom_wac->pid : hdev->product;
 	input_dev->id.version = hdev->version;
 	input_set_drvdata(input_dev, wacom);
 
