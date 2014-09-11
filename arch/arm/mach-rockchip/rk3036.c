@@ -307,6 +307,8 @@ static void clks_gating_suspend_init(void)
 
 #define RK3036_PLL_BYPASS CRU_W_MSK_SETBITS(1, 0xF, 0x01)
 #define RK3036_PLL_NOBYPASS CRU_W_MSK_SETBITS(0, 0xF, 0x01)
+#define RK3036_PLL_POWERDOWN CRU_W_MSK_SETBITS(1, 0xD, 0x01)
+#define RK3036_PLL_POWERON CRU_W_MSK_SETBITS(0, 0xD, 0x01)
 
 #define grf_readl(offset) readl_relaxed(RK_GRF_VIRT + offset)
 #define grf_writel(v, offset) do { writel_relaxed(v, \
@@ -363,7 +365,8 @@ static inline void plls_suspend(u32 pll_id)
 	plls_con1_save[pll_id] = cru_readl(RK3036_PLL_CONS((pll_id), 1));
 	plls_con2_save[pll_id] = cru_readl(RK3036_PLL_CONS((pll_id), 2));
 
-	cru_writel(RK3036_PLL_BYPASS, RK3036_PLL_CONS((pll_id), 0));
+	/*cru_writel(RK3036_PLL_BYPASS, RK3036_PLL_CONS((pll_id), 0));*/
+	cru_writel(RK3036_PLL_POWERDOWN, RK3036_PLL_CONS((pll_id), 1));
 }
 static inline void plls_resume(u32 pll_id)
 {
@@ -372,11 +375,12 @@ static inline void plls_resume(u32 pll_id)
 	pllcon0 = plls_con0_save[pll_id];
 	pllcon1 = plls_con1_save[pll_id];
 	pllcon2 = plls_con2_save[pll_id];
-
+/*
 	cru_writel(pllcon0 | 0xffff0000, RK3036_PLL_CONS(pll_id, 0));
 	cru_writel(pllcon1 | 0xf5ff0000, RK3036_PLL_CONS(pll_id, 1));
 	cru_writel(pllcon2, RK3036_PLL_CONS(pll_id, 2));
-
+*/
+	cru_writel(RK3036_PLL_POWERON, RK3036_PLL_CONS((pll_id), 1));
 
 	pll_udelay(5);
 
@@ -433,18 +437,18 @@ static void pm_plls_resume(void)
 	gpio0_writel(gpio0_pin_data, 0x00);
 	grf_writel(0x000c0008, 0xa8);
 
+	plls_resume(APLL_ID);
 	cru_writel(clk_sel0 | (CRU_W_MSK(0, 0x1f) | CRU_W_MSK(8, 0x1f))
 		, RK3036_CRU_CLKSELS_CON(0));
 	cru_writel(clk_sel1 | (CRU_W_MSK(0, 0xf) | CRU_W_MSK(4, 0x7)
 		|CRU_W_MSK(8, 0x3) | CRU_W_MSK(12, 0x7))
 		, RK3036_CRU_CLKSELS_CON(1));
-
-	plls_resume(APLL_ID);
 	cru_writel(cru_mode_con | (RK3036_PLL_MODE_MSK(APLL_ID) << 16)
 		, RK3036_CRU_MODE_CON);
+
+	plls_resume(GPLL_ID);
 	cru_writel(clk_sel10 | (CRU_W_MSK(0, 0x1f) | CRU_W_MSK(8, 0x3)
 		| CRU_W_MSK(12, 0x3)), RK3036_CRU_CLKSELS_CON(10));
-	plls_resume(GPLL_ID);
 	cru_writel(cru_mode_con | (RK3036_PLL_MODE_MSK(GPLL_ID)
 		<< 16), RK3036_CRU_MODE_CON);
 }
