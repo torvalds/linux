@@ -32,8 +32,6 @@
 #include "hardware.h"
 #include "mx25.h"
 
-#define CRM_BASE	MX25_IO_ADDRESS(MX25_CRM_BASE_ADDR)
-
 #define CCM_MPCTL	0x00
 #define CCM_UPCTL	0x04
 #define CCM_CCTL	0x08
@@ -56,7 +54,7 @@
 #define CCM_LTR3	0x4c
 #define CCM_MCR		0x64
 
-#define ccm(x)	(CRM_BASE + (x))
+#define ccm(x)	(ccm_base + (x))
 
 static struct clk_onecell_data clk_data;
 
@@ -91,9 +89,10 @@ enum mx25_clks {
 
 static struct clk *clk[clk_max];
 
-static int __init __mx25_clocks_init(unsigned long osc_rate)
+static int __init __mx25_clocks_init(unsigned long osc_rate,
+				     void __iomem *ccm_base)
 {
-	int i;
+	BUG_ON(!ccm_base);
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[osc] = imx_clk_fixed("osc", osc_rate);
@@ -224,18 +223,12 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 	/* CCM_CGCR2(19): reserved in datasheet, but used as wdt in FSL kernel */
 	clk[wdt_ipg] = imx_clk_gate("wdt_ipg", "ipg", ccm(CCM_CGCR2), 19);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX25 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_prepare_enable(clk[emi_ahb]);
 
 	/* Clock source for gpt must be derived from AHB */
 	clk_set_parent(clk[per5_sel], clk[ahb]);
-
-	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 
 	/*
 	 * Let's initially set up CLKO parent as ipg, since this configuration
@@ -248,8 +241,14 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 
 int __init mx25_clocks_init(void)
 {
-	__mx25_clocks_init(24000000);
+	void __iomem *ccm;
 
+	ccm = ioremap(MX25_CRM_BASE_ADDR, SZ_16K);
+
+	__mx25_clocks_init(24000000, ccm);
+
+	clk_register_clkdev(clk[gpt1_ipg], "ipg", "imx-gpt.0");
+	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 	/* i.mx25 has the i.mx21 type uart */
 	clk_register_clkdev(clk[uart1_ipg], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.0");
@@ -314,29 +313,27 @@ int __init mx25_clocks_init(void)
 	return 0;
 }
 
-int __init mx25_clocks_init_dt(void)
+static void __init mx25_clocks_init_dt(struct device_node *np)
 {
-	struct device_node *np;
+	struct device_node *refnp;
 	unsigned long osc_rate = 24000000;
+	void __iomem *ccm;
 
 	/* retrieve the freqency of fixed clocks from device tree */
-	for_each_compatible_node(np, NULL, "fixed-clock") {
+	for_each_compatible_node(refnp, NULL, "fixed-clock") {
 		u32 rate;
-		if (of_property_read_u32(np, "clock-frequency", &rate))
+		if (of_property_read_u32(refnp, "clock-frequency", &rate))
 			continue;
 
-		if (of_device_is_compatible(np, "fsl,imx-osc"))
+		if (of_device_is_compatible(refnp, "fsl,imx-osc"))
 			osc_rate = rate;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-ccm");
+	ccm = of_iomap(np, 0);
+	__mx25_clocks_init(osc_rate, ccm);
+
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-
-	__mx25_clocks_init(osc_rate);
-
-	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx25-gpt"));
-
-	return 0;
 }
+CLK_OF_DECLARE(imx25_ccm, "fsl,imx25-ccm", mx25_clocks_init_dt);

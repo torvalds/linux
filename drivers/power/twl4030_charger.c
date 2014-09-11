@@ -28,9 +28,12 @@
 #define TWL4030_BCIICHG		0x08
 #define TWL4030_BCIVAC		0x0a
 #define TWL4030_BCIVBUS		0x0c
+#define TWL4030_BCIMFSTS3	0x0F
 #define TWL4030_BCIMFSTS4	0x10
 #define TWL4030_BCICTL1		0x23
 #define TWL4030_BB_CFG		0x12
+
+#define TWL4030_BCIMFSTS1	0x01
 
 #define TWL4030_BCIAUTOWEN	BIT(5)
 #define TWL4030_CONFIG_DONE	BIT(4)
@@ -51,6 +54,9 @@
 #define TWL4030_BBISEL_150uA	0x01
 #define TWL4030_BBISEL_500uA	0x02
 #define TWL4030_BBISEL_1000uA	0x03
+
+#define TWL4030_BATSTSPCHG	BIT(2)
+#define TWL4030_BATSTSMCHG	BIT(6)
 
 /* BCI interrupts */
 #define TWL4030_WOVF		BIT(0) /* Watchdog overflow */
@@ -142,6 +148,35 @@ static int twl4030bci_read_adc_val(u8 reg)
 		return ret;
 
 	return temp | val;
+}
+
+/*
+ * Check if Battery Pack was present
+ */
+static int twl4030_is_battery_present(struct twl4030_bci *bci)
+{
+	int ret;
+	u8 val = 0;
+
+	/* Battery presence in Main charge? */
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, &val, TWL4030_BCIMFSTS3);
+	if (ret)
+		return ret;
+	if (val & TWL4030_BATSTSMCHG)
+		return 0;
+
+	/*
+	 * OK, It could be that bootloader did not enable main charger,
+	 * pre-charge is h/w auto. So, Battery presence in Pre-charge?
+	 */
+	ret = twl_i2c_read_u8(TWL4030_MODULE_PRECHARGE, &val,
+			      TWL4030_BCIMFSTS1);
+	if (ret)
+		return ret;
+	if (val & TWL4030_BATSTSPCHG)
+		return 0;
+
+	return -ENODEV;
 }
 
 /*
@@ -541,8 +576,14 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	bci->irq_chg = platform_get_irq(pdev, 0);
 	bci->irq_bci = platform_get_irq(pdev, 1);
 
-	platform_set_drvdata(pdev, bci);
+	/* Only proceed further *IF* battery is physically present */
+	ret = twl4030_is_battery_present(bci);
+	if  (ret) {
+		dev_crit(&pdev->dev, "Battery was not detected:%d\n", ret);
+		goto fail_no_battery;
+	}
 
+	platform_set_drvdata(pdev, bci);
 	bci->ac.name = "twl4030_ac";
 	bci->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	bci->ac.properties = twl4030_charger_props;
@@ -633,6 +674,7 @@ fail_chg_irq:
 fail_register_usb:
 	power_supply_unregister(&bci->ac);
 fail_register_ac:
+fail_no_battery:
 	kfree(bci);
 
 	return ret;

@@ -151,13 +151,12 @@ static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
 
 	offset <<= thisboard->mainshift;
-	if (devpriv->io.regtype == io_regtype)
-		return inb(devpriv->io.u.iobase + offset);
-	else
-		return readb(devpriv->io.u.membase + offset);
+
+	if (dev->mmio)
+		return readb(dev->mmio + offset);
+	return inb(dev->iobase + offset);
 }
 
 /*
@@ -167,13 +166,13 @@ static void dio200_write8(struct comedi_device *dev, unsigned int offset,
 			  unsigned char val)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
 
 	offset <<= thisboard->mainshift;
-	if (devpriv->io.regtype == io_regtype)
-		outb(val, devpriv->io.u.iobase + offset);
+
+	if (dev->mmio)
+		writeb(val, dev->mmio + offset);
 	else
-		writeb(val, devpriv->io.u.membase + offset);
+		outb(val, dev->iobase + offset);
 }
 
 /*
@@ -183,13 +182,12 @@ static unsigned int dio200_read32(struct comedi_device *dev,
 				  unsigned int offset)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
 
 	offset <<= thisboard->mainshift;
-	if (devpriv->io.regtype == io_regtype)
-		return inl(devpriv->io.u.iobase + offset);
-	else
-		return readl(devpriv->io.u.membase + offset);
+
+	if (dev->mmio)
+		return readl(dev->mmio + offset);
+	return inl(dev->iobase + offset);
 }
 
 /*
@@ -199,13 +197,13 @@ static void dio200_write32(struct comedi_device *dev, unsigned int offset,
 			   unsigned int val)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
 
 	offset <<= thisboard->mainshift;
-	if (devpriv->io.regtype == io_regtype)
-		outl(val, devpriv->io.u.iobase + offset);
+
+	if (dev->mmio)
+		writel(val, dev->mmio + offset);
 	else
-		writel(val, devpriv->io.u.membase + offset);
+		outl(val, dev->iobase + offset);
 }
 
 /*
@@ -327,7 +325,7 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 		/* Error!  Stop acquisition.  */
 		dio200_stop_intr(dev, s);
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-		comedi_error(dev, "buffer overflow");
+		dev_err(dev->class_dev, "buffer overflow\n");
 	}
 
 	/* Check for end of acquisition. */
@@ -1197,13 +1195,10 @@ EXPORT_SYMBOL_GPL(amplc_dio200_common_attach);
 
 void amplc_dio200_common_detach(struct comedi_device *dev)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
-
-	if (!thisboard || !devpriv)
-		return;
-	if (dev->irq)
+	if (dev->irq) {
 		free_irq(dev->irq, dev);
+		dev->irq = 0;
+	}
 }
 EXPORT_SYMBOL_GPL(amplc_dio200_common_detach);
 

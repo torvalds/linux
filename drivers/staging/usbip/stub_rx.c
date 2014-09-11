@@ -529,7 +529,6 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	}
 
 	usbip_dbg_stub_rx("Leave\n");
-	return;
 }
 
 /* recv a pdu */

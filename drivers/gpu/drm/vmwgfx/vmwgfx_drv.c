@@ -990,7 +990,7 @@ static struct vmw_master *vmw_master_check(struct drm_device *dev,
 	if (unlikely(ret != 0))
 		return ERR_PTR(-ERESTARTSYS);
 
-	if (drm_is_master(file_priv)) {
+	if (file_priv->is_master) {
 		mutex_unlock(&dev->master_mutex);
 		return NULL;
 	}
@@ -1418,6 +1418,7 @@ static struct drm_driver driver = {
 	.open = vmw_driver_open,
 	.preclose = vmw_preclose,
 	.postclose = vmw_postclose,
+	.set_busid = drm_pci_set_busid,
 
 	.dumb_create = vmw_dumb_create,
 	.dumb_map_offset = vmw_dumb_map_offset,

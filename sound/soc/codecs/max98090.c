@@ -26,10 +26,6 @@
 #include <sound/max98090.h>
 #include "max98090.h"
 
-#define DEBUG
-#define EXTMIC_METHOD
-#define EXTMIC_METHOD_TEST
-
 /* Allows for sparsely populated register maps */
 static struct reg_default max98090_reg[] = {
 	{ 0x00, 0x00 }, /* 00 Software Reset */
@@ -820,7 +816,6 @@ static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 	else
 		val = (val & M98090_MIC_PA2EN_MASK) >> M98090_MIC_PA2EN_SHIFT;
 
-
 	if (val >= 1) {
 		if (w->reg == M98090_REG_MIC1_INPUT_LEVEL) {
 			max98090->pa1en = val - 1; /* Update for volatile */
@@ -1140,7 +1135,6 @@ static const struct snd_kcontrol_new max98090_mixhprsel_mux =
 	SOC_DAPM_ENUM("MIXHPRSEL Mux", mixhprsel_mux_enum);
 
 static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
-
 	SND_SOC_DAPM_INPUT("MIC1"),
 	SND_SOC_DAPM_INPUT("MIC2"),
 	SND_SOC_DAPM_INPUT("DMICL"),
@@ -1304,7 +1298,6 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_widget max98091_dapm_widgets[] = {
-
 	SND_SOC_DAPM_INPUT("DMIC3"),
 	SND_SOC_DAPM_INPUT("DMIC4"),
 
@@ -1315,7 +1308,6 @@ static const struct snd_soc_dapm_widget max98091_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
-
 	{"MIC1 Input", NULL, "MIC1"},
 	{"MIC2 Input", NULL, "MIC2"},
 
@@ -1493,17 +1485,14 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"SPKR", NULL, "SPK Right Out"},
 	{"RCVL", NULL, "RCV Left Out"},
 	{"RCVR", NULL, "RCV Right Out"},
-
 };
 
 static const struct snd_soc_dapm_route max98091_dapm_routes[] = {
-
 	/* DMIC inputs */
 	{"DMIC3", NULL, "DMIC3_ENA"},
 	{"DMIC4", NULL, "DMIC4_ENA"},
 	{"DMIC3", NULL, "AHPF"},
 	{"DMIC4", NULL, "AHPF"},
-
 };
 
 static int max98090_add_widgets(struct snd_soc_codec *codec)
@@ -1531,7 +1520,6 @@ static int max98090_add_widgets(struct snd_soc_codec *codec)
 
 		snd_soc_dapm_add_routes(dapm, max98091_dapm_routes,
 			ARRAY_SIZE(max98091_dapm_routes));
-
 	}
 
 	return 0;
@@ -2212,22 +2200,11 @@ static struct snd_soc_dai_driver max98090_dai[] = {
 }
 };
 
-static void max98090_handle_pdata(struct snd_soc_codec *codec)
-{
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
-	struct max98090_pdata *pdata = max98090->pdata;
-
-	if (!pdata) {
-		dev_err(codec->dev, "No platform data\n");
-		return;
-	}
-
-}
-
 static int max98090_probe(struct snd_soc_codec *codec)
 {
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
 	struct max98090_cdata *cdata;
+	enum max98090_type devtype;
 	int ret = 0;
 
 	dev_dbg(codec->dev, "max98090_probe\n");
@@ -2263,14 +2240,19 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	}
 
 	if ((ret >= M98090_REVA) && (ret <= M98090_REVA + 0x0f)) {
-		max98090->devtype = MAX98090;
+		devtype = MAX98090;
 		dev_info(codec->dev, "MAX98090 REVID=0x%02x\n", ret);
 	} else if ((ret >= M98091_REVA) && (ret <= M98091_REVA + 0x0f)) {
-		max98090->devtype = MAX98091;
+		devtype = MAX98091;
 		dev_info(codec->dev, "MAX98091 REVID=0x%02x\n", ret);
 	} else {
-		max98090->devtype = MAX98090;
+		devtype = MAX98090;
 		dev_err(codec->dev, "Unrecognized revision 0x%02x\n", ret);
+	}
+
+	if (max98090->devtype != devtype) {
+		dev_warn(codec->dev, "Mismatch in DT specified CODEC type.\n");
+		max98090->devtype = devtype;
 	}
 
 	max98090->jack_state = M98090_JACK_STATE_NO_HEADSET;
@@ -2284,7 +2266,7 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	/* Register for interrupts */
 	dev_dbg(codec->dev, "irq = %d\n", max98090->irq);
 
-	ret = request_threaded_irq(max98090->irq, NULL,
+	ret = devm_request_threaded_irq(codec->dev, max98090->irq, NULL,
 		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 		"max98090_interrupt", codec);
 	if (ret < 0) {
@@ -2316,8 +2298,6 @@ static int max98090_probe(struct snd_soc_codec *codec)
 
 	snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
 		M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
-
-	max98090_handle_pdata(codec);
 
 	max98090_add_widgets(codec);
 
@@ -2428,7 +2408,7 @@ static int max98090_runtime_suspend(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int max98090_resume(struct device *dev)
 {
 	struct max98090_priv *max98090 = dev_get_drvdata(dev);
@@ -2460,12 +2440,14 @@ static const struct dev_pm_ops max98090_pm = {
 
 static const struct i2c_device_id max98090_i2c_id[] = {
 	{ "max98090", MAX98090 },
+	{ "max98091", MAX98091 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max98090_i2c_id);
 
 static const struct of_device_id max98090_of_match[] = {
 	{ .compatible = "maxim,max98090", },
+	{ .compatible = "maxim,max98091", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max98090_of_match);

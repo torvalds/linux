@@ -340,8 +340,8 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	struct dsa_slave_priv *p;
 	int ret;
 
-	slave_dev = alloc_netdev(sizeof(struct dsa_slave_priv),
-				 name, ether_setup);
+	slave_dev = alloc_netdev(sizeof(struct dsa_slave_priv), name,
+				 NET_NAME_UNKNOWN, ether_setup);
 	if (slave_dev == NULL)
 		return slave_dev;
 

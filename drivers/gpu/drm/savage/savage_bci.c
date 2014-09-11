@@ -556,7 +556,7 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 /*
  * Initialize mappings. On Savage4 and SavageIX the alignment
  * and size of the aperture is not suitable for automatic MTRR setup
- * in drm_addmap. Therefore we add them manually before the maps are
+ * in drm_legacy_addmap. Therefore we add them manually before the maps are
  * initialized, and tear them down on last close.
  */
 int savage_driver_firstopen(struct drm_device *dev)
@@ -624,19 +624,20 @@ int savage_driver_firstopen(struct drm_device *dev)
 		/* Automatic MTRR setup will do the right thing. */
 	}
 
-	ret = drm_addmap(dev, mmio_base, SAVAGE_MMIO_SIZE, _DRM_REGISTERS,
-			 _DRM_READ_ONLY, &dev_priv->mmio);
+	ret = drm_legacy_addmap(dev, mmio_base, SAVAGE_MMIO_SIZE,
+				_DRM_REGISTERS, _DRM_READ_ONLY,
+				&dev_priv->mmio);
 	if (ret)
 		return ret;
 
-	ret = drm_addmap(dev, fb_base, fb_size, _DRM_FRAME_BUFFER,
-			 _DRM_WRITE_COMBINING, &dev_priv->fb);
+	ret = drm_legacy_addmap(dev, fb_base, fb_size, _DRM_FRAME_BUFFER,
+				_DRM_WRITE_COMBINING, &dev_priv->fb);
 	if (ret)
 		return ret;
 
-	ret = drm_addmap(dev, aperture_base, SAVAGE_APERTURE_SIZE,
-			 _DRM_FRAME_BUFFER, _DRM_WRITE_COMBINING,
-			 &dev_priv->aperture);
+	ret = drm_legacy_addmap(dev, aperture_base, SAVAGE_APERTURE_SIZE,
+				_DRM_FRAME_BUFFER, _DRM_WRITE_COMBINING,
+				&dev_priv->aperture);
 	return ret;
 }
 
@@ -698,7 +699,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 	dev_priv->texture_offset = init->texture_offset;
 	dev_priv->texture_size = init->texture_size;
 
-	dev_priv->sarea = drm_getsarea(dev);
+	dev_priv->sarea = drm_legacy_getsarea(dev);
 	if (!dev_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		savage_do_cleanup_bci(dev);
@@ -1050,7 +1051,7 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 		return;
 
 	if (file_priv->master && file_priv->master->lock.hw_lock) {
-		drm_idlelock_take(&file_priv->master->lock);
+		drm_legacy_idlelock_take(&file_priv->master->lock);
 		release_idlelock = 1;
 	}
 
@@ -1069,7 +1070,7 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 	}
 
 	if (release_idlelock)
-		drm_idlelock_release(&file_priv->master->lock);
+		drm_legacy_idlelock_release(&file_priv->master->lock);
 }
 
 const struct drm_ioctl_desc savage_ioctls[] = {

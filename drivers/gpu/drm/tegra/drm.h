@@ -19,6 +19,8 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
 
+#include "gem.h"
+
 struct reset_control;
 
 struct tegra_fb {
@@ -43,6 +45,8 @@ struct tegra_drm {
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_fbdev *fbdev;
 #endif
+
+	unsigned int pitch_align;
 };
 
 struct tegra_drm_client;
@@ -160,7 +164,8 @@ struct tegra_dc_window {
 	unsigned int stride[2];
 	unsigned long base[3];
 	bool bottom_up;
-	bool tiled;
+
+	struct tegra_bo_tiling tiling;
 };
 
 /* from dc.c */
@@ -279,7 +284,8 @@ int tegra_dpaux_train(struct tegra_dpaux *dpaux, struct drm_dp_link *link,
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index);
 bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
-bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer);
+int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
+			struct tegra_bo_tiling *tiling);
 int tegra_drm_fb_prepare(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);

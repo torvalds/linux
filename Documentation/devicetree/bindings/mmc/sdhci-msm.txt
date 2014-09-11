@@ -27,8 +27,8 @@ Example:
 		bus-width = <8>;
 		non-removable;
 
-		vmmc = <&pm8941_l20>;
-		vqmmc = <&pm8941_s3>;
+		vmmc-supply = <&pm8941_l20>;
+		vqmmc-supply = <&pm8941_s3>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdc1_clk &sdc1_cmd &sdc1_data>;
@@ -44,8 +44,8 @@ Example:
 		bus-width = <4>;
 		cd-gpios = <&msmgpio 62 0x1>;
 
-		vmmc = <&pm8941_l21>;
-		vqmmc = <&pm8941_l13>;
+		vmmc-supply = <&pm8941_l21>;
+		vqmmc-supply = <&pm8941_l13>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdc2_clk &sdc2_cmd &sdc2_data>;

@@ -358,14 +358,8 @@ done:
 static int cs5535_gpio_remove(struct platform_device *pdev)
 {
 	struct resource *r;
-	int err;
 
-	err = gpiochip_remove(&cs5535_gpio_chip.chip);
-	if (err) {
-		/* uhh? */
-		dev_err(&pdev->dev, "unable to remove gpio_chip?\n");
-		return err;
-	}
+	gpiochip_remove(&cs5535_gpio_chip.chip);
 
 	r = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	release_region(r->start, resource_size(r));

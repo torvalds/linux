@@ -110,7 +110,7 @@ void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr)
 {
 }
 
-static DEFINE_PER_CPU(struct kvm_vcpu *, last_vcpu_on_cpu);
+static DEFINE_PER_CPU(struct kvm_vcpu *[KVMPPC_NR_LPIDS], last_vcpu_of_lpid);
 
 static void kvmppc_core_vcpu_load_e500mc(struct kvm_vcpu *vcpu, int cpu)
 {
@@ -141,9 +141,9 @@ static void kvmppc_core_vcpu_load_e500mc(struct kvm_vcpu *vcpu, int cpu)
 	mtspr(SPRN_GESR, vcpu->arch.shared->esr);
 
 	if (vcpu->arch.oldpir != mfspr(SPRN_PIR) ||
-	    __get_cpu_var(last_vcpu_on_cpu) != vcpu) {
+	    __get_cpu_var(last_vcpu_of_lpid)[vcpu->kvm->arch.lpid] != vcpu) {
 		kvmppc_e500_tlbil_all(vcpu_e500);
-		__get_cpu_var(last_vcpu_on_cpu) = vcpu;
+		__get_cpu_var(last_vcpu_of_lpid)[vcpu->kvm->arch.lpid] = vcpu;
 	}
 
 	kvmppc_load_guest_fp(vcpu);
@@ -267,14 +267,32 @@ static int kvmppc_core_set_sregs_e500mc(struct kvm_vcpu *vcpu,
 static int kvmppc_get_one_reg_e500mc(struct kvm_vcpu *vcpu, u64 id,
 			      union kvmppc_one_reg *val)
 {
-	int r = kvmppc_get_one_reg_e500_tlb(vcpu, id, val);
+	int r = 0;
+
+	switch (id) {
+	case KVM_REG_PPC_SPRG9:
+		*val = get_reg_val(id, vcpu->arch.sprg9);
+		break;
+	default:
+		r = kvmppc_get_one_reg_e500_tlb(vcpu, id, val);
+	}
+
 	return r;
 }
 
 static int kvmppc_set_one_reg_e500mc(struct kvm_vcpu *vcpu, u64 id,
 			      union kvmppc_one_reg *val)
 {
-	int r = kvmppc_set_one_reg_e500_tlb(vcpu, id, val);
+	int r = 0;
+
+	switch (id) {
+	case KVM_REG_PPC_SPRG9:
+		vcpu->arch.sprg9 = set_reg_val(id, *val);
+		break;
+	default:
+		r = kvmppc_set_one_reg_e500_tlb(vcpu, id, val);
+	}
+
 	return r;
 }
 

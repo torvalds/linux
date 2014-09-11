@@ -47,7 +47,8 @@ static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 	snprintf(status_attr_path, SYSFS_PATH_MAX, "%s/usbip_status",
 		 udev->path);
 
-	if ((fd = open(status_attr_path, O_RDONLY)) < 0) {
+	fd = open(status_attr_path, O_RDONLY);
+	if (fd < 0) {
 		err("error opening attribute %s", status_attr_path);
 		return -1;
 	}
@@ -87,8 +88,8 @@ struct usbip_exported_device *usbip_exported_device_new(const char *sdevpath)
 		goto err;
 
 	/* reallocate buffer to include usb interface data */
-	size = sizeof(struct usbip_exported_device) + edev->udev.bNumInterfaces *
-		sizeof(struct usbip_usb_interface);
+	size = sizeof(struct usbip_exported_device) +
+		edev->udev.bNumInterfaces * sizeof(struct usbip_usb_interface);
 
 	edev_old = edev;
 	edev = realloc(edev, size);

@@ -194,6 +194,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 			goto out_close;
 		}
 
+		priv->is_master = 1;
 		/* take another reference for the copy in the local file priv */
 		priv->master = drm_master_get(priv->minor->master);
 		priv->authenticated = 1;
@@ -267,11 +268,11 @@ static void drm_master_release(struct drm_device *dev, struct file *filp)
 {
 	struct drm_file *file_priv = filp->private_data;
 
-	if (drm_i_have_hw_lock(dev, file_priv)) {
+	if (drm_legacy_i_have_hw_lock(dev, file_priv)) {
 		DRM_DEBUG("File %p released, freeing lock for context %d\n",
 			  filp, _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
-		drm_lock_free(&file_priv->master->lock,
-			      _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
+		drm_legacy_lock_free(&file_priv->master->lock,
+				     _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
 	}
 }
 
@@ -329,8 +330,6 @@ static void drm_legacy_dev_reinit(struct drm_device *dev)
  */
 int drm_lastclose(struct drm_device * dev)
 {
-	struct drm_vma_entry *vma, *vma_temp;
-
 	DRM_DEBUG("\n");
 
 	if (dev->driver->lastclose)
@@ -345,13 +344,7 @@ int drm_lastclose(struct drm_device * dev)
 	drm_agp_clear(dev);
 
 	drm_legacy_sg_cleanup(dev);
-
-	/* Clear vma list (only built for debugging) */
-	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
-		list_del(&vma->head);
-		kfree(vma);
-	}
-
+	drm_legacy_vma_flush(dev);
 	drm_legacy_dma_takedown(dev);
 
 	mutex_unlock(&dev->struct_mutex);
@@ -425,7 +418,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&dev->master_mutex);
 
-	if (drm_is_master(file_priv)) {
+	if (file_priv->is_master) {
 		struct drm_master *master = file_priv->master;
 
 		/**
@@ -453,6 +446,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	/* drop the master reference held by the file priv */
 	if (file_priv->master)
 		drm_master_put(&file_priv->master);
+	file_priv->is_master = 0;
 	mutex_unlock(&dev->master_mutex);
 
 	if (dev->driver->postclose)
@@ -461,6 +455,8 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&file_priv->prime);
+
+	WARN_ON(!list_empty(&file_priv->event_list));
 
 	put_pid(file_priv->pid);
 	kfree(file_priv);

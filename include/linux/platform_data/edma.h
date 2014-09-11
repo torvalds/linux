@@ -150,6 +150,8 @@ void edma_clear_event(unsigned channel);
 void edma_pause(unsigned channel);
 void edma_resume(unsigned channel);
 
+void edma_assign_channel_eventq(unsigned channel, enum dma_event_q eventq_no);
+
 struct edma_rsv_info {
 
 	const s16	(*rsv_chans)[2];

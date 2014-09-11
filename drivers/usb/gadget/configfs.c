@@ -1021,11 +1021,9 @@ static ssize_t ext_prop_data_store(struct usb_os_desc_ext_prop *ext_prop,
 
 	if (page[len - 1] == '\n' || page[len - 1] == '\0')
 		--len;
-	new_data = kzalloc(len, GFP_KERNEL);
+	new_data = kmemdup(page, len, GFP_KERNEL);
 	if (!new_data)
 		return -ENOMEM;
-
-	memcpy(new_data, page, len);
 
 	if (desc->opts_mutex)
 		mutex_lock(desc->opts_mutex);

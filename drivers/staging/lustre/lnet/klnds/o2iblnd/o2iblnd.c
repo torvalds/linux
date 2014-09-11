@@ -959,7 +959,7 @@ kiblnd_close_stale_conns_locked (kib_peer_t *peer,
 			continue;
 
 		CDEBUG(D_NET, "Closing stale conn -> %s version: %x, "
-			      "incarnation:"LPX64"(%x, "LPX64")\n",
+			      "incarnation:%#llx(%x, %#llx)\n",
 		       libcfs_nid2str(peer->ibp_nid),
 		       conn->ibc_version, conn->ibc_incarnation,
 		       version, incarnation);
@@ -1074,10 +1074,10 @@ kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
 }
 
 void
-kiblnd_query (lnet_ni_t *ni, lnet_nid_t nid, cfs_time_t *when)
+kiblnd_query (lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
 {
-	cfs_time_t	last_alive = 0;
-	cfs_time_t	now = cfs_time_current();
+	unsigned long	last_alive = 0;
+	unsigned long	now = cfs_time_current();
 	rwlock_t	*glock = &kiblnd_data.kib_global_lock;
 	kib_peer_t	*peer;
 	unsigned long	flags;
@@ -1202,7 +1202,7 @@ kiblnd_map_rx_descs(kib_conn_t *conn)
 						   rx->rx_msgaddr));
 		KIBLND_UNMAP_ADDR_SET(rx, rx_msgunmap, rx->rx_msgaddr);
 
-		CDEBUG(D_NET,"rx %d: %p "LPX64"("LPX64")\n",
+		CDEBUG(D_NET,"rx %d: %p %#llx(%#llx)\n",
 		       i, rx->rx_msg, rx->rx_msgaddr,
 		       lnet_page2phys(pg) + pg_off);
 
@@ -1509,7 +1509,7 @@ kiblnd_init_fmr_poolset(kib_fmr_poolset_t *fps, int cpt, kib_net_t *net,
 }
 
 static int
-kiblnd_fmr_pool_is_idle(kib_fmr_pool_t *fpo, cfs_time_t now)
+kiblnd_fmr_pool_is_idle(kib_fmr_pool_t *fpo, unsigned long now)
 {
 	if (fpo->fpo_map_count != 0) /* still in use */
 		return 0;
@@ -1524,7 +1524,7 @@ kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status)
 	LIST_HEAD     (zombies);
 	kib_fmr_pool_t    *fpo = fmr->fmr_pool;
 	kib_fmr_poolset_t *fps = fpo->fpo_owner;
-	cfs_time_t	 now = cfs_time_current();
+	unsigned long	 now = cfs_time_current();
 	kib_fmr_pool_t    *tmp;
 	int		rc;
 
@@ -1606,7 +1606,7 @@ kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
 
 	}
 
-	if (cfs_time_before(cfs_time_current(), fps->fps_next_retry)) {
+	if (time_before(cfs_time_current(), fps->fps_next_retry)) {
 		/* someone failed recently */
 		spin_unlock(&fps->fps_lock);
 		return -EAGAIN;
@@ -1731,7 +1731,7 @@ kiblnd_init_poolset(kib_poolset_t *ps, int cpt,
 }
 
 static int
-kiblnd_pool_is_idle(kib_pool_t *pool, cfs_time_t now)
+kiblnd_pool_is_idle(kib_pool_t *pool, unsigned long now)
 {
 	if (pool->po_allocated != 0) /* still in use */
 		return 0;
@@ -1746,7 +1746,7 @@ kiblnd_pool_free_node(kib_pool_t *pool, struct list_head *node)
 	LIST_HEAD  (zombies);
 	kib_poolset_t  *ps = pool->po_owner;
 	kib_pool_t     *tmp;
-	cfs_time_t      now = cfs_time_current();
+	unsigned long      now = cfs_time_current();
 
 	spin_lock(&ps->ps_lock);
 
@@ -1808,7 +1808,7 @@ kiblnd_pool_alloc_node(kib_poolset_t *ps)
 		goto again;
 	}
 
-	if (cfs_time_before(cfs_time_current(), ps->ps_next_retry)) {
+	if (time_before(cfs_time_current(), ps->ps_next_retry)) {
 		/* someone failed recently */
 		spin_unlock(&ps->ps_lock);
 		return NULL;
@@ -2336,7 +2336,7 @@ kiblnd_hdev_get_attr(kib_hca_dev_t *hdev)
 			return 0;
 	}
 
-	CERROR("Invalid mr size: "LPX64"\n", hdev->ibh_mr_size);
+	CERROR("Invalid mr size: %#llx\n", hdev->ibh_mr_size);
 	return -EINVAL;
 }
 
@@ -2418,8 +2418,8 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 
 	if (hdev->ibh_mr_shift < 32 || hdev->ibh_nmrs > 1024) {
 		/* it's 4T..., assume we will re-code at that time */
-		CERROR("Can't support memory size: x"LPX64
-		       " with MR size: x"LPX64"\n", mm_size, mr_size);
+		CERROR("Can't support memory size: x%#llx with MR size: x%#llx\n",
+		       mm_size, mr_size);
 		return -EINVAL;
 	}
 
@@ -2429,8 +2429,6 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 		CERROR("Failed to allocate MRs' table\n");
 		return -ENOMEM;
 	}
-
-	memset(hdev->ibh_mrs, 0, sizeof(*hdev->ibh_mrs) * hdev->ibh_nmrs);
 
 	for (i = 0; i < hdev->ibh_nmrs; i++) {
 		struct ib_phys_buf ipb;
@@ -2442,8 +2440,7 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 
 		mr = ib_reg_phys_mr(hdev->ibh_pd, &ipb, 1, acflags, &iova);
 		if (IS_ERR(mr)) {
-			CERROR("Failed ib_reg_phys_mr addr "LPX64
-			       " size "LPX64" : %ld\n",
+			CERROR("Failed ib_reg_phys_mr addr %#llx size %#llx : %ld\n",
 			       ipb.addr, ipb.size, PTR_ERR(mr));
 			kiblnd_hdev_cleanup_mrs(hdev);
 			return PTR_ERR(mr);
@@ -2456,8 +2453,7 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 
 out:
 	if (hdev->ibh_mr_size != ~0ULL || hdev->ibh_nmrs != 1)
-		LCONSOLE_INFO("Register global MR array, MR size: "
-			      LPX64", array size: %d\n",
+		LCONSOLE_INFO("Register global MR array, MR size: %#llx, array size: %d\n",
 			      hdev->ibh_mr_size, hdev->ibh_nmrs);
 	return 0;
 }
@@ -2704,7 +2700,6 @@ kiblnd_create_dev(char *ifname)
 	if (dev == NULL)
 		return NULL;
 
-	memset(dev, 0, sizeof(*dev));
 	netdev = dev_get_by_name(&init_net, ifname);
 	if (netdev == NULL) {
 		dev->ibd_can_failover = 0;
@@ -3087,8 +3082,6 @@ kiblnd_startup (lnet_ni_t *ni)
 	ni->ni_data = net;
 	if (net == NULL)
 		goto failed;
-
-	memset(net, 0, sizeof(*net));
 
 	do_gettimeofday(&tv);
 	net->ibn_incarnation = (((__u64)tv.tv_sec) * 1000000) + tv.tv_usec;

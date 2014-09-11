@@ -2915,7 +2915,7 @@ claw_new_device(struct ccwgroup_device *cgdev)
 			"failed with error code %d\n", ret);
 		goto out;
 	}
-	dev = alloc_netdev(0,"claw%d",claw_init_netdevice);
+	dev = alloc_netdev(0, "claw%d", NET_NAME_UNKNOWN, claw_init_netdevice);
 	if (!dev) {
 		dev_warn(&cgdev->dev,
 			"Activating the CLAW device failed\n");

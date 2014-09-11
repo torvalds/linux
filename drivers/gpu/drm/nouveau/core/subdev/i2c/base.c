@@ -326,9 +326,9 @@ nouveau_i2c_identify(struct nouveau_i2c *i2c, int index, const char *what,
 }
 
 static void
-nouveau_i2c_intr_disable(struct nouveau_event *event, int type, int index)
+nouveau_i2c_intr_fini(struct nvkm_event *event, int type, int index)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(event->priv);
+	struct nouveau_i2c *i2c = container_of(event, typeof(*i2c), event);
 	struct nouveau_i2c_port *port = i2c->find(i2c, index);
 	const struct nouveau_i2c_impl *impl = (void *)nv_object(i2c)->oclass;
 	if (port && port->aux >= 0)
@@ -336,13 +336,26 @@ nouveau_i2c_intr_disable(struct nouveau_event *event, int type, int index)
 }
 
 static void
-nouveau_i2c_intr_enable(struct nouveau_event *event, int type, int index)
+nouveau_i2c_intr_init(struct nvkm_event *event, int type, int index)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(event->priv);
+	struct nouveau_i2c *i2c = container_of(event, typeof(*i2c), event);
 	struct nouveau_i2c_port *port = i2c->find(i2c, index);
 	const struct nouveau_i2c_impl *impl = (void *)nv_object(i2c)->oclass;
 	if (port && port->aux >= 0)
 		impl->aux_mask(i2c, type, 1 << port->aux, 1 << port->aux);
+}
+
+static int
+nouveau_i2c_intr_ctor(void *data, u32 size, struct nvkm_notify *notify)
+{
+	struct nvkm_i2c_ntfy_req *req = data;
+	if (!WARN_ON(size != sizeof(*req))) {
+		notify->size  = sizeof(struct nvkm_i2c_ntfy_rep);
+		notify->types = req->mask;
+		notify->index = req->port;
+		return 0;
+	}
+	return -EINVAL;
 }
 
 static void
@@ -364,12 +377,25 @@ nouveau_i2c_intr(struct nouveau_subdev *subdev)
 				if (lo & (1 << port->aux)) e |= NVKM_I2C_UNPLUG;
 				if (rq & (1 << port->aux)) e |= NVKM_I2C_IRQ;
 				if (tx & (1 << port->aux)) e |= NVKM_I2C_DONE;
-
-				nouveau_event_trigger(i2c->ntfy, e, port->index);
+				if (e) {
+					struct nvkm_i2c_ntfy_rep rep = {
+						.mask = e,
+					};
+					nvkm_event_send(&i2c->event, rep.mask,
+							port->index, &rep,
+							sizeof(rep));
+				}
 			}
 		}
 	}
 }
+
+static const struct nvkm_event_func
+nouveau_i2c_intr_func = {
+	.ctor = nouveau_i2c_intr_ctor,
+	.init = nouveau_i2c_intr_init,
+	.fini = nouveau_i2c_intr_fini,
+};
 
 int
 _nouveau_i2c_fini(struct nouveau_object *object, bool suspend)
@@ -431,7 +457,7 @@ _nouveau_i2c_dtor(struct nouveau_object *object)
 	struct nouveau_i2c *i2c = (void *)object;
 	struct nouveau_i2c_port *port, *temp;
 
-	nouveau_event_destroy(&i2c->ntfy);
+	nvkm_event_fini(&i2c->event);
 
 	list_for_each_entry_safe(port, temp, &i2c->ports, head) {
 		nouveau_object_ref(NULL, (struct nouveau_object **)&port);
@@ -547,13 +573,10 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 		}
 	}
 
-	ret = nouveau_event_create(4, index, &i2c->ntfy);
+	ret = nvkm_event_init(&nouveau_i2c_intr_func, 4, index, &i2c->event);
 	if (ret)
 		return ret;
 
-	i2c->ntfy->priv = i2c;
-	i2c->ntfy->enable = nouveau_i2c_intr_enable;
-	i2c->ntfy->disable = nouveau_i2c_intr_disable;
 	return 0;
 }
 

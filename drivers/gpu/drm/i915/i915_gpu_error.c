@@ -192,10 +192,10 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 				struct drm_i915_error_buffer *err,
 				int count)
 {
-	err_printf(m, "%s [%d]:\n", name, count);
+	err_printf(m, "  %s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "  %08x %8u %02x %02x %x %x",
+		err_printf(m, "    %08x %8u %02x %02x %x %x",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
@@ -229,6 +229,8 @@ static const char *hangcheck_action_to_str(enum intel_ring_hangcheck_action a)
 		return "wait";
 	case HANGCHECK_ACTIVE:
 		return "active";
+	case HANGCHECK_ACTIVE_LOOP:
+		return "active (loop)";
 	case HANGCHECK_KICK:
 		return "kick";
 	case HANGCHECK_HUNG:
@@ -359,6 +361,12 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
+	if (INTEL_INFO(dev)->gen >= 8) {
+		for (i = 0; i < 4; i++)
+			err_printf(m, "GTIER gt %d: 0x%08x\n", i,
+				   error->gtier[i]);
+	} else if (HAS_PCH_SPLIT(dev) || IS_VALLEYVIEW(dev))
+		err_printf(m, "GTIER: 0x%08x\n", error->gtier[0]);
 	err_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
 	err_printf(m, "FORCEWAKE: 0x%08x\n", error->forcewake);
 	err_printf(m, "DERRMR: 0x%08x\n", error->derrmr);
@@ -385,15 +393,17 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		i915_ring_error_state(m, dev, &error->ring[i]);
 	}
 
-	if (error->active_bo)
-		print_error_buffers(m, "Active",
-				    error->active_bo[0],
-				    error->active_bo_count[0]);
+	for (i = 0; i < error->vm_count; i++) {
+		err_printf(m, "vm[%d]\n", i);
 
-	if (error->pinned_bo)
+		print_error_buffers(m, "Active",
+				    error->active_bo[i],
+				    error->active_bo_count[i]);
+
 		print_error_buffers(m, "Pinned",
-				    error->pinned_bo[0],
-				    error->pinned_bo_count[0]);
+				    error->pinned_bo[i],
+				    error->pinned_bo_count[i]);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		obj = error->ring[i].batchbuffer;
@@ -636,13 +646,15 @@ unwind:
 				       (src)->base.size>>PAGE_SHIFT)
 
 static void capture_bo(struct drm_i915_error_buffer *err,
-		       struct drm_i915_gem_object *obj)
+		       struct i915_vma *vma)
 {
+	struct drm_i915_gem_object *obj = vma->obj;
+
 	err->size = obj->base.size;
 	err->name = obj->base.name;
 	err->rseqno = obj->last_read_seqno;
 	err->wseqno = obj->last_write_seqno;
-	err->gtt_offset = i915_gem_obj_ggtt_offset(obj);
+	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = obj->fence_reg;
@@ -666,7 +678,7 @@ static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 	int i = 0;
 
 	list_for_each_entry(vma, head, mm_list) {
-		capture_bo(err++, vma->obj);
+		capture_bo(err++, vma);
 		if (++i == count)
 			break;
 	}
@@ -675,21 +687,27 @@ static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 }
 
 static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
-			     int count, struct list_head *head)
+			     int count, struct list_head *head,
+			     struct i915_address_space *vm)
 {
 	struct drm_i915_gem_object *obj;
-	int i = 0;
+	struct drm_i915_error_buffer * const first = err;
+	struct drm_i915_error_buffer * const last = err + count;
 
 	list_for_each_entry(obj, head, global_list) {
-		if (!i915_gem_obj_is_pinned(obj))
-			continue;
+		struct i915_vma *vma;
 
-		capture_bo(err++, obj);
-		if (++i == count)
+		if (err == last)
 			break;
+
+		list_for_each_entry(vma, &obj->vma_list, vma_link)
+			if (vma->vm == vm && vma->pin_count > 0) {
+				capture_bo(err++, vma);
+				break;
+			}
 	}
 
-	return i;
+	return err - first;
 }
 
 /* Generate a semi-unique error code. The code is not meant to have meaning, The
@@ -784,7 +802,8 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 		if (ring == to)
 			continue;
 
-		signal_offset = (GEN8_SIGNAL_OFFSET(ring, i) & PAGE_MASK) / 4;
+		signal_offset = (GEN8_SIGNAL_OFFSET(ring, i) & (PAGE_SIZE - 1))
+				/ 4;
 		tmp = error->semaphore_obj->pages[0];
 		idx = intel_ring_sync_index(ring, to);
 
@@ -958,6 +977,12 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		request = i915_gem_find_active_request(ring);
 		if (request) {
+			struct i915_address_space *vm;
+
+			vm = request->ctx && request->ctx->ppgtt ?
+				&request->ctx->ppgtt->base :
+				&dev_priv->gtt.base;
+
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
 			 * by userspace.
@@ -965,9 +990,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			error->ring[i].batchbuffer =
 				i915_error_object_create(dev_priv,
 							 request->batch_obj,
-							 request->ctx ?
-							 request->ctx->vm :
-							 &dev_priv->gtt.base);
+							 vm);
 
 			if (HAS_BROKEN_CS_TLB(dev_priv->dev) &&
 			    ring->scratch.obj)
@@ -1040,9 +1063,14 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 	list_for_each_entry(vma, &vm->active_list, mm_list)
 		i++;
 	error->active_bo_count[ndx] = i;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
-		if (i915_gem_obj_is_pinned(obj))
-			i++;
+
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		list_for_each_entry(vma, &obj->vma_list, vma_link)
+			if (vma->vm == vm && vma->pin_count > 0) {
+				i++;
+				break;
+			}
+	}
 	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];
 
 	if (i) {
@@ -1061,7 +1089,7 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 		error->pinned_bo_count[ndx] =
 			capture_pinned_bo(pinned_bo,
 					  error->pinned_bo_count[ndx],
-					  &dev_priv->mm.bound_list);
+					  &dev_priv->mm.bound_list, vm);
 	error->active_bo[ndx] = active_bo;
 	error->pinned_bo[ndx] = pinned_bo;
 }
@@ -1082,8 +1110,25 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 	error->pinned_bo_count = kcalloc(cnt, sizeof(*error->pinned_bo_count),
 					 GFP_ATOMIC);
 
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
-		i915_gem_capture_vm(dev_priv, error, vm, i++);
+	if (error->active_bo == NULL ||
+	    error->pinned_bo == NULL ||
+	    error->active_bo_count == NULL ||
+	    error->pinned_bo_count == NULL) {
+		kfree(error->active_bo);
+		kfree(error->active_bo_count);
+		kfree(error->pinned_bo);
+		kfree(error->pinned_bo_count);
+
+		error->active_bo = NULL;
+		error->active_bo_count = NULL;
+		error->pinned_bo = NULL;
+		error->pinned_bo_count = NULL;
+	} else {
+		list_for_each_entry(vm, &dev_priv->vm_list, global_link)
+			i915_gem_capture_vm(dev_priv, error, vm, i++);
+
+		error->vm_count = cnt;
+	}
 }
 
 /* Capture all registers which don't fit into another category. */
@@ -1091,6 +1136,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
 {
 	struct drm_device *dev = dev_priv->dev;
+	int i;
 
 	/* General organization
 	 * 1. Registers specific to a single generation
@@ -1102,7 +1148,8 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 
 	/* 1: Registers specific to a single generation */
 	if (IS_VALLEYVIEW(dev)) {
-		error->ier = I915_READ(GTIER) | I915_READ(VLV_IER);
+		error->gtier[0] = I915_READ(GTIER);
+		error->ier = I915_READ(VLV_IER);
 		error->forcewake = I915_READ(FORCEWAKE_VLV);
 	}
 
@@ -1135,16 +1182,18 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (HAS_HW_CONTEXTS(dev))
 		error->ccid = I915_READ(CCID);
 
-	if (HAS_PCH_SPLIT(dev))
-		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
-	else {
-		if (IS_GEN2(dev))
-			error->ier = I915_READ16(IER);
-		else
-			error->ier = I915_READ(IER);
+	if (INTEL_INFO(dev)->gen >= 8) {
+		error->ier = I915_READ(GEN8_DE_MISC_IER);
+		for (i = 0; i < 4; i++)
+			error->gtier[i] = I915_READ(GEN8_GT_IER(i));
+	} else if (HAS_PCH_SPLIT(dev)) {
+		error->ier = I915_READ(DEIER);
+		error->gtier[0] = I915_READ(GTIER);
+	} else if (IS_GEN2(dev)) {
+		error->ier = I915_READ16(IER);
+	} else if (!IS_VALLEYVIEW(dev)) {
+		error->ier = I915_READ(IER);
 	}
-
-	/* 4: Everything else */
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 

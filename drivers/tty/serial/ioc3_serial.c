@@ -1880,7 +1880,6 @@ static struct uart_ops ioc3_ops = {
 	.stop_tx = ic3_stop_tx,
 	.start_tx = ic3_start_tx,
 	.stop_rx = ic3_stop_rx,
-	.enable_ms = null_void_function,
 	.break_ctl = ic3_break_ctl,
 	.startup = ic3_startup,
 	.shutdown = ic3_shutdown,

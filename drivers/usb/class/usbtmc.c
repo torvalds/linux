@@ -715,7 +715,7 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 	u8 *buffer;
 	int rv;
 	int n;
-	int actual;
+	int actual = 0;
 	int max_size;
 
 	dev = &data->intf->dev;

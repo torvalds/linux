@@ -423,6 +423,9 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 	dout("sync_read on file %p %llu~%u %s\n", file, off,
 	     (unsigned)len,
 	     (file->f_flags & O_DIRECT) ? "O_DIRECT" : "");
+
+	if (!len)
+		return 0;
 	/*
 	 * flush any page cache pages in this range.  this
 	 * will make concurrent normal and sync io slow,
@@ -470,8 +473,11 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 			size_t left = ret;
 
 			while (left) {
-				int copy = min_t(size_t, PAGE_SIZE, left);
-				l = copy_page_to_iter(pages[k++], 0, copy, i);
+				size_t page_off = off & ~PAGE_MASK;
+				size_t copy = min_t(size_t,
+						    PAGE_SIZE - page_off, left);
+				l = copy_page_to_iter(pages[k++], page_off,
+						      copy, i);
 				off += l;
 				left -= l;
 				if (l < copy)
@@ -531,7 +537,7 @@ static void ceph_sync_write_unsafe(struct ceph_osd_request *req, bool unsafe)
  * objects, rollback on failure, etc.)
  */
 static ssize_t
-ceph_sync_direct_write(struct kiocb *iocb, struct iov_iter *from)
+ceph_sync_direct_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -547,7 +553,6 @@ ceph_sync_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	int check_caps = 0;
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
-	loff_t pos = iocb->ki_pos;
 	size_t count = iov_iter_count(from);
 
 	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
@@ -646,7 +651,8 @@ ceph_sync_direct_write(struct kiocb *iocb, struct iov_iter *from)
  * correct atomic write, we should e.g. take write locks on all
  * objects, rollback on failure, etc.)
  */
-static ssize_t ceph_sync_write(struct kiocb *iocb, struct iov_iter *from)
+static ssize_t
+ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -663,7 +669,6 @@ static ssize_t ceph_sync_write(struct kiocb *iocb, struct iov_iter *from)
 	int check_caps = 0;
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
-	loff_t pos = iocb->ki_pos;
 	size_t count = iov_iter_count(from);
 
 	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
@@ -918,9 +923,9 @@ retry_snap:
 		/* we might need to revert back to that point */
 		data = *from;
 		if (file->f_flags & O_DIRECT)
-			written = ceph_sync_direct_write(iocb, &data);
+			written = ceph_sync_direct_write(iocb, &data, pos);
 		else
-			written = ceph_sync_write(iocb, &data);
+			written = ceph_sync_write(iocb, &data, pos);
 		if (written == -EOLDSNAPC) {
 			dout("aio_write %p %llx.%llx %llu~%u"
 				"got EOLDSNAPC, retrying\n",
@@ -1176,6 +1181,9 @@ static long ceph_fallocate(struct file *file, int mode,
 	int ret = 0;
 	loff_t endoff = 0;
 	loff_t size;
+
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+		return -EOPNOTSUPP;
 
 	if (!S_ISREG(inode->i_mode))
 		return -EOPNOTSUPP;

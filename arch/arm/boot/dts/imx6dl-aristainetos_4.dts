@@ -1,0 +1,85 @@
+/*
+ * support fot the imx6 based aristainetos board
+ *
+ * Copyright (C) 2014 Heiko Schocher <hs@denx.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+/dts-v1/;
+#include "imx6dl.dtsi"
+#include "imx6qdl-aristainetos.dtsi"
+
+/ {
+	model = "aristainetos i.MX6 Dual Lite Board 4";
+	compatible = "fsl,imx6dl";
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+		enable-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight>;
+		status = "okay";
+	};
+
+	memory {
+		reg = <0x10000000 0x40000000>;
+	};
+
+	soc {
+		display0: display@di0 {
+			compatible = "fsl,imx-parallel-display";
+			interface-pix-fmt = "rgb24";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ipu_disp>;
+			status = "okay";
+
+			display-timings {
+				480x800p60 {
+					native-mode;
+					clock-frequency = <30000000>;
+					hactive = <480>;
+					vactive = <800>;
+					hfront-porch = <59>;
+					hback-porch = <10>;
+					hsync-len = <10>;
+					vback-porch = <15>;
+					vfront-porch = <15>;
+					vsync-len = <15>;
+					hsync-active = <1>;
+					vsync-active = <1>;
+				};
+			};
+
+			port {
+				display0_in: endpoint {
+					remote-endpoint = <&ipu1_di0_disp0>;
+				};
+			};
+		};
+	};
+};
+
+&ecspi2 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	status = "okay";
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+};
+
+&ipu1_di0_disp0 {
+	remote-endpoint = <&display0_in>;
+};

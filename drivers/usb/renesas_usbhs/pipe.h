@@ -75,6 +75,7 @@ struct usbhs_pipe_info {
 char *usbhs_pipe_name(struct usbhs_pipe *pipe);
 struct usbhs_pipe
 *usbhs_pipe_malloc(struct usbhs_priv *priv, int endpoint_type, int dir_in);
+void usbhs_pipe_free(struct usbhs_pipe *pipe);
 int usbhs_pipe_probe(struct usbhs_priv *priv);
 void usbhs_pipe_remove(struct usbhs_priv *priv);
 int usbhs_pipe_is_dir_in(struct usbhs_pipe *pipe);

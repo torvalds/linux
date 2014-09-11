@@ -151,6 +151,13 @@
 /* Tegra CPU clock and reset control regs */
 #define CLK_RST_CONTROLLER_CPU_CMPLX_STATUS	0x470
 
+#define MUX8(_name, _parents, _offset, \
+			     _clk_num, _gate_flags, _clk_id)	\
+	TEGRA_INIT_DATA_TABLE(_name, NULL, NULL, _parents, _offset,\
+			29, MASK(3), 0, 0, 8, 1, TEGRA_DIVIDER_ROUND_UP,\
+			_clk_num, _gate_flags, _clk_id, _parents##_idx, 0,\
+			NULL)
+
 #ifdef CONFIG_PM_SLEEP
 static struct cpu_clk_suspend_context {
 	u32 clk_csite_src;
@@ -777,7 +784,6 @@ static struct tegra_clk tegra114_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_spdif_in] = { .dt_id = TEGRA114_CLK_SPDIF_IN, .present = true },
 	[tegra_clk_spdif_out] = { .dt_id = TEGRA114_CLK_SPDIF_OUT, .present = true },
 	[tegra_clk_vi_8] = { .dt_id = TEGRA114_CLK_VI, .present = true },
-	[tegra_clk_vi_sensor_8] = { .dt_id = TEGRA114_CLK_VI_SENSOR, .present = true },
 	[tegra_clk_fuse] = { .dt_id = TEGRA114_CLK_FUSE, .present = true },
 	[tegra_clk_fuse_burn] = { .dt_id = TEGRA114_CLK_FUSE_BURN, .present = true },
 	[tegra_clk_clk_32k] = { .dt_id = TEGRA114_CLK_CLK_32K, .present = true },
@@ -921,6 +927,13 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "fuse", .dt_id = TEGRA114_CLK_FUSE },
 	{ .dev_id = "rtc-tegra", .dt_id = TEGRA114_CLK_RTC },
 	{ .dev_id = "timer", .dt_id = TEGRA114_CLK_TIMER },
+};
+
+static const char *mux_pllm_pllc2_c_c3_pllp_plla[] = {
+	"pll_m", "pll_c2", "pll_c", "pll_c3", "pll_p", "pll_a_out0"
+};
+static u32 mux_pllm_pllc2_c_c3_pllp_plla_idx[] = {
+	[0] = 0, [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 6,
 };
 
 static struct clk **clks;
@@ -1178,10 +1191,18 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	clks[TEGRA114_CLK_PLL_E_OUT0] = clk;
 }
 
+#define CLK_SOURCE_VI_SENSOR 0x1a8
+
+static struct tegra_periph_init_data tegra_periph_clk_list[] = {
+	MUX8("vi_sensor", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_VI_SENSOR, 20, TEGRA_PERIPH_NO_RESET, TEGRA114_CLK_VI_SENSOR),
+};
+
 static __init void tegra114_periph_clk_init(void __iomem *clk_base,
 					    void __iomem *pmc_base)
 {
 	struct clk *clk;
+	struct tegra_periph_init_data *data;
+	int i;
 
 	/* xusb_ss_div2 */
 	clk = clk_register_fixed_factor(NULL, "xusb_ss_div2", "xusb_ss_src", 0,
@@ -1208,6 +1229,14 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base,
 			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + CLK_SOURCE_EMC,
 			       29, 3, 0, NULL);
+
+	for (i = 0; i < ARRAY_SIZE(tegra_periph_clk_list); i++) {
+		data = &tegra_periph_clk_list[i];
+		clk = tegra_clk_register_periph(data->name,
+			data->p.parent_names, data->num_parents,
+			&data->periph, clk_base, data->offset, data->flags);
+		clks[data->clk_id] = clk;
+	}
 
 	tegra_periph_clk_init(clk_base, pmc_base, tegra114_clks,
 				&pll_p_params);

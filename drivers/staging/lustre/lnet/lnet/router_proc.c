@@ -22,15 +22,15 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lib-lnet.h"
 
 #if  defined(LNET_ROUTER)
 
 /* This is really lnet_proc.c. You might need to update sanity test 215
  * if any file format is changed. */
 
-static ctl_table_header_t *lnet_table_header;
+static struct ctl_table_header *lnet_table_header;
 
 #define CTL_LNET	 (0x100)
 enum {
@@ -90,6 +90,24 @@ enum {
 
 #define LNET_PROC_VERSION(v)	((unsigned int)((v) & LNET_PROC_VER_MASK))
 
+static int proc_call_handler(void *data, int write, loff_t *ppos, void *buffer,
+			     size_t *lenp, int (*handler)(void *data, int write,
+			     loff_t pos, void *buffer, int len))
+{
+	int rc = handler(data, write, *ppos, buffer, *lenp);
+
+	if (rc < 0)
+		return rc;
+
+	if (write) {
+		*ppos += *lenp;
+	} else {
+		*lenp = rc;
+		*ppos += rc;
+	}
+	return 0;
+}
+
 static int __proc_lnet_stats(void *data, int write,
 			     loff_t pos, void *buffer, int nob)
 {
@@ -97,7 +115,7 @@ static int __proc_lnet_stats(void *data, int write,
 	lnet_counters_t *ctrs;
 	int	      len;
 	char	    *tmpstr;
-	const int	tmpsiz = 256; /* 7 %u and 4 LPU64 */
+	const int	tmpsiz = 256; /* 7 %u and 4 %llu */
 
 	if (write) {
 		lnet_counters_reset();
@@ -119,8 +137,7 @@ static int __proc_lnet_stats(void *data, int write,
 	lnet_counters_get(ctrs);
 
 	len = snprintf(tmpstr, tmpsiz,
-		       "%u %u %u %u %u %u %u "LPU64" "LPU64" "
-		       LPU64" "LPU64,
+		       "%u %u %u %u %u %u %u %llu %llu %llu %llu",
 		       ctrs->msgs_alloc, ctrs->msgs_max,
 		       ctrs->errors,
 		       ctrs->send_count, ctrs->recv_count,
@@ -139,9 +156,15 @@ static int __proc_lnet_stats(void *data, int write,
 	return rc;
 }
 
-DECLARE_PROC_HANDLER(proc_lnet_stats);
+static int proc_lnet_stats(struct ctl_table *table, int write,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_lnet_stats);
+}
 
-int LL_PROC_PROTO(proc_lnet_routes)
+int proc_lnet_routes(struct ctl_table *table, int write, void __user *buffer,
+		     size_t *lenp, loff_t *ppos)
 {
 	const int	tmpsiz = 256;
 	char		*tmpstr;
@@ -150,8 +173,6 @@ int LL_PROC_PROTO(proc_lnet_routes)
 	int		len;
 	int		ver;
 	int		off;
-
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	CLASSERT(sizeof(loff_t) >= 4);
 
@@ -268,7 +289,8 @@ int LL_PROC_PROTO(proc_lnet_routes)
 	return rc;
 }
 
-int LL_PROC_PROTO(proc_lnet_routers)
+int proc_lnet_routers(struct ctl_table *table, int write, void __user *buffer,
+		      size_t *lenp, loff_t *ppos)
 {
 	int	rc = 0;
 	char      *tmpstr;
@@ -277,8 +299,6 @@ int LL_PROC_PROTO(proc_lnet_routers)
 	int	len;
 	int	ver;
 	int	off;
-
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	off = LNET_PROC_HOFF_GET(*ppos);
 	ver = LNET_PROC_VER_GET(*ppos);
@@ -337,8 +357,8 @@ int LL_PROC_PROTO(proc_lnet_routers)
 
 		if (peer != NULL) {
 			lnet_nid_t nid = peer->lp_nid;
-			cfs_time_t now = cfs_time_current();
-			cfs_time_t deadline = peer->lp_ping_deadline;
+			unsigned long now = cfs_time_current();
+			unsigned long deadline = peer->lp_ping_deadline;
 			int nrefs     = peer->lp_refcount;
 			int nrtrrefs  = peer->lp_rtr_refcount;
 			int alive_cnt = peer->lp_alive_count;
@@ -404,7 +424,8 @@ int LL_PROC_PROTO(proc_lnet_routers)
 	return rc;
 }
 
-int LL_PROC_PROTO(proc_lnet_peers)
+int proc_lnet_peers(struct ctl_table *table, int write, void __user *buffer,
+		    size_t *lenp, loff_t *ppos)
 {
 	const int		tmpsiz  = 256;
 	struct lnet_peer_table	*ptable;
@@ -515,8 +536,8 @@ int LL_PROC_PROTO(proc_lnet_peers)
 				aliveness = peer->lp_alive ? "up" : "down";
 
 			if (lnet_peer_aliveness_enabled(peer)) {
-				cfs_time_t     now = cfs_time_current();
-				cfs_duration_t delta;
+				unsigned long     now = cfs_time_current();
+				long delta;
 
 				delta = cfs_time_sub(now, peer->lp_last_alive);
 				lastalive = cfs_duration_sec(delta);
@@ -628,17 +649,21 @@ static int __proc_lnet_buffers(void *data, int write,
 	return rc;
 }
 
-DECLARE_PROC_HANDLER(proc_lnet_buffers);
+static int proc_lnet_buffers(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_lnet_buffers);
+}
 
-int LL_PROC_PROTO(proc_lnet_nis)
+int proc_lnet_nis(struct ctl_table *table, int write, void __user *buffer,
+		  size_t *lenp, loff_t *ppos)
 {
 	int	tmpsiz = 128 * LNET_CPT_NUMBER;
 	int	rc = 0;
 	char      *tmpstr;
 	char      *s;
 	int	len;
-
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	LASSERT(!write);
 
@@ -681,7 +706,7 @@ int LL_PROC_PROTO(proc_lnet_nis)
 		if (ni != NULL) {
 			struct lnet_tx_queue	*tq;
 			char	*stat;
-			long	now = cfs_time_current_sec();
+			long	now = get_seconds();
 			int	last_alive = -1;
 			int	i;
 			int	j;
@@ -849,9 +874,16 @@ out:
 	LIBCFS_FREE(buf, buf_len);
 	return rc;
 }
-DECLARE_PROC_HANDLER(proc_lnet_portal_rotor);
 
-static ctl_table_t lnet_table[] = {
+static int proc_lnet_portal_rotor(struct ctl_table *table, int write,
+				  void __user *buffer, size_t *lenp,
+				  loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_lnet_portal_rotor);
+}
+
+static struct ctl_table lnet_table[] = {
 	/*
 	 * NB No .strategy entries have been provided since sysctl(8) prefers
 	 * to go via /proc for portability.
@@ -895,7 +927,7 @@ static ctl_table_t lnet_table[] = {
 	}
 };
 
-static ctl_table_t top_table[] = {
+static struct ctl_table top_table[] = {
 	{
 		.procname = "lnet",
 		.mode     = 0555,

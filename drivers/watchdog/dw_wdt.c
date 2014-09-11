@@ -296,9 +296,6 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	int ret;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	if (!mem)
-		return -EINVAL;
-
 	dw_wdt.regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(dw_wdt.regs))
 		return PTR_ERR(dw_wdt.regs);

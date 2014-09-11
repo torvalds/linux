@@ -30,7 +30,6 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/clock.h>
 
 static struct cpu_table *cpu;
 

@@ -421,7 +421,7 @@ static const struct das1800_board das1800_boards[] = {
 };
 
 struct das1800_private {
-	volatile unsigned int count;	/* number of data points left to be taken */
+	unsigned int count;	/* number of data points left to be taken */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
 	int irq_dma_bits;	/* bits for control register b */
@@ -430,7 +430,7 @@ struct das1800_private {
 	int dma_bits;
 	unsigned int dma0;	/* dma channels used */
 	unsigned int dma1;
-	volatile unsigned int dma_current;	/* dma channel currently in use */
+	unsigned int dma_current;	/* dma channel currently in use */
 	uint16_t *ai_buf0;	/* pointers to dma buffers */
 	uint16_t *ai_buf1;
 	uint16_t *dma_current_buf;	/* pointer to dma buffer currently being used */
@@ -492,7 +492,6 @@ static void das1800_handle_fifo_half_full(struct comedi_device *dev,
 				  numPoints * sizeof(devpriv->ai_buf0[0]));
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= numPoints;
-	return;
 }
 
 static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
@@ -517,8 +516,6 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 		if (cmd->stop_src == TRIG_COUNT)
 			devpriv->count--;
 	}
-
-	return;
 }
 
 /* Utility function used by das1800_flush_dma() and das1800_handle_dma().
@@ -549,8 +546,6 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 	cfc_write_array_to_buffer(s, buffer, num_bytes);
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= num_samples;
-
-	return;
 }
 
 /* flushes remaining data from board when external trigger has stopped acquisition
@@ -583,8 +578,6 @@ static void das1800_flush_dma(struct comedi_device *dev,
 
 	/*  get any remaining samples in fifo */
 	das1800_handle_fifo_not_empty(dev, s);
-
-	return;
 }
 
 static void das1800_handle_dma(struct comedi_device *dev,
@@ -619,8 +612,6 @@ static void das1800_handle_dma(struct comedi_device *dev,
 			}
 		}
 	}
-
-	return;
 }
 
 static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -663,7 +654,7 @@ static void das1800_ai_handler(struct comedi_device *dev)
 	if (status & OVF) {
 		/*  clear OVF interrupt bit */
 		outb(CLEAR_INTR_MASK & ~OVF, dev->iobase + DAS1800_STATUS);
-		comedi_error(dev, "DAS1800 FIFO overflow");
+		dev_err(dev->class_dev, "FIFO overflow\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		return;
@@ -696,7 +687,7 @@ static int das1800_ai_poll(struct comedi_device *dev,
 	das1800_ai_handler(dev);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	return s->async->buf_write_count - s->async->buf_read_count;
+	return comedi_buf_n_bytes_ready(s);
 }
 
 static irqreturn_t das1800_interrupt(int irq, void *d)
@@ -705,7 +696,7 @@ static irqreturn_t das1800_interrupt(int irq, void *d)
 	unsigned int status;
 
 	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+		dev_err(dev->class_dev, "premature interrupt\n");
 		return IRQ_HANDLED;
 	}
 
@@ -1060,8 +1051,6 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 		enable_dma(devpriv->dma1);
 	}
 	release_dma_lock(lock_flags);
-
-	return;
 }
 
 /* programs channel/gain list into card */
@@ -1088,8 +1077,6 @@ static void program_chanlist(struct comedi_device *dev,
 	}
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-
-	return;
 }
 
 /* analog input do_cmd */
@@ -1192,7 +1179,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 				break;
 		}
 		if (i == timeout) {
-			comedi_error(dev, "timeout");
+			dev_err(dev->class_dev, "timeout\n");
 			n = -ETIME;
 			goto exit;
 		}
@@ -1301,7 +1288,6 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			dev_err(dev->class_dev,
 				"dma 5,6 / 6,7 / or 7,5\n");
 			return -EINVAL;
-			break;
 		}
 		if (request_dma(dma0, dev->driver->driver_name)) {
 			dev_err(dev->class_dev,
@@ -1343,84 +1329,60 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 
 static int das1800_probe(struct comedi_device *dev)
 {
+	const struct das1800_board *board = comedi_board(dev);
+	int index;
 	int id;
-	int board;
 
-	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;	/* get id bits */
-	board = ((struct das1800_board *)dev->board_ptr) - das1800_boards;
+	/* calc the offset to the boardinfo that was found by the core */
+	index = board - das1800_boards;
 
+	/* verify that the board id matches the boardinfo */
+	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;
 	switch (id) {
 	case 0x3:
-		if (board == das1801st_da || board == das1802st_da ||
-		    board == das1701st_da || board == das1702st_da) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1800st-da series\n");
-		return das1801st;
+		if (index == das1801st_da || index == das1802st_da ||
+		    index == das1701st_da || index == das1702st_da)
+			return index;
+		index = das1801st;
 		break;
 	case 0x4:
-		if (board == das1802hr_da || board == das1702hr_da) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1802hr-da\n");
-		return das1802hr;
+		if (index == das1802hr_da || index == das1702hr_da)
+			return index;
+		index = das1802hr;
 		break;
 	case 0x5:
-		if (board == das1801ao || board == das1802ao ||
-		    board == das1701ao || board == das1702ao) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1800ao series\n");
-		return das1801ao;
+		if (index == das1801ao || index == das1802ao ||
+		    index == das1701ao || index == das1702ao)
+			return index;
+		index = das1801ao;
 		break;
 	case 0x6:
-		if (board == das1802hr || board == das1702hr) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1802hr\n");
-		return das1802hr;
+		if (index == das1802hr || index == das1702hr)
+			return index;
+		index = das1802hr;
 		break;
 	case 0x7:
-		if (board == das1801st || board == das1802st ||
-		    board == das1701st || board == das1702st) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1800st series\n");
-		return das1801st;
+		if (index == das1801st || index == das1802st ||
+		    index == das1701st || index == das1702st)
+			return index;
+		index = das1801st;
 		break;
 	case 0x8:
-		if (board == das1801hc || board == das1802hc) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1800hc series\n");
-		return das1801hc;
+		if (index == das1801hc || index == das1802hc)
+			return index;
+		index = das1801hc;
 		break;
 	default:
-		printk
-		    (" Board model: probe returned 0x%x (unknown, please report)\n",
-		     id);
-		return board;
+		dev_err(dev->class_dev,
+			"Board model: probe returned 0x%x (unknown, please report)\n",
+			id);
 		break;
 	}
-	return -1;
+	dev_err(dev->class_dev,
+		"Board model (probed, not recommended): %s series\n",
+		das1800_boards[index].name);
+
+	return index;
 }
 
 static int das1800_attach(struct comedi_device *dev,

@@ -32,7 +32,6 @@
 #include "odm.h"
 #include "odm_HWConfig.h"
 #include "odm_debug.h"
-#include "odm_RegDefine11AC.h"
 #include "odm_RegDefine11N.h"
 
 #include "HalDMOutSrc8723A.h" /* for IQK,LCK,Power-tracking */

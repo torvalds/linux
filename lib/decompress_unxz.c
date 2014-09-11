@@ -248,10 +248,10 @@ void *memmove(void *dest, const void *src, size_t size)
  * both input and output buffers are available as a single chunk, i.e. when
  * fill() and flush() won't be used.
  */
-STATIC int INIT unxz(unsigned char *in, int in_size,
-		     int (*fill)(void *dest, unsigned int size),
-		     int (*flush)(void *src, unsigned int size),
-		     unsigned char *out, int *in_used,
+STATIC int INIT unxz(unsigned char *in, long in_size,
+		     long (*fill)(void *dest, unsigned long size),
+		     long (*flush)(void *src, unsigned long size),
+		     unsigned char *out, long *in_used,
 		     void (*error)(char *x))
 {
 	struct xz_buf b;
@@ -329,7 +329,7 @@ STATIC int INIT unxz(unsigned char *in, int in_size,
 				 * returned by xz_dec_run(), but probably
 				 * it's not too bad.
 				 */
-				if (flush(b.out, b.out_pos) != (int)b.out_pos)
+				if (flush(b.out, b.out_pos) != (long)b.out_pos)
 					ret = XZ_BUF_ERROR;
 
 				b.out_pos = 0;

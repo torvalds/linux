@@ -32,7 +32,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-	compatible = "fsl,sec-v6.0";
+	compatible = "fsl,sec-v6.0", "fsl,sec-v5.0",
+		     "fsl,sec-v4.0";
 	fsl,sec-era = <6>;
 	#address-cells = <1>;
 	#size-cells = <1>;

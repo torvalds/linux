@@ -35,6 +35,7 @@ Major Change History:
 --*/
 
 #include <HalPwrSeqCmd.h>
+#include <usb_ops_linux.h>
 
 /*	Description: */
 /*		This routine deals with the Power Configuration CMDs parsing
@@ -80,13 +81,13 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				offset = GET_PWR_CFG_OFFSET(pwrcfgcmd);
 
 				/*  Read the value from system register */
-				value = rtw_read8(padapter, offset);
+				value = usb_read8(padapter, offset);
 
 				value &= ~(GET_PWR_CFG_MASK(pwrcfgcmd));
 				value |= (GET_PWR_CFG_VALUE(pwrcfgcmd) & GET_PWR_CFG_MASK(pwrcfgcmd));
 
 				/*  Write the value back to system register */
-				rtw_write8(padapter, offset, value);
+				usb_write8(padapter, offset, value);
 				break;
 			case PWR_CMD_POLLING:
 				RT_TRACE(_module_hal_init_c_ , _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_POLLING\n"));
@@ -94,7 +95,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				poll_bit = false;
 				offset = GET_PWR_CFG_OFFSET(pwrcfgcmd);
 				do {
-						value = rtw_read8(padapter, offset);
+						value = usb_read8(padapter, offset);
 
 					value &= GET_PWR_CFG_MASK(pwrcfgcmd);
 					if (value == (GET_PWR_CFG_VALUE(pwrcfgcmd) & GET_PWR_CFG_MASK(pwrcfgcmd)))

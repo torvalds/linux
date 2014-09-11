@@ -828,20 +828,6 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	}
 }
 
-static void
-intel_dp_set_m2_n2(struct intel_crtc *crtc, struct intel_link_m_n *m_n)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum transcoder transcoder = crtc->config.cpu_transcoder;
-
-	I915_WRITE(PIPE_DATA_M2(transcoder),
-		TU_SIZE(m_n->tu) | m_n->gmch_m);
-	I915_WRITE(PIPE_DATA_N2(transcoder), m_n->gmch_n);
-	I915_WRITE(PIPE_LINK_M2(transcoder), m_n->link_m);
-	I915_WRITE(PIPE_LINK_N2(transcoder), m_n->link_n);
-}
-
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_config *pipe_config)
@@ -867,6 +853,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_dp_encoder = true;
+	pipe_config->has_drrs = false;
 	pipe_config->has_audio = intel_dp->has_audio;
 
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
@@ -970,13 +957,14 @@ found:
 
 	if (intel_connector->panel.downclock_mode != NULL &&
 		intel_dp->drrs_state.type == SEAMLESS_DRRS_SUPPORT) {
+			pipe_config->has_drrs = true;
 			intel_link_compute_m_n(bpp, lane_count,
 				intel_connector->panel.downclock_mode->clock,
 				pipe_config->port_clock,
 				&pipe_config->dp_m2_n2);
 	}
 
-	if (HAS_DDI(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
 	else
 		intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
@@ -1285,6 +1273,19 @@ static void edp_panel_vdd_work(struct work_struct *__work)
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
 
+static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
+{
+	unsigned long delay;
+
+	/*
+	 * Queue the timer to fire a long time from now (relative to the power
+	 * down delay) to keep the panel power up across a sequence of
+	 * operations.
+	 */
+	delay = msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5);
+	schedule_delayed_work(&intel_dp->panel_vdd_work, delay);
+}
+
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 {
 	if (!is_edp(intel_dp))
@@ -1294,17 +1295,10 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 
 	intel_dp->want_panel_vdd = false;
 
-	if (sync) {
+	if (sync)
 		edp_panel_vdd_off_sync(intel_dp);
-	} else {
-		/*
-		 * Queue the timer to fire a long
-		 * time from now (relative to the power down delay)
-		 * to keep the panel power up across a sequence of operations
-		 */
-		schedule_delayed_work(&intel_dp->panel_vdd_work,
-				      msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5));
-	}
+	else
+		edp_panel_vdd_schedule_off(intel_dp);
 }
 
 void intel_edp_panel_on(struct intel_dp *intel_dp)
@@ -1800,7 +1794,6 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	lockdep_assert_held(&dev_priv->psr.lock);
-	lockdep_assert_held(&dev->struct_mutex);
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
@@ -2288,6 +2281,8 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	enum pipe pipe = intel_crtc->pipe;
 	u32 val;
 
+	intel_dp_prepare(encoder);
+
 	mutex_lock(&dev_priv->dpio_lock);
 
 	/* program left/right clock distribution */
@@ -2654,8 +2649,8 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	/* Program swing margin */
 	for (i = 0; i < 4; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
-		val &= ~DPIO_SWING_MARGIN_MASK;
-		val |= margin_reg_value << DPIO_SWING_MARGIN_SHIFT;
+		val &= ~DPIO_SWING_MARGIN000_MASK;
+		val |= margin_reg_value << DPIO_SWING_MARGIN000_SHIFT;
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
 	}
 
@@ -2966,7 +2961,10 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 		}
 
 	} else {
-		*DP &= ~DP_LINK_TRAIN_MASK;
+		if (IS_CHERRYVIEW(dev))
+			*DP &= ~DP_LINK_TRAIN_MASK_CHV;
+		else
+			*DP &= ~DP_LINK_TRAIN_MASK;
 
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
 		case DP_TRAINING_PATTERN_DISABLE:
@@ -2979,8 +2977,12 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			DRM_ERROR("DP training pattern 3 not supported\n");
-			*DP |= DP_LINK_TRAIN_PAT_2;
+			if (IS_CHERRYVIEW(dev)) {
+				*DP |= DP_LINK_TRAIN_PAT_3_CHV;
+			} else {
+				DRM_ERROR("DP training pattern 3 not supported\n");
+				*DP |= DP_LINK_TRAIN_PAT_2;
+			}
 			break;
 		}
 	}
@@ -3267,7 +3269,10 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
 	} else {
-		DP &= ~DP_LINK_TRAIN_MASK;
+		if (IS_CHERRYVIEW(dev))
+			DP &= ~DP_LINK_TRAIN_MASK_CHV;
+		else
+			DP &= ~DP_LINK_TRAIN_MASK;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
 	}
 	POSTING_READ(intel_dp->output_reg);
@@ -3546,6 +3551,9 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 		return;
 
 	if (WARN_ON(!intel_encoder->base.crtc))
+		return;
+
+	if (!to_intel_crtc(intel_encoder->base.crtc)->active)
 		return;
 
 	/* Try to read receiver status if the link appears to be up */
@@ -3998,6 +4006,21 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_dig_port);
 }
 
+static void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
+
+	if (!is_edp(intel_dp))
+		return;
+
+	edp_panel_vdd_off_sync(intel_dp);
+}
+
+static void intel_dp_encoder_reset(struct drm_encoder *encoder)
+{
+	intel_edp_panel_vdd_sanitize(to_intel_encoder(encoder));
+}
+
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_dp_detect,
@@ -4013,6 +4036,7 @@ static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs =
 };
 
 static const struct drm_encoder_funcs intel_dp_enc_funcs = {
+	.reset = intel_dp_encoder_reset,
 	.destroy = intel_dp_encoder_destroy,
 };
 
@@ -4026,14 +4050,21 @@ bool
 intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
+	enum intel_display_power_domain power_domain;
+	bool ret = true;
+
 	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
 		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
 
-	DRM_DEBUG_KMS("got hpd irq on port %d - %s\n", intel_dig_port->port,
+	DRM_DEBUG_KMS("got hpd irq on port %c - %s\n",
+		      port_name(intel_dig_port->port),
 		      long_hpd ? "long" : "short");
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	if (long_hpd) {
 		if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
@@ -4050,8 +4081,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 	} else {
 		if (intel_dp->is_mst) {
-			ret = intel_dp_check_mst_status(intel_dp);
-			if (ret == -EINVAL)
+			if (intel_dp_check_mst_status(intel_dp) == -EINVAL)
 				goto mst_fail;
 		}
 
@@ -4065,7 +4095,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 		}
 	}
-	return false;
+	ret = false;
+	goto put_power;
 mst_fail:
 	/* if we were in MST mode, and device is not there get out of MST mode */
 	if (intel_dp->is_mst) {
@@ -4073,7 +4104,10 @@ mst_fail:
 		intel_dp->is_mst = false;
 		drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
 	}
-	return true;
+put_power:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 /* Return which DP Port should be selected for Transcoder DP control */
@@ -4382,7 +4416,7 @@ void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		val = I915_READ(reg);
 		if (index > DRRS_HIGH_RR) {
 			val |= PIPECONF_EDP_RR_MODE_SWITCH;
-			intel_dp_set_m2_n2(intel_crtc, &config->dp_m2_n2);
+			intel_dp_set_m_n(intel_crtc);
 		} else {
 			val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
 		}
@@ -4422,7 +4456,7 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 	}
 
 	if (dev_priv->vbt.drrs_type != SEAMLESS_DRRS_SUPPORT) {
-		DRM_INFO("VBT doesn't support DRRS\n");
+		DRM_DEBUG_KMS("VBT doesn't support DRRS\n");
 		return NULL;
 	}
 
@@ -4430,7 +4464,7 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 					(dev, fixed_mode, connector);
 
 	if (!downclock_mode) {
-		DRM_INFO("DRRS not supported\n");
+		DRM_DEBUG_KMS("DRRS not supported\n");
 		return NULL;
 	}
 
@@ -4441,8 +4475,34 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 	intel_dp->drrs_state.type = dev_priv->vbt.drrs_type;
 
 	intel_dp->drrs_state.refresh_rate_type = DRRS_HIGH_RR;
-	DRM_INFO("seamless DRRS supported for eDP panel.\n");
+	DRM_DEBUG_KMS("seamless DRRS supported for eDP panel.\n");
 	return downclock_mode;
+}
+
+void intel_edp_panel_vdd_sanitize(struct intel_encoder *intel_encoder)
+{
+	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_dp *intel_dp;
+	enum intel_display_power_domain power_domain;
+
+	if (intel_encoder->type != INTEL_OUTPUT_EDP)
+		return;
+
+	intel_dp = enc_to_intel_dp(&intel_encoder->base);
+	if (!edp_have_panel_vdd(intel_dp))
+		return;
+	/*
+	 * The VDD bit needs a power domain reference, so if the bit is
+	 * already enabled when we boot or resume, grab this reference and
+	 * schedule a vdd off, so we don't hold on to the reference
+	 * indefinitely.
+	 */
+	DRM_DEBUG_KMS("VDD left on by BIOS, adjusting state tracking\n");
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
+
+	edp_panel_vdd_schedule_off(intel_dp);
 }
 
 static bool intel_edp_init_connector(struct intel_dp *intel_dp,
@@ -4465,13 +4525,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!is_edp(intel_dp))
 		return true;
 
-	/* The VDD bit needs a power domain reference, so if the bit is already
-	 * enabled when we boot, grab this reference. */
-	if (edp_have_panel_vdd(intel_dp)) {
-		enum intel_display_power_domain power_domain;
-		power_domain = intel_display_port_power_domain(intel_encoder);
-		intel_display_power_get(dev_priv, power_domain);
-	}
+	intel_edp_panel_vdd_sanitize(intel_encoder);
 
 	/* Cache DPCD and EDID for edp. */
 	intel_edp_panel_vdd_on(intel_dp);
@@ -4691,6 +4745,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->disable = intel_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
+	intel_encoder->suspend = intel_dp_encoder_suspend;
 	if (IS_CHERRYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = chv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = chv_pre_enable_dp;

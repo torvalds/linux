@@ -115,6 +115,7 @@ static void s5k6a3_try_format(struct v4l2_mbus_framefmt *mf)
 
 	fmt = find_sensor_format(mf);
 	mf->code = fmt->code;
+	mf->field = V4L2_FIELD_NONE;
 	v4l_bound_align_image(&mf->width, S5K6A3_SENSOR_MIN_WIDTH,
 			      S5K6A3_SENSOR_MAX_WIDTH, 0,
 			      &mf->height, S5K6A3_SENSOR_MIN_HEIGHT,

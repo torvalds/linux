@@ -108,7 +108,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 	if (len)
 		strcpy(event->name, file_name);
 
-	ret = fsnotify_add_notify_event(group, fsn_event, inotify_merge);
+	ret = fsnotify_add_event(group, fsn_event, inotify_merge);
 	if (ret) {
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);

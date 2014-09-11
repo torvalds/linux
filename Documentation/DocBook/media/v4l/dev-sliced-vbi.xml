@@ -185,7 +185,14 @@ tables, sigh. --></para></entry>
 	    <entry></entry>
 	    <entry spanname="hspan">Drivers must set
 <structfield>service_lines</structfield>[0][0] and
-<structfield>service_lines</structfield>[1][0] to zero.</entry>
+<structfield>service_lines</structfield>[1][0] to zero.
+The <constant>V4L2_VBI_ITU_525_F1_START</constant>,
+<constant>V4L2_VBI_ITU_525_F2_START</constant>,
+<constant>V4L2_VBI_ITU_625_F1_START</constant> and
+<constant>V4L2_VBI_ITU_625_F2_START</constant> defines give the start
+line numbers for each field for each 525 or 625 line format as a
+convenience.  Don't forget that ITU line numbering starts at 1, not 0.
+</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

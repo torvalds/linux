@@ -34,10 +34,10 @@
  */
 
 #include <drm/drmP.h>
-#include <drm/drm_buffer.h>
 #include <drm/radeon_drm.h>
 #include "radeon_drv.h"
 #include "r300_reg.h"
+#include "drm_buffer.h"
 
 #include <asm/unaligned.h>
 

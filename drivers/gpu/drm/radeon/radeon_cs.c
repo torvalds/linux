@@ -78,7 +78,8 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	struct radeon_cs_chunk *chunk;
 	struct radeon_cs_buckets buckets;
 	unsigned i, j;
-	bool duplicate;
+	bool duplicate, need_mmap_lock = false;
+	int r;
 
 	if (p->chunk_relocs_idx == -1) {
 		return 0;
@@ -132,13 +133,17 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		 * the buffers used for read only, which doubles the range
 		 * to 0 to 31. 32 is reserved for the kernel driver.
 		 */
-		priority = (r->flags & 0xf) * 2 + !!r->write_domain;
+		priority = (r->flags & RADEON_RELOC_PRIO_MASK) * 2
+			   + !!r->write_domain;
 
 		/* the first reloc of an UVD job is the msg and that must be in
-		   VRAM, also but everything into VRAM on AGP cards to avoid
-		   image corruptions */
+		   VRAM, also but everything into VRAM on AGP cards and older
+		   IGP chips to avoid image corruptions */
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
-		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev))) {
+		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev) ||
+		     p->rdev->family == CHIP_RS780 ||
+		     p->rdev->family == CHIP_RS880)) {
+
 			/* TODO: is this still needed for NI+ ? */
 			p->relocs[i].prefered_domains =
 				RADEON_GEM_DOMAIN_VRAM;
@@ -164,6 +169,19 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].allowed_domains = domain;
 		}
 
+		if (radeon_ttm_tt_has_userptr(p->relocs[i].robj->tbo.ttm)) {
+			uint32_t domain = p->relocs[i].prefered_domains;
+			if (!(domain & RADEON_GEM_DOMAIN_GTT)) {
+				DRM_ERROR("Only RADEON_GEM_DOMAIN_GTT is "
+					  "allowed for userptr BOs\n");
+				return -EINVAL;
+			}
+			need_mmap_lock = true;
+			domain = RADEON_GEM_DOMAIN_GTT;
+			p->relocs[i].prefered_domains = domain;
+			p->relocs[i].allowed_domains = domain;
+		}
+
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
 		p->relocs[i].handle = r->handle;
 
@@ -176,8 +194,15 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	if (p->cs_flags & RADEON_CS_USE_VM)
 		p->vm_bos = radeon_vm_get_bos(p->rdev, p->ib.vm,
 					      &p->validated);
+	if (need_mmap_lock)
+		down_read(&current->mm->mmap_sem);
 
-	return radeon_bo_list_validate(p->rdev, &p->ticket, &p->validated, p->ring);
+	r = radeon_bo_list_validate(p->rdev, &p->ticket, &p->validated, p->ring);
+
+	if (need_mmap_lock)
+		up_read(&current->mm->mmap_sem);
+
+	return r;
 }
 
 static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority)
@@ -228,11 +253,17 @@ static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
 	int i;
 
 	for (i = 0; i < p->nrelocs; i++) {
+		struct reservation_object *resv;
+		struct fence *fence;
+
 		if (!p->relocs[i].robj)
 			continue;
 
+		resv = p->relocs[i].robj->tbo.resv;
+		fence = reservation_object_get_excl(resv);
+
 		radeon_semaphore_sync_to(p->ib.semaphore,
-					 p->relocs[i].robj->tbo.sync_obj);
+					 (struct radeon_fence *)fence);
 	}
 }
 
@@ -402,7 +433,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
-					    parser->ib.fence);
+					    &parser->ib.fence->base);
 	} else if (backoff) {
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);
@@ -450,7 +481,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		radeon_vce_note_usage(rdev);
 
 	radeon_cs_sync_rings(parser);
-	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
+	r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
 	}
@@ -541,9 +572,9 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
-		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib);
+		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib, true);
 	} else {
-		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
+		r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	}
 
 out:
@@ -627,6 +658,13 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (!rdev->accel_working) {
 		up_read(&rdev->exclusive_lock);
 		return -EBUSY;
+	}
+	if (rdev->in_reset) {
+		up_read(&rdev->exclusive_lock);
+		r = radeon_gpu_reset(rdev);
+		if (!r)
+			r = -EAGAIN;
+		return r;
 	}
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));

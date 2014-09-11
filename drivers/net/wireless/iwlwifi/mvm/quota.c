@@ -73,7 +73,7 @@ struct iwl_mvm_quota_iterator_data {
 	int colors[MAX_BINDINGS];
 	int low_latency[MAX_BINDINGS];
 	int n_low_latency_bindings;
-	struct ieee80211_vif *new_vif;
+	struct ieee80211_vif *disabled_vif;
 };
 
 static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
@@ -83,13 +83,8 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u16 id;
 
-	/*
-	 * We'll account for the new interface (if any) below,
-	 * skip it here in case we're not called from within
-	 * the add_interface callback (otherwise it won't show
-	 * up in iteration)
-	 */
-	if (vif == data->new_vif)
+	/* skip disabled interfaces here immediately */
+	if (vif == data->disabled_vif)
 		return;
 
 	if (!mvmvif->phy_ctxt)
@@ -103,11 +98,6 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 
 	if (WARN_ON_ONCE(id >= MAX_BINDINGS))
 		return;
-
-	if (data->colors[id] < 0)
-		data->colors[id] = mvmvif->phy_ctxt->color;
-	else
-		WARN_ON_ONCE(data->colors[id] != mvmvif->phy_ctxt->color);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -129,6 +119,11 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 		WARN_ON_ONCE(1);
 		return;
 	}
+
+	if (data->colors[id] < 0)
+		data->colors[id] = mvmvif->phy_ctxt->color;
+	else
+		WARN_ON_ONCE(data->colors[id] != mvmvif->phy_ctxt->color);
 
 	data->n_interfaces[id]++;
 
@@ -171,14 +166,15 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 #endif
 }
 
-int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
+int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
+			  struct ieee80211_vif *disabled_vif)
 {
 	struct iwl_time_quota_cmd cmd = {};
 	int i, idx, ret, num_active_macs, quota, quota_rem, n_non_lowlat;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
-		.new_vif = newvif,
+		.disabled_vif = disabled_vif,
 	};
 
 	lockdep_assert_held(&mvm->mutex);
@@ -193,10 +189,6 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_quota_iterator, &data);
-	if (newvif) {
-		data.new_vif = NULL;
-		iwl_mvm_quota_iterator(&data, newvif->addr, newvif);
-	}
 
 	/*
 	 * The FW's scheduling session consists of
@@ -284,6 +276,14 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 	}
 
 	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
+
+	/* check that we have non-zero quota for all valid bindings */
+	for (i = 0; i < MAX_BINDINGS; i++) {
+		if (cmd.quotas[i].id_and_color == cpu_to_le32(FW_CTXT_INVALID))
+			continue;
+		WARN_ONCE(cmd.quotas[i].quota == 0,
+			  "zero quota on binding %d\n", i);
+	}
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0,
 				   sizeof(cmd), &cmd);

@@ -36,22 +36,11 @@
 #include "t4_msg.h"
 #include "t4fw_ri_api.h"
 
-#define T4_MAX_NUM_QP 65536
-#define T4_MAX_NUM_CQ 65536
 #define T4_MAX_NUM_PD 65536
-#define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
-#define T4_MAX_EQ_SIZE (65520 - T4_EQ_STATUS_ENTRIES)
-#define T4_MAX_IQ_SIZE (65520 - 1)
-#define T4_MAX_RQ_SIZE (8192 - T4_EQ_STATUS_ENTRIES)
-#define T4_MAX_SQ_SIZE (T4_MAX_EQ_SIZE - 1)
-#define T4_MAX_QP_DEPTH (T4_MAX_RQ_SIZE - 1)
-#define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
-#define T4_MAX_NUM_STAG (1<<15)
 #define T4_MAX_MR_SIZE (~0ULL)
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
-#define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
 #define A_PCIE_MA_SYNC 0x30b4
 
 struct t4_status_page {
@@ -244,8 +233,8 @@ struct t4_cqe {
 #define CQE_WRID_SQ_IDX(x)	((x)->u.scqe.cidx)
 
 /* generic accessor macros */
-#define CQE_WRID_HI(x)		((x)->u.gen.wrid_hi)
-#define CQE_WRID_LOW(x)		((x)->u.gen.wrid_low)
+#define CQE_WRID_HI(x)		(be32_to_cpu((x)->u.gen.wrid_hi))
+#define CQE_WRID_LOW(x)		(be32_to_cpu((x)->u.gen.wrid_low))
 
 /* macros for flit 3 of the cqe */
 #define S_CQE_GENBIT	63
@@ -277,6 +266,8 @@ struct t4_swsqe {
 	int			signaled;
 	u16			idx;
 	int                     flushed;
+	struct timespec         host_ts;
+	u64                     sge_ts;
 };
 
 static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
@@ -314,6 +305,8 @@ struct t4_sq {
 
 struct t4_swrqe {
 	u64 wr_id;
+	struct timespec host_ts;
+	u64 sge_ts;
 };
 
 struct t4_rq {
@@ -531,6 +524,10 @@ static inline int t4_wq_db_enabled(struct t4_wq *wq)
 	return !wq->rq.queue[wq->rq.size].status.db_off;
 }
 
+enum t4_cq_flags {
+	CQ_ARMED	= 1,
+};
+
 struct t4_cq {
 	struct t4_cqe *queue;
 	dma_addr_t dma_addr;
@@ -551,12 +548,19 @@ struct t4_cq {
 	u16 cidx_inc;
 	u8 gen;
 	u8 error;
+	unsigned long flags;
 };
+
+static inline int t4_clear_cq_armed(struct t4_cq *cq)
+{
+	return test_and_clear_bit(CQ_ARMED, &cq->flags);
+}
 
 static inline int t4_arm_cq(struct t4_cq *cq, int se)
 {
 	u32 val;
 
+	set_bit(CQ_ARMED, &cq->flags);
 	while (cq->cidx_inc > CIDXINC_MASK) {
 		val = SEINTARM(0) | CIDXINC(CIDXINC_MASK) | TIMERREG(7) |
 		      INGRESSQID(cq->cqid);

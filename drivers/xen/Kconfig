@@ -240,4 +240,8 @@ config XEN_MCE_LOG
 config XEN_HAVE_PVMMU
        bool
 
+config XEN_EFI
+	def_bool y
+	depends on X86_64 && EFI
+
 endmenu

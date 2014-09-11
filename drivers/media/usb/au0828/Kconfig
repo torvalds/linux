@@ -20,9 +20,17 @@ config VIDEO_AU0828_V4L2
 	bool "Auvitek AU0828 v4l2 analog video support"
 	depends on VIDEO_AU0828 && VIDEO_V4L2
 	select DVB_AU8522_V4L if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_TUNER
 	default y
 	---help---
 	  This is a video4linux driver for Auvitek's USB device.
 
 	  Choose Y here to include support for v4l2 analog video
 	  capture within the au0828 driver.
+
+config VIDEO_AU0828_RC
+	bool "AU0828 Remote Controller support"
+	depends on RC_CORE
+	depends on VIDEO_AU0828
+	---help---
+	   Enables Remote Controller support on au0828 driver.

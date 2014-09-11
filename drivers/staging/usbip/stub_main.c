@@ -94,7 +94,7 @@ static int add_match_busid(char *busid)
 
 	for (i = 0; i < MAX_BUSID; i++)
 		if (!busid_table[i].name[0]) {
-			strncpy(busid_table[i].name, busid, BUSID_SIZE);
+			strlcpy(busid_table[i].name, busid, BUSID_SIZE);
 			if ((busid_table[i].status != STUB_BUSID_ALLOC) &&
 			    (busid_table[i].status != STUB_BUSID_REMOV))
 				busid_table[i].status = STUB_BUSID_ADDED;
@@ -158,14 +158,10 @@ static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
 	if (count < 5)
 		return -EINVAL;
 
-	/* strnlen() does not include \0 */
-	len = strnlen(buf + 4, BUSID_SIZE);
-
 	/* busid needs to include \0 termination */
-	if (!(len < BUSID_SIZE))
+	len = strlcpy(busid, buf + 4, BUSID_SIZE);
+	if (sizeof(busid) <= len)
 		return -EINVAL;
-
-	strncpy(busid, buf + 4, BUSID_SIZE);
 
 	if (!strncmp(buf, "add ", 4)) {
 		if (add_match_busid(busid) < 0)

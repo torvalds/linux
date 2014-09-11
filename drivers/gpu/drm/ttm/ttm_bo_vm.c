@@ -45,10 +45,8 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				struct vm_area_struct *vma,
 				struct vm_fault *vmf)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
 	int ret = 0;
 
-	spin_lock(&bdev->fence_lock);
 	if (likely(!test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)))
 		goto out_unlock;
 
@@ -82,7 +80,6 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 			VM_FAULT_NOPAGE;
 
 out_unlock:
-	spin_unlock(&bdev->fence_lock);
 	return ret;
 }
 

@@ -48,14 +48,14 @@
 #ifndef _LUSTRE_DLM_H__
 #define _LUSTRE_DLM_H__
 
-#include <linux/lustre_dlm.h>
+#include "linux/lustre_dlm.h"
 
-#include <lustre_lib.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_handles.h>
-#include <interval_tree.h> /* for interval_node{}, ldlm_extent */
-#include <lu_ref.h>
+#include "lustre_lib.h"
+#include "lustre_net.h"
+#include "lustre_import.h"
+#include "lustre_handles.h"
+#include "interval_tree.h"	/* for interval_node{}, ldlm_extent */
+#include "lu_ref.h"
 
 #include "lustre_dlm_flags.h"
 
@@ -441,7 +441,7 @@ struct ldlm_namespace {
 	 * \see ldlm_namespace_dump. Increased by 10 seconds every time
 	 * it is called.
 	 */
-	cfs_time_t		ns_next_dump;
+	unsigned long		ns_next_dump;
 
 	/** "policy" function that does actual lock conflict determination */
 	ldlm_res_policy		ns_policy;
@@ -783,13 +783,13 @@ struct ldlm_lock {
 	 * Seconds. It will be updated if there is any activity related to
 	 * the lock, e.g. enqueue the lock or send blocking AST.
 	 */
-	cfs_time_t		l_last_activity;
+	unsigned long		l_last_activity;
 
 	/**
 	 * Time last used by e.g. being matched by lock match.
 	 * Jiffies. Should be converted to time if needed.
 	 */
-	cfs_time_t		l_last_used;
+	unsigned long		l_last_used;
 
 	/** Originally requested extent for the extent lock. */
 	struct ldlm_extent	l_req_extent;
@@ -837,7 +837,7 @@ struct ldlm_lock {
 	 * under this lock.
 	 * \see ost_rw_prolong_locks
 	 */
-	cfs_time_t		l_callback_timeout;
+	unsigned long		l_callback_timeout;
 
 	/** Local PID of process which created this lock. */
 	__u32			l_pid;
@@ -951,7 +951,7 @@ struct ldlm_resource {
 	void			*lr_lvb_data;
 
 	/** When the resource was considered as contended. */
-	cfs_time_t		lr_contention_time;
+	unsigned long		lr_contention_time;
 	/** List of references to this resource. For debugging. */
 	struct lu_ref		lr_reference;
 
@@ -1285,7 +1285,7 @@ void ldlm_namespace_register(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_unregister(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 int ldlm_proc_setup(void);
 void ldlm_proc_cleanup(void);
 #else
@@ -1390,7 +1390,7 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *head,
 int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
 			       ldlm_policy_data_t *policy,
-			       ldlm_mode_t mode, int lock_flags,
+			       ldlm_mode_t mode, __u64 lock_flags,
 			       ldlm_cancel_flags_t cancel_flags, void *opaque);
 int ldlm_cli_cancel_list_local(struct list_head *cancels, int count,
 			       ldlm_cancel_flags_t flags);

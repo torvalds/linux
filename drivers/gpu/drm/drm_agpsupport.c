@@ -34,6 +34,7 @@
 #include <drm/drmP.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include "drm_legacy.h"
 
 #if __OS_HAS_AGP
 

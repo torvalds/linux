@@ -35,6 +35,8 @@ nul_destroy(struct rpc_auth *auth)
 static struct rpc_cred *
 nul_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
+	if (flags & RPCAUTH_LOOKUP_RCU)
+		return &null_cred;
 	return get_rpccred(&null_cred);
 }
 

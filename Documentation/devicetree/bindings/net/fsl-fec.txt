@@ -12,7 +12,14 @@ Optional properties:
   only if property "phy-reset-gpios" is available.  Missing the property
   will have the duration be 1 millisecond.  Numbers greater than 1000 are
   invalid and 1 millisecond will be used instead.
-- phy-supply: regulator that powers the Ethernet PHY.
+- phy-supply : regulator that powers the Ethernet PHY.
+- phy-handle : phandle to the PHY device connected to this device.
+- fixed-link : Assume a fixed link. See fixed-link.txt in the same directory.
+  Use instead of phy-handle.
+
+Optional subnodes:
+- mdio : specifies the mdio bus in the FEC, used as a container for phy nodes
+  according to phy.txt in the same directory
 
 Example:
 
@@ -24,4 +31,24 @@ ethernet@83fec000 {
 	phy-reset-gpios = <&gpio2 14 0>; /* GPIO2_14 */
 	local-mac-address = [00 04 9F 01 1B B9];
 	phy-supply = <&reg_fec_supply>;
+};
+
+Example with phy specified:
+
+ethernet@83fec000 {
+	compatible = "fsl,imx51-fec", "fsl,imx27-fec";
+	reg = <0x83fec000 0x4000>;
+	interrupts = <87>;
+	phy-mode = "mii";
+	phy-reset-gpios = <&gpio2 14 0>; /* GPIO2_14 */
+	local-mac-address = [00 04 9F 01 1B B9];
+	phy-supply = <&reg_fec_supply>;
+	phy-handle = <&ethphy>;
+	mdio {
+		ethphy: ethernet-phy@6 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <6>;
+			max-speed = <100>;
+		};
+	};
 };

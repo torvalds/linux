@@ -1064,11 +1064,9 @@ int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	if (ret)
 		return ret;
 
-	base = devm_request_and_ioremap(dev, res);
-	if (!base) {
-		DRM_ERROR("failed to ioremap register\n");
-		return -ENOMEM;
-	}
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	dcrtc = kzalloc(sizeof(*dcrtc), GFP_KERNEL);
 	if (!dcrtc) {

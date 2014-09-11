@@ -883,6 +883,7 @@ uint32_t uvd_v1_0_get_wptr(struct radeon_device *rdev,
                            struct radeon_ring *ring);
 void uvd_v1_0_set_wptr(struct radeon_device *rdev,
                        struct radeon_ring *ring);
+int uvd_v1_0_resume(struct radeon_device *rdev);
 
 int uvd_v1_0_init(struct radeon_device *rdev);
 void uvd_v1_0_fini(struct radeon_device *rdev);
@@ -890,6 +891,8 @@ int uvd_v1_0_start(struct radeon_device *rdev);
 void uvd_v1_0_stop(struct radeon_device *rdev);
 
 int uvd_v1_0_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
+void uvd_v1_0_fence_emit(struct radeon_device *rdev,
+			 struct radeon_fence *fence);
 int uvd_v1_0_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 bool uvd_v1_0_semaphore_emit(struct radeon_device *rdev,
 			     struct radeon_ring *ring,

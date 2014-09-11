@@ -275,15 +275,6 @@ static void snp_release_port(struct uart_port *port)
 }
 
 /**
- * snp_enable_ms - Force modem status interrupts on - no-op for us
- * @port: Port to operate on - we ignore - no-op function
- *
- */
-static void snp_enable_ms(struct uart_port *port)
-{
-}
-
-/**
  * snp_shutdown - shut down the port - free irq and disable - no-op for us
  * @port: Port to shut down - we ignore
  *
@@ -396,7 +387,6 @@ static struct uart_ops sn_console_ops = {
 	.stop_tx = snp_stop_tx,
 	.start_tx = snp_start_tx,
 	.stop_rx = snp_stop_rx,
-	.enable_ms = snp_enable_ms,
 	.break_ctl = snp_break_ctl,
 	.startup = snp_startup,
 	.shutdown = snp_shutdown,

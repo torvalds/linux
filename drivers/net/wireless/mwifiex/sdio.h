@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: SDIO specific definitions
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -219,6 +219,9 @@ struct mwifiex_sdio_card_reg {
 	u8 rd_len_p0_l;
 	u8 rd_len_p0_u;
 	u8 card_misc_cfg_reg;
+	u8 fw_dump_ctrl;
+	u8 fw_dump_start;
+	u8 fw_dump_end;
 };
 
 struct sdio_mmc_card {
@@ -231,6 +234,7 @@ struct sdio_mmc_card {
 	u8 mp_agg_pkt_limit;
 	bool supports_sdio_new_mode;
 	bool has_control_mask;
+	bool supports_fw_dump;
 	u16 tx_buf_size;
 	u32 mp_tx_agg_buf_size;
 	u32 mp_rx_agg_buf_size;
@@ -257,6 +261,7 @@ struct mwifiex_sdio_device {
 	u8 mp_agg_pkt_limit;
 	bool supports_sdio_new_mode;
 	bool has_control_mask;
+	bool supports_fw_dump;
 	u16 tx_buf_size;
 	u32 mp_tx_agg_buf_size;
 	u32 mp_rx_agg_buf_size;
@@ -307,6 +312,9 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8897 = {
 	.rd_len_p0_l = 0x0c,
 	.rd_len_p0_u = 0x0d,
 	.card_misc_cfg_reg = 0xcc,
+	.fw_dump_ctrl = 0xe2,
+	.fw_dump_start = 0xe3,
+	.fw_dump_end = 0xea,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {
@@ -319,6 +327,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
 	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.supports_fw_dump = false,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
@@ -331,6 +340,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
 	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.supports_fw_dump = false,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
@@ -343,6 +353,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
 	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.supports_fw_dump = false,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
@@ -355,6 +366,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
 	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
+	.supports_fw_dump = true,
 };
 
 /*

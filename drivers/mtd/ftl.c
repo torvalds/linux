@@ -111,7 +111,6 @@ typedef struct partition_t {
     struct mtd_blktrans_dev mbd;
     uint32_t		state;
     uint32_t		*VirtualBlockMap;
-    uint32_t		*VirtualPageMap;
     uint32_t		FreeTotal;
     struct eun_info_t {
 	uint32_t		Offset;
@@ -1035,8 +1034,6 @@ static void ftl_freepart(partition_t *part)
 {
 	vfree(part->VirtualBlockMap);
 	part->VirtualBlockMap = NULL;
-	kfree(part->VirtualPageMap);
-	part->VirtualPageMap = NULL;
 	kfree(part->EUNInfo);
 	part->EUNInfo = NULL;
 	kfree(part->XferInfo);
@@ -1075,7 +1072,6 @@ static void ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 			return;
 	}
 
-	ftl_freepart(partition);
 	kfree(partition);
 }
 

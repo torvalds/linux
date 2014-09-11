@@ -36,8 +36,20 @@
 #include <linux/highmem.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include "drm_legacy.h"
 
 #if __OS_HAS_AGP
+
+#ifdef HAVE_PAGE_AGP
+# include <asm/agp.h>
+#else
+# ifdef __powerpc__
+#  define PAGE_AGP	__pgprot(_PAGE_KERNEL | _PAGE_NO_CACHE)
+# else
+#  define PAGE_AGP	PAGE_KERNEL
+# endif
+#endif
+
 static void *agp_remap(unsigned long offset, unsigned long size,
 		       struct drm_device * dev)
 {

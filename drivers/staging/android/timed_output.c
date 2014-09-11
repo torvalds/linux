@@ -41,8 +41,10 @@ static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 {
 	struct timed_output_dev *tdev = dev_get_drvdata(dev);
 	int value;
+	int rc;
 
-	if (sscanf(buf, "%d", &value) != 1)
+	rc = kstrtoint(buf, 0, &value);
+	if (rc != 0)
 		return -EINVAL;
 
 	tdev->enable(tdev, value);

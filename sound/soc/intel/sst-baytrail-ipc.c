@@ -122,6 +122,26 @@ struct sst_byt_tstamp {
 	u32 channel_peak[8];
 } __packed;
 
+struct sst_byt_fw_version {
+	u8 build;
+	u8 minor;
+	u8 major;
+	u8 type;
+} __packed;
+
+struct sst_byt_fw_build_info {
+	u8 date[16];
+	u8 time[16];
+} __packed;
+
+struct sst_byt_fw_init {
+	struct sst_byt_fw_version fw_version;
+	struct sst_byt_fw_build_info build_info;
+	u16 result;
+	u8 module_id;
+	u8 debug_info;
+} __packed;
+
 /* driver internal IPC message structure */
 struct ipc_message {
 	struct list_head list;
@@ -797,7 +817,7 @@ static struct sst_dsp_device byt_dev = {
 	.ops = &sst_byt_ops,
 };
 
-int sst_byt_dsp_suspend_noirq(struct device *dev, struct sst_pdata *pdata)
+int sst_byt_dsp_suspend_late(struct device *dev, struct sst_pdata *pdata)
 {
 	struct sst_byt *byt = pdata->dsp;
 
@@ -805,14 +825,6 @@ int sst_byt_dsp_suspend_noirq(struct device *dev, struct sst_pdata *pdata)
 	sst_dsp_reset(byt->dsp);
 	sst_byt_drop_all(byt);
 	dev_dbg(byt->dev, "dsp in reset\n");
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(sst_byt_dsp_suspend_noirq);
-
-int sst_byt_dsp_suspend_late(struct device *dev, struct sst_pdata *pdata)
-{
-	struct sst_byt *byt = pdata->dsp;
 
 	dev_dbg(byt->dev, "free all blocks and unload fw\n");
 	sst_fw_unload(byt->fw);
@@ -868,6 +880,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 {
 	struct sst_byt *byt;
 	struct sst_fw *byt_sst_fw;
+	struct sst_byt_fw_init init;
 	int err;
 
 	dev_dbg(dev, "initialising Byt DSP IPC\n");
@@ -928,6 +941,15 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 		dev_err(byt->dev, "ipc: error DSP boot timeout\n");
 		goto boot_err;
 	}
+
+	/* show firmware information */
+	sst_dsp_inbox_read(byt->dsp, &init, sizeof(init));
+	dev_info(byt->dev, "FW version: %02x.%02x.%02x.%02x\n",
+		 init.fw_version.major, init.fw_version.minor,
+		 init.fw_version.build, init.fw_version.type);
+	dev_info(byt->dev, "Build type: %x\n", init.fw_version.type);
+	dev_info(byt->dev, "Build date: %s %s\n",
+		 init.build_info.date, init.build_info.time);
 
 	pdata->dsp = byt;
 	byt->fw = byt_sst_fw;

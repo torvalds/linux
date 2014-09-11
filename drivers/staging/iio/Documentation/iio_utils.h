@@ -633,7 +633,7 @@ error_free:
 
 int read_sysfs_float(char *filename, char *basedir, float *val)
 {
-	float ret = 0;
+	int ret = 0;
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 	if (temp == NULL) {
@@ -653,9 +653,9 @@ error_free:
 	return ret;
 }
 
-read_sysfs_string(const char *filename, const char *basedir, char *str)
+int read_sysfs_string(const char *filename, const char *basedir, char *str)
 {
-	float ret = 0;
+	int ret = 0;
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 	if (temp == NULL) {

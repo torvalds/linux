@@ -14,7 +14,7 @@
 #include "imx6qdl-gw52xx.dtsi"
 
 / {
-	model = "Gateworks Ventana i.MX6 Quad GW52XX";
+	model = "Gateworks Ventana i.MX6 Dual/Quad GW52XX";
 	compatible = "gw,imx6q-gw52xx", "gw,ventana", "fsl,imx6q";
 };
 

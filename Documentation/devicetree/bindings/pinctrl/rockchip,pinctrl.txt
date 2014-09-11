@@ -21,6 +21,7 @@ defined as gpio sub-nodes of the pinmux controller.
 Required properties for iomux controller:
   - compatible: one of "rockchip,rk2928-pinctrl", "rockchip,rk3066a-pinctrl"
 		       "rockchip,rk3066b-pinctrl", "rockchip,rk3188-pinctrl"
+		       "rockchip,rk3288-pinctrl"
   - rockchip,grf: phandle referencing a syscon providing the
 	 "general register files"
 
@@ -36,7 +37,7 @@ Deprecated properties for iomux controller:
 	 Use rockchip,grf and rockchip,pmu described above instead.
 
 Required properties for gpio sub nodes:
-  - compatible: "rockchip,gpio-bank", "rockchip,rk3188-gpio-bank0"
+  - compatible: "rockchip,gpio-bank"
   - reg: register of the gpio bank (different than the iomux registerset)
   - interrupts: base interrupt of the gpio bank in the interrupt controller
   - clocks: clock that drives this bank
@@ -50,6 +51,7 @@ Required properties for gpio sub nodes:
     bindings/interrupt-controller/interrupts.txt
 
 Deprecated properties for gpio sub nodes:
+  - compatible: "rockchip,rk3188-gpio-bank0"
   - reg: second element: separate pull register for rk3188 bank0, use
 	 rockchip,pmu described above instead
 

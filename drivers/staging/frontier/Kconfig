@@ -1,5 +1,0 @@
-config TRANZPORT
-	tristate "Frontier Tranzport and Alphatrack support"
-	depends on USB
-	---help---
-	  Enable support for the Frontier Tranzport and Alphatrack devices.

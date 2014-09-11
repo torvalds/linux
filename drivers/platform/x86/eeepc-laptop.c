@@ -1053,20 +1053,20 @@ static ssize_t show_sys_hwmon(int (*get)(void), char *buf)
 	return sprintf(buf, "%d\n", get());
 }
 
-#define EEEPC_CREATE_SENSOR_ATTR(_name, _mode, _set, _get)		\
+#define EEEPC_CREATE_SENSOR_ATTR(_name, _mode, _get, _set)		\
 	static ssize_t show_##_name(struct device *dev,			\
 				    struct device_attribute *attr,	\
 				    char *buf)				\
 	{								\
-		return show_sys_hwmon(_set, buf);			\
+		return show_sys_hwmon(_get, buf);			\
 	}								\
 	static ssize_t store_##_name(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     const char *buf, size_t count)	\
 	{								\
-		return store_sys_hwmon(_get, buf, count);		\
+		return store_sys_hwmon(_set, buf, count);		\
 	}								\
-	static DEVICE_ATTR(_name, _mode, show_##_name, store_##_name);
+	static DEVICE_ATTR(_name, _mode, show_##_name, store_##_name)
 
 EEEPC_CREATE_SENSOR_ATTR(fan1_input, S_IRUGO, eeepc_get_fan_rpm, NULL);
 EEEPC_CREATE_SENSOR_ATTR(pwm1, S_IRUGO | S_IWUSR,

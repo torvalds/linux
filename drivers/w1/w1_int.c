@@ -38,7 +38,7 @@ module_param_named(search_count, w1_search_count, int, 0);
 static int w1_enable_pullup = 1;
 module_param_named(enable_pullup, w1_enable_pullup, int, 0);
 
-static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
+static struct w1_master *w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 				       struct device_driver *driver,
 				       struct device *device)
 {
@@ -50,8 +50,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	 */
 	dev = kzalloc(sizeof(struct w1_master) + sizeof(struct w1_bus_master), GFP_KERNEL);
 	if (!dev) {
-		printk(KERN_ERR
-			"Failed to allocate %zd bytes for new w1 device.\n",
+		pr_err("Failed to allocate %zd bytes for new w1 device.\n",
 			sizeof(struct w1_master));
 		return NULL;
 	}
@@ -91,7 +90,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	err = device_register(&dev->dev);
 	if (err) {
-		printk(KERN_ERR "Failed to register master device. err=%d\n", err);
+		pr_err("Failed to register master device. err=%d\n", err);
 		memset(dev, 0, sizeof(struct w1_master));
 		kfree(dev);
 		dev = NULL;
@@ -116,13 +115,13 @@ int w1_add_master_device(struct w1_bus_master *master)
 	struct w1_netlink_msg msg;
 	int id, found;
 
-        /* validate minimum functionality */
-        if (!(master->touch_bit && master->reset_bus) &&
-            !(master->write_bit && master->read_bit) &&
+	/* validate minimum functionality */
+	if (!(master->touch_bit && master->reset_bus) &&
+	    !(master->write_bit && master->read_bit) &&
 	    !(master->write_byte && master->read_byte && master->reset_bus)) {
-		printk(KERN_ERR "w1_add_master_device: invalid function set\n");
+		pr_err("w1_add_master_device: invalid function set\n");
 		return(-EINVAL);
-        }
+	}
 
 	/* Lock until the device is added (or not) to w1_masters. */
 	mutex_lock(&w1_mlock);
@@ -254,7 +253,7 @@ void w1_remove_master_device(struct w1_bus_master *bm)
 	}
 
 	if (!found) {
-		printk(KERN_ERR "Device doesn't exist.\n");
+		pr_err("Device doesn't exist.\n");
 		return;
 	}
 

@@ -41,11 +41,4 @@ config ISS_SMP_EXTN
 	  -XTL (To enable CPU start/stop/set-PC for another CPU)
 	  It doesn't provide coherent Caches and/or Atomic Ops (LLOCK/SCOND)
 
-config ARC_SERIAL_BAUD
-	int "UART Baud rate"
-	default "115200"
-	depends on SERIAL_ARC || SERIAL_ARC_CONSOLE
-	help
-	  Baud rate for the ARC UART
-
 endif

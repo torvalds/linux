@@ -46,18 +46,23 @@
  * @vrh: The host VRINGH used for accessing the card vrings.
  * @riov: The VRINGH read kernel IOV.
  * @wiov: The VRINGH write kernel IOV.
- * @head: The VRINGH head index address passed to vringh_getdesc_kern(..).
  * @vr_mutex: Mutex for synchronizing access to the VRING.
+ * @buf: Temporary kernel buffer used to copy in/out data
+ * from/to the card via DMA.
+ * @buf_da: dma address of buf.
  * @mvdev: Back pointer to MIC virtio device for vringh_notify(..).
+ * @head: The VRINGH head index address passed to vringh_getdesc_kern(..).
  */
 struct mic_vringh {
 	struct mic_vring vring;
 	struct vringh vrh;
 	struct vringh_kiov riov;
 	struct vringh_kiov wiov;
-	u16 head;
 	struct mutex vr_mutex;
+	void *buf;
+	dma_addr_t buf_da;
 	struct mic_vdev *mvdev;
+	u16 head;
 };
 
 /**
@@ -69,6 +74,14 @@ struct mic_vringh {
  * @poll_wake - Used for waking up threads blocked in poll.
  * @out_bytes - Debug stats for number of bytes copied from host to card.
  * @in_bytes - Debug stats for number of bytes copied from card to host.
+ * @out_bytes_dma - Debug stats for number of bytes copied from host to card
+ * using DMA.
+ * @in_bytes_dma - Debug stats for number of bytes copied from card to host
+ * using DMA.
+ * @tx_len_unaligned - Debug stats for number of bytes copied to the card where
+ * the transfer length did not have the required DMA alignment.
+ * @tx_dst_unaligned - Debug stats for number of bytes copied where the
+ * destination address on the card did not have the required DMA alignment.
  * @mvr - Store per VRING data structures.
  * @virtio_bh_work - Work struct used to schedule virtio bottom half handling.
  * @dd - Virtio device descriptor.
@@ -84,6 +97,10 @@ struct mic_vdev {
 	int poll_wake;
 	unsigned long out_bytes;
 	unsigned long in_bytes;
+	unsigned long out_bytes_dma;
+	unsigned long in_bytes_dma;
+	unsigned long tx_len_unaligned;
+	unsigned long tx_dst_unaligned;
 	struct mic_vringh mvr[MIC_MAX_VRINGS];
 	struct work_struct virtio_bh_work;
 	struct mic_device_desc *dd;

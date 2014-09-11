@@ -72,9 +72,12 @@ To use the <link linkend="format">format</link> ioctls applications set the
 <constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant> and use the &v4l2-sdr-format;
 <structfield>sdr</structfield> member of the <structfield>fmt</structfield>
 union as needed per the desired operation.
-Currently only the <structfield>pixelformat</structfield> field of
-&v4l2-sdr-format; is used. The content of that field is the V4L2 fourcc code
-of the data format.
+Currently there is two fields, <structfield>pixelformat</structfield> and
+<structfield>buffersize</structfield>, of struct &v4l2-sdr-format; which are
+used. Content of the <structfield>pixelformat</structfield> is V4L2 FourCC
+code of the data format. The <structfield>buffersize</structfield> field is
+maximum buffer size in bytes required for data transfer, set by the driver in
+order to inform application.
     </para>
 
     <table pgwide="1" frame="none" id="v4l2-sdr-format">
@@ -92,8 +95,15 @@ V4L2 defines SDR formats in <xref linkend="sdr-formats" />.
            </entry>
           </row>
           <row>
+            <entry>__u32</entry>
+            <entry><structfield>buffersize</structfield></entry>
+            <entry>
+Maximum size in bytes required for data. Value is set by the driver.
+           </entry>
+          </row>
+          <row>
             <entry>__u8</entry>
-            <entry><structfield>reserved[28]</structfield></entry>
+            <entry><structfield>reserved[24]</structfield></entry>
             <entry>This array is reserved for future extensions.
 Drivers and applications must set it to zero.</entry>
           </row>

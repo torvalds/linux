@@ -18,8 +18,6 @@
 
 #define ACPI_FLUSH_CPU_CACHE()	wbinvd()
 
-#ifdef CONFIG_ACPI
-
 int __acpi_acquire_global_lock(unsigned int *lock);
 int __acpi_release_global_lock(unsigned int *lock);
 
@@ -43,7 +41,5 @@ int __acpi_release_global_lock(unsigned int *lock);
 	    "rcrl   $1,%3;"		\
 	    : "=r"(n_hi), "=r"(n_lo)	\
 	    : "0"(n_hi), "1"(n_lo))
-
-#endif
 
 #endif /* _ASM_X86_ACENV_H */

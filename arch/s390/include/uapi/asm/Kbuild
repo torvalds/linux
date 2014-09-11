@@ -16,6 +16,7 @@ header-y += ioctls.h
 header-y += ipcbuf.h
 header-y += kvm.h
 header-y += kvm_para.h
+header-y += kvm_perf.h
 header-y += kvm_virtio.h
 header-y += mman.h
 header-y += monwriter.h

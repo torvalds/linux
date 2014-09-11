@@ -1,7 +1,0 @@
-config DVB_RTL2832_SDR
-	tristate "Realtek RTL2832 SDR"
-	depends on USB && DVB_CORE && I2C && VIDEO_V4L2 && DVB_USB_RTL28XXU
-	select DVB_RTL2832
-	select VIDEOBUF2_VMALLOC
-	default m if !MEDIA_SUBDRV_AUTOSELECT
-

@@ -82,6 +82,22 @@ static void drm_mode_validate_flag(struct drm_connector *connector,
 	return;
 }
 
+static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
+{
+	struct drm_display_mode *mode;
+
+	if (!connector->cmdline_mode.specified)
+		return 0;
+
+	mode = drm_mode_create_from_cmdline_mode(connector->dev,
+						 &connector->cmdline_mode);
+	if (mode == NULL)
+		return 0;
+
+	drm_mode_probed_add(connector, mode);
+	return 1;
+}
+
 static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connector *connector,
 							      uint32_t maxX, uint32_t maxY, bool merge_type_bits)
 {
@@ -141,6 +157,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 
 	if (count == 0 && connector->status == connector_status_connected)
 		count = drm_add_modes_noedid(connector, 1024, 768);
+	count += drm_helper_probe_add_cmdline_mode(connector);
 	if (count == 0)
 		goto prune;
 

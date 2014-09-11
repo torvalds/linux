@@ -8,10 +8,16 @@ Required properties:
    - SerDes integration registers (1/2)
    - SerDes integration registers (2/2)
 
+Optional properties:
+- amd,speed-set: Speed capabilities of the device
+    0 - 1GbE and 10GbE (default)
+    1 - 2.5GbE and 10GbE
+
 Example:
 	xgbe_phy@e1240800 {
 		compatible = "amd,xgbe-phy-seattle-v1a", "ethernet-phy-ieee802.3-c45";
 		reg = <0 0xe1240800 0 0x00400>,
 		      <0 0xe1250000 0 0x00060>,
 		      <0 0xe1250080 0 0x00004>;
+		amd,speed-set = <0>;
 	};

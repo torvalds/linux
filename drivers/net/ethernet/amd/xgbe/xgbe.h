@@ -121,6 +121,12 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/phy.h>
+#include <linux/if_vlan.h>
+#include <linux/bitops.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/clocksource.h>
+#include <linux/net_tstamp.h>
+#include <net/dcbnl.h>
 
 
 #define XGBE_DRV_NAME		"amd-xgbe"
@@ -128,22 +134,30 @@
 #define XGBE_DRV_DESC		"AMD 10 Gigabit Ethernet Driver"
 
 /* Descriptor related defines */
-#define TX_DESC_CNT		512
-#define TX_DESC_MIN_FREE	(TX_DESC_CNT >> 3)
-#define TX_DESC_MAX_PROC	(TX_DESC_CNT >> 1)
-#define RX_DESC_CNT		512
+#define XGBE_TX_DESC_CNT	512
+#define XGBE_TX_DESC_MIN_FREE	(XGBE_TX_DESC_CNT >> 3)
+#define XGBE_TX_DESC_MAX_PROC	(XGBE_TX_DESC_CNT >> 1)
+#define XGBE_RX_DESC_CNT	512
 
-#define TX_MAX_BUF_SIZE		(0x3fff & ~(64 - 1))
+#define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
-#define RX_MIN_BUF_SIZE		(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
-#define RX_BUF_ALIGN		64
+#define XGBE_RX_MIN_BUF_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
+#define XGBE_RX_BUF_ALIGN	64
 
 #define XGBE_MAX_DMA_CHANNELS	16
-#define DMA_ARDOMAIN_SETTING	0x2
-#define DMA_ARCACHE_SETTING	0xb
-#define DMA_AWDOMAIN_SETTING	0x2
-#define DMA_AWCACHE_SETTING	0x7
-#define DMA_INTERRUPT_MASK	0x31c7
+#define XGBE_MAX_QUEUES		16
+
+/* DMA cache settings - Outer sharable, write-back, write-allocate */
+#define XGBE_DMA_OS_AXDOMAIN	0x2
+#define XGBE_DMA_OS_ARCACHE	0xb
+#define XGBE_DMA_OS_AWCACHE	0xf
+
+/* DMA cache settings - System, no caches used */
+#define XGBE_DMA_SYS_AXDOMAIN	0x3
+#define XGBE_DMA_SYS_ARCACHE	0x0
+#define XGBE_DMA_SYS_AWCACHE	0x0
+
+#define XGBE_DMA_INTERRUPT_MASK	0x31c7
 
 #define XGMAC_MIN_PACKET	60
 #define XGMAC_STD_PACKET_MTU	1500
@@ -151,45 +165,53 @@
 #define XGMAC_JUMBO_PACKET_MTU	9000
 #define XGMAC_MAX_JUMBO_PACKET	9018
 
-#define MAX_MULTICAST_LIST	14
-#define TX_FLAGS_IP_PKT		0x00000001
-#define TX_FLAGS_TCP_PKT	0x00000002
-
 /* MDIO bus phy name */
 #define XGBE_PHY_NAME		"amd_xgbe_phy"
 #define XGBE_PRTAD		0
+
+/* Device-tree clock names */
+#define XGBE_DMA_CLOCK		"dma_clk"
+#define XGBE_PTP_CLOCK		"ptp_clk"
+
+/* Timestamp support - values based on 50MHz PTP clock
+ *   50MHz => 20 nsec
+ */
+#define XGBE_TSTAMP_SSINC	20
+#define XGBE_TSTAMP_SNSINC	0
 
 /* Driver PMT macros */
 #define XGMAC_DRIVER_CONTEXT	1
 #define XGMAC_IOCTL_CONTEXT	2
 
-#define FIFO_SIZE_B(x)		(x)
-#define FIFO_SIZE_KB(x)		(x * 1024)
+#define XGBE_FIFO_SIZE_B(x)	(x)
+#define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
-#define XGBE_TC_CNT		2
+#define XGBE_TC_MIN_QUANTUM	10
 
 /* Helper macro for descriptor handling
- *  Always use GET_DESC_DATA to access the descriptor data
+ *  Always use XGBE_GET_DESC_DATA to access the descriptor data
  *  since the index is free-running and needs to be and-ed
  *  with the descriptor count value of the ring to index to
  *  the proper descriptor data.
  */
-#define GET_DESC_DATA(_ring, _idx)				\
+#define XGBE_GET_DESC_DATA(_ring, _idx)				\
 	((_ring)->rdata +					\
 	 ((_idx) & ((_ring)->rdesc_count - 1)))
 
 
 /* Default coalescing parameters */
-#define XGMAC_INIT_DMA_TX_USECS		100
-#define XGMAC_INIT_DMA_TX_FRAMES	16
+#define XGMAC_INIT_DMA_TX_USECS		50
+#define XGMAC_INIT_DMA_TX_FRAMES	25
 
 #define XGMAC_MAX_DMA_RIWT		0xff
-#define XGMAC_INIT_DMA_RX_USECS		100
-#define XGMAC_INIT_DMA_RX_FRAMES	16
+#define XGMAC_INIT_DMA_RX_USECS		30
+#define XGMAC_INIT_DMA_RX_FRAMES	25
 
 /* Flow control queue count */
 #define XGMAC_MAX_FLOW_CONTROL_QUEUES	8
 
+/* Maximum MAC address hash table size (256 bits = 8 bytes) */
+#define XGBE_MAC_HASH_TABLE_SIZE	8
 
 struct xgbe_prv_data;
 
@@ -207,6 +229,8 @@ struct xgbe_packet_data {
 	unsigned short mss;
 
 	unsigned short vlan_ctag;
+
+	u64 rx_tstamp;
 };
 
 /* Common Rx and Tx descriptor mapping */
@@ -219,7 +243,7 @@ struct xgbe_ring_desc {
 
 /* Structure used to hold information related to the descriptor
  * and the packet associated with the descriptor (always use
- * use the GET_DESC_DATA macro to access this data from the ring)
+ * use the XGBE_GET_DESC_DATA macro to access this data from the ring)
  */
 struct xgbe_ring_data {
 	struct xgbe_ring_desc *rdesc;	/* Virtual address of descriptor */
@@ -235,6 +259,20 @@ struct xgbe_ring_data {
 	unsigned int interrupt;		/* Interrupt indicator */
 
 	unsigned int mapped_as_page;
+
+	/* Incomplete receive save location.  If the budget is exhausted
+	 * or the last descriptor (last normal descriptor or a following
+	 * context descriptor) has not been DMA'd yet the current state
+	 * of the receive processing needs to be saved.
+	 */
+	unsigned int state_saved;
+	struct {
+		unsigned int incomplete;
+		unsigned int context_next;
+		struct sk_buff *skb;
+		unsigned int len;
+		unsigned int error;
+	} state;
 };
 
 struct xgbe_ring {
@@ -250,7 +288,7 @@ struct xgbe_ring {
 	unsigned int rdesc_count;
 
 	/* Array of descriptor data corresponding the descriptor memory
-	 * (always use the GET_DESC_DATA macro to access this data)
+	 * (always use the XGBE_GET_DESC_DATA macro to access this data)
 	 */
 	struct xgbe_ring_data *rdata;
 
@@ -304,13 +342,13 @@ struct xgbe_channel {
 } ____cacheline_aligned;
 
 enum xgbe_int {
-	XGMAC_INT_DMA_ISR_DC0IS,
 	XGMAC_INT_DMA_CH_SR_TI,
 	XGMAC_INT_DMA_CH_SR_TPS,
 	XGMAC_INT_DMA_CH_SR_TBU,
 	XGMAC_INT_DMA_CH_SR_RI,
 	XGMAC_INT_DMA_CH_SR_RBU,
 	XGMAC_INT_DMA_CH_SR_RPS,
+	XGMAC_INT_DMA_CH_SR_TI_RI,
 	XGMAC_INT_DMA_CH_SR_FBE,
 	XGMAC_INT_DMA_ALL,
 };
@@ -386,7 +424,7 @@ struct xgbe_hw_if {
 
 	int (*set_promiscuous_mode)(struct xgbe_prv_data *, unsigned int);
 	int (*set_all_multicast_mode)(struct xgbe_prv_data *, unsigned int);
-	int (*set_addn_mac_addrs)(struct xgbe_prv_data *, unsigned int);
+	int (*add_mac_addresses)(struct xgbe_prv_data *);
 	int (*set_mac_address)(struct xgbe_prv_data *, u8 *addr);
 
 	int (*enable_rx_csum)(struct xgbe_prv_data *);
@@ -394,6 +432,9 @@ struct xgbe_hw_if {
 
 	int (*enable_rx_vlan_stripping)(struct xgbe_prv_data *);
 	int (*disable_rx_vlan_stripping)(struct xgbe_prv_data *);
+	int (*enable_rx_vlan_filtering)(struct xgbe_prv_data *);
+	int (*disable_rx_vlan_filtering)(struct xgbe_prv_data *);
+	int (*update_vlan_hash_table)(struct xgbe_prv_data *);
 
 	int (*read_mmd_regs)(struct xgbe_prv_data *, int, int);
 	void (*write_mmd_regs)(struct xgbe_prv_data *, int, int, int);
@@ -457,6 +498,18 @@ struct xgbe_hw_if {
 	void (*rx_mmc_int)(struct xgbe_prv_data *);
 	void (*tx_mmc_int)(struct xgbe_prv_data *);
 	void (*read_mmc_stats)(struct xgbe_prv_data *);
+
+	/* For Timestamp config */
+	int (*config_tstamp)(struct xgbe_prv_data *, unsigned int);
+	void (*update_tstamp_addend)(struct xgbe_prv_data *, unsigned int);
+	void (*set_tstamp_time)(struct xgbe_prv_data *, unsigned int sec,
+				unsigned int nsec);
+	u64 (*get_tstamp_time)(struct xgbe_prv_data *);
+	u64 (*get_tx_tstamp)(struct xgbe_prv_data *);
+
+	/* For Data Center Bridging config */
+	void (*config_dcb_tc)(struct xgbe_prv_data *);
+	void (*config_dcb_pfc)(struct xgbe_prv_data *);
 };
 
 struct xgbe_desc_if {
@@ -498,6 +551,7 @@ struct xgbe_hw_features {
 	unsigned int tso;		/* TCP Segmentation Offload */
 	unsigned int dma_debug;		/* DMA Debug Registers */
 	unsigned int rss;		/* Receive Side Scaling */
+	unsigned int tc_cnt;		/* Number of Traffic Classes */
 	unsigned int hash_table_size;	/* Hash Table Size */
 	unsigned int l3l4_filter_num;	/* Number of L3-L4 Filters */
 
@@ -530,6 +584,11 @@ struct xgbe_prv_data {
 	struct xgbe_hw_if hw_if;
 	struct xgbe_desc_if desc_if;
 
+	/* AXI DMA settings */
+	unsigned int axdomain;
+	unsigned int arcache;
+	unsigned int awcache;
+
 	/* Rings for Tx/Rx on a DMA channel */
 	struct xgbe_channel *channel;
 	unsigned int channel_count;
@@ -537,6 +596,9 @@ struct xgbe_prv_data {
 	unsigned int tx_desc_count;
 	unsigned int rx_ring_count;
 	unsigned int rx_desc_count;
+
+	unsigned int tx_q_count;
+	unsigned int rx_q_count;
 
 	/* Tx/Rx common settings */
 	unsigned int pblx8;
@@ -589,8 +651,30 @@ struct xgbe_prv_data {
 	struct napi_struct napi;
 	struct xgbe_mmc_stats mmc_stats;
 
-	/* System clock value used for Rx watchdog */
-	struct clk *sysclock;
+	/* Filtering support */
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+
+	/* Device clocks */
+	struct clk *sysclk;
+	struct clk *ptpclk;
+
+	/* Timestamp support */
+	spinlock_t tstamp_lock;
+	struct ptp_clock_info ptp_clock_info;
+	struct ptp_clock *ptp_clock;
+	struct hwtstamp_config tstamp_config;
+	struct cyclecounter tstamp_cc;
+	struct timecounter tstamp_tc;
+	unsigned int tstamp_addend;
+	struct work_struct tx_tstamp_work;
+	struct sk_buff *tx_tstamp_skb;
+	u64 tx_tstamp;
+
+	/* DCB support */
+	struct ieee_ets *ets;
+	struct ieee_pfc *pfc;
+	unsigned int q2tc_map[XGBE_MAX_QUEUES];
+	unsigned int prio2q_map[IEEE_8021QAZ_MAX_TCS];
 
 	/* Hardware features of the device */
 	struct xgbe_hw_features hw_feat;
@@ -617,10 +701,15 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
 struct net_device_ops *xgbe_get_netdev_ops(void);
 struct ethtool_ops *xgbe_get_ethtool_ops(void);
+#ifdef CONFIG_AMD_XGBE_DCB
+const struct dcbnl_rtnl_ops *xgbe_get_dcbnl_ops(void);
+#endif
 
 int xgbe_mdio_register(struct xgbe_prv_data *);
 void xgbe_mdio_unregister(struct xgbe_prv_data *);
 void xgbe_dump_phy_registers(struct xgbe_prv_data *);
+void xgbe_ptp_register(struct xgbe_prv_data *);
+void xgbe_ptp_unregister(struct xgbe_prv_data *);
 void xgbe_dump_tx_desc(struct xgbe_ring *, unsigned int, unsigned int,
 		       unsigned int);
 void xgbe_dump_rx_desc(struct xgbe_ring *, struct xgbe_ring_desc *,

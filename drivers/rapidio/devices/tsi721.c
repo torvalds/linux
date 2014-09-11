@@ -2493,7 +2493,7 @@ err_exit:
 	return err;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(tsi721_pci_tbl) = {
+static const struct pci_device_id tsi721_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IDT, PCI_DEVICE_ID_TSI721) },
 	{ 0, }	/* terminate list */
 };

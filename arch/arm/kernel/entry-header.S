@@ -240,12 +240,6 @@
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 	.endm
 
-	@
-	@ 32-bit wide "mov pc, reg"
-	@
-	.macro	movw_pc, reg
-	mov	pc, \reg
-	.endm
 #else	/* CONFIG_THUMB2_KERNEL */
 	.macro	svc_exit, rpsr, irq = 0
 	.if	\irq != 0
@@ -304,14 +298,6 @@
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 	.endm
 #endif	/* ifdef CONFIG_CPU_V7M / else */
-
-	@
-	@ 32-bit wide "mov pc, reg"
-	@
-	.macro	movw_pc, reg
-	mov	pc, \reg
-	nop
-	.endm
 #endif	/* !CONFIG_THUMB2_KERNEL */
 
 /*

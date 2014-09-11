@@ -346,8 +346,14 @@ struct ar5416_desc {
 #define AR_FrameLen         0x00000fff
 #define AR_VirtMoreFrag     0x00001000
 #define AR_TxCtlRsvd00      0x0000e000
-#define AR_XmitPower        0x003f0000
-#define AR_XmitPower_S      16
+#define AR_XmitPower0       0x003f0000
+#define AR_XmitPower0_S     16
+#define AR_XmitPower1	    0x3f000000
+#define AR_XmitPower1_S     24
+#define AR_XmitPower2	    0x3f000000
+#define AR_XmitPower2_S     24
+#define AR_XmitPower3	    0x3f000000
+#define AR_XmitPower3_S     24
 #define AR_RTSEnable        0x00400000
 #define AR_VEOL             0x00800000
 #define AR_ClrDestMask      0x01000000

@@ -311,19 +311,8 @@ static struct serio_driver taos_drv = {
 	.interrupt	= taos_interrupt,
 };
 
-static int __init taos_init(void)
-{
-	return serio_register_driver(&taos_drv);
-}
-
-static void __exit taos_exit(void)
-{
-	serio_unregister_driver(&taos_drv);
-}
+module_serio_driver(taos_drv);
 
 MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("TAOS evaluation module driver");
 MODULE_LICENSE("GPL");
-
-module_init(taos_init);
-module_exit(taos_exit);

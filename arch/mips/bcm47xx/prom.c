@@ -51,6 +51,8 @@ __init void bcm47xx_set_system_type(u16 chip_id)
 		 chip_id);
 }
 
+static unsigned long lowmem __initdata;
+
 static __init void prom_init_mem(void)
 {
 	unsigned long mem;
@@ -87,6 +89,7 @@ static __init void prom_init_mem(void)
 		if (!memcmp(prom_init, prom_init + mem, 32))
 			break;
 	}
+	lowmem = mem;
 
 	/* Ignoring the last page when ddr size is 128M. Cached
 	 * accesses to last page is causing the processor to prefetch
@@ -95,7 +98,6 @@ static __init void prom_init_mem(void)
 	 */
 	if (c->cputype == CPU_74K && (mem == (128  << 20)))
 		mem -= 0x1000;
-
 	add_memory_region(0, mem, BOOT_MEM_RAM);
 }
 
@@ -114,3 +116,67 @@ void __init prom_init(void)
 void __init prom_free_prom_memory(void)
 {
 }
+
+#if defined(CONFIG_BCM47XX_BCMA) && defined(CONFIG_HIGHMEM)
+
+#define EXTVBASE	0xc0000000
+#define ENTRYLO(x)	((pte_val(pfn_pte((x) >> _PFN_SHIFT, PAGE_KERNEL_UNCACHED)) >> 6) | 1)
+
+#include <asm/tlbflush.h>
+
+/* Stripped version of tlb_init, with the call to build_tlb_refill_handler
+ * dropped. Calling it at this stage causes a hang.
+ */
+void __cpuinit early_tlb_init(void)
+{
+	write_c0_pagemask(PM_DEFAULT_MASK);
+	write_c0_wired(0);
+	temp_tlb_entry = current_cpu_data.tlbsize - 1;
+	local_flush_tlb_all();
+}
+
+void __init bcm47xx_prom_highmem_init(void)
+{
+	unsigned long off = (unsigned long)prom_init;
+	unsigned long extmem = 0;
+	bool highmem_region = false;
+
+	if (WARN_ON(bcm47xx_bus_type != BCM47XX_BUS_TYPE_BCMA))
+		return;
+
+	if (bcm47xx_bus.bcma.bus.chipinfo.id == BCMA_CHIP_ID_BCM4706)
+		highmem_region = true;
+
+	if (lowmem != 128 << 20 || !highmem_region)
+		return;
+
+	early_tlb_init();
+
+	/* Add one temporary TLB entry to map SDRAM Region 2.
+	 *      Physical        Virtual
+	 *      0x80000000      0xc0000000      (1st: 256MB)
+	 *      0x90000000      0xd0000000      (2nd: 256MB)
+	 */
+	add_temporary_entry(ENTRYLO(0x80000000),
+			    ENTRYLO(0x80000000 + (256 << 20)),
+			    EXTVBASE, PM_256M);
+
+	off = EXTVBASE + __pa(off);
+	for (extmem = 128 << 20; extmem < 512 << 20; extmem <<= 1) {
+		if (!memcmp(prom_init, (void *)(off + extmem), 16))
+			break;
+	}
+	extmem -= lowmem;
+
+	early_tlb_init();
+
+	if (!extmem)
+		return;
+
+	pr_warn("Found %lu MiB of extra memory, but highmem is unsupported yet!\n",
+		extmem >> 20);
+
+	/* TODO: Register extra memory */
+}
+
+#endif /* defined(CONFIG_BCM47XX_BCMA) && defined(CONFIG_HIGHMEM) */

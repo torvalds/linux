@@ -175,7 +175,7 @@ static int whci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	err = -ENOMEM;
 	card = kzalloc(sizeof(struct whci_card)
-		       + sizeof(struct whci_dev *) * (n_caps + 1),
+		       + sizeof(struct umc_dev *) * (n_caps + 1),
 		       GFP_KERNEL);
 	if (card == NULL)
 		goto error_kzalloc;

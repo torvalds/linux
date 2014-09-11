@@ -295,7 +295,7 @@ static int hp_wmi_tablet_state(void)
 	return (state & 0x4) ? 1 : 0;
 }
 
-static int hp_wmi_bios_2009_later(void)
+static int __init hp_wmi_bios_2009_later(void)
 {
 	int state = 0;
 	int ret = hp_wmi_perform_query(HPWMI_FEATURE_QUERY, 0, &state,
@@ -704,7 +704,7 @@ static void cleanup_sysfs(struct platform_device *device)
 	device_remove_file(&device->dev, &dev_attr_postcode);
 }
 
-static int hp_wmi_rfkill_setup(struct platform_device *device)
+static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 {
 	int err;
 	int wireless = 0;
@@ -806,7 +806,7 @@ register_wifi_error:
 	return err;
 }
 
-static int hp_wmi_rfkill2_setup(struct platform_device *device)
+static int __init hp_wmi_rfkill2_setup(struct platform_device *device)
 {
 	int err, i;
 	struct bios_rfkill2_state state;

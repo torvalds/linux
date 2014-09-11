@@ -8,6 +8,7 @@
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/clkdev.h>
 #include <linux/vexpress.h>
 #include <linux/irqchip/arm-gic.h>
@@ -28,8 +29,6 @@
 
 #include <mach/motherboard.h>
 #include <mach/irqs.h>
-
-#include <plat/clcd.h>
 
 static struct map_desc ct_ca9x4_io_desc[] __initdata = {
 	{

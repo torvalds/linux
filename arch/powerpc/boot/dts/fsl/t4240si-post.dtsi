@@ -476,6 +476,7 @@
 
 /include/ "elo3-dma-0.dtsi"
 /include/ "elo3-dma-1.dtsi"
+/include/ "elo3-dma-2.dtsi"
 
 /include/ "qoriq-espi-0.dtsi"
 	spi@110000 {

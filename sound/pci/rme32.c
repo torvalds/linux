@@ -226,7 +226,7 @@ struct rme32 {
 	struct snd_kcontrol *spdif_ctl;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_rme32_ids) = {
+static const struct pci_device_id snd_rme32_ids[] = {
 	{PCI_VDEVICE(XILINX_RME, PCI_DEVICE_ID_RME_DIGI32), 0,},
 	{PCI_VDEVICE(XILINX_RME, PCI_DEVICE_ID_RME_DIGI32_8), 0,},
 	{PCI_VDEVICE(XILINX_RME, PCI_DEVICE_ID_RME_DIGI32_PRO), 0,},

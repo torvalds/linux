@@ -22,8 +22,9 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/os.h>
-#include <core/class.h>
+#include <core/client.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -143,38 +144,29 @@ nv50_pior_dp_impl = {
  *****************************************************************************/
 
 int
-nv50_pior_power(struct nv50_disp_priv *priv, int or, u32 data)
+nv50_pior_power(NV50_DISP_MTHD_V1)
 {
-	const u32 stat = data & NV50_DISP_PIOR_PWR_STATE;
-	const u32 soff = (or * 0x800);
-	nv_wait(priv, 0x61e004 + soff, 0x80000000, 0x00000000);
-	nv_mask(priv, 0x61e004 + soff, 0x80000101, 0x80000000 | stat);
-	nv_wait(priv, 0x61e004 + soff, 0x80000000, 0x00000000);
-	return 0;
-}
-
-int
-nv50_pior_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
-{
-	struct nv50_disp_priv *priv = (void *)object->engine;
-	const u8 type = (mthd & NV50_DISP_PIOR_MTHD_TYPE) >> 12;
-	const u8 or   = (mthd & NV50_DISP_PIOR_MTHD_OR);
-	u32 *data = args;
+	const u32 soff = outp->or * 0x800;
+	union {
+		struct nv50_disp_pior_pwr_v0 v0;
+	} *args = data;
+	u32 ctrl, type;
 	int ret;
 
-	if (size < sizeof(u32))
-		return -EINVAL;
+	nv_ioctl(object, "disp pior pwr size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "disp pior pwr vers %d state %d type %x\n",
+			 args->v0.version, args->v0.state, args->v0.type);
+		if (args->v0.type > 0x0f)
+			return -EINVAL;
+		ctrl = !!args->v0.state;
+		type = args->v0.type;
+	} else
+		return ret;
 
-	mthd &= ~NV50_DISP_PIOR_MTHD_TYPE;
-	mthd &= ~NV50_DISP_PIOR_MTHD_OR;
-	switch (mthd) {
-	case NV50_DISP_PIOR_PWR:
-		ret = priv->pior.power(priv, or, data[0]);
-		priv->pior.type[or] = type;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return ret;
+	nv_wait(priv, 0x61e004 + soff, 0x80000000, 0x00000000);
+	nv_mask(priv, 0x61e004 + soff, 0x80000101, 0x80000000 | ctrl);
+	nv_wait(priv, 0x61e004 + soff, 0x80000000, 0x00000000);
+	priv->pior.type[outp->or] = type;
+	return 0;
 }

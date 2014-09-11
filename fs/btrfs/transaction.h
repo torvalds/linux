@@ -55,7 +55,6 @@ struct btrfs_transaction {
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
 	struct list_head pending_snapshots;
-	struct list_head ordered_operations;
 	struct list_head pending_chunks;
 	struct list_head switch_commits;
 	struct btrfs_delayed_ref_root delayed_refs;

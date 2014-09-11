@@ -60,7 +60,7 @@ static void __init sun7i_a20_gmac_clk_setup(struct device_node *node)
 	struct clk_gate *gate;
 	const char *clk_name = node->name;
 	const char *parents[SUN7I_A20_GMAC_PARENTS];
-	void *reg;
+	void __iomem *reg;
 
 	if (of_property_read_string(node, "clock-output-names", &clk_name))
 		return;

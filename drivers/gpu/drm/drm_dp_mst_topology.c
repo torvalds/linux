@@ -1772,7 +1772,7 @@ static int drm_dp_get_vc_payload_bw(int dp_link_bw, int dp_link_count)
 	case DP_LINK_BW_5_4:
 		return 10 * dp_link_count;
 	}
-	return 0;
+	BUG();
 }
 
 /**
@@ -2071,6 +2071,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
  * drm_dp_mst_hpd_irq() - MST hotplug IRQ notify
  * @mgr: manager to notify irq for.
  * @esi: 4 bytes from SINK_COUNT_ESI
+ * @handled: whether the hpd interrupt was consumed or not
  *
  * This should be called from the driver when it detects a short IRQ,
  * along with the value of the DEVICE_SERVICE_IRQ_VECTOR_ESI0. The

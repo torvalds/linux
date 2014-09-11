@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
@@ -48,7 +49,6 @@
 #include <mach/irqs.h>
 #include <asm/hardware/timer-sp.h>
 
-#include <plat/clcd.h>
 #include <plat/sched_clock.h>
 
 #include "core.h"

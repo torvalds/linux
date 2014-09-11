@@ -3433,10 +3433,10 @@ EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
 /**
  * drm_assign_hdmi_deep_color_info - detect whether monitor supports
  * hdmi deep color modes and update drm_display_info if so.
- *
  * @edid: monitor EDID information
  * @info: Updated with maximum supported deep color bpc and color format
  *        if deep color supported.
+ * @connector: DRM connector, used only for debug output
  *
  * Parse the CEA extension according to CEA-861-B.
  * Return true if HDMI deep color supported, false if not or unknown.

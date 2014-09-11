@@ -137,13 +137,23 @@ static void switch_get_position(struct switch_ctx *sctx, unsigned long region_nr
 	*bit *= sctx->region_table_entry_bits;
 }
 
+static unsigned switch_region_table_read(struct switch_ctx *sctx, unsigned long region_nr)
+{
+	unsigned long region_index;
+	unsigned bit;
+
+	switch_get_position(sctx, region_nr, &region_index, &bit);
+
+	return (ACCESS_ONCE(sctx->region_table[region_index]) >> bit) &
+		((1 << sctx->region_table_entry_bits) - 1);
+}
+
 /*
  * Find which path to use at given offset.
  */
 static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 {
-	unsigned long region_index;
-	unsigned bit, path_nr;
+	unsigned path_nr;
 	sector_t p;
 
 	p = offset;
@@ -152,9 +162,7 @@ static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 	else
 		sector_div(p, sctx->region_size);
 
-	switch_get_position(sctx, p, &region_index, &bit);
-	path_nr = (ACCESS_ONCE(sctx->region_table[region_index]) >> bit) &
-	       ((1 << sctx->region_table_entry_bits) - 1);
+	path_nr = switch_region_table_read(sctx, p);
 
 	/* This can only happen if the processor uses non-atomic stores. */
 	if (unlikely(path_nr >= sctx->nr_paths))
@@ -363,7 +371,7 @@ static __always_inline unsigned long parse_hex(const char **string)
 }
 
 static int process_set_region_mappings(struct switch_ctx *sctx,
-			     unsigned argc, char **argv)
+				       unsigned argc, char **argv)
 {
 	unsigned i;
 	unsigned long region_index = 0;
@@ -371,6 +379,51 @@ static int process_set_region_mappings(struct switch_ctx *sctx,
 	for (i = 1; i < argc; i++) {
 		unsigned long path_nr;
 		const char *string = argv[i];
+
+		if ((*string & 0xdf) == 'R') {
+			unsigned long cycle_length, num_write;
+
+			string++;
+			if (unlikely(*string == ',')) {
+				DMWARN("invalid set_region_mappings argument: '%s'", argv[i]);
+				return -EINVAL;
+			}
+			cycle_length = parse_hex(&string);
+			if (unlikely(*string != ',')) {
+				DMWARN("invalid set_region_mappings argument: '%s'", argv[i]);
+				return -EINVAL;
+			}
+			string++;
+			if (unlikely(!*string)) {
+				DMWARN("invalid set_region_mappings argument: '%s'", argv[i]);
+				return -EINVAL;
+			}
+			num_write = parse_hex(&string);
+			if (unlikely(*string)) {
+				DMWARN("invalid set_region_mappings argument: '%s'", argv[i]);
+				return -EINVAL;
+			}
+
+			if (unlikely(!cycle_length) || unlikely(cycle_length - 1 > region_index)) {
+				DMWARN("invalid set_region_mappings cycle length: %lu > %lu",
+				       cycle_length - 1, region_index);
+				return -EINVAL;
+			}
+			if (unlikely(region_index + num_write < region_index) ||
+			    unlikely(region_index + num_write >= sctx->nr_regions)) {
+				DMWARN("invalid set_region_mappings region number: %lu + %lu >= %lu",
+				       region_index, num_write, sctx->nr_regions);
+				return -EINVAL;
+			}
+
+			while (num_write--) {
+				region_index++;
+				path_nr = switch_region_table_read(sctx, region_index - cycle_length);
+				switch_region_table_write(sctx, region_index, path_nr);
+			}
+
+			continue;
+		}
 
 		if (*string == ':')
 			region_index++;
@@ -500,7 +553,7 @@ static int switch_iterate_devices(struct dm_target *ti,
 
 static struct target_type switch_target = {
 	.name = "switch",
-	.version = {1, 0, 0},
+	.version = {1, 1, 0},
 	.module = THIS_MODULE,
 	.ctr = switch_ctr,
 	.dtr = switch_dtr,

@@ -1,0 +1,29 @@
+CS4265 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+  - compatible : "cirrus,cs4265"
+
+  - reg : the I2C address of the device for I2C. The I2C address depends on
+          the state of the AD0 pin.  If AD0 is high, the i2c address is 0x4f.
+          If it is low, the i2c address is 0x4e.
+
+Optional properties:
+
+  - reset-gpios : a GPIO spec for the reset pin. If specified, it will be
+		 deasserted before communication to the codec starts.
+
+Examples:
+
+codec_ad0_high: cs4265@4f { /* AD0 Pin is high */
+	compatible = "cirrus,cs4265";
+	reg = <0x4f>;
+};
+
+
+codec_ad0_low: cs4265@4e { /* AD0 Pin is low */
+	compatible = "cirrus,cs4265";
+	reg = <0x4e>;
+};

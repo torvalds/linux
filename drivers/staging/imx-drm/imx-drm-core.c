@@ -182,7 +182,7 @@ static void imx_drm_driver_preclose(struct drm_device *drm,
 {
 	int i;
 
-	if (!drm_is_master(file))
+	if (!file->is_master)
 		return;
 
 	for (i = 0; i < MAX_CRTC; i++)
@@ -528,6 +528,7 @@ static struct drm_driver imx_drm_driver = {
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
 	.preclose		= imx_drm_driver_preclose,
+	.set_busid		= drm_platform_set_busid,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
@@ -570,22 +571,6 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == np;
 }
 
-static LIST_HEAD(imx_drm_components);
-
-static int imx_drm_add_components(struct device *master, struct master *m)
-{
-	struct imx_drm_component *component;
-	int ret;
-
-	list_for_each_entry(component, &imx_drm_components, list) {
-		ret = component_master_add_child(m, compare_of,
-						 component->of_node);
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
 static int imx_drm_bind(struct device *dev)
 {
 	return drm_platform_init(&imx_drm_driver, to_platform_device(dev));
@@ -597,43 +582,14 @@ static void imx_drm_unbind(struct device *dev)
 }
 
 static const struct component_master_ops imx_drm_ops = {
-	.add_components = imx_drm_add_components,
 	.bind = imx_drm_bind,
 	.unbind = imx_drm_unbind,
 };
 
-static struct imx_drm_component *imx_drm_find_component(struct device *dev,
-		struct device_node *node)
-{
-	struct imx_drm_component *component;
-
-	list_for_each_entry(component, &imx_drm_components, list)
-		if (component->of_node == node)
-			return component;
-
-	return NULL;
-}
-
-static int imx_drm_add_component(struct device *dev, struct device_node *node)
-{
-	struct imx_drm_component *component;
-
-	if (imx_drm_find_component(dev, node))
-		return 0;
-
-	component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
-	if (!component)
-		return -ENOMEM;
-
-	component->of_node = node;
-	list_add_tail(&component->list, &imx_drm_components);
-
-	return 0;
-}
-
 static int imx_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device_node *ep, *port, *remote;
+	struct component_match *match = NULL;
 	int ret;
 	int i;
 
@@ -647,9 +603,7 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 		if (!port)
 			break;
 
-		ret = imx_drm_add_component(&pdev->dev, port);
-		if (ret < 0)
-			return ret;
+		component_match_add(&pdev->dev, &match, compare_of, port);
 	}
 
 	if (i == 0) {
@@ -675,10 +629,8 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 				continue;
 			}
 
-			ret = imx_drm_add_component(&pdev->dev, remote);
+			component_match_add(&pdev->dev, &match, compare_of, remote);
 			of_node_put(remote);
-			if (ret < 0)
-				return ret;
 		}
 		of_node_put(port);
 	}
@@ -687,7 +639,7 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return component_master_add(&pdev->dev, &imx_drm_ops);
+	return component_master_add_with_match(&pdev->dev, &imx_drm_ops, match);
 }
 
 static int imx_drm_platform_remove(struct platform_device *pdev)

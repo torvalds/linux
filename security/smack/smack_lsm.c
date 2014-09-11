@@ -3209,9 +3209,9 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 				break;
 			}
 			for (acat = -1, kcat = -1; acat == kcat; ) {
-				acat = netlbl_secattr_catmap_walk(
-					sap->attr.mls.cat, acat + 1);
-				kcat = netlbl_secattr_catmap_walk(
+				acat = netlbl_catmap_walk(sap->attr.mls.cat,
+							  acat + 1);
+				kcat = netlbl_catmap_walk(
 					skp->smk_netlabel.attr.mls.cat,
 					kcat + 1);
 				if (acat < 0 || kcat < 0)

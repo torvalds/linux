@@ -445,6 +445,7 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 {
 	int i;
+
 	for (i = 0; i < *nfchunks; i++)
 		kfree(fchunk[i].data);
 
@@ -1060,6 +1061,7 @@ static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 		for (j = 0; j < nwrites; j++) {
 			/* TODO Move this to a separate function */
 			int lenleft = fchunk[i].len - (WRITESIZE_MAX * j);
+
 			if (fchunk[i].len > WRITESIZE_MAX)
 				currlen = WRITESIZE_MAX;
 			else

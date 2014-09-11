@@ -15,86 +15,15 @@
 #ifndef _WIFI_H_
 #define _WIFI_H_
 
-#define P80211CAPTURE_VERSION	0x80211001
-
 /*  This value is tested by WiFi 11n Test Plan 5.2.3.
  *  This test verifies the WLAN NIC can update the NAV through sending
  *  the CTS with large duration.
  */
 #define	WiFiNavUpperUs		30000	/*  30 ms */
 
-#define _ASOCREQ_IE_OFFSET_		4	/*  excluding wlan_hdr */
-#define	_ASOCRSP_IE_OFFSET_		6
-#define _REASOCREQ_IE_OFFSET_		10
-#define _REASOCRSP_IE_OFFSET_		6
-#define _PROBEREQ_IE_OFFSET_		0
-#define	_PROBERSP_IE_OFFSET_		12
-#define _AUTH_IE_OFFSET_		6
-#define _DEAUTH_IE_OFFSET_		0
-#define _BEACON_IE_OFFSET_		12
-#define _PUBLIC_ACTION_IE_OFFSET_	8
-
-#define _FIXED_IE_LENGTH_		_BEACON_IE_OFFSET_
-
-
-#define	EID_BSSIntolerantChlReport	73
-
-/* ---------------------------------------------------------------------------
-					Below is the fixed elements...
------------------------------------------------------------------------------*/
-#define _AUTH_ALGM_NUM_		2
-#define _AUTH_SEQ_NUM_		2
-#define _BEACON_ITERVAL_	2
-#define _CAPABILITY_		2
-#define _CURRENT_APADDR_	6
-#define _LISTEN_INTERVAL_	2
-#define _ASOC_ID_		2
-#define _STATUS_CODE_		2
-#define _TIMESTAMP_		8
-
-/*-----------------------------------------------------------------------------
-				Below is the definition for WMM
-------------------------------------------------------------------------------*/
-#define _WMM_IE_Length_				7  /*  for WMM STA */
-#define _WMM_Para_Element_Length_		24
-
-
 /*-----------------------------------------------------------------------------
 				Below is the definition for 802.11n
 ------------------------------------------------------------------------------*/
-
-/* struct rtw_ieee80211_ht_cap - HT additional information
- *
- * This structure refers to "HT information element" as
- * described in 802.11n draft section 7.3.2.53
- */
-struct ieee80211_ht_addt_info {
-	unsigned char	control_chan;
-	unsigned char	ht_param;
-	unsigned short	operation_mode;
-	unsigned short	stbc_param;
-	unsigned char	basic_set[16];
-} __packed;
-
-struct HT_caps_element {
-	union {
-		struct {
-			unsigned short	HT_caps_info;
-			unsigned char	AMPDU_para;
-			unsigned char	MCS_rate[16];
-			unsigned short	HT_ext_caps;
-			unsigned int	Beamforming_caps;
-			unsigned char	ASEL_caps;
-		} HT_cap_element;
-		unsigned char HT_cap[26];
-	} u;
-} __packed;
-
-struct HT_info_element {
-	unsigned char	primary_channel;
-	unsigned char	infos[5];
-	unsigned char	MCS_rate[16];
-}  __packed;
 
 struct AC_param {
 	unsigned char		ACI_AIFSN;

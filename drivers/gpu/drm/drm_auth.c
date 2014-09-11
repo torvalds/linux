@@ -35,6 +35,12 @@
 
 #include <drm/drmP.h>
 
+struct drm_magic_entry {
+	struct list_head head;
+	struct drm_hash_item hash_item;
+	struct drm_file *priv;
+};
+
 /**
  * Find the file with the given magic number.
  *

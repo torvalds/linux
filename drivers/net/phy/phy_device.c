@@ -709,6 +709,7 @@ int phy_suspend(struct phy_device *phydev)
 		return phydrv->suspend(phydev);
 	return 0;
 }
+EXPORT_SYMBOL(phy_suspend);
 
 int phy_resume(struct phy_device *phydev)
 {
@@ -718,6 +719,7 @@ int phy_resume(struct phy_device *phydev)
 		return phydrv->resume(phydev);
 	return 0;
 }
+EXPORT_SYMBOL(phy_resume);
 
 /* Generic PHY support and helper functions */
 

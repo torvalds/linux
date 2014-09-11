@@ -115,6 +115,7 @@ struct wmm_qinfo {
 	s32 weight;
 	s32 wme_params;
 	s32 pkt_contended;
+	s32 txop;
 };
 
 struct transmit_q_stats {
@@ -139,6 +140,12 @@ struct rsi_thread {
 	struct task_struct *task;
 	struct rsi_event event;
 	atomic_t thread_done;
+};
+
+struct cqm_info {
+	s8 last_cqm_event_rssi;
+	int rssi_thold;
+	u32 rssi_hyst;
 };
 
 struct rsi_hw;
@@ -192,6 +199,11 @@ struct rsi_common {
 	u8 selected_qnum;
 	u32 pkt_cnt;
 	u8 min_weight;
+
+	/* bgscan related */
+	struct cqm_info cqm_info;
+
+	bool hw_data_qs_blocked;
 };
 
 struct rsi_hw {

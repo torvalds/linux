@@ -133,7 +133,6 @@ EXPORT_SYMBOL(drm_master_get);
 static void drm_master_destroy(struct kref *kref)
 {
 	struct drm_master *master = container_of(kref, struct drm_master, refcount);
-	struct drm_magic_entry *pt, *next;
 	struct drm_device *dev = master->minor->dev;
 	struct drm_map_list *r_list, *list_temp;
 
@@ -143,7 +142,7 @@ static void drm_master_destroy(struct kref *kref)
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head) {
 		if (r_list->master == master) {
-			drm_rmmap_locked(dev, r_list->map);
+			drm_legacy_rmmap_locked(dev, r_list->map);
 			r_list = NULL;
 		}
 	}
@@ -152,12 +151,6 @@ static void drm_master_destroy(struct kref *kref)
 		kfree(master->unique);
 		master->unique = NULL;
 		master->unique_len = 0;
-	}
-
-	list_for_each_entry_safe(pt, next, &master->magicfree, head) {
-		list_del(&pt->head);
-		drm_ht_remove_item(&master->magiclist, &pt->hash_item);
-		kfree(pt);
 	}
 
 	drm_ht_remove(&master->magiclist);
@@ -179,7 +172,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	mutex_lock(&dev->master_mutex);
-	if (drm_is_master(file_priv))
+	if (file_priv->is_master)
 		goto out_unlock;
 
 	if (file_priv->minor->master) {
@@ -193,10 +186,13 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	}
 
 	file_priv->minor->master = drm_master_get(file_priv->master);
+	file_priv->is_master = 1;
 	if (dev->driver->master_set) {
 		ret = dev->driver->master_set(dev, file_priv, false);
-		if (unlikely(ret != 0))
+		if (unlikely(ret != 0)) {
+			file_priv->is_master = 0;
 			drm_master_put(&file_priv->minor->master);
+		}
 	}
 
 out_unlock:
@@ -210,7 +206,7 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	int ret = -EINVAL;
 
 	mutex_lock(&dev->master_mutex);
-	if (!drm_is_master(file_priv))
+	if (!file_priv->is_master)
 		goto out_unlock;
 
 	if (!file_priv->minor->master)
@@ -220,6 +216,7 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	if (dev->driver->master_drop)
 		dev->driver->master_drop(dev, file_priv, false);
 	drm_master_put(&file_priv->minor->master);
+	file_priv->is_master = 0;
 
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
@@ -775,7 +772,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_vblank_cleanup(dev);
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
-		drm_rmmap(dev, r_list->map);
+		drm_legacy_rmmap(dev, r_list->map);
 
 	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);

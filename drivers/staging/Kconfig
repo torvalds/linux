@@ -30,8 +30,6 @@ source "drivers/staging/slicoss/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
 
-source "drivers/staging/winbond/Kconfig"
-
 source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/comedi/Kconfig"
@@ -56,41 +54,21 @@ source "drivers/staging/rtl8821ae/Kconfig"
 
 source "drivers/staging/rts5208/Kconfig"
 
-source "drivers/staging/frontier/Kconfig"
-
-source "drivers/staging/phison/Kconfig"
-
 source "drivers/staging/line6/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
 
 source "drivers/staging/octeon-usb/Kconfig"
 
-source "drivers/staging/serqt_usb2/Kconfig"
-
 source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
 
-source "drivers/staging/sep/Kconfig"
-
 source "drivers/staging/iio/Kconfig"
-
-source "drivers/staging/wlags49_h2/Kconfig"
-
-source "drivers/staging/wlags49_h25/Kconfig"
-
-source "drivers/staging/crystalhd/Kconfig"
-
-source "drivers/staging/cxt1e1/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
 
-source "drivers/staging/tidspbridge/Kconfig"
-
-source "drivers/staging/quickstart/Kconfig"
-
-source "drivers/staging/keucr/Kconfig"
+source "drivers/staging/emxx_udc/Kconfig"
 
 source "drivers/staging/bcm/Kconfig"
 
@@ -108,19 +86,15 @@ source "drivers/staging/media/Kconfig"
 
 source "drivers/staging/android/Kconfig"
 
+source "drivers/staging/board/Kconfig"
+
 source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/gdm72xx/Kconfig"
 
 source "drivers/staging/gdm724x/Kconfig"
 
-source "drivers/staging/silicom/Kconfig"
-
-source "drivers/staging/ced1401/Kconfig"
-
 source "drivers/staging/imx-drm/Kconfig"
-
-source "drivers/staging/dgrp/Kconfig"
 
 source "drivers/staging/fwserial/Kconfig"
 

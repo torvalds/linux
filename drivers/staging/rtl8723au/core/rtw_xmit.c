@@ -1197,7 +1197,7 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 			mpdu_len -= pattrib->icv_len;
 
 		if (bmcst)
-			/*  don't do fragment to broadcat/multicast packets */
+			/*  don't do fragment to broadcast/multicast packets */
 			mem_sz = min_t(s32, data_len, pattrib->pktlen);
 		else
 			mem_sz = min_t(s32, data_len, mpdu_len);
@@ -2011,7 +2011,7 @@ int xmitframe_enqueue_for_sleeping_sta23a(struct rtw_adapter *padapter, struct x
 
 			/* DBG_8723A("enqueue, sq_len =%d, tim =%x\n", psta->sleepq_len, pstapriv->tim_bitmap); */
 
-			/* tx bc/mc packets after upate bcn */
+			/* tx bc/mc packets after update bcn */
 			update_beacon23a(padapter, WLAN_EID_TIM, NULL, false);
 
 			/* spin_unlock_bh(&psta->sleep_q.lock); */
@@ -2068,7 +2068,7 @@ int xmitframe_enqueue_for_sleeping_sta23a(struct rtw_adapter *padapter, struct x
 				pstapriv->tim_bitmap |= CHKBIT(psta->aid);
 
 				if (psta->sleepq_len == 1) {
-					/* upate BCN for TIM IE */
+					/* update BCN for TIM IE */
 					update_beacon23a(padapter, WLAN_EID_TIM,
 							 NULL, false);
 				}
@@ -2227,7 +2227,7 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	if (psta->sleepq_len == 0) {
 		pstapriv->tim_bitmap &= ~CHKBIT(psta->aid);
 
-		/* upate BCN for TIM IE */
+		/* update BCN for TIM IE */
 		update_mask = BIT(0);
 
 		if (psta->state&WIFI_SLEEP_STATE)
@@ -2274,7 +2274,7 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 			pstapriv->tim_bitmap &= ~BIT(0);
 			pstapriv->sta_dz_bitmap &= ~BIT(0);
 
-			/* upate BCN for TIM IE */
+			/* update BCN for TIM IE */
 			/* update_BCNTIM(padapter); */
 			update_mask |= BIT(1);
 		}
@@ -2348,7 +2348,7 @@ void xmit_delivery_enabled_frames23a(struct rtw_adapter *padapter,
 		    (wmmps_ac)) {
 			pstapriv->tim_bitmap &= ~CHKBIT(psta->aid);
 
-			/* upate BCN for TIM IE */
+			/* update BCN for TIM IE */
 			update_beacon23a(padapter, WLAN_EID_TIM, NULL, false);
 		}
 	}

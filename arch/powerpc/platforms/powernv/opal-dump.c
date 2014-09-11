@@ -102,9 +102,9 @@ static ssize_t dump_ack_store(struct dump_obj *dump_obj,
  * due to the dynamic size of the dump
  */
 static struct dump_attribute id_attribute =
-	__ATTR(id, 0666, dump_id_show, NULL);
+	__ATTR(id, S_IRUGO, dump_id_show, NULL);
 static struct dump_attribute type_attribute =
-	__ATTR(type, 0666, dump_type_show, NULL);
+	__ATTR(type, S_IRUGO, dump_type_show, NULL);
 static struct dump_attribute ack_attribute =
 	__ATTR(acknowledge, 0660, dump_ack_show, dump_ack_store);
 

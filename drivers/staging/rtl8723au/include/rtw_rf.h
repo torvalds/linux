@@ -89,17 +89,6 @@ enum ht_channel_width {
 	HT_CHANNEL_WIDTH_10 = 4,
 };
 
-/*  */
-/*  Represent Extention Channel Offset in HT Capabilities */
-/*  This is available only in 40Mhz mode. */
-/*  */
-enum {
-	HT_EXTCHNL_OFFSET_NO_EXT = 0,
-	HT_EXTCHNL_OFFSET_UPPER = 1,
-	HT_EXTCHNL_OFFSET_NO_DEF = 2,
-	HT_EXTCHNL_OFFSET_LOWER = 3,
-};
-
 /* 2007/11/15 MH Define different RF type. */
 enum {
 	RF_1T2R = 0,

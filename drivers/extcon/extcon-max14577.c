@@ -692,10 +692,9 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	u8 id;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
+
 	info->dev = &pdev->dev;
 	info->max14577 = max14577;
 

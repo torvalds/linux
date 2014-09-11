@@ -27,17 +27,17 @@
 
 #define GZIP_IOBUF_SIZE (16*1024)
 
-static int INIT nofill(void *buffer, unsigned int len)
+static long INIT nofill(void *buffer, unsigned long len)
 {
 	return -1;
 }
 
 /* Included from initramfs et al code */
-STATIC int INIT gunzip(unsigned char *buf, int len,
-		       int(*fill)(void*, unsigned int),
-		       int(*flush)(void*, unsigned int),
+STATIC int INIT gunzip(unsigned char *buf, long len,
+		       long (*fill)(void*, unsigned long),
+		       long (*flush)(void*, unsigned long),
 		       unsigned char *out_buf,
-		       int *pos,
+		       long *pos,
 		       void(*error)(char *x)) {
 	u8 *zbuf;
 	struct z_stream_s *strm;
@@ -142,7 +142,7 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 
 		/* Write any data generated */
 		if (flush && strm->next_out > out_buf) {
-			int l = strm->next_out - out_buf;
+			long l = strm->next_out - out_buf;
 			if (l != flush(out_buf, l)) {
 				rc = -1;
 				error("write error");

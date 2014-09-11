@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: station command response handling
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -908,7 +908,7 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 		break;
 	default:
 		dev_err(priv->adapter->dev,
-			"Unknown TDLS command action respnse %d", action);
+			"Unknown TDLS command action response %d", action);
 		return -1;
 	}
 

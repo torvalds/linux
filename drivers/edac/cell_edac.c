@@ -134,8 +134,7 @@ static void cell_edac_init_csrows(struct mem_ctl_info *mci)
 	int				j;
 	u32				nr_pages;
 
-	for (np = NULL;
-	     (np = of_find_node_by_name(np, "memory")) != NULL;) {
+	for_each_node_by_name(np, "memory") {
 		struct resource r;
 
 		/* We "know" that the Cell firmware only creates one entry

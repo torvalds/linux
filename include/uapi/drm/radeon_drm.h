@@ -511,6 +511,7 @@ typedef struct {
 #define DRM_RADEON_GEM_BUSY		0x2a
 #define DRM_RADEON_GEM_VA		0x2b
 #define DRM_RADEON_GEM_OP		0x2c
+#define DRM_RADEON_GEM_USERPTR		0x2d
 
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
@@ -554,6 +555,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_GEM_BUSY	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_BUSY, struct drm_radeon_gem_busy)
 #define DRM_IOCTL_RADEON_GEM_VA		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_VA, struct drm_radeon_gem_va)
 #define DRM_IOCTL_RADEON_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_OP, struct drm_radeon_gem_op)
+#define DRM_IOCTL_RADEON_GEM_USERPTR	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_USERPTR, struct drm_radeon_gem_userptr)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -808,6 +810,23 @@ struct drm_radeon_gem_create {
 	uint32_t	flags;
 };
 
+/*
+ * This is not a reliable API and you should expect it to fail for any
+ * number of reasons and have fallback path that do not use userptr to
+ * perform any operation.
+ */
+#define RADEON_GEM_USERPTR_READONLY	(1 << 0)
+#define RADEON_GEM_USERPTR_ANONONLY	(1 << 1)
+#define RADEON_GEM_USERPTR_VALIDATE	(1 << 2)
+#define RADEON_GEM_USERPTR_REGISTER	(1 << 3)
+
+struct drm_radeon_gem_userptr {
+	uint64_t		addr;
+	uint64_t		size;
+	uint32_t		flags;
+	uint32_t		handle;
+};
+
 #define RADEON_TILING_MACRO				0x1
 #define RADEON_TILING_MICRO				0x2
 #define RADEON_TILING_SWAP_16BIT			0x4
@@ -944,6 +963,7 @@ struct drm_radeon_cs_chunk {
 };
 
 /* drm_radeon_cs_reloc.flags */
+#define RADEON_RELOC_PRIO_MASK		(0xf << 0)
 
 struct drm_radeon_cs_reloc {
 	uint32_t		handle;

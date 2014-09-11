@@ -331,7 +331,7 @@ static int cm32181_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&client->dev, indio_dev);
 	if (ret) {
 		dev_err(&client->dev,
 			"%s: regist device failed\n",
@@ -339,14 +339,6 @@ static int cm32181_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	return 0;
-}
-
-static int cm32181_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
 	return 0;
 }
 
@@ -370,7 +362,6 @@ static struct i2c_driver cm32181_driver = {
 	},
 	.id_table       = cm32181_id,
 	.probe		= cm32181_probe,
-	.remove		= cm32181_remove,
 };
 
 module_i2c_driver(cm32181_driver);

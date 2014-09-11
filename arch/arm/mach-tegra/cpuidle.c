@@ -24,12 +24,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "fuse.h"
+#include <soc/tegra/fuse.h>
+
 #include "cpuidle.h"
 
 void __init tegra_cpuidle_init(void)
 {
-	switch (tegra_chip_id) {
+	switch (tegra_get_chip_id()) {
 	case TEGRA20:
 		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
 			tegra20_cpuidle_init();
@@ -49,7 +50,7 @@ void __init tegra_cpuidle_init(void)
 
 void tegra_cpuidle_pcie_irqs_in_use(void)
 {
-	switch (tegra_chip_id) {
+	switch (tegra_get_chip_id()) {
 	case TEGRA20:
 		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
 			tegra20_cpuidle_pcie_irqs_in_use();

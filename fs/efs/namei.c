@@ -12,7 +12,8 @@
 #include "efs.h"
 
 
-static efs_ino_t efs_find_entry(struct inode *inode, const char *name, int len) {
+static efs_ino_t efs_find_entry(struct inode *inode, const char *name, int len)
+{
 	struct buffer_head *bh;
 
 	int			slot, namelen;
@@ -40,10 +41,10 @@ static efs_ino_t efs_find_entry(struct inode *inode, const char *name, int len) 
 		if (be16_to_cpu(dirblock->magic) != EFS_DIRBLK_MAGIC) {
 			pr_err("%s(): invalid directory block\n", __func__);
 			brelse(bh);
-			return(0);
+			return 0;
 		}
 
-		for(slot = 0; slot < dirblock->slots; slot++) {
+		for (slot = 0; slot < dirblock->slots; slot++) {
 			dirslot  = (struct efs_dentry *) (((char *) bh->b_data) + EFS_SLOTAT(dirblock, slot));
 
 			namelen  = dirslot->namelen;
@@ -52,12 +53,12 @@ static efs_ino_t efs_find_entry(struct inode *inode, const char *name, int len) 
 			if ((namelen == len) && (!memcmp(name, nameptr, len))) {
 				inodenum = be32_to_cpu(dirslot->inode);
 				brelse(bh);
-				return(inodenum);
+				return inodenum;
 			}
 		}
 		brelse(bh);
 	}
-	return(0);
+	return 0;
 }
 
 struct dentry *efs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)

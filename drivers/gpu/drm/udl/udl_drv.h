@@ -47,6 +47,7 @@ struct udl_fbdev;
 struct udl_device {
 	struct device *dev;
 	struct drm_device *ddev;
+	struct usb_device *udev;
 
 	int sku_pixel_limit;
 

@@ -545,6 +545,24 @@ struct phy_driver {
 	 */
 	void (*link_change_notify)(struct phy_device *dev);
 
+	/* A function provided by a phy specific driver to override the
+	 * the PHY driver framework support for reading a MMD register
+	 * from the PHY. If not supported, return -1. This function is
+	 * optional for PHY specific drivers, if not provided then the
+	 * default MMD read function is used by the PHY framework.
+	 */
+	int (*read_mmd_indirect)(struct phy_device *dev, int ptrad,
+				 int devnum, int regnum);
+
+	/* A function provided by a phy specific driver to override the
+	 * the PHY driver framework support for writing a MMD register
+	 * from the PHY. This function is optional for PHY specific drivers,
+	 * if not provided then the default MMD read function is used by
+	 * the PHY framework.
+	 */
+	void (*write_mmd_indirect)(struct phy_device *dev, int ptrad,
+				   int devnum, int regnum, u32 val);
+
 	struct device_driver driver;
 };
 #define to_phy_driver(d) container_of(d, struct phy_driver, driver)

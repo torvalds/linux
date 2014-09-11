@@ -119,7 +119,7 @@ int cpu_suspend(unsigned long arg)
 extern struct sleep_save_sp sleep_save_sp;
 extern phys_addr_t sleep_idmap_phys;
 
-static int cpu_suspend_init(void)
+static int __init cpu_suspend_init(void)
 {
 	void *ctx_ptr;
 

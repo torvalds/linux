@@ -9,6 +9,3 @@ lustre-y := dcache.o dir.o file.o llite_close.o llite_lib.o llite_nfs.o \
 
 lustre-$(CONFIG_PROC_FS) += lproc_llite.o
 llite_lloop-y := lloop.o
-
-
-ccflags-y := -I$(src)/../include
