@@ -447,7 +447,7 @@ static struct slave *__rlb_next_rx_slave(struct bonding *bond)
 /* teach the switch the mac of a disabled slave
  * on the primary for fault tolerance
  *
- * Caller must hold bond->curr_slave_lock for write or bond lock for write
+ * Caller must hold RTNL
  */
 static void rlb_teach_disabled_mac_on_primary(struct bonding *bond, u8 addr[])
 {
@@ -512,12 +512,8 @@ static void rlb_clear_slave(struct bonding *bond, struct slave *slave)
 
 	_unlock_rx_hashtbl_bh(bond);
 
-	write_lock_bh(&bond->curr_slave_lock);
-
 	if (slave != bond_deref_active_protected(bond))
 		rlb_teach_disabled_mac_on_primary(bond, slave->dev->dev_addr);
-
-	write_unlock_bh(&bond->curr_slave_lock);
 }
 
 static void rlb_update_client(struct rlb_client_info *client_info)
@@ -1595,13 +1591,6 @@ void bond_alb_monitor(struct work_struct *work)
 	if (bond_info->lp_counter >= BOND_ALB_LP_TICKS(bond)) {
 		bool strict_match;
 
-		/* change of curr_active_slave involves swapping of mac addresses.
-		 * in order to avoid this swapping from happening while
-		 * sending the learning packets, the curr_slave_lock must be held for
-		 * read.
-		 */
-		read_lock(&bond->curr_slave_lock);
-
 		bond_for_each_slave_rcu(bond, slave, iter) {
 			/* If updating current_active, use all currently
 			 * user mac addreses (!strict_match).  Otherwise, only
@@ -1613,17 +1602,11 @@ void bond_alb_monitor(struct work_struct *work)
 			alb_send_learning_packets(slave, slave->dev->dev_addr,
 						  strict_match);
 		}
-
-		read_unlock(&bond->curr_slave_lock);
-
 		bond_info->lp_counter = 0;
 	}
 
 	/* rebalance tx traffic */
 	if (bond_info->tx_rebalance_counter >= BOND_TLB_REBALANCE_TICKS) {
-
-		read_lock(&bond->curr_slave_lock);
-
 		bond_for_each_slave_rcu(bond, slave, iter) {
 			tlb_clear_slave(bond, slave, 1);
 			if (slave == rcu_access_pointer(bond->curr_active_slave)) {
@@ -1633,9 +1616,6 @@ void bond_alb_monitor(struct work_struct *work)
 				bond_info->unbalanced_load = 0;
 			}
 		}
-
-		read_unlock(&bond->curr_slave_lock);
-
 		bond_info->tx_rebalance_counter = 0;
 	}
 
@@ -1775,21 +1755,14 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
  * Set the bond->curr_active_slave to @new_slave and handle
  * mac address swapping and promiscuity changes as needed.
  *
- * If new_slave is NULL, caller must hold curr_slave_lock for write
- *
- * If new_slave is not NULL, caller must hold RTNL, curr_slave_lock
- * for write.  Processing here may sleep, so no other locks may be held.
+ * Caller must hold RTNL
  */
 void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave)
-	__releases(&bond->curr_slave_lock)
-	__acquires(&bond->curr_slave_lock)
 {
 	struct slave *swap_slave;
 	struct slave *curr_active;
 
-	curr_active = rcu_dereference_protected(bond->curr_active_slave,
-						!new_slave ||
-						lockdep_is_held(&bond->curr_slave_lock));
+	curr_active = rtnl_dereference(bond->curr_active_slave);
 	if (curr_active == new_slave)
 		return;
 
@@ -1820,10 +1793,6 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		tlb_clear_slave(bond, swap_slave, 1);
 	tlb_clear_slave(bond, new_slave, 1);
 
-	write_unlock_bh(&bond->curr_slave_lock);
-
-	ASSERT_RTNL();
-
 	/* in TLB mode, the slave might flip down/up with the old dev_addr,
 	 * and thus filter bond->dev_addr's packets, so force bond's mac
 	 */
@@ -1852,8 +1821,6 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		alb_send_learning_packets(new_slave, bond->dev->dev_addr,
 					  false);
 	}
-
-	write_lock_bh(&bond->curr_slave_lock);
 }
 
 /* Called with RTNL */
