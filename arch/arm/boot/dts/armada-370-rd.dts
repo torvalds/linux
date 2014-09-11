@@ -55,6 +55,11 @@
 					marvell,pins = "mpp8";
 					marvell,function = "gpio";
 				};
+
+				led_pins: led-pins {
+					marvell,pins = "mpp32";
+					marvell,function = "gpio";
+				};
 			};
 
 			serial@12000 {
@@ -123,6 +128,18 @@
 				gpio-fan,speed-map = <0 0 3000 1>;
 				pinctrl-0 = <&fan_pins>;
 				pinctrl-names = "default";
+			};
+
+			gpio_leds {
+				compatible = "gpio-leds";
+				pinctrl-names = "default";
+				pinctrl-0 = <&led_pins>;
+
+				sw_led {
+					label = "370rd:green:sw";
+					gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+					default-state = "keep";
+				};
 			};
 
 			nand@d0000 {
