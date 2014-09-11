@@ -145,7 +145,7 @@ static ssize_t serial_number_show(struct device *dev,
 	struct greybus_device *gdev = to_greybus_device(dev);
 
 	return sprintf(buf, "%llX\n",
-		      (unsigned long long)gdev->serial_number.serial_number);
+		      (unsigned long long)le64_to_cpu(gdev->serial_number.serial_number));
 }
 static DEVICE_ATTR_RO(serial_number);
 
