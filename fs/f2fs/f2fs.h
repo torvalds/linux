@@ -103,7 +103,8 @@ enum {
 	META_CP,
 	META_NAT,
 	META_SIT,
-	META_SSA
+	META_SSA,
+	META_POR,
 };
 
 /* for the list of ino */
@@ -1294,7 +1295,8 @@ void destroy_segment_manager_caches(void);
  */
 struct page *grab_meta_page(struct f2fs_sb_info *, pgoff_t);
 struct page *get_meta_page(struct f2fs_sb_info *, pgoff_t);
-int ra_meta_pages(struct f2fs_sb_info *, int, int, int);
+struct page *get_meta_page_ra(struct f2fs_sb_info *, pgoff_t);
+int ra_meta_pages(struct f2fs_sb_info *, block_t, int, int);
 long sync_meta_pages(struct f2fs_sb_info *, enum page_type, long);
 void add_dirty_inode(struct f2fs_sb_info *, nid_t, int type);
 void remove_dirty_inode(struct f2fs_sb_info *, nid_t, int type);
