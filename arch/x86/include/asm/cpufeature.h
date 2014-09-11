@@ -300,7 +300,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define cpu_has_de		boot_cpu_has(X86_FEATURE_DE)
 #define cpu_has_pse		boot_cpu_has(X86_FEATURE_PSE)
 #define cpu_has_tsc		boot_cpu_has(X86_FEATURE_TSC)
-#define cpu_has_pae		boot_cpu_has(X86_FEATURE_PAE)
 #define cpu_has_pge		boot_cpu_has(X86_FEATURE_PGE)
 #define cpu_has_apic		boot_cpu_has(X86_FEATURE_APIC)
 #define cpu_has_sep		boot_cpu_has(X86_FEATURE_SEP)
@@ -357,9 +356,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 
 #undef  cpu_has_vme
 #define cpu_has_vme		0
-
-#undef  cpu_has_pae
-#define cpu_has_pae		___BUG___
 
 #undef  cpu_has_k6_mtrr
 #define cpu_has_k6_mtrr		0
