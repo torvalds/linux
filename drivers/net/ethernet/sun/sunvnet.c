@@ -37,6 +37,8 @@ MODULE_VERSION(DRV_MODULE_VERSION);
  */
 #define	VNET_MAX_RETRIES	10
 
+static int __vnet_tx_trigger(struct vnet_port *port, u32 start);
+
 /* Ordered from largest major to lowest */
 static struct vio_version vnet_versions[] = {
 	{ .major = 1, .minor = 0 },
@@ -283,9 +285,17 @@ static int vnet_send_ack(struct vnet_port *port, struct vio_dring_state *dr,
 				port->raddr[0], port->raddr[1],
 				port->raddr[2], port->raddr[3],
 				port->raddr[4], port->raddr[5]);
-			err = -ECONNRESET;
+			break;
 		}
 	} while (err == -EAGAIN);
+
+	if (err <= 0 && vio_dring_state == VIO_DRING_STOPPED) {
+		port->stop_rx_idx = end;
+		port->stop_rx = true;
+	} else {
+		port->stop_rx_idx = 0;
+		port->stop_rx = false;
+	}
 
 	return err;
 }
@@ -448,7 +458,7 @@ static int vnet_ack(struct vnet_port *port, void *msgbuf)
 	struct net_device *dev;
 	struct vnet *vp;
 	u32 end;
-
+	struct vio_net_desc *desc;
 	if (unlikely(pkt->tag.stype_env != VIO_DRING_DATA))
 		return 0;
 
@@ -456,7 +466,24 @@ static int vnet_ack(struct vnet_port *port, void *msgbuf)
 	if (unlikely(!idx_is_pending(dr, end)))
 		return 0;
 
+	/* sync for race conditions with vnet_start_xmit() and tell xmit it
+	 * is time to send a trigger.
+	 */
 	dr->cons = next_idx(end, dr);
+	desc = vio_dring_entry(dr, dr->cons);
+	if (desc->hdr.state == VIO_DESC_READY && port->start_cons) {
+		/* vnet_start_xmit() just populated this dring but missed
+		 * sending the "start" LDC message to the consumer.
+		 * Send a "start" trigger on its behalf.
+		 */
+		if (__vnet_tx_trigger(port, dr->cons) > 0)
+			port->start_cons = false;
+		else
+			port->start_cons = true;
+	} else {
+		port->start_cons = true;
+	}
+
 
 	vp = port->vp;
 	dev = vp->dev;
@@ -597,7 +624,7 @@ static void vnet_event(void *arg, int event)
 	local_irq_restore(flags);
 }
 
-static int __vnet_tx_trigger(struct vnet_port *port)
+static int __vnet_tx_trigger(struct vnet_port *port, u32 start)
 {
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	struct vio_dring_data hdr = {
@@ -608,11 +635,20 @@ static int __vnet_tx_trigger(struct vnet_port *port)
 			.sid		= vio_send_sid(&port->vio),
 		},
 		.dring_ident		= dr->ident,
-		.start_idx		= dr->prod,
+		.start_idx		= start,
 		.end_idx		= (u32) -1,
 	};
 	int err, delay;
 	int retries = 0;
+
+	if (port->stop_rx) {
+		err = vnet_send_ack(port,
+				    &port->vio.drings[VIO_DRIVER_RX_RING],
+				    port->stop_rx_idx, -1,
+				    VIO_DRING_STOPPED);
+		if (err <= 0)
+			return err;
+	}
 
 	hdr.seq = dr->snd_nxt;
 	delay = 1;
@@ -734,13 +770,39 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	d->hdr.state = VIO_DESC_READY;
 
-	err = __vnet_tx_trigger(port);
+	/* Exactly one ldc "start" trigger (for dr->cons) needs to be sent
+	 * to notify the consumer that some descriptors are READY.
+	 * After that "start" trigger, no additional triggers are needed until
+	 * a DRING_STOPPED is received from the consumer. The dr->cons field
+	 * (set up by vnet_ack()) has the value of the next dring index
+	 * that has not yet been ack-ed. We send a "start" trigger here
+	 * if, and only if, start_cons is true (reset it afterward). Conversely,
+	 * vnet_ack() should check if the dring corresponding to cons
+	 * is marked READY, but start_cons was false.
+	 * If so, vnet_ack() should send out the missed "start" trigger.
+	 *
+	 * Note that the wmb() above makes sure the cookies et al. are
+	 * not globally visible before the VIO_DESC_READY, and that the
+	 * stores are ordered correctly by the compiler. The consumer will
+	 * not proceed until the VIO_DESC_READY is visible assuring that
+	 * the consumer does not observe anything related to descriptors
+	 * out of order. The HV trap from the LDC start trigger is the
+	 * producer to consumer announcement that work is available to the
+	 * consumer
+	 */
+	if (!port->start_cons)
+		goto ldc_start_done; /* previous trigger suffices */
+
+	err = __vnet_tx_trigger(port, dr->cons);
 	if (unlikely(err < 0)) {
 		netdev_info(dev, "TX trigger error %d\n", err);
 		d->hdr.state = VIO_DESC_FREE;
 		dev->stats.tx_carrier_errors++;
 		goto out_dropped_unlock;
 	}
+
+ldc_start_done:
+	port->start_cons = false;
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
@@ -1035,6 +1097,7 @@ static int vnet_port_alloc_tx_bufs(struct vnet_port *port)
 			  (sizeof(struct ldc_trans_cookie) * 2));
 	dr->num_entries = VNET_TX_RING_SIZE;
 	dr->prod = dr->cons = 0;
+	port->start_cons  = true; /* need an initial trigger */
 	dr->pending = VNET_TX_RING_SIZE;
 	dr->ncookies = ncookies;
 

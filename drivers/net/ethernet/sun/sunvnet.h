@@ -40,6 +40,10 @@ struct vnet_port {
 	struct vnet_tx_entry	tx_bufs[VNET_TX_RING_SIZE];
 
 	struct list_head	list;
+
+	u32			stop_rx_idx;
+	bool			stop_rx;
+	bool			start_cons;
 };
 
 static inline struct vnet_port *to_vnet_port(struct vio_driver_state *vio)
