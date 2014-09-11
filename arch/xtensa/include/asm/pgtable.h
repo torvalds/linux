@@ -277,6 +277,8 @@ static inline pte_t pte_mkwrite(pte_t pte)
 static inline pte_t pte_mkspecial(pte_t pte)
 	{ return pte; }
 
+#define pgprot_noncached(prot) (__pgprot(pgprot_val(prot) & ~_PAGE_CA_MASK))
+
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
