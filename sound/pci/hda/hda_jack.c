@@ -217,7 +217,6 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_detect_state);
  * snd_hda_jack_detect_enable - enable the jack-detection
  */
 int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
-					unsigned char action,
 					hda_jack_callback cb)
 {
 	struct hda_jack_tbl *jack = snd_hda_jack_tbl_new(codec, nid);
@@ -226,8 +225,6 @@ int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
 	if (jack->jack_detect)
 		return 0; /* already registered */
 	jack->jack_detect = 1;
-	if (action)
-		jack->action = action;
 	if (cb)
 		jack->callback = cb;
 	if (codec->jackpoll_interval > 0)
@@ -238,10 +235,9 @@ int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_detect_enable_callback);
 
-int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid,
-			       unsigned char action)
+int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid)
 {
-	return snd_hda_jack_detect_enable_callback(codec, nid, action, NULL);
+	return snd_hda_jack_detect_enable_callback(codec, nid, NULL);
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_detect_enable);
 
@@ -431,7 +427,7 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 		return err;
 
 	if (!phantom_jack)
-		return snd_hda_jack_detect_enable(codec, nid, 0);
+		return snd_hda_jack_detect_enable(codec, nid);
 	return 0;
 }
 

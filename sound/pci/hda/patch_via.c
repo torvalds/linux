@@ -592,8 +592,6 @@ static void via_jack_powerstate_event(struct hda_codec *codec, struct hda_jack_t
 	set_widgets_power_state(codec);
 }
 
-#define VIA_JACK_EVENT	(HDA_GEN_LAST_EVENT + 1)
-
 static void via_set_jack_unsol_events(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -610,7 +608,6 @@ static void via_set_jack_unsol_events(struct hda_codec *codec)
 		if (pin && !snd_hda_jack_tbl_get(codec, pin) &&
 		    is_jack_detectable(codec, pin))
 			snd_hda_jack_detect_enable_callback(codec, pin,
-							    VIA_JACK_EVENT,
 							    via_jack_powerstate_event);
 	}
 
@@ -619,7 +616,6 @@ static void via_set_jack_unsol_events(struct hda_codec *codec)
 		if (pin && !snd_hda_jack_tbl_get(codec, pin) &&
 		    is_jack_detectable(codec, pin))
 			snd_hda_jack_detect_enable_callback(codec, pin,
-							    VIA_JACK_EVENT,
 							    via_jack_powerstate_event);
 	}
 }

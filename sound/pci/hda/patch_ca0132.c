@@ -4116,8 +4116,8 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
 
 static void ca0132_init_unsol(struct hda_codec *codec)
 {
-	snd_hda_jack_detect_enable(codec, UNSOL_TAG_HP, UNSOL_TAG_HP);
-	snd_hda_jack_detect_enable(codec, UNSOL_TAG_AMIC1, UNSOL_TAG_AMIC1);
+	snd_hda_jack_detect_enable(codec, UNSOL_TAG_HP);
+	snd_hda_jack_detect_enable(codec, UNSOL_TAG_AMIC1);
 }
 
 static void refresh_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir)
@@ -4406,16 +4406,18 @@ static void ca0132_process_dsp_response(struct hda_codec *codec)
 static void ca0132_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	struct ca0132_spec *spec = codec->spec;
+	unsigned int tag = (res >> AC_UNSOL_RES_TAG_SHIFT) & 0x3f;
 
-	if (((res >> AC_UNSOL_RES_TAG_SHIFT) & 0x3f) == UNSOL_TAG_DSP) {
+	if (tag == UNSOL_TAG_DSP) {
 		ca0132_process_dsp_response(codec);
 	} else {
-		res = snd_hda_jack_get_action(codec,
-				(res >> AC_UNSOL_RES_TAG_SHIFT) & 0x3f);
+		struct hda_jack_tbl *jack;
 
 		codec_dbg(codec, "snd_hda_jack_get_action: 0x%x\n", res);
-
-		switch (res) {
+		jack = snd_hda_jack_tbl_get_from_tag(codec, tag);
+		if (!jack)
+			return;
+		switch (jack->nid) {
 		case UNSOL_TAG_HP:
 			/* Delay enabling the HP amp, to let the mic-detection
 			 * state machine run.

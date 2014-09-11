@@ -40,9 +40,6 @@
 /* keep halting ALC5505 DSP, for power saving */
 #define HALT_REALTEK_ALC5505
 
-/* unsol event tags */
-#define ALC_DCVOL_EVENT		0x08
-
 /* for GPIO Poll */
 #define GPIO_MASK	0x03
 
@@ -1130,7 +1127,8 @@ static void alc880_fixup_vol_knob(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PROBE)
-		snd_hda_jack_detect_enable_callback(codec, 0x21, ALC_DCVOL_EVENT, alc_update_knob_master);
+		snd_hda_jack_detect_enable_callback(codec, 0x21,
+						    alc_update_knob_master);
 }
 
 static const struct hda_fixup alc880_fixups[] = {
@@ -1593,7 +1591,7 @@ static void alc260_fixup_gpio1_toggle(struct hda_codec *codec,
 		spec->gen.detect_hp = 1;
 		spec->gen.automute_speaker = 1;
 		spec->gen.autocfg.hp_pins[0] = 0x0f; /* copy it for automute */
-		snd_hda_jack_detect_enable_callback(codec, 0x0f, HDA_GEN_HP_EVENT,
+		snd_hda_jack_detect_enable_callback(codec, 0x0f,
 						    snd_hda_gen_hp_automute);
 		snd_hda_add_verbs(codec, alc_gpio1_init_verbs);
 	}
@@ -4254,7 +4252,6 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 		spec->gen.auto_mute_via_amp = 1;
 		spec->gen.automute_hook = asus_tx300_automute;
 		snd_hda_jack_detect_enable_callback(codec, 0x1b,
-						    HDA_GEN_HP_EVENT,
 						    snd_hda_gen_hp_automute);
 		break;
 	case HDA_FIXUP_ACT_BUILD:

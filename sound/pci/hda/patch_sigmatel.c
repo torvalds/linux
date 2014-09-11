@@ -40,11 +40,6 @@
 #include "hda_generic.h"
 
 enum {
-	STAC_VREF_EVENT	= 8,
-	STAC_PWR_EVENT,
-};
-
-enum {
 	STAC_REF,
 	STAC_9200_OQO,
 	STAC_9200_DELL_D21,
@@ -505,13 +500,11 @@ static void jack_update_power(struct hda_codec *codec,
 	for (i = 0; i < spec->num_pwrs; i++) {
 		hda_nid_t nid = spec->pwr_nids[i];
 		jack = snd_hda_jack_tbl_get(codec, nid);
-		if (!jack || !jack->action)
+		if (!jack)
 			continue;
-		if (jack->action == STAC_PWR_EVENT ||
-		    jack->action <= HDA_GEN_LAST_EVENT)
-			stac_toggle_power_map(codec, nid,
-					      snd_hda_jack_detect(codec, nid),
-					      false);
+		stac_toggle_power_map(codec, nid,
+				      snd_hda_jack_detect(codec, nid),
+				      false);
 	}
 
 	snd_hda_codec_write(codec, codec->afg, 0, AC_VERB_IDT_SET_POWER_MAP,
@@ -568,7 +561,6 @@ static void stac_init_power_map(struct hda_codec *codec)
 		    spec->vref_mute_led_nid != nid &&
 		    is_jack_detectable(codec, nid)) {
 			snd_hda_jack_detect_enable_callback(codec, nid,
-							    STAC_PWR_EVENT,
 							    jack_update_power);
 		} else {
 			if (def_conf == AC_JACK_PORT_NONE)
@@ -3028,7 +3020,6 @@ static void stac92hd71bxx_fixup_hp_m4(struct hda_codec *codec,
 	snd_hda_codec_write_cache(codec, codec->afg, 0,
 				  AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
 	snd_hda_jack_detect_enable_callback(codec, codec->afg,
-					    STAC_VREF_EVENT,
 					    stac_vref_event);
 	jack = snd_hda_jack_tbl_get(codec, codec->afg);
 	if (jack)
@@ -4052,7 +4043,6 @@ static void stac9205_fixup_dell_m43(struct hda_codec *codec,
 		snd_hda_codec_write_cache(codec, codec->afg, 0,
 			AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x10);
 		snd_hda_jack_detect_enable_callback(codec, codec->afg,
-						    STAC_VREF_EVENT,
 						    stac_vref_event);
 		jack = snd_hda_jack_tbl_get(codec, codec->afg);
 		if (jack)
