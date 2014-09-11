@@ -2754,9 +2754,25 @@ static void ext4_feat_release(struct kobject *kobj)
 	complete(&ext4_feat->f_kobj_unregister);
 }
 
+static ssize_t ext4_feat_show(struct kobject *kobj,
+			      struct attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "supported\n");
+}
+
+/*
+ * We can not use ext4_attr_show/store because it relies on the kobject
+ * being embedded in the ext4_sb_info structure which is definitely not
+ * true in this case.
+ */
+static const struct sysfs_ops ext4_feat_ops = {
+	.show	= ext4_feat_show,
+	.store	= NULL,
+};
+
 static struct kobj_type ext4_feat_ktype = {
 	.default_attrs	= ext4_feat_attrs,
-	.sysfs_ops	= &ext4_attr_ops,
+	.sysfs_ops	= &ext4_feat_ops,
 	.release	= ext4_feat_release,
 };
 
