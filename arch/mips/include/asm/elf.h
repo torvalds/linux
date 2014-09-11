@@ -269,6 +269,8 @@ do {									\
 	else								\
 		set_thread_flag(TIF_32BIT_FPREGS);			\
 									\
+	clear_thread_flag(TIF_HYBRID_FPREGS);				\
+									\
 	if (personality(current->personality) != PER_LINUX)		\
 		set_personality(PER_LINUX);				\
 									\
@@ -325,6 +327,7 @@ do {									\
 									\
 	clear_thread_flag(TIF_32BIT_REGS);				\
 	clear_thread_flag(TIF_32BIT_FPREGS);				\
+	clear_thread_flag(TIF_HYBRID_FPREGS);				\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
 									\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)			\
