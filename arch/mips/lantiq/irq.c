@@ -379,30 +379,6 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 			panic("Failed to remap icu memory");
 	}
 
-	/* the external interrupts are optional and xway only */
-	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu-xway");
-	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
-		/* find out how many external irq sources we have */
-		exin_avail = of_irq_count(eiu_node);
-
-		if (exin_avail > MAX_EIU)
-			exin_avail = MAX_EIU;
-
-		ret = of_irq_to_resource_table(eiu_node,
-						ltq_eiu_irq, exin_avail);
-		if (ret != exin_avail)
-			panic("failed to load external irq resources");
-
-		if (request_mem_region(res.start, resource_size(&res),
-							res.name) < 0)
-			pr_err("Failed to request eiu memory");
-
-		ltq_eiu_membase = ioremap_nocache(res.start,
-							resource_size(&res));
-		if (!ltq_eiu_membase)
-			panic("Failed to remap eiu memory");
-	}
-
 	/* turn off all irqs by default */
 	for (i = 0; i < MAX_IM; i++) {
 		/* make sure all irqs are turned off by default */
@@ -458,6 +434,30 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	 */
 	if (MIPS_CPU_TIMER_IRQ != 7)
 		irq_create_mapping(ltq_domain, MIPS_CPU_TIMER_IRQ);
+
+	/* the external interrupts are optional and xway only */
+	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu-xway");
+	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
+		/* find out how many external irq sources we have */
+		exin_avail = of_irq_count(eiu_node);
+
+		if (exin_avail > MAX_EIU)
+			exin_avail = MAX_EIU;
+
+		ret = of_irq_to_resource_table(eiu_node,
+						ltq_eiu_irq, exin_avail);
+		if (ret != exin_avail)
+			panic("failed to load external irq resources");
+
+		if (request_mem_region(res.start, resource_size(&res),
+							res.name) < 0)
+			pr_err("Failed to request eiu memory");
+
+		ltq_eiu_membase = ioremap_nocache(res.start,
+							resource_size(&res));
+		if (!ltq_eiu_membase)
+			panic("Failed to remap eiu memory");
+	}
 
 	return 0;
 }
