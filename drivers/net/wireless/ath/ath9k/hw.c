@@ -1954,6 +1954,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (AR_SREV_9565(ah) && common->bt_ant_diversity)
 		REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV, AR_BTCOEX_WL_LNADIV_FORCE_ON);
 
+	if (ah->hw->conf.radar_enabled) {
+		/* set HW specific DFS configuration */
+		ath9k_hw_set_radar_params(ah);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(ath9k_hw_reset);

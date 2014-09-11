@@ -83,8 +83,6 @@ static int ath_set_channel(struct ath_softc *sc)
 	if (hw->conf.radar_enabled) {
 		u32 rxfilter;
 
-		/* set HW specific DFS configuration */
-		ath9k_hw_set_radar_params(ah);
 		rxfilter = ath9k_hw_getrxfilter(ah);
 		rxfilter |= ATH9K_RX_FILTER_PHYRADAR |
 				ATH9K_RX_FILTER_PHYERR;
