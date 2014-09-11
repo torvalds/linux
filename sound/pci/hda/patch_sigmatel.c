@@ -510,27 +510,6 @@ static void jack_update_power(struct hda_codec *codec,
 			    spec->power_map_bits);
 }
 
-static void stac_hp_automute(struct hda_codec *codec,
-				 struct hda_jack_callback *jack)
-{
-	snd_hda_gen_hp_automute(codec, jack);
-	jack_update_power(codec, jack);
-}
-
-static void stac_line_automute(struct hda_codec *codec,
-				   struct hda_jack_callback *jack)
-{
-	snd_hda_gen_line_automute(codec, jack);
-	jack_update_power(codec, jack);
-}
-
-static void stac_mic_autoswitch(struct hda_codec *codec,
-				struct hda_jack_callback *jack)
-{
-	snd_hda_gen_mic_autoswitch(codec, jack);
-	jack_update_power(codec, jack);
-}
-
 static void stac_vref_event(struct hda_codec *codec,
 			    struct hda_jack_callback *event)
 {
@@ -555,8 +534,6 @@ static void stac_init_power_map(struct hda_codec *codec)
 		hda_nid_t nid = spec->pwr_nids[i];
 		unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 		def_conf = get_defcfg_connect(def_conf);
-		if (snd_hda_jack_tbl_get(codec, nid))
-			continue;
 		if (def_conf == AC_JACK_PORT_COMPLEX &&
 		    spec->vref_mute_led_nid != nid &&
 		    is_jack_detectable(codec, nid)) {
@@ -4206,9 +4183,6 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 	spec->gen.pcm_capture_hook = stac_capture_pcm_hook;
 
 	spec->gen.automute_hook = stac_update_outputs;
-	spec->gen.hp_automute_hook = stac_hp_automute;
-	spec->gen.line_automute_hook = stac_line_automute;
-	spec->gen.mic_autoswitch_hook = stac_mic_autoswitch;
 
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
@@ -4260,16 +4234,8 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 			return err;
 	}
 
-	return 0;
-}
-
-static int stac_build_controls(struct hda_codec *codec)
-{
-	int err = snd_hda_gen_build_controls(codec);
-
-	if (err < 0)
-		return err;
 	stac_init_power_map(codec);
+
 	return 0;
 }
 
@@ -4383,7 +4349,7 @@ static int stac_suspend(struct hda_codec *codec)
 #endif /* CONFIG_PM */
 
 static const struct hda_codec_ops stac_patch_ops = {
-	.build_controls = stac_build_controls,
+	.build_controls = snd_hda_gen_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = stac_init,
 	.free = stac_free,
