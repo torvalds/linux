@@ -61,6 +61,43 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
+
+		reg_si4763_vio1: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "vio1";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_si4763_vio2: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "vio2";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_si4763_vd: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			regulator-name = "vd";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_si4763_va: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			regulator-name = "va";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
+
 	};
 
 	clocks {
@@ -80,6 +117,16 @@
 		audio-codec = <&codec>;
 	};
 
+	sound-fm {
+		compatible = "fsl,imx-audio-si476x",
+			   "fsl,imx-tuner-si476x";
+		model = "imx-radio-si4763";
+		ssi-controller = <&ssi2>;
+		fm-controller = <&si476x_codec>;
+		mux-int-port = <2>;
+		mux-ext-port = <5>;
+	};
+
 	sound-spdif {
 		compatible = "fsl,imx-audio-spdif",
 			   "fsl,imx-sabreauto-spdif";
@@ -95,6 +142,12 @@
 		default-brightness-level = <7>;
 		status = "okay";
 	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux>;
+	status = "okay";
 };
 
 &clks {
@@ -263,6 +316,19 @@
 		VLC-supply = <&reg_audio>;
         };
 
+	si4763: si4763@63 {
+		compatible = "si4761";
+		reg = <0x63>;
+		va-supply = <&reg_si4763_va>;
+		vd-supply = <&reg_si4763_vd>;
+		vio1-supply = <&reg_si4763_vio1>;
+		vio2-supply = <&reg_si4763_vio2>;
+		revision-a10; /* set to default A10 compatible command set */
+
+		si476x_codec: si476x-codec {
+			compatible = "si476x-codec";
+		};
+	};
 };
 
 &i2c3 {
@@ -297,6 +363,14 @@
 	pinctrl-0 = <&pinctrl_hog>;
 
 	imx6qdl-sabreauto {
+                pinctrl_audmux: audmux {
+                        fsl,pins = <
+                                MX6QDL_PAD_DISP0_DAT16__AUD5_TXC  0x130b0
+                                MX6QDL_PAD_DISP0_DAT18__AUD5_TXFS 0x130b0
+                                MX6QDL_PAD_DISP0_DAT19__AUD5_RXD  0x130b0
+                        >;
+                };
+
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX6QDL_PAD_NANDF_CS2__GPIO6_IO15 0x80000000
@@ -561,6 +635,15 @@
 			  <&clks IMX6QDL_CLK_SPDIF_PODF>;
 	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL3_PFD3_454M>;
 	assigned-clock-rates = <0>, <227368421>;
+	status = "okay";
+};
+
+
+&ssi2 {
+	assigned-clocks = <&clks IMX6QDL_CLK_SSI2_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>;
+	fsl,mode = "i2s-master";
 	status = "okay";
 };
 
