@@ -46,7 +46,8 @@ static int change_memory_common(unsigned long addr, int numpages,
 	struct page_change_data data;
 
 	if (!IS_ALIGNED(addr, PAGE_SIZE)) {
-		addr &= PAGE_MASK;
+		start &= PAGE_MASK;
+		end = start + size;
 		WARN_ON_ONCE(1);
 	}
 
