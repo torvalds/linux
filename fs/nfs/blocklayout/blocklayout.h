@@ -110,17 +110,6 @@ struct bl_msg_hdr {
 #define BL_DEVICE_REQUEST_PROC         0x1 /* User level process succeeds */
 #define BL_DEVICE_REQUEST_ERR          0x2 /* User level process fails */
 
-/* blocklayoutdev.c */
-ssize_t bl_pipe_downcall(struct file *, const char __user *, size_t);
-void bl_pipe_destroy_msg(struct rpc_pipe_msg *);
-
-struct nfs4_deviceid_node *bl_alloc_deviceid_node(struct nfs_server *server,
-		struct pnfs_device *pdev, gfp_t gfp_mask);
-void bl_free_deviceid_node(struct nfs4_deviceid_node *d);
-
-/* blocklayoutdm.c */
-void bl_dm_remove(struct net *net, dev_t dev);
-
 /* extent_tree.c */
 int ext_tree_insert(struct pnfs_block_layout *bl,
 		struct pnfs_block_extent *new);
@@ -132,5 +121,13 @@ bool ext_tree_lookup(struct pnfs_block_layout *bl, sector_t isect,
 		struct pnfs_block_extent *ret, bool rw);
 int ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg);
 void ext_tree_mark_committed(struct nfs4_layoutcommit_args *arg, int status);
+
+/* rpc_pipefs.c */
+struct nfs4_deviceid_node *bl_alloc_deviceid_node(struct nfs_server *server,
+		struct pnfs_device *pdev, gfp_t gfp_mask);
+void bl_free_deviceid_node(struct nfs4_deviceid_node *d);
+
+int __init bl_init_pipefs(void);
+void __exit bl_cleanup_pipefs(void);
 
 #endif /* FS_NFS_NFS4BLOCKLAYOUT_H */

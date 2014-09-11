@@ -863,132 +863,6 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.pg_write_ops			= &bl_pg_write_ops,
 };
 
-static const struct rpc_pipe_ops bl_upcall_ops = {
-	.upcall		= rpc_pipe_generic_upcall,
-	.downcall	= bl_pipe_downcall,
-	.destroy_msg	= bl_pipe_destroy_msg,
-};
-
-static struct dentry *nfs4blocklayout_register_sb(struct super_block *sb,
-					    struct rpc_pipe *pipe)
-{
-	struct dentry *dir, *dentry;
-
-	dir = rpc_d_lookup_sb(sb, NFS_PIPE_DIRNAME);
-	if (dir == NULL)
-		return ERR_PTR(-ENOENT);
-	dentry = rpc_mkpipe_dentry(dir, "blocklayout", NULL, pipe);
-	dput(dir);
-	return dentry;
-}
-
-static void nfs4blocklayout_unregister_sb(struct super_block *sb,
-					  struct rpc_pipe *pipe)
-{
-	if (pipe->dentry)
-		rpc_unlink(pipe->dentry);
-}
-
-static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
-			   void *ptr)
-{
-	struct super_block *sb = ptr;
-	struct net *net = sb->s_fs_info;
-	struct nfs_net *nn = net_generic(net, nfs_net_id);
-	struct dentry *dentry;
-	int ret = 0;
-
-	if (!try_module_get(THIS_MODULE))
-		return 0;
-
-	if (nn->bl_device_pipe == NULL) {
-		module_put(THIS_MODULE);
-		return 0;
-	}
-
-	switch (event) {
-	case RPC_PIPEFS_MOUNT:
-		dentry = nfs4blocklayout_register_sb(sb, nn->bl_device_pipe);
-		if (IS_ERR(dentry)) {
-			ret = PTR_ERR(dentry);
-			break;
-		}
-		nn->bl_device_pipe->dentry = dentry;
-		break;
-	case RPC_PIPEFS_UMOUNT:
-		if (nn->bl_device_pipe->dentry)
-			nfs4blocklayout_unregister_sb(sb, nn->bl_device_pipe);
-		break;
-	default:
-		ret = -ENOTSUPP;
-		break;
-	}
-	module_put(THIS_MODULE);
-	return ret;
-}
-
-static struct notifier_block nfs4blocklayout_block = {
-	.notifier_call = rpc_pipefs_event,
-};
-
-static struct dentry *nfs4blocklayout_register_net(struct net *net,
-						   struct rpc_pipe *pipe)
-{
-	struct super_block *pipefs_sb;
-	struct dentry *dentry;
-
-	pipefs_sb = rpc_get_sb_net(net);
-	if (!pipefs_sb)
-		return NULL;
-	dentry = nfs4blocklayout_register_sb(pipefs_sb, pipe);
-	rpc_put_sb_net(net);
-	return dentry;
-}
-
-static void nfs4blocklayout_unregister_net(struct net *net,
-					   struct rpc_pipe *pipe)
-{
-	struct super_block *pipefs_sb;
-
-	pipefs_sb = rpc_get_sb_net(net);
-	if (pipefs_sb) {
-		nfs4blocklayout_unregister_sb(pipefs_sb, pipe);
-		rpc_put_sb_net(net);
-	}
-}
-
-static int nfs4blocklayout_net_init(struct net *net)
-{
-	struct nfs_net *nn = net_generic(net, nfs_net_id);
-	struct dentry *dentry;
-
-	init_waitqueue_head(&nn->bl_wq);
-	nn->bl_device_pipe = rpc_mkpipe_data(&bl_upcall_ops, 0);
-	if (IS_ERR(nn->bl_device_pipe))
-		return PTR_ERR(nn->bl_device_pipe);
-	dentry = nfs4blocklayout_register_net(net, nn->bl_device_pipe);
-	if (IS_ERR(dentry)) {
-		rpc_destroy_pipe_data(nn->bl_device_pipe);
-		return PTR_ERR(dentry);
-	}
-	nn->bl_device_pipe->dentry = dentry;
-	return 0;
-}
-
-static void nfs4blocklayout_net_exit(struct net *net)
-{
-	struct nfs_net *nn = net_generic(net, nfs_net_id);
-
-	nfs4blocklayout_unregister_net(net, nn->bl_device_pipe);
-	rpc_destroy_pipe_data(nn->bl_device_pipe);
-	nn->bl_device_pipe = NULL;
-}
-
-static struct pernet_operations nfs4blocklayout_net_ops = {
-	.init = nfs4blocklayout_net_init,
-	.exit = nfs4blocklayout_net_exit,
-};
-
 static int __init nfs4blocklayout_init(void)
 {
 	int ret;
@@ -998,20 +872,14 @@ static int __init nfs4blocklayout_init(void)
 	ret = pnfs_register_layoutdriver(&blocklayout_type);
 	if (ret)
 		goto out;
-
-	ret = rpc_pipefs_notifier_register(&nfs4blocklayout_block);
+	ret = bl_init_pipefs();
 	if (ret)
-		goto out_remove;
-	ret = register_pernet_subsys(&nfs4blocklayout_net_ops);
-	if (ret)
-		goto out_notifier;
-out:
-	return ret;
+		goto out_unregister;
+	return 0;
 
-out_notifier:
-	rpc_pipefs_notifier_unregister(&nfs4blocklayout_block);
-out_remove:
+out_unregister:
 	pnfs_unregister_layoutdriver(&blocklayout_type);
+out:
 	return ret;
 }
 
@@ -1020,8 +888,7 @@ static void __exit nfs4blocklayout_exit(void)
 	dprintk("%s: NFSv4 Block Layout Driver Unregistering...\n",
 	       __func__);
 
-	rpc_pipefs_notifier_unregister(&nfs4blocklayout_block);
-	unregister_pernet_subsys(&nfs4blocklayout_net_ops);
+	bl_cleanup_pipefs();
 	pnfs_unregister_layoutdriver(&blocklayout_type);
 }
 
