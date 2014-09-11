@@ -1643,6 +1643,8 @@ static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
 	new_smac = mlx4_mac_to_u64(dev->dev_addr);
 	read_unlock(&dev_base_lock);
 
+	atomic64_set(&ibdev->iboe.mac[port - 1], new_smac);
+
 	mutex_lock(&ibdev->qp1_proxy_lock[port - 1]);
 	qp = ibdev->qp1_proxy[port - 1];
 	if (qp) {
@@ -2189,6 +2191,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		if (err)
 			goto err_steer_free_bitmap;
 	}
+
+	for (j = 1; j <= ibdev->dev->caps.num_ports; j++)
+		atomic64_set(&iboe->mac[j - 1], ibdev->dev->caps.def_mac[j]);
 
 	if (ib_register_device(&ibdev->ib_dev, NULL))
 		goto err_steer_free_bitmap;

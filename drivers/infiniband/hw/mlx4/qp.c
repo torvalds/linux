@@ -1390,18 +1390,10 @@ static void update_mcg_macs(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 static int handle_eth_ud_smac_index(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp, u8 *smac,
 				    struct mlx4_qp_context *context)
 {
-	struct net_device *ndev;
 	u64 u64_mac;
 	int smac_index;
 
-
-	ndev = dev->iboe.netdevs[qp->port - 1];
-	if (ndev) {
-		smac = ndev->dev_addr;
-		u64_mac = mlx4_mac_to_u64(smac);
-	} else {
-		u64_mac = dev->dev->caps.def_mac[qp->port];
-	}
+	u64_mac = atomic64_read(&dev->iboe.mac[qp->port - 1]);
 
 	context->pri_path.sched_queue = MLX4_IB_DEFAULT_SCHED_QUEUE | ((qp->port - 1) << 6);
 	if (!qp->pri.smac) {
@@ -2083,6 +2075,16 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 	return 0;
 }
 
+static void mlx4_u64_to_smac(u8 *dst_mac, u64 src_mac)
+{
+	int i;
+
+	for (i = ETH_ALEN; i; i--) {
+		dst_mac[i - 1] = src_mac & 0xff;
+		src_mac >>= 8;
+	}
+}
+
 static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 			    void *wqe, unsigned *mlx_seg_len)
 {
@@ -2197,7 +2199,6 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	}
 
 	if (is_eth) {
-		u8 *smac;
 		struct in6_addr in6;
 
 		u16 pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 29) << 13;
@@ -2210,12 +2211,17 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		memcpy(&ctrl->imm, ah->av.eth.mac + 2, 4);
 		memcpy(&in6, sgid.raw, sizeof(in6));
 
-		if (!mlx4_is_mfunc(to_mdev(ib_dev)->dev))
-			smac = to_mdev(sqp->qp.ibqp.device)->
-				iboe.netdevs[sqp->qp.port - 1]->dev_addr;
-		else	/* use the src mac of the tunnel */
-			smac = ah->av.eth.s_mac;
-		memcpy(sqp->ud_header.eth.smac_h, smac, 6);
+		if (!mlx4_is_mfunc(to_mdev(ib_dev)->dev)) {
+			u64 mac = atomic64_read(&to_mdev(ib_dev)->iboe.mac[sqp->qp.port - 1]);
+			u8 smac[ETH_ALEN];
+
+			mlx4_u64_to_smac(smac, mac);
+			memcpy(sqp->ud_header.eth.smac_h, smac, ETH_ALEN);
+		} else {
+			/* use the src mac of the tunnel */
+			memcpy(sqp->ud_header.eth.smac_h, ah->av.eth.s_mac, ETH_ALEN);
+		}
+
 		if (!memcmp(sqp->ud_header.eth.smac_h, sqp->ud_header.eth.dmac_h, 6))
 			mlx->flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
 		if (!is_vlan) {
