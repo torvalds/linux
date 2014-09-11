@@ -3731,6 +3731,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->trsm_ops = rk_fb_trsm_ops_get(screen->type);
 	if (dev_drv->prop != PRMRY)
 		rk_fb_get_prmry_screen(screen);
+	dev_drv->output_color = screen->color_mode;
 
 	return 0;
 }

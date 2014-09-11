@@ -31,6 +31,7 @@
 #define SCREEN_MIPI	   7
 #define SCREEN_DUAL_MIPI   8
 #define SCREEN_EDP         9
+#define SCREEN_TVOUT_TEST  10
 
 #define LVDS_8BIT_1     0
 #define LVDS_8BIT_2     1
