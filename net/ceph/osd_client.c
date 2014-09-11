@@ -2358,24 +2358,19 @@ static void handle_watch_notify(struct ceph_osd_client *osdc,
 	if (event) {
 		event_work = kmalloc(sizeof(*event_work), GFP_NOIO);
 		if (!event_work) {
-			dout("ERROR: could not allocate event_work\n");
-			goto done_err;
+			pr_err("couldn't allocate event_work\n");
+			ceph_osdc_put_event(event);
+			return;
 		}
 		INIT_WORK(&event_work->work, do_event_work);
 		event_work->event = event;
 		event_work->ver = ver;
 		event_work->notify_id = notify_id;
 		event_work->opcode = opcode;
-		if (!queue_work(osdc->notify_wq, &event_work->work)) {
-			dout("WARNING: failed to queue notify event work\n");
-			goto done_err;
-		}
+
+		queue_work(osdc->notify_wq, &event_work->work);
 	}
 
-	return;
-
-done_err:
-	ceph_osdc_put_event(event);
 	return;
 
 bad:
