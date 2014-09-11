@@ -451,7 +451,7 @@ static struct slave *__rlb_next_rx_slave(struct bonding *bond)
  */
 static void rlb_teach_disabled_mac_on_primary(struct bonding *bond, u8 addr[])
 {
-	struct slave *curr_active = bond_deref_active_protected(bond);
+	struct slave *curr_active = rtnl_dereference(bond->curr_active_slave);
 
 	if (!curr_active)
 		return;
@@ -512,7 +512,7 @@ static void rlb_clear_slave(struct bonding *bond, struct slave *slave)
 
 	_unlock_rx_hashtbl_bh(bond);
 
-	if (slave != bond_deref_active_protected(bond))
+	if (slave != rtnl_dereference(bond->curr_active_slave))
 		rlb_teach_disabled_mac_on_primary(bond, slave->dev->dev_addr);
 }
 

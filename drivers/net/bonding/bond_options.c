@@ -734,15 +734,13 @@ static int bond_option_active_slave_set(struct bonding *bond,
 	}
 
 	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
-
 	/* check to see if we are clearing active */
 	if (!slave_dev) {
 		netdev_info(bond->dev, "Clearing current active slave\n");
 		RCU_INIT_POINTER(bond->curr_active_slave, NULL);
 		bond_select_active_slave(bond);
 	} else {
-		struct slave *old_active = bond_deref_active_protected(bond);
+		struct slave *old_active = rtnl_dereference(bond->curr_active_slave);
 		struct slave *new_active = bond_slave_get_rtnl(slave_dev);
 
 		BUG_ON(!new_active);
@@ -765,8 +763,6 @@ static int bond_option_active_slave_set(struct bonding *bond,
 			}
 		}
 	}
-
-	write_unlock_bh(&bond->curr_slave_lock);
 	unblock_netpoll_tx();
 
 	return ret;
@@ -1066,7 +1062,6 @@ static int bond_option_primary_set(struct bonding *bond,
 	struct slave *slave;
 
 	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
 
 	p = strchr(primary, '\n');
 	if (p)
@@ -1103,7 +1098,6 @@ static int bond_option_primary_set(struct bonding *bond,
 		    primary, bond->dev->name);
 
 out:
-	write_unlock_bh(&bond->curr_slave_lock);
 	unblock_netpoll_tx();
 
 	return 0;
@@ -1117,9 +1111,7 @@ static int bond_option_primary_reselect_set(struct bonding *bond,
 	bond->params.primary_reselect = newval->value;
 
 	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
 	bond_select_active_slave(bond);
-	write_unlock_bh(&bond->curr_slave_lock);
 	unblock_netpoll_tx();
 
 	return 0;
