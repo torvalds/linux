@@ -137,7 +137,9 @@ struct discard_entry {
 struct fsync_inode_entry {
 	struct list_head list;	/* list head */
 	struct inode *inode;	/* vfs inode pointer */
-	block_t blkaddr;	/* block address locating the last inode */
+	block_t blkaddr;	/* block address locating the last fsync */
+	block_t last_dentry;	/* block address locating the last dentry */
+	block_t last_inode;	/* block address locating the last inode */
 };
 
 #define nats_in_cursum(sum)		(le16_to_cpu(sum->n_nats))

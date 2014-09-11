@@ -67,7 +67,7 @@ static struct fsync_inode_entry *get_fsync_inode(struct list_head *head,
 	return NULL;
 }
 
-static int recover_dentry(struct page *ipage, struct inode *inode)
+static int recover_dentry(struct inode *inode, struct page *ipage)
 {
 	struct f2fs_inode *raw_inode = F2FS_INODE(ipage);
 	nid_t pino = le32_to_cpu(raw_inode->i_pino);
@@ -141,7 +141,7 @@ out:
 	return err;
 }
 
-static void __recover_inode(struct inode *inode, struct page *page)
+static void recover_inode(struct inode *inode, struct page *page)
 {
 	struct f2fs_inode *raw = F2FS_INODE(page);
 
@@ -153,21 +153,9 @@ static void __recover_inode(struct inode *inode, struct page *page)
 	inode->i_atime.tv_nsec = le32_to_cpu(raw->i_mtime_nsec);
 	inode->i_ctime.tv_nsec = le32_to_cpu(raw->i_ctime_nsec);
 	inode->i_mtime.tv_nsec = le32_to_cpu(raw->i_mtime_nsec);
-}
-
-static int recover_inode(struct inode *inode, struct page *node_page)
-{
-	if (!IS_INODE(node_page))
-		return 0;
-
-	__recover_inode(inode, node_page);
-
-	if (is_dent_dnode(node_page))
-		return recover_dentry(node_page, inode);
 
 	f2fs_msg(inode->i_sb, KERN_NOTICE, "recover_inode: ino = %x, name = %s",
-			ino_of_node(node_page), F2FS_INODE(node_page)->i_name);
-	return 0;
+			ino_of_node(page), F2FS_INODE(page)->i_name);
 }
 
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
@@ -210,12 +198,11 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 			}
 
 			/* add this fsync inode to the list */
-			entry = kmem_cache_alloc(fsync_entry_slab, GFP_NOFS);
+			entry = kmem_cache_alloc(fsync_entry_slab, GFP_F2FS_ZERO);
 			if (!entry) {
 				err = -ENOMEM;
 				break;
 			}
-
 			/*
 			 * CP | dnode(F) | inode(DF)
 			 * For this case, we should not give up now.
@@ -232,9 +219,11 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 		}
 		entry->blkaddr = blkaddr;
 
-		err = recover_inode(entry->inode, page);
-		if (err && err != -ENOENT)
-			break;
+		if (IS_INODE(page)) {
+			entry->last_inode = blkaddr;
+			if (is_dent_dnode(page))
+				entry->last_dentry = blkaddr;
+		}
 next:
 		/* check next segment */
 		blkaddr = next_blkaddr_of_node(page);
@@ -462,11 +451,17 @@ static int recover_data(struct f2fs_sb_info *sbi,
 		/*
 		 * inode(x) | CP | inode(x) | dnode(F)
 		 * In this case, we can lose the latest inode(x).
-		 * So, call __recover_inode for the inode update.
+		 * So, call recover_inode for the inode update.
 		 */
-		if (IS_INODE(page))
-			__recover_inode(entry->inode, page);
-
+		if (entry->last_inode == blkaddr)
+			recover_inode(entry->inode, page);
+		if (entry->last_dentry == blkaddr) {
+			err = recover_dentry(entry->inode, page);
+			if (err) {
+				f2fs_put_page(page, 1);
+				break;
+			}
+		}
 		err = do_recover_data(sbi, entry->inode, page, blkaddr);
 		if (err) {
 			f2fs_put_page(page, 1);
