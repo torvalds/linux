@@ -41,6 +41,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <drm/intel-gtt.h>
+#include <drm/drm_legacy.h> /* for struct drm_dma_handle */
 #include <linux/backlight.h>
 #include <linux/hashtable.h>
 #include <linux/intel-iommu.h>
@@ -285,8 +286,10 @@ struct intel_opregion {
 struct intel_overlay;
 struct intel_overlay_error_state;
 
+struct drm_local_map;
+
 struct drm_i915_master_private {
-	drm_local_map_t *sarea;
+	struct drm_local_map *sarea;
 	struct _drm_i915_sarea *sarea_priv;
 };
 #define I915_FENCE_REG_NONE -1
@@ -1447,7 +1450,7 @@ struct drm_i915_private {
 	struct drm_i915_gem_object *semaphore_obj;
 	uint32_t last_seqno, next_seqno;
 
-	drm_dma_handle_t *status_page_dmah;
+	struct drm_dma_handle *status_page_dmah;
 	struct resource mch_res;
 
 	/* protects the irq masks */
@@ -1834,7 +1837,7 @@ struct drm_i915_gem_object {
 	struct drm_file *pin_filp;
 
 	/** for phy allocated objects */
-	drm_dma_handle_t *phys_handle;
+	struct drm_dma_handle *phys_handle;
 
 	union {
 		struct i915_gem_userptr {

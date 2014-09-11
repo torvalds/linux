@@ -190,8 +190,6 @@ struct mga_device {
 	resource_size_t			rmmio_size;
 	void __iomem			*rmmio;
 
-	drm_local_map_t			*framebuffer;
-
 	struct mga_mc			mc;
 	struct mga_mode_info		mode_info;
 

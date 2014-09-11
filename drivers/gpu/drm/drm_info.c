@@ -35,6 +35,7 @@
 
 #include <linux/seq_file.h>
 #include <drm/drmP.h>
+#include "drm_legacy.h"
 
 /**
  * Called when "/proc/dri/.../name" is read.

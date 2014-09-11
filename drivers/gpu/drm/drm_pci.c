@@ -27,6 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include "drm_legacy.h"
 
 /**
  * drm_pci_alloc - Allocate a PCI consistent memory block, for DMA.

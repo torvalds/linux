@@ -42,6 +42,115 @@
  * you're doing it terribly wrong.
  */
 
+/**
+ * DMA buffer.
+ */
+struct drm_buf {
+	int idx;		       /**< Index into master buflist */
+	int total;		       /**< Buffer size */
+	int order;		       /**< log-base-2(total) */
+	int used;		       /**< Amount of buffer in use (for DMA) */
+	unsigned long offset;	       /**< Byte offset (used internally) */
+	void *address;		       /**< Address of buffer */
+	unsigned long bus_address;     /**< Bus address of buffer */
+	struct drm_buf *next;	       /**< Kernel-only: used for free list */
+	__volatile__ int waiting;      /**< On kernel DMA queue */
+	__volatile__ int pending;      /**< On hardware DMA queue */
+	struct drm_file *file_priv;    /**< Private of holding file descr */
+	int context;		       /**< Kernel queue for this buffer */
+	int while_locked;	       /**< Dispatch this buffer while locked */
+	enum {
+		DRM_LIST_NONE = 0,
+		DRM_LIST_FREE = 1,
+		DRM_LIST_WAIT = 2,
+		DRM_LIST_PEND = 3,
+		DRM_LIST_PRIO = 4,
+		DRM_LIST_RECLAIM = 5
+	} list;			       /**< Which list we're on */
+
+	int dev_priv_size;		 /**< Size of buffer private storage */
+	void *dev_private;		 /**< Per-buffer private storage */
+};
+
+typedef struct drm_dma_handle {
+	dma_addr_t busaddr;
+	void *vaddr;
+	size_t size;
+} drm_dma_handle_t;
+
+/**
+ * Buffer entry.  There is one of this for each buffer size order.
+ */
+struct drm_buf_entry {
+	int buf_size;			/**< size */
+	int buf_count;			/**< number of buffers */
+	struct drm_buf *buflist;		/**< buffer list */
+	int seg_count;
+	int page_order;
+	struct drm_dma_handle **seglist;
+
+	int low_mark;			/**< Low water mark */
+	int high_mark;			/**< High water mark */
+};
+
+/**
+ * DMA data.
+ */
+struct drm_device_dma {
+
+	struct drm_buf_entry bufs[DRM_MAX_ORDER + 1];	/**< buffers, grouped by their size order */
+	int buf_count;			/**< total number of buffers */
+	struct drm_buf **buflist;		/**< Vector of pointers into drm_device_dma::bufs */
+	int seg_count;
+	int page_count;			/**< number of pages */
+	unsigned long *pagelist;	/**< page list */
+	unsigned long byte_count;
+	enum {
+		_DRM_DMA_USE_AGP = 0x01,
+		_DRM_DMA_USE_SG = 0x02,
+		_DRM_DMA_USE_FB = 0x04,
+		_DRM_DMA_USE_PCI_RO = 0x08
+	} flags;
+
+};
+
+/**
+ * Scatter-gather memory.
+ */
+struct drm_sg_mem {
+	unsigned long handle;
+	void *virtual;
+	int pages;
+	struct page **pagelist;
+	dma_addr_t *busaddr;
+};
+
+/**
+ * Kernel side of a mapping
+ */
+struct drm_local_map {
+	resource_size_t offset;	 /**< Requested physical address (0 for SAREA)*/
+	unsigned long size;	 /**< Requested physical size (bytes) */
+	enum drm_map_type type;	 /**< Type of memory to map */
+	enum drm_map_flags flags;	 /**< Flags */
+	void *handle;		 /**< User-space: "Handle" to pass to mmap() */
+				 /**< Kernel-space: kernel-virtual address */
+	int mtrr;		 /**< MTRR slot used */
+};
+
+typedef struct drm_local_map drm_local_map_t;
+
+/**
+ * Mappings list
+ */
+struct drm_map_list {
+	struct list_head head;		/**< list head */
+	struct drm_hash_item hash;
+	struct drm_local_map *map;	/**< mapping */
+	uint64_t user_token;
+	struct drm_master *master;
+};
+
 int drm_legacy_addmap(struct drm_device *d, resource_size_t offset,
 		      unsigned int size, enum drm_map_type type,
 		      enum drm_map_flags flags, struct drm_local_map **map_p);

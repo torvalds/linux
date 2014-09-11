@@ -1,6 +1,8 @@
 #ifndef DRM_ATI_PCIGART_H
 #define DRM_ATI_PCIGART_H
 
+#include <drm/drm_legacy.h>
+
 /* location of GART table */
 #define DRM_ATI_GART_MAIN 1
 #define DRM_ATI_GART_FB   2

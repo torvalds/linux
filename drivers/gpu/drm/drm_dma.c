@@ -35,6 +35,7 @@
 
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include "drm_legacy.h"
 
 /**
  * Initialize the DMA data.
