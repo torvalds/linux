@@ -260,10 +260,8 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 
 	gpio_vbus->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 					  GFP_KERNEL);
-	if (!gpio_vbus->phy.otg) {
-		kfree(gpio_vbus);
+	if (!gpio_vbus->phy.otg)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, gpio_vbus);
 	gpio_vbus->dev = &pdev->dev;
