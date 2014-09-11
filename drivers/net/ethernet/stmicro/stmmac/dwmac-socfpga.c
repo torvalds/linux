@@ -120,9 +120,9 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 		}
 
 		dwmac->splitter_base = devm_ioremap_resource(dev, &res_splitter);
-		if (!dwmac->splitter_base) {
+		if (IS_ERR(dwmac->splitter_base)) {
 			dev_info(dev, "Failed to mapping emac splitter\n");
-			return -EINVAL;
+			return PTR_ERR(dwmac->splitter_base);
 		}
 	}
 
