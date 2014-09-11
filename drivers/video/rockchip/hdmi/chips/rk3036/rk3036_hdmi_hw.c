@@ -680,7 +680,7 @@ void rk3036_hdmi_irq(struct hdmi *hdmi_drv)
 			hdmi_drv->state = WAIT_HOTPLUG;
 
 		queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work,
-				   msecs_to_jiffies(40));
+				   msecs_to_jiffies(0));
 
 	}/*plug out*/
 
