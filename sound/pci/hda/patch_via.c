@@ -118,7 +118,7 @@ static void via_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 				  struct hda_codec *codec,
 				  struct snd_pcm_substream *substream,
 				  int action);
-static void via_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *tbl);
+static void via_hp_automute(struct hda_codec *codec, struct hda_jack_callback *tbl);
 
 static struct via_spec *via_new_spec(struct hda_codec *codec)
 {
@@ -575,19 +575,22 @@ static const struct snd_kcontrol_new vt1708_jack_detect_ctl[] = {
 	{} /* terminator */
 };
 
-static void via_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *tbl)
+static void via_hp_automute(struct hda_codec *codec,
+			    struct hda_jack_callback *tbl)
 {
 	set_widgets_power_state(codec);
 	snd_hda_gen_hp_automute(codec, tbl);
 }
 
-static void via_line_automute(struct hda_codec *codec, struct hda_jack_tbl *tbl)
+static void via_line_automute(struct hda_codec *codec,
+			      struct hda_jack_callback *tbl)
 {
 	set_widgets_power_state(codec);
 	snd_hda_gen_line_automute(codec, tbl);
 }
 
-static void via_jack_powerstate_event(struct hda_codec *codec, struct hda_jack_tbl *tbl)
+static void via_jack_powerstate_event(struct hda_codec *codec,
+				      struct hda_jack_callback *tbl)
 {
 	set_widgets_power_state(codec);
 }

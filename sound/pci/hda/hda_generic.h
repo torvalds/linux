@@ -284,11 +284,11 @@ struct hda_gen_spec {
 
 	/* automute / autoswitch hooks */
 	void (*hp_automute_hook)(struct hda_codec *codec,
-				 struct hda_jack_tbl *tbl);
+				 struct hda_jack_callback *cb);
 	void (*line_automute_hook)(struct hda_codec *codec,
-				   struct hda_jack_tbl *tbl);
+				   struct hda_jack_callback *cb);
 	void (*mic_autoswitch_hook)(struct hda_codec *codec,
-				    struct hda_jack_tbl *tbl);
+				    struct hda_jack_callback *cb);
 };
 
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
@@ -320,11 +320,11 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec);
 
 /* standard jack event callbacks */
 void snd_hda_gen_hp_automute(struct hda_codec *codec,
-			     struct hda_jack_tbl *jack);
+			     struct hda_jack_callback *jack);
 void snd_hda_gen_line_automute(struct hda_codec *codec,
-			       struct hda_jack_tbl *jack);
+			       struct hda_jack_callback *jack);
 void snd_hda_gen_mic_autoswitch(struct hda_codec *codec,
-				struct hda_jack_tbl *jack);
+				struct hda_jack_callback *jack);
 void snd_hda_gen_update_outputs(struct hda_codec *codec);
 
 #ifdef CONFIG_PM

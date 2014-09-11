@@ -264,7 +264,8 @@ static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
 }
 
 /* update the master volume per volume-knob's unsol event */
-static void alc_update_knob_master(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void alc_update_knob_master(struct hda_codec *codec,
+				   struct hda_jack_callback *jack)
 {
 	unsigned int val;
 	struct snd_kcontrol *kctl;
@@ -276,7 +277,7 @@ static void alc_update_knob_master(struct hda_codec *codec, struct hda_jack_tbl 
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (!uctl)
 		return;
-	val = snd_hda_codec_read(codec, jack->nid, 0,
+	val = snd_hda_codec_read(codec, jack->tbl->nid, 0,
 				 AC_VERB_GET_VOLUME_KNOB_CONTROL, 0);
 	val &= HDA_AMP_VOLMASK;
 	uctl->value.integer.value[0] = val;
@@ -3272,7 +3273,7 @@ static void alc269_fixup_quanta_mute(struct hda_codec *codec,
 }
 
 static void alc269_x101_hp_automute_hook(struct hda_codec *codec,
-					 struct hda_jack_tbl *jack)
+					 struct hda_jack_callback *jack)
 {
 	struct alc_spec *spec = codec->spec;
 	int vref;
@@ -3926,7 +3927,8 @@ static void alc_update_headset_mode_hook(struct hda_codec *codec,
 	alc_update_headset_mode(codec);
 }
 
-static void alc_update_headset_jack_cb(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void alc_update_headset_jack_cb(struct hda_codec *codec,
+				       struct hda_jack_callback *jack)
 {
 	struct alc_spec *spec = codec->spec;
 	spec->current_headset_type = ALC_HEADSET_TYPE_UNKNOWN;
@@ -4166,7 +4168,7 @@ static void alc269_fixup_limit_int_mic_boost(struct hda_codec *codec,
 }
 
 static void alc283_hp_automute_hook(struct hda_codec *codec,
-				    struct hda_jack_tbl *jack)
+				    struct hda_jack_callback *jack)
 {
 	struct alc_spec *spec = codec->spec;
 	int vref;

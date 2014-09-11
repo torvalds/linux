@@ -14,14 +14,21 @@
 
 struct auto_pin_cfg;
 struct hda_jack_tbl;
+struct hda_jack_callback;
 
-typedef void (*hda_jack_callback) (struct hda_codec *, struct hda_jack_tbl *);
+typedef void (*hda_jack_callback_fn) (struct hda_codec *, struct hda_jack_callback *);
+
+struct hda_jack_callback {
+	struct hda_jack_tbl *tbl;
+	hda_jack_callback_fn func;
+	unsigned int private_data;	/* arbitrary data */
+	struct hda_jack_callback *next;
+};
 
 struct hda_jack_tbl {
 	hda_nid_t nid;
 	unsigned char tag;		/* unsol event tag */
-	unsigned int private_data;	/* arbitrary data */
-	hda_jack_callback callback;
+	struct hda_jack_callback *callback;
 	/* jack-detection stuff */
 	unsigned int pin_sense;		/* cached pin-sense value */
 	unsigned int jack_detect:1;	/* capable of jack-detection? */
@@ -47,9 +54,9 @@ void snd_hda_jack_tbl_clear(struct hda_codec *codec);
 void snd_hda_jack_set_dirty_all(struct hda_codec *codec);
 
 int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid);
-struct hda_jack_tbl *
+struct hda_jack_callback *
 snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
-				    hda_jack_callback cb);
+				    hda_jack_callback_fn cb);
 
 int snd_hda_jack_set_gating_jack(struct hda_codec *codec, hda_nid_t gated_nid,
 				 hda_nid_t gating_nid);

@@ -393,7 +393,8 @@ static void olpc_xo_update_mic_pins(struct hda_codec *codec)
 }
 
 /* mic_autoswitch hook */
-static void olpc_xo_automic(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void olpc_xo_automic(struct hda_codec *codec,
+			    struct hda_jack_callback *jack)
 {
 	struct conexant_spec *spec = codec->spec;
 	int saved_cached_write = codec->cached_write;

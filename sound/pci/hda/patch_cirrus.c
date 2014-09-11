@@ -982,7 +982,7 @@ static void cs4210_pinmux_init(struct hda_codec *codec)
 }
 
 static void cs4210_spdif_automute(struct hda_codec *codec,
-				  struct hda_jack_tbl *tbl)
+				  struct hda_jack_callback *tbl)
 {
 	struct cs_spec *spec = codec->spec;
 	bool spdif_present = false;

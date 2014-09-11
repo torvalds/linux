@@ -481,7 +481,7 @@ static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 
 /* update power bit per jack plug/unplug */
 static void jack_update_power(struct hda_codec *codec,
-			      struct hda_jack_tbl *jack)
+			      struct hda_jack_callback *jack)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	int i;
@@ -489,9 +489,9 @@ static void jack_update_power(struct hda_codec *codec,
 	if (!spec->num_pwrs)
 		return;
 
-	if (jack && jack->nid) {
-		stac_toggle_power_map(codec, jack->nid,
-				      snd_hda_jack_detect(codec, jack->nid),
+	if (jack && jack->tbl->nid) {
+		stac_toggle_power_map(codec, jack->tbl->nid,
+				      snd_hda_jack_detect(codec, jack->tbl->nid),
 				      true);
 		return;
 	}
@@ -499,8 +499,7 @@ static void jack_update_power(struct hda_codec *codec,
 	/* update all jacks */
 	for (i = 0; i < spec->num_pwrs; i++) {
 		hda_nid_t nid = spec->pwr_nids[i];
-		jack = snd_hda_jack_tbl_get(codec, nid);
-		if (!jack)
+		if (!snd_hda_jack_tbl_get(codec, nid))
 			continue;
 		stac_toggle_power_map(codec, nid,
 				      snd_hda_jack_detect(codec, nid),
@@ -512,27 +511,28 @@ static void jack_update_power(struct hda_codec *codec,
 }
 
 static void stac_hp_automute(struct hda_codec *codec,
-				 struct hda_jack_tbl *jack)
+				 struct hda_jack_callback *jack)
 {
 	snd_hda_gen_hp_automute(codec, jack);
 	jack_update_power(codec, jack);
 }
 
 static void stac_line_automute(struct hda_codec *codec,
-				   struct hda_jack_tbl *jack)
+				   struct hda_jack_callback *jack)
 {
 	snd_hda_gen_line_automute(codec, jack);
 	jack_update_power(codec, jack);
 }
 
 static void stac_mic_autoswitch(struct hda_codec *codec,
-				struct hda_jack_tbl *jack)
+				struct hda_jack_callback *jack)
 {
 	snd_hda_gen_mic_autoswitch(codec, jack);
 	jack_update_power(codec, jack);
 }
 
-static void stac_vref_event(struct hda_codec *codec, struct hda_jack_tbl *event)
+static void stac_vref_event(struct hda_codec *codec,
+			    struct hda_jack_callback *event)
 {
 	unsigned int data;
 
@@ -3011,7 +3011,7 @@ static void stac92hd71bxx_fixup_hp_m4(struct hda_codec *codec,
 				      const struct hda_fixup *fix, int action)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	struct hda_jack_tbl *jack;
+	struct hda_jack_callback *jack;
 
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
@@ -4033,7 +4033,7 @@ static void stac9205_fixup_dell_m43(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	struct hda_jack_tbl *jack;
+	struct hda_jack_callback *jack;
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		snd_hda_apply_pincfgs(codec, dell_9205_m43_pin_configs);
