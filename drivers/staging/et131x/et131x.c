@@ -433,12 +433,7 @@ struct ce_stats {
 	 * MUST have 32, then we'll need another way to perform atomic
 	 * operations
 	 */
-	u32		unicast_pkts_rcvd;
-	atomic_t	unicast_pkts_xmtd;
 	u32		multicast_pkts_rcvd;
-	atomic_t	multicast_pkts_xmtd;
-	u32		broadcast_pkts_rcvd;
-	atomic_t	broadcast_pkts_xmtd;
 	u32		rcvd_pkts_dropped;
 
 	/* Tx Statistics. */
@@ -2507,14 +2502,6 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 
 		if (len > 0)
 			adapter->stats.multicast_pkts_rcvd++;
-	} else if (word0 & ALCATEL_BROADCAST_PKT) {
-		adapter->stats.broadcast_pkts_rcvd++;
-	} else {
-		/* Not sure what this counter measures in promiscuous mode.
-		 * Perhaps we should check the MAC address to see if it is
-		 * directed to us in promiscuous mode.
-		 */
-		adapter->stats.unicast_pkts_rcvd++;
 	}
 
 	if (!len) {
@@ -2941,13 +2928,6 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 	struct net_device_stats *stats = &adapter->netdev->stats;
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 	u64  dma_addr;
-
-	if (tcb->flags & FMP_DEST_BROAD)
-		atomic_inc(&adapter->stats.broadcast_pkts_xmtd);
-	else if (tcb->flags & FMP_DEST_MULTI)
-		atomic_inc(&adapter->stats.multicast_pkts_xmtd);
-	else
-		atomic_inc(&adapter->stats.unicast_pkts_xmtd);
 
 	if (tcb->skb) {
 		stats->tx_bytes += tcb->skb->len;
