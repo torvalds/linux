@@ -2656,6 +2656,12 @@ static void __d_materialise_dentry(struct dentry *dentry, struct dentry *anon)
 	dentry->d_parent = dentry;
 	list_del_init(&dentry->d_u.d_child);
 	anon->d_parent = dparent;
+	if (likely(!d_unhashed(anon))) {
+		hlist_bl_lock(&anon->d_sb->s_anon);
+		__hlist_bl_del(&anon->d_hash);
+		anon->d_hash.pprev = NULL;
+		hlist_bl_unlock(&anon->d_sb->s_anon);
+	}
 	list_move(&anon->d_u.d_child, &dparent->d_subdirs);
 
 	write_seqcount_end(&dentry->d_seq);
@@ -2714,7 +2720,6 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 			write_seqlock(&rename_lock);
 			__d_materialise_dentry(dentry, new);
 			write_sequnlock(&rename_lock);
-			__d_drop(new);
 			_d_rehash(new);
 			spin_unlock(&new->d_lock);
 			spin_unlock(&inode->i_lock);
@@ -2778,7 +2783,6 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 				 * could splice into our tree? */
 				__d_materialise_dentry(dentry, alias);
 				write_sequnlock(&rename_lock);
-				__d_drop(alias);
 				goto found;
 			} else {
 				/* Nope, but we must(!) avoid directory
