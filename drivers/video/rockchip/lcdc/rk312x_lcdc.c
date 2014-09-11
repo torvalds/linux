@@ -537,12 +537,13 @@ static int rk312x_lcdc_set_hwc_lut(struct rk_lcdc_driver *dev_drv, int *hwc_lut,
 		if(mode == 1)
 			dev_drv->hwc_lut[i] = hwc_lut[i];
 		v = dev_drv->hwc_lut[i];
-		c = lcdc_dev->hwc_lut_addr_base + (i<<2);
+		c = lcdc_dev->hwc_lut_addr_base + i;
 		writel_relaxed(v, c);
 	}
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_HWC_LUT_EN, v_HWC_LUT_EN(1));
         lcdc_cfg_done(lcdc_dev);
         spin_unlock(&lcdc_dev->reg_lock);
+
 	return 0;
 
 }
@@ -562,13 +563,11 @@ static int rk312x_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
 		v = dev_drv->cur_screen->dsp_lut[i];
 		c = lcdc_dev->dsp_lut_addr_base + (i<<2);
 		writel_relaxed(v, c);
-
 	}
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_DSP_LUT_EN, v_DSP_LUT_EN(1));
         lcdc_cfg_done(lcdc_dev);
         spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
-
 }
 
 static int rk312x_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
@@ -1550,7 +1549,7 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		if (dev_drv->cur_screen->dsp_lut)
 			rk312x_lcdc_set_lut(dev_drv);
 		/*set hwc lut*/
-		//rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
+		rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
 
 		spin_lock(&lcdc_dev->reg_lock);
 
