@@ -1,17 +1,10 @@
 ccflags-$(CONFIG_USB_DWC2_DEBUG)	+= -DDEBUG
 ccflags-$(CONFIG_USB_DWC2_VERBOSE)	+= -DVERBOSE_DEBUG
 
-obj-$(CONFIG_USB_DWC2)			+= dwc2.o
+obj-$(CONFIG_USB_DWC2_HOST)		+= dwc2.o
 dwc2-y					:= core.o core_intr.o
-
-ifneq ($(filter y,$(CONFIG_USB_DWC2_HOST) $(CONFIG_USB_DWC2_DUAL_ROLE)),)
-	dwc2-y				+= hcd.o hcd_intr.o
-	dwc2-y				+= hcd_queue.o hcd_ddma.o
-endif
-
-ifneq ($(filter y,$(CONFIG_USB_DWC2_PERIPHERAL) $(CONFIG_USB_DWC2_DUAL_ROLE)),)
-	dwc2-y       			+= gadget.o
-endif
+dwc2-y					+= hcd.o hcd_intr.o
+dwc2-y					+= hcd_queue.o hcd_ddma.o
 
 # NOTE: The previous s3c-hsotg peripheral mode only driver has been moved to
 # this location and renamed gadget.c. When building for dynamically linked
@@ -26,4 +19,10 @@ ifneq ($(CONFIG_USB_DWC2_PCI),)
 	dwc2_pci-y			:= pci.o
 endif
 
-dwc2-$(CONFIG_USB_DWC2_PLATFORM) += platform.o
+ifneq ($(CONFIG_USB_DWC2_PLATFORM),)
+	obj-$(CONFIG_USB_DWC2_HOST)	+= dwc2_platform.o
+	dwc2_platform-y			:= platform.o
+endif
+
+obj-$(CONFIG_USB_DWC2_PERIPHERAL)	+= dwc2_gadget.o
+dwc2_gadget-y				:= gadget.o
