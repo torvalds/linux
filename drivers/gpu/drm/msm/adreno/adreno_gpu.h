@@ -39,7 +39,16 @@ struct adreno_gpu_funcs {
 	struct msm_gpu_funcs base;
 };
 
-struct adreno_info;
+struct adreno_info {
+	struct adreno_rev rev;
+	uint32_t revn;
+	const char *name;
+	const char *pm4fw, *pfpfw;
+	uint32_t gmem;
+	struct msm_gpu *(*init)(struct drm_device *dev);
+};
+
+const struct adreno_info *adreno_info(struct adreno_rev rev);
 
 struct adreno_rbmemptrs {
 	volatile uint32_t rptr;
@@ -54,6 +63,9 @@ struct adreno_gpu {
 	uint32_t gmem;  /* actual gmem size */
 	uint32_t revn;  /* numeric revision name */
 	const struct adreno_gpu_funcs *funcs;
+
+	/* interesting register offsets to dump: */
+	const unsigned int *registers;
 
 	/* firmware: */
 	const struct firmware *pm4, *pfp;
@@ -131,8 +143,7 @@ void adreno_dump(struct msm_gpu *gpu);
 void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords);
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
-		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs,
-		struct adreno_rev rev);
+		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs);
 void adreno_gpu_cleanup(struct adreno_gpu *gpu);
 
 

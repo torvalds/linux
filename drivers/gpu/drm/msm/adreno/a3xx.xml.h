@@ -12,9 +12,9 @@ The rules-ng-ng source files this header was generated from are:
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2013-03-31 16:51:27)
 - /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2014-06-02 15:21:30)
 - /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (   9859 bytes, from 2014-06-02 15:21:30)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14477 bytes, from 2014-05-16 11:51:57)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  58020 bytes, from 2014-06-25 12:57:16)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  26602 bytes, from 2014-06-25 12:57:16)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14960 bytes, from 2014-07-27 17:22:13)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  58020 bytes, from 2014-08-01 12:22:48)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  41068 bytes, from 2014-08-01 12:22:48)
 
 Copyright (C) 2013-2014 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -654,7 +654,7 @@ static inline uint32_t A3XX_GRAS_SU_POINT_SIZE(float val)
 #define A3XX_GRAS_SU_POLY_OFFSET_SCALE_VAL__SHIFT		0
 static inline uint32_t A3XX_GRAS_SU_POLY_OFFSET_SCALE_VAL(float val)
 {
-	return ((((uint32_t)(val * 40.0))) << A3XX_GRAS_SU_POLY_OFFSET_SCALE_VAL__SHIFT) & A3XX_GRAS_SU_POLY_OFFSET_SCALE_VAL__MASK;
+	return ((((uint32_t)(val * 28.0))) << A3XX_GRAS_SU_POLY_OFFSET_SCALE_VAL__SHIFT) & A3XX_GRAS_SU_POLY_OFFSET_SCALE_VAL__MASK;
 }
 
 #define REG_A3XX_GRAS_SU_POLY_OFFSET_OFFSET			0x0000206d
@@ -662,7 +662,7 @@ static inline uint32_t A3XX_GRAS_SU_POLY_OFFSET_SCALE_VAL(float val)
 #define A3XX_GRAS_SU_POLY_OFFSET_OFFSET__SHIFT			0
 static inline uint32_t A3XX_GRAS_SU_POLY_OFFSET_OFFSET(float val)
 {
-	return ((((uint32_t)(val * 44.0))) << A3XX_GRAS_SU_POLY_OFFSET_OFFSET__SHIFT) & A3XX_GRAS_SU_POLY_OFFSET_OFFSET__MASK;
+	return ((((uint32_t)(val * 28.0))) << A3XX_GRAS_SU_POLY_OFFSET_OFFSET__SHIFT) & A3XX_GRAS_SU_POLY_OFFSET_OFFSET__MASK;
 }
 
 #define REG_A3XX_GRAS_SU_MODE_CONTROL				0x00002070
@@ -1696,7 +1696,7 @@ static inline uint32_t A3XX_SP_VS_CTRL_REG1_CONSTFOOTPRINT(uint32_t val)
 {
 	return ((val) << A3XX_SP_VS_CTRL_REG1_CONSTFOOTPRINT__SHIFT) & A3XX_SP_VS_CTRL_REG1_CONSTFOOTPRINT__MASK;
 }
-#define A3XX_SP_VS_CTRL_REG1_INITIALOUTSTANDING__MASK		0x3f000000
+#define A3XX_SP_VS_CTRL_REG1_INITIALOUTSTANDING__MASK		0x7f000000
 #define A3XX_SP_VS_CTRL_REG1_INITIALOUTSTANDING__SHIFT		24
 static inline uint32_t A3XX_SP_VS_CTRL_REG1_INITIALOUTSTANDING(uint32_t val)
 {
