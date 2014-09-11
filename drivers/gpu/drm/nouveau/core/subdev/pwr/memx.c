@@ -20,10 +20,11 @@ memx_out(struct nouveau_memx *memx)
 	struct nouveau_pwr *ppwr = memx->ppwr;
 	int i;
 
-	if (memx->c.size) {
+	if (memx->c.mthd) {
 		nv_wr32(ppwr, 0x10a1c4, (memx->c.size << 16) | memx->c.mthd);
 		for (i = 0; i < memx->c.size; i++)
 			nv_wr32(ppwr, 0x10a1c4, memx->c.data[i]);
+		memx->c.mthd = 0;
 		memx->c.size = 0;
 	}
 }
@@ -32,7 +33,7 @@ static void
 memx_cmd(struct nouveau_memx *memx, u32 mthd, u32 size, u32 data[])
 {
 	if ((memx->c.size + size >= ARRAY_SIZE(memx->c.data)) ||
-	    (memx->c.size && memx->c.mthd != mthd))
+	    (memx->c.mthd && memx->c.mthd != mthd))
 		memx_out(memx);
 	memcpy(&memx->c.data[memx->c.size], data, size * sizeof(data[0]));
 	memx->c.size += size;
@@ -153,19 +154,15 @@ nouveau_memx_wait_vblank(struct nouveau_memx *memx)
 void
 nouveau_memx_block(struct nouveau_memx *memx)
 {
-	struct nouveau_pwr *ppwr = memx->ppwr;
-
 	nv_debug(memx->ppwr, "   HOST BLOCKED\n");
-	nv_wr32(ppwr, 0x10a1c4, MEMX_ENTER);
+	memx_cmd(memx, MEMX_ENTER, 0, NULL);
 }
 
 void
 nouveau_memx_unblock(struct nouveau_memx *memx)
 {
-	struct nouveau_pwr *ppwr = memx->ppwr;
-
 	nv_debug(memx->ppwr, "   HOST UNBLOCKED\n");
-	nv_wr32(ppwr, 0x10a1c4, MEMX_LEAVE);
+	memx_cmd(memx, MEMX_LEAVE, 0, NULL);
 }
 
 #endif

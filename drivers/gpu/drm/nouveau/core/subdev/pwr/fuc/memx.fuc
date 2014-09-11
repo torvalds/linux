@@ -242,13 +242,15 @@ memx_exec:
 	mov b32 $r2 $r11
 
 	memx_exec_next:
-		// fetch the packet header, and locate opcode info
+		// fetch the packet header
 		ld b32 $r3 D[$r1]
 		add b32 $r1 4
-		shr b32 $r4 $r3 16
-		mulu $r3 #memx_func_size
+		extr $r4 $r3 16:31
+		extr $r3 $r3 0:15
 
 		// execute the opcode handler
+		sub b32 $r3 1
+		mulu $r3 #memx_func_size
 		ld b32 $r5 D[$r3 + #memx_func_head + #memx_func]
 		call $r5
 
