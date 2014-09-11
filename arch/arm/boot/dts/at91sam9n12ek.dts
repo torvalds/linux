@@ -71,10 +71,6 @@
 				};
 			};
 
-			i2c1: i2c@f8014000 {
-				status = "okay";
-			};
-
 			mmc0: mmc@f0008000 {
 				pinctrl-0 = <
 					&pinctrl_board_mmc0
