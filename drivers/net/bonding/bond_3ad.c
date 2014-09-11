@@ -2057,7 +2057,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	struct port *port;
 	bool should_notify_rtnl = BOND_SLAVE_NOTIFY_LATER;
 
-	read_lock(&bond->curr_slave_lock);
+	spin_lock_bh(&bond->mode_lock);
 	rcu_read_lock();
 
 	/* check if there are any slaves */
@@ -2120,7 +2120,7 @@ re_arm:
 		}
 	}
 	rcu_read_unlock();
-	read_unlock(&bond->curr_slave_lock);
+	spin_unlock_bh(&bond->mode_lock);
 
 	if (should_notify_rtnl && rtnl_trylock()) {
 		bond_slave_state_notify(bond);
