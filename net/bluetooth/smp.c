@@ -1003,7 +1003,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_cmd_pairing *req, *rsp = (void *) skb->data;
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp = chan->data;
-	u8 key_size, auth = SMP_AUTH_NONE;
+	u8 key_size, auth;
 	int ret;
 
 	BT_DBG("conn %p", conn);
@@ -1044,11 +1044,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	 */
 	smp->remote_key_dist &= rsp->resp_key_dist;
 
-	if ((req->auth_req & SMP_AUTH_BONDING) &&
-	    (rsp->auth_req & SMP_AUTH_BONDING))
-		auth = SMP_AUTH_BONDING;
-
-	auth |= (req->auth_req | rsp->auth_req) & SMP_AUTH_MITM;
+	auth = (req->auth_req | rsp->auth_req);
 
 	ret = tk_request(conn, 0, auth, req->io_capability, rsp->io_capability);
 	if (ret)
