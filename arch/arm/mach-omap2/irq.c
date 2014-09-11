@@ -289,7 +289,7 @@ int __init intc_of_init(struct device_node *node,
 	return 0;
 }
 
-static struct of_device_id irq_match[] __initdata = {
+static const struct of_device_id irq_match[] __initconst = {
 	{ .compatible = "ti,omap2-intc", .data = intc_of_init, },
 	{ }
 };
