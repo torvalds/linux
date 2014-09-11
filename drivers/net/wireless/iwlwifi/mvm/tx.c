@@ -73,9 +73,9 @@
 /*
  * Sets most of the Tx cmd's fields
  */
-static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
-			       struct iwl_tx_cmd *tx_cmd,
-			       struct ieee80211_tx_info *info, u8 sta_id)
+void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
+			struct iwl_tx_cmd *tx_cmd,
+			struct ieee80211_tx_info *info, u8 sta_id)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
@@ -149,11 +149,9 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 /*
  * Sets the fields in the Tx cmd that are rate related
  */
-static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
-				    struct iwl_tx_cmd *tx_cmd,
-				    struct ieee80211_tx_info *info,
-				    struct ieee80211_sta *sta,
-				    __le16 fc)
+void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
+			    struct ieee80211_tx_info *info,
+			    struct ieee80211_sta *sta, __le16 fc)
 {
 	u32 rate_flags;
 	int rate_idx;
@@ -232,10 +230,10 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
-static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
-				      struct ieee80211_tx_info *info,
-				      struct iwl_tx_cmd *tx_cmd,
-				      struct sk_buff *skb_frag)
+void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
+			       struct ieee80211_tx_info *info,
+			       struct iwl_tx_cmd *tx_cmd,
+			       struct sk_buff *skb_frag)
 {
 	struct ieee80211_key_conf *keyconf = info->control.hw_key;
 
