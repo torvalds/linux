@@ -122,7 +122,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			goto error;
 	}
 
-	err = ipv6_dev_ac_inc(dev, addr);
+	err = __ipv6_dev_ac_inc(idev, addr);
 	if (!err) {
 		pac->acl_next = np->ipv6_ac_list;
 		np->ipv6_ac_list = pac;
@@ -215,20 +215,15 @@ static void aca_put(struct ifacaddr6 *ac)
 /*
  *	device anycast group inc (add if not found)
  */
-int ipv6_dev_ac_inc(struct net_device *dev, const struct in6_addr *addr)
+int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct ifacaddr6 *aca;
-	struct inet6_dev *idev;
 	struct rt6_info *rt;
 	int err;
 
 	ASSERT_RTNL();
 
-	idev = in6_dev_get(dev);
-
-	if (idev == NULL)
-		return -EINVAL;
-
+	in6_dev_hold(idev);
 	write_lock_bh(&idev->lock);
 	if (idev->dead) {
 		err = -ENODEV;
@@ -276,7 +271,7 @@ int ipv6_dev_ac_inc(struct net_device *dev, const struct in6_addr *addr)
 
 	ip6_ins_rt(rt);
 
-	addrconf_join_solict(dev, &aca->aca_addr);
+	addrconf_join_solict(idev->dev, &aca->aca_addr);
 
 	aca_put(aca);
 	return 0;
