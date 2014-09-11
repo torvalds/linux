@@ -541,8 +541,9 @@ static int scsifront_action_handler(struct scsi_cmnd *sc, uint8_t act)
 	if (!shadow)
 		return FAILED;
 
+	spin_lock_irq(host->host_lock);
+
 	for (;;) {
-		spin_lock_irq(host->host_lock);
 		if (!RING_FULL(&info->ring)) {
 			ring_req = scsifront_command2ring(info, sc, shadow);
 			if (ring_req)
