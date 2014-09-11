@@ -1663,7 +1663,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 	mtd->owner		= THIS_MODULE;
 	nand_chip		= &info->nand;
 	nand_chip->ecc.priv	= NULL;
-	nand_chip->options	|= NAND_SKIP_BBTSCAN;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	nand_chip->IO_ADDR_R = devm_ioremap_resource(&pdev->dev, res);
@@ -1691,6 +1690,11 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->waitfunc = omap_wait;
 		nand_chip->chip_delay = 50;
 	}
+
+	if (pdata->flash_bbt)
+		nand_chip->bbt_options |= NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
+	else
+		nand_chip->options |= NAND_SKIP_BBTSCAN;
 
 	/* scan NAND device connected to chip controller */
 	nand_chip->options |= pdata->devsize & NAND_BUSWIDTH_16;
