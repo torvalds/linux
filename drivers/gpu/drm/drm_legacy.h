@@ -92,4 +92,12 @@ int drm_legacy_lock(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_unlock(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_lock_free(struct drm_lock_data *lock, unsigned int ctx);
 
+/* DMA support */
+int drm_legacy_dma_setup(struct drm_device *dev);
+void drm_legacy_dma_takedown(struct drm_device *dev);
+void drm_legacy_free_buffer(struct drm_device *dev,
+			    struct drm_buf * buf);
+void drm_legacy_reclaim_buffers(struct drm_device *dev,
+				struct drm_file *filp);
+
 #endif /* __DRM_LEGACY_H__ */

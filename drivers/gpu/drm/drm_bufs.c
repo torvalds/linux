@@ -1338,7 +1338,7 @@ int drm_legacy_freebufs(struct drm_device *dev, void *data,
 				  task_pid_nr(current));
 			return -EINVAL;
 		}
-		drm_free_buffer(dev, buf);
+		drm_legacy_free_buffer(dev, buf);
 	}
 
 	return 0;

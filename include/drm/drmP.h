@@ -1140,13 +1140,6 @@ void drm_clflush_virt_range(void *addr, unsigned long length);
  * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
  */
 
-				/* DMA support (drm_dma.h) */
-extern int drm_legacy_dma_setup(struct drm_device *dev);
-extern void drm_legacy_dma_takedown(struct drm_device *dev);
-extern void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf);
-extern void drm_core_reclaim_buffers(struct drm_device *dev,
-				     struct drm_file *filp);
-
 				/* IRQ support (drm_irq.h) */
 extern int drm_control(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
