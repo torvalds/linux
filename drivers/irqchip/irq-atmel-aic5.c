@@ -343,7 +343,7 @@ static int __init aic5_of_init(struct device_node *node,
 	return 0;
 }
 
-#define NR_SAMA5D3_IRQS		50
+#define NR_SAMA5D3_IRQS		48
 
 static int __init sama5d3_aic5_of_init(struct device_node *node,
 				       struct device_node *parent)
