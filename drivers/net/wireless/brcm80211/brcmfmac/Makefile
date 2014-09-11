@@ -30,16 +30,18 @@ brcmfmac-objs += \
 		fwsignal.o \
 		p2p.o \
 		proto.o \
-		bcdc.o \
-		commonring.o \
-		flowring.o \
-		msgbuf.o \
 		dhd_common.o \
 		dhd_linux.o \
 		firmware.o \
 		feature.o \
 		btcoex.o \
 		vendor.o
+brcmfmac-$(CONFIG_BRCMFMAC_PROTO_BCDC) += \
+		bcdc.o
+brcmfmac-$(CONFIG_BRCMFMAC_PROTO_MSGBUF) += \
+		commonring.o \
+		flowring.o \
+		msgbuf.o
 brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		dhd_sdio.o \
 		bcmsdh.o

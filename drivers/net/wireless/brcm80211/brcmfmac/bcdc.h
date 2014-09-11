@@ -16,9 +16,12 @@
 #ifndef BRCMFMAC_BCDC_H
 #define BRCMFMAC_BCDC_H
 
-
+#ifdef CONFIG_BRCMFMAC_PROTO_BCDC
 int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr);
 void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr);
-
+#else
+static inline int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr) { return 0; }
+static inline void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr) {}
+#endif
 
 #endif /* BRCMFMAC_BCDC_H */
