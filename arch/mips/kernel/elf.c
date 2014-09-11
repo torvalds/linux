@@ -134,6 +134,24 @@ int arch_check_elf(void *_ehdr, bool has_interpreter,
 
 void mips_set_personality_fp(struct arch_elf_state *state)
 {
+	if (config_enabled(CONFIG_FP32XX_HYBRID_FPRS)) {
+		/*
+		 * Use hybrid FPRs for all code which can correctly execute
+		 * with that mode.
+		 */
+		switch (state->overall_abi) {
+		case MIPS_ABI_FP_DOUBLE:
+		case MIPS_ABI_FP_SINGLE:
+		case MIPS_ABI_FP_SOFT:
+		case MIPS_ABI_FP_XX:
+		case MIPS_ABI_FP_ANY:
+			/* FR=1, FRE=1 */
+			clear_thread_flag(TIF_32BIT_FPREGS);
+			set_thread_flag(TIF_HYBRID_FPREGS);
+			return;
+		}
+	}
+
 	switch (state->overall_abi) {
 	case MIPS_ABI_FP_DOUBLE:
 	case MIPS_ABI_FP_SINGLE:
