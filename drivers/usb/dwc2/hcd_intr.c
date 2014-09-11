@@ -1890,12 +1890,20 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 					"hcint 0x%08x, intsts 0x%08x\n",
 					chan->hcint,
 					readl(hsotg->regs + GINTSTS));
+				goto error;
 			}
 		}
 	} else {
 		dev_info(hsotg->dev,
 			 "NYET/NAK/ACK/other in non-error case, 0x%08x\n",
 			 chan->hcint);
+error:
+		/* Failthrough: use 3-strikes rule */
+		qtd->error_count++;
+		dwc2_update_urb_state_abn(hsotg, chan, chnum, qtd->urb,
+					  qtd, DWC2_HC_XFER_XACT_ERR);
+		dwc2_hcd_save_data_toggle(hsotg, chan, chnum, qtd);
+		dwc2_halt_channel(hsotg, chan, qtd, DWC2_HC_XFER_XACT_ERR);
 	}
 }
 
