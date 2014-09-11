@@ -462,19 +462,25 @@ out:
 	return err;
 }
 
-int
-ext_tree_encode_commit(struct pnfs_block_layout *bl, struct xdr_stream *xdr)
+static void ext_tree_free_commitdata(struct nfs4_layoutcommit_args *arg,
+		size_t buffer_size)
+{
+	if (arg->layoutupdate_pages != &arg->layoutupdate_page) {
+		int nr_pages = DIV_ROUND_UP(buffer_size, PAGE_SIZE), i;
+
+		for (i = 0; i < nr_pages; i++)
+			put_page(arg->layoutupdate_pages[i]);
+		kfree(arg->layoutupdate_pages);
+	} else {
+		put_page(arg->layoutupdate_page);
+	}
+}
+
+static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
+		size_t buffer_size, size_t *count)
 {
 	struct pnfs_block_extent *be;
-	unsigned int count = 0;
-	__be32 *p, *xdr_start;
 	int ret = 0;
-
-	dprintk("%s enter\n", __func__);
-
-	xdr_start = xdr_reserve_space(xdr, 8);
-	if (!xdr_start)
-		return -ENOSPC;
 
 	spin_lock(&bl->bl_ext_lock);
 	for (be = ext_tree_first(&bl->bl_ext_rw); be; be = ext_tree_next(be)) {
@@ -482,12 +488,11 @@ ext_tree_encode_commit(struct pnfs_block_layout *bl, struct xdr_stream *xdr)
 		    be->be_tag != EXTENT_WRITTEN)
 			continue;
 
-		p = xdr_reserve_space(xdr, 7 * sizeof(__be32) +
-					NFS4_DEVICEID4_SIZE);
-		if (!p) {
-			printk("%s: out of space for extent list\n", __func__);
+		(*count)++;
+		if (*count * BL_EXTENT_SIZE > buffer_size) {
+			/* keep counting.. */
 			ret = -ENOSPC;
-			break;
+			continue;
 		}
 
 		p = xdr_encode_opaque_fixed(p, be->be_device->deviceid.data,
@@ -498,24 +503,79 @@ ext_tree_encode_commit(struct pnfs_block_layout *bl, struct xdr_stream *xdr)
 		*p++ = cpu_to_be32(PNFS_BLOCK_READWRITE_DATA);
 
 		be->be_tag = EXTENT_COMMITTING;
-		count++;
 	}
 	spin_unlock(&bl->bl_ext_lock);
 
-	xdr_start[0] = cpu_to_be32((xdr->p - xdr_start - 1) * 4);
-	xdr_start[1] = cpu_to_be32(count);
-
-	dprintk("%s found %i ranges\n", __func__, count);
 	return ret;
 }
 
-void
-ext_tree_mark_committed(struct pnfs_block_layout *bl, int status)
+int
+ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 {
+	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->inode)->layout);
+	size_t count = 0, buffer_size = PAGE_SIZE;
+	__be32 *start_p;
+	int ret;
+
+	dprintk("%s enter\n", __func__);
+
+	arg->layoutupdate_page = alloc_page(GFP_NOFS);
+	if (!arg->layoutupdate_page)
+		return -ENOMEM;
+	start_p = page_address(arg->layoutupdate_page);
+	arg->layoutupdate_pages = &arg->layoutupdate_page;
+
+retry:
+	ret = ext_tree_encode_commit(bl, start_p + 1, buffer_size, &count);
+	if (unlikely(ret)) {
+		ext_tree_free_commitdata(arg, buffer_size);
+
+		buffer_size = sizeof(__be32) + BL_EXTENT_SIZE * count;
+		count = 0;
+
+		arg->layoutupdate_pages =
+			kcalloc(DIV_ROUND_UP(buffer_size, PAGE_SIZE),
+				sizeof(struct page *), GFP_NOFS);
+		if (!arg->layoutupdate_pages)
+			return -ENOMEM;
+
+		start_p = __vmalloc(buffer_size, GFP_NOFS, PAGE_KERNEL);
+		if (!start_p) {
+			kfree(arg->layoutupdate_pages);
+			return -ENOMEM;
+		}
+
+		goto retry;
+	}
+
+	*start_p = cpu_to_be32(count);
+	arg->layoutupdate_len = sizeof(__be32) + BL_EXTENT_SIZE * count;
+
+	if (unlikely(arg->layoutupdate_pages != &arg->layoutupdate_page)) {
+		__be32 *p = start_p;
+		int i = 0;
+
+		for (p = start_p;
+		     p < start_p + arg->layoutupdate_len;
+		     p += PAGE_SIZE) {
+			arg->layoutupdate_pages[i++] = vmalloc_to_page(p);
+		}
+	}
+
+	dprintk("%s found %zu ranges\n", __func__, count);
+	return 0;
+}
+
+void
+ext_tree_mark_committed(struct nfs4_layoutcommit_args *arg, int status)
+{
+	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->inode)->layout);
 	struct rb_root *root = &bl->bl_ext_rw;
 	struct pnfs_block_extent *be;
 
 	dprintk("%s status %d\n", __func__, status);
+
+	ext_tree_free_commitdata(arg, arg->layoutupdate_len);
 
 	spin_lock(&bl->bl_ext_lock);
 	for (be = ext_tree_first(root); be; be = ext_tree_next(be)) {

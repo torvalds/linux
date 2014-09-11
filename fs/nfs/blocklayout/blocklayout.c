@@ -500,21 +500,16 @@ bl_return_range(struct pnfs_layout_hdr *lo,
 	err = ext_tree_remove(bl, range->iomode & IOMODE_RW, offset, end);
 }
 
-static void
-bl_encode_layoutcommit(struct pnfs_layout_hdr *lo, struct xdr_stream *xdr,
-		       const struct nfs4_layoutcommit_args *arg)
+static int
+bl_prepare_layoutcommit(struct nfs4_layoutcommit_args *arg)
 {
-	dprintk("%s enter\n", __func__);
-	ext_tree_encode_commit(BLK_LO2EXT(lo), xdr);
+	return ext_tree_prepare_commit(arg);
 }
 
 static void
 bl_cleanup_layoutcommit(struct nfs4_layoutcommit_data *lcdata)
 {
-	struct pnfs_layout_hdr *lo = NFS_I(lcdata->args.inode)->layout;
-
-	dprintk("%s enter\n", __func__);
-	ext_tree_mark_committed(BLK_LO2EXT(lo), lcdata->res.status);
+	ext_tree_mark_committed(&lcdata->args, lcdata->res.status);
 }
 
 static int
@@ -670,7 +665,7 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.alloc_lseg			= bl_alloc_lseg,
 	.free_lseg			= bl_free_lseg,
 	.return_range			= bl_return_range,
-	.encode_layoutcommit		= bl_encode_layoutcommit,
+	.prepare_layoutcommit		= bl_prepare_layoutcommit,
 	.cleanup_layoutcommit		= bl_cleanup_layoutcommit,
 	.set_layoutdriver		= bl_set_layoutdriver,
 	.alloc_deviceid_node		= bl_alloc_deviceid_node,

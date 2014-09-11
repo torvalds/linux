@@ -72,6 +72,9 @@ struct pnfs_block_extent {
 	unsigned int	be_tag;
 };
 
+/* on the wire size of the extent */
+#define BL_EXTENT_SIZE	(7 * sizeof(__be32) + NFS4_DEVICEID4_SIZE)
+
 struct pnfs_block_layout {
 	struct pnfs_layout_hdr	bl_layout;
 	struct rb_root		bl_ext_rw;
@@ -129,8 +132,7 @@ int ext_tree_mark_written(struct pnfs_block_layout *bl, sector_t start,
 		sector_t len);
 bool ext_tree_lookup(struct pnfs_block_layout *bl, sector_t isect,
 		struct pnfs_block_extent *ret, bool rw);
-int ext_tree_encode_commit(struct pnfs_block_layout *bl,
-		struct xdr_stream *xdr);
-void ext_tree_mark_committed(struct pnfs_block_layout *bl, int status);
+int ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg);
+void ext_tree_mark_committed(struct nfs4_layoutcommit_args *arg, int status);
 
 #endif /* FS_NFS_NFS4BLOCKLAYOUT_H */
