@@ -239,4 +239,13 @@ config PHY_XGENE
 	help
 	  This option enables support for APM X-Gene SoC multi-purpose PHY.
 
+config PHY_STIH407_USB
+	tristate "STMicroelectronics USB2 picoPHY driver for STiH407 family"
+	depends on RESET_CONTROLLER
+	depends on ARCH_STI || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this support to enable the picoPHY device used by USB2
+	  and USB3 controllers on STMicroelectronics STiH407 SoC families.
+
 endmenu
