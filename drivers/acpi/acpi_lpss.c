@@ -83,18 +83,26 @@ struct lpss_private_data {
 	u32 prv_reg_ctx[LPSS_PRV_REG_COUNT];
 };
 
+/* UART Component Parameter Register */
+#define LPSS_UART_CPR			0xF4
+#define LPSS_UART_CPR_AFCE		BIT(4)
+
 static void lpss_uart_setup(struct lpss_private_data *pdata)
 {
 	unsigned int offset;
-	u32 reg;
+	u32 val;
 
 	offset = pdata->dev_desc->prv_offset + LPSS_TX_INT;
-	reg = readl(pdata->mmio_base + offset);
-	writel(reg | LPSS_TX_INT_MASK, pdata->mmio_base + offset);
+	val = readl(pdata->mmio_base + offset);
+	writel(val | LPSS_TX_INT_MASK, pdata->mmio_base + offset);
 
-	offset = pdata->dev_desc->prv_offset + LPSS_GENERAL;
-	reg = readl(pdata->mmio_base + offset);
-	writel(reg | LPSS_GENERAL_UART_RTS_OVRD, pdata->mmio_base + offset);
+	val = readl(pdata->mmio_base + LPSS_UART_CPR);
+	if (!(val & LPSS_UART_CPR_AFCE)) {
+		offset = pdata->dev_desc->prv_offset + LPSS_GENERAL;
+		val = readl(pdata->mmio_base + offset);
+		val |= LPSS_GENERAL_UART_RTS_OVRD;
+		writel(val, pdata->mmio_base + offset);
+	}
 }
 
 static void byt_i2c_setup(struct lpss_private_data *pdata)
