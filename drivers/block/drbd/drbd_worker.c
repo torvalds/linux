@@ -1931,19 +1931,18 @@ void __update_timing_details(
 	++(*cb_nr);
 }
 
-#define WORK_PENDING(work_bit, todo)	(todo & (1UL << work_bit))
 static void do_device_work(struct drbd_device *device, const unsigned long todo)
 {
-	if (WORK_PENDING(MD_SYNC, todo))
+	if (test_bit(MD_SYNC, &todo))
 		do_md_sync(device);
-	if (WORK_PENDING(RS_DONE, todo) ||
-	    WORK_PENDING(RS_PROGRESS, todo))
-		update_on_disk_bitmap(device, WORK_PENDING(RS_DONE, todo));
-	if (WORK_PENDING(GO_DISKLESS, todo))
+	if (test_bit(RS_DONE, &todo) ||
+	    test_bit(RS_PROGRESS, &todo))
+		update_on_disk_bitmap(device, test_bit(RS_DONE, &todo));
+	if (test_bit(GO_DISKLESS, &todo))
 		go_diskless(device);
-	if (WORK_PENDING(DESTROY_DISK, todo))
+	if (test_bit(DESTROY_DISK, &todo))
 		drbd_ldev_destroy(device);
-	if (WORK_PENDING(RS_START, todo))
+	if (test_bit(RS_START, &todo))
 		do_start_resync(device);
 }
 
