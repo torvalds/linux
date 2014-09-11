@@ -1140,7 +1140,6 @@ static const struct net_device_ops au1000_netdev_ops = {
 
 static int au1000_probe(struct platform_device *pdev)
 {
-	static unsigned version_printed;
 	struct au1000_private *aup = NULL;
 	struct au1000_eth_platform_data *pd;
 	struct net_device *dev = NULL;
@@ -1371,9 +1370,8 @@ static int au1000_probe(struct platform_device *pdev)
 
 	netdev_info(dev, "Au1xx0 Ethernet found at 0x%lx, irq %d\n",
 			(unsigned long)base->start, irq);
-	if (version_printed++ == 0)
-		pr_info("%s version %s %s\n",
-					DRV_NAME, DRV_VERSION, DRV_AUTHOR);
+
+	pr_info_once("%s version %s %s\n", DRV_NAME, DRV_VERSION, DRV_AUTHOR);
 
 	return 0;
 
