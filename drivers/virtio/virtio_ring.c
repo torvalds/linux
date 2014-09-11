@@ -99,18 +99,10 @@ struct vring_virtqueue
 
 #define to_vvq(_vq) container_of(_vq, struct vring_virtqueue, vq)
 
-/* Set up an indirect table of descriptors and add it to the queue. */
-static inline int vring_add_indirect(struct vring_virtqueue *vq,
-				     struct scatterlist *sgs[],
-				     unsigned int total_sg,
-				     unsigned int out_sgs,
-				     unsigned int in_sgs,
-				     gfp_t gfp)
+static struct vring_desc *alloc_indirect(unsigned int total_sg, gfp_t gfp)
 {
 	struct vring_desc *desc;
-	unsigned head;
-	struct scatterlist *sg;
-	int i, n;
+	unsigned int i;
 
 	/*
 	 * We require lowmem mappings for the descriptors because
@@ -121,49 +113,11 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
 
 	desc = kmalloc(total_sg * sizeof(struct vring_desc), gfp);
 	if (!desc)
-		return -ENOMEM;
+		return NULL;
 
-	/* Transfer entries from the sg lists into the indirect page */
-	i = 0;
-	for (n = 0; n < out_sgs; n++) {
-		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
-			desc[i].flags = VRING_DESC_F_NEXT;
-			desc[i].addr = sg_phys(sg);
-			desc[i].len = sg->length;
-			desc[i].next = i+1;
-			i++;
-		}
-	}
-	for (; n < (out_sgs + in_sgs); n++) {
-		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
-			desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
-			desc[i].addr = sg_phys(sg);
-			desc[i].len = sg->length;
-			desc[i].next = i+1;
-			i++;
-		}
-	}
-	BUG_ON(i != total_sg);
-
-	/* Last one doesn't continue. */
-	desc[i-1].flags &= ~VRING_DESC_F_NEXT;
-	desc[i-1].next = 0;
-
-	/* We're about to use a buffer */
-	vq->vq.num_free--;
-
-	/* Use a single buffer which doesn't continue */
-	head = vq->free_head;
-	vq->vring.desc[head].flags = VRING_DESC_F_INDIRECT;
-	vq->vring.desc[head].addr = virt_to_phys(desc);
-	/* kmemleak gives a false positive, as it's hidden by virt_to_phys */
-	kmemleak_ignore(desc);
-	vq->vring.desc[head].len = i * sizeof(struct vring_desc);
-
-	/* Update free pointer */
-	vq->free_head = vq->vring.desc[head].next;
-
-	return head;
+	for (i = 0; i < total_sg; i++)
+		desc[i].next = i+1;
+	return desc;
 }
 
 static inline int virtqueue_add(struct virtqueue *_vq,
@@ -176,8 +130,10 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	struct scatterlist *sg;
-	unsigned int i, n, avail, uninitialized_var(prev);
+	struct vring_desc *desc;
+	unsigned int i, n, avail, descs_used, uninitialized_var(prev);
 	int head;
+	bool indirect;
 
 	START_USE(vq);
 
@@ -201,21 +157,40 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 	}
 #endif
 
-	/* If the host supports indirect descriptor tables, and we have multiple
-	 * buffers, then go indirect. FIXME: tune this threshold */
-	if (vq->indirect && total_sg > 1 && vq->vq.num_free) {
-		head = vring_add_indirect(vq, sgs, total_sg,
-					  out_sgs, in_sgs, gfp);
-		if (likely(head >= 0))
-			goto add_head;
-	}
-
 	BUG_ON(total_sg > vq->vring.num);
 	BUG_ON(total_sg == 0);
 
-	if (vq->vq.num_free < total_sg) {
+	head = vq->free_head;
+
+	/* If the host supports indirect descriptor tables, and we have multiple
+	 * buffers, then go indirect. FIXME: tune this threshold */
+	if (vq->indirect && total_sg > 1 && vq->vq.num_free)
+		desc = alloc_indirect(total_sg, gfp);
+	else
+		desc = NULL;
+
+	if (desc) {
+		/* Use a single buffer which doesn't continue */
+		vq->vring.desc[head].flags = VRING_DESC_F_INDIRECT;
+		vq->vring.desc[head].addr = virt_to_phys(desc);
+		/* avoid kmemleak false positive (hidden by virt_to_phys) */
+		kmemleak_ignore(desc);
+		vq->vring.desc[head].len = total_sg * sizeof(struct vring_desc);
+
+		/* Set up rest to use this indirect table. */
+		i = 0;
+		descs_used = 1;
+		indirect = true;
+	} else {
+		desc = vq->vring.desc;
+		i = head;
+		descs_used = total_sg;
+		indirect = false;
+	}
+
+	if (vq->vq.num_free < descs_used) {
 		pr_debug("Can't add buf len %i - avail = %i\n",
-			 total_sg, vq->vq.num_free);
+			 descs_used, vq->vq.num_free);
 		/* FIXME: for historical reasons, we force a notify here if
 		 * there are outgoing parts to the buffer.  Presumably the
 		 * host should service the ring ASAP. */
@@ -226,34 +201,35 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 	}
 
 	/* We're about to use some buffers from the free list. */
-	vq->vq.num_free -= total_sg;
+	vq->vq.num_free -= descs_used;
 
-	head = i = vq->free_head;
 	for (n = 0; n < out_sgs; n++) {
 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
-			vq->vring.desc[i].flags = VRING_DESC_F_NEXT;
-			vq->vring.desc[i].addr = sg_phys(sg);
-			vq->vring.desc[i].len = sg->length;
+			desc[i].flags = VRING_DESC_F_NEXT;
+			desc[i].addr = sg_phys(sg);
+			desc[i].len = sg->length;
 			prev = i;
-			i = vq->vring.desc[i].next;
+			i = desc[i].next;
 		}
 	}
 	for (; n < (out_sgs + in_sgs); n++) {
 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
-			vq->vring.desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
-			vq->vring.desc[i].addr = sg_phys(sg);
-			vq->vring.desc[i].len = sg->length;
+			desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
+			desc[i].addr = sg_phys(sg);
+			desc[i].len = sg->length;
 			prev = i;
-			i = vq->vring.desc[i].next;
+			i = desc[i].next;
 		}
 	}
 	/* Last one doesn't continue. */
-	vq->vring.desc[prev].flags &= ~VRING_DESC_F_NEXT;
+	desc[prev].flags &= ~VRING_DESC_F_NEXT;
 
 	/* Update free pointer */
-	vq->free_head = i;
+	if (indirect)
+		vq->free_head = vq->vring.desc[head].next;
+	else
+		vq->free_head = i;
 
-add_head:
 	/* Set token. */
 	vq->data[head] = data;
 
