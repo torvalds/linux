@@ -1997,7 +1997,7 @@ static int free_io_failure(struct inode *inode, struct io_failure_record *rec)
  */
 int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 			u64 length, u64 logical, struct page *page,
-			int mirror_num)
+			unsigned int pg_offset, int mirror_num)
 {
 	struct bio *bio;
 	struct btrfs_device *dev;
@@ -2036,7 +2036,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 		return -EIO;
 	}
 	bio->bi_bdev = dev->bdev;
-	bio_add_page(bio, page, length, start - page_offset(page));
+	bio_add_page(bio, page, length, pg_offset);
 
 	if (btrfsic_submit_bio_wait(WRITE_SYNC, bio)) {
 		/* try to remap that extent elsewhere? */
@@ -2067,7 +2067,8 @@ int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = extent_buffer_page(eb, i);
 		ret = repair_io_failure(root->fs_info, start, PAGE_CACHE_SIZE,
-					start, p, mirror_num);
+					start, p, start - page_offset(p),
+					mirror_num);
 		if (ret)
 			break;
 		start += PAGE_CACHE_SIZE;
@@ -2127,6 +2128,7 @@ static int clean_io_failure(u64 start, struct page *page)
 		if (num_copies > 1)  {
 			repair_io_failure(fs_info, start, failrec->len,
 					  failrec->logical, page,
+					  start - page_offset(page),
 					  failrec->failed_mirror);
 		}
 	}

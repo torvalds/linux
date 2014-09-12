@@ -340,7 +340,7 @@ struct btrfs_fs_info;
 
 int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 			u64 length, u64 logical, struct page *page,
-			int mirror_num);
+			unsigned int pg_offset, int mirror_num);
 int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 			 int mirror_num);
