@@ -2743,11 +2743,10 @@ out:
 	return ret;
 }
 
-static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request)
+static bool img_obj_request_simple(struct rbd_obj_request *obj_request)
 {
 	struct rbd_img_request *img_request;
 	struct rbd_device *rbd_dev;
-	bool known;
 
 	rbd_assert(obj_request_img_data_test(obj_request));
 
@@ -2755,22 +2754,35 @@ static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request)
 	rbd_assert(img_request);
 	rbd_dev = img_request->rbd_dev;
 
-	/*
-	 * Only writes to layered images need special handling.
-	 * Reads and non-layered writes are simple object requests.
-	 * Layered writes that start beyond the end of the overlap
-	 * with the parent have no parent data, so they too are
-	 * simple object requests.  Finally, if the target object is
-	 * known to already exist, its parent data has already been
-	 * copied, so a write to the object can also be handled as a
-	 * simple object request.
-	 */
-	if (!img_request_write_test(img_request) ||
-		!img_request_layered_test(img_request) ||
-		!obj_request_overlaps_parent(obj_request) ||
-		((known = obj_request_known_test(obj_request)) &&
-			obj_request_exists_test(obj_request))) {
+	/* Reads */
+	if (!img_request_write_test(img_request))
+		return true;
 
+	/* Non-layered writes */
+	if (!img_request_layered_test(img_request))
+		return true;
+
+	/*
+	 * Layered writes outside of the parent overlap range don't
+	 * share any data with the parent.
+	 */
+	if (!obj_request_overlaps_parent(obj_request))
+		return true;
+
+	/*
+	 * If the object is known to already exist, its parent data has
+	 * already been copied.
+	 */
+	if (obj_request_known_test(obj_request) &&
+	    obj_request_exists_test(obj_request))
+		return true;
+
+	return false;
+}
+
+static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request)
+{
+	if (img_obj_request_simple(obj_request)) {
 		struct rbd_device *rbd_dev;
 		struct ceph_osd_client *osdc;
 
@@ -2786,7 +2798,7 @@ static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request)
 	 * start by reading the data for the full target object from
 	 * the parent so we can use it for a copyup to the target.
 	 */
-	if (known)
+	if (obj_request_known_test(obj_request))
 		return rbd_img_obj_parent_read_full(obj_request);
 
 	/* We don't know whether the target exists.  Go find out. */
