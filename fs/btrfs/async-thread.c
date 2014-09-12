@@ -74,6 +74,7 @@ BTRFS_WORK_HELPER(endio_helper);
 BTRFS_WORK_HELPER(endio_meta_helper);
 BTRFS_WORK_HELPER(endio_meta_write_helper);
 BTRFS_WORK_HELPER(endio_raid56_helper);
+BTRFS_WORK_HELPER(endio_repair_helper);
 BTRFS_WORK_HELPER(rmw_helper);
 BTRFS_WORK_HELPER(endio_write_helper);
 BTRFS_WORK_HELPER(freespace_write_helper);

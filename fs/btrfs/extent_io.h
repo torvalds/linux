@@ -341,6 +341,8 @@ struct btrfs_fs_info;
 int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 		      struct page *page, unsigned int pg_offset,
 		      int mirror_num);
+int clean_io_failure(struct inode *inode, u64 start, struct page *page,
+		     unsigned int pg_offset);
 int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 			 int mirror_num);
@@ -371,7 +373,8 @@ int btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
 struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
 				    struct io_failure_record *failrec,
 				    struct page *page, int pg_offset, int icsum,
-				    bio_end_io_t *endio_func);
+				    bio_end_io_t *endio_func, void *data);
+int free_io_failure(struct inode *inode, struct io_failure_record *rec);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 noinline u64 find_lock_delalloc_range(struct inode *inode,
 				      struct extent_io_tree *tree,
