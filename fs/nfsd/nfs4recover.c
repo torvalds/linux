@@ -1286,6 +1286,22 @@ nfsd4_umh_cltrack_create(struct nfs4_client *clp)
 	char *hexid, *has_session, *grace_start;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
+	/*
+	 * With v4.0 clients, there's little difference in outcome between a
+	 * create and check operation, and we can end up calling into this
+	 * function multiple times per client (once for each openowner). So,
+	 * for v4.0 clients skip upcalling once the client has been recorded
+	 * on stable storage.
+	 *
+	 * For v4.1+ clients, the outcome of the two operations is different,
+	 * so we must ensure that we upcall for the create operation. v4.1+
+	 * clients call this on RECLAIM_COMPLETE though, so we should only end
+	 * up doing a single create upcall per client.
+	 */
+	if (clp->cl_minorversion == 0 &&
+	    test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+		return;
+
 	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
 	if (!hexid) {
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
