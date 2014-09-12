@@ -251,6 +251,15 @@ enum max77693_haptic_reg {
 	MAX77693_HAPTIC_REG_END,
 };
 
+/* max77693-pmic LSCNFG configuraton register */
+#define MAX77693_PMIC_LOW_SYS_MASK      0x80
+#define MAX77693_PMIC_LOW_SYS_SHIFT     7
+
+/* max77693-haptic configuration register */
+#define MAX77693_CONFIG2_MODE           7
+#define MAX77693_CONFIG2_MEN            6
+#define MAX77693_CONFIG2_HTYP           5
+
 enum max77693_irq_source {
 	LED_INT = 0,
 	TOPSYS_INT,
