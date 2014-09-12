@@ -1726,6 +1726,13 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		   buffer is released. This is just to make things simpler,
 		   we need to find a better method of managing these buffers.
 		*/
+	} else {
+		if (mwifiex_write_reg(adapter, PCIE_CPU_INT_EVENT,
+				      CPU_INTR_EVENT_DONE)) {
+			dev_warn(adapter->dev,
+				 "Write register failed\n");
+			return -1;
+		}
 	}
 
 	return 0;
