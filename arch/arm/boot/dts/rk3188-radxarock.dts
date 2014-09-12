@@ -118,6 +118,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&vdd_arm>;
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -159,7 +163,7 @@
 			vdd_arm: REG3 {
 				regulator-name = "VDD_ARM";
 				regulator-min-microvolt = <875000>;
-				regulator-max-microvolt = <1300000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 			};
 
