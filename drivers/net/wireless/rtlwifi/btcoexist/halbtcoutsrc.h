@@ -117,7 +117,7 @@ extern u32 btc_dbg_type[];
 #define		WIFI_P2P_GC_CONNECTED			BIT4
 
 #define	CL_SPRINTF	snprintf
-#define	CL_PRINTF	printk
+#define	CL_PRINTF(buf)	printk("%s", buf)
 
 #define	BTC_PRINT(dbgtype, dbgflag, printstr, ...)		\
 	do {							\
