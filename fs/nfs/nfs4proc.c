@@ -3211,7 +3211,9 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	struct nfs4_label *label = NULL;
 	int status;
 
-	if (pnfs_ld_layoutret_on_setattr(inode))
+	if (pnfs_ld_layoutret_on_setattr(inode) &&
+	    sattr->ia_valid & ATTR_SIZE &&
+	    sattr->ia_size < i_size_read(inode))
 		pnfs_commit_and_return_layout(inode);
 
 	nfs_fattr_init(fattr);

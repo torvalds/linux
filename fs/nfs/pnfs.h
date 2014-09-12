@@ -69,7 +69,8 @@ enum {
 };
 
 enum layoutdriver_policy_flags {
-	/* Should the pNFS client commit and return the layout upon a setattr */
+	/* Should the pNFS client commit and return the layout upon truncate to
+	 * a smaller size */
 	PNFS_LAYOUTRET_ON_SETATTR	= 1 << 0,
 	PNFS_LAYOUTRET_ON_ERROR		= 1 << 1,
 	PNFS_READ_WHOLE_PAGE		= 1 << 2,
