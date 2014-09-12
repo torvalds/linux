@@ -1754,8 +1754,8 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 			ret = regulator_set_voltage(mmc->supply.vqmmc, 2700000,
 						    3600000);
 			if (ret) {
-				pr_warning("%s: Switching to 3.3V signalling voltage "
-						" failed\n", mmc_hostname(mmc));
+				pr_warn("%s: Switching to 3.3V signalling voltage failed\n",
+					mmc_hostname(mmc));
 				return -EIO;
 			}
 		}
@@ -1767,8 +1767,8 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 		if (!(ctrl & SDHCI_CTRL_VDD_180))
 			return 0;
 
-		pr_warning("%s: 3.3V regulator output did not became stable\n",
-				mmc_hostname(mmc));
+		pr_warn("%s: 3.3V regulator output did not became stable\n",
+			mmc_hostname(mmc));
 
 		return -EAGAIN;
 	case MMC_SIGNAL_VOLTAGE_180:
@@ -1776,8 +1776,8 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 			ret = regulator_set_voltage(mmc->supply.vqmmc,
 					1700000, 1950000);
 			if (ret) {
-				pr_warning("%s: Switching to 1.8V signalling voltage "
-						" failed\n", mmc_hostname(mmc));
+				pr_warn("%s: Switching to 1.8V signalling voltage failed\n",
+					mmc_hostname(mmc));
 				return -EIO;
 			}
 		}
@@ -1794,8 +1794,8 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 		if (ctrl & SDHCI_CTRL_VDD_180)
 			return 0;
 
-		pr_warning("%s: 1.8V regulator output did not became stable\n",
-				mmc_hostname(mmc));
+		pr_warn("%s: 1.8V regulator output did not became stable\n",
+			mmc_hostname(mmc));
 
 		return -EAGAIN;
 	case MMC_SIGNAL_VOLTAGE_120:
@@ -1803,8 +1803,8 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 			ret = regulator_set_voltage(mmc->supply.vqmmc, 1100000,
 						    1300000);
 			if (ret) {
-				pr_warning("%s: Switching to 1.2V signalling voltage "
-						" failed\n", mmc_hostname(mmc));
+				pr_warn("%s: Switching to 1.2V signalling voltage failed\n",
+					mmc_hostname(mmc));
 				return -EIO;
 			}
 		}
@@ -2844,8 +2844,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
 		if (host->ops->enable_dma) {
 			if (host->ops->enable_dma(host)) {
-				pr_warning("%s: No suitable DMA "
-					"available. Falling back to PIO.\n",
+				pr_warn("%s: No suitable DMA available - falling back to PIO\n",
 					mmc_hostname(mmc));
 				host->flags &=
 					~(SDHCI_USE_SDMA | SDHCI_USE_ADMA);
@@ -2867,15 +2866,14 @@ int sdhci_add_host(struct sdhci_host *host)
 			dma_free_coherent(mmc_dev(mmc), ADMA_SIZE,
 					  host->adma_desc, host->adma_addr);
 			kfree(host->align_buffer);
-			pr_warning("%s: Unable to allocate ADMA "
-				"buffers. Falling back to standard DMA.\n",
+			pr_warn("%s: Unable to allocate ADMA buffers - falling back to standard DMA\n",
 				mmc_hostname(mmc));
 			host->flags &= ~SDHCI_USE_ADMA;
 			host->adma_desc = NULL;
 			host->align_buffer = NULL;
 		} else if (host->adma_addr & 3) {
-			pr_warning("%s: unable to allocate aligned ADMA descriptor\n",
-				   mmc_hostname(mmc));
+			pr_warn("%s: unable to allocate aligned ADMA descriptor\n",
+				mmc_hostname(mmc));
 			host->flags &= ~SDHCI_USE_ADMA;
 			dma_free_coherent(mmc_dev(mmc), ADMA_SIZE,
 					  host->adma_desc, host->adma_addr);
@@ -3202,8 +3200,8 @@ int sdhci_add_host(struct sdhci_host *host)
 		mmc->max_blk_size = (caps[0] & SDHCI_MAX_BLOCK_MASK) >>
 				SDHCI_MAX_BLOCK_SHIFT;
 		if (mmc->max_blk_size >= 3) {
-			pr_warning("%s: Invalid maximum block size, "
-				"assuming 512 bytes\n", mmc_hostname(mmc));
+			pr_warn("%s: Invalid maximum block size, assuming 512 bytes\n",
+				mmc_hostname(mmc));
 			mmc->max_blk_size = 0;
 		}
 	}

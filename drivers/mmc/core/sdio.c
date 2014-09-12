@@ -216,8 +216,8 @@ static int sdio_enable_wide(struct mmc_card *card)
 		return ret;
 
 	if ((ctrl & SDIO_BUS_WIDTH_MASK) == SDIO_BUS_WIDTH_RESERVED)
-		pr_warning("%s: SDIO_CCCR_IF is invalid: 0x%02x\n",
-			   mmc_hostname(card->host), ctrl);
+		pr_warn("%s: SDIO_CCCR_IF is invalid: 0x%02x\n",
+			mmc_hostname(card->host), ctrl);
 
 	/* set as 4-bit bus width */
 	ctrl &= ~SDIO_BUS_WIDTH_MASK;
@@ -605,8 +605,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 
 try_again:
 	if (!retries) {
-		pr_warning("%s: Skipping voltage switch\n",
-				mmc_hostname(host));
+		pr_warn("%s: Skipping voltage switch\n", mmc_hostname(host));
 		ocr &= ~R4_18V_PRESENT;
 	}
 

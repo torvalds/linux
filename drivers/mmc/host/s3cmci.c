@@ -985,7 +985,8 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 		 * one block being transferred. */
 
 		if (data->blocks > 1) {
-			pr_warning("%s: can't do non-word sized block transfers (blksz %d)\n", __func__, data->blksz);
+			pr_warn("%s: can't do non-word sized block transfers (blksz %d)\n",
+				__func__, data->blksz);
 			return -EINVAL;
 		}
 	}

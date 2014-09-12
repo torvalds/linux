@@ -69,16 +69,15 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 		if (pending & (1 << i)) {
 			func = card->sdio_func[i - 1];
 			if (!func) {
-				pr_warning("%s: pending IRQ for "
-					"non-existent function\n",
+				pr_warn("%s: pending IRQ for non-existent function\n",
 					mmc_card_id(card));
 				ret = -EINVAL;
 			} else if (func->irq_handler) {
 				func->irq_handler(func);
 				count++;
 			} else {
-				pr_warning("%s: pending IRQ with no handler\n",
-				       sdio_func_id(func));
+				pr_warn("%s: pending IRQ with no handler\n",
+					sdio_func_id(func));
 				ret = -EINVAL;
 			}
 		}

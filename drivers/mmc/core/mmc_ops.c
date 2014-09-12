@@ -649,8 +649,8 @@ int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status)
 	int err;
 
 	if (!card->ext_csd.hpi) {
-		pr_warning("%s: Card didn't support HPI command\n",
-			   mmc_hostname(card->host));
+		pr_warn("%s: Card didn't support HPI command\n",
+			mmc_hostname(card->host));
 		return -EINVAL;
 	}
 

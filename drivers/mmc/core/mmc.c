@@ -226,9 +226,7 @@ static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 				"Card will be ignored.\n",
 				mmc_hostname(card->host));
 		} else {
-			pr_warning("%s: unable to read "
-				"EXT_CSD, performance might "
-				"suffer.\n",
+			pr_warn("%s: unable to read EXT_CSD, performance might suffer\n",
 				mmc_hostname(card->host));
 			err = 0;
 		}
@@ -816,8 +814,8 @@ static int __mmc_select_powerclass(struct mmc_card *card,
 				ext_csd->raw_pwr_cl_200_360;
 		break;
 	default:
-		pr_warning("%s: Voltage range not supported "
-			   "for power class.\n", mmc_hostname(host));
+		pr_warn("%s: Voltage range not supported for power class\n",
+			mmc_hostname(host));
 		return -EINVAL;
 	}
 
@@ -1490,8 +1488,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		if (err && err != -EBADMSG)
 			goto free_card;
 		if (err) {
-			pr_warning("%s: Enabling HPI failed\n",
-				   mmc_hostname(card->host));
+			pr_warn("%s: Enabling HPI failed\n",
+				mmc_hostname(card->host));
 			err = 0;
 		} else
 			card->ext_csd.hpi_en = 1;
@@ -1512,9 +1510,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		 * Only if no error, cache is turned on successfully.
 		 */
 		if (err) {
-			pr_warning("%s: Cache is supported, "
-					"but failed to turn on (%d)\n",
-					mmc_hostname(card->host), err);
+			pr_warn("%s: Cache is supported, but failed to turn on (%d)\n",
+				mmc_hostname(card->host), err);
 			card->ext_csd.cache_ctrl = 0;
 			err = 0;
 		} else {
