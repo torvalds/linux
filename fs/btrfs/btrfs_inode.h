@@ -245,8 +245,11 @@ static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 	return 0;
 }
 
+#define BTRFS_DIO_ORIG_BIO_SUBMITTED	0x1
+
 struct btrfs_dio_private {
 	struct inode *inode;
+	unsigned long flags;
 	u64 logical_offset;
 	u64 disk_bytenr;
 	u64 bytes;
@@ -263,6 +266,12 @@ struct btrfs_dio_private {
 
 	/* dio_bio came from fs/direct-io.c */
 	struct bio *dio_bio;
+
+	/*
+	 * The original bio may be splited to several sub-bios, this is
+	 * done during endio of sub-bios
+	 */
+	int (*subio_endio)(struct inode *, struct btrfs_io_bio *);
 };
 
 /*

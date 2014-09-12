@@ -7242,29 +7242,40 @@ unlock_err:
 	return ret;
 }
 
-static void btrfs_endio_direct_read(struct bio *bio, int err)
+static int btrfs_subio_endio_read(struct inode *inode,
+				  struct btrfs_io_bio *io_bio)
 {
-	struct btrfs_dio_private *dip = bio->bi_private;
 	struct bio_vec *bvec;
-	struct inode *inode = dip->inode;
-	struct bio *dio_bio;
-	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 	u64 start;
-	int ret;
 	int i;
+	int ret;
+	int err = 0;
 
-	if (err || (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM))
-		goto skip_checksum;
+	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
+		return 0;
 
-	start = dip->logical_offset;
-	bio_for_each_segment_all(bvec, bio, i) {
+	start = io_bio->logical;
+	bio_for_each_segment_all(bvec, &io_bio->bio, i) {
 		ret = __readpage_endio_check(inode, io_bio, i, bvec->bv_page,
 					     0, start, bvec->bv_len);
 		if (ret)
 			err = -EIO;
 		start += bvec->bv_len;
 	}
-skip_checksum:
+
+	return err;
+}
+
+static void btrfs_endio_direct_read(struct bio *bio, int err)
+{
+	struct btrfs_dio_private *dip = bio->bi_private;
+	struct inode *inode = dip->inode;
+	struct bio *dio_bio;
+	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
+
+	if (!err && (dip->flags & BTRFS_DIO_ORIG_BIO_SUBMITTED))
+		err = btrfs_subio_endio_read(inode, io_bio);
+
 	unlock_extent(&BTRFS_I(inode)->io_tree, dip->logical_offset,
 		      dip->logical_offset + dip->bytes - 1);
 	dio_bio = dip->dio_bio;
@@ -7342,6 +7353,7 @@ static int __btrfs_submit_bio_start_direct_io(struct inode *inode, int rw,
 static void btrfs_end_dio_bio(struct bio *bio, int err)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
+	int ret;
 
 	if (err) {
 		btrfs_err(BTRFS_I(dip->inode)->root->fs_info,
@@ -7349,6 +7361,13 @@ static void btrfs_end_dio_bio(struct bio *bio, int err)
 		      btrfs_ino(dip->inode), bio->bi_rw,
 		      (unsigned long long)bio->bi_iter.bi_sector,
 		      bio->bi_iter.bi_size, err);
+	} else if (dip->subio_endio) {
+		ret = dip->subio_endio(dip->inode, btrfs_io_bio(bio));
+		if (ret)
+			err = ret;
+	}
+
+	if (err) {
 		dip->errors = 1;
 
 		/*
@@ -7377,6 +7396,38 @@ static struct bio *btrfs_dio_bio_alloc(struct block_device *bdev,
 {
 	int nr_vecs = bio_get_nr_vecs(bdev);
 	return btrfs_bio_alloc(bdev, first_sector, nr_vecs, gfp_flags);
+}
+
+static inline int btrfs_lookup_and_bind_dio_csum(struct btrfs_root *root,
+						 struct inode *inode,
+						 struct btrfs_dio_private *dip,
+						 struct bio *bio,
+						 u64 file_offset)
+{
+	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
+	struct btrfs_io_bio *orig_io_bio = btrfs_io_bio(dip->orig_bio);
+	int ret;
+
+	/*
+	 * We load all the csum data we need when we submit
+	 * the first bio to reduce the csum tree search and
+	 * contention.
+	 */
+	if (dip->logical_offset == file_offset) {
+		ret = btrfs_lookup_bio_sums_dio(root, inode, dip->orig_bio,
+						file_offset);
+		if (ret)
+			return ret;
+	}
+
+	if (bio == dip->orig_bio)
+		return 0;
+
+	file_offset -= dip->logical_offset;
+	file_offset >>= inode->i_sb->s_blocksize_bits;
+	io_bio->csum = (u8 *)(((u32 *)orig_io_bio->csum) + file_offset);
+
+	return 0;
 }
 
 static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
@@ -7418,16 +7469,8 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 		if (ret)
 			goto err;
 	} else {
-		/*
-		 * We have loaded all the csum data we need when we submit
-		 * the first bio, so skip it.
-		 */
-		if (dip->logical_offset != file_offset)
-			goto map;
-
-		/* Load all csum data at once. */
-		ret = btrfs_lookup_bio_sums_dio(root, inode, dip->orig_bio,
-						file_offset);
+		ret = btrfs_lookup_and_bind_dio_csum(root, inode, dip, bio,
+						     file_offset);
 		if (ret)
 			goto err;
 	}
@@ -7462,6 +7505,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 
 	if (map_length >= orig_bio->bi_iter.bi_size) {
 		bio = orig_bio;
+		dip->flags |= BTRFS_DIO_ORIG_BIO_SUBMITTED;
 		goto submit;
 	}
 
@@ -7478,6 +7522,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 
 	bio->bi_private = dip;
 	bio->bi_end_io = btrfs_end_dio_bio;
+	btrfs_io_bio(bio)->logical = file_offset;
 	atomic_inc(&dip->pending_bios);
 
 	while (bvec <= (orig_bio->bi_io_vec + orig_bio->bi_vcnt - 1)) {
@@ -7512,6 +7557,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 				goto out_err;
 			bio->bi_private = dip;
 			bio->bi_end_io = btrfs_end_dio_bio;
+			btrfs_io_bio(bio)->logical = file_offset;
 
 			map_length = orig_bio->bi_iter.bi_size;
 			ret = btrfs_map_block(root->fs_info, rw,
@@ -7568,7 +7614,7 @@ static void btrfs_submit_direct(int rw, struct bio *dio_bio,
 		goto free_ordered;
 	}
 
-	dip = kmalloc(sizeof(*dip), GFP_NOFS);
+	dip = kzalloc(sizeof(*dip), GFP_NOFS);
 	if (!dip) {
 		ret = -ENOMEM;
 		goto free_io_bio;
@@ -7580,21 +7626,23 @@ static void btrfs_submit_direct(int rw, struct bio *dio_bio,
 	dip->bytes = dio_bio->bi_iter.bi_size;
 	dip->disk_bytenr = (u64)dio_bio->bi_iter.bi_sector << 9;
 	io_bio->bi_private = dip;
-	dip->errors = 0;
 	dip->orig_bio = io_bio;
 	dip->dio_bio = dio_bio;
 	atomic_set(&dip->pending_bios, 0);
+	btrfs_bio = btrfs_io_bio(io_bio);
+	btrfs_bio->logical = file_offset;
 
-	if (write)
+	if (write) {
 		io_bio->bi_end_io = btrfs_endio_direct_write;
-	else
+	} else {
 		io_bio->bi_end_io = btrfs_endio_direct_read;
+		dip->subio_endio = btrfs_subio_endio_read;
+	}
 
 	ret = btrfs_submit_direct_hook(rw, dip, skip_sum);
 	if (!ret)
 		return;
 
-	btrfs_bio = btrfs_io_bio(io_bio);
 	if (btrfs_bio->end_io)
 		btrfs_bio->end_io(btrfs_bio, ret);
 free_io_bio:

@@ -268,8 +268,9 @@ struct btrfs_fs_devices {
  */
 typedef void (btrfs_io_bio_end_io_t) (struct btrfs_io_bio *bio, int err);
 struct btrfs_io_bio {
-	unsigned long mirror_num;
-	unsigned long stripe_index;
+	unsigned int mirror_num;
+	unsigned int stripe_index;
+	u64 logical;
 	u8 *csum;
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
 	u8 *csum_allocated;
