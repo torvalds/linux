@@ -146,6 +146,9 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  * @elem_size:	The size in bytes of the control.
  * @dims:	The size of each dimension.
  * @nr_of_dims:The number of dimensions in @dims.
+ * @max_stores:The maximum number of configuration stores of this control.
+ * @nr_of_stores: The number of allocated configuration stores of this control.
+ * @store:	The configuration store that the control op operates on.
  * @menu_skip_mask: The control's skip mask for menu controls. This makes it
  *		easy to skip menu items that are not valid. If bit X is set,
  *		then menu item X is skipped. Of course, this only works for
@@ -202,6 +205,9 @@ struct v4l2_ctrl {
 	u32 elem_size;
 	u32 dims[V4L2_CTRL_MAX_DIMS];
 	u32 nr_of_dims;
+	u16 max_stores;
+	u16 nr_of_stores;
+	u16 store;
 	union {
 		u64 step;
 		u64 menu_skip_mask;
@@ -219,6 +225,7 @@ struct v4l2_ctrl {
 
 	union v4l2_ctrl_ptr p_new;
 	union v4l2_ctrl_ptr p_cur;
+	union v4l2_ctrl_ptr *p_stores;
 };
 
 /**
@@ -285,6 +292,7 @@ struct v4l2_ctrl_handler {
  * @def: 	The control's default value.
  * @dims:	The size of each dimension.
  * @elem_size:	The size in bytes of the control.
+ * @max_stores:	The maximum number of stores allowed.
  * @flags:	The control's flags.
  * @menu_skip_mask: The control's skip mask for menu controls. This makes it
  *		easy to skip menu items that are not valid. If bit X is set,
@@ -313,6 +321,7 @@ struct v4l2_ctrl_config {
 	s64 def;
 	u32 dims[V4L2_CTRL_MAX_DIMS];
 	u32 elem_size;
+	u16 max_stores;
 	u32 flags;
 	u64 menu_skip_mask;
 	const char * const *qmenu;
@@ -884,6 +893,11 @@ static inline int v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
 	v4l2_ctrl_unlock(ctrl);
 
 	return rval;
+}
+
+static inline void v4l2_ctrl_set_max_stores(struct v4l2_ctrl *ctrl, u16 max_stores)
+{
+	ctrl->max_stores = max_stores;
 }
 
 /* Internal helper functions that deal with control events. */

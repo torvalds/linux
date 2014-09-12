@@ -1484,6 +1484,15 @@ static int cur_to_user(struct v4l2_ext_control *c,
 	return ptr_to_user(c, ctrl, ctrl->p_cur);
 }
 
+/* Helper function: copy the store's control value back to the caller */
+static int store_to_user(struct v4l2_ext_control *c,
+		       struct v4l2_ctrl *ctrl, unsigned store)
+{
+	if (store == 0)
+		return ptr_to_user(c, ctrl, ctrl->p_new);
+	return ptr_to_user(c, ctrl, ctrl->p_stores[store - 1]);
+}
+
 /* Helper function: copy the new control value back to the caller */
 static int new_to_user(struct v4l2_ext_control *c,
 		       struct v4l2_ctrl *ctrl)
@@ -1591,6 +1600,14 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 	}
 }
 
+/* Helper function: copy the new control value to the store */
+static void new_to_store(struct v4l2_ctrl *ctrl)
+{
+	/* has_changed is set by cluster_changed */
+	if (ctrl && ctrl->has_changed)
+		ptr_to_ptr(ctrl, ctrl->p_new, ctrl->p_stores[ctrl->store - 1]);
+}
+
 /* Copy the current value to the new value */
 static void cur_to_new(struct v4l2_ctrl *ctrl)
 {
@@ -1609,6 +1626,7 @@ static int cluster_changed(struct v4l2_ctrl *master)
 
 	for (i = 0; i < master->ncontrols; i++) {
 		struct v4l2_ctrl *ctrl = master->cluster[i];
+		union v4l2_ctrl_ptr ptr;
 		bool ctrl_changed = false;
 
 		if (ctrl == NULL)
@@ -1626,9 +1644,14 @@ static int cluster_changed(struct v4l2_ctrl *master)
 			continue;
 		}
 
+		if (ctrl->store)
+			ptr = ctrl->p_stores[ctrl->store - 1];
+		else
+			ptr = ctrl->p_cur;
+
 		for (idx = 0; !ctrl_changed && idx < ctrl->elems; idx++)
 			ctrl_changed = !ctrl->type_ops->equal(ctrl, idx,
-				ctrl->p_cur, ctrl->p_new);
+				ptr, ctrl->p_new);
 		ctrl->has_changed = ctrl_changed;
 		changed |= ctrl->has_changed;
 	}
@@ -1737,6 +1760,13 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 		list_del(&ctrl->node);
 		list_for_each_entry_safe(sev, next_sev, &ctrl->ev_subs, node)
 			list_del(&sev->node);
+		if (ctrl->p_stores) {
+			unsigned s;
+
+			for (s = 0; s < ctrl->nr_of_stores; s++)
+				kfree(ctrl->p_stores[s].p);
+		}
+		kfree(ctrl->p_stores);
 		kfree(ctrl);
 	}
 	kfree(hdl->buckets);
@@ -1967,7 +1997,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		handler_set_err(hdl, -ERANGE);
 		return NULL;
 	}
-	if (is_array &&
+	if ((is_array || (flags & V4L2_CTRL_FLAG_CAN_STORE)) &&
 	    (type == V4L2_CTRL_TYPE_BUTTON ||
 	     type == V4L2_CTRL_TYPE_CTRL_CLASS)) {
 		handler_set_err(hdl, -EINVAL);
@@ -2082,8 +2112,10 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 			is_menu ? cfg->menu_skip_mask : step, def,
 			cfg->dims, cfg->elem_size,
 			flags, qmenu, qmenu_int, priv);
-	if (ctrl)
+	if (ctrl) {
 		ctrl->is_private = cfg->is_private;
+		v4l2_ctrl_set_max_stores(ctrl, cfg->max_stores);
+	}
 	return ctrl;
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_custom);
@@ -2450,6 +2482,7 @@ int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 				cur_to_new(master->cluster[i]);
 				master->cluster[i]->is_new = 1;
 				master->cluster[i]->done = true;
+				master->cluster[i]->store = 0;
 			}
 		}
 		ret = call_op(master, s_ctrl);
@@ -2537,6 +2570,8 @@ int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctr
 		qc->id = ctrl->id;
 	strlcpy(qc->name, ctrl->name, sizeof(qc->name));
 	qc->flags = ctrl->flags;
+	if (ctrl->max_stores)
+		qc->flags |= V4L2_CTRL_FLAG_CAN_STORE;
 	qc->type = ctrl->type;
 	if (ctrl->is_ptr)
 		qc->flags |= V4L2_CTRL_FLAG_HAS_PAYLOAD;
@@ -2698,6 +2733,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 			     struct v4l2_ctrl_helper *helpers,
 			     bool get)
 {
+	unsigned store = cs->config_store & 0xffff;
 	struct v4l2_ctrl_helper *h;
 	bool have_clusters = false;
 	u32 i;
@@ -2722,6 +2758,8 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 			return -EINVAL;
 		ctrl = ref->ctrl;
 		if (ctrl->flags & V4L2_CTRL_FLAG_DISABLED)
+			return -EINVAL;
+		if (store > ctrl->max_stores)
 			return -EINVAL;
 
 		if (ctrl->cluster[0]->ncontrols > 1)
@@ -2794,6 +2832,32 @@ static int class_check(struct v4l2_ctrl_handler *hdl, u32 which)
 	return find_ref_lock(hdl, which | 1) ? 0 : -EINVAL;
 }
 
+static int extend_store(struct v4l2_ctrl *ctrl, unsigned stores)
+{
+	unsigned s, idx;
+	union v4l2_ctrl_ptr *p;
+
+	p = kcalloc(stores, sizeof(union v4l2_ctrl_ptr), GFP_KERNEL);
+	if (p == NULL)
+		return -ENOMEM;
+	for (s = ctrl->nr_of_stores; s < stores; s++) {
+		p[s].p = kcalloc(ctrl->elems, ctrl->elem_size, GFP_KERNEL);
+		if (p[s].p == NULL) {
+			while (s > ctrl->nr_of_stores)
+				kfree(p[--s].p);
+			kfree(p);
+			return -ENOMEM;
+		}
+		for (idx = 0; idx < ctrl->elems; idx++)
+			ctrl->type_ops->init(ctrl, idx, p[s]);
+	}
+	if (ctrl->p_stores)
+		memcpy(p, ctrl->p_stores, ctrl->nr_of_stores * sizeof(union v4l2_ctrl_ptr));
+	kfree(ctrl->p_stores);
+	ctrl->p_stores = p;
+	ctrl->nr_of_stores = stores;
+	return 0;
+}
 
 
 /* Get extended controls. Allocates the helpers array if needed. */
@@ -2801,11 +2865,15 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 {
 	struct v4l2_ctrl_helper helper[4];
 	struct v4l2_ctrl_helper *helpers = helper;
+	unsigned store = 0;
 	int ret;
 	int i, j;
 
 	cs->error_idx = cs->count;
-	cs->which = V4L2_CTRL_ID2WHICH(cs->which);
+	if (V4L2_CTRL_ID2WHICH(cs->which))
+		cs->which = V4L2_CTRL_ID2WHICH(cs->which);
+	else
+		store = cs->config_store;
 
 	if (hdl == NULL)
 		return -EINVAL;
@@ -2841,13 +2909,19 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 		v4l2_ctrl_lock(master);
 
 		/* g_volatile_ctrl will update the new control values */
-		if ((master->flags & V4L2_CTRL_FLAG_VOLATILE) ||
-			(master->has_volatiles && !is_cur_manual(master))) {
+		if (store == 0 &&
+		    ((master->flags & V4L2_CTRL_FLAG_VOLATILE) ||
+		     (master->has_volatiles && !is_cur_manual(master)))) {
 			for (j = 0; j < master->ncontrols; j++)
 				cur_to_new(master->cluster[j]);
 			ret = call_op(master, g_volatile_ctrl);
 			ctrl_to_user = new_to_user;
 		}
+		for (j = 0; j < master->ncontrols; j++)
+			if (!ret && master->cluster[j] &&
+			    store > master->cluster[j]->nr_of_stores)
+				ret = extend_store(master->cluster[j], store);
+
 		/* If OK, then copy the current (for non-volatile controls)
 		   or the new (for volatile controls) control values to the
 		   caller */
@@ -2855,7 +2929,11 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 			u32 idx = i;
 
 			do {
-				ret = ctrl_to_user(cs->controls + idx,
+				if (store)
+					ret = store_to_user(cs->controls + idx,
+						   helpers[idx].ctrl, store);
+				else
+					ret = ctrl_to_user(cs->controls + idx,
 						   helpers[idx].ctrl);
 				idx = helpers[idx].next;
 			} while (!ret && idx);
@@ -2950,12 +3028,11 @@ s64 v4l2_ctrl_g_ctrl_int64(struct v4l2_ctrl *ctrl)
 }
 EXPORT_SYMBOL(v4l2_ctrl_g_ctrl_int64);
 
-
 /* Core function that calls try/s_ctrl and ensures that the new value is
    copied to the current value on a set.
    Must be called with ctrl->handler->lock held. */
 static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
-			      bool set, u32 ch_flags)
+			      u16 store, bool set, u32 ch_flags)
 {
 	bool update_flag;
 	int ret;
@@ -2971,6 +3048,14 @@ static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 		if (ctrl == NULL)
 			continue;
 
+		if (store > ctrl->max_stores)
+			return -EINVAL;
+		if (store > ctrl->nr_of_stores) {
+			ret = extend_store(ctrl, store);
+			if (ret)
+				return ret;
+		}
+		ctrl->store = store;
 		if (!ctrl->is_new) {
 			cur_to_new(ctrl);
 			continue;
@@ -2992,9 +3077,13 @@ static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 
 	/* If OK, then make the new values permanent. */
 	update_flag = is_cur_manual(master) != is_new_manual(master);
-	for (i = 0; i < master->ncontrols; i++)
-		new_to_cur(fh, master->cluster[i], ch_flags |
-			((update_flag && i > 0) ? V4L2_EVENT_CTRL_CH_FLAGS : 0));
+	for (i = 0; i < master->ncontrols; i++) {
+		if (store)
+			new_to_store(master->cluster[i]);
+		else
+			new_to_cur(fh, master->cluster[i], ch_flags |
+				((update_flag && i > 0) ? V4L2_EVENT_CTRL_CH_FLAGS : 0));
+	}
 	return 0;
 }
 
@@ -3045,8 +3134,12 @@ static void update_from_auto_cluster(struct v4l2_ctrl *master)
 {
 	int i;
 
-	for (i = 1; i < master->ncontrols; i++)
+	for (i = 0; i < master->ncontrols; i++) {
+		if (master->cluster[i] == NULL)
+			continue;
 		cur_to_new(master->cluster[i]);
+		master->cluster[i]->store = 0;
+	}
 	if (!call_op(master, g_volatile_ctrl))
 		for (i = 1; i < master->ncontrols; i++)
 			if (master->cluster[i])
@@ -3060,11 +3153,15 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 {
 	struct v4l2_ctrl_helper helper[4];
 	struct v4l2_ctrl_helper *helpers = helper;
+	unsigned store = 0;
 	unsigned i, j;
 	int ret;
 
 	cs->error_idx = cs->count;
-	cs->which = V4L2_CTRL_ID2WHICH(cs->which);
+	if (V4L2_CTRL_ID2WHICH(cs->which))
+		cs->which = V4L2_CTRL_ID2WHICH(cs->which);
+	else
+		store = cs->config_store;
 
 	if (hdl == NULL)
 		return -EINVAL;
@@ -3105,7 +3202,7 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 		   first since those will become the new manual values (which
 		   may be overwritten by explicit new values from this set
 		   of controls). */
-		if (master->is_auto && master->has_volatiles &&
+		if (!store && master->is_auto && master->has_volatiles &&
 						!is_cur_manual(master)) {
 			/* Pick an initial non-manual value */
 			s32 new_auto_val = master->manual_mode_value + 1;
@@ -3136,14 +3233,14 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 		} while (!ret && idx);
 
 		if (!ret)
-			ret = try_or_set_cluster(fh, master, set, 0);
+			ret = try_or_set_cluster(fh, master, store, set, 0);
 
 		/* Copy the new values back to userspace. */
 		if (!ret) {
 			idx = i;
 			do {
-				ret = new_to_user(cs->controls + idx,
-						helpers[idx].ctrl);
+				ret = store_to_user(cs->controls + idx,
+						helpers[idx].ctrl, store);
 				idx = helpers[idx].next;
 			} while (!ret && idx);
 		}
@@ -3188,9 +3285,12 @@ static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 	int i;
 
 	/* Reset the 'is_new' flags of the cluster */
-	for (i = 0; i < master->ncontrols; i++)
-		if (master->cluster[i])
-			master->cluster[i]->is_new = 0;
+	for (i = 0; i < master->ncontrols; i++) {
+		if (master->cluster[i] == NULL)
+			continue;
+		master->cluster[i]->is_new = 0;
+		master->cluster[i]->store = 0;
+	}
 
 	ret = validate_new(ctrl, ctrl->p_new);
 	if (ret)
@@ -3204,7 +3304,7 @@ static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 		update_from_auto_cluster(master);
 
 	ctrl->is_new = 1;
-	return try_or_set_cluster(fh, master, true, ch_flags);
+	return try_or_set_cluster(fh, master, 0, true, ch_flags);
 }
 
 /* Helper function for VIDIOC_S_CTRL compatibility */
