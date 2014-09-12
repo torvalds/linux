@@ -2938,7 +2938,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set time (s) between CPU-hotplug operations, or
 			zero to disable CPU-hotplug testing.
 
-	rcutorture.rcutorture_runnable= [BOOT]
+	rcutorture.torture_runnable= [BOOT]
 			Start rcutorture running at boot time.
 
 	rcutorture.shuffle_interval= [KNL]

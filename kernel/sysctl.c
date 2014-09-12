@@ -1055,15 +1055,6 @@ static struct ctl_table kern_table[] = {
 		.child		= key_sysctls,
 	},
 #endif
-#ifdef CONFIG_RCU_TORTURE_TEST
-	{
-		.procname       = "rcutorture_runnable",
-		.data           = &rcutorture_runnable,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
 #ifdef CONFIG_PERF_EVENTS
 	/*
 	 * User-space scripts rely on the existence of this file
