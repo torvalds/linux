@@ -84,6 +84,10 @@ nvbios_rammapEp(struct nouveau_bios *bios, int idx,
 	p->rammap_ver = *ver;
 	p->rammap_hdr = *hdr;
 	switch (!!data * *ver) {
+	case 0x10:
+		p->rammap_min      =  nv_ro16(bios, data + 0x00);
+		p->rammap_max      =  nv_ro16(bios, data + 0x02);
+		break;
 	case 0x11:
 		p->rammap_min      =  nv_ro16(bios, data + 0x00);
 		p->rammap_max      =  nv_ro16(bios, data + 0x02);
