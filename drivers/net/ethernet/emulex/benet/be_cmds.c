@@ -1770,8 +1770,10 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter)
 	if (!status) {
 		struct be_cmd_resp_get_fw_version *resp = embedded_payload(wrb);
 
-		strcpy(adapter->fw_ver, resp->firmware_version_string);
-		strcpy(adapter->fw_on_flash, resp->fw_on_flash_version_string);
+		strlcpy(adapter->fw_ver, resp->firmware_version_string,
+			sizeof(adapter->fw_ver));
+		strlcpy(adapter->fw_on_flash, resp->fw_on_flash_version_string,
+			sizeof(adapter->fw_on_flash));
 	}
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
@@ -2209,7 +2211,7 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 	req->write_offset = cpu_to_le32(data_offset);
-	strcpy(req->object_name, obj_name);
+	strlcpy(req->object_name, obj_name, sizeof(req->object_name));
 	req->descriptor_count = cpu_to_le32(1);
 	req->buf_len = cpu_to_le32(data_size);
 	req->addr_low = cpu_to_le32((cmd->dma +
@@ -2262,7 +2264,7 @@ int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name)
 			       OPCODE_COMMON_DELETE_OBJECT,
 			       sizeof(*req), wrb, NULL);
 
-	strcpy(req->object_name, obj_name);
+	strlcpy(req->object_name, obj_name, sizeof(req->object_name));
 
 	status = be_mcc_notify_wait(adapter);
 err:
