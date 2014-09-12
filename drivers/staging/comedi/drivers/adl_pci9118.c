@@ -1489,16 +1489,16 @@ static void pci9118_alloc_dma(struct comedi_device *dev)
 			if (dmabuf->virt)
 				break;
 		}
-		if (dmabuf->virt) {
-			dmabuf->pages = pages;
-			dmabuf->size = PAGE_SIZE * pages;
-			dmabuf->hw = virt_to_bus((void *)dmabuf->virt);
+		if (!dmabuf->virt)
+			break;
+		dmabuf->pages = pages;
+		dmabuf->size = PAGE_SIZE * pages;
+		dmabuf->hw = virt_to_bus((void *)dmabuf->virt);
 
-			if (i == 0)
-				devpriv->master = 1;
-			if (i == 1)
-				devpriv->dma_doublebuf = 1;
-		}
+		if (i == 0)
+			devpriv->master = 1;
+		if (i == 1)
+			devpriv->dma_doublebuf = 1;
 	}
 }
 
