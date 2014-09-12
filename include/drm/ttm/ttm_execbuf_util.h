@@ -39,11 +39,13 @@
  *
  * @head:           list head for thread-private list.
  * @bo:             refcounted buffer object pointer.
+ * @shared:         should the fence be added shared?
  */
 
 struct ttm_validate_buffer {
 	struct list_head head;
 	struct ttm_buffer_object *bo;
+	bool shared;
 };
 
 /**

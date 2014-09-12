@@ -2894,12 +2894,13 @@ bool r600_semaphore_ring_emit(struct radeon_device *rdev,
  * Used by the radeon ttm implementation to move pages if
  * registered as the asic copy callback.
  */
-int r600_copy_cpdma(struct radeon_device *rdev,
-		    uint64_t src_offset, uint64_t dst_offset,
-		    unsigned num_gpu_pages,
-		    struct radeon_fence **fence)
+struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
+				     uint64_t src_offset, uint64_t dst_offset,
+				     unsigned num_gpu_pages,
+				     struct reservation_object *resv)
 {
 	struct radeon_semaphore *sem = NULL;
+	struct radeon_fence *fence;
 	int ring_index = rdev->asic->copy.blit_ring_index;
 	struct radeon_ring *ring = &rdev->ring[ring_index];
 	u32 size_in_bytes, cur_size_in_bytes, tmp;
@@ -2909,7 +2910,7 @@ int r600_copy_cpdma(struct radeon_device *rdev,
 	r = radeon_semaphore_create(rdev, &sem);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		return r;
+		return ERR_PTR(r);
 	}
 
 	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
@@ -2918,10 +2919,10 @@ int r600_copy_cpdma(struct radeon_device *rdev,
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
 		radeon_semaphore_free(rdev, &sem, NULL);
-		return r;
+		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_to(sem, *fence);
+	radeon_semaphore_sync_resv(sem, resv, false);
 	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
@@ -2948,17 +2949,17 @@ int r600_copy_cpdma(struct radeon_device *rdev,
 	radeon_ring_write(ring, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
 	radeon_ring_write(ring, WAIT_CP_DMA_IDLE_bit);
 
-	r = radeon_fence_emit(rdev, fence, ring->idx);
+	r = radeon_fence_emit(rdev, &fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
 		radeon_semaphore_free(rdev, &sem, NULL);
-		return r;
+		return ERR_PTR(r);
 	}
 
 	radeon_ring_unlock_commit(rdev, ring, false);
-	radeon_semaphore_free(rdev, &sem, *fence);
+	radeon_semaphore_free(rdev, &sem, fence);
 
-	return r;
+	return fence;
 }
 
 int r600_set_surface_reg(struct radeon_device *rdev, int reg,
