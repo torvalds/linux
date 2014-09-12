@@ -358,6 +358,8 @@ static void __init rk312x_init_late(void)
 #ifdef CONFIG_PM
 	rk321x_init_suspend();
 #endif
+	if (rockchip_jtag_enabled)
+		clk_prepare_enable(clk_get_sys(NULL, "clk_jtag"));
 }
 
 static void rk312x_restart(char mode, const char *cmd)
