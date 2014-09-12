@@ -475,18 +475,27 @@ static int be_get_sset_count(struct net_device *netdev, int stringset)
 	}
 }
 
-static u32 be_get_port_type(u32 phy_type, u32 dac_cable_len)
+static u32 be_get_port_type(struct be_adapter *adapter)
 {
 	u32 port;
 
-	switch (phy_type) {
+	switch (adapter->phy.interface_type) {
 	case PHY_TYPE_BASET_1GB:
 	case PHY_TYPE_BASEX_1GB:
 	case PHY_TYPE_SGMII:
 		port = PORT_TP;
 		break;
 	case PHY_TYPE_SFP_PLUS_10GB:
-		port = dac_cable_len ? PORT_DA : PORT_FIBRE;
+		if (adapter->phy.cable_type & SFP_PLUS_COPPER_CABLE)
+			port = PORT_DA;
+		else
+			port = PORT_FIBRE;
+		break;
+	case PHY_TYPE_QSFP:
+		if (adapter->phy.cable_type & QSFP_PLUS_CR4_CABLE)
+			port = PORT_DA;
+		else
+			port = PORT_FIBRE;
 		break;
 	case PHY_TYPE_XFP_10GB:
 	case PHY_TYPE_SFP_1GB:
@@ -502,11 +511,11 @@ static u32 be_get_port_type(u32 phy_type, u32 dac_cable_len)
 	return port;
 }
 
-static u32 convert_to_et_setting(u32 if_type, u32 if_speeds)
+static u32 convert_to_et_setting(struct be_adapter *adapter, u32 if_speeds)
 {
 	u32 val = 0;
 
-	switch (if_type) {
+	switch (adapter->phy.interface_type) {
 	case PHY_TYPE_BASET_1GB:
 	case PHY_TYPE_BASEX_1GB:
 	case PHY_TYPE_SGMII:
@@ -529,6 +538,20 @@ static u32 convert_to_et_setting(u32 if_type, u32 if_speeds)
 		val |= SUPPORTED_Backplane |
 				SUPPORTED_10000baseKR_Full;
 		break;
+	case PHY_TYPE_QSFP:
+		if (if_speeds & BE_SUPPORTED_SPEED_40GBPS) {
+			switch (adapter->phy.cable_type) {
+			case QSFP_PLUS_CR4_CABLE:
+				val |= SUPPORTED_40000baseCR4_Full;
+				break;
+			case QSFP_PLUS_LR4_CABLE:
+				val |= SUPPORTED_40000baseLR4_Full;
+				break;
+			default:
+				val |= SUPPORTED_40000baseSR4_Full;
+				break;
+			}
+		}
 	case PHY_TYPE_SFP_PLUS_10GB:
 	case PHY_TYPE_XFP_10GB:
 	case PHY_TYPE_SFP_1GB:
@@ -569,8 +592,6 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	int status;
 	u32 auto_speeds;
 	u32 fixed_speeds;
-	u32 dac_cable_len;
-	u16 interface_type;
 
 	if (adapter->phy.link_speed < 0) {
 		status = be_cmd_link_status_query(adapter, &link_speed,
@@ -581,21 +602,19 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		status = be_cmd_get_phy_info(adapter);
 		if (!status) {
-			interface_type = adapter->phy.interface_type;
 			auto_speeds = adapter->phy.auto_speeds_supported;
 			fixed_speeds = adapter->phy.fixed_speeds_supported;
-			dac_cable_len = adapter->phy.dac_cable_len;
+
+			be_cmd_query_cable_type(adapter);
 
 			ecmd->supported =
-				convert_to_et_setting(interface_type,
+				convert_to_et_setting(adapter,
 						      auto_speeds |
 						      fixed_speeds);
 			ecmd->advertising =
-				convert_to_et_setting(interface_type,
-						      auto_speeds);
+				convert_to_et_setting(adapter, auto_speeds);
 
-			ecmd->port = be_get_port_type(interface_type,
-						      dac_cable_len);
+			ecmd->port = be_get_port_type(adapter);
 
 			if (adapter->phy.auto_speeds_supported) {
 				ecmd->supported |= SUPPORTED_Autoneg;

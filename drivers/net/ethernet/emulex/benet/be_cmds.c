@@ -2296,6 +2296,31 @@ err_unlock:
 	return status;
 }
 
+int be_cmd_query_cable_type(struct be_adapter *adapter)
+{
+	u8 page_data[PAGE_DATA_LEN];
+	int status;
+
+	status = be_cmd_read_port_transceiver_data(adapter, TR_PAGE_A0,
+						   page_data);
+	if (!status) {
+		switch (adapter->phy.interface_type) {
+		case PHY_TYPE_QSFP:
+			adapter->phy.cable_type =
+				page_data[QSFP_PLUS_CABLE_TYPE_OFFSET];
+			break;
+		case PHY_TYPE_SFP_PLUS_10GB:
+			adapter->phy.cable_type =
+				page_data[SFP_PLUS_CABLE_TYPE_OFFSET];
+			break;
+		default:
+			adapter->phy.cable_type = 0;
+			break;
+		}
+	}
+	return status;
+}
+
 int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name)
 {
 	struct lancer_cmd_req_delete_object *req;

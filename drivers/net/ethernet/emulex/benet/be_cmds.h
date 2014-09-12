@@ -1014,8 +1014,16 @@ enum {
 	TR_PAGE_A2 = 0xa2
 };
 
+/* From SFF-8436 QSFP+ spec */
+#define	QSFP_PLUS_CABLE_TYPE_OFFSET	0x83
+#define	QSFP_PLUS_CR4_CABLE		0x8
+#define	QSFP_PLUS_SR4_CABLE		0x4
+#define	QSFP_PLUS_LR4_CABLE		0x2
+
 /* From SFF-8472 spec */
-#define	SFP_PLUS_SFF_8472_COMP	0x5E
+#define	SFP_PLUS_SFF_8472_COMP		0x5E
+#define	SFP_PLUS_CABLE_TYPE_OFFSET	0x8
+#define	SFP_PLUS_COPPER_CABLE		0x4
 
 #define PAGE_DATA_LEN   256
 struct be_cmd_resp_port_type {
@@ -1355,6 +1363,9 @@ enum {
 	PHY_TYPE_BASET_1GB,
 	PHY_TYPE_BASEX_1GB,
 	PHY_TYPE_SGMII,
+	PHY_TYPE_QSFP,
+	PHY_TYPE_KR4_40GB,
+	PHY_TYPE_KR2_20GB,
 	PHY_TYPE_DISABLED = 255
 };
 
@@ -1363,6 +1374,7 @@ enum {
 #define BE_SUPPORTED_SPEED_100MBPS	2
 #define BE_SUPPORTED_SPEED_1GBPS	4
 #define BE_SUPPORTED_SPEED_10GBPS	8
+#define BE_SUPPORTED_SPEED_40GBPS	0x20
 
 #define BE_AN_EN			0x2
 #define BE_PAUSE_SYM_EN			0x80
@@ -2056,6 +2068,7 @@ int be_cmd_get_beacon_state(struct be_adapter *adapter, u8 port_num,
 			    u32 *state);
 int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
 				      u8 page_num, u8 *data);
+int be_cmd_query_cable_type(struct be_adapter *adapter);
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			  u32 flash_oper, u32 flash_opcode, u32 buf_size);
 int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
