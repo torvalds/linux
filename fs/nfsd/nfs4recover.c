@@ -1067,6 +1067,8 @@ MODULE_PARM_DESC(cltrack_legacy_disable,
 
 #define LEGACY_TOPDIR_ENV_PREFIX "NFSDCLTRACK_LEGACY_TOPDIR="
 #define LEGACY_RECDIR_ENV_PREFIX "NFSDCLTRACK_LEGACY_RECDIR="
+#define HAS_SESSION_ENV_PREFIX "NFSDCLTRACK_CLIENT_HAS_SESSION="
+#define GRACE_START_ENV_PREFIX "NFSDCLTRACK_GRACE_START="
 
 static char *
 nfsd4_cltrack_legacy_topdir(void)
@@ -1131,10 +1133,60 @@ nfsd4_cltrack_legacy_recdir(const struct xdr_netobj *name)
 	return result;
 }
 
-static int
-nfsd4_umh_cltrack_upcall(char *cmd, char *arg, char *legacy)
+static char *
+nfsd4_cltrack_client_has_session(struct nfs4_client *clp)
 {
-	char *envp[2];
+	int copied;
+	size_t len;
+	char *result;
+
+	/* prefix + Y/N character + terminating NULL */
+	len = strlen(HAS_SESSION_ENV_PREFIX) + 1 + 1;
+
+	result = kmalloc(len, GFP_KERNEL);
+	if (!result)
+		return result;
+
+	copied = snprintf(result, len, HAS_SESSION_ENV_PREFIX "%c",
+				clp->cl_minorversion ? 'Y' : 'N');
+	if (copied >= len) {
+		/* just return nothing if output was truncated */
+		kfree(result);
+		return NULL;
+	}
+
+	return result;
+}
+
+static char *
+nfsd4_cltrack_grace_start(time_t grace_start)
+{
+	int copied;
+	size_t len;
+	char *result;
+
+	/* prefix + max width of int64_t string + terminating NULL */
+	len = strlen(GRACE_START_ENV_PREFIX) + 22 + 1;
+
+	result = kmalloc(len, GFP_KERNEL);
+	if (!result)
+		return result;
+
+	copied = snprintf(result, len, GRACE_START_ENV_PREFIX "%ld",
+				grace_start);
+	if (copied >= len) {
+		/* just return nothing if output was truncated */
+		kfree(result);
+		return NULL;
+	}
+
+	return result;
+}
+
+static int
+nfsd4_umh_cltrack_upcall(char *cmd, char *arg, char *env0, char *env1)
+{
+	char *envp[3];
 	char *argv[4];
 	int ret;
 
@@ -1145,10 +1197,12 @@ nfsd4_umh_cltrack_upcall(char *cmd, char *arg, char *legacy)
 
 	dprintk("%s: cmd: %s\n", __func__, cmd);
 	dprintk("%s: arg: %s\n", __func__, arg ? arg : "(null)");
-	dprintk("%s: legacy: %s\n", __func__, legacy ? legacy : "(null)");
+	dprintk("%s: env0: %s\n", __func__, env0 ? env0 : "(null)");
+	dprintk("%s: env1: %s\n", __func__, env1 ? env1 : "(null)");
 
-	envp[0] = legacy;
-	envp[1] = NULL;
+	envp[0] = env0;
+	envp[1] = env1;
+	envp[2] = NULL;
 
 	argv[0] = (char *)cltrack_prog;
 	argv[1] = cmd;
@@ -1192,28 +1246,40 @@ bin_to_hex_dup(const unsigned char *src, int srclen)
 }
 
 static int
-nfsd4_umh_cltrack_init(struct net __attribute__((unused)) *net)
+nfsd4_umh_cltrack_init(struct net *net)
 {
+	int ret;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	char *grace_start = nfsd4_cltrack_grace_start(nn->boot_time);
+
 	/* XXX: The usermode helper s not working in container yet. */
 	if (net != &init_net) {
 		WARN(1, KERN_ERR "NFSD: attempt to initialize umh client "
 			"tracking in a container!\n");
 		return -EINVAL;
 	}
-	return nfsd4_umh_cltrack_upcall("init", NULL, NULL);
+
+	ret = nfsd4_umh_cltrack_upcall("init", NULL, grace_start, NULL);
+	kfree(grace_start);
+	return ret;
 }
 
 static void
 nfsd4_umh_cltrack_create(struct nfs4_client *clp)
 {
-	char *hexid;
+	char *hexid, *has_session, *grace_start;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
 	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
 	if (!hexid) {
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
 		return;
 	}
-	nfsd4_umh_cltrack_upcall("create", hexid, NULL);
+	has_session = nfsd4_cltrack_client_has_session(clp);
+	grace_start = nfsd4_cltrack_grace_start(nn->boot_time);
+	nfsd4_umh_cltrack_upcall("create", hexid, has_session, grace_start);
+	kfree(has_session);
+	kfree(grace_start);
 	kfree(hexid);
 }
 
@@ -1227,7 +1293,7 @@ nfsd4_umh_cltrack_remove(struct nfs4_client *clp)
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
 		return;
 	}
-	nfsd4_umh_cltrack_upcall("remove", hexid, NULL);
+	nfsd4_umh_cltrack_upcall("remove", hexid, NULL, NULL);
 	kfree(hexid);
 }
 
@@ -1235,17 +1301,21 @@ static int
 nfsd4_umh_cltrack_check(struct nfs4_client *clp)
 {
 	int ret;
-	char *hexid, *legacy;
+	char *hexid, *has_session, *legacy;
 
 	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
 	if (!hexid) {
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
 		return -ENOMEM;
 	}
+
+	has_session = nfsd4_cltrack_client_has_session(clp);
 	legacy = nfsd4_cltrack_legacy_recdir(&clp->cl_name);
-	ret = nfsd4_umh_cltrack_upcall("check", hexid, legacy);
+	ret = nfsd4_umh_cltrack_upcall("check", hexid, has_session, legacy);
+	kfree(has_session);
 	kfree(legacy);
 	kfree(hexid);
+
 	return ret;
 }
 
@@ -1257,7 +1327,7 @@ nfsd4_umh_cltrack_grace_done(struct nfsd_net *nn)
 
 	sprintf(timestr, "%ld", nn->boot_time);
 	legacy = nfsd4_cltrack_legacy_topdir();
-	nfsd4_umh_cltrack_upcall("gracedone", timestr, legacy);
+	nfsd4_umh_cltrack_upcall("gracedone", timestr, legacy, NULL);
 	kfree(legacy);
 }
 
