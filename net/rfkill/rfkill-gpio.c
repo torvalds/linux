@@ -163,6 +163,7 @@ static const struct acpi_device_id rfkill_acpi_match[] = {
 	{ "LNV4752", RFKILL_TYPE_GPS },
 	{ },
 };
+MODULE_DEVICE_TABLE(acpi, rfkill_acpi_match);
 #endif
 
 static struct platform_driver rfkill_gpio_driver = {
