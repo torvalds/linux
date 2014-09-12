@@ -142,7 +142,7 @@ Table 1-1: Process specific entries in /proc
  wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
  pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
- smaps		a extension based on maps, showing the memory consumption of
+ smaps		An extension based on maps, showing the memory consumption of
 		each mapping and flags associated with it
 ..............................................................................
 
