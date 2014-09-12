@@ -709,7 +709,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type,
 		host_err = PTR_ERR(*filp);
 		*filp = NULL;
 	} else {
-		host_err = ima_file_check(*filp, may_flags);
+		host_err = ima_file_check(*filp, may_flags, 0);
 
 		if (may_flags & NFSD_MAY_64BIT_COOKIE)
 			(*filp)->f_mode |= FMODE_64BITHASH;

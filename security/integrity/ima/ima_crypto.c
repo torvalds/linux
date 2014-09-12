@@ -80,24 +80,24 @@ static int ima_kernel_read(struct file *file, loff_t offset,
 {
 	mm_segment_t old_fs;
 	char __user *buf = addr;
-	ssize_t ret;
+	ssize_t ret = -EINVAL;
 
 	if (!(file->f_mode & FMODE_READ))
 		return -EBADF;
-	if (!file->f_op->read && !file->f_op->aio_read)
-		return -EINVAL;
 
 	old_fs = get_fs();
 	set_fs(get_ds());
 	if (file->f_op->read)
 		ret = file->f_op->read(file, buf, count, &offset);
-	else
+	else if (file->f_op->aio_read)
 		ret = do_sync_read(file, buf, count, &offset);
+	else if (file->f_op->read_iter)
+		ret = new_sync_read(file, buf, count, &offset);
 	set_fs(old_fs);
 	return ret;
 }
 
-int ima_init_crypto(void)
+int __init ima_init_crypto(void)
 {
 	long rc;
 
@@ -116,7 +116,10 @@ static struct crypto_shash *ima_alloc_tfm(enum hash_algo algo)
 	struct crypto_shash *tfm = ima_shash_tfm;
 	int rc;
 
-	if (algo != ima_hash_algo && algo < HASH_ALGO__LAST) {
+	if (algo < 0 || algo >= HASH_ALGO__LAST)
+		algo = ima_hash_algo;
+
+	if (algo != ima_hash_algo) {
 		tfm = crypto_alloc_shash(hash_algo_name[algo], 0, 0);
 		if (IS_ERR(tfm)) {
 			rc = PTR_ERR(tfm);
@@ -200,7 +203,10 @@ static struct crypto_ahash *ima_alloc_atfm(enum hash_algo algo)
 	struct crypto_ahash *tfm = ima_ahash_tfm;
 	int rc;
 
-	if ((algo != ima_hash_algo && algo < HASH_ALGO__LAST) || !tfm) {
+	if (algo < 0 || algo >= HASH_ALGO__LAST)
+		algo = ima_hash_algo;
+
+	if (algo != ima_hash_algo || !tfm) {
 		tfm = crypto_alloc_ahash(hash_algo_name[algo], 0, 0);
 		if (!IS_ERR(tfm)) {
 			if (algo == ima_hash_algo)
