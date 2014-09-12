@@ -125,7 +125,8 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 {
 	u16 vid;
 
-	if (!br->vlan_enabled)
+	/* If this packet was not filtered at input, let it pass */
+	if (!BR_INPUT_SKB_CB(skb)->vlan_filtered)
 		goto out;
 
 	/* Vlan filter table must be configured at this point.  The
@@ -164,8 +165,10 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	/* If VLAN filtering is disabled on the bridge, all packets are
 	 * permitted.
 	 */
-	if (!br->vlan_enabled)
+	if (!br->vlan_enabled) {
+		BR_INPUT_SKB_CB(skb)->vlan_filtered = false;
 		return true;
+	}
 
 	/* If there are no vlan in the permitted list, all packets are
 	 * rejected.
@@ -173,6 +176,7 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	if (!v)
 		goto drop;
 
+	BR_INPUT_SKB_CB(skb)->vlan_filtered = true;
 	proto = br->vlan_proto;
 
 	/* If vlan tx offload is disabled on bridge device and frame was
@@ -251,7 +255,8 @@ bool br_allowed_egress(struct net_bridge *br,
 {
 	u16 vid;
 
-	if (!br->vlan_enabled)
+	/* If this packet was not filtered at input, let it pass */
+	if (!BR_INPUT_SKB_CB(skb)->vlan_filtered)
 		return true;
 
 	if (!v)
@@ -270,7 +275,8 @@ bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
 	struct net_bridge *br = p->br;
 	struct net_port_vlans *v;
 
-	if (!br->vlan_enabled)
+	/* If filtering was disabled at input, let it pass. */
+	if (!BR_INPUT_SKB_CB(skb)->vlan_filtered)
 		return true;
 
 	v = rcu_dereference(p->vlan_info);
