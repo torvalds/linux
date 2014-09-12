@@ -900,6 +900,8 @@ static inline void v4l2_ctrl_set_max_stores(struct v4l2_ctrl *ctrl, u16 max_stor
 	ctrl->max_stores = max_stores;
 }
 
+int v4l2_ctrl_apply_store(struct v4l2_ctrl_handler *hdl, unsigned store);
+
 /* Internal helper functions that deal with control events. */
 extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
 void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);

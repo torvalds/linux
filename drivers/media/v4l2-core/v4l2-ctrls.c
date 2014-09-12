@@ -1616,6 +1616,17 @@ static void cur_to_new(struct v4l2_ctrl *ctrl)
 	ptr_to_ptr(ctrl, ctrl->p_cur, ctrl->p_new);
 }
 
+static void store_to_new(struct v4l2_ctrl *ctrl, unsigned store)
+{
+	if (ctrl == NULL)
+		return;
+	if (store)
+		ptr_to_ptr(ctrl, ctrl->p_stores[store - 1], ctrl->p_new);
+	else
+		ptr_to_ptr(ctrl, ctrl->p_cur, ctrl->p_new);
+	ctrl->is_new = true;
+}
+
 /* Return non-zero if one or more of the controls in the cluster has a new
    value that differs from the current value. */
 static int cluster_changed(struct v4l2_ctrl *master)
@@ -3380,6 +3391,56 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
 	return set_ctrl(NULL, ctrl, 0);
 }
 EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_string);
+
+int v4l2_ctrl_apply_store(struct v4l2_ctrl_handler *hdl, unsigned store)
+{
+	struct v4l2_ctrl_ref *ref;
+	bool found_store = false;
+	unsigned i;
+
+	if (hdl == NULL || store == 0)
+		return -EINVAL;
+
+	mutex_lock(hdl->lock);
+
+	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+		struct v4l2_ctrl *master;
+
+		if (store > ref->ctrl->nr_of_stores)
+			continue;
+		found_store = true;
+		master = ref->ctrl->cluster[0];
+		if (ref->ctrl != master)
+			continue;
+		if (master->handler != hdl)
+			v4l2_ctrl_lock(master);
+		for (i = 0; i < master->ncontrols; i++)
+			store_to_new(master->cluster[i], store);
+
+		/* For volatile autoclusters that are currently in auto mode
+		   we need to discover if it will be set to manual mode.
+		   If so, then we have to copy the current volatile values
+		   first since those will become the new manual values (which
+		   may be overwritten by explicit new values from this set
+		   of controls). */
+		if (master->is_auto && master->has_volatiles &&
+						!is_cur_manual(master)) {
+			s32 new_auto_val = *master->p_stores[store - 1].p_s32;
+
+			/* If the new value == the manual value, then copy
+			   the current volatile values. */
+			if (new_auto_val == master->manual_mode_value)
+				update_from_auto_cluster(master);
+		}
+
+		try_or_set_cluster(NULL, master, 0, true, 0);
+		if (master->handler != hdl)
+			v4l2_ctrl_unlock(master);
+	}
+	mutex_unlock(hdl->lock);
+	return found_store ? 0 : -EINVAL;
+}
+EXPORT_SYMBOL(v4l2_ctrl_apply_store);
 
 void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv)
 {
