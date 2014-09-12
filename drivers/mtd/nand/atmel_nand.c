@@ -27,6 +27,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -95,6 +96,8 @@ struct atmel_nfc {
 	dma_addr_t		sram_bank0_phys;
 	bool			use_nfc_sram;
 	bool			write_by_sram;
+
+	struct clk		*clk;
 
 	bool			is_initialized;
 	struct completion	comp_ready;
@@ -2248,6 +2251,7 @@ static int atmel_nand_nfc_probe(struct platform_device *pdev)
 {
 	struct atmel_nfc *nfc = &nand_nfc;
 	struct resource *nfc_cmd_regs, *nfc_hsmc_regs, *nfc_sram;
+	int ret;
 
 	nfc_cmd_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	nfc->base_cmd_regs = devm_ioremap_resource(&pdev->dev, nfc_cmd_regs);
@@ -2279,8 +2283,28 @@ static int atmel_nand_nfc_probe(struct platform_device *pdev)
 	nfc_writel(nfc->hsmc_regs, IDR, 0xffffffff);
 	nfc_readl(nfc->hsmc_regs, SR);	/* clear the NFC_SR */
 
+	nfc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(nfc->clk)) {
+		ret = clk_prepare_enable(nfc->clk);
+		if (ret)
+			return ret;
+	} else {
+		dev_warn(&pdev->dev, "NFC clock missing, update your Device Tree");
+	}
+
 	nfc->is_initialized = true;
 	dev_info(&pdev->dev, "NFC is probed.\n");
+
+	return 0;
+}
+
+static int atmel_nand_nfc_remove(struct platform_device *pdev)
+{
+	struct atmel_nfc *nfc = &nand_nfc;
+
+	if (!IS_ERR(nfc->clk))
+		clk_disable_unprepare(nfc->clk);
+
 	return 0;
 }
 
@@ -2297,6 +2321,7 @@ static struct platform_driver atmel_nand_nfc_driver = {
 		.of_match_table = of_match_ptr(atmel_nand_nfc_match),
 	},
 	.probe = atmel_nand_nfc_probe,
+	.remove = atmel_nand_nfc_remove,
 };
 
 static struct platform_driver atmel_nand_driver = {
