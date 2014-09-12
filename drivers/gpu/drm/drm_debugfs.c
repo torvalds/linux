@@ -36,6 +36,7 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
+#include "drm_internal.h"
 
 #if defined(CONFIG_DEBUG_FS)
 

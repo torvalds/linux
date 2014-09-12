@@ -36,6 +36,7 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 #include "drm_legacy.h"
+#include "drm_internal.h"
 
 static int drm_notifier(void *priv);
 

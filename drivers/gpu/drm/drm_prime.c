@@ -29,6 +29,7 @@
 #include <linux/export.h>
 #include <linux/dma-buf.h>
 #include <drm/drmP.h>
+#include "drm_internal.h"
 
 /*
  * DMA-BUF/GEM Object references and lifetime overview:

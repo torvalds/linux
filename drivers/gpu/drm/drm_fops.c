@@ -39,10 +39,10 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include "drm_legacy.h"
+#include "drm_internal.h"
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
-EXPORT_SYMBOL(drm_global_mutex);
 
 static int drm_open_helper(struct file *filp, struct drm_minor *minor);
 
@@ -404,7 +404,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		drm_master_release(dev, filp);
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		drm_core_reclaim_buffers(dev, file_priv);
+		drm_legacy_reclaim_buffers(dev, file_priv);
 
 	drm_events_release(file_priv);
 

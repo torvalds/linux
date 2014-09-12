@@ -29,6 +29,7 @@
  * drivers use them, and removing them are API breaks.
  */
 #include <linux/list.h>
+#include <drm/drm_legacy.h>
 
 struct agp_memory;
 struct drm_device;
@@ -71,6 +72,8 @@ int drm_legacy_freebufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_mapbufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_dma_ioctl(struct drm_device *d, void *v, struct drm_file *f);
 
+void drm_legacy_vma_flush(struct drm_device *d);
+
 /*
  * AGP Support
  */
@@ -91,5 +94,20 @@ int drm_legacy_i_have_hw_lock(struct drm_device *d, struct drm_file *f);
 int drm_legacy_lock(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_unlock(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_lock_free(struct drm_lock_data *lock, unsigned int ctx);
+
+/* DMA support */
+int drm_legacy_dma_setup(struct drm_device *dev);
+void drm_legacy_dma_takedown(struct drm_device *dev);
+void drm_legacy_free_buffer(struct drm_device *dev,
+			    struct drm_buf * buf);
+void drm_legacy_reclaim_buffers(struct drm_device *dev,
+				struct drm_file *filp);
+
+/* Scatter Gather Support */
+void drm_legacy_sg_cleanup(struct drm_device *dev);
+int drm_legacy_sg_alloc(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int drm_legacy_sg_free(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv);
 
 #endif /* __DRM_LEGACY_H__ */

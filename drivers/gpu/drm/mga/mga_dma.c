@@ -566,9 +566,9 @@ static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
 		return err;
 	}
 
-	drm_core_ioremap(dev_priv->warp, dev);
-	drm_core_ioremap(dev_priv->primary, dev);
-	drm_core_ioremap(dev->agp_buffer_map, dev);
+	drm_legacy_ioremap(dev_priv->warp, dev);
+	drm_legacy_ioremap(dev_priv->primary, dev);
+	drm_legacy_ioremap(dev->agp_buffer_map, dev);
 
 	if (!dev_priv->warp->handle ||
 	    !dev_priv->primary->handle || !dev->agp_buffer_map->handle) {
@@ -821,37 +821,37 @@ static int mga_do_init_dma(struct drm_device *dev, drm_mga_init_t *init)
 		dev_priv->dma_access = MGA_PAGPXFER;
 		dev_priv->wagp_enable = MGA_WAGP_ENABLE;
 
-		dev_priv->status = drm_core_findmap(dev, init->status_offset);
+		dev_priv->status = drm_legacy_findmap(dev, init->status_offset);
 		if (!dev_priv->status) {
 			DRM_ERROR("failed to find status page!\n");
 			return -EINVAL;
 		}
-		dev_priv->mmio = drm_core_findmap(dev, init->mmio_offset);
+		dev_priv->mmio = drm_legacy_findmap(dev, init->mmio_offset);
 		if (!dev_priv->mmio) {
 			DRM_ERROR("failed to find mmio region!\n");
 			return -EINVAL;
 		}
-		dev_priv->warp = drm_core_findmap(dev, init->warp_offset);
+		dev_priv->warp = drm_legacy_findmap(dev, init->warp_offset);
 		if (!dev_priv->warp) {
 			DRM_ERROR("failed to find warp microcode region!\n");
 			return -EINVAL;
 		}
-		dev_priv->primary = drm_core_findmap(dev, init->primary_offset);
+		dev_priv->primary = drm_legacy_findmap(dev, init->primary_offset);
 		if (!dev_priv->primary) {
 			DRM_ERROR("failed to find primary dma region!\n");
 			return -EINVAL;
 		}
 		dev->agp_buffer_token = init->buffers_offset;
 		dev->agp_buffer_map =
-		    drm_core_findmap(dev, init->buffers_offset);
+		    drm_legacy_findmap(dev, init->buffers_offset);
 		if (!dev->agp_buffer_map) {
 			DRM_ERROR("failed to find dma buffer region!\n");
 			return -EINVAL;
 		}
 
-		drm_core_ioremap(dev_priv->warp, dev);
-		drm_core_ioremap(dev_priv->primary, dev);
-		drm_core_ioremap(dev->agp_buffer_map, dev);
+		drm_legacy_ioremap(dev_priv->warp, dev);
+		drm_legacy_ioremap(dev_priv->primary, dev);
+		drm_legacy_ioremap(dev->agp_buffer_map, dev);
 	}
 
 	dev_priv->sarea_priv =
@@ -937,14 +937,14 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 
 		if ((dev_priv->warp != NULL)
 		    && (dev_priv->warp->type != _DRM_CONSISTENT))
-			drm_core_ioremapfree(dev_priv->warp, dev);
+			drm_legacy_ioremapfree(dev_priv->warp, dev);
 
 		if ((dev_priv->primary != NULL)
 		    && (dev_priv->primary->type != _DRM_CONSISTENT))
-			drm_core_ioremapfree(dev_priv->primary, dev);
+			drm_legacy_ioremapfree(dev_priv->primary, dev);
 
 		if (dev->agp_buffer_map != NULL)
-			drm_core_ioremapfree(dev->agp_buffer_map, dev);
+			drm_legacy_ioremapfree(dev->agp_buffer_map, dev);
 
 		if (dev_priv->used_new_dma_init) {
 #if __OS_HAS_AGP

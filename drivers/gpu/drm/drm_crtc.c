@@ -40,6 +40,7 @@
 #include <drm/drm_modeset_lock.h>
 
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
 
 static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
 							struct drm_mode_fb_cmd2 *r,

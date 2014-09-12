@@ -706,7 +706,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 		return -EINVAL;
 	}
 	if (init->status_offset != 0) {
-		dev_priv->status = drm_core_findmap(dev, init->status_offset);
+		dev_priv->status = drm_legacy_findmap(dev, init->status_offset);
 		if (!dev_priv->status) {
 			DRM_ERROR("could not find shadow status region!\n");
 			savage_do_cleanup_bci(dev);
@@ -717,14 +717,14 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 	}
 	if (dev_priv->dma_type == SAVAGE_DMA_AGP && init->buffers_offset) {
 		dev->agp_buffer_token = init->buffers_offset;
-		dev->agp_buffer_map = drm_core_findmap(dev,
+		dev->agp_buffer_map = drm_legacy_findmap(dev,
 						       init->buffers_offset);
 		if (!dev->agp_buffer_map) {
 			DRM_ERROR("could not find DMA buffer region!\n");
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
 		}
-		drm_core_ioremap(dev->agp_buffer_map, dev);
+		drm_legacy_ioremap(dev->agp_buffer_map, dev);
 		if (!dev->agp_buffer_map->handle) {
 			DRM_ERROR("failed to ioremap DMA buffer region!\n");
 			savage_do_cleanup_bci(dev);
@@ -733,7 +733,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 	}
 	if (init->agp_textures_offset) {
 		dev_priv->agp_textures =
-		    drm_core_findmap(dev, init->agp_textures_offset);
+		    drm_legacy_findmap(dev, init->agp_textures_offset);
 		if (!dev_priv->agp_textures) {
 			DRM_ERROR("could not find agp texture region!\n");
 			savage_do_cleanup_bci(dev);
@@ -756,7 +756,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
 		}
-		dev_priv->cmd_dma = drm_core_findmap(dev, init->cmd_dma_offset);
+		dev_priv->cmd_dma = drm_legacy_findmap(dev, init->cmd_dma_offset);
 		if (!dev_priv->cmd_dma) {
 			DRM_ERROR("could not find command DMA region!\n");
 			savage_do_cleanup_bci(dev);
@@ -769,7 +769,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 				savage_do_cleanup_bci(dev);
 				return -EINVAL;
 			}
-			drm_core_ioremap(dev_priv->cmd_dma, dev);
+			drm_legacy_ioremap(dev_priv->cmd_dma, dev);
 			if (!dev_priv->cmd_dma->handle) {
 				DRM_ERROR("failed to ioremap command "
 					  "DMA region!\n");
@@ -895,11 +895,11 @@ static int savage_do_cleanup_bci(struct drm_device * dev)
 	} else if (dev_priv->cmd_dma && dev_priv->cmd_dma->handle &&
 		   dev_priv->cmd_dma->type == _DRM_AGP &&
 		   dev_priv->dma_type == SAVAGE_DMA_AGP)
-		drm_core_ioremapfree(dev_priv->cmd_dma, dev);
+		drm_legacy_ioremapfree(dev_priv->cmd_dma, dev);
 
 	if (dev_priv->dma_type == SAVAGE_DMA_AGP &&
 	    dev->agp_buffer_map && dev->agp_buffer_map->handle) {
-		drm_core_ioremapfree(dev->agp_buffer_map, dev);
+		drm_legacy_ioremapfree(dev->agp_buffer_map, dev);
 		/* make sure the next instance (which may be running
 		 * in PCI mode) doesn't try to use an old
 		 * agp_buffer_map. */

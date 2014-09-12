@@ -272,7 +272,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 				dmah.vaddr = map->handle;
 				dmah.busaddr = map->offset;
 				dmah.size = map->size;
-				__drm_pci_free(dev, &dmah);
+				__drm_legacy_pci_free(dev, &dmah);
 				break;
 			}
 			kfree(map);
