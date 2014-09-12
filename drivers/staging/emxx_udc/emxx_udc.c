@@ -2165,7 +2165,7 @@ static inline void _nbu2ss_epn_int(struct nbu2ss_udc *udc, u32 epnum)
 		req = list_entry(ep->queue.next, struct nbu2ss_req, queue);
 
 	if (req == NULL) {
-		/* pr_warning("=== %s(%d) req == NULL\n", __func__, epnum); */
+		/* pr_warn("=== %s(%d) req == NULL\n", __func__, epnum); */
 		return;
 	}
 
@@ -3099,7 +3099,7 @@ static int nbu2ss_gad_wakeup(struct usb_gadget *pgadget)
 
 	data = gpio_get_value(VBUS_VALUE);
 	if (data == 0) {
-		pr_warning("VBUS LEVEL = %d\n", data);
+		pr_warn("VBUS LEVEL = %d\n", data);
 		return -EINVAL;
 	}
 
@@ -3185,7 +3185,7 @@ static int nbu2ss_gad_pullup(struct usb_gadget *pgadget, int is_on)
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
 
 	if (udc->driver == NULL) {
-		pr_warning("%s, Not Regist Driver\n", __func__);
+		pr_warn("%s, Not Regist Driver\n", __func__);
 		return -EINVAL;
 	}
 
