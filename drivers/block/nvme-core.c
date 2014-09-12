@@ -1732,10 +1732,10 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	return status;
 }
 
-static int nvme_user_admin_cmd(struct nvme_dev *dev,
-					struct nvme_admin_cmd __user *ucmd)
+static int nvme_user_cmd(struct nvme_dev *dev,
+			struct nvme_passthru_cmd __user *ucmd, bool ioq)
 {
-	struct nvme_admin_cmd cmd;
+	struct nvme_passthru_cmd cmd;
 	struct nvme_command c;
 	int status, length;
 	struct nvme_iod *uninitialized_var(iod);
@@ -1774,6 +1774,9 @@ static int nvme_user_admin_cmd(struct nvme_dev *dev,
 								ADMIN_TIMEOUT;
 	if (length != cmd.data_len)
 		status = -ENOMEM;
+	else if (ioq)
+		status = nvme_submit_sync_cmd(dev, this_cpu_read(*dev->io_queue), &c,
+							&cmd.result, timeout);
 	else
 		status = nvme_submit_sync_cmd(dev, 0, &c, &cmd.result, timeout);
 
@@ -1799,7 +1802,9 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 		force_successful_syscall_return();
 		return ns->ns_id;
 	case NVME_IOCTL_ADMIN_CMD:
-		return nvme_user_admin_cmd(ns->dev, (void __user *)arg);
+		return nvme_user_cmd(ns->dev, (void __user *)arg, false);
+	case NVME_IOCTL_IO_CMD:
+		return nvme_user_cmd(ns->dev, (void __user *)arg, true);
 	case NVME_IOCTL_SUBMIT_IO:
 		return nvme_submit_io(ns, (void __user *)arg);
 	case SG_GET_VERSION_NUM:
@@ -2743,7 +2748,9 @@ static long nvme_dev_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	struct nvme_dev *dev = f->private_data;
 	switch (cmd) {
 	case NVME_IOCTL_ADMIN_CMD:
-		return nvme_user_admin_cmd(dev, (void __user *)arg);
+		return nvme_user_cmd(dev, (void __user *)arg, false);
+	case NVME_IOCTL_IO_CMD:
+		return nvme_user_cmd(dev, (void __user *)arg, true);
 	default:
 		return -ENOTTY;
 	}
