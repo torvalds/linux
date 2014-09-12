@@ -1621,6 +1621,11 @@ static int fec_enet_clk_enable(struct net_device *ndev, bool enable)
 			}
 			mutex_unlock(&fep->ptp_clk_mutex);
 		}
+		if (fep->clk_ref) {
+			ret = clk_prepare_enable(fep->clk_ref);
+			if (ret)
+				goto failed_clk_ref;
+		}
 	} else {
 		clk_disable_unprepare(fep->clk_ahb);
 		clk_disable_unprepare(fep->clk_ipg);
@@ -1632,9 +1637,15 @@ static int fec_enet_clk_enable(struct net_device *ndev, bool enable)
 			fep->ptp_clk_on = false;
 			mutex_unlock(&fep->ptp_clk_mutex);
 		}
+		if (fep->clk_ref)
+			clk_disable_unprepare(fep->clk_ref);
 	}
 
 	return 0;
+
+failed_clk_ref:
+	if (fep->clk_ref)
+		clk_disable_unprepare(fep->clk_ref);
 failed_clk_ptp:
 	if (fep->clk_enet_out)
 		clk_disable_unprepare(fep->clk_enet_out);
@@ -2637,6 +2648,12 @@ fec_probe(struct platform_device *pdev)
 
 	fep->ptp_clk_on = false;
 	mutex_init(&fep->ptp_clk_mutex);
+
+	/* clk_ref is optional, depends on board */
+	fep->clk_ref = devm_clk_get(&pdev->dev, "enet_clk_ref");
+	if (IS_ERR(fep->clk_ref))
+		fep->clk_ref = NULL;
+
 	fep->clk_ptp = devm_clk_get(&pdev->dev, "ptp");
 	fep->bufdesc_ex =
 		pdev->id_entry->driver_data & FEC_QUIRK_HAS_BUFDESC_EX;

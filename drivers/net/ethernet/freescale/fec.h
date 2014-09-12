@@ -272,6 +272,7 @@ struct fec_enet_private {
 
 	struct clk *clk_ipg;
 	struct clk *clk_ahb;
+	struct clk *clk_ref;
 	struct clk *clk_enet_out;
 	struct clk *clk_ptp;
 
