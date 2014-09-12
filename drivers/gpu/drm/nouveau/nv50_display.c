@@ -1066,7 +1066,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	u32 vscan = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
 	u32 hactive, hsynce, hbackp, hfrontp, hblanke, hblanks;
 	u32 vactive, vsynce, vbackp, vfrontp, vblanke, vblanks;
-	u32 vblan2e = 0, vblan2s = 1;
+	u32 vblan2e = 0, vblan2s = 1, vblankus = 0;
 	u32 *push;
 	int ret;
 
@@ -1083,6 +1083,11 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	vblanke = vsynce + vbackp;
 	vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
 	vblanks = vactive - vfrontp - 1;
+	/* XXX: Safe underestimate, even "0" works */
+	vblankus = (vactive - mode->vdisplay - 2) * hactive;
+	vblankus *= 1000;
+	vblankus /= mode->clock;
+
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		vblan2e = vactive + vsynce + vbackp;
 		vblan2s = vblan2e + (mode->vdisplay * vscan / ilace);
@@ -1099,14 +1104,14 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 			evo_mthd(push, 0x0804 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00800000 | mode->clock);
 			evo_data(push, (ilace == 2) ? 2 : 0);
-			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 6);
+			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 8);
 			evo_data(push, 0x00000000);
 			evo_data(push, (vactive << 16) | hactive);
 			evo_data(push, ( vsynce << 16) | hsynce);
 			evo_data(push, (vblanke << 16) | hblanke);
 			evo_data(push, (vblanks << 16) | hblanks);
 			evo_data(push, (vblan2e << 16) | vblan2s);
-			evo_mthd(push, 0x082c + (nv_crtc->index * 0x400), 1);
+			evo_data(push, vblankus);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0900 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00000311);
