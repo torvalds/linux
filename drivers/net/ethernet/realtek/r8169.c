@@ -1796,7 +1796,7 @@ static void __rtl8169_set_features(struct net_device *dev,
 		else
 			tp->cp_cmd &= ~RxChkSum;
 
-		if (dev->features & NETIF_F_HW_VLAN_CTAG_RX)
+		if (features & NETIF_F_HW_VLAN_CTAG_RX)
 			tp->cp_cmd |= RxVlan;
 		else
 			tp->cp_cmd &= ~RxVlan;
