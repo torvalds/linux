@@ -405,11 +405,11 @@ nva3_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	ram->fuc.r_0x100714 = ramfuc_reg(0x100714);
 	ram->fuc.r_0x100718 = ramfuc_reg(0x100718);
 	ram->fuc.r_0x10071c = ramfuc_reg(0x10071c);
-	ram->fuc.r_0x100760 = ramfuc_reg(0x100760);
-	ram->fuc.r_0x1007a0 = ramfuc_reg(0x1007a0);
-	ram->fuc.r_0x1007e0 = ramfuc_reg(0x1007e0);
+	ram->fuc.r_0x100760 = ramfuc_stride(0x100760, 4, ram->base.part_mask);
+	ram->fuc.r_0x1007a0 = ramfuc_stride(0x1007a0, 4, ram->base.part_mask);
+	ram->fuc.r_0x1007e0 = ramfuc_stride(0x1007e0, 4, ram->base.part_mask);
 	ram->fuc.r_0x10f804 = ramfuc_reg(0x10f804);
-	ram->fuc.r_0x1110e0 = ramfuc_reg(0x1110e0);
+	ram->fuc.r_0x1110e0 = ramfuc_stride(0x1110e0, 4, ram->base.part_mask);
 	ram->fuc.r_0x111100 = ramfuc_reg(0x111100);
 	ram->fuc.r_0x111104 = ramfuc_reg(0x111104);
 	ram->fuc.r_0x611200 = ramfuc_reg(0x611200);
