@@ -8258,8 +8258,10 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 		intel_crtc->cursor_cntl = 0;
 	}
 
-	if (intel_crtc->cursor_base != base)
+	if (intel_crtc->cursor_base != base) {
 		I915_WRITE(_CURABASE, base);
+		intel_crtc->cursor_base = base;
+	}
 
 	if (intel_crtc->cursor_size != size) {
 		I915_WRITE(CURSIZE, size);
@@ -8312,6 +8314,8 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 	/* and commit changes on next vblank */
 	I915_WRITE(CURBASE(pipe), base);
 	POSTING_READ(CURBASE(pipe));
+
+	intel_crtc->cursor_base = base;
 }
 
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
@@ -8362,7 +8366,6 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		i845_update_cursor(crtc, base);
 	else
 		i9xx_update_cursor(crtc, base);
-	intel_crtc->cursor_base = base;
 }
 
 static bool cursor_size_ok(struct drm_device *dev,
