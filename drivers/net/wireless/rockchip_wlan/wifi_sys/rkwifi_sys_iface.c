@@ -17,6 +17,7 @@ static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, c
     int count = 0;
     int type = get_wifi_chip_type();
 
+if(type == WIFI_RTKWIFI) {
 #ifdef CONFIG_RTL8192CU
     count = sprintf(_buf, "%s", "RTL8188CU");
     printk("Current WiFi chip is RTL8188CU.\n");
@@ -27,12 +28,10 @@ static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, c
     printk("Current WiFi chip is RTL8192DU.\n");
 #endif
 
-if(type == WIFI_RTL8188EU) {
 #ifdef CONFIG_RTL8188EU
     count = sprintf(_buf, "%s", "RTL8188EU");
     printk("Current WiFi chip is RTL8188EU.\n");
 #endif
-}
 
 #ifdef CONFIG_RTL8723AU
     count = sprintf(_buf, "%s", "RTL8723AU");
@@ -44,7 +43,13 @@ if(type == WIFI_RTL8188EU) {
     printk("Current WiFi chip is RTL8723BS.\n");
 #endif
 
-if(type == WIFI_RKWIFI) {
+#ifdef CONFIG_RTL8189ES
+    count = sprintf(_buf, "%s", "RTL8189ES");
+    printk("Current WiFi chip is RTL8189ES.\n");
+#endif
+}
+
+if(type == WIFI_BCMWIFI) {
 #ifdef CONFIG_BCM4330
     count = sprintf(_buf, "%s", "BCM4330");
     printk("Current WiFi chip is BCM4330.\n");
@@ -163,8 +168,8 @@ extern int rockchip_wifi_init_module(void);
 extern void rockchip_wifi_exit_module(void);
 extern int rockchip_wifi_init_module_rkwifi(void);
 extern void rockchip_wifi_exit_module_rkwifi(void);
-extern int rockchip_wifi_init_module_rtl8188eu(void);
-extern void rockchip_wifi_exit_module_rtl8188eu(void);
+extern int rockchip_wifi_init_module_rtkwifi(void);
+extern void rockchip_wifi_exit_module_rtkwifi(void);
 extern int rockchip_wifi_init_module_esp8089(void);
 extern void rockchip_wifi_exit_module_esp8089(void);
 #endif
@@ -176,7 +181,7 @@ static int wifi_init_exit_module(int enable)
     int ret = 0;
     int type = get_wifi_chip_type();
 #ifdef CONFIG_RKWIFI
-    if (type == WIFI_RKWIFI) {
+    if (type == WIFI_BCMWIFI) {
         if (enable > 0)
             ret = rockchip_wifi_init_module_rkwifi();
         else
@@ -184,12 +189,12 @@ static int wifi_init_exit_module(int enable)
         return ret;
     }
 #endif
-#ifdef CONFIG_RTL8188EU
-    if (type == WIFI_RTL8188EU) {
+#ifdef CONFIG_RTL_WIRELESS_SOLUTION
+    if (type == WIFI_RTKWIFI) {
         if (enable > 0) 
-            ret = rockchip_wifi_init_module_rtl8188eu();
+            ret = rockchip_wifi_init_module_rtkwifi();
         else
-            rockchip_wifi_exit_module_rtl8188eu();
+            rockchip_wifi_exit_module_rtkwifi();
         return ret;
     }
 #endif
@@ -203,7 +208,7 @@ static int wifi_init_exit_module(int enable)
     }
 #endif
 
-#if !defined(CONFIG_RKWIFI) && !defined(CONFIG_RTL8188EU) && !defined(CONFIG_ESP8089)
+#if !defined(CONFIG_RKWIFI) && !defined(CONFIG_RTL_WIRELESS_SOLUTION) && !defined(CONFIG_ESP8089)
     if (type >= 0) {
         if (enable > 0)
             ret = rockchip_wifi_init_module();

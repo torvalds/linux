@@ -41,10 +41,10 @@ struct rksdmmc_gpio_wifi_moudle {
 };
 
 enum {
-    WIFI_RKWIFI,
-    WIFI_RTL8188EU,
+    WIFI_BCMWIFI,
+    WIFI_RTKWIFI,
     WIFI_ESP8089,
-    WIFI_RTL8723BS
+    TYPE_MAX,
 };
 
 int rfkill_get_wifi_power_state(int *power, int *vref_ctrl_enable);

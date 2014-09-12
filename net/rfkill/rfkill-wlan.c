@@ -96,15 +96,13 @@ int get_wifi_chip_type(void)
 {
     int type;
     if (strcmp(wifi_chip_type_string, "rkwifi") == 0) {
-        type = WIFI_RKWIFI;
-    } else if (strcmp(wifi_chip_type_string, "rtl8188eu") == 0) {
-        type = WIFI_RTL8188EU;
+        type = WIFI_BCMWIFI;
+    } else if (strcmp(wifi_chip_type_string, "rtkwifi") == 0) {
+        type = WIFI_RTKWIFI;
     } else if (strcmp(wifi_chip_type_string, "esp8089") == 0) {
         type = WIFI_ESP8089;
-    } else if (strcmp(wifi_chip_type_string, "rtl8723bs") == 0) {
-        type = WIFI_RTL8723BS; 
     } else {
-        type = WIFI_RKWIFI;
+        type = WIFI_BCMWIFI;
     }
     return type;
 }
@@ -445,7 +443,7 @@ int rockchip_wifi_set_carddetect(int val)
 	chip = get_wifi_chip_type();
 
 	/*  irq_type : 0, oob; 1, cap-sdio-irq */
-	if (chip == WIFI_RKWIFI)
+	if (chip == WIFI_BCMWIFI)
 		irq_type = 0;
 	else
 		irq_type = 1;
@@ -630,11 +628,11 @@ static int wlan_platdata_parse_dt(struct device *dev,
 
     ret = of_property_read_string(node, "wifi_chip_type", &strings);
     if (ret) {
-        printk("%s: Can not read wifi_chip_type, set default to rkwifi.\n", __func__);
+        LOG("%s: Can not read wifi_chip_type, set default to rkwifi.\n", __func__);
         strcpy(wifi_chip_type_string, "rkwifi");
     }
     strcpy(wifi_chip_type_string, strings);
-    printk("%s: wifi_chip_type = %s\n", __func__, wifi_chip_type_string);
+    LOG("%s: wifi_chip_type = %s\n", __func__, wifi_chip_type_string);
 
 	if(cpu_is_rk3036() || cpu_is_rk312x()){
 		/* ret = of_property_read_u32(node, "sdio_vref", &value);

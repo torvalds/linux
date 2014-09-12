@@ -13,10 +13,14 @@
     wireless-wlan {
         compatible = "wlan-platdata";
 
-        wifi_chip_type = "rkwifi"; // rkwifi, like ap6xxx, rk90x
-                             // rtl8188eu
-                             // esp8089
-                             // other, for other wifi
+        /* wifi_chip_type - wifi chip define
+         * bcmwifi ==> like ap6xxx, rk90x;
+         * rtkwifi ==> like rtl8188xx, rtl8723xx;
+         * esp8089 ==> esp8089;
+         * other   ==> for other wifi;
+         */
+        wifi_chip_type = "bcmwifi";
+
         sdio_vref = <1800>; //1800mv or 3300mv
 
         //power_ctrl_by_pmu;
