@@ -537,6 +537,7 @@ static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
 static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	bool skip_beacon = false;
 
 	if (skb->len < 24 + 8 + 2 + 2)
 		return;
@@ -547,7 +548,14 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		sc->ps_flags &= ~PS_BEACON_SYNC;
 		ath_dbg(common, PS,
 			"Reconfigure beacon timers based on synchronized timestamp\n");
-		if (!(WARN_ON_ONCE(sc->cur_chan->beacon.beacon_interval == 0)))
+
+		if (ath9k_is_chanctx_enabled()) {
+			if (sc->cur_chan == &sc->offchannel.chan)
+				skip_beacon = true;
+		}
+
+		if (!skip_beacon &&
+		    !(WARN_ON_ONCE(sc->cur_chan->beacon.beacon_interval == 0)))
 			ath9k_set_beacon(sc);
 
 		ath9k_p2p_beacon_sync(sc);
