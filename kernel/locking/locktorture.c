@@ -265,6 +265,71 @@ static struct lock_torture_ops mutex_lock_ops = {
 	.name		= "mutex_lock"
 };
 
+static DECLARE_RWSEM(torture_rwsem);
+static int torture_rwsem_down_write(void) __acquires(torture_rwsem)
+{
+	down_write(&torture_rwsem);
+	return 0;
+}
+
+static void torture_rwsem_write_delay(struct torture_random_state *trsp)
+{
+	const unsigned long longdelay_ms = 100;
+
+	/* We want a long delay occasionally to force massive contention.  */
+	if (!(torture_random(trsp) %
+	      (nrealwriters_stress * 2000 * longdelay_ms)))
+		mdelay(longdelay_ms * 10);
+	else
+		mdelay(longdelay_ms / 10);
+#ifdef CONFIG_PREEMPT
+	if (!(torture_random(trsp) % (nrealwriters_stress * 20000)))
+		preempt_schedule();  /* Allow test to be preempted. */
+#endif
+}
+
+static void torture_rwsem_up_write(void) __releases(torture_rwsem)
+{
+	up_write(&torture_rwsem);
+}
+
+static int torture_rwsem_down_read(void) __acquires(torture_rwsem)
+{
+	down_read(&torture_rwsem);
+	return 0;
+}
+
+static void torture_rwsem_read_delay(struct torture_random_state *trsp)
+{
+	const unsigned long longdelay_ms = 100;
+
+	/* We want a long delay occasionally to force massive contention.  */
+	if (!(torture_random(trsp) %
+	      (nrealwriters_stress * 2000 * longdelay_ms)))
+		mdelay(longdelay_ms * 2);
+	else
+		mdelay(longdelay_ms / 2);
+#ifdef CONFIG_PREEMPT
+	if (!(torture_random(trsp) % (nrealreaders_stress * 20000)))
+		preempt_schedule();  /* Allow test to be preempted. */
+#endif
+}
+
+static void torture_rwsem_up_read(void) __releases(torture_rwsem)
+{
+	up_read(&torture_rwsem);
+}
+
+static struct lock_torture_ops rwsem_lock_ops = {
+	.writelock	= torture_rwsem_down_write,
+	.write_delay	= torture_rwsem_write_delay,
+	.writeunlock	= torture_rwsem_up_write,
+	.readlock       = torture_rwsem_down_read,
+	.read_delay     = torture_rwsem_read_delay,
+	.readunlock     = torture_rwsem_up_read,
+	.name		= "rwsem_lock"
+};
+
 /*
  * Lock torture writer kthread.  Repeatedly acquires and releases
  * the lock, checking for duplicate acquisitions.
@@ -467,7 +532,8 @@ static int __init lock_torture_init(void)
 	int i, j;
 	int firsterr = 0;
 	static struct lock_torture_ops *torture_ops[] = {
-		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops, &mutex_lock_ops,
+		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops,
+		&mutex_lock_ops, &rwsem_lock_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose, &torture_runnable))
