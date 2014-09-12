@@ -1112,7 +1112,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
                          */
                         if ((div == 0) &&
                                 (host->mmc->caps & (MMC_CAP_1_8V_DDR | MMC_CAP_1_2V_DDR)) &&
-                                !(host->mmc->caps & MMC_CAP2_HS200)) {
+                                !(host->mmc->caps2 & MMC_CAP2_HS200)) {
                                 /*  Fixup DDR MMC */
                                 div = 1;
                                 host->set_div = div;
