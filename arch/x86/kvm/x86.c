@@ -1521,7 +1521,7 @@ static void kvm_gen_update_masterclock(struct kvm *kvm)
 	pvclock_update_vm_gtod_copy(kvm);
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
-		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+		kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 
 	/* guest entries allowed */
 	kvm_for_each_vcpu(i, vcpu, kvm)
@@ -1664,7 +1664,7 @@ static void kvmclock_update_fn(struct work_struct *work)
 	struct kvm_vcpu *vcpu;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+		kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 		kvm_vcpu_kick(vcpu);
 	}
 }
@@ -1673,7 +1673,7 @@ static void kvm_gen_kvmclock_update(struct kvm_vcpu *v)
 {
 	struct kvm *kvm = v->kvm;
 
-	set_bit(KVM_REQ_CLOCK_UPDATE, &v->requests);
+	kvm_make_request(KVM_REQ_CLOCK_UPDATE, v);
 	schedule_delayed_work(&kvm->arch.kvmclock_update_work,
 					KVMCLOCK_UPDATE_DELAY);
 }
@@ -2849,7 +2849,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (unlikely(vcpu->arch.tsc_offset_adjustment)) {
 		adjust_tsc_offset_host(vcpu, vcpu->arch.tsc_offset_adjustment);
 		vcpu->arch.tsc_offset_adjustment = 0;
-		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+		kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 	}
 
 	if (unlikely(vcpu->cpu != cpu) || check_tsc_unstable()) {
@@ -5606,7 +5606,7 @@ static void pvclock_gtod_update_fn(struct work_struct *work)
 	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
 		kvm_for_each_vcpu(i, vcpu, kvm)
-			set_bit(KVM_REQ_MASTERCLOCK_UPDATE, &vcpu->requests);
+			kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
 	atomic_set(&kvm_guest_has_master_clock, 0);
 	spin_unlock(&kvm_lock);
 }
@@ -6984,7 +6984,7 @@ int kvm_arch_hardware_enable(void)
 	list_for_each_entry(kvm, &vm_list, vm_list) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			if (!stable && vcpu->cpu == smp_processor_id())
-				set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+				kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 			if (stable && vcpu->arch.last_host_tsc > local_tsc) {
 				backwards_tsc = true;
 				if (vcpu->arch.last_host_tsc > max_tsc)
@@ -7038,8 +7038,7 @@ int kvm_arch_hardware_enable(void)
 			kvm_for_each_vcpu(i, vcpu, kvm) {
 				vcpu->arch.tsc_offset_adjustment += delta_cyc;
 				vcpu->arch.last_host_tsc = local_tsc;
-				set_bit(KVM_REQ_MASTERCLOCK_UPDATE,
-					&vcpu->requests);
+				kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
 			}
 
 			/*
