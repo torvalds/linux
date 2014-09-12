@@ -87,9 +87,9 @@ static struct lock_writer_stress_stats *lwsa;
 #else
 #define LOCKTORTURE_RUNNABLE_INIT 0
 #endif
-int locktorture_runnable = LOCKTORTURE_RUNNABLE_INIT;
-module_param(locktorture_runnable, int, 0444);
-MODULE_PARM_DESC(locktorture_runnable, "Start locktorture at module init");
+int torture_runnable = LOCKTORTURE_RUNNABLE_INIT;
+module_param(torture_runnable, int, 0444);
+MODULE_PARM_DESC(torture_runnable, "Start locktorture at module init");
 
 /* Forward reference. */
 static void lock_torture_cleanup(void);
@@ -355,7 +355,7 @@ static int __init lock_torture_init(void)
 		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops,
 	};
 
-	if (!torture_init_begin(torture_type, verbose, &locktorture_runnable))
+	if (!torture_init_begin(torture_type, verbose, &torture_runnable))
 		return -EBUSY;
 
 	/* Process args and tell the world that the torturer is on the job. */
