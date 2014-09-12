@@ -6544,7 +6544,7 @@ static int hpsa_init_reset_devices(struct pci_dev *pdev)
 		dev_warn(&pdev->dev, "failed to enable device.\n");
 		return -ENODEV;
 	}
-
+	pci_set_master(pdev);
 	/* Reset the controller with a PCI power-cycle or via doorbell */
 	rc = hpsa_kdump_hard_reset_controller(pdev);
 
