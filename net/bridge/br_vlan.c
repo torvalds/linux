@@ -27,9 +27,13 @@ static void __vlan_add_flags(struct net_port_vlans *v, u16 vid, u16 flags)
 {
 	if (flags & BRIDGE_VLAN_INFO_PVID)
 		__vlan_add_pvid(v, vid);
+	else
+		__vlan_delete_pvid(v, vid);
 
 	if (flags & BRIDGE_VLAN_INFO_UNTAGGED)
 		set_bit(vid, v->untagged_bitmap);
+	else
+		clear_bit(vid, v->untagged_bitmap);
 }
 
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
