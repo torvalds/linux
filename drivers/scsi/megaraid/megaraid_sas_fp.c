@@ -66,16 +66,13 @@
 #define SPAN_INVALID  0xff
 
 /* Prototypes */
-void mr_update_load_balance_params(struct MR_FW_RAID_MAP_ALL *map,
-	struct LD_LOAD_BALANCE_INFO *lbInfo);
-
-static void mr_update_span_set(struct MR_FW_RAID_MAP_ALL *map,
+static void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
 	PLD_SPAN_INFO ldSpanInfo);
 static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 	u64 stripRow, u16 stripRef, struct IO_REQUEST_INFO *io_info,
-	struct RAID_CONTEXT *pRAID_Context, struct MR_FW_RAID_MAP_ALL *map);
+	struct RAID_CONTEXT *pRAID_Context, struct MR_DRV_RAID_MAP_ALL *map);
 static u64 get_row_from_strip(struct megasas_instance *instance, u32 ld,
-	u64 strip, struct MR_FW_RAID_MAP_ALL *map);
+	u64 strip, struct MR_DRV_RAID_MAP_ALL *map);
 
 u32 mega_mod64(u64 dividend, u32 divisor)
 {
@@ -109,52 +106,129 @@ u64 mega_div64_32(uint64_t dividend, uint32_t divisor)
 	return d;
 }
 
-struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_FW_RAID_MAP_ALL *map)
+struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return &map->raidMap.ldSpanMap[ld].ldRaid;
 }
 
 static struct MR_SPAN_BLOCK_INFO *MR_LdSpanInfoGet(u32 ld,
-						   struct MR_FW_RAID_MAP_ALL
+						   struct MR_DRV_RAID_MAP_ALL
 						   *map)
 {
 	return &map->raidMap.ldSpanMap[ld].spanBlock[0];
 }
 
-static u8 MR_LdDataArmGet(u32 ld, u32 armIdx, struct MR_FW_RAID_MAP_ALL *map)
+static u8 MR_LdDataArmGet(u32 ld, u32 armIdx, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return map->raidMap.ldSpanMap[ld].dataArmMap[armIdx];
 }
 
-u16 MR_ArPdGet(u32 ar, u32 arm, struct MR_FW_RAID_MAP_ALL *map)
+u16 MR_ArPdGet(u32 ar, u32 arm, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return le16_to_cpu(map->raidMap.arMapInfo[ar].pd[arm]);
 }
 
-u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_FW_RAID_MAP_ALL *map)
+u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return le16_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].span.arrayRef);
 }
 
-u16 MR_PdDevHandleGet(u32 pd, struct MR_FW_RAID_MAP_ALL *map)
+u16 MR_PdDevHandleGet(u32 pd, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return map->raidMap.devHndlInfo[pd].curDevHdl;
 }
 
-u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map)
+u16 MR_GetLDTgtId(u32 ld, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return le16_to_cpu(map->raidMap.ldSpanMap[ld].ldRaid.targetId);
 }
 
-u8 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map)
+u8 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return map->raidMap.ldTgtIdToLd[ldTgtId];
 }
 
 static struct MR_LD_SPAN *MR_LdSpanPtrGet(u32 ld, u32 span,
-					  struct MR_FW_RAID_MAP_ALL *map)
+					  struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return &map->raidMap.ldSpanMap[ld].spanBlock[span].span;
+}
+
+/*
+ * This function will Populate Driver Map using firmware raid map
+ */
+void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
+{
+	struct fusion_context *fusion = instance->ctrl_context;
+	struct MR_FW_RAID_MAP_ALL     *fw_map_old    = NULL;
+	struct MR_FW_RAID_MAP         *pFwRaidMap    = NULL;
+	int i;
+
+
+	struct MR_DRV_RAID_MAP_ALL *drv_map =
+			fusion->ld_drv_map[(instance->map_id & 1)];
+	struct MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
+
+	if (instance->supportmax256vd) {
+		memcpy(fusion->ld_drv_map[instance->map_id & 1],
+			fusion->ld_map[instance->map_id & 1],
+			fusion->current_map_sz);
+		/* New Raid map will not set totalSize, so keep expected value
+		 * for legacy code in ValidateMapInfo
+		 */
+		pDrvRaidMap->totalSize = sizeof(struct MR_FW_RAID_MAP_EXT);
+	} else {
+		fw_map_old = (struct MR_FW_RAID_MAP_ALL *)
+			fusion->ld_map[(instance->map_id & 1)];
+		pFwRaidMap = &fw_map_old->raidMap;
+
+#if VD_EXT_DEBUG
+		for (i = 0; i < pFwRaidMap->ldCount; i++) {
+			dev_dbg(&instance->pdev->dev, "(%d) :Index 0x%x "
+				"Target Id 0x%x Seq Num 0x%x Size 0/%llx\n",
+				instance->unique_id, i,
+				fw_map_old->raidMap.ldSpanMap[i].ldRaid.targetId,
+				fw_map_old->raidMap.ldSpanMap[i].ldRaid.seqNum,
+				fw_map_old->raidMap.ldSpanMap[i].ldRaid.size);
+		}
+#endif
+
+		memset(drv_map, 0, fusion->drv_map_sz);
+		pDrvRaidMap->totalSize = pFwRaidMap->totalSize;
+		pDrvRaidMap->ldCount = pFwRaidMap->ldCount;
+		pDrvRaidMap->fpPdIoTimeoutSec = pFwRaidMap->fpPdIoTimeoutSec;
+		for (i = 0; i < MAX_RAIDMAP_LOGICAL_DRIVES + MAX_RAIDMAP_VIEWS; i++)
+			pDrvRaidMap->ldTgtIdToLd[i] =
+				(u8)pFwRaidMap->ldTgtIdToLd[i];
+		for (i = 0; i < pDrvRaidMap->ldCount; i++) {
+			pDrvRaidMap->ldSpanMap[i] = pFwRaidMap->ldSpanMap[i];
+#if VD_EXT_DEBUG
+			dev_dbg(&instance->pdev->dev,
+				"pFwRaidMap->ldSpanMap[%d].ldRaid.targetId 0x%x "
+				"pFwRaidMap->ldSpanMap[%d].ldRaid.seqNum 0x%x "
+				"size 0x%x\n", i, i,
+				pFwRaidMap->ldSpanMap[i].ldRaid.targetId,
+				pFwRaidMap->ldSpanMap[i].ldRaid.seqNum,
+				(u32)pFwRaidMap->ldSpanMap[i].ldRaid.rowSize);
+			dev_dbg(&instance->pdev->dev,
+				"pDrvRaidMap->ldSpanMap[%d].ldRaid.targetId 0x%x "
+				"pDrvRaidMap->ldSpanMap[%d].ldRaid.seqNum 0x%x "
+				"size 0x%x\n", i, i,
+				pDrvRaidMap->ldSpanMap[i].ldRaid.targetId,
+				pDrvRaidMap->ldSpanMap[i].ldRaid.seqNum,
+				(u32)pDrvRaidMap->ldSpanMap[i].ldRaid.rowSize);
+			dev_dbg(&instance->pdev->dev, "Driver raid map all %p "
+				"raid map %p LD RAID MAP %p/%p\n", drv_map,
+				pDrvRaidMap, &pFwRaidMap->ldSpanMap[i].ldRaid,
+				&pDrvRaidMap->ldSpanMap[i].ldRaid);
+#endif
+		}
+		memcpy(pDrvRaidMap->arMapInfo, pFwRaidMap->arMapInfo,
+			sizeof(struct MR_ARRAY_INFO) * MAX_RAIDMAP_ARRAYS);
+		memcpy(pDrvRaidMap->devHndlInfo, pFwRaidMap->devHndlInfo,
+			sizeof(struct MR_DEV_HANDLE_INFO) *
+			MAX_RAIDMAP_PHYSICAL_DEVICES);
+	}
 }
 
 /*
@@ -162,41 +236,53 @@ static struct MR_LD_SPAN *MR_LdSpanPtrGet(u32 ld, u32 span,
  */
 u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 {
-	struct fusion_context *fusion = instance->ctrl_context;
-	struct MR_FW_RAID_MAP_ALL *map = fusion->ld_map[(instance->map_id & 1)];
-	struct LD_LOAD_BALANCE_INFO *lbInfo = fusion->load_balance_info;
-	PLD_SPAN_INFO ldSpanInfo = fusion->log_to_span;
-	struct MR_FW_RAID_MAP *pFwRaidMap = &map->raidMap;
+	struct fusion_context *fusion;
+	struct MR_DRV_RAID_MAP_ALL *drv_map;
+	struct MR_DRV_RAID_MAP *pDrvRaidMap;
+	struct LD_LOAD_BALANCE_INFO *lbInfo;
+	PLD_SPAN_INFO ldSpanInfo;
 	struct MR_LD_RAID         *raid;
 	int ldCount, num_lds;
 	u16 ld;
+	u32 expected_size;
 
 
-	if (le32_to_cpu(pFwRaidMap->totalSize) !=
-	    (sizeof(struct MR_FW_RAID_MAP) -sizeof(struct MR_LD_SPAN_MAP) +
-	     (sizeof(struct MR_LD_SPAN_MAP) * le32_to_cpu(pFwRaidMap->ldCount)))) {
-		printk(KERN_ERR "megasas: map info structure size 0x%x is not matching with ld count\n",
-		       (unsigned int)((sizeof(struct MR_FW_RAID_MAP) -
-				       sizeof(struct MR_LD_SPAN_MAP)) +
-				      (sizeof(struct MR_LD_SPAN_MAP) *
-					le32_to_cpu(pFwRaidMap->ldCount))));
-		printk(KERN_ERR "megasas: span map %x, pFwRaidMap->totalSize "
-		       ": %x\n", (unsigned int)sizeof(struct MR_LD_SPAN_MAP),
-			le32_to_cpu(pFwRaidMap->totalSize));
+	MR_PopulateDrvRaidMap(instance);
+
+	fusion = instance->ctrl_context;
+	drv_map = fusion->ld_drv_map[(instance->map_id & 1)];
+	pDrvRaidMap = &drv_map->raidMap;
+
+	lbInfo = fusion->load_balance_info;
+	ldSpanInfo = fusion->log_to_span;
+
+	if (instance->supportmax256vd)
+		expected_size = sizeof(struct MR_FW_RAID_MAP_EXT);
+	else
+		expected_size =
+			(sizeof(struct MR_FW_RAID_MAP) - sizeof(struct MR_LD_SPAN_MAP) +
+			(sizeof(struct MR_LD_SPAN_MAP) * le32_to_cpu(pDrvRaidMap->ldCount)));
+
+	if (le32_to_cpu(pDrvRaidMap->totalSize) != expected_size) {
+		dev_err(&instance->pdev->dev, "map info structure size 0x%x is not matching with ld count\n",
+		       (unsigned int) expected_size);
+		dev_err(&instance->pdev->dev, "megasas: span map %x, pDrvRaidMap->totalSize : %x\n",
+			(unsigned int)sizeof(struct MR_LD_SPAN_MAP),
+			le32_to_cpu(pDrvRaidMap->totalSize));
 		return 0;
 	}
 
 	if (instance->UnevenSpanSupport)
-		mr_update_span_set(map, ldSpanInfo);
+		mr_update_span_set(drv_map, ldSpanInfo);
 
-	mr_update_load_balance_params(map, lbInfo);
+	mr_update_load_balance_params(drv_map, lbInfo);
 
-	num_lds = le32_to_cpu(map->raidMap.ldCount);
+	num_lds = le32_to_cpu(drv_map->raidMap.ldCount);
 
 	/*Convert Raid capability values to CPU arch */
 	for (ldCount = 0; ldCount < num_lds; ldCount++) {
-		ld = MR_TargetIdToLdGet(ldCount, map);
-		raid = MR_LdRaidGet(ld, map);
+		ld = MR_TargetIdToLdGet(ldCount, drv_map);
+		raid = MR_LdRaidGet(ld, drv_map);
 		le32_to_cpus((u32 *)&raid->capability);
 	}
 
@@ -204,7 +290,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 }
 
 u32 MR_GetSpanBlock(u32 ld, u64 row, u64 *span_blk,
-		    struct MR_FW_RAID_MAP_ALL *map)
+		    struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct MR_SPAN_BLOCK_INFO *pSpanBlock = MR_LdSpanInfoGet(ld, map);
 	struct MR_QUAD_ELEMENT    *quad;
@@ -246,7 +332,8 @@ u32 MR_GetSpanBlock(u32 ld, u64 row, u64 *span_blk,
 * ldSpanInfo - ldSpanInfo per HBA instance
 */
 #if SPAN_DEBUG
-static int getSpanInfo(struct MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
+static int getSpanInfo(struct MR_DRV_RAID_MAP_ALL *map,
+	PLD_SPAN_INFO ldSpanInfo)
 {
 
 	u8   span;
@@ -257,9 +344,9 @@ static int getSpanInfo(struct MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
 	int ldCount;
 	u16 ld;
 
-	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES; ldCount++) {
+	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
 		ld = MR_TargetIdToLdGet(ldCount, map);
-			if (ld >= MAX_LOGICAL_DRIVES)
+			if (ld >= MAX_LOGICAL_DRIVES_EXT)
 				continue;
 		raid = MR_LdRaidGet(ld, map);
 		dev_dbg(&instance->pdev->dev, "LD %x: span_depth=%x\n",
@@ -339,7 +426,7 @@ static int getSpanInfo(struct MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
 */
 
 u32 mr_spanset_get_span_block(struct megasas_instance *instance,
-		u32 ld, u64 row, u64 *span_blk, struct MR_FW_RAID_MAP_ALL *map)
+		u32 ld, u64 row, u64 *span_blk, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct fusion_context *fusion = instance->ctrl_context;
 	struct MR_LD_RAID         *raid = MR_LdRaidGet(ld, map);
@@ -402,7 +489,7 @@ u32 mr_spanset_get_span_block(struct megasas_instance *instance,
 */
 
 static u64  get_row_from_strip(struct megasas_instance *instance,
-	u32 ld, u64 strip, struct MR_FW_RAID_MAP_ALL *map)
+	u32 ld, u64 strip, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct fusion_context *fusion = instance->ctrl_context;
 	struct MR_LD_RAID	*raid = MR_LdRaidGet(ld, map);
@@ -471,7 +558,7 @@ static u64  get_row_from_strip(struct megasas_instance *instance,
 */
 
 static u64 get_strip_from_row(struct megasas_instance *instance,
-		u32 ld, u64 row, struct MR_FW_RAID_MAP_ALL *map)
+		u32 ld, u64 row, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct fusion_context *fusion = instance->ctrl_context;
 	struct MR_LD_RAID         *raid = MR_LdRaidGet(ld, map);
@@ -532,7 +619,7 @@ static u64 get_strip_from_row(struct megasas_instance *instance,
 */
 
 static u32 get_arm_from_strip(struct megasas_instance *instance,
-	u32 ld, u64 strip, struct MR_FW_RAID_MAP_ALL *map)
+	u32 ld, u64 strip, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct fusion_context *fusion = instance->ctrl_context;
 	struct MR_LD_RAID         *raid = MR_LdRaidGet(ld, map);
@@ -580,7 +667,7 @@ static u32 get_arm_from_strip(struct megasas_instance *instance,
 
 /* This Function will return Phys arm */
 u8 get_arm(struct megasas_instance *instance, u32 ld, u8 span, u64 stripe,
-		struct MR_FW_RAID_MAP_ALL *map)
+		struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
 	/* Need to check correct default value */
@@ -624,7 +711,7 @@ u8 get_arm(struct megasas_instance *instance, u32 ld, u8 span, u64 stripe,
 static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 		u64 stripRow, u16 stripRef, struct IO_REQUEST_INFO *io_info,
 		struct RAID_CONTEXT *pRAID_Context,
-		struct MR_FW_RAID_MAP_ALL *map)
+		struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
 	u32     pd, arRef;
@@ -705,7 +792,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 		u16 stripRef, struct IO_REQUEST_INFO *io_info,
 		struct RAID_CONTEXT *pRAID_Context,
-		struct MR_FW_RAID_MAP_ALL *map)
+		struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
 	u32         pd, arRef;
@@ -794,7 +881,7 @@ u8
 MR_BuildRaidContext(struct megasas_instance *instance,
 		    struct IO_REQUEST_INFO *io_info,
 		    struct RAID_CONTEXT *pRAID_Context,
-		    struct MR_FW_RAID_MAP_ALL *map, u8 **raidLUN)
+		    struct MR_DRV_RAID_MAP_ALL *map, u8 **raidLUN)
 {
 	struct MR_LD_RAID  *raid;
 	u32         ld, stripSize, stripe_mask;
@@ -1043,7 +1130,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 * ldSpanInfo - ldSpanInfo per HBA instance
 *
 */
-void mr_update_span_set(struct MR_FW_RAID_MAP_ALL *map,
+void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
 			PLD_SPAN_INFO ldSpanInfo)
 {
 	u8   span, count;
@@ -1056,9 +1143,9 @@ void mr_update_span_set(struct MR_FW_RAID_MAP_ALL *map,
 	u16 ld;
 
 
-	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES; ldCount++) {
+	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
 		ld = MR_TargetIdToLdGet(ldCount, map);
-		if (ld >= MAX_LOGICAL_DRIVES)
+		if (ld >= MAX_LOGICAL_DRIVES_EXT)
 			continue;
 		raid = MR_LdRaidGet(ld, map);
 		for (element = 0; element < MAX_QUAD_DEPTH; element++) {
@@ -1153,16 +1240,16 @@ void mr_update_span_set(struct MR_FW_RAID_MAP_ALL *map,
 }
 
 void
-mr_update_load_balance_params(struct MR_FW_RAID_MAP_ALL *map,
+mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *map,
 			      struct LD_LOAD_BALANCE_INFO *lbInfo)
 {
 	int ldCount;
 	u16 ld;
 	struct MR_LD_RAID *raid;
 
-	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES; ldCount++) {
+	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
 		ld = MR_TargetIdToLdGet(ldCount, map);
-		if (ld >= MAX_LOGICAL_DRIVES) {
+		if (ld >= MAX_LOGICAL_DRIVES_EXT) {
 			lbInfo[ldCount].loadBalanceFlag = 0;
 			continue;
 		}

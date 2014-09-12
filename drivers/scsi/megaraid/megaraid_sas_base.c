@@ -1581,7 +1581,8 @@ megasas_queue_command_lck(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd
 	scmd->result = 0;
 
 	if (MEGASAS_IS_LOGICAL(scmd) &&
-	    (scmd->device->id >= MEGASAS_MAX_LD || scmd->device->lun)) {
+	    (scmd->device->id >= instance->fw_supported_vd_count ||
+		scmd->device->lun)) {
 		scmd->result = DID_BAD_TARGET << 16;
 		goto out_done;
 	}
@@ -3846,6 +3847,8 @@ megasas_get_ld_list(struct megasas_instance *instance)
 	memset(ci, 0, sizeof(*ci));
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
 
+	if (instance->supportmax256vd)
+		dcmd->mbox.b[0] = 1;
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0xFF;
 	dcmd->sge_count = 1;
@@ -3867,8 +3870,8 @@ megasas_get_ld_list(struct megasas_instance *instance)
 
 	/* the following function will get the instance PD LIST */
 
-	if ((ret == 0) && (ld_count <= MAX_LOGICAL_DRIVES)) {
-		memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+	if ((ret == 0) && (ld_count <= instance->fw_supported_vd_count)) {
+		memset(instance->ld_ids, 0xff, MAX_LOGICAL_DRIVES_EXT);
 
 		for (ld_index = 0; ld_index < ld_count; ld_index++) {
 			if (ci->ldList[ld_index].state != 0) {
@@ -3931,6 +3934,8 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
 
 	dcmd->mbox.b[0] = query_type;
+	if (instance->supportmax256vd)
+		dcmd->mbox.b[2] = 1;
 
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0xFF;
@@ -3952,7 +3957,7 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
 
 	tgtid_count = le32_to_cpu(ci->count);
 
-	if ((ret == 0) && (tgtid_count <= (MAX_LOGICAL_DRIVES))) {
+	if ((ret == 0) && (tgtid_count <= (instance->fw_supported_vd_count))) {
 		memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
 		for (ld_index = 0; ld_index < tgtid_count; ld_index++) {
 			ids = ci->targetId[ld_index];
@@ -3978,7 +3983,7 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
  * This information is mainly used to find out the maximum IO transfer per
  * command supported by the FW.
  */
-static int
+int
 megasas_get_ctrl_info(struct megasas_instance *instance,
 		      struct megasas_ctrl_info *ctrl_info)
 {
@@ -4019,6 +4024,7 @@ megasas_get_ctrl_info(struct megasas_instance *instance,
 	dcmd->opcode = cpu_to_le32(MR_DCMD_CTRL_GET_INFO);
 	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(ci_h);
 	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct megasas_ctrl_info));
+	dcmd->mbox.b[0] = 1;
 
 	if (!megasas_issue_polled(instance, cmd)) {
 		ret = 0;
@@ -4217,6 +4223,13 @@ megasas_init_adapter_mfi(struct megasas_instance *instance)
 	if (megasas_issue_init_mfi(instance))
 		goto fail_fw_init;
 
+	if (megasas_get_ctrl_info(instance, instance->ctrl_info)) {
+		dev_err(&instance->pdev->dev, "(%d): Could get controller info "
+			"Fail from %s %d\n", instance->unique_id,
+			__func__, __LINE__);
+		goto fail_fw_init;
+	}
+
 	instance->fw_support_ieee = 0;
 	instance->fw_support_ieee =
 		(instance->instancet->read_fw_status_reg(reg_set) &
@@ -4255,7 +4268,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	u32 tmp_sectors, msix_enable, scratch_pad_2;
 	resource_size_t base_addr;
 	struct megasas_register_set __iomem *reg_set;
-	struct megasas_ctrl_info *ctrl_info;
+	struct megasas_ctrl_info *ctrl_info = NULL;
 	unsigned long bar_list;
 	int i, loop, fw_msix_count = 0;
 	struct IOV_111 *iovPtr;
@@ -4386,6 +4399,17 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			instance->msix_vectors);
 	}
 
+	instance->ctrl_info = kzalloc(sizeof(struct megasas_ctrl_info),
+				GFP_KERNEL);
+	if (instance->ctrl_info == NULL)
+		goto fail_init_adapter;
+
+	/*
+	 * Below are default value for legacy Firmware.
+	 * non-fusion based controllers
+	 */
+	instance->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
+	instance->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
 	/* Get operational params, sge flags, send init cmd to controller */
 	if (instance->instancet->init_adapter(instance))
 		goto fail_init_adapter;
@@ -4408,8 +4432,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
 		megasas_get_ld_list(instance);
 
-	ctrl_info = kmalloc(sizeof(struct megasas_ctrl_info), GFP_KERNEL);
-
 	/*
 	 * Compute the max allowed sectors per IO: The controller info has two
 	 * limits on max sectors. Driver should use the minimum of these two.
@@ -4420,79 +4442,79 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	 * to calculate max_sectors_1. So the number ended up as zero always.
 	 */
 	tmp_sectors = 0;
-	if (ctrl_info && !megasas_get_ctrl_info(instance, ctrl_info)) {
+	ctrl_info = instance->ctrl_info;
 
-		max_sectors_1 = (1 << ctrl_info->stripe_sz_ops.min) *
-			le16_to_cpu(ctrl_info->max_strips_per_io);
-		max_sectors_2 = le32_to_cpu(ctrl_info->max_request_size);
+	max_sectors_1 = (1 << ctrl_info->stripe_sz_ops.min) *
+		le16_to_cpu(ctrl_info->max_strips_per_io);
+	max_sectors_2 = le32_to_cpu(ctrl_info->max_request_size);
 
-		tmp_sectors = min_t(u32, max_sectors_1 , max_sectors_2);
+	tmp_sectors = min_t(u32, max_sectors_1 , max_sectors_2);
 
-		/*Check whether controller is iMR or MR */
-		if (ctrl_info->memory_size) {
-			instance->is_imr = 0;
-			dev_info(&instance->pdev->dev, "Controller type: MR,"
-				"Memory size is: %dMB\n",
-				le16_to_cpu(ctrl_info->memory_size));
-		} else {
-			instance->is_imr = 1;
-			dev_info(&instance->pdev->dev,
-				"Controller type: iMR\n");
+	/*Check whether controller is iMR or MR */
+	if (ctrl_info->memory_size) {
+		instance->is_imr = 0;
+		dev_info(&instance->pdev->dev, "Controller type: MR,"
+			"Memory size is: %dMB\n",
+			le16_to_cpu(ctrl_info->memory_size));
+	} else {
+		instance->is_imr = 1;
+		dev_info(&instance->pdev->dev,
+			"Controller type: iMR\n");
+	}
+	/* OnOffProperties are converted into CPU arch*/
+	le32_to_cpus((u32 *)&ctrl_info->properties.OnOffProperties);
+	instance->disableOnlineCtrlReset =
+	ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
+	/* adapterOperations2 are converted into CPU arch*/
+	le32_to_cpus((u32 *)&ctrl_info->adapterOperations2);
+	instance->mpio = ctrl_info->adapterOperations2.mpio;
+	instance->UnevenSpanSupport =
+		ctrl_info->adapterOperations2.supportUnevenSpans;
+	if (instance->UnevenSpanSupport) {
+		struct fusion_context *fusion = instance->ctrl_context;
+
+		dev_info(&instance->pdev->dev, "FW supports: "
+		"UnevenSpanSupport=%x\n", instance->UnevenSpanSupport);
+		if (MR_ValidateMapInfo(instance))
+			fusion->fast_path_io = 1;
+		else
+			fusion->fast_path_io = 0;
+
+	}
+	if (ctrl_info->host_interface.SRIOV) {
+		if (!ctrl_info->adapterOperations2.activePassive)
+			instance->PlasmaFW111 = 1;
+
+		if (!instance->PlasmaFW111)
+			instance->requestorId =
+				ctrl_info->iov.requestorId;
+		else {
+			iovPtr = (struct IOV_111 *)((unsigned char *)ctrl_info + IOV_111_OFFSET);
+			instance->requestorId = iovPtr->requestorId;
 		}
-		/* OnOffProperties are converted into CPU arch*/
-		le32_to_cpus((u32 *)&ctrl_info->properties.OnOffProperties);
-		instance->disableOnlineCtrlReset =
-		ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
-		/* adapterOperations2 are converted into CPU arch*/
-		le32_to_cpus((u32 *)&ctrl_info->adapterOperations2);
-		instance->mpio = ctrl_info->adapterOperations2.mpio;
-		instance->UnevenSpanSupport =
-			ctrl_info->adapterOperations2.supportUnevenSpans;
-		if (instance->UnevenSpanSupport) {
-			struct fusion_context *fusion = instance->ctrl_context;
-			dev_info(&instance->pdev->dev, "FW supports: "
-			"UnevenSpanSupport=%x\n", instance->UnevenSpanSupport);
-			if (MR_ValidateMapInfo(instance))
-				fusion->fast_path_io = 1;
-			else
-				fusion->fast_path_io = 0;
+		dev_warn(&instance->pdev->dev, "I am VF "
+		       "requestorId %d\n", instance->requestorId);
+	}
 
-		}
-		if (ctrl_info->host_interface.SRIOV) {
-			if (!ctrl_info->adapterOperations2.activePassive)
-				instance->PlasmaFW111 = 1;
+	le32_to_cpus((u32 *)&ctrl_info->adapterOperations3);
+	instance->crash_dump_fw_support =
+		ctrl_info->adapterOperations3.supportCrashDump;
+	instance->crash_dump_drv_support =
+		(instance->crash_dump_fw_support &&
+		instance->crash_dump_buf);
+	if (instance->crash_dump_drv_support) {
+		dev_info(&instance->pdev->dev, "Firmware Crash dump "
+			"feature is supported\n");
+		megasas_set_crash_dump_params(instance,
+			MR_CRASH_BUF_TURN_OFF);
 
-			if (!instance->PlasmaFW111)
-				instance->requestorId =
-					ctrl_info->iov.requestorId;
-			else {
-				iovPtr = (struct IOV_111 *)((unsigned char *)ctrl_info + IOV_111_OFFSET);
-				instance->requestorId = iovPtr->requestorId;
-			}
-			printk(KERN_WARNING "megaraid_sas: I am VF "
-			       "requestorId %d\n", instance->requestorId);
-		}
-
-		le32_to_cpus((u32 *)&ctrl_info->adapterOperations3);
-		instance->crash_dump_fw_support =
-			ctrl_info->adapterOperations3.supportCrashDump;
-		instance->crash_dump_drv_support =
-			(instance->crash_dump_fw_support &&
-			instance->crash_dump_buf);
-		if (instance->crash_dump_drv_support) {
-			dev_info(&instance->pdev->dev, "Firmware Crash dump "
-				"feature is supported\n");
-			megasas_set_crash_dump_params(instance,
-				MR_CRASH_BUF_TURN_OFF);
-
-		} else {
-			if (instance->crash_dump_buf)
-				pci_free_consistent(instance->pdev,
-					CRASH_DMA_BUF_SIZE,
-					instance->crash_dump_buf,
-					instance->crash_dump_h);
-			instance->crash_dump_buf = NULL;
-		}
+	} else {
+		if (instance->crash_dump_buf)
+			pci_free_consistent(instance->pdev,
+				CRASH_DMA_BUF_SIZE,
+				instance->crash_dump_buf,
+				instance->crash_dump_h);
+		instance->crash_dump_buf = NULL;
 	}
 	instance->max_sectors_per_req = instance->max_num_sge *
 						PAGE_SIZE / 512;
@@ -4540,6 +4562,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 fail_init_adapter:
 fail_ready_state:
+	kfree(instance->ctrl_info);
+	instance->ctrl_info = NULL;
 	iounmap(instance->reg_set);
 
       fail_ioremap:
@@ -4918,6 +4942,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	struct Scsi_Host *host;
 	struct megasas_instance *instance;
 	u16 control = 0;
+	struct fusion_context *fusion = NULL;
 
 	/* Reset MSI-X in the kdump kernel */
 	if (reset_devices) {
@@ -4978,10 +5003,10 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	case PCI_DEVICE_ID_LSI_INVADER:
 	case PCI_DEVICE_ID_LSI_FURY:
 	{
-		struct fusion_context *fusion;
-
-		instance->ctrl_context =
-			kzalloc(sizeof(struct fusion_context), GFP_KERNEL);
+		instance->ctrl_context_pages =
+			get_order(sizeof(struct fusion_context));
+		instance->ctrl_context = (void *)__get_free_pages(GFP_KERNEL,
+				instance->ctrl_context_pages);
 		if (!instance->ctrl_context) {
 			printk(KERN_DEBUG "megasas: Failed to allocate "
 			       "memory for Fusion context info\n");
@@ -4990,6 +5015,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		fusion = instance->ctrl_context;
 		INIT_LIST_HEAD(&fusion->cmd_pool);
 		spin_lock_init(&fusion->cmd_pool_lock);
+		memset(fusion->load_balance_info, 0,
+			sizeof(struct LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES_EXT);
 	}
 	break;
 	default: /* For all other supported controllers */
@@ -5035,7 +5062,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->issuepend_done = 1;
 	instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
 	instance->is_imr = 0;
-	megasas_poll_wait_aen = 0;
 
 	instance->evt_detail = pci_alloc_consistent(pdev,
 						    sizeof(struct
@@ -5072,6 +5098,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->host = host;
 	instance->unique_id = pdev->bus->number << 8 | pdev->devfn;
 	instance->init_id = MEGASAS_DEFAULT_INIT_ID;
+	instance->ctrl_info = NULL;
 
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
@@ -5632,14 +5659,18 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_LSI_INVADER:
 	case PCI_DEVICE_ID_LSI_FURY:
 		megasas_release_fusion(instance);
-		for (i = 0; i < 2 ; i++)
+		for (i = 0; i < 2 ; i++) {
 			if (fusion->ld_map[i])
 				dma_free_coherent(&instance->pdev->dev,
-						  fusion->map_sz,
+						  fusion->max_map_sz,
 						  fusion->ld_map[i],
-						  fusion->
-						  ld_map_phys[i]);
-		kfree(instance->ctrl_context);
+						  fusion->ld_map_phys[i]);
+			if (fusion->ld_drv_map[i])
+				free_pages((ulong)fusion->ld_drv_map[i],
+					fusion->drv_map_pages);
+		}
+		free_pages((ulong)instance->ctrl_context,
+			instance->ctrl_context_pages);
 		break;
 	default:
 		megasas_release_mfi(instance);
@@ -5651,6 +5682,8 @@ static void megasas_detach_one(struct pci_dev *pdev)
 				    instance->consumer_h);
 		break;
 	}
+
+	kfree(instance->ctrl_info);
 
 	if (instance->evt_detail)
 		pci_free_consistent(pdev, sizeof(struct megasas_evt_detail),
@@ -5762,8 +5795,10 @@ static unsigned int megasas_mgmt_poll(struct file *file, poll_table *wait)
 	spin_lock_irqsave(&poll_aen_lock, flags);
 	if (megasas_poll_wait_aen)
 		mask =   (POLLIN | POLLRDNORM);
+
 	else
 		mask = 0;
+	megasas_poll_wait_aen = 0;
 	spin_unlock_irqrestore(&poll_aen_lock, flags);
 	return mask;
 }

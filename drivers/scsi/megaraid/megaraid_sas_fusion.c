@@ -652,6 +652,8 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	/* driver supports HA / Remote LUN over Fast Path interface */
 	init_frame->driver_operations.mfi_capabilities.support_fp_remote_lun
 		= 1;
+	init_frame->driver_operations.mfi_capabilities.support_max_255lds
+		= 1;
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
 
@@ -711,6 +713,13 @@ fail_get_cmd:
  * Issues an internal command (DCMD) to get the FW's controller PD
  * list structure.  This information is mainly used to find out SYSTEM
  * supported by the FW.
+ * dcmd.mbox value setting for MR_DCMD_LD_MAP_GET_INFO
+ * dcmd.mbox.b[0]	- number of LDs being sync'd
+ * dcmd.mbox.b[1]	- 0 - complete command immediately.
+ *			- 1 - pend till config change
+ * dcmd.mbox.b[2]	- 0 - supports max 64 lds and uses legacy MR_FW_RAID_MAP
+ *			- 1 - supports max MAX_LOGICAL_DRIVES_EXT lds and
+ *				uses extended struct MR_FW_RAID_MAP_EXT
  */
 static int
 megasas_get_ld_map_info(struct megasas_instance *instance)
@@ -718,7 +727,7 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 	int ret = 0;
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
-	struct MR_FW_RAID_MAP_ALL *ci;
+	void *ci;
 	dma_addr_t ci_h = 0;
 	u32 size_map_info;
 	struct fusion_context *fusion;
@@ -739,10 +748,9 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 
 	dcmd = &cmd->frame->dcmd;
 
-	size_map_info = sizeof(struct MR_FW_RAID_MAP) +
-		(sizeof(struct MR_LD_SPAN_MAP) *(MAX_LOGICAL_DRIVES - 1));
+	size_map_info = fusion->current_map_sz;
 
-	ci = fusion->ld_map[(instance->map_id & 1)];
+	ci = (void *) fusion->ld_map[(instance->map_id & 1)];
 	ci_h = fusion->ld_map_phys[(instance->map_id & 1)];
 
 	if (!ci) {
@@ -751,9 +759,13 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 		return -ENOMEM;
 	}
 
-	memset(ci, 0, sizeof(*ci));
+	memset(ci, 0, fusion->max_map_sz);
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
-
+#if VD_EXT_DEBUG
+	dev_dbg(&instance->pdev->dev,
+		"%s sending MR_DCMD_LD_MAP_GET_INFO with size %d\n",
+		__func__, cpu_to_le32(size_map_info));
+#endif
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0xFF;
 	dcmd->sge_count = 1;
@@ -809,7 +821,7 @@ megasas_sync_map_info(struct megasas_instance *instance)
 	u32 size_sync_info, num_lds;
 	struct fusion_context *fusion;
 	struct MR_LD_TARGET_SYNC *ci = NULL;
-	struct MR_FW_RAID_MAP_ALL *map;
+	struct MR_DRV_RAID_MAP_ALL *map;
 	struct MR_LD_RAID  *raid;
 	struct MR_LD_TARGET_SYNC *ld_sync;
 	dma_addr_t ci_h = 0;
@@ -830,7 +842,7 @@ megasas_sync_map_info(struct megasas_instance *instance)
 		return 1;
 	}
 
-	map = fusion->ld_map[instance->map_id & 1];
+	map = fusion->ld_drv_map[instance->map_id & 1];
 
 	num_lds = le32_to_cpu(map->raidMap.ldCount);
 
@@ -842,7 +854,7 @@ megasas_sync_map_info(struct megasas_instance *instance)
 
 	ci = (struct MR_LD_TARGET_SYNC *)
 	  fusion->ld_map[(instance->map_id - 1) & 1];
-	memset(ci, 0, sizeof(struct MR_FW_RAID_MAP_ALL));
+	memset(ci, 0, fusion->max_map_sz);
 
 	ci_h = fusion->ld_map_phys[(instance->map_id - 1) & 1];
 
@@ -854,8 +866,7 @@ megasas_sync_map_info(struct megasas_instance *instance)
 		ld_sync->seqNum = raid->seqNum;
 	}
 
-	size_map_info = sizeof(struct MR_FW_RAID_MAP) +
-		(sizeof(struct MR_LD_SPAN_MAP) *(MAX_LOGICAL_DRIVES - 1));
+	size_map_info = fusion->current_map_sz;
 
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0xFF;
@@ -1018,17 +1029,75 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 		goto fail_ioc_init;
 
 	megasas_display_intel_branding(instance);
+	if (megasas_get_ctrl_info(instance, instance->ctrl_info)) {
+		dev_err(&instance->pdev->dev,
+			"Could not get controller info. Fail from %s %d\n",
+			__func__, __LINE__);
+		goto fail_ioc_init;
+	}
+
+	instance->supportmax256vd =
+		instance->ctrl_info->adapterOperations3.supportMaxExtLDs;
+	/* Below is additional check to address future FW enhancement */
+	if (instance->ctrl_info->max_lds > 64)
+		instance->supportmax256vd = 1;
+	instance->drv_supported_vd_count = MEGASAS_MAX_LD_CHANNELS
+					* MEGASAS_MAX_DEV_PER_CHANNEL;
+	instance->drv_supported_pd_count = MEGASAS_MAX_PD_CHANNELS
+					* MEGASAS_MAX_DEV_PER_CHANNEL;
+	if (instance->supportmax256vd) {
+		instance->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
+		instance->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	} else {
+		instance->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
+		instance->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	}
+	dev_info(&instance->pdev->dev, "Firmware supports %d VDs %d PDs\n"
+		"Driver supports %d VDs  %d PDs\n",
+		instance->fw_supported_vd_count,
+		instance->fw_supported_pd_count,
+		instance->drv_supported_vd_count,
+		instance->drv_supported_pd_count);
 
 	instance->flag_ieee = 1;
-
-	fusion->map_sz =  sizeof(struct MR_FW_RAID_MAP) +
-	  (sizeof(struct MR_LD_SPAN_MAP) *(MAX_LOGICAL_DRIVES - 1));
-
 	fusion->fast_path_io = 0;
+
+	fusion->old_map_sz =
+		sizeof(struct MR_FW_RAID_MAP) + (sizeof(struct MR_LD_SPAN_MAP) *
+		(instance->fw_supported_vd_count - 1));
+	fusion->new_map_sz =
+		sizeof(struct MR_FW_RAID_MAP_EXT);
+	fusion->drv_map_sz =
+		sizeof(struct MR_DRV_RAID_MAP) + (sizeof(struct MR_LD_SPAN_MAP) *
+		(instance->drv_supported_vd_count - 1));
+
+	fusion->drv_map_pages = get_order(fusion->drv_map_sz);
+	for (i = 0; i < 2; i++) {
+		fusion->ld_map[i] = NULL;
+		fusion->ld_drv_map[i] = (void *)__get_free_pages(GFP_KERNEL,
+			fusion->drv_map_pages);
+		if (!fusion->ld_drv_map[i]) {
+			dev_err(&instance->pdev->dev, "Could not allocate "
+				"memory for local map info for %d pages\n",
+				fusion->drv_map_pages);
+			if (i == 1)
+				free_pages((ulong)fusion->ld_drv_map[0],
+					fusion->drv_map_pages);
+			goto fail_ioc_init;
+		}
+	}
+
+	fusion->max_map_sz = max(fusion->old_map_sz, fusion->new_map_sz);
+
+	if (instance->supportmax256vd)
+		fusion->current_map_sz = fusion->new_map_sz;
+	else
+		fusion->current_map_sz = fusion->old_map_sz;
+
 
 	for (i = 0; i < 2; i++) {
 		fusion->ld_map[i] = dma_alloc_coherent(&instance->pdev->dev,
-						       fusion->map_sz,
+						       fusion->max_map_sz,
 						       &fusion->ld_map_phys[i],
 						       GFP_KERNEL);
 		if (!fusion->ld_map[i]) {
@@ -1045,7 +1114,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 fail_map_info:
 	if (i == 1)
-		dma_free_coherent(&instance->pdev->dev, fusion->map_sz,
+		dma_free_coherent(&instance->pdev->dev, fusion->max_map_sz,
 				  fusion->ld_map[0], fusion->ld_map_phys[0]);
 fail_ioc_init:
 	megasas_free_cmds_fusion(instance);
@@ -1232,7 +1301,7 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 void
 megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 		   struct IO_REQUEST_INFO *io_info, struct scsi_cmnd *scp,
-		   struct MR_FW_RAID_MAP_ALL *local_map_ptr, u32 ref_tag)
+		   struct MR_DRV_RAID_MAP_ALL *local_map_ptr, u32 ref_tag)
 {
 	struct MR_LD_RAID *raid;
 	u32 ld;
@@ -1417,7 +1486,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	struct IO_REQUEST_INFO io_info;
 	struct fusion_context *fusion;
-	struct MR_FW_RAID_MAP_ALL *local_map_ptr;
+	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	u8 *raidLUN;
 
 	device_id = MEGASAS_DEV_INDEX(instance, scp);
@@ -1494,10 +1563,10 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
 		io_info.isRead = 1;
 
-	local_map_ptr = fusion->ld_map[(instance->map_id & 1)];
+	local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
 
 	if ((MR_TargetIdToLdGet(device_id, local_map_ptr) >=
-	     MAX_LOGICAL_DRIVES) || (!fusion->fast_path_io)) {
+		instance->fw_supported_vd_count) || (!fusion->fast_path_io)) {
 		io_request->RaidContext.regLockFlags  = 0;
 		fp_possible = 0;
 	} else {
@@ -1587,7 +1656,7 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	u32 device_id;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request;
 	u16 pd_index = 0;
-	struct MR_FW_RAID_MAP_ALL *local_map_ptr;
+	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	struct fusion_context *fusion = instance->ctrl_context;
 	u8                          span, physArm;
 	u16                         devHandle;
@@ -1599,7 +1668,7 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	device_id = MEGASAS_DEV_INDEX(instance, scmd);
 	pd_index = (scmd->device->channel * MEGASAS_MAX_DEV_PER_CHANNEL)
 		+scmd->device->id;
-	local_map_ptr = fusion->ld_map[(instance->map_id & 1)];
+	local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
 
 	io_request->DataLength = cpu_to_le32(scsi_bufflen(scmd));
 
@@ -1647,7 +1716,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 			goto NonFastPath;
 
 		ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
-		if ((ld >= MAX_LOGICAL_DRIVES) || (!fusion->fast_path_io))
+		if ((ld >= instance->fw_supported_vd_count) ||
+			(!fusion->fast_path_io))
 			goto NonFastPath;
 
 		raid = MR_LdRaidGet(ld, local_map_ptr);
@@ -2722,7 +2792,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 			/* Reset load balance info */
 			memset(fusion->load_balance_info, 0,
 			       sizeof(struct LD_LOAD_BALANCE_INFO)
-			       *MAX_LOGICAL_DRIVES);
+			       *MAX_LOGICAL_DRIVES_EXT);
 
 			if (!megasas_get_map_info(instance))
 				megasas_sync_map_info(instance);

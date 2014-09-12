@@ -479,10 +479,13 @@ struct MPI2_IOC_INIT_REQUEST {
 #define MAX_ROW_SIZE 32
 #define MAX_RAIDMAP_ROW_SIZE (MAX_ROW_SIZE)
 #define MAX_LOGICAL_DRIVES 64
+#define MAX_LOGICAL_DRIVES_EXT 256
 #define MAX_RAIDMAP_LOGICAL_DRIVES (MAX_LOGICAL_DRIVES)
 #define MAX_RAIDMAP_VIEWS (MAX_LOGICAL_DRIVES)
 #define MAX_ARRAYS 128
 #define MAX_RAIDMAP_ARRAYS (MAX_ARRAYS)
+#define MAX_ARRAYS_EXT	256
+#define MAX_API_ARRAYS_EXT (MAX_ARRAYS_EXT)
 #define MAX_PHYSICAL_DEVICES 256
 #define MAX_RAIDMAP_PHYSICAL_DEVICES (MAX_PHYSICAL_DEVICES)
 #define MR_DCMD_LD_MAP_GET_INFO             0x0300e101
@@ -602,7 +605,6 @@ struct MR_FW_RAID_MAP {
 			u32         maxArrays;
 		} validationInfo;
 		u32             version[5];
-		u32             reserved1[5];
 	};
 
 	u32                 ldCount;
@@ -714,6 +716,81 @@ struct MR_FW_RAID_MAP_ALL {
 	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES - 1];
 } __attribute__ ((packed));
 
+struct MR_DRV_RAID_MAP {
+	/* total size of this structure, including this field.
+	 * This feild will be manupulated by driver for ext raid map,
+	 * else pick the value from firmware raid map.
+	 */
+	u32                 totalSize;
+
+	union {
+	struct {
+		u32         maxLd;
+		u32         maxSpanDepth;
+		u32         maxRowSize;
+		u32         maxPdCount;
+		u32         maxArrays;
+	} validationInfo;
+	u32             version[5];
+	};
+
+	/* timeout value used by driver in FP IOs*/
+	u8                  fpPdIoTimeoutSec;
+	u8                  reserved2[7];
+
+	u16                 ldCount;
+	u16                 arCount;
+	u16                 spanCount;
+	u16                 reserve3;
+
+	struct MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
+	u8                  ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
+	struct MR_ARRAY_INFO       arMapInfo[MAX_API_ARRAYS_EXT];
+	struct MR_LD_SPAN_MAP      ldSpanMap[1];
+
+};
+
+/* Driver raid map size is same as raid map ext
+ * MR_DRV_RAID_MAP_ALL is created to sync with old raid.
+ * And it is mainly for code re-use purpose.
+ */
+struct MR_DRV_RAID_MAP_ALL {
+
+	struct MR_DRV_RAID_MAP raidMap;
+	struct MR_LD_SPAN_MAP      ldSpanMap[MAX_LOGICAL_DRIVES_EXT - 1];
+} __packed;
+
+
+
+struct MR_FW_RAID_MAP_EXT {
+	/* Not usred in new map */
+	u32                 reserved;
+
+	union {
+	struct {
+		u32         maxLd;
+		u32         maxSpanDepth;
+		u32         maxRowSize;
+		u32         maxPdCount;
+		u32         maxArrays;
+	} validationInfo;
+	u32             version[5];
+	};
+
+	u8                  fpPdIoTimeoutSec;
+	u8                  reserved2[7];
+
+	u16                 ldCount;
+	u16                 arCount;
+	u16                 spanCount;
+	u16                 reserve3;
+
+	struct MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
+	u8                  ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
+	struct MR_ARRAY_INFO       arMapInfo[MAX_API_ARRAYS_EXT];
+	struct MR_LD_SPAN_MAP      ldSpanMap[MAX_LOGICAL_DRIVES_EXT];
+};
+
 struct fusion_context {
 	struct megasas_cmd_fusion **cmd_list;
 	struct list_head cmd_pool;
@@ -750,10 +827,18 @@ struct fusion_context {
 	struct MR_FW_RAID_MAP_ALL *ld_map[2];
 	dma_addr_t ld_map_phys[2];
 
-	u32 map_sz;
+	/*Non dma-able memory. Driver local copy.*/
+	struct MR_DRV_RAID_MAP_ALL *ld_drv_map[2];
+
+	u32 max_map_sz;
+	u32 current_map_sz;
+	u32 old_map_sz;
+	u32 new_map_sz;
+	u32 drv_map_sz;
+	u32 drv_map_pages;
 	u8 fast_path_io;
-	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES];
-	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES];
+	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
+	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 };
 
 union desc_value {
@@ -763,5 +848,6 @@ union desc_value {
 		u32 high;
 	} u;
 };
+
 
 #endif /* _MEGARAID_SAS_FUSION_H_ */
