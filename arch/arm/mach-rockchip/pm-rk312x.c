@@ -919,11 +919,12 @@ void PIE_FUNC(pwm_regulator_suspend)(void)
 		rkpm_pwm_duty2 = readl_relaxed(RK_PWM_VIRT + 0x28);
 		writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x28);
 	}
+	rkpm_udelay(30);
 }
 
 void PIE_FUNC(pwm_regulator_resume)(void)
 {
-	cru_writel(0x1e000000, 0xf0);
+	rkpm_udelay(30);
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM0))
 		writel_relaxed(rkpm_pwm_duty0, RK_PWM_VIRT + 0x08);
 
@@ -932,6 +933,7 @@ void PIE_FUNC(pwm_regulator_resume)(void)
 
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM2))
 		writel_relaxed(rkpm_pwm_duty2, RK_PWM_VIRT + 0x28);
+	rkpm_udelay(30);
 }
 
 static void reg_pread(void)
