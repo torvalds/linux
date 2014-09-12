@@ -2859,6 +2859,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/dwc3/
 
+DEVICE COREDUMP (DEV_COREDUMP)
+M:	Johannes Berg <johannes@sipsolutions.net>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/base/devcoredump.c
+F:	include/linux/devcoredump.h
+
 DEVICE FREQUENCY (DEVFREQ)
 M:	MyungJoo Ham <myungjoo.ham@samsung.com>
 M:	Kyungmin Park <kyungmin.park@samsung.com>
