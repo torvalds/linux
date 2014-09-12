@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -66,7 +67,7 @@ torture_param(bool, verbose, true,
 static char *torture_type = "spin_lock";
 module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type,
-		 "Type of lock to torture (spin_lock, spin_lock_irq, ...)");
+		 "Type of lock to torture (spin_lock, spin_lock_irq, mutex_lock, ...)");
 
 static atomic_t n_lock_torture_errors;
 
@@ -204,6 +205,42 @@ static struct lock_torture_ops spin_lock_irq_ops = {
 	.write_delay	= torture_spin_lock_write_delay,
 	.writeunlock	= torture_lock_spin_write_unlock_irq,
 	.name		= "spin_lock_irq"
+};
+
+static DEFINE_MUTEX(torture_mutex);
+
+static int torture_mutex_lock(void) __acquires(torture_mutex)
+{
+	mutex_lock(&torture_mutex);
+	return 0;
+}
+
+static void torture_mutex_delay(struct torture_random_state *trsp)
+{
+	const unsigned long longdelay_ms = 100;
+
+	/* We want a long delay occasionally to force massive contention.  */
+	if (!(torture_random(trsp) %
+	      (nrealwriters_stress * 2000 * longdelay_ms)))
+		mdelay(longdelay_ms * 5);
+	else
+		mdelay(longdelay_ms / 5);
+#ifdef CONFIG_PREEMPT
+	if (!(torture_random(trsp) % (nrealwriters_stress * 20000)))
+		preempt_schedule();  /* Allow test to be preempted. */
+#endif
+}
+
+static void torture_mutex_unlock(void) __releases(torture_mutex)
+{
+	mutex_unlock(&torture_mutex);
+}
+
+static struct lock_torture_ops mutex_lock_ops = {
+	.writelock	= torture_mutex_lock,
+	.write_delay	= torture_mutex_delay,
+	.writeunlock	= torture_mutex_unlock,
+	.name		= "mutex_lock"
 };
 
 /*
@@ -352,7 +389,7 @@ static int __init lock_torture_init(void)
 	int i;
 	int firsterr = 0;
 	static struct lock_torture_ops *torture_ops[] = {
-		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops,
+		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops, &mutex_lock_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose, &torture_runnable))

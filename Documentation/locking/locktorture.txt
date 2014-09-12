@@ -40,6 +40,8 @@ torture_type	  Type of lock to torture. By default, only spinlocks will
 		     o "spin_lock_irq": spin_lock_irq() and spin_unlock_irq()
 					pairs.
 
+		     o "mutex_lock": mutex_lock() and mutex_unlock() pairs.
+
 torture_runnable  Start locktorture at boot time in the case where the
 		  module is built into the kernel, otherwise wait for
 		  torture_runnable to be set via sysfs before starting.
