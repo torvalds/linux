@@ -12,16 +12,32 @@ struct ramfuc {
 struct ramfuc_reg {
 	int sequence;
 	bool force;
-	u32 addr[2];
+	u32 addr;
+	u32 stride; /* in bytes */
+	u32 mask;
 	u32 data;
 };
+
+static inline struct ramfuc_reg
+ramfuc_stride(u32 addr, u32 stride, u32 mask)
+{
+	return (struct ramfuc_reg) {
+		.sequence = 0,
+		.addr = addr,
+		.stride = stride,
+		.mask = mask,
+		.data = 0xdeadbeef,
+	};
+}
 
 static inline struct ramfuc_reg
 ramfuc_reg2(u32 addr1, u32 addr2)
 {
 	return (struct ramfuc_reg) {
 		.sequence = 0,
-		.addr = { addr1, addr2 },
+		.addr = addr1,
+		.stride = addr2 - addr1,
+		.mask = 0x3,
 		.data = 0xdeadbeef,
 	};
 }
@@ -29,7 +45,13 @@ ramfuc_reg2(u32 addr1, u32 addr2)
 static noinline struct ramfuc_reg
 ramfuc_reg(u32 addr)
 {
-	return ramfuc_reg2(addr, addr);
+	return (struct ramfuc_reg) {
+		.sequence = 0,
+		.addr = addr,
+		.stride = 0,
+		.mask = 0x1,
+		.data = 0xdeadbeef,
+	};
 }
 
 static inline int
@@ -62,18 +84,25 @@ static inline u32
 ramfuc_rd32(struct ramfuc *ram, struct ramfuc_reg *reg)
 {
 	if (reg->sequence != ram->sequence)
-		reg->data = nv_rd32(ram->pfb, reg->addr[0]);
+		reg->data = nv_rd32(ram->pfb, reg->addr);
 	return reg->data;
 }
 
 static inline void
 ramfuc_wr32(struct ramfuc *ram, struct ramfuc_reg *reg, u32 data)
 {
+	unsigned int mask, off = 0;
+
 	reg->sequence = ram->sequence;
 	reg->data = data;
-	if (reg->addr[0] != reg->addr[1])
-		nouveau_memx_wr32(ram->memx, reg->addr[1], reg->data);
-	nouveau_memx_wr32(ram->memx, reg->addr[0], reg->data);
+
+	for (mask = reg->mask; mask > 0; mask = (mask & ~1) >> 1) {
+		if (mask & 1) {
+			nouveau_memx_wr32(ram->memx, reg->addr+off, reg->data);
+		}
+
+		off += reg->stride;
+	}
 }
 
 static inline void
@@ -125,7 +154,7 @@ ramfuc_unblock(struct ramfuc *ram)
 
 #define ram_init(s,p)        ramfuc_init(&(s)->base, (p))
 #define ram_exec(s,e)        ramfuc_exec(&(s)->base, (e))
-#define ram_have(s,r)        ((s)->r_##r.addr[0] != 0x000000)
+#define ram_have(s,r)        ((s)->r_##r.addr != 0x000000)
 #define ram_rd32(s,r)        ramfuc_rd32(&(s)->base, &(s)->r_##r)
 #define ram_wr32(s,r,d)      ramfuc_wr32(&(s)->base, &(s)->r_##r, (d))
 #define ram_nuke(s,r)        ramfuc_nuke(&(s)->base, &(s)->r_##r)

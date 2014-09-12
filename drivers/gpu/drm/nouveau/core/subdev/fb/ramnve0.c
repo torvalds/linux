@@ -237,7 +237,7 @@ nve0_ram_nuts(struct nve0_ram *ram, struct ramfuc_reg *reg,
 {
 	struct nve0_fb_priv *priv = (void *)nouveau_fb(ram);
 	struct ramfuc *fuc = &ram->fuc.base;
-	u32 addr = 0x110000 + (reg->addr[0] & 0xfff);
+	u32 addr = 0x110000 + (reg->addr & 0xfff);
 	u32 mask = _mask | _copy;
 	u32 data = (_data & _mask) | (reg->data & _copy);
 	u32 i;
