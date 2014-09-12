@@ -592,7 +592,7 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 }
 
 static struct dsa_switch_driver bcm_sf2_switch_driver = {
-	.tag_protocol		= htons(ETH_P_BRCMTAG),
+	.tag_protocol		= DSA_TAG_PROTO_BRCM,
 	.priv_size		= sizeof(struct bcm_sf2_priv),
 	.probe			= bcm_sf2_sw_probe,
 	.setup			= bcm_sf2_sw_setup,

@@ -258,7 +258,7 @@ static void mv88e6060_poll_link(struct dsa_switch *ds)
 }
 
 static struct dsa_switch_driver mv88e6060_switch_driver = {
-	.tag_protocol	= htons(ETH_P_TRAILER),
+	.tag_protocol	= DSA_TAG_PROTO_TRAILER,
 	.probe		= mv88e6060_probe,
 	.setup		= mv88e6060_setup,
 	.set_addr	= mv88e6060_set_addr,

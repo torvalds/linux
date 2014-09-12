@@ -437,22 +437,22 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	switch (ds->dst->tag_protocol) {
 #ifdef CONFIG_NET_DSA_TAG_DSA
-	case htons(ETH_P_DSA):
+	case DSA_TAG_PROTO_DSA:
 		ds->dst->ops = &dsa_netdev_ops;
 		break;
 #endif
 #ifdef CONFIG_NET_DSA_TAG_EDSA
-	case htons(ETH_P_EDSA):
+	case DSA_TAG_PROTO_EDSA:
 		ds->dst->ops = &edsa_netdev_ops;
 		break;
 #endif
 #ifdef CONFIG_NET_DSA_TAG_TRAILER
-	case htons(ETH_P_TRAILER):
+	case DSA_TAG_PROTO_TRAILER:
 		ds->dst->ops = &trailer_netdev_ops;
 		break;
 #endif
 #ifdef CONFIG_NET_DSA_TAG_BRCM
-	case htons(ETH_P_BRCMTAG):
+	case DSA_TAG_PROTO_BRCM:
 		ds->dst->ops = &brcm_netdev_ops;
 		break;
 #endif

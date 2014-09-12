@@ -91,7 +91,6 @@ static netdev_tx_t brcm_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Queue the SKB for transmission on the parent interface, but
 	 * do not modify its EtherType
 	 */
-	skb->protocol = htons(ETH_P_BRCMTAG);
 	skb->dev = p->parent->dst->master_netdev;
 	dev_queue_xmit(skb);
 

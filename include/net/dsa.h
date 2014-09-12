@@ -19,10 +19,13 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 
-/* Not an official ethertype value, used only internally for DSA
- * demultiplexing
- */
-#define ETH_P_BRCMTAG		(ETH_P_XDSA + 1)
+enum dsa_tag_protocol {
+	DSA_TAG_PROTO_NONE = 0,
+	DSA_TAG_PROTO_DSA,
+	DSA_TAG_PROTO_TRAILER,
+	DSA_TAG_PROTO_EDSA,
+	DSA_TAG_PROTO_BRCM,
+};
 
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
@@ -89,7 +92,7 @@ struct dsa_switch_tree {
 	 */
 	struct net_device	*master_netdev;
 	const struct dsa_device_ops	*ops;
-	__be16			tag_protocol;
+	enum dsa_tag_protocol	tag_protocol;
 
 	/*
 	 * The switch and port to which the CPU is attached.
@@ -166,7 +169,7 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 struct dsa_switch_driver {
 	struct list_head	list;
 
-	__be16			tag_protocol;
+	enum dsa_tag_protocol	tag_protocol;
 	int			priv_size;
 
 	/*
@@ -215,7 +218,7 @@ static inline void *ds_to_priv(struct dsa_switch *ds)
 
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {
-	return dst->tag_protocol != 0;
+	return dst->tag_protocol != DSA_TAG_PROTO_NONE;
 }
 
 #endif
