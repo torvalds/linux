@@ -78,11 +78,11 @@ static struct task_struct **writer_tasks;
 static int nrealwriters_stress;
 static bool lock_is_write_held;
 
-struct lock_writer_stress_stats {
-	long n_write_lock_fail;
-	long n_write_lock_acquired;
+struct lock_stress_stats {
+	long n_lock_fail;
+	long n_lock_acquired;
 };
-static struct lock_writer_stress_stats *lwsa;
+static struct lock_stress_stats *lwsa; /* writer statistics */
 
 #if defined(MODULE)
 #define LOCKTORTURE_RUNNABLE_INIT 1
@@ -250,7 +250,7 @@ static struct lock_torture_ops mutex_lock_ops = {
  */
 static int lock_torture_writer(void *arg)
 {
-	struct lock_writer_stress_stats *lwsp = arg;
+	struct lock_stress_stats *lwsp = arg;
 	static DEFINE_TORTURE_RANDOM(rand);
 
 	VERBOSE_TOROUT_STRING("lock_torture_writer task started");
@@ -261,9 +261,9 @@ static int lock_torture_writer(void *arg)
 			schedule_timeout_uninterruptible(1);
 		cur_ops->writelock();
 		if (WARN_ON_ONCE(lock_is_write_held))
-			lwsp->n_write_lock_fail++;
+			lwsp->n_lock_fail++;
 		lock_is_write_held = 1;
-		lwsp->n_write_lock_acquired++;
+		lwsp->n_lock_acquired++;
 		cur_ops->write_delay(&rand);
 		lock_is_write_held = 0;
 		cur_ops->writeunlock();
@@ -281,17 +281,17 @@ static void lock_torture_printk(char *page)
 	bool fail = 0;
 	int i;
 	long max = 0;
-	long min = lwsa[0].n_write_lock_acquired;
+	long min = lwsa[0].n_lock_acquired;
 	long long sum = 0;
 
 	for (i = 0; i < nrealwriters_stress; i++) {
-		if (lwsa[i].n_write_lock_fail)
+		if (lwsa[i].n_lock_fail)
 			fail = true;
-		sum += lwsa[i].n_write_lock_acquired;
-		if (max < lwsa[i].n_write_lock_fail)
-			max = lwsa[i].n_write_lock_fail;
-		if (min > lwsa[i].n_write_lock_fail)
-			min = lwsa[i].n_write_lock_fail;
+		sum += lwsa[i].n_lock_acquired;
+		if (max < lwsa[i].n_lock_fail)
+			max = lwsa[i].n_lock_fail;
+		if (min > lwsa[i].n_lock_fail)
+			min = lwsa[i].n_lock_fail;
 	}
 	page += sprintf(page, "%s%s ", torture_type, TORTURE_FLAG);
 	page += sprintf(page,
@@ -441,8 +441,8 @@ static int __init lock_torture_init(void)
 		goto unwind;
 	}
 	for (i = 0; i < nrealwriters_stress; i++) {
-		lwsa[i].n_write_lock_fail = 0;
-		lwsa[i].n_write_lock_acquired = 0;
+		lwsa[i].n_lock_fail = 0;
+		lwsa[i].n_lock_acquired = 0;
 	}
 
 	/* Start up the kthreads. */
