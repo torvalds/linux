@@ -76,7 +76,6 @@ static void dev_remove(struct net *net, dev_t dev)
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
-	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&nn->bl_wq, &wq);
 
 out:
