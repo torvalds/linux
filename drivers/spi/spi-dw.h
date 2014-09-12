@@ -140,7 +140,6 @@ struct dw_spi {
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	struct dw_spi_dma_ops	*dma_ops;
 	void			*dma_priv; /* platform relate info */
-	struct pci_dev		*dmac;
 
 	/* Bus interface info */
 	void			*priv;

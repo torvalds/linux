@@ -39,12 +39,13 @@ static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 {
 	struct dw_spi *dws = param;
 
-	return dws->dmac && (&dws->dmac->dev == chan->device->dev);
+	return dws->dma_dev == chan->device->dev;
 }
 
 static int mid_spi_dma_init(struct dw_spi *dws)
 {
 	struct mid_dma *dw_dma = dws->dma_priv;
+	struct pci_dev *dma_dev;
 	struct intel_mid_dma_slave *rxs, *txs;
 	dma_cap_mask_t mask;
 
@@ -52,7 +53,11 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 	 * Get pci device for DMA controller, currently it could only
 	 * be the DMA controller of Medfield
 	 */
-	dws->dmac = pci_get_device(PCI_VENDOR_ID_INTEL, 0x0827, NULL);
+	dma_dev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x0827, NULL);
+	if (!dma_dev)
+		return -ENODEV;
+
+	dws->dma_dev = &dma_dev->dev;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -81,8 +86,7 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 free_rxchan:
 	dma_release_channel(dws->rxchan);
 err_exit:
-	return -1;
-
+	return -EBUSY;
 }
 
 static void mid_spi_dma_exit(struct dw_spi *dws)
