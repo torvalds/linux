@@ -361,7 +361,7 @@ static void lock_torture_cleanup(void)
 {
 	int i;
 
-	if (torture_cleanup())
+	if (torture_cleanup_begin())
 		return;
 
 	if (writer_tasks) {
@@ -384,6 +384,7 @@ static void lock_torture_cleanup(void)
 	else
 		lock_torture_print_module_parms(cur_ops,
 						"End of test: SUCCESS");
+	torture_cleanup_end();
 }
 
 static int __init lock_torture_init(void)

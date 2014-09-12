@@ -1514,7 +1514,7 @@ rcu_torture_cleanup(void)
 	int i;
 
 	rcutorture_record_test_transition();
-	if (torture_cleanup()) {
+	if (torture_cleanup_begin()) {
 		if (cur_ops->cb_barrier != NULL)
 			cur_ops->cb_barrier();
 		return;
@@ -1566,6 +1566,7 @@ rcu_torture_cleanup(void)
 					       "End of test: RCU_HOTPLUG");
 	else
 		rcu_torture_print_module_parms(cur_ops, "End of test: SUCCESS");
+	torture_cleanup_end();
 }
 
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
