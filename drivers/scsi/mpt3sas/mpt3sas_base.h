@@ -272,8 +272,10 @@ struct _internal_cmd {
  * @channel: target channel
  * @slot: number number
  * @phy: phy identifier provided in sas device page 0
- * @fast_path: fast path feature enable bit
  * @responding: used in _scsih_sas_device_mark_responding
+ * @fast_path: fast path feature enable bit
+ * @pfa_led_on: flag for PFA LED status
+ *
  */
 struct _sas_device {
 	struct list_head list;
@@ -293,6 +295,7 @@ struct _sas_device {
 	u8	phy;
 	u8	responding;
 	u8	fast_path;
+	u8	pfa_led_on;
 };
 
 /**
