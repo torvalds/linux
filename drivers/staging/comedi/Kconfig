@@ -740,7 +740,7 @@ config COMEDI_ADL_PCI9111
 config COMEDI_ADL_PCI9118
 	tristate "ADLink PCI-9118DG, PCI-9118HG, PCI-9118HR support"
 	select COMEDI_FC
-	depends on VIRT_TO_BUS
+	depends on HAS_DMA
 	---help---
 	  Enable support for ADlink PCI-9118DG, PCI-9118HG, PCI-9118HR cards
 

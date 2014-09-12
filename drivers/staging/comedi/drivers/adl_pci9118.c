@@ -204,11 +204,10 @@ static const struct pci9118_boardinfo pci9118_boards[] = {
 };
 
 struct pci9118_dmabuf {
-	unsigned long virt;	/* virtual address of buffer */
-	unsigned long hw;	/* hardware (bus) address of buffer */
+	unsigned short *virt;	/* virtual address of buffer */
+	dma_addr_t hw;		/* hardware (bus) address of buffer */
 	unsigned int size;	/* size of dma buffer in bytes */
 	unsigned int use_size;	/* which size we may now use for transfer */
-	int order;		/* log2 number of pages in buffer */
 };
 
 struct pci9118_private {
@@ -475,12 +474,11 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 
 static int move_block_from_dma(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       unsigned long virt_addr,
+			       unsigned short *dma_buffer,
 			       unsigned int num_samples)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned short *dma_buffer = (unsigned short *)virt_addr;
 	unsigned int num_bytes;
 
 	num_samples = defragment_dma_buffer(dev, s, dma_buffer, num_samples);
@@ -1485,15 +1483,15 @@ static void pci9118_alloc_dma(struct comedi_device *dev)
 	for (i = 0; i < 2; i++) {
 		dmabuf = &devpriv->dmabuf[i];
 		for (order = 2; order >= 0; order--) {
-			dmabuf->virt = __get_free_pages(GFP_KERNEL, order);
+			dmabuf->virt =
+			    dma_alloc_coherent(dev->hw_dev, PAGE_SIZE << order,
+					       &dmabuf->hw, GFP_KERNEL);
 			if (dmabuf->virt)
 				break;
 		}
 		if (!dmabuf->virt)
 			break;
-		dmabuf->order = order;
 		dmabuf->size = PAGE_SIZE << order;
-		dmabuf->hw = virt_to_bus((void *)dmabuf->virt);
 
 		if (i == 0)
 			devpriv->master = 1;
@@ -1513,8 +1511,10 @@ static void pci9118_free_dma(struct comedi_device *dev)
 
 	for (i = 0; i < 2; i++) {
 		dmabuf = &devpriv->dmabuf[i];
-		if (dmabuf->virt)
-			free_pages(dmabuf->virt, dmabuf->order);
+		if (dmabuf->virt) {
+			dma_free_coherent(dev->hw_dev, dmabuf->size,
+					  dmabuf->virt, dmabuf->hw);
+		}
 	}
 }
 
