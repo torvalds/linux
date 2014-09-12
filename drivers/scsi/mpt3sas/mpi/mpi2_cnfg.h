@@ -6,7 +6,7 @@
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.24
+ *   mpi2_cnfg.h Version:  02.00.25
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -160,6 +160,9 @@
  * 12-20-12  02.00.24  Marked MPI2_SASIOUNIT1_CONTROL_CLEAR_AFFILIATION as
  *                     obsolete for MPI v2.5 and later.
  *                     Added some defines for 12G SAS speeds.
+ * 04-09-13  02.00.25  Added MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK.
+ *                     Fixed MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS to
+ *                     match the specification.
  * --------------------------------------------------------------------------
  */
 
@@ -792,6 +795,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1 {
 #define MPI2_IOUNITPAGE1_PAGEVERSION                    (0x04)
 
 /*IO Unit Page 1 Flags defines */
+#define MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK       (0x00004000)
 #define MPI25_IOUNITPAGE1_NEW_DEVICE_FAST_PATH_DISABLE  (0x00002000)
 #define MPI25_IOUNITPAGE1_DISABLE_FAST_PATH             (0x00001000)
 #define MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY    (0x00000800)
@@ -870,7 +874,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_5 {
 #define MPI2_IOUNITPAGE5_PAGEVERSION                    (0x00)
 
 /*defines for IO Unit Page 5 DmaEngineCapabilities field */
-#define MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS      (0xFF00)
+#define MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS      (0xFFFF0000)
 #define MPI2_IOUNITPAGE5_DMA_CAP_SHIFT_MAX_REQUESTS     (16)
 
 #define MPI2_IOUNITPAGE5_DMA_CAP_EEDP                   (0x0008)
