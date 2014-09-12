@@ -54,6 +54,13 @@ struct max14577_regulator_platform_data {
 	struct device_node *of_node;
 };
 
+struct max14577_charger_platform_data {
+	u32 constant_uvolt;
+	u32 fast_charge_uamp;
+	u32 eoc_uamp;
+	u32 ovp_uvolt;
+};
+
 /*
  * MAX14577 MFD platform data
  */
