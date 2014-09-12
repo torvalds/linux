@@ -179,11 +179,6 @@ int ima_get_action(struct inode *inode, int mask, int function)
 	return ima_match_policy(inode, function, mask, flags);
 }
 
-int ima_must_measure(struct inode *inode, int mask, int function)
-{
-	return ima_match_policy(inode, function, mask, IMA_MEASURE);
-}
-
 /*
  * ima_collect_measurement - collect file measurement
  *

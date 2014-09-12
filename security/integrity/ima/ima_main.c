@@ -79,6 +79,7 @@ __setup("ima_hash=", hash_setup);
  */
 static void ima_rdwr_violation_check(struct file *file,
 				     struct integrity_iint_cache *iint,
+				     int must_measure,
 				     char **pathbuf,
 				     const char **pathname)
 {
@@ -95,8 +96,7 @@ static void ima_rdwr_violation_check(struct file *file,
 				send_tomtou = true;
 		}
 	} else {
-		if ((atomic_read(&inode->i_writecount) > 0) &&
-		    ima_must_measure(inode, MAY_READ, FILE_CHECK))
+		if ((atomic_read(&inode->i_writecount) > 0) && must_measure)
 			send_writers = true;
 	}
 
@@ -174,7 +174,7 @@ static int process_measurement(struct file *file, int mask, int function,
 	 * Included is the appraise submask.
 	 */
 	action = ima_get_action(inode, mask, function);
-	violation_check = (function == FILE_CHECK &&
+	violation_check = ((function == FILE_CHECK || function == MMAP_CHECK) &&
 			   (ima_policy_flag & IMA_MEASURE));
 	if (!action && !violation_check)
 		return 0;
@@ -194,7 +194,8 @@ static int process_measurement(struct file *file, int mask, int function,
 	}
 
 	if (violation_check) {
-		ima_rdwr_violation_check(file, iint, &pathbuf, &pathname);
+		ima_rdwr_violation_check(file, iint, action & IMA_MEASURE,
+					 &pathbuf, &pathname);
 		if (!action) {
 			rc = 0;
 			goto out_free;
