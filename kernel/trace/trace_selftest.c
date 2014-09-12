@@ -382,6 +382,8 @@ static int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 
 	/* check the trace buffer */
 	ret = trace_test_buffer(&tr->trace_buffer, &count);
+
+	ftrace_enabled = 1;
 	tracing_start();
 
 	/* we should only have one item */
@@ -679,6 +681,8 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 	/* check the trace buffer */
 	ret = trace_test_buffer(&tr->trace_buffer, &count);
+
+	ftrace_enabled = 1;
 	trace->reset(tr);
 	tracing_start();
 
