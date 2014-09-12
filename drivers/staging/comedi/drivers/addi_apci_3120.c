@@ -100,13 +100,12 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 			if (devpriv->ul_DmaBufferVirtual[i])
 				break;
 		}
-		if (devpriv->ul_DmaBufferVirtual[i]) {
-			devpriv->ui_DmaBufferPages[i] = pages;
-			devpriv->ui_DmaBufferSize[i] = PAGE_SIZE * pages;
-			devpriv->ul_DmaBufferHw[i] =
-				virt_to_bus((void *)devpriv->
-				ul_DmaBufferVirtual[i]);
-		}
+		if (!devpriv->ul_DmaBufferVirtual[i])
+			break;
+		devpriv->ui_DmaBufferPages[i] = pages;
+		devpriv->ui_DmaBufferSize[i] = PAGE_SIZE * pages;
+		devpriv->ul_DmaBufferHw[i] =
+		    virt_to_bus(devpriv->ul_DmaBufferVirtual[i]);
 	}
 	if (!devpriv->ul_DmaBufferVirtual[0])
 		devpriv->us_UseDma = 0;
