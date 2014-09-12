@@ -4113,7 +4113,7 @@ out:
 	return status;
 }
 
-static void
+void
 nfsd4_end_grace(struct nfsd_net *nn)
 {
 	/* do nothing if grace period already ended */

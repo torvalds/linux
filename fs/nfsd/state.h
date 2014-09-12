@@ -545,6 +545,9 @@ extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(const char *name,
 							struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn);
 
+/* grace period management */
+void nfsd4_end_grace(struct nfsd_net *nn);
+
 /* nfs4recover operations */
 extern int nfsd4_client_tracking_init(struct net *net);
 extern void nfsd4_client_tracking_exit(struct net *net);
