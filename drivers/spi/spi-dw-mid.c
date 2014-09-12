@@ -50,11 +50,9 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 
 	/*
 	 * Get pci device for DMA controller, currently it could only
-	 * be the DMA controller of either Moorestown or Medfield
+	 * be the DMA controller of Medfield
 	 */
-	dws->dmac = pci_get_device(PCI_VENDOR_ID_INTEL, 0x0813, NULL);
-	if (!dws->dmac)
-		dws->dmac = pci_get_device(PCI_VENDOR_ID_INTEL, 0x0827, NULL);
+	dws->dmac = pci_get_device(PCI_VENDOR_ID_INTEL, 0x0827, NULL);
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -192,7 +190,7 @@ static struct dw_spi_dma_ops mid_dma_ops = {
 };
 #endif
 
-/* Some specific info for SPI0 controller on Moorestown */
+/* Some specific info for SPI0 controller on Intel MID */
 
 /* HW info for MRST CLk Control Unit, one 32b reg */
 #define MRST_SPI_CLK_BASE	100000000	/* 100m */
