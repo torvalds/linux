@@ -1342,6 +1342,12 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void assert_vblank_disabled(struct drm_crtc *crtc)
+{
+	if (WARN_ON(drm_crtc_vblank_get(crtc) == 0))
+		drm_crtc_vblank_put(crtc);
+}
+
 static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 {
 	u32 val;
@@ -3891,6 +3897,8 @@ static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 
+	assert_vblank_disabled(crtc);
+
 	drm_vblank_on(dev, pipe);
 
 	intel_enable_primary_hw_plane(crtc->primary, crtc);
@@ -3940,6 +3948,8 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
 
 	drm_vblank_off(dev, pipe);
+
+	assert_vblank_disabled(crtc);
 }
 
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
@@ -12766,9 +12776,10 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
 	/* restore vblank interrupts to correct state */
-	if (crtc->active)
+	if (crtc->active) {
+		update_scanline_offset(crtc);
 		drm_vblank_on(dev, crtc->pipe);
-	else
+	} else
 		drm_vblank_off(dev, crtc->pipe);
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
@@ -12867,8 +12878,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 */
 		crtc->cpu_fifo_underrun_disabled = true;
 		crtc->pch_fifo_underrun_disabled = true;
-
-		update_scanline_offset(crtc);
 	}
 }
 
