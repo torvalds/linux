@@ -6,7 +6,7 @@
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.25
+ *   mpi2_cnfg.h Version:  02.00.26
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -163,6 +163,8 @@
  * 04-09-13  02.00.25  Added MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK.
  *                     Fixed MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS to
  *                     match the specification.
+ * 08-19-13  02.00.26  Added reserved words to MPI2_CONFIG_PAGE_IO_UNIT_7 for
+ *			future use.
  * --------------------------------------------------------------------------
  */
 
@@ -924,11 +926,15 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 	U8
 		BoardTemperatureUnits;                  /*0x16 */
 	U8                      Reserved3;              /*0x17 */
+	U32			Reserved4;		/* 0x18 */
+	U32			Reserved5;		/* 0x1C */
+	U32			Reserved6;		/* 0x20 */
+	U32			Reserved7;		/* 0x24 */
 } MPI2_CONFIG_PAGE_IO_UNIT_7,
 	*PTR_MPI2_CONFIG_PAGE_IO_UNIT_7,
 	Mpi2IOUnitPage7_t, *pMpi2IOUnitPage7_t;
 
-#define MPI2_IOUNITPAGE7_PAGEVERSION                    (0x02)
+#define MPI2_IOUNITPAGE7_PAGEVERSION			(0x04)
 
 /*defines for IO Unit Page 7 CurrentPowerMode and PreviousPowerMode fields */
 #define MPI25_IOUNITPAGE7_PM_INIT_MASK              (0xC0)
