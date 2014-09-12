@@ -1039,6 +1039,7 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 				    struct sk_buff *skb, u32 upld_typ)
 {
 	u8 *cmd_buf;
+	unsigned long flags;
 	__le16 *curr_ptr = (__le16 *)skb->data;
 	u16 pkt_len = le16_to_cpu(*curr_ptr);
 
@@ -1048,7 +1049,15 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 	switch (upld_typ) {
 	case MWIFIEX_TYPE_DATA:
 		dev_dbg(adapter->dev, "info: --- Rx: Data packet ---\n");
-		mwifiex_handle_rx_packet(adapter, skb);
+		if (adapter->rx_work_enabled) {
+			spin_lock_irqsave(&adapter->rx_q_lock, flags);
+			skb_queue_tail(&adapter->rx_data_q, skb);
+			spin_unlock_irqrestore(&adapter->rx_q_lock, flags);
+			adapter->data_received = true;
+			atomic_inc(&adapter->rx_pending);
+		} else {
+			mwifiex_handle_rx_packet(adapter, skb);
+		}
 		break;
 
 	case MWIFIEX_TYPE_CMD:

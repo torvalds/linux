@@ -447,8 +447,11 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->cmd_free_q_lock);
 	spin_lock_init(&adapter->cmd_pending_q_lock);
 	spin_lock_init(&adapter->scan_pending_q_lock);
+	spin_lock_init(&adapter->rx_q_lock);
+	spin_lock_init(&adapter->rx_proc_lock);
 
 	skb_queue_head_init(&adapter->usb_rx_data_q);
+	skb_queue_head_init(&adapter->rx_data_q);
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		INIT_LIST_HEAD(&adapter->bss_prio_tbl[i].bss_prio_head);
@@ -614,6 +617,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	int ret = -EINPROGRESS;
 	struct mwifiex_private *priv;
 	s32 i;
+	unsigned long flags;
 	struct sk_buff *skb;
 
 	/* mwifiex already shutdown */
@@ -647,6 +651,21 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 			mwifiex_delete_bss_prio_tbl(priv);
 		}
 	}
+
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+
+	while ((skb = skb_dequeue(&adapter->rx_data_q))) {
+		struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
+
+		atomic_dec(&adapter->rx_pending);
+		priv = adapter->priv[rx_info->bss_num];
+		if (priv)
+			priv->stats.rx_dropped++;
+
+		dev_kfree_skb_any(skb);
+	}
+
+	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 
 	spin_lock(&adapter->mwifiex_lock);
 

@@ -1233,6 +1233,7 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 	struct sk_buff *skb_tmp = NULL;
 	struct mwifiex_pcie_buf_desc *desc;
 	struct mwifiex_pfu_buf_desc *desc2;
+	unsigned long flags;
 
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_pm_wakeup_card(adapter);
@@ -1283,7 +1284,16 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 				"info: RECV DATA: Rd=%#x, Wr=%#x, Len=%d\n",
 				card->rxbd_rdptr, wrptr, rx_len);
 			skb_pull(skb_data, INTF_HEADER_LEN);
-			mwifiex_handle_rx_packet(adapter, skb_data);
+			if (adapter->rx_work_enabled) {
+				spin_lock_irqsave(&adapter->rx_q_lock, flags);
+				skb_queue_tail(&adapter->rx_data_q, skb_data);
+				spin_unlock_irqrestore(&adapter->rx_q_lock,
+						       flags);
+				adapter->data_received = true;
+				atomic_inc(&adapter->rx_pending);
+			} else {
+				mwifiex_handle_rx_packet(adapter, skb_data);
+			}
 		}
 
 		skb_tmp = dev_alloc_skb(MWIFIEX_RX_DATA_BUF_SIZE);

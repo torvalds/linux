@@ -58,6 +58,9 @@ enum {
 #define MAX_TX_PENDING      100
 #define LOW_TX_PENDING      80
 
+#define HIGH_RX_PENDING     50
+#define LOW_RX_PENDING      20
+
 #define MWIFIEX_UPLD_SIZE               (2312)
 
 #define MAX_EVENT_SIZE                  2048
@@ -714,6 +717,12 @@ struct mwifiex_adapter {
 	atomic_t cmd_pending;
 	struct workqueue_struct *workqueue;
 	struct work_struct main_work;
+	struct workqueue_struct *rx_workqueue;
+	struct work_struct rx_work;
+	bool rx_work_enabled;
+	bool rx_processing;
+	bool delay_main_work;
+	bool rx_locked;
 	struct mwifiex_bss_prio_tbl bss_prio_tbl[MWIFIEX_MAX_BSS_NUM];
 	/* spin lock for init/shutdown */
 	spinlock_t mwifiex_lock;
@@ -754,6 +763,10 @@ struct mwifiex_adapter {
 	struct list_head scan_pending_q;
 	/* spin lock for scan_pending_q */
 	spinlock_t scan_pending_q_lock;
+	/* spin lock for RX queue */
+	spinlock_t rx_q_lock;
+	/* spin lock for RX processing routine */
+	spinlock_t rx_proc_lock;
 	struct sk_buff_head usb_rx_data_q;
 	u32 scan_processing;
 	u16 region_code;
@@ -831,6 +844,7 @@ struct mwifiex_adapter {
 	u8 num_mem_types;
 	u8 curr_mem_idx;
 	bool scan_chan_gap_enabled;
+	struct sk_buff_head rx_data_q;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);

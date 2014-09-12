@@ -183,6 +183,15 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 	if (!tbl)
 		return;
 
+	spin_lock_irqsave(&priv->adapter->rx_proc_lock, flags);
+	priv->adapter->rx_locked = true;
+	if (priv->adapter->rx_processing) {
+		spin_unlock_irqrestore(&priv->adapter->rx_proc_lock, flags);
+		flush_workqueue(priv->adapter->rx_workqueue);
+	} else {
+		spin_unlock_irqrestore(&priv->adapter->rx_proc_lock, flags);
+	}
+
 	start_win = (tbl->start_win + tbl->win_size) & (MAX_TID_VALUE - 1);
 	mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, start_win);
 
@@ -194,6 +203,11 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 
 	kfree(tbl->rx_reorder_ptr);
 	kfree(tbl);
+
+	spin_lock_irqsave(&priv->adapter->rx_proc_lock, flags);
+	priv->adapter->rx_locked = false;
+	spin_unlock_irqrestore(&priv->adapter->rx_proc_lock, flags);
+
 }
 
 /*
