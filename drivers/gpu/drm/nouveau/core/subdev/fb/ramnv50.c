@@ -319,27 +319,22 @@ nv50_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 static u32
 nv50_fb_vram_rblock(struct nouveau_fb *pfb, struct nouveau_ram *ram)
 {
-	int i, parts, colbits, rowbitsa, rowbitsb, banks;
+	int colbits, rowbitsa, rowbitsb, banks;
 	u64 rowsize, predicted;
-	u32 r0, r4, rt, ru, rblock_size;
+	u32 r0, r4, rt, rblock_size;
 
 	r0 = nv_rd32(pfb, 0x100200);
 	r4 = nv_rd32(pfb, 0x100204);
 	rt = nv_rd32(pfb, 0x100250);
-	ru = nv_rd32(pfb, 0x001540);
-	nv_debug(pfb, "memcfg 0x%08x 0x%08x 0x%08x 0x%08x\n", r0, r4, rt, ru);
-
-	for (i = 0, parts = 0; i < 8; i++) {
-		if (ru & (0x00010000 << i))
-			parts++;
-	}
+	nv_debug(pfb, "memcfg 0x%08x 0x%08x 0x%08x 0x%08x\n", r0, r4, rt,
+			nv_rd32(pfb, 0x001540));
 
 	colbits  =  (r4 & 0x0000f000) >> 12;
 	rowbitsa = ((r4 & 0x000f0000) >> 16) + 8;
 	rowbitsb = ((r4 & 0x00f00000) >> 20) + 8;
 	banks    = 1 << (((r4 & 0x03000000) >> 24) + 2);
 
-	rowsize = parts * banks * (1 << colbits) * 8;
+	rowsize = ram->parts * banks * (1 << colbits) * 8;
 	predicted = rowsize << rowbitsa;
 	if (r0 & 0x00000004)
 		predicted += rowsize << rowbitsb;
@@ -375,6 +370,9 @@ nv50_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	ram->size = nv_rd32(pfb, 0x10020c);
 	ram->size = (ram->size & 0xffffff00) | ((ram->size & 0x000000ff) << 32);
+
+	ram->part_mask = (nv_rd32(pfb, 0x001540) & 0x00ff0000) >> 16;
+	ram->parts = hweight8(ram->part_mask);
 
 	switch (nv_rd32(pfb, 0x100714) & 0x00000007) {
 	case 0: ram->type = NV_MEM_TYPE_DDR1; break;

@@ -137,6 +137,7 @@ struct nouveau_ram {
 
 	int ranks;
 	int parts;
+	int part_mask;
 
 	int  (*get)(struct nouveau_fb *, u64 size, u32 align,
 		    u32 size_nc, u32 type, struct nouveau_mem **);
