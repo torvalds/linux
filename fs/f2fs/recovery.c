@@ -279,16 +279,30 @@ got_it:
 	ino = ino_of_node(node_page);
 	f2fs_put_page(node_page, 1);
 
-	/* Deallocate previous index in the node page */
-	inode = f2fs_iget(sbi->sb, ino);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (ino != dn->inode->i_ino) {
+		/* Deallocate previous index in the node page */
+		inode = f2fs_iget(sbi->sb, ino);
+		if (IS_ERR(inode))
+			return PTR_ERR(inode);
+	} else {
+		inode = dn->inode;
+	}
 
 	bidx = start_bidx_of_node(offset, F2FS_I(inode)) +
-					le16_to_cpu(sum.ofs_in_node);
+			le16_to_cpu(sum.ofs_in_node);
 
-	truncate_hole(inode, bidx, bidx + 1);
-	iput(inode);
+	if (ino != dn->inode->i_ino) {
+		truncate_hole(inode, bidx, bidx + 1);
+		iput(inode);
+	} else {
+		struct dnode_of_data tdn;
+		set_new_dnode(&tdn, inode, dn->inode_page, NULL, 0);
+		if (get_dnode_of_data(&tdn, bidx, LOOKUP_NODE))
+			return 0;
+		if (tdn.data_blkaddr != NULL_ADDR)
+			truncate_data_blocks_range(&tdn, 1);
+		f2fs_put_page(tdn.node_page, 1);
+	}
 	return 0;
 }
 
