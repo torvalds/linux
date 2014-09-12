@@ -199,6 +199,7 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		kfree(parent_names);
 		return;
 	}
 cleanup:
