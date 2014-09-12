@@ -99,8 +99,8 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 	return (phys_addr_t)mcfg_addr;
 }
 
-static acpi_status
-decode_type0_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
+static acpi_status decode_type0_hpx_record(union acpi_object *record,
+					   struct hotplug_params *hpx)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -129,8 +129,8 @@ decode_type0_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
 	return AE_OK;
 }
 
-static acpi_status
-decode_type1_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
+static acpi_status decode_type1_hpx_record(union acpi_object *record,
+					   struct hotplug_params *hpx)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -158,8 +158,8 @@ decode_type1_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
 	return AE_OK;
 }
 
-static acpi_status
-decode_type2_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
+static acpi_status decode_type2_hpx_record(union acpi_object *record,
+					   struct hotplug_params *hpx)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -200,8 +200,7 @@ decode_type2_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
 	return AE_OK;
 }
 
-static acpi_status
-acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
+static acpi_status acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
@@ -265,8 +264,7 @@ acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
 	return status;
 }
 
-static acpi_status
-acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
+static acpi_status acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
