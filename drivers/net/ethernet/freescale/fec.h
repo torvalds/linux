@@ -38,6 +38,12 @@
 #define FEC_ADDR_LOW		0x0e4 /* Low 32bits MAC address */
 #define FEC_ADDR_HIGH		0x0e8 /* High 16bits MAC address */
 #define FEC_OPD			0x0ec /* Opcode + Pause duration */
+#define FEC_TXIC0		0xF0  /* Tx Interrupt Coalescing for ring 0 */
+#define FEC_TXIC1		0xF4  /* Tx Interrupt Coalescing for ring 1 */
+#define FEC_TXIC2		0xF8  /* Tx Interrupt Coalescing for ring 2 */
+#define FEC_RXIC0		0x100 /* Rx Interrupt Coalescing for ring 0 */
+#define FEC_RXIC1		0x104 /* Rx Interrupt Coalescing for ring 1 */
+#define FEC_RXIC2		0x108 /* Rx Interrupt Coalescing for ring 2 */
 #define FEC_HASH_TABLE_HIGH	0x118 /* High 32bits hash table */
 #define FEC_HASH_TABLE_LOW	0x11c /* Low 32bits hash table */
 #define FEC_GRP_HASH_TABLE_HIGH	0x120 /* High 32bits hash table */
@@ -65,6 +71,7 @@
 #define FEC_X_DES_ACTIVE_1	0x1e4 /* Tx descriptor active for ring 1 */
 #define FEC_R_DES_ACTIVE_2	0x1e8 /* Rx descriptor active for ring 2 */
 #define FEC_X_DES_ACTIVE_2	0x1ec /* Tx descriptor active for ring 2 */
+#define FEC_QOS_SCHEME		0x1f0 /* Set multi queues Qos scheme */
 #define FEC_MIIGSK_CFGR		0x300 /* MIIGSK Configuration reg */
 #define FEC_MIIGSK_ENR		0x308 /* MIIGSK Enable reg */
 
@@ -304,6 +311,32 @@ struct bufdesc_ex {
 #define BD_ENET_RX_PCR		0x00000010
 #define FLAG_RX_CSUM_ENABLED	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 #define FLAG_RX_CSUM_ERROR	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
+
+/* Interrupt events/masks. */
+#define FEC_ENET_HBERR  ((uint)0x80000000)      /* Heartbeat error */
+#define FEC_ENET_BABR   ((uint)0x40000000)      /* Babbling receiver */
+#define FEC_ENET_BABT   ((uint)0x20000000)      /* Babbling transmitter */
+#define FEC_ENET_GRA    ((uint)0x10000000)      /* Graceful stop complete */
+#define FEC_ENET_TXF_0	((uint)0x08000000)	/* Full frame transmitted */
+#define FEC_ENET_TXF_1	((uint)0x00000008)	/* Full frame transmitted */
+#define FEC_ENET_TXF_2	((uint)0x00000080)	/* Full frame transmitted */
+#define FEC_ENET_TXB    ((uint)0x04000000)      /* A buffer was transmitted */
+#define FEC_ENET_RXF_0	((uint)0x02000000)	/* Full frame received */
+#define FEC_ENET_RXF_1	((uint)0x00000002)	/* Full frame received */
+#define FEC_ENET_RXF_2	((uint)0x00000020)	/* Full frame received */
+#define FEC_ENET_RXB    ((uint)0x01000000)      /* A buffer was received */
+#define FEC_ENET_MII    ((uint)0x00800000)      /* MII interrupt */
+#define FEC_ENET_EBERR  ((uint)0x00400000)      /* SDMA bus error */
+#define FEC_ENET_TXF	(FEC_ENET_TXF_0 | FEC_ENET_TXF_1 | FEC_ENET_TXF_2)
+#define FEC_ENET_RXF	(FEC_ENET_RXF_0 | FEC_ENET_RXF_1 | FEC_ENET_RXF_2)
+#define FEC_ENET_TS_AVAIL       ((uint)0x00010000)
+#define FEC_ENET_TS_TIMER       ((uint)0x00008000)
+
+#define FEC_DEFAULT_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII | FEC_ENET_TS_TIMER)
+#define FEC_RX_DISABLED_IMASK (FEC_DEFAULT_IMASK & (~FEC_ENET_RXF))
+
+#define FEC_VLAN_TAG_LEN       0x04
+#define FEC_ETHTYPE_LEN                0x02
 
 struct fec_enet_priv_tx_q {
 	int index;
