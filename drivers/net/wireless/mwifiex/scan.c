@@ -1766,7 +1766,7 @@ static void mwifiex_complete_scan(struct mwifiex_private *priv)
 static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node;
+	struct cmd_ctrl_node *cmd_node, *tmp_node;
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
@@ -1787,37 +1787,36 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 			priv->scan_aborting = false;
 			dev_dbg(adapter->dev, "info: scan already aborted\n");
 		}
-	} else {
-		if ((priv->scan_aborting && !priv->scan_request) ||
-		    priv->scan_block) {
-			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
-					       flags);
-			adapter->scan_delay_cnt = MWIFIEX_MAX_SCAN_DELAY_CNT;
-			mod_timer(&priv->scan_delay_timer, jiffies);
-			dev_dbg(priv->adapter->dev,
-				"info: %s: triggerring scan abort\n", __func__);
-		} else if (!mwifiex_wmm_lists_empty(adapter) &&
-			   (priv->scan_request && (priv->scan_request->flags &
-					    NL80211_SCAN_FLAG_LOW_PRIORITY))) {
-			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
-					       flags);
-			adapter->scan_delay_cnt = 1;
-			mod_timer(&priv->scan_delay_timer, jiffies +
-				  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
-			dev_dbg(priv->adapter->dev,
-				"info: %s: deferring scan\n", __func__);
-		} else {
-			/* Get scan command from scan_pending_q and put to
-			 * cmd_pending_q
-			 */
-			cmd_node = list_first_entry(&adapter->scan_pending_q,
-						    struct cmd_ctrl_node, list);
+	} else if ((priv->scan_aborting && !priv->scan_request) ||
+		   priv->scan_block) {
+		list_for_each_entry_safe(cmd_node, tmp_node,
+					 &adapter->scan_pending_q, list) {
 			list_del(&cmd_node->list);
-			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
-					       flags);
-			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
-							true);
+			mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
 		}
+		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+
+		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
+		adapter->scan_processing = false;
+		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+
+		if (priv->scan_request) {
+			dev_dbg(adapter->dev, "info: aborting scan\n");
+			cfg80211_scan_done(priv->scan_request, 1);
+			priv->scan_request = NULL;
+		} else {
+			priv->scan_aborting = false;
+			dev_dbg(adapter->dev, "info: scan already aborted\n");
+		}
+	} else {
+		/* Get scan command from scan_pending_q and put to
+		 * cmd_pending_q
+		 */
+		cmd_node = list_first_entry(&adapter->scan_pending_q,
+					    struct cmd_ctrl_node, list);
+		list_del(&cmd_node->list);
+		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
 	}
 
 	return;

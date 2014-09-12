@@ -1936,13 +1936,6 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
-	if ((request->flags & NL80211_SCAN_FLAG_LOW_PRIORITY) &&
-	    atomic_read(&priv->wmm.tx_pkts_queued) >=
-	    MWIFIEX_MIN_TX_PENDING_TO_CANCEL_SCAN) {
-		dev_dbg(priv->adapter->dev, "scan rejected due to traffic\n");
-		return -EBUSY;
-	}
-
 	/* Block scan request if scan operation or scan cleanup when interface
 	 * is disabled is in process
 	 */
@@ -2920,7 +2913,6 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 
 	wiphy->features |= NL80211_FEATURE_HT_IBSS |
 			   NL80211_FEATURE_INACTIVITY_TIMER |
-			   NL80211_FEATURE_LOW_PRIORITY_SCAN |
 			   NL80211_FEATURE_NEED_OBSS_SCAN;
 
 	/* Reserve space for mwifiex specific private data for BSS */

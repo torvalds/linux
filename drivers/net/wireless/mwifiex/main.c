@@ -28,91 +28,6 @@ const char driver_version[] = "mwifiex " VERSION " (%s) ";
 static char *cal_data_cfg;
 module_param(cal_data_cfg, charp, 0);
 
-static void scan_delay_timer_fn(unsigned long data)
-{
-	struct mwifiex_private *priv = (struct mwifiex_private *)data;
-	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node, *tmp_node;
-	spinlock_t *scan_q_lock = &adapter->scan_pending_q_lock;
-	unsigned long flags;
-
-	if (adapter->surprise_removed)
-		return;
-
-	if (adapter->scan_delay_cnt == MWIFIEX_MAX_SCAN_DELAY_CNT ||
-	    !adapter->scan_processing) {
-		/*
-		 * Abort scan operation by cancelling all pending scan
-		 * commands
-		 */
-		spin_lock_irqsave(scan_q_lock, flags);
-		list_for_each_entry_safe(cmd_node, tmp_node,
-					 &adapter->scan_pending_q, list) {
-			list_del(&cmd_node->list);
-			mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
-		}
-		spin_unlock_irqrestore(scan_q_lock, flags);
-
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
-		adapter->scan_processing = false;
-		adapter->scan_delay_cnt = 0;
-		adapter->empty_tx_q_cnt = 0;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-
-		if (priv->scan_request) {
-			dev_dbg(adapter->dev, "info: aborting scan\n");
-			cfg80211_scan_done(priv->scan_request, 1);
-			priv->scan_request = NULL;
-		} else {
-			priv->scan_aborting = false;
-			dev_dbg(adapter->dev, "info: scan already aborted\n");
-		}
-		goto done;
-	}
-
-	if (!atomic_read(&priv->adapter->is_tx_received)) {
-		adapter->empty_tx_q_cnt++;
-		if (adapter->empty_tx_q_cnt == MWIFIEX_MAX_EMPTY_TX_Q_CNT) {
-			/*
-			 * No Tx traffic for 200msec. Get scan command from
-			 * scan pending queue and put to cmd pending queue to
-			 * resume scan operation
-			 */
-			adapter->scan_delay_cnt = 0;
-			adapter->empty_tx_q_cnt = 0;
-			spin_lock_irqsave(scan_q_lock, flags);
-
-			if (list_empty(&adapter->scan_pending_q)) {
-				spin_unlock_irqrestore(scan_q_lock, flags);
-				goto done;
-			}
-
-			cmd_node = list_first_entry(&adapter->scan_pending_q,
-						    struct cmd_ctrl_node, list);
-			list_del(&cmd_node->list);
-			spin_unlock_irqrestore(scan_q_lock, flags);
-
-			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
-							true);
-			queue_work(adapter->workqueue, &adapter->main_work);
-			goto done;
-		}
-	} else {
-		adapter->empty_tx_q_cnt = 0;
-	}
-
-	/* Delay scan operation further by 20msec */
-	mod_timer(&priv->scan_delay_timer, jiffies +
-		  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
-	adapter->scan_delay_cnt++;
-
-done:
-	if (atomic_read(&priv->adapter->is_tx_received))
-		atomic_set(&priv->adapter->is_tx_received, false);
-
-	return;
-}
-
 /*
  * This function registers the device and performs all the necessary
  * initializations.
@@ -160,10 +75,6 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 
 		adapter->priv[i]->adapter = adapter;
 		adapter->priv_num++;
-
-		setup_timer(&adapter->priv[i]->scan_delay_timer,
-			    scan_delay_timer_fn,
-			    (unsigned long)adapter->priv[i]);
 	}
 	mwifiex_init_lock_list(adapter);
 
@@ -207,7 +118,6 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
 			mwifiex_free_curr_bcn(adapter->priv[i]);
-			del_timer_sync(&adapter->priv[i]->scan_delay_timer);
 			kfree(adapter->priv[i]);
 		}
 	}
@@ -285,7 +195,6 @@ process_start:
 				break;
 
 			if ((!adapter->scan_chan_gap_enabled &&
-			     !adapter->scan_delay_cnt &&
 			     adapter->scan_processing) || adapter->data_sent ||
 			    mwifiex_wmm_lists_empty(adapter)) {
 				if (adapter->cmd_sent || adapter->curr_cmd ||
@@ -341,7 +250,7 @@ process_start:
 		}
 
 		if ((adapter->scan_chan_gap_enabled ||
-		     (!adapter->scan_processing || adapter->scan_delay_cnt)) &&
+		     !adapter->scan_processing) &&
 		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter)) {
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
@@ -599,9 +508,6 @@ int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 
 	atomic_inc(&priv->adapter->tx_pending);
 	mwifiex_wmm_add_buf_txqueue(priv, skb);
-
-	if (priv->adapter->scan_delay_cnt)
-		atomic_set(&priv->adapter->is_tx_received, true);
 
 	queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
 
