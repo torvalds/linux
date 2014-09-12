@@ -96,6 +96,8 @@ void b43_controller_restart(struct b43_wldev *dev, const char *reason);
 #define B43_PS_ASLEEP	(1 << 3)	/* Force device asleep */
 void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags);
 
+void b43_wireless_core_phy_pll_reset(struct b43_wldev *dev);
+
 void b43_mac_suspend(struct b43_wldev *dev);
 void b43_mac_enable(struct b43_wldev *dev);
 void b43_mac_phy_clock_set(struct b43_wldev *dev, bool on);

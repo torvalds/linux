@@ -1204,6 +1204,36 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/BmacCorePllReset */
+void b43_wireless_core_phy_pll_reset(struct b43_wldev *dev)
+{
+	struct bcma_drv_cc *bcma_cc __maybe_unused;
+	struct ssb_chipcommon *ssb_cc __maybe_unused;
+
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		bcma_cc = &dev->dev->bdev->bus->drv_cc;
+
+		bcma_cc_write32(bcma_cc, BCMA_CC_CHIPCTL_ADDR, 0);
+		bcma_cc_mask32(bcma_cc, BCMA_CC_CHIPCTL_DATA, ~0x4);
+		bcma_cc_set32(bcma_cc, BCMA_CC_CHIPCTL_DATA, 0x4);
+		bcma_cc_mask32(bcma_cc, BCMA_CC_CHIPCTL_DATA, ~0x4);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		ssb_cc = &dev->dev->sdev->bus->chipco;
+
+		chipco_write32(ssb_cc, SSB_CHIPCO_CHIPCTL_ADDR, 0);
+		chipco_mask32(ssb_cc, SSB_CHIPCO_CHIPCTL_DATA, ~0x4);
+		chipco_set32(ssb_cc, SSB_CHIPCO_CHIPCTL_DATA, 0x4);
+		chipco_mask32(ssb_cc, SSB_CHIPCO_CHIPCTL_DATA, ~0x4);
+		break;
+#endif
+	}
+}
+
 #ifdef CONFIG_B43_BCMA
 static void b43_bcma_phy_reset(struct b43_wldev *dev)
 {

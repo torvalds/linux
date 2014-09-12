@@ -762,7 +762,7 @@ static void b43_phy_ht_spur_avoid(struct b43_wldev *dev,
 
 	b43_mac_switch_freq(dev, spuravoid);
 
-	/* TODO: reset PLL */
+	b43_wireless_core_phy_pll_reset(dev);
 
 	if (spuravoid)
 		b43_phy_set(dev, B43_PHY_HT_BBCFG, B43_PHY_HT_BBCFG_RSTRX);
