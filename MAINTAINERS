@@ -835,6 +835,12 @@ M:	Emilio López <emilio@elopez.com.ar>
 S:	Maintained
 F:	drivers/clk/sunxi/
 
+ARM/Amlogic MesonX SoC support
+M:	Carlo Caione <carlo@caione.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+N:	meson[x68]
+
 ARM/ATMEL AT91RM9200 AND AT91SAM ARM ARCHITECTURES
 M:	Andrew Victor <linux@maxim.org.za>
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
