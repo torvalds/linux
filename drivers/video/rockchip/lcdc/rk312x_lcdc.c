@@ -1547,8 +1547,20 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	if (lcdc_dev->atv_layer_cnt) {
 		rk312x_lcdc_clk_enable(lcdc_dev);
 		rk312x_lcdc_reg_restore(lcdc_dev);
+
+		/* config for the FRC mode of dither down */
+		if (dev_drv->cur_screen &&
+		    dev_drv->cur_screen->face != OUT_P888) {
+			lcdc_writel(lcdc_dev, FRC_LOWER01_0, 0x12844821);
+			lcdc_writel(lcdc_dev, FRC_LOWER01_1, 0x21488412);
+			lcdc_writel(lcdc_dev, FRC_LOWER10_0, 0x55aaaa55);
+			lcdc_writel(lcdc_dev, FRC_LOWER10_1, 0x55aaaa55);
+			lcdc_writel(lcdc_dev, FRC_LOWER11_0, 0xdeb77deb);
+			lcdc_writel(lcdc_dev, FRC_LOWER11_1, 0xed7bb7de);
+		}
+
                 /* set screen lut */
-		if (dev_drv->cur_screen->dsp_lut)
+		if (dev_drv->cur_screen && dev_drv->cur_screen->dsp_lut)
 			rk312x_lcdc_set_lut(dev_drv);
 		/*set hwc lut*/
 		rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
