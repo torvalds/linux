@@ -88,10 +88,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	devpriv->us_UseDma = 1;
-
 	/* Allocate DMA buffers */
-	devpriv->b_DmaDoubleBuffer = 0;
 	for (i = 0; i < 2; i++) {
 		for (order = 2; order >= 0; order--) {
 			devpriv->ul_DmaBufferVirtual[i] =
@@ -106,8 +103,8 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 			break;
 		devpriv->ui_DmaBufferSize[i] = PAGE_SIZE << order;
 	}
-	if (!devpriv->ul_DmaBufferVirtual[0])
-		devpriv->us_UseDma = 0;
+	if (devpriv->ul_DmaBufferVirtual[0])
+		devpriv->us_UseDma = 1;
 
 	if (devpriv->ul_DmaBufferVirtual[1])
 		devpriv->b_DmaDoubleBuffer = 1;
