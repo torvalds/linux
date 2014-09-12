@@ -165,7 +165,6 @@ __ext_tree_remove(struct rb_root *root, sector_t start, sector_t end)
 {
 	struct pnfs_block_extent *be;
 	sector_t len1 = 0, len2 = 0;
-	sector_t orig_f_offset;
 	sector_t orig_v_offset;
 	sector_t orig_len;
 
@@ -175,7 +174,6 @@ __ext_tree_remove(struct rb_root *root, sector_t start, sector_t end)
 	if (be->be_f_offset >= end)
 		return 0;
 
-	orig_f_offset = be->be_f_offset;
 	orig_v_offset = be->be_v_offset;
 	orig_len = be->be_length;
 

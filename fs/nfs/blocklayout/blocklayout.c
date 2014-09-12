@@ -694,7 +694,6 @@ bl_return_range(struct pnfs_layout_hdr *lo,
 {
 	struct pnfs_block_layout *bl = BLK_LO2EXT(lo);
 	sector_t offset = range->offset >> SECTOR_SHIFT, end;
-	int err;
 
 	if (range->offset % 8) {
 		dprintk("%s: offset %lld not block size aligned\n",
@@ -714,7 +713,7 @@ bl_return_range(struct pnfs_layout_hdr *lo,
 		end = round_down(NFS4_MAX_UINT64, PAGE_SIZE);
 	}
 
-	err = ext_tree_remove(bl, range->iomode & IOMODE_RW, offset, end);
+	ext_tree_remove(bl, range->iomode & IOMODE_RW, offset, end);
 }
 
 static int
