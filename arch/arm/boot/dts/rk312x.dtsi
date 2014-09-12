@@ -22,7 +22,7 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		lcdc = &lcdc;
-	//	spi0 = &spi0;
+		spi0 = &spi0;
 	};
 
 	cpus {
@@ -574,6 +574,26 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
+	};
+	
+	spi0: spi@20074000 {
+		compatible = "rockchip,rockchip-spi";
+		reg = <0x20074000 0x1000>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_txd_mux0 &spi0_rxd_mux0 &spi0_clk_mux0 &spi0_cs0_mux0 &spi0_cs1_mux0>;
+		//pinctrl-0 = <&spi0_txd_mux1 &spi0_rxd_mux1 &spi0_clk_mux1 &spi0_cs0_mux1 &spi0_cs1_mux1>;
+		//pinctrl-0 = <&spi0_txd_mux2 &spi0_rxd_mux2 &spi0_clk_mux2 &spi0_cs0_mux2>;
+		rockchip,spi-src-clk = <0>;
+		num-cs = <2>;
+		clocks =<&clk_spi0>, <&clk_gates7 12>;
+		clock-names = "spi","pclk_spi0";
+		//dmas = <&pdma 8>, <&pdma 9>;
+		//#dma-cells = <2>;
+		//dma-names = "tx", "rx";
+		status = "disabled";
 	};
 
 	adc: adc@2006c000 {
