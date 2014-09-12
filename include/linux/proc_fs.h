@@ -74,6 +74,8 @@ static inline int remove_proc_subtree(const char *name, struct proc_dir_entry *p
 
 #endif /* CONFIG_PROC_FS */
 
+struct net;
+
 static inline struct proc_dir_entry *proc_net_mkdir(
 	struct net *net, const char *name, struct proc_dir_entry *parent)
 {
