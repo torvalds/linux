@@ -356,6 +356,8 @@ struct fec_enet_private {
 
 	bool ptp_clk_on;
 	struct mutex ptp_clk_mutex;
+	unsigned int num_tx_queues;
+	unsigned int num_rx_queues;
 
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	struct fec_enet_priv_tx_q *tx_queue[FEC_ENET_MAX_TX_QS];
