@@ -771,7 +771,7 @@
 	lcdc1: lcdc@ff940000 {
 		compatible = "rockchip,rk3288-lcdc";
 		rockchip,prop = <EXTEND>;
-		rochchip,pwr18 = <0>;
+		rockchip,pwr18 = <0>;
 		rockchip,iommu-enabled = <0>;
 		reg = <0xff940000 0x10000>;
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
