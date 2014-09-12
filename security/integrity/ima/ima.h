@@ -43,6 +43,9 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 #define IMA_TEMPLATE_IMA_NAME "ima"
 #define IMA_TEMPLATE_IMA_FMT "d|n"
 
+/* current content of the policy */
+extern int ima_policy_flag;
+
 /* set during initialization */
 extern int ima_initialized;
 extern int ima_used_chip;
@@ -153,6 +156,7 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		     int flags);
 void ima_init_policy(void);
 void ima_update_policy(void);
+void ima_update_policy_flag(void);
 ssize_t ima_parse_add_rule(char *);
 void ima_delete_rules(void);
 

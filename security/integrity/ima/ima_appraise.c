@@ -318,7 +318,7 @@ void ima_inode_post_setattr(struct dentry *dentry)
 	struct integrity_iint_cache *iint;
 	int must_appraise, rc;
 
-	if (!ima_initialized || !ima_appraise || !S_ISREG(inode->i_mode)
+	if (!(ima_policy_flag & IMA_APPRAISE) || !S_ISREG(inode->i_mode)
 	    || !inode->i_op->removexattr)
 		return;
 
@@ -356,7 +356,7 @@ static void ima_reset_appraise_flags(struct inode *inode, int digsig)
 {
 	struct integrity_iint_cache *iint;
 
-	if (!ima_initialized || !ima_appraise || !S_ISREG(inode->i_mode))
+	if (!(ima_policy_flag & IMA_APPRAISE) || !S_ISREG(inode->i_mode))
 		return;
 
 	iint = integrity_iint_find(inode);

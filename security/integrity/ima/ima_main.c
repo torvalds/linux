@@ -85,7 +85,7 @@ static void ima_rdwr_violation_check(struct file *file)
 	char *pathbuf = NULL;
 	const char *pathname;
 
-	if (!S_ISREG(inode->i_mode) || !ima_initialized)
+	if (!S_ISREG(inode->i_mode) || !(ima_policy_flag & IMA_MEASURE))
 		return;
 
 	if (mode & FMODE_WRITE) {
@@ -168,7 +168,7 @@ static int process_measurement(struct file *file, int mask, int function,
 	struct evm_ima_xattr_data *xattr_value = NULL, **xattr_ptr = NULL;
 	int xattr_len = 0;
 
-	if (!ima_initialized || !S_ISREG(inode->i_mode))
+	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
 		return 0;
 
 	/* Return an IMA_MEASURE, IMA_APPRAISE, IMA_AUDIT action
@@ -334,8 +334,10 @@ static int __init init_ima(void)
 
 	hash_setup(CONFIG_IMA_DEFAULT_HASH);
 	error = ima_init();
-	if (!error)
+	if (!error) {
 		ima_initialized = 1;
+		ima_update_policy_flag();
+	}
 	return error;
 }
 
