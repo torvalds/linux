@@ -26,11 +26,24 @@
 		#size-cells = <0>;
 		enable-method = "rockchip,rk3066-smp";
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <0x0>;
+			operating-points = <
+				/* kHz    uV */
+				1608000 1350000
+				1416000 1250000
+				1200000 1150000
+				1008000 1075000
+				 816000  975000
+				 600000  950000
+				 504000  925000
+				 312000  875000
+			>;
+			clock-latency = <40000>;
+			clocks = <&cru ARMCLK>;
 		};
 		cpu@1 {
 			device_type = "cpu";
