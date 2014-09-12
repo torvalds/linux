@@ -89,6 +89,8 @@ err_exit:
 
 static void mid_spi_dma_exit(struct dw_spi *dws)
 {
+	if (!dws->dma_inited)
+		return;
 	dma_release_channel(dws->txchan);
 	dma_release_channel(dws->rxchan);
 }
