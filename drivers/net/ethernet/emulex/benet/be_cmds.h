@@ -1014,28 +1014,15 @@ enum {
 	TR_PAGE_A2 = 0xa2
 };
 
+/* From SFF-8472 spec */
+#define	SFP_PLUS_SFF_8472_COMP	0x5E
+
+#define PAGE_DATA_LEN   256
 struct be_cmd_resp_port_type {
 	struct be_cmd_resp_hdr hdr;
 	u32 page_num;
 	u32 port;
-	struct data {
-		u8 identifier;
-		u8 identifier_ext;
-		u8 connector;
-		u8 transceiver[8];
-		u8 rsvd0[3];
-		u8 length_km;
-		u8 length_hm;
-		u8 length_om1;
-		u8 length_om2;
-		u8 length_cu;
-		u8 length_cu_m;
-		u8 vendor_name[16];
-		u8 rsvd;
-		u8 vendor_oui[3];
-		u8 vendor_pn[16];
-		u8 vendor_rev[4];
-	} data;
+	u8  page_data[PAGE_DATA_LEN];
 };
 
 /******************** Get FW Version *******************/
@@ -2067,6 +2054,8 @@ int be_cmd_set_beacon_state(struct be_adapter *adapter, u8 port_num, u8 beacon,
 			    u8 status, u8 state);
 int be_cmd_get_beacon_state(struct be_adapter *adapter, u8 port_num,
 			    u32 *state);
+int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
+				      u8 page_num, u8 *data);
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			  u32 flash_oper, u32 flash_opcode, u32 buf_size);
 int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,

@@ -1189,6 +1189,58 @@ static int be_set_rxfh(struct net_device *netdev, const u32 *indir,
 	return 0;
 }
 
+static int be_get_module_info(struct net_device *netdev,
+			      struct ethtool_modinfo *modinfo)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	u8 page_data[PAGE_DATA_LEN];
+	int status;
+
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return -EOPNOTSUPP;
+
+	status = be_cmd_read_port_transceiver_data(adapter, TR_PAGE_A0,
+						   page_data);
+	if (!status) {
+		if (!page_data[SFP_PLUS_SFF_8472_COMP]) {
+			modinfo->type = ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = PAGE_DATA_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = 2 * PAGE_DATA_LEN;
+		}
+	}
+	return be_cmd_status(status);
+}
+
+static int be_get_module_eeprom(struct net_device *netdev,
+				struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
+
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return -EOPNOTSUPP;
+
+	status = be_cmd_read_port_transceiver_data(adapter, TR_PAGE_A0,
+						   data);
+	if (status)
+		goto err;
+
+	if (eeprom->offset + eeprom->len > PAGE_DATA_LEN) {
+		status = be_cmd_read_port_transceiver_data(adapter,
+							   TR_PAGE_A2,
+							   data +
+							   PAGE_DATA_LEN);
+		if (status)
+			goto err;
+	}
+	if (eeprom->offset)
+		memcpy(data, data + eeprom->offset, eeprom->len);
+err:
+	return be_cmd_status(status);
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
@@ -1220,5 +1272,7 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_rxfh = be_get_rxfh,
 	.set_rxfh = be_set_rxfh,
 	.get_channels = be_get_channels,
-	.set_channels = be_set_channels
+	.set_channels = be_set_channels,
+	.get_module_info = be_get_module_info,
+	.get_module_eeprom = be_get_module_eeprom
 };
