@@ -2072,30 +2072,23 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	if (unlikely(!multicast && skb->sk &&
 		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)) {
-		struct sk_buff *orig_skb = skb;
+		struct sk_buff *ack_skb = skb_clone_sk(skb);
 
-		skb = skb_clone(skb, GFP_ATOMIC);
-		if (skb) {
+		if (ack_skb) {
 			unsigned long flags;
 			int id;
 
 			spin_lock_irqsave(&local->ack_status_lock, flags);
-			id = idr_alloc(&local->ack_status_frames, orig_skb,
+			id = idr_alloc(&local->ack_status_frames, ack_skb,
 				       1, 0x10000, GFP_ATOMIC);
 			spin_unlock_irqrestore(&local->ack_status_lock, flags);
 
 			if (id >= 0) {
 				info_id = id;
 				info_flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
-			} else if (skb_shared(skb)) {
-				kfree_skb(orig_skb);
 			} else {
-				kfree_skb(skb);
-				skb = orig_skb;
+				kfree_skb(ack_skb);
 			}
-		} else {
-			/* couldn't clone -- lose tx status ... */
-			skb = orig_skb;
 		}
 	}
 
