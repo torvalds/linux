@@ -797,7 +797,7 @@ struct fusion_context {
 	struct megasas_cmd_fusion **cmd_list;
 	struct list_head cmd_pool;
 
-	spinlock_t cmd_pool_lock;
+	spinlock_t mpt_pool_lock;
 
 	dma_addr_t req_frames_desc_phys;
 	u8 *req_frames_desc;

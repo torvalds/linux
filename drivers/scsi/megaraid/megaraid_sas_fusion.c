@@ -50,6 +50,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_dbg.h>
 
 #include "megaraid_sas_fusion.h"
 #include "megaraid_sas.h"
@@ -163,7 +164,7 @@ struct megasas_cmd_fusion *megasas_get_cmd_fusion(struct megasas_instance
 		(struct fusion_context *)instance->ctrl_context;
 	struct megasas_cmd_fusion *cmd = NULL;
 
-	spin_lock_irqsave(&fusion->cmd_pool_lock, flags);
+	spin_lock_irqsave(&fusion->mpt_pool_lock, flags);
 
 	if (!list_empty(&fusion->cmd_pool)) {
 		cmd = list_entry((&fusion->cmd_pool)->next,
@@ -173,7 +174,7 @@ struct megasas_cmd_fusion *megasas_get_cmd_fusion(struct megasas_instance
 		printk(KERN_ERR "megasas: Command pool (fusion) empty!\n");
 	}
 
-	spin_unlock_irqrestore(&fusion->cmd_pool_lock, flags);
+	spin_unlock_irqrestore(&fusion->mpt_pool_lock, flags);
 	return cmd;
 }
 
@@ -182,21 +183,47 @@ struct megasas_cmd_fusion *megasas_get_cmd_fusion(struct megasas_instance
  * @instance:		Adapter soft state
  * @cmd:		Command packet to be returned to free command pool
  */
-static inline void
-megasas_return_cmd_fusion(struct megasas_instance *instance,
-			  struct megasas_cmd_fusion *cmd)
+inline void megasas_return_cmd_fusion(struct megasas_instance *instance,
+	struct megasas_cmd_fusion *cmd)
 {
 	unsigned long flags;
 	struct fusion_context *fusion =
 		(struct fusion_context *)instance->ctrl_context;
 
-	spin_lock_irqsave(&fusion->cmd_pool_lock, flags);
+	spin_lock_irqsave(&fusion->mpt_pool_lock, flags);
 
 	cmd->scmd = NULL;
 	cmd->sync_cmd_idx = (u32)ULONG_MAX;
-	list_add_tail(&cmd->list, &fusion->cmd_pool);
+	list_add(&cmd->list, (&fusion->cmd_pool)->next);
 
-	spin_unlock_irqrestore(&fusion->cmd_pool_lock, flags);
+	spin_unlock_irqrestore(&fusion->mpt_pool_lock, flags);
+}
+
+/**
+ * megasas_return_mfi_mpt_pthr - Return a mfi and mpt to free command pool
+ * @instance:		Adapter soft state
+ * @cmd_mfi:		MFI Command packet to be returned to free command pool
+ * @cmd_mpt:		MPT Command packet to be returned to free command pool
+ */
+inline void megasas_return_mfi_mpt_pthr(struct megasas_instance *instance,
+		struct megasas_cmd *cmd_mfi,
+		struct megasas_cmd_fusion *cmd_fusion)
+{
+	unsigned long flags;
+
+	/*
+	 * TO DO: optimize this code and use only one lock instead of two
+	 * locks being used currently- mpt_pool_lock is acquired
+	 * inside mfi_pool_lock
+	 */
+	spin_lock_irqsave(&instance->mfi_pool_lock, flags);
+	megasas_return_cmd_fusion(instance, cmd_fusion);
+	if (atomic_read(&cmd_mfi->mfi_mpt_pthr) != MFI_MPT_ATTACHED)
+		dev_err(&instance->pdev->dev, "Possible bug from %s %d\n",
+			__func__, __LINE__);
+	atomic_set(&cmd_mfi->mfi_mpt_pthr, MFI_MPT_DETACHED);
+	__megasas_return_cmd(instance, cmd_mfi);
+	spin_unlock_irqrestore(&instance->mfi_pool_lock, flags);
 }
 
 /**
@@ -562,9 +589,11 @@ wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 {
 	int i;
 	struct megasas_header *frame_hdr = &cmd->frame->hdr;
+	struct fusion_context *fusion;
 
 	u32 msecs = seconds * 1000;
 
+	fusion = instance->ctrl_context;
 	/*
 	 * Wait for cmd_status to change
 	 */
@@ -573,8 +602,12 @@ wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		msleep(20);
 	}
 
-	if (frame_hdr->cmd_status == 0xff)
+	if (frame_hdr->cmd_status == 0xff) {
+		if (fusion)
+			megasas_return_mfi_mpt_pthr(instance, cmd,
+				cmd->mpt_pthr_cmd_blocked);
 		return -ETIME;
+	}
 
 	return 0;
 }
@@ -777,14 +810,17 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(ci_h);
 	dcmd->sgl.sge32[0].length = cpu_to_le32(size_map_info);
 
-	if (!megasas_issue_polled(instance, cmd))
-		ret = 0;
-	else {
-		printk(KERN_ERR "megasas: Get LD Map Info Failed\n");
-		ret = -1;
-	}
+	if (instance->ctrl_context && !instance->mask_interrupts)
+		ret = megasas_issue_blocked_cmd(instance, cmd,
+			MEGASAS_BLOCKED_CMD_TIMEOUT);
+	else
+		ret = megasas_issue_polled(instance, cmd);
 
-	megasas_return_cmd(instance, cmd);
+	if (instance->ctrl_context && cmd->mpt_pthr_cmd_blocked)
+		megasas_return_mfi_mpt_pthr(instance, cmd,
+			cmd->mpt_pthr_cmd_blocked);
+	else
+		megasas_return_cmd(instance, cmd);
 
 	return ret;
 }
@@ -2018,10 +2054,19 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 			break;
 		case MEGASAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST: /*MFI command */
 			cmd_mfi = instance->cmd_list[cmd_fusion->sync_cmd_idx];
+
+			if (!cmd_mfi->mpt_pthr_cmd_blocked) {
+				if (megasas_dbg_lvl == 5)
+					dev_info(&instance->pdev->dev,
+						"freeing mfi/mpt pass-through "
+						"from %s %d\n",
+						 __func__, __LINE__);
+				megasas_return_mfi_mpt_pthr(instance, cmd_mfi,
+					cmd_fusion);
+			}
+
 			megasas_complete_cmd(instance, cmd_mfi, DID_OK);
 			cmd_fusion->flags = 0;
-			megasas_return_cmd_fusion(instance, cmd_fusion);
-
 			break;
 		}
 
@@ -2181,6 +2226,7 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 	struct megasas_cmd_fusion *cmd;
 	struct fusion_context *fusion;
 	struct megasas_header *frame_hdr = &mfi_cmd->frame->hdr;
+	u32 opcode;
 
 	cmd = megasas_get_cmd_fusion(instance);
 	if (!cmd)
@@ -2188,8 +2234,19 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 
 	/*  Save the smid. To be used for returning the cmd */
 	mfi_cmd->context.smid = cmd->index;
-
 	cmd->sync_cmd_idx = mfi_cmd->index;
+
+	/* Set this only for Blocked commands */
+	opcode = le32_to_cpu(mfi_cmd->frame->dcmd.opcode);
+	if ((opcode == MR_DCMD_LD_MAP_GET_INFO)
+		&& (mfi_cmd->frame->dcmd.mbox.b[1] == 1))
+		mfi_cmd->is_wait_event = 1;
+
+	if (opcode == MR_DCMD_CTRL_EVENT_WAIT)
+		mfi_cmd->is_wait_event = 1;
+
+	if (mfi_cmd->is_wait_event)
+		mfi_cmd->mpt_pthr_cmd_blocked = cmd;
 
 	/*
 	 * For cmds where the flag is set, store the flag and check
@@ -2279,6 +2336,7 @@ megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 		printk(KERN_ERR "Couldn't issue MFI pass thru cmd\n");
 		return;
 	}
+	atomic_set(&cmd->mfi_mpt_pthr, MFI_MPT_ATTACHED);
 	instance->instancet->fire_cmd(instance, req_desc->u.low,
 				      req_desc->u.high, instance->reg_set);
 }
@@ -2750,10 +2808,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 					cmd_list[cmd_fusion->sync_cmd_idx];
 					if (cmd_mfi->frame->dcmd.opcode ==
 					    cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO)) {
-						megasas_return_cmd(instance,
-								   cmd_mfi);
-						megasas_return_cmd_fusion(
-							instance, cmd_fusion);
+						megasas_return_mfi_mpt_pthr(instance, cmd_mfi, cmd_fusion);
 					} else  {
 						req_desc =
 						megasas_get_request_descriptor(

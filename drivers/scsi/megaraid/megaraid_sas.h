@@ -1016,6 +1016,12 @@ struct megasas_ctrl_info {
 
 #define VD_EXT_DEBUG 0
 
+enum MR_MFI_MPT_PTHR_FLAGS {
+	MFI_MPT_DETACHED = 0,
+	MFI_LIST_ADDED = 1,
+	MFI_MPT_ATTACHED = 2,
+};
+
 /* Frame Type */
 #define IO_FRAME				0
 #define PTHRU_FRAME				1
@@ -1033,7 +1039,7 @@ struct megasas_ctrl_info {
 #define MEGASAS_IOCTL_CMD			0
 #define MEGASAS_DEFAULT_CMD_TIMEOUT		90
 #define MEGASAS_THROTTLE_QUEUE_DEPTH		16
-
+#define MEGASAS_BLOCKED_CMD_TIMEOUT		60
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
  * commands that can be outstanding) at any time. The driver must report a
@@ -1652,7 +1658,7 @@ struct megasas_instance {
 	struct megasas_cmd **cmd_list;
 	struct list_head cmd_pool;
 	/* used to sync fire the cmd to fw */
-	spinlock_t cmd_pool_lock;
+	spinlock_t mfi_pool_lock;
 	/* used to sync fire the cmd to fw */
 	spinlock_t hba_lock;
 	/* used to synch producer, consumer ptrs in dpc */
@@ -1839,6 +1845,11 @@ struct megasas_cmd {
 
 	struct list_head list;
 	struct scsi_cmnd *scmd;
+
+	void *mpt_pthr_cmd_blocked;
+	atomic_t mfi_mpt_pthr;
+	u8 is_wait_event;
+
 	struct megasas_instance *instance;
 	union {
 		struct {
@@ -1926,5 +1937,15 @@ int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);
 void megasas_free_host_crash_buffer(struct megasas_instance *instance);
 void megasas_fusion_crash_dump_wq(struct work_struct *work);
+
+void megasas_return_cmd_fusion(struct megasas_instance *instance,
+	struct megasas_cmd_fusion *cmd);
+int megasas_issue_blocked_cmd(struct megasas_instance *instance,
+	struct megasas_cmd *cmd, int timeout);
+void __megasas_return_cmd(struct megasas_instance *instance,
+	struct megasas_cmd *cmd);
+
+void megasas_return_mfi_mpt_pthr(struct megasas_instance *instance,
+	struct megasas_cmd *cmd_mfi, struct megasas_cmd_fusion *cmd_fusion);
 
 #endif				/*LSI_MEGARAID_SAS_H */
