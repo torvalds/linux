@@ -460,6 +460,11 @@ rtl8723a_HalDmWatchDog(
 
 	hw_init_completed = Adapter->hw_init_completed;
 
+#if (MP_DRIVER == 1)	
+if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm ==0)
+		return;
+#endif
+
 	if (hw_init_completed == _FALSE)
 		goto skip_dm;
 

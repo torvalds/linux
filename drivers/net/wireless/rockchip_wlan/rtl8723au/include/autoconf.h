@@ -82,7 +82,8 @@
 
 	#define CONFIG_P2P_PS
 	#define CONFIG_P2P_IPS
-	#define P2P_OP_CHECK_SOCIAL_CH
+	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
+	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  
 #endif
 
 //	Added by Kurt 20110511
@@ -102,7 +103,7 @@
 #ifdef CONFIG_CONCURRENT_MODE
 	#define CONFIG_TSF_RESET_OFFLOAD 			// For 2 PORT TSF SYNC.
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
-	//#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+	#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 #endif	// CONFIG_CONCURRENT_MODE
 
 #define CONFIG_SKB_COPY	//for amsdu
@@ -305,15 +306,15 @@
 /*
  * Debug Related Config
  */
-#define DBG	1
+#define DBG	0
 
-//#define CONFIG_DEBUG /* DBG_871X, etc... */
+#define CONFIG_DEBUG /* DBG_871X, etc... */
 //#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */
 
-//#define CONFIG_PROC_DEBUG
+#define CONFIG_PROC_DEBUG
 
-//#define DBG_CONFIG_ERROR_DETECT
-//#define DBG_CONFIG_ERROR_RESET
+#define DBG_CONFIG_ERROR_DETECT
+#define DBG_CONFIG_ERROR_RESET
 
 //#define DBG_IO
 //#define DBG_DELAY_OS

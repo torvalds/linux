@@ -644,6 +644,8 @@ union recv_frame * decryptor(_adapter *padapter,union recv_frame *precv_frame)
 	u32	 res=_SUCCESS;
 _func_enter_;
 
+	DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt);
+
 	RT_TRACE(_module_rtl871x_recv_c_,_drv_info_,("prxstat->decrypted=%x prxattrib->encrypt = 0x%03x\n",prxattrib->bdecrypted,prxattrib->encrypt));
 
 	if(prxattrib->encrypt>0)
@@ -685,16 +687,20 @@ _func_enter_;
 		switch(prxattrib->encrypt){
 		case _WEP40_:
 		case _WEP104_:
+			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_wep);
 			rtw_wep_decrypt(padapter, (u8 *)precv_frame);
 			break;
 		case _TKIP_:
+			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_tkip);
 			res = rtw_tkip_decrypt(padapter, (u8 *)precv_frame);
 			break;
 		case _AES_:
+			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_aes);
 			res = rtw_aes_decrypt(padapter, (u8 * )precv_frame);
 			break;
 #ifdef CONFIG_WAPI_SUPPORT
 		case _SMS4_:
+			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_wapi);
 			rtw_sms4_decrypt(padapter, (u8 * )precv_frame);
 			break;
 #endif
@@ -722,6 +728,8 @@ _func_enter_;
 		else
 #endif
 		{
+			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_hw);
+
 			psecuritypriv->hw_decrypted=_TRUE;
 			#ifdef DBG_RX_DECRYPTOR
 			DBG_871X("prxstat->bdecrypted:%d,  prxattrib->encrypt:%d,  Setting psecuritypriv->hw_decrypted = %d\n"
@@ -731,6 +739,7 @@ _func_enter_;
 		}
 	}
 	else {
+		DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_unknown);
 		#ifdef DBG_RX_DECRYPTOR
 		DBG_871X("prxstat->bdecrypted:%d,  prxattrib->encrypt:%d,  psecuritypriv->hw_decrypted:%d\n"
 		, prxattrib->bdecrypted ,prxattrib->encrypt, psecuritypriv->hw_decrypted);
@@ -2208,6 +2217,7 @@ _func_enter_;
 	if(ver!=0){
 		RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,("validate_recv_data_frame fail! (ver!=0)\n"));
 		retval= _FAIL;
+		DBG_COUNTER(adapter->rx_logs.core_rx_pre_ver_err);
 		goto exit;
 	}
 
@@ -2268,10 +2278,12 @@ _func_enter_;
 	switch (type)
 	{
 		case WIFI_MGT_TYPE: //mgnt
+			DBG_COUNTER(adapter->rx_logs.core_rx_pre_mgmt);
 #ifdef CONFIG_IEEE80211W
 			if(validate_80211w_mgmt(adapter, precv_frame) == _FAIL)
 			{
 				retval = _FAIL;
+				DBG_COUNTER(padapter->rx_logs.core_rx_pre_mgmt_err_80211w);
 				break;
 			}
 #endif //CONFIG_IEEE80211W
@@ -2280,18 +2292,22 @@ _func_enter_;
 			if (retval == _FAIL)
 			{
 				RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,("validate_recv_mgnt_frame fail\n"));
+				DBG_COUNTER(adapter->rx_logs.core_rx_pre_mgmt_err);
 			}
 			retval = _FAIL; // only data frame return _SUCCESS
 			break;
 		case WIFI_CTRL_TYPE: //ctrl
+			DBG_COUNTER(adapter->rx_logs.core_rx_pre_ctrl);
 			retval = validate_recv_ctrl_frame(adapter, precv_frame);
 			if (retval == _FAIL)
 			{
 				RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,("validate_recv_ctrl_frame fail\n"));
+				DBG_COUNTER(adapter->rx_logs.core_rx_pre_ctrl_err);
 			}
 			retval = _FAIL; // only data frame return _SUCCESS
 			break;
 		case WIFI_DATA_TYPE: //data
+			DBG_COUNTER(adapter->rx_logs.core_rx_pre_data);
 #ifdef CONFIG_WAPI_SUPPORT
 			if(pattrib->qos)
 				external_len = 2;
@@ -2310,6 +2326,7 @@ _func_enter_;
 				else
 				{
 					retval = _FAIL;
+					DBG_COUNTER(adapter->rx_logs.core_rx_pre_data_wapi_seq_err);
 					break;
 				}
 			}
@@ -2318,6 +2335,7 @@ _func_enter_;
 					if(rtw_wapi_drop_for_key_absent(adapter,GetAddr2Ptr(ptr))){
 						retval=_FAIL;
 						WAPI_TRACE(WAPI_RX,"drop for key absent for rx \n");
+						DBG_COUNTER(adapter->rx_logs.core_rx_pre_data_wapi_key_err);
 						break;
 					}
 			}
@@ -2332,9 +2350,13 @@ _func_enter_;
 				struct recv_priv *precvpriv = &adapter->recvpriv;
 				//RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,("validate_recv_data_frame fail\n"));
 				precvpriv->rx_drop++;
+				DBG_COUNTER(adapter->rx_logs.core_rx_pre_data_err);
 			}
+			else if (retval != _SUCCESS)
+				DBG_COUNTER(adapter->rx_logs.core_rx_pre_data_handled);
 			break;
 		default:
+			DBG_COUNTER(adapter->rx_logs.core_rx_pre_unknown);
 			RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,("validate_recv_data_frame fail! type=0x%x\n", type));
 			#ifdef DBG_RX_DROP_FRAME
 			DBG_871X("DBG_RX_DROP_FRAME validate_recv_data_frame fail! type=0x%x\n", type);
@@ -3558,6 +3580,8 @@ int recv_indicatepkts_in_order(_adapter *padapter, struct recv_reorder_ctrl *pre
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	_queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 
+	DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate_in_oder);
+
 	//DbgPrint("+recv_indicatepkts_in_order\n");
 
 	//_enter_critical_ex(&ppending_recvframe_queue->lock, &irql);
@@ -3722,6 +3746,8 @@ int recv_indicatepkt_reorder(_adapter *padapter, union recv_frame *prframe)
 	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
 	struct recv_reorder_ctrl *preorder_ctrl = prframe->u.hdr.preorder_ctrl;
 	_queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
+
+	DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate_reoder);
 
 	if(!pattrib->amsdu)
 	{
@@ -3927,6 +3953,8 @@ int process_recv_indicatepkts(_adapter *padapter, union recv_frame *prframe)
 #ifdef CONFIG_80211N_HT
 
 	struct ht_priv	*phtpriv = &pmlmepriv->htpriv;
+	
+	DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate);
 
 #ifdef CONFIG_TDLS
 	if( (phtpriv->ht_option==_TRUE) ||
@@ -4001,6 +4029,8 @@ int recv_func_prehandle(_adapter *padapter, union recv_frame *rframe)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 #endif //CONFIG_MP_INCLUDED
 
+	DBG_COUNTER(padapter->rx_logs.core_rx_pre);
+
 #ifdef CONFIG_MP_INCLUDED
 	if (padapter->registrypriv.mp_mode == 1)
 	{
@@ -4048,6 +4078,7 @@ int recv_func_posthandle(_adapter *padapter, union recv_frame *prframe)
 	struct sta_info *ptdls_sta = NULL;
 #endif //CONFIG_TDLS
 
+	DBG_COUNTER(padapter->rx_logs.core_rx_post);
 
 	// DATA FRAME
 	rtw_led_control(padapter, LED_CTL_RX);
@@ -4059,6 +4090,7 @@ int recv_func_posthandle(_adapter *padapter, union recv_frame *prframe)
 		DBG_871X("DBG_RX_DROP_FRAME %s decryptor: drop pkt\n", __FUNCTION__);
 		#endif
 		ret = _FAIL;
+		DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_err);
 		goto _recv_data_drop;
 	}
 
@@ -4097,6 +4129,7 @@ int recv_func_posthandle(_adapter *padapter, union recv_frame *prframe)
 		#ifdef DBG_RX_DROP_FRAME
 		DBG_871X("DBG_RX_DROP_FRAME %s recvframe_chk_defrag: drop pkt\n", __FUNCTION__);
 		#endif
+		DBG_COUNTER(padapter->rx_logs.core_rx_post_defrag_err);
 		goto _recv_data_drop;		
 	}
 
@@ -4107,6 +4140,7 @@ int recv_func_posthandle(_adapter *padapter, union recv_frame *prframe)
 		DBG_871X("DBG_RX_DROP_FRAME %s portctrl: drop pkt\n", __FUNCTION__);
 		#endif
 		ret = _FAIL;
+		DBG_COUNTER(padapter->rx_logs.core_rx_post_portctrl_err);
 		goto _recv_data_drop;
 	}
 
@@ -4131,6 +4165,7 @@ int recv_func_posthandle(_adapter *padapter, union recv_frame *prframe)
 		DBG_871X("DBG_RX_DROP_FRAME %s process_recv_indicatepkts fail!\n", __FUNCTION__);
 		#endif
 		rtw_free_recvframe(orig_prframe, pfree_recv_queue);//free this recv_frame
+		DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate_err);
 		goto _recv_data_drop;
 	}
 #else // CONFIG_80211N_HT
@@ -4221,6 +4256,7 @@ int recv_func(_adapter *padapter, union recv_frame *rframe)
 
 		while((pending_frame=rtw_alloc_recvframe(&padapter->recvpriv.uc_swdec_pending_queue))) {
 			cnt++;
+			DBG_COUNTER(padapter->rx_logs.core_rx_dequeue);
 			recv_func_posthandle(padapter, pending_frame);
 		}
 
@@ -4229,6 +4265,7 @@ int recv_func(_adapter *padapter, union recv_frame *rframe)
 				FUNC_ADPT_ARG(padapter), cnt);
 	}
 
+	DBG_COUNTER(padapter->rx_logs.core_rx);
 	ret = recv_func_prehandle(padapter, rframe);
 
 	if(ret == _SUCCESS) {
@@ -4240,6 +4277,7 @@ int recv_func(_adapter *padapter, union recv_frame *rframe)
 			psecuritypriv->ndisauthtype == Ndis802_11AuthModeWPAPSK &&
 			!psecuritypriv->busetkipkey)
 		{
+			DBG_COUNTER(padapter->rx_logs.core_rx_enqueue);
 			rtw_enqueue_recvframe(rframe, &padapter->recvpriv.uc_swdec_pending_queue);
 			//DBG_871X("%s: no key, enqueue uc_swdec_pending_queue\n", __func__);
 

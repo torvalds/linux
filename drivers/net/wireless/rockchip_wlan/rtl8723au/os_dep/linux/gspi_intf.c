@@ -193,6 +193,8 @@ _func_enter_;
 	_rtw_mutex_init(&dvobj->setch_mutex);
 	_rtw_mutex_init(&dvobj->setbw_mutex);
 	dvobj->processing_dev_remove = _FALSE;
+	_rtw_spinlock_init(&dvobj->lock);
+	dvobj->macid[1] = _TRUE; //macid=1 for bc/mc stainfo
 	//spi init
 	/* This is the only SPI value that we need to set here, the rest
 	 * comes from the board-peripherals file */
@@ -229,6 +231,7 @@ _func_enter_;
 free_dvobj:
 	if (status != _SUCCESS && dvobj) {
 		spi_set_drvdata(spi, NULL);
+		_rtw_spinlock_free(&dvobj->lock);
 		_rtw_mutex_free(&dvobj->hw_init_mutex);
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
@@ -252,6 +255,7 @@ _func_enter_;
 	spi_set_drvdata(spi, NULL);
 	if (dvobj) {
 		gspi_deinit(dvobj);
+		_rtw_spinlock_free(&dvobj->lock);
 		_rtw_mutex_free(&dvobj->hw_init_mutex);
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
@@ -528,14 +532,7 @@ static void rtw_gspi_if1_deinit(PADAPTER if1)
 	hostapd_mode_unload(if1);
 #endif
 #endif
-/*
-	if(if1->DriverState != DRIVER_DISAPPEAR) {
-		if(pnetdev) {
-			unregister_netdev(pnetdev); //will call netdev_close()
-			rtw_proc_remove_one(pnetdev);
-		}
-	}
-*/
+
 	rtw_cancel_all_timer(if1);
 
 	rtw_dev_unload(if1);
@@ -601,10 +598,6 @@ static int /*__devinit*/  rtw_drv_probe(struct spi_device *spi)
 #ifdef CONFIG_PLATFORM_RTD2880B
 	DBG_871X("wlan link up\n");
 	rtd2885_wlan_netlink_sendMsg("linkup", "8712");
-#endif
-
-#ifdef RTK_DMP_PLATFORM
-	rtw_proc_init_one(if1->pnetdev);
 #endif
 
 	if (gspi_alloc_irq(dvobj) != _SUCCESS)
@@ -903,43 +896,59 @@ static struct spi_driver rtw_spi_drv = {
 
 static int __init rtw_drv_entry(void)
 {
-	int ret;
+	int ret = 0;
 
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+rtw_drv_entry\n"));
-	DBG_8192C("RTW: rtw_drv_entry enter\n");
-
-	rtw_suspend_lock_init();
+	DBG_871X_LEVEL(_drv_always_, "module init start\n");
+	dump_drv_version(RTW_DBGDUMP);
+#ifdef BTCOEXVERSION
+	DBG_871X_LEVEL(_drv_always_, DRV_NAME" BT-Coex version = %s\n", BTCOEXVERSION);
+#endif // BTCOEXVERSION
 
 	drvpriv.drv_registered = _TRUE;
+	rtw_suspend_lock_init();
+	rtw_drv_proc_init();
+	rtw_ndev_notifier_register();
 
 	rtw_wifi_gpio_init();
 	rtw_wifi_gpio_wlan_ctrl(WLAN_PWDN_ON);
+
 	ret = spi_register_driver(&rtw_spi_drv);
+	if (ret != 0) {
+		drvpriv.drv_registered = _FALSE;
+		rtw_suspend_lock_uninit();
+		rtw_drv_proc_deinit();
+		rtw_ndev_notifier_unregister();
 
-	DBG_8192C("RTW: rtw_drv_entry exit %d\n", ret);
+		rtw_wifi_gpio_wlan_ctrl(WLAN_PWDN_OFF);
+		rtw_wifi_gpio_deinit();
 
-	return 0;
+		goto exit;
+	}
+
+exit:
+	DBG_871X_LEVEL(_drv_always_, "module init ret=%d\n", ret);
+	return ret;
 }
 
 static void __exit rtw_drv_halt(void)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+rtw_drv_halt\n"));
-	DBG_8192C("RTW: rtw_drv_halt enter\n");
-	
+	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
+
 	drvpriv.drv_registered = _FALSE;
 
 	spi_unregister_driver(&rtw_spi_drv);
-
 
 	rtw_wifi_gpio_wlan_ctrl(WLAN_PWDN_OFF);
 	rtw_wifi_gpio_deinit();
 
 	rtw_suspend_lock_uninit();
-	DBG_8192C("RTW: rtw_drv_halt enter\n");
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("-rtw_drv_halt\n"));
+	rtw_drv_proc_deinit();
+	rtw_ndev_notifier_unregister();
 
-	rtw_mstat_dump();
+	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
+
+	rtw_mstat_dump(RTW_DBGDUMP);
 }
 module_init(rtw_drv_entry);
 module_exit(rtw_drv_halt);
+

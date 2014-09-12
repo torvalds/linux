@@ -346,6 +346,10 @@ _func_enter_;
 	sdio_set_drvdata(func, dvobj);
 	dvobj->processing_dev_remove = _FALSE;
 	
+	 _rtw_spinlock_init(&dvobj->lock);
+
+	 dvobj->macid[1] = _TRUE; //macid=1 for bc/mc stainfo
+
 #ifdef CONFIG_WOWLAN
 	sdio_claim_host(func);
 	mmc_host = func->card->host;
@@ -366,6 +370,7 @@ _func_enter_;
 free_dvobj:
 	if (status != _SUCCESS && dvobj) {
 		sdio_set_drvdata(func, NULL);
+		_rtw_spinlock_free(&dvobj->lock);
 		_rtw_mutex_free(&dvobj->hw_init_mutex);
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
@@ -386,6 +391,7 @@ _func_enter_;
 	sdio_set_drvdata(func, NULL);
 	if (dvobj) {
 		sdio_deinit(dvobj);
+		_rtw_spinlock_free(&dvobj->lock);
 		_rtw_mutex_free(&dvobj->hw_init_mutex);
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
@@ -641,14 +647,7 @@ static void rtw_sdio_if1_deinit(_adapter *if1)
 #ifdef CONFIG_GPIO_WAKEUP
 	gpio_hostwakeup_free_irq(if1);
 #endif
-/*
-	if(if1->DriverState != DRIVER_DISAPPEAR) {
-		if(pnetdev) {
-			unregister_netdev(pnetdev); //will call netdev_close()
-			rtw_proc_remove_one(pnetdev);
-		}
-	}
-*/
+
 	rtw_cancel_all_timer(if1);
 
 #ifdef CONFIG_WOWLAN
@@ -748,10 +747,6 @@ static int rtw_drv_init(
 #ifdef CONFIG_PLATFORM_RTD2880B
 	DBG_871X("wlan link up\n");
 	rtd2885_wlan_netlink_sendMsg("linkup", "8712");
-#endif
-
-#ifdef RTK_DMP_PLATFORM
-	rtw_proc_init_one(if1->pnetdev);
 #endif
 
 	if (sdio_alloc_irq(dvobj) != _SUCCESS)
@@ -1819,62 +1814,65 @@ static int __init rtw_drv_entry(void)
 {
 	int ret = 0;
 
+	DBG_871X_LEVEL(_drv_always_, "module init start\n");
+	dump_drv_version(RTW_DBGDUMP);
+#ifdef BTCOEXVERSION
+	DBG_871X_LEVEL(_drv_always_, DRV_NAME" BT-Coex version = %s\n", BTCOEXVERSION);
+#endif // BTCOEXVERSION
+
 #ifdef CONFIG_PLATFORM_ARM_SUNxI
+	{
 /*depends on sunxi power control */
 #if defined CONFIG_MMC_SUNXI_POWER_CONTROL
-	unsigned int mod_sel = mmc_pm_get_mod_type();
+		unsigned int mod_sel = mmc_pm_get_mod_type();
 
-	if(mod_sel == SUNXI_SDIO_WIFI_NUM_RTL8189ES)
-	{
-		rtl8189es_sdio_powerup();
-		sunximmc_rescan_card(SDIOID, 1);
-		DBG_8192C("[rtl8189es] %s: power up, rescan card.\n", __FUNCTION__);  			
-	}
-	else
-	{
-		ret = -1;
-		DBG_8192C("[rtl8189es] %s: mod_sel = %d is incorrect.\n", __FUNCTION__, mod_sel);	
-	}
+		if(mod_sel == SUNXI_SDIO_WIFI_NUM_RTL8189ES)
+		{
+			rtl8189es_sdio_powerup();
+			sunximmc_rescan_card(SDIOID, 1);
+			DBG_8192C("[rtl8189es] %s: power up, rescan card.\n", __FUNCTION__);  			
+		}
+		else
+		{
+			ret = -1;
+			DBG_8192C("[rtl8189es] %s: mod_sel = %d is incorrect.\n", __FUNCTION__, mod_sel);	
+		}
 #endif	// defined CONFIG_MMC_SUNXI_POWER_CONTROL
+	}
+
 	if(ret != 0)
 		goto exit;
-	
 #endif //CONFIG_PLATFORM_ARM_SUNxI
 
 #if defined(CONFIG_PLATFORM_ARM_SUN6I) || defined(CONFIG_PLATFORM_ARM_SUN7I)
+	{
 #ifdef CONFIG_MMC
-	script_item_value_type_e type;
-	script_item_u item;
+		script_item_value_type_e type;
+		script_item_u item;
 
-	unsigned int mod_sel = wifi_pm_get_mod_type();
+		unsigned int mod_sel = wifi_pm_get_mod_type();
 
-	type = script_get_item("wifi_para", "wifi_sdc_id", &item);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type)
-	{
-		DBG_871X("ERR: script_get_item wifi_sdc_id failed\n");
-		ret = -1;
-	}
-	else
-	{
-		sdc_id = item.val;
-		DBG_871X("----- %s sdc_id: %d, mod_sel: %d\n", __FUNCTION__, sdc_id, mod_sel);
-		wifi_pm_power(1);
-		mdelay(10);
-		sw_mci_rescan_card(sdc_id, 1);
-		DBG_871X("[rtw_sdio] %s: power up, rescan card.\n", __FUNCTION__);  
-	}
+		type = script_get_item("wifi_para", "wifi_sdc_id", &item);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type)
+		{
+			DBG_871X("ERR: script_get_item wifi_sdc_id failed\n");
+			ret = -1;
+		}
+		else
+		{
+			sdc_id = item.val;
+			DBG_871X("----- %s sdc_id: %d, mod_sel: %d\n", __FUNCTION__, sdc_id, mod_sel);
+			wifi_pm_power(1);
+			mdelay(10);
+			sw_mci_rescan_card(sdc_id, 1);
+			DBG_871X("[rtw_sdio] %s: power up, rescan card.\n", __FUNCTION__);  
+		}
 #endif	//CONFIG_MMC
+	}
+
 	if(ret != 0)
 		goto exit;		
-	
 #endif //#if defined(CONFIG_PLATFORM_ARM_SUN6I) || defined(CONFIG_PLATFORM_ARM_SUN7I)
-
-	DBG_871X_LEVEL(_drv_always_, "module init start version:"DRIVERVERSION"\n");
-
-//	DBG_871X(KERN_INFO "+%s", __func__);
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+rtw_drv_entry\n"));
-	DBG_871X(DRV_NAME " driver version=%s\n", DRIVERVERSION);
-	DBG_871X("build time: %s %s\n", __DATE__, __TIME__);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)) 
 	//console_suspend_enabled=0;
@@ -1905,18 +1903,26 @@ static int __init rtw_drv_entry(void)
 
 #endif // CONFIG_PLATFORM_SPRD
 
-	rtw_suspend_lock_init();
-
-	
 	sdio_drvpriv.drv_registered = _TRUE;
+	rtw_suspend_lock_init();
+	rtw_drv_proc_init();
+	rtw_ndev_notifier_register();
 
 	ret = sdio_register_driver(&sdio_drvpriv.r871xs_drv);
-
-exit:
-	DBG_871X_LEVEL(_drv_always_, "module init ret=%d\n", ret);
+	if (ret != 0)
+	{
+		sdio_drvpriv.drv_registered = _FALSE;
+		rtw_suspend_lock_uninit();
+		rtw_drv_proc_deinit();
+		rtw_ndev_notifier_unregister();
+		DBG_871X("%s: register driver failed!!(%d)\n", __FUNCTION__, ret);
+		goto exit;
+	}
 
 	rtw_android_wifictrl_func_add();
 
+exit:
+	DBG_871X_LEVEL(_drv_always_, "module init ret=%d\n", ret);
 	return ret;
 }
 
@@ -1924,11 +1930,12 @@ static void __exit rtw_drv_halt(void)
 {
 	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
 
-	rtw_android_wifictrl_func_del();	
 	sdio_drvpriv.drv_registered = _FALSE;
 
 	sdio_unregister_driver(&sdio_drvpriv.r871xs_drv);
-	
+
+	rtw_android_wifictrl_func_del();
+
 #ifdef CONFIG_PLATFORM_SPRD
 	/* Pull down pwd pin, make wifi enter power down mode. */
 	rtw_wifi_gpio_wlan_ctrl(WLAN_PWDN_OFF);
@@ -1960,10 +1967,14 @@ static void __exit rtw_drv_halt(void)
 	printk("[rtl8723as] %s: remove card, power off.\n", __FUNCTION__);
 #endif //CONFIG_MMC
 #endif //#if defined(CONFIG_PLATFORM_ARM_SUN6I) || defined(CONFIG_PLATFORM_ARM_SUN7I)
-	rtw_suspend_lock_uninit();
-      	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
 
-	rtw_mstat_dump();
+	rtw_suspend_lock_uninit();
+	rtw_drv_proc_deinit();
+	rtw_ndev_notifier_unregister();
+
+	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
+
+	rtw_mstat_dump(RTW_DBGDUMP);
 }
 
 

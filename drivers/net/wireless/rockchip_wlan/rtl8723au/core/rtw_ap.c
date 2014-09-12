@@ -847,7 +847,7 @@ void update_bmc_sta(_adapter *padapter)
 	{
 		psta->aid = 0;//default set to 0
 		//psta->mac_id = psta->aid+4;	
-		psta->mac_id = psta->aid + 1;
+		psta->mac_id = psta->aid + 1;//mac_id=1 for bc/mc stainfo
 
 		psta->qos_option = 0;
 #ifdef CONFIG_80211N_HT	
@@ -956,9 +956,11 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 	//set intf_tag to if1
 	//psta->intf_tag = 0;
 
+        DBG_871X("%s\n",__FUNCTION__);
+
 	//psta->mac_id = psta->aid+4;
-	psta->mac_id = psta->aid+1; 
-	DBG_871X("%s\n",__FUNCTION__);	
+	//psta->mac_id = psta->aid+1;//alloc macid when call rtw_alloc_stainfo(),
+		                                       //release macid when call rtw_free_stainfo()
 
 	//ap mode
 	rtw_hal_set_odm_var(padapter,HAL_ODM_STA_INFO,psta,_TRUE);
@@ -2596,7 +2598,7 @@ u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reaso
 
 	//clear cam entry / key
 	//clear_cam_entry(padapter, (psta->mac_id + 3));
-	rtw_clearstakey_cmd(padapter, (u8*)psta, (u8)(psta->mac_id + 3), _TRUE);
+	rtw_clearstakey_cmd(padapter, (u8*)psta, (u8)rtw_get_camid(psta->mac_id), _TRUE);
 
 
 	_enter_critical_bh(&psta->lock, &irqL);

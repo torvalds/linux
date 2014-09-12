@@ -776,7 +776,6 @@ __inline static void _set_workitem(_workitem *pwork)
 	#include <linux/if_arp.h>
 	#include <linux/rtnetlink.h>
 	#include <linux/delay.h>
-	#include <linux/proc_fs.h>	// Necessary because we use the proc fs
 	#include <linux/interrupt.h>	// for struct tasklet_struct
 	#include <linux/ip.h>
 	#include <linux/kthread.h>
@@ -1276,7 +1275,7 @@ __inline static void _set_workitem(_workitem *pwork)
 
 extern int RTW_STATUS_CODE(int error_code);
 
-//#define CONFIG_USE_VMALLOC
+#define CONFIG_USE_VMALLOC
 
 /* flags used for rtw_mstat_update() */
 enum mstat_f {
@@ -1308,8 +1307,7 @@ typedef enum mstat_status{
 
 #ifdef DBG_MEM_ALLOC
 void rtw_mstat_update(const enum mstat_f flags, const MSTAT_STATUS status, u32 sz);
-int _rtw_mstat_dump(char *buf, int len);
-void rtw_mstat_dump (void);
+void rtw_mstat_dump (void *sel);
 u8* dbg_rtw_vmalloc(u32 sz, const enum mstat_f flags, const char *func, const int line);
 u8* dbg_rtw_zvmalloc(u32 sz, const enum mstat_f flags, const char *func, const int line);
 void dbg_rtw_vmfree(u8 *pbuf, const enum mstat_f flags, u32 sz, const char *func, const int line);
@@ -1370,7 +1368,7 @@ void dbg_rtw_usb_buffer_free(struct usb_device *dev, size_t size, void *addr, dm
 
 #else /* DBG_MEM_ALLOC */
 #define rtw_mstat_update(flag, status, sz) do {} while(0)
-#define rtw_mstat_dump() do {} while(0)
+#define rtw_mstat_dump(sel) do {} while(0)
 u8*	_rtw_vmalloc(u32 sz);
 u8*	_rtw_zvmalloc(u32 sz);
 void	_rtw_vmfree(u8 *pbuf, u32 sz);

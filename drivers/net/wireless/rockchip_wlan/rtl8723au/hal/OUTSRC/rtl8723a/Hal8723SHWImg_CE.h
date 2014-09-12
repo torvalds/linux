@@ -5,7 +5,7 @@
 
 #define Rtl8723SUMCBCutMPImgArrayLength 24174
 
-#define Rtl8723SUMCBCutImgArrayWithBTLength 24348
+#define Rtl8723SUMCBCutImgArrayWithBTLength 24124
 #define Rtl8723SUMCBCutImgArrayWithoutBTLength 19200
 
 #define Rtl8723SImgArrayLength 20606

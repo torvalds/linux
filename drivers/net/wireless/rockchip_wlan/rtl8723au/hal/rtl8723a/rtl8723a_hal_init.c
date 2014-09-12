@@ -249,43 +249,83 @@ void _8051Reset8723A(PADAPTER padapter)
 	DBG_871X("=====> _8051Reset8723A(): 8051 reset success .\n");
 }
 
-static s32 _FWFreeToGo(PADAPTER padapter)
+extern u8 g_fwdl_chksum_fail;
+static s32 polling_fwdl_chksum(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
-	u32	counter = 0;
-	u32	value32;
+	s32 ret = _FAIL;
+	u32 value32;
+	u32 start = rtw_get_current_time();
+	u32 cnt = 0;
 
-	// polling CheckSum report
+	/* polling CheckSum report */
 	do {
-		value32 = rtw_read32(padapter, REG_MCUFWDL);
-		if (value32 & FWDL_ChkSum_rpt) break;
-	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
+		cnt++;
+		value32 = rtw_read32(adapter, REG_MCUFWDL);
+		if (value32 & FWDL_ChkSum_rpt || adapter->bSurpriseRemoved || adapter->bDriverStopped)
+			break;
+		rtw_yield_os();
+	} while (rtw_get_passing_time_ms(start) < timeout_ms || cnt < min_cnt);
 
-	if (counter >= POLLING_READY_TIMEOUT_COUNT) {
-		DBG_871X("%s: chksum report fail! REG_MCUFWDL:0x%08x\n", __FUNCTION__, value32);
-		return _FAIL;
+	if (!(value32 & FWDL_ChkSum_rpt)) {
+		goto exit;
 	}
-	RT_TRACE(_module_hal_init_c_, _drv_info_, ("%s: Checksum report OK! REG_MCUFWDL:0x%08x\n", __FUNCTION__, value32));
 
-	value32 = rtw_read32(padapter, REG_MCUFWDL);
+	if (g_fwdl_chksum_fail) {
+		DBG_871X("%s: fwdl test case: fwdl_chksum_fail\n", __FUNCTION__);
+		g_fwdl_chksum_fail--;
+		goto exit;
+	}
+
+	ret = _SUCCESS;
+
+exit:
+	DBG_871X("%s: Checksum report %s! (%u, %dms), REG_MCUFWDL:0x%08x\n", __FUNCTION__
+	, (ret==_SUCCESS)?"OK":"Fail", cnt, rtw_get_passing_time_ms(start), value32);
+
+	return ret;
+}
+
+extern u8 g_fwdl_wintint_rdy_fail;
+static s32 _FWFreeToGo(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
+{
+	s32 ret = _FAIL;
+	u32	value32;
+	u32 start = rtw_get_current_time();
+	u32 cnt = 0;
+
+	value32 = rtw_read32(adapter, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
-	rtw_write32(padapter, REG_MCUFWDL, value32);
+	rtw_write32(adapter, REG_MCUFWDL, value32);
 
-	_8051Reset8723A(padapter);
+	_8051Reset8723A(adapter);
 
-	// polling for FW ready
-	counter = 0;
+	/*  polling for FW ready */
 	do {
-		value32 = rtw_read32(padapter, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY) {
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("%s: Polling FW ready success!! REG_MCUFWDL:0x%08x\n", __FUNCTION__, value32));
-			return _SUCCESS;
-		}
-		rtw_udelay_os(5);
-	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
+		cnt++;
+		value32 = rtw_read32(adapter, REG_MCUFWDL);
+		if (value32 & WINTINI_RDY || adapter->bSurpriseRemoved || adapter->bDriverStopped)
+			break;
+		rtw_yield_os();
+	} while (rtw_get_passing_time_ms(start) < timeout_ms || cnt < min_cnt);
 
-	DBG_871X("%s: Polling FW ready fail!! REG_MCUFWDL:0x%08x\n", __FUNCTION__, value32);
-	return _FAIL;
+	if (!(value32 & WINTINI_RDY)) {
+		goto exit;
+	}
+
+	if (g_fwdl_wintint_rdy_fail) {
+		DBG_871X("%s: fwdl test case: wintint_rdy_fail\n", __FUNCTION__);
+		g_fwdl_wintint_rdy_fail--;
+		goto exit;
+	}
+
+	ret = _SUCCESS;
+
+exit:
+	DBG_871X("%s: Polling FW ready %s! (%u, %dms), REG_MCUFWDL:0x%08x\n", __FUNCTION__
+		, (ret==_SUCCESS)?"OK":"Fail", cnt, rtw_get_passing_time_ms(start), value32);
+
+	return ret;
 }
 
 #define IS_FW_81xxC(padapter)	(((GET_HAL_DATA(padapter))->FirmwareSignature & 0xFFF0) == 0x88C0)
@@ -501,6 +541,9 @@ int _WriteBTFWtoTxPktBuf8723A(
 		}
 		DLBcnCount++;
 		DBG_871X("##0x208:%08x,0x210=%08x\n",PlatformEFIORead4Byte(Adapter, REG_TDECTRL),PlatformEFIORead4Byte(Adapter, 0x210));
+
+		PlatformEFIOWrite1Byte(Adapter, REG_TDECTRL+2,BcnValidReg);
+		
 	}while((!(BcnValidReg&BIT(0))) && DLBcnCount<5);
 
 
@@ -784,7 +827,7 @@ u8	fw_buffer_8723a[FW_8723A_SIZE];
 s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 {
 	s32	rtStatus = _SUCCESS;
-	u8 writeFW_retry = 0;
+	u8 write_fw = 0;
 	u32 fwdl_start_time;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
 	s8 			R8723FwImageFileName_UMC[] ={RTL8723_FW_UMC_IMG};
@@ -807,7 +850,7 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 	if(!pFirmware||!pBTFirmware)
 	{
 		rtStatus = _FAIL;
-		goto Exit;
+		goto exit;
 	}
 
 	if (IS_HARDWARE_TYPE_8723A(padapter))
@@ -857,14 +900,14 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 			RT_TRACE(_module_hal_init_c_, _drv_err_, ("%s: unknow version!\n", __FUNCTION__));
 //			return RT_STATUS_FAILURE;
 			rtStatus = _FAIL;
-			goto Exit;
+			goto exit;
 		}
 	}
 	else
 	{
 		RT_TRACE(_module_hal_init_c_, _drv_err_, ("%s: unknow chip!\n", __FUNCTION__));
 		rtStatus = _FAIL;
-		goto Exit;
+		goto exit;
 	}
 
 //	RT_TRACE(_module_hal_init_c_, _drv_err_, ("rtl8723a_FirmwareDownload: %s\n", pFwImageFileName));
@@ -894,14 +937,14 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 			if(pFirmware->ulFwLength <= 0)
 			{
 				rtStatus = _FAIL;
-				goto Exit;
+				goto exit;
 			}
 			break;
 		case FW_SOURCE_HEADER_FILE:
 			if (FwImageLen > FW_8723A_SIZE) {
 				rtStatus = _FAIL;
 				RT_TRACE(_module_hal_init_c_, _drv_err_, ("Firmware size exceed 0x%X. Check it.\n", FW_8723A_SIZE) );
-				goto Exit;
+				goto exit;
 			}
 
 			pFirmware->szFwBuffer = FwImage;
@@ -946,35 +989,27 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 
 	_FWDownloadEnable(padapter, _TRUE);
 	fwdl_start_time = rtw_get_current_time();
-	while(1) {
-		//reset the FWDL chksum
+	while(!padapter->bDriverStopped && !padapter->bSurpriseRemoved
+			&& (write_fw++ < 3 || rtw_get_passing_time_ms(fwdl_start_time) < 500))
+	{
+		/* reset FWDL chksum */
 		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL)|FWDL_ChkSum_rpt);
 
 		rtStatus = _WriteFW(padapter, pFirmwareBuf, FirmwareLen);
+		if (rtStatus != _SUCCESS)
+			continue;
 
-		if(rtStatus == _SUCCESS || padapter->bDriverStopped || padapter->bSurpriseRemoved
-			||(writeFW_retry++ >= 3 && rtw_get_passing_time_ms(fwdl_start_time) > 500)
-		)
+		rtStatus = polling_fwdl_chksum(padapter, 5, 50);
+		if (rtStatus == _SUCCESS)
 			break;
 	}
 	_FWDownloadEnable(padapter, _FALSE);
+	if(_SUCCESS != rtStatus)
+		goto fwdl_stat;
 
-	DBG_871X("%s writeFW_retry:%u, time after fwdl_start_time:%ums\n", __FUNCTION__
-		, writeFW_retry
-		, rtw_get_passing_time_ms(fwdl_start_time)
-	);
-
-	if(_SUCCESS != rtStatus){
-		DBG_871X("DL Firmware failed!\n");
-		goto Exit;
-	}
-
-	rtStatus = _FWFreeToGo(padapter);
-	if (_SUCCESS != rtStatus) {
-		RT_TRACE(_module_hal_init_c_, _drv_err_, ("DL Firmware failed!\n"));
-		goto Exit;
-	}
-	RT_TRACE(_module_hal_init_c_, _drv_info_, ("Firmware is ready to run!\n"));
+	rtStatus = _FWFreeToGo(padapter, 10, 200);
+	if (_SUCCESS != rtStatus)
+		goto fwdl_stat;
 
 #ifdef CONFIG_MP_INCLUDED//BT_MP
 	if (padapter->registrypriv.mp_mode == 1)
@@ -984,14 +1019,19 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 	}
 #endif
 
-Exit:
-	DBG_871X("rtl8723a_FirmwareDownload Exit rtw_mfree pFirmware !\n");
+fwdl_stat:
+	DBG_871X("FWDL %s. write_fw:%u, %dms\n"
+		, (rtStatus == _SUCCESS)?"success":"fail"
+		, write_fw
+		, rtw_get_passing_time_ms(fwdl_start_time)
+	);
+
+exit:
 	if (pFirmware)
 		rtw_mfree((u8*)pFirmware, sizeof(RT_FIRMWARE_8723A));
-	DBG_871X("rtl8723a_FirmwareDownload Exit rtw_mfree pBTFirmware !\n");
 	if (pBTFirmware)
 		rtw_mfree((u8*)pBTFirmware, sizeof(RT_FIRMWARE_8723A));
-	//RT_TRACE(COMP_INIT, DBG_LOUD, (" <=== FirmwareDownload91C()\n"));
+
 	return rtStatus;
 }
 
@@ -1015,7 +1055,7 @@ _func_enter_;
 
 	if(padapter->HalData)
 	{
-		rtw_mfree(padapter->HalData, sizeof(HAL_DATA_TYPE));
+		rtw_vmfree(padapter->HalData, sizeof(HAL_DATA_TYPE));
 		padapter->HalData = NULL;
 	}
 

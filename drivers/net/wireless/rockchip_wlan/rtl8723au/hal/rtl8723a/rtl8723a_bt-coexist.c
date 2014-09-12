@@ -8262,7 +8262,7 @@ btdm_1AntPsTdma(
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// protect 3 beacons in 3-beacon period & no Tx pause at BT slot
-					BTDM_SetFw3a(padapter, 0x93, 0x15, 0x03, 0x10, 0x0);
+					BTDM_SetFw3a(padapter, 0xd3, 0x15, 0x03, 0x10, 0x0);
 					btdm_1AntSetBTCoexTable(padapter, 1);
 				}
 				break;
@@ -8336,7 +8336,7 @@ btdm_1AntPsTdma(
 			case 30: // WiFi idle & BT Inquiry
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
-					BTDM_SetFw3a(padapter, 0x93, 0x15, 0x03, 0x14, 0x00);
+					BTDM_SetFw3a(padapter, 0xd3, 0x15, 0x03, 0x14, 0x00);
 					btdm_1AntSetBTCoexTable(padapter, 0);
 				}
 				break;
@@ -8966,10 +8966,10 @@ void btdm_1AntCoexProcessForWifiConnect(PADAPTER padapter)
 		switch (BtState)
 		{
 			case BT_INFO_STATE_NO_CONNECTION:
-				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 0x26, _FALSE, 9);
+				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 0x26, _FALSE, 0);
 				break;
 			case BT_INFO_STATE_CONNECT_IDLE:
-				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 0x26, _FALSE, 9);
+				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 0x26, _FALSE, 0);
 				break;
 		}
 	}
@@ -9321,19 +9321,19 @@ void btdm_1AntBtCoexistHandler(PADAPTER padapter)
 			if (BTDM_IsWifiBusy(padapter) == _TRUE)
 			{
 				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Wifi is busy\n"));
-				btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _FALSE, 9);
+				btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _FALSE, 8);
 			}
 			else
 			{
 				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Wifi is idle\n"));
-				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 1, _FALSE, 9);
+				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 1, _FALSE, 8);
 			}
 		}
 		else
 		{
 			RTPRINT(FBT, BT_TRACE, ("[BTCoex], wifi is disconnected\n"));
 
-			btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _FALSE, 9);
+			btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _FALSE, 8);
 		}
 	}
 	else
@@ -17880,6 +17880,8 @@ void btdm_InitBtCoexistDM(PADAPTER padapter)
 	pHalData->bt_coexist.CurrentState = 0;
 	pHalData->bt_coexist.PreviousState = 0;
 
+	pHalData->bt_coexist.halCoex8723.bBusyTrafficForCoex = _FALSE;
+
 	BTDM_8723AInit(padapter);
 	pHalData->bt_coexist.bInitlized = _TRUE;
 }
@@ -19465,15 +19467,18 @@ u8 BTDM_IsWifiBusy(PADAPTER padapter)
 {
 //	PMGNT_INFO 		pMgntInfo = &(GetDefaultAdapter(padapter)->MgntInfo);
 	struct mlme_priv *pmlmepriv = &(GetDefaultAdapter(padapter)->mlmepriv);
+	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
 	PBT30Info		pBTInfo = GET_BT_INFO(padapter);
 	PBT_TRAFFIC 	pBtTraffic = &pBTInfo->BtTraffic;
 
 #ifdef CONFIG_CONCURRENT_MODE
 	struct mlme_priv *pbuddy_mlmepriv;
+	PHAL_DATA_TYPE pBuddyHalData;
 
 	if (padapter->pbuddy_adapter != NULL)
 	{
 		pbuddy_mlmepriv = &(padapter->pbuddy_adapter->mlmepriv);
+		pBuddyHalData = GET_HAL_DATA(padapter->pbuddy_adapter);
 
 #if 1	
 		if ((btdm_BtWifiAntNum(padapter) == Ant_x1) && ((BT_IsBtDisabled(padapter) == _TRUE) || ((BT_IsBtDisabled(padapter) == _FALSE && (BT_GetBtState(padapter) <= BT_INFO_STATE_CONNECT_IDLE)))))
@@ -19484,17 +19489,16 @@ u8 BTDM_IsWifiBusy(PADAPTER padapter)
 		}
 #endif
 	
-		if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > WIFI_BUSY_TRAFFIC_TH ||pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > WIFI_BUSY_TRAFFIC_TH ||
-			pbuddy_mlmepriv->LinkDetectInfo.NumRxOkInPeriod > WIFI_BUSY_TRAFFIC_TH || pbuddy_mlmepriv->LinkDetectInfo.NumTxOkInPeriod > WIFI_BUSY_TRAFFIC_TH ||
+		if (pHalData->bt_coexist.halCoex8723.bBusyTrafficForCoex ||pBuddyHalData->bt_coexist.halCoex8723.bBusyTrafficForCoex ||
 			pBtTraffic->Bt30TrafficStatistics.bTxBusyTraffic ||
 			pBtTraffic->Bt30TrafficStatistics.bRxBusyTraffic)
 			return _TRUE;
-	else
+		else
 			return _FALSE;
 	}
 #endif
 
-	if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > WIFI_BUSY_TRAFFIC_TH ||pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > WIFI_BUSY_TRAFFIC_TH ||
+	if (pHalData->bt_coexist.halCoex8723.bBusyTrafficForCoex ||
 		pBtTraffic->Bt30TrafficStatistics.bTxBusyTraffic ||
 		pBtTraffic->Bt30TrafficStatistics.bRxBusyTraffic)
 		return _TRUE;

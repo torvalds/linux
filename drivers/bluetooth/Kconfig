@@ -13,6 +13,12 @@ config BT_HCIBTUSB
 	  Say Y here to compile support for Bluetooth USB devices into the
 	  kernel or say M to compile it as module (btusb).
 
+config BT_RTKBTUSB
+        tristate "RTK HCI USB driver"
+        depends on USB
+        help
+          RTK Bluetooth HCI USB driver
+
 config BT_HCIBTSDIO
 	tristate "HCI SDIO driver"
 	depends on MMC

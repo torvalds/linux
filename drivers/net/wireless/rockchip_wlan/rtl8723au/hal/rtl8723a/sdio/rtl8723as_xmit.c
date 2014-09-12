@@ -25,8 +25,11 @@
 #include <sdio_ops.h>
 #include <rtl8723a_hal.h>
 
+#ifdef CONFIG_TX_AGGREGATION
 #define SDIO_TX_AGG_MAX	5
-
+#else
+#define SDIO_TX_AGG_MAX	1
+#endif
 
 s32 rtl8723_dequeue_writeport(PADAPTER padapter, u8 *freePage)
 {

@@ -28,11 +28,14 @@
 #endif //PLATFORM_FREEBSD
 
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
-//#define MAX_XMITBUF_SZ (30720)//	(2048)
 #ifdef CONFIG_TX_AGGREGATION
-#define MAX_XMITBUF_SZ	(20480)	// 20k
+	#ifdef CONFIG_RTL8188E
+		#define MAX_XMITBUF_SZ	(10240)	// 10k
+	#else
+		#define MAX_XMITBUF_SZ	(15360)	// 15k
+	#endif
 #else
-#define MAX_XMITBUF_SZ (12288)  //12k 1536*8
+#define MAX_XMITBUF_SZ (1664)
 #endif
 
 #if defined CONFIG_SDIO_HCI
@@ -71,7 +74,11 @@
 #ifdef CONFIG_PCI_HCI
 #define XMITBUF_ALIGN_SZ 4
 #else
+#ifdef USB_XMITBUF_ALIGN_SZ
+#define XMITBUF_ALIGN_SZ (USB_XMITBUF_ALIGN_SZ)
+#else
 #define XMITBUF_ALIGN_SZ 512
+#endif
 #endif
 #endif
 
@@ -156,7 +163,11 @@ do{\
 #endif
 
 #ifdef CONFIG_USB_HCI
+#ifdef USB_PACKET_OFFSET_SZ
+#define PACKET_OFFSET_SZ (USB_PACKET_OFFSET_SZ)
+#else
 #define PACKET_OFFSET_SZ (8)
+#endif
 #define TXDESC_OFFSET (TXDESC_SIZE + PACKET_OFFSET_SZ)
 #endif
 
@@ -745,6 +756,7 @@ u8	qos_acm(u8 acm_mask, u8 priority);
 
 #ifdef CONFIG_XMIT_THREAD_MODE
 void	enqueue_pending_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
+void enqueue_pending_xmitbuf_to_head(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 struct xmit_buf*	dequeue_pending_xmitbuf(struct xmit_priv *pxmitpriv);
 struct xmit_buf*	dequeue_pending_xmitbuf_under_survey(struct xmit_priv *pxmitpriv);
 sint	check_pending_xmitbuf(struct xmit_priv *pxmitpriv);

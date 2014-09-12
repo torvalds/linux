@@ -112,6 +112,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_EFUSE_BT_BYTES,
 	HW_VAR_FIFO_CLEARN_UP,
 	HW_VAR_CHECK_TXBUF,
+	HW_VAR_PCIE_STOP_TX_DMA,
 	HW_VAR_APFM_ON_MAC, //Auto FSM to Turn On, include clock, isolation, power control for MAC only
 	// The valid upper nav range for the HW updating, if the true value is larger than the upper range, the HW won't update it.
 	// Unit in microsecond. 0 means disable this function.
@@ -172,6 +173,7 @@ struct hal_ops {
 
 	u32	(*inirp_init)(_adapter *padapter);
 	u32	(*inirp_deinit)(_adapter *padapter);
+	void    (*irp_reset)(_adapter *padapter);
 
 	s32	(*init_xmit_priv)(_adapter *padapter);
 	void	(*free_xmit_priv)(_adapter *padapter);
@@ -418,6 +420,8 @@ void rtw_hal_disable_interrupt(_adapter *padapter);
 
 u32	rtw_hal_inirp_init(_adapter *padapter);
 u32	rtw_hal_inirp_deinit(_adapter *padapter);
+
+void	rtw_hal_irp_reset(_adapter *padapter);
 
 u8	rtw_hal_intf_ps_func(_adapter *padapter,HAL_INTF_PS_FUNC efunc_id, u8* val);
 

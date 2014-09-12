@@ -5629,11 +5629,11 @@ unsigned int on_action_public_p2p(union recv_frame *precv_frame)
 						if ( rtw_p2p_role(pwdinfo) == P2P_ROLE_CLIENT )
 						{
 							pwdinfo->p2p_info.operation_ch[ 0 ] = pwdinfo->peer_operating_ch;
-							#ifdef P2P_OP_CHECK_SOCIAL_CH
+							#ifdef CONFIG_P2P_OP_CHK_SOCIAL_CH
 							pwdinfo->p2p_info.operation_ch[ 1 ] = 1;	//Check whether GO is operating in channel 1;
 							pwdinfo->p2p_info.operation_ch[ 2 ] = 6;	//Check whether GO is operating in channel 6;
 							pwdinfo->p2p_info.operation_ch[ 3 ] = 11;	//Check whether GO is operating in channel 11;
-							#endif //P2P_OP_CHECK_SOCIAL_CH
+							#endif //CONFIG_P2P_OP_CHK_SOCIAL_CH
 							pwdinfo->p2p_info.scan_op_ch_only = 1;
 							_set_timer( &pwdinfo->reset_ch_sitesurvey2, P2P_RESET_SCAN_CH );
 						}
@@ -5663,11 +5663,11 @@ unsigned int on_action_public_p2p(union recv_frame *precv_frame)
 					if ( rtw_p2p_role(pwdinfo) == P2P_ROLE_CLIENT )
 					{
 						pwdinfo->p2p_info.operation_ch[ 0 ] = pwdinfo->peer_operating_ch;
-						#ifdef P2P_OP_CHECK_SOCIAL_CH
+						#ifdef CONFIG_P2P_OP_CHK_SOCIAL_CH
 						pwdinfo->p2p_info.operation_ch[ 1 ] = 1;	//Check whether GO is operating in channel 1;
 						pwdinfo->p2p_info.operation_ch[ 2 ] = 6;	//Check whether GO is operating in channel 6;
 						pwdinfo->p2p_info.operation_ch[ 3 ] = 11;	//Check whether GO is operating in channel 11;
-						#endif //P2P_OP_CHECK_SOCIAL_CH
+						#endif //CONFIG_P2P_OP_CHK_SOCIAL_CH
 						pwdinfo->p2p_info.scan_op_ch_only = 1;
 						_set_timer( &pwdinfo->reset_ch_sitesurvey2, P2P_RESET_SCAN_CH );
 					}
@@ -5745,15 +5745,15 @@ unsigned int on_action_public_p2p(union recv_frame *precv_frame)
 
 										if ( rtw_get_p2p_attr_content(merged_p2pie, merged_p2p_ielen, P2P_ATTR_OPERATING_CH, operatingch_info, &attr_contentlen) )
 										{
-											if( rtw_ch_set_search_ch(padapter->mlmeextpriv.channel_set, (u32)operatingch_info[4] ) )
+											if( rtw_ch_set_search_ch(padapter->mlmeextpriv.channel_set, (u32)operatingch_info[4] ) >= 0 )
 											{
 												//	The operating channel is acceptable for this device.
 												pwdinfo->rx_invitereq_info.operation_ch[0]= operatingch_info[4];
-												#ifdef P2P_OP_CHECK_SOCIAL_CH
+												#ifdef CONFIG_P2P_OP_CHK_SOCIAL_CH
 												pwdinfo->rx_invitereq_info.operation_ch[1]= 1;		//Check whether GO is operating in channel 1;
 												pwdinfo->rx_invitereq_info.operation_ch[2]= 6;		//Check whether GO is operating in channel 6;
 												pwdinfo->rx_invitereq_info.operation_ch[3]= 11;		//Check whether GO is operating in channel 11;
-												#endif //P2P_OP_CHECK_SOCIAL_CH
+												#endif //CONFIG_P2P_OP_CHK_SOCIAL_CH
 												pwdinfo->rx_invitereq_info.scan_op_ch_only = 1;
 												_set_timer( &pwdinfo->reset_ch_sitesurvey, P2P_RESET_SCAN_CH );
 												rtw_p2p_set_state(pwdinfo, P2P_STATE_RECV_INVITE_REQ_MATCH );
@@ -6914,7 +6914,9 @@ void issue_probersp(_adapter *padapter, unsigned char *da, u8 is_valid_p2p_probe
 	}	
 
 #ifdef CONFIG_P2P
-	if(rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO) /*&& is_valid_p2p_probereq*/)
+	if(rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO)
+		/* IOT issue, When wifi_spec is not set, send probe_resp with P2P IE even if probe_req has no P2P IE */
+		&& (is_valid_p2p_probereq || !padapter->registrypriv.wifi_spec))
 	{
 		u32 len;
 #ifdef CONFIG_IOCTL_CFG80211
@@ -11857,122 +11859,88 @@ u8 setkey_hdl(_adapter *padapter, u8 *pbuf)
 u8 set_stakey_hdl(_adapter *padapter, u8 *pbuf)
 {
 	u16 ctrl=0;
-	u8 cam_id;//cam_entry
+	u8 cam_id = 0;//cam_entry
+	u8 ret = H2C_SUCCESS;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct set_stakey_parm	*pparm = (struct set_stakey_parm *)pbuf;
+	struct sta_priv *pstapriv = &padapter->stapriv;
+	struct sta_info *psta;
 #ifdef CONFIG_TDLS
 	struct tdls_info	*ptdlsinfo = &padapter->tdlsinfo;
-	struct sta_priv	*pstapriv = &padapter->stapriv;
-	struct sta_info	*psta;
 #endif //CONFIG_TDLS
 
 	//cam_entry:
 	//0~3 for default key
-	
-	//for concurrent mode (ap+sta):
-	//default key is disable, using sw encrypt/decrypt
-	//cam_entry = 4 //for sta mode (macid=0)
-	//cam_entry(macid+3) = 5 ~ N//for ap mode (aid=1~N, macid=2 ~N)
 
-	//for concurrent mode (sta+sta):
+	//for concurrent mode (ap+sta, sta+sta):
 	//default key is disable, using sw encrypt/decrypt
-	//cam_entry = 4 //mapping to macid=0
-	//cam_entry = 5 //mapping to macid=2
+	//camid 0, 1, 2, 3 is default entry for default key/group key
+	//macid = 1 is for bc/mc stainfo, no mapping to camid
+	//macid = 0 mapping to camid 4
+	//for macid >=2, camid = macid+3;
 
-#ifdef CONFIG_CONCURRENT_MODE
-	if((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
+
+	if(pparm->algorithm == _NO_PRIVACY_)	// clear cam entry
 	{
-		struct sta_priv	*pstapriv = &padapter->stapriv;
-		struct sta_info	*psta;
-		
-		psta = rtw_get_stainfo(pstapriv, pmlmeinfo->network.MacAddress);
+		clear_cam_entry(padapter, pparm->id);
+		ret = H2C_SUCCESS;
+		goto exit_set_stakey_hdl;
+	}
 
-		if(psta && psta->mac_id==2)
-		{
-			cam_id = 5;
-		}
-		else
-		{
-			cam_id = 4;
-		}
-/*		
-		if(padapter->iface_type > PRIMARY_IFACE)
-		{
-			cam_id = 5;
-		}
-		else
-		{
-			cam_id = 4;
-		}
-*/		
-	}	
-#else
-	cam_id = 4;
-#endif
-
-	DBG_871X_LEVEL(_drv_always_, "set pairwise key to hw: alg:%d(WEP40-1 WEP104-5 TKIP-2 AES-4) camid:%d\n",
-		       	pparm->algorithm, cam_id);
 	if((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
 	{
-	
-		struct sta_info *psta;
-		struct sta_priv *pstapriv = &padapter->stapriv;
-
-		if(pparm->algorithm == _NO_PRIVACY_)	// clear cam entry
-		{
-			clear_cam_entry(padapter, pparm->id);
-			return H2C_SUCCESS_RSP;
-		}
-		
 		psta = rtw_get_stainfo(pstapriv, pparm->addr);
 		if(psta)
-		{			
+		{
 			ctrl = (BIT(15) | ((pparm->algorithm) << 2));
 
 			DBG_871X("r871x_set_stakey_hdl(): enc_algorithm=%d\n", pparm->algorithm);
 
-			if((psta->mac_id<1) || (psta->mac_id>(NUM_STA-4)))
+			if((psta->mac_id == 1) || (psta->mac_id>(NUM_STA-4)))
 			{
 				DBG_871X("r871x_set_stakey_hdl():set_stakey failed, mac_id(aid)=%d\n", psta->mac_id);
-				return H2C_REJECTED;
-			}	
-				 
-			cam_id = (psta->mac_id + 3);//0~3 for default key, cmd_id=macid + 3, macid=aid+1;
+				ret = H2C_REJECTED;
+				goto exit_set_stakey_hdl;
+			}
 
-			DBG_871X("Write CAM, mac_addr=%x:%x:%x:%x:%x:%x, cam_entry=%d\n", pparm->addr[0], 
+			cam_id = (u8)rtw_get_camid(psta->mac_id);//0~3 for default key, cmd_id=macid + 3;
+
+			DBG_871X("Write CAM, mac_addr=%x:%x:%x:%x:%x:%x, cam_entry=%d\n", pparm->addr[0],
 						pparm->addr[1], pparm->addr[2], pparm->addr[3], pparm->addr[4],
 						pparm->addr[5], cam_id);
 
 			write_cam(padapter, cam_id, ctrl, pparm->addr, pparm->key);
-	
-			return H2C_SUCCESS_RSP;
-		
+
+			ret = H2C_SUCCESS_RSP;
+			goto exit_set_stakey_hdl;
+
 		}
 		else
 		{
 			DBG_871X("r871x_set_stakey_hdl(): sta has been free\n");
-			return H2C_REJECTED;
+			ret = H2C_REJECTED;
+			goto exit_set_stakey_hdl;
 		}
-		
+
 	}
 
+
 	//below for sta mode
-	
-	if(pparm->algorithm == _NO_PRIVACY_)	// clear cam entry
-	{
-		clear_cam_entry(padapter, pparm->id);
-		return H2C_SUCCESS;
-	}
-	
-	ctrl = BIT(15) | ((pparm->algorithm) << 2);	
-	
+
+	if((psta = rtw_get_stainfo(pstapriv, pmlmeinfo->network.MacAddress)))
+		cam_id = (u8)rtw_get_camid(psta->mac_id);
+	else
+		cam_id = 4;
+
+	ctrl = BIT(15) | ((pparm->algorithm) << 2);
+
 #ifdef CONFIG_TDLS
 	if(ptdlsinfo->clear_cam!=0){
 		clear_cam_entry(padapter, ptdlsinfo->clear_cam);
 		ptdlsinfo->clear_cam=0;
-
-		return H2C_SUCCESS;
+		ret = H2C_SUCCESS;
+		goto exit_set_stakey_hdl;
 	}
 
 	psta = rtw_get_stainfo(pstapriv, pparm->addr);//Get TDLS Peer STA
@@ -11980,12 +11948,18 @@ u8 set_stakey_hdl(_adapter *padapter, u8 *pbuf)
 		write_cam(padapter, psta->mac_id, ctrl, pparm->addr, pparm->key);
 	}
 	else
-#endif //CONFIG_TDLS	
-	write_cam(padapter, cam_id, ctrl, pparm->addr, pparm->key);
+#endif //CONFIG_TDLS
+		write_cam(padapter, cam_id, ctrl, pparm->addr, pparm->key);
 
 	pmlmeinfo->enc_algo = pparm->algorithm;
-	
-	return H2C_SUCCESS;
+
+exit_set_stakey_hdl:
+
+	DBG_871X_LEVEL(_drv_always_, "set pairwise key to hw: alg:%d(WEP40-1 WEP104-5 TKIP-2 AES-4) camid:%d\n",
+		       	pparm->algorithm, cam_id);
+
+	return ret;
+
 }
 
 u8 add_ba_hdl(_adapter *padapter, unsigned char *pbuf)
@@ -13174,6 +13148,7 @@ int rtw_chk_start_clnt_join(_adapter *padapter, u8 *ch, u8 *bw, u8 *offset)
 
 		connect_allow = chbw_allow;
 
+#ifdef CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT
 		#if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211)
 		/* wlan0-sta mode has higher priority than p2p0-p2p client */
 		if (!rtw_p2p_chk_state(&(pbuddy_adapter->wdinfo), P2P_STATE_NONE)
@@ -13182,6 +13157,9 @@ int rtw_chk_start_clnt_join(_adapter *padapter, u8 *ch, u8 *bw, u8 *offset)
 			connect_allow = _TRUE;
 		}
 		#endif /* CONFIG_P2P && CONFIG_IOCTL_CFG80211 */
+#else
+		connect_allow = _TRUE;
+#endif /* CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT */
 
 		DBG_871X("start_clnt_join: connect_allow:%d, chbw_allow:%d\n", connect_allow, chbw_allow);
 		if (connect_allow == _TRUE && chbw_allow == _FALSE) {

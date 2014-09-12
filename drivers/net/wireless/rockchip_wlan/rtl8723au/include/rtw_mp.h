@@ -454,6 +454,7 @@ struct mp_priv
 
 	u8 bSetTxPower;
 //	uint ForcedDataRate;
+	u8 mp_dm;
 
 	struct wlan_network mp_network;
 	NDIS_802_11_MAC_ADDRESS network_macaddr;

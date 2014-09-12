@@ -300,7 +300,7 @@ s32 init_mp_priv(PADAPTER padapter)
 
 	_init_mp_priv_(pmppriv);
 	pmppriv->papdater = padapter;
-
+	pmppriv->mp_dm =0;
 	pmppriv->tx.stop = 1;
 	mp_init_xmit_attrib(&pmppriv->tx, padapter);
 
@@ -475,7 +475,10 @@ MPT_InitializeAdapter(
 
 	if (pAdapter->registrypriv.mp_mode == 1)
 		pmlmepriv->fw_state = WIFI_MP_STATE;
-
+#ifdef CONFIG_RTL8188E	
+	rtw_write32(pAdapter,REG_MACID_NO_LINK_0,0x0);
+	rtw_write32(pAdapter,REG_MACID_NO_LINK_1,0x0);
+#endif	
 	return	rtStatus;
 }
 
@@ -608,6 +611,7 @@ void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart)
 		pdmpriv->InitODMFlag |= ODM_RF_TX_PWR_TRACK ;
 		pdmpriv->InitODMFlag |= ODM_RF_CALIBRATION ;
 		pdmpriv->TxPowerTrackControl = _TRUE;
+                padapter->mppriv.mp_dm =1;
 #ifndef CONFIG_RTL8188E
 		pDM_Odm->RFCalibrateInfo.TxPowerTrackControl =  _TRUE;
 #endif
@@ -615,6 +619,7 @@ void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart)
 		DBG_871X("in MPT_PwrCtlDM stop \n");
 		disable_dm(padapter);
 		pdmpriv->TxPowerTrackControl = _FALSE;
+                padapter->mppriv.mp_dm =0;
 		#ifndef CONFIG_RTL8188E
 		pDM_Odm->RFCalibrateInfo.TxPowerTrackControl =  _FALSE;
 		#endif

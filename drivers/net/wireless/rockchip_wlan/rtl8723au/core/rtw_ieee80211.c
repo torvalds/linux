@@ -1314,60 +1314,43 @@ u8 convert_ip_addr(u8 hch, u8 mch, u8 lch)
 }
 
 extern char* rtw_initmac;
-extern int rk29sdk_wifi_mac_addr(unsigned char *buf);
-
 void rtw_macaddr_cfg(u8 *mac_addr)
 {
-    u8 mac[ETH_ALEN];
-    u8 macbuf[30] = {0};
+	u8 mac[ETH_ALEN];
+	if(mac_addr == NULL)	return;
+	
+	if ( rtw_initmac )
+	{	//	Users specify the mac address
+		int jj,kk;
 
-    if(mac_addr == NULL)    return;
+		for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )
+		{
+			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk+ 1]);
+		}
+		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+	}
+	else
+	{	//	Use the mac address stored in the Efuse
+		_rtw_memcpy(mac, mac_addr, ETH_ALEN);
+	}
+	
+	if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
+	     (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
+	    ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
+	     (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
+	{
+		mac[0] = 0x00;
+		mac[1] = 0xe0;
+		mac[2] = 0x4c;
+		mac[3] = 0x87;
+		mac[4] = 0x00;
+		mac[5] = 0x00;
+		// use default mac addresss
+		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+		DBG_871X("MAC Address from efuse error, assign default one !!!\n");
+	}	
 
-    if ( rtw_initmac )
-    {   //  Users specify the mac address
-        int jj,kk;
-
-        for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )
-        {
-            mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk+ 1]);
-        }
-        _rtw_memcpy(mac_addr, mac, ETH_ALEN);
-    }
-    else
-    {
-        printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", mac_addr[0], mac_addr[1],
-            mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-        if (!rk29sdk_wifi_mac_addr(macbuf)) {
-            int jj,kk;
-            printk("=========> get mac address from flash %s\n", macbuf);
-            for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )
-            {
-                mac[jj] = key_2char2num(macbuf[kk], macbuf[kk+ 1]);
-            }
-            _rtw_memcpy(mac_addr, mac, ETH_ALEN);
-        } else {
-            //  Use the mac address stored in the Efuse
-            _rtw_memcpy(mac, mac_addr, ETH_ALEN);
-        }
-    }
-
-    if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
-         (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
-        ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
-         (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
-    {
-        mac[0] = 0x00;
-        mac[1] = 0xe0;
-        mac[2] = 0x4c;
-        mac[3] = 0x87;
-        mac[4] = 0x00;
-        mac[5] = 0x00;
-        // use default mac addresss
-        _rtw_memcpy(mac_addr, mac, ETH_ALEN);
-        DBG_871X("MAC Address from efuse error, assign default one !!!\n");
-    }
-
-    DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
+	DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
 }
 
 void dump_ies(u8 *buf, u32 buf_len)

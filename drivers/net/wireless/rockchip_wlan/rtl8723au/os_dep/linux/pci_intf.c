@@ -1157,6 +1157,8 @@ _func_enter_;
 	_rtw_mutex_init(&dvobj->h2c_fwcmd_mutex);
 	_rtw_mutex_init(&dvobj->setch_mutex);
 	_rtw_mutex_init(&dvobj->setbw_mutex);
+	_rtw_spinlock_init(&dvobj->lock);
+	dvobj->macid[1] = _TRUE; //macid=1 for bc/mc stainfo
 
 	dvobj->processing_dev_remove = _FALSE;
 	if ( (err = pci_enable_device(pdev)) != 0) {
@@ -1321,6 +1323,7 @@ disable_picdev:
 free_dvobj:
 	if (status != _SUCCESS && dvobj) {
 		pci_set_drvdata(pdev, NULL);
+		_rtw_spinlock_free(&dvobj->lock);
 		_rtw_mutex_free(&dvobj->hw_init_mutex);
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
@@ -1351,6 +1354,7 @@ _func_enter_;
 			dvobj->pci_mem_start = 0;
 		}
 
+		_rtw_spinlock_free(&dvobj->lock);
 		_rtw_mutex_free(&dvobj->hw_init_mutex);
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
@@ -1504,20 +1508,25 @@ static void pci_intf_stop(_adapter *padapter)
 	{
 		//device still exists, so driver can do i/o operation
 		rtw_hal_disable_interrupt(padapter);
-		tasklet_disable(&(padapter->recvpriv.recv_tasklet));
-		tasklet_disable(&(padapter->recvpriv.irq_prepare_beacon_tasklet));
-		tasklet_disable(&(padapter->xmitpriv.xmit_tasklet));
+		tasklet_kill(&(padapter->recvpriv.recv_tasklet));
+		tasklet_kill(&(padapter->recvpriv.irq_prepare_beacon_tasklet));
+		tasklet_kill(&(padapter->xmitpriv.xmit_tasklet));
 		
 #ifdef CONFIG_CONCURRENT_MODE
 		/*	This function only be called at driver removing. disable buddy_adapter too
 			don't disable interrupt of buddy_adapter because it is same as primary.
 		*/
 		if (padapter->pbuddy_adapter){
-			tasklet_disable(&(padapter->pbuddy_adapter->recvpriv.recv_tasklet));
-			tasklet_disable(&(padapter->pbuddy_adapter->recvpriv.irq_prepare_beacon_tasklet));
-			tasklet_disable(&(padapter->pbuddy_adapter->xmitpriv.xmit_tasklet));
+			tasklet_kill(&(padapter->pbuddy_adapter->recvpriv.recv_tasklet));
+			tasklet_kill(&(padapter->pbuddy_adapter->recvpriv.irq_prepare_beacon_tasklet));
+			tasklet_kill(&(padapter->pbuddy_adapter->xmitpriv.xmit_tasklet));
 		}
 #endif
+
+		rtw_hal_set_hwreg(padapter, HW_VAR_PCIE_STOP_TX_DMA, 0);
+
+		rtw_hal_irp_reset(padapter);
+
 		RT_TRACE(_module_hci_intfs_c_,_drv_err_,("pci_intf_stop: SurpriseRemoved==_FALSE\n"));
 	}
 	else
@@ -1770,13 +1779,6 @@ static void rtw_pci_if1_deinit(_adapter *if1)
 	#endif
 #endif
 
-	if (if1->DriverState != DRIVER_DISAPPEAR) {
-		if(pnetdev) {
-			unregister_netdev(pnetdev); //will call netdev_close()
-			rtw_proc_remove_one(pnetdev);
-		}
-	}
-
 	rtw_cancel_all_timer(if1);
 #ifdef CONFIG_WOWLAN
 	adapter_to_pwrctl(if1)->wowlan_mode=_FALSE;
@@ -1791,7 +1793,7 @@ static void rtw_pci_if1_deinit(_adapter *if1)
 #ifdef CONFIG_IOCTL_CFG80211
 	if(if1->rtw_wdev)
 	{
-		rtw_wdev_unregister(if1->rtw_wdev);
+		//rtw_wdev_unregister(if1->rtw_wdev);
 		rtw_wdev_free(if1->rtw_wdev);
 	}
 #endif //CONFIG_IOCTL_CFG80211
@@ -1859,10 +1861,6 @@ static int rtw_drv_init(struct pci_dev *pdev, const struct pci_device_id *pdid)
 #ifdef CONFIG_PLATFORM_RTD2880B
 	DBG_871X("wlan link up\n");
 	rtd2885_wlan_netlink_sendMsg("linkup", "8712");
-#endif
-
-#ifdef RTK_DMP_PLATFORM
-	rtw_proc_init_one(if1->pnetdev);
 #endif
 
 	/* alloc irq */
@@ -1964,35 +1962,47 @@ static int __init rtw_drv_entry(void)
 {
 	int ret = 0;
 
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_entry\n"));
-	DBG_871X("rtw driver version=%s\n", DRIVERVERSION);
-	DBG_871X("Build at: %s %s\n", __DATE__, __TIME__);
-	pci_drvpriv.drv_registered = _TRUE;
+	DBG_871X_LEVEL(_drv_always_, "module init start\n");
+	dump_drv_version(RTW_DBGDUMP);
+#ifdef BTCOEXVERSION
+	DBG_871X_LEVEL(_drv_always_, DRV_NAME" BT-Coex version = %s\n", BTCOEXVERSION);
+#endif // BTCOEXVERSION
 
+	pci_drvpriv.drv_registered = _TRUE;
 	rtw_suspend_lock_init();
+	rtw_drv_proc_init();
+	rtw_ndev_notifier_register();
 
 	ret = pci_register_driver(&pci_drvpriv.rtw_pci_drv);
-	if (ret) {
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_, (": No device found\n"));
+
+	if (ret != 0) {
+		pci_drvpriv.drv_registered = _FALSE;
+		rtw_suspend_lock_uninit();
+		rtw_drv_proc_deinit();
+		rtw_ndev_notifier_unregister();
+		goto exit;
 	}
 
+exit:
+	DBG_871X_LEVEL(_drv_always_, "module init ret=%d\n", ret);
 	return ret;
 }
 
 static void __exit rtw_drv_halt(void)
 {
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_halt\n"));
-	DBG_871X("+rtw_drv_halt\n");
-	
+	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
+
 	pci_drvpriv.drv_registered = _FALSE;
 	
 	pci_unregister_driver(&pci_drvpriv.rtw_pci_drv);
 
-	rtw_suspend_lock_uninit();	
-	
-	DBG_871X("-rtw_drv_halt\n");
+	rtw_suspend_lock_uninit();
+	rtw_drv_proc_deinit();
+	rtw_ndev_notifier_unregister();
 
-	rtw_mstat_dump();
+	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
+
+	rtw_mstat_dump(RTW_DBGDUMP);
 }
 
 

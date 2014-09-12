@@ -556,6 +556,9 @@ _func_enter_;
 	_rtw_mutex_init(&pdvobjpriv->setbw_mutex);
 	pdvobjpriv->processing_dev_remove = _FALSE;
 
+        _rtw_spinlock_init(&pdvobjpriv->lock);
+	pdvobjpriv->macid[1] = _TRUE; //macid=1 for bc/mc stainfo
+
 	pdvobjpriv->pusbintf = usb_intf ;
 	pusbd = pdvobjpriv->pusbdev = interface_to_usbdev(usb_intf);
 	usb_set_intfdata(usb_intf, pdvobjpriv);
@@ -690,6 +693,7 @@ _func_enter_;
 free_dvobj:
 	if (status != _SUCCESS && pdvobjpriv) {
 		usb_set_intfdata(usb_intf, NULL);
+		_rtw_spinlock_free(&pdvobjpriv->lock);
 		_rtw_mutex_free(&pdvobjpriv->hw_init_mutex);
 		_rtw_mutex_free(&pdvobjpriv->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&pdvobjpriv->setch_mutex);
@@ -721,6 +725,7 @@ _func_enter_;
 			}
 		}
 		rtw_deinit_intf_priv(dvobj);
+		_rtw_spinlock_free(&dvobj->lock);
 		_rtw_mutex_free(&dvobj->hw_init_mutex);
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
@@ -1728,14 +1733,7 @@ static void rtw_usb_if1_deinit(_adapter *if1)
 	hostapd_mode_unload(if1);
 	#endif
 #endif
-/*
-	if(if1->DriverState != DRIVER_DISAPPEAR) {
-		if(pnetdev) {
-			unregister_netdev(pnetdev); //will call netdev_close()
-			rtw_proc_remove_one(pnetdev);
-		}
-	}
-*/
+
 	rtw_cancel_all_timer(if1);
 
 #ifdef CONFIG_WOWLAN
@@ -1958,10 +1956,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	rtd2885_wlan_netlink_sendMsg("linkup", "8712");
 #endif
 
-#ifdef RTK_DMP_PLATFORM
-	rtw_proc_init_one(if1->pnetdev);
-#endif
-
 	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("-871x_drv - drv_init, success!\n"));
 
 	status = _SUCCESS;
@@ -2056,6 +2050,14 @@ extern int console_suspend_enabled;
 
 static int rtw_drv_entry(void)
 {
+	int ret = 0;
+
+	DBG_871X_LEVEL(_drv_always_, "module init start\n");
+	dump_drv_version(RTW_DBGDUMP);
+#ifdef BTCOEXVERSION
+	DBG_871X_LEVEL(_drv_always_, DRV_NAME" BT-Coex version = %s\n", BTCOEXVERSION);
+#endif // BTCOEXVERSION
+
 #ifdef CONFIG_PLATFORM_RTK_DMP
 	u32 tmp;
 	tmp=readl((volatile unsigned int*)0xb801a608);
@@ -2065,13 +2067,12 @@ static int rtw_drv_entry(void)
 #endif
 #ifdef CONFIG_PLATFORM_ARM_SUNxI
 #ifndef CONFIG_RTL8723A
-	int ret = 0;
 	/* ----------get usb_wifi_usbc_num------------- */	
 	ret = script_parser_fetch("usb_wifi_para", "usb_wifi_usbc_num", (int *)&usb_wifi_host, 64);	
 	if(ret != 0){		
 		DBG_8192C("ERR: script_parser_fetch usb_wifi_usbc_num failed\n");		
 		ret = -ENOMEM;		
-		return ret;	
+		goto exit;	
 	}	
 	DBG_8192C("sw_usb_enable_hcd: usbc_num = %d\n", usb_wifi_host);	
 	sw_usb_enable_hcd(usb_wifi_host);
@@ -2084,7 +2085,8 @@ static int rtw_drv_entry(void)
 	type = script_get_item("wifi_para", "wifi_usbc_id", &item);
 	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
 		printk("ERR: script_get_item wifi_usbc_id failed\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto exit;
 	}
 
 	printk("sw_usb_enable_hcd: usbc_num = %d\n", item.val);
@@ -2095,27 +2097,34 @@ static int rtw_drv_entry(void)
 	sw_usb_enable_hcd(item.val);
 	#endif
 #endif // defined  CONFIG_PLATFORM_ARM_SUN6I  && !(defined CONFIG_RTL8723A)
-
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_entry\n"));
-
-	DBG_871X(DRV_NAME " driver version=%s\n", DRIVERVERSION);
-	printk("%s driver version=%s\n", DRV_NAME, DRIVERVERSION);
-	DBG_871X("build time: %s %s\n", __DATE__, __TIME__);
 	
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)) 
 	//console_suspend_enabled=0;
 #endif
 
-	rtw_suspend_lock_init();
-
 	usb_drv->drv_registered = _TRUE;
-	return usb_register(&usb_drv->usbdrv);
+	rtw_suspend_lock_init();
+	rtw_drv_proc_init();
+	rtw_ndev_notifier_register();
+
+	ret = usb_register(&usb_drv->usbdrv);
+
+	if (ret != 0) {
+		usb_drv->drv_registered = _FALSE;
+		rtw_suspend_lock_uninit();
+		rtw_drv_proc_deinit();
+		rtw_ndev_notifier_unregister();
+		goto exit;
+	}
+
+exit:
+	DBG_871X_LEVEL(_drv_always_, "module init ret=%d\n", ret);
+	return ret;
 }
 
 static void rtw_drv_halt(void)
 {
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_halt\n"));
-	DBG_871X("+rtw_drv_halt\n");	
+	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
 
 	usb_drv->drv_registered = _FALSE;
 	usb_deregister(&usb_drv->usbdrv);
@@ -2135,38 +2144,31 @@ static void rtw_drv_halt(void)
 #endif	//  defined  CONFIG_PLATFORM_ARM_SUN6I  && !(defined CONFIG_RTL8723A)
 
 	rtw_suspend_lock_uninit();
-	DBG_871X("-rtw_drv_halt\n");
+	rtw_drv_proc_deinit();
+	rtw_ndev_notifier_unregister();
 
-	rtw_mstat_dump();
+	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
+
+	rtw_mstat_dump(RTW_DBGDUMP);
 }
 
-#include "wifi_version.h"
-extern int wifi_activate_usb(void);
-extern int wifi_deactivate_usb(void);
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-static int __init rockchip_wifi_init_module(void)
-#else
-int rockchip_wifi_init_module(void)
-#endif
+#include "wifi_version.h"
+#include <linux/rfkill-wlan.h>
+
+int rockchip_wifi_init_module_rtkwifi(void)
 {
     printk("\n");
     printk("=======================================================\n");
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
     printk("=======================================================\n");
     printk("Realtek 8723AU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
-    wifi_deactivate_usb();
-    msleep(100);
-    wifi_activate_usb();
+    rockchip_wifi_power(1);
 
     return rtw_drv_entry();
 }
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-static void __exit rockchip_wifi_exit_module(void)
-#else
-void rockchip_wifi_exit_module(void)
-#endif
+void rockchip_wifi_exit_module_rtkwifi(void)
 {
     printk("\n");
     printk("=======================================================\n");
@@ -2174,16 +2176,11 @@ void rockchip_wifi_exit_module(void)
     printk("=======================================================\n");
     printk("Realtek 8723AU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
     rtw_drv_halt();
-    wifi_deactivate_usb();
+    rockchip_wifi_power(0);
 }
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-late_initcall(rockchip_wifi_init_module);
-module_exit(rockchip_wifi_exit_module);
-#else
-EXPORT_SYMBOL(rockchip_wifi_init_module);
-EXPORT_SYMBOL(rockchip_wifi_exit_module);
-#endif
+EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
+EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
 //module_init(rtw_drv_entry);
 //module_exit(rtw_drv_halt);
 

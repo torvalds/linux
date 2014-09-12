@@ -289,6 +289,7 @@ struct xmit_buf *rtl8188ee_dequeue_xmitbuf(struct rtw_tx_ring *ring);
 void	rtl8188ee_xmitframe_resume(_adapter *padapter);
 s32 rtl8188ee_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 rtl8188ee_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+s32	rtl8188ee_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 void rtl8188ee_xmit_tasklet(void *priv);
 #endif
 

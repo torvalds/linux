@@ -283,6 +283,14 @@ u32	rtw_hal_inirp_deinit(_adapter *padapter)
 		
 }
 
+void rtw_hal_irp_reset(_adapter *padapter)
+{
+	if(padapter->HalFunc.irp_reset)
+		padapter->HalFunc.irp_reset(padapter);
+	else
+		DBG_871X("%s: HalFunc.rtw_hal_irp_reset is NULL!\n", __FUNCTION__);
+}
+
 u8	rtw_hal_intf_ps_func(_adapter *padapter,HAL_INTF_PS_FUNC efunc_id, u8* val)
 {	
 	if(padapter->HalFunc.interface_ps_func)	

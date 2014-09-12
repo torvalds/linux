@@ -269,6 +269,8 @@ int rtw_recv_indicatepkt(_adapter *padapter, union recv_frame *precv_frame)
 
 _func_enter_;
 
+	DBG_COUNTER(padapter->rx_logs.os_indicate);
+
 	precvpriv = &(padapter->recvpriv);
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 
@@ -463,6 +465,7 @@ _recv_indicatepkt_drop:
 	 if(precv_frame)
 		 rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
+	 DBG_COUNTER(padapter->rx_logs.os_indicate_err);
 	 return _FAIL;
 
 _func_exit_;

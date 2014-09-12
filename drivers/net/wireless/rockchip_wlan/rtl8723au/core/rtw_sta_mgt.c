@@ -452,6 +452,10 @@ _func_enter_;
 #endif
 		/* init for the sequence number of received management frame */
 		psta->RxMgmtFrameSeqNum = 0xffff;
+
+		//alloc mac id for non-bc/mc station,
+		rtw_alloc_macid(pstapriv->padapter, psta);
+
 	}
 	
 exit:
@@ -600,6 +604,10 @@ _func_enter_;
 	if (!(psta->state & WIFI_AP_STATE))
 		rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, _FALSE);
 			
+
+	//release mac id for non-bc/mc station,
+	rtw_release_macid(pstapriv->padapter, psta);
+
 #ifdef CONFIG_AP_MODE
 
 /*

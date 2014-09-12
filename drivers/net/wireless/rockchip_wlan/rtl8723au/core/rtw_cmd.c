@@ -2183,6 +2183,10 @@ static void traffic_status_watchdog(_adapter *padapter)
 #ifdef CONFIG_FTP_PROTECT
 	u16	bPktCount = 0;
 #endif
+#ifdef CONFIG_BT_COEXIST
+	u8 	bBusyTrafficForCoex = _FALSE;
+	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
+#endif
 	struct mlme_priv		*pmlmepriv = &(padapter->mlmepriv);
 #ifdef CONFIG_TDLS
 	struct tdls_info *ptdlsinfo = &(padapter->tdlsinfo);
@@ -2221,6 +2225,14 @@ static void traffic_status_watchdog(_adapter *padapter)
 			else
 				bHigherBusyTxTraffic = _TRUE;
 		}
+
+#ifdef CONFIG_BT_COEXIST
+		if( pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > WIFI_BUSY_TRAFFIC_TH ||
+			pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > WIFI_BUSY_TRAFFIC_TH )
+		{
+			bBusyTrafficForCoex = _TRUE;
+		}
+#endif
 
 #ifdef CONFIG_FTP_PROTECT
 		DBG_871X("RX in period:%d, TX in period:%d, ftp_lock_flag:%d\n", 
@@ -2309,6 +2321,9 @@ static void traffic_status_watchdog(_adapter *padapter)
 	pmlmepriv->LinkDetectInfo.bHigherBusyTraffic = bHigherBusyTraffic;
 	pmlmepriv->LinkDetectInfo.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
 	pmlmepriv->LinkDetectInfo.bHigherBusyTxTraffic = bHigherBusyTxTraffic;
+#ifdef CONFIG_BT_COEXIST
+	pHalData->bt_coexist.halCoex8723.bBusyTrafficForCoex = bBusyTrafficForCoex;
+#endif
 }
 
 void dynamic_chk_wk_hdl(_adapter *padapter, u8 *pbuf, int sz);

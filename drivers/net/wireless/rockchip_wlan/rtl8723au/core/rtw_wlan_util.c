@@ -822,13 +822,12 @@ void flush_all_cam_entry(_adapter *padapter)
 				if(psta->state & WIFI_AP_STATE)
 				{}   //clear cam when ap free per sta_info        
 				else {
-					if(psta->mac_id==2)
-						cam_id = 5;
-					else
-						cam_id = 4;
-				}
-				//clear_cam_entry(padapter, cam_id);
-				rtw_clearstakey_cmd(padapter, (u8*)psta, cam_id, _FALSE);
+
+					cam_id = (u8)rtw_get_camid(psta->mac_id);
+
+					//clear_cam_entry(padapter, cam_id);
+					rtw_clearstakey_cmd(padapter, (u8*)psta, cam_id, _FALSE);
+				}				
 			}
 		}
 		else if(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE)
@@ -2440,6 +2439,118 @@ void beacon_timing_control(_adapter *padapter)
 {
 	rtw_hal_bcn_related_reg_setting(padapter);
 }
+
+uint rtw_get_camid(uint macid)
+{
+	uint camid;
+
+	//camid 0, 1, 2, 3 is default entry for default key/group key
+	//macid = 1 is for bc/mc stainfo, no mapping to camid
+	//macid = 0 mapping to camid 4
+	//for macid >=2, camid = macid+3;
+
+	if(macid==0)
+		camid = 4;
+	else if(macid >=2)
+		camid = macid + 3;
+	else
+		camid = 4;
+
+	return camid;
+}
+
+void rtw_alloc_macid(_adapter *padapter, struct sta_info *psta)
+{
+	int i;
+	_irqL	irqL;
+	u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
+	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
+
+
+	if(_rtw_memcmp(psta->hwaddr, bc_addr, ETH_ALEN))
+		return;
+
+	if(_rtw_memcmp(psta->hwaddr, myid(&padapter->eeprompriv), ETH_ALEN))
+	{
+		psta->mac_id = NUM_STA;
+		return;
+	}
+
+	_enter_critical_bh(&pdvobj->lock, &irqL);
+	for(i=0; i<NUM_STA; i++)
+	{
+		if(pdvobj->macid[i] == _FALSE)
+		{
+			pdvobj->macid[i]  = _TRUE;
+			break;
+		}
+	}
+	_exit_critical_bh(&pdvobj->lock, &irqL);
+
+	if( i > (NUM_STA-1))
+	{
+		psta->mac_id = NUM_STA;
+		DBG_871X("  no room for more MACIDs\n");
+	}
+	else
+	{
+		psta->mac_id = i;
+		DBG_871X("%s = %d\n", __FUNCTION__, psta->mac_id);
+	}
+
+}
+
+void rtw_release_macid(_adapter *padapter, struct sta_info *psta)
+{
+	int i;
+	_irqL	irqL;
+	u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
+	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
+
+
+	if(_rtw_memcmp(psta->hwaddr, bc_addr, ETH_ALEN))
+		return;
+
+	if(_rtw_memcmp(psta->hwaddr, myid(&padapter->eeprompriv), ETH_ALEN))
+	{
+		return;
+	}
+
+	_enter_critical_bh(&pdvobj->lock, &irqL);
+	if(psta->mac_id<NUM_STA && psta->mac_id !=1 )
+	{
+		if(pdvobj->macid[psta->mac_id] == _TRUE)
+		{
+			DBG_871X("%s = %d\n", __FUNCTION__, psta->mac_id);
+			pdvobj->macid[psta->mac_id]  = _FALSE;
+			psta->mac_id = NUM_STA;
+		}
+
+	}
+	_exit_critical_bh(&pdvobj->lock, &irqL);
+
+}
+
+u8 rtw_search_max_mac_id(_adapter *padapter)
+{
+	u8 max_mac_id=0;
+	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
+	int i;
+	_irqL	irqL;	
+	_enter_critical_bh(&pdvobj->lock, &irqL);
+	for(i=(NUM_STA-1); i>=0 ; i--)
+	{
+		if(pdvobj->macid[i] == _TRUE)
+		{			
+			break;
+		}
+	}
+	max_mac_id = i;
+	_exit_critical_bh(&pdvobj->lock, &irqL);
+
+	return max_mac_id;
+
+}		
 
 #if 0
 unsigned int setup_beacon_frame(_adapter *padapter, unsigned char *beacon_frame)

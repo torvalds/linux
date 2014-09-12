@@ -719,7 +719,9 @@ u8 rtw_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 	if(map == NULL){
 		return _FAIL;
 	}
-
+	
+	_rtw_memset(map, 0xFF, mapLen);
+	
 	ret = rtw_efuse_map_read(padapter, 0, mapLen, map);
 	if (ret == _FAIL) goto exit;
 

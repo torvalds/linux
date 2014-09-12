@@ -413,9 +413,8 @@ char *MSTAT_FUNC_str[] = {
 	"RX",
 };
 
-int _rtw_mstat_dump(char *buf, int len)
+void rtw_mstat_dump(void *sel)
 {
-	int cnt = 0;
 	int i;
 	int value_t[4][mstat_tf_idx(MSTAT_TYPE_MAX)];
 	int value_f[4][mstat_ff_idx(MSTAT_FUNC_MAX)];
@@ -439,28 +438,18 @@ int _rtw_mstat_dump(char *buf, int len)
 	}
 	#endif
 
-	cnt += snprintf(buf+cnt, len-cnt, "===================== MSTAT =====================\n");
-	cnt += snprintf(buf+cnt, len-cnt, "%4s %10s %10s %10s %10s\n", "TAG", "alloc", "peak", "aloc_cnt", "err_cnt");
-	cnt += snprintf(buf+cnt, len-cnt, "-------------------------------------------------\n");
+	DBG_871X_SEL_NL(sel, "===================== MSTAT =====================\n");
+	DBG_871X_SEL_NL(sel, "%4s %10s %10s %10s %10s\n", "TAG", "alloc", "peak", "aloc_cnt", "err_cnt");
+	DBG_871X_SEL_NL(sel, "-------------------------------------------------\n");
 	for(i=0;i<mstat_tf_idx(MSTAT_TYPE_MAX);i++) {
-		cnt += snprintf(buf+cnt, len-cnt, "%4s %10d %10d %10d %10d\n", MSTAT_TYPE_str[i], value_t[0][i], value_t[1][i], value_t[2][i], value_t[3][i]);
+		DBG_871X_SEL_NL(sel, "%4s %10d %10d %10d %10d\n", MSTAT_TYPE_str[i], value_t[0][i], value_t[1][i], value_t[2][i], value_t[3][i]);
 	}
 	#if 0
-	cnt += snprintf(buf+cnt, len-cnt, "-------------------------------------------------\n");
+	DBG_871X_SEL_NL(sel, "-------------------------------------------------\n");
 	for(i=0;i<mstat_ff_idx(MSTAT_FUNC_MAX);i++) {
-		cnt += snprintf(buf+cnt, len-cnt, "%4s %10d %10d %10d %10d\n", MSTAT_FUNC_str[i], value_f[0][i], value_f[1][i], value_f[2][i], value_f[3][i]);
+		DBG_871X_SEL_NL(sel, "%4s %10d %10d %10d %10d\n", MSTAT_FUNC_str[i], value_f[0][i], value_f[1][i], value_f[2][i], value_f[3][i]);
 	}
 	#endif
-
-	return cnt;
-}
-
-void rtw_mstat_dump(void)
-{
-	char buf[768] = {0};
-
-	_rtw_mstat_dump(buf, 768);
-	DBG_871X("\n%s", buf);
 }
 
 void rtw_mstat_update(const enum mstat_f flags, const MSTAT_STATUS status, u32 sz)
@@ -516,7 +505,7 @@ void rtw_mstat_update(const enum mstat_f flags, const MSTAT_STATUS status, u32 s
 	};
 
 	//if (rtw_get_passing_time_ms(update_time) > 5000) {
-	//	rtw_mstat_dump();
+	//	rtw_mstat_dump(RTW_DBGDUMP);
 		update_time=rtw_get_current_time();
 	//}
 }
@@ -2049,8 +2038,6 @@ int rtw_change_ifname(_adapter *padapter, const char *ifname)
 #endif
 		unregister_netdevice(cur_pnetdev);
 
-	rtw_proc_remove_one(cur_pnetdev);
-
 	rereg_priv->old_pnetdev=cur_pnetdev;
 
 	pnetdev = rtw_init_netdev(padapter);
@@ -2076,8 +2063,6 @@ int rtw_change_ifname(_adapter *padapter, const char *ifname)
 		RT_TRACE(_module_hci_intfs_c_,_drv_err_,("register_netdev() failed\n"));
 		goto error;
 	}
-
-	rtw_proc_init_one(pnetdev);
 
 	return 0;
 

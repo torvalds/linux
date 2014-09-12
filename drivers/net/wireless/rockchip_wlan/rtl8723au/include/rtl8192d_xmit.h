@@ -74,7 +74,11 @@
 #define QSLT_CMD						0x13
 
 //Because we open EM for normal case, we just always insert 2*8 bytes.by wl
+#ifdef USB_PACKET_OFFSET_SZ
+#define USB_92D_DUMMY_OFFSET		(PACKET_OFFSET_SZ/8)
+#else
 #define USB_92D_DUMMY_OFFSET		2
+#endif
 #define USB_92D_DUMMY_LENGTH		(USB_92D_DUMMY_OFFSET * PACKET_OFFSET_SZ)
 #define USB_HWDESC_HEADER_LEN	(TXDESC_SIZE + USB_92D_DUMMY_LENGTH)
 

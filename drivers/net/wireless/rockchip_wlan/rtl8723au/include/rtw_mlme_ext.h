@@ -671,6 +671,11 @@ unsigned int is_ap_in_tkip(_adapter *padapter);
 unsigned int is_ap_in_wep(_adapter *padapter);
 unsigned int should_forbid_n_rate(_adapter * padapter);
 
+extern uint rtw_get_camid(uint macid);
+extern void rtw_alloc_macid(_adapter *padapter, struct sta_info *psta);
+extern void rtw_release_macid(_adapter *padapter, struct sta_info *psta);
+extern u8 rtw_search_max_mac_id(_adapter *padapter);
+
 void report_join_res(_adapter *padapter, int res);
 void report_survey_event(_adapter *padapter, union recv_frame *precv_frame);
 void report_surveydone_event(_adapter *padapter);

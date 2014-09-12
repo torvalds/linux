@@ -94,12 +94,15 @@ void _rtw_scan_timeout_handler (void *FunctionContext)
 void _dynamic_check_timer_handlder (void *FunctionContext)
 {
 	_adapter *adapter = (_adapter *)FunctionContext;
-/* remove for MP power tracking DM.
+
 #if (MP_DRIVER == 1)	
-if (adapter->registrypriv.mp_mode == 1)
+		if (adapter->registrypriv.mp_mode == 1 && adapter->mppriv.mp_dm ==0) //for MP ODM dynamic Tx power tracking
+		{
+			_set_timer(&adapter->mlmepriv.dynamic_chk_timer, 2000);
 	return;
+		}
 #endif
-*/
+
 	rtw_dynamic_check_timer_handlder(adapter);
 	
 	_set_timer(&adapter->mlmepriv.dynamic_chk_timer, 2000);

@@ -2362,7 +2362,7 @@ _func_enter_;
 #endif //CONFIG_CONCURRENT_MODE
 	{
 		//set hardware operation functions
-		padapter->HalData = rtw_zmalloc(sizeof(HAL_DATA_TYPE));
+		padapter->HalData = rtw_zvmalloc(sizeof(HAL_DATA_TYPE));
 		if(padapter->HalData == NULL){
 			DBG_8192C("cant not alloc memory for HAL DATA \n");
 		}
