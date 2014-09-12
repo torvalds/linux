@@ -676,7 +676,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	status = be_cmd_set_flow_control(adapter,
 					 adapter->tx_fc, adapter->rx_fc);
 	if (status)
-		dev_warn(&adapter->pdev->dev, "Pause param set failed.\n");
+		dev_warn(&adapter->pdev->dev, "Pause param set failed\n");
 
 	return be_cmd_status(status);
 }
