@@ -699,6 +699,7 @@
 		reg = <0x20038000 0x4000>;
 		clocks = <&clk_gates5 0>;
 		clock-names = "pclk_lvds";
+		status = "disabled";
 	};
 
 	lcdc: lcdc@1010e000 {
