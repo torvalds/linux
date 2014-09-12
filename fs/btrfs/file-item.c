@@ -299,19 +299,9 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 }
 
 int btrfs_lookup_bio_sums_dio(struct btrfs_root *root, struct inode *inode,
-			      struct btrfs_dio_private *dip, struct bio *bio,
-			      u64 offset)
+			      struct bio *bio, u64 offset)
 {
-	int len = (bio->bi_iter.bi_sector << 9) - dip->disk_bytenr;
-	u16 csum_size = btrfs_super_csum_size(root->fs_info->super_copy);
-	int ret;
-
-	len >>= inode->i_sb->s_blocksize_bits;
-	len *= csum_size;
-
-	ret = __btrfs_lookup_bio_sums(root, inode, bio, offset,
-				      (u32 *)(dip->csum + len), 1);
-	return ret;
+	return __btrfs_lookup_bio_sums(root, inode, bio, offset, NULL, 1);
 }
 
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
