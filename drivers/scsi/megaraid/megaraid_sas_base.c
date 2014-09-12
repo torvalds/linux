@@ -2560,6 +2560,152 @@ static int megasas_change_queue_depth(struct scsi_device *sdev,
 	return queue_depth;
 }
 
+static ssize_t
+megasas_fw_crash_buffer_store(struct device *cdev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance =
+		(struct megasas_instance *) shost->hostdata;
+	int val = 0;
+	unsigned long flags;
+
+	if (kstrtoint(buf, 0, &val) != 0)
+		return -EINVAL;
+
+	spin_lock_irqsave(&instance->crashdump_lock, flags);
+	instance->fw_crash_buffer_offset = val;
+	spin_unlock_irqrestore(&instance->crashdump_lock, flags);
+	return strlen(buf);
+}
+
+static ssize_t
+megasas_fw_crash_buffer_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance =
+		(struct megasas_instance *) shost->hostdata;
+	u32 size;
+	unsigned long buff_addr;
+	unsigned long dmachunk = CRASH_DMA_BUF_SIZE;
+	unsigned long src_addr;
+	unsigned long flags;
+	u32 buff_offset;
+
+	spin_lock_irqsave(&instance->crashdump_lock, flags);
+	buff_offset = instance->fw_crash_buffer_offset;
+	if (!instance->crash_dump_buf &&
+		!((instance->fw_crash_state == AVAILABLE) ||
+		(instance->fw_crash_state == COPYING))) {
+		dev_err(&instance->pdev->dev,
+			"Firmware crash dump is not available\n");
+		spin_unlock_irqrestore(&instance->crashdump_lock, flags);
+		return -EINVAL;
+	}
+
+	buff_addr = (unsigned long) buf;
+
+	if (buff_offset >
+		(instance->fw_crash_buffer_size * dmachunk)) {
+		dev_err(&instance->pdev->dev,
+			"Firmware crash dump offset is out of range\n");
+		spin_unlock_irqrestore(&instance->crashdump_lock, flags);
+		return 0;
+	}
+
+	size = (instance->fw_crash_buffer_size * dmachunk) - buff_offset;
+	size = (size >= PAGE_SIZE) ? (PAGE_SIZE - 1) : size;
+
+	src_addr = (unsigned long)instance->crash_buf[buff_offset / dmachunk] +
+		(buff_offset % dmachunk);
+	memcpy(buf, (void *)src_addr,  size);
+	spin_unlock_irqrestore(&instance->crashdump_lock, flags);
+
+	return size;
+}
+
+static ssize_t
+megasas_fw_crash_buffer_size_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance =
+		(struct megasas_instance *) shost->hostdata;
+
+	return snprintf(buf, PAGE_SIZE, "%ld\n", (unsigned long)
+		((instance->fw_crash_buffer_size) * 1024 * 1024)/PAGE_SIZE);
+}
+
+static ssize_t
+megasas_fw_crash_state_store(struct device *cdev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance =
+		(struct megasas_instance *) shost->hostdata;
+	int val = 0;
+	unsigned long flags;
+
+	if (kstrtoint(buf, 0, &val) != 0)
+		return -EINVAL;
+
+	if ((val <= AVAILABLE || val > COPY_ERROR)) {
+		dev_err(&instance->pdev->dev, "application updates invalid "
+			"firmware crash state\n");
+		return -EINVAL;
+	}
+
+	instance->fw_crash_state = val;
+
+	if ((val == COPIED) || (val == COPY_ERROR)) {
+		spin_lock_irqsave(&instance->crashdump_lock, flags);
+		megasas_free_host_crash_buffer(instance);
+		spin_unlock_irqrestore(&instance->crashdump_lock, flags);
+		if (val == COPY_ERROR)
+			dev_info(&instance->pdev->dev, "application failed to "
+				"copy Firmware crash dump\n");
+		else
+			dev_info(&instance->pdev->dev, "Firmware crash dump "
+				"copied successfully\n");
+	}
+	return strlen(buf);
+}
+
+static ssize_t
+megasas_fw_crash_state_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance =
+		(struct megasas_instance *) shost->hostdata;
+	return snprintf(buf, PAGE_SIZE, "%d\n", instance->fw_crash_state);
+}
+
+static ssize_t
+megasas_page_size_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%ld\n", (unsigned long)PAGE_SIZE - 1);
+}
+
+static DEVICE_ATTR(fw_crash_buffer, S_IRUGO | S_IWUSR,
+	megasas_fw_crash_buffer_show, megasas_fw_crash_buffer_store);
+static DEVICE_ATTR(fw_crash_buffer_size, S_IRUGO,
+	megasas_fw_crash_buffer_size_show, NULL);
+static DEVICE_ATTR(fw_crash_state, S_IRUGO | S_IWUSR,
+	megasas_fw_crash_state_show, megasas_fw_crash_state_store);
+static DEVICE_ATTR(page_size, S_IRUGO,
+	megasas_page_size_show, NULL);
+
+struct device_attribute *megaraid_host_attrs[] = {
+	&dev_attr_fw_crash_buffer_size,
+	&dev_attr_fw_crash_buffer,
+	&dev_attr_fw_crash_state,
+	&dev_attr_page_size,
+	NULL,
+};
+
 /*
  * Scsi host template for megaraid_sas driver
  */
@@ -2575,6 +2721,7 @@ static struct scsi_host_template megasas_template = {
 	.eh_bus_reset_handler = megasas_reset_bus_host,
 	.eh_host_reset_handler = megasas_reset_bus_host,
 	.eh_timed_out = megasas_reset_timer,
+	.shost_attrs = megaraid_host_attrs,
 	.bios_param = megasas_bios_param,
 	.use_clustering = ENABLE_CLUSTERING,
 	.change_queue_depth = megasas_change_queue_depth,
@@ -3887,6 +4034,59 @@ megasas_get_ctrl_info(struct megasas_instance *instance,
 	return ret;
 }
 
+/*
+ * megasas_set_crash_dump_params -	Sends address of crash dump DMA buffer
+ *					to firmware
+ *
+ * @instance:				Adapter soft state
+ * @crash_buf_state		-	tell FW to turn ON/OFF crash dump feature
+					MR_CRASH_BUF_TURN_OFF = 0
+					MR_CRASH_BUF_TURN_ON = 1
+ * @return 0 on success non-zero on failure.
+ * Issues an internal command (DCMD) to set parameters for crash dump feature.
+ * Driver will send address of crash dump DMA buffer and set mbox to tell FW
+ * that driver supports crash dump feature. This DCMD will be sent only if
+ * crash dump feature is supported by the FW.
+ *
+ */
+int megasas_set_crash_dump_params(struct megasas_instance *instance,
+	u8 crash_buf_state)
+{
+	int ret = 0;
+	struct megasas_cmd *cmd;
+	struct megasas_dcmd_frame *dcmd;
+
+	cmd = megasas_get_cmd(instance);
+
+	if (!cmd) {
+		dev_err(&instance->pdev->dev, "Failed to get a free cmd\n");
+		return -ENOMEM;
+	}
+
+
+	dcmd = &cmd->frame->dcmd;
+
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+	dcmd->mbox.b[0] = crash_buf_state;
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_NONE);
+	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
+	dcmd->data_xfer_len = cpu_to_le32(CRASH_DMA_BUF_SIZE);
+	dcmd->opcode = cpu_to_le32(MR_DCMD_CTRL_SET_CRASH_DUMP_PARAMS);
+	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(instance->crash_dump_h);
+	dcmd->sgl.sge32[0].length = cpu_to_le32(CRASH_DMA_BUF_SIZE);
+
+	if (!megasas_issue_polled(instance, cmd))
+		ret = 0;
+	else
+		ret = -1;
+	megasas_return_cmd(instance, cmd);
+	return ret;
+}
+
 /**
  * megasas_issue_init_mfi -	Initializes the FW
  * @instance:		Adapter soft state
@@ -4271,6 +4471,27 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			}
 			printk(KERN_WARNING "megaraid_sas: I am VF "
 			       "requestorId %d\n", instance->requestorId);
+		}
+
+		le32_to_cpus((u32 *)&ctrl_info->adapterOperations3);
+		instance->crash_dump_fw_support =
+			ctrl_info->adapterOperations3.supportCrashDump;
+		instance->crash_dump_drv_support =
+			(instance->crash_dump_fw_support &&
+			instance->crash_dump_buf);
+		if (instance->crash_dump_drv_support) {
+			dev_info(&instance->pdev->dev, "Firmware Crash dump "
+				"feature is supported\n");
+			megasas_set_crash_dump_params(instance,
+				MR_CRASH_BUF_TURN_OFF);
+
+		} else {
+			if (instance->crash_dump_buf)
+				pci_free_consistent(instance->pdev,
+					CRASH_DMA_BUF_SIZE,
+					instance->crash_dump_buf,
+					instance->crash_dump_h);
+			instance->crash_dump_buf = NULL;
 		}
 	}
 	instance->max_sectors_per_req = instance->max_num_sge *
@@ -4791,6 +5012,23 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		break;
 	}
 
+	/* Crash dump feature related initialisation*/
+	instance->drv_buf_index = 0;
+	instance->drv_buf_alloc = 0;
+	instance->crash_dump_fw_support = 0;
+	instance->crash_dump_app_support = 0;
+	instance->fw_crash_state = UNAVAILABLE;
+	spin_lock_init(&instance->crashdump_lock);
+	instance->crash_dump_buf = NULL;
+
+	if (!reset_devices)
+		instance->crash_dump_buf = pci_alloc_consistent(pdev,
+						CRASH_DMA_BUF_SIZE,
+						&instance->crash_dump_h);
+	if (!instance->crash_dump_buf)
+		dev_err(&instance->pdev->dev, "Can't allocate Firmware "
+			"crash dump DMA buffer\n");
+
 	megasas_poll_wait_aen = 0;
 	instance->flag_ieee = 0;
 	instance->ev = NULL;
@@ -4852,9 +5090,10 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
 	    (instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) ||
 	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
 		INIT_WORK(&instance->work_init, megasas_fusion_ocr_wq);
-	else
+		INIT_WORK(&instance->crash_init, megasas_fusion_crash_dump_wq);
+	} else
 		INIT_WORK(&instance->work_init, process_fw_state_change_wq);
 
 	/*
@@ -5342,6 +5581,8 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
 		del_timer_sync(&instance->sriov_heartbeat_timer);
 
+	if (instance->fw_crash_state != UNAVAILABLE)
+		megasas_free_host_crash_buffer(instance);
 	scsi_remove_host(instance->host);
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
@@ -5431,6 +5672,10 @@ static void megasas_detach_one(struct pci_dev *pdev)
 		pci_free_consistent(pdev, sizeof(struct MR_CTRL_HB_HOST_MEM),
 				    instance->hb_host_mem,
 				    instance->hb_host_mem_h);
+
+	if (instance->crash_dump_buf)
+		pci_free_consistent(pdev, CRASH_DMA_BUF_SIZE,
+			    instance->crash_dump_buf, instance->crash_dump_h);
 
 	scsi_host_put(host);
 
@@ -5523,6 +5768,45 @@ static unsigned int megasas_mgmt_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
+/*
+ * megasas_set_crash_dump_params_ioctl:
+ *		Send CRASH_DUMP_MODE DCMD to all controllers
+ * @cmd:	MFI command frame
+ */
+
+static int megasas_set_crash_dump_params_ioctl(
+	struct megasas_cmd *cmd)
+{
+	struct megasas_instance *local_instance;
+	int i, error = 0;
+	int crash_support;
+
+	crash_support = cmd->frame->dcmd.mbox.w[0];
+
+	for (i = 0; i < megasas_mgmt_info.max_index; i++) {
+		local_instance = megasas_mgmt_info.instance[i];
+		if (local_instance && local_instance->crash_dump_drv_support) {
+			if ((local_instance->adprecovery ==
+				MEGASAS_HBA_OPERATIONAL) &&
+				!megasas_set_crash_dump_params(local_instance,
+					crash_support)) {
+				local_instance->crash_dump_app_support =
+					crash_support;
+				dev_info(&local_instance->pdev->dev,
+					"Application firmware crash "
+					"dump mode set success\n");
+				error = 0;
+			} else {
+				dev_info(&local_instance->pdev->dev,
+					"Application firmware crash "
+					"dump mode set failed\n");
+				error = -1;
+			}
+		}
+	}
+	return error;
+}
+
 /**
  * megasas_mgmt_fw_ioctl -	Issues management ioctls to FW
  * @instance:			Adapter soft state
@@ -5568,6 +5852,12 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	cmd->frame->hdr.flags &= cpu_to_le16(~(MFI_FRAME_IEEE |
 					       MFI_FRAME_SGL64 |
 					       MFI_FRAME_SENSE64));
+
+	if (cmd->frame->dcmd.opcode == MR_DRIVER_SET_APP_CRASHDUMP_MODE) {
+		error = megasas_set_crash_dump_params_ioctl(cmd);
+		megasas_return_cmd(instance, cmd);
+		return error;
+	}
 
 	/*
 	 * The management interface between applications and the fw uses

@@ -105,6 +105,9 @@
 #define MFI_STATE_READY				0xB0000000
 #define MFI_STATE_OPERATIONAL			0xC0000000
 #define MFI_STATE_FAULT				0xF0000000
+#define MFI_STATE_FORCE_OCR			0x00000080
+#define MFI_STATE_DMADONE			0x00000008
+#define MFI_STATE_CRASH_DUMP_DONE		0x00000004
 #define MFI_RESET_REQUIRED			0x00000001
 #define MFI_RESET_ADAPTER			0x00000002
 #define MEGAMFI_FRAME_SIZE			64
@@ -191,6 +194,9 @@
 #define MR_DCMD_CLUSTER_RESET_LD		0x08010200
 #define MR_DCMD_PD_LIST_QUERY                   0x02010100
 
+#define MR_DCMD_CTRL_SET_CRASH_DUMP_PARAMS	0x01190100
+#define MR_DRIVER_SET_APP_CRASHDUMP_MODE	(0xF0010000 | 0x0600)
+
 /*
  * Global functions
  */
@@ -261,6 +267,25 @@ enum MFI_STAT {
 	MFI_STAT_CONFIG_SEQ_MISMATCH = 0x67,
 
 	MFI_STAT_INVALID_STATUS = 0xFF
+};
+
+/*
+ * Crash dump related defines
+ */
+#define MAX_CRASH_DUMP_SIZE 512
+#define CRASH_DMA_BUF_SIZE  (1024 * 1024)
+
+enum MR_FW_CRASH_DUMP_STATE {
+	UNAVAILABLE = 0,
+	AVAILABLE = 1,
+	COPYING = 2,
+	COPIED = 3,
+	COPY_ERROR = 4,
+};
+
+enum _MR_CRASH_BUF_STATUS {
+	MR_CRASH_BUF_TURN_OFF = 0,
+	MR_CRASH_BUF_TURN_ON = 1,
 };
 
 /*
@@ -933,7 +958,19 @@ struct megasas_ctrl_info {
 		u8  reserved;                   /*0x7E7*/
 	} iov;
 
-	u8          pad[0x800-0x7E8];           /*0x7E8 pad to 2k */
+	struct {
+#if defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved:25;
+		u32     supportCrashDump:1;
+		u32     reserved1:6;
+#else
+		u32     reserved1:6;
+		u32     supportCrashDump:1;
+		u32     reserved:25;
+#endif
+	} adapterOperations3;
+
+	u8          pad[0x800-0x7EC];
 } __packed;
 
 /*
@@ -1559,6 +1596,20 @@ struct megasas_instance {
 	u32 *reply_queue;
 	dma_addr_t reply_queue_h;
 
+	u32 *crash_dump_buf;
+	dma_addr_t crash_dump_h;
+	void *crash_buf[MAX_CRASH_DUMP_SIZE];
+	u32 crash_buf_pages;
+	unsigned int    fw_crash_buffer_size;
+	unsigned int    fw_crash_state;
+	unsigned int    fw_crash_buffer_offset;
+	u32 drv_buf_index;
+	u32 drv_buf_alloc;
+	u32 crash_dump_fw_support;
+	u32 crash_dump_drv_support;
+	u32 crash_dump_app_support;
+	spinlock_t crashdump_lock;
+
 	struct megasas_register_set __iomem *reg_set;
 	u32 *reply_post_host_index_addr[MR_MAX_MSIX_REG_ARRAY];
 	struct megasas_pd_list          pd_list[MEGASAS_MAX_PD];
@@ -1606,6 +1657,7 @@ struct megasas_instance {
 	struct megasas_instance_template *instancet;
 	struct tasklet_struct isr_tasklet;
 	struct work_struct work_init;
+	struct work_struct crash_init;
 
 	u8 flag;
 	u8 unload;
@@ -1830,4 +1882,8 @@ u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_FW_RAID_MAP_ALL *map);
 u16 MR_PdDevHandleGet(u32 pd, struct MR_FW_RAID_MAP_ALL *map);
 u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
 
+int megasas_set_crash_dump_params(struct megasas_instance *instance,
+		u8 crash_buf_state);
+void megasas_free_host_crash_buffer(struct megasas_instance *instance);
+void megasas_fusion_crash_dump_wq(struct work_struct *work);
 #endif				/*LSI_MEGARAID_SAS_H */

@@ -91,6 +91,8 @@ void megasas_start_timer(struct megasas_instance *instance,
 extern struct megasas_mgmt_info megasas_mgmt_info;
 extern int resetwaittime;
 
+
+
 /**
  * megasas_enable_intr_fusion -	Enables interrupts
  * @regs:			MFI register set
@@ -2055,7 +2057,7 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 {
 	struct megasas_irq_context *irq_context = devp;
 	struct megasas_instance *instance = irq_context->instance;
-	u32 mfiStatus, fw_state;
+	u32 mfiStatus, fw_state, dma_state;
 
 	if (instance->mask_interrupts)
 		return IRQ_NONE;
@@ -2077,7 +2079,16 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 		/* If we didn't complete any commands, check for FW fault */
 		fw_state = instance->instancet->read_fw_status_reg(
 			instance->reg_set) & MFI_STATE_MASK;
-		if (fw_state == MFI_STATE_FAULT) {
+		dma_state = instance->instancet->read_fw_status_reg
+			(instance->reg_set) & MFI_STATE_DMADONE;
+		if (instance->crash_dump_drv_support &&
+			instance->crash_dump_app_support) {
+			/* Start collecting crash, if DMA bit is done */
+			if ((fw_state == MFI_STATE_FAULT) && dma_state)
+				schedule_work(&instance->crash_init);
+			else if (fw_state == MFI_STATE_FAULT)
+				schedule_work(&instance->work_init);
+		} else if (fw_state == MFI_STATE_FAULT) {
 			printk(KERN_WARNING "megaraid_sas: Iop2SysDoorbellInt"
 			       "for scsi%d\n", instance->host->host_no);
 			schedule_work(&instance->work_init);
@@ -2230,6 +2241,49 @@ megasas_read_fw_status_reg_fusion(struct megasas_register_set __iomem *regs)
 }
 
 /**
+ * megasas_alloc_host_crash_buffer -	Host buffers for Crash dump collection from Firmware
+ * @instance:				Controller's soft instance
+ * return:			        Number of allocated host crash buffers
+ */
+static void
+megasas_alloc_host_crash_buffer(struct megasas_instance *instance)
+{
+	unsigned int i;
+
+	instance->crash_buf_pages = get_order(CRASH_DMA_BUF_SIZE);
+	for (i = 0; i < MAX_CRASH_DUMP_SIZE; i++) {
+		instance->crash_buf[i] = (void	*)__get_free_pages(GFP_KERNEL,
+				instance->crash_buf_pages);
+		if (!instance->crash_buf[i]) {
+			dev_info(&instance->pdev->dev, "Firmware crash dump "
+				"memory allocation failed at index %d\n", i);
+			break;
+		}
+	}
+	instance->drv_buf_alloc = i;
+}
+
+/**
+ * megasas_free_host_crash_buffer -	Host buffers for Crash dump collection from Firmware
+ * @instance:				Controller's soft instance
+ */
+void
+megasas_free_host_crash_buffer(struct megasas_instance *instance)
+{
+	unsigned int i
+;
+	for (i = 0; i < instance->drv_buf_alloc; i++) {
+		if (instance->crash_buf[i])
+			free_pages((ulong)instance->crash_buf[i],
+					instance->crash_buf_pages);
+	}
+	instance->drv_buf_index = 0;
+	instance->drv_buf_alloc = 0;
+	instance->fw_crash_state = UNAVAILABLE;
+	instance->fw_crash_buffer_size = 0;
+}
+
+/**
  * megasas_adp_reset_fusion -	For controller reset
  * @regs:				MFI register set
  */
@@ -2372,6 +2426,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 	struct megasas_cmd *cmd_mfi;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u32 host_diag, abs_state, status_reg, reset_adapter;
+	u32 io_timeout_in_crash_mode = 0;
 
 	instance = (struct megasas_instance *)shost->hostdata;
 	fusion = instance->ctrl_context;
@@ -2384,6 +2439,42 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 			instance->host->host_no);
 		mutex_unlock(&instance->reset_mutex);
 		return FAILED;
+	}
+	status_reg = instance->instancet->read_fw_status_reg(instance->reg_set);
+	abs_state = status_reg & MFI_STATE_MASK;
+
+	/* IO timeout detected, forcibly put FW in FAULT state */
+	if (abs_state != MFI_STATE_FAULT && instance->crash_dump_buf &&
+		instance->crash_dump_app_support && iotimeout) {
+		dev_info(&instance->pdev->dev, "IO timeout is detected, "
+			"forcibly FAULT Firmware\n");
+		instance->adprecovery = MEGASAS_ADPRESET_SM_INFAULT;
+		status_reg = readl(&instance->reg_set->doorbell);
+		writel(status_reg | MFI_STATE_FORCE_OCR,
+			&instance->reg_set->doorbell);
+		readl(&instance->reg_set->doorbell);
+		mutex_unlock(&instance->reset_mutex);
+		do {
+			ssleep(3);
+			io_timeout_in_crash_mode++;
+			dev_dbg(&instance->pdev->dev, "waiting for [%d] "
+				"seconds for crash dump collection and OCR "
+				"to be done\n", (io_timeout_in_crash_mode * 3));
+		} while ((instance->adprecovery != MEGASAS_HBA_OPERATIONAL) &&
+			(io_timeout_in_crash_mode < 80));
+
+		if (instance->adprecovery == MEGASAS_HBA_OPERATIONAL) {
+			dev_info(&instance->pdev->dev, "OCR done for IO "
+				"timeout case\n");
+			retval = SUCCESS;
+		} else {
+			dev_info(&instance->pdev->dev, "Controller is not "
+				"operational after 240 seconds wait for IO "
+				"timeout case in FW crash dump mode\n do "
+				"OCR/kill adapter\n");
+			retval = megasas_reset_fusion(shost, 0);
+		}
+		return retval;
 	}
 
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
@@ -2651,6 +2742,15 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 			printk(KERN_WARNING "megaraid_sas: Reset "
 			       "successful for scsi%d.\n",
 				instance->host->host_no);
+
+			if (instance->crash_dump_drv_support) {
+				if (instance->crash_dump_app_support)
+					megasas_set_crash_dump_params(instance,
+						MR_CRASH_BUF_TURN_ON);
+				else
+					megasas_set_crash_dump_params(instance,
+						MR_CRASH_BUF_TURN_OFF);
+			}
 			retval = SUCCESS;
 			goto out;
 		}
@@ -2678,6 +2778,74 @@ out:
 	mutex_unlock(&instance->reset_mutex);
 	return retval;
 }
+
+/* Fusion Crash dump collection work queue */
+void  megasas_fusion_crash_dump_wq(struct work_struct *work)
+{
+	struct megasas_instance *instance =
+		container_of(work, struct megasas_instance, crash_init);
+	u32 status_reg;
+	u8 partial_copy = 0;
+
+
+	status_reg = instance->instancet->read_fw_status_reg(instance->reg_set);
+
+	/*
+	 * Allocate host crash buffers to copy data from 1 MB DMA crash buffer
+	 * to host crash buffers
+	 */
+	if (instance->drv_buf_index == 0) {
+		/* Buffer is already allocated for old Crash dump.
+		 * Do OCR and do not wait for crash dump collection
+		 */
+		if (instance->drv_buf_alloc) {
+			dev_info(&instance->pdev->dev, "earlier crash dump is "
+				"not yet copied by application, ignoring this "
+				"crash dump and initiating OCR\n");
+			status_reg |= MFI_STATE_CRASH_DUMP_DONE;
+			writel(status_reg,
+				&instance->reg_set->outbound_scratch_pad);
+			readl(&instance->reg_set->outbound_scratch_pad);
+			return;
+		}
+		megasas_alloc_host_crash_buffer(instance);
+		dev_info(&instance->pdev->dev, "Number of host crash buffers "
+			"allocated: %d\n", instance->drv_buf_alloc);
+	}
+
+	/*
+	 * Driver has allocated max buffers, which can be allocated
+	 * and FW has more crash dump data, then driver will
+	 * ignore the data.
+	 */
+	if (instance->drv_buf_index >= (instance->drv_buf_alloc)) {
+		dev_info(&instance->pdev->dev, "Driver is done copying "
+			"the buffer: %d\n", instance->drv_buf_alloc);
+		status_reg |= MFI_STATE_CRASH_DUMP_DONE;
+		partial_copy = 1;
+	} else {
+		memcpy(instance->crash_buf[instance->drv_buf_index],
+			instance->crash_dump_buf, CRASH_DMA_BUF_SIZE);
+		instance->drv_buf_index++;
+		status_reg &= ~MFI_STATE_DMADONE;
+	}
+
+	if (status_reg & MFI_STATE_CRASH_DUMP_DONE) {
+		dev_info(&instance->pdev->dev, "Crash Dump is available,number "
+			"of copied buffers: %d\n", instance->drv_buf_index);
+		instance->fw_crash_buffer_size =  instance->drv_buf_index;
+		instance->fw_crash_state = AVAILABLE;
+		instance->drv_buf_index = 0;
+		writel(status_reg, &instance->reg_set->outbound_scratch_pad);
+		readl(&instance->reg_set->outbound_scratch_pad);
+		if (!partial_copy)
+			megasas_reset_fusion(instance->host, 0);
+	} else {
+		writel(status_reg, &instance->reg_set->outbound_scratch_pad);
+		readl(&instance->reg_set->outbound_scratch_pad);
+	}
+}
+
 
 /* Fusion OCR work queue */
 void megasas_fusion_ocr_wq(struct work_struct *work)
