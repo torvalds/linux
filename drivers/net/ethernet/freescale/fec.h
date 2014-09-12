@@ -443,6 +443,9 @@ struct fec_enet_private {
 	int hwts_tx_en;
 	struct delayed_work time_keep;
 	struct regulator *reg_phy;
+
+	unsigned int tx_align;
+	unsigned int rx_align;
 };
 
 void fec_ptp_init(struct platform_device *pdev);

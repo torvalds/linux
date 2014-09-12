@@ -64,12 +64,6 @@
 
 static void set_multicast_list(struct net_device *ndev);
 
-#if defined(CONFIG_ARM)
-#define FEC_ALIGNMENT	0xf
-#else
-#define FEC_ALIGNMENT	0x3
-#endif
-
 #define DRIVER_NAME	"fec"
 
 #define FEC_ENET_GET_QUQUE(_x) ((_x == 0) ? 1 : ((_x == 1) ? 2 : 0))
@@ -434,7 +428,7 @@ fec_enet_txq_submit_frag_skb(struct fec_enet_priv_tx_q *txq,
 		bufaddr = page_address(this_frag->page.p) + this_frag->page_offset;
 
 		index = fec_enet_get_bd_index(txq->tx_bd_base, bdp, fep);
-		if (((unsigned long) bufaddr) & FEC_ALIGNMENT ||
+		if (((unsigned long) bufaddr) & fep->tx_align ||
 			id_entry->driver_data & FEC_QUIRK_SWAP_FRAME) {
 			memcpy(txq->tx_bounce[index], bufaddr, frag_len);
 			bufaddr = txq->tx_bounce[index];
@@ -514,7 +508,7 @@ static int fec_enet_txq_submit_skb(struct fec_enet_priv_tx_q *txq,
 
 	queue = skb_get_queue_mapping(skb);
 	index = fec_enet_get_bd_index(txq->tx_bd_base, bdp, fep);
-	if (((unsigned long) bufaddr) & FEC_ALIGNMENT ||
+	if (((unsigned long) bufaddr) & fep->tx_align ||
 		id_entry->driver_data & FEC_QUIRK_SWAP_FRAME) {
 		memcpy(txq->tx_bounce[index], skb->data, buflen);
 		bufaddr = txq->tx_bounce[index];
@@ -607,7 +601,7 @@ fec_enet_txq_put_data_tso(struct fec_enet_priv_tx_q *txq, struct sk_buff *skb,
 
 	status |= (BD_ENET_TX_TC | BD_ENET_TX_READY);
 
-	if (((unsigned long) data) & FEC_ALIGNMENT ||
+	if (((unsigned long) data) & fep->tx_align ||
 		id_entry->driver_data & FEC_QUIRK_SWAP_FRAME) {
 		memcpy(txq->tx_bounce[index], data, size);
 		data = txq->tx_bounce[index];
@@ -669,7 +663,7 @@ fec_enet_txq_put_hdr_tso(struct fec_enet_priv_tx_q *txq,
 
 	bufaddr = txq->tso_hdrs + index * TSO_HEADER_SIZE;
 	dmabuf = txq->tso_hdrs_dma + index * TSO_HEADER_SIZE;
-	if (((unsigned long) bufaddr) & FEC_ALIGNMENT ||
+	if (((unsigned long)bufaddr) & fep->tx_align ||
 		id_entry->driver_data & FEC_QUIRK_SWAP_FRAME) {
 		memcpy(txq->tx_bounce[index], skb->data, hdr_len);
 		bufaddr = txq->tx_bounce[index];
@@ -2399,6 +2393,7 @@ fec_enet_alloc_rxq_buffers(struct net_device *ndev, unsigned int queue)
 	struct sk_buff *skb;
 	struct bufdesc	*bdp;
 	struct fec_enet_priv_rx_q *rxq;
+	unsigned int off;
 
 	rxq = fep->rx_queue[queue];
 	bdp = rxq->rx_bd_base;
@@ -2409,8 +2404,13 @@ fec_enet_alloc_rxq_buffers(struct net_device *ndev, unsigned int queue)
 		if (!skb)
 			goto err_alloc;
 
+		off = ((unsigned long)skb->data) & fep->rx_align;
+		if (off)
+			skb_reserve(skb, fep->rx_align + 1 - off);
+
 		addr = dma_map_single(&fep->pdev->dev, skb->data,
-				FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
+				FEC_ENET_RX_FRSIZE - fep->rx_align, DMA_FROM_DEVICE);
+
 		if (dma_mapping_error(&fep->pdev->dev, addr)) {
 			dev_kfree_skb(skb);
 			if (net_ratelimit())
@@ -2743,6 +2743,14 @@ static int fec_enet_init(struct net_device *ndev)
 	int bd_size;
 	unsigned int i;
 
+#if defined(CONFIG_ARM)
+	fep->rx_align = 0xf;
+	fep->tx_align = 0xf;
+#else
+	fep->rx_align = 0x3;
+	fep->tx_align = 0x3;
+#endif
+
 	fec_enet_alloc_queue(ndev);
 
 	if (fep->bufdesc_ex)
@@ -2817,6 +2825,11 @@ static int fec_enet_init(struct net_device *ndev)
 		ndev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
 				| NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_TSO);
 		fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
+	}
+
+	if (id_entry->driver_data & FEC_QUIRK_HAS_AVB) {
+		fep->tx_align = 0;
+		fep->rx_align = 0x3f;
 	}
 
 	ndev->hw_features = ndev->features;
