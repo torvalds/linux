@@ -64,6 +64,7 @@ torture_param(int, stutter, 5, "Number of jiffies to run/halt test, 0=disable");
 torture_param(bool, verbose, true,
 	     "Enable verbose debugging printk()s");
 
+static bool debug_lock = false;
 static char *torture_type = "spin_lock";
 module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type,
@@ -349,8 +350,9 @@ lock_torture_print_module_parms(struct lock_torture_ops *cur_ops,
 				const char *tag)
 {
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s: nwriters_stress=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d onoff_interval=%d onoff_holdoff=%d\n",
-		 torture_type, tag, nrealwriters_stress, stat_interval, verbose,
+		 "--- %s%s: nwriters_stress=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d onoff_interval=%d onoff_holdoff=%d\n",
+		 torture_type, tag, debug_lock ? " [debug]": "",
+		 nrealwriters_stress, stat_interval, verbose,
 		 shuffle_interval, stutter, shutdown_secs,
 		 onoff_interval, onoff_holdoff);
 }
@@ -418,6 +420,15 @@ static int __init lock_torture_init(void)
 		nrealwriters_stress = nwriters_stress;
 	else
 		nrealwriters_stress = 2 * num_online_cpus();
+
+#ifdef CONFIG_DEBUG_MUTEXES
+	if (strncmp(torture_type, "mutex", 5) == 0)
+		debug_lock = true;
+#endif
+#ifdef CONFIG_DEBUG_SPINLOCK
+	if (strncmp(torture_type, "spin", 4) == 0)
+		debug_lock = true;
+#endif
 	lock_torture_print_module_parms(cur_ops, "Start of test");
 
 	/* Initialize the statistics so that each run gets its own numbers. */
