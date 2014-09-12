@@ -1122,7 +1122,12 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 	if (pdata->id < 0)
 		pdata->id = -1;
 
-	pdata->irq_trigger = IRQF_TRIGGER_NONE;
+	pdata->irq_gpio = of_get_named_gpio_flags(np, "irq-gpio", 0,
+				&pdata->irq_trigger);
+	if (gpio_is_valid(pdata->irq_gpio))
+		pdata->irq_over_gpio = 1;
+	else
+		pdata->irq_trigger = IRQF_TRIGGER_NONE;
 
 	of_property_read_u32(np, "st,autosleep-timeout",
 			&pdata->autosleep_timeout);
