@@ -3066,6 +3066,7 @@ fec_probe(struct platform_device *pdev)
 			goto failed_irq;
 	}
 
+	init_completion(&fep->mdio_done);
 	ret = fec_enet_mii_init(pdev);
 	if (ret)
 		goto failed_mii_init;
