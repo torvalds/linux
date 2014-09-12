@@ -57,7 +57,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	const struct addi_board *this_board = NULL;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, pages, i;
+	int ret, order, i;
 
 	if (context < ARRAY_SIZE(apci3120_boardtypes))
 		this_board = &apci3120_boardtypes[context];
@@ -93,17 +93,17 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	/* Allocate DMA buffers */
 	devpriv->b_DmaDoubleBuffer = 0;
 	for (i = 0; i < 2; i++) {
-		for (pages = 4; pages >= 0; pages--) {
+		for (order = 2; order >= 0; order--) {
 			devpriv->ul_DmaBufferVirtual[i] =
-				(void *) __get_free_pages(GFP_KERNEL, pages);
+			    (void *)__get_free_pages(GFP_KERNEL, order);
 
 			if (devpriv->ul_DmaBufferVirtual[i])
 				break;
 		}
 		if (!devpriv->ul_DmaBufferVirtual[i])
 			break;
-		devpriv->ui_DmaBufferPages[i] = pages;
-		devpriv->ui_DmaBufferSize[i] = PAGE_SIZE * pages;
+		devpriv->ui_DmaBufferPageOrder[i] = order;
+		devpriv->ui_DmaBufferSize[i] = PAGE_SIZE << order;
 		devpriv->ul_DmaBufferHw[i] =
 		    virt_to_bus(devpriv->ul_DmaBufferVirtual[i]);
 	}
@@ -201,12 +201,12 @@ static void apci3120_detach(struct comedi_device *dev)
 		if (devpriv->ul_DmaBufferVirtual[0]) {
 			free_pages((unsigned long)devpriv->
 				ul_DmaBufferVirtual[0],
-				devpriv->ui_DmaBufferPages[0]);
+				devpriv->ui_DmaBufferPageOrder[0]);
 		}
 		if (devpriv->ul_DmaBufferVirtual[1]) {
 			free_pages((unsigned long)devpriv->
 				ul_DmaBufferVirtual[1],
-				devpriv->ui_DmaBufferPages[1]);
+				devpriv->ui_DmaBufferPageOrder[1]);
 		}
 	}
 }
