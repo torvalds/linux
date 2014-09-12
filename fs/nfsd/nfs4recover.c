@@ -1296,7 +1296,8 @@ nfsd4_umh_cltrack_create(struct nfs4_client *clp)
 	grace_start = nfsd4_cltrack_grace_start(nn->boot_time);
 
 	nfsd4_cltrack_upcall_lock(clp);
-	nfsd4_umh_cltrack_upcall("create", hexid, has_session, grace_start);
+	if (!nfsd4_umh_cltrack_upcall("create", hexid, has_session, grace_start))
+		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 	nfsd4_cltrack_upcall_unlock(clp);
 
 	kfree(has_session);
@@ -1309,6 +1310,9 @@ nfsd4_umh_cltrack_remove(struct nfs4_client *clp)
 {
 	char *hexid;
 
+	if (!test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+		return;
+
 	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
 	if (!hexid) {
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
@@ -1316,7 +1320,9 @@ nfsd4_umh_cltrack_remove(struct nfs4_client *clp)
 	}
 
 	nfsd4_cltrack_upcall_lock(clp);
-	nfsd4_umh_cltrack_upcall("remove", hexid, NULL, NULL);
+	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags) &&
+	    nfsd4_umh_cltrack_upcall("remove", hexid, NULL, NULL) == 0)
+		clear_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 	nfsd4_cltrack_upcall_unlock(clp);
 
 	kfree(hexid);
@@ -1328,6 +1334,9 @@ nfsd4_umh_cltrack_check(struct nfs4_client *clp)
 	int ret;
 	char *hexid, *has_session, *legacy;
 
+	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+		return 0;
+
 	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
 	if (!hexid) {
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
@@ -1338,9 +1347,14 @@ nfsd4_umh_cltrack_check(struct nfs4_client *clp)
 	legacy = nfsd4_cltrack_legacy_recdir(&clp->cl_name);
 
 	nfsd4_cltrack_upcall_lock(clp);
-	ret = nfsd4_umh_cltrack_upcall("check", hexid, has_session, legacy);
+	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags)) {
+		ret = 0;
+	} else {
+		ret = nfsd4_umh_cltrack_upcall("check", hexid, has_session, legacy);
+		if (ret == 0)
+			set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
+	}
 	nfsd4_cltrack_upcall_unlock(clp);
-
 	kfree(has_session);
 	kfree(legacy);
 	kfree(hexid);
