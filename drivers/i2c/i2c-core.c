@@ -371,9 +371,14 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 
 static int acpi_i2c_install_space_handler(struct i2c_adapter *adapter)
 {
-	acpi_handle handle = ACPI_HANDLE(adapter->dev.parent);
+	acpi_handle handle;
 	struct acpi_i2c_handler_data *data;
 	acpi_status status;
+
+	if (!adapter->dev.parent)
+		return -ENODEV;
+
+	handle = ACPI_HANDLE(adapter->dev.parent);
 
 	if (!handle)
 		return -ENODEV;
@@ -407,9 +412,14 @@ static int acpi_i2c_install_space_handler(struct i2c_adapter *adapter)
 
 static void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter)
 {
-	acpi_handle handle = ACPI_HANDLE(adapter->dev.parent);
+	acpi_handle handle;
 	struct acpi_i2c_handler_data *data;
 	acpi_status status;
+
+	if (!adapter->dev.parent)
+		return;
+
+	handle = ACPI_HANDLE(adapter->dev.parent);
 
 	if (!handle)
 		return;
