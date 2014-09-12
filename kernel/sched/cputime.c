@@ -289,13 +289,14 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 	cputime_t utime, stime;
 	struct task_struct *t;
 	unsigned int seq, nextseq;
+	unsigned long flags;
 
 	rcu_read_lock();
 	/* Attempt a lockless read on the first round. */
 	nextseq = 0;
 	do {
 		seq = nextseq;
-		read_seqbegin_or_lock(&sig->stats_lock, &seq);
+		flags = read_seqbegin_or_lock_irqsave(&sig->stats_lock, &seq);
 		times->utime = sig->utime;
 		times->stime = sig->stime;
 		times->sum_exec_runtime = sig->sum_sched_runtime;
@@ -309,7 +310,7 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 		/* If lockless access failed, take the lock. */
 		nextseq = 1;
 	} while (need_seqretry(&sig->stats_lock, seq));
-	done_seqretry(&sig->stats_lock, seq);
+	done_seqretry_irqrestore(&sig->stats_lock, seq, flags);
 	rcu_read_unlock();
 }
 
