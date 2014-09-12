@@ -212,6 +212,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->specific_scan_time = MWIFIEX_SPECIFIC_SCAN_CHAN_TIME;
 	adapter->active_scan_time = MWIFIEX_ACTIVE_SCAN_CHAN_TIME;
 	adapter->passive_scan_time = MWIFIEX_PASSIVE_SCAN_CHAN_TIME;
+	adapter->scan_chan_gap_time = MWIFIEX_DEF_SCAN_CHAN_GAP_TIME;
 
 	adapter->scan_probes = 1;
 

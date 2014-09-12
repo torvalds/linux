@@ -1613,5 +1613,8 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 		adapter->if_ops.update_mp_end_port(adapter,
 					le16_to_cpu(hw_spec->mp_end_port));
 
+	if (adapter->fw_api_ver == MWIFIEX_FW_V15)
+		adapter->scan_chan_gap_enabled = true;
+
 	return 0;
 }

@@ -799,6 +799,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ie_types_num_probes *num_probes_tlv;
+	struct mwifiex_ie_types_scan_chan_gap *chan_gap_tlv;
 	struct mwifiex_ie_types_wildcard_ssid_params *wildcard_ssid_tlv;
 	struct mwifiex_ie_types_bssid_list *bssid_tlv;
 	u8 *tlv_pos;
@@ -938,6 +939,22 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 		*max_chan_per_scan = MWIFIEX_MAX_CHANNELS_PER_SPECIFIC_SCAN;
 	else
 		*max_chan_per_scan = MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD;
+
+	if (user_scan_in->scan_chan_gap) {
+		*max_chan_per_scan = MWIFIEX_MAX_CHANNELS_PER_SPECIFIC_SCAN;
+		dev_dbg(adapter->dev, "info: scan: channel gap = %d\n",
+			user_scan_in->scan_chan_gap);
+
+		chan_gap_tlv = (void *)tlv_pos;
+		chan_gap_tlv->header.type =
+					 cpu_to_le16(TLV_TYPE_SCAN_CHANNEL_GAP);
+		chan_gap_tlv->header.len =
+			cpu_to_le16(sizeof(chan_gap_tlv->chan_gap));
+		chan_gap_tlv->chan_gap =
+				     cpu_to_le16((user_scan_in->scan_chan_gap));
+
+		tlv_pos += sizeof(struct mwifiex_ie_types_scan_chan_gap);
+	}
 
 	/* If the input config or adapter has the number of Probes set,
 	   add tlv */

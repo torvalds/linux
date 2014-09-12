@@ -1991,6 +1991,11 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		user_scan_cfg->chan_list[i].scan_time = 0;
 	}
 
+	if (priv->adapter->scan_chan_gap_enabled &&
+	    mwifiex_is_any_intf_active(priv))
+		user_scan_cfg->scan_chan_gap =
+					      priv->adapter->scan_chan_gap_time;
+
 	ret = mwifiex_scan_networks(priv, user_scan_cfg);
 	kfree(user_scan_cfg);
 	if (ret) {

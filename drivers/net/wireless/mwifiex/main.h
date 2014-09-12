@@ -84,6 +84,7 @@ enum {
 #define MWIFIEX_PASSIVE_SCAN_CHAN_TIME	110
 #define MWIFIEX_ACTIVE_SCAN_CHAN_TIME	30
 #define MWIFIEX_SPECIFIC_SCAN_CHAN_TIME	30
+#define MWIFIEX_DEF_SCAN_CHAN_GAP_TIME  50
 
 #define SCAN_RSSI(RSSI)					(0x100 - ((u8)(RSSI)))
 
@@ -770,6 +771,7 @@ struct mwifiex_adapter {
 	u16 specific_scan_time;
 	u16 active_scan_time;
 	u16 passive_scan_time;
+	u16 scan_chan_gap_time;
 	u8 fw_bands;
 	u8 adhoc_start_band;
 	u8 config_bands;
@@ -839,6 +841,7 @@ struct mwifiex_adapter {
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
 	u8 curr_mem_idx;
+	bool scan_chan_gap_enabled;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -1139,6 +1142,25 @@ mwifiex_11h_get_csa_closed_channel(struct mwifiex_private *priv)
 	return priv->csa_chan;
 }
 
+static inline u8 mwifiex_is_any_intf_active(struct mwifiex_private *priv)
+{
+	struct mwifiex_private *priv_num;
+	int i;
+
+	for (i = 0; i < priv->adapter->priv_num; i++) {
+		priv_num = priv->adapter->priv[i];
+		if (priv_num) {
+			if ((GET_BSS_ROLE(priv_num) == MWIFIEX_BSS_ROLE_UAP &&
+			     priv_num->bss_started) ||
+			    (GET_BSS_ROLE(priv_num) == MWIFIEX_BSS_ROLE_STA &&
+			     priv_num->media_connected))
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
@@ -1274,6 +1296,7 @@ void mwifiex_disable_all_tdls_links(struct mwifiex_private *priv);
 bool mwifiex_is_bss_in_11ac_mode(struct mwifiex_private *priv);
 u8 mwifiex_get_center_freq_index(struct mwifiex_private *priv, u8 band,
 				 u32 pri_chan, u8 chan_bw);
+int mwifiex_init_channel_scan_gap(struct mwifiex_adapter *adapter);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
