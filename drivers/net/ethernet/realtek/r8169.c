@@ -6707,7 +6707,12 @@ static int rtl_open(struct net_device *dev)
 
 	rtl8169_init_phy(dev, tp);
 
-	__rtl8169_set_features(dev, dev->features);
+	if (dev->features & NETIF_F_HW_VLAN_CTAG_RX)
+		tp->cp_cmd |= RxVlan;
+	else
+		tp->cp_cmd &= ~RxVlan;
+
+	RTL_W16(CPlusCmd, tp->cp_cmd);
 
 	rtl_pll_power_up(tp);
 
