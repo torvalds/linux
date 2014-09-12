@@ -347,7 +347,9 @@ static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
 		} else {
 			value = v_SOF_DISABLE;
 			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
-			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL, m_VIDEO_AUTO_CSC, v_VIDEO_AUTO_CSC(0));
+			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+				     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+				     v_VIDEO_AUTO_CSC(0) | v_VIDEO_C0_C2_EXCHANGE(1));
 		}
 	}
 
