@@ -281,7 +281,7 @@ ksocknal_recv_iov (ksock_conn_t *conn)
 
 		if (nob < (int)iov->iov_len) {
 			iov->iov_len -= nob;
-			iov->iov_base = (void *)((char *)iov->iov_base + nob);
+			iov->iov_base += nob;
 			return -EAGAIN;
 		}
 
