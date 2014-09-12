@@ -29,6 +29,11 @@ nwriters_stress   Number of kernel threads that will stress exclusive lock
 		  ownership (writers). The default value is twice the number
 		  of online CPUs.
 
+nreaders_stress   Number of kernel threads that will stress shared lock
+		  ownership (readers). The default is the same amount of writer
+		  locks. If the user did not specify nwriters_stress, then
+		  both readers and writers be the amount of online CPUs.
+
 torture_type	  Type of lock to torture. By default, only spinlocks will
 		  be tortured. This module can torture the following locks,
 		  with string values as follows:
@@ -97,15 +102,18 @@ STATISTICS
 Statistics are printed in the following format:
 
 spin_lock-torture: Writes:  Total: 93746064  Max/Min: 0/0   Fail: 0
-   (A)				   (B)		  (C)	       (D)
+   (A)		    (B)		   (C)		  (D)	       (E)
 
 (A): Lock type that is being tortured -- torture_type parameter.
 
-(B): Number of times the lock was acquired.
+(B): Number of writer lock acquisitions. If dealing with a read/write primitive
+     a second "Reads" statistics line is printed.
 
-(C): Min and max number of times threads failed to acquire the lock.
+(C): Number of times the lock was acquired.
 
-(D): true/false values if there were errors acquiring the lock. This should
+(D): Min and max number of times threads failed to acquire the lock.
+
+(E): true/false values if there were errors acquiring the lock. This should
      -only- be positive if there is a bug in the locking primitive's
      implementation. Otherwise a lock should never fail (i.e., spin_lock()).
      Of course, the same applies for (C), above. A dummy example of this is
