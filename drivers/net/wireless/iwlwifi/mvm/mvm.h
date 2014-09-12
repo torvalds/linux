@@ -274,6 +274,8 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_TM_CMD,
 	IWL_MVM_REF_EXIT_WORK,
 
+	/* update debugfs.c when changing this */
+
 	IWL_MVM_REF_COUNT,
 };
 
