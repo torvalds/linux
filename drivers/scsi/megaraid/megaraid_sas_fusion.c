@@ -971,7 +971,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	max_cmd = instance->max_fw_cmds;
 
-	fusion->reply_q_depth = ((max_cmd + 1 + 15)/16)*16;
+	fusion->reply_q_depth = 2 * (((max_cmd + 1 + 15)/16)*16);
 
 	fusion->request_alloc_sz =
 		sizeof(union MEGASAS_REQUEST_DESCRIPTOR_UNION) *max_cmd;
@@ -1874,6 +1874,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 	u32 status, extStatus, device_id;
 	union desc_value d_val;
 	struct LD_LOAD_BALANCE_INFO *lbinfo;
+	int threshold_reply_count = 0;
 
 	fusion = instance->ctrl_context;
 
@@ -1961,6 +1962,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 
 		desc->Words = ULLONG_MAX;
 		num_completed++;
+		threshold_reply_count++;
 
 		/* Get the next reply descriptor */
 		if (!fusion->last_reply_idx[MSIxIndex])
@@ -1980,6 +1982,25 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 
 		if (reply_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 			break;
+		/*
+		 * Write to reply post host index register after completing threshold
+		 * number of reply counts and still there are more replies in reply queue
+		 * pending to be completed
+		 */
+		if (threshold_reply_count >= THRESHOLD_REPLY_COUNT) {
+			if ((instance->pdev->device ==
+				PCI_DEVICE_ID_LSI_INVADER) ||
+				(instance->pdev->device ==
+				PCI_DEVICE_ID_LSI_FURY))
+				writel(((MSIxIndex & 0x7) << 24) |
+					fusion->last_reply_idx[MSIxIndex],
+					instance->reply_post_host_index_addr[MSIxIndex/8]);
+			else
+				writel((MSIxIndex << 24) |
+					fusion->last_reply_idx[MSIxIndex],
+					instance->reply_post_host_index_addr[0]);
+			threshold_reply_count = 0;
+		}
 	}
 
 	if (!num_completed)

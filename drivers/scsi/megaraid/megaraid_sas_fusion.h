@@ -86,6 +86,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 
 #define MEGASAS_FP_CMD_LEN	16
 #define MEGASAS_FUSION_IN_RESET 0
+#define THRESHOLD_REPLY_COUNT 50
 
 /*
  * Raid Context structure which describes MegaRAID specific IO Parameters
