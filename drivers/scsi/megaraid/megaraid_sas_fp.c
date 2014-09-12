@@ -55,6 +55,13 @@
 #include "megaraid_sas.h"
 #include <asm/div64.h>
 
+#define LB_PENDING_CMDS_DEFAULT 4
+static unsigned int lb_pending_cmds = LB_PENDING_CMDS_DEFAULT;
+module_param(lb_pending_cmds, int, S_IRUGO);
+MODULE_PARM_DESC(lb_pending_cmds, "Change raid-1 load balancing outstanding "
+	"threshold. Valid Values are 1-128. Default: 4");
+
+
 #define ABS_DIFF(a, b)   (((a) > (b)) ? ((a) - (b)) : ((b) - (a)))
 #define MR_LD_STATE_OPTIMAL 3
 #define FALSE 0
@@ -769,6 +776,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 	*pdBlock += stripRef + le64_to_cpu(MR_LdSpanPtrGet(ld, span, map)->startBlk);
 	pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) |
 					physArm;
+	io_info->span_arm = pRAID_Context->spanArm;
 	return retval;
 }
 
@@ -865,6 +873,7 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	*pdBlock += stripRef + le64_to_cpu(MR_LdSpanPtrGet(ld, span, map)->startBlk);
 	pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) |
 		physArm;
+	io_info->span_arm = pRAID_Context->spanArm;
 	return retval;
 }
 
@@ -1131,7 +1140,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 *
 */
 void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
-			PLD_SPAN_INFO ldSpanInfo)
+	PLD_SPAN_INFO ldSpanInfo)
 {
 	u8   span, count;
 	u32  element, span_row_width;
@@ -1239,90 +1248,105 @@ void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
 
 }
 
-void
-mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *map,
-			      struct LD_LOAD_BALANCE_INFO *lbInfo)
+void mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *drv_map,
+	struct LD_LOAD_BALANCE_INFO *lbInfo)
 {
 	int ldCount;
 	u16 ld;
 	struct MR_LD_RAID *raid;
 
+	if (lb_pending_cmds > 128 || lb_pending_cmds < 1)
+		lb_pending_cmds = LB_PENDING_CMDS_DEFAULT;
+
 	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
-		ld = MR_TargetIdToLdGet(ldCount, map);
+		ld = MR_TargetIdToLdGet(ldCount, drv_map);
 		if (ld >= MAX_LOGICAL_DRIVES_EXT) {
 			lbInfo[ldCount].loadBalanceFlag = 0;
 			continue;
 		}
 
-		raid = MR_LdRaidGet(ld, map);
-
-		/* Two drive Optimal RAID 1 */
-		if ((raid->level == 1)  &&  (raid->rowSize == 2) &&
-		    (raid->spanDepth == 1) && raid->ldState ==
-		    MR_LD_STATE_OPTIMAL) {
-			u32 pd, arRef;
-
-			lbInfo[ldCount].loadBalanceFlag = 1;
-
-			/* Get the array on which this span is present */
-			arRef = MR_LdSpanArrayGet(ld, 0, map);
-
-			/* Get the Pd */
-			pd = MR_ArPdGet(arRef, 0, map);
-			/* Get dev handle from Pd */
-			lbInfo[ldCount].raid1DevHandle[0] =
-				MR_PdDevHandleGet(pd, map);
-			/* Get the Pd */
-			pd = MR_ArPdGet(arRef, 1, map);
-
-			/* Get the dev handle from Pd */
-			lbInfo[ldCount].raid1DevHandle[1] =
-				MR_PdDevHandleGet(pd, map);
-		} else
+		raid = MR_LdRaidGet(ld, drv_map);
+		if ((raid->level != 1) ||
+			(raid->ldState != MR_LD_STATE_OPTIMAL)) {
 			lbInfo[ldCount].loadBalanceFlag = 0;
+			continue;
+		}
+		lbInfo[ldCount].loadBalanceFlag = 1;
 	}
 }
 
-u8 megasas_get_best_arm(struct LD_LOAD_BALANCE_INFO *lbInfo, u8 arm, u64 block,
-			u32 count)
+u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
+	struct LD_LOAD_BALANCE_INFO *lbInfo, struct IO_REQUEST_INFO *io_info)
 {
-	u16     pend0, pend1;
+	struct fusion_context *fusion;
+	struct MR_LD_RAID  *raid;
+	struct MR_DRV_RAID_MAP_ALL *drv_map;
+	u16     pend0, pend1, ld;
 	u64     diff0, diff1;
-	u8      bestArm;
+	u8      bestArm, pd0, pd1, span, arm;
+	u32     arRef, span_row_size;
+
+	u64 block = io_info->ldStartBlock;
+	u32 count = io_info->numBlocks;
+
+	span = ((io_info->span_arm & RAID_CTX_SPANARM_SPAN_MASK)
+			>> RAID_CTX_SPANARM_SPAN_SHIFT);
+	arm = (io_info->span_arm & RAID_CTX_SPANARM_ARM_MASK);
+
+
+	fusion = instance->ctrl_context;
+	drv_map = fusion->ld_drv_map[(instance->map_id & 1)];
+	ld = MR_TargetIdToLdGet(io_info->ldTgtId, drv_map);
+	raid = MR_LdRaidGet(ld, drv_map);
+	span_row_size = instance->UnevenSpanSupport ?
+			SPAN_ROW_SIZE(drv_map, ld, span) : raid->rowSize;
+
+	arRef = MR_LdSpanArrayGet(ld, span, drv_map);
+	pd0 = MR_ArPdGet(arRef, arm, drv_map);
+	pd1 = MR_ArPdGet(arRef, (arm + 1) >= span_row_size ?
+		(arm + 1 - span_row_size) : arm + 1, drv_map);
 
 	/* get the pending cmds for the data and mirror arms */
-	pend0 = atomic_read(&lbInfo->scsi_pending_cmds[0]);
-	pend1 = atomic_read(&lbInfo->scsi_pending_cmds[1]);
+	pend0 = atomic_read(&lbInfo->scsi_pending_cmds[pd0]);
+	pend1 = atomic_read(&lbInfo->scsi_pending_cmds[pd1]);
 
 	/* Determine the disk whose head is nearer to the req. block */
-	diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[0]);
-	diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[1]);
-	bestArm = (diff0 <= diff1 ? 0 : 1);
+	diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[pd0]);
+	diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[pd1]);
+	bestArm = (diff0 <= diff1 ? arm : arm ^ 1);
 
-	/*Make balance count from 16 to 4 to keep driver in sync with Firmware*/
-	if ((bestArm == arm && pend0 > pend1 + 4)  ||
-	    (bestArm != arm && pend1 > pend0 + 4))
+	if ((bestArm == arm && pend0 > pend1 + lb_pending_cmds)  ||
+			(bestArm != arm && pend1 > pend0 + lb_pending_cmds))
 		bestArm ^= 1;
 
 	/* Update the last accessed block on the correct pd */
-	lbInfo->last_accessed_block[bestArm] = block + count - 1;
-
-	return bestArm;
+	io_info->pd_after_lb = (bestArm == arm) ? pd0 : pd1;
+	lbInfo->last_accessed_block[io_info->pd_after_lb] = block + count - 1;
+	io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | bestArm;
+#if SPAN_DEBUG
+	if (arm != bestArm)
+		dev_dbg(&instance->pdev->dev, "LSI Debug R1 Load balance "
+			"occur - span 0x%x arm 0x%x bestArm 0x%x "
+			"io_info->span_arm 0x%x\n",
+			span, arm, bestArm, io_info->span_arm);
+#endif
+	return io_info->pd_after_lb;
 }
 
-u16 get_updated_dev_handle(struct LD_LOAD_BALANCE_INFO *lbInfo,
-			   struct IO_REQUEST_INFO *io_info)
+u16 get_updated_dev_handle(struct megasas_instance *instance,
+	struct LD_LOAD_BALANCE_INFO *lbInfo, struct IO_REQUEST_INFO *io_info)
 {
-	u8 arm, old_arm;
+	u8 arm_pd;
 	u16 devHandle;
+	struct fusion_context *fusion;
+	struct MR_DRV_RAID_MAP_ALL *drv_map;
 
-	old_arm = lbInfo->raid1DevHandle[0] == io_info->devHandle ? 0 : 1;
+	fusion = instance->ctrl_context;
+	drv_map = fusion->ld_drv_map[(instance->map_id & 1)];
 
-	/* get best new arm */
-	arm  = megasas_get_best_arm(lbInfo, old_arm, io_info->ldStartBlock,
-				    io_info->numBlocks);
-	devHandle = lbInfo->raid1DevHandle[arm];
-	atomic_inc(&lbInfo->scsi_pending_cmds[arm]);
-
+	/* get best new arm (PD ID) */
+	arm_pd  = megasas_get_best_arm_pd(instance, lbInfo, io_info);
+	devHandle = MR_PdDevHandleGet(arm_pd, drv_map);
+	atomic_inc(&lbInfo->scsi_pending_cmds[arm_pd]);
 	return devHandle;
 }

@@ -1188,7 +1188,8 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:28;
+		u32     reserved:27;
+		u32     support_ndrive_r1_lb:1;
 		u32	support_max_255lds:1;
 		u32	reserved1:1;
 		u32     support_additional_msix:1;
@@ -1198,7 +1199,8 @@ typedef union _MFI_CAPABILITIES {
 		u32     support_additional_msix:1;
 		u32	reserved1:1;
 		u32	support_max_255lds:1;
-		u32     reserved:28;
+		u32     support_ndrive_r1_lb:1;
+		u32     reserved:27;
 #endif
 	} mfi_capabilities;
 	u32     reg;
@@ -1914,6 +1916,8 @@ u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_DRV_RAID_MAP_ALL *map);
 u16 MR_PdDevHandleGet(u32 pd, struct MR_DRV_RAID_MAP_ALL *map);
 u16 MR_GetLDTgtId(u32 ld, struct MR_DRV_RAID_MAP_ALL *map);
 
+u16 get_updated_dev_handle(struct megasas_instance *instance,
+	struct LD_LOAD_BALANCE_INFO *lbInfo, struct IO_REQUEST_INFO *in_info);
 void mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *map,
 	struct LD_LOAD_BALANCE_INFO *lbInfo);
 int megasas_get_ctrl_info(struct megasas_instance *instance,

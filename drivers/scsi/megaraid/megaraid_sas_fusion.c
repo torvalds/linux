@@ -76,8 +76,6 @@ megasas_issue_polled(struct megasas_instance *instance,
 void
 megasas_check_and_restore_queue_depth(struct megasas_instance *instance);
 
-u16 get_updated_dev_handle(struct LD_LOAD_BALANCE_INFO *lbInfo,
-			   struct IO_REQUEST_INFO *in_info);
 int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
 void megaraid_sas_kill_hba(struct megasas_instance *instance);
 
@@ -653,6 +651,8 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	init_frame->driver_operations.mfi_capabilities.support_fp_remote_lun
 		= 1;
 	init_frame->driver_operations.mfi_capabilities.support_max_255lds
+		= 1;
+	init_frame->driver_operations.mfi_capabilities.support_ndrive_r1_lb
 		= 1;
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
@@ -1606,10 +1606,11 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		if ((fusion->load_balance_info[device_id].loadBalanceFlag) &&
 		    (io_info.isRead)) {
 			io_info.devHandle =
-				get_updated_dev_handle(
+				get_updated_dev_handle(instance,
 					&fusion->load_balance_info[device_id],
 					&io_info);
 			scp->SCp.Status |= MEGASAS_LOAD_BALANCE_FLAG;
+			cmd->pd_r1_lb = io_info.pd_after_lb;
 		} else
 			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 		cmd->request_desc->SCSIIO.DevHandle = io_info.devHandle;
@@ -1942,7 +1943,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 	struct megasas_cmd *cmd_mfi;
 	struct megasas_cmd_fusion *cmd_fusion;
 	u16 smid, num_completed;
-	u8 reply_descript_type, arm;
+	u8 reply_descript_type;
 	u32 status, extStatus, device_id;
 	union desc_value d_val;
 	struct LD_LOAD_BALANCE_INFO *lbinfo;
@@ -1993,10 +1994,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 			lbinfo = &fusion->load_balance_info[device_id];
 			if (cmd_fusion->scmd->SCp.Status &
 			    MEGASAS_LOAD_BALANCE_FLAG) {
-				arm = lbinfo->raid1DevHandle[0] ==
-					cmd_fusion->io_request->DevHandle ? 0 :
-					1;
-				atomic_dec(&lbinfo->scsi_pending_cmds[arm]);
+				atomic_dec(&lbinfo->scsi_pending_cmds[cmd_fusion->pd_r1_lb]);
 				cmd_fusion->scmd->SCp.Status &=
 					~MEGASAS_LOAD_BALANCE_FLAG;
 			}

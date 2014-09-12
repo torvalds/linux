@@ -630,6 +630,8 @@ struct IO_REQUEST_INFO {
 	u8 start_span;
 	u8 reserved;
 	u64 start_row;
+	u8  span_arm;	/* span[7:5], arm[4:0] */
+	u8  pd_after_lb;
 };
 
 struct MR_LD_TARGET_SYNC {
@@ -681,14 +683,14 @@ struct megasas_cmd_fusion {
 	u32 sync_cmd_idx;
 	u32 index;
 	u8 flags;
+	u8 pd_r1_lb;
 };
 
 struct LD_LOAD_BALANCE_INFO {
 	u8	loadBalanceFlag;
 	u8	reserved1;
-	u16     raid1DevHandle[2];
-	atomic_t     scsi_pending_cmds[2];
-	u64     last_accessed_block[2];
+	atomic_t     scsi_pending_cmds[MAX_PHYSICAL_DEVICES];
+	u64     last_accessed_block[MAX_PHYSICAL_DEVICES];
 };
 
 /* SPAN_SET is info caclulated from span info from Raid map per LD */
