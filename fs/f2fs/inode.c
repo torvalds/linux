@@ -276,7 +276,7 @@ void f2fs_evict_inode(struct inode *inode)
 			inode->i_ino == F2FS_META_INO(sbi))
 		goto out_clear;
 
-	f2fs_bug_on(sbi, get_dirty_dents(inode));
+	f2fs_bug_on(sbi, get_dirty_pages(inode));
 	remove_dirty_dir_inode(inode);
 
 	if (inode->i_nlink || is_bad_inode(inode))

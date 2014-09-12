@@ -237,7 +237,7 @@ struct f2fs_inode_info {
 	/* Use below internally in f2fs*/
 	unsigned long flags;		/* use to pass per-file flags */
 	struct rw_semaphore i_sem;	/* protect fi info */
-	atomic_t dirty_dents;		/* # of dirty dentry pages */
+	atomic_t dirty_pages;		/* # of dirty pages */
 	f2fs_hash_t chash;		/* hash value of given file name */
 	unsigned int clevel;		/* maximum level of given file name */
 	nid_t i_xattr_nid;		/* node id that contains xattrs */
@@ -747,10 +747,11 @@ static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 	F2FS_SET_SB_DIRT(sbi);
 }
 
-static inline void inode_inc_dirty_dents(struct inode *inode)
+static inline void inode_inc_dirty_pages(struct inode *inode)
 {
-	inc_page_count(F2FS_I_SB(inode), F2FS_DIRTY_DENTS);
-	atomic_inc(&F2FS_I(inode)->dirty_dents);
+	atomic_inc(&F2FS_I(inode)->dirty_pages);
+	if (S_ISDIR(inode->i_mode))
+		inc_page_count(F2FS_I_SB(inode), F2FS_DIRTY_DENTS);
 }
 
 static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
@@ -758,13 +759,15 @@ static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
 	atomic_dec(&sbi->nr_pages[count_type]);
 }
 
-static inline void inode_dec_dirty_dents(struct inode *inode)
+static inline void inode_dec_dirty_pages(struct inode *inode)
 {
-	if (!S_ISDIR(inode->i_mode))
+	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode))
 		return;
 
-	dec_page_count(F2FS_I_SB(inode), F2FS_DIRTY_DENTS);
-	atomic_dec(&F2FS_I(inode)->dirty_dents);
+	atomic_dec(&F2FS_I(inode)->dirty_pages);
+
+	if (S_ISDIR(inode->i_mode))
+		dec_page_count(F2FS_I_SB(inode), F2FS_DIRTY_DENTS);
 }
 
 static inline int get_pages(struct f2fs_sb_info *sbi, int count_type)
@@ -772,9 +775,9 @@ static inline int get_pages(struct f2fs_sb_info *sbi, int count_type)
 	return atomic_read(&sbi->nr_pages[count_type]);
 }
 
-static inline int get_dirty_dents(struct inode *inode)
+static inline int get_dirty_pages(struct inode *inode)
 {
-	return atomic_read(&F2FS_I(inode)->dirty_dents);
+	return atomic_read(&F2FS_I(inode)->dirty_pages);
 }
 
 static inline int get_blocktype_secs(struct f2fs_sb_info *sbi, int block_type)
@@ -1302,7 +1305,7 @@ void add_orphan_inode(struct f2fs_sb_info *, nid_t);
 void remove_orphan_inode(struct f2fs_sb_info *, nid_t);
 void recover_orphan_inodes(struct f2fs_sb_info *);
 int get_valid_checkpoint(struct f2fs_sb_info *);
-void set_dirty_dir_page(struct inode *, struct page *);
+void update_dirty_page(struct inode *, struct page *);
 void add_dirty_dir_inode(struct inode *);
 void remove_dirty_dir_inode(struct inode *);
 void sync_dirty_dir_inodes(struct f2fs_sb_info *);
