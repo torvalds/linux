@@ -263,6 +263,18 @@ static inline int rdev_get_mpath(struct cfg80211_registered_device *rdev,
 
 }
 
+static inline int rdev_get_mpp(struct cfg80211_registered_device *rdev,
+			       struct net_device *dev, u8 *dst, u8 *mpp,
+			       struct mpath_info *pinfo)
+{
+	int ret;
+
+	trace_rdev_get_mpp(&rdev->wiphy, dev, dst, mpp);
+	ret = rdev->ops->get_mpp(&rdev->wiphy, dev, dst, mpp, pinfo);
+	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
+	return ret;
+}
+
 static inline int rdev_dump_mpath(struct cfg80211_registered_device *rdev,
 				  struct net_device *dev, int idx, u8 *dst,
 				  u8 *next_hop, struct mpath_info *pinfo)
@@ -271,7 +283,20 @@ static inline int rdev_dump_mpath(struct cfg80211_registered_device *rdev,
 	int ret;
 	trace_rdev_dump_mpath(&rdev->wiphy, dev, idx, dst, next_hop);
 	ret = rdev->ops->dump_mpath(&rdev->wiphy, dev, idx, dst, next_hop,
-				     pinfo);
+				    pinfo);
+	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
+	return ret;
+}
+
+static inline int rdev_dump_mpp(struct cfg80211_registered_device *rdev,
+				struct net_device *dev, int idx, u8 *dst,
+				u8 *mpp, struct mpath_info *pinfo)
+
+{
+	int ret;
+
+	trace_rdev_dump_mpp(&rdev->wiphy, dev, idx, dst, mpp);
+	ret = rdev->ops->dump_mpp(&rdev->wiphy, dev, idx, dst, mpp, pinfo);
 	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
 	return ret;
 }
