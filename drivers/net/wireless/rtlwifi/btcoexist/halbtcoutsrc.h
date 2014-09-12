@@ -116,9 +116,6 @@ extern u32 btc_dbg_type[];
 #define		WIFI_P2P_GO_CONNECTED			BIT3
 #define		WIFI_P2P_GC_CONNECTED			BIT4
 
-#define	CL_SPRINTF	snprintf
-#define	CL_PRINTF(buf)	printk("%s", buf)
-
 #define	BTC_PRINT(dbgtype, dbgflag, printstr, ...)		\
 	do {							\
 		if (unlikely(btc_dbg_type[dbgtype] & dbgflag)) {\
@@ -483,7 +480,6 @@ struct btc_coexist {
 	bool initilized;
 	bool stop_coex_dm;
 	bool manual_control;
-	u8 *cli_buf;
 	struct btc_statistics statistics;
 	u8 pwr_mode_val[10];
 

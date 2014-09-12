@@ -32,7 +32,6 @@
 struct btc_coexist gl_bt_coexist;
 
 u32 btc_dbg_type[BTC_MSG_MAX];
-static u8 btc_dbg_buf[100];
 
 /***************************************************
  *		Debug related function
@@ -651,8 +650,6 @@ bool exhalbtc_initlize_variables(struct rtl_priv *adapter)
 
 	btcoexist->btc_get = halbtc_get;
 	btcoexist->btc_set = halbtc_set;
-
-	btcoexist->cli_buf = &btc_dbg_buf[0];
 
 	btcoexist->bt_info.bt_ctrl_buf_size = false;
 	btcoexist->bt_info.agg_buf_size = 5;
