@@ -269,11 +269,6 @@ struct comedi_device {
 	void (*close)(struct comedi_device *dev);
 };
 
-static inline const void *comedi_board(const struct comedi_device *dev)
-{
-	return dev->board_ptr;
-}
-
 /*
  * function prototypes
  */
