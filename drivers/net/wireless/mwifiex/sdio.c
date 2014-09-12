@@ -622,22 +622,15 @@ static int mwifiex_get_wr_port_data(struct mwifiex_adapter *adapter, u32 *port)
 
 	dev_dbg(adapter->dev, "data: mp_wr_bitmap=0x%08x\n", wr_bitmap);
 
-	if (card->supports_sdio_new_mode &&
-	    !(wr_bitmap & reg->data_port_mask)) {
+	if (!(wr_bitmap & card->mp_data_port_mask)) {
 		adapter->data_sent = true;
 		return -EBUSY;
-	} else if (!card->supports_sdio_new_mode &&
-		   !(wr_bitmap & card->mp_data_port_mask)) {
-		return -1;
 	}
 
 	if (card->mp_wr_bitmap & (1 << card->curr_wr_port)) {
 		card->mp_wr_bitmap &= (u32) (~(1 << card->curr_wr_port));
 		*port = card->curr_wr_port;
-		if (((card->supports_sdio_new_mode) &&
-		     (++card->curr_wr_port == card->max_ports)) ||
-		    ((!card->supports_sdio_new_mode) &&
-		     (++card->curr_wr_port == card->mp_end_port)))
+		if (++card->curr_wr_port == card->mp_end_port)
 			card->curr_wr_port = reg->start_wr_port;
 	} else {
 		adapter->data_sent = true;
