@@ -1065,6 +1065,11 @@ megasas_fire_cmd_fusion(struct megasas_instance *instance,
 			u32 req_desc_hi,
 			struct megasas_register_set __iomem *regs)
 {
+#if defined(writeq) && defined(CONFIG_64BIT)
+	u64 req_data = (((u64)req_desc_hi << 32) | (u32)req_desc_lo);
+
+	writeq(le64_to_cpu(req_data), &(regs)->inbound_low_queue_port);
+#else
 	unsigned long flags;
 
 	spin_lock_irqsave(&instance->hba_lock, flags);
@@ -1072,6 +1077,7 @@ megasas_fire_cmd_fusion(struct megasas_instance *instance,
 	writel(le32_to_cpu(req_desc_lo), &(regs)->inbound_low_queue_port);
 	writel(le32_to_cpu(req_desc_hi), &(regs)->inbound_high_queue_port);
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
+#endif
 }
 
 /**
