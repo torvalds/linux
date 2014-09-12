@@ -1948,6 +1948,7 @@ int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc)
 			       OPCODE_COMMON_SET_FLOW_CONTROL, sizeof(*req),
 			       wrb, NULL);
 
+	req->hdr.version = 1;
 	req->tx_flow_control = cpu_to_le16((u16)tx_fc);
 	req->rx_flow_control = cpu_to_le16((u16)rx_fc);
 
@@ -1955,6 +1956,10 @@ int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc)
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
+
+	if (base_status(status) == MCC_STATUS_FEATURE_NOT_SUPPORTED)
+		return  -EOPNOTSUPP;
+
 	return status;
 }
 
