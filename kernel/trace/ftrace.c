@@ -2416,6 +2416,21 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 
 	ftrace_run_update_code(command);
 
+	/*
+	 * If there's no more ops registered with ftrace, run a
+	 * sanity check to make sure all rec flags are cleared.
+	 */
+	if (ftrace_ops_list == &ftrace_list_end) {
+		struct ftrace_page *pg;
+		struct dyn_ftrace *rec;
+
+		do_for_each_ftrace_rec(pg, rec) {
+			if (FTRACE_WARN_ON_ONCE(rec->flags))
+				pr_warn("  %pS flags:%lx\n",
+					(void *)rec->ip, rec->flags);
+		} while_for_each_ftrace_rec();
+	}
+
 	ops->old_hash.filter_hash = NULL;
 	ops->old_hash.notrace_hash = NULL;
 
