@@ -3659,8 +3659,14 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 		else
 			bond_xmit_slave_id(bond, skb, 0);
 	} else {
-		slave_id = bond_rr_gen_slave_id(bond);
-		bond_xmit_slave_id(bond, skb, slave_id % bond->slave_cnt);
+		int slave_cnt = ACCESS_ONCE(bond->slave_cnt);
+
+		if (likely(slave_cnt)) {
+			slave_id = bond_rr_gen_slave_id(bond);
+			bond_xmit_slave_id(bond, skb, slave_id % slave_cnt);
+		} else {
+			dev_kfree_skb_any(skb);
+		}
 	}
 
 	return NETDEV_TX_OK;
@@ -3691,8 +3697,13 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	int slave_cnt = ACCESS_ONCE(bond->slave_cnt);
 
-	bond_xmit_slave_id(bond, skb, bond_xmit_hash(bond, skb) % bond->slave_cnt);
+	if (likely(slave_cnt))
+		bond_xmit_slave_id(bond, skb,
+				   bond_xmit_hash(bond, skb) % slave_cnt);
+	else
+		dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
