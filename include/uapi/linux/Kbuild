@@ -396,6 +396,7 @@ header-y += un.h
 header-y += unistd.h
 header-y += unix_diag.h
 header-y += usbdevice_fs.h
+header-y += usbip.h
 header-y += utime.h
 header-y += utsname.h
 header-y += uuid.h
