@@ -347,10 +347,13 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 			   u64 expectedSignature,
 			   char *fileName, int lineNumber, void *logCtx)
 {
-	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0)
+	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0) {
+		uuid_le guid;
+
+		ioread8_rep(&((CHANNEL_HEADER __iomem *)(pChannel))->Type,
+			&guid, sizeof(guid));
 		/* caller wants us to verify type GUID */
-		if (uuid_le_cmp((((CHANNEL_HEADER __iomem *)(pChannel))->Type),
-			   expectedTypeGuid) != 0) {
+		if (uuid_le_cmp(guid, expectedTypeGuid) != 0) {
 			CHANNEL_GUID_MISMATCH(expectedTypeGuid, channelName,
 					      "type", expectedTypeGuid,
 					      ((CHANNEL_HEADER __iomem *)
@@ -358,6 +361,7 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 					      lineNumber, logCtx);
 			return 0;
 		}
+	}
 	if (expectedMinBytes > 0)	/* caller wants us to verify
 					 * channel size */
 		if (readq(&((CHANNEL_HEADER __iomem *)
