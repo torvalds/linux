@@ -129,6 +129,10 @@ static void uas_do_work(struct work_struct *work)
 	int err;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
+
+	if (devinfo->resetting)
+		goto out;
+
 	list_for_each_entry(cmdinfo, &devinfo->inflight_list, list) {
 		struct scsi_pointer *scp = (void *)cmdinfo;
 		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
@@ -143,6 +147,7 @@ static void uas_do_work(struct work_struct *work)
 		else
 			schedule_work(&devinfo->work);
 	}
+out:
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
@@ -322,6 +327,11 @@ static void uas_stat_cmplt(struct urb *urb)
 	unsigned long flags;
 	u16 tag;
 
+	spin_lock_irqsave(&devinfo->lock, flags);
+
+	if (devinfo->resetting)
+		goto out;
+
 	if (urb->status) {
 		if (urb->status == -ENOENT) {
 			dev_err(&urb->dev->dev, "stat urb: killed, stream %d\n",
@@ -330,27 +340,17 @@ static void uas_stat_cmplt(struct urb *urb)
 			dev_err(&urb->dev->dev, "stat urb: status %d\n",
 				urb->status);
 		}
-		usb_free_urb(urb);
-		return;
+		goto out;
 	}
 
-	if (devinfo->resetting) {
-		usb_free_urb(urb);
-		return;
-	}
-
-	spin_lock_irqsave(&devinfo->lock, flags);
 	tag = be16_to_cpup(&iu->tag) - 1;
 	if (tag == 0)
 		cmnd = devinfo->cmnd;
 	else
 		cmnd = scsi_host_find_tag(shost, tag - 1);
 
-	if (!cmnd) {
-		usb_free_urb(urb);
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return;
-	}
+	if (!cmnd)
+		goto out;
 
 	cmdinfo = (void *)&cmnd->SCp;
 	switch (iu->iu_id) {
@@ -391,6 +391,7 @@ static void uas_stat_cmplt(struct urb *urb)
 		scmd_printk(KERN_ERR, cmnd,
 			"Bogus IU (%d) received on status pipe\n", iu->iu_id);
 	}
+out:
 	usb_free_urb(urb);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
@@ -404,6 +405,7 @@ static void uas_data_cmplt(struct urb *urb)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
+
 	if (cmdinfo->data_in_urb == urb) {
 		sdb = scsi_in(cmnd);
 		cmdinfo->state &= ~DATA_IN_URB_INFLIGHT;
@@ -413,7 +415,13 @@ static void uas_data_cmplt(struct urb *urb)
 	}
 	if (sdb == NULL) {
 		WARN_ON_ONCE(1);
-	} else if (urb->status) {
+		goto out;
+	}
+
+	if (devinfo->resetting)
+		goto out;
+
+	if (urb->status) {
 		if (urb->status != -ECONNRESET) {
 			uas_log_cmd_state(cmnd, __func__);
 			scmd_printk(KERN_ERR, cmnd,
@@ -426,6 +434,7 @@ static void uas_data_cmplt(struct urb *urb)
 		sdb->resid = sdb->length - urb->actual_length;
 	}
 	uas_try_complete(cmnd, __func__);
+out:
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
@@ -732,6 +741,7 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	struct scsi_device *sdev = cmnd->device;
 	struct uas_dev_info *devinfo = sdev->hostdata;
 	struct usb_device *udev = devinfo->udev;
+	unsigned long flags;
 	int err;
 
 	err = usb_lock_device_for_reset(udev, devinfo->intf);
@@ -742,14 +752,21 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	}
 
 	shost_printk(KERN_INFO, sdev->host, "%s start\n", __func__);
+
+	spin_lock_irqsave(&devinfo->lock, flags);
 	devinfo->resetting = 1;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
 	uas_abort_inflight(devinfo, DID_RESET, __func__);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
 	uas_zap_dead(devinfo);
 	err = usb_reset_device(udev);
+
+	spin_lock_irqsave(&devinfo->lock, flags);
 	devinfo->resetting = 0;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 
 	usb_unlock_device(udev);
 
@@ -1049,8 +1066,12 @@ static void uas_disconnect(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
+	unsigned long flags;
 
+	spin_lock_irqsave(&devinfo->lock, flags);
 	devinfo->resetting = 1;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
 	cancel_work_sync(&devinfo->work);
 	uas_abort_inflight(devinfo, DID_NO_CONNECT, __func__);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
