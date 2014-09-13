@@ -428,12 +428,9 @@ out:
 
 static void uas_cmd_cmplt(struct urb *urb)
 {
-	struct scsi_cmnd *cmnd = urb->context;
+	if (urb->status)
+		dev_err(&urb->dev->dev, "cmd cmplt err %d\n", urb->status);
 
-	if (urb->status) {
-		uas_log_cmd_state(cmnd, __func__);
-		scmd_printk(KERN_ERR, cmnd, "cmd cmplt err %d\n", urb->status);
-	}
 	usb_free_urb(urb);
 }
 
@@ -511,7 +508,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 	memcpy(iu->cdb, cmnd->cmnd, cmnd->cmd_len);
 
 	usb_fill_bulk_urb(urb, udev, devinfo->cmd_pipe, iu, sizeof(*iu) + len,
-							uas_cmd_cmplt, cmnd);
+							uas_cmd_cmplt, NULL);
 	urb->transfer_flags |= URB_FREE_BUFFER;
  out:
 	return urb;
