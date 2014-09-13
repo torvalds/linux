@@ -29,7 +29,7 @@ static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 	seq_printf(m, "SourceIP        DestinationIP   "
 			"Destination MAC   DEV\n");
 
-	spin_lock_bh(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
+	spin_lock_bh(&bond->mode_lock);
 
 	hash_index = bond_info->rx_hashtbl_used_head;
 	for (; hash_index != RLB_NULL_INDEX;
@@ -42,7 +42,7 @@ static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 			client_info->slave->dev->name);
 	}
 
-	spin_unlock_bh(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
+	spin_unlock_bh(&bond->mode_lock);
 
 	return 0;
 }

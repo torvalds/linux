@@ -184,9 +184,7 @@ struct slave {
 
 /*
  * Here are the locking policies for the two bonding locks:
- *
- * 1) Get rcu_read_lock when reading or RTNL when writing slave list.
- * 2) Get bond->curr_slave_lock when reading/writing bond->curr_active_slave.
+ * Get rcu_read_lock when reading or RTNL when writing slave list.
  */
 struct bonding {
 	struct   net_device *dev; /* first - useful for panic debug */
@@ -197,7 +195,13 @@ struct bonding {
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
 	int     (*recv_probe)(const struct sk_buff *, struct bonding *,
 			      struct slave *);
-	rwlock_t curr_slave_lock;
+	/* mode_lock is used for mode-specific locking needs, currently used by:
+	 * 3ad mode (4) - protect against running bond_3ad_unbind_slave() and
+	 *                bond_3ad_state_machine_handler() concurrently.
+	 * TLB mode (5) - to sync the use and modifications of its hash table
+	 * ALB mode (6) - to sync the use and modifications of its hash table
+	 */
+	spinlock_t mode_lock;
 	u8	 send_peer_notif;
 	u8       igmp_retrans;
 #ifdef CONFIG_PROC_FS
@@ -226,10 +230,6 @@ struct bonding {
 
 #define bond_slave_get_rtnl(dev) \
 	((struct slave *) rtnl_dereference(dev->rx_handler_data))
-
-#define bond_deref_active_protected(bond)				   \
-	rcu_dereference_protected(bond->curr_active_slave,		   \
-				  lockdep_is_held(&bond->curr_slave_lock))
 
 struct bond_vlan_tag {
 	__be16		vlan_proto;
