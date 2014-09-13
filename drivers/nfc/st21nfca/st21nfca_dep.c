@@ -428,8 +428,6 @@ static void st21nfca_im_send_psl_req(struct nfc_hci_dev *hdev, u8 did, u8 bsi,
 	*skb_push(skb, 1) = info->dep_info.to | 0x10;
 
 	st21nfca_im_send_pdu(info, skb);
-
-	kfree_skb(skb);
 }
 
 #define ST21NFCA_CB_TYPE_READER_F 1
