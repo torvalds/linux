@@ -312,6 +312,12 @@ struct em28xx_audio_mode {
 	unsigned int has_audio:1;
 };
 
+enum em28xx_usb_audio_type {
+	EM28XX_USB_AUDIO_NONE = 0,
+	EM28XX_USB_AUDIO_CLASS,
+	EM28XX_USB_AUDIO_VENDOR,
+};
+
 /* em28xx has two audio inputs: tuner and line in.
    However, on most devices, an auxiliary AC97 codec device is used.
    The AC97 device may have several different inputs and outputs,
@@ -601,9 +607,8 @@ struct em28xx {
 	unsigned int is_em25xx:1;	/* em25xx/em276x/7x/8x family bridge */
 	unsigned char disconnected:1;	/* device has been diconnected */
 	unsigned int has_video:1;
-	unsigned int has_audio_class:1;
-	unsigned int has_alsa_audio:1;
 	unsigned int is_audio_only:1;
+	enum em28xx_usb_audio_type usb_audio_type;
 
 	struct em28xx_board board;
 
