@@ -24,13 +24,10 @@ struct ap_msg {
 	u8 *data;
 	size_t size;
 	struct greybus_host_device *hd;
-	struct list_head list;
+	struct work_struct event;
 };
 
-static LIST_HEAD(ap_msg_list);
-static spinlock_t ap_msg_list_lock;
-static struct task_struct *ap_thread;
-static wait_queue_head_t ap_wait;
+static struct workqueue_struct *ap_workqueue;
 
 static struct svc_msg *svc_msg_alloc(enum svc_function_type type)
 {
@@ -220,49 +217,22 @@ static void process_ap_message(struct ap_msg *ap_msg)
 
 }
 
-static struct ap_msg *get_ap_msg(void)
-{
-	struct ap_msg *ap_msg;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ap_msg_list_lock, flags);
-
-	ap_msg = list_first_entry_or_null(&ap_msg_list, struct ap_msg, list);
-	if (ap_msg != NULL)
-		list_del(&ap_msg->list);
-	spin_unlock_irqrestore(&ap_msg_list_lock, flags);
-
-	return ap_msg;
-}
-
-static int ap_process_loop(void *data)
+static void ap_process_event(struct work_struct *work)
 {
 	struct ap_msg *ap_msg;
 
-	while (!kthread_should_stop()) {
-		wait_event_interruptible(ap_wait, kthread_should_stop());
+	ap_msg = container_of(work, struct ap_msg, event);
 
-		if (kthread_should_stop())
-			break;
+	process_ap_message(ap_msg);
 
-		/* Get some data off of the ap list and process it */
-		ap_msg = get_ap_msg();
-		if (!ap_msg)
-			continue;
-
-		process_ap_message(ap_msg);
-
-		/* clean the message up */
-		kfree(ap_msg->data);
-		kfree(ap_msg);
-	}
-	return 0;
+	/* clean the message up */
+	kfree(ap_msg->data);
+	kfree(ap_msg);
 }
 
 int gb_new_ap_msg(u8 *data, int size, struct greybus_host_device *hd)
 {
 	struct ap_msg *ap_msg;
-	unsigned long flags;
 
 	/*
 	 * Totally naive copy the message into a new structure that we slowly
@@ -287,12 +257,8 @@ int gb_new_ap_msg(u8 *data, int size, struct greybus_host_device *hd)
 	ap_msg->size = size;
 	ap_msg->hd = hd;
 
-	spin_lock_irqsave(&ap_msg_list_lock, flags);
-	list_add(&ap_msg->list, &ap_msg_list);
-	spin_unlock_irqrestore(&ap_msg_list_lock, flags);
-
-	/* kick our thread to handle the message */
-	wake_up_interruptible(&ap_wait);
+	INIT_WORK(&ap_msg->event, ap_process_event);
+	queue_work(ap_workqueue, &ap_msg->event);
 
 	return 0;
 }
@@ -307,19 +273,16 @@ EXPORT_SYMBOL_GPL(greybus_cport_in_data);
 
 int gb_thread_init(void)
 {
-	init_waitqueue_head(&ap_wait);
-	spin_lock_init(&ap_msg_list_lock);
-
-	ap_thread = kthread_run(ap_process_loop, NULL, "greybus_ap");
-	if (IS_ERR(ap_thread))
-		return PTR_ERR(ap_thread);
+	ap_workqueue = alloc_workqueue("greybus_ap", 0, 1);
+	if (!ap_workqueue)
+		return -ENOMEM;
 
 	return 0;
 }
 
 void gb_thread_destroy(void)
 {
-	kthread_stop(ap_thread);
+	destroy_workqueue(ap_workqueue);
 }
 
 
