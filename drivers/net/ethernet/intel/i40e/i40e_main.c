@@ -4479,11 +4479,7 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 static int i40e_up_complete(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
-	u8 set_fc_aq_fail = 0;
 	int err;
-
-	/* force flow control off */
-	i40e_set_fc(&pf->hw, &set_fc_aq_fail, true);
 
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
 		i40e_vsi_configure_msix(vsi);
@@ -5958,6 +5954,7 @@ static void i40e_send_version(struct i40e_pf *pf)
 static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 {
 	struct i40e_hw *hw = &pf->hw;
+	u8 set_fc_aq_fail = 0;
 	i40e_status ret;
 	u32 v;
 
@@ -6038,6 +6035,11 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	if (ret)
 		dev_info(&pf->pdev->dev, "set phy mask fail, aq_err %d\n", ret);
 
+	/* make sure our flow control settings are restored */
+	ret = i40e_set_fc(&pf->hw, &set_fc_aq_fail, true);
+	if (ret)
+		dev_info(&pf->pdev->dev, "set fc fail, aq_err %d\n", ret);
+
 	/* Rebuild the VSIs and VEBs that existed before reset.
 	 * They are still in our local switch element arrays, so only
 	 * need to rebuild the switch model in the HW.
@@ -6090,6 +6092,13 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 				 "rebuild of Main VSI failed: %d\n", ret);
 			goto end_core_reset;
 		}
+	}
+
+	msleep(75);
+	ret = i40e_aq_set_link_restart_an(&pf->hw, true, NULL);
+	if (ret) {
+		dev_info(&pf->pdev->dev, "link restart failed, aq_err=%d\n",
+			 pf->hw.aq.asq_last_status);
 	}
 
 	/* reinit the misc interrupt */
@@ -9168,6 +9177,13 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				       I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
 	if (err)
 		dev_info(&pf->pdev->dev, "set phy mask fail, aq_err %d\n", err);
+
+	msleep(75);
+	err = i40e_aq_set_link_restart_an(&pf->hw, true, NULL);
+	if (err) {
+		dev_info(&pf->pdev->dev, "link restart failed, aq_err=%d\n",
+			 pf->hw.aq.asq_last_status);
+	}
 
 	/* The main driver is (mostly) up and happy. We need to set this state
 	 * before setting up the misc vector or we get a race and the vector
