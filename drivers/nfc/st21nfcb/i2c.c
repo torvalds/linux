@@ -55,12 +55,6 @@ struct st21nfcb_i2c_phy {
 	unsigned int irq_polarity;
 
 	int powered;
-
-	/*
-	 * < 0 if hardware error occured (e.g. i2c err)
-	 * and prevents normal operation.
-	 */
-	int hard_fault;
 };
 
 #define I2C_DUMP_SKB(info, skb)					\
@@ -114,8 +108,8 @@ static int st21nfcb_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 
 	I2C_DUMP_SKB("st21nfcb_nci_i2c_write", skb);
 
-	if (phy->hard_fault != 0)
-		return phy->hard_fault;
+	if (phy->ndlc->hard_fault != 0)
+		return phy->ndlc->hard_fault;
 
 	r = i2c_master_send(client, skb->data, skb->len);
 	if (r == -EREMOTEIO) {  /* Retry, chip was in standby */
@@ -218,7 +212,7 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 	client = phy->i2c_dev;
 	dev_dbg(&client->dev, "IRQ\n");
 
-	if (phy->hard_fault)
+	if (phy->ndlc->hard_fault)
 		return IRQ_HANDLED;
 
 	if (!phy->powered) {
@@ -227,13 +221,8 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 	}
 
 	r = st21nfcb_nci_i2c_read(phy, &skb);
-	if (r == -EREMOTEIO) {
-		phy->hard_fault = r;
-		ndlc_recv(phy->ndlc, NULL);
+	if (r == -EREMOTEIO || r == -ENOMEM || r == -EBADMSG)
 		return IRQ_HANDLED;
-	} else if (r == -ENOMEM || r == -EBADMSG) {
-		return IRQ_HANDLED;
-	}
 
 	ndlc_recv(phy->ndlc, skb);
 
