@@ -3235,7 +3235,7 @@ static const char g_epb_name[] = "epb-bulk";
 static const char g_epc_name[] = "epc-nulk";
 static const char g_epd_name[] = "epdin-int";
 
-static char *gp_ep_name[NUM_ENDPOINTS] = {
+static const char *gp_ep_name[NUM_ENDPOINTS] = {
 	g_ep0_name,
 	g_ep1_name,
 	g_ep2_name,
@@ -3256,7 +3256,7 @@ static char *gp_ep_name[NUM_ENDPOINTS] = {
 static void __init nbu2ss_drv_set_ep_info(
 	struct nbu2ss_udc	*udc,
 	struct nbu2ss_ep	*ep,
-	u8 *name)
+	const char *name)
 {
 	ep->udc = udc;
 	ep->desc = NULL;
