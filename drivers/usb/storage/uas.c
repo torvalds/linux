@@ -2,7 +2,7 @@
  * USB Attached SCSI
  * Note that this is not the same as the USB Mass Storage driver
  *
- * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013
+ * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013 - 2014
  * Copyright Matthew Wilcox for Intel Corp, 2010
  * Copyright Sarah Sharp for Intel Corp, 2010
  *
@@ -52,11 +52,9 @@ struct uas_dev_info {
 	struct usb_anchor data_urbs;
 	unsigned long flags;
 	int qdepth, resetting;
-	struct response_iu response;
 	unsigned cmd_pipe, status_pipe, data_in_pipe, data_out_pipe;
 	unsigned use_streams:1;
 	unsigned uas_sense_old:1;
-	unsigned running_task:1;
 	unsigned shutdown:1;
 	struct scsi_cmnd *cmnd;
 	spinlock_t lock;
@@ -207,7 +205,6 @@ static void uas_zap_dead(struct uas_dev_info *devinfo)
 				    DATA_OUT_URB_INFLIGHT);
 		uas_try_complete(cmnd, __func__);
 	}
-	devinfo->running_task = 0;
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
@@ -350,13 +347,6 @@ static void uas_stat_cmplt(struct urb *urb)
 		cmnd = scsi_host_find_tag(shost, tag - 1);
 
 	if (!cmnd) {
-		if (iu->iu_id == IU_ID_RESPONSE) {
-			if (!devinfo->running_task)
-				dev_warn(&urb->dev->dev,
-				    "stat urb: recv unexpected response iu\n");
-			/* store results for uas_eh_task_mgmt() */
-			memcpy(&devinfo->response, iu, sizeof(devinfo->response));
-		}
 		usb_free_urb(urb);
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return;
@@ -534,56 +524,6 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
  free:
 	usb_free_urb(urb);
 	return NULL;
-}
-
-static int uas_submit_task_urb(struct scsi_cmnd *cmnd, gfp_t gfp,
-			       u8 function, u16 stream_id)
-{
-	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
-	struct usb_device *udev = devinfo->udev;
-	struct urb *urb = usb_alloc_urb(0, gfp);
-	struct task_mgmt_iu *iu;
-	int err = -ENOMEM;
-
-	if (!urb)
-		goto err;
-
-	iu = kzalloc(sizeof(*iu), gfp);
-	if (!iu)
-		goto err;
-
-	iu->iu_id = IU_ID_TASK_MGMT;
-	iu->tag = cpu_to_be16(stream_id);
-	int_to_scsilun(cmnd->device->lun, &iu->lun);
-
-	iu->function = function;
-	switch (function) {
-	case TMF_ABORT_TASK:
-		if (blk_rq_tagged(cmnd->request))
-			iu->task_tag = cpu_to_be16(cmnd->request->tag + 2);
-		else
-			iu->task_tag = cpu_to_be16(1);
-		break;
-	}
-
-	usb_fill_bulk_urb(urb, udev, devinfo->cmd_pipe, iu, sizeof(*iu),
-			  uas_cmd_cmplt, cmnd);
-	urb->transfer_flags |= URB_FREE_BUFFER;
-
-	usb_anchor_urb(urb, &devinfo->cmd_urbs);
-	err = usb_submit_urb(urb, gfp);
-	if (err) {
-		usb_unanchor_urb(urb);
-		uas_log_cmd_state(cmnd, __func__);
-		scmd_printk(KERN_ERR, cmnd, "task submission err %d\n", err);
-		goto err;
-	}
-
-	return 0;
-
-err:
-	usb_free_urb(urb);
-	return err;
 }
 
 /*
@@ -787,118 +727,6 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 static DEF_SCSI_QCMD(uas_queuecommand)
 
-static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
-			    const char *fname, u8 function)
-{
-	struct Scsi_Host *shost = cmnd->device->host;
-	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
-	u16 tag = devinfo->qdepth;
-	unsigned long flags;
-	struct urb *sense_urb;
-	int result = SUCCESS;
-
-	spin_lock_irqsave(&devinfo->lock, flags);
-
-	if (devinfo->resetting) {
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return FAILED;
-	}
-
-	if (devinfo->running_task) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s: error already running a task\n",
-			     __func__, fname);
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return FAILED;
-	}
-
-	devinfo->running_task = 1;
-	memset(&devinfo->response, 0, sizeof(devinfo->response));
-	sense_urb = uas_submit_sense_urb(cmnd, GFP_ATOMIC,
-					 devinfo->use_streams ? tag : 0);
-	if (!sense_urb) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s: submit sense urb failed\n",
-			     __func__, fname);
-		devinfo->running_task = 0;
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return FAILED;
-	}
-	if (uas_submit_task_urb(cmnd, GFP_ATOMIC, function, tag)) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s: submit task mgmt urb failed\n",
-			     __func__, fname);
-		devinfo->running_task = 0;
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		usb_kill_urb(sense_urb);
-		return FAILED;
-	}
-	spin_unlock_irqrestore(&devinfo->lock, flags);
-
-	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 3000) == 0) {
-		/*
-		 * Note we deliberately do not clear running_task here. If we
-		 * allow new tasks to be submitted, there is no way to figure
-		 * out if a received response_iu is for the failed task or for
-		 * the new one. A bus-reset will eventually clear running_task.
-		 */
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s timed out\n", __func__, fname);
-		return FAILED;
-	}
-
-	spin_lock_irqsave(&devinfo->lock, flags);
-	devinfo->running_task = 0;
-	if (be16_to_cpu(devinfo->response.tag) != tag) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s failed (wrong tag %d/%d)\n", __func__,
-			     fname, be16_to_cpu(devinfo->response.tag), tag);
-		result = FAILED;
-	} else if (devinfo->response.response_code != RC_TMF_COMPLETE) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s failed (rc 0x%x)\n", __func__,
-			     fname, devinfo->response.response_code);
-		result = FAILED;
-	}
-	spin_unlock_irqrestore(&devinfo->lock, flags);
-
-	return result;
-}
-
-static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
-{
-	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
-	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&devinfo->lock, flags);
-
-	if (devinfo->resetting) {
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return FAILED;
-	}
-
-	uas_mark_cmd_dead(devinfo, cmdinfo, DID_ABORT, __func__);
-	if (cmdinfo->state & COMMAND_INFLIGHT) {
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
-	} else {
-		uas_unlink_data_urbs(devinfo, cmdinfo, &flags);
-		uas_try_complete(cmnd, __func__);
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		ret = SUCCESS;
-	}
-	return ret;
-}
-
-static int uas_eh_device_reset_handler(struct scsi_cmnd *cmnd)
-{
-	sdev_printk(KERN_INFO, cmnd->device, "%s\n", __func__);
-	return uas_eh_task_mgmt(cmnd, "LOGICAL UNIT RESET",
-				TMF_LOGICAL_UNIT_RESET);
-}
-
 static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 {
 	struct scsi_device *sdev = cmnd->device;
@@ -976,8 +804,6 @@ static struct scsi_host_template uas_host_template = {
 	.queuecommand = uas_queuecommand,
 	.slave_alloc = uas_slave_alloc,
 	.slave_configure = uas_slave_configure,
-	.eh_abort_handler = uas_eh_abort_handler,
-	.eh_device_reset_handler = uas_eh_device_reset_handler,
 	.eh_bus_reset_handler = uas_eh_bus_reset_handler,
 	.can_queue = 65536,	/* Is there a limit on the _host_ ? */
 	.this_id = -1,
@@ -1093,7 +919,6 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->intf = intf;
 	devinfo->udev = udev;
 	devinfo->resetting = 0;
-	devinfo->running_task = 0;
 	devinfo->shutdown = 0;
 	devinfo->flags = id->driver_info;
 	usb_stor_adjust_quirks(udev, &devinfo->flags);
