@@ -156,10 +156,8 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
 		r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
 	}
 
-	if (r != ST21NFCB_NCI_I2C_MIN_SIZE) {
-		nfc_err(&client->dev, "cannot read ndlc & nci header\n");
+	if (r != ST21NFCB_NCI_I2C_MIN_SIZE)
 		return -EREMOTEIO;
-	}
 
 	len = be16_to_cpu(*(__be16 *) (buf + 2));
 	if (len > ST21NFCB_NCI_I2C_MAX_SIZE) {
