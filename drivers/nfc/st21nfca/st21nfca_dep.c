@@ -443,7 +443,7 @@ static void st21nfca_im_recv_atr_res_cb(void *context, struct sk_buff *skb,
 	if (err != 0)
 		return;
 
-	if (IS_ERR(skb))
+	if (!skb)
 		return;
 
 	switch (info->async_cb_type) {
@@ -555,7 +555,7 @@ static void st21nfca_im_recv_dep_res_cb(void *context, struct sk_buff *skb,
 	if (err != 0)
 		return;
 
-	if (IS_ERR(skb))
+	if (!skb)
 		return;
 
 	switch (info->async_cb_type) {
