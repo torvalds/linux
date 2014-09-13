@@ -298,6 +298,12 @@ int gb_new_ap_msg(u8 *data, int size, struct greybus_host_device *hd)
 }
 EXPORT_SYMBOL_GPL(gb_new_ap_msg);
 
+void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
+			   size_t length)
+{
+	// FIXME - implement...
+}
+EXPORT_SYMBOL_GPL(greybus_cport_in_data);
 
 int gb_thread_init(void)
 {

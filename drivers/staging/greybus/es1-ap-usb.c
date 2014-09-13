@@ -233,7 +233,11 @@ exit:
 static void cport_in_callback(struct urb *urb)
 {
 	struct device *dev = &urb->dev->dev;
+	struct es1_ap_dev *es1 = urb->context;
 	int status = urb->status;
+	int retval;
+	u8 cport;
+	u8 *data;
 
 	switch (status) {
 	case 0:
@@ -252,15 +256,40 @@ static void cport_in_callback(struct urb *urb)
 		goto exit;
 	}
 
-	// FIXME - handle the CPort in data
+	/* The size has to be more then just an "empty" transfer */
+	if (urb->actual_length <= 2) {
+		dev_err(dev, "%s: \"short\" cport in transfer of %d bytes?\n",
+			__func__, urb->actual_length);
+		goto exit;
+	}
+
+	/*
+	 * The CPort number is the first byte of the data stream, the rest of
+	 * the stream is "real" data
+	 */
+	data = urb->transfer_buffer;
+	cport = data[0];
+	data = &data[1];
+
+	/* Pass this data to the greybus core */
+	greybus_cport_in_data(es1->hd, cport, data, urb->actual_length - 1);
+
 exit:
-	return;
+	/* put our urb back in the request pool */
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
+		dev_err(dev, "%s: error %d in submitting urb.\n",
+			__func__, retval);
 }
 
 static void cport_out_callback(struct urb *urb)
 {
 	struct device *dev = &urb->dev->dev;
+	struct gbuf *gbuf = urb->context;
+	struct es1_ap_dev *es1 = gbuf->hdpriv;
+	unsigned long flags;
 	int status = urb->status;
+	int i;
 
 	switch (status) {
 	case 0:
@@ -273,15 +302,34 @@ static void cport_out_callback(struct urb *urb)
 	case -ESHUTDOWN:
 	case -EILSEQ:
 		/* device is gone, stop sending */
-		return;
+		goto exit;
 	default:
 		dev_err(dev, "%s: unknown status %d\n", __func__, status);
 		goto exit;
 	}
 
-	// FIXME - handle the CPort out data callback
+	// FIXME - do we care about errors going back up?
+
+	/* Tell the core the gbuf is properly sent */
+	greybus_gbuf_finished(gbuf);
+
 exit:
-	return;
+	/*
+	 * See if this was an urb in our pool, if so mark it "free", otherwise we
+	 * need to free it ourselves.
+	 */
+	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
+		if (urb == es1->cport_out_urb[i]) {
+			es1->cport_out_urb_busy[i] = false;
+			urb = NULL;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+	if (urb)
+		usb_free_urb(urb);
+
 }
 
 /*

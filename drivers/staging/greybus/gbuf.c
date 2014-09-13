@@ -98,10 +98,19 @@ EXPORT_SYMBOL_GPL(greybus_get_gbuf);
 
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t mem_flags)
 {
+	// FIXME - implement
 	return -ENOMEM;
 }
 
 int greybus_kill_gbuf(struct gbuf *gbuf)
 {
+	// FIXME - implement
 	return -ENOMEM;
 }
+
+/* Can be called in interrupt context, do the work and get out of here */
+void greybus_gbuf_finished(struct gbuf *gbuf)
+{
+	// FIXME - implement
+}
+EXPORT_SYMBOL_GPL(greybus_gbuf_finished);
