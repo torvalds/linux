@@ -309,8 +309,6 @@ static void be_async_grp5_evt_process(struct be_adapter *adapter,
 		be_async_grp5_pvid_state_process(adapter, compl);
 		break;
 	default:
-		dev_warn(&adapter->pdev->dev, "Unknown grp5 event 0x%x!\n",
-			 event_type);
 		break;
 	}
 }
@@ -1772,8 +1770,10 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter)
 	if (!status) {
 		struct be_cmd_resp_get_fw_version *resp = embedded_payload(wrb);
 
-		strcpy(adapter->fw_ver, resp->firmware_version_string);
-		strcpy(adapter->fw_on_flash, resp->fw_on_flash_version_string);
+		strlcpy(adapter->fw_ver, resp->firmware_version_string,
+			sizeof(adapter->fw_ver));
+		strlcpy(adapter->fw_on_flash, resp->fw_on_flash_version_string,
+			sizeof(adapter->fw_on_flash));
 	}
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
@@ -1783,8 +1783,8 @@ err:
 /* set the EQ delay interval of an EQ to specified value
  * Uses async mcc
  */
-int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
-		      int num)
+int __be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
+			int num)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_modify_eq_delay *req;
@@ -1815,6 +1815,25 @@ int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
+}
+
+int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
+		      int num)
+{
+	int num_eqs, i = 0;
+
+	if (lancer_chip(adapter) && num > 8) {
+		while (num) {
+			num_eqs = min(num, 8);
+			__be_cmd_modify_eqd(adapter, &set_eqd[i], num_eqs);
+			i += num_eqs;
+			num -= num_eqs;
+		}
+	} else {
+		__be_cmd_modify_eqd(adapter, set_eqd, num);
+	}
+
+	return 0;
 }
 
 /* Uses sycnhronous mcc */
@@ -1948,6 +1967,7 @@ int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc)
 			       OPCODE_COMMON_SET_FLOW_CONTROL, sizeof(*req),
 			       wrb, NULL);
 
+	req->hdr.version = 1;
 	req->tx_flow_control = cpu_to_le16((u16)tx_fc);
 	req->rx_flow_control = cpu_to_le16((u16)rx_fc);
 
@@ -1955,6 +1975,10 @@ int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc)
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
+
+	if (base_status(status) == MCC_STATUS_FEATURE_NOT_SUPPORTED)
+		return  -EOPNOTSUPP;
+
 	return status;
 }
 
@@ -2171,6 +2195,53 @@ err:
 	return status;
 }
 
+/* Uses sync mcc */
+int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
+				      u8 page_num, u8 *data)
+{
+	struct be_dma_mem cmd;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_port_type *req;
+	int status;
+
+	if (page_num > TR_PAGE_A2)
+		return -EINVAL;
+
+	cmd.size = sizeof(struct be_cmd_resp_port_type);
+	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size, &cmd.dma);
+	if (!cmd.va) {
+		dev_err(&adapter->pdev->dev, "Memory allocation failed\n");
+		return -ENOMEM;
+	}
+	memset(cmd.va, 0, cmd.size);
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = cmd.va;
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_READ_TRANSRECV_DATA,
+			       cmd.size, wrb, &cmd);
+
+	req->port = cpu_to_le32(adapter->hba_port_num);
+	req->page_num = cpu_to_le32(page_num);
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_port_type *resp = cmd.va;
+
+		memcpy(data, resp->page_data, PAGE_DATA_LEN);
+	}
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);
+	return status;
+}
+
 int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			    u32 data_size, u32 data_offset,
 			    const char *obj_name, u32 *data_written,
@@ -2211,7 +2282,7 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 	req->write_offset = cpu_to_le32(data_offset);
-	strcpy(req->object_name, obj_name);
+	strlcpy(req->object_name, obj_name, sizeof(req->object_name));
 	req->descriptor_count = cpu_to_le32(1);
 	req->buf_len = cpu_to_le32(data_size);
 	req->addr_low = cpu_to_le32((cmd->dma +
@@ -2244,6 +2315,31 @@ err_unlock:
 	return status;
 }
 
+int be_cmd_query_cable_type(struct be_adapter *adapter)
+{
+	u8 page_data[PAGE_DATA_LEN];
+	int status;
+
+	status = be_cmd_read_port_transceiver_data(adapter, TR_PAGE_A0,
+						   page_data);
+	if (!status) {
+		switch (adapter->phy.interface_type) {
+		case PHY_TYPE_QSFP:
+			adapter->phy.cable_type =
+				page_data[QSFP_PLUS_CABLE_TYPE_OFFSET];
+			break;
+		case PHY_TYPE_SFP_PLUS_10GB:
+			adapter->phy.cable_type =
+				page_data[SFP_PLUS_CABLE_TYPE_OFFSET];
+			break;
+		default:
+			adapter->phy.cable_type = 0;
+			break;
+		}
+	}
+	return status;
+}
+
 int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name)
 {
 	struct lancer_cmd_req_delete_object *req;
@@ -2264,7 +2360,7 @@ int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name)
 			       OPCODE_COMMON_DELETE_OBJECT,
 			       sizeof(*req), wrb, NULL);
 
-	strcpy(req->object_name, obj_name);
+	strlcpy(req->object_name, obj_name, sizeof(req->object_name));
 
 	status = be_mcc_notify_wait(adapter);
 err:

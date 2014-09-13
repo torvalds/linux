@@ -1093,6 +1093,7 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
  */
 static int be_vid_config(struct be_adapter *adapter)
 {
+	struct device *dev = &adapter->pdev->dev;
 	u16 vids[BE_NUM_VLANS_SUPPORTED];
 	u16 num = 0, i = 0;
 	int status = 0;
@@ -1114,16 +1115,15 @@ static int be_vid_config(struct be_adapter *adapter)
 		if (addl_status(status) ==
 				MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES)
 			goto set_vlan_promisc;
-		dev_err(&adapter->pdev->dev,
-			"Setting HW VLAN filtering failed.\n");
+		dev_err(dev, "Setting HW VLAN filtering failed\n");
 	} else {
 		if (adapter->flags & BE_FLAGS_VLAN_PROMISC) {
 			/* hw VLAN filtering re-enabled. */
 			status = be_cmd_rx_filter(adapter,
 						  BE_FLAGS_VLAN_PROMISC, OFF);
 			if (!status) {
-				dev_info(&adapter->pdev->dev,
-					 "Disabling VLAN Promiscuous mode.\n");
+				dev_info(dev,
+					 "Disabling VLAN Promiscuous mode\n");
 				adapter->flags &= ~BE_FLAGS_VLAN_PROMISC;
 			}
 		}
@@ -1137,11 +1137,10 @@ set_vlan_promisc:
 
 	status = be_cmd_rx_filter(adapter, BE_FLAGS_VLAN_PROMISC, ON);
 	if (!status) {
-		dev_info(&adapter->pdev->dev, "Enable VLAN Promiscuous mode\n");
+		dev_info(dev, "Enable VLAN Promiscuous mode\n");
 		adapter->flags |= BE_FLAGS_VLAN_PROMISC;
 	} else
-		dev_err(&adapter->pdev->dev,
-			"Failed to enable VLAN Promiscuous mode.\n");
+		dev_err(dev, "Failed to enable VLAN Promiscuous mode\n");
 	return status;
 }
 
@@ -1853,7 +1852,7 @@ static inline struct page *be_alloc_pages(u32 size, gfp_t gfp)
  * Allocate a page, split it to fragments of size rx_frag_size and post as
  * receive buffers to BE
  */
-static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp)
+static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp, u32 frags_needed)
 {
 	struct be_adapter *adapter = rxo->adapter;
 	struct be_rx_page_info *page_info = NULL, *prev_page_info = NULL;
@@ -1862,10 +1861,10 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp)
 	struct device *dev = &adapter->pdev->dev;
 	struct be_eth_rx_d *rxd;
 	u64 page_dmaaddr = 0, frag_dmaaddr;
-	u32 posted, page_offset = 0;
+	u32 posted, page_offset = 0, notify = 0;
 
 	page_info = &rxo->page_info_tbl[rxq->head];
-	for (posted = 0; posted < MAX_RX_POST && !page_info->page; posted++) {
+	for (posted = 0; posted < frags_needed && !page_info->page; posted++) {
 		if (!pagep) {
 			pagep = be_alloc_pages(adapter->big_page_size, gfp);
 			if (unlikely(!pagep)) {
@@ -1921,7 +1920,11 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp)
 		atomic_add(posted, &rxq->used);
 		if (rxo->rx_post_starved)
 			rxo->rx_post_starved = false;
-		be_rxq_notify(adapter, rxq->id, posted);
+		do {
+			notify = min(256u, posted);
+			be_rxq_notify(adapter, rxq->id, notify);
+			posted -= notify;
+		} while (posted);
 	} else if (atomic_read(&rxq->used) == 0) {
 		/* Let be_worker replenish when memory is available */
 		rxo->rx_post_starved = true;
@@ -2372,6 +2375,7 @@ static int be_process_rx(struct be_rx_obj *rxo, struct napi_struct *napi,
 	struct be_queue_info *rx_cq = &rxo->cq;
 	struct be_rx_compl_info *rxcp;
 	u32 work_done;
+	u32 frags_consumed = 0;
 
 	for (work_done = 0; work_done < budget; work_done++) {
 		rxcp = be_rx_compl_get(rxo);
@@ -2404,6 +2408,7 @@ static int be_process_rx(struct be_rx_obj *rxo, struct napi_struct *napi,
 			be_rx_compl_process(rxo, napi, rxcp);
 
 loop_continue:
+		frags_consumed += rxcp->num_rcvd;
 		be_rx_stats_update(rxo, rxcp);
 	}
 
@@ -2415,7 +2420,9 @@ loop_continue:
 		 */
 		if (atomic_read(&rxo->q.used) < RX_FRAGS_REFILL_WM &&
 		    !rxo->rx_post_starved)
-			be_post_rx_frags(rxo, GFP_ATOMIC);
+			be_post_rx_frags(rxo, GFP_ATOMIC,
+					 max_t(u32, MAX_RX_POST,
+					       frags_consumed));
 	}
 
 	return work_done;
@@ -2897,7 +2904,7 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 
 	/* First time posting */
 	for_all_rx_queues(adapter, rxo, i)
-		be_post_rx_frags(rxo, GFP_KERNEL);
+		be_post_rx_frags(rxo, GFP_KERNEL, MAX_RX_POST);
 	return 0;
 }
 
@@ -3387,7 +3394,7 @@ static int be_get_sriov_config(struct be_adapter *adapter)
 
 	if (!be_max_vfs(adapter)) {
 		if (num_vfs)
-			dev_warn(dev, "device doesn't support SRIOV\n");
+			dev_warn(dev, "SRIOV is disabled. Ignoring num_vfs\n");
 		adapter->num_vfs = 0;
 		return 0;
 	}
@@ -3661,7 +3668,7 @@ static int be_setup(struct be_adapter *adapter)
 	dev_info(dev, "FW version is %s\n", adapter->fw_ver);
 
 	if (BE2_chip(adapter) && fw_major_num(adapter->fw_ver) < 4) {
-		dev_err(dev, "Firmware on card is old(%s), IRQs may not work.",
+		dev_err(dev, "Firmware on card is old(%s), IRQs may not work",
 			adapter->fw_ver);
 		dev_err(dev, "Please upgrade firmware to version >= 4.0\n");
 	}
@@ -4779,7 +4786,7 @@ static void be_worker(struct work_struct *work)
 		 * allocation failures.
 		 */
 		if (rxo->rx_post_starved)
-			be_post_rx_frags(rxo, GFP_KERNEL);
+			be_post_rx_frags(rxo, GFP_KERNEL, MAX_RX_POST);
 	}
 
 	be_eqd_update(adapter);
@@ -4870,11 +4877,9 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 		}
 	}
 
-	if (be_physfn(adapter)) {
-		status = pci_enable_pcie_error_reporting(pdev);
-		if (!status)
-			dev_info(&pdev->dev, "PCIe error reporting enabled\n");
-	}
+	status = pci_enable_pcie_error_reporting(pdev);
+	if (!status)
+		dev_info(&pdev->dev, "PCIe error reporting enabled\n");
 
 	status = be_ctrl_init(adapter);
 	if (status)
