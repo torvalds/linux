@@ -300,7 +300,7 @@ void blk_mq_clone_flush_request(struct request *flush_rq,
 		hctx->cmd_size);
 }
 
-inline void __blk_mq_end_io(struct request *rq, int error)
+inline void __blk_mq_end_request(struct request *rq, int error)
 {
 	blk_account_io_done(rq);
 
@@ -312,15 +312,15 @@ inline void __blk_mq_end_io(struct request *rq, int error)
 		blk_mq_free_request(rq);
 	}
 }
-EXPORT_SYMBOL(__blk_mq_end_io);
+EXPORT_SYMBOL(__blk_mq_end_request);
 
-void blk_mq_end_io(struct request *rq, int error)
+void blk_mq_end_request(struct request *rq, int error)
 {
 	if (blk_update_request(rq, error, blk_rq_bytes(rq)))
 		BUG();
-	__blk_mq_end_io(rq, error);
+	__blk_mq_end_request(rq, error);
 }
-EXPORT_SYMBOL(blk_mq_end_io);
+EXPORT_SYMBOL(blk_mq_end_request);
 
 static void __blk_mq_complete_request_remote(void *data)
 {
@@ -360,7 +360,7 @@ void __blk_mq_complete_request(struct request *rq)
 	struct request_queue *q = rq->q;
 
 	if (!q->softirq_done_fn)
-		blk_mq_end_io(rq, rq->errors);
+		blk_mq_end_request(rq, rq->errors);
 	else
 		blk_mq_ipi_complete_request(rq);
 }
@@ -758,7 +758,7 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 			pr_err("blk-mq: bad return on queue: %d\n", ret);
 		case BLK_MQ_RQ_QUEUE_ERROR:
 			rq->errors = -EIO;
-			blk_mq_end_io(rq, rq->errors);
+			blk_mq_end_request(rq, rq->errors);
 			break;
 		}
 
@@ -1200,7 +1200,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 			if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
 				rq->errors = -EIO;
-				blk_mq_end_io(rq, rq->errors);
+				blk_mq_end_request(rq, rq->errors);
 				goto done;
 			}
 		}

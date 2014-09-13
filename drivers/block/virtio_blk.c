@@ -135,7 +135,7 @@ static inline void virtblk_request_done(struct request *req)
 		req->errors = (error != 0);
 	}
 
-	blk_mq_end_io(req, error);
+	blk_mq_end_request(req, error);
 }
 
 static void virtblk_done(struct virtqueue *vq)

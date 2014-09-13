@@ -247,7 +247,7 @@ static void mtip_async_complete(struct mtip_port *port,
 	if (unlikely(cmd->unaligned))
 		up(&port->cmd_slot_unal);
 
-	blk_mq_end_io(rq, status ? -EIO : 0);
+	blk_mq_end_request(rq, status ? -EIO : 0);
 }
 
 /*
@@ -3739,7 +3739,7 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 		int err;
 
 		err = mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq));
-		blk_mq_end_io(rq, err);
+		blk_mq_end_request(rq, err);
 		return 0;
 	}
 

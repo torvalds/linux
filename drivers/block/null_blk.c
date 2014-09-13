@@ -177,7 +177,7 @@ static void end_cmd(struct nullb_cmd *cmd)
 {
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
-		blk_mq_end_io(cmd->rq, 0);
+		blk_mq_end_request(cmd->rq, 0);
 		return;
 	case NULL_Q_RQ:
 		INIT_LIST_HEAD(&cmd->rq->queuelist);

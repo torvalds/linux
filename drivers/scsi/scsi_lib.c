@@ -713,7 +713,7 @@ static bool scsi_end_request(struct request *req, int error,
 
 	if (req->mq_ctx) {
 		/*
-		 * In the MQ case the command gets freed by __blk_mq_end_io,
+		 * In the MQ case the command gets freed by __blk_mq_end_request,
 		 * so we have to do all cleanup that depends on it earlier.
 		 *
 		 * We also can't kick the queues from irq context, so we
@@ -721,7 +721,7 @@ static bool scsi_end_request(struct request *req, int error,
 		 */
 		scsi_mq_uninit_cmd(cmd);
 
-		__blk_mq_end_io(req, error);
+		__blk_mq_end_request(req, error);
 
 		if (scsi_target(sdev)->single_lun ||
 		    !list_empty(&sdev->host->starved_list))
