@@ -591,7 +591,7 @@ fec_enet_txq_put_data_tso(struct fec_enet_priv_tx_q *txq, struct sk_buff *skb,
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
-	struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
+	struct bufdesc_ex *ebdp = container_of(bdp, struct bufdesc_ex, desc);
 	unsigned short status;
 	unsigned int estatus = 0;
 	dma_addr_t addr;
@@ -651,7 +651,7 @@ fec_enet_txq_put_hdr_tso(struct fec_enet_priv_tx_q *txq,
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
 	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
-	struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
+	struct bufdesc_ex *ebdp = container_of(bdp, struct bufdesc_ex, desc);
 	void *bufaddr;
 	unsigned long dmabuf;
 	unsigned short status;
