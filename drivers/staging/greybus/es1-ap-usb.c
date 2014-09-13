@@ -46,7 +46,8 @@ struct es1_ap_dev {
 	struct urb *cport_in_urb[NUM_CPORT_IN_URB];	/* CPort IN urbs */
 	u8 *cport_in_buffer[NUM_CPORT_IN_URB];		/* CPort IN buffers */
 	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];	/* CPort OUT urbs */
-	u8 cport_out_urb_busy[NUM_CPORT_OUT_URB];	/* CPort OUT urb busy marker */
+	bool cport_out_urb_busy[NUM_CPORT_OUT_URB];	/* CPort OUT urb busy marker */
+	spinlock_t cport_out_urb_lock;			/* locks list of cport out urbs */
 };
 
 static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
@@ -125,10 +126,37 @@ static int send_svc_msg(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 	return 0;
 }
 
-static struct urb *next_free_urb(struct es1_ap_dev *es1)
+static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 {
-	// FIXME
-	return NULL;
+	struct urb *urb = NULL;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+
+	/* Look in our pool of allocated urbs first, as that's the "fastest" */
+	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
+		if (es1->cport_out_urb_busy[i] == false) {
+			es1->cport_out_urb_busy[i] = true;
+			urb = es1->cport_out_urb[i];
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+	if (urb)
+		return urb;
+
+	/*
+	 * Crap, pool is empty, complain to the syslog and go allocate one
+	 * dynamically as we have to succeed.
+	 */
+	dev_err(&es1->usb_dev->dev,
+		"No free CPort OUT urbs, having to dynamically allocate one!\n");
+	urb = usb_alloc_urb(0, gfp_mask);
+	if (!urb)
+		return NULL;
+
+	return urb;
 }
 
 static int send_gbuf(struct gbuf *gbuf, struct greybus_host_device *hd,
@@ -145,7 +173,7 @@ static int send_gbuf(struct gbuf *gbuf, struct greybus_host_device *hd,
 	buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
 
 	/* Find a free urb */
-	urb = next_free_urb(es1);
+	urb = next_free_urb(es1, gfp_mask);
 	if (!urb)
 		return -ENOMEM;
 
@@ -289,6 +317,7 @@ static int ap_probe(struct usb_interface *interface,
 	es1->hd = hd;
 	es1->usb_intf = interface;
 	es1->usb_dev = udev;
+	spin_lock_init(&es1->cport_out_urb_lock);
 	usb_set_intfdata(interface, es1);
 
 	/* Control endpoint is the pipe to talk to this AP, so save it off */
