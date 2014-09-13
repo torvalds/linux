@@ -259,13 +259,29 @@ static void uas_sense_old(struct urb *urb, struct scsi_cmnd *cmnd)
 	cmnd->result = sense_iu->status;
 }
 
+/*
+ * scsi-tags go from 0 - (nr_tags - 1), uas tags need to match stream-ids,
+ * which go from 1 - nr_streams. And we use 1 for untagged commands.
+ */
+static int uas_get_tag(struct scsi_cmnd *cmnd)
+{
+	int tag;
+
+	if (blk_rq_tagged(cmnd->request))
+		tag = cmnd->request->tag + 2;
+	else
+		tag = 1;
+
+	return tag;
+}
+
 static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 {
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd, "%s %p tag %d, inflight:"
 		    "%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
-		    caller, cmnd, cmnd->request->tag,
+		    caller, cmnd, uas_get_tag(cmnd),
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
 		    (ci->state & SUBMIT_DATA_IN_URB)    ? " s-in"  : "",
@@ -516,10 +532,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 		goto free;
 
 	iu->iu_id = IU_ID_COMMAND;
-	if (blk_rq_tagged(cmnd->request))
-		iu->tag = cpu_to_be16(cmnd->request->tag + 2);
-	else
-		iu->tag = cpu_to_be16(1);
+	iu->tag = cpu_to_be16(uas_get_tag(cmnd));
 	iu->prio_attr = UAS_SIMPLE_TAG;
 	iu->len = len;
 	int_to_scsilun(sdev->lun, &iu->lun);
@@ -690,17 +703,13 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	memset(cmdinfo, 0, sizeof(*cmdinfo));
 
-	if (blk_rq_tagged(cmnd->request)) {
-		cmdinfo->stream = cmnd->request->tag + 2;
-	} else {
+	if (!blk_rq_tagged(cmnd->request))
 		devinfo->cmnd = cmnd;
-		cmdinfo->stream = 1;
-	}
 
 	cmnd->scsi_done = done;
 
-	cmdinfo->state = SUBMIT_STATUS_URB |
-			ALLOC_CMD_URB | SUBMIT_CMD_URB;
+	cmdinfo->stream = uas_get_tag(cmnd);
+	cmdinfo->state = SUBMIT_STATUS_URB | ALLOC_CMD_URB | SUBMIT_CMD_URB;
 
 	switch (cmnd->sc_data_direction) {
 	case DMA_FROM_DEVICE:
