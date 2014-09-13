@@ -35,8 +35,8 @@ static unsigned int opal_irq_count;
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
-	const void *basep, *entryp;
-	unsigned long basesz, entrysz;
+	const void *basep, *entryp, *sizep;
+	int basesz, entrysz, runtimesz;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
@@ -50,10 +50,10 @@ int __init early_init_dt_scan_opal(unsigned long node,
 	opal.base = of_read_number(basep, basesz/4);
 	opal.entry = of_read_number(entryp, entrysz/4);
 
-	pr_debug("OPAL Base  = 0x%llx (basep=%p basesz=%ld)\n",
+	pr_debug("OPAL Base  = 0x%llx (basep=%p basesz=%d)\n",
 		 opal.base, basep, basesz);
-	pr_debug("OPAL Entry = 0x%llx (entryp=%p basesz=%ld)\n",
-		 opal.entry, entryp, entrysz);
+	pr_debug("OPAL Entry = 0x%llx (sizep=%p runtimesz=%d)\n",
+		 opal.size, sizep, runtimesz);
 
 	powerpc_firmware_features |= FW_FEATURE_OPAL;
 	if (of_flat_dt_is_compatible(node, "ibm,opal-v3")) {
@@ -105,7 +105,7 @@ int opal_get_chars(uint32_t vtermno, char *buf, int count)
 	opal_poll_events(&evt);
 	if ((evt & OPAL_EVENT_CONSOLE_INPUT) == 0)
 		return 0;
-	len = count;
+	len = cpu_to_be64(count);
 	rc = opal_console_read(vtermno, &len, buf);
 	if (rc == OPAL_SUCCESS)
 		return len;

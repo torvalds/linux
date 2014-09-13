@@ -250,9 +250,9 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
 					 void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	u32 *prop;
-	unsigned long size = 0;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *prop;
+	int size = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -306,9 +306,9 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	u32 *prop;
-	unsigned long size = 0;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *prop;
+	int size = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -389,9 +389,9 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 					const char *uname, int depth,
 					void *data) {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	unsigned long *addr_prop;
-	u32 *page_count_prop;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be64 *addr_prop;
+	const __be32 *page_count_prop;
 	unsigned int expected_pages;
 	long unsigned int phys_addr;
 	long unsigned int block_size;
@@ -533,8 +533,8 @@ static int __init htab_dt_scan_pftsize(unsigned long node,
 				       const char *uname, int depth,
 				       void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	u32 *prop;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *prop;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
