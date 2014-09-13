@@ -78,7 +78,8 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 static void uas_do_work(struct work_struct *work);
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller);
 static void uas_free_streams(struct uas_dev_info *devinfo);
-static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller);
+static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *prefix,
+				int status);
 
 static void uas_do_work(struct work_struct *work)
 {
@@ -139,7 +140,7 @@ static void uas_zap_pending(struct uas_dev_info *devinfo, int result)
 
 		cmnd = devinfo->cmnd[i];
 		cmdinfo = (void *)&cmnd->SCp;
-		uas_log_cmd_state(cmnd, __func__);
+		uas_log_cmd_state(cmnd, __func__, 0);
 		/* Sense urbs were killed, clear COMMAND_INFLIGHT manually */
 		cmdinfo->state &= ~COMMAND_INFLIGHT;
 		cmnd->result = result << 16;
@@ -188,13 +189,14 @@ static int uas_get_tag(struct scsi_cmnd *cmnd)
 	return tag;
 }
 
-static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
+static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *prefix,
+			      int status)
 {
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd,
-		    "%s tag %d inflight:%s%s%s%s%s%s%s%s%s%s%s%s ",
-		    caller, uas_get_tag(cmnd),
+		    "%s %d tag %d inflight:%s%s%s%s%s%s%s%s%s%s%s%s ",
+		    prefix, status, uas_get_tag(cmnd),
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
 		    (ci->state & SUBMIT_DATA_IN_URB)    ? " s-in"  : "",
@@ -295,7 +297,7 @@ static void uas_stat_cmplt(struct urb *urb)
 	cmdinfo = (void *)&cmnd->SCp;
 
 	if (!(cmdinfo->state & COMMAND_INFLIGHT)) {
-		scmd_printk(KERN_ERR, cmnd, "unexpected status cmplt\n");
+		uas_log_cmd_state(cmnd, "unexpected status cmplt", 0);
 		goto out;
 	}
 
@@ -313,7 +315,7 @@ static void uas_stat_cmplt(struct urb *urb)
 	case IU_ID_READ_READY:
 		if (!cmdinfo->data_in_urb ||
 				(cmdinfo->state & DATA_IN_URB_INFLIGHT)) {
-			scmd_printk(KERN_ERR, cmnd, "unexpected read rdy\n");
+			uas_log_cmd_state(cmnd, "unexpected read rdy", 0);
 			break;
 		}
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_IN_URB);
@@ -321,14 +323,13 @@ static void uas_stat_cmplt(struct urb *urb)
 	case IU_ID_WRITE_READY:
 		if (!cmdinfo->data_out_urb ||
 				(cmdinfo->state & DATA_OUT_URB_INFLIGHT)) {
-			scmd_printk(KERN_ERR, cmnd, "unexpected write rdy\n");
+			uas_log_cmd_state(cmnd, "unexpected write rdy", 0);
 			break;
 		}
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_OUT_URB);
 		break;
 	default:
-		scmd_printk(KERN_ERR, cmnd,
-			"Bogus IU (%d) received on status pipe\n", iu->iu_id);
+		uas_log_cmd_state(cmnd, "bogus IU", iu->iu_id);
 	}
 out:
 	usb_free_urb(urb);
@@ -374,17 +375,13 @@ static void uas_data_cmplt(struct urb *urb)
 
 	/* Data urbs should not complete before the cmd urb is submitted */
 	if (cmdinfo->state & SUBMIT_CMD_URB) {
-		scmd_printk(KERN_ERR, cmnd, "unexpected data cmplt\n");
+		uas_log_cmd_state(cmnd, "unexpected data cmplt", 0);
 		goto out;
 	}
 
 	if (urb->status) {
-		if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
-			uas_log_cmd_state(cmnd, __func__);
-			scmd_printk(KERN_ERR, cmnd,
-				"data cmplt err %d stream %d\n",
-				urb->status, urb->stream_id);
-		}
+		if (urb->status != -ENOENT && urb->status != -ECONNRESET)
+			uas_log_cmd_state(cmnd, "data cmplt err", urb->status);
 		/* error: no data transfered */
 		sdb->resid = sdb->length;
 	} else {
@@ -508,10 +505,7 @@ static struct urb *uas_submit_sense_urb(struct scsi_cmnd *cmnd,
 	err = usb_submit_urb(urb, gfp);
 	if (err) {
 		usb_unanchor_urb(urb);
-		uas_log_cmd_state(cmnd, __func__);
-		shost_printk(KERN_INFO, shost,
-			     "sense urb submission error %d stream %d\n",
-			     err, stream);
+		uas_log_cmd_state(cmnd, "sense submit err", err);
 		usb_free_urb(urb);
 		return NULL;
 	}
@@ -547,10 +541,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 		err = usb_submit_urb(cmdinfo->data_in_urb, gfp);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->data_in_urb);
-			uas_log_cmd_state(cmnd, __func__);
-			scmd_printk(KERN_INFO, cmnd,
-				"data in urb submission error %d stream %d\n",
-				err, cmdinfo->data_in_urb->stream_id);
+			uas_log_cmd_state(cmnd, "data in submit err", err);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->state &= ~SUBMIT_DATA_IN_URB;
@@ -571,10 +562,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 		err = usb_submit_urb(cmdinfo->data_out_urb, gfp);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->data_out_urb);
-			uas_log_cmd_state(cmnd, __func__);
-			scmd_printk(KERN_INFO, cmnd,
-				"data out urb submission error %d stream %d\n",
-				err, cmdinfo->data_out_urb->stream_id);
+			uas_log_cmd_state(cmnd, "data out submit err", err);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->state &= ~SUBMIT_DATA_OUT_URB;
@@ -593,9 +581,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 		err = usb_submit_urb(cmdinfo->cmd_urb, gfp);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->cmd_urb);
-			uas_log_cmd_state(cmnd, __func__);
-			scmd_printk(KERN_INFO, cmnd,
-				    "cmd urb submission error %d\n", err);
+			uas_log_cmd_state(cmnd, "cmd submit err", err);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->cmd_urb = NULL;
@@ -701,7 +687,7 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 
-	uas_log_cmd_state(cmnd, __func__);
+	uas_log_cmd_state(cmnd, __func__, 0);
 
 	/* Ensure that try_complete does not call scsi_done */
 	cmdinfo->state |= COMMAND_ABORTED;
