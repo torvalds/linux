@@ -674,7 +674,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 		 * that the requested op was completed
 		 * successfully
 		 */
-		udelay(10);
+		usleep_range(10, 20);
 		reg = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_id));
 		if (reg & I40E_VPGEN_VFRSTAT_VFRD_MASK) {
 			rsd = true;

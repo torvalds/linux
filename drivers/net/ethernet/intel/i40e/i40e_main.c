@@ -3440,7 +3440,7 @@ static int i40e_pf_txq_wait(struct i40e_pf *pf, int pf_q, bool enable)
 		if (enable == !!(tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
 			break;
 
-		udelay(10);
+		usleep_range(10, 20);
 	}
 	if (i >= I40E_QUEUE_WAIT_RETRY_LIMIT)
 		return -ETIMEDOUT;
@@ -3466,7 +3466,7 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		/* warn the TX unit of coming changes */
 		i40e_pre_tx_queue_cfg(&pf->hw, pf_q, enable);
 		if (!enable)
-			udelay(10);
+			usleep_range(10, 20);
 
 		for (j = 0; j < 50; j++) {
 			tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
@@ -3526,7 +3526,7 @@ static int i40e_pf_rxq_wait(struct i40e_pf *pf, int pf_q, bool enable)
 		if (enable == !!(rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
 			break;
 
-		udelay(10);
+		usleep_range(10, 20);
 	}
 	if (i >= I40E_QUEUE_WAIT_RETRY_LIMIT)
 		return -ETIMEDOUT;

@@ -1494,7 +1494,7 @@ static void i40evf_reset_task(struct work_struct *work)
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
 				&adapter->crit_section))
-		udelay(500);
+		usleep_range(500, 1000);
 
 	if (adapter->flags & I40EVF_FLAG_RESET_NEEDED) {
 		dev_info(&adapter->pdev->dev, "Requesting reset from PF\n");
@@ -1980,7 +1980,7 @@ static int i40evf_check_reset_complete(struct i40e_hw *hw)
 		if ((rstat == I40E_VFR_VFACTIVE) ||
 		    (rstat == I40E_VFR_COMPLETED))
 			return 0;
-		udelay(10);
+		usleep_range(10, 20);
 	}
 	return -EBUSY;
 }
