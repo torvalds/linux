@@ -167,6 +167,13 @@ static __u8 *nci_extract_rf_params_nfcv_passive_poll(struct nci_dev *ndev,
 	return data;
 }
 
+__u32 nci_get_prop_rf_protocol(struct nci_dev *ndev, __u8 rf_protocol)
+{
+	if (ndev->ops->get_rfprotocol)
+		return ndev->ops->get_rfprotocol(ndev, rf_protocol);
+	return 0;
+}
+
 static int nci_add_new_protocol(struct nci_dev *ndev,
 				struct nfc_target *target,
 				__u8 rf_protocol,
@@ -195,7 +202,7 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 	else if (rf_protocol == NCI_RF_PROTOCOL_T5T)
 		protocol = NFC_PROTO_ISO15693_MASK;
 	else
-		protocol = 0;
+		protocol = nci_get_prop_rf_protocol(ndev, rf_protocol);
 
 	if (!(protocol & ndev->poll_prots)) {
 		pr_err("the target found does not have the desired protocol\n");

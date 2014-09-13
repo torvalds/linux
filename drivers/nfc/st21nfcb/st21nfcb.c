@@ -25,6 +25,8 @@
 
 #define DRIVER_DESC "NCI NFC driver for ST21NFCB"
 
+#define ST21NFCB_NCI1_X_PROPRIETARY_ISO15693 0x83
+
 static int st21nfcb_nci_open(struct nci_dev *ndev)
 {
 	struct st21nfcb_nci_info *info = nci_get_drvdata(ndev);
@@ -64,10 +66,18 @@ static int st21nfcb_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 	return ndlc_send(info->ndlc, skb);
 }
 
+static __u32 st21nfcb_nci_get_rfprotocol(struct nci_dev *ndev,
+					 __u8 rf_protocol)
+{
+	return rf_protocol == ST21NFCB_NCI1_X_PROPRIETARY_ISO15693 ?
+		NFC_PROTO_ISO15693_MASK : 0;
+}
+
 static struct nci_ops st21nfcb_nci_ops = {
 	.open = st21nfcb_nci_open,
 	.close = st21nfcb_nci_close,
 	.send = st21nfcb_nci_send,
+	.get_rfprotocol = st21nfcb_nci_get_rfprotocol,
 };
 
 int st21nfcb_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
