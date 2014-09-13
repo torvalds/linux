@@ -520,9 +520,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
 	em28xx_info("Config register raw data: 0x%02x\n", cfg);
-	if (cfg < 0) {
-		/* Register read error?  */
-		cfg = EM28XX_CHIPCFG_AC97; /* Be conservative */
+	if (cfg < 0) { /* Register read error */
+		/* Be conservative */
 		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) == 0x00) {
 		/* The device doesn't have vendor audio at all */
