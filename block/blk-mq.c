@@ -525,9 +525,15 @@ struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
-static enum blk_eh_timer_return blk_mq_rq_timed_out(struct request *rq)
+struct blk_mq_timeout_data {
+	unsigned long next;
+	unsigned int next_set;
+};
+
+static void blk_mq_rq_timed_out(struct request *req)
 {
-	struct request_queue *q = rq->q;
+	struct blk_mq_ops *ops = req->q->mq_ops;
+	enum blk_eh_timer_return ret = BLK_EH_RESET_TIMER;
 
 	/*
 	 * We know that complete is set at this point. If STARTED isn't set
@@ -538,27 +544,43 @@ static enum blk_eh_timer_return blk_mq_rq_timed_out(struct request *rq)
 	 * we both flags will get cleared. So check here again, and ignore
 	 * a timeout event with a request that isn't active.
 	 */
-	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
-		return BLK_EH_NOT_HANDLED;
+	if (!test_bit(REQ_ATOM_STARTED, &req->atomic_flags))
+		return;
 
-	if (!q->mq_ops->timeout)
-		return BLK_EH_RESET_TIMER;
+	if (ops->timeout)
+		ret = ops->timeout(req);
 
-	return q->mq_ops->timeout(rq);
+	switch (ret) {
+	case BLK_EH_HANDLED:
+		__blk_mq_complete_request(req);
+		break;
+	case BLK_EH_RESET_TIMER:
+		blk_add_timer(req);
+		blk_clear_rq_complete(req);
+		break;
+	case BLK_EH_NOT_HANDLED:
+		break;
+	default:
+		printk(KERN_ERR "block: bad eh return: %d\n", ret);
+		break;
+	}
 }
 		
-struct blk_mq_timeout_data {
-	unsigned long next;
-	unsigned int next_set;
-};
-
 static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 		struct request *rq, void *priv, bool reserved)
 {
 	struct blk_mq_timeout_data *data = priv;
 
-	if (test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
-		blk_rq_check_expired(rq, &data->next, &data->next_set);
+	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+		return;
+
+	if (time_after_eq(jiffies, rq->deadline)) {
+		if (!blk_mark_rq_complete(rq))
+			blk_mq_rq_timed_out(rq);
+	} else if (!data->next_set || time_after(data->next, rq->deadline)) {
+		data->next = rq->deadline;
+		data->next_set = 1;
+	}
 }
 
 static void blk_mq_rq_timer(unsigned long priv)
@@ -1781,7 +1803,6 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	else
 		blk_queue_make_request(q, blk_sq_make_request);
 
-	blk_queue_rq_timed_out(q, blk_mq_rq_timed_out);
 	if (set->timeout)
 		blk_queue_rq_timeout(q, set->timeout);
 

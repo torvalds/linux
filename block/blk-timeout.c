@@ -7,7 +7,6 @@
 #include <linux/fault-inject.h>
 
 #include "blk.h"
-#include "blk-mq.h"
 
 #ifdef CONFIG_FAIL_IO_TIMEOUT
 
@@ -90,10 +89,7 @@ static void blk_rq_timed_out(struct request *req)
 	switch (ret) {
 	case BLK_EH_HANDLED:
 		/* Can we use req->errors here? */
-		if (q->mq_ops)
-			__blk_mq_complete_request(req);
-		else
-			__blk_complete_request(req);
+		__blk_complete_request(req);
 		break;
 	case BLK_EH_RESET_TIMER:
 		blk_add_timer(req);
@@ -113,7 +109,7 @@ static void blk_rq_timed_out(struct request *req)
 	}
 }
 
-void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout,
+static void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout,
 			  unsigned int *next_set)
 {
 	if (time_after_eq(jiffies, rq->deadline)) {
