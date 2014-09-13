@@ -264,6 +264,14 @@ static int i40e_get_settings(struct net_device *netdev,
 			ecmd->supported = SUPPORTED_10000baseKR_Full;
 			ecmd->advertising = ADVERTISED_10000baseKR_Full;
 			break;
+		case I40E_DEV_ID_10G_BASE_T:
+			ecmd->supported = SUPPORTED_10000baseT_Full |
+					  SUPPORTED_1000baseT_Full |
+					  SUPPORTED_100baseT_Full;
+			ecmd->advertising = ADVERTISED_10000baseT_Full |
+					    ADVERTISED_1000baseT_Full |
+					    ADVERTISED_100baseT_Full;
+			break;
 		default:
 			/* all the rest are 10G/1G */
 			ecmd->supported = SUPPORTED_10000baseT_Full |
@@ -322,9 +330,13 @@ static int i40e_get_settings(struct net_device *netdev,
 	case I40E_PHY_TYPE_10GBASE_CR1:
 	case I40E_PHY_TYPE_10GBASE_T:
 		ecmd->supported = SUPPORTED_Autoneg |
-				  SUPPORTED_10000baseT_Full;
+				  SUPPORTED_10000baseT_Full |
+				  SUPPORTED_1000baseT_Full |
+				  SUPPORTED_100baseT_Full;
 		ecmd->advertising = ADVERTISED_Autoneg |
-				    ADVERTISED_10000baseT_Full;
+				    ADVERTISED_10000baseT_Full |
+				    ADVERTISED_1000baseT_Full |
+				    ADVERTISED_100baseT_Full;
 		break;
 	case I40E_PHY_TYPE_XAUI:
 	case I40E_PHY_TYPE_XFI:
@@ -335,14 +347,22 @@ static int i40e_get_settings(struct net_device *netdev,
 	case I40E_PHY_TYPE_1000BASE_KX:
 	case I40E_PHY_TYPE_1000BASE_T:
 		ecmd->supported = SUPPORTED_Autoneg |
-				  SUPPORTED_1000baseT_Full;
+				  SUPPORTED_10000baseT_Full |
+				  SUPPORTED_1000baseT_Full |
+				  SUPPORTED_100baseT_Full;
 		ecmd->advertising = ADVERTISED_Autoneg |
-				    ADVERTISED_1000baseT_Full;
+				    ADVERTISED_10000baseT_Full |
+				    ADVERTISED_1000baseT_Full |
+				    ADVERTISED_100baseT_Full;
 		break;
 	case I40E_PHY_TYPE_100BASE_TX:
 		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_10000baseT_Full |
+				  SUPPORTED_1000baseT_Full |
 				  SUPPORTED_100baseT_Full;
 		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_10000baseT_Full |
+				    ADVERTISED_1000baseT_Full |
 				    ADVERTISED_100baseT_Full;
 		break;
 	case I40E_PHY_TYPE_SGMII:
@@ -425,6 +445,9 @@ no_valid_phy_type:
 			break;
 		case I40E_LINK_SPEED_1GB:
 			ethtool_cmd_speed_set(ecmd, SPEED_1000);
+			break;
+		case I40E_LINK_SPEED_100MB:
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 			break;
 		default:
 			break;
@@ -528,7 +551,7 @@ static int i40e_set_settings(struct net_device *netdev,
 		}
 		/* If autoneg is currently enabled */
 		if (hw->phy.link_info.an_info & I40E_AQ_AN_COMPLETED) {
-			config.abilities = abilities.abilities |
+			config.abilities = abilities.abilities &
 					   ~I40E_AQ_PHY_ENABLE_AN;
 			change = true;
 		}
