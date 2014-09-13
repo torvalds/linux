@@ -83,167 +83,33 @@ static void free_gbuf(struct gbuf *gbuf)
 	kfree(buffer);
 }
 
-static struct svc_msg *svc_msg_alloc(enum svc_function_type type)
-{
-	struct svc_msg *svc_msg;
-
-	svc_msg = kzalloc((sizeof *svc_msg), GFP_KERNEL);
-	if (!svc_msg)
-		return NULL;
-
-	// FIXME - verify we are only sending message types we should be
-	svc_msg->header.type = type;
-	return svc_msg;
-}
-
-static void svc_msg_free(struct svc_msg *svc_msg)
-{
-	kfree(svc_msg);
-}
-
-static int svc_msg_send(struct svc_msg *svc_msg)
-{
-	// FIXME - Do something with this message!
-
-
-	svc_msg_free(svc_msg);
-	return 0;
-}
-
-
-static void svc_handshake(struct svc_function_handshake *handshake,
-			  struct es1_ap_dev *es1)
-{
-	struct svc_msg *svc_msg;
-
-	/* A new SVC communication channel, let's verify it was for us */
-	if (handshake->handshake_type != SVC_HANDSHAKE_SVC_HELLO) {
-		/* we don't know what to do with this, log it and return */
-		dev_dbg(&es1->usb_intf->dev,
-			"received invalid handshake type %d\n",
-			handshake->handshake_type);
-		return;
-	}
-
-	/* Send back a AP_HELLO message */
-	svc_msg = svc_msg_alloc(SVC_FUNCTION_HANDSHAKE);
-	if (!svc_msg)
-		return;
-
-	svc_msg->handshake.handshake_type = SVC_HANDSHAKE_AP_HELLO;
-	svc_msg_send(svc_msg);
-}
-
-static void svc_management(struct svc_function_unipro_management *management,
-			   struct es1_ap_dev *es1)
-{
-	/* What?  An AP should not get this message */
-	dev_err(&es1->usb_intf->dev, "Got an svc management message???\n");
-}
-
-static void svc_hotplug(struct svc_function_hotplug *hotplug,
-			struct es1_ap_dev *es1)
-{
-	u8 module_id = hotplug->module_id;
-
-	switch (hotplug->hotplug_event) {
-	case SVC_HOTPLUG_EVENT:
-		dev_dbg(&es1->usb_intf->dev, "module id %d added\n",
-			module_id);
-		// FIXME - add the module to the system
-		break;
-
-	case SVC_HOTUNPLUG_EVENT:
-		dev_dbg(&es1->usb_intf->dev, "module id %d removed\n",
-			module_id);
-		// FIXME - remove the module from the system
-		break;
-
-	default:
-		dev_err(&es1->usb_intf->dev, "received invalid hotplug message type %d\n",
-			hotplug->hotplug_event);
-		break;
-	}
-}
-
-static void svc_ddb(struct svc_function_ddb *ddb, struct es1_ap_dev *es1)
-{
-	/* What?  An AP should not get this message */
-	dev_err(&es1->usb_intf->dev, "Got an svc DDB message???\n");
-}
-
-static void svc_power(struct svc_function_power *power, struct es1_ap_dev *es1)
-{
-	u8 module_id = power->module_id;
-
-	if (power->power_type != SVC_POWER_BATTERY_STATUS) {
-		dev_err(&es1->usb_intf->dev, "received invalid power type %d\n",
-			power->power_type);
-		return;
-	}
-
-	dev_dbg(&es1->usb_intf->dev, "power status for module id %d is %d\n",
-		module_id, power->status.status);
-
-	// FIXME - do something with the power information, like update our
-	// battery information...
-}
-
-static void svc_epm(struct svc_function_epm *epm, struct es1_ap_dev *es1)
-{
-	/* What?  An AP should not get this message */
-	dev_err(&es1->usb_intf->dev, "Got an EPM message???\n");
-}
-
-static void svc_suspend(struct svc_function_suspend *suspend,
-			struct es1_ap_dev *es1)
-{
-	/* What?  An AP should not get this message */
-	dev_err(&es1->usb_intf->dev, "Got an suspend message???\n");
-}
-
-/* Main message loop for ap messages */
-/* Odds are, most of this logic can move to core.c someday, but as we only have
- * one host controller driver for now, let's leave it here */
-static void ap_msg(struct svc_msg *svc_msg, struct greybus_host_device *hd)
+#define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
+static int send_svc_msg(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
+	int retval;
 
-	/* Look at the message to figure out what to do with it */
-	switch (svc_msg->header.type) {
-	case SVC_FUNCTION_HANDSHAKE:
-		svc_handshake(&svc_msg->handshake, es1);
-		break;
-	case SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT:
-		svc_management(&svc_msg->management, es1);
-		break;
-	case SVC_FUNCTION_HOTPLUG:
-		svc_hotplug(&svc_msg->hotplug, es1);
-		break;
-	case SVC_FUNCTION_DDB:
-		svc_ddb(&svc_msg->ddb, es1);
-		break;
-	case SVC_FUNCTION_POWER:
-		svc_power(&svc_msg->power, es1);
-		break;
-	case SVC_FUNCTION_EPM:
-		svc_epm(&svc_msg->epm, es1);
-		break;
-	case SVC_FUNCTION_SUSPEND:
-		svc_suspend(&svc_msg->suspend, es1);
-		break;
-	default:
-		dev_err(&es1->usb_intf->dev, "received invalid SVC message type %d\n",
-			svc_msg->header.type);
-	}
+	/* SVC messages go down our control pipe */
+	retval = usb_control_msg(es1->usb_dev,
+				 usb_sndctrlpipe(es1->usb_dev,
+						 es1->control_endpoint),
+				 0x01,	/* vendor request AP message */
+				 USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+				 0x00, 0x00,
+				 (char *)svc_msg,
+				 sizeof(*svc_msg),
+				 ES1_TIMEOUT);
+	if (retval != sizeof(*svc_msg))
+		return retval;
+
+	return 0;
 }
-
 
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size = sizeof(struct es1_ap_dev),
 	.alloc_gbuf = alloc_gbuf,
 	.free_gbuf = free_gbuf,
-	.ap_msg = ap_msg,
+	.send_svc_msg = send_svc_msg,
 };
 
 /* Callback for when we get a SVC message */

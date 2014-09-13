@@ -32,6 +32,127 @@ static spinlock_t ap_msg_list_lock;
 static struct task_struct *ap_thread;
 static wait_queue_head_t ap_wait;
 
+static struct svc_msg *svc_msg_alloc(enum svc_function_type type)
+{
+	struct svc_msg *svc_msg;
+
+	svc_msg = kzalloc((sizeof *svc_msg), GFP_KERNEL);
+	if (!svc_msg)
+		return NULL;
+
+	// FIXME - verify we are only sending message types we should be
+	svc_msg->header.type = type;
+	return svc_msg;
+}
+
+static void svc_msg_free(struct svc_msg *svc_msg)
+{
+	kfree(svc_msg);
+}
+
+static int svc_msg_send(struct svc_msg *svc_msg, struct greybus_host_device *hd)
+{
+	int retval;
+
+	// FIXME - Do we need to do more than just pass it to the hd and then
+	// free it?
+	retval = hd->driver->send_svc_msg(svc_msg, hd);
+
+	svc_msg_free(svc_msg);
+	return retval;
+}
+
+
+static void svc_handshake(struct svc_function_handshake *handshake,
+			  struct greybus_host_device *hd)
+{
+	struct svc_msg *svc_msg;
+
+	/* A new SVC communication channel, let's verify it was for us */
+	if (handshake->handshake_type != SVC_HANDSHAKE_SVC_HELLO) {
+		/* we don't know what to do with this, log it and return */
+		dev_dbg(&hd->dev, "received invalid handshake type %d\n",
+			handshake->handshake_type);
+		return;
+	}
+
+	/* Send back a AP_HELLO message */
+	svc_msg = svc_msg_alloc(SVC_FUNCTION_HANDSHAKE);
+	if (!svc_msg)
+		return;
+
+	svc_msg->handshake.handshake_type = SVC_HANDSHAKE_AP_HELLO;
+	svc_msg_send(svc_msg, hd);
+}
+
+static void svc_management(struct svc_function_unipro_management *management,
+			   struct greybus_host_device *hd)
+{
+	/* What?  An AP should not get this message */
+	dev_err(&hd->dev, "Got an svc management message???\n");
+}
+
+static void svc_hotplug(struct svc_function_hotplug *hotplug,
+			struct greybus_host_device *hd)
+{
+	u8 module_id = hotplug->module_id;
+
+	switch (hotplug->hotplug_event) {
+	case SVC_HOTPLUG_EVENT:
+		dev_dbg(&hd->dev, "module id %d added\n", module_id);
+		// FIXME - add the module to the system
+		break;
+
+	case SVC_HOTUNPLUG_EVENT:
+		dev_dbg(&hd->dev, "module id %d removed\n", module_id);
+		// FIXME - remove the module from the system
+		break;
+
+	default:
+		dev_err(&hd->dev, "received invalid hotplug message type %d\n",
+			hotplug->hotplug_event);
+		break;
+	}
+}
+
+static void svc_ddb(struct svc_function_ddb *ddb,
+		    struct greybus_host_device *hd)
+{
+	/* What?  An AP should not get this message */
+	dev_err(&hd->dev, "Got an svc DDB message???\n");
+}
+
+static void svc_power(struct svc_function_power *power,
+		      struct greybus_host_device *hd)
+{
+	u8 module_id = power->module_id;
+
+	if (power->power_type != SVC_POWER_BATTERY_STATUS) {
+		dev_err(&hd->dev, "received invalid power type %d\n",
+			power->power_type);
+		return;
+	}
+
+	dev_dbg(&hd->dev, "power status for module id %d is %d\n",
+		module_id, power->status.status);
+
+	// FIXME - do something with the power information, like update our
+	// battery information...
+}
+
+static void svc_epm(struct svc_function_epm *epm,
+		    struct greybus_host_device *hd)
+{
+	/* What?  An AP should not get this message */
+	dev_err(&hd->dev, "Got an EPM message???\n");
+}
+
+static void svc_suspend(struct svc_function_suspend *suspend,
+			struct greybus_host_device *hd)
+{
+	/* What?  An AP should not get this message */
+	dev_err(&hd->dev, "Got an suspend message???\n");
+}
 
 static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
 {
@@ -43,15 +164,61 @@ static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
 
 	svc_msg = (struct svc_msg *)ap_msg->data;
 
-	// FIXME - put in correct version numbers
-	if ((svc_msg->header.version_major != 0x00) &&
-	    (svc_msg->header.version_minor != 0x00))
+	/* Verify the version is something we can handle with this code */
+	if ((svc_msg->header.version_major != GREYBUS_VERSION_MAJOR) &&
+	    (svc_msg->header.version_minor != GREYBUS_VERSION_MINOR))
 		return NULL;
 
 	return svc_msg;
 }
 
+static void process_ap_message(struct ap_msg *ap_msg)
+{
+	struct svc_msg *svc_msg;
+	struct greybus_host_device *hd;
 
+	/* Turn the "raw" data into a real message */
+	svc_msg = convert_ap_message(ap_msg);
+	if (!svc_msg) {
+		// FIXME log an error???
+		return;
+	}
+
+	hd = ap_msg->hd;
+
+	/* Pass the message to the host controller */
+//	ap_msg->hd->driver->ap_msg(svc_msg, ap_msg->hd);
+
+	/* Look at the message to figure out what to do with it */
+	switch (svc_msg->header.type) {
+	case SVC_FUNCTION_HANDSHAKE:
+		svc_handshake(&svc_msg->handshake, hd);
+		break;
+	case SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT:
+		svc_management(&svc_msg->management, hd);
+		break;
+	case SVC_FUNCTION_HOTPLUG:
+		svc_hotplug(&svc_msg->hotplug, hd);
+		break;
+	case SVC_FUNCTION_DDB:
+		svc_ddb(&svc_msg->ddb, hd);
+		break;
+	case SVC_FUNCTION_POWER:
+		svc_power(&svc_msg->power, hd);
+		break;
+	case SVC_FUNCTION_EPM:
+		svc_epm(&svc_msg->epm, hd);
+		break;
+	case SVC_FUNCTION_SUSPEND:
+		svc_suspend(&svc_msg->suspend, hd);
+		break;
+	default:
+		dev_err(&hd->dev, "received invalid SVC message type %d\n",
+			svc_msg->header.type);
+	}
+
+
+}
 
 static struct ap_msg *get_ap_msg(void)
 {
@@ -71,7 +238,6 @@ static struct ap_msg *get_ap_msg(void)
 static int ap_process_loop(void *data)
 {
 	struct ap_msg *ap_msg;
-	struct svc_msg *svc_msg;
 
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(ap_wait, kthread_should_stop());
@@ -84,12 +250,7 @@ static int ap_process_loop(void *data)
 		if (!ap_msg)
 			continue;
 
-		/* Turn the "raw" data into a real message */
-		svc_msg = convert_ap_message(ap_msg);
-		if (svc_msg) {
-			/* Pass the message to the host controller */
-			ap_msg->hd->driver->ap_msg(svc_msg, ap_msg->hd);
-		}
+		process_ap_message(ap_msg);
 
 		/* clean the message up */
 		kfree(ap_msg->data);

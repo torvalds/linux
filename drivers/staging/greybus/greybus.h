@@ -19,6 +19,10 @@
 #include "greybus_manifest.h"
 
 
+/* Matches up with the Greybus Protocol specification document */
+#define GREYBUS_VERSION_MAJOR	0x01
+#define GREYBUS_VERSION_MINOR	0x00
+
 #define GREYBUS_DEVICE_ID_MATCH_DEVICE \
 		(GREYBUS_DEVICE_ID_MATCH_VENDOR | GREYBUS_DEVICE_ID_MATCH_PRODUCT)
 
@@ -104,11 +108,12 @@ struct greybus_host_driver {
 	int (*start)(struct greybus_host_device *hd);
 	int (*alloc_gbuf)(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask);
 	void (*free_gbuf)(struct gbuf *gbuf);
-	void (*ap_msg)(struct svc_msg *svc_msg, struct greybus_host_device *hd);
+	int (*send_svc_msg)(struct svc_msg *svc_msg, struct greybus_host_device *hd);
 };
 
 struct greybus_host_device {
-	struct kref	kref;
+	struct device dev;
+	struct kref kref;
 	const struct greybus_host_driver *driver;
 	unsigned long hd_priv_size;
 
