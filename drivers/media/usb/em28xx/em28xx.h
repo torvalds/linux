@@ -309,13 +309,7 @@ enum em28xx_ac97_mode {
 
 struct em28xx_audio_mode {
 	enum em28xx_ac97_mode ac97;
-
-	u16 ac97_feat;
-	u32 ac97_vendor_id;
-
 	unsigned int has_audio:1;
-
-	u8 i2s_samplerates;
 };
 
 /* em28xx has two audio inputs: tuner and line in.
