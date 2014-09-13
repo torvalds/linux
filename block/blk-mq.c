@@ -525,58 +525,6 @@ struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
-struct blk_mq_timeout_data {
-	struct blk_mq_hw_ctx *hctx;
-	unsigned long *next;
-	unsigned int *next_set;
-};
-
-static void blk_mq_timeout_check(void *__data, unsigned long *free_tags)
-{
-	struct blk_mq_timeout_data *data = __data;
-	struct blk_mq_hw_ctx *hctx = data->hctx;
-	unsigned int tag;
-
-	 /* It may not be in flight yet (this is where
-	 * the REQ_ATOMIC_STARTED flag comes in). The requests are
-	 * statically allocated, so we know it's always safe to access the
-	 * memory associated with a bit offset into ->rqs[].
-	 */
-	tag = 0;
-	do {
-		struct request *rq;
-
-		tag = find_next_zero_bit(free_tags, hctx->tags->nr_tags, tag);
-		if (tag >= hctx->tags->nr_tags)
-			break;
-
-		rq = blk_mq_tag_to_rq(hctx->tags, tag++);
-		if (rq->q != hctx->queue)
-			continue;
-		if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
-			continue;
-
-		blk_rq_check_expired(rq, data->next, data->next_set);
-	} while (1);
-}
-
-static void blk_mq_hw_ctx_check_timeout(struct blk_mq_hw_ctx *hctx,
-					unsigned long *next,
-					unsigned int *next_set)
-{
-	struct blk_mq_timeout_data data = {
-		.hctx		= hctx,
-		.next		= next,
-		.next_set	= next_set,
-	};
-
-	/*
-	 * Ask the tagging code to iterate busy requests, so we can
-	 * check them for timeout.
-	 */
-	blk_mq_tag_busy_iter(hctx->tags, blk_mq_timeout_check, &data);
-}
-
 static enum blk_eh_timer_return blk_mq_rq_timed_out(struct request *rq)
 {
 	struct request_queue *q = rq->q;
@@ -598,13 +546,30 @@ static enum blk_eh_timer_return blk_mq_rq_timed_out(struct request *rq)
 
 	return q->mq_ops->timeout(rq);
 }
+		
+struct blk_mq_timeout_data {
+	unsigned long next;
+	unsigned int next_set;
+};
 
-static void blk_mq_rq_timer(unsigned long data)
+static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
+		struct request *rq, void *priv, bool reserved)
 {
-	struct request_queue *q = (struct request_queue *) data;
+	struct blk_mq_timeout_data *data = priv;
+
+	if (test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+		blk_rq_check_expired(rq, &data->next, &data->next_set);
+}
+
+static void blk_mq_rq_timer(unsigned long priv)
+{
+	struct request_queue *q = (struct request_queue *)priv;
+	struct blk_mq_timeout_data data = {
+		.next		= 0,
+		.next_set	= 0,
+	};
 	struct blk_mq_hw_ctx *hctx;
-	unsigned long next = 0;
-	int i, next_set = 0;
+	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		/*
@@ -614,12 +579,12 @@ static void blk_mq_rq_timer(unsigned long data)
 		if (!hctx->nr_ctx || !hctx->tags)
 			continue;
 
-		blk_mq_hw_ctx_check_timeout(hctx, &next, &next_set);
+		blk_mq_tag_busy_iter(hctx, blk_mq_check_expired, &data);
 	}
 
-	if (next_set) {
-		next = blk_rq_timeout(round_jiffies_up(next));
-		mod_timer(&q->timeout, next);
+	if (data.next_set) {
+		data.next = blk_rq_timeout(round_jiffies_up(data.next));
+		mod_timer(&q->timeout, data.next);
 	} else {
 		queue_for_each_hw_ctx(q, hctx, i)
 			blk_mq_tag_idle(hctx);
