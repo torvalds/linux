@@ -352,5 +352,4 @@ MACHINE_START(QT2410, "QT2410")
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= qt2410_machine_init,
 	.init_time	= qt2410_init_time,
-	.restart	= s3c2410_restart,
 MACHINE_END

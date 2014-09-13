@@ -42,7 +42,6 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/nand-core.h>
-#include <plat/watchdog-reset.h>
 
 #include "common.h"
 #include "regs-dsc.h"
@@ -137,14 +136,3 @@ struct syscore_ops s3c244x_pm_syscore_ops = {
 	.suspend	= s3c244x_suspend,
 	.resume		= s3c244x_resume,
 };
-
-void s3c244x_restart(enum reboot_mode mode, const char *cmd)
-{
-	if (mode == REBOOT_SOFT)
-		soft_restart(0);
-
-	samsung_wdt_reset();
-
-	/* we'll take a jump through zero as a poor second */
-	soft_restart(0);
-}

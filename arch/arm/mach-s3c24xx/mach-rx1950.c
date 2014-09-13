@@ -812,5 +812,4 @@ MACHINE_START(RX1950, "HP iPAQ RX1950")
 	.init_irq	= s3c2442_init_irq,
 	.init_machine = rx1950_init_machine,
 	.init_time	= rx1950_init_time,
-	.restart	= s3c244x_restart,
 MACHINE_END

@@ -340,5 +340,4 @@ MACHINE_START(VR1000, "Thorcom-VR1000")
 	.init_machine	= vr1000_init,
 	.init_irq	= s3c2410_init_irq,
 	.init_time	= vr1000_init_time,
-	.restart	= s3c2410_restart,
 MACHINE_END
