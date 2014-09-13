@@ -384,7 +384,7 @@ void blk_mq_complete_request(struct request *rq)
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
-static void blk_mq_start_request(struct request *rq)
+void blk_mq_start_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
@@ -422,16 +422,18 @@ static void blk_mq_start_request(struct request *rq)
 		rq->nr_phys_segments++;
 	}
 }
+EXPORT_SYMBOL(blk_mq_start_request);
 
 static void __blk_mq_requeue_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
 	trace_block_rq_requeue(q, rq);
-	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
 
-	if (q->dma_drain_size && blk_rq_bytes(rq))
-		rq->nr_phys_segments--;
+	if (test_and_clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags)) {
+		if (q->dma_drain_size && blk_rq_bytes(rq))
+			rq->nr_phys_segments--;
+	}
 }
 
 void blk_mq_requeue_request(struct request *rq)
@@ -742,8 +744,6 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 
 		rq = list_first_entry(&rq_list, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-
-		blk_mq_start_request(rq);
 
 		ret = q->mq_ops->queue_rq(hctx, rq, list_empty(&rq_list));
 		switch (ret) {
@@ -1186,7 +1186,6 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		int ret;
 
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_start_request(rq);
 
 		/*
 		 * For OK queue, we are done. For error, kill it. Any other

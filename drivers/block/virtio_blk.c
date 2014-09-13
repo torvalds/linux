@@ -205,6 +205,8 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req,
 		}
 	}
 
+	blk_mq_start_request(req);
+
 	num = blk_rq_map_sg(hctx->queue, vbr->req, vbr->sg);
 	if (num) {
 		if (rq_data_dir(vbr->req) == WRITE)

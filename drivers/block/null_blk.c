@@ -321,6 +321,8 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	cmd->rq = rq;
 	cmd->nq = hctx->driver_data;
 
+	blk_mq_start_request(rq);
+
 	null_handle_cmd(cmd);
 	return BLK_MQ_RQ_QUEUE_OK;
 }

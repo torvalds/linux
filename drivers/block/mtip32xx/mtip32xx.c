@@ -3783,6 +3783,8 @@ static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	if (unlikely(mtip_check_unal_depth(hctx, rq)))
 		return BLK_MQ_RQ_QUEUE_BUSY;
 
+	blk_mq_start_request(rq);
+
 	ret = mtip_submit_request(hctx, rq);
 	if (likely(!ret))
 		return BLK_MQ_RQ_QUEUE_OK;

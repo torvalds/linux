@@ -1890,6 +1890,7 @@ static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req,
 	scsi_init_cmd_errh(cmd);
 	cmd->scsi_done = scsi_mq_done;
 
+	blk_mq_start_request(req);
 	reason = scsi_dispatch_cmd(cmd);
 	if (reason) {
 		scsi_set_blocked(cmd, reason);
