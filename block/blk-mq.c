@@ -384,7 +384,7 @@ void blk_mq_complete_request(struct request *rq)
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
-static void blk_mq_start_request(struct request *rq, bool last)
+static void blk_mq_start_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
@@ -421,16 +421,6 @@ static void blk_mq_start_request(struct request *rq, bool last)
 		 */
 		rq->nr_phys_segments++;
 	}
-
-	/*
-	 * Flag the last request in the series so that drivers know when IO
-	 * should be kicked off, if they don't do it on a per-request basis.
-	 *
-	 * Note: the flag isn't the only condition drivers should do kick off.
-	 * If drive is busy, the last request might not have the bit set.
-	 */
-	if (last)
-		rq->cmd_flags |= REQ_END;
 }
 
 static void __blk_mq_requeue_request(struct request *rq)
@@ -439,8 +429,6 @@ static void __blk_mq_requeue_request(struct request *rq)
 
 	trace_block_rq_requeue(q, rq);
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
-
-	rq->cmd_flags &= ~REQ_END;
 
 	if (q->dma_drain_size && blk_rq_bytes(rq))
 		rq->nr_phys_segments--;
@@ -755,9 +743,9 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 		rq = list_first_entry(&rq_list, struct request, queuelist);
 		list_del_init(&rq->queuelist);
 
-		blk_mq_start_request(rq, list_empty(&rq_list));
+		blk_mq_start_request(rq);
 
-		ret = q->mq_ops->queue_rq(hctx, rq);
+		ret = q->mq_ops->queue_rq(hctx, rq, list_empty(&rq_list));
 		switch (ret) {
 		case BLK_MQ_RQ_QUEUE_OK:
 			queued++;
@@ -1198,14 +1186,14 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		int ret;
 
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_start_request(rq, true);
+		blk_mq_start_request(rq);
 
 		/*
 		 * For OK queue, we are done. For error, kill it. Any other
 		 * error (busy), just add it to our list as we previously
 		 * would have done
 		 */
-		ret = q->mq_ops->queue_rq(data.hctx, rq);
+		ret = q->mq_ops->queue_rq(data.hctx, rq, true);
 		if (ret == BLK_MQ_RQ_QUEUE_OK)
 			goto done;
 		else {
