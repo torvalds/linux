@@ -318,10 +318,7 @@ static void uas_stat_cmplt(struct urb *urb)
 		goto out;
 
 	if (urb->status) {
-		if (urb->status == -ENOENT) {
-			dev_err(&urb->dev->dev, "stat urb: killed, stream %d\n",
-				urb->stream_id);
-		} else {
+		if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
 			dev_err(&urb->dev->dev, "stat urb: status %d\n",
 				urb->status);
 		}
@@ -428,7 +425,7 @@ static void uas_data_cmplt(struct urb *urb)
 	}
 
 	if (urb->status) {
-		if (urb->status != -ECONNRESET) {
+		if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
 			uas_log_cmd_state(cmnd, __func__);
 			scmd_printk(KERN_ERR, cmnd,
 				"data cmplt err %d stream %d\n",
