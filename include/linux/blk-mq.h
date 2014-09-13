@@ -79,6 +79,7 @@ struct blk_mq_tag_set {
 
 typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, struct request *, bool);
 typedef struct blk_mq_hw_ctx *(map_queue_fn)(struct request_queue *, const int);
+typedef enum blk_eh_timer_return (timeout_fn)(struct request *, bool);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (init_request_fn)(void *, struct request *, unsigned int,
@@ -103,7 +104,7 @@ struct blk_mq_ops {
 	/*
 	 * Called on request timeout
 	 */
-	rq_timed_out_fn		*timeout;
+	timeout_fn		*timeout;
 
 	softirq_done_fn		*complete;
 

@@ -1932,6 +1932,14 @@ out:
 	return ret;
 }
 
+static enum blk_eh_timer_return scsi_timeout(struct request *req,
+		bool reserved)
+{
+	if (reserved)
+		return BLK_EH_RESET_TIMER;
+	return scsi_times_out(req);
+}
+
 static int scsi_init_request(void *data, struct request *rq,
 		unsigned int hctx_idx, unsigned int request_idx,
 		unsigned int numa_node)
@@ -2043,7 +2051,7 @@ static struct blk_mq_ops scsi_mq_ops = {
 	.map_queue	= blk_mq_map_queue,
 	.queue_rq	= scsi_queue_rq,
 	.complete	= scsi_softirq_done,
-	.timeout	= scsi_times_out,
+	.timeout	= scsi_timeout,
 	.init_request	= scsi_init_request,
 	.exit_request	= scsi_exit_request,
 };
