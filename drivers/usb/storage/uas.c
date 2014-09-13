@@ -232,8 +232,8 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd,
-		    "%s %p tag %d, inflight:%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
-		    caller, cmnd, uas_get_tag(cmnd),
+		    "%s tag %d inflight:%s%s%s%s%s%s%s%s%s%s%s%s%s ",
+		    caller, uas_get_tag(cmnd),
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
 		    (ci->state & SUBMIT_DATA_IN_URB)    ? " s-in"  : "",
@@ -247,6 +247,7 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 		    (ci->state & COMMAND_COMPLETED)     ? " done"  : "",
 		    (ci->state & COMMAND_ABORTED)       ? " abort" : "",
 		    (ci->state & IS_IN_WORK_LIST)       ? " work"  : "");
+	scsi_print_command(cmnd);
 }
 
 static void uas_free_unsubmitted_urbs(struct scsi_cmnd *cmnd)
