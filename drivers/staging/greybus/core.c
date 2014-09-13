@@ -508,22 +508,30 @@ static int __init gb_init(void)
 	int retval;
 
 	retval = gb_debugfs_init();
-	if (retval)
+	if (retval) {
+		pr_err("debugfs failed\n");
 		return retval;
+	}
 
 	retval = bus_register(&greybus_bus_type);
-	if (retval)
+	if (retval) {
+		pr_err("bus_register failed\n");
 		goto error_bus;
+	}
 
 	retval = gb_thread_init();
-	if (retval)
+	if (retval) {
+		pr_err("gb_thread_init failed\n");
 		goto error_thread;
+	}
 
 	// FIXME - more gb core init goes here
 
 	retval = gb_tty_init();
-	if (retval)
+	if (retval) {
+		pr_err("gb_tty_init failed\n");
 		goto error_tty;
+	}
 
 	return 0;
 

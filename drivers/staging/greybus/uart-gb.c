@@ -8,6 +8,7 @@
  * Heavily based on drivers/usb/class/cdc-acm.c and
  * drivers/usb/serial/usb-serial.c.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -27,7 +28,7 @@
 #include <linux/kdev_t.h>
 #include "greybus.h"
 
-#define GB_TTY_MAJOR	180	/* FIXME use a real number!!! */
+#define GB_TTY_MAJOR	230	/* FIXME use a real number!!! */
 #define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
 #define GB_NAME		"ttyGB"
 
@@ -473,20 +474,27 @@ int __init gb_tty_init(void)
 	int retval = 0;
 	dev_t dev;
 
+#if 0
+
 	retval = alloc_chrdev_region(&dev, 0, GB_NUM_MINORS, GB_NAME);
-	if (retval)
+	if (retval) {
+		pr_err("Can not allocate minors\n");
 		return retval;
+	}
+#endif
+
 
 	gb_tty_driver = tty_alloc_driver(GB_NUM_MINORS, 0);
 	if (IS_ERR(gb_tty_driver)) {
+		pr_err("Can not allocate tty driver\n");
 		retval = -ENOMEM;
 		goto fail_unregister_dev;
 	}
 
 	gb_tty_driver->driver_name = "gb";
 	gb_tty_driver->name = GB_NAME;
-	gb_tty_driver->major = MAJOR(dev);
-	gb_tty_driver->minor_start = MINOR(dev);
+	gb_tty_driver->major = 0;
+	gb_tty_driver->minor_start = 0;
 	gb_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	gb_tty_driver->subtype = SERIAL_TYPE_NORMAL;
 	gb_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
@@ -495,12 +503,18 @@ int __init gb_tty_init(void)
 	tty_set_operations(gb_tty_driver, &gb_ops);
 
 	retval = tty_register_driver(gb_tty_driver);
-	if (retval)
+	if (retval) {
+		pr_err("Can not register tty driver: %d\n", retval);
 		goto fail_put_gb_tty;
+	}
 
+#if 0
 	retval = greybus_register(&tty_gb_driver);
-	if (retval)
+	if (retval) {
+		pr_err("Can not register greybus driver.\n");
 		goto fail_unregister_gb_tty;
+	}
+#endif
 
 	return 0;
 
@@ -509,7 +523,7 @@ int __init gb_tty_init(void)
  fail_put_gb_tty:
 	put_tty_driver(gb_tty_driver);
  fail_unregister_dev:
-	unregister_chrdev_region(dev, GB_NUM_MINORS);
+//	unregister_chrdev_region(dev, GB_NUM_MINORS);
 	return retval;
 }
 
@@ -517,7 +531,7 @@ void __exit gb_tty_exit(void)
 {
 	int major = MAJOR(gb_tty_driver->major);
 	int minor = gb_tty_driver->minor_start;
-	greybus_deregister(&tty_gb_driver);
+//	greybus_deregister(&tty_gb_driver);
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
 	unregister_chrdev_region(MKDEV(major, minor), GB_NUM_MINORS);
