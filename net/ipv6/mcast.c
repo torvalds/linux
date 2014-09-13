@@ -73,9 +73,6 @@ static void *__mld2_query_bugs[] __attribute__((__unused__)) = {
 
 static struct in6_addr mld2_all_mcr = MLD2_ALL_MCR_INIT;
 
-/* Big mc list lock for all the sockets */
-static DEFINE_SPINLOCK(ipv6_sk_mc_lock);
-
 static void igmp6_join_group(struct ifmcaddr6 *ma);
 static void igmp6_leave_group(struct ifmcaddr6 *ma);
 static void igmp6_timer_handler(unsigned long data);
@@ -165,7 +162,6 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	mc_lst->addr = *addr;
 
 	rtnl_lock();
-	rcu_read_lock();
 	if (ifindex == 0) {
 		struct rt6_info *rt;
 		rt = rt6_lookup(net, addr, NULL, 0, 0);
@@ -174,10 +170,9 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			ip6_rt_put(rt);
 		}
 	} else
-		dev = dev_get_by_index_rcu(net, ifindex);
+		dev = __dev_get_by_index(net, ifindex);
 
 	if (dev == NULL) {
-		rcu_read_unlock();
 		rtnl_unlock();
 		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
 		return -ENODEV;
@@ -195,18 +190,14 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	err = ipv6_dev_mc_inc(dev, addr);
 
 	if (err) {
-		rcu_read_unlock();
 		rtnl_unlock();
 		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
 		return err;
 	}
 
-	spin_lock(&ipv6_sk_mc_lock);
 	mc_lst->next = np->ipv6_mc_list;
 	rcu_assign_pointer(np->ipv6_mc_list, mc_lst);
-	spin_unlock(&ipv6_sk_mc_lock);
 
-	rcu_read_unlock();
 	rtnl_unlock();
 
 	return 0;
@@ -226,20 +217,16 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		return -EINVAL;
 
 	rtnl_lock();
-	spin_lock(&ipv6_sk_mc_lock);
 	for (lnk = &np->ipv6_mc_list;
-	     (mc_lst = rcu_dereference_protected(*lnk,
-			lockdep_is_held(&ipv6_sk_mc_lock))) != NULL;
+	     (mc_lst = rtnl_dereference(*lnk)) != NULL;
 	      lnk = &mc_lst->next) {
 		if ((ifindex == 0 || mc_lst->ifindex == ifindex) &&
 		    ipv6_addr_equal(&mc_lst->addr, addr)) {
 			struct net_device *dev;
 
 			*lnk = mc_lst->next;
-			spin_unlock(&ipv6_sk_mc_lock);
 
-			rcu_read_lock();
-			dev = dev_get_by_index_rcu(net, mc_lst->ifindex);
+			dev = __dev_get_by_index(net, mc_lst->ifindex);
 			if (dev != NULL) {
 				struct inet6_dev *idev = __in6_dev_get(dev);
 
@@ -248,7 +235,6 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 					__ipv6_dev_mc_dec(idev, &mc_lst->addr);
 			} else
 				(void) ip6_mc_leave_src(sk, mc_lst, NULL);
-			rcu_read_unlock();
 			rtnl_unlock();
 
 			atomic_sub(sizeof(*mc_lst), &sk->sk_omem_alloc);
@@ -256,7 +242,6 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			return 0;
 		}
 	}
-	spin_unlock(&ipv6_sk_mc_lock);
 	rtnl_unlock();
 
 	return -EADDRNOTAVAIL;
@@ -303,16 +288,12 @@ void ipv6_sock_mc_close(struct sock *sk)
 		return;
 
 	rtnl_lock();
-	spin_lock(&ipv6_sk_mc_lock);
-	while ((mc_lst = rcu_dereference_protected(np->ipv6_mc_list,
-				lockdep_is_held(&ipv6_sk_mc_lock))) != NULL) {
+	while ((mc_lst = rtnl_dereference(np->ipv6_mc_list)) != NULL) {
 		struct net_device *dev;
 
 		np->ipv6_mc_list = mc_lst->next;
-		spin_unlock(&ipv6_sk_mc_lock);
 
-		rcu_read_lock();
-		dev = dev_get_by_index_rcu(net, mc_lst->ifindex);
+		dev = __dev_get_by_index(net, mc_lst->ifindex);
 		if (dev) {
 			struct inet6_dev *idev = __in6_dev_get(dev);
 
@@ -321,14 +302,11 @@ void ipv6_sock_mc_close(struct sock *sk)
 				__ipv6_dev_mc_dec(idev, &mc_lst->addr);
 		} else
 			(void) ip6_mc_leave_src(sk, mc_lst, NULL);
-		rcu_read_unlock();
 
 		atomic_sub(sizeof(*mc_lst), &sk->sk_omem_alloc);
 		kfree_rcu(mc_lst, rcu);
 
-		spin_lock(&ipv6_sk_mc_lock);
 	}
-	spin_unlock(&ipv6_sk_mc_lock);
 	rtnl_unlock();
 }
 
@@ -578,9 +556,8 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 	}
 
 	err = -EADDRNOTAVAIL;
-	/*
-	 * changes to the ipv6_mc_list require the socket lock and
-	 * a read lock on ip6_sk_mc_lock. We have the socket lock,
+	/* changes to the ipv6_mc_list require the socket lock and
+	 * rtnl lock. We have the socket lock and rcu read lock,
 	 * so reading the list is safe.
 	 */
 
@@ -604,9 +581,8 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 	    copy_to_user(optval, gsf, GROUP_FILTER_SIZE(0))) {
 		return -EFAULT;
 	}
-	/* changes to psl require the socket lock, a read lock on
-	 * on ipv6_sk_mc_lock and a write lock on pmc->sflock. We
-	 * have the socket lock, so reading here is safe.
+	/* changes to psl require the socket lock, and a write lock
+	 * on pmc->sflock. We have the socket lock so reading here is safe.
 	 */
 	for (i = 0; i < copycount; i++) {
 		struct sockaddr_in6 *psin6;
@@ -663,14 +639,6 @@ bool inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
 	rcu_read_unlock();
 
 	return rv;
-}
-
-static void ma_put(struct ifmcaddr6 *mc)
-{
-	if (atomic_dec_and_test(&mc->mca_refcnt)) {
-		in6_dev_put(mc->idev);
-		kfree(mc);
-	}
 }
 
 static void igmp6_group_added(struct ifmcaddr6 *mc)
@@ -838,6 +806,48 @@ static void mld_clear_delrec(struct inet6_dev *idev)
 	read_unlock_bh(&idev->lock);
 }
 
+static void mca_get(struct ifmcaddr6 *mc)
+{
+	atomic_inc(&mc->mca_refcnt);
+}
+
+static void ma_put(struct ifmcaddr6 *mc)
+{
+	if (atomic_dec_and_test(&mc->mca_refcnt)) {
+		in6_dev_put(mc->idev);
+		kfree(mc);
+	}
+}
+
+static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
+				   const struct in6_addr *addr)
+{
+	struct ifmcaddr6 *mc;
+
+	mc = kzalloc(sizeof(*mc), GFP_ATOMIC);
+	if (mc == NULL)
+		return NULL;
+
+	setup_timer(&mc->mca_timer, igmp6_timer_handler, (unsigned long)mc);
+
+	mc->mca_addr = *addr;
+	mc->idev = idev; /* reference taken by caller */
+	mc->mca_users = 1;
+	/* mca_stamp should be updated upon changes */
+	mc->mca_cstamp = mc->mca_tstamp = jiffies;
+	atomic_set(&mc->mca_refcnt, 1);
+	spin_lock_init(&mc->mca_lock);
+
+	/* initial mode is (EX, empty) */
+	mc->mca_sfmode = MCAST_EXCLUDE;
+	mc->mca_sfcount[MCAST_EXCLUDE] = 1;
+
+	if (ipv6_addr_is_ll_all_nodes(&mc->mca_addr) ||
+	    IPV6_ADDR_MC_SCOPE(&mc->mca_addr) < IPV6_ADDR_SCOPE_LINKLOCAL)
+		mc->mca_flags |= MAF_NOREPORT;
+
+	return mc;
+}
 
 /*
  *	device multicast group inc (add if not found)
@@ -873,38 +883,20 @@ int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 		}
 	}
 
-	/*
-	 *	not found: create a new one.
-	 */
-
-	mc = kzalloc(sizeof(struct ifmcaddr6), GFP_ATOMIC);
-
-	if (mc == NULL) {
+	mc = mca_alloc(idev, addr);
+	if (!mc) {
 		write_unlock_bh(&idev->lock);
 		in6_dev_put(idev);
 		return -ENOMEM;
 	}
 
-	setup_timer(&mc->mca_timer, igmp6_timer_handler, (unsigned long)mc);
-
-	mc->mca_addr = *addr;
-	mc->idev = idev; /* (reference taken) */
-	mc->mca_users = 1;
-	/* mca_stamp should be updated upon changes */
-	mc->mca_cstamp = mc->mca_tstamp = jiffies;
-	atomic_set(&mc->mca_refcnt, 2);
-	spin_lock_init(&mc->mca_lock);
-
-	/* initial mode is (EX, empty) */
-	mc->mca_sfmode = MCAST_EXCLUDE;
-	mc->mca_sfcount[MCAST_EXCLUDE] = 1;
-
-	if (ipv6_addr_is_ll_all_nodes(&mc->mca_addr) ||
-	    IPV6_ADDR_MC_SCOPE(&mc->mca_addr) < IPV6_ADDR_SCOPE_LINKLOCAL)
-		mc->mca_flags |= MAF_NOREPORT;
-
 	mc->next = idev->mc_list;
 	idev->mc_list = mc;
+
+	/* Hold this for the code below before we unlock,
+	 * it is already exposed via idev->mc_list.
+	 */
+	mca_get(mc);
 	write_unlock_bh(&idev->lock);
 
 	mld_del_delrec(idev, &mc->mca_addr);
@@ -948,7 +940,7 @@ int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
 	struct inet6_dev *idev;
 	int err;
 
-	rcu_read_lock();
+	ASSERT_RTNL();
 
 	idev = __in6_dev_get(dev);
 	if (!idev)
@@ -956,7 +948,6 @@ int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
 	else
 		err = __ipv6_dev_mc_dec(idev, addr);
 
-	rcu_read_unlock();
 	return err;
 }
 
@@ -2373,7 +2364,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 {
 	int err;
 
-	/* callers have the socket lock and a write lock on ipv6_sk_mc_lock,
+	/* callers have the socket lock and rtnl lock
 	 * so no other readers or writers of iml or its sflist
 	 */
 	if (!iml->sflist) {
