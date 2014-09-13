@@ -133,7 +133,7 @@ struct cbq_class {
 	struct gnet_stats_rate_est64 rate_est;
 	struct tc_cbq_xstats	xstats;
 
-	struct tcf_proto	*filter_list;
+	struct tcf_proto __rcu	*filter_list;
 
 	int			refcnt;
 	int			filters;
@@ -221,6 +221,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	struct cbq_class **defmap;
 	struct cbq_class *cl = NULL;
 	u32 prio = skb->priority;
+	struct tcf_proto *fl;
 	struct tcf_result res;
 
 	/*
@@ -235,11 +236,12 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		int result = 0;
 		defmap = head->defaults;
 
+		fl = rcu_dereference_bh(head->filter_list);
 		/*
 		 * Step 2+n. Apply classifier.
 		 */
-		if (!head->filter_list ||
-		    (result = tc_classify_compat(skb, head->filter_list, &res)) < 0)
+		result = tc_classify_compat(skb, fl, &res);
+		if (!fl || result < 0)
 			goto fallback;
 
 		cl = (void *)res.class;
@@ -1954,7 +1956,8 @@ static int cbq_delete(struct Qdisc *sch, unsigned long arg)
 	return 0;
 }
 
-static struct tcf_proto **cbq_find_tcf(struct Qdisc *sch, unsigned long arg)
+static struct tcf_proto __rcu **cbq_find_tcf(struct Qdisc *sch,
+					     unsigned long arg)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = (struct cbq_class *)arg;

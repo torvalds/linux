@@ -31,7 +31,7 @@ struct multiq_sched_data {
 	u16 bands;
 	u16 max_bands;
 	u16 curband;
-	struct tcf_proto *filter_list;
+	struct tcf_proto __rcu *filter_list;
 	struct Qdisc **queues;
 };
 
@@ -42,10 +42,11 @@ multiq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	u32 band;
 	struct tcf_result res;
+	struct tcf_proto *fl = rcu_dereference_bh(q->filter_list);
 	int err;
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	err = tc_classify(skb, q->filter_list, &res);
+	err = tc_classify(skb, fl, &res);
 #ifdef CONFIG_NET_CLS_ACT
 	switch (err) {
 	case TC_ACT_STOLEN:
@@ -388,7 +389,8 @@ static void multiq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	}
 }
 
-static struct tcf_proto **multiq_find_tcf(struct Qdisc *sch, unsigned long cl)
+static struct tcf_proto __rcu **multiq_find_tcf(struct Qdisc *sch,
+						unsigned long cl)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 
