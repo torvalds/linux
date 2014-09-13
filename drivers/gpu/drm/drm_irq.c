@@ -126,6 +126,9 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 	DRM_DEBUG("updating vblank count on crtc %d, missed %d\n",
 		  crtc, diff);
 
+	if (diff == 0)
+		return;
+
 	/* Reinitialize corresponding vblank timestamp if high-precision query
 	 * available. Skip this step if query unsupported or failed. Will
 	 * reinitialize delayed at next vblank interrupt in that case.
