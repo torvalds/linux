@@ -19,6 +19,19 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
+/*
+ * Number of CPort IN urbs in flight at any point in time.
+ * Adjust if we are having stalls in the USB buffer due to not enough urbs in
+ * flight.
+ */
+#define NUM_CPORT_IN_URB	4
+
+/* Number of CPort OUT urbs in flight at any point in time.
+ * Adjust if we get messages saying we are out of urbs in the system log.
+ */
+#define NUM_CPORT_OUT_URB	8
+
+
 struct es1_ap_dev {
 	struct usb_device *usb_dev;
 	struct usb_interface *usb_intf;
@@ -30,12 +43,18 @@ struct es1_ap_dev {
 	__u8 cport_out_endpoint;	/* bulk out for CPort data */
 	u8 *svc_buffer;			/* buffer for SVC messages coming in */
 	struct urb *svc_urb;		/* urb for SVC messages coming in */
+	struct urb *cport_in_urb[NUM_CPORT_IN_URB];	/* CPort IN urbs */
+	u8 *cport_in_buffer[NUM_CPORT_IN_URB];		/* CPort IN buffers */
+	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];	/* CPort OUT urbs */
+	u8 cport_out_urb_busy[NUM_CPORT_OUT_URB];	/* CPort OUT urb busy marker */
 };
 
 static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 {
 	return (struct es1_ap_dev *)(hd->hd_priv);
 }
+
+static void cport_out_callback(struct urb *urb);
 
 /*
  * Allocate the actual buffer for this gbuf and device and cport
@@ -67,7 +86,8 @@ static int alloc_gbuf(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	gbuf->transfer_buffer = &buffer[1];
 	gbuf->transfer_buffer_length = size;
 
-	gbuf->hdpriv = es1;	/* really, we could do something else here... */
+	/* When we send the gbuf, we need this pointer to be here */
+	gbuf->hdpriv = es1;
 
 	return 0;
 }
@@ -105,11 +125,44 @@ static int send_svc_msg(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 	return 0;
 }
 
+static struct urb *next_free_urb(struct es1_ap_dev *es1)
+{
+	// FIXME
+	return NULL;
+}
+
+static int send_gbuf(struct gbuf *gbuf, struct greybus_host_device *hd,
+		     gfp_t gfp_mask)
+{
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
+	struct usb_device *udev = es1->usb_dev;
+	int retval;
+	u8 *transfer_buffer;
+	u8 *buffer;
+	struct urb *urb;
+
+	transfer_buffer = gbuf->transfer_buffer;
+	buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
+
+	/* Find a free urb */
+	urb = next_free_urb(es1);
+	if (!urb)
+		return -ENOMEM;
+
+	usb_fill_bulk_urb(urb, udev,
+			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
+			  buffer, gbuf->transfer_buffer_length + 1,
+			  cport_out_callback, gbuf);
+	retval = usb_submit_urb(urb, gfp_mask);
+	return retval;
+}
+
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size = sizeof(struct es1_ap_dev),
 	.alloc_gbuf = alloc_gbuf,
 	.free_gbuf = free_gbuf,
 	.send_svc_msg = send_svc_msg,
+	.send_gbuf = send_gbuf,
 };
 
 /* Callback for when we get a SVC message */
@@ -149,7 +202,7 @@ exit:
 		dev_err(dev, "Can not submit urb for AP data: %d\n", retval);
 }
 
-void cport_in_callback(struct urb *urb)
+static void cport_in_callback(struct urb *urb)
 {
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
@@ -176,7 +229,7 @@ exit:
 	return;
 }
 
-void cport_out_callback(struct urb *urb)
+static void cport_out_callback(struct urb *urb)
 {
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
@@ -278,7 +331,7 @@ static int ap_probe(struct usb_interface *interface,
 
 	es1->svc_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!es1->svc_urb)
-		goto error_urb;
+		goto error_int_urb;
 
 	usb_fill_int_urb(es1->svc_urb, udev,
 			 usb_rcvintpipe(udev, es1->svc_endpoint),
@@ -288,11 +341,56 @@ static int ap_probe(struct usb_interface *interface,
 	if (retval)
 		goto error_submit_urb;
 
+	/* Allocate buffers for our cport in messages and start them up */
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		struct urb *urb;
+		u8 *buffer;
+
+		urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!urb)
+			goto error_bulk_in_urb;
+		buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (!buffer)
+			goto error_bulk_in_urb;
+
+		usb_fill_bulk_urb(urb, udev,
+				  usb_rcvbulkpipe(udev, es1->cport_in_endpoint),
+				  buffer, PAGE_SIZE, cport_in_callback, es1);
+		es1->cport_in_urb[i] = urb;
+		es1->cport_in_buffer[i] = buffer;
+		retval = usb_submit_urb(urb, GFP_KERNEL);
+		if (retval)
+			goto error_bulk_in_urb;
+	}
+
+	/* Allocate urbs for our CPort OUT messages */
+	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
+		struct urb *urb;
+
+		urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!urb)
+			goto error_bulk_out_urb;
+
+		es1->cport_out_urb[i] = urb;
+		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
+	}
+
 	return 0;
+
+error_bulk_out_urb:
+	for (i = 0; i < NUM_CPORT_OUT_URB; ++i)
+		usb_free_urb(es1->cport_out_urb[i]);
+
+error_bulk_in_urb:
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		usb_kill_urb(es1->cport_in_urb[i]);
+		usb_free_urb(es1->cport_in_urb[i]);
+		kfree(es1->cport_in_buffer[i]);
+	}
 
 error_submit_urb:
 	usb_free_urb(es1->svc_urb);
-error_urb:
+error_int_urb:
 	kfree(es1->svc_buffer);
 error:
 	greybus_remove_hd(es1->hd);
@@ -302,10 +400,24 @@ error:
 static void ap_disconnect(struct usb_interface *interface)
 {
 	struct es1_ap_dev *es1;
+	int i;
 
 	es1 = usb_get_intfdata(interface);
+	if (!es1)
+		return;
 
 	/* Tear down everything! */
+	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
+		usb_kill_urb(es1->cport_out_urb[i]);
+		usb_free_urb(es1->cport_out_urb[i]);
+	}
+
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		usb_kill_urb(es1->cport_in_urb[i]);
+		usb_free_urb(es1->cport_in_urb[i]);
+		kfree(es1->cport_in_buffer[i]);
+	}
+
 	usb_kill_urb(es1->svc_urb);
 	usb_free_urb(es1->svc_urb);
 	usb_put_dev(es1->usb_dev);
