@@ -371,6 +371,12 @@ static void uas_stat_cmplt(struct urb *urb)
 
 	cmnd = devinfo->cmnd[idx];
 	cmdinfo = (void *)&cmnd->SCp;
+
+	if (!(cmdinfo->state & COMMAND_INFLIGHT)) {
+		scmd_printk(KERN_ERR, cmnd, "unexpected status cmplt\n");
+		goto out;
+	}
+
 	switch (iu->iu_id) {
 	case IU_ID_STATUS:
 		if (urb->actual_length < 16)
@@ -435,6 +441,12 @@ static void uas_data_cmplt(struct urb *urb)
 
 	if (devinfo->resetting)
 		goto out;
+
+	/* Data urbs should not complete before the cmd urb is submitted */
+	if (cmdinfo->state & SUBMIT_CMD_URB) {
+		scmd_printk(KERN_ERR, cmnd, "unexpected data cmplt\n");
+		goto out;
+	}
 
 	if (urb->status) {
 		if (urb->status != -ECONNRESET) {
