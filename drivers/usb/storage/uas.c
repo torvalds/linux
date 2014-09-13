@@ -288,8 +288,6 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 		return -EBUSY;
 	WARN_ON_ONCE(cmdinfo->state & COMMAND_COMPLETED);
 	cmdinfo->state |= COMMAND_COMPLETED;
-	usb_free_urb(cmdinfo->data_in_urb);
-	usb_free_urb(cmdinfo->data_out_urb);
 	if (cmdinfo->state & COMMAND_ABORTED)
 		scmd_printk(KERN_INFO, cmnd, "abort completed\n");
 	list_del(&cmdinfo->list);
@@ -418,9 +416,11 @@ static void uas_data_cmplt(struct urb *urb)
 	if (cmdinfo->data_in_urb == urb) {
 		sdb = scsi_in(cmnd);
 		cmdinfo->state &= ~DATA_IN_URB_INFLIGHT;
+		cmdinfo->data_in_urb = NULL;
 	} else if (cmdinfo->data_out_urb == urb) {
 		sdb = scsi_out(cmnd);
 		cmdinfo->state &= ~DATA_OUT_URB_INFLIGHT;
+		cmdinfo->data_out_urb = NULL;
 	}
 	if (sdb == NULL) {
 		WARN_ON_ONCE(1);
@@ -450,6 +450,7 @@ static void uas_data_cmplt(struct urb *urb)
 	}
 	uas_try_complete(cmnd, __func__);
 out:
+	usb_free_urb(urb);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
