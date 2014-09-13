@@ -32,20 +32,6 @@
 
 #define MAX_CMNDS 256
 
-/*
- * The r00-r01c specs define this version of the SENSE IU data structure.
- * It's still in use by several different firmware releases.
- */
-struct sense_iu_old {
-	__u8 iu_id;
-	__u8 rsvd1;
-	__be16 tag;
-	__be16 len;
-	__u8 status;
-	__u8 service_response;
-	__u8 sense[SCSI_SENSE_BUFFERSIZE];
-};
-
 struct uas_dev_info {
 	struct usb_interface *intf;
 	struct usb_device *udev;
@@ -56,7 +42,6 @@ struct uas_dev_info {
 	int qdepth, resetting;
 	unsigned cmd_pipe, status_pipe, data_in_pipe, data_out_pipe;
 	unsigned use_streams:1;
-	unsigned uas_sense_old:1;
 	unsigned shutdown:1;
 	struct scsi_cmnd *cmnd[MAX_CMNDS];
 	spinlock_t lock;
@@ -173,29 +158,6 @@ static void uas_sense(struct urb *urb, struct scsi_cmnd *cmnd)
 		unsigned len = be16_to_cpup(&sense_iu->len);
 		if (len + 16 != urb->actual_length) {
 			int newlen = min(len + 16, urb->actual_length) - 16;
-			if (newlen < 0)
-				newlen = 0;
-			sdev_printk(KERN_INFO, sdev, "%s: urb length %d "
-				"disagrees with IU sense data length %d, "
-				"using %d bytes of sense data\n", __func__,
-					urb->actual_length, len, newlen);
-			len = newlen;
-		}
-		memcpy(cmnd->sense_buffer, sense_iu->sense, len);
-	}
-
-	cmnd->result = sense_iu->status;
-}
-
-static void uas_sense_old(struct urb *urb, struct scsi_cmnd *cmnd)
-{
-	struct sense_iu_old *sense_iu = urb->transfer_buffer;
-	struct scsi_device *sdev = cmnd->device;
-
-	if (urb->actual_length > 8) {
-		unsigned len = be16_to_cpup(&sense_iu->len) - 2;
-		if (len + 8 != urb->actual_length) {
-			int newlen = min(len + 8, urb->actual_length) - 8;
 			if (newlen < 0)
 				newlen = 0;
 			sdev_printk(KERN_INFO, sdev, "%s: urb length %d "
@@ -339,12 +301,7 @@ static void uas_stat_cmplt(struct urb *urb)
 
 	switch (iu->iu_id) {
 	case IU_ID_STATUS:
-		if (urb->actual_length < 16)
-			devinfo->uas_sense_old = 1;
-		if (devinfo->uas_sense_old)
-			uas_sense_old(urb, cmnd);
-		else
-			uas_sense(urb, cmnd);
+		uas_sense(urb, cmnd);
 		if (cmnd->result != 0) {
 			/* cancel data transfers on error */
 			data_in_urb = usb_get_urb(cmdinfo->data_in_urb);
@@ -903,8 +860,6 @@ static int uas_configure_endpoints(struct uas_dev_info *devinfo)
 	struct usb_host_endpoint *eps[4] = { };
 	struct usb_device *udev = devinfo->udev;
 	int r;
-
-	devinfo->uas_sense_old = 0;
 
 	r = uas_find_endpoints(devinfo->intf->cur_altsetting, eps);
 	if (r)
