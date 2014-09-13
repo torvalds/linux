@@ -419,6 +419,11 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't retrieve i2s bus clock\n");
 		return PTR_ERR(i2s->hclk);
 	}
+	ret = clk_prepare_enable(i2s->hclk);
+	if (ret) {
+		dev_err(i2s->dev, "hclock enable failed %d\n", ret);
+		return ret;
+	}
 
 	i2s->mclk = devm_clk_get(&pdev->dev, "i2s_clk");
 	if (IS_ERR(i2s->mclk)) {
