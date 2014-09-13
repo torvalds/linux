@@ -861,19 +861,16 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
 		if (gate == ST21NFCA_RF_CARD_F_GATE) {
 			r = st21nfca_tm_event_send_data(hdev, skb, gate);
 			if (r < 0)
-				goto exit;
-		} else {
-			info->dep_info.curr_nfc_dep_pni = 0;
-			return 1;
+				return r;
+			return 0;
 		}
-		break;
+		info->dep_info.curr_nfc_dep_pni = 0;
+		return 1;
 	default:
 		return 1;
 	}
 	kfree_skb(skb);
 	return 0;
-exit:
-	return r;
 }
 
 static struct nfc_hci_ops st21nfca_hci_ops = {
