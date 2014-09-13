@@ -129,9 +129,8 @@ static void st21nfca_tx_work(struct work_struct *work)
 		device_lock(&dev->dev);
 
 		nfc_hci_send_cmd_async(info->hdev, ST21NFCA_RF_READER_F_GATE,
-							ST21NFCA_WR_XCHG_DATA,
-							skb->data, skb->len,
-							info->async_cb, info);
+				ST21NFCA_WR_XCHG_DATA, skb->data, skb->len,
+				info->async_cb, info);
 		device_unlock(&dev->dev);
 		kfree_skb(skb);
 	}
@@ -239,7 +238,6 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 	struct st21nfca_psl_res *psl_res;
 	struct sk_buff *skb;
 	u8 bitrate[2] = {0, 0};
-
 	int r;
 
 	skb = alloc_skb(sizeof(struct st21nfca_psl_res), GFP_KERNEL);
@@ -311,7 +309,7 @@ int st21nfca_tm_send_dep_res(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	*skb_push(skb, 1) = skb->len;
 
 	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
-				ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
+			ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
 	kfree_skb(skb);
 
 	return r;
