@@ -21,6 +21,9 @@ all: module
 module:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
 
+check:
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) C=2 CF="-D__CHECK_ENDIAN__"
+
 clean:
 	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
 	rm -f Module.markers Module.symvers modules.order
