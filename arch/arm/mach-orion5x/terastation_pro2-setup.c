@@ -349,7 +349,7 @@ static void __init tsp2_init(void)
 			gpio_free(TSP2_RTC_GPIO);
 	}
 	if (tsp2_i2c_rtc.irq == 0)
-		pr_warning("tsp2_init: failed to get RTC IRQ\n");
+		pr_warn("tsp2_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &tsp2_i2c_rtc, 1);
 
 	/* register Terastation Pro II specific power-off method */
