@@ -5354,10 +5354,14 @@ static void i40e_link_event(struct i40e_pf *pf)
 {
 	bool new_link, old_link;
 
-	new_link = (pf->hw.phy.link_info.link_info & I40E_AQ_LINK_UP);
-	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
+	/* set this to force the get_link_status call to refresh state */
+	pf->hw.phy.get_link_info = true;
 
-	if (new_link == old_link)
+	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
+	new_link = i40e_get_link_status(&pf->hw);
+
+	if (new_link == old_link &&
+	    new_link == netif_carrier_ok(pf->vsi[pf->lan_vsi]->netdev))
 		return;
 	if (!test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
 		i40e_print_link_message(pf->vsi[pf->lan_vsi], new_link);
@@ -5525,33 +5529,20 @@ static void i40e_handle_link_event(struct i40e_pf *pf,
 	memcpy(&pf->hw.phy.link_info_old, hw_link_info,
 	       sizeof(pf->hw.phy.link_info_old));
 
+	/* Do a new status request to re-enable LSE reporting
+	 * and load new status information into the hw struct
+	 * This completely ignores any state information
+	 * in the ARQ event info, instead choosing to always
+	 * issue the AQ update link status command.
+	 */
+	i40e_link_event(pf);
+
 	/* check for unqualified module, if link is down */
 	if ((status->link_info & I40E_AQ_MEDIA_AVAILABLE) &&
 	    (!(status->an_info & I40E_AQ_QUALIFIED_MODULE)) &&
 	    (!(status->link_info & I40E_AQ_LINK_UP)))
 		dev_err(&pf->pdev->dev,
 			"The driver failed to link because an unqualified module was detected.\n");
-
-	/* update link status */
-	hw_link_info->phy_type = (enum i40e_aq_phy_type)status->phy_type;
-	hw_link_info->link_speed = (enum i40e_aq_link_speed)status->link_speed;
-	hw_link_info->link_info = status->link_info;
-	hw_link_info->an_info = status->an_info;
-	hw_link_info->ext_info = status->ext_info;
-	hw_link_info->lse_enable =
-		le16_to_cpu(status->command_flags) &
-			    I40E_AQ_LSE_ENABLE;
-
-	/* process the event */
-	i40e_link_event(pf);
-
-	/* Do a new status request to re-enable LSE reporting
-	 * and load new status information into the hw struct,
-	 * then see if the status changed while processing the
-	 * initial event.
-	 */
-	i40e_update_link_info(&pf->hw, true);
-	i40e_link_event(pf);
 }
 
 /**
@@ -6313,6 +6304,8 @@ static void i40e_service_task(struct work_struct *work)
 	i40e_sync_vxlan_filters_subtask(pf);
 #endif
 	i40e_clean_adminq_subtask(pf);
+
+	i40e_link_event(pf);
 
 	i40e_service_event_complete(pf);
 
