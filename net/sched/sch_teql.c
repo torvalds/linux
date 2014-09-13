@@ -96,11 +96,14 @@ teql_dequeue(struct Qdisc *sch)
 	struct teql_sched_data *dat = qdisc_priv(sch);
 	struct netdev_queue *dat_queue;
 	struct sk_buff *skb;
+	struct Qdisc *q;
 
 	skb = __skb_dequeue(&dat->q);
 	dat_queue = netdev_get_tx_queue(dat->m->dev, 0);
+	q = rcu_dereference_bh(dat_queue->qdisc);
+
 	if (skb == NULL) {
-		struct net_device *m = qdisc_dev(dat_queue->qdisc);
+		struct net_device *m = qdisc_dev(q);
 		if (m) {
 			dat->m->slaves = sch;
 			netif_wake_queue(m);
@@ -108,7 +111,7 @@ teql_dequeue(struct Qdisc *sch)
 	} else {
 		qdisc_bstats_update(sch, skb);
 	}
-	sch->q.qlen = dat->q.qlen + dat_queue->qdisc->q.qlen;
+	sch->q.qlen = dat->q.qlen + q->q.qlen;
 	return skb;
 }
 
@@ -157,9 +160,9 @@ teql_destroy(struct Qdisc *sch)
 						txq = netdev_get_tx_queue(master->dev, 0);
 						master->slaves = NULL;
 
-						root_lock = qdisc_root_sleeping_lock(txq->qdisc);
+						root_lock = qdisc_root_sleeping_lock(rtnl_dereference(txq->qdisc));
 						spin_lock_bh(root_lock);
-						qdisc_reset(txq->qdisc);
+						qdisc_reset(rtnl_dereference(txq->qdisc));
 						spin_unlock_bh(root_lock);
 					}
 				}
@@ -266,7 +269,7 @@ static inline int teql_resolve(struct sk_buff *skb,
 	struct dst_entry *dst = skb_dst(skb);
 	int res;
 
-	if (txq->qdisc == &noop_qdisc)
+	if (rcu_access_pointer(txq->qdisc) == &noop_qdisc)
 		return -ENODEV;
 
 	if (!dev->header_ops || !dst)

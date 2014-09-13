@@ -231,7 +231,7 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
-		qdisc = netdev_get_tx_queue(dev, i)->qdisc;
+		qdisc = rtnl_dereference(netdev_get_tx_queue(dev, i)->qdisc);
 		spin_lock_bh(qdisc_lock(qdisc));
 		sch->q.qlen		+= qdisc->q.qlen;
 		sch->bstats.bytes	+= qdisc->bstats.bytes;
@@ -340,7 +340,9 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 		spin_unlock_bh(d->lock);
 
 		for (i = tc.offset; i < tc.offset + tc.count; i++) {
-			qdisc = netdev_get_tx_queue(dev, i)->qdisc;
+			struct netdev_queue *q = netdev_get_tx_queue(dev, i);
+
+			qdisc = rtnl_dereference(q->qdisc);
 			spin_lock_bh(qdisc_lock(qdisc));
 			bstats.bytes      += qdisc->bstats.bytes;
 			bstats.packets    += qdisc->bstats.packets;
