@@ -97,6 +97,7 @@ int st21nfcb_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 		| NFC_PROTO_FELICA_MASK
 		| NFC_PROTO_ISO14443_MASK
 		| NFC_PROTO_ISO14443_B_MASK
+		| NFC_PROTO_ISO15693_MASK
 		| NFC_PROTO_NFC_DEP_MASK;
 
 	ndlc->ndev = nci_allocate_device(&st21nfcb_nci_ops, protocols,
