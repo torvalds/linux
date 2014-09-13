@@ -145,6 +145,7 @@ static void uas_zap_pending(struct uas_dev_info *devinfo, int result)
 	struct uas_cmd_info *cmdinfo;
 	struct uas_cmd_info *temp;
 	unsigned long flags;
+	int err;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 	list_for_each_entry_safe(cmdinfo, temp, &devinfo->dead_list, list) {
@@ -152,12 +153,11 @@ static void uas_zap_pending(struct uas_dev_info *devinfo, int result)
 		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
 						      SCp);
 		uas_log_cmd_state(cmnd, __func__);
-		/* all urbs are killed, clear inflight bits */
-		cmdinfo->state &= ~(COMMAND_INFLIGHT |
-				    DATA_IN_URB_INFLIGHT |
-				    DATA_OUT_URB_INFLIGHT);
+		/* Sense urbs were killed, clear COMMAND_INFLIGHT manually */
+		cmdinfo->state &= ~COMMAND_INFLIGHT;
 		cmnd->result = result << 16;
-		uas_try_complete(cmnd, __func__);
+		err = uas_try_complete(cmnd, __func__);
+		WARN_ON(err != 0);
 	}
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
