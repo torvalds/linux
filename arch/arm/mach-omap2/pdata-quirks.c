@@ -244,8 +244,8 @@ static void __init nokia_n900_legacy_init(void)
 			/* set IBE to 1 */
 			rx51_secure_update_aux_cr(BIT(6), 0);
 		} else {
-			pr_warning("RX-51: Not enabling ARM errata 430973 workaround\n");
-			pr_warning("Thumb binaries may crash randomly without this workaround\n");
+			pr_warn("RX-51: Not enabling ARM errata 430973 workaround\n");
+			pr_warn("Thumb binaries may crash randomly without this workaround\n");
 		}
 
 		pr_info("RX-51: Registring OMAP3 HWRNG device\n");

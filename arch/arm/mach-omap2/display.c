@@ -544,7 +544,7 @@ int omap_dss_reset(struct omap_hwmod *oh)
 			MAX_MODULE_SOFTRESET_WAIT, c);
 
 	if (c == MAX_MODULE_SOFTRESET_WAIT)
-		pr_warning("dss_core: waiting for reset to finish failed\n");
+		pr_warn("dss_core: waiting for reset to finish failed\n");
 	else
 		pr_debug("dss_core: softreset done\n");
 
