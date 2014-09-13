@@ -74,9 +74,8 @@ enum {
 	COMMAND_INFLIGHT        = (1 << 8),
 	DATA_IN_URB_INFLIGHT    = (1 << 9),
 	DATA_OUT_URB_INFLIGHT   = (1 << 10),
-	COMMAND_COMPLETED       = (1 << 11),
-	COMMAND_ABORTED         = (1 << 12),
-	IS_IN_WORK_LIST         = (1 << 13),
+	COMMAND_ABORTED         = (1 << 11),
+	IS_IN_WORK_LIST         = (1 << 12),
 };
 
 /* Overrides scsi_pointer */
@@ -232,7 +231,7 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd,
-		    "%s tag %d inflight:%s%s%s%s%s%s%s%s%s%s%s%s%s ",
+		    "%s tag %d inflight:%s%s%s%s%s%s%s%s%s%s%s%s ",
 		    caller, uas_get_tag(cmnd),
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
@@ -244,7 +243,6 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 		    (ci->state & COMMAND_INFLIGHT)      ? " CMD"   : "",
 		    (ci->state & DATA_IN_URB_INFLIGHT)  ? " IN"    : "",
 		    (ci->state & DATA_OUT_URB_INFLIGHT) ? " OUT"   : "",
-		    (ci->state & COMMAND_COMPLETED)     ? " done"  : "",
 		    (ci->state & COMMAND_ABORTED)       ? " abort" : "",
 		    (ci->state & IS_IN_WORK_LIST)       ? " work"  : "");
 	scsi_print_command(cmnd);
@@ -280,8 +278,6 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 			      DATA_OUT_URB_INFLIGHT |
 			      COMMAND_ABORTED))
 		return -EBUSY;
-	WARN_ON_ONCE(cmdinfo->state & COMMAND_COMPLETED);
-	cmdinfo->state |= COMMAND_COMPLETED;
 	devinfo->cmnd[uas_get_tag(cmnd) - 1] = NULL;
 	uas_free_unsubmitted_urbs(cmnd);
 	cmnd->scsi_done(cmnd);
