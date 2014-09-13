@@ -31,6 +31,7 @@
  * @timestamp:	frame timestamp
  * @timecode:	frame timecode
  * @sequence:	sequence count of this frame
+ * @config_store: this buffer should use this configuration store
  * Should contain enough information to be able to cover all the fields
  * of struct v4l2_buffer at videodev2.h
  */
@@ -42,6 +43,7 @@ struct vb2_v4l2_buffer {
 	struct timeval		timestamp;
 	struct v4l2_timecode	timecode;
 	__u32			sequence;
+	__u32			config_store;
 };
 
 /*
