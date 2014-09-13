@@ -672,30 +672,31 @@ config RCU_BOOST
 	  Say Y here if you are working with real-time apps or heavy loads
 	  Say N here if you are unsure.
 
-config RCU_BOOST_PRIO
-	int "Real-time priority to boost RCU readers to"
+config RCU_KTHREAD_PRIO
+	int "Real-time priority to use for RCU worker threads"
 	range 1 99
 	depends on RCU_BOOST
 	default 1
 	help
-	  This option specifies the real-time priority to which long-term
-	  preempted RCU readers are to be boosted.  If you are working
-	  with a real-time application that has one or more CPU-bound
-	  threads running at a real-time priority level, you should set
-	  RCU_BOOST_PRIO to a priority higher then the highest-priority
-	  real-time CPU-bound thread.  The default RCU_BOOST_PRIO value
-	  of 1 is appropriate in the common case, which is real-time
+	  This option specifies the SCHED_FIFO priority value that will be
+	  assigned to the rcuc/n and rcub/n threads and is also the value
+	  used for RCU_BOOST (if enabled). If you are working with a
+	  real-time application that has one or more CPU-bound threads
+	  running at a real-time priority level, you should set
+	  RCU_KTHREAD_PRIO to a priority higher than the highest-priority
+	  real-time CPU-bound application thread.  The default RCU_KTHREAD_PRIO
+	  value of 1 is appropriate in the common case, which is real-time
 	  applications that do not have any CPU-bound threads.
 
 	  Some real-time applications might not have a single real-time
 	  thread that saturates a given CPU, but instead might have
 	  multiple real-time threads that, taken together, fully utilize
-	  that CPU.  In this case, you should set RCU_BOOST_PRIO to
+	  that CPU.  In this case, you should set RCU_KTHREAD_PRIO to
 	  a priority higher than the lowest-priority thread that is
 	  conspiring to prevent the CPU from running any non-real-time
 	  tasks.  For example, if one thread at priority 10 and another
 	  thread at priority 5 are between themselves fully consuming
-	  the CPU time on a given CPU, then RCU_BOOST_PRIO should be
+	  the CPU time on a given CPU, then RCU_KTHREAD_PRIO should be
 	  set to priority 6 or higher.
 
 	  Specify the real-time priority, or take the default if unsure.

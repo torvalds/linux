@@ -15,8 +15,8 @@ CONFIG_PREEMPT -- Do half.  (First three and #8.)
 CONFIG_PROVE_LOCKING -- Do all but two, covering CONFIG_PROVE_RCU and not.
 CONFIG_PROVE_RCU -- Do all but one under CONFIG_PROVE_LOCKING.
 CONFIG_RCU_BOOST -- one of TREE_PREEMPT_RCU.
-CONFIG_RCU_BOOST_PRIO -- set to 2 for _BOOST testing.
-CONFIG_RCU_CPU_STALL_INFO -- do one with and without _VERBOSE.
+CONFIG_RCU_KTHREAD_PRIO -- set to 2 for _BOOST testing.
+CONFIG_RCU_CPU_STALL_INFO -- Do one.
 CONFIG_RCU_CPU_STALL_VERBOSE -- do one with and without _INFO.
 CONFIG_RCU_FANOUT -- Cover hierarchy as currently, but overlap with others.
 CONFIG_RCU_FANOUT_EXACT -- Do one.
