@@ -328,6 +328,16 @@ static void uas_stat_cmplt(struct urb *urb)
 		}
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_OUT_URB);
 		break;
+	case IU_ID_RESPONSE:
+		uas_log_cmd_state(cmnd, "unexpected response iu",
+				  ((struct response_iu *)iu)->response_code);
+		/* Error, cancel data transfers */
+		data_in_urb = usb_get_urb(cmdinfo->data_in_urb);
+		data_out_urb = usb_get_urb(cmdinfo->data_out_urb);
+		cmdinfo->state &= ~COMMAND_INFLIGHT;
+		cmnd->result = DID_ERROR << 16;
+		uas_try_complete(cmnd, __func__);
+		break;
 	default:
 		uas_log_cmd_state(cmnd, "bogus IU", iu->iu_id);
 	}
