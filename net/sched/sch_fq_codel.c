@@ -52,7 +52,7 @@ struct fq_codel_flow {
 }; /* please try to keep this structure <= 64 bytes */
 
 struct fq_codel_sched_data {
-	struct tcf_proto *filter_list;	/* optional external classifier */
+	struct tcf_proto __rcu *filter_list; /* optional external classifier */
 	struct fq_codel_flow *flows;	/* Flows table [flows_cnt] */
 	u32		*backlogs;	/* backlog table [flows_cnt] */
 	u32		flows_cnt;	/* number of flows */
@@ -85,6 +85,7 @@ static unsigned int fq_codel_classify(struct sk_buff *skb, struct Qdisc *sch,
 				      int *qerr)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
+	struct tcf_proto *filter;
 	struct tcf_result res;
 	int result;
 
@@ -93,11 +94,12 @@ static unsigned int fq_codel_classify(struct sk_buff *skb, struct Qdisc *sch,
 	    TC_H_MIN(skb->priority) <= q->flows_cnt)
 		return TC_H_MIN(skb->priority);
 
-	if (!q->filter_list)
+	filter = rcu_dereference(q->filter_list);
+	if (!filter)
 		return fq_codel_hash(q, skb) + 1;
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	result = tc_classify(skb, q->filter_list, &res);
+	result = tc_classify(skb, filter, &res);
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
@@ -496,7 +498,8 @@ static void fq_codel_put(struct Qdisc *q, unsigned long cl)
 {
 }
 
-static struct tcf_proto **fq_codel_find_tcf(struct Qdisc *sch, unsigned long cl)
+static struct tcf_proto __rcu **fq_codel_find_tcf(struct Qdisc *sch,
+						  unsigned long cl)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 
