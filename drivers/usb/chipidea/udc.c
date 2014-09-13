@@ -2090,12 +2090,20 @@ static void udc_resume_from_power_lost(struct ci_hdrc *ci)
 static void udc_suspend(struct ci_hdrc *ci)
 {
 	udc_suspend_for_power_lost(ci);
+
+	if (ci->driver && ci->vbus_active &&
+			(ci->gadget.state != USB_STATE_SUSPENDED))
+		usb_gadget_disconnect(&ci->gadget);
 }
 
 static void udc_resume(struct ci_hdrc *ci, bool power_lost)
 {
-	if (power_lost)
+	if (power_lost) {
 		udc_resume_from_power_lost(ci);
+	} else {
+		if (ci->driver && ci->vbus_active)
+			usb_gadget_connect(&ci->gadget);
+	}
 }
 
 /**
