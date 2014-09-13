@@ -169,10 +169,14 @@ static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
 	return svc_msg;
 }
 
-static void process_ap_message(struct ap_msg *ap_msg)
+static void ap_process_event(struct work_struct *work)
 {
 	struct svc_msg *svc_msg;
 	struct greybus_host_device *hd;
+	struct ap_msg *ap_msg;
+
+	ap_msg = container_of(work, struct ap_msg, event);
+	hd = ap_msg->hd;
 
 	/* Turn the "raw" data into a real message */
 	svc_msg = convert_ap_message(ap_msg);
@@ -180,11 +184,6 @@ static void process_ap_message(struct ap_msg *ap_msg)
 		// FIXME log an error???
 		return;
 	}
-
-	hd = ap_msg->hd;
-
-	/* Pass the message to the host controller */
-//	ap_msg->hd->driver->ap_msg(svc_msg, ap_msg->hd);
 
 	/* Look at the message to figure out what to do with it */
 	switch (svc_msg->header.type) {
@@ -213,17 +212,6 @@ static void process_ap_message(struct ap_msg *ap_msg)
 		dev_err(&hd->dev, "received invalid SVC message type %d\n",
 			svc_msg->header.type);
 	}
-
-
-}
-
-static void ap_process_event(struct work_struct *work)
-{
-	struct ap_msg *ap_msg;
-
-	ap_msg = container_of(work, struct ap_msg, event);
-
-	process_ap_message(ap_msg);
 
 	/* clean the message up */
 	kfree(ap_msg->data);
