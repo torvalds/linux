@@ -667,6 +667,10 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
+	/* Re-check scsi_block_requests now that we've the host-lock */
+	if (cmnd->device->host->host_self_blocked)
+		return SCSI_MLQUEUE_DEVICE_BUSY;
+
 	if ((devinfo->flags & US_FL_NO_ATA_1X) &&
 			(cmnd->cmnd[0] == ATA_12 || cmnd->cmnd[0] == ATA_16)) {
 		memcpy(cmnd->sense_buffer, usb_stor_sense_invalidCDB,
@@ -1009,6 +1013,54 @@ set_alt0:
 	return result;
 }
 
+static int uas_cmnd_list_empty(struct uas_dev_info *devinfo)
+{
+	unsigned long flags;
+	int i, r = 1;
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+
+	for (i = 0; i < devinfo->qdepth; i++) {
+		if (devinfo->cmnd[i]) {
+			r = 0; /* Not empty */
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
+	return r;
+}
+
+/*
+ * Wait for any pending cmnds to complete, on usb-2 sense_urbs may temporarily
+ * get empty while there still is more work to do due to sense-urbs completing
+ * with a READ/WRITE_READY iu code, so keep waiting until the list gets empty.
+ */
+static int uas_wait_for_pending_cmnds(struct uas_dev_info *devinfo)
+{
+	unsigned long start_time;
+	int r;
+
+	start_time = jiffies;
+	do {
+		flush_work(&devinfo->work);
+
+		r = usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 5000);
+		if (r == 0)
+			return -ETIME;
+
+		r = usb_wait_anchor_empty_timeout(&devinfo->data_urbs, 500);
+		if (r == 0)
+			return -ETIME;
+
+		if (time_after(jiffies, start_time + 5 * HZ))
+			return -ETIME;
+	} while (!uas_cmnd_list_empty(devinfo));
+
+	return 0;
+}
+
 static int uas_pre_reset(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
@@ -1023,10 +1075,9 @@ static int uas_pre_reset(struct usb_interface *intf)
 	scsi_block_requests(shost);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	/* Wait for any pending requests to complete */
-	flush_work(&devinfo->work);
-	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 5000) == 0) {
+	if (uas_wait_for_pending_cmnds(devinfo) != 0) {
 		shost_printk(KERN_ERR, shost, "%s: timed out\n", __func__);
+		scsi_unblock_requests(shost);
 		return 1;
 	}
 
@@ -1064,9 +1115,7 @@ static int uas_suspend(struct usb_interface *intf, pm_message_t message)
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 
-	/* Wait for any pending requests to complete */
-	flush_work(&devinfo->work);
-	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 5000) == 0) {
+	if (uas_wait_for_pending_cmnds(devinfo) != 0) {
 		shost_printk(KERN_ERR, shost, "%s: timed out\n", __func__);
 		return -ETIME;
 	}
