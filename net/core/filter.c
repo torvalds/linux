@@ -1047,7 +1047,7 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 		return -ENOMEM;
 
 	if (copy_from_user(prog->insns, fprog->filter, fsize)) {
-		kfree(prog);
+		__bpf_prog_free(prog);
 		return -EFAULT;
 	}
 
@@ -1055,7 +1055,7 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 
 	err = bpf_prog_store_orig_filter(prog, fprog);
 	if (err) {
-		kfree(prog);
+		__bpf_prog_free(prog);
 		return -ENOMEM;
 	}
 
