@@ -185,8 +185,10 @@ static int st21nfca_tm_send_atr_res(struct nfc_hci_dev *hdev,
 
 	info->dep_info.curr_nfc_dep_pni = 0;
 
-	return nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
+	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
 				ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
+	kfree_skb(skb);
+	return r;
 }
 
 static int st21nfca_tm_recv_atr_req(struct nfc_hci_dev *hdev,
@@ -254,6 +256,8 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 
 	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
 				ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
+	if (r < 0)
+		goto error;
 
 	/*
 	 * ST21NFCA only support P2P passive.
@@ -269,8 +273,11 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 	}
 
 	/* Send an event to change bitrate change event to card f */
-	return nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
+	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
 			ST21NFCA_EVT_CARD_F_BITRATE, bitrate, 2);
+error:
+	kfree_skb(skb);
+	return r;
 }
 
 static int st21nfca_tm_recv_psl_req(struct nfc_hci_dev *hdev,
