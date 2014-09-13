@@ -309,7 +309,12 @@ enum em28xx_ac97_mode {
 
 struct em28xx_audio_mode {
 	enum em28xx_ac97_mode ac97;
-	unsigned int has_audio:1;
+};
+
+enum em28xx_int_audio_type {
+	EM28XX_INT_AUDIO_NONE = 0,
+	EM28XX_INT_AUDIO_AC97,
+	EM28XX_INT_AUDIO_I2S,
 };
 
 enum em28xx_usb_audio_type {
@@ -608,6 +613,7 @@ struct em28xx {
 	unsigned char disconnected:1;	/* device has been diconnected */
 	unsigned int has_video:1;
 	unsigned int is_audio_only:1;
+	enum em28xx_int_audio_type int_audio_type;
 	enum em28xx_usb_audio_type usb_audio_type;
 
 	struct em28xx_board board;

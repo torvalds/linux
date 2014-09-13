@@ -433,7 +433,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	int ret, i;
 	u8 xclk;
 
-	if (!dev->audio_mode.has_audio)
+	if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE)
 		return 0;
 
 	/* It is assumed that all devices use master volume for output.
@@ -512,12 +512,10 @@ int em28xx_audio_setup(struct em28xx *dev)
 	    dev->chip_id == CHIP_ID_EM28174 ||
 	    dev->chip_id == CHIP_ID_EM28178) {
 		/* Digital only device - don't load any alsa module */
-		dev->audio_mode.has_audio = false;
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
 		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
 		return 0;
 	}
-
-	dev->audio_mode.has_audio = true;
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
@@ -525,12 +523,14 @@ int em28xx_audio_setup(struct em28xx *dev)
 	if (cfg < 0) {
 		/* Register read error?  */
 		cfg = EM28XX_CHIPCFG_AC97; /* Be conservative */
+		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) == 0x00) {
 		/* The device doesn't have vendor audio at all */
-		dev->audio_mode.has_audio = false;
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
 		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
 		return 0;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+		dev->int_audio_type = EM28XX_INT_AUDIO_I2S;
 		if (dev->chip_id < CHIP_ID_EM2860 &&
 	            (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
 		    EM2820_CHIPCFG_I2S_1_SAMPRATE)
@@ -546,6 +546,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
+	} else {
+		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
 	}
 
 	dev->audio_mode.ac97 = EM28XX_AC97_OTHER;
@@ -561,7 +563,7 @@ int em28xx_audio_setup(struct em28xx *dev)
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		if (dev->usb_audio_type == EM28XX_USB_AUDIO_VENDOR)
 			dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
-		dev->audio_mode.has_audio = false;
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
 		goto init_audio;
 	}
 

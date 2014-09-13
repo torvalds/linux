@@ -1720,7 +1720,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	else
 		cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;
 
-	if (dev->audio_mode.has_audio)
+	if (dev->int_audio_type != EM28XX_INT_AUDIO_NONE)
 		cap->device_caps |= V4L2_CAP_AUDIO;
 
 	if (dev->tuner_type != TUNER_ABSENT)
@@ -2514,7 +2514,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_G_FREQUENCY);
 		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_S_FREQUENCY);
 	}
-	if (!dev->audio_mode.has_audio) {
+	if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE) {
 		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_G_AUDIO);
 		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_S_AUDIO);
 	}
@@ -2544,7 +2544,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_G_FREQUENCY);
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_S_FREQUENCY);
 		}
-		if (!dev->audio_mode.has_audio) {
+		if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE) {
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_G_AUDIO);
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_S_AUDIO);
 		}
