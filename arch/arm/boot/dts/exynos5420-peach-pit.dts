@@ -489,6 +489,7 @@
 
 &hsi2c_7 {
 	status = "okay";
+	clock-frequency = <400000>;
 
 	max98090: codec@10 {
 		compatible = "maxim,max98090";
