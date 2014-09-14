@@ -113,7 +113,7 @@ choice
 	config DEBUG_BCM_5301X
 		bool "Kernel low-level debugging on BCM5301X UART1"
 		depends on ARCH_BCM_5301X
-		select DEBUG_UART_PL01X
+		select DEBUG_UART_8250
 
 	config DEBUG_BCM_KONA_UART
 		bool "Kernel low-level debugging messages via BCM KONA UART"
@@ -1301,7 +1301,7 @@ config DEBUG_UART_VIRT
 config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"
 	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
-	default 0 if FOOTBRIDGE || ARCH_IOP32X
+	default 0 if FOOTBRIDGE || ARCH_IOP32X || DEBUG_BCM_5301X
 	default 2
 
 config DEBUG_UART_8250_WORD
