@@ -5830,7 +5830,7 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ivideo->cardnumber++;
 	}
 
-	strncpy(ivideo->myid, chipinfo->chip_name, 30);
+	strlcpy(ivideo->myid, chipinfo->chip_name, sizeof(ivideo->myid));
 
 	ivideo->warncount = 0;
 	ivideo->chip_id = pdev->device;
