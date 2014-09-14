@@ -340,8 +340,8 @@ static void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar)
 
 	/* IMPORTANT: this extra read transaction is required to
 	 * flush the posted write buffer. */
-	(void) ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-				 PCIE_INTR_ENABLE_ADDRESS);
+	(void)ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				PCIE_INTR_ENABLE_ADDRESS);
 }
 
 static void ath10k_pci_enable_legacy_irq(struct ath10k *ar)
@@ -352,8 +352,8 @@ static void ath10k_pci_enable_legacy_irq(struct ath10k *ar)
 
 	/* IMPORTANT: this extra read transaction is required to
 	 * flush the posted write buffer. */
-	(void) ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-				 PCIE_INTR_ENABLE_ADDRESS);
+	(void)ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				PCIE_INTR_ENABLE_ADDRESS);
 }
 
 static inline const char *ath10k_pci_get_irq_method(struct ath10k *ar)
@@ -547,7 +547,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 			goto done;
 		}
 
-		if (buf != (u32) address) {
+		if (buf != (u32)address) {
 			ret = -EIO;
 			goto done;
 		}
@@ -695,7 +695,7 @@ static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 		 * Request CE to send caller-supplied data that
 		 * was copied to bounce buffer to Target(!) address.
 		 */
-		ret = ath10k_ce_send(ce_diag, NULL, (u32) ce_data,
+		ret = ath10k_ce_send(ce_diag, NULL, (u32)ce_data,
 				     nbytes, 0, 0);
 		if (ret != 0)
 			goto done;
@@ -1624,7 +1624,7 @@ static int ath10k_pci_ce_init(struct ath10k *ar)
 			continue;
 		}
 
-		pipe_info->buf_sz = (size_t) (attr->src_sz_max);
+		pipe_info->buf_sz = (size_t)(attr->src_sz_max);
 	}
 
 	return 0;
