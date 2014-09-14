@@ -245,7 +245,7 @@ scgd_find:
 	return 0;
 }
 
-static int rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
+static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 {
 	int read = !!rcar_i2c_is_recv(priv);
 
@@ -253,8 +253,6 @@ static int rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICMSR, 0);
 	rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
 	rcar_i2c_write(priv, ICMIER, read ? RCAR_IRQ_RECV : RCAR_IRQ_SEND);
-
-	return 0;
 }
 
 /*
@@ -456,13 +454,10 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		if (i == num - 1)
 			rcar_i2c_flags_set(priv, ID_LAST_MSG);
 
-		ret = rcar_i2c_prepare_msg(priv);
+		rcar_i2c_prepare_msg(priv);
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 		/*-------------- spin unlock -----------------*/
-
-		if (ret < 0)
-			break;
 
 		timeout = wait_event_timeout(priv->wait,
 					     rcar_i2c_flags_has(priv, ID_DONE),
