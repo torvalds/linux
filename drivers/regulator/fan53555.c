@@ -207,6 +207,7 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	struct regulator_desc *rdesc = &di->desc;
 
 	rdesc->name = "fan53555-reg";
+	rdesc->supply_name = "vin";
 	rdesc->ops = &fan53555_regulator_ops;
 	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->n_voltages = FAN53555_NVOLTAGES;
