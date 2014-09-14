@@ -18,6 +18,31 @@
 
 #include "greybus.h"
 
+static struct gbuf *__alloc_gbuf(struct greybus_device *gdev,
+				struct gdev_cport *cport,
+				gbuf_complete_t complete,
+				gfp_t gfp_mask,
+				void *context)
+{
+	struct gbuf *gbuf;
+
+	/*
+	 * change this to a slab allocation if it's too slow, but for now, let's
+	 * be dumb and simple.
+	 */
+	gbuf = kzalloc(sizeof(*gbuf), gfp_mask);
+	if (!gbuf)
+		return NULL;
+
+	kref_init(&gbuf->kref);
+	gbuf->gdev = gdev;
+	gbuf->cport = cport;
+	gbuf->complete = complete;
+	gbuf->context = context;
+
+	return gbuf;
+}
+
 /**
  * greybus_alloc_gbuf - allocate a greybus buffer
  *
@@ -43,19 +68,9 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
 	struct gbuf *gbuf;
 	int retval;
 
-	/*
-	 * change this to a slab allocation if it's too slow, but for now, let's
-	 * be dumb and simple.
-	 */
-	gbuf = kzalloc(sizeof(*gbuf), gfp_mask);
+	gbuf = __alloc_gbuf(gdev, cport, complete, gfp_mask, context);
 	if (!gbuf)
 		return NULL;
-
-	kref_init(&gbuf->kref);
-	gbuf->gdev = gdev;
-	gbuf->cport = cport;
-	gbuf->complete = complete;
-	gbuf->context = context;
 
 	/* Host controller specific allocation for the actual buffer */
 	retval = gbuf->gdev->hd->driver->alloc_gbuf(gbuf, size, gfp_mask);
@@ -114,3 +129,71 @@ void greybus_gbuf_finished(struct gbuf *gbuf)
 	// FIXME - implement
 }
 EXPORT_SYMBOL_GPL(greybus_gbuf_finished);
+
+#define MAX_CPORTS	1024
+struct gb_cport_handler {
+	gbuf_complete_t handler;
+	struct gdev_cport cport;
+	struct greybus_device *gdev;
+	void *context;
+};
+
+static struct gb_cport_handler cport_handler[MAX_CPORTS];
+// FIXME - use a lock for this list of handlers, but really, for now we don't
+// need it, we don't have a dynamic system...
+
+int gb_register_cport_complete(struct greybus_device *gdev,
+			       gbuf_complete_t handler, int cport,
+			       void *context)
+{
+	if (cport_handler[cport].handler)
+		return -EINVAL;
+	cport_handler[cport].context = context;
+	cport_handler[cport].gdev = gdev;
+	cport_handler[cport].cport.number = cport;
+	cport_handler[cport].handler = handler;
+	return 0;
+}
+
+void gb_deregister_cport_handler(int cport)
+{
+	cport_handler[cport].handler = NULL;
+}
+
+void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
+			   size_t length)
+{
+	struct gb_cport_handler *ch;
+	struct gbuf *gbuf;
+
+	/* first check to see if we have a cport handler for this cport */
+	ch = &cport_handler[cport];
+	if (!ch->handler) {
+		/* Ugh, drop the data on the floor, after logging it... */
+		dev_err(&hd->dev,
+			"Received data for cport %d, but no handler!\n",
+			cport);
+		return;
+	}
+
+	gbuf = __alloc_gbuf(ch->gdev, &ch->cport, ch->handler, GFP_ATOMIC,
+			ch->context);
+	if (!gbuf) {
+		/* Again, something bad went wrong, log it... */
+		pr_err("can't allocate gbuf???\n");
+		return;
+	}
+	/* Set the data pointers */
+
+	// FIXME - implement...
+}
+EXPORT_SYMBOL_GPL(greybus_cport_in_data);
+
+int greybus_gbuf_init(void)
+{
+	return 0;
+}
+
+void greybus_gbuf_exit(void)
+{
+}

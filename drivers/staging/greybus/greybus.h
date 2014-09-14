@@ -42,8 +42,8 @@ struct gbuf;
 struct gdev_cport {
 	u16	number;
 	u16	size;
-	// FIXME, what else?
 	u8	speed;	// valid???
+	// FIXME, what else?
 };
 
 struct gdev_string {
@@ -233,6 +233,11 @@ int gb_thread_init(void);
 void gb_thread_destroy(void);
 int gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
+
+int gb_register_cport_complete(struct greybus_device *gdev,
+			       gbuf_complete_t handler, int cport,
+			       void *context);
+void gb_deregister_cport_complete(int cport);
 
 extern const struct attribute_group *greybus_module_groups[];
 
