@@ -308,7 +308,8 @@ static int
 nouveau_fbcon_create(struct drm_fb_helper *helper,
 		     struct drm_fb_helper_surface_size *sizes)
 {
-	struct nouveau_fbdev *fbcon = (struct nouveau_fbdev *)helper;
+	struct nouveau_fbdev *fbcon =
+		container_of(helper, struct nouveau_fbdev, helper);
 	struct drm_device *dev = fbcon->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
