@@ -477,8 +477,6 @@ struct et131x_adapter {
 	/* Spinlocks */
 	spinlock_t tcb_send_qlock;
 	spinlock_t tcb_ready_qlock;
-	spinlock_t send_hw_lock;
-
 	spinlock_t rcv_lock;
 
 	/* Packet Filter and look ahead size */
@@ -1929,19 +1927,14 @@ static void et131x_init_send(struct et131x_adapter *adapter)
  */
 static void et1310_enable_phy_coma(struct et131x_adapter *adapter)
 {
-	unsigned long flags;
-	u32 pmcsr;
-
-	pmcsr = readl(&adapter->regs->global.pm_csr);
+	u32 pmcsr = readl(&adapter->regs->global.pm_csr);
 
 	/* Save the GbE PHY speed and duplex modes. Need to restore this
 	 * when cable is plugged back in
 	 */
 
 	/* Stop sending packets. */
-	spin_lock_irqsave(&adapter->send_hw_lock, flags);
 	adapter->flags |= FMP_ADAPTER_LOWER_POWER;
-	spin_unlock_irqrestore(&adapter->send_hw_lock, flags);
 
 	/* Wait for outstanding Receive packets */
 	et131x_disable_txrx(adapter->netdev);
@@ -2621,7 +2614,6 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	struct sk_buff *skb = tcb->skb;
 	u32 nr_frags = skb_shinfo(skb)->nr_frags + 1;
 	struct skb_frag_struct *frags = &skb_shinfo(skb)->frags[0];
-	unsigned long flags;
 	struct phy_device *phydev = adapter->phydev;
 	dma_addr_t dma_addr;
 	struct tx_ring *tx_ring = &adapter->tx_ring;
@@ -2717,8 +2709,6 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	tcb->index_start = tx_ring->send_idx;
 	tcb->stale = 0;
 
-	spin_lock_irqsave(&adapter->send_hw_lock, flags);
-
 	thiscopy = NUM_DESC_PER_RING_TX - INDEX10(tx_ring->send_idx);
 
 	if (thiscopy >= frag) {
@@ -2781,8 +2771,6 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &adapter->regs->global.watchdog_timer);
 	}
-	spin_unlock_irqrestore(&adapter->send_hw_lock, flags);
-
 	return 0;
 }
 
@@ -3553,7 +3541,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	/* Initialize spinlocks here */
 	spin_lock_init(&adapter->tcb_send_qlock);
 	spin_lock_init(&adapter->tcb_ready_qlock);
-	spin_lock_init(&adapter->send_hw_lock);
 	spin_lock_init(&adapter->rcv_lock);
 
 	adapter->registry_jumbo_packet = 1514;	/* 1514-9216 */
