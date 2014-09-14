@@ -76,7 +76,7 @@ dtb-$(CONFIG_ARCH_BRCMSTB) += \
 dtb-$(CONFIG_ARCH_DAVINCI) += da850-enbw-cmc.dtb \
 	da850-evm.dtb
 dtb-$(CONFIG_ARCH_EFM32) += efm32gg-dk3750.dtb
-dtb-$(CONFIG_ARCH_EXYNOS) += exynos3250-monk.dtb \
+dtb-$(CONFIG_ARCH_EXYNOS4) += exynos3250-monk.dtb \
 	exynos3250-rinato.dtb \
 	exynos4210-origen.dtb \
 	exynos4210-smdkv310.dtb \
@@ -88,8 +88,8 @@ dtb-$(CONFIG_ARCH_EXYNOS) += exynos3250-monk.dtb \
 	exynos4412-origen.dtb \
 	exynos4412-smdk4412.dtb \
 	exynos4412-tiny4412.dtb \
-	exynos4412-trats2.dtb \
-	exynos5250-arndale.dtb \
+	exynos4412-trats2.dtb
+dtb-$(CONFIG_ARCH_EXYNOS5) += exynos5250-arndale.dtb \
 	exynos5250-smdk5250.dtb \
 	exynos5250-snow.dtb \
 	exynos5250-spring.dtb \
