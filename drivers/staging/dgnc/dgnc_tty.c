@@ -2233,13 +2233,13 @@ static void dgnc_tty_send_xchar(struct tty_struct *tty, char c)
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	printk("dgnc_tty_send_xchar start\n");
+	dev_dbg(tty->dev, "dgnc_tty_send_xchar start\n");
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
 	bd->bd_ops->send_immediate_char(ch, c);
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
-	printk("dgnc_tty_send_xchar finish\n");
+	dev_dbg(tty->dev, "dgnc_tty_send_xchar finish\n");
 	return;
 }
 
