@@ -78,7 +78,6 @@
 #define LBCIF_STATUS_EEPROM_PRESENT     0x80
 
 /* START OF GLOBAL REGISTER ADDRESS MAP */
-
 /*
  * 10bit registers
  *
@@ -102,14 +101,12 @@
  *	jagcore_tx_en	bit 1
  *	gigephy_en	bit 0
  */
-
 #define ET_PM_PHY_SW_COMA		0x40
 #define ET_PMCSR_INIT			0x38
 
 /*
  * Interrupt status reg at address 0x0018
  */
-
 #define	ET_INTR_TXDMA_ISR	0x00000008
 #define ET_INTR_TXDMA_ERR	0x00000010
 #define ET_INTR_RXDMA_XFR_DONE	0x00000020
@@ -144,7 +141,6 @@
  * 6:	mmc_sw_reset
  *31:	selfclr_disable
  */
-
 #define ET_RESET_ALL	0x007F
 
 /*
@@ -154,14 +150,12 @@
 /*
  * MSI Configuration reg at address 0x0030
  */
-
 #define ET_MSI_VECTOR	0x0000001F
 #define ET_MSI_TC	0x00070000
 
 /*
  * Loopback reg located at address 0x0034
  */
-
 #define ET_LOOP_MAC	0x00000001
 #define ET_LOOP_DMA	0x00000002
 
@@ -187,13 +181,10 @@ struct global_regs {				/* Location: */
 	u32 watchdog_timer;			/*  0x0038 */
 };
 
-
 /* START OF TXDMA REGISTER ADDRESS MAP */
-
 /*
  * txdma control status reg at address 0x1000
  */
-
 #define ET_TXDMA_CSR_HALT	0x00000001
 #define ET_TXDMA_DROP_TLP	0x00000002
 #define ET_TXDMA_CACHE_THRS	0x000000F0
@@ -220,7 +211,6 @@ struct global_regs {				/* Location: */
  * 31-10: unused
  * 9-0: pr ndes
  */
-
 #define ET_DMA12_MASK		0x0FFF	/* 12 bit mask for DMA12W types */
 #define ET_DMA12_WRAP		0x1000
 #define ET_DMA10_MASK		0x03FF	/* 10 bit mask for DMA10W types */
@@ -294,9 +284,7 @@ struct txdma_regs {			/* Location: */
 
 /* END OF TXDMA REGISTER ADDRESS MAP */
 
-
 /* START OF RXDMA REGISTER ADDRESS MAP */
-
 /*
  * structure for control status reg in rxdma address map
  * Located at address 0x2000
@@ -318,7 +306,6 @@ struct txdma_regs {			/* Location: */
  * 17: halt_status
  * 18-31: unused
  */
-
 #define ET_RXDMA_CSR_HALT		0x0001
 #define ET_RXDMA_CSR_FBR0_SIZE_LO	0x0100
 #define ET_RXDMA_CSR_FBR0_SIZE_HI	0x0200
@@ -393,7 +380,6 @@ struct txdma_regs {			/* Location: */
  * 31-12: unused
  * 11-0: psr ndes
  */
-
 #define ET_RXDMA_PSR_NUM_DES_MASK	0xFFF
 
 /*
@@ -552,9 +538,7 @@ struct rxdma_regs {					/* Location: */
 
 /* END OF RXDMA REGISTER ADDRESS MAP */
 
-
 /* START OF TXMAC REGISTER ADDRESS MAP */
-
 /*
  * structure for control reg in txmac address map
  * located at address 0x3000
@@ -570,7 +554,6 @@ struct rxdma_regs {					/* Location: */
  * 1: mif_disable
  * 0: txmac_en
  */
-
 #define ET_TX_CTRL_FC_DISABLE	0x0008
 #define ET_TX_CTRL_TXMAC_ENABLE	0x0001
 
@@ -688,7 +671,6 @@ struct txmac_regs {			/* Location: */
  * 1: mcif_disable
  * 0: rxmac_en
  */
-
 #define ET_RX_CTRL_WOL_DISABLE	0x0008
 #define ET_RX_CTRL_RXMAC_ENABLE	0x0001
 
@@ -732,7 +714,6 @@ struct txmac_regs {			/* Location: */
  * 15-8: sa5
  * 7-0: sa6
  */
-
 #define ET_RX_WOL_LO_SA3_SHIFT 24
 #define ET_RX_WOL_LO_SA4_SHIFT 16
 #define ET_RX_WOL_LO_SA5_SHIFT 8
@@ -745,7 +726,6 @@ struct txmac_regs {			/* Location: */
  * 15-8: sa1
  * 7-0: sa2
  */
-
 #define ET_RX_WOL_HI_SA1_SHIFT 8
 
 /*
@@ -763,7 +743,6 @@ struct txmac_regs {			/* Location: */
  * 15-8: addr1_5
  * 7-0: addr1_6
  */
-
 #define ET_RX_UNI_PF_ADDR1_3_SHIFT 24
 #define ET_RX_UNI_PF_ADDR1_4_SHIFT 16
 #define ET_RX_UNI_PF_ADDR1_5_SHIFT 8
@@ -777,7 +756,6 @@ struct txmac_regs {			/* Location: */
  * 15-8: addr2_5
  * 7-0: addr2_6
  */
-
 #define ET_RX_UNI_PF_ADDR2_3_SHIFT 24
 #define ET_RX_UNI_PF_ADDR2_4_SHIFT 16
 #define ET_RX_UNI_PF_ADDR2_5_SHIFT 8
@@ -791,7 +769,6 @@ struct txmac_regs {			/* Location: */
  * 15-8: addr1_1
  * 7-0: addr1_2
  */
-
 #define ET_RX_UNI_PF_ADDR2_1_SHIFT 24
 #define ET_RX_UNI_PF_ADDR2_2_SHIFT 16
 #define ET_RX_UNI_PF_ADDR1_1_SHIFT 8
@@ -814,7 +791,6 @@ struct txmac_regs {			/* Location: */
  * 1: filter_multi_en
  * 0: filter_broad_en
  */
-
 #define ET_RX_PFCTRL_MIN_PKT_SZ_SHIFT		16
 #define ET_RX_PFCTRL_FRAG_FILTER_ENABLE		0x0008
 #define ET_RX_PFCTRL_UNICST_FILTER_ENABLE	0x0004
@@ -830,7 +806,6 @@ struct txmac_regs {			/* Location: */
  * 1: fc_en
  * 0: seg_en
  */
-
 #define ET_RX_MCIF_CTRL_MAX_SEG_SIZE_SHIFT	2
 #define ET_RX_MCIF_CTRL_MAX_SEG_FC_ENABLE	0x0002
 #define ET_RX_MCIF_CTRL_MAX_SEG_ENABLE		0x0001
@@ -935,7 +910,6 @@ struct rxmac_regs {					/* Location: */
 /* END OF RXMAC REGISTER ADDRESS MAP */
 
 /* START OF MAC REGISTER ADDRESS MAP */
-
 /*
  * structure for configuration #1 reg in mac address map.
  * located at address 0x5000
@@ -957,7 +931,6 @@ struct rxmac_regs {					/* Location: */
  * 1: syncd tx en
  * 0: tx enable
  */
-
 #define ET_MAC_CFG1_SOFT_RESET		0x80000000
 #define ET_MAC_CFG1_SIM_RESET		0x40000000
 #define ET_MAC_CFG1_RESET_RXMC		0x00080000
@@ -986,7 +959,6 @@ struct rxmac_regs {					/* Location: */
  * 1: crc enable
  * 0: full duplex
  */
-
 #define ET_MAC_CFG2_PREAMBLE_SHIFT	12
 #define ET_MAC_CFG2_IFMODE_MASK		0x0300
 #define ET_MAC_CFG2_IFMODE_1000		0x0200
@@ -1049,7 +1021,6 @@ struct rxmac_regs {					/* Location: */
  * 3: undefined
  * 2-0: mgmt clock reset
  */
-
 #define ET_MAC_MIIMGMT_CLK_RST	0x0007
 
 /*
@@ -1067,7 +1038,6 @@ struct rxmac_regs {					/* Location: */
  * 7-5: reserved
  * 4-0: register
  */
-
 #define ET_MAC_MII_ADDR(phy, reg)	((phy) << 8 | (reg))
 
 /*
@@ -1083,7 +1053,6 @@ struct rxmac_regs {					/* Location: */
  * 31-16: reserved
  * 15-0: phy control
  */
-
 #define ET_MAC_MIIMGMT_STAT_PHYCRTL_MASK 0xFFFF
 
 /*
@@ -1094,7 +1063,6 @@ struct rxmac_regs {					/* Location: */
  * 1: scanning
  * 0: busy
  */
-
 #define ET_MAC_MGMT_BUSY	0x00000001	/* busy */
 #define ET_MAC_MGMT_WAIT	0x00000005	/* busy | not valid */
 
@@ -1120,7 +1088,6 @@ struct rxmac_regs {					/* Location: */
  * 6-1: reserved
  * 0: enable jabber protection
  */
-
 #define ET_MAC_IFCTRL_GHDMODE	(1 << 26)
 #define ET_MAC_IFCTRL_PHYMODE	(1 << 24)
 
@@ -1150,7 +1117,6 @@ struct rxmac_regs {					/* Location: */
  * 15-8: Octet4
  * 7-0: Octet3
  */
-
 #define ET_MAC_STATION_ADDR1_OC6_SHIFT 24
 #define ET_MAC_STATION_ADDR1_OC5_SHIFT 16
 #define ET_MAC_STATION_ADDR1_OC4_SHIFT 8
@@ -1163,7 +1129,6 @@ struct rxmac_regs {					/* Location: */
  * 23-16: Octet1
  * 15-0: reserved
  */
-
 #define ET_MAC_STATION_ADDR2_OC2_SHIFT 24
 #define ET_MAC_STATION_ADDR2_OC1_SHIFT 16
 
@@ -1194,7 +1159,6 @@ struct mac_regs {					/* Location: */
 /* END OF MAC REGISTER ADDRESS MAP */
 
 /* START OF MAC STAT REGISTER ADDRESS MAP */
-
 /*
  * structure for Carry Register One and it's Mask Register reg located in mac
  * stat address map address 0x6130 and 0x6138.
@@ -1313,12 +1277,10 @@ struct macstat_regs {			/* Location: */
 /* END OF MAC STAT REGISTER ADDRESS MAP */
 
 /* START OF MMC REGISTER ADDRESS MAP */
-
 /*
  * Main Memory Controller Control reg in mmc address map.
  * located at address 0x7000
  */
-
 #define ET_MMC_ENABLE		1
 #define ET_MMC_ARB_DISABLE	2
 #define ET_MMC_RXMAC_DISABLE	4
@@ -1331,7 +1293,6 @@ struct macstat_regs {			/* Location: */
  * Main Memory Controller Host Memory Access Address reg in mmc
  * address map.  Located at address 0x7004. Top 16 bits hold the address bits
  */
-
 #define ET_SRAM_REQ_ACCESS	1
 #define ET_SRAM_WR_ACCESS	2
 #define ET_SRAM_IS_CTRL		4
@@ -1355,7 +1316,6 @@ struct mmc_regs {		/* Location: */
 };
 
 /* END OF MMC REGISTER ADDRESS MAP */
-
 
 /*
  * JAGCore Address Mapping
@@ -1387,7 +1347,6 @@ struct address_map {
 	u8 unused_mmc[4096 - sizeof(struct mmc_regs)];
 	/* unused section of address map */
 	u8 unused_[1015808];
-
 	u8 unused_exp_rom[4096];	/* MGS-size TBD */
 	u8 unused__[524288];	/* unused section of address map */
 };
@@ -1396,7 +1355,6 @@ struct address_map {
  * Defines for generic MII registers 0x00 -> 0x0F can be found in
  * include/linux/mii.h
  */
-
 /* some defines for modem registers that seem to be 'reserved' */
 #define PHY_INDEX_REG              0x10
 #define PHY_DATA_REG               0x11
@@ -1456,7 +1414,6 @@ struct address_map {
  *	3:	reserved
  *	2-0:	mac_if_mode
  */
-
 #define ET_PHY_CONFIG_TX_FIFO_DEPTH	0x3000
 
 #define ET_PHY_CONFIG_FIFO_DEPTH_8	0x0000
