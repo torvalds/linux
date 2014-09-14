@@ -45,6 +45,7 @@
 #define B43_MMIO_RAM_DATA		0x134
 #define B43_MMIO_PS_STATUS		0x140
 #define B43_MMIO_RADIO_HWENABLED_HI	0x158
+#define B43_MMIO_MAC_HW_CAP		0x15C	/* MAC capabilities (corerev >= 13) */
 #define B43_MMIO_SHM_CONTROL		0x160
 #define B43_MMIO_SHM_DATA		0x164
 #define B43_MMIO_SHM_DATA_UNALIGNED	0x166
@@ -253,6 +254,8 @@ enum {
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
 #define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5 Ghz channel */
 #define  B43_SHM_SH_CHAN_40MHZ		0x0200	/* Bit set, if 40 Mhz channel width */
+#define B43_SHM_SH_MACHW_L		0x00C0	/* Location where the ucode expects the MAC capabilities */
+#define B43_SHM_SH_MACHW_H		0x00C2	/* Location where the ucode expects the MAC capabilities */
 #define B43_SHM_SH_HOSTF5		0x00D4	/* Hostflags 5 for ucode options */
 #define B43_SHM_SH_BCMCFIFOID		0x0108	/* Last posted cookie to the bcast/mcast FIFO */
 /* TSSI information */

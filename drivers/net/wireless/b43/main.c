@@ -4857,6 +4857,16 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	hf &= ~B43_HF_SKCFPUP;
 	b43_hf_write(dev, hf);
 
+	/* tell the ucode MAC capabilities */
+	if (dev->dev->core_rev >= 13) {
+		u32 mac_hw_cap = b43_read32(dev, B43_MMIO_MAC_HW_CAP);
+
+		b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_MACHW_L,
+				mac_hw_cap & 0xffff);
+		b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_MACHW_H,
+				(mac_hw_cap >> 16) & 0xffff);
+	}
+
 	b43_set_retry_limits(dev, B43_DEFAULT_SHORT_RETRY_LIMIT,
 			     B43_DEFAULT_LONG_RETRY_LIMIT);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_SFFBLIM, 3);
