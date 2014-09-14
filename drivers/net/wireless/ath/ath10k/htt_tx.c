@@ -154,7 +154,6 @@ void ath10k_htt_tx_free(struct ath10k_htt *htt)
 	kfree(htt->pending_tx);
 	kfree(htt->used_msdu_ids);
 	dma_pool_destroy(htt->tx_pool);
-	return;
 }
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
