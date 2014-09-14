@@ -284,6 +284,7 @@ struct hci_req_ctrl {
 struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
+	__u16 opcode;
 	__u16 expect;
 	__u8 force_active;
 	struct l2cap_chan *chan;

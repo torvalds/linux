@@ -4547,6 +4547,7 @@ static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
 	BT_DBG("skb len %d", skb->len);
 
 	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
+	bt_cb(skb)->opcode = opcode;
 
 	return skb;
 }
