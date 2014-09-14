@@ -1137,7 +1137,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		 */
 		*inode = path->dentry->d_inode;
 	}
-	return read_seqretry(&mount_lock, nd->m_seq) &&
+	return !read_seqretry(&mount_lock, nd->m_seq) &&
 		!(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT);
 }
 
@@ -1174,7 +1174,7 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 		nd->path.mnt = &mounted->mnt;
 		nd->path.dentry = mounted->mnt.mnt_root;
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
-		if (!read_seqretry(&mount_lock, nd->m_seq))
+		if (read_seqretry(&mount_lock, nd->m_seq))
 			goto failed;
 	}
 	nd->inode = nd->path.dentry->d_inode;
