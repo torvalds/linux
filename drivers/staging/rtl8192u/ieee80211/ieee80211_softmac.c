@@ -124,7 +124,8 @@ static void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p)
 }
 
 #ifdef THOMAS_TURBO
-void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p) {
+static void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p)
+{
 	u8 *tag = *tag_p;
 
 	*tag++ = MFIE_TYPE_GENERIC; //0
