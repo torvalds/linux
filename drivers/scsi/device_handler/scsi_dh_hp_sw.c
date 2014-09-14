@@ -364,7 +364,7 @@ static int hp_sw_bus_attach(struct scsi_device *sdev)
 	if (!scsi_dh_data) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach Failed\n",
 			    HP_SW_NAME);
-		return 0;
+		return -ENOMEM;
 	}
 
 	scsi_dh_data->scsi_dh = &hp_sw_dh;
