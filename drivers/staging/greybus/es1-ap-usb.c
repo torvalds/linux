@@ -14,7 +14,8 @@
 #include "svc_msg.h"
 
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(0xffff, 0x0001) },		// FIXME
+	/* Made up numbers for the SVC USB Bridge in ES1 */
+	{ USB_DEVICE(0xffff, 0x0001) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -31,23 +32,42 @@ MODULE_DEVICE_TABLE(usb, id_table);
  */
 #define NUM_CPORT_OUT_URB	8
 
-
+/**
+ * es1_ap_dev - ES1 USB Bridge to AP structure
+ * @usb_dev: pointer to the USB device we are.
+ * @usb_intf: pointer to the USB interface we are bound to.
+ * @hd: pointer to our greybus_host_device structure
+ * @control_endpoint: endpoint to send data to SVC
+ * @svc_endpoint: endpoint for SVC data in
+ * @cport_in_endpoint: bulk in endpoint for CPort data
+ * @cport-out_endpoint: bulk out endpoint for CPort data
+ * @svc_buffer: buffer for SVC messages coming in on @svc_endpoint
+ * @svc_urb: urb for SVC messages coming in on @svc_endpoint
+ * @cport_in_urb: array of urbs for the CPort in messages
+ * @cport_in_buffer: array of buffers for the @cport_in_urb urbs
+ * @cport_out_urb: array of urbs for the CPort out messages
+ * @cport_out_urb_busy: array of flags to see if the @cport_out_urb is busy or
+ *			not.
+ * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
+ */
 struct es1_ap_dev {
 	struct usb_device *usb_dev;
 	struct usb_interface *usb_intf;
 	struct greybus_host_device *hd;
 
-	__u8 control_endpoint;		/* endpoint to send data to SVC */
-	__u8 svc_endpoint;		/* endpoint for SVC data */
-	__u8 cport_in_endpoint;		/* bulk in for CPort data */
-	__u8 cport_out_endpoint;	/* bulk out for CPort data */
-	u8 *svc_buffer;			/* buffer for SVC messages coming in */
-	struct urb *svc_urb;		/* urb for SVC messages coming in */
-	struct urb *cport_in_urb[NUM_CPORT_IN_URB];	/* CPort IN urbs */
-	u8 *cport_in_buffer[NUM_CPORT_IN_URB];		/* CPort IN buffers */
-	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];	/* CPort OUT urbs */
-	bool cport_out_urb_busy[NUM_CPORT_OUT_URB];	/* CPort OUT urb busy marker */
-	spinlock_t cport_out_urb_lock;			/* locks list of cport out urbs */
+	__u8 control_endpoint;
+	__u8 svc_endpoint;
+	__u8 cport_in_endpoint;
+	__u8 cport_out_endpoint;
+
+	u8 *svc_buffer;
+	struct urb *svc_urb;
+
+	struct urb *cport_in_urb[NUM_CPORT_IN_URB];
+	u8 *cport_in_buffer[NUM_CPORT_IN_URB];
+	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];
+	bool cport_out_urb_busy[NUM_CPORT_OUT_URB];
+	spinlock_t cport_out_urb_lock;
 };
 
 static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
@@ -291,6 +311,7 @@ static void cport_out_callback(struct urb *urb)
 	int status = urb->status;
 	int i;
 
+	/* do we care about errors going back up? */
 	switch (status) {
 	case 0:
 		break;
@@ -308,15 +329,13 @@ static void cport_out_callback(struct urb *urb)
 		goto exit;
 	}
 
-	// FIXME - do we care about errors going back up?
-
 	/* Tell the core the gbuf is properly sent */
 	greybus_gbuf_finished(gbuf);
 
 exit:
 	/*
-	 * See if this was an urb in our pool, if so mark it "free", otherwise we
-	 * need to free it ourselves.
+	 * See if this was an urb in our pool, if so mark it "free", otherwise
+	 * we need to free it ourselves.
 	 */
 	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
@@ -327,9 +346,9 @@ exit:
 		}
 	}
 	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
-	if (urb)
-		usb_free_urb(urb);
 
+	/* If urb is not NULL, then we need to free this urb */
+	usb_free_urb(urb);
 }
 
 /*
