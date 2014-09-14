@@ -631,7 +631,7 @@ static int __ath10k_pci_diag_read_hi(struct ath10k *ar, void *dest,
 }
 
 #define ath10k_pci_diag_read_hi(ar, dest, src, len)		\
-	__ath10k_pci_diag_read_hi(ar, dest, HI_ITEM(src), len);
+	__ath10k_pci_diag_read_hi(ar, dest, HI_ITEM(src), len)
 
 static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 				     const void *data, int nbytes)

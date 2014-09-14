@@ -1031,6 +1031,7 @@ static inline struct htt_stats_conf_item *htt_stats_conf_next_item(
 {
 	return (void *)item + sizeof(*item) + roundup(item->length, 4);
 }
+
 /*
  * host -> target FRAG DESCRIPTOR/MSDU_EXT DESC bank
  *

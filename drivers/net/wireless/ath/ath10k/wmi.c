@@ -3590,8 +3590,8 @@ ath10k_wmi_vdev_start_restart(struct ath10k *ar,
 	cmd->chan.antenna_max = arg->channel.max_antenna_gain;
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
-		   "wmi vdev %s id 0x%x flags: 0x%0X, freq %d, mode %d, "
-		   "ch_flags: 0x%0X, max_power: %d\n", cmdname, arg->vdev_id,
+		   "wmi vdev %s id 0x%x flags: 0x%0X, freq %d, mode %d, ch_flags: 0x%0X, max_power: %d\n",
+		   cmdname, arg->vdev_id,
 		   flags, arg->channel.freq, arg->channel.mode,
 		   cmd->chan.flags, arg->channel.max_power);
 

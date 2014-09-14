@@ -132,7 +132,7 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 	dma_addr_t paddr;
 	int ret = 0, idx;
 
-	idx = __le32_to_cpu(*(htt->rx_ring.alloc_idx.vaddr));
+	idx = __le32_to_cpu(*htt->rx_ring.alloc_idx.vaddr);
 	while (num > 0) {
 		skb = dev_alloc_skb(HTT_RX_BUF_SIZE + HTT_RX_DESC_ALIGN);
 		if (!skb) {
@@ -170,7 +170,7 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 	}
 
 fail:
-	*(htt->rx_ring.alloc_idx.vaddr) = __cpu_to_le32(idx);
+	*htt->rx_ring.alloc_idx.vaddr = __cpu_to_le32(idx);
 	return ret;
 }
 
