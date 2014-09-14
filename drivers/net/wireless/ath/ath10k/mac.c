@@ -199,7 +199,7 @@ static int ath10k_clear_vdev_key(struct ath10k_vif *arvif,
 		list_for_each_entry(peer, &ar->peers, list) {
 			for (i = 0; i < ARRAY_SIZE(peer->keys); i++) {
 				if (peer->keys[i] == key) {
-					memcpy(addr, peer->addr, ETH_ALEN);
+					ether_addr_copy(addr, peer->addr);
 					peer->keys[i] = NULL;
 					break;
 				}
@@ -930,7 +930,7 @@ static void ath10k_control_beaconing(struct ath10k_vif *arvif,
 		return;
 
 	arvif->aid = 0;
-	memcpy(arvif->bssid, info->bssid, ETH_ALEN);
+	ether_addr_copy(arvif->bssid, info->bssid);
 
 	ret = ath10k_wmi_vdev_up(arvif->ar, arvif->vdev_id, arvif->aid,
 				 arvif->bssid);
@@ -1050,7 +1050,7 @@ static void ath10k_peer_assoc_h_basic(struct ath10k *ar,
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
-	memcpy(arg->addr, sta->addr, ETH_ALEN);
+	ether_addr_copy(arg->addr, sta->addr);
 	arg->vdev_id = arvif->vdev_id;
 	arg->peer_aid = sta->aid;
 	arg->peer_flags |= WMI_PEER_AUTH;
@@ -1524,7 +1524,7 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 		   arvif->vdev_id, bss_conf->bssid, bss_conf->aid);
 
 	arvif->aid = bss_conf->aid;
-	memcpy(arvif->bssid, bss_conf->bssid, ETH_ALEN);
+	ether_addr_copy(arvif->bssid, bss_conf->bssid);
 
 	ret = ath10k_wmi_vdev_up(ar, arvif->vdev_id, arvif->aid, arvif->bssid);
 	if (ret) {
@@ -3090,7 +3090,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 				 * this is never erased as we it for crypto key
 				 * clearing; this is FW requirement
 				 */
-				memcpy(arvif->bssid, info->bssid, ETH_ALEN);
+				ether_addr_copy(arvif->bssid, info->bssid);
 
 				ath10k_dbg(ar, ATH10K_DBG_MAC,
 					   "mac vdev %d start %pM\n",

@@ -794,7 +794,7 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 	cmd->hdr.tx_power = 0;
 	cmd->hdr.buf_len = __cpu_to_le32(buf_len);
 
-	memcpy(cmd->hdr.peer_macaddr.addr, ieee80211_get_DA(hdr), ETH_ALEN);
+	ether_addr_copy(cmd->hdr.peer_macaddr.addr, ieee80211_get_DA(hdr));
 	memcpy(cmd->buf, skb->data, skb->len);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi mgmt tx skb %p len %d ftype %02x stype %02x\n",
@@ -2350,7 +2350,7 @@ static int ath10k_wmi_ready_event_rx(struct ath10k *ar, struct sk_buff *skb)
 	if (WARN_ON(skb->len < sizeof(*ev)))
 		return -EINVAL;
 
-	memcpy(ar->mac_addr, ev->mac_addr.addr, ETH_ALEN);
+	ether_addr_copy(ar->mac_addr, ev->mac_addr.addr);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi event ready sw_version %u abi_version %u mac_addr %pM status %d skb->len %i ev-sz %zu\n",
@@ -3496,7 +3496,7 @@ int ath10k_wmi_vdev_create(struct ath10k *ar, u32 vdev_id,
 	cmd->vdev_id      = __cpu_to_le32(vdev_id);
 	cmd->vdev_type    = __cpu_to_le32(type);
 	cmd->vdev_subtype = __cpu_to_le32(subtype);
-	memcpy(cmd->vdev_macaddr.addr, macaddr, ETH_ALEN);
+	ether_addr_copy(cmd->vdev_macaddr.addr, macaddr);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "WMI vdev create: id %d type %d subtype %d macaddr %pM\n",
@@ -3643,7 +3643,7 @@ int ath10k_wmi_vdev_up(struct ath10k *ar, u32 vdev_id, u32 aid, const u8 *bssid)
 	cmd = (struct wmi_vdev_up_cmd *)skb->data;
 	cmd->vdev_id       = __cpu_to_le32(vdev_id);
 	cmd->vdev_assoc_id = __cpu_to_le32(aid);
-	memcpy(&cmd->vdev_bssid.addr, bssid, ETH_ALEN);
+	ether_addr_copy(cmd->vdev_bssid.addr, bssid);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi mgmt vdev up id 0x%x assoc id %d bssid %pM\n",
@@ -3724,7 +3724,7 @@ int ath10k_wmi_vdev_install_key(struct ath10k *ar,
 	cmd->key_rxmic_len = __cpu_to_le32(arg->key_rxmic_len);
 
 	if (arg->macaddr)
-		memcpy(cmd->peer_macaddr.addr, arg->macaddr, ETH_ALEN);
+		ether_addr_copy(cmd->peer_macaddr.addr, arg->macaddr);
 	if (arg->key_data)
 		memcpy(cmd->key_data, arg->key_data, arg->key_len);
 
@@ -3803,7 +3803,7 @@ int ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,
 
 	cmd = (struct wmi_peer_create_cmd *)skb->data;
 	cmd->vdev_id = __cpu_to_le32(vdev_id);
-	memcpy(cmd->peer_macaddr.addr, peer_addr, ETH_ALEN);
+	ether_addr_copy(cmd->peer_macaddr.addr, peer_addr);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi peer create vdev_id %d peer_addr %pM\n",
@@ -3823,7 +3823,7 @@ int ath10k_wmi_peer_delete(struct ath10k *ar, u32 vdev_id,
 
 	cmd = (struct wmi_peer_delete_cmd *)skb->data;
 	cmd->vdev_id = __cpu_to_le32(vdev_id);
-	memcpy(cmd->peer_macaddr.addr, peer_addr, ETH_ALEN);
+	ether_addr_copy(cmd->peer_macaddr.addr, peer_addr);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi peer delete vdev_id %d peer_addr %pM\n",
@@ -3844,7 +3844,7 @@ int ath10k_wmi_peer_flush(struct ath10k *ar, u32 vdev_id,
 	cmd = (struct wmi_peer_flush_tids_cmd *)skb->data;
 	cmd->vdev_id         = __cpu_to_le32(vdev_id);
 	cmd->peer_tid_bitmap = __cpu_to_le32(tid_bitmap);
-	memcpy(cmd->peer_macaddr.addr, peer_addr, ETH_ALEN);
+	ether_addr_copy(cmd->peer_macaddr.addr, peer_addr);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi peer flush vdev_id %d peer_addr %pM tids %08x\n",
@@ -3867,7 +3867,7 @@ int ath10k_wmi_peer_set_param(struct ath10k *ar, u32 vdev_id,
 	cmd->vdev_id     = __cpu_to_le32(vdev_id);
 	cmd->param_id    = __cpu_to_le32(param_id);
 	cmd->param_value = __cpu_to_le32(param_value);
-	memcpy(&cmd->peer_macaddr.addr, peer_addr, ETH_ALEN);
+	ether_addr_copy(cmd->peer_macaddr.addr, peer_addr);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi vdev %d peer 0x%pM set param %d value %d\n",
@@ -3938,7 +3938,7 @@ int ath10k_wmi_set_ap_ps_param(struct ath10k *ar, u32 vdev_id, const u8 *mac,
 	cmd->vdev_id = __cpu_to_le32(vdev_id);
 	cmd->param_id = __cpu_to_le32(param_id);
 	cmd->param_value = __cpu_to_le32(value);
-	memcpy(&cmd->peer_macaddr, mac, ETH_ALEN);
+	ether_addr_copy(cmd->peer_macaddr.addr, mac);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi ap ps param vdev_id 0x%X param %d value %d mac_addr %pM\n",
@@ -4022,7 +4022,7 @@ ath10k_wmi_peer_assoc_fill(struct ath10k *ar, void *buf,
 	cmd->peer_vht_caps      = __cpu_to_le32(arg->peer_vht_caps);
 	cmd->peer_phymode       = __cpu_to_le32(arg->peer_phymode);
 
-	memcpy(cmd->peer_macaddr.addr, arg->addr, ETH_ALEN);
+	ether_addr_copy(cmd->peer_macaddr.addr, arg->addr);
 
 	cmd->peer_legacy_rates.num_rates =
 		__cpu_to_le32(arg->peer_legacy_rates.num_rates);

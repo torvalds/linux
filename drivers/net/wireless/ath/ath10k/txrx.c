@@ -178,7 +178,7 @@ void ath10k_peer_map_event(struct ath10k_htt *htt,
 			goto exit;
 
 		peer->vdev_id = ev->vdev_id;
-		memcpy(peer->addr, ev->addr, ETH_ALEN);
+		ether_addr_copy(peer->addr, ev->addr);
 		list_add(&peer->list, &ar->peers);
 		wake_up(&ar->peer_mapping_wq);
 	}

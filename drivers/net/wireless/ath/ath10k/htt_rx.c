@@ -954,8 +954,8 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			/* pull decapped header and copy SA & DA */
 			hdr = (struct ieee80211_hdr *)skb->data;
 			hdr_len = ath10k_htt_rx_nwifi_hdrlen(hdr);
-			memcpy(da, ieee80211_get_DA(hdr), ETH_ALEN);
-			memcpy(sa, ieee80211_get_SA(hdr), ETH_ALEN);
+			ether_addr_copy(da, ieee80211_get_DA(hdr));
+			ether_addr_copy(sa, ieee80211_get_SA(hdr));
 			skb_pull(skb, hdr_len);
 
 			/* push original 802.11 header */
@@ -972,8 +972,8 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			/* original 802.11 header has a different DA and in
 			 * case of 4addr it may also have different SA
 			 */
-			memcpy(ieee80211_get_DA(hdr), da, ETH_ALEN);
-			memcpy(ieee80211_get_SA(hdr), sa, ETH_ALEN);
+			ether_addr_copy(ieee80211_get_DA(hdr), da);
+			ether_addr_copy(ieee80211_get_SA(hdr), sa);
 			break;
 		case RX_MSDU_DECAP_ETHERNET2_DIX:
 			/* strip ethernet header and insert decapped 802.11
