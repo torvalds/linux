@@ -488,6 +488,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 	dma_addr_t paddr;
 	void *vaddr;
+	size_t size;
 	struct timer_list *timer = &htt->rx_ring.refill_retry_timer;
 
 	htt->rx_ring.size = ath10k_htt_rx_ring_size(htt);
@@ -515,9 +516,9 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	if (!htt->rx_ring.netbufs_ring)
 		goto err_netbuf;
 
-	vaddr = dma_alloc_coherent(htt->ar->dev,
-		   (htt->rx_ring.size * sizeof(htt->rx_ring.paddrs_ring)),
-		   &paddr, GFP_DMA);
+	size = htt->rx_ring.size * sizeof(htt->rx_ring.paddrs_ring);
+
+	vaddr = dma_alloc_coherent(htt->ar->dev, size, &paddr, GFP_DMA);
 	if (!vaddr)
 		goto err_dma_ring;
 
