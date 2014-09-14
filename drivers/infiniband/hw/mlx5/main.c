@@ -1414,8 +1414,8 @@ err_dealloc:
 static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 {
 	struct mlx5_ib_dev *dev = context;
-	destroy_umrc_res(dev);
 	ib_unregister_device(&dev->ib_dev);
+	destroy_umrc_res(dev);
 	destroy_dev_resources(&dev->devr);
 	free_comp_eqs(dev);
 	ib_dealloc_device(&dev->ib_dev);
