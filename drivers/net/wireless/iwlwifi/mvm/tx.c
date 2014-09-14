@@ -873,6 +873,19 @@ int iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	return 0;
 }
 
+static void iwl_mvm_tx_info_from_ba_notif(struct ieee80211_tx_info *info,
+					  struct iwl_mvm_ba_notif *ba_notif,
+					  struct iwl_mvm_tid_data *tid_data)
+{
+	info->flags |= IEEE80211_TX_STAT_AMPDU;
+	info->status.ampdu_ack_len = ba_notif->txed_2_done;
+	info->status.ampdu_len = ba_notif->txed;
+	iwl_mvm_hwrate_to_tx_status(tid_data->rate_n_flags,
+				    info);
+	info->status.status_driver_data[0] =
+		(void *)(uintptr_t)tid_data->reduced_tpc;
+}
+
 int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			struct iwl_device_cmd *cmd)
 {
@@ -959,21 +972,37 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		 */
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
-		if (freed == 1) {
-			/* this is the first skb we deliver in this batch */
-			/* put the rate scaling data there */
-			info->flags |= IEEE80211_TX_STAT_AMPDU;
-			info->status.ampdu_ack_len = ba_notif->txed_2_done;
-			info->status.ampdu_len = ba_notif->txed;
-			iwl_mvm_hwrate_to_tx_status(tid_data->rate_n_flags,
-						    info);
-			info->status.status_driver_data[0] =
-				(void *)(uintptr_t)tid_data->reduced_tpc;
-		}
+		/* this is the first skb we deliver in this batch */
+		/* put the rate scaling data there */
+		if (freed == 1)
+			iwl_mvm_tx_info_from_ba_notif(info, ba_notif, tid_data);
 	}
 
 	spin_unlock_bh(&mvmsta->lock);
 
+	/* We got a BA notif with 0 acked or scd_ssn didn't progress which is
+	 * possible (i.e. first MPDU in the aggregation wasn't acked)
+	 * Still it's important to update RS about sent vs. acked.
+	 */
+	if (skb_queue_empty(&reclaimed_skbs)) {
+		struct ieee80211_tx_info ba_info = {};
+		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
+
+		if (mvmsta->vif)
+			chanctx_conf =
+				rcu_dereference(mvmsta->vif->chanctx_conf);
+
+		if (WARN_ON_ONCE(!chanctx_conf))
+			goto out;
+
+		ba_info.band = chanctx_conf->def.chan->band;
+		iwl_mvm_tx_info_from_ba_notif(&ba_info, ba_notif, tid_data);
+
+		IWL_DEBUG_TX_REPLY(mvm, "No reclaim. Update rs directly\n");
+		iwl_mvm_rs_tx_status(mvm, sta, tid, &ba_info);
+	}
+
+out:
 	rcu_read_unlock();
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {
