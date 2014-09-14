@@ -3245,6 +3245,9 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unlock;
 
+	/* we won't be on this channel any longer */
+	iwl_mvm_teardown_tdls_peers(mvm);
+
 out_unlock:
 	mutex_unlock(&mvm->mutex);
 
