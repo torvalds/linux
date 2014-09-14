@@ -299,6 +299,7 @@ static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
  * @tx_protection: reference counter for controlling the Tx protection.
  * @tt_tx_protection: is thermal throttling enable Tx protection?
  * @disable_tx: is tx to this STA disabled?
+ * @agg_tids: bitmap of tids whose status is operational aggregated (IWL_AGG_ON)
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -323,6 +324,7 @@ struct iwl_mvm_sta {
 	bool tt_tx_protection;
 
 	bool disable_tx;
+	u8 agg_tids;
 };
 
 static inline struct iwl_mvm_sta *

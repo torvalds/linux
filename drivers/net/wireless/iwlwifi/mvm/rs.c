@@ -1980,16 +1980,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	struct iwl_mvm_tid_data *tid_data;
 	struct rs_rate *rate;
 
-	if ((tid != IWL_MAX_TID_COUNT) &&
-	    (lq_sta->tx_agg_tid_en & (1 << tid))) {
-		tid_data = &sta_priv->tid_data[tid];
-		if (tid_data->state == IWL_AGG_OFF)
-			lq_sta->is_agg = 0;
-		else
-			lq_sta->is_agg = 1;
-	} else {
-		lq_sta->is_agg = 0;
-	}
+	lq_sta->is_agg = !!sta_priv->agg_tids;
 
 	/*
 	 * Select rate-scale / modulation-mode table to work with in

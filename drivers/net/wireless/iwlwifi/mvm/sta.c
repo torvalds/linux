@@ -247,6 +247,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		memset(&mvm_sta->tid_data[i], 0, sizeof(mvm_sta->tid_data[i]));
 		mvm_sta->tid_data[i].seq_number = seq;
 	}
+	mvm_sta->agg_tids = 0;
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
@@ -872,12 +873,16 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int queue, fifo, ret;
 	u16 ssn;
 
+	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
+		     != IWL_MAX_TID_COUNT);
+
 	buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
 
 	spin_lock_bh(&mvmsta->lock);
 	ssn = tid_data->ssn;
 	queue = tid_data->txq_id;
 	tid_data->state = IWL_AGG_ON;
+	mvmsta->agg_tids |= BIT(tid);
 	tid_data->ssn = 0xffff;
 	spin_unlock_bh(&mvmsta->lock);
 
@@ -931,6 +936,8 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	IWL_DEBUG_TX_QUEUES(mvm, "Stop AGG: sta %d tid %d q %d state %d\n",
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
+
+	mvmsta->agg_tids &= ~BIT(tid);
 
 	switch (tid_data->state) {
 	case IWL_AGG_ON:
@@ -1005,6 +1012,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
 	old_state = tid_data->state;
 	tid_data->state = IWL_AGG_OFF;
+	mvmsta->agg_tids &= ~BIT(tid);
 	spin_unlock_bh(&mvmsta->lock);
 
 	if (old_state >= IWL_AGG_ON) {
