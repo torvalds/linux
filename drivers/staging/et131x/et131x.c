@@ -1529,8 +1529,8 @@ static int et131x_mdio_read(struct mii_bus *bus, int phy_addr, int reg)
 
 	if (ret < 0)
 		return ret;
-	else
-		return value;
+
+	return value;
 }
 
 static int et131x_mdio_write(struct mii_bus *bus, int phy_addr,
