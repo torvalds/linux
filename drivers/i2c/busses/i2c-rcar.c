@@ -453,7 +453,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		priv->msg	= &msgs[i];
 		priv->pos	= 0;
 		priv->flags	= 0;
-		if (priv->msg == &msgs[num - 1])
+		if (i == num - 1)
 			rcar_i2c_flags_set(priv, ID_LAST_MSG);
 
 		ret = rcar_i2c_prepare_msg(priv);
