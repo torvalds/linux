@@ -612,6 +612,7 @@ static struct wmi_cmd_map wmi_10_2_cmd_map = {
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 {
 	int ret;
+
 	ret = wait_for_completion_timeout(&ar->wmi.service_ready,
 					  WMI_SERVICE_READY_TIMEOUT_HZ);
 	return ret;
@@ -620,6 +621,7 @@ int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar)
 {
 	int ret;
+
 	ret = wait_for_completion_timeout(&ar->wmi.unified_ready,
 					  WMI_UNIFIED_READY_TIMEOUT_HZ);
 	return ret;
@@ -1384,6 +1386,8 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	struct ieee80211_tim_ie *tim;
 	u8 *ies, *ie;
 	u8 ie_len, pvm_len;
+	__le32 t;
+	u32 v;
 
 	/* if next SWBA has no tim_changed the tim_bitmap is garbage.
 	 * we must copy the bitmap upon change and reuse it later */
@@ -1394,8 +1398,8 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 			     sizeof(bcn_info->tim_info.tim_bitmap));
 
 		for (i = 0; i < sizeof(arvif->u.ap.tim_bitmap); i++) {
-			__le32 t = bcn_info->tim_info.tim_bitmap[i / 4];
-			u32 v = __le32_to_cpu(t);
+			t = bcn_info->tim_info.tim_bitmap[i / 4];
+			v = __le32_to_cpu(t);
 			arvif->u.ap.tim_bitmap[i] = (v >> ((i % 4) * 8)) & 0xFF;
 		}
 

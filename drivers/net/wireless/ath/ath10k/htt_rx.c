@@ -222,6 +222,7 @@ static void ath10k_htt_rx_msdu_buff_replenish(struct ath10k_htt *htt)
 static void ath10k_htt_rx_ring_refill_retry(unsigned long arg)
 {
 	struct ath10k_htt *htt = (struct ath10k_htt *)arg;
+
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
 
@@ -313,7 +314,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 {
 	struct ath10k *ar = htt->ar;
 	int msdu_len, msdu_chaining = 0;
-	struct sk_buff *msdu;
+	struct sk_buff *msdu, *next;
 	struct htt_rx_desc *rx_desc;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
@@ -450,7 +451,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 			msdu->next = NULL;
 			break;
 		} else {
-			struct sk_buff *next = ath10k_htt_rx_netbuf_pop(htt);
+			next = ath10k_htt_rx_netbuf_pop(htt);
 			msdu->next = next;
 			msdu = next;
 		}
@@ -479,6 +480,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 static void ath10k_htt_rx_replenish_task(unsigned long ptr)
 {
 	struct ath10k_htt *htt = (struct ath10k_htt *)ptr;
+
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
 
@@ -636,8 +638,10 @@ static struct ieee80211_hdr *ath10k_htt_rx_skb_get_hdr(struct sk_buff *skb)
 /* This function only applies for first msdu in an msdu chain */
 static bool ath10k_htt_rx_hdr_is_amsdu(struct ieee80211_hdr *hdr)
 {
+	u8 *qc;
+
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
-		u8 *qc = ieee80211_get_qos_ctl(hdr);
+		qc = ieee80211_get_qos_ctl(hdr);
 		if (qc[0] & 0x80)
 			return true;
 	}

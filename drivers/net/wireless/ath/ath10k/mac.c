@@ -1157,6 +1157,7 @@ static void ath10k_peer_assoc_h_ht(struct ath10k *ar,
 {
 	const struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	int i, n;
+	u32 stbc;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -1193,7 +1194,6 @@ static void ath10k_peer_assoc_h_ht(struct ath10k *ar,
 	}
 
 	if (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC) {
-		u32 stbc;
 		stbc = ht_cap->cap & IEEE80211_HT_CAP_RX_STBC;
 		stbc = stbc >> IEEE80211_HT_CAP_RX_STBC_SHIFT;
 		stbc = stbc << WMI_RC_RX_STBC_FLAG_S;
@@ -3011,7 +3011,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	int ret = 0;
-	u32 vdev_param, pdev_param;
+	u32 vdev_param, pdev_param, slottime, preamble;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -3132,7 +3132,6 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
-		u32 slottime;
 		if (info->use_short_slot)
 			slottime = WMI_VDEV_SLOT_TIME_SHORT; /* 9us */
 
@@ -3151,7 +3150,6 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		u32 preamble;
 		if (info->use_short_preamble)
 			preamble = WMI_VDEV_PREAMBLE_SHORT;
 		else
