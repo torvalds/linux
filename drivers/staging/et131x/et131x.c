@@ -608,8 +608,8 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 		 * an error has occurred.Don't break here if we are revision
 		 * 1, this is so we do a blind write for load bug.
 		 */
-		if ((status & LBCIF_STATUS_GENERAL_ERROR)
-			&& adapter->pdev->revision == 0)
+		if ((status & LBCIF_STATUS_GENERAL_ERROR) &&
+		    adapter->pdev->revision == 0)
 			break;
 
 		/* Check bit 2 of the LBCIF Status Register.  If equal to 1 an
@@ -2977,8 +2977,8 @@ static void et131x_handle_send_pkts(struct et131x_adapter *adapter)
 		tcb = tx_ring->send_head;
 	}
 	while (tcb &&
-	       !((serviced ^ tcb->index) & ET_DMA10_WRAP)
-	       && index > (tcb->index & ET_DMA10_MASK)) {
+	       !((serviced ^ tcb->index) & ET_DMA10_WRAP) &&
+	       index > (tcb->index & ET_DMA10_MASK)) {
 		tx_ring->used--;
 		tx_ring->send_head = tcb->next;
 		if (tcb->next == NULL)
