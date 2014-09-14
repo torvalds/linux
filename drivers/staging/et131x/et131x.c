@@ -2017,10 +2017,10 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	struct fbr_lookup *fbr;
 
 	/* Alloc memory for the lookup table */
-	rx_ring->fbr[0] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
+	rx_ring->fbr[0] = kmalloc(sizeof(*fbr), GFP_KERNEL);
 	if (rx_ring->fbr[0] == NULL)
 		return -ENOMEM;
-	rx_ring->fbr[1] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
+	rx_ring->fbr[1] = kmalloc(sizeof(*fbr), GFP_KERNEL);
 	if (rx_ring->fbr[1] == NULL)
 		return -ENOMEM;
 
@@ -2254,7 +2254,7 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->num_rfd; rfdct++) {
-		rfd = kzalloc(sizeof(struct rfd), GFP_ATOMIC | GFP_DMA);
+		rfd = kzalloc(sizeof(*rfd), GFP_ATOMIC | GFP_DMA);
 		if (!rfd)
 			return -ENOMEM;
 
