@@ -62,6 +62,7 @@
 #define ALUA_OPTIMIZE_STPG		1
 
 struct alua_dh_data {
+	struct scsi_dh_data	dh_data;
 	int			group_id;
 	int			rel_port;
 	int			tpgs;
@@ -87,9 +88,7 @@ static int alua_check_sense(struct scsi_device *, struct scsi_sense_hdr *);
 
 static inline struct alua_dh_data *get_alua_data(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data = sdev->scsi_dh_data;
-	BUG_ON(scsi_dh_data == NULL);
-	return ((struct alua_dh_data *) scsi_dh_data->buf);
+	return container_of(sdev->scsi_dh_data, struct alua_dh_data, dh_data);
 }
 
 static int realloc_buffer(struct alua_dh_data *h, unsigned len)
@@ -846,21 +845,18 @@ static struct scsi_device_handler alua_dh = {
  */
 static int alua_bus_attach(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data;
 	struct alua_dh_data *h;
 	unsigned long flags;
 	int err = SCSI_DH_OK;
 
-	scsi_dh_data = kzalloc(sizeof(*scsi_dh_data)
-			       + sizeof(*h) , GFP_KERNEL);
-	if (!scsi_dh_data) {
+	h = kzalloc(sizeof(*h) , GFP_KERNEL);
+	if (!h) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach failed\n",
 			    ALUA_DH_NAME);
 		return -ENOMEM;
 	}
 
-	scsi_dh_data->scsi_dh = &alua_dh;
-	h = (struct alua_dh_data *) scsi_dh_data->buf;
+	h->dh_data.scsi_dh = &alua_dh;
 	h->tpgs = TPGS_MODE_UNINITIALIZED;
 	h->state = TPGS_STATE_OPTIMIZED;
 	h->group_id = -1;
@@ -874,14 +870,14 @@ static int alua_bus_attach(struct scsi_device *sdev)
 		goto failed;
 
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-	sdev->scsi_dh_data = scsi_dh_data;
+	sdev->scsi_dh_data = &h->dh_data;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
 	sdev_printk(KERN_NOTICE, sdev, "%s: Attached\n", ALUA_DH_NAME);
 
 	return 0;
 
 failed:
-	kfree(scsi_dh_data);
+	kfree(h);
 	sdev_printk(KERN_ERR, sdev, "%s: not attached\n", ALUA_DH_NAME);
 	return -EINVAL;
 }
@@ -892,19 +888,16 @@ failed:
  */
 static void alua_bus_detach(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data;
-	struct alua_dh_data *h;
+	struct alua_dh_data *h = get_alua_data(sdev);
 	unsigned long flags;
 
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-	scsi_dh_data = sdev->scsi_dh_data;
 	sdev->scsi_dh_data = NULL;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
 
-	h = (struct alua_dh_data *) scsi_dh_data->buf;
 	if (h->buff && h->inq != h->buff)
 		kfree(h->buff);
-	kfree(scsi_dh_data);
+	kfree(h);
 	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", ALUA_DH_NAME);
 }
 

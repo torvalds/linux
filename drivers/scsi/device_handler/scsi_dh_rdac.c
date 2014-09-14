@@ -181,6 +181,7 @@ struct c2_inquiry {
 };
 
 struct rdac_dh_data {
+	struct scsi_dh_data	dh_data;
 	struct rdac_controller	*ctlr;
 #define UNINITIALIZED_LUN	(1 << 8)
 	unsigned		lun;
@@ -261,9 +262,7 @@ do { \
 
 static inline struct rdac_dh_data *get_rdac_data(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data = sdev->scsi_dh_data;
-	BUG_ON(scsi_dh_data == NULL);
-	return ((struct rdac_dh_data *) scsi_dh_data->buf);
+	return container_of(sdev->scsi_dh_data, struct rdac_dh_data, dh_data);
 }
 
 static struct request *get_rdac_req(struct scsi_device *sdev,
@@ -842,23 +841,20 @@ static struct scsi_device_handler rdac_dh = {
 
 static int rdac_bus_attach(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data;
 	struct rdac_dh_data *h;
 	unsigned long flags;
 	int err;
 	char array_name[ARRAY_LABEL_LEN];
 	char array_id[UNIQUE_ID_LEN];
 
-	scsi_dh_data = kzalloc(sizeof(*scsi_dh_data)
-			       + sizeof(*h) , GFP_KERNEL);
-	if (!scsi_dh_data) {
+	h = kzalloc(sizeof(*h) , GFP_KERNEL);
+	if (!h) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach failed\n",
 			    RDAC_NAME);
 		return -ENOMEM;
 	}
 
-	scsi_dh_data->scsi_dh = &rdac_dh;
-	h = (struct rdac_dh_data *) scsi_dh_data->buf;
+	h->dh_data.scsi_dh = &rdac_dh;
 	h->lun = UNINITIALIZED_LUN;
 	h->state = RDAC_STATE_ACTIVE;
 
@@ -879,7 +875,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 		goto clean_ctlr;
 
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-	sdev->scsi_dh_data = scsi_dh_data;
+	sdev->scsi_dh_data = &h->dh_data;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
 
 	sdev_printk(KERN_NOTICE, sdev,
@@ -895,7 +891,7 @@ clean_ctlr:
 	spin_unlock(&list_lock);
 
 failed:
-	kfree(scsi_dh_data);
+	kfree(h);
 	sdev_printk(KERN_ERR, sdev, "%s: not attached\n",
 		    RDAC_NAME);
 	return -EINVAL;
@@ -903,12 +899,9 @@ failed:
 
 static void rdac_bus_detach( struct scsi_device *sdev )
 {
-	struct scsi_dh_data *scsi_dh_data;
-	struct rdac_dh_data *h;
+	struct rdac_dh_data *h = get_rdac_data(sdev);
 	unsigned long flags;
 
-	scsi_dh_data = sdev->scsi_dh_data;
-	h = (struct rdac_dh_data *) scsi_dh_data->buf;
 	if (h->ctlr && h->ctlr->ms_queued)
 		flush_workqueue(kmpath_rdacd);
 
@@ -920,7 +913,7 @@ static void rdac_bus_detach( struct scsi_device *sdev )
 	if (h->ctlr)
 		kref_put(&h->ctlr->kref, release_controller);
 	spin_unlock(&list_lock);
-	kfree(scsi_dh_data);
+	kfree(h);
 	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", RDAC_NAME);
 }
 
