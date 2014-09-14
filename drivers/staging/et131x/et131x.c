@@ -233,7 +233,6 @@ struct fbr_desc {
  * 26-27: ri			Ring Index
  * 28-31: reserved
  */
-
 struct pkt_stat_desc {
 	u32 word0;
 	u32 word1;
@@ -333,7 +332,6 @@ struct rx_ring {
  * 13: TCP checksum assist
  * 14: UDP checksum assist
  */
-
 #define TXDESC_FLAG_LASTPKT		0x0001
 #define TXDESC_FLAG_FIRSTPKT		0x0002
 #define TXDESC_FLAG_INTPROC		0x0004
@@ -437,7 +435,6 @@ struct ce_stats {
 
 	/* Tx Statistics. */
 	u32		tx_underflows;
-
 	u32		tx_collisions;
 	u32		tx_excessive_collisions;
 	u32		tx_first_collisions;
@@ -447,7 +444,6 @@ struct ce_stats {
 
 	/* Rx Statistics. */
 	u32		rx_overflows;
-
 	u32		rx_length_errs;
 	u32		rx_align_errs;
 	u32		rx_crc_errs;
@@ -537,7 +533,6 @@ static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
 	 *    Subsequent operations need only to check that bits 1:0 are equal
 	 *    to 1 prior to starting a single byte read/write
 	 */
-
 	for (i = 0; i < MAX_NUM_REGISTER_POLLS; i++) {
 		/* Read registers grouped in DWORD1 */
 		if (pci_read_config_dword(pdev, LBCIF_DWORD1_GROUP, &reg))
@@ -577,7 +572,6 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	 * All inputs are disabled during this write cycle and the EEPROM will
 	 * not respond to any access until the internal write is complete.
 	 */
-
 	err = eeprom_wait_ready(pdev, NULL);
 	if (err < 0)
 		return err;
@@ -690,7 +684,6 @@ static int eeprom_read(struct et131x_adapter *adapter, u32 addr, u8 *pdata)
 	/* A single byte read is similar to the single byte write, with the
 	 * exception of the data flow:
 	 */
-
 	err = eeprom_wait_ready(pdev, NULL);
 	if (err < 0)
 		return err;
@@ -1951,7 +1944,6 @@ static void et1310_enable_phy_coma(struct et131x_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->send_hw_lock, flags);
 
 	/* Wait for outstanding Receive packets */
-
 	et131x_disable_txrx(adapter->netdev);
 
 	/* Gate off JAGCore 3 clock domains */
@@ -2057,7 +2049,6 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 * rings. Also, FBR1 remains a constant size - when it's size doubles
 	 * the number of entries halves.  FBR0 increases in size, however.
 	 */
-
 	if (adapter->registry_jumbo_packet < 2048) {
 		rx_ring->fbr[0]->buffsize = 256;
 		rx_ring->fbr[0]->num_entries = 512;
@@ -4081,7 +4072,6 @@ static void et131x_multicast(struct net_device *netdev)
 	/* Check the net_device flags and set the device independent flags
 	 * accordingly
 	 */
-
 	if (netdev->flags & IFF_PROMISC)
 		adapter->packet_filter |= ET131X_PACKET_TYPE_PROMISCUOUS;
 	else
@@ -4243,7 +4233,6 @@ static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 
 	/* Init the device with the new settings */
 	et131x_adapter_setup(adapter);
-
 	et131x_enable_txrx(netdev);
 
 	return result;
