@@ -311,7 +311,10 @@ static int hp_sw_activate(struct scsi_device *sdev,
 	return 0;
 }
 
-static const struct scsi_dh_devlist hp_sw_dh_data_list[] = {
+static const struct {
+	char *vendor;
+	char *model;
+} hp_sw_dh_data_list[] = {
 	{"COMPAQ", "MSA1000 VOLUME"},
 	{"COMPAQ", "HSV110"},
 	{"HP", "HSV100"},
@@ -343,7 +346,6 @@ static void hp_sw_bus_detach(struct scsi_device *sdev);
 static struct scsi_device_handler hp_sw_dh = {
 	.name		= HP_SW_NAME,
 	.module		= THIS_MODULE,
-	.devlist	= hp_sw_dh_data_list,
 	.attach		= hp_sw_bus_attach,
 	.detach		= hp_sw_bus_detach,
 	.activate	= hp_sw_activate,

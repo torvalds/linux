@@ -622,7 +622,10 @@ done:
 	return result;
 }
 
-static const struct scsi_dh_devlist clariion_dev_list[] = {
+static const struct {
+	char *vendor;
+	char *model;
+} clariion_dev_list[] = {
 	{"DGC", "RAID"},
 	{"DGC", "DISK"},
 	{"DGC", "VRAID"},
@@ -653,7 +656,6 @@ static void clariion_bus_detach(struct scsi_device *sdev);
 static struct scsi_device_handler clariion_dh = {
 	.name		= CLARIION_NAME,
 	.module		= THIS_MODULE,
-	.devlist	= clariion_dev_list,
 	.attach		= clariion_bus_attach,
 	.detach		= clariion_bus_detach,
 	.check_sense	= clariion_check_sense,

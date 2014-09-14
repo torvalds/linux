@@ -778,7 +778,10 @@ static int rdac_check_sense(struct scsi_device *sdev,
 	return SCSI_RETURN_NOT_HANDLED;
 }
 
-static const struct scsi_dh_devlist rdac_dev_list[] = {
+static const struct {
+	char *vendor;
+	char *model;
+} rdac_dev_list[] = {
 	{"IBM", "1722"},
 	{"IBM", "1724"},
 	{"IBM", "1726"},
@@ -830,7 +833,6 @@ static void rdac_bus_detach(struct scsi_device *sdev);
 static struct scsi_device_handler rdac_dh = {
 	.name = RDAC_NAME,
 	.module = THIS_MODULE,
-	.devlist = rdac_dev_list,
 	.prep_fn = rdac_prep_fn,
 	.check_sense = rdac_check_sense,
 	.attach = rdac_bus_attach,
