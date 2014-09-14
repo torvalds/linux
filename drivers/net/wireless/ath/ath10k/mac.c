@@ -225,7 +225,6 @@ static int ath10k_clear_vdev_key(struct ath10k_vif *arvif,
 	return first_errno;
 }
 
-
 /*********************/
 /* General utilities */
 /*********************/
@@ -1262,7 +1261,6 @@ static int ath10k_peer_assoc_qos_ap(struct ath10k *ar,
 			uapsd |= WMI_AP_PS_UAPSD_AC0_DELIVERY_EN |
 				 WMI_AP_PS_UAPSD_AC0_TRIGGER_EN;
 
-
 		if (sta->max_sp < MAX_WMI_AP_PS_PEER_PARAM_MAX_SP)
 			max_sp = sta->max_sp;
 
@@ -1315,7 +1313,6 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 
 	arg->peer_flags |= WMI_PEER_VHT;
 	arg->peer_vht_caps = vht_cap->cap;
-
 
 	ampdu_factor = (vht_cap->cap &
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK) >>
@@ -4714,7 +4711,6 @@ static struct ieee80211_sta_ht_cap ath10k_get_ht_cap(struct ath10k *ar)
 
 	return ht_cap;
 }
-
 
 static void ath10k_get_arvif_iter(void *data, u8 *mac,
 				  struct ieee80211_vif *vif)

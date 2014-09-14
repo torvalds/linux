@@ -214,7 +214,6 @@ struct ath10k_htc_frame {
 	struct ath10k_htc_record trailer[0];
 } __packed __aligned(4);
 
-
 /*******************/
 /* Host-side stuff */
 /*******************/

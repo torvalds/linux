@@ -377,7 +377,6 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	int msdu_id = -1;
 	int res;
 
-
 	res = ath10k_htt_tx_inc_pending(htt);
 	if (res)
 		goto err;

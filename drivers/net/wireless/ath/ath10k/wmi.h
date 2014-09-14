@@ -1269,7 +1269,6 @@ enum wmi_channel_change_cause {
 				WMI_HT_CAP_RX_STBC       | \
 				WMI_HT_CAP_LDPC)
 
-
 /*
  * WMI_VHT_CAP_* these maps to ieee 802.11ac vht capability information
  * field. The fields not defined here are not supported, or reserved.
@@ -1470,7 +1469,6 @@ struct wmi_service_ready_event_10x {
 
 	struct wlan_host_mem_req mem_reqs[1];
 } __packed;
-
 
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
 #define WMI_UNIFIED_READY_TIMEOUT_HZ (5*HZ)
@@ -2125,7 +2123,6 @@ struct wmi_start_scan_cmd_10x {
 	 */
 } __packed;
 
-
 struct wmi_ssid_arg {
 	int len;
 	const u8 *ssid;
@@ -2185,7 +2182,6 @@ struct wmi_start_scan_arg {
 
 /* WMI_SCAN_CLASS_MASK must be the same value as IEEE80211_SCAN_CLASS_MASK */
 #define WMI_SCAN_CLASS_MASK 0xFF000000
-
 
 enum wmi_stop_scan_type {
 	WMI_SCAN_STOP_ONE	= 0x00000000, /* stop by scan_id */
@@ -2371,7 +2367,6 @@ struct wmi_single_phyerr_rx_hdr {
 	__le32 nf_list_1;
 	__le32 nf_list_2;
 
-
 	/* Length of the frame */
 	__le32 buf_len;
 } __packed;
@@ -2473,7 +2468,6 @@ struct phyerr_fft_report {
 #define SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB_MASK	0x000000FF
 #define SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB_LSB	0
 
-
 struct phyerr_tlv {
 	__le16 len;
 	u8 tag;
@@ -2503,7 +2497,6 @@ struct wmi_echo_event {
 struct wmi_echo_cmd {
 	__le32 value;
 } __packed;
-
 
 struct wmi_pdev_set_regdomain_cmd {
 	__le32 reg_domain;
@@ -2552,7 +2545,6 @@ struct wmi_pdev_set_quiet_cmd {
 	/* enable/disable */
 	__le32 enabled;
 } __packed;
-
 
 /*
  * 802.11g protection mode.
@@ -4290,7 +4282,6 @@ struct wmi_tbtt_offset_event {
 	__le32 vdev_map;
 	__le32 tbttoffset_list[WMI_MAX_AP_VDEV];
 } __packed;
-
 
 struct wmi_peer_create_cmd {
 	__le32 vdev_id;

@@ -1511,7 +1511,6 @@ static u32 ath10k_p2p_calc_noa_ie_len(struct wmi_p2p_noa_info *noa)
 	u8 opp_ps_info = noa->ctwindow_oppps;
 	bool opps_enabled = !!(opp_ps_info & WMI_P2P_OPPPS_ENABLE_BIT);
 
-
 	if (!noa_descriptors && !opps_enabled)
 		return len;
 
@@ -1567,7 +1566,6 @@ cleanup:
 	spin_unlock_bh(&ar->data_lock);
 	kfree(old_data);
 }
-
 
 static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 {

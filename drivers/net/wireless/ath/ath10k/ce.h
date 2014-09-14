@@ -20,7 +20,6 @@
 
 #include "hif.h"
 
-
 /* Maximum number of Copy Engine's supported */
 #define CE_COUNT_MAX 8
 #define CE_HTT_H2T_MSG_SRC_NENTRIES 4096
@@ -36,7 +35,6 @@
  */
 
 struct ath10k_ce_pipe;
-
 
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
@@ -382,7 +380,6 @@ struct ce_attr {
 	(((0 | (x)) << DST_WATERMARK_HIGH_LSB) & DST_WATERMARK_HIGH_MASK)
 #define DST_WATERMARK_HIGH_RESET		0
 #define DST_WATERMARK_ADDRESS			0x0050
-
 
 static inline u32 ath10k_ce_base_address(unsigned int ce_id)
 {
