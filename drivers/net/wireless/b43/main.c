@@ -4889,6 +4889,10 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	/* Maximum Contention Window */
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 
+	/* write phytype and phyvers */
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PHYTYPE, phy->type);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PHYVER, phy->rev);
+
 	if (b43_bus_host_is_pcmcia(dev->dev) ||
 	    b43_bus_host_is_sdio(dev->dev)) {
 		dev->__using_pio_transfers = true;
