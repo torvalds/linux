@@ -4121,7 +4121,6 @@ static netdev_tx_t et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 
 drop_err:
 	dev_kfree_skb_any(skb);
-	skb = NULL;
 	adapter->netdev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
 }
