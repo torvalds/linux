@@ -1180,8 +1180,8 @@ int ath10k_debug_register(struct ath10k *ar)
 	if (IS_ERR_OR_NULL(ar->debug.debugfs_phy)) {
 		if (IS_ERR(ar->debug.debugfs_phy))
 			return PTR_ERR(ar->debug.debugfs_phy);
-		else
-			return -ENOMEM;
+
+		return -ENOMEM;
 	}
 
 	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,

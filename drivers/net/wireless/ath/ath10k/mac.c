@@ -698,8 +698,8 @@ static int ath10k_monitor_recalc(struct ath10k *ar)
 
 	if (should_start)
 		return ath10k_monitor_start(ar);
-	else
-		return ath10k_monitor_stop(ar);
+
+	return ath10k_monitor_stop(ar);
 }
 
 static int ath10k_recalc_rtscts_prot(struct ath10k_vif *arvif)
@@ -4065,8 +4065,8 @@ ath10k_bitrate_mask_nss(const struct cfg80211_bitrate_mask *mask,
 			continue;
 		else if (mask->control[band].ht_mcs[i] == 0x00)
 			break;
-		else
-			return false;
+
+		return false;
 	}
 
 	ht_nss = i;
@@ -4077,8 +4077,8 @@ ath10k_bitrate_mask_nss(const struct cfg80211_bitrate_mask *mask,
 			continue;
 		else if (mask->control[band].vht_mcs[i] == 0x0000)
 			break;
-		else
-			return false;
+
+		return false;
 	}
 
 	vht_nss = i;

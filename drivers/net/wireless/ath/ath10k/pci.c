@@ -362,10 +362,11 @@ static inline const char *ath10k_pci_get_irq_method(struct ath10k *ar)
 
 	if (ar_pci->num_msi_intrs > 1)
 		return "msi-x";
-	else if (ar_pci->num_msi_intrs == 1)
+
+	if (ar_pci->num_msi_intrs == 1)
 		return "msi";
-	else
-		return "legacy";
+
+	return "legacy";
 }
 
 static int __ath10k_pci_rx_post_buf(struct ath10k_pci_pipe *pipe)

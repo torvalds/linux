@@ -450,11 +450,11 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		if (last_msdu) {
 			msdu->next = NULL;
 			break;
-		} else {
-			next = ath10k_htt_rx_netbuf_pop(htt);
-			msdu->next = next;
-			msdu = next;
 		}
+
+		next = ath10k_htt_rx_netbuf_pop(htt);
+		msdu->next = next;
+		msdu = next;
 	}
 	*tail_msdu = msdu;
 
@@ -631,8 +631,8 @@ static struct ieee80211_hdr *ath10k_htt_rx_skb_get_hdr(struct sk_buff *skb)
 
 	if (fmt == RX_MSDU_DECAP_RAW)
 		return (void *)skb->data;
-	else
-		return (void *)skb->data - RX_HTT_HDR_STATUS_LEN;
+
+	return (void *)skb->data - RX_HTT_HDR_STATUS_LEN;
 }
 
 /* This function only applies for first msdu in an msdu chain */
