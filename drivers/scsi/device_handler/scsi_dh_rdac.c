@@ -878,9 +878,6 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	if (err != SCSI_DH_OK)
 		goto clean_ctlr;
 
-	if (!try_module_get(THIS_MODULE))
-		goto clean_ctlr;
-
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	sdev->scsi_dh_data = scsi_dh_data;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
@@ -924,7 +921,6 @@ static void rdac_bus_detach( struct scsi_device *sdev )
 		kref_put(&h->ctlr->kref, release_controller);
 	spin_unlock(&list_lock);
 	kfree(scsi_dh_data);
-	module_put(THIS_MODULE);
 	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", RDAC_NAME);
 }
 

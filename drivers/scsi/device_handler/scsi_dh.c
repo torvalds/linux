@@ -102,23 +102,36 @@ static int scsi_dh_handler_attach(struct scsi_device *sdev,
 
 	if (sdev->scsi_dh_data) {
 		if (sdev->scsi_dh_data->scsi_dh != scsi_dh)
-			err = -EBUSY;
-		else
-			kref_get(&sdev->scsi_dh_data->kref);
-	} else if (scsi_dh->attach) {
+			return -EBUSY;
+
+		kref_get(&sdev->scsi_dh_data->kref);
+		return 0;
+	}
+
+	if (scsi_dh->attach) {
+		if (!try_module_get(scsi_dh->module))
+			return -EINVAL;
+
 		err = scsi_dh->attach(sdev);
-		if (!err) {
-			kref_init(&sdev->scsi_dh_data->kref);
-			sdev->scsi_dh_data->sdev = sdev;
+		if (err) {
+			module_put(scsi_dh->module);
+			return err;
 		}
+
+		kref_init(&sdev->scsi_dh_data->kref);
+		sdev->scsi_dh_data->sdev = sdev;
 	}
 	return err;
 }
 
 static void __detach_handler (struct kref *kref)
 {
-	struct scsi_dh_data *scsi_dh_data = container_of(kref, struct scsi_dh_data, kref);
-	scsi_dh_data->scsi_dh->detach(scsi_dh_data->sdev);
+	struct scsi_dh_data *scsi_dh_data =
+		container_of(kref, struct scsi_dh_data, kref);
+	struct scsi_device_handler *scsi_dh = scsi_dh_data->scsi_dh;
+
+	scsi_dh->detach(scsi_dh_data->sdev);
+	module_put(scsi_dh->module);
 }
 
 /*

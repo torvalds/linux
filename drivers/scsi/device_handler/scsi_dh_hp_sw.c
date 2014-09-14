@@ -377,9 +377,6 @@ static int hp_sw_bus_attach(struct scsi_device *sdev)
 	if (ret != SCSI_DH_OK || h->path_state == HP_SW_PATH_UNINITIALIZED)
 		goto failed;
 
-	if (!try_module_get(THIS_MODULE))
-		goto failed;
-
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	sdev->scsi_dh_data = scsi_dh_data;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
@@ -406,7 +403,6 @@ static void hp_sw_bus_detach( struct scsi_device *sdev )
 	scsi_dh_data = sdev->scsi_dh_data;
 	sdev->scsi_dh_data = NULL;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-	module_put(THIS_MODULE);
 
 	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", HP_SW_NAME);
 

@@ -873,9 +873,6 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	if ((err != SCSI_DH_OK) && (err != SCSI_DH_DEV_OFFLINED))
 		goto failed;
 
-	if (!try_module_get(THIS_MODULE))
-		goto failed;
-
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	sdev->scsi_dh_data = scsi_dh_data;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
@@ -908,7 +905,6 @@ static void alua_bus_detach(struct scsi_device *sdev)
 	if (h->buff && h->inq != h->buff)
 		kfree(h->buff);
 	kfree(scsi_dh_data);
-	module_put(THIS_MODULE);
 	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", ALUA_DH_NAME);
 }
 

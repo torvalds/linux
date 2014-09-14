@@ -692,9 +692,6 @@ static int clariion_bus_attach(struct scsi_device *sdev)
 	if (err != SCSI_DH_OK)
 		goto failed;
 
-	if (!try_module_get(THIS_MODULE))
-		goto failed;
-
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	sdev->scsi_dh_data = scsi_dh_data;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
@@ -728,7 +725,6 @@ static void clariion_bus_detach(struct scsi_device *sdev)
 		    CLARIION_NAME);
 
 	kfree(scsi_dh_data);
-	module_put(THIS_MODULE);
 }
 
 static int __init clariion_init(void)
