@@ -3930,6 +3930,12 @@ static int b43_switch_band(struct b43_wldev *dev,
 	return 0;
 }
 
+static void b43_set_beacon_listen_interval(struct b43_wldev *dev, u16 interval)
+{
+	interval = min_t(u16, interval, (u16)0xFF);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BCN_LI, interval);
+}
+
 /* Write the short and long frame retry limit values. */
 static void b43_set_retry_limits(struct b43_wldev *dev,
 				 unsigned int short_retry,
@@ -3957,6 +3963,9 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&wl->mutex);
 	b43_mac_suspend(dev);
+
+	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL)
+		b43_set_beacon_listen_interval(dev, conf->listen_interval);
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		phy->chandef = &conf->chandef;
