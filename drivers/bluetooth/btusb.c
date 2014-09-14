@@ -769,11 +769,11 @@ static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
-		urb = usb_alloc_urb(0, GFP_ATOMIC);
+		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
 
-		dr = kmalloc(sizeof(*dr), GFP_ATOMIC);
+		dr = kmalloc(sizeof(*dr), GFP_KERNEL);
 		if (!dr) {
 			usb_free_urb(urb);
 			return -ENOMEM;
@@ -797,7 +797,7 @@ static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		if (!data->bulk_tx_ep)
 			return -ENODEV;
 
-		urb = usb_alloc_urb(0, GFP_ATOMIC);
+		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
 
@@ -814,7 +814,7 @@ static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		if (!data->isoc_tx_ep || hci_conn_num(hdev, SCO_LINK) < 1)
 			return -ENODEV;
 
-		urb = usb_alloc_urb(BTUSB_MAX_ISOC_FRAMES, GFP_ATOMIC);
+		urb = usb_alloc_urb(BTUSB_MAX_ISOC_FRAMES, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
 
@@ -848,7 +848,7 @@ static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 skip_waking:
 	usb_anchor_urb(urb, &data->tx_anchor);
 
-	err = usb_submit_urb(urb, GFP_ATOMIC);
+	err = usb_submit_urb(urb, GFP_KERNEL);
 	if (err < 0) {
 		if (err != -EPERM && err != -ENODEV)
 			BT_ERR("%s urb %p submission failed (%d)",
