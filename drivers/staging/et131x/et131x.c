@@ -4170,16 +4170,13 @@ static void et131x_tx_timeout(struct net_device *netdev)
 
 	/* Is send stuck? */
 	spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
-
 	tcb = tx_ring->send_head;
+	spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 
-	if (tcb != NULL) {
+	if (tcb) {
 		tcb->count++;
 
 		if (tcb->count > NIC_SEND_HANG_THRESHOLD) {
-			spin_unlock_irqrestore(&adapter->tcb_send_qlock,
-					       flags);
-
 			dev_warn(&adapter->pdev->dev,
 				 "Send stuck - reset. tcb->WrIndex %x\n",
 				 tcb->index);
@@ -4189,11 +4186,8 @@ static void et131x_tx_timeout(struct net_device *netdev)
 			/* perform reset of tx/rx */
 			et131x_disable_txrx(netdev);
 			et131x_enable_txrx(netdev);
-			return;
 		}
 	}
-
-	spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 }
 
 /* et131x_change_mtu - The handler called to change the MTU for the device */
