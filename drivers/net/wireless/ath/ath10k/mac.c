@@ -896,7 +896,7 @@ static int ath10k_vdev_stop(struct ath10k_vif *arvif)
 }
 
 static void ath10k_control_beaconing(struct ath10k_vif *arvif,
-				struct ieee80211_bss_conf *info)
+				     struct ieee80211_bss_conf *info)
 {
 	struct ath10k *ar = arvif->ar;
 	int ret = 0;
@@ -1106,9 +1106,9 @@ static void ath10k_peer_assoc_h_crypto(struct ath10k *ar,
 		ies = rcu_dereference(bss->ies);
 
 		wpaie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
-				WLAN_OUI_TYPE_MICROSOFT_WPA,
-				ies->data,
-				ies->len);
+						WLAN_OUI_TYPE_MICROSOFT_WPA,
+						ies->data,
+						ies->len);
 		rcu_read_unlock();
 		cfg80211_put_bss(ar->hw->wiphy, bss);
 	}
@@ -1291,7 +1291,8 @@ static int ath10k_peer_assoc_qos_ap(struct ath10k *ar,
 		   sta->listen_interval - mac80211 patch required.
 		   Currently use 10 seconds */
 		ret = ath10k_wmi_set_ap_ps_param(ar, arvif->vdev_id, sta->addr,
-					WMI_AP_PS_PEER_PARAM_AGEOUT_TIME, 10);
+						 WMI_AP_PS_PEER_PARAM_AGEOUT_TIME,
+						 10);
 		if (ret) {
 			ath10k_warn(ar, "failed to set ap ps peer param ageout time for vdev %i: %d\n",
 				    arvif->vdev_id, ret);
@@ -3568,7 +3569,7 @@ exit:
 }
 
 static int ath10k_conf_tx_uapsd(struct ath10k *ar, struct ieee80211_vif *vif,
-				 u16 ac, bool enable)
+				u16 ac, bool enable)
 {
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	u32 value = 0;

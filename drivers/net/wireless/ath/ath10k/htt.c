@@ -101,7 +101,7 @@ int ath10k_htt_setup(struct ath10k_htt *htt)
 		return status;
 
 	status = wait_for_completion_timeout(&htt->target_version_received,
-						HTT_TARGET_VERSION_TIMEOUT_HZ);
+					     HTT_TARGET_VERSION_TIMEOUT_HZ);
 	if (status <= 0) {
 		ath10k_warn(ar, "htt version request timed out\n");
 		return -ETIMEDOUT;

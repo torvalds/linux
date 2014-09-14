@@ -645,7 +645,8 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 		 * firmware variants in order to force a firmware crash.
 		 */
 		ret = ath10k_wmi_vdev_set_param(ar, 0x7fff,
-					ar->wmi.vdev_param->rts_threshold, 0);
+						ar->wmi.vdev_param->rts_threshold,
+						0);
 	} else if (!strcmp(buf, "assert")) {
 		ath10k_info(ar, "simulating firmware assert crash\n");
 		ret = ath10k_debug_fw_assert(ar);
@@ -867,8 +868,8 @@ static void ath10k_debug_htt_stats_dwork(struct work_struct *work)
 }
 
 static ssize_t ath10k_read_htt_stats_mask(struct file *file,
-					    char __user *user_buf,
-					    size_t count, loff_t *ppos)
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
 	char buf[32];
@@ -880,8 +881,8 @@ static ssize_t ath10k_read_htt_stats_mask(struct file *file,
 }
 
 static ssize_t ath10k_write_htt_stats_mask(struct file *file,
-					     const char __user *user_buf,
-					     size_t count, loff_t *ppos)
+					   const char __user *user_buf,
+					   size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
 	unsigned long mask;
@@ -986,8 +987,8 @@ static const struct file_operations fops_htt_max_amsdu_ampdu = {
 };
 
 static ssize_t ath10k_read_fw_dbglog(struct file *file,
-					    char __user *user_buf,
-					    size_t count, loff_t *ppos)
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
 	unsigned int len;

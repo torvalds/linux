@@ -4776,11 +4776,11 @@ int ath10k_wmi_vdev_spectral_conf(struct ath10k *ar,
 int ath10k_wmi_vdev_spectral_enable(struct ath10k *ar, u32 vdev_id, u32 trigger,
 				    u32 enable);
 int ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,
-		    const u8 peer_addr[ETH_ALEN]);
+			   const u8 peer_addr[ETH_ALEN]);
 int ath10k_wmi_peer_delete(struct ath10k *ar, u32 vdev_id,
-		    const u8 peer_addr[ETH_ALEN]);
+			   const u8 peer_addr[ETH_ALEN]);
 int ath10k_wmi_peer_flush(struct ath10k *ar, u32 vdev_id,
-		   const u8 peer_addr[ETH_ALEN], u32 tid_bitmap);
+			  const u8 peer_addr[ETH_ALEN], u32 tid_bitmap);
 int ath10k_wmi_peer_set_param(struct ath10k *ar, u32 vdev_id,
 			      const u8 *peer_addr,
 			      enum wmi_peer_param param_id, u32 param_value);
@@ -4797,7 +4797,7 @@ int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 			      const struct wmi_scan_chan_list_arg *arg);
 int ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif);
 int ath10k_wmi_pdev_set_wmm_params(struct ath10k *ar,
-			const struct wmi_pdev_set_wmm_params_arg *arg);
+				   const struct wmi_pdev_set_wmm_params_arg *arg);
 int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id);
 int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 			     enum wmi_force_fw_hang_type type, u32 delay_ms);

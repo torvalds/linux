@@ -569,7 +569,7 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 			ath10k_hif_send_complete_check(htc->ar, i, 1);
 
 		status = wait_for_completion_timeout(&htc->ctl_resp,
-					ATH10K_HTC_WAIT_TIMEOUT_HZ);
+						     ATH10K_HTC_WAIT_TIMEOUT_HZ);
 
 		if (status == 0)
 			status = -ETIMEDOUT;

@@ -626,7 +626,7 @@ static struct ieee80211_hdr *ath10k_htt_rx_skb_get_hdr(struct sk_buff *skb)
 
 	rxd = (void *)skb->data - sizeof(*rxd);
 	fmt = MS(__le32_to_cpu(rxd->msdu_start.info1),
-			RX_MSDU_START_INFO1_DECAP_FORMAT);
+		 RX_MSDU_START_INFO1_DECAP_FORMAT);
 
 	if (fmt == RX_MSDU_DECAP_RAW)
 		return (void *)skb->data;
@@ -915,7 +915,7 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 
 	rxd = (void *)skb->data - sizeof(*rxd);
 	enctype = MS(__le32_to_cpu(rxd->mpdu_start.info0),
-			RX_MPDU_START_INFO0_ENCRYPT_TYPE);
+		     RX_MPDU_START_INFO0_ENCRYPT_TYPE);
 
 	hdr = (struct ieee80211_hdr *)rxd->rx_hdr_status;
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
@@ -1030,9 +1030,9 @@ static void ath10k_htt_rx_msdu(struct ath10k_htt *htt,
 
 	rxd = (void *)skb->data - sizeof(*rxd);
 	fmt = MS(__le32_to_cpu(rxd->msdu_start.info1),
-			RX_MSDU_START_INFO1_DECAP_FORMAT);
+		 RX_MSDU_START_INFO1_DECAP_FORMAT);
 	enctype = MS(__le32_to_cpu(rxd->mpdu_start.info0),
-			RX_MPDU_START_INFO0_ENCRYPT_TYPE);
+		     RX_MPDU_START_INFO0_ENCRYPT_TYPE);
 	hdr = (struct ieee80211_hdr *)rxd->rx_hdr_status;
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
 
@@ -1333,7 +1333,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 }
 
 static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
-				struct htt_rx_fragment_indication *frag)
+				       struct htt_rx_fragment_indication *frag)
 {
 	struct ath10k *ar = htt->ar;
 	struct sk_buff *msdu_head, *msdu_tail;
@@ -1379,7 +1379,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 	tkip_mic_err = !!(attention & RX_ATTENTION_FLAGS_TKIP_MIC_ERR);
 	decrypt_err = !!(attention & RX_ATTENTION_FLAGS_DECRYPT_ERR);
 	fmt = MS(__le32_to_cpu(rxd->msdu_start.info1),
-			RX_MSDU_START_INFO1_DECAP_FORMAT);
+		 RX_MSDU_START_INFO1_DECAP_FORMAT);
 
 	if (fmt != RX_MSDU_DECAP_RAW) {
 		ath10k_warn(ar, "we dont support non-raw fragmented rx yet\n");
