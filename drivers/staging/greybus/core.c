@@ -385,7 +385,15 @@ struct greybus_device *greybus_new_module(struct device *parent,
 	version_major = manifest->header.version_major;
 	version_minor = manifest->header.version_minor;
 
-	// FIXME - check version major/minor here!
+	/* Validate major/minor number */
+	if ((version_major != GREYBUS_VERSION_MAJOR) ||
+	    (version_minor != GREYBUS_VERSION_MINOR)) {
+		dev_err(parent,
+			"Invalid greybus versions, expected %d.%d, got %d.%d\n",
+			GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR,
+			version_major, version_minor);
+		goto error;
+	}
 
 	size -= sizeof(manifest->header);
 	data += sizeof(manifest->header);
