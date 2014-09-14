@@ -476,12 +476,19 @@ int wil_info(struct wil6210_priv *wil, const char *fmt, ...);
 			 print_hex_dump_debug("DBG[ WMI]" prefix_str,\
 					prefix_type, rowsize,	\
 					groupsize, buf, len, ascii)
-#else
-#define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
-			  groupsize, buf, len, ascii)
-#define wil_hex_dump_wmi(prefix_str, prefix_type, rowsize,	\
-			 groupsize, buf, len, ascii)
-#endif
+#else /* defined(CONFIG_DYNAMIC_DEBUG) */
+static inline
+void wil_hex_dump_txrx(const char *prefix_str, int prefix_type, int rowsize,
+		       int groupsize, const void *buf, size_t len, bool ascii)
+{
+}
+
+static inline
+void wil_hex_dump_wmi(const char *prefix_str, int prefix_type, int rowsize,
+		      int groupsize, const void *buf, size_t len, bool ascii)
+{
+}
+#endif /* defined(CONFIG_DYNAMIC_DEBUG) */
 
 void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 			  size_t count);
