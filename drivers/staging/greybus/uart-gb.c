@@ -28,7 +28,6 @@
 #include <linux/kdev_t.h>
 #include "greybus.h"
 
-#define GB_TTY_MAJOR	230	/* FIXME use a real number!!! */
 #define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
 #define GB_NAME		"ttyGB"
 
@@ -462,27 +461,17 @@ void gb_tty_disconnect(struct greybus_device *gdev)
 	kfree(gb_tty);
 }
 
+#if 0
 static struct greybus_driver tty_gb_driver = {
 	.probe =	gb_tty_probe,
 	.disconnect =	gb_tty_disconnect,
 	.id_table =	id_table,
 };
-
+#endif
 
 int __init gb_tty_init(void)
 {
 	int retval = 0;
-	dev_t dev;
-
-#if 0
-
-	retval = alloc_chrdev_region(&dev, 0, GB_NUM_MINORS, GB_NAME);
-	if (retval) {
-		pr_err("Can not allocate minors\n");
-		return retval;
-	}
-#endif
-
 
 	gb_tty_driver = tty_alloc_driver(GB_NUM_MINORS, 0);
 	if (IS_ERR(gb_tty_driver)) {
@@ -518,12 +507,11 @@ int __init gb_tty_init(void)
 
 	return 0;
 
- fail_unregister_gb_tty:
+/* fail_unregister_gb_tty: */
 	tty_unregister_driver(gb_tty_driver);
- fail_put_gb_tty:
+fail_put_gb_tty:
 	put_tty_driver(gb_tty_driver);
- fail_unregister_dev:
-//	unregister_chrdev_region(dev, GB_NUM_MINORS);
+fail_unregister_dev:
 	return retval;
 }
 
@@ -531,7 +519,10 @@ void __exit gb_tty_exit(void)
 {
 	int major = MAJOR(gb_tty_driver->major);
 	int minor = gb_tty_driver->minor_start;
-//	greybus_deregister(&tty_gb_driver);
+
+#if 0
+	greybus_deregister(&tty_gb_driver);
+#endif
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
 	unregister_chrdev_region(MKDEV(major, minor), GB_NUM_MINORS);
