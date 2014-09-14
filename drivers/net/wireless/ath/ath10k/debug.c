@@ -589,15 +589,11 @@ static ssize_t ath10k_read_simulate_fw_crash(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)
 {
-	const char buf[] = "To simulate firmware crash write one of the"
-			   " keywords to this file:\n `soft` - this will send"
-			   " WMI_FORCE_FW_HANG_ASSERT to firmware if FW"
-			   " supports that command.\n `hard` - this will send"
-			   " to firmware command with illegal parameters"
-			   " causing firmware crash.\n"
-			   "`assert` - this will send special illegal parameter"
-			   " to firmware to cause assert failure"
-			   " and crash.\n";
+	const char buf[] =
+		"To simulate firmware crash write one of the keywords to this file:\n"
+		"`soft` - this will send WMI_FORCE_FW_HANG_ASSERT to firmware if FW supports that command.\n"
+		"`hard` - this will send to firmware command with illegal parameters causing firmware crash.\n"
+		"`assert` - this will send special illegal parameter to firmware to cause assert failure and crash.\n";
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
