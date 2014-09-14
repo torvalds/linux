@@ -108,19 +108,17 @@ static int scsi_dh_handler_attach(struct scsi_device *sdev,
 		return 0;
 	}
 
-	if (scsi_dh->attach) {
-		if (!try_module_get(scsi_dh->module))
-			return -EINVAL;
+	if (!try_module_get(scsi_dh->module))
+		return -EINVAL;
 
-		err = scsi_dh->attach(sdev);
-		if (err) {
-			module_put(scsi_dh->module);
-			return err;
-		}
-
-		kref_init(&sdev->scsi_dh_data->kref);
-		sdev->scsi_dh_data->sdev = sdev;
+	err = scsi_dh->attach(sdev);
+	if (err) {
+		module_put(scsi_dh->module);
+		return err;
 	}
+
+	kref_init(&sdev->scsi_dh_data->kref);
+	sdev->scsi_dh_data->sdev = sdev;
 	return err;
 }
 
@@ -154,7 +152,7 @@ static void scsi_dh_handler_detach(struct scsi_device *sdev,
 	if (!scsi_dh)
 		scsi_dh = sdev->scsi_dh_data->scsi_dh;
 
-	if (scsi_dh && scsi_dh->detach)
+	if (scsi_dh)
 		kref_put(&sdev->scsi_dh_data->kref, __detach_handler);
 }
 
@@ -342,6 +340,9 @@ int scsi_register_device_handler(struct scsi_device_handler *scsi_dh)
 
 	if (get_device_handler(scsi_dh->name))
 		return -EBUSY;
+
+	if (!scsi_dh->attach || !scsi_dh->detach)
+		return -EINVAL;
 
 	spin_lock(&list_lock);
 	list_add(&scsi_dh->list, &scsi_dh_list);
