@@ -15,6 +15,7 @@
 #include <linux/kref.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 #include "greybus.h"
 
@@ -155,9 +156,34 @@ int gb_register_cport_complete(struct greybus_device *gdev,
 	return 0;
 }
 
-void gb_deregister_cport_handler(int cport)
+void gb_deregister_cport_complete(int cport)
 {
 	cport_handler[cport].handler = NULL;
+}
+
+struct cport_msg {
+	struct gbuf *gbuf;
+	struct work_struct event;
+};
+
+static struct workqueue_struct *cport_workqueue;
+
+static void cport_process_event(struct work_struct *work)
+{
+	struct cport_msg *cm;
+	struct gbuf *gbuf;
+
+	cm = container_of(work, struct cport_msg, event);
+
+	gbuf = cm->gbuf;
+
+	/* call the gbuf handler */
+	gbuf->complete(gbuf);
+
+	/* free all the memory */
+	kfree(gbuf->transfer_buffer);
+	kfree(gbuf);
+	kfree(cm);
 }
 
 void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
@@ -165,6 +191,7 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 {
 	struct gb_cport_handler *ch;
 	struct gbuf *gbuf;
+	struct cport_msg *cm;
 
 	/* first check to see if we have a cport handler for this cport */
 	ch = &cport_handler[cport];
@@ -183,17 +210,42 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 		pr_err("can't allocate gbuf???\n");
 		return;
 	}
-	/* Set the data pointers */
+	gbuf->hdpriv = hd;
 
-	// FIXME - implement...
+	/*
+	 * FIXME:
+	 * Very dumb copy data method for now, if this is slow (odds are it will
+	 * be, we should move to a model where the hd "owns" all buffers, but we
+	 * want something up and working first for now.
+	 */
+	gbuf->transfer_buffer = kmalloc(length, GFP_ATOMIC);
+	if (!gbuf->transfer_buffer) {
+		kfree(gbuf);
+		return;
+	}
+	memcpy(gbuf->transfer_buffer, data, length);
+	gbuf->transfer_buffer_length = length;
+
+	/* Again with the slow allocate... */
+	cm = kmalloc(sizeof(*cm), GFP_ATOMIC);
+
+	/* Queue up the cport message to be handled in user context */
+	cm->gbuf = gbuf;
+	INIT_WORK(&cm->event, cport_process_event);
+	queue_work(cport_workqueue, &cm->event);
 }
 EXPORT_SYMBOL_GPL(greybus_cport_in_data);
 
-int greybus_gbuf_init(void)
+int gb_gbuf_init(void)
 {
+	cport_workqueue = alloc_workqueue("greybus_gbuf", 0, 1);
+	if (!cport_workqueue)
+		return -ENOMEM;
+
 	return 0;
 }
 
-void greybus_gbuf_exit(void)
+void gb_gbuf_exit(void)
 {
+	destroy_workqueue(cport_workqueue);
 }

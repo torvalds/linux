@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/device.h>
 #include "svc_msg.h"
 #include "greybus_manifest.h"
@@ -252,7 +252,7 @@ int gb_new_ap_msg(u8 *data, int size, struct greybus_host_device *hd)
 }
 EXPORT_SYMBOL_GPL(gb_new_ap_msg);
 
-int gb_thread_init(void)
+int gb_ap_init(void)
 {
 	ap_workqueue = alloc_workqueue("greybus_ap", 0, 1);
 	if (!ap_workqueue)
@@ -261,7 +261,7 @@ int gb_thread_init(void)
 	return 0;
 }
 
-void gb_thread_destroy(void)
+void gb_ap_exit(void)
 {
 	destroy_workqueue(ap_workqueue);
 }

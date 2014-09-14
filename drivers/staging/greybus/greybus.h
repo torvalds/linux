@@ -229,10 +229,12 @@ const u8 *greybus_string(struct greybus_device *gdev, int id);
 /* Internal functions to gb module, move to internal .h file eventually. */
 
 int gb_new_ap_msg(u8 *data, int length, struct greybus_host_device *hd);
-int gb_thread_init(void);
-void gb_thread_destroy(void);
+int gb_ap_init(void);
+void gb_ap_exit(void);
 int gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
+int gb_gbuf_init(void);
+void gb_gbuf_exit(void);
 
 int gb_register_cport_complete(struct greybus_device *gdev,
 			       gbuf_complete_t handler, int cport,

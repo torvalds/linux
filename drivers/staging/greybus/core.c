@@ -527,13 +527,17 @@ static int __init gb_init(void)
 		goto error_bus;
 	}
 
-	retval = gb_thread_init();
+	retval = gb_ap_init();
 	if (retval) {
-		pr_err("gb_thread_init failed\n");
-		goto error_thread;
+		pr_err("gb_ap_init failed\n");
+		goto error_ap;
 	}
 
-	// FIXME - more gb core init goes here
+	retval = gb_gbuf_init();
+	if (retval) {
+		pr_err("gb_gbuf_init failed\n");
+		goto error_gbuf;
+	}
 
 	retval = gb_tty_init();
 	if (retval) {
@@ -544,9 +548,12 @@ static int __init gb_init(void)
 	return 0;
 
 error_tty:
-	gb_thread_destroy();
+	gb_gbuf_exit();
 
-error_thread:
+error_gbuf:
+	gb_ap_exit();
+
+error_ap:
 	bus_unregister(&greybus_bus_type);
 
 error_bus:
@@ -558,6 +565,8 @@ error_bus:
 static void __exit gb_exit(void)
 {
 	gb_tty_exit();
+	gb_gbuf_exit();
+	gb_ap_exit();
 	bus_unregister(&greybus_bus_type);
 	gb_debugfs_cleanup();
 }
