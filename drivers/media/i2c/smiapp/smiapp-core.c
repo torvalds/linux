@@ -2334,10 +2334,9 @@ static DEVICE_ATTR(ident, S_IRUGO, smiapp_sysfs_ident_read, NULL);
  * V4L2 subdev core operations
  */
 
-static int smiapp_identify_module(struct v4l2_subdev *subdev)
+static int smiapp_identify_module(struct smiapp_sensor *sensor)
 {
-	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct smiapp_module_info *minfo = &sensor->minfo;
 	unsigned int i;
 	int rval = 0;
@@ -2517,10 +2516,17 @@ static int smiapp_register_subdevs(struct smiapp_sensor *sensor)
 	return 0;
 }
 
-static int smiapp_registered(struct v4l2_subdev *subdev)
+static void smiapp_cleanup(struct smiapp_sensor *sensor)
 {
-	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+
+	device_remove_file(&client->dev, &dev_attr_nvm);
+	device_remove_file(&client->dev, &dev_attr_ident);
+}
+
+static int smiapp_init(struct smiapp_sensor *sensor)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct smiapp_pll *pll = &sensor->pll;
 	struct smiapp_subdev *last = NULL;
 	u32 tmp;
@@ -2566,7 +2572,7 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	if (rval)
 		return -ENODEV;
 
-	rval = smiapp_identify_module(subdev);
+	rval = smiapp_identify_module(sensor);
 	if (rval) {
 		rval = -ENODEV;
 		goto out_power_off;
@@ -2646,13 +2652,13 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		if (sensor->nvm == NULL) {
 			dev_err(&client->dev, "nvm buf allocation failed\n");
 			rval = -ENOMEM;
-			goto out_ident_release;
+			goto out_cleanup;
 		}
 
 		if (device_create_file(&client->dev, &dev_attr_nvm) != 0) {
 			dev_err(&client->dev, "sysfs nvm entry failed\n");
 			rval = -EBUSY;
-			goto out_ident_release;
+			goto out_cleanup;
 		}
 	}
 
@@ -2696,7 +2702,7 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	rval = smiapp_get_mbus_formats(sensor);
 	if (rval) {
 		rval = -ENODEV;
-		goto out_nvm_release;
+		goto out_cleanup;
 	}
 
 	for (i = 0; i < SMIAPP_SUBDEVS; i++) {
@@ -2758,10 +2764,6 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		last = this;
 	}
 
-	rval = smiapp_register_subdevs(sensor);
-	if (rval)
-		goto out_nvm_release;
-
 	dev_dbg(&client->dev, "profile %d\n", sensor->minfo.smiapp_profile);
 
 	sensor->pixel_array->sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
@@ -2770,14 +2772,14 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	smiapp_read_frame_fmt(sensor);
 	rval = smiapp_init_controls(sensor);
 	if (rval < 0)
-		goto out_nvm_release;
+		goto out_cleanup;
 
 	mutex_lock(&sensor->mutex);
 	rval = smiapp_update_mode(sensor);
 	mutex_unlock(&sensor->mutex);
 	if (rval) {
 		dev_err(&client->dev, "update mode failed\n");
-		goto out_nvm_release;
+		goto out_cleanup;
 	}
 
 	sensor->streaming = false;
@@ -2787,20 +2789,36 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	rval = smiapp_read(sensor, SMIAPP_REG_U8_FLASH_MODE_CAPABILITY, &tmp);
 	sensor->flash_capability = tmp;
 	if (rval)
-		goto out_nvm_release;
+		goto out_cleanup;
 
 	smiapp_power_off(sensor);
 
 	return 0;
 
-out_nvm_release:
-	device_remove_file(&client->dev, &dev_attr_nvm);
-
-out_ident_release:
-	device_remove_file(&client->dev, &dev_attr_ident);
+out_cleanup:
+	smiapp_cleanup(sensor);
 
 out_power_off:
 	smiapp_power_off(sensor);
+	return rval;
+}
+
+static int smiapp_registered(struct v4l2_subdev *subdev)
+{
+	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	int rval;
+
+	if (!client->dev.of_node) {
+		rval = smiapp_init(sensor);
+		if (rval)
+			return rval;
+	}
+
+	rval = smiapp_register_subdevs(sensor);
+	if (rval)
+		smiapp_cleanup(sensor);
+
 	return rval;
 }
 
@@ -3076,6 +3094,12 @@ static int smiapp_probe(struct i2c_client *client,
 				 sensor->src->pads, 0);
 	if (rval < 0)
 		return rval;
+
+	if (client->dev.of_node) {
+		rval = smiapp_init(sensor);
+		if (rval)
+			goto out_media_entity_cleanup;
+	}
 
 	rval = v4l2_async_register_subdev(&sensor->src->sd);
 	if (rval < 0)
