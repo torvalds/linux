@@ -650,12 +650,12 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 			return -EINVAL;
 
 		idx = get_index(vma->vm_pgoff);
+		if (idx >= uuari->num_uars)
+			return -EINVAL;
+
 		pfn = uar_index2pfn(dev, uuari->uars[idx].index);
 		mlx5_ib_dbg(dev, "uar idx 0x%lx, pfn 0x%llx\n", idx,
 			    (unsigned long long)pfn);
-
-		if (idx >= uuari->num_uars)
-			return -EINVAL;
 
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 		if (io_remap_pfn_range(vma, vma->vm_start, pfn,
