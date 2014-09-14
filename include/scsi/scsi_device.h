@@ -210,7 +210,7 @@ struct scsi_device_handler {
 	struct module *module;
 	const char *name;
 	int (*check_sense)(struct scsi_device *, struct scsi_sense_hdr *);
-	int (*attach)(struct scsi_device *);
+	struct scsi_dh_data *(*attach)(struct scsi_device *);
 	void (*detach)(struct scsi_device *);
 	int (*activate)(struct scsi_device *, activate_complete, void *);
 	int (*prep_fn)(struct scsi_device *, struct request *);

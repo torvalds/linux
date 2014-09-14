@@ -98,7 +98,7 @@ device_handler_match(struct scsi_device_handler *scsi_dh,
 static int scsi_dh_handler_attach(struct scsi_device *sdev,
 				  struct scsi_device_handler *scsi_dh)
 {
-	int err = 0;
+	struct scsi_dh_data *d;
 
 	if (sdev->scsi_dh_data) {
 		if (sdev->scsi_dh_data->scsi_dh != scsi_dh)
@@ -111,15 +111,22 @@ static int scsi_dh_handler_attach(struct scsi_device *sdev,
 	if (!try_module_get(scsi_dh->module))
 		return -EINVAL;
 
-	err = scsi_dh->attach(sdev);
-	if (err) {
+	d = scsi_dh->attach(sdev);
+	if (IS_ERR(d)) {
+		sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%ld)\n",
+			    scsi_dh->name, PTR_ERR(d));
 		module_put(scsi_dh->module);
-		return err;
+		return PTR_ERR(d);
 	}
 
-	kref_init(&sdev->scsi_dh_data->kref);
-	sdev->scsi_dh_data->sdev = sdev;
-	return err;
+	d->scsi_dh = scsi_dh;
+	kref_init(&d->kref);
+	d->sdev = sdev;
+
+	spin_lock_irq(sdev->request_queue->queue_lock);
+	sdev->scsi_dh_data = d;
+	spin_unlock_irq(sdev->request_queue->queue_lock);
+	return 0;
 }
 
 static void __detach_handler (struct kref *kref)
@@ -127,8 +134,14 @@ static void __detach_handler (struct kref *kref)
 	struct scsi_dh_data *scsi_dh_data =
 		container_of(kref, struct scsi_dh_data, kref);
 	struct scsi_device_handler *scsi_dh = scsi_dh_data->scsi_dh;
+	struct scsi_device *sdev = scsi_dh_data->sdev;
 
-	scsi_dh->detach(scsi_dh_data->sdev);
+	spin_lock_irq(sdev->request_queue->queue_lock);
+	sdev->scsi_dh_data = NULL;
+	spin_unlock_irq(sdev->request_queue->queue_lock);
+
+	scsi_dh->detach(sdev);
+	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", scsi_dh->name);
 	module_put(scsi_dh->module);
 }
 
