@@ -78,12 +78,10 @@ aic5_handle(struct pt_regs *regs)
 	irqnr = irq_reg_readl(gc->reg_base + AT91_AIC5_IVR);
 	irqstat = irq_reg_readl(gc->reg_base + AT91_AIC5_ISR);
 
-	irqnr = irq_find_mapping(aic5_domain, irqnr);
-
 	if (!irqstat)
 		irq_reg_writel(0, gc->reg_base + AT91_AIC5_EOICR);
 	else
-		handle_IRQ(irqnr, regs);
+		handle_domain_irq(aic5_domain, irqnr, regs);
 }
 
 static void aic5_mask(struct irq_data *d)

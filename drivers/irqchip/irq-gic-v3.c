@@ -274,14 +274,13 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 		irqnr = gic_read_iar();
 
 		if (likely(irqnr > 15 && irqnr < 1020)) {
-			u64 irq = irq_find_mapping(gic_data.domain, irqnr);
-			if (likely(irq)) {
-				handle_IRQ(irq, regs);
-				continue;
+			int err;
+			err = handle_domain_irq(gic_data.domain, irqnr, regs);
+			if (err) {
+				WARN_ONCE(true, "Unexpected SPI received!\n");
+				gic_write_eoir(irqnr);
 			}
-
-			WARN_ONCE(true, "Unexpected SPI received!\n");
-			gic_write_eoir(irqnr);
+			continue;
 		}
 		if (irqnr < 16) {
 			gic_write_eoir(irqnr);
