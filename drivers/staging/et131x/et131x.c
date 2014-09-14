@@ -474,10 +474,9 @@ struct et131x_adapter {
 	bool has_eeprom;
 	u8 eeprom_data[2];
 
-	/* Spinlocks */
-	spinlock_t tcb_send_qlock;
-	spinlock_t tcb_ready_qlock;
-	spinlock_t rcv_lock;
+	spinlock_t tcb_send_qlock; /* protects the tx_ring send tcb list */
+	spinlock_t tcb_ready_qlock; /* protects the tx_ring ready tcb list */
+	spinlock_t rcv_lock; /* protects the rx_ring receive list */
 
 	/* Packet Filter and look ahead size */
 	u32 packet_filter;
