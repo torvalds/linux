@@ -79,7 +79,7 @@ static void update_BCNTIM(struct rtw_adapter *padapter)
 
 	p = rtw_get_ie23a(pie, WLAN_EID_TIM, &tim_ielen,
 			  pnetwork_mlmeext->IELength);
-	if (p != NULL && tim_ielen>0) {
+	if (p != NULL && tim_ielen > 0) {
 		tim_ielen += 2;
 
 		premainder_ie = p+tim_ielen;
@@ -125,17 +125,17 @@ static void update_BCNTIM(struct rtw_adapter *padapter)
 			memcpy(pbackup_remainder_ie, premainder_ie, remainder_ielen);
 	}
 
-	*dst_ie++= WLAN_EID_TIM;
+	*dst_ie++ = WLAN_EID_TIM;
 
 	if ((pstapriv->tim_bitmap&0xff00) && (pstapriv->tim_bitmap&0x00fc))
 		tim_ielen = 5;
 	else
 		tim_ielen = 4;
 
-	*dst_ie++= tim_ielen;
+	*dst_ie++ = tim_ielen;
 
-	*dst_ie++= 0;/* DTIM count */
-	*dst_ie++= 1;/* DTIM period */
+	*dst_ie++ = 0;/* DTIM count */
+	*dst_ie++ = 1;/* DTIM period */
 
 	if (pstapriv->tim_bitmap & BIT(0))/* for bc/mc frames */
 		*dst_ie++ = BIT(0);/* bitmap ctrl */
@@ -146,7 +146,7 @@ static void update_BCNTIM(struct rtw_adapter *padapter)
 		*dst_ie++ = *(u8 *)&tim_bitmap_le;
 	} else if (tim_ielen == 5) {
 		memcpy(dst_ie, &tim_bitmap_le, 2);
-		dst_ie+= 2;
+		dst_ie += 2;
 	}
 
 	/* copy remainder IE */
@@ -194,7 +194,7 @@ void	expire_timeout_chk23a(struct rtw_adapter *padapter)
 	list_for_each_safe(plist, ptmp, phead) {
 		psta = container_of(plist, struct sta_info, auth_list);
 
-		if (psta->expire_to>0) {
+		if (psta->expire_to > 0) {
 			psta->expire_to--;
 			if (psta->expire_to == 0) {
 				list_del_init(&psta->auth_list);
@@ -335,7 +335,7 @@ void	expire_timeout_chk23a(struct rtw_adapter *padapter)
 
 	}
 
-	if (backup_oper_channel>0) /* back to the original operation channel */
+	if (backup_oper_channel > 0) /* back to the original operation channel */
 		SelectChannel23a(padapter, backup_oper_channel);
 }
 
@@ -363,7 +363,7 @@ void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_l
 		return;
 
 	/* b/g mode ra_bitmap */
-	for (i = 0; i<sizeof(psta->bssrateset); i++)
+	for (i = 0; i < sizeof(psta->bssrateset); i++)
 	{
 		if (psta->bssrateset[i])
 			tx_ra_bitmap |= rtw_get_bit_value_from_ieee_value23a(psta->bssrateset[i]&0x7f);
@@ -474,7 +474,7 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 		psta->bssratelen = supportRateNum;
 
 		/* b/g mode ra_bitmap */
-		for (i = 0; i<supportRateNum; i++)
+		for (i = 0; i < supportRateNum; i++)
 		{
 			if (psta->bssrateset[i])
 				tx_ra_bitmap |= rtw_get_bit_value_from_ieee_value23a(psta->bssrateset[i]&0x7f);
@@ -706,7 +706,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 
 	/* Set Security */
 	val8 = (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) ?
-		0xcc: 0xcf;
+		0xcc : 0xcf;
 	rtl8723a_set_sec_cfg(padapter, val8);
 
 	/* Beacon Control related register */
@@ -1865,7 +1865,7 @@ void rtw_ap_restore_network(struct rtw_adapter *padapter)
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = chk_alive_list[i];
 
-		if (psta->state &_FW_LINKED) {
+		if (psta->state & _FW_LINKED) {
 			Update_RA_Entry23a(padapter, psta);
 			/* pairwise key */
 			rtw_setstakey_cmd23a(padapter, (unsigned char *)psta, true);
@@ -1902,7 +1902,7 @@ void start_ap_mode23a(struct rtw_adapter *padapter)
 
 	pmlmepriv->ht_op_mode = 0;
 
-	for (i = 0; i<NUM_STA; i++)
+	for (i = 0; i < NUM_STA; i++)
 		pstapriv->sta_aid[i] = NULL;
 
 	/* for ACL */
