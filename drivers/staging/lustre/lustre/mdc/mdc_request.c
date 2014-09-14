@@ -2500,8 +2500,6 @@ static int mdc_init_ea_size(struct obd_export *exp, int easize,
 
 static int mdc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
-	int rc = 0;
-
 	switch (stage) {
 	case OBD_CLEANUP_EARLY:
 		break;
@@ -2517,7 +2515,7 @@ static int mdc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		mdc_llog_finish(obd);
 		break;
 	}
-	return rc;
+	return 0;
 }
 
 static int mdc_cleanup(struct obd_device *obd)
