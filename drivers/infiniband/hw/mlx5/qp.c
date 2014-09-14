@@ -1302,6 +1302,11 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
 	path->rlid	= cpu_to_be16(ah->dlid);
 
 	if (ah->ah_flags & IB_AH_GRH) {
+		if (ah->grh.sgid_index >= dev->mdev->caps.port[port - 1].gid_table_len) {
+			pr_err(KERN_ERR "sgid_index (%u) too large. max is %d\n",
+			       ah->grh.sgid_index, dev->mdev->caps.port[port - 1].gid_table_len);
+			return -EINVAL;
+		}
 		path->grh_mlid |= 1 << 7;
 		path->mgid_index = ah->grh.sgid_index;
 		path->hop_limit  = ah->grh.hop_limit;
@@ -1316,22 +1321,6 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
 		return err;
 	path->static_rate = err;
 	path->port = port;
-
-	if (ah->ah_flags & IB_AH_GRH) {
-		if (ah->grh.sgid_index >= dev->mdev->caps.port[port - 1].gid_table_len) {
-			pr_err(KERN_ERR "sgid_index (%u) too large. max is %d\n",
-			       ah->grh.sgid_index, dev->mdev->caps.port[port - 1].gid_table_len);
-			return -EINVAL;
-		}
-
-		path->grh_mlid |= 1 << 7;
-		path->mgid_index = ah->grh.sgid_index;
-		path->hop_limit  = ah->grh.hop_limit;
-		path->tclass_flowlabel =
-			cpu_to_be32((ah->grh.traffic_class << 20) |
-				    (ah->grh.flow_label));
-		memcpy(path->rgid, ah->grh.dgid.raw, 16);
-	}
 
 	if (attr_mask & IB_QP_TIMEOUT)
 		path->ackto_lt = attr->timeout << 3;
