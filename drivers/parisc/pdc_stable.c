@@ -755,7 +755,7 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 {
 	struct pdcspath_entry *pathentry;
 	unsigned char flags;
-	char in[count+1], *temp;
+	char in[8], *temp;
 	char c;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -765,8 +765,9 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 		return -EINVAL;
 
 	/* We'll use a local copy of buf */
-	memset(in, 0, count+1);
+	count = min_t(size_t, count, 7);
 	strncpy(in, buf, count);
+	in[count] = '\0';
 
 	/* Current flags are stored in primary boot path entry */
 	pathentry = &pdcspath_entry_primary;
