@@ -1144,7 +1144,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 		 adapter->addr[5];
 	writel(sa_lo, &rxmac->sa_lo);
 
-	sa_hi = (u32) (adapter->addr[0] << ET_RX_WOL_HI_SA1_SHIFT) |
+	sa_hi = (u32)(adapter->addr[0] << ET_RX_WOL_HI_SA1_SHIFT) |
 		       adapter->addr[1];
 	writel(sa_hi, &rxmac->sa_hi);
 
@@ -2377,7 +2377,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		return NULL; /* Looks like this ring is not updated yet */
 
 	/* The packet status ring indicates that data is available. */
-	psr = (struct pkt_stat_desc *) (rx_local->ps_ring_virtaddr) +
+	psr = (struct pkt_stat_desc *)(rx_local->ps_ring_virtaddr) +
 			(rx_local->local_psr_full & 0xFFF);
 
 	/* Grab any information that is required once the PSR is advanced,
@@ -3313,7 +3313,7 @@ err_out:
  */
 static void et131x_error_timer_handler(unsigned long data)
 {
-	struct et131x_adapter *adapter = (struct et131x_adapter *) data;
+	struct et131x_adapter *adapter = (struct et131x_adapter *)data;
 	struct phy_device *phydev = adapter->phydev;
 
 	if (et1310_in_phy_coma(adapter)) {
