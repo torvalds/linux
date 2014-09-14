@@ -2742,8 +2742,9 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 			tcb->index = NUM_DESC_PER_RING_TX - 1;
 		else
 			tcb->index = ET_DMA10_WRAP|(NUM_DESC_PER_RING_TX - 1);
-	} else
+	} else {
 		tcb->index = tx_ring->send_idx - 1;
+	}
 
 	spin_lock(&adapter->tcb_send_qlock);
 
@@ -4021,8 +4022,9 @@ static int et131x_set_packet_filter(struct et131x_adapter *adapter)
 		if (filter & ET131X_PACKET_TYPE_BROADCAST) {
 			pf_ctrl |= 1;	/* Broadcast filter bit */
 			ctrl &= ~0x04;
-		} else
+		} else {
 			pf_ctrl &= ~1;
+		}
 
 		/* Setup the receive mac configuration registers - Packet
 		 * Filter control + the enable / disable for packet filter
@@ -4070,8 +4072,9 @@ static void et131x_multicast(struct net_device *netdev)
 	if (netdev_mc_count(netdev) < 1) {
 		adapter->packet_filter &= ~ET131X_PACKET_TYPE_ALL_MULTICAST;
 		adapter->packet_filter &= ~ET131X_PACKET_TYPE_MULTICAST;
-	} else
+	} else {
 		adapter->packet_filter |= ET131X_PACKET_TYPE_MULTICAST;
+	}
 
 	/* Set values in the private adapter struct */
 	i = 0;
