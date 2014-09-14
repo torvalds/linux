@@ -376,6 +376,10 @@ struct iwl_lq_sta {
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  enum ieee80211_band band, bool init);
 
+/* Notify RS about Tx status */
+void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			  int tid, struct ieee80211_tx_info *info);
+
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
  *
