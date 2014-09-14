@@ -16,6 +16,7 @@
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
+#include <asm/maar.h>
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
 
@@ -163,4 +164,29 @@ void __init prom_free_prom_memory(void)
 		free_init_pages("YAMON memory",
 				addr, addr + boot_mem_map.map[i].size);
 	}
+}
+
+unsigned platform_maar_init(unsigned num_pairs)
+{
+	phys_addr_t mem_end = (physical_memsize & ~0xffffull) - 1;
+	struct maar_config cfg[] = {
+		/* DRAM preceding I/O */
+		{ 0x00000000, 0x0fffffff, MIPS_MAAR_S },
+
+		/* DRAM following I/O */
+		{ 0x20000000, mem_end, MIPS_MAAR_S },
+
+		/* DRAM alias in upper half of physical */
+		{ 0x80000000, 0x80000000 + mem_end, MIPS_MAAR_S },
+	};
+	unsigned i, num_cfg = ARRAY_SIZE(cfg);
+
+	/* If DRAM fits before I/O, drop the region following it */
+	if (physical_memsize <= 0x10000000) {
+		num_cfg--;
+		for (i = 1; i < num_cfg; i++)
+			cfg[i] = cfg[i + 1];
+	}
+
+	return maar_config(cfg, num_cfg, num_pairs);
 }

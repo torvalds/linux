@@ -643,7 +643,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	if (status)
 		dev_warn(&adapter->pdev->dev, "Pause param set failed.\n");
 
-	return status;
+	return be_cmd_status(status);
 }
 
 static int be_set_phys_id(struct net_device *netdev,
@@ -681,22 +681,21 @@ static int be_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
 	struct device *dev = &adapter->pdev->dev;
 	int status;
 
-	if (!lancer_chip(adapter)) {
-		dev_err(dev, "FW dump not supported\n");
+	if (!lancer_chip(adapter) ||
+	    !check_privilege(adapter, MAX_PRIVILEGES))
 		return -EOPNOTSUPP;
-	}
-
-	if (dump_present(adapter)) {
-		dev_err(dev, "Previous dump not cleared, not forcing dump\n");
-		return 0;
-	}
 
 	switch (dump->flag) {
 	case LANCER_INITIATE_FW_DUMP:
 		status = lancer_initiate_dump(adapter);
 		if (!status)
-			dev_info(dev, "F/w dump initiated successfully\n");
+			dev_info(dev, "FW dump initiated successfully\n");
 		break;
+	case LANCER_DELETE_FW_DUMP:
+		status = lancer_delete_dump(adapter);
+		if (!status)
+			dev_info(dev, "FW dump deleted successfully\n");
+	break;
 	default:
 		dev_err(dev, "Invalid dump level: 0x%x\n", dump->flag);
 		return -EINVAL;
@@ -762,7 +761,7 @@ static int be_test_ddr_dma(struct be_adapter *adapter)
 err:
 	dma_free_coherent(&adapter->pdev->dev, ddrdma_cmd.size, ddrdma_cmd.va,
 			  ddrdma_cmd.dma);
-	return ret;
+	return be_cmd_status(ret);
 }
 
 static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
@@ -885,7 +884,7 @@ static int be_read_eeprom(struct net_device *netdev,
 	dma_free_coherent(&adapter->pdev->dev, eeprom_cmd.size, eeprom_cmd.va,
 			  eeprom_cmd.dma);
 
-	return status;
+	return be_cmd_status(status);
 }
 
 static u32 be_get_msg_level(struct net_device *netdev)
@@ -1042,7 +1041,7 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 	if (!status)
 		adapter->rss_info.rss_flags = rss_flags;
 
-	return status;
+	return be_cmd_status(status);
 }
 
 static int be_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
@@ -1080,6 +1079,7 @@ static int be_set_channels(struct net_device  *netdev,
 			   struct ethtool_channels *ch)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
 
 	if (ch->rx_count || ch->tx_count || ch->other_count ||
 	    !ch->combined_count || ch->combined_count > be_max_qs(adapter))
@@ -1087,7 +1087,8 @@ static int be_set_channels(struct net_device  *netdev,
 
 	adapter->cfg_num_qs = ch->combined_count;
 
-	return be_update_queues(adapter);
+	status = be_update_queues(adapter);
+	return be_cmd_status(status);
 }
 
 static u32 be_get_rxfh_indir_size(struct net_device *netdev)

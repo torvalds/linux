@@ -258,10 +258,8 @@ struct hso_serial {
 	 * so as not to drop characters on the floor.
 	 */
 	int  curr_rx_urb_idx;
-	u16  curr_rx_urb_offset;
 	u8   rx_urb_filled[MAX_RX_URBS];
 	struct tasklet_struct unthrottle_tasklet;
-	struct work_struct    retry_unthrottle_workqueue;
 };
 
 struct hso_device {
@@ -469,6 +467,7 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0x8800)},
 	{USB_DEVICE(0x0af0, 0x8900)},
 	{USB_DEVICE(0x0af0, 0x9000)},
+	{USB_DEVICE(0x0af0, 0x9200)},		/* Option GTM671WFS */
 	{USB_DEVICE(0x0af0, 0xd035)},
 	{USB_DEVICE(0x0af0, 0xd055)},
 	{USB_DEVICE(0x0af0, 0xd155)},
@@ -1252,14 +1251,6 @@ static	void hso_unthrottle(struct tty_struct *tty)
 	tasklet_hi_schedule(&serial->unthrottle_tasklet);
 }
 
-static void hso_unthrottle_workfunc(struct work_struct *work)
-{
-	struct hso_serial *serial =
-	    container_of(work, struct hso_serial,
-			 retry_unthrottle_workqueue);
-	hso_unthrottle_tasklet(serial);
-}
-
 /* open the requested serial port */
 static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 {
@@ -1295,8 +1286,6 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 		tasklet_init(&serial->unthrottle_tasklet,
 			     (void (*)(unsigned long))hso_unthrottle_tasklet,
 			     (unsigned long)serial);
-		INIT_WORK(&serial->retry_unthrottle_workqueue,
-			  hso_unthrottle_workfunc);
 		result = hso_start_serial_device(serial->parent, GFP_KERNEL);
 		if (result) {
 			hso_stop_serial_device(serial->parent);
@@ -1345,7 +1334,6 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 		if (!usb_gone)
 			hso_stop_serial_device(serial->parent);
 		tasklet_kill(&serial->unthrottle_tasklet);
-		cancel_work_sync(&serial->retry_unthrottle_workqueue);
 	}
 
 	if (!usb_gone)
@@ -2013,8 +2001,7 @@ static void ctrl_callback(struct urb *urb)
 static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 {
 	struct tty_struct *tty;
-	int write_length_remaining = 0;
-	int curr_write_len;
+	int count;
 
 	/* Sanity check */
 	if (urb == NULL || serial == NULL) {
@@ -2024,29 +2011,28 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 
 	tty = tty_port_tty_get(&serial->port);
 
-	/* Push data to tty */
-	write_length_remaining = urb->actual_length -
-		serial->curr_rx_urb_offset;
-	D1("data to push to tty");
-	while (write_length_remaining) {
-		if (tty && test_bit(TTY_THROTTLED, &tty->flags)) {
-			tty_kref_put(tty);
-			return -1;
-		}
-		curr_write_len = tty_insert_flip_string(&serial->port,
-			urb->transfer_buffer + serial->curr_rx_urb_offset,
-			write_length_remaining);
-		serial->curr_rx_urb_offset += curr_write_len;
-		write_length_remaining -= curr_write_len;
-		tty_flip_buffer_push(&serial->port);
+	if (tty && test_bit(TTY_THROTTLED, &tty->flags)) {
+		tty_kref_put(tty);
+		return -1;
 	}
+
+	/* Push data to tty */
+	D1("data to push to tty");
+	count = tty_buffer_request_room(&serial->port, urb->actual_length);
+	if (count >= urb->actual_length) {
+		tty_insert_flip_string(&serial->port, urb->transfer_buffer,
+				       urb->actual_length);
+		tty_flip_buffer_push(&serial->port);
+	} else {
+		dev_warn(&serial->parent->usb->dev,
+			 "dropping data, %d bytes lost\n", urb->actual_length);
+	}
+
 	tty_kref_put(tty);
 
-	if (write_length_remaining == 0) {
-		serial->curr_rx_urb_offset = 0;
-		serial->rx_urb_filled[hso_urb_to_index(serial, urb)] = 0;
-	}
-	return write_length_remaining;
+	serial->rx_urb_filled[hso_urb_to_index(serial, urb)] = 0;
+
+	return 0;
 }
 
 
@@ -2217,7 +2203,6 @@ static int hso_stop_serial_device(struct hso_device *hso_dev)
 		}
 	}
 	serial->curr_rx_urb_idx = 0;
-	serial->curr_rx_urb_offset = 0;
 
 	if (serial->tx_urb)
 		usb_kill_urb(serial->tx_urb);
@@ -2520,7 +2505,8 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 
 	/* allocate our network device, then we can put in our private data */
 	/* call hso_net_init to do the basic initialization */
-	net = alloc_netdev(sizeof(struct hso_net), "hso%d", hso_net_init);
+	net = alloc_netdev(sizeof(struct hso_net), "hso%d", NET_NAME_UNKNOWN,
+			   hso_net_init);
 	if (!net) {
 		dev_err(&interface->dev, "Unable to create ethernet device\n");
 		goto exit;

@@ -1,9 +1,15 @@
+config HAVE_ACPI_APEI
+	bool
+
+config HAVE_ACPI_APEI_NMI
+	bool
+
 config ACPI_APEI
 	bool "ACPI Platform Error Interface (APEI)"
 	select MISC_FILESYSTEMS
 	select PSTORE
 	select UEFI_CPER
-	depends on X86
+	depends on HAVE_ACPI_APEI
 	help
 	  APEI allows to report errors (for example from the chipset)
 	  to the operating system. This improves NMI handling

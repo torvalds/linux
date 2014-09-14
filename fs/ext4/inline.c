@@ -120,12 +120,6 @@ int ext4_get_max_inline_size(struct inode *inode)
 	return max_inline_size + EXT4_MIN_INLINE_DATA_SIZE;
 }
 
-int ext4_has_inline_data(struct inode *inode)
-{
-	return ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA) &&
-	       EXT4_I(inode)->i_inline_off;
-}
-
 /*
  * this function does not take xattr_sem, which is OK because it is
  * currently only used in a code path coming form ext4_iget, before
@@ -1177,6 +1171,18 @@ static int ext4_convert_inline_data_nolock(handle_t *handle,
 	error = ext4_read_inline_data(inode, buf, inline_size, iloc);
 	if (error < 0)
 		goto out;
+
+	/*
+	 * Make sure the inline directory entries pass checks before we try to
+	 * convert them, so that we avoid touching stuff that needs fsck.
+	 */
+	if (S_ISDIR(inode->i_mode)) {
+		error = ext4_check_all_de(inode, iloc->bh,
+					buf + EXT4_INLINE_DOTDOT_SIZE,
+					inline_size - EXT4_INLINE_DOTDOT_SIZE);
+		if (error)
+			goto out;
+	}
 
 	error = ext4_destroy_inline_data_nolock(handle, inode);
 	if (error)

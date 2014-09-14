@@ -105,10 +105,16 @@
 
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <0>;
+	phy-mode = "rmii";
 };
 
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <1>;
+	phy-mode = "rmii";
+};
+
+&phy_sel {
+	rmii-clock-ext;
 };
 
 &elm {

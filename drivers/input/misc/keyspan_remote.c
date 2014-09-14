@@ -392,7 +392,6 @@ static void keyspan_irq_recv(struct urb *urb)
 
 	default:
 		goto resubmit;
-		break;
 	}
 
 	if (debug)

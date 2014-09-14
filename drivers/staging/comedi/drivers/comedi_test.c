@@ -146,10 +146,8 @@ static unsigned short fake_waveform(struct comedi_device *dev,
 	switch (channel) {
 	case SAWTOOTH_CHAN:
 		return fake_sawtooth(dev, range, current_time);
-		break;
 	case SQUARE_CHAN:
 		return fake_squarewave(dev, range, current_time);
-		break;
 	default:
 		break;
 	}
@@ -305,8 +303,8 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (cmd->flags & TRIG_RT) {
-		comedi_error(dev,
-			     "commands at RT priority not supported in this driver");
+		dev_err(dev->class_dev,
+			"commands at RT priority not supported in this driver\n");
 		return -1;
 	}
 

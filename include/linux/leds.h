@@ -15,7 +15,6 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
-#include <linux/timer.h>
 #include <linux/workqueue.h>
 
 struct device;
@@ -63,11 +62,13 @@ struct led_classdev {
 				     unsigned long *delay_off);
 
 	struct device		*dev;
+	const struct attribute_group	**groups;
+
 	struct list_head	 node;			/* LED Device list */
 	const char		*default_trigger;	/* Trigger to use */
 
 	unsigned long		 blink_delay_on, blink_delay_off;
-	struct timer_list	 blink_timer;
+	struct delayed_work	 blink_work;
 	int			 blink_brightness;
 
 	struct work_struct	set_brightness_work;

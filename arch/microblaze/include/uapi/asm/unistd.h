@@ -398,5 +398,6 @@
 #define __NR_finit_module	380
 #define __NR_sched_setattr	381
 #define __NR_sched_getattr	382
+#define __NR_renameat2		383
 
 #endif /* _UAPI_ASM_MICROBLAZE_UNISTD_H */

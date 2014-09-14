@@ -678,7 +678,8 @@ static void dm1105_emit_key(struct work_struct *work)
 
 	data = (ircom >> 8) & 0x7f;
 
-	rc_keydown(ir->dev, data, 0);
+	/* FIXME: UNKNOWN because we don't generate a full NEC scancode (yet?) */
+	rc_keydown(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 }
 
 /* work handler */

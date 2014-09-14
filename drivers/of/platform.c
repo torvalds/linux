@@ -422,6 +422,7 @@ static int of_platform_bus_create(struct device_node *bus,
 			break;
 		}
 	}
+	of_node_set_flag(bus, OF_POPULATED_BUS);
 	return rc;
 }
 
@@ -508,19 +509,13 @@ EXPORT_SYMBOL_GPL(of_platform_populate);
 
 static int of_platform_device_destroy(struct device *dev, void *data)
 {
-	bool *children_left = data;
-
 	/* Do not touch devices not populated from the device tree */
-	if (!dev->of_node || !of_node_check_flag(dev->of_node, OF_POPULATED)) {
-		*children_left = true;
+	if (!dev->of_node || !of_node_check_flag(dev->of_node, OF_POPULATED))
 		return 0;
-	}
 
-	/* Recurse, but don't touch this device if it has any children left */
-	if (of_platform_depopulate(dev) != 0) {
-		*children_left = true;
-		return 0;
-	}
+	/* Recurse for any nodes that were treated as busses */
+	if (of_node_check_flag(dev->of_node, OF_POPULATED_BUS))
+		device_for_each_child(dev, NULL, of_platform_device_destroy);
 
 	if (dev->bus == &platform_bus_type)
 		platform_device_unregister(to_platform_device(dev));
@@ -528,19 +523,15 @@ static int of_platform_device_destroy(struct device *dev, void *data)
 	else if (dev->bus == &amba_bustype)
 		amba_device_unregister(to_amba_device(dev));
 #endif
-	else {
-		*children_left = true;
-		return 0;
-	}
 
 	of_node_clear_flag(dev->of_node, OF_POPULATED);
-
+	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
 	return 0;
 }
 
 /**
  * of_platform_depopulate() - Remove devices populated from device tree
- * @parent: device which childred will be removed
+ * @parent: device which children will be removed
  *
  * Complementary to of_platform_populate(), this function removes children
  * of the given device (and, recurrently, their children) that have been
@@ -550,14 +541,9 @@ static int of_platform_device_destroy(struct device *dev, void *data)
  * Returns 0 when all children devices have been removed or
  * -EBUSY when some children remained.
  */
-int of_platform_depopulate(struct device *parent)
+void of_platform_depopulate(struct device *parent)
 {
-	bool children_left = false;
-
-	device_for_each_child(parent, &children_left,
-			      of_platform_device_destroy);
-
-	return children_left ? -EBUSY : 0;
+	device_for_each_child(parent, NULL, of_platform_device_destroy);
 }
 EXPORT_SYMBOL_GPL(of_platform_depopulate);
 

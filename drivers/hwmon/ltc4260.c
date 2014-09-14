@@ -150,7 +150,7 @@ static struct attribute *ltc4260_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ltc4260);
 
-static struct regmap_config ltc4260_regmap_config = {
+static const struct regmap_config ltc4260_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = LTC4260_ADIN,

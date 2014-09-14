@@ -476,6 +476,11 @@ void __init alloc_dart_table(void)
 	 */
 	dart_tablebase = (unsigned long)
 		__va(memblock_alloc_base(1UL<<24, 1UL<<24, 0x80000000L));
+	/*
+	 * The DART space is later unmapped from the kernel linear mapping and
+	 * accessing dart_tablebase during kmemleak scanning will fault.
+	 */
+	kmemleak_no_scan((void *)dart_tablebase);
 
 	printk(KERN_INFO "DART table allocated at: %lx\n", dart_tablebase);
 }

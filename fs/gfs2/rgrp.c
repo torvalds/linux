@@ -337,7 +337,7 @@ static bool gfs2_unaligned_extlen(struct gfs2_rbm *rbm, u32 n_unaligned, u32 *le
 
 /**
  * gfs2_free_extlen - Return extent length of free blocks
- * @rbm: Starting position
+ * @rrbm: Starting position
  * @len: Max length to check
  *
  * Starting at the block specified by the rbm, see how many free blocks
@@ -2522,7 +2522,7 @@ void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state)
 
 /**
  * gfs2_rlist_free - free a resource group list
- * @list: the list of resource groups
+ * @rlist: the list of resource groups
  *
  */
 

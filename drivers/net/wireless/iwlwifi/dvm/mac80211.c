@@ -1495,9 +1495,10 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 
 static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      struct cfg80211_scan_request *req)
+			      struct ieee80211_scan_request *hw_req)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	struct cfg80211_scan_request *req = &hw_req->req;
 	int ret;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");

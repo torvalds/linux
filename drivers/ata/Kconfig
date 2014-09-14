@@ -16,6 +16,7 @@ menuconfig ATA
 	depends on BLOCK
 	depends on !(M32R || M68K || S390) || BROKEN
 	select SCSI
+	select GLOB
 	---help---
 	  If you want to use an ATA hard disk, ATA tape drive, ATA CD-ROM or
 	  any other ATA device under Linux, say Y and make sure that you know
@@ -137,6 +138,15 @@ config AHCI_SUNXI
 	depends on ARCH_SUNXI
 	help
 	  This option enables support for the Allwinner sunxi SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
+config AHCI_TEGRA
+	tristate "NVIDIA Tegra124 AHCI SATA support"
+	depends on ARCH_TEGRA
+	help
+	  This option enables support for the NVIDIA Tegra124 SoC's
 	  onboard AHCI SATA.
 
 	  If unsure, say N.

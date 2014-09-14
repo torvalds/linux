@@ -83,22 +83,19 @@ typedef void (*TimerFunction)(unsigned long);
 //+++ NDIS related
 
 typedef unsigned char NDIS_802_11_MAC_ADDRESS[6];
-typedef struct _NDIS_802_11_AI_REQFI
-{
+typedef struct _NDIS_802_11_AI_REQFI {
 	unsigned short Capabilities;
 	unsigned short ListenInterval;
 	NDIS_802_11_MAC_ADDRESS  CurrentAPAddress;
 } NDIS_802_11_AI_REQFI, *PNDIS_802_11_AI_REQFI;
 
-typedef struct _NDIS_802_11_AI_RESFI
-{
+typedef struct _NDIS_802_11_AI_RESFI {
 	unsigned short Capabilities;
 	unsigned short StatusCode;
 	unsigned short AssociationId;
 } NDIS_802_11_AI_RESFI, *PNDIS_802_11_AI_RESFI;
 
-typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION
-{
+typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION {
 	unsigned long Length;
 	unsigned short          AvailableRequestFixedIEs;
 	NDIS_802_11_AI_REQFI    RequestFixedIEs;
@@ -187,8 +184,7 @@ typedef struct tagSRxMgmtPacket {
 	unsigned char byRxChannel;
 } SRxMgmtPacket, *PSRxMgmtPacket;
 
-typedef struct tagSMgmtObject
-{
+typedef struct tagSMgmtObject {
 	void *pAdapter;
 	// MAC address
 	unsigned char abyMACAddr[WLAN_ADDR_LEN];

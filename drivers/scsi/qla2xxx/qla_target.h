@@ -443,7 +443,7 @@ struct ctio7_to_24xx {
 			uint16_t reserved1;
 			__le16 flags;
 			uint32_t residual;
-			uint16_t ox_id;
+			__le16 ox_id;
 			uint16_t scsi_status;
 			uint32_t relative_offset;
 			uint32_t reserved2;
@@ -458,7 +458,7 @@ struct ctio7_to_24xx {
 			uint16_t sense_length;
 			uint16_t flags;
 			uint32_t residual;
-			uint16_t ox_id;
+			__le16 ox_id;
 			uint16_t scsi_status;
 			uint16_t response_len;
 			uint16_t reserved;

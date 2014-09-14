@@ -685,6 +685,12 @@ static void *raid0_takeover(struct mddev *mddev)
 	 *  raid10 - assuming we have all necessary active disks
 	 *  raid1 - with (N -1) mirror drives faulty
 	 */
+
+	if (mddev->bitmap) {
+		printk(KERN_ERR "md/raid0: %s: cannot takeover array with bitmap\n",
+		       mdname(mddev));
+		return ERR_PTR(-EBUSY);
+	}
 	if (mddev->level == 4)
 		return raid0_takeover_raid45(mddev);
 

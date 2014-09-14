@@ -142,6 +142,7 @@ struct spi_qup {
 	int			w_size;	/* bytes per SPI word */
 	int			tx_bytes;
 	int			rx_bytes;
+	int			qup_v1;
 };
 
 
@@ -420,33 +421,10 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 	config |= QUP_CONFIG_SPI_MODE;
 	writel_relaxed(config, controller->base + QUP_CONFIG);
 
-	writel_relaxed(0, controller->base + QUP_OPERATIONAL_MASK);
+	/* only write to OPERATIONAL_MASK when register is present */
+	if (!controller->qup_v1)
+		writel_relaxed(0, controller->base + QUP_OPERATIONAL_MASK);
 	return 0;
-}
-
-static void spi_qup_set_cs(struct spi_device *spi, bool enable)
-{
-	struct spi_qup *controller = spi_master_get_devdata(spi->master);
-
-	u32 iocontol, mask;
-
-	iocontol = readl_relaxed(controller->base + SPI_IO_CONTROL);
-
-	/* Disable auto CS toggle and use manual */
-	iocontol &= ~SPI_IO_C_MX_CS_MODE;
-	iocontol |= SPI_IO_C_FORCE_CS;
-
-	iocontol &= ~SPI_IO_C_CS_SELECT_MASK;
-	iocontol |= SPI_IO_C_CS_SELECT(spi->chip_select);
-
-	mask = SPI_IO_C_CS_N_POLARITY_0 << spi->chip_select;
-
-	if (enable)
-		iocontol |= mask;
-	else
-		iocontol &= ~mask;
-
-	writel_relaxed(iocontol, controller->base + SPI_IO_CONTROL);
 }
 
 static int spi_qup_transfer_one(struct spi_master *master,
@@ -511,7 +489,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *dev;
 	void __iomem *base;
-	u32 data, max_freq, iomode;
+	u32 max_freq, iomode;
 	int ret, irq, size;
 
 	dev = &pdev->dev;
@@ -554,15 +532,6 @@ static int spi_qup_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data = readl_relaxed(base + QUP_HW_VERSION);
-
-	if (data < QUP_HW_VERSION_2_1_1) {
-		clk_disable_unprepare(cclk);
-		clk_disable_unprepare(iclk);
-		dev_err(dev, "v.%08x is not supported\n", data);
-		return -ENXIO;
-	}
-
 	master = spi_alloc_master(dev, sizeof(struct spi_qup));
 	if (!master) {
 		clk_disable_unprepare(cclk);
@@ -571,12 +540,16 @@ static int spi_qup_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	/* use num-cs unless not present or out of range */
+	if (of_property_read_u16(dev->of_node, "num-cs",
+			&master->num_chipselect) ||
+			(master->num_chipselect > SPI_NUM_CHIPSELECTS))
+		master->num_chipselect = SPI_NUM_CHIPSELECTS;
+
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
-	master->num_chipselect = SPI_NUM_CHIPSELECTS;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	master->max_speed_hz = max_freq;
-	master->set_cs = spi_qup_set_cs;
 	master->transfer_one = spi_qup_transfer_one;
 	master->dev.of_node = pdev->dev.of_node;
 	master->auto_runtime_pm = true;
@@ -590,6 +563,10 @@ static int spi_qup_probe(struct platform_device *pdev)
 	controller->iclk = iclk;
 	controller->cclk = cclk;
 	controller->irq = irq;
+
+	/* set v1 flag if device is version 1 */
+	if (of_device_is_compatible(dev->of_node, "qcom,spi-qup-v1.1.1"))
+		controller->qup_v1 = 1;
 
 	spin_lock_init(&controller->lock);
 	init_completion(&controller->done);
@@ -614,8 +591,8 @@ static int spi_qup_probe(struct platform_device *pdev)
 	size = QUP_IO_M_INPUT_FIFO_SIZE(iomode);
 	controller->in_fifo_sz = controller->in_blk_sz * (2 << size);
 
-	dev_info(dev, "v.%08x IN:block:%d, fifo:%d, OUT:block:%d, fifo:%d\n",
-		 data, controller->in_blk_sz, controller->in_fifo_sz,
+	dev_info(dev, "IN:block:%d, fifo:%d, OUT:block:%d, fifo:%d\n",
+		 controller->in_blk_sz, controller->in_fifo_sz,
 		 controller->out_blk_sz, controller->out_fifo_sz);
 
 	writel_relaxed(1, base + QUP_SW_RESET);
@@ -628,9 +605,18 @@ static int spi_qup_probe(struct platform_device *pdev)
 
 	writel_relaxed(0, base + QUP_OPERATIONAL);
 	writel_relaxed(0, base + QUP_IO_M_MODES);
-	writel_relaxed(0, base + QUP_OPERATIONAL_MASK);
+
+	if (!controller->qup_v1)
+		writel_relaxed(0, base + QUP_OPERATIONAL_MASK);
+
 	writel_relaxed(SPI_ERROR_CLK_UNDER_RUN | SPI_ERROR_CLK_OVER_RUN,
 		       base + SPI_ERROR_FLAGS_EN);
+
+	/* if earlier version of the QUP, disable INPUT_OVERRUN */
+	if (controller->qup_v1)
+		writel_relaxed(QUP_ERROR_OUTPUT_OVER_RUN |
+			QUP_ERROR_INPUT_UNDER_RUN | QUP_ERROR_OUTPUT_UNDER_RUN,
+			base + QUP_ERROR_FLAGS_EN);
 
 	writel_relaxed(0, base + SPI_CONFIG);
 	writel_relaxed(SPI_IO_C_NO_TRI_STATE, base + SPI_IO_CONTROL);
@@ -640,16 +626,19 @@ static int spi_qup_probe(struct platform_device *pdev)
 	if (ret)
 		goto error;
 
-	ret = devm_spi_register_master(dev, master);
-	if (ret)
-		goto error;
-
 	pm_runtime_set_autosuspend_delay(dev, MSEC_PER_SEC);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
+
+	ret = devm_spi_register_master(dev, master);
+	if (ret)
+		goto disable_pm;
+
 	return 0;
 
+disable_pm:
+	pm_runtime_disable(&pdev->dev);
 error:
 	clk_disable_unprepare(cclk);
 	clk_disable_unprepare(iclk);
@@ -750,6 +739,7 @@ static int spi_qup_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id spi_qup_dt_match[] = {
+	{ .compatible = "qcom,spi-qup-v1.1.1", },
 	{ .compatible = "qcom,spi-qup-v2.1.1", },
 	{ .compatible = "qcom,spi-qup-v2.2.1", },
 	{ }

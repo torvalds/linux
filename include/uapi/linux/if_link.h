@@ -204,10 +204,16 @@ enum {
 	IFLA_INET6_CACHEINFO,	/* time values and max reasm size */
 	IFLA_INET6_ICMP6STATS,	/* statistics (icmpv6)		*/
 	IFLA_INET6_TOKEN,	/* device token			*/
+	IFLA_INET6_ADDR_GEN_MODE, /* implicit address generator mode */
 	__IFLA_INET6_MAX
 };
 
 #define IFLA_INET6_MAX	(__IFLA_INET6_MAX - 1)
+
+enum in6_addr_gen_mode {
+	IN6_ADDR_GEN_MODE_EUI64,
+	IN6_ADDR_GEN_MODE_NONE,
+};
 
 enum {
 	BRIDGE_MODE_UNSPEC,

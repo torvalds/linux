@@ -6,6 +6,8 @@
  * the DSO.
  */
 
+#define BUILD_VDSO64
+
 #include "vdso-layout.lds.S"
 
 /*

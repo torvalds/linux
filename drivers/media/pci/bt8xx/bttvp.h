@@ -133,8 +133,6 @@ struct bttv_ir {
 	u32                     polling;
 	u32                     last_gpio;
 	int                     shift_by;
-	int                     start; // What should RC5_START() be
-	int                     addr; // What RC5_ADDR() should be.
 	int                     rc5_remote_gap;
 
 	/* RC5 gpio */

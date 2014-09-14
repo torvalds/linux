@@ -44,8 +44,7 @@ struct omap3_scratchpad {
 };
 
 struct omap3_scratchpad_prcm_block {
-	u32 prm_clksrc_ctrl;
-	u32 prm_clksel;
+	u32 prm_contents[2];
 	u32 cm_contents[11];
 	u32 prcm_block_size;
 };
@@ -281,14 +280,11 @@ void omap3_clear_scratchpad_contents(void)
 	u32 max_offset = OMAP343X_SCRATCHPAD_ROM_OFFSET;
 	void __iomem *v_addr;
 	u32 offset = 0;
+
 	v_addr = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD_ROM);
-	if (omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
-	    OMAP3430_GLOBAL_COLD_RST_MASK) {
+	if (omap3xxx_prm_clear_global_cold_reset()) {
 		for ( ; offset <= max_offset; offset += 0x4)
 			writel_relaxed(0x0, (v_addr + offset));
-		omap2_prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
-					   OMAP3430_GR_MOD,
-					   OMAP3_PRM_RSTST_OFFSET);
 	}
 }
 
@@ -314,7 +310,8 @@ void omap3_save_scratchpad_contents(void)
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(omap3_restore_3630);
 	else if (omap_rev() != OMAP3430_REV_ES3_0 &&
-					omap_rev() != OMAP3430_REV_ES3_1)
+					omap_rev() != OMAP3430_REV_ES3_1 &&
+					omap_rev() != OMAP3430_REV_ES3_1_2)
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(omap3_restore);
 	else
@@ -331,13 +328,7 @@ void omap3_save_scratchpad_contents(void)
 	scratchpad_contents.sdrc_block_offset = 0x64;
 
 	/* Populate the PRCM block contents */
-	prcm_block_contents.prm_clksrc_ctrl =
-		omap2_prm_read_mod_reg(OMAP3430_GR_MOD,
-				       OMAP3_PRM_CLKSRC_CTRL_OFFSET);
-	prcm_block_contents.prm_clksel =
-		omap2_prm_read_mod_reg(OMAP3430_CCR_MOD,
-				       OMAP3_PRM_CLKSEL_OFFSET);
-
+	omap3_prm_save_scratchpad_contents(prcm_block_contents.prm_contents);
 	omap3_cm_save_scratchpad_contents(prcm_block_contents.cm_contents);
 
 	prcm_block_contents.prcm_block_size = 0x0;
@@ -474,7 +465,6 @@ void omap3_control_save_context(void)
 	control_context.csi = omap_ctrl_readl(OMAP343X_CONTROL_CSI);
 	control_context.padconf_sys_nirq =
 		omap_ctrl_readl(OMAP343X_CONTROL_PADCONF_SYSNIRQ);
-	return;
 }
 
 void omap3_control_restore_context(void)
@@ -532,7 +522,6 @@ void omap3_control_restore_context(void)
 	omap_ctrl_writel(control_context.csi, OMAP343X_CONTROL_CSI);
 	omap_ctrl_writel(control_context.padconf_sys_nirq,
 			 OMAP343X_CONTROL_PADCONF_SYSNIRQ);
-	return;
 }
 
 void omap3630_ctrl_disable_rta(void)
@@ -575,9 +564,50 @@ int omap3_ctrl_save_padconf(void)
  * Sets the bootmode for IVA2 to idle. This is needed by the PM code to
  * force disable IVA2 so that it does not prevent any low-power states.
  */
-void omap3_ctrl_set_iva_bootmode_idle(void)
+static void __init omap3_ctrl_set_iva_bootmode_idle(void)
 {
 	omap_ctrl_writel(OMAP3_IVA2_BOOTMOD_IDLE,
 			 OMAP343X_CONTROL_IVA2_BOOTMOD);
+}
+
+/**
+ * omap3_ctrl_setup_d2d_padconf - setup stacked modem pads for idle
+ *
+ * Sets up the pads controlling the stacked modem in such way that the
+ * device can enter idle.
+ */
+static void __init omap3_ctrl_setup_d2d_padconf(void)
+{
+	u16 mask, padconf;
+
+	/*
+	 * In a stand alone OMAP3430 where there is not a stacked
+	 * modem for the D2D Idle Ack and D2D MStandby must be pulled
+	 * high. S CONTROL_PADCONF_SAD2D_IDLEACK and
+	 * CONTROL_PADCONF_SAD2D_MSTDBY to have a pull up.
+	 */
+	mask = (1 << 4) | (1 << 3); /* pull-up, enabled */
+	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_MSTANDBY);
+	padconf |= mask;
+	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_MSTANDBY);
+
+	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_IDLEACK);
+	padconf |= mask;
+	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_IDLEACK);
+}
+
+/**
+ * omap3_ctrl_init - does static initializations for control module
+ *
+ * Initializes system control module. This sets up the sysconfig autoidle,
+ * and sets up modem and iva2 so that they can be idled properly.
+ */
+void __init omap3_ctrl_init(void)
+{
+	omap_ctrl_writel(OMAP3430_AUTOIDLE_MASK, OMAP2_CONTROL_SYSCONFIG);
+
+	omap3_ctrl_set_iva_bootmode_idle();
+
+	omap3_ctrl_setup_d2d_padconf();
 }
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */

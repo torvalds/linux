@@ -92,7 +92,7 @@ enum { none, prepare, done, } __init_state;
 static void init_preload(void);
 static void try_init_preload(void)
 {
-	if (!__init_state != done)
+	if (__init_state != done)
 		init_preload();
 }
 
@@ -252,7 +252,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex)
 
 	try_init_preload();
 
-	lock_acquire(&__get_lock(mutex)->dep_map, 0, 0, 0, 2, NULL,
+	lock_acquire(&__get_lock(mutex)->dep_map, 0, 0, 0, 1, NULL,
 			(unsigned long)_RET_IP_);
 	/*
 	 * Here's the thing with pthread mutexes: unlike the kernel variant,
@@ -281,7 +281,7 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex)
 
 	try_init_preload();
 
-	lock_acquire(&__get_lock(mutex)->dep_map, 0, 1, 0, 2, NULL, (unsigned long)_RET_IP_);
+	lock_acquire(&__get_lock(mutex)->dep_map, 0, 1, 0, 1, NULL, (unsigned long)_RET_IP_);
 	r = ll_pthread_mutex_trylock(mutex);
 	if (r)
 		lock_release(&__get_lock(mutex)->dep_map, 0, (unsigned long)_RET_IP_);
@@ -303,7 +303,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex)
 	 */
 	r = ll_pthread_mutex_unlock(mutex);
 	if (r)
-		lock_acquire(&__get_lock(mutex)->dep_map, 0, 0, 0, 2, NULL, (unsigned long)_RET_IP_);
+		lock_acquire(&__get_lock(mutex)->dep_map, 0, 0, 0, 1, NULL, (unsigned long)_RET_IP_);
 
 	return r;
 }
@@ -352,7 +352,7 @@ int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock)
 
         init_preload();
 
-	lock_acquire(&__get_lock(rwlock)->dep_map, 0, 0, 2, 2, NULL, (unsigned long)_RET_IP_);
+	lock_acquire(&__get_lock(rwlock)->dep_map, 0, 0, 2, 1, NULL, (unsigned long)_RET_IP_);
 	r = ll_pthread_rwlock_rdlock(rwlock);
 	if (r)
 		lock_release(&__get_lock(rwlock)->dep_map, 0, (unsigned long)_RET_IP_);
@@ -366,7 +366,7 @@ int pthread_rwlock_tryrdlock(pthread_rwlock_t *rwlock)
 
         init_preload();
 
-	lock_acquire(&__get_lock(rwlock)->dep_map, 0, 1, 2, 2, NULL, (unsigned long)_RET_IP_);
+	lock_acquire(&__get_lock(rwlock)->dep_map, 0, 1, 2, 1, NULL, (unsigned long)_RET_IP_);
 	r = ll_pthread_rwlock_tryrdlock(rwlock);
 	if (r)
 		lock_release(&__get_lock(rwlock)->dep_map, 0, (unsigned long)_RET_IP_);
@@ -380,7 +380,7 @@ int pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock)
 
         init_preload();
 
-	lock_acquire(&__get_lock(rwlock)->dep_map, 0, 1, 0, 2, NULL, (unsigned long)_RET_IP_);
+	lock_acquire(&__get_lock(rwlock)->dep_map, 0, 1, 0, 1, NULL, (unsigned long)_RET_IP_);
 	r = ll_pthread_rwlock_trywrlock(rwlock);
 	if (r)
                 lock_release(&__get_lock(rwlock)->dep_map, 0, (unsigned long)_RET_IP_);
@@ -394,7 +394,7 @@ int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)
 
         init_preload();
 
-	lock_acquire(&__get_lock(rwlock)->dep_map, 0, 0, 0, 2, NULL, (unsigned long)_RET_IP_);
+	lock_acquire(&__get_lock(rwlock)->dep_map, 0, 0, 0, 1, NULL, (unsigned long)_RET_IP_);
 	r = ll_pthread_rwlock_wrlock(rwlock);
 	if (r)
 		lock_release(&__get_lock(rwlock)->dep_map, 0, (unsigned long)_RET_IP_);
@@ -411,7 +411,7 @@ int pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
 	lock_release(&__get_lock(rwlock)->dep_map, 0, (unsigned long)_RET_IP_);
 	r = ll_pthread_rwlock_unlock(rwlock);
 	if (r)
-		lock_acquire(&__get_lock(rwlock)->dep_map, 0, 0, 0, 2, NULL, (unsigned long)_RET_IP_);
+		lock_acquire(&__get_lock(rwlock)->dep_map, 0, 0, 0, 1, NULL, (unsigned long)_RET_IP_);
 
 	return r;
 }
@@ -438,8 +438,6 @@ __attribute__((constructor)) static void init_preload(void)
 	ll_pthread_rwlock_trywrlock = dlsym(RTLD_NEXT, "pthread_rwlock_trywrlock");
 	ll_pthread_rwlock_unlock = dlsym(RTLD_NEXT, "pthread_rwlock_unlock");
 #endif
-
-	printf("%p\n", ll_pthread_mutex_trylock);fflush(stdout);
 
 	lockdep_init();
 

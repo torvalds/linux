@@ -5696,7 +5696,7 @@ struct _snd_pcm_runtime {
 	suspending the PCM operations via
 	<function>snd_pcm_suspend_all()</function> or
 	<function>snd_pcm_suspend()</function>.  It means that the PCM
-	streams are already stoppped when the register snapshot is
+	streams are already stopped when the register snapshot is
 	taken.  But, remember that you don't have to restart the PCM
 	stream in the resume callback. It'll be restarted via 
 	trigger call with <constant>SNDRV_PCM_TRIGGER_RESUME</constant>

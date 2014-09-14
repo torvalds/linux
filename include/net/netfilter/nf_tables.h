@@ -6,6 +6,7 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nf_tables.h>
+#include <linux/u64_stats_sync.h>
 #include <net/netlink.h>
 
 #define NFT_JUMP_STACK_SIZE	16
@@ -503,9 +504,9 @@ enum nft_chain_flags {
  *	@net: net namespace that this chain belongs to
  *	@table: table that this chain belongs to
  *	@handle: chain handle
- *	@flags: bitmask of enum nft_chain_flags
  *	@use: number of jump references to this chain
  *	@level: length of longest path to this chain
+ *	@flags: bitmask of enum nft_chain_flags
  *	@name: name of the chain
  */
 struct nft_chain {
@@ -514,9 +515,9 @@ struct nft_chain {
 	struct net			*net;
 	struct nft_table		*table;
 	u64				handle;
-	u8				flags;
-	u16				use;
+	u32				use;
 	u16				level;
+	u8				flags;
 	char				name[NFT_CHAIN_MAXNAMELEN];
 };
 
@@ -528,8 +529,9 @@ enum nft_chain_type {
 };
 
 struct nft_stats {
-	u64 bytes;
-	u64 pkts;
+	u64			bytes;
+	u64			pkts;
+	struct u64_stats_sync	syncp;
 };
 
 #define NFT_HOOK_OPS_MAX		2

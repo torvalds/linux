@@ -9,15 +9,17 @@ Required properties:
                         e.g. USB2_PHY on OMAP5.
  "ti,control-phy-pipe3" - if it has DPLL and individual Rx & Tx power control
                         e.g. USB3 PHY and SATA PHY on OMAP5.
+ "ti,control-phy-pcie" - for pcie to support external clock for pcie and to
+			set PCS delay value.
+			e.g. PCIE PHY in DRA7x
  "ti,control-phy-usb2-dra7" - if it has power down register like USB2 PHY on
                         DRA7 platform.
  "ti,control-phy-usb2-am437" - if it has power down register like USB2 PHY on
                         AM437 platform.
- - reg : Address and length of the register set for the device. It contains
-   the address of "otghs_control" for control-phy-otghs or "power" register
-   for other types.
- - reg-names: should be "otghs_control" control-phy-otghs and "power" for
-   other types.
+ - reg : register ranges as listed in the reg-names property
+ - reg-names: "otghs_control" for control-phy-otghs
+	      "power", "pcie_pcs" and "control_sma" for control-phy-pcie
+	      "power" for all other types
 
 omap_control_usb: omap-control-usb@4a002300 {
         compatible = "ti,control-phy-otghs";
@@ -56,8 +58,8 @@ usb2phy@4a0ad080 {
 TI PIPE3 PHY
 
 Required properties:
- - compatible: Should be "ti,phy-usb3" or "ti,phy-pipe3-sata".
-   "ti,omap-usb3" is deprecated.
+ - compatible: Should be "ti,phy-usb3", "ti,phy-pipe3-sata" or
+   "ti,phy-pipe3-pcie. "ti,omap-usb3" is deprecated.
  - reg : Address and length of the register set for the device.
  - reg-names: The names of the register addresses corresponding to the registers
    filled in "reg".
@@ -69,10 +71,17 @@ Required properties:
    * "wkupclk" - wakeup clock.
    * "sysclk" - system clock.
    * "refclk" - reference clock.
+   * "dpll_ref" - external dpll ref clk
+   * "dpll_ref_m2" - external dpll ref clk
+   * "phy-div" - divider for apll
+   * "div-clk" - apll clock
 
 Optional properties:
  - ctrl-module : phandle of the control module used by PHY driver to power on
    the PHY.
+ - id: If there are multiple instance of the same type, in order to
+   differentiate between each instance "id" can be used (e.g., multi-lane PCIe
+   PHY). If "id" is not provided, it is set to default value of '1'.
 
 This is usually a subnode of ocp2scp to which it is connected.
 

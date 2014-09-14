@@ -84,6 +84,7 @@ struct hdmi_resources {
 	struct clk			*sclk_hdmiphy;
 	struct clk			*mout_hdmi;
 	struct regulator_bulk_data	*regul_bulk;
+	struct regulator		*reg_hdmi_en;
 	int				regul_count;
 };
 
@@ -589,6 +590,13 @@ static struct hdmi_driver_data exynos4212_hdmi_driver_data = {
 	.type		= HDMI_TYPE14,
 	.phy_confs	= hdmiphy_v14_configs,
 	.phy_conf_count	= ARRAY_SIZE(hdmiphy_v14_configs),
+	.is_apb_phy	= 0,
+};
+
+static struct hdmi_driver_data exynos4210_hdmi_driver_data = {
+	.type		= HDMI_TYPE13,
+	.phy_confs	= hdmiphy_v13_configs,
+	.phy_conf_count	= ARRAY_SIZE(hdmiphy_v13_configs),
 	.is_apb_phy	= 0,
 };
 
@@ -1129,7 +1137,7 @@ static int hdmi_create_connector(struct exynos_drm_display *display,
 	}
 
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;
@@ -1241,14 +1249,13 @@ static void hdmi_reg_acr(struct hdmi_context *hdata, u8 *acr)
 
 static void hdmi_audio_init(struct hdmi_context *hdata)
 {
-	u32 sample_rate, bits_per_sample, frame_size_code;
+	u32 sample_rate, bits_per_sample;
 	u32 data_num, bit_ch, sample_frq;
 	u32 val;
 	u8 acr[7];
 
 	sample_rate = 44100;
 	bits_per_sample = 16;
-	frame_size_code = 0;
 
 	switch (bits_per_sample) {
 	case 20:
@@ -2090,6 +2097,11 @@ out:
 
 static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 {
+	struct hdmi_context *hdata = display->ctx;
+	struct drm_encoder *encoder = hdata->encoder;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_crtc_helper_funcs *funcs = NULL;
+
 	DRM_DEBUG_KMS("mode %d\n", mode);
 
 	switch (mode) {
@@ -2099,6 +2111,20 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
+		/*
+		 * The SFRs of VP and Mixer are updated by Vertical Sync of
+		 * Timing generator which is a part of HDMI so the sequence
+		 * to disable TV Subsystem should be as following,
+		 *	VP -> Mixer -> HDMI
+		 *
+		 * Below codes will try to disable Mixer and VP(if used)
+		 * prior to disabling HDMI.
+		 */
+		if (crtc)
+			funcs = crtc->helper_private;
+		if (funcs && funcs->dpms)
+			(*funcs->dpms)(crtc, mode);
+
 		hdmi_poweroff(display);
 		break;
 	default:
@@ -2149,7 +2175,6 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	struct device *dev = hdata->dev;
 	struct hdmi_resources *res = &hdata->res;
 	static char *supply[] = {
-		"hdmi-en",
 		"vdd",
 		"vdd_osc",
 		"vdd_pll",
@@ -2209,6 +2234,20 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	}
 	res->regul_count = ARRAY_SIZE(supply);
 
+	res->reg_hdmi_en = devm_regulator_get(dev, "hdmi-en");
+	if (IS_ERR(res->reg_hdmi_en) && PTR_ERR(res->reg_hdmi_en) != -ENOENT) {
+		DRM_ERROR("failed to get hdmi-en regulator\n");
+		return PTR_ERR(res->reg_hdmi_en);
+	}
+	if (!IS_ERR(res->reg_hdmi_en)) {
+		ret = regulator_enable(res->reg_hdmi_en);
+		if (ret) {
+			DRM_ERROR("failed to enable hdmi-en regulator\n");
+			return ret;
+		}
+	} else
+		res->reg_hdmi_en = NULL;
+
 	return ret;
 fail:
 	DRM_ERROR("HDMI resource init - failed\n");
@@ -2244,6 +2283,9 @@ static struct of_device_id hdmi_match_types[] = {
 		.compatible = "samsung,exynos5-hdmi",
 		.data = &exynos5_hdmi_driver_data,
 	}, {
+		.compatible = "samsung,exynos4210-hdmi",
+		.data = &exynos4210_hdmi_driver_data,
+	}, {
 		.compatible = "samsung,exynos4212-hdmi",
 		.data = &exynos4212_hdmi_driver_data,
 	}, {
@@ -2253,6 +2295,7 @@ static struct of_device_id hdmi_match_types[] = {
 		/* end node */
 	}
 };
+MODULE_DEVICE_TABLE (of, hdmi_match_types);
 
 static int hdmi_bind(struct device *dev, struct device *master, void *data)
 {
@@ -2475,7 +2518,11 @@ static int hdmi_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&hdata->hotplug_work);
 
-	put_device(&hdata->hdmiphy_port->dev);
+	if (hdata->res.reg_hdmi_en)
+		regulator_disable(hdata->res.reg_hdmi_en);
+
+	if (hdata->hdmiphy_port)
+		put_device(&hdata->hdmiphy_port->dev);
 	put_device(&hdata->ddc_adpt->dev);
 
 	pm_runtime_disable(&pdev->dev);

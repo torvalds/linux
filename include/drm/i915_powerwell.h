@@ -32,5 +32,6 @@
 /* For use by hda_i915 driver */
 extern int i915_request_power_well(void);
 extern int i915_release_power_well(void);
+extern int i915_get_cdclk_freq(void);
 
 #endif				/* _I915_POWERWELL_H_ */

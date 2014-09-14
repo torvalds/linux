@@ -1414,6 +1414,34 @@ void edma_clear_event(unsigned channel)
 }
 EXPORT_SYMBOL(edma_clear_event);
 
+/*
+ * edma_assign_channel_eventq - move given channel to desired eventq
+ * Arguments:
+ *	channel - channel number
+ *	eventq_no - queue to move the channel
+ *
+ * Can be used to move a channel to a selected event queue.
+ */
+void edma_assign_channel_eventq(unsigned channel, enum dma_event_q eventq_no)
+{
+	unsigned ctlr;
+
+	ctlr = EDMA_CTLR(channel);
+	channel = EDMA_CHAN_SLOT(channel);
+
+	if (channel >= edma_cc[ctlr]->num_channels)
+		return;
+
+	/* default to low priority queue */
+	if (eventq_no == EVENTQ_DEFAULT)
+		eventq_no = edma_cc[ctlr]->default_queue;
+	if (eventq_no >= edma_cc[ctlr]->num_tc)
+		return;
+
+	map_dmach_queue(ctlr, channel, eventq_no);
+}
+EXPORT_SYMBOL(edma_assign_channel_eventq);
+
 static int edma_setup_from_hw(struct device *dev, struct edma_soc_info *pdata,
 			      struct edma *edma_cc)
 {
@@ -1470,7 +1498,8 @@ static int edma_setup_from_hw(struct device *dev, struct edma_soc_info *pdata,
 	queue_priority_map[i][1] = -1;
 
 	pdata->queue_priority_mapping = queue_priority_map;
-	pdata->default_queue = 0;
+	/* Default queue has the lowest priority */
+	pdata->default_queue = i - 1;
 
 	return 0;
 }

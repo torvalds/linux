@@ -80,8 +80,9 @@ static struct acpiphp_context *acpiphp_init_context(struct acpi_device *adev)
 		return NULL;
 
 	context->refcount = 1;
-	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_notify, NULL,
-			    acpiphp_post_dock_fixup);
+	context->hp.notify = acpiphp_hotplug_notify;
+	context->hp.fixup = acpiphp_post_dock_fixup;
+	acpi_set_hp_context(adev, &context->hp);
 	return context;
 }
 
@@ -367,20 +368,6 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 		slot->flags |= SLOT_ENABLED;
 
 	return AE_OK;
-}
-
-static struct acpiphp_bridge *acpiphp_dev_to_bridge(struct acpi_device *adev)
-{
-	struct acpiphp_bridge *bridge = NULL;
-
-	acpi_lock_hp_context();
-	if (adev->hp) {
-		bridge = to_acpiphp_root_context(adev->hp)->root_bridge;
-		if (bridge)
-			get_bridge(bridge);
-	}
-	acpi_unlock_hp_context();
-	return bridge;
 }
 
 static void cleanup_bridge(struct acpiphp_bridge *bridge)
@@ -753,9 +740,15 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
 
 void acpiphp_check_host_bridge(struct acpi_device *adev)
 {
-	struct acpiphp_bridge *bridge;
+	struct acpiphp_bridge *bridge = NULL;
 
-	bridge = acpiphp_dev_to_bridge(adev);
+	acpi_lock_hp_context();
+	if (adev->hp) {
+		bridge = to_acpiphp_root_context(adev->hp)->root_bridge;
+		if (bridge)
+			get_bridge(bridge);
+	}
+	acpi_unlock_hp_context();
 	if (bridge) {
 		pci_lock_rescan_remove();
 
@@ -884,7 +877,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 			goto err;
 
 		root_context->root_bridge = bridge;
-		acpi_set_hp_context(adev, &root_context->hp, NULL, NULL, NULL);
+		acpi_set_hp_context(adev, &root_context->hp);
 	} else {
 		struct acpiphp_context *context;
 
@@ -927,7 +920,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 	kfree(bridge);
 }
 
-void acpiphp_drop_bridge(struct acpiphp_bridge *bridge)
+static void acpiphp_drop_bridge(struct acpiphp_bridge *bridge)
 {
 	if (pci_is_root_bus(bridge->pci_bus)) {
 		struct acpiphp_root_context *root_context;

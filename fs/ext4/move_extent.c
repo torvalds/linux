@@ -1013,10 +1013,11 @@ data_copy:
 		*err = -EBUSY;
 		goto unlock_pages;
 	}
-
+	ext4_double_down_write_data_sem(orig_inode, donor_inode);
 	replaced_count = mext_replace_branches(handle, orig_inode, donor_inode,
 					       orig_blk_offset,
 					       block_len_in_page, err);
+	ext4_double_up_write_data_sem(orig_inode, donor_inode);
 	if (*err) {
 		if (replaced_count) {
 			block_len_in_page = replaced_count;

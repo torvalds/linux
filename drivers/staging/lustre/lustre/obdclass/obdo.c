@@ -42,8 +42,8 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd_class.h>
-#include <lustre/lustre_idl.h>
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_idl.h"
 
 void obdo_set_parent_fid(struct obdo *dst, const struct lu_fid *parent)
 {
@@ -117,7 +117,7 @@ EXPORT_SYMBOL(obdo_from_inode);
 
 void obdo_cpy_md(struct obdo *dst, struct obdo *src, obd_flag valid)
 {
-	CDEBUG(D_INODE, "src obdo "DOSTID" valid "LPX64", dst obdo "DOSTID"\n",
+	CDEBUG(D_INODE, "src obdo "DOSTID" valid %#llx, dst obdo "DOSTID"\n",
 	       POSTID(&src->o_oi), src->o_valid, POSTID(&dst->o_oi));
 	if (valid & OBD_MD_FLATIME)
 		dst->o_atime = src->o_atime;
@@ -252,7 +252,7 @@ void iattr_from_obdo(struct iattr *attr, struct obdo *oa, obd_flag valid)
 	valid &= oa->o_valid;
 
 	if (valid & (OBD_MD_FLCTIME | OBD_MD_FLMTIME))
-		CDEBUG(D_INODE, "valid "LPX64", new time "LPU64"/"LPU64"\n",
+		CDEBUG(D_INODE, "valid %#llx, new time %llu/%llu\n",
 		       oa->o_valid, oa->o_mtime, oa->o_ctime);
 
 	attr->ia_valid = 0;

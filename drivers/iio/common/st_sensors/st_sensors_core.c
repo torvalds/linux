@@ -14,8 +14,8 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of.h>
 #include <asm/unaligned.h>
-
 #include <linux/iio/common/st_sensors.h>
 
 
@@ -265,13 +265,46 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
+		struct st_sensors_platform_data *defdata)
+{
+	struct st_sensors_platform_data *pdata;
+	struct device_node *np = dev->of_node;
+	u32 val;
+
+	if (!np)
+		return NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!of_property_read_u32(np, "st,drdy-int-pin", &val) && (val <= 2))
+		pdata->drdy_int_pin = (u8) val;
+	else
+		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 1;
+
+	return pdata;
+}
+#else
+static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
+		struct st_sensors_platform_data *defdata)
+{
+	return NULL;
+}
+#endif
+
 int st_sensors_init_sensor(struct iio_dev *indio_dev,
 					struct st_sensors_platform_data *pdata)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	struct st_sensors_platform_data *of_pdata;
 	int err = 0;
 
 	mutex_init(&sdata->tb.buf_lock);
+
+	/* If OF/DT pdata exists, it will take precedence of anything else */
+	of_pdata = st_sensors_of_probe(indio_dev->dev.parent, pdata);
+	if (of_pdata)
+		pdata = of_pdata;
 
 	if (pdata)
 		err = st_sensors_set_drdy_int_pin(indio_dev, pdata);
@@ -462,35 +495,6 @@ read_wai_error:
 	return err;
 }
 EXPORT_SYMBOL(st_sensors_check_device_support);
-
-ssize_t st_sensors_sysfs_get_sampling_frequency(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct st_sensor_data *adata = iio_priv(dev_get_drvdata(dev));
-
-	return sprintf(buf, "%d\n", adata->odr);
-}
-EXPORT_SYMBOL(st_sensors_sysfs_get_sampling_frequency);
-
-ssize_t st_sensors_sysfs_set_sampling_frequency(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	int err;
-	unsigned int odr;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	err = kstrtoint(buf, 10, &odr);
-	if (err < 0)
-		goto conversion_error;
-
-	mutex_lock(&indio_dev->mlock);
-	err = st_sensors_set_odr(indio_dev, odr);
-	mutex_unlock(&indio_dev->mlock);
-
-conversion_error:
-	return err < 0 ? err : size;
-}
-EXPORT_SYMBOL(st_sensors_sysfs_set_sampling_frequency);
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)

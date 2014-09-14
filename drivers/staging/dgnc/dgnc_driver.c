@@ -40,7 +40,6 @@
 #include "dpacompat.h"
 #include "dgnc_mgmt.h"
 #include "dgnc_tty.h"
-#include "dgnc_trace.h"
 #include "dgnc_cls.h"
 #include "dgnc_neo.h"
 #include "dgnc_sysfs.h"
@@ -88,8 +87,7 @@ module_exit(dgnc_cleanup_module);
 /*
  * File operations permitted on Control/Management major.
  */
-static const struct file_operations dgnc_BoardFops =
-{
+static const struct file_operations dgnc_BoardFops = {
 	.owner		=	THIS_MODULE,
 	.unlocked_ioctl =  	dgnc_mgmt_ioctl,
 	.open		=	dgnc_mgmt_open,
@@ -389,10 +387,6 @@ void dgnc_cleanup_module(void)
 
 	dgnc_tty_post_uninit();
 
-#if defined(DGNC_TRACER)
-	/* last thing, make sure we release the tracebuffer */
-	dgnc_tracer_free();
-#endif
 	if (dgnc_NumBoards)
 		pci_unregister_driver(&dgnc_driver);
 }
@@ -407,7 +401,7 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 {
 	int i = 0;
 
-	if(!brd || brd->magic != DGNC_BOARD_MAGIC)
+	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 
 	switch (brd->device) {
@@ -480,7 +474,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	/* get the board structure and prep it */
 	brd = dgnc_Board[dgnc_NumBoards] =
 		kzalloc(sizeof(*brd), GFP_KERNEL);
-	if (!brd) 
+	if (!brd)
 		return -ENOMEM;
 
 	/* make a temporary message buffer for the boot messages */
@@ -523,7 +517,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	brd->irq = pci_irq;
 
 
-	switch(brd->device) {
+	switch (brd->device) {
 
 	case PCI_DEVICE_CLASSIC_4_DID:
 	case PCI_DEVICE_CLASSIC_8_DID:
@@ -710,7 +704,8 @@ failed:
 }
 
 
-static int dgnc_finalize_board_init(struct dgnc_board *brd) {
+static int dgnc_finalize_board_init(struct dgnc_board *brd)
+{
 	int rc = 0;
 
 	DPR_INIT(("dgnc_finalize_board_init() - start\n"));
@@ -886,7 +881,7 @@ int dgnc_ms_sleep(ulong ms)
  */
 char *dgnc_ioctl_name(int cmd)
 {
-	switch(cmd) {
+	switch (cmd) {
 
 	case TCGETA:		return "TCGETA";
 	case TCGETS:		return "TCGETS";

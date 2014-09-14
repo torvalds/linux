@@ -921,7 +921,8 @@ L(nocon):
 	jls	1f
 	lsrl	#1,%d1
 1:
-	movel	%d1,m68k_init_mapped_size
+	lea	%pc@(m68k_init_mapped_size),%a0
+	movel	%d1,%a0@
 	mmu_map	#PAGE_OFFSET,%pc@(L(phys_kernel_start)),%d1,\
 		%pc@(m68k_supervisor_cachemode)
 

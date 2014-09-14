@@ -10,13 +10,13 @@ git clone https://github.com/freedreno/envytools.git
 The rules-ng-ng source files this header was generated from are:
 - /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    364 bytes, from 2013-11-30 14:47:15)
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32814 bytes, from 2013-11-30 15:07:33)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (   8900 bytes, from 2013-10-22 23:57:49)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  10574 bytes, from 2013-11-13 05:44:45)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  53644 bytes, from 2013-11-30 15:07:33)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (   8344 bytes, from 2013-11-30 14:49:47)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2014-06-02 15:21:30)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (   9859 bytes, from 2014-06-02 15:21:30)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14477 bytes, from 2014-05-16 11:51:57)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  58020 bytes, from 2014-06-25 12:57:16)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  26602 bytes, from 2014-06-25 12:57:16)
 
-Copyright (C) 2013 by the following authors:
+Copyright (C) 2013-2014 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -87,15 +87,6 @@ enum adreno_rb_blend_factor {
 	FACTOR_SRC_ALPHA_SATURATE = 16,
 };
 
-enum adreno_rb_blend_opcode {
-	BLEND_DST_PLUS_SRC = 0,
-	BLEND_SRC_MINUS_DST = 1,
-	BLEND_MIN_DST_SRC = 2,
-	BLEND_MAX_DST_SRC = 3,
-	BLEND_DST_MINUS_SRC = 4,
-	BLEND_DST_PLUS_SRC_BIAS = 5,
-};
-
 enum adreno_rb_surface_endian {
 	ENDIAN_NONE = 0,
 	ENDIAN_8IN16 = 1,
@@ -114,6 +105,39 @@ enum adreno_rb_dither_mode {
 enum adreno_rb_depth_format {
 	DEPTHX_16 = 0,
 	DEPTHX_24_8 = 1,
+};
+
+enum adreno_rb_copy_control_mode {
+	RB_COPY_RESOLVE = 1,
+	RB_COPY_CLEAR = 2,
+	RB_COPY_DEPTH_STENCIL = 5,
+};
+
+enum a3xx_render_mode {
+	RB_RENDERING_PASS = 0,
+	RB_TILING_PASS = 1,
+	RB_RESOLVE_PASS = 2,
+	RB_COMPUTE_PASS = 3,
+};
+
+enum a3xx_msaa_samples {
+	MSAA_ONE = 0,
+	MSAA_TWO = 1,
+	MSAA_FOUR = 2,
+};
+
+enum a3xx_threadmode {
+	MULTI = 0,
+	SINGLE = 1,
+};
+
+enum a3xx_instrbuffermode {
+	BUFFER = 1,
+};
+
+enum a3xx_threadsize {
+	TWO_QUADS = 0,
+	FOUR_QUADS = 1,
 };
 
 #define REG_AXXX_CP_RB_BASE					0x000001c0
@@ -264,6 +288,8 @@ static inline uint32_t AXXX_SCRATCH_UMSK_SWAP(uint32_t val)
 #define REG_AXXX_CP_INT_ACK					0x000001f4
 
 #define REG_AXXX_CP_ME_CNTL					0x000001f6
+#define AXXX_CP_ME_CNTL_BUSY					0x20000000
+#define AXXX_CP_ME_CNTL_HALT					0x10000000
 
 #define REG_AXXX_CP_ME_STATUS					0x000001f7
 

@@ -657,8 +657,10 @@ static void cs4208_fixup_mac(struct hda_codec *codec,
 {
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
+
+	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
 	snd_hda_pick_fixup(codec, NULL, cs4208_mac_fixup_tbl, cs4208_fixups);
-	if (codec->fixup_id < 0 || codec->fixup_id == CS4208_MAC_AUTO)
+	if (codec->fixup_id == HDA_FIXUP_ID_NOT_SET)
 		codec->fixup_id = CS4208_GPIO0; /* default fixup */
 	snd_hda_apply_fixup(codec, action);
 }

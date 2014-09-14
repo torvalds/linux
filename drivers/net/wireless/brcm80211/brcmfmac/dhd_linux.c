@@ -30,7 +30,9 @@
 #include "wl_cfg80211.h"
 #include "fwil.h"
 #include "fwsignal.h"
+#include "feature.h"
 #include "proto.h"
+#include "pcie.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -287,7 +289,7 @@ void brcmf_txflowblock(struct device *dev, bool state)
 	brcmf_fws_bus_blocked(drvr, state);
 }
 
-static void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
+void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	skb->dev = ifp->ndev;
 	skb->protocol = eth_type_trans(skb, skb->dev);
@@ -808,7 +810,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	} else {
 		brcmf_dbg(INFO, "allocate netdev interface\n");
 		/* Allocate netdev, including space for private structure */
-		ndev = alloc_netdev(sizeof(*ifp), name, ether_setup);
+		ndev = alloc_netdev(sizeof(*ifp), name, NET_NAME_UNKNOWN,
+				    ether_setup);
 		if (!ndev)
 			return ERR_PTR(-ENOMEM);
 
@@ -935,6 +938,8 @@ int brcmf_bus_start(struct device *dev)
 	ret = brcmf_c_preinit_dcmds(ifp);
 	if (ret < 0)
 		goto fail;
+
+	brcmf_feat_attach(drvr);
 
 	ret = brcmf_fws_init(drvr);
 	if (ret < 0)
@@ -1073,16 +1078,6 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	return !err;
 }
 
-/*
- * return chip id and rev of the device encoded in u32.
- */
-u32 brcmf_get_chip_info(struct brcmf_if *ifp)
-{
-	struct brcmf_bus *bus = ifp->drvr->bus_if;
-
-	return bus->chip << 4 | bus->chiprev;
-}
-
 static void brcmf_driver_register(struct work_struct *work)
 {
 #ifdef CONFIG_BRCMFMAC_SDIO
@@ -1090,6 +1085,9 @@ static void brcmf_driver_register(struct work_struct *work)
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_register();
+#endif
+#ifdef CONFIG_BRCMFMAC_PCIE
+	brcmf_pcie_register();
 #endif
 }
 static DECLARE_WORK(brcmf_driver_work, brcmf_driver_register);
@@ -1115,6 +1113,9 @@ static void __exit brcmfmac_module_exit(void)
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_exit();
+#endif
+#ifdef CONFIG_BRCMFMAC_PCIE
+	brcmf_pcie_exit();
 #endif
 	brcmf_debugfs_exit();
 }

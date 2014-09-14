@@ -68,7 +68,6 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 
 static int ahci_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int ahci_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
-static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
 static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
@@ -383,8 +382,6 @@ static ssize_t ahci_show_em_supported(struct device *dev,
  *	ahci_save_initial_config - Save and fixup initial config values
  *	@dev: target AHCI device
  *	@hpriv: host private area to store config values
- *	@force_port_map: force port map to a specified value
- *	@mask_port_map: mask out particular bits from port map
  *
  *	Some registers containing configuration info might be setup by
  *	BIOS and might be cleared on reset.  This function saves the
@@ -399,10 +396,7 @@ static ssize_t ahci_show_em_supported(struct device *dev,
  *	LOCKING:
  *	None.
  */
-void ahci_save_initial_config(struct device *dev,
-			      struct ahci_host_priv *hpriv,
-			      unsigned int force_port_map,
-			      unsigned int mask_port_map)
+void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 {
 	void __iomem *mmio = hpriv->mmio;
 	u32 cap, cap2, vers, port_map;
@@ -469,17 +463,17 @@ void ahci_save_initial_config(struct device *dev,
 		cap &= ~HOST_CAP_FBS;
 	}
 
-	if (force_port_map && port_map != force_port_map) {
+	if (hpriv->force_port_map && port_map != hpriv->force_port_map) {
 		dev_info(dev, "forcing port_map 0x%x -> 0x%x\n",
-			 port_map, force_port_map);
-		port_map = force_port_map;
+			 port_map, hpriv->force_port_map);
+		port_map = hpriv->force_port_map;
 	}
 
-	if (mask_port_map) {
+	if (hpriv->mask_port_map) {
 		dev_warn(dev, "masking port_map 0x%x -> 0x%x\n",
 			port_map,
-			port_map & mask_port_map);
-		port_map &= mask_port_map;
+			port_map & hpriv->mask_port_map);
+		port_map &= hpriv->mask_port_map;
 	}
 
 	/* cross check port_map and cap.n_ports */
@@ -620,7 +614,7 @@ int ahci_stop_engine(struct ata_port *ap)
 }
 EXPORT_SYMBOL_GPL(ahci_stop_engine);
 
-static void ahci_start_fis_rx(struct ata_port *ap)
+void ahci_start_fis_rx(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ahci_host_priv *hpriv = ap->host->private_data;
@@ -646,6 +640,7 @@ static void ahci_start_fis_rx(struct ata_port *ap)
 	/* flush */
 	readl(port_mmio + PORT_CMD);
 }
+EXPORT_SYMBOL_GPL(ahci_start_fis_rx);
 
 static int ahci_stop_fis_rx(struct ata_port *ap)
 {
@@ -1945,7 +1940,7 @@ irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 }
 EXPORT_SYMBOL_GPL(ahci_interrupt);
 
-static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
+unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	void __iomem *port_mmio = ahci_port_base(ap);
@@ -1974,6 +1969,7 @@ static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ahci_qc_issue);
 
 static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 {

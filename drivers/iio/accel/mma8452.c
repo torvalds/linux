@@ -111,8 +111,14 @@ static const int mma8452_samp_freq[8][2] = {
 	{6, 250000}, {1, 560000}
 };
 
+/* 
+ * Hardware has fullscale of -2G, -4G, -8G corresponding to raw value -2048
+ * The userspace interface uses m/s^2 and we declare micro units
+ * So scale factor is given by:
+ * 	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
+ */
 static const int mma8452_scales[3][2] = {
-	{0, 977}, {0, 1953}, {0, 3906}
+	{0, 9577}, {0, 19154}, {0, 38307}
 };
 
 static ssize_t mma8452_show_samp_freq_avail(struct device *dev,
@@ -423,9 +429,15 @@ static const struct i2c_device_id mma8452_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mma8452_id);
 
+static const struct of_device_id mma8452_dt_ids[] = {
+	{ .compatible = "fsl,mma8452" },
+	{ }
+};
+
 static struct i2c_driver mma8452_driver = {
 	.driver = {
 		.name	= "mma8452",
+		.of_match_table = of_match_ptr(mma8452_dt_ids),
 		.pm	= MMA8452_PM_OPS,
 	},
 	.probe = mma8452_probe,

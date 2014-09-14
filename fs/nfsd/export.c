@@ -698,8 +698,8 @@ static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
 
 	kref_get(&item->ex_client->ref);
 	new->ex_client = item->ex_client;
-	new->ex_path.dentry = dget(item->ex_path.dentry);
-	new->ex_path.mnt = mntget(item->ex_path.mnt);
+	new->ex_path = item->ex_path;
+	path_get(&item->ex_path);
 	new->ex_fslocs.locations = NULL;
 	new->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = 0;
@@ -1253,7 +1253,7 @@ static int e_show(struct seq_file *m, void *p)
 		return 0;
 	}
 
-	cache_get(&exp->h);
+	exp_get(exp);
 	if (cache_check(cd, &exp->h, NULL))
 		return 0;
 	exp_put(exp);

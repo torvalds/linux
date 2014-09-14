@@ -65,7 +65,6 @@ cmd triggers supported:
 #include "8253.h"
 #include "comedi_fc.h"
 
-#define DAS800_SIZE           8
 #define N_CHAN_AI             8	/*  number of analog input channels */
 
 /* Registers for the das800 */
@@ -686,7 +685,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], DAS800_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)
 		return ret;
 

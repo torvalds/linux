@@ -153,6 +153,7 @@ extern int adfs_map_lookup(struct super_block *sb, unsigned int frag_id, unsigne
 extern unsigned int adfs_map_free(struct super_block *sb);
 
 /* Misc */
+__printf(3, 4)
 void __adfs_error(struct super_block *sb, const char *function,
 		  const char *fmt, ...);
 #define adfs_error(sb, fmt...) __adfs_error(sb, __func__, fmt)

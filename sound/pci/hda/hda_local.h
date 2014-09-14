@@ -268,7 +268,8 @@ int snd_hda_input_mux_put(struct hda_codec *codec,
 			  const struct hda_input_mux *imux,
 			  struct snd_ctl_elem_value *ucontrol, hda_nid_t nid,
 			  unsigned int *cur_val);
-int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
+int snd_hda_add_imux_item(struct hda_codec *codec,
+			  struct hda_input_mux *imux, const char *label,
 			  int index, int *type_index_ret);
 
 /*
@@ -416,6 +417,29 @@ struct snd_hda_pin_quirk {
 #endif
 	int value;			/* quirk value */
 };
+
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+
+#define SND_HDA_PIN_QUIRK(_codec, _subvendor, _name, _value, _pins...) \
+	{ .codec = _codec,\
+	  .subvendor = _subvendor,\
+	  .name = _name,\
+	  .value = _value,\
+	  .pins = (const struct hda_pintbl[]) { _pins } \
+	}
+#else
+
+#define SND_HDA_PIN_QUIRK(_codec, _subvendor, _name, _value, _pins...) \
+	{ .codec = _codec,\
+	  .subvendor = _subvendor,\
+	  .value = _value,\
+	  .pins = (const struct hda_pintbl[]) { _pins } \
+	}
+
+#endif
+
+#define HDA_FIXUP_ID_NOT_SET -1
+#define HDA_FIXUP_ID_NO_FIXUP -2
 
 /* fixup types */
 enum {
@@ -752,9 +776,9 @@ struct hdmi_eld {
 int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
 int snd_hdmi_get_eld(struct hda_codec *codec, hda_nid_t nid,
 		     unsigned char *buf, int *eld_size);
-int snd_hdmi_parse_eld(struct parsed_hdmi_eld *e,
+int snd_hdmi_parse_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e,
 		       const unsigned char *buf, int size);
-void snd_hdmi_show_eld(struct parsed_hdmi_eld *e);
+void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e);
 void snd_hdmi_eld_update_pcm_info(struct parsed_hdmi_eld *e,
 			      struct hda_pcm_stream *hinfo);
 

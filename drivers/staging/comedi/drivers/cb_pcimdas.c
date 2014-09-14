@@ -47,9 +47,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 
 /* Registers for the PCIM-DAS1602/16 */
 
-/* sizes of io regions (bytes) */
-#define BADR3_SIZE 16
-
 /* DAC Offsets */
 #define ADC_TRIG 0
 #define DAC0_OFFSET 2

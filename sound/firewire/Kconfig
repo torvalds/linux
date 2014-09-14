@@ -83,8 +83,8 @@ config SND_BEBOB
 	  * Edirol FA-66/FA-101
 	  * PreSonus FIREBOX/FIREPOD/FP10/Inspire1394
 	  * BridgeCo RDAudio1/Audio5
-	  * Mackie Onyx 1220/1620/1640 (Firewire I/O Card)
-	  * Mackie d.2 (Firewire Option)
+	  * Mackie Onyx 1220/1620/1640 (FireWire I/O Card)
+	  * Mackie d.2 (FireWire Option)
 	  * Stanton FinalScratch 2 (ScratchAmp)
 	  * Tascam IF-FW/DM
 	  * Behringer XENIX UFX 1204/1604
@@ -92,7 +92,7 @@ config SND_BEBOB
 	  * Apogee Rosetta 200/400 (X-FireWire card)
 	  * Apogee DA/AD/DD-16X (X-FireWire card)
 	  * Apogee Ensemble
-	  * ESI Quotafire610
+	  * ESI QuataFire 610
 	  * AcousticReality eARMasterOne
 	  * CME MatrixKFW
 	  * Phonic Helix Board 12 MkII/18 MkII/24 MkII
@@ -101,13 +101,13 @@ config SND_BEBOB
 	  * ICON FireXon
 	  * PrismSound Orpheus/ADA-8XR
 	  * TerraTec PHASE 24 FW/PHASE X24 FW/PHASE 88 Rack FW
-	  * Terratec EWS MIC2/EWS MIC4
-	  * Terratec Aureon 7.1 Firewire
+	  * TerraTec EWS MIC2/EWS MIC8
+	  * TerraTec Aureon 7.1 FireWire
 	  * Yamaha GO44/GO46
 	  * Focusrite Saffire/Saffire LE/SaffirePro10 IO/SaffirePro26 IO
-	  * M-Audio Firewire410/AudioPhile/Solo
+	  * M-Audio FireWire410/AudioPhile/Solo
 	  * M-Audio Ozonic/NRV10/ProfireLightBridge
-	  * M-Audio Firewire 1814/ProjectMix IO
+	  * M-Audio FireWire 1814/ProjectMix IO
 
           To compile this driver as a module, choose M here: the module
           will be called snd-bebob.

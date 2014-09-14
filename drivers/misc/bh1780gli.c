@@ -149,50 +149,35 @@ static int bh1780_probe(struct i2c_client *client,
 						const struct i2c_device_id *id)
 {
 	int ret;
-	struct bh1780_data *ddata = NULL;
+	struct bh1780_data *ddata;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE)) {
-		ret = -EIO;
-		goto err_op_failed;
-	}
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
+		return -EIO;
 
-	ddata = kzalloc(sizeof(struct bh1780_data), GFP_KERNEL);
-	if (ddata == NULL) {
-		ret = -ENOMEM;
-		goto err_op_failed;
-	}
+	ddata = devm_kzalloc(&client->dev, sizeof(struct bh1780_data),
+			     GFP_KERNEL);
+	if (ddata == NULL)
+		return -ENOMEM;
 
 	ddata->client = client;
 	i2c_set_clientdata(client, ddata);
 
 	ret = bh1780_read(ddata, BH1780_REG_PARTID, "PART ID");
 	if (ret < 0)
-		goto err_op_failed;
+		return ret;
 
 	dev_info(&client->dev, "Ambient Light Sensor, Rev : %d\n",
 			(ret & BH1780_REVMASK));
 
 	mutex_init(&ddata->lock);
 
-	ret = sysfs_create_group(&client->dev.kobj, &bh1780_attr_group);
-	if (ret)
-		goto err_op_failed;
-
-	return 0;
-
-err_op_failed:
-	kfree(ddata);
-	return ret;
+	return sysfs_create_group(&client->dev.kobj, &bh1780_attr_group);
 }
 
 static int bh1780_remove(struct i2c_client *client)
 {
-	struct bh1780_data *ddata;
-
-	ddata = i2c_get_clientdata(client);
 	sysfs_remove_group(&client->dev.kobj, &bh1780_attr_group);
-	kfree(ddata);
 
 	return 0;
 }

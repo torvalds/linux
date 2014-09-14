@@ -669,7 +669,7 @@ config ARM_VIRT_EXT
 	  details.
 
 config SWP_EMULATE
-	bool "Emulate SWP/SWPB instructions"
+	bool "Emulate SWP/SWPB instructions" if !SMP
 	depends on CPU_V7
 	default y if SMP
 	select HAVE_PROC_CPU if PROC_FS
@@ -854,7 +854,7 @@ config OUTER_CACHE_SYNC
 
 config CACHE_FEROCEON_L2
 	bool "Enable the Feroceon L2 cache controller"
-	depends on ARCH_KIRKWOOD || ARCH_MV78XX0 || ARCH_MVEBU
+	depends on ARCH_MV78XX0 || ARCH_MVEBU
 	default y
 	select OUTER_CACHE
 	help
@@ -889,9 +889,10 @@ config CACHE_L2X0
 	help
 	  This option enables the L2x0 PrimeCell.
 
+if CACHE_L2X0
+
 config CACHE_PL310
 	bool
-	depends on CACHE_L2X0
 	default y if CPU_V7 && !(CPU_V6 || CPU_V6K)
 	help
 	  This option enables optimisations for the PL310 cache
@@ -899,7 +900,6 @@ config CACHE_PL310
 
 config PL310_ERRATA_588369
 	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
-	depends on CACHE_L2X0
 	help
 	   The PL310 L2 cache controller implements three types of Clean &
 	   Invalidate maintenance operations: by Physical Address
@@ -907,23 +907,22 @@ config PL310_ERRATA_588369
 	   They are architecturally defined to behave as the execution of a
 	   clean operation followed immediately by an invalidate operation,
 	   both performing to the same memory location. This functionality
-	   is not correctly implemented in PL310 as clean lines are not
-	   invalidated as a result of these operations.
+	   is not correctly implemented in PL310 prior to r2p0 (fixed in r2p0)
+	   as clean lines are not invalidated as a result of these operations.
 
 config PL310_ERRATA_727915
 	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
-	depends on CACHE_L2X0
 	help
 	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
 	  operation (offset 0x7FC). This operation runs in background so that
 	  PL310 can handle normal accesses while it is in progress. Under very
 	  rare circumstances, due to this erratum, write data can be lost when
 	  PL310 treats a cacheable write transaction during a Clean &
-	  Invalidate by Way operation.
+	  Invalidate by Way operation.  Revisions prior to r3p1 are affected by
+	  this errata (fixed in r3p1).
 
 config PL310_ERRATA_753970
 	bool "PL310 errata: cache sync operation may be faulty"
-	depends on CACHE_PL310
 	help
 	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
 
@@ -938,7 +937,6 @@ config PL310_ERRATA_753970
 
 config PL310_ERRATA_769419
 	bool "PL310 errata: no automatic Store Buffer drain"
-	depends on CACHE_L2X0
 	help
 	  On revisions of the PL310 prior to r3p2, the Store Buffer does
 	  not automatically drain. This can cause normal, non-cacheable
@@ -947,6 +945,8 @@ config PL310_ERRATA_769419
 	  This option adds a write barrier to the cpu_idle loop so that,
 	  on systems with an outer cache, the store buffer is drained
 	  explicitly.
+
+endif
 
 config CACHE_TAUROS2
 	bool "Enable the Tauros2 L2 cache controller"

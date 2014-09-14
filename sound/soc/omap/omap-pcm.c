@@ -31,6 +31,7 @@
 #include <sound/pcm_params.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/soc.h>
+#include <sound/omap-pcm.h>
 
 #ifdef CONFIG_ARCH_OMAP1
 #define pcm_omap1510()	cpu_is_omap1510()

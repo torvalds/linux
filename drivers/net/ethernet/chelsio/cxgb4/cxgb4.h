@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -50,13 +50,13 @@
 #include "cxgb4_uld.h"
 
 #define T4FW_VERSION_MAJOR 0x01
-#define T4FW_VERSION_MINOR 0x09
-#define T4FW_VERSION_MICRO 0x17
+#define T4FW_VERSION_MINOR 0x0B
+#define T4FW_VERSION_MICRO 0x1B
 #define T4FW_VERSION_BUILD 0x00
 
 #define T5FW_VERSION_MAJOR 0x01
-#define T5FW_VERSION_MINOR 0x09
-#define T5FW_VERSION_MICRO 0x17
+#define T5FW_VERSION_MINOR 0x0B
+#define T5FW_VERSION_MICRO 0x1B
 #define T5FW_VERSION_BUILD 0x00
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
@@ -85,7 +85,8 @@ enum {
 	MEMWIN1_BASE_T5  = 0x52000,
 	MEMWIN2_APERTURE = 65536,
 	MEMWIN2_BASE     = 0x30000,
-	MEMWIN2_BASE_T5  = 0x54000,
+	MEMWIN2_APERTURE_T5 = 131072,
+	MEMWIN2_BASE_T5  = 0x60000,
 };
 
 enum dev_master {
@@ -309,6 +310,9 @@ struct adapter_params {
 
 	unsigned int ofldq_wr_cred;
 	bool ulptx_memwrite_dsgl;          /* use of T5 DSGL allowed */
+
+	unsigned int max_ordird_qp;       /* Max read depth per RDMA QP */
+	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 };
 
 #include "t4fw_api.h"
@@ -373,6 +377,8 @@ enum {
 struct adapter;
 struct sge_rspq;
 
+#include "cxgb4_dcb.h"
+
 struct port_info {
 	struct adapter *adapter;
 	u16    viid;
@@ -389,6 +395,9 @@ struct port_info {
 	u8     rss_mode;
 	struct link_config link_cfg;
 	u16   *rss;
+#ifdef CONFIG_CHELSIO_T4_DCB
+	struct port_dcb_info dcb;     /* Data Center Bridging support */
+#endif
 };
 
 struct dentry;
@@ -513,6 +522,9 @@ struct sge_txq {
 struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
 	struct sge_txq q;
 	struct netdev_queue *txq;   /* associated netdev TX queue */
+#ifdef CONFIG_CHELSIO_T4_DCB
+	u8 dcb_prio;		    /* DCB Priority bound to queue */
+#endif
 	unsigned long tso;          /* # of TSO requests */
 	unsigned long tx_cso;       /* # of Tx checksum offloads */
 	unsigned long vlan_ins;     /* # of Tx VLAN insertions */
@@ -603,6 +615,7 @@ struct l2t_data;
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
+	u32 t4_bar0;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
 	unsigned int mbox;
@@ -647,6 +660,7 @@ struct adapter {
 	struct dentry *debugfs_root;
 
 	spinlock_t stats_lock;
+	spinlock_t win0_lock ____cacheline_aligned_in_smp;
 };
 
 /* Defined bit width of user definable filter tuples
@@ -855,6 +869,7 @@ void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 void *t4_alloc_mem(size_t size);
 
 void t4_free_sge_resources(struct adapter *adap);
+void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q);
 irq_handler_t t4_intr_handler(struct adapter *adap);
 netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev);
 int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
@@ -941,6 +956,7 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
 void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
 		      unsigned int data_reg, u32 *vals, unsigned int nregs,
 		      unsigned int start_idx);
+void t4_hw_pci_read_cfg4(struct adapter *adapter, int reg, u32 *val);
 
 struct fw_filter_wr;
 
@@ -952,8 +968,17 @@ int t4_wait_dev_ready(struct adapter *adap);
 int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc);
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
-int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
-		    __be32 *buf);
+
+#define T4_MEMORY_WRITE	0
+#define T4_MEMORY_READ	1
+int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr, u32 len,
+		 __be32 *buf, int dir);
+static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
+				  u32 len, __be32 *buf)
+{
+	return t4_memory_rw(adap, 0, mtype, addr, len, buf, 0);
+}
+
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
@@ -1007,6 +1032,10 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_set_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		  unsigned int vf, unsigned int nparams, const u32 *params,
 		  const u32 *val);
+int t4_set_params_nosleep(struct adapter *adap, unsigned int mbox,
+			  unsigned int pf, unsigned int vf,
+			  unsigned int nparams, const u32 *params,
+			  const u32 *val);
 int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		unsigned int vf, unsigned int txq, unsigned int txq_eth_ctrl,
 		unsigned int rxqi, unsigned int rxq, unsigned int tc,
@@ -1025,6 +1054,8 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		  int idx, const u8 *addr, bool persist, bool add_smt);
 int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     bool ucast, u64 vec, bool sleep_ok);
+int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,
+			unsigned int viid, bool rx_en, bool tx_en, bool dcb_en);
 int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en);
 int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
@@ -1045,7 +1076,6 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);
-int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);

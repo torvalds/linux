@@ -131,7 +131,6 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    !is_multicast_ether_addr(ieee80211_get_DA(hdr)))
 		tx_flags |= TX_CMD_FLG_PROT_REQUIRE;
 
-	tx_cmd->driver_txop = 0;
 	tx_cmd->tx_flags = cpu_to_le32(tx_flags);
 	/* Total # bytes to be transmitted */
 	tx_cmd->len = cpu_to_le16((u16)skb->len);
@@ -205,7 +204,13 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 	mvm->mgmt_last_antenna_idx =
 		iwl_mvm_next_antenna(mvm, mvm->fw->valid_tx_ant,
 				     mvm->mgmt_last_antenna_idx);
-	rate_flags = BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
+
+	if (info->band == IEEE80211_BAND_2GHZ &&
+	    !iwl_mvm_bt_coex_is_shared_ant_avail(mvm))
+		rate_flags = BIT(ANT_A) << RATE_MCS_ANT_POS;
+	else
+		rate_flags =
+			BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
 
 	/* Set CCK flag as needed */
 	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
@@ -304,6 +309,16 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			 (!info->control.vif ||
 			  info->hw_queue != info->control.vif->cab_queue)))
 		return -1;
+
+	/*
+	 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets that can be used
+	 * in 2 different types of vifs, P2P & STATION. P2P uses the offchannel
+	 * queue. STATION (HS2.0) uses the auxiliary context of the FW,
+	 * and hence needs to be sent on the aux queue
+	 */
+	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
+	    info->control.vif->type == NL80211_IFTYPE_STATION)
+		IEEE80211_SKB_CB(skb)->hw_queue = mvm->aux_queue;
 
 	/*
 	 * If the interface on which frame is sent is the P2P_DEVICE
@@ -717,18 +732,26 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	/* We can't free more than one frame at once on a shared queue */
 	WARN_ON(skb_freed > 1);
 
-	/* If we have still frames from this STA nothing to do here */
+	/* If we have still frames for this STA nothing to do here */
 	if (!atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id]))
 		goto out;
 
 	if (mvmsta && mvmsta->vif->type == NL80211_IFTYPE_AP) {
+
 		/*
-		 * If there are no pending frames for this STA, notify
-		 * mac80211 that this station can go to sleep in its
+		 * If there are no pending frames for this STA and
+		 * the tx to this station is not disabled, notify
+		 * mac80211 that this station can now wake up in its
 		 * STA table.
 		 * If mvmsta is not NULL, sta is valid.
 		 */
-		ieee80211_sta_block_awake(mvm->hw, sta, false);
+
+		spin_lock_bh(&mvmsta->lock);
+
+		if (!mvmsta->disable_tx)
+			ieee80211_sta_block_awake(mvm->hw, sta, false);
+
+		spin_unlock_bh(&mvmsta->lock);
 	}
 
 	if (PTR_ERR(sta) == -EBUSY || PTR_ERR(sta) == -ENOENT) {

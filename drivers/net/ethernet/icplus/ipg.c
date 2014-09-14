@@ -95,7 +95,7 @@ static const char * const ipg_brand_name[] = {
 	"D-Link NIC IP1000A"
 };
 
-static DEFINE_PCI_DEVICE_TABLE(ipg_pci_tbl) = {
+static const struct pci_device_id ipg_pci_tbl[] = {
 	{ PCI_VDEVICE(SUNDANCE,	0x1023), 0 },
 	{ PCI_VDEVICE(SUNDANCE,	0x2021), 1 },
 	{ PCI_VDEVICE(DLINK,	0x9021), 2 },

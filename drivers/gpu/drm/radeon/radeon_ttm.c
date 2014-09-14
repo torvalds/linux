@@ -521,6 +521,8 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 				   struct ttm_mem_reg *bo_mem)
 {
 	struct radeon_ttm_tt *gtt = (void*)ttm;
+	uint32_t flags = RADEON_GART_PAGE_VALID | RADEON_GART_PAGE_READ |
+		RADEON_GART_PAGE_WRITE;
 	int r;
 
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
@@ -528,8 +530,10 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
-	r = radeon_gart_bind(gtt->rdev, gtt->offset,
-			     ttm->num_pages, ttm->pages, gtt->ttm.dma_address);
+	if (ttm->caching_state == tt_cached)
+		flags |= RADEON_GART_PAGE_SNOOP;
+	r = radeon_gart_bind(gtt->rdev, gtt->offset, ttm->num_pages,
+			     ttm->pages, gtt->ttm.dma_address, flags);
 	if (r) {
 		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
 			  ttm->num_pages, (unsigned)gtt->offset);
@@ -726,7 +730,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 
 	r = radeon_bo_create(rdev, 256 * 1024, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM,
+			     RADEON_GEM_DOMAIN_VRAM, 0,
 			     NULL, &rdev->stollen_vga_memory);
 	if (r) {
 		return r;

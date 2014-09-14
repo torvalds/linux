@@ -42,6 +42,8 @@
 				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 				interrupt-parent = <&gpio6>;
 				interrupt-controller;
+				vcc-supply = <&db8500_vsmps2_reg>;
+				vio-supply = <&db8500_vsmps2_reg>;
 
 				wakeup-source;
 				st,autosleep-timeout = <1024>;

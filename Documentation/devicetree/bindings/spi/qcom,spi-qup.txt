@@ -7,7 +7,11 @@ SPI in master mode supports up to 50MHz, up to four chip selects, programmable
 data path from 4 bits to 32 bits and numerous protocol variants.
 
 Required properties:
-- compatible:     Should contain "qcom,spi-qup-v2.1.1" or "qcom,spi-qup-v2.2.1"
+- compatible:     Should contain:
+		  "qcom,spi-qup-v1.1.1" for 8660, 8960 and 8064.
+		  "qcom,spi-qup-v2.1.1" for 8974 and later
+		  "qcom,spi-qup-v2.2.1" for 8974 v2 and later.
+
 - reg:            Should contain base register location and length
 - interrupts:     Interrupt number used by this controller
 
@@ -23,6 +27,12 @@ Optional properties:
 - spi-max-frequency: Specifies maximum SPI clock frequency,
                      Units - Hz. Definition as per
                      Documentation/devicetree/bindings/spi/spi-bus.txt
+- num-cs:	total number of chipselects
+- cs-gpios:	should specify GPIOs used for chipselects.
+		The gpios will be referred to as reg = <index> in the SPI child
+		nodes.  If unspecified, a single SPI device without a chip
+		select can be used.
+
 
 SPI slave nodes must be children of the SPI master node and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt

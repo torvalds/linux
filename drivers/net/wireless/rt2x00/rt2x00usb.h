@@ -93,6 +93,7 @@ enum rt2x00usb_mode_offset {
 	USB_MODE_SLEEP = 7,	/* RT73USB */
 	USB_MODE_FIRMWARE = 8,	/* RT73USB */
 	USB_MODE_WAKEUP = 9,	/* RT73USB */
+	USB_MODE_AUTORUN = 17, /* RT2800USB */
 };
 
 /**

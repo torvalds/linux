@@ -44,18 +44,21 @@ static void sitesurvey_ctrl_handler(void *FunctionContext)
 static void join_timeout_handler (void *FunctionContext)
 {
 	struct _adapter *adapter = (struct _adapter *)FunctionContext;
+
 	_r8712_join_timeout_handler(adapter);
 }
 
 static void _scan_timeout_handler (void *FunctionContext)
 {
 	struct _adapter *adapter = (struct _adapter *)FunctionContext;
+
 	r8712_scan_timeout_handler(adapter);
 }
 
 static void dhcp_timeout_handler (void *FunctionContext)
 {
 	struct _adapter *adapter = (struct _adapter *)FunctionContext;
+
 	_r8712_dhcp_timeout_handler(adapter);
 }
 

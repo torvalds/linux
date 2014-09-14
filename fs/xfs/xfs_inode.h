@@ -398,4 +398,14 @@ do { \
 
 extern struct kmem_zone	*xfs_inode_zone;
 
+/*
+ * Flags for read/write calls
+ */
+#define XFS_IO_ISDIRECT	0x00001		/* bypass page cache */
+#define XFS_IO_INVIS	0x00002		/* don't update inode timestamps */
+
+#define XFS_IO_FLAGS \
+	{ XFS_IO_ISDIRECT,	"DIRECT" }, \
+	{ XFS_IO_INVIS,		"INVIS"}
+
 #endif	/* __XFS_INODE_H__ */

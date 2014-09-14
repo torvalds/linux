@@ -96,8 +96,6 @@ static void usb_write_port23a_complete(struct urb *purb)
 		DBG_8723A("###=> urb_write_port_complete status(%d)\n",
 			  purb->status);
 		if (purb->status == -EPIPE || purb->status == -EPROTO) {
-			sreset_set_wifi_error_status23a(padapter,
-						     USB_WRITE_PORT_FAIL);
 		} else if (purb->status == -EINPROGRESS) {
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
 				 ("usb_write_port23a_complete: EINPROGESS\n"));
@@ -155,12 +153,10 @@ int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("+usb_write_port23a\n"));
 
-	if (padapter->bDriverStopped || padapter->bSurpriseRemoved ||
-	    padapter->pwrctrlpriv.pnp_bstop_trx) {
+	if (padapter->bDriverStopped || padapter->bSurpriseRemoved) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_write_port23a:( padapter->bDriverStopped || "
-			  "padapter->bSurpriseRemoved || "
-			  "adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n"));
+			 ("%s:(padapter->bDriverStopped || "
+			  "padapter->bSurpriseRemoved)!!!\n", __func__));
 		rtw23a_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_TX_DENY);
 		goto exit;
 	}

@@ -25,7 +25,6 @@
 #include <core/client.h>
 #include <core/os.h>
 #include <core/enum.h>
-#include <core/class.h>
 #include <core/engctx.h>
 
 #include <subdev/timer.h>

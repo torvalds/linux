@@ -34,6 +34,11 @@ struct iova_domain {
 	unsigned long	dma_32bit_pfn;
 };
 
+static inline unsigned long iova_size(struct iova *iova)
+{
+	return iova->pfn_hi - iova->pfn_lo + 1;
+}
+
 struct iova *alloc_iova_mem(void);
 void free_iova_mem(struct iova *iova);
 void free_iova(struct iova_domain *iovad, unsigned long pfn);

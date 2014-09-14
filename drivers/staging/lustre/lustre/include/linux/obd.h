@@ -41,14 +41,14 @@
 #error Do not #include this file directly. #include <obd.h> instead
 #endif
 
-#include <obd_support.h>
+#include "../obd_support.h"
 
 # include <linux/fs.h>
 # include <linux/list.h>
 # include <linux/sched.h>  /* for struct task_struct, for current.h */
 # include <linux/proc_fs.h>
 # include <linux/mount.h>
-# include <linux/lustre_intent.h>
+#include "lustre_intent.h"
 
 struct ll_iattr {
 	struct iattr	iattr;

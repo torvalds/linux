@@ -4,23 +4,23 @@
  * are built for 32-bit userspace.
  */
 
-static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
+static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
+			 void *stripped_addr, size_t stripped_len,
+			 FILE *outfile, const char *name)
 {
 	int found_load = 0;
 	unsigned long load_size = -1;  /* Work around bogus warning */
-	unsigned long data_size;
-	Elf_Ehdr *hdr = (Elf_Ehdr *)addr;
+	unsigned long mapping_size;
+	ELF(Ehdr) *hdr = (ELF(Ehdr) *)raw_addr;
 	int i;
 	unsigned long j;
-	Elf_Shdr *symtab_hdr = NULL, *strtab_hdr, *secstrings_hdr,
+	ELF(Shdr) *symtab_hdr = NULL, *strtab_hdr, *secstrings_hdr,
 		*alt_sec = NULL;
-	Elf_Dyn *dyn = 0, *dyn_end = 0;
+	ELF(Dyn) *dyn = 0, *dyn_end = 0;
 	const char *secstrings;
-	uint64_t syms[NSYMS] = {};
+	INT_BITS syms[NSYMS] = {};
 
-	uint64_t fake_sections_value = 0, fake_sections_size = 0;
-
-	Elf_Phdr *pt = (Elf_Phdr *)(addr + GET_LE(&hdr->e_phoff));
+	ELF(Phdr) *pt = (ELF(Phdr) *)(raw_addr + GET_LE(&hdr->e_phoff));
 
 	/* Walk the segment table. */
 	for (i = 0; i < GET_LE(&hdr->e_phnum); i++) {
@@ -38,30 +38,32 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 			load_size = GET_LE(&pt[i].p_memsz);
 			found_load = 1;
 		} else if (GET_LE(&pt[i].p_type) == PT_DYNAMIC) {
-			dyn = addr + GET_LE(&pt[i].p_offset);
-			dyn_end = addr + GET_LE(&pt[i].p_offset) +
+			dyn = raw_addr + GET_LE(&pt[i].p_offset);
+			dyn_end = raw_addr + GET_LE(&pt[i].p_offset) +
 				GET_LE(&pt[i].p_memsz);
 		}
 	}
 	if (!found_load)
 		fail("no PT_LOAD seg\n");
-	data_size = (load_size + 4095) / 4096 * 4096;
+
+	if (stripped_len < load_size)
+		fail("stripped input is too short\n");
 
 	/* Walk the dynamic table */
 	for (i = 0; dyn + i < dyn_end &&
 		     GET_LE(&dyn[i].d_tag) != DT_NULL; i++) {
 		typeof(dyn[i].d_tag) tag = GET_LE(&dyn[i].d_tag);
-		if (tag == DT_REL || tag == DT_RELSZ ||
+		if (tag == DT_REL || tag == DT_RELSZ || tag == DT_RELA ||
 		    tag == DT_RELENT || tag == DT_TEXTREL)
 			fail("vdso image contains dynamic relocations\n");
 	}
 
 	/* Walk the section table */
-	secstrings_hdr = addr + GET_LE(&hdr->e_shoff) +
+	secstrings_hdr = raw_addr + GET_LE(&hdr->e_shoff) +
 		GET_LE(&hdr->e_shentsize)*GET_LE(&hdr->e_shstrndx);
-	secstrings = addr + GET_LE(&secstrings_hdr->sh_offset);
+	secstrings = raw_addr + GET_LE(&secstrings_hdr->sh_offset);
 	for (i = 0; i < GET_LE(&hdr->e_shnum); i++) {
-		Elf_Shdr *sh = addr + GET_LE(&hdr->e_shoff) +
+		ELF(Shdr) *sh = raw_addr + GET_LE(&hdr->e_shoff) +
 			GET_LE(&hdr->e_shentsize) * i;
 		if (GET_LE(&sh->sh_type) == SHT_SYMTAB)
 			symtab_hdr = sh;
@@ -74,7 +76,7 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	if (!symtab_hdr)
 		fail("no symbol table\n");
 
-	strtab_hdr = addr + GET_LE(&hdr->e_shoff) +
+	strtab_hdr = raw_addr + GET_LE(&hdr->e_shoff) +
 		GET_LE(&hdr->e_shentsize) * GET_LE(&symtab_hdr->sh_link);
 
 	/* Walk the symbol table */
@@ -82,26 +84,26 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	     i < GET_LE(&symtab_hdr->sh_size) / GET_LE(&symtab_hdr->sh_entsize);
 	     i++) {
 		int k;
-		Elf_Sym *sym = addr + GET_LE(&symtab_hdr->sh_offset) +
+		ELF(Sym) *sym = raw_addr + GET_LE(&symtab_hdr->sh_offset) +
 			GET_LE(&symtab_hdr->sh_entsize) * i;
-		const char *name = addr + GET_LE(&strtab_hdr->sh_offset) +
+		const char *name = raw_addr + GET_LE(&strtab_hdr->sh_offset) +
 			GET_LE(&sym->st_name);
 
 		for (k = 0; k < NSYMS; k++) {
-			if (!strcmp(name, required_syms[k])) {
+			if (!strcmp(name, required_syms[k].name)) {
 				if (syms[k]) {
 					fail("duplicate symbol %s\n",
-					     required_syms[k]);
+					     required_syms[k].name);
 				}
+
+				/*
+				 * Careful: we use negative addresses, but
+				 * st_value is unsigned, so we rely
+				 * on syms[k] being a signed type of the
+				 * correct width.
+				 */
 				syms[k] = GET_LE(&sym->st_value);
 			}
-		}
-
-		if (!strcmp(name, "vdso_fake_sections")) {
-			if (fake_sections_value)
-				fail("duplicate vdso_fake_sections\n");
-			fake_sections_value = GET_LE(&sym->st_value);
-			fake_sections_size = GET_LE(&sym->st_size);
 		}
 	}
 
@@ -112,29 +114,23 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 
 		if (syms[i] % 4096)
 			fail("%s must be a multiple of 4096\n",
-			     required_syms[i]);
-		if (syms[i] < data_size)
-			fail("%s must be after the text mapping\n",
-			     required_syms[i]);
-		if (syms[sym_end_mapping] < syms[i] + 4096)
-			fail("%s overruns end_mapping\n", required_syms[i]);
+			     required_syms[i].name);
+		if (syms[sym_vvar_start] > syms[i] + 4096)
+			fail("%s underruns begin_vvar\n",
+			     required_syms[i].name);
+		if (syms[i] + 4096 > 0)
+			fail("%s is on the wrong side of the vdso text\n",
+			     required_syms[i].name);
 	}
-	if (syms[sym_end_mapping] % 4096)
-		fail("end_mapping must be a multiple of 4096\n");
-
-	/* Remove sections or use fakes */
-	if (fake_sections_size % sizeof(Elf_Shdr))
-		fail("vdso_fake_sections size is not a multiple of %ld\n",
-		     (long)sizeof(Elf_Shdr));
-	PUT_LE(&hdr->e_shoff, fake_sections_value);
-	PUT_LE(&hdr->e_shentsize, fake_sections_value ? sizeof(Elf_Shdr) : 0);
-	PUT_LE(&hdr->e_shnum, fake_sections_size / sizeof(Elf_Shdr));
-	PUT_LE(&hdr->e_shstrndx, SHN_UNDEF);
+	if (syms[sym_vvar_start] % 4096)
+		fail("vvar_begin must be a multiple of 4096\n");
 
 	if (!name) {
-		fwrite(addr, load_size, 1, outfile);
+		fwrite(stripped_addr, stripped_len, 1, outfile);
 		return;
 	}
+
+	mapping_size = (stripped_len + 4095) / 4096 * 4096;
 
 	fprintf(outfile, "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n\n");
 	fprintf(outfile, "#include <linux/linkage.h>\n");
@@ -143,20 +139,21 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	fprintf(outfile, "\n");
 	fprintf(outfile,
 		"static unsigned char raw_data[%lu] __page_aligned_data = {",
-		data_size);
-	for (j = 0; j < load_size; j++) {
+		mapping_size);
+	for (j = 0; j < stripped_len; j++) {
 		if (j % 10 == 0)
 			fprintf(outfile, "\n\t");
-		fprintf(outfile, "0x%02X, ", (int)((unsigned char *)addr)[j]);
+		fprintf(outfile, "0x%02X, ",
+			(int)((unsigned char *)stripped_addr)[j]);
 	}
 	fprintf(outfile, "\n};\n\n");
 
 	fprintf(outfile, "static struct page *pages[%lu];\n\n",
-		data_size / 4096);
+		mapping_size / 4096);
 
 	fprintf(outfile, "const struct vdso_image %s = {\n", name);
 	fprintf(outfile, "\t.data = raw_data,\n");
-	fprintf(outfile, "\t.size = %lu,\n", data_size);
+	fprintf(outfile, "\t.size = %lu,\n", mapping_size);
 	fprintf(outfile, "\t.text_mapping = {\n");
 	fprintf(outfile, "\t\t.name = \"[vdso]\",\n");
 	fprintf(outfile, "\t\t.pages = pages,\n");
@@ -168,9 +165,9 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 			(unsigned long)GET_LE(&alt_sec->sh_size));
 	}
 	for (i = 0; i < NSYMS; i++) {
-		if (syms[i])
-			fprintf(outfile, "\t.sym_%s = 0x%" PRIx64 ",\n",
-				required_syms[i], syms[i]);
+		if (required_syms[i].export && syms[i])
+			fprintf(outfile, "\t.sym_%s = %" PRIi64 ",\n",
+				required_syms[i].name, (int64_t)syms[i]);
 	}
 	fprintf(outfile, "};\n");
 }

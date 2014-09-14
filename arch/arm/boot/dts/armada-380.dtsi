@@ -16,7 +16,7 @@
 
 / {
 	model = "Marvell Armada 380 family SoC";
-	compatible = "marvell,armada380", "marvell,armada38x";
+	compatible = "marvell,armada380";
 
 	cpus {
 		#address-cells = <1>;

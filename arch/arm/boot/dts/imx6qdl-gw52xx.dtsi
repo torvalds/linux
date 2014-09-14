@@ -121,9 +121,9 @@
 	};
 
 	sound {
-		compatible = "fsl,imx6q-sabrelite-sgtl5000",
+		compatible = "fsl,imx6q-ventana-sgtl5000",
 			     "fsl,imx-audio-sgtl5000";
-		model = "imx6q-sabrelite-sgtl5000";
+		model = "sgtl5000-audio";
 		ssi-controller = <&ssi1>;
 		audio-codec = <&codec>;
 		audio-routing =
@@ -220,7 +220,7 @@
 	};
 
 	pmic: ltc3676@3c {
-		compatible = "ltc,ltc3676";
+		compatible = "lltc,ltc3676";
 		reg = <0x3c>;
 
 		regulators {
@@ -288,7 +288,7 @@
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clocks = <&clks 169>;
+		clocks = <&clks 201>;
 		VDDA-supply = <&reg_1p8v>;
 		VDDIO-supply = <&reg_3p3v>;
 	};
@@ -489,7 +489,6 @@
 };
 
 &ssi1 {
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 

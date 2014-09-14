@@ -105,13 +105,13 @@ macros such as these, and use driver_info to store more information.
 A short example, for a driver that supports several specific USB devices
 and their quirks, might have a MODULE_DEVICE_TABLE like this:
 
-    static const struct usb_device_id mydriver_id_table = {
+    static const struct usb_device_id mydriver_id_table[] = {
 	{ USB_DEVICE (0x9999, 0xaaaa), driver_info: QUIRK_X },
 	{ USB_DEVICE (0xbbbb, 0x8888), driver_info: QUIRK_Y|QUIRK_Z },
 	...
 	{ } /* end with an all-zeroes entry */
-    }
-    MODULE_DEVICE_TABLE (usb, mydriver_id_table);
+    };
+    MODULE_DEVICE_TABLE(usb, mydriver_id_table);
 
 Most USB device drivers should pass these tables to the USB subsystem as
 well as to the module management subsystem.  Not all, though: some driver
@@ -134,7 +134,7 @@ something like this:
 	if exposing any operations through usbdevfs:
 	    .ioctl		= my_ioctl,
 	*/
-    }
+    };
 
 When the USB subsystem knows about a driver's device ID table, it's used when
 choosing drivers to probe().  The thread doing new device processing checks

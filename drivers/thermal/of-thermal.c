@@ -156,8 +156,8 @@ static int of_thermal_bind(struct thermal_zone_device *thermal,
 
 			ret = thermal_zone_bind_cooling_device(thermal,
 						tbp->trip_id, cdev,
-						tbp->min,
-						tbp->max);
+						tbp->max,
+						tbp->min);
 			if (ret)
 				return ret;
 		}
@@ -712,11 +712,12 @@ thermal_of_build_thermal_zone(struct device_node *np)
 	}
 
 	i = 0;
-	for_each_child_of_node(child, gchild)
+	for_each_child_of_node(child, gchild) {
 		ret = thermal_of_populate_bind_params(gchild, &tz->tbps[i++],
 						      tz->trips, tz->ntrips);
 		if (ret)
 			goto free_tbps;
+	}
 
 finish:
 	of_node_put(child);

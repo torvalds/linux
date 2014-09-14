@@ -263,7 +263,7 @@ struct rme96 {
 	struct snd_kcontrol   *spdif_ctl;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_rme96_ids) = {
+static const struct pci_device_id snd_rme96_ids[] = {
 	{ PCI_VDEVICE(XILINX, PCI_DEVICE_ID_RME_DIGI96), 0, },
 	{ PCI_VDEVICE(XILINX, PCI_DEVICE_ID_RME_DIGI96_8), 0, },
 	{ PCI_VDEVICE(XILINX, PCI_DEVICE_ID_RME_DIGI96_8_PRO), 0, },

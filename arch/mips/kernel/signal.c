@@ -31,7 +31,6 @@
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/fpu.h>
-#include <asm/msa.h>
 #include <asm/sim.h>
 #include <asm/ucontext.h>
 #include <asm/cpu-features.h>
@@ -47,9 +46,6 @@ static int (*restore_fp_context)(struct sigcontext __user *sc);
 
 extern asmlinkage int _save_fp_context(struct sigcontext __user *sc);
 extern asmlinkage int _restore_fp_context(struct sigcontext __user *sc);
-
-extern asmlinkage int _save_msa_context(struct sigcontext __user *sc);
-extern asmlinkage int _restore_msa_context(struct sigcontext __user *sc);
 
 struct sigframe {
 	u32 sf_ass[4];		/* argument save space for o32 */
@@ -100,60 +96,20 @@ static int copy_fp_from_sigcontext(struct sigcontext __user *sc)
 }
 
 /*
- * These functions will save only the upper 64 bits of the vector registers,
- * since the lower 64 bits have already been saved as the scalar FP context.
- */
-static int copy_msa_to_sigcontext(struct sigcontext __user *sc)
-{
-	int i;
-	int err = 0;
-
-	for (i = 0; i < NUM_FPU_REGS; i++) {
-		err |=
-		    __put_user(get_fpr64(&current->thread.fpu.fpr[i], 1),
-			       &sc->sc_msaregs[i]);
-	}
-	err |= __put_user(current->thread.fpu.msacsr, &sc->sc_msa_csr);
-
-	return err;
-}
-
-static int copy_msa_from_sigcontext(struct sigcontext __user *sc)
-{
-	int i;
-	int err = 0;
-	u64 val;
-
-	for (i = 0; i < NUM_FPU_REGS; i++) {
-		err |= __get_user(val, &sc->sc_msaregs[i]);
-		set_fpr64(&current->thread.fpu.fpr[i], 1, val);
-	}
-	err |= __get_user(current->thread.fpu.msacsr, &sc->sc_msa_csr);
-
-	return err;
-}
-
-/*
  * Helper routines
  */
-static int protected_save_fp_context(struct sigcontext __user *sc,
-				     unsigned used_math)
+static int protected_save_fp_context(struct sigcontext __user *sc)
 {
 	int err;
-	bool save_msa = cpu_has_msa && (used_math & USEDMATH_MSA);
 #ifndef CONFIG_EVA
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
 			err = save_fp_context(sc);
-			if (save_msa && !err)
-				err = _save_msa_context(sc);
 			unlock_fpu_owner();
 		} else {
 			unlock_fpu_owner();
 			err = copy_fp_to_sigcontext(sc);
-			if (save_msa && !err)
-				err = copy_msa_to_sigcontext(sc);
 		}
 		if (likely(!err))
 			break;
@@ -169,38 +125,24 @@ static int protected_save_fp_context(struct sigcontext __user *sc,
 	 * EVA does not have FPU EVA instructions so saving fpu context directly
 	 * does not work.
 	 */
-	disable_msa();
 	lose_fpu(1);
 	err = save_fp_context(sc); /* this might fail */
-	if (save_msa && !err)
-		err = copy_msa_to_sigcontext(sc);
 #endif
 	return err;
 }
 
-static int protected_restore_fp_context(struct sigcontext __user *sc,
-					unsigned used_math)
+static int protected_restore_fp_context(struct sigcontext __user *sc)
 {
 	int err, tmp __maybe_unused;
-	bool restore_msa = cpu_has_msa && (used_math & USEDMATH_MSA);
 #ifndef CONFIG_EVA
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
 			err = restore_fp_context(sc);
-			if (restore_msa && !err) {
-				enable_msa();
-				err = _restore_msa_context(sc);
-			} else {
-				/* signal handler may have used MSA */
-				disable_msa();
-			}
 			unlock_fpu_owner();
 		} else {
 			unlock_fpu_owner();
 			err = copy_fp_from_sigcontext(sc);
-			if (!err && (used_math & USEDMATH_MSA))
-				err = copy_msa_from_sigcontext(sc);
 		}
 		if (likely(!err))
 			break;
@@ -216,11 +158,8 @@ static int protected_restore_fp_context(struct sigcontext __user *sc,
 	 * EVA does not have FPU EVA instructions so restoring fpu context
 	 * directly does not work.
 	 */
-	enable_msa();
 	lose_fpu(0);
 	err = restore_fp_context(sc); /* this might fail */
-	if (restore_msa && !err)
-		err = copy_msa_from_sigcontext(sc);
 #endif
 	return err;
 }
@@ -252,8 +191,7 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
 	}
 
-	used_math = used_math() ? USEDMATH_FP : 0;
-	used_math |= thread_msa_context_live() ? USEDMATH_MSA : 0;
+	used_math = !!used_math();
 	err |= __put_user(used_math, &sc->sc_used_math);
 
 	if (used_math) {
@@ -261,7 +199,7 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		 * Save FPU state to signal context. Signal handler
 		 * will "inherit" current FPU state.
 		 */
-		err |= protected_save_fp_context(sc, used_math);
+		err |= protected_save_fp_context(sc);
 	}
 	return err;
 }
@@ -286,14 +224,14 @@ int fpcsr_pending(unsigned int __user *fpcsr)
 }
 
 static int
-check_and_restore_fp_context(struct sigcontext __user *sc, unsigned used_math)
+check_and_restore_fp_context(struct sigcontext __user *sc)
 {
 	int err, sig;
 
 	err = sig = fpcsr_pending(&sc->sc_fpc_csr);
 	if (err > 0)
 		err = 0;
-	err |= protected_restore_fp_context(sc, used_math);
+	err |= protected_restore_fp_context(sc);
 	return err ?: sig;
 }
 
@@ -333,17 +271,16 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	if (used_math) {
 		/* restore fpu context if we have used it before */
 		if (!err)
-			err = check_and_restore_fp_context(sc, used_math);
+			err = check_and_restore_fp_context(sc);
 	} else {
-		/* signal handler may have used FPU or MSA. Disable them. */
-		disable_msa();
+		/* signal handler may have used FPU.  Give it up. */
 		lose_fpu(0);
 	}
 
 	return err;
 }
 
-void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 			  size_t frame_size)
 {
 	unsigned long sp;
@@ -358,9 +295,7 @@ void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	 */
 	sp -= 32;
 
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
-		sp = current->sas_ss_sp + current->sas_ss_size;
+	sp = sigsp(sp, ksig);
 
 	return (void __user *)((sp - frame_size) & (ICACHE_REFILLS_WORKAROUND_WAR ? ~(cpu_icache_line_size()-1) : ALMASK));
 }
@@ -491,20 +426,20 @@ badframe:
 }
 
 #ifdef CONFIG_TRAD_SIGNALS
-static int setup_frame(void *sig_return, struct k_sigaction *ka,
-		       struct pt_regs *regs, int signr, sigset_t *set)
+static int setup_frame(void *sig_return, struct ksignal *ksig,
+		       struct pt_regs *regs, sigset_t *set)
 {
 	struct sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	err |= setup_sigcontext(regs, &frame->sf_sc);
 	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/*
 	 * Arguments to signal handler:
@@ -516,37 +451,32 @@ static int setup_frame(void *sig_return, struct k_sigaction *ka,
 	 * $25 and c0_epc point to the signal handler, $29 points to the
 	 * struct sigframe.
 	 */
-	regs->regs[ 4] = signr;
+	regs->regs[ 4] = ksig->sig;
 	regs->regs[ 5] = 0;
 	regs->regs[ 6] = (unsigned long) &frame->sf_sc;
 	regs->regs[29] = (unsigned long) frame;
 	regs->regs[31] = (unsigned long) sig_return;
-	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
+	regs->cp0_epc = regs->regs[25] = (unsigned long) ksig->ka.sa.sa_handler;
 
 	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(signr, current);
-	return -EFAULT;
 }
 #endif
 
-static int setup_rt_frame(void *sig_return, struct k_sigaction *ka,
-			  struct pt_regs *regs, int signr, sigset_t *set,
-			  siginfo_t *info)
+static int setup_rt_frame(void *sig_return, struct ksignal *ksig,
+			  struct pt_regs *regs, sigset_t *set)
 {
 	struct rt_sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Create siginfo.  */
-	err |= copy_siginfo_to_user(&frame->rs_info, info);
+	err |= copy_siginfo_to_user(&frame->rs_info, &ksig->info);
 
 	/* Create the ucontext.	 */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
@@ -556,7 +486,7 @@ static int setup_rt_frame(void *sig_return, struct k_sigaction *ka,
 	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
 
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/*
 	 * Arguments to signal handler:
@@ -568,22 +498,18 @@ static int setup_rt_frame(void *sig_return, struct k_sigaction *ka,
 	 * $25 and c0_epc point to the signal handler, $29 points to
 	 * the struct rt_sigframe.
 	 */
-	regs->regs[ 4] = signr;
+	regs->regs[ 4] = ksig->sig;
 	regs->regs[ 5] = (unsigned long) &frame->rs_info;
 	regs->regs[ 6] = (unsigned long) &frame->rs_uc;
 	regs->regs[29] = (unsigned long) frame;
 	regs->regs[31] = (unsigned long) sig_return;
-	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
+	regs->cp0_epc = regs->regs[25] = (unsigned long) ksig->ka.sa.sa_handler;
 
 	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(signr, current);
-	return -EFAULT;
 }
 
 struct mips_abi mips_abi = {
@@ -597,8 +523,7 @@ struct mips_abi mips_abi = {
 	.restart	= __NR_restart_syscall
 };
 
-static void handle_signal(unsigned long sig, siginfo_t *info,
-	struct k_sigaction *ka, struct pt_regs *regs)
+static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
 	int ret;
@@ -620,7 +545,7 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 			regs->regs[2] = EINTR;
 			break;
 		case ERESTARTSYS:
-			if (!(ka->sa.sa_flags & SA_RESTART)) {
+			if (!(ksig->ka.sa.sa_flags & SA_RESTART)) {
 				regs->regs[2] = EINTR;
 				break;
 			}
@@ -634,29 +559,23 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 		regs->regs[0] = 0;		/* Don't deal with this again.	*/
 	}
 
-	if (sig_uses_siginfo(ka))
+	if (sig_uses_siginfo(&ksig->ka))
 		ret = abi->setup_rt_frame(vdso + abi->rt_signal_return_offset,
-					  ka, regs, sig, oldset, info);
+					  ksig, regs, oldset);
 	else
-		ret = abi->setup_frame(vdso + abi->signal_return_offset,
-				       ka, regs, sig, oldset);
+		ret = abi->setup_frame(vdso + abi->signal_return_offset, ksig,
+				       regs, oldset);
 
-	if (ret)
-		return;
-
-	signal_delivered(sig, info, ka, regs, 0);
+	signal_setup_done(ret, ksig, 0);
 }
 
 static void do_signal(struct pt_regs *regs)
 {
-	struct k_sigaction ka;
-	siginfo_t info;
-	int signr;
+	struct ksignal ksig;
 
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
+	if (get_signal(&ksig)) {
 		/* Whee!  Actually deliver the signal.	*/
-		handle_signal(signr, &info, &ka, regs);
+		handle_signal(&ksig, regs);
 		return;
 	}
 

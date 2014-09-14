@@ -46,10 +46,6 @@ END(function_hook)
 .endm
 
 ENTRY(ftrace_caller)
-	/* Check if tracing was disabled (quick check) */
-	cmpl $0, function_trace_stop
-	jne  ftrace_stub
-
 	ftrace_caller_setup
 	/* regs go into 4th parameter (but make it NULL) */
 	movq $0, %rcx
@@ -72,10 +68,6 @@ END(ftrace_caller)
 ENTRY(ftrace_regs_caller)
 	/* Save the current flags before compare (in SS location)*/
 	pushfq
-
-	/* Check if tracing was disabled (quick check) */
-	cmpl $0, function_trace_stop
-	jne  ftrace_restore_flags
 
 	/* skip=8 to skip flags saved in SS */
 	ftrace_caller_setup 8
@@ -131,7 +123,7 @@ GLOBAL(ftrace_regs_call)
 	popfq
 
 	jmp ftrace_return
-ftrace_restore_flags:
+
 	popfq
 	jmp  ftrace_stub
 
@@ -141,9 +133,6 @@ END(ftrace_regs_caller)
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
 ENTRY(function_hook)
-	cmpl $0, function_trace_stop
-	jne  ftrace_stub
-
 	cmpq $ftrace_stub, ftrace_trace_function
 	jnz trace
 

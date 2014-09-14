@@ -1498,7 +1498,7 @@ static int dpcm_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	int ret;
 
-	usb_stor_dbg(us, "LUN=%d\n", srb->device->lun);
+	usb_stor_dbg(us, "LUN=%d\n", (u8)srb->device->lun);
 
 	switch (srb->device->lun) {
 	case 0:
@@ -1524,7 +1524,7 @@ static int dpcm_transport(struct scsi_cmnd *srb, struct us_data *us)
 		break;
 
 	default:
-		usb_stor_dbg(us, "Invalid LUN %d\n", srb->device->lun);
+	    usb_stor_dbg(us, "Invalid LUN %d\n", (u8)srb->device->lun);
 		ret = USB_STOR_TRANSPORT_ERROR;
 		break;
 	}

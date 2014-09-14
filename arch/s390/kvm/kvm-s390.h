@@ -45,9 +45,9 @@ do { \
 	  d_args); \
 } while (0)
 
-static inline int __cpu_is_stopped(struct kvm_vcpu *vcpu)
+static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 {
-	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOP_INT;
+	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;
 }
 
 static inline int kvm_is_ucontrol(struct kvm *kvm)
@@ -129,9 +129,15 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 	vcpu->arch.sie_block->gpsw.mask |= cc << 44;
 }
 
+/* are cpu states controlled by user space */
+static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
+{
+	return kvm->arch.user_cpu_state_ctrl != 0;
+}
+
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
+void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
-void kvm_s390_tasklet(unsigned long parm);
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu);
 void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu);
 void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu);

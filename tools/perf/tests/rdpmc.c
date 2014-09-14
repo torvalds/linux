@@ -6,6 +6,7 @@
 #include "perf.h"
 #include "debug.h"
 #include "tests.h"
+#include "cloexec.h"
 
 #if defined(__x86_64__) || defined(__i386__)
 
@@ -104,7 +105,8 @@ static int __test__rdpmc(void)
 	sa.sa_sigaction = segfault_handler;
 	sigaction(SIGSEGV, &sa, NULL);
 
-	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	fd = sys_perf_event_open(&attr, 0, -1, -1,
+				 perf_event_open_cloexec_flag());
 	if (fd < 0) {
 		pr_err("Error: sys_perf_event_open() syscall returned "
 		       "with %d (%s)\n", fd, strerror(errno));

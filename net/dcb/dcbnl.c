@@ -471,7 +471,11 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlmsghdr *nlh,
 	id = nla_get_u16(app_tb[DCB_APP_ATTR_ID]);
 
 	if (netdev->dcbnl_ops->getapp) {
-		up = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+		ret = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+		if (ret < 0)
+			return ret;
+		else
+			up = ret;
 	} else {
 		struct dcb_app app = {
 					.selector = idtype,
@@ -538,6 +542,8 @@ static int dcbnl_setapp(struct net_device *netdev, struct nlmsghdr *nlh,
 
 	if (netdev->dcbnl_ops->setapp) {
 		ret = netdev->dcbnl_ops->setapp(netdev, idtype, id, up);
+		if (ret < 0)
+			return ret;
 	} else {
 		struct dcb_app app;
 		app.selector = idtype;
@@ -1770,7 +1776,7 @@ EXPORT_SYMBOL(dcb_getapp);
  *
  * Priority 0 is an invalid priority in CEE spec. This routine
  * removes applications from the app list if the priority is
- * set to zero.
+ * set to zero. Priority is expected to be 8-bit 802.1p user priority bitmap
  */
 int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 {
@@ -1831,7 +1837,8 @@ EXPORT_SYMBOL(dcb_ieee_getapp_mask);
  *
  * This adds Application data to the list. Multiple application
  * entries may exists for the same selector and protocol as long
- * as the priorities are different.
+ * as the priorities are different. Priority is expected to be a
+ * 3-bit unsigned integer
  */
 int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
 {

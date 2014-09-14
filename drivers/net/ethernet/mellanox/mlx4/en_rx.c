@@ -40,6 +40,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
+#include <linux/irq.h>
 
 #include "mlx4_en.h"
 
@@ -334,8 +335,9 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
 					   dev->caps.comp_pool/
 					   dev->caps.num_ports) - 1;
 
-		num_rx_rings = min_t(int, num_of_eqs,
-				     netif_get_num_default_rss_queues());
+		num_rx_rings = mlx4_low_memory_profile() ? MIN_RX_RINGS :
+			min_t(int, num_of_eqs,
+			      netif_get_num_default_rss_queues());
 		mdev->profile.prof[i].rx_ring_num =
 			rounddown_pow_of_two(num_rx_rings);
 	}
@@ -782,6 +784,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 							     PKT_HASH_TYPE_L3);
 
 					skb_record_rx_queue(gro_skb, cq->ring);
+					skb_mark_napi_id(gro_skb, &cq->napi);
 
 					if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
 						timestamp = mlx4_en_get_cqe_ts(cqe);
@@ -896,16 +899,25 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 
 	/* If we used up all the quota - we're probably not done yet... */
 	if (done == budget) {
+		int cpu_curr;
+		const struct cpumask *aff;
+
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
-		if (unlikely(cq->mcq.irq_affinity_change)) {
-			cq->mcq.irq_affinity_change = false;
+
+		cpu_curr = smp_processor_id();
+		aff = irq_desc_get_irq_data(cq->irq_desc)->affinity;
+
+		if (unlikely(!cpumask_test_cpu(cpu_curr, aff))) {
+			/* Current cpu is not according to smp_irq_affinity -
+			 * probably affinity changed. need to stop this NAPI
+			 * poll, and restart it on the right CPU
+			 */
 			napi_complete(napi);
 			mlx4_en_arm_cq(priv, cq);
 			return 0;
 		}
 	} else {
 		/* Done for now */
-		cq->mcq.irq_affinity_change = false;
 		napi_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
 	}
@@ -922,7 +934,7 @@ static const int frag_sizes[] = {
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int eff_mtu = dev->mtu + ETH_HLEN + VLAN_HLEN + ETH_LLC_SNAP_SIZE;
+	int eff_mtu = dev->mtu + ETH_HLEN + VLAN_HLEN;
 	int buf_size = 0;
 	int i = 0;
 

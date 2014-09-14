@@ -556,11 +556,11 @@ been converted to this framework.
 Near-term plans include converting all of them, except for "gadgetfs".
 </para>
 
-!Edrivers/usb/gadget/f_acm.c
-!Edrivers/usb/gadget/f_ecm.c
-!Edrivers/usb/gadget/f_subset.c
-!Edrivers/usb/gadget/f_obex.c
-!Edrivers/usb/gadget/f_serial.c
+!Edrivers/usb/gadget/function/f_acm.c
+!Edrivers/usb/gadget/function/f_ecm.c
+!Edrivers/usb/gadget/function/f_subset.c
+!Edrivers/usb/gadget/function/f_obex.c
+!Edrivers/usb/gadget/function/f_serial.c
 
 </sect1>
 
@@ -708,7 +708,7 @@ hardware level details could be very different.
 
 <para>Systems need specialized hardware support to implement OTG,
 notably including a special <emphasis>Mini-AB</emphasis> jack
-and associated transciever to support <emphasis>Dual-Role</emphasis>
+and associated transceiver to support <emphasis>Dual-Role</emphasis>
 operation:
 they can act either as a host, using the standard
 Linux-USB host side driver stack,

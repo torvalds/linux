@@ -208,8 +208,6 @@ struct sync_struct {
 	struct mcpm_sync_struct clusters[MAX_NR_CLUSTERS];
 };
 
-extern unsigned long sync_phys;	/* physical address of *mcpm_sync */
-
 void __mcpm_cpu_going_down(unsigned int cpu, unsigned int cluster);
 void __mcpm_cpu_down(unsigned int cpu, unsigned int cluster);
 void __mcpm_outbound_leave_critical(unsigned int cluster, int state);
@@ -218,6 +216,22 @@ int __mcpm_cluster_state(unsigned int cluster);
 
 int __init mcpm_sync_init(
 	void (*power_up_setup)(unsigned int affinity_level));
+
+/**
+ * mcpm_loopback - make a run through the MCPM low-level code
+ *
+ * @cache_disable: pointer to function performing cache disabling
+ *
+ * This exercises the MCPM machinery by soft resetting the CPU and branching
+ * to the MCPM low-level entry code before returning to the caller.
+ * The @cache_disable function must do the necessary cache disabling to
+ * let the regular kernel init code turn it back on as if the CPU was
+ * hotplugged in. The MCPM state machine is set as if the cluster was
+ * initialized meaning the power_up_setup callback passed to mcpm_sync_init()
+ * will be invoked for all affinity levels. This may be useful to initialize
+ * some resources such as enabling the CCI that requires the cache to be off, or simply for testing purposes.
+ */
+int __init mcpm_loopback(void (*cache_disable)(void));
 
 void __init mcpm_smp_set_ops(void);
 

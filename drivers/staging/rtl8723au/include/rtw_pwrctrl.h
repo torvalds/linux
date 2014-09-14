@@ -155,18 +155,14 @@ struct pwrctrl_priv {
 			   * read from HCPWM 2. driver lowers power level
 			   */
 	volatile u8 tog; /*  toggling */
-	volatile u8 cpwm_tog; /*  toggling */
 
 	u8	pwr_mode;
 	u8	smart_ps;
 	u8	bcn_ant_mode;
 
-	u32	alives;
-	struct work_struct cpwm_event;
 	u8	bpower_saving;
 
 	u8	reg_rfoff;
-	u8	reg_pdnmode; /* powerdown mode */
 	u32	rfoff_reason;
 
 	/* RF OFF Level */
@@ -188,8 +184,6 @@ struct pwrctrl_priv {
 	u8	bFwCurrentInPSMode;
 	unsigned long	DelayLPSLastTimeStamp;
 	u8	btcoex_rfon;
-	s32		pnp_current_pwr_state;
-	u8		pnp_bstop_trx;
 
 	u8		bInSuspend;
 #ifdef	CONFIG_8723AU_BT_COEXIST
@@ -201,24 +195,12 @@ struct pwrctrl_priv {
 	int		pwr_state_check_interval;
 	u8		pwr_state_check_cnts;
 
-	int		ps_flag;
-
 	enum rt_rf_power_state	rf_pwrstate;/* cur power state */
 	enum rt_rf_power_state	change_rfpwrstate;
 
-	u8	wepkeymask;
-	u8	bHWPowerdown;/* if support hw power down */
-	u8	bHWPwrPindetect;
 	u8	bkeepfwalive;
-	u8	brfoffbyhw;
 	unsigned long PS_BBRegBackup[PSBBREG_TOTALCNT];
 };
-
-#define rtw_get_ips_mode_req(pwrctrlpriv) \
-	((pwrctrlpriv)->ips_mode_req)
-
-#define rtw_ips_mode_req(pwrctrlpriv, ips_mode) \
-	((pwrctrlpriv)->ips_mode_req = (ips_mode))
 
 #define RTW_PWR_STATE_CHK_INTERVAL 2000
 
@@ -253,8 +235,6 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms,
 		    const char *caller);
 #define rtw_pwr_wakeup(adapter) _rtw_pwr_wakeup23a(adapter,		\
 	 RTW_PWR_STATE_CHK_INTERVAL, __func__)
-#define rtw_pwr_wakeup_ex(adapter, ips_deffer_ms)			\
-	 _rtw_pwr_wakeup23a(adapter, ips_deffer_ms, __func__)
 int rtw_pm_set_ips23a(struct rtw_adapter *padapter, u8 mode);
 int rtw_pm_set_lps23a(struct rtw_adapter *padapter, u8 mode);
 

@@ -101,7 +101,7 @@ static void coupled_barrier(atomic_t *a, unsigned online)
 	if (!coupled_coherence)
 		return;
 
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(a);
 
 	while (atomic_read(a) < online)
@@ -149,8 +149,12 @@ int cps_pm_enter_state(enum cps_pm_state state)
 
 	/* Setup the VPE to run mips_cps_pm_restore when started again */
 	if (config_enabled(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
+		/* Power gating relies upon CPS SMP */
+		if (!mips_cps_smp_in_use())
+			return -EINVAL;
+
 		core_cfg = &mips_cps_core_bootcfg[core];
-		vpe_cfg = &core_cfg->vpe_config[current_cpu_data.vpe_id];
+		vpe_cfg = &core_cfg->vpe_config[cpu_vpe_id(&current_cpu_data)];
 		vpe_cfg->pc = (unsigned long)mips_cps_pm_restore;
 		vpe_cfg->gp = (unsigned long)current_thread_info();
 		vpe_cfg->sp = 0;
@@ -158,7 +162,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 
 	/* Indicate that this CPU might not be coherent */
 	cpumask_clear_cpu(cpu, &cpu_coherent_mask);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	/* Create a non-coherent mapping of the core ready_count */
 	core_ready_count = per_cpu(ready_count, core);
@@ -376,6 +380,10 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	memset(relocs, 0, sizeof(relocs));
 
 	if (config_enabled(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
+		/* Power gating relies upon CPS SMP */
+		if (!mips_cps_smp_in_use())
+			goto out_err;
+
 		/*
 		 * Save CPU state. Note the non-standard calling convention
 		 * with the return address placed in v0 to avoid clobbering

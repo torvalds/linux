@@ -51,9 +51,6 @@ Typical usage of the OPP library is as follows:
 SoC framework	-> modifies on required cases certain OPPs	-> OPP layer
 		-> queries to search/retrieve information	->
 
-Architectures that provide a SoC framework for OPP should select ARCH_HAS_OPP
-to make the OPP layer available.
-
 OPP layer expects each domain to be represented by a unique device pointer. SoC
 framework registers a set of initial OPPs per device with the OPP layer. This
 list is expected to be an optimally small number typically around 5 per device.

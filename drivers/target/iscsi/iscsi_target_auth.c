@@ -174,7 +174,6 @@ static int chap_server_compute_md5(
 	char *nr_out_ptr,
 	unsigned int *nr_out_len)
 {
-	char *endptr;
 	unsigned long id;
 	unsigned char id_as_uchar;
 	unsigned char digest[MD5_SIGNATURE_SIZE];
@@ -320,9 +319,14 @@ static int chap_server_compute_md5(
 	}
 
 	if (type == HEX)
-		id = simple_strtoul(&identifier[2], &endptr, 0);
+		ret = kstrtoul(&identifier[2], 0, &id);
 	else
-		id = simple_strtoul(identifier, &endptr, 0);
+		ret = kstrtoul(identifier, 0, &id);
+
+	if (ret < 0) {
+		pr_err("kstrtoul() failed for CHAP identifier: %d\n", ret);
+		goto out;
+	}
 	if (id > 255) {
 		pr_err("chap identifier: %lu greater than 255\n", id);
 		goto out;
@@ -349,6 +353,10 @@ static int chap_server_compute_md5(
 				strlen(challenge));
 	if (!challenge_len) {
 		pr_err("Unable to convert incoming challenge\n");
+		goto out;
+	}
+	if (challenge_len > 1024) {
+		pr_err("CHAP_C exceeds maximum binary size of 1024 bytes\n");
 		goto out;
 	}
 	/*

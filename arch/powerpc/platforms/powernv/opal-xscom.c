@@ -130,4 +130,4 @@ static int opal_xscom_init(void)
 		scom_init(&opal_scom_controller);
 	return 0;
 }
-arch_initcall(opal_xscom_init);
+machine_arch_initcall(powernv, opal_xscom_init);

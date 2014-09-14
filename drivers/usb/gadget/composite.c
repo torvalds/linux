@@ -1956,6 +1956,7 @@ void composite_dev_cleanup(struct usb_composite_dev *cdev)
 	}
 	if (cdev->req) {
 		kfree(cdev->req->buf);
+		usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
 		usb_ep_free_request(cdev->gadget->ep0, cdev->req);
 	}
 	cdev->next_string_id = 0;

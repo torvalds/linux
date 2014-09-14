@@ -84,18 +84,42 @@ is another popular alternative.
 
 2) Describe your changes.
 
-Describe the technical detail of the change(s) your patch includes.
+Describe your problem.  Whether your patch is a one-line bug fix or
+5000 lines of a new feature, there must be an underlying problem that
+motivated you to do this work.  Convince the reviewer that there is a
+problem worth fixing and that it makes sense for them to read past the
+first paragraph.
 
-Be as specific as possible.  The WORST descriptions possible include
-things like "update driver X", "bug fix for driver X", or "this patch
-includes updates for subsystem X.  Please apply."
+Describe user-visible impact.  Straight up crashes and lockups are
+pretty convincing, but not all bugs are that blatant.  Even if the
+problem was spotted during code review, describe the impact you think
+it can have on users.  Keep in mind that the majority of Linux
+installations run kernels from secondary stable trees or
+vendor/product-specific trees that cherry-pick only specific patches
+from upstream, so include anything that could help route your change
+downstream: provoking circumstances, excerpts from dmesg, crash
+descriptions, performance regressions, latency spikes, lockups, etc.
+
+Quantify optimizations and trade-offs.  If you claim improvements in
+performance, memory consumption, stack footprint, or binary size,
+include numbers that back them up.  But also describe non-obvious
+costs.  Optimizations usually aren't free but trade-offs between CPU,
+memory, and readability; or, when it comes to heuristics, between
+different workloads.  Describe the expected downsides of your
+optimization so that the reviewer can weigh costs against benefits.
+
+Once the problem is established, describe what you are actually doing
+about it in technical detail.  It's important to describe the change
+in plain English for the reviewer to verify that the code is behaving
+as you intend it to.
 
 The maintainer will thank you if you write your patch description in a
 form which can be easily pulled into Linux's source code management
 system, git, as a "commit log".  See #15, below.
 
-If your description starts to get long, that's a sign that you probably
-need to split up your patch.  See #3, next.
+Solve only one problem per patch.  If your description starts to get
+long, that's a sign that you probably need to split up your patch.
+See #3, next.
 
 When you submit or resubmit a patch or patch series, include the
 complete patch description and justification for it.  Don't just
@@ -396,13 +420,13 @@ you are responsible for last-minute changes. Example :
 	[lucky@maintainer.example.org: struct foo moved from foo.c to foo.h]
 	Signed-off-by: Lucky K Maintainer <lucky@maintainer.example.org>
 
-This practise is particularly helpful if you maintain a stable branch and
+This practice is particularly helpful if you maintain a stable branch and
 want at the same time to credit the author, track changes, merge the fix,
 and protect the submitter from complaints. Note that under no circumstances
 can you change the author's identity (the From header), as it is the one
 which appears in the changelog.
 
-Special note to back-porters: It seems to be a common and useful practise
+Special note to back-porters: It seems to be a common and useful practice
 to insert an indication of the origin of a patch at the top of the commit
 message (just after the subject line) to facilitate tracking. For instance,
 here's what we see in 2.6-stable :

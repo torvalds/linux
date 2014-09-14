@@ -55,8 +55,6 @@ struct xfs_bmalloca {
 	bool			userdata;/* set if is user data */
 	bool			aeof;	/* allocated space at eof */
 	bool			conv;	/* overwriting unwritten extents */
-	bool			stack_switch;
-	bool			kswapd;	/* allocation in kswapd context */
 	int			flags;
 	struct completion	*done;
 	struct work_struct	work;
@@ -66,8 +64,6 @@ struct xfs_bmalloca {
 int	xfs_bmap_finish(struct xfs_trans **tp, struct xfs_bmap_free *flist,
 			int *committed);
 int	xfs_bmap_rtalloc(struct xfs_bmalloca *ap);
-int	xfs_bmapi_allocate(struct xfs_bmalloca *args);
-int	__xfs_bmapi_allocate(struct xfs_bmalloca *args);
 int	xfs_bmap_eof(struct xfs_inode *ip, xfs_fileoff_t endoff,
 		     int whichfork, int *eof);
 int	xfs_bmap_count_blocks(struct xfs_trans *tp, struct xfs_inode *ip,

@@ -3,11 +3,6 @@
 
 #include <mach/hardware.h>
 
-/*
- * Physical DRAM offset.
- */
-#define PLAT_PHYS_OFFSET	UL(0x00000000)
-
 #ifndef __ASSEMBLY__
 
 #if defined(CONFIG_ARCH_IOP13XX)

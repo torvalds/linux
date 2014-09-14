@@ -22,39 +22,41 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/os.h>
+#include <nvif/event.h>
+
 #include <subdev/gpio.h>
 
 #include "conn.h"
 #include "outp.h"
 
-static void
-nvkm_connector_hpd_work(struct work_struct *w)
+static int
+nvkm_connector_hpd(struct nvkm_notify *notify)
 {
-	struct nvkm_connector *conn = container_of(w, typeof(*conn), hpd.work);
+	struct nvkm_connector *conn = container_of(notify, typeof(*conn), hpd);
 	struct nouveau_disp *disp = nouveau_disp(conn);
 	struct nouveau_gpio *gpio = nouveau_gpio(conn);
-	u32 send = NVKM_HPD_UNPLUG;
-	if (gpio->get(gpio, 0, DCB_GPIO_UNUSED, conn->hpd.event->index))
-		send = NVKM_HPD_PLUG;
-	nouveau_event_trigger(disp->hpd, send, conn->index);
-	nouveau_event_get(conn->hpd.event);
-}
+	const struct nvkm_gpio_ntfy_rep *line = notify->data;
+	struct nvif_notify_conn_rep_v0 rep;
+	int index = conn->index;
 
-static int
-nvkm_connector_hpd(void *data, u32 type, int index)
-{
-	struct nvkm_connector *conn = data;
-	DBG("HPD: %d\n", type);
-	schedule_work(&conn->hpd.work);
-	return NVKM_EVENT_DROP;
+	DBG("HPD: %d\n", line->mask);
+
+	if (!gpio->get(gpio, 0, DCB_GPIO_UNUSED, conn->hpd.index))
+		rep.mask = NVIF_NOTIFY_CONN_V0_UNPLUG;
+	else
+		rep.mask = NVIF_NOTIFY_CONN_V0_PLUG;
+	rep.version = 0;
+
+	nvkm_event_send(&disp->hpd, rep.mask, index, &rep, sizeof(rep));
+	return NVKM_NOTIFY_KEEP;
 }
 
 int
 _nvkm_connector_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nvkm_connector *conn = (void *)object;
-	if (conn->hpd.event)
-		nouveau_event_put(conn->hpd.event);
+	nvkm_notify_put(&conn->hpd);
 	return nouveau_object_fini(&conn->base, suspend);
 }
 
@@ -63,10 +65,8 @@ _nvkm_connector_init(struct nouveau_object *object)
 {
 	struct nvkm_connector *conn = (void *)object;
 	int ret = nouveau_object_init(&conn->base);
-	if (ret == 0) {
-		if (conn->hpd.event)
-			nouveau_event_get(conn->hpd.event);
-	}
+	if (ret == 0)
+		nvkm_notify_get(&conn->hpd);
 	return ret;
 }
 
@@ -74,7 +74,7 @@ void
 _nvkm_connector_dtor(struct nouveau_object *object)
 {
 	struct nvkm_connector *conn = (void *)object;
-	nouveau_event_ref(NULL, &conn->hpd.event);
+	nvkm_notify_fini(&conn->hpd);
 	nouveau_object_destroy(&conn->base);
 }
 
@@ -116,19 +116,24 @@ nvkm_connector_create_(struct nouveau_object *parent,
 	if ((info->hpd = ffs(info->hpd))) {
 		if (--info->hpd >= ARRAY_SIZE(hpd)) {
 			ERR("hpd %02x unknown\n", info->hpd);
-			goto done;
+			return 0;
 		}
 		info->hpd = hpd[info->hpd];
 
 		ret = gpio->find(gpio, 0, info->hpd, DCB_GPIO_UNUSED, &func);
 		if (ret) {
 			ERR("func %02x lookup failed, %d\n", info->hpd, ret);
-			goto done;
+			return 0;
 		}
 
-		ret = nouveau_event_new(gpio->events, NVKM_GPIO_TOGGLED,
-					func.line, nvkm_connector_hpd,
-					conn, &conn->hpd.event);
+		ret = nvkm_notify_init(&gpio->event, nvkm_connector_hpd, true,
+				       &(struct nvkm_gpio_ntfy_req) {
+					.mask = NVKM_GPIO_TOGGLED,
+					.line = func.line,
+				       },
+				       sizeof(struct nvkm_gpio_ntfy_req),
+				       sizeof(struct nvkm_gpio_ntfy_rep),
+				       &conn->hpd);
 		if (ret) {
 			ERR("func %02x failed, %d\n", info->hpd, ret);
 		} else {
@@ -136,8 +141,6 @@ nvkm_connector_create_(struct nouveau_object *parent,
 		}
 	}
 
-done:
-	INIT_WORK(&conn->hpd.work, nvkm_connector_hpd_work);
 	return 0;
 }
 

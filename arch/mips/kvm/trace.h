@@ -1,11 +1,11 @@
 /*
-* This file is subject to the terms and conditions of the GNU General Public
-* License.  See the file "COPYING" in the main directory of this archive
-* for more details.
-*
-* Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
-* Authors: Sanjay Lal <sanjayl@kymasys.com>
-*/
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Authors: Sanjay Lal <sanjayl@kymasys.com>
+ */
 
 #if !defined(_TRACE_KVM_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_KVM_H
@@ -17,9 +17,7 @@
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE trace
 
-/*
- * Tracepoints for VM eists
- */
+/* Tracepoints for VM eists */
 extern char *kvm_mips_exit_types_str[MAX_KVM_MIPS_EXIT_TYPES];
 
 TRACE_EVENT(kvm_exit,

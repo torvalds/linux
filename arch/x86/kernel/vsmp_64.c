@@ -152,7 +152,7 @@ static void __init detect_vsmp_box(void)
 		is_vsmp = 1;
 }
 
-int is_vsmp_box(void)
+static int is_vsmp_box(void)
 {
 	if (is_vsmp != -1)
 		return is_vsmp;
@@ -166,7 +166,7 @@ int is_vsmp_box(void)
 static void __init detect_vsmp_box(void)
 {
 }
-int is_vsmp_box(void)
+static int is_vsmp_box(void)
 {
 	return 0;
 }

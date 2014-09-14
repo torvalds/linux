@@ -35,7 +35,8 @@
 #include <linux/of_iommu.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/tegra-ahb.h>
+
+#include <soc/tegra/ahb.h>
 
 #include <asm/page.h>
 #include <asm/cacheflush.h>
@@ -947,7 +948,7 @@ static void smmu_iommu_domain_destroy(struct iommu_domain *domain)
 	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
 }
 
-static struct iommu_ops smmu_iommu_ops = {
+static const struct iommu_ops smmu_iommu_ops = {
 	.domain_init	= smmu_iommu_domain_init,
 	.domain_destroy	= smmu_iommu_domain_destroy,
 	.attach_dev	= smmu_iommu_attach_dev,

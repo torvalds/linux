@@ -320,7 +320,7 @@ int berlin_pinctrl_probe(struct platform_device *pdev,
 
 	regmap = dev_get_regmap(&pdev->dev, NULL);
 	if (!regmap)
-		return PTR_ERR(regmap);
+		return -ENODEV;
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)

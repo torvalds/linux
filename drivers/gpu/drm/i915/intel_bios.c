@@ -315,9 +315,6 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
 
-	/* Err to enabling backlight if no backlight block. */
-	dev_priv->vbt.backlight.present = true;
-
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
 		return;
@@ -339,11 +336,12 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
+	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
 	DRM_DEBUG_KMS("VBT backlight PWM modulation frequency %u Hz, "
 		      "active %s, min brightness %u, level %u\n",
 		      dev_priv->vbt.backlight.pwm_freq_hz,
 		      dev_priv->vbt.backlight.active_low_pwm ? "low" : "high",
-		      entry->min_brightness,
+		      dev_priv->vbt.backlight.min_brightness,
 		      backlight_data->level[panel_type]);
 }
 
@@ -880,7 +878,7 @@ err:
 
 	/* error during parsing so set all pointers to null
 	 * because of partial parsing */
-	memset(dev_priv->vbt.dsi.sequence, 0, MIPI_SEQ_MAX);
+	memset(dev_priv->vbt.dsi.sequence, 0, sizeof(dev_priv->vbt.dsi.sequence));
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
@@ -1087,6 +1085,9 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	enum port port;
 
 	dev_priv->vbt.crt_ddc_pin = GMBUS_PORT_VGADDC;
+
+	/* Default to having backlight */
+	dev_priv->vbt.backlight.present = true;
 
 	/* LFP panel data */
 	dev_priv->vbt.lvds_dither = 1;

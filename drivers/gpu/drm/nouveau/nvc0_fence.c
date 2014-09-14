@@ -22,12 +22,6 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/object.h>
-#include <core/client.h>
-#include <core/class.h>
-
-#include <engine/fifo.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"

@@ -102,7 +102,7 @@ static int dw_mci_pci_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(dw_mci_pci_pmops, dw_mci_pci_suspend, dw_mci_pci_resume);
 
-static DEFINE_PCI_DEVICE_TABLE(dw_mci_pci_id) = {
+static const struct pci_device_id dw_mci_pci_id[] = {
 	{ PCI_DEVICE(SYNOPSYS_DW_MCI_VENDOR_ID, SYNOPSYS_DW_MCI_DEVICE_ID) },
 	{}
 };

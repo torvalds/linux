@@ -84,7 +84,7 @@ unsigned long iov_iter_alignment(const struct iov_iter *i);
 void iov_iter_init(struct iov_iter *i, int direction, const struct iovec *iov,
 			unsigned long nr_segs, size_t count);
 ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
-			size_t maxsize, size_t *start);
+			unsigned maxpages, size_t *start);
 ssize_t iov_iter_get_pages_alloc(struct iov_iter *i, struct page ***pages,
 			size_t maxsize, size_t *start);
 int iov_iter_npages(const struct iov_iter *i, int maxpages);
@@ -94,8 +94,20 @@ static inline size_t iov_iter_count(struct iov_iter *i)
 	return i->count;
 }
 
-static inline void iov_iter_truncate(struct iov_iter *i, size_t count)
+/*
+ * Cap the iov_iter by given limit; note that the second argument is
+ * *not* the new size - it's upper limit for such.  Passing it a value
+ * greater than the amount of data in iov_iter is fine - it'll just do
+ * nothing in that case.
+ */
+static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
 {
+	/*
+	 * count doesn't have to fit in size_t - comparison extends both
+	 * operands to u64 here and any value that would be truncated by
+	 * conversion in assignement is by definition greater than all
+	 * values of size_t, including old i->count.
+	 */
 	if (i->count > count)
 		i->count = count;
 }
@@ -111,6 +123,9 @@ static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
 
 int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len);
 int memcpy_toiovec(struct iovec *iov, unsigned char *kdata, int len);
-
+int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
+			int offset, int len);
+int memcpy_toiovecend(const struct iovec *v, unsigned char *kdata,
+		      int offset, int len);
 
 #endif

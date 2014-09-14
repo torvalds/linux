@@ -185,7 +185,7 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 
 	sdev = to_scsi_device(dev);
 	seq_printf(s,
-		"Host: scsi%d Channel: %02d Id: %02d Lun: %02d\n  Vendor: ",
+		"Host: scsi%d Channel: %02d Id: %02d Lun: %02llu\n  Vendor: ",
 		sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
 	for (i = 0; i < 8; i++) {
 		if (sdev->vendor[i] >= 0x20)

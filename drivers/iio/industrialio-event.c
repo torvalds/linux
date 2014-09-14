@@ -209,6 +209,7 @@ static const char * const iio_ev_info_text[] = {
 	[IIO_EV_INFO_ENABLE] = "en",
 	[IIO_EV_INFO_VALUE] = "value",
 	[IIO_EV_INFO_HYSTERESIS] = "hysteresis",
+	[IIO_EV_INFO_PERIOD] = "period",
 };
 
 static enum iio_event_direction iio_ev_attr_dir(struct iio_dev_attr *attr)
@@ -344,6 +345,9 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 			 (i << 16) | spec_index, shared_by, &indio_dev->dev,
 			&indio_dev->event_interface->dev_attr_list);
 		kfree(postfix);
+
+		if ((ret == -EBUSY) && (shared_by != IIO_SEPARATE))
+			continue;
 
 		if (ret)
 			return ret;

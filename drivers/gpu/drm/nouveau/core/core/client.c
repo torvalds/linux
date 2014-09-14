@@ -26,13 +26,167 @@
 #include <core/client.h>
 #include <core/handle.h>
 #include <core/option.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
+
+#include <nvif/unpack.h>
+#include <nvif/event.h>
 
 #include <engine/device.h>
+
+struct nvkm_client_notify {
+	struct nouveau_client *client;
+	struct nvkm_notify n;
+	u8 version;
+	u8 size;
+	union {
+		struct nvif_notify_rep_v0 v0;
+	} rep;
+};
+
+static int
+nvkm_client_notify(struct nvkm_notify *n)
+{
+	struct nvkm_client_notify *notify = container_of(n, typeof(*notify), n);
+	struct nouveau_client *client = notify->client;
+	return client->ntfy(&notify->rep, notify->size, n->data, n->size);
+}
+
+int
+nvkm_client_notify_put(struct nouveau_client *client, int index)
+{
+	if (index < ARRAY_SIZE(client->notify)) {
+		if (client->notify[index]) {
+			nvkm_notify_put(&client->notify[index]->n);
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+int
+nvkm_client_notify_get(struct nouveau_client *client, int index)
+{
+	if (index < ARRAY_SIZE(client->notify)) {
+		if (client->notify[index]) {
+			nvkm_notify_get(&client->notify[index]->n);
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+int
+nvkm_client_notify_del(struct nouveau_client *client, int index)
+{
+	if (index < ARRAY_SIZE(client->notify)) {
+		if (client->notify[index]) {
+			nvkm_notify_fini(&client->notify[index]->n);
+			kfree(client->notify[index]);
+			client->notify[index] = NULL;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+int
+nvkm_client_notify_new(struct nouveau_client *client,
+		       struct nvkm_event *event, void *data, u32 size)
+{
+	struct nvkm_client_notify *notify;
+	union {
+		struct nvif_notify_req_v0 v0;
+	} *req = data;
+	u8  index, reply;
+	int ret;
+
+	for (index = 0; index < ARRAY_SIZE(client->notify); index++) {
+		if (!client->notify[index])
+			break;
+	}
+
+	if (index == ARRAY_SIZE(client->notify))
+		return -ENOSPC;
+
+	notify = kzalloc(sizeof(*notify), GFP_KERNEL);
+	if (!notify)
+		return -ENOMEM;
+
+	nv_ioctl(client, "notify new size %d\n", size);
+	if (nvif_unpack(req->v0, 0, 0, true)) {
+		nv_ioctl(client, "notify new vers %d reply %d route %02x "
+				 "token %llx\n", req->v0.version,
+			 req->v0.reply, req->v0.route, req->v0.token);
+		notify->version = req->v0.version;
+		notify->size = sizeof(notify->rep.v0);
+		notify->rep.v0.version = req->v0.version;
+		notify->rep.v0.route = req->v0.route;
+		notify->rep.v0.token = req->v0.token;
+		reply = req->v0.reply;
+	}
+
+	if (ret == 0) {
+		ret = nvkm_notify_init(event, nvkm_client_notify, false,
+				       data, size, reply, &notify->n);
+		if (ret == 0) {
+			client->notify[index] = notify;
+			notify->client = client;
+			return index;
+		}
+	}
+
+	kfree(notify);
+	return ret;
+}
+
+static int
+nouveau_client_devlist(struct nouveau_object *object, void *data, u32 size)
+{
+	union {
+		struct nv_client_devlist_v0 v0;
+	} *args = data;
+	int ret;
+
+	nv_ioctl(object, "client devlist size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, true)) {
+		nv_ioctl(object, "client devlist vers %d count %d\n",
+			 args->v0.version, args->v0.count);
+		if (size == sizeof(args->v0.device[0]) * args->v0.count) {
+			ret = nouveau_device_list(args->v0.device,
+						  args->v0.count);
+			if (ret >= 0) {
+				args->v0.count = ret;
+				ret = 0;
+			}
+		} else {
+			ret = -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
+static int
+nouveau_client_mthd(struct nouveau_object *object, u32 mthd,
+		    void *data, u32 size)
+{
+	switch (mthd) {
+	case NV_CLIENT_DEVLIST:
+		return nouveau_client_devlist(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
 
 static void
 nouveau_client_dtor(struct nouveau_object *object)
 {
 	struct nouveau_client *client = (void *)object;
+	int i;
+	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
+		nvkm_client_notify_del(client, i);
 	nouveau_object_ref(NULL, &client->device);
 	nouveau_handle_destroy(client->root);
 	nouveau_namedb_destroy(&client->base);
@@ -42,6 +196,7 @@ static struct nouveau_oclass
 nouveau_client_oclass = {
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.dtor = nouveau_client_dtor,
+		.mthd = nouveau_client_mthd,
 	},
 };
 
@@ -93,9 +248,12 @@ int
 nouveau_client_fini(struct nouveau_client *client, bool suspend)
 {
 	const char *name[2] = { "fini", "suspend" };
-	int ret;
-
+	int ret, i;
 	nv_debug(client, "%s running\n", name[suspend]);
+	nv_debug(client, "%s notify\n", name[suspend]);
+	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
+		nvkm_client_notify_put(client, i);
+	nv_debug(client, "%s object\n", name[suspend]);
 	ret = nouveau_handle_fini(client->root, suspend);
 	nv_debug(client, "%s completed with %d\n", name[suspend], ret);
 	return ret;

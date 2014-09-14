@@ -330,7 +330,7 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	disk_super->discard_root = cpu_to_le64(cmd->discard_root);
 	disk_super->discard_block_size = cpu_to_le64(cmd->discard_block_size);
 	disk_super->discard_nr_blocks = cpu_to_le64(from_oblock(cmd->discard_nr_blocks));
-	disk_super->metadata_block_size = cpu_to_le32(DM_CACHE_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
+	disk_super->metadata_block_size = cpu_to_le32(DM_CACHE_METADATA_BLOCK_SIZE);
 	disk_super->data_block_size = cpu_to_le32(cmd->data_block_size);
 	disk_super->cache_blocks = cpu_to_le32(0);
 
@@ -425,6 +425,15 @@ static int __open_metadata(struct dm_cache_metadata *cmd)
 
 	disk_super = dm_block_data(sblock);
 
+	/* Verify the data block size hasn't changed */
+	if (le32_to_cpu(disk_super->data_block_size) != cmd->data_block_size) {
+		DMERR("changing the data block size (from %u to %llu) is not supported",
+		      le32_to_cpu(disk_super->data_block_size),
+		      (unsigned long long)cmd->data_block_size);
+		r = -EINVAL;
+		goto bad;
+	}
+
 	r = __check_incompat_features(disk_super, cmd);
 	if (r < 0)
 		goto bad;
@@ -469,7 +478,7 @@ static int __create_persistent_data_objects(struct dm_cache_metadata *cmd,
 					    bool may_format_device)
 {
 	int r;
-	cmd->bm = dm_block_manager_create(cmd->bdev, DM_CACHE_METADATA_BLOCK_SIZE,
+	cmd->bm = dm_block_manager_create(cmd->bdev, DM_CACHE_METADATA_BLOCK_SIZE << SECTOR_SHIFT,
 					  CACHE_METADATA_CACHE_SIZE,
 					  CACHE_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(cmd->bm)) {

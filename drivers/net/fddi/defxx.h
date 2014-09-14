@@ -1693,7 +1693,7 @@ typedef union
 /* Only execute special print call when debug driver was built */
 
 #ifdef DEFXX_DEBUG
-#define DBG_printk(args...) printk(## args)
+#define DBG_printk(args...) printk(args)
 #else
 #define DBG_printk(args...)
 #endif

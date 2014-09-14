@@ -1768,7 +1768,7 @@ static u16 phy_read_1bit(struct uli526x_board_info *db)
 }
 
 
-static DEFINE_PCI_DEVICE_TABLE(uli526x_pci_tbl) = {
+static const struct pci_device_id uli526x_pci_tbl[] = {
 	{ 0x10B9, 0x5261, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_ULI5261_ID },
 	{ 0x10B9, 0x5263, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_ULI5263_ID },
 	{ 0, }

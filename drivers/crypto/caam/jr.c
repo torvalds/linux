@@ -453,8 +453,8 @@ static int caam_jr_probe(struct platform_device *pdev)
 	int error;
 
 	jrdev = &pdev->dev;
-	jrpriv = kmalloc(sizeof(struct caam_drv_private_jr),
-			 GFP_KERNEL);
+	jrpriv = devm_kmalloc(jrdev, sizeof(struct caam_drv_private_jr),
+			      GFP_KERNEL);
 	if (!jrpriv)
 		return -ENOMEM;
 
@@ -476,21 +476,19 @@ static int caam_jr_probe(struct platform_device *pdev)
 
 	if (sizeof(dma_addr_t) == sizeof(u64))
 		if (of_device_is_compatible(nprop, "fsl,sec-v5.0-job-ring"))
-			dma_set_mask(jrdev, DMA_BIT_MASK(40));
+			dma_set_mask_and_coherent(jrdev, DMA_BIT_MASK(40));
 		else
-			dma_set_mask(jrdev, DMA_BIT_MASK(36));
+			dma_set_mask_and_coherent(jrdev, DMA_BIT_MASK(36));
 	else
-		dma_set_mask(jrdev, DMA_BIT_MASK(32));
+		dma_set_mask_and_coherent(jrdev, DMA_BIT_MASK(32));
 
 	/* Identify the interrupt */
 	jrpriv->irq = irq_of_parse_and_map(nprop, 0);
 
 	/* Now do the platform independent part */
 	error = caam_jr_init(jrdev); /* now turn on hardware */
-	if (error) {
-		kfree(jrpriv);
+	if (error)
 		return error;
-	}
 
 	jrpriv->dev = jrdev;
 	spin_lock(&driver_data.jr_alloc_lock);

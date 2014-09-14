@@ -45,14 +45,14 @@
 #include <linux/namei.h>
 #include <asm/uaccess.h>
 
-#include <lustre/lustre_idl.h>
-#include <obd_support.h>
-#include <lustre_lib.h>
-#include <lustre_net.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
-#include <lustre_lite.h>
-#include <lustre_fid.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_net.h"
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_fid.h"
 #include "lmv_internal.h"
 
 static void lmv_activate_target(struct lmv_obd *lmv,
@@ -90,7 +90,7 @@ static int lmv_set_mdc_active(struct lmv_obd *lmv, struct obd_uuid *uuid,
 		if (tgt == NULL || tgt->ltd_exp == NULL)
 			continue;
 
-		CDEBUG(D_INFO, "Target idx %d is %s conn "LPX64"\n", i,
+		CDEBUG(D_INFO, "Target idx %d is %s conn %#llx\n", i,
 		       tgt->ltd_uuid.uuid, tgt->ltd_exp->exp_handle.h_cookie);
 
 		if (obd_uuid_equals(uuid, &tgt->ltd_uuid))
@@ -735,7 +735,7 @@ repeat_fid2path:
 		*ptr = '/';
 	}
 
-	CDEBUG(D_INFO, "%s: get path %s "DFID" rec: "LPU64" ln: %u\n",
+	CDEBUG(D_INFO, "%s: get path %s "DFID" rec: %llu ln: %u\n",
 	       tgt->ltd_exp->exp_obd->obd_name,
 	       gf->gf_path, PFID(&gf->gf_fid), gf->gf_recno,
 	       gf->gf_linkno);
@@ -1339,7 +1339,7 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	lprocfs_lmv_init_vars(&lvars);
 
 	lprocfs_obd_setup(obd, lvars.obd_vars);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	{
 		rc = lprocfs_seq_create(obd->obd_proc_entry, "target_obd",
 					0444, &lmv_proc_target_fops, obd);
@@ -1715,7 +1715,7 @@ static int
 lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		   struct lookup_intent *it, struct md_op_data *op_data,
 		   struct lustre_handle *lockh, void *lmm, int lmmsize,
-		   int extra_lock_flags)
+		   __u64 extra_lock_flags)
 {
 	struct ptlrpc_request      *req = it->d.lustre.it_data;
 	struct obd_device	  *obd = exp->exp_obd;
@@ -2173,7 +2173,7 @@ static int lmv_readpage(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc)
 		return rc;
 
-	CDEBUG(D_INODE, "READPAGE at "LPX64" from "DFID"\n",
+	CDEBUG(D_INODE, "READPAGE at %#llx from "DFID"\n",
 	       offset, PFID(&op_data->op_fid1));
 
 	tgt = lmv_find_target(lmv, &op_data->op_fid1);
@@ -2315,7 +2315,7 @@ static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 
 	obd = class_exp2obd(exp);
 	if (obd == NULL) {
-		CDEBUG(D_IOCTL, "Invalid client cookie "LPX64"\n",
+		CDEBUG(D_IOCTL, "Invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
@@ -2381,7 +2381,7 @@ int lmv_set_info_async(const struct lu_env *env, struct obd_export *exp,
 
 	obd = class_exp2obd(exp);
 	if (obd == NULL) {
-		CDEBUG(D_IOCTL, "Invalid client cookie "LPX64"\n",
+		CDEBUG(D_IOCTL, "Invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}

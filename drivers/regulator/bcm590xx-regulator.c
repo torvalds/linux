@@ -119,6 +119,10 @@ static const unsigned int ldo_c_table[] = {
 	2900000, 3000000, 3300000,
 };
 
+static const unsigned int ldo_vbus[] = {
+	5000000,
+};
+
 /* DCDC group CSR: supported voltages in microvolts */
 static const struct regulator_linear_range dcdc_csr_ranges[] = {
 	REGULATOR_LINEAR_RANGE(860000, 2, 50, 10000),
@@ -192,6 +196,7 @@ static struct bcm590xx_info bcm590xx_regs[] = {
 	BCM590XX_REG_TABLE(gpldo4, ldo_a_table),
 	BCM590XX_REG_TABLE(gpldo5, ldo_a_table),
 	BCM590XX_REG_TABLE(gpldo6, ldo_a_table),
+	BCM590XX_REG_TABLE(vbus, ldo_vbus),
 };
 
 struct bcm590xx_reg {
@@ -326,10 +331,8 @@ static struct bcm590xx_board *bcm590xx_parse_dt_reg_data(
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "failed to allocate regulator board data\n");
+	if (!data)
 		return NULL;
-	}
 
 	np = of_node_get(np);
 	regulators = of_get_child_by_name(np, "regulators");
@@ -374,10 +377,8 @@ static int bcm590xx_probe(struct platform_device *pdev)
 					      &bcm590xx_reg_matches);
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
-	if (!pmu) {
-		dev_err(&pdev->dev, "Memory allocation failed for pmu\n");
+	if (!pmu)
 		return -ENOMEM;
-	}
 
 	pmu->mfd = bcm590xx;
 
@@ -385,17 +386,13 @@ static int bcm590xx_probe(struct platform_device *pdev)
 
 	pmu->desc = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
 			sizeof(struct regulator_desc), GFP_KERNEL);
-	if (!pmu->desc) {
-		dev_err(&pdev->dev, "Memory alloc fails for desc\n");
+	if (!pmu->desc)
 		return -ENOMEM;
-	}
 
 	pmu->info = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
 			sizeof(struct bcm590xx_info *), GFP_KERNEL);
-	if (!pmu->info) {
-		dev_err(&pdev->dev, "Memory alloc fails for info\n");
+	if (!pmu->info)
 		return -ENOMEM;
-	}
 
 	info = bcm590xx_regs;
 

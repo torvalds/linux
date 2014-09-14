@@ -36,13 +36,13 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <obd.h>
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
-#include <lustre_ha.h>
-#include <lustre_net.h>
-#include <lprocfs_status.h>
+#include "../include/obd.h"
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_ha.h"
+#include "../include/lustre_net.h"
+#include "../include/lprocfs_status.h"
 
 #define NIDS_MAX	32
 

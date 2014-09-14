@@ -13,8 +13,8 @@ struct netns_nftables {
 	struct nft_af_info	*inet;
 	struct nft_af_info	*arp;
 	struct nft_af_info	*bridge;
+	unsigned int		base_seq;
 	u8			gencursor;
-	u8			genctr;
 };
 
 #endif

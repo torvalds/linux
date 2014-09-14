@@ -1293,7 +1293,7 @@ config DIAG288_WATCHDOG
 	  both.
 
 	  To compile this driver as a module, choose M here. The module
-	  will be called vmwatchdog.
+	  will be called diag288_wdt.
 
 # SUPERH (sh + sh64) Architecture
 

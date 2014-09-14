@@ -40,6 +40,10 @@
 #include "commands.h"
 #include "power.h"
 
+static bool force_cam;
+module_param(force_cam, bool, 0644);
+MODULE_PARM_DESC(force_cam, "force continuously aware mode (no power saving at all)");
+
 /*
  * Setting power level allows the card to go to sleep when not busy.
  *
@@ -287,6 +291,11 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 {
 	bool enabled = priv->hw->conf.flags & IEEE80211_CONF_PS;
 	int dtimper;
+
+	if (force_cam) {
+		iwl_power_sleep_cam_cmd(priv, cmd);
+		return;
+	}
 
 	dtimper = priv->hw->conf.ps_dtim_period ?: 1;
 

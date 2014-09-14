@@ -883,7 +883,6 @@ static int w9966_init(struct w9966 *cam, struct parport *port)
 	cam->vdev.ioctl_ops = &w9966_ioctl_ops;
 	cam->vdev.release = video_device_release_empty;
 	cam->vdev.ctrl_handler = &cam->hdl;
-	set_bit(V4L2_FL_USE_FH_PRIO, &cam->vdev.flags);
 	video_set_drvdata(&cam->vdev, cam);
 
 	mutex_init(&cam->lock);

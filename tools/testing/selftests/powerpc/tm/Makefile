@@ -2,7 +2,7 @@ PROGS := tm-resched-dscr
 
 all: $(PROGS)
 
-$(PROGS):
+$(PROGS): ../harness.c
 
 run_tests: all
 	@-for PROG in $(PROGS); do \

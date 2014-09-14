@@ -80,14 +80,14 @@ lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
 static inline void lowpan_address_flip(u8 *src, u8 *dest)
 {
 	int i;
+
 	for (i = 0; i < IEEE802154_ADDR_LEN; i++)
 		(dest)[IEEE802154_ADDR_LEN - i - 1] = (src)[i];
 }
 
-static int lowpan_header_create(struct sk_buff *skb,
-			   struct net_device *dev,
-			   unsigned short type, const void *_daddr,
-			   const void *_saddr, unsigned int len)
+static int lowpan_header_create(struct sk_buff *skb, struct net_device *dev,
+				unsigned short type, const void *_daddr,
+				const void *_saddr, unsigned int len)
 {
 	const u8 *saddr = _saddr;
 	const u8 *daddr = _daddr;
@@ -144,7 +144,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 }
 
 static int lowpan_give_skb_to_devices(struct sk_buff *skb,
-					struct net_device *dev)
+				      struct net_device *dev)
 {
 	struct lowpan_dev_record *entry;
 	struct sk_buff *skb_cp;
@@ -368,24 +368,28 @@ static netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *dev)
 static struct wpan_phy *lowpan_get_phy(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+
 	return ieee802154_mlme_ops(real_dev)->get_phy(real_dev);
 }
 
 static __le16 lowpan_get_pan_id(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+
 	return ieee802154_mlme_ops(real_dev)->get_pan_id(real_dev);
 }
 
 static __le16 lowpan_get_short_addr(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+
 	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);
 }
 
 static u8 lowpan_get_dsn(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+
 	return ieee802154_mlme_ops(real_dev)->get_dsn(real_dev);
 }
 
@@ -454,7 +458,7 @@ static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
 }
 
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
-	struct packet_type *pt, struct net_device *orig_dev)
+		      struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct ieee802154_hdr hdr;
 	int ret;

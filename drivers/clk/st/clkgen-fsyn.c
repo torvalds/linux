@@ -41,7 +41,7 @@ struct stm_fs {
 	unsigned long nsdiv;
 };
 
-static struct stm_fs fs216c65_rtbl[] = {
+static const struct stm_fs fs216c65_rtbl[] = {
 	{ .mdiv = 0x1f, .pe = 0x0,	.sdiv = 0x7,	.nsdiv = 0 },	/* 312.5 Khz */
 	{ .mdiv = 0x17, .pe = 0x25ed,	.sdiv = 0x1,	.nsdiv = 0 },	/* 27    MHz */
 	{ .mdiv = 0x1a, .pe = 0x7b36,	.sdiv = 0x2,	.nsdiv = 1 },	/* 36.87 MHz */
@@ -49,31 +49,86 @@ static struct stm_fs fs216c65_rtbl[] = {
 	{ .mdiv = 0x11, .pe = 0x1c72,	.sdiv = 0x1,	.nsdiv = 1 },	/* 108   MHz */
 };
 
-static struct stm_fs fs432c65_rtbl[] = {
-	{ .mdiv = 0x1f, .pe = 0x0,	.sdiv = 0x7,	.nsdiv = 0 },	/* 625   Khz */
-	{ .mdiv = 0x11, .pe = 0x1c72,	.sdiv = 0x2,	.nsdiv = 1 },	/* 108   MHz */
-	{ .mdiv = 0x19, .pe = 0x121a,	.sdiv = 0x0,	.nsdiv = 1 },	/* 297   MHz */
+static const struct stm_fs fs432c65_rtbl[] = {
+	{ .mdiv = 0x1f, .pe = 0x0,	.sdiv = 0x7,	.nsdiv = 0 },	/* 625     Khz */
+	{ .mdiv = 0x13, .pe = 0x777c,	.sdiv = 0x4,	.nsdiv = 1 },	/* 25.175  MHz */
+	{ .mdiv = 0x19, .pe = 0x4d35,	.sdiv = 0x2,	.nsdiv = 0 },	/* 25.200  MHz */
+	{ .mdiv = 0x11, .pe = 0x1c72,	.sdiv = 0x4,	.nsdiv = 1 },	/* 27.000  MHz */
+	{ .mdiv = 0x17, .pe = 0x28f5,	.sdiv = 0x2,	.nsdiv = 0 },	/* 27.027  MHz */
+	{ .mdiv = 0x16, .pe = 0x3359,	.sdiv = 0x2,	.nsdiv = 0 },	/* 28.320  MHz */
+	{ .mdiv = 0x1f, .pe = 0x2083,	.sdiv = 0x3,	.nsdiv = 1 },	/* 30.240  MHz */
+	{ .mdiv = 0x1e, .pe = 0x430d,	.sdiv = 0x3,	.nsdiv = 1 },	/* 31.500  MHz */
+	{ .mdiv = 0x17, .pe = 0x0,	.sdiv = 0x3,	.nsdiv = 1 },	/* 40.000  MHz */
+	{ .mdiv = 0x19, .pe = 0x121a,	.sdiv = 0x1,	.nsdiv = 0 },	/* 49.500  MHz */
+	{ .mdiv = 0x13, .pe = 0x6667,	.sdiv = 0x3,	.nsdiv = 1 },	/* 50.000  MHz */
+	{ .mdiv = 0x10, .pe = 0x1ee6,	.sdiv = 0x3,	.nsdiv = 1 },	/* 57.284  MHz */
+	{ .mdiv = 0x1d, .pe = 0x3b14,	.sdiv = 0x2,	.nsdiv = 1 },	/* 65.000  MHz */
+	{ .mdiv = 0x12, .pe = 0x7c65,	.sdiv = 0x1,	.nsdiv = 0 },	/* 71.000  MHz */
+	{ .mdiv = 0x19, .pe = 0xecd,	.sdiv = 0x2,	.nsdiv = 1 },	/* 74.176  MHz */
+	{ .mdiv = 0x19, .pe = 0x121a,	.sdiv = 0x2,	.nsdiv = 1 },	/* 74.250  MHz */
+	{ .mdiv = 0x19, .pe = 0x3334,	.sdiv = 0x2,	.nsdiv = 1 },	/* 75.000  MHz */
+	{ .mdiv = 0x18, .pe = 0x5138,	.sdiv = 0x2,	.nsdiv = 1 },	/* 78.800  MHz */
+	{ .mdiv = 0x1d, .pe = 0x77d,	.sdiv = 0x0,	.nsdiv = 0 },	/* 85.500  MHz */
+	{ .mdiv = 0x1c, .pe = 0x13d5,	.sdiv = 0x0,	.nsdiv = 0 },	/* 88.750  MHz */
+	{ .mdiv = 0x11, .pe = 0x1c72,	.sdiv = 0x2,	.nsdiv = 1 },	/* 108.000 MHz */
+	{ .mdiv = 0x17, .pe = 0x28f5,	.sdiv = 0x0,	.nsdiv = 0 },	/* 108.108 MHz */
+	{ .mdiv = 0x10, .pe = 0x6e26,	.sdiv = 0x2,	.nsdiv = 1 },	/* 118.963 MHz */
+	{ .mdiv = 0x15, .pe = 0x3e63,	.sdiv = 0x0,	.nsdiv = 0 },	/* 119.000 MHz */
+	{ .mdiv = 0x1c, .pe = 0x471d,	.sdiv = 0x1,	.nsdiv = 1 },	/* 135.000 MHz */
+	{ .mdiv = 0x19, .pe = 0xecd,	.sdiv = 0x1,	.nsdiv = 1 },	/* 148.352 MHz */
+	{ .mdiv = 0x19, .pe = 0x121a,	.sdiv = 0x1,	.nsdiv = 1 },	/* 148.500 MHz */
+	{ .mdiv = 0x19, .pe = 0x121a,	.sdiv = 0x0,	.nsdiv = 1 },	/* 297     MHz */
 };
 
-static struct stm_fs fs660c32_rtbl[] = {
-	{ .mdiv = 0x01, .pe = 0x2aaa,	.sdiv = 0x8,	.nsdiv = 0 },	/* 600   KHz */
-	{ .mdiv = 0x02, .pe = 0x3d33,	.sdiv = 0x0,	.nsdiv = 0 },	/* 148.5 Mhz */
-	{ .mdiv = 0x13, .pe = 0x5bcc,	.sdiv = 0x0,	.nsdiv = 1 },	/* 297   Mhz */
-	{ .mdiv = 0x0e, .pe = 0x1025,	.sdiv = 0x0,	.nsdiv = 1 },	/* 333   Mhz */
-	{ .mdiv = 0x0b, .pe = 0x715f,	.sdiv = 0x0,	.nsdiv = 1 },	/* 350   Mhz */
+static const struct stm_fs fs660c32_rtbl[] = {
+	{ .mdiv = 0x14, .pe = 0x376b,	.sdiv = 0x4,	.nsdiv = 1 },	/* 25.175  MHz */
+	{ .mdiv = 0x14, .pe = 0x30c3,	.sdiv = 0x4,	.nsdiv = 1 },	/* 25.200  MHz */
+	{ .mdiv = 0x10, .pe = 0x71c7,	.sdiv = 0x4,	.nsdiv = 1 },	/* 27.000  MHz */
+	{ .mdiv = 0x00, .pe = 0x47af,	.sdiv = 0x3,	.nsdiv = 0 },	/* 27.027  MHz */
+	{ .mdiv = 0x0e, .pe = 0x4e1a,	.sdiv = 0x4,	.nsdiv = 1 },	/* 28.320  MHz */
+	{ .mdiv = 0x0b, .pe = 0x534d,	.sdiv = 0x4,	.nsdiv = 1 },	/* 30.240  MHz */
+	{ .mdiv = 0x17, .pe = 0x6fbf,	.sdiv = 0x2,	.nsdiv = 0 },	/* 31.500  MHz */
+	{ .mdiv = 0x01, .pe = 0x0,	.sdiv = 0x4,	.nsdiv = 1 },	/* 40.000  MHz */
+	{ .mdiv = 0x15, .pe = 0x2aab,	.sdiv = 0x3,	.nsdiv = 1 },	/* 49.500  MHz */
+	{ .mdiv = 0x14, .pe = 0x6666,	.sdiv = 0x3,	.nsdiv = 1 },	/* 50.000  MHz */
+	{ .mdiv = 0x1d, .pe = 0x395f,	.sdiv = 0x1,	.nsdiv = 0 },	/* 57.284  MHz */
+	{ .mdiv = 0x08, .pe = 0x4ec5,	.sdiv = 0x3,	.nsdiv = 1 },	/* 65.000  MHz */
+	{ .mdiv = 0x05, .pe = 0x1770,	.sdiv = 0x3,	.nsdiv = 1 },	/* 71.000  MHz */
+	{ .mdiv = 0x03, .pe = 0x4ba7,	.sdiv = 0x3,	.nsdiv = 1 },	/* 74.176  MHz */
+	{ .mdiv = 0x0f, .pe = 0x3426,	.sdiv = 0x1,	.nsdiv = 0 },	/* 74.250  MHz */
+	{ .mdiv = 0x0e, .pe = 0x7777,	.sdiv = 0x1,	.nsdiv = 0 },	/* 75.000  MHz */
+	{ .mdiv = 0x01, .pe = 0x4053,	.sdiv = 0x3,	.nsdiv = 1 },	/* 78.800  MHz */
+	{ .mdiv = 0x09, .pe = 0x15b5,	.sdiv = 0x1,	.nsdiv = 0 },	/* 85.500  MHz */
+	{ .mdiv = 0x1b, .pe = 0x3f19,	.sdiv = 0x2,	.nsdiv = 1 },	/* 88.750  MHz */
+	{ .mdiv = 0x10, .pe = 0x71c7,	.sdiv = 0x2,	.nsdiv = 1 },	/* 108.000 MHz */
+	{ .mdiv = 0x00, .pe = 0x47af,	.sdiv = 0x1,	.nsdiv = 0 },	/* 108.108 MHz */
+	{ .mdiv = 0x0c, .pe = 0x3118,	.sdiv = 0x2,	.nsdiv = 1 },	/* 118.963 MHz */
+	{ .mdiv = 0x0c, .pe = 0x2f54,	.sdiv = 0x2,	.nsdiv = 1 },	/* 119.000 MHz */
+	{ .mdiv = 0x07, .pe = 0xe39,	.sdiv = 0x2,	.nsdiv = 1 },	/* 135.000 MHz */
+	{ .mdiv = 0x03, .pe = 0x4ba7,	.sdiv = 0x2,	.nsdiv = 1 },	/* 148.352 MHz */
+	{ .mdiv = 0x0f, .pe = 0x3426,	.sdiv = 0x0,	.nsdiv = 0 },	/* 148.500 MHz */
+	{ .mdiv = 0x03, .pe = 0x4ba7,	.sdiv = 0x1,	.nsdiv = 1 },	/* 296.704 MHz */
+	{ .mdiv = 0x03, .pe = 0x471c,	.sdiv = 0x1,	.nsdiv = 1 },	/* 297.000 MHz */
+	{ .mdiv = 0x00, .pe = 0x295f,	.sdiv = 0x1,	.nsdiv = 1 },	/* 326.700 MHz */
+	{ .mdiv = 0x1f, .pe = 0x3633,	.sdiv = 0x0,	.nsdiv = 1 },	/* 333.000 MHz */
+	{ .mdiv = 0x1c, .pe = 0x0,	.sdiv = 0x0,	.nsdiv = 1 },	/* 352.000 Mhz */
 };
 
 struct clkgen_quadfs_data {
 	bool reset_present;
 	bool bwfilter_present;
 	bool lockstatus_present;
+	bool powerup_polarity;
+	bool standby_polarity;
 	bool nsdiv_present;
+	bool nrst_present;
 	struct clkgen_field ndiv;
 	struct clkgen_field ref_bw;
 	struct clkgen_field nreset;
 	struct clkgen_field npda;
 	struct clkgen_field lock_status;
 
+	struct clkgen_field nrst[QUADFS_MAX_CHAN];
 	struct clkgen_field nsb[QUADFS_MAX_CHAN];
 	struct clkgen_field en[QUADFS_MAX_CHAN];
 	struct clkgen_field mdiv[QUADFS_MAX_CHAN];
@@ -82,9 +137,9 @@ struct clkgen_quadfs_data {
 	struct clkgen_field nsdiv[QUADFS_MAX_CHAN];
 
 	const struct clk_ops *pll_ops;
-	struct stm_fs *rtbl;
+	const struct stm_fs *rtbl;
 	u8 rtbl_cnt;
-	int  (*get_rate)(unsigned long , struct stm_fs *,
+	int  (*get_rate)(unsigned long , const struct stm_fs *,
 			unsigned long *);
 };
 
@@ -94,11 +149,11 @@ static const struct clk_ops st_quadfs_fs216c65_ops;
 static const struct clk_ops st_quadfs_fs432c65_ops;
 static const struct clk_ops st_quadfs_fs660c32_ops;
 
-static int clk_fs216c65_get_rate(unsigned long, struct stm_fs *,
+static int clk_fs216c65_get_rate(unsigned long, const struct stm_fs *,
 		unsigned long *);
-static int clk_fs432c65_get_rate(unsigned long, struct stm_fs *,
+static int clk_fs432c65_get_rate(unsigned long, const struct stm_fs *,
 		unsigned long *);
-static int clk_fs660c32_dig_get_rate(unsigned long, struct stm_fs *,
+static int clk_fs660c32_dig_get_rate(unsigned long, const struct stm_fs *,
 		unsigned long *);
 /*
  * Values for all of the standalone instances of this clock
@@ -106,7 +161,7 @@ static int clk_fs660c32_dig_get_rate(unsigned long, struct stm_fs *,
  * that the individual channel standby control bits (nsb) are in the
  * first register along with the PLL control bits.
  */
-static struct clkgen_quadfs_data st_fs216c65_416 = {
+static const struct clkgen_quadfs_data st_fs216c65_416 = {
 	/* 416 specific */
 	.npda	= CLKGEN_FIELD(0x0, 0x1, 14),
 	.nsb	= { CLKGEN_FIELD(0x0, 0x1, 10),
@@ -143,7 +198,7 @@ static struct clkgen_quadfs_data st_fs216c65_416 = {
 	.get_rate	= clk_fs216c65_get_rate,
 };
 
-static struct clkgen_quadfs_data st_fs432c65_416 = {
+static const struct clkgen_quadfs_data st_fs432c65_416 = {
 	.npda	= CLKGEN_FIELD(0x0, 0x1, 14),
 	.nsb	= { CLKGEN_FIELD(0x0, 0x1, 10),
 		    CLKGEN_FIELD(0x0, 0x1, 11),
@@ -179,7 +234,7 @@ static struct clkgen_quadfs_data st_fs432c65_416 = {
 	.get_rate	= clk_fs432c65_get_rate,
 };
 
-static struct clkgen_quadfs_data st_fs660c32_E_416 = {
+static const struct clkgen_quadfs_data st_fs660c32_E_416 = {
 	.npda	= CLKGEN_FIELD(0x0, 0x1, 14),
 	.nsb	= { CLKGEN_FIELD(0x0, 0x1, 10),
 		    CLKGEN_FIELD(0x0, 0x1, 11),
@@ -215,7 +270,7 @@ static struct clkgen_quadfs_data st_fs660c32_E_416 = {
 	.get_rate	= clk_fs660c32_dig_get_rate,
 };
 
-static struct clkgen_quadfs_data st_fs660c32_F_416 = {
+static const struct clkgen_quadfs_data st_fs660c32_F_416 = {
 	.npda	= CLKGEN_FIELD(0x0, 0x1, 14),
 	.nsb	= { CLKGEN_FIELD(0x0, 0x1, 10),
 		    CLKGEN_FIELD(0x0, 0x1, 11),
@@ -250,6 +305,91 @@ static struct clkgen_quadfs_data st_fs660c32_F_416 = {
 	.rtbl_cnt	= ARRAY_SIZE(fs660c32_rtbl),
 	.get_rate	= clk_fs660c32_dig_get_rate,
 };
+
+static const struct clkgen_quadfs_data st_fs660c32_C_407 = {
+	.nrst_present = true,
+	.nrst	= { CLKGEN_FIELD(0x2f0, 0x1, 0),
+		    CLKGEN_FIELD(0x2f0, 0x1, 1),
+		    CLKGEN_FIELD(0x2f0, 0x1, 2),
+		    CLKGEN_FIELD(0x2f0, 0x1, 3) },
+	.npda	= CLKGEN_FIELD(0x2f0, 0x1, 12),
+	.nsb	= { CLKGEN_FIELD(0x2f0, 0x1, 8),
+		    CLKGEN_FIELD(0x2f0, 0x1, 9),
+		    CLKGEN_FIELD(0x2f0, 0x1, 10),
+		    CLKGEN_FIELD(0x2f0, 0x1, 11) },
+	.nsdiv_present = true,
+	.nsdiv	= { CLKGEN_FIELD(0x304, 0x1, 24),
+		    CLKGEN_FIELD(0x308, 0x1, 24),
+		    CLKGEN_FIELD(0x30c, 0x1, 24),
+		    CLKGEN_FIELD(0x310, 0x1, 24) },
+	.mdiv	= { CLKGEN_FIELD(0x304, 0x1f, 15),
+		    CLKGEN_FIELD(0x308, 0x1f, 15),
+		    CLKGEN_FIELD(0x30c, 0x1f, 15),
+		    CLKGEN_FIELD(0x310, 0x1f, 15) },
+	.en	= { CLKGEN_FIELD(0x2fc, 0x1, 0),
+		    CLKGEN_FIELD(0x2fc, 0x1, 1),
+		    CLKGEN_FIELD(0x2fc, 0x1, 2),
+		    CLKGEN_FIELD(0x2fc, 0x1, 3) },
+	.ndiv	= CLKGEN_FIELD(0x2f4, 0x7, 16),
+	.pe	= { CLKGEN_FIELD(0x304, 0x7fff, 0),
+		    CLKGEN_FIELD(0x308, 0x7fff, 0),
+		    CLKGEN_FIELD(0x30c, 0x7fff, 0),
+		    CLKGEN_FIELD(0x310, 0x7fff, 0) },
+	.sdiv	= { CLKGEN_FIELD(0x304, 0xf, 20),
+		    CLKGEN_FIELD(0x308, 0xf, 20),
+		    CLKGEN_FIELD(0x30c, 0xf, 20),
+		    CLKGEN_FIELD(0x310, 0xf, 20) },
+	.lockstatus_present = true,
+	.lock_status = CLKGEN_FIELD(0x2A0, 0x1, 24),
+	.powerup_polarity = 1,
+	.standby_polarity = 1,
+	.pll_ops	= &st_quadfs_pll_c32_ops,
+	.rtbl		= fs660c32_rtbl,
+	.rtbl_cnt	= ARRAY_SIZE(fs660c32_rtbl),
+	.get_rate	= clk_fs660c32_dig_get_rate,
+};
+
+static const struct clkgen_quadfs_data st_fs660c32_D_407 = {
+	.nrst_present = true,
+	.nrst	= { CLKGEN_FIELD(0x2a0, 0x1, 0),
+		    CLKGEN_FIELD(0x2a0, 0x1, 1),
+		    CLKGEN_FIELD(0x2a0, 0x1, 2),
+		    CLKGEN_FIELD(0x2a0, 0x1, 3) },
+	.ndiv	= CLKGEN_FIELD(0x2a4, 0x7, 16),
+	.pe	= { CLKGEN_FIELD(0x2b4, 0x7fff, 0),
+		    CLKGEN_FIELD(0x2b8, 0x7fff, 0),
+		    CLKGEN_FIELD(0x2bc, 0x7fff, 0),
+		    CLKGEN_FIELD(0x2c0, 0x7fff, 0) },
+	.sdiv	= { CLKGEN_FIELD(0x2b4, 0xf, 20),
+		    CLKGEN_FIELD(0x2b8, 0xf, 20),
+		    CLKGEN_FIELD(0x2bc, 0xf, 20),
+		    CLKGEN_FIELD(0x2c0, 0xf, 20) },
+	.npda	= CLKGEN_FIELD(0x2a0, 0x1, 12),
+	.nsb	= { CLKGEN_FIELD(0x2a0, 0x1, 8),
+		    CLKGEN_FIELD(0x2a0, 0x1, 9),
+		    CLKGEN_FIELD(0x2a0, 0x1, 10),
+		    CLKGEN_FIELD(0x2a0, 0x1, 11) },
+	.nsdiv_present = true,
+	.nsdiv	= { CLKGEN_FIELD(0x2b4, 0x1, 24),
+		    CLKGEN_FIELD(0x2b8, 0x1, 24),
+		    CLKGEN_FIELD(0x2bc, 0x1, 24),
+		    CLKGEN_FIELD(0x2c0, 0x1, 24) },
+	.mdiv	= { CLKGEN_FIELD(0x2b4, 0x1f, 15),
+		    CLKGEN_FIELD(0x2b8, 0x1f, 15),
+		    CLKGEN_FIELD(0x2bc, 0x1f, 15),
+		    CLKGEN_FIELD(0x2c0, 0x1f, 15) },
+	.en	= { CLKGEN_FIELD(0x2ac, 0x1, 0),
+		    CLKGEN_FIELD(0x2ac, 0x1, 1),
+		    CLKGEN_FIELD(0x2ac, 0x1, 2),
+		    CLKGEN_FIELD(0x2ac, 0x1, 3) },
+	.lockstatus_present = true,
+	.lock_status = CLKGEN_FIELD(0x2A0, 0x1, 24),
+	.powerup_polarity = 1,
+	.standby_polarity = 1,
+	.pll_ops	= &st_quadfs_pll_c32_ops,
+	.rtbl		= fs660c32_rtbl,
+	.rtbl_cnt	= ARRAY_SIZE(fs660c32_rtbl),
+	.get_rate	= clk_fs660c32_dig_get_rate,};
 
 /**
  * DOC: A Frequency Synthesizer that multiples its input clock by a fixed factor
@@ -308,7 +448,7 @@ static int quadfs_pll_enable(struct clk_hw *hw)
 	/*
 	 * Power up the PLL
 	 */
-	CLKGEN_WRITE(pll, npda, 1);
+	CLKGEN_WRITE(pll, npda, !pll->data->powerup_polarity);
 
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
@@ -335,7 +475,7 @@ static void quadfs_pll_disable(struct clk_hw *hw)
 	 * Powerdown the PLL and then put block into soft reset if we have
 	 * reset control.
 	 */
-	CLKGEN_WRITE(pll, npda, 0);
+	CLKGEN_WRITE(pll, npda, pll->data->powerup_polarity);
 
 	if (pll->data->reset_present)
 		CLKGEN_WRITE(pll, nreset, 0);
@@ -611,7 +751,10 @@ static int quadfs_fsynth_enable(struct clk_hw *hw)
 	if (fs->lock)
 		spin_lock_irqsave(fs->lock, flags);
 
-	CLKGEN_WRITE(fs, nsb[fs->chan], 1);
+	CLKGEN_WRITE(fs, nsb[fs->chan], !fs->data->standby_polarity);
+
+	if (fs->data->nrst_present)
+		CLKGEN_WRITE(fs, nrst[fs->chan], 0);
 
 	if (fs->lock)
 		spin_unlock_irqrestore(fs->lock, flags);
@@ -631,7 +774,7 @@ static void quadfs_fsynth_disable(struct clk_hw *hw)
 	if (fs->lock)
 		spin_lock_irqsave(fs->lock, flags);
 
-	CLKGEN_WRITE(fs, nsb[fs->chan], 0);
+	CLKGEN_WRITE(fs, nsb[fs->chan], !fs->data->standby_polarity);
 
 	if (fs->lock)
 		spin_unlock_irqrestore(fs->lock, flags);
@@ -645,12 +788,12 @@ static int quadfs_fsynth_is_enabled(struct clk_hw *hw)
 	pr_debug("%s: %s enable bit = 0x%x\n",
 		 __func__, __clk_get_name(hw->clk), nsb);
 
-	return !!nsb;
+	return fs->data->standby_polarity ? !nsb : !!nsb;
 }
 
 #define P15			(uint64_t)(1 << 15)
 
-static int clk_fs216c65_get_rate(unsigned long input, struct stm_fs *fs,
+static int clk_fs216c65_get_rate(unsigned long input, const struct stm_fs *fs,
 		unsigned long *rate)
 {
 	uint64_t res;
@@ -670,7 +813,7 @@ static int clk_fs216c65_get_rate(unsigned long input, struct stm_fs *fs,
 	return 0;
 }
 
-static int clk_fs432c65_get_rate(unsigned long input, struct stm_fs *fs,
+static int clk_fs432c65_get_rate(unsigned long input, const struct stm_fs *fs,
 		unsigned long *rate)
 {
 	uint64_t res;
@@ -693,7 +836,7 @@ static int clk_fs432c65_get_rate(unsigned long input, struct stm_fs *fs,
 #define P20		(uint64_t)(1 << 20)
 
 static int clk_fs660c32_dig_get_rate(unsigned long input,
-				struct stm_fs *fs, unsigned long *rate)
+				const struct stm_fs *fs, unsigned long *rate)
 {
 	unsigned long s = (1 << fs->sdiv);
 	unsigned long ns;
@@ -749,7 +892,7 @@ static long quadfs_find_best_rate(struct clk_hw *hw, unsigned long drate,
 {
 	struct st_clk_quadfs_fsynth *fs = to_quadfs_fsynth(hw);
 	int (*clk_fs_get_rate)(unsigned long ,
-				struct stm_fs *, unsigned long *);
+				const struct stm_fs *, unsigned long *);
 	struct stm_fs prev_params;
 	unsigned long prev_rate, rate = 0;
 	unsigned long diff_rate, prev_diff_rate = ~0;
@@ -793,7 +936,7 @@ static unsigned long quadfs_recalc_rate(struct clk_hw *hw,
 	unsigned long rate = 0;
 	struct stm_fs params;
 	int (*clk_fs_get_rate)(unsigned long ,
-				struct stm_fs *, unsigned long *);
+				const struct stm_fs *, unsigned long *);
 
 	clk_fs_get_rate = fs->data->get_rate;
 
@@ -917,19 +1060,31 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 static struct of_device_id quadfs_of_match[] = {
 	{
 		.compatible = "st,stih416-quadfs216",
-		.data = (void *)&st_fs216c65_416
+		.data = &st_fs216c65_416
 	},
 	{
 		.compatible = "st,stih416-quadfs432",
-		.data = (void *)&st_fs432c65_416
+		.data = &st_fs432c65_416
 	},
 	{
 		.compatible = "st,stih416-quadfs660-E",
-		.data = (void *)&st_fs660c32_E_416
+		.data = &st_fs660c32_E_416
 	},
 	{
 		.compatible = "st,stih416-quadfs660-F",
-		.data = (void *)&st_fs660c32_F_416
+		.data = &st_fs660c32_F_416
+	},
+	{
+		.compatible = "st,stih407-quadfs660-C",
+		.data = &st_fs660c32_C_407
+	},
+	{
+		.compatible = "st,stih407-quadfs660-D",
+		.data = &st_fs660c32_D_407
+	},
+	{
+		.compatible = "st,stih407-quadfs660-D",
+		.data = (void *)&st_fs660c32_D_407
 	},
 	{}
 };

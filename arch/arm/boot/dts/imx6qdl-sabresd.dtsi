@@ -340,6 +340,7 @@
 				MX6QDL_PAD_KEY_COL1__ECSPI1_MISO	0x100b1
 				MX6QDL_PAD_KEY_ROW0__ECSPI1_MOSI	0x100b1
 				MX6QDL_PAD_KEY_COL0__ECSPI1_SCLK	0x100b1
+				MX6QDL_PAD_KEY_ROW1__GPIO4_IO09		0x1b0b0
 			>;
 		};
 
@@ -512,7 +513,6 @@
 };
 
 &ssi2 {
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 

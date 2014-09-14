@@ -1496,7 +1496,8 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 	return ret;
 
  rx_dropped:
-	ieee->stats.rx_dropped++;
+	if (ieee)
+		ieee->stats.rx_dropped++;
 	return 0;
 }
 EXPORT_SYMBOL(rtllib_rx);

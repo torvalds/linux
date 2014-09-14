@@ -1396,7 +1396,7 @@ static struct pinctrl_desc bcm281xx_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-int __init bcm281xx_pinctrl_probe(struct platform_device *pdev)
+static int __init bcm281xx_pinctrl_probe(struct platform_device *pdev)
 {
 	struct bcm281xx_pinctrl_data *pdata = &bcm281xx_pinctrl;
 	struct resource *res;

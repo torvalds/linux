@@ -766,10 +766,10 @@ framework to set up sysfs files for this region. Simply leave it alone.
 	<para>
 	The dynamic memory regions will be allocated when the UIO device file,
 	<varname>/dev/uioX</varname> is opened.
-	Simiar to static memory resources, the memory region information for
+	Similar to static memory resources, the memory region information for
 	dynamic regions is then visible via sysfs at
 	<varname>/sys/class/uio/uioX/maps/mapY/*</varname>.
-	The dynmaic memory regions will be freed when the UIO device file is
+	The dynamic memory regions will be freed when the UIO device file is
 	closed. When no processes are holding the device file open, the address
 	returned to userspace is ~0.
 	</para>

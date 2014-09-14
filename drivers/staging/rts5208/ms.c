@@ -57,7 +57,7 @@ static int ms_transfer_tpc(struct rtsx_chip *chip, u8 trans_mode,
 	int retval;
 	u8 *ptr;
 
-	RTSX_DEBUGP("ms_transfer_tpc: tpc = 0x%x\n", tpc);
+	dev_dbg(rtsx_dev(chip), "%s: tpc = 0x%x\n", __func__, tpc);
 
 	rtsx_init_cmd(chip);
 
@@ -204,7 +204,7 @@ static int ms_write_bytes(struct rtsx_chip *chip,
 		u8 val = 0;
 
 		rtsx_read_register(chip, MS_TRANS_CFG, &val);
-		RTSX_DEBUGP("MS_TRANS_CFG: 0x%02x\n", val);
+		dev_dbg(rtsx_dev(chip), "MS_TRANS_CFG: 0x%02x\n", val);
 
 		rtsx_clear_ms_error(chip);
 
@@ -304,7 +304,7 @@ static int ms_read_bytes(struct rtsx_chip *chip,
 		data[i] = ptr[i];
 
 	if ((tpc == PRO_READ_SHORT_DATA) && (data_len == 8)) {
-		RTSX_DEBUGP("Read format progress:\n");
+		dev_dbg(rtsx_dev(chip), "Read format progress:\n");
 		RTSX_DUMP(ptr, cnt);
 	}
 
@@ -507,8 +507,8 @@ static int ms_prepare_reset(struct rtsx_chip *chip)
 			oc_mask = SD_OC_NOW | SD_OC_EVER;
 
 		if (chip->ocp_stat & oc_mask) {
-			RTSX_DEBUGP("Over current, OCPSTAT is 0x%x\n",
-				     chip->ocp_stat);
+			dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
+				chip->ocp_stat);
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 #endif
@@ -557,7 +557,7 @@ static int ms_identify_media_type(struct rtsx_chip *chip, int switch_8bit_bus)
 		TRACE_RET(chip, STATUS_FAIL);
 
 	RTSX_READ_REG(chip, PPBUF_BASE2 + 2, &val);
-	RTSX_DEBUGP("Type register: 0x%x\n", val);
+	dev_dbg(rtsx_dev(chip), "Type register: 0x%x\n", val);
 	if (val != 0x01) {
 		if (val != 0x02)
 			ms_card->check_ms_flow = 1;
@@ -566,14 +566,14 @@ static int ms_identify_media_type(struct rtsx_chip *chip, int switch_8bit_bus)
 	}
 
 	RTSX_READ_REG(chip, PPBUF_BASE2 + 4, &val);
-	RTSX_DEBUGP("Category register: 0x%x\n", val);
+	dev_dbg(rtsx_dev(chip), "Category register: 0x%x\n", val);
 	if (val != 0) {
 		ms_card->check_ms_flow = 1;
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
 	RTSX_READ_REG(chip, PPBUF_BASE2 + 5, &val);
-	RTSX_DEBUGP("Class register: 0x%x\n", val);
+	dev_dbg(rtsx_dev(chip), "Class register: 0x%x\n", val);
 	if (val == 0) {
 		RTSX_READ_REG(chip, PPBUF_BASE2, &val);
 		if (val & WRT_PRTCT)
@@ -591,7 +591,7 @@ static int ms_identify_media_type(struct rtsx_chip *chip, int switch_8bit_bus)
 	ms_card->ms_type |= TYPE_MSPRO;
 
 	RTSX_READ_REG(chip, PPBUF_BASE2 + 3, &val);
-	RTSX_DEBUGP("IF Mode register: 0x%x\n", val);
+	dev_dbg(rtsx_dev(chip), "IF Mode register: 0x%x\n", val);
 	if (val == 0) {
 		ms_card->ms_type &= 0x0F;
 	} else if (val == 7) {
@@ -924,7 +924,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 				((u32)buf[cur_addr_off + 5] << 16) |
 				((u32)buf[cur_addr_off + 6] << 8) |
 				buf[cur_addr_off + 7];
-			RTSX_DEBUGP("sys_info_addr = 0x%x, sys_info_size = 0x%x\n",
+			dev_dbg(rtsx_dev(chip), "sys_info_addr = 0x%x, sys_info_size = 0x%x\n",
 				sys_info_addr, sys_info_size);
 			if (sys_info_size != 96)  {
 				kfree(buf);
@@ -959,7 +959,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 				((u32)buf[cur_addr_off + 5] << 16) |
 				((u32)buf[cur_addr_off + 6] << 8) |
 				buf[cur_addr_off + 7];
-			RTSX_DEBUGP("model_name_addr = 0x%x, model_name_size = 0x%x\n",
+			dev_dbg(rtsx_dev(chip), "model_name_addr = 0x%x, model_name_size = 0x%x\n",
 				model_name_addr, model_name_size);
 			if (model_name_size != 48)  {
 				kfree(buf);
@@ -1000,24 +1000,25 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 				((u32)buf[sys_info_addr + 33] << 16) |
 				((u32)buf[sys_info_addr + 34] << 8) |
 				buf[sys_info_addr + 35];
-		RTSX_DEBUGP("xc_total_blk = 0x%x, xc_blk_size = 0x%x\n",
+		dev_dbg(rtsx_dev(chip), "xc_total_blk = 0x%x, xc_blk_size = 0x%x\n",
 			xc_total_blk, xc_blk_size);
 	} else {
 		total_blk = ((u16)buf[sys_info_addr + 6] << 8) |
 			buf[sys_info_addr + 7];
 		blk_size = ((u16)buf[sys_info_addr + 2] << 8) |
 			buf[sys_info_addr + 3];
-		RTSX_DEBUGP("total_blk = 0x%x, blk_size = 0x%x\n",
+		dev_dbg(rtsx_dev(chip), "total_blk = 0x%x, blk_size = 0x%x\n",
 			total_blk, blk_size);
 	}
 #else
 	total_blk = ((u16)buf[sys_info_addr + 6] << 8) | buf[sys_info_addr + 7];
 	blk_size = ((u16)buf[sys_info_addr + 2] << 8) | buf[sys_info_addr + 3];
-	RTSX_DEBUGP("total_blk = 0x%x, blk_size = 0x%x\n", total_blk, blk_size);
+	dev_dbg(rtsx_dev(chip), "total_blk = 0x%x, blk_size = 0x%x\n",
+		total_blk, blk_size);
 #endif
 
-	RTSX_DEBUGP("class_code = 0x%x, device_type = 0x%x, sub_class = 0x%x\n",
-			class_code, device_type, sub_class);
+	dev_dbg(rtsx_dev(chip), "class_code = 0x%x, device_type = 0x%x, sub_class = 0x%x\n",
+		class_code, device_type, sub_class);
 
 	memcpy(ms_card->raw_sys_info, buf + sys_info_addr, 96);
 #ifdef SUPPORT_PCGL_1P18
@@ -1051,7 +1052,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 	if (sub_class & 0xC0)
 		TRACE_RET(chip, STATUS_FAIL);
 
-	RTSX_DEBUGP("class_code: 0x%x, device_type: 0x%x, sub_class: 0x%x\n",
+	dev_dbg(rtsx_dev(chip), "class_code: 0x%x, device_type: 0x%x, sub_class: 0x%x\n",
 		class_code, device_type, sub_class);
 
 #ifdef SUPPORT_MSXC
@@ -1115,8 +1116,10 @@ Retry:
 	if (change_power_class && CHK_MSXC(ms_card)) {
 		u8 power_class_en = chip->ms_power_class_en;
 
-		RTSX_DEBUGP("power_class_en = 0x%x\n", power_class_en);
-		RTSX_DEBUGP("change_power_class = %d\n", change_power_class);
+		dev_dbg(rtsx_dev(chip), "power_class_en = 0x%x\n",
+			power_class_en);
+		dev_dbg(rtsx_dev(chip), "change_power_class = %d\n",
+			change_power_class);
 
 		if (change_power_class)
 			power_class_en &= (1 << (change_power_class - 1));
@@ -1126,7 +1129,7 @@ Retry:
 		if (power_class_en) {
 			u8 power_class_mode =
 				(ms_card->raw_sys_info[46] & 0x18) >> 3;
-			RTSX_DEBUGP("power_class_mode = 0x%x",
+			dev_dbg(rtsx_dev(chip), "power_class_mode = 0x%x",
 				power_class_mode);
 			if (change_power_class > power_class_mode)
 				change_power_class = power_class_mode;
@@ -1559,9 +1562,10 @@ static int ms_copy_page(struct rtsx_chip *chip, u16 old_blk, u16 new_blk,
 	int retval, rty_cnt, uncorrect_flag = 0;
 	u8 extra[MS_EXTRA_SIZE], val, i, j, data[16];
 
-	RTSX_DEBUGP("Copy page from 0x%x to 0x%x, logical block is 0x%x\n",
+	dev_dbg(rtsx_dev(chip), "Copy page from 0x%x to 0x%x, logical block is 0x%x\n",
 		old_blk, new_blk, log_blk);
-	RTSX_DEBUGP("start_page = %d, end_page = %d\n", start_page, end_page);
+	dev_dbg(rtsx_dev(chip), "start_page = %d, end_page = %d\n",
+		start_page, end_page);
 
 	retval = ms_read_extra_data(chip, new_blk, 0, extra, MS_EXTRA_SIZE);
 	if (retval != STATUS_SUCCESS)
@@ -1638,7 +1642,7 @@ static int ms_copy_page(struct rtsx_chip *chip, u16 old_blk, u16 new_blk,
 				retval = ms_read_status_reg(chip);
 				if (retval != STATUS_SUCCESS) {
 					uncorrect_flag = 1;
-					RTSX_DEBUGP("Uncorrectable error\n");
+					dev_dbg(rtsx_dev(chip), "Uncorrectable error\n");
 				} else {
 					uncorrect_flag = 0;
 				}
@@ -1658,7 +1662,8 @@ static int ms_copy_page(struct rtsx_chip *chip, u16 old_blk, u16 new_blk,
 
 					ms_write_extra_data(chip, old_blk, i,
 							extra, MS_EXTRA_SIZE);
-					RTSX_DEBUGP("page %d : extra[0] = 0x%x\n", i, extra[0]);
+					dev_dbg(rtsx_dev(chip), "page %d : extra[0] = 0x%x\n",
+						i, extra[0]);
 					MS_SET_BAD_BLOCK_FLG(ms_card);
 
 					ms_set_page_status(log_blk, setPS_Error,
@@ -1853,7 +1858,7 @@ RE_SEARCH:
 	}
 
 	if (i == (MAX_DEFECTIVE_BLOCK + 2)) {
-		RTSX_DEBUGP("No boot block found!");
+		dev_dbg(rtsx_dev(chip), "No boot block found!");
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
@@ -1907,7 +1912,7 @@ RE_SEARCH:
 
 	ptr = rtsx_get_cmd_data(chip);
 
-	RTSX_DEBUGP("Boot block data:\n");
+	dev_dbg(rtsx_dev(chip), "Boot block data:\n");
 	RTSX_DUMP(ptr, 16);
 
 	/* Block ID error
@@ -2009,7 +2014,8 @@ static int ms_init_l2p_tbl(struct rtsx_chip *chip)
 	u8 val1, val2;
 
 	ms_card->segment_cnt = ms_card->total_block >> 9;
-	RTSX_DEBUGP("ms_card->segment_cnt = %d\n", ms_card->segment_cnt);
+	dev_dbg(rtsx_dev(chip), "ms_card->segment_cnt = %d\n",
+		ms_card->segment_cnt);
 
 	size = ms_card->segment_cnt * sizeof(struct zone_entry);
 	ms_card->segment = vzalloc(size);
@@ -2046,8 +2052,8 @@ static int ms_init_l2p_tbl(struct rtsx_chip *chip)
 		ms_card->segment[i].set_index = 0;
 		ms_card->segment[i].unused_blk_cnt = 0;
 
-		RTSX_DEBUGP("defective block count of segment %d is %d\n",
-					i, ms_card->segment[i].disable_count);
+		dev_dbg(rtsx_dev(chip), "defective block count of segment %d is %d\n",
+			i, ms_card->segment[i].disable_count);
 	}
 
 	return STATUS_SUCCESS;
@@ -2184,7 +2190,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 	u16 start, end, phy_blk, log_blk, tmp_blk;
 	u8 extra[MS_EXTRA_SIZE], us1, us2;
 
-	RTSX_DEBUGP("ms_build_l2p_tbl: %d\n", seg_no);
+	dev_dbg(rtsx_dev(chip), "ms_build_l2p_tbl: %d\n", seg_no);
 
 	if (ms_card->segment == NULL) {
 		retval = ms_init_l2p_tbl(chip);
@@ -2193,7 +2199,8 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 	}
 
 	if (ms_card->segment[seg_no].build_flag) {
-		RTSX_DEBUGP("l2p table of segment %d has been built\n", seg_no);
+		dev_dbg(rtsx_dev(chip), "l2p table of segment %d has been built\n",
+			seg_no);
 		return STATUS_SUCCESS;
 	}
 
@@ -2244,7 +2251,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 		retval = ms_read_extra_data(chip, phy_blk, 0,
 					extra, MS_EXTRA_SIZE);
 		if (retval != STATUS_SUCCESS) {
-			RTSX_DEBUGP("read extra data fail\n");
+			dev_dbg(rtsx_dev(chip), "read extra data fail\n");
 			ms_set_bad_block(chip, phy_blk);
 			continue;
 		}
@@ -2311,7 +2318,8 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 	segment->build_flag = 1;
 
-	RTSX_DEBUGP("unused block count: %d\n", segment->unused_blk_cnt);
+	dev_dbg(rtsx_dev(chip), "unused block count: %d\n",
+		segment->unused_blk_cnt);
 
 	/* Logical Address Confirmation Process */
 	if (seg_no == ms_card->segment_cnt - 1) {
@@ -2357,7 +2365,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 		for (log_blk = 0; log_blk < 494; log_blk++) {
 			tmp_blk = segment->l2p_table[log_blk];
 			if (tmp_blk < ms_card->boot_block) {
-				RTSX_DEBUGP("Boot block is not the first normal block.\n");
+				dev_dbg(rtsx_dev(chip), "Boot block is not the first normal block.\n");
 
 				if (chip->card_wp & MS_CARD)
 					break;
@@ -2435,7 +2443,7 @@ int reset_ms_card(struct rtsx_chip *chip)
 			TRACE_RET(chip, STATUS_FAIL);
 	}
 
-	RTSX_DEBUGP("ms_card->ms_type = 0x%x\n", ms_card->ms_type);
+	dev_dbg(rtsx_dev(chip), "ms_card->ms_type = 0x%x\n", ms_card->ms_type);
 
 	return STATUS_SUCCESS;
 }
@@ -2473,8 +2481,6 @@ void mspro_stop_seq_mode(struct rtsx_chip *chip)
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	if (ms_card->seq_mode) {
 		retval = ms_switch_clock(chip);
 		if (retval != STATUS_SUCCESS)
@@ -2492,8 +2498,6 @@ static inline int ms_auto_tune_clock(struct rtsx_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	if (chip->asic_code) {
 		if (ms_card->ms_clock > 30)
@@ -2618,7 +2622,7 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 
 		if (detect_card_cd(chip, MS_CARD) != STATUS_SUCCESS) {
 			chip->rw_need_retry = 0;
-			RTSX_DEBUGP("No card exist, exit mspro_rw_multi_sector\n");
+			dev_dbg(rtsx_dev(chip), "No card exist, exit mspro_rw_multi_sector\n");
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 
@@ -2626,7 +2630,7 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 			ms_send_cmd(chip, PRO_STOP, WAIT_INT);
 
 		if (val & (MS_CRC16_ERR | MS_RDY_TIMEOUT)) {
-			RTSX_DEBUGP("MSPro CRC error, tune clock!\n");
+			dev_dbg(rtsx_dev(chip), "MSPro CRC error, tune clock!\n");
 			chip->rw_need_retry = 1;
 			ms_auto_tune_clock(chip);
 		}
@@ -2653,7 +2657,7 @@ static int mspro_read_format_progress(struct rtsx_chip *chip,
 	u8 cnt, tmp;
 	u8 data[8];
 
-	RTSX_DEBUGP("mspro_read_format_progress, short_data_len = %d\n",
+	dev_dbg(rtsx_dev(chip), "mspro_read_format_progress, short_data_len = %d\n",
 		short_data_len);
 
 	retval = ms_switch_clock(chip);
@@ -2701,8 +2705,8 @@ static int mspro_read_format_progress(struct rtsx_chip *chip,
 	cur_progress = (data[4] << 24) | (data[5] << 16) |
 		(data[6] << 8) | data[7];
 
-	RTSX_DEBUGP("total_progress = %d, cur_progress = %d\n",
-				total_progress, cur_progress);
+	dev_dbg(rtsx_dev(chip), "total_progress = %d, cur_progress = %d\n",
+		total_progress, cur_progress);
 
 	if (total_progress == 0) {
 		ms_card->progress = 0;
@@ -2711,7 +2715,7 @@ static int mspro_read_format_progress(struct rtsx_chip *chip,
 		do_div(ulltmp, total_progress);
 		ms_card->progress = (u16)ulltmp;
 	}
-	RTSX_DEBUGP("progress = %d\n", ms_card->progress);
+	dev_dbg(rtsx_dev(chip), "progress = %d\n", ms_card->progress);
 
 	for (i = 0; i < 5000; i++) {
 		retval = rtsx_read_register(chip, MS_TRANS_CFG, &tmp);
@@ -2782,8 +2786,6 @@ int mspro_format(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	int retval, i;
 	u8 buf[8], tmp;
 	u16 para;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	retval = ms_switch_clock(chip);
 	if (retval != STATUS_SUCCESS)
@@ -3405,7 +3407,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		}
 	}
 
-	RTSX_DEBUGP("seg_no = %d, old_blk = 0x%x, new_blk = 0x%x\n",
+	dev_dbg(rtsx_dev(chip), "seg_no = %d, old_blk = 0x%x, new_blk = 0x%x\n",
 		seg_no, old_blk, new_blk);
 
 	while (total_sec_cnt) {
@@ -3416,8 +3418,8 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 
 		page_cnt = end_page - start_page;
 
-		RTSX_DEBUGP("start_page = %d, end_page = %d, page_cnt = %d\n",
-				start_page, end_page, page_cnt);
+		dev_dbg(rtsx_dev(chip), "start_page = %d, end_page = %d, page_cnt = %d\n",
+			start_page, end_page, page_cnt);
 
 		if (srb->sc_data_direction == DMA_FROM_DEVICE) {
 			retval = ms_read_multiple_pages(chip,
@@ -3492,7 +3494,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			}
 		}
 
-		RTSX_DEBUGP("seg_no = %d, old_blk = 0x%x, new_blk = 0x%x\n",
+		dev_dbg(rtsx_dev(chip), "seg_no = %d, old_blk = 0x%x, new_blk = 0x%x\n",
 			seg_no, old_blk, new_blk);
 
 		start_page = 0;
@@ -3664,8 +3666,6 @@ static int mg_set_tpc_para_sub(struct rtsx_chip *chip, int type,
 	int retval;
 	u8 buf[6];
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	if (type == 0)
 		retval = ms_set_rw_reg_addr(chip, 0, 0, Pro_TPCParm, 1);
 	else
@@ -3696,8 +3696,6 @@ int mg_set_leaf_id(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int i;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 buf1[32], buf2[12];
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	if (scsi_bufflen(srb) < 12) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_INVALID_CMD_FIELD);
@@ -3742,8 +3740,6 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int bufflen;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 *buf = NULL;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	ms_cleanup_work(chip);
 
@@ -3795,8 +3791,6 @@ int mg_chg(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int i;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 buf[32];
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	ms_cleanup_work(chip);
 
@@ -3872,8 +3866,6 @@ int mg_get_rsp_chg(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned int lun = SCSI_LUN(srb);
 	u8 buf1[32], buf2[36];
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	ms_cleanup_work(chip);
 
 	retval = ms_switch_clock(chip);
@@ -3929,8 +3921,6 @@ int mg_rsp(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned int lun = SCSI_LUN(srb);
 	u8 buf[32];
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	ms_cleanup_work(chip);
 
 	retval = ms_switch_clock(chip);
@@ -3976,8 +3966,6 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int bufflen;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 *buf = NULL;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	ms_cleanup_work(chip);
 
@@ -4031,8 +4019,6 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #endif
 	unsigned int lun = SCSI_LUN(srb);
 	u8 *buf = NULL;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	ms_cleanup_work(chip);
 
@@ -4133,7 +4119,7 @@ void ms_cleanup_work(struct rtsx_chip *chip)
 
 	if (CHK_MSPRO(ms_card)) {
 		if (ms_card->seq_mode) {
-			RTSX_DEBUGP("MS Pro: stop transmission\n");
+			dev_dbg(rtsx_dev(chip), "MS Pro: stop transmission\n");
 			mspro_stop_seq_mode(chip);
 			ms_card->cleanup_counter = 0;
 		}
@@ -4144,7 +4130,7 @@ void ms_cleanup_work(struct rtsx_chip *chip)
 	}
 #ifdef MS_DELAY_WRITE
 	else if ((!CHK_MSPRO(ms_card)) && ms_card->delay_write.delay_write_flag) {
-		RTSX_DEBUGP("MS: delay write\n");
+		dev_dbg(rtsx_dev(chip), "MS: delay write\n");
 		ms_delay_write(chip);
 		ms_card->cleanup_counter = 0;
 	}
@@ -4181,8 +4167,6 @@ int release_ms_card(struct rtsx_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
-
-	RTSX_DEBUGP("release_ms_card\n");
 
 #ifdef MS_DELAY_WRITE
 	ms_card->delay_write.delay_write_flag = 0;

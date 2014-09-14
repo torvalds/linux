@@ -373,8 +373,6 @@ static int __must_push_back(struct multipath *m)
 		 dm_noflush_suspending(m->ti)));
 }
 
-#define pg_ready(m) (!(m)->queue_io && !(m)->pg_init_required)
-
 /*
  * Map cloned requests
  */
@@ -402,11 +400,11 @@ static int multipath_map(struct dm_target *ti, struct request *clone,
 		if (!__must_push_back(m))
 			r = -EIO;	/* Failed */
 		goto out_unlock;
-	}
-	if (!pg_ready(m)) {
+	} else if (m->queue_io || m->pg_init_required) {
 		__pg_init_all_paths(m);
 		goto out_unlock;
 	}
+
 	if (set_mapinfo(m, map_context) < 0)
 		/* ENOMEM, requeue */
 		goto out_unlock;
@@ -1611,8 +1609,9 @@ static int multipath_busy(struct dm_target *ti)
 
 	spin_lock_irqsave(&m->lock, flags);
 
-	/* pg_init in progress, requeue until done */
-	if (!pg_ready(m)) {
+	/* pg_init in progress or no paths available */
+	if (m->pg_init_in_progress ||
+	    (!m->nr_valid_paths && m->queue_if_no_path)) {
 		busy = 1;
 		goto out;
 	}

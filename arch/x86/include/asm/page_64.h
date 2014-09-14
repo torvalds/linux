@@ -39,4 +39,6 @@ void copy_page(void *to, void *from);
 
 #endif	/* !__ASSEMBLY__ */
 
+#define __HAVE_ARCH_GATE_AREA 1
+
 #endif /* _ASM_X86_PAGE_64_H */

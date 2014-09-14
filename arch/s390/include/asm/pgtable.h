@@ -287,7 +287,14 @@ extern unsigned long MODULES_END;
 #define _SEGMENT_ENTRY_INVALID	0x20	/* invalid segment table entry	    */
 #define _SEGMENT_ENTRY_COMMON	0x10	/* common segment bit		    */
 #define _SEGMENT_ENTRY_PTL	0x0f	/* page table length		    */
-#define _SEGMENT_ENTRY_NONE	_SEGMENT_ENTRY_PROTECT
+
+#define _SEGMENT_ENTRY_DIRTY	0	/* No sw dirty bit for 31-bit */
+#define _SEGMENT_ENTRY_YOUNG	0	/* No sw young bit for 31-bit */
+#define _SEGMENT_ENTRY_READ	0	/* No sw read bit for 31-bit */
+#define _SEGMENT_ENTRY_WRITE	0	/* No sw write bit for 31-bit */
+#define _SEGMENT_ENTRY_LARGE	0	/* No large pages for 31-bit */
+#define _SEGMENT_ENTRY_BITS_LARGE 0
+#define _SEGMENT_ENTRY_ORIGIN_LARGE 0
 
 #define _SEGMENT_ENTRY		(_SEGMENT_ENTRY_PTL)
 #define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INVALID)
@@ -350,7 +357,7 @@ extern unsigned long MODULES_END;
 
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_BITS	0xfffffffffffffe33UL
-#define _SEGMENT_ENTRY_BITS_LARGE 0xfffffffffff1ff33UL
+#define _SEGMENT_ENTRY_BITS_LARGE 0xfffffffffff0ff33UL
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
 #define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* segment table origin		    */
 #define _SEGMENT_ENTRY_PROTECT	0x200	/* page protection bit		    */
@@ -359,30 +366,34 @@ extern unsigned long MODULES_END;
 #define _SEGMENT_ENTRY		(0)
 #define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INVALID)
 
-#define _SEGMENT_ENTRY_LARGE	0x400	/* STE-format control, large page   */
-#define _SEGMENT_ENTRY_CO	0x100	/* change-recording override   */
-#define _SEGMENT_ENTRY_SPLIT	0x001	/* THP splitting bit */
-#define _SEGMENT_ENTRY_YOUNG	0x002	/* SW segment young bit */
-#define _SEGMENT_ENTRY_NONE	_SEGMENT_ENTRY_YOUNG
+#define _SEGMENT_ENTRY_DIRTY	0x2000	/* SW segment dirty bit */
+#define _SEGMENT_ENTRY_YOUNG	0x1000	/* SW segment young bit */
+#define _SEGMENT_ENTRY_SPLIT	0x0800	/* THP splitting bit */
+#define _SEGMENT_ENTRY_LARGE	0x0400	/* STE-format control, large page */
+#define _SEGMENT_ENTRY_CO	0x0100	/* change-recording override   */
+#define _SEGMENT_ENTRY_READ	0x0002	/* SW segment read bit */
+#define _SEGMENT_ENTRY_WRITE	0x0001	/* SW segment write bit */
 
 /*
  * Segment table entry encoding (R = read-only, I = invalid, y = young bit):
- *			..R...I...y.
- * prot-none, old	..0...1...1.
- * prot-none, young	..1...1...1.
- * read-only, old	..1...1...0.
- * read-only, young	..1...0...1.
- * read-write, old	..0...1...0.
- * read-write, young	..0...0...1.
+ *				dy..R...I...wr
+ * prot-none, clean, old	00..1...1...00
+ * prot-none, clean, young	01..1...1...00
+ * prot-none, dirty, old	10..1...1...00
+ * prot-none, dirty, young	11..1...1...00
+ * read-only, clean, old	00..1...1...01
+ * read-only, clean, young	01..1...0...01
+ * read-only, dirty, old	10..1...1...01
+ * read-only, dirty, young	11..1...0...01
+ * read-write, clean, old	00..1...1...11
+ * read-write, clean, young	01..1...0...11
+ * read-write, dirty, old	10..0...1...11
+ * read-write, dirty, young	11..0...0...11
  * The segment table origin is used to distinguish empty (origin==0) from
  * read-write, old segment table entries (origin!=0)
  */
 
-#define _SEGMENT_ENTRY_SPLIT_BIT 0	/* THP splitting bit number */
-
-/* Set of bits not changed in pmd_modify */
-#define _SEGMENT_CHG_MASK	(_SEGMENT_ENTRY_ORIGIN | _SEGMENT_ENTRY_LARGE \
-				 | _SEGMENT_ENTRY_SPLIT | _SEGMENT_ENTRY_CO)
+#define _SEGMENT_ENTRY_SPLIT_BIT 11	/* THP splitting bit number */
 
 /* Page status table bits for virtualization */
 #define PGSTE_ACC_BITS	0xf000000000000000UL
@@ -455,10 +466,11 @@ extern unsigned long MODULES_END;
  * Segment entry (large page) protection definitions.
  */
 #define SEGMENT_NONE	__pgprot(_SEGMENT_ENTRY_INVALID | \
-				 _SEGMENT_ENTRY_NONE)
-#define SEGMENT_READ	__pgprot(_SEGMENT_ENTRY_INVALID | \
 				 _SEGMENT_ENTRY_PROTECT)
-#define SEGMENT_WRITE	__pgprot(_SEGMENT_ENTRY_INVALID)
+#define SEGMENT_READ	__pgprot(_SEGMENT_ENTRY_PROTECT | \
+				 _SEGMENT_ENTRY_READ)
+#define SEGMENT_WRITE	__pgprot(_SEGMENT_ENTRY_READ | \
+				 _SEGMENT_ENTRY_WRITE)
 
 static inline int mm_has_pgste(struct mm_struct *mm)
 {
@@ -569,25 +581,23 @@ static inline int pmd_none(pmd_t pmd)
 
 static inline int pmd_large(pmd_t pmd)
 {
-#ifdef CONFIG_64BIT
 	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) != 0;
-#else
-	return 0;
-#endif
 }
 
-static inline int pmd_prot_none(pmd_t pmd)
+static inline int pmd_pfn(pmd_t pmd)
 {
-	return (pmd_val(pmd) & _SEGMENT_ENTRY_INVALID) &&
-		(pmd_val(pmd) & _SEGMENT_ENTRY_NONE);
+	unsigned long origin_mask;
+
+	origin_mask = _SEGMENT_ENTRY_ORIGIN;
+	if (pmd_large(pmd))
+		origin_mask = _SEGMENT_ENTRY_ORIGIN_LARGE;
+	return (pmd_val(pmd) & origin_mask) >> PAGE_SHIFT;
 }
 
 static inline int pmd_bad(pmd_t pmd)
 {
-#ifdef CONFIG_64BIT
 	if (pmd_large(pmd))
 		return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS_LARGE) != 0;
-#endif
 	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
 }
 
@@ -607,20 +617,22 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
 #define __HAVE_ARCH_PMD_WRITE
 static inline int pmd_write(pmd_t pmd)
 {
-	if (pmd_prot_none(pmd))
-		return 0;
-	return (pmd_val(pmd) & _SEGMENT_ENTRY_PROTECT) == 0;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE) != 0;
+}
+
+static inline int pmd_dirty(pmd_t pmd)
+{
+	int dirty = 1;
+	if (pmd_large(pmd))
+		dirty = (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY) != 0;
+	return dirty;
 }
 
 static inline int pmd_young(pmd_t pmd)
 {
-	int young = 0;
-#ifdef CONFIG_64BIT
-	if (pmd_prot_none(pmd))
-		young = (pmd_val(pmd) & _SEGMENT_ENTRY_PROTECT) != 0;
-	else
+	int young = 1;
+	if (pmd_large(pmd))
 		young = (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG) != 0;
-#endif
 	return young;
 }
 
@@ -1391,7 +1403,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 #define pte_pfn(x) (pte_val(x) >> PAGE_SHIFT)
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 
-#define pmd_page(pmd) pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
+#define pmd_page(pmd) pfn_to_page(pmd_pfn(pmd))
 
 /* Find an entry in the lowest level page table.. */
 #define pte_offset(pmd, addr) ((pte_t *) pmd_deref(*(pmd)) + pte_index(addr))
@@ -1413,41 +1425,75 @@ static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
 	return pgprot_val(SEGMENT_WRITE);
 }
 
+static inline pmd_t pmd_wrprotect(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~_SEGMENT_ENTRY_WRITE;
+	pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
+	return pmd;
+}
+
+static inline pmd_t pmd_mkwrite(pmd_t pmd)
+{
+	pmd_val(pmd) |= _SEGMENT_ENTRY_WRITE;
+	if (pmd_large(pmd) && !(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
+		return pmd;
+	pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
+	return pmd;
+}
+
+static inline pmd_t pmd_mkclean(pmd_t pmd)
+{
+	if (pmd_large(pmd)) {
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_DIRTY;
+		pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
+	}
+	return pmd;
+}
+
+static inline pmd_t pmd_mkdirty(pmd_t pmd)
+{
+	if (pmd_large(pmd)) {
+		pmd_val(pmd) |= _SEGMENT_ENTRY_DIRTY;
+		if (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE)
+			pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
+	}
+	return pmd;
+}
+
 static inline pmd_t pmd_mkyoung(pmd_t pmd)
 {
-#ifdef CONFIG_64BIT
-	if (pmd_prot_none(pmd)) {
-		pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
-	} else {
+	if (pmd_large(pmd)) {
 		pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG;
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_INVALID;
+		if (pmd_val(pmd) & _SEGMENT_ENTRY_READ)
+			pmd_val(pmd) &= ~_SEGMENT_ENTRY_INVALID;
 	}
-#endif
 	return pmd;
 }
 
 static inline pmd_t pmd_mkold(pmd_t pmd)
 {
-#ifdef CONFIG_64BIT
-	if (pmd_prot_none(pmd)) {
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
-	} else {
+	if (pmd_large(pmd)) {
 		pmd_val(pmd) &= ~_SEGMENT_ENTRY_YOUNG;
 		pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
 	}
-#endif
 	return pmd;
 }
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
-	int young;
-
-	young = pmd_young(pmd);
-	pmd_val(pmd) &= _SEGMENT_CHG_MASK;
+	if (pmd_large(pmd)) {
+		pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN_LARGE |
+			_SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_YOUNG |
+			_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_SPLIT;
+		pmd_val(pmd) |= massage_pgprot_pmd(newprot);
+		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
+			pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
+		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG))
+			pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
+		return pmd;
+	}
+	pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN;
 	pmd_val(pmd) |= massage_pgprot_pmd(newprot);
-	if (young)
-		pmd = pmd_mkyoung(pmd);
 	return pmd;
 }
 
@@ -1455,16 +1501,9 @@ static inline pmd_t mk_pmd_phys(unsigned long physpage, pgprot_t pgprot)
 {
 	pmd_t __pmd;
 	pmd_val(__pmd) = physpage + massage_pgprot_pmd(pgprot);
-	return pmd_mkyoung(__pmd);
+	return __pmd;
 }
 
-static inline pmd_t pmd_mkwrite(pmd_t pmd)
-{
-	/* Do not clobber PROT_NONE segments! */
-	if (!pmd_prot_none(pmd))
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
-	return pmd;
-}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLB_PAGE */
 
 static inline void __pmdp_csp(pmd_t *pmdp)
@@ -1555,34 +1594,21 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
 
 static inline int pmd_trans_splitting(pmd_t pmd)
 {
-	return pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) &&
+		(pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT);
 }
 
 static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			      pmd_t *pmdp, pmd_t entry)
 {
-	if (!(pmd_val(entry) & _SEGMENT_ENTRY_INVALID) && MACHINE_HAS_EDAT1)
-		pmd_val(entry) |= _SEGMENT_ENTRY_CO;
 	*pmdp = entry;
 }
 
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
 {
 	pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
-	return pmd;
-}
-
-static inline pmd_t pmd_wrprotect(pmd_t pmd)
-{
-	/* Do not clobber PROT_NONE segments! */
-	if (!pmd_prot_none(pmd))
-		pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
-	return pmd;
-}
-
-static inline pmd_t pmd_mkdirty(pmd_t pmd)
-{
-	/* No dirty bit in the segment table entry. */
+	pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG;
+	pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
 	return pmd;
 }
 
@@ -1646,11 +1672,6 @@ static inline int pmd_trans_huge(pmd_t pmd)
 static inline int has_transparent_hugepage(void)
 {
 	return MACHINE_HAS_HPAGE ? 1 : 0;
-}
-
-static inline unsigned long pmd_pfn(pmd_t pmd)
-{
-	return pmd_val(pmd) >> PAGE_SHIFT;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 

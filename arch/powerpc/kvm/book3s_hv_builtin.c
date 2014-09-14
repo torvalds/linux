@@ -16,12 +16,14 @@
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/sizes.h>
+#include <linux/cma.h>
 
 #include <asm/cputable.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 
-#include "book3s_hv_cma.h"
+#define KVM_CMA_CHUNK_ORDER	18
+
 /*
  * Hash page table alignment on newer cpus(CPU_FTR_ARCH_206)
  * should be power of 2.
@@ -42,6 +44,8 @@ static unsigned long kvm_cma_resv_ratio = 5;
  */
 unsigned long kvm_rma_pages = (1 << 27) >> PAGE_SHIFT;	/* 128MB */
 EXPORT_SYMBOL_GPL(kvm_rma_pages);
+
+static struct cma *kvm_cma;
 
 /* Work out RMLS (real mode limit selector) field value for a given RMA size.
    Assumes POWER7 or PPC970. */
@@ -97,7 +101,7 @@ struct kvm_rma_info *kvm_alloc_rma()
 	ri = kmalloc(sizeof(struct kvm_rma_info), GFP_KERNEL);
 	if (!ri)
 		return NULL;
-	page = kvm_alloc_cma(kvm_rma_pages, kvm_rma_pages);
+	page = cma_alloc(kvm_cma, kvm_rma_pages, get_order(kvm_rma_pages));
 	if (!page)
 		goto err_out;
 	atomic_set(&ri->use_count, 1);
@@ -112,7 +116,7 @@ EXPORT_SYMBOL_GPL(kvm_alloc_rma);
 void kvm_release_rma(struct kvm_rma_info *ri)
 {
 	if (atomic_dec_and_test(&ri->use_count)) {
-		kvm_release_cma(pfn_to_page(ri->base_pfn), kvm_rma_pages);
+		cma_release(kvm_cma, pfn_to_page(ri->base_pfn), kvm_rma_pages);
 		kfree(ri);
 	}
 }
@@ -131,16 +135,18 @@ struct page *kvm_alloc_hpt(unsigned long nr_pages)
 {
 	unsigned long align_pages = HPT_ALIGN_PAGES;
 
+	VM_BUG_ON(get_order(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+
 	/* Old CPUs require HPT aligned on a multiple of its size */
 	if (!cpu_has_feature(CPU_FTR_ARCH_206))
 		align_pages = nr_pages;
-	return kvm_alloc_cma(nr_pages, align_pages);
+	return cma_alloc(kvm_cma, nr_pages, get_order(align_pages));
 }
 EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
 
 void kvm_release_hpt(struct page *page, unsigned long nr_pages)
 {
-	kvm_release_cma(page, nr_pages);
+	cma_release(kvm_cma, page, nr_pages);
 }
 EXPORT_SYMBOL_GPL(kvm_release_hpt);
 
@@ -179,7 +185,8 @@ void __init kvm_cma_reserve(void)
 			align_size = HPT_ALIGN_PAGES << PAGE_SHIFT;
 
 		align_size = max(kvm_rma_pages << PAGE_SHIFT, align_size);
-		kvm_cma_declare_contiguous(selected_size, align_size);
+		cma_declare_contiguous(0, selected_size, 0, align_size,
+			KVM_CMA_CHUNK_ORDER - PAGE_SHIFT, false, &kvm_cma);
 	}
 }
 
@@ -212,3 +219,16 @@ bool kvm_hv_mode_active(void)
 {
 	return atomic_read(&hv_vm_count) != 0;
 }
+
+extern int hcall_real_table[], hcall_real_table_end[];
+
+int kvmppc_hcall_impl_hv_realmode(unsigned long cmd)
+{
+	cmd /= 4;
+	if (cmd < hcall_real_table_end - hcall_real_table &&
+	    hcall_real_table[cmd])
+		return 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvmppc_hcall_impl_hv_realmode);

@@ -31,7 +31,6 @@
 #include <linux/compat.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
-#include <linux/miscdevice.h>
 
 #include <linux/pm_runtime.h>
 
@@ -82,6 +81,7 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_LP, mei_me_pch_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_HR, mei_me_lpt_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_WPT_LP, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_WPT_LP_2, mei_me_pch_cfg)},
 
 	/* required last entry */
 	{0, }
@@ -207,7 +207,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, MEI_ME_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
 
-	err = mei_register(dev);
+	err = mei_register(dev, &pdev->dev);
 	if (err)
 		goto release_irq;
 
@@ -369,7 +369,7 @@ static int mei_me_pm_runtime_idle(struct device *device)
 	if (!dev)
 		return -ENODEV;
 	if (mei_write_is_idle(dev))
-		pm_schedule_suspend(device, MEI_ME_RPM_TIMEOUT * 2);
+		pm_runtime_autosuspend(device);
 
 	return -EBUSY;
 }

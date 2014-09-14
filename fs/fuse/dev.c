@@ -643,9 +643,8 @@ struct fuse_copy_state {
 	unsigned long seglen;
 	unsigned long addr;
 	struct page *pg;
-	void *mapaddr;
-	void *buf;
 	unsigned len;
+	unsigned offset;
 	unsigned move_pages:1;
 };
 
@@ -666,23 +665,17 @@ static void fuse_copy_finish(struct fuse_copy_state *cs)
 	if (cs->currbuf) {
 		struct pipe_buffer *buf = cs->currbuf;
 
-		if (!cs->write) {
-			kunmap_atomic(cs->mapaddr);
-		} else {
-			kunmap_atomic(cs->mapaddr);
+		if (cs->write)
 			buf->len = PAGE_SIZE - cs->len;
-		}
 		cs->currbuf = NULL;
-		cs->mapaddr = NULL;
-	} else if (cs->mapaddr) {
-		kunmap_atomic(cs->mapaddr);
+	} else if (cs->pg) {
 		if (cs->write) {
 			flush_dcache_page(cs->pg);
 			set_page_dirty_lock(cs->pg);
 		}
 		put_page(cs->pg);
-		cs->mapaddr = NULL;
 	}
+	cs->pg = NULL;
 }
 
 /*
@@ -691,7 +684,7 @@ static void fuse_copy_finish(struct fuse_copy_state *cs)
  */
 static int fuse_copy_fill(struct fuse_copy_state *cs)
 {
-	unsigned long offset;
+	struct page *page;
 	int err;
 
 	unlock_request(cs->fc, cs->req);
@@ -706,14 +699,12 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 
 			BUG_ON(!cs->nr_segs);
 			cs->currbuf = buf;
-			cs->mapaddr = kmap_atomic(buf->page);
+			cs->pg = buf->page;
+			cs->offset = buf->offset;
 			cs->len = buf->len;
-			cs->buf = cs->mapaddr + buf->offset;
 			cs->pipebufs++;
 			cs->nr_segs--;
 		} else {
-			struct page *page;
-
 			if (cs->nr_segs == cs->pipe->buffers)
 				return -EIO;
 
@@ -726,8 +717,8 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 			buf->len = 0;
 
 			cs->currbuf = buf;
-			cs->mapaddr = kmap_atomic(page);
-			cs->buf = cs->mapaddr;
+			cs->pg = page;
+			cs->offset = 0;
 			cs->len = PAGE_SIZE;
 			cs->pipebufs++;
 			cs->nr_segs++;
@@ -740,14 +731,13 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 			cs->iov++;
 			cs->nr_segs--;
 		}
-		err = get_user_pages_fast(cs->addr, 1, cs->write, &cs->pg);
+		err = get_user_pages_fast(cs->addr, 1, cs->write, &page);
 		if (err < 0)
 			return err;
 		BUG_ON(err != 1);
-		offset = cs->addr % PAGE_SIZE;
-		cs->mapaddr = kmap_atomic(cs->pg);
-		cs->buf = cs->mapaddr + offset;
-		cs->len = min(PAGE_SIZE - offset, cs->seglen);
+		cs->pg = page;
+		cs->offset = cs->addr % PAGE_SIZE;
+		cs->len = min(PAGE_SIZE - cs->offset, cs->seglen);
 		cs->seglen -= cs->len;
 		cs->addr += cs->len;
 	}
@@ -760,15 +750,20 @@ static int fuse_copy_do(struct fuse_copy_state *cs, void **val, unsigned *size)
 {
 	unsigned ncpy = min(*size, cs->len);
 	if (val) {
+		void *pgaddr = kmap_atomic(cs->pg);
+		void *buf = pgaddr + cs->offset;
+
 		if (cs->write)
-			memcpy(cs->buf, *val, ncpy);
+			memcpy(buf, *val, ncpy);
 		else
-			memcpy(*val, cs->buf, ncpy);
+			memcpy(*val, buf, ncpy);
+
+		kunmap_atomic(pgaddr);
 		*val += ncpy;
 	}
 	*size -= ncpy;
 	cs->len -= ncpy;
-	cs->buf += ncpy;
+	cs->offset += ncpy;
 	return ncpy;
 }
 
@@ -874,8 +869,8 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 out_fallback_unlock:
 	unlock_page(newpage);
 out_fallback:
-	cs->mapaddr = kmap_atomic(buf->page);
-	cs->buf = cs->mapaddr + buf->offset;
+	cs->pg = buf->page;
+	cs->offset = buf->offset;
 
 	err = lock_request(cs->fc, cs->req);
 	if (err)

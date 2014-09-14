@@ -585,7 +585,8 @@ static int __init eql_init_module(void)
 
 	pr_info("%s\n", version);
 
-	dev_eql = alloc_netdev(sizeof(equalizer_t), "eql", eql_setup);
+	dev_eql = alloc_netdev(sizeof(equalizer_t), "eql", NET_NAME_UNKNOWN,
+			       eql_setup);
 	if (!dev_eql)
 		return -ENOMEM;
 

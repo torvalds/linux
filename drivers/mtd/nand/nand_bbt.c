@@ -1311,6 +1311,20 @@ int nand_default_bbt(struct mtd_info *mtd)
 }
 
 /**
+ * nand_isreserved_bbt - [NAND Interface] Check if a block is reserved
+ * @mtd: MTD device structure
+ * @offs: offset in the device
+ */
+int nand_isreserved_bbt(struct mtd_info *mtd, loff_t offs)
+{
+	struct nand_chip *this = mtd->priv;
+	int block;
+
+	block = (int)(offs >> this->bbt_erase_shift);
+	return bbt_get_entry(this, block) == BBT_BLOCK_RESERVED;
+}
+
+/**
  * nand_isbad_bbt - [NAND Interface] Check if a block is bad
  * @mtd: MTD device structure
  * @offs: offset in the device

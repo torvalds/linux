@@ -445,7 +445,7 @@ static void cpuidle_remove_state_sysfs(struct cpuidle_device *device)
 
 #define define_one_driver_ro(_name, show)                       \
 	static struct cpuidle_driver_attr attr_driver_##_name = \
-		__ATTR(_name, 0644, show, NULL)
+		__ATTR(_name, 0444, show, NULL)
 
 struct cpuidle_driver_kobj {
 	struct cpuidle_driver *drv;

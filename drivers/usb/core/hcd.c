@@ -855,8 +855,6 @@ static ssize_t authorized_default_show(struct device *dev,
 	struct usb_bus *usb_bus = rh_usb_dev->bus;
 	struct usb_hcd *usb_hcd;
 
-	if (usb_bus == NULL)	/* FIXME: not sure if this case is possible */
-		return -ENODEV;
 	usb_hcd = bus_to_hcd(usb_bus);
 	return snprintf(buf, PAGE_SIZE, "%u\n", usb_hcd->authorized_default);
 }
@@ -871,8 +869,6 @@ static ssize_t authorized_default_store(struct device *dev,
 	struct usb_bus *usb_bus = rh_usb_dev->bus;
 	struct usb_hcd *usb_hcd;
 
-	if (usb_bus == NULL)	/* FIXME: not sure if this case is possible */
-		return -ENODEV;
 	usb_hcd = bus_to_hcd(usb_bus);
 	result = sscanf(buf, "%u\n", &val);
 	if (result == 1) {

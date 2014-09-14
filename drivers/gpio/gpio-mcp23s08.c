@@ -812,16 +812,14 @@ fail:
 static int mcp230xx_remove(struct i2c_client *client)
 {
 	struct mcp23s08 *mcp = i2c_get_clientdata(client);
-	int status;
 
 	if (client->irq && mcp->irq_controller)
 		mcp23s08_irq_teardown(mcp);
 
-	status = gpiochip_remove(&mcp->chip);
-	if (status == 0)
-		kfree(mcp);
+	gpiochip_remove(&mcp->chip);
+	kfree(mcp);
 
-	return status;
+	return 0;
 }
 
 static const struct i2c_device_id mcp230xx_id[] = {
@@ -900,8 +898,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 			if (spi_present_mask & (1 << addr))
 				chips++;
 		}
-		if (!chips)
-			return -ENODEV;
 	} else {
 		type = spi_get_device_id(spi)->driver_data;
 		pdata = dev_get_platdata(&spi->dev);
@@ -940,10 +936,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 		if (!(spi_present_mask & (1 << addr)))
 			continue;
 		chips--;
-		if (chips < 0) {
-			dev_err(&spi->dev, "FATAL: invalid negative chip id\n");
-			goto fail;
-		}
 		data->mcp[addr] = &data->chip[chips];
 		status = mcp23s08_probe_one(data->mcp[addr], &spi->dev, spi,
 					    0x40 | (addr << 1), type, base,
@@ -966,13 +958,10 @@ static int mcp23s08_probe(struct spi_device *spi)
 
 fail:
 	for (addr = 0; addr < ARRAY_SIZE(data->mcp); addr++) {
-		int tmp;
 
 		if (!data->mcp[addr])
 			continue;
-		tmp = gpiochip_remove(&data->mcp[addr]->chip);
-		if (tmp < 0)
-			dev_err(&spi->dev, "%s --> %d\n", "remove", tmp);
+		gpiochip_remove(&data->mcp[addr]->chip);
 	}
 	kfree(data);
 	return status;
@@ -982,23 +971,16 @@ static int mcp23s08_remove(struct spi_device *spi)
 {
 	struct mcp23s08_driver_data	*data = spi_get_drvdata(spi);
 	unsigned			addr;
-	int				status = 0;
 
 	for (addr = 0; addr < ARRAY_SIZE(data->mcp); addr++) {
-		int tmp;
 
 		if (!data->mcp[addr])
 			continue;
 
-		tmp = gpiochip_remove(&data->mcp[addr]->chip);
-		if (tmp < 0) {
-			dev_err(&spi->dev, "%s --> %d\n", "remove", tmp);
-			status = tmp;
-		}
+		gpiochip_remove(&data->mcp[addr]->chip);
 	}
-	if (status == 0)
-		kfree(data);
-	return status;
+	kfree(data);
+	return 0;
 }
 
 static const struct spi_device_id mcp23s08_ids[] = {

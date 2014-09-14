@@ -46,6 +46,10 @@ struct radeon_device;
 #define to_radeon_encoder(x) container_of(x, struct radeon_encoder, base)
 #define to_radeon_framebuffer(x) container_of(x, struct radeon_framebuffer, base)
 
+#define RADEON_MAX_HPD_PINS 7
+#define RADEON_MAX_CRTCS 6
+#define RADEON_MAX_AFMT_BLOCKS 7
+
 enum radeon_rmx_type {
 	RMX_OFF,
 	RMX_FULL,
@@ -233,8 +237,8 @@ struct radeon_mode_info {
 	struct card_info *atom_card_info;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
-	struct radeon_crtc *crtcs[6];
-	struct radeon_afmt *afmt[7];
+	struct radeon_crtc *crtcs[RADEON_MAX_CRTCS];
+	struct radeon_afmt *afmt[RADEON_MAX_AFMT_BLOCKS];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
@@ -302,6 +306,12 @@ struct radeon_atom_ss {
 	uint16_t amount;
 };
 
+enum radeon_flip_status {
+	RADEON_FLIP_NONE,
+	RADEON_FLIP_PENDING,
+	RADEON_FLIP_SUBMITTED
+};
+
 struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
@@ -327,6 +337,7 @@ struct radeon_crtc {
 	/* page flipping */
 	struct workqueue_struct *flip_queue;
 	struct radeon_flip_work *flip_work;
+	enum radeon_flip_status flip_status;
 	/* pll sharing */
 	struct radeon_atom_ss ss;
 	bool ss_enabled;
@@ -674,9 +685,10 @@ extern bool radeon_dig_monitor_is_duallink(struct drm_encoder *encoder,
 
 extern u16 radeon_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder);
 extern u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *connector);
-extern bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector);
 extern bool radeon_connector_is_dp12_capable(struct drm_connector *connector);
 extern int radeon_get_monitor_bpc(struct drm_connector *connector);
+
+extern struct edid *radeon_connector_edid(struct drm_connector *connector);
 
 extern void radeon_connector_hotplug(struct drm_connector *connector);
 extern int radeon_dp_mode_valid_helper(struct drm_connector *connector,
@@ -727,7 +739,6 @@ extern void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c,
 extern void radeon_router_select_ddc_port(struct radeon_connector *radeon_connector);
 extern void radeon_router_select_cd_port(struct radeon_connector *radeon_connector);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool use_aux);
-extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 
 extern struct drm_encoder *radeon_best_encoder(struct drm_connector *connector);
 

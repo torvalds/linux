@@ -278,8 +278,9 @@ acpi_status acpi_hw_clear_acpi_status(void)
 
 	acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
 		goto exit;
+	}
 
 	/* Clear the GPE Bits in all GPE registers in all GPE blocks */
 

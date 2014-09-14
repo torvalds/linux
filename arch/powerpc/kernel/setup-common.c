@@ -456,22 +456,32 @@ void __init smp_setup_cpu_maps(void)
 		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
 				&len);
 		if (intserv) {
-			nthreads = len / sizeof(int);
 			DBG("    ibm,ppc-interrupt-server#s -> %d threads\n",
 			    nthreads);
 		} else {
 			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
-			intserv = of_get_property(dn, "reg", NULL);
+			intserv = of_get_property(dn, "reg", &len);
 			if (!intserv) {
 				cpu_be = cpu_to_be32(cpu);
 				intserv = &cpu_be;	/* assume logical == phys */
+				len = 4;
 			}
 		}
 
+		nthreads = len / sizeof(int);
+
 		for (j = 0; j < nthreads && cpu < nr_cpu_ids; j++) {
+			bool avail;
+
 			DBG("    thread %d -> cpu %d (hard id %d)\n",
 			    j, cpu, be32_to_cpu(intserv[j]));
-			set_cpu_present(cpu, of_device_is_available(dn));
+
+			avail = of_device_is_available(dn);
+			if (!avail)
+				avail = !of_property_match_string(dn,
+						"enable-method", "spin-table");
+
+			set_cpu_present(cpu, avail);
 			set_hard_smp_processor_id(cpu, be32_to_cpu(intserv[j]));
 			set_cpu_possible(cpu, true);
 			cpu++;

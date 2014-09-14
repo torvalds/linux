@@ -227,7 +227,6 @@ struct mei_cl {
 
 /** struct mei_hw_ops
  *
- * @fw_status        - read FW status from PCI config space
  * @host_is_ready    - query for host readiness
 
  * @hw_is_ready      - query if hw is ready
@@ -255,8 +254,6 @@ struct mei_cl {
  */
 struct mei_hw_ops {
 
-	int (*fw_status)(struct mei_device *dev,
-		struct mei_fw_status *fw_status);
 	bool (*host_is_ready)(struct mei_device *dev);
 
 	bool (*hw_is_ready)(struct mei_device *dev);
@@ -400,6 +397,10 @@ struct mei_cfg {
 /**
  * struct mei_device -  MEI private device struct
 
+ * @pdev - pointer to pci device struct
+ * @cdev - character device
+ * @minor - minor number allocated for device
+ *
  * @reset_count - limits the number of consecutive resets
  * @hbm_state - state of host bus message protocol
  * @pg_event - power gating event
@@ -412,6 +413,9 @@ struct mei_cfg {
  */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
+	struct cdev cdev;
+	int minor;
+
 	/*
 	 * lists of queues
 	 */
@@ -741,7 +745,7 @@ static inline int mei_dbgfs_register(struct mei_device *dev, const char *name)
 static inline void mei_dbgfs_deregister(struct mei_device *dev) {}
 #endif /* CONFIG_DEBUG_FS */
 
-int mei_register(struct mei_device *dev);
+int mei_register(struct mei_device *dev, struct device *parent);
 void mei_deregister(struct mei_device *dev);
 
 #define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d internal=%1d comp=%1d"

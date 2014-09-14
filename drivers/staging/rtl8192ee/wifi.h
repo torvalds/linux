@@ -1946,7 +1946,7 @@ struct rtl_hal_ops {
 			     u32 cmd_len, u8 *p_cmdbuffer);
 	bool (*get_btc_status)(void);
 	u32 (*rx_command_packet)(struct ieee80211_hw *hw,
-				 struct rtl_stats status, struct sk_buff *skb);
+				 const struct rtl_stats *status, struct sk_buff *skb);
 	void (*add_wowlan_pattern)(struct ieee80211_hw *hw,
 				   struct rtl_wow_pattern *rtl_pattern,
 				   u8 index);

@@ -4,18 +4,8 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
- *
-*/
+ */
+
 #ifndef __BCMGENET_H__
 #define __BCMGENET_H__
 
@@ -331,9 +321,9 @@ struct bcmgenet_mib_counters {
 #define  EXT_ENERGY_DET_MASK		(1 << 12)
 
 #define EXT_RGMII_OOB_CTRL		0x0C
-#define  RGMII_MODE_EN			(1 << 0)
 #define  RGMII_LINK			(1 << 4)
 #define  OOB_DISABLE			(1 << 5)
+#define  RGMII_MODE_EN			(1 << 6)
 #define  ID_MODE_DIS			(1 << 16)
 
 #define EXT_GPHY_CTRL			0x1C
@@ -456,6 +446,7 @@ struct enet_cb {
 enum bcmgenet_power_mode {
 	GENET_POWER_CABLE_SENSE = 0,
 	GENET_POWER_PASSIVE,
+	GENET_POWER_WOL_MAGIC,
 };
 
 struct bcmgenet_priv;
@@ -513,9 +504,9 @@ struct bcmgenet_tx_ring {
 	unsigned int	cb_ptr;		/* Tx ring initial CB ptr */
 	unsigned int	end_ptr;	/* Tx ring end CB ptr */
 	void (*int_enable)(struct bcmgenet_priv *priv,
-				struct bcmgenet_tx_ring *);
+			   struct bcmgenet_tx_ring *);
 	void (*int_disable)(struct bcmgenet_priv *priv,
-				struct bcmgenet_tx_ring *);
+			    struct bcmgenet_tx_ring *);
 };
 
 /* device context */
@@ -569,6 +560,8 @@ struct bcmgenet_priv {
 	int irq1;
 	unsigned int irq0_stat;
 	unsigned int irq1_stat;
+	int wol_irq;
+	bool wol_irq_disabled;
 
 	/* HW descriptors/checksum variables */
 	bool desc_64b_en;
@@ -583,7 +576,6 @@ struct bcmgenet_priv {
 	struct platform_device *pdev;
 
 	/* WOL */
-	unsigned long wol_enabled;
 	struct clk *clk_wol;
 	u32 wolopts;
 
@@ -624,5 +616,13 @@ int bcmgenet_mii_init(struct net_device *dev);
 int bcmgenet_mii_config(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
 void bcmgenet_mii_reset(struct net_device *dev);
+
+/* Wake-on-LAN routines */
+void bcmgenet_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol);
+int bcmgenet_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol);
+int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
+				enum bcmgenet_power_mode mode);
+void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
+			       enum bcmgenet_power_mode mode);
 
 #endif /* __BCMGENET_H__ */

@@ -19,8 +19,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/proc_fs.h>
-
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
@@ -2102,7 +2100,6 @@ void stop_ft1000_card(struct net_device *dev)
 	release_region(dev->base_addr,256);
 	release_firmware(fw_entry);
 	flarion_ft1000_cnt--;
-	ft1000CleanupProc(dev);
 
 }
 
@@ -2247,7 +2244,6 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 
 	ft1000_enable_interrupts(dev);
 
-	ft1000InitProc(dev);
 	ft1000_card_present = 1;
 	dev->ethtool_ops = &ops;
 	printk(KERN_INFO "ft1000: %s: addr 0x%04lx irq %d, MAC addr %pM\n",

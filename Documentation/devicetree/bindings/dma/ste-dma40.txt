@@ -35,9 +35,11 @@ Required properties:
 
 Each dmas request consists of 4 cells:
   1. A phandle pointing to the DMA controller
-  2. Device Type
+  2. Device signal number, the signal line for single and burst requests
+     connected from the device to the DMA40 engine
   3. The DMA request line number (only when 'use fixed channel' is set)
-  4. A 32bit mask specifying; mode, direction and endianness [NB: This list will grow]
+  4. A 32bit mask specifying; mode, direction and endianness
+     [NB: This list will grow]
         0x00000001: Mode:
                 Logical channel when unset
                 Physical channel when set
@@ -53,6 +55,74 @@ Each dmas request consists of 4 cells:
         0x00000010: Set channel as high priority:
                 Normal priority when unset
                 High priority when set
+
+Existing signal numbers for the DB8500 ASIC. Unless specified, the signals are
+bidirectional, i.e. the same for RX and TX operations:
+
+0:  SPI controller 0
+1:  SD/MMC controller 0 (unused)
+2:  SD/MMC controller 1 (unused)
+3:  SD/MMC controller 2 (unused)
+4:  I2C port 1
+5:  I2C port 3
+6:  I2C port 2
+7:  I2C port 4
+8:  Synchronous Serial Port SSP0
+9:  Synchronous Serial Port SSP1
+10: Multi-Channel Display Engine MCDE RX
+11: UART port 2
+12: UART port 1
+13: UART port 0
+14: Multirate Serial Port MSP2
+15: I2C port 0
+16: USB OTG in/out endpoints 7 & 15
+17: USB OTG in/out endpoints 6 & 14
+18: USB OTG in/out endpoints 5 & 13
+19: USB OTG in/out endpoints 4 & 12
+20: SLIMbus or HSI channel 0
+21: SLIMbus or HSI channel 1
+22: SLIMbus or HSI channel 2
+23: SLIMbus or HSI channel 3
+24: Multimedia DSP SXA0
+25: Multimedia DSP SXA1
+26: Multimedia DSP SXA2
+27: Multimedia DSP SXA3
+28: SD/MM controller 2
+29: SD/MM controller 0
+30: MSP port 1 on DB8500 v1, MSP port 3 on DB8500 v2
+31: MSP port 0 or SLIMbus channel 0
+32: SD/MM controller 1
+33: SPI controller 2
+34: i2c3 RX2 TX2
+35: SPI controller 1
+36: USB OTG in/out endpoints 3 & 11
+37: USB OTG in/out endpoints 2 & 10
+38: USB OTG in/out endpoints 1 & 9
+39: USB OTG in/out endpoints 8
+40: SPI controller 3
+41: SD/MM controller 3
+42: SD/MM controller 4
+43: SD/MM controller 5
+44: Multimedia DSP SXA4
+45: Multimedia DSP SXA5
+46: SLIMbus channel 8 or Multimedia DSP SXA6
+47: SLIMbus channel 9 or Multimedia DSP SXA7
+48: Crypto Accelerator 1
+49: Crypto Accelerator 1 TX or Hash Accelerator 1 TX
+50: Hash Accelerator 1 TX
+51: memcpy TX (to be used by the DMA driver for memcpy operations)
+52: SLIMbus or HSI channel 4
+53: SLIMbus or HSI channel 5
+54: SLIMbus or HSI channel 6
+55: SLIMbus or HSI channel 7
+56: memcpy (to be used by the DMA driver for memcpy operations)
+57: memcpy (to be used by the DMA driver for memcpy operations)
+58: memcpy (to be used by the DMA driver for memcpy operations)
+59: memcpy (to be used by the DMA driver for memcpy operations)
+60: memcpy (to be used by the DMA driver for memcpy operations)
+61: Crypto Accelerator 0
+62: Crypto Accelerator 0 TX or Hash Accelerator 0 TX
+63: Hash Accelerator 0 TX
 
 Example:
 

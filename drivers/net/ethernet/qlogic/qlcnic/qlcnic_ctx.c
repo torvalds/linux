@@ -136,7 +136,7 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 	rsp = qlcnic_poll_rsp(adapter);
 
 	if (rsp == QLCNIC_CDRP_RSP_TIMEOUT) {
-		dev_err(&pdev->dev, "card response timeout.\n");
+		dev_err(&pdev->dev, "command timeout, response = 0x%x\n", rsp);
 		cmd->rsp.arg[0] = QLCNIC_RCODE_TIMEOUT;
 	} else if (rsp == QLCNIC_CDRP_RSP_FAIL) {
 		cmd->rsp.arg[0] = QLCRD32(adapter, QLCNIC_CDRP_ARG(1), &err);

@@ -69,11 +69,11 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	memcpy(&attr->fw_ver, &dev->attr.fw_ver[0],
 	       min(sizeof(dev->attr.fw_ver), sizeof(attr->fw_ver)));
 	ocrdma_get_guid(dev, (u8 *)&attr->sys_image_guid);
-	attr->max_mr_size = ~0ull;
+	attr->max_mr_size = dev->attr.max_mr_size;
 	attr->page_size_cap = 0xffff000;
 	attr->vendor_id = dev->nic_info.pdev->vendor;
 	attr->vendor_part_id = dev->nic_info.pdev->device;
-	attr->hw_ver = 0;
+	attr->hw_ver = dev->asic_id;
 	attr->max_qp = dev->attr.max_qp;
 	attr->max_ah = OCRDMA_MAX_AH;
 	attr->max_qp_wr = dev->attr.max_wqe;
@@ -268,7 +268,8 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 		pd->dpp_enabled =
 			ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R;
 		pd->num_dpp_qp =
-			pd->dpp_enabled ? OCRDMA_PD_MAX_DPP_ENABLED_QP : 0;
+			pd->dpp_enabled ? (dev->nic_info.db_page_size /
+					   dev->attr.wqe_size) : 0;
 	}
 
 retry:
@@ -328,7 +329,10 @@ static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 	struct ocrdma_pd *pd = uctx->cntxt_pd;
 	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
-	BUG_ON(uctx->pd_in_use);
+	if (uctx->pd_in_use) {
+		pr_err("%s(%d) Freeing in use pdid=0x%x.\n",
+		       __func__, dev->id, pd->id);
+	}
 	uctx->cntxt_pd = NULL;
 	status = _ocrdma_dealloc_pd(dev, pd);
 	return status;
@@ -843,6 +847,13 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 	if (mr->umem)
 		ib_umem_release(mr->umem);
 	kfree(mr);
+
+	/* Don't stop cleanup, in case FW is unresponsive */
+	if (dev->mqe_ctx.fw_error_state) {
+		status = 0;
+		pr_err("%s(%d) fw not responding.\n",
+		       __func__, dev->id);
+	}
 	return status;
 }
 
@@ -2054,6 +2065,13 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	}
 
 	while (wr) {
+		if (qp->qp_type == IB_QPT_UD &&
+		    (wr->opcode != IB_WR_SEND &&
+		     wr->opcode != IB_WR_SEND_WITH_IMM)) {
+			*bad_wr = wr;
+			status = -EINVAL;
+			break;
+		}
 		if (ocrdma_hwq_free_cnt(&qp->sq) == 0 ||
 		    wr->num_sge > qp->sq.max_sges) {
 			*bad_wr = wr;
@@ -2488,6 +2506,11 @@ static bool ocrdma_poll_err_scqe(struct ocrdma_qp *qp,
 			*stop = true;
 			expand = false;
 		}
+	} else if (is_hw_sq_empty(qp)) {
+		/* Do nothing */
+		expand = false;
+		*polled = false;
+		*stop = false;
 	} else {
 		*polled = true;
 		expand = ocrdma_update_err_scqe(ibwc, cqe, qp, status);
@@ -2593,6 +2616,11 @@ static bool ocrdma_poll_err_rcqe(struct ocrdma_qp *qp, struct ocrdma_cqe *cqe,
 			*stop = true;
 			expand = false;
 		}
+	} else if (is_hw_rq_empty(qp)) {
+		/* Do nothing */
+		expand = false;
+		*polled = false;
+		*stop = false;
 	} else {
 		*polled = true;
 		expand = ocrdma_update_err_rcqe(ibwc, cqe, qp, status);

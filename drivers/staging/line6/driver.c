@@ -663,7 +663,7 @@ static int line6_probe(struct usb_interface *interface,
 	case LINE6_DEVID_POCKETPOD:
 		switch (interface_number) {
 		case 0:
-			return 0;	/* this interface has no endpoints */
+			return -ENODEV;	/* this interface has no endpoints */
 		case 1:
 			alternate = 0;
 			break;

@@ -23,7 +23,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-
+#define DRIVERVERSION	"v4.1.4_6773.20130222"
 #define _drv_always_			1
 #define _drv_emerg_			2
 #define _drv_alert_			3

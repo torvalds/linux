@@ -786,7 +786,7 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		/* if the vma is cached, invalidate the entire cache */
 		if (curr->vmacache[i] == vma) {
-			vmacache_invalidate(curr->mm);
+			vmacache_invalidate(mm);
 			break;
 		}
 	}
@@ -1979,11 +1979,6 @@ error:
 	vm_unacct_memory(pages);
 
 	return -ENOMEM;
-}
-
-int in_gate_area_no_mm(unsigned long addr)
-{
-	return 0;
 }
 
 int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)

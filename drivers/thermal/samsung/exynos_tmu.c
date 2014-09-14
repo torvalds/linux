@@ -505,6 +505,10 @@ static irqreturn_t exynos_tmu_irq(int irq, void *id)
 
 static const struct of_device_id exynos_tmu_match[] = {
 	{
+		.compatible = "samsung,exynos3250-tmu",
+		.data = (void *)EXYNOS3250_TMU_DRV_DATA,
+	},
+	{
 		.compatible = "samsung,exynos4210-tmu",
 		.data = (void *)EXYNOS4210_TMU_DRV_DATA,
 	},
@@ -677,7 +681,8 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		goto err_clk_sec;
 	}
 
-	if (pdata->type == SOC_ARCH_EXYNOS4210 ||
+	if (pdata->type == SOC_ARCH_EXYNOS3250 ||
+	    pdata->type == SOC_ARCH_EXYNOS4210 ||
 	    pdata->type == SOC_ARCH_EXYNOS4412 ||
 	    pdata->type == SOC_ARCH_EXYNOS5250 ||
 	    pdata->type == SOC_ARCH_EXYNOS5260 ||
@@ -759,9 +764,9 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 
-	exynos_tmu_control(pdev, false);
-
 	exynos_unregister_thermal(data->reg_conf);
+
+	exynos_tmu_control(pdev, false);
 
 	clk_unprepare(data->clk);
 	if (!IS_ERR(data->clk_sec))

@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: station TX data handling
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -150,6 +150,7 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 		return -1;
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
+	memset(tx_info, 0, sizeof(*tx_info));
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
 	tx_info->pkt_len = data_len - (sizeof(struct txpd) + INTF_HEADER_LEN);

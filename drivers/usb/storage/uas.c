@@ -1026,7 +1026,7 @@ static int uas_configure_endpoints(struct uas_dev_info *devinfo)
 					    usb_endpoint_num(&eps[3]->desc));
 
 	if (udev->speed != USB_SPEED_SUPER) {
-		devinfo->qdepth = 256;
+		devinfo->qdepth = 32;
 		devinfo->use_streams = 0;
 	} else {
 		devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1,

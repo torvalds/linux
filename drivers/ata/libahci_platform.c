@@ -39,6 +39,67 @@ static struct scsi_host_template ahci_platform_sht = {
 };
 
 /**
+ * ahci_platform_enable_phys - Enable PHYs
+ * @hpriv: host private area to store config values
+ *
+ * This function enables all the PHYs found in hpriv->phys, if any.
+ * If a PHY fails to be enabled, it disables all the PHYs already
+ * enabled in reverse order and returns an error.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
+{
+	int rc, i;
+
+	for (i = 0; i < hpriv->nports; i++) {
+		if (!hpriv->phys[i])
+			continue;
+
+		rc = phy_init(hpriv->phys[i]);
+		if (rc)
+			goto disable_phys;
+
+		rc = phy_power_on(hpriv->phys[i]);
+		if (rc) {
+			phy_exit(hpriv->phys[i]);
+			goto disable_phys;
+		}
+	}
+
+	return 0;
+
+disable_phys:
+	while (--i >= 0) {
+		phy_power_off(hpriv->phys[i]);
+		phy_exit(hpriv->phys[i]);
+	}
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ahci_platform_enable_phys);
+
+/**
+ * ahci_platform_disable_phys - Disable PHYs
+ * @hpriv: host private area to store config values
+ *
+ * This function disables all PHYs found in hpriv->phys.
+ */
+void ahci_platform_disable_phys(struct ahci_host_priv *hpriv)
+{
+	int i;
+
+	for (i = 0; i < hpriv->nports; i++) {
+		if (!hpriv->phys[i])
+			continue;
+
+		phy_power_off(hpriv->phys[i]);
+		phy_exit(hpriv->phys[i]);
+	}
+}
+EXPORT_SYMBOL_GPL(ahci_platform_disable_phys);
+
+/**
  * ahci_platform_enable_clks - Enable platform clocks
  * @hpriv: host private area to store config values
  *
@@ -92,7 +153,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_disable_clks);
  * following order:
  * 1) Regulator
  * 2) Clocks (through ahci_platform_enable_clks)
- * 3) Phy
+ * 3) Phys
  *
  * If resource enabling fails at any point the previous enabled resources
  * are disabled in reverse order.
@@ -114,17 +175,9 @@ int ahci_platform_enable_resources(struct ahci_host_priv *hpriv)
 	if (rc)
 		goto disable_regulator;
 
-	if (hpriv->phy) {
-		rc = phy_init(hpriv->phy);
-		if (rc)
-			goto disable_clks;
-
-		rc = phy_power_on(hpriv->phy);
-		if (rc) {
-			phy_exit(hpriv->phy);
-			goto disable_clks;
-		}
-	}
+	rc = ahci_platform_enable_phys(hpriv);
+	if (rc)
+		goto disable_clks;
 
 	return 0;
 
@@ -144,16 +197,13 @@ EXPORT_SYMBOL_GPL(ahci_platform_enable_resources);
  *
  * This function disables all ahci_platform managed resources in the
  * following order:
- * 1) Phy
+ * 1) Phys
  * 2) Clocks (through ahci_platform_disable_clks)
  * 3) Regulator
  */
 void ahci_platform_disable_resources(struct ahci_host_priv *hpriv)
 {
-	if (hpriv->phy) {
-		phy_power_off(hpriv->phy);
-		phy_exit(hpriv->phy);
-	}
+	ahci_platform_disable_phys(hpriv);
 
 	ahci_platform_disable_clks(hpriv);
 
@@ -187,7 +237,7 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
  * 2) regulator for controlling the targets power (optional)
  * 3) 0 - AHCI_MAX_CLKS clocks, as specified in the devs devicetree node,
  *    or for non devicetree enabled platforms a single clock
- *	4) phy (optional)
+ *	4) phys (optional)
  *
  * RETURNS:
  * The allocated ahci_host_priv on success, otherwise an ERR_PTR value
@@ -197,7 +247,9 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
 	struct clk *clk;
-	int i, rc = -ENOMEM;
+	struct device_node *child;
+	int i, enabled_ports = 0, rc = -ENOMEM;
+	u32 mask_port_map = 0;
 
 	if (!devres_open_group(dev, NULL, GFP_KERNEL))
 		return ERR_PTR(-ENOMEM);
@@ -246,22 +298,88 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 		hpriv->clks[i] = clk;
 	}
 
-	hpriv->phy = devm_phy_get(dev, "sata-phy");
-	if (IS_ERR(hpriv->phy)) {
-		rc = PTR_ERR(hpriv->phy);
-		switch (rc) {
-		case -ENODEV:
-		case -ENOSYS:
-			/* continue normally */
-			hpriv->phy = NULL;
-			break;
+	hpriv->nports = of_get_child_count(dev->of_node);
 
-		case -EPROBE_DEFER:
+	if (hpriv->nports) {
+		hpriv->phys = devm_kzalloc(dev,
+					   hpriv->nports * sizeof(*hpriv->phys),
+					   GFP_KERNEL);
+		if (!hpriv->phys) {
+			rc = -ENOMEM;
 			goto err_out;
+		}
 
-		default:
-			dev_err(dev, "couldn't get sata-phy\n");
+		for_each_child_of_node(dev->of_node, child) {
+			u32 port;
+
+			if (!of_device_is_available(child))
+				continue;
+
+			if (of_property_read_u32(child, "reg", &port)) {
+				rc = -EINVAL;
+				goto err_out;
+			}
+
+			if (port >= hpriv->nports) {
+				dev_warn(dev, "invalid port number %d\n", port);
+				continue;
+			}
+
+			mask_port_map |= BIT(port);
+
+			hpriv->phys[port] = devm_of_phy_get(dev, child, NULL);
+			if (IS_ERR(hpriv->phys[port])) {
+				rc = PTR_ERR(hpriv->phys[port]);
+				dev_err(dev,
+					"couldn't get PHY in node %s: %d\n",
+					child->name, rc);
+				goto err_out;
+			}
+
+			enabled_ports++;
+		}
+		if (!enabled_ports) {
+			dev_warn(dev, "No port enabled\n");
+			rc = -ENODEV;
 			goto err_out;
+		}
+
+		if (!hpriv->mask_port_map)
+			hpriv->mask_port_map = mask_port_map;
+	} else {
+		/*
+		 * If no sub-node was found, keep this for device tree
+		 * compatibility
+		 */
+		struct phy *phy = devm_phy_get(dev, "sata-phy");
+		if (!IS_ERR(phy)) {
+			hpriv->phys = devm_kzalloc(dev, sizeof(*hpriv->phys),
+						   GFP_KERNEL);
+			if (!hpriv->phys) {
+				rc = -ENOMEM;
+				goto err_out;
+			}
+
+			hpriv->phys[0] = phy;
+			hpriv->nports = 1;
+		} else {
+			rc = PTR_ERR(phy);
+			switch (rc) {
+				case -ENOSYS:
+					/* No PHY support. Check if PHY is required. */
+					if (of_find_property(dev->of_node, "phys", NULL)) {
+						dev_err(dev, "couldn't get sata-phy: ENOSYS\n");
+						goto err_out;
+					}
+				case -ENODEV:
+					/* continue normally */
+					hpriv->phys = NULL;
+					break;
+
+				default:
+					goto err_out;
+
+			}
 		}
 	}
 
@@ -283,12 +401,9 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  * @pdev: platform device pointer for the host
  * @hpriv: ahci-host private data for the host
  * @pi_template: template for the ata_port_info to use
- * @host_flags: ahci host flags used in ahci_host_priv
- * @force_port_map: param passed to ahci_save_initial_config
- * @mask_port_map: param passed to ahci_save_initial_config
  *
  * This function does all the usual steps needed to bring up an
- * ahci-platform host, note any necessary resources (ie clks, phy, etc.)
+ * ahci-platform host, note any necessary resources (ie clks, phys, etc.)
  * must be initialized / enabled before calling this.
  *
  * RETURNS:
@@ -296,10 +411,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  */
 int ahci_platform_init_host(struct platform_device *pdev,
 			    struct ahci_host_priv *hpriv,
-			    const struct ata_port_info *pi_template,
-			    unsigned long host_flags,
-			    unsigned int force_port_map,
-			    unsigned int mask_port_map)
+			    const struct ata_port_info *pi_template)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_port_info pi = *pi_template;
@@ -314,10 +426,9 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	}
 
 	/* prepare host */
-	pi.private_data = (void *)host_flags;
-	hpriv->flags |= host_flags;
+	pi.private_data = (void *)(unsigned long)hpriv->flags;
 
-	ahci_save_initial_config(dev, hpriv, force_port_map, mask_port_map);
+	ahci_save_initial_config(dev, hpriv);
 
 	if (hpriv->cap & HOST_CAP_NCQ)
 		pi.flags |= ATA_FLAG_NCQ;
@@ -364,6 +475,19 @@ int ahci_platform_init_host(struct platform_device *pdev,
 			ap->ops = &ata_dummy_port_ops;
 	}
 
+	if (hpriv->cap & HOST_CAP_64) {
+		rc = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
+		if (rc) {
+			rc = dma_coerce_mask_and_coherent(dev,
+							  DMA_BIT_MASK(32));
+			if (rc) {
+				dev_err(dev, "Failed to enable 64-bit DMA.\n");
+				return rc;
+			}
+			dev_warn(dev, "Enable 32-bit DMA instead of 64-bit.\n");
+		}
+	}
+
 	rc = ahci_reset_controller(host);
 	if (rc)
 		return rc;
@@ -394,7 +518,7 @@ static void ahci_host_stop(struct ata_host *host)
  * @dev: device pointer for the host
  *
  * This function does all the usual steps needed to suspend an
- * ahci-platform host, note any necessary resources (ie clks, phy, etc.)
+ * ahci-platform host, note any necessary resources (ie clks, phys, etc.)
  * must be disabled after calling this.
  *
  * RETURNS:
@@ -431,7 +555,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_suspend_host);
  * @dev: device pointer for the host
  *
  * This function does all the usual steps needed to resume an ahci-platform
- * host, note any necessary resources (ie clks, phy, etc.)  must be
+ * host, note any necessary resources (ie clks, phys, etc.)  must be
  * initialized / enabled before calling this.
  *
  * RETURNS:

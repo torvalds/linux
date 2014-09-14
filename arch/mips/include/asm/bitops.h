@@ -559,7 +559,13 @@ static inline int fls(int x)
 	int r;
 
 	if (__builtin_constant_p(cpu_has_clo_clz) && cpu_has_clo_clz) {
-		__asm__("clz %0, %1" : "=r" (x) : "r" (x));
+		__asm__(
+		"	.set	push					\n"
+		"	.set	mips32					\n"
+		"	clz	%0, %1					\n"
+		"	.set	pop					\n"
+		: "=r" (x)
+		: "r" (x));
 
 		return 32 - x;
 	}

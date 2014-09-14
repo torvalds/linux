@@ -359,6 +359,7 @@
 			compatible = "fsl,qoriq-core-mux-1.0";
 			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
 			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux2";
 		};
 
 		mux3: mux3@60 {

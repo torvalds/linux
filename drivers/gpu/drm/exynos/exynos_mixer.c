@@ -76,7 +76,7 @@ struct mixer_resources {
 	struct clk		*vp;
 	struct clk		*sclk_mixer;
 	struct clk		*sclk_hdmi;
-	struct clk		*sclk_dac;
+	struct clk		*mout_mixer;
 };
 
 enum mixer_version_id {
@@ -93,6 +93,7 @@ struct mixer_context {
 	bool			interlace;
 	bool			powered;
 	bool			vp_enabled;
+	bool			has_sclk;
 	u32			int_en;
 
 	struct mutex		mixer_mutex;
@@ -106,6 +107,7 @@ struct mixer_context {
 struct mixer_drv_data {
 	enum mixer_version_id	version;
 	bool					is_vp_enabled;
+	bool					has_sclk;
 };
 
 static const u8 filter_y_horiz_tap8[] = {
@@ -363,6 +365,11 @@ static void mixer_cfg_layer(struct mixer_context *ctx, int win, bool enable)
 			vp_reg_writemask(res, VP_ENABLE, val, VP_ENABLE_ON);
 			mixer_reg_writemask(res, MXR_CFG, val,
 				MXR_CFG_VP_ENABLE);
+
+			/* control blending of graphic layer 0 */
+			mixer_reg_writemask(res, MXR_GRAPHIC_CFG(0), val,
+					MXR_GRP_CFG_BLEND_PRE_MUL |
+					MXR_GRP_CFG_PIXEL_BLEND_EN);
 		}
 		break;
 	}
@@ -373,6 +380,20 @@ static void mixer_run(struct mixer_context *ctx)
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_REG_RUN);
+
+	mixer_regs_dump(ctx);
+}
+
+static void mixer_stop(struct mixer_context *ctx)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+	int timeout = 20;
+
+	mixer_reg_writemask(res, MXR_STATUS, 0, MXR_STATUS_REG_RUN);
+
+	while (!(mixer_reg_read(res, MXR_STATUS) & MXR_STATUS_REG_IDLE) &&
+			--timeout)
+		usleep_range(10000, 12000);
 
 	mixer_regs_dump(ctx);
 }
@@ -497,13 +518,8 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 static void mixer_layer_update(struct mixer_context *ctx)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
-	u32 val;
 
-	val = mixer_reg_read(res, MXR_CFG);
-
-	/* allow one update per vsync only */
-	if (!(val & MXR_CFG_LAYER_UPDATE_COUNT_MASK))
-		mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
+	mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
 }
 
 static void mixer_graph_buffer(struct mixer_context *ctx, int win)
@@ -800,19 +816,23 @@ static int vp_resources_init(struct mixer_context *mixer_ctx)
 		dev_err(dev, "failed to get clock 'vp'\n");
 		return -ENODEV;
 	}
-	mixer_res->sclk_mixer = devm_clk_get(dev, "sclk_mixer");
-	if (IS_ERR(mixer_res->sclk_mixer)) {
-		dev_err(dev, "failed to get clock 'sclk_mixer'\n");
-		return -ENODEV;
-	}
-	mixer_res->sclk_dac = devm_clk_get(dev, "sclk_dac");
-	if (IS_ERR(mixer_res->sclk_dac)) {
-		dev_err(dev, "failed to get clock 'sclk_dac'\n");
-		return -ENODEV;
-	}
 
-	if (mixer_res->sclk_hdmi)
-		clk_set_parent(mixer_res->sclk_mixer, mixer_res->sclk_hdmi);
+	if (mixer_ctx->has_sclk) {
+		mixer_res->sclk_mixer = devm_clk_get(dev, "sclk_mixer");
+		if (IS_ERR(mixer_res->sclk_mixer)) {
+			dev_err(dev, "failed to get clock 'sclk_mixer'\n");
+			return -ENODEV;
+		}
+		mixer_res->mout_mixer = devm_clk_get(dev, "mout_mixer");
+		if (IS_ERR(mixer_res->mout_mixer)) {
+			dev_err(dev, "failed to get clock 'mout_mixer'\n");
+			return -ENODEV;
+		}
+
+		if (mixer_res->sclk_hdmi && mixer_res->mout_mixer)
+			clk_set_parent(mixer_res->mout_mixer,
+				       mixer_res->sclk_hdmi);
+	}
 
 	res = platform_get_resource(mixer_ctx->pdev, IORESOURCE_MEM, 1);
 	if (res == NULL) {
@@ -1010,6 +1030,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 	}
 	mutex_unlock(&mixer_ctx->mixer_mutex);
 
+	drm_vblank_get(mgr->crtc->dev, mixer_ctx->pipe);
+
 	atomic_set(&mixer_ctx->wait_vsync_event, 1);
 
 	/*
@@ -1020,6 +1042,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 				!atomic_read(&mixer_ctx->wait_vsync_event),
 				HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
+
+	drm_vblank_put(mgr->crtc->dev, mixer_ctx->pipe);
 }
 
 static void mixer_window_suspend(struct exynos_drm_manager *mgr)
@@ -1061,7 +1085,7 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 		mutex_unlock(&ctx->mixer_mutex);
 		return;
 	}
-	ctx->powered = true;
+
 	mutex_unlock(&ctx->mixer_mutex);
 
 	pm_runtime_get_sync(ctx->dev);
@@ -1069,8 +1093,15 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 	clk_prepare_enable(res->mixer);
 	if (ctx->vp_enabled) {
 		clk_prepare_enable(res->vp);
-		clk_prepare_enable(res->sclk_mixer);
+		if (ctx->has_sclk)
+			clk_prepare_enable(res->sclk_mixer);
 	}
+
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = true;
+	mutex_unlock(&ctx->mixer_mutex);
+
+	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
@@ -1084,27 +1115,29 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mutex_lock(&ctx->mixer_mutex);
-	if (!ctx->powered)
-		goto out;
+	if (!ctx->powered) {
+		mutex_unlock(&ctx->mixer_mutex);
+		return;
+	}
 	mutex_unlock(&ctx->mixer_mutex);
 
+	mixer_stop(ctx);
 	mixer_window_suspend(mgr);
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
 
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = false;
+	mutex_unlock(&ctx->mixer_mutex);
+
 	clk_disable_unprepare(res->mixer);
 	if (ctx->vp_enabled) {
 		clk_disable_unprepare(res->vp);
-		clk_disable_unprepare(res->sclk_mixer);
+		if (ctx->has_sclk)
+			clk_disable_unprepare(res->sclk_mixer);
 	}
 
 	pm_runtime_put_sync(ctx->dev);
-
-	mutex_lock(&ctx->mixer_mutex);
-	ctx->powered = false;
-
-out:
-	mutex_unlock(&ctx->mixer_mutex);
 }
 
 static void mixer_dpms(struct exynos_drm_manager *mgr, int mode)
@@ -1169,9 +1202,15 @@ static struct mixer_drv_data exynos5250_mxr_drv_data = {
 	.is_vp_enabled = 0,
 };
 
+static struct mixer_drv_data exynos4212_mxr_drv_data = {
+	.version = MXR_VER_0_0_0_16,
+	.is_vp_enabled = 1,
+};
+
 static struct mixer_drv_data exynos4210_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
+	.has_sclk = 1,
 };
 
 static struct platform_device_id mixer_driver_types[] = {
@@ -1188,6 +1227,12 @@ static struct platform_device_id mixer_driver_types[] = {
 
 static struct of_device_id mixer_match_types[] = {
 	{
+		.compatible = "samsung,exynos4210-mixer",
+		.data	= &exynos4210_mxr_drv_data,
+	}, {
+		.compatible = "samsung,exynos4212-mixer",
+		.data	= &exynos4212_mxr_drv_data,
+	}, {
 		.compatible = "samsung,exynos5-mixer",
 		.data	= &exynos5250_mxr_drv_data,
 	}, {
@@ -1200,6 +1245,7 @@ static struct of_device_id mixer_match_types[] = {
 		/* end node */
 	}
 };
+MODULE_DEVICE_TABLE(of, mixer_match_types);
 
 static int mixer_bind(struct device *dev, struct device *manager, void *data)
 {
@@ -1231,6 +1277,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 	ctx->pdev = pdev;
 	ctx->dev = dev;
 	ctx->vp_enabled = drv->is_vp_enabled;
+	ctx->has_sclk = drv->has_sclk;
 	ctx->mxr_ver = drv->version;
 	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);

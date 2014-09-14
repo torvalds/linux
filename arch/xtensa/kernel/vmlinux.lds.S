@@ -269,13 +269,13 @@ SECTIONS
 		  .UserExceptionVector.literal)
   SECTION_VECTOR (_DoubleExceptionVector_literal,
 		  .DoubleExceptionVector.literal,
-		  DOUBLEEXC_VECTOR_VADDR - 16,
+		  DOUBLEEXC_VECTOR_VADDR - 40,
 		  SIZEOF(.UserExceptionVector.text),
 		  .UserExceptionVector.text)
   SECTION_VECTOR (_DoubleExceptionVector_text,
 		  .DoubleExceptionVector.text,
 		  DOUBLEEXC_VECTOR_VADDR,
-		  32,
+		  40,
 		  .DoubleExceptionVector.literal)
 
   . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;

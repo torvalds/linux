@@ -87,6 +87,7 @@ struct hdmi_platform_config {
 
 	/* clks that need to be on for hpd: */
 	const char **hpd_clk_names;
+	const long unsigned *hpd_freq;
 	int hpd_clk_cnt;
 
 	/* clks that need to be on for screen pwr (ie pixel clk): */
@@ -95,6 +96,7 @@ struct hdmi_platform_config {
 
 	/* gpio's: */
 	int ddc_clk_gpio, ddc_data_gpio, hpd_gpio, mux_en_gpio, mux_sel_gpio;
+	int mux_lpm_gpio;
 
 	/* older devices had their own irq, mdp5+ it is shared w/ mdp: */
 	bool shared_irq;

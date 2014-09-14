@@ -37,10 +37,10 @@
 #ifndef _MDC_INTERNAL_H
 #define _MDC_INTERNAL_H
 
-#include <lustre_mdc.h>
-#include <lustre_mds.h>
+#include "../include/lustre_mdc.h"
+#include "../include/lustre_mds.h"
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)

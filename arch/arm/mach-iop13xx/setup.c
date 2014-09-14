@@ -20,6 +20,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/serial_8250.h>
 #include <linux/io.h>
+#include <linux/reboot.h>
 #ifdef CONFIG_MTD_PHYSMAP
 #include <linux/mtd/physmap.h>
 #endif

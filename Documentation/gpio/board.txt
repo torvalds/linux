@@ -60,7 +60,7 @@ Platform Data
 Finally, GPIOs can be bound to devices and functions using platform data. Board
 files that desire to do so need to include the following header:
 
-	#include <linux/gpio/driver.h>
+	#include <linux/gpio/machine.h>
 
 GPIOs are mapped by the means of tables of lookups, containing instances of the
 gpiod_lookup structure. Two macros are defined to help declaring such mappings:

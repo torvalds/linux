@@ -815,17 +815,11 @@ static void mxs_auart_break_ctl(struct uart_port *u, int ctl)
 			     u->membase + AUART_LINECTRL_CLR);
 }
 
-static void mxs_auart_enable_ms(struct uart_port *port)
-{
-	/* just empty */
-}
-
 static struct uart_ops mxs_auart_ops = {
 	.tx_empty       = mxs_auart_tx_empty,
 	.start_tx       = mxs_auart_start_tx,
 	.stop_tx	= mxs_auart_stop_tx,
 	.stop_rx	= mxs_auart_stop_rx,
-	.enable_ms      = mxs_auart_enable_ms,
 	.break_ctl      = mxs_auart_break_ctl,
 	.set_mctrl	= mxs_auart_set_mctrl,
 	.get_mctrl      = mxs_auart_get_mctrl,

@@ -599,6 +599,20 @@ fork. If this method returns 0 (success) then this should remain valid
 while the caller holds cgroup_mutex and it is ensured that either
 attach() or cancel_attach() will be called in future.
 
+void css_reset(struct cgroup_subsys_state *css)
+(cgroup_mutex held by caller)
+
+An optional operation which should restore @css's configuration to the
+initial state.  This is currently only used on the unified hierarchy
+when a subsystem is disabled on a cgroup through
+"cgroup.subtree_control" but should remain enabled because other
+subsystems depend on it.  cgroup core makes such a css invisible by
+removing the associated interface files and invokes this callback so
+that the hidden subsystem can return to the initial neutral state.
+This prevents unexpected resource control from a hidden css and
+ensures that the configuration is in the initial state when it is made
+visible again later.
+
 void cancel_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)
 

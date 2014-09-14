@@ -20,7 +20,7 @@
 
 / {
 	model = "Marvell Armada 38x family SoC";
-	compatible = "marvell,armada38x";
+	compatible = "marvell,armada380";
 
 	aliases {
 		gpio0 = &gpio0;
@@ -284,6 +284,11 @@
 			cpurst@20800 {
 				compatible = "marvell,armada-370-cpu-reset";
 				reg = <0x20800 0x10>;
+			};
+
+			mpcore-soc-ctrl@20d20 {
+				compatible = "marvell,armada-380-mpcore-soc-ctrl";
+				reg = <0x20d20 0x6c>;
 			};
 
 			coherency-fabric@21010 {

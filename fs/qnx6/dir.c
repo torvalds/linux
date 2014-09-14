@@ -77,21 +77,20 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	if (de->de_size != 0xff) {
 		/* error - long filename entries always have size 0xff
 		   in direntry */
-		printk(KERN_ERR "qnx6: invalid direntry size (%i).\n",
-				de->de_size);
+		pr_err("invalid direntry size (%i).\n", de->de_size);
 		return 0;
 	}
 	lf = qnx6_longname(s, de, &page);
 	if (IS_ERR(lf)) {
-		printk(KERN_ERR "qnx6:Error reading longname\n");
+		pr_err("Error reading longname\n");
 		return 0;
 	}
 
 	lf_size = fs16_to_cpu(sbi, lf->lf_size);
 
 	if (lf_size > QNX6_LONG_NAME_MAX) {
-		QNX6DEBUG((KERN_INFO "file %s\n", lf->lf_fname));
-		printk(KERN_ERR "qnx6:Filename too long (%i)\n", lf_size);
+		pr_debug("file %s\n", lf->lf_fname);
+		pr_err("Filename too long (%i)\n", lf_size);
 		qnx6_put_page(page);
 		return 0;
 	}
@@ -100,10 +99,10 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	   mmi 3g filesystem does not have that checksum */
 	if (!test_opt(s, MMI_FS) && fs32_to_cpu(sbi, de->de_checksum) !=
 			qnx6_lfile_checksum(lf->lf_fname, lf_size))
-		printk(KERN_INFO "qnx6: long filename checksum error.\n");
+		pr_info("long filename checksum error.\n");
 
-	QNX6DEBUG((KERN_INFO "qnx6_readdir:%.*s inode:%u\n",
-					lf_size, lf->lf_fname, de_inode));
+	pr_debug("qnx6_readdir:%.*s inode:%u\n",
+		 lf_size, lf->lf_fname, de_inode);
 	if (!dir_emit(ctx, lf->lf_fname, lf_size, de_inode, DT_UNKNOWN)) {
 		qnx6_put_page(page);
 		return 0;
@@ -136,7 +135,7 @@ static int qnx6_readdir(struct file *file, struct dir_context *ctx)
 		int i = start;
 
 		if (IS_ERR(page)) {
-			printk(KERN_ERR "qnx6_readdir: read failed\n");
+			pr_err("%s(): read failed\n", __func__);
 			ctx->pos = (n + 1) << PAGE_CACHE_SHIFT;
 			return PTR_ERR(page);
 		}
@@ -159,9 +158,9 @@ static int qnx6_readdir(struct file *file, struct dir_context *ctx)
 					break;
 				}
 			} else {
-				QNX6DEBUG((KERN_INFO "qnx6_readdir:%.*s"
-				   " inode:%u\n", size, de->de_fname,
-							no_inode));
+				pr_debug("%s():%.*s inode:%u\n",
+					 __func__, size, de->de_fname,
+					 no_inode);
 				if (!dir_emit(ctx, de->de_fname, size,
 				      no_inode, DT_UNKNOWN)) {
 					done = true;
@@ -259,8 +258,7 @@ unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
 					if (ino)
 						goto found;
 				} else
-					printk(KERN_ERR "qnx6: undefined "
-						"filename size in inode.\n");
+					pr_err("undefined filename size in inode.\n");
 			}
 			qnx6_put_page(page);
 		}

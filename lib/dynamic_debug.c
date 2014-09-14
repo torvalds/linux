@@ -614,13 +614,15 @@ int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 		char buf[PREFIX_SIZE];
 
 		res = dev_printk_emit(7, dev->dev.parent,
-				      "%s%s %s %s: %pV",
+				      "%s%s %s %s%s: %pV",
 				      dynamic_emit_prefix(descriptor, buf),
 				      dev_driver_string(dev->dev.parent),
 				      dev_name(dev->dev.parent),
-				      netdev_name(dev), &vaf);
+				      netdev_name(dev), netdev_reg_state(dev),
+				      &vaf);
 	} else if (dev) {
-		res = printk(KERN_DEBUG "%s: %pV", netdev_name(dev), &vaf);
+		res = printk(KERN_DEBUG "%s%s: %pV", netdev_name(dev),
+			     netdev_reg_state(dev), &vaf);
 	} else {
 		res = printk(KERN_DEBUG "(NULL net_device): %pV", &vaf);
 	}

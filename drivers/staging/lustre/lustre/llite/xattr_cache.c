@@ -10,10 +10,10 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <obd_support.h>
-#include <lustre_lite.h>
-#include <lustre_dlm.h>
-#include <lustre_ver.h>
+#include "../include/obd_support.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_ver.h"
 #include "llite_internal.h"
 
 /* If we ever have hundreds of extended attributes, we might want to consider

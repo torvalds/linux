@@ -708,7 +708,7 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 		active = P2PAPI_SCAN_SOCIAL_DWELL_TIME_MS;
 	else if (num_chans == AF_PEER_SEARCH_CNT)
 		active = P2PAPI_SCAN_AF_SEARCH_DWELL_TIME_MS;
-	else if (wl_get_vif_state_all(p2p->cfg, BRCMF_VIF_STATUS_CONNECTED))
+	else if (brcmf_get_vif_state_any(p2p->cfg, BRCMF_VIF_STATUS_CONNECTED))
 		active = -1;
 	else
 		active = P2PAPI_SCAN_DWELL_TIME_MS;
@@ -2364,7 +2364,6 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 		return 0;
 	default:
 		return -ENOTSUPP;
-		break;
 	}
 
 	clear_bit(BRCMF_P2P_STATUS_GO_NEG_PHASE, &p2p->status);

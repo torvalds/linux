@@ -130,7 +130,6 @@ static int empress_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -148,7 +147,6 @@ static int empress_s_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -166,7 +164,6 @@ static int empress_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -179,7 +176,7 @@ static const struct v4l2_file_operations ts_fops =
 	.read	  = vb2_fop_read,
 	.poll	  = vb2_fop_poll,
 	.mmap	  = vb2_fop_mmap,
-	.ioctl	  = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops ts_ioctl_ops = {
@@ -270,7 +267,6 @@ static int empress_init(struct saa7134_dev *dev)
 	snprintf(dev->empress_dev->name, sizeof(dev->empress_dev->name),
 		 "%s empress (%s)", dev->name,
 		 saa7134_boards[dev->board].name);
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->empress_dev->flags);
 	v4l2_ctrl_handler_init(hdl, 21);
 	v4l2_ctrl_add_handler(hdl, &dev->ctrl_handler, empress_ctrl_filter);
 	if (dev->empress_sd)

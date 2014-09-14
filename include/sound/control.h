@@ -31,10 +31,15 @@ typedef int (snd_kcontrol_info_t) (struct snd_kcontrol * kcontrol, struct snd_ct
 typedef int (snd_kcontrol_get_t) (struct snd_kcontrol * kcontrol, struct snd_ctl_elem_value * ucontrol);
 typedef int (snd_kcontrol_put_t) (struct snd_kcontrol * kcontrol, struct snd_ctl_elem_value * ucontrol);
 typedef int (snd_kcontrol_tlv_rw_t)(struct snd_kcontrol *kcontrol,
-				    int op_flag, /* 0=read,1=write,-1=command */
+				    int op_flag, /* SNDRV_CTL_TLV_OP_XXX */
 				    unsigned int size,
 				    unsigned int __user *tlv);
 
+enum {
+	SNDRV_CTL_TLV_OP_READ = 0,
+	SNDRV_CTL_TLV_OP_WRITE = 1,
+	SNDRV_CTL_TLV_OP_CMD = -1,
+};
 
 struct snd_kcontrol_new {
 	snd_ctl_elem_iface_t iface;	/* interface identifier */

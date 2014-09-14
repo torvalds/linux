@@ -764,7 +764,7 @@ static void pd6729_pci_remove(struct pci_dev *dev)
 	kfree(socket);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pd6729_pci_ids) = {
+static const struct pci_device_id pd6729_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_6729) },
 	{ }
 };

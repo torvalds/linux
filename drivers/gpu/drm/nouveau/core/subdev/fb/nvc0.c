@@ -70,7 +70,8 @@ nvc0_fb_dtor(struct nouveau_object *object)
 	struct nvc0_fb_priv *priv = (void *)object;
 
 	if (priv->r100c10_page) {
-		nv_device_unmap_page(device, priv->r100c10);
+		dma_unmap_page(nv_device_base(device), priv->r100c10, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
 		__free_page(priv->r100c10_page);
 	}
 
@@ -93,8 +94,10 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (priv->r100c10_page) {
-		priv->r100c10 = nv_device_map_page(device, priv->r100c10_page);
-		if (!priv->r100c10)
+		priv->r100c10 = dma_map_page(nv_device_base(device),
+					     priv->r100c10_page, 0, PAGE_SIZE,
+					     DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(nv_device_base(device), priv->r100c10))
 			return -EFAULT;
 	}
 

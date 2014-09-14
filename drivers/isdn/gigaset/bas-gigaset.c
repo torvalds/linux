@@ -2400,6 +2400,7 @@ allocerr:
 error:
 	freeurbs(cs);
 	usb_set_intfdata(interface, NULL);
+	usb_put_dev(udev);
 	gigaset_freecs(cs);
 	return rc;
 }

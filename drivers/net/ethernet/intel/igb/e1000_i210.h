@@ -33,6 +33,7 @@ s32 igb_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 *data);
 s32 igb_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 data);
 s32 igb_init_nvm_params_i210(struct e1000_hw *hw);
 bool igb_get_flash_presence_i210(struct e1000_hw *hw);
+s32 igb_pll_workaround_i210(struct e1000_hw *hw);
 
 #define E1000_STM_OPCODE		0xDB00
 #define E1000_EEPROM_FLASH_SIZE_WORD	0x11
@@ -77,5 +78,16 @@ enum E1000_INVM_STRUCTURE_TYPE {
 #define NVM_INIT_CTRL_4_DEFAULT_I211	0x00C1
 #define NVM_LED_1_CFG_DEFAULT_I211	0x0184
 #define NVM_LED_0_2_CFG_DEFAULT_I211	0x200C
+
+/* PLL Defines */
+#define E1000_PCI_PMCSR			0x44
+#define E1000_PCI_PMCSR_D3		0x03
+#define E1000_MAX_PLL_TRIES		5
+#define E1000_PHY_PLL_UNCONF		0xFF
+#define E1000_PHY_PLL_FREQ_PAGE		0xFC0000
+#define E1000_PHY_PLL_FREQ_REG		0x000E
+#define E1000_INVM_DEFAULT_AL		0x202F
+#define E1000_INVM_AUTOLOAD		0x0A
+#define E1000_INVM_PLL_WO_VAL		0x0010
 
 #endif

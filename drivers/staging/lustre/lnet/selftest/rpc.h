@@ -37,7 +37,7 @@
 #ifndef __SELFTEST_RPC_H__
 #define __SELFTEST_RPC_H__
 
-#include <linux/lnet/lnetst.h>
+#include "../../include/linux/lnet/lnetst.h"
 
 /*
  * LST wired structures

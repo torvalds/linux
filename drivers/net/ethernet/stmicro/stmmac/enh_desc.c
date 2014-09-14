@@ -145,7 +145,7 @@ static void enh_desc_get_ext_status(void *data, struct stmmac_extra_stats *x,
 			x->rx_msg_type_delay_req++;
 		else if (p->des4.erx.msg_type == RDES_EXT_DELAY_RESP)
 			x->rx_msg_type_delay_resp++;
-		else if (p->des4.erx.msg_type == RDES_EXT_DELAY_REQ)
+		else if (p->des4.erx.msg_type == RDES_EXT_PDELAY_REQ)
 			x->rx_msg_type_pdelay_req++;
 		else if (p->des4.erx.msg_type == RDES_EXT_PDELAY_RESP)
 			x->rx_msg_type_pdelay_resp++;

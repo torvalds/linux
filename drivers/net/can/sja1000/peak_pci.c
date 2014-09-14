@@ -77,7 +77,7 @@ static const u16 peak_pci_icr_masks[PEAK_PCI_CHAN_MAX] = {
 	0x02, 0x01, 0x40, 0x80
 };
 
-static DEFINE_PCI_DEVICE_TABLE(peak_pci_tbl) = {
+static const struct pci_device_id peak_pci_tbl[] = {
 	{PEAK_PCI_VENDOR_ID, PEAK_PCI_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PEAK_PCI_VENDOR_ID, PEAK_PCIE_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PEAK_PCI_VENDOR_ID, PEAK_MPCI_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},

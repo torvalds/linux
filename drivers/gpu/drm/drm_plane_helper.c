@@ -335,9 +335,10 @@ struct drm_plane *drm_primary_helper_create_plane(struct drm_device *dev,
 	}
 
 	/* possible_crtc's will be filled in later by crtc_init */
-	ret = drm_plane_init(dev, primary, 0, &drm_primary_helper_funcs,
-			     formats, num_formats,
-			     DRM_PLANE_TYPE_PRIMARY);
+	ret = drm_universal_plane_init(dev, primary, 0,
+				       &drm_primary_helper_funcs,
+				       formats, num_formats,
+				       DRM_PLANE_TYPE_PRIMARY);
 	if (ret) {
 		kfree(primary);
 		primary = NULL;

@@ -46,8 +46,6 @@ Status: experimental
 #include "comedi_fc.h"
 #include "8253.h"
 
-#define DAS16CS_SIZE			18
-
 #define DAS16CS_ADC_DATA		0
 #define DAS16CS_DIO_MUX			2
 #define DAS16CS_MISC1			4

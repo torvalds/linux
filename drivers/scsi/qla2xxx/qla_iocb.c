@@ -520,7 +520,7 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 static int
 __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 			struct rsp_que *rsp, uint16_t loop_id,
-			uint16_t lun, uint8_t type)
+			uint64_t lun, uint8_t type)
 {
 	mrk_entry_t *mrk;
 	struct mrk_entry_24xx *mrk24 = NULL;
@@ -543,14 +543,13 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 		if (IS_FWI2_CAPABLE(ha)) {
 			mrk24 = (struct mrk_entry_24xx *) mrk;
 			mrk24->nport_handle = cpu_to_le16(loop_id);
-			mrk24->lun[1] = LSB(lun);
-			mrk24->lun[2] = MSB(lun);
+			int_to_scsilun(lun, (struct scsi_lun *)&mrk24->lun);
 			host_to_fcp_swap(mrk24->lun, sizeof(mrk24->lun));
 			mrk24->vp_index = vha->vp_idx;
 			mrk24->handle = MAKE_HANDLE(req->id, mrk24->handle);
 		} else {
 			SET_TARGET_ID(ha, mrk->target, loop_id);
-			mrk->lun = cpu_to_le16(lun);
+			mrk->lun = cpu_to_le16((uint16_t)lun);
 		}
 	}
 	wmb();
@@ -562,7 +561,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 
 int
 qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
-		struct rsp_que *rsp, uint16_t loop_id, uint16_t lun,
+		struct rsp_que *rsp, uint16_t loop_id, uint64_t lun,
 		uint8_t type)
 {
 	int ret;
@@ -2047,7 +2046,7 @@ static void
 qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 {
 	uint32_t flags;
-	unsigned int lun;
+	uint64_t lun;
 	struct fc_port *fcport = sp->fcport;
 	scsi_qla_host_t *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
