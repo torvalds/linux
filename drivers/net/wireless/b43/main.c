@@ -3151,6 +3151,7 @@ static void b43_rate_memory_init(struct b43_wldev *dev)
 	case B43_PHYTYPE_HT:
 	case B43_PHYTYPE_LCN:
 		b43_rate_memory_write(dev, B43_OFDM_RATE_6MB, 1);
+		b43_rate_memory_write(dev, B43_OFDM_RATE_9MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_12MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_18MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_24MB, 1);
