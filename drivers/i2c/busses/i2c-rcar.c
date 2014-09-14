@@ -363,6 +363,7 @@ static int rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 {
 	struct rcar_i2c_priv *priv = ptr;
+	irqreturn_t result = IRQ_HANDLED;
 	u32 msr;
 
 	/*-------------- spin lock -----------------*/
@@ -372,6 +373,10 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 
 	/* Only handle interrupts that are currently enabled */
 	msr &= rcar_i2c_read(priv, ICMIER);
+	if (!msr) {
+		result = IRQ_NONE;
+		goto exit;
+	}
 
 	/* Arbitration lost */
 	if (msr & MAL) {
@@ -406,10 +411,11 @@ out:
 		wake_up(&priv->wait);
 	}
 
+exit:
 	spin_unlock(&priv->lock);
 	/*-------------- spin unlock -----------------*/
 
-	return IRQ_HANDLED;
+	return result;
 }
 
 static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
