@@ -2533,7 +2533,7 @@ char *copy_mount_string(const void __user *data)
  * Therefore, if this magic number is present, it carries no information
  * and must be discarded.
  */
-long do_mount(const char *dev_name, const char *dir_name,
+long do_mount(const char *dev_name, const char __user *dir_name,
 		const char *type_page, unsigned long flags, void *data_page)
 {
 	struct path path;
@@ -2545,15 +2545,11 @@ long do_mount(const char *dev_name, const char *dir_name,
 		flags &= ~MS_MGC_MSK;
 
 	/* Basic sanity checks */
-
-	if (!dir_name || !*dir_name || !memchr(dir_name, 0, PAGE_SIZE))
-		return -EINVAL;
-
 	if (data_page)
 		((char *)data_page)[PAGE_SIZE - 1] = 0;
 
 	/* ... and get the mountpoint */
-	retval = kern_path(dir_name, LOOKUP_FOLLOW, &path);
+	retval = user_path(dir_name, &path);
 	if (retval)
 		return retval;
 
@@ -2778,7 +2774,6 @@ SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 {
 	int ret;
 	char *kernel_type;
-	struct filename *kernel_dir;
 	char *kernel_dev;
 	unsigned long data_page;
 
@@ -2786,12 +2781,6 @@ SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 	ret = PTR_ERR(kernel_type);
 	if (IS_ERR(kernel_type))
 		goto out_type;
-
-	kernel_dir = getname(dir_name);
-	if (IS_ERR(kernel_dir)) {
-		ret = PTR_ERR(kernel_dir);
-		goto out_dir;
-	}
 
 	kernel_dev = copy_mount_string(dev_name);
 	ret = PTR_ERR(kernel_dev);
@@ -2802,15 +2791,13 @@ SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 	if (ret < 0)
 		goto out_data;
 
-	ret = do_mount(kernel_dev, kernel_dir->name, kernel_type, flags,
+	ret = do_mount(kernel_dev, dir_name, kernel_type, flags,
 		(void *) data_page);
 
 	free_page(data_page);
 out_data:
 	kfree(kernel_dev);
 out_dev:
-	putname(kernel_dir);
-out_dir:
 	kfree(kernel_type);
 out_type:
 	return ret;
