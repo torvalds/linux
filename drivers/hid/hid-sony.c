@@ -1,5 +1,5 @@
 /*
- *  HID driver for Sony / PS2 / PS3 BD devices.
+ *  HID driver for Sony / PS2 / PS3 / PS4 BD devices.
  *
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
@@ -8,6 +8,7 @@
  *  Copyright (c) 2012 David Dillow <dave@thedillows.org>
  *  Copyright (c) 2006-2013 Jiri Kosina
  *  Copyright (c) 2013 Colin Leitner <colin.leitner@gmail.com>
+ *  Copyright (c) 2014 Frank Praznik <frank.praznik@gmail.com>
  */
 
 /*
@@ -395,11 +396,11 @@ static u8 dualshock4_usb_rdesc[] = {
 
 /*
  * The default behavior of the Dualshock 4 is to send reports using report
- * type 1 when running over Bluetooth. However, as soon as it receives a
- * report of type 17 to set the LEDs or rumble it starts returning it's state
- * in report 17 instead of 1.  Since report 17 is undefined in the default HID
+ * type 1 when running over Bluetooth. However, when feature report 2 is
+ * requested during the controller initialization it starts sending input
+ * reports in report 17.  Since report 17 is undefined in the default HID
  * descriptor the button and axis definitions must be moved to report 17 or
- * the HID layer won't process the received input once a report is sent.
+ * the HID layer won't process the received input.
  */
 static u8 dualshock4_bt_rdesc[] = {
 	0x05, 0x01,         /*  Usage Page (Desktop),               */
