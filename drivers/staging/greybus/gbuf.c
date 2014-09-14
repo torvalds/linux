@@ -197,7 +197,7 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 	ch = &cport_handler[cport];
 	if (!ch->handler) {
 		/* Ugh, drop the data on the floor, after logging it... */
-		dev_err(&hd->dev,
+		dev_err(hd->parent,
 			"Received data for cport %d, but no handler!\n",
 			cport);
 		return;

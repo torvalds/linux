@@ -499,6 +499,8 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 		return NULL;
 
 	kref_init(&hd->kref);
+	hd->parent = parent;
+	hd->driver = driver;
 
 	return hd;
 }

@@ -105,7 +105,6 @@ struct svc_msg;
 struct greybus_host_driver {
 	size_t	hd_priv_size;
 
-	int (*start)(struct greybus_host_device *hd);
 	int (*alloc_gbuf)(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask);
 	void (*free_gbuf)(struct gbuf *gbuf);
 	int (*send_svc_msg)(struct svc_msg *svc_msg, struct greybus_host_device *hd);
@@ -114,10 +113,9 @@ struct greybus_host_driver {
 };
 
 struct greybus_host_device {
-	struct device dev;
 	struct kref kref;
+	struct device *parent;
 	const struct greybus_host_driver *driver;
-	unsigned long hd_priv_size;
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));

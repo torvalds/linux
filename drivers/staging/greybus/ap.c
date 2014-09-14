@@ -68,7 +68,7 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 	/* A new SVC communication channel, let's verify it was for us */
 	if (handshake->handshake_type != SVC_HANDSHAKE_SVC_HELLO) {
 		/* we don't know what to do with this, log it and return */
-		dev_dbg(&hd->dev, "received invalid handshake type %d\n",
+		dev_dbg(hd->parent, "received invalid handshake type %d\n",
 			handshake->handshake_type);
 		return;
 	}
@@ -86,7 +86,7 @@ static void svc_management(struct svc_function_unipro_management *management,
 			   struct greybus_host_device *hd)
 {
 	/* What?  An AP should not get this message */
-	dev_err(&hd->dev, "Got an svc management message???\n");
+	dev_err(hd->parent, "Got an svc management message???\n");
 }
 
 static void svc_hotplug(struct svc_function_hotplug *hotplug,
@@ -96,17 +96,18 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 
 	switch (hotplug->hotplug_event) {
 	case SVC_HOTPLUG_EVENT:
-		dev_dbg(&hd->dev, "module id %d added\n", module_id);
+		dev_dbg(hd->parent, "module id %d added\n", module_id);
 		// FIXME - add the module to the system
 		break;
 
 	case SVC_HOTUNPLUG_EVENT:
-		dev_dbg(&hd->dev, "module id %d removed\n", module_id);
+		dev_dbg(hd->parent, "module id %d removed\n", module_id);
 		// FIXME - remove the module from the system
 		break;
 
 	default:
-		dev_err(&hd->dev, "received invalid hotplug message type %d\n",
+		dev_err(hd->parent,
+			"received invalid hotplug message type %d\n",
 			hotplug->hotplug_event);
 		break;
 	}
@@ -116,7 +117,7 @@ static void svc_ddb(struct svc_function_ddb *ddb,
 		    struct greybus_host_device *hd)
 {
 	/* What?  An AP should not get this message */
-	dev_err(&hd->dev, "Got an svc DDB message???\n");
+	dev_err(hd->parent, "Got an svc DDB message???\n");
 }
 
 static void svc_power(struct svc_function_power *power,
@@ -125,12 +126,12 @@ static void svc_power(struct svc_function_power *power,
 	u8 module_id = power->module_id;
 
 	if (power->power_type != SVC_POWER_BATTERY_STATUS) {
-		dev_err(&hd->dev, "received invalid power type %d\n",
+		dev_err(hd->parent, "received invalid power type %d\n",
 			power->power_type);
 		return;
 	}
 
-	dev_dbg(&hd->dev, "power status for module id %d is %d\n",
+	dev_dbg(hd->parent, "power status for module id %d is %d\n",
 		module_id, power->status.status);
 
 	// FIXME - do something with the power information, like update our
@@ -141,14 +142,14 @@ static void svc_epm(struct svc_function_epm *epm,
 		    struct greybus_host_device *hd)
 {
 	/* What?  An AP should not get this message */
-	dev_err(&hd->dev, "Got an EPM message???\n");
+	dev_err(hd->parent, "Got an EPM message???\n");
 }
 
 static void svc_suspend(struct svc_function_suspend *suspend,
 			struct greybus_host_device *hd)
 {
 	/* What?  An AP should not get this message */
-	dev_err(&hd->dev, "Got an suspend message???\n");
+	dev_err(hd->parent, "Got an suspend message???\n");
 }
 
 static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
@@ -209,7 +210,7 @@ static void ap_process_event(struct work_struct *work)
 		svc_suspend(&svc_msg->suspend, hd);
 		break;
 	default:
-		dev_err(&hd->dev, "received invalid SVC message type %d\n",
+		dev_err(hd->parent, "received invalid SVC message type %d\n",
 			svc_msg->header.type);
 	}
 
