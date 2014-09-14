@@ -2239,6 +2239,7 @@ static int vt_notifier_call(struct notifier_block *nb,
 			speakup_bs(vc);
 		else if (param->c < 0x100) {
 			char d = param->c;
+
 			speakup_con_write(vc, &d, 1);
 		}
 		break;
