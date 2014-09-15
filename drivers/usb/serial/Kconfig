@@ -684,14 +684,6 @@ config USB_SERIAL_WISHBONE
 	  To compile this driver as a module, choose M here: the
 	  module will be called wishbone-serial.
 
-config USB_SERIAL_ZTE
-	tristate "ZTE USB serial driver"
-	help
-	  Say Y here if you want to use a ZTE USB to serial device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called zte.
-
 config USB_SERIAL_SSU100
 	tristate "USB Quatech SSU-100 Single Port Serial Driver"
 	help
