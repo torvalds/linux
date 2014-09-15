@@ -213,8 +213,12 @@ create_mf_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		goto out;
 
-	rc = tcon->ses->server->ops->create_mf_symlink(xid, tcon, cifs_sb,
-					fromName, buf, &bytes_written);
+	if (tcon->ses->server->ops->create_mf_symlink)
+		rc = tcon->ses->server->ops->create_mf_symlink(xid, tcon,
+					cifs_sb, fromName, buf, &bytes_written);
+	else
+		rc = -EOPNOTSUPP;
+
 	if (rc)
 		goto out;
 
