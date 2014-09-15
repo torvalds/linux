@@ -23,17 +23,14 @@ config I2C
 	  This I2C support can also be built as a module.  If so, the module
 	  will be called i2c-core.
 
-config I2C_ACPI
-	bool "I2C ACPI support"
-	select I2C
-	depends on ACPI
+config ACPI_I2C_OPREGION
+	bool "ACPI I2C Operation region support"
+	depends on I2C=y && ACPI
 	default y
 	help
-	  Say Y here if you want to enable ACPI I2C support. This includes support
-	  for automatic enumeration of I2C slave devices and support for ACPI I2C
-	  Operation Regions. Operation Regions allow firmware (BIOS) code to
-	  access I2C slave devices, such as smart batteries through an I2C host
-	  controller driver.
+	  Say Y here if you want to enable ACPI I2C operation region support.
+	  Operation Regions allow firmware (BIOS) code to access I2C slave devices,
+	  such as smart batteries through an I2C host controller driver.
 
 if I2C
 

@@ -1677,9 +1677,15 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		}
 	}
 
-	if (qp->ibqp.qp_type == IB_QPT_RAW_PACKET)
+	if (qp->ibqp.qp_type == IB_QPT_RAW_PACKET) {
 		context->pri_path.ackto = (context->pri_path.ackto & 0xf8) |
 					MLX4_IB_LINK_TYPE_ETH;
+		if (dev->dev->caps.tunnel_offload_mode ==  MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
+			/* set QP to receive both tunneled & non-tunneled packets */
+			if (!(context->flags & (1 << MLX4_RSS_QPC_FLAG_OFFSET)))
+				context->srqn = cpu_to_be32(7 << 28);
+		}
+	}
 
 	if (ibqp->qp_type == IB_QPT_UD && (new_state == IB_QPS_RTR)) {
 		int is_eth = rdma_port_get_link_layer(

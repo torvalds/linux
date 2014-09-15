@@ -121,7 +121,7 @@ int r200_copy_dma(struct radeon_device *rdev,
 	if (fence) {
 		r = radeon_fence_emit(rdev, fence, RADEON_RING_TYPE_GFX_INDEX);
 	}
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 	return r;
 }
 

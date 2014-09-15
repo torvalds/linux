@@ -107,7 +107,7 @@ struct greth_private {
 
 	u16 tx_next;
 	u16 tx_last;
-	u16 tx_free;
+	u16 tx_free; /* only used on 10/100Mbit */
 	u16 rx_cur;
 
 	struct greth_regs *regs;	/* Address of controller registers. */

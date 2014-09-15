@@ -226,7 +226,7 @@ static long compat_nanosleep_restart(struct restart_block *restart)
 	ret = hrtimer_nanosleep_restart(restart);
 	set_fs(oldfs);
 
-	if (ret) {
+	if (ret == -ERESTART_RESTARTBLOCK) {
 		rmtp = restart->nanosleep.compat_rmtp;
 
 		if (rmtp && compat_put_timespec(&rmt, rmtp))
@@ -256,7 +256,26 @@ COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
 				HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 	set_fs(oldfs);
 
-	if (ret) {
+	/*
+	 * hrtimer_nanosleep() can only return 0 or
+	 * -ERESTART_RESTARTBLOCK here because:
+	 *
+	 * - we call it with HRTIMER_MODE_REL and therefor exclude the
+	 *   -ERESTARTNOHAND return path.
+	 *
+	 * - we supply the rmtp argument from the task stack (due to
+	 *   the necessary compat conversion. So the update cannot
+	 *   fail, which excludes the -EFAULT return path as well. If
+	 *   it fails nevertheless we have a bigger problem and wont
+	 *   reach this place anymore.
+	 *
+	 * - if the return value is 0, we do not have to update rmtp
+	 *    because there is no remaining time.
+	 *
+	 * We check for -ERESTART_RESTARTBLOCK nevertheless if the
+	 * core implementation decides to return random nonsense.
+	 */
+	if (ret == -ERESTART_RESTARTBLOCK) {
 		struct restart_block *restart
 			= &current_thread_info()->restart_block;
 
@@ -266,7 +285,6 @@ COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
 		if (rmtp && compat_put_timespec(&rmt, rmtp))
 			return -EFAULT;
 	}
-
 	return ret;
 }
 

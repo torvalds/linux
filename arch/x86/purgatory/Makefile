@@ -11,6 +11,7 @@ targets += purgatory.ro
 # sure how to relocate those. Like kexec-tools, use custom flags.
 
 KBUILD_CFLAGS := -fno-strict-aliasing -Wall -Wstrict-prototypes -fno-zero-initialized-in-bss -fno-builtin -ffreestanding -c -MD -Os -mcmodel=large
+KBUILD_CFLAGS += -m$(BITS)
 
 $(obj)/purgatory.ro: $(PURGATORY_OBJS) FORCE
 		$(call if_changed,ld)
@@ -24,7 +25,4 @@ $(obj)/kexec-purgatory.c: $(obj)/purgatory.ro FORCE
 	$(call if_changed,bin2c)
 
 
-# No loaders for 32bits yet.
-ifeq ($(CONFIG_X86_64),y)
- obj-$(CONFIG_KEXEC)		+= kexec-purgatory.o
-endif
+obj-$(CONFIG_KEXEC_FILE)	+= kexec-purgatory.o

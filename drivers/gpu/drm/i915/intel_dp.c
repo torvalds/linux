@@ -3553,6 +3553,9 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	if (WARN_ON(!intel_encoder->base.crtc))
 		return;
 
+	if (!to_intel_crtc(intel_encoder->base.crtc)->active)
+		return;
+
 	/* Try to read receiver status if the link appears to be up */
 	if (!intel_dp_get_link_status(intel_dp, link_status)) {
 		return;
@@ -3658,23 +3661,11 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 	return intel_dp_detect_dpcd(intel_dp);
 }
 
-static enum drm_connector_status
-g4x_dp_detect(struct intel_dp *intel_dp)
+static int g4x_digital_port_connected(struct drm_device *dev,
+				       struct intel_digital_port *intel_dig_port)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	uint32_t bit;
-
-	/* Can't disconnect eDP, but you can close the lid... */
-	if (is_edp(intel_dp)) {
-		enum drm_connector_status status;
-
-		status = intel_panel_detect(dev);
-		if (status == connector_status_unknown)
-			status = connector_status_connected;
-		return status;
-	}
 
 	if (IS_VALLEYVIEW(dev)) {
 		switch (intel_dig_port->port) {
@@ -3688,7 +3679,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 			bit = PORTD_HOTPLUG_LIVE_STATUS_VLV;
 			break;
 		default:
-			return connector_status_unknown;
+			return -EINVAL;
 		}
 	} else {
 		switch (intel_dig_port->port) {
@@ -3702,11 +3693,36 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 			bit = PORTD_HOTPLUG_LIVE_STATUS_G4X;
 			break;
 		default:
-			return connector_status_unknown;
+			return -EINVAL;
 		}
 	}
 
 	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) == 0)
+		return 0;
+	return 1;
+}
+
+static enum drm_connector_status
+g4x_dp_detect(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	int ret;
+
+	/* Can't disconnect eDP, but you can close the lid... */
+	if (is_edp(intel_dp)) {
+		enum drm_connector_status status;
+
+		status = intel_panel_detect(dev);
+		if (status == connector_status_unknown)
+			status = connector_status_connected;
+		return status;
+	}
+
+	ret = g4x_digital_port_connected(dev, intel_dig_port);
+	if (ret == -EINVAL)
+		return connector_status_unknown;
+	else if (ret == 0)
 		return connector_status_disconnected;
 
 	return intel_dp_detect_dpcd(intel_dp);
@@ -4003,6 +4019,16 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_dig_port);
 }
 
+static void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
+
+	if (!is_edp(intel_dp))
+		return;
+
+	edp_panel_vdd_off_sync(intel_dp);
+}
+
 static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	intel_edp_panel_vdd_sanitize(to_intel_encoder(encoder));
@@ -4037,18 +4063,30 @@ bool
 intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
+	enum intel_display_power_domain power_domain;
+	bool ret = true;
+
 	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
 		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
 
 	DRM_DEBUG_KMS("got hpd irq on port %d - %s\n", intel_dig_port->port,
 		      long_hpd ? "long" : "short");
 
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
+
 	if (long_hpd) {
-		if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
-			goto mst_fail;
+
+		if (HAS_PCH_SPLIT(dev)) {
+			if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
+				goto mst_fail;
+		} else {
+			if (g4x_digital_port_connected(dev, intel_dig_port) != 1)
+				goto mst_fail;
+		}
 
 		if (!intel_dp_get_dpcd(intel_dp)) {
 			goto mst_fail;
@@ -4061,8 +4099,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 	} else {
 		if (intel_dp->is_mst) {
-			ret = intel_dp_check_mst_status(intel_dp);
-			if (ret == -EINVAL)
+			if (intel_dp_check_mst_status(intel_dp) == -EINVAL)
 				goto mst_fail;
 		}
 
@@ -4076,7 +4113,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 		}
 	}
-	return false;
+	ret = false;
+	goto put_power;
 mst_fail:
 	/* if we were in MST mode, and device is not there get out of MST mode */
 	if (intel_dp->is_mst) {
@@ -4084,7 +4122,10 @@ mst_fail:
 		intel_dp->is_mst = false;
 		drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
 	}
-	return true;
+put_power:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 /* Return which DP Port should be selected for Transcoder DP control */
@@ -4722,6 +4763,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->disable = intel_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
+	intel_encoder->suspend = intel_dp_encoder_suspend;
 	if (IS_CHERRYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = chv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = chv_pre_enable_dp;

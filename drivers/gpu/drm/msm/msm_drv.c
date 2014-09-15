@@ -52,7 +52,7 @@ module_param(reglog, bool, 0600);
 #define reglog 0
 #endif
 
-static char *vram;
+static char *vram = "16m";
 MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU");
 module_param(vram, charp, 0);
 
@@ -974,12 +974,11 @@ static int msm_pdev_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(devnames); i++) {
 		struct device *dev;
-		int ret;
 
 		dev = bus_find_device_by_name(&platform_bus_type,
 				NULL, devnames[i]);
 		if (!dev) {
-			dev_info(master, "still waiting for %s\n", devnames[i]);
+			dev_info(&pdev->dev, "still waiting for %s\n", devnames[i]);
 			return -EPROBE_DEFER;
 		}
 
