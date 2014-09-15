@@ -175,12 +175,14 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *disabled_vif)
 {
 	struct iwl_time_quota_cmd cmd = {};
-	int i, idx, ret, num_active_macs, quota, quota_rem, n_non_lowlat;
+	int i, idx, err, num_active_macs, quota, quota_rem, n_non_lowlat;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
 		.disabled_vif = disabled_vif,
 	};
+	struct iwl_time_quota_cmd *last = &mvm->last_quota_cmd;
+	bool send = false;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -293,15 +295,33 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 
 	/* check that we have non-zero quota for all valid bindings */
 	for (i = 0; i < MAX_BINDINGS; i++) {
+		if (cmd.quotas[i].id_and_color != last->quotas[i].id_and_color)
+			send = true;
+		if (cmd.quotas[i].max_duration != last->quotas[i].max_duration)
+			send = true;
+		if (abs((int)le32_to_cpu(cmd.quotas[i].quota) -
+			(int)le32_to_cpu(last->quotas[i].quota))
+						> IWL_MVM_QUOTA_THRESHOLD)
+			send = true;
 		if (cmd.quotas[i].id_and_color == cpu_to_le32(FW_CTXT_INVALID))
 			continue;
 		WARN_ONCE(cmd.quotas[i].quota == 0,
 			  "zero quota on binding %d\n", i);
 	}
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0,
-				   sizeof(cmd), &cmd);
-	if (ret)
-		IWL_ERR(mvm, "Failed to send quota: %d\n", ret);
-	return ret;
+	if (!send) {
+		/* don't send a practically unchanged command, the firmware has
+		 * to re-initialize a lot of state and that can have an adverse
+		 * impact on it
+		 */
+		return 0;
+	}
+
+	err = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0, sizeof(cmd), &cmd);
+
+	if (err)
+		IWL_ERR(mvm, "Failed to send quota: %d\n", err);
+	else
+		mvm->last_quota_cmd = cmd;
+	return err;
 }

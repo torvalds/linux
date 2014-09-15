@@ -219,7 +219,7 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 void iwl_mvm_roc_done_wk(struct work_struct *wk);
 
 /**
- * iwl_mvm_schedule_csa_noa - request NoA for channel switch
+ * iwl_mvm_schedule_csa_period - request channel switch absence period
  * @mvm: the mvm component
  * @vif: the virtual interface for which the channel switch is issued
  * @duration: the duration of the NoA in TU.
@@ -228,9 +228,9 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk);
  * This function is used to schedule NoA time event and is used to perform
  * the channel switch flow.
  */
-int iwl_mvm_schedule_csa_noa(struct iwl_mvm *mvm,
-			     struct ieee80211_vif *vif,
-			     u32 duration, u32 apply_time);
+int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
+				struct ieee80211_vif *vif,
+				u32 duration, u32 apply_time);
 
 /**
  * iwl_mvm_te_scheduled - check if the fw received the TE cmd

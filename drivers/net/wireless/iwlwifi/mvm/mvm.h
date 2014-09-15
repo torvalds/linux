@@ -87,11 +87,11 @@
 /* A TimeUnit is 1024 microsecond */
 #define MSEC_TO_TU(_msec)	(_msec*1000/1024)
 
-/*
- * The CSA NoA is scheduled IWL_MVM_CHANNEL_SWITCH_TIME TUs before "beacon 0"
- * TBTT. This value should be big enough to ensure that we switch in time.
+/* This value represents the number of TUs before CSA "beacon 0" TBTT
+ * when the CSA time-event needs to be scheduled to start.  It must be
+ * big enough to ensure that we switch in time.
  */
-#define IWL_MVM_CHANNEL_SWITCH_TIME 40
+#define IWL_MVM_CHANNEL_SWITCH_TIME_GO		40
 
 /*
  * This value (in TUs) is used to fine tune the CSA NoA end time which should
@@ -180,10 +180,6 @@ enum iwl_power_scheme {
 };
 
 #define IWL_CONN_MAX_LISTEN_INTERVAL	10
-#define IWL_UAPSD_AC_INFO		(IEEE80211_WMM_IE_STA_QOSINFO_AC_VO |\
-					 IEEE80211_WMM_IE_STA_QOSINFO_AC_VI |\
-					 IEEE80211_WMM_IE_STA_QOSINFO_AC_BK |\
-					 IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
 #define IWL_UAPSD_MAX_SP		IEEE80211_WMM_IE_STA_QOSINFO_SP_2
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -273,6 +269,8 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_NMI,
 	IWL_MVM_REF_TM_CMD,
 	IWL_MVM_REF_EXIT_WORK,
+
+	/* update debugfs.c when changing this */
 
 	IWL_MVM_REF_COUNT,
 };
@@ -649,6 +647,7 @@ struct iwl_mvm {
 
 	/* -1 for always, 0 for never, >0 for that many times */
 	s8 restart_fw;
+	struct work_struct fw_error_dump_wk;
 	struct iwl_mvm_dump_ptrs *fw_error_dump;
 
 #ifdef CONFIG_IWLWIFI_LEDS
@@ -708,6 +707,8 @@ struct iwl_mvm {
 	 * real temperature that is received from the fw
 	 */
 	bool temperature_test;  /* Debug test temperature is enabled */
+
+	struct iwl_time_quota_cmd last_quota_cmd;
 
 #ifdef CONFIG_NL80211_TESTMODE
 	u32 noa_duration;
@@ -787,6 +788,9 @@ struct iwl_rate_info {
 	u8 plcp_mimo3;  /* uCode API:  IWL_RATE_MIMO3_6M_PLCP, etc. */
 	u8 ieee;	/* MAC header:  IWL_RATE_6M_IEEE, etc. */
 };
+
+void __iwl_mvm_mac_stop(struct iwl_mvm *mvm);
+int __iwl_mvm_mac_start(struct iwl_mvm *mvm);
 
 /******************
  * MVM Methods
@@ -1153,7 +1157,17 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 /* TDLS */
 int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_teardown_tdls_peers(struct iwl_mvm *mvm);
+void iwl_mvm_recalc_tdls_state(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       bool sta_added);
+void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
+#else
+static inline void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm) {}
+#endif
 
 #endif /* __IWL_MVM_H__ */

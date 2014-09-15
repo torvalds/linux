@@ -640,7 +640,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
 
 		if (reclaim) {
-			kfree(txq->entries[cmd_index].free_buf);
+			kzfree(txq->entries[cmd_index].free_buf);
 			txq->entries[cmd_index].free_buf = NULL;
 		}
 

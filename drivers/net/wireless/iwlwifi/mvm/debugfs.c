@@ -288,6 +288,9 @@ static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
 {
 	int temperature;
 
+	if (!mvm->ucode_loaded && !mvm->temperature_test)
+		return -EIO;
+
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
 	/* not a legal temperature */
@@ -1256,6 +1259,18 @@ static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
 	PRINT_MVM_REF(IWL_MVM_REF_P2P_CLIENT);
 	PRINT_MVM_REF(IWL_MVM_REF_AP_IBSS);
 	PRINT_MVM_REF(IWL_MVM_REF_USER);
+	PRINT_MVM_REF(IWL_MVM_REF_TX);
+	PRINT_MVM_REF(IWL_MVM_REF_TX_AGG);
+	PRINT_MVM_REF(IWL_MVM_REF_ADD_IF);
+	PRINT_MVM_REF(IWL_MVM_REF_START_AP);
+	PRINT_MVM_REF(IWL_MVM_REF_BSS_CHANGED);
+	PRINT_MVM_REF(IWL_MVM_REF_PREPARE_TX);
+	PRINT_MVM_REF(IWL_MVM_REF_PROTECT_TDLS);
+	PRINT_MVM_REF(IWL_MVM_REF_CHECK_CTKILL);
+	PRINT_MVM_REF(IWL_MVM_REF_PRPH_READ);
+	PRINT_MVM_REF(IWL_MVM_REF_PRPH_WRITE);
+	PRINT_MVM_REF(IWL_MVM_REF_NMI);
+	PRINT_MVM_REF(IWL_MVM_REF_TM_CMD);
 	PRINT_MVM_REF(IWL_MVM_REF_EXIT_WORK);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);

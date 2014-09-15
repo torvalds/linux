@@ -5,7 +5,6 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,7 +30,6 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
@@ -63,90 +61,89 @@
  *
  *****************************************************************************/
 
-#include <linux/module.h>
-#include <linux/stringify.h>
-#include "iwl-config.h"
-#include "iwl-agn-hw.h"
+#include "mvm.h"
+#include "time-event.h"
 
-/* Highest firmware API version supported */
-#define IWL8000_UCODE_API_MAX	10
+void iwl_mvm_teardown_tdls_peers(struct iwl_mvm *mvm)
+{
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
+	int i;
 
-/* Oldest version we won't warn about */
-#define IWL8000_UCODE_API_OK	8
+	lockdep_assert_held(&mvm->mutex);
 
-/* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	8
+	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
+						lockdep_is_held(&mvm->mutex));
+		if (!sta || IS_ERR(sta) || !sta->tdls)
+			continue;
 
-/* NVM versions */
-#define IWL8000_NVM_VERSION		0x0a1d
-#define IWL8000_TX_POWER_VERSION	0xffff /* meaningless */
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		ieee80211_tdls_oper_request(mvmsta->vif, sta->addr,
+				NL80211_TDLS_TEARDOWN,
+				WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED,
+				GFP_KERNEL);
+	}
+}
 
-#define IWL8000_FW_PRE "iwlwifi-8000-"
-#define IWL8000_MODULE_FIRMWARE(api) IWL8000_FW_PRE __stringify(api) ".ucode"
+int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
+	int count = 0;
+	int i;
 
-#define NVM_HW_SECTION_NUM_FAMILY_8000		10
-#define DEFAULT_NVM_FILE_FAMILY_8000		"iwl_nvm_8000.bin"
+	lockdep_assert_held(&mvm->mutex);
 
-/* Max SDIO RX aggregation size of the ADDBA request/response */
-#define MAX_RX_AGG_SIZE_8260_SDIO	28
+	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
+						lockdep_is_held(&mvm->mutex));
+		if (!sta || IS_ERR(sta) || !sta->tdls)
+			continue;
 
-static const struct iwl_base_params iwl8000_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_8000,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.pll_cfg_val = 0,
-	.shadow_ram_support = true,
-	.led_compensation = 57,
-	.wd_timeout = IWL_LONG_WD_TIMEOUT,
-	.max_event_log_size = 512,
-	.shadow_reg_enable = true,
-	.pcie_l1_allowed = true,
-};
+		if (vif) {
+			mvmsta = iwl_mvm_sta_from_mac80211(sta);
+			if (mvmsta->vif != vif)
+				continue;
+		}
 
-static const struct iwl_ht_params iwl8000_ht_params = {
-	.ldpc = true,
-	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
-};
+		count++;
+	}
 
-#define IWL_DEVICE_8000						\
-	.ucode_api_max = IWL8000_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL8000_UCODE_API_OK,			\
-	.ucode_api_min = IWL8000_UCODE_API_MIN,			\
-	.device_family = IWL_DEVICE_FAMILY_8000,		\
-	.max_inst_size = IWL60_RTC_INST_SIZE,			\
-	.max_data_size = IWL60_RTC_DATA_SIZE,			\
-	.base_params = &iwl8000_base_params,			\
-	.led_mode = IWL_LED_RF_STATE,				\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,	\
-	.non_shared_ant = ANT_A
+	return count;
+}
 
-const struct iwl_cfg iwl8260_2n_cfg = {
-	.name = "Intel(R) Dual Band Wireless N 8260",
-	.fw_name_pre = IWL8000_FW_PRE,
-	IWL_DEVICE_8000,
-	.ht_params = &iwl8000_ht_params,
-	.nvm_ver = IWL8000_NVM_VERSION,
-	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
-};
+void iwl_mvm_recalc_tdls_state(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       bool sta_added)
+{
+	int tdls_sta_cnt = iwl_mvm_tdls_sta_count(mvm, vif);
 
-const struct iwl_cfg iwl8260_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 8260",
-	.fw_name_pre = IWL8000_FW_PRE,
-	IWL_DEVICE_8000,
-	.ht_params = &iwl8000_ht_params,
-	.nvm_ver = IWL8000_NVM_VERSION,
-	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
-};
+	/*
+	 * Disable ps when the first TDLS sta is added and re-enable it
+	 * when the last TDLS sta is removed
+	 */
+	if ((tdls_sta_cnt == 1 && sta_added) ||
+	    (tdls_sta_cnt == 0 && !sta_added))
+		iwl_mvm_power_update_mac(mvm);
+}
 
-const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
-	.name = "Intel(R) Dual Band Wireless-AC 8260",
-	.fw_name_pre = IWL8000_FW_PRE,
-	IWL_DEVICE_8000,
-	.ht_params = &iwl8000_ht_params,
-	.nvm_ver = IWL8000_NVM_VERSION,
-	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
-	.default_nvm_file = DEFAULT_NVM_FILE_FAMILY_8000,
-	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
-	.disable_dummy_notification = true,
-};
+void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	u32 duration = 2 * vif->bss_conf.dtim_period * vif->bss_conf.beacon_int;
 
-MODULE_FIRMWARE(IWL8000_MODULE_FIRMWARE(IWL8000_UCODE_API_OK));
+	/*
+	 * iwl_mvm_protect_session() reads directly from the device
+	 * (the system time), so make sure it is available.
+	 */
+	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PROTECT_TDLS))
+		return;
+
+	mutex_lock(&mvm->mutex);
+	/* Protect the session to hear the TDLS setup response on the channel */
+	iwl_mvm_protect_session(mvm, vif, duration, duration, 100, true);
+	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_TDLS);
+}
