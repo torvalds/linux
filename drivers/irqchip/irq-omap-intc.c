@@ -174,11 +174,10 @@ static void __init omap_irq_soft_reset(void)
 
 int omap_irq_pending(void)
 {
-	int irq;
+	int i;
 
-	for (irq = 0; irq < omap_nr_irqs; irq += 32)
-		if (intc_readl(INTC_PENDING_IRQ0 +
-					((irq >> 5) << 5)))
+	for (i = 0; i < omap_nr_pending; i++)
+		if (intc_readl(INTC_PENDING_IRQ0 + (0x20 * i)))
 			return 1;
 	return 0;
 }
