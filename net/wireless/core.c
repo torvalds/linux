@@ -2,6 +2,7 @@
  * This is the linux wireless configuration interface.
  *
  * Copyright 2006-2010		Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1005,7 +1006,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 			rdev->devlist_generation++;
 			cfg80211_mlme_purge_registrations(wdev);
 #ifdef CONFIG_CFG80211_WEXT
-			kfree(wdev->wext.keys);
+			kzfree(wdev->wext.keys);
 #endif
 		}
 		/*

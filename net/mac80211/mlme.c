@@ -5,6 +5,7 @@
  * Copyright 2005, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -172,7 +173,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 
 	if (!(ht_cap->cap_info &
 	      cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40))) {
-		ret = IEEE80211_STA_DISABLE_40MHZ | IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_STA_DISABLE_40MHZ;
 		goto out;
 	}
 
@@ -672,6 +673,9 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	    (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT))
 		capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
 
+	if (ifmgd->flags & IEEE80211_STA_ENABLE_RRM)
+		capab |= WLAN_CAPABILITY_RADIO_MEASURE;
+
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
 	memset(mgmt, 0, 24);
 	memcpy(mgmt->da, assoc_data->bss->bssid, ETH_ALEN);
@@ -737,16 +741,17 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		}
 	}
 
-	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT) {
-		/* 1. power capabilities */
+	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT ||
+	    capab & WLAN_CAPABILITY_RADIO_MEASURE) {
 		pos = skb_put(skb, 4);
 		*pos++ = WLAN_EID_PWR_CAPABILITY;
 		*pos++ = 2;
 		*pos++ = 0; /* min tx power */
 		 /* max tx power */
 		*pos++ = ieee80211_chandef_max_power(&chanctx_conf->def);
+	}
 
-		/* 2. supported channels */
+	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT) {
 		/* TODO: get this in reg domain format */
 		pos = skb_put(skb, 2 * sband->n_channels + 2);
 		*pos++ = WLAN_EID_SUPPORTED_CHANNELS;
@@ -1166,19 +1171,21 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 			  TU_TO_EXP_TIME(csa_ie.count * cbss->beacon_interval));
 }
 
-static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
-				       struct ieee80211_channel *channel,
-				       const u8 *country_ie, u8 country_ie_len,
-				       const u8 *pwr_constr_elem)
+static bool
+ieee80211_find_80211h_pwr_constr(struct ieee80211_sub_if_data *sdata,
+				 struct ieee80211_channel *channel,
+				 const u8 *country_ie, u8 country_ie_len,
+				 const u8 *pwr_constr_elem,
+				 int *chan_pwr, int *pwr_reduction)
 {
 	struct ieee80211_country_ie_triplet *triplet;
 	int chan = ieee80211_frequency_to_channel(channel->center_freq);
-	int i, chan_pwr, chan_increment, new_ap_level;
+	int i, chan_increment;
 	bool have_chan_pwr = false;
 
 	/* Invalid IE */
 	if (country_ie_len % 2 || country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
-		return 0;
+		return false;
 
 	triplet = (void *)(country_ie + 3);
 	country_ie_len -= 3;
@@ -1206,7 +1213,7 @@ static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 		for (i = 0; i < triplet->chans.num_channels; i++) {
 			if (first_channel + i * chan_increment == chan) {
 				have_chan_pwr = true;
-				chan_pwr = triplet->chans.max_power;
+				*chan_pwr = triplet->chans.max_power;
 				break;
 			}
 		}
@@ -1218,18 +1225,76 @@ static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 		country_ie_len -= 3;
 	}
 
-	if (!have_chan_pwr)
+	if (have_chan_pwr)
+		*pwr_reduction = *pwr_constr_elem;
+	return have_chan_pwr;
+}
+
+static void ieee80211_find_cisco_dtpc(struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_channel *channel,
+				      const u8 *cisco_dtpc_ie,
+				      int *pwr_level)
+{
+	/* From practical testing, the first data byte of the DTPC element
+	 * seems to contain the requested dBm level, and the CLI on Cisco
+	 * APs clearly state the range is -127 to 127 dBm, which indicates
+	 * a signed byte, although it seemingly never actually goes negative.
+	 * The other byte seems to always be zero.
+	 */
+	*pwr_level = (__s8)cisco_dtpc_ie[4];
+}
+
+static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_channel *channel,
+				       struct ieee80211_mgmt *mgmt,
+				       const u8 *country_ie, u8 country_ie_len,
+				       const u8 *pwr_constr_ie,
+				       const u8 *cisco_dtpc_ie)
+{
+	bool has_80211h_pwr = false, has_cisco_pwr = false;
+	int chan_pwr = 0, pwr_reduction_80211h = 0;
+	int pwr_level_cisco, pwr_level_80211h;
+	int new_ap_level;
+
+	if (country_ie && pwr_constr_ie &&
+	    mgmt->u.probe_resp.capab_info &
+		cpu_to_le16(WLAN_CAPABILITY_SPECTRUM_MGMT)) {
+		has_80211h_pwr = ieee80211_find_80211h_pwr_constr(
+			sdata, channel, country_ie, country_ie_len,
+			pwr_constr_ie, &chan_pwr, &pwr_reduction_80211h);
+		pwr_level_80211h =
+			max_t(int, 0, chan_pwr - pwr_reduction_80211h);
+	}
+
+	if (cisco_dtpc_ie) {
+		ieee80211_find_cisco_dtpc(
+			sdata, channel, cisco_dtpc_ie, &pwr_level_cisco);
+		has_cisco_pwr = true;
+	}
+
+	if (!has_80211h_pwr && !has_cisco_pwr)
 		return 0;
 
-	new_ap_level = max_t(int, 0, chan_pwr - *pwr_constr_elem);
+	/* If we have both 802.11h and Cisco DTPC, apply both limits
+	 * by picking the smallest of the two power levels advertised.
+	 */
+	if (has_80211h_pwr &&
+	    (!has_cisco_pwr || pwr_level_80211h <= pwr_level_cisco)) {
+		sdata_info(sdata,
+			   "Limiting TX power to %d (%d - %d) dBm as advertised by %pM\n",
+			   pwr_level_80211h, chan_pwr, pwr_reduction_80211h,
+			   sdata->u.mgd.bssid);
+		new_ap_level = pwr_level_80211h;
+	} else {  /* has_cisco_pwr is always true here. */
+		sdata_info(sdata,
+			   "Limiting TX power to %d dBm as advertised by %pM\n",
+			   pwr_level_cisco, sdata->u.mgd.bssid);
+		new_ap_level = pwr_level_cisco;
+	}
 
 	if (sdata->ap_power_level == new_ap_level)
 		return 0;
 
-	sdata_info(sdata,
-		   "Limiting TX power to %d (%d - %d) dBm as advertised by %pM\n",
-		   new_ap_level, chan_pwr, *pwr_constr_elem,
-		   sdata->u.mgd.bssid);
 	sdata->ap_power_level = new_ap_level;
 	if (__ieee80211_recalc_txpower(sdata))
 		return BSS_CHANGED_TXPOWER;
@@ -2752,6 +2817,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgd_assoc_data *assoc_data = ifmgd->assoc_data;
 	u16 capab_info, status_code, aid;
 	struct ieee802_11_elems elems;
+	int ac, uapsd_queues = -1;
 	u8 *pos;
 	bool reassoc;
 	struct cfg80211_bss *bss;
@@ -2821,9 +2887,15 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		 * is set can cause the interface to go idle
 		 */
 		ieee80211_destroy_assoc_data(sdata, true);
+
+		/* get uapsd queues configuration */
+		uapsd_queues = 0;
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+			if (sdata->tx_conf[ac].uapsd)
+				uapsd_queues |= BIT(ac);
 	}
 
-	cfg80211_rx_assoc_resp(sdata->dev, bss, (u8 *)mgmt, len);
+	cfg80211_rx_assoc_resp(sdata->dev, bss, (u8 *)mgmt, len, uapsd_queues);
 }
 
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
@@ -2893,7 +2965,9 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 /*
  * This is the canonical list of information elements we care about,
  * the filter code also gives us all changes to the Microsoft OUI
- * (00:50:F2) vendor IE which is used for WMM which we need to track.
+ * (00:50:F2) vendor IE which is used for WMM which we need to track,
+ * as well as the DTPC IE (part of the Cisco OUI) used for signaling
+ * changes to requested client power.
  *
  * We implement beacon filtering in software since that means we can
  * avoid processing the frame here and in cfg80211, and userspace
@@ -3199,13 +3273,11 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					    rx_status->band, true);
 	mutex_unlock(&local->sta_mtx);
 
-	if (elems.country_elem && elems.pwr_constr_elem &&
-	    mgmt->u.probe_resp.capab_info &
-				cpu_to_le16(WLAN_CAPABILITY_SPECTRUM_MGMT))
-		changed |= ieee80211_handle_pwr_constr(sdata, chan,
-						       elems.country_elem,
-						       elems.country_elem_len,
-						       elems.pwr_constr_elem);
+	changed |= ieee80211_handle_pwr_constr(sdata, chan, mgmt,
+					       elems.country_elem,
+					       elems.country_elem_len,
+					       elems.pwr_constr_elem,
+					       elems.cisco_dtpc_elem);
 
 	ieee80211_bss_info_change_notify(sdata, changed);
 }
@@ -3733,7 +3805,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmgd->uapsd_max_sp_len = sdata->local->hw.uapsd_max_sp_len;
 	ifmgd->p2p_noa_index = -1;
 
-	if (sdata->local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS)
+	if (sdata->local->hw.wiphy->features & NL80211_FEATURE_DYNAMIC_SMPS)
 		ifmgd->req_smps = IEEE80211_SMPS_AUTOMATIC;
 	else
 		ifmgd->req_smps = IEEE80211_SMPS_OFF;
@@ -4407,6 +4479,11 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->mfp = IEEE80211_MFP_DISABLED;
 		ifmgd->flags &= ~IEEE80211_STA_MFP_ENABLED;
 	}
+
+	if (req->flags & ASSOC_REQ_USE_RRM)
+		ifmgd->flags |= IEEE80211_STA_ENABLE_RRM;
+	else
+		ifmgd->flags &= ~IEEE80211_STA_ENABLE_RRM;
 
 	if (req->crypto.control_port)
 		ifmgd->flags |= IEEE80211_STA_CONTROL_PORT;

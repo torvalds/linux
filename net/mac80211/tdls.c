@@ -3,6 +3,7 @@
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014, Intel Corporation
+ * Copyright 2014  Intel Mobile Communications GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -410,6 +411,9 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(tf->sa, sdata->vif.addr, ETH_ALEN);
 	tf->ether_type = cpu_to_be16(ETH_P_TDLS);
 	tf->payload_type = WLAN_TDLS_SNAP_RFTYPE;
+
+	/* network header is after the ethernet header */
+	skb_set_network_header(skb, ETH_HLEN);
 
 	switch (action_code) {
 	case WLAN_TDLS_SETUP_REQUEST:

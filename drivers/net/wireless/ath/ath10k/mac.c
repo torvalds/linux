@@ -4838,7 +4838,6 @@ int ath10k_mac_register(struct ath10k *ar)
 			IEEE80211_HW_MFP_CAPABLE |
 			IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 			IEEE80211_HW_HAS_RATE_CONTROL |
-			IEEE80211_HW_SUPPORTS_STATIC_SMPS |
 			IEEE80211_HW_AP_LINK_PS |
 			IEEE80211_HW_SPECTRUM_MGMT;
 
@@ -4846,8 +4845,10 @@ int ath10k_mac_register(struct ath10k *ar)
 	 * bytes is used for padding/alignment if necessary. */
 	ar->hw->extra_tx_headroom += sizeof(struct htt_data_tx_desc_frag)*2 + 4;
 
+	ar->hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
+
 	if (ar->ht_cap_info & WMI_HT_CAP_DYNAMIC_SMPS)
-		ar->hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS;
+		ar->hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS;
 
 	if (ar->ht_cap_info & WMI_HT_CAP_ENABLED) {
 		ar->hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
