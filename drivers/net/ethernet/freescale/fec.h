@@ -15,6 +15,7 @@
 
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
+#include <linux/pm_qos.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
 
@@ -430,6 +431,12 @@ struct bufdesc_ex {
 #define FEC_QUIRK_SINGLE_MDIO		(1 << 11)
 /* Controller supports RACC register */
 #define FEC_QUIRK_HAS_RACC		(1 << 12)
+/*
+ * i.MX6Q/DL ENET cannot wake up system in wait mode because ENET tx & rx
+ * interrupt signal don't connect to GPC. So use pm qos to avoid cpu enter
+ * to wait mode.
+ */
+#define FEC_QUIRK_BUG_WAITMODE         (1 << 13)
 
 struct fec_enet_priv_tx_q {
 	int index;
@@ -538,6 +545,7 @@ struct fec_enet_private {
 	int hwts_tx_en;
 	struct delayed_work time_keep;
 	struct regulator *reg_phy;
+	struct pm_qos_request pm_qos_req;
 
 	unsigned int tx_align;
 	unsigned int rx_align;
