@@ -2,6 +2,8 @@
  * Copyright (c) 2014 Christoph Hellwig.
  */
 
+#include <linux/vmalloc.h>
+
 #include "blocklayout.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
