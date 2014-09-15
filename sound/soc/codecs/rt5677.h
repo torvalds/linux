@@ -1287,16 +1287,16 @@
 #define RT5677_PLL1_PD_SFT			8
 #define RT5677_PLL1_PD_1			(0x0 << 8)
 #define RT5677_PLL1_PD_2			(0x1 << 8)
-#define RT5671_DAC_OSR_MASK			(0x3 << 6)
-#define RT5671_DAC_OSR_SFT			6
-#define RT5671_DAC_OSR_128			(0x0 << 6)
-#define RT5671_DAC_OSR_64			(0x1 << 6)
-#define RT5671_DAC_OSR_32			(0x2 << 6)
-#define RT5671_ADC_OSR_MASK			(0x3 << 4)
-#define RT5671_ADC_OSR_SFT			4
-#define RT5671_ADC_OSR_128			(0x0 << 4)
-#define RT5671_ADC_OSR_64			(0x1 << 4)
-#define RT5671_ADC_OSR_32			(0x2 << 4)
+#define RT5677_DAC_OSR_MASK			(0x3 << 6)
+#define RT5677_DAC_OSR_SFT			6
+#define RT5677_DAC_OSR_128			(0x0 << 6)
+#define RT5677_DAC_OSR_64			(0x1 << 6)
+#define RT5677_DAC_OSR_32			(0x2 << 6)
+#define RT5677_ADC_OSR_MASK			(0x3 << 4)
+#define RT5677_ADC_OSR_SFT			4
+#define RT5677_ADC_OSR_128			(0x0 << 4)
+#define RT5677_ADC_OSR_64			(0x1 << 4)
+#define RT5677_ADC_OSR_32			(0x2 << 4)
 
 /* Global Clock Control 2 (0x81) */
 #define RT5677_PLL2_PR_SRC_MASK			(0x1 << 15)
@@ -1312,18 +1312,18 @@
 #define RT5677_PLL2_SRC_BCLK4			(0x4 << 12)
 #define RT5677_PLL2_SRC_RCCLK			(0x5 << 12)
 #define RT5677_PLL2_SRC_SLIM			(0x6 << 12)
-#define RT5671_DSP_ASRC_O_SRC			(0x3 << 10)
-#define RT5671_DSP_ASRC_O_SRC_SFT		10
-#define RT5671_DSP_ASRC_O_MCLK			(0x0 << 10)
-#define RT5671_DSP_ASRC_O_PLL1			(0x1 << 10)
-#define RT5671_DSP_ASRC_O_SLIM			(0x2 << 10)
-#define RT5671_DSP_ASRC_O_RCCLK			(0x3 << 10)
-#define RT5671_DSP_ASRC_I_SRC			(0x3 << 8)
-#define RT5671_DSP_ASRC_I_SRC_SFT		8
-#define RT5671_DSP_ASRC_I_MCLK			(0x0 << 8)
-#define RT5671_DSP_ASRC_I_PLL1			(0x1 << 8)
-#define RT5671_DSP_ASRC_I_SLIM			(0x2 << 8)
-#define RT5671_DSP_ASRC_I_RCCLK			(0x3 << 8)
+#define RT5677_DSP_ASRC_O_SRC			(0x3 << 10)
+#define RT5677_DSP_ASRC_O_SRC_SFT		10
+#define RT5677_DSP_ASRC_O_MCLK			(0x0 << 10)
+#define RT5677_DSP_ASRC_O_PLL1			(0x1 << 10)
+#define RT5677_DSP_ASRC_O_SLIM			(0x2 << 10)
+#define RT5677_DSP_ASRC_O_RCCLK			(0x3 << 10)
+#define RT5677_DSP_ASRC_I_SRC			(0x3 << 8)
+#define RT5677_DSP_ASRC_I_SRC_SFT		8
+#define RT5677_DSP_ASRC_I_MCLK			(0x0 << 8)
+#define RT5677_DSP_ASRC_I_PLL1			(0x1 << 8)
+#define RT5677_DSP_ASRC_I_SLIM			(0x2 << 8)
+#define RT5677_DSP_ASRC_I_RCCLK			(0x3 << 8)
 #define RT5677_DSP_CLK_SRC_MASK			(0x1 << 7)
 #define RT5677_DSP_CLK_SRC_SFT			7
 #define RT5677_DSP_CLK_SRC_PLL2			(0x0 << 7)
