@@ -126,8 +126,8 @@ nvkm_connector_create_(struct nouveau_object *parent,
 			return 0;
 		}
 
-		ret = nvkm_notify_init(&gpio->event, nvkm_connector_hpd, true,
-				       &(struct nvkm_gpio_ntfy_req) {
+		ret = nvkm_notify_init(NULL, &gpio->event, nvkm_connector_hpd,
+				       true, &(struct nvkm_gpio_ntfy_req) {
 					.mask = NVKM_GPIO_TOGGLED,
 					.line = func.line,
 				       },

@@ -116,7 +116,8 @@ extern struct nouveau_oclass *nve0_fifo_oclass;
 extern struct nouveau_oclass *gk20a_fifo_oclass;
 extern struct nouveau_oclass *nv108_fifo_oclass;
 
-int  nouveau_fifo_uevent_ctor(void *, u32, struct nvkm_notify *);
+int  nouveau_fifo_uevent_ctor(struct nouveau_object *, void *, u32,
+			      struct nvkm_notify *);
 void nouveau_fifo_uevent(struct nouveau_fifo *);
 
 void nv04_fifo_intr(struct nouveau_subdev *);

@@ -448,7 +448,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	list_add(&ntfy->head, &chan->notifiers);
 	ntfy->handle = info->handle;
 
-	ret = nouveau_mm_head(&chan->heap, 1, info->size, info->size, 1,
+	ret = nouveau_mm_head(&chan->heap, 0, 1, info->size, info->size, 1,
 			      &ntfy->node);
 	if (ret)
 		goto done;

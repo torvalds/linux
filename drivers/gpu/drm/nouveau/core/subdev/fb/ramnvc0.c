@@ -133,6 +133,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nvc0_ram *ram = (void *)pfb->ram;
 	struct nvc0_ramfuc *fuc = &ram->fuc;
+	struct nvbios_ramcfg cfg;
 	u8  ver, cnt, len, strap;
 	struct {
 		u32 data;
@@ -145,7 +146,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 
 	/* lookup memory config data relevant to the target frequency */
 	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
-				     &cnt, &ramcfg.size);
+				     &cnt, &ramcfg.size, &cfg);
 	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
 		return -EINVAL;
@@ -483,9 +484,9 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 	do {
 		if (back)
-			ret = nouveau_mm_tail(mm, 1, size, ncmin, align, &r);
+			ret = nouveau_mm_tail(mm, 0, 1, size, ncmin, align, &r);
 		else
-			ret = nouveau_mm_head(mm, 1, size, ncmin, align, &r);
+			ret = nouveau_mm_head(mm, 0, 1, size, ncmin, align, &r);
 		if (ret) {
 			mutex_unlock(&pfb->base.mutex);
 			pfb->ram->put(pfb, &mem);
@@ -562,7 +563,7 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 		offset = (0x0200000000ULL >> 12) + (bsize << 8);
 		length = (ram->size >> 12) - ((bsize * parts) << 8) - rsvd_tail;
 
-		ret = nouveau_mm_init(&pfb->vram, offset, length, 0);
+		ret = nouveau_mm_init(&pfb->vram, offset, length, 1);
 		if (ret)
 			nouveau_mm_fini(&pfb->vram);
 	}
