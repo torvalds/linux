@@ -3936,7 +3936,8 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		return false;
 
 	if (len <= skb_tailroom(to)) {
-		BUG_ON(skb_copy_bits(from, 0, skb_put(to, len), len));
+		if (len)
+			BUG_ON(skb_copy_bits(from, 0, skb_put(to, len), len));
 		*delta_truesize = 0;
 		return true;
 	}

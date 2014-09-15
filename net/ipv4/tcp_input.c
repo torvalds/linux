@@ -4093,7 +4093,7 @@ static void tcp_ofo_queue(struct sock *sk)
 		__skb_unlink(skb, &tp->out_of_order_queue);
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		if (tcp_hdr(skb)->fin)
+		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 			tcp_fin(sk);
 	}
 }
@@ -4143,9 +4143,6 @@ static bool tcp_try_coalesce(struct sock *sk,
 
 	*fragstolen = false;
 
-	if (tcp_hdr(from)->fin)
-		return false;
-
 	/* Its possible this segment overlaps with prior segment in queue */
 	if (TCP_SKB_CB(from)->seq != TCP_SKB_CB(to)->end_seq)
 		return false;
@@ -4158,6 +4155,7 @@ static bool tcp_try_coalesce(struct sock *sk,
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPRCVCOALESCE);
 	TCP_SKB_CB(to)->end_seq = TCP_SKB_CB(from)->end_seq;
 	TCP_SKB_CB(to)->ack_seq = TCP_SKB_CB(from)->ack_seq;
+	TCP_SKB_CB(to)->tcp_flags |= TCP_SKB_CB(from)->tcp_flags;
 	return true;
 }
 
@@ -4513,7 +4511,7 @@ restart:
 		 * - bloated or contains data before "start" or
 		 *   overlaps to the next one.
 		 */
-		if (!tcp_hdr(skb)->syn && !tcp_hdr(skb)->fin &&
+		if (!(TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)) &&
 		    (tcp_win_from_space(skb->truesize) > skb->len ||
 		     before(TCP_SKB_CB(skb)->seq, start))) {
 			end_of_skbs = false;
@@ -4532,30 +4530,18 @@ restart:
 		/* Decided to skip this, advance start seq. */
 		start = TCP_SKB_CB(skb)->end_seq;
 	}
-	if (end_of_skbs || tcp_hdr(skb)->syn || tcp_hdr(skb)->fin)
+	if (end_of_skbs ||
+	    (TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)))
 		return;
 
 	while (before(start, end)) {
+		int copy = min_t(int, SKB_MAX_ORDER(0, 0), end - start);
 		struct sk_buff *nskb;
-		unsigned int header = skb_headroom(skb);
-		int copy = SKB_MAX_ORDER(header, 0);
 
-		/* Too big header? This can happen with IPv6. */
-		if (copy < 0)
-			return;
-		if (end - start < copy)
-			copy = end - start;
-		nskb = alloc_skb(copy + header, GFP_ATOMIC);
+		nskb = alloc_skb(copy, GFP_ATOMIC);
 		if (!nskb)
 			return;
 
-		skb_set_mac_header(nskb, skb_mac_header(skb) - skb->head);
-		skb_set_network_header(nskb, (skb_network_header(skb) -
-					      skb->head));
-		skb_set_transport_header(nskb, (skb_transport_header(skb) -
-						skb->head));
-		skb_reserve(nskb, header);
-		memcpy(nskb->head, skb->head, header);
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
 		TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(nskb)->end_seq = start;
 		__skb_queue_before(list, skb, nskb);
@@ -4579,8 +4565,7 @@ restart:
 				skb = tcp_collapse_one(sk, skb, list);
 				if (!skb ||
 				    skb == tail ||
-				    tcp_hdr(skb)->syn ||
-				    tcp_hdr(skb)->fin)
+				    (TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)))
 					return;
 			}
 		}
