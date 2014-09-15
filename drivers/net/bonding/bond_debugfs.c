@@ -13,9 +13,7 @@
 
 static struct dentry *bonding_debug_root;
 
-/*
- *  Show RLB hash table
- */
+/* Show RLB hash table */
 static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 {
 	struct bonding *bond = m->private;

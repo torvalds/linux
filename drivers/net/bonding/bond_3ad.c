@@ -297,15 +297,14 @@ static u16 __get_link_speed(struct port *port)
 static u8 __get_duplex(struct port *port)
 {
 	struct slave *slave = port->slave;
-
 	u8 retval;
 
 	/* handling a special case: when the configuration starts with
 	 * link down, it sets the duplex to 0.
 	 */
-	if (slave->link != BOND_LINK_UP)
+	if (slave->link != BOND_LINK_UP) {
 		retval = 0x0;
-	else {
+	} else {
 		switch (slave->duplex) {
 		case DUPLEX_FULL:
 			retval = 0x1;
