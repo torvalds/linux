@@ -28,6 +28,7 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "smb2proto.h"
 
 /*
  * M-F Symlink Functions - Begin
@@ -399,6 +400,68 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	CIFSSMBClose(xid, tcon, fid.netfid);
 	return rc;
 }
+
+int
+smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+		       struct cifs_sb_info *cifs_sb, const unsigned char *path,
+		       char *pbuf, unsigned int *pbytes_written)
+{
+	int rc;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
+	struct cifs_io_parms io_parms;
+	int create_options = CREATE_NOT_DIR;
+	__le16 *utf16_path;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_EXCLUSIVE;
+	struct kvec iov[2];
+
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
+	cifs_dbg(FYI, "%s: path: %s\n", __func__, path);
+
+	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
+
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = GENERIC_WRITE;
+	oparms.create_options = create_options;
+	oparms.disposition = FILE_CREATE;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	if (rc) {
+		kfree(utf16_path);
+		return rc;
+	}
+
+	io_parms.netfid = fid.netfid;
+	io_parms.pid = current->tgid;
+	io_parms.tcon = tcon;
+	io_parms.offset = 0;
+	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
+	io_parms.persistent_fid = fid.persistent_fid;
+	io_parms.volatile_fid = fid.volatile_fid;
+
+	/* iov[0] is reserved for smb header */
+	iov[1].iov_base = pbuf;
+	iov[1].iov_len = CIFS_MF_SYMLINK_FILE_SIZE;
+
+	rc = SMB2_write(xid, &io_parms, pbytes_written, iov, 1);
+
+	/* Make sure we wrote all of the symlink data */
+	if ((rc == 0) && (*pbytes_written != CIFS_MF_SYMLINK_FILE_SIZE))
+		rc = -EIO;
+
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+
+	kfree(utf16_path);
+	return rc;
+}
+
 
 /*
  * M-F Symlink Functions - End
