@@ -15,57 +15,5 @@ menu "rockchip camera sensor interface driver"
 		tristate "rk30_camera_oneframe"
 		depends on ROCKCHIP_CAMERA_SENSOR_INTERFACE
 		default y
-	
-
-	config GC0307
-		tristate "gc0307,support"
 		
-	config GC0308
-		tristate "gc0308,support"
-
-	config GC0309
-		tristate "gc0309,support"
-
-	config GC0328
-		tristate "gc0328,support"
-
-	config GC0329
-		tristate "gc0329,support"
-		default y
-
-	config GC2015
-		tristate "gc2015,support"
-
-	config GC2035
-		tristate "gc2035,support"
-
-	config GT2005
-		tristate "gt2005,support"
-
-	config HM2057
-		tristate "hm2057,support"
-
-	config HM5065
-		tristate "hm5065,support"
-
-	config MT9P111
-		tristate "mt9p111,support"
-
-	config NT99160_2WAY
-		tristate "nt99160_2way,support"
-
-	config NT99240_2WAY
-		tristate "nt99240_2way,support"
-		
-	config OV2659
-		tristate "ov2659,support"
-		default y
-
-	config OV5640
-		tristate "ov5640,support"
-
-
-	config SP2518
-		tristate "sp2518,support"
-
 endmenu		

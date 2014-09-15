@@ -266,8 +266,10 @@ static u32 DISABLE_INVERT_PCLK_CIF1;
 		 1. When cif was at work, the aclk is closed ,may cause bus abnormal ,so sleep 100ms before close aclk 
 *v0.1.5:	
            1. Improve the code to support all configuration.reset,af,flash...
+*v0.1.6:
+		 1. Delete SOCAM_DATAWIDTH_8 in SENSOR_BUS_PARAM parameters,it conflict with V4L2_MBUS_PCLK_SAMPLE_FALLING.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x5)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x6)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
