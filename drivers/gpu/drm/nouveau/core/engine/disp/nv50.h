@@ -77,6 +77,7 @@ int nvd0_hda_eld(NV50_DISP_MTHD_V1);
 int nv84_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int nva3_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int nvd0_hdmi_ctrl(NV50_DISP_MTHD_V1);
+int nve0_hdmi_ctrl(NV50_DISP_MTHD_V1);
 
 int nv50_sor_power(NV50_DISP_MTHD_V1);
 

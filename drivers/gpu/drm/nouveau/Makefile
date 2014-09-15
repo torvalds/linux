@@ -261,6 +261,7 @@ nouveau-y += core/engine/disp/hdanvd0.o
 nouveau-y += core/engine/disp/hdminv84.o
 nouveau-y += core/engine/disp/hdminva3.o
 nouveau-y += core/engine/disp/hdminvd0.o
+nouveau-y += core/engine/disp/hdminve0.o
 nouveau-y += core/engine/disp/piornv50.o
 nouveau-y += core/engine/disp/sornv50.o
 nouveau-y += core/engine/disp/sornv94.o

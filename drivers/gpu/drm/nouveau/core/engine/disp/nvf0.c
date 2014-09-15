@@ -84,7 +84,7 @@ nvf0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hda_eld = nvd0_hda_eld;
-	priv->sor.hdmi = nvd0_hdmi_ctrl;
+	priv->sor.hdmi = nve0_hdmi_ctrl;
 	return 0;
 }
 
