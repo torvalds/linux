@@ -35,8 +35,9 @@ static inline void cfc_inc_scan_progress(struct comedi_subdevice *s,
 }
 
 /* Writes an array of data points to comedi's buffer */
-unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *,
-				       void *data, unsigned int num_bytes);
+unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
+				       const void *data,
+				       unsigned int num_bytes);
 
 static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *s,
 					       unsigned short data)

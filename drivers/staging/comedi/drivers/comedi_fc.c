@@ -24,7 +24,7 @@
 
 /* Writes an array of data points to comedi's buffer */
 unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
-				       void *data, unsigned int num_bytes)
+				       const void *data, unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
 	unsigned int retval;
