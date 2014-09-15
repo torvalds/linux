@@ -2222,3 +2222,160 @@ int genpd_dev_pm_attach(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 #endif
+
+
+/***        debugfs support        ***/
+
+#ifdef CONFIG_PM_ADVANCED_DEBUG
+#include <linux/pm.h>
+#include <linux/device.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#include <linux/init.h>
+#include <linux/kobject.h>
+static struct dentry *pm_genpd_debugfs_dir;
+
+/*
+ * TODO: This function is a slightly modified version of rtpm_status_show
+ * from sysfs.c, but dependencies between PM_GENERIC_DOMAINS and PM_RUNTIME
+ * are too loose to generalize it.
+ */
+#ifdef CONFIG_PM_RUNTIME
+static void rtpm_status_str(struct seq_file *s, struct device *dev)
+{
+	static const char * const status_lookup[] = {
+		[RPM_ACTIVE] = "active",
+		[RPM_RESUMING] = "resuming",
+		[RPM_SUSPENDED] = "suspended",
+		[RPM_SUSPENDING] = "suspending"
+	};
+	const char *p = "";
+
+	if (dev->power.runtime_error)
+		p = "error";
+	else if (dev->power.disable_depth)
+		p = "unsupported";
+	else if (dev->power.runtime_status < ARRAY_SIZE(status_lookup))
+		p = status_lookup[dev->power.runtime_status];
+	else
+		WARN_ON(1);
+
+	seq_puts(s, p);
+}
+#else
+static void rtpm_status_str(struct seq_file *s, struct device *dev)
+{
+	seq_puts(s, "active");
+}
+#endif
+
+static int pm_genpd_summary_one(struct seq_file *s,
+		struct generic_pm_domain *gpd)
+{
+	static const char * const status_lookup[] = {
+		[GPD_STATE_ACTIVE] = "on",
+		[GPD_STATE_WAIT_MASTER] = "wait-master",
+		[GPD_STATE_BUSY] = "busy",
+		[GPD_STATE_REPEAT] = "off-in-progress",
+		[GPD_STATE_POWER_OFF] = "off"
+	};
+	struct pm_domain_data *pm_data;
+	const char *kobj_path;
+	struct gpd_link *link;
+	int ret;
+
+	ret = mutex_lock_interruptible(&gpd->lock);
+	if (ret)
+		return -ERESTARTSYS;
+
+	if (WARN_ON(gpd->status >= ARRAY_SIZE(status_lookup)))
+		goto exit;
+	seq_printf(s, "%-30s  %-15s  ", gpd->name, status_lookup[gpd->status]);
+
+	/*
+	 * Modifications on the list require holding locks on both
+	 * master and slave, so we are safe.
+	 * Also gpd->name is immutable.
+	 */
+	list_for_each_entry(link, &gpd->master_links, master_node) {
+		seq_printf(s, "%s", link->slave->name);
+		if (!list_is_last(&link->master_node, &gpd->master_links))
+			seq_puts(s, ", ");
+	}
+
+	list_for_each_entry(pm_data, &gpd->dev_list, list_node) {
+		kobj_path = kobject_get_path(&pm_data->dev->kobj, GFP_KERNEL);
+		if (kobj_path == NULL)
+			continue;
+
+		seq_printf(s, "\n    %-50s  ", kobj_path);
+		rtpm_status_str(s, pm_data->dev);
+		kfree(kobj_path);
+	}
+
+	seq_puts(s, "\n");
+exit:
+	mutex_unlock(&gpd->lock);
+
+	return 0;
+}
+
+static int pm_genpd_summary_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *gpd;
+	int ret = 0;
+
+	seq_puts(s, "    domain                      status         slaves\n");
+	seq_puts(s, "           /device                                      runtime status\n");
+	seq_puts(s, "----------------------------------------------------------------------\n");
+
+	ret = mutex_lock_interruptible(&gpd_list_lock);
+	if (ret)
+		return -ERESTARTSYS;
+
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
+		ret = pm_genpd_summary_one(s, gpd);
+		if (ret)
+			break;
+	}
+	mutex_unlock(&gpd_list_lock);
+
+	return ret;
+}
+
+static int pm_genpd_summary_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pm_genpd_summary_show, NULL);
+}
+
+static const struct file_operations pm_genpd_summary_fops = {
+	.open = pm_genpd_summary_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int __init pm_genpd_debug_init(void)
+{
+	struct dentry *d;
+
+	pm_genpd_debugfs_dir = debugfs_create_dir("pm_genpd", NULL);
+
+	if (!pm_genpd_debugfs_dir)
+		return -ENOMEM;
+
+	d = debugfs_create_file("pm_genpd_summary", S_IRUGO,
+			pm_genpd_debugfs_dir, NULL, &pm_genpd_summary_fops);
+	if (!d)
+		return -ENOMEM;
+
+	return 0;
+}
+late_initcall(pm_genpd_debug_init);
+
+static void __exit pm_genpd_debug_exit(void)
+{
+	debugfs_remove_recursive(pm_genpd_debugfs_dir);
+}
+__exitcall(pm_genpd_debug_exit);
+#endif /* CONFIG_PM_ADVANCED_DEBUG */
