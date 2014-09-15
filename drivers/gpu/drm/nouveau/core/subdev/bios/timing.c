@@ -92,6 +92,12 @@ nvbios_timingEp(struct nouveau_bios *bios, int idx,
 	p->timing_ver = *ver;
 	p->timing_hdr = *hdr;
 	switch (!!data * *ver) {
+	case 0x10:
+		p->timing_10_WR = nv_ro08(bios, data + 0x00);
+		p->timing_10_CL = nv_ro08(bios, data + 0x02);
+		p->timing_10_ODT = nv_ro08(bios, data + 0x0e) & 0x07;
+		p->timing_10_CWL = nv_ro08(bios, data + 0x13);
+		break;
 	case 0x20:
 		p->timing[0] = nv_ro32(bios, data + 0x00);
 		p->timing[1] = nv_ro32(bios, data + 0x04);

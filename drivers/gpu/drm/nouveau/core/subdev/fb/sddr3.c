@@ -23,7 +23,6 @@
  * 	    Roy Spliet <rspliet@eclipso.eu>
  */
 
-#include <subdev/bios.h>
 #include "priv.h"
 
 struct ramxlat {
@@ -70,25 +69,19 @@ ramddr3_cwl[] = {
 int
 nouveau_sddr3_calc(struct nouveau_ram *ram)
 {
-	struct nouveau_bios *bios = nouveau_bios(ram);
 	int CWL, CL, WR, DLL = 0, ODT = 0;
-	u8 ver;
 
-	ver = !!ram->timing.data * ram->timing.version;
-	if (ram->next)
-		ver = ram->next->bios.timing_ver;
-
-	switch (ver) {
+	switch (ram->next->bios.timing_ver) {
 	case 0x10:
-		if (ram->timing.size < 0x17) {
+		if (ram->next->bios.timing_hdr < 0x17) {
 			/* XXX: NV50: Get CWL from the timing register */
 			return -ENOSYS;
 		}
-		CWL =   nv_ro08(bios, ram->timing.data + 0x13);
-		CL  =   nv_ro08(bios, ram->timing.data + 0x02);
-		WR  =   nv_ro08(bios, ram->timing.data + 0x00);
-		DLL = !(nv_ro08(bios, ram->ramcfg.data + 0x02) & 0x40);
-		ODT =   nv_ro08(bios, ram->timing.data + 0x0e) & 0x07;
+		CWL = ram->next->bios.timing_10_CWL;
+		CL  = ram->next->bios.timing_10_CL;
+		WR  = ram->next->bios.timing_10_WR;
+		DLL = !ram->next->bios.ramcfg_10_02_40;
+		ODT = ram->next->bios.timing_10_ODT;
 		break;
 	case 0x20:
 		CWL = (ram->next->bios.timing[1] & 0x00000f80) >> 7;

@@ -23,7 +23,6 @@
  *          Ben Skeggs
  */
 
-#include <subdev/bios.h>
 #include "priv.h"
 
 struct ramxlat {
@@ -61,19 +60,18 @@ ramddr2_wr[] = {
 int
 nouveau_sddr2_calc(struct nouveau_ram *ram)
 {
-	struct nouveau_bios *bios = nouveau_bios(ram);
 	int CL, WR, DLL = 0, ODT = 0;
 
-	switch (!!ram->timing.data * ram->timing.version) {
+	switch (ram->next->bios.timing_ver) {
 	case 0x10:
-		CL  =   nv_ro08(bios, ram->timing.data + 0x02);
-		WR  =   nv_ro08(bios, ram->timing.data + 0x00);
-		DLL = !(nv_ro08(bios, ram->ramcfg.data + 0x02) & 0x40);
-		ODT =   nv_ro08(bios, ram->timing.data + 0x0e) & 0x03;
+		CL  = ram->next->bios.timing_10_CL;
+		WR  = ram->next->bios.timing_10_WR;
+		DLL = !ram->next->bios.ramcfg_10_02_40;
+		ODT = ram->next->bios.timing_10_ODT & 3;
 		break;
 	case 0x20:
-		CL  =  nv_ro08(bios, ram->timing.data + 0x04) & 0x1f;
-		WR  =  nv_ro08(bios, ram->timing.data + 0x0a) & 0x7f;
+		CL  = (ram->next->bios.timing[1] & 0x0000001f);
+		WR  = (ram->next->bios.timing[2] & 0x007f0000) >> 16;
 		break;
 	default:
 		return -ENOSYS;

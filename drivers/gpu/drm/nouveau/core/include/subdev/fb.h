@@ -146,11 +146,6 @@ struct nouveau_ram {
 	int  (*calc)(struct nouveau_fb *, u32 freq);
 	int  (*prog)(struct nouveau_fb *);
 	void (*tidy)(struct nouveau_fb *);
-	struct {
-		u8  version;
-		u32 data;
-		u8  size;
-	} rammap, ramcfg, timing;
 	u32 freq;
 	u32 mr[16];
 	u32 mr1_nuts;
