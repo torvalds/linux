@@ -25,7 +25,7 @@
 void cfc_inc_scan_progress(struct comedi_subdevice *s, unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
-	unsigned int scan_length = cfc_bytes_per_scan(s);
+	unsigned int scan_length = comedi_bytes_per_scan(s);
 
 	async->scan_progress += num_bytes;
 	if (async->scan_progress >= scan_length) {
