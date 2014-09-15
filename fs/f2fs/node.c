@@ -131,7 +131,7 @@ int is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid)
 
 	read_lock(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, nid);
-	if (e && !e->checkpointed)
+	if (e && !get_nat_flag(e, IS_CHECKPOINTED))
 		is_cp = 0;
 	read_unlock(&nm_i->nat_tree_lock);
 	return is_cp;
@@ -146,7 +146,7 @@ bool fsync_mark_done(struct f2fs_sb_info *sbi, nid_t nid)
 	read_lock(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, nid);
 	if (e)
-		fsync_done = e->fsync_done;
+		fsync_done = get_nat_flag(e, HAS_FSYNC_MARK);
 	read_unlock(&nm_i->nat_tree_lock);
 	return fsync_done;
 }
@@ -159,7 +159,7 @@ void fsync_mark_clear(struct f2fs_sb_info *sbi, nid_t nid)
 	write_lock(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, nid);
 	if (e)
-		e->fsync_done = false;
+		set_nat_flag(e, HAS_FSYNC_MARK, false);
 	write_unlock(&nm_i->nat_tree_lock);
 }
 
@@ -176,7 +176,7 @@ static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid)
 	}
 	memset(new, 0, sizeof(struct nat_entry));
 	nat_set_nid(new, nid);
-	new->checkpointed = true;
+	set_nat_flag(new, IS_CHECKPOINTED, true);
 	list_add_tail(&new->list, &nm_i->nat_entries);
 	nm_i->nat_cnt++;
 	return new;
@@ -249,7 +249,7 @@ retry:
 	/* update fsync_mark if its inode nat entry is still alive */
 	e = __lookup_nat_cache(nm_i, ni->ino);
 	if (e)
-		e->fsync_done = fsync_done;
+		set_nat_flag(e, HAS_FSYNC_MARK, fsync_done);
 	write_unlock(&nm_i->nat_tree_lock);
 }
 
@@ -1349,7 +1349,8 @@ static int add_free_nid(struct f2fs_sb_info *sbi, nid_t nid, bool build)
 		read_lock(&nm_i->nat_tree_lock);
 		ne = __lookup_nat_cache(nm_i, nid);
 		if (ne &&
-			(!ne->checkpointed || nat_get_blkaddr(ne) != NULL_ADDR))
+			(!get_nat_flag(ne, IS_CHECKPOINTED) ||
+				nat_get_blkaddr(ne) != NULL_ADDR))
 			allocated = true;
 		read_unlock(&nm_i->nat_tree_lock);
 		if (allocated)
