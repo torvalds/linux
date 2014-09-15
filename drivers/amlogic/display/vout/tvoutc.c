@@ -461,10 +461,10 @@ int tvoutc_setmode(tvmode_t mode)
 	cvbs_performance_enhancement(mode);
 #endif
 
-    if(mode >= TVMODE_VGA && mode <= TVMODE_SXGA){
-        aml_write_reg32(P_PERIPHS_PIN_MUX_0,aml_read_reg32(P_PERIPHS_PIN_MUX_0)|(3<<20));
+    if(mode >= TVMODE_VGA && mode <= TVMODE_FHDVGA){ //set VGA pinmux
+        aml_write_reg32(P_PERIPHS_PIN_MUX_0, (aml_read_reg32(P_PERIPHS_PIN_MUX_0)|(3<<20)));
     }else{
-	aml_write_reg32(P_PERIPHS_PIN_MUX_0,aml_read_reg32(P_PERIPHS_PIN_MUX_0)&(~(3<<20)));
+	aml_write_reg32(P_PERIPHS_PIN_MUX_0, (aml_read_reg32(P_PERIPHS_PIN_MUX_0)&(~(3<<20))));
     }
 
 #if ((defined CONFIG_ARCH_MESON8) || (defined CONFIG_ARCH_MESON8B))
@@ -509,6 +509,12 @@ int tvoutc_setmode(tvmode_t mode)
         case TVMODE_4K2K_25HZ:
         case TVMODE_4K2K_24HZ:
         case TVMODE_4K2K_SMPTE:
+		case TVMODE_VGA:
+		case TVMODE_SVGA:
+		case TVMODE_XGA:
+		case TVMODE_SXGA:
+		case TVMODE_WSXGA:
+		case TVMODE_FHDVGA:
         aml_set_reg32_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 0, 2); //reg0x271a, select ENCP to VIU1
         aml_set_reg32_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 4, 4); //reg0x271a, Select encP clock to VDIN
         aml_set_reg32_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 8, 4); //reg0x271a,Enable VIU of ENC_P domain to VDIN;
