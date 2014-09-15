@@ -81,7 +81,7 @@ tcindex_lookup(struct tcindex_data *p, u16 key)
 static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			    struct tcf_result *res)
 {
-	struct tcindex_data *p = rcu_dereference(tp->root);
+	struct tcindex_data *p = rcu_dereference_bh(tp->root);
 	struct tcindex_filter_result *f;
 	int key = (skb->tc_index & p->mask) >> p->shift;
 
