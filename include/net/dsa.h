@@ -77,7 +77,7 @@ struct dsa_platform_data {
 	struct dsa_chip_data	*chip;
 };
 
-struct dsa_device_ops;
+struct packet_type;
 
 struct dsa_switch_tree {
 	/*
@@ -91,7 +91,10 @@ struct dsa_switch_tree {
 	 * protocol to use.
 	 */
 	struct net_device	*master_netdev;
-	const struct dsa_device_ops	*ops;
+	int			(*rcv)(struct sk_buff *skb,
+				       struct net_device *dev,
+				       struct packet_type *pt,
+				       struct net_device *orig_dev);
 	enum dsa_tag_protocol	tag_protocol;
 
 	/*
@@ -218,7 +221,6 @@ static inline void *ds_to_priv(struct dsa_switch *ds)
 
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {
-	return dst->tag_protocol != DSA_TAG_PROTO_NONE;
+	return dst->rcv != NULL;
 }
-
 #endif

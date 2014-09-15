@@ -10,7 +10,6 @@
  */
 
 #include <linux/list.h>
-#include <linux/netdevice.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -154,9 +153,34 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 * tagging protocol to the preferred tagging format of this
 	 * switch.
 	 */
-	if (ds->dst->cpu_switch == index)
-		ds->dst->tag_protocol = drv->tag_protocol;
+	if (dst->cpu_switch == index) {
+		switch (drv->tag_protocol) {
+#ifdef CONFIG_NET_DSA_TAG_DSA
+		case DSA_TAG_PROTO_DSA:
+			dst->rcv = dsa_netdev_ops.rcv;
+			break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_EDSA
+		case DSA_TAG_PROTO_EDSA:
+			dst->rcv = edsa_netdev_ops.rcv;
+			break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+		case DSA_TAG_PROTO_TRAILER:
+			dst->rcv = trailer_netdev_ops.rcv;
+			break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_BRCM
+		case DSA_TAG_PROTO_BRCM:
+			dst->rcv = brcm_netdev_ops.rcv;
+			break;
+#endif
+		default:
+			break;
+		}
 
+		dst->tag_protocol = drv->tag_protocol;
+	}
 
 	/*
 	 * Do basic register setup.
@@ -626,7 +650,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 		return 0;
 	}
 
-	return dst->ops->rcv(skb, dev, pt, orig_dev);
+	return dst->rcv(skb, dev, pt, orig_dev);
 }
 
 static struct packet_type dsa_pack_type __read_mostly = {

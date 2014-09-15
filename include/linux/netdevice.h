@@ -1928,13 +1928,6 @@ struct udp_offload {
 	struct offload_callbacks callbacks;
 };
 
-struct dsa_device_ops {
-	netdev_tx_t (*xmit)(struct sk_buff *skb, struct net_device *dev);
-	int (*rcv)(struct sk_buff *skb, struct net_device *dev,
-		   struct packet_type *pt, struct net_device *orig_dev);
-};
-
-
 /* often modified stats are per cpu, other are shared (netdev->stats) */
 struct pcpu_sw_netstats {
 	u64     rx_packets;
