@@ -380,5 +380,8 @@
 #define __NR_sched_setattr	355
 #define __NR_sched_getattr	356
 #define __NR_renameat2		357
+#define __NR_seccomp		358
+#define __NR_getrandom		359
+#define __NR_memfd_create	360
 
 #endif /* _UAPI_ASM_POWERPC_UNISTD_H_ */

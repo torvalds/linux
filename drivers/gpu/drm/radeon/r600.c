@@ -2769,8 +2769,8 @@ bool r600_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | sel);
 
-	/* PFP_SYNC_ME packet only exists on 7xx+ */
-	if (emit_wait && (rdev->family >= CHIP_RV770)) {
+	/* PFP_SYNC_ME packet only exists on 7xx+, only enable it on eg+ */
+	if (emit_wait && (rdev->family >= CHIP_CEDAR)) {
 		/* Prevent the PFP from running ahead of the semaphore wait */
 		radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
 		radeon_ring_write(ring, 0x0);

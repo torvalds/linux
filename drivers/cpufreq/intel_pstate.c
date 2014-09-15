@@ -708,10 +708,6 @@ static unsigned int intel_pstate_get(unsigned int cpu_num)
 
 static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 {
-	struct cpudata *cpu;
-
-	cpu = all_cpu_data[policy->cpu];
-
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
 
