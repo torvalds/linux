@@ -1656,6 +1656,7 @@ static void
 nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct __packed {
@@ -1668,7 +1669,8 @@ nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 		.base.mthd.version = 1,
 		.base.mthd.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
 		.base.mthd.hasht   = nv_encoder->dcb->hasht,
-		.base.mthd.hashm   = nv_encoder->dcb->hashm,
+		.base.mthd.hashm   = (0xf0ff & nv_encoder->dcb->hashm) |
+				     (0x0100 << nv_crtc->index),
 	};
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
@@ -1682,7 +1684,7 @@ nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 }
 
 static void
-nv50_audio_disconnect(struct drm_encoder *encoder)
+nv50_audio_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
@@ -1693,7 +1695,8 @@ nv50_audio_disconnect(struct drm_encoder *encoder)
 		.base.version = 1,
 		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
 		.base.hasht   = nv_encoder->dcb->hasht,
-		.base.hashm   = nv_encoder->dcb->hashm,
+		.base.hashm   = (0xf0ff & nv_encoder->dcb->hashm) |
+				(0x0100 << nv_crtc->index),
 	};
 
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
@@ -1860,7 +1863,7 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 	if (nv_crtc) {
 		nv50_crtc_prepare(&nv_crtc->base);
 		nv50_sor_ctrl(nv_encoder, 1 << nv_crtc->index, 0);
-		nv50_audio_disconnect(encoder);
+		nv50_audio_disconnect(encoder, nv_crtc);
 		nv50_hdmi_disconnect(&nv_encoder->base.base, nv_crtc);
 	}
 }
