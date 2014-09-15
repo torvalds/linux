@@ -52,7 +52,7 @@ static const struct nla_policy bpf_policy[TCA_BPF_MAX + 1] = {
 static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			    struct tcf_result *res)
 {
-	struct cls_bpf_head *head = rcu_dereference(tp->root);
+	struct cls_bpf_head *head = rcu_dereference_bh(tp->root);
 	struct cls_bpf_prog *prog;
 	int ret;
 
