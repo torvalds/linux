@@ -51,6 +51,9 @@
 #define INTCPS_NR_ILR_REGS	128
 #define INTCPS_NR_MIR_REGS	3
 
+#define INTC_IDLE_FUNCIDLE	(1 << 0)
+#define INTC_IDLE_TURBO		(1 << 1)
+
 #define INTC_PROTECTION_ENABLE	(1 << 0)
 
 /*
@@ -134,12 +137,14 @@ void omap3_intc_prepare_idle(void)
 	 * cf. errata ID i540 for 3430 (all revisions up to 3.1.x)
 	 */
 	intc_writel(INTC_SYSCONFIG, 0);
+	intc_writel(INTC_IDLE, INTC_IDLE_TURBO);
 }
 
 void omap3_intc_resume_idle(void)
 {
 	/* Re-enable autoidle */
 	intc_writel(INTC_SYSCONFIG, 1);
+	intc_writel(INTC_IDLE, 0);
 }
 
 /* XXX: FIQ and additional INTC support (only MPU at the moment) */
