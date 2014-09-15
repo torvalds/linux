@@ -9792,7 +9792,6 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long irq_flags;
 	int ret;
 
 	if (WARN_ON(intel_crtc->mmio_flip.seqno))
@@ -9806,10 +9805,10 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 		return 0;
 	}
 
-	spin_lock_irqsave(&dev_priv->mmio_flip_lock, irq_flags);
+	spin_lock_irq(&dev_priv->mmio_flip_lock);
 	intel_crtc->mmio_flip.seqno = obj->last_write_seqno;
 	intel_crtc->mmio_flip.ring_id = obj->ring->id;
-	spin_unlock_irqrestore(&dev_priv->mmio_flip_lock, irq_flags);
+	spin_unlock_irq(&dev_priv->mmio_flip_lock);
 
 	/*
 	 * Double check to catch cases where irq fired before
