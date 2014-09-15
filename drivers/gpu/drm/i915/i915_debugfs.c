@@ -516,7 +516,6 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long flags;
 	struct intel_crtc *crtc;
 	int ret;
 
@@ -529,7 +528,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 		const char plane = plane_name(crtc->plane);
 		struct intel_unpin_work *work;
 
-		spin_lock_irqsave(&dev->event_lock, flags);
+		spin_lock_irq(&dev->event_lock);
 		work = crtc->unpin_work;
 		if (work == NULL) {
 			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
@@ -575,7 +574,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 				seq_printf(m, "MMIO update completed? %d\n",  addr == work->gtt_offset);
 			}
 		}
-		spin_unlock_irqrestore(&dev->event_lock, flags);
+		spin_unlock_irq(&dev->event_lock);
 	}
 
 	mutex_unlock(&dev->struct_mutex);

@@ -2711,16 +2711,15 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long flags;
 	bool pending;
 
 	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
 	    intel_crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
 		return false;
 
-	spin_lock_irqsave(&dev->event_lock, flags);
+	spin_lock_irq(&dev->event_lock);
 	pending = to_intel_crtc(crtc)->unpin_work != NULL;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
+	spin_unlock_irq(&dev->event_lock);
 
 	return pending;
 }
@@ -3431,14 +3430,13 @@ void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 				       !intel_crtc_has_pending_flip(crtc),
 				       60*HZ) == 0)) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		unsigned long flags;
 
-		spin_lock_irqsave(&dev->event_lock, flags);
+		spin_lock_irq(&dev->event_lock);
 		if (intel_crtc->unpin_work) {
 			WARN_ONCE(1, "Removing stuck page flip\n");
 			page_flip_completed(intel_crtc);
 		}
-		spin_unlock_irqrestore(&dev->event_lock, flags);
+		spin_unlock_irq(&dev->event_lock);
 	}
 
 	if (crtc->primary->fb) {
@@ -9280,12 +9278,11 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct intel_unpin_work *work;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->event_lock, flags);
+	spin_lock_irq(&dev->event_lock);
 	work = intel_crtc->unpin_work;
 	intel_crtc->unpin_work = NULL;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
+	spin_unlock_irq(&dev->event_lock);
 
 	if (work) {
 		cancel_work_sync(&work->work);
@@ -9896,7 +9893,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	enum pipe pipe = intel_crtc->pipe;
 	struct intel_unpin_work *work;
 	struct intel_engine_cs *ring;
-	unsigned long flags;
 	int ret;
 
 	//trigger software GT busyness calculation
@@ -9940,7 +9936,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto free_work;
 
 	/* We borrow the event spin lock for protecting unpin_work */
-	spin_lock_irqsave(&dev->event_lock, flags);
+	spin_lock_irq(&dev->event_lock);
 	if (intel_crtc->unpin_work) {
 		/* Before declaring the flip queue wedged, check if
 		 * the hardware completed the operation behind our backs.
@@ -9950,7 +9946,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			page_flip_completed(intel_crtc);
 		} else {
 			DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
-			spin_unlock_irqrestore(&dev->event_lock, flags);
+			spin_unlock_irq(&dev->event_lock);
 
 			drm_crtc_vblank_put(crtc);
 			kfree(work);
@@ -9958,7 +9954,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		}
 	}
 	intel_crtc->unpin_work = work;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
+	spin_unlock_irq(&dev->event_lock);
 
 	if (atomic_read(&intel_crtc->unpin_work_count) >= 2)
 		flush_workqueue(dev_priv->wq);
@@ -10045,9 +10041,9 @@ cleanup_pending:
 	mutex_unlock(&dev->struct_mutex);
 
 cleanup:
-	spin_lock_irqsave(&dev->event_lock, flags);
+	spin_lock_irq(&dev->event_lock);
 	intel_crtc->unpin_work = NULL;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
+	spin_unlock_irq(&dev->event_lock);
 
 	drm_crtc_vblank_put(crtc);
 free_work:
@@ -10058,9 +10054,9 @@ out_hang:
 		intel_crtc_wait_for_pending_flips(crtc);
 		ret = intel_pipe_set_base(crtc, crtc->x, crtc->y, fb);
 		if (ret == 0 && event) {
-			spin_lock_irqsave(&dev->event_lock, flags);
+			spin_lock_irq(&dev->event_lock);
 			drm_send_vblank_event(dev, pipe, event);
-			spin_unlock_irqrestore(&dev->event_lock, flags);
+			spin_unlock_irq(&dev->event_lock);
 		}
 	}
 	return ret;
@@ -13769,9 +13765,8 @@ void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file)
 
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_unpin_work *work;
-		unsigned long irqflags;
 
-		spin_lock_irqsave(&dev->event_lock, irqflags);
+		spin_lock_irq(&dev->event_lock);
 
 		work = crtc->unpin_work;
 
@@ -13781,6 +13776,6 @@ void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file)
 			work->event = NULL;
 		}
 
-		spin_unlock_irqrestore(&dev->event_lock, irqflags);
+		spin_unlock_irq(&dev->event_lock);
 	}
 }
