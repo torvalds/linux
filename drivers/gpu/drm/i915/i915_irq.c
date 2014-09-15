@@ -3603,7 +3603,6 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 
 static int ironlake_irq_postinstall(struct drm_device *dev)
 {
-	unsigned long irqflags;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 display_mask, extra_mask;
 
@@ -3642,9 +3641,9 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 		 * spinlocking not required here for correctness since interrupt
 		 * setup is guaranteed to run in single-threaded context. But we
 		 * need it to make the assert_spin_locked happy. */
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		spin_lock_irq(&dev_priv->irq_lock);
 		ironlake_enable_display_irq(dev_priv, DE_PCU_EVENT);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		spin_unlock_irq(&dev_priv->irq_lock);
 	}
 
 	return 0;
@@ -3740,7 +3739,6 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 static int valleyview_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long irqflags;
 
 	dev_priv->irq_mask = ~0;
 
@@ -3754,10 +3752,10 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
 		valleyview_display_irqs_install(dev_priv);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IIR, 0xffffffff);
@@ -3848,7 +3846,6 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 		I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
 	u32 pipestat_enable = PLANE_FLIP_DONE_INT_STATUS_VLV |
 		PIPE_CRC_DONE_INTERRUPT_STATUS;
-	unsigned long irqflags;
 	int pipe;
 
 	/*
@@ -3860,11 +3857,11 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
 	for_each_pipe(dev_priv, pipe)
 		i915_enable_pipestat(dev_priv, pipe, pipestat_enable);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
@@ -3891,7 +3888,6 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 static void valleyview_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long irqflags;
 	int pipe;
 
 	if (!dev_priv)
@@ -3906,10 +3902,12 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	/* Interrupt setup is already guaranteed to be single-threaded, this is
+	 * just to make the assert_spin_locked check happy. */
+	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
 		valleyview_display_irqs_uninstall(dev_priv);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	dev_priv->irq_mask = 0;
 
@@ -3995,7 +3993,6 @@ static void i8xx_irq_preinstall(struct drm_device * dev)
 static int i8xx_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long irqflags;
 
 	I915_WRITE16(EMR,
 		     ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
@@ -4018,10 +4015,10 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	return 0;
 }
@@ -4168,7 +4165,6 @@ static int i915_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 enable_mask;
-	unsigned long irqflags;
 
 	I915_WRITE(EMR, ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
 
@@ -4206,10 +4202,10 @@ static int i915_irq_postinstall(struct drm_device *dev)
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	return 0;
 }
@@ -4391,7 +4387,6 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 enable_mask;
 	u32 error_mask;
-	unsigned long irqflags;
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask = ~(I915_ASLE_INTERRUPT |
@@ -4412,11 +4407,11 @@ static int i965_irq_postinstall(struct drm_device *dev)
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
 	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/*
 	 * Enable some error detection, note the instruction error mask
@@ -4756,7 +4751,6 @@ void intel_hpd_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
-	unsigned long irqflags;
 	int i;
 
 	for (i = 1; i < HPD_NUM_PINS; i++) {
@@ -4774,10 +4768,10 @@ void intel_hpd_init(struct drm_device *dev)
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked checks happy. */
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 /* Disable interrupts so we can allow runtime PM. */
