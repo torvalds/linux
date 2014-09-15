@@ -530,6 +530,12 @@
 			>;
 		};
 
+		pinctrl_enet_irq: enetirqgrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_6__ENET_IRQ		0x000b1
+			>;
+		};
+
 		pinctrl_gpio_keys: gpio_keysgrp {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D29__GPIO3_IO29 0x1b0b0

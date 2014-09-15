@@ -6,7 +6,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "imx6q-sabresd.dts"
+#include "imx6dl-sabresd.dts"
 
 &fec {
 	pinctrl-0 = <&pinctrl_enet &pinctrl_enet_irq>;
