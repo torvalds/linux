@@ -315,7 +315,6 @@ static void mmc_manage_enhanced_area(struct mmc_card *card, u8 *ext_csd)
 		hc_wp_grp_sz =
 			ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
 
-		card->ext_csd.enhanced_area_en = 1;
 		/*
 		 * calculate the enhanced data area offset, in bytes
 		 */
@@ -356,13 +355,11 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 	 */
 	if (ext_csd[EXT_CSD_PARTITION_SUPPORT] &
 	    EXT_CSD_PART_SUPPORT_PART_EN) {
-		if (card->ext_csd.enhanced_area_en != 1) {
+		if (card->ext_csd.partition_setting_completed) {
 			hc_erase_grp_sz =
 				ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
 			hc_wp_grp_sz =
 				ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
-
-			card->ext_csd.enhanced_area_en = 1;
 		}
 
 		for (idx = 0; idx < MMC_NUM_GP_PARTITION; idx++) {
@@ -489,6 +486,12 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		ext_csd[EXT_CSD_TRIM_MULT];
 	card->ext_csd.raw_partition_support = ext_csd[EXT_CSD_PARTITION_SUPPORT];
 	if (card->ext_csd.rev >= 4) {
+		if (ext_csd[EXT_CSD_PARTITION_SETTING_COMPLETED] &
+		    EXT_CSD_PART_SETTING_COMPLETED)
+			card->ext_csd.partition_setting_completed = 1;
+		else
+			card->ext_csd.partition_setting_completed = 0;
+
 		mmc_manage_enhanced_area(card, ext_csd);
 
 		mmc_manage_gp_partitions(card, ext_csd);
@@ -1348,7 +1351,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
 	 * bit.  This bit will be lost every time after a reset or power off.
 	 */
-	if (card->ext_csd.enhanced_area_en ||
+	if (card->ext_csd.partition_setting_completed ||
 	    (card->ext_csd.rev >= 3 && (host->caps2 & MMC_CAP2_HC_ERASE_SZ))) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_ERASE_GROUP_DEF, 1,
