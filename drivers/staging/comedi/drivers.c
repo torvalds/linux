@@ -327,6 +327,30 @@ unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
 }
 EXPORT_SYMBOL_GPL(comedi_bytes_per_scan);
 
+/**
+ * comedi_inc_scan_progress - update scan progress in asynchronous command
+ * @s: comedi_subdevice struct
+ * @num_bytes: amount of data in bytes to increment scan progress
+ *
+ * Increments the scan progress by the number of bytes specified by num_bytes.
+ * If the scan progress reaches or exceeds the scan length in bytes, reduce
+ * it modulo the scan length in bytes and set the "end of scan" asynchronous
+ * event flag to be processed later.
+ */
+void comedi_inc_scan_progress(struct comedi_subdevice *s,
+			      unsigned int num_bytes)
+{
+	struct comedi_async *async = s->async;
+	unsigned int scan_length = comedi_bytes_per_scan(s);
+
+	async->scan_progress += num_bytes;
+	if (async->scan_progress >= scan_length) {
+		async->scan_progress %= scan_length;
+		async->events |= COMEDI_CB_EOS;
+	}
+}
+EXPORT_SYMBOL_GPL(comedi_inc_scan_progress);
+
 static int insn_rw_emulate_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)

@@ -28,7 +28,11 @@ static inline unsigned int cfc_bytes_per_scan(struct comedi_subdevice *s)
 	return comedi_bytes_per_scan(s);
 }
 
-void cfc_inc_scan_progress(struct comedi_subdevice *, unsigned int num_bytes);
+static inline void cfc_inc_scan_progress(struct comedi_subdevice *s,
+					 unsigned int num_bytes)
+{
+	comedi_inc_scan_progress(s, num_bytes);
+}
 
 /* Writes an array of data points to comedi's buffer */
 unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *,
