@@ -12,7 +12,13 @@
 #define __DSA_PRIV_H
 
 #include <linux/phy.h>
-#include <net/dsa.h>
+#include <linux/netdevice.h>
+
+struct dsa_device_ops {
+	netdev_tx_t (*xmit)(struct sk_buff *skb, struct net_device *dev);
+	int (*rcv)(struct sk_buff *skb, struct net_device *dev,
+		   struct packet_type *pt, struct net_device *orig_dev);
+};
 
 struct dsa_slave_priv {
 	/*
@@ -20,6 +26,8 @@ struct dsa_slave_priv {
 	 * switch port.
 	 */
 	struct net_device	*dev;
+	netdev_tx_t		(*xmit)(struct sk_buff *skb,
+					struct net_device *dev);
 
 	/*
 	 * Which switch this port is a part of, and the port index
@@ -43,6 +51,7 @@ struct dsa_slave_priv {
 extern char dsa_driver_version[];
 
 /* slave.c */
+extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
 struct net_device *dsa_slave_create(struct dsa_switch *ds,
 				    struct device *parent,

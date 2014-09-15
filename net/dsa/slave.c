@@ -9,7 +9,6 @@
  */
 
 #include <linux/list.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
 #include <linux/of_net.h>
@@ -45,7 +44,7 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 	ds->slave_mii_bus->write = dsa_slave_phy_write;
 	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d:%.2x",
 			ds->index, ds->pd->sw_addr);
-	ds->slave_mii_bus->parent = &ds->master_mii_bus->dev;
+	ds->slave_mii_bus->parent = ds->master_dev;
 }
 
 
@@ -176,9 +175,8 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch_tree *dst = p->parent->dst;
 
-	return dst->ops->xmit(skb, dev);
+	return p->xmit(skb, dev);
 }
 
 static netdev_tx_t dsa_slave_notag_xmit(struct sk_buff *skb,
@@ -325,11 +323,6 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_do_ioctl		= dsa_slave_ioctl,
 };
 
-static const struct dsa_device_ops notag_netdev_ops = {
-	.xmit	= dsa_slave_notag_xmit,
-	.rcv	= NULL,
-};
-
 static void dsa_slave_adjust_link(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -435,32 +428,6 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	slave_dev->tx_queue_len = 0;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
 
-	switch (ds->dst->tag_protocol) {
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	case DSA_TAG_PROTO_DSA:
-		ds->dst->ops = &dsa_netdev_ops;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	case DSA_TAG_PROTO_EDSA:
-		ds->dst->ops = &edsa_netdev_ops;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	case DSA_TAG_PROTO_TRAILER:
-		ds->dst->ops = &trailer_netdev_ops;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-	case DSA_TAG_PROTO_BRCM:
-		ds->dst->ops = &brcm_netdev_ops;
-		break;
-#endif
-	default:
-		ds->dst->ops = &notag_netdev_ops;
-		break;
-	}
-
 	SET_NETDEV_DEV(slave_dev, parent);
 	slave_dev->dev.of_node = ds->pd->port_dn[port];
 	slave_dev->vlan_features = master->vlan_features;
@@ -469,6 +436,32 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	p->dev = slave_dev;
 	p->parent = ds;
 	p->port = port;
+
+	switch (ds->dst->tag_protocol) {
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	case DSA_TAG_PROTO_DSA:
+		p->xmit = dsa_netdev_ops.xmit;
+		break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_EDSA
+	case DSA_TAG_PROTO_EDSA:
+		p->xmit = edsa_netdev_ops.xmit;
+		break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	case DSA_TAG_PROTO_TRAILER:
+		p->xmit = trailer_netdev_ops.xmit;
+		break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_BRCM
+	case DSA_TAG_PROTO_BRCM:
+		p->xmit = brcm_netdev_ops.xmit;
+		break;
+#endif
+	default:
+		p->xmit	= dsa_slave_notag_xmit;
+		break;
+	}
 
 	p->old_pause = -1;
 	p->old_link = -1;
