@@ -579,6 +579,7 @@ config VMWARE_PVSCSI
 config XEN_SCSI_FRONTEND
 	tristate "XEN SCSI frontend driver"
 	depends on SCSI && XEN
+	select XEN_XENBUS_FRONTEND
 	help
 	  The XEN SCSI frontend driver allows the kernel to access SCSI Devices
 	  within another guest OS (usually Dom0).
