@@ -52,11 +52,11 @@ static const struct efuse_map RTL8712_SDIO_EFUSE_TABLE[] = {
 };
 
 static void efuse_shadow_read_1byte(struct ieee80211_hw *hw, u16 offset,
-				    u8 * value);
+				    u8 *value);
 static void efuse_shadow_read_2byte(struct ieee80211_hw *hw, u16 offset,
-				    u16 * value);
+				    u16 *value);
 static void efuse_shadow_read_4byte(struct ieee80211_hw *hw, u16 offset,
-				    u32 * value);
+				    u32 *value);
 static void efuse_shadow_write_1byte(struct ieee80211_hw *hw, u16 offset,
 				     u8 value);
 static void efuse_shadow_write_2byte(struct ieee80211_hw *hw, u16 offset,
@@ -65,15 +65,15 @@ static void efuse_shadow_write_4byte(struct ieee80211_hw *hw, u16 offset,
 				     u32 value);
 static int efuse_one_byte_write(struct ieee80211_hw *hw, u16 addr,
 				u8 data);
-static void efuse_read_all_map(struct ieee80211_hw *hw, u8 * efuse);
+static void efuse_read_all_map(struct ieee80211_hw *hw, u8 *efuse);
 static int efuse_pg_packet_read(struct ieee80211_hw *hw, u8 offset,
 				u8 *data);
 static int efuse_pg_packet_write(struct ieee80211_hw *hw, u8 offset,
-				 u8 word_en, u8 * data);
-static void efuse_word_enable_data_read(u8 word_en, u8 * sourdata,
-					u8 * targetdata);
+				 u8 word_en, u8 *data);
+static void efuse_word_enable_data_read(u8 word_en, u8 *sourdata,
+					u8 *targetdata);
 static u8 efuse_word_enable_data_write(struct ieee80211_hw *hw,
-				       u16 efuse_addr, u8 word_en, u8 * data);
+				       u16 efuse_addr, u8 word_en, u8 *data);
 static void efuse_power_switch(struct ieee80211_hw *hw, u8 bwrite,
 					u8 pwrstate);
 static u16 efuse_get_current_size(struct ieee80211_hw *hw);
