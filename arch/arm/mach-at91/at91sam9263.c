@@ -424,7 +424,7 @@ static unsigned int at91sam9263_default_irq_priority[NR_AIC_IRQS] __initdata = {
 
 static void __init at91sam9263_init_time(void)
 {
-	at91sam926x_pit_init();
+	at91sam926x_pit_init(NR_IRQS_LEGACY + AT91_ID_SYS);
 }
 
 AT91_SOC_START(at91sam9263)

@@ -22,8 +22,6 @@
 #include <linux/of_irq.h>
 #include <linux/slab.h>
 
-#include <mach/hardware.h>
-
 #define AT91_PIT_MR		0x00			/* Mode Register */
 #define AT91_PIT_PITIEN			BIT(25)			/* Timer Interrupt Enable */
 #define AT91_PIT_PITEN			BIT(24)			/* Timer Enabled */
@@ -267,7 +265,7 @@ CLOCKSOURCE_OF_DECLARE(at91sam926x_pit, "atmel,at91sam9260-pit",
 
 static void __iomem *pit_base_addr;
 
-void __init at91sam926x_pit_init(void)
+void __init at91sam926x_pit_init(int irq)
 {
 	struct pit_data *data;
 
@@ -281,7 +279,7 @@ void __init at91sam926x_pit_init(void)
 	if (IS_ERR(data->mck))
 		panic(pr_fmt("Unable to get mck clk\n"));
 
-	data->irq = NR_IRQS_LEGACY + AT91_ID_SYS;
+	data->irq = irq;
 
 	at91sam926x_pit_common_init(data);
 }

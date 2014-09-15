@@ -48,7 +48,7 @@ extern void __init at91_init_time(void);
 extern void at91rm9200_ioremap_st(u32 addr);
 extern void at91rm9200_timer_init(void);
 extern void at91sam926x_ioremap_pit(u32 addr);
-extern void at91sam926x_pit_init(void);
+extern void at91sam926x_pit_init(int irq);
 extern void at91x40_timer_init(void);
 
  /* Clocks */
