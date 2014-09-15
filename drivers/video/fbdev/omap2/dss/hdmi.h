@@ -191,7 +191,9 @@ struct hdmi_pll_info {
 	u32 regmf;
 	u16 regm2;
 	u16 regsd;
-	u16 dcofreq;
+
+	unsigned long clkdco;
+	unsigned long clkout;
 };
 
 struct hdmi_audio_format {
@@ -313,11 +315,13 @@ int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp);
 int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
 void hdmi_pll_disable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s);
-void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin, int phy);
+void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin,
+	unsigned long target_tmds);
 int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll);
 
 /* HDMI PHY funcs */
-int hdmi_phy_configure(struct hdmi_phy_data *phy, struct hdmi_config *cfg);
+int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
+	unsigned long lfbitclk);
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s);
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
 int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);

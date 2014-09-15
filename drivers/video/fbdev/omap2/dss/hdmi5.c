@@ -198,7 +198,6 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	int r;
 	struct omap_video_timings *p;
 	struct omap_overlay_manager *mgr = hdmi.output.manager;
-	unsigned long phy;
 
 	r = hdmi_power_on_core(dssdev);
 	if (r)
@@ -208,10 +207,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 
 	DSSDBG("hdmi_power_on x_res= %d y_res = %d\n", p->x_res, p->y_res);
 
-	/* the functions below use kHz pixel clock. TODO: change to Hz */
-	phy = p->pixelclock / 1000;
-
-	hdmi_pll_compute(&hdmi.pll, clk_get_rate(hdmi.sys_clk), phy);
+	hdmi_pll_compute(&hdmi.pll, clk_get_rate(hdmi.sys_clk), p->pixelclock);
 
 	/* disable and clear irqs */
 	hdmi_wp_clear_irqenable(&hdmi.wp, 0xffffffff);
@@ -225,7 +221,8 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 		goto err_pll_enable;
 	}
 
-	r = hdmi_phy_configure(&hdmi.phy, &hdmi.cfg);
+	r = hdmi_phy_configure(&hdmi.phy, hdmi.pll.info.clkdco,
+		hdmi.pll.info.clkout);
 	if (r) {
 		DSSDBG("Failed to start PHY\n");
 		goto err_phy_cfg;
