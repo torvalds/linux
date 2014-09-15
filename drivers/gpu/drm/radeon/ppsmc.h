@@ -56,6 +56,9 @@
 #define PPSMC_STATEFLAG_DEEPSLEEP_THROTTLE 0x20
 #define PPSMC_STATEFLAG_DEEPSLEEP_BYPASS   0x40
 
+#define FDO_MODE_HARDWARE 0
+#define FDO_MODE_PIECE_WISE_LINEAR 1
+
 #define PPSMC_Result_OK             ((uint8_t)0x01)
 #define PPSMC_Result_Failed         ((uint8_t)0xFF)
 
@@ -79,6 +82,8 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_DisableCac                ((uint8_t)0x54)
 #define PPSMC_TDPClampingActive             ((uint8_t)0x59)
 #define PPSMC_TDPClampingInactive           ((uint8_t)0x5A)
+#define PPSMC_StartFanControl               ((uint8_t)0x5B)
+#define PPSMC_StopFanControl                ((uint8_t)0x5C)
 #define PPSMC_MSG_NoDisplay                 ((uint8_t)0x5D)
 #define PPSMC_MSG_HasDisplay                ((uint8_t)0x5E)
 #define PPSMC_MSG_UVDPowerOFF               ((uint8_t)0x60)

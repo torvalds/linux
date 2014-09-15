@@ -245,6 +245,31 @@ typedef struct SISLANDS_SMC_STATETABLE SISLANDS_SMC_STATETABLE;
 #define SI_SMC_SOFT_REGISTER_svi_rework_gpio_id_svd   0x11c
 #define SI_SMC_SOFT_REGISTER_svi_rework_gpio_id_svc   0x120
 
+struct PP_SIslands_FanTable
+{
+	uint8_t  fdo_mode;
+	uint8_t  padding;
+	int16_t  temp_min;
+	int16_t  temp_med;
+	int16_t  temp_max;
+	int16_t  slope1;
+	int16_t  slope2;
+	int16_t  fdo_min;
+	int16_t  hys_up;
+	int16_t  hys_down;
+	int16_t  hys_slope;
+	int16_t  temp_resp_lim;
+	int16_t  temp_curr;
+	int16_t  slope_curr;
+	int16_t  pwm_curr;
+	uint32_t refresh_period;
+	int16_t  fdo_max;
+	uint8_t  temp_src;
+	int8_t  padding2;
+};
+
+typedef struct PP_SIslands_FanTable PP_SIslands_FanTable;
+
 #define SMC_SISLANDS_LKGE_LUT_NUM_OF_TEMP_ENTRIES 16
 #define SMC_SISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES 32
 
