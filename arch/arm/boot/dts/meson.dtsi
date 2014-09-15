@@ -70,6 +70,11 @@
 		#size-cells = <1>;
 		ranges;
 
+		wdt: watchdog@c1109900 {
+			compatible = "amlogic,meson6-wdt";
+			reg = <0xc1109900 0x8>;
+		};
+
 		uart_AO: serial@c81004c0 {
 			compatible = "amlogic,meson-uart";
 			reg = <0xc81004c0 0x14>;
