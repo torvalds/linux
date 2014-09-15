@@ -242,8 +242,10 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	 * perfect hash and hash pointers from old data.
 	 */
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
-	if (!cp)
-		return -ENOMEM;
+	if (!cp) {
+		err = -ENOMEM;
+		goto errout;
+	}
 
 	cp->mask = p->mask;
 	cp->shift = p->shift;
@@ -257,6 +259,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 				      sizeof(*r) * cp->hash, GFP_KERNEL);
 		if (!cp->perfect)
 			goto errout;
+		balloc = 1;
 	}
 	cp->h = p->h;
 
@@ -282,9 +285,9 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	if (cp->perfect) {
 		if (!valid_perfect_hash(cp) ||
 		    cp->hash > cp->alloc_hash)
-			goto errout;
+			goto errout_alloc;
 	} else if (cp->h && cp->hash != cp->alloc_hash) {
-		goto errout;
+		goto errout_alloc;
 	}
 
 	err = -EINVAL;
@@ -311,7 +314,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	 */
 	if (cp->perfect || valid_perfect_hash(cp))
 		if (handle >= cp->alloc_hash)
-			goto errout;
+			goto errout_alloc;
 
 
 	err = -ENOMEM;
@@ -321,7 +324,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 
 			cp->perfect = kcalloc(cp->hash, sizeof(*r), GFP_KERNEL);
 			if (!cp->perfect)
-				goto errout;
+				goto errout_alloc;
 			for (i = 0; i < cp->hash; i++)
 				tcf_exts_init(&cp->perfect[i].exts,
 					      TCA_TCINDEX_ACT,
@@ -335,7 +338,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 				       GFP_KERNEL);
 
 			if (!hash)
-				goto errout;
+				goto errout_alloc;
 
 			cp->h = hash;
 			balloc = 2;
