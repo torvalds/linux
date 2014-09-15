@@ -162,6 +162,9 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_Remove_DC_Clamp             ((uint16_t) 0x191)
 #define PPSMC_MSG_SetFanPwmMax                ((uint16_t) 0x19A)
 
+#define PPSMC_MSG_ENABLE_THERMAL_DPM          ((uint16_t) 0x19C)
+#define PPSMC_MSG_DISABLE_THERMAL_DPM         ((uint16_t) 0x19D)
+
 #define PPSMC_MSG_API_GetSclkFrequency        ((uint16_t) 0x200)
 #define PPSMC_MSG_API_GetMclkFrequency        ((uint16_t) 0x201)
 

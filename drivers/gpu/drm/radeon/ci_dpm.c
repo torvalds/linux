@@ -714,6 +714,25 @@ static int ci_enable_smc_cac(struct radeon_device *rdev, bool enable)
 	return ret;
 }
 
+static int ci_enable_thermal_based_sclk_dpm(struct radeon_device *rdev,
+					    bool enable)
+{
+	struct ci_power_info *pi = ci_get_pi(rdev);
+	PPSMC_Result smc_result = PPSMC_Result_OK;
+
+	if (pi->thermal_sclk_dpm_enabled) {
+		if (enable)
+			smc_result = ci_send_msg_to_smc(rdev, PPSMC_MSG_ENABLE_THERMAL_DPM);
+		else
+			smc_result = ci_send_msg_to_smc(rdev, PPSMC_MSG_DISABLE_THERMAL_DPM);
+	}
+
+	if (smc_result == PPSMC_Result_OK)
+		return 0;
+	else
+		return -EINVAL;
+}
+
 static int ci_power_control_set_level(struct radeon_device *rdev)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
@@ -5177,6 +5196,12 @@ int ci_dpm_enable(struct radeon_device *rdev)
 
 	ci_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
+	ret = ci_enable_thermal_based_sclk_dpm(rdev, true);
+	if (ret) {
+		DRM_ERROR("ci_enable_thermal_based_sclk_dpm failed\n");
+		return ret;
+	}
+
 	ci_thermal_start_thermal_controller(rdev);
 
 	ci_update_current_ps(rdev, boot_ps);
@@ -5240,6 +5265,7 @@ void ci_dpm_disable(struct radeon_device *rdev)
 	ci_reset_to_default(rdev);
 	ci_dpm_stop_smc(rdev);
 	ci_force_switch_to_arb_f0(rdev);
+	ci_enable_thermal_based_sclk_dpm(rdev, false);
 
 	ci_update_current_ps(rdev, boot_ps);
 }
@@ -5639,6 +5665,7 @@ int ci_dpm_init(struct radeon_device *rdev)
 	pi->sclk_dpm_key_disabled = 0;
 	pi->mclk_dpm_key_disabled = 0;
 	pi->pcie_dpm_key_disabled = 0;
+	pi->thermal_sclk_dpm_enabled = 0;
 
 	/* mclk dpm is unstable on some R7 260X cards with the old mc ucode */
 	if ((rdev->pdev->device == 0x6658) &&

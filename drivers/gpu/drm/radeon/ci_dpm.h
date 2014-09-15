@@ -239,6 +239,7 @@ struct ci_power_info {
 	u32 sclk_dpm_key_disabled;
 	u32 mclk_dpm_key_disabled;
 	u32 pcie_dpm_key_disabled;
+	u32 thermal_sclk_dpm_enabled;
 	struct ci_pcie_perf_range pcie_gen_performance;
 	struct ci_pcie_perf_range pcie_lane_performance;
 	struct ci_pcie_perf_range pcie_gen_powersaving;
