@@ -89,10 +89,10 @@
 #define TOTAL_SECS(sbi)	(sbi->total_sections)
 #define TOTAL_BLKS(sbi)	(SM_I(sbi)->segment_count << sbi->log_blocks_per_seg)
 
-#define SECTOR_FROM_BLOCK(sbi, blk_addr)				\
-	(((sector_t)blk_addr) << (sbi)->log_sectors_per_block)
-#define SECTOR_TO_BLOCK(sbi, sectors)					\
-	(sectors >> (sbi)->log_sectors_per_block)
+#define SECTOR_FROM_BLOCK(blk_addr)					\
+	(((sector_t)blk_addr) << F2FS_LOG_SECTORS_PER_BLOCK)
+#define SECTOR_TO_BLOCK(sectors)					\
+	(sectors >> F2FS_LOG_SECTORS_PER_BLOCK)
 #define MAX_BIO_BLOCKS(sbi)						\
 	((int)min((int)max_hw_blocks(sbi), BIO_MAX_PAGES))
 
@@ -711,7 +711,7 @@ static inline unsigned int max_hw_blocks(struct f2fs_sb_info *sbi)
 {
 	struct block_device *bdev = sbi->sb->s_bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
-	return SECTOR_TO_BLOCK(sbi, queue_max_sectors(q));
+	return SECTOR_TO_BLOCK(queue_max_sectors(q));
 }
 
 /*
