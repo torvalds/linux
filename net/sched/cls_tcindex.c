@@ -260,10 +260,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	}
 	cp->h = p->h;
 
-	memset(&new_filter_result, 0, sizeof(new_filter_result));
-	tcf_exts_init(&new_filter_result.exts,
-		      TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
-
+	tcindex_filter_result_init(&new_filter_result);
 	tcindex_filter_result_init(&cr);
 	if (old_r)
 		cr.res = r->res;
