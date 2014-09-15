@@ -24,6 +24,7 @@
 #define HDMI_DEFAULT_REGM2 1
 
 struct hdmi_pll_features {
+	bool has_refsel;
 	bool sys_reset;
 	/* this is a hack, need to replace it with a better computation of M2 */
 	bool bound_dcofreq;
@@ -96,9 +97,6 @@ void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin, int phy)
 	pi->dcofreq = phy > 1000 * 100;
 	pi->regsd = ((pi->regm * clkin / 10) / (pi->regn * 250) + 5) / 10;
 
-	/* Set the reference clock to sysclk reference */
-	pi->refsel = HDMI_REFSEL_SYSCLK;
-
 	DSSDBG("M = %d Mf = %d\n", pi->regm, pi->regmf);
 	DSSDBG("range = %d sd = %d\n", pi->dcofreq, pi->regsd);
 }
@@ -122,7 +120,8 @@ static int hdmi_pll_config(struct hdmi_pll_data *pll)
 	r = FLD_MOD(r, 0x0, 12, 12);	/* PLL_HIGHFREQ divide by 2 */
 	r = FLD_MOD(r, 0x1, 13, 13);	/* PLL_REFEN */
 	r = FLD_MOD(r, 0x0, 14, 14);	/* PHY_CLKINEN de-assert during locking */
-	r = FLD_MOD(r, fmt->refsel, 22, 21);	/* REFSEL */
+	if (pll_feat->has_refsel)
+		r = FLD_MOD(r, 0x3, 22, 21);	/* REFSEL = SYSCLK */
 
 	if (fmt->dcofreq)
 		r = FLD_MOD(r, 0x4, 3, 1);	/* 1000MHz and 2000MHz */
@@ -222,6 +221,7 @@ static const struct hdmi_pll_features omap44xx_pll_feats = {
 };
 
 static const struct hdmi_pll_features omap54xx_pll_feats = {
+	.has_refsel		=	true,
 	.sys_reset		=	true,
 	.bound_dcofreq		=	true,
 	.fint_min		=	620000,

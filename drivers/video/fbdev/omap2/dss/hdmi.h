@@ -101,13 +101,6 @@ enum hdmi_core_hdmi_dvi {
 	HDMI_HDMI = 1
 };
 
-enum hdmi_clk_refsel {
-	HDMI_REFSEL_PCLK = 0,
-	HDMI_REFSEL_REF1 = 1,
-	HDMI_REFSEL_REF2 = 2,
-	HDMI_REFSEL_SYSCLK = 3
-};
-
 enum hdmi_packing_mode {
 	HDMI_PACK_10b_RGB_YUV444 = 0,
 	HDMI_PACK_24b_RGB_YUV444_YUV422 = 1,
@@ -199,7 +192,6 @@ struct hdmi_pll_info {
 	u16 regm2;
 	u16 regsd;
 	u16 dcofreq;
-	enum hdmi_clk_refsel refsel;
 };
 
 struct hdmi_audio_format {
