@@ -560,15 +560,22 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		return err;
 
-	if ((attr->ia_valid & ATTR_SIZE) &&
-			attr->ia_size != i_size_read(inode)) {
+	if (attr->ia_valid & ATTR_SIZE) {
 		err = f2fs_convert_inline_data(inode, attr->ia_size, NULL);
 		if (err)
 			return err;
 
-		truncate_setsize(inode, attr->ia_size);
-		f2fs_truncate(inode);
-		f2fs_balance_fs(F2FS_I_SB(inode));
+		if (attr->ia_size != i_size_read(inode)) {
+			truncate_setsize(inode, attr->ia_size);
+			f2fs_truncate(inode);
+			f2fs_balance_fs(F2FS_I_SB(inode));
+		} else {
+			/*
+			 * giving a chance to truncate blocks past EOF which
+			 * are fallocated with FALLOC_FL_KEEP_SIZE.
+			 */
+			f2fs_truncate(inode);
+		}
 	}
 
 	__setattr_copy(inode, attr);
