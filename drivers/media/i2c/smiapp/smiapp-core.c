@@ -277,16 +277,6 @@ static int smiapp_pll_update(struct smiapp_sensor *sensor)
 	struct smiapp_pll *pll = &sensor->pll;
 	int rval;
 
-	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0) {
-		/*
-		 * Fill in operational clock divisors limits from the
-		 * video timing ones. On profile 0 sensors the
-		 * requirements regarding them are essentially the
-		 * same as on VT ones.
-		 */
-		lim.op = lim.vt;
-	}
-
 	pll->binning_horizontal = sensor->binning_horizontal;
 	pll->binning_vertical = sensor->binning_vertical;
 	pll->link_freq =
