@@ -207,15 +207,17 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 			up_write(&fi->i_sem);
 		}
 	} else {
-		/* if there is no written node page, write its inode page */
-		while (!sync_node_pages(sbi, ino, &wbc)) {
-			if (fsync_mark_done(sbi, ino))
-				goto out;
+sync_nodes:
+		sync_node_pages(sbi, ino, &wbc);
+
+		if (need_inode_block_update(sbi, ino)) {
 			mark_inode_dirty_sync(inode);
 			ret = f2fs_write_inode(inode, NULL);
 			if (ret)
 				goto out;
+			goto sync_nodes;
 		}
+
 		ret = wait_on_node_pages_writeback(sbi, ino);
 		if (ret)
 			goto out;

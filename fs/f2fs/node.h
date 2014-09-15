@@ -41,7 +41,8 @@ struct node_info {
 
 enum {
 	IS_CHECKPOINTED,	/* is it checkpointed before? */
-	HAS_FSYNC_MARK,		/* has the latest node fsync mark? */
+	HAS_FSYNCED_INODE,	/* is the inode fsynced before? */
+	HAS_LAST_FSYNC,		/* has the latest node fsync mark? */
 };
 
 struct nat_entry {
@@ -60,15 +61,9 @@ struct nat_entry {
 #define nat_set_version(nat, v)		(nat->ni.version = v)
 
 #define __set_nat_cache_dirty(nm_i, ne)					\
-	do {								\
-		set_nat_flag(ne, IS_CHECKPOINTED, false);		\
-		list_move_tail(&ne->list, &nm_i->dirty_nat_entries);	\
-	} while (0)
+		list_move_tail(&ne->list, &nm_i->dirty_nat_entries);
 #define __clear_nat_cache_dirty(nm_i, ne)				\
-	do {								\
-		set_nat_flag(ne, IS_CHECKPOINTED, true);		\
-		list_move_tail(&ne->list, &nm_i->nat_entries);		\
-	} while (0)
+		list_move_tail(&ne->list, &nm_i->nat_entries);
 #define inc_node_version(version)	(++version)
 
 static inline void set_nat_flag(struct nat_entry *ne,
@@ -85,6 +80,14 @@ static inline bool get_nat_flag(struct nat_entry *ne, unsigned int type)
 {
 	unsigned char mask = 0x01 << type;
 	return ne->flag & mask;
+}
+
+static inline void nat_reset_flag(struct nat_entry *ne)
+{
+	/* these states can be set only after checkpoint was done */
+	set_nat_flag(ne, IS_CHECKPOINTED, true);
+	set_nat_flag(ne, HAS_FSYNCED_INODE, false);
+	set_nat_flag(ne, HAS_LAST_FSYNC, true);
 }
 
 static inline void node_info_from_raw_nat(struct node_info *ni,
