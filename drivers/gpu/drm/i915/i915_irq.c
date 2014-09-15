@@ -1096,18 +1096,17 @@ static void i915_digport_work_func(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private, dig_port_work);
-	unsigned long irqflags;
 	u32 long_port_mask, short_port_mask;
 	struct intel_digital_port *intel_dig_port;
 	int i, ret;
 	u32 old_bits = 0;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	long_port_mask = dev_priv->long_hpd_port_mask;
 	dev_priv->long_hpd_port_mask = 0;
 	short_port_mask = dev_priv->short_hpd_port_mask;
 	dev_priv->short_hpd_port_mask = 0;
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	for (i = 0; i < I915_MAX_PORTS; i++) {
 		bool valid = false;
@@ -1132,9 +1131,9 @@ static void i915_digport_work_func(struct work_struct *work)
 	}
 
 	if (old_bits) {
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		spin_lock_irq(&dev_priv->irq_lock);
 		dev_priv->hpd_event_bits |= old_bits;
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		spin_unlock_irq(&dev_priv->irq_lock);
 		schedule_work(&dev_priv->hotplug_work);
 	}
 }
@@ -1153,7 +1152,6 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct intel_connector *intel_connector;
 	struct intel_encoder *intel_encoder;
 	struct drm_connector *connector;
-	unsigned long irqflags;
 	bool hpd_disabled = false;
 	bool changed = false;
 	u32 hpd_event_bits;
@@ -1161,7 +1159,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	mutex_lock(&mode_config->mutex);
 	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 
 	hpd_event_bits = dev_priv->hpd_event_bits;
 	dev_priv->hpd_event_bits = 0;
@@ -1195,7 +1193,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 				 msecs_to_jiffies(I915_REENABLE_HOTPLUG_DELAY));
 	}
 
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		intel_connector = to_intel_connector(connector);
@@ -1490,7 +1488,6 @@ static void ivybridge_parity_work(struct work_struct *work)
 	u32 error_status, row, bank, subbank;
 	char *parity_event[6];
 	uint32_t misccpctl;
-	unsigned long flags;
 	uint8_t slice = 0;
 
 	/* We must turn off DOP level clock gating to access the L3 registers.
@@ -1549,9 +1546,9 @@ static void ivybridge_parity_work(struct work_struct *work)
 
 out:
 	WARN_ON(dev_priv->l3_parity.which_slice);
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	gen5_enable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv->dev));
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
@@ -4606,19 +4603,18 @@ static void i965_irq_uninstall(struct drm_device * dev)
 	I915_WRITE(IIR, I915_READ(IIR));
 }
 
-static void intel_hpd_irq_reenable(struct work_struct *work)
+static void intel_hpd_irq_reenable_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv),
 			     hotplug_reenable_work.work);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	unsigned long irqflags;
 	int i;
 
 	intel_runtime_pm_get(dev_priv);
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	for (i = (HPD_NONE + 1); i < HPD_NUM_PINS; i++) {
 		struct drm_connector *connector;
 
@@ -4642,7 +4638,7 @@ static void intel_hpd_irq_reenable(struct work_struct *work)
 	}
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	intel_runtime_pm_put(dev_priv);
 }
@@ -4668,7 +4664,7 @@ void intel_irq_init(struct drm_device *dev)
 		    i915_hangcheck_elapsed,
 		    (unsigned long) dev);
 	INIT_DELAYED_WORK(&dev_priv->hotplug_reenable_work,
-			  intel_hpd_irq_reenable);
+			  intel_hpd_irq_reenable_work);
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
