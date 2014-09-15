@@ -909,7 +909,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 
 	if (ath9k_is_chanctx_enabled()) {
 		if (rx_stats->is_mybeacon)
-			ath_chanctx_beacon_recv_ev(sc, rx_stats->rs_tstamp,
+			ath_chanctx_beacon_recv_ev(sc,
 					   ATH_CHANCTX_EVENT_BEACON_RECEIVED);
 	}
 

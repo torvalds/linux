@@ -396,7 +396,6 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			break;
 		}
 
-
 		/*
 		 * Clear the extend_absence flag if it had been
 		 * set during the previous beacon transmission,
@@ -416,6 +415,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			avp->noa_duration = 0;
 			sc->sched.extend_absence = true;
 		}
+
 		/* Prevent wrap-around issues */
 		if (avp->noa_duration && tsf_time - avp->noa_start > BIT(30))
 			avp->noa_duration = 0;
@@ -606,10 +606,9 @@ void ath_chanctx_beacon_sent_ev(struct ath_softc *sc,
 		ath_chanctx_event(sc, NULL, ev);
 }
 
-void ath_chanctx_beacon_recv_ev(struct ath_softc *sc, u32 ts,
+void ath_chanctx_beacon_recv_ev(struct ath_softc *sc,
 				enum ath_chanctx_event ev)
 {
-	sc->sched.next_tbtt = ts;
 	ath_chanctx_event(sc, NULL, ev);
 }
 

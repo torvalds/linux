@@ -454,7 +454,7 @@ void ath9k_p2p_ps_timer(void *priv);
 void ath9k_chanctx_wake_queues(struct ath_softc *sc);
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
 
-void ath_chanctx_beacon_recv_ev(struct ath_softc *sc, u32 ts,
+void ath_chanctx_beacon_recv_ev(struct ath_softc *sc,
 				enum ath_chanctx_event ev);
 void ath_chanctx_beacon_sent_ev(struct ath_softc *sc,
 				enum ath_chanctx_event ev);
@@ -483,7 +483,7 @@ static inline void ath9k_offchannel_init(struct ath_softc *sc)
 static inline void ath9k_deinit_channel_context(struct ath_softc *sc)
 {
 }
-static inline void ath_chanctx_beacon_recv_ev(struct ath_softc *sc, u32 ts,
+static inline void ath_chanctx_beacon_recv_ev(struct ath_softc *sc,
 					      enum ath_chanctx_event ev)
 {
 }
