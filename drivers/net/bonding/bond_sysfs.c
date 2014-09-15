@@ -91,7 +91,6 @@ static struct net_device *bond_get_by_name(struct bond_net *bn, const char *ifna
  * creates and deletes entire bonds.
  *
  * The class parameter is ignored.
- *
  */
 static ssize_t bonding_store_bonds(struct class *cls,
 				   struct class_attribute *attr,

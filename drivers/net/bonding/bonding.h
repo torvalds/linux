@@ -197,7 +197,8 @@ struct bonding {
 			      struct slave *);
 	/* mode_lock is used for mode-specific locking needs, currently used by:
 	 * 3ad mode (4) - protect against running bond_3ad_unbind_slave() and
-	 *                bond_3ad_state_machine_handler() concurrently.
+	 *                bond_3ad_state_machine_handler() concurrently and also
+	 *                the access to the state machine shared variables.
 	 * TLB mode (5) - to sync the use and modifications of its hash table
 	 * ALB mode (6) - to sync the use and modifications of its hash table
 	 */
