@@ -1397,7 +1397,8 @@ call_ad(struct sock *ctnl, struct sk_buff *skb, struct ip_set *set,
 		struct nlmsghdr *rep, *nlh = nlmsg_hdr(skb);
 		struct sk_buff *skb2;
 		struct nlmsgerr *errmsg;
-		size_t payload = sizeof(*errmsg) + nlmsg_len(nlh);
+		size_t payload = min(SIZE_MAX,
+				     sizeof(*errmsg) + nlmsg_len(nlh));
 		int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
 		struct nlattr *cda[IPSET_ATTR_CMD_MAX+1];
 		struct nlattr *cmdattr;
