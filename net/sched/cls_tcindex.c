@@ -241,7 +241,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	 * allocate new tcindex data and RCU assign it onto root. Keeping
 	 * perfect hash and hash pointers from old data.
 	 */
-	cp = kzalloc(sizeof(cp), GFP_KERNEL);
+	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
 
