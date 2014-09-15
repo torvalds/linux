@@ -211,7 +211,9 @@ static int palmas_pwron_probe(struct platform_device *pdev)
 
 	pwron->irq = platform_get_irq(pdev, 0);
 	error = request_threaded_irq(pwron->irq, NULL, pwron_irq,
-				     IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW,
+				     IRQF_TRIGGER_HIGH |
+					IRQF_TRIGGER_LOW |
+					IRQF_ONESHOT,
 				     dev_name(dev), pwron);
 	if (error) {
 		dev_err(dev, "Can't get IRQ for pwron: %d\n", error);
