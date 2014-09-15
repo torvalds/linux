@@ -381,7 +381,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		f->result = new_filter_result;
 		f->next = NULL;
 
-		fp = p->h + (handle % p->hash);
+		fp = cp->h + (handle % cp->hash);
 		for (nfp = rtnl_dereference(*fp);
 		     nfp;
 		     fp = &nfp->next, nfp = rtnl_dereference(*fp))
