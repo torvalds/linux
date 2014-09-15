@@ -44,13 +44,13 @@ static inline unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
 static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *s,
 					       unsigned short data)
 {
-	return cfc_write_array_to_buffer(s, &data, sizeof(data));
+	return comedi_write_array_to_buffer(s, &data, sizeof(data));
 };
 
 static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice *s,
 						    unsigned int data)
 {
-	return cfc_write_array_to_buffer(s, &data, sizeof(data));
+	return comedi_write_array_to_buffer(s, &data, sizeof(data));
 };
 
 unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *,

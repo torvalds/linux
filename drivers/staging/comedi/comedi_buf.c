@@ -510,7 +510,18 @@ void comedi_buf_memcpy_from(struct comedi_subdevice *s, unsigned int offset,
 }
 EXPORT_SYMBOL_GPL(comedi_buf_memcpy_from);
 
-/* Writes an array of data points to comedi's buffer */
+/**
+ * comedi_write_array_to_buffer - write data to comedi buffer
+ * @s: comedi_subdevice struct
+ * @data: destination
+ * @num_bytes: number of bytes to write
+ *
+ * Writes up to num_bytes bytes of data to the comedi buffer associated with
+ * the subdevice, marks it as written and updates the acquisition scan
+ * progress.
+ *
+ * Returns the amount of data written in bytes.
+ */
 unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
 					  const void *data,
 					  unsigned int num_bytes)
