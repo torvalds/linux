@@ -963,13 +963,6 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 	unsigned long flags;
 
 	set_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
-	/* Set the AID, BSSID and do beacon-sync only when
-	 * the HW opmode is STATION.
-	 *
-	 * But the primary bit is set above in any case.
-	 */
-	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
-		return;
 
 	ether_addr_copy(common->curbssid, bss_conf->bssid);
 	common->curaid = bss_conf->aid;
