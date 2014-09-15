@@ -42,6 +42,9 @@ config AT91_SAM9_TIME
 config HAVE_AT91_SMD
 	bool
 
+config HAVE_AT91_H32MX
+	bool
+
 config SOC_AT91SAM9
 	bool
 	select AT91_SAM9_TIME
