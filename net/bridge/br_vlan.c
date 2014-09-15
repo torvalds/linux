@@ -280,7 +280,7 @@ bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
 	struct net_port_vlans *v;
 
 	/* If filtering was disabled at input, let it pass. */
-	if (!BR_INPUT_SKB_CB(skb)->vlan_filtered)
+	if (!br->vlan_enabled)
 		return true;
 
 	v = rcu_dereference(p->vlan_info);
