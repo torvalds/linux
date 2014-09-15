@@ -28,6 +28,7 @@
 #include <scsi/scsi_tcq.h>
 
 #include "uas-detect.h"
+#include "scsiglue.h"
 
 /*
  * The r00-r01c specs define this version of the SENSE IU data structure.
@@ -49,6 +50,7 @@ struct uas_dev_info {
 	struct usb_anchor cmd_urbs;
 	struct usb_anchor sense_urbs;
 	struct usb_anchor data_urbs;
+	unsigned long flags;
 	int qdepth, resetting;
 	struct response_iu response;
 	unsigned cmd_pipe, status_pipe, data_in_pipe, data_out_pipe;
@@ -714,6 +716,15 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
+	if ((devinfo->flags & US_FL_NO_ATA_1X) &&
+			(cmnd->cmnd[0] == ATA_12 || cmnd->cmnd[0] == ATA_16)) {
+		memcpy(cmnd->sense_buffer, usb_stor_sense_invalidCDB,
+		       sizeof(usb_stor_sense_invalidCDB));
+		cmnd->result = SAM_STAT_CHECK_CONDITION;
+		cmnd->scsi_done(cmnd);
+		return 0;
+	}
+
 	spin_lock_irqsave(&devinfo->lock, flags);
 
 	if (devinfo->resetting) {
@@ -1080,6 +1091,8 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->resetting = 0;
 	devinfo->running_task = 0;
 	devinfo->shutdown = 0;
+	devinfo->flags = id->driver_info;
+	usb_stor_adjust_quirks(udev, &devinfo->flags);
 	init_usb_anchor(&devinfo->cmd_urbs);
 	init_usb_anchor(&devinfo->sense_urbs);
 	init_usb_anchor(&devinfo->data_urbs);
