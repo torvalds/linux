@@ -354,6 +354,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(SCAN_COMPLETE_UMAC),
 	CMD(TDLS_CHANNEL_SWITCH_CMD),
 	CMD(TDLS_CHANNEL_SWITCH_NOTIFICATION),
+	CMD(TDLS_CONFIG_CMD),
 };
 #undef CMD
 

@@ -131,6 +131,7 @@ enum {
 	/* TDLS */
 	TDLS_CHANNEL_SWITCH_CMD = 0x27,
 	TDLS_CHANNEL_SWITCH_NOTIFICATION = 0xaa,
+	TDLS_CONFIG_CMD = 0xa7,
 
 	/* MAC and Binding commands */
 	MAC_CONTEXT_CMD = 0x28,
@@ -1799,5 +1800,67 @@ struct iwl_tdls_channel_switch_notif {
 	__le32 offchannel_duration;
 	__le32 sta_id;
 } __packed; /* TDLS_STA_CHANNEL_SWITCH_NTFY_API_S_VER_1 */
+
+/**
+ * TDLS station info
+ *
+ * @sta_id: station id of the TDLS peer
+ * @tx_to_peer_tid: TID reserved vs. the peer for FW based Tx
+ * @tx_to_peer_ssn: initial SSN the FW should use for Tx on its TID vs the peer
+ * @is_initiator: 1 if the peer is the TDLS link initiator, 0 otherwise
+ */
+struct iwl_tdls_sta_info {
+	u8 sta_id;
+	u8 tx_to_peer_tid;
+	__le16 tx_to_peer_ssn;
+	__le32 is_initiator;
+} __packed; /* TDLS_STA_INFO_VER_1 */
+
+/**
+ * TDLS basic config command
+ *
+ * @id_and_color: MAC id and color being configured
+ * @tdls_peer_count: amount of currently connected TDLS peers
+ * @tx_to_ap_tid: TID reverved vs. the AP for FW based Tx
+ * @tx_to_ap_ssn: initial SSN the FW should use for Tx on its TID vs. the AP
+ * @sta_info: per-station info. Only the first tdls_peer_count entries are set
+ * @pti_req_data_offset: offset of network-level data for the PTI template
+ * @pti_req_tx_cmd: Tx parameters for PTI request template
+ * @pti_req_template: PTI request template data
+ */
+struct iwl_tdls_config_cmd {
+	__le32 id_and_color; /* mac id and color */
+	u8 tdls_peer_count;
+	u8 tx_to_ap_tid;
+	__le16 tx_to_ap_ssn;
+	struct iwl_tdls_sta_info sta_info[IWL_MVM_TDLS_STA_COUNT];
+
+	__le32 pti_req_data_offset;
+	struct iwl_tx_cmd pti_req_tx_cmd;
+	u8 pti_req_template[0];
+} __packed; /* TDLS_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * TDLS per-station config information from FW
+ *
+ * @sta_id: station id of the TDLS peer
+ * @tx_to_peer_last_seq: last sequence number used by FW during FW-based Tx to
+ *	the peer
+ */
+struct iwl_tdls_config_sta_info_res {
+	__le16 sta_id;
+	__le16 tx_to_peer_last_seq;
+} __packed; /* TDLS_STA_INFO_RSP_VER_1 */
+
+/**
+ * TDLS config information from FW
+ *
+ * @tx_to_ap_last_seq: last sequence number used by FW during FW-based Tx to AP
+ * @sta_info: per-station TDLS config information
+ */
+struct iwl_tdls_config_res {
+	__le32 tx_to_ap_last_seq;
+	struct iwl_tdls_config_sta_info_res sta_info[IWL_MVM_TDLS_STA_COUNT];
+} __packed; /* TDLS_CONFIG_RSP_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */

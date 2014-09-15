@@ -113,17 +113,85 @@ int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return count;
 }
 
+static void iwl_mvm_tdls_config(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_rx_packet *pkt;
+	struct iwl_tdls_config_res *resp;
+	struct iwl_tdls_config_cmd tdls_cfg_cmd = {};
+	struct iwl_host_cmd cmd = {
+		.id = TDLS_CONFIG_CMD,
+		.flags = CMD_WANT_SKB,
+		.data = { &tdls_cfg_cmd, },
+		.len = { sizeof(struct iwl_tdls_config_cmd), },
+	};
+	struct ieee80211_sta *sta;
+	int ret, i, cnt;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	tdls_cfg_cmd.id_and_color =
+		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
+	tdls_cfg_cmd.tx_to_ap_tid = IWL_MVM_TDLS_FW_TID;
+	tdls_cfg_cmd.tx_to_ap_ssn = cpu_to_le16(0); /* not used for now */
+
+	/* for now the Tx cmd is empty and unused */
+
+	/* populate TDLS peer data */
+	cnt = 0;
+	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
+						lockdep_is_held(&mvm->mutex));
+		if (IS_ERR_OR_NULL(sta) || !sta->tdls)
+			continue;
+
+		tdls_cfg_cmd.sta_info[cnt].sta_id = i;
+		tdls_cfg_cmd.sta_info[cnt].tx_to_peer_tid =
+							IWL_MVM_TDLS_FW_TID;
+		tdls_cfg_cmd.sta_info[cnt].tx_to_peer_ssn = cpu_to_le16(0);
+		tdls_cfg_cmd.sta_info[cnt].is_initiator =
+				cpu_to_le32(sta->tdls_initiator ? 1 : 0);
+
+		cnt++;
+	}
+
+	tdls_cfg_cmd.tdls_peer_count = cnt;
+	IWL_DEBUG_TDLS(mvm, "send TDLS config to FW for %d peers\n", cnt);
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (WARN_ON_ONCE(ret))
+		return;
+
+	pkt = cmd.resp_pkt;
+	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERR(mvm, "Bad return from TDLS_CONFIG_COMMAND (0x%08X)\n",
+			pkt->hdr.flags);
+		goto exit;
+	}
+
+	if (WARN_ON_ONCE(iwl_rx_packet_payload_len(pkt) != sizeof(*resp)))
+		goto exit;
+
+	/* we don't really care about the response at this point */
+
+exit:
+	iwl_free_resp(&cmd);
+}
+
 void iwl_mvm_recalc_tdls_state(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       bool sta_added)
 {
 	int tdls_sta_cnt = iwl_mvm_tdls_sta_count(mvm, vif);
 
-	/*
-	 * Disable ps when the first TDLS sta is added and re-enable it
-	 * when the last TDLS sta is removed
-	 */
-	if ((tdls_sta_cnt == 1 && sta_added) ||
-	    (tdls_sta_cnt == 0 && !sta_added))
+	/* when the first peer joins, send a power update first */
+	if (tdls_sta_cnt == 1 && sta_added)
+		iwl_mvm_power_update_mac(mvm);
+
+	/* configure the FW with TDLS peer info */
+	iwl_mvm_tdls_config(mvm, vif);
+
+	/* when the last peer leaves, send a power update last */
+	if (tdls_sta_cnt == 0 && !sta_added)
 		iwl_mvm_power_update_mac(mvm);
 }
 
