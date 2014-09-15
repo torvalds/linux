@@ -310,9 +310,8 @@ void i9xx_check_fifo_underruns(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	spin_lock_irq(&dev_priv->irq_lock);
 
 	for_each_intel_crtc(dev, crtc) {
 		u32 reg = PIPESTAT(crtc->pipe);
@@ -331,7 +330,7 @@ void i9xx_check_fifo_underruns(struct drm_device *dev)
 		DRM_ERROR("pipe %c underrun\n", pipe_name(crtc->pipe));
 	}
 
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void i9xx_set_fifo_underrun_reporting(struct drm_device *dev,
@@ -696,19 +695,18 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 static void i915_enable_asle_pipestat(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long irqflags;
 
 	if (!dev_priv->opregion.asle || !IS_MOBILE(dev))
 		return;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 
 	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_LEGACY_BLC_EVENT_STATUS);
 	if (INTEL_INFO(dev)->gen >= 4)
 		i915_enable_pipestat(dev_priv, PIPE_A,
 				     PIPE_LEGACY_BLC_EVENT_STATUS);
 
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 /**
@@ -3477,14 +3475,12 @@ static void gen8_irq_reset(struct drm_device *dev)
 
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock_irq(&dev_priv->irq_lock);
 	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B, dev_priv->de_irq_mask[PIPE_B],
 			  ~dev_priv->de_irq_mask[PIPE_B]);
 	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_C, dev_priv->de_irq_mask[PIPE_C],
 			  ~dev_priv->de_irq_mask[PIPE_C]);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void cherryview_irq_preinstall(struct drm_device *dev)

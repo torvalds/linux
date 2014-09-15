@@ -686,11 +686,10 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		intel_modeset_init_hw(dev);
 
 		{
-			unsigned long irqflags;
-			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+			spin_lock_irq(&dev_priv->irq_lock);
 			if (dev_priv->display.hpd_irq_setup)
 				dev_priv->display.hpd_irq_setup(dev);
-			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+			spin_unlock_irq(&dev_priv->irq_lock);
 		}
 
 		intel_dp_mst_resume(dev);
