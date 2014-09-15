@@ -59,6 +59,11 @@
 #define FDO_MODE_HARDWARE 0
 #define FDO_MODE_PIECE_WISE_LINEAR 1
 
+enum FAN_CONTROL {
+	FAN_CONTROL_FUZZY,
+	FAN_CONTROL_TABLE
+};
+
 #define PPSMC_Result_OK             ((uint8_t)0x01)
 #define PPSMC_Result_Failed         ((uint8_t)0xFF)
 
@@ -155,6 +160,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_MASTER_DeepSleep_ON         ((uint16_t) 0x18F)
 #define PPSMC_MSG_MASTER_DeepSleep_OFF        ((uint16_t) 0x190)
 #define PPSMC_MSG_Remove_DC_Clamp             ((uint16_t) 0x191)
+#define PPSMC_MSG_SetFanPwmMax                ((uint16_t) 0x19A)
 
 #define PPSMC_MSG_API_GetSclkFrequency        ((uint16_t) 0x200)
 #define PPSMC_MSG_API_GetMclkFrequency        ((uint16_t) 0x201)

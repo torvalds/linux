@@ -266,6 +266,7 @@ struct ci_power_info {
 	bool caps_automatic_dc_transition;
 	bool caps_sclk_throttle_low_notification;
 	bool caps_dynamic_ac_timing;
+	bool caps_od_fuzzy_fan_control_support;
 	/* flags */
 	bool thermal_protection;
 	bool pcie_performance_request;
@@ -287,6 +288,10 @@ struct ci_power_info {
 	struct ci_ps current_ps;
 	struct radeon_ps requested_rps;
 	struct ci_ps requested_ps;
+	/* fan control */
+	bool fan_ctrl_is_in_default_mode;
+	u32 t_min;
+	u32 fan_ctrl_default_mode;
 };
 
 #define CISLANDS_VOLTAGE_CONTROL_NONE                   0x0

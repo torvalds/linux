@@ -1494,6 +1494,10 @@ struct radeon_dpm_fan {
 	u8 t_hyst;
 	u32 cycle_delay;
 	u16 t_max;
+	u8 control_mode;
+	u16 default_max_fan_pwm;
+	u16 default_fan_output_sensitivity;
+	u16 fan_output_sensitivity;
 	bool ucode_fan_control;
 };
 
