@@ -56,14 +56,6 @@
 
 #define INTC_PROTECTION_ENABLE	(1 << 0)
 
-/*
- * OMAP2 has a number of different interrupt controllers, each interrupt
- * controller is identified as its own "bank". Register definitions are
- * fairly consistent for each bank, but not all registers are implemented
- * for each bank.. when in doubt, consult the TRM.
- */
-
-/* Structure to save interrupt controller context */
 struct omap_intc_regs {
 	u32 sysconfig;
 	u32 protection;
@@ -79,7 +71,6 @@ static void __iomem *omap_irq_base;
 static int omap_nr_pending = 3;
 static int omap_nr_irqs = 96;
 
-/* INTC bank register get/set */
 static void intc_writel(u32 reg, u32 val)
 {
 	writel_relaxed(val, omap_irq_base + reg);
