@@ -1088,9 +1088,7 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 			iter_data.beacons = true;
 			ath9k_set_assoc_state(sc, iter_data.primary_sta,
 					      changed);
-			if (!ctx->primary_sta ||
-			    !ctx->primary_sta->bss_conf.assoc)
-				ctx->primary_sta = iter_data.primary_sta;
+			ctx->primary_sta = iter_data.primary_sta;
 		} else {
 			ctx->primary_sta = NULL;
 			memset(common->curbssid, 0, ETH_ALEN);
@@ -1118,8 +1116,6 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 		set_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
 	else
 		clear_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
-
-	ctx->primary_sta = iter_data.primary_sta;
 
 	ath9k_ps_restore(sc);
 }
