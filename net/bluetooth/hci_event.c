@@ -2438,6 +2438,12 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 	}
 
+	/* We should disregard the current RPA and generate a new one
+	 * whenever the encryption procedure fails.
+	 */
+	if (ev->status && conn->type == LE_LINK)
+		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 
 	if (ev->status && conn->state == BT_CONNECTED) {
@@ -4506,10 +4512,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	memcpy(cp.ltk, ltk->val, sizeof(ltk->val));
 	cp.handle = cpu_to_le16(conn->handle);
 
-	if (ltk->authenticated)
-		conn->pending_sec_level = BT_SECURITY_HIGH;
-	else
-		conn->pending_sec_level = BT_SECURITY_MEDIUM;
+	conn->pending_sec_level = smp_ltk_sec_level(ltk);
 
 	conn->enc_key_size = ltk->enc_size;
 

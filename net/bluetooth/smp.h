@@ -125,6 +125,14 @@ enum {
 	SMP_LTK_SLAVE,
 };
 
+static inline u8 smp_ltk_sec_level(struct smp_ltk *key)
+{
+	if (key->authenticated)
+		return BT_SECURITY_HIGH;
+
+	return BT_SECURITY_MEDIUM;
+}
+
 /* SMP Commands */
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
