@@ -43,7 +43,7 @@ config SCSI_DMA
 config SCSI_NETLINK
 	bool
 	default	n
-	select NET
+	depends on NET
 
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
