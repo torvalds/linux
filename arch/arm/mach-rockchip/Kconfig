@@ -82,8 +82,4 @@ config RK_VCODEC
 config RK_PL330_DMA_TEST
 	bool "pl330 DMA memcpy test"
 
-config RK_FT_TEST
-	bool "ft test"
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
 endif
