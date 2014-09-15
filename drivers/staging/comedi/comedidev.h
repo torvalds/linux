@@ -437,6 +437,9 @@ int comedi_timeout(struct comedi_device *, struct comedi_subdevice *,
 			     struct comedi_insn *, unsigned long context),
 		   unsigned long context);
 
+unsigned int comedi_handle_events(struct comedi_device *dev,
+				  struct comedi_subdevice *s);
+
 int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
 			   struct comedi_insn *, unsigned int *data,
 			   unsigned int mask);

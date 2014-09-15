@@ -351,6 +351,39 @@ void comedi_inc_scan_progress(struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(comedi_inc_scan_progress);
 
+/**
+ * comedi_handle_events - handle events and possibly stop acquisition
+ * @dev: comedi_device struct
+ * @s: comedi_subdevice struct
+ *
+ * Handles outstanding asynchronous acquisition event flags associated
+ * with the subdevice.  Call the subdevice's "->cancel()" handler if the
+ * "end of acquisition", "error" or "overflow" event flags are set in order
+ * to stop the acquisition at the driver level.
+ *
+ * Calls comedi_event() to further process the event flags, which may mark
+ * the asynchronous command as no longer running, possibly terminated with
+ * an error, and may wake up tasks.
+ *
+ * Return a bit-mask of the handled events.
+ */
+unsigned int comedi_handle_events(struct comedi_device *dev,
+				  struct comedi_subdevice *s)
+{
+	unsigned int events = s->async->events;
+
+	if (events == 0)
+		return events;
+
+	if (events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
+		s->cancel(dev, s);
+
+	comedi_event(dev, s);
+
+	return events;
+}
+EXPORT_SYMBOL_GPL(comedi_handle_events);
+
 static int insn_rw_emulate_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)

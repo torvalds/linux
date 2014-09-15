@@ -53,8 +53,11 @@ static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice *s,
 unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *,
 					void *data, unsigned int num_bytes);
 
-unsigned int cfc_handle_events(struct comedi_device *,
-			       struct comedi_subdevice *);
+static inline unsigned int cfc_handle_events(struct comedi_device *dev,
+					     struct comedi_subdevice *s)
+{
+	return comedi_handle_events(dev, s);
+}
 
 /**
  * cfc_check_trigger_src() - trivially validate a comedi_cmd trigger source
