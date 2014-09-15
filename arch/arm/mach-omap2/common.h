@@ -32,6 +32,7 @@
 #include <linux/i2c/twl.h>
 #include <linux/i2c-omap.h>
 #include <linux/reboot.h>
+#include <linux/irqchip/irq-omap-intc.h>
 
 #include <asm/proc-fns.h>
 
@@ -210,15 +211,6 @@ extern struct device *omap2_get_iva_device(void);
 extern struct device *omap2_get_l3_device(void);
 extern struct device *omap4_get_dsp_device(void);
 
-void omap2_init_irq(void);
-void omap3_init_irq(void);
-void ti81xx_init_irq(void);
-extern int omap_irq_pending(void);
-void omap_intc_save_context(void);
-void omap_intc_restore_context(void);
-void omap3_intc_suspend(void);
-void omap3_intc_prepare_idle(void);
-void omap3_intc_resume_idle(void);
 void omap_gic_of_init(void);
 
 #ifdef CONFIG_CACHE_L2X0
