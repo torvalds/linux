@@ -57,6 +57,7 @@
 #define CCN_DT_PMCCNTRSR		0x0190
 #define CCN_DT_PMOVSR			0x0198
 #define CCN_DT_PMOVSR_CLR		0x01a0
+#define CCN_DT_PMOVSR_CLR__MASK				0x1f
 #define CCN_DT_PMCR			0x01a8
 #define CCN_DT_PMCR__OVFL_INTR_EN			(1 << 6)
 #define CCN_DT_PMCR__PMU_EN				(1 << 0)
@@ -1052,7 +1053,8 @@ static irqreturn_t arm_ccn_pmu_overflow_handler(struct arm_ccn_dt *dt)
 		struct perf_event *event = dt->pmu_counters[idx].event;
 		int overflowed = pmovsr & BIT(idx);
 
-		WARN_ON_ONCE(overflowed && !event);
+		WARN_ON_ONCE(overflowed && !event &&
+				idx != CCN_IDX_PMU_CYCLE_COUNTER);
 
 		if (!event || !overflowed)
 			continue;
@@ -1088,6 +1090,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	/* Initialize DT subsystem */
 	ccn->dt.base = ccn->base + CCN_REGION_SIZE;
 	spin_lock_init(&ccn->dt.config_lock);
+	writel(CCN_DT_PMOVSR_CLR__MASK, ccn->dt.base + CCN_DT_PMOVSR_CLR);
 	writel(CCN_DT_CTL__DT_EN, ccn->dt.base + CCN_DT_CTL);
 	writel(CCN_DT_PMCR__OVFL_INTR_EN | CCN_DT_PMCR__PMU_EN,
 			ccn->dt.base + CCN_DT_PMCR);
