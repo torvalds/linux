@@ -290,6 +290,43 @@ unsigned int comedi_dio_update_state(struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(comedi_dio_update_state);
 
+/**
+ * comedi_bytes_per_scan - get length of asynchronous command "scan" in bytes
+ * @s: comedi_subdevice struct
+ *
+ * Determines the overall scan length according to the subdevice type and the
+ * number of channels in the scan.
+ *
+ * For digital input, output or input/output subdevices, samples for multiple
+ * channels are assumed to be packed into one or more unsigned short or
+ * unsigned int values according to the subdevice's SDF_LSAMPL flag.  For other
+ * types of subdevice, samples are assumed to occupy a whole unsigned short or
+ * unsigned int according to the SDF_LSAMPL flag.
+ *
+ * Returns the overall scan length in bytes.
+ */
+unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
+{
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int num_samples;
+	unsigned int bits_per_sample;
+
+	switch (s->type) {
+	case COMEDI_SUBD_DI:
+	case COMEDI_SUBD_DO:
+	case COMEDI_SUBD_DIO:
+		bits_per_sample = 8 * bytes_per_sample(s);
+		num_samples = (cmd->chanlist_len + bits_per_sample - 1) /
+				bits_per_sample;
+		break;
+	default:
+		num_samples = cmd->chanlist_len;
+		break;
+	}
+	return num_samples * bytes_per_sample(s);
+}
+EXPORT_SYMBOL_GPL(comedi_bytes_per_scan);
+
 static int insn_rw_emulate_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)

@@ -442,6 +442,7 @@ int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
 			   unsigned int mask);
 unsigned int comedi_dio_update_state(struct comedi_subdevice *,
 				     unsigned int *data);
+unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s);
 
 void *comedi_alloc_devpriv(struct comedi_device *, size_t);
 int comedi_alloc_subdevices(struct comedi_device *, int);

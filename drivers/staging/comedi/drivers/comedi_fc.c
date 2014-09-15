@@ -22,28 +22,6 @@
 
 #include "comedi_fc.h"
 
-unsigned int cfc_bytes_per_scan(struct comedi_subdevice *s)
-{
-	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int num_samples;
-	unsigned int bits_per_sample;
-
-	switch (s->type) {
-	case COMEDI_SUBD_DI:
-	case COMEDI_SUBD_DO:
-	case COMEDI_SUBD_DIO:
-		bits_per_sample = 8 * bytes_per_sample(s);
-		num_samples = (cmd->chanlist_len + bits_per_sample - 1) /
-				bits_per_sample;
-		break;
-	default:
-		num_samples = cmd->chanlist_len;
-		break;
-	}
-	return num_samples * bytes_per_sample(s);
-}
-EXPORT_SYMBOL_GPL(cfc_bytes_per_scan);
-
 void cfc_inc_scan_progress(struct comedi_subdevice *s, unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
