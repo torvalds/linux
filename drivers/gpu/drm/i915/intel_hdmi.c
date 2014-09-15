@@ -864,10 +864,15 @@ static enum drm_mode_status
 intel_hdmi_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
 {
-	if (mode->clock > hdmi_portclock_limit(intel_attached_hdmi(connector),
-					       true))
+	int clock = mode->clock;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		clock *= 2;
+
+	if (clock > hdmi_portclock_limit(intel_attached_hdmi(connector),
+					 true))
 		return MODE_CLOCK_HIGH;
-	if (mode->clock < 20000)
+	if (clock < 20000)
 		return MODE_CLOCK_LOW;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -919,6 +924,10 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 			intel_hdmi->color_range = HDMI_COLOR_RANGE_16_235;
 		else
 			intel_hdmi->color_range = 0;
+	}
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK) {
+		pipe_config->pixel_multiplier = 2;
 	}
 
 	if (intel_hdmi->color_range)
