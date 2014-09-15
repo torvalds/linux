@@ -28,7 +28,7 @@
 
 #include "stmmac.h"
 
-static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
+static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *)p;
 	unsigned int txsize = priv->dma_tx_size;
@@ -47,7 +47,9 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 
 	desc->des2 = dma_map_single(priv->device, skb->data,
 				    bmax, DMA_TO_DEVICE);
-	priv->tx_skbuff_dma[entry] = desc->des2;
+	if (dma_mapping_error(priv->device, desc->des2))
+		return -1;
+	priv->tx_skbuff_dma[entry].buf = desc->des2;
 	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum, STMMAC_CHAIN_MODE);
 
 	while (len != 0) {
@@ -59,7 +61,9 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			desc->des2 = dma_map_single(priv->device,
 						    (skb->data + bmax * i),
 						    bmax, DMA_TO_DEVICE);
-			priv->tx_skbuff_dma[entry] = desc->des2;
+			if (dma_mapping_error(priv->device, desc->des2))
+				return -1;
+			priv->tx_skbuff_dma[entry].buf = desc->des2;
 			priv->hw->desc->prepare_tx_desc(desc, 0, bmax, csum,
 							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
@@ -69,7 +73,9 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			desc->des2 = dma_map_single(priv->device,
 						    (skb->data + bmax * i), len,
 						    DMA_TO_DEVICE);
-			priv->tx_skbuff_dma[entry] = desc->des2;
+			if (dma_mapping_error(priv->device, desc->des2))
+				return -1;
+			priv->tx_skbuff_dma[entry].buf = desc->des2;
 			priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
 							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);

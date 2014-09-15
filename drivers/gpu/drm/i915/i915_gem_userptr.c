@@ -32,6 +32,15 @@
 #include <linux/mempolicy.h>
 #include <linux/swap.h>
 
+struct i915_mm_struct {
+	struct mm_struct *mm;
+	struct drm_device *dev;
+	struct i915_mmu_notifier *mn;
+	struct hlist_node node;
+	struct kref kref;
+	struct work_struct work;
+};
+
 #if defined(CONFIG_MMU_NOTIFIER)
 #include <linux/interval_tree.h>
 
@@ -41,16 +50,12 @@ struct i915_mmu_notifier {
 	struct mmu_notifier mn;
 	struct rb_root objects;
 	struct list_head linear;
-	struct drm_device *dev;
-	struct mm_struct *mm;
-	struct work_struct work;
-	unsigned long count;
 	unsigned long serial;
 	bool has_linear;
 };
 
 struct i915_mmu_object {
-	struct i915_mmu_notifier *mmu;
+	struct i915_mmu_notifier *mn;
 	struct interval_tree_node it;
 	struct list_head link;
 	struct drm_i915_gem_object *obj;
@@ -96,18 +101,18 @@ static void *invalidate_range__linear(struct i915_mmu_notifier *mn,
 				      unsigned long start,
 				      unsigned long end)
 {
-	struct i915_mmu_object *mmu;
+	struct i915_mmu_object *mo;
 	unsigned long serial;
 
 restart:
 	serial = mn->serial;
-	list_for_each_entry(mmu, &mn->linear, link) {
+	list_for_each_entry(mo, &mn->linear, link) {
 		struct drm_i915_gem_object *obj;
 
-		if (mmu->it.last < start || mmu->it.start > end)
+		if (mo->it.last < start || mo->it.start > end)
 			continue;
 
-		obj = mmu->obj;
+		obj = mo->obj;
 		drm_gem_object_reference(&obj->base);
 		spin_unlock(&mn->lock);
 
@@ -160,130 +165,47 @@ static const struct mmu_notifier_ops i915_gem_userptr_notifier = {
 };
 
 static struct i915_mmu_notifier *
-__i915_mmu_notifier_lookup(struct drm_device *dev, struct mm_struct *mm)
+i915_mmu_notifier_create(struct mm_struct *mm)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_mmu_notifier *mmu;
-
-	/* Protected by dev->struct_mutex */
-	hash_for_each_possible(dev_priv->mmu_notifiers, mmu, node, (unsigned long)mm)
-		if (mmu->mm == mm)
-			return mmu;
-
-	return NULL;
-}
-
-static struct i915_mmu_notifier *
-i915_mmu_notifier_get(struct drm_device *dev, struct mm_struct *mm)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_mmu_notifier *mmu;
+	struct i915_mmu_notifier *mn;
 	int ret;
 
-	lockdep_assert_held(&dev->struct_mutex);
-
-	mmu = __i915_mmu_notifier_lookup(dev, mm);
-	if (mmu)
-		return mmu;
-
-	mmu = kmalloc(sizeof(*mmu), GFP_KERNEL);
-	if (mmu == NULL)
+	mn = kmalloc(sizeof(*mn), GFP_KERNEL);
+	if (mn == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	spin_lock_init(&mmu->lock);
-	mmu->dev = dev;
-	mmu->mn.ops = &i915_gem_userptr_notifier;
-	mmu->mm = mm;
-	mmu->objects = RB_ROOT;
-	mmu->count = 0;
-	mmu->serial = 1;
-	INIT_LIST_HEAD(&mmu->linear);
-	mmu->has_linear = false;
+	spin_lock_init(&mn->lock);
+	mn->mn.ops = &i915_gem_userptr_notifier;
+	mn->objects = RB_ROOT;
+	mn->serial = 1;
+	INIT_LIST_HEAD(&mn->linear);
+	mn->has_linear = false;
 
-	/* Protected by mmap_sem (write-lock) */
-	ret = __mmu_notifier_register(&mmu->mn, mm);
+	 /* Protected by mmap_sem (write-lock) */
+	ret = __mmu_notifier_register(&mn->mn, mm);
 	if (ret) {
-		kfree(mmu);
+		kfree(mn);
 		return ERR_PTR(ret);
 	}
 
-	/* Protected by dev->struct_mutex */
-	hash_add(dev_priv->mmu_notifiers, &mmu->node, (unsigned long)mm);
-	return mmu;
+	return mn;
 }
 
-static void
-__i915_mmu_notifier_destroy_worker(struct work_struct *work)
+static void __i915_mmu_notifier_update_serial(struct i915_mmu_notifier *mn)
 {
-	struct i915_mmu_notifier *mmu = container_of(work, typeof(*mmu), work);
-	mmu_notifier_unregister(&mmu->mn, mmu->mm);
-	kfree(mmu);
-}
-
-static void
-__i915_mmu_notifier_destroy(struct i915_mmu_notifier *mmu)
-{
-	lockdep_assert_held(&mmu->dev->struct_mutex);
-
-	/* Protected by dev->struct_mutex */
-	hash_del(&mmu->node);
-
-	/* Our lock ordering is: mmap_sem, mmu_notifier_scru, struct_mutex.
-	 * We enter the function holding struct_mutex, therefore we need
-	 * to drop our mutex prior to calling mmu_notifier_unregister in
-	 * order to prevent lock inversion (and system-wide deadlock)
-	 * between the mmap_sem and struct-mutex. Hence we defer the
-	 * unregistration to a workqueue where we hold no locks.
-	 */
-	INIT_WORK(&mmu->work, __i915_mmu_notifier_destroy_worker);
-	schedule_work(&mmu->work);
-}
-
-static void __i915_mmu_notifier_update_serial(struct i915_mmu_notifier *mmu)
-{
-	if (++mmu->serial == 0)
-		mmu->serial = 1;
-}
-
-static bool i915_mmu_notifier_has_linear(struct i915_mmu_notifier *mmu)
-{
-	struct i915_mmu_object *mn;
-
-	list_for_each_entry(mn, &mmu->linear, link)
-		if (mn->is_linear)
-			return true;
-
-	return false;
-}
-
-static void
-i915_mmu_notifier_del(struct i915_mmu_notifier *mmu,
-		      struct i915_mmu_object *mn)
-{
-	lockdep_assert_held(&mmu->dev->struct_mutex);
-
-	spin_lock(&mmu->lock);
-	list_del(&mn->link);
-	if (mn->is_linear)
-		mmu->has_linear = i915_mmu_notifier_has_linear(mmu);
-	else
-		interval_tree_remove(&mn->it, &mmu->objects);
-	__i915_mmu_notifier_update_serial(mmu);
-	spin_unlock(&mmu->lock);
-
-	/* Protected against _add() by dev->struct_mutex */
-	if (--mmu->count == 0)
-		__i915_mmu_notifier_destroy(mmu);
+	if (++mn->serial == 0)
+		mn->serial = 1;
 }
 
 static int
-i915_mmu_notifier_add(struct i915_mmu_notifier *mmu,
-		      struct i915_mmu_object *mn)
+i915_mmu_notifier_add(struct drm_device *dev,
+		      struct i915_mmu_notifier *mn,
+		      struct i915_mmu_object *mo)
 {
 	struct interval_tree_node *it;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(mmu->dev);
+	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
@@ -291,11 +213,11 @@ i915_mmu_notifier_add(struct i915_mmu_notifier *mmu,
 	 * remove the objects from the interval tree) before we do
 	 * the check for overlapping objects.
 	 */
-	i915_gem_retire_requests(mmu->dev);
+	i915_gem_retire_requests(dev);
 
-	spin_lock(&mmu->lock);
-	it = interval_tree_iter_first(&mmu->objects,
-				      mn->it.start, mn->it.last);
+	spin_lock(&mn->lock);
+	it = interval_tree_iter_first(&mn->objects,
+				      mo->it.start, mo->it.last);
 	if (it) {
 		struct drm_i915_gem_object *obj;
 
@@ -312,86 +234,122 @@ i915_mmu_notifier_add(struct i915_mmu_notifier *mmu,
 
 		obj = container_of(it, struct i915_mmu_object, it)->obj;
 		if (!obj->userptr.workers)
-			mmu->has_linear = mn->is_linear = true;
+			mn->has_linear = mo->is_linear = true;
 		else
 			ret = -EAGAIN;
 	} else
-		interval_tree_insert(&mn->it, &mmu->objects);
+		interval_tree_insert(&mo->it, &mn->objects);
 
 	if (ret == 0) {
-		list_add(&mn->link, &mmu->linear);
-		__i915_mmu_notifier_update_serial(mmu);
+		list_add(&mo->link, &mn->linear);
+		__i915_mmu_notifier_update_serial(mn);
 	}
-	spin_unlock(&mmu->lock);
-	mutex_unlock(&mmu->dev->struct_mutex);
+	spin_unlock(&mn->lock);
+	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
+}
+
+static bool i915_mmu_notifier_has_linear(struct i915_mmu_notifier *mn)
+{
+	struct i915_mmu_object *mo;
+
+	list_for_each_entry(mo, &mn->linear, link)
+		if (mo->is_linear)
+			return true;
+
+	return false;
+}
+
+static void
+i915_mmu_notifier_del(struct i915_mmu_notifier *mn,
+		      struct i915_mmu_object *mo)
+{
+	spin_lock(&mn->lock);
+	list_del(&mo->link);
+	if (mo->is_linear)
+		mn->has_linear = i915_mmu_notifier_has_linear(mn);
+	else
+		interval_tree_remove(&mo->it, &mn->objects);
+	__i915_mmu_notifier_update_serial(mn);
+	spin_unlock(&mn->lock);
 }
 
 static void
 i915_gem_userptr_release__mmu_notifier(struct drm_i915_gem_object *obj)
 {
-	struct i915_mmu_object *mn;
+	struct i915_mmu_object *mo;
 
-	mn = obj->userptr.mn;
-	if (mn == NULL)
+	mo = obj->userptr.mmu_object;
+	if (mo == NULL)
 		return;
 
-	i915_mmu_notifier_del(mn->mmu, mn);
-	obj->userptr.mn = NULL;
+	i915_mmu_notifier_del(mo->mn, mo);
+	kfree(mo);
+
+	obj->userptr.mmu_object = NULL;
+}
+
+static struct i915_mmu_notifier *
+i915_mmu_notifier_find(struct i915_mm_struct *mm)
+{
+	if (mm->mn == NULL) {
+		down_write(&mm->mm->mmap_sem);
+		mutex_lock(&to_i915(mm->dev)->mm_lock);
+		if (mm->mn == NULL)
+			mm->mn = i915_mmu_notifier_create(mm->mm);
+		mutex_unlock(&to_i915(mm->dev)->mm_lock);
+		up_write(&mm->mm->mmap_sem);
+	}
+	return mm->mn;
 }
 
 static int
 i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
 				    unsigned flags)
 {
-	struct i915_mmu_notifier *mmu;
-	struct i915_mmu_object *mn;
+	struct i915_mmu_notifier *mn;
+	struct i915_mmu_object *mo;
 	int ret;
 
 	if (flags & I915_USERPTR_UNSYNCHRONIZED)
 		return capable(CAP_SYS_ADMIN) ? 0 : -EPERM;
 
-	down_write(&obj->userptr.mm->mmap_sem);
-	ret = i915_mutex_lock_interruptible(obj->base.dev);
-	if (ret == 0) {
-		mmu = i915_mmu_notifier_get(obj->base.dev, obj->userptr.mm);
-		if (!IS_ERR(mmu))
-			mmu->count++; /* preemptive add to act as a refcount */
-		else
-			ret = PTR_ERR(mmu);
-		mutex_unlock(&obj->base.dev->struct_mutex);
-	}
-	up_write(&obj->userptr.mm->mmap_sem);
-	if (ret)
+	if (WARN_ON(obj->userptr.mm == NULL))
+		return -EINVAL;
+
+	mn = i915_mmu_notifier_find(obj->userptr.mm);
+	if (IS_ERR(mn))
+		return PTR_ERR(mn);
+
+	mo = kzalloc(sizeof(*mo), GFP_KERNEL);
+	if (mo == NULL)
+		return -ENOMEM;
+
+	mo->mn = mn;
+	mo->it.start = obj->userptr.ptr;
+	mo->it.last = mo->it.start + obj->base.size - 1;
+	mo->obj = obj;
+
+	ret = i915_mmu_notifier_add(obj->base.dev, mn, mo);
+	if (ret) {
+		kfree(mo);
 		return ret;
-
-	mn = kzalloc(sizeof(*mn), GFP_KERNEL);
-	if (mn == NULL) {
-		ret = -ENOMEM;
-		goto destroy_mmu;
 	}
 
-	mn->mmu = mmu;
-	mn->it.start = obj->userptr.ptr;
-	mn->it.last = mn->it.start + obj->base.size - 1;
-	mn->obj = obj;
-
-	ret = i915_mmu_notifier_add(mmu, mn);
-	if (ret)
-		goto free_mn;
-
-	obj->userptr.mn = mn;
+	obj->userptr.mmu_object = mo;
 	return 0;
+}
 
-free_mn:
+static void
+i915_mmu_notifier_free(struct i915_mmu_notifier *mn,
+		       struct mm_struct *mm)
+{
+	if (mn == NULL)
+		return;
+
+	mmu_notifier_unregister(&mn->mn, mm);
 	kfree(mn);
-destroy_mmu:
-	mutex_lock(&obj->base.dev->struct_mutex);
-	if (--mmu->count == 0)
-		__i915_mmu_notifier_destroy(mmu);
-	mutex_unlock(&obj->base.dev->struct_mutex);
-	return ret;
 }
 
 #else
@@ -413,14 +371,113 @@ i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
 
 	return 0;
 }
+
+static void
+i915_mmu_notifier_free(struct i915_mmu_notifier *mn,
+		       struct mm_struct *mm)
+{
+}
+
 #endif
+
+static struct i915_mm_struct *
+__i915_mm_struct_find(struct drm_i915_private *dev_priv, struct mm_struct *real)
+{
+	struct i915_mm_struct *mm;
+
+	/* Protected by dev_priv->mm_lock */
+	hash_for_each_possible(dev_priv->mm_structs, mm, node, (unsigned long)real)
+		if (mm->mm == real)
+			return mm;
+
+	return NULL;
+}
+
+static int
+i915_gem_userptr_init__mm_struct(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct i915_mm_struct *mm;
+	int ret = 0;
+
+	/* During release of the GEM object we hold the struct_mutex. This
+	 * precludes us from calling mmput() at that time as that may be
+	 * the last reference and so call exit_mmap(). exit_mmap() will
+	 * attempt to reap the vma, and if we were holding a GTT mmap
+	 * would then call drm_gem_vm_close() and attempt to reacquire
+	 * the struct mutex. So in order to avoid that recursion, we have
+	 * to defer releasing the mm reference until after we drop the
+	 * struct_mutex, i.e. we need to schedule a worker to do the clean
+	 * up.
+	 */
+	mutex_lock(&dev_priv->mm_lock);
+	mm = __i915_mm_struct_find(dev_priv, current->mm);
+	if (mm == NULL) {
+		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
+		if (mm == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		kref_init(&mm->kref);
+		mm->dev = obj->base.dev;
+
+		mm->mm = current->mm;
+		atomic_inc(&current->mm->mm_count);
+
+		mm->mn = NULL;
+
+		/* Protected by dev_priv->mm_lock */
+		hash_add(dev_priv->mm_structs,
+			 &mm->node, (unsigned long)mm->mm);
+	} else
+		kref_get(&mm->kref);
+
+	obj->userptr.mm = mm;
+out:
+	mutex_unlock(&dev_priv->mm_lock);
+	return ret;
+}
+
+static void
+__i915_mm_struct_free__worker(struct work_struct *work)
+{
+	struct i915_mm_struct *mm = container_of(work, typeof(*mm), work);
+	i915_mmu_notifier_free(mm->mn, mm->mm);
+	mmdrop(mm->mm);
+	kfree(mm);
+}
+
+static void
+__i915_mm_struct_free(struct kref *kref)
+{
+	struct i915_mm_struct *mm = container_of(kref, typeof(*mm), kref);
+
+	/* Protected by dev_priv->mm_lock */
+	hash_del(&mm->node);
+	mutex_unlock(&to_i915(mm->dev)->mm_lock);
+
+	INIT_WORK(&mm->work, __i915_mm_struct_free__worker);
+	schedule_work(&mm->work);
+}
+
+static void
+i915_gem_userptr_release__mm_struct(struct drm_i915_gem_object *obj)
+{
+	if (obj->userptr.mm == NULL)
+		return;
+
+	kref_put_mutex(&obj->userptr.mm->kref,
+		       __i915_mm_struct_free,
+		       &to_i915(obj->base.dev)->mm_lock);
+	obj->userptr.mm = NULL;
+}
 
 struct get_pages_work {
 	struct work_struct work;
 	struct drm_i915_gem_object *obj;
 	struct task_struct *task;
 };
-
 
 #if IS_ENABLED(CONFIG_SWIOTLB)
 #define swiotlb_active() swiotlb_nr_tbl()
@@ -479,7 +536,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	if (pvec == NULL)
 		pvec = drm_malloc_ab(num_pages, sizeof(struct page *));
 	if (pvec != NULL) {
-		struct mm_struct *mm = obj->userptr.mm;
+		struct mm_struct *mm = obj->userptr.mm->mm;
 
 		down_read(&mm->mmap_sem);
 		while (pinned < num_pages) {
@@ -545,7 +602,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 
 	pvec = NULL;
 	pinned = 0;
-	if (obj->userptr.mm == current->mm) {
+	if (obj->userptr.mm->mm == current->mm) {
 		pvec = kmalloc(num_pages*sizeof(struct page *),
 			       GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
 		if (pvec == NULL) {
@@ -651,17 +708,13 @@ static void
 i915_gem_userptr_release(struct drm_i915_gem_object *obj)
 {
 	i915_gem_userptr_release__mmu_notifier(obj);
-
-	if (obj->userptr.mm) {
-		mmput(obj->userptr.mm);
-		obj->userptr.mm = NULL;
-	}
+	i915_gem_userptr_release__mm_struct(obj);
 }
 
 static int
 i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 {
-	if (obj->userptr.mn)
+	if (obj->userptr.mmu_object)
 		return 0;
 
 	return i915_gem_userptr_init__mmu_notifier(obj, 0);
@@ -736,7 +789,6 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 		return -ENODEV;
 	}
 
-	/* Allocate the new object */
 	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL)
 		return -ENOMEM;
@@ -754,8 +806,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	 * at binding. This means that we need to hook into the mmu_notifier
 	 * in order to detect if the mmu is destroyed.
 	 */
-	ret = -ENOMEM;
-	if ((obj->userptr.mm = get_task_mm(current)))
+	ret = i915_gem_userptr_init__mm_struct(obj);
+	if (ret == 0)
 		ret = i915_gem_userptr_init__mmu_notifier(obj, args->flags);
 	if (ret == 0)
 		ret = drm_gem_handle_create(file, &obj->base, &handle);
@@ -772,9 +824,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 int
 i915_gem_init_userptr(struct drm_device *dev)
 {
-#if defined(CONFIG_MMU_NOTIFIER)
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	hash_init(dev_priv->mmu_notifiers);
-#endif
+	mutex_init(&dev_priv->mm_lock);
+	hash_init(dev_priv->mm_structs);
 	return 0;
 }

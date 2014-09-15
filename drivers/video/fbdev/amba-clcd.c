@@ -639,9 +639,7 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 		if (g0 != panels[i].g0)
 			continue;
 		if (r0 == panels[i].r0 && b0 == panels[i].b0)
-			fb->panel->caps = panels[i].caps & CLCD_CAP_RGB;
-		if (r0 == panels[i].b0 && b0 == panels[i].r0)
-			fb->panel->caps = panels[i].caps & CLCD_CAP_BGR;
+			fb->panel->caps = panels[i].caps;
 	}
 
 	return fb->panel->caps ? 0 : -EINVAL;

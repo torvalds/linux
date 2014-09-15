@@ -197,7 +197,7 @@ struct gen_estimator *gen_find_node(const struct gnet_stats_basic_packed *bstats
  * as destination. A new timer with the interval specified in the
  * configuration TLV is created. Upon each interval, the latest statistics
  * will be read from &bstats and the estimated rate will be stored in
- * &rate_est with the statistics lock grabed during this period.
+ * &rate_est with the statistics lock grabbed during this period.
  *
  * Returns 0 on success or a negative error code.
  *

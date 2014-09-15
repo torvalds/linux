@@ -199,7 +199,6 @@ struct sync_fence *sync_fence_create(const char *name, struct sync_pt *pt)
 	fence->num_fences = 1;
 	atomic_set(&fence->status, 1);
 
-	fence_get(&pt->base);
 	fence->cbs[0].sync_pt = &pt->base;
 	fence->cbs[0].fence = fence;
 	if (fence_add_callback(&pt->base, &fence->cbs[0].cb,

@@ -578,6 +578,19 @@ int usbhs_pipe_is_dir_host(struct usbhs_pipe *pipe)
 	return usbhsp_flags_has(pipe, IS_DIR_HOST);
 }
 
+int usbhs_pipe_is_running(struct usbhs_pipe *pipe)
+{
+	return usbhsp_flags_has(pipe, IS_RUNNING);
+}
+
+void usbhs_pipe_running(struct usbhs_pipe *pipe, int running)
+{
+	if (running)
+		usbhsp_flags_set(pipe, IS_RUNNING);
+	else
+		usbhsp_flags_clr(pipe, IS_RUNNING);
+}
+
 void usbhs_pipe_data_sequence(struct usbhs_pipe *pipe, int sequence)
 {
 	u16 mask = (SQCLR | SQSET);

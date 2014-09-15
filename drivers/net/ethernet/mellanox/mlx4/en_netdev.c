@@ -474,39 +474,12 @@ static int mlx4_en_tunnel_steer_add(struct mlx4_en_priv *priv, unsigned char *ad
 				    int qpn, u64 *reg_id)
 {
 	int err;
-	struct mlx4_spec_list spec_eth_outer = { {NULL} };
-	struct mlx4_spec_list spec_vxlan     = { {NULL} };
-	struct mlx4_spec_list spec_eth_inner = { {NULL} };
-
-	struct mlx4_net_trans_rule rule = {
-		.queue_mode = MLX4_NET_TRANS_Q_FIFO,
-		.exclusive = 0,
-		.allow_loopback = 1,
-		.promisc_mode = MLX4_FS_REGULAR,
-		.priority = MLX4_DOMAIN_NIC,
-	};
-
-	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
 		return 0; /* do nothing */
 
-	rule.port = priv->port;
-	rule.qpn = qpn;
-	INIT_LIST_HEAD(&rule.list);
-
-	spec_eth_outer.id = MLX4_NET_TRANS_RULE_ID_ETH;
-	memcpy(spec_eth_outer.eth.dst_mac, addr, ETH_ALEN);
-	memcpy(spec_eth_outer.eth.dst_mac_msk, &mac_mask, ETH_ALEN);
-
-	spec_vxlan.id = MLX4_NET_TRANS_RULE_ID_VXLAN;    /* any vxlan header */
-	spec_eth_inner.id = MLX4_NET_TRANS_RULE_ID_ETH;	 /* any inner eth header */
-
-	list_add_tail(&spec_eth_outer.list, &rule.list);
-	list_add_tail(&spec_vxlan.list,     &rule.list);
-	list_add_tail(&spec_eth_inner.list, &rule.list);
-
-	err = mlx4_flow_attach(priv->mdev->dev, &rule, reg_id);
+	err = mlx4_tunnel_steer_add(priv->mdev->dev, addr, priv->port, qpn,
+				    MLX4_DOMAIN_NIC, reg_id);
 	if (err) {
 		en_err(priv, "failed to add vxlan steering rule, err %d\n", err);
 		return err;
