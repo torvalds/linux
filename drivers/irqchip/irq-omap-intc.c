@@ -51,6 +51,8 @@
 #define INTCPS_NR_ILR_REGS	128
 #define INTCPS_NR_MIR_REGS	3
 
+#define INTC_PROTECTION_ENABLE	(1 << 0)
+
 /*
  * OMAP2 has a number of different interrupt controllers, each interrupt
  * controller is identified as its own "bank". Register definitions are
@@ -290,12 +292,28 @@ static int __init omap_init_irq_legacy(u32 base)
 	return 0;
 }
 
+static void __init omap_irq_enable_protection(void)
+{
+	u32 reg;
+
+	reg = intc_readl(INTC_PROTECTION);
+	reg |= INTC_PROTECTION_ENABLE;
+	intc_writel(INTC_PROTECTION, reg);
+}
+
 static int __init omap_init_irq(u32 base, struct device_node *node)
 {
+	int ret;
+
 	if (node)
-		return omap_init_irq_of(node);
+		ret = omap_init_irq_of(node);
 	else
-		return omap_init_irq_legacy(base);
+		ret = omap_init_irq_legacy(base);
+
+	if (ret == 0)
+		omap_irq_enable_protection();
+
+	return ret;
 }
 
 static asmlinkage void __exception_irq_entry
