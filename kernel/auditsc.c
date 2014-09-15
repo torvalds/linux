@@ -126,14 +126,6 @@ struct audit_tree_refs {
 	struct audit_chunk *c[31];
 };
 
-static inline int open_arg(int flags, int mask)
-{
-	int n = ACC_MODE(flags);
-	if (flags & (O_TRUNC | O_CREAT))
-		n |= AUDIT_PERM_WRITE;
-	return n & mask;
-}
-
 static int audit_match_perm(struct audit_context *ctx, int mask)
 {
 	unsigned n;
