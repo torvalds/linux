@@ -215,12 +215,12 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	 * The kernel wants space to store pointers to
 	 * tty_struct's and termios's.
 	 */
-	brd->SerialDriver.ttys = kzalloc(brd->maxports * sizeof(*brd->SerialDriver.ttys), GFP_KERNEL);
+	brd->SerialDriver.ttys = kcalloc(brd->maxports, sizeof(*brd->SerialDriver.ttys), GFP_KERNEL);
 	if (!brd->SerialDriver.ttys)
 		return -ENOMEM;
 
 	kref_init(&brd->SerialDriver.kref);
-	brd->SerialDriver.termios = kzalloc(brd->maxports * sizeof(*brd->SerialDriver.termios), GFP_KERNEL);
+	brd->SerialDriver.termios = kcalloc(brd->maxports, sizeof(*brd->SerialDriver.termios), GFP_KERNEL);
 	if (!brd->SerialDriver.termios)
 		return -ENOMEM;
 
@@ -264,11 +264,11 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	 * tty_struct's and termios's.  Must be separated from
 	 * the Serial Driver so we don't get confused
 	 */
-	brd->PrintDriver.ttys = kzalloc(brd->maxports * sizeof(*brd->PrintDriver.ttys), GFP_KERNEL);
+	brd->PrintDriver.ttys = kcalloc(brd->maxports, sizeof(*brd->PrintDriver.ttys), GFP_KERNEL);
 	if (!brd->PrintDriver.ttys)
 		return -ENOMEM;
 	kref_init(&brd->PrintDriver.kref);
-	brd->PrintDriver.termios = kzalloc(brd->maxports * sizeof(*brd->PrintDriver.termios), GFP_KERNEL);
+	brd->PrintDriver.termios = kcalloc(brd->maxports, sizeof(*brd->PrintDriver.termios), GFP_KERNEL);
 	if (!brd->PrintDriver.termios)
 		return -ENOMEM;
 
