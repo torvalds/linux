@@ -362,7 +362,6 @@ void __init ti81xx_init_irq(void)
 static int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent)
 {
-	struct resource res;
 	int ret;
 
 	omap_nr_pending = 3;
@@ -370,11 +369,6 @@ static int __init intc_of_init(struct device_node *node,
 
 	if (WARN_ON(!node))
 		return -ENODEV;
-
-	if (of_address_to_resource(node, 0, &res)) {
-		WARN(1, "unable to get intc registers\n");
-		return -EINVAL;
-	}
 
 	if (of_device_is_compatible(node, "ti,am33xx-intc")) {
 		omap_nr_irqs = 128;
