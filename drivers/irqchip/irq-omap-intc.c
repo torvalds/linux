@@ -49,7 +49,7 @@
 
 #define ACTIVEIRQ_MASK		0x7f	/* omap2/3 active interrupt bits */
 #define INTCPS_NR_ILR_REGS	128
-#define INTCPS_NR_MIR_REGS	3
+#define INTCPS_NR_MIR_REGS	4
 
 #define INTC_IDLE_FUNCIDLE	(1 << 0)
 #define INTC_IDLE_TURBO		(1 << 1)
