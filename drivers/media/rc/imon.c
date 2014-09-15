@@ -2283,6 +2283,7 @@ idev_setup_failed:
 	usb_kill_urb(ictx->rx_urb_intf0);
 urb_submit_failed:
 find_endpoint_failed:
+	usb_put_dev(ictx->usbdev_intf0);
 	mutex_unlock(&ictx->lock);
 	usb_free_urb(tx_urb);
 tx_urb_alloc_failed:
@@ -2355,6 +2356,7 @@ urb_submit_failed:
 		input_unregister_device(ictx->touch);
 touch_setup_failed:
 find_endpoint_failed:
+	usb_put_dev(ictx->usbdev_intf1);
 	mutex_unlock(&ictx->lock);
 	usb_free_urb(rx_urb);
 rx_urb_alloc_failed:
@@ -2468,11 +2470,13 @@ static int imon_probe(struct usb_interface *interface,
 		 usbdev->bus->busnum, usbdev->devnum);
 
 	mutex_unlock(&driver_lock);
+	usb_put_dev(usbdev);
 
 	return 0;
 
 fail:
 	mutex_unlock(&driver_lock);
+	usb_put_dev(usbdev);
 	dev_err(dev, "unable to register, err %d\n", ret);
 
 	return ret;
@@ -2512,6 +2516,7 @@ static void imon_disconnect(struct usb_interface *interface)
 	if (ifnum == 0) {
 		ictx->dev_present_intf0 = false;
 		usb_kill_urb(ictx->rx_urb_intf0);
+		usb_put_dev(ictx->usbdev_intf0);
 		input_unregister_device(ictx->idev);
 		rc_unregister_device(ictx->rdev);
 		if (ictx->display_supported) {
@@ -2523,6 +2528,7 @@ static void imon_disconnect(struct usb_interface *interface)
 	} else {
 		ictx->dev_present_intf1 = false;
 		usb_kill_urb(ictx->rx_urb_intf1);
+		usb_put_dev(ictx->usbdev_intf1);
 		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
 			input_unregister_device(ictx->touch);
 			del_timer_sync(&ictx->ttimer);
