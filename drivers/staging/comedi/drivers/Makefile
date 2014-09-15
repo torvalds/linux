@@ -142,4 +142,3 @@ obj-$(CONFIG_COMEDI_8255)		+= 8255.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200)	+= amplc_dio200_common.o
 obj-$(CONFIG_COMEDI_AMPLC_PC236)	+= amplc_pc236_common.o
 obj-$(CONFIG_COMEDI_DAS08)		+= das08.o
-obj-$(CONFIG_COMEDI_FC)			+= comedi_fc.o
