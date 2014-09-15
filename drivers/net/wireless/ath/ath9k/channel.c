@@ -260,6 +260,9 @@ static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 	cur = sc->cur_chan;
 	prev = ath_chanctx_get_next(sc, cur);
 
+	if (!prev->switch_after_beacon)
+		return;
+
 	getrawmonotonic(&ts);
 	cur_tsf = (u32) cur->tsf_val +
 		  ath9k_hw_get_tsf_offset(&cur->tsf_ts, &ts);
