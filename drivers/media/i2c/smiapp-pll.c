@@ -131,6 +131,14 @@ static int check_all_bounds(struct device *dev,
 			op_limits->min_pix_clk_freq_hz,
 			op_limits->max_pix_clk_freq_hz,
 			"op_pix_clk_freq_hz");
+
+	/*
+	 * If there are no OP clocks, the VT clocks are contained in
+	 * the OP clock struct.
+	 */
+	if (pll->flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS)
+		return rval;
+
 	if (!rval)
 		rval = bounds_check(
 			dev, pll->vt.sys_clk_freq_hz,
