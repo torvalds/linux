@@ -892,18 +892,6 @@ enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 	return intel_crtc->config.cpu_transcoder;
 }
 
-static void g4x_wait_for_vblank(struct drm_device *dev, int pipe)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 frame, frame_reg = PIPE_FRMCOUNT_GM45(pipe);
-
-	frame = I915_READ(frame_reg);
-
-	if (wait_for(I915_READ_NOTRACE(frame_reg) != frame, 50))
-		WARN(1, "vblank wait on pipe %c timed out\n",
-		     pipe_name(pipe));
-}
-
 /**
  * intel_wait_for_vblank - wait for vblank on a given pipe
  * @dev: drm device
@@ -914,36 +902,7 @@ static void g4x_wait_for_vblank(struct drm_device *dev, int pipe)
  */
 void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipestat_reg = PIPESTAT(pipe);
-
-	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
-		g4x_wait_for_vblank(dev, pipe);
-		return;
-	}
-
-	/* Clear existing vblank status. Note this will clear any other
-	 * sticky status fields as well.
-	 *
-	 * This races with i915_driver_irq_handler() with the result
-	 * that either function could miss a vblank event.  Here it is not
-	 * fatal, as we will either wait upon the next vblank interrupt or
-	 * timeout.  Generally speaking intel_wait_for_vblank() is only
-	 * called during modeset at which time the GPU should be idle and
-	 * should *not* be performing page flips and thus not waiting on
-	 * vblanks...
-	 * Currently, the result of us stealing a vblank from the irq
-	 * handler is that a single frame will be skipped during swapbuffers.
-	 */
-	I915_WRITE(pipestat_reg,
-		   I915_READ(pipestat_reg) | PIPE_VBLANK_INTERRUPT_STATUS);
-
-	/* Wait for vblank interrupt bit to set */
-	if (wait_for(I915_READ(pipestat_reg) &
-		     PIPE_VBLANK_INTERRUPT_STATUS,
-		     50))
-		DRM_DEBUG_KMS("vblank wait on pipe %c timed out\n",
-			      pipe_name(pipe));
+	drm_wait_one_vblank(dev, pipe);
 }
 
 static bool pipe_dsl_stopped(struct drm_device *dev, enum pipe pipe)
