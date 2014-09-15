@@ -334,38 +334,6 @@ out:
 	return RX_HANDLER_ANOTHER;
 }
 
-static struct slave *rlb_next_rx_slave(struct bonding *bond)
-{
-	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
-	struct slave *before = NULL, *rx_slave = NULL, *slave;
-	struct list_head *iter;
-	bool found = false;
-
-	bond_for_each_slave(bond, slave, iter) {
-		if (!bond_slave_can_tx(slave))
-			continue;
-		if (!found) {
-			if (!before || before->speed < slave->speed)
-				before = slave;
-		} else {
-			if (!rx_slave || rx_slave->speed < slave->speed)
-				rx_slave = slave;
-		}
-		if (slave == bond_info->rx_slave)
-			found = true;
-	}
-	/* we didn't find anything after the current or we have something
-	 * better before and up to the current slave
-	 */
-	if (!rx_slave || (before && rx_slave->speed < before->speed))
-		rx_slave = before;
-
-	if (rx_slave)
-		bond_info->rx_slave = rx_slave;
-
-	return rx_slave;
-}
-
 /* Caller must hold rcu_read_lock() */
 static struct slave *__rlb_next_rx_slave(struct bonding *bond)
 {
@@ -395,6 +363,20 @@ static struct slave *__rlb_next_rx_slave(struct bonding *bond)
 
 	if (rx_slave)
 		bond_info->rx_slave = rx_slave;
+
+	return rx_slave;
+}
+
+/* Caller must hold RTNL, rcu_read_lock is obtained only to silence checkers */
+static struct slave *rlb_next_rx_slave(struct bonding *bond)
+{
+	struct slave *rx_slave;
+
+	ASSERT_RTNL();
+
+	rcu_read_lock();
+	rx_slave = __rlb_next_rx_slave(bond);
+	rcu_read_unlock();
 
 	return rx_slave;
 }
