@@ -78,7 +78,7 @@ int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg)
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = __mv88e6xxx_reg_read(ds->master_mii_bus,
+	ret = __mv88e6xxx_reg_read(to_mii_bus(ds->master_dev),
 				   ds->pd->sw_addr, addr, reg);
 	mutex_unlock(&ps->smi_mutex);
 
@@ -122,7 +122,7 @@ int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = __mv88e6xxx_reg_write(ds->master_mii_bus,
+	ret = __mv88e6xxx_reg_write(to_mii_bus(ds->master_dev),
 				    ds->pd->sw_addr, addr, reg, val);
 	mutex_unlock(&ps->smi_mutex);
 

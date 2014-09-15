@@ -43,7 +43,7 @@ void unregister_switch_driver(struct dsa_switch_driver *drv)
 EXPORT_SYMBOL_GPL(unregister_switch_driver);
 
 static struct dsa_switch_driver *
-dsa_switch_probe(struct mii_bus *bus, int sw_addr, char **_name)
+dsa_switch_probe(struct device *host_dev, int sw_addr, char **_name)
 {
 	struct dsa_switch_driver *ret;
 	struct list_head *list;
@@ -58,7 +58,7 @@ dsa_switch_probe(struct mii_bus *bus, int sw_addr, char **_name)
 
 		drv = list_entry(list, struct dsa_switch_driver, list);
 
-		name = drv->probe(bus, sw_addr);
+		name = drv->probe(host_dev, sw_addr);
 		if (name != NULL) {
 			ret = drv;
 			break;
@@ -75,7 +75,7 @@ dsa_switch_probe(struct mii_bus *bus, int sw_addr, char **_name)
 /* basic switch operations **************************************************/
 static struct dsa_switch *
 dsa_switch_setup(struct dsa_switch_tree *dst, int index,
-		 struct device *parent, struct mii_bus *bus)
+		 struct device *parent, struct device *host_dev)
 {
 	struct dsa_chip_data *pd = dst->pd->chip + index;
 	struct dsa_switch_driver *drv;
@@ -88,7 +88,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	/*
 	 * Probe for switch model.
 	 */
-	drv = dsa_switch_probe(bus, pd->sw_addr, &name);
+	drv = dsa_switch_probe(host_dev, pd->sw_addr, &name);
 	if (drv == NULL) {
 		printk(KERN_ERR "%s[%d]: could not detect attached switch\n",
 		       dst->master_netdev->name, index);
@@ -109,8 +109,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->index = index;
 	ds->pd = dst->pd->chip + index;
 	ds->drv = drv;
-	ds->master_mii_bus = bus;
-
+	ds->master_dev = host_dev;
 
 	/*
 	 * Validate supplied switch configuration.
@@ -285,7 +284,7 @@ static struct device *dev_find_class(struct device *parent, char *class)
 	return device_find_child(parent, class, dev_is_class);
 }
 
-static struct mii_bus *dev_to_mii_bus(struct device *dev)
+struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev)
 {
 	struct device *d;
 
@@ -301,6 +300,7 @@ static struct mii_bus *dev_to_mii_bus(struct device *dev)
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(dsa_host_dev_to_mii_bus);
 
 static struct net_device *dev_to_net_device(struct device *dev)
 {
@@ -566,17 +566,9 @@ static int dsa_probe(struct platform_device *pdev)
 	dst->cpu_port = -1;
 
 	for (i = 0; i < pd->nr_chips; i++) {
-		struct mii_bus *bus;
 		struct dsa_switch *ds;
 
-		bus = dev_to_mii_bus(pd->chip[i].mii_bus);
-		if (bus == NULL) {
-			printk(KERN_ERR "%s[%d]: no mii bus found for "
-				"dsa switch\n", dev->name, i);
-			continue;
-		}
-
-		ds = dsa_switch_setup(dst, i, &pdev->dev, bus);
+		ds = dsa_switch_setup(dst, i, &pdev->dev, pd->chip[i].host_dev);
 		if (IS_ERR(ds)) {
 			printk(KERN_ERR "%s[%d]: couldn't create dsa switch "
 				"instance (error %ld)\n", dev->name, i,

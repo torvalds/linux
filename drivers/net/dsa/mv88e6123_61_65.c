@@ -17,9 +17,13 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-static char *mv88e6123_61_65_probe(struct mii_bus *bus, int sw_addr)
+static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 {
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	int ret;
+
+	if (bus == NULL)
+		return NULL;
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {

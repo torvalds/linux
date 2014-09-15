@@ -34,7 +34,7 @@ struct dsa_chip_data {
 	/*
 	 * How to access the switch configuration registers.
 	 */
-	struct device	*mii_bus;
+	struct device	*host_dev;
 	int		sw_addr;
 
 	/* Device tree node pointer for this specific switch chip
@@ -134,9 +134,9 @@ struct dsa_switch {
 	struct dsa_switch_driver	*drv;
 
 	/*
-	 * Reference to mii bus to use.
+	 * Reference to host device to use.
 	 */
-	struct mii_bus		*master_mii_bus;
+	struct device		*master_dev;
 
 	/*
 	 * Slave mii_bus and devices for the individual ports.
@@ -178,7 +178,7 @@ struct dsa_switch_driver {
 	/*
 	 * Probing and setup.
 	 */
-	char	*(*probe)(struct mii_bus *bus, int sw_addr);
+	char	*(*probe)(struct device *host_dev, int sw_addr);
 	int	(*setup)(struct dsa_switch *ds);
 	int	(*set_addr)(struct dsa_switch *ds, u8 *addr);
 
@@ -213,6 +213,7 @@ struct dsa_switch_driver {
 
 void register_switch_driver(struct dsa_switch_driver *type);
 void unregister_switch_driver(struct dsa_switch_driver *type);
+struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
 
 static inline void *ds_to_priv(struct dsa_switch *ds)
 {
