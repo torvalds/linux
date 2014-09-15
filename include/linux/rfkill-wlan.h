@@ -27,6 +27,7 @@ struct rksdmmc_pmu {
 struct rksdmmc_gpio_wifi_moudle {
     int sdio_vol;    //sdio reference voltage
     bool vref_ctrl_enble;
+    bool wifi_power_remain;
     struct rksdmmc_pmu    mregulator;
     struct rksdmmc_pmu    ioregulator;
     struct rksdmmc_gpio   power_n;  //PMU_EN  

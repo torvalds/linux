@@ -21,6 +21,8 @@
 
         sdio_vref = <1800>; //1800mv or 3300mv
 
+        //keep_wifi_power_on;
+
         //power_ctrl_by_pmu;
         power_pmu_regulator = "act_ldo3";
         power_pmu_enable_level = <1>; //1->HIGH, 0->LOW

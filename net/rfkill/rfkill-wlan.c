@@ -56,6 +56,7 @@ struct rfkill_wlan_data {
 };
 
 static struct rfkill_wlan_data *g_rfkill = NULL;
+static int power_set_time = 0;
 
 static const char wlan_name[] = 
 #if defined (CONFIG_BCM4330)
@@ -95,14 +96,14 @@ static char wifi_chip_type_string[64];
 int get_wifi_chip_type(void)
 {
     int type;
-    if (strcmp(wifi_chip_type_string, "rkwifi") == 0) {
+    if (strcmp(wifi_chip_type_string, "bcmwifi") == 0) {
         type = WIFI_BCMWIFI;
     } else if (strcmp(wifi_chip_type_string, "rtkwifi") == 0) {
         type = WIFI_RTKWIFI;
     } else if (strcmp(wifi_chip_type_string, "esp8089") == 0) {
         type = WIFI_ESP8089;
     } else {
-        type = WIFI_BCMWIFI;
+        type = TYPE_MAX;
     }
     return type;
 }
@@ -348,6 +349,11 @@ int rockchip_wifi_power(int on)
         LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
         return -1;
     }
+
+    if (mrfkill->pdata->wifi_power_remain && power_set_time) {
+        LOG("%s: wifi power is setted to be remain on. skip anything to the power control", __func__);
+        return 0;
+    } else power_set_time++;
 
     if (!rfkill_get_bt_power_state(&power, &toggle)) {
         if (toggle == true && power == 1) {
@@ -650,6 +656,14 @@ static int wlan_platdata_parse_dt(struct device *dev,
 		data->sdio_vol = value;
 	}
 
+    if (of_find_property(node, "keep_wifi_power_on", NULL)) {
+        data->wifi_power_remain = true;
+        LOG("%s: wifi power will enabled while kernel starting and keep on.\n", __func__);
+    } else {
+        data->wifi_power_remain = false;
+        LOG("%s: enable wifi power control.\n", __func__);
+    }
+       
     if (of_find_property(node, "vref_ctrl_enable", NULL)) {
         LOG("%s: enable wifi io reference voltage control.\n", __func__);
         data->vref_ctrl_enble = true;
@@ -807,6 +821,11 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
     if (gpio_is_valid(pdata->power_n.io))
     {
         gpio_direction_output(pdata->power_n.io, !pdata->power_n.enable);
+    }
+
+    if (pdata->wifi_power_remain)
+    {
+        rockchip_wifi_power(1);
     }
 
     rockchip_wifi_voltage_select();
