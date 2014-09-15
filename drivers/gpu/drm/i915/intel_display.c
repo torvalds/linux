@@ -2233,6 +2233,15 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	if (need_vtd_wa(dev) && alignment < 256 * 1024)
 		alignment = 256 * 1024;
 
+	/*
+	 * Global gtt pte registers are special registers which actually forward
+	 * writes to a chunk of system memory. Which means that there is no risk
+	 * that the register values disappear as soon as we call
+	 * intel_runtime_pm_put(), so it is correct to wrap only the
+	 * pin/unpin/fence and not more.
+	 */
+	intel_runtime_pm_get(dev_priv);
+
 	dev_priv->mm.interruptible = false;
 	ret = i915_gem_object_pin_to_display_plane(obj, alignment, pipelined);
 	if (ret)
@@ -2250,12 +2259,14 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	i915_gem_object_pin_fence(obj);
 
 	dev_priv->mm.interruptible = true;
+	intel_runtime_pm_put(dev_priv);
 	return 0;
 
 err_unpin:
 	i915_gem_object_unpin_from_display_plane(obj);
 err_interruptible:
 	dev_priv->mm.interruptible = true;
+	intel_runtime_pm_put(dev_priv);
 	return ret;
 }
 
@@ -4188,10 +4199,6 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
 
 	intel_disable_pipe(dev_priv, pipe);
-
-	if (intel_crtc->config.dp_encoder_is_mst)
-		intel_ddi_set_vc_payload_alloc(crtc, false);
-
 	ironlake_pfit_disable(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
@@ -4255,6 +4262,9 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	if (intel_crtc->config.has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, false);
 	intel_disable_pipe(dev_priv, pipe);
+
+	if (intel_crtc->config.dp_encoder_is_mst)
+		intel_ddi_set_vc_payload_alloc(crtc, false);
 
 	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
@@ -8240,6 +8250,15 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 			goto fail_locked;
 		}
 
+		/*
+		 * Global gtt pte registers are special registers which actually
+		 * forward writes to a chunk of system memory. Which means that
+		 * there is no risk that the register values disappear as soon
+		 * as we call intel_runtime_pm_put(), so it is correct to wrap
+		 * only the pin/unpin/fence and not more.
+		 */
+		intel_runtime_pm_get(dev_priv);
+
 		/* Note that the w/a also requires 2 PTE of padding following
 		 * the bo. We currently fill all unused PTE with the shadow
 		 * page and so we should always have valid PTE following the
@@ -8252,16 +8271,20 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 		ret = i915_gem_object_pin_to_display_plane(obj, alignment, NULL);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to move cursor bo into the GTT\n");
+			intel_runtime_pm_put(dev_priv);
 			goto fail_locked;
 		}
 
 		ret = i915_gem_object_put_fence(obj);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to release fence for cursor");
+			intel_runtime_pm_put(dev_priv);
 			goto fail_unpin;
 		}
 
 		addr = i915_gem_obj_ggtt_offset(obj);
+
+		intel_runtime_pm_put(dev_priv);
 	} else {
 		int align = IS_I830(dev) ? 16 * 1024 : 256;
 		ret = i915_gem_object_attach_phys(obj, align);
@@ -12480,6 +12503,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Acer C720 and C720P Chromebooks (Celeron 2955U) have backlights */
 	{ 0x0a06, 0x1025, 0x0a11, quirk_backlight_present },
+
+	/* Acer C720 Chromebook (Core i3 4005U) */
+	{ 0x0a16, 0x1025, 0x0a11, quirk_backlight_present },
 
 	/* Toshiba CB35 Chromebook (Celeron 2955U) */
 	{ 0x0a06, 0x1179, 0x0a88, quirk_backlight_present },

@@ -389,7 +389,7 @@ smb2_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct smb2_file_all_info *smb2_data;
 
-	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + MAX_NAME * 2,
+	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
 			    GFP_KERNEL);
 	if (smb2_data == NULL)
 		return -ENOMEM;
@@ -1035,7 +1035,7 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 		if (keep_size == false)
 			return -EOPNOTSUPP;
 
-	/* 
+	/*
 	 * Must check if file sparse since fallocate -z (zero range) assumes
 	 * non-sparse allocation
 	 */

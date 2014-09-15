@@ -146,6 +146,9 @@ struct regcache_ops {
 	enum regcache_type type;
 	int (*init)(struct regmap *map);
 	int (*exit)(struct regmap *map);
+#ifdef CONFIG_DEBUG_FS
+	void (*debugfs_init)(struct regmap *map);
+#endif
 	int (*read)(struct regmap *map, unsigned int reg, unsigned int *value);
 	int (*write)(struct regmap *map, unsigned int reg, unsigned int value);
 	int (*sync)(struct regmap *map, unsigned int min, unsigned int max);

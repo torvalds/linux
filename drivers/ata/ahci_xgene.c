@@ -78,6 +78,9 @@
 #define CFG_MEM_RAM_SHUTDOWN		0x00000070
 #define BLOCK_MEM_RDY			0x00000074
 
+/* Max retry for link down */
+#define MAX_LINK_DOWN_RETRY 3
+
 struct xgene_ahci_context {
 	struct ahci_host_priv *hpriv;
 	struct device *dev;
@@ -143,6 +146,14 @@ static unsigned int xgene_ahci_qc_issue(struct ata_queued_cmd *qc)
 	ctx->last_cmd[ap->port_no] = qc->tf.command;
 
 	return rc;
+}
+
+static bool xgene_ahci_is_memram_inited(struct xgene_ahci_context *ctx)
+{
+	void __iomem *diagcsr = ctx->csr_diag;
+
+	return (readl(diagcsr + CFG_MEM_RAM_SHUTDOWN) == 0 &&
+	        readl(diagcsr + BLOCK_MEM_RDY) == 0xFFFFFFFF);
 }
 
 /**
@@ -229,8 +240,11 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
  * and Gen1 (1.5Gbps). Otherwise during long IO stress test, the PHY will
  * report disparity error and etc. In addition, during COMRESET, there can
  * be error reported in the register PORT_SCR_ERR. For SERR_DISPARITY and
- * SERR_10B_8B_ERR, the PHY receiver line must be reseted. The following
- * algorithm is followed to proper configure the hardware PHY during COMRESET:
+ * SERR_10B_8B_ERR, the PHY receiver line must be reseted. Also during long
+ * reboot cycle regression, sometimes the PHY reports link down even if the
+ * device is present because of speed negotiation failure. so need to retry
+ * the COMRESET to get the link up. The following algorithm is followed to
+ * proper configure the hardware PHY during COMRESET:
  *
  * Alg Part 1:
  * 1. Start the PHY at Gen3 speed (default setting)
@@ -246,9 +260,15 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
  * Alg Part 2:
  * 1. On link up, if there are any SERR_DISPARITY and SERR_10B_8B_ERR error
  *    reported in the register PORT_SCR_ERR, then reset the PHY receiver line
- * 2. Go to Alg Part 3
+ * 2. Go to Alg Part 4
  *
  * Alg Part 3:
+ * 1. Check the PORT_SCR_STAT to see whether device presence detected but PHY
+ *    communication establishment failed and maximum link down attempts are
+ *    less than Max attempts 3 then goto Alg Part 1.
+ * 2. Go to Alg Part 4.
+ *
+ * Alg Part 4:
  * 1. Clear any pending from register PORT_SCR_ERR.
  *
  * NOTE: For the initial version, we will NOT support Gen1/Gen2. In addition
@@ -267,19 +287,27 @@ static int xgene_ahci_do_hardreset(struct ata_link *link,
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ata_taskfile tf;
+	int link_down_retry = 0;
 	int rc;
-	u32 val;
+	u32 val, sstatus;
 
-	/* clear D2H reception area to properly wait for D2H FIS */
-	ata_tf_init(link->device, &tf);
-	tf.command = ATA_BUSY;
-	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
-	rc = sata_link_hardreset(link, timing, deadline, online,
+	do {
+		/* clear D2H reception area to properly wait for D2H FIS */
+		ata_tf_init(link->device, &tf);
+		tf.command = ATA_BUSY;
+		ata_tf_to_fis(&tf, 0, 0, d2h_fis);
+		rc = sata_link_hardreset(link, timing, deadline, online,
 				 ahci_check_ready);
+		if (*online) {
+			val = readl(port_mmio + PORT_SCR_ERR);
+			if (val & (SERR_DISPARITY | SERR_10B_8B_ERR))
+				dev_warn(ctx->dev, "link has error\n");
+			break;
+		}
 
-	val = readl(port_mmio + PORT_SCR_ERR);
-	if (val & (SERR_DISPARITY | SERR_10B_8B_ERR))
-		dev_warn(ctx->dev, "link has error\n");
+		sata_scr_read(link, SCR_STATUS, &sstatus);
+	} while (link_down_retry++ < MAX_LINK_DOWN_RETRY &&
+		 (sstatus & 0xff) == 0x1);
 
 	/* clear all errors if any pending */
 	val = readl(port_mmio + PORT_SCR_ERR);
@@ -467,6 +495,11 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (xgene_ahci_is_memram_inited(ctx)) {
+		dev_info(dev, "skip clock and PHY initialization\n");
+		goto skip_clk_phy;
+	}
+
 	/* Due to errata, HW requires full toggle transition */
 	rc = ahci_platform_enable_clks(hpriv);
 	if (rc)
@@ -479,7 +512,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 
 	/* Configure the host controller */
 	xgene_ahci_hw_init(hpriv);
-
+skip_clk_phy:
 	hpriv->flags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_NO_NCQ;
 
 	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info);

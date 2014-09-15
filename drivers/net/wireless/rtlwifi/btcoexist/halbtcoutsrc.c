@@ -101,7 +101,7 @@ static bool halbtc_legacy(struct rtl_priv *adapter)
 
 	bool is_legacy = false;
 
-	if ((mac->mode == WIRELESS_MODE_B) || (mac->mode == WIRELESS_MODE_B))
+	if ((mac->mode == WIRELESS_MODE_B) || (mac->mode == WIRELESS_MODE_G))
 		is_legacy = true;
 
 	return is_legacy;

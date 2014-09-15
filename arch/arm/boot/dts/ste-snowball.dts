@@ -116,7 +116,6 @@
 		msp2: msp@80117000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&msp2_default_mode>;
-			status = "okay";
 		};
 
 		msp3: msp@80125000 {

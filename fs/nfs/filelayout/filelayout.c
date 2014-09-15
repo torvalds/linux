@@ -1269,11 +1269,12 @@ filelayout_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page)
 static void filelayout_retry_commit(struct nfs_commit_info *cinfo, int idx)
 {
 	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
-	struct pnfs_commit_bucket *bucket = fl_cinfo->buckets;
+	struct pnfs_commit_bucket *bucket;
 	struct pnfs_layout_segment *freeme;
 	int i;
 
-	for (i = idx; i < fl_cinfo->nbuckets; i++, bucket++) {
+	for (i = idx; i < fl_cinfo->nbuckets; i++) {
+		bucket = &fl_cinfo->buckets[i];
 		if (list_empty(&bucket->committing))
 			continue;
 		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
