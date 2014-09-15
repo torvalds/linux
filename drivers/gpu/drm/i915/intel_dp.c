@@ -3800,21 +3800,21 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	u8 buf[1];
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, buf) < 0)
-		return -EAGAIN;
+		return -EIO;
 
 	if (!(buf[0] & DP_TEST_CRC_SUPPORTED))
 		return -ENOTTY;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
 			       DP_TEST_SINK_START) < 0)
-		return -EAGAIN;
+		return -EIO;
 
 	/* Wait 2 vblanks to be sure we will have the correct CRC value */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
-		return -EAGAIN;
+		return -EIO;
 
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK, 0);
 	return 0;
