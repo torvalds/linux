@@ -109,8 +109,20 @@ EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
 static void usb_gadget_state_work(struct work_struct *work)
 {
 	struct usb_gadget	*gadget = work_to_gadget(work);
+	struct usb_udc		*udc = NULL;
 
-	sysfs_notify(&gadget->dev.kobj, NULL, "state");
+	mutex_lock(&udc_lock);
+	list_for_each_entry(udc, &udc_list, list)
+		if (udc->gadget == gadget)
+			goto found;
+	mutex_unlock(&udc_lock);
+
+	return;
+
+found:
+	mutex_unlock(&udc_lock);
+
+	sysfs_notify(&udc->dev.kobj, NULL, "state");
 }
 
 void usb_gadget_set_state(struct usb_gadget *gadget,
