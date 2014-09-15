@@ -1,6 +1,43 @@
 Atmel AT91 device tree bindings.
 ================================
 
+Boards with a SoC of the Atmel AT91 or SMART family shall have the following
+properties:
+
+Required root node properties:
+compatible: must be one of:
+ * "atmel,at91rm9200"
+
+ * "atmel,at91sam9" for SoCs using an ARM926EJ-S core, shall be extended with
+   the specific SoC family or compatible:
+    o "atmel,at91sam9260"
+    o "atmel,at91sam9261"
+    o "atmel,at91sam9263"
+    o "atmel,at91sam9x5" for the 5 series, shall be extended with the specific
+      SoC compatible:
+       - "atmel,at91sam9g15"
+       - "atmel,at91sam9g25"
+       - "atmel,at91sam9g35"
+       - "atmel,at91sam9x25"
+       - "atmel,at91sam9x35"
+    o "atmel,at91sam9g20"
+    o "atmel,at91sam9g45"
+    o "atmel,at91sam9n12"
+    o "atmel,at91sam9rl"
+ * "atmel,sama5" for SoCs using a Cortex-A5, shall be extended with the specific
+   SoC family:
+    o "atmel,sama5d3" shall be extended with the specific SoC compatible:
+       - "atmel,sama5d31"
+       - "atmel,sama5d33"
+       - "atmel,sama5d34"
+       - "atmel,sama5d35"
+       - "atmel,sama5d36"
+    o "atmel,sama5d4" shall be extended with the specific SoC compatible:
+       - "atmel,sama5d41"
+       - "atmel,sama5d42"
+       - "atmel,sama5d43"
+       - "atmel,sama5d44"
+
 PIT Timer required properties:
 - compatible: Should be "atmel,at91sam9260-pit"
 - reg: Should contain registers location and length
