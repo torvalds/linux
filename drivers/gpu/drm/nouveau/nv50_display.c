@@ -1750,8 +1750,6 @@ nv50_hdmi_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 			       (0x0100 << nv_crtc->index),
 	};
 
-	nv50_audio_disconnect(encoder);
-
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
@@ -1860,6 +1858,7 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 	if (nv_crtc) {
 		nv50_crtc_prepare(&nv_crtc->base);
 		nv50_sor_ctrl(nv_encoder, 1 << nv_crtc->index, 0);
+		nv50_audio_disconnect(encoder);
 		nv50_hdmi_disconnect(&nv_encoder->base.base, nv_crtc);
 	}
 }
@@ -1959,6 +1958,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 			proto = 0x8;
 		else
 			proto = 0x9;
+		nv50_audio_mode_set(encoder, mode);
 		break;
 	default:
 		BUG_ON(1);
