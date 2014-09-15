@@ -53,8 +53,12 @@ static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice *s,
 	return comedi_write_array_to_buffer(s, &data, sizeof(data));
 };
 
-unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *,
-					void *data, unsigned int num_bytes);
+static inline unsigned int
+cfc_read_array_from_buffer(struct comedi_subdevice *s, void *data,
+			   unsigned int num_bytes)
+{
+	return comedi_read_array_from_buffer(s, data, num_bytes);
+}
 
 static inline unsigned int cfc_handle_events(struct comedi_device *dev,
 					     struct comedi_subdevice *s)

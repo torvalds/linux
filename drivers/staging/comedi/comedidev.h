@@ -429,6 +429,8 @@ void comedi_buf_memcpy_from(struct comedi_subdevice *s, unsigned int offset,
 unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
 					  const void *data,
 					  unsigned int num_bytes);
+unsigned int comedi_read_array_from_buffer(struct comedi_subdevice *s,
+					   void *data, unsigned int num_bytes);
 
 /* drivers.c - general comedi driver functions */
 

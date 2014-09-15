@@ -22,22 +22,6 @@
 
 #include "comedi_fc.h"
 
-unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *s,
-					void *data, unsigned int num_bytes)
-{
-	if (num_bytes == 0)
-		return 0;
-
-	num_bytes = comedi_buf_read_alloc(s, num_bytes);
-	comedi_buf_memcpy_from(s, 0, data, num_bytes);
-	comedi_buf_read_free(s, num_bytes);
-	comedi_inc_scan_progress(s, num_bytes);
-	s->async->events |= COMEDI_CB_BLOCK;
-
-	return num_bytes;
-}
-EXPORT_SYMBOL_GPL(cfc_read_array_from_buffer);
-
 static int __init comedi_fc_init_module(void)
 {
 	return 0;
