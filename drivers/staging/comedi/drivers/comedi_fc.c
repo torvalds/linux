@@ -22,32 +22,6 @@
 
 #include "comedi_fc.h"
 
-/* Writes an array of data points to comedi's buffer */
-unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
-				       const void *data, unsigned int num_bytes)
-{
-	struct comedi_async *async = s->async;
-	unsigned int retval;
-
-	if (num_bytes == 0)
-		return 0;
-
-	retval = comedi_buf_write_alloc(s, num_bytes);
-	if (retval != num_bytes) {
-		dev_warn(s->device->class_dev, "buffer overrun\n");
-		async->events |= COMEDI_CB_OVERFLOW;
-		return 0;
-	}
-
-	comedi_buf_memcpy_to(s, 0, data, num_bytes);
-	comedi_buf_write_free(s, num_bytes);
-	comedi_inc_scan_progress(s, num_bytes);
-	async->events |= COMEDI_CB_BLOCK;
-
-	return num_bytes;
-}
-EXPORT_SYMBOL_GPL(cfc_write_array_to_buffer);
-
 unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *s,
 					void *data, unsigned int num_bytes)
 {
