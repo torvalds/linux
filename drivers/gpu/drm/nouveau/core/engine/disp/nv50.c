@@ -1630,7 +1630,7 @@ nv50_disp_intr_unk20_1(struct nv50_disp_priv *priv, int head)
 }
 
 static void
-nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
+nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv, int head,
 			  struct dcb_output *outp, u32 pclk)
 {
 	const int link = !(outp->sorconf.link & 1);
@@ -1639,24 +1639,36 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
 	const u32 loff = (link * 0x080) + soff;
 	const u32 ctrl = nv_rd32(priv, 0x610794 + (or * 8));
 	const u32 symbol = 100000;
-	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff) & 0x0000f0000;
+	const s32 vactive = nv_rd32(priv, 0x610af8 + (head * 0x540)) & 0xffff;
+	const s32 vblanke = nv_rd32(priv, 0x610ae8 + (head * 0x540)) & 0xffff;
+	const s32 vblanks = nv_rd32(priv, 0x610af0 + (head * 0x540)) & 0xffff;
+	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff);
 	u32 clksor = nv_rd32(priv, 0x614300 + soff);
 	int bestTU = 0, bestVTUi = 0, bestVTUf = 0, bestVTUa = 0;
 	int TU, VTUi, VTUf, VTUa;
 	u64 link_data_rate, link_ratio, unk;
 	u32 best_diff = 64 * symbol;
 	u32 link_nr, link_bw, bits;
+	u64 value;
 
-	/* calculate packed data rate for each lane */
-	if      (dpctrl > 0x00030000) link_nr = 4;
-	else if (dpctrl > 0x00010000) link_nr = 2;
-	else			      link_nr = 1;
+	link_bw = (clksor & 0x000c0000) ? 270000 : 162000;
+	link_nr = hweight32(dpctrl & 0x000f0000);
 
-	if (clksor & 0x000c0000)
-		link_bw = 270000;
-	else
-		link_bw = 162000;
+	/* symbols/hblank - algorithm taken from comments in tegra driver */
+	value = vblanke + vactive - vblanks - 7;
+	value = value * link_bw;
+	do_div(value, pclk);
+	value = value - (3 * !!(dpctrl & 0x00004000)) - (12 / link_nr);
+	nv_mask(priv, 0x61c1e8 + soff, 0x0000ffff, value);
 
+	/* symbols/vblank - algorithm taken from comments in tegra driver */
+	value = vblanks - vblanke - 25;
+	value = value * link_bw;
+	do_div(value, pclk);
+	value = value - ((36 / link_nr) + 3) - 1;
+	nv_mask(priv, 0x61c1ec + soff, 0x00ffffff, value);
+
+	/* watermark / activesym */
 	if      ((ctrl & 0xf0000) == 0x60000) bits = 30;
 	else if ((ctrl & 0xf0000) == 0x50000) bits = 24;
 	else                                  bits = 18;
@@ -1802,7 +1814,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 	} else
 	if (!outp->info.location) {
 		if (outp->info.type == DCB_OUTPUT_DP)
-			nv50_disp_intr_unk20_2_dp(priv, &outp->info, pclk);
+			nv50_disp_intr_unk20_2_dp(priv, head, &outp->info, pclk);
 		oreg = 0x614300 + (ffs(outp->info.or) - 1) * 0x800;
 		oval = (conf & 0x0100) ? 0x00000101 : 0x00000000;
 		hval = 0x00000000;

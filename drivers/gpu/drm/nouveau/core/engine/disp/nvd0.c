@@ -976,6 +976,9 @@ nvd0_disp_intr_unk2_2_tu(struct nv50_disp_priv *priv, int head,
 	const int or = ffs(outp->or) - 1;
 	const u32 ctrl = nv_rd32(priv, 0x660200 + (or   * 0x020));
 	const u32 conf = nv_rd32(priv, 0x660404 + (head * 0x300));
+	const s32 vactive = nv_rd32(priv, 0x660414 + (head * 0x300)) & 0xffff;
+	const s32 vblanke = nv_rd32(priv, 0x66041c + (head * 0x300)) & 0xffff;
+	const s32 vblanks = nv_rd32(priv, 0x660420 + (head * 0x300)) & 0xffff;
 	const u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
 	const u32 link = ((ctrl & 0xf00) == 0x800) ? 0 : 1;
 	const u32 hoff = (head * 0x800);
@@ -983,22 +986,34 @@ nvd0_disp_intr_unk2_2_tu(struct nv50_disp_priv *priv, int head,
 	const u32 loff = (link * 0x080) + soff;
 	const u32 symbol = 100000;
 	const u32 TU = 64;
-	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff) & 0x000f0000;
+	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff);
 	u32 clksor = nv_rd32(priv, 0x612300 + soff);
 	u32 datarate, link_nr, link_bw, bits;
 	u64 ratio, value;
 
+	link_nr  = hweight32(dpctrl & 0x000f0000);
+	link_bw  = (clksor & 0x007c0000) >> 18;
+	link_bw *= 27000;
+
+	/* symbols/hblank - algorithm taken from comments in tegra driver */
+	value = vblanke + vactive - vblanks - 7;
+	value = value * link_bw;
+	do_div(value, pclk);
+	value = value - (3 * !!(dpctrl & 0x00004000)) - (12 / link_nr);
+	nv_mask(priv, 0x616620 + hoff, 0x0000ffff, value);
+
+	/* symbols/vblank - algorithm taken from comments in tegra driver */
+	value = vblanks - vblanke - 25;
+	value = value * link_bw;
+	do_div(value, pclk);
+	value = value - ((36 / link_nr) + 3) - 1;
+	nv_mask(priv, 0x616624 + hoff, 0x00ffffff, value);
+
+	/* watermark */
 	if      ((conf & 0x3c0) == 0x180) bits = 30;
 	else if ((conf & 0x3c0) == 0x140) bits = 24;
 	else                              bits = 18;
 	datarate = (pclk * bits) / 8;
-
-	if      (dpctrl > 0x00030000) link_nr = 4;
-	else if (dpctrl > 0x00010000) link_nr = 2;
-	else			      link_nr = 1;
-
-	link_bw  = (clksor & 0x007c0000) >> 18;
-	link_bw *= 27000;
 
 	ratio  = datarate;
 	ratio *= symbol;
