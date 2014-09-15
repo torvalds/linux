@@ -301,7 +301,13 @@ static void mmc_select_card_type(struct mmc_card *card)
 
 static void mmc_manage_enhanced_area(struct mmc_card *card, u8 *ext_csd)
 {
-	u8 hc_erase_grp_sz = 0, hc_wp_grp_sz = 0;
+	u8 hc_erase_grp_sz, hc_wp_grp_sz;
+
+	/*
+	 * Disable these attributes by default
+	 */
+	card->ext_csd.enhanced_area_offset = -EINVAL;
+	card->ext_csd.enhanced_area_size = -EINVAL;
 
 	/*
 	 * Enhanced area feature support -- check whether the eMMC
@@ -310,43 +316,41 @@ static void mmc_manage_enhanced_area(struct mmc_card *card, u8 *ext_csd)
 	 */
 	if ((ext_csd[EXT_CSD_PARTITION_SUPPORT] & 0x2) &&
 	    (ext_csd[EXT_CSD_PARTITION_ATTRIBUTE] & 0x1)) {
-		hc_erase_grp_sz =
-			ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
-		hc_wp_grp_sz =
-			ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
+		if (card->ext_csd.partition_setting_completed) {
+			hc_erase_grp_sz =
+				ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
+			hc_wp_grp_sz =
+				ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
 
-		/*
-		 * calculate the enhanced data area offset, in bytes
-		 */
-		card->ext_csd.enhanced_area_offset =
-			(ext_csd[139] << 24) + (ext_csd[138] << 16) +
-			(ext_csd[137] << 8) + ext_csd[136];
-		if (mmc_card_blockaddr(card))
-			card->ext_csd.enhanced_area_offset <<= 9;
-		/*
-		 * calculate the enhanced data area size, in kilobytes
-		 */
-		card->ext_csd.enhanced_area_size =
-			(ext_csd[142] << 16) + (ext_csd[141] << 8) +
-			ext_csd[140];
-		card->ext_csd.enhanced_area_size *=
-			(size_t)(hc_erase_grp_sz * hc_wp_grp_sz);
-		card->ext_csd.enhanced_area_size <<= 9;
-	} else {
-		/*
-		 * If the enhanced area is not enabled, disable these
-		 * device attributes.
-		 */
-		card->ext_csd.enhanced_area_offset = -EINVAL;
-		card->ext_csd.enhanced_area_size = -EINVAL;
+			/*
+			 * calculate the enhanced data area offset, in bytes
+			 */
+			card->ext_csd.enhanced_area_offset =
+				(ext_csd[139] << 24) + (ext_csd[138] << 16) +
+				(ext_csd[137] << 8) + ext_csd[136];
+			if (mmc_card_blockaddr(card))
+				card->ext_csd.enhanced_area_offset <<= 9;
+			/*
+			 * calculate the enhanced data area size, in kilobytes
+			 */
+			card->ext_csd.enhanced_area_size =
+				(ext_csd[142] << 16) + (ext_csd[141] << 8) +
+				ext_csd[140];
+			card->ext_csd.enhanced_area_size *=
+				(size_t)(hc_erase_grp_sz * hc_wp_grp_sz);
+			card->ext_csd.enhanced_area_size <<= 9;
+		} else {
+			pr_warn("%s: defines enhanced area without partition setting complete\n",
+				mmc_hostname(card->host));
+		}
 	}
 }
 
 static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 {
-	unsigned int part_size;
-	u8 hc_erase_grp_sz = 0, hc_wp_grp_sz = 0;
 	int idx;
+	u8 hc_erase_grp_sz, hc_wp_grp_sz;
+	unsigned int part_size;
 
 	/*
 	 * General purpose partition feature support --
@@ -355,18 +359,21 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 	 */
 	if (ext_csd[EXT_CSD_PARTITION_SUPPORT] &
 	    EXT_CSD_PART_SUPPORT_PART_EN) {
-		if (card->ext_csd.partition_setting_completed) {
-			hc_erase_grp_sz =
-				ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
-			hc_wp_grp_sz =
-				ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
-		}
+		hc_erase_grp_sz =
+			ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
+		hc_wp_grp_sz =
+			ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
 
 		for (idx = 0; idx < MMC_NUM_GP_PARTITION; idx++) {
 			if (!ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3] &&
 			    !ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 1] &&
 			    !ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 2])
 				continue;
+			if (card->ext_csd.partition_setting_completed == 0) {
+				pr_warn("%s: has partition size defined without partition complete\n",
+					mmc_hostname(card->host));
+				break;
+			}
 			part_size =
 				(ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 2]
 				<< 16) +
