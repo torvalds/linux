@@ -427,7 +427,7 @@ struct ic_inv_args {
 
 static void __ic_line_inv_vaddr_helper(void *info)
 {
-        struct ic_inv *ic_inv_args = (struct ic_inv_args *) info;
+        struct ic_inv_args *ic_inv = info;
 
         __ic_line_inv_vaddr_local(ic_inv->paddr, ic_inv->vaddr, ic_inv->sz);
 }

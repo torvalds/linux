@@ -1019,8 +1019,10 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em)
 		return false;
 
 	next = defrag_lookup_extent(inode, em->start + em->len);
-	if (!next || next->block_start >= EXTENT_MAP_LAST_BYTE ||
-	    (em->block_start + em->block_len == next->block_start))
+	if (!next || next->block_start >= EXTENT_MAP_LAST_BYTE)
+		ret = false;
+	else if ((em->block_start + em->block_len == next->block_start) &&
+		 (em->block_len > 128 * 1024 && next->block_len > 128 * 1024))
 		ret = false;
 
 	free_extent_map(next);
@@ -1055,7 +1057,6 @@ static int should_defrag_range(struct inode *inode, u64 start, int thresh,
 	}
 
 	next_mergeable = defrag_check_next_extent(inode, em);
-
 	/*
 	 * we hit a real extent, if it is big or the next extent is not a
 	 * real extent, don't bother defragging it
@@ -1702,7 +1703,7 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 	    ~(BTRFS_SUBVOL_CREATE_ASYNC | BTRFS_SUBVOL_RDONLY |
 	      BTRFS_SUBVOL_QGROUP_INHERIT)) {
 		ret = -EOPNOTSUPP;
-		goto out;
+		goto free_args;
 	}
 
 	if (vol_args->flags & BTRFS_SUBVOL_CREATE_ASYNC)
@@ -1712,27 +1713,31 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 	if (vol_args->flags & BTRFS_SUBVOL_QGROUP_INHERIT) {
 		if (vol_args->size > PAGE_CACHE_SIZE) {
 			ret = -EINVAL;
-			goto out;
+			goto free_args;
 		}
 		inherit = memdup_user(vol_args->qgroup_inherit, vol_args->size);
 		if (IS_ERR(inherit)) {
 			ret = PTR_ERR(inherit);
-			goto out;
+			goto free_args;
 		}
 	}
 
 	ret = btrfs_ioctl_snap_create_transid(file, vol_args->name,
 					      vol_args->fd, subvol, ptr,
 					      readonly, inherit);
+	if (ret)
+		goto free_inherit;
 
-	if (ret == 0 && ptr &&
-	    copy_to_user(arg +
-			 offsetof(struct btrfs_ioctl_vol_args_v2,
-				  transid), ptr, sizeof(*ptr)))
+	if (ptr && copy_to_user(arg +
+				offsetof(struct btrfs_ioctl_vol_args_v2,
+					transid),
+				ptr, sizeof(*ptr)))
 		ret = -EFAULT;
-out:
-	kfree(vol_args);
+
+free_inherit:
 	kfree(inherit);
+free_args:
+	kfree(vol_args);
 	return ret;
 }
 
@@ -2652,7 +2657,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	vol_args = memdup_user(arg, sizeof(*vol_args));
 	if (IS_ERR(vol_args)) {
 		ret = PTR_ERR(vol_args);
-		goto out;
+		goto err_drop;
 	}
 
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
@@ -2670,6 +2675,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 
 out:
 	kfree(vol_args);
+err_drop:
 	mnt_drop_write_file(file);
 	return ret;
 }

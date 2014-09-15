@@ -38,6 +38,6 @@
 
 #endif /* __ASSEMBLY__ */
 
-#define __NR_syscalls         381
+#define __NR_syscalls         387
 
 #endif /* _ASM_MICROBLAZE_UNISTD_H */
