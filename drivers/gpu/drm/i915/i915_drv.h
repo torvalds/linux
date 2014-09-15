@@ -1528,7 +1528,7 @@ struct drm_i915_private {
 	struct intel_overlay *overlay;
 
 	/* backlight registers and fields in struct intel_panel */
-	spinlock_t backlight_lock;
+	struct mutex backlight_lock;
 
 	/* LVDS info */
 	bool no_aux_handshake;
