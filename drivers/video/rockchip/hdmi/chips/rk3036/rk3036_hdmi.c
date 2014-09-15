@@ -113,7 +113,7 @@ static int rk3036_hdmi_clk_disable(struct rk_hdmi_device *hdmi_dev)
 	struct hdmi *hdmi_drv;
 	hdmi_drv = &hdmi_dev->driver;
 
-	if (!hdmi_dev->clk_on) {
+	if (hdmi_dev->clk_on) {
 		spin_lock(&hdmi_dev->reg_lock);
 		hdmi_dev->clk_on = 0;
 		spin_unlock(&hdmi_dev->reg_lock);
