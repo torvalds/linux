@@ -4124,12 +4124,6 @@ nfsd4_end_grace(struct nfsd_net *nn)
 	nn->grace_ended = true;
 	nfsd4_record_grace_done(nn);
 	locks_end_grace(&nn->nfsd4_manager);
-	/*
-	 * Now that every NFSv4 client has had the chance to recover and
-	 * to see the (possibly new, possibly shorter) lease time, we
-	 * can safely set the next grace time to the current lease time:
-	 */
-	nn->nfsd4_grace = nn->nfsd4_lease;
 }
 
 static time_t
