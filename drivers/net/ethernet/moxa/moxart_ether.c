@@ -206,7 +206,7 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 	int rx_head = priv->rx_head;
 	int rx = 0;
 
-	while (1) {
+	while (rx < budget) {
 		desc = priv->rx_desc_base + (RX_REG_DESC_SIZE * rx_head);
 		desc0 = readl(desc + RX_REG_OFFSET_DESC0);
 
@@ -218,7 +218,7 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 			net_dbg_ratelimited("packet error\n");
 			priv->stats.rx_dropped++;
 			priv->stats.rx_errors++;
-			continue;
+			goto rx_next;
 		}
 
 		len = desc0 & RX_DESC0_FRAME_LEN_MASK;
@@ -226,13 +226,19 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		if (len > RX_BUF_SIZE)
 			len = RX_BUF_SIZE;
 
-		skb = build_skb(priv->rx_buf[rx_head], priv->rx_buf_size);
+		dma_sync_single_for_cpu(&ndev->dev,
+					priv->rx_mapping[rx_head],
+					priv->rx_buf_size, DMA_FROM_DEVICE);
+		skb = netdev_alloc_skb_ip_align(ndev, len);
+
 		if (unlikely(!skb)) {
-			net_dbg_ratelimited("build_skb failed\n");
+			net_dbg_ratelimited("netdev_alloc_skb_ip_align failed\n");
 			priv->stats.rx_dropped++;
 			priv->stats.rx_errors++;
+			goto rx_next;
 		}
 
+		memcpy(skb->data, priv->rx_buf[rx_head], len);
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, ndev);
 		napi_gro_receive(&priv->napi, skb);
@@ -244,18 +250,15 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		if (desc0 & RX_DESC0_MULTICAST)
 			priv->stats.multicast++;
 
+rx_next:
 		writel(RX_DESC0_DMA_OWN, desc + RX_REG_OFFSET_DESC0);
 
 		rx_head = RX_NEXT(rx_head);
 		priv->rx_head = rx_head;
-
-		if (rx >= budget)
-			break;
 	}
 
 	if (rx < budget) {
-		napi_gro_flush(napi, false);
-		__napi_complete(napi);
+		napi_complete(napi);
 	}
 
 	priv->reg_imr |= RPKT_FINISH_M;
@@ -346,10 +349,12 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		len = ETH_ZLEN;
 	}
 
-	txdes1 = readl(desc + TX_REG_OFFSET_DESC1);
-	txdes1 |= TX_DESC1_LTS | TX_DESC1_FTS;
-	txdes1 &= ~(TX_DESC1_FIFO_COMPLETE | TX_DESC1_INTR_COMPLETE);
-	txdes1 |= (len & TX_DESC1_BUF_SIZE_MASK);
+	dma_sync_single_for_device(&ndev->dev, priv->tx_mapping[tx_head],
+				   priv->tx_buf_size, DMA_TO_DEVICE);
+
+	txdes1 = TX_DESC1_LTS | TX_DESC1_FTS | (len & TX_DESC1_BUF_SIZE_MASK);
+	if (tx_head == TX_DESC_NUM_MASK)
+		txdes1 |= TX_DESC1_END;
 	writel(txdes1, desc + TX_REG_OFFSET_DESC1);
 	writel(TX_DESC0_DMA_OWN, desc + TX_REG_OFFSET_DESC0);
 
@@ -465,8 +470,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->txlock);
 
 	priv->tx_buf_size = TX_BUF_SIZE;
-	priv->rx_buf_size = RX_BUF_SIZE +
-			    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	priv->rx_buf_size = RX_BUF_SIZE;
 
 	priv->tx_desc_base = dma_alloc_coherent(NULL, TX_REG_DESC_SIZE *
 						TX_DESC_NUM, &priv->tx_base,

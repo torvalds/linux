@@ -93,7 +93,7 @@
 	};
 
 	tv: connector {
-		compatible = "composite-connector";
+		compatible = "composite-video-connector";
 		label = "tv";
 
 		port {

@@ -22,13 +22,11 @@ __kernel_clock_gettime:
 	basr	%r5,0
 0:	al	%r5,21f-0b(%r5)			/* get &_vdso_data */
 	chi	%r2,__CLOCK_REALTIME
-	je	10f
+	je	11f
 	chi	%r2,__CLOCK_MONOTONIC
 	jne	19f
 
 	/* CLOCK_MONOTONIC */
-	ltr	%r3,%r3
-	jz	9f				/* tp == NULL */
 1:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	1b
@@ -67,12 +65,10 @@ __kernel_clock_gettime:
 	j	6b
 8:	st	%r2,0(%r3)			/* store tp->tv_sec */
 	st	%r1,4(%r3)			/* store tp->tv_nsec */
-9:	lhi	%r2,0
+	lhi	%r2,0
 	br	%r14
 
 	/* CLOCK_REALTIME */
-10:	ltr	%r3,%r3				/* tp == NULL */
-	jz	18f
 11:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	11b
@@ -111,7 +107,7 @@ __kernel_clock_gettime:
 	j	15b
 17:	st	%r2,0(%r3)			/* store tp->tv_sec */
 	st	%r1,4(%r3)			/* store tp->tv_nsec */
-18:	lhi	%r2,0
+	lhi	%r2,0
 	br	%r14
 
 	/* Fallback to system call */

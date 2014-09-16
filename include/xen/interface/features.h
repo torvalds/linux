@@ -53,6 +53,9 @@
 /* operation as Dom0 is supported */
 #define XENFEAT_dom0                      11
 
+/* Xen also maps grant references at pfn = mfn */
+#define XENFEAT_grant_map_identity        12
+
 #define XENFEAT_NR_SUBMAPS 1
 
 #endif /* __XEN_PUBLIC_FEATURES_H__ */

@@ -405,16 +405,13 @@ bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 	u8 msg[DP_DPCD_SIZE];
 	int ret;
 
-	char dpcd_hex_dump[DP_DPCD_SIZE * 3];
-
 	ret = drm_dp_dpcd_read(&radeon_connector->ddc_bus->aux, DP_DPCD_REV, msg,
 			       DP_DPCD_SIZE);
 	if (ret > 0) {
 		memcpy(dig_connector->dpcd, msg, DP_DPCD_SIZE);
 
-		hex_dump_to_buffer(dig_connector->dpcd, sizeof(dig_connector->dpcd),
-				   32, 1, dpcd_hex_dump, sizeof(dpcd_hex_dump), false);
-		DRM_DEBUG_KMS("DPCD: %s\n", dpcd_hex_dump);
+		DRM_DEBUG_KMS("DPCD: %*ph\n", (int)sizeof(dig_connector->dpcd),
+			      dig_connector->dpcd);
 
 		radeon_dp_probe_oui(radeon_connector);
 

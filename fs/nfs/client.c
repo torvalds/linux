@@ -1412,24 +1412,18 @@ int nfs_fs_proc_net_init(struct net *net)
 	p = proc_create("volumes", S_IFREG|S_IRUGO,
 			nn->proc_nfsfs, &nfs_volume_list_fops);
 	if (!p)
-		goto error_2;
+		goto error_1;
 	return 0;
 
-error_2:
-	remove_proc_entry("servers", nn->proc_nfsfs);
 error_1:
-	remove_proc_entry("fs/nfsfs", NULL);
+	remove_proc_subtree("nfsfs", net->proc_net);
 error_0:
 	return -ENOMEM;
 }
 
 void nfs_fs_proc_net_exit(struct net *net)
 {
-	struct nfs_net *nn = net_generic(net, nfs_net_id);
-
-	remove_proc_entry("volumes", nn->proc_nfsfs);
-	remove_proc_entry("servers", nn->proc_nfsfs);
-	remove_proc_entry("fs/nfsfs", NULL);
+	remove_proc_subtree("nfsfs", net->proc_net);
 }
 
 /*
