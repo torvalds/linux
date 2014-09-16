@@ -274,6 +274,9 @@ struct ath_node {
 	struct ath_rx_rate_stats rx_rate_stats;
 #endif
 	u8 key_idx[4];
+
+	u32 ackto;
+	struct list_head list;
 };
 
 struct ath_tx_control {

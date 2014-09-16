@@ -647,6 +647,8 @@ int ath9k_hw_init(struct ath_hw *ah)
 		return ret;
 	}
 
+	ath_dynack_init(ah);
+
 	return 0;
 }
 EXPORT_SYMBOL(ath9k_hw_init);

@@ -29,6 +29,7 @@
 #include "reg.h"
 #include "phy.h"
 #include "btcoex.h"
+#include "dynack.h"
 
 #include "../regd.h"
 
@@ -924,6 +925,8 @@ struct ath_hw {
 	int (*external_reset)(void);
 
 	const struct firmware *eeprom_blob;
+
+	struct ath_dynack dynack;
 };
 
 struct ath_bus_ops {
