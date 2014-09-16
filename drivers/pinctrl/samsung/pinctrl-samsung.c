@@ -945,9 +945,7 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 
 fail:
 	for (--i, --bank; i >= 0; --i, --bank)
-		if (gpiochip_remove(&bank->gpio_chip))
-			dev_err(&pdev->dev, "gpio chip %s remove failed\n",
-							bank->gpio_chip.label);
+		gpiochip_remove(&bank->gpio_chip);
 	return ret;
 }
 
@@ -957,16 +955,11 @@ static int samsung_gpiolib_unregister(struct platform_device *pdev,
 {
 	struct samsung_pin_ctrl *ctrl = drvdata->ctrl;
 	struct samsung_pin_bank *bank = ctrl->pin_banks;
-	int ret = 0;
 	int i;
 
-	for (i = 0; !ret && i < ctrl->nr_banks; ++i, ++bank)
-		ret = gpiochip_remove(&bank->gpio_chip);
-
-	if (ret)
-		dev_err(&pdev->dev, "gpio chip remove failed\n");
-
-	return ret;
+	for (i = 0; i < ctrl->nr_banks; ++i, ++bank)
+		gpiochip_remove(&bank->gpio_chip);
+	return 0;
 }
 
 static const struct of_device_id samsung_pinctrl_dt_match[];

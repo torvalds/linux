@@ -873,11 +873,7 @@ static int exynos5440_gpiolib_register(struct platform_device *pdev,
 static int exynos5440_gpiolib_unregister(struct platform_device *pdev,
 				struct exynos5440_pinctrl_priv_data *priv)
 {
-	int ret = gpiochip_remove(priv->gc);
-	if (ret) {
-		dev_err(&pdev->dev, "gpio chip remove failed\n");
-		return ret;
-	}
+	gpiochip_remove(priv->gc);
 	return 0;
 }
 
