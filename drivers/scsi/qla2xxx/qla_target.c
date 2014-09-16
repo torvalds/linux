@@ -401,7 +401,7 @@ static int qlt_reset(struct scsi_qla_host *vha, void *iocb, int mcmd)
 #if 0 /* FIXME: Re-enable Global event handling.. */
 		/* Global event */
 		atomic_inc(&ha->tgt.qla_tgt->tgt_global_resets_count);
-		qlt_clear_tgt_db(ha->tgt.qla_tgt, 1);
+		qlt_clear_tgt_db(ha->tgt.qla_tgt);
 		if (!list_empty(&ha->tgt.qla_tgt->sess_list)) {
 			sess = list_entry(ha->tgt.qla_tgt->sess_list.next,
 			    typeof(*sess), sess_list_entry);
@@ -483,7 +483,7 @@ static void qlt_schedule_sess_for_deletion(struct qla_tgt_sess *sess,
 }
 
 /* ha->hardware_lock supposed to be held on entry */
-static void qlt_clear_tgt_db(struct qla_tgt *tgt, bool local_only)
+static void qlt_clear_tgt_db(struct qla_tgt *tgt)
 {
 	struct qla_tgt_sess *sess;
 
@@ -835,7 +835,7 @@ int qlt_stop_phase1(struct qla_tgt *tgt)
 	mutex_lock(&vha->vha_tgt.tgt_mutex);
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	tgt->tgt_stop = 1;
-	qlt_clear_tgt_db(tgt, true);
+	qlt_clear_tgt_db(tgt);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	mutex_unlock(&vha->vha_tgt.tgt_mutex);
 	mutex_unlock(&qla_tgt_mutex);
