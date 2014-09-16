@@ -572,9 +572,11 @@ put_err:
 static int __allocate_data_block(struct dnode_of_data *dn)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
+	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
 	struct f2fs_summary sum;
 	block_t new_blkaddr;
 	struct node_info ni;
+	pgoff_t fofs;
 	int type;
 
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
@@ -596,6 +598,12 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	set_inode_flag(F2FS_I(dn->inode), FI_NO_EXTENT);
 	update_extent_cache(new_blkaddr, dn);
 	clear_inode_flag(F2FS_I(dn->inode), FI_NO_EXTENT);
+
+	/* update i_size */
+	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
+							dn->ofs_in_node;
+	if (i_size_read(dn->inode) < ((fofs + 1) << PAGE_CACHE_SHIFT))
+		i_size_write(dn->inode, ((fofs + 1) << PAGE_CACHE_SHIFT));
 
 	dn->data_blkaddr = new_blkaddr;
 	return 0;
