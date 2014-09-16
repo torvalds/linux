@@ -1647,7 +1647,7 @@ static int cxgbi_inet6addr_handler(struct notifier_block *this,
 	if (event_dev->priv_flags & IFF_802_1Q_VLAN)
 		event_dev = vlan_dev_real_dev(event_dev);
 
-	cdev = cxgbi_device_find_by_netdev(event_dev, NULL);
+	cdev = cxgbi_device_find_by_netdev_rcu(event_dev, NULL);
 
 	if (!cdev)
 		return ret;
