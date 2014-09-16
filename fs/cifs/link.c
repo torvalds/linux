@@ -343,9 +343,11 @@ cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		return rc;
 
-	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE))
+	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
+		rc = -ENOENT;
 		/* it's not a symlink */
 		goto out;
+	}
 
 	io_parms.netfid = fid.netfid;
 	io_parms.pid = current->tgid;
