@@ -76,7 +76,6 @@
 
 		simple-audio-card,cpu {
 			sound-dai = <&sai2>;
-			master-clkdir-out;
 			frame-master;
 			bitclock-master;
 		};

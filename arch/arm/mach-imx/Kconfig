@@ -69,6 +69,7 @@ config SOC_IMX1
 	select CPU_ARM920T
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
+	select PINCTRL_IMX1
 
 config SOC_IMX21
 	bool
@@ -108,17 +109,6 @@ config SOC_IMX35
 if ARCH_MULTI_V4T
 
 comment "MX1 platforms:"
-config MACH_MXLADS
-	bool
-
-config ARCH_MX1ADS
-	bool "MX1ADS platform"
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select MACH_MXLADS
-	select SOC_IMX1
-	help
-	  Say Y here if you are using Motorola MX1ADS/MXLADS boards
 
 config MACH_SCB9328
 	bool "Synertronixx scb9328"
@@ -134,6 +124,13 @@ config MACH_APF9328
 	select SOC_IMX1
 	help
 	  Say Yes here if you are using the Armadeus APF9328 development board
+
+config MACH_IMX1_DT
+	bool "Support i.MX1 platforms from device tree"
+	select SOC_IMX1
+	help
+	  Include support for Freescale i.MX1 based platforms
+	  using the device tree for discovery.
 
 endif
 
@@ -223,86 +220,6 @@ config MACH_MX27ADS
 	  Include support for MX27ADS platform. This includes specific
 	  configurations for the board and its peripherals.
 
-config MACH_PCM038
-	bool "Phytec phyCORE-i.MX27 CPU module (pcm038)"
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_MXC_W1
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX27
-	help
-	  Include support for phyCORE-i.MX27 (aka pcm038) platform. This
-	  includes specific configurations for the module and its peripherals.
-
-choice
-	prompt "Baseboard"
-	depends on MACH_PCM038
-	default MACH_PCM970_BASEBOARD
-
-config MACH_PCM970_BASEBOARD
-	bool "PHYTEC PCM970 development board"
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	help
-	  This adds board specific devices that can be found on Phytec's
-	  PCM970 evaluation board.
-
-endchoice
-
-config MACH_CPUIMX27
-	bool "Eukrea CPUIMX27 module"
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_MXC_W1
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX27
-	help
-	  Include support for Eukrea CPUIMX27 platform. This includes
-	  specific configurations for the module and its peripherals.
-
-config MACH_EUKREA_CPUIMX27_USESDHC2
-	bool "CPUIMX27 integrates SDHC2 module"
-	depends on MACH_CPUIMX27
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	help
-	  This adds support for the internal SDHC2 used on CPUIMX27
-	  for wifi or eMMC.
-
-config MACH_EUKREA_CPUIMX27_USEUART4
-	bool "CPUIMX27 integrates UART4 module"
-	depends on MACH_CPUIMX27
-	help
-	  This adds support for the internal UART4 used on CPUIMX27
-	  for bluetooth.
-
-choice
-	prompt "Baseboard"
-	depends on MACH_CPUIMX27
-	default MACH_EUKREA_MBIMX27_BASEBOARD
-
-config MACH_EUKREA_MBIMX27_BASEBOARD
-	bool "Eukrea MBIMX27 development board"
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_KEYPAD
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select LEDS_GPIO_REGISTER
-	help
-	  This adds board specific devices that can be found on Eukrea's
-	  MBIMX27 evaluation board.
-
-endchoice
-
 config MACH_MX27_3DS
 	bool "MX27PDK platform"
 	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
@@ -357,18 +274,6 @@ config MACH_PCA100
 	select SOC_IMX27
 	help
 	  Include support for phyCARD-s (aka pca100) platform. This
-	  includes specific configurations for the module and its peripherals.
-
-config MACH_MXT_TD60
-	bool "Maxtrack i-MXT TD60"
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select SOC_IMX27
-	help
-	  Include support for i-MXT (aka td60) platform. This
 	  includes specific configurations for the module and its peripherals.
 
 config MACH_IMX27_DT

@@ -20,8 +20,6 @@
 #include "common.h"
 #include "hardware.h"
 
-#define SCU_STANDBY_ENABLE	(1 << 5)
-
 u32 g_diag_reg;
 static void __iomem *scu_base;
 
@@ -43,14 +41,6 @@ void __init imx_scu_map_io(void)
 	iotable_init(&scu_io_desc, 1);
 
 	scu_base = IMX_IO_ADDRESS(base);
-}
-
-void imx_scu_standby_enable(void)
-{
-	u32 val = readl_relaxed(scu_base);
-
-	val |= SCU_STANDBY_ENABLE;
-	writel_relaxed(val, scu_base);
 }
 
 static int imx_boot_secondary(unsigned int cpu, struct task_struct *idle)
