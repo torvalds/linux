@@ -489,7 +489,6 @@ static void usb_tx_callback(struct urb *urb)
  */
 static int ir_open(void *data)
 {
-	int retval = 0;
 	struct imon_context *context;
 
 	/* prevent races with disconnect */
@@ -506,7 +505,7 @@ static int ir_open(void *data)
 	dev_info(context->driver->dev, "IR port opened\n");
 
 	mutex_unlock(&driver_lock);
-	return retval;
+	return 0;
 }
 
 /**
@@ -1021,7 +1020,6 @@ static int imon_suspend(struct usb_interface *intf, pm_message_t message)
 
 static int imon_resume(struct usb_interface *intf)
 {
-	int rc = 0;
 	struct imon_context *context = usb_get_intfdata(intf);
 
 	usb_fill_int_urb(context->rx_urb, context->usbdev,
@@ -1031,9 +1029,7 @@ static int imon_resume(struct usb_interface *intf)
 		usb_rx_callback, context,
 		context->rx_endpoint->bInterval);
 
-	rc = usb_submit_urb(context->rx_urb, GFP_ATOMIC);
-
-	return rc;
+	return usb_submit_urb(context->rx_urb, GFP_ATOMIC);
 }
 
 module_usb_driver(imon_driver);
