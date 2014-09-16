@@ -72,6 +72,8 @@ struct sw_flow_key {
 		u32	skb_mark;	/* SKB mark. */
 		u16	in_port;	/* Input switch port (or DP_MAX_PORTS). */
 	} __packed phy; /* Safe when right after 'tun_key'. */
+	u32 ovs_flow_hash;		/* Datapath computed hash value.  */
+	u32 recirc_id;			/* Recirculation ID.  */
 	struct {
 		u8     src[ETH_ALEN];	/* Ethernet source address. */
 		u8     dst[ETH_ALEN];	/* Ethernet destination address. */
@@ -187,6 +189,7 @@ void ovs_flow_stats_get(const struct sw_flow *, struct ovs_flow_stats *,
 void ovs_flow_stats_clear(struct sw_flow *);
 u64 ovs_flow_used_time(unsigned long flow_jiffies);
 
+int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key);
 int ovs_flow_key_extract(struct ovs_key_ipv4_tunnel *tun_key,
 			 struct sk_buff *skb, struct sw_flow_key *key);
 /* Extract key from packet coming from userspace. */

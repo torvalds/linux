@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2013 Nicira, Inc.
+ * Copyright (c) 2007-2014 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -35,11 +35,77 @@
 #include <net/sctp/checksum.h>
 
 #include "datapath.h"
+#include "flow.h"
 #include "vport.h"
 
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			      struct sw_flow_key *key,
 			      const struct nlattr *attr, int len);
+
+struct deferred_action {
+	struct sk_buff *skb;
+	const struct nlattr *actions;
+
+	/* Store pkt_key clone when creating deferred action. */
+	struct sw_flow_key pkt_key;
+};
+
+#define DEFERRED_ACTION_FIFO_SIZE 10
+struct action_fifo {
+	int head;
+	int tail;
+	/* Deferred action fifo queue storage. */
+	struct deferred_action fifo[DEFERRED_ACTION_FIFO_SIZE];
+};
+
+static struct action_fifo __percpu *action_fifos;
+static DEFINE_PER_CPU(int, exec_actions_level);
+
+static void action_fifo_init(struct action_fifo *fifo)
+{
+	fifo->head = 0;
+	fifo->tail = 0;
+}
+
+static bool action_fifo_is_empty(struct action_fifo *fifo)
+{
+	return (fifo->head == fifo->tail);
+}
+
+static struct deferred_action *action_fifo_get(struct action_fifo *fifo)
+{
+	if (action_fifo_is_empty(fifo))
+		return NULL;
+
+	return &fifo->fifo[fifo->tail++];
+}
+
+static struct deferred_action *action_fifo_put(struct action_fifo *fifo)
+{
+	if (fifo->head >= DEFERRED_ACTION_FIFO_SIZE - 1)
+		return NULL;
+
+	return &fifo->fifo[fifo->head++];
+}
+
+/* Return true if fifo is not full */
+static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
+						    struct sw_flow_key *key,
+						    const struct nlattr *attr)
+{
+	struct action_fifo *fifo;
+	struct deferred_action *da;
+
+	fifo = this_cpu_ptr(action_fifos);
+	da = action_fifo_put(fifo);
+	if (da) {
+		da->skb = skb;
+		da->actions = attr;
+		da->pkt_key = *key;
+	}
+
+	return da;
+}
 
 static int make_writable(struct sk_buff *skb, int write_len)
 {
@@ -485,8 +551,29 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 		/* Skip the sample action when out of memory. */
 		return 0;
 
-	/* do_execute_actions() will consume the cloned skb. */
-	return do_execute_actions(dp, skb, key, a, rem);
+	if (!add_deferred_actions(skb, key, a)) {
+		if (net_ratelimit())
+			pr_warn("%s: deferred actions limit reached, dropping sample action\n",
+				ovs_dp_name(dp));
+
+		kfree_skb(skb);
+	}
+	return 0;
+}
+
+static void execute_hash(struct sk_buff *skb, struct sw_flow_key *key,
+			 const struct nlattr *attr)
+{
+	struct ovs_action_hash *hash_act = nla_data(attr);
+	u32 hash = 0;
+
+	/* OVS_HASH_ALG_L4 is the only possible hash algorithm.  */
+	hash = skb_get_hash(skb);
+	hash = jhash_1word(hash, hash_act->hash_basis);
+	if (!hash)
+		hash = 0x1;
+
+	key->ovs_flow_hash = hash;
 }
 
 static int execute_set_action(struct sk_buff *skb,
@@ -535,6 +622,44 @@ static int execute_set_action(struct sk_buff *skb,
 	return err;
 }
 
+static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
+			  struct sw_flow_key *key,
+			  const struct nlattr *a, int rem)
+{
+	struct deferred_action *da;
+	int err;
+
+	err = ovs_flow_key_update(skb, key);
+	if (err)
+		return err;
+
+	if (!last_action(a, rem)) {
+		/* Recirc action is the not the last action
+		 * of the action list, need to clone the skb.
+		 */
+		skb = skb_clone(skb, GFP_ATOMIC);
+
+		/* Skip the recirc action when out of memory, but
+		 * continue on with the rest of the action list.
+		 */
+		if (!skb)
+			return 0;
+	}
+
+	da = add_deferred_actions(skb, key, NULL);
+	if (da) {
+		da->pkt_key.recirc_id = nla_get_u32(a);
+	} else {
+		kfree_skb(skb);
+
+		if (net_ratelimit())
+			pr_warn("%s: deferred action limit reached, drop recirc action\n",
+				ovs_dp_name(dp));
+	}
+
+	return 0;
+}
+
 /* Execute a list of actions against 'skb'. */
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			      struct sw_flow_key *key,
@@ -566,6 +691,10 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			output_userspace(dp, skb, key, a);
 			break;
 
+		case OVS_ACTION_ATTR_HASH:
+			execute_hash(skb, key, a);
+			break;
+
 		case OVS_ACTION_ATTR_PUSH_VLAN:
 			err = push_vlan(skb, nla_data(a));
 			if (unlikely(err)) /* skb already freed. */
@@ -574,6 +703,17 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 		case OVS_ACTION_ATTR_POP_VLAN:
 			err = pop_vlan(skb);
+			break;
+
+		case OVS_ACTION_ATTR_RECIRC:
+			err = execute_recirc(dp, skb, key, a, rem);
+			if (last_action(a, rem)) {
+				/* If this is the last action, the skb has
+				 * been consumed or freed.
+				 * Return immediately.
+				 */
+				return err;
+			}
 			break;
 
 		case OVS_ACTION_ATTR_SET:
@@ -601,12 +741,63 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 	return 0;
 }
 
+static void process_deferred_actions(struct datapath *dp)
+{
+	struct action_fifo *fifo = this_cpu_ptr(action_fifos);
+
+	/* Do not touch the FIFO in case there is no deferred actions. */
+	if (action_fifo_is_empty(fifo))
+		return;
+
+	/* Finishing executing all deferred actions. */
+	do {
+		struct deferred_action *da = action_fifo_get(fifo);
+		struct sk_buff *skb = da->skb;
+		struct sw_flow_key *key = &da->pkt_key;
+		const struct nlattr *actions = da->actions;
+
+		if (actions)
+			do_execute_actions(dp, skb, key, actions,
+					   nla_len(actions));
+		else
+			ovs_dp_process_packet(skb, key);
+	} while (!action_fifo_is_empty(fifo));
+
+	/* Reset FIFO for the next packet.  */
+	action_fifo_init(fifo);
+}
+
 /* Execute a list of actions against 'skb'. */
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			struct sw_flow_key *key)
 {
-	struct sw_flow_actions *acts = rcu_dereference(OVS_CB(skb)->flow->sf_acts);
+	int level = this_cpu_read(exec_actions_level);
+	struct sw_flow_actions *acts;
+	int err;
 
-	return do_execute_actions(dp, skb, key,
-				  acts->actions, acts->actions_len);
+	acts = rcu_dereference(OVS_CB(skb)->flow->sf_acts);
+
+	this_cpu_inc(exec_actions_level);
+	err = do_execute_actions(dp, skb, key,
+				 acts->actions, acts->actions_len);
+
+	if (!level)
+		process_deferred_actions(dp);
+
+	this_cpu_dec(exec_actions_level);
+	return err;
+}
+
+int action_fifos_init(void)
+{
+	action_fifos = alloc_percpu(struct action_fifo);
+	if (!action_fifos)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void action_fifos_exit(void)
+{
+	free_percpu(action_fifos);
 }

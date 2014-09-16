@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2012 Nicira, Inc.
+ * Copyright (c) 2007-2014 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -189,12 +189,17 @@ void ovs_dp_detach_port(struct vport *);
 int ovs_dp_upcall(struct datapath *, struct sk_buff *,
 		  const struct dp_upcall_info *);
 
+const char *ovs_dp_name(const struct datapath *dp);
 struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
 					 u8 cmd);
 
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			struct sw_flow_key *);
+
 void ovs_dp_notify_wq(struct work_struct *work);
+
+int action_fifos_init(void);
+void action_fifos_exit(void);
 
 #define OVS_NLERR(fmt, ...)					\
 do {								\

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2013 Nicira, Inc.
+ * Copyright (c) 2007-2014 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -604,6 +604,11 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 		}
 	}
 	return 0;
+}
+
+int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	return key_extract(skb, key);
 }
 
 int ovs_flow_key_extract(struct ovs_key_ipv4_tunnel *tun_key,

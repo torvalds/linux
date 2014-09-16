@@ -156,7 +156,7 @@ static struct datapath *get_dp(struct net *net, int dp_ifindex)
 }
 
 /* Must be called with rcu_read_lock or ovs_mutex. */
-static const char *ovs_dp_name(const struct datapath *dp)
+const char *ovs_dp_name(const struct datapath *dp)
 {
 	struct vport *vport = ovs_vport_ovsl_rcu(dp, OVSP_LOCAL);
 	return vport->ops->get_name(vport);
@@ -2065,9 +2065,13 @@ static int __init dp_init(void)
 
 	pr_info("Open vSwitch switching datapath\n");
 
-	err = ovs_internal_dev_rtnl_link_register();
+	err = action_fifos_init();
 	if (err)
 		goto error;
+
+	err = ovs_internal_dev_rtnl_link_register();
+	if (err)
+		goto error_action_fifos_exit;
 
 	err = ovs_flow_init();
 	if (err)
@@ -2101,6 +2105,8 @@ error_flow_exit:
 	ovs_flow_exit();
 error_unreg_rtnl_link:
 	ovs_internal_dev_rtnl_link_unregister();
+error_action_fifos_exit:
+	action_fifos_exit();
 error:
 	return err;
 }
@@ -2114,6 +2120,7 @@ static void dp_cleanup(void)
 	ovs_vport_exit();
 	ovs_flow_exit();
 	ovs_internal_dev_rtnl_link_unregister();
+	action_fifos_exit();
 }
 
 module_init(dp_init);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2013 Nicira, Inc.
+ * Copyright (c) 2007-2014 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -251,6 +251,8 @@ static const int ovs_key_lens[OVS_KEY_ATTR_MAX + 1] = {
 	[OVS_KEY_ATTR_ICMPV6] = sizeof(struct ovs_key_icmpv6),
 	[OVS_KEY_ATTR_ARP] = sizeof(struct ovs_key_arp),
 	[OVS_KEY_ATTR_ND] = sizeof(struct ovs_key_nd),
+	[OVS_KEY_ATTR_RECIRC_ID] = sizeof(u32),
+	[OVS_KEY_ATTR_DP_HASH] = sizeof(u32),
 	[OVS_KEY_ATTR_TUNNEL] = -1,
 };
 
@@ -454,6 +456,20 @@ static int ipv4_tun_to_nlattr(struct sk_buff *skb,
 static int metadata_from_nlattrs(struct sw_flow_match *match,  u64 *attrs,
 				 const struct nlattr **a, bool is_mask)
 {
+	if (*attrs & (1 << OVS_KEY_ATTR_DP_HASH)) {
+		u32 hash_val = nla_get_u32(a[OVS_KEY_ATTR_DP_HASH]);
+
+		SW_FLOW_KEY_PUT(match, ovs_flow_hash, hash_val, is_mask);
+		*attrs &= ~(1 << OVS_KEY_ATTR_DP_HASH);
+	}
+
+	if (*attrs & (1 << OVS_KEY_ATTR_RECIRC_ID)) {
+		u32 recirc_id = nla_get_u32(a[OVS_KEY_ATTR_RECIRC_ID]);
+
+		SW_FLOW_KEY_PUT(match, recirc_id, recirc_id, is_mask);
+		*attrs &= ~(1 << OVS_KEY_ATTR_RECIRC_ID);
+	}
+
 	if (*attrs & (1 << OVS_KEY_ATTR_PRIORITY)) {
 		SW_FLOW_KEY_PUT(match, phy.priority,
 			  nla_get_u32(a[OVS_KEY_ATTR_PRIORITY]), is_mask);
@@ -872,6 +888,12 @@ int ovs_nla_put_flow(const struct sw_flow_key *swkey,
 	struct ovs_key_ethernet *eth_key;
 	struct nlattr *nla, *encap;
 	bool is_mask = (swkey != output);
+
+	if (nla_put_u32(skb, OVS_KEY_ATTR_RECIRC_ID, output->recirc_id))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, OVS_KEY_ATTR_DP_HASH, output->ovs_flow_hash))
+		goto nla_put_failure;
 
 	if (nla_put_u32(skb, OVS_KEY_ATTR_PRIORITY, output->phy.priority))
 		goto nla_put_failure;
@@ -1401,11 +1423,13 @@ int ovs_nla_copy_actions(const struct nlattr *attr,
 		/* Expected argument lengths, (u32)-1 for variable length. */
 		static const u32 action_lens[OVS_ACTION_ATTR_MAX + 1] = {
 			[OVS_ACTION_ATTR_OUTPUT] = sizeof(u32),
+			[OVS_ACTION_ATTR_RECIRC] = sizeof(u32),
 			[OVS_ACTION_ATTR_USERSPACE] = (u32)-1,
 			[OVS_ACTION_ATTR_PUSH_VLAN] = sizeof(struct ovs_action_push_vlan),
 			[OVS_ACTION_ATTR_POP_VLAN] = 0,
 			[OVS_ACTION_ATTR_SET] = (u32)-1,
-			[OVS_ACTION_ATTR_SAMPLE] = (u32)-1
+			[OVS_ACTION_ATTR_SAMPLE] = (u32)-1,
+			[OVS_ACTION_ATTR_HASH] = sizeof(struct ovs_action_hash)
 		};
 		const struct ovs_action_push_vlan *vlan;
 		int type = nla_type(a);
@@ -1432,6 +1456,18 @@ int ovs_nla_copy_actions(const struct nlattr *attr,
 				return -EINVAL;
 			break;
 
+		case OVS_ACTION_ATTR_HASH: {
+			const struct ovs_action_hash *act_hash = nla_data(a);
+
+			switch (act_hash->hash_alg) {
+			case OVS_HASH_ALG_L4:
+				break;
+			default:
+				return  -EINVAL;
+			}
+
+			break;
+		}
 
 		case OVS_ACTION_ATTR_POP_VLAN:
 			break;
@@ -1442,6 +1478,9 @@ int ovs_nla_copy_actions(const struct nlattr *attr,
 				return -EINVAL;
 			if (!(vlan->vlan_tci & htons(VLAN_TAG_PRESENT)))
 				return -EINVAL;
+			break;
+
+		case OVS_ACTION_ATTR_RECIRC:
 			break;
 
 		case OVS_ACTION_ATTR_SET:
