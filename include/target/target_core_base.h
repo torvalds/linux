@@ -903,4 +903,18 @@ struct se_wwn {
 	struct config_group	fabric_stat_group;
 };
 
+static inline void atomic_inc_mb(atomic_t *v)
+{
+	smp_mb__before_atomic();
+	atomic_inc(v);
+	smp_mb__after_atomic();
+}
+
+static inline void atomic_dec_mb(atomic_t *v)
+{
+	smp_mb__before_atomic();
+	atomic_dec(v);
+	smp_mb__after_atomic();
+}
+
 #endif /* TARGET_CORE_BASE_H */
