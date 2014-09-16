@@ -177,10 +177,11 @@ static void dns_resolver_free_preparse(struct key_preparsed_payload *prep)
  * should end with a period).  The domain name is case-independent.
  */
 static int
-dns_resolver_match(const struct key *key, const void *description)
+dns_resolver_match(const struct key *key,
+		   const struct key_match_data *match_data)
 {
 	int slen, dlen, ret = 0;
-	const char *src = key->description, *dsp = description;
+	const char *src = key->description, *dsp = match_data->raw_data;
 
 	kenter("%s,%s", src, dsp);
 

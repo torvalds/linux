@@ -141,9 +141,9 @@ EXPORT_SYMBOL_GPL(user_update);
 /*
  * match users on their name
  */
-int user_match(const struct key *key, const void *description)
+int user_match(const struct key *key, const struct key_match_data *match_data)
 {
-	return strcmp(key->description, description) == 0;
+	return strcmp(key->description, match_data->raw_data) == 0;
 }
 
 EXPORT_SYMBOL_GPL(user_match);

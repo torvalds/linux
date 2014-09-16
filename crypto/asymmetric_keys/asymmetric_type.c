@@ -59,9 +59,11 @@ EXPORT_SYMBOL_GPL(asymmetric_keyid_match);
  *	"id:<id>"	- request a key matching the ID
  *	"<subtype>:<id>" - request a key of a subtype
  */
-static int asymmetric_key_match(const struct key *key, const void *description)
+static int asymmetric_key_match(const struct key *key,
+				const struct key_match_data *match_data)
 {
 	const struct asymmetric_key_subtype *subtype = asymmetric_key_subtype(key);
+	const char *description = match_data->raw_data;
 	const char *spec = description;
 	const char *id;
 	ptrdiff_t speclen;
@@ -91,6 +93,31 @@ static int asymmetric_key_match(const struct key *key, const void *description)
 		return 1;
 
 	return 0;
+}
+
+/*
+ * Preparse the match criterion.  If we don't set lookup_type and cmp,
+ * the default will be an exact match on the key description.
+ *
+ * There are some specifiers for matching key IDs rather than by the key
+ * description:
+ *
+ *	"id:<id>" - request a key by any available ID
+ *
+ * These have to be searched by iteration rather than by direct lookup because
+ * the key is hashed according to its description.
+ */
+static int asymmetric_key_match_preparse(struct key_match_data *match_data)
+{
+	match_data->lookup_type = KEYRING_SEARCH_LOOKUP_ITERATE;
+	return 0;
+}
+
+/*
+ * Free the preparsed the match criterion.
+ */
+static void asymmetric_key_match_free(struct key_match_data *match_data)
+{
 }
 
 /*
@@ -196,7 +223,9 @@ struct key_type key_type_asymmetric = {
 	.preparse	= asymmetric_key_preparse,
 	.free_preparse	= asymmetric_key_free_preparse,
 	.instantiate	= generic_key_instantiate,
+	.match_preparse	= asymmetric_key_match_preparse,
 	.match		= asymmetric_key_match,
+	.match_free	= asymmetric_key_match_free,
 	.destroy	= asymmetric_key_destroy,
 	.describe	= asymmetric_key_describe,
 	.def_lookup_type = KEYRING_SEARCH_LOOKUP_ITERATE,

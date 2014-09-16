@@ -107,13 +107,10 @@ extern int iterate_over_keyring(const struct key *keyring,
 				int (*func)(const struct key *key, void *data),
 				void *data);
 
-typedef int (*key_match_func_t)(const struct key *, const void *);
-
 struct keyring_search_context {
 	struct keyring_index_key index_key;
 	const struct cred	*cred;
-	key_match_func_t	match;
-	const void		*match_data;
+	struct key_match_data	match_data;
 	unsigned		flags;
 #define KEYRING_SEARCH_LOOKUP_TYPE	0x0001	/* [as type->def_lookup_type] */
 #define KEYRING_SEARCH_NO_STATE_CHECK	0x0002	/* Skip state checks */
@@ -152,7 +149,8 @@ extern struct key *request_key_and_link(struct key_type *type,
 					struct key *dest_keyring,
 					unsigned long flags);
 
-extern int lookup_user_key_possessed(const struct key *key, const void *target);
+extern int lookup_user_key_possessed(const struct key *key,
+				     const struct key_match_data *match_data);
 extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
 				 key_perm_t perm);
 #define KEY_LOOKUP_CREATE	0x01
