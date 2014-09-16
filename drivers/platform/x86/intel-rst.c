@@ -35,7 +35,7 @@ static ssize_t irst_show_wakeup_events(struct device *dev,
 	acpi = to_acpi_device(dev);
 
 	status = acpi_evaluate_integer(acpi->handle, "GFFS", NULL, &value);
-	if (!ACPI_SUCCESS(status))
+	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
 	return sprintf(buf, "%lld\n", value);
@@ -59,7 +59,7 @@ static ssize_t irst_store_wakeup_events(struct device *dev,
 
 	status = acpi_execute_simple_method(acpi->handle, "SFFS", value);
 
-	if (!ACPI_SUCCESS(status))
+	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
 	return count;
@@ -81,7 +81,7 @@ static ssize_t irst_show_wakeup_time(struct device *dev,
 	acpi = to_acpi_device(dev);
 
 	status = acpi_evaluate_integer(acpi->handle, "GFTV", NULL, &value);
-	if (!ACPI_SUCCESS(status))
+	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
 	return sprintf(buf, "%lld\n", value);
@@ -105,7 +105,7 @@ static ssize_t irst_store_wakeup_time(struct device *dev,
 
 	status = acpi_execute_simple_method(acpi->handle, "SFTV", value);
 
-	if (!ACPI_SUCCESS(status))
+	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
 	return count;
