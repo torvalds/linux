@@ -112,22 +112,22 @@ static inline int put_dreq(struct nfs_direct_req *dreq)
  * nfs_direct_select_verf - select the right verifier
  * @dreq - direct request possibly spanning multiple servers
  * @ds_clp - nfs_client of data server or NULL if MDS / non-pnfs
- * @ds_idx - index of data server in data server list, only valid if ds_clp set
+ * @commit_idx - commit bucket index for the DS
  *
  * returns the correct verifier to use given the role of the server
  */
 static struct nfs_writeverf *
 nfs_direct_select_verf(struct nfs_direct_req *dreq,
 		       struct nfs_client *ds_clp,
-		       int ds_idx)
+		       int commit_idx)
 {
 	struct nfs_writeverf *verfp = &dreq->verf;
 
 #ifdef CONFIG_NFS_V4_1
 	if (ds_clp) {
 		/* pNFS is in use, use the DS verf */
-		if (ds_idx >= 0 && ds_idx < dreq->ds_cinfo.nbuckets)
-			verfp = &dreq->ds_cinfo.buckets[ds_idx].direct_verf;
+		if (commit_idx >= 0 && commit_idx < dreq->ds_cinfo.nbuckets)
+			verfp = &dreq->ds_cinfo.buckets[commit_idx].direct_verf;
 		else
 			WARN_ON_ONCE(1);
 	}
@@ -148,8 +148,7 @@ static void nfs_direct_set_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
-				      hdr->ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp, hdr->ds_commit_idx);
 	WARN_ON_ONCE(verfp->committed >= 0);
 	memcpy(verfp, &hdr->verf, sizeof(struct nfs_writeverf));
 	WARN_ON_ONCE(verfp->committed < 0);
@@ -169,8 +168,7 @@ static int nfs_direct_set_or_cmp_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
-					 hdr->ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp, hdr->ds_commit_idx);
 	if (verfp->committed < 0) {
 		nfs_direct_set_hdr_verf(dreq, hdr);
 		return 0;

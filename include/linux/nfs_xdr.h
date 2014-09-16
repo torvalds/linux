@@ -1328,7 +1328,7 @@ struct nfs_pgio_header {
 	__u64			mds_offset;	/* Filelayout dense stripe */
 	struct nfs_page_array	page_array;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
-	int			ds_idx;		/* ds index if ds_clp is set */
+	int			ds_commit_idx;	/* ds index if ds_clp is set */
 };
 
 struct nfs_mds_commit_info {
