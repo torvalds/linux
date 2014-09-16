@@ -75,6 +75,8 @@ const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
 	"WFD-SET-TCPPORT",
 	"WFD-SET-MAXTPUT",
 	"WFD-SET-DEVTYPE",	
+/*	Private command for	P2P disable*/
+	"P2P_DISABLE"
 };
 
 #ifdef PNO_SUPPORT
@@ -302,7 +304,7 @@ int rtw_android_set_block(struct net_device *net, char *command, int total_len)
 	char *block_value = command + strlen(android_wifi_cmd_str[ANDROID_WIFI_CMD_BLOCK]) + 1;
 
 	#ifdef CONFIG_IOCTL_CFG80211
-	wdev_to_priv(adapter->rtw_wdev)->block = (*block_value=='0')?_FALSE:_TRUE;
+	adapter_wdev_data(adapter)->block = (*block_value=='0')?_FALSE:_TRUE;
 	#endif
 	
 	return 0;
@@ -418,7 +420,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		//rtw_set_scan_mode((_adapter *)rtw_netdev_priv(net), SCAN_ACTIVE);
 #ifdef CONFIG_PLATFORM_MSTAR
 #ifdef CONFIG_IOCTL_CFG80211
-		(wdev_to_priv(net->ieee80211_ptr))->bandroid_scan = _TRUE;	
+		adapter_wdev_data((_adapter *)rtw_netdev_priv(net))->bandroid_scan = _TRUE;
 #endif //CONFIG_IOCTL_CFG80211
 #endif //CONFIG_PLATFORM_MSTAR
 		break;
@@ -582,6 +584,16 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 
 			pwfd_info->wfd_device_type &= WFD_DEVINFO_DUAL;
 		}
+		break;
+	}
+	case ANDROID_WIFI_CMD_P2P_DISABLE:
+	{
+		struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;	
+		struct wifidirect_info 	*pwdinfo= &(padapter->wdinfo);
+		u8 channel, ch_offset;
+		u16 bwmode;
+
+		rtw_p2p_enable(padapter, P2P_ROLE_DISABLE);
 		break;
 	}
 #endif

@@ -40,11 +40,10 @@ choice
 
 source "drivers/net/wireless/rockchip_wlan/rtl8188eu/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8189es/Kconfig"
-#source "drivers/net/wireless/rockchip_wlan/rtl8192cu/Kconfig"
-#source "drivers/net/wireless/rockchip_wlan/rtl8192du/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/rtl8192cu/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/rtl8192du/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723au/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723bu/Kconfig"
-#source "drivers/net/wireless/rockchip_wlan/rtl8723as/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723bs/Kconfig"
 endchoice
 endif

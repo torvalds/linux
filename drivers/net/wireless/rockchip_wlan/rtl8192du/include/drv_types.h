@@ -85,6 +85,8 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <rtw_tdls.h>
 #include <rtw_ap.h>
 
+#include "../hal/dm.h"
+
 #ifdef CONFIG_DRVEXT_MODULE
 #include <drvext_api.h>
 #endif
@@ -231,10 +233,26 @@ struct registry_priv
 #define INTF_DATA SDIO_DATA
 #endif
 
+#ifdef CONFIG_CONCURRENT_MODE
+#define is_primary_adapter(adapter) (adapter->adapter_type == PRIMARY_ADAPTER)
+#define get_iface_type(adapter) (adapter->iface_type)
+#else
+#define is_primary_adapter(adapter) (1)
+#define get_iface_type(adapter) (IFACE_PORT0)
+#endif
 #define GET_PRIMARY_ADAPTER(padapter) (((_adapter *)padapter)->dvobj->if1)
-
 #define GET_IFACE_NUMS(padapter) (((_adapter *)padapter)->dvobj->iface_nums)
 #define GET_ADAPTER(padapter, iface_id) (((_adapter *)padapter)->dvobj->padapters[iface_id])
+
+struct debug_priv {
+	u64 dbg_rx_fifo_last_overflow;
+	u64 dbg_rx_fifo_curr_overflow;
+	u64 dbg_rx_fifo_diff_overflow;
+	u64 dbg_rx_ampdu_drop_count;
+	u64 dbg_rx_ampdu_forced_indicate_count;
+	u64 dbg_rx_ampdu_loss_count;
+	u64 dbg_rx_ampdu_window_shift_cnt;
+	u64 dbg_rx_dup_mgt_frame_drop_count;};
 
 enum _IFACE_ID {
 	IFACE_ID0, //maping to PRIMARY_ADAPTER
@@ -250,7 +268,7 @@ struct dvobj_priv
 	_adapter *if2; //SECONDARY_ADAPTER
 
 	s32 processing_dev_remove;
-
+	struct debug_priv drv_dbg;
 	//for local/global synchronization
 	_mutex hw_init_mutex;
 	_mutex h2c_fwcmd_mutex;
@@ -377,6 +395,8 @@ struct dvobj_priv
 #endif//PLATFORM_LINUX
 
 #endif//CONFIG_PCI_HCI
+
+	DM_ODM_T odmpriv;
 };
 
 #ifdef PLATFORM_LINUX
@@ -547,6 +567,7 @@ struct _ADAPTER{
 
 #ifdef PLATFORM_LINUX
 	_nic_hdl pnetdev;
+	char old_ifname[IFNAMSIZ];
 
 	// used by rtw_rereg_nd_name related function
 	struct rereg_nd_name_data {
@@ -560,9 +581,11 @@ struct _ADAPTER{
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
 	struct proc_dir_entry *dir_dev;// for proc directory
+	struct proc_dir_entry *dir_dm;
 
 #ifdef CONFIG_IOCTL_CFG80211
 	struct wireless_dev *rtw_wdev;
+	struct rtw_wdev_priv wdev_data;
 #endif //CONFIG_IOCTL_CFG80211
 
 #endif //end of PLATFORM_LINUX
@@ -646,9 +669,12 @@ struct _ADAPTER{
 	PLOOPBACKDATA ploopback;
 #endif
 
+	u8 fix_rate;
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
+#define adapter_to_odm(adapter) (&(adapter->dvobj->odmpriv))
+#define adapter_wdev_data(adapter) (&((adapter)->wdev_data))
 
 int rtw_handle_dualmac(_adapter *adapter, bool init);
 

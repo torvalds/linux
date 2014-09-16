@@ -438,6 +438,8 @@ thread_return rtw_cmd_thread(thread_context context)
 	u8 ret;
 	struct cmd_obj *pcmd;
 	u8 *pcmdbuf, *prspbuf;
+	u32 cmd_start_time;
+	u32 cmd_process_time;
 	u8 (*cmd_hdl)(_adapter *padapter, u8* pbuf);
 	void (*pcmd_callback)(_adapter *dev, struct cmd_obj *pcmd);
        _adapter *padapter = (_adapter *)context;
@@ -459,12 +461,12 @@ _func_enter_;
 	while(1)
 	{
 		if ((_rtw_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL) {
-			LOG_LEVEL(_drv_err_, FUNC_ADPT_FMT" _rtw_down_sema(&pcmdpriv->cmd_queue_sema) return _FAIL, break\n", FUNC_ADPT_ARG(padapter));
+			LOG_LEVEL(_drv_always_, FUNC_ADPT_FMT" _rtw_down_sema(&pcmdpriv->cmd_queue_sema) return _FAIL, break\n", FUNC_ADPT_ARG(padapter));
 			break;
 		}
 
 		if (pcmdpriv->stop_req) {
-			LOG_LEVEL(_drv_err_, FUNC_ADPT_FMT" stop_req:%u, break\n", FUNC_ADPT_ARG(padapter), pcmdpriv->stop_req);
+			LOG_LEVEL(_drv_always_, FUNC_ADPT_FMT" stop_req:%u, break\n", FUNC_ADPT_ARG(padapter), pcmdpriv->stop_req);
 			break;
 		}
 
@@ -478,7 +480,7 @@ _func_enter_;
 _next:
 		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved == _TRUE))
 		{
-			LOG_LEVEL(_drv_err_, "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
+			LOG_LEVEL(_drv_always_, "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
 				__FUNCTION__, padapter->bDriverStopped, padapter->bSurpriseRemoved, __LINE__);
 			break;
 		}
@@ -489,6 +491,8 @@ _next:
 #endif
 			continue;
 		}
+
+		cmd_start_time = rtw_get_current_time();
 
 		if( _FAIL == rtw_cmd_filter(pcmdpriv, pcmd) )
 		{
@@ -527,6 +531,25 @@ _next:
 		cmd_hdl = NULL;
 
 post_process:
+
+		if((cmd_process_time = rtw_get_passing_time_ms(cmd_start_time)) > 1000)
+		{
+			if (pcmd->cmdcode == GEN_CMD_CODE(_Set_Drv_Extra)) {
+				struct drvextra_cmd_parm *drvextra_parm = (struct drvextra_cmd_parm *)pcmdbuf;
+				DBG_871X(ADPT_FMT" cmd=%d,%d,%d process_time=%d > 1 sec\n",
+					ADPT_ARG(pcmd->padapter), pcmd->cmdcode, drvextra_parm->ec_id, drvextra_parm->type_size, cmd_process_time);
+				//rtw_warn_on(1);
+			} else if(pcmd->cmdcode == GEN_CMD_CODE(_Set_MLME_EVT)){
+				struct C2HEvent_Header *pc2h_evt_hdr = (struct C2HEvent_Header *)pcmdbuf;
+				DBG_871X(ADPT_FMT" cmd=%d,%d, process_time=%d > 1 sec\n",
+					ADPT_ARG(pcmd->padapter), pcmd->cmdcode, pc2h_evt_hdr->ID, cmd_process_time);
+				//rtw_warn_on(1);
+			} else {
+				DBG_871X(ADPT_FMT" cmd=%d, process_time=%d > 1 sec\n",
+					ADPT_ARG(pcmd->padapter), pcmd->cmdcode, cmd_process_time);
+				//rtw_warn_on(1);
+			}
+		}
 
 		//call callback function for post-processed
 		if(pcmd->cmdcode <= (sizeof(rtw_cmd_callback) /sizeof(struct _cmd_callback)))
@@ -784,7 +807,6 @@ full_scan_timeout:
 
 		rtw_led_control(padapter, LED_CTL_SITE_SURVEY);
 
-		pmlmepriv->scan_interval = SCAN_INTERVAL;// 30*2 sec = 60sec
 	} else {
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 	}
@@ -2178,18 +2200,18 @@ static void traffic_status_watchdog(_adapter *padapter)
 		// LeisurePS only work in infra mode.
 		if(bEnterPS)
 		{
-			LPS_Enter(padapter);
+			LPS_Enter(padapter, "TRAFFIC_IDLE");
 		}
 		else
 		{
-			LPS_Leave(padapter);
+			LPS_Leave(padapter, "TRAFFIC_BUSY");
 		}
 #endif
 	}
 	else
 	{
 #ifdef CONFIG_LPS
-		LPS_Leave(padapter);
+		LPS_Leave(padapter, "NON_LINKED");
 #endif
 	}
 
@@ -2273,7 +2295,7 @@ _func_enter_;
 			break;
 		case LPS_CTRL_JOINBSS:
 			//DBG_871X("LPS_CTRL_JOINBSS \n");
-			LPS_Leave(padapter);
+			LPS_Leave(padapter, "LPS_CTRL_JOINBSS");
 			break;
 		case LPS_CTRL_CONNECT:
 			//DBG_871X("LPS_CTRL_CONNECT \n");
@@ -2285,13 +2307,13 @@ _func_enter_;
 		case LPS_CTRL_DISCONNECT:
 			//DBG_871X("LPS_CTRL_DISCONNECT \n");
 			mstatus = 0;
-			LPS_Leave(padapter);
+			LPS_Leave(padapter, "LPS_CTRL_DISCONNECT");
 			rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_JOINBSSRPT, (u8 *)(&mstatus));
 			break;
 		case LPS_CTRL_SPECIAL_PACKET:
 			//DBG_871X("LPS_CTRL_SPECIAL_PACKET \n");
 			pwrpriv->DelayLPSLastTimeStamp = rtw_get_current_time();
-			LPS_Leave(padapter);
+			LPS_Leave(padapter, "LPS_CTRL_SPECIAL_PACKET");
 			break;
 
 		default:
@@ -2543,7 +2565,7 @@ static void rtw_chk_hi_queue_hdl(_adapter *padapter)
 			pstapriv->tim_bitmap &= ~BIT(0);
 			pstapriv->sta_dz_bitmap &= ~BIT(0);
 			
-			update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
+			update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
 		}	
 	}	
 	
@@ -2825,11 +2847,10 @@ _func_enter_;
 		_set_timer(&pmlmepriv->assoc_timer, 1);
 	}
 	else if(pcmd->res != H2C_SUCCESS)
-	{				
-		RT_TRACE(_module_rtl871x_cmd_c_,_drv_err_,("********Error:rtw_select_and_join_from_scanned_queue Wait Sema  Fail ************\n"));
+	{
 		_set_timer(&pmlmepriv->assoc_timer, 1);	
 	}
-	
+
 	rtw_free_cmd_obj(pcmd);
 	
 _func_exit_;	

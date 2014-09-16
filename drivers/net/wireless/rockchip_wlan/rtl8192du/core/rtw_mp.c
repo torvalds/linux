@@ -34,10 +34,6 @@
 #ifdef CONFIG_RTL8192D
 #include <rtl8192d_hal.h>
 #endif
-#ifdef CONFIG_RTL8723A
-#include <rtl8723a_hal.h>
-#endif
-
 
 #ifdef CONFIG_MP_INCLUDED
 
@@ -295,10 +291,14 @@ s32 init_mp_priv(PADAPTER padapter)
 
 	_init_mp_priv_(pmppriv);
 	pmppriv->papdater = padapter;
-
+	pmppriv->mp_dm =0;
 	pmppriv->tx.stop = 1;
 	mp_init_xmit_attrib(&pmppriv->tx, padapter);
 
+	pmppriv->antenna_tx = ANTENNA_A;
+	pmppriv->antenna_rx = ANTENNA_A;
+	pmppriv->bandwidth = HT_CHANNEL_WIDTH_20;
+/*	
 	switch (padapter->registrypriv.rf_config) {
 		case RF_1T1R:
 			pmppriv->antenna_tx = ANTENNA_A;
@@ -319,7 +319,7 @@ s32 init_mp_priv(PADAPTER padapter)
 			pmppriv->antenna_rx = ANTENNA_ABCD;
 			break;
 	}
-
+*/
 	return _SUCCESS;
 }
 
@@ -340,7 +340,7 @@ void free_mp_priv(struct mp_priv *pmp_priv)
 #endif
 
 #ifdef CONFIG_RTL8192D
-#define PHY_IQCalibrate(a)	rtl8192d_PHY_IQCalibrate(a)
+#define PHY_IQCalibrate(a)	rtl8192d_PHY_IQCalibrate(a, _FALSE)
 #define PHY_LCCalibrate(a)	rtl8192d_PHY_LCCalibrate(a, _TRUE)
 #define dm_CheckTXPowerTracking(a)	rtl8192d_dm_CheckTXPowerTracking(a)
 #define PHY_SetRFPathSwitch(a,b)	rtl8192d_PHY_SetRFPathSwitch(a,b)
@@ -412,6 +412,7 @@ MPT_InitializeAdapter(
 	PHY_IQCalibrate(pAdapter);
 	dm_CheckTXPowerTracking(pAdapter);	//trigger thermal meter
 	PHY_LCCalibrate(pAdapter);
+	PHY_SetRFPathSwitch(pAdapter, 1/*pHalData->bDefaultAntenna*/);	//Wifi default use Main
 #endif
 
 #ifdef CONFIG_PCI_HCI

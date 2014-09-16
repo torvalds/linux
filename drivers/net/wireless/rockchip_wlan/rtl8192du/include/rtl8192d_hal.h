@@ -29,6 +29,7 @@
 #include "rtl8192d_recv.h"
 #include "rtl8192d_xmit.h"
 #include "rtl8192d_cmd.h"
+#include "rtw_efuse.h"
 
 /*---------------------------Define Local Constant---------------------------*/
 /* Channel switch:The size of command tables for switch channel*/
@@ -840,6 +841,9 @@ struct hal_data_8192de
 
 	u16	EfuseUsedBytes;
 	u8	RTSInitRate;	 // 2010.11.24.by tynli.
+
+	EFUSE_HAL			EfuseHal;
+	
 #ifdef CONFIG_P2P
 	struct P2P_PS_Offload_t	p2p_ps_offload;
 #endif //CONFIG_P2P
@@ -909,7 +913,7 @@ struct hal_data_8192du
 	u8	nCur40MhzPrimeSC;// Control channel sub-carrier
 	u16	BasicRateSet;
 
-	INTERFACE_SELECT_8192DUSB	InterfaceSel;
+	u8	BoardType;
 
 	//rf_ctrl
 	u8	rf_chip;
@@ -965,6 +969,8 @@ struct hal_data_8192du
 	u8	BluetoothCoexist;
 	u8	ExternalPA;
 	u8	InternalPA5G[2];	//pathA / pathB
+
+	u8	bLedOpenDrain; // Support Open-drain arrangement for controlling the LED. Added by Roger, 2009.10.16.
 
 	//u32	LedControlNum;
 	//u32	LedControlMode;
@@ -1067,6 +1073,8 @@ struct hal_data_8192du
 
 	u16	EfuseUsedBytes;
 	u8	RTSInitRate;	 // 2010.11.24.by tynli.
+
+	EFUSE_HAL			EfuseHal;
 #ifdef CONFIG_P2P
 	struct P2P_PS_Offload_t	p2p_ps_offload;
 #endif //CONFIG_P2P
@@ -1090,6 +1098,11 @@ VOID PHY_SetPowerOnFor8192D(PADAPTER Adapter);
 //void PHY_ConfigMacPhyMode92D(PADAPTER Adapter);
 void rtl8192d_free_hal_data(_adapter * padapter);
 void rtl8192d_set_hal_ops(struct hal_ops *pHalFunc);
+
+void SetHwReg8192D(_adapter *adapter, u8 variable, u8 *val);
+void GetHwReg8192D(_adapter *adapter, u8 variable, u8 *val);
+u8 SetHalDefVar8192D(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val);
+u8 GetHalDefVar8192D(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val);
 
 #endif
 

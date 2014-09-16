@@ -579,6 +579,7 @@ static void odm_DIG(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct mlme_priv	*pmlmepriv = &(pAdapter->mlmepriv);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	DM_ODM_T *odm = adapter_to_odm(pAdapter);
 	struct registry_priv	 *pregistrypriv = &pAdapter->registrypriv;
 	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(pdmpriv->FalseAlmCnt);
 	pDIG_T	pDM_DigTable = &pdmpriv->DM_DigTable;
@@ -595,9 +596,6 @@ static void odm_DIG(
 	struct mlme_priv	*pbuddy_pmlmepriv = &(pbuddy_adapter->mlmepriv);
 	struct dm_priv	*pbuddy_pdmpriv = &pbuddy_pHalData->dmpriv;
 #endif //CONFIG_CONCURRENT_MODE
-#ifdef CONFIG_DM_ADAPTIVITY
-	u8 Adap_IGI_Upper = pdmpriv->IGI_target + 30 + (u8) pdmpriv->TH_L2H_ini -(u8) pdmpriv->TH_EDCCA_HL_diff;
-#endif
 
 	//RT_TRACE(COMP_DIG, DBG_LOUD, ("odm_DIG() ==>\n"));
 	
@@ -863,21 +861,23 @@ static void odm_DIG(
 	if(pDM_DigTable->CurIGValue < pDM_DigTable->rx_gain_range_min)
 		pDM_DigTable->CurIGValue = pDM_DigTable->rx_gain_range_min;
 
-#ifdef CONFIG_DM_ADAPTIVITY
-	if(pdmpriv->DMFlag & DYNAMIC_FUNC_ADAPTIVITY)
+#ifdef CONFIG_ODM_ADAPTIVITY
+	if((pdmpriv->DMFlag & DYNAMIC_FUNC_ADAPTIVITY) && odm->adaptivity_flag == _TRUE)
 	{
+		u8 Adap_IGI_Upper = odm->Adaptivity_IGI_upper;
+
 		if(pDM_DigTable->CurIGValue > Adap_IGI_Upper)
 			pDM_DigTable->CurIGValue = Adap_IGI_Upper;
 
-		if(pdmpriv->IGI_LowerBound != 0)
+		if(odm->IGI_LowerBound != 0)
 		{
-			if(pDM_DigTable->CurIGValue < pdmpriv->IGI_LowerBound)
-				pDM_DigTable->CurIGValue = pdmpriv->IGI_LowerBound;
+			if(pDM_DigTable->CurIGValue < odm->IGI_LowerBound)
+				pDM_DigTable->CurIGValue = odm->IGI_LowerBound;
 		}
-		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT": pdmpriv->IGI_LowerBound = %d\n",
-			FUNC_ADPT_ARG(pAdapter), pdmpriv->IGI_LowerBound);
+		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT": odm->IGI_LowerBound = %d\n",
+			FUNC_ADPT_ARG(pAdapter), odm->IGI_LowerBound);
 	}
-#endif /* CONFIG_DM_ADAPTIVITY */
+#endif /* CONFIG_ODM_ADAPTIVITY */
 
 	if ( pAdapter->bRxRSSIDisplay )
 	{
@@ -1627,6 +1627,10 @@ dm_CheckEdcaTurbo(
 	u64	cur_rx_bytes = 0;
 	u32	EDCA_BE[2] = {0x5ea42b, 0x5ea42b};
 	u8	bbtchange = _FALSE;
+	u8	bLinked = _FALSE;
+#ifdef CONFIG_CONCURRENT_MODE
+	u8	buddy_bLinked = _FALSE;
+#endif //CONFIG_CONCURRENT_MODE
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv		*pdmpriv = &pHalData->dmpriv;
 	struct xmit_priv		*pxmitpriv = &(Adapter->xmitpriv);
@@ -1634,6 +1638,13 @@ dm_CheckEdcaTurbo(
 	struct registry_priv	*pregpriv = &Adapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &(Adapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+#ifdef CONFIG_CONCURRENT_MODE
+	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
+	struct xmit_priv		*pbuddy_pxmitpriv = &(pbuddy_adapter->xmitpriv);
+      	struct recv_priv		*pbuddy_precvpriv = &(pbuddy_adapter->recvpriv);
+	struct mlme_priv			*pbuddy_mlmepriv = &pbuddy_adapter->mlmepriv;
+	struct mlme_ext_priv		*pbuddy_mlmeext = &pbuddy_adapter->mlmeextpriv;
+#endif //CONFIG_CONCURRENT_MODE
 
 	if(IS_92D_SINGLEPHY(pHalData->VersionID))
 	{
@@ -1656,12 +1667,35 @@ dm_CheckEdcaTurbo(
 		goto dm_CheckEdcaTurbo_EXIT;
 	}
 
+	if((check_fwstate(&Adapter->mlmepriv, _FW_LINKED) == _TRUE)&&(check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE) == _TRUE))			
+		bLinked = _TRUE;    
+
+#ifdef CONFIG_CONCURRENT_MODE
+	if((check_fwstate(&pbuddy_adapter->mlmepriv, _FW_LINKED) == _TRUE)&&(check_fwstate(&pbuddy_adapter->mlmepriv, WIFI_STATION_STATE) == _TRUE))			
+		buddy_bLinked = _TRUE;
+#endif //CONFIG_CONCURRENT_MODE
+	if((!bLinked) 
+#ifdef CONFIG_CONCURRENT_MODE
+            && (!buddy_bLinked) 
+#endif //CONFIG_CONCURRENT_MODE     
+        )
+	{
+		goto dm_CheckEdcaTurbo_EXIT;
+	}
+      
 	// Check if the status needs to be changed.
 	if((bbtchange) || (!precvpriv->bIsAnyNonBEPkts) )
 	{
 		cur_tx_bytes = pxmitpriv->tx_bytes - pxmitpriv->last_tx_bytes;
 		cur_rx_bytes = precvpriv->rx_bytes - precvpriv->last_rx_bytes;
 
+#ifdef CONFIG_CONCURRENT_MODE
+		cur_tx_bytes += pbuddy_pxmitpriv->tx_bytes - pbuddy_pxmitpriv->last_tx_bytes;
+		cur_rx_bytes += pbuddy_precvpriv->rx_bytes - pbuddy_precvpriv->last_rx_bytes;
+
+		if(_TRUE == buddy_bLinked)
+                    pmlmeinfo = &(pbuddy_mlmeext->mlmext_info);
+#endif //CONFIG_CONCURRENT_MODE
 		//traffic, TX or RX
 		if((pmlmeinfo->assoc_AP_vendor == ralinkAP)||(pmlmeinfo->assoc_AP_vendor == atherosAP))
 		{
@@ -1686,8 +1720,15 @@ dm_CheckEdcaTurbo(
 			}
 		}
 
-		if ((pdmpriv->prv_traffic_idx != trafficIndex) || (!pHalData->bCurrentTurboEDCA))
+		//if ((pdmpriv->prv_traffic_idx != trafficIndex) || (!pHalData->bCurrentTurboEDCA))
 		{
+#ifdef CONFIG_CONCURRENT_MODE		
+			if((_TRUE == bLinked) && (_TRUE == buddy_bLinked))
+			{
+				edca_param = 0x5ea42b;
+			}         
+			else
+#endif //CONFIG_CONCURRENT_MODE              
 			{
 				if((pmlmeinfo->assoc_AP_vendor == ciscoAP) && (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N)))
 				{
@@ -1740,6 +1781,10 @@ dm_CheckEdcaTurbo_EXIT:
 	precvpriv->bIsAnyNonBEPkts = _FALSE;
 	pxmitpriv->last_tx_bytes = pxmitpriv->tx_bytes;
 	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
+#ifdef CONFIG_CONCURRENT_MODE
+	pbuddy_pxmitpriv->last_tx_bytes = pbuddy_pxmitpriv->tx_bytes;
+	pbuddy_precvpriv->last_rx_bytes = pbuddy_precvpriv->rx_bytes;
+#endif //CONFIG_CONCURRENT_MODE
 
 }	// dm_CheckEdcaTurbo
 
@@ -1878,6 +1923,12 @@ dm_TXPowerTrackingCallback_ThermalMeter_92D(
 //#if MP_DRIVER != 1
 //	return;
 //#endif
+	if(!pdmpriv->TxPowerTrackControl)
+		return;
+		
+#ifdef CONFIG_MP_INCLUDED
+	DBG_871X("%s() \n",__func__);
+#endif
 
 	pdmpriv->TXPowerTrackingCallbackCnt++;	//cosa add for debug
 	pdmpriv->bTXPowerTrackingInit = _TRUE;
@@ -2303,7 +2354,7 @@ dm_TXPowerTrackingCallback_ThermalMeter_92D(
 			}
 #endif
 			pdmpriv->ThermalValue_IQK = ThermalValue;
-			rtl8192d_PHY_IQCalibrate(Adapter);
+			rtl8192d_PHY_IQCalibrate(Adapter, _TRUE);
 		}
 
 		if(delta_RxGain > 0 && pHalData->CurrentBandType92D == BAND_ON_5G 
@@ -2842,6 +2893,7 @@ rtl8192d_InitHalDm(
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	PDM_ODM_T odm = adapter_to_odm(Adapter);
 	u8	i;
 
 	pdmpriv->DM_Type = DM_Type_ByDriver;	
@@ -2880,11 +2932,15 @@ rtl8192d_InitHalDm(
 		pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
 	}
 
-#ifdef CONFIG_DM_ADAPTIVITY
+#ifdef CONFIG_ODM_ADAPTIVITY
 	pdmpriv->DMFlag |= DYNAMIC_FUNC_ADAPTIVITY;
-	dm_adaptivity_init(Adapter);
+	odm_AdaptivityInit(odm);
 #endif
 
+	if(pHalData->MacPhyMode92D == DUALMAC_SINGLEPHY)
+		odm->write_dig = DM_Write_DIG_DMSP;
+	else
+		odm->write_dig = DM_Write_DIG;
 }
 
 #ifdef CONFIG_CONCURRENT_MODE
@@ -3013,6 +3069,7 @@ rtl8192d_HalDmWatchDog(
 		bFwPSAwake = _FALSE;
 #endif // CONFIG_P2P_PS
 
+
 	// Stop dynamic mechanism when:
 	// 1. RF is OFF. (No need to do DM.)
 	// 2. Fw is under power saving mode for FwLPS. (Prevent from SW/FW I/O racing.)
@@ -3067,7 +3124,8 @@ rtl8192d_HalDmWatchDog(
 		odm_FindMinimumRSSI_92D(Adapter);
 #endif //CONFIG_CONCURRENT_MODE
 		odm_DIG(Adapter);
-		dm_adaptivity(Adapter);
+		odm_Adaptivity(adapter_to_odm(Adapter));
+		rtw_dm_check_rxfifo_full(Adapter);
 		//PHY_SetBBReg( Adapter, 0xC50, 0x7f, 0x32 );
 		//PHY_SetBBReg( Adapter, 0xC58, 0x7f, 0x32 );
 		if(pHalData->MacPhyMode92D == DUALMAC_SINGLEPHY)

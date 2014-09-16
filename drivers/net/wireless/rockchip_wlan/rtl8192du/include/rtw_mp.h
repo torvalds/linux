@@ -114,6 +114,42 @@
 #define MPT_READ_TSSI			32
 #define MPT_GET_THERMAL_METER		33
 #endif
+#ifndef BIT
+#define BIT(x)		(1 << (x))
+#endif
+
+#define BIT0		0x00000001
+#define BIT1		0x00000002
+#define BIT2		0x00000004
+#define BIT3		0x00000008
+#define BIT4		0x00000010
+#define BIT5		0x00000020
+#define BIT6		0x00000040
+#define BIT7		0x00000080
+#define BIT8		0x00000100
+#define BIT9		0x00000200
+#define BIT10	0x00000400
+#define BIT11	0x00000800
+#define BIT12	0x00001000
+#define BIT13	0x00002000
+#define BIT14	0x00004000
+#define BIT15	0x00008000
+#define BIT16	0x00010000
+#define BIT17	0x00020000
+#define BIT18	0x00040000
+#define BIT19	0x00080000
+#define BIT20	0x00100000
+#define BIT21	0x00200000
+#define BIT22	0x00400000
+#define BIT23	0x00800000
+#define BIT24	0x01000000
+#define BIT25	0x02000000
+#define BIT26	0x04000000
+#define BIT27	0x08000000
+#define BIT28	0x10000000
+#define BIT29	0x20000000
+#define BIT30	0x40000000
+#define BIT31	0x80000000
 
 #define MAX_MP_XMITBUF_SZ 	2048
 #define NR_MP_XMITFRAME		8
@@ -391,7 +427,7 @@ struct mp_priv
 	u8 check_mp_pkt;
 
 //	uint ForcedDataRate;
-
+	u8 mp_dm;
 	struct wlan_network mp_network;
 	NDIS_802_11_MAC_ADDRESS network_macaddr;
 
@@ -424,7 +460,13 @@ struct mp_priv
 	u8 *pmp_xmtframe_buf;
 	_queue free_mp_xmitqueue;
 	u32 free_mp_xmitframe_cnt;
-
+	//
+	BOOLEAN 			bRegBW40MHz;				// Tx 40MHz channel capablity
+	BOOLEAN 			bCurBW40MHz;				// Tx 40MHz channel capability
+	// 40MHz Channel Offset settings.
+	HT_EXTCHNL_OFFSET	CurSTAExtChnlOffset;
+	BOOLEAN 			bPeer40MHzCap;					// Supported channel width set
+	BOOLEAN 			bPeer40MHzIntolerant;			// Forty MHz Intolerant
 	MPT_CONTEXT MptCtx;
 };
 
@@ -562,6 +604,15 @@ typedef enum _POWER_MODE_ {
 #define RX_PKT_BROADCAST	1
 #define RX_PKT_DEST_ADDR	2
 #define RX_PKT_PHY_MATCH	3
+
+typedef enum _MPT_Bandwidth_Switch_Mode{
+	BAND_20MHZ_MODE = 0,
+	BAND_40MHZ_DUPLICATE_MODE = 1,
+	BAND_40MHZ_LOWER_MODE = 2,
+	BAND_40MHZ_UPPER_MODE = 3,
+	BAND_40MHZ_DONTCARE_MODE = 4,
+	BAND_80MHZ_DONTCARE_MODE
+}MPT_BANDWIDTH_MODE_E, *PMPT_BANDWIDTH_MODE_E;
 
 #if 0
 #define RPTMaxCount 0x000FFFFF;

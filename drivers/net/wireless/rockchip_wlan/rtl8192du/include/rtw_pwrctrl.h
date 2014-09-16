@@ -308,7 +308,7 @@ extern void rtw_unregister_evt_alive(PADAPTER padapter);
 extern void cpwm_int_hdl(PADAPTER padapter, struct reportpwrstate_parm *preportpwrstate);
 #endif
 
-extern void rtw_set_ps_mode(_adapter * padapter, u8 ps_mode, u8 smart_ps);
+extern void rtw_set_ps_mode(_adapter * padapter, u8 ps_mode, u8 smart_ps, const char *msg);
 extern void rtw_set_rpwm(_adapter * padapter, u8 val8);
 extern void LeaveAllPowerSaveMode(PADAPTER Adapter);
 #ifdef CONFIG_IPS
@@ -329,8 +329,8 @@ rt_rf_power_state RfOnOffDetect(IN	PADAPTER pAdapter );
 
 
 #ifdef CONFIG_LPS
-void LPS_Enter(PADAPTER padapter);
-void LPS_Leave(PADAPTER padapter);
+void LPS_Enter(PADAPTER padapter, const char *msg);
+void LPS_Leave(PADAPTER padapter, const char *msg);
 #endif
 
 #ifdef CONFIG_RESUME_IN_WORKQUEUE

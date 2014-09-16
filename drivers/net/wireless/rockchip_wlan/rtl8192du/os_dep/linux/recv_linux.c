@@ -307,6 +307,7 @@ _func_enter_;
 
 			if(psta)
 			{
+				int tx_ret;
 				struct net_device *pnetdev= (struct net_device*)padapter->pnetdev;			
 
 				//DBG_871X("directly forwarding to the rtw_xmit_entry\n");
@@ -317,8 +318,12 @@ _func_enter_;
 				skb_set_queue_mapping(skb, rtw_recv_select_queue(skb));
 #endif //LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35)
 			
-				_rtw_xmit_entry(skb, pnetdev);
-			
+				tx_ret = _rtw_xmit_entry(skb, pnetdev);
+				if (tx_ret != NETDEV_TX_OK) {
+					padapter->xmitpriv.tx_drop++;
+					rtw_skb_free(skb);
+				}
+
 				if(bmcast)
 					skb = pskb2;
 				else

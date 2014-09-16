@@ -664,17 +664,18 @@ int FirmwareDownload92D(
 		
 		rtStatus = _WriteFW(Adapter, pFirmwareBuf, FirmwareLen);
 
-		if(rtStatus == _SUCCESS
-			||(rtw_get_passing_time_ms(fwdl_start_time) > 500 && writeFW_retry++ >= 3)
+		if(rtStatus == _SUCCESS || Adapter->bDriverStopped || Adapter->bSurpriseRemoved
+			||(writeFW_retry++ >= 3 && rtw_get_passing_time_ms(fwdl_start_time) > 500)
 		)
 			break;
-
-		DBG_871X("%s writeFW_retry:%u, time after fwdl_start_time:%ums\n", __FUNCTION__
-			, writeFW_retry
-			, rtw_get_passing_time_ms(fwdl_start_time)
-		);
 	}
 	_FWDownloadEnable(Adapter, _FALSE);
+
+	DBG_871X("%s writeFW_retry:%u, time after fwdl_start_time:%ums\n", __FUNCTION__
+		, writeFW_retry
+		, rtw_get_passing_time_ms(fwdl_start_time)
+	);
+
 	if(_SUCCESS != rtStatus){
 		DBG_871X("DL Firmware failed!\n");
 		goto Exit;
@@ -1374,7 +1375,7 @@ _func_enter_;
 	DBG_8192C("===== rtl8192du_free_hal_data =====\n");
 
 	if(padapter->HalData)
-		rtw_mfree(padapter->HalData, sizeof(HAL_DATA_TYPE));
+		rtw_vmfree(padapter->HalData, sizeof(HAL_DATA_TYPE));
 #ifdef CONFIG_DUALMAC_CONCURRENT
 	GlobalFirstConfigurationForNormalChip = _TRUE;
 #endif
@@ -2472,6 +2473,56 @@ static s32 c2h_handler_8192d(_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
 
 exit:
 	return ret;
+}
+
+void SetHwReg8192D(_adapter *adapter, u8 variable, u8 *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+
+	switch (variable) {
+	default:
+		SetHwReg(adapter, variable, val);
+		break;
+	}
+}
+
+void GetHwReg8192D(_adapter *adapter, u8 variable, u8 *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+
+	switch (variable) {
+	default:
+		GetHwReg(adapter, variable, val);
+		break;
+	}
+}
+
+u8 SetHalDefVar8192D(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	u8 bResult = _SUCCESS;
+
+	switch(variable) {
+	default:
+		bResult = SetHalDefVar(adapter, variable, val);
+		break;
+	}
+
+	return bResult;
+}
+
+u8 GetHalDefVar8192D(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	u8 bResult = _SUCCESS;
+
+	switch(variable) {
+	default:
+		bResult = GetHalDefVar(adapter, variable, val);
+		break;
+	}
+
+	return bResult;
 }
 
 void rtl8192d_set_hal_ops(struct hal_ops *pHalFunc)

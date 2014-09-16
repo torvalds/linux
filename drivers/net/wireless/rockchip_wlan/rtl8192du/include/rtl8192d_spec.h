@@ -1034,6 +1034,15 @@ Default: 00b.
 #define	EEPROM_CID_CCX							0x10 // CCX test. By Bruce, 2009-02-25.
 
 #endif
+
+//should be renamed and moved to another file
+typedef	enum _BOARD_TYPE_8192DUSB{
+	BOARD_USB_DONGLE 			= 0,		// USB dongle
+	BOARD_USB_High_PA 		= 1,		// USB dongle with high power PA
+	BOARD_MINICARD		  	= 2,		// Minicard
+	BOARD_USB_SOLO 		 	= 3,		// USB solo-Slim module
+	BOARD_USB_COMBO			= 4,		// USB Combo-Slim module
+} BOARD_TYPE_8192DUSB, *PBOARD_TYPE_8192DUSB;
 #endif
 
 

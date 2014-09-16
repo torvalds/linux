@@ -253,6 +253,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 {
 	int	pull=0;
 	uint	qsel;
+	u8 data_rate;
 	_adapter				*padapter = pxmitframe->padapter;
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
 	struct dm_priv		*pdmpriv = &pHalData->dmpriv;
@@ -271,16 +272,18 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	
 
 #ifndef CONFIG_USE_USB_BUFFER_ALLOC_TX
+#ifndef USB_PACKET_OFFSET_SZ
 if (padapter->registrypriv.mp_mode == 0)
 {
 
-	if((_FALSE == bagg_pkt) && (urb_zero_packet_chk(padapter, sz)==0))
+	if((PACKET_OFFSET_SZ != 0) && (_FALSE == bagg_pkt) && (urb_zero_packet_chk(padapter, sz)==0))
 	{
 		ptxdesc = (struct tx_desc *)(pmem+PACKET_OFFSET_SZ);
 		pull = 1;
 		pxmitframe->pkt_offset --;
 	}
 }
+#endif //USB_PACKET_OFFSET_SZ
 #endif	// CONFIG_USE_USB_BUFFER_ALLOC_TX
 		
 	_rtw_memset(ptxdesc, 0, sizeof(struct tx_desc));
@@ -334,21 +337,21 @@ if (padapter->registrypriv.mp_mode == 0)
 
 			ptxdesc->txdw4 |= cpu_to_le32(0x00000008);//RTS Rate=24M
 			ptxdesc->txdw5 |= cpu_to_le32(0x0001ff00);//
-			//ptxdesc->txdw5 |= cpu_to_le32(0x0000000b);//DataRate - 54M
 
 			//use REG_INIDATA_RATE_SEL value
-			ptxdesc->txdw5 |= cpu_to_le32(pdmpriv->INIDATA_RATE[pattrib->mac_id]);
+			data_rate = pdmpriv->INIDATA_RATE[pattrib->mac_id];
 
-              	if(0)//for driver dbg
-			{
-				ptxdesc->txdw4 |= cpu_to_le32(BIT(8));//driver uses rate
-				
-				if(pattrib->ht_en)
-					ptxdesc->txdw5 |= cpu_to_le32(BIT(6));//SGI
-
-				ptxdesc->txdw5 |= cpu_to_le32(0x00000013);//init rate - mcs7
+			if (padapter->fix_rate != 0xFF) {
+				ptxdesc->txdw4 |= cpu_to_le32(USERATE);
+				ptxdesc->txdw4 |= cpu_to_le32(DISDATAFB);
+				if((padapter->fix_rate & BIT(7)))
+					ptxdesc->txdw5 |= cpu_to_le32(SGI);
+				else
+					ptxdesc->txdw5 &= ~(cpu_to_le32(SGI));
+				data_rate = padapter->fix_rate & 0x3F;
 			}
 
+			ptxdesc->txdw5 |= cpu_to_le32(data_rate);
 		}
 		else
 		{
@@ -580,7 +583,7 @@ s32 rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 		}
 
 		pull = update_txdesc(pxmitframe, mem_addr, sz, _FALSE);
-		
+#ifndef USB_PACKET_OFFSET_SZ
 		if(pull)
 		{
 			mem_addr += PACKET_OFFSET_SZ; //pull txdesc head
@@ -594,7 +597,9 @@ s32 rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 		{
 			w_sz = sz + TXDESC_SIZE + PACKET_OFFSET_SZ;
 		}	
-
+#else
+		w_sz = sz + TXDESC_SIZE;
+#endif //USB_PACKET_OFFSET_SZ
 		ff_hwaddr = rtw_get_ff_hwaddr(pxmitframe);
 
 		inner_ret = rtw_write_port(padapter, ff_hwaddr, w_sz, (unsigned char*)pxmitbuf);
@@ -733,8 +738,9 @@ s32 rtl8192du_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 			pxmitbuf->priv_data = pxmitframe;
 
 			//pxmitframe->agg_num = 1; // alloc xmitframe should assign to 1.
+#ifndef USB_PACKET_OFFSET_SZ
 			pxmitframe->pkt_offset = USB_92D_DUMMY_OFFSET; // first frame of aggregation, reserve 2 offset for 512 alignment and early mode
-
+#endif //USB_PACKET_OFFSET_SZ
 			pfirstframe = pxmitframe;
 			_enter_critical_bh(&pxmitpriv->lock, &irqL);
 			ptxservq = rtw_get_sta_pending(padapter, pfirstframe->attrib.psta, pfirstframe->attrib.priority, (u8 *)(&ac_index));
@@ -753,8 +759,11 @@ s32 rtl8192du_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 
 				pxmitframe = LIST_CONTAINOR(xmitframe_plist, struct xmit_frame, list);
 
-
+#ifndef USB_PACKET_OFFSET_SZ
 				len = xmitframe_need_length(pxmitframe) + TXDESC_SIZE + ((USB_92D_DUMMY_OFFSET - 1) * PACKET_OFFSET_SZ);
+#else
+				len = xmitframe_need_length(pxmitframe) + TXDESC_SIZE;
+#endif //USB_PACKET_OFFSET_SZ
 				if (pbuf + _RND8(len) > aggMaxLength)
 				{
 					bulkstart = _TRUE;
@@ -785,7 +794,9 @@ s32 rtl8192du_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 			pxmitframe->buf_addr = pxmitbuf->pbuf + pbuf;
 
 			pxmitframe->agg_num = 0; // not first frame of aggregation
+#ifndef USB_PACKET_OFFSET_SZ
 			pxmitframe->pkt_offset = USB_92D_DUMMY_OFFSET - 1; // not first frame of aggregation, reserve 1 offset for early mode
+#endif //USB_PACKET_OFFSET_SZ
 		}
 
 		if(pHalData->bEarlyModeEnable)
@@ -850,13 +861,15 @@ s32 rtl8192du_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 	}
 
 #ifndef CONFIG_USE_USB_BUFFER_ALLOC_TX
+#ifndef USB_PACKET_OFFSET_SZ
 	//3 3. update first frame txdesc
-	if ((pbuf_tail % bulkSize) == 0) {
+	if ((PACKET_OFFSET_SZ != 0) && ((pbuf_tail % bulkSize) == 0)) {
 		// remove 1 pkt_offset
 		pbuf_tail -= PACKET_OFFSET_SZ;
 		pfirstframe->buf_addr += PACKET_OFFSET_SZ;
 		pfirstframe->pkt_offset--;
 	}
+#endif //USB_PACKET_OFFSET_SZ
 #endif	// CONFIG_USE_USB_BUFFER_ALLOC_TX
 	update_txdesc(pfirstframe, pfirstframe->buf_addr, pfirstframe->attrib.last_txcmdsz, _TRUE);
 
@@ -869,8 +882,9 @@ s32 rtl8192du_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 	//3 5. update statisitc
 	pbuf_tail -= (pfirstframe->agg_num * TXDESC_SIZE);
 	//if (pfirstframe->pkt_offset == 1) pbuf_tail -= PACKET_OFFSET_SZ;
+#ifndef USB_PACKET_OFFSET_SZ
 	pbuf_tail -= (pfirstframe->pkt_offset * PACKET_OFFSET_SZ);
-	
+#endif //USB_PACKET_OFFSET_SZ
 	rtw_count_tx_stats(padapter, pfirstframe, pbuf_tail);
 
 	rtw_free_xmitframe(pxmitpriv, pfirstframe);

@@ -104,7 +104,7 @@
 
 	//#define CONFIG_P2P_PS
 	#define CONFIG_P2P_IPS
-	#define P2P_OP_CHECK_SOCIAL_CH
+	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
 		// Added comment by Borg 2013/06/21
 		// Issue:  Nexus 4 is hard to do miracast.
 		// Root Cause: After group formation, 
@@ -112,6 +112,8 @@
 		// Patch: While scan OP channel, 
 		//		 not only scan OP channel of Invitation Resp/Nego Confirm, 
 		//		 but also scan social channel(1, 6, 11)
+	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  
+	#define CONFIG_P2P_INVITE_IOT
 #endif
 
 //	Added by Kurt 20110511
@@ -150,7 +152,6 @@
 #endif	// CONFIG_BR_EXT
 
 #define CONFIG_TX_MCAST2UNI	1	// Support IP multicast->unicast
-//#define CONFIG_DM_ADAPTIVITY 1
 //#define CONFIG_CHECK_AC_LIFETIME	1	// Check packet lifetime of 4 ACs.
 //#define CONFIG_DISABLE_MCS13TO15	1	// Disable MSC13-15 rates for more stable TX throughput with some 5G APs
 
@@ -165,7 +166,7 @@
 #ifdef CONFIG_CONCURRENT_MODE
 	#define CONFIG_TSF_RESET_OFFLOAD 1			// For 2 PORT TSF SYNC.
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
-	//#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+	#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 	//#define CONFIG_MULTI_VIR_IFACES //besides primary&secondary interfaces, extend to support more interfaces
 	#undef CONFIG_DUALMAC_CONCURRENT //can not turn on CONFIG_CONCURRENT_MODE & CONFIG_DUALMAC_CONCURRENT at the same time
 #endif	// CONFIG_CONCURRENT_MODE
@@ -264,7 +265,7 @@
 
 #define DBG 0
 
-//#define CONFIG_DEBUG_RTL819X
+//#define CONFIG_DEBUG
 
 #define CONFIG_PROC_DEBUG 1
 

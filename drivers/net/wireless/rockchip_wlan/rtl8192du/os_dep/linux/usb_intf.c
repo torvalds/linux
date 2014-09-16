@@ -898,11 +898,17 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 		rtw_netif_stop_queue(pnetdev);
 	}
 #ifdef CONFIG_WOWLAN
+	if (check_fwstate(pmlmepriv, _FW_LINKED))
+		pwrpriv->wowlan_mode = _TRUE;
+	else
+		pwrpriv->wowlan_mode = _FALSE;
+
 	if(padapter->pwrctrlpriv.bSupportRemoteWakeup==_TRUE&&padapter->pwrctrlpriv.wowlan_mode==_TRUE){
 		u8 ps_mode=PS_MODE_MIN;
 		//set H2C command
 		poidparam.subcode=WOWLAN_ENABLE;
 		rtw_hal_set_hwreg(padapter,HW_VAR_WOWLAN,(u8 *)&poidparam);
+		rtw_hal_set_hwreg(padapter, HW_VAR_ENC_BMC_ENABLE, 0);
 		//rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, &ps_mode);
 		//rtw_set_rpwm(padapter, PS_STATE_S2);
 	}
@@ -913,18 +919,20 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 		rtw_disassoc_cmd(padapter, 0, _FALSE);
 	}
 
-#ifdef CONFIG_LAYER2_ROAMING_RESUME
-	if(check_fwstate(pmlmepriv, WIFI_STATION_STATE) && check_fwstate(pmlmepriv, _FW_LINKED) )
-	{
-		//printk("%s:%d assoc_ssid:%s\n", __FUNCTION__, __LINE__, pmlmepriv->assoc_ssid.Ssid);
-		DBG_871X("%s:%d %s(" MAC_FMT "), length:%d assoc_ssid.length:%d\n",__FUNCTION__, __LINE__,
-				pmlmepriv->cur_network.network.Ssid.Ssid,
-				MAC_ARG(pmlmepriv->cur_network.network.MacAddress),
-				pmlmepriv->cur_network.network.Ssid.SsidLength,
-				pmlmepriv->assoc_ssid.SsidLength);
-		rtw_set_roaming(padapter, 1);
+	if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME)) {
+		if(check_fwstate(pmlmepriv, WIFI_STATION_STATE)
+			&& check_fwstate(pmlmepriv, _FW_LINKED) )
+		{
+			//printk("%s:%d assoc_ssid:%s\n", __FUNCTION__, __LINE__, pmlmepriv->assoc_ssid.Ssid);
+			DBG_871X("%s:%d %s(" MAC_FMT "), length:%d assoc_ssid.length:%d\n",__FUNCTION__, __LINE__,
+					pmlmepriv->cur_network.network.Ssid.Ssid,
+					MAC_ARG(pmlmepriv->cur_network.network.MacAddress),
+					pmlmepriv->cur_network.network.Ssid.SsidLength,
+					pmlmepriv->assoc_ssid.SsidLength);
+			rtw_set_to_roam(padapter, 1);
 		}
-#endif
+	}
+
 	//s2-2.  indicate disconnect to os
 	rtw_indicate_disconnect(padapter);
 	//s2-3.
@@ -993,6 +1001,9 @@ int rtw_resume_process(_adapter *padapter)
 	struct pwrctrl_priv *pwrpriv;
 	int ret = -1;
 	u32 start_time = rtw_get_current_time();
+#ifdef CONFIG_WOWLAN
+	struct wowlan_ioctl_param poidparam;
+#endif // CONFIG_WOWLAN
 	_func_enter_;
 
 	DBG_871X("==> %s (%s:%d)\n",__FUNCTION__, current->comm, current->pid);
@@ -1007,7 +1018,14 @@ int rtw_resume_process(_adapter *padapter)
 	_enter_pwrlock(&pwrpriv->lock);
 	rtw_reset_drv_sw(padapter);
 	pwrpriv->bkeepfwalive = _FALSE;
-
+#ifdef CONFIG_WOWLAN
+	if(padapter->pwrctrlpriv.bSupportRemoteWakeup==_TRUE&&padapter->pwrctrlpriv.wowlan_mode==_TRUE){
+		//set H2C command
+		poidparam.subcode=WOWLAN_DISABLE;
+		rtw_hal_set_hwreg(padapter,HW_VAR_WOWLAN,(u8 *)&poidparam);
+		rtw_hal_set_hwreg(padapter, HW_VAR_ENC_BMC_DISABLE, 0);
+	}
+#endif //CONFIG_WOWLAN
 	DBG_871X("bkeepfwalive(%x)\n",pwrpriv->bkeepfwalive);
 	if(pm_netdev_open(pnetdev,_TRUE) != 0) {
 		_exit_pwrlock(&pwrpriv->lock);
@@ -1043,9 +1061,8 @@ int rtw_resume_process(_adapter *padapter)
 		rtw_signal_process(padapter->pid[1], SIGUSR2);
 	}
 
-	#ifdef CONFIG_LAYER2_ROAMING_RESUME
-	rtw_roaming(padapter, NULL);
-	#endif
+	if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME))
+		rtw_roaming(padapter, NULL);
 
 	ret = 0;
 exit:
@@ -1443,10 +1460,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	rtd2885_wlan_netlink_sendMsg("linkup", "8712");
 #endif
 
-#ifdef RTK_DMP_PLATFORM
-	rtw_proc_init_one(if1->pnetdev);
-#endif
-
 	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("-871x_drv - drv_init, success!\n"));
 
 	status = _SUCCESS;
@@ -1537,16 +1550,22 @@ extern int console_suspend_enabled;
 
 static int rtw_drv_entry(void)
 {
-#ifdef CONFIG_PLATFORM_RTK_DMP
-	u32 tmp;
-	tmp=readl((volatile unsigned int*)0xb801a608);
-	tmp &= 0xffffff00;
-	tmp |= 0x55;
-	writel(tmp,(volatile unsigned int*)0xb801a608);//write dummy register for 1055
-#endif
-#ifdef CONFIG_PLATFORM_ARM_SUNxI
-#ifndef CONFIG_RTL8723A
 	int ret = 0;
+
+	DBG_871X_LEVEL(_drv_always_, "module init start\n");
+	dump_drv_version(RTW_DBGDUMP);
+
+#ifdef CONFIG_PLATFORM_RTK_DMP
+	{
+		u32 tmp;
+		tmp=readl((volatile unsigned int*)0xb801a608);
+		tmp &= 0xffffff00;
+		tmp |= 0x55;
+		writel(tmp,(volatile unsigned int*)0xb801a608);//write dummy register for 1055
+	}
+#endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUNxI
 	/* ----------get usb_wifi_usbc_num------------- */
 	ret = script_parser_fetch("usb_wifi_para", "usb_wifi_usbc_num", (int *)&usb_wifi_host, 64);
 	if(ret != 0){
@@ -1556,7 +1575,6 @@ static int rtw_drv_entry(void)
 	}
 	printk("sw_usb_enable_hcd: usbc_num = %d\n", usb_wifi_host);
 	sw_usb_enable_hcd(usb_wifi_host);
-#endif //CONFIG_RTL8723A
 #endif //CONFIG_PLATFORM_ARM_SUNxI
 
 #ifdef CONFIG_PLATFORM_ARM_SUN6I
@@ -1574,25 +1592,33 @@ static int rtw_drv_entry(void)
 	sw_usb_enable_hcd(item.val);
 #endif //CONFIG_PLATFORM_ARM_SUN6I
 
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_entry\n"));
-
-	DBG_871X(DRV_NAME " driver version=%s\n", DRIVERVERSION);
-	DBG_871X("build time: %s %s\n", __DATE__, __TIME__);
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24))
 	//console_suspend_enabled=0;
 #endif
 
-	rtw_suspend_lock_init();
-
 	usb_drv->drv_registered = _TRUE;
-	return usb_register(&usb_drv->usbdrv);
+	rtw_suspend_lock_init();
+	rtw_drv_proc_init();
+	rtw_ndev_notifier_register();
+
+	ret = usb_register(&usb_drv->usbdrv);
+
+	if (ret != 0) {
+		usb_drv->drv_registered = _FALSE;
+		rtw_suspend_lock_uninit();
+		rtw_drv_proc_deinit();
+		rtw_ndev_notifier_unregister();
+		goto exit;
+	}
+
+exit:
+	DBG_871X_LEVEL(_drv_always_, "module init ret=%d\n", ret);
+	return ret;
 }
 
 static void rtw_drv_halt(void)
 {
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_halt\n"));
-	DBG_871X("+rtw_drv_halt\n");
+	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
 
 	usb_drv->drv_registered = _FALSE;
 	usb_deregister(&usb_drv->usbdrv);
@@ -1609,38 +1635,31 @@ static void rtw_drv_halt(void)
 #endif
 
 	rtw_suspend_lock_uninit();
-	DBG_871X("-rtw_drv_halt\n");
+	rtw_drv_proc_deinit();
+	rtw_ndev_notifier_unregister();
 
-	rtw_mstat_dump();
+	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
+
+	rtw_mstat_dump(RTW_DBGDUMP);
 }
 
-#include "wifi_version.h"
-extern int wifi_activate_usb(void);
-extern int wifi_deactivate_usb(void);
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-static int __init rockchip_wifi_init_module(void)
-#else
-int rockchip_wifi_init_module(void)
-#endif
+#include "wifi_version.h"
+#include <linux/rfkill-wlan.h>
+
+int rockchip_wifi_init_module_rtkwifi(void)
 {
     printk("\n");
     printk("=======================================================\n");
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
     printk("=======================================================\n");
     printk("Realtek 8192DU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
-    wifi_deactivate_usb();
-    msleep(100);
-    wifi_activate_usb();
+    rockchip_wifi_power(1);
 
     return rtw_drv_entry();
 }
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-static void __exit rockchip_wifi_exit_module(void)
-#else
-void rockchip_wifi_exit_module(void)
-#endif
+void rockchip_wifi_exit_module_rtkwifi(void)
 {
     printk("\n");
     printk("=======================================================\n");
@@ -1648,16 +1667,11 @@ void rockchip_wifi_exit_module(void)
     printk("=======================================================\n");
     printk("Realtek 8192DU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
     rtw_drv_halt();
-    wifi_deactivate_usb();
+    rockchip_wifi_power(0);
 }
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-late_initcall(rockchip_wifi_init_module);
-module_exit(rockchip_wifi_exit_module);
-#else
-EXPORT_SYMBOL(rockchip_wifi_init_module);
-EXPORT_SYMBOL(rockchip_wifi_exit_module);
-#endif
+EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
+EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
 //module_init(rtw_drv_entry);
 //module_exit(rtw_drv_halt);
 

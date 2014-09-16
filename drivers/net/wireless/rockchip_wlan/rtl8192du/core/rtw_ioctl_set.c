@@ -124,7 +124,7 @@ _func_enter_;
 		//we try to issue sitesurvey firstly	
             		
 		if (pmlmepriv->LinkDetectInfo.bBusyTraffic ==_FALSE
-			|| rtw_to_roaming(padapter) > 0
+			|| rtw_to_roam(padapter) > 0
 		)
 		{
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("rtw_do_join(): site survey if scanned_queue is empty\n."));
@@ -206,7 +206,7 @@ _func_enter_;
 				//when set_ssid/set_bssid for rtw_do_join(), but there are no desired bss in scanning queue
 				//we try to issue sitesurvey firstly			
 				if(pmlmepriv->LinkDetectInfo.bBusyTraffic==_FALSE
-					|| rtw_to_roaming(padapter) > 0
+					|| rtw_to_roam(padapter) > 0
 				)
 				{
 					//DBG_871X("rtw_do_join() when   no desired bss in scanning queue \n");
@@ -388,6 +388,7 @@ handle_tkip_countermeasure:
 		goto release_mlme_lock;
 	}
 
+	_rtw_memset(&pmlmepriv->assoc_ssid, 0, sizeof(NDIS_802_11_SSID));
 	_rtw_memcpy(&pmlmepriv->assoc_bssid, bssid, ETH_ALEN);
 	pmlmepriv->assoc_by_bssid=_TRUE;
 
@@ -585,10 +586,14 @@ handle_tkip_countermeasure:
 
 	if (ssid && ssid_valid)
 		_rtw_memcpy(&pmlmepriv->assoc_ssid, ssid, sizeof(NDIS_802_11_SSID));
+	else
+		_rtw_memset(&pmlmepriv->assoc_ssid, 0, sizeof(NDIS_802_11_SSID));
 
 	if (bssid && bssid_valid) {
 		_rtw_memcpy(&pmlmepriv->assoc_bssid, bssid, ETH_ALEN);
 		pmlmepriv->assoc_by_bssid = _TRUE;
+	} else {
+		pmlmepriv->assoc_by_bssid = _FALSE;
 	}
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == _TRUE) {

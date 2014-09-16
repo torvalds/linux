@@ -425,7 +425,7 @@ BOOLEAN	PHY_CheckIsLegalRfPath8192D(IN	PADAPTER	pAdapter,
 //
 // IQ calibrate
 //
-void	rtl8192d_PHY_IQCalibrate(	IN	PADAPTER	pAdapter);
+void	rtl8192d_PHY_IQCalibrate(	IN	PADAPTER	pAdapter, IN	u8		FromPT);
 
 
 //

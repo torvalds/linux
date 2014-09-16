@@ -1616,49 +1616,33 @@ static void rtw_drv_halt(void)
 }
 
 #include "wifi_version.h"
-extern int wifi_activate_usb(void);
-extern int wifi_deactivate_usb(void);
+#include <linux/rfkill-wlan.h>
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-static int __init rockchip_wifi_init_module(void)
-#else
-int rockchip_wifi_init_module(void)
-#endif
+int rockchip_wifi_init_module_rtkwifi(void)
 {
     printk("\n");
     printk("=======================================================\n");
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
     printk("=======================================================\n");
-    printk("Realtek 8188CU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
-    wifi_deactivate_usb();
-    msleep(100);
-    wifi_activate_usb();
+    printk("Realtek 8192CU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
+    rockchip_wifi_power(1);
 
     return rtw_drv_entry();
 }
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-static void __exit rockchip_wifi_exit_module(void)
-#else
-void rockchip_wifi_exit_module(void)
-#endif
+void rockchip_wifi_exit_module_rtkwifi(void)
 {
     printk("\n");
     printk("=======================================================\n");
     printk("==== Dislaunching Wi-Fi driver! (Powered by Rockchip) ====\n");
     printk("=======================================================\n");
-    printk("Realtek 8188CU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
+    printk("Realtek 8192CU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
     rtw_drv_halt();
-    wifi_deactivate_usb();
+    rockchip_wifi_power(0);
 }
 
-#ifdef CONFIG_RK_CHECK_UACCESS
-late_initcall(rockchip_wifi_init_module);
-module_exit(rockchip_wifi_exit_module);
-#else
-EXPORT_SYMBOL(rockchip_wifi_init_module);
-EXPORT_SYMBOL(rockchip_wifi_exit_module);
-#endif
+EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
+EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
 //module_init(rtw_drv_entry);
 //module_exit(rtw_drv_halt);
 

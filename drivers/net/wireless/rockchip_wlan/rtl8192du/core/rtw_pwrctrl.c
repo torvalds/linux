@@ -390,7 +390,7 @@ u8 PS_RDY_CHECK(_adapter * padapter)
 	return _TRUE;
 }
 
-void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps)
+void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, const char *msg)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 #ifdef CONFIG_P2P
@@ -430,7 +430,8 @@ _func_enter_;
 #ifdef CONFIG_LPS_LCLK
 			_enter_pwrlock(&pwrpriv->lock);
 #endif
-			DBG_871X("rtw_set_ps_mode(): Busy Traffic , Leave 802.11 power save..\n");
+			DBG_871X(FUNC_ADPT_FMT" Leave 802.11 power save - %s\n",
+				FUNC_ADPT_ARG(padapter), msg);
 
 #ifdef CONFIG_TDLS
 			_enter_critical_bh(&pstapriv->sta_hash_lock, &irqL);
@@ -484,7 +485,8 @@ _func_enter_;
 #ifdef CONFIG_LPS_LCLK
 			_enter_pwrlock(&pwrpriv->lock);
 #endif
-			DBG_871X("rtw_set_ps_mode(): Enter 802.11 power save mode...\n");
+			DBG_871X(FUNC_ADPT_FMT" Enter 802.11 power save - %s\n",
+				FUNC_ADPT_ARG(padapter), msg);
 
 #ifdef CONFIG_TDLS
 			_enter_critical_bh(&pstapriv->sta_hash_lock, &irqL);
@@ -540,11 +542,12 @@ _func_exit_;
 //	Description:
 //		Enter the leisure power save mode.
 //
-void LPS_Enter(PADAPTER padapter)
+void LPS_Enter(PADAPTER padapter, const char *msg)
 {
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	_adapter *buddy = padapter->pbuddy_adapter;
+	char buf[32] = {0};
 
 _func_enter_;
 
@@ -602,7 +605,8 @@ _func_enter_;
 		{
 			if(pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 			{
-				rtw_set_ps_mode(padapter, pwrpriv->power_mgnt, 2);
+				sprintf(buf, "WIFI-%s", msg);
+				rtw_set_ps_mode(padapter, pwrpriv->power_mgnt, 2, buf);
 			}	
 		}
 		else
@@ -619,13 +623,14 @@ _func_exit_;
 //	Description:
 //		Leave the leisure power save mode.
 //
-void LPS_Leave(PADAPTER padapter)
+void LPS_Leave(PADAPTER padapter, const char *msg)
 {
 #define LPS_LEAVE_TIMEOUT_MS 100
 
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
 	u32 start_time;
 	BOOLEAN bAwake = _FALSE;
+	char buf[32] = {0};
 	
 _func_enter_;
 
@@ -640,7 +645,8 @@ _func_enter_;
 	{	
 		if(pwrpriv->pwr_mode != PS_MODE_ACTIVE)
 		{
-			rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0);
+			sprintf(buf, "WIFI-%s", msg);
+			rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, buf);
 
 			if(pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 			{
@@ -689,7 +695,7 @@ _func_enter_;
 #endif // CONFIG_P2P_PS
 #ifdef CONFIG_LPS
 		//DBG_871X("==> leave LPS.......\n");
-		LPS_Leave(Adapter);
+		LPS_Leave(Adapter, "LPS_CTRL_LEAVE");
 #endif
 	}
 	else

@@ -2440,7 +2440,11 @@ void rtw_init_xmitframe(struct xmit_frame *pxframe)
 
 #ifdef CONFIG_USB_HCI
 		pxframe->pkt = NULL;
+#ifdef USB_PACKET_OFFSET_SZ
+		pxframe->pkt_offset = 0;
+#else
 		pxframe->pkt_offset = 1;//default use pkt_offset to fill tx desc
+#endif
 
 #ifdef CONFIG_USB_TX_AGGREGATION
 		pxframe->agg_num = 1;
@@ -3538,7 +3542,7 @@ sint xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *p
 			
 			//DBG_871X("enqueue, sq_len=%d, tim=%x\n", psta->sleepq_len, pstapriv->tim_bitmap);
 
-			update_beacon(padapter, _TIM_IE_, NULL, _FALSE);//tx bc/mc packets after upate bcn
+			update_beacon(padapter, _TIM_IE_, NULL, _TRUE);//tx bc/mc packets after upate bcn
 			
 			//_exit_critical_bh(&psta->sleep_q.lock, &irqL);				
 			
@@ -3603,7 +3607,7 @@ sint xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *p
 				{
 					//DBG_871X("sleepq_len==1, update BCNTIM\n");
 					//upate BCN for TIM IE
-					update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
+					update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
 				}
 			}
 
@@ -3644,18 +3648,20 @@ static void dequeue_xmitframes_to_sleeping_queue(_adapter *padapter, struct sta_
 		pxmitframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
 
 		plist = get_next(plist);	
-		
+
+		pattrib = &pxmitframe->attrib;
+
+		pattrib->triggered = 0;
+        
 		ret = xmitframe_enqueue_for_sleeping_sta(padapter, pxmitframe);	
 
 		if(_TRUE == ret)
 		{
-		pattrib = &pxmitframe->attrib;
+		    ptxservq = rtw_get_sta_pending(padapter, psta, pattrib->priority, (u8 *)(&ac_index));
 
-		ptxservq = rtw_get_sta_pending(padapter, psta, pattrib->priority, (u8 *)(&ac_index));
-
-		ptxservq->qcnt--;
-		phwxmits[ac_index].accnt--;		
-	}
+		    ptxservq->qcnt--;
+		    phwxmits[ac_index].accnt--;		
+		}
 		else
 		{
 			//DBG_871X("xmitframe_enqueue_for_sleeping_sta return _FALSE\n");
@@ -3872,7 +3878,7 @@ void wakeup_sta_to_xmit(_adapter *padapter, struct sta_info *psta)
 				psta->state ^= WIFI_SLEEP_STATE;
 
 			goto _exit;
-	}	
+		}	
 #endif //CONFIG_TDLS
 		pstapriv->tim_bitmap &= ~BIT(psta->aid);
 
@@ -3902,7 +3908,7 @@ _exit:
 	{
 		//update_BCNTIM(padapter);
 		//printk("%s => call update_beacon\n",__FUNCTION__);
-		update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
+		update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
 	}	
 	
 }
@@ -3994,7 +4000,7 @@ void xmit_delivery_enabled_frames(_adapter *padapter, struct sta_info *psta)
 			//DBG_871X("wakeup to xmit, qlen==0, update_BCNTIM, tim=%x\n", pstapriv->tim_bitmap);
 			//upate BCN for TIM IE
 			//update_BCNTIM(padapter);
-			update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
+			update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
 			//update_mask = BIT(0);
 		}
 	

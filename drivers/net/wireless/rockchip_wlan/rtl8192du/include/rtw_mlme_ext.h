@@ -54,14 +54,6 @@
 //#define	SET_CHANNEL_CMD	0xF3000000
 //#define	UPDATE_RA_CMD	0xFD0000A2
 
-#define	DYNAMIC_FUNC_DISABLE		(0x0)
-#define	DYNAMIC_FUNC_DIG			BIT(0)
-#define	DYNAMIC_FUNC_HP			BIT(1)
-#define	DYNAMIC_FUNC_SS			BIT(2) //Tx Power Tracking
-#define DYNAMIC_FUNC_BT			BIT(3)
-#define DYNAMIC_FUNC_ANT_DIV		BIT(4)
-#define DYNAMIC_FUNC_ADAPTIVITY	BIT(5)
-
 #define _HW_STATE_NOLINK_		0x00
 #define _HW_STATE_ADHOC_		0x01
 #define _HW_STATE_STATION_ 	0x02
@@ -346,9 +338,9 @@ struct FW_Sta_Info
  * 5. ... and so on, till survey done.
  */
 #if defined CONFIG_STA_MODE_SCAN_UNDER_AP_MODE && defined CONFIG_CONCURRENT_MODE
-#define RTW_SCAN_NUM_OF_CH			8
-#define RTW_STAY_AP_CH_MILLISECOND	3	// this value is a multiplier,for example, when this value is 3, it would stay AP's op ch for 
-											// 3 * SURVEY_TO millisecond. 
+#define RTW_SCAN_NUM_OF_CH			3
+#define RTW_STAY_AP_CH_MILLISECOND	4	// this value is a multiplier,for example, when this value is 4, it would stay AP's op ch for 
+											// 4 * SURVEY_TO millisecond. 
 #endif //defined CONFIG_STA_MODE_SCAN_UNDER_AP_MODE && defined CONFIG_CONCURRENT_MODE
 
 struct mlme_ext_info
@@ -644,7 +636,7 @@ void issue_assocreq(_adapter *padapter);
 void issue_asocrsp(_adapter *padapter, unsigned short status, struct sta_info *pstat, int pkt_type);
 void issue_auth(_adapter *padapter, struct sta_info *psta, unsigned short status);
 void issue_probereq(_adapter *padapter, NDIS_802_11_SSID *pssid, u8 *da);
-s32 issue_probereq_ex(_adapter *padapter, NDIS_802_11_SSID *pssid, u8* da, int try_cnt, int wait_ms);
+s32 issue_probereq_ex(_adapter *padapter, NDIS_802_11_SSID *pssid, u8* da, u8 ch, bool append_wps, int try_cnt, int wait_ms);
 int issue_nulldata(_adapter *padapter, unsigned char *da, unsigned int power_mode, int try_cnt, int wait_ms);
 int issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid, int try_cnt, int wait_ms);
 int issue_deauth(_adapter *padapter, unsigned char *da, unsigned short reason);

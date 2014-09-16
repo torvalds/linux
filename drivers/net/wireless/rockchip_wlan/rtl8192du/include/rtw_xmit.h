@@ -61,7 +61,11 @@
 #ifdef CONFIG_PCI_HCI
 #define XMITBUF_ALIGN_SZ 4
 #else
+#ifdef USB_XMITBUF_ALIGN_SZ
+#define XMITBUF_ALIGN_SZ (USB_XMITBUF_ALIGN_SZ)
+#else
 #define XMITBUF_ALIGN_SZ 512
+#endif
 #endif
 #endif
 
@@ -143,7 +147,11 @@ do{\
 #endif
 
 #ifdef CONFIG_USB_HCI
+#ifdef USB_PACKET_OFFSET_SZ
+#define PACKET_OFFSET_SZ (USB_PACKET_OFFSET_SZ)
+#else
 #define PACKET_OFFSET_SZ (8)
+#endif
 #define TXDESC_OFFSET (TXDESC_SIZE + PACKET_OFFSET_SZ)
 #endif
 

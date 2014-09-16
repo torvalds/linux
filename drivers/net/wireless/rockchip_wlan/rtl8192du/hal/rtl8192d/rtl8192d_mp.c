@@ -29,7 +29,7 @@
 
 #define IQK_DELAY_TIME		1 	//ms
 
-#define PHY_IQCalibrate(a)	rtl8192d_PHY_IQCalibrate(a)
+#define PHY_IQCalibrate(a)	rtl8192d_PHY_IQCalibrate(a, _FALSE)
 #define PHY_LCCalibrate(a)	rtl8192d_PHY_LCCalibrate(a, _TRUE)
 #define dm_CheckTXPowerTracking(a)	rtl8192d_dm_CheckTXPowerTracking(a)
 #define PHY_SetRFPathSwitch(a,b)	rtl8192d_PHY_SetRFPathSwitch(a,b)
@@ -380,10 +380,14 @@ void Hal_SetSingleToneTx ( PADAPTER pAdapter , u8 bStart )
     }
     if(bStart)
     {   // Start Single Tone.
-
     	RT_TRACE(_module_mp_,_drv_alert_, ("SetSingleToneTx: test start\n"));
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, 0x0);
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x0);
+	//Rlk Helen 20121220 add for Reg_88c: set bit20-23=0xf,disable 3write------
+	 write_bbreg(pAdapter, rFPGA0_AnalogParameter4, 0xf00000, 0xf);//Reg_88c
+        //Rlk Helen 20121220 END--------------------
+
+
 		if(is92C)
        	{
 			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT19, 0x01);
@@ -397,20 +401,30 @@ void Hal_SetSingleToneTx ( PADAPTER pAdapter , u8 bStart )
 		} 
 		else
 		{
+			if( pHalData->CurrentBandType92D == BAND_ON_2_4G)
+			{
 			write_rfreg(pAdapter, rfPath, 0x21, 0xd4000);
 			rtw_usleep_os(100);
-			write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); // PAD all on.
+				write_rfreg(pAdapter, rfPath, 0x00, 0x20000); // PAD all on.
+				rtw_usleep_os(100);
+			}
+			else
+			{
+				write_rfreg(pAdapter, rfPath, 0x41, 0xd4000);
+				rtw_usleep_os(100);
+				write_rfreg(pAdapter, rfPath, 0x00, 0x20000); // PAD all on.
 			rtw_usleep_os(100);
 		}
-		// Turn On Continue Tx and turn off the other test modes.
-		PHY_SetBBReg(pAdapter, rOFDM1_LSTF, BIT30|BIT29|BIT28, OFDM_SingleTone);
+		}
     }
     else
     {   // Stop Single Tone.
     	RT_TRACE(_module_mp_,_drv_alert_, ("SetSingleToneTx: test stop\n"));
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, 0x1);
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
-
+	//Rlk Helen 20121220 add for Reg_88c: set bit20-23=0x0,enable 3write------
+	write_bbreg(pAdapter, rFPGA0_AnalogParameter4, 0xf00000, 0x0);//Reg_88c: set bit20-23=0x0,enable 3write
+	//       	//Rlk Helen 20121220 END--------------------	
 		if(is92C)
 		{
 			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT19, 0x00);
@@ -419,14 +433,22 @@ void Hal_SetSingleToneTx ( PADAPTER pAdapter , u8 bStart )
 			write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x32d75); // PAD all on.
 			rtw_usleep_os(100);
 		} else {
+
+			if( pHalData->CurrentBandType92D == BAND_ON_2_4G)
+			{
 			write_rfreg(pAdapter, rfPath, 0x21, 0x54000);
 			rtw_usleep_os(100);
 			write_rfreg(pAdapter, rfPath, 0x00, 0x30000); // PAD all on.
 			rtw_usleep_os(100);
 		}
-			// Turn off all test modes.
-		PHY_SetBBReg(pAdapter, rOFDM1_LSTF, BIT30|BIT29|BIT28, OFDM_ALL_OFF);
-
+			else
+			{
+				write_rfreg(pAdapter, rfPath, 0x41, 0x54000);
+				rtw_usleep_os(100);
+				write_rfreg(pAdapter, rfPath, 0x00, 0x30000); // PAD all on.
+				rtw_usleep_os(100);
+			}
+		}
     }
 
 }
@@ -527,12 +549,14 @@ void Hal_SetTxPower (PADAPTER pAdapter)
 	}
 	switch(pHalData->rf_chip)
 	{
+		 u8 path = (pHalData->AntennaTxPath == ANTENNA_A) ? (ANTENNA_A) : (ANTENNA_B);
 		// 2008/09/12 MH Test only !! We enable the TX power tracking for MP!!!!!
 		// We should call normal driver API later!!
 		case RF_8225:
 		case RF_8256:
 		case RF_6052:
 			Hal_MptSet8256CCKTxPower(pAdapter, &TxPowerLevel_CCK[0]);
+			Hal_MPT_CCKTxPowerAdjustbyIndex(pAdapter, pMptCtx->TxPwrLevel[path]%2 == 0);
 			Hal_MptSet8256OFDMTxPower(pAdapter, &TxPowerLevel_HTOFDM[0]);
 			break;
 
@@ -1325,7 +1349,8 @@ void Hal_mpt_SwitchRfSetting(PADAPTER pAdapter)
 	PMPT_CONTEXT	pMptCtx = &(pAdapter->mppriv.MptCtx);
     BOOLEAN             bInteralPA = _FALSE;
     u32				value = 0;
-    phy_SwitchRfSetting8192D(pAdapter,ChannelToSw);
+    
+   // phy_SwitchRfSetting8192D(pAdapter,ChannelToSw);
 #if 0    
 	if (((ulRateIdx == MPT_RATE_1M || ulRateIdx == MPT_RATE_6M || ulRateIdx == MPT_RATE_MCS0 ||
         ulRateIdx == MPT_RATE_MCS8) && ulbandwidth == HT_CHANNEL_WIDTH_20 &&
@@ -1360,23 +1385,139 @@ void Hal_mpt_SwitchRfSetting(PADAPTER pAdapter)
 void Hal_SetBandwidth(PADAPTER pAdapter)
 {
 	struct mp_priv *pmp = &pAdapter->mppriv;
+	ULONG ulbandwidth = pmp->bandwidth;
 
-	SetBWMode(pAdapter, pmp->bandwidth, pmp->prime_channel_offset);
-	Hal_mpt_SwitchRfSetting(pAdapter);
+	if (ulbandwidth == HT_CHANNEL_WIDTH_20 )
+	{
+		/* 20 MHZ sub-carrier mode --> dont care. */
+		pmp->bCurBW40MHz = _FALSE;
+		SetBWMode(pAdapter,HT_CHANNEL_WIDTH_20,pmp->prime_channel_offset);		
+	}
+	/* Sub-Carrier mode is defined in MAC data sheet chapter 12.3. */
+	else
+	{
+		/* 40 MHZ sub-carrier mode --> dont care. */
+		pmp->bCurBW40MHz = _TRUE;					
+		SetBWMode(pAdapter,HT_CHANNEL_WIDTH_40,pmp->prime_channel_offset);
+		//SetBWMode(pAdapter,HT_CHANNEL_WIDTH_40,HAL_PRIME_CHNL_OFFSET_UPPER);
+	}
+	
+	SelectChannel(pAdapter, pmp->channel);
+	//phy_SwitchRfSetting(pAdapter,pmp->channel);
 }
 
-
-void MPT_CCKTxPowerAdjust(PADAPTER Adapter,BOOLEAN	bInCH14)
+void Hal_MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
 {
-	u4Byte				TempVal = 0, TempVal2 = 0, TempVal3 = 0;
-	u4Byte				CurrCCKSwingVal=0, CCKSwingIndex=12;
+	s32 	TempCCk;
+	u8		CCK_index, CCK_index_old=0;
+	u8		Action = 0; //0: no action, 1: even->odd, 2:odd->even
+	u8		TimeOut = 100;
+	s32 	i = 0;
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
+	PMPT_CONTEXT	pMptCtx = &pAdapter->mppriv.MptCtx;
+
+
+	if (!IS_92C_SERIAL(pHalData->VersionID))
+		return;
+#if 0
+	while(PlatformAtomicExchange(&Adapter->IntrCCKRefCount, TRUE) == TRUE)
+	{
+		PlatformSleepUs(100);
+		TimeOut--;
+		if(TimeOut <= 0)
+		{
+			RTPRINT(FINIT, INIT_TxPower,
+			 ("!!!MPT_CCKTxPowerAdjustbyIndex Wait for check CCK gain index too long!!!\n" ));
+			break;
+		}
+	}
+#endif
+	if (beven && !pMptCtx->bMptIndexEven)	//odd->even
+	{
+		Action = 2;
+		pMptCtx->bMptIndexEven = _TRUE;
+	}
+	else if (!beven && pMptCtx->bMptIndexEven)	//even->odd
+	{
+		Action = 1;
+		pMptCtx->bMptIndexEven = _FALSE;
+	}
+
+	if (Action != 0)
+	{
+		//Query CCK default setting From 0xa24
+		TempCCk = read_bbreg(pAdapter, rCCK0_TxFilter2, bMaskDWord) & bMaskCCK;
+		for (i = 0; i < CCK_TABLE_SIZE; i++)
+		{
+			if (pHalData->dmpriv.bCCKinCH14)
+			{
+				if (_rtw_memcmp((void*)&TempCCk, (void*)&CCKSwingTable_Ch14[i][2], 4) == _TRUE)
+				{
+					CCK_index_old = (u8) i;
+//					RTPRINT(FINIT, INIT_TxPower,("MPT_CCKTxPowerAdjustbyIndex: Initial reg0x%x = 0x%lx, CCK_index=0x%x, ch 14 %d\n",
+//						rCCK0_TxFilter2, TempCCk, CCK_index_old, pHalData->bCCKinCH14));
+					break;
+				}
+			}
+			else
+			{
+				if (_rtw_memcmp((void*)&TempCCk, (void*)&CCKSwingTable_Ch1_Ch13[i][2], 4) == _TRUE)
+				{
+					CCK_index_old = (u8) i;
+//					RTPRINT(FINIT, INIT_TxPower,("MPT_CCKTxPowerAdjustbyIndex: Initial reg0x%x = 0x%lx, CCK_index=0x%x, ch14 %d\n",
+//						rCCK0_TxFilter2, TempCCk, CCK_index_old, pHalData->bCCKinCH14));
+					break;
+				}
+			}
+		}
+
+		if (Action == 1)
+			CCK_index = CCK_index_old - 1;
+		else
+			CCK_index = CCK_index_old + 1;
+
+//		RTPRINT(FINIT, INIT_TxPower,("MPT_CCKTxPowerAdjustbyIndex: new CCK_index=0x%x\n",
+//			 CCK_index));
+
+		//Adjust CCK according to gain index
+		if (!pHalData->dmpriv.bCCKinCH14) {
+			rtw_write8(pAdapter, 0xa22, CCKSwingTable_Ch1_Ch13[CCK_index][0]);
+			rtw_write8(pAdapter, 0xa23, CCKSwingTable_Ch1_Ch13[CCK_index][1]);
+			rtw_write8(pAdapter, 0xa24, CCKSwingTable_Ch1_Ch13[CCK_index][2]);
+			rtw_write8(pAdapter, 0xa25, CCKSwingTable_Ch1_Ch13[CCK_index][3]);
+			rtw_write8(pAdapter, 0xa26, CCKSwingTable_Ch1_Ch13[CCK_index][4]);
+			rtw_write8(pAdapter, 0xa27, CCKSwingTable_Ch1_Ch13[CCK_index][5]);
+			rtw_write8(pAdapter, 0xa28, CCKSwingTable_Ch1_Ch13[CCK_index][6]);
+			rtw_write8(pAdapter, 0xa29, CCKSwingTable_Ch1_Ch13[CCK_index][7]);
+		} else {
+			rtw_write8(pAdapter, 0xa22, CCKSwingTable_Ch14[CCK_index][0]);
+			rtw_write8(pAdapter, 0xa23, CCKSwingTable_Ch14[CCK_index][1]);
+			rtw_write8(pAdapter, 0xa24, CCKSwingTable_Ch14[CCK_index][2]);
+			rtw_write8(pAdapter, 0xa25, CCKSwingTable_Ch14[CCK_index][3]);
+			rtw_write8(pAdapter, 0xa26, CCKSwingTable_Ch14[CCK_index][4]);
+			rtw_write8(pAdapter, 0xa27, CCKSwingTable_Ch14[CCK_index][5]);
+			rtw_write8(pAdapter, 0xa28, CCKSwingTable_Ch14[CCK_index][6]);
+			rtw_write8(pAdapter, 0xa29, CCKSwingTable_Ch14[CCK_index][7]);
+		}
+	}
+#if 0
+	RTPRINT(FINIT, INIT_TxPower,
+	("MPT_CCKTxPowerAdjustbyIndex 0xa20=%x\n", PlatformEFIORead4Byte(Adapter, 0xa20)));
+
+	PlatformAtomicExchange(&Adapter->IntrCCKRefCount, FALSE);
+#endif
+}
+
+void Hal_MPT_CCKTxPowerAdjust(PADAPTER Adapter, BOOLEAN bInCH14)
+{
+	u32 	TempVal = 0, TempVal2 = 0, TempVal3 = 0;
+	u32 	CurrCCKSwingVal = 0, CCKSwingIndex = 12;
+	u8		i;
 	HAL_DATA_TYPE		*pHalData	= GET_HAL_DATA(Adapter);
-	u1Byte				i;
 
 
 	// get current cck swing value and check 0xa22 & 0xa23 later to match the table.
-	
-	CurrCCKSwingVal = PHY_QueryBBReg(Adapter, rCCK0_TxFilter1, bMaskHWord);
+	CurrCCKSwingVal = read_bbreg(Adapter, rCCK0_TxFilter1, bMaskHWord);
 	
 	if(!bInCH14)
 	{
@@ -1384,11 +1525,12 @@ void MPT_CCKTxPowerAdjust(PADAPTER Adapter,BOOLEAN	bInCH14)
 		// get the current swing index
 		for(i=0 ; i<CCK_TABLE_SIZE ; i++)
 		{
-			if( ((CurrCCKSwingVal&0xff) == (u4Byte)CCKSwingTable_Ch1_Ch13[i][0]) &&
-				( ((CurrCCKSwingVal&0xff00)>>8) == (u4Byte)CCKSwingTable_Ch1_Ch13[i][1]) )
+			if (((CurrCCKSwingVal&0xff) == (u32)CCKSwingTable_Ch1_Ch13[i][0]) &&
+				(((CurrCCKSwingVal&0xff00)>>8) == (u32)CCKSwingTable_Ch1_Ch13[i][1]))
 			{
 				CCKSwingIndex = i;
-				//RT_TRACE(COMP_INIT, DBG_LOUD,("Ch1~13, Current reg0x%x = 0x%lx, CCKSwingIndex=0x%x\n", (rCCK0_TxFilter1+2), CurrCCKSwingVal, CCKSwingIndex));
+//				RT_TRACE(COMP_INIT, DBG_LOUD,("Ch1~13, Current reg0x%x = 0x%lx, CCKSwingIndex=0x%x\n",
+//					(rCCK0_TxFilter1+2), CurrCCKSwingVal, CCKSwingIndex));
 				break;
 			}
 		}
@@ -1409,18 +1551,17 @@ void MPT_CCKTxPowerAdjust(PADAPTER Adapter,BOOLEAN	bInCH14)
 		TempVal3 = 0;
 		TempVal3 =	CCKSwingTable_Ch1_Ch13[CCKSwingIndex][6] +
 					(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][7]<<8) ;
-		
-		
 	}
 	else
 	{
 		for(i=0 ; i<CCK_TABLE_SIZE ; i++)
 		{
-			if( ((CurrCCKSwingVal&0xff) == (u4Byte)CCKSwingTable_Ch14[i][0]) &&
-				( ((CurrCCKSwingVal&0xff00)>>8) == (u4Byte)CCKSwingTable_Ch14[i][1]) )
+			if (((CurrCCKSwingVal&0xff) == (u32)CCKSwingTable_Ch14[i][0]) &&
+				(((CurrCCKSwingVal&0xff00)>>8) == (u32)CCKSwingTable_Ch14[i][1]))
 			{
 				CCKSwingIndex = i;
-				//RT_TRACE(COMP_INIT, DBG_LOUD,("Ch14, Current reg0x%x = 0x%lx, CCKSwingIndex=0x%x\n", (rCCK0_TxFilter1+2), CurrCCKSwingVal, CCKSwingIndex));
+//				RT_TRACE(COMP_INIT, DBG_LOUD,("Ch14, Current reg0x%x = 0x%lx, CCKSwingIndex=0x%x\n",
+//					(rCCK0_TxFilter1+2), CurrCCKSwingVal, CCKSwingIndex));
 				break;
 			}
 		}
@@ -1442,13 +1583,9 @@ void MPT_CCKTxPowerAdjust(PADAPTER Adapter,BOOLEAN	bInCH14)
 					(CCKSwingTable_Ch14[CCKSwingIndex][7]<<8) ;
 	}
 
-	PHY_SetBBReg(Adapter, rCCK0_TxFilter1,bMaskHWord, TempVal);
-	//RTPRINT(FMP, MP_SWICH_CH, ("0xA20=0x%x\n", TempVal));
-	PHY_SetBBReg(Adapter, rCCK0_TxFilter2,bMaskDWord, TempVal2);
-	//RTPRINT(FMP, MP_SWICH_CH, ("0xA24=0x%x\n", TempVal2));
-	PHY_SetBBReg(Adapter, rCCK0_DebugPort,bMaskLWord, TempVal3);
-	//RTPRINT(FMP, MP_SWICH_CH, ("0xA28=0x%x\n", TempVal3));
-
+	write_bbreg(Adapter, rCCK0_TxFilter1, bMaskHWord, TempVal);
+	write_bbreg(Adapter, rCCK0_TxFilter2, bMaskDWord, TempVal2);
+	write_bbreg(Adapter, rCCK0_DebugPort, bMaskLWord, TempVal3);
 }
 
 
@@ -1468,8 +1605,12 @@ void Hal_SetChannel(PADAPTER pAdapter)
 	u8		bandwidth = pmp->bandwidth;
 	u8		rate = pmp->rateidx;
 
-
+	if(channel > 14)
+		pHalData->CurrentBandType92D=BAND_ON_5G;
+	else
+		pHalData->CurrentBandType92D=BAND_ON_2_4G;
 	// set RF channel register
+	#if 0
 	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
 	{
 	  if(IS_HARDWARE_TYPE_8192D(pAdapter))
@@ -1477,18 +1618,20 @@ void Hal_SetChannel(PADAPTER pAdapter)
 		else
 			_write_rfreg(pAdapter, eRFPath, rRfChannel, 0x3FF, channel);
 	}
-
-	Hal_mpt_SwitchRfSetting(pAdapter);
-
+	#endif
+	//phy_SwitchRfSetting(pAdapter,channel);
+	DBG_8192C("%s SelectChannel 0X864 = 0x%8x \n",__func__,PHY_QueryBBReg(pAdapter, 0x864, bMaskDWord));
 	SelectChannel(pAdapter, channel);
+	DBG_8192C("%s After SelectChannel 0X864 = 0x%8x \n",__func__,PHY_QueryBBReg(pAdapter, 0x864, bMaskDWord));
+	Hal_SetBandwidth(pAdapter);
 
 	if (pHalData->CurrentChannel == 14 && !pHalData->dmpriv.bCCKinCH14) {
 		pHalData->dmpriv.bCCKinCH14 = _TRUE;
-		MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
+		Hal_MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
 	}
 	else if (pHalData->CurrentChannel != 14 && pHalData->dmpriv.bCCKinCH14) {
 		pHalData->dmpriv.bCCKinCH14 = _FALSE;
-		MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
+		Hal_MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
 	}
 
 #endif
@@ -1591,7 +1734,7 @@ void Hal_SetAntennaPathPower(PADAPTER pAdapter)
 
 void Hal_SetDataRate(PADAPTER pAdapter)
 {
-	Hal_mpt_SwitchRfSetting(pAdapter);
+	//Hal_mpt_SwitchRfSetting(pAdapter);
 }
 
 void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart)

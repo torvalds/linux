@@ -1742,7 +1742,8 @@ static void _InitHWLed(PADAPTER Adapter)
 // HW led control
 // to do .... 
 //must consider the cases of antenna diversity/ commbo card/solo card/mini card
-
+	rtw_write16(Adapter, REG_LEDCFG0, 0x8282);
+	rtw_write8(Adapter, REG_LEDCFG2, 0x82);
 }
 #endif //CONFIG_LED
 
@@ -2263,7 +2264,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
 		// do IQK for 2.4G for better scan result, if current bandtype is 2.4G.
 		if(pHalData->CurrentBandType92D == BAND_ON_2_4G)
-			rtl8192d_PHY_IQCalibrate(padapter);
+			rtl8192d_PHY_IQCalibrate(padapter, _FALSE);
 
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_PW_TRACK);
 		rtl8192d_dm_CheckTXPowerTracking(padapter);
@@ -2445,6 +2446,8 @@ n. LEDCFG 0x4C[15:0] = 0x8080
 
 	//3. Disable LED0 & 1
 	rtw_write16(Adapter, REG_LEDCFG0, 0x8888);
+	//Disable LED2
+	rtw_write8(Adapter, REG_LEDCFG2, 0x88);
 
 	//RT_TRACE(COMP_INIT, DBG_LOUD, ("======> Disable GPIO and LED.\n"));
  
@@ -3066,8 +3069,6 @@ _func_enter_;
 
 	RT_SET_PS_LEVEL(pwrpriv, RT_RF_OFF_LEVL_HALT_NIC);
 
-	rtw_led_control(padapter, LED_CTL_POWER_OFF);
-
 	padapter->bHaltInProgress = _FALSE;
 
 _func_exit_;
@@ -3416,26 +3417,11 @@ _ReadBoardType(
 	boardType &= BOARD_TYPE_NORMAL_MASK;
 	boardType >>= 5;
 
-#if 0
-	switch(boardType & 0xF)
-	{
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-			pHalData->rf_type = RF_2T2R;
-			break;
-		case 5:
-			pHalData->rf_type = RF_1T2R;
-			break;
-		default:
-			pHalData->rf_type = RF_1T1R;
-			break;
-	}
+	pHalData->BoardType = boardType;
+	DBG_871X("_ReadBoardType(%x)\n",pHalData->BoardType);
 
-	pHalData->BluetoothCoexist = (boardType >> 4) ? _TRUE : _FALSE;
-#endif
+	if (boardType == BOARD_USB_High_PA)
+		pHalData->ExternalPA = 1;
 }
 
 
@@ -3449,6 +3435,7 @@ _ReadLEDSetting(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	struct led_priv 	*pledpriv = &(Adapter->ledpriv);
 
+#ifdef CONFIG_SW_LED
 	// Led mode
 	switch(pHalData->CustomerID)
 	{
@@ -3461,9 +3448,10 @@ _ReadLEDSetting(
 			break;			
 	}
 
-	#ifdef CONFIG_FORCE_HW_LED
+	pHalData->bLedOpenDrain = _TRUE;// Support Open-drain arrangement for controlling the LED. Added by Roger, 2009.10.16.
+#else
 	pledpriv->LedStrategy = HW_LED;
-	#endif
+#endif
 }
 
 #ifdef CONFIG_WOWLAN
@@ -3480,7 +3468,7 @@ _ReadWOWLAN(
 	{
 		// decide hw if support remote wakeup function
 		// if hw supported, 8051 (SIE) will generate WeakUP signal( D+/D- toggle) when autoresume
-		Adapter->pwrctrlpriv.bSupportRemoteWakeup = (PROMContent[EEPROM_Option_Setting] & BIT1)?_TRUE :_FALSE;
+		Adapter->pwrctrlpriv.bSupportRemoteWakeup = (PROMContent[EEPROM_Option_Setting] & EEPROM_USB_REMOTE_WAKEUP)?_TRUE :_FALSE;
 		DBG_871X("efuse remote wakeup =%d \n", Adapter->pwrctrlpriv.bSupportRemoteWakeup);
 	}
 }
@@ -4529,7 +4517,6 @@ static void dc_hw_var_mlme_join(PADAPTER Adapter, u8 join_state)
 }
 #endif
 
-void SetHwReg8192DU(PADAPTER Adapter, u8 variable, u8* val);
 void SetHwReg8192DU(PADAPTER Adapter, u8 variable, u8* val)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
@@ -4939,9 +4926,6 @@ _func_enter_;
 			rtw_write8(Adapter, REG_SECCFG, *((u8 *)val));
 #endif //CONFIG_CONCURRENT_MODE
 			break;
-		case HW_VAR_DM_FLAG:
-			pdmpriv->DMFlag = *((u8 *)val);
-			break;
 		case HW_VAR_DM_FUNC_OP:
 			if(val[0])
 			{// save dm flag
@@ -5329,8 +5313,9 @@ _func_enter_;
 	
 					case WOWLAN_DISABLE:
 						Adapter->pwrctrlpriv.wowlan_mode=_FALSE;
-						rtl8192d_set_wowlan_cmd(Adapter);
-						rtw_msleep_os(10);
+						DBG_8192C("wake on wlan reason 0x%02x\n", rtw_read8(Adapter, REG_WOWLAN_REASON));
+						//rtl8192d_set_wowlan_cmd(Adapter);
+						//rtw_msleep_os(10);
 						break;
 	
 					case WOWLAN_STATUS:
@@ -5406,42 +5391,9 @@ _func_enter_;
 					default:
 						break;
 				}
-				if (Adapter->pwrctrlpriv.wowlan_unicast||Adapter->pwrctrlpriv.wowlan_magic || Adapter->pwrctrlpriv.wowlan_pattern)
-					Adapter->pwrctrlpriv.wowlan_mode =_TRUE;
-				else
-					Adapter->pwrctrlpriv.wowlan_mode =_FALSE;
 			}
 			break;
 #endif //CONFIG_WOWLAN
-		case HW_VAR_CHECK_TXBUF:
-#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
-			{
-				int i;
-				u8	RetryLimit = 0x01;
-				
-				//rtw_write16(Adapter, REG_RL,0x0101);
-				rtw_write16(Adapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
-		
-				for(i=0;i<1000;i++)
-				{
-					if(rtw_read32(Adapter, 0x200) != rtw_read32(Adapter, 0x204))
-					{
-						//DBG_871X("packet in tx packet buffer - 0x204=%x, 0x200=%x (%d)\n", rtw_read32(Adapter, 0x204), rtw_read32(Adapter, 0x200), i);
-						rtw_msleep_os(10);
-					}
-					else
-					{
-						DBG_871X("no packet in tx packet buffer (%d)\n", i);
-						break;
-					}
-				}
-
-				RetryLimit = 0x30;	
-				rtw_write16(Adapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
-		
-			}
-#endif
-			break;
 		case HW_VAR_BCN_VALID:
 			//BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2, write 1 to clear, Clear by sw
 			rtw_write8(Adapter, REG_TDECTRL+2, rtw_read8(Adapter, REG_TDECTRL+2) | BIT0); 
@@ -5450,13 +5402,13 @@ _func_enter_;
 			rtw_write8(Adapter, REG_USB_DMA_AGG_TO, *((u8 *)val));
 			break;
 		default:
+			SetHwReg8192D(Adapter, variable, val);
 			break;
 	}
 
 _func_exit_;
 }
 
-void GetHwReg8192DU(PADAPTER Adapter, u8 variable, u8* val);
 void GetHwReg8192DU(PADAPTER Adapter, u8 variable, u8* val)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
@@ -5474,9 +5426,6 @@ _func_enter_;
 		case HW_VAR_BCN_VALID:
 			//BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2
 			val[0] = (BIT0 & rtw_read8(Adapter, REG_TDECTRL+2))?_TRUE:_FALSE;
-			break;
-		case HW_VAR_DM_FLAG:
-			val[0] = pHalData->dmpriv.DMFlag;
 			break;
 		case HW_VAR_RF_TYPE:
 			val[0] = pHalData->rf_type;
@@ -5513,6 +5462,7 @@ _func_enter_;
 			*((u16 *)(val)) = pHalData->EEPROMPID;
 			break;
 		default:
+			GetHwReg8192D(Adapter, variable, val);
 			break;
 	}
 
@@ -5523,12 +5473,6 @@ _func_exit_;
 //	Description: 
 //		Query setting of specified variable.
 //
-u8
-GetHalDefVar8192DUsb(
-	IN	PADAPTER				Adapter,
-	IN	HAL_DEF_VARIABLE		eVariable,
-	IN	PVOID					pValue
-	);
 u8
 GetHalDefVar8192DUsb(
 	IN	PADAPTER				Adapter,
@@ -5574,9 +5518,6 @@ GetHalDefVar8192DUsb(
 		case HAL_DEF_DBG_DUMP_RXPKT:
 			*(( u8*)pValue) = pHalData->bDumpRxPkt;
 			break;
-		case HAL_DEF_DBG_DM_FUNC:
-			*(( u8*)pValue) = pHalData->dmpriv.DMFlag;
-			break;
 		case HAL_DEF_DUAL_MAC_MODE:
 			if ((pHalData->MacPhyMode92D == DUALMAC_DUALPHY) ||(pHalData->MacPhyMode92D == DUALMAC_SINGLEPHY))
 				*(( u8*)pValue) = _TRUE;
@@ -5584,8 +5525,7 @@ GetHalDefVar8192DUsb(
 				*(( u8*)pValue) = _FALSE;
 			break;
 		default:
-			//RT_TRACE(COMP_INIT, DBG_WARNING, ("GetHalDefVar8192CUsb(): Unkown variable: %d!\n", eVariable));
-			bResult = _FALSE;
+			bResult = GetHalDefVar8192D(Adapter, eVariable, pValue);
 			break;
 	}
 
@@ -5602,12 +5542,6 @@ SetHalDefVar8192DUsb(
 	IN	PADAPTER				Adapter,
 	IN	HAL_DEF_VARIABLE		eVariable,
 	IN	PVOID					pValue
-	);
-u8
-SetHalDefVar8192DUsb(
-	IN	PADAPTER				Adapter,
-	IN	HAL_DEF_VARIABLE		eVariable,
-	IN	PVOID					pValue
 	)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
@@ -5618,49 +5552,8 @@ SetHalDefVar8192DUsb(
 		case HAL_DEF_DBG_DUMP_RXPKT:
 			pHalData->bDumpRxPkt = *(( u8*)pValue);
 			break;
-		case HAL_DEF_DBG_DM_FUNC:
-			{
-				u8 dm_func = *(( u8*)pValue);
-				struct dm_priv	*pdmpriv = &pHalData->dmpriv;	
-				
-				if(dm_func == 0){ //disable all dynamic func
-					pdmpriv->DMFlag = DYNAMIC_FUNC_DISABLE;
-					DBG_8192C("==> Disable all dynamic function...\n");
-				}
-				else if(dm_func == 1){//disable DIG
-					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_DIG);
-					DBG_8192C("==> Disable DIG...\n");
-				}
-				else if(dm_func == 2){//disable High power
-					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_HP);
-				}
-				else if(dm_func == 3){//disable tx power tracking
-					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_SS);
-					DBG_8192C("==> Disable tx power tracking...\n");
-				}
-				else if(dm_func == 4){//disable BT coexistence
-					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_BT);
-				}
-				else if(dm_func == 5){//disable antenna diversity
-					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_ANT_DIV);
-				}				
-				else if(dm_func == 6){//turn on all dynamic func
-					if(!(pdmpriv->DMFlag & DYNAMIC_FUNC_DIG))
-					{
-						struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-						DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
-						pDigTable->PreIGValue = rtw_read8(Adapter,0xc50);	
-					}
-						
-					pdmpriv->DMFlag |= (DYNAMIC_FUNC_DIG|DYNAMIC_FUNC_HP|DYNAMIC_FUNC_SS|
-						DYNAMIC_FUNC_BT|DYNAMIC_FUNC_ANT_DIV) ;
-					DBG_8192C("==> Turn on all dynamic function...\n");
-				}			
-			}
-			break;
 		default:
-			//RT_TRACE(COMP_INIT, DBG_TRACE, ("SetHalDefVar819xUsb(): Unkown variable: %d!\n", eVariable));
-			bResult = _FALSE;
+			bResult = SetHalDefVar8192D(Adapter, eVariable, pValue);
 			break;
 	}
 
@@ -5925,11 +5818,10 @@ void rtl8192du_set_hal_ops(_adapter * padapter)
 
 _func_enter_;
 
-	padapter->HalData = rtw_zmalloc(sizeof(HAL_DATA_TYPE));
+	padapter->HalData = rtw_zvmalloc(sizeof(HAL_DATA_TYPE));
 	if(padapter->HalData == NULL){
 		DBG_8192C("cant not alloc memory for HAL DATA \n");
 	}
-	//_rtw_memset(padapter->HalData, 0, sizeof(HAL_DATA_TYPE));
 	padapter->hal_data_sz = sizeof(HAL_DATA_TYPE);
 
 	pHalFunc->hal_init = &rtl8192du_hal_init;

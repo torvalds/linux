@@ -563,9 +563,15 @@ _func_enter_;
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_TX
 	purb->transfer_dma = pxmitbuf->dma_transfer_addr;
 	purb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	purb->transfer_flags |= URB_ZERO_PACKET;
 #endif	// CONFIG_USE_USB_BUFFER_ALLOC_TX
-              			
+
+	purb->transfer_flags |= URB_ZERO_PACKET;
+#ifdef USB_PACKET_OFFSET_SZ
+#if (USB_PACKET_OFFSET_SZ == 0)
+	purb->transfer_flags |= URB_ZERO_PACKET;
+#endif
+#endif
+
 #if 0
 	if (bwritezero)
         {

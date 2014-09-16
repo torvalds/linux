@@ -64,7 +64,11 @@
 		#ifdef CONFIG_PLATFORM_MSTAR
 			#define MAX_RECVBUF_SZ (8192) // 8K
 		#else
+			#ifndef CONFIG_USB_RX_AGGREGATION
+			#define MAX_RECVBUF_SZ (4000) // about 4K
+			#else
 			#define MAX_RECVBUF_SZ (15360) // 15k < 16k
+			#endif //CONFIG_USB_RX_AGGREGATION
 		#endif
 	#else
 		#define MAX_RECVBUF_SZ (4000) // about 4K

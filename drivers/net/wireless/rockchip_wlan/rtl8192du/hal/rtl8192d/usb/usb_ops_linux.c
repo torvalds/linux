@@ -1104,7 +1104,7 @@ static int recvbuf2recvframe(_adapter *padapter, _pkt *pskb)
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 			goto _exit_recvbuf2recvframe;
 		}
-
+#ifdef CONFIG_USB_RX_AGGREGATION //no usb rx aggregation, no skb copy
 		//	Modified by Albert 20101213
 		//	For 8 bytes IP header alignment.
 		if (pattrib->qos)	//	Qos data, wireless lan header length is 26
@@ -1164,7 +1164,14 @@ static int recvbuf2recvframe(_adapter *padapter, _pkt *pskb)
 
 		recvframe_put(precvframe, skb_len);
 		//recvframe_pull(precvframe, drvinfo_sz + RXDESC_SIZE);
-
+#else //CONFIG_USB_RX_AGGREGATION
+		precvframe->u.hdr.pkt = pskb;
+		precvframe->u.hdr.rx_head = pskb->data;
+		precvframe->u.hdr.rx_end = skb_end_pointer(pskb);
+		precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pskb->data;
+		recvframe_put(precvframe, pkt_offset);
+		recvframe_pull(precvframe, pattrib->drvinfo_sz + RXDESC_SIZE);
+#endif //CONFIG_USB_RX_AGGREGATION, no usb rx aggregation, no copy
 #ifdef CONFIG_USB_RX_AGGREGATION
 		switch(pHalData->UsbRxAggMode)
 		{
@@ -1237,7 +1244,7 @@ void rtl8192du_recv_tasklet(void *priv)
 		}
 	
 		recvbuf2recvframe(padapter, pskb);
-
+#ifdef CONFIG_USB_RX_AGGREGATION //no usb rx aggregation, no copy
 #ifdef CONFIG_PREALLOC_RECV_SKB
 
 		skb_reset_tail_pointer(pskb);
@@ -1248,6 +1255,7 @@ void rtl8192du_recv_tasklet(void *priv)
 #else
 		rtw_skb_free(pskb);
 #endif
+#endif //CONFIG_USB_RX_AGGREGATION, no usb rx aggregation, no copy
 				
 	}
 	

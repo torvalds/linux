@@ -40,8 +40,6 @@
 
 #define 	SCANNING_TIMEOUT 	8000
 
-#define	SCAN_INTERVAL	(30) // unit:2sec, 30*2=60sec
-
 #ifdef PALTFORM_OS_WINCE
 #define	SCANQUEUE_LIFETIME 12000000 // unit:us
 #else
@@ -250,11 +248,11 @@ struct group_id_info{
 
 struct scan_limit_info{
 	u8					scan_op_ch_only;			//	When this flag is set, the driver should just scan the operation channel
-#ifndef P2P_OP_CHECK_SOCIAL_CH
+#ifndef CONFIG_P2P_OP_CHK_SOCIAL_CH
 	u8					operation_ch[2];				//	Store the operation channel of invitation request frame
 #else
 	u8					operation_ch[5];				//	Store additional channel 1,6,11  for Android 4.2 IOT & Nexus 4
-#endif //P2P_OP_CHECK_SOCIAL_CH
+#endif //CONFIG_P2P_OP_CHK_SOCIAL_CH
 };
 
 #ifdef CONFIG_IOCTL_CFG80211
@@ -393,6 +391,13 @@ struct tdls_info{
 #endif		
 };
 
+/* used for mlme_priv.roam_flags */
+enum {
+	RTW_ROAM_ON_EXPIRED = 0x01,
+	RTW_ROAM_ON_RESUME = 0x02,
+	RTW_ROAM_ACTIVE = 0x04,
+};
+
 struct mlme_priv {
 
 	_lock	lock;
@@ -400,7 +405,13 @@ struct mlme_priv {
 
 	u8	to_join; //flag
 	#ifdef CONFIG_LAYER2_ROAMING
-	u8 to_roaming; // roaming trying times
+	u8 to_roam; /* roaming trying times */
+	struct wlan_network *roam_network; /* the target of active roam */
+	u8 roam_flags;
+	u8 roam_rssi_diff_th; /* rssi difference threshold for active scan candidate selection */
+	u32 roam_scan_int_ms; /* scan interval for active roam */
+	u32 roam_scanr_exp_ms; /* scan result expire time in ms  for roam */
+	u8 roam_tgt_addr[ETH_ALEN]; /* request to roam to speicific target without other consideration */
 	#endif
 
 	u8	*nic_hdl;
@@ -420,7 +431,7 @@ struct mlme_priv {
 
 	//uint wireless_mode; no used, remove it
 
-	u32	scan_interval;
+	u32	auto_scan_int_ms;
 
 	_timer assoc_timer;
 
@@ -459,8 +470,6 @@ struct mlme_priv {
 	u8	ChannelPlan;
 	RT_SCAN_TYPE 	scan_mode; // active: 1, passive: 0
 
-	//u8 probereq_wpsie[MAX_WPS_IE_LEN];//added in probe req	
-	//int probereq_wpsie_len;
 	u8 *wps_probe_req_ie;
 	u32 wps_probe_req_ie_len;
 
@@ -591,6 +600,13 @@ struct mlme_priv {
 	u8	scanning_via_buddy_intf;
 #endif
 };
+
+#define rtw_mlme_set_auto_scan_int(adapter, ms) \
+	do { \
+		adapter->mlmepriv.auto_scan_int_ms = ms; \
+	while (0)
+
+void rtw_mlme_reset_auto_scan_int(_adapter *adapter);
 
 #ifdef CONFIG_AP_MODE
 
@@ -751,6 +767,8 @@ extern void rtw_disconnect_hdl_under_linked(_adapter* adapter, struct sta_info *
 extern void rtw_generate_random_ibss(u8 *pibss);
 extern struct wlan_network* rtw_find_network(_queue *scanned_queue, u8 *addr);
 extern struct wlan_network* rtw_get_oldest_wlan_network(_queue *scanned_queue);
+struct wlan_network *_rtw_find_same_network(_queue *scanned_queue, struct wlan_network *network);
+struct wlan_network *rtw_find_same_network(_queue *scanned_queue, struct wlan_network *network);
 
 extern void rtw_free_assoc_resources(_adapter* adapter, int lock_scanned_queue);
 extern void rtw_indicate_disconnect(_adapter* adapter);
@@ -821,20 +839,45 @@ void rtw_issue_addbareq_cmd(_adapter *padapter, struct xmit_frame *pxmitframe);
 #endif
 
 int rtw_is_same_ibss(_adapter *adapter, struct wlan_network *pnetwork);
-int is_same_network(WLAN_BSSID_EX *src, WLAN_BSSID_EX *dst);
+int is_same_network(WLAN_BSSID_EX *src, WLAN_BSSID_EX *dst, u8 feature);
 
 #ifdef CONFIG_LAYER2_ROAMING
+#define rtw_roam_flags(adapter) ((adapter)->mlmepriv.roam_flags)
+#define rtw_chk_roam_flags(adapter, flags) ((adapter)->mlmepriv.roam_flags & flags)
+#define rtw_clr_roam_flags(adapter, flags) \
+	do { \
+		((adapter)->mlmepriv.roam_flags &= ~flags); \
+	} while (0)
+
+#define rtw_set_roam_flags(adapter, flags) \
+	do { \
+		((adapter)->mlmepriv.roam_flags |= flags); \
+	} while (0)
+
+#define rtw_assign_roam_flags(adapter, flags) \
+	do { \
+		((adapter)->mlmepriv.roam_flags = flags); \
+	} while (0)
+
 void _rtw_roaming(_adapter *adapter, struct wlan_network *tgt_network);
 void rtw_roaming(_adapter *adapter, struct wlan_network *tgt_network);
-void rtw_set_roaming(_adapter *adapter, u8 to_roaming);
-u8 rtw_to_roaming(_adapter *adapter);
+void rtw_set_to_roam(_adapter *adapter, u8 to_roam);
+u8 rtw_dec_to_roam(_adapter *adapter);
+u8 rtw_to_roam(_adapter *adapter);
+int rtw_select_roaming_candidate(struct mlme_priv *pmlmepriv);
 #else
+#define rtw_roam_flags(adapter) 0
+#define rtw_chk_roam_flags(adapter, flags) 0
+#define rtw_clr_roam_flags(adapter, flags) do {} while (0)
+#define rtw_set_roam_flags(adapter, flags) do {} while (0)
+#define rtw_assign_roam_flags(adapter, flags) do {} while (0)
 #define _rtw_roaming(adapter, tgt_network) do {} while(0)
 #define rtw_roaming(adapter, tgt_network) do {} while(0)
-#define rtw_set_roaming(adapter, to_roaming) do {} while(0)
-#define rtw_to_roaming(adapter) 0
-#endif
-
+#define rtw_set_to_roam(adapter, to_roam) do {} while(0)
+#define rtw_dec_to_roam(adapter) 0
+#define rtw_to_roam(adapter) 0
+#define rtw_select_roaming_candidate(mlme) _FAIL
+#endif /* CONFIG_LAYER2_ROAMING */
 
 #ifdef CONFIG_INTEL_PROXIM
 void rtw_proxim_enable(_adapter *padapter);

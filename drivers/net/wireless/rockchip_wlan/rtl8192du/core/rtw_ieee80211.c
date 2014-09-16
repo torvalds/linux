@@ -809,6 +809,28 @@ u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen)
 	return match;
 }
 
+u8 *rtw_get_wps_ie_from_scan_queue(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen, u8 frame_type)
+{
+	u8*	wps = NULL;
+
+	DBG_871X( "[%s] frame_type = %d\n", __FUNCTION__, frame_type );
+	switch( frame_type )
+	{
+		case 1:
+		case 3:
+		{	//	Beacon or Probe Response
+			wps = rtw_get_wps_ie(in_ie + _PROBERSP_IE_OFFSET_, in_len - _PROBERSP_IE_OFFSET_, wps_ie, wps_ielen);
+			break;
+		}
+		case 2:
+		{	//	Probe Request
+			wps = rtw_get_wps_ie(in_ie + _PROBEREQ_IE_OFFSET_ , in_len - _PROBEREQ_IE_OFFSET_ , wps_ie, wps_ielen);
+			break;
+		}
+	}
+	return wps;
+}
+
 /**
  * rtw_get_wps_ie - Search WPS IE from a series of IEs
  * @in_ie: Address of IEs to search
@@ -1390,6 +1412,28 @@ void dump_p2p_ie(u8 *ie, u32 ie_len) {
 	}	
 }
 
+u8 *rtw_get_p2p_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen, u8 frame_type)
+{
+	u8*	p2p = NULL;
+
+	DBG_871X( "[%s] frame_type = %d\n", __FUNCTION__, frame_type );
+	switch( frame_type )
+	{
+		case 1:
+		case 3:
+		{	//	Beacon or Probe Response
+			p2p = rtw_get_p2p_ie(in_ie + _PROBERSP_IE_OFFSET_, in_len - _PROBERSP_IE_OFFSET_, p2p_ie, p2p_ielen);
+			break;
+		}
+		case 2:
+		{	//	Probe Request
+			p2p = rtw_get_p2p_ie(in_ie + _PROBEREQ_IE_OFFSET_ , in_len - _PROBEREQ_IE_OFFSET_ , p2p_ie, p2p_ielen);
+			break;
+		}
+	}
+	return p2p;
+}
+
 /**
  * rtw_get_p2p_ie - Search P2P IE from a series of IEs
  * @in_ie: Address of IEs to search
@@ -1691,6 +1735,30 @@ int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen)
 	
 	return match;
 
+}
+
+int rtw_get_wfd_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen, u8 frame_type)
+{
+	int match;
+
+	match=_FALSE;
+
+	DBG_871X( "[%s] frame_type = %d\n", __FUNCTION__, frame_type );
+	switch( frame_type )
+	{
+		case 1:
+		case 3:
+		{	//	Beacon or Probe Response
+			match = rtw_get_wfd_ie(in_ie + _PROBERSP_IE_OFFSET_, in_len - _PROBERSP_IE_OFFSET_, wfd_ie, wfd_ielen);
+			break;
+		}
+		case 2:
+		{	//	Probe Request
+			match = rtw_get_wfd_ie(in_ie + _PROBEREQ_IE_OFFSET_ , in_len - _PROBEREQ_IE_OFFSET_ , wfd_ie, wfd_ielen);
+			break;
+		}
+	}
+	return match;
 }
 
 //	attr_content: The output buffer, contains the "body field" of WFD attribute.

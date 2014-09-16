@@ -369,3 +369,176 @@ exit:
 	return ret;
 }
 
+void SetHwReg(_adapter *adapter, HW_VARIABLES variable, u8 *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	struct dm_priv *dm = &(hal_data->dmpriv);
+
+	switch (variable) {
+	case HW_VAR_DM_FLAG:
+		dm->DMFlag = *((u8*)val);
+		break;
+	case HW_VAR_ENC_BMC_ENABLE:
+	{
+		u8 seccfg;
+		struct security_priv *psecuritypriv = &adapter->securitypriv;
+		//enable MC/BC hw decrypt
+		seccfg = (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X)? 0xcc: 0xcf;
+		rtw_write8(adapter, REG_SECCFG, seccfg);
+		break;
+	}
+	case HW_VAR_ENC_BMC_DISABLE:
+	{
+		struct security_priv *psecuritypriv = &adapter->securitypriv;
+		rtw_write8(adapter, REG_SECCFG, 0x0c|BIT(5));// enable tx enc and rx dec engine, and no key search for MC/BC
+		break;
+	}
+	case HW_VAR_CHECK_TXBUF:
+	{
+		u8 retry_limit;
+		u16 val16;
+		u32 reg_200 = 0, reg_204 = 0;
+		u32 init_reg_200 = 0, init_reg_204 = 0;
+		u32 start = rtw_get_current_time();
+		u32 pass_ms;
+		int i = 0;
+
+		retry_limit = 0x01;
+
+		val16 = retry_limit << RETRY_LIMIT_SHORT_SHIFT | retry_limit << RETRY_LIMIT_LONG_SHIFT;
+		rtw_write16(adapter, REG_RL, val16);
+
+		while (rtw_get_passing_time_ms(start) < 2000
+			&& !adapter->bDriverStopped && !adapter->bSurpriseRemoved
+		) {
+			reg_200 = rtw_read32(adapter, 0x200);
+			reg_204 = rtw_read32(adapter, 0x204);
+
+			if (i == 0) {
+				init_reg_200 = reg_200;
+				init_reg_204 = reg_204;
+			}
+
+			i++;
+			if ((reg_200 & 0x00ffffff) != (reg_204 & 0x00ffffff)) {
+				//DBG_871X("%s: (HW_VAR_CHECK_TXBUF)TXBUF NOT empty - 0x204=0x%x, 0x200=0x%x (%d)\n", __FUNCTION__, reg_204, reg_200, i);
+				rtw_msleep_os(10);
+			} else {
+				break;
+			}
+		}
+
+		pass_ms = rtw_get_passing_time_ms(start);
+
+		if (adapter->bDriverStopped || adapter->bSurpriseRemoved) {
+		} else if (pass_ms >= 2000 || (reg_200 & 0x00ffffff) != (reg_204 & 0x00ffffff)) {
+			DBG_871X_LEVEL(_drv_always_, "%s:(HW_VAR_CHECK_TXBUF)NOT empty(%d) in %d ms\n", __FUNCTION__, i, pass_ms);
+			DBG_871X_LEVEL(_drv_always_, "%s:(HW_VAR_CHECK_TXBUF)0x200=0x%08x, 0x204=0x%08x (0x%08x, 0x%08x)\n",
+				__FUNCTION__, reg_200, reg_204, init_reg_200, init_reg_204);
+			//rtw_warn_on(1);
+		} else {
+			DBG_871X("%s:(HW_VAR_CHECK_TXBUF)TXBUF Empty(%d) in %d ms\n", __FUNCTION__, i, pass_ms);
+		}
+
+		retry_limit = 0x30;
+		val16 = retry_limit << RETRY_LIMIT_SHORT_SHIFT | retry_limit << RETRY_LIMIT_LONG_SHIFT;
+		rtw_write16(adapter, REG_RL, val16);
+	}
+		break;
+	default:
+		if(0)
+		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HW_VARIABLES(%d) not defined!\n", __FUNCTION__, variable);
+		break;
+	}
+}
+
+void GetHwReg(_adapter *adapter, HW_VARIABLES variable, u8 *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	struct dm_priv *dm = &(hal_data->dmpriv);
+
+	switch (variable) {
+	case HW_VAR_DM_FLAG:
+		*((u8*)val) = dm->DMFlag;
+		break;
+	default:
+		if(0)
+		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HW_VARIABLES(%d) not defined!\n", __FUNCTION__, variable);
+		break;
+	}
+}
+
+u8 SetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	struct dm_priv *dm = &(hal_data->dmpriv);
+	u8 bResult = _SUCCESS;
+
+	switch(variable) {
+	case HAL_DEF_DBG_DM_FUNC:
+	{
+		u8 dm_func = *((u8*)val);
+
+		if (dm_func == 0){ //disable all dynamic func
+			dm->DMFlag = DYNAMIC_FUNC_DISABLE;
+			DBG_8192C("==> Disable all dynamic function...\n");
+		}
+		else if (dm_func == 1){//disable DIG
+			dm->DMFlag &= (~DYNAMIC_FUNC_DIG);
+			DBG_8192C("==> Disable DIG...\n");
+		}
+		else if (dm_func == 2){//disable High power
+			dm->DMFlag &= (~DYNAMIC_FUNC_HP);
+		}
+		else if (dm_func == 3){//disable tx power tracking
+			dm->DMFlag &= (~DYNAMIC_FUNC_SS);
+			DBG_8192C("==> Disable tx power tracking...\n");
+		}
+		else if (dm_func == 4){//disable BT coexistence
+			dm->DMFlag &= (~DYNAMIC_FUNC_BT);
+		}
+		else if (dm_func == 5){//disable antenna diversity
+			dm->DMFlag &= (~DYNAMIC_FUNC_ANT_DIV);
+		}				
+		else if (dm_func == 6){//turn on all dynamic func
+			if (!(dm->DMFlag & DYNAMIC_FUNC_DIG)) {
+				DIG_T	*pDigTable = &dm->DM_DigTable;
+				pDigTable->PreIGValue = rtw_read8(adapter, 0xc50);	
+			}
+
+			dm->DMFlag |= (DYNAMIC_FUNC_DIG|DYNAMIC_FUNC_HP|DYNAMIC_FUNC_SS|
+				DYNAMIC_FUNC_BT|DYNAMIC_FUNC_ANT_DIV) ;
+			DBG_8192C("==> Turn on all dynamic function...\n");
+		}
+	}
+		break;
+	default:
+		if(0)
+		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __FUNCTION__, variable);
+		bResult = _FAIL;
+		break;
+	}
+
+	return bResult;
+}
+
+u8 GetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	struct dm_priv *dm = &(hal_data->dmpriv);
+	u8 bResult = _SUCCESS;
+
+	switch(variable) {
+	case HAL_DEF_DBG_DM_FUNC:
+		*((u8*)val) = dm->DMFlag;
+		break;
+	default:
+		if(0)
+		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __FUNCTION__, variable);
+		bResult = _FAIL;
+		break;
+	}
+
+	return bResult;
+}
+

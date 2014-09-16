@@ -1855,11 +1855,6 @@ static int rtw_drv_init(struct pci_dev *pdev, const struct pci_device_id *did)
 	rtd2885_wlan_netlink_sendMsg("linkup", "8712");
 #endif
 
-#ifdef RTK_DMP_PLATFORM
-	rtw_proc_init_one(if1->pnetdev);
-#endif
-
-
 	/* alloc irq */
 	if (pci_alloc_irq(dvobj) != _SUCCESS)
 		goto free_if2;
@@ -1956,39 +1951,55 @@ _func_exit_;
 	return;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24))
+extern int console_suspend_enabled;
+#endif
 
 static int __init rtw_drv_entry(void)
 {
 	int ret = 0;
 
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_entry\n"));
-	DBG_871X("rtw driver version=%s\n", DRIVERVERSION);
-	DBG_871X("Build at: %s %s\n", __DATE__, __TIME__);
-	pci_drvpriv.drv_registered = _TRUE;
+	DBG_871X_LEVEL(_drv_always_, "module init start\n");
+	dump_drv_version(RTW_DBGDUMP);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)) 
+		//console_suspend_enabled=0;
+#endif
+
+	pci_drvpriv.drv_registered = _TRUE;
 	rtw_suspend_lock_init();
+	rtw_drv_proc_init();
+	rtw_ndev_notifier_register();
 
 	ret = pci_register_driver(&pci_drvpriv.rtw_pci_drv);
-	if (ret) {
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_, (": No device found\n"));
+	if (ret != 0) {
+		pci_drvpriv.drv_registered = _FALSE;
+		rtw_suspend_lock_uninit();
+		rtw_drv_proc_deinit();
+		rtw_ndev_notifier_unregister();
+		goto exit;
 	}
 
+exit:
+	DBG_871X_LEVEL(_drv_always_, "module init ret=%d\n", ret);
 	return ret;
 }
 
 static void __exit rtw_drv_halt(void)
 {
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_halt\n"));
-	DBG_871X("+rtw_drv_halt\n");
+	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
 
 	pci_drvpriv.drv_registered = _FALSE;
 
 	pci_unregister_driver(&pci_drvpriv.rtw_pci_drv);
 
 	rtw_suspend_lock_uninit();
-	DBG_871X("-rtw_drv_halt\n");
+	rtw_drv_proc_deinit();
+	rtw_ndev_notifier_unregister();
 
-	rtw_mstat_dump();
+	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
+
+	rtw_mstat_dump(RTW_DBGDUMP);
 }
 
 

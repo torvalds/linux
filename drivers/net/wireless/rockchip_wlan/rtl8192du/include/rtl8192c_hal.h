@@ -32,6 +32,7 @@
 #ifdef DBG_CONFIG_ERROR_DETECT
 #include "rtl8192c_sreset.h"
 #endif
+#include "rtw_efuse.h"
 
 #ifdef CONFIG_PCI_HCI
 
@@ -666,6 +667,8 @@ struct hal_data_8192ce
 	u8	FwRsvdPageStartOffset; //2010.06.23. Added by tynli. Reserve page start offset except beacon in TxQ.
 
 	u16	EfuseUsedBytes;
+
+	EFUSE_HAL			EfuseHal;
 	
 #ifdef CONFIG_P2P
 	struct P2P_PS_Offload_t	p2p_ps_offload;
@@ -874,7 +877,9 @@ struct hal_data_8192cu
 	BOOLEAN		SlimComboDbg;
 
 	u16	EfuseUsedBytes;
-
+	
+	EFUSE_HAL			EfuseHal;
+	
 #ifdef CONFIG_P2P
 	struct P2P_PS_Offload_t	p2p_ps_offload;
 #endif //CONFIG_P2P
@@ -901,6 +906,12 @@ VOID rtl8192c_EfuseParseIDCode(PADAPTER pAdapter, u8 *hwinfo);
 void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc);
 
 s32 c2h_id_filter_ccx_8192c(u8 id);
+
+void SetHwReg8192C(PADAPTER padapter, u8 variable, u8 *val);
+void GetHwReg8192C(PADAPTER padapter, u8 variable, u8 *val);
+u8 SetHalDefVar8192C(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val);
+u8 GetHalDefVar8192C(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val);
+
 #endif
 
 #ifdef CONFIG_MP_INCLUDED

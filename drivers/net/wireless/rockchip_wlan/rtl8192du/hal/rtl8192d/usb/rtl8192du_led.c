@@ -63,7 +63,7 @@ static void
 ResetLedStatus(PLED_871x	pLed) {
 	pLed->CurrLedState = RTW_LED_OFF; // Current LED state.
 	pLed->bLedOn = _FALSE; // true if LED is ON, false if LED is OFF.
-	
+	pLed->bSWLedCtrl = _FALSE;
 	pLed->bLedBlinkInProgress = _FALSE; // true if it is blinking, false o.w..
 	pLed->bLedNoLinkBlinkInProgress = _FALSE;
 	pLed->bLedLinkBlinkInProgress = _FALSE;
@@ -157,39 +157,64 @@ SwLedOn(
 )
 {
 	u8	LedCfg;
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
-	if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->bDriverStopped == _TRUE))	
+	if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->bDriverStopped == _TRUE))
 	{
 		return;
 	}
 
-	//LedCfg = PlatformEFIORead1Byte(Adapter, LEDCFG);
-
-	switch(pLed->LedPin)
+	if( 	(BOARD_MINICARD == pHalData->BoardType )||
+		(BOARD_USB_SOLO == pHalData->BoardType)||
+		(BOARD_USB_COMBO == pHalData->BoardType))
 	{
-		case LED_PIN_GPIO0:
-			break;
+		LedCfg = rtw_read8(padapter, REG_LEDCFG2);
+		//RT_TRACE(COMP_LED,DBG_LOUD,("In SwLedON,LedAddr:%X LEDPIN=%d\n",REG_LEDCFG2, pLed->LedPin));
 
-		case LED_PIN_LED0:
-			LedCfg = rtw_read8(padapter, REG_LEDCFG2);
-			rtw_write8(padapter, REG_LEDCFG2, LedCfg&0xf0); // SW control led0 on.
-			//RT_TRACE(COMP_LED, DBG_LOUD, ("SwLedOn LED0\n"));
-			
-			break;
+		switch(pLed->LedPin)
+		{	
+			case LED_PIN_GPIO0:
+				break;
 
-		case LED_PIN_LED1:
-			LedCfg = rtw_read8(padapter, (REG_LEDCFG2 + 1));
-			rtw_write8(padapter, (REG_LEDCFG2 + 1), LedCfg&0x0f); // SW control led1 on.
-			//RT_TRACE(COMP_LED, DBG_LOUD, ("SwLedOn LED1\n"));
-			
-			break;
+			case LED_PIN_LED0:
+				//RT_TRACE(COMP_LED,DBG_LOUD,("In SwLedOn,LedAddr:%X LEDPIN=%d\n",REG_LEDCFG2, pLed->LedPin));				
+				LedCfg = rtw_read8(padapter, REG_LEDCFG2);			
+				rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0)|BIT5|BIT6); // SW control led0 on.
+				break;
 
-		default:
-			break;
+			case LED_PIN_LED1:
+				rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0x0f)|BIT5); // SW control led1 on.
+				break;
+
+			default:
+				break;
+		}
+	}
+	else
+	{
+		switch(pLed->LedPin)
+		{
+			case LED_PIN_GPIO0:
+				break;
+
+			case LED_PIN_LED0:
+				LedCfg = rtw_read8(padapter, (REG_LEDCFG0));
+				rtw_write8(padapter, (REG_LEDCFG0), LedCfg&0xF0);
+				//RT_TRACE(COMP_LED, DBG_LOUD, ("SwLedOn LED0\n"));
+				break;
+
+			case LED_PIN_LED1:
+				LedCfg = rtw_read8(padapter, (REG_LEDCFG1));
+				rtw_write8(padapter, (REG_LEDCFG1), LedCfg&0xF0); // SW control led1 on.
+				//RT_TRACE(COMP_LED, DBG_LOUD, ("SwLedOn LED1 0x%x\n", rtw_read32(padapter, REG_LEDCFG0)));
+				break;
+
+			default:
+				break;
+		}
 	}
 
 	pLed->bLedOn = _TRUE;
-	
 }
 
 
@@ -209,41 +234,82 @@ SwLedOff(
 )
 {
 	u8	LedCfg;
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
-	if((padapter->bSurpriseRemoved == _TRUE) || ( padapter->bDriverStopped == _TRUE))	
+	if(padapter->bSurpriseRemoved == _TRUE)
 	{
              return;
 	}
 
-	//LedCfg = PlatformEFIORead1Byte(Adapter, LEDCFG);
+	if( 	(BOARD_MINICARD == pHalData->BoardType )||
+		(BOARD_USB_SOLO == pHalData->BoardType)||
+		(BOARD_USB_COMBO == pHalData->BoardType))
+	{		
+		//RT_TRACE(COMP_LED,DBG_LOUD,("In SwLedOff,LedAddr:%X LEDPIN=%d\n",REG_LEDCFG2, pLed->LedPin));
+		LedCfg = rtw_read8(padapter, REG_LEDCFG2);
+		
+		// 2009/10/23 MH Issau eed to move the LED GPIO from bit  0 to bit3.
+		// 2009/10/26 MH Issau if tyhe device is 8c DID is 0x8176, we need to enable bit6 to
+		// enable GPIO8 for controlling LED.	
+		// 2010/07/02 Supprt Open-drain arrangement for controlling the LED. Added by Roger.
+		//
+		switch(pLed->LedPin)
+		{
 
-	switch(pLed->LedPin)
+			case LED_PIN_GPIO0:
+				break;
+
+			case LED_PIN_LED0:
+				if(pHalData->bLedOpenDrain == _TRUE)					
+				{
+					LedCfg &= 0x90; // Set to software control.				
+					rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3));				
+					LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
+					LedCfg &= 0xFE;
+					rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);									
+				}
+				else
+				{
+					rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3|BIT5|BIT6));
+				}
+				break;
+
+			case LED_PIN_LED1:
+				LedCfg &= 0x0f; // Set to software control.
+				rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3));
+				break;
+
+			default:
+				break;
+		}
+	}
+	else
 	{
-		case LED_PIN_GPIO0:
-			break;
+		switch(pLed->LedPin)
+		{
+			case LED_PIN_GPIO0:
+				break;
 
-		case LED_PIN_LED0:
-			LedCfg = rtw_read8(padapter, REG_LEDCFG2);
-			LedCfg &= 0xf0; // Set to software control.
-			rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3));
-			//RT_TRACE(COMP_LED, DBG_LOUD, ("SwLedOff LED0\n"));
-			
-			break;
+			case LED_PIN_LED0:
+				LedCfg = rtw_read8(padapter, (REG_LEDCFG0));
+				LedCfg &= 0xF0; // Set to software control.
+				rtw_write8(padapter, (REG_LEDCFG0), (LedCfg|BIT3));
+				//RT_TRACE(COMP_LED, DBG_LOUD, ("SwLedOff LED0\n"));
+				break;
 
-		case LED_PIN_LED1:
-			LedCfg = rtw_read8(padapter, (REG_LEDCFG2+1));
-			LedCfg &= 0x0f; // Set to software control.
-			rtw_write8(padapter, (REG_LEDCFG2+1), (LedCfg|BIT3));
-			//RT_TRACE(COMP_LED, DBG_LOUD, ("SwLedOff LED1\n"));
-			
-			break;
+			case LED_PIN_LED1:
+				LedCfg = rtw_read8(padapter, (REG_LEDCFG1));
+				LedCfg &= 0xF0; // Set to software control.
+				rtw_write8(padapter, (REG_LEDCFG1), (LedCfg|BIT3));
+				//RT_TRACE(COMP_LED, DBG_LOUD, ("SwLedOff LED1 0x%x\n", rtw_read32(Adapter, REG_LEDCFG0)));
+				break;
 
-		default:
-			break;
+			default:
+				break;
+		}
 	}
 
 	pLed->bLedOn = _FALSE;
-	
 }
 
 //
@@ -1236,7 +1302,7 @@ BlinkTimerCallback(
 	PLED_871x	 pLed = (PLED_871x)data;
 	_adapter		*padapter = pLed->padapter;
 
-	 if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->bDriverStopped == _TRUE))	
+	 if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->hw_init_completed == _FALSE))	
        {
              return;
        }
@@ -1256,7 +1322,7 @@ void BlinkWorkItemCallback(struct work_struct *work)
 	struct led_priv	*ledpriv = &(pLed->padapter->ledpriv);
 	_adapter		*padapter = pLed->padapter;
 
-	 if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->bDriverStopped == _TRUE))	
+	 if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->hw_init_completed == _FALSE))	
        {
              return;
        }
@@ -1447,6 +1513,7 @@ SwLedControlMode1(
 	
 	switch(LedAction)
 	{
+		case LED_CTL_POWER_ON:
 		case LED_CTL_START_TO_LINK:	
 		case LED_CTL_NO_LINK:
 			if( pLed->bLedNoLinkBlinkInProgress == _FALSE )
@@ -2502,7 +2569,7 @@ LedControl871x(
 {
 	struct led_priv	*ledpriv = &(padapter->ledpriv);
 
-       if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->bDriverStopped == _TRUE))	
+       if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->hw_init_completed == _FALSE))
        {
              return;
        }
@@ -2516,7 +2583,8 @@ LedControl871x(
 	//if(priv->bInHctTest)
 	//	return;
 	
-	if(	padapter->pwrctrlpriv.rf_pwrstate != rf_on && 
+	if(	(padapter->pwrctrlpriv.rf_pwrstate != rf_on &&
+		padapter->pwrctrlpriv.rfoff_reason > RF_CHANGE_BY_PS) &&
 		(LedAction == LED_CTL_TX || LedAction == LED_CTL_RX || 
 		 LedAction == LED_CTL_SITE_SURVEY || 
 		 LedAction == LED_CTL_LINK || 

@@ -160,7 +160,7 @@ extern void indicate_wx_scan_complete_event(_adapter *padapter);
 void rtw_os_indicate_scan_done( _adapter *padapter, bool aborted)
 {
 #ifdef CONFIG_IOCTL_CFG80211
-	rtw_cfg80211_indicate_scan_done(wdev_to_priv(padapter->rtw_wdev), aborted);
+	rtw_cfg80211_indicate_scan_done(padapter, aborted);
 #endif
 	indicate_wx_scan_complete_event(padapter);
 }

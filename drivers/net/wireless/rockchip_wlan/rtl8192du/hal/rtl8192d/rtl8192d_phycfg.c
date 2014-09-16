@@ -3514,7 +3514,7 @@ static  VOID
 	if(pHalData->bNeedIQK && !pHalData->IQKMatrixRegSetting[Indexforchannel].bIQKDone)
 	{ //Re Do IQK.
 		DBG_8192C("Do IQK Matrix reg for channel:%d....\n", channel);
-		rtl8192d_PHY_IQCalibrate(Adapter);
+		rtl8192d_PHY_IQCalibrate(Adapter, _FALSE);
 	}
 	else //Just load the value.
 	{
@@ -4958,9 +4958,9 @@ phy_PathAStandBy(
 {
 	//RTPRINT(FINIT, INIT_IQK, ("Path-A standby mode!\n"));
 
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x0);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
 	PHY_SetBBReg(pAdapter, 0x840, bMaskDWord, 0x00010000);
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
 }
 
 static VOID
@@ -5208,7 +5208,7 @@ phy_IQCalibrate(
 
 	// IQ calibration setting
 	//RTPRINT(FINIT, INIT_IQK, ("IQK setting!\n"));		
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
 	PHY_SetBBReg(pAdapter, rTx_IQK, bMaskDWord, 0x01007c00);
 	PHY_SetBBReg(pAdapter, rRx_IQK, bMaskDWord, 0x01004800);
 
@@ -5266,7 +5266,7 @@ phy_IQCalibrate(
 
 	//Back to BB mode, load original value
 	//RTPRINT(FINIT, INIT_IQK, ("IQK:Back to BB mode, load original value!\n"));
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
 
 	if(t!=0)
 	{
@@ -5387,7 +5387,7 @@ phy_IQCalibrate_5G(
 	PHY_SetBBReg(pAdapter, rConfig_AntB, bMaskDWord, 0x0f600000);
 
 	//IQK global setting
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
 	PHY_SetBBReg(pAdapter, rTx_IQK, bMaskDWord, 0x10007c00);
 	PHY_SetBBReg(pAdapter, rRx_IQK, bMaskDWord, 0x01004800);
 
@@ -5431,7 +5431,7 @@ phy_IQCalibrate_5G(
 	rtw_udelay_os(IQK_DELAY_TIME*1000);
 
 	//Exit IQK mode
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
 
 	//Check_TX_IQK_A_result()
 	REG0xe40 = PHY_QueryBBReg(pAdapter, rTx_IQK, bMaskDWord);
@@ -5469,7 +5469,7 @@ phy_IQCalibrate_5G(
 			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT(30), 0x01);
 
 		//IQK global setting
-		PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
+		PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
 
 		//path-A IQK setting
 		if(pHalData->interfaceIndex == 0)
@@ -5513,7 +5513,7 @@ phy_IQCalibrate_5G(
 		rtw_udelay_os(3*IQK_DELAY_TIME*1000);
 
 		//Exit IQK mode
-		PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);
+		PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
 
 		//Check_RX_IQK_A_result()
 		REG0xeac = PHY_QueryBBReg(pAdapter, rRx_Power_After_IQK_A_2, bMaskDWord);
@@ -5555,7 +5555,7 @@ phy_IQCalibrate_5G(
 	PHY_SetBBReg(pAdapter, rFPGA0_XB_LSSIParameter, bMaskDWord, 0x01940000);
 
 	//IQK global setting
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
 	PHY_SetBBReg(pAdapter, rTx_IQK, bMaskDWord, 0x10007c00);	
 	
 	//path-A IQK setting
@@ -5581,7 +5581,7 @@ phy_IQCalibrate_5G(
 	rtw_udelay_os(IQK_DELAY_TIME*1000);
 
 	//Exit IQK mode
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
 
 	// Check_TX_IQK_B_result()
 	REG0xe40 = PHY_QueryBBReg(pAdapter, rTx_IQK, bMaskDWord);
@@ -5625,7 +5625,7 @@ phy_IQCalibrate_5G(
 		PHY_SetBBReg(pAdapter, rFPGA0_AnalogParameter4, bMaskDWord, 0xcc300080);
 
 		//IQK global setting
-		PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
+		PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
 		
 		//path-A IQK setting
 		PHY_SetBBReg(pAdapter, rTx_IQK_Tone_A, bMaskDWord, 0x14008c1f);
@@ -5673,7 +5673,7 @@ Exit_IQK:
 		PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT(30), 0);
 
 	//Exit IQK mode
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
 	phy_ReloadADDARegisters(pAdapter, IQK_BB_REG, pdmpriv->IQK_BB_backup, IQK_BB_REG_NUM_test);
 	
 	PHY_SetBBReg(pAdapter, rFPGA0_XA_LSSIParameter, bMaskDWord, 0x01900000);
@@ -5692,11 +5692,101 @@ Exit_IQK:
 	
 }
 
+void phy_IQCalibrate_Setting(
+	IN	PADAPTER	pAdapter,
+	IN	BOOLEAN		is2T,
+	IN	BOOLEAN		isON
+	)
+{
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	u32			ADDA_REG[IQK_ADDA_REG_NUM] = {	
+						rFPGA0_XCD_SwitchControl, 	rBlue_Tooth, 	
+						rRx_Wait_CCA, 		rTx_CCK_RFON,
+						rTx_CCK_BBON, 	rTx_OFDM_RFON, 	
+						rTx_OFDM_BBON, 	rTx_To_Rx,
+						rTx_To_Tx, 		rRx_CCK, 	
+						rRx_OFDM, 		rRx_Wait_RIFS,
+						rRx_TO_Rx, 		rStandby, 	
+						rSleep, 			rPMPD_ANAEN };
+	u32			IQK_MAC_REG[IQK_MAC_REG_NUM] = {
+						REG_TXPAUSE, 		REG_BCN_CTRL,	
+						REG_BCN_CTRL_1,	REG_GPIO_MUXCFG};
+
+	u32			IQK_BB_REG[IQK_BB_REG_NUM] = {	//for normal
+						rFPGA0_XAB_RFInterfaceSW,	rFPGA0_XA_RFInterfaceOE,	
+						rFPGA0_XB_RFInterfaceOE,	rOFDM0_TRMuxPar,
+						rFPGA0_XCD_RFInterfaceSW,	rOFDM0_TRxPathEnable,	
+						rFPGA0_RFMOD,			rFPGA0_AnalogParameter4,
+						rOFDM0_XAAGCCore1,		rOFDM0_XBAGCCore1
+					};
+
+	if (isON)
+	{
+		PHY_SetBBReg1Byte(pAdapter, rFPGA0_RFMOD, BIT24, 0x00);
+		PHY_SetBBReg(pAdapter, rOFDM0_TRxPathEnable, bMaskDWord, 0x03a05600);
+		PHY_SetBBReg(pAdapter, rOFDM0_TRMuxPar, bMaskDWord, 0x000800e4);
+		PHY_SetBBReg(pAdapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22208000);
+		PHY_SetBBReg(pAdapter, rFPGA0_AnalogParameter4, 0xf00000, 0x0f);
+
+		//Page A AP setting for IQK
+		PHY_SetBBReg(pAdapter, rPdp_AntA, bMaskDWord, 0x00000000);
+		PHY_SetBBReg(pAdapter, rConfig_AntA, bMaskDWord, 0x20000000);
+
+		//Page B AP setting for IQK	
+		if(is2T)
+		{
+			PHY_SetBBReg(pAdapter, rPdp_AntB, bMaskDWord, 0x00000000);
+			PHY_SetBBReg(pAdapter, rConfig_AntB, bMaskDWord, 0x20000000);
+		}
+
+		// IQ calibration setting
+		//RTPRINT(FINIT, INIT_IQK, ("IQK setting!\n"));		
+		PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
+		PHY_SetBBReg(pAdapter, rTx_IQK, bMaskDWord, 0x10007c00);
+		PHY_SetBBReg(pAdapter, rRx_IQK, bMaskDWord, 0x01004800);
+	}
+	else
+	{
+		//Back to BB mode, load original value
+		//RTPRINT(FINIT, INIT_IQK, ("IQK:Back to BB mode, load original value!\n"));
+		PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
+	
+		if(is2T)			
+			phy_ReloadADDARegisters(pAdapter, IQK_BB_REG, pdmpriv->IQK_BB_backup, IQK_BB_REG_NUM_92D);
+		else
+			phy_ReloadADDARegisters(pAdapter, IQK_BB_REG, pdmpriv->IQK_BB_backup, IQK_BB_REG_NUM_92D-1);
+
+		//path A IQ path to DP block
+		PHY_SetBBReg(pAdapter, rPdp_AntA, bMaskDWord, 0x010170b8);
+
+		//path B IQ path to DP block
+		if(is2T)
+			PHY_SetBBReg(pAdapter, rPdp_AntB, bMaskDWord, 0x010170b8);
+
+		// Reload MAC parameters
+		phy_ReloadMACRegisters(pAdapter, IQK_MAC_REG, pdmpriv->IQK_MAC_backup);		
+		
+		if(!pdmpriv->bRfPiEnable){
+			// Switch back BB to SI mode after finish IQ Calibration.
+			phy_PIModeSwitch(pAdapter, _FALSE);
+		}
+
+	 	// Reload ADDA power saving parameters
+	 	phy_ReloadADDARegisters(pAdapter, ADDA_REG, pdmpriv->ADDA_backup, IQK_ADDA_REG_NUM);
+
+		//load 0xe30 IQC default value
+		//PHY_SetBBReg(pAdapter, 0xe30, bMaskDWord, 0x01008c00);
+		//PHY_SetBBReg(pAdapter, 0xe34, bMaskDWord, 0x01008c00);
+	}
+}
+
 static VOID	
 phy_IQCalibrate_5G_Normal(
 	IN	PADAPTER	pAdapter,
 	IN	int 		result[][8],
-	IN	u8		t
+	IN	u8		t,
+	IN	u8		FromPT
 	)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
@@ -5738,7 +5828,7 @@ phy_IQCalibrate_5G_Normal(
 	//rtw_udelay_os(IQK_DELAY_TIME*1000*100);	//delay after set IMR
 	
 	//rtw_udelay_os(IQK_DELAY_TIME*1000*20);
-	rtw_mdelay_os(IQK_DELAY_TIME*20);
+	//rtw_mdelay_os(IQK_DELAY_TIME*20);
 
 	if(t==0)
 	{
@@ -5787,38 +5877,7 @@ phy_IQCalibrate_5G_Normal(
 		phy_PIModeSwitch(pAdapter, _TRUE);
 	}
 
-	PHY_SetBBReg1Byte(pAdapter, rFPGA0_RFMOD, BIT24, 0x00);
-	PHY_SetBBReg(pAdapter, rOFDM0_TRxPathEnable, bMaskDWord, 0x03a05600);
-	PHY_SetBBReg(pAdapter, rOFDM0_TRMuxPar, bMaskDWord, 0x000800e4);
-	PHY_SetBBReg(pAdapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22208000);
-	PHY_SetBBReg(pAdapter, rFPGA0_AnalogParameter4, 0xf00000, 0x0f);
-
-#if 0
-	//Page B init
-	PHY_SetBBReg(pAdapter, 0xb68, bMaskDWord, 0x0f600000);
-	
-	if(is2T)
-	{
-		PHY_SetBBReg(pAdapter, 0xb6c, bMaskDWord, 0x0f600000);
-	}
-#else	
-
-	//Page A AP setting for IQK
-	PHY_SetBBReg(pAdapter, rPdp_AntA, bMaskDWord, 0x00000000);
-	PHY_SetBBReg(pAdapter, rConfig_AntA, bMaskDWord, 0x20000000);
-
-	//Page B AP setting for IQK	
-	if(is2T)
-	{
-		PHY_SetBBReg(pAdapter, rPdp_AntB, bMaskDWord, 0x00000000);
-		PHY_SetBBReg(pAdapter, rConfig_AntB, bMaskDWord, 0x20000000);
-	}
-#endif
-	// IQ calibration setting
-	//RTPRINT(FINIT, INIT_IQK, ("IQK setting!\n"));		
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
-	PHY_SetBBReg(pAdapter, rTx_IQK, bMaskDWord, 0x10007c00);
-	PHY_SetBBReg(pAdapter, rRx_IQK, bMaskDWord, 0x01004800);
+	phy_IQCalibrate_Setting(pAdapter, is2T, _TRUE);
 
 	{
 		PathAOK = phy_PathA_IQK_5G_Normal(pAdapter, is2T);
@@ -5838,12 +5897,22 @@ phy_IQCalibrate_5G_Normal(
 		}
 		else
 		{
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
 			DBG_871X("0xe70 = 0x%x\n", PHY_QueryBBReg(pAdapter, rRx_Wait_CCA, bMaskDWord));
 			DBG_871X("RF path A 0x0 = 0x%x\n", PHY_QueryRFReg(pAdapter, RF_PATH_A, RF_AC, bRFRegOffsetMask));
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);					
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);					
 			DBG_871X("Path A IQK Fail!!\n");
 		}
+	}
+
+	if (FromPT)
+	{
+		phy_IQCalibrate_Setting(pAdapter, is2T, _FALSE);
+
+		// sleep 50ms for next IQK
+		rtw_msleep_os(50);
+
+		phy_IQCalibrate_Setting(pAdapter, is2T, _TRUE);
 	}
 
 	if(is2T){
@@ -5872,43 +5941,15 @@ phy_IQCalibrate_5G_Normal(
 			}			
 		}
 	}
-	
-	//Back to BB mode, load original value
-	//RTPRINT(FINIT, INIT_IQK, ("IQK:Back to BB mode, load original value!\n"));
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0);
 
-	if(t!=0)
+	phy_IQCalibrate_Setting(pAdapter, is2T, _FALSE);
+
+	if (FromPT && t != 2)
 	{
-		if(is2T)			
-			phy_ReloadADDARegisters(pAdapter, IQK_BB_REG, pdmpriv->IQK_BB_backup, IQK_BB_REG_NUM_92D);
-		else
-			phy_ReloadADDARegisters(pAdapter, IQK_BB_REG, pdmpriv->IQK_BB_backup, IQK_BB_REG_NUM_92D-1);
-
-#if 1
-		//path A IQ path to DP block
-		PHY_SetBBReg(pAdapter, rPdp_AntA, bMaskDWord, 0x010170b8);
-
-		//path B IQ path to DP block
-		if(is2T)
-			PHY_SetBBReg(pAdapter, rPdp_AntB, bMaskDWord, 0x010170b8);
-#endif
-
-		// Reload MAC parameters
-		phy_ReloadMACRegisters(pAdapter, IQK_MAC_REG, pdmpriv->IQK_MAC_backup);		
-		
-		if(!pdmpriv->bRfPiEnable){
-			// Switch back BB to SI mode after finish IQ Calibration.
-			phy_PIModeSwitch(pAdapter, _FALSE);
-		}
-
-	 	// Reload ADDA power saving parameters
-	 	phy_ReloadADDARegisters(pAdapter, ADDA_REG, pdmpriv->ADDA_backup, IQK_ADDA_REG_NUM);
-
-		//load 0xe30 IQC default value
-		//PHY_SetBBReg(pAdapter, 0xe30, bMaskDWord, 0x01008c00);
-		//PHY_SetBBReg(pAdapter, 0xe34, bMaskDWord, 0x01008c00);
-
+		// sleep 50ms for next IQK
+		rtw_msleep_os(50);
 	}
+
 	//RTPRINT(FINIT, INIT_IQK, ("_PHY_IQCalibrate_5G_Normal() <==\n"));
 	
 }
@@ -6504,7 +6545,7 @@ phy_APCalibrate(
 			}	
 			
 			//page-B1
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x40000000);
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x400000);
 		
 			//path A
 			offset = rPdp_AntA;
@@ -6515,7 +6556,7 @@ phy_APCalibrate(
 				
 				offset += 0x04;
 			}				
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);							
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);							
 		}
 		else if(path == RF_PATH_B)
 		{
@@ -6545,7 +6586,7 @@ phy_APCalibrate(
 			}	
 			
 			//page-B1
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x40000000);
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x400000);
 			
 			//path B
 			offset = 0xb60;
@@ -6556,7 +6597,7 @@ phy_APCalibrate(
 				
 				offset += 0x04;
 			}				
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);							
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);							
 		}
 	
 		//save RF default value
@@ -6667,7 +6708,7 @@ phy_APCalibrate(
 			i = 0;
 			do
 			{
-				PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80000000);
+				PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x800000);
 				{
 					PHY_SetBBReg(pAdapter, APK_offset[path], bMaskDWord, APK_value[0]);		
 					//RTPRINT(FINIT, INIT_IQK, ("PHY_APCalibrate() offset 0x%x value 0x%x\n", APK_offset[path], PHY_QueryBBReg(pAdapter, APK_offset[path], bMaskDWord)));
@@ -6677,7 +6718,7 @@ phy_APCalibrate(
 
 					rtw_mdelay_os(20);
 				}
-				PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);
+				PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
 
 				if(path == RF_PATH_A)
 					tmpReg = PHY_QueryBBReg(pAdapter, rAPK, 0x03E00000);
@@ -6772,7 +6813,8 @@ static VOID phy_SetRFPathSwitch(
 
 VOID
 rtl8192d_PHY_IQCalibrate(
-	IN	PADAPTER	pAdapter
+	IN	PADAPTER	pAdapter,
+	IN	u8			FromPT
 	)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
@@ -6783,7 +6825,7 @@ rtl8192d_PHY_IQCalibrate(
 	int			RegE94, RegE9C, RegEA4, RegEAC, RegEB4, RegEBC, RegEC4, RegECC, RegTmp = 0;
 	BOOLEAN		is12simular, is13simular, is23simular;
 	BOOLEAN 	bStartContTx = _FALSE, bSingleTone = _FALSE, bCarrierSuppression = _FALSE;
-
+	u32 IQK_process_time = 0;
 	//if (ODM_CheckPowerStatus(pAdapter) == _FALSE)
 	//	return;
 
@@ -6805,7 +6847,7 @@ rtl8192d_PHY_IQCalibrate(
 	if(pHalData->bSlaveOfDMSP)
 		return;
 #endif
-
+	IQK_process_time = rtw_get_current_time();
 	//RTPRINT(FINIT, INIT_IQK, ("IQK:Start!!!interface %d channel %d\n", pHalData->interfaceIndex, pHalData->CurrentChannel));
 
 	for(i = 0; i < 8; i++)
@@ -6829,7 +6871,7 @@ rtl8192d_PHY_IQCalibrate(
 	{
 		if(pHalData->CurrentBandType92D == BAND_ON_5G)
 		{
-			phy_IQCalibrate_5G_Normal(pAdapter, result, i);
+			phy_IQCalibrate_5G_Normal(pAdapter, result, i, FromPT);
 		}
 		else if(pHalData->CurrentBandType92D == BAND_ON_2_4G)
 		{
@@ -6956,6 +6998,7 @@ rtl8192d_PHY_IQCalibrate(
 		}
 #endif
 	}
+	DBG_871X("IQK: process time %u ms\n", rtw_get_passing_time_ms(IQK_process_time));
 
 }
 
@@ -6970,6 +7013,7 @@ rtl8192d_PHY_LCCalibrate(
 	struct mlme_ext_priv	*pmlmeext = &pAdapter->mlmeextpriv;
 	BOOLEAN 	bStartContTx = _FALSE, bSingleTone = _FALSE, bCarrierSuppression = _FALSE;
 	u32			timeout = 2000, timecount = 0;
+	u32 LCK_process_time = 0;
 #ifdef CONFIG_DUALMAC_CONCURRENT
 	PADAPTER	BuddyAdapter = pAdapter->pbuddy_adapter;
 	struct mlme_priv	*pmlmeprivBuddyAdapter;
@@ -7005,7 +7049,7 @@ rtl8192d_PHY_LCCalibrate(
 
 	if(pmlmeext->sitesurvey_res.state == SCAN_PROCESS)
 		return;
-
+	LCK_process_time = rtw_get_current_time();
 	pHalData->bLCKInProgress = _TRUE;
 
 	//DBG_8192C("LCK:Start!!!interface %d currentband %x delay %d ms\n", pHalData->interfaceIndex, pHalData->CurrentBandType92D, timecount);
@@ -7020,7 +7064,7 @@ rtl8192d_PHY_LCCalibrate(
 	}
 
 	pHalData->bLCKInProgress = _FALSE;
-
+	DBG_871X("LCK: process time %u ms\n", rtw_get_passing_time_ms(LCK_process_time));
 	//RTPRINT(FINIT, INIT_IQK, ("LCK:Finish!!!interface %d\n", pHalData->interfaceIndex));
 }
 
