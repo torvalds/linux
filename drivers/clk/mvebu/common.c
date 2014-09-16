@@ -41,7 +41,7 @@ static struct clk_onecell_data clk_data;
  * chosen following the dt convention: using the first known SoC
  * compatible with it.
  */
-u32 kirkwood_fix_sscg_deviation(struct device_node *np, u32 system_clk)
+u32 kirkwood_fix_sscg_deviation(u32 system_clk)
 {
 	struct device_node *sscg_np = NULL;
 	void __iomem *sscg_map;
@@ -49,7 +49,7 @@ u32 kirkwood_fix_sscg_deviation(struct device_node *np, u32 system_clk)
 	s32 low_bound, high_bound;
 	u64 freq_swing_half;
 
-	sscg_np = of_find_node_by_name(np, "sscg");
+	sscg_np = of_find_node_by_name(NULL, "sscg");
 	if (sscg_np == NULL) {
 		pr_err("cannot get SSCG register node\n");
 		return system_clk;
@@ -142,7 +142,7 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 
 	if (desc->is_sscg_enabled && desc->fix_sscg_deviation
 		&& desc->is_sscg_enabled(base))
-		rate = desc->fix_sscg_deviation(np, rate);
+		rate = desc->fix_sscg_deviation(rate);
 
 	clk_data.clks[1] = clk_register_fixed_rate(NULL, cpuclk_name, NULL,
 						   CLK_IS_ROOT, rate);
