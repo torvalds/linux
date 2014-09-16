@@ -1166,7 +1166,6 @@ transport_check_alloc_task_attr(struct se_cmd *cmd)
 	 * Dormant to Active status.
 	 */
 	cmd->se_ordered_id = atomic_inc_return(&dev->dev_ordered_id);
-	smp_mb__after_atomic();
 	pr_debug("Allocated se_ordered_id: %u for Task Attr: 0x%02x on %s\n",
 			cmd->se_ordered_id, cmd->sam_task_attr,
 			dev->transport->name);
@@ -2896,7 +2895,6 @@ void transport_send_task_abort(struct se_cmd *cmd)
 		if (cmd->se_tfo->write_pending_status(cmd) != 0) {
 			cmd->transport_state |= CMD_T_ABORTED;
 			cmd->se_cmd_flags |= SCF_SEND_DELAYED_TAS;
-			smp_mb__after_atomic();
 			return;
 		}
 	}
