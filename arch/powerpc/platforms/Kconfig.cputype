@@ -117,6 +117,10 @@ config POWER7_CPU
 	bool "POWER7"
 	depends on PPC_BOOK3S_64
 
+config POWER8_CPU
+	bool "POWER8"
+	depends on PPC_BOOK3S_64
+
 config E5500_CPU
 	bool "Freescale e5500"
 	depends on E500
