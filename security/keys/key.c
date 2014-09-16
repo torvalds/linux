@@ -799,7 +799,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	}
 
 	key_ref = ERR_PTR(-EINVAL);
-	if (!index_key.type->match || !index_key.type->instantiate ||
+	if (!index_key.type->instantiate ||
 	    (!index_key.description && !index_key.type->preparse))
 		goto error_put_type;
 
