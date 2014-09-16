@@ -1780,7 +1780,7 @@ static int smiapp_set_format_source(struct v4l2_subdev *subdev,
 		__fls(*valid_link_freqs), ~*valid_link_freqs,
 		__ffs(*valid_link_freqs));
 
-	return 0;
+	return smiapp_pll_update(sensor);
 }
 
 static int smiapp_set_format(struct v4l2_subdev *subdev,
