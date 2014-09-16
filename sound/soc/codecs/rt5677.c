@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -3160,6 +3161,135 @@ static int rt5677_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+#ifdef CONFIG_GPIOLIB
+static inline struct rt5677_priv *gpio_to_rt5677(struct gpio_chip *chip)
+{
+	return container_of(chip, struct rt5677_priv, gpio_chip);
+}
+
+static void rt5677_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+
+	switch (offset) {
+	case RT5677_GPIO1 ... RT5677_GPIO5:
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
+			0x1 << (offset * 3 + 1), !!value << (offset * 3 + 1));
+		break;
+
+	case RT5677_GPIO6:
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL3,
+			RT5677_GPIO6_OUT_MASK, !!value << RT5677_GPIO6_OUT_SFT);
+		break;
+
+	default:
+		break;
+	}
+}
+
+static int rt5677_gpio_direction_out(struct gpio_chip *chip,
+				     unsigned offset, int value)
+{
+	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+
+	switch (offset) {
+	case RT5677_GPIO1 ... RT5677_GPIO5:
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
+			0x3 << (offset * 3 + 1),
+			(0x2 | !!value) << (offset * 3 + 1));
+		break;
+
+	case RT5677_GPIO6:
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL3,
+			RT5677_GPIO6_DIR_MASK | RT5677_GPIO6_OUT_MASK,
+			RT5677_GPIO6_DIR_OUT | !!value << RT5677_GPIO6_OUT_SFT);
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int rt5677_gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+	int value, ret;
+
+	ret = regmap_read(rt5677->regmap, RT5677_GPIO_ST, &value);
+	if (ret < 0)
+		return ret;
+
+	return (value & (0x1 << offset)) >> offset;
+}
+
+static int rt5677_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
+{
+	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+
+	switch (offset) {
+	case RT5677_GPIO1 ... RT5677_GPIO5:
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
+			0x1 << (offset * 3 + 2), 0x0);
+		break;
+
+	case RT5677_GPIO6:
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL3,
+			RT5677_GPIO6_DIR_MASK, RT5677_GPIO6_DIR_IN);
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static struct gpio_chip rt5677_template_chip = {
+	.label			= "rt5677",
+	.owner			= THIS_MODULE,
+	.direction_output	= rt5677_gpio_direction_out,
+	.set			= rt5677_gpio_set,
+	.direction_input	= rt5677_gpio_direction_in,
+	.get			= rt5677_gpio_get,
+	.can_sleep		= 1,
+};
+
+static void rt5677_init_gpio(struct i2c_client *i2c)
+{
+	struct rt5677_priv *rt5677 = i2c_get_clientdata(i2c);
+	int ret;
+
+	rt5677->gpio_chip = rt5677_template_chip;
+	rt5677->gpio_chip.ngpio = RT5677_GPIO_NUM;
+	rt5677->gpio_chip.dev = &i2c->dev;
+	rt5677->gpio_chip.base = -1;
+
+	ret = gpiochip_add(&rt5677->gpio_chip);
+	if (ret != 0)
+		dev_err(&i2c->dev, "Failed to add GPIOs: %d\n", ret);
+}
+
+static void rt5677_free_gpio(struct i2c_client *i2c)
+{
+	struct rt5677_priv *rt5677 = i2c_get_clientdata(i2c);
+	int ret;
+
+	ret = gpiochip_remove(&rt5677->gpio_chip);
+	if (ret != 0)
+		dev_err(&i2c->dev, "Failed to remove GPIOs: %d\n", ret);
+}
+#else
+static void rt5677_init_gpio(struct i2c_client *i2c)
+{
+}
+
+static void rt5677_free_gpio(struct i2c_client *i2c)
+{
+}
+#endif
+
 static int rt5677_probe(struct snd_soc_codec *codec)
 {
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
@@ -3422,6 +3552,8 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 					RT5677_GPIO5_DIR_OUT);
 	}
 
+	rt5677_init_gpio(i2c);
+
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5677,
 				      rt5677_dai, ARRAY_SIZE(rt5677_dai));
 }
@@ -3429,6 +3561,7 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 static int rt5677_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
+	rt5677_free_gpio(i2c);
 
 	return 0;
 }
