@@ -119,21 +119,16 @@ static struct device_attribute irst_timeout_attr = {
 
 static int irst_add(struct acpi_device *acpi)
 {
-	int error = 0;
+	int error;
 
 	error = device_create_file(&acpi->dev, &irst_timeout_attr);
-	if (error)
-		goto out;
+	if (unlikely(error))
+		return error;
 
 	error = device_create_file(&acpi->dev, &irst_wakeup_attr);
-	if (error)
-		goto out_timeout;
+	if (unlikely(error))
+		device_remove_file(&acpi->dev, &irst_timeout_attr);
 
-	return 0;
-
-out_timeout:
-	device_remove_file(&acpi->dev, &irst_timeout_attr);
-out:
 	return error;
 }
 
