@@ -264,6 +264,8 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 #endif /* CONFIG_NET_CLS_IND */
 		fnew->tp = f->tp;
 
+		tcf_exts_init(&fnew->exts, TCA_FW_ACT, TCA_FW_POLICE);
+
 		err = fw_change_attrs(net, tp, fnew, tb, tca, base, ovr);
 		if (err < 0) {
 			kfree(fnew);
