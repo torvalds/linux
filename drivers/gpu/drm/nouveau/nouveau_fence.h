@@ -26,7 +26,7 @@ int  nouveau_fence_emit(struct nouveau_fence *, struct nouveau_channel *);
 bool nouveau_fence_done(struct nouveau_fence *);
 void nouveau_fence_work(struct fence *, void (*)(void *), void *);
 int  nouveau_fence_wait(struct nouveau_fence *, bool lazy, bool intr);
-int  nouveau_fence_sync(struct nouveau_bo *, struct nouveau_channel *, bool exclusive);
+int  nouveau_fence_sync(struct nouveau_bo *, struct nouveau_channel *, bool exclusive, bool intr);
 
 struct nouveau_fence_chan {
 	spinlock_t lock;
