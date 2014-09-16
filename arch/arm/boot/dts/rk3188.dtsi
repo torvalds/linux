@@ -149,15 +149,15 @@
 
 		emmc {
 			emmc_clk: emmc-clk {
-				rockchip,pins = <RK_GPIO0 24 RK_FUNC_2 &pcfg_pull_default>;
+				rockchip,pins = <RK_GPIO0 24 RK_FUNC_2 &pcfg_pull_none>;
 			};
 
 			emmc_cmd: emmc-cmd {
-				rockchip,pins = <RK_GPIO0 26 RK_FUNC_2 &pcfg_pull_default>;
+				rockchip,pins = <RK_GPIO0 26 RK_FUNC_2 &pcfg_pull_up>;
 			};
 
 			emmc_rst: emmc-rst {
-				rockchip,pins = <RK_GPIO0 27 RK_FUNC_2 &pcfg_pull_default>;
+				rockchip,pins = <RK_GPIO0 27 RK_FUNC_2 &pcfg_pull_none>;
 			};
 
 			/*
