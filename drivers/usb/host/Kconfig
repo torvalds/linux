@@ -709,7 +709,7 @@ config USB_WHCI_HCD
 
 config USB_HWA_HCD
 	tristate "Host Wire Adapter (HWA) driver"
-	depends on UWB
+	depends on USB && UWB
 	select USB_WUSB
 	select UWB_HWA
 	help
