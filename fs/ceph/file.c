@@ -826,8 +826,7 @@ again:
 	ceph_put_cap_refs(ci, got);
 
 	if (checkeof && ret >= 0) {
-		int statret = ceph_do_getattr(inode,
-					      CEPH_STAT_CAP_SIZE);
+		int statret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE, false);
 
 		/* hit EOF or hole? */
 		if (statret == 0 && iocb->ki_pos < inode->i_size &&
@@ -995,7 +994,7 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 	mutex_lock(&inode->i_mutex);
 
 	if (whence == SEEK_END || whence == SEEK_DATA || whence == SEEK_HOLE) {
-		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
+		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE, false);
 		if (ret < 0) {
 			offset = ret;
 			goto out;

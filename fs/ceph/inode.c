@@ -766,7 +766,7 @@ static int fill_inode(struct inode *inode,
 
 	/* xattrs */
 	/* note that if i_xattrs.len <= 4, i_xattrs.data will still be NULL. */
-	if ((issued & CEPH_CAP_XATTR_EXCL) == 0 &&
+	if ((ci->i_xattrs.version == 0 || !(issued & CEPH_CAP_XATTR_EXCL))  &&
 	    le64_to_cpu(info->xattr_version) > ci->i_xattrs.version) {
 		if (ci->i_xattrs.blob)
 			ceph_buffer_put(ci->i_xattrs.blob);
@@ -1907,7 +1907,7 @@ out_put:
  * Verify that we have a lease on the given mask.  If not,
  * do a getattr against an mds.
  */
-int ceph_do_getattr(struct inode *inode, int mask)
+int ceph_do_getattr(struct inode *inode, int mask, bool force)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -1920,7 +1920,7 @@ int ceph_do_getattr(struct inode *inode, int mask)
 	}
 
 	dout("do_getattr inode %p mask %s mode 0%o\n", inode, ceph_cap_string(mask), inode->i_mode);
-	if (ceph_caps_issued_mask(ceph_inode(inode), mask, 1))
+	if (!force && ceph_caps_issued_mask(ceph_inode(inode), mask, 1))
 		return 0;
 
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
@@ -1948,7 +1948,7 @@ int ceph_permission(struct inode *inode, int mask)
 	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
-	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED);
+	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED, false);
 
 	if (!err)
 		err = generic_permission(inode, mask);
@@ -1966,7 +1966,7 @@ int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int err;
 
-	err = ceph_do_getattr(inode, CEPH_STAT_CAP_INODE_ALL);
+	err = ceph_do_getattr(inode, CEPH_STAT_CAP_INODE_ALL, false);
 	if (!err) {
 		generic_fillattr(inode, stat);
 		stat->ino = ceph_translate_ino(inode->i_sb, inode->i_ino);

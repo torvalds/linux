@@ -736,24 +736,20 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 	dout("getxattr %p ver=%lld index_ver=%lld\n", inode,
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
 
-	if (__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1) &&
-	    (ci->i_xattrs.index_version >= ci->i_xattrs.version)) {
-		goto get_xattr;
-	} else {
+	if (ci->i_xattrs.version == 0 ||
+	    !__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1)) {
 		spin_unlock(&ci->i_ceph_lock);
 		/* get xattrs from mds (if we don't already have them) */
-		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR);
+		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR, true);
 		if (err)
 			return err;
+		spin_lock(&ci->i_ceph_lock);
 	}
-
-	spin_lock(&ci->i_ceph_lock);
 
 	err = __build_xattrs(inode);
 	if (err < 0)
 		goto out;
 
-get_xattr:
 	err = -ENODATA;  /* == ENOATTR */
 	xattr = __get_xattr(ci, name);
 	if (!xattr)
@@ -798,23 +794,18 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 	dout("listxattr %p ver=%lld index_ver=%lld\n", inode,
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
 
-	if (__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1) &&
-	    (ci->i_xattrs.index_version >= ci->i_xattrs.version)) {
-		goto list_xattr;
-	} else {
+	if (ci->i_xattrs.version == 0 ||
+	    !__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1)) {
 		spin_unlock(&ci->i_ceph_lock);
-		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR);
+		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR, true);
 		if (err)
 			return err;
+		spin_lock(&ci->i_ceph_lock);
 	}
-
-	spin_lock(&ci->i_ceph_lock);
 
 	err = __build_xattrs(inode);
 	if (err < 0)
 		goto out;
-
-list_xattr:
 	/*
 	 * Start with virtual dir xattr names (if any) (including
 	 * terminating '\0' characters for each).
@@ -968,7 +959,7 @@ int __ceph_setxattr(struct dentry *dentry, const char *name,
 retry:
 	issued = __ceph_caps_issued(ci, NULL);
 	dout("setxattr %p issued %s\n", inode, ceph_cap_string(issued));
-	if (!(issued & CEPH_CAP_XATTR_EXCL))
+	if (ci->i_xattrs.version == 0 || !(issued & CEPH_CAP_XATTR_EXCL))
 		goto do_sync;
 	__build_xattrs(inode);
 
@@ -1077,7 +1068,7 @@ retry:
 	issued = __ceph_caps_issued(ci, NULL);
 	dout("removexattr %p issued %s\n", inode, ceph_cap_string(issued));
 
-	if (!(issued & CEPH_CAP_XATTR_EXCL))
+	if (ci->i_xattrs.version == 0 || !(issued & CEPH_CAP_XATTR_EXCL))
 		goto do_sync;
 	__build_xattrs(inode);
 
