@@ -2121,10 +2121,7 @@ static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 	WARN_ON(dev_priv->psr.active);
 	lockdep_assert_held(&dev_priv->psr.lock);
 
-	/* Enable PSR on the panel */
-	intel_edp_psr_enable_sink(intel_dp);
-
-	/* Enable PSR on the host */
+	/* Enable/Re-enable PSR on the host */
 	intel_edp_psr_enable_source(intel_dp);
 
 	dev_priv->psr.active = true;
@@ -2161,6 +2158,9 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 	/* Avoid continuous PSR exit by masking memup and hpd */
 	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
 		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
+
+	/* Enable PSR on the panel */
+	intel_edp_psr_enable_sink(intel_dp);
 
 	dev_priv->psr.enabled = intel_dp;
 unlock:
