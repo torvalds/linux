@@ -2148,9 +2148,11 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 	mutex_lock(&dev_priv->psr.lock);
 	if (dev_priv->psr.enabled) {
 		DRM_DEBUG_KMS("PSR already in use\n");
-		mutex_unlock(&dev_priv->psr.lock);
-		return;
+		goto unlock;
 	}
+
+	if (!intel_edp_psr_match_conditions(intel_dp))
+		goto unlock;
 
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
@@ -2160,8 +2162,8 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
 		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 
-	if (intel_edp_psr_match_conditions(intel_dp))
-		dev_priv->psr.enabled = intel_dp;
+	dev_priv->psr.enabled = intel_dp;
+unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
