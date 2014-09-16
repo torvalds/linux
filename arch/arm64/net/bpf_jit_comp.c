@@ -261,6 +261,18 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		emit(A64_MUL(is64, tmp, tmp, src), ctx);
 		emit(A64_SUB(is64, dst, dst, tmp), ctx);
 		break;
+	case BPF_ALU | BPF_LSH | BPF_X:
+	case BPF_ALU64 | BPF_LSH | BPF_X:
+		emit(A64_LSLV(is64, dst, dst, src), ctx);
+		break;
+	case BPF_ALU | BPF_RSH | BPF_X:
+	case BPF_ALU64 | BPF_RSH | BPF_X:
+		emit(A64_LSRV(is64, dst, dst, src), ctx);
+		break;
+	case BPF_ALU | BPF_ARSH | BPF_X:
+	case BPF_ALU64 | BPF_ARSH | BPF_X:
+		emit(A64_ASRV(is64, dst, dst, src), ctx);
+		break;
 	/* dst = -dst */
 	case BPF_ALU | BPF_NEG:
 	case BPF_ALU64 | BPF_NEG:
