@@ -161,19 +161,10 @@ now on), such as to start/stop beaconing, scan, allocate bandwidth, etc.
 The main building block here is the UWB device (struct uwb_dev). For
 each device that pops up in radio presence (ie: the UWB host receives a
 beacon from it) you get a struct uwb_dev that will show up in
-/sys/class/uwb and in /sys/bus/uwb/devices.
+/sys/bus/uwb/devices.
 
-For each RC that is detected, a new struct uwb_rc is created. In turn, a
-RC is also a device, so they also show in /sys/class/uwb and
-/sys/bus/uwb/devices, but at the same time, only radio controllers show
-up in /sys/class/uwb_rc.
-
-    *
-
-      [*] The reason for RCs being also devices is that not only we can
-      see them while enumerating the system device tree, but also on the
-      radio (their beacons and stuff), so the handling has to be
-      likewise to that of a device.
+For each RC that is detected, a new struct uwb_rc and struct uwb_dev are
+created. An entry is also created in /sys/class/uwb_rc for each RC.
 
 Each RC driver is implemented by a separate driver that plugs into the
 interface that the UWB stack provides through a struct uwb_rc_ops. The
@@ -246,7 +237,7 @@ the beacon cache of dead devices].
 
       Device lists
 
-All UWB devices are kept in the list of the struct bus_type uwb_bus.
+All UWB devices are kept in the list of the struct bus_type uwb_bus_type.
 
 
       Bandwidth allocation
