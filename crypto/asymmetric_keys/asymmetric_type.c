@@ -59,8 +59,8 @@ EXPORT_SYMBOL_GPL(asymmetric_keyid_match);
  *	"id:<id>"	- request a key matching the ID
  *	"<subtype>:<id>" - request a key of a subtype
  */
-static int asymmetric_key_match(const struct key *key,
-				const struct key_match_data *match_data)
+static int asymmetric_key_cmp(const struct key *key,
+			      const struct key_match_data *match_data)
 {
 	const struct asymmetric_key_subtype *subtype = asymmetric_key_subtype(key);
 	const char *description = match_data->raw_data;
@@ -110,6 +110,7 @@ static int asymmetric_key_match(const struct key *key,
 static int asymmetric_key_match_preparse(struct key_match_data *match_data)
 {
 	match_data->lookup_type = KEYRING_SEARCH_LOOKUP_ITERATE;
+	match_data->cmp = asymmetric_key_cmp;
 	return 0;
 }
 
@@ -224,7 +225,6 @@ struct key_type key_type_asymmetric = {
 	.free_preparse	= asymmetric_key_free_preparse,
 	.instantiate	= generic_key_instantiate,
 	.match_preparse	= asymmetric_key_match_preparse,
-	.match		= asymmetric_key_match,
 	.match_free	= asymmetric_key_match_free,
 	.destroy	= asymmetric_key_destroy,
 	.describe	= asymmetric_key_describe,

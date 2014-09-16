@@ -36,7 +36,6 @@ struct key_type key_type_big_key = {
 	.preparse		= big_key_preparse,
 	.free_preparse		= big_key_free_preparse,
 	.instantiate		= generic_key_instantiate,
-	.match			= user_match,
 	.revoke			= big_key_revoke,
 	.destroy		= big_key_destroy,
 	.describe		= big_key_describe,

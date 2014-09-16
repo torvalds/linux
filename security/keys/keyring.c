@@ -89,7 +89,6 @@ struct key_type key_type_keyring = {
 	.preparse	= keyring_preparse,
 	.free_preparse	= keyring_free_preparse,
 	.instantiate	= keyring_instantiate,
-	.match		= user_match,
 	.revoke		= keyring_revoke,
 	.destroy	= keyring_destroy,
 	.describe	= keyring_describe,
@@ -512,6 +511,15 @@ struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 EXPORT_SYMBOL(keyring_alloc);
 
 /*
+ * By default, we keys found by getting an exact match on their descriptions.
+ */
+int key_default_cmp(const struct key *key,
+		    const struct key_match_data *match_data)
+{
+	return strcmp(key->description, match_data->raw_data) == 0;
+}
+
+/*
  * Iteration function to consider each key found.
  */
 static int keyring_search_iterator(const void *object, void *iterator_data)
@@ -884,16 +892,13 @@ key_ref_t keyring_search(key_ref_t keyring,
 		.index_key.type		= type,
 		.index_key.description	= description,
 		.cred			= current_cred(),
-		.match_data.cmp		= type->match,
+		.match_data.cmp		= key_default_cmp,
 		.match_data.raw_data	= description,
 		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
 		.flags			= KEYRING_SEARCH_DO_STATE_CHECK,
 	};
 	key_ref_t key;
 	int ret;
-
-	if (!ctx.match_data.cmp)
-		return ERR_PTR(-ENOKEY);
 
 	if (type->match_preparse) {
 		ret = type->match_preparse(&ctx.match_data);

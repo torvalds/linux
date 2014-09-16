@@ -127,6 +127,8 @@ struct keyring_search_context {
 	struct timespec		now;
 };
 
+extern int key_default_cmp(const struct key *key,
+			   const struct key_match_data *match_data);
 extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 				    struct keyring_search_context *ctx);
 

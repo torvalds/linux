@@ -113,10 +113,6 @@ struct key_type {
 	 */
 	int (*match_preparse)(struct key_match_data *match_data);
 
-	/* match a key against a description */
-	int (*match)(const struct key *key,
-		     const struct key_match_data *match_data);
-
 	/* Free preparsed match data (optional).  This should be supplied it
 	 * ->match_preparse() is supplied. */
 	void (*match_free)(struct key_match_data *match_data);
