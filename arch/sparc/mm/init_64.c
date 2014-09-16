@@ -1861,6 +1861,52 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD];
 static void sun4u_pgprot_init(void);
 static void sun4v_pgprot_init(void);
 
+static phys_addr_t __init available_memory(void)
+{
+	phys_addr_t available = 0ULL;
+	phys_addr_t pa_start, pa_end;
+	u64 i;
+
+	for_each_free_mem_range(i, NUMA_NO_NODE, &pa_start, &pa_end, NULL)
+		available = available + (pa_end  - pa_start);
+
+	return available;
+}
+
+/* We need to exclude reserved regions. This exclusion will include
+ * vmlinux and initrd. To be more precise the initrd size could be used to
+ * compute a new lower limit because it is freed later during initialization.
+ */
+static void __init reduce_memory(phys_addr_t limit_ram)
+{
+	phys_addr_t avail_ram = available_memory();
+	phys_addr_t pa_start, pa_end;
+	u64 i;
+
+	if (limit_ram >= avail_ram)
+		return;
+
+	for_each_free_mem_range(i, NUMA_NO_NODE, &pa_start, &pa_end, NULL) {
+		phys_addr_t region_size = pa_end - pa_start;
+		phys_addr_t clip_start = pa_start;
+
+		avail_ram = avail_ram - region_size;
+		/* Are we consuming too much? */
+		if (avail_ram < limit_ram) {
+			phys_addr_t give_back = limit_ram - avail_ram;
+
+			region_size = region_size - give_back;
+			clip_start = clip_start + give_back;
+		}
+
+		memblock_remove(clip_start, region_size);
+
+		if (avail_ram <= limit_ram)
+			break;
+		i = 0UL;
+	}
+}
+
 void __init paging_init(void)
 {
 	unsigned long end_pfn, shift, phys_base;
@@ -1940,7 +1986,8 @@ void __init paging_init(void)
 
 	find_ramdisk(phys_base);
 
-	memblock_enforce_memory_limit(cmdline_memory_size);
+	if (cmdline_memory_size)
+		reduce_memory(cmdline_memory_size);
 
 	memblock_allow_resize();
 	memblock_dump_all();
