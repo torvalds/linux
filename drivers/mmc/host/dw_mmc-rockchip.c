@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
-
+#include <linux/delay.h>
 #include "rk_sdmmc.h"
 #include "dw_mmc-pltfm.h"
 #include "../../clk/rockchip/clk-ops.h"
