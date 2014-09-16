@@ -23,7 +23,6 @@
 #include <asm/mcfuart.h>
 #include <asm/mcfclk.h>
 #include <asm/m54xxgpt.h>
-#include <asm/mcfclk.h>
 #ifdef CONFIG_MMU
 #include <asm/mmu_context.h>
 #endif
