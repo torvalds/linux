@@ -44,6 +44,9 @@ struct mfd_cell {
 	 */
 	const char		*of_compatible;
 
+	/* Matches ACPI PNP id, either _HID or _CID */
+	const char		*acpi_pnpid;
+
 	/*
 	 * These resources can be specified relative to the parent device.
 	 * For accessing hardware you should use resources from the platform dev
