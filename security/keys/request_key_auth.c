@@ -44,12 +44,12 @@ struct key_type key_type_request_key_auth = {
 	.read		= request_key_auth_read,
 };
 
-int request_key_auth_preparse(struct key_preparsed_payload *prep)
+static int request_key_auth_preparse(struct key_preparsed_payload *prep)
 {
 	return 0;
 }
 
-void request_key_auth_free_preparse(struct key_preparsed_payload *prep)
+static void request_key_auth_free_preparse(struct key_preparsed_payload *prep)
 {
 }
 
