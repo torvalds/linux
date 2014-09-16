@@ -70,7 +70,7 @@
 		enable-active-high;
 		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&host_vbus_drv>;
+		pinctrl-0 = <&otg_vbus_drv>;
 		regulator-name = "otg-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -93,7 +93,7 @@
 		enable-active-high;
 		gpio = <&gpio0 3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&otg_vbus_drv>;
+		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "host-pwr";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
