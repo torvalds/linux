@@ -170,12 +170,13 @@ static int rk312x_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 		mask |= m_WIN0_EMPTY_INT_EN | m_WIN1_EMPTY_INT_EN;
 		val |= v_WIN0_EMPTY_INT_EN(1) | v_WIN1_EMPTY_INT_EN(1);
 #endif
-
+		
 	        lcdc_msk_reg(lcdc_dev, INT_STATUS, mask, val);
                 spin_unlock(&lcdc_dev->reg_lock);
         } else {
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
+
 	return 0;
 }
 
@@ -205,14 +206,65 @@ static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 	return 0;
 }
 
+
+#define WIN_EN(id)		\
+static int win##id##_enable(struct lcdc_device *lcdc_dev, int en)	\
+{ \
+	u32 msk, val;							\
+	spin_lock(&lcdc_dev->reg_lock);					\
+	msk =  m_WIN##id##_EN;						\
+	val  =  v_WIN##id##_EN(en);					\
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, msk, val);		\
+	lcdc_cfg_done(lcdc_dev);					\
+	val = lcdc_read_bit(lcdc_dev, SYS_CTRL, msk);		\
+	while (val !=  (!!en))	{					\
+		val = lcdc_read_bit(lcdc_dev, SYS_CTRL, msk);	\
+	}								\
+	spin_unlock(&lcdc_dev->reg_lock);				\
+	return 0;							\
+}
+
+WIN_EN(0);
+
+#define SET_WIN_ADDR(id) \
+static int set_win##id##_addr(struct lcdc_device *lcdc_dev, u32 addr) \
+{							\
+	u32 msk, val;					\
+	spin_lock(&lcdc_dev->reg_lock);			\
+	lcdc_writel(lcdc_dev,WIN##id##_YRGB_MST,addr);	\
+	msk =  m_WIN##id##_EN;				\
+	val  =  v_WIN##id##_EN(1);				\
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, msk,val);	\
+	lcdc_cfg_done(lcdc_dev);			\
+	spin_unlock(&lcdc_dev->reg_lock);		\
+	return 0;					\
+}
+
+SET_WIN_ADDR(0);
+int rk312x_lcdc_direct_set_win_addr
+		(struct rk_lcdc_driver *dev_drv, int win_id, u32 addr)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+				struct lcdc_device, driver);
+	if (win_id == 0)
+		set_win0_addr(lcdc_dev, addr);
+	
+	return 0;
+}
+
 static void rk_lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 {
 	int reg = 0;
-	u32 value = 0;
-
+	u32 val = 0;
+	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
 	spin_lock(&lcdc_dev->reg_lock);
 	for (reg = 0; reg < 0xe0; reg += 4) {
-		value = lcdc_readl(lcdc_dev, reg);
+		val = lcdc_readl(lcdc_dev, reg);
+		if (reg == WIN0_ACT_INFO) {
+			win0->area[0].xact = (val & m_ACT_WIDTH)+1;
+			win0->area[0].yact = ((val & m_ACT_HEIGHT)>>16)+1;
+		}
+			
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 }
@@ -633,7 +685,7 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_AUTO_GATING_EN, v_AUTO_GATING_EN(0));
 	lcdc_cfg_done(lcdc_dev);
 	if (dev_drv->iommu_enabled)	/* disable win0 to workaround iommu pagefault */
-		lcdc_layer_enable(lcdc_dev, 0, 0);
+		win0_enable(lcdc_dev, 0);
 	if ((dev_drv->ops->open_bcsh)&&(dev_drv->output_color == COLOR_YCBCR))
 		dev_drv->ops->open_bcsh(dev_drv,1);
 	lcdc_dev->pre_init = true;
@@ -1178,7 +1230,6 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-
         rk312x_lcdc_set_dclk(dev_drv);
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
@@ -1250,7 +1301,6 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		rk312x_lcdc_clk_disable(lcdc_dev);
                 rockchip_clear_system_status(SYS_STATUS_LCDC0);
 	}
-
 	return 0;
 }
 
@@ -2118,6 +2168,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.load_screen = rk312x_load_screen,
 	.set_par = rk312x_lcdc_set_par,
 	.pan_display = rk312x_lcdc_pan_display,
+	.direct_set_addr = rk312x_lcdc_direct_set_win_addr,
 	.blank = rk312x_lcdc_blank,
 	.ioctl = rk312x_lcdc_ioctl,
 	.get_win_state = rk312x_lcdc_get_win_state,
@@ -2235,10 +2286,11 @@ static int rk312x_lcdc_probe(struct platform_device *pdev)
         }
 	lcdc_dev->hwc_lut_addr_base = (lcdc_dev->regs + HWC_LUT_ADDR);
 	lcdc_dev->dsp_lut_addr_base = (lcdc_dev->regs + DSP_LUT_ADDR);
+	lcdc_dev->prop = PRMRY;
 	dev_set_name(lcdc_dev->dev, "lcdc%d", lcdc_dev->id);
 	dev_drv = &lcdc_dev->driver;
 	dev_drv->dev = dev;
-	dev_drv->prop = PRMRY;
+	dev_drv->prop = lcdc_dev->prop;
 	dev_drv->id = lcdc_dev->id;
         dev_drv->ops = &lcdc_drv_ops;
 	dev_drv->lcdc_win_num = ARRAY_SIZE(lcdc_win);
