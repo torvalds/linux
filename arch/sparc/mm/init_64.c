@@ -840,7 +840,10 @@ static int find_node(unsigned long addr)
 		if ((addr & p->mask) == p->val)
 			return i;
 	}
-	return -1;
+	/* The following condition has been observed on LDOM guests.*/
+	WARN_ONCE(1, "find_node: A physical address doesn't match a NUMA node"
+		" rule. Some physical memory will be owned by node 0.");
+	return 0;
 }
 
 static u64 memblock_nid_range(u64 start, u64 end, int *nid)
