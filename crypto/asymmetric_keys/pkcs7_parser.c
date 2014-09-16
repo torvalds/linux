@@ -31,6 +31,18 @@ struct pkcs7_parse_context {
 	unsigned	sinfo_index;
 };
 
+/*
+ * Free a signed information block.
+ */
+static void pkcs7_free_signed_info(struct pkcs7_signed_info *sinfo)
+{
+	if (sinfo) {
+		mpi_free(sinfo->sig.mpi[0]);
+		kfree(sinfo->sig.digest);
+		kfree(sinfo);
+	}
+}
+
 /**
  * pkcs7_free_message - Free a PKCS#7 message
  * @pkcs7: The PKCS#7 message to free
@@ -54,9 +66,7 @@ void pkcs7_free_message(struct pkcs7_message *pkcs7)
 		while (pkcs7->signed_infos) {
 			sinfo = pkcs7->signed_infos;
 			pkcs7->signed_infos = sinfo->next;
-			mpi_free(sinfo->sig.mpi[0]);
-			kfree(sinfo->sig.digest);
-			kfree(sinfo);
+			pkcs7_free_signed_info(sinfo);
 		}
 		kfree(pkcs7);
 	}
@@ -100,16 +110,12 @@ struct pkcs7_message *pkcs7_parse_message(const void *data, size_t datalen)
 		ctx->certs = cert->next;
 		x509_free_certificate(cert);
 	}
-	mpi_free(ctx->sinfo->sig.mpi[0]);
-	kfree(ctx->sinfo->sig.digest);
-	kfree(ctx->sinfo);
+	pkcs7_free_signed_info(ctx->sinfo);
 	kfree(ctx);
 	return msg;
 
 error_decode:
-	mpi_free(ctx->sinfo->sig.mpi[0]);
-	kfree(ctx->sinfo->sig.digest);
-	kfree(ctx->sinfo);
+	pkcs7_free_signed_info(ctx->sinfo);
 error_no_sinfo:
 	kfree(ctx);
 error_no_ctx:
