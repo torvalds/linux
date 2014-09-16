@@ -1991,10 +1991,8 @@ static void intel_edp_psr_write_vsc(struct intel_dp *intel_dp,
 	POSTING_READ(ctl_reg);
 }
 
-static void intel_edp_psr_setup(struct intel_dp *intel_dp)
+static void intel_edp_psr_setup_vsc(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edp_vsc_psr psr_vsc;
 
 	/* Prepare VSC packet as per EDP 1.3 spec, Table 3.10 */
@@ -2004,10 +2002,6 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 	psr_vsc.sdp_header.HB2 = 0x2;
 	psr_vsc.sdp_header.HB3 = 0x8;
 	intel_edp_psr_write_vsc(intel_dp, &psr_vsc);
-
-	/* Avoid continuous PSR exit by masking memup and hpd */
-	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
-		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 }
 
 static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
@@ -2160,8 +2154,11 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
-	/* Setup PSR once */
-	intel_edp_psr_setup(intel_dp);
+	intel_edp_psr_setup_vsc(intel_dp);
+
+	/* Avoid continuous PSR exit by masking memup and hpd */
+	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
+		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 
 	if (intel_edp_psr_match_conditions(intel_dp))
 		dev_priv->psr.enabled = intel_dp;
