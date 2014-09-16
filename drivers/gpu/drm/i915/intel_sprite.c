@@ -1218,9 +1218,9 @@ out_unlock:
 	return ret;
 }
 
-static int intel_plane_set_property(struct drm_plane *plane,
-				    struct drm_property *prop,
-				    uint64_t val)
+int intel_plane_set_property(struct drm_plane *plane,
+			     struct drm_property *prop,
+			     uint64_t val)
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
@@ -1231,6 +1231,9 @@ static int intel_plane_set_property(struct drm_plane *plane,
 		/* exactly one rotation angle please */
 		if (hweight32(val & 0xf) != 1)
 			return -EINVAL;
+
+		if (intel_plane->rotation == val)
+			return 0;
 
 		old_val = intel_plane->rotation;
 		intel_plane->rotation = val;
@@ -1249,7 +1252,7 @@ int intel_plane_restore(struct drm_plane *plane)
 	if (!plane->crtc || !plane->fb)
 		return 0;
 
-	return intel_update_plane(plane, plane->crtc, plane->fb,
+	return plane->funcs->update_plane(plane, plane->crtc, plane->fb,
 				  intel_plane->crtc_x, intel_plane->crtc_y,
 				  intel_plane->crtc_w, intel_plane->crtc_h,
 				  intel_plane->src_x, intel_plane->src_y,
@@ -1375,10 +1378,10 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	intel_plane->plane = plane;
 	intel_plane->rotation = BIT(DRM_ROTATE_0);
 	possible_crtcs = (1 << pipe);
-	ret = drm_plane_init(dev, &intel_plane->base, possible_crtcs,
-			     &intel_plane_funcs,
-			     plane_formats, num_plane_formats,
-			     false);
+	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
+				       &intel_plane_funcs,
+				       plane_formats, num_plane_formats,
+				       DRM_PLANE_TYPE_OVERLAY);
 	if (ret) {
 		kfree(intel_plane);
 		goto out;

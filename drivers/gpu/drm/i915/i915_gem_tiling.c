@@ -91,7 +91,14 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 8 || IS_VALLEYVIEW(dev)) {
+		/*
+		 * On BDW+, swizzling is not used. We leave the CPU memory
+		 * controller in charge of optimizing memory accesses without
+		 * the extra address manipulation GPU side.
+		 *
+		 * VLV and CHV don't have GPU swizzling.
+		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	} else if (INTEL_INFO(dev)->gen >= 6) {

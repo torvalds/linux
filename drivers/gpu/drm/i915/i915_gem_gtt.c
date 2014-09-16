@@ -204,18 +204,11 @@ static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 
 /* Broadwell Page Directory Pointer Descriptors */
 static int gen8_write_pdp(struct intel_engine_cs *ring, unsigned entry,
-			   uint64_t val, bool synchronous)
+			   uint64_t val)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	int ret;
 
 	BUG_ON(entry >= 4);
-
-	if (synchronous) {
-		I915_WRITE(GEN8_RING_PDP_UDW(ring, entry), val >> 32);
-		I915_WRITE(GEN8_RING_PDP_LDW(ring, entry), (u32)val);
-		return 0;
-	}
 
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
@@ -233,8 +226,7 @@ static int gen8_write_pdp(struct intel_engine_cs *ring, unsigned entry,
 }
 
 static int gen8_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct intel_engine_cs *ring,
-			  bool synchronous)
+			  struct intel_engine_cs *ring)
 {
 	int i, ret;
 
@@ -243,7 +235,7 @@ static int gen8_mm_switch(struct i915_hw_ppgtt *ppgtt,
 
 	for (i = used_pd - 1; i >= 0; i--) {
 		dma_addr_t addr = ppgtt->pd_dma_addr[i];
-		ret = gen8_write_pdp(ring, i, addr, synchronous);
+		ret = gen8_write_pdp(ring, i, addr);
 		if (ret)
 			return ret;
 	}
@@ -708,28 +700,9 @@ static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 }
 
 static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			 struct intel_engine_cs *ring,
-			 bool synchronous)
+			 struct intel_engine_cs *ring)
 {
-	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
-
-	/* If we're in reset, we can assume the GPU is sufficiently idle to
-	 * manually frob these bits. Ideally we could use the ring functions,
-	 * except our error handling makes it quite difficult (can't use
-	 * intel_ring_begin, ring->flush, or intel_ring_advance)
-	 *
-	 * FIXME: We should try not to special case reset
-	 */
-	if (synchronous ||
-	    i915_reset_in_progress(&dev_priv->gpu_error)) {
-		WARN_ON(ppgtt != dev_priv->mm.aliasing_ppgtt);
-		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
-		I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
-		POSTING_READ(RING_PP_DIR_BASE(ring));
-		return 0;
-	}
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
 	ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
@@ -752,28 +725,9 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 }
 
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct intel_engine_cs *ring,
-			  bool synchronous)
+			  struct intel_engine_cs *ring)
 {
-	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
-
-	/* If we're in reset, we can assume the GPU is sufficiently idle to
-	 * manually frob these bits. Ideally we could use the ring functions,
-	 * except our error handling makes it quite difficult (can't use
-	 * intel_ring_begin, ring->flush, or intel_ring_advance)
-	 *
-	 * FIXME: We should try not to special case reset
-	 */
-	if (synchronous ||
-	    i915_reset_in_progress(&dev_priv->gpu_error)) {
-		WARN_ON(ppgtt != dev_priv->mm.aliasing_ppgtt);
-		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
-		I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
-		POSTING_READ(RING_PP_DIR_BASE(ring));
-		return 0;
-	}
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
 	ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
@@ -803,14 +757,11 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 }
 
 static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct intel_engine_cs *ring,
-			  bool synchronous)
+			  struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!synchronous)
-		return 0;
 
 	I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
 	I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
@@ -825,12 +776,6 @@ static void gen8_ppgtt_enable(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
 	int j;
-
-	/* In the case of execlists, PPGTT is enabled by the context descriptor
-	 * and the PDPs are contained within the context itself.  We don't
-	 * need to do anything here. */
-	if (i915.enable_execlists)
-		return;
 
 	for_each_ring(ring, dev_priv, j) {
 		I915_WRITE(RING_MODE_GEN7(ring),
@@ -1175,6 +1120,12 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 	int i, ret = 0;
 
+	/* In the case of execlists, PPGTT is enabled by the context descriptor
+	 * and the PDPs are contained within the context itself.  We don't
+	 * need to do anything here. */
+	if (i915.enable_execlists)
+		return 0;
+
 	if (!USES_PPGTT(dev))
 		return 0;
 
@@ -1189,7 +1140,7 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 
 	if (ppgtt) {
 		for_each_ring(ring, dev_priv, i) {
-			ret = ppgtt->switch_mm(ppgtt, ring, true);
+			ret = ppgtt->switch_mm(ppgtt, ring);
 			if (ret != 0)
 				return ret;
 		}
@@ -2190,8 +2141,10 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	/* Keep GGTT vmas first to make debug easier */
 	if (i915_is_ggtt(vm))
 		list_add(&vma->vma_link, &obj->vma_list);
-	else
+	else {
 		list_add_tail(&vma->vma_link, &obj->vma_list);
+		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
+	}
 
 	return vma;
 }
@@ -2205,9 +2158,6 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 	vma = i915_gem_obj_to_vma(obj, vm);
 	if (!vma)
 		vma = __i915_gem_vma_create(obj, vm);
-
-	if (!i915_is_ggtt(vm))
-		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 
 	return vma;
 }

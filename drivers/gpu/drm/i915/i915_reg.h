@@ -1030,6 +1030,13 @@ enum punit_power_well {
 #define   PGTBL_ADDRESS_LO_MASK	0xfffff000 /* bits [31:12] */
 #define   PGTBL_ADDRESS_HI_MASK	0x000000f0 /* bits [35:32] (gen4) */
 #define PGTBL_ER	0x02024
+#define PRB0_BASE (0x2030-0x30)
+#define PRB1_BASE (0x2040-0x30) /* 830,gen3 */
+#define PRB2_BASE (0x2050-0x30) /* gen3 */
+#define SRB0_BASE (0x2100-0x30) /* gen2 */
+#define SRB1_BASE (0x2110-0x30) /* gen2 */
+#define SRB2_BASE (0x2120-0x30) /* 830 */
+#define SRB3_BASE (0x2130-0x30) /* 830 */
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
@@ -1276,6 +1283,10 @@ enum punit_power_well {
 #define   INSTPM_TLB_INVALIDATE	(1<<9)
 #define   INSTPM_SYNC_FLUSH	(1<<5)
 #define ACTHD	        0x020c8
+#define MEM_MODE	0x020cc
+#define   MEM_DISPLAY_B_TRICKLE_FEED_DISABLE (1<<3) /* 830 only */
+#define   MEM_DISPLAY_A_TRICKLE_FEED_DISABLE (1<<2) /* 830/845 only */
+#define   MEM_DISPLAY_TRICKLE_FEED_DISABLE (1<<2) /* 85x only */
 #define FW_BLC		0x020d8
 #define FW_BLC2		0x020dc
 #define FW_BLC_SELF	0x020e0 /* 915+ only */
@@ -4218,6 +4229,7 @@ enum punit_power_well {
 #define   DISPPLANE_NO_LINE_DOUBLE		0
 #define   DISPPLANE_STEREO_POLARITY_FIRST	0
 #define   DISPPLANE_STEREO_POLARITY_SECOND	(1<<18)
+#define   DISPPLANE_ROTATE_180         (1<<15)
 #define   DISPPLANE_TRICKLE_FEED_DISABLE	(1<<14) /* Ironlake */
 #define   DISPPLANE_TILED			(1<<10)
 #define _DSPAADDR				0x70184
@@ -5356,8 +5368,7 @@ enum punit_power_well {
 #define PIPEA_PP_STATUS         (VLV_DISPLAY_BASE + 0x61200)
 #define PIPEA_PP_CONTROL        (VLV_DISPLAY_BASE + 0x61204)
 #define PIPEA_PP_ON_DELAYS      (VLV_DISPLAY_BASE + 0x61208)
-#define  PANEL_PORT_SELECT_DPB_VLV	(1 << 30)
-#define  PANEL_PORT_SELECT_DPC_VLV	(2 << 30)
+#define  PANEL_PORT_SELECT_VLV(port)	((port) << 30)
 #define PIPEA_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6120c)
 #define PIPEA_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61210)
 
@@ -5566,6 +5577,10 @@ enum punit_power_well {
 #define GEN8_UCGCTL6				0x9430
 #define   GEN8_SDEUNIT_CLOCK_GATE_DISABLE	(1<<14)
 
+#define TIMESTAMP_CTR		0x44070
+#define FREQ_1_28_US(us)	(((us) * 100) >> 7)
+#define MCHBAR_PCU_C0		(MCHBAR_MIRROR_BASE_SNB + 0x5960)
+
 #define GEN6_GFXPAUSE				0xA000
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
@@ -5653,12 +5668,6 @@ enum punit_power_well {
 #define  GEN6_PM_RPS_EVENTS			(GEN6_PM_RP_UP_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
-
-#define CHV_CZ_CLOCK_FREQ_MODE_200			200
-#define CHV_CZ_CLOCK_FREQ_MODE_267			267
-#define CHV_CZ_CLOCK_FREQ_MODE_320			320
-#define CHV_CZ_CLOCK_FREQ_MODE_333			333
-#define CHV_CZ_CLOCK_FREQ_MODE_400			400
 
 #define GEN7_GT_SCRATCH_BASE			0x4F100
 #define GEN7_GT_SCRATCH_REG_NUM			8
@@ -5975,15 +5984,7 @@ enum punit_power_well {
 #define DDI_BUF_CTL_B				0x64100
 #define DDI_BUF_CTL(port) _PORT(port, DDI_BUF_CTL_A, DDI_BUF_CTL_B)
 #define  DDI_BUF_CTL_ENABLE			(1<<31)
-#define  DDI_BUF_EMP_400MV_0DB_HSW		(0<<24)   /* Sel0 */
-#define  DDI_BUF_EMP_400MV_3_5DB_HSW		(1<<24)   /* Sel1 */
-#define  DDI_BUF_EMP_400MV_6DB_HSW		(2<<24)   /* Sel2 */
-#define  DDI_BUF_EMP_400MV_9_5DB_HSW		(3<<24)   /* Sel3 */
-#define  DDI_BUF_EMP_600MV_0DB_HSW		(4<<24)   /* Sel4 */
-#define  DDI_BUF_EMP_600MV_3_5DB_HSW		(5<<24)   /* Sel5 */
-#define  DDI_BUF_EMP_600MV_6DB_HSW		(6<<24)   /* Sel6 */
-#define  DDI_BUF_EMP_800MV_0DB_HSW		(7<<24)   /* Sel7 */
-#define  DDI_BUF_EMP_800MV_3_5DB_HSW		(8<<24)   /* Sel8 */
+#define  DDI_BUF_TRANS_SELECT(n)	((n) << 24)
 #define  DDI_BUF_EMP_MASK			(0xf<<24)
 #define  DDI_BUF_PORT_REVERSAL			(1<<16)
 #define  DDI_BUF_IS_IDLE			(1<<7)

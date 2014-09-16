@@ -24,6 +24,7 @@
  *     David Airlie
  */
 
+#include <linux/async.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/console.h>
@@ -332,24 +333,6 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 	int num_connectors_enabled = 0;
 	int num_connectors_detected = 0;
 
-	/*
-	 * If the user specified any force options, just bail here
-	 * and use that config.
-	 */
-	for (i = 0; i < fb_helper->connector_count; i++) {
-		struct drm_fb_helper_connector *fb_conn;
-		struct drm_connector *connector;
-
-		fb_conn = fb_helper->connector_info[i];
-		connector = fb_conn->connector;
-
-		if (!enabled[i])
-			continue;
-
-		if (connector->force != DRM_FORCE_UNSPECIFIED)
-			return false;
-	}
-
 	save_enabled = kcalloc(dev->mode_config.num_connector, sizeof(bool),
 			       GFP_KERNEL);
 	if (!save_enabled)
@@ -375,8 +358,18 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 			continue;
 		}
 
+		if (connector->force == DRM_FORCE_OFF) {
+			DRM_DEBUG_KMS("connector %s is disabled by user, skipping\n",
+				      connector->name);
+			enabled[i] = false;
+			continue;
+		}
+
 		encoder = connector->encoder;
 		if (!encoder || WARN_ON(!encoder->crtc)) {
+			if (connector->force > DRM_FORCE_OFF)
+				goto bail;
+
 			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
 				      connector->name);
 			enabled[i] = false;
@@ -395,8 +388,7 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 		for (j = 0; j < fb_helper->connector_count; j++) {
 			if (crtcs[j] == new_crtc) {
 				DRM_DEBUG_KMS("fallback: cloned configuration\n");
-				fallback = true;
-				goto out;
+				goto bail;
 			}
 		}
 
@@ -467,8 +459,8 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 		fallback = true;
 	}
 
-out:
 	if (fallback) {
+bail:
 		DRM_DEBUG_KMS("Not using firmware configuration\n");
 		memcpy(enabled, save_enabled, dev->mode_config.num_connector);
 		kfree(save_enabled);
@@ -679,9 +671,9 @@ int intel_fbdev_init(struct drm_device *dev)
 	return 0;
 }
 
-void intel_fbdev_initial_config(struct drm_device *dev)
+void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = data;
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
@@ -696,6 +688,7 @@ void intel_fbdev_fini(struct drm_device *dev)
 
 	flush_work(&dev_priv->fbdev_suspend_work);
 
+	async_synchronize_full();
 	intel_fbdev_destroy(dev, dev_priv->fbdev);
 	kfree(dev_priv->fbdev);
 	dev_priv->fbdev = NULL;

@@ -208,7 +208,7 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 		err_puts(m, err->userptr ? " userptr" : "");
 		err_puts(m, err->ring != -1 ? " " : "");
 		err_puts(m, ring_str(err->ring));
-		err_puts(m, i915_cache_level_str(err->cache_level));
+		err_puts(m, i915_cache_level_str(m->i915, err->cache_level));
 
 		if (err->name)
 			err_printf(m, " (name: %d)", err->name);
@@ -494,9 +494,11 @@ out:
 }
 
 int i915_error_state_buf_init(struct drm_i915_error_state_buf *ebuf,
+			      struct drm_i915_private *i915,
 			      size_t count, loff_t pos)
 {
 	memset(ebuf, 0, sizeof(*ebuf));
+	ebuf->i915 = i915;
 
 	/* We need to have enough room to store any i915_error_state printf
 	 * so that we can move it to start position.
@@ -558,24 +560,54 @@ static void i915_error_state_free(struct kref *error_ref)
 }
 
 static struct drm_i915_error_object *
-i915_error_object_create_sized(struct drm_i915_private *dev_priv,
-			       struct drm_i915_gem_object *src,
-			       struct i915_address_space *vm,
-			       const int num_pages)
+i915_error_object_create(struct drm_i915_private *dev_priv,
+			 struct drm_i915_gem_object *src,
+			 struct i915_address_space *vm)
 {
 	struct drm_i915_error_object *dst;
-	int i;
+	int num_pages;
+	bool use_ggtt;
+	int i = 0;
 	u32 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
 		return NULL;
 
+	num_pages = src->base.size >> PAGE_SHIFT;
+
 	dst = kmalloc(sizeof(*dst) + num_pages * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
-	reloc_offset = dst->gtt_offset = i915_gem_obj_offset(src, vm);
-	for (i = 0; i < num_pages; i++) {
+	if (i915_gem_obj_bound(src, vm))
+		dst->gtt_offset = i915_gem_obj_offset(src, vm);
+	else
+		dst->gtt_offset = -1;
+
+	reloc_offset = dst->gtt_offset;
+	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
+		    i915_is_ggtt(vm) &&
+		    src->has_global_gtt_mapping &&
+		    reloc_offset + num_pages * PAGE_SIZE <= dev_priv->gtt.mappable_end);
+
+	/* Cannot access stolen address directly, try to use the aperture */
+	if (src->stolen) {
+		use_ggtt = true;
+
+		if (!src->has_global_gtt_mapping)
+			goto unwind;
+
+		reloc_offset = i915_gem_obj_ggtt_offset(src);
+		if (reloc_offset + num_pages * PAGE_SIZE > dev_priv->gtt.mappable_end)
+			goto unwind;
+	}
+
+	/* Cannot access snooped pages through the aperture */
+	if (use_ggtt && src->cache_level != I915_CACHE_NONE && !HAS_LLC(dev_priv->dev))
+		goto unwind;
+
+	dst->page_count = num_pages;
+	while (num_pages--) {
 		unsigned long flags;
 		void *d;
 
@@ -584,10 +616,7 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		local_irq_save(flags);
-		if (src->cache_level == I915_CACHE_NONE &&
-		    reloc_offset < dev_priv->gtt.mappable_end &&
-		    src->has_global_gtt_mapping &&
-		    i915_is_ggtt(vm)) {
+		if (use_ggtt) {
 			void __iomem *s;
 
 			/* Simply ignore tiling or any overlapping fence.
@@ -599,14 +628,6 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 						     reloc_offset);
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
-		} else if (src->stolen) {
-			unsigned long offset;
-
-			offset = dev_priv->mm.stolen_base;
-			offset += src->stolen->start;
-			offset += i << PAGE_SHIFT;
-
-			memcpy_fromio(d, (void __iomem *) offset, PAGE_SIZE);
 		} else {
 			struct page *page;
 			void *s;
@@ -623,11 +644,9 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 		}
 		local_irq_restore(flags);
 
-		dst->pages[i] = d;
-
+		dst->pages[i++] = d;
 		reloc_offset += PAGE_SIZE;
 	}
-	dst->page_count = num_pages;
 
 	return dst;
 
@@ -637,13 +656,8 @@ unwind:
 	kfree(dst);
 	return NULL;
 }
-#define i915_error_object_create(dev_priv, src, vm) \
-	i915_error_object_create_sized((dev_priv), (src), (vm), \
-				       (src)->base.size>>PAGE_SHIFT)
-
 #define i915_error_ggtt_object_create(dev_priv, src) \
-	i915_error_object_create_sized((dev_priv), (src), &(dev_priv)->gtt.base, \
-				       (src)->base.size>>PAGE_SHIFT)
+	i915_error_object_create((dev_priv), (src), &(dev_priv)->gtt.base)
 
 static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
@@ -900,9 +914,6 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->hws = I915_READ(mmio);
 	}
 
-	ering->cpu_ring_head = ring->buffer->head;
-	ering->cpu_ring_tail = ring->buffer->tail;
-
 	ering->hangcheck_score = ring->hangcheck.score;
 	ering->hangcheck_action = ring->hangcheck.action;
 
@@ -965,6 +976,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
+		struct intel_ringbuffer *rbuf;
 
 		error->ring[i].pid = -1;
 
@@ -992,8 +1004,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 							 request->batch_obj,
 							 vm);
 
-			if (HAS_BROKEN_CS_TLB(dev_priv->dev) &&
-			    ring->scratch.obj)
+			if (HAS_BROKEN_CS_TLB(dev_priv->dev))
 				error->ring[i].wa_batchbuffer =
 					i915_error_ggtt_object_create(dev_priv,
 							     ring->scratch.obj);
@@ -1012,12 +1023,27 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			}
 		}
 
-		error->ring[i].ringbuffer =
-			i915_error_ggtt_object_create(dev_priv, ring->buffer->obj);
+		if (i915.enable_execlists) {
+			/* TODO: This is only a small fix to keep basic error
+			 * capture working, but we need to add more information
+			 * for it to be useful (e.g. dump the context being
+			 * executed).
+			 */
+			if (request)
+				rbuf = request->ctx->engine[ring->id].ringbuf;
+			else
+				rbuf = ring->default_context->engine[ring->id].ringbuf;
+		} else
+			rbuf = ring->buffer;
 
-		if (ring->status_page.obj)
-			error->ring[i].hws_page =
-				i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
+		error->ring[i].cpu_ring_head = rbuf->head;
+		error->ring[i].cpu_ring_tail = rbuf->tail;
+
+		error->ring[i].ringbuffer =
+			i915_error_ggtt_object_create(dev_priv, rbuf->obj);
+
+		error->ring[i].hws_page =
+			i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
 
 		i915_gem_record_active_context(ring, error, &error->ring[i]);
 
@@ -1331,11 +1357,11 @@ void i915_destroy_error_state(struct drm_device *dev)
 		kref_put(&error->ref, i915_error_state_free);
 }
 
-const char *i915_cache_level_str(int type)
+const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 {
 	switch (type) {
 	case I915_CACHE_NONE: return " uncached";
-	case I915_CACHE_LLC: return " snooped or LLC";
+	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
 	case I915_CACHE_L3_LLC: return " L3+LLC";
 	case I915_CACHE_WT: return " WT";
 	default: return "";

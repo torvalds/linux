@@ -289,34 +289,23 @@ void i915_gem_context_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	/* Prevent the hardware from restoring the last context (which hung) on
-	 * the next switch */
+	/* In execlists mode we will unreference the context when the execlist
+	 * queue is cleared and the requests destroyed.
+	 */
+	if (i915.enable_execlists)
+		return;
+
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
-		struct intel_context *dctx = ring->default_context;
 		struct intel_context *lctx = ring->last_context;
 
-		/* Do a fake switch to the default context */
-		if (lctx == dctx)
-			continue;
+		if (lctx) {
+			if (lctx->legacy_hw_ctx.rcs_state && i == RCS)
+				i915_gem_object_ggtt_unpin(lctx->legacy_hw_ctx.rcs_state);
 
-		if (!lctx)
-			continue;
-
-		if (dctx->legacy_hw_ctx.rcs_state && i == RCS) {
-			WARN_ON(i915_gem_obj_ggtt_pin(dctx->legacy_hw_ctx.rcs_state,
-						      get_context_alignment(dev), 0));
-			/* Fake a finish/inactive */
-			dctx->legacy_hw_ctx.rcs_state->base.write_domain = 0;
-			dctx->legacy_hw_ctx.rcs_state->active = 0;
+			i915_gem_context_unreference(lctx);
+			ring->last_context = NULL;
 		}
-
-		if (lctx->legacy_hw_ctx.rcs_state && i == RCS)
-			i915_gem_object_ggtt_unpin(lctx->legacy_hw_ctx.rcs_state);
-
-		i915_gem_context_unreference(lctx);
-		i915_gem_context_reference(dctx);
-		ring->last_context = dctx;
 	}
 }
 
@@ -412,11 +401,10 @@ int i915_gem_context_enable(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *ring;
 	int ret, i;
 
-	/* FIXME: We should make this work, even in reset */
-	if (i915_reset_in_progress(&dev_priv->gpu_error))
-		return 0;
-
 	BUG_ON(!dev_priv->ring[RCS].default_context);
+
+	if (i915.enable_execlists)
+		return 0;
 
 	for_each_ring(ring, dev_priv, i) {
 		ret = i915_switch_context(ring, ring->default_context);
@@ -479,6 +467,7 @@ mi_set_context(struct intel_engine_cs *ring,
 	       struct intel_context *new_context,
 	       u32 hw_flags)
 {
+	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	int ret;
 
 	/* w/a: If Flush TLB Invalidation Mode is enabled, driver must do a TLB
@@ -491,6 +480,10 @@ mi_set_context(struct intel_engine_cs *ring,
 		if (ret)
 			return ret;
 	}
+
+	/* These flags are for resource streamer on HSW+ */
+	if (!IS_HASWELL(ring->dev) && INTEL_INFO(ring->dev)->gen < 8)
+		flags |= (MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN);
 
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
@@ -505,10 +498,7 @@ mi_set_context(struct intel_engine_cs *ring,
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
 	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(new_context->legacy_hw_ctx.rcs_state) |
-			MI_MM_SPACE_GTT |
-			MI_SAVE_EXT_STATE_EN |
-			MI_RESTORE_EXT_STATE_EN |
-			hw_flags);
+			flags);
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
@@ -558,7 +548,7 @@ static int do_switch(struct intel_engine_cs *ring,
 	from = ring->last_context;
 
 	if (to->ppgtt) {
-		ret = to->ppgtt->switch_mm(to->ppgtt, ring, false);
+		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
 		if (ret)
 			goto unpin_out;
 	}
@@ -638,6 +628,12 @@ done:
 	ring->last_context = to;
 
 	if (uninitialized) {
+		if (ring->init_context) {
+			ret = ring->init_context(ring);
+			if (ret)
+				DRM_ERROR("ring init context: %d\n", ret);
+		}
+
 		ret = i915_gem_render_state_init(ring);
 		if (ret)
 			DRM_ERROR("init render state: %d\n", ret);
@@ -658,14 +654,19 @@ unpin_out:
  *
  * The context life cycle is simple. The context refcount is incremented and
  * decremented by 1 and create and destroy. If the context is in use by the GPU,
- * it will have a refoucnt > 1. This allows us to destroy the context abstract
+ * it will have a refcount > 1. This allows us to destroy the context abstract
  * object while letting the normal object tracking destroy the backing BO.
+ *
+ * This function should not be used in execlists mode.  Instead the context is
+ * switched by writing to the ELSP and requests keep a reference to their
+ * context.
  */
 int i915_switch_context(struct intel_engine_cs *ring,
 			struct intel_context *to)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
+	WARN_ON(i915.enable_execlists);
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
 	if (to->legacy_hw_ctx.rcs_state == NULL) { /* We have the fake context */

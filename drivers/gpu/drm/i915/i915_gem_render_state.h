@@ -21,20 +21,27 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _INTEL_RENDERSTATE_H
-#define _INTEL_RENDERSTATE_H
+#ifndef _I915_GEM_RENDER_STATE_H_
+#define _I915_GEM_RENDER_STATE_H_
 
-#include "i915_drv.h"
+#include <linux/types.h>
 
-extern const struct intel_renderstate_rodata gen6_null_state;
-extern const struct intel_renderstate_rodata gen7_null_state;
-extern const struct intel_renderstate_rodata gen8_null_state;
+struct intel_renderstate_rodata {
+	const u32 *reloc;
+	const u32 *batch;
+	const u32 batch_items;
+};
 
-#define RO_RENDERSTATE(_g)						\
-	const struct intel_renderstate_rodata gen ## _g ## _null_state = { \
-		.reloc = gen ## _g ## _null_state_relocs,		\
-		.batch = gen ## _g ## _null_state_batch,		\
-		.batch_items = sizeof(gen ## _g ## _null_state_batch)/4, \
-	}
+struct render_state {
+	const struct intel_renderstate_rodata *rodata;
+	struct drm_i915_gem_object *obj;
+	u64 ggtt_offset;
+	int gen;
+};
 
-#endif /* INTEL_RENDERSTATE_H */
+int i915_gem_render_state_init(struct intel_engine_cs *ring);
+void i915_gem_render_state_fini(struct render_state *so);
+int i915_gem_render_state_prepare(struct intel_engine_cs *ring,
+				  struct render_state *so);
+
+#endif /* _I915_GEM_RENDER_STATE_H_ */

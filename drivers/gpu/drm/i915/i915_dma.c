@@ -28,6 +28,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/async.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -1381,7 +1382,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * scanning against hotplug events. Hence do this first and ignore the
 	 * tiny window where we will loose hotplug notifactions.
 	 */
-	intel_fbdev_initial_config(dev);
+	async_schedule(intel_fbdev_initial_config, dev_priv);
 
 	drm_kms_helper_poll_init(dev);
 
@@ -1534,10 +1535,10 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	info = (struct intel_device_info *)&dev_priv->info;
 
 	if (IS_VALLEYVIEW(dev))
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
 	else
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 1;
 
 	if (i915.disable_display) {

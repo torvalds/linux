@@ -37,6 +37,7 @@
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
 #include "i915_gem_gtt.h"
+#include "i915_gem_render_state.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -51,11 +52,9 @@
 /* General customization:
  */
 
-#define DRIVER_AUTHOR		"Tungsten Graphics, Inc."
-
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20140822"
+#define DRIVER_DATE		"20140905"
 
 enum pipe {
 	INVALID_PIPE = -1,
@@ -164,7 +163,10 @@ enum hpd_pin {
 	 I915_GEM_DOMAIN_INSTRUCTION | \
 	 I915_GEM_DOMAIN_VERTEX)
 
-#define for_each_pipe(p) for ((p) = 0; (p) < INTEL_INFO(dev)->num_pipes; (p)++)
+#define for_each_pipe(__dev_priv, __p) \
+	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++)
+#define for_each_plane(pipe, p) \
+	for ((p) = 0; (p) < INTEL_INFO(dev)->num_sprites[(pipe)] + 1; (p)++)
 #define for_each_sprite(p, s) for ((s) = 0; (s) < INTEL_INFO(dev)->num_sprites[(p)]; (s)++)
 
 #define for_each_crtc(dev, crtc) \
@@ -639,6 +641,7 @@ struct intel_context {
 	} legacy_hw_ctx;
 
 	/* Execlists */
+	bool rcs_initialized;
 	struct {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
@@ -712,6 +715,7 @@ enum intel_sbi_destination {
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
+#define QUIRK_PIPEB_FORCE (1<<4)
 
 struct intel_fbdev;
 struct intel_fbc_work;
@@ -941,6 +945,23 @@ struct intel_rps_ei {
 	u32 media_c0;
 };
 
+struct intel_rps_bdw_cal {
+	u32 it_threshold_pct; /* interrupt, in percentage */
+	u32 eval_interval; /* evaluation interval, in us */
+	u32 last_ts;
+	u32 last_c0;
+	bool is_up;
+};
+
+struct intel_rps_bdw_turbo {
+	struct intel_rps_bdw_cal up;
+	struct intel_rps_bdw_cal down;
+	struct timer_list flip_timer;
+	u32 timeout;
+	atomic_t flip_received;
+	struct work_struct work_max_freq;
+};
+
 struct intel_gen6_power_mgmt {
 	/* work and pm_iir are protected by dev_priv->irq_lock */
 	struct work_struct work;
@@ -973,6 +994,9 @@ struct intel_gen6_power_mgmt {
 
 	bool enabled;
 	struct delayed_work delayed_resume_work;
+
+	bool is_bdw_sw_turbo;	/* Switch of BDW software turbo */
+	struct intel_rps_bdw_turbo sw_turbo; /* Calculate RP interrupt timing */
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei up_ei, down_ei;
@@ -1171,6 +1195,7 @@ struct i915_gem_mm {
 };
 
 struct drm_i915_error_state_buf {
+	struct drm_i915_private *i915;
 	unsigned bytes;
 	unsigned size;
 	int err;
@@ -1243,6 +1268,9 @@ struct i915_gpu_error {
 
 	/* For missed irq/seqno simulation. */
 	unsigned int test_irq_rings;
+
+	/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset   */
+	bool reload_in_reset;
 };
 
 enum modeset_restore {
@@ -1505,6 +1533,9 @@ struct drm_i915_private {
 	/* LVDS info */
 	bool no_aux_handshake;
 
+	/* protects panel power sequencer state */
+	struct mutex pps_mutex;
+
 	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -1555,6 +1586,20 @@ struct drm_i915_private {
 	int num_shared_dpll;
 	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
+
+	/*
+	 * workarounds are currently applied at different places and
+	 * changes are being done to consolidate them so exact count is
+	 * not clear at this point, use a max value for now.
+	 */
+#define I915_MAX_WA_REGS  16
+	struct {
+		u32 addr;
+		u32 value;
+		/* bitmask representing WA bits */
+		u32 mask;
+	} intel_wa_regs[I915_MAX_WA_REGS];
+	u32 num_wa_regs;
 
 	/* Reclocking support */
 	bool render_reclock_avail;
@@ -1638,6 +1683,8 @@ struct drm_i915_private {
 	 * blocked behind the non-DP one.
 	 */
 	struct workqueue_struct *dp_wq;
+
+	uint32_t bios_vgacntr;
 
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
@@ -2596,8 +2643,6 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file);
 
-/* i915_gem_render_state.c */
-int i915_gem_render_state_init(struct intel_engine_cs *ring);
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  struct i915_address_space *vm,
@@ -2665,6 +2710,7 @@ void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 int i915_error_state_to_str(struct drm_i915_error_state_buf *estr,
 			    const struct i915_error_state_file_priv *error);
 int i915_error_state_buf_init(struct drm_i915_error_state_buf *eb,
+			      struct drm_i915_private *i915,
 			      size_t count, loff_t pos);
 static inline void i915_error_state_buf_release(
 	struct drm_i915_error_state_buf *eb)
@@ -2679,7 +2725,7 @@ void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
 void i915_destroy_error_state(struct drm_device *dev);
 
 void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone);
-const char *i915_cache_level_str(int type);
+const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(void);
@@ -2771,10 +2817,13 @@ extern void intel_modeset_setup_hw_state(struct drm_device *dev,
 extern void i915_redisable_vga(struct drm_device *dev);
 extern void i915_redisable_vga_power_on(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
+extern void gen8_fbc_sw_flush(struct drm_device *dev, u32 value);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
+extern void bdw_software_turbo(struct drm_device *dev);
+extern void gen8_flip_interrupt(struct drm_device *dev);
 extern void valleyview_set_rps(struct drm_device *dev, u8 val);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);

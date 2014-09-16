@@ -540,7 +540,7 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 
 	memset(&error_priv, 0, sizeof(error_priv));
 
-	ret = i915_error_state_buf_init(&error_str, count, off);
+	ret = i915_error_state_buf_init(&error_str, to_i915(dev), count, off);
 	if (ret)
 		return ret;
 

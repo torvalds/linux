@@ -62,6 +62,8 @@ static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf, int num_dwords);
 
 /* Logical Ring Contexts */
+int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
+				       struct intel_context *ctx);
 void intel_lr_context_free(struct intel_context *ctx);
 int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring);
