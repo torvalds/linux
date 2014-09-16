@@ -205,6 +205,12 @@ static void build_epilogue(struct jit_ctx *ctx)
 	emit(A64_RET(A64_LR), ctx);
 }
 
+/* JITs an eBPF instruction.
+ * Returns:
+ * 0  - successfully JITed an 8-byte eBPF instruction.
+ * >0 - successfully JITed a 16-byte eBPF instruction.
+ * <0 - failed to JIT.
+ */
 static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 {
 	const u8 code = insn->code;
@@ -464,6 +470,27 @@ emit_cond_jmp:
 		emit(A64_B(jmp_offset), ctx);
 		break;
 
+	/* dst = imm64 */
+	case BPF_LD | BPF_IMM | BPF_DW:
+	{
+		const struct bpf_insn insn1 = insn[1];
+		u64 imm64;
+
+		if (insn1.code != 0 || insn1.src_reg != 0 ||
+		    insn1.dst_reg != 0 || insn1.off != 0) {
+			/* Note: verifier in BPF core must catch invalid
+			 * instructions.
+			 */
+			pr_err_once("Invalid BPF_LD_IMM64 instruction\n");
+			return -EINVAL;
+		}
+
+		imm64 = (u64)insn1.imm << 32 | imm;
+		emit_a64_mov_i64(dst, imm64, ctx);
+
+		return 1;
+	}
+
 	/* LDX: dst = *(size *)(src + off) */
 	case BPF_LDX | BPF_MEM | BPF_W:
 	case BPF_LDX | BPF_MEM | BPF_H:
@@ -615,6 +642,10 @@ static int build_body(struct jit_ctx *ctx)
 			ctx->offset[i] = ctx->idx;
 
 		ret = build_insn(insn, ctx);
+		if (ret > 0) {
+			i++;
+			continue;
+		}
 		if (ret)
 			return ret;
 	}
