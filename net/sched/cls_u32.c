@@ -788,8 +788,8 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	} else {
 #ifdef CONFIG_CLS_U32_PERF
 		struct tc_u32_pcnt *gpf;
-#endif
 		int cpu;
+#endif
 
 		if (nla_put(skb, TCA_U32_SEL,
 			    sizeof(n->sel) + n->sel.nkeys*sizeof(struct tc_u32_key),
@@ -816,9 +816,10 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			struct tc_u32_mark mark = {.val = n->val,
 						   .mask = n->mask,
 						   .success = 0};
+			int cpum;
 
-			for_each_possible_cpu(cpu) {
-				__u32 cnt = *per_cpu_ptr(n->pcpu_success, cpu);
+			for_each_possible_cpu(cpum) {
+				__u32 cnt = *per_cpu_ptr(n->pcpu_success, cpum);
 
 				mark.success += cnt;
 			}
