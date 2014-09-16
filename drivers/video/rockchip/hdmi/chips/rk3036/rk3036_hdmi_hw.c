@@ -334,7 +334,7 @@ static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
 		}
 	} else {
 		if(vpara->input_color == VIDEO_INPUT_COLOR_RGB) {/*rgb[0:255]->rbg[16:235]*/	
-			coeff = coeff_csc[4];
+			coeff = coeff_csc[5];
 			for (i = 0; i < 24; i++) {
 				hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
 			}
@@ -420,7 +420,7 @@ static int rk3036_hdmi_config_video(struct hdmi *hdmi_drv,
 
 	if (hdmi_drv->data->soc_type == HDMI_SOC_RK3036) {
 		vpara->input_color = VIDEO_INPUT_COLOR_RGB;
-		vpara->output_color = VIDEO_OUTPUT_RGB444;/*rk3036 vop only can output rgb fmt*/
+		/*vpara->output_color = VIDEO_OUTPUT_RGB444;*//*rk3036 vop only can output rgb fmt*/
 	} else if (hdmi_drv->data->soc_type == HDMI_SOC_RK312X) {
 		/* rk3128 vop can output yuv444 fmt */
 		/*if (vpara->input_color == VIDEO_INPUT_COLOR_YCBCR444)
