@@ -53,6 +53,7 @@ struct smiapp_pll {
 	uint8_t scale_n;
 	uint8_t bits_per_pixel;
 	uint32_t link_freq;
+	uint32_t ext_clk_freq_hz;
 
 	/* output values */
 	uint16_t pre_pll_clk_div;
@@ -62,7 +63,6 @@ struct smiapp_pll {
 	uint16_t vt_sys_clk_div;
 	uint16_t vt_pix_clk_div;
 
-	uint32_t ext_clk_freq_hz;
 	uint32_t pll_ip_clk_freq_hz;
 	uint32_t pll_op_clk_freq_hz;
 	uint32_t op_sys_clk_freq_hz;
