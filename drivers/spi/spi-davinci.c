@@ -436,10 +436,6 @@ static int davinci_spi_setup(struct spi_device *spi)
 	return retval;
 }
 
-static void davinci_spi_cleanup(struct spi_device *spi)
-{
-}
-
 static int davinci_spi_check_error(struct davinci_spi *dspi, int int_status)
 {
 	struct device *sdev = dspi->bitbang.master->dev.parent;
@@ -951,7 +947,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = pdata->num_chipselect;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(2, 16);
 	master->setup = davinci_spi_setup;
-	master->cleanup = davinci_spi_cleanup;
 
 	dspi->bitbang.chipselect = davinci_spi_chipselect;
 	dspi->bitbang.setup_transfer = davinci_spi_setup_transfer;
