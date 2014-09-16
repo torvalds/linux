@@ -10,6 +10,10 @@
  */
 
 int asymmetric_keyid_match(const char *kid, const char *id);
+extern bool asymmetric_match_key_ids(const struct asymmetric_key_ids *kids,
+				     const struct asymmetric_key_id *match_id);
+
+extern struct asymmetric_key_id *asymmetric_key_hex_to_key_id(const char *id);
 
 static inline const char *asymmetric_key_id(const struct key *key)
 {

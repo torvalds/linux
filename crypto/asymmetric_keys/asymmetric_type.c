@@ -15,12 +15,101 @@
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/ctype.h>
 #include "asymmetric_keys.h"
 
 MODULE_LICENSE("GPL");
 
 static LIST_HEAD(asymmetric_key_parsers);
 static DECLARE_RWSEM(asymmetric_key_parsers_sem);
+
+/**
+ * asymmetric_key_generate_id: Construct an asymmetric key ID
+ * @val_1: First binary blob
+ * @len_1: Length of first binary blob
+ * @val_2: Second binary blob
+ * @len_2: Length of second binary blob
+ *
+ * Construct an asymmetric key ID from a pair of binary blobs.
+ */
+struct asymmetric_key_id *asymmetric_key_generate_id(const void *val_1,
+						     size_t len_1,
+						     const void *val_2,
+						     size_t len_2)
+{
+	struct asymmetric_key_id *kid;
+
+	kid = kmalloc(sizeof(struct asymmetric_key_id) + len_1 + len_2,
+		      GFP_KERNEL);
+	if (!kid)
+		return ERR_PTR(-ENOMEM);
+	kid->len = len_1 + len_2;
+	memcpy(kid->data, val_1, len_1);
+	memcpy(kid->data + len_1, val_2, len_2);
+	return kid;
+}
+EXPORT_SYMBOL_GPL(asymmetric_key_generate_id);
+
+/**
+ * asymmetric_key_id_same - Return true if two asymmetric keys IDs are the same.
+ * @kid_1, @kid_2: The key IDs to compare
+ */
+bool asymmetric_key_id_same(const struct asymmetric_key_id *kid1,
+			    const struct asymmetric_key_id *kid2)
+{
+	if (!kid1 || !kid2)
+		return false;
+	if (kid1->len != kid2->len)
+		return false;
+	return memcmp(kid1->data, kid2->data, kid1->len) == 0;
+}
+EXPORT_SYMBOL_GPL(asymmetric_key_id_same);
+
+/**
+ * asymmetric_match_key_ids - Search asymmetric key IDs
+ * @kids: The list of key IDs to check
+ * @match_id: The key ID we're looking for
+ */
+bool asymmetric_match_key_ids(const struct asymmetric_key_ids *kids,
+			      const struct asymmetric_key_id *match_id)
+{
+	if (!kids || !match_id)
+		return false;
+	if (asymmetric_key_id_same(kids->id[0], match_id))
+		return true;
+	if (asymmetric_key_id_same(kids->id[1], match_id))
+		return true;
+	return false;
+}
+EXPORT_SYMBOL_GPL(asymmetric_match_key_ids);
+
+/**
+ * asymmetric_key_hex_to_key_id - Convert a hex string into a key ID.
+ * @id: The ID as a hex string.
+ */
+struct asymmetric_key_id *asymmetric_key_hex_to_key_id(const char *id)
+{
+	struct asymmetric_key_id *match_id;
+	const char *p;
+	ptrdiff_t hexlen;
+
+	if (!*id)
+		return ERR_PTR(-EINVAL);
+	for (p = id; *p; p++)
+		if (!isxdigit(*p))
+			return ERR_PTR(-EINVAL);
+	hexlen = p - id;
+	if (hexlen & 1)
+		return ERR_PTR(-EINVAL);
+
+	match_id = kmalloc(sizeof(struct asymmetric_key_id) + hexlen / 2,
+			   GFP_KERNEL);
+	if (!match_id)
+		return ERR_PTR(-ENOMEM);
+	match_id->len = hexlen / 2;
+	(void)hex2bin(match_id->data, id, hexlen / 2);
+	return match_id;
+}
 
 /*
  * Match asymmetric key id with partial match
