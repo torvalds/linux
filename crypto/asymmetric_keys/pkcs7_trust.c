@@ -23,9 +23,9 @@
 /**
  * Check the trust on one PKCS#7 SignedInfo block.
  */
-int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
-			     struct pkcs7_signed_info *sinfo,
-			     struct key *trust_keyring)
+static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
+				    struct pkcs7_signed_info *sinfo,
+				    struct key *trust_keyring)
 {
 	struct public_key_signature *sig = &sinfo->sig;
 	struct x509_certificate *x509, *last = NULL, *p;
