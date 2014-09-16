@@ -942,6 +942,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			must already be setup and configured. Options are not
 			yet supported.
 
+		msm_serial,<addr>
+			Start an early, polled-mode console on an msm serial
+			port at the specified address. The serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
+		msm_serial_dm,<addr>
+			Start an early, polled-mode console on an msm serial
+			dm port at the specified address. The serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
 		smh	Use ARM semihosting calls for early console.
 
 	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]

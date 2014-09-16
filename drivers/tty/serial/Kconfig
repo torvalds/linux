@@ -1070,6 +1070,7 @@ config SERIAL_MSM_CONSOLE
 	bool "MSM serial console support"
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 
 config SERIAL_MSM_HS
 	tristate "MSM UART High Speed: Serial Driver"
