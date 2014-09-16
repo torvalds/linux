@@ -115,13 +115,12 @@ void core_tmr_abort_task(
 	struct se_tmr_req *tmr,
 	struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd, *tmp_cmd;
+	struct se_cmd *se_cmd;
 	unsigned long flags;
 	int ref_tag;
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	list_for_each_entry_safe(se_cmd, tmp_cmd,
-			&se_sess->sess_cmd_list, se_cmd_list) {
+	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
 
 		if (dev != se_cmd->se_dev)
 			continue;
