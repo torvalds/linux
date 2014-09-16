@@ -111,6 +111,12 @@ static void fec_enet_itr_coal_init(struct net_device *ndev);
  *   independent rings
  */
 #define FEC_QUIRK_HAS_AVB		(1 << 8)
+/* There is a TDAR race condition for mutliQ when the software sets TDAR
+ * and the UDMA clears TDAR simultaneously or in a small window (2-4 cycles).
+ * This will cause the udma_tx and udma_tx_arbiter state machines to hang.
+ * The issue exist at i.MX6SX enet IP.
+ */
+#define FEC_QUIRK_ERR007885		(1 << 9)
 
 static struct platform_device_id fec_devtype[] = {
 	{
@@ -139,7 +145,7 @@ static struct platform_device_id fec_devtype[] = {
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
 				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
 				FEC_QUIRK_HAS_VLAN | FEC_QUIRK_ERR006358 |
-				FEC_QUIRK_HAS_AVB,
+				FEC_QUIRK_HAS_AVB | FEC_QUIRK_ERR007885,
 	}, {
 		/* sentinel */
 	}
@@ -709,6 +715,8 @@ static int fec_enet_txq_submit_tso(struct fec_enet_priv_tx_q *txq,
 	struct tso_t tso;
 	unsigned int index = 0;
 	int ret;
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
 
 	if (tso_count_descs(skb) >= fec_enet_get_free_txdesc_num(fep, txq)) {
 		dev_kfree_skb_any(skb);
@@ -770,7 +778,12 @@ static int fec_enet_txq_submit_tso(struct fec_enet_priv_tx_q *txq,
 	txq->cur_tx = bdp;
 
 	/* Trigger transmission start */
-	writel(0, fep->hwp + FEC_X_DES_ACTIVE(queue));
+	if (!(id_entry->driver_data & FEC_QUIRK_ERR007885) ||
+	    !readl(fep->hwp + FEC_X_DES_ACTIVE(queue)) ||
+	    !readl(fep->hwp + FEC_X_DES_ACTIVE(queue)) ||
+	    !readl(fep->hwp + FEC_X_DES_ACTIVE(queue)) ||
+	    !readl(fep->hwp + FEC_X_DES_ACTIVE(queue)))
+		writel(0, fep->hwp + FEC_X_DES_ACTIVE(queue));
 
 	return 0;
 
