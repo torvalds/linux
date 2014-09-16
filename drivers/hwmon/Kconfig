@@ -1743,4 +1743,13 @@ config SENSORS_ATK0110
 
 endif # ACPI
 
+config SENSORS_MAG3110
+	tristate "Freescale MAG3110 e-compass sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Freescale MAG3110
+	  e-compass sensor.
+	  This driver can also be built as a module.  If so, the module
+	  will be called mag3110.
+
 endif # HWMON
