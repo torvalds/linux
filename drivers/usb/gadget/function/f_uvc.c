@@ -773,7 +773,7 @@ static void uvc_unbind(struct usb_configuration *c, struct usb_function *f)
 	usb_free_all_descriptors(f);
 }
 
-struct usb_function *uvc_alloc(struct usb_function_instance *fi)
+static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 {
 	struct uvc_device *uvc;
 	struct f_uvc_opts *opts;
