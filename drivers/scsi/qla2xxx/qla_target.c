@@ -101,6 +101,7 @@ static void qlt_send_term_exchange(struct scsi_qla_host *ha, struct qla_tgt_cmd
 	*cmd, struct atio_from_isp *atio, int ha_locked);
 static void qlt_reject_free_srr_imm(struct scsi_qla_host *ha,
 	struct qla_tgt_srr_imm *imm, int ha_lock);
+static void qlt_disable_vha(struct scsi_qla_host *vha);
 /*
  * Global Variables
  */
@@ -178,7 +179,7 @@ struct scsi_qla_host *qlt_find_host_by_vp_idx(struct scsi_qla_host *vha,
 	return NULL;
 }
 
-void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
+static void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio)
 {
 	ql_dbg(ql_dbg_tgt, vha, 0xe072,
@@ -5024,7 +5025,7 @@ void qlt_lport_deregister(struct scsi_qla_host *vha)
 EXPORT_SYMBOL(qlt_lport_deregister);
 
 /* Must be called under HW lock */
-void qlt_set_mode(struct scsi_qla_host *vha)
+static void qlt_set_mode(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 
@@ -5045,7 +5046,7 @@ void qlt_set_mode(struct scsi_qla_host *vha)
 }
 
 /* Must be called under HW lock */
-void qlt_clear_mode(struct scsi_qla_host *vha)
+static void qlt_clear_mode(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 
@@ -5109,8 +5110,7 @@ EXPORT_SYMBOL(qlt_enable_vha);
  *
  * Disable Target Mode and reset the adapter
  */
-void
-qlt_disable_vha(struct scsi_qla_host *vha)
+static void qlt_disable_vha(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
