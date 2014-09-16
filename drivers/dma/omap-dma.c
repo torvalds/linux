@@ -1017,6 +1017,8 @@ static int omap_dma_resume(struct omap_chan *c)
 		return -EINVAL;
 
 	if (c->paused) {
+		mb();
+
 		omap_dma_start(c, c->desc);
 		c->paused = false;
 	}
