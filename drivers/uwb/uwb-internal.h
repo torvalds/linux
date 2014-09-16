@@ -172,7 +172,8 @@ struct uwb_rsv_alloc_info {
 	int interval;
 };
 
-int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *available, 
+int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv,
+				 struct uwb_mas_bm *available,
 				 struct uwb_mas_bm *result);
 void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc);
 /*
