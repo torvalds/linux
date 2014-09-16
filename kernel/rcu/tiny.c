@@ -72,7 +72,7 @@ static void rcu_idle_enter_common(long long newval)
 			  current->pid, current->comm,
 			  idle->pid, idle->comm); /* must be idle task! */
 	}
-	rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
+	rcu_sched_qs(); /* implies rcu_bh_inc() */
 	barrier();
 	rcu_dynticks_nesting = newval;
 }
@@ -217,7 +217,7 @@ static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
  * are at it, given that any rcu quiescent state is also an rcu_bh
  * quiescent state.  Use "+" instead of "||" to defeat short circuiting.
  */
-void rcu_sched_qs(int cpu)
+void rcu_sched_qs(void)
 {
 	unsigned long flags;
 
@@ -231,7 +231,7 @@ void rcu_sched_qs(int cpu)
 /*
  * Record an rcu_bh quiescent state.
  */
-void rcu_bh_qs(int cpu)
+void rcu_bh_qs(void)
 {
 	unsigned long flags;
 
@@ -251,9 +251,11 @@ void rcu_check_callbacks(int cpu, int user)
 {
 	RCU_TRACE(check_cpu_stalls());
 	if (user || rcu_is_cpu_rrupt_from_idle())
-		rcu_sched_qs(cpu);
+		rcu_sched_qs();
 	else if (!in_softirq())
-		rcu_bh_qs(cpu);
+		rcu_bh_qs();
+	if (user)
+		rcu_note_voluntary_context_switch(current);
 }
 
 /*
