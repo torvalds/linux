@@ -1833,7 +1833,7 @@ int pm_genpd_name_detach_cpuidle(const char *name)
 /* Default device callbacks for generic PM domains. */
 
 /**
- * pm_genpd_default_save_state - Default "save device state" for PM domians.
+ * pm_genpd_default_save_state - Default "save device state" for PM domains.
  * @dev: Device to handle.
  */
 static int pm_genpd_default_save_state(struct device *dev)
@@ -1856,7 +1856,7 @@ static int pm_genpd_default_save_state(struct device *dev)
 }
 
 /**
- * pm_genpd_default_restore_state - Default PM domians "restore device state".
+ * pm_genpd_default_restore_state - Default PM domains "restore device state".
  * @dev: Device to handle.
  */
 static int pm_genpd_default_restore_state(struct device *dev)
