@@ -2743,6 +2743,13 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	width = (hwcfg3 & GHWCFG3_XFER_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_XFER_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_transfer_size = (1 << (width + 11)) - 1;
+	/*
+	 * Clip max_transfer_size to 65535. dwc2_hc_setup_align_buf() allocates
+	 * coherent buffers with this size, and if it's too large we can
+	 * exhaust the coherent DMA pool.
+	 */
+	if (hw->max_transfer_size > 65535)
+		hw->max_transfer_size = 65535;
 	width = (hwcfg3 & GHWCFG3_PACKET_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_PACKET_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_packet_count = (1 << (width + 4)) - 1;
