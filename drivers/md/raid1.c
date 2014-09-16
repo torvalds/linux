@@ -856,6 +856,7 @@ static void raise_barrier(struct r1conf *conf, sector_t sector_nr)
 			     conf->next_resync + RESYNC_SECTORS),
 			    conf->resync_lock);
 
+	conf->nr_pending++;
 	spin_unlock_irq(&conf->resync_lock);
 }
 
@@ -865,6 +866,7 @@ static void lower_barrier(struct r1conf *conf)
 	BUG_ON(conf->barrier <= 0);
 	spin_lock_irqsave(&conf->resync_lock, flags);
 	conf->barrier--;
+	conf->nr_pending--;
 	spin_unlock_irqrestore(&conf->resync_lock, flags);
 	wake_up(&conf->wait_barrier);
 }
