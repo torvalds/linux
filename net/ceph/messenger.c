@@ -3071,10 +3071,8 @@ static void ceph_msg_data_destroy(struct ceph_msg_data *data)
 		return;
 
 	WARN_ON(!list_empty(&data->links));
-	if (data->type == CEPH_MSG_DATA_PAGELIST) {
+	if (data->type == CEPH_MSG_DATA_PAGELIST)
 		ceph_pagelist_release(data->pagelist);
-		kfree(data->pagelist);
-	}
 	kmem_cache_free(ceph_msg_data_cache, data);
 }
 
