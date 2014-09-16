@@ -375,7 +375,7 @@ static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 {
 	struct tc_u_knode __rcu **kp;
 	struct tc_u_knode *pkp;
-	struct tc_u_hnode *ht = key->ht_up;
+	struct tc_u_hnode *ht = rtnl_dereference(key->ht_up);
 
 	if (ht) {
 		kp = &ht->ht[TC_U32_HASH(key->handle)];
@@ -607,7 +607,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		if (TC_U32_KEY(n->handle) == 0)
 			return -EINVAL;
 
-		return u32_set_parms(net, tp, base, n->ht_up, n, tb,
+		return u32_set_parms(net, tp, base,
+				     rtnl_dereference(n->ht_up), n, tb,
 				     tca[TCA_RATE], ovr);
 	}
 
@@ -681,7 +682,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 #endif
 
 	memcpy(&n->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
-	n->ht_up = ht;
+	RCU_INIT_POINTER(n->ht_up, ht);
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
 	tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
