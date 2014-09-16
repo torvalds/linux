@@ -982,9 +982,6 @@ struct channel_t {
 	u32 ch_open_count;		/* open count			*/
 	u32	ch_flags;		/* Channel flags                */
 
-	u32	ch_close_delay;		/* How long we should drop      */
-					/* RTS/DTR for                  */
-
 	u32	ch_cpstime;		/* Time for CPS calculations    */
 
 	tcflag_t ch_c_iflag;		/* channel iflags               */

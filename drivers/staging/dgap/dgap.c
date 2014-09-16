@@ -180,7 +180,6 @@ static char *dgap_create_config_string(struct board_t *bd, char *string);
 static uint dgap_config_get_useintr(struct board_t *bd);
 static uint dgap_config_get_altpin(struct board_t *bd);
 
-static int dgap_ms_sleep(ulong ms);
 static void dgap_do_bios_load(struct board_t *brd, const u8 *ubios, int len);
 static void dgap_do_fep_load(struct board_t *brd, const u8 *ufep, int len);
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
@@ -1200,26 +1199,6 @@ static void dgap_init_globals(void)
 
 /************************************************************************
  *
- * Utility functions
- *
- ************************************************************************/
-
-/*
- * dgap_ms_sleep()
- *
- * Put the driver to sleep for x ms's
- *
- * Returns 0 if timed out, !0 (showing signal) if interrupted by a signal.
- */
-static int dgap_ms_sleep(ulong ms)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout((ms * HZ) / 1000);
-	return signal_pending(current);
-}
-
-/************************************************************************
- *
  * TTY Initialization/Cleanup Functions
  *
  ************************************************************************/
@@ -1461,9 +1440,6 @@ static int dgap_tty_init(struct board_t *brd)
 		ch->ch_rsize = readw(&(ch->ch_bs->rx_max)) + 1;
 		ch->ch_tstart = 0;
 		ch->ch_rstart = 0;
-
-		/* .25 second delay */
-		ch->ch_close_delay = 250;
 
 		/*
 		 * Set queue water marks, interrupt mask,
@@ -2297,12 +2273,13 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 			 * Go to sleep to ensure RTS/DTR
 			 * have been dropped for modems to see it.
 			 */
-			if (ch->ch_close_delay) {
-				spin_unlock_irqrestore(&ch->ch_lock,
-						       lock_flags);
-				dgap_ms_sleep(ch->ch_close_delay);
-				spin_lock_irqsave(&ch->ch_lock, lock_flags);
-			}
+			spin_unlock_irqrestore(&ch->ch_lock,
+					lock_flags);
+
+			/* .25 second delay for dropping RTS/DTR */
+			schedule_timeout_interruptible(msecs_to_jiffies(250));
+
+			spin_lock_irqsave(&ch->ch_lock, lock_flags);
 		}
 
 		ch->pscan_state = 0;
