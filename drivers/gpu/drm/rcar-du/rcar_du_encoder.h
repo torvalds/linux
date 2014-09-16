@@ -14,12 +14,17 @@
 #ifndef __RCAR_DU_ENCODER_H__
 #define __RCAR_DU_ENCODER_H__
 
-#include <linux/platform_data/rcar-du.h>
-
 #include <drm/drm_crtc.h>
 
 struct rcar_du_device;
 struct rcar_du_lvdsenc;
+
+enum rcar_du_encoder_type {
+	RCAR_DU_ENCODER_UNUSED = 0,
+	RCAR_DU_ENCODER_NONE,
+	RCAR_DU_ENCODER_VGA,
+	RCAR_DU_ENCODER_LVDS,
+};
 
 struct rcar_du_encoder {
 	struct drm_encoder encoder;
@@ -44,7 +49,6 @@ rcar_du_connector_best_encoder(struct drm_connector *connector);
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_encoder_type type,
 			 enum rcar_du_output output,
-			 const struct rcar_du_encoder_data *data,
 			 struct device_node *np);
 
 #endif /* __RCAR_DU_ENCODER_H__ */

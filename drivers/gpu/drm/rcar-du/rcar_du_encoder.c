@@ -142,7 +142,6 @@ static const struct drm_encoder_funcs encoder_funcs = {
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_encoder_type type,
 			 enum rcar_du_output output,
-			 const struct rcar_du_encoder_data *data,
 			 struct device_node *np)
 {
 	struct rcar_du_encoder *renc;
@@ -190,11 +189,8 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	drm_encoder_helper_add(&renc->encoder, &encoder_helper_funcs);
 
 	switch (encoder_type) {
-	case DRM_MODE_ENCODER_LVDS: {
-		const struct rcar_du_panel_data *pdata =
-			data ? &data->connector.lvds.panel : NULL;
-		return rcar_du_lvds_connector_init(rcdu, renc, pdata, np);
-	}
+	case DRM_MODE_ENCODER_LVDS:
+		return rcar_du_lvds_connector_init(rcdu, renc, np);
 
 	case DRM_MODE_ENCODER_DAC:
 		return rcar_du_vga_connector_init(rcdu, renc);
