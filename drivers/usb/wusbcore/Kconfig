@@ -3,7 +3,6 @@
 #
 config USB_WUSB
 	tristate "Enable Wireless USB extensions"
-	depends on PCI
 	depends on UWB
         select CRYPTO
         select CRYPTO_BLKCIPHER
