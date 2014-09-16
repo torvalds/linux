@@ -22,7 +22,9 @@
 #include <linux/smp.h>
 #include <linux/stop_machine.h>
 #include <linux/uaccess.h>
+
 #include <asm/cacheflush.h>
+#include <asm/debug-monitors.h>
 #include <asm/insn.h>
 
 #define AARCH64_INSN_SF_BIT	BIT(31)
@@ -388,6 +390,7 @@ u32 __kprobes aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_26, insn,
@@ -413,6 +416,7 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -423,6 +427,7 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn, reg);
@@ -475,6 +480,7 @@ u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, reg);
@@ -497,6 +503,7 @@ u32 aarch64_insn_gen_load_store_reg(enum aarch64_insn_register reg,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	insn = aarch64_insn_encode_ldst_size(size, insn);
@@ -535,6 +542,7 @@ u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -553,6 +561,7 @@ u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn,
@@ -590,6 +599,7 @@ u32 aarch64_insn_gen_add_sub_imm(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -600,6 +610,7 @@ u32 aarch64_insn_gen_add_sub_imm(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	BUG_ON(imm & ~(SZ_4K - 1));
@@ -632,6 +643,7 @@ u32 aarch64_insn_gen_bitfield(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -644,6 +656,7 @@ u32 aarch64_insn_gen_bitfield(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	BUG_ON(immr & ~mask);
@@ -677,6 +690,7 @@ u32 aarch64_insn_gen_movewide(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	BUG_ON(imm & ~(SZ_64K - 1));
@@ -692,6 +706,7 @@ u32 aarch64_insn_gen_movewide(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	insn |= (shift >> 4) << 21;
@@ -725,6 +740,7 @@ u32 aarch64_insn_gen_add_sub_shifted_reg(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -737,6 +753,7 @@ u32 aarch64_insn_gen_add_sub_shifted_reg(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 
@@ -769,6 +786,7 @@ u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -779,6 +797,7 @@ u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
@@ -815,6 +834,7 @@ u32 aarch64_insn_gen_data2(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -825,6 +845,7 @@ u32 aarch64_insn_gen_data2(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
@@ -852,6 +873,7 @@ u32 aarch64_insn_gen_data3(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -862,6 +884,7 @@ u32 aarch64_insn_gen_data3(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
@@ -911,6 +934,7 @@ u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 	switch (variant) {
@@ -923,6 +947,7 @@ u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
 		break;
 	default:
 		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
 	}
 
 
