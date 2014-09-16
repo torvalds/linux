@@ -543,6 +543,8 @@ void ceph_mdsc_release_request(struct kref *kref)
 	}
 	kfree(req->r_path1);
 	kfree(req->r_path2);
+	if (req->r_pagelist)
+		ceph_pagelist_release(req->r_pagelist);
 	put_request_session(req);
 	ceph_unreserve_caps(req->r_mdsc, &req->r_caps_reservation);
 	kfree(req);
@@ -1916,13 +1918,15 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 
-	if (req->r_data_len) {
-		/* outbound data set only by ceph_sync_setxattr() */
-		BUG_ON(!req->r_pages);
-		ceph_msg_data_add_pages(msg, req->r_pages, req->r_data_len, 0);
+	if (req->r_pagelist) {
+		struct ceph_pagelist *pagelist = req->r_pagelist;
+		atomic_inc(&pagelist->refcnt);
+		ceph_msg_data_add_pagelist(msg, pagelist);
+		msg->hdr.data_len = cpu_to_le32(pagelist->length);
+	} else {
+		msg->hdr.data_len = 0;
 	}
 
-	msg->hdr.data_len = cpu_to_le32(req->r_data_len);
 	msg->hdr.data_off = cpu_to_le16(0);
 
 out_free2:

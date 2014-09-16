@@ -202,9 +202,7 @@ struct ceph_mds_request {
 	bool r_direct_is_hash;  /* true if r_direct_hash is valid */
 
 	/* data payload is used for xattr ops */
-	struct page **r_pages;
-	int r_num_pages;
-	int r_data_len;
+	struct ceph_pagelist *r_pagelist;
 
 	/* what caps shall we drop? */
 	int r_inode_drop, r_inode_unless;

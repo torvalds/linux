@@ -1,4 +1,5 @@
 #include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/pagelist.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -850,34 +851,24 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_request *req;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
+	struct ceph_pagelist *pagelist = NULL;
 	int err;
-	int i, nr_pages;
-	struct page **pages = NULL;
-	void *kaddr;
 
-	/* copy value into some pages */
-	nr_pages = calc_pages_for(0, size);
-	if (nr_pages) {
-		pages = kmalloc(sizeof(pages[0])*nr_pages, GFP_NOFS);
-		if (!pages)
+	if (value) {
+		/* copy value into pagelist */
+		pagelist = kmalloc(sizeof(*pagelist), GFP_NOFS);
+		if (!pagelist)
 			return -ENOMEM;
-		err = -ENOMEM;
-		for (i = 0; i < nr_pages; i++) {
-			pages[i] = __page_cache_alloc(GFP_NOFS);
-			if (!pages[i]) {
-				nr_pages = i;
-				goto out;
-			}
-			kaddr = kmap(pages[i]);
-			memcpy(kaddr, value + i*PAGE_CACHE_SIZE,
-			       min(PAGE_CACHE_SIZE, size-i*PAGE_CACHE_SIZE));
-		}
+
+		ceph_pagelist_init(pagelist);
+		err = ceph_pagelist_append(pagelist, value, size);
+		if (err)
+			goto out;
+	} else {
+		flags |= CEPH_XATTR_REMOVE;
 	}
 
 	dout("setxattr value=%.*s\n", (int)size, value);
-
-	if (!value)
-		flags |= CEPH_XATTR_REMOVE;
 
 	/* do request */
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SETXATTR,
@@ -893,9 +884,8 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 	req->r_args.setxattr.flags = cpu_to_le32(flags);
 	req->r_path2 = kstrdup(name, GFP_NOFS);
 
-	req->r_pages = pages;
-	req->r_num_pages = nr_pages;
-	req->r_data_len = size;
+	req->r_pagelist = pagelist;
+	pagelist = NULL;
 
 	dout("xattr.ver (before): %lld\n", ci->i_xattrs.version);
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
@@ -903,11 +893,8 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 	dout("xattr.ver (after): %lld\n", ci->i_xattrs.version);
 
 out:
-	if (pages) {
-		for (i = 0; i < nr_pages; i++)
-			__free_page(pages[i]);
-		kfree(pages);
-	}
+	if (pagelist)
+		ceph_pagelist_release(pagelist);
 	return err;
 }
 
