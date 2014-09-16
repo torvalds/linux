@@ -152,8 +152,8 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 			 * continue. Otherwise, continue without this interrupt.
 			 */
 			if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
-				pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
-					    irq, i);
+				pr_warn("unable to set irq affinity (irq=%d, cpu=%u)\n",
+					irq, i);
 				continue;
 			}
 
