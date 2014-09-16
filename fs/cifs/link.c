@@ -28,7 +28,9 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#ifdef CONFIG_CIFS_SMB2
 #include "smb2proto.h"
+#endif
 
 /*
  * M-F Symlink Functions - Begin
@@ -401,6 +403,72 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+/*
+ * SMB 2.1/SMB3 Protocol specific functions
+ */
+#ifdef CONFIG_CIFS_SMB2
+int
+smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+		      struct cifs_sb_info *cifs_sb, const unsigned char *path,
+		      char *pbuf, unsigned int *pbytes_read)
+{
+	int rc;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
+	struct cifs_io_parms io_parms;
+	int buf_type = CIFS_NO_BUFFER;
+	__le16 *utf16_path;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_II;
+	struct smb2_file_all_info *pfile_info = NULL;
+
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = GENERIC_READ;
+	oparms.create_options = CREATE_NOT_DIR;
+	if (backup_cred(cifs_sb))
+		oparms.create_options |= CREATE_OPEN_BACKUP_INTENT;
+	oparms.disposition = FILE_OPEN;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
+	if (utf16_path == NULL)
+		return -ENOMEM;
+
+	pfile_info = kzalloc(sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
+			     GFP_KERNEL);
+
+	if (pfile_info == NULL) {
+		kfree(utf16_path);
+		return  -ENOMEM;
+	}
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, pfile_info, NULL);
+	if (rc)
+		goto qmf_out_open_fail;
+
+	if (pfile_info->EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
+		/* it's not a symlink */
+		rc = -ENOENT; /* Is there a better rc to return? */
+		goto qmf_out;
+	}
+
+	io_parms.netfid = fid.netfid;
+	io_parms.pid = current->tgid;
+	io_parms.tcon = tcon;
+	io_parms.offset = 0;
+	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
+	io_parms.persistent_fid = fid.persistent_fid;
+	io_parms.volatile_fid = fid.volatile_fid;
+	rc = SMB2_read(xid, &io_parms, pbytes_read, &pbuf, &buf_type);
+qmf_out:
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+qmf_out_open_fail:
+	kfree(utf16_path);
+	kfree(pfile_info);
+	return rc;
+}
+
 int
 smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		       struct cifs_sb_info *cifs_sb, const unsigned char *path,
@@ -461,7 +529,7 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	kfree(utf16_path);
 	return rc;
 }
-
+#endif /* CONFIG_CIFS_SMB2 */
 
 /*
  * M-F Symlink Functions - End

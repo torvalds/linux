@@ -85,6 +85,10 @@ extern int smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 extern int smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			struct cifs_sb_info *cifs_sb, const unsigned char *path,
 			char *pbuf, unsigned int *pbytes_written);
+extern int smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb,
+			  const unsigned char *path, char *pbuf,
+			  unsigned int *pbytes_read);
 extern int smb2_open_file(const unsigned int xid,
 			  struct cifs_open_parms *oparms,
 			  __u32 *oplock, FILE_ALL_INFO *buf);
