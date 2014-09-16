@@ -2944,14 +2944,15 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	if (dname.len != get_unaligned_le32(h+1))
 		goto bad;
 
-	mutex_lock(&session->s_mutex);
-	session->s_seq++;
-
 	/* lookup inode */
 	inode = ceph_find_inode(sb, vino);
 	dout("handle_lease %s, ino %llx %p %.*s\n",
 	     ceph_lease_op_name(h->action), vino.ino, inode,
 	     dname.len, dname.name);
+
+	mutex_lock(&session->s_mutex);
+	session->s_seq++;
+
 	if (inode == NULL) {
 		dout("handle_lease no inode %llx\n", vino.ino);
 		goto release;
