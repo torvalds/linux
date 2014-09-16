@@ -2462,7 +2462,7 @@ static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 
 			if (chance(1, 2)) {
 				d->pc_delay = 1;
-				/* Fail withing 1 minute */
+				/* Fail within 1 minute */
 				delay = prandom_u32() % 60000;
 				d->pc_timeout = jiffies;
 				d->pc_timeout += msecs_to_jiffies(delay);
