@@ -395,7 +395,7 @@ struct p2p_channels {
 };
 
 struct p2p_oper_class_map {
-	enum hw_mode {IEEE80211G,IEEE80211A} mode;
+	enum hw_mode {IEEE80211G, IEEE80211A} mode;
 	u8 op_class;
 	u8 min_chan;
 	u8 max_chan;
@@ -458,7 +458,7 @@ u8 judge_network_type23a(struct rtw_adapter *padapter, unsigned char *rate,
 		      int ratelen);
 void get_rate_set23a(struct rtw_adapter *padapter, unsigned char *pbssrate,
 		  int *bssrate_len);
-void UpdateBrateTbl23a(struct rtw_adapter *padapter,u8 *mBratesOS);
+void UpdateBrateTbl23a(struct rtw_adapter *padapter, u8 *mBratesOS);
 void Update23aTblForSoftAP(u8 *bssrateset, u32 bssratelen);
 
 u8 rtw_get_oper_ch23a(struct rtw_adapter *adapter);

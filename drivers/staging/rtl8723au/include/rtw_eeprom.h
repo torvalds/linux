@@ -128,7 +128,7 @@ struct eeprom_priv {
 void eeprom_write16(struct rtw_adapter *padapter, u16 reg, u16 data);
 u16 eeprom_read16(struct rtw_adapter *padapter, u16 reg);
 void read_eeprom_content(struct rtw_adapter *padapter);
-void eeprom_read_sz(struct rtw_adapter * padapter, u16 reg,u8* data, u32 sz);
+void eeprom_read_sz(struct rtw_adapter *padapter, u16 reg, u8 *data, u32 sz);
 
 void read_eeprom_content_by_attrib(struct rtw_adapter *padapter);
 

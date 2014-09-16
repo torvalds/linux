@@ -95,7 +95,8 @@ void	EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType, u8 
 int	efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data);
 int	efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data);
 
-void	Efuse_PowerSwitch23a(struct rtw_adapter *pAdapter,u8	bWrite,u8	 PwrState);
+void	Efuse_PowerSwitch23a(struct rtw_adapter *pAdapter, u8 bWrite,
+			     u8 PwrState);
 int	Efuse_PgPacketRead23a(struct rtw_adapter *pAdapter, u8 offset, u8 *data);
 int	Efuse_PgPacketWrite23a(struct rtw_adapter *pAdapter, u8 offset, u8 word_en, u8 *data);
 void	efuse_WordEnableDataRead23a(u8 word_en, u8 *sourdata, u8 *targetdata);
