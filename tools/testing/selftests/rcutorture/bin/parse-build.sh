@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Check the build output from an rcutorture run for goodness.
 # The "file" is a pathname on the local system, and "title" is
@@ -6,8 +6,7 @@
 #
 # The file must contain kernel build output.
 #
-# Usage:
-#	sh parse-build.sh file title
+# Usage: parse-build.sh file title
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

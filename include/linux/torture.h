@@ -51,7 +51,7 @@
 
 /* Definitions for online/offline exerciser. */
 int torture_onoff_init(long ooholdoff, long oointerval);
-char *torture_onoff_stats(char *page);
+void torture_onoff_stats(void);
 bool torture_onoff_failures(void);
 
 /* Low-rider random number generator. */

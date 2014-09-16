@@ -49,11 +49,19 @@
 #include <linux/trace_clock.h>
 #include <asm/byteorder.h>
 #include <linux/torture.h>
+#include <linux/vmalloc.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
 
+torture_param(int, cbflood_inter_holdoff, HZ,
+	      "Holdoff between floods (jiffies)");
+torture_param(int, cbflood_intra_holdoff, 1,
+	      "Holdoff between bursts (jiffies)");
+torture_param(int, cbflood_n_burst, 3, "# bursts in flood, zero to disable");
+torture_param(int, cbflood_n_per_burst, 20000,
+	      "# callbacks per burst in flood");
 torture_param(int, fqs_duration, 0,
 	      "Duration of fqs bursts (us), 0 to disable");
 torture_param(int, fqs_holdoff, 0, "Holdoff time within fqs bursts (us)");
@@ -96,10 +104,12 @@ module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, ...)");
 
 static int nrealreaders;
+static int ncbflooders;
 static struct task_struct *writer_task;
 static struct task_struct **fakewriter_tasks;
 static struct task_struct **reader_tasks;
 static struct task_struct *stats_task;
+static struct task_struct **cbflood_task;
 static struct task_struct *fqs_task;
 static struct task_struct *boost_tasks[NR_CPUS];
 static struct task_struct *stall_task;
@@ -138,6 +148,7 @@ static long n_rcu_torture_boosts;
 static long n_rcu_torture_timers;
 static long n_barrier_attempts;
 static long n_barrier_successes;
+static atomic_long_t n_cbfloods;
 static struct list_head rcu_torture_removed;
 
 static int rcu_torture_writer_state;
@@ -182,7 +193,7 @@ static u64 notrace rcu_trace_clock_local(void)
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
-DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
+static DEFINE_MUTEX(boost_mutex);	/* protect setting boost_starttime */
 					/*  and boost task create/destroy. */
 static atomic_t barrier_cbs_count;	/* Barrier callbacks registered. */
 static bool barrier_phase;		/* Test phase. */
@@ -242,7 +253,7 @@ struct rcu_torture_ops {
 	void (*call)(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
 	void (*cb_barrier)(void);
 	void (*fqs)(void);
-	void (*stats)(char *page);
+	void (*stats)(void);
 	int irq_capable;
 	int can_boost;
 	const char *name;
@@ -525,21 +536,21 @@ static void srcu_torture_barrier(void)
 	srcu_barrier(&srcu_ctl);
 }
 
-static void srcu_torture_stats(char *page)
+static void srcu_torture_stats(void)
 {
 	int cpu;
 	int idx = srcu_ctl.completed & 0x1;
 
-	page += sprintf(page, "%s%s per-CPU(idx=%d):",
-		       torture_type, TORTURE_FLAG, idx);
+	pr_alert("%s%s per-CPU(idx=%d):",
+		 torture_type, TORTURE_FLAG, idx);
 	for_each_possible_cpu(cpu) {
 		long c0, c1;
 
 		c0 = (long)per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[!idx];
 		c1 = (long)per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[idx];
-		page += sprintf(page, " %d(%ld,%ld)", cpu, c0, c1);
+		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
 	}
-	sprintf(page, "\n");
+	pr_cont("\n");
 }
 
 static void srcu_torture_synchronize_expedited(void)
@@ -704,6 +715,58 @@ checkwait:	stutter_wait("rcu_torture_boost");
 	smp_mb(); /* order accesses to ->inflight before stack-frame death. */
 	destroy_rcu_head_on_stack(&rbi.rcu);
 	torture_kthread_stopping("rcu_torture_boost");
+	return 0;
+}
+
+static void rcu_torture_cbflood_cb(struct rcu_head *rhp)
+{
+}
+
+/*
+ * RCU torture callback-flood kthread.  Repeatedly induces bursts of calls
+ * to call_rcu() or analogous, increasing the probability of occurrence
+ * of callback-overflow corner cases.
+ */
+static int
+rcu_torture_cbflood(void *arg)
+{
+	int err = 1;
+	int i;
+	int j;
+	struct rcu_head *rhp;
+
+	if (cbflood_n_per_burst > 0 &&
+	    cbflood_inter_holdoff > 0 &&
+	    cbflood_intra_holdoff > 0 &&
+	    cur_ops->call &&
+	    cur_ops->cb_barrier) {
+		rhp = vmalloc(sizeof(*rhp) *
+			      cbflood_n_burst * cbflood_n_per_burst);
+		err = !rhp;
+	}
+	if (err) {
+		VERBOSE_TOROUT_STRING("rcu_torture_cbflood disabled: Bad args or OOM");
+		while (!torture_must_stop())
+			schedule_timeout_interruptible(HZ);
+		return 0;
+	}
+	VERBOSE_TOROUT_STRING("rcu_torture_cbflood task started");
+	do {
+		schedule_timeout_interruptible(cbflood_inter_holdoff);
+		atomic_long_inc(&n_cbfloods);
+		WARN_ON(signal_pending(current));
+		for (i = 0; i < cbflood_n_burst; i++) {
+			for (j = 0; j < cbflood_n_per_burst; j++) {
+				cur_ops->call(&rhp[i * cbflood_n_per_burst + j],
+					      rcu_torture_cbflood_cb);
+			}
+			schedule_timeout_interruptible(cbflood_intra_holdoff);
+			WARN_ON(signal_pending(current));
+		}
+		cur_ops->cb_barrier();
+		stutter_wait("rcu_torture_cbflood");
+	} while (!torture_must_stop());
+	torture_kthread_stopping("rcu_torture_cbflood");
 	return 0;
 }
 
@@ -1031,10 +1094,15 @@ rcu_torture_reader(void *arg)
 }
 
 /*
- * Create an RCU-torture statistics message in the specified buffer.
+ * Print torture statistics.  Caller must ensure that there is only
+ * one call to this function at a given time!!!  This is normally
+ * accomplished by relying on the module system to only have one copy
+ * of the module loaded, and then by giving the rcu_torture_stats
+ * kthread full control (or the init/cleanup functions when rcu_torture_stats
+ * thread is not running).
  */
 static void
-rcu_torture_printk(char *page)
+rcu_torture_stats_print(void)
 {
 	int cpu;
 	int i;
@@ -1052,55 +1120,61 @@ rcu_torture_printk(char *page)
 		if (pipesummary[i] != 0)
 			break;
 	}
-	page += sprintf(page, "%s%s ", torture_type, TORTURE_FLAG);
-	page += sprintf(page,
-		       "rtc: %p ver: %lu tfle: %d rta: %d rtaf: %d rtf: %d ",
-		       rcu_torture_current,
-		       rcu_torture_current_version,
-		       list_empty(&rcu_torture_freelist),
-		       atomic_read(&n_rcu_torture_alloc),
-		       atomic_read(&n_rcu_torture_alloc_fail),
-		       atomic_read(&n_rcu_torture_free));
-	page += sprintf(page, "rtmbe: %d rtbke: %ld rtbre: %ld ",
-		       atomic_read(&n_rcu_torture_mberror),
-		       n_rcu_torture_boost_ktrerror,
-		       n_rcu_torture_boost_rterror);
-	page += sprintf(page, "rtbf: %ld rtb: %ld nt: %ld ",
-		       n_rcu_torture_boost_failure,
-		       n_rcu_torture_boosts,
-		       n_rcu_torture_timers);
-	page = torture_onoff_stats(page);
-	page += sprintf(page, "barrier: %ld/%ld:%ld",
-		       n_barrier_successes,
-		       n_barrier_attempts,
-		       n_rcu_torture_barrier_error);
-	page += sprintf(page, "\n%s%s ", torture_type, TORTURE_FLAG);
+
+	pr_alert("%s%s ", torture_type, TORTURE_FLAG);
+	pr_cont("rtc: %p ver: %lu tfle: %d rta: %d rtaf: %d rtf: %d ",
+		rcu_torture_current,
+		rcu_torture_current_version,
+		list_empty(&rcu_torture_freelist),
+		atomic_read(&n_rcu_torture_alloc),
+		atomic_read(&n_rcu_torture_alloc_fail),
+		atomic_read(&n_rcu_torture_free));
+	pr_cont("rtmbe: %d rtbke: %ld rtbre: %ld ",
+		atomic_read(&n_rcu_torture_mberror),
+		n_rcu_torture_boost_ktrerror,
+		n_rcu_torture_boost_rterror);
+	pr_cont("rtbf: %ld rtb: %ld nt: %ld ",
+		n_rcu_torture_boost_failure,
+		n_rcu_torture_boosts,
+		n_rcu_torture_timers);
+	torture_onoff_stats();
+	pr_cont("barrier: %ld/%ld:%ld ",
+		n_barrier_successes,
+		n_barrier_attempts,
+		n_rcu_torture_barrier_error);
+	pr_cont("cbflood: %ld\n", atomic_long_read(&n_cbfloods));
+
+	pr_alert("%s%s ", torture_type, TORTURE_FLAG);
 	if (atomic_read(&n_rcu_torture_mberror) != 0 ||
 	    n_rcu_torture_barrier_error != 0 ||
 	    n_rcu_torture_boost_ktrerror != 0 ||
 	    n_rcu_torture_boost_rterror != 0 ||
 	    n_rcu_torture_boost_failure != 0 ||
 	    i > 1) {
-		page += sprintf(page, "!!! ");
+		pr_cont("%s", "!!! ");
 		atomic_inc(&n_rcu_torture_error);
 		WARN_ON_ONCE(1);
 	}
-	page += sprintf(page, "Reader Pipe: ");
+	pr_cont("Reader Pipe: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
-		page += sprintf(page, " %ld", pipesummary[i]);
-	page += sprintf(page, "\n%s%s ", torture_type, TORTURE_FLAG);
-	page += sprintf(page, "Reader Batch: ");
+		pr_cont(" %ld", pipesummary[i]);
+	pr_cont("\n");
+
+	pr_alert("%s%s ", torture_type, TORTURE_FLAG);
+	pr_cont("Reader Batch: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
-		page += sprintf(page, " %ld", batchsummary[i]);
-	page += sprintf(page, "\n%s%s ", torture_type, TORTURE_FLAG);
-	page += sprintf(page, "Free-Block Circulation: ");
+		pr_cont(" %ld", batchsummary[i]);
+	pr_cont("\n");
+
+	pr_alert("%s%s ", torture_type, TORTURE_FLAG);
+	pr_cont("Free-Block Circulation: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
-		page += sprintf(page, " %d",
-			       atomic_read(&rcu_torture_wcount[i]));
+		pr_cont(" %d", atomic_read(&rcu_torture_wcount[i]));
 	}
-	page += sprintf(page, "\n");
+	pr_cont("\n");
+
 	if (cur_ops->stats)
-		cur_ops->stats(page);
+		cur_ops->stats();
 	if (rtcv_snap == rcu_torture_current_version &&
 	    rcu_torture_current != NULL) {
 		int __maybe_unused flags;
@@ -1109,38 +1183,13 @@ rcu_torture_printk(char *page)
 
 		rcutorture_get_gp_data(cur_ops->ttype,
 				       &flags, &gpnum, &completed);
-		page += sprintf(page,
-				"??? Writer stall state %d g%lu c%lu f%#x\n",
-				rcu_torture_writer_state,
-				gpnum, completed, flags);
+		pr_alert("??? Writer stall state %d g%lu c%lu f%#x\n",
+			 rcu_torture_writer_state,
+			 gpnum, completed, flags);
 		show_rcu_gp_kthreads();
 		rcutorture_trace_dump();
 	}
 	rtcv_snap = rcu_torture_current_version;
-}
-
-/*
- * Print torture statistics.  Caller must ensure that there is only
- * one call to this function at a given time!!!  This is normally
- * accomplished by relying on the module system to only have one copy
- * of the module loaded, and then by giving the rcu_torture_stats
- * kthread full control (or the init/cleanup functions when rcu_torture_stats
- * thread is not running).
- */
-static void
-rcu_torture_stats_print(void)
-{
-	int size = nr_cpu_ids * 200 + 8192;
-	char *buf;
-
-	buf = kmalloc(size, GFP_KERNEL);
-	if (!buf) {
-		pr_err("rcu-torture: Out of memory, need: %d", size);
-		return;
-	}
-	rcu_torture_printk(buf);
-	pr_alert("%s", buf);
-	kfree(buf);
 }
 
 /*
@@ -1447,6 +1496,8 @@ rcu_torture_cleanup(void)
 
 	torture_stop_kthread(rcu_torture_stats, stats_task);
 	torture_stop_kthread(rcu_torture_fqs, fqs_task);
+	for (i = 0; i < ncbflooders; i++)
+		torture_stop_kthread(rcu_torture_cbflood, cbflood_task[i]);
 	if ((test_boost == 1 && cur_ops->can_boost) ||
 	    test_boost == 2) {
 		unregister_cpu_notifier(&rcutorture_cpu_nb);
@@ -1693,6 +1744,24 @@ rcu_torture_init(void)
 		goto unwind;
 	if (object_debug)
 		rcu_test_debug_objects();
+	if (cbflood_n_burst > 0) {
+		/* Create the cbflood threads */
+		ncbflooders = (num_online_cpus() + 3) / 4;
+		cbflood_task = kcalloc(ncbflooders, sizeof(*cbflood_task),
+				       GFP_KERNEL);
+		if (!cbflood_task) {
+			VERBOSE_TOROUT_ERRSTRING("out of memory");
+			firsterr = -ENOMEM;
+			goto unwind;
+		}
+		for (i = 0; i < ncbflooders; i++) {
+			firsterr = torture_create_kthread(rcu_torture_cbflood,
+							  NULL,
+							  cbflood_task[i]);
+			if (firsterr)
+				goto unwind;
+		}
+	}
 	rcutorture_record_test_transition();
 	torture_init_end();
 	return 0;
