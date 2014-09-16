@@ -961,6 +961,10 @@ static int uas_slave_alloc(struct scsi_device *sdev)
 static int uas_slave_configure(struct scsi_device *sdev)
 {
 	struct uas_dev_info *devinfo = sdev->hostdata;
+
+	if (devinfo->flags & US_FL_NO_REPORT_OPCODES)
+		sdev->no_report_opcodes = 1;
+
 	scsi_set_tag_type(sdev, MSG_ORDERED_TAG);
 	scsi_activate_tcq(sdev, devinfo->qdepth - 2);
 	return 0;

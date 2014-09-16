@@ -75,6 +75,8 @@
 		/* Cannot handle FUA in WRITE or READ CDBs */	\
 	US_FLAG(NO_ATA_1X,	0x02000000)			\
 		/* Cannot handle ATA_12 or ATA_16 CDBs */	\
+	US_FLAG(NO_REPORT_OPCODES,	0x04000000)		\
+		/* Cannot handle MI_REPORT_SUPPORTED_OPERATION_CODES */	\
 
 #define US_FLAG(name, value)	US_FL_##name = value ,
 enum { US_DO_ALL_FLAGS };

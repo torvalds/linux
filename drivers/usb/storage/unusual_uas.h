@@ -53,3 +53,10 @@ UNUSUAL_DEV(0x0bc2, 0x3312, 0x0000, 0x9999,
 		"Expansion Desk",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_ATA_1X),
+
+/* Reported-by: Claudio Bizzarri <claudio.bizzarri@gmail.com> */
+UNUSUAL_DEV(0x152d, 0x0567, 0x0000, 0x9999,
+		"JMicron",
+		"JMS567",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_REPORT_OPCODES),
