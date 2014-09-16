@@ -1966,6 +1966,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	if (ah->hw->conf.radar_enabled) {
 		/* set HW specific DFS configuration */
+		ah->radar_conf.ext_channel = IS_CHAN_HT40(chan);
 		ath9k_hw_set_radar_params(ah);
 	}
 
