@@ -28,6 +28,21 @@
 #define RK808_BUCK4_VSEL_MASK	0xf
 #define RK808_LDO_VSEL_MASK	0x1f
 
+/* Ramp rate definitions for buck1 / buck2 only */
+#define RK808_RAMP_RATE_OFFSET		3
+#define RK808_RAMP_RATE_MASK		(3 << RK808_RAMP_RATE_OFFSET)
+#define RK808_RAMP_RATE_2MV_PER_US	(0 << RK808_RAMP_RATE_OFFSET)
+#define RK808_RAMP_RATE_4MV_PER_US	(1 << RK808_RAMP_RATE_OFFSET)
+#define RK808_RAMP_RATE_6MV_PER_US	(2 << RK808_RAMP_RATE_OFFSET)
+#define RK808_RAMP_RATE_10MV_PER_US	(3 << RK808_RAMP_RATE_OFFSET)
+
+static const int rk808_buck_config_regs[] = {
+	RK808_BUCK1_CONFIG_REG,
+	RK808_BUCK2_CONFIG_REG,
+	RK808_BUCK3_CONFIG_REG,
+	RK808_BUCK4_CONFIG_REG,
+};
+
 static const struct regulator_linear_range rk808_buck_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0, 63, 12500),
 };
@@ -47,6 +62,44 @@ static const struct regulator_linear_range rk808_ldo3_voltage_ranges[] = {
 
 static const struct regulator_linear_range rk808_ldo6_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0, 17, 100000),
+};
+
+static int rk808_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
+{
+	unsigned int ramp_value = RK808_RAMP_RATE_10MV_PER_US;
+	unsigned int reg = rk808_buck_config_regs[rdev->desc->id -
+						  RK808_ID_DCDC1];
+
+	switch (ramp_delay) {
+	case 1 ... 2000:
+		ramp_value = RK808_RAMP_RATE_2MV_PER_US;
+		break;
+	case 2001 ... 4000:
+		ramp_value = RK808_RAMP_RATE_4MV_PER_US;
+		break;
+	case 4001 ... 6000:
+		ramp_value = RK808_RAMP_RATE_6MV_PER_US;
+		break;
+	case 6001 ... 10000:
+		break;
+	default:
+		pr_warn("%s ramp_delay: %d not supported, setting 10000\n",
+			rdev->desc->name, ramp_delay);
+	}
+
+	return regmap_update_bits(rdev->regmap, reg,
+				  RK808_RAMP_RATE_MASK, ramp_value);
+}
+
+static struct regulator_ops rk808_buck1_2_ops = {
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_ramp_delay		= rk808_set_ramp_delay,
 };
 
 static struct regulator_ops rk808_reg_ops = {
@@ -70,7 +123,7 @@ static const struct regulator_desc rk808_reg[] = {
 		.name = "DCDC_REG1",
 		.supply_name = "vcc1",
 		.id = RK808_ID_DCDC1,
-		.ops = &rk808_reg_ops,
+		.ops = &rk808_buck1_2_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = 64,
 		.linear_ranges = rk808_buck_voltage_ranges,
@@ -84,7 +137,7 @@ static const struct regulator_desc rk808_reg[] = {
 		.name = "DCDC_REG2",
 		.supply_name = "vcc2",
 		.id = RK808_ID_DCDC2,
-		.ops = &rk808_reg_ops,
+		.ops = &rk808_buck1_2_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = 64,
 		.linear_ranges = rk808_buck_voltage_ranges,
