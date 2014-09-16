@@ -2890,23 +2890,23 @@ fec_enet_get_queue_num(struct platform_device *pdev, int *num_tx, int *num_rx)
 
 	/* parse the num of tx and rx queues */
 	err = of_property_read_u32(np, "fsl,num-tx-queues", num_tx);
-	err |= of_property_read_u32(np, "fsl,num-rx-queues", num_rx);
-	if (err) {
+	if (err)
 		*num_tx = 1;
+
+	err = of_property_read_u32(np, "fsl,num-rx-queues", num_rx);
+	if (err)
 		*num_rx = 1;
-		return;
-	}
 
 	if (*num_tx < 1 || *num_tx > FEC_ENET_MAX_TX_QS) {
-		dev_err(&pdev->dev, "Invalidate num_tx(=%d), fail back to 1\n",
-			*num_tx);
+		dev_warn(&pdev->dev, "Invalid num_tx(=%d), fall back to 1\n",
+			 *num_tx);
 		*num_tx = 1;
 		return;
 	}
 
 	if (*num_rx < 1 || *num_rx > FEC_ENET_MAX_RX_QS) {
-		dev_err(&pdev->dev, "Invalidate num_rx(=%d), fail back to 1\n",
-			*num_rx);
+		dev_warn(&pdev->dev, "Invalid num_rx(=%d), fall back to 1\n",
+			 *num_rx);
 		*num_rx = 1;
 		return;
 	}
@@ -2924,8 +2924,8 @@ fec_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	static int dev_id;
 	struct device_node *np = pdev->dev.of_node, *phy_node;
-	int num_tx_qs = 1;
-	int num_rx_qs = 1;
+	int num_tx_qs;
+	int num_rx_qs;
 
 	of_id = of_match_device(fec_dt_ids, &pdev->dev);
 	if (of_id)
