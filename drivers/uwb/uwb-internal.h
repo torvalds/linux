@@ -314,6 +314,7 @@ int uwb_radio_force_channel(struct uwb_rc *rc, int channel);
 
 /* -- UWB Sysfs representation */
 extern struct class uwb_rc_class;
+extern struct bus_type uwb_bus_type;
 extern struct device_attribute dev_attr_mac_address;
 extern struct device_attribute dev_attr_beacon;
 extern struct device_attribute dev_attr_scan;

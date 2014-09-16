@@ -255,6 +255,12 @@ static struct attribute *uwb_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(uwb_dev);
 
+/* UWB bus type. */
+struct bus_type uwb_bus_type = {
+	.name =		"uwb",
+	.dev_groups =	uwb_dev_groups,
+};
+
 /**
  * Device SYSFS registration
  */
@@ -263,10 +269,6 @@ static int __uwb_dev_sys_add(struct uwb_dev *uwb_dev, struct device *parent_dev)
 	struct device *dev;
 
 	dev = &uwb_dev->dev;
-	/* Device sysfs files are only useful for neighbor devices not
-	   local radio controllers. */
-	if (&uwb_dev->rc->uwb_dev != uwb_dev)
-		dev->groups = uwb_dev_groups;
 	dev->parent = parent_dev;
 	dev_set_drvdata(dev, uwb_dev);
 
@@ -428,6 +430,7 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 		return;
 	}
 	uwb_dev_init(uwb_dev);		/* This sets refcnt to one, we own it */
+	uwb_dev->dev.bus = &uwb_bus_type;
 	uwb_dev->mac_addr = *bce->mac_addr;
 	uwb_dev->dev_addr = bce->dev_addr;
 	dev_set_name(&uwb_dev->dev, "%s", macbuf);
