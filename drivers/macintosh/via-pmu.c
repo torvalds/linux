@@ -329,6 +329,7 @@ int __init find_via_pmu(void)
 				gaddr = of_translate_address(gpiop, reg);
 			if (gaddr != OF_BAD_ADDR)
 				gpio_reg = ioremap(gaddr, 0x10);
+			of_node_put(gpiop);
 		}
 		if (gpio_reg == NULL) {
 			printk(KERN_ERR "via-pmu: Can't find GPIO reg !\n");
