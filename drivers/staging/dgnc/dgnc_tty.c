@@ -67,7 +67,7 @@
  * internal variables
  */
 static struct dgnc_board	*dgnc_BoardsByMajor[256];
-static uchar		*dgnc_TmpWriteBuf = NULL;
+static uchar		*dgnc_TmpWriteBuf;
 static DECLARE_MUTEX(dgnc_TmpWriteSem);
 
 /*
