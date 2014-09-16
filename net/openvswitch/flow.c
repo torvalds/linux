@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2013 Nicira, Inc.
+ * Copyright (c) 2007-2014 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -16,8 +16,6 @@
  * 02110-1301, USA
  */
 
-#include "flow.h"
-#include "datapath.h"
 #include <linux/uaccess.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -45,6 +43,10 @@
 #include <net/ip_tunnels.h>
 #include <net/ipv6.h>
 #include <net/ndisc.h>
+
+#include "datapath.h"
+#include "flow.h"
+#include "flow_netlink.h"
 
 u64 ovs_flow_used_time(unsigned long flow_jiffies)
 {
@@ -420,10 +422,9 @@ invalid:
 }
 
 /**
- * ovs_flow_extract - extracts a flow key from an Ethernet frame.
+ * key_extract - extracts a flow key from an Ethernet frame.
  * @skb: sk_buff that contains the frame, with skb->data pointing to the
  * Ethernet header
- * @in_port: port number on which @skb was received.
  * @key: output flow key
  *
  * The caller must ensure that skb->len >= ETH_HLEN.
@@ -442,18 +443,10 @@ invalid:
  *      of a correct length, otherwise the same as skb->network_header.
  *      For other key->eth.type values it is left untouched.
  */
-int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
+static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 {
 	int error;
 	struct ethhdr *eth;
-
-	memset(key, 0, sizeof(*key));
-
-	key->phy.priority = skb->priority;
-	if (OVS_CB(skb)->tun_key)
-		memcpy(&key->tun_key, OVS_CB(skb)->tun_key, sizeof(key->tun_key));
-	key->phy.in_port = in_port;
-	key->phy.skb_mark = skb->mark;
 
 	skb_reset_mac_header(skb);
 
@@ -610,6 +603,40 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 			}
 		}
 	}
-
 	return 0;
+}
+
+int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	return key_extract(skb, key);
+}
+
+int ovs_flow_key_extract(struct ovs_key_ipv4_tunnel *tun_key,
+			 struct sk_buff *skb, struct sw_flow_key *key)
+{
+	/* Extract metadata from packet. */
+	memset(key, 0, sizeof(*key));
+	if (tun_key)
+		memcpy(&key->tun_key, tun_key, sizeof(key->tun_key));
+
+	key->phy.priority = skb->priority;
+	key->phy.in_port = OVS_CB(skb)->input_vport->port_no;
+	key->phy.skb_mark = skb->mark;
+
+	return key_extract(skb, key);
+}
+
+int ovs_flow_key_extract_userspace(const struct nlattr *attr,
+				   struct sk_buff *skb,
+				   struct sw_flow_key *key)
+{
+	int err;
+
+	memset(key, 0, sizeof(*key));
+	/* Extract metadata from netlink attributes. */
+	err = ovs_nla_get_flow_metadata(attr, key);
+	if (err)
+		return err;
+
+	return key_extract(skb, key);
 }
