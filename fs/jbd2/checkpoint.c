@@ -115,8 +115,6 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 
 	nblocks = jbd2_space_needed(journal);
 	while (jbd2_log_space_left(journal) < nblocks) {
-		if (journal->j_flags & JBD2_ABORT)
-			return;
 		write_unlock(&journal->j_state_lock);
 		mutex_lock(&journal->j_checkpoint_mutex);
 
@@ -132,6 +130,10 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 		 * trace for forensic evidence.
 		 */
 		write_lock(&journal->j_state_lock);
+		if (journal->j_flags & JBD2_ABORT) {
+			mutex_unlock(&journal->j_checkpoint_mutex);
+			return;
+		}
 		spin_lock(&journal->j_list_lock);
 		nblocks = jbd2_space_needed(journal);
 		space_left = jbd2_log_space_left(journal);
