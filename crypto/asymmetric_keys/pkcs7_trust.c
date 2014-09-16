@@ -55,13 +55,16 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 		 * keys.
 		 */
 		key = x509_request_asymmetric_key(trust_keyring, x509->id);
-		if (!IS_ERR(key))
+		if (!IS_ERR(key)) {
 			/* One of the X.509 certificates in the PKCS#7 message
 			 * is apparently the same as one we already trust.
 			 * Verify that the trusted variant can also validate
 			 * the signature on the descendant.
 			 */
+			pr_devel("sinfo %u: Cert %u as key %x\n",
+				 sinfo->index, x509->index, key_serial(key));
 			goto matched;
+		}
 		if (key == ERR_PTR(-ENOMEM))
 			return -ENOMEM;
 
@@ -81,15 +84,34 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 	/* No match - see if the root certificate has a signer amongst the
 	 * trusted keys.
 	 */
-	if (!last || !last->issuer || !last->authority) {
-		kleave(" = -ENOKEY [no backref]");
-		return -ENOKEY;
+	if (last && last->authority) {
+		key = x509_request_asymmetric_key(trust_keyring, last->authority);
+		if (!IS_ERR(key)) {
+			x509 = last;
+			pr_devel("sinfo %u: Root cert %u signer is key %x\n",
+				 sinfo->index, x509->index, key_serial(key));
+			goto matched;
+		}
+		if (PTR_ERR(key) != -ENOKEY)
+			return PTR_ERR(key);
 	}
 
-	key = x509_request_asymmetric_key(trust_keyring, last->authority);
-	if (IS_ERR(key))
-		return PTR_ERR(key) == -ENOMEM ? -ENOMEM : -ENOKEY;
-	x509 = last;
+	/* As a last resort, see if we have a trusted public key that matches
+	 * the signed info directly.
+	 */
+	key = x509_request_asymmetric_key(trust_keyring,
+					  sinfo->signing_cert_id);
+	if (!IS_ERR(key)) {
+		pr_devel("sinfo %u: Direct signer is key %x\n",
+			 sinfo->index, key_serial(key));
+		x509 = NULL;
+		goto matched;
+	}
+	if (PTR_ERR(key) != -ENOKEY)
+		return PTR_ERR(key);
+
+	kleave(" = -ENOKEY [no backref]");
+	return -ENOKEY;
 
 matched:
 	ret = verify_signature(key, sig);
@@ -103,10 +125,12 @@ matched:
 	}
 
 verified:
-	x509->verified = true;
-	for (p = sinfo->signer; p != x509; p = p->signer) {
-		p->verified = true;
-		p->trusted = trusted;
+	if (x509) {
+		x509->verified = true;
+		for (p = sinfo->signer; p != x509; p = p->signer) {
+			p->verified = true;
+			p->trusted = trusted;
+		}
 	}
 	sinfo->trusted = trusted;
 	kleave(" = 0");

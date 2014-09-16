@@ -154,10 +154,13 @@ static int pkcs7_find_key(struct pkcs7_message *pkcs7,
 		return 0;
 	}
 
-	pr_warn("Sig %u: Issuing X.509 cert not found (#%*ph)\n",
-		sinfo->index,
-		sinfo->signing_cert_id->len, sinfo->signing_cert_id->data);
-	return -ENOKEY;
+	/* The relevant X.509 cert isn't found here, but it might be found in
+	 * the trust keyring.
+	 */
+	pr_debug("Sig %u: Issuing X.509 cert not found (#%*phN)\n",
+		 sinfo->index,
+		 sinfo->signing_cert_id->len, sinfo->signing_cert_id->data);
+	return 0;
 }
 
 /*
@@ -275,10 +278,13 @@ static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
 	if (ret < 0)
 		return ret;
 
-	/* Find the key for the signature */
+	/* Find the key for the signature if there is one */
 	ret = pkcs7_find_key(pkcs7, sinfo);
 	if (ret < 0)
 		return ret;
+
+	if (!sinfo->signer)
+		return 0;
 
 	pr_devel("Using X.509[%u] for sig %u\n",
 		 sinfo->signer->index, sinfo->index);
