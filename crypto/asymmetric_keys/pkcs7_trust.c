@@ -49,8 +49,7 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 		/* Look to see if this certificate is present in the trusted
 		 * keys.
 		 */
-		key = x509_request_asymmetric_key(trust_keyring, x509->subject,
-						  x509->fingerprint);
+		key = x509_request_asymmetric_key(trust_keyring, x509->id);
 		if (!IS_ERR(key))
 			/* One of the X.509 certificates in the PKCS#7 message
 			 * is apparently the same as one we already trust.
@@ -82,8 +81,7 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 		return -ENOKEY;
 	}
 
-	key = x509_request_asymmetric_key(trust_keyring, last->issuer,
-					  last->authority);
+	key = x509_request_asymmetric_key(trust_keyring, last->authority);
 	if (IS_ERR(key))
 		return PTR_ERR(key) == -ENOMEM ? -ENOMEM : -ENOKEY;
 	x509 = last;

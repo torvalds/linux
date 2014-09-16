@@ -33,10 +33,7 @@ struct pkcs7_signed_info {
 	const void	*authattrs;
 
 	/* Issuing cert serial number and issuer's name */
-	const void	*raw_serial;
-	unsigned	raw_serial_size;
-	unsigned	raw_issuer_size;
-	const void	*raw_issuer;
+	struct asymmetric_key_id *signing_cert_id;
 
 	/* Message signature.
 	 *

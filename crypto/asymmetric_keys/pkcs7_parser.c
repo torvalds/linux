@@ -29,6 +29,10 @@ struct pkcs7_parse_context {
 	enum OID	last_oid;		/* Last OID encountered */
 	unsigned	x509_index;
 	unsigned	sinfo_index;
+	const void	*raw_serial;
+	unsigned	raw_serial_size;
+	unsigned	raw_issuer_size;
+	const void	*raw_issuer;
 };
 
 /*
@@ -39,6 +43,7 @@ static void pkcs7_free_signed_info(struct pkcs7_signed_info *sinfo)
 	if (sinfo) {
 		mpi_free(sinfo->sig.mpi[0]);
 		kfree(sinfo->sig.digest);
+		kfree(sinfo->signing_cert_id);
 		kfree(sinfo);
 	}
 }
@@ -251,10 +256,10 @@ int pkcs7_extract_cert(void *context, size_t hdrlen,
 	if (IS_ERR(x509))
 		return PTR_ERR(x509);
 
-	pr_debug("Got cert for %s\n", x509->subject);
-	pr_debug("- fingerprint %s\n", x509->fingerprint);
-
 	x509->index = ++ctx->x509_index;
+	pr_debug("Got cert %u for %s\n", x509->index, x509->subject);
+	pr_debug("- fingerprint %*phN\n", x509->id->len, x509->id->data);
+
 	*ctx->ppcerts = x509;
 	ctx->ppcerts = &x509->next;
 	return 0;
@@ -343,8 +348,8 @@ int pkcs7_sig_note_serial(void *context, size_t hdrlen,
 			  const void *value, size_t vlen)
 {
 	struct pkcs7_parse_context *ctx = context;
-	ctx->sinfo->raw_serial = value;
-	ctx->sinfo->raw_serial_size = vlen;
+	ctx->raw_serial = value;
+	ctx->raw_serial_size = vlen;
 	return 0;
 }
 
@@ -356,8 +361,8 @@ int pkcs7_sig_note_issuer(void *context, size_t hdrlen,
 			  const void *value, size_t vlen)
 {
 	struct pkcs7_parse_context *ctx = context;
-	ctx->sinfo->raw_issuer = value;
-	ctx->sinfo->raw_issuer_size = vlen;
+	ctx->raw_issuer = value;
+	ctx->raw_issuer_size = vlen;
 	return 0;
 }
 
@@ -390,10 +395,21 @@ int pkcs7_note_signed_info(void *context, size_t hdrlen,
 			   const void *value, size_t vlen)
 {
 	struct pkcs7_parse_context *ctx = context;
+	struct pkcs7_signed_info *sinfo = ctx->sinfo;
+	struct asymmetric_key_id *kid;
 
-	ctx->sinfo->index = ++ctx->sinfo_index;
-	*ctx->ppsinfo = ctx->sinfo;
-	ctx->ppsinfo = &ctx->sinfo->next;
+	/* Generate cert issuer + serial number key ID */
+	kid = asymmetric_key_generate_id(ctx->raw_serial,
+					 ctx->raw_serial_size,
+					 ctx->raw_issuer,
+					 ctx->raw_issuer_size);
+	if (IS_ERR(kid))
+		return PTR_ERR(kid);
+
+	sinfo->signing_cert_id = kid;
+	sinfo->index = ++ctx->sinfo_index;
+	*ctx->ppsinfo = sinfo;
+	ctx->ppsinfo = &sinfo->next;
 	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
 	if (!ctx->sinfo)
 		return -ENOMEM;
