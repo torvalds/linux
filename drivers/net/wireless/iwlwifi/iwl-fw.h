@@ -150,6 +150,10 @@ struct iwl_fw_cscheme_list {
  * @mvm_fw: indicates this is MVM firmware
  * @cipher_scheme: optional external cipher scheme.
  * @human_readable: human readable version
+ * @dbg_dest_tlv: points to the destination TLV for debug
+ * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
+ * @dbg_conf_tlv_len: lengths of the @dbg_conf_tlv entries
+ * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
  */
 struct iwl_fw {
 	u32 ucode_ver;
@@ -174,6 +178,57 @@ struct iwl_fw {
 
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
+
+	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
+	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
+	size_t dbg_conf_tlv_len[FW_DBG_MAX];
+
+	u8 dbg_dest_reg_num;
 };
+
+static inline const char *get_fw_dbg_mode_string(int mode)
+{
+	switch (mode) {
+	case SMEM_MODE:
+		return "SMEM";
+	case EXTERNAL_MODE:
+		return "EXTERNAL_DRAM";
+	case MARBH_MODE:
+		return "MARBH";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static inline const struct iwl_fw_dbg_trigger *
+iwl_fw_dbg_conf_get_trigger(const struct iwl_fw *fw, u8 id)
+{
+	const struct iwl_fw_dbg_conf_tlv *conf_tlv = fw->dbg_conf_tlv[id];
+	u8 *ptr;
+	int i;
+
+	if (!conf_tlv)
+		return NULL;
+
+	ptr = (void *)&conf_tlv->hcmd;
+	for (i = 0; i < conf_tlv->num_of_hcmds; i++) {
+		ptr += sizeof(conf_tlv->hcmd);
+		ptr += le16_to_cpu(conf_tlv->hcmd.len);
+	}
+
+	return (const struct iwl_fw_dbg_trigger *)ptr;
+}
+
+static inline bool
+iwl_fw_dbg_conf_enabled(const struct iwl_fw *fw, u8 id)
+{
+	const struct iwl_fw_dbg_trigger *trigger =
+		iwl_fw_dbg_conf_get_trigger(fw, id);
+
+	if (!trigger)
+		return false;
+
+	return trigger->enabled;
+}
 
 #endif  /* __iwl_fw_h__ */

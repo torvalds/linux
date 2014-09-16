@@ -131,6 +131,8 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_API_CHANGES_SET	= 29,
 	IWL_UCODE_TLV_ENABLED_CAPABILITIES	= 30,
 	IWL_UCODE_TLV_N_SCAN_CHANNELS		= 31,
+	IWL_UCODE_TLV_FW_DBG_DEST	= 38,
+	IWL_UCODE_TLV_FW_DBG_CONF	= 39,
 };
 
 struct iwl_ucode_tlv {
@@ -360,6 +362,128 @@ struct iwl_fw_cipher_scheme {
 	u8 key_idx_shift;
 	u8 mic_len;
 	u8 hw_cipher;
+} __packed;
+
+enum iwl_fw_dbg_reg_operator {
+	CSR_ASSIGN,
+	CSR_SETBIT,
+	CSR_CLEARBIT,
+
+	PRPH_ASSIGN,
+	PRPH_SETBIT,
+	PRPH_CLEARBIT,
+};
+
+/**
+ * struct iwl_fw_dbg_reg_op - an operation on a register
+ *
+ * @op: %enum iwl_fw_dbg_reg_operator
+ * @addr: offset of the register
+ * @val: value
+ */
+struct iwl_fw_dbg_reg_op {
+	u8 op;
+	u8 reserved[3];
+	__le32 addr;
+	__le32 val;
+} __packed;
+
+/**
+ * enum iwl_fw_dbg_monitor_mode - available monitor recording modes
+ *
+ * @SMEM_MODE: monitor stores the data in SMEM
+ * @EXTERNAL_MODE: monitor stores the data in allocated DRAM
+ * @MARBH_MODE: monitor stores the data in MARBH buffer
+ */
+enum iwl_fw_dbg_monitor_mode {
+	SMEM_MODE = 0,
+	EXTERNAL_MODE = 1,
+	MARBH_MODE = 2,
+};
+
+/**
+ * struct iwl_fw_dbg_dest_tlv - configures the destination of the debug data
+ *
+ * @version: version of the TLV - currently 0
+ * @monitor_mode: %enum iwl_fw_dbg_monitor_mode
+ * @base_reg: addr of the base addr register (PRPH)
+ * @end_reg:  addr of the end addr register (PRPH)
+ * @write_ptr_reg: the addr of the reg of the write pointer
+ * @wrap_count: the addr of the reg of the wrap_count
+ * @base_shift: shift right of the base addr reg
+ * @end_shift: shift right of the end addr reg
+ * @reg_ops: array of registers operations
+ *
+ * This parses IWL_UCODE_TLV_FW_DBG_DEST
+ */
+struct iwl_fw_dbg_dest_tlv {
+	u8 version;
+	u8 monitor_mode;
+	u8 reserved[2];
+	__le32 base_reg;
+	__le32 end_reg;
+	__le32 write_ptr_reg;
+	__le32 wrap_count;
+	u8 base_shift;
+	u8 end_shift;
+	struct iwl_fw_dbg_reg_op reg_ops[0];
+} __packed;
+
+struct iwl_fw_dbg_conf_hcmd {
+	u8 id;
+	u8 reserved;
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_trigger - a TLV that describes a debug configuration
+ *
+ * @enabled: is this trigger enabled
+ * @reserved:
+ * @len: length, in bytes, of the %trigger field
+ * @trigger: pointer to a trigger struct
+ */
+struct iwl_fw_dbg_trigger {
+	u8 enabled;
+	u8 reserved;
+	u8 len;
+	u8 trigger[0];
+} __packed;
+
+/**
+ * enum iwl_fw_dbg_conf - configurations available
+ *
+ * @FW_DBG_CUSTOM: take this configuration from alive
+ *	Note that the trigger is NO-OP for this configuration
+ */
+enum iwl_fw_dbg_conf {
+	FW_DBG_CUSTOM = 0,
+
+	/* must be last */
+	FW_DBG_MAX,
+	FW_DBG_INVALID = 0xff,
+};
+
+/**
+ * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration
+ *
+ * @id: %enum iwl_fw_dbg_conf
+ * @usniffer: should the uSniffer image be used
+ * @num_of_hcmds: how many HCMDs to send are present here
+ * @hcmd: a variable length host command to be sent to apply the configuration.
+ *	If there is more than one HCMD to send, they will appear one after the
+ *	other and be sent in the order that they appear in.
+ * This parses IWL_UCODE_TLV_FW_DBG_CONF
+ */
+struct iwl_fw_dbg_conf_tlv {
+	u8 id;
+	u8 usniffer;
+	u8 reserved;
+	u8 num_of_hcmds;
+	struct iwl_fw_dbg_conf_hcmd hcmd;
+
+	/* struct iwl_fw_dbg_trigger sits after all variable length hcmds */
 } __packed;
 
 #endif  /* __iwl_fw_file_h__ */
