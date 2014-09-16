@@ -272,8 +272,8 @@ static ssize_t xpcs_reg_value_read(struct file *filp, char __user *buffer,
 	struct xgbe_prv_data *pdata = filp->private_data;
 	unsigned int value;
 
-	value = pdata->hw_if.read_mmd_regs(pdata, pdata->debugfs_xpcs_mmd,
-					   pdata->debugfs_xpcs_reg);
+	value = XMDIO_READ(pdata, pdata->debugfs_xpcs_mmd,
+			   pdata->debugfs_xpcs_reg);
 
 	return xgbe_common_read(buffer, count, ppos, value);
 }
@@ -290,8 +290,8 @@ static ssize_t xpcs_reg_value_write(struct file *filp,
 	if (len < 0)
 		return len;
 
-	pdata->hw_if.write_mmd_regs(pdata, pdata->debugfs_xpcs_mmd,
-				    pdata->debugfs_xpcs_reg, value);
+	XMDIO_WRITE(pdata, pdata->debugfs_xpcs_mmd, pdata->debugfs_xpcs_reg,
+		    value);
 
 	return len;
 }
