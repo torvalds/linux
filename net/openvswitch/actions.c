@@ -510,7 +510,7 @@ static int execute_set_action(struct sk_buff *skb,
 		break;
 
 	case OVS_KEY_ATTR_IPV4_TUNNEL:
-		OVS_CB(skb)->tun_key = nla_data(nested_attr);
+		OVS_CB(skb)->egress_tun_key = nla_data(nested_attr);
 		break;
 
 	case OVS_KEY_ATTR_ETHERNET:
@@ -613,7 +613,6 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 {
 	struct sw_flow_actions *acts = rcu_dereference(OVS_CB(skb)->flow->sf_acts);
 
-	OVS_CB(skb)->tun_key = NULL;
 	return do_execute_actions(dp, skb, key,
 				  acts->actions, acts->actions_len);
 }

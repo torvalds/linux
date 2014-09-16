@@ -606,12 +606,13 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 	return 0;
 }
 
-int ovs_flow_key_extract(struct sk_buff *skb, struct sw_flow_key *key)
+int ovs_flow_key_extract(struct ovs_key_ipv4_tunnel *tun_key,
+			 struct sk_buff *skb, struct sw_flow_key *key)
 {
 	/* Extract metadata from packet. */
 	memset(key, 0, sizeof(*key));
-	if (OVS_CB(skb)->tun_key)
-		memcpy(&key->tun_key, OVS_CB(skb)->tun_key, sizeof(key->tun_key));
+	if (tun_key)
+		memcpy(&key->tun_key, tun_key, sizeof(key->tun_key));
 
 	key->phy.priority = skb->priority;
 	key->phy.in_port = OVS_CB(skb)->input_vport->port_no;
