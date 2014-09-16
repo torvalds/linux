@@ -95,13 +95,11 @@ struct datapath {
 /**
  * struct ovs_skb_cb - OVS data in skb CB
  * @flow: The flow associated with this packet.  May be %NULL if no flow.
- * @pkt_key: The flow information extracted from the packet.  Must be nonnull.
  * @tun_key: Key for the tunnel that encapsulated this packet. NULL if the
  * packet is not being tunneled.
  */
 struct ovs_skb_cb {
 	struct sw_flow		*flow;
-	struct sw_flow_key	*pkt_key;
 	struct ovs_key_ipv4_tunnel  *tun_key;
 };
 #define OVS_CB(skb) ((struct ovs_skb_cb *)(skb)->cb)
@@ -191,7 +189,8 @@ int ovs_dp_upcall(struct datapath *, struct sk_buff *,
 struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
 					 u8 cmd);
 
-int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb);
+int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
+			struct sw_flow_key *);
 void ovs_dp_notify_wq(struct work_struct *work);
 
 #define OVS_NLERR(fmt, ...)					\

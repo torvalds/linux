@@ -38,6 +38,7 @@
 #include "vport.h"
 
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
+			      struct sw_flow_key *key,
 			      const struct nlattr *attr, int len);
 
 static int make_writable(struct sk_buff *skb, int write_len)
@@ -410,16 +411,14 @@ static int do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
 }
 
 static int output_userspace(struct datapath *dp, struct sk_buff *skb,
-			    const struct nlattr *attr)
+			    struct sw_flow_key *key, const struct nlattr *attr)
 {
 	struct dp_upcall_info upcall;
 	const struct nlattr *a;
 	int rem;
 
-	BUG_ON(!OVS_CB(skb)->pkt_key);
-
 	upcall.cmd = OVS_PACKET_CMD_ACTION;
-	upcall.key = OVS_CB(skb)->pkt_key;
+	upcall.key = key;
 	upcall.userdata = NULL;
 	upcall.portid = 0;
 
@@ -445,7 +444,7 @@ static bool last_action(const struct nlattr *a, int rem)
 }
 
 static int sample(struct datapath *dp, struct sk_buff *skb,
-		  const struct nlattr *attr)
+		  struct sw_flow_key *key, const struct nlattr *attr)
 {
 	const struct nlattr *acts_list = NULL;
 	const struct nlattr *a;
@@ -493,7 +492,7 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 	 * return the error code and let the caller (also
 	 * do_execute_actions()) free skb on error.
 	 */
-	return do_execute_actions(dp, sample_skb, a, rem);
+	return do_execute_actions(dp, sample_skb, key, a, rem);
 }
 
 static int execute_set_action(struct sk_buff *skb,
@@ -544,6 +543,7 @@ static int execute_set_action(struct sk_buff *skb,
 
 /* Execute a list of actions against 'skb'. */
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
+			      struct sw_flow_key *key,
 			      const struct nlattr *attr, int len)
 {
 	/* Every output action needs a separate clone of 'skb', but the common
@@ -569,7 +569,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			break;
 
 		case OVS_ACTION_ATTR_USERSPACE:
-			output_userspace(dp, skb, a);
+			output_userspace(dp, skb, key, a);
 			break;
 
 		case OVS_ACTION_ATTR_PUSH_VLAN:
@@ -587,7 +587,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			break;
 
 		case OVS_ACTION_ATTR_SAMPLE:
-			err = sample(dp, skb, a);
+			err = sample(dp, skb, key, a);
 			if (unlikely(err)) /* skb already freed. */
 				return err;
 			break;
@@ -608,10 +608,12 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 }
 
 /* Execute a list of actions against 'skb'. */
-int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb)
+int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
+			struct sw_flow_key *key)
 {
 	struct sw_flow_actions *acts = rcu_dereference(OVS_CB(skb)->flow->sf_acts);
 
 	OVS_CB(skb)->tun_key = NULL;
-	return do_execute_actions(dp, skb, acts->actions, acts->actions_len);
+	return do_execute_actions(dp, skb, key,
+				  acts->actions, acts->actions_len);
 }
