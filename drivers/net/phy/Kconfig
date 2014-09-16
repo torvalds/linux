@@ -127,6 +127,11 @@ config FIXED_PHY
 
 	  Currently tested with mpc866ads and mpc8349e-mitx.
 
+config TLK106_PHY
+	tristate "Driver for TI TLK106 PHYs"
+	---help---
+	  Supports the TI TLK106 PHYs.
+
 config MDIO_BITBANG
 	tristate "Support for bitbanged MDIO buses"
 	help
