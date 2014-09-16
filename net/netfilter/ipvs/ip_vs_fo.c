@@ -44,7 +44,7 @@ ip_vs_fo_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 
 	if (hweight) {
 		IP_VS_DBG_BUF(6, "FO: server %s:%u activeconns %d weight %d\n",
-			      IP_VS_DBG_ADDR(svc->af, &hweight->addr),
+			      IP_VS_DBG_ADDR(hweight->af, &hweight->addr),
 			      ntohs(hweight->port),
 			      atomic_read(&hweight->activeconns),
 			      atomic_read(&hweight->weight));
