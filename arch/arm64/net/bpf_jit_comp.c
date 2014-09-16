@@ -19,12 +19,13 @@
 #define pr_fmt(fmt) "bpf_jit: " fmt
 
 #include <linux/filter.h>
-#include <linux/moduleloader.h>
 #include <linux/printk.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
+
 #include <asm/byteorder.h>
 #include <asm/cacheflush.h>
+#include <asm/debug-monitors.h>
 
 #include "bpf_jit.h"
 
@@ -117,6 +118,14 @@ static inline int bpf2a64_offset(int bpf_to, int bpf_from,
 	int from = ctx->offset[bpf_from + 1] - 1;
 
 	return to - from;
+}
+
+static void jit_fill_hole(void *area, unsigned int size)
+{
+	u32 *ptr;
+	/* We are guaranteed to have aligned memory. */
+	for (ptr = area; size >= sizeof(u32); size -= sizeof(u32))
+		*ptr++ = cpu_to_le32(AARCH64_BREAK_FAULT);
 }
 
 static inline int epilogue_offset(const struct jit_ctx *ctx)
@@ -613,8 +622,10 @@ void bpf_jit_compile(struct bpf_prog *prog)
 
 void bpf_int_jit_compile(struct bpf_prog *prog)
 {
+	struct bpf_binary_header *header;
 	struct jit_ctx ctx;
 	int image_size;
+	u8 *image_ptr;
 
 	if (!bpf_jit_enable)
 		return;
@@ -636,23 +647,25 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		goto out;
 
 	build_prologue(&ctx);
-
 	build_epilogue(&ctx);
 
 	/* Now we know the actual image size. */
 	image_size = sizeof(u32) * ctx.idx;
-	ctx.image = module_alloc(image_size);
-	if (unlikely(ctx.image == NULL))
+	header = bpf_jit_binary_alloc(image_size, &image_ptr,
+				      sizeof(u32), jit_fill_hole);
+	if (header == NULL)
 		goto out;
 
 	/* 2. Now, the actual pass. */
 
+	ctx.image = (u32 *)image_ptr;
 	ctx.idx = 0;
+
 	build_prologue(&ctx);
 
 	ctx.body_offset = ctx.idx;
 	if (build_body(&ctx)) {
-		module_free(NULL, ctx.image);
+		bpf_jit_binary_free(header);
 		goto out;
 	}
 
@@ -663,17 +676,25 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		bpf_jit_dump(prog->len, image_size, 2, ctx.image);
 
 	bpf_flush_icache(ctx.image, ctx.image + ctx.idx);
+
+	set_memory_ro((unsigned long)header, header->pages);
 	prog->bpf_func = (void *)ctx.image;
 	prog->jited = 1;
-
 out:
 	kfree(ctx.offset);
 }
 
 void bpf_jit_free(struct bpf_prog *prog)
 {
-	if (prog->jited)
-		module_free(NULL, prog->bpf_func);
+	unsigned long addr = (unsigned long)prog->bpf_func & PAGE_MASK;
+	struct bpf_binary_header *header = (void *)addr;
 
-	kfree(prog);
+	if (!prog->jited)
+		goto free_filter;
+
+	set_memory_rw(addr, header->pages);
+	bpf_jit_binary_free(header);
+
+free_filter:
+	bpf_prog_unlock_free(prog);
 }
