@@ -240,7 +240,8 @@ static int smiapp_pll_configure(struct smiapp_sensor *sensor)
 		sensor, SMIAPP_REG_U16_OP_SYS_CLK_DIV, pll->op.sys_clk_div);
 }
 
-static int smiapp_pll_update(struct smiapp_sensor *sensor)
+static int smiapp_pll_try(struct smiapp_sensor *sensor,
+			  struct smiapp_pll *pll)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct smiapp_pll_limits lim = {
@@ -274,6 +275,12 @@ static int smiapp_pll_update(struct smiapp_sensor *sensor)
 		.min_line_length_pck_bin = sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK_BIN],
 		.min_line_length_pck = sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK],
 	};
+
+	return smiapp_pll_calculate(&client->dev, &lim, pll);
+}
+
+static int smiapp_pll_update(struct smiapp_sensor *sensor)
+{
 	struct smiapp_pll *pll = &sensor->pll;
 	int rval;
 
@@ -284,7 +291,7 @@ static int smiapp_pll_update(struct smiapp_sensor *sensor)
 	pll->scale_m = sensor->scale_m;
 	pll->bits_per_pixel = sensor->csi_format->compressed;
 
-	rval = smiapp_pll_calculate(&client->dev, &lim, pll);
+	rval = smiapp_pll_try(sensor, pll);
 	if (rval < 0)
 		return rval;
 
