@@ -400,13 +400,23 @@ static void iommu_page_fault_done(void __iomem *base, const char *dbgname)
 
 static bool iommu_zap_tlb(void __iomem *base)
 {
-	bool stall_success = iommu_enable_stall(base);
+	bool stall_success;
+
+	if (rk312x_vop_mmu_base != base)
+		stall_success = iommu_enable_stall(base);
+	else
+		stall_success = true;
 
 	__raw_writel(IOMMU_COMMAND_ZAP_CACHE,
 		     base + IOMMU_REGISTER_COMMAND);
 	if (!stall_success)
 		return false;
-	iommu_disable_stall(base);
+
+	if (rk312x_vop_mmu_base != base)
+		iommu_disable_stall(base);
+	else
+		return true;
+
 	return true;
 }
 extern bool __clk_is_enabled(struct clk *clk);
@@ -461,10 +471,14 @@ static bool iommu_reset(void __iomem *base, const char *dbgname)
 		return err;
 	}
 	err = iommu_raw_reset(base);
-	if (err)
-		__raw_writel(IOMMU_INTERRUPT_PAGE_FAULT |
+	if (err) {
+		if (base != rk312x_vop_mmu_base)
+			__raw_writel(IOMMU_INTERRUPT_PAGE_FAULT |
 			     IOMMU_INTERRUPT_READ_BUS_ERROR,
 			     base+IOMMU_REGISTER_INT_MASK);
+		else
+			__raw_writel(0x00, base + IOMMU_REGISTER_INT_MASK);
+	}
 	iommu_disable_stall(base);
 	if (!err)
 		pr_info("%s: failed: %s\n", __func__, dbgname);
@@ -1247,6 +1261,10 @@ for (i = 0; i < pdev->num_resources; i++, res++) {
 		if (ret <= 0) {
 			dev_err(dev,"Unable to find IRQ resource\n");
 			goto err_irq;
+		}
+		if (cpu_is_rk312x() && strstr(data->dbgname, "vop")) {
+			dev_info(dev, "skip request vop mmu irq\n");
+			continue;
 		}
 		ret = devm_request_irq(dev, ret, rockchip_iommu_irq,
 				  IRQF_SHARED, dev_name(dev), data);
