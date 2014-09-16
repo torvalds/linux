@@ -45,7 +45,7 @@ static struct omap_prcm_irq_setup omap3_prcm_irq_setup = {
 	.ocp_barrier		= &omap3xxx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap3xxx_prm_save_and_clear_irqen,
 	.restore_irqen		= &omap3xxx_prm_restore_irqen,
-	.reconfigure_io_chain	= &omap3xxx_prm_reconfigure_io_chain,
+	.reconfigure_io_chain	= NULL,
 };
 
 /*
@@ -369,15 +369,30 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 }
 
 /**
- * omap3xxx_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
+ * omap3430_pre_es3_1_reconfigure_io_chain - restart wake-up daisy chain
+ *
+ * The ST_IO_CHAIN bit does not exist in 3430 before es3.1. The only
+ * thing we can do is toggle EN_IO bit for earlier omaps.
+ */
+void omap3430_pre_es3_1_reconfigure_io_chain(void)
+{
+	omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
+				     PM_WKEN);
+	omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
+				   PM_WKEN);
+	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKEN);
+}
+
+/**
+ * omap3_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
  *
  * Clear any previously-latched I/O wakeup events and ensure that the
  * I/O wakeup gates are aligned with the current mux settings.  Works
  * by asserting WUCLKIN, waiting for WUCLKOUT to be asserted, and then
  * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  No
- * return value.
+ * return value. These registers are only available in 3430 es3.1 and later.
  */
-void omap3xxx_prm_reconfigure_io_chain(void)
+void omap3_prm_reconfigure_io_chain(void)
 {
 	int i = 0;
 
@@ -397,6 +412,15 @@ void omap3xxx_prm_reconfigure_io_chain(void)
 				   PM_WKST);
 
 	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST);
+}
+
+/**
+ * omap3xxx_prm_reconfigure_io_chain - reconfigure I/O chain
+ */
+void omap3xxx_prm_reconfigure_io_chain(void)
+{
+	if (omap3_prcm_irq_setup.reconfigure_io_chain)
+		omap3_prcm_irq_setup.reconfigure_io_chain();
 }
 
 /**
@@ -655,6 +679,13 @@ static int omap3xxx_prm_late_init(void)
 
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
+
+	if (omap3_has_io_chain_ctrl())
+		omap3_prcm_irq_setup.reconfigure_io_chain =
+			omap3_prm_reconfigure_io_chain;
+	else
+		omap3_prcm_irq_setup.reconfigure_io_chain =
+			omap3430_pre_es3_1_reconfigure_io_chain;
 
 	omap3xxx_prm_enable_io_wakeup();
 	ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
