@@ -309,10 +309,10 @@ int uvcg_video_pump(struct uvc_video *video)
 		/* Retrieve the first available video buffer and fill the
 		 * request, protected by the video queue irqlock.
 		 */
-		spin_lock_irqsave(&video->queue.irqlock, flags);
-		buf = uvcg_queue_head(&video->queue);
+		spin_lock_irqsave(&queue->irqlock, flags);
+		buf = uvcg_queue_head(queue);
 		if (buf == NULL) {
-			spin_unlock_irqrestore(&video->queue.irqlock, flags);
+			spin_unlock_irqrestore(&queue->irqlock, flags);
 			break;
 		}
 
@@ -323,11 +323,11 @@ int uvcg_video_pump(struct uvc_video *video)
 		if (ret < 0) {
 			printk(KERN_INFO "Failed to queue request (%d)\n", ret);
 			usb_ep_set_halt(video->ep);
-			spin_unlock_irqrestore(&video->queue.irqlock, flags);
+			spin_unlock_irqrestore(&queue->irqlock, flags);
 			uvcg_queue_cancel(queue, 0);
 			break;
 		}
-		spin_unlock_irqrestore(&video->queue.irqlock, flags);
+		spin_unlock_irqrestore(&queue->irqlock, flags);
 	}
 
 	spin_lock_irqsave(&video->req_lock, flags);
