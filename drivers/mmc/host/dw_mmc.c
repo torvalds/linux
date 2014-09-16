@@ -2220,10 +2220,6 @@ static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 {
 	return 0;
 }
-static struct device_node *dw_mci_of_find_slot_node(struct device *dev, u8 slot)
-{
-	return NULL;
-}
 #endif /* CONFIG_OF */
 
 static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
