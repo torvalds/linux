@@ -110,12 +110,24 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_features *features = &wacom->wacom_wac.features;
+	u8 *data;
+	int ret;
 
 	switch (usage->hid) {
 	case HID_DG_CONTACTMAX:
 		/* leave touch_max as is if predefined */
-		if (!features->touch_max)
-			features->touch_max = field->value[0];
+		if (!features->touch_max) {
+			/* read manually */
+			data = kzalloc(2, GFP_KERNEL);
+			if (!data)
+				break;
+			data[0] = field->report->id;
+			ret = wacom_get_report(hdev, HID_FEATURE_REPORT,
+						data, 2, 0);
+			if (ret == 2)
+				features->touch_max = data[1];
+			kfree(data);
+		}
 		break;
 	}
 }
@@ -1279,6 +1291,8 @@ static int wacom_probe(struct hid_device *hdev,
 
 	if (!id->driver_data)
 		return -EINVAL;
+
+	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
 
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
 	if (!wacom)
