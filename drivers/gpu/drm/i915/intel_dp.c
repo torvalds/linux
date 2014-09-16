@@ -3807,21 +3807,32 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(intel_dig_port->base.base.crtc);
-	u8 buf[1];
+	u8 buf;
+	int test_crc_count;
+	int attempts = 6;
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, buf) < 0)
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
 		return -EIO;
 
-	if (!(buf[0] & DP_TEST_CRC_SUPPORTED))
+	if (!(buf & DP_TEST_CRC_SUPPORTED))
 		return -ENOTTY;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
 			       DP_TEST_SINK_START) < 0)
 		return -EIO;
 
-	/* Wait 2 vblanks to be sure we will have the correct CRC value */
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf);
+	test_crc_count = buf & DP_TEST_COUNT_MASK;
+
+	do {
+		drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+	} while (--attempts && (buf & DP_TEST_COUNT_MASK) == test_crc_count);
+
+	if (attempts == 0) {
+		DRM_ERROR("Panel is unable to calculate CRC after 6 vblanks\n");
+		return -EIO;
+	}
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
 		return -EIO;
