@@ -1143,7 +1143,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank)
 
 	if (ret) {
 		dev_err(bank->dev, "Couldn't add irqchip to gpiochip %d\n", ret);
-		ret = gpiochip_remove(&bank->chip);
+		gpiochip_remove(&bank->chip);
 		return -ENODEV;
 	}
 

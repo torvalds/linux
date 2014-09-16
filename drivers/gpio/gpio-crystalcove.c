@@ -346,7 +346,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 out_remove_gpio:
-	WARN_ON(gpiochip_remove(&cg->chip));
+	gpiochip_remove(&cg->chip);
 	return retval;
 }
 
@@ -354,14 +354,11 @@ static int crystalcove_gpio_remove(struct platform_device *pdev)
 {
 	struct crystalcove_gpio *cg = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
-	int err;
 
-	err = gpiochip_remove(&cg->chip);
-
+	gpiochip_remove(&cg->chip);
 	if (irq >= 0)
 		free_irq(irq, cg);
-
-	return err;
+	return 0;
 }
 
 static struct platform_driver crystalcove_gpio_driver = {

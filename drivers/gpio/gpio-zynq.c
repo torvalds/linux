@@ -686,16 +686,10 @@ err_disable_clk:
  */
 static int zynq_gpio_remove(struct platform_device *pdev)
 {
-	int ret;
 	struct zynq_gpio *gpio = platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(&pdev->dev);
-
-	ret = gpiochip_remove(&gpio->chip);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to remove gpio chip\n");
-		return ret;
-	}
+	gpiochip_remove(&gpio->chip);
 	clk_disable_unprepare(gpio->clk);
 	device_set_wakeup_capable(&pdev->dev, 0);
 	return 0;

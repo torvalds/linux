@@ -216,12 +216,9 @@ err:
 static int xgene_gpio_remove(struct platform_device *pdev)
 {
 	struct xgene_gpio *gpio = platform_get_drvdata(pdev);
-	int ret = 0;
 
-	ret = gpiochip_remove(&gpio->chip);
-	if (ret)
-		dev_err(&pdev->dev, "unable to remove gpio_chip.\n");
-	return ret;
+	gpiochip_remove(&gpio->chip);
+	return 0;
 }
 
 #ifdef CONFIG_OF
