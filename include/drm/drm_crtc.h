@@ -229,6 +229,9 @@ struct drm_atomic_state;
 /**
  * struct drm_crtc_state - mutable CRTC state
  * @enable: whether the CRTC should be enabled, gates all other state
+ * @mode_changed: for use by helpers and drivers when computing state updates
+ * @last_vblank_count: for helpers and drivers to capture the vblank of the
+ * 	update to ensure framebuffer cleanup isn't done too early
  * @planes_changed: for use by helpers and drivers when computing state updates
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
@@ -241,6 +244,10 @@ struct drm_crtc_state {
 
 	/* computed state bits used by helpers and drivers */
 	bool planes_changed : 1;
+	bool mode_changed : 1;
+
+	/* last_vblank_count: for vblank waits before cleanup */
+	u32 last_vblank_count;
 
 	/* adjusted_mode: for use by helpers and drivers */
 	struct drm_display_mode adjusted_mode;
@@ -426,10 +433,13 @@ struct drm_crtc {
 /**
  * struct drm_connector_state - mutable connector state
  * @crtc: CRTC to connect connector to, NULL if disabled
+ * @best_encoder: can be used by helpers and drivers to select the encoder
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_connector_state {
 	struct drm_crtc *crtc;
+
+	struct drm_encoder *best_encoder;
 
 	struct drm_atomic_state *state;
 };
