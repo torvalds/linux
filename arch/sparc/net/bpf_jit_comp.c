@@ -579,16 +579,11 @@ void bpf_jit_compile(struct bpf_prog *fp)
 			case BPF_ANC | SKF_AD_PROTOCOL:
 				emit_skb_load16(protocol, r_A);
 				break;
-#if 0
-				/* GCC won't let us take the address of
-				 * a bit field even though we very much
-				 * know what we are doing here.
-				 */
 			case BPF_ANC | SKF_AD_PKTTYPE:
-				__emit_skb_load8(pkt_type, r_A);
+				__emit_skb_load8(__pkt_type_offset, r_A);
+				emit_andi(r_A, PKT_TYPE_MAX, r_A);
 				emit_alu_K(SRL, 5);
 				break;
-#endif
 			case BPF_ANC | SKF_AD_IFINDEX:
 				emit_skb_loadptr(dev, r_A);
 				emit_cmpi(r_A, 0);
