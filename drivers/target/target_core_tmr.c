@@ -64,20 +64,16 @@ int core_tmr_alloc_req(
 }
 EXPORT_SYMBOL(core_tmr_alloc_req);
 
-void core_tmr_release_req(
-	struct se_tmr_req *tmr)
+void core_tmr_release_req(struct se_tmr_req *tmr)
 {
 	struct se_device *dev = tmr->tmr_dev;
 	unsigned long flags;
 
-	if (!dev) {
-		kfree(tmr);
-		return;
+	if (dev) {
+		spin_lock_irqsave(&dev->se_tmr_lock, flags);
+		list_del(&tmr->tmr_list);
+		spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 	}
-
-	spin_lock_irqsave(&dev->se_tmr_lock, flags);
-	list_del(&tmr->tmr_list);
-	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
 	kfree(tmr);
 }
@@ -90,9 +86,8 @@ static void core_tmr_handle_tas_abort(
 	bool remove = true;
 	/*
 	 * TASK ABORTED status (TAS) bit support
-	*/
-	if ((tmr_nacl &&
-	     (tmr_nacl != cmd->se_sess->se_node_acl)) && tas) {
+	 */
+	if ((tmr_nacl && (tmr_nacl != cmd->se_sess->se_node_acl)) && tas) {
 		remove = false;
 		transport_send_task_abort(cmd);
 	}
