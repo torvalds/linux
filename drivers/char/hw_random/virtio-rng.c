@@ -36,6 +36,7 @@ struct virtrng_info {
 	int index;
 	bool busy;
 	bool hwrng_register_done;
+	bool hwrng_removed;
 };
 
 
@@ -67,6 +68,9 @@ static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 {
 	int ret;
 	struct virtrng_info *vi = (struct virtrng_info *)rng->priv;
+
+	if (vi->hwrng_removed)
+		return -ENODEV;
 
 	if (!vi->busy) {
 		vi->busy = true;
@@ -137,6 +141,9 @@ static void remove_common(struct virtio_device *vdev)
 {
 	struct virtrng_info *vi = vdev->priv;
 
+	vi->hwrng_removed = true;
+	vi->data_avail = 0;
+	complete(&vi->have_data);
 	vdev->config->reset(vdev);
 	vi->busy = false;
 	if (vi->hwrng_register_done)
