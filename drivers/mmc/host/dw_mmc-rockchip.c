@@ -395,7 +395,6 @@ re_phase:
         dw_mci_rockchip_load_signal_integrity(host, SLEW_RATE_SLOW, default_drv);
         /* Loop degree from 0 ~ 270 */
         for(start_degree = SDMMC_SHIFT_DEGREE_0; start_degree < SDMMC_SHIFT_DEGREE_270; start_degree++){
-
                 dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, start_degree);
                 if(0 == __dw_mci_rockchip_execute_tuning(slot, opcode, blk_test, blksz)){
                         if(!memcmp(blk_pattern, blk_test, blksz)){
@@ -403,8 +402,16 @@ re_phase:
                                 candidates_degree[index] = start_degree;
                                 index++;
                          }
-               }              
-                
+                }
+                /* eMMC spec does not require a delay between tuning cycles
+                 * but eMMC should be guaranteed to complete a sequence of 40 times CMD21
+                 * withnin 150ms, some eMMC may limit 4ms gap between any two sequential CMD21
+                 */
+                if (opcode == MMC_SEND_TUNING_BLOCK)
+                        mdelay(1);
+                else
+                        /* MMC_SEND_TUNING_BLOCK_HS200 */
+                        mdelay(5);
         }
         
         MMC_DBG_BOOT_FUNC(host->mmc,"\n execute tuning: candidates_degree = %s \t%s \t%s \t%s[%s]",
