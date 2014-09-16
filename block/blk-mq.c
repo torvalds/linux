@@ -393,6 +393,12 @@ static void blk_mq_start_request(struct request *rq, bool last)
 	blk_add_timer(rq);
 
 	/*
+	 * Ensure that ->deadline is visible before set the started
+	 * flag and clear the completed flag.
+	 */
+	smp_mb__before_atomic();
+
+	/*
 	 * Mark us as started and clear complete. Complete might have been
 	 * set if requeue raced with timeout, which then marked it as
 	 * complete. So be sure to clear complete again when we start
