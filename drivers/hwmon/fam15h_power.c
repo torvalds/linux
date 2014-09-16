@@ -93,13 +93,29 @@ static ssize_t show_power_crit(struct device *dev,
 }
 static DEVICE_ATTR(power1_crit, S_IRUGO, show_power_crit, NULL);
 
+static umode_t fam15h_power_is_visible(struct kobject *kobj,
+				       struct attribute *attr,
+				       int index)
+{
+	/* power1_input is only reported for Fam15h, Models 00h-0fh */
+	if (attr == &dev_attr_power1_input.attr &&
+	   (boot_cpu_data.x86 != 0x15 || boot_cpu_data.x86_model > 0xf))
+		return 0;
+
+	return attr->mode;
+}
+
 static struct attribute *fam15h_power_attrs[] = {
 	&dev_attr_power1_input.attr,
 	&dev_attr_power1_crit.attr,
 	NULL
 };
 
-ATTRIBUTE_GROUPS(fam15h_power);
+static const struct attribute_group fam15h_power_group = {
+	.attrs = fam15h_power_attrs,
+	.is_visible = fam15h_power_is_visible,
+};
+__ATTRIBUTE_GROUPS(fam15h_power);
 
 static bool fam15h_power_is_internal_node0(struct pci_dev *f4)
 {
