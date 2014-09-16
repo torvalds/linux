@@ -971,11 +971,11 @@ struct qla_tgt_prm {
 	struct qla_tgt *tgt;
 	void *pkt;
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
+	unsigned char *sense_buffer;
 	int seg_cnt;
 	int req_cnt;
 	uint16_t rq_result;
 	uint16_t scsi_status;
-	unsigned char *sense_buffer;
 	int sense_buffer_len;
 	int residual;
 	int add_status_pkt;
