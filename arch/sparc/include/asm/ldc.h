@@ -53,13 +53,14 @@ struct ldc_channel;
 /* Allocate state for a channel.  */
 struct ldc_channel *ldc_alloc(unsigned long id,
 			      const struct ldc_channel_config *cfgp,
-			      void *event_arg);
+			      void *event_arg,
+			      const char *name);
 
 /* Shut down and free state for a channel.  */
 void ldc_free(struct ldc_channel *lp);
 
 /* Register TX and RX queues of the link with the hypervisor.  */
-int ldc_bind(struct ldc_channel *lp, const char *name);
+int ldc_bind(struct ldc_channel *lp);
 
 /* For non-RAW protocols we need to complete a handshake before
  * communication can proceed.  ldc_connect() does that, if the
