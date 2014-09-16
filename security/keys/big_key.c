@@ -33,7 +33,6 @@ MODULE_LICENSE("GPL");
  */
 struct key_type key_type_big_key = {
 	.name			= "big_key",
-	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
 	.preparse		= big_key_preparse,
 	.free_preparse		= big_key_free_preparse,
 	.instantiate		= generic_key_instantiate,

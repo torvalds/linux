@@ -228,7 +228,6 @@ struct key_type key_type_asymmetric = {
 	.match_free	= asymmetric_key_match_free,
 	.destroy	= asymmetric_key_destroy,
 	.describe	= asymmetric_key_describe,
-	.def_lookup_type = KEYRING_SEARCH_LOOKUP_ITERATE,
 };
 EXPORT_SYMBOL_GPL(key_type_asymmetric);
 

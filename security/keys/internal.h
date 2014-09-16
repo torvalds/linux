@@ -112,12 +112,11 @@ struct keyring_search_context {
 	const struct cred	*cred;
 	struct key_match_data	match_data;
 	unsigned		flags;
-#define KEYRING_SEARCH_LOOKUP_TYPE	0x0001	/* [as type->def_lookup_type] */
-#define KEYRING_SEARCH_NO_STATE_CHECK	0x0002	/* Skip state checks */
-#define KEYRING_SEARCH_DO_STATE_CHECK	0x0004	/* Override NO_STATE_CHECK */
-#define KEYRING_SEARCH_NO_UPDATE_TIME	0x0008	/* Don't update times */
-#define KEYRING_SEARCH_NO_CHECK_PERM	0x0010	/* Don't check permissions */
-#define KEYRING_SEARCH_DETECT_TOO_DEEP	0x0020	/* Give an error on excessive depth */
+#define KEYRING_SEARCH_NO_STATE_CHECK	0x0001	/* Skip state checks */
+#define KEYRING_SEARCH_DO_STATE_CHECK	0x0002	/* Override NO_STATE_CHECK */
+#define KEYRING_SEARCH_NO_UPDATE_TIME	0x0004	/* Don't update times */
+#define KEYRING_SEARCH_NO_CHECK_PERM	0x0008	/* Don't check permissions */
+#define KEYRING_SEARCH_DETECT_TOO_DEEP	0x0010	/* Give an error on excessive depth */
 
 	int (*iterator)(const void *object, void *iterator_data);
 
