@@ -92,6 +92,15 @@ config ATH9K_DFS_CERTIFIED
 	  developed. At this point enabling this option won't do anything
 	  except increase code size.
 
+config ATH9K_DYNACK
+	bool "Atheros ath9k ACK timeout estimation algorithm (EXPERIMENTAL)"
+	depends on ATH9K
+	default n
+	---help---
+	  This option enables ath9k dynamic ACK timeout estimation algorithm
+	  based on ACK frame RX timestamp, TX frame timestamp and frame
+	  duration
+
 config ATH9K_TX99
 	bool "Atheros ath9k TX99 testing support"
 	depends on ATH9K_DEBUGFS && CFG80211_CERTIFICATION_ONUS
