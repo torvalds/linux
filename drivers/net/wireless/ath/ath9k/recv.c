@@ -550,10 +550,12 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		ath_dbg(common, PS,
 			"Reconfigure beacon timers based on synchronized timestamp\n");
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 		if (ath9k_is_chanctx_enabled()) {
 			if (sc->cur_chan == &sc->offchannel.chan)
 				skip_beacon = true;
 		}
+#endif
 
 		if (!skip_beacon &&
 		    !(WARN_ON_ONCE(sc->cur_chan->beacon.beacon_interval == 0)))
