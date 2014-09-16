@@ -35,6 +35,11 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 
 	kenter(",%u,", sinfo->index);
 
+	if (sinfo->unsupported_crypto) {
+		kleave(" = -ENOPKG [cached]");
+		return -ENOPKG;
+	}
+
 	for (x509 = sinfo->signer; x509; x509 = x509->signer) {
 		if (x509->seen) {
 			if (x509->verified) {
@@ -139,24 +144,28 @@ int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
 {
 	struct pkcs7_signed_info *sinfo;
 	struct x509_certificate *p;
-	int cached_ret = 0, ret;
+	int cached_ret = -ENOKEY;
+	int ret;
 
 	for (p = pkcs7->certs; p; p = p->next)
 		p->seen = false;
 
 	for (sinfo = pkcs7->signed_infos; sinfo; sinfo = sinfo->next) {
 		ret = pkcs7_validate_trust_one(pkcs7, sinfo, trust_keyring);
-		if (ret < 0) {
-			if (ret == -ENOPKG) {
+		switch (ret) {
+		case -ENOKEY:
+			continue;
+		case -ENOPKG:
+			if (cached_ret == -ENOKEY)
 				cached_ret = -ENOPKG;
-			} else if (ret == -ENOKEY) {
-				if (cached_ret == 0)
-					cached_ret = -ENOKEY;
-			} else {
-				return ret;
-			}
+			continue;
+		case 0:
+			*_trusted |= sinfo->trusted;
+			cached_ret = 0;
+			continue;
+		default:
+			return ret;
 		}
-		*_trusted |= sinfo->trusted;
 	}
 
 	return cached_ret;

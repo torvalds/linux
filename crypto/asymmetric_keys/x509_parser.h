@@ -38,6 +38,7 @@ struct x509_certificate {
 	bool		seen;			/* Infinite recursion prevention */
 	bool		verified;
 	bool		trusted;
+	bool		unsupported_crypto;	/* T if can't be verified due to missing crypto */
 };
 
 /*

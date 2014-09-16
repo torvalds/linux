@@ -115,6 +115,8 @@ int x509_get_sig_params(struct x509_certificate *cert)
 
 	pr_devel("==>%s()\n", __func__);
 
+	if (cert->unsupported_crypto)
+		return -ENOPKG;
 	if (cert->sig.rsa.s)
 		return 0;
 
@@ -127,8 +129,13 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	 * big the hash operational data will be.
 	 */
 	tfm = crypto_alloc_shash(hash_algo_name[cert->sig.pkey_hash_algo], 0, 0);
-	if (IS_ERR(tfm))
-		return (PTR_ERR(tfm) == -ENOENT) ? -ENOPKG : PTR_ERR(tfm);
+	if (IS_ERR(tfm)) {
+		if (PTR_ERR(tfm) == -ENOENT) {
+			cert->unsupported_crypto = true;
+			return -ENOPKG;
+		}
+		return PTR_ERR(tfm);
+	}
 
 	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
 	digest_size = crypto_shash_digestsize(tfm);
@@ -175,6 +182,8 @@ int x509_check_signature(const struct public_key *pub,
 		return ret;
 
 	ret = public_key_verify_signature(pub, &cert->sig);
+	if (ret == -ENOPKG)
+		cert->unsupported_crypto = true;
 	pr_debug("Cert Verification: %d\n", ret);
 	return ret;
 }
