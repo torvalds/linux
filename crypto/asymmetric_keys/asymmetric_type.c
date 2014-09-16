@@ -59,8 +59,8 @@ EXPORT_SYMBOL_GPL(asymmetric_keyid_match);
  *	"id:<id>"	- request a key matching the ID
  *	"<subtype>:<id>" - request a key of a subtype
  */
-static int asymmetric_key_cmp(const struct key *key,
-			      const struct key_match_data *match_data)
+static bool asymmetric_key_cmp(const struct key *key,
+			       const struct key_match_data *match_data)
 {
 	const struct asymmetric_key_subtype *subtype = asymmetric_key_subtype(key);
 	const char *description = match_data->raw_data;

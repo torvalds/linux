@@ -56,10 +56,12 @@ typedef int (*request_key_actor_t)(struct key_construction *key,
  * Preparsed matching criterion.
  */
 struct key_match_data {
-	/* Comparison function, defaults to type->match, but can be replaced by
-	 * type->match_preparse(). */
-	int (*cmp)(const struct key *key,
-		   const struct key_match_data *match_data);
+	/* Comparison function, defaults to exact description match, but can be
+	 * overridden by type->match_preparse().  Should return true if a match
+	 * is found and false if not.
+	 */
+	bool (*cmp)(const struct key *key,
+		    const struct key_match_data *match_data);
 
 	const void	*raw_data;	/* Raw match data */
 	void		*preparsed;	/* For ->match_preparse() to stash stuff */
