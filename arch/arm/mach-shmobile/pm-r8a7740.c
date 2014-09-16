@@ -18,7 +18,7 @@ static int r8a7740_pd_a4s_suspend(void)
 {
 	/*
 	 * The A4S domain contains the CPU core and therefore it should
-	 * only be turned off if the CPU is in use.
+	 * only be turned off if the CPU is not in use.
 	 */
 	return -EBUSY;
 }
