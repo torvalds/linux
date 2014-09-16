@@ -16,6 +16,12 @@ Required properties:
 - #dma-cells : Must be <3>.
   The first cell specifies the DMA request/event ID.  See details below
   about the second and third cell.
+- gpr : The phandle to general purpose register node.
+- fsl,sdma-event-remap : Register bits of sdma event remap, the format is
+  <reg shift val>.
+    reg is the gpr register offset.
+    shift is the bit offset of event remap.
+    val is the value of the bit to be set.
 - fsl,sdma-ram-script-name : Should contain the full path of SDMA RAM
   scripts firmware
 

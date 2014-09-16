@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
@@ -40,6 +41,8 @@
 #include <linux/of_dma.h>
 
 #include <asm/irq.h>
+#include <linux/mfd/syscon.h>
+#include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/platform_data/dma-imx-sdma.h>
 #include <linux/platform_data/dma-imx.h>
 
@@ -1447,7 +1450,73 @@ err_firmware:
 	release_firmware(fw);
 }
 
-static int sdma_get_firmware(struct sdma_engine *sdma,
+#define EVENT_REMAP_CELLS 3
+
+static int __init sdma_event_remap(struct sdma_engine *sdma)
+{
+	struct device_node *np = sdma->dev->of_node;
+	struct device_node *gpr_np = of_parse_phandle(np, "gpr", 0);
+	struct property *event_remap;
+	struct regmap *gpr;
+	char propname[] = "fsl,sdma-event-remap";
+	u32 reg, val, shift, num_map, i;
+	int ret = 0;
+
+	if (IS_ERR(np) || IS_ERR(gpr_np))
+		goto out;
+
+	event_remap = of_find_property(np, propname, NULL);
+	num_map = event_remap ? (event_remap->length / sizeof(u32)) : 0;
+	if (!num_map) {
+		dev_warn(sdma->dev, "no event needs to be remapped\n");
+		goto out;
+	} else if (num_map % EVENT_REMAP_CELLS) {
+		dev_err(sdma->dev, "the property %s must modulo %d\n",
+				propname, EVENT_REMAP_CELLS);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	gpr = syscon_node_to_regmap(gpr_np);
+	if (IS_ERR(gpr)) {
+		dev_err(sdma->dev, "failed to get gpr regmap\n");
+		ret = PTR_ERR(gpr);
+		goto out;
+	}
+
+	for (i = 0; i < num_map; i += EVENT_REMAP_CELLS) {
+		ret = of_property_read_u32_index(np, propname, i, &reg);
+		if (ret) {
+			dev_err(sdma->dev, "failed to read property %s index %d\n",
+					propname, i);
+			goto out;
+		}
+
+		ret = of_property_read_u32_index(np, propname, i + 1, &shift);
+		if (ret) {
+			dev_err(sdma->dev, "failed to read property %s index %d\n",
+					propname, i + 1);
+			goto out;
+		}
+
+		ret = of_property_read_u32_index(np, propname, i + 2, &val);
+		if (ret) {
+			dev_err(sdma->dev, "failed to read property %s index %d\n",
+					propname, i + 2);
+			goto out;
+		}
+
+		regmap_update_bits(gpr, reg, BIT(shift), val << shift);
+	}
+
+out:
+	if (!IS_ERR(gpr_np))
+		of_node_put(gpr_np);
+
+	return ret;
+}
+
+static int __init sdma_get_firmware(struct sdma_engine *sdma,
 		const char *fw_name)
 {
 	int ret;
@@ -1668,6 +1737,10 @@ static int sdma_probe(struct platform_device *pdev)
 	}
 
 	ret = sdma_init(sdma);
+	if (ret)
+		goto err_init;
+
+	ret = sdma_event_remap(sdma);
 	if (ret)
 		goto err_init;
 
