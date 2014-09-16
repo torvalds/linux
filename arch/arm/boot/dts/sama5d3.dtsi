@@ -1020,6 +1020,11 @@
 						reg = <2>;
 					};
 
+					hsmc_clk: hsmc_clk {
+						#clock-cells = <0>;
+						reg = <5>;
+					};
+
 					pioA_clk: pioA_clk {
 						#clock-cells = <0>;
 						reg = <6>;
@@ -1420,6 +1425,7 @@
 					0xffffc000 0x00000070	/* NFC HSMC regs */
 					0x00200000 0x00100000	/* NFC SRAM banks */
 					>;
+				clocks = <&hsmc_clk>;
 			};
 		};
 	};
