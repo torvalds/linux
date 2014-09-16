@@ -3,7 +3,7 @@
 
 #include "x86.h"
 
-void kvm_update_cpuid(struct kvm_vcpu *vcpu);
+int kvm_update_cpuid(struct kvm_vcpu *vcpu);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index);
 int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
