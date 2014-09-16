@@ -1793,7 +1793,7 @@ static void stream_switching_do(struct work_struct *work)
     canvas_t csy,csu,cyd;
 #endif
 
-    if ((!p_last_vf) || (vh264_stream_switching_state != SWITCHING_STATE_OFF)) {
+    if ((!p_last_vf) || (vh264_stream_switching_state == SWITCHING_STATE_OFF)) {
         return;
     }
 
