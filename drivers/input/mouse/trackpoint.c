@@ -393,6 +393,9 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 	if ((button_info & 0x0f) >= 3)
 		__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 
+	__set_bit(INPUT_PROP_POINTER, psmouse->dev->propbit);
+	__set_bit(INPUT_PROP_POINTING_STICK, psmouse->dev->propbit);
+
 	trackpoint_defaults(psmouse->private);
 
 	error = trackpoint_power_on_reset(&psmouse->ps2dev);

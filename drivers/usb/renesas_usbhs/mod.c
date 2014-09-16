@@ -213,7 +213,10 @@ static int usbhs_status_get_each_irq(struct usbhs_priv *priv,
 {
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	u16 intenb0, intenb1;
+	unsigned long flags;
 
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
 	state->intsts0 = usbhs_read(priv, INTSTS0);
 	state->intsts1 = usbhs_read(priv, INTSTS1);
 
@@ -229,6 +232,8 @@ static int usbhs_status_get_each_irq(struct usbhs_priv *priv,
 		state->bempsts &= mod->irq_bempsts;
 		state->brdysts &= mod->irq_brdysts;
 	}
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
 
 	/*
 	 * Check whether the irq enable registers and the irq status are set

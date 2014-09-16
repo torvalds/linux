@@ -472,23 +472,50 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 	dma_cookie_t cookie;
 	int ret;
 
-	if (tx) {
-		desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx,
-					tx->sgl, tx->nents, DMA_TO_DEVICE,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (!desc_tx)
-			goto no_dma;
-
-		irq_mask |= SPCR_SPTIE;
-	}
+	/* First prepare and submit the DMA request(s), as this may fail */
 	if (rx) {
 		desc_rx = dmaengine_prep_slave_sg(rspi->master->dma_rx,
 					rx->sgl, rx->nents, DMA_FROM_DEVICE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (!desc_rx)
-			goto no_dma;
+		if (!desc_rx) {
+			ret = -EAGAIN;
+			goto no_dma_rx;
+		}
+
+		desc_rx->callback = rspi_dma_complete;
+		desc_rx->callback_param = rspi;
+		cookie = dmaengine_submit(desc_rx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto no_dma_rx;
+		}
 
 		irq_mask |= SPCR_SPRIE;
+	}
+
+	if (tx) {
+		desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx,
+					tx->sgl, tx->nents, DMA_TO_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_tx) {
+			ret = -EAGAIN;
+			goto no_dma_tx;
+		}
+
+		if (rx) {
+			/* No callback */
+			desc_tx->callback = NULL;
+		} else {
+			desc_tx->callback = rspi_dma_complete;
+			desc_tx->callback_param = rspi;
+		}
+		cookie = dmaengine_submit(desc_tx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto no_dma_tx;
+		}
+
+		irq_mask |= SPCR_SPTIE;
 	}
 
 	/*
@@ -503,34 +530,24 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 	rspi_enable_irq(rspi, irq_mask);
 	rspi->dma_callbacked = 0;
 
-	if (rx) {
-		desc_rx->callback = rspi_dma_complete;
-		desc_rx->callback_param = rspi;
-		cookie = dmaengine_submit(desc_rx);
-		if (dma_submit_error(cookie))
-			return cookie;
+	/* Now start DMA */
+	if (rx)
 		dma_async_issue_pending(rspi->master->dma_rx);
-	}
-	if (tx) {
-		if (rx) {
-			/* No callback */
-			desc_tx->callback = NULL;
-		} else {
-			desc_tx->callback = rspi_dma_complete;
-			desc_tx->callback_param = rspi;
-		}
-		cookie = dmaengine_submit(desc_tx);
-		if (dma_submit_error(cookie))
-			return cookie;
+	if (tx)
 		dma_async_issue_pending(rspi->master->dma_tx);
-	}
 
 	ret = wait_event_interruptible_timeout(rspi->wait,
 					       rspi->dma_callbacked, HZ);
 	if (ret > 0 && rspi->dma_callbacked)
 		ret = 0;
-	else if (!ret)
+	else if (!ret) {
+		dev_err(&rspi->master->dev, "DMA timeout\n");
 		ret = -ETIMEDOUT;
+		if (tx)
+			dmaengine_terminate_all(rspi->master->dma_tx);
+		if (rx)
+			dmaengine_terminate_all(rspi->master->dma_rx);
+	}
 
 	rspi_disable_irq(rspi, irq_mask);
 
@@ -541,11 +558,16 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 
 	return ret;
 
-no_dma:
-	pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
-		     dev_driver_string(&rspi->master->dev),
-		     dev_name(&rspi->master->dev));
-	return -EAGAIN;
+no_dma_tx:
+	if (rx)
+		dmaengine_terminate_all(rspi->master->dma_rx);
+no_dma_rx:
+	if (ret == -EAGAIN) {
+		pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
+			     dev_driver_string(&rspi->master->dev),
+			     dev_name(&rspi->master->dev));
+	}
+	return ret;
 }
 
 static void rspi_receive_init(const struct rspi_data *rspi)

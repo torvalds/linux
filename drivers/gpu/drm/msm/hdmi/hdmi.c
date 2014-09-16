@@ -258,27 +258,29 @@ static void set_hdmi_pdev(struct drm_device *dev,
 	priv->hdmi_pdev = pdev;
 }
 
+#ifdef CONFIG_OF
+static int get_gpio(struct device *dev, struct device_node *of_node, const char *name)
+{
+	int gpio = of_get_named_gpio(of_node, name, 0);
+	if (gpio < 0) {
+		char name2[32];
+		snprintf(name2, sizeof(name2), "%s-gpio", name);
+		gpio = of_get_named_gpio(of_node, name2, 0);
+		if (gpio < 0) {
+			dev_err(dev, "failed to get gpio: %s (%d)\n",
+					name, gpio);
+			gpio = -1;
+		}
+	}
+	return gpio;
+}
+#endif
+
 static int hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct hdmi_platform_config config = {};
 #ifdef CONFIG_OF
 	struct device_node *of_node = dev->of_node;
-
-	int get_gpio(const char *name)
-	{
-		int gpio = of_get_named_gpio(of_node, name, 0);
-		if (gpio < 0) {
-			char name2[32];
-			snprintf(name2, sizeof(name2), "%s-gpio", name);
-			gpio = of_get_named_gpio(of_node, name2, 0);
-			if (gpio < 0) {
-				dev_err(dev, "failed to get gpio: %s (%d)\n",
-						name, gpio);
-				gpio = -1;
-			}
-		}
-		return gpio;
-	}
 
 	if (of_device_is_compatible(of_node, "qcom,hdmi-tx-8074")) {
 		static const char *hpd_reg_names[] = {"hpd-gdsc", "hpd-5v"};
@@ -312,12 +314,12 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	config.mmio_name     = "core_physical";
-	config.ddc_clk_gpio  = get_gpio("qcom,hdmi-tx-ddc-clk");
-	config.ddc_data_gpio = get_gpio("qcom,hdmi-tx-ddc-data");
-	config.hpd_gpio      = get_gpio("qcom,hdmi-tx-hpd");
-	config.mux_en_gpio   = get_gpio("qcom,hdmi-tx-mux-en");
-	config.mux_sel_gpio  = get_gpio("qcom,hdmi-tx-mux-sel");
-	config.mux_lpm_gpio  = get_gpio("qcom,hdmi-tx-mux-lpm");
+	config.ddc_clk_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-ddc-clk");
+	config.ddc_data_gpio = get_gpio(dev, of_node, "qcom,hdmi-tx-ddc-data");
+	config.hpd_gpio      = get_gpio(dev, of_node, "qcom,hdmi-tx-hpd");
+	config.mux_en_gpio   = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-en");
+	config.mux_sel_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-sel");
+	config.mux_lpm_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-lpm");
 
 #else
 	static const char *hpd_clk_names[] = {

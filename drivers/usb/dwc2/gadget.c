@@ -1649,6 +1649,7 @@ static void s3c_hsotg_txfifo_flush(struct s3c_hsotg *hsotg, unsigned int idx)
 			dev_err(hsotg->dev,
 				"%s: timeout flushing fifo (GRSTCTL=%08x)\n",
 				__func__, val);
+			break;
 		}
 
 		udelay(1);
@@ -1901,7 +1902,7 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 static void s3c_hsotg_irq_enumdone(struct s3c_hsotg *hsotg)
 {
 	u32 dsts = readl(hsotg->regs + DSTS);
-	int ep0_mps = 0, ep_mps;
+	int ep0_mps = 0, ep_mps = 8;
 
 	/*
 	 * This should signal the finish of the enumeration phase
@@ -2747,13 +2748,14 @@ static void s3c_hsotg_phy_enable(struct s3c_hsotg *hsotg)
 
 	dev_dbg(hsotg->dev, "pdev 0x%p\n", pdev);
 
-	if (hsotg->phy) {
+	if (hsotg->uphy)
+		usb_phy_init(hsotg->uphy);
+	else if (hsotg->plat && hsotg->plat->phy_init)
+		hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
+	else {
 		phy_init(hsotg->phy);
 		phy_power_on(hsotg->phy);
-	} else if (hsotg->uphy)
-		usb_phy_init(hsotg->uphy);
-	else if (hsotg->plat->phy_init)
-		hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
+	}
 }
 
 /**
@@ -2767,13 +2769,14 @@ static void s3c_hsotg_phy_disable(struct s3c_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 
-	if (hsotg->phy) {
+	if (hsotg->uphy)
+		usb_phy_shutdown(hsotg->uphy);
+	else if (hsotg->plat && hsotg->plat->phy_exit)
+		hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
+	else {
 		phy_power_off(hsotg->phy);
 		phy_exit(hsotg->phy);
-	} else if (hsotg->uphy)
-		usb_phy_shutdown(hsotg->uphy);
-	else if (hsotg->plat->phy_exit)
-		hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
+	}
 }
 
 /**
@@ -2892,12 +2895,10 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 		return -ENODEV;
 
 	/* all endpoints should be shutdown */
-	for (ep = 0; ep < hsotg->num_of_eps; ep++)
+	for (ep = 1; ep < hsotg->num_of_eps; ep++)
 		s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
 
 	spin_lock_irqsave(&hsotg->lock, flags);
-
-	s3c_hsotg_phy_disable(hsotg);
 
 	if (!driver)
 		hsotg->driver = NULL;
@@ -2941,7 +2942,6 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 		s3c_hsotg_phy_enable(hsotg);
 		s3c_hsotg_core_init(hsotg);
 	} else {
-		s3c_hsotg_disconnect(hsotg);
 		s3c_hsotg_phy_disable(hsotg);
 	}
 
@@ -3441,13 +3441,6 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 
 	hsotg->irq = ret;
 
-	ret = devm_request_irq(&pdev->dev, hsotg->irq, s3c_hsotg_irq, 0,
-				dev_name(dev), hsotg);
-	if (ret < 0) {
-		dev_err(dev, "cannot claim IRQ\n");
-		goto err_clk;
-	}
-
 	dev_info(dev, "regs %p, irq %d\n", hsotg->regs, hsotg->irq);
 
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
@@ -3488,15 +3481,23 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	if (hsotg->phy && (phy_get_bus_width(phy) == 8))
 		hsotg->phyif = GUSBCFG_PHYIF8;
 
-	if (hsotg->phy)
-		phy_init(hsotg->phy);
-
 	/* usb phy enable */
 	s3c_hsotg_phy_enable(hsotg);
 
 	s3c_hsotg_corereset(hsotg);
 	s3c_hsotg_init(hsotg);
 	s3c_hsotg_hw_cfg(hsotg);
+
+	ret = devm_request_irq(&pdev->dev, hsotg->irq, s3c_hsotg_irq, 0,
+				dev_name(dev), hsotg);
+	if (ret < 0) {
+		s3c_hsotg_phy_disable(hsotg);
+		clk_disable_unprepare(hsotg->clk);
+		regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
+				       hsotg->supplies);
+		dev_err(dev, "cannot claim IRQ\n");
+		goto err_clk;
+	}
 
 	/* hsotg->num_of_eps holds number of EPs other than ep0 */
 
@@ -3582,9 +3583,6 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 		usb_gadget_unregister_driver(hsotg->driver);
 	}
 
-	s3c_hsotg_phy_disable(hsotg);
-	if (hsotg->phy)
-		phy_exit(hsotg->phy);
 	clk_disable_unprepare(hsotg->clk);
 
 	return 0;

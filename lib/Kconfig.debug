@@ -892,6 +892,10 @@ config DEBUG_WW_MUTEX_SLOWPATH
 	 the full mutex checks enabled with (CONFIG_PROVE_LOCKING) this
 	 will test all possible w/w mutex interface abuse with the
 	 exception of simply not acquiring all the required locks.
+	 Note that this feature can introduce significant overhead, so
+	 it really should not be enabled in a production or distro kernel,
+	 even a debug kernel.  If you are a driver writer, enable it.  If
+	 you are a distro, do not.
 
 config DEBUG_LOCK_ALLOC
 	bool "Lock debugging: detect incorrect freeing of live locks"
@@ -1032,8 +1036,13 @@ config TRACE_IRQFLAGS
 	  either tracing or lock debugging.
 
 config STACKTRACE
-	bool
+	bool "Stack backtrace support"
 	depends on STACKTRACE_SUPPORT
+	help
+	  This option causes the kernel to create a /proc/pid/stack for
+	  every process, showing its current stack trace.
+	  It is also used by various kernel debugging features that require
+	  stack trace generation.
 
 config DEBUG_KOBJECT
 	bool "kobject debugging"

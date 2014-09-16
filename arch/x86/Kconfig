@@ -23,6 +23,7 @@ config X86
 	def_bool y
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_AOUT if X86_32
@@ -1585,9 +1586,6 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call"
-	select BUILD_BIN2C
-	select CRYPTO
-	select CRYPTO_SHA256
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -1602,9 +1600,22 @@ config KEXEC
 	  interface is strongly in flux, so no good recommendation can be
 	  made.
 
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select BUILD_BIN2C
+	depends on KEXEC
+	depends on X86_64
+	depends on CRYPTO=y
+	depends on CRYPTO_SHA256=y
+	---help---
+	  This is new version of kexec system call. This system call is
+	  file based and takes file descriptors as system call argument
+	  for kernel and initramfs as opposed to list of segments as
+	  accepted by previous system call.
+
 config KEXEC_VERIFY_SIG
 	bool "Verify kernel signature during kexec_file_load() syscall"
-	depends on KEXEC
+	depends on KEXEC_FILE
 	---help---
 	  This option makes kernel signature verification mandatory for
 	  kexec_file_load() syscall. If kernel is signature can not be

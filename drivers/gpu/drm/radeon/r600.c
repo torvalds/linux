@@ -1904,7 +1904,6 @@ static void r600_gpu_init(struct radeon_device *rdev)
 {
 	u32 tiling_config;
 	u32 ramcfg;
-	u32 cc_rb_backend_disable;
 	u32 cc_gc_shader_pipe_config;
 	u32 tmp;
 	int i, j;
@@ -2031,29 +2030,20 @@ static void r600_gpu_init(struct radeon_device *rdev)
 	}
 	tiling_config |= BANK_SWAPS(1);
 
-	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE) & 0x00ff0000;
-	tmp = R6XX_MAX_BACKENDS -
-		r600_count_pipe_bits((cc_rb_backend_disable >> 16) & R6XX_MAX_BACKENDS_MASK);
-	if (tmp < rdev->config.r600.max_backends) {
-		rdev->config.r600.max_backends = tmp;
-	}
-
 	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0x00ffff00;
-	tmp = R6XX_MAX_PIPES -
-		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 8) & R6XX_MAX_PIPES_MASK);
-	if (tmp < rdev->config.r600.max_pipes) {
-		rdev->config.r600.max_pipes = tmp;
-	}
-	tmp = R6XX_MAX_SIMDS -
-		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 16) & R6XX_MAX_SIMDS_MASK);
-	if (tmp < rdev->config.r600.max_simds) {
-		rdev->config.r600.max_simds = tmp;
-	}
 	tmp = rdev->config.r600.max_simds -
 		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 16) & R6XX_MAX_SIMDS_MASK);
 	rdev->config.r600.active_simds = tmp;
 
 	disabled_rb_mask = (RREG32(CC_RB_BACKEND_DISABLE) >> 16) & R6XX_MAX_BACKENDS_MASK;
+	tmp = 0;
+	for (i = 0; i < rdev->config.r600.max_backends; i++)
+		tmp |= (1 << i);
+	/* if all the backends are disabled, fix it up here */
+	if ((disabled_rb_mask & tmp) == tmp) {
+		for (i = 0; i < rdev->config.r600.max_backends; i++)
+			disabled_rb_mask &= ~(1 << i);
+	}
 	tmp = (tiling_config & PIPE_TILING__MASK) >> PIPE_TILING__SHIFT;
 	tmp = r6xx_remap_render_backend(rdev, tmp, rdev->config.r600.max_backends,
 					R6XX_MAX_BACKENDS, disabled_rb_mask);
@@ -2871,8 +2861,8 @@ bool r600_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | sel);
 
-	/* PFP_SYNC_ME packet only exists on 7xx+ */
-	if (emit_wait && (rdev->family >= CHIP_RV770)) {
+	/* PFP_SYNC_ME packet only exists on 7xx+, only enable it on eg+ */
+	if (emit_wait && (rdev->family >= CHIP_CEDAR)) {
 		/* Prevent the PFP from running ahead of the semaphore wait */
 		radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
 		radeon_ring_write(ring, 0x0);
