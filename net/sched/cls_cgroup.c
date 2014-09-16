@@ -127,16 +127,18 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 	err = nla_parse_nested(tb, TCA_CGROUP_MAX, tca[TCA_OPTIONS],
 			       cgroup_policy);
 	if (err < 0)
-		return err;
+		goto errout;
 
 	tcf_exts_init(&e, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
 	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
 	if (err < 0)
-		return err;
+		goto errout;
 
 	err = tcf_em_tree_validate(tp, tb[TCA_CGROUP_EMATCHES], &t);
-	if (err < 0)
-		return err;
+	if (err < 0) {
+		tcf_exts_destroy(tp, &e);
+		goto errout;
+	}
 
 	tcf_exts_change(tp, &new->exts, &e);
 	tcf_em_tree_change(tp, &new->ematches, &t);
@@ -145,6 +147,9 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 	if (head)
 		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
 	return 0;
+errout:
+	kfree(new);
+	return err;
 }
 
 static void cls_cgroup_destroy(struct tcf_proto *tp)
