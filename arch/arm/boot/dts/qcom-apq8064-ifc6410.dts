@@ -23,6 +23,10 @@
 			sdcc3: sdcc@12180000 {
 				status = "okay";
 			};
+			/* WLAN */
+			sdcc4: sdcc@121c0000 {
+				status = "okay";
+			};
 		};
 	};
 };
