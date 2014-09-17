@@ -544,7 +544,7 @@ static int eeepc_led_init(struct eeepc_laptop *eeepc)
 	eeepc->tpd_led.name = "eeepc::touchpad";
 	eeepc->tpd_led.brightness_set = tpd_led_set;
 	if (get_acpi(eeepc, CM_ASL_TPD) >= 0) /* if method is available */
-	  eeepc->tpd_led.brightness_get = tpd_led_get;
+		eeepc->tpd_led.brightness_get = tpd_led_get;
 	eeepc->tpd_led.max_brightness = 1;
 
 	rv = led_classdev_register(&eeepc->platform_device->dev,
@@ -692,8 +692,9 @@ static int eeepc_register_rfkill_notifier(struct eeepc_laptop *eeepc,
 		 * changed during setup.
 		 */
 		eeepc_rfkill_hotplug(eeepc, handle);
-	} else
+	} else {
 		return -ENODEV;
+	}
 
 	return 0;
 }
@@ -1424,8 +1425,9 @@ static int eeepc_acpi_add(struct acpi_device *device)
 		result = eeepc_backlight_init(eeepc);
 		if (result)
 			goto fail_backlight;
-	} else
+	} else {
 		pr_info("Backlight controlled by ACPI video driver\n");
+	}
 
 	result = eeepc_input_init(eeepc);
 	if (result)
