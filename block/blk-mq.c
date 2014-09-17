@@ -20,6 +20,7 @@
 #include <linux/cache.h>
 #include <linux/sched/sysctl.h>
 #include <linux/delay.h>
+#include <linux/crash_dump.h>
 
 #include <trace/events/block.h>
 
@@ -1741,6 +1742,16 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	ctx = alloc_percpu(struct blk_mq_ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * If a crashdump is active, then we are potentially in a very
+	 * memory constrained environment. Limit us to 1 queue and
+	 * 64 tags to prevent using too much memory.
+	 */
+	if (is_kdump_kernel()) {
+		set->nr_hw_queues = 1;
+		set->queue_depth = min(64U, set->queue_depth);
+	}
 
 	hctxs = kmalloc_node(set->nr_hw_queues * sizeof(*hctxs), GFP_KERNEL,
 			set->numa_node);
