@@ -508,8 +508,6 @@ u8 wifi_custom_mac_addr[6] = {0,0,0,0,0,0};
 extern char GetSNSectorInfo(char * pbuf);
 int rockchip_wifi_mac_addr(unsigned char *buf)
 {
-    return -1;
-/*
     char mac_buf[20] = {0};
     LOG("%s: enter.\n", __func__);
 
@@ -541,13 +539,9 @@ int rockchip_wifi_mac_addr(unsigned char *buf)
         return -1;
     }
 
-#if defined(CONFIG_RKWIFI)
     memcpy(buf, wifi_custom_mac_addr, 6);
-#else
-    memcpy(buf, mac_buf, strlen(mac_buf));//realtek's wifi use this branch
-#endif
+
     return 0;
-*/
 }
 EXPORT_SYMBOL(rockchip_wifi_mac_addr);
 
