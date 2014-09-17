@@ -339,6 +339,12 @@ bool intel_fbc_enabled(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	/* If it wasn't never enabled by kernel parameter or platform default
+	 * we can avoid reading registers so many times in vain
+	 */
+	if (!i915.enable_fbc)
+		return false;
+
 	if (!dev_priv->display.fbc_enabled)
 		return false;
 
