@@ -52,6 +52,8 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 
+#include <linux/leds.h>
+
 #include "arcdevice.h"
 #include "com9026.h"
 
@@ -188,6 +190,71 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 #define arcnet_dump_packet(dev, bufnum, desc, take_arcnet_lock) do { } while (0)
 
 #endif
+
+/* Trigger a LED event in response to a ARCNET device event */
+void arcnet_led_event(struct net_device *dev, enum arcnet_led_event event)
+{
+	struct arcnet_local *lp = netdev_priv(dev);
+	unsigned long led_delay = 350;
+	unsigned long tx_delay = 50;
+
+	switch (event) {
+	case ARCNET_LED_EVENT_RECON:
+		led_trigger_blink_oneshot(lp->recon_led_trig,
+					  &led_delay, &led_delay, 0);
+		break;
+	case ARCNET_LED_EVENT_OPEN:
+		led_trigger_event(lp->tx_led_trig, LED_OFF);
+		led_trigger_event(lp->recon_led_trig, LED_OFF);
+		break;
+	case ARCNET_LED_EVENT_STOP:
+		led_trigger_event(lp->tx_led_trig, LED_OFF);
+		led_trigger_event(lp->recon_led_trig, LED_OFF);
+		break;
+	case ARCNET_LED_EVENT_TX:
+		led_trigger_blink_oneshot(lp->tx_led_trig,
+					  &tx_delay, &tx_delay, 0);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(arcnet_led_event);
+
+static void arcnet_led_release(struct device *gendev, void *res)
+{
+	struct arcnet_local *lp = netdev_priv(to_net_dev(gendev));
+
+	led_trigger_unregister_simple(lp->tx_led_trig);
+	led_trigger_unregister_simple(lp->recon_led_trig);
+}
+
+/* Register ARCNET LED triggers for a arcnet device
+ *
+ * This is normally called from a driver's probe function
+ */
+void devm_arcnet_led_init(struct net_device *netdev, int index, int subid)
+{
+	struct arcnet_local *lp = netdev_priv(netdev);
+	void *res;
+
+	res = devres_alloc(arcnet_led_release, 0, GFP_KERNEL);
+	if (!res) {
+		netdev_err(netdev, "cannot register LED triggers\n");
+		return;
+	}
+
+	snprintf(lp->tx_led_trig_name, sizeof(lp->tx_led_trig_name),
+		 "arc%d-%d-tx", index, subid);
+	snprintf(lp->recon_led_trig_name, sizeof(lp->recon_led_trig_name),
+		 "arc%d-%d-recon", index, subid);
+
+	led_trigger_register_simple(lp->tx_led_trig_name,
+				    &lp->tx_led_trig);
+	led_trigger_register_simple(lp->recon_led_trig_name,
+				    &lp->recon_led_trig);
+
+	devres_add(&netdev->dev, res);
+}
+EXPORT_SYMBOL_GPL(devm_arcnet_led_init);
 
 /* Unregister a protocol driver from the arc_proto_map.  Protocol drivers
  * are responsible for registering themselves, but the unregister routine
@@ -425,6 +492,7 @@ int arcnet_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 
+	arcnet_led_event(dev, ARCNET_LED_EVENT_OPEN);
 	return 0;
 
  out_module_put:
@@ -438,6 +506,7 @@ int arcnet_close(struct net_device *dev)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 
+	arcnet_led_event(dev, ARCNET_LED_EVENT_STOP);
 	netif_stop_queue(dev);
 
 	/* flush TX and disable RX */
@@ -584,6 +653,8 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 	lp->hw.intmask(dev, lp->intmask);
 	arc_printk(D_DEBUG, dev, "%s: %d: %s, status: %x\n",
 		   __FILE__, __LINE__, __func__, lp->hw.status(dev));
+
+	arcnet_led_event(dev, ARCNET_LED_EVENT_TX);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 	return retval;		/* no need to try again */
@@ -837,6 +908,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 
 			arc_printk(D_RECON, dev, "Network reconfiguration detected (status=%Xh)\n",
 				   status);
+			arcnet_led_event(dev, ARCNET_LED_EVENT_RECON);
 			/* MYRECON bit is at bit 7 of diagstatus */
 			if (diagstatus & 0x80)
 				arc_printk(D_RECON, dev, "Put out that recon myself\n");

@@ -26,6 +26,7 @@
  */
 #ifndef __COM20020_H
 #define __COM20020_H
+#include <linux/leds.h>
 
 int com20020_check(struct net_device *dev);
 int com20020_found(struct net_device *dev, int shared);
@@ -35,6 +36,11 @@ extern const struct net_device_ops com20020_netdev_ops;
 #define ARCNET_TOTAL_SIZE 8
 
 #define PLX_PCI_MAX_CARDS 2
+
+struct ledoffsets {
+	int green;
+	int red;
+};
 
 struct com20020_pci_channel_map {
 	u32 bar;
@@ -49,6 +55,7 @@ struct com20020_pci_card_info {
 	struct com20020_pci_channel_map chan_map_tbl[PLX_PCI_MAX_CARDS];
 	struct com20020_pci_channel_map misc_map;
 
+	struct ledoffsets leds[PLX_PCI_MAX_CARDS];
 	int rotary;
 
 	unsigned int flags;
@@ -63,6 +70,9 @@ struct com20020_priv {
 struct com20020_dev {
 	struct list_head list;
 	struct net_device *dev;
+
+	struct led_classdev tx_led;
+	struct led_classdev recon_led;
 
 	struct com20020_priv *pci_priv;
 	int index;

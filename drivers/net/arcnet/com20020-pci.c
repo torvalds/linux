@@ -41,6 +41,7 @@
 #include <linux/pci.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/leds.h>
 
 #include "arcdevice.h"
 #include "com20020.h"
@@ -61,6 +62,36 @@ module_param(backplane, int, 0);
 module_param(clockp, int, 0);
 module_param(clockm, int, 0);
 MODULE_LICENSE("GPL");
+
+static void led_tx_set(struct led_classdev *led_cdev,
+			     enum led_brightness value)
+{
+	struct com20020_dev *card;
+	struct com20020_priv *priv;
+	struct com20020_pci_card_info *ci;
+
+	card = container_of(led_cdev, struct com20020_dev, tx_led);
+
+	priv = card->pci_priv;
+	ci = priv->ci;
+
+	outb(!!value, priv->misc + ci->leds[card->index].green);
+}
+
+static void led_recon_set(struct led_classdev *led_cdev,
+			     enum led_brightness value)
+{
+	struct com20020_dev *card;
+	struct com20020_priv *priv;
+	struct com20020_pci_card_info *ci;
+
+	card = container_of(led_cdev, struct com20020_dev, recon_led);
+
+	priv = card->pci_priv;
+	ci = priv->ci;
+
+	outb(!!value, priv->misc + ci->leds[card->index].red);
+}
 
 static void com20020pci_remove(struct pci_dev *pdev);
 
@@ -170,13 +201,40 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		card->index = i;
 		card->pci_priv = priv;
+		card->tx_led.brightness_set = led_tx_set;
+		card->tx_led.default_trigger = devm_kasprintf(&pdev->dev,
+						GFP_KERNEL, "arc%d-%d-tx",
+						dev->dev_id, i);
+		card->tx_led.name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+						"pci:green:tx:%d-%d",
+						dev->dev_id, i);
+
+		card->tx_led.dev = &dev->dev;
+		card->recon_led.brightness_set = led_recon_set;
+		card->recon_led.default_trigger = devm_kasprintf(&pdev->dev,
+						GFP_KERNEL, "arc%d-%d-recon",
+						dev->dev_id, i);
+		card->recon_led.name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+						"pci:red:recon:%d-%d",
+						dev->dev_id, i);
+		card->recon_led.dev = &dev->dev;
 		card->dev = dev;
+
+		ret = devm_led_classdev_register(&pdev->dev, &card->tx_led);
+		if (ret)
+			goto out_port;
+
+		ret = devm_led_classdev_register(&pdev->dev, &card->recon_led);
+		if (ret)
+			goto out_port;
 
 		dev_set_drvdata(&dev->dev, card);
 
 		ret = com20020_found(dev, IRQF_SHARED);
 		if (ret)
 			goto out_port;
+
+		devm_arcnet_led_init(dev, dev->dev_id, i);
 
 		list_add(&card->list, &priv->list_dev);
 	}
@@ -261,6 +319,12 @@ static struct com20020_pci_card_info card_info_eae_arc1 = {
 		.offset = 0x10,
 		.size = 0x04,
 	},
+	.leds = {
+		{
+			.green = 0x0,
+			.red = 0x1,
+		},
+	},
 	.rotary = 0x0,
 	.flags = ARC_CAN_10MBIT,
 };
@@ -283,6 +347,15 @@ static struct com20020_pci_card_info card_info_eae_ma1 = {
 		.bar = 2,
 		.offset = 0x10,
 		.size = 0x04,
+	},
+	.leds = {
+		{
+			.green = 0x0,
+			.red = 0x1,
+		}, {
+			.green = 0x2,
+			.red = 0x3,
+		},
 	},
 	.rotary = 0x0,
 	.flags = ARC_CAN_10MBIT,
