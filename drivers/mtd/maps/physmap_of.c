@@ -340,6 +340,10 @@ static struct of_device_id of_flash_match[] = {
 		.data           = (void *)"map_ram",
 	},
 	{
+		.compatible     = "mtd-rom",
+		.data           = (void *)"map_rom",
+	},
+	{
 		.type		= "rom",
 		.compatible	= "direct-mapped"
 	},
