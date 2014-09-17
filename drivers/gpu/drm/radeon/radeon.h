@@ -712,7 +712,7 @@ struct radeon_flip_work {
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
-	struct radeon_fence		*fence;
+	struct fence			*fence;
 };
 
 struct r500_irq_stat_regs {
