@@ -81,8 +81,6 @@ EXPORT_SYMBOL_GPL(boot_cpuid);
 
 unsigned long klimit = (unsigned long) _end;
 
-char cmd_line[COMMAND_LINE_SIZE];
-
 /*
  * This still seems to be needed... -- paulus
  */ 

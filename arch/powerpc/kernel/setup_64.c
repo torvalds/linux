@@ -667,7 +667,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	ppc64_boot_msg(0x12, "Setup Arch");
 
-	*cmdline_p = cmd_line;
+	*cmdline_p = boot_command_line;
 
 	/*
 	 * Set cache line size based on type of cpu as a default.
