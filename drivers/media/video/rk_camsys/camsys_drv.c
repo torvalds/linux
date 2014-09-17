@@ -167,7 +167,7 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
 
     extdev = camsys_find_extdev(devio->dev_id, camsys_dev);
     if (extdev != NULL) {
-        err = -EINVAL;    /* ddl@rock-chips.com: v0.0x13.0 */
+        err = -EBUSY;    /* ddl@rock-chips.com: v0.0x13.0 */
         camsys_warn("Extdev(dev_id: 0x%x) has been registered in %s!",
             devio->dev_id, dev_name(camsys_dev->miscdev.this_device));
         goto end;

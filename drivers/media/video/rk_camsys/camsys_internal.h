@@ -95,8 +95,10 @@
 *v0.0x13.0:
          1) camsys_extdev_register return failed when this dev_id has been registered;
          2) add support JPG irq connect;
+*v0.0x14.0:
+         1) camsys_extdev_register return -EBUSY when this dev_id has been registered;
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x13,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x14,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
