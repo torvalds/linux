@@ -171,7 +171,8 @@
 };
 
 &fb {
-        rockchip,disp-mode = <NO_DUAL>;
+	rockchip,disp-mode = <NO_DUAL>;
+	rockchip,uboot-logo-on = <0>;
 };
 
 &rk_screen {
