@@ -1028,3 +1028,12 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw value of rotation from true/magnetic north measured with
 		or without compensation from tilt sensors.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_raw
+KernelVersion:	3.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw current measurement from channel X. Units are in milliamps
+		after application of scale and offset. If no offset or scale is
+		present, output should be considered as processed with the
+		unit in milliamps.
