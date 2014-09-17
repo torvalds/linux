@@ -47,6 +47,9 @@ struct com20020_pci_card_info {
 	int devcount;
 
 	struct com20020_pci_channel_map chan_map_tbl[PLX_PCI_MAX_CARDS];
+	struct com20020_pci_channel_map misc_map;
+
+	int rotary;
 
 	unsigned int flags;
 };
@@ -54,6 +57,7 @@ struct com20020_pci_card_info {
 struct com20020_priv {
 	struct com20020_pci_card_info *ci;
 	struct list_head list_dev;
+	resource_size_t misc;
 };
 
 struct com20020_dev {

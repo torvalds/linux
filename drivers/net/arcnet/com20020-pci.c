@@ -68,6 +68,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
 	struct com20020_pci_card_info *ci;
+	struct com20020_pci_channel_map *mm;
 	struct net_device *dev;
 	struct arcnet_local *lp;
 	struct com20020_priv *priv;
@@ -84,8 +85,21 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 	ci = (struct com20020_pci_card_info *)id->driver_data;
 	priv->ci = ci;
+	mm = &ci->misc_map;
 
 	INIT_LIST_HEAD(&priv->list_dev);
+
+	if (mm->size) {
+		ioaddr = pci_resource_start(pdev, mm->bar) + mm->offset;
+		r = devm_request_region(&pdev->dev, ioaddr, mm->size,
+					"com20020-pci");
+		if (!r) {
+			pr_err("IO region %xh-%xh already allocated.\n",
+			       ioaddr, ioaddr + mm->size - 1);
+			return -EBUSY;
+		}
+		priv->misc = ioaddr;
+	}
 
 	for (i = 0; i < ci->devcount; i++) {
 		struct com20020_pci_channel_map *cm = &ci->chan_map_tbl[i];
@@ -131,6 +145,13 @@ static int com20020pci_probe(struct pci_dev *pdev,
 		lp->clockm = clockm & 3;
 		lp->timeout = timeout;
 		lp->hw.owner = THIS_MODULE;
+
+		/* Get the dev_id from the PLX rotary coder */
+		if (!strncmp(ci->name, "EAE PLX-PCI MA1", 15))
+			dev->dev_id = 0xc;
+		dev->dev_id ^= inb(priv->misc + ci->rotary) >> 4;
+
+		snprintf(dev->name, sizeof(dev->name), "arc%d-%d", dev->dev_id, i);
 
 		if (arcnet_inb(ioaddr, COM20020_REG_R_STATUS) == 0xFF) {
 			pr_err("IO address %Xh is empty!\n", ioaddr);
@@ -235,6 +256,12 @@ static struct com20020_pci_card_info card_info_eae_arc1 = {
 			.size = 0x08,
 		},
 	},
+	.misc_map = {
+		.bar = 2,
+		.offset = 0x10,
+		.size = 0x04,
+	},
+	.rotary = 0x0,
 	.flags = ARC_CAN_10MBIT,
 };
 
@@ -252,6 +279,12 @@ static struct com20020_pci_card_info card_info_eae_ma1 = {
 			.size = 0x08,
 		}
 	},
+	.misc_map = {
+		.bar = 2,
+		.offset = 0x10,
+		.size = 0x04,
+	},
+	.rotary = 0x0,
 	.flags = ARC_CAN_10MBIT,
 };
 
