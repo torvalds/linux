@@ -59,7 +59,7 @@
         };
 	
     chosen {
-	bootargs = "vmalloc=496M cma=4M";
+	bootargs = "vmalloc=496M cma=4M rockchip_jtag";
        };
 
 };

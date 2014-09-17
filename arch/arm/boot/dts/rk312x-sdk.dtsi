@@ -10,7 +10,7 @@
 	};
 
 	chosen {
-		bootargs = "vmalloc=496M";
+		bootargs = "vmalloc=496M rockchip_jtag";
 	};
 
 	pwm_regulator1:pwm-regulator1 {
