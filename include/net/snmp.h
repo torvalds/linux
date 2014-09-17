@@ -146,19 +146,15 @@ struct linux_xfrm_mib {
 
 #define SNMP_ADD_STATS(mib, field, addend)	\
 			this_cpu_add(mib->mibs[field], addend)
-/*
- * Use "__typeof__(*mib) *ptr" instead of "__typeof__(mib) ptr"
- * to make @ptr a non-percpu pointer.
- */
 #define SNMP_UPD_PO_STATS(mib, basefield, addend)	\
 	do { \
-		__typeof__(*mib->mibs) *ptr = mib->mibs;	\
+		__typeof__((mib->mibs) + 0) ptr = mib->mibs;	\
 		this_cpu_inc(ptr[basefield##PKTS]);		\
 		this_cpu_add(ptr[basefield##OCTETS], addend);	\
 	} while (0)
 #define SNMP_UPD_PO_STATS_BH(mib, basefield, addend)	\
 	do { \
-		__typeof__(*mib->mibs) *ptr = mib->mibs;	\
+		__typeof__((mib->mibs) + 0) ptr = mib->mibs;	\
 		__this_cpu_inc(ptr[basefield##PKTS]);		\
 		__this_cpu_add(ptr[basefield##OCTETS], addend);	\
 	} while (0)
