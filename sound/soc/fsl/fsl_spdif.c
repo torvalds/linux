@@ -106,6 +106,7 @@ struct fsl_spdif_priv {
 	struct clk *rxclk;
 	struct clk *coreclk;
 	struct clk *sysclk;
+	struct clk *dmaclk;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 };
@@ -451,6 +452,12 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 			return ret;
 		}
 
+		ret = clk_prepare_enable(spdif_priv->dmaclk);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable dma clock\n");
+			return ret;
+		}
+
 		ret = spdif_softreset(spdif_priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to soft reset\n");
@@ -517,6 +524,7 @@ static void fsl_spdif_shutdown(struct snd_pcm_substream *substream,
 		spdif_intr_status_clear(spdif_priv);
 		regmap_update_bits(regmap, REG_SPDIF_SCR,
 				SCR_LOW_POWER, SCR_LOW_POWER);
+		clk_disable_unprepare(spdif_priv->dmaclk);
 		clk_disable_unprepare(spdif_priv->coreclk);
 	}
 }
@@ -1193,6 +1201,13 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	if (IS_ERR(spdif_priv->coreclk)) {
 		dev_err(&pdev->dev, "no core clock in devicetree\n");
 		return PTR_ERR(spdif_priv->coreclk);
+	}
+
+	/* Get dma clock for dma script operation */
+	spdif_priv->dmaclk = devm_clk_get(&pdev->dev, "dma");
+	if (IS_ERR(spdif_priv->dmaclk)) {
+		dev_err(&pdev->dev, "no dma clock in devicetree\n");
+		return PTR_ERR(spdif_priv->dmaclk);
 	}
 
 	/* Select clock source for rx/tx clock */
