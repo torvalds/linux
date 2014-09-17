@@ -3107,6 +3107,59 @@ static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	return 0;
 }
 
+static int rt5677_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+			unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	unsigned int val = 0;
+
+	if (rx_mask || tx_mask)
+		val |= (1 << 12);
+
+	switch (slots) {
+	case 4:
+		val |= (1 << 10);
+		break;
+	case 6:
+		val |= (2 << 10);
+		break;
+	case 8:
+		val |= (3 << 10);
+		break;
+	case 2:
+	default:
+		break;
+	}
+
+	switch (slot_width) {
+	case 20:
+		val |= (1 << 8);
+		break;
+	case 24:
+		val |= (2 << 8);
+		break;
+	case 32:
+		val |= (3 << 8);
+		break;
+	case 16:
+	default:
+		break;
+	}
+
+	switch (dai->id) {
+	case RT5677_AIF1:
+		snd_soc_update_bits(codec, RT5677_TDM1_CTRL1, 0x1f00, val);
+		break;
+	case RT5677_AIF2:
+		snd_soc_update_bits(codec, RT5677_TDM2_CTRL1, 0x1f00, val);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int rt5677_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
@@ -3357,6 +3410,7 @@ static struct snd_soc_dai_ops rt5677_aif_dai_ops = {
 	.set_fmt = rt5677_set_dai_fmt,
 	.set_sysclk = rt5677_set_dai_sysclk,
 	.set_pll = rt5677_set_dai_pll,
+	.set_tdm_slot = rt5677_set_tdm_slot,
 };
 
 static struct snd_soc_dai_driver rt5677_dai[] = {
