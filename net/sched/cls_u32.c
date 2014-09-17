@@ -64,8 +64,11 @@ struct tc_u_knode {
 	u32 __percpu		*pcpu_success;
 #endif
 	struct tcf_proto	*tp;
-	struct tc_u32_sel	sel;
 	struct rcu_head		rcu;
+	/* The 'sel' field MUST be the last field in structure to allow for
+	 * tc_u32_keys allocated at end of structure.
+	 */
+	struct tc_u32_sel	sel;
 };
 
 struct tc_u_hnode {
