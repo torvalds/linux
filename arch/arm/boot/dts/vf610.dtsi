@@ -218,6 +218,19 @@
 				status = "disabled";
 			};
 
+			pwm1: pwm@40039000 {
+				compatible = "fsl,vf610-ftm-pwm";
+				#pwm-cells = <3>;
+				reg = <0x40039000 0x1000>;
+				clock-names = "ftm_sys", "ftm_ext",
+					      "ftm_fix", "ftm_cnt_clk_en";
+				clocks = <&clks VF610_CLK_FTM1>,
+					<&clks VF610_CLK_FTM1_EXT_SEL>,
+					<&clks VF610_CLK_FTM1_FIX_SEL>,
+					<&clks VF610_CLK_FTM1_EXT_FIX_EN>;
+				status = "disabled";
+			};
+
 			adc0: adc@4003b000 {
 				compatible = "fsl,vf610-adc";
 				reg = <0x4003b000 0x1000>;
