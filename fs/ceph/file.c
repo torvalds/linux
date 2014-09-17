@@ -835,7 +835,6 @@ again:
 			     ", reading more\n", iocb->ki_pos,
 			     inode->i_size);
 
-			iov_iter_advance(to, ret);
 			read += ret;
 			len -= ret;
 			checkeof = 0;
