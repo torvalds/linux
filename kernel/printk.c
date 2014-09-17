@@ -1717,7 +1717,7 @@ asmlinkage int printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL(printk);
 
-#if CONFIG_RK_DEBUG_UART >= 0
+#if defined(CONFIG_RK_DEBUG_UART) && (CONFIG_RK_DEBUG_UART >= 0)
 void console_disable_suspend(void)
 {
 	console_suspended = 0;
