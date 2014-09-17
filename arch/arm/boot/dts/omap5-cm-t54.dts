@@ -51,6 +51,13 @@
 		enable-active-high;
 	};
 
+	ads7846reg: ads7846-reg {
+		compatible = "regulator-fixed";
+		regulator-name = "ads7846-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
@@ -161,6 +168,15 @@
 				remote-endpoint = <&tfp410_out>;
 			};
 		};
+	};
+};
+
+&omap5_pmx_wkup {
+
+	ads7846_pins: pinmux_ads7846_pins {
+		pinctrl-single,pins = <
+			0x02 (PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
+		>;
 	};
 };
 
@@ -299,6 +315,51 @@
 			OMAP5_IOPAD(0x0138, PIN_OUTPUT | MUX_MODE3) /* gpio6_186.dispc_data22 */
 			OMAP5_IOPAD(0x013a, PIN_OUTPUT | MUX_MODE3) /* gpio6_187.dispc_data23 */
 		>;
+	};
+
+	mcspi2_pins: pinmux_mcspi1_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x00fc, PIN_INPUT | MUX_MODE0) /* mcspi2_clk */
+			OMAP5_IOPAD(0x00fe, PIN_INPUT | MUX_MODE0) /* mcspi2_simo */
+			OMAP5_IOPAD(0x0100, PIN_INPUT | MUX_MODE0) /* mcspi2_somi */
+			OMAP5_IOPAD(0x0102, PIN_INPUT | MUX_MODE0) /* mcspi2_cs0 */
+		>;
+	};
+};
+
+&mcspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcspi2_pins>;
+
+	/* touch controller */
+	ads7846@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&ads7846_pins>;
+
+		compatible = "ti,ads7846";
+		vcc-supply = <&ads7846reg>;
+
+		reg = <0>;				/* CS0 */
+		spi-max-frequency = <1500000>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <15 0>;			/* gpio1_wk15 */
+		pendown-gpio = <&gpio1 15 0>;
+
+
+		ti,x-min = /bits/ 16 <0x0>;
+		ti,x-max = /bits/ 16 <0x0fff>;
+		ti,y-min = /bits/ 16 <0x0>;
+		ti,y-max = /bits/ 16 <0x0fff>;
+
+		ti,x-plate-ohms = /bits/ 16 <180>;
+		ti,pressure-max = /bits/ 16 <255>;
+
+		ti,debounce-max = /bits/ 16 <30>;
+		ti,debounce-tol = /bits/ 16 <10>;
+		ti,debounce-rep = /bits/ 16 <1>;
+
+		linux,wakeup;
 	};
 };
 
