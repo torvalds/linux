@@ -702,7 +702,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		total_packets += tx_buf->gso_segs;
 
 		/* free the skb */
-		dev_kfree_skb_any(tx_buf->skb);
+		dev_consume_skb_any(tx_buf->skb);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
