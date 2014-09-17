@@ -230,6 +230,16 @@ struct flexcan_regs {
 	u32 rxfir;		/* 0x4c */
 	u32 _reserved3[12];	/* 0x50 */
 	struct flexcan_mb cantxfg[64];	/* 0x80 */
+	/* FIFO-mode:
+	 *			MB
+	 * 0x080...0x08f	0	RX message buffer
+	 * 0x090...0x0df	1-5	reserverd
+	 * 0x0e0...0x0ff	6-7	8 entry ID table
+	 *				(mx25, mx28, mx35, mx53)
+	 * 0x0e0...0x2df	6-7..37	8..128 entry ID table
+	 *			  	size conf'ed via ctrl2::RFFN
+	 *				(mx6, vf610)
+	 */
 	u32 _reserved4[408];
 	u32 mecr;		/* 0xae0 */
 	u32 erriar;		/* 0xae4 */
