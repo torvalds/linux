@@ -99,6 +99,7 @@
 			dmas = <&dma 2>,
 			       <&dma 3>;
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		spi: spi@7e204000 {
