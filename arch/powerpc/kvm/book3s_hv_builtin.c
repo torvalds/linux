@@ -154,7 +154,7 @@ EXPORT_SYMBOL_GPL(kvm_release_hpt);
  * kvm_cma_reserve() - reserve area for kvm hash pagetable
  *
  * This function reserves memory from early allocator. It should be
- * called by arch specific code once the early allocator (memblock or bootmem)
+ * called by arch specific code once the memblock allocator
  * has been activated and all other subsystems have already allocated/reserved
  * memory.
  */

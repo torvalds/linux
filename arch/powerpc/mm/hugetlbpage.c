@@ -276,7 +276,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
 /* Build list of addresses of gigantic pages.  This function is used in early
- * boot before the buddy or bootmem allocator is setup.
+ * boot before the buddy allocator is setup.
  */
 void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
 {
@@ -399,7 +399,7 @@ void __init reserve_hugetlb_gpages(void)
 #else /* !PPC_FSL_BOOK3E */
 
 /* Build list of addresses of gigantic pages.  This function is used in early
- * boot before the buddy or bootmem allocator is setup.
+ * boot before the buddy allocator is setup.
  */
 void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
 {
