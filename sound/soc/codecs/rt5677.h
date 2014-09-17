@@ -1554,6 +1554,7 @@ struct rt5677_priv {
 	int pll_src;
 	int pll_in;
 	int pll_out;
+	int pow_ldo2; /* POW_LDO2 pin */
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;
 #endif
