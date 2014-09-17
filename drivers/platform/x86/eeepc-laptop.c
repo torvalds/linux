@@ -308,13 +308,7 @@ static ssize_t show_sys_acpi(struct device *dev, int cm, char *buf)
 	{								\
 		return store_sys_acpi(dev, _cm, buf, count);		\
 	}								\
-	static struct device_attribute dev_attr_##_name = {		\
-		.attr = {						\
-			.name = __stringify(_name),			\
-			.mode = _mode },				\
-		.show   = _name##_show,					\
-		.store  = _name##_store,				\
-	}
+	static DEVICE_ATTR(_name, _mode, _name##_show, _name##_store)
 
 EEEPC_CREATE_DEVICE_ATTR(camera, 0644, CM_ASL_CAMERA);
 EEEPC_CREATE_DEVICE_ATTR(cardr, 0644, CM_ASL_CARDREADER);
@@ -420,29 +414,9 @@ static ssize_t cpufv_disabled_store(struct device *dev,
 }
 
 
-static struct device_attribute dev_attr_cpufv = {
-	.attr = {
-		.name = "cpufv",
-		.mode = 0644 },
-	.show   = cpufv_show,
-	.store  = cpufv_store
-};
-
-static struct device_attribute dev_attr_available_cpufv = {
-	.attr = {
-		.name = "available_cpufv",
-		.mode = 0444 },
-	.show   = available_cpufv_show
-};
-
-static struct device_attribute dev_attr_cpufv_disabled = {
-	.attr = {
-		.name = "cpufv_disabled",
-		.mode = 0644 },
-	.show   = cpufv_disabled_show,
-	.store  = cpufv_disabled_store
-};
-
+static DEVICE_ATTR_RW(cpufv);
+static DEVICE_ATTR_RO(available_cpufv);
+static DEVICE_ATTR_RW(cpufv_disabled);
 
 static struct attribute *platform_attributes[] = {
 	&dev_attr_camera.attr,
