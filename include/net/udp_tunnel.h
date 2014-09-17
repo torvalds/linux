@@ -26,7 +26,31 @@ struct udp_port_cfg {
 				use_udp6_rx_checksums:1;
 };
 
-int udp_sock_create(struct net *net, struct udp_port_cfg *cfg,
-		    struct socket **sockp);
+int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
+		     struct socket **sockp);
+
+#if IS_ENABLED(CONFIG_IPV6)
+int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
+		     struct socket **sockp);
+#else
+static inline int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
+				   struct socket **sockp)
+{
+	return 0;
+}
+#endif
+
+static inline int udp_sock_create(struct net *net,
+				  struct udp_port_cfg *cfg,
+				  struct socket **sockp)
+{
+	if (cfg->family == AF_INET)
+		return udp_sock_create4(net, cfg, sockp);
+
+	if (cfg->family == AF_INET6)
+		return udp_sock_create6(net, cfg, sockp);
+
+	return -EPFNOSUPPORT;
+}
 
 #endif
