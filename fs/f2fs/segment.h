@@ -487,40 +487,33 @@ enum {
 	F2FS_IPU_UTIL,
 	F2FS_IPU_SSR_UTIL,
 	F2FS_IPU_FSYNC,
-	F2FS_IPU_DISABLE,
 };
 
 static inline bool need_inplace_update(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	unsigned int policy = SM_I(sbi)->ipu_policy;
 
 	/* IPU can be done only for the user data */
 	if (S_ISDIR(inode->i_mode))
 		return false;
 
-	switch (SM_I(sbi)->ipu_policy) {
-	case F2FS_IPU_FORCE:
+	if (policy & (0x1 << F2FS_IPU_FORCE))
 		return true;
-	case F2FS_IPU_SSR:
-		if (need_SSR(sbi))
-			return true;
-		break;
-	case F2FS_IPU_UTIL:
-		if (utilization(sbi) > SM_I(sbi)->min_ipu_util)
-			return true;
-		break;
-	case F2FS_IPU_SSR_UTIL:
-		if (need_SSR(sbi) && utilization(sbi) > SM_I(sbi)->min_ipu_util)
-			return true;
-		break;
-	case F2FS_IPU_FSYNC:
-		/* this is only set during fdatasync */
-		if (is_inode_flag_set(F2FS_I(inode), FI_NEED_IPU))
-			return true;
-		break;
-	case F2FS_IPU_DISABLE:
-		break;
-	}
+	if (policy & (0x1 << F2FS_IPU_SSR) && need_SSR(sbi))
+		return true;
+	if (policy & (0x1 << F2FS_IPU_UTIL) &&
+			utilization(sbi) > SM_I(sbi)->min_ipu_util)
+		return true;
+	if (policy & (0x1 << F2FS_IPU_SSR_UTIL) && need_SSR(sbi) &&
+			utilization(sbi) > SM_I(sbi)->min_ipu_util)
+		return true;
+
+	/* this is only set during fdatasync */
+	if (policy & (0x1 << F2FS_IPU_FSYNC) &&
+			is_inode_flag_set(F2FS_I(inode), FI_NEED_IPU))
+		return true;
+
 	return false;
 }
 

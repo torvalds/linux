@@ -192,9 +192,9 @@ Files in /sys/fs/f2fs/<devname>
 
  ipu_policy                   This parameter controls the policy of in-place
                               updates in f2fs. There are five policies:
-                               0: F2FS_IPU_FORCE, 1: F2FS_IPU_SSR,
-                               2: F2FS_IPU_UTIL,  3: F2FS_IPU_SSR_UTIL,
-                               4: F2FS_IPU_FSYNC, 5: F2FS_IPU_DISABLE.
+                               0x01: F2FS_IPU_FORCE, 0x02: F2FS_IPU_SSR,
+                               0x04: F2FS_IPU_UTIL,  0x08: F2FS_IPU_SSR_UTIL,
+                               0x10: F2FS_IPU_FSYNC.
 
  min_ipu_util                 This parameter controls the threshold to trigger
                               in-place-updates. The number indicates percentage
