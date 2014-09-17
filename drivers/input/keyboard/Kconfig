@@ -14,6 +14,7 @@ if INPUT_KEYBOARD
 
 config KEYS_RK
         tristate "rk keyboard"
+	depends on IIO
         default y
         help
           rk keyboard drivers(gpio and adc)

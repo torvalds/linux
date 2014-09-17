@@ -28,7 +28,7 @@
 #include <linux/iio/driver.h>
 #include <linux/iio/consumer.h>
 
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
