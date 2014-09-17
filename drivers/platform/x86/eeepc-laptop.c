@@ -1039,7 +1039,7 @@ static ssize_t show_sys_hwmon(int (*get)(void), char *buf)
 }
 
 #define EEEPC_SENSOR_SHOW_FUNC(_name, _get)				\
-	static ssize_t show_##_name(struct device *dev,			\
+	static ssize_t _name##_show(struct device *dev,			\
 				    struct device_attribute *attr,	\
 				    char *buf)				\
 	{								\
@@ -1047,23 +1047,27 @@ static ssize_t show_sys_hwmon(int (*get)(void), char *buf)
 	}
 
 #define EEEPC_SENSOR_STORE_FUNC(_name, _set)				\
-	static ssize_t store_##_name(struct device *dev,		\
+	static ssize_t _name##_store(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     const char *buf, size_t count)	\
 	{								\
 		return store_sys_hwmon(_set, buf, count);		\
 	}
 
-#define EEEPC_CREATE_SENSOR_ATTR(_name, _mode, _get, _set)		\
+#define EEEPC_CREATE_SENSOR_ATTR_RW(_name, _get, _set)			\
 	EEEPC_SENSOR_SHOW_FUNC(_name, _get)				\
 	EEEPC_SENSOR_STORE_FUNC(_name, _set)				\
-	static DEVICE_ATTR(_name, _mode, show_##_name, store_##_name)
+	static DEVICE_ATTR_RW(_name)
 
-EEEPC_CREATE_SENSOR_ATTR(fan1_input, S_IRUGO, eeepc_get_fan_rpm, NULL);
-EEEPC_CREATE_SENSOR_ATTR(pwm1, S_IRUGO | S_IWUSR,
-			 eeepc_get_fan_pwm, eeepc_set_fan_pwm);
-EEEPC_CREATE_SENSOR_ATTR(pwm1_enable, S_IRUGO | S_IWUSR,
-			 eeepc_get_fan_ctrl, eeepc_set_fan_ctrl);
+#define EEEPC_CREATE_SENSOR_ATTR_RO(_name, _get)			\
+	EEEPC_SENSOR_SHOW_FUNC(_name, _get)				\
+	static DEVICE_ATTR_RO(_name)
+
+EEEPC_CREATE_SENSOR_ATTR_RO(fan1_input, eeepc_get_fan_rpm);
+EEEPC_CREATE_SENSOR_ATTR_RW(pwm1, eeepc_get_fan_pwm,
+			    eeepc_set_fan_pwm);
+EEEPC_CREATE_SENSOR_ATTR_RW(pwm1_enable, eeepc_get_fan_ctrl,
+			    eeepc_set_fan_ctrl);
 
 static struct attribute *hwmon_attrs[] = {
 	&dev_attr_pwm1.attr,
