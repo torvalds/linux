@@ -1733,18 +1733,40 @@ static void __init tsb_phys_patch(void)
 static struct hv_tsb_descr ktsb_descr[NUM_KTSB_DESCR];
 extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
+/* The swapper TSBs are loaded with a base sequence of:
+ *
+ *	sethi	%uhi(SYMBOL), REG1
+ *	sethi	%hi(SYMBOL), REG2
+ *	or	REG1, %ulo(SYMBOL), REG1
+ *	or	REG2, %lo(SYMBOL), REG2
+ *	sllx	REG1, 32, REG1
+ *	or	REG1, REG2, REG1
+ *
+ * When we use physical addressing for the TSB accesses, we patch the
+ * first four instructions in the above sequence.
+ */
+
 static void patch_one_ktsb_phys(unsigned int *start, unsigned int *end, unsigned long pa)
 {
-	pa >>= KTSB_PHYS_SHIFT;
+	unsigned long high_bits, low_bits;
+
+	high_bits = (pa >> 32) & 0xffffffff;
+	low_bits = (pa >> 0) & 0xffffffff;
 
 	while (start < end) {
 		unsigned int *ia = (unsigned int *)(unsigned long)*start;
 
-		ia[0] = (ia[0] & ~0x3fffff) | (pa >> 10);
+		ia[0] = (ia[0] & ~0x3fffff) | (high_bits >> 10);
 		__asm__ __volatile__("flush	%0" : : "r" (ia));
 
-		ia[1] = (ia[1] & ~0x3ff) | (pa & 0x3ff);
+		ia[1] = (ia[1] & ~0x3fffff) | (low_bits >> 10);
 		__asm__ __volatile__("flush	%0" : : "r" (ia + 1));
+
+		ia[2] = (ia[2] & ~0x1fff) | (high_bits & 0x3ff);
+		__asm__ __volatile__("flush	%0" : : "r" (ia + 2));
+
+		ia[3] = (ia[3] & ~0x1fff) | (low_bits & 0x3ff);
+		__asm__ __volatile__("flush	%0" : : "r" (ia + 3));
 
 		start++;
 	}
