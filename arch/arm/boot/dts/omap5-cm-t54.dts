@@ -19,6 +19,7 @@
 	aliases {
 		display0 = &hdmi0;
 		display1 = &dvi0;
+		display2 = &lcd0;
 	};
 
 	vmmcsd_fixed: fixed-regulator-mmcsd {
@@ -71,6 +72,38 @@
 			default-state = "off";
 		};
 	};
+
+	lcd0: display {
+                compatible = "startek,startek-kd050c", "panel-dpi";
+                label = "lcd";
+
+                pinctrl-names = "default";
+                pinctrl-0 = <&lcd_pins>;
+
+                enable-gpios = <&gpio8 3 GPIO_ACTIVE_HIGH>;
+
+                panel-timing {
+                        clock-frequency = <33000000>;
+                        hactive = <800>;
+                        vactive = <480>;
+                        hfront-porch = <40>;
+                        hback-porch = <40>;
+                        hsync-len = <43>;
+                        vback-porch = <29>;
+                        vfront-porch = <13>;
+                        vsync-len = <3>;
+                        hsync-active = <0>;
+                        vsync-active = <0>;
+                        de-active = <1>;
+                        pixelclk-active = <1>;
+                };
+
+                port {
+                        lcd_in: endpoint {
+                                remote-endpoint = <&dpi_lcd_out>;
+                        };
+                };
+        };
 
 	hdmi0: connector@0 {
 		compatible = "hdmi-connector";
@@ -220,6 +253,12 @@
 			OMAP5_IOPAD(0x013c, PIN_INPUT_PULLUP | MUX_MODE0) /* hdmi_cec */
 			OMAP5_IOPAD(0x0140, PIN_INPUT | MUX_MODE0) /* hdmi_ddc_scl */
 			OMAP5_IOPAD(0x0142, PIN_INPUT | MUX_MODE0) /* hdmi_ddc_sda */
+		>;
+	};
+
+	lcd_pins: pinmux_lcd_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0172, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* timer11_pwm_evt.gpio8_227 */
 		>;
 	};
 
@@ -545,6 +584,11 @@
 	port {
 		dpi_dvi_out: endpoint@0 {
 			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+
+		dpi_lcd_out: endpoint@1 {
+			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};
 	};
