@@ -318,23 +318,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 	drm_gem_object_unreference_unlocked(obj);
 }
 
-int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv)
-{
-	struct drm_exynos_gem_map_off *args = data;
-
-	DRM_DEBUG_KMS("handle = 0x%x, offset = 0x%lx\n",
-			args->handle, (unsigned long)args->offset);
-
-	if (!(dev->driver->driver_features & DRIVER_GEM)) {
-		DRM_ERROR("does not support GEM.\n");
-		return -ENODEV;
-	}
-
-	return exynos_drm_gem_dumb_map_offset(file_priv, dev, args->handle,
-			&args->offset);
-}
-
 int exynos_drm_gem_mmap_buffer(struct file *filp,
 				      struct vm_area_struct *vma)
 {
