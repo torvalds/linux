@@ -27,7 +27,6 @@
 
 struct cgroup_root;
 struct cgroup_subsys;
-struct inode;
 struct cgroup;
 
 extern int cgroup_init_early(void);
