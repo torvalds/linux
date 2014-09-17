@@ -4233,7 +4233,7 @@ static int msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
 	return 0;
 }
 
-static int setup_hpet_msi(unsigned int irq, unsigned int id)
+static int alloc_hpet_msi(unsigned int irq, unsigned int id)
 {
 	struct irq_2_irte *irte_info;
 	struct irq_cfg *cfg;
@@ -4272,6 +4272,6 @@ struct irq_remap_ops amd_iommu_irq_ops = {
 	.compose_msi_msg	= compose_msi_msg,
 	.msi_alloc_irq		= msi_alloc_irq,
 	.msi_setup_irq		= msi_setup_irq,
-	.setup_hpet_msi		= setup_hpet_msi,
+	.alloc_hpet_msi		= alloc_hpet_msi,
 };
 #endif
