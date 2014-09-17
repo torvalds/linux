@@ -742,6 +742,7 @@ static int smiapp_get_limits_binning(struct smiapp_sensor *sensor)
 static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	struct smiapp_pll *pll = &sensor->pll;
 	unsigned int type, n;
 	unsigned int i, pixel_order;
 	int rval;
@@ -813,6 +814,41 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 				sensor->csi_format = f;
 				sensor->internal_csi_format = f;
 			}
+		}
+	}
+
+	/* Figure out which BPP values can be used with which formats. */
+	pll->binning_horizontal = 1;
+	pll->binning_vertical = 1;
+	pll->scale_m = sensor->scale_m;
+
+	for (i = 0; i < ARRAY_SIZE(smiapp_csi_data_formats); i++) {
+		const struct smiapp_csi_data_format *f =
+			&smiapp_csi_data_formats[i];
+		unsigned long *valid_link_freqs =
+			&sensor->valid_link_freqs[
+				f->compressed - SMIAPP_COMPRESSED_BASE];
+		unsigned int j;
+
+		BUG_ON(f->compressed < SMIAPP_COMPRESSED_BASE);
+		BUG_ON(f->compressed > SMIAPP_COMPRESSED_MAX);
+
+		if (!(sensor->default_mbus_frame_fmts & 1 << i))
+			continue;
+
+		pll->bits_per_pixel = f->compressed;
+
+		for (j = 0; sensor->platform_data->op_sys_clock[j]; j++) {
+			pll->link_freq = sensor->platform_data->op_sys_clock[j];
+
+			rval = smiapp_pll_try(sensor, pll);
+			dev_dbg(&client->dev, "link freq %u Hz, bpp %u %s\n",
+				pll->link_freq, pll->bits_per_pixel,
+				rval ? "not ok" : "ok");
+			if (rval)
+				continue;
+
+			set_bit(j, valid_link_freqs);
 		}
 	}
 
@@ -2479,12 +2515,6 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		goto out_power_off;
 	}
 
-	rval = smiapp_get_mbus_formats(sensor);
-	if (rval) {
-		rval = -ENODEV;
-		goto out_power_off;
-	}
-
 	if (sensor->limits[SMIAPP_LIMIT_BINNING_CAPABILITY]) {
 		u32 val;
 
@@ -2565,6 +2595,22 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	sensor->ssds_used++;
 
 	sensor->scale_m = sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN];
+
+	/* prepare PLL configuration input values */
+	pll->bus_type = SMIAPP_PLL_BUS_TYPE_CSI2;
+	pll->csi2.lanes = sensor->platform_data->lanes;
+	pll->ext_clk_freq_hz = sensor->platform_data->ext_clk;
+	pll->flags = smiapp_call_quirk(sensor, pll_flags);
+	pll->scale_n = sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN];
+	/* Profile 0 sensors have no separate OP clock branch. */
+	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
+		pll->flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
+
+	rval = smiapp_get_mbus_formats(sensor);
+	if (rval) {
+		rval = -ENODEV;
+		goto out_nvm_release;
+	}
 
 	for (i = 0; i < SMIAPP_SUBDEVS; i++) {
 		struct {
@@ -2662,17 +2708,6 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	rval = smiapp_init_controls(sensor);
 	if (rval < 0)
 		goto out_nvm_release;
-
-	/* prepare PLL configuration input values */
-	pll->bus_type = SMIAPP_PLL_BUS_TYPE_CSI2;
-	pll->csi2.lanes = sensor->platform_data->lanes;
-	pll->ext_clk_freq_hz = sensor->platform_data->ext_clk;
-	pll->flags = smiapp_call_quirk(sensor, pll_flags);
-
-	/* Profile 0 sensors have no separate OP clock branch. */
-	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
-		pll->flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
-	pll->scale_n = sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN];
 
 	mutex_lock(&sensor->mutex);
 	rval = smiapp_update_mode(sensor);
