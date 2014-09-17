@@ -436,7 +436,8 @@ static void build_key(dm_oblock_t oblock, struct dm_cell_key *key)
 {
 	key->virtual = 0;
 	key->dev = 0;
-	key->block = from_oblock(oblock);
+	key->block_begin = from_oblock(oblock);
+	key->block_end = key->block_begin + 1ULL;
 }
 
 /*

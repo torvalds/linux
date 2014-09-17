@@ -95,10 +95,10 @@ static int cmp_keys(struct dm_cell_key *lhs,
 	if (lhs->dev > rhs->dev)
 		return 1;
 
-	if (lhs->block < rhs->block)
+	if (lhs->block_end <= rhs->block_begin)
 		return -1;
 
-	if (lhs->block > rhs->block)
+	if (lhs->block_begin >= rhs->block_end)
 		return 1;
 
 	return 0;

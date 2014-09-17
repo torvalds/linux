@@ -23,11 +23,14 @@
  */
 struct dm_bio_prison;
 
-/* FIXME: this needs to be more abstract */
+/*
+ * Keys define a range of blocks within either a virtual or physical
+ * device.
+ */
 struct dm_cell_key {
 	int virtual;
 	dm_thin_id dev;
-	dm_block_t block;
+	dm_block_t block_begin, block_end;
 };
 
 /*
@@ -59,7 +62,7 @@ void dm_bio_prison_free_cell(struct dm_bio_prison *prison,
 			     struct dm_bio_prison_cell *cell);
 
 /*
- * Creates, or retrieves a cell for the given key.
+ * Creates, or retrieves a cell that overlaps the given key.
  *
  * Returns 1 if pre-existing cell returned, zero if new cell created using
  * @cell_prealloc.
@@ -70,7 +73,8 @@ int dm_get_cell(struct dm_bio_prison *prison,
 		struct dm_bio_prison_cell **cell_result);
 
 /*
- * An atomic op that combines retrieving a cell, and adding a bio to it.
+ * An atomic op that combines retrieving or creating a cell, and adding a
+ * bio to it.
  *
  * Returns 1 if the cell was already held, 0 if @inmate is the new holder.
  */
