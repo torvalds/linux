@@ -82,6 +82,7 @@
 #define SSP_MIS(r)	(r + 0x01C)
 #define SSP_ICR(r)	(r + 0x020)
 #define SSP_DMACR(r)	(r + 0x024)
+#define SSP_CSR(r)	(r + 0x030) /* vendor extension */
 #define SSP_ITCR(r)	(r + 0x080)
 #define SSP_ITIP(r)	(r + 0x084)
 #define SSP_ITOP(r)	(r + 0x088)
@@ -196,6 +197,12 @@
 #define SSP_DMACR_MASK_RXDMAE		(0x1UL << 0)
 /* Transmit DMA Enable bit */
 #define SSP_DMACR_MASK_TXDMAE		(0x1UL << 1)
+
+/*
+ * SSP Chip Select Control Register - SSP_CSR
+ * (vendor extension)
+ */
+#define SSP_CSR_CSVALUE_MASK		(0x1FUL << 0)
 
 /*
  * SSP Integration Test control Register - SSP_ITCR
@@ -313,6 +320,7 @@ enum ssp_writing {
  * @extended_cr: 32 bit wide control register 0 with extra
  * features and extra features in CR1 as found in the ST variants
  * @pl023: supports a subset of the ST extensions called "PL023"
+ * @internal_cs_ctrl: supports chip select control register
  */
 struct vendor_data {
 	int fifodepth;
@@ -321,6 +329,7 @@ struct vendor_data {
 	bool extended_cr;
 	bool pl023;
 	bool loopback;
+	bool internal_cs_ctrl;
 };
 
 /**
@@ -440,9 +449,32 @@ static void null_cs_control(u32 command)
 	pr_debug("pl022: dummy chip select control, CS=0x%x\n", command);
 }
 
+/**
+ * internal_cs_control - Control chip select signals via SSP_CSR.
+ * @pl022: SSP driver private data structure
+ * @command: select/delect the chip
+ *
+ * Used on controller with internal chip select control via SSP_CSR register
+ * (vendor extension). Each of the 5 LSB in the register controls one chip
+ * select signal.
+ */
+static void internal_cs_control(struct pl022 *pl022, u32 command)
+{
+	u32 tmp;
+
+	tmp = readw(SSP_CSR(pl022->virtbase));
+	if (command == SSP_CHIP_SELECT)
+		tmp &= ~BIT(pl022->cur_cs);
+	else
+		tmp |= BIT(pl022->cur_cs);
+	writew(tmp, SSP_CSR(pl022->virtbase));
+}
+
 static void pl022_cs_control(struct pl022 *pl022, u32 command)
 {
-	if (gpio_is_valid(pl022->cur_cs))
+	if (pl022->vendor->internal_cs_ctrl)
+		internal_cs_control(pl022, command);
+	else if (gpio_is_valid(pl022->cur_cs))
 		gpio_set_value(pl022->cur_cs, command);
 	else
 		pl022->cur_chip->cs_control(command);
@@ -2122,6 +2154,9 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	if (platform_info->num_chipselect && platform_info->chipselects) {
 		for (i = 0; i < num_cs; i++)
 			pl022->chipselects[i] = platform_info->chipselects[i];
+	} else if (pl022->vendor->internal_cs_ctrl) {
+		for (i = 0; i < num_cs; i++)
+			pl022->chipselects[i] = i;
 	} else if (IS_ENABLED(CONFIG_OF)) {
 		for (i = 0; i < num_cs; i++) {
 			int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
@@ -2352,6 +2387,7 @@ static struct vendor_data vendor_arm = {
 	.extended_cr = false,
 	.pl023 = false,
 	.loopback = true,
+	.internal_cs_ctrl = false,
 };
 
 static struct vendor_data vendor_st = {
@@ -2361,6 +2397,7 @@ static struct vendor_data vendor_st = {
 	.extended_cr = true,
 	.pl023 = false,
 	.loopback = true,
+	.internal_cs_ctrl = false,
 };
 
 static struct vendor_data vendor_st_pl023 = {
@@ -2370,6 +2407,17 @@ static struct vendor_data vendor_st_pl023 = {
 	.extended_cr = true,
 	.pl023 = true,
 	.loopback = false,
+	.internal_cs_ctrl = false,
+};
+
+static struct vendor_data vendor_lsi = {
+	.fifodepth = 8,
+	.max_bpw = 16,
+	.unidir = false,
+	.extended_cr = false,
+	.pl023 = false,
+	.loopback = true,
+	.internal_cs_ctrl = true,
 };
 
 static struct amba_id pl022_ids[] = {
@@ -2402,6 +2450,15 @@ static struct amba_id pl022_ids[] = {
 		.id	= 0x00080023,
 		.mask	= 0xffffffff,
 		.data	= &vendor_st_pl023,
+	},
+	{
+		/*
+		 * PL022 variant that has a chip select control register whih
+		 * allows control of 5 output signals nCS[0:4].
+		 */
+		.id	= 0x000b6022,
+		.mask	= 0x000fffff,
+		.data	= &vendor_lsi,
 	},
 	{ 0, 0 },
 };
