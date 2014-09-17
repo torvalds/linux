@@ -211,7 +211,7 @@ void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 		switch (vif->type) {
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_STATION:
-			if (vif->bss_conf.assoc)
+			if (avp->assoc)
 				active = true;
 			break;
 		default:
@@ -917,7 +917,7 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (!vif->bss_conf.assoc)
+		if (!avp->assoc)
 			return false;
 
 		skb = ieee80211_nullfunc_get(sc->hw, vif);
@@ -1339,7 +1339,7 @@ void ath9k_p2p_ps_timer(void *priv)
 	rcu_read_lock();
 
 	vif = avp->vif;
-	sta = ieee80211_find_sta(vif, vif->bss_conf.bssid);
+	sta = ieee80211_find_sta(vif, avp->bssid);
 	if (!sta)
 		goto out;
 

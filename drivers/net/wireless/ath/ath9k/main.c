@@ -898,6 +898,7 @@ static bool ath9k_uses_beacons(int type)
 static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 			   u8 *mac, struct ieee80211_vif *vif)
 {
+	struct ath_vif *avp = (struct ath_vif *)vif->drv_priv;
 	int i;
 
 	if (iter_data->has_hw_macaddr) {
@@ -918,7 +919,7 @@ static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 		break;
 	case NL80211_IFTYPE_STATION:
 		iter_data->nstations++;
-		if (vif->bss_conf.assoc && !iter_data->primary_sta)
+		if (avp->assoc && !iter_data->primary_sta)
 			iter_data->primary_sta = vif;
 		break;
 	case NL80211_IFTYPE_ADHOC:
@@ -963,13 +964,13 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 				  struct ieee80211_vif *vif, bool changed)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ath_vif *avp = (struct ath_vif *)vif->drv_priv;
 	unsigned long flags;
 
 	set_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
 
-	ether_addr_copy(common->curbssid, bss_conf->bssid);
-	common->curaid = bss_conf->aid;
+	ether_addr_copy(common->curbssid, avp->bssid);
+	common->curaid = avp->aid;
 	ath9k_hw_write_associd(sc->sc_ah);
 
 	if (changed) {
@@ -1697,6 +1698,10 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		ath_dbg(common, CONFIG, "BSSID %pM Changed ASSOC %d\n",
 			bss_conf->bssid, bss_conf->assoc);
+
+		ether_addr_copy(avp->bssid, bss_conf->bssid);
+		avp->aid = bss_conf->aid;
+		avp->assoc = bss_conf->assoc;
 
 		ath9k_calculate_summary_state(sc, avp->chanctx);
 
