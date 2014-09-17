@@ -311,14 +311,18 @@ static ssize_t show_sys_acpi(struct device *dev, int cm, char *buf)
 		return store_sys_acpi(dev, _cm, buf, count);		\
 	}
 
-#define EEEPC_CREATE_DEVICE_ATTR(_name, _mode, _cm)			\
+#define EEEPC_CREATE_DEVICE_ATTR_RW(_name, _cm)				\
 	EEEPC_ACPI_SHOW_FUNC(_name, _cm)				\
 	EEEPC_ACPI_STORE_FUNC(_name, _cm)				\
-	static DEVICE_ATTR(_name, _mode, _name##_show, _name##_store)
+	static DEVICE_ATTR_RW(_name)
 
-EEEPC_CREATE_DEVICE_ATTR(camera, 0644, CM_ASL_CAMERA);
-EEEPC_CREATE_DEVICE_ATTR(cardr, 0644, CM_ASL_CARDREADER);
-EEEPC_CREATE_DEVICE_ATTR(disp, 0200, CM_ASL_DISPLAYSWITCH);
+#define EEEPC_CREATE_DEVICE_ATTR_WO(_name, _cm)				\
+	EEEPC_ACPI_STORE_FUNC(_name, _cm)				\
+	static DEVICE_ATTR_WO(_name)
+
+EEEPC_CREATE_DEVICE_ATTR_RW(camera, CM_ASL_CAMERA);
+EEEPC_CREATE_DEVICE_ATTR_RW(cardr, CM_ASL_CARDREADER);
+EEEPC_CREATE_DEVICE_ATTR_WO(disp, CM_ASL_DISPLAYSWITCH);
 
 struct eeepc_cpufv {
 	int num;
