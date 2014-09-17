@@ -2684,6 +2684,9 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			lq_sta->ldpc = true;
 	}
 
+	if (IWL_MVM_RS_DISABLE_MIMO)
+		lq_sta->active_mimo2_rate = 0;
+
 	lq_sta->max_legacy_rate_idx = find_last_bit(&lq_sta->active_legacy_rate,
 						    BITS_PER_LONG);
 	lq_sta->max_siso_rate_idx = find_last_bit(&lq_sta->active_siso_rate,
