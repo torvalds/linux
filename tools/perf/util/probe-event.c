@@ -697,11 +697,11 @@ end:
 	return ret;
 }
 
-int show_line_range(struct line_range *lr, const char *module)
+int show_line_range(struct line_range *lr, const char *module, bool user)
 {
 	int ret;
 
-	ret = init_symbol_maps(false);
+	ret = init_symbol_maps(user);
 	if (ret < 0)
 		return ret;
 	ret = __show_line_range(lr, module);
@@ -776,7 +776,7 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 	int i, ret = 0;
 	struct debuginfo *dinfo;
 
-	ret = init_symbol_maps(false);
+	ret = init_symbol_maps(pevs->uprobes);
 	if (ret < 0)
 		return ret;
 
@@ -822,7 +822,8 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 }
 
 int show_line_range(struct line_range *lr __maybe_unused,
-		    const char *module __maybe_unused)
+		    const char *module __maybe_unused,
+		    bool user __maybe_unused)
 {
 	pr_warning("Debuginfo-analysis is not supported.\n");
 	return -ENOSYS;
