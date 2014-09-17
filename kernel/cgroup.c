@@ -4841,13 +4841,10 @@ static int cgroup_rmdir(struct kernfs_node *kn)
 	cgrp = cgroup_kn_lock_live(kn);
 	if (!cgrp)
 		return 0;
-	cgroup_get(cgrp);	/* for @kn->priv clearing */
 
 	ret = cgroup_destroy_locked(cgrp);
 
 	cgroup_kn_unlock(kn);
-
-	cgroup_put(cgrp);
 	return ret;
 }
 
