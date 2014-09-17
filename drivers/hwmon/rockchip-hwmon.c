@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
+#include <linux/rockchip/common.h>
 #include "hwmon-rockchip.h"
 
 
@@ -68,7 +69,7 @@ static void tsadc_monitor(struct work_struct *work)
 			continue;
 
 		temp = data->ops.read_sensor(i);
-		if (temp == 150) {
+		if (temp == INVALID_TEMP) {
 			dev_err(&data->pdev->dev, "TSADC read failed\n");
 			continue;
 		}

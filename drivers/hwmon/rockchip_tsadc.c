@@ -41,6 +41,7 @@
 #include <linux/of_platform.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/rockchip/common.h>
 #include "hwmon-rockchip.h"
 
 
@@ -317,7 +318,7 @@ static void rockchip_tsadc_get(int chn, int *temp, int *code)
 	*code = 0;
 
 	if (!g_dev || chn > 4){
-		*temp = 150;
+		*temp = INVALID_TEMP;
 		return ;
 	}
 #if 0
