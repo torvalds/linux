@@ -64,6 +64,23 @@ struct dwapb_gpio {
 	struct irq_domain	*domain;
 };
 
+static inline u32 dwapb_read(struct dwapb_gpio *gpio, unsigned int offset)
+{
+	struct bgpio_chip *bgc	= &gpio->ports[0].bgc;
+	void __iomem *reg_base	= gpio->regs;
+
+	return bgc->read_reg(reg_base + offset);
+}
+
+static inline void dwapb_write(struct dwapb_gpio *gpio, unsigned int offset,
+			       u32 val)
+{
+	struct bgpio_chip *bgc	= &gpio->ports[0].bgc;
+	void __iomem *reg_base	= gpio->regs;
+
+	bgc->write_reg(reg_base + offset, val);
+}
+
 static int dwapb_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct bgpio_chip *bgc = to_bgpio_chip(gc);
@@ -76,14 +93,14 @@ static int dwapb_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 
 static void dwapb_toggle_trigger(struct dwapb_gpio *gpio, unsigned int offs)
 {
-	u32 v = readl(gpio->regs + GPIO_INT_POLARITY);
+	u32 v = dwapb_read(gpio, GPIO_INT_POLARITY);
 
 	if (gpio_get_value(gpio->ports[0].bgc.gc.base + offs))
 		v &= ~BIT(offs);
 	else
 		v |= BIT(offs);
 
-	writel(v, gpio->regs + GPIO_INT_POLARITY);
+	dwapb_write(gpio, GPIO_INT_POLARITY, v);
 }
 
 static u32 dwapb_do_irq(struct dwapb_gpio *gpio)
@@ -126,9 +143,9 @@ static void dwapb_irq_enable(struct irq_data *d)
 	u32 val;
 
 	spin_lock_irqsave(&bgc->lock, flags);
-	val = readl(gpio->regs + GPIO_INTEN);
+	val = dwapb_read(gpio, GPIO_INTEN);
 	val |= BIT(d->hwirq);
-	writel(val, gpio->regs + GPIO_INTEN);
+	dwapb_write(gpio, GPIO_INTEN, val);
 	spin_unlock_irqrestore(&bgc->lock, flags);
 }
 
@@ -141,9 +158,9 @@ static void dwapb_irq_disable(struct irq_data *d)
 	u32 val;
 
 	spin_lock_irqsave(&bgc->lock, flags);
-	val = readl(gpio->regs + GPIO_INTEN);
+	val = dwapb_read(gpio, GPIO_INTEN);
 	val &= ~BIT(d->hwirq);
-	writel(val, gpio->regs + GPIO_INTEN);
+	dwapb_write(gpio, GPIO_INTEN, val);
 	spin_unlock_irqrestore(&bgc->lock, flags);
 }
 
@@ -183,8 +200,8 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 		return -EINVAL;
 
 	spin_lock_irqsave(&bgc->lock, flags);
-	level = readl(gpio->regs + GPIO_INTTYPE_LEVEL);
-	polarity = readl(gpio->regs + GPIO_INT_POLARITY);
+	level = dwapb_read(gpio, GPIO_INTTYPE_LEVEL);
+	polarity = dwapb_read(gpio, GPIO_INT_POLARITY);
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
@@ -211,8 +228,8 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 
 	irq_setup_alt_chip(d, type);
 
-	writel(level, gpio->regs + GPIO_INTTYPE_LEVEL);
-	writel(polarity, gpio->regs + GPIO_INT_POLARITY);
+	dwapb_write(gpio, GPIO_INTTYPE_LEVEL, level);
+	dwapb_write(gpio, GPIO_INT_POLARITY, polarity);
 	spin_unlock_irqrestore(&bgc->lock, flags);
 
 	return 0;
