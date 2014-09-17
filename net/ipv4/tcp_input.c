@@ -4304,23 +4304,18 @@ static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int 
 
 int tcp_send_rcvq(struct sock *sk, struct msghdr *msg, size_t size)
 {
-	struct sk_buff *skb = NULL;
-	struct tcphdr *th;
+	struct sk_buff *skb;
 	bool fragstolen;
 
 	if (size == 0)
 		return 0;
 
-	skb = alloc_skb(size + sizeof(*th), sk->sk_allocation);
+	skb = alloc_skb(size, sk->sk_allocation);
 	if (!skb)
 		goto err;
 
-	if (tcp_try_rmem_schedule(sk, skb, size + sizeof(*th)))
+	if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
 		goto err_free;
-
-	th = (struct tcphdr *)skb_put(skb, sizeof(*th));
-	skb_reset_transport_header(skb);
-	memset(th, 0, sizeof(*th));
 
 	if (memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size))
 		goto err_free;
@@ -4329,7 +4324,7 @@ int tcp_send_rcvq(struct sock *sk, struct msghdr *msg, size_t size)
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq + size;
 	TCP_SKB_CB(skb)->ack_seq = tcp_sk(sk)->snd_una - 1;
 
-	if (tcp_queue_rcv(sk, skb, sizeof(*th), &fragstolen)) {
+	if (tcp_queue_rcv(sk, skb, 0, &fragstolen)) {
 		WARN_ON_ONCE(fragstolen); /* should not happen */
 		__kfree_skb(skb);
 	}
