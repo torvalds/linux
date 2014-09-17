@@ -124,8 +124,7 @@ static inline int cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
 {
 	if (unlikely(CFS_FAIL_PRECHECK(id)))
 		return __cfs_fail_timeout_set(id, value, ms, set);
-	else
-		return 0;
+	return 0;
 }
 
 /* If id hit cfs_fail_loc, sleep for seconds or milliseconds */
