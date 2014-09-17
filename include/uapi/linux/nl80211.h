@@ -1686,6 +1686,7 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_OPER_CLASS: operating class
  *
+ * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -2043,6 +2044,7 @@ enum nl80211_attrs {
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
+	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
 };
 
@@ -3610,6 +3612,25 @@ struct nl80211_pattern_support {
  * @NL80211_WOWLAN_TRIG_WAKEUP_TCP_NOMORETOKENS: For wakeup reporting only,
  *	the TCP connection ran out of tokens to use for data to send to the
  *	service
+ * @NL80211_WOWLAN_TRIG_NET_DETECT: wake up when a configured network
+ *	is detected.  This is a nested attribute that contains the
+ *	same attributes used with @NL80211_CMD_START_SCHED_SCAN.  It
+ *	specifies how the scan is performed (e.g. the interval and the
+ *	channels to scan) as well as the scan results that will
+ *	trigger a wake (i.e. the matchsets).
+ * @NL80211_WOWLAN_TRIG_NET_DETECT_RESULTS: nested attribute
+ *	containing an array with information about what triggered the
+ *	wake up.  If no elements are present in the array, it means
+ *	that the information is not available.  If more than one
+ *	element is present, it means that more than one match
+ *	occurred.
+ *	Each element in the array is a nested attribute that contains
+ *	one optional %NL80211_ATTR_SSID attribute and one optional
+ *	%NL80211_ATTR_SCAN_FREQUENCIES attribute.  At least one of
+ *	these attributes must be present.  If
+ *	%NL80211_ATTR_SCAN_FREQUENCIES contains more than one
+ *	frequency, it means that the match occurred in more than one
+ *	channel.
  * @NUM_NL80211_WOWLAN_TRIG: number of wake on wireless triggers
  * @MAX_NL80211_WOWLAN_TRIG: highest wowlan trigger attribute number
  *
@@ -3635,6 +3656,8 @@ enum nl80211_wowlan_triggers {
 	NL80211_WOWLAN_TRIG_WAKEUP_TCP_MATCH,
 	NL80211_WOWLAN_TRIG_WAKEUP_TCP_CONNLOST,
 	NL80211_WOWLAN_TRIG_WAKEUP_TCP_NOMORETOKENS,
+	NL80211_WOWLAN_TRIG_NET_DETECT,
+	NL80211_WOWLAN_TRIG_NET_DETECT_RESULTS,
 
 	/* keep last */
 	NUM_NL80211_WOWLAN_TRIG,

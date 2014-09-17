@@ -209,7 +209,7 @@ cfg80211_get_dev_from_info(struct net *netns, struct genl_info *info)
 }
 
 /* policy for the attributes */
-static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
+static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_WIPHY] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_NAME] = { .type = NLA_NUL_STRING,
 				      .len = 20-1 },
@@ -428,6 +428,7 @@ nl80211_wowlan_policy[NUM_NL80211_WOWLAN_TRIG] = {
 	[NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE] = { .type = NLA_FLAG },
 	[NL80211_WOWLAN_TRIG_RFKILL_RELEASE] = { .type = NLA_FLAG },
 	[NL80211_WOWLAN_TRIG_TCP_CONNECTION] = { .type = NLA_NESTED },
+	[NL80211_WOWLAN_TRIG_NET_DETECT] = { .type = NLA_NESTED },
 };
 
 static const struct nla_policy
@@ -1087,6 +1088,8 @@ static int nl80211_send_wowlan(struct sk_buff *msg,
 
 	if (large && nl80211_send_wowlan_tcp_caps(rdev, msg))
 		return -ENOBUFS;
+
+	/* TODO: send wowlan net detect */
 
 	nla_nest_end(msg, nl_wowlan);
 
@@ -8695,6 +8698,39 @@ static int nl80211_parse_wowlan_tcp(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
+static int nl80211_parse_wowlan_nd(struct cfg80211_registered_device *rdev,
+				   const struct wiphy_wowlan_support *wowlan,
+				   struct nlattr *attr,
+				   struct cfg80211_wowlan *trig)
+{
+	struct nlattr **tb;
+	int err;
+
+	tb = kzalloc(NUM_NL80211_ATTR * sizeof(*tb), GFP_KERNEL);
+	if (!tb)
+		return -ENOMEM;
+
+	if (!(wowlan->flags & WIPHY_WOWLAN_NET_DETECT)) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	err = nla_parse(tb, NL80211_ATTR_MAX,
+			nla_data(attr), nla_len(attr),
+			nl80211_policy);
+	if (err)
+		goto out;
+
+	trig->nd_config = nl80211_parse_sched_scan(&rdev->wiphy, tb);
+	err = PTR_ERR_OR_ZERO(trig->nd_config);
+	if (err)
+		trig->nd_config = NULL;
+
+out:
+	kfree(tb);
+	return err;
+}
+
 static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -8835,6 +8871,14 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	if (tb[NL80211_WOWLAN_TRIG_TCP_CONNECTION]) {
 		err = nl80211_parse_wowlan_tcp(
 			rdev, tb[NL80211_WOWLAN_TRIG_TCP_CONNECTION],
+			&new_triggers);
+		if (err)
+			goto error;
+	}
+
+	if (tb[NL80211_WOWLAN_TRIG_NET_DETECT]) {
+		err = nl80211_parse_wowlan_nd(
+			rdev, wowlan, tb[NL80211_WOWLAN_TRIG_NET_DETECT],
 			&new_triggers);
 		if (err)
 			goto error;
@@ -12082,6 +12126,67 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 EXPORT_SYMBOL(cfg80211_report_obss_beacon);
 
 #ifdef CONFIG_PM
+static int cfg80211_net_detect_results(struct sk_buff *msg,
+				       struct cfg80211_wowlan_wakeup *wakeup)
+{
+	struct cfg80211_wowlan_nd_info *nd = wakeup->net_detect;
+	struct nlattr *nl_results, *nl_match, *nl_freqs;
+	int i, j;
+
+	nl_results = nla_nest_start(
+		msg, NL80211_WOWLAN_TRIG_NET_DETECT_RESULTS);
+	if (!nl_results)
+		return -EMSGSIZE;
+
+	for (i = 0; i < nd->n_matches; i++) {
+		struct cfg80211_wowlan_nd_match *match = nd->matches[i];
+
+		nl_match = nla_nest_start(msg, i);
+		if (!nl_match)
+			break;
+
+		/* The SSID attribute is optional in nl80211, but for
+		 * simplicity reasons it's always present in the
+		 * cfg80211 structure.  If a driver can't pass the
+		 * SSID, that needs to be changed.  A zero length SSID
+		 * is still a valid SSID (wildcard), so it cannot be
+		 * used for this purpose.
+		 */
+		if (nla_put(msg, NL80211_ATTR_SSID, match->ssid.ssid_len,
+			    match->ssid.ssid)) {
+			nla_nest_cancel(msg, nl_match);
+			goto out;
+		}
+
+		if (match->n_channels) {
+			nl_freqs = nla_nest_start(
+				msg, NL80211_ATTR_SCAN_FREQUENCIES);
+			if (!nl_freqs) {
+				nla_nest_cancel(msg, nl_match);
+				goto out;
+			}
+
+			for (j = 0; j < match->n_channels; j++) {
+				if (nla_put_u32(msg,
+						NL80211_ATTR_WIPHY_FREQ,
+						match->channels[j])) {
+					nla_nest_cancel(msg, nl_freqs);
+					nla_nest_cancel(msg, nl_match);
+					goto out;
+				}
+			}
+
+			nla_nest_end(msg, nl_freqs);
+		}
+
+		nla_nest_end(msg, nl_match);
+	}
+
+out:
+	nla_nest_end(msg, nl_results);
+	return 0;
+}
+
 void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
 				   struct cfg80211_wowlan_wakeup *wakeup,
 				   gfp_t gfp)
@@ -12175,6 +12280,10 @@ void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
 				    wakeup->packet))
 				goto free_msg;
 		}
+
+		if (wakeup->net_detect &&
+		    cfg80211_net_detect_results(msg, wakeup))
+				goto free_msg;
 
 		nla_nest_end(msg, reasons);
 	}
