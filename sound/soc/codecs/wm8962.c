@@ -3398,11 +3398,8 @@ static void wm8962_init_gpio(struct snd_soc_codec *codec)
 static void wm8962_free_gpio(struct snd_soc_codec *codec)
 {
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
-	ret = gpiochip_remove(&wm8962->gpio_chip);
-	if (ret != 0)
-		dev_err(codec->dev, "Failed to remove GPIOs: %d\n", ret);
+	gpiochip_remove(&wm8962->gpio_chip);
 }
 #else
 static void wm8962_init_gpio(struct snd_soc_codec *codec)

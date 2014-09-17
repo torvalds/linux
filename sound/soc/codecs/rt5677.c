@@ -3274,11 +3274,8 @@ static void rt5677_init_gpio(struct i2c_client *i2c)
 static void rt5677_free_gpio(struct i2c_client *i2c)
 {
 	struct rt5677_priv *rt5677 = i2c_get_clientdata(i2c);
-	int ret;
 
-	ret = gpiochip_remove(&rt5677->gpio_chip);
-	if (ret != 0)
-		dev_err(&i2c->dev, "Failed to remove GPIOs: %d\n", ret);
+	gpiochip_remove(&rt5677->gpio_chip);
 }
 #else
 static void rt5677_init_gpio(struct i2c_client *i2c)
