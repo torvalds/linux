@@ -632,6 +632,11 @@
 	phys = <0 &hsusb2_phy &hsusb3_phy>;
 };
 
+&usb3 {
+       extcon = <&extcon_usb3>;
+       vbus-supply = <&smps10_out1_reg>;
+};
+
 &cpu0 {
 	cpu0-supply = <&smps123_reg>;
 };
