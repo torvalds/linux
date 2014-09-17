@@ -21,6 +21,8 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/platform_data/gpio-dwapb.h>
+#include <linux/slab.h>
 
 #define GPIO_SWPORTA_DR		0x00
 #define GPIO_SWPORTA_DDR	0x04
@@ -84,11 +86,10 @@ static void dwapb_toggle_trigger(struct dwapb_gpio *gpio, unsigned int offs)
 	writel(v, gpio->regs + GPIO_INT_POLARITY);
 }
 
-static void dwapb_irq_handler(u32 irq, struct irq_desc *desc)
+static u32 dwapb_do_irq(struct dwapb_gpio *gpio)
 {
-	struct dwapb_gpio *gpio = irq_get_handler_data(irq);
-	struct irq_chip *chip = irq_desc_get_chip(desc);
 	u32 irq_status = readl_relaxed(gpio->regs + GPIO_INTSTATUS);
+	u32 ret = irq_status;
 
 	while (irq_status) {
 		int hwirq = fls(irq_status) - 1;
@@ -101,6 +102,16 @@ static void dwapb_irq_handler(u32 irq, struct irq_desc *desc)
 			== IRQ_TYPE_EDGE_BOTH)
 			dwapb_toggle_trigger(gpio, hwirq);
 	}
+
+	return ret;
+}
+
+static void dwapb_irq_handler(u32 irq, struct irq_desc *desc)
+{
+	struct dwapb_gpio *gpio = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+
+	dwapb_do_irq(gpio);
 
 	if (chip->irq_eoi)
 		chip->irq_eoi(irq_desc_get_irq_data(desc));
@@ -207,22 +218,26 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 	return 0;
 }
 
+static irqreturn_t dwapb_irq_handler_mfd(int irq, void *dev_id)
+{
+	u32 worked;
+	struct dwapb_gpio *gpio = dev_id;
+
+	worked = dwapb_do_irq(gpio);
+
+	return worked ? IRQ_HANDLED : IRQ_NONE;
+}
+
 static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
-				 struct dwapb_gpio_port *port)
+				 struct dwapb_gpio_port *port,
+				 struct dwapb_port_property *pp)
 {
 	struct gpio_chip *gc = &port->bgc.gc;
-	struct device_node *node =  gc->of_node;
-	struct irq_chip_generic	*irq_gc;
+	struct device_node *node = pp->node;
+	struct irq_chip_generic	*irq_gc = NULL;
 	unsigned int hwirq, ngpio = gc->ngpio;
 	struct irq_chip_type *ct;
-	int err, irq, i;
-
-	irq = irq_of_parse_and_map(node, 0);
-	if (!irq) {
-		dev_warn(gpio->dev, "no irq for bank %s\n",
-			port->bgc.gc.of_node->full_name);
-		return;
-	}
+	int err, i;
 
 	gpio->domain = irq_domain_add_linear(node, ngpio,
 					     &irq_generic_chip_ops, gpio);
@@ -269,8 +284,24 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	irq_gc->chip_types[1].type = IRQ_TYPE_EDGE_BOTH;
 	irq_gc->chip_types[1].handler = handle_edge_irq;
 
-	irq_set_chained_handler(irq, dwapb_irq_handler);
-	irq_set_handler_data(irq, gpio);
+	if (!pp->irq_shared) {
+		irq_set_chained_handler(pp->irq, dwapb_irq_handler);
+		irq_set_handler_data(pp->irq, gpio);
+	} else {
+		/*
+		 * Request a shared IRQ since where MFD would have devices
+		 * using the same irq pin
+		 */
+		err = devm_request_irq(gpio->dev, pp->irq,
+				       dwapb_irq_handler_mfd,
+				       IRQF_SHARED, "gpio-dwapb-mfd", gpio);
+		if (err) {
+			dev_err(gpio->dev, "error requesting IRQ\n");
+			irq_domain_remove(gpio->domain);
+			gpio->domain = NULL;
+			return;
+		}
+	}
 
 	for (hwirq = 0 ; hwirq < ngpio ; hwirq++)
 		irq_create_mapping(gpio->domain, hwirq);
@@ -296,57 +327,42 @@ static void dwapb_irq_teardown(struct dwapb_gpio *gpio)
 }
 
 static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
-			       struct device_node *port_np,
+			       struct dwapb_port_property *pp,
 			       unsigned int offs)
 {
 	struct dwapb_gpio_port *port;
-	u32 port_idx, ngpio;
 	void __iomem *dat, *set, *dirout;
 	int err;
-
-	if (of_property_read_u32(port_np, "reg", &port_idx) ||
-		port_idx >= DWAPB_MAX_PORTS) {
-		dev_err(gpio->dev, "missing/invalid port index for %s\n",
-			port_np->full_name);
-		return -EINVAL;
-	}
 
 	port = &gpio->ports[offs];
 	port->gpio = gpio;
 
-	if (of_property_read_u32(port_np, "snps,nr-gpios", &ngpio)) {
-		dev_info(gpio->dev, "failed to get number of gpios for %s\n",
-			 port_np->full_name);
-		ngpio = 32;
-	}
-
-	dat = gpio->regs + GPIO_EXT_PORTA + (port_idx * GPIO_EXT_PORT_SIZE);
-	set = gpio->regs + GPIO_SWPORTA_DR + (port_idx * GPIO_SWPORT_DR_SIZE);
+	dat = gpio->regs + GPIO_EXT_PORTA + (pp->idx * GPIO_EXT_PORT_SIZE);
+	set = gpio->regs + GPIO_SWPORTA_DR + (pp->idx * GPIO_SWPORT_DR_SIZE);
 	dirout = gpio->regs + GPIO_SWPORTA_DDR +
-		(port_idx * GPIO_SWPORT_DDR_SIZE);
+		(pp->idx * GPIO_SWPORT_DDR_SIZE);
 
 	err = bgpio_init(&port->bgc, gpio->dev, 4, dat, set, NULL, dirout,
 			 NULL, false);
 	if (err) {
 		dev_err(gpio->dev, "failed to init gpio chip for %s\n",
-			port_np->full_name);
+			pp->name);
 		return err;
 	}
 
-	port->bgc.gc.ngpio = ngpio;
-	port->bgc.gc.of_node = port_np;
+#ifdef CONFIG_OF_GPIO
+	port->bgc.gc.of_node = pp->node;
+#endif
+	port->bgc.gc.ngpio = pp->ngpio;
+	port->bgc.gc.base = pp->gpio_base;
 
-	/*
-	 * Only port A can provide interrupts in all configurations of the IP.
-	 */
-	if (port_idx == 0 &&
-	    of_property_read_bool(port_np, "interrupt-controller"))
-		dwapb_configure_irqs(gpio, port);
+	if (pp->irq)
+		dwapb_configure_irqs(gpio, port, pp);
 
 	err = gpiochip_add(&port->bgc.gc);
 	if (err)
 		dev_err(gpio->dev, "failed to register gpiochip for %s\n",
-			port_np->full_name);
+			pp->name);
 	else
 		port->is_registered = true;
 
@@ -362,25 +378,116 @@ static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
 			gpiochip_remove(&gpio->ports[m].bgc.gc);
 }
 
+static struct dwapb_platform_data *
+dwapb_gpio_get_pdata_of(struct device *dev)
+{
+	struct device_node *node, *port_np;
+	struct dwapb_platform_data *pdata;
+	struct dwapb_port_property *pp;
+	int nports;
+	int i;
+
+	node = dev->of_node;
+	if (!IS_ENABLED(CONFIG_OF_GPIO) || !node)
+		return ERR_PTR(-ENODEV);
+
+	nports = of_get_child_count(node);
+	if (nports == 0)
+		return ERR_PTR(-ENODEV);
+
+	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->properties = kcalloc(nports, sizeof(*pp), GFP_KERNEL);
+	if (!pdata->properties) {
+		kfree(pdata);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pdata->nports = nports;
+
+	i = 0;
+	for_each_child_of_node(node, port_np) {
+		pp = &pdata->properties[i++];
+		pp->node = port_np;
+
+		if (of_property_read_u32(port_np, "reg", &pp->idx) ||
+		    pp->idx >= DWAPB_MAX_PORTS) {
+			dev_err(dev, "missing/invalid port index for %s\n",
+				port_np->full_name);
+			kfree(pdata->properties);
+			kfree(pdata);
+			return ERR_PTR(-EINVAL);
+		}
+
+		if (of_property_read_u32(port_np, "snps,nr-gpios",
+					 &pp->ngpio)) {
+			dev_info(dev, "failed to get number of gpios for %s\n",
+				 port_np->full_name);
+			pp->ngpio = 32;
+		}
+
+		/*
+		 * Only port A can provide interrupts in all configurations of
+		 * the IP.
+		 */
+		if (pp->idx == 0 &&
+		    of_property_read_bool(port_np, "interrupt-controller")) {
+			pp->irq = irq_of_parse_and_map(port_np, 0);
+			if (!pp->irq) {
+				dev_warn(dev, "no irq for bank %s\n",
+					 port_np->full_name);
+			}
+		}
+
+		pp->irq_shared	= false;
+		pp->gpio_base	= -1;
+		pp->name	= port_np->full_name;
+	}
+
+	return pdata;
+}
+
+static inline void dwapb_free_pdata_of(struct dwapb_platform_data *pdata)
+{
+	if (!IS_ENABLED(CONFIG_OF_GPIO) || !pdata)
+		return;
+
+	kfree(pdata->properties);
+	kfree(pdata);
+}
+
 static int dwapb_gpio_probe(struct platform_device *pdev)
 {
+	unsigned int i;
 	struct resource *res;
 	struct dwapb_gpio *gpio;
-	struct device_node *np;
 	int err;
-	unsigned int offs = 0;
+	struct device *dev = &pdev->dev;
+	struct dwapb_platform_data *pdata = dev_get_platdata(dev);
+	bool is_pdata_alloc = !pdata;
 
-	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
-	if (!gpio)
-		return -ENOMEM;
-	gpio->dev = &pdev->dev;
+	if (is_pdata_alloc) {
+		pdata = dwapb_gpio_get_pdata_of(dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
-	gpio->nr_ports = of_get_child_count(pdev->dev.of_node);
-	if (!gpio->nr_ports) {
-		err = -EINVAL;
+	if (!pdata->nports) {
+		err = -ENODEV;
 		goto out_err;
 	}
-	gpio->ports = devm_kzalloc(&pdev->dev, gpio->nr_ports *
+
+	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
+	if (!gpio) {
+		err = -ENOMEM;
+		goto out_err;
+	}
+	gpio->dev = &pdev->dev;
+	gpio->nr_ports = pdata->nports;
+
+	gpio->ports = devm_kcalloc(&pdev->dev, gpio->nr_ports,
 				   sizeof(*gpio->ports), GFP_KERNEL);
 	if (!gpio->ports) {
 		err = -ENOMEM;
@@ -394,20 +501,23 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	for_each_child_of_node(pdev->dev.of_node, np) {
-		err = dwapb_gpio_add_port(gpio, np, offs++);
+	for (i = 0; i < gpio->nr_ports; i++) {
+		err = dwapb_gpio_add_port(gpio, &pdata->properties[i], i);
 		if (err)
 			goto out_unregister;
 	}
 	platform_set_drvdata(pdev, gpio);
 
-	return 0;
+	goto out_err;
 
 out_unregister:
 	dwapb_gpio_unregister(gpio);
 	dwapb_irq_teardown(gpio);
 
 out_err:
+	if (is_pdata_alloc)
+		dwapb_free_pdata_of(pdata);
+
 	return err;
 }
 
