@@ -295,19 +295,25 @@ static ssize_t show_sys_acpi(struct device *dev, int cm, char *buf)
 	return sprintf(buf, "%d\n", value);
 }
 
-#define EEEPC_CREATE_DEVICE_ATTR(_name, _mode, _cm)			\
+#define EEEPC_ACPI_SHOW_FUNC(_name, _cm)				\
 	static ssize_t _name##_show(struct device *dev,			\
 				    struct device_attribute *attr,	\
 				    char *buf)				\
 	{								\
 		return show_sys_acpi(dev, _cm, buf);			\
-	}								\
+	}
+
+#define EEEPC_ACPI_STORE_FUNC(_name, _cm)				\
 	static ssize_t _name##_store(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     const char *buf, size_t count)	\
 	{								\
 		return store_sys_acpi(dev, _cm, buf, count);		\
-	}								\
+	}
+
+#define EEEPC_CREATE_DEVICE_ATTR(_name, _mode, _cm)			\
+	EEEPC_ACPI_SHOW_FUNC(_name, _cm)				\
+	EEEPC_ACPI_STORE_FUNC(_name, _cm)				\
 	static DEVICE_ATTR(_name, _mode, _name##_show, _name##_store)
 
 EEEPC_CREATE_DEVICE_ATTR(camera, 0644, CM_ASL_CAMERA);
