@@ -126,8 +126,6 @@ static void blk_flush_restore_request(struct request *rq)
 	/* make @rq a normal request */
 	rq->cmd_flags &= ~REQ_FLUSH_SEQ;
 	rq->end_io = rq->flush.saved_end_io;
-
-	blk_clear_rq_complete(rq);
 }
 
 static bool blk_flush_queue_rq(struct request *rq, bool add_front)
