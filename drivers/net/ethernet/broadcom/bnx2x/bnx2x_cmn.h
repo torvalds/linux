@@ -1298,15 +1298,7 @@ static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
 	}
 }
 
-static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
-{
-	if (is_valid_ether_addr(addr) ||
-	    (is_zero_ether_addr(addr) &&
-	     (IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp))))
-		return true;
 
-	return false;
-}
 
 /**
  * bnx2x_fill_fw_str - Fill buffer with FW version string

@@ -8323,13 +8323,6 @@ int bnx2x_del_all_macs(struct bnx2x *bp,
 
 int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 {
-	if (is_zero_ether_addr(bp->dev->dev_addr) &&
-	    (IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp))) {
-		DP(NETIF_MSG_IFUP | NETIF_MSG_IFDOWN,
-		   "Ignoring Zero MAC for STORAGE SD mode\n");
-		return 0;
-	}
-
 	if (IS_PF(bp)) {
 		unsigned long ramrod_flags = 0;
 
@@ -11355,15 +11348,14 @@ static void bnx2x_get_fcoe_info(struct bnx2x *bp)
 				 dev_info.port_hw_config[port].
 				 fcoe_wwn_node_name_lower);
 	} else if (!IS_MF_SD(bp)) {
-		/*
-		 * Read the WWN info only if the FCoE feature is enabled for
+		/* Read the WWN info only if the FCoE feature is enabled for
 		 * this function.
 		 */
-		if (BNX2X_MF_EXT_PROTOCOL_FCOE(bp) && !CHIP_IS_E1x(bp))
+		if (BNX2X_HAS_MF_EXT_PROTOCOL_FCOE(bp))
 			bnx2x_get_ext_wwn_info(bp, func);
-
-	} else if (IS_MF_FCOE_SD(bp) && !CHIP_IS_E1x(bp)) {
-		bnx2x_get_ext_wwn_info(bp, func);
+	} else {
+		if (BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp) && !CHIP_IS_E1x(bp))
+			bnx2x_get_ext_wwn_info(bp, func);
 	}
 
 	BNX2X_DEV_INFO("max_fcoe_conn 0x%x\n", bp->cnic_eth_dev.max_fcoe_conn);
@@ -11401,7 +11393,7 @@ static void bnx2x_get_cnic_mac_hwinfo(struct bnx2x *bp)
 		 * In non SD mode features configuration comes from struct
 		 * func_ext_config.
 		 */
-		if (!IS_MF_SD(bp) && !CHIP_IS_E1x(bp)) {
+		if (!IS_MF_SD(bp)) {
 			u32 cfg = MF_CFG_RD(bp, func_ext_config[func].func_cfg);
 			if (cfg & MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD) {
 				val2 = MF_CFG_RD(bp, func_ext_config[func].
@@ -11520,7 +11512,7 @@ static void bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 
 	memcpy(bp->link_params.mac_addr, bp->dev->dev_addr, ETH_ALEN);
 
-	if (!bnx2x_is_valid_ether_addr(bp, bp->dev->dev_addr))
+	if (!is_valid_ether_addr(bp->dev->dev_addr))
 		dev_err(&bp->pdev->dev,
 			"bad Ethernet MAC address configuration: %pM\n"
 			"change it manually before bringing up the appropriate network interface\n",
@@ -11970,7 +11962,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 		dev_err(&bp->pdev->dev, "MCP disabled, must load devices in order!\n");
 
 	bp->disable_tpa = disable_tpa;
-	bp->disable_tpa |= IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp);
+	bp->disable_tpa |= !!IS_MF_STORAGE_ONLY(bp);
 	/* Reduce memory usage in kdump environment by disabling TPA */
 	bp->disable_tpa |= is_kdump_kernel();
 
@@ -11990,7 +11982,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	bp->mrrs = mrrs;
 
-	bp->tx_ring_size = IS_MF_FCOE_AFEX(bp) ? 0 : MAX_TX_AVAIL;
+	bp->tx_ring_size = IS_MF_STORAGE_ONLY(bp) ? 0 : MAX_TX_AVAIL;
 	if (IS_VF(bp))
 		bp->rx_ring_size = MAX_RX_AVAIL;
 
@@ -12310,7 +12302,7 @@ void bnx2x_set_rx_mode_inner(struct bnx2x *bp)
 
 	bp->rx_mode = rx_mode;
 	/* handle ISCSI SD mode */
-	if (IS_MF_ISCSI_SD(bp))
+	if (IS_MF_ISCSI_ONLY(bp))
 		bp->rx_mode = BNX2X_RX_MODE_NONE;
 
 	/* Schedule the rx_mode command */
@@ -12417,7 +12409,7 @@ static int bnx2x_validate_addr(struct net_device *dev)
 	if (IS_VF(bp))
 		bnx2x_sample_bulletin(bp);
 
-	if (!bnx2x_is_valid_ether_addr(bp, dev->dev_addr)) {
+	if (!is_valid_ether_addr(dev->dev_addr)) {
 		BNX2X_ERR("Non-valid Ethernet address\n");
 		return -EADDRNOTAVAIL;
 	}
