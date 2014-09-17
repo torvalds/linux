@@ -1241,28 +1241,6 @@ _GLOBAL(ftrace_graph_caller)
 
 _GLOBAL(return_to_handler)
 	/* need to save return values */
-	std	r4,  -24(r1)
-	std	r3,  -16(r1)
-	std	r31, -8(r1)
-	mr	r31, r1
-	stdu	r1, -112(r1)
-
-	bl	ftrace_return_to_handler
-	nop
-
-	/* return value has real return address */
-	mtlr	r3
-
-	ld	r1, 0(r1)
-	ld	r4,  -24(r1)
-	ld	r3,  -16(r1)
-	ld	r31, -8(r1)
-
-	/* Jump back to real return address */
-	blr
-
-_GLOBAL(mod_return_to_handler)
-	/* need to save return values */
 	std	r4,  -32(r1)
 	std	r3,  -24(r1)
 	/* save TOC */
@@ -1272,7 +1250,7 @@ _GLOBAL(mod_return_to_handler)
 	stdu	r1, -112(r1)
 
 	/*
-	 * We are in a module using the module's TOC.
+	 * We might be called from a module.
 	 * Switch to our TOC to run inside the core kernel.
 	 */
 	ld	r2, PACATOC(r13)

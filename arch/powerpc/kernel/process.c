@@ -1527,13 +1527,6 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	int curr_frame = current->curr_ret_stack;
 	extern void return_to_handler(void);
 	unsigned long rth = (unsigned long)return_to_handler;
-	unsigned long mrth = -1;
-#ifdef CONFIG_PPC64
-	extern void mod_return_to_handler(void);
-	rth = *(unsigned long *)rth;
-	mrth = (unsigned long)mod_return_to_handler;
-	mrth = *(unsigned long *)mrth;
-#endif
 #endif
 
 	sp = (unsigned long) stack;
@@ -1558,7 +1551,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		if (!firstframe || ip != lr) {
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-			if ((ip == rth || ip == mrth) && curr_frame >= 0) {
+			if ((ip == rth) && curr_frame >= 0) {
 				printk(" (%pS)",
 				       (void *)current->ret_stack[curr_frame].ret);
 				curr_frame--;
