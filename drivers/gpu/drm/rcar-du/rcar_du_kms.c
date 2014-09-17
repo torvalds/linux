@@ -289,7 +289,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		connector = entity;
 	}
 
-	ret = rcar_du_encoder_init(rcdu, enc_type, output, connector);
+	ret = rcar_du_encoder_init(rcdu, enc_type, output, encoder, connector);
 	of_node_put(encoder);
 	of_node_put(connector);
 
