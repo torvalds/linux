@@ -460,6 +460,10 @@ static const struct pci_device_id ivb_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_E3_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
 	{ /* end: all zeroes */ },
 };
 
@@ -486,34 +490,63 @@ static struct pci_driver hsw_uncore_pci_driver = {
 	.id_table	= hsw_uncore_pci_ids,
 };
 
+struct imc_uncore_pci_dev {
+	__u32 pci_id;
+	struct pci_driver *driver;
+};
+#define IMC_DEV(a, d) \
+	{ .pci_id = PCI_DEVICE_ID_INTEL_##a, .driver = (d) }
+
+static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
+	IMC_DEV(SNB_IMC, &snb_uncore_pci_driver),
+	IMC_DEV(IVB_IMC, &ivb_uncore_pci_driver),    /* 3rd Gen Core processor */
+	IMC_DEV(IVB_E3_IMC, &ivb_uncore_pci_driver), /* Xeon E3-1200 v2/3rd Gen Core processor */
+	IMC_DEV(HSW_IMC, &hsw_uncore_pci_driver),    /* 4th Gen Core Processor */
+	{  /* end marker */ }
+};
+
+
+#define for_each_imc_pci_id(x, t) \
+	for (x = (t); (x)->pci_id; x++)
+
+static struct pci_driver *imc_uncore_find_dev(void)
+{
+	const struct imc_uncore_pci_dev *p;
+	int ret;
+
+	for_each_imc_pci_id(p, desktop_imc_pci_ids) {
+		ret = snb_pci2phy_map_init(p->pci_id);
+		if (ret == 0)
+			return p->driver;
+	}
+	return NULL;
+}
+
+static int imc_uncore_pci_init(void)
+{
+	struct pci_driver *imc_drv = imc_uncore_find_dev();
+
+	if (!imc_drv)
+		return -ENODEV;
+
+	uncore_pci_uncores = snb_pci_uncores;
+	uncore_pci_driver = imc_drv;
+
+	return 0;
+}
+
 int snb_uncore_pci_init(void)
 {
-	int ret = snb_pci2phy_map_init(PCI_DEVICE_ID_INTEL_SNB_IMC);
-	if (ret)
-		return ret;
-	uncore_pci_uncores = snb_pci_uncores;
-	uncore_pci_driver = &snb_uncore_pci_driver;
-	return 0;
+	return imc_uncore_pci_init();
 }
 
 int ivb_uncore_pci_init(void)
 {
-	int ret = snb_pci2phy_map_init(PCI_DEVICE_ID_INTEL_IVB_IMC);
-	if (ret)
-		return ret;
-	uncore_pci_uncores = snb_pci_uncores;
-	uncore_pci_driver = &ivb_uncore_pci_driver;
-	return 0;
+	return imc_uncore_pci_init();
 }
-
 int hsw_uncore_pci_init(void)
 {
-	int ret = snb_pci2phy_map_init(PCI_DEVICE_ID_INTEL_HSW_IMC);
-	if (ret)
-		return ret;
-	uncore_pci_uncores = snb_pci_uncores;
-	uncore_pci_driver = &hsw_uncore_pci_driver;
-	return 0;
+	return imc_uncore_pci_init();
 }
 
 /* end of Sandy Bridge uncore support */
