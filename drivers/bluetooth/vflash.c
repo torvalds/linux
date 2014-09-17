@@ -90,11 +90,13 @@ static long vflash_ioctl(struct file *file,
             }
 
             
+            //printk("%s: ====> get bt addr from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", __FUNCTION__,
+            //      bd_addr[5], bd_addr[4], bd_addr[3], bd_addr[2], bd_addr[1], bd_addr[0]);
 	    if(copy_to_user(argp, bd_addr, 6))
-			{
-			    printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
+            {
+                printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
                 kfree(tempBuf);
-			    return -EFAULT;
+                return -EFAULT;
             }
             
             kfree(tempBuf);
