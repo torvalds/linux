@@ -16,6 +16,26 @@
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
+	pcie-controller@0,01003000 {
+		status = "okay";
+
+		avddio-pex-supply = <&vdd_1v05_run>;
+		dvddio-pex-supply = <&vdd_1v05_run>;
+		avdd-pex-pll-supply = <&vdd_1v05_run>;
+		hvdd-pex-supply = <&vdd_3v3_lp0>;
+		hvdd-pex-pll-e-supply = <&vdd_3v3_lp0>;
+		vddio-pex-ctl-supply = <&vdd_3v3_lp0>;
+		avdd-pll-erefe-supply = <&avdd_1v05_run>;
+
+		pci@1,0 {
+			status = "okay";
+		};
+
+		pci@2,0 {
+			status = "okay";
+		};
+	};
+
 	host1x@0,50000000 {
 		hdmi@0,54280000 {
 			status = "okay";
@@ -1550,7 +1570,7 @@
 					regulator-always-on;
 				};
 
-				ldo0 {
+				avdd_1v05_run: ldo0 {
 					regulator-name = "+1.05V_RUN_AVDD";
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
