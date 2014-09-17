@@ -600,9 +600,9 @@ static void rtl8192_qos_activate(void *data)
 	RT_TRACE(COMP_QOS, "qos active process with associate response "
 		 "received\n");
 
-	for (i = 0; i <  QOS_QUEUE_NUM; i++) {
+	for (i = 0; i <  QOS_QUEUE_NUM; i++)
 		priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM, (u8 *)(&i));
-	}
+
 
 success:
 	mutex_unlock(&priv->mutex);
@@ -1510,7 +1510,7 @@ RESET_START:
 			RT_TRACE(COMP_ERR, "%s():the driver is not up! "
 				 "return\n", __func__);
 			up(&priv->wx_sem);
-			return ;
+			return;
 		}
 		priv->up = 0;
 
