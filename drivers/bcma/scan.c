@@ -439,6 +439,7 @@ void bcma_init_bus(struct bcma_bus *bus)
 {
 	s32 tmp;
 	struct bcma_chipinfo *chipinfo = &(bus->chipinfo);
+	char chip_id[8];
 
 	INIT_LIST_HEAD(&bus->cores);
 	bus->nr_cores = 0;
@@ -449,8 +450,11 @@ void bcma_init_bus(struct bcma_bus *bus)
 	chipinfo->id = (tmp & BCMA_CC_ID_ID) >> BCMA_CC_ID_ID_SHIFT;
 	chipinfo->rev = (tmp & BCMA_CC_ID_REV) >> BCMA_CC_ID_REV_SHIFT;
 	chipinfo->pkg = (tmp & BCMA_CC_ID_PKG) >> BCMA_CC_ID_PKG_SHIFT;
-	bcma_info(bus, "Found chip with id 0x%04X, rev 0x%02X and package 0x%02X\n",
-		  chipinfo->id, chipinfo->rev, chipinfo->pkg);
+
+	snprintf(chip_id, ARRAY_SIZE(chip_id),
+		 (chipinfo->id > 0x9999) ? "%d" : "0x%04X", chipinfo->id);
+	bcma_info(bus, "Found chip with id %s, rev 0x%02X and package 0x%02X\n",
+		  chip_id, chipinfo->rev, chipinfo->pkg);
 }
 
 int bcma_bus_scan(struct bcma_bus *bus)
