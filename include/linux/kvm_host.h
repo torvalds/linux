@@ -198,6 +198,17 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
 int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 #endif
 
+/*
+ * Carry out a gup that requires IO. Allow the mm to relinquish the mmap
+ * semaphore if the filemap/swap has to wait on a page lock. pagep == NULL
+ * controls whether we retry the gup one more time to completion in that case.
+ * Typically this is called after a FAULT_FLAG_RETRY_NOWAIT in the main tdp
+ * handler.
+ */
+int kvm_get_user_page_io(struct task_struct *tsk, struct mm_struct *mm,
+			 unsigned long addr, bool write_fault,
+			 struct page **pagep);
+
 enum {
 	OUTSIDE_GUEST_MODE,
 	IN_GUEST_MODE,
