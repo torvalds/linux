@@ -296,13 +296,13 @@ static ssize_t show_sys_acpi(struct device *dev, int cm, char *buf)
 }
 
 #define EEEPC_CREATE_DEVICE_ATTR(_name, _mode, _cm)			\
-	static ssize_t show_##_name(struct device *dev,			\
+	static ssize_t _name##_show(struct device *dev,			\
 				    struct device_attribute *attr,	\
 				    char *buf)				\
 	{								\
 		return show_sys_acpi(dev, _cm, buf);			\
 	}								\
-	static ssize_t store_##_name(struct device *dev,		\
+	static ssize_t _name##_store(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     const char *buf, size_t count)	\
 	{								\
@@ -312,8 +312,8 @@ static ssize_t show_sys_acpi(struct device *dev, int cm, char *buf)
 		.attr = {						\
 			.name = __stringify(_name),			\
 			.mode = _mode },				\
-		.show   = show_##_name,					\
-		.store  = store_##_name,				\
+		.show   = _name##_show,					\
+		.store  = _name##_store,				\
 	}
 
 EEEPC_CREATE_DEVICE_ATTR(camera, 0644, CM_ASL_CAMERA);
@@ -335,7 +335,7 @@ static int get_cpufv(struct eeepc_laptop *eeepc, struct eeepc_cpufv *c)
 	return 0;
 }
 
-static ssize_t show_available_cpufv(struct device *dev,
+static ssize_t available_cpufv_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
@@ -352,7 +352,7 @@ static ssize_t show_available_cpufv(struct device *dev,
 	return len;
 }
 
-static ssize_t show_cpufv(struct device *dev,
+static ssize_t cpufv_show(struct device *dev,
 			  struct device_attribute *attr,
 			  char *buf)
 {
@@ -364,7 +364,7 @@ static ssize_t show_cpufv(struct device *dev,
 	return sprintf(buf, "%#x\n", (c.num << 8) | c.cur);
 }
 
-static ssize_t store_cpufv(struct device *dev,
+static ssize_t cpufv_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
@@ -385,7 +385,7 @@ static ssize_t store_cpufv(struct device *dev,
 	return count;
 }
 
-static ssize_t show_cpufv_disabled(struct device *dev,
+static ssize_t cpufv_disabled_show(struct device *dev,
 			  struct device_attribute *attr,
 			  char *buf)
 {
@@ -394,7 +394,7 @@ static ssize_t show_cpufv_disabled(struct device *dev,
 	return sprintf(buf, "%d\n", eeepc->cpufv_disabled);
 }
 
-static ssize_t store_cpufv_disabled(struct device *dev,
+static ssize_t cpufv_disabled_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
@@ -424,23 +424,23 @@ static struct device_attribute dev_attr_cpufv = {
 	.attr = {
 		.name = "cpufv",
 		.mode = 0644 },
-	.show   = show_cpufv,
-	.store  = store_cpufv
+	.show   = cpufv_show,
+	.store  = cpufv_store
 };
 
 static struct device_attribute dev_attr_available_cpufv = {
 	.attr = {
 		.name = "available_cpufv",
 		.mode = 0444 },
-	.show   = show_available_cpufv
+	.show   = available_cpufv_show
 };
 
 static struct device_attribute dev_attr_cpufv_disabled = {
 	.attr = {
 		.name = "cpufv_disabled",
 		.mode = 0644 },
-	.show   = show_cpufv_disabled,
-	.store  = store_cpufv_disabled
+	.show   = cpufv_disabled_show,
+	.store  = cpufv_disabled_store
 };
 
 
