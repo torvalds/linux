@@ -1227,12 +1227,19 @@ _GLOBAL(ftrace_graph_caller)
 	ld	r4, 128(r1)
 	subi	r4, r4, MCOUNT_INSN_SIZE
 
-	/* get the parent address */
+	/* Grab the LR out of the caller stack frame */
 	ld	r11, 112(r1)
-	addi	r3, r11, 16
+	ld	r3, 16(r11)
 
 	bl	prepare_ftrace_return
 	nop
+
+	/*
+	 * prepare_ftrace_return gives us the address we divert to.
+	 * Change the LR in the callers stack frame to this.
+	 */
+	ld	r11, 112(r1)
+	std	r3, 16(r11)
 
 	ld	r0, 128(r1)
 	mtlr	r0
