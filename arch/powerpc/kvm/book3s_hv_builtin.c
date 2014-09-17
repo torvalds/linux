@@ -12,7 +12,6 @@
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/sizes.h>

@@ -11,7 +11,6 @@
  * (at your option) any later version.
  */
 
-#include <linux/bootmem.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/io.h>

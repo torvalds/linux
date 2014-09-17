@@ -50,7 +50,6 @@
 #include <linux/list.h>
 #include <linux/radix-tree.h>
 #include <linux/mutex.h>
-#include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
 #include <linux/of.h>

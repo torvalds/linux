@@ -20,7 +20,6 @@
 #include <linux/signal.h>
 #include <linux/syscore_ops.h>
 #include <linux/device.h>
-#include <linux/bootmem.h>
 #include <linux/spinlock.h>
 #include <linux/fsl_devices.h>
 #include <asm/irq.h>
