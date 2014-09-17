@@ -308,7 +308,6 @@ int32_t dwc_otg_hcd_handle_perio_tx_fifo_empty_intr(dwc_otg_hcd_t *dwc_otg_hcd)
 	return 1;
 }
 
-extern inline struct usb_hcd *dwc_otg_hcd_to_hcd(dwc_otg_hcd_t *dwc_otg_hcd);
 /** There are multiple conditions that can cause a port interrupt. This function
  * determines which interrupt conditions have occurred and handles them
  * appropriately. */
@@ -317,7 +316,7 @@ int32_t dwc_otg_hcd_handle_port_intr(dwc_otg_hcd_t *dwc_otg_hcd)
 	int retval = 0;
 	hprt0_data_t hprt0;
 	hprt0_data_t hprt0_modify;
-	struct usb_hcd *hcd = dwc_otg_hcd_to_hcd(dwc_otg_hcd);
+	struct usb_hcd *hcd = dwc_otg_hcd_get_priv_data(dwc_otg_hcd);
 	struct usb_bus *bus = hcd_to_bus(hcd);
 
 	hprt0.d32 = DWC_READ_REG32(dwc_otg_hcd->core_if->host_if->hprt0);

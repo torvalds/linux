@@ -443,11 +443,10 @@ static int dwc_otg_hcd_sleep_cb(void *p)
  *
  * @param p void pointer to the <code>struct usb_hcd</code>
  */
-extern inline struct usb_hcd *dwc_otg_hcd_to_hcd(dwc_otg_hcd_t *dwc_otg_hcd);
 static int dwc_otg_hcd_rem_wakeup_cb(void *p)
 {
 	dwc_otg_hcd_t *dwc_otg_hcd = p;
-	struct usb_hcd *hcd = dwc_otg_hcd_to_hcd(dwc_otg_hcd);
+	struct usb_hcd *hcd = dwc_otg_hcd_get_priv_data(dwc_otg_hcd);
 
 	if (dwc_otg_hcd->core_if->lx_state == DWC_OTG_L2) {
 		dwc_otg_hcd->flags.b.port_suspend_change = 1;

@@ -146,12 +146,10 @@ static inline dwc_otg_hcd_t *hcd_to_dwc_otg_hcd(struct usb_hcd *hcd)
 }
 
 /** Gets the struct usb_hcd that contains a dwc_otg_hcd_t. */
-inline struct usb_hcd *dwc_otg_hcd_to_hcd(dwc_otg_hcd_t *dwc_otg_hcd)
+static inline struct usb_hcd *dwc_otg_hcd_to_hcd(dwc_otg_hcd_t *dwc_otg_hcd)
 {
 	return dwc_otg_hcd_get_priv_data(dwc_otg_hcd);
 }
-
-EXPORT_SYMBOL(dwc_otg_hcd_to_hcd);
 
 /** Gets the usb_host_endpoint associated with an URB. */
 inline struct usb_host_endpoint *dwc_urb_to_endpoint(struct urb *urb)
