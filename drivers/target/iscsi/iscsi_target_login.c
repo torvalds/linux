@@ -1267,8 +1267,6 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 			iscsit_put_transport(conn->conn_transport);
 			kfree(conn);
 			conn = NULL;
-			if (ret == -ENODEV)
-				goto out;
 			/* Get another socket */
 			return 1;
 		}
