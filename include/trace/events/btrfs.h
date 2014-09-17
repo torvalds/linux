@@ -158,12 +158,13 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 
 #define show_map_flags(flag)						\
 	__print_flags(flag, "|",					\
-		{ EXTENT_FLAG_PINNED, 		"PINNED" 	},	\
-		{ EXTENT_FLAG_COMPRESSED, 	"COMPRESSED" 	},	\
-		{ EXTENT_FLAG_VACANCY, 		"VACANCY" 	},	\
-		{ EXTENT_FLAG_PREALLOC, 	"PREALLOC" 	},	\
-		{ EXTENT_FLAG_LOGGING,	 	"LOGGING" 	},	\
-		{ EXTENT_FLAG_FILLING,	 	"FILLING" 	})
+		{ (1 << EXTENT_FLAG_PINNED), 		"PINNED" 	},\
+		{ (1 << EXTENT_FLAG_COMPRESSED), 	"COMPRESSED" 	},\
+		{ (1 << EXTENT_FLAG_VACANCY), 		"VACANCY" 	},\
+		{ (1 << EXTENT_FLAG_PREALLOC), 		"PREALLOC" 	},\
+		{ (1 << EXTENT_FLAG_LOGGING),	 	"LOGGING" 	},\
+		{ (1 << EXTENT_FLAG_FILLING),	 	"FILLING" 	},\
+		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	})
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
