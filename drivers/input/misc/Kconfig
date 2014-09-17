@@ -801,4 +801,14 @@ config SENSOR_FXLS8471
 	depends on I2C
 	default n
 
+config INPUT_ISL29023
+	tristate "Intersil ISL29023 ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Intersil ISL29023
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called isl29023.
+
 endif
