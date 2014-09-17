@@ -370,7 +370,7 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 		if (!match)
 			return -ENODEV;
 
-		di->vendor = (int) match->data;
+		di->vendor = (unsigned long) match->data;
 	} else {
 		/* if no ramp constraint set, get the pdata ramp_delay */
 		if (!di->regulator->constraints.ramp_delay) {
