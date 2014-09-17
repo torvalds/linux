@@ -11624,11 +11624,27 @@ static bool bnx2x_get_dropless_info(struct bnx2x *bp)
 	return cfg;
 }
 
+static void validate_set_si_mode(struct bnx2x *bp)
+{
+	u8 func = BP_ABS_FUNC(bp);
+	u32 val;
+
+	val = MF_CFG_RD(bp, func_mf_config[func].mac_upper);
+
+	/* check for legal mac (upper bytes) */
+	if (val != 0xffff) {
+		bp->mf_mode = MULTI_FUNCTION_SI;
+		bp->mf_config[BP_VN(bp)] =
+			MF_CFG_RD(bp, func_mf_config[func].config);
+	} else
+		BNX2X_DEV_INFO("illegal MAC address for SI\n");
+}
+
 static int bnx2x_get_hwinfo(struct bnx2x *bp)
 {
 	int /*abs*/func = BP_ABS_FUNC(bp);
 	int vn;
-	u32 val = 0;
+	u32 val = 0, val2 = 0;
 	int rc = 0;
 
 	bnx2x_get_common_hwinfo(bp);
@@ -11738,15 +11754,7 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 
 			switch (val) {
 			case SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT:
-				val = MF_CFG_RD(bp, func_mf_config[func].
-						mac_upper);
-				/* check for legal mac (upper bytes)*/
-				if (val != 0xffff) {
-					bp->mf_mode = MULTI_FUNCTION_SI;
-					bp->mf_config[vn] = MF_CFG_RD(bp,
-						   func_mf_config[func].config);
-				} else
-					BNX2X_DEV_INFO("illegal MAC address for SI\n");
+				validate_set_si_mode(bp);
 				break;
 			case SHARED_FEAT_CFG_FORCE_SF_MODE_AFEX_MODE:
 				if ((!CHIP_IS_E1x(bp)) &&
@@ -11783,6 +11791,23 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 				break;
 			case SHARED_FEAT_CFG_FORCE_SF_MODE_FORCED_SF:
 				bp->mf_config[vn] = 0;
+				break;
+			case SHARED_FEAT_CFG_FORCE_SF_MODE_EXTENDED_MODE:
+				val2 = SHMEM_RD(bp,
+					dev_info.shared_hw_config.config_3);
+				val2 &= SHARED_HW_CFG_EXTENDED_MF_MODE_MASK;
+				switch (val2) {
+				case SHARED_HW_CFG_EXTENDED_MF_MODE_NPAR1_DOT_5:
+					validate_set_si_mode(bp);
+					bp->mf_sub_mode =
+							SUB_MF_MODE_NPAR1_DOT_5;
+					break;
+				default:
+					/* Unknown configuration */
+					bp->mf_config[vn] = 0;
+					BNX2X_DEV_INFO("unknown extended MF mode 0x%x\n",
+						       val);
+				}
 				break;
 			default:
 				/* Unknown configuration: reset mf_config */

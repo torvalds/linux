@@ -280,17 +280,11 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 		#define SHARED_HW_CFG_MDC_MDIO_ACCESS2_BOTH          0x60000000
 		#define SHARED_HW_CFG_MDC_MDIO_ACCESS2_SWAPPED       0x80000000
 
-
-	u32 power_dissipated;			/* 0x11c */
-	#define SHARED_HW_CFG_POWER_MGNT_SCALE_MASK         0x00ff0000
-		#define SHARED_HW_CFG_POWER_MGNT_SCALE_SHIFT         16
-		#define SHARED_HW_CFG_POWER_MGNT_UNKNOWN_SCALE       0x00000000
-		#define SHARED_HW_CFG_POWER_MGNT_DOT_1_WATT          0x00010000
-		#define SHARED_HW_CFG_POWER_MGNT_DOT_01_WATT         0x00020000
-		#define SHARED_HW_CFG_POWER_MGNT_DOT_001_WATT        0x00030000
-
-	#define SHARED_HW_CFG_POWER_DIS_CMN_MASK            0xff000000
-	#define SHARED_HW_CFG_POWER_DIS_CMN_SHIFT                    24
+	u32 config_3;				/* 0x11C */
+	#define SHARED_HW_CFG_EXTENDED_MF_MODE_MASK         0x00000F00
+		#define SHARED_HW_CFG_EXTENDED_MF_MODE_SHIFT              8
+		#define SHARED_HW_CFG_EXTENDED_MF_MODE_NPAR1_DOT_5        0x00000000
+		#define SHARED_HW_CFG_EXTENDED_MF_MODE_NPAR2_DOT_0        0x00000100
 
 	u32 ump_nc_si_config;			/* 0x120 */
 	#define SHARED_HW_CFG_UMP_NC_SI_MII_MODE_MASK       0x00000003
@@ -860,6 +854,7 @@ struct shared_feat_cfg {		 /* NVRAM Offset */
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT  0x00000300
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_AFEX_MODE      0x00000400
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_UFP_MODE       0x00000600
+		#define SHARED_FEAT_CFG_FORCE_SF_MODE_EXTENDED_MODE  0x00000700
 
 	/* The interval in seconds between sending LLDP packets. Set to zero
 	   to disable the feature */

@@ -1451,6 +1451,7 @@ struct bnx2x_fp_stats {
 enum {
 	SUB_MF_MODE_UNKNOWN = 0,
 	SUB_MF_MODE_UFP,
+	SUB_MF_MODE_NPAR1_DOT_5,
 };
 
 struct bnx2x {
