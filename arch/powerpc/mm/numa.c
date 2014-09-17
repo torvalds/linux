@@ -966,6 +966,8 @@ void __init initmem_init(void)
 		sparse_memory_present_with_active_regions(nid);
 	}
 
+	sparse_init();
+
 	setup_node_to_cpumask_map();
 
 	reset_numa_cpu_lookup_table();

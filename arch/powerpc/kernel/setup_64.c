@@ -690,7 +690,6 @@ void __init setup_arch(char **cmdline_p)
 	emergency_stack_init();
 
 	initmem_init();
-	sparse_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

@@ -205,6 +205,7 @@ void __init initmem_init(void)
 
 	/* XXX need to clip this if using highmem? */
 	sparse_memory_present_with_active_regions(0);
+	sparse_init();
 }
 
 /* mark pages that don't exist as nosave */
