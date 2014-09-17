@@ -911,15 +911,12 @@ static struct config_group *target_fabric_make_lun(
 				GFP_KERNEL);
 	if (!port_stat_grp->default_groups) {
 		pr_err("Unable to allocate port_stat_grp->default_groups\n");
-		errno = -ENOMEM;
-		goto out;
+		kfree(lun_cg->default_groups);
+		return ERR_PTR(-ENOMEM);
 	}
 	target_stat_setup_port_default_groups(lun);
 
 	return &lun->lun_group;
-out:
-	kfree(lun_cg->default_groups);
-	return ERR_PTR(errno);
 }
 
 static void target_fabric_drop_lun(
