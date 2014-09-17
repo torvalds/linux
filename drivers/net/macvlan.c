@@ -36,6 +36,7 @@
 #include <linux/netpoll.h>
 
 #define MACVLAN_HASH_SIZE	(1 << BITS_PER_BYTE)
+#define MACVLAN_BC_QUEUE_LEN	1000
 
 struct macvlan_port {
 	struct net_device	*dev;
@@ -248,7 +249,7 @@ static void macvlan_broadcast_enqueue(struct macvlan_port *port,
 		goto err;
 
 	spin_lock(&port->bc_queue.lock);
-	if (skb_queue_len(&port->bc_queue) < skb->dev->tx_queue_len) {
+	if (skb_queue_len(&port->bc_queue) < MACVLAN_BC_QUEUE_LEN) {
 		__skb_queue_tail(&port->bc_queue, nskb);
 		err = 0;
 	}
