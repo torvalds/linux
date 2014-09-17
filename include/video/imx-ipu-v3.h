@@ -250,6 +250,7 @@ struct ipu_image {
 
 void ipu_cpmem_zero(struct ipuv3_channel *ch);
 void ipu_cpmem_set_resolution(struct ipuv3_channel *ch, int xres, int yres);
+void ipu_cpmem_skip_odd_chroma_rows(struct ipuv3_channel *ch);
 void ipu_cpmem_set_stride(struct ipuv3_channel *ch, int stride);
 void ipu_cpmem_set_high_priority(struct ipuv3_channel *ch);
 void ipu_cpmem_set_buffer(struct ipuv3_channel *ch, int bufnum, dma_addr_t buf);
