@@ -410,7 +410,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	}
 	dn = eeh_dev_to_of_node(edev);
 	dev = eeh_dev_to_pci_dev(edev);
-	pe = edev->pe;
+	pe = eeh_dev_to_pe(edev);
 
 	/* Access to IO BARs might get this far and still not want checking. */
 	if (!pe) {
@@ -634,7 +634,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
 {
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
-	struct eeh_pe *pe = edev->pe;
+	struct eeh_pe *pe = eeh_dev_to_pe(edev);
 
 	if (!pe) {
 		pr_err("%s: No PE found on PCI device %s\n",

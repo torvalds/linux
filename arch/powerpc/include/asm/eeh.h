@@ -146,6 +146,11 @@ static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
 	return edev ? edev->pdev : NULL;
 }
 
+static inline struct eeh_pe *eeh_dev_to_pe(struct eeh_dev* edev)
+{
+	return edev ? edev->pe : NULL;
+}
+
 /* Return values from eeh_ops::next_error */
 enum {
 	EEH_NEXT_ERR_NONE = 0,

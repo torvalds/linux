@@ -428,7 +428,7 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	}
 
 	/* Remove the EEH device */
-	pe = edev->pe;
+	pe = eeh_dev_to_pe(edev);
 	edev->pe = NULL;
 	list_del(&edev->list);
 
