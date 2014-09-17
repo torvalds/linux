@@ -109,6 +109,7 @@ struct dvfs_node {
 	struct cpufreq_frequency_table	*dvfs_table;
 	struct cpufreq_frequency_table	*per_temp_limit_table;
 	struct cpufreq_frequency_table  *nor_temp_limit_table;
+	struct cpufreq_frequency_table  *virt_temp_limit_table[4];
 	clk_set_rate_callback 	clk_dvfs_target;
 	struct cpufreq_frequency_table  *regu_mode_table;
 	int			regu_mode_en;

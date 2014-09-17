@@ -898,8 +898,6 @@
 	};
 
 	dvfs {
-		temp-limit-enable = <1>;
-		target-temp = <80>;
 
 		vd_arm: vd_arm {
 			regulator_name = "vdd_arm";
@@ -913,6 +911,8 @@
 						816000 1100000
 						1008000 1100000
 						>;
+					temp-limit-enable = <1>;
+					target-temp = <80>;
 					temp-channel = <1>;
 					normal-temp-limit = <
 					/*delta-temp    delta-freq*/

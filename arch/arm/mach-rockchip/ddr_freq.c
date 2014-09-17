@@ -291,7 +291,6 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 
 	if (ddr.reboot_rate && (s & SYS_STATUS_REBOOT)) {
 		ddrfreq_mode(false, ddr.reboot_rate, "shutdown/reboot");
-		rockchip_cpufreq_reboot_limit_freq();
 
 		return timeout;
 	}
@@ -769,6 +768,7 @@ CLK_NOTIFIER(pd_vop1, LCDC1)
 static int ddrfreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	rockchip_set_system_status(SYS_STATUS_REBOOT);
+	rockchip_cpufreq_reboot_limit_freq();
 
 	return NOTIFY_OK;
 }

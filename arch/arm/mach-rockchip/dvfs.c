@@ -23,6 +23,9 @@
 #include <linux/rockchip/common.h>
 #include <linux/fb.h>
 #include <linux/reboot.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/tick.h>
+#include <dt-bindings/clock/rk_system_status.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 
 extern int rockchip_tsadc_get_temp(int chn);
@@ -33,7 +36,7 @@ static DEFINE_MUTEX(rk_dvfs_mutex);
 static struct workqueue_struct *dvfs_wq;
 static struct dvfs_node *clk_cpu_dvfs_node;
 static unsigned int target_temp = 80;
-static int temp_limit_enable = 1;
+static int temp_limit_enable;
 
 static int pd_gpu_off, early_suspend;
 static DEFINE_MUTEX(switch_vdd_gpu_mutex);
@@ -855,6 +858,67 @@ static void dvfs_temp_limit_work_func(struct work_struct *work)
 }
 #endif
 
+static void dvfs_virt_temp_limit_work_func(void)
+{
+	const struct cpufreq_frequency_table *limits_table = NULL;
+	unsigned int new_temp_limit_rate = -1;
+	unsigned int nr_cpus = num_online_cpus();
+	static bool in_perf;
+	int i;
+
+	if (!soc_is_rk3126() && !soc_is_rk3128())
+		return;
+
+	if (rockchip_get_system_status() & SYS_STATUS_PERFORMANCE) {
+		in_perf = true;
+	} else if (in_perf) {
+		in_perf = false;
+	} else {
+		static u64 last_time_in_idle;
+		static u64 last_time_in_idle_timestamp;
+		u64 time_in_idle = 0, now;
+		u32 delta_idle;
+		u32 delta_time;
+		unsigned cpu, busy_cpus;
+
+		for_each_online_cpu(cpu) {
+			time_in_idle += get_cpu_idle_time_us(cpu, &now);
+		}
+		delta_time = now - last_time_in_idle_timestamp;
+		delta_idle = time_in_idle - last_time_in_idle;
+		last_time_in_idle = time_in_idle;
+		last_time_in_idle_timestamp = now;
+		delta_idle += delta_time >> 4; /* +6.25% */
+		if (delta_idle > (nr_cpus - 1)
+		    * delta_time && delta_idle < (nr_cpus + 1) * delta_time)
+			busy_cpus = 1;
+		else if (delta_idle > (nr_cpus - 2) * delta_time)
+			busy_cpus = 2;
+		else if (delta_idle > (nr_cpus - 3) * delta_time)
+			busy_cpus = 3;
+		else
+			busy_cpus = 4;
+
+		limits_table = clk_cpu_dvfs_node->virt_temp_limit_table[busy_cpus-1];
+		DVFS_DBG("delta time %6u us idle %6u us %u cpus select table %d\n",
+			 delta_time, delta_idle, nr_cpus, busy_cpus);
+	}
+
+	if (limits_table) {
+		new_temp_limit_rate = limits_table[0].frequency;
+		for (i = 0; limits_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+			if (target_temp >= limits_table[i].index)
+				new_temp_limit_rate = limits_table[i].frequency;
+		}
+	}
+
+	if (clk_cpu_dvfs_node->temp_limit_rate != new_temp_limit_rate) {
+		clk_cpu_dvfs_node->temp_limit_rate = new_temp_limit_rate;
+		dvfs_clk_set_rate(clk_cpu_dvfs_node, clk_cpu_dvfs_node->last_set_rate);
+		DVFS_DBG("temp_limit_rate:%d\n", (int)clk_cpu_dvfs_node->temp_limit_rate);
+	}
+}
+
 static void dvfs_temp_limit_work_func(struct work_struct *work)
 {
 	int temp=0, delta_temp=0;
@@ -866,6 +930,9 @@ static void dvfs_temp_limit_work_func(struct work_struct *work)
 	queue_delayed_work_on(0, dvfs_wq, to_delayed_work(work), delay);
 
 	temp = rockchip_tsadc_get_temp(1);
+
+	if (temp == INVALID_TEMP)
+		return dvfs_virt_temp_limit_work_func();
 
 	//debounce
 	delta_temp = (old_temp>temp) ? (old_temp-temp) : (temp-old_temp);
@@ -1592,16 +1659,6 @@ int of_dvfs_init(void)
 		return PTR_ERR(dvfs_dev_node);
 	}
 
-	val = of_get_property(dvfs_dev_node, "target-temp", NULL);
-	if (val) {
-		target_temp = be32_to_cpup(val);
-	}
-
-	val = of_get_property(dvfs_dev_node, "temp-limit-enable", NULL);
-	if (val) {
-		temp_limit_enable = be32_to_cpup(val);
-	}
-
 	for_each_available_child_of_node(dvfs_dev_node, vd_dev_node) {
 		vd = kzalloc(sizeof(struct vd_node), GFP_KERNEL);
 		if (!vd)
@@ -1667,13 +1724,27 @@ int of_dvfs_init(void)
 				else
 					dvfs_node->regu_mode_table = NULL;
 
+				val = of_get_property(clk_dev_node, "temp-limit-enable", NULL);
+				if (val)
+					temp_limit_enable = be32_to_cpup(val);
 				if (temp_limit_enable) {
+					val = of_get_property(clk_dev_node, "target-temp", NULL);
+					if (val)
+						target_temp = be32_to_cpup(val);
 					val = of_get_property(clk_dev_node, "temp-channel", NULL);
-					if (val) {
+					if (val)
 						dvfs_node->temp_channel = be32_to_cpup(val);
-					}
+
 					dvfs_node->nor_temp_limit_table = of_get_temp_limit_table(clk_dev_node, "normal-temp-limit");
 					dvfs_node->per_temp_limit_table = of_get_temp_limit_table(clk_dev_node, "performance-temp-limit");
+					dvfs_node->virt_temp_limit_table[0] =
+						of_get_temp_limit_table(clk_dev_node, "virt-temp-limit-1-cpu-busy");
+					dvfs_node->virt_temp_limit_table[1] =
+						of_get_temp_limit_table(clk_dev_node, "virt-temp-limit-2-cpu-busy");
+					dvfs_node->virt_temp_limit_table[2] =
+						of_get_temp_limit_table(clk_dev_node, "virt-temp-limit-3-cpu-busy");
+					dvfs_node->virt_temp_limit_table[3] =
+						of_get_temp_limit_table(clk_dev_node, "virt-temp-limit-4-cpu-busy");
 				}
 				dvfs_node->temp_limit_rate = -1;
 				dvfs_node->dev.of_node = clk_dev_node;
