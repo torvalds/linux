@@ -28,7 +28,6 @@ obj-$(CONFIG_ARCH_R8A7740)	+= clock-r8a7740.o
 obj-$(CONFIG_ARCH_R8A7778)	+= clock-r8a7778.o
 obj-$(CONFIG_ARCH_R8A7779)	+= clock-r8a7779.o
 obj-$(CONFIG_ARCH_R8A7790)	+= clock-r8a7790.o
-obj-$(CONFIG_ARCH_R8A7791)	+= clock-r8a7791.o
 endif
 
 # CPU reset vector handling objects
