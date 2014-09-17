@@ -255,10 +255,14 @@ static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 	case ADC_DEBOUNCE_TIME_10MS:
 	case ADC_DEBOUNCE_TIME_25MS:
 	case ADC_DEBOUNCE_TIME_38_62MS:
-		ret = regmap_update_bits(info->max77693->regmap_muic,
-					  MAX77693_MUIC_REG_CTRL3,
-					  CONTROL3_ADCDBSET_MASK,
-					  time << CONTROL3_ADCDBSET_SHIFT);
+		/*
+		 * Don't touch BTLDset, JIGset when you want to change adc
+		 * debounce time. If it writes other than 0 to BTLDset, JIGset
+		 * muic device will be reset and loose current state.
+		 */
+		ret = regmap_write(info->max77693->regmap_muic,
+				  MAX77693_MUIC_REG_CTRL3,
+				  time << CONTROL3_ADCDBSET_SHIFT);
 		if (ret) {
 			dev_err(info->dev, "failed to set ADC debounce time\n");
 			return ret;
