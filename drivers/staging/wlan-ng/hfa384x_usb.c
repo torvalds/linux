@@ -3530,8 +3530,6 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 				    usbin->rxfrm.desc.status));
 		break;
 	}
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -3641,8 +3639,6 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 
 	/* pass it back up */
 	prism2sta_ev_rx(wlandev, skb);
-
-	return;
 }
 
 /*----------------------------------------------------------------
