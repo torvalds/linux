@@ -173,7 +173,14 @@ static void radeon_encoder_add_backlight(struct radeon_encoder *radeon_encoder,
 	} else if (radeon_backlight == 1) {
 		use_bl = true;
 	} else if (radeon_backlight == -1) {
-		use_bl = true;
+		/* Quirks */
+		/* Amilo Xi 2550 only works with acpi bl */
+		if ((rdev->pdev->device == 0x9583) &&
+		    (rdev->pdev->subsystem_vendor == 0x1734) &&
+		    (rdev->pdev->subsystem_device == 0x1107))
+			use_bl = false;
+		else
+			use_bl = true;
 	}
 
 	if (use_bl) {
