@@ -75,11 +75,7 @@ static __ref void *early_alloc_pgtable(unsigned long size)
 {
 	void *pt;
 
-	if (init_bootmem_done)
-		pt = __alloc_bootmem(size, size, __pa(MAX_DMA_ADDRESS));
-	else
-		pt = __va(memblock_alloc_base(size, size,
-					 __pa(MAX_DMA_ADDRESS)));
+	pt = __va(memblock_alloc_base(size, size, __pa(MAX_DMA_ADDRESS)));
 	memset(pt, 0, size);
 
 	return pt;

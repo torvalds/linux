@@ -195,15 +195,6 @@ void __init MMU_init(void)
 	memblock_set_current_limit(lowmem_end_addr);
 }
 
-/* This is only called until mem_init is done. */
-void __init *early_get_page(void)
-{
-	if (init_bootmem_done)
-		return alloc_bootmem_pages(PAGE_SIZE);
-	else
-		return __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
-}
-
 #ifdef CONFIG_8xx /* No 8xx specific .c file to put that in ... */
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)

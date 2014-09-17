@@ -311,9 +311,8 @@ void __init setup_arch(char **cmdline_p)
 
 	irqstack_early_init();
 
-	/* set up the bootmem stuff with available memory */
-	do_init_bootmem();
-	if ( ppc_md.progress ) ppc_md.progress("setup_arch: bootmem", 0x3eab);
+	initmem_init();
+	if ( ppc_md.progress ) ppc_md.progress("setup_arch: initmem", 0x3eab);
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

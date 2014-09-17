@@ -689,8 +689,7 @@ void __init setup_arch(char **cmdline_p)
 	exc_lvl_early_init();
 	emergency_stack_init();
 
-	/* set up the bootmem stuff with available memory */
-	do_init_bootmem();
+	initmem_init();
 	sparse_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
