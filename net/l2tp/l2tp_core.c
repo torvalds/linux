@@ -1392,8 +1392,6 @@ static int l2tp_tunnel_sock_create(struct net *net,
 		if (err < 0)
 			goto out;
 
-		udp_set_convert_csum(sock->sk, true);
-
 		break;
 
 	case L2TP_ENCAPTYPE_IP:
@@ -1584,19 +1582,17 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	/* Mark socket as an encapsulation socket. See net/ipv4/udp.c */
 	tunnel->encap = encap;
 	if (encap == L2TP_ENCAPTYPE_UDP) {
-		/* Mark socket as an encapsulation socket. See net/ipv4/udp.c */
-		udp_sk(sk)->encap_type = UDP_ENCAP_L2TPINUDP;
-		udp_sk(sk)->encap_rcv = l2tp_udp_encap_recv;
-		udp_sk(sk)->encap_destroy = l2tp_udp_encap_destroy;
-#if IS_ENABLED(CONFIG_IPV6)
-		if (sk->sk_family == PF_INET6 && !tunnel->v4mapped)
-			udpv6_encap_enable();
-		else
-#endif
-		udp_encap_enable();
-	}
+		struct udp_tunnel_sock_cfg udp_cfg;
 
-	sk->sk_user_data = tunnel;
+		udp_cfg.sk_user_data = tunnel;
+		udp_cfg.encap_type = UDP_ENCAP_L2TPINUDP;
+		udp_cfg.encap_rcv = l2tp_udp_encap_recv;
+		udp_cfg.encap_destroy = l2tp_udp_encap_destroy;
+
+		setup_udp_tunnel_sock(net, sock, &udp_cfg);
+	} else {
+		sk->sk_user_data = tunnel;
+	}
 
 	/* Hook on the tunnel socket destructor so that we can cleanup
 	 * if the tunnel socket goes away.
