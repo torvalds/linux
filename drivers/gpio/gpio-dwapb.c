@@ -37,6 +37,7 @@
 #define GPIO_INTTYPE_LEVEL	0x38
 #define GPIO_INT_POLARITY	0x3c
 #define GPIO_INTSTATUS		0x40
+#define GPIO_PORTA_DEBOUNCE	0x48
 #define GPIO_PORTA_EOI		0x4c
 #define GPIO_EXT_PORTA		0x50
 #define GPIO_EXT_PORTB		0x54
@@ -64,6 +65,12 @@ struct dwapb_gpio {
 	struct irq_domain	*domain;
 };
 
+static inline struct dwapb_gpio_port *
+to_dwapb_gpio_port(struct bgpio_chip *bgc)
+{
+	return container_of(bgc, struct dwapb_gpio_port, bgc);
+}
+
 static inline u32 dwapb_read(struct dwapb_gpio *gpio, unsigned int offset)
 {
 	struct bgpio_chip *bgc	= &gpio->ports[0].bgc;
@@ -84,8 +91,7 @@ static inline void dwapb_write(struct dwapb_gpio *gpio, unsigned int offset,
 static int dwapb_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct bgpio_chip *bgc = to_bgpio_chip(gc);
-	struct dwapb_gpio_port *port = container_of(bgc, struct
-						    dwapb_gpio_port, bgc);
+	struct dwapb_gpio_port *port = to_dwapb_gpio_port(bgc);
 	struct dwapb_gpio *gpio = port->gpio;
 
 	return irq_find_mapping(gpio->domain, offset);
@@ -235,6 +241,28 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 	return 0;
 }
 
+static int dwapb_gpio_set_debounce(struct gpio_chip *gc,
+				   unsigned offset, unsigned debounce)
+{
+	struct bgpio_chip *bgc = to_bgpio_chip(gc);
+	struct dwapb_gpio_port *port = to_dwapb_gpio_port(bgc);
+	struct dwapb_gpio *gpio = port->gpio;
+	unsigned long flags, val_deb;
+	unsigned long mask = bgc->pin2mask(bgc, offset);
+
+	spin_lock_irqsave(&bgc->lock, flags);
+
+	val_deb = dwapb_read(gpio, GPIO_PORTA_DEBOUNCE);
+	if (debounce)
+		dwapb_write(gpio, GPIO_PORTA_DEBOUNCE, val_deb | mask);
+	else
+		dwapb_write(gpio, GPIO_PORTA_DEBOUNCE, val_deb & ~mask);
+
+	spin_unlock_irqrestore(&bgc->lock, flags);
+
+	return 0;
+}
+
 static irqreturn_t dwapb_irq_handler_mfd(int irq, void *dev_id)
 {
 	u32 worked;
@@ -372,6 +400,10 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 #endif
 	port->bgc.gc.ngpio = pp->ngpio;
 	port->bgc.gc.base = pp->gpio_base;
+
+	/* Only port A support debounce */
+	if (pp->idx == 0)
+		port->bgc.gc.set_debounce = dwapb_gpio_set_debounce;
 
 	if (pp->irq)
 		dwapb_configure_irqs(gpio, port, pp);
