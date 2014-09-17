@@ -64,12 +64,7 @@
 
 };
 
-
-
-
 &vd_arm {
-//	regulator_name = "vdd_arm";
-			
 	pd_ddr {
 		 clk_ddr {
 			operating-points = <
@@ -99,70 +94,63 @@
 				>;
 			auto-freq=<0>;
 			status="okay";
-				
-				};
 			};
+		};
 	pd_gpu {
 		 clk_gpu {
 			operating-points = <
 				/* KHz    uV */
-				//200000 1250000
+				200000 1100000
 				300000 1100000
-			   400000  1150000
-			   480000  1250000
-
+				400000  1150000
+				//480000  1250000
 				>;
-
 				status = "okay";
-
-				};
 			};
-
+		};
 	pd_core {
 		 clk_core {
 			operating-points = <
 				/* KHz    uV */
-			216000 1000000
-			408000 1000000
-			600000 1100000
-			696000 1150000
-			816000 1200000
-			1008000 1350000
-			1200000 1425000
-
-
+				216000 1000000
+				408000 1000000
+				600000 1100000
+				696000 1150000
+				816000 1200000
+				1008000 1350000
+				1200000 1425000
 				>;
-		virt-temp-limit-1-cpu-busy = <
-		/* target-temp	limit-freq */
-			75	1008000
-			85	1200000
-			95	1200000
-			100	1200000
-			>;
-		virt-temp-limit-2-cpu-busy = <
-		/* target-temp	limit-freq */
-			75	912000
-			85	1008000
-			95	1104000
-			100	1200000
-			>;
-		virt-temp-limit-3-cpu-busy = <
-		/* target-temp	limit-freq */
-			75	816000
-			85	912000
-			95	100800
-			100	110400
-			>;
-		virt-temp-limit-4-cpu-busy = <
-		/* target-temp	limit-freq */
-			75	816000
-			85	912000
-			95	100800
-			100	110400
-			>;
-		temp-limit-enable = <1>;
-		target-temp = <85>;
-	      };
+			virt-temp-limit-1-cpu-busy = <
+			/* target-temp	limit-freq */
+				75	1008000
+				85	1200000
+				95	1200000
+				100	1200000
+				>;
+			virt-temp-limit-2-cpu-busy = <
+			/* target-temp	limit-freq */
+				75	912000
+				85	1008000
+				95	1104000
+				100	1200000
+				>;
+			virt-temp-limit-3-cpu-busy = <
+			/* target-temp	limit-freq */
+				75	816000
+				85	912000
+				95	100800
+				100	110400
+				>;
+			virt-temp-limit-4-cpu-busy = <
+			/* target-temp	limit-freq */
+				75	816000
+				85	912000
+				95	100800
+				100	110400
+				>;
+			temp-limit-enable = <1>;
+			target-temp = <85>;
+		};
 	 };
 };
 

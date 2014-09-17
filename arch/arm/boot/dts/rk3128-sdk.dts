@@ -93,3 +93,60 @@
 	status = "okay";
 };
 
+
+&clk_core_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		216000 925000
+		408000 925000
+		600000 950000
+		696000 975000
+		816000 1050000
+		1008000 1175000
+		1200000 1300000
+		1296000 1350000
+		1320000 1375000
+		>;
+	status="okay";
+};
+
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 950000
+		300000 975000
+		400000 1075000
+		//480000 1175000
+		>;
+	status="okay";
+};
+
+&clk_ddr_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 950000
+		300000 950000
+		400000 1000000
+		533000 1200000
+		>;
+
+	freq-table = <
+		/*status		freq(KHz)*/
+		SYS_STATUS_NORMAL	400000
+		SYS_STATUS_SUSPEND	200000
+		SYS_STATUS_VIDEO_1080P  240000
+		SYS_STATUS_VIDEO_4K     400000
+		SYS_STATUS_PERFORMANCE  528000
+		SYS_STATUS_DUALVIEW	400000
+		SYS_STATUS_BOOST	324000
+		SYS_STATUS_ISP		533000
+		>;
+	auto-freq-table = <
+		240000
+		324000
+		396000
+		528000
+		>;
+	auto-freq=<0>;
+	status="okay";
+};
