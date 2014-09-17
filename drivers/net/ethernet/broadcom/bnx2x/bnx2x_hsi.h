@@ -859,6 +859,7 @@ struct shared_feat_cfg {		 /* NVRAM Offset */
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_SPIO4          0x00000200
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT  0x00000300
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_AFEX_MODE      0x00000400
+		#define SHARED_FEAT_CFG_FORCE_SF_MODE_UFP_MODE       0x00000600
 
 	/* The interval in seconds between sending LLDP packets. Set to zero
 	   to disable the feature */
@@ -1268,6 +1269,10 @@ struct drv_func_mb {
 	#define DRV_MSG_CODE_GET_UPGRADE_KEY            0x81000000
 	#define DRV_MSG_CODE_GET_MANUF_KEY              0x82000000
 	#define DRV_MSG_CODE_LOAD_L2B_PRAM              0x90000000
+	#define DRV_MSG_CODE_OEM_OK			0x00010000
+	#define DRV_MSG_CODE_OEM_FAILURE		0x00020000
+	#define DRV_MSG_CODE_OEM_UPDATE_SVID_OK		0x00030000
+	#define DRV_MSG_CODE_OEM_UPDATE_SVID_FAILURE	0x00040000
 	/*
 	 * The optic module verification command requires bootcode
 	 * v5.0.6 or later, te specific optic module verification command
@@ -1422,6 +1427,12 @@ struct drv_func_mb {
 	#define DRV_STATUS_VF_DISABLED                  0x00000002
 	#define DRV_STATUS_SET_MF_BW                    0x00000004
 	#define DRV_STATUS_LINK_EVENT                   0x00000008
+
+	#define DRV_STATUS_OEM_EVENT_MASK               0x00000070
+	#define DRV_STATUS_OEM_DISABLE_ENABLE_PF        0x00000010
+	#define DRV_STATUS_OEM_BANDWIDTH_ALLOCATION     0x00000020
+
+	#define DRV_STATUS_OEM_UPDATE_SVID              0x00000080
 
 	#define DRV_STATUS_DCC_EVENT_MASK               0x0000ff00
 	#define DRV_STATUS_DCC_DISABLE_ENABLE_PF        0x00000100

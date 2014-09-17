@@ -1448,6 +1448,11 @@ struct bnx2x_fp_stats {
 	struct bnx2x_eth_q_stats_old eth_q_stats_old;
 };
 
+enum {
+	SUB_MF_MODE_UNKNOWN = 0,
+	SUB_MF_MODE_UFP,
+};
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure
@@ -1659,6 +1664,9 @@ struct bnx2x {
 #define IS_MF_SI(bp)		(bp->mf_mode == MULTI_FUNCTION_SI)
 #define IS_MF_SD(bp)		(bp->mf_mode == MULTI_FUNCTION_SD)
 #define IS_MF_AFEX(bp)		(bp->mf_mode == MULTI_FUNCTION_AFEX)
+	u8			mf_sub_mode;
+#define IS_MF_UFP(bp)		(IS_MF_SD(bp) && \
+				 bp->mf_sub_mode == SUB_MF_MODE_UFP)
 
 	u8			wol;
 

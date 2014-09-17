@@ -936,6 +936,12 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	start_params->gre_tunnel_type	= IPGRE_TUNNEL;
 	start_params->inner_gre_rss_en	= 1;
 
+	if (IS_MF_UFP(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)) {
+		start_params->class_fail_ethtype = ETH_P_FIP;
+		start_params->class_fail = 1;
+		start_params->no_added_tags = 1;
+	}
+
 	return bnx2x_func_state_change(bp, &func_params);
 }
 

@@ -1098,6 +1098,10 @@ struct bnx2x_queue_sp_obj {
 enum {
 	BNX2X_F_UPDATE_TX_SWITCH_SUSPEND_CHNG,
 	BNX2X_F_UPDATE_TX_SWITCH_SUSPEND,
+	BNX2X_F_UPDATE_SD_VLAN_TAG_CHNG,
+	BNX2X_F_UPDATE_SD_VLAN_ETH_TYPE_CHNG,
+	BNX2X_F_UPDATE_VLAN_FORCE_PRIO_CHNG,
+	BNX2X_F_UPDATE_VLAN_FORCE_PRIO_FLAG,
 	BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
 	BNX2X_F_UPDATE_TUNNEL_CLSS_EN,
 	BNX2X_F_UPDATE_TUNNEL_INNER_GRE_RSS_EN,
@@ -1178,10 +1182,29 @@ struct bnx2x_func_start_params {
 	 * capailities
 	 */
 	u8 inner_gre_rss_en;
+
+	/* Allows accepting of packets failing MF classification, possibly
+	 * only matching a given ethertype
+	 */
+	u8 class_fail;
+	u16 class_fail_ethtype;
+
+	/* Override priority of output packets */
+	u8 sd_vlan_force_pri;
+	u8 sd_vlan_force_pri_val;
+
+	/* Replace vlan's ethertype */
+	u16 sd_vlan_eth_type;
+
+	/* Prevent inner vlans from being added by FW */
+	u8 no_added_tags;
 };
 
 struct bnx2x_func_switch_update_params {
 	unsigned long changes; /* BNX2X_F_UPDATE_XX bits */
+	u16 vlan;
+	u16 vlan_eth_type;
+	u8 vlan_force_prio;
 	u8 tunnel_mode;
 	u8 gre_tunnel_type;
 };

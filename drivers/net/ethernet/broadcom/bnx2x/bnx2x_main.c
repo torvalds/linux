@@ -2905,6 +2905,57 @@ static void bnx2x_handle_afex_cmd(struct bnx2x *bp, u32 cmd)
 	}
 }
 
+static void bnx2x_handle_update_svid_cmd(struct bnx2x *bp)
+{
+	struct bnx2x_func_switch_update_params *switch_update_params;
+	struct bnx2x_func_state_params func_params;
+
+	memset(&func_params, 0, sizeof(struct bnx2x_func_state_params));
+	switch_update_params = &func_params.params.switch_update;
+	func_params.f_obj = &bp->func_obj;
+	func_params.cmd = BNX2X_F_CMD_SWITCH_UPDATE;
+
+	if (IS_MF_UFP(bp)) {
+		int func = BP_ABS_FUNC(bp);
+		u32 val;
+
+		/* Re-learn the S-tag from shmem */
+		val = MF_CFG_RD(bp, func_mf_config[func].e1hov_tag) &
+				FUNC_MF_CFG_E1HOV_TAG_MASK;
+		if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT) {
+			bp->mf_ov = val;
+		} else {
+			BNX2X_ERR("Got an SVID event, but no tag is configured in shmem\n");
+			goto fail;
+		}
+
+		/* Configure new S-tag in LLH */
+		REG_WR(bp, NIG_REG_LLH0_FUNC_VLAN_ID + BP_PORT(bp) * 8,
+		       bp->mf_ov);
+
+		/* Send Ramrod to update FW of change */
+		__set_bit(BNX2X_F_UPDATE_SD_VLAN_TAG_CHNG,
+			  &switch_update_params->changes);
+		switch_update_params->vlan = bp->mf_ov;
+
+		if (bnx2x_func_state_change(bp, &func_params) < 0) {
+			BNX2X_ERR("Failed to configure FW of S-tag Change to %02x\n",
+				  bp->mf_ov);
+			goto fail;
+		}
+
+		DP(BNX2X_MSG_MCP, "Configured S-tag %02x\n", bp->mf_ov);
+
+		bnx2x_fw_command(bp, DRV_MSG_CODE_OEM_UPDATE_SVID_OK, 0);
+
+		return;
+	}
+
+	/* not supported by SW yet */
+fail:
+	bnx2x_fw_command(bp, DRV_MSG_CODE_OEM_UPDATE_SVID_FAILURE, 0);
+}
+
 static void bnx2x_pmf_update(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
@@ -3297,7 +3348,8 @@ static void bnx2x_e1h_enable(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 
-	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
+	if (!(IS_MF_UFP(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)))
+		REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port * 8, 1);
 
 	/* Tx queue should be only re-enabled */
 	netif_tx_wake_all_queues(bp->dev);
@@ -3652,14 +3704,30 @@ out:
 	   ethver, iscsiver, fcoever);
 }
 
-static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
+static void bnx2x_oem_event(struct bnx2x *bp, u32 event)
 {
-	DP(BNX2X_MSG_MCP, "dcc_event 0x%x\n", dcc_event);
+	u32 cmd_ok, cmd_fail;
 
-	if (dcc_event & DRV_STATUS_DCC_DISABLE_ENABLE_PF) {
+	/* sanity */
+	if (event & DRV_STATUS_DCC_EVENT_MASK &&
+	    event & DRV_STATUS_OEM_EVENT_MASK) {
+		BNX2X_ERR("Received simultaneous events %08x\n", event);
+		return;
+	}
 
-		/*
-		 * This is the only place besides the function initialization
+	if (event & DRV_STATUS_DCC_EVENT_MASK) {
+		cmd_fail = DRV_MSG_CODE_DCC_FAILURE;
+		cmd_ok = DRV_MSG_CODE_DCC_OK;
+	} else /* if (event & DRV_STATUS_OEM_EVENT_MASK) */ {
+		cmd_fail = DRV_MSG_CODE_OEM_FAILURE;
+		cmd_ok = DRV_MSG_CODE_OEM_OK;
+	}
+
+	DP(BNX2X_MSG_MCP, "oem_event 0x%x\n", event);
+
+	if (event & (DRV_STATUS_DCC_DISABLE_ENABLE_PF |
+		     DRV_STATUS_OEM_DISABLE_ENABLE_PF)) {
+		/* This is the only place besides the function initialization
 		 * where the bp->flags can change so it is done without any
 		 * locks
 		 */
@@ -3674,18 +3742,22 @@ static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
 
 			bnx2x_e1h_enable(bp);
 		}
-		dcc_event &= ~DRV_STATUS_DCC_DISABLE_ENABLE_PF;
+		event &= ~(DRV_STATUS_DCC_DISABLE_ENABLE_PF |
+			   DRV_STATUS_OEM_DISABLE_ENABLE_PF);
 	}
-	if (dcc_event & DRV_STATUS_DCC_BANDWIDTH_ALLOCATION) {
+
+	if (event & (DRV_STATUS_DCC_BANDWIDTH_ALLOCATION |
+		     DRV_STATUS_OEM_BANDWIDTH_ALLOCATION)) {
 		bnx2x_config_mf_bw(bp);
-		dcc_event &= ~DRV_STATUS_DCC_BANDWIDTH_ALLOCATION;
+		event &= ~(DRV_STATUS_DCC_BANDWIDTH_ALLOCATION |
+			   DRV_STATUS_OEM_BANDWIDTH_ALLOCATION);
 	}
 
 	/* Report results to MCP */
-	if (dcc_event)
-		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_FAILURE, 0);
+	if (event)
+		bnx2x_fw_command(bp, cmd_fail, 0);
 	else
-		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_OK, 0);
+		bnx2x_fw_command(bp, cmd_ok, 0);
 }
 
 /* must be called under the spq lock */
@@ -4167,9 +4239,12 @@ static void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 					func_mf_config[BP_ABS_FUNC(bp)].config);
 			val = SHMEM_RD(bp,
 				       func_mb[BP_FW_MB_IDX(bp)].drv_status);
-			if (val & DRV_STATUS_DCC_EVENT_MASK)
-				bnx2x_dcc_event(bp,
-					    (val & DRV_STATUS_DCC_EVENT_MASK));
+
+			if (val & (DRV_STATUS_DCC_EVENT_MASK |
+				   DRV_STATUS_OEM_EVENT_MASK))
+				bnx2x_oem_event(bp,
+					(val & (DRV_STATUS_DCC_EVENT_MASK |
+						DRV_STATUS_OEM_EVENT_MASK)));
 
 			if (val & DRV_STATUS_SET_MF_BW)
 				bnx2x_set_mf_bw(bp);
@@ -4195,6 +4270,10 @@ static void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 					val & DRV_STATUS_AFEX_EVENT_MASK);
 			if (val & DRV_STATUS_EEE_NEGOTIATION_RESULTS)
 				bnx2x_handle_eee_event(bp);
+
+			if (val & DRV_STATUS_OEM_UPDATE_SVID)
+				bnx2x_handle_update_svid_cmd(bp);
+
 			if (bp->link_vars.periodic_flags &
 			    PERIODIC_FLAGS_LINK_EVENT) {
 				/*  sync with link */
@@ -7930,8 +8009,11 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 		REG_WR(bp, CFC_REG_WEAK_ENABLE_PF, 1);
 
 	if (IS_MF(bp)) {
-		REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
-		REG_WR(bp, NIG_REG_LLH0_FUNC_VLAN_ID + port*8, bp->mf_ov);
+		if (!(IS_MF_UFP(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp))) {
+			REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port * 8, 1);
+			REG_WR(bp, NIG_REG_LLH0_FUNC_VLAN_ID + port * 8,
+			       bp->mf_ov);
+		}
 	}
 
 	bnx2x_init_block(bp, BLOCK_MISC_AEU, init_phase);
@@ -11626,6 +11708,7 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 
 	bp->mf_ov = 0;
 	bp->mf_mode = 0;
+	bp->mf_sub_mode = 0;
 	vn = BP_VN(bp);
 
 	if (!CHIP_IS_E1(bp) && !BP_NOMCP(bp)) {
@@ -11691,6 +11774,13 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 				} else
 					BNX2X_DEV_INFO("illegal OV for SD\n");
 				break;
+			case SHARED_FEAT_CFG_FORCE_SF_MODE_UFP_MODE:
+				bp->mf_mode = MULTI_FUNCTION_SD;
+				bp->mf_sub_mode = SUB_MF_MODE_UFP;
+				bp->mf_config[vn] =
+					MF_CFG_RD(bp,
+						  func_mf_config[func].config);
+				break;
 			case SHARED_FEAT_CFG_FORCE_SF_MODE_FORCED_SF:
 				bp->mf_config[vn] = 0;
 				break;
@@ -11714,6 +11804,11 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 
 				BNX2X_DEV_INFO("MF OV for func %d is %d (0x%04x)\n",
 					       func, bp->mf_ov, bp->mf_ov);
+			} else if (bp->mf_sub_mode == SUB_MF_MODE_UFP) {
+				dev_err(&bp->pdev->dev,
+					"Unexpected - no valid MF OV for func %d in UFP mode\n",
+					func);
+				bp->path_has_ovlan = true;
 			} else {
 				dev_err(&bp->pdev->dev,
 					"No valid MF OV for func %d, aborting\n",

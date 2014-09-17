@@ -5673,8 +5673,23 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	rdata->gre_tunnel_type	= start_params->gre_tunnel_type;
 	rdata->inner_gre_rss_en = start_params->inner_gre_rss_en;
 	rdata->vxlan_dst_port	= cpu_to_le16(4789);
-	rdata->sd_vlan_eth_type = cpu_to_le16(0x8100);
+	rdata->sd_accept_mf_clss_fail = start_params->class_fail;
+	if (start_params->class_fail_ethtype) {
+		rdata->sd_accept_mf_clss_fail_match_ethtype = 1;
+		rdata->sd_accept_mf_clss_fail_ethtype =
+			cpu_to_le16(start_params->class_fail_ethtype);
+	}
 
+	rdata->sd_vlan_force_pri_flg = start_params->sd_vlan_force_pri;
+	rdata->sd_vlan_force_pri_val = start_params->sd_vlan_force_pri_val;
+	if (start_params->sd_vlan_eth_type)
+		rdata->sd_vlan_eth_type =
+			cpu_to_le16(start_params->sd_vlan_eth_type);
+	else
+		rdata->sd_vlan_eth_type =
+			cpu_to_le16(0x8100);
+
+	rdata->no_added_tags = start_params->no_added_tags;
 	/* No need for an explicit memory barrier here as long we would
 	 * need to ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
@@ -5706,6 +5721,30 @@ static inline int bnx2x_func_send_switch_update(struct bnx2x *bp,
 		rdata->tx_switch_suspend =
 			test_bit(BNX2X_F_UPDATE_TX_SWITCH_SUSPEND,
 				 &switch_update_params->changes);
+	}
+
+	if (test_bit(BNX2X_F_UPDATE_SD_VLAN_TAG_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->sd_vlan_tag_change_flg = 1;
+		rdata->sd_vlan_tag =
+			cpu_to_le16(switch_update_params->vlan);
+	}
+
+	if (test_bit(BNX2X_F_UPDATE_SD_VLAN_ETH_TYPE_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->sd_vlan_eth_type_change_flg = 1;
+		rdata->sd_vlan_eth_type =
+			cpu_to_le16(switch_update_params->vlan_eth_type);
+	}
+
+	if (test_bit(BNX2X_F_UPDATE_VLAN_FORCE_PRIO_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->sd_vlan_force_pri_change_flg = 1;
+		if (test_bit(BNX2X_F_UPDATE_VLAN_FORCE_PRIO_FLAG,
+			     &switch_update_params->changes))
+			rdata->sd_vlan_force_pri_flg = 1;
+		rdata->sd_vlan_force_pri_flg =
+			switch_update_params->vlan_force_prio;
 	}
 
 	if (test_bit(BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
