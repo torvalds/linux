@@ -383,7 +383,7 @@ void __init check_for_initrd(void)
 		initrd_start = initrd_end = 0;
 
 	if (initrd_start)
-		printk("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
+		pr_info("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
 
 	DBG(" <- check_for_initrd()\n");
 #endif /* CONFIG_BLK_DEV_INITRD */
