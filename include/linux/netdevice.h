@@ -1874,7 +1874,7 @@ struct napi_gro_cb {
 	/* jiffies when first packet was created/queued */
 	unsigned long age;
 
-	/* Used in ipv6_gro_receive() */
+	/* Used in ipv6_gro_receive() and foo-over-udp */
 	u16	proto;
 
 	/* Used in udp_gro_receive */
@@ -1925,6 +1925,7 @@ struct packet_offload {
 
 struct udp_offload {
 	__be16			 port;
+	u8			 ipproto;
 	struct offload_callbacks callbacks;
 };
 

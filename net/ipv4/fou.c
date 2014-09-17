@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <net/genetlink.h>
 #include <net/ip.h>
+#include <net/protocol.h>
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
 #include <net/xfrm.h>
@@ -21,6 +22,7 @@ struct fou {
 	struct socket *sock;
 	u8 protocol;
 	u16 port;
+	struct udp_offload udp_offloads;
 	struct list_head list;
 };
 
@@ -60,6 +62,69 @@ static int fou_udp_recv(struct sock *sk, struct sk_buff *skb)
 
 	return fou_udp_encap_recv_deliver(skb, fou->protocol,
 					  sizeof(struct udphdr));
+}
+
+static struct sk_buff **fou_gro_receive(struct sk_buff **head,
+					struct sk_buff *skb,
+					const struct net_offload **offloads)
+{
+	const struct net_offload *ops;
+	struct sk_buff **pp = NULL;
+	u8 proto = NAPI_GRO_CB(skb)->proto;
+
+	rcu_read_lock();
+	ops = rcu_dereference(offloads[proto]);
+	if (!ops || !ops->callbacks.gro_receive)
+		goto out_unlock;
+
+	pp = ops->callbacks.gro_receive(head, skb);
+
+out_unlock:
+	rcu_read_unlock();
+
+	return pp;
+}
+
+static int fou_gro_complete(struct sk_buff *skb, int nhoff,
+			    const struct net_offload **offloads)
+{
+	const struct net_offload *ops;
+	u8 proto = NAPI_GRO_CB(skb)->proto;
+	int err = -ENOSYS;
+
+	rcu_read_lock();
+	ops = rcu_dereference(offloads[proto]);
+	if (WARN_ON(!ops || !ops->callbacks.gro_complete))
+		goto out_unlock;
+
+	err = ops->callbacks.gro_complete(skb, nhoff);
+
+out_unlock:
+	rcu_read_unlock();
+
+	return err;
+}
+
+static struct sk_buff **fou4_gro_receive(struct sk_buff **head,
+					 struct sk_buff *skb)
+{
+	return fou_gro_receive(head, skb, inet_offloads);
+}
+
+static int fou4_gro_complete(struct sk_buff *skb, int nhoff)
+{
+	return fou_gro_complete(skb, nhoff, inet_offloads);
+}
+
+static struct sk_buff **fou6_gro_receive(struct sk_buff **head,
+					 struct sk_buff *skb)
+{
+	return fou_gro_receive(head, skb, inet6_offloads);
+}
+
+static int fou6_gro_complete(struct sk_buff *skb, int nhoff)
+{
+	return fou_gro_complete(skb, nhoff, inet6_offloads);
 }
 
 static int fou_add_to_port_list(struct fou *fou)
@@ -134,6 +199,29 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 
 	sk->sk_allocation = GFP_ATOMIC;
 
+	switch (cfg->udp_config.family) {
+	case AF_INET:
+		fou->udp_offloads.callbacks.gro_receive = fou4_gro_receive;
+		fou->udp_offloads.callbacks.gro_complete = fou4_gro_complete;
+		break;
+	case AF_INET6:
+		fou->udp_offloads.callbacks.gro_receive = fou6_gro_receive;
+		fou->udp_offloads.callbacks.gro_complete = fou6_gro_complete;
+		break;
+	default:
+		err = -EPFNOSUPPORT;
+		goto error;
+	}
+
+	fou->udp_offloads.port = cfg->udp_config.local_udp_port;
+	fou->udp_offloads.ipproto = cfg->protocol;
+
+	if (cfg->udp_config.family == AF_INET) {
+		err = udp_add_offload(&fou->udp_offloads);
+		if (err)
+			goto error;
+	}
+
 	err = fou_add_to_port_list(fou);
 	if (err)
 		goto error;
@@ -160,6 +248,7 @@ static int fou_destroy(struct net *net, struct fou_cfg *cfg)
 	spin_lock(&fou_lock);
 	list_for_each_entry(fou, &fou_list, list) {
 		if (fou->port == port) {
+			udp_del_offload(&fou->udp_offloads);
 			fou_release(fou);
 			err = 0;
 			break;
