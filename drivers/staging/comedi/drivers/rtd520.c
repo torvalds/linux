@@ -633,35 +633,6 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /*
-  unknown amout of data is waiting in fifo.
-*/
-static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct rtd_private *devpriv = dev->private;
-
-	while (readl(dev->mmio + LAS0_ADC) & FS_ADC_NOT_EMPTY) {
-		unsigned short d = readw(devpriv->las1 + LAS1_ADC_FIFO);
-
-		if (0 == devpriv->ai_count) {	/* done */
-			continue;	/* read rest */
-		}
-
-		d = d >> 3;	/* low 3 bits are marker lines */
-		if (test_bit(s->async->cur_chan, devpriv->chan_is_bipolar))
-			/* convert to comedi unsigned data */
-			d = comedi_offset_munge(s, d);
-		d &= s->maxdata;
-
-		if (!comedi_buf_put(s, d))
-			return -1;
-
-		if (devpriv->ai_count > 0)	/* < 0, means read forever */
-			devpriv->ai_count--;
-	}
-	return 0;
-}
-
-/*
   Handle all rtd520 interrupts.
   Runs atomically and is never re-entered.
   This is a "slow handler";  other interrupts may be active.
@@ -703,8 +674,6 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 
 			if (0 == devpriv->ai_count)
 				goto xfer_done;
-
-			comedi_event(dev, s);
 		} else if (devpriv->xfer_count > 0) {
 			if (fifo_status & FS_ADC_NOT_EMPTY) {
 				/* FIFO not empty */
@@ -713,8 +682,6 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 
 				if (0 == devpriv->ai_count)
 					goto xfer_done;
-
-				comedi_event(dev, s);
 			}
 		}
 	}
@@ -726,28 +693,16 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 	/* clear the interrupt */
 	writew(status, dev->mmio + LAS0_CLEAR);
 	readw(dev->mmio + LAS0_CLEAR);
+
+	comedi_handle_events(dev, s);
+
 	return IRQ_HANDLED;
 
 xfer_abort:
-	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
 	s->async->events |= COMEDI_CB_ERROR;
-	devpriv->ai_count = 0;	/* stop and don't transfer any more */
-	/* fall into xfer_done */
 
 xfer_done:
-	/* pacer stop source: SOFTWARE */
-	writel(0, dev->mmio + LAS0_PACER_STOP);
-	writel(0, dev->mmio + LAS0_PACER);	/* stop pacer */
-	writel(0, dev->mmio + LAS0_ADC_CONVERSION);
-	writew(0, dev->mmio + LAS0_IT);
-
-	if (devpriv->ai_count > 0) {	/* there shouldn't be anything left */
-		fifo_status = readl(dev->mmio + LAS0_ADC);
-		ai_read_dregs(dev, s);	/* read anything left in FIFO */
-	}
-
-	s->async->events |= COMEDI_CB_EOA;	/* signal end to comedi */
-	comedi_event(dev, s);
+	s->async->events |= COMEDI_CB_EOA;
 
 	/* clear the interrupt */
 	status = readw(dev->mmio + LAS0_IT);
@@ -756,6 +711,8 @@ xfer_done:
 
 	fifo_status = readl(dev->mmio + LAS0_ADC);
 	overrun = readl(dev->mmio + LAS0_OVERRUN) & 0xffff;
+
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
