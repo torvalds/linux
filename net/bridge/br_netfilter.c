@@ -111,66 +111,6 @@ static inline __be16 pppoe_proto(const struct sk_buff *skb)
 	 pppoe_proto(skb) == htons(PPP_IPV6) && \
 	 brnf_filter_pppoe_tagged)
 
-static void fake_update_pmtu(struct dst_entry *dst, struct sock *sk,
-			     struct sk_buff *skb, u32 mtu)
-{
-}
-
-static void fake_redirect(struct dst_entry *dst, struct sock *sk,
-			  struct sk_buff *skb)
-{
-}
-
-static u32 *fake_cow_metrics(struct dst_entry *dst, unsigned long old)
-{
-	return NULL;
-}
-
-static struct neighbour *fake_neigh_lookup(const struct dst_entry *dst,
-					   struct sk_buff *skb,
-					   const void *daddr)
-{
-	return NULL;
-}
-
-static unsigned int fake_mtu(const struct dst_entry *dst)
-{
-	return dst->dev->mtu;
-}
-
-static struct dst_ops fake_dst_ops = {
-	.family =		AF_INET,
-	.protocol =		cpu_to_be16(ETH_P_IP),
-	.update_pmtu =		fake_update_pmtu,
-	.redirect =		fake_redirect,
-	.cow_metrics =		fake_cow_metrics,
-	.neigh_lookup =		fake_neigh_lookup,
-	.mtu =			fake_mtu,
-};
-
-/*
- * Initialize bogus route table used to keep netfilter happy.
- * Currently, we fill in the PMTU entry because netfilter
- * refragmentation needs it, and the rt_flags entry because
- * ipt_REJECT needs it.  Future netfilter modules might
- * require us to fill additional fields.
- */
-static const u32 br_dst_default_metrics[RTAX_MAX] = {
-	[RTAX_MTU - 1] = 1500,
-};
-
-void br_netfilter_rtable_init(struct net_bridge *br)
-{
-	struct rtable *rt = &br->fake_rtable;
-
-	atomic_set(&rt->dst.__refcnt, 1);
-	rt->dst.dev = br->dev;
-	rt->dst.path = &rt->dst;
-	dst_init_metrics(&rt->dst, br_dst_default_metrics, true);
-	rt->dst.flags	= DST_NOXFRM | DST_FAKE_RTABLE;
-	rt->dst.ops = &fake_dst_ops;
-}
-
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
 {
 	struct net_bridge_port *port;
@@ -1031,38 +971,42 @@ static struct ctl_table brnf_table[] = {
 };
 #endif
 
-int __init br_netfilter_init(void)
+static int __init br_netfilter_init(void)
 {
 	int ret;
 
-	ret = dst_entries_init(&fake_dst_ops);
+	ret = nf_register_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
 	if (ret < 0)
 		return ret;
 
-	ret = nf_register_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
-	if (ret < 0) {
-		dst_entries_destroy(&fake_dst_ops);
-		return ret;
-	}
 #ifdef CONFIG_SYSCTL
 	brnf_sysctl_header = register_net_sysctl(&init_net, "net/bridge", brnf_table);
 	if (brnf_sysctl_header == NULL) {
 		printk(KERN_WARNING
 		       "br_netfilter: can't register to sysctl.\n");
-		nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
-		dst_entries_destroy(&fake_dst_ops);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err1;
 	}
 #endif
 	printk(KERN_NOTICE "Bridge firewalling registered\n");
 	return 0;
+err1:
+	nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	return ret;
 }
 
-void br_netfilter_fini(void)
+static void __exit br_netfilter_fini(void)
 {
 	nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
 #ifdef CONFIG_SYSCTL
 	unregister_net_sysctl_table(brnf_sysctl_header);
 #endif
-	dst_entries_destroy(&fake_dst_ops);
 }
+
+module_init(br_netfilter_init);
+module_exit(br_netfilter_fini);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Lennert Buytenhek <buytenh@gnu.org>");
+MODULE_AUTHOR("Bart De Schuymer <bdschuym@pandora.be>");
+MODULE_DESCRIPTION("Linux ethernet netfilter firewall bridge");

@@ -147,7 +147,7 @@ static void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 
 	nf_ct_attach(nskb, oldskb);
 
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	/* If we use ip6_local_out for bridged traffic, the MAC source on
 	 * the RST will be ours, instead of the destination's.  This confuses
 	 * some routers/firewalls, and they drop the packet.  So we need to

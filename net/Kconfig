@@ -176,10 +176,11 @@ config NETFILTER_ADVANCED
 	  If unsure, say Y.
 
 config BRIDGE_NETFILTER
-	bool "Bridged IP/ARP packets filtering"
-	depends on BRIDGE && NETFILTER && INET
+	tristate "Bridged IP/ARP packets filtering"
+	depends on (BRIDGE || BRIDGE=n)
+	depends on NETFILTER && INET
 	depends on NETFILTER_ADVANCED
-	default y
+	default m
 	---help---
 	  Enabling this option will let arptables resp. iptables see bridged
 	  ARP resp. IP traffic. If you want a bridging firewall, you probably
