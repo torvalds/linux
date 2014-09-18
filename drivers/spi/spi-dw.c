@@ -390,7 +390,7 @@ static void pump_transfers(unsigned long data)
 		goto early_exit;
 	}
 
-	/* Delay if requested at end of transfer*/
+	/* Delay if requested at end of transfer */
 	if (message->state == RUNNING_STATE) {
 		previous = list_entry(transfer->transfer_list.prev,
 					struct spi_transfer,
@@ -519,7 +519,7 @@ static int dw_spi_transfer_one_message(struct spi_master *master,
 	struct dw_spi *dws = spi_master_get_devdata(master);
 
 	dws->cur_msg = msg;
-	/* Initial message state*/
+	/* Initial message state */
 	dws->cur_msg->state = START_STATE;
 	dws->cur_transfer = list_entry(dws->cur_msg->transfers.next,
 						struct spi_transfer,
@@ -645,8 +645,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	dws->prev_chip = NULL;
 	dws->dma_inited = 0;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + 0x60);
-	snprintf(dws->name, sizeof(dws->name), "dw_spi%d",
-			dws->bus_num);
+	snprintf(dws->name, sizeof(dws->name), "dw_spi%d", dws->bus_num);
 
 	ret = devm_request_irq(dev, dws->irq, dw_spi_irq, IRQF_SHARED,
 			dws->name, dws);
