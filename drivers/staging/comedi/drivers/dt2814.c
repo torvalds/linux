@@ -230,7 +230,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 
 		s->async->events |= COMEDI_CB_EOA;
 	}
-	comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
