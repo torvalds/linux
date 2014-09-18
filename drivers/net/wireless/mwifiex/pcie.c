@@ -2243,8 +2243,8 @@ mwifiex_pcie_rdwr_firmware(struct mwifiex_adapter *adapter, u8 doneflag)
 		if (ctrl_data != FW_DUMP_HOST_READY) {
 			dev_info(adapter->dev,
 				 "The ctrl reg was changed, re-try again!\n");
-			mwifiex_write_reg(adapter, reg->fw_dump_ctrl,
-					  FW_DUMP_HOST_READY);
+			ret = mwifiex_write_reg(adapter, reg->fw_dump_ctrl,
+						FW_DUMP_HOST_READY);
 			if (ret) {
 				dev_err(adapter->dev, "PCIE write err\n");
 				return RDWR_STATUS_FAILURE;
@@ -2266,6 +2266,7 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 	u8 *dbg_ptr, *end_ptr, dump_num, idx, i, read_reg, doneflag = 0;
 	enum rdwr_status stat;
 	u32 memory_size;
+	int ret;
 	static char *env[] = { "DRIVER=mwifiex_pcie", "EVENT=fw_dump", NULL };
 
 	if (!card->pcie.supports_fw_dump)
@@ -2337,11 +2338,13 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 			reg_end = creg->fw_dump_end;
 			for (reg = reg_start; reg <= reg_end; reg++) {
 				mwifiex_read_reg_byte(adapter, reg, dbg_ptr);
-				if (dbg_ptr < end_ptr)
+				if (dbg_ptr < end_ptr) {
 					dbg_ptr++;
-				else
+				} else {
 					dev_err(adapter->dev,
 						"Allocated buf not enough\n");
+					goto done;
+				}
 			}
 
 			if (stat != RDWR_STATUS_DONE)
