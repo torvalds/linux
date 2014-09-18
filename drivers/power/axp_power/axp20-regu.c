@@ -37,6 +37,7 @@ static inline int check_range(struct axp_regulator_info *info,
 	return 0;
 }
 
+static int axp_get_voltage(struct regulator_dev *rdev);
 
 /* AXP common operations */
 static int axp_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
@@ -45,7 +46,14 @@ static int axp_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
 	uint8_t val, mask;
-	
+
+	if (rdev_get_id(rdev) == AXP20_ID_BUCK3) {
+		pr_err("somebody is trying to set dcdc3 range to (%d, %d) uV\n",
+			min_uV, max_uV);
+		pr_err("but we keep dcdc3 = %d uV from the bootloader\n",
+			axp_get_voltage(rdev));
+		return 0;
+	}
 
 	if (check_range(info, min_uV, max_uV)) {
 		pr_err("invalid voltage range (%d, %d) uV\n", min_uV, max_uV);
