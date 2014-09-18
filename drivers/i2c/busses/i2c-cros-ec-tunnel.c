@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#define I2C_MAX_RETRIES 3
+
 /**
  * struct ec_i2c_device - Driver data for I2C tunnel
  *
@@ -290,6 +292,7 @@ static int ec_i2c_probe(struct platform_device *pdev)
 	bus->adap.algo_data = bus;
 	bus->adap.dev.parent = &pdev->dev;
 	bus->adap.dev.of_node = np;
+	bus->adap.retries = I2C_MAX_RETRIES;
 
 	err = i2c_add_adapter(&bus->adap);
 	if (err) {
