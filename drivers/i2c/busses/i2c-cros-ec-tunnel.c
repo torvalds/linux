@@ -227,7 +227,7 @@ static int ec_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg i2c_msgs[],
 	msg.indata = response;
 	msg.insize = response_len;
 
-	result = bus->ec->cmd_xfer(bus->ec, &msg);
+	result = cros_ec_cmd_xfer(bus->ec, &msg);
 	if (result < 0)
 		goto exit;
 

@@ -62,6 +62,13 @@ int cros_ec_check_result(struct cros_ec_device *ec_dev,
 }
 EXPORT_SYMBOL(cros_ec_check_result);
 
+int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
+		     struct cros_ec_command *msg)
+{
+	return ec_dev->cmd_xfer(ec_dev, msg);
+}
+EXPORT_SYMBOL(cros_ec_cmd_xfer);
+
 static const struct mfd_cell cros_devs[] = {
 	{
 		.name = "cros-ec-keyb",
