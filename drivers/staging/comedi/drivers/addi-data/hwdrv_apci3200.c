@@ -2560,8 +2560,7 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 			comedi_buf_write_free(s,
 				(7 + 12) * sizeof(unsigned int));
 
-			/*  Send events */
-			comedi_event(dev, s);
+			comedi_handle_events(dev, s);
 			/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 
 			/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
