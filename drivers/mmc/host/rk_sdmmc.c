@@ -3198,6 +3198,9 @@ static void dw_mci_of_set_cd_gpio_irq(struct device *dev, u32 gpio,
 		if (ret < 0) {
 			irq = ret;
 			dev_err(host->dev, "Request cd-gpio %d interrupt error!\n", gpio);
+		} else{
+		        /* enable wakeup event for gpio-cd in idle or deep suspend*/
+		        enable_irq_wake(irq);
 		}
 	} else {
 		dev_err(host->dev, "Cannot convert gpio %d to irq!\n", gpio);
