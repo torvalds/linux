@@ -477,7 +477,7 @@ static enum regmap_endian regmap_get_val_endian(struct device *dev,
 					const struct regmap_bus *bus,
 					const struct regmap_config *config)
 {
-	struct device_node *np = dev->of_node;
+	struct device_node *np;
 	enum regmap_endian endian;
 
 	/* Retrieve the endianness specification from the regmap config */
@@ -487,15 +487,20 @@ static enum regmap_endian regmap_get_val_endian(struct device *dev,
 	if (endian != REGMAP_ENDIAN_DEFAULT)
 		return endian;
 
-	/* Parse the device's DT node for an endianness specification */
-	if (of_property_read_bool(np, "big-endian"))
-		endian = REGMAP_ENDIAN_BIG;
-	else if (of_property_read_bool(np, "little-endian"))
-		endian = REGMAP_ENDIAN_LITTLE;
+	/* If the dev and dev->of_node exist try to get endianness from DT */
+	if (dev && dev->of_node) {
+		np = dev->of_node;
 
-	/* If the endianness was specified in DT, use that */
-	if (endian != REGMAP_ENDIAN_DEFAULT)
-		return endian;
+		/* Parse the device's DT node for an endianness specification */
+		if (of_property_read_bool(np, "big-endian"))
+			endian = REGMAP_ENDIAN_BIG;
+		else if (of_property_read_bool(np, "little-endian"))
+			endian = REGMAP_ENDIAN_LITTLE;
+
+		/* If the endianness was specified in DT, use that */
+		if (endian != REGMAP_ENDIAN_DEFAULT)
+			return endian;
+	}
 
 	/* Retrieve the endianness specification from the bus config */
 	if (bus && bus->val_format_endian_default)
