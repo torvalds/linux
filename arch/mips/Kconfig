@@ -1055,6 +1055,7 @@ config MIPS_HUGE_TLB_SUPPORT
 
 config IRQ_CPU
 	bool
+	select IRQ_DOMAIN
 
 config IRQ_CPU_RM7K
 	bool

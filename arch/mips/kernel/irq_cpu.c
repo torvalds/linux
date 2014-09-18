@@ -94,28 +94,6 @@ static struct irq_chip mips_mt_cpu_irq_controller = {
 	.irq_eoi	= unmask_mips_irq,
 };
 
-void __init mips_cpu_irq_init(void)
-{
-	int irq_base = MIPS_CPU_IRQ_BASE;
-	int i;
-
-	/* Mask interrupts. */
-	clear_c0_status(ST0_IM);
-	clear_c0_cause(CAUSEF_IP);
-
-	/* Software interrupts are used for MT/CMT IPI */
-	for (i = irq_base; i < irq_base + 2; i++)
-		irq_set_chip_and_handler(i, cpu_has_mipsmt ?
-					 &mips_mt_cpu_irq_controller :
-					 &mips_cpu_irq_controller,
-					 handle_percpu_irq);
-
-	for (i = irq_base + 2; i < irq_base + 8; i++)
-		irq_set_chip_and_handler(i, &mips_cpu_irq_controller,
-					 handle_percpu_irq);
-}
-
-#ifdef CONFIG_IRQ_DOMAIN
 static int mips_cpu_intc_map(struct irq_domain *d, unsigned int irq,
 			     irq_hw_number_t hw)
 {
@@ -138,8 +116,7 @@ static const struct irq_domain_ops mips_cpu_intc_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-int __init mips_cpu_intc_init(struct device_node *of_node,
-			      struct device_node *parent)
+static void __init __mips_cpu_irq_init(struct device_node *of_node)
 {
 	struct irq_domain *domain;
 
@@ -151,7 +128,16 @@ int __init mips_cpu_intc_init(struct device_node *of_node,
 				       &mips_cpu_intc_irq_domain_ops, NULL);
 	if (!domain)
 		panic("Failed to add irqdomain for MIPS CPU");
+}
 
+void __init mips_cpu_irq_init(void)
+{
+	__mips_cpu_irq_init(NULL);
+}
+
+int __init mips_cpu_intc_init(struct device_node *of_node,
+			      struct device_node *parent)
+{
+	__mips_cpu_irq_init(of_node);
 	return 0;
 }
-#endif /* CONFIG_IRQ_DOMAIN */
