@@ -260,7 +260,7 @@ static irqreturn_t apci1032_interrupt(int irq, void *d)
 	s->state = inl(dev->iobase + APCI1032_STATUS_REG) & 0xffff;
 	comedi_buf_put(s, s->state);
 	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 
 	/* enable the interrupt */
 	outl(ctrl, dev->iobase + APCI1032_CTRL_REG);
