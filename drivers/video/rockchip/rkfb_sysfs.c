@@ -259,7 +259,7 @@ static ssize_t set_hwc_lut(struct device *dev, struct device_attribute *attr,
 	int hwc_lut[256];
 	const char *start = buf;
 	int i = 256, temp;
-	int space_max = 10;
+	int space_max;
 
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
@@ -267,8 +267,8 @@ static ssize_t set_hwc_lut(struct device *dev, struct device_attribute *attr,
 
 	/*printk("count:%d\n>>%s\n\n",count,start);*/
 	for (i = 0; i < 256; i++) {
-		space_max = 10;	/*max space number 10*/
-		temp = simple_strtoul(start, NULL, 10);
+		space_max = 15;	/*max space number 15*/
+		temp = simple_strtoul(start, NULL, 16);
 		hwc_lut[i] = temp;
 		do {
 			start++;

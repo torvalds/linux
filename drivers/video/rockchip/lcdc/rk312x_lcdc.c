@@ -447,8 +447,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 
 
 		} else if (win->id == 2) {
-			mask = m_HWC_EN;
-			val = v_HWC_EN(win->state);
+			mask = m_HWC_EN | m_HWC_LODAD_EN;
+			val = v_HWC_EN(win->state) | v_HWC_LODAD_EN(1);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			if((win->area[0].xsize == 32) &&(win->area[0].ysize == 32))
 				hwc_size = 0;
@@ -462,6 +462,7 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 				    v_DSP_STY(win->area[0].dsp_sty));
 
 			lcdc_writel(lcdc_dev, HWC_MST, win->area[0].y_addr);
+
 		}
 	} else {
 		win->area[0].y_addr = 0;
