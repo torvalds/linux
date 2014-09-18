@@ -50,6 +50,10 @@
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 	};
+		usb0: usb@10180000 {
+		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
+		rockchip,usb-mode = <1>;
+	};
 	 rockchip_suspend {
                 rockchip,ctrbits = <
                         (0
@@ -75,9 +79,9 @@
 			600000 1250000
 			696000 1250000
 			*/
-			816000 1250000
-			1008000 1250000
-			1200000 1320000
+			816000 1100000
+			1008000 1200000
+			1200000 1325000
 			>;
 		status="okay";
 	};
@@ -85,9 +89,9 @@
 	&clk_gpu_dvfs_table {
 		operating-points = <
 			/* KHz    uV */
-			200000 1250000
-			300000 1250000
-			480000 1250000
+			200000 1100000
+			300000 1100000
+			400000 1150000
 			>;
 		status="okay";
 	};
@@ -98,7 +102,7 @@
 			200000 950000
 			300000 950000
 			400000 1000000
-			533000 1050000
+			533000 1200000
 			>;
 
 		freq-table = <
@@ -235,5 +239,6 @@
 };
 
 &sdmmc {
+        status = "disabled";
 	cd-gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
 };

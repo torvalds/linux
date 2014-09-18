@@ -50,6 +50,10 @@
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 	};
+		usb0: usb@10180000 {
+		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
+		rockchip,usb-mode = <1>;
+	};
 	 rockchip_suspend {
                 rockchip,ctrbits = <
                         (0
@@ -75,9 +79,9 @@
 			600000 1250000
 			696000 1250000
 			*/
-			816000 1250000
-			1008000 1250000
-			1200000 1320000
+			816000 1100000
+			1008000 1200000
+			1200000 1325000
 			>;
 		status="okay";
 	};
@@ -85,9 +89,9 @@
 	&clk_gpu_dvfs_table {
 		operating-points = <
 			/* KHz    uV */
-			200000 1250000
-			300000 1250000
-			480000 1250000
+			200000 1100000
+			300000 1100000
+			400000 1150000
 			>;
 		status="okay";
 	};
@@ -98,7 +102,7 @@
 			200000 950000
 			300000 950000
 			400000 1000000
-			533000 1050000
+			533000 1200000
 			>;
 
 		freq-table = <
@@ -175,6 +179,35 @@
 	status = "disabled";
 };
 
+&spi0 {
+	status = "disabled";
+	max-freq = <48000000>;	
+	/*
+	spi_test@00 {
+     		compatible = "rockchip,spi_test_bus0_cs0";
+        	reg = <0>;
+        	spi-max-frequency = <24000000>;
+        	//spi-cpha;
+		//spi-cpol;
+		poll_mode = <0>;
+		type = <0>;
+		enable_dma = <0>;
+
+	};
+	
+	spi_test@01 {
+	        compatible = "rockchip,spi_test_bus0_cs1";
+	        reg = <1>;
+	        spi-max-frequency = <24000000>;
+	        spi-cpha;
+		spi-cpol;
+	        poll_mode = <0>;
+	        type = <0>;
+		enable_dma = <0>;	        
+	};
+	*/
+};
+
 &gmac {
 	//pmu_regulator = "act_ldo5";
 	//pmu_enable_level = <1>; //1->HIGH, 0->LOW
@@ -206,18 +239,7 @@
 };
 
 &sdmmc {
-	clock-frequency = <37500000>;
-	clock-freq-min-max = <400000 37500000>;
-	supports-highspeed;
-	supports-sd;
-	broken-cd;
-	card-detect-delay = <200>;
-	ignore-pm-notify;
-	keep-power-in-suspend;
-	vmmc-supply = <&rk818_ldo9_reg>;
-	status = "disabled";
-};
-
-&sdmmc {
+        status = "okay";
 	cd-gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
 };
+
