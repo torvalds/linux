@@ -190,92 +190,6 @@ static irqreturn_t corehi_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static inline int clz(unsigned long x)
-{
-	__asm__(
-	"	.set	push					\n"
-	"	.set	mips32					\n"
-	"	clz	%0, %1					\n"
-	"	.set	pop					\n"
-	: "=r" (x)
-	: "r" (x));
-
-	return x;
-}
-
-/*
- * Version of ffs that only looks at bits 12..15.
- */
-static inline unsigned int irq_ffs(unsigned int pending)
-{
-#if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
-	return -clz(pending) + 31 - CAUSEB_IP;
-#else
-	unsigned int a0 = 7;
-	unsigned int t0;
-
-	t0 = pending & 0xf000;
-	t0 = t0 < 1;
-	t0 = t0 << 2;
-	a0 = a0 - t0;
-	pending = pending << t0;
-
-	t0 = pending & 0xc000;
-	t0 = t0 < 1;
-	t0 = t0 << 1;
-	a0 = a0 - t0;
-	pending = pending << t0;
-
-	t0 = pending & 0x8000;
-	t0 = t0 < 1;
-	/* t0 = t0 << 2; */
-	a0 = a0 - t0;
-	/* pending = pending << t0; */
-
-	return a0;
-#endif
-}
-
-/*
- * IRQs on the Malta board look basically (barring software IRQs which we
- * don't use at all and all external interrupt sources are combined together
- * on hardware interrupt 0 (MIPS IRQ 2)) like:
- *
- *	MIPS IRQ	Source
- *	--------	------
- *	       0	Software (ignored)
- *	       1	Software (ignored)
- *	       2	Combined hardware interrupt (hw0)
- *	       3	Hardware (ignored)
- *	       4	Hardware (ignored)
- *	       5	Hardware (ignored)
- *	       6	Hardware (ignored)
- *	       7	R4k timer (what we use)
- *
- * We handle the IRQ according to _our_ priority which is:
- *
- * Highest ----	    R4k Timer
- * Lowest  ----	    Combined hardware interrupt
- *
- * then we just return, if multiple IRQs are pending then we will just take
- * another exception, big deal.
- */
-
-asmlinkage void plat_irq_dispatch(void)
-{
-	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
-	int irq;
-
-	if (unlikely(!pending)) {
-		spurious_interrupt();
-		return;
-	}
-
-	irq = irq_ffs(pending);
-
-	do_IRQ(MIPS_CPU_IRQ_BASE + irq);
-}
-
 #ifdef CONFIG_MIPS_MT_SMP
 
 #define MIPS_CPU_IPI_RESCHED_IRQ 0	/* SW int 0 for resched */
@@ -438,12 +352,6 @@ void __init arch_init_irq(void)
 			cpu_ipi_resched_irq = MSC01E_INT_SW0;
 			cpu_ipi_call_irq = MSC01E_INT_SW1;
 		} else {
-			if (cpu_has_vint) {
-				set_vi_handler (MIPS_CPU_IPI_RESCHED_IRQ,
-					ipi_resched_dispatch);
-				set_vi_handler (MIPS_CPU_IPI_CALL_IRQ,
-					ipi_call_dispatch);
-			}
 			cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE +
 				MIPS_CPU_IPI_RESCHED_IRQ;
 			cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE +
