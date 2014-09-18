@@ -51,11 +51,11 @@ enum ap_peer {
 #define RTL_TX_DESC_SIZE	32
 #define RTL_TX_HEADER_SIZE	(RTL_TX_DESC_SIZE + RTL_TX_DUMMY_SIZE)
 
-#define HT_AMSDU_SIZE_4K 	3839
-#define HT_AMSDU_SIZE_8K 	7935
+#define HT_AMSDU_SIZE_4K	3839
+#define HT_AMSDU_SIZE_8K	7935
 
-#define MAX_BIT_RATE_40MHZ_MCS15 	300	/* Mbps */
-#define MAX_BIT_RATE_40MHZ_MCS7 	150	/* Mbps */
+#define MAX_BIT_RATE_40MHZ_MCS15	300	/* Mbps */
+#define MAX_BIT_RATE_40MHZ_MCS7	150	/* Mbps */
 
 #define RTL_RATE_COUNT_LEGACY		12
 #define RTL_CHANNEL_COUNT		14
@@ -88,20 +88,20 @@ enum ap_peer {
 	WRITEEF2BYTE((u8 *)(_hdr)+FRAME_OFFSET_DURATION, _val)
 #define SET_80211_HDR_ADDRESS1(_hdr, _val)	\
 	CP_MACADDR((u8 *)(_hdr)+FRAME_OFFSET_ADDRESS1, (u8 *)(_val))
-#define SET_80211_HDR_ADDRESS2(_hdr, _val) 	\
+#define SET_80211_HDR_ADDRESS2(_hdr, _val)	\
 	CP_MACADDR((u8 *)(_hdr)+FRAME_OFFSET_ADDRESS2, (u8 *)(_val))
-#define SET_80211_HDR_ADDRESS3(_hdr, _val) 	\
+#define SET_80211_HDR_ADDRESS3(_hdr, _val)	\
 	CP_MACADDR((u8 *)(_hdr)+FRAME_OFFSET_ADDRESS3, (u8 *)(_val))
 #define SET_80211_HDR_FRAGMENT_SEQUENCE(_hdr, _val)  \
 	WRITEEF2BYTE((u8 *)(_hdr)+FRAME_OFFSET_SEQUENCE, _val)
 
-#define SET_BEACON_PROBE_RSP_TIME_STAMP_LOW(__phdr, __val) 	\
+#define SET_BEACON_PROBE_RSP_TIME_STAMP_LOW(__phdr, __val)	\
 	WRITEEF4BYTE(((u8 *)(__phdr)) + 24, __val)
 #define SET_BEACON_PROBE_RSP_TIME_STAMP_HIGH(__phdr, __val) \
 	WRITEEF4BYTE(((u8 *)(__phdr)) + 28, __val)
 #define SET_BEACON_PROBE_RSP_BEACON_INTERVAL(__phdr, __val) \
 	WRITEEF2BYTE(((u8 *)(__phdr)) + 32, __val)
-#define GET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr) 		\
+#define GET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr)		\
 	READEF2BYTE(((u8 *)(__phdr)) + 34)
 #define SET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr, __val) \
 	WRITEEF2BYTE(((u8 *)(__phdr)) + 34, __val)
