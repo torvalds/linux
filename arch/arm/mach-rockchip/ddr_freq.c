@@ -330,7 +330,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 		 }
 	 }
 
-	if (ddr.video_4k_rate && (s & SYS_STATUS_VIDEO_4K)) {
+	if (ddr.video_4k_rate && (s & SYS_STATUS_VIDEO_4K) && !(s & SYS_STATUS_SUSPEND)) {
 		if (ddr.video_4k_rate > target_rate) {
 			target_rate = ddr.video_4k_rate;
 			auto_self_refresh = false;
