@@ -110,7 +110,7 @@ config XTENSA_MX
 config IRQ_CROSSBAR
 	bool
 	help
-	  Support for a CROSSBAR ip that preceeds the main interrupt controller.
+	  Support for a CROSSBAR ip that precedes the main interrupt controller.
 	  The primary irqchip invokes the crossbar's callback which inturn allocates
 	  a free irq and configures the IP. Thus the peripheral interrupts are
 	  routed to one of the free irqchip interrupt lines.

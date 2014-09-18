@@ -356,7 +356,7 @@ config I2C_BCM_KONA
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Broadcom Kona family of processors.
 
-	  If you do not need KONA I2C inteface, say N.
+	  If you do not need KONA I2C interface, say N.
 
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
