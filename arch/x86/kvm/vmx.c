@@ -6711,7 +6711,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 	switch (type) {
 	case VMX_EPT_EXTENT_GLOBAL:
 		kvm_mmu_sync_roots(vcpu);
-		kvm_mmu_flush_tlb(vcpu);
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		nested_vmx_succeed(vcpu);
 		break;
 	default:

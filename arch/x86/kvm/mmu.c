@@ -1743,7 +1743,7 @@ static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		return 1;
 	}
 
-	kvm_mmu_flush_tlb(vcpu);
+	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	return 0;
 }
 
@@ -1796,7 +1796,7 @@ static void kvm_sync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
 
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 	if (flush)
-		kvm_mmu_flush_tlb(vcpu);
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
 
 struct mmu_page_path {
@@ -2530,7 +2530,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	      true, host_writable)) {
 		if (write_fault)
 			*emulate = 1;
-		kvm_mmu_flush_tlb(vcpu);
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	}
 
 	if (unlikely(is_mmio_spte(*sptep) && emulate))
@@ -3444,12 +3444,6 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->nx = false;
 }
 
-void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
-{
-	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
-}
-EXPORT_SYMBOL_GPL(kvm_mmu_flush_tlb);
-
 void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu)
 {
 	mmu_free_roots(vcpu);
@@ -3964,7 +3958,7 @@ static void mmu_pte_write_flush_tlb(struct kvm_vcpu *vcpu, bool zap_page,
 	if (remote_flush)
 		kvm_flush_remote_tlbs(vcpu->kvm);
 	else if (local_flush)
-		kvm_mmu_flush_tlb(vcpu);
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
 
 static u64 mmu_pte_write_fetch_gpte(struct kvm_vcpu *vcpu, gpa_t *gpa,
@@ -4225,7 +4219,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	vcpu->arch.mmu.invlpg(vcpu, gva);
-	kvm_mmu_flush_tlb(vcpu);
+	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	++vcpu->stat.invlpg;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
