@@ -2836,7 +2836,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static inline unsigned int prev_ao_dma_index(struct comedi_device *dev)
@@ -3020,7 +3020,7 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 		if (ao_stopped_by_error(dev, cmd))
 			async->events |= COMEDI_CB_ERROR;
 	}
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static irqreturn_t handle_interrupt(int irq, void *d)
