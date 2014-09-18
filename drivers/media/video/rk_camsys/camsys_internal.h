@@ -97,8 +97,10 @@
          2) add support JPG irq connect;
 *v0.0x14.0:
          1) camsys_extdev_register return -EBUSY when this dev_id has been registered;
+*v0.0x15.0:
+         1) check extdev name when dev_id has been registered;
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x14,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x15,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
@@ -193,6 +195,7 @@ typedef struct camsys_flash_s {
     camsys_gpio_t        fl;
 } camsys_flash_t;
 typedef struct camsys_extdev_s {
+    unsigned char            dev_name[CAMSYS_NAME_LEN];
     unsigned int             dev_id;
     camsys_regulator_t       avdd;
     camsys_regulator_t       dovdd;

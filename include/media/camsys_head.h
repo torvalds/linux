@@ -23,8 +23,10 @@
 		 1) add flash_trigger_out control
 *v0.8.0:
 		 1) support isp iommu
+*v0.9.0:
+         1) add dev_name in struct camsys_devio_name_s;
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,8,0)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,9,0)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"           
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -209,6 +211,7 @@ typedef struct camsys_extdev_clk_s {
 } camsys_extdev_clk_t;
 
 typedef struct camsys_devio_name_s {
+    unsigned char               dev_name[CAMSYS_NAME_LEN];
     unsigned int                dev_id;
     
     camsys_regulator_info_t     avdd;         // sensor avdd power regulator name
