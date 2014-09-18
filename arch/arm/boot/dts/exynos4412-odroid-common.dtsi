@@ -133,6 +133,7 @@
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
 		samsung,dw-mshc-ddr-timing = <1 2>;
+		samsung,dw-mshc-hwreset-gpio = <&gpk1 2 1>;
 		bus-width = <8>;
 		cap-mmc-highspeed;
 	};
