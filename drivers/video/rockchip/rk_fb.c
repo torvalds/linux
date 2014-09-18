@@ -1125,6 +1125,7 @@ static void fb_copy_by_rga(struct fb_info *dst_info,
 static int rk_fb_rotate(struct fb_info *dst_info,
 			  struct fb_info *src_info)
 {
+
 #if defined(CONFIG_RK29_IPP)
 	fb_copy_by_ipp(dst_info, src_info);
 #elif defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
@@ -2854,9 +2855,10 @@ static ssize_t rk_fb_write(struct fb_info *info, const char __user *buf,
  * function: update extend info acorrding to primary info that only used for dual display mode
  * @ext_info: the fb_info of extend screen
  * @info: the fb_info of primary screen
+ * @update_buffer: whether to update extend info buffer, 0: no;1: yes
  */
 static int rk_fb_update_ext_info(struct fb_info *ext_info,
-					  struct fb_info *info)
+					struct fb_info *info, int update_buffer)
 {
 	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
 	struct rk_lcdc_driver *dev_drv = NULL;
@@ -2882,15 +2884,17 @@ static int rk_fb_update_ext_info(struct fb_info *ext_info,
 	ext_win = ext_dev_drv->win[ext_win_id];
 
 	rk_fb_update_ext_win(ext_dev_drv, dev_drv, ext_win, win);
-	rk_fb_set_ext_win_buffer(ext_win, win, ext_dev_drv->rotate_mode,
-				 ext_dev_drv->iommu_enabled);
+	if (update_buffer) {
+		rk_fb_set_ext_win_buffer(ext_win, win, ext_dev_drv->rotate_mode,
+					 ext_dev_drv->iommu_enabled);
 
-	/* update extend info display address */
-	ext_info->fix.smem_start = win->area[0].smem_start;
-	ext_info->fix.mmio_start = win->area[0].cbr_start;
+		/* update extend info display address */
+		ext_info->fix.smem_start = ext_win->area[0].smem_start;
+		ext_info->fix.mmio_start = ext_win->area[0].cbr_start;
 
-	if (ext_dev_drv->rotate_mode > X_Y_MIRROR)
-		rk_fb_rotate(ext_info, info);
+		if (ext_dev_drv->rotate_mode > X_Y_MIRROR)
+			rk_fb_rotate(ext_info, info);
+	}
 
 	/* update extend info */
 	ext_info->var.xres = ext_win->area[0].xact;
@@ -3372,7 +3376,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				}
 				info->var.activate |= FB_ACTIVATE_FORCE;
 				if (rk_fb->disp_mode == DUAL)
-					rk_fb_update_ext_info(info, pmy_info);
+					rk_fb_update_ext_info(info, pmy_info, 1);
 				info->fbops->fb_set_par(info);
 				info->fbops->fb_pan_display(&info->var, info);
 			}
@@ -3448,7 +3452,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 		dev_drv->cur_screen->xsize = screen_x * scale_x / 100;
 		dev_drv->cur_screen->ysize = screen_y * scale_y / 100;
 		if (inf->disp_mode == DUAL) {
-			rk_fb_update_ext_info(info, pmy_info);
+			rk_fb_update_ext_info(info, pmy_info, 0);
 		} else {
 			var->nonstd &= 0xff;
 			var->nonstd |= (xpos << 8) + (ypos << 20);

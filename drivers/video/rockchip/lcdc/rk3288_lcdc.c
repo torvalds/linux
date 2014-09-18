@@ -312,6 +312,12 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 				win0->fmt_10 = (val & m_WIN0_FMT_10) >> 4;
 				win0->format = win0->fmt_cfg;
 				break;
+			case WIN0_YRGB_MST:
+				win0->area[0].smem_start = val;
+				break;
+			case WIN0_CBR_MST:
+				win0->area[0].cbr_start = val;
+				break;
 			default:
 				break;
 		}
