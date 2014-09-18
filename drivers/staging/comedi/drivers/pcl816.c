@@ -160,7 +160,7 @@ static void pcl816_ai_setup_dma(struct comedi_device *dev,
 	bytes = devpriv->hwdmasize;
 	if (cmd->stop_src == TRIG_COUNT) {
 		/*  how many */
-		bytes = cmd->stop_arg * cfc_bytes_per_scan(s);
+		bytes = cmd->stop_arg * comedi_bytes_per_scan(s);
 
 		/*  how many DMA pages we must fill */
 		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
