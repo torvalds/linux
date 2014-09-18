@@ -485,7 +485,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	}
 
 out:
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 #if 0
 	if (!tag)
 		writeb(0x03, dev->mmio + Master_DMA_And_Interrupt_Control);
