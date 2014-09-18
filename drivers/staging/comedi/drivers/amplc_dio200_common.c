@@ -272,7 +272,6 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 	} else {
 		/* Error!  Stop acquisition.  */
-		dio200_stop_intr(dev, s);
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
 		dev_err(dev->class_dev, "buffer overflow\n");
 	}
@@ -281,10 +280,8 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 	if (cmd->stop_src == TRIG_COUNT) {
 		if (subpriv->stopcount > 0) {
 			subpriv->stopcount--;
-			if (subpriv->stopcount == 0) {
+			if (subpriv->stopcount == 0)
 				s->async->events |= COMEDI_CB_EOA;
-				dio200_stop_intr(dev, s);
-			}
 		}
 	}
 }
@@ -297,13 +294,11 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	unsigned triggered;
 	unsigned intstat;
 	unsigned cur_enabled;
-	unsigned int oldevents;
 	unsigned long flags;
 
 	triggered = 0;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	oldevents = s->async->events;
 	if (board->has_int_sce) {
 		/*
 		 * Collect interrupt sources that have triggered and disable
@@ -356,8 +351,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	}
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (oldevents != s->async->events)
-		comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 
 	return (triggered != 0);
 }
