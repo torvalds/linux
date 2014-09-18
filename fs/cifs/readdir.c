@@ -585,8 +585,8 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 		if (!cfile->srch_inf.endOfSearch && !cfile->invalidHandle) {
 			cfile->invalidHandle = true;
 			spin_unlock(&cifs_file_list_lock);
-			if (server->ops->close)
-				server->ops->close(xid, tcon, &cfile->fid);
+			if (server->ops->close_dir)
+				server->ops->close_dir(xid, tcon, &cfile->fid);
 		} else
 			spin_unlock(&cifs_file_list_lock);
 		if (cfile->srch_inf.ntwrk_buf_start) {
