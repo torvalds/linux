@@ -24,7 +24,6 @@
 unsigned int gic_frequency;
 unsigned int gic_present;
 unsigned long _gic_base;
-unsigned int gic_irq_flags[GIC_NUM_INTRS];
 unsigned int gic_cpu_pin;
 
 struct gic_pcpu_mask {
@@ -45,6 +44,7 @@ static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
 static int gic_shared_intrs;
+static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
 
 static void __gic_irq_dispatch(void);
 
@@ -229,9 +229,7 @@ static void gic_ack_irq(struct irq_data *d)
 {
 	unsigned int irq = d->hwirq;
 
-	/* Clear edge detector */
-	if (gic_irq_flags[irq] & GIC_TRIG_EDGE)
-		GICWRITE(GIC_REG(SHARED, GIC_SH_WEDGE), irq);
+	GICWRITE(GIC_REG(SHARED, GIC_SH_WEDGE), irq);
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
@@ -276,11 +274,13 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	}
 
 	if (is_edge) {
-		gic_irq_flags[irq] |= GIC_TRIG_EDGE;
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		__irq_set_chip_handler_name_locked(d->irq,
+						   &gic_edge_irq_controller,
+						   handle_edge_irq, NULL);
 	} else {
-		gic_irq_flags[irq] &= ~GIC_TRIG_EDGE;
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		__irq_set_chip_handler_name_locked(d->irq,
+						   &gic_level_irq_controller,
+						   handle_level_irq, NULL);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 
@@ -318,7 +318,17 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 }
 #endif
 
-static struct irq_chip gic_irq_controller = {
+static struct irq_chip gic_level_irq_controller = {
+	.name			=	"MIPS GIC",
+	.irq_mask		=	gic_mask_irq,
+	.irq_unmask		=	gic_unmask_irq,
+	.irq_set_type		=	gic_set_type,
+#ifdef CONFIG_SMP
+	.irq_set_affinity	=	gic_set_affinity,
+#endif
+};
+
+static struct irq_chip gic_edge_irq_controller = {
 	.name			=	"MIPS GIC",
 	.irq_ack		=	gic_ack_irq,
 	.irq_mask		=	gic_mask_irq,
@@ -431,7 +441,6 @@ static void __init gic_basic_init(int numvpes)
 		GIC_SET_POLARITY(i, GIC_POL_POS);
 		GIC_SET_TRIGGER(i, GIC_TRIG_LEVEL);
 		GIC_CLR_INTR_MASK(i);
-		gic_irq_flags[i] = 0;
 	}
 
 	vpe_local_setup(numvpes);
@@ -442,7 +451,8 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 {
 	unsigned long flags;
 
-	irq_set_chip_and_handler(virq, &gic_irq_controller, handle_level_irq);
+	irq_set_chip_and_handler(virq, &gic_level_irq_controller,
+				 handle_level_irq);
 
 	spin_lock_irqsave(&gic_lock, flags);
 	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_PIN(hw)),

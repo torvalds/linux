@@ -345,7 +345,6 @@
 extern unsigned int gic_present;
 extern unsigned int gic_frequency;
 extern unsigned long _gic_base;
-extern unsigned int gic_irq_flags[];
 extern unsigned int gic_cpu_pin;
 
 extern void gic_init(unsigned long gic_base_addr,
