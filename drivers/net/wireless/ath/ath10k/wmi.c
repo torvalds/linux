@@ -2780,45 +2780,6 @@ static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
 	}
 }
 
-/* WMI Initialization functions */
-int ath10k_wmi_attach(struct ath10k *ar)
-{
-	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
-		if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features))
-			ar->wmi.cmd = &wmi_10_2_cmd_map;
-		else
-			ar->wmi.cmd = &wmi_10x_cmd_map;
-
-		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
-		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
-	} else {
-		ar->wmi.cmd = &wmi_cmd_map;
-		ar->wmi.vdev_param = &wmi_vdev_param_map;
-		ar->wmi.pdev_param = &wmi_pdev_param_map;
-	}
-
-	init_completion(&ar->wmi.service_ready);
-	init_completion(&ar->wmi.unified_ready);
-	init_waitqueue_head(&ar->wmi.tx_credits_wq);
-
-	return 0;
-}
-
-void ath10k_wmi_detach(struct ath10k *ar)
-{
-	int i;
-
-	/* free the host memory chunks requested by firmware */
-	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
-		dma_free_coherent(ar->dev,
-				  ar->wmi.mem_chunks[i].len,
-				  ar->wmi.mem_chunks[i].vaddr,
-				  ar->wmi.mem_chunks[i].paddr);
-	}
-
-	ar->wmi.num_mem_chunks = 0;
-}
-
 int ath10k_wmi_connect(struct ath10k *ar)
 {
 	int status;
@@ -4186,4 +4147,42 @@ int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable)
 		   __le32_to_cpu(cmd->config_valid));
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->dbglog_cfg_cmdid);
+}
+
+int ath10k_wmi_attach(struct ath10k *ar)
+{
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+		if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features))
+			ar->wmi.cmd = &wmi_10_2_cmd_map;
+		else
+			ar->wmi.cmd = &wmi_10x_cmd_map;
+
+		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
+		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
+	} else {
+		ar->wmi.cmd = &wmi_cmd_map;
+		ar->wmi.vdev_param = &wmi_vdev_param_map;
+		ar->wmi.pdev_param = &wmi_pdev_param_map;
+	}
+
+	init_completion(&ar->wmi.service_ready);
+	init_completion(&ar->wmi.unified_ready);
+	init_waitqueue_head(&ar->wmi.tx_credits_wq);
+
+	return 0;
+}
+
+void ath10k_wmi_detach(struct ath10k *ar)
+{
+	int i;
+
+	/* free the host memory chunks requested by firmware */
+	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
+		dma_free_coherent(ar->dev,
+				  ar->wmi.mem_chunks[i].len,
+				  ar->wmi.mem_chunks[i].vaddr,
+				  ar->wmi.mem_chunks[i].paddr);
+	}
+
+	ar->wmi.num_mem_chunks = 0;
 }
