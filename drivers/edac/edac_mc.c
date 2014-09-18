@@ -146,6 +146,9 @@ const char * const edac_mem_types[] = {
 	"Rambus XDR",
 	"Unbuffered DDR3 RAM",
 	"Registered DDR3 RAM",
+	"Load-Reduced DDR3 RAM",
+	"Unbuffered DDR4 RAM",
+	"Registered DDR4 RAM",
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
 

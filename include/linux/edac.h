@@ -194,7 +194,8 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_DDR3:		DDR3 RAM
  * @MEM_RDDR3:		Registered DDR3 RAM
  *			This is a variant of the DDR3 memories.
- * @MEM_DDR4:		DDR4 RAM
+ * @MEM_LRDDR3		Load-Reduced DDR3 memory.
+ * @MEM_DDR4:		Unbuffered DDR4 RAM
  * @MEM_RDDR4:		Registered DDR4 RAM
  *			This is a variant of the DDR4 memories.
  */
@@ -216,6 +217,7 @@ enum mem_type {
 	MEM_XDR,
 	MEM_DDR3,
 	MEM_RDDR3,
+	MEM_LRDDR3,
 	MEM_DDR4,
 	MEM_RDDR4,
 };
