@@ -337,7 +337,6 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 {
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int oldevents = s->async->events;
 	unsigned int val = 0;
 	unsigned long flags;
 	int i;
@@ -359,29 +358,20 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 
 	/* Write the scan to the buffer. */
 	if (comedi_buf_put(s, val) &&
-	    comedi_buf_put(s, val >> 16)) {
+	    comedi_buf_put(s, val >> 16))
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-	} else {
-		/* Overflow! Stop acquisition!! */
-		/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-		pcmmio_stop_intr(dev, s);
-	}
 
 	/* Check for end of acquisition. */
 	if (cmd->stop_src == TRIG_COUNT && devpriv->stop_count > 0) {
 		devpriv->stop_count--;
-		if (devpriv->stop_count == 0) {
+		if (devpriv->stop_count == 0)
 			s->async->events |= COMEDI_CB_EOA;
-			/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-			pcmmio_stop_intr(dev, s);
-		}
 	}
 
 done:
 	spin_unlock_irqrestore(&devpriv->spinlock, flags);
 
-	if (oldevents != s->async->events)
-		comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static irqreturn_t interrupt_pcmmio(int irq, void *d)
