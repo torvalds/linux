@@ -333,8 +333,7 @@ static int attach_auth_trunc(struct xfrm_algo_auth **algpp, u8 *props,
 	algo = xfrm_aalg_get_byname(ualg->alg_name, 1);
 	if (!algo)
 		return -ENOSYS;
-	if ((ualg->alg_trunc_len / 8) > MAX_AH_AUTH_LEN ||
-	    ualg->alg_trunc_len > algo->uinfo.auth.icv_fullbits)
+	if (ualg->alg_trunc_len > algo->uinfo.auth.icv_fullbits)
 		return -EINVAL;
 	*props = algo->desc.sadb_alg_id;
 
