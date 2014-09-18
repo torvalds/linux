@@ -479,6 +479,23 @@ config X86_INTEL_LPSS
 	  things like clock tree (common clock framework) and pincontrol
 	  which are needed by the LPSS peripheral drivers.
 
+config IOSF_MBI
+	tristate "Intel SoC IOSF Sideband support for SoC platforms"
+	depends on PCI
+	---help---
+	  This option enables sideband register access support for Intel SoC
+	  platforms. On these platforms the IOSF sideband is used in lieu of
+	  MSR's for some register accesses, mostly but not limited to thermal
+	  and power. Drivers may query the availability of this device to
+	  determine if they need the sideband in order to work on these
+	  platforms. The sideband is available on the following SoC products.
+	  This list is not meant to be exclusive.
+	   - BayTrail
+	   - Braswell
+	   - Quark
+
+	  You should say Y if you are running a kernel on one of these SoC's.
+
 config X86_RDC321X
 	bool "RDC R-321x SoC"
 	depends on X86_32
@@ -2431,21 +2448,6 @@ config X86_DEV_DMA_OPS
 config X86_DMA_REMAP
 	bool
 	depends on STA2X11
-
-config IOSF_MBI
-	tristate "Intel System On Chip IOSF Sideband support"
-	depends on PCI
-	---help---
-	  Enables sideband access to mailbox registers on SoC's. The sideband is
-	  available on the following platforms. This list is not meant to be
-	  exclusive.
-	   - BayTrail
-	   - Cherryview
-	   - Braswell
-	   - Quark
-
-	  You should say Y if you are running a kernel on one of these
-	  platforms.
 
 config PMC_ATOM
 	def_bool y
