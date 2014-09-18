@@ -790,8 +790,9 @@ static long camsys_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
 	    {
             int iommu_enabled = 0;
             #ifdef CONFIG_ROCKCHIP_IOMMU
-                of_property_read_u32(camsys_dev->pdev->dev.of_node, "rockchip,isp,iommu_enable", &iommu_enabled);
-            #endif
+                //of_property_read_u32(camsys_dev->pdev->dev.of_node, "rockchip,isp,iommu_enable", &iommu_enabled);
+            	iommu_enabled = 1;
+			#endif
             if (copy_to_user((void __user *)arg,(void*)&iommu_enabled, sizeof(iommu_enabled)))
                 return -EFAULT;
             break;
