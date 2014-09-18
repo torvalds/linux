@@ -658,7 +658,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 	*max_size = 0;
 	switch (ctxt->mode) {
 	case X86EMUL_MODE_PROT64:
-		if (((signed long)la << 16) >> 16 != la)
+		if (is_noncanonical_address(la))
 			return emulate_gp(ctxt, 0);
 
 		*max_size = min_t(u64, ~0u, (1ull << 48) - la);
