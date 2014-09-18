@@ -714,11 +714,3 @@ int malta_be_handler(struct pt_regs *regs, int is_fixup)
 
 	return retval;
 }
-
-void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
-{
-	int i;
-
-	for (i = gic_irq_base; i < (gic_irq_base + irqs); i++)
-		irq_set_chip(i, irq_controller);
-}

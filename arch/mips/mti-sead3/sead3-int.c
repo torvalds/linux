@@ -85,18 +85,3 @@ void __init arch_init_irq(void)
 			ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
 }
 
-void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
-{
-	int i;
-
-	/*
-	 * For non-EIC mode, we want to setup the GIC in pass-through
-	 * mode, as if the GIC didn't exist. Do not map any interrupts
-	 * for an external interrupt controller.
-	 */
-	if (!cpu_has_veic)
-		return;
-
-	for (i = gic_irq_base; i < (gic_irq_base + irqs); i++)
-		irq_set_chip_and_handler(i, irq_controller, handle_percpu_irq);
-}
