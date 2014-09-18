@@ -429,8 +429,9 @@ static u32 rkpm_slp_mode_set(u32 ctrbits)
 	}
 	/*rk3126 GPIO1A1 : RK3128 GPIO3C1 iomux pmic-sleep*/
 	if (pmic_sleep_gpio == 0x3c10) {
-		gpio_pmic_sleep_mode = grf_readl(0xe4);
-		grf_writel(0X000C0004, 0xe4);
+		ddr_printch('a');
+		gpio_pmic_sleep_mode = grf_readl(0xe0);
+		grf_writel(0X000C0008, 0xe0);
 	}
 	/*rk3126 GPIO3C1 : RK3128 GPIO3C1 iomux pmic-sleep*/
 
@@ -790,10 +791,10 @@ static inline void  rkpm_slp_mode_set_resume(void)
 	grf_writel(grf_soc_con0 | (1 << (SOC_REMAP + 16)), GRF_SOC_CON0);
 
 	if ((pmic_sleep_gpio == 0) || (pmic_sleep_gpio == 0x1a10))
-		grf_writel(0X000C000C | gpio_pmic_sleep_mode, 0xb8);
+		grf_writel(0X000C0000 | gpio_pmic_sleep_mode, 0xb8);
 	/*rk3126 GPIO1A1 : RK3128 GPIO3C1 iomux pmic-sleep*/
 	if (pmic_sleep_gpio == 0x3c10)
-		grf_writel(0X000C0004 | gpio_pmic_sleep_mode, 0xe4);
+		grf_writel(0X000C0000 | gpio_pmic_sleep_mode, 0xe0);
 }
 
 void fiq_glue_resume(void);
