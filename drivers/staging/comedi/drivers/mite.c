@@ -550,7 +550,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	u32 stop_count = cmd->stop_arg * cfc_bytes_per_scan(s);
+	u32 stop_count = cmd->stop_arg * comedi_bytes_per_scan(s);
 	unsigned int old_alloc_count = async->buf_read_alloc_count;
 	u32 nbytes_ub, nbytes_lb;
 	int count;
