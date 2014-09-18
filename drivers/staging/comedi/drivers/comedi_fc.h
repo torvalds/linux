@@ -23,12 +23,6 @@
 
 #include "../comedidev.h"
 
-static inline void cfc_inc_scan_progress(struct comedi_subdevice *s,
-					 unsigned int num_bytes)
-{
-	comedi_inc_scan_progress(s, num_bytes);
-}
-
 static inline unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
 						     const void *data,
 						     unsigned int num_bytes)
