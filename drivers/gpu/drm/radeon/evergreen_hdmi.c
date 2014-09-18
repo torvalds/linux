@@ -501,6 +501,8 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 {
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 
@@ -512,6 +514,14 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 	if (!enable && !dig->afmt->enabled)
 		return;
+
+	if (!enable && dig->afmt->pin) {
+		if (ASIC_IS_DCE6(rdev))
+			dce6_audio_enable(rdev, dig->afmt->pin, 0);
+		else
+			dce4_audio_enable(rdev, dig->afmt->pin, 0);
+		dig->afmt->pin = NULL;
+	}
 
 	dig->afmt->enabled = enable;
 
