@@ -2274,8 +2274,8 @@ static int ath10k_wmi_10x_pull_svc_rdy_ev(struct sk_buff *skb,
 	return 0;
 }
 
-static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
-					      struct sk_buff *skb)
+static void ath10k_wmi_event_service_ready(struct ath10k *ar,
+					   struct sk_buff *skb)
 {
 	struct wmi_svc_rdy_ev_arg arg = {};
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
@@ -2388,7 +2388,7 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	complete(&ar->wmi.service_ready);
 }
 
-static int ath10k_wmi_ready_event_rx(struct ath10k *ar, struct sk_buff *skb)
+static int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_ready_event *ev = (struct wmi_ready_event *)skb->data;
 
@@ -2511,10 +2511,10 @@ static void ath10k_wmi_main_process_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_event_vdev_install_key_complete(ar, skb);
 		break;
 	case WMI_SERVICE_READY_EVENTID:
-		ath10k_wmi_service_ready_event_rx(ar, skb);
+		ath10k_wmi_event_service_ready(ar, skb);
 		break;
 	case WMI_READY_EVENTID:
-		ath10k_wmi_ready_event_rx(ar, skb);
+		ath10k_wmi_event_ready(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -2631,10 +2631,10 @@ static void ath10k_wmi_10x_process_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_event_vdev_resume_req(ar, skb);
 		break;
 	case WMI_10X_SERVICE_READY_EVENTID:
-		ath10k_wmi_service_ready_event_rx(ar, skb);
+		ath10k_wmi_event_service_ready(ar, skb);
 		break;
 	case WMI_10X_READY_EVENTID:
-		ath10k_wmi_ready_event_rx(ar, skb);
+		ath10k_wmi_event_ready(ar, skb);
 		break;
 	case WMI_10X_PDEV_UTF_EVENTID:
 		/* ignore utf events */
@@ -2742,10 +2742,10 @@ static void ath10k_wmi_10_2_process_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_event_vdev_resume_req(ar, skb);
 		break;
 	case WMI_10_2_SERVICE_READY_EVENTID:
-		ath10k_wmi_service_ready_event_rx(ar, skb);
+		ath10k_wmi_event_service_ready(ar, skb);
 		break;
 	case WMI_10_2_READY_EVENTID:
-		ath10k_wmi_ready_event_rx(ar, skb);
+		ath10k_wmi_event_ready(ar, skb);
 		break;
 	case WMI_10_2_RTT_KEEPALIVE_EVENTID:
 	case WMI_10_2_GPIO_INPUT_EVENTID:
