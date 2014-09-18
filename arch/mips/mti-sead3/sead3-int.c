@@ -85,27 +85,6 @@ void __init arch_init_irq(void)
 			ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
 }
 
-void gic_irq_ack(struct irq_data *d)
-{
-	GIC_CLR_INTR_MASK(d->irq - gic_irq_base);
-}
-
-void gic_finish_irq(struct irq_data *d)
-{
-	unsigned int irq = (d->irq - gic_irq_base);
-	unsigned int i, irq_source;
-
-	/* Clear edge detectors. */
-	for (i = 0; i < gic_shared_intr_map[irq].num_shared_intr; i++) {
-		irq_source = gic_shared_intr_map[irq].intr_list[i];
-		if (gic_irq_flags[irq_source] & GIC_TRIG_EDGE)
-			GICWRITE(GIC_REG(SHARED, GIC_SH_WEDGE), irq_source);
-	}
-
-	/* Enable interrupts. */
-	GIC_SET_INTR_MASK(irq);
-}
-
 void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
 {
 	int i;
