@@ -96,8 +96,6 @@ struct ath10k_bmi {
 	bool done_sent;
 };
 
-#define ATH10K_MAX_MEM_REQS 16
-
 struct ath10k_mem_chunk {
 	void *vaddr;
 	dma_addr_t paddr;
@@ -115,7 +113,7 @@ struct ath10k_wmi {
 	struct wmi_pdev_param_map *pdev_param;
 
 	u32 num_mem_chunks;
-	struct ath10k_mem_chunk mem_chunks[ATH10K_MAX_MEM_REQS];
+	struct ath10k_mem_chunk mem_chunks[WMI_MAX_MEM_REQS];
 };
 
 struct ath10k_peer_stat {

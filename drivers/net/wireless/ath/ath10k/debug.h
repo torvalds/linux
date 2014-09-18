@@ -53,7 +53,7 @@ void ath10k_debug_destroy(struct ath10k *ar);
 int ath10k_debug_register(struct ath10k *ar);
 void ath10k_debug_unregister(struct ath10k *ar);
 void ath10k_debug_read_service_map(struct ath10k *ar,
-				   void *service_map,
+				   const void *service_map,
 				   size_t map_size);
 void ath10k_debug_read_target_stats(struct ath10k *ar,
 				    struct wmi_stats_event *ev);
@@ -93,7 +93,7 @@ static inline void ath10k_debug_unregister(struct ath10k *ar)
 }
 
 static inline void ath10k_debug_read_service_map(struct ath10k *ar,
-						 void *service_map,
+						 const void *service_map,
 						 size_t map_size)
 {
 }

@@ -182,7 +182,7 @@ EXPORT_SYMBOL(ath10k_warn);
 #ifdef CONFIG_ATH10K_DEBUGFS
 
 void ath10k_debug_read_service_map(struct ath10k *ar,
-				   void *service_map,
+				   const void *service_map,
 				   size_t map_size)
 {
 	memcpy(ar->debug.wmi_service_bitmap, service_map, map_size);

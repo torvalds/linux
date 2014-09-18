@@ -1428,11 +1428,11 @@ struct wmi_service_ready_event {
 	 * where FW can access this memory directly (or) by DMA.
 	 */
 	__le32 num_mem_reqs;
-	struct wlan_host_mem_req mem_reqs[1];
+	struct wlan_host_mem_req mem_reqs[0];
 } __packed;
 
 /* This is the definition from 10.X firmware branch */
-struct wmi_service_ready_event_10x {
+struct wmi_10x_service_ready_event {
 	__le32 sw_version;
 	__le32 abi_version;
 
@@ -1467,7 +1467,7 @@ struct wmi_service_ready_event_10x {
 	 */
 	__le32 num_mem_reqs;
 
-	struct wlan_host_mem_req mem_reqs[1];
+	struct wlan_host_mem_req mem_reqs[0];
 } __packed;
 
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
@@ -4701,6 +4701,23 @@ struct wmi_dbglog_cfg_cmd {
 
 /* By default disable power save for IBSS */
 #define ATH10K_DEFAULT_ATIM 0
+
+#define WMI_MAX_MEM_REQS 16
+
+struct wmi_svc_rdy_ev_arg {
+	__le32 min_tx_power;
+	__le32 max_tx_power;
+	__le32 ht_cap;
+	__le32 vht_cap;
+	__le32 sw_ver0;
+	__le32 sw_ver1;
+	__le32 phy_capab;
+	__le32 num_rf_chains;
+	__le32 eeprom_rd;
+	__le32 num_mem_reqs;
+	const __le32 *service_map;
+	const struct wlan_host_mem_req *mem_reqs[WMI_MAX_MEM_REQS];
+};
 
 struct ath10k;
 struct ath10k_vif;
